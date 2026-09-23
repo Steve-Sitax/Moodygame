@@ -88,7 +88,7 @@ ON THE KAAI LATELY (newest first)
 ${log.map((l) => "- " + l.text).join("\n")}
 
 NOW
-Day ${pl.day} of the week, ${String(pl.hour).padStart(2, "0")}:00, ${pl.hour < 7 ? "before dawn" : pl.hour < 12 ? "morning" : pl.hour < 17 ? "afternoon" : pl.hour < 21 ? "evening" : "night"}. Weather on the Rijnkaai: ${WEATHER_TEXT[weather(db)]}.${WARES[id] ? `\nYou sell (fixed prices; Jef pays at your stall, never in talk): ${WARES[id].map((w) => `${ITEMS[w.kind].name} ${w.price_c} centimes`).join(", ")}.` : ""}${jobs.length ? `\nYour work on the board:\n${jobs.map((j) => `- "${j.title}", ${workFacts(j)} Pay ${j.pay_c} centimes. ${j.status === "taken" ? "Jef is doing it now." : "Still open."}`).join("\n")}` : ""}
+Day ${pl.day} of the week, ${String(pl.hour).padStart(2, "0")}:00, ${pl.hour < 7 ? "before dawn" : pl.hour < 12 ? "morning" : pl.hour < 17 ? "afternoon" : pl.hour < 21 ? "evening" : "night"}. Weather on the Rijnkaai: ${WEATHER_TEXT[weather(db)]}.${WARES[id] ? `\nYou sell (fixed prices; Jef pays at your stall, never in talk): ${WARES[id].map((w) => `${ITEMS[w.kind].name} ${w.price_c} centimes`).join(", ")}.` : ""}${jobs.length ? `\nYour work on the board:\n${jobs.map((j) => `- "${j.title}", ${workFacts(j)} Pay ${j.pay_c} centimes. ${j.status === "taken" ? "Jef is doing it now." : "Still open. He can take it from you here and now; never send him to the board for it."}`).join("\n")}` : ""}
 
 THIS MEETING SO FAR
 ${turns.length ? turns.join("\n") : "- (nothing said yet)"}

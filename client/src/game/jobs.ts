@@ -90,6 +90,12 @@ export class Jobs {
     this.pockets = new Pockets(player, this.el.hud);
     this.pockets.toast = (t) => this.toastMsg(t);
     this.pockets.onChange = (p) => this.apply(p);
+    this.talk.work = (id) =>
+      this.active ? [] : (this.payload?.jobs ?? []).filter((j) => j.employer_npc === id && j.status === "offered" && j.playable);
+    this.talk.onTakeWork = (j) => {
+      this.talk.close();
+      void this.takeJob(j);
+    };
     this.talk.onBought = (p, line) => {
       this.apply(p);
       this.toastMsg(line);
@@ -383,6 +389,11 @@ export class Jobs {
   private async take(index: number): Promise<void> {
     const j = this.visibleJobs()[index];
     if (!j || j.status !== "offered") return;
+    await this.takeJob(j);
+  }
+
+  /** Take a job, from the board or from the person who offers it. */
+  private async takeJob(j: Job): Promise<void> {
     if (!j.playable) return this.toastMsg("That work is not in this build yet.");
     if (this.active) return this.toastMsg("Finish the job you have first.");
     if (this.goods.carried) return this.toastMsg("Your hands are full. Set that down first.");

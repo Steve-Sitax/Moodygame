@@ -1,4 +1,4 @@
-import { api, type JobsPayload, type TalkLine, type Ware } from "../net/api";
+import { api, type Job, type JobsPayload, type TalkLine, type Ware } from "../net/api";
 import type { FirstPerson } from "../player/firstPerson";
 import type { Npc } from "./people";
 import { esc } from "./runs";
@@ -19,6 +19,10 @@ export class Talk {
   private readonly input: HTMLInputElement;
   private typing = false;
   private shopping = false;
+  private working = false;
+  /** Set by Jobs: open work this person offers, and how to take it. */
+  work: (npcId: string) => Job[] = () => [];
+  onTakeWork: (job: Job) => void = () => {};
   private wares = new Map<string, Ware[]>();
   /** After a purchase: new money and pockets, and what the seller does. */
   onBought: (p: JobsPayload, line: string) => void = () => {};
@@ -61,6 +65,7 @@ export class Talk {
     this.choices = [];
     this.ended = shopOnly;
     this.shopping = shopOnly;
+    this.working = false;
     this.mood = "";
     this.player.frozen = true;
     this.el.style.display = "block";
@@ -139,21 +144,28 @@ export class Talk {
       .join("");
     const wait = this.busy ? `<p class="them wait">${esc(npc.def.name)} …</p>` : "";
     const opts = this.choices.map((c, i) => `<li><span class="n">${i + 1}</span> ${esc(c)}</li>`).join("");
-    const shop = this.stock.length ? " &middot; B  buy" : "";
+    const jobs = this.work(npc.id);
+    const shop = (this.stock.length ? " &middot; B  buy" : "") + (jobs.length ? " &middot; W  take work" : "");
     const keys = this.shopping
       ? `1-${this.stock.length}  pay &middot; B  back to talk &middot; you have ${this.money} c`
-      : this.ended
-        ? `E  step away${shop}`
-        : this.busy
-          ? ""
-          : `1-3  answer &middot; T  say it your way${shop} &middot; E  step away`;
+      : this.working
+        ? `1-${jobs.length}  take it &middot; W  back to talk`
+        : this.ended
+          ? `E  step away${shop}`
+          : this.busy
+            ? ""
+            : `1-3  answer &middot; T  say it your way${shop} &middot; E  step away`;
     const list = this.shopping
       ? `<ol class="wares">${this.stock
           .map((w, i) => `<li><span class="n">${i + 1}</span> ${esc(w.name)}<span class="price">${w.price_c} c</span></li>`)
           .join("")}</ol>`
-      : opts
-        ? `<ol class="choices">${opts}</ol>`
-        : "";
+      : this.working
+        ? `<ol class="wares">${jobs
+            .map((j, i) => `<li><span class="n">${i + 1}</span> ${esc(j.title)}<span class="price">${j.pay_c} c</span></li>`)
+            .join("")}</ol>`
+        : opts
+          ? `<ol class="choices">${opts}</ol>`
+          : "";
     this.el.innerHTML = `<div class="who">${esc(npc.def.name)}${this.mood ? ` <i>${esc(this.mood)}</i>` : ""}</div>
       ${body}${wait}
       ${list}
@@ -186,7 +198,19 @@ export class Talk {
     if (e.code === "KeyE" || e.code === "Escape") return this.close();
     if (e.code === "KeyB" && this.stock.length) {
       this.shopping = !this.shopping;
+      this.working = false;
       return this.render();
+    }
+    const jobs = this.work(this.npc.id);
+    if (e.code === "KeyW" && (jobs.length || this.working)) {
+      this.working = !this.working;
+      this.shopping = false;
+      return this.render();
+    }
+    if (this.working) {
+      const k = Number(e.key);
+      if (k >= 1 && k <= jobs.length) this.onTakeWork(jobs[k - 1]);
+      return;
     }
     if (this.shopping) {
       const k = Number(e.key);

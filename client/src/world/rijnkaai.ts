@@ -382,6 +382,7 @@ export function buildRijnkaai(): World {
   }
 
   const lampUniforms = psxUniforms.uLamps.value;
+  const litGlass = new THREE.Color();
   const shipABase = shipA.position.clone();
   const shipBBase = shipB.position.clone();
 
@@ -442,7 +443,11 @@ export function buildRijnkaai(): World {
       const target = flicker(t, l.seed, l.broken) * lampsLit;
       l.level += (target - l.level) * Math.min(1, dt * 18);
       l.light.intensity = 26 * l.level;
-      (l.glass.material as THREE.MeshBasicMaterial).color.setRGB(1.0 * l.level, 0.72 * l.level, 0.38 * l.level);
+      // unlit glass takes the colour of the air around it, so it never shows as a black box
+      (l.glass.material as THREE.MeshBasicMaterial).color
+        .copy(fog.color)
+        .multiplyScalar(0.8 * (1 - Math.min(1, l.level)))
+        .add(litGlass.setRGB(1.0 * l.level, 0.72 * l.level, 0.38 * l.level));
       l.halo.material.opacity = 0.55 * l.level;
       if (i < MAX_LAMPS) lampUniforms[i].set(l.pos.x, l.pos.y, l.pos.z, l.level);
     }
