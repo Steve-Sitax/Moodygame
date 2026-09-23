@@ -203,13 +203,19 @@ export function createRiver(scene: THREE.Object3D, boats?: Boats | Promise<Boats
         if (room < 40) v = Math.min(v, Math.max(0, o.v * THREE.MathUtils.clamp(room / 40, 0, 1)));
       }
       // the lighters' tows crossing the lanes (world/anchorage.ts): hold back till they are past
+      // (only a hull that reaches into this ship's way: not one waiting at the edge of the lane)
       for (const o of anchorage?.obstacles() ?? []) {
         const dx = o.x - m.x;
         const dz = o.z - m.z;
         const along = dx * m.hx + dz * m.hz;
         const side = Math.abs(dx * m.hz - dz * m.hx);
-        if (along <= 0 || side > (m.beam + o.len) / 2 + 4) continue;
-        const room = along - m.parts[0].len / 2 - o.beam / 2 - 12;
+        // the hull's half extent across this ship's way and along it
+        const cos = Math.abs(Math.sin(o.yaw) * m.hx + Math.cos(o.yaw) * m.hz);
+        const sin = Math.sqrt(Math.max(0, 1 - cos * cos));
+        const across = (o.len / 2) * sin + (o.beam / 2) * cos;
+        const lengthwise = (o.len / 2) * cos + (o.beam / 2) * sin;
+        if (along <= 0 || side - across > m.beam / 2 + 3) continue;
+        const room = along - m.parts[0].len / 2 - lengthwise - 12;
         const vAlong = Math.max(0, o.v * (Math.sin(o.yaw) * m.hx + Math.cos(o.yaw) * m.hz));
         if (room < 40) v = Math.min(v, Math.max(0, vAlong * THREE.MathUtils.clamp(room / 40, 0, 1)));
       }
