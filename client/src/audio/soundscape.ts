@@ -962,6 +962,140 @@ export class Soundscape {
     }
   }
 
+  // ---------------------------------------------------------------- M4: speech and the events' sounds
+
+  /**
+   * A voice without words (M4 bubbles): noise and a glottal sawtooth through two
+   * vowel formants, 4-6 syllables a second, a pause now and then. Men 110 Hz,
+   * women 210, children 280, the old a tenth lower. Through the fog and the air
+   * like every placed sound (spot: ref 2, rolloff 1.2, reach 40).
+   */
+  speech(at: { x: number; z: number }, voice: { sex: "m" | "f"; age: number }, seconds: number): void {
+    const ctx = this.ctx;
+    const dur = Math.max(0.5, Math.min(6, seconds));
+    const t0 = ctx.currentTime + 0.02;
+    const spot = this.spot({ x: at.x, z: at.z, y: 1.6 }, 2, 1.2, 40, 0.25);
+    const out = ctx.createGain();
+    out.gain.value = 0.16;
+    out.connect(spot.fog);
+    const child = voice.age < 13;
+    const f0 = (child ? 280 : voice.sex === "f" ? 210 : 110) * (voice.age >= 60 ? 0.9 : 1) * rand(0.93, 1.07);
+    const scale = child ? 1.3 : voice.sex === "f" ? 1.15 : 1;
+    const osc = ctx.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(f0, t0);
+    const breath = ctx.createBufferSource();
+    breath.buffer = this.noise;
+    breath.loop = true;
+    const bGain = ctx.createGain();
+    bGain.gain.value = 0.3;
+    const mix = ctx.createGain();
+    mix.gain.value = 0.8;
+    osc.connect(mix);
+    breath.connect(bGain).connect(mix);
+    const f1 = ctx.createBiquadFilter();
+    f1.type = "bandpass";
+    f1.Q.value = 6;
+    const f2 = ctx.createBiquadFilter();
+    f2.type = "bandpass";
+    f2.Q.value = 9;
+    const env = ctx.createGain();
+    env.gain.value = 0;
+    mix.connect(f1).connect(env);
+    mix.connect(f2).connect(env);
+    env.connect(out);
+    const VOWELS: Array<[number, number]> = [[730, 1090], [270, 2290], [530, 1840], [570, 840], [300, 870], [660, 1720], [440, 1020]];
+    let t = t0;
+    let n = 0;
+    let nextPause = 3 + Math.floor(rand(0, 4));
+    while (t < t0 + dur) {
+      const len = 1 / rand(4, 6);
+      const v = pick(VOWELS);
+      f1.frequency.setTargetAtTime(v[0] * scale, t, 0.02);
+      f2.frequency.setTargetAtTime(v[1] * scale, t, 0.02);
+      osc.frequency.setTargetAtTime(f0 * rand(0.88, 1.18), t, 0.05);
+      env.gain.setValueAtTime(0, t);
+      env.gain.linearRampToValueAtTime(1, t + 0.03);
+      env.gain.linearRampToValueAtTime(0.6, t + len * 0.6);
+      env.gain.linearRampToValueAtTime(0, t + len * 0.92);
+      t += len;
+      if (++n >= nextPause) {
+        t += rand(0.12, 0.3);
+        n = 0;
+        nextPause = 3 + Math.floor(rand(0, 4));
+      }
+    }
+    osc.start(t0);
+    breath.start(t0);
+    osc.stop(t + 0.1);
+    breath.stop(t + 0.1);
+    osc.onended = () => this.dropSpot(spot);
+  }
+
+  /**
+   * An event's sound at a place for some seconds (M4 events.ts): bells (the
+   * cathedral's carillon and three strokes), music (the tavern song, a loop),
+   * murmur (walla), or a handbell rung ahead of a procession. Returns a handle to
+   * move it (a procession) or stop it early. Nothing new recorded: all CC0 samples
+   * already in the game.
+   */
+  eventSound(kind: "bells" | "music" | "murmur" | "handbell", at: { x: number; z: number }, seconds: number): { move(x: number, z: number): void; stop(): void } {
+    const ctx = this.ctx;
+    const secs = Math.max(4, Math.min(180, seconds));
+    if (kind === "bells") {
+      const tune = this.carillon(false);
+      this.strike(3, tune + 0.6);
+      return { move: () => {}, stop: () => {} };
+    }
+    if (kind === "handbell") {
+      const bell = this.buf.get("handbell");
+      const spot = this.spot({ x: at.x, z: at.z, y: 1.8 }, 3, 1.2, 120, 0.5);
+      let on = true;
+      let n = 0;
+      const ring = () => {
+        if (!on || !bell || n++ * 2.6 > secs) return void this.dropSpot(spot);
+        const src = ctx.createBufferSource();
+        src.buffer = bell;
+        src.playbackRate.value = rand(0.95, 1.05);
+        const g = ctx.createGain();
+        g.gain.value = 0.55;
+        src.connect(g).connect(spot.fog);
+        src.start(ctx.currentTime + 0.02, 0, 2.4);
+        src.onended = () => ring();
+      };
+      ring();
+      return { move: (x, z) => this.moveSpot(spot, x, z), stop: () => (on = false) };
+    }
+    const b = this.buf.get(kind === "music" ? "tavernSong" : "murmur");
+    if (!b) return { move: () => {}, stop: () => {} };
+    const spot = this.spot({ x: at.x, z: at.z, y: 1.5 }, 3, 1.2, 70, 0.3);
+    const src = ctx.createBufferSource();
+    src.buffer = b;
+    src.loop = true;
+    const g = ctx.createGain();
+    const level = kind === "music" ? 0.5 : 0.7;
+    const t = ctx.currentTime + 0.02;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(level, t + 2);
+    g.gain.setValueAtTime(level, t + secs - 2);
+    g.gain.linearRampToValueAtTime(0, t + secs);
+    src.connect(g).connect(spot.fog);
+    src.start(t);
+    src.stop(t + secs + 0.05);
+    src.onended = () => this.dropSpot(spot);
+    this.log(`event ${kind}`);
+    return {
+      move: (x, z) => this.moveSpot(spot, x, z),
+      stop: () => {
+        const now = ctx.currentTime;
+        g.gain.cancelScheduledValues(now);
+        g.gain.setValueAtTime(g.gain.value, now);
+        g.gain.linearRampToValueAtTime(0, now + 1);
+        src.stop(now + 1.05);
+      },
+    };
+  }
+
   // ---------------------------------------------------------------- street events
 
   /** A dog far off, inland. */

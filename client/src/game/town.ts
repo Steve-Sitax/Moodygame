@@ -853,6 +853,82 @@ export class Town {
     return s.p;
   }
 
+  // ---- M4 (game/actions.ts, events.ts, bubbles.ts)
+
+  /** Is this resident held by another layer (the police visit, an action, a talk)? */
+  held(id: string): boolean {
+    return this.byId.get(id)?.held ?? false;
+  }
+
+  /** Where a resident is now (in the street or on their unseen way), or an employer at their post; null indoors. */
+  position(id: string): { x: number; z: number; shown: boolean } | null {
+    const s = this.byId.get(id);
+    if (s) {
+      if (s.p) return { x: s.p.x, z: s.p.z, shown: s.p.shown };
+      return s.inside ? null : { x: s.x, z: s.z, shown: false };
+    }
+    const n = this.employers.get(id);
+    return n ? { x: n.pos.x, z: n.pos.z, shown: true } : null;
+  }
+
+  puppet(id: string): Puppet | null {
+    return this.byId.get(id)?.p ?? null;
+  }
+
+  /** Who they are, for voices and bubbles. */
+  info(id: string): { name: string; first: string; sex: "m" | "f"; age: number; trade: string } | null {
+    const r = this.data?.residents.find((x) => x.id === id);
+    return r ? { name: r.name, first: r.first, sex: r.sex, age: r.age, trade: r.trade } : null;
+  }
+
+  /** Is this keeper at work by the clock (to reopen a stall an event shut)? */
+  isAtWork(id: string): boolean {
+    const s = this.byId.get(id) ?? null;
+    const r = s?.r ?? this.data?.residents.find((x) => x.id === id);
+    if (!r) return false;
+    const { day, hour } = this.clock();
+    return activityAt(r.sched, day, hour).act === "work";
+  }
+
+  /**
+   * Claim a resident for an action wherever they are: in the street already, or out of
+   * sight (they step into the street where they were, or round a corner from Jef).
+   */
+  claimNear(id: string, near: { x: number; z: number }): Puppet | null {
+    const s = this.byId.get(id);
+    if (!s) return null;
+    if (s.p) return this.claim(id);
+    let from: { x: number; z: number } | null = null;
+    if (this.crowd.isHidden(s.x, s.z) && this.crowd.canStand(s.x, s.z)) from = { x: s.x, z: s.z };
+    if (!from) {
+      const d = dist(s.x, s.z, near.x, near.z) || 1;
+      const ux = (s.x - near.x) / d;
+      const uz = (s.z - near.z) / d;
+      for (let i = 0; i < 12 && !from; i++) {
+        const turn = (i % 2 ? 1 : -1) * Math.floor(i / 2) * 0.5;
+        const c = Math.cos(turn);
+        const sn = Math.sin(turn);
+        const r = 26 + (i % 3) * 6;
+        const q = this.crowd.openNear(near.x + (ux * c - uz * sn) * r, near.z + (ux * sn + uz * c) * r);
+        if (q && this.crowd.isHidden(q.x, q.z)) from = q;
+      }
+    }
+    if (!from) return null;
+    return this.claim(id, from);
+  }
+
+  /** Unseen and held: move them on toward a point at the hidden pace (a long go_to across town). */
+  moveHidden(id: string, tx: number, tz: number, dt: number): void {
+    const s = this.byId.get(id);
+    if (!s || s.p) return;
+    s.inside = false;
+    const d = dist(s.x, s.z, tx, tz);
+    if (d < 0.5) return;
+    const k = Math.min(1, (HIDDEN_SPEED * dt) / d);
+    s.x += (tx - s.x) * k;
+    s.z += (tz - s.z) * k;
+  }
+
   /** Back to their day. */
   release(id: string): void {
     const s = this.byId.get(id);

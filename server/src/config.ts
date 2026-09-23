@@ -29,3 +29,11 @@ export const RESIDENT_CALLS_PER_DAY = 30;
 export const CALLS_RESERVE = 15;
 /** Model calls in one meeting with a townsperson; after that, engine lines. */
 export const RESIDENT_CALLS_PER_MEETING = 3;
+/**
+ * M4 shares of the day's 80 calls: the director (once a game hour at most) and the
+ * conversations between townspeople. Neither takes the reserve. The talk's actions ride
+ * in the talk's own reply, so they cost no extra call. What is left (28) is for the board,
+ * the outcomes, the named people and the epilogue.
+ */
+export const DIRECTOR_CALLS_PER_DAY = 12;
+export const CONVO_CALLS_PER_DAY = 10;

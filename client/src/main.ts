@@ -20,6 +20,9 @@ import { Ride } from "./game/ride";
 import { Deeds } from "./game/deeds";
 import { Market } from "./game/market";
 import { createTrades } from "./world/trades";
+import { Actions } from "./game/actions";
+import { Bubbles } from "./game/bubbles";
+import { Events } from "./game/events";
 import { api } from "./net/api";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
@@ -82,6 +85,22 @@ jobs.talk.onClose = (id) => town.hold(id, false);
 // M3h: velocipedes, a lantern to carry, theft and the police (game/deeds.ts)
 const deeds = new Deeds(world, player, jobs, town, crowd, stalls);
 deeds.sfx = (name, at) => sound?.play(name, at);
+// M4: townspeople who act (game/actions.ts), the director's events (game/events.ts) and the
+// conversations shown over their heads (game/bubbles.ts); the server decides all of it
+const events = new Events(world, town, stalls);
+const bubbles = new Bubbles(town);
+const actions = new Actions(world, player, town, crowd, events);
+actions.say = (t) => jobs.say(t);
+actions.onPayload = (p) => {
+  events.set(p);
+  for (const c of p.convos) bubbles.show(c);
+};
+jobs.onPush = (m) => {
+  actions.handlePush(m);
+  if (m.type === "convo" && m.convo) bubbles.show(m.convo as import("./net/api").Convo);
+};
+bubbles.speak = (at, v, s) => sound?.speech(at, v, s);
+events.eventSound = (k, at, s) => sound?.eventSound(k, at, s) ?? null;
 town
   .load()
   .then(() => {
@@ -144,7 +163,15 @@ if (import.meta.env.DEV) {
       { name: "Lock", x: 96, z: 26 },
       { name: "Petit Bassin", x: 120, z: 117 },
     ],
-    events: world.devEvents(),
+    events: [
+      ...world.devEvents(),
+      // M4: the director and its templates
+      { label: "Director: think now", run: () => void api.devDirector({ think: true }).then((r) => jobs.say(`Director: ${r.decision} (${r.source})${r.why ? ": " + r.why : ""}`)).catch((e) => jobs.say(String(e))) },
+      ...["wedding", "funeral", "musicians", "emigrant_ship", "fish_auction", "quarrel"].map((t) => ({
+        label: `Event: ${t.replace("_", " ")}`,
+        run: () => void api.devDirector({ template: t }).then((r) => jobs.say(r.ok ? `Event planned: ${r.title}` : `Refused: ${r.why}`)).catch((e) => jobs.say(String(e))),
+      })),
+    ],
   });
 }
 
@@ -199,6 +226,9 @@ function frame(): void {
   market.update(dt, player, jobs.day.dayNum, jobs.day.hourF);
   trades.update(elapsed, dt, player.camera, crowd.fogDistance);
   deeds.update(dt, jobs.day.hourF);
+  actions.update(dt);
+  events.update(dt, player);
+  bubbles.update(dt, player.camera);
   animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
   sound?.setCrowd(crowd.stats.drawn);
   sound?.setRain(psxUniforms.uRain.value);
@@ -309,6 +339,9 @@ if (import.meta.env.DEV) {
     trades,
     ride,
     deeds,
+    actions,
+    events,
+    bubbles,
     get sound() {
       return sound;
     },
@@ -411,6 +444,9 @@ if (import.meta.env.DEV) {
         market.update(dt, player, jobs.day.dayNum, jobs.day.hourF);
         trades.update(elapsed, dt, player.camera, crowd.fogDistance);
         deeds.update(dt, jobs.day.hourF);
+        actions.update(dt);
+        events.update(dt, player);
+        bubbles.update(dt, player.camera);
         animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
       }
     },
