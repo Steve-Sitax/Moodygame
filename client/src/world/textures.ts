@@ -56,8 +56,14 @@ export function makeTextures() {
         const v = 58 + r() * 30;
         g.fillStyle = rgb(v, v * 0.98, v * 0.93);
         g.fillRect(x + 1, y * h + 1, w - 1, h - 1);
-        g.fillStyle = rgb(v + 16, v + 15, v + 12);
+        // relief painted in (the PS1 way: it reads in any light): a lit top and left edge,
+        // a shaded lower and right edge, a darker joint below
+        g.fillStyle = rgb(v + 22, v + 21, v + 17);
         g.fillRect(x + 1, y * h + 1, w - 2, 1);
+        g.fillRect(x + 1, y * h + 1, 1, h - 2);
+        g.fillStyle = rgb(v * 0.62, v * 0.6, v * 0.57);
+        g.fillRect(x + 1, y * h + h - 1, w - 1, 1);
+        g.fillRect(x + w - 1, y * h + 1, 1, h - 1);
         x += w;
       }
     }

@@ -36,6 +36,32 @@ const WEATHER_FAR: Record<Weather, { lp: number; gain: number; horn: number }> =
 };
 /** Before the first setWeather: a soft far bus and no foghorn (start silent, not "fog"). */
 const WEATHER_UNKNOWN = { lp: 2300, gain: 0.8, horn: 0 };
+/**
+ * Every positioned sound runs source -> fog gain -> air lowpass -> panner -> master
+ * (plus a reverb send after the panner that grows with distance). The panner
+ * does the inverse-distance fall-off (refDistance, rolloff per kind); the air
+ * lowpass and the fog gain follow the distance four times a second:
+ * - lowpass: 14 kHz up close, down to the weather's cutoff at `reach` metres, duller beyond;
+ * - fog gain: in fog (mist, rain) far sounds lose up to 4.4 dB (2 dB, 2.5 dB) by 300 m.
+ */
+interface Spot {
+  x: number;
+  y: number;
+  z: number;
+  /** Metres at which the sound is as dull as the weather makes things. */
+  reach: number;
+  /** Highest cutoff (a tavern heard through its door stays at 750 Hz). */
+  cap: number;
+  wetBase: number;
+  fog: GainNode;
+  lp: BiquadFilterNode;
+  pan: PannerNode;
+  wet: GainNode;
+}
+/** Where the bells are hung: loud at the tower's foot (63 m below them), clearly distant but heard across town. */
+const BELL = { ref: 60, rolloff: 1, reach: 500 };
+/** Foghorn level: peaks under -3 dBFS even from the pontoon, the nearest place to it. */
+const FOGHORN_GAIN = 0.8;
 /** Every horn or whistle (foghorn, ships) keeps this far from the one before, in seconds. */
 const HORN_GAP: [number, number] = [40, 90];
 
@@ -47,6 +73,8 @@ interface LoopDef {
   rolloff: number;
   lowpass?: number;
   wet?: number;
+  /** Metres at which it is as dull as the weather makes things (default 150). */
+  reach?: number;
 }
 const LOOPS: Partial<Record<EmitterKind, LoopDef>> = {
   bridge: { layers: [["waterBridge", 0.9]], radius: 40, ref: 3, rolloff: 1.3, wet: 0.3 },
@@ -107,7 +135,7 @@ interface Voice {
   srcs: AudioScheduledSourceNode[];
   gain: GainNode;
   panner: PannerNode;
-  lp: BiquadFilterNode | null;
+  spot: Spot;
 }
 interface Live {
   e: Emitter;
@@ -139,8 +167,10 @@ export class Soundscape {
   private master: GainNode;
   private reverbIn: GainNode;
   /** Far bus: everything far off goes through the fog here. */
-  private farLp: BiquadFilterNode;
-  private farGain: GainNode;
+  /** Positioned sounds now playing; their air lowpass and fog gain follow the listener. */
+  private spots = new Set<Spot>();
+  /** Metres from the listener to the nearest quay edge (0 over the water). */
+  private quayDist = 0;
   private noise: AudioBuffer;
   private brown: AudioBuffer;
   private waterPanner: PannerNode;
@@ -188,7 +218,7 @@ export class Soundscape {
   private rain = 0;
   // the smithy works and rests
   private smithyOn = true;
-  private smithyNext = 0;
+  private smithyNext = 20; // at work when you arrive, then rests and works in turn
   /** Log of bells rung (dev checks). */
   readonly rung: string[] = [];
 
@@ -211,17 +241,6 @@ export class Soundscape {
     this.reverbIn = this.ctx.createGain();
     this.reverbIn.gain.value = 0.55;
     this.reverbIn.connect(verb).connect(this.master);
-
-    // far bus
-    this.farLp = this.ctx.createBiquadFilter();
-    this.farLp.type = "lowpass";
-    this.farLp.Q.value = 0.5;
-    this.farGain = this.ctx.createGain();
-    this.farLp.connect(this.farGain).connect(this.master);
-    const farSend = this.ctx.createGain();
-    farSend.gain.value = 0.9;
-    this.farGain.connect(farSend).connect(this.reverbIn);
-    this.applyWeather(true);
 
     this.noise = this.makeNoise(3, "white");
     this.brown = this.makeNoise(4, "brown");
@@ -332,8 +351,7 @@ export class Soundscape {
   /** The day's weather: fog dulls far sounds and the bells; the foghorn only sounds in fog. */
   setWeather(w: Weather): void {
     if (!WEATHER_FAR[w]) return; // unknown: keep what we had (at first: no foghorn)
-    this.weather = w;
-    this.applyWeather(false);
+    this.weather = w; // the positioned sounds follow on the next tick (tuneSpot)
   }
 
   /** How many people are near (e.g. crowd.stats.drawn): the murmur follows. */
@@ -377,8 +395,7 @@ export class Soundscape {
         slot.voice = null;
         return;
       }
-      slot.voice.panner.positionX.value = v.x;
-      slot.voice.panner.positionZ.value = v.z;
+      this.moveSpot(slot.voice.spot, v.x, v.z);
       const level = v.state === "go" ? 1 - 0.3 * this.rain : 0;
       slot.voice.gain.gain.setTargetAtTime(level, now, 0.25);
     });
@@ -461,8 +478,10 @@ export class Soundscape {
     if (overWater(px, pz)) {
       this.waterPanner.positionX.value = px;
       this.waterPanner.positionZ.value = pz;
+      this.quayDist = 0;
     } else {
       const q = nearestQuay(px, pz);
+      this.quayDist = q.d;
       this.waterPanner.positionX.value = q.x;
       this.waterPanner.positionZ.value = q.z;
     }
@@ -533,7 +552,10 @@ export class Soundscape {
     const tau = 0.8;
     this.waterGain.gain.setTargetAtTime(0.5 * (1 + 0.4 * night), now, tau);
     this.windGain.gain.setTargetAtTime(1 + 0.5 * night, now, tau);
-    this.windRec.gain.setTargetAtTime(0.05 + 0.09 * night + 0.05 * this.rain, now, tau);
+    // wind in the rigging: by the water, gone a street or two inland
+    const byWater = 1 - ramp(this.quayDist, 15, 120);
+    this.windRec.gain.setTargetAtTime((0.05 + 0.09 * night + 0.05 * this.rain) * byWater, now, tau);
+    for (const sp of this.spots) this.tuneSpot(sp, now, false);
     const crowd = Math.min(1, Math.sqrt(this.crowdN / 20));
     this.murmurGain.gain.setTargetAtTime(0.22 * crowd * (1 - 0.3 * this.rain), now, 1.5);
     this.rainRoofGain.gain.setTargetAtTime(0.4 * this.rain, now, 1.5);
@@ -550,7 +572,8 @@ export class Soundscape {
       const def = LOOPS[l.e.kind];
       if (!def) continue;
       const d = Math.hypot(l.e.x - px, l.e.z - pz);
-      const level = d < def.radius ? this.kindLevel(l.e.kind) * (l.e.gain ?? 1) : 0;
+      const edge = 1 - ramp(d, def.radius * 0.7, def.radius);
+      const level = d < def.radius ? this.kindLevel(l.e.kind) * (l.e.gain ?? 1) * edge : 0;
       if (level > 0.001 && !l.voice) l.voice = this.startVoice(l.e, def);
       if (l.voice) {
         if (level <= 0.001 && d > def.radius + 10) {
@@ -566,31 +589,16 @@ export class Soundscape {
 
   // ---------------------------------------------------------------- loops
 
-  private startVoice(e: { x: number; z: number; y?: number }, def: LoopDef, out: AudioNode = this.master): Voice | null {
+  private startVoice(e: { x: number; z: number; y?: number }, def: LoopDef): Voice | null {
     const ctx = this.ctx;
     const layers = def.layers.filter(([n]) => n === "hiss" || this.buf.has(n));
     if (!layers.length) return null;
-    const panner = this.panner(def.ref, def.rolloff);
-    panner.positionX.value = e.x;
-    panner.positionY.value = e.y ?? 1;
-    panner.positionZ.value = e.z;
+    const spot = this.spot(e, def.ref, def.rolloff, def.reach ?? 150, def.wet ?? 0, def.lowpass);
+    const panner = spot.pan;
     const gain = ctx.createGain();
     gain.gain.value = 0;
-    let head: AudioNode = gain;
-    let lp: BiquadFilterNode | null = null;
-    if (def.lowpass) {
-      lp = ctx.createBiquadFilter();
-      lp.type = "lowpass";
-      lp.frequency.value = def.lowpass;
-      lp.connect(gain);
-      head = lp;
-    }
-    gain.connect(panner).connect(out);
-    if (def.wet) {
-      const wet = ctx.createGain();
-      wet.gain.value = def.wet;
-      panner.connect(wet).connect(this.reverbIn);
-    }
+    gain.connect(spot.fog);
+    const head: AudioNode = gain;
     const srcs: AudioScheduledSourceNode[] = [];
     for (const [name, g] of layers) {
       const src = ctx.createBufferSource();
@@ -614,7 +622,7 @@ export class Soundscape {
       src.start(ctx.currentTime, Math.random() * (src.buffer!.duration - 0.1));
       srcs.push(src);
     }
-    return { srcs, gain, panner, lp };
+    return { srcs, gain, panner, spot };
   }
 
   private stopVoice(v: Voice | null): void {
@@ -623,7 +631,7 @@ export class Soundscape {
     v.gain.gain.cancelScheduledValues(t);
     v.gain.gain.setTargetAtTime(0, t, 0.3);
     for (const s of v.srcs) s.stop(t + 1.6);
-    v.srcs[0].onended = () => v.panner.disconnect();
+    v.srcs[0].onended = () => this.dropSpot(v.spot);
   }
 
   /** A non-positional bed loop into `out`. */
@@ -676,8 +684,7 @@ export class Soundscape {
       c.x = ax + (bx - ax) * t;
       c.z = az + (bz - az) * t;
       if (c.voice) {
-        c.voice.panner.positionX.value = c.x;
-        c.voice.panner.positionZ.value = c.z;
+        this.moveSpot(c.voice.spot, c.x, c.z);
       }
       if (!slow) continue; // gains four times a second
       const d = Math.hypot(c.x - px, c.z - pz);
@@ -724,8 +731,7 @@ export class Soundscape {
       s.ship = ship;
       s.d = Math.hypot(ship.x - px, ship.z - pz);
       if (s.voice) {
-        s.voice.panner.positionX.value = ship.x;
-        s.voice.panner.positionZ.value = ship.z;
+        this.moveSpot(s.voice.spot, ship.x, ship.z);
       }
     }
     if (now < this.shipTickAt) return;
@@ -743,20 +749,19 @@ export class Soundscape {
         s.level = s.voice ? (0.3 + 0.7 * clamp01(ship.speed / 3)) * (isTug(ship.kind) ? 0.8 : 1) : 0;
         if (s.voice) {
           s.voice.gain.gain.setTargetAtTime(s.level, now, 0.5);
-          s.voice.lp?.frequency.setTargetAtTime(this.distLp(s.d), now, 0.5);
         }
         // a whistle as it comes by
         // (inside the horn gap it waits, and gives up once the ship is close)
         if (!s.approached && s.d < 150) {
           if (this.hornFree()) {
             s.approached = true;
-            if (Math.random() < 0.7) this.whistle(ship, s.d, "pass");
+            if (Math.random() < 0.7) this.whistle(ship, "pass");
           } else if (s.d < 60) s.approached = true;
         } else if (s.approached && s.d > 220) s.approached = false;
       } else if (s.d < 70 && now > s.nextCall) {
         // a sailing ship: the bell, or an order called on deck
-        if (Math.random() < 0.5) this.shipBellAt(ship, s.d, 2);
-        else this.shoutAt(ship, s.d);
+        if (Math.random() < 0.5) this.shipBellAt(ship, 2);
+        else this.shoutAt(ship);
         s.nextCall = now + rand(35, 80);
       }
     }
@@ -772,8 +777,8 @@ export class Soundscape {
         if (now < (this.greeted.get(key) ?? 0) || !this.hornFree()) continue;
         this.greeted.set(key, now + rand(240, 420));
         if (Math.random() < 0.6) {
-          const dur = this.whistle(a.ship, a.d, "greet");
-          this.whistle(b.ship, b.d, "greet", dur + rand(1.5, 3), true);
+          const dur = this.whistle(a.ship, "greet");
+          this.whistle(b.ship, "greet", dur + rand(1.5, 3), true);
         }
       }
     }
@@ -787,21 +792,19 @@ export class Soundscape {
    * back the next horn by the horn gap.
    */
   shipSignal(ship: MovingShip, at: "lock" | "bridge"): void {
-    const d = Math.hypot(ship.x - this.listenerPos.x, ship.z - this.listenerPos.z);
     let dur: number;
-    if (ship.steam) dur = this.whistle(ship, d, "signal", 0, true);
+    if (ship.steam) dur = this.whistle(ship, "signal", 0, true);
     else {
-      this.shoutAt(ship, d);
-      this.shipBellAt(ship, d, 2, 1.2);
+      this.shoutAt(ship);
+      this.shipBellAt(ship, 2, 1.2);
       dur = 3;
     }
     this.log(`signal ${at} ${ship.kind}`);
     const keeper = this.nearestTo("bridge", ship.x, ship.z, 250);
     const bell = this.buf.get("handbell");
     if (!keeper || !bell) return;
-    const kd = Math.hypot(keeper.x - this.listenerPos.x, keeper.z - this.listenerPos.z);
     const len = rand(2.2, 4.4);
-    this.slice(bell, { x: keeper.x, z: keeper.z, y: 3 }, 0, len, 0.7, rand(0.95, 1.05), kd > 40 ? this.farLp : this.master, 4, dur + rand(1.5, 3));
+    this.slice(bell, { x: keeper.x, z: keeper.z, y: 3 }, 0, len, 0.7, rand(0.95, 1.05), 300, 8, dur + rand(1.5, 3));
     this.log("bridge-keeper's bell");
   }
 
@@ -810,14 +813,14 @@ export class Soundscape {
    * blast; "signal": one long, one short. Returns how long it lasts (s).
    * `force`: play even inside the horn gap (an answer, a signal).
    */
-  private whistle(ship: MovingShip, d: number, why: "pass" | "greet" | "signal", delay = 0, force = false): number {
+  private whistle(ship: MovingShip, why: "pass" | "greet" | "signal", delay = 0, force = false): number {
     if (!force && !this.hornFree()) return 0;
     const long = this.buf.get("steamboatWhistle");
     const toots = this.buf.get("tugToots");
     if (!long) return 0;
     const tug = isTug(ship.kind);
     const rate = tug ? rand(1.0, 1.08) : rand(0.7, 0.78);
-    const out = d > 40 ? this.farLp : this.master;
+    const out = 450; // how far a whistle stays bright (reach)
     const at = { x: ship.x, z: ship.z, y: 8 };
     let dur: number;
     if (why === "signal") {
@@ -846,10 +849,10 @@ export class Soundscape {
   }
 
   /** A ship's bell rung n times on a moving ship; `hold` lets the first ring sound longer. */
-  private shipBellAt(ship: MovingShip, d: number, n: number, hold = 0): void {
+  private shipBellAt(ship: MovingShip, n: number, hold = 0): void {
     const b = this.buf.get("shipBell");
     if (!b) return;
-    const out = d > 40 ? this.farLp : this.master;
+    const out = 300;
     let t = 0;
     for (let i = 0; i < n; i++) {
       const first = i === 0 && hold > 0;
@@ -860,17 +863,11 @@ export class Soundscape {
   }
 
   /** An order called on deck. */
-  private shoutAt(ship: MovingShip, d: number): void {
+  private shoutAt(ship: MovingShip): void {
     const b = this.buf.get("heaveShout");
     if (!b) return;
-    this.slice(b, { x: ship.x, z: ship.z, y: 3 }, 0, b.duration, 0.6, rand(0.88, 1.0), d > 40 ? this.farLp : this.master, 6);
+    this.slice(b, { x: ship.x, z: ship.z, y: 3 }, 0, b.duration, 0.6, rand(0.88, 1.0), 200, 6);
     this.log(`shout ${ship.kind}`);
-  }
-
-  /** Close sounds bright, far ones as dull as the weather makes them. */
-  private distLp(d: number): number {
-    const far = this.weather ? WEATHER_FAR[this.weather].lp : WEATHER_UNKNOWN.lp;
-    return far + (7000 - far) * (1 - ramp(d, 15, 90));
   }
 
   private hornFree(): boolean {
@@ -907,18 +904,17 @@ export class Soundscape {
     const cat = this.cathedral();
     if (!b || !cat) return;
     this.log(`hour ${n}`);
-    const pan = this.panner(80, 1);
-    this.place(pan, cat);
-    pan.connect(this.farLp);
+    const spot = this.spot(cat, BELL.ref, BELL.rolloff, BELL.reach, 0.9);
     const t0 = this.ctx.currentTime + delay + 0.05;
     for (let i = 0; i < n; i++) {
       const src = this.ctx.createBufferSource();
       src.buffer = b;
       src.playbackRate.value = 0.82; // a big bell, deeper than the village one recorded
       const g = this.ctx.createGain();
-      g.gain.value = 1.4;
-      src.connect(g).connect(pan);
+      g.gain.value = 1.1;
+      src.connect(g).connect(spot.fog);
       src.start(t0 + i * 2.6);
+      if (i === n - 1) src.onended = () => this.dropSpot(spot);
     }
   }
 
@@ -928,21 +924,20 @@ export class Soundscape {
     const cat = this.cathedral();
     if (!b || !cat) return 0;
     this.log(short ? "carillon short" : "carillon");
-    const pan = this.panner(80, 1);
-    this.place(pan, cat);
-    pan.connect(this.farLp);
+    const spot = this.spot(cat, BELL.ref, BELL.rolloff, BELL.reach, 0.9);
     const dur = short ? CARILLON_SHORT : b.duration;
     const src = this.ctx.createBufferSource();
     src.buffer = b;
     const g = this.ctx.createGain();
     const t = this.ctx.currentTime + 0.05;
-    g.gain.setValueAtTime(1, t);
+    g.gain.setValueAtTime(0.9, t);
     if (short) {
-      g.gain.setValueAtTime(1, t + dur - 1.2);
+      g.gain.setValueAtTime(0.9, t + dur - 1.2);
       g.gain.linearRampToValueAtTime(0, t + dur);
     }
-    src.connect(g).connect(pan);
+    src.connect(g).connect(spot.fog);
     src.start(t, 0, dur + 0.05);
+    src.onended = () => this.dropSpot(spot);
     return dur;
   }
 
@@ -952,12 +947,7 @@ export class Soundscape {
     const ship = this.nearest("ship", 160);
     if (!b || !ship) return;
     this.log(`watch ${n}`);
-    const pan = this.panner(6, 1);
-    this.place(pan, ship, 4);
-    pan.connect(this.master);
-    const wet = this.ctx.createGain();
-    wet.gain.value = 0.6;
-    pan.connect(wet).connect(this.reverbIn);
+    const spot = this.spot({ x: ship.x + rand(-4, 4), z: ship.z + rand(-4, 4), y: 4 }, 6, 1, 300, 0.6);
     let t = this.ctx.currentTime + rand(1, 4);
     for (let i = 0; i < n; i++) {
       const src = this.ctx.createBufferSource();
@@ -965,8 +955,9 @@ export class Soundscape {
       src.playbackRate.value = 0.9;
       const g = this.ctx.createGain();
       g.gain.value = 0.55;
-      src.connect(g).connect(pan);
+      src.connect(g).connect(spot.fog);
       src.start(t);
+      if (i === n - 1) src.onended = () => this.dropSpot(spot);
       t += i % 2 === 0 ? 0.42 : 1.25;
     }
   }
@@ -987,7 +978,7 @@ export class Soundscape {
       if (!overWater(x, z)) break;
     }
     const [a, e] = pick(DOG_SPANS);
-    this.slice(b, { x, z, y: 2 }, a, e, 1, rand(0.95, 1.05), this.farLp, 10);
+    this.slice(b, { x, z, y: 2 }, a, e, 1, rand(0.95, 1.05), 300, 10);
   }
 
   /** A steam whistle from a boat on the river. */
@@ -996,10 +987,21 @@ export class Soundscape {
     const b = this.buf.get(name);
     if (!b) return;
     const pos = { x: this.listenerPos.x + rand(-250, 250), z: rand(-250, -120), y: 8 };
-    this.slice(b, pos, 0, b.duration, name === "steamboatWhistle" ? 0.7 : 0.9, rand(0.9, 1.0), this.farLp, 60);
+    this.slice(b, pos, 0, b.duration, name === "steamboatWhistle" ? 0.7 : 0.9, rand(0.9, 1.0), 450, 60);
     this.hornCount++;
     this.hornUsed();
     this.log("whistle far");
+  }
+
+  /** An iron wheel over a rail joint (M3g, world/railway.ts): a knock and a short ring, made in code. */
+  railClack(x: number, z: number): void {
+    if (Math.hypot(x - this.listenerPos.x, z - this.listenerPos.z) > 70) return;
+    const spot = this.spot({ x, z, y: 0.4 }, 4, 1.2, 70, 0.25);
+    const t = this.ctx.currentTime + 0.01;
+    this.burst(t, 0.07, "bandpass", rand(1700, 2300), 3, 0.45, spot.fog, 0.001);
+    this.burst(t + 0.1, 0.06, "bandpass", rand(1500, 2100), 3, 0.3, spot.fog, 0.001);
+    this.thump(t, 65, 0.14, 0.4, spot.fog);
+    window.setTimeout(() => this.dropSpot(spot), 600);
   }
 
   /** A crane at work: ratchet or winch, then the chain. */
@@ -1008,9 +1010,9 @@ export class Soundscape {
     if (!r) return;
     const dur = rand(2.5, 4.5);
     const start = rand(0, r.duration - dur);
-    this.slice(r, c, start, start + dur, 0.7, rand(0.85, 1.0), this.master, 6);
+    this.slice(r, c, start, start + dur, 0.7, rand(0.85, 1.0), 150, 6);
     const ch = this.buf.get("chain");
-    if (ch && Math.random() < 0.7) this.slice(ch, c, 0, ch.duration, 0.6, rand(0.8, 0.95), this.master, 6, dur - 0.2);
+    if (ch && Math.random() < 0.7) this.slice(ch, c, 0, ch.duration, 0.6, rand(0.8, 0.95), 150, 6, dur - 0.2);
   }
 
   /** A cooper driving hoops on a cask: a run of mallet blows (Kenney wood impacts). */
@@ -1024,7 +1026,7 @@ export class Soundscape {
     for (let i = 0; i < n; i++) {
       const hoop = i % 3 === 2;
       const b = pick(hoop ? plank : wood);
-      this.slice(b, c, 0, b.duration, hoop ? 0.35 : 0.55, hoop ? rate * 1.9 : rate, this.master, 5, i * gap + rand(-0.02, 0.02));
+      this.slice(b, c, 0, b.duration, hoop ? 0.35 : 0.55, hoop ? rate * 1.9 : rate, 150, 5, i * gap + rand(-0.02, 0.02));
     }
   }
 
@@ -1034,7 +1036,7 @@ export class Soundscape {
     if (!b) return;
     const dur = rand(3, 7);
     const start = rand(0, b.duration - dur);
-    this.slice(b, p, start, start + dur, 0.6, rand(0.95, 1.05), this.master, 4);
+    this.slice(b, p, start, start + dur, 0.6, rand(0.95, 1.05), 150, 4);
   }
 
   /** A carriage passing somewhere off in the fog. */
@@ -1044,12 +1046,12 @@ export class Soundscape {
     const a = rand(0, Math.PI * 2);
     const d = rand(50, 90);
     const pos = { x: this.listenerPos.x + Math.cos(a) * d, z: Math.abs(this.listenerPos.z + Math.sin(a) * d) + 20, y: 1 };
-    this.slice(b, pos, 0, b.duration, 0.8, 1, this.farLp, 12);
+    this.slice(b, pos, 0, b.duration, 0.8, 1, 250, 12);
   }
 
   /**
-   * Play part of a buffer at a place, with short fades. Goes to `out`
-   * (master, or the far bus for things far off) and a little to the reverb.
+   * Play part of a buffer at a place, with short fades, through a spot:
+   * inverse fall-off from `ref` metres, duller towards `reach` metres.
    */
   private slice(
     b: AudioBuffer,
@@ -1058,17 +1060,12 @@ export class Soundscape {
     to: number,
     vol: number,
     rate: number,
-    out: AudioNode,
+    reach: number,
     ref: number,
     delay = 0,
   ): void {
     const ctx = this.ctx;
-    const pan = this.panner(ref, 1);
-    this.place(pan, at);
-    pan.connect(out);
-    const wet = ctx.createGain();
-    wet.gain.value = 0.35;
-    pan.connect(wet).connect(this.reverbIn);
+    const spot = this.spot(at, ref, 1, reach, 0.35);
     const src = ctx.createBufferSource();
     src.buffer = b;
     src.playbackRate.value = rate;
@@ -1080,9 +1077,9 @@ export class Soundscape {
     env.gain.linearRampToValueAtTime(vol, t + (from > 0 ? f : 0.005));
     env.gain.setValueAtTime(vol, t + dur - f);
     env.gain.linearRampToValueAtTime(0, t + dur);
-    src.connect(env).connect(pan);
+    src.connect(env).connect(spot.fog);
     src.start(t, from, to - from);
-    src.onended = () => pan.disconnect();
+    src.onended = () => this.dropSpot(spot);
   }
 
   private log(what: string): void {
@@ -1105,22 +1102,84 @@ export class Soundscape {
     return this.live.find((l) => l.e.kind === "cathedral")?.e ?? null;
   }
 
-  private place(pan: PannerNode, at: { x: number; z: number; y?: number }, spread = 0): void {
-    pan.positionX.value = at.x + (spread ? rand(-spread, spread) : 0);
-    pan.positionY.value = at.y ?? 1;
-    pan.positionZ.value = at.z + (spread ? rand(-spread, spread) : 0);
+
+  // ---------------------------------------------------------------- distance
+
+  /**
+   * A place for a sound: fog gain -> air lowpass -> panner -> master, and a
+   * reverb send after the panner. Connect the source to `fog`. Tuned now and
+   * four times a second after (tuneSpot); drop it when the sound ends.
+   */
+  private spot(at: { x: number; z: number; y?: number }, ref: number, rolloff: number, reach: number, wet: number, cap = 14000): Spot {
+    const ctx = this.ctx;
+    const pan = this.panner(ref, rolloff);
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.Q.value = 0.5;
+    const fog = ctx.createGain();
+    const w = ctx.createGain();
+    fog.connect(lp).connect(pan).connect(this.master);
+    pan.connect(w).connect(this.reverbIn);
+    const sp: Spot = { x: at.x, y: at.y ?? 1, z: at.z, reach, cap, wetBase: wet, fog, lp, pan, wet: w };
+    pan.positionX.value = sp.x;
+    pan.positionY.value = sp.y;
+    pan.positionZ.value = sp.z;
+    this.tuneSpot(sp, ctx.currentTime, true);
+    this.spots.add(sp);
+    return sp;
   }
 
-  private applyWeather(first: boolean): void {
-    const w = this.weather ? WEATHER_FAR[this.weather] : WEATHER_UNKNOWN;
-    const t = this.ctx.currentTime;
+  private moveSpot(sp: Spot, x: number, z: number): void {
+    sp.x = x;
+    sp.z = z;
+    sp.pan.positionX.value = x;
+    sp.pan.positionZ.value = z;
+  }
+
+  private dropSpot(sp: Spot): void {
+    this.spots.delete(sp);
+    sp.pan.disconnect();
+    sp.wet.disconnect();
+  }
+
+  /** Distance from the listener, in 3D (the bells hang 65 m up). */
+  private distTo(x: number, y: number, z: number): number {
+    const l = this.listenerPos;
+    return Math.hypot(x - l.x, y - l.y, z - l.z);
+  }
+
+  private tuneSpot(sp: Spot, now: number, first: boolean): void {
+    const d = this.distTo(sp.x, sp.y, sp.z);
+    const lp = Math.min(sp.cap, this.airLp(d, sp.reach));
+    const fog = this.fogLoss(d);
+    // far off, more of what you hear is the echo off the fog and the walls
+    const wet = sp.wetBase * (0.6 + 1.4 * ramp(d, 20, 400));
     if (first) {
-      this.farLp.frequency.value = w.lp;
-      this.farGain.gain.value = w.gain;
+      sp.lp.frequency.value = lp;
+      sp.fog.gain.value = fog;
+      sp.wet.gain.value = wet;
     } else {
-      this.farLp.frequency.setTargetAtTime(w.lp, t, 3);
-      this.farGain.gain.setTargetAtTime(w.gain, t, 3);
+      sp.lp.frequency.setTargetAtTime(lp, now, 0.4);
+      sp.fog.gain.setTargetAtTime(fog, now, 0.4);
+      sp.wet.gain.setTargetAtTime(wet, now, 0.4);
     }
+  }
+
+  private weatherFar(): { lp: number; gain: number; horn: number } {
+    return this.weather ? WEATHER_FAR[this.weather] : WEATHER_UNKNOWN;
+  }
+
+  /** Air lowpass: 14 kHz within 10 m, down to the weather's cutoff at `reach` m, duller beyond. */
+  private airLp(d: number, reach: number): number {
+    const far = this.weatherFar().lp;
+    let f = 14000 * Math.pow(far / 14000, ramp(d, 10, reach));
+    if (d > reach) f *= Math.sqrt(reach / d);
+    return Math.max(300, f);
+  }
+
+  /** Fog (mist, rain) takes a little more off far sounds: none within 30 m, the full weather loss by 300 m. */
+  private fogLoss(d: number): number {
+    return 1 - (1 - this.weatherFar().gain) * ramp(d, 30, 300);
   }
 
   // ---------------------------------------------------------------- dev
@@ -1145,8 +1204,8 @@ export class Soundscape {
         murmur: +this.murmurGain.gain.value.toFixed(3),
         rainRoofs: +this.rainRoofGain.gain.value.toFixed(3),
         rainCobbles: +this.rainCobbleGain.gain.value.toFixed(3),
-        far: +this.farGain.gain.value.toFixed(3),
-        farLowpass: Math.round(this.farLp.frequency.value),
+        weatherLowpass: this.weatherFar().lp,
+        spots: this.spots.size,
       },
       clock: this.clock,
       dayness: +this.dayness.toFixed(2),
@@ -1220,21 +1279,15 @@ export class Soundscape {
     this.hornCount++;
     this.hornUsed();
     this.log("foghorn");
-    const pan = this.panner(40, 0.4);
-    pan.positionX.value = rand(-160, 160);
-    pan.positionY.value = 5;
-    pan.positionZ.value = rand(-260, -180);
+    // out on the river, 180-260 m off the quays; it carries (low rolloff), a long wet tail
+    const spot = this.spot({ x: this.listenerPos.x + rand(-160, 160), z: rand(-260, -180), y: 5 }, 40, 0.6, 900, 1.6);
     const lp = ctx.createBiquadFilter();
     lp.type = "lowpass";
     lp.frequency.value = 520;
     lp.Q.value = 0.6;
     const env = ctx.createGain();
     env.gain.value = 0;
-    lp.connect(env).connect(pan);
-    pan.connect(this.master);
-    const send = ctx.createGain();
-    send.gain.value = 1.4;
-    env.connect(send).connect(this.reverbIn);
+    lp.connect(env).connect(spot.fog);
 
     // diaphone: long low tone, then the grunt drop at the end
     const f = rand(92, 108);
@@ -1257,30 +1310,20 @@ export class Soundscape {
       o.connect(og).connect(lp);
       o.start(t);
       o.stop(t + hold + 1.2);
+      if (mult === 0.5) o.onended = () => this.dropSpot(spot);
     }
     env.gain.setValueAtTime(0, t);
-    env.gain.linearRampToValueAtTime(1, t + 0.6);
-    env.gain.setValueAtTime(1, t + hold);
-    env.gain.linearRampToValueAtTime(0.8, t + hold + 0.5);
+    env.gain.linearRampToValueAtTime(FOGHORN_GAIN, t + 0.6);
+    env.gain.setValueAtTime(FOGHORN_GAIN, t + hold);
+    env.gain.linearRampToValueAtTime(FOGHORN_GAIN * 0.8, t + hold + 0.5);
     env.gain.linearRampToValueAtTime(0, t + hold + 1.1);
   }
 
   gulls(): void {
     if (!this.gullBuf) return;
     const ctx = this.ctx;
-    const pan = this.panner(8, 0.6);
-    pan.positionX.value = this.listenerPos.x + rand(-40, 40);
-    pan.positionY.value = rand(8, 18);
-    pan.positionZ.value = rand(-45, -8);
-    // fog muffles them
-    const lp = ctx.createBiquadFilter();
-    lp.type = "lowpass";
-    lp.frequency.value = 3200;
-    lp.connect(pan);
-    pan.connect(this.master);
-    const send = ctx.createGain();
-    send.gain.value = 0.9;
-    lp.connect(send).connect(this.reverbIn);
+    // over the water near you (they follow the river, not you inland)
+    const spot = this.spot({ x: this.listenerPos.x + rand(-40, 40), z: rand(-45, -8), y: rand(8, 18) }, 8, 0.8, 200, 0.9, 3200);
 
     // a slice of the harbour recording: a few calls, faded in and out
     const [a, b] = GULL_SPANS[Math.floor(Math.random() * GULL_SPANS.length)];
@@ -1295,8 +1338,9 @@ export class Soundscape {
     env.gain.linearRampToValueAtTime(0.9, t + 0.4);
     env.gain.setValueAtTime(0.9, t + dur - 0.8);
     env.gain.linearRampToValueAtTime(0, t + dur);
-    src.connect(env).connect(lp);
+    src.connect(env).connect(spot.fog);
     src.start(t, start, dur + 0.1);
+    src.onended = () => this.dropSpot(spot);
   }
 
   /** Rope and timber creak from a ship near you: the recorded pulley, or the made one while it loads. */
@@ -1306,7 +1350,7 @@ export class Soundscape {
     if (rec && ship) {
       const dur = rand(1.8, 4);
       const start = rand(0, rec.duration - dur);
-      this.slice(rec, { x: ship.x + rand(-6, 6), z: ship.z, y: ship.y ?? 1 }, start, start + dur, 0.45, rand(0.8, 1.0), this.master, 5);
+      this.slice(rec, { x: ship.x + rand(-6, 6), z: ship.z, y: ship.y ?? 1 }, start, start + dur, 0.45, rand(0.8, 1.0), 120, 5);
       return;
     }
     if (rec || !this.shipPositions.length) return; // no ship near: no creak
@@ -1388,21 +1432,18 @@ export class Soundscape {
     src.playbackRate.value = name === "bell" ? 1 : rate;
     const g = ctx.createGain();
     g.gain.value = name === "bell" ? 0.5 : vol;
-    const send = ctx.createGain();
-    send.gain.value = name === "bell" ? 1.2 : 0.3;
     if (at) {
-      const pan = this.panner(2, 1.1);
-      pan.positionX.value = at.x;
-      pan.positionY.value = at.y;
-      pan.positionZ.value = at.z;
-      src.connect(g).connect(pan).connect(this.master);
-      g.connect(send).connect(this.reverbIn);
+      const spot = this.spot(at, 2, 1.1, 150, name === "bell" ? 1.2 : 0.3);
+      src.connect(g).connect(spot.fog);
+      src.onended = () => this.dropSpot(spot);
     } else {
       // far off in the fog: dull it down
       const lp = ctx.createBiquadFilter();
       lp.type = "lowpass";
       lp.frequency.value = name === "bell" ? 1800 : 6000;
       src.connect(lp).connect(g).connect(this.master);
+      const send = ctx.createGain();
+      send.gain.value = name === "bell" ? 1.2 : 0.3;
       g.connect(send).connect(this.reverbIn);
     }
     src.start();

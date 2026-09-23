@@ -15,6 +15,8 @@ import { Crowd, placesFromCity } from "./game/crowd";
 import { Town } from "./game/town";
 import { Animals } from "./game/animals";
 import { Stalls } from "./game/stalls";
+import { Ride } from "./game/ride";
+import { Deeds } from "./game/deeds";
 import { api } from "./net/api";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
@@ -44,6 +46,9 @@ let weatherNow: "fog" | "mist" | "clear" | "rain" | "storm" | null = null;
   };
 }
 const jobs = new Jobs(world, player);
+// the horse omnibus round the quays (M3g, game/ride.ts): E at a stop to get on or off; the server takes the fare
+const ride = new Ride(player, world, () => world.omnibus(), (t) => jobs.say(t), (p) => jobs.refresh(p));
+jobs.extraActions.push((x, z) => ride.keys(x, z));
 // townspeople on the quays and squares (game/crowd.ts)
 const crowd = new Crowd(
   world.scene,
@@ -63,6 +68,9 @@ town.toast = (t) => jobs.say(t);
 town.onPayload = (p) => jobs.refresh(p);
 jobs.talk.onOpen = (id) => town.hold(id, true);
 jobs.talk.onClose = (id) => town.hold(id, false);
+// M3h: velocipedes, a lantern to carry, theft and the police (game/deeds.ts)
+const deeds = new Deeds(world, player, jobs, town, crowd, stalls);
+deeds.sfx = (name, at) => sound?.play(name, at);
 town
   .load()
   .then(() => {
@@ -142,6 +150,18 @@ function start(): void {
   player.lock();
 }
 startEl.addEventListener("click", start);
+// the pause screen: a walking key (or Space, Enter) goes back into the game, no click needed.
+// (Esc cannot: browsers do not let the Esc key take the mouse back.)
+window.addEventListener("keydown", (e) => {
+  if (player.locked || startEl.classList.contains("hidden") || e.repeat) return;
+  const t = document.activeElement as HTMLElement | null;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
+  if (document.querySelector(".settings:not([style*='none'])")) return; // a panel is open: its keys first
+  if (["KeyW", "KeyA", "KeyS", "KeyD", "Space", "Enter", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) {
+    e.preventDefault();
+    start();
+  }
+});
 canvas.addEventListener("click", () => {
   if (!player.locked) start();
 });
@@ -163,6 +183,7 @@ function frame(): void {
   crowd.setHour(jobs.day.hour);
   crowd.update(dt, player, player.camera);
   town.update(dt, player);
+  deeds.update(dt, jobs.day.hourF);
   animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
   sound?.setCrowd(crowd.stats.drawn);
   sound?.setRain(psxUniforms.uRain.value);
@@ -175,7 +196,16 @@ function frame(): void {
       if (!b.onSignal) b.onSignal = (ship, at) => sound?.shipSignal(ship, at);
     }
     const tr = world.traffic();
-    if (tr) sound?.setVehicles(tr.info());
+    // the goods train's horses and the omnibus: hooves and wheels (M3g); rail joints and crane work
+    const rail = world.railway();
+    const bus = world.omnibus();
+    if (rail && sound && !rail.onClack) {
+      rail.onClack = (x, z) => sound?.railClack(x, z);
+      rail.onCrane = (x, z) => sound?.craneWork({ kind: "crane", x, z, y: 6 });
+    }
+    // the ridden velocipede rattles like a handcart: iron tyres on stone (M3h)
+    if (tr || rail || bus || deeds.velos.ridden)
+      sound?.setVehicles([...(tr?.info() ?? []), ...(rail?.vehicles() ?? []), ...(bus?.vehicles() ?? []), ...deeds.velos.sounds()]);
   }
   retro.render(world.scene, player.camera, elapsed);
   requestAnimationFrame(frame);
@@ -247,6 +277,8 @@ if (import.meta.env.DEV) {
     town,
     animals,
     stalls,
+    ride,
+    deeds,
     get sound() {
       return sound;
     },
@@ -273,6 +305,8 @@ if (import.meta.env.DEV) {
       if (!can(BOARD_POS.x, BOARD_POS.z, 2.5)) bad.push("hiring board");
       // M3e: every home, workplace, stall front and post of the town
       for (const q of town.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      // M3h: the velocipedes, the lanterns, the food tables, the police post
+      for (const q of deeds.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       if (!can(DOSS_POS.x, DOSS_POS.z, 2.0)) bad.push("the doss house gate");
       if (!can(RAMP.x - 0.6, RAMP.zHigh - 1.0, 2.4)) bad.push("the mate on deck");
       return bad;
@@ -342,6 +376,7 @@ if (import.meta.env.DEV) {
         jobs.update(dt);
         crowd.update(dt, player, player.camera);
         town.update(dt, player);
+        deeds.update(dt, jobs.day.hourF);
         animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
       }
     },

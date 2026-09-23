@@ -18,10 +18,14 @@ import { isResident, town } from "./town/store.ts";
 import { residentChoice, residentFree, residentOpen } from "./town/talk.ts";
 import { catchThief, pickPocket } from "./town/thieves.ts";
 import { TRADES, TOWN_EMPLOYERS } from "./town/places.ts";
+import { alight, board as boardRide, isStop, ride, RIDE_FARE_C } from "./ride.ts";
 import { freeReply, openTalk, pickChoice, prefetchOpening, witness, type Line } from "./hooks/dialogue.ts";
+import { mountDeeds } from "./town/deedRoutes.ts";
 
 const db = openDb(DB_FILE);
 const app = new Hono();
+// theft, velocipedes, lanterns and the police (M3h); before the talk route, so the agent answers through it
+mountDeeds(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m), afterNight: (e) => afterNight(e) });
 
 // Board status the client can show while Claude writes.
 let board: { state: "writing" | "ready"; source?: string; error?: string } = { state: "ready" };
@@ -36,6 +40,7 @@ function jobsPayload() {
     clock: clock(db),
     rent: { paid: rentPaid(db), price_c: RENT_C, bedtime: BEDTIME },
     ending: ending(db),
+    ride: { on: ride(db), fare_c: RIDE_FARE_C },
   };
 }
 
@@ -176,7 +181,14 @@ app.post("/api/rent", (c) => {
   return c.json({ ...r, ...jobsPayload() });
 });
 
-app.post("/api/new-game", (c) => {
+app.post("/api/new-game", async (c) => {
+  // keep the old week: a copy of the save in data/backups before it is wiped
+  if (DB_FILE !== ":memory:") {
+    const dir = join(dirname(DB_FILE), "backups");
+    mkdirSync(dir, { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    await db.backup(join(dir, `week-${stamp}.sqlite`)).catch((e: unknown) => console.warn("[new-game] backup failed", e));
+  }
   resetDb(db); // a new week: a new town as well (db.ts)
   resetTalks();
   markDayStart(db);
@@ -207,6 +219,23 @@ app.post("/api/swim", (c) => {
   const r = swim(db);
   if (r.cold) broadcast({ type: "jobs", ...jobsPayload() });
   return c.json({ ...r, ...jobsPayload() });
+});
+
+// ---- the horse omnibus along the quays (M3g): the server takes the fare and knows who rides
+app.post("/api/ride", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { action?: unknown; stop?: unknown };
+  if (ending(db)) throw new GameError("the week is over", 409);
+  if (body.action === "board") {
+    if (!isStop(body.stop)) throw new GameError("no such stop", 400);
+    const r = boardRide(db, body.stop);
+    broadcast({ type: "jobs", ...jobsPayload() });
+    return c.json({ ...r, ...jobsPayload() });
+  }
+  if (body.action === "alight") {
+    const r = alight(db);
+    return c.json({ ...r, ...jobsPayload() });
+  }
+  throw new GameError("action must be board or alight", 400);
 });
 
 app.post("/api/jobs/:id/handover", (c) => {

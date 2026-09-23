@@ -42,8 +42,10 @@ export class Day {
 
   /** Time runs while you are in the game: pointer locked (or dev input), no night sheet up. */
   get playing(): boolean {
-    return (this.player.locked || this.player.freeInput) && !this.player.fly && this.shown === "none" && !this.payload?.ending;
+    return (this.player.locked || this.player.freeInput) && !this.player.fly && this.shown === "none" && !this.payload?.ending && !this.hold;
   }
+  /** M3h: another sheet is up (the night in the cell): the clock waits. */
+  hold = false;
 
   get sheetOpen(): boolean {
     return this.shown !== "none";

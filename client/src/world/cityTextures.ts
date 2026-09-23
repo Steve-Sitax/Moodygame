@@ -300,6 +300,13 @@ export function flagsTexture(): THREE.CanvasTexture {
       const warm = Math.floor(r() * 8);
       g.fillStyle = `rgb(${v + warm},${v},${v - 6})`;
       g.fillRect(x + 1, y + 1, w - 1, 15);
+      // painted relief: lit top and left edge, shaded bottom and right edge
+      g.fillStyle = "rgba(255,248,235,0.16)";
+      g.fillRect(x + 1, y + 1, w - 1, 1);
+      g.fillRect(x + 1, y + 1, 1, 15);
+      g.fillStyle = "rgba(0,0,0,0.28)";
+      g.fillRect(x + 1, y + 15, w - 1, 1);
+      g.fillRect(x + w - 1, y + 1, 1, 15);
       // worn, dished middle and a chipped corner now and then
       g.fillStyle = "rgba(0,0,0,0.07)";
       g.fillRect(x + 3, y + 4, w - 5, 9);
@@ -350,6 +357,10 @@ export function settsTexture(): THREE.CanvasTexture {
       const v = 70 + Math.floor(r() * 26);
       g.fillStyle = `rgb(${v},${v - 1},${v - 5})`;
       g.fillRect(x, y, 3, Math.min(h - 1, C - 4 - y));
+      g.fillStyle = "rgba(255,248,235,0.14)";
+      g.fillRect(x, y, 1, Math.min(h - 1, C - 4 - y));
+      g.fillStyle = "rgba(0,0,0,0.25)";
+      g.fillRect(x + 2, y, 1, Math.min(h - 1, C - 4 - y));
       y += h;
     }
   }

@@ -1,13 +1,15 @@
 import * as THREE from "three";
-import { addMovingSource, isSteam, loadBoats, loadModelSet, newShipId, ropeMaterial, signal, type BoatName, type Boats, type MovingShip } from "./boats";
+import { addMovingSource, isSteam, loadBoats, loadModelSet, newShipId, ropeMaterial, signal, type BoatName, type Boats, type ModelSet, type MovingShip } from "./boats";
 import type { Lock, LockRect } from "./lock";
 import type { Rect } from "./geom";
 import { Route, placeTrain, rng, type TrainPart } from "./route";
 
-// The opening bridges over the Canal des Brasseurs and the Sint-Pietersvliet (1873): iron
-// swing bridges where the quay railway crosses (canal_mouth, vliet_mouth; the Brouwersvliet
-// had one from 1864-65), timber lifting bridges with a balance on a gallows frame further in
-// (canal_mid, canal_high: double; vliet_mid: single). Models: tools/blender/build_bridges.py
+// The opening bridges over the Canal des Brasseurs and the Sint-Pietersvliet (1873): timber
+// lifting bridges with a balance on a gallows frame (the "hamei"). Their leaves rise in place,
+// so nothing sweeps over the quay, its coping or its railings (a swing bridge would); the ones
+// the quay railway crosses (canal_mouth, vliet_mouth, and the lock bridge in world/lock.ts)
+// carry its rails on the leaves and on the fixed decks, flush with the quay. Double leaves over
+// the 12 m canal, one leaf over the 8 m vliet. Models: tools/blender/build_bridges.py
 // -> /models/bridges.glb. Now and then a punt, a rowing boat or a lighter comes in from the
 // river and goes up the canal or the vliet, or back out; each bridge opens as it comes and
 // shuts behind it. No bridge starts to open while the player stands on it.
@@ -30,7 +32,9 @@ export interface BridgesOptions {
   lock?: Lock | null;
   /** Where the player stands (feet on the ground plan); a bridge never starts to open under him. */
   player?: () => { x: number; z: number } | null;
-  /** For the swing bridges lying open on the quay, and the gallows posts. */
+  /** Something else on (or at) a bridge's deck: the goods train, the omnibus (M3g). It does not open under them. */
+  busy?: (rect: LockRect) => boolean;
+  /** Colliders for the gallows posts on the quay. */
   world?: { addCollider(r: Rect): void; removeCollider(r: Rect): void };
   /** Seconds of game time between passages up the canal, min and max. Default 100..220. */
   canalInterval?: [number, number];
@@ -52,61 +56,166 @@ export interface Bridges {
   group: THREE.Group;
 }
 
-type Leaf = [number, number, number, number]; // hinge x, hinge z, yaw (0: leaf toward +x), length
+/** One leaf of a lifting bridge: where it hinges, which way it points, its models. */
+export interface DrawLeaf {
+  /** Hinge at the channel edge (x, z); the leaf points along yaw (0 = toward +x) over the water. */
+  hinge: [number, number];
+  yaw: number;
+  /** Leaf length and half width (m). */
+  L: number;
+  half: number;
+  leaf: string;
+  beam: string;
+  frame: string;
+}
 
 interface Def {
   key: string;
   kind: "swing" | "draw";
   rect: LockRect;
-  model?: string;
-  pivot?: [number, number];
-  closedYaw?: number;
-  openYaw?: number;
-  /** Where a swing bridge lies when open (on the quay): kept clear while it is not shut. */
-  openRect?: LockRect;
-  leaves?: Leaf[];
+  leaves: DrawLeaf[];
+  /** Fixed decks without gallows (the far side of a single leaf): model, x, z, yaw. */
+  decks?: Array<[string, number, number, number]>;
 }
 
 const R = (minX: number, maxX: number, minZ: number, maxZ: number): LockRect => ({ minX, maxX, minZ, maxZ });
+const leaf = (hx: number, hz: number, yaw: number, L: number, half: number, lf: string, bm: string, fr: string): DrawLeaf => ({
+  hinge: [hx, hz],
+  yaw,
+  L,
+  half,
+  leaf: lf,
+  beam: bm,
+  frame: fr,
+});
 
-/** tools/city/design.py BRIDGES, with the way each one opens. */
+/** tools/city/design.py BRIDGES, with their leaves. The rails of the quay railway (z 4.0) are
+ * built into the canal_mouth and vliet_mouth models. */
 const DEFS: Def[] = [
   {
     key: "canal_mouth",
-    kind: "swing",
+    kind: "draw",
     rect: R(-84, -68, 2, 10),
-    model: "swing_canal",
-    pivot: [-86.5, 6],
-    closedYaw: 0,
-    openYaw: -Math.PI / 2, // swings north to lie along the west quay of the canal
-    openRect: R(-90.7, -82.3, -0.2, 24.8),
+    leaves: [
+      leaf(-82, 6, 0, 6, 4, "draw_leaf_cm_w", "draw_beam_6w", "draw_frame_cm_w"),
+      leaf(-70, 6, Math.PI, 6, 4, "draw_leaf_cm_e", "draw_beam_6w", "draw_frame_cm_e"),
+    ],
   },
   {
     key: "vliet_mouth",
-    kind: "swing",
+    kind: "draw",
     rect: R(-152, -140, 2, 9),
-    model: "swing_vliet",
-    pivot: [-137, 5.5],
-    closedYaw: Math.PI,
-    openYaw: 1.5 * Math.PI, // north, along the east quay of the vliet
-    openRect: R(-140.7, -133.3, 0.3, 20.7),
+    leaves: [leaf(-142, 5.5, Math.PI, 8, 3.5, "draw_leaf_vm", "draw_beam_8", "draw_frame_vm")],
+    decks: [["deck_vm_w", -150, 5.5, 0]],
   },
-  { key: "canal_mid", kind: "draw", rect: R(-84, -68, 66, 73), leaves: [[-82, 69.5, 0, 6], [-70, 69.5, Math.PI, 6]] },
-  { key: "canal_high", kind: "draw", rect: R(-84, -68, 150, 157), leaves: [[-82, 153.5, 0, 6], [-70, 153.5, Math.PI, 6]] },
-  { key: "vliet_mid", kind: "draw", rect: R(-152, -140, 40, 47), leaves: [[-142, 43.5, Math.PI, 8]] },
+  {
+    key: "canal_mid",
+    kind: "draw",
+    rect: R(-84, -68, 66, 73),
+    leaves: [
+      leaf(-82, 69.5, 0, 6, 3.5, "draw_leaf_6", "draw_beam_6", "draw_frame"),
+      leaf(-70, 69.5, Math.PI, 6, 3.5, "draw_leaf_6", "draw_beam_6", "draw_frame"),
+    ],
+  },
+  {
+    key: "canal_high",
+    kind: "draw",
+    rect: R(-84, -68, 150, 157),
+    leaves: [
+      leaf(-82, 153.5, 0, 6, 3.5, "draw_leaf_6", "draw_beam_6", "draw_frame"),
+      leaf(-70, 153.5, Math.PI, 6, 3.5, "draw_leaf_6", "draw_beam_6", "draw_frame"),
+    ],
+  },
+  { key: "vliet_mid", kind: "draw", rect: R(-152, -140, 40, 47), leaves: [leaf(-142, 43.5, Math.PI, 8, 3.5, "draw_leaf_8", "draw_beam_8", "draw_frame")] },
 ];
 
 const DRAW_MAX = 1.36; // a lifted leaf stands at 78 degrees
 const PIVOT: [number, number] = [-1.2, 5.9]; // balance pivot from the hinge (back, up)
+
+export interface DrawBridge {
+  /** Lift the leaves: 0 = down (walkable), 1 = up at 78 degrees. */
+  set(amount: number): void;
+}
+
+/**
+ * Build a lifting bridge from bridges.glb models: for each leaf the leaf, its balance and its
+ * gallows with the fixed deck; chains from the balance to the leaf's nose. The gallows posts
+ * become colliders. Used by createBridges and by world/lock.ts.
+ */
+export function createDrawBridge(
+  set: ModelSet,
+  parent: THREE.Object3D,
+  leaves: DrawLeaf[],
+  decks: Array<[string, number, number, number]> = [],
+  world?: { addCollider(r: Rect): void },
+): DrawBridge {
+  const at = (hx: number, hz: number, yaw: number, lx: number, lz: number): [number, number] => [
+    hx + lx * Math.cos(yaw) + lz * Math.sin(yaw),
+    hz - lx * Math.sin(yaw) + lz * Math.cos(yaw),
+  ];
+  const parts: Array<{ spec: DrawLeaf; leaf: THREE.Object3D; beam: THREE.Object3D }> = [];
+  for (const spec of leaves) {
+    const lf = set.protos.get(spec.leaf)?.clone();
+    const bm = set.protos.get(spec.beam)?.clone();
+    const fr = set.protos.get(spec.frame)?.clone();
+    if (!lf || !bm || !fr) continue;
+    const [hx, hz] = spec.hinge;
+    lf.position.set(hx, 0, hz);
+    lf.rotation.set(0, spec.yaw, 0, "YZX");
+    const [bx, bz] = at(hx, hz, spec.yaw, PIVOT[0], 0);
+    bm.position.set(bx, PIVOT[1], bz);
+    bm.rotation.set(0, spec.yaw, 0, "YZX");
+    fr.position.set(hx, 0, hz);
+    fr.rotation.y = spec.yaw;
+    parent.add(lf, bm, fr);
+    parts.push({ spec, leaf: lf, beam: bm });
+    for (const side of [-1, 1]) {
+      const [px, pz] = at(hx, hz, spec.yaw, PIVOT[0], side * (spec.half + 0.45));
+      world?.addCollider({ minX: px - 0.25, maxX: px + 0.25, minZ: pz - 0.25, maxZ: pz + 0.25 });
+    }
+  }
+  for (const [name, x, z, yaw] of decks) {
+    const d = set.protos.get(name)?.clone();
+    if (!d) continue;
+    d.position.set(x, 0, z);
+    d.rotation.y = yaw;
+    parent.add(d);
+  }
+  const pos = new THREE.BufferAttribute(new Float32Array(Math.max(1, parts.length) * 4 * 3), 3);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", pos);
+  const chains = new THREE.LineSegments(geo, ropeMaterial());
+  chains.frustumCulled = false;
+  parent.add(chains);
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  function lift(amount: number): void {
+    const ang = DRAW_MAX * amount;
+    let i = 0;
+    for (const p of parts) {
+      p.leaf.rotation.set(0, p.spec.yaw, ang, "YZX");
+      p.beam.rotation.set(0, p.spec.yaw, ang, "YZX");
+      p.leaf.updateMatrixWorld();
+      p.beam.updateMatrixWorld();
+      for (const side of [-1, 1]) {
+        a.set(p.spec.L, 0, side * (p.spec.half + 0.05)).applyMatrix4(p.beam.matrixWorld);
+        b.set(p.spec.L - 0.3, 0.1, side * (p.spec.half + 0.02)).applyMatrix4(p.leaf.matrixWorld);
+        pos.setXYZ(i++, a.x, a.y - 0.15, a.z);
+        pos.setXYZ(i++, b.x, b.y, b.z);
+      }
+    }
+    pos.needsUpdate = true;
+  }
+  lift(0);
+  return { set: lift };
+}
 
 interface Ctl extends OpeningBridge {
   def: Def;
   amount: number;
   want: number;
   speed: number;
-  swing?: THREE.Object3D;
-  leaves: Array<{ leaf: THREE.Object3D; beam: THREE.Object3D; yaw: number; L: number }>;
-  collider: Rect | null;
+  draw: DrawBridge | null;
 }
 
 const smooth = (x: number) => {
@@ -128,9 +237,8 @@ export function createBridges(scene: THREE.Object3D, boats?: Boats | Promise<Boa
       def,
       amount: 0,
       want: 0,
-      speed: def.kind === "swing" ? 1 / 26 : 1 / 20,
-      leaves: [],
-      collider: null,
+      speed: 1 / 20,
+      draw: null,
       closed: () => c.amount <= 1e-4,
       open: () => smooth(c.amount),
     };
@@ -139,68 +247,12 @@ export function createBridges(scene: THREE.Object3D, boats?: Boats | Promise<Boa
   const list: OpeningBridge[] = ctls.map((c) => ({ key: c.key, kind: c.kind, rect: c.rect, closed: c.closed, open: c.open }));
   if (opts.lock) {
     const lock = opts.lock;
-    list.push({ key: "lock_bridge", kind: "swing", rect: lock.bridgeRect, closed: () => lock.bridgeClosed(), open: () => (lock.bridgeClosed() ? 0 : 1) });
+    list.push({ key: "lock_bridge", kind: "draw", rect: lock.bridgeRect, closed: () => lock.bridgeClosed(), open: () => (lock.bridgeClosed() ? 0 : 1) });
   }
-
-  // --- chains of the lifting bridges: two per leaf, from the balance to the leaf's nose
-  const chainPos = new THREE.BufferAttribute(new Float32Array(2 * 2 * 3 * 5 * 3), 3);
-  const chainGeo = new THREE.BufferGeometry();
-  chainGeo.setAttribute("position", chainPos);
-  chainGeo.setDrawRange(0, 0);
-  const chains = new THREE.LineSegments(chainGeo, ropeMaterial());
-  chains.frustumCulled = false;
-  group.add(chains);
-
-  const at = (hx: number, hz: number, yaw: number, lx: number, lz: number): [number, number] => [
-    hx + lx * Math.cos(yaw) + lz * Math.sin(yaw),
-    hz - lx * Math.sin(yaw) + lz * Math.cos(yaw),
-  ];
 
   loadModelSet("/models/bridges.glb")
     .then((set) => {
-      const get = (n: string) => set.protos.get(n)?.clone();
-      for (const c of ctls) {
-        const d = c.def;
-        if (d.kind === "swing" && d.pivot) {
-          const b = get(d.model!);
-          const pier = get("swing_pier");
-          if (b) {
-            b.position.set(d.pivot[0], 0, d.pivot[1]);
-            b.rotation.y = d.closedYaw ?? 0;
-            group.add(b);
-            c.swing = b;
-          }
-          if (pier) {
-            pier.position.set(d.pivot[0], 0, d.pivot[1]);
-            pier.rotation.y = d.closedYaw ?? 0;
-            group.add(pier);
-            const [cx, cz] = at(d.pivot[0], d.pivot[1], d.closedYaw ?? 0, -2.2, -5.1);
-            opts.world?.addCollider({ minX: cx - 0.5, maxX: cx + 0.5, minZ: cz - 0.5, maxZ: cz + 0.5 });
-          }
-        } else if (d.leaves) {
-          for (const [hx, hz, yaw, L] of d.leaves) {
-            const leaf = get(L > 7 ? "draw_leaf_8" : "draw_leaf_6");
-            const beam = get(L > 7 ? "draw_beam_8" : "draw_beam_6");
-            const frame = get("draw_frame");
-            if (!leaf || !beam || !frame) continue;
-            leaf.position.set(hx, 0, hz);
-            leaf.rotation.set(0, yaw, 0, "YZX");
-            const [bx, bz] = at(hx, hz, yaw, PIVOT[0], 0);
-            beam.position.set(bx, PIVOT[1], bz);
-            beam.rotation.set(0, yaw, 0, "YZX");
-            frame.position.set(hx, 0, hz);
-            frame.rotation.y = yaw;
-            group.add(leaf, beam, frame);
-            c.leaves.push({ leaf, beam, yaw, L });
-            // the gallows posts stand on the quay: walk round them
-            for (const side of [-1, 1]) {
-              const [px, pz] = at(hx, hz, yaw, PIVOT[0], side * 3.95);
-              opts.world?.addCollider({ minX: px - 0.25, maxX: px + 0.25, minZ: pz - 0.25, maxZ: pz + 0.25 });
-            }
-          }
-        }
-      }
-      chainGeo.setDrawRange(0, ctls.reduce((a, c) => a + c.leaves.length * 4, 0));
+      for (const c of ctls) c.draw = createDrawBridge(set, group, c.def.leaves, c.def.decks, opts.world);
     })
     .catch((e) => console.warn("bridges.glb did not load", e));
 
@@ -368,45 +420,16 @@ export function createBridges(scene: THREE.Object3D, boats?: Boats | Promise<Boa
     }
   }
 
-  const tmpA = new THREE.Vector3();
-  const tmpB = new THREE.Vector3();
   function update(_t: number, dt: number, camera?: THREE.Camera): void {
     const pl = opts.player?.() ?? null;
-    let ci = 0;
     for (const c of ctls) {
-      const occupied = !!pl && pl.x > c.rect.minX && pl.x < c.rect.maxX && pl.z > c.rect.minZ && pl.z < c.rect.maxZ;
+      const occupied = (!!pl && pl.x > c.rect.minX && pl.x < c.rect.maxX && pl.z > c.rect.minZ && pl.z < c.rect.maxZ) || !!opts.busy?.(c.rect);
       const ease = 0.25 + 0.75 * Math.sin(Math.PI * THREE.MathUtils.clamp(c.amount, 0, 1));
       if (c.want > 0) {
         if (c.amount > 0 || !occupied) c.amount = Math.min(1, c.amount + c.speed * ease * dt);
       } else c.amount = Math.max(0, c.amount - c.speed * ease * dt);
-      const d = c.def;
-      if (c.swing) c.swing.rotation.y = (d.closedYaw ?? 0) + ((d.openYaw ?? 0) - (d.closedYaw ?? 0)) * smooth(c.amount);
-      for (const lf of c.leaves) {
-        const a = DRAW_MAX * smooth(c.amount);
-        lf.leaf.rotation.set(0, lf.yaw, a, "YZX");
-        lf.beam.rotation.set(0, lf.yaw, a, "YZX");
-        lf.leaf.updateMatrixWorld();
-        lf.beam.updateMatrixWorld();
-        for (const side of [-1, 1]) {
-          tmpA.set(lf.L, 0, side * 3.55).applyMatrix4(lf.beam.matrixWorld);
-          tmpB.set(lf.L - 0.3, 0.1, side * 3.52).applyMatrix4(lf.leaf.matrixWorld);
-          chainPos.setXYZ(ci++, tmpA.x, tmpA.y - 0.15, tmpA.z);
-          chainPos.setXYZ(ci++, tmpB.x, tmpB.y, tmpB.z);
-        }
-      }
-      // a swing bridge lying open on the quay is in the way
-      if (d.openRect && opts.world) {
-        const open = c.amount > 0.02;
-        if (open && !c.collider) {
-          c.collider = { ...d.openRect };
-          opts.world.addCollider(c.collider);
-        } else if (!open && c.collider) {
-          opts.world.removeCollider(c.collider);
-          c.collider = null;
-        }
-      }
+      c.draw?.set(smooth(c.amount));
     }
-    chainPos.needsUpdate = true;
     movePassage(passages.canal, dt, camera);
     movePassage(passages.vliet, dt, camera);
   }

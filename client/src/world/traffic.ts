@@ -72,7 +72,8 @@ export const TRAFFIC_ROUTES: TrafficRoute[] = [
   {
     // the south quay of the Petit Bassin to the storehouse gates by the Entrepot, and back
     name: "bassin_south",
-    pts: [[74, 117], [168, 117], [176, 122], [196, 122]],
+    // z 119.5: clear of the quay railway along z 116 (M3g: the goods train runs there)
+    pts: [[74, 119.5], [168, 119.5], [176, 122], [196, 122]],
     loop: false,
     stops: [{ at: [186.5, 122], secs: 20, chance: 0.8 }],
     vehicles: [{ kind: "handcart", at: 0.3 }],

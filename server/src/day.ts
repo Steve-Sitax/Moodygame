@@ -2,6 +2,7 @@ import type { DB } from "./db.ts";
 import { log, player } from "./game.ts";
 import { remember } from "./npcs.ts";
 import { spreadRumours } from "./town/rumours.ts";
+import { endRide, riding } from "./ride.ts";
 
 // The day and the week (M5). The engine owns time and needs (docs/01, docs/03).
 // A client says "time passed while I played" with a tick; the server decides how
@@ -84,6 +85,8 @@ const clamp = (n: number) => Math.max(0, Math.min(10, n));
  * starved within minutes): food -1 every 6 h, sleep -1 every 3 h, warmth -1
  * every 5 h by day and every 3 h at night (20:00 to 7:00). Health -1 every 3 h
  * while any need is at 0; +1 every 4 h while all three are at 4 or more.
+ * On the omnibus (M3g, ride.ts), out of the wind: warmth -1 only every 10 h by day
+ * and every 6 h at night. Food is the same on board as on foot.
  */
 export function applyHour(db: DB, hour: number): { healthZero: boolean } {
   const p = player(db);
@@ -91,7 +94,9 @@ export function applyHour(db: DB, hour: number): { healthZero: boolean } {
   if (hour % 6 === 0) food--;
   if (hour % 3 === 0) sleep--;
   const cold = hour >= 20 || hour < 7;
-  if (cold ? hour % 3 === 0 : hour % 5 === 0) warmth--;
+  const inside = riding(db);
+  const chillEvery = cold ? (inside ? 6 : 3) : inside ? 10 : 5;
+  if (hour % chillEvery === 0) warmth--;
   food = clamp(food);
   warmth = clamp(warmth);
   sleep = clamp(sleep);
@@ -191,6 +196,7 @@ export function sleep(db: DB, want: "bed" | "rough"): SleepResult {
   ];
 
   db.transaction(() => {
+    endRide(db); // nobody rides the omnibus through the night
     if (where === "bed") {
       db.prepare("UPDATE player SET sleep = 10, food = MAX(0, food - 2), warmth = MIN(10, warmth + 3), health = MIN(10, health + CASE WHEN food >= 3 THEN 1 ELSE 0 END) WHERE id = 1").run();
       summary.push(turnedAway ? "" : "You sleep in a bed of straw in the doss house, six men to the room. It is warm enough.");

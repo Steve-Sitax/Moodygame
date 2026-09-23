@@ -22,6 +22,25 @@ const SWIM_EYE = 0.17; // eye this far above it
 const CLIMB = 1.1; // m/s up a ladder
 const STROKE_LEN = 0.9; // metres per swim stroke
 
+/** Where a carried player stands (feet), the way the carriage points, and how fast it goes (m/s). */
+export interface RideAnchor {
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+  speed: number;
+}
+
+/** M3h: what is under a velocipede's wheels (game/velocipedes.ts works it out). */
+export interface BikeGround {
+  kind: "cobble" | "flags" | "earth" | "wood";
+  /** On a rail head: the rail's direction (unit x, z), else null. */
+  rail: [number, number] | null;
+  /** In the wheel ruts of a cart road. */
+  rut: boolean;
+}
+export type BikeEvent = "wobble" | "fall" | "steps" | "bump" | "edge";
+
 export class FirstPerson {
   readonly camera: THREE.PerspectiveCamera;
   x = 10;
@@ -75,7 +94,7 @@ export class FirstPerson {
     private readonly world: World,
     private readonly dom: HTMLElement,
   ) {
-    this.camera = new THREE.PerspectiveCamera(75, 16 / 9, 0.08, 480);
+    this.camera = new THREE.PerspectiveCamera(75, 16 / 9, 0.08, 600);
     this.camera.rotation.order = "YXZ";
 
     window.addEventListener("keydown", (e) => {
@@ -134,6 +153,8 @@ export class FirstPerson {
 
   update(dt: number): void {
     if (this.fly) return this.updateFly(dt);
+    if (this.rideAnchor) return this.updateRide(dt);
+    if (this.bikeRiding || this.bikeFallT > 0) return this.updateBike(dt);
     if (this.climb) return this.updateClimb(dt);
     if (this.swimming) return this.updateSwim(dt);
     const active = (this.locked || this.freeInput || this.testInput) && !this.frozen;
@@ -345,6 +366,271 @@ export class FirstPerson {
     this.lookPitch += (this.pitch - this.lookPitch) * s;
     this.camera.position.set(this.x, this.y + EYE - pull, this.z);
     this.camera.rotation.set(this.lookPitch, this.lookYaw, 0);
+  }
+
+  // ------------------------------------------------------------ carried (M3g: the omnibus)
+
+  /**
+   * Carried by something that moves (game/ride.ts: the omnibus's back platform): the feet
+   * follow the anchor, walking is off, looking works, and the view turns with the carriage.
+   */
+  rideAnchor: (() => RideAnchor) | null = null;
+  private rideYaw = 0;
+  private rideT = 0;
+
+  get riding(): boolean {
+    return this.rideAnchor !== null;
+  }
+
+  /** Get carried. `faceYaw`: look this way to begin with (world yaw). */
+  rideStart(anchor: () => RideAnchor, faceYaw?: number): void {
+    const a = anchor();
+    this.rideAnchor = anchor;
+    this.rideYaw = a.yaw;
+    this.swimming = false;
+    this.climb = null;
+    this.crouching = false;
+    this.vel.set(0, 0);
+    this.vy = 0;
+    if (faceYaw !== undefined) this.yaw = this.lookYaw = faceYaw;
+  }
+
+  /** Set down on your feet at (x, z). */
+  rideEnd(x: number, z: number): void {
+    this.rideAnchor = null;
+    this.x = x;
+    this.z = z;
+    this.y = this.world.groundAt(x, z, RADIUS, 0);
+    this.vy = 0;
+    this.grounded = true;
+    this.eye = EYE;
+    this.onLand?.(this.world.surfaceAt(x, z));
+  }
+
+  private updateRide(dt: number): void {
+    const a = this.rideAnchor!();
+    let d = a.yaw - this.rideYaw;
+    d = Math.atan2(Math.sin(d), Math.cos(d));
+    this.rideYaw = a.yaw;
+    this.yaw += d;
+    this.lookYaw += d;
+    this.x = a.x;
+    this.z = a.z;
+    this.y = a.y;
+    this.rideT += dt;
+    // the carriage rocks on its springs as the horses trot
+    const go = Math.min(1, a.speed / 2);
+    const bob = Math.sin(this.rideT * 9.5) * 0.018 * go + Math.sin(this.rideT * 2.3) * 0.01 * go;
+    const s = 1 - Math.exp(-dt * 22);
+    this.lookYaw += (this.yaw - this.lookYaw) * s;
+    this.lookPitch += (this.pitch - this.lookPitch) * s;
+    this.camera.position.set(this.x, this.y + EYE + bob, this.z);
+    this.camera.rotation.set(this.lookPitch, this.lookYaw, Math.sin(this.rideT * 1.7) * 0.006 * go);
+  }
+
+  // ------------------------------------------------------------ on a velocipede (M3h)
+
+  /**
+   * On a velocipede (game/velocipedes.ts keeps the machine; this is the rider).
+   * W pedals, S brakes (and pushes back when stopped), A/D steer and the view turns
+   * with the machine; without A/D it steers toward where you look. Iron tyres: the
+   * view rattles on the cobbles. It slows on earth, wobbles on the rails and in the
+   * ruts, and may throw you. It will not go down steps or off a quay edge.
+   */
+  bikeRiding = false;
+  /** Speed along the heading, m/s (a little below 0: pushing it back). */
+  bikeSpeed = 0;
+  /** Where the machine points (a yaw, like `yaw`). */
+  bikeHeading = 0;
+  /** The front wheel is turned this far (rad, + to the left). */
+  bikeSteer = 0;
+  /** Metres rolled: the wheels and the pedals turn by it. */
+  bikeDist = 0;
+  /** Roll of the machine now (lean into a turn, the wobble), rad. */
+  bikeLean = 0;
+  /** What is under the wheels (set by velocipedes.ts). */
+  bikeGround: (x: number, z: number) => BikeGround = () => ({ kind: "cobble", rail: null, rut: false });
+  onBikeEvent?: (e: BikeEvent) => void;
+  /** Seconds left of getting up after a fall. */
+  bikeFallT = 0;
+  private bikeWob = 0;
+  private bikeT = 0;
+  private bikeEventAt = -9;
+  private bikeByKeys = false;
+
+  /** Get on: at (x, z), facing the way the machine points. */
+  bikeMount(x: number, z: number, heading: number): void {
+    this.bikeRiding = true;
+    this.bikeSpeed = 0;
+    this.bikeHeading = heading;
+    this.bikeSteer = 0;
+    this.bikeWob = 0;
+    this.bikeFallT = 0;
+    this.x = x;
+    this.z = z;
+    this.y = this.world.groundAt(x, z, RADIUS, 0);
+    this.yaw = this.lookYaw = heading;
+    this.crouching = false;
+    this.swimming = false;
+    this.climb = null;
+    this.vel.set(0, 0);
+    this.vy = 0;
+    this.grounded = true;
+  }
+
+  /** Get off and step beside it. Returns where the machine stands. */
+  bikeDismount(): { x: number; z: number; yaw: number } {
+    const at = { x: this.x, z: this.z, yaw: this.bikeHeading };
+    this.bikeRiding = false;
+    this.bikeSpeed = 0;
+    this.bikeWob = 0;
+    this.bikeStepAside(0.75);
+    this.eye = EYE;
+    return at;
+  }
+
+  private bikeStepAside(d: number): void {
+    const h = this.bikeHeading;
+    // left of the heading, else the right, else behind it
+    for (const [sx, sz] of [
+      [-Math.cos(h), Math.sin(h)],
+      [Math.cos(h), -Math.sin(h)],
+      [Math.sin(h), Math.cos(h)],
+    ]) {
+      const px = this.x + sx * d;
+      const pz = this.z + sz * d;
+      if (this.world.isFree(px, pz, RADIUS, this.y) && Math.abs(this.world.groundAt(px, pz, RADIUS, this.y) - this.y) < 0.2) {
+        this.x = px;
+        this.z = pz;
+        return;
+      }
+    }
+  }
+
+  private bikeEvent(e: BikeEvent): void {
+    if (e !== "fall" && this.bikeT - this.bikeEventAt < 1.2) return;
+    this.bikeEventAt = this.bikeT;
+    this.onBikeEvent?.(e);
+  }
+
+  /** Thrown off: the machine goes down, you land beside it and get up. */
+  private bikeFall(): void {
+    this.bikeRiding = false;
+    this.bikeSpeed = 0;
+    this.bikeWob = 0;
+    this.bikeFallT = 1.6;
+    this.bikeEvent("fall");
+    this.bikeStepAside(0.9);
+  }
+
+  private updateBike(dt: number): void {
+    const BIKE_EYE = 1.86; // high on the saddle of a boneshaker
+    const WHEELBASE = 1.18;
+    const BIKE_R = 0.38;
+    this.bikeT += dt;
+    const s = 1 - Math.exp(-dt * 22);
+    this.lookYaw += (this.yaw - this.lookYaw) * s;
+    this.lookPitch += (this.pitch - this.lookPitch) * s;
+    if (this.bikeFallT > 0) {
+      // on the cobbles for a moment, then up again
+      this.bikeFallT = Math.max(0, this.bikeFallT - dt);
+      const low = Math.min(1, this.bikeFallT / 0.9);
+      this.camera.position.set(this.x, this.y + EYE - (EYE - 0.5) * low, this.z);
+      this.camera.rotation.set(this.lookPitch, this.lookYaw, 0.45 * low);
+      if (this.bikeFallT === 0) this.eye = EYE;
+      return;
+    }
+    const active = (this.locked || this.freeInput || this.testInput) && !this.frozen;
+    const k = (c: string) => active && this.keys.has(c);
+    const g = this.bikeGround(this.x, this.z);
+    const hard = k("ShiftLeft") || k("ShiftRight");
+    const top = { cobble: 4.6, flags: 5.0, wood: 4.2, earth: 2.8 }[g.kind] * (hard ? 1.15 : 1);
+    const pedal = k("KeyW") || k("ArrowUp");
+    const brake = k("KeyS") || k("ArrowDown") || this.frozen;
+    let v = this.bikeSpeed;
+    if (pedal) v = v < top ? Math.min(top, v + (hard ? 1.9 : 1.4) * dt) : Math.max(top, v - 1.5 * dt);
+    else if (brake) v = v > 0 ? Math.max(0, v - 3.6 * dt) : this.frozen ? 0 : Math.max(-0.6, v - 0.8 * dt);
+    else v = v > 0 ? Math.max(0, v - (0.22 + (g.kind === "earth" ? 0.9 : 0) + (g.rut ? 0.3 : 0)) * dt) : Math.min(0, v + 1.5 * dt);
+
+    // steering: the keys turn the bar (and the view with the machine); else toward where you look
+    let want = 0;
+    if (k("KeyA") || k("ArrowLeft")) want += 0.5;
+    if (k("KeyD") || k("ArrowRight")) want -= 0.5;
+    this.bikeByKeys = want !== 0;
+    const off = Math.atan2(Math.sin(this.yaw - this.bikeHeading), Math.cos(this.yaw - this.bikeHeading));
+    if (!want && Math.abs(off) < 1.4 && Math.abs(v) > 0.15) want = THREE.MathUtils.clamp(off * 1.4, -0.45, 0.45);
+    want /= 1 + Math.abs(v) * 0.15;
+    this.bikeSteer += (want - this.bikeSteer) * (1 - Math.exp(-dt * 6));
+    this.bikeWob = Math.max(0, this.bikeWob - dt * 0.8);
+    const wobble = this.bikeWob * Math.sin(this.bikeT * 13) * 0.2;
+    const dh = ((v * Math.tan(this.bikeSteer + wobble)) / WHEELBASE) * dt;
+    this.bikeHeading += dh;
+    if (this.bikeByKeys) {
+      this.yaw += dh;
+      this.lookYaw += dh;
+    }
+
+    // roll on: never off an edge, never down (or up) a flight of steps
+    const fx = -Math.sin(this.bikeHeading);
+    const fz = -Math.cos(this.bikeHeading);
+    const dx = fx * v * dt;
+    const dz = fz * v * dt;
+    if (dx || dz) {
+      const [nx, nz] = this.world.move(this.x, this.z, dx, dz, BIKE_R, this.y, false);
+      const ng = this.world.groundAt(nx, nz, BIKE_R * 0.5, this.y);
+      const dir = Math.sign(v);
+      if (Math.abs(ng - this.y) > 0.16 || this.world.isWater(nx + fx * 0.7 * dir, nz + fz * 0.7 * dir)) {
+        this.bikeEvent(this.world.isWater(nx + fx * 0.9 * dir, nz + fz * 0.9 * dir) || ng < this.y - 1 ? "edge" : "steps");
+        v = 0;
+      } else {
+        const moved = Math.hypot(nx - this.x, nz - this.z);
+        const wish = Math.hypot(dx, dz);
+        if (moved < wish * 0.4 && Math.abs(v) > 1.2) {
+          this.bikeEvent("bump");
+          v *= 0.15;
+        } else if (moved < wish * 0.9) v *= 1 - Math.min(1, dt * 3); // scraping along a wall
+        this.x = nx;
+        this.z = nz;
+        this.y = ng;
+        this.bikeDist += moved * dir;
+      }
+    }
+
+    // the rails, the ruts and loose earth: a wobble, and at speed maybe a fall
+    const sp = Math.abs(v);
+    if (sp > 1.2) {
+      const q = sp / 4.6;
+      let risk = 0;
+      let throwOff = 0;
+      if (g.rail) {
+        const along = Math.abs(fx * g.rail[0] + fz * g.rail[1]);
+        if (along > 0.85) {
+          risk = 3 * q; // the front wheel runs in the groove beside the rail head
+          throwOff = sp > 3.4 ? 0.3 : 0;
+        } else risk = along > 0.5 ? 1.5 * q : 0.3 * q;
+      }
+      if (g.rut) risk = Math.max(risk, 0.35 * q);
+      if (g.kind === "earth") risk = Math.max(risk, 0.2 * q);
+      if (risk && Math.random() < risk * dt) {
+        if ((this.bikeWob > 0.5 && sp > 3) || Math.random() < throwOff) {
+          this.bikeSpeed = 0;
+          return this.bikeFall();
+        }
+        this.bikeWob = 1;
+        v *= 0.8;
+        this.bikeEvent("wobble");
+      }
+    }
+    this.bikeSpeed = v;
+
+    // the view: high on the saddle, the lean into a turn, the wobble, iron tyres on stone
+    const lean = -this.bikeSteer * Math.min(1, sp / 3) * 0.22 + this.bikeWob * Math.sin(this.bikeT * 13) * 0.07;
+    this.bikeLean = lean;
+    const rattle = (g.kind === "cobble" ? 1 : g.kind === "flags" ? 0.6 : g.kind === "earth" ? 0.4 : 0.3) * Math.min(1, sp / 3.5);
+    const jy = (Math.random() - 0.5) * 0.014 * rattle;
+    const bob = Math.abs(Math.sin(this.bikeDist / 0.46)) * 0.022 * Math.min(1, sp);
+    this.camera.position.set(this.x + Math.sin(this.bikeHeading) * 0.08, this.y + BIKE_EYE + jy + bob, this.z + Math.cos(this.bikeHeading) * 0.08);
+    this.camera.rotation.set(this.lookPitch + jy * 0.6, this.lookYaw, lean * 0.45);
   }
 
   /** Debug / automation: teleport and face a direction. */

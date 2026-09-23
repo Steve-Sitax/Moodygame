@@ -51,6 +51,8 @@ class Mesh(bp.Mesh):
         super().__init__(ao)
         self.lines = []
         self.smoke = []
+        self.hulls = []
+        self.extras = {}
 
     def line(self, a, b):
         self.lines.append((self.xf @ Vector(a), self.xf @ Vector(b)))
@@ -60,13 +62,13 @@ SHOTS = os.path.join(ROOT, "data", "shots")
 
 EXTRA = ["tar", "clinker", "iron_hull", "iron_ports", "band", "copper", "redlead", "deck", "paint_green",
          "paint_white", "canvas", "canvas_tan", "rigging", "shrouds", "lattice", "funnel", "window", "hatch",
-         "tarp", "flag", "names", "washing"]
+         "tarp", "flag", "names", "washing", "names2"]
 # the street-prop materials we use, painted with build_props' painters (our own list: props.glb may change)
 BASE = ["wood", "wood_dark", "iron", "rope", "sackcloth", "crate", "barrel", "stone", "glass"]
 WOOD, DARK, IRON, ROPE, SACK, CRATE, BARREL, STONE, GLASS = range(len(BASE))
 MATS = BASE + EXTRA
 (TAR, CLINKER, IRONHULL, PORTS, BAND, COPPER, REDLEAD, DECK, GREEN, WHITE, CANVAS, TAN, RIG, SHROUD, LATTICE,
- FUNNEL, WINDOW, HATCH, TARP, FLAG, NAMES, WASH) = range(len(BASE), len(MATS))
+ FUNNEL, WINDOW, HATCH, TARP, FLAG, NAMES, WASH, NAMES2) = range(len(BASE), len(MATS))
 # thin parts, seen from both sides (the game makes these double-sided too)
 THIN = {"shrouds", "lattice", "flag", "canvas", "canvas_tan", "tarp", "washing"}
 # metres per texture tile for faces mapped by position
@@ -332,16 +334,17 @@ FONT = {
 }
 # rows of the name texture (row 0 at the top); name_board() picks one
 NAME_ROWS = ["ELISABETH", "ANTWERPEN", "SCHELDE", "HERCULES", "DE HOOP", "NOORDSTER", "ST ANNA", "ZWALUW"]
+NAME_ROWS2 = ["ANNA MARIA", "ANTWERPEN", "BRIG", "", "", "", "", ""]
 
 
-def paint_names(seed):
+def paint_names(seed, rows=None):
     """Ship names in painted letters, 16 px rows (row 0 at the top): cream on black."""
     rng = np.random.default_rng(seed)
     n = 128
     img = np.ones((n, n, 3)) * col((0.05, 0.045, 0.04))
     img *= (0.8 + 0.4 * noise(rng, n, n, 16, 16))[..., None]
     ink = col((0.8, 0.72, 0.52))
-    for r, text in enumerate(NAME_ROWS):
+    for r, text in enumerate(rows or NAME_ROWS):
         wpx = len(text) * 12 - 2
         x0 = (n - wpx) // 2
         ytop = n - 16 * r - 2  # image rows run bottom-up
@@ -458,6 +461,7 @@ def make_materials():
         "flag": lambda: paint_flag(120),
         "names": lambda: paint_names(121),
         "washing": lambda: paint_washing(122),
+        "names2": lambda: paint_names(123, NAME_ROWS2),
     }
     for name in MATS:
         res = paint[name]()
@@ -473,6 +477,9 @@ def make_materials():
         if alpha is not None:
             nt.links.new(t.outputs["Alpha"], bsdf.inputs["Alpha"])
         bsdf.inputs["Roughness"].default_value = 1.0
+    cap = bpy.data.materials.new("cap")
+    t = cap.node_tree.nodes.new("ShaderNodeTexImage")
+    t.image = image_rgba("cap_tex", np.zeros((1, 1, 3)))
     for m in bpy.data.materials:
         m.use_backface_culling = m.name not in THIN
 
@@ -525,6 +532,30 @@ def to_object(m, name, parent=None, loc=(0, 0, 0)):
         ob["rig"] = json.dumps(flat, separators=(",", ":"))
     if getattr(m, "smoke", None):
         ob["smoke"] = json.dumps([round(c, 3) for p in m.smoke for c in (p.x, p.y, p.z)])
+    for k, v in (getattr(m, "extras", None) or {}).items():
+        ob[k] = json.dumps(v, separators=(",", ":"))
+    return ob
+
+
+def cap_object(hull, name, parent):
+    """The water cap: an invisible lid over the hull at its rail. The game draws it before the
+    water into the stencil, and the water leaves those pixels alone, so it never shows inside a
+    hull (open boats, holds, low decks in a swell). Material "cap", one n-gon."""
+    me = bpy.data.meshes.new(name)
+    bm = bmesh.new()
+    vs = [bm.verts.new(p) for p in hull.rim()]
+    try:
+        f = bm.faces.new(vs)
+        if f.normal.z < 0:
+            f.normal_flip()
+    except ValueError:
+        pass
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(bpy.data.materials["cap"])
+    ob = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(ob)
+    ob.parent = parent
     return ob
 
 
@@ -566,7 +597,10 @@ class Hull:
             return [(-p.y / tile, p.z / tile) for p in pts]
         return [(p.x / tile, p.z / tile) for p in pts]
 
-    def outer(self, m):
+    def outer(self, m, skip=None):
+        """skip(sx, k, ta, tb): leave out that face (a gangway port in the bulwark)."""
+        if hasattr(m, "hulls"):
+            m.hulls.append(self)
         T = self.ts
         Z = [self.zs(t) for t in T]
         K = len(self.levels)
@@ -576,6 +610,8 @@ class Hull:
             for k in range(K - 1):
                 mat, fit = self.mats[k]
                 for sx in (1, -1):
+                    if skip and skip(sx, k, ta, tb):
+                        continue
                     pts = [self.P(ta, Z[i][k], sx), self.P(tb, Z[i + 1][k], sx), self.P(tb, Z[i + 1][k + 1], sx),
                            self.P(ta, Z[i][k + 1], sx)]
                     m.poly(pts, mat, out=(sx, 0, 0), uvs=self._uv(pts, mat, fit, (0, 0, 1, 1)))
@@ -591,6 +627,12 @@ class Hull:
                 m.poly(pts, mat, out=(0, ty, 0), uvs=self._uv(pts, mat, fit, (0, 1, 1, 0), along="x"))
         m.shadefn = None
 
+    def rim(self, drop=0.03):
+        """The outline of the hull at its rail, starboard stern to bow, port bow to stern."""
+        top = self.levels[-1]
+        side = [self.P(t, top(t) - drop, 1) for t in self.ts]
+        return side + [mirror(p, -1) for p in reversed(side)]
+
     def span(self, t0, t1):
         return [t0] + [t for t in self.ts if t0 + 1e-6 < t < t1 - 1e-6] + [t1]
 
@@ -601,12 +643,14 @@ class Hull:
             pts = [mirror(a, -1), a, b, mirror(b, -1)]
             m.poly(pts, mat, out=(0, 0, 1), shade=shade, uvs=[(-p.y / tile, p.x / tile) for p in pts])
 
-    def rail(self, m, zlo, ztop, t0, t1, thick, mat, cap_mat, end0=True, end1=False, shade=0.85):
+    def rail(self, m, zlo, ztop, t0, t1, thick, mat, cap_mat, end0=True, end1=False, shade=0.85, skip=None):
         """The inside of the bulwark from the deck up, and the rail cap on top."""
         T = self.span(t0, t1)
         tile = TILE.get(mat, 1.6)
         for ta, tb in zip(T, T[1:]):
             for sx in (1, -1):
+                if skip and skip(sx, -1, ta, tb):
+                    continue
                 pts = [self.P(ta, zlo(ta), sx, thick), self.P(tb, zlo(tb), sx, thick), self.P(tb, ztop(tb), sx, thick),
                        self.P(ta, ztop(ta), sx, thick)]
                 m.poly(pts, mat, out=(-sx, 0, 0), shade=shade, uvs=[(-p.y / tile, p.z / tile) for p in pts])
@@ -746,23 +790,23 @@ def shroud_quad(m, b0, b1, t1, t0, n=4, ratline=0.5):
         k += 1
 
 
-def name_board(m, c, right, up, w, h, row, off=0.03):
+def name_board(m, c, right, up, w, h, row, off=0.03, mat=None):
     """A name painted on a board or straight on the hull: row of NAME_ROWS (0 = top)."""
     c, r, u = Vector(c), Vector(right).normalized(), Vector(up).normalized()
     n = r.cross(u)
     c = c + n * off
     v0, v1 = 1 - (row + 1) / 8, 1 - row / 8
     pts = [c - r * w / 2 - u * h / 2, c + r * w / 2 - u * h / 2, c + r * w / 2 + u * h / 2, c - r * w / 2 + u * h / 2]
-    m.poly(pts, NAMES, out=n, uvs=[(0, v0), (1, v0), (1, v1), (0, v1)])
+    m.poly(pts, NAMES if mat is None else mat, out=n, uvs=[(0, v0), (1, v0), (1, v1), (0, v1)])
 
 
-def hull_name(m, hull, t, z, w, h, row, both=True):
+def hull_name(m, hull, t, z, w, h, row, both=True, mat=None):
     """A name on the bow (or quarter) of a hull, following the planking there."""
     for sx in ((1, -1) if both else (1,)):
         p = hull.P(t, z, sx)
         tan = (hull.P(min(1.0, t + 0.02), z, sx) - hull.P(max(0.0, t - 0.02), z, sx)).normalized()
         right = -tan if sx > 0 else tan
-        name_board(m, p, right, (0, 0, 1), w, h, row, off=0.04)
+        name_board(m, p, right, (0, 0, 1), w, h, row, off=0.04, mat=mat)
 
 
 def washing_line(m, a, b, seed=1, n=5):
@@ -1419,6 +1463,267 @@ def sloop(sailing=False):
 
 
 # ------------------------------------------------------------------ ships
+
+
+def brig():
+    """The Anna Maria: a brig of about 38 m (1873), the game's own ship at the Quai Tavernier.
+    Black hull with a painted port band, copper below, two masts square-rigged with the sails
+    furled, a gaff and boom on the main. Her waist is flat (walkable at 2.4 m above the water),
+    a gangway port in the bulwark on her starboard side (Blender -x, the quay side as she lies),
+    an open main hatch over a real hold (walls, floor, ceiling: empty, for later) and a cabin aft
+    with a doorway and an inside. The walk rectangle and the things in the way go in her extras."""
+    m = Mesh(ao=0.0)
+    L, B, KZ, SZ = 38.0, 9.0, -3.0, 3.4
+
+    def keel(t):
+        return KZ + 1.1 * sm((t - 0.92) / 0.08) ** 1.5 + 0.25 * sm((0.04 - t) / 0.04)
+
+    def sheer(t):
+        return SZ + 1.1 * max(0.0, (t - 0.78) / 0.22) ** 2 + 0.7 * max(0.0, (0.2 - t) / 0.2) ** 2
+
+    SEC = [(0, 0.22), (0.12, 0.7), (0.3, 0.9), (0.55, 0.99), (0.8, 1.0), (1.0, 0.96)]
+
+    def uz(z):
+        return cl((z - KZ) / (SZ - KZ))
+
+    def hb(t, z):
+        u = uz(z)
+        if t > 0.62:
+            f = (t - 0.62) / 0.38
+            p = (1 - min(f, 1.0) ** 2) ** (0.7 + 1.0 * (1 - u))
+        elif t < 0.3:
+            f = (0.3 - t) / 0.3
+            p = (1 - min(f, 1.0) ** 2.2) ** (0.5 + 1.4 * (1 - u))
+            p = max(p, 0.55 * sm((u - 0.5) / 0.5) * (1 - t / 0.3))
+        else:
+            p = 1.0
+        return max(0.03, B / 2 * table(SEC, u) * p)
+
+    def yfn(t, z):
+        u = uz(z)
+        return -2.2 * u ** 1.3 * sm((t - 0.9) / 0.1) + 1.4 * u ** 2 * sm((0.06 - t) / 0.06)
+
+    G0, G1 = 0.434, 0.461  # the gangway port (game x -42.5..-41.5 as she lies)
+    ts = [0, 0.02, 0.05, 0.1, 0.18, 0.3, 0.4, G0, G1, 0.5, 0.6, 0.7, 0.8, 0.88, 0.93, 0.97, 1.0]
+    levels = [keel, lambda t: keel(t) + 0.8, lambda t: -1.4, lambda t: 0.15, lambda t: sheer(t) - 1.45,
+              lambda t: sheer(t) - 0.75, sheer]
+    mats = [(COPPER, 0), (COPPER, 0), (COPPER, 0), (TAR, 0), (BAND, 5.0), (TAR, 0)]
+    hull = Hull(L, ts, levels, hb, mats, yfn=yfn, shade=lambda p: 0.5 + 0.5 * sm((p.z + 2.5) / 5.5))
+
+    def gap(sx, k, ta, tb):
+        return sx < 0 and ta >= G0 - 1e-6 and tb <= G1 + 1e-6 and k in (5, -1)
+
+    hull.outer(m, skip=gap)
+
+    def zd(t):
+        return sheer(t) - 1.0
+
+    TH = 0.15  # bulwark thickness
+
+    def w(t):
+        return hull.hb(t, zd(t)) - 0.12
+
+    # deck, with the main hatch left open over the hold
+    H0, H1, CW = 0.5, 0.6, 1.3
+    hull.deck(m, zd, 0, H0, 0.12, DECK)
+    hull.deck(m, zd, H1, 1, 0.12, DECK)
+    Th = hull.span(H0, H1)
+    for ta, tb in zip(Th, Th[1:]):
+        for sx in (1, -1):
+            pts = [V(sx * CW, hull.y(ta, zd(ta)), zd(ta)), V(sx * w(ta), hull.y(ta, zd(ta)), zd(ta)),
+                   V(sx * w(tb), hull.y(tb, zd(tb)), zd(tb)), V(sx * CW, hull.y(tb, zd(tb)), zd(tb))]
+            m.poly(pts, DECK, out=(0, 0, 1), shade=0.95, uvs=[(-p.y / 1.6, p.x / 1.6) for p in pts])
+    hull.rail(m, zd, sheer, 0, 1, TH, WHITE, DARK, skip=gap)
+    # the gangway port: a low sill where the top strake is cut away, and a post each side
+    yg0, yg1 = hull.y(G1, zd(G1)), hull.y(G0, zd(G0))
+    xg = -(hull.hb(0.447, zd(0.447)) - TH / 2)
+    m.box((xg, (yg0 + yg1) / 2, zd(0.447) + 0.13), (TH, yg1 - yg0, 0.26), DARK)
+    for y in (yg0, yg1):
+        m.box((xg, y, zd(0.447) + 0.5), (0.22, 0.14, 1.0), DARK)
+    # the hatch coaming, open, and the hold below: plank walls, a floor, the deck's underside
+    ya, yb = hull.y(H0, zd(H0)), hull.y(H1, zd(H1))
+    zw = zd(0.55)
+    for sx in (1, -1):
+        m.box((sx * (CW + 0.075), (ya + yb) / 2, zw + 0.25), (0.15, ya - yb + 0.3, 0.5), DARK)
+    for y in (ya + 0.075, yb - 0.075):
+        m.box((0, y, zw + 0.25), (2 * CW + 0.3, 0.15, 0.5), DARK)
+    zf = KZ + 1.3
+    hold0, hold1 = H0 - 0.04, H1 + 0.04
+    hull.inner(m, [lambda t: zf, lambda t: zd(t) - 0.05], hold0, hold1, 0.25, WOOD, DECK)
+    for t0_, t1_, full in ((hold0, H0, True), (H0, H1, False), (H1, hold1, True)):
+        T2 = hull.span(t0_, t1_)
+        for ta, tb in zip(T2, T2[1:]):
+            za, zb_ = zd(ta) - 0.04, zd(tb) - 0.04
+            wa, wb = w(ta) - 0.15, w(tb) - 0.15
+            parts = [(-wa, wa, -wb, wb)] if full else [(CW, wa, CW, wb), (-wa, -CW, -wb, -CW)]
+            for a0, a1, b0, b1 in parts:
+                pts = [V(a0, hull.y(ta, za), za), V(a1, hull.y(ta, za), za), V(b1, hull.y(tb, zb_), zb_), V(b0, hull.y(tb, zb_), zb_)]
+                m.poly(pts, DECK, out=(0, 0, -1), shade=0.5, uvs=[(-p.y / 1.6, p.x / 1.6) for p in pts])
+    # a ladder down into the hold, and some dunnage on its floor
+    ly = ya - 0.4
+    for x in (-0.3, 0.3):
+        m.beam((x, ly, zf), (x, ly - 0.5, zw), 0.06, 0.08, DARK, side=(1, 0, 0))
+    for k in range(1, 8):
+        f = k / 8
+        rig(m, (-0.3, ly - 0.5 * f, zf + (zw - zf) * f), (0.3, ly - 0.5 * f, zf + (zw - zf) * f), 0.04, WOOD)
+    for x in (-1.0, 0.0, 1.0):
+        m.box((x, (ya + yb) / 2, zf + 0.03), (0.2, (ya - yb) * 0.9, 0.05), WOOD, shade=0.7)
+
+    # the cabin aft: walls with a doorway forward, an inside (walls, ceiling), a table and a bunk
+    c0, c1 = 0.07, 0.19
+    cy0, cy1 = hull.y(c1, zd(c1)), hull.y(c0, zd(c0))
+    zb0 = zd(c1) - 0.05
+    ztop = zd(c1) + 2.2
+    CX, WT = 2.4, 0.12
+    hh = ztop - zb0
+    m.box((0, cy1 - WT / 2, (zb0 + ztop) / 2), (2 * CX, WT, hh), WHITE)
+    for sx in (1, -1):
+        m.box((sx * (CX - WT / 2), (cy0 + cy1) / 2, (zb0 + ztop) / 2), (WT, cy1 - cy0, hh), WHITE)
+    DW, DH = 1.0, 1.95
+    for sx in (1, -1):
+        m.box((sx * (DW / 2 + (CX - DW / 2) / 2), cy0 + WT / 2, (zb0 + ztop) / 2), (CX - DW / 2, WT, hh), WHITE)
+    m.box((0, cy0 + WT / 2, (zb0 + DH + ztop) / 2), (DW, WT, ztop - zb0 - DH), WHITE)
+    m.box((0, (cy0 + cy1) / 2, ztop + 0.06), (2 * CX + 0.3, cy1 - cy0 + 0.3, 0.12), DARK, shade=0.85)
+    m.box((0, (cy0 + cy1) / 2 + 0.6, ztop + 0.35), (1.2, 1.0, 0.45), DARK)
+    m.box((0, (cy0 + cy1) / 2 + 0.6, ztop + 0.6), (1.1, 0.9, 0.06), WINDOW)
+    with m.at(move(-DW / 2, cy0 + WT, zb0) @ rot_z(1.75)):
+        m.box((DW / 2, 0.03, DH / 2), (DW, 0.06, DH), DARK)
+    for sx in (1, -1):
+        for f in (0.35, 0.7):
+            y = cy0 + (cy1 - cy0) * f
+            panel(m, (sx * CX, y, zb0 + 1.45), (0, -sx, 0), (0, 0, 1), 0.5, 0.45, WINDOW, off=0.02)
+            panel(m, (sx * (CX - WT), y, zb0 + 1.45), (0, sx, 0), (0, 0, 1), 0.5, 0.45, WINDOW, off=0.02)
+    m.box((0, (cy0 + cy1) / 2, zd(0.13) + 0.4), (1.4, 0.9, 0.05), WOOD, shade=0.8)
+    for x in (-0.6, 0.6):
+        m.box((x, (cy0 + cy1) / 2, zd(0.13) + 0.2), (0.08, 0.08, 0.4), DARK)
+    m.box((CX - 0.6, (cy0 + cy1) / 2, zd(0.13) + 0.45), (0.9, cy1 - cy0 - 0.6, 0.12), WOOD, shade=0.8)
+    chimney(m, -1.5, cy1 - 0.8, ztop + 0.12, 0.7, 0.1)
+
+    # masts and rig
+    def plan(t, h1, h2, h3, rake, r):
+        return MastPlan(hull.y(t, zd(t)), zd(t), zd(t) + h1, zd(t) + h2, zd(t) + h3, rake, r)
+
+    fore = plan(0.70, 12.5, 21.0, 28.0, 0.025, 0.3)
+    main = plan(0.33, 13.5, 22.5, 30.0, 0.04, 0.32)
+    for mp in (fore, main):
+        mp.build(m, top_w=2.5, top_d=1.8)
+    for mp, s_ in ((fore, 0.95), (main, 1.0)):
+        h1, h2, h3 = mp.h1, mp.h2, mp.h3
+        spec = [(h1 - 1.5, 15.5, 0.22, 0.38), (h1 + 0.6, 13.5, 0.18, 0.3), (h1 + (h2 - h1) * 0.55, 12.0, 0.15, 0.26),
+                (h2 + 0.9, 9.0, 0.12, 0.2), (h2 + (h3 - h2) * 0.62, 6.5, 0.09, 0.14)]
+        for i, (z, ln, r, sr) in enumerate(spec):
+            c = mp.at(z) + V(0, -0.5 - (0.45 if i >= 2 else 0) - (0.3 if i >= 3 else 0), 0)
+            lift = mp.at(z + (1.6 if i < 3 else 1.1)) + V(0, -0.5, 0)
+            yard(m, c, ln * s_, r, sr, lifts_to=lift if i < 4 else None)
+            if i < 2:
+                for sx in (1, -1):
+                    t_to = 0.12 if mp is main else 0.42
+                    rig(m, c + V(sx * ln * s_ / 2 * 0.95, 0, 0), hull.P(t_to, sheer(t_to), sx) + V(0, 0, 0.1), 0.016)
+    # the main's gaff and boom (the brig's "brigsail"), brailed up
+    g0 = main.at(main.h1 - 1.2)
+    g1 = g0 + V(0, 8.0 * math.cos(0.45), 8.0 * math.sin(0.45))
+    spar(m, g0, g1, 0.14, 0.09)
+    b0 = main.at(main.zd + 3.3)
+    b1 = b0 + V(0, 14.0, 0.3)
+    spar(m, b0, b1, 0.16, 0.1)
+    bundle(m, g0 + V(0, 0.6, -0.3), g1 + V(0, -0.8, -0.3), 0.28, CANVAS, n=5)
+    bundle(m, b0 + V(0, 0.8, 0.28), b1 + V(0, -1.2, 0.25), 0.22, CANVAS, n=4)
+    rig(m, g1, b1, 0.018)
+    rig(m, main.top(2) - V(0, 0, 0.5), g1)
+    rig(m, main.top(2) - V(0, 0, 0.3), b1)
+    flag(m, g1 + V(0, 0.05, -0.1), 1.8, 1.2, along=(0, 0.2, -1), kind="belgian")
+    flag(m, main.top(3) + V(0, -0.8, 0.9), 1.1, 0.75, along=(0, 1, 0))
+    spar(m, main.top(3) + V(0, -0.8, 0), main.top(3) + V(0, -0.8, 1.0), 0.04, 0.03)
+    pennant(m, fore.top(3) + V(0, -0.8, 0.25), 4.0, h=0.3)
+    # bowsprit and jibboom with the headsails furled
+    stem_top = V(0, hull.y(1.0, sheer(1.0)), sheer(1.0))
+    a = math.radians(13)
+    dv = V(0, -math.cos(a), math.sin(a))
+    heel = stem_top + V(0, 2.6, -0.3)
+    bs_end = heel + dv * 9.0
+    spar(m, heel, bs_end, 0.3, 0.22)
+    jb0, jb1 = heel + dv * 6.0, heel + dv * 16.0
+    spar(m, jb0, jb1, 0.17, 0.08)
+    m.box(bs_end + V(0, 0.15, 0.05), (0.5, 0.3, 0.5), DARK)
+    bundle(m, heel + dv * 9.8 + V(0, 0, 0.2), heel + dv * 15.4 + V(0, 0, 0.13), 0.2, CANVAS, n=4)
+    striker = bs_end + V(0, 0.2, -1.9)
+    spar(m, bs_end + V(0, 0.2, -0.2), striker, 0.06, 0.05)
+    rig(m, bs_end, V(0, hull.y(1.0, 0.4) + 0.4, 0.4), 0.035)
+    rig(m, jb1, striker)
+    rig(m, striker, V(0, hull.y(1.0, 1.3) + 0.3, 1.3))
+    fs = [(fore.top(1), heel + dv * 5.0), (fore.top(2), jb0 + dv * 4.5), (fore.top(3) - V(0, 0, 1.2), jb1)]
+    ms = [(main.top(1), fore.at(fore.zd + 1.2) + V(0, 0.6, 0)), (main.top(2), fore.top(1)), (main.top(3) - V(0, 0, 1.2), fore.top(2))]
+    for a_, b_ in fs + ms:
+        rig(m, a_, b_, 0.03)
+    for mp, tm in ((fore, 0.70), (main, 0.33)):
+        wch = hull.hb(tm, mp.zd + 0.4)
+        for sx in (1, -1):
+            m.box((sx * (wch + 0.18), mp.y + 0.2, mp.zd + 0.35), (0.4, 3.2, 0.12), DARK)
+            shroud_quad(m, (sx * (wch + 0.34), mp.y - 1.3, mp.zd + 0.4), (sx * (wch + 0.34), mp.y + 1.6, mp.zd + 0.4),
+                        mp.at(mp.h1 - 0.7) + V(sx * 0.32, 0.35, 0), mp.at(mp.h1 - 0.7) + V(sx * 0.32, -0.35, 0))
+            shroud_quad(m, mp.at(mp.h1 + 0.1) + V(sx * 1.15, -0.6, 0), mp.at(mp.h1 + 0.1) + V(sx * 1.15, 0.8, 0),
+                        mp.top(2) + V(sx * 0.2, 0.15, -0.6), mp.top(2) + V(sx * 0.2, -0.15, -0.6))
+            shroud_quad(m, mp.top(2) + V(sx * 0.9, -0.2, 0.05), mp.top(2) + V(sx * 0.9, 0.4, 0.05),
+                        mp.top(3) + V(sx * 0.1, 0.05, -2.8), mp.top(3) + V(sx * 0.1, -0.05, -2.8))
+            for lvl, dy in ((2, 3.0), (3, 4.0)):
+                rig(m, mp.top(lvl) - V(0, 0, 0.4), V(sx * (wch + 0.3), mp.y + dy, mp.zd + 0.4), 0.02)
+    # deck fittings: fife rails, coils, windlass, catheads and anchors, wheel, casks, pump
+    obstacles = []
+    for mp in (fore, main):
+        c = mp.at(mp.zd)
+        for (ax, ay), (bx, by) in (((-0.8, -0.8), (0.8, -0.8)), ((0.8, -0.8), (0.8, 0.8)), ((0.8, 0.8), (-0.8, 0.8)),
+                                   ((-0.8, 0.8), (-0.8, -0.8))):
+            m.beam(c + V(ax, ay, 0.72), c + V(bx, by, 0.72), 0.1, 0.08, DARK, side=(0, 0, 1))
+        for ax, ay in ((-0.8, -0.8), (0.8, -0.8), (0.8, 0.8), (-0.8, 0.8)):
+            m.box(c + V(ax, ay, 0.36), (0.12, 0.12, 0.72), DARK)
+        coil(m, c + V(0.35, 1.2, 0), 0.28)
+        obstacles.append([-0.95, 0.95, c.y - 0.95, c.y + 0.95])
+    windlass(m, 0, hull.y(0.925, zd(0.925)), zd(0.925) + 0.4, w=2.0, r=0.22)
+    for sx in (1, -1):
+        cat = hull.P(0.95, sheer(0.95) + 0.2, sx) + V(sx * 0.55, 0, 0)
+        m.beam(hull.P(0.95, sheer(0.95) + 0.1, sx, 0.4), cat, 0.28, 0.28, DARK, side=(0, 1, 0))
+        with m.at(move(cat.x + sx * 0.1, cat.y, cat.z - 0.3)):
+            anchor(m, V(0, 0, 0), side=(1, 0, 0), size=0.8)
+    zq = zd(0.035)
+    m.box((0, hull.y(0.035, zq), zq + 0.4), (0.9, 0.6, 0.8), DARK)
+    wheel_helm(m, V(0, hull.y(0.035, zq) - 0.5, zq + 1.05), 0.5)
+    casks = [(1.8, 0.27), (2.4, 0.29), (1.9, 0.63)]
+    for i, (x, t) in enumerate(casks):
+        barrel_lo(m, (x, hull.y(t, zd(t)), zd(t)), yaw=i * 0.9)
+        obstacles.append([x - 0.4, x + 0.4, hull.y(t, zd(t)) - 0.4, hull.y(t, zd(t)) + 0.4])
+    m.box((-1.9, hull.y(0.36, zd(0.36)), zd(0.36) + 0.5), (0.25, 0.25, 1.0), DARK)  # the pump
+    obstacles.append([-2.1, -1.7, hull.y(0.36, zd(0.36)) - 0.2, hull.y(0.36, zd(0.36)) + 0.2])
+    # the main hatch and the cabin are in the way too (the hold and the cabin are not walkable yet)
+    obstacles.append([-(CW + 0.15), CW + 0.15, yb - 0.15, ya + 0.15])
+    obstacles.append([-CX - 0.1, CX + 0.1, cy0 - 0.1, cy1 + 0.1])
+    # names: the transom and the bows
+    zt0 = sheer(0.0)
+
+    def on_transom(z, x, w_, h, row=None):
+        y = hull.y(0.0, z)
+        dy = (hull.y(0.0, z + 0.3) - hull.y(0.0, z - 0.3)) / 0.6
+        up = V(0, dy, 1).normalized()
+        if row is None:
+            panel(m, (x, y, z), (-1, 0, 0), up, w_, h, WINDOW, off=0.06)
+        else:
+            name_board(m, (x, y, z), (-1, 0, 0), up, w_, h, row, off=0.07, mat=NAMES2)
+
+    wn = hull.hb(0.0, zt0 - 0.5) * 1.55
+    on_transom(zt0 - 0.45, 0, wn, wn / 8, 0)
+    on_transom(zt0 - 0.9, 0, wn * 0.75, wn * 0.75 / 8, 1)
+    for x in (-0.9, 0.0, 0.9):
+        on_transom(zt0 - 1.5, x, 0.45, 0.5)
+    hull_name(m, hull, 0.905, sheer(0.905) - 0.42, 3.2, 0.32, 0, mat=NAMES2)
+    # where to walk: the flat waist between the cabin and the forecastle
+    t0w, t1w = 0.21, 0.79
+    hw = hull.hb(0.5, zd(0.5)) - 0.25
+    m.extras["deck"] = {
+        "y": round(zd(0.5), 3),
+        "rect": [round(-hw, 3), round(hw, 3), round(hull.y(t1w, zd(t1w)), 3), round(hull.y(t0w, zd(t0w)), 3)],
+        "obstacles": [[round(v, 3) for v in r] for r in obstacles],
+        "gangway": [round(-hull.hb(0.447, zd(0.447)), 3), round((yg0 + yg1) / 2, 3)],
+    }
+    return m
 
 
 def schooner():
@@ -2400,6 +2705,7 @@ BUILDERS = [
     ("paddle_tug", lambda: tug(True)),
     ("sloop", sloop),
     ("barque_sail", lambda: barque(True)),
+    ("brig", brig),
     ("schooner", schooner),
     ("sloop_sail", lambda: sloop(True)),
     ("hengst_sail", lambda: barge("hengst", True)),
@@ -2419,9 +2725,13 @@ def tris(ob):
 def build_all():
     objs, counts = {}, {}
     for name, fn in BUILDERS:
-        ob = to_object(fn(), name)
+        m = fn()
+        hull = m.hulls[0] if getattr(m, "hulls", None) else None
+        ob = to_object(m, name)
         objs[name] = ob
         counts[name] = tris(ob)
+        if hull is not None:
+            cap_object(hull, f"{name}_cap", ob)
         if name in CHILDREN:
             cname, cfn, loc = CHILDREN[name]
             ch = to_object(cfn(), cname, parent=ob, loc=loc)
@@ -2540,6 +2850,9 @@ def aim(cam, loc, target, lens=35):
 
 def render(path, res):
     sc = bpy.context.scene
+    for o in sc.objects:
+        if "_cap" in o.name:
+            o.hide_render = True
     sc.render.resolution_x, sc.render.resolution_y = res
     sc.render.resolution_percentage = 100
     sc.render.image_settings.file_format = "PNG"

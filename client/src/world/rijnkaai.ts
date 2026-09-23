@@ -6,15 +6,18 @@ import SPOT_TABLE from "../../../shared/spots.json";
 import CITY_DATA from "../../../shared/city.json";
 import { buildCity, doorSpot, edgeZ, WALL, WATER, OUTSIDE, type CityWorld } from "./city";
 import { dressCity, loadProps } from "./props3d";
-import { loadBoats, type Boats } from "./boats";
+import { loadBoats, waterStencil, type Boats } from "./boats";
 import { createAmbient, type Ambient } from "./ambient";
 import { createLock, type Lock } from "./lock";
 import { createBridges, type Bridges } from "./bridges";
 import { createRiver, type River } from "./river";
 import { buildTracks, trackKeepOut, type TrackData } from "./tracks";
 import { buildRuts } from "./ruts";
+import { buildFarBank } from "./farbank";
 import { createStreetLife, type StreetLife } from "./streetlife";
 import { createTraffic, type Traffic } from "./traffic";
+import { createRailway, type CraneSite, type Railway } from "./railway";
+import { createOmnibus, STOPS as OMNIBUS_STOPS, type Omnibus } from "./omnibus";
 import { quaySteps, shoreTexture, frameAt, type Exit } from "./quaysteps";
 import { buildPier, PIER_BOLLARD } from "./pier";
 import { waveAt } from "../retro/psx";
@@ -30,11 +33,10 @@ export const WATER_Y = -2.8;
 /** Before the walk map is loaded, only the open quay by the start counts as ground. */
 const QUAY = { minX: -50, maxX: 60, minZ: 0.8, maxZ: 40 };
 const PIER = { minX: 5.4, maxX: 8.6, minZ: -11.6, maxZ: 0.6 };
-/** The code-built ships float with the water: this much lower than when the water was at -1.8. */
-const SHIP_DROP = WATER_Y + 1.8;
-/** Ship A (the Anna Maria) lies at x -60..-20, z -11.7..-2.7, off the Quai Tavernier; its deck is at y 1.4. */
+/** The Anna Maria's berth runs from x -60 to -20 off the Quai Tavernier (bollards, ropes, swim blockers). */
 const SHIP_X = -60;
-export const DECK = { minX: SHIP_X + 2, maxX: SHIP_X + 28.5, minZ: -11.2, maxZ: -3.1, y: 2.4 + SHIP_DROP };
+// the Anna Maria: a brig from Blender (build_boats.py "brig"); its deck sits a little below the quay
+export const DECK = { minX: -51.0, maxX: -29.0, minZ: -11.4, maxZ: -3.0, y: WATER_Y + 2.4 };
 /** The ferry pontoon at the Werf (boats.ts), and the gangway (m) that slopes down to its deck. */
 const PONTOON = { x: -249, minX: -251, maxX: -247, minZ: -58, maxZ: 0, gangway: 6 };
 /** Stone steps down to the water (world/quaysteps.ts): top of the flight on the quay line, and the way down. */
@@ -49,7 +51,7 @@ const FLIGHTS: Array<[number, number, number, number]> = [
   [116, 110, 1, 0], // the Petit Bassin, north quay
 ];
 /** The gangway: a plank from the quay (y 0) up to the deck (z -3.1, y DECK.y). */
-export const RAMP = { x: SHIP_X + 18, halfW: 0.45, zLow: 3.8, zHigh: -3.1 };
+export const RAMP = { x: -42, halfW: 0.45, zLow: 0.3, zHigh: -3.0 };
 
 export type Surface = "stone" | "wood";
 
@@ -148,6 +150,10 @@ export interface World {
   boats(): Boats | null;
   /** The drays and handcarts (for the sound); null until loaded. */
   traffic(): Traffic | null;
+  /** The goods train and the cranes at work (M3g); null until loaded. */
+  railway(): Railway | null;
+  /** The horse omnibus round the quays (M3g); null until loaded. */
+  omnibus(): Omnibus | null;
   /** Dev menu: things to set off now (a lock passage, a boat up the canal, fog, rain). */
   devEvents(): Array<{ label: string; run: () => void }>;
   /** Dev: no fog, noon light, every chunk shown (fly mode). */
@@ -231,7 +237,7 @@ export function buildRijnkaai(): World {
   let sunDay = 0;
 
   // --- sky dome: takes the fog colour and the lamp glow in the air
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(460, 16, 8), m.sky);
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(560, 16, 8), m.sky);
   scene.add(sky);
 
   // --- the city: ground, quay walls, houses (world/city.ts)
@@ -270,6 +276,8 @@ export function buildRijnkaai(): World {
       for (const r of traffic.colliders()) dynamic.add(r); // added once: the rects move in place
     })
     .catch((e) => console.warn("traffic did not start", e));
+  // the far bank of the Schelde, seen on clear days (world/farbank.ts)
+  buildFarBank(scene, WATER_Y);
   // wheel ruts down the cart roads (world/ruts.ts)
   city.ready.then(() => buildRuts(scene, city.flags)).catch(() => {});
   // tree trunks on the squares and quays (tools/city/design.py decor)
@@ -279,9 +287,11 @@ export function buildRijnkaai(): World {
 
   // --- water: one sheet that goes where you go, under the land; it moves in
   // whole texture tiles (4 m), so the ripples stay put on the water
-  const WATER_SIZE = 720;
+  const WATER_SIZE = 1200;
   const WATER_TILE = 4;
-  const water = new THREE.Mesh(new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 180, 180), m.water);
+  waterStencil(m.water);
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 240, 240), m.water);
+  water.renderOrder = 2;
   water.rotation.x = -Math.PI / 2;
   water.position.set(0, WATER_Y, 0);
   const wuv = water.geometry.getAttribute("uv");
@@ -328,6 +338,12 @@ export function buildRijnkaai(): World {
   // ships always on the move on the Schelde (world/river.ts)
   let bridges: Bridges | null = null;
   let riverTraffic: River | null = null;
+  let railway: Railway | null = null;
+  let omnibus: Omnibus | null = null;
+  const LOCK_DECK = (() => {
+    const b = (CITY_DATA as unknown as { bridges: Record<string, number[]> }).bridges.lock_bridge;
+    return { minX: b[0], minZ: b[1], maxX: b[2], maxZ: b[3] };
+  })();
   const onOpening = (x: number, z: number) =>
     bridges?.list.find((b) => x > b.rect.minX && x < b.rect.maxX && z > b.rect.minZ && z < b.rect.maxZ) ?? null;
   loadBoats()
@@ -335,22 +351,29 @@ export function buildRijnkaai(): World {
       boats = b;
       lock = createLock(scene, b, {
         world: { addCollider: (r) => dynamic.add(r), removeCollider: (r) => dynamic.delete(r) },
-        occupied: () => !!camera && !!onOpening(camera.position.x, camera.position.z),
+        occupied: () => (!!camera && !!onOpening(camera.position.x, camera.position.z)) || !!railway?.busy(LOCK_DECK) || !!omnibus?.busy(LOCK_DECK),
       });
       bridges = createBridges(scene, b, {
         lock,
         player: () => (camera ? { x: camera.position.x, z: camera.position.z } : null),
+        busy: (r) => !!railway?.busy(r) || !!omnibus?.busy(r),
         world: { addCollider: (r) => dynamic.add(r), removeCollider: (r) => dynamic.delete(r) },
       });
       riverTraffic = createRiver(scene, b);
+      // the Anna Maria at the Rijnkaai, her gangway at RAMP; a barque lies outside her
+      b.place("brig", -40, -7.2, Math.PI / 2, scene);
+      const d = b.deck("brig", -40, -7.2, Math.PI / 2);
+      if (d) for (const o of d.obstacles) colliders.push(o);
+      b.place("barque", -34, -26, Math.PI / 2, scene);
       // portal cranes on the quays; the jib rests along +z, yaw turns it over the water
       const cranes: Array<[number, number, number]> = [
         [-24, 4.0, Math.PI], [-12, 4.0, Math.PI], [60, 4.0, Math.PI],
         [66, 62, Math.PI / 2], [66, 92, Math.PI / 2], [173, 66, -Math.PI / 2], [173, 100, -Math.PI / 2],
         [-280, 4.0, Math.PI], [-240, 4.0, Math.PI], [-300, 4.0, Math.PI],
       ];
+      const craneSites: CraneSite[] = [];
       for (const [x, z, yaw] of cranes) {
-        b.crane(x, z, yaw, scene);
+        craneSites.push({ x, z, yaw, obj: b.crane(x, z, yaw, scene) });
         colliders.push(...b.colliders("portal_crane", x, z, yaw));
       }
       // every hull is an obstacle for a swimmer (its footprint on the water, a little short of bow and stern)
@@ -410,6 +433,34 @@ export function buildRijnkaai(): World {
       pontoonGangway(scene, m, pontoonY);
       // ladders on the free stretches of wall, now that the boats lie where they lie
       city.ready.then(placeLadders).catch((e) => console.warn("ladders", e));
+      // the goods train on the quay railway, the cranes at work (world/railway.ts, M3g)
+      Promise.all([city.ready, loadProps()])
+        .then(([, p]) => {
+          railway = createRailway(scene, {
+            tracks: trackData,
+            cranes: craneSites,
+            props: p,
+            tex: { planks: m.planks.map!, sack: m.sack.map!, crate: m.crate.map! },
+            bridges: () => bridges?.list ?? [],
+            isFree: (x, z, r) => isFree(x, z, r),
+            hullAt: (x, z) => swimSolids.some((c) => inRect(c, x, z)),
+            addCollider: (r) => dynamic.add(r),
+            removeCollider: (r) => dynamic.delete(r),
+            waterY: WATER_Y,
+          });
+          for (const r of railway.colliders()) dynamic.add(r); // added once: the rects move in place
+          // the horse omnibus round the quays (world/omnibus.ts), its horses from the same pool
+          omnibus = createOmnibus(scene, {
+            horses: railway.horses,
+            horseIndex: 2,
+            tex: { planks: m.planks.map! },
+            bridges: () => bridges?.list ?? [],
+            isFree: (x, z, r) => isFree(x, z, r),
+          });
+          for (const r of omnibus.colliders()) dynamic.add(r);
+          for (const st of OMNIBUS_STOPS) colliders.push(rectAround(st.post[0], st.post[1], 0.12, 0.12));
+        })
+        .catch((e) => console.warn("the quay railway did not start", e));
     })
     .catch((e) => {
       console.warn("boats.glb did not load", e);
@@ -454,18 +505,12 @@ export function buildRijnkaai(): World {
   }
 
   // --- ships: dark walls in the fog
-  const shipA = ship(scene, m, SHIP_X, -7.2, 40, 9, false, RAMP.x - SHIP_X);
-  const shipB = ship(scene, m, -56, -26, 44, 10, true);
-  // they float on the lower water; their hulls stop a swimmer
-  shipA.position.y += SHIP_DROP;
-  shipB.position.y += SHIP_DROP;
+  // the Anna Maria (a brig) and a barque outside her come from boats.glb (loadBoats below);
+  // their hulls stop a swimmer
   swimSolids.push({ minX: SHIP_X, maxX: SHIP_X + 40, minZ: -11.7, maxZ: -2.7 }, { minX: -56, maxX: -12, minZ: -31, maxZ: -21 });
   // the pontoon's barges, and the lock (its gates and the tows): no swimming there
   swimSolids.push({ minX: PONTOON.minX - 9.5, maxX: PONTOON.maxX + 9.5, minZ: PONTOON.minZ - 2, maxZ: -2.5 });
   swimSolids.push({ minX: 103.5, maxX: 116.5, minZ: -3, maxZ: 47 });
-  // on ship A's deck: the deckhouse and the masts are in the way
-  colliders.push({ minX: SHIP_X + 5.2, maxX: SHIP_X + 12.4, minZ: -9.2, maxZ: -5.2 });
-  colliders.push(rectAround(SHIP_X + 19.2, -7.2, 0.3, 0.3));
   // gangway: a plank ramp from the quay up to ship A's rail
   {
     const ramp = rod(new THREE.Vector3(RAMP.x, 0.03, RAMP.zLow), new THREE.Vector3(RAMP.x, DECK.y + 0.03, RAMP.zHigh), 0.02, m.planks);
@@ -476,8 +521,8 @@ export function buildRijnkaai(): World {
     }
   }
   // mooring lines from ship A to two bollards
-  scene.add(rod(new THREE.Vector3(SHIP_X + 4, 2.3 + SHIP_DROP, -2.9), new THREE.Vector3(SHIP_X + 4, 0.5, edgeZ(SHIP_X + 4) + 0.9), 0.04, m.rope));
-  scene.add(rod(new THREE.Vector3(SHIP_X + 36, 2.3 + SHIP_DROP, -2.9), new THREE.Vector3(SHIP_X + 32, 0.5, edgeZ(SHIP_X + 32) + 0.9), 0.04, m.rope));
+  scene.add(rod(new THREE.Vector3(-56, DECK.y + 0.9, -3.2), new THREE.Vector3(SHIP_X + 4, 0.5, edgeZ(SHIP_X + 4) + 0.9), 0.04, m.rope));
+  scene.add(rod(new THREE.Vector3(-24, DECK.y + 0.9, -3.2), new THREE.Vector3(SHIP_X + 32, 0.5, edgeZ(SHIP_X + 32) + 0.9), 0.04, m.rope));
 
   // --- gas lamps (6)
   const glow = glowTexture();
@@ -812,8 +857,6 @@ export function buildRijnkaai(): World {
 
   const lampUniforms = psxUniforms.uLamps.value;
   const litGlass = new THREE.Color();
-  const shipABase = shipA.position.clone();
-  const shipBBase = shipB.position.clone();
 
   // time of day: eases toward the target so a jump (after sleep) fades in
   let dayTarget = 8;
@@ -821,10 +864,16 @@ export function buildRijnkaai(): World {
   let lampsLit = 0;
   let dayFar = 25;
   // weather: near/far multipliers and lamp in-scatter; eased like the clock
-  const WEATHER = { fog: [1, 1, 1], mist: [1.6, 1.5, 0.7], clear: [3, 2.3, 0.3], rain: [1.3, 1.3, 0.85], storm: [1.1, 1.05, 0.9] } as const;
+  // [fog near x, fog far x, lamp glow in the air]; far x 14 on a clear day is about 420 m
+  // (Steve: "even clear weather has too much fog, we should be able to look far")
+  // [fog near x, fog far x, lamp glow in the air, clear sky]; far x 14 on a clear day is about 420 m
+  const WEATHER = { fog: [1, 1, 1, 0], mist: [2.5, 3.5, 0.6, 0.25], clear: [40, 16, 0.2, 1], rain: [1.8, 2.5, 0.8, 0], storm: [1.3, 1.6, 0.9, 0] } as const;
+  /** The air of a clear autumn noon: lighter and bluer than the grey of a fog day. */
+  const CLEAR_SKY = new THREE.Color(0x9db0c2);
+  const baseFog = new THREE.Color();
   let weatherNow: keyof typeof WEATHER = "fog";
   let wTarget: readonly number[] = WEATHER.fog;
-  const wNow = [1, 1, 1];
+  const wNow = [1, 1, 1, 0];
   const SCATTER = psxUniforms.uScatter.value;
   const fogFrom = new THREE.Color();
   const fogTo = new THREE.Color();
@@ -835,6 +884,7 @@ export function buildRijnkaai(): World {
     const [h1, c1, s1, f1, l1] = DAYLIGHT[i + 1];
     const k = THREE.MathUtils.smoothstep(h, h0, h1);
     fog.color.copy(fogFrom.setHex(c0)).lerp(fogTo.setHex(c1), k);
+    baseFog.copy(fog.color);
     (scene.background as THREE.Color).copy(fog.color);
     skyLight.intensity = THREE.MathUtils.lerp(s0, s1, k);
     sunDay = Math.max(0, (skyLight.intensity - 0.55) / 1.55);
@@ -857,6 +907,8 @@ export function buildRijnkaai(): World {
     bridges?.update(t, dt, camera ?? undefined);
     riverTraffic?.update(t, dt);
     if (camera) traffic?.update(t, dt, camera.position);
+    if (camera) railway?.update(t, dt, { x: camera.position.x, z: camera.position.z }, camera);
+    if (camera) omnibus?.update(t, dt, { x: camera.position.x, z: camera.position.z }, camera);
     // the sky dome and the water sheet go where you go
     if (camera) {
       sky.position.set(camera.position.x, 0, camera.position.z);
@@ -873,7 +925,10 @@ export function buildRijnkaai(): World {
       dayNow = (dayNow + dh * Math.min(1, dt * 0.8) + 24) % 24;
       applyDaylight(dayNow);
     }
-    for (let i = 0; i < 3; i++) wNow[i] += (wTarget[i] - wNow[i]) * Math.min(1, dt * 0.5);
+    for (let i = 0; i < 4; i++) wNow[i] += (wTarget[i] - wNow[i]) * Math.min(1, dt * 0.5);
+    // a clear day: the air lighter and bluer (by day only)
+    fog.color.copy(baseFog).lerp(CLEAR_SKY, wNow[3] * sunDay * 0.6);
+    (scene.background as THREE.Color).copy(fog.color);
     // the sun: nothing at night, a glow through fog, real light on a clear day
     sun.intensity = sunDay * (1.35 - wNow[2]) * 2.6;
     psxUniforms.uScatter.value = SCATTER * wNow[2];
@@ -897,11 +952,6 @@ export function buildRijnkaai(): World {
     waterTex.offset.x = t * 0.004;
     waterTex.offset.y = t * 0.011;
 
-    // ships breathe on the tide
-    shipA.rotation.x = Math.sin(t * 0.37) * 0.012;
-    shipA.position.y = shipABase.y + Math.sin(t * 0.5) * 0.08;
-    shipB.rotation.x = Math.sin(t * 0.29 + 1.3) * 0.018;
-    shipB.position.y = shipBBase.y + Math.sin(t * 0.41 + 2) * 0.1;
 
     for (let i = 0; i < lamps.length; i++) {
       const l = lamps[i];
@@ -941,6 +991,8 @@ export function buildRijnkaai(): World {
     ambient,
     boats: () => boats,
     traffic: () => traffic,
+    railway: () => railway,
+    omnibus: () => omnibus,
     devEvents: () => {
       let fog = false;
       let rain = false;
@@ -1256,81 +1308,3 @@ function ropeCoil(scene: THREE.Scene, m: Mats, x: number, z: number): void {
   }
 }
 
-function ship(
-  scene: THREE.Scene,
-  m: Mats,
-  x: number,
-  zc: number,
-  len: number,
-  beam: number,
-  steamer: boolean,
-  /** Local x of a gap in the quay-side rail, for a gangway. */
-  gapX?: number,
-): THREE.Group {
-  const g = new THREE.Group();
-  g.position.set(x, 0, zc);
-
-  const hw = beam / 2;
-  const shape = new THREE.Shape();
-  shape.moveTo(1.5, -hw);
-  shape.lineTo(len * 0.72, -hw);
-  shape.quadraticCurveTo(len * 0.95, -hw * 0.8, len, 0);
-  shape.quadraticCurveTo(len * 0.95, hw * 0.8, len * 0.72, hw);
-  shape.lineTo(1.5, hw);
-  shape.quadraticCurveTo(0, hw * 0.9, 0, 0);
-  shape.quadraticCurveTo(0, -hw * 0.9, 1.5, -hw);
-  const hullTop = 2.4;
-  const hullBot = -4.5;
-  const hullGeo = new THREE.ExtrudeGeometry(shape, { depth: hullTop - hullBot, bevelEnabled: false, curveSegments: 6 });
-  hullGeo.rotateX(-Math.PI / 2);
-  hullGeo.translate(0, hullBot, 0);
-  const huv = hullGeo.getAttribute("uv");
-  for (let i = 0; i < huv.count; i++) huv.setXY(i, huv.getX(i) * 0.25, huv.getY(i) * 0.25);
-  g.add(new THREE.Mesh(hullGeo, m.hull));
-
-  // bulwark rail and deckhouse
-  g.add(box(len * 0.7, 0.9, 0.2, m.hull, len * 0.4, hullTop + 0.45, -hw + 0.1, 2));
-  if (gapX === undefined) g.add(box(len * 0.7, 0.9, 0.2, m.hull, len * 0.4, hullTop + 0.45, hw - 0.1, 2));
-  else {
-    const a0 = len * 0.05;
-    const a1 = gapX - 0.6;
-    const b0 = gapX + 0.6;
-    const b1 = len * 0.75;
-    g.add(box(a1 - a0, 0.9, 0.2, m.hull, (a0 + a1) / 2, hullTop + 0.45, hw - 0.1, 2));
-    g.add(box(b1 - b0, 0.9, 0.2, m.hull, (b0 + b1) / 2, hullTop + 0.45, hw - 0.1, 2));
-  }
-  g.add(box(len * 0.18, 2.4, beam * 0.45, m.darkWood, len * 0.22, hullTop + 1.2, 0, 2));
-
-  const masts = steamer ? [0.3, 0.72] : [0.22, 0.48, 0.74];
-  const tops: THREE.Vector3[] = [];
-  for (const f of masts) {
-    const mx = len * f;
-    const h = steamer ? 16 : 24;
-    g.add(cyl(0.18, 0.3, h, 6, m.rigging, mx, hullTop + h / 2, 0));
-    tops.push(new THREE.Vector3(mx, hullTop + h, 0));
-    const yards = steamer ? 1 : 3;
-    for (let y = 0; y < yards; y++) {
-      const yh = hullTop + h * (0.45 + y * 0.2);
-      const yw = beam * (1.5 - y * 0.35);
-      g.add(rod(new THREE.Vector3(mx, yh, -yw / 2), new THREE.Vector3(mx, yh, yw / 2), 0.1, m.rigging));
-    }
-  }
-  // stays: bow, stern, between masts
-  const bow = new THREE.Vector3(len + 5, hullTop + 2.5, 0);
-  g.add(rod(new THREE.Vector3(len - 1, hullTop + 0.5, 0), bow, 0.14, m.rigging)); // bowsprit
-  g.add(rod(tops[tops.length - 1], bow, 0.04, m.rigging));
-  g.add(rod(tops[0], new THREE.Vector3(0.5, hullTop + 0.5, 0), 0.04, m.rigging));
-  for (let i = 0; i < tops.length - 1; i++) g.add(rod(tops[i], tops[i + 1], 0.04, m.rigging));
-  for (const t of tops) {
-    for (const s of [-1, 1]) g.add(rod(t, new THREE.Vector3(t.x - 1.5, hullTop + 0.4, s * hw), 0.03, m.rigging));
-  }
-
-  if (steamer) {
-    const f = cyl(1.1, 1.2, 7, 8, m.iron, len * 0.5, hullTop + 3.5, 0);
-    f.rotation.z = 0.12;
-    g.add(f);
-    g.add(box(4, 2.2, beam * 0.7, m.darkWood, len * 0.58, hullTop + 1.1, 0, 2));
-  }
-  scene.add(g);
-  return g;
-}

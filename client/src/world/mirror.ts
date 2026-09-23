@@ -57,6 +57,8 @@ export function createMirror(planeY: number, opts: MirrorOptions = {}): Mirror {
     magFilter: THREE.NearestFilter,
     minFilter: THREE.NearestFilter,
     depthBuffer: true,
+    // the boats' hull caps write stencil here too (world/boats.ts), so mirrored water stays out of hulls
+    stencilBuffer: true,
   });
   const cam = new THREE.PerspectiveCamera();
   mirrorCams.add(cam);

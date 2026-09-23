@@ -162,7 +162,9 @@ def gate_capstan():
     return m
 
 
-BUILDERS = [("swing_bridge", lambda: swing_bridge(rail_y=0.0)), ("bridge_pier", bridge_pier), ("gate_leaf", gate_leaf),
+# the bridge over the lock is now a lifting bridge (build_bridges.py: draw_leaf_lock, draw_frame_lock);
+# swing_bridge() and bridge_pier() stay for reference
+BUILDERS = [("gate_leaf", gate_leaf),
             ("gate_capstan", gate_capstan)]
 
 
@@ -189,8 +191,6 @@ def preview(objs):
     def at(o, x, z, yaw, y=0.0):
         o.location = (x, -z, y)
         o.rotation_euler = (0, 0, yaw)
-    at(objs["swing_bridge"], 100.5, 17.5, math.radians(-35))
-    at(objs["bridge_pier"], 100.5, 17.5, 0)
     for zg, n in ((7.0, 0), (42.0, 1)):
         for side, (hx, closed) in enumerate(((104.3, -15.0), (115.7, 195.0))):
             o = objs["gate_leaf"] if (n, side) == (0, 0) else bb.dup(objs["gate_leaf"], (0, 0, 0), 0)

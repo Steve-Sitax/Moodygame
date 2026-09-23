@@ -3,11 +3,12 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { psx } from "../retro/psx";
 import { WATER_Y } from "./rijnkaai";
-import { addMovingSource, isSteam, loadBoats, newShipId, ropeMaterial, signal, type BoatName, type Boats, type MovingShip } from "./boats";
+import { addMovingSource, isSteam, loadBoats, loadModelSet, newShipId, ropeMaterial, signal, type BoatName, type Boats, type MovingShip } from "./boats";
+import { createDrawBridge, type DrawBridge } from "./bridges";
 import type { Rect } from "./geom";
 
-// The lock of the Petit Bassin (Bonapartedok), as in 1873: a swing bridge over the lock,
-// turned by hand with a capstan, and two pairs of wooden mitre gates ("puntdeuren") that
+// The lock of the Petit Bassin (Bonapartedok), as in 1873: a lifting bridge over the lock
+// (it was a swing bridge; a lifting bridge clears the quays and carries the railway), and two pairs of wooden mitre gates ("puntdeuren") that
 // point toward the dock. Now and then a tug tows a lighter or a barge from the river
 // through the lock into the dock, or back out; the bridge swings open and the gates open
 // for it, and close after. Models: tools/blender/build_lock.py -> /models/lock.glb.
@@ -27,13 +28,12 @@ export interface LockOptions {
   channel?: LockRect;
   /** The bridge deck over the channel. Default x 102..118, z 14..21 ("lock_bridge"). */
   bridgeRect?: LockRect;
-  /** The bridge's pivot on the west quay. Default (100.5, 17.5). */
-  pivot?: { x: number; z: number };
+
   /** Where the two pairs of gates stand. Default z 7 (river side) and 42 (dock side). */
   gatesZ?: [number, number];
   /** Is someone on the bridge deck? Then it waits before it opens. */
   occupied?: () => boolean;
-  /** Colliders for the open bridge lying on the quay (World.addCollider / removeCollider). */
+  /** Colliders for the bridge's gallows posts (World.addCollider / removeCollider). */
   world?: { addCollider(r: Rect): void; removeCollider(r: Rect): void };
   /** Seconds of game time between passages, min and max. Default 150..330. */
   interval?: [number, number];
@@ -155,7 +155,7 @@ function loadLockModels(): Promise<Map<string, THREE.Object3D>> {
 export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>, opts: LockOptions = {}): Lock {
   const channel = opts.channel ?? { minX: 104, maxX: 116, minZ: 0, maxZ: 46 };
   const bridgeRect = opts.bridgeRect ?? { minX: 102, maxX: 118, minZ: 14, maxZ: 21 };
-  const pivot = opts.pivot ?? { x: 100.5, z: (bridgeRect.minZ + bridgeRect.maxZ) / 2 };
+  const midZ = (bridgeRect.minZ + bridgeRect.maxZ) / 2;
   const [gz0, gz1] = opts.gatesZ ?? [7, 42];
   const interval = opts.interval ?? [150, 330];
   const r = rng(opts.seed ?? 1811);
@@ -163,29 +163,35 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
   group.name = "lock";
   scene.add(group);
 
-  // --- moving parts: bridge angle 0 = across the lock, -PI/2 = lying open along the west quay (toward the dock)
+  // --- moving parts. The bridge is a double lifting bridge (world/bridges.ts): its leaves rise in
+  // place over the channel, carrying the quay railway's rails. bridgeAngle runs 0 (down) to
+  // OPEN_BRIDGE (lifted); gates 0..1.
   const OPEN_BRIDGE = -Math.PI / 2;
   const GATE_OPEN = (75 * Math.PI) / 180;
-  let bridge: THREE.Object3D | null = null;
+  let bridge: DrawBridge | null = null;
   const gates: Array<{ obj: THREE.Object3D; closed: number; dir: number }> = [];
   let bridgeAngle = 0; // current
   let gateOpen = 0; // 0..1
   let want = false; // the traffic wants the lock open
-  let collider: Rect | null = null;
+
+  loadModelSet("/models/bridges.glb")
+    .then((set) => {
+      const L = (channel.maxX - channel.minX) / 2;
+      bridge = createDrawBridge(
+        set,
+        group,
+        [
+          { hinge: [channel.minX, midZ], yaw: 0, L, half: 3.5, leaf: "draw_leaf_lock", beam: "draw_beam_6", frame: "draw_frame_lock" },
+          { hinge: [channel.maxX, midZ], yaw: Math.PI, L, half: 3.5, leaf: "draw_leaf_lock", beam: "draw_beam_6", frame: "draw_frame_lock" },
+        ],
+        [],
+        opts.world,
+      );
+    })
+    .catch((e) => console.warn("bridges.glb did not load", e));
 
   loadLockModels()
     .then((models) => {
-      const b = models.get("swing_bridge")?.clone();
-      const pier = models.get("bridge_pier")?.clone();
-      if (b) {
-        b.position.set(pivot.x, 0, pivot.z);
-        group.add(b);
-        bridge = b;
-      }
-      if (pier) {
-        pier.position.set(pivot.x, 0, pivot.z);
-        group.add(pier);
-      }
       const leaf = models.get("gate_leaf");
       const cap = models.get("gate_capstan");
       const half = (channel.maxX - channel.minX) / 2 - 0.3;
@@ -354,20 +360,9 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
       gateOpen = Math.max(0, gateOpen - gateSpeed * dt);
       if (gateOpen < 0.3) bridgeAngle = Math.min(0, bridgeAngle + bridgeSpeed * ease * dt);
     }
-    if (bridge) bridge.rotation.y = bridgeAngle;
+    bridge?.set(smooth(bridgeAngle / OPEN_BRIDGE));
     const g = smooth(gateOpen);
     for (const gt of gates) gt.obj.rotation.y = gt.closed + gt.dir * GATE_OPEN * g;
-    // the open bridge lies on the quay: keep people out of it
-    if (opts.world) {
-      const open = bridgeAngle < -0.05;
-      if (open && !collider) {
-        collider = { minX: pivot.x - 3.6, maxX: pivot.x + 3.6, minZ: pivot.z - 6.2, maxZ: pivot.z + 17.8 };
-        opts.world.addCollider(collider);
-      } else if (!open && collider) {
-        opts.world.removeCollider(collider);
-        collider = null;
-      }
-    }
 
     // --- traffic
     if (!tow) return;

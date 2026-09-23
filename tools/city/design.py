@@ -41,15 +41,16 @@ WATER = {
 BASTION = Polygon([(-214, 0), (-214, -30), (-204, -42), (-160, -42), (-150, -30), (-150, 0)])
 
 # ------------------------------------------------------------------ bridges: decks over water
-# kind: stone (arch bridge), swing (iron swing bridge, world/lock.ts and world/bridges.ts),
-# draw (timber lifting bridge with a balance, world/bridges.ts), pontoon (floating walkway, boats.ts).
-# Swing and draw bridges open for passing boats; the game walks them only while they are shut.
+# kind: stone (arch bridge), draw (timber lifting bridge with a balance: world/bridges.ts and
+# world/lock.ts; the leaves rise in place, the ones on the quay railway carry its rails),
+# pontoon (floating walkway, boats.ts). Draw bridges open for passing boats; the game walks them
+# only while they are shut.
 BRIDGES = {
-    "lock_bridge": {"kind": "swing", "rect": [102, 14, 118, 21]},
-    "canal_mouth": {"kind": "swing", "rect": [-84, 2, -68, 10]},
+    "lock_bridge": {"kind": "draw", "rect": [102, 14, 118, 21]},
+    "canal_mouth": {"kind": "draw", "rect": [-84, 2, -68, 10]},
     "canal_mid": {"kind": "draw", "rect": [-84, 66, -68, 73]},
     "canal_high": {"kind": "draw", "rect": [-84, 150, -68, 157]},
-    "vliet_mouth": {"kind": "swing", "rect": [-152, 2, -140, 9]},
+    "vliet_mouth": {"kind": "draw", "rect": [-152, 2, -140, 9]},
     "vliet_mid": {"kind": "draw", "rect": [-152, 40, -140, 47]},
     "ferry_pontoon": {"kind": "pontoon", "rect": [-251, -58, -247, 0]},
 }

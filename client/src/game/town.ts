@@ -192,7 +192,7 @@ export class Town {
         s.z = s.p.z;
         if (!s.held) this.behave(s, dt, hour);
         if (s.p && dist(s.x, s.z, player.x, player.z) > DESPAWN_R) this.lose(s, true);
-      } else if (!s.inside) this.coarse(s, dt);
+      } else if (!s.inside && !s.held) this.coarse(s, dt);
     }
     this.spawnT -= dt;
     if (this.spawnT <= 0 && this.crowd.fogDistance) {
@@ -801,6 +801,46 @@ export class Town {
       }
     }
     return best ? { who: this.speaker(best), d: bd } : null;
+  }
+
+  // ---- M3h (game/deeds.ts): who is about to see a theft; owners who give chase; police who come for Jef
+
+  /** Townspeople in the street near (x, z), where they are and which way they face (yaw: facing (sin, cos)). */
+  inStreet(x: number, z: number, r: number): Array<{ id: string; x: number; z: number; yaw: number; trade: string; age: number }> {
+    const out: Array<{ id: string; x: number; z: number; yaw: number; trade: string; age: number }> = [];
+    for (const s of this.sims) if (s.p && dist(s.p.x, s.p.z, x, z) < r) out.push({ id: s.r.id, x: s.p.x, z: s.p.z, yaw: s.p.yaw, trade: s.r.trade, age: s.r.age });
+    return out;
+  }
+
+  /**
+   * Take this resident off their schedule (held) and hand over their puppet. Not in the
+   * street: they come out of sight at `from` (a point out of Jef's view). null if that fails.
+   */
+  claim(id: string, from?: { x: number; z: number }): Puppet | null {
+    const s = this.byId.get(id);
+    if (!s) return null;
+    if (!s.p && from) {
+      if (!isHumanKind(s.kind)) s.kind = KIND_FALLBACK[s.kind] ?? "docker_a";
+      const p = this.crowd.addPuppet(s.kind, from.x, from.z, 0, this.paceOf(s));
+      if (!p) return null;
+      s.p = p;
+      s.inside = false;
+      s.x = from.x;
+      s.z = from.z;
+      this.lanterns(s, this.clock().hour);
+    }
+    if (!s.p) return null;
+    s.held = true;
+    return s.p;
+  }
+
+  /** Back to their day. */
+  release(id: string): void {
+    const s = this.byId.get(id);
+    if (!s) return;
+    s.held = false;
+    s.wait = 0;
+    if (s.p) this.direct(s);
   }
 
   /** Hold still and face Jef while he talks to them; let go after. */

@@ -724,25 +724,31 @@ function buildRain(): THREE.LineSegments {
       varying float vA;
       void main() {
         vec3 box = vec3(28.0, 14.0, 28.0);
-        vec3 vel = vec3(uWind.x * 1.6, -9.5 - aSeed * 2.0, uWind.y * 1.6);
+        // each drop a little its own way in the wind
+        float jit = fract(aSeed * 13.7) - 0.5;
+        vec3 vel = vec3(uWind.x * (1.6 + jit * 0.5), -8.5 - aSeed * 2.5, uWind.y * (1.6 - jit * 0.5));
         vec3 lo = uCam - vec3(14.0, 5.0, 14.0);
         vec3 p = lo + mod(position + vel * uTime - lo, box);
         // a streak as long as the drop falls in 1/20 s; both ends in front of the eye, or none
+        // a streak is the fall during a short exposure: 1/40 to 1/25 s, drop by drop
+        float expo = 0.025 + 0.015 * fract(aSeed * 5.31);
         float za = -(modelViewMatrix * vec4(p, 1.0)).z;
-        float zb = -(modelViewMatrix * vec4(p - vel * 0.05, 1.0)).z;
-        p -= vel * 0.05 * aSeg;
+        float zb = -(modelViewMatrix * vec4(p - vel * expo, 1.0)).z;
+        p -= vel * expo * aSeg;
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         vFogDepth = -mv.z;
         gl_Position = projectionMatrix * mv;
-        // grey in the sky light; drops near a gas lamp catch its glow
-        vec3 col = fogColor * 1.9 + 0.025;
+        // rain barely shows in grey daylight (a little lighter than the air); a drop by a
+        // gas lamp catches its glow and shows clearly
+        vec3 col = fogColor * 1.3 + 0.01;
         for (int i = 0; i < AMB_LAMPS; i++) {
           vec3 d = p - uLamps[i].xyz;
-          col += uLampColor * uLamps[i].w * 0.9 / (1.0 + dot(d, d) * 0.35);
+          col += uLampColor * uLamps[i].w * 1.3 / (1.0 + dot(d, d) * 0.3);
         }
         vCol = col;
-        float near = smoothstep(0.4, 1.2, vFogDepth) * (1.0 - smoothstep(9.0, 14.0, vFogDepth));
-        vA = step(aSeed, uRainAmt) * near * (0.25 + 0.35 * uRainAmt) * step(0.7, min(za, zb));
+        // close drops only: far off, rain is thicker air (the weather's fog), not streaks
+        float near = smoothstep(0.4, 1.2, vFogDepth) * (1.0 - smoothstep(3.0, 7.0, vFogDepth));
+        vA = step(aSeed, uRainAmt) * near * (0.08 + 0.2 * fract(aSeed * 7.3)) * (0.5 + 0.5 * uRainAmt) * step(0.7, min(za, zb));
         if (vA < 0.004) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
       }`,
     fragmentShader: /* glsl */ `
@@ -761,6 +767,7 @@ function buildRain(): THREE.LineSegments {
   lines.name = "ambient_rain";
   return lines;
 }
+
 
 
 // ------------------------------------------------------------------ the module
@@ -1214,7 +1221,7 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
     const pudTarget = rainNow > 0.05 ? 0.7 : weather === "rain" || weather === "storm" ? 0.5 : weather === "fog" ? 0.34 : weather === "mist" ? 0.26 : sunny ? 0 : 0.12;
     pudBase += pudTarget > pudBase ? (pudTarget - pudBase) * Math.min(1, dt * 0.08) : Math.max(pudTarget - pudBase, -dt * 0.004);
     // the puddles are in the ground shader (retro/psx.ts option puddles)
-    psxUniforms.uPuddle.value = Math.max(pudBase, wet * 0.9);
+    psxUniforms.uPuddle.value = Math.max(pudBase, wet * 0.75);
 
     // smoke and wind
     U.uSmoke.value = curve(SMOKE_BY_HOUR, hourNow) + (COLD[weather] ?? 0);

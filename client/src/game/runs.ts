@@ -14,7 +14,7 @@ import { api, type JobsPayload } from "../net/api";
 // happens to them. It reports engine facts when it ends; the server settles.
 
 export interface Action {
-  key: "KeyE" | "KeyF";
+  key: "KeyE" | "KeyF" | "KeyG";
   text: string;
   run: () => void;
 }

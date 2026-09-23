@@ -333,7 +333,8 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         commonFragment +
         (opts.atlas ? "varying vec2 vCell;\n" : "") +
         (opts.wet || opts.water ? wetFragment : "") +
-        (opts.puddles ? "uniform float uPuddle;\nuniform sampler2D uMirror;\nuniform mat4 uMirrorMat;\nuniform sampler2D uPudNoise;\n" + pudNoiseGlsl : "") +
+        (opts.puddles ? "uniform float uPuddle;\nuniform sampler2D uMirror;\nuniform mat4 uMirrorMat;\nuniform sampler2D uPudNoise;\n" : "") +
+        (opts.wet || opts.puddles ? pudNoiseGlsl : "") +
         (opts.water
           ? "uniform sampler2D uShore;\nuniform vec4 uShoreBox;\nvarying float vWaveH;\nuniform sampler2D uWaterMirror;\nuniform mat4 uWaterMirrorMat;\nuniform float uWaterMirrorOn;\n"
           : ""),
@@ -435,18 +436,26 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         ${
           opts.wet
             ? `if (uWet > 0.001) {
-          // wet stone: darker, the sky at grazing angles, the lamps in streaks
+          // Wet stone after Lagarde (Steve: "wet surfaces are extremely shiny"): porous
+          // stone goes DARKER, the joints darkest; it gets wet in patches, not all at
+          // once; and it shines only in small broken glints at a slant, where the top of
+          // a sett catches the light (a cheap bump: every 20 cm face tilts its own way).
+          // Only the puddles are mirrors.
           float stone = smoothstep(0.06, 0.4, dot(diffuseColor.rgb, vec3(0.333)));
-          gl_FragColor.rgb *= 1.0 - 0.3 * uWet;
-          float grazing = pow(1.0 - clamp(-rd.y, 0.0, 1.0), 4.0);
-          gl_FragColor.rgb += fogColor * grazing * 0.5 * uWet * (0.55 + 0.45 * stone);
+          float patchy = pudVal(vPsxWorld.xz / 1.7) * 0.6 + pudVal(vPsxWorld.xz * 4.0) * 0.4;
+          float wetK = uWet * smoothstep(0.15, 0.65, patchy + uWet * 0.35);
+          gl_FragColor.rgb *= 1.0 - 0.36 * wetK * (1.25 - 0.5 * stone);
+          float grazing = pow(1.0 - clamp(-rd.y, 0.0, 1.0), 3.0);
+          // half-metre faces: big enough to show at the game's picture size
+          float glint = step(0.6, pudHash(floor(vPsxWorld.xz * 2.2)));
+          gl_FragColor.rgb += fogColor * grazing * 0.2 * wetK * stone * (0.25 + 0.75 * glint);
           vec3 rr = vec3(rd.x, -rd.y, rd.z);
           float wrefl = 0.0;
           for (int i = 0; i < MAX_LAMPS; i++) {
             wrefl += uLamps[i].w * wetStreak(vPsxWorld, rr, uLamps[i].xyz);
           }
-          gl_FragColor.rgb += uLampColor * wrefl * uWet * (0.4 + 0.6 * stone) * 1.2;
-          if (uRain > 0.001) gl_FragColor.rgb += fogColor * rainRings(vPsxWorld.xz * 1.6, uTime * 1.3, uRain * 0.6) * 0.25 * uWet;
+          gl_FragColor.rgb += uLampColor * wrefl * wetK * stone * (0.15 + 0.85 * glint) * 0.4;
+          if (uRain > 0.001) gl_FragColor.rgb += fogColor * rainRings(vPsxWorld.xz * 1.6, uTime * 1.3, uRain * 0.6) * 0.18 * wetK;
         }`
             : ""
         }
@@ -463,7 +472,8 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
           // the sum bunches round 0.5: stretch it so the fill level is the wet share of the ground
           pn = clamp((pn - 0.5) * 2.4 + 0.5, 0.0, 1.0);
           float lvl = clamp(uPuddle * ${(opts.puddles ?? 1).toFixed(2)}, 0.0, 1.0);
-          float th = 0.97 - lvl * 0.6;
+          // at most about a quarter of the ground is puddle, even in a storm: the rest is wet stone
+          float th = 0.97 - lvl * 0.22;
           float water = smoothstep(th, th + 0.018, pn);
           float damp = smoothstep(th - 0.09, th, pn);
           gl_FragColor.rgb *= 1.0 - 0.38 * damp * (1.0 - water);

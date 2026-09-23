@@ -31,6 +31,8 @@ export const ITEMS: Record<string, ItemDef> = {
   apple: { name: "an apple", food: 1, use: "eat" },
   beer: { name: "a pot of brown beer", food: 1, warmth: 1, use: "drink" },
   parcel: { name: "a parcel", note: "Tied with tarred string. Don't open it." },
+  // M3h: a light to carry (L holds it up or puts it away; the client shows it)
+  lantern: { name: "a hand lantern", note: "Tin and horn, a tallow candle inside. L to hold it up." },
 };
 
 /** Who sells what, for how much (centimes). */
@@ -39,7 +41,10 @@ export const WARES: Record<string, Array<{ kind: string; price_c: number }>> = {
     { kind: "herring", price_c: 5 },
     { kind: "eel", price_c: 12 },
   ],
-  peeters: [{ kind: "biscuit", price_c: 4 }],
+  peeters: [
+    { kind: "biscuit", price_c: 4 },
+    { kind: "lantern", price_c: 40 },
+  ],
   tuur: [{ kind: "jenever", price_c: 10 }],
 };
 
@@ -55,7 +60,10 @@ const STALL_WARES: Record<string, Array<{ kind: string; price_c: number }>> = {
 const TRADE_WARES: Record<string, Array<{ kind: string; price_c: number }>> = {
   baker: STALL_WARES.bread,
   grocer: STALL_WARES.veg,
-  chandler: [{ kind: "biscuit", price_c: 4 }],
+  chandler: [
+    { kind: "biscuit", price_c: 4 },
+    { kind: "lantern", price_c: 40 },
+  ],
   publican: [
     { kind: "beer", price_c: 5 },
     { kind: "jenever", price_c: 10 },

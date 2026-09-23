@@ -83,6 +83,8 @@ export class RetroPass {
       minFilter: THREE.NearestFilter,
       magFilter: THREE.NearestFilter,
       depthBuffer: true,
+      // boats write stencil 1 over their open hulls; the water skips those pixels (world/boats.ts)
+      stencilBuffer: true,
       type: THREE.HalfFloatType,
     });
     this.mat = new THREE.ShaderMaterial({

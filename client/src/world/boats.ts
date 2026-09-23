@@ -28,6 +28,7 @@ export const BOAT_NAMES = [
   "paddle_tug",
   "sloop",
   "barque_sail",
+  "brig",
   "schooner",
   "sloop_sail",
   "hengst_sail",
@@ -104,6 +105,13 @@ export interface Boats {
   /** Walk colliders for a crane's legs (portal) or stone base (hand crane) placed at (x, z, yaw). */
   colliders(name: CraneKind, x: number, z: number, yaw: number): Rect[];
   /**
+   * A ship's walkable deck placed at (x, z, yaw) (for now the brig, the Anna Maria): the flat
+   * waist as a rectangle at world height y (WATER_Y + its deck height), the things on deck in the
+   * way (masts, the open hatch, the cabin, casks) as colliders, and where the gangway port is.
+   * Exact for yaws that are multiples of 90 degrees. Null for models without a deck.
+   */
+  deck(name: BoatName, x: number, z: number, yaw: number): { rect: Rect; y: number; obstacles: Rect[]; gangway: { x: number; z: number } } | null;
+  /**
    * A floating walkway from the quay edge at z0 straight out to z1 at x, made of 10 m
    * pontoon sections (deck level with the quay), with barges moored along both sides.
    * Returns the walkable deck between the railings.
@@ -152,6 +160,7 @@ const MOTION: Record<string, [number, number, number, number]> = {
   paddle_tug: [0.035, 0.014, 0.006, 4.6],
   sloop: [0.04, 0.02, 0.008, 4.0],
   barque_sail: [0.03, 0.01, 0.004, 8.0],
+  brig: [0.02, 0.004, 0.0015, 9.0],
   schooner: [0.04, 0.02, 0.008, 5.5],
   sloop_sail: [0.05, 0.03, 0.012, 4.0],
   hengst_sail: [0.04, 0.02, 0.008, 5.0],
@@ -243,6 +252,35 @@ function puffTexture(): THREE.DataTexture {
  * lost in the fog by 60% of the fog distance, before the hull, so far rigging never draws dark
  * on the sky. `instanced`: for line sets drawn once per boat with the matrix in attributes i0..i3.
  */
+/**
+ * The water cap: every hull made by build_boats.py carries an invisible lid over its rail (a
+ * child mesh named "<model>_cap"). Drawn after the hulls and before the water, it marks its
+ * pixels in the stencil (1); the water (see waterStencil) is not drawn there, so it never shows
+ * inside an open boat, a hold or over a low deck in a swell. From outside, the hull's sides hide
+ * the lid, so the water still covers the hull below the waterline.
+ */
+export const capMaterial = psx(
+  new THREE.MeshBasicMaterial({
+    colorWrite: false,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    stencilWrite: true,
+    stencilRef: 1,
+    stencilFunc: THREE.AlwaysStencilFunc,
+    stencilZPass: THREE.ReplaceStencilOp,
+  }),
+);
+capMaterial.name = "cap";
+
+/** Make a water material skip the pixels the hull caps marked (and draw the water after them: renderOrder 2). */
+export function waterStencil(mat: THREE.Material): void {
+  mat.stencilWrite = true; // enables the stencil test; the mask keeps the water from writing it
+  mat.stencilWriteMask = 0;
+  mat.stencilRef = 1;
+  mat.stencilFunc = THREE.NotEqualStencilFunc;
+  mat.stencilFuncMask = 0xff;
+}
+
 export function ropeMaterial(color = 0x16130f, instanced = false): THREE.Material {
   const mat = psx(new THREE.LineBasicMaterial({ color, fog: true }), { fogReach: 0.6 });
   if (instanced) {
@@ -337,7 +375,7 @@ export async function loadModelSet(url: string): Promise<ModelSet> {
       if (!srcMats.has(mt.name)) srcMats.set(mt.name, mt as THREE.MeshStandardMaterial);
     }
   });
-  const matNames = [...srcMats.keys()];
+  const matNames = [...srcMats.keys()].filter((n) => n !== "cap");
   const N = Math.max(1, Math.ceil(Math.sqrt(matNames.length)));
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = N * CELL;
@@ -383,7 +421,14 @@ export async function loadModelSet(url: string): Promise<ModelSet> {
     const meshes: THREE.Mesh[] = [];
     const visit = (o: THREE.Object3D) => {
       if (o !== node && JIB_NODES.includes(o.name)) return;
-      if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh);
+      const om = o as THREE.Mesh;
+      if (om.isMesh && (om.material as THREE.Material).name === "cap") {
+        // the hull's water cap stays its own mesh: drawn after the hulls, into the stencil
+        om.material = capMaterial;
+        om.renderOrder = 1;
+        return;
+      }
+      if (om.isMesh) meshes.push(om);
       for (const c of o.children) visit(c);
     };
     visit(node);
@@ -862,6 +907,7 @@ async function load(): Promise<Boats> {
       };
       for (const part of ps) {
         const im = new THREE.InstancedMesh(part.geometry, part.material, list.length);
+        if (part.material === capMaterial) im.renderOrder = 1;
         im.name = `${name}_moored`;
         fleet.meshes.push(im);
         group.add(im);
@@ -960,6 +1006,22 @@ async function load(): Promise<Boats> {
     place,
     crane,
     colliders,
+    deck(name, x, z, yaw) {
+      const raw = extras.get(name)?.deck as string | undefined;
+      if (!raw) return null;
+      const d = JSON.parse(raw) as { y: number; rect: number[]; obstacles: number[][]; gangway: number[] };
+      const c = Math.cos(yaw);
+      const s = Math.sin(yaw);
+      // Blender (bx, by) is the model's own (x, -z); then turned by yaw and moved to (x, z)
+      const at = (bx: number, by: number): [number, number] => [x + bx * c - by * s, z - bx * s - by * c];
+      const box = (r: number[]): Rect => {
+        const [ax, az] = at(r[0], r[2]);
+        const [bx, bz] = at(r[1], r[3]);
+        return { minX: Math.min(ax, bx), maxX: Math.max(ax, bx), minZ: Math.min(az, bz), maxZ: Math.max(az, bz) };
+      };
+      const [gx, gz] = at(d.gangway[0], d.gangway[1]);
+      return { rect: box(d.rect), y: WATER_Y + d.y, obstacles: d.obstacles.map(box), gangway: { x: gx, z: gz } };
+    },
     pontoon,
     mooreAlong,
     update,

@@ -134,6 +134,8 @@ export interface JobsPayload {
   clock: Clock;
   rent: { paid: boolean; price_c: number; bedtime: number };
   ending: Ending | null;
+  /** The omnibus (M3g): the ride you are on (null: none, or the ticket ran out) and the fare. */
+  ride?: { on: { from: string; minutes: number; left: number } | null; fare_c: number };
 }
 
 /** What an NPC says. Trust stays on the server (docs/08: hidden). */
@@ -249,6 +251,8 @@ export const api = {
   rent: () => call<JobsPayload & { paid: boolean; text: string }>("POST", "/api/rent"),
   /** Fell into the Schelde: the server takes the cold off your warmth (once per swim). */
   swim: () => call<JobsPayload & { cold: boolean }>("POST", "/api/swim"),
+  /** The horse omnibus (M3g): get on at a stop (the server takes the fare) or get off. */
+  ride: (action: "board" | "alight", stop: string) => call<JobsPayload & { text: string; fare_c?: number }>("POST", "/api/ride", { action, stop }),
   newGame: () => call<JobsPayload>("POST", "/api/new-game"),
   devSet: (v: Partial<Record<"day" | "hour" | "minute" | "food" | "warmth" | "health" | "sleep" | "money_c", number>>) =>
     call<JobsPayload>("POST", "/api/dev/set", v),

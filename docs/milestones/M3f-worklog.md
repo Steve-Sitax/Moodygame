@@ -50,3 +50,16 @@ Nothing of this is committed yet. Last commit: 12d5bce (M3d).
 - Never lock the pointer or set freeInput in tests; after each browser check send the preview tab to /audio/kenney-impact/License.txt.
 - Helpers use their own preview tab (preview_open, reuseExistingTab=false).
 - End each hand-back with the test link http://localhost:5173/ after checking it answers.
+
+## Later the same day (main)
+- Storm weather (5 %), sea state uniform (waves, boats roll); dev endpoint sets weather; Dev menu on the pause paper (dev builds): time, weather, events, needs, money, go to.
+- Settings: picture size, PS1 colour, wobble; dither, grain and wobble keep their 270-line size at any picture size. Restart button (asks twice; the server copies the old week to data/backups/week-<time>.sqlite).
+- Pause screen: W/A/S/D, Space or Enter resumes (Esc cannot take the mouse back: browser rule); Esc closes the Settings and Dev panels.
+- Puddles: value noise in the shader (no repeats), at most about a fifth of the ground even in a storm; wet stone darker, patchy, with half-metre glints (Lagarde); rain streaks fainter and only near (3-7 m); the far "rain curtain" was removed (it read as blobs).
+- Clear weather: fog from 120 m to 480 m, a lighter bluer sky by day; the far bank of the Schelde (farbank.ts, z -290): dyke, trees, houses, a mill, the fort's ramparts. Camera far 600 m, water sheet 1200 m, sky 560 m.
+- Relief painted into cobbles, flagstones and rail setts; bump maps on the ground (subtle in the soft fog light).
+- Quay stairs bonded 0.4 m into the wall, a slab landing with an edge kerb, the parapet carried onto the landing.
+- The Anna Maria is now a Blender brig (hold, cabin, gangway down to a deck at y -0.4); the old code ship is gone; a barque lies outside her. Water stencil lids on every hull: no water inside boats.
+- Swing bridges replaced by lifting bridges (they clipped the quay).
+- Sounds fall off with distance (bells, market, taverns, ships), the foghorn is below -9 dBFS.
+- M4 (director, NPC actions, events, world_event log) is designed, not built: data/m4-draft/NOTES.md. Steve: finish the rest first, then M4 in a new session.

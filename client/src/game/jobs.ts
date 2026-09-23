@@ -69,6 +69,8 @@ export class Jobs {
   private sinking: Array<{ obj: THREE.Object3D; t: number; splashed: boolean }> = [];
   /** The townspeople (M3e), set by main. */
   town: Town | null = null;
+  /** M3h (game/deeds.ts): more things the keys can do: only these (on a velocipede), or options by distance, or extra keys. */
+  extraActions: Array<(x: number, z: number) => { only?: Action[]; options?: Array<[number, Action]>; extra?: Action[] }> = [];
   /** An owner saw you lift this; set it back near where it was and they calm down. */
   private watched: { item: Item; owner: string } | null = null;
 
@@ -196,6 +198,9 @@ export class Jobs {
       if (!out.some((o) => o.key === a.key)) out.push(a);
     };
     const carried = this.goods.carried;
+    const more = carried ? [] : this.extraActions.map((f) => f(x, z));
+    const only = more.find((m) => m.only)?.only;
+    if (only) return only;
 
     if (carried) {
       for (const a of this.run?.carryActions(carried) ?? []) add(a);
@@ -243,8 +248,10 @@ export class Jobs {
           };
       options.push([doss, bed]);
     }
+    for (const m of more) options.push(...(m.options ?? []));
     options.sort((a, b) => a[0] - b[0]);
     if (options.length) add(options[0][1]);
+    for (const m of more) for (const a of m.extra ?? []) add(a);
     // next to a seller, F opens the wares straight away
     if (npc && this.talk.sells(npc.id)) add({ key: "KeyF", text: `buy from ${npc.def.name}`, run: () => this.talk.open(npc, true) });
     if (doss < REACH_DOSS && !this.day.rentPaid) {

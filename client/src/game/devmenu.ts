@@ -71,6 +71,9 @@ export function mountDevMenu(pausePaper: HTMLElement, deps: DevMenuDeps): void {
     e.stopPropagation();
     panel.style.display = "block";
   });
+  window.addEventListener("keydown", (e) => {
+    if (e.code === "Escape" && panel.style.display !== "none") panel.style.display = "none";
+  });
   document.addEventListener("pointerlockchange", () => {
     if (document.pointerLockElement) panel.style.display = "none";
   });

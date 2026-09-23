@@ -186,7 +186,8 @@ interface Stair {
 const TREAD = 0.32;
 const WIDTH = 1.3; // walkable width of the treads
 const PARAPET = 0.32; // the low wall on the open side
-const LANDING = 2.0;
+const LANDING = 2.4;
+const INTO_WALL = 0.4; // every block runs this far into the quay wall: no seam against it
 const RAIL_H = 1.0;
 
 export interface QuaySteps {
@@ -265,15 +266,33 @@ export function quaySteps(waterY: number, tex: { stone: THREE.Texture; iron: THR
     const f = frameAt(x, z, tx, tz, nx, nz);
     const W = WIDTH + PARAPET;
     const end = flightLen + LANDING;
-    // the steps: solid masonry from the river bed
-    for (let i = 0; i < steps; i++) stone.box(f, i * TREAD, (i + 1) * TREAD, 0, WIDTH, bedY, -(i + 1) * rise, undefined, false);
-    // the landing, just above the water
-    stone.box(f, flightLen, end, 0, W, bedY, landY, undefined, false);
+    const u0 = -INTO_WALL;
+    // the steps: solid masonry from the river bed, bonded into the wall
+    for (let i = 0; i < steps; i++) stone.box(f, i * TREAD, (i + 1) * TREAD, u0, WIDTH, bedY, -(i + 1) * rise, undefined, false);
+    // the landing, just above the water: a floor of big slabs with a lighter edge stone
+    stone.box(f, flightLen, end, u0, W, bedY, landY - 0.06, undefined, false);
+    const slabs = 3;
+    for (let k = 0; k < slabs; k++) {
+      const a = flightLen + (LANDING * k) / slabs;
+      const b = flightLen + (LANDING * (k + 1)) / slabs;
+      const tone = k % 2 ? 0.93 : 1;
+      stone.box(f, a + 0.01, b - 0.01, u0, W - 0.2, landY - 0.06, landY, [tone, tone * 0.98, tone * 0.95], false);
+    }
+    // the edge stones round the open side and the end: a low kerb you can still climb over
+    stone.box(f, flightLen, end, W - 0.2, W, landY - 0.06, landY + 0.12, [1.08, 1.06, 1.0], false);
+    stone.box(f, end - 0.2, end, u0, W - 0.2, landY - 0.06, landY + 0.12, [1.08, 1.06, 1.0], false);
     // the parapet on the open side: follows the steps, never higher than a kerb at the top
     for (let i = 0; i < steps; i++) {
       const top = Math.min(-(i + 1) * rise + 0.85, 0.3);
       stone.box(f, i * TREAD, (i + 1) * TREAD, WIDTH, W, bedY, top, undefined, false);
       stone.box(f, i * TREAD, (i + 1) * TREAD, WIDTH - 0.04, W + 0.04, top, top + 0.07, [0.9, 0.88, 0.84], false); // coping
+    }
+    // the parapet runs on past the last tread onto the landing, then ends in a squared pier
+    {
+      const top = landY + 0.85;
+      const s1 = flightLen + 0.7;
+      stone.box(f, flightLen, s1, WIDTH, W, bedY, top, undefined, false);
+      stone.box(f, flightLen, s1 + 0.04, WIDTH - 0.04, W + 0.04, top, top + 0.07, [0.9, 0.88, 0.84], false);
     }
     // an iron rail along the quay edge over the flight, open at the top where you step down
     const r0 = 1.25;
@@ -311,6 +330,8 @@ export function quaySteps(waterY: number, tex: { stone: THREE.Texture; iron: THR
         if (u <= WIDTH) return { y: (st.landY * s) / st.flight, landing: false };
         continue;
       }
+      // the parapet's end pier on the landing is stone, not floor (like the parapet along the steps)
+      if (s <= st.flight + 0.7 && u > WIDTH) continue;
       if (u <= WIDTH + PARAPET) return { y: st.landY, landing: true };
     }
     return null;

@@ -92,10 +92,15 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
   {
     const cob = mats.cobble as THREE.MeshPhongMaterial;
     const zones = (data as unknown as { ground?: Record<string, number[][]> }).ground ?? { cobble: data.land };
+    const BUMP = 4;
+    const earthTex = earthTexture();
+    const flagsTex = flagsTexture();
     const zoneMat: Record<string, [THREE.Material, number]> = {
-      cobble: [psx(new THREE.MeshPhongMaterial({ map: cob.map, color: cob.color, specular: cob.specular, shininess: cob.shininess }), { noSnap: true, affine: 0, wet: true, puddles: 1 }), 2],
-      earth: [psx(new THREE.MeshLambertMaterial({ map: earthTexture() }), { noSnap: true, affine: 0, wet: true, puddles: 1.3 }), 4],
-      flags: [psx(new THREE.MeshPhongMaterial({ map: flagsTexture(), specular: 0x1a1a1a, shininess: 12 }), { noSnap: true, affine: 0, wet: true, puddles: 0.75 }), 4],
+      // bump maps from the texture itself: light stone stands up, dark joints sink, so the
+      // sun and the gas lamps pick out every sett (Steve: "bump mapping?")
+      cobble: [psx(new THREE.MeshPhongMaterial({ map: cob.map, bumpMap: cob.map, bumpScale: BUMP, color: cob.color, specular: cob.specular, shininess: cob.shininess }), { noSnap: true, affine: 0, wet: true, puddles: 1 }), 2],
+      earth: [psx(new THREE.MeshLambertMaterial({ map: earthTex, bumpMap: earthTex, bumpScale: BUMP * 0.6 }), { noSnap: true, affine: 0, wet: true, puddles: 1.3 }), 4],
+      flags: [psx(new THREE.MeshPhongMaterial({ map: flagsTex, bumpMap: flagsTex, bumpScale: BUMP, specular: 0x1a1a1a, shininess: 12 }), { noSnap: true, affine: 0, wet: true, puddles: 0.75 }), 4],
     };
     for (const [zone, tris] of Object.entries(zones)) {
       const [mat, tile] = zoneMat[zone] ?? zoneMat.cobble;

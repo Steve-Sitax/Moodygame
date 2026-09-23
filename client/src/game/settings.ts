@@ -56,6 +56,34 @@ export function mountSettings(pausePaper: HTMLElement, apply: (s: GameSettings) 
   btn.textContent = "Settings";
   pausePaper.appendChild(btn);
 
+  // restart: a new week (asks first; the server keeps a copy of the old week in data/backups)
+  const restart = document.createElement("button");
+  restart.className = "settings-btn";
+  restart.style.marginLeft = "8px";
+  restart.textContent = "Restart";
+  pausePaper.appendChild(restart);
+  let armed = false;
+  restart.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (!armed) {
+      armed = true;
+      restart.textContent = "Start a new week? Click again";
+      setTimeout(() => {
+        armed = false;
+        restart.textContent = "Restart";
+      }, 4000);
+      return;
+    }
+    restart.textContent = "Starting a new week...";
+    try {
+      const r = await fetch("/api/new-game", { method: "POST" });
+      if (!r.ok) throw new Error(String(r.status));
+      location.reload();
+    } catch (err) {
+      restart.textContent = `Could not restart (${String(err)})`;
+    }
+  });
+
   const panel = document.createElement("div");
   panel.className = "settings paper";
   panel.style.display = "none";
@@ -94,6 +122,10 @@ export function mountSettings(pausePaper: HTMLElement, apply: (s: GameSettings) 
     e.stopPropagation();
     draw();
     panel.style.display = "block";
+  });
+  // Esc in the panel: back to the pause screen
+  window.addEventListener("keydown", (e) => {
+    if (e.code === "Escape" && panel.style.display !== "none") panel.style.display = "none";
   });
   // the panel closes when the game starts again
   document.addEventListener("pointerlockchange", () => {
