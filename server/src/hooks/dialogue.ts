@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { weather, WEATHER_TEXT } from "../day.ts";
+import { LANGUAGE_RULE } from "../text.ts";
 import type { DB } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
 import { SYSTEM, SPOTS, listJobs, type JobRow } from "./jobBoard.ts";
@@ -31,6 +33,7 @@ YOU NOW SPEAK AS ONE PERSON OF THE RIJNKAAI.
 - Memories marked "heard" are gossip. You may doubt them or get the details a little wrong.
 - You never hand out money or goods in talk. Only work and shops do that.
 - npc_line: what you say, in your own voice, with your verbal tics now and then. One to three sentences.
+- ${LANGUAGE_RULE.replace(/\s*\n\s*/g, " ")}
 - choices: three short things Jef could say next, different in tone (for example polite, bold, evasive). In Jef's voice, first person.
   Choices must not claim anything Jef did that is not in your memories or on the kaai lately.
 - Numbers, goods and places of work are fixed by the board. Use them as given; never invent other counts.
@@ -73,7 +76,7 @@ ${n.name}, ${n.role}. ${p.look}
 Traits 0-10: warmth ${t.warmth}, greed ${t.greed}, honesty ${t.honesty}, temper ${t.temper}, loyalty ${t.loyalty}, courage ${t.courage}, piety ${t.piety}.
 Loves: ${p.loves}. Hates: ${p.hates}. Wants: ${p.wants.join("; ")}. Fears: ${p.fears.join("; ")}.
 Secret (never tell it easily): ${p.secret}
-Speech: ${p.speech.length} sentences. Tics: ${p.speech.tics.map((x) => `"${x}"`).join(", ")}. Flemish words: ${p.speech.flemish.join(", ")}.
+Speech: ${p.speech.length} sentences. Tics: ${p.speech.tics.map((x) => `"${x}"`).join(", ")}.
 
 YOU AND JEF
 Trust ${r.trust}, affection ${r.affection}, respect ${r.respect}, fear ${r.fear} (0-10). Met ${r.times_met} times.${r.view_of_player ? ` How you see him: ${r.view_of_player}` : " You do not know him yet."}
@@ -85,7 +88,7 @@ ON THE KAAI LATELY (newest first)
 ${log.map((l) => "- " + l.text).join("\n")}
 
 NOW
-Day ${pl.day}, hour ${pl.hour}, fog on the Rijnkaai.${WARES[id] ? `\nYou sell (fixed prices; Jef pays at your stall, never in talk): ${WARES[id].map((w) => `${ITEMS[w.kind].name} ${w.price_c} centimes`).join(", ")}.` : ""}${jobs.length ? `\nYour work on the board:\n${jobs.map((j) => `- "${j.title}", ${workFacts(j)} Pay ${j.pay_c} centimes. ${j.status === "taken" ? "Jef is doing it now." : "Still open."}`).join("\n")}` : ""}
+Day ${pl.day} of the week, ${String(pl.hour).padStart(2, "0")}:00, ${pl.hour < 7 ? "before dawn" : pl.hour < 12 ? "morning" : pl.hour < 17 ? "afternoon" : pl.hour < 21 ? "evening" : "night"}. Weather on the Rijnkaai: ${WEATHER_TEXT[weather(db)]}.${WARES[id] ? `\nYou sell (fixed prices; Jef pays at your stall, never in talk): ${WARES[id].map((w) => `${ITEMS[w.kind].name} ${w.price_c} centimes`).join(", ")}.` : ""}${jobs.length ? `\nYour work on the board:\n${jobs.map((j) => `- "${j.title}", ${workFacts(j)} Pay ${j.pay_c} centimes. ${j.status === "taken" ? "Jef is doing it now." : "Still open."}`).join("\n")}` : ""}
 
 THIS MEETING SO FAR
 ${turns.length ? turns.join("\n") : "- (nothing said yet)"}
@@ -113,10 +116,10 @@ async function generate(db: DB, id: string, scene: string, turns: string[], runn
 }
 
 const FALLBACK_LINES: Record<string, string> = {
-  sooi: "Sooi grunts and looks past you at the river. \"Not now, jongen.\"",
+  sooi: "Sooi grunts and looks past you at the river. \"Not now, lad.\"",
   peeters: "\"I have the books to do,\" the widow says, and does not look up.",
-  tuur: "Tuur taps his cold pipe. \"Later, maat. The river is talking.\"",
-  fientje: "\"Ach, schat, I've herring to sell. Come back when I'm not shouting!\"",
+  tuur: "Tuur taps his cold pipe. \"Later, friend. The river is talking.\"",
+  fientje: "\"Oh, love, I've herring to sell. Come back when I'm not shouting!\"",
 };
 
 export function fallbackLine(id: string): Line {
@@ -193,9 +196,9 @@ const BLOCK = [
 ];
 
 const CANNED: Record<string, string> = {
-  sooi: "\"Wat zegt ge nu? Spreek klaar, jongen, or go and carry something.\"",
+  sooi: "\"What are you on about? Talk sense, lad, or go and carry something.\"",
   peeters: "The widow peers at you over her spectacles. \"Have you been at the jenever? Speak sense.\"",
-  tuur: "Tuur laughs without humour. \"The fog's got into your head, maat.\"",
+  tuur: "Tuur laughs without humour. \"The fog's got into your head, friend.\"",
   fientje: "\"Listen to him! Jef talks strange today. Wait till the Vismarkt hears this.\"",
 };
 

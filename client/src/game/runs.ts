@@ -254,7 +254,7 @@ export class HaulRun implements Run {
     this.ctx.sfx("lift");
     const line: Record<string, string> = {
       tuur: `Tuur presses the ${this.noun} into your hands. "Don't open it. Don't lose it. Don't talk."`,
-      peeters: `The widow counts it out to you. "Signed for. It is on your head now, jongen."`,
+      peeters: `The widow counts it out to you. "Signed for. It is on your head now, young man."`,
       sooi: `Sooi shoves it at you. "For ${(this.task as DeliverTask).recipient}. Go."`,
     };
     this.ctx.toast(line[this.job.employer_npc] ?? `You take the ${this.noun}.`);
@@ -641,7 +641,7 @@ export class WatchRun implements Run {
           b.stop();
           b.face(x, z);
           this.briberState = "waiting";
-          this.ctx.toast(`"Evening, jongen. Cold work. What if you looked at the river a while?"`);
+          this.ctx.toast(`"Evening, lad. Cold work. What if you looked at the river a while?"`);
         } else b.walkTo(x, z, 1.1);
       } else if (this.briberState === "waiting") {
         b.face(x, z);

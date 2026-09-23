@@ -2,7 +2,7 @@ import * as THREE from "three";
 import "./style.css";
 import { RetroPass } from "./retro/retroPass";
 import { psxUniforms } from "./retro/psx";
-import { BOARD_POS, RAMP, SPOTS, buildRijnkaai } from "./world/rijnkaai";
+import { BOARD_POS, DOSS_POS, RAMP, SPOTS, buildRijnkaai } from "./world/rijnkaai";
 import { FirstPerson } from "./player/firstPerson";
 import { Soundscape } from "./audio/soundscape";
 import { Jobs } from "./game/jobs";
@@ -101,6 +101,7 @@ if (import.meta.env.DEV) {
         if (!can(n.pos.x, n.pos.z, reach)) bad.push(`person ${n.def.name}`);
       }
       if (!can(BOARD_POS.x, BOARD_POS.z, 2.5)) bad.push("hiring board");
+      if (!can(DOSS_POS.x, DOSS_POS.z, 2.0)) bad.push("the doss house gate");
       if (!can(RAMP.x - 0.6, RAMP.zHigh - 1.0, 2.4)) bad.push("the mate on deck");
       return bad;
     },

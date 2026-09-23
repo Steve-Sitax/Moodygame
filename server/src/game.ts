@@ -187,7 +187,8 @@ export function finishJob(db: DB, id: number, report: Report, rng?: () => number
   const faction = EMPLOYERS[j.employer_npc as EmployerId]?.faction;
   db.transaction(() => {
     db.prepare("UPDATE job SET status = ? WHERE id = ?").run(s.status, id);
-    db.prepare("UPDATE player SET money_c = MAX(0, money_c + ?), hour = MIN(hour + 1, 23) WHERE id = 1").run(s.pay_c + s.extra_c);
+    // time passes while the job is played (M5 clock), so no extra hour here
+    db.prepare("UPDATE player SET money_c = MAX(0, money_c + ?) WHERE id = 1").run(s.pay_c + s.extra_c);
     if (faction && s.trust_delta) {
       db.prepare("UPDATE faction_trust SET trust = MAX(0, MIN(10, trust + ?)) WHERE faction = ?").run(s.trust_delta, faction);
     }

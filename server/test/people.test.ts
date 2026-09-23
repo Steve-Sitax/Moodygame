@@ -110,7 +110,7 @@ describe("free text (docs/03 walls)", () => {
     });
     expect(called).toBe(0);
     expect(r).toMatchObject({ gated: "blocked" });
-    expect("npc_line" in r && r.npc_line).toMatch(/Spreek klaar/);
+    expect("npc_line" in r && r.npc_line).toMatch(/Talk sense/);
     expect(db.prepare("SELECT COUNT(*) n FROM log WHERE verb = 'said_strange'").get()).toEqual({ n: 1 });
   });
 

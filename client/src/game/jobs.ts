@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { api, connectPush, type Job, type JobsPayload, type OutcomeMsg, type Progress, type Report } from "../net/api";
-import { BOARD_POS, SPOTS, type World } from "../world/rijnkaai";
+import { BOARD_POS, DOSS_POS, SPOTS, type World } from "../world/rijnkaai";
 import type { FirstPerson } from "../player/firstPerson";
 import { glowTexture } from "../world/textures";
 import { GOODS, type Goods } from "./props";
@@ -8,6 +8,7 @@ import { GoodsWorld, ahead, type Item } from "./goods";
 import { People } from "./people";
 import { Talk } from "./talk";
 import { Pockets } from "./pockets";
+import { Day } from "./day";
 import { esc, HaulRun, makeRun, type Action, type Run, type RunCtx, type Sfx } from "./runs";
 
 // The hands and the job (M2, M2b, M3). Everything you do with E and F goes
@@ -15,6 +16,7 @@ import { esc, HaulRun, makeRun, type Action, type Run, type RunCtx, type Sfx } f
 // board, and the job's own actions. The server decides pay, task and trust.
 
 const REACH_BOARD = 2.6;
+const REACH_DOSS = 2.4;
 const REACH_ITEM = 1.8;
 const OWNER_SEES = 12;
 
@@ -28,16 +30,16 @@ const OWNED: Array<{ kind: Goods; owner: string; at: Array<[number, number]> }> 
 
 /** What an owner shouts when Jef lifts their goods under their nose. */
 const OWNER_SHOUT: Record<string, string> = {
-  sooi: `Sooi: "Hé! That's natie goods, jongen. Put it down or I'll put you down."`,
+  sooi: `Sooi: "Hey! That's natie goods, lad. Put it down or I'll put you down."`,
   peeters: `Widow Peeters: "Thief! Those are mine. Put it back this instant!"`,
-  tuur: `Tuur: "Hands off, maat. That's not yours to carry."`,
-  fientje: `Fientje: "Oi! Fingers off my baskets, manneke!"`,
+  tuur: `Tuur: "Hands off, friend. That's not yours to carry."`,
+  fientje: `Fientje: "Oi! Fingers off my baskets, you!"`,
 };
 const OWNER_CALM: Record<string, string> = {
-  sooi: `Sooi grunts. "Goed. Keep your hands to your own work."`,
+  sooi: `Sooi grunts. "Right. Keep your hands to your own work."`,
   peeters: `The widow sniffs. "Hm. See that it stays there."`,
   tuur: `Tuur nods slowly. "Wise."`,
-  fientje: `"That's better, schat. I'd have told the whole Vismarkt."`,
+  fientje: `"That's better, love. I'd have told the whole Vismarkt."`,
 };
 
 export class Jobs {
@@ -53,6 +55,7 @@ export class Jobs {
   readonly people: People;
   readonly talk: Talk;
   readonly pockets: Pockets;
+  readonly day: Day;
   private sinking: Array<{ obj: THREE.Object3D; t: number; splashed: boolean }> = [];
   /** An owner saw you lift this; set it back near where it was and they calm down. */
   private watched: { item: Item; owner: string } | null = null;
@@ -91,6 +94,14 @@ export class Jobs {
       this.apply(p);
       this.toastMsg(line);
     };
+    this.day = new Day(world, player);
+    this.day.apply = (p) => this.apply(p);
+    this.day.toast = (t) => this.toastMsg(t);
+    this.day.onSheet = () => {
+      this.talk.close();
+      if (this.boardOpen) this.closeBoard();
+      if (this.pockets.open) this.pockets.toggle();
+    };
     for (const o of OWNED) for (const [x, z] of o.at) this.goods.spawn(o.kind, x, z, { owner: o.owner });
 
     this.glow = new THREE.Sprite(
@@ -127,9 +138,12 @@ export class Jobs {
     this.el.hud.textContent = `${p.player.money_c} c`;
     this.talk.money = p.player.money_c;
     this.pockets.apply(p);
+    this.day.show(p);
     // pick up a job that is already taken (reload in the middle of a job)
     const taken = p.jobs.find((j) => j.status === "taken") ?? null;
     if (taken && !this.active) this.start(taken);
+    // the job ended on the server without us (night fell on it): drop it here too
+    if (this.active && !this.finishing && taken?.id !== this.active.id) this.dropRun();
     if (this.boardOpen) this.renderBoard();
   }
 
@@ -140,7 +154,7 @@ export class Jobs {
     this.people.update(dt, this.player);
     this.updateSinking(dt);
     this.acts = this.findActions();
-    const text = this.boardOpen || this.talk.isOpen || this.pockets.open ? "" : this.acts.map((a) => `${a.key.slice(3)}  ${a.text}`).join("     ");
+    const text = this.boardOpen || this.talk.isOpen || this.pockets.open || this.day.sheetOpen ? "" : this.acts.map((a) => `${a.key.slice(3)}  ${a.text}`).join("     ");
     if (this.el.prompt.textContent !== text) this.el.prompt.textContent = text;
     this.el.prompt.style.display = text ? "block" : "none";
     this.renderTask();
@@ -149,7 +163,7 @@ export class Jobs {
 
   /** Everything E and F can do right now, most specific first. */
   private findActions(): Action[] {
-    if (this.boardOpen || this.talk.isOpen || this.pockets.open) return [];
+    if (this.boardOpen || this.talk.isOpen || this.pockets.open || this.day.sheetOpen) return [];
     const { x, z } = this.player;
     const out: Action[] = [];
     const add = (a: Action) => {
@@ -183,10 +197,25 @@ export class Jobs {
     }
     if (npc) options.push([npc.distTo(x, z), { key: "KeyE", text: `talk to ${npc.def.name}`, run: () => this.talk.open(npc) }]);
     if (board < REACH_BOARD) options.push([board, { key: "KeyE", text: "read the hiring board", run: () => this.openBoard() }]);
+    const doss = Math.hypot(DOSS_POS.x - x, DOSS_POS.z - z);
+    if (doss < REACH_DOSS) {
+      const bed: Action = this.day.bedOpen
+        ? { key: "KeyE", text: "go to bed in the doss house", run: () => void this.day.sleep() }
+        : {
+            key: "KeyE",
+            text: "knock at the doss house",
+            run: () => this.toastMsg(`The landlady opens a crack. "Beds from six in the evening. Not before." It is ${this.day.hour}:00.`),
+          };
+      options.push([doss, bed]);
+    }
     options.sort((a, b) => a[0] - b[0]);
     if (options.length) add(options[0][1]);
     // next to a seller, F opens the wares straight away
     if (npc && this.talk.sells(npc.id)) add({ key: "KeyF", text: `buy from ${npc.def.name}`, run: () => this.talk.open(npc, true) });
+    if (doss < REACH_DOSS && !this.day.rentPaid) {
+      const price = this.payload?.rent.price_c ?? 150;
+      add({ key: "KeyF", text: `pay the week's rent (${price} c)`, run: () => void this.day.rent() });
+    }
     return out;
   }
 
@@ -286,7 +315,7 @@ export class Jobs {
   // ------------------------------------------------------------- input
 
   private onKey(e: KeyboardEvent): void {
-    if (e.repeat || this.talk.isOpen || this.pockets.open) return;
+    if (e.repeat || this.talk.isOpen || this.pockets.open || this.day.sheetOpen) return;
     if (this.boardOpen) {
       if (e.code === "KeyE" || e.code === "Escape") this.closeBoard();
       const n = Number(e.key);
@@ -323,14 +352,15 @@ export class Jobs {
     const p = this.payload;
     const b = this.el.board;
     if (!p) {
-      b.innerHTML = `<h2>Werk</h2><p class="note-text">The board is bare. Nobody has come by yet.</p>`;
+      b.innerHTML = `<h2>Work</h2><p class="note-text">The board is bare. Nobody has come by yet.</p>`;
       return;
     }
     const open = p.jobs.filter((j) => j.status === "offered");
     if (p.board.state === "writing" && open.length === 0) {
-      b.innerHTML = `<h2>Werk</h2><p class="note-text">A clerk is chalking up new work. Wait a moment.</p>`;
+      b.innerHTML = `<h2>Work</h2><p class="note-text">A clerk is chalking up new work. Wait a moment.</p>`;
       return;
     }
+    const noMore = open.length === 0 ? `<p class="note-text">No more work today. Come back at dawn.</p>` : "";
     const rows = this.visibleJobs()
       .map((j, i) => {
         const cls = j.status !== "offered" ? "gone" : j.playable ? "" : "later";
@@ -346,7 +376,7 @@ export class Jobs {
         </li>`;
       })
       .join("");
-    b.innerHTML = `<h2>Werk &mdash; Rijnkaai</h2><ol>${rows}</ol>
+    b.innerHTML = `<h2>Work &mdash; Rijnkaai</h2>${noMore}<ol>${rows}</ol>
       <p class="keys">Press a number to take a job &middot; E to step back</p>`;
   }
 
@@ -392,6 +422,16 @@ export class Jobs {
     }
     if (t.kind === "deliver") this.toastMsg(`${who} has a ${GOODS[t.goods].one} for ${t.recipient}. Get it from ${who}.`);
     this.run = makeRun(job, ctx);
+  }
+
+  /** Stop the running job without settling it (the server already closed it). */
+  private dropRun(): void {
+    const id = this.active?.id;
+    this.run?.dispose();
+    this.run = null;
+    this.active = null;
+    if (id !== undefined) this.goods.clearJob(id);
+    if (!this.goods.carried) this.player.speedFactor = 1;
   }
 
   private saveProgress(id: number, p: Progress): void {

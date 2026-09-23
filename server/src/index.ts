@@ -2,7 +2,11 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { WebSocketServer, WebSocket } from "ws";
 import { DB_FILE, DEV, HOST, PORT } from "./config.ts";
-import { openDb } from "./db.ts";
+import { openDb, resetDb } from "./db.ts";
+import { plainEnglish } from "./text.ts";
+import { BEDTIME, clock, ending, markDayStart, payRent, RENT_C, rentPaid, resetTickLimit, setEnding, sleep, tick, type Ending } from "./day.ts";
+import { writeEpilogue } from "./hooks/epilogue.ts";
+import { resetTalks } from "./hooks/dialogue.ts";
 import { listJobs, makeBoard } from "./hooks/jobBoard.ts";
 import { writeOutcome } from "./hooks/jobOutcome.ts";
 import { finishJob, GameError, player, ReportSchema, saveOutcome, saveProgress, takeJob } from "./game.ts";
@@ -18,11 +22,23 @@ let board: { state: "writing" | "ready"; source?: string; error?: string } = { s
 
 function jobsPayload() {
   const p = player(db);
-  return { board, jobs: listJobs(db, p.day), player: p, pockets: pockets(db) };
+  return {
+    board,
+    jobs: listJobs(db, p.day),
+    player: p,
+    pockets: pockets(db),
+    clock: clock(db),
+    rent: { paid: rentPaid(db), price_c: RENT_C, bedtime: BEDTIME },
+    ending: ending(db),
+  };
 }
 
+let boardAgain = false;
 async function writeBoard(): Promise<void> {
-  if (board.state === "writing") return;
+  if (board.state === "writing") {
+    boardAgain = true; // a new day began while the old board was still being written
+    return;
+  }
   board = { state: "writing" };
   broadcast({ type: "jobs", ...jobsPayload() });
   try {
@@ -34,6 +50,10 @@ async function writeBoard(): Promise<void> {
     console.error("[job_board] failed", e);
   }
   broadcast({ type: "jobs", ...jobsPayload() });
+  if (boardAgain) {
+    boardAgain = false;
+    void writeBoard();
+  }
 }
 
 app.get("/api/state", (c) => c.json(jobsPayload()));
@@ -62,8 +82,6 @@ app.post("/api/jobs/:id/done", async (c) => {
   broadcast({ type: "jobs", ...jobsPayload() });
   // the words come later; the game never waits for them
   void narrate(res.job.id, res.settlement);
-  // no work left on the board: put up a fresh one (stand-in until the M5 day loop)
-  if (!listJobs(db, player(db).day).some((j) => j.status === "offered" && j.playable)) void writeBoard();
   return c.json(res);
 });
 
@@ -91,7 +109,13 @@ function placed(id: string): string {
 }
 
 function publicLine(l: Line & { gated?: string }) {
-  return { npc_line: l.npc_line, mood: l.mood, choices: l.choices, end: l.end_conversation, gated: l.gated ?? null };
+  return {
+    npc_line: l.npc_line ? plainEnglish(l.npc_line) : l.npc_line,
+    mood: l.mood,
+    choices: l.choices?.map(plainEnglish),
+    end: l.end_conversation,
+    gated: l.gated ?? null,
+  };
 }
 
 app.get("/api/npcs", (c) =>
@@ -104,6 +128,56 @@ app.get("/api/npcs", (c) =>
     })),
   ),
 );
+
+// ---- the day and the week (M5)
+
+/** Called when a night ends: a new board for the new day, or the epilogue. */
+function afterNight(ended?: Ending): void {
+  if (ended) void epilogue(ended);
+  else void writeBoard();
+}
+
+async function epilogue(e: Ending): Promise<void> {
+  const r = await writeEpilogue(db, e);
+  setEnding(db, { ...e, epilogue: r.epilogue });
+  console.log(`[epilogue] ${r.source}${r.error ? " (" + r.error + ")" : ""}`);
+  broadcast({ type: "jobs", ...jobsPayload() });
+}
+
+app.post("/api/tick", (c) => {
+  const r = tick(db);
+  if (r.night) afterNight(r.night.ended);
+  if (r.ended && !r.night) void epilogue(r.ended);
+  if (r.advanced) broadcast({ type: "jobs", ...jobsPayload() });
+  return c.json({ ...r, ...jobsPayload() });
+});
+
+app.post("/api/sleep", (c) => {
+  if (ending(db)) throw new GameError("the week is over", 409);
+  const h = clock(db).hour;
+  const tired = player(db).sleep <= 2;
+  if (h < BEDTIME && !tired) throw new GameError(`the doss house opens its beds at ${BEDTIME}:00`, 409);
+  const night = sleep(db, "bed");
+  afterNight(night.ended);
+  broadcast({ type: "jobs", ...jobsPayload() });
+  return c.json({ night, ...jobsPayload() });
+});
+
+app.post("/api/rent", (c) => {
+  const r = payRent(db);
+  broadcast({ type: "jobs", ...jobsPayload() });
+  return c.json({ ...r, ...jobsPayload() });
+});
+
+app.post("/api/new-game", (c) => {
+  resetDb(db);
+  resetTalks();
+  markDayStart(db);
+  void ensurePersonas(db).then((r) => console.log(`[persona] ${r.join(", ")}`));
+  void writeBoard();
+  broadcast({ type: "jobs", ...jobsPayload() });
+  return c.json(jobsPayload());
+});
 
 // ---- pockets and paying (M3b)
 
@@ -163,6 +237,16 @@ if (DEV) {
     void writeBoard();
     return c.json({ started: true });
   });
+  // dev only: jump the clock or set needs, to test the night without waiting
+  app.post("/api/dev/set", async (c) => {
+    const b = (await c.req.json().catch(() => ({}))) as Record<string, number>;
+    for (const k of ["day", "hour", "minute", "food", "warmth", "health", "sleep", "money_c"]) {
+      if (typeof b[k] === "number") db.prepare(`UPDATE player SET ${k} = ? WHERE id = 1`).run(Math.round(b[k]));
+    }
+    resetTickLimit();
+    broadcast({ type: "jobs", ...jobsPayload() });
+    return c.json(jobsPayload());
+  });
 }
 
 app.onError((err, c) => {
@@ -186,6 +270,12 @@ function broadcast(msg: unknown): void {
 
 // first run of the day: no board yet, so write one now in the background
 if (listJobs(db, player(db).day).length === 0) void writeBoard();
+if (!db.prepare("SELECT 1 FROM world_state WHERE key = 'day_start_money'").get()) markDayStart(db);
+// the server stopped while the epilogue was being written: write it again
+{
+  const e = ending(db);
+  if (e && !e.epilogue) void epilogue(e);
+}
 
 function shutdown(): void {
   wss.close();

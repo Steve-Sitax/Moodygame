@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LANGUAGE_RULE, plainEnglish } from "./text.ts";
 import type { DB } from "./db.ts";
 import { FACTIONS } from "./db.ts";
 import { callClaude, type Runner } from "./ai/claude.ts";
@@ -29,7 +30,6 @@ export const PersonaSchema = z.object({
   secret: z.string().max(180),
   speech: z.object({
     tics: z.array(z.string().max(70)).length(3),
-    flemish: z.array(z.string().max(24)).length(2),
     length: z.enum(["short", "mid"]),
   }),
   look: z.string().max(160),
@@ -45,7 +45,7 @@ export const FALLBACK_PERSONA: Record<string, Persona> = {
     wants: ["a crew that works without being watched", "the Hessenatie to beat the Katoennatie to the new ships"],
     fears: ["his knees giving out before his sons are grown", "a cargo lost on his watch"],
     secret: "He once let a smuggler's barrels through the Hessenatie shed for a month's wages.",
-    speech: { tics: ["Goed.", "Spreek.", "I don't pay for talk."], flemish: ["baas", "jongen"], length: "short" },
+    speech: { tics: ["Right.", "Out with it.", "I don't pay for talk."], length: "short" },
     look: "Broad, grey stubble, a docker's cap and a coat gone shiny at the elbows.",
   },
   peeters: {
@@ -55,7 +55,7 @@ export const FALLBACK_PERSONA: Record<string, Persona> = {
     wants: ["to keep the chandlery out of debt", "a son who comes home sober"],
     fears: ["the bank", "dying alone above the shop"],
     secret: "Her husband did not drown by accident; she knows who pushed him.",
-    speech: { tics: ["Count it twice.", "We shall see.", "Hm."], flemish: ["jongen", "mijnheer"], length: "mid" },
+    speech: { tics: ["Count it twice.", "We shall see.", "Hm."], length: "mid" },
     look: "Small, in black, a ledger under her arm and spectacles on a ribbon.",
   },
   tuur: {
@@ -65,7 +65,7 @@ export const FALLBACK_PERSONA: Record<string, Persona> = {
     wants: ["a bigger boat", "Agent Verhulst looking the other way"],
     fears: ["the river at night when the fog is thick", "prison in the Steen"],
     secret: "He owes money to men from Rotterdam who are losing patience.",
-    speech: { tics: ["Ask nothing.", "The river keeps quiet, so do I.", "Ha."], flemish: ["maat", "Schelde"], length: "short" },
+    speech: { tics: ["Ask nothing.", "The river keeps quiet, so do I.", "Ha."], length: "short" },
     look: "Lean, tar on his hands, a sailor's jersey and a pipe that is never lit.",
   },
   fientje: {
@@ -75,7 +75,7 @@ export const FALLBACK_PERSONA: Record<string, Persona> = {
     wants: ["to know everything first", "a proper stall at the Vismarkt"],
     fears: ["being the one people talk about", "cholera coming back"],
     secret: "She cannot read, and hides it by making people tell her everything.",
-    speech: { tics: ["Ge weet het van mij niet!", "Listen, listen.", "Mark my words."], flemish: ["schat", "manneke"], length: "mid" },
+    speech: { tics: ["You didn't hear it from me!", "Listen, listen.", "Mark my words."], length: "mid" },
     look: "Big red hands, a shawl, a basket of herring on her hip, a voice that carries.",
   },
 };
@@ -89,7 +89,9 @@ export function npcRow(db: DB, id: string) {
 export function persona(db: DB, id: string): Persona {
   const row = npcRow(db, id);
   const parsed = PersonaSchema.safeParse(JSON.parse(row?.persona_json || "{}"));
-  return parsed.success ? parsed.data : FALLBACK_PERSONA[id];
+  const p = parsed.success ? parsed.data : FALLBACK_PERSONA[id];
+  // personas written before the plain-English rule may carry Dutch words
+  return { ...p, speech: { ...p.speech, tics: p.speech.tics.map(plainEnglish) } };
 }
 
 /** Write personas for placed NPCs that have none yet, one Claude call each. */
@@ -113,7 +115,8 @@ SEED: ${seed}
 - loves / hates: one faction each (${FACTIONS.join(", ")}) or "none".
 - wants, fears: two each, concrete and period-true.
 - secret: one thing they would not want known on the kaai.
-- speech: three verbal tics (short phrases they repeat), two Flemish words they use, and whether they talk short or mid-length.
+- speech: three verbal tics (short English phrases they repeat) and whether they talk short or mid-length.
+${LANGUAGE_RULE}
 - look: one line, what Jef sees.`,
         schema: PersonaSchema,
       },

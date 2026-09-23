@@ -104,11 +104,36 @@ export interface Ware {
   price_c: number;
 }
 
+export interface Clock {
+  day: number;
+  hour: number;
+  minute: number;
+  weekday: string;
+  weather: "fog" | "mist" | "clear";
+}
+
+export interface Ending {
+  kind: "week" | "health";
+  day: number;
+  epilogue?: { title: string; paragraphs: string[] };
+}
+
+export interface Night {
+  where: "bed" | "rough";
+  turnedAway: boolean;
+  summary: string[];
+  day: number;
+  ended?: Ending;
+}
+
 export interface JobsPayload {
   board: { state: "writing" | "ready"; source?: string; error?: string };
   jobs: Job[];
   player: Player;
   pockets: PocketItem[];
+  clock: Clock;
+  rent: { paid: boolean; price_c: number; bedtime: number };
+  ending: Ending | null;
 }
 
 /** What an NPC says. Trust stays on the server (docs/08: hidden). */
@@ -144,6 +169,12 @@ export const api = {
     call<TalkLine>("POST", `/api/npc/${npc}/talk`, { kind, text }, 30_000),
   witness: (npc: string, event: "took" | "returned") => call<{ ok: boolean }>("POST", `/api/npc/${npc}/witness`, { event }),
   progress: (id: number, p: Progress) => call<{ job: Job }>("POST", `/api/jobs/${id}/progress`, p),
+  tick: () => call<JobsPayload & { advanced: boolean; night?: Night; ended?: Ending }>("POST", "/api/tick"),
+  sleep: () => call<JobsPayload & { night: Night }>("POST", "/api/sleep"),
+  rent: () => call<JobsPayload & { paid: boolean; text: string }>("POST", "/api/rent"),
+  newGame: () => call<JobsPayload>("POST", "/api/new-game"),
+  devSet: (v: Partial<Record<"day" | "hour" | "minute" | "food" | "warmth" | "health" | "sleep" | "money_c", number>>) =>
+    call<JobsPayload>("POST", "/api/dev/set", v),
   done: (id: number, report: Report) =>
     call<{ job: Job; settlement: Settlement; money_c: number }>("POST", `/api/jobs/${id}/done`, report),
 };

@@ -44,7 +44,7 @@ Each NPC is three small records. Only that NPC's slice goes into the prompt. Nev
    - Traits as sliders 0-10: warmth, greed, honesty, temper, loyalty, courage, piety.
    - Faction bias: which faction they love, which they hate.
    - Wants (2), fears (2), one secret.
-   - Speech: 3 tics, 2 Flemish words they use, sentence length (short, mid).
+   - Speech: 3 tics (in English), sentence length (short, mid).
    - Written once by Claude at world creation from a short seed. Stored in the DB.
 
 2. Relationship with the player (changes every meeting)
@@ -104,7 +104,7 @@ Stable text first, changing text last. The Claude Code base prompt sits in front
 - One call in flight per hook type. Queue the rest.
 
 ## Voice
-English with Flemish flavour words. Glossary in the system prompt: baas, kaai, natie, jenever, pastoor, dokwerker, Schelde, mist.
+Plain English. Dutch only in names of people, places, firms and ships, and for jenever (docs/08 #8, changed 2026-09-23). No Dutch forms of address or exclamations. The rule text is `LANGUAGE_RULE` in `server/src/text.ts`; `plainEnglish()` strips what slips through.
 Terse. Period flavour. No modern words. No exclamation storms.
 Test result today: Claude does this well without much steering.
 

@@ -14,7 +14,7 @@ All answered by Steve on 2026-09-23.
 | 5b | Child labour | Yes, as a hard choice. Kids 10+ can work for small pay. Health, wife and priest react. |
 | 6 | Second model | Codex with `gpt-6-sol`, medium. Tested, approved for game text only. Rumours, newspaper, event seeds, some NPC voices. |
 | 7 | Title | Scheldemist. |
-| 8 | Language | English with Flemish words. |
+| 8 | Language | Plain English. Dutch only in names of people, places, firms and ships (and jenever). No Dutch forms of address or exclamations (jongen, maat, schat, goed...). Steve, 2026-09-23: "the dutch words are weird". Prompts carry the rule; `server/src/text.ts` filters what slips through. |
 | 9 | Camera | First person. |
 | 10 | Combat (asked again 2026-09-23 after M2b) | No combat in the demo. Thieves and gangs may appear, but danger is narrated, chased off, or costs money and trust. |
 

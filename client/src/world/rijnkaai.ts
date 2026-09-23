@@ -33,6 +33,21 @@ export const SPOTS = Object.fromEntries(
 
 /** The hiring spot: a notice board in front of the Hessenatie. */
 export const BOARD_POS = { x: -16.2, z: 20.5 };
+/** The doss house: through the Sint-Andries alley gate, between the two naties (M5). */
+export const DOSS_POS = { x: -25, z: 21.0 };
+
+/** Light through the day (M5). Hour, fog colour, sky light, fog far, gas lamps lit 0-1. */
+const DAYLIGHT: Array<[number, number, number, number, number]> = [
+  [0, 0x171b21, 0.38, 19, 1],
+  [5.5, 0x1a1e25, 0.42, 19, 1],
+  [7, 0x343a42, 0.85, 22, 0.7],
+  [9, 0x58616a, 1.5, 30, 0],
+  [15, 0x58616a, 1.5, 30, 0],
+  [17, 0x4b4540, 1.0, 25, 0.4],
+  [18.5, 0x2c2e34, 0.65, 21, 1],
+  [21, 0x1a1e25, 0.42, 19, 1],
+  [24, 0x171b21, 0.38, 19, 1],
+];
 
 export interface Lamp {
   pos: THREE.Vector3;
@@ -65,6 +80,10 @@ export interface World {
   reachFrom(x: number, z: number): (x: number, z: number, reach: number) => boolean;
   /** Thick fog for a job twist; eases in and out. */
   setThickFog(on: boolean): void;
+  /** Hour of the day, 0-24 with fractions: fog, sky light and gas lamps follow (M5). */
+  setTimeOfDay(hour: number): void;
+  /** The day's weather: how far you see and how much the lamps glow in the air. */
+  setWeather(w: "fog" | "mist" | "clear"): void;
   mats: Mats;
   surfaceAt(x: number, z: number): Surface;
   update(t: number, dt: number): void;
@@ -132,7 +151,8 @@ export function buildRijnkaai(): World {
   const colliders: Rect[] = [];
 
   // cold light from a sky nobody can see
-  scene.add(new THREE.HemisphereLight(0x8494a6, 0x2a2822, 1.1));
+  const skyLight = new THREE.HemisphereLight(0x8494a6, 0x2a2822, 1.1);
+  scene.add(skyLight);
 
   // --- sky dome: takes the fog colour and the lamp glow in the air
   const sky = new THREE.Mesh(new THREE.SphereGeometry(150, 16, 8), m.sky);
@@ -180,10 +200,11 @@ export function buildRijnkaai(): World {
   warehouse(scene, m, colliders, -12, 14, "HESSENATIE", true);
   warehouse(scene, m, colliders, 16, 18, "WED. PEETERS", false);
 
-  // fences in the gaps and at the ends
+  // fences in the gaps and at the ends; the gap between the naties has the alley gate
   for (const [x0, x1] of [
     [-58, -46],
-    [-31, -19],
+    [-31, -26.6],
+    [-23.4, -19],
     [-5, 7],
     [25, 58],
   ] as const) {
@@ -244,6 +265,7 @@ export function buildRijnkaai(): World {
     [44, 19.8, false],
   ];
   const lamps: Lamp[] = lampSpots.map(([x, z, broken], i) => gasLamp(scene, m, colliders, glow, x, z, i, broken));
+  const lantern = dossHouse(scene, m, glow, DOSS_POS.x);
 
   // --- movement rules
   const onRamp = (x: number, z: number) => Math.abs(x - RAMP.x) < RAMP.halfW && z < RAMP.zLow && z > RAMP.zHigh - 0.2;
@@ -363,11 +385,49 @@ export function buildRijnkaai(): World {
   const shipABase = shipA.position.clone();
   const shipBBase = shipB.position.clone();
 
+  // time of day: eases toward the target so a jump (after sleep) fades in
+  let dayTarget = 8;
+  let dayNow = 8;
+  let lampsLit = 0;
+  let dayFar = 25;
+  // weather: near/far multipliers and lamp in-scatter; eased like the clock
+  const WEATHER = { fog: [1, 1, 1], mist: [1.6, 1.5, 0.7], clear: [3, 2.3, 0.3] } as const;
+  let wTarget: readonly number[] = WEATHER.fog;
+  const wNow = [1, 1, 1];
+  const SCATTER = psxUniforms.uScatter.value;
+  const fogFrom = new THREE.Color();
+  const fogTo = new THREE.Color();
+  function applyDaylight(h: number): void {
+    let i = 0;
+    while (i < DAYLIGHT.length - 2 && h >= DAYLIGHT[i + 1][0]) i++;
+    const [h0, c0, s0, f0, l0] = DAYLIGHT[i];
+    const [h1, c1, s1, f1, l1] = DAYLIGHT[i + 1];
+    const k = THREE.MathUtils.smoothstep(h, h0, h1);
+    fog.color.copy(fogFrom.setHex(c0)).lerp(fogTo.setHex(c1), k);
+    (scene.background as THREE.Color).copy(fog.color);
+    skyLight.intensity = THREE.MathUtils.lerp(s0, s1, k);
+    dayFar = THREE.MathUtils.lerp(f0, f1, k);
+    lampsLit = THREE.MathUtils.lerp(l0, l1, k);
+  }
+  applyDaylight(dayNow);
+
   function update(t: number, dt: number): void {
     psxUniforms.uTime.value = t;
     fogMix += (fogTarget - fogMix) * Math.min(1, dt * 0.4);
-    fog.near = 3 - fogMix * 1.5;
-    fog.far = 25 - fogMix * 14;
+    // ease along the clock, the short way round midnight
+    let dh = dayTarget - dayNow;
+    if (dh > 12) dh -= 24;
+    if (dh < -12) dh += 24;
+    if (Math.abs(dh) > 0.001) {
+      dayNow = (dayNow + dh * Math.min(1, dt * 0.8) + 24) % 24;
+      applyDaylight(dayNow);
+    }
+    for (let i = 0; i < 3; i++) wNow[i] += (wTarget[i] - wNow[i]) * Math.min(1, dt * 0.5);
+    psxUniforms.uScatter.value = SCATTER * wNow[2];
+    // the job twist "thick fog" always closes in, whatever the weather
+    fog.near = THREE.MathUtils.lerp(3 * wNow[0], 1.5, fogMix);
+    fog.far = THREE.MathUtils.lerp(dayFar * wNow[1], 11, fogMix);
+    lantern.intensity = 7 * (0.92 + Math.sin(t * 5.1) * 0.04 + Math.sin(t * 13.7) * 0.03);
     waterTex.offset.x = t * 0.004;
     waterTex.offset.y = t * 0.011;
 
@@ -379,7 +439,7 @@ export function buildRijnkaai(): World {
 
     for (let i = 0; i < lamps.length; i++) {
       const l = lamps[i];
-      const target = flicker(t, l.seed, l.broken);
+      const target = flicker(t, l.seed, l.broken) * lampsLit;
       l.level += (target - l.level) * Math.min(1, dt * 18);
       l.light.intensity = 26 * l.level;
       (l.glass.material as THREE.MeshBasicMaterial).color.setRGB(1.0 * l.level, 0.72 * l.level, 0.38 * l.level);
@@ -401,6 +461,8 @@ export function buildRijnkaai(): World {
     baseAt,
     reachFrom,
     setThickFog: (on) => (fogTarget = on ? 1 : 0),
+    setTimeOfDay: (h) => (dayTarget = ((h % 24) + 24) % 24),
+    setWeather: (w) => (wTarget = WEATHER[w] ?? WEATHER.fog),
     lamps,
     shipPositions: [new THREE.Vector3(34, 1, -3), new THREE.Vector3(-34, 1, -21)],
     move,
@@ -575,6 +637,45 @@ function noticeBoard(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, 
   }
   scene.add(g);
   colliders.push(rectAround(x, z, 1.0, 0.2));
+}
+
+/**
+ * The Sint-Andries alley: a gate in the fence between the two naties, a narrow
+ * lane between blind walls, and the doss house door at the end under a lantern.
+ * You cannot walk in; E at the gate takes you to bed (M5). Returns the lantern.
+ */
+function dossHouse(scene: THREE.Scene, m: Mats, glow: THREE.Texture, x: number): THREE.PointLight {
+  const z0 = 22.3;
+  const z1 = 31;
+  // gate posts and a beam with the alley name
+  for (const s of [-1, 1]) scene.add(box(0.22, 3.4, 0.22, m.darkWood, x + s * 1.6, 1.7, z0, 1));
+  scene.add(box(3.6, 0.22, 0.22, m.darkWood, x, 3.3, z0, 2));
+  const signMat = psx(new THREE.MeshLambertMaterial({ map: signTexture("SINT-ANDRIES"), ...DECAL }), { affine: 0.5 });
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.36, 3, 1), signMat);
+  plate.position.set(x, 2.95, z0 - 0.13);
+  plate.rotation.y = Math.PI;
+  scene.add(plate);
+  // blind side walls of the lane, and the house at the end
+  for (const s of [-1, 1]) scene.add(box(0.4, 6, z1 - z0, m.brickDark, x + s * 1.8, 3, (z0 + z1) / 2, 2));
+  scene.add(box(4, 8, 0.6, m.brickDark, x, 4, z1, 2));
+  scene.add(box(1.2, 2.2, 0.12, m.woodDecal, x, 1.1, z1 - 0.36, 1)); // door
+  scene.add(box(0.8, 0.9, 0.1, m.litWindow, x + 1.1, 3.6, z1 - 0.34, 1)); // a lit window upstairs
+  scene.add(box(0.8, 0.9, 0.1, m.window, x - 1.1, 3.6, z1 - 0.34, 1));
+  // a lantern on a bracket above the door
+  scene.add(box(0.06, 0.06, 0.5, m.iron, x, 2.75, z1 - 0.55, 1));
+  const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.26, 4), m.lampGlass);
+  glass.position.set(x, 2.55, z1 - 0.8);
+  scene.add(glass);
+  const halo = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: glow, color: 0xffb060, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.5, fog: false }),
+  );
+  halo.position.copy(glass.position);
+  halo.scale.set(1.1, 1.1, 1);
+  scene.add(halo);
+  const light = new THREE.PointLight(0xffa048, 7, 10, 1.7);
+  light.position.set(x, 2.4, z1 - 1.2);
+  scene.add(light);
+  return light;
 }
 
 function fence(scene: THREE.Scene, m: Mats, x0: number, x1: number, z: number): void {

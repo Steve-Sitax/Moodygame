@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { plainEnglish } from "../text.ts";
 import type { DB } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
 import { EMPLOYERS, SYSTEM, type EmployerId, type JobRow } from "./jobBoard.ts";
@@ -43,7 +44,7 @@ export function fallbackOutcome(job: JobRow, s: Settlement): Outcome {
     ? `${who} looks at you a long time. "Not a centime. Get off my kaai."`
     : s.pay_c === 0
       ? `${who} shakes their head. "Nothing done, nothing paid."`
-      : `${who} counts it over and pays ${s.pay_c} centimes. "Goed. Come back tomorrow."`;
+      : `${who} counts it over and pays ${s.pay_c} centimes. "Good. Come back tomorrow."`;
   return { narration, memory: s.facts[0] ?? "Jef did a job.", weight: s.caught ? 7 : 4 };
 }
 
@@ -53,6 +54,6 @@ export async function writeOutcome(db: DB, job: JobRow, s: Settlement, runner?: 
     { hook: "job_outcome", system: SYSTEM, prompt: buildPrompt(job, s), schema: OutcomeSchema, timeoutMs },
     runner,
   );
-  const out = res.ok && res.data ? res.data : fallbackOutcome(job, s);
+  const out = res.ok && res.data ? { ...res.data, narration: plainEnglish(res.data.narration) } : fallbackOutcome(job, s);
   return { outcome: out, source: res.ok ? ("claude" as const) : ("fallback" as const), error: res.error };
 }

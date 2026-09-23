@@ -68,11 +68,14 @@ const iconUrl = (kind: string) => {
   return u;
 };
 
-/** Five small loaves (food) and five small flames (warmth), full or hollow. */
-function needsDrawing(food: number, warmth: number): string {
+/**
+ * Needs as small drawings, full or hollow (one per 2 points): loaves (belly)
+ * and flames (warmth) on top; moons (sleep) and hearts (health) below (M5).
+ */
+function needsDrawing(food: number, warmth: number, sleep: number, health: number): string {
   const c = document.createElement("canvas");
   c.width = 110;
-  c.height = 30;
+  c.height = 44;
   const g = c.getContext("2d")!;
   g.strokeStyle = INK;
   g.fillStyle = INK;
@@ -94,6 +97,26 @@ function needsDrawing(food: number, warmth: number): string {
     g.quadraticCurveTo(x + 9, 22, x + 4, 28);
     g.quadraticCurveTo(x - 1, 22, x + 4, 16);
     if (warmth >= (i + 1) * 2) g.fill();
+    else g.stroke();
+  }
+  for (let i = 0; i < 5; i++) {
+    // a crescent moon
+    const x = 4 + i * 10;
+    g.beginPath();
+    g.arc(x + 4, 37, 4, Math.PI * 0.35, Math.PI * 1.65);
+    g.arc(x + 6, 37, 3.2, Math.PI * 1.45, Math.PI * 0.55, true);
+    g.closePath();
+    if (sleep >= (i + 1) * 2) g.fill();
+    else g.stroke();
+  }
+  for (let i = 0; i < 5; i++) {
+    // a heart
+    const x = 58 + i * 10;
+    g.beginPath();
+    g.moveTo(x + 4, 42);
+    g.bezierCurveTo(x - 2, 37, x + 1, 31, x + 4, 35);
+    g.bezierCurveTo(x + 7, 31, x + 10, 37, x + 4, 42);
+    if (health >= (i + 1) * 2) g.fill();
     else g.stroke();
   }
   return c.toDataURL();
@@ -128,11 +151,12 @@ export class Pockets {
 
   apply(p: JobsPayload): void {
     this.items = p.pockets ?? [];
-    const key = `${p.player.food}/${p.player.warmth}`;
+    const { food, warmth, sleep, health } = p.player;
+    const key = `${food}/${warmth}/${sleep}/${health}`;
     if (key !== this.lastNeeds) {
       this.lastNeeds = key;
-      this.needsImg.src = needsDrawing(p.player.food, p.player.warmth);
-      this.needsImg.title = `belly ${p.player.food}/10, warmth ${p.player.warmth}/10`;
+      this.needsImg.src = needsDrawing(food, warmth, sleep, health);
+      this.needsImg.title = `belly ${food}/10, warmth ${warmth}/10, sleep ${sleep}/10, health ${health}/10`;
     }
     this.render();
   }

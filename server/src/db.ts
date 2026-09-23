@@ -127,8 +127,19 @@ export function openDb(file: string): DB {
 
 /** Small in-place upgrades for save files made by an older build. */
 function migrate(db: DB): void {
-  const cols = (db.prepare("PRAGMA table_info(npc_memory)").all() as Array<{ name: string }>).map((c) => c.name);
-  if (!cols.includes("spread")) db.exec("ALTER TABLE npc_memory ADD COLUMN spread INTEGER NOT NULL DEFAULT 0");
+  const cols = (table: string) => (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map((c) => c.name);
+  if (!cols("npc_memory").includes("spread")) db.exec("ALTER TABLE npc_memory ADD COLUMN spread INTEGER NOT NULL DEFAULT 0");
+  if (!cols("player").includes("minute")) db.exec("ALTER TABLE player ADD COLUMN minute INTEGER NOT NULL DEFAULT 0");
+}
+
+/** Start a new week: wipe the save and seed it again (the "new game" button). */
+export function resetDb(db: DB): void {
+  db.transaction(() => {
+    for (const t of ["ai_call", "item", "event", "world_state", "job", "log", "world_fact", "npc_memory", "npc_relationship", "npc", "faction_trust", "player"]) {
+      db.prepare(`DELETE FROM ${t}`).run();
+    }
+  })();
+  seed(db);
 }
 
 function seed(db: DB): void {

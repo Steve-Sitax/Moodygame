@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { weather, WEATHER_TEXT } from "../day.ts";
+import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import type { DB, Faction } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
 import SPOT_TABLE from "../../../shared/spots.json" with { type: "json" };
@@ -159,8 +161,8 @@ The Red Star Line starts sailing to America this year. The naties (Hessenatie, K
 hire day men at dawn on the quays. Gas lamps, river fog, cholera still remembered from 1866.
 The Rijnkaai has warehouses, one crane, a wooden pier, ships moored alongside.
 
-Voice: English with a few Flemish words where a docker would use them
-(baas, kaai, natie, jenever, pastoor, dokwerker, Schelde, mist). Terse. Period flavour.
+${LANGUAGE_RULE}
+Voice: terse. Period flavour.
 No modern words, no modern money, no exclamation storms. Money is in centimes; 100 centimes = 1 franc.
 
 You only write text and pick from the lists you are given. The game engine owns every number
@@ -178,10 +180,7 @@ export function buildPrompt(db: DB): string {
     faction: string;
     trust: number;
   }>;
-  const weather = JSON.parse(
-    (db.prepare("SELECT value_json FROM world_state WHERE key = 'weather'").get() as { value_json: string } | undefined)
-      ?.value_json ?? '"fog"',
-  ) as string;
+  const sky = WEATHER_TEXT[weather(db)];
   const log = db.prepare("SELECT text FROM log ORDER BY id DESC LIMIT 6").all() as Array<{ text: string }>;
   const tier = maxTier(db);
   const [lo, hi] = TIER_PAY[tier];
@@ -189,7 +188,7 @@ export function buildPrompt(db: DB): string {
   return `Write the job board for the hiring spot on the Rijnkaai.
 
 WORLD STATE
-Day ${p.day} of 7, hour ${p.hour}. Weather: ${weather}.
+Day ${p.day} of 7, hour ${p.hour}. Weather: ${sky}.
 ${p.name} has ${p.money_c} centimes. Trust per faction (0-10): ${trust.map((t) => `${t.faction} ${t.trust}`).join(", ")}.
 Only tier ${tier} work is open to him.
 
@@ -234,8 +233,8 @@ export function clampBoard(board: Board, tier: number): Board {
   return {
     jobs: board.jobs.map((j) => ({
       ...j,
-      title: j.title.trim(),
-      pitch: j.pitch.trim(),
+      title: plainEnglish(j.title),
+      pitch: plainEnglish(j.pitch),
       recipient: j.recipient.trim(),
       pay_c: Math.max(lo, Math.min(hi, Math.round(j.pay_c / 5) * 5)),
     })),
@@ -313,7 +312,7 @@ export const FALLBACK_BOARD: Board = {
       recipient: "",
       pay_c: 110,
       risk: "low",
-      pitch: "Tarred rope from under the crane to my loading door. Count them twice, jongen.",
+      pitch: "Tarred rope from under the crane to my loading door. Count them twice.",
     },
     {
       title: "Watch the west sheds",

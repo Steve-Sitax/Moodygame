@@ -221,7 +221,7 @@ html, body {
   transform: rotate(1.2deg);
   image-rendering: pixelated;
   width: 176px;
-  height: 48px;
+  height: 70px;
 }
 .pocket-panel {
   position: fixed;
@@ -246,3 +246,37 @@ html, body {
 .talk .wares { list-style: none; padding: 0; margin: 8px 0 2px; border-top: 1px dashed rgba(42, 36, 32, 0.35); }
 .talk .wares li { font-size: 14px; padding: 3px 0; display: flex; gap: 8px; }
 .talk .wares .price { margin-left: auto; font-weight: bold; }
+
+/* ---- M5: the clock, the night and the end of the week ---- */
+.clock {
+  position: fixed;
+  left: 18px;
+  top: 14px;
+  background: rgba(216, 207, 184, 0.9);
+  padding: 3px 12px;
+  font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  font-size: 16px;
+  color: #2a2420;
+  transform: rotate(-1deg);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.6);
+  filter: sepia(0.3);
+  pointer-events: none;
+}
+.clock .rent { display: block; font-size: 11px; opacity: 0.75; }
+.night {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(-0.8deg);
+  width: min(520px, 86vw);
+  font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  text-align: left;
+  z-index: 5;
+}
+.night h2 { margin: 0 0 4px; font-size: 26px; }
+.night .sub { margin: 0 0 12px; font-size: 13px; opacity: 0.7; }
+.night p { margin: 0 0 8px; font-size: 15px; line-height: 1.45; }
+.night .wait { opacity: 0.7; font-style: italic; }
+.night .keys { text-align: right; margin-top: 12px; }
+.night.end { width: min(620px, 90vw); }
+body:has(.night[style*="block"]) #game { filter: brightness(0.35); }
