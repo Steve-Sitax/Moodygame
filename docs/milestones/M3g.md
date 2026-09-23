@@ -174,7 +174,7 @@ the omnibus "has no lamps", and "the goods train clips out of a building: make n
   is a new fare. Stop and line names are checked; the line must call at the stop.
 - `POST /api/ride {action, stop, line}`; the payload has `ride: {on, fare_c, change}`. The prompt says
   "get on the GROTE MARKT omnibus (a free change)" when a change is free.
-- Warmth on board as before (every 10 h by day, 6 h at night; on foot 5 and 3). Tests: 13 in `ride.test.ts`.
+- Warmth on board as before (every 10 h by day, 6 h at night; on foot 5 and 3). Tests: 12 in `ride.test.ts`.
 
 ### The railway gate (`client/src/world/railgate.ts`, new)
 - A gatehouse of the State Railways ("STAATSSPOORWEGEN") against the Werf store's east wall (x -318..-311,
