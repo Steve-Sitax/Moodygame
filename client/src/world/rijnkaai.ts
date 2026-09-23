@@ -14,6 +14,7 @@ import { createRiver, type River } from "./river";
 import { buildTracks, trackKeepOut, type TrackData } from "./tracks";
 import { buildRuts } from "./ruts";
 import { buildFarBank } from "./farbank";
+import { buildVegetation } from "./vegetation";
 import { createStreetLife, type StreetLife } from "./streetlife";
 import { createQuayFurniture, type QuayFurniture } from "./quayfurniture";
 import { createTraffic, type Traffic } from "./traffic";
@@ -306,6 +307,15 @@ export function buildRijnkaai(): World {
       for (const r of traffic.colliders()) dynamic.add(r); // added once: the rects move in place
     })
     .catch((e) => console.warn("traffic did not start", e));
+  // tree pits, grass and weeds at the foot of walls, late flowers, bare bushes (world/vegetation.ts)
+  city.ready
+    .then(() =>
+      buildVegetation(scene, city.flags, {
+        trees: (CITY_DATA as unknown as { decor?: { trees?: Array<[number, number]> } }).decor?.trees ?? [],
+        avoid: [...trackKeepOut(trackData), ...omnibusLane],
+      }),
+    )
+    .catch((e) => console.warn("vegetation did not load", e));
   // the far bank of the Schelde, seen on clear days (world/farbank.ts)
   buildFarBank(scene, WATER_Y);
   // wheel ruts down the cart roads (world/ruts.ts)
