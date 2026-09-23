@@ -225,6 +225,7 @@ export const EVENT_CLAIM_M = 70;
 
 export const PRIMITIVES_FOR_MODEL = `
 STAGES. An event is 1-6 stages, played one after the other, each for "minutes" game minutes (5-120, 240 in all).
+The clock runs fast: a stage under 30 minutes is over in a blink; give a gathering 60-120 minutes so people can arrive.
 Every stage has every field; fill the ones the op uses and put "" / 0 / "none" in the rest.
 - gather: role (guests, mourners, crowd, sellers, musicians, police, children, family), count 2-16, place. People walk to a ring round the place.
 - procession: the gathered people walk in a column to "place". Give the stage a sound if they sing or a bell goes before them.
