@@ -21,6 +21,9 @@ export const psxUniforms = {
   uShore: { value: farShore() as THREE.Texture },
   /** Where uShore lies: x0, z0, width, depth (metres). */
   uShoreBox: { value: new THREE.Vector4(0, 0, 1, 1) },
+  /** M3j (world/litter.ts): how foul the water is, R 0..1 (the vlieten, the canal, the walls by the fish market), and where: x0, z0, w, h. */
+  uFoul: { value: noFoul() as THREE.Texture },
+  uFoulBox: { value: new THREE.Vector4(0, 0, 1, 1) },
   /** The river's own planar mirror (world/mirror.ts, set in rijnkaai.ts): picture, world -> picture, 0 = none yet. */
   uWaterMirror: { value: farShore() as THREE.Texture },
   uWaterMirrorMat: { value: new THREE.Matrix4() },
@@ -80,6 +83,13 @@ function puddleNoise(): THREE.DataTexture {
   return t;
 }
 
+/** Until the litter layer sets its own: clean water everywhere. */
+function noFoul(): THREE.DataTexture {
+  const t = new THREE.DataTexture(new Uint8Array([0]), 1, 1, THREE.RedFormat, THREE.UnsignedByteType);
+  t.needsUpdate = true;
+  return t;
+}
+
 /** Until the city sets its own: no wall anywhere near. */
 function farShore(): THREE.DataTexture {
   const t = new THREE.DataTexture(new Uint8Array([255]), 1, 1, THREE.RedFormat, THREE.UnsignedByteType);
@@ -100,6 +110,19 @@ export function waveAt(x: number, z: number, t: number): number {
     psxUniforms.uSea.value
   );
 }
+
+/** M3j foul water: a small value noise of its own (the water shader has no pudVal). */
+const foulGlsl = /* glsl */ `
+float foulHash(vec2 p) {
+  return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+}
+float foulVal(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(foulHash(i), foulHash(i + vec2(1.0, 0.0)), u.x), mix(foulHash(i + vec2(0.0, 1.0)), foulHash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+`;
 
 /** Value noise from a hash of the cell corners: no texture, so no tiling (the puddles). */
 const pudNoiseGlsl = /* glsl */ `
@@ -278,6 +301,8 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
       shader.uniforms.uWaterMirror = psxUniforms.uWaterMirror;
       shader.uniforms.uWaterMirrorMat = psxUniforms.uWaterMirrorMat;
       shader.uniforms.uWaterMirrorOn = psxUniforms.uWaterMirrorOn;
+      shader.uniforms.uFoul = psxUniforms.uFoul;
+      shader.uniforms.uFoulBox = psxUniforms.uFoulBox;
     }
 
     let vs = shader.vertexShader;
@@ -364,7 +389,7 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         (opts.vary ? "uniform sampler2D uDirt;\nuniform vec4 uDirtBox;\n" : "") +
         (opts.relief ? "uniform sampler2D uHeight;\nuniform float uReliefDepth;\nuniform float uReliefTile;\nuniform float uReliefBump;\n" : "") +
         (opts.water
-          ? "uniform sampler2D uShore;\nuniform vec4 uShoreBox;\nvarying float vWaveH;\nuniform sampler2D uWaterMirror;\nuniform mat4 uWaterMirrorMat;\nuniform float uWaterMirrorOn;\n"
+          ? "uniform sampler2D uShore;\nuniform vec4 uShoreBox;\nvarying float vWaveH;\nuniform sampler2D uWaterMirror;\nuniform mat4 uWaterMirrorMat;\nuniform float uWaterMirrorOn;\nuniform sampler2D uFoul;\nuniform vec4 uFoulBox;\n" + foulGlsl
           : ""),
     );
     fs = fs.replace(
@@ -473,6 +498,9 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
           float silt = smoothstep(2.5, 0.2, shore);
           diffuseColor.rgb *= 1.0 + silt * 0.45;
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.3, 0.32, 0.29), foam * 0.8);
+          // M3j: foul water (world/litter.ts uFoul): browner and duller
+          float foulD = texture2D(uFoul, (wxz - uFoulBox.xy) / uFoulBox.zw).r;
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.85, 0.74, 0.5), foulD);
         }`
             : ""
         }
@@ -519,6 +547,17 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
           } else {
             float fres = pow(1.0 - cosV, 4.0);
             gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor * 1.08, clamp(fres * 0.8, 0.0, 0.75));
+          }
+          {
+            // M3j: the vlieten and the canal were open sewers (world/litter.ts): murky water that
+            // mirrors less, and a dull skin of scum drifting in patches
+            float foul = texture2D(uFoul, (vPsxWorld.xz - uFoulBox.xy) / uFoulBox.zw).r;
+            if (foul > 0.01) {
+              vec2 sp = vPsxWorld.xz * 0.8 + vec2(uTime * 0.03, uTime * 0.017);
+              float scum = smoothstep(0.5, 0.68, foulVal(sp) * 0.7 + foulVal(sp * 3.1 + 7.7) * 0.3) * foul;
+              gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor * vec3(0.36, 0.34, 0.28), foul * 0.4);
+              gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor * vec3(0.5, 0.46, 0.36) + vec3(0.015, 0.013, 0.008), scum * 0.85);
+            }
           }
           vec3 rr = reflect(rd, rn);
           float refl = 0.0;

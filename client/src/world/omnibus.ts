@@ -447,6 +447,16 @@ function interiorGeometry(): THREE.BufferGeometry {
   return k.build();
 }
 
+/** Dark glass in the windows and the doorway, for an omnibus seen from afar (its saloon is not drawn then). */
+function farGlassGeometry(): THREE.BufferGeometry {
+  const k = new Kit();
+  const G: RGB = [0.06, 0.065, 0.075];
+  for (const s of [-1, 1]) for (const z of WINDOWS) k.box(0.02, WIN_HI - WIN_LO, WIN_W, s * (W / 2 - 0.01), (WIN_LO + WIN_HI) / 2, z, G);
+  k.box(0.9, WIN_HI - WIN_LO, 0.02, 0, (WIN_LO + WIN_HI) / 2, Z1 - 0.01, G);
+  k.box(2 * DOOR, DOOR_TOP - FLOOR_Y, 0.02, 0, (FLOOR_Y + DOOR_TOP) / 2, Z0 + 0.02, G);
+  return k.build();
+}
+
 /** Where the lamp glass sits (body frame): the two carriage lamps, the oil lamp inside. */
 const LAMPS: Array<[number, number, number]> = [
   [-0.92, 2.0, Z1 + 0.11],
@@ -744,6 +754,8 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
             wait: b.waitWhy,
             rider: b.rider,
             length: +loop.length.toFixed(0),
+            passengers: b.passengers.map((p) => `${p.seat}:${p.state}`).join(" "),
+            seats: b.taken.map((t) => (t === "player" ? "P" : t ? "p" : ".")).join(""),
           };
         },
       };
@@ -772,6 +784,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
   const frontM = inst(wheelsGeometry(R_FRONT, 1.62), n, "omnibus_front_wheels");
   // the saloon inside: drawn only for an omnibus you are in or near
   const interiorM = inst(interiorGeometry(), n, "omnibus_interior");
+  const farGlassM = inst(farGlassGeometry(), n, "omnibus_far_glass");
   const col = new THREE.Color();
   buses.forEach((b, i) => paintM.setColorAt(i, col.setRGB(...b.line.colour)));
   if (paintM.instanceColor) paintM.instanceColor.needsUpdate = true;
@@ -1113,6 +1126,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
       bodyM.setMatrixAt(i, b.frame.matrixWorld);
       const inside = b.rider || (!!cam && Math.hypot(b.pa.x - cam.x, b.pa.z - cam.z) < 15);
       interiorM.setMatrixAt(i, inside ? b.frame.matrixWorld : zero);
+      farGlassM.setMatrixAt(i, inside ? zero : b.frame.matrixWorld);
       anyInside ||= inside;
       paintM.setMatrixAt(i, b.frame.matrixWorld);
       set(rearM, i, b.pa.x, R_REAR, b.pa.z, b.yaw, b.rollR);
@@ -1136,7 +1150,9 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         tmp.set(x, y, z).applyMatrix4(b.frame.matrixWorld);
         M2.compose(tmp, b.frame.quaternion, S1);
         glass.setMatrixAt(i * LAMPS.length + k, M2);
-        tmp.set(x, y, z + (k < 2 ? 0.12 : -0.05)).applyMatrix4(b.frame.matrixWorld);
+        // a glow in the air round the carriage lamps; the oil lamp inside only lights its glass
+        if (k < 2) tmp.set(x, y, z + 0.12).applyMatrix4(b.frame.matrixWorld);
+        else tmp.set(0, -1000, 0);
         haloPos.setXYZ(i * LAMPS.length + k, tmp.x, tmp.y, tmp.z);
       });
       // the driver on his box, the conductor on the platform; only near
@@ -1155,7 +1171,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
       b.conductorG.position.x = b.rider ? 0.62 : 0.5; // nobody stands where the rider stands
       b.frame.visible = b.near;
     });
-    for (const m of [bodyM, paintM, rearM, foreM, frontM, glass, interiorM]) m.instanceMatrix.needsUpdate = true;
+    for (const m of [bodyM, paintM, rearM, foreM, frontM, glass, interiorM, farGlassM]) m.instanceMatrix.needsUpdate = true;
     interiorM.visible = anyInside;
     bPos.needsUpdate = true;
     bNor.needsUpdate = true;

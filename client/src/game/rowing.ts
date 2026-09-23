@@ -141,6 +141,10 @@ export class Rowing {
   private bumpAt = -9;
   private clock = 0;
   private mats: { shaft: THREE.Material; blade: THREE.Material; iron: THREE.Material } | null = null;
+  /** The groups that hold boats under way (river traffic, the lock's tows, the canal boats), found once. */
+  private groups: THREE.Object3D[] = [];
+  /** How far each oar is shipped (laid in), port and starboard, 0..1. */
+  private shipped = [0, 0];
   /** Dev: pretend the rower needs this much more head room (to see a bridge open for a boat). */
   devTall = 0;
   /** Sounds (main.ts): a job sound at a place, and an oar stroke. */
@@ -237,6 +241,7 @@ export class Rowing {
   }
 
   private apply(w: RowWorld): void {
+    if (!w || !Array.isArray(w.landings) || !Array.isArray(w.boats)) return; // the server is restarting
     const first = this.data === null;
     this.data = w;
     if (w.notice && w.notice.n !== this.notice) {
@@ -342,6 +347,7 @@ export class Rowing {
   /** Berths whose boat may come back while you stand there (you just brought one). */
   private fresh = new Set<string>();
   private synced = false;
+  private syncT = 0;
 
   // ------------------------------------------------------------------ keys
 
@@ -621,7 +627,7 @@ export class Rowing {
     });
     this.sinking.push({ obj: b.obj, t: 0, y0: this.player.rowY, roll: (Math.random() < 0.5 ? -1 : 1) * 0.6 });
     this.player.rowOverboard();
-    this.jobs.say(cause === "ship" ? "The bow comes out of the fog right over you. Wood cracks, the boat breaks under you, and you are in the water." : "The deck comes down on the boat. Wood cracks and splits, and you are in the water.");
+    this.jobs.say(cause === "ship" ? "The bow comes out of the fog right over you. Wood cracks, the boat breaks under you, and you are in the water." : "The boat jams under the bridge. Wood cracks and splits, and you are in the water.");
     try {
       const r = await this.post<JobsPayload & { text: string; row: RowWorld }>("/api/row/lost", { cause });
       this.jobs.refresh(r);
@@ -666,8 +672,8 @@ export class Rowing {
       return q && this.clock - q[2] < 0.25 ? q : null;
     };
     const names = new Set<string>(BOAT_NAMES);
-    for (const gname of ["river_traffic", "lock", "opening_bridges"]) {
-      const g = this.world.scene.getObjectByName(gname);
+    if (this.groups.length < 3) this.groups = ["river_traffic", "lock", "opening_bridges"].map((n) => this.world.scene.getObjectByName(n)).filter((g): g is THREE.Object3D => !!g);
+    for (const g of this.groups) {
       if (!g || !g.visible) continue;
       for (const o of g.children) {
         if (!o.visible || !names.has(o.name) || o.name === "portal_crane" || o.name === "hand_crane") continue;
@@ -742,7 +748,7 @@ export class Rowing {
       // a deck lower than the boat and the rower's head, over any part of the boat: it breaks
       const [sx, sz] = p.rowSeat();
       for (const [x, z, top] of [
-        [sx, sz, HEAD],
+        [sx, sz, HEAD + this.devTall],
         [p.x + fx * hull.half * 0.8, p.z + fz * hull.half * 0.8, 0.7],
         [p.x - fx * hull.half * 0.8, p.z - fz * hull.half * 0.8, 0.7],
       ]) {
@@ -877,6 +883,21 @@ export class Rowing {
       th *= w;
       dp = dipOut + 0.04 + (dp - dipOut - 0.04) * w;
       fe *= w;
+      // no room for the blade (a wall, the steps, a hull alongside): the oar is shipped, laid in along the gunwale
+      const side = port ? 1 : -1;
+      const bx = pin[0] * side + side * bladeMid * Math.cos(th);
+      const bz = pin[2] + bladeMid * Math.sin(th) * (port ? 1 : 1);
+      const hx = p.x + Math.cos(p.rowHeading) * bx + Math.sin(p.rowHeading) * bz;
+      const hz = p.z - Math.sin(p.rowHeading) * bx + Math.cos(p.rowHeading) * bz;
+      const key = port ? 0 : 1;
+      const want = this.world.boatFree(hx, hz, 0.15) ? 0 : 1;
+      this.shipped[key] += (want - this.shipped[key]) * 0.15;
+      const k = this.shipped[key];
+      if (k > 0.01) {
+        th = th + (-1.35 - th) * k;
+        dp = dp + (-0.08 - dp) * k;
+        fe = fe + (Math.PI / 2 - fe) * k;
+      }
       const sweep = pivot.children[0] as THREE.Group;
       const dip = sweep.children[0] as THREE.Group;
       const feather = dip.children[0] as THREE.Group;
@@ -1002,7 +1023,11 @@ export class Rowing {
       }
     }
     // a new boat at a berth once nobody is looking
-    if (this.data && !(Math.floor(this.clock * 2) % 4)) this.syncLying();
+    this.syncT -= dt;
+    if (this.data && this.syncT <= 0) {
+      this.syncT = 2;
+      this.syncLying();
+    }
   }
 
   // ------------------------------------------------------------------ the map and the path check

@@ -57,6 +57,8 @@ interface Ticket {
 
 export interface RideInfo {
   line: RideLine;
+  /** Inside (the saloon, the back platform) or up on the roof seat. */
+  place: "inside" | "roof";
   from: RideStop;
   /** Game minutes since the fare was paid. */
   minutes: number;
@@ -113,7 +115,7 @@ export function ride(db: DB): RideInfo | null {
   const t = ticket(db);
   if (!t || !t.on) return null;
   const minutes = gameMinutes(db) - t.since;
-  return { line: t.line, from: t.from, minutes, left: RIDE_MAX_HOURS * 60 - minutes };
+  return { line: t.line, place: t.roof ? "roof" : "inside", from: t.from, minutes, left: RIDE_MAX_HOURS * 60 - minutes };
 }
 
 /** A free change you could make now: onto any line but this one. */

@@ -173,7 +173,7 @@ export class Ride {
       if (s !== null) out.push({ key: "KeyE", text: "sit down here", run: () => this.sitDown(s) });
     }
     const w = this.player.rideWalk;
-    if (w && Math.hypot(w.x - LADDER_SPOT[0], w.z - LADDER_SPOT[1]) < 0.55 && !this.player.laden) {
+    if (w && Math.hypot(w.x - LADDER_SPOT[0], w.z - LADDER_SPOT[1]) < 0.85 && !this.player.laden) {
       const free = SEATS.map((q, i) => ({ q, i })).filter(({ q, i }) => q.roof && !bus.seatTaken(i));
       if (free.length) out.push({ key: "KeyF", text: "climb up to the roof seat", run: () => this.sitDown(free[0].i) });
     }
@@ -241,6 +241,6 @@ export class Ride {
 
   /** Dev: state for checks. */
   info(): Record<string, unknown> {
-    return { riding: this.riding, bus: this.bus?.index ?? null, line: this.bus?.line.id ?? null, busy: this.busy, fare: this.fare, change: this.change, net: this.net()?.info() ?? null };
+    return { riding: this.riding, seat: this.seat, walk: this.player.rideWalk ? [+this.player.rideWalk.x.toFixed(2), +this.player.rideWalk.z.toFixed(2)] : null, bus: this.bus?.index ?? null, line: this.bus?.line.id ?? null, busy: this.busy, fare: this.fare, change: this.change, net: this.net()?.info() ?? null };
   }
 }

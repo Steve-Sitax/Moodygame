@@ -254,3 +254,59 @@ Steve: "big cranes can and should be able to move from boat to boat if their tra
   0.37 vs 0.20 ms without the railway); frame time within noise (median 4.46 vs 4.36 ms, Rijnkaai view).
 - Pictures: `data/shots/m3g_crane_travel.jpg`, `m3g_crane_wheels.jpg`, `m3g_ladder_climb.jpg`,
   `m3g_deck_view_quay.jpg`, `m3g_deck_view_river.jpg`.
+
+## M3g part 4: inside the omnibus (2026-09-23)
+
+Steve: "the horse tram should have a fitting interior and we should be able to enter it and sit where we want".
+
+### Research: roof seats
+The Paris omnibus had an "impériale" (seats on the roof) from 1853, reached by a ladder; curved stairs came in the
+1870s. London's knifeboard buses (one long back-to-back bench along the roof) were reached by iron rungs until
+curved stairs were added in the 1870s. Brussels had horse omnibuses from May 1869; Antwerp's company of 1890 bought
+its omnibuses from A. Dodson in England. Omnibuses of the day had two long benches along the sides, passengers facing
+each other. I found no source that says whether Antwerp's omnibuses of 1873 had roof seats. Kept: the knifeboard
+seat on the roof with iron rungs up the back (what the model already had), and it can be ridden.
+Sources: https://parisianfields.com/2014/05/11/the-invention-of-the-omnibus/ ;
+https://www.ltmuseum.co.uk/collections/stories/transport/collections-close-thomas-tilling-knifeboard-type-horse-bus-about-1875 ;
+https://en.wikipedia.org/wiki/Horsebus ; https://www.historamarond1900.nl/leven/vervoer-en-reizen/openbaar-vervoer/bussen
+
+### The saloon (`client/src/world/omnibus.ts`)
+- The body's walls are open now: five windows a side with glazing bars (four small panes), a front window, an
+  open rear doorway onto the platform. The roof is 0.22 m higher (headroom inside).
+- Inside: two long benches in red velvet facing each other along the sides (six seats a side), straw on the floor,
+  a ceiling, the check-string to the driver along it, an oil lamp on the front bulkhead (its glass lit after
+  dusk), advertisements over the windows (JENEVER DE KUYPER; SOAP, DE WINTER; COFFEE AND TEA, PEETERS; PIPE
+  TOBACCO, VAN ROMPAEY). On the roof: the knifeboard bench, four seats a side, back to back, facing out.
+- The saloon is drawn only for an omnibus you ride or stand within 15 m of; further off, dark panes fill the windows.
+
+### Getting in and sitting (`game/ride.ts`, `firstPerson.ts` rideWalk / rideSeat)
+- At a stop, **E** at the back step: you stand on the back platform (the fare as before).
+- Walk in with **WASD**: you walk in the omnibus's own frame, kept to the platform, the doorway and the aisle
+  (you stoop a little inside), while it drives on.
+- Look at a free seat and press **E**: you sit there, at seated eye height, facing across the aisle, and look out
+  of the windows as you like. **E** again: you stand up in the aisle.
+- On the platform by the ladder, **F**: climb up to a free roof seat. **E** there: climb down to the platform.
+- At a stop, **E** (standing anywhere on board): get off. Seated, stand up first.
+- A seat is never taken twice: the player's and the passengers' seats are kept per omnibus.
+
+### Passengers
+- One to four townspeople ride each omnibus (men who can sit: a gentleman, a clerk, an old man, a priest, a sailor,
+  dockers, a porter, a carter). At each stop some get off (walking out down the aisle and the step) and some get on
+  (up the step, along the aisle, and sit), into seats nobody has; the omnibus waits till those getting off are down.
+
+### Server (`server/src/ride.ts`, `day.ts`)
+- `POST /api/ride {action: "seat", place: "inside" | "roof"}`; the ride info has `place`. On the roof the chill
+  comes every 7 h by day and every 4 h at night (inside 10 and 6, on foot 5 and 3). Getting off brings you down.
+  The fare and the change are as before. Tests: 2 more (roof warmth, roof needs a ride).
+
+### Checks (test save only)
+- Boarded at the Vismarkt (5 c), walked in along the aisle, "sit down here" on a seat across from a seated passenger,
+  looked out over the Vismarkt; stood up, went to the platform, "climb up to the roof seat", rode on the roof,
+  climbed down. Passengers boarded and left at stops (e.g. "10:out 2:in", later "0:seated 2:seated 9:seated").
+- Night: the oil lamp lit inside.
+- Path check `[]`.
+- Cost, standing by an omnibus at the Vismarkt with its saloon drawn and three passengers: all the omnibus parts
+  +16 draw calls (+12 before the saloon: the new ones are the saloon, the dark panes and the seated people), about
+  +0.27 ms a frame (median), updates 0.08 ms.
+- Pictures: `data/shots/m3g_omni_out.jpg`, `m3g_omni_aisle.jpg`, `m3g_omni_seated.jpg`, `m3g_omni_roof.jpg`,
+  `m3g_omni_night_inside.jpg`.
