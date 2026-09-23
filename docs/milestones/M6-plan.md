@@ -40,3 +40,8 @@ Homes: every townsperson already has a home and a daily schedule (M3e) and famil
 - Private schemes: each day the director gives two or three townspeople a small goal (a lost dog, a debt, a courtship, a grudge) that plays out through actions and conversations; Jef can stumble into them.
 - Rumours that twist: a rumour's wording drifts a little at each telling (the facts stay the engine's).
 - Dreams: when Jef sleeps, a short AI dream made from his day.
+
+## Night log (main)
+- Done and committed: the liner Kempenland and its lighters (72e83eb); the garrison and street musicians (0fb0178); the newspaper, post and pawnshop, the tavern and Poesje interiors (91bba79, a checkpoint that also holds work in progress of M4b, tides and the Vleeshuis).
+- Running: M4b (AI-first director, leads, scuffles, robberies, bubbles, events up to 100), tides, Vleeshuis, homes to rent and decorate, emigrants.
+- Still to start: landmark interiors (after the Vleeshuis), families who share and act, the population setting, the lamplighter, the fire brigade, the naties hiring, the AI unpredictability pack, the nine AI ideas.

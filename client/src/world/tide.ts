@@ -38,8 +38,8 @@ export const HW_MAX = MID_Y + HALF * (1 + SPRING);
 export const LW_MIN = MID_Y - HALF * (1 + SPRING);
 export const MHW = MID_Y + HALF;
 export const MLW = MID_Y - HALF;
-/** The Petit Bassin's water: kept a little under mean high water by the lock. */
-export const DOCK_Y = -1.0;
+/** The Petit Bassin's water: kept just under mean high water by the lock, so every high water comes near it. */
+export const DOCK_Y = -0.7;
 /** The mud beds of the canal and the vlieten: bare at low spring tides. */
 export const CANAL_BED = -5.05;
 /** The mud at the foot of the river walls (world/tidemud.ts): top against the wall, falling away. */

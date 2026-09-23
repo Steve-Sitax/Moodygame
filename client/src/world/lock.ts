@@ -17,9 +17,9 @@ import type { Rect } from "./geom";
 // to open while opts.occupied() says someone stands on it; the tow waits.
 //
 // M6 tides (world/tide.ts): the river rises and falls some 4.3 m; the dock stays near high water.
-// The chamber between the gates now matters. A tow sets out only round high water, when river and
-// dock stand within LEVEL_WINDOW of each other, and goes through with both pairs open (the water in
-// the chamber then slopes gently from one level to the other). A rowing boat is locked through: the
+// The chamber between the gates now matters. A tow does not fit the chamber: it waits off the lock
+// till river and dock stand within LEVEL_WINDOW of each other (round high water) and goes through
+// with both pairs open (the water in the chamber then slopes gently from one level to the other). A rowing boat is locked through: the
 // keeper shuts the far pair, lets the water in or out through the sluices till the chamber stands at
 // the boat's level, opens the near pair; once the boat is in, the other way round.
 
@@ -198,7 +198,7 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
   /** River and dock may differ this much for a tow to set out (it goes through with both pairs open). */
   const LEVEL_WINDOW = 0.6;
   /** The sluices fill or empty the chamber this fast (m/s). */
-  const SLUICE = 0.12;
+  const SLUICE = 0.25;
   const sideLevel = (i: 0 | 1) => (i === 0 ? water.river : water.dock);
 
   loadModelSet("/models/bridges.glb")
@@ -380,14 +380,15 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
     const gateSpeed = 0.05; // of the full swing, per second
     // slow at both ends of the swing, as when men start and stop a capstan
     const ease = 0.25 + 0.75 * Math.sin(Math.PI * THREE.MathUtils.clamp(bridgeAngle / OPEN_BRIDGE, 0, 1));
-    if (want || boatWant) {
-      if (bridgeAngle > OPEN_BRIDGE && (bridgeAngle < -0.001 || !occupied)) bridgeAngle = Math.max(OPEN_BRIDGE, bridgeAngle - bridgeSpeed * ease * dt);
-    } else if (gateOpen[0] < 0.3 && gateOpen[1] < 0.3) bridgeAngle = Math.min(0, bridgeAngle + bridgeSpeed * ease * dt);
-    // M6 tides: which pairs should stand open. A tow: both (it only sets out round high water).
+    // M6 tides: which pairs should stand open. A tow: both, on the level (round high water).
     // A rowing boat: the pair on its side; in the chamber, the pair it did not come in by.
     const wantGate: [boolean, boolean] = [false, false];
     let target: 0 | 1 | null = null;
-    if (want) wantGate[0] = wantGate[1] = true;
+    // a tow goes through only on the level (it does not fit the chamber); once both pairs are open
+    // they stay open till it is clear. Until then it waits at the lock for the tide.
+    const atLevel = Math.abs(water.river - water.dock) < LEVEL_WINDOW;
+    const towGo = want && (atLevel || (gateOpen[0] > 0.5 && gateOpen[1] > 0.5));
+    if (towGo) wantGate[0] = wantGate[1] = true;
     else if (boatWant) {
       const b = boatWhere?.();
       if (b) {
@@ -398,13 +399,18 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
       } else target = Math.abs(flat - water.river) < Math.abs(flat - water.dock) ? 0 : 1;
       wantGate[target] = true;
     }
+    // the bridge goes up for a boat, or for a tow once the water is on the level (it does not stand
+    // open for hours while a tow waits for the tide: the railway and the people cross here)
+    if (towGo || boatWant) {
+      if (bridgeAngle > OPEN_BRIDGE && (bridgeAngle < -0.001 || !occupied)) bridgeAngle = Math.max(OPEN_BRIDGE, bridgeAngle - bridgeSpeed * ease * dt);
+    } else if (gateOpen[0] < 0.3 && gateOpen[1] < 0.3) bridgeAngle = Math.min(0, bridgeAngle + bridgeSpeed * ease * dt);
     const bridgeUp = bridgeAngle < -0.3;
     for (const i of [0, 1] as const) {
       const other = i === 0 ? 1 : 0;
       // a pair opens only with the bridge up, the other pair shut (unless a tow wants both), and
       // the chamber at this side's level (a tow: near enough; the water then runs through)
-      const level = want || Math.abs(flat - sideLevel(i)) < 0.04;
-      const mayOpen = wantGate[i] && bridgeUp && (want || gateOpen[other] < 0.01) && level;
+      const level = towGo || Math.abs(flat - sideLevel(i)) < 0.04;
+      const mayOpen = wantGate[i] && bridgeUp && (towGo || gateOpen[other] < 0.01) && level;
       if (mayOpen) gateOpen[i] = Math.min(1, gateOpen[i] + gateSpeed * dt);
       else if (!wantGate[i]) gateOpen[i] = Math.max(0, gateOpen[i] - gateSpeed * dt);
     }
@@ -413,7 +419,7 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
     if (gateOpen[0] > 0.02 && gateOpen[1] > 0.02) flat = (water.river + water.dock) / 2;
     else if (gateOpen[0] > 0.02) flat = water.river;
     else if (gateOpen[1] > 0.02) flat = water.dock;
-    else if (target !== null || want) {
+    else if (target !== null || towGo) {
       const to = sideLevel(target ?? 0);
       flat += THREE.MathUtils.clamp(to - flat, -SLUICE * dt, SLUICE * dt);
     }
@@ -432,9 +438,7 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
       wait -= dt;
       // in the dock the tug turns round to lead out: only while nobody is near enough to see it
       const seen = state === "dock" && camera && camera.position.distanceTo(berth) < 45;
-      // M6 tides: a tow sets out only round high water, when river and dock stand near one level
-      const atLevel = Math.abs(water.river - water.dock) < LEVEL_WINDOW;
-      if (wait <= 0 && !seen && atLevel) start(state === "river" ? "in" : "out");
+      if (wait <= 0 && !seen) start(state === "river" ? "in" : "out");
       else if (state === "dock") place(LEN, 1, dt);
       else place(gapOf(), 1, dt);
       if (state === "river" || state === "dock") return;

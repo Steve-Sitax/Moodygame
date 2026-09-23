@@ -4,7 +4,7 @@ import { WATER_Y, type World } from "../world/rijnkaai";
 import type { Exit } from "../world/quaysteps";
 import { BOAT_NAMES, type BoatName } from "../world/boats";
 import { DECK_UNDER } from "../world/bridges";
-import { levelAt, tideRate, water } from "../world/tide";
+import { bedAt, levelAt, tideRate, water } from "../world/tide";
 import type { Rect } from "../world/geom";
 import { psx, psxUniforms } from "../retro/psx";
 import type { JobsPayload } from "../net/api";
@@ -195,6 +195,8 @@ export class Rowing {
     const pass = (c: Rect) =>
       (c === lw && (Math.abs(z - 7) > 1.8 || open(0)) && (Math.abs(z - 42) > 1.8 || open(1))) || (c.minZ === -60 && c.maxZ === -2.5 && z < -58.2 && Math.abs(x + 249) < 3);
     if (!this.world.boatFree(x, z, r * 0.9, pass)) return false;
+    // M6 tides: the canal and the vliet run nearly dry at low water: the boat takes the ground
+    if (levelAt(x, z) - bedAt(x, z) < 0.35) return false;
     // a bridge you do not fit under: wait outside it until it stands open
     const br = this.world.bridges();
     if (br && !this.fits()) {
