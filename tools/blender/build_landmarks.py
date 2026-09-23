@@ -1880,6 +1880,688 @@ def vleeshuis(fr):
     return m
 
 
+# ------------------------------------------------------------------ the Vleeshuis as it stood in 1873 (M6)
+#
+# Sources (reference only; docs/milestones/M6-vleeshuis.md): J. Linnig's etching "Het Vleeschhuis" (1849,
+# Rijksmuseum RP-P-1890-A-15650/1) and his drawing of 7 July 1855 (FelixArchief 12#2994), both CC0; J.-E.
+# Durand's photographs "Vieilles-Boucheries" (Mediatheque de l'architecture et du patrimoine, before the
+# restoration); the heritage inventory (Onroerend Erfgoed 4678) and today's photographs. In 1873 it was
+# the wine merchant Peyrot's warehouse (the butchers sold it in 1841); the city bought it in 1899 and
+# restored it in 1900-1922, so: no Weyns statues on the east buttress (1912), the older stepped wall
+# dormers at the eaves, sooty bands, the Madonna with her gilt glory on the south-east tower.
+#
+# The frame: u along the hall (u0, world x -138, is the real east front on the Vleeshouwersstraat with
+# its two doors; u1 the west gable to the Scheldt), v < 0 the south side with the octagonal stair tower.
+# The walls are tiled with one atlas cell of the bands, cut at world heights, so the stripes run level
+# round the whole building, its buttresses, towers and gables; the window cells paint the same bands
+# round their frames and sit at whole bands (VP) so they line up.
+
+VAT = 256
+VATLAS = 7
+VLEES_MATS = CATH_MATS + ["vleeshuis_atlas"]
+VP = 0.48  # one band: 0.36 m of brick (three courses), 0.12 m of white Balegem sandstone; 25 px to the metre
+VTW, VTH = 5.12, 3.84  # the wall cell in metres (128 x 96 px, eight bands): big, so the PS1 vertex snap bends the stripes seldom
+VCELL = {
+    "vh_wall": (128, 144, 128, 96),  # the bacon bands
+    "vh_door": (64, 0, 64, 84),  # oak doors under a basket arch, iron straps, a wicket
+    "vh_hall": (128, 0, 64, 144),  # a great pointed window of the hall: three lights, rings and daggers
+    "vh_hall2": (192, 0, 64, 144),  # the same with flowing mouchettes
+    "vh_cross": (0, 60, 48, 96),  # a cross window with a relieving arch, the bands round it
+    "vh_cross2": (0, 156, 48, 96),  # the same, its lower lights shuttered (a warehouse in 1873)
+    "vh_small": (48, 84, 32, 36),  # a small cross window of the gables and dormers
+    "vh_small2": (80, 84, 32, 36),  # the same, shuttered
+    "vh_slit": (112, 84, 16, 36),  # a narrow stair window of the towers
+    "vh_madonna": (48, 120, 32, 64),  # the Madonna in her niche on the south-east tower, a gilt glory
+    "vh_grille": (80, 120, 32, 24),  # a barred cellar window in the plinth
+}
+GABLET = [(0, 0), (1, 0), (1, 0.72), (0.5, 1), (0, 0.72)]
+HALLARCH = arch_shape(0.62, 4)
+
+
+def vuv(name, x, t):
+    cx, cy, w, h = VCELL[name]
+    e = 0.02
+    return ((cx + e + x * (w - 2 * e)) / VAT, 1 - (cy + e + (1 - t) * (h - 2 * e)) / VAT)
+
+
+def paint_vleeshuis_atlas():
+    """The Vleeshuis atlas, drawn pixel by pixel (rows top-down, sRGB 0..1), 25 px to the metre."""
+    import numpy as np
+
+    rng = np.random.default_rng(1501)
+    A = np.zeros((VAT, VAT, 3), np.float32)
+    C = {k: np.array(v, np.float32) for k, v in {
+        "brick": (0.50, 0.26, 0.19), "brick2": (0.43, 0.22, 0.17), "brick3": (0.56, 0.31, 0.22), "brick4": (0.37, 0.21, 0.20),
+        "mortar": (0.47, 0.43, 0.38), "sand": (0.74, 0.70, 0.60), "hi": (0.80, 0.77, 0.67), "lo": (0.34, 0.31, 0.27),
+        "glass": (0.07, 0.085, 0.11), "lead": (0.20, 0.20, 0.19), "glint": (0.25, 0.31, 0.37), "void": (0.06, 0.06, 0.07),
+        "wood": (0.30, 0.20, 0.12), "wood2": (0.21, 0.14, 0.09), "iron": (0.10, 0.10, 0.11), "gold": (0.84, 0.66, 0.27),
+        "white": (0.86, 0.84, 0.78), "shutter": (0.20, 0.24, 0.19), "blue": (0.34, 0.36, 0.40), "dstone": (0.40, 0.38, 0.35),
+    }.items()}
+    BR = [C["brick"], C["brick2"], C["brick3"], C["brick4"], C["brick"]]
+
+    def cell(name):
+        x, y, w, h = VCELL[name]
+        return A[y:y + h, x:x + w]
+
+    def grid(h, w):
+        yy, xx = np.mgrid[0:h, 0:w]
+        return xx + 0.5, yy + 0.5
+
+    def noise(c, amt):
+        c += (rng.random(c.shape[:2])[..., None] - 0.5) * amt
+
+    def shape_mask(w, h, shape):
+        xx, yy = grid(h, w)
+        top = sorted({(round(p[0], 4), p[1]) for p in shape if p[1] > 0})
+        return (1 - yy / h) <= np.interp(xx / w, np.array([p[0] for p in top]), np.array([p[1] for p in top]))
+
+    def erode(mk, n=1):
+        for _ in range(n):
+            e = mk.copy()
+            e[1:, :] &= mk[:-1, :]
+            e[:-1, :] &= mk[1:, :]
+            e[:, 1:] &= mk[:, :-1]
+            e[:, :-1] &= mk[:, 1:]
+            e[0, :] = e[-1, :] = False
+            e[:, 0] = e[:, -1] = False
+            mk = e
+        return mk
+
+    def line(c, x0, y0, x1, y1, col, mask=None, w=1):
+        n = int(max(abs(x1 - x0), abs(y1 - y0)) * 2) + 1
+        for i in range(n + 1):
+            x = int(round(x0 + (x1 - x0) * i / n))
+            y = int(round(y0 + (y1 - y0) * i / n))
+            for dx in range(w):
+                if 0 <= y < c.shape[0] and 0 <= x + dx < c.shape[1] and (mask is None or mask[y, x + dx]):
+                    c[y, x + dx] = col
+
+    def stripes(c):
+        """The bands, phased from the cell's foot: the bottom 3 px of every 12 are sandstone."""
+        h, w = c.shape[:2]
+        for r in range(h):
+            k = (h - 1 - r) % 12
+            band = (h - 1 - r) // 12
+            if k < 3:
+                c[r] = C["sand"] * (0.9 if k == 0 else 1.0)
+                off = (band * 7) % 17
+                for x in range(off, w, 17):
+                    c[r, x] = C["mortar"] * 1.1
+            else:
+                j = k - 3
+                course = j // 3
+                if j % 3 == 2:
+                    c[r] = C["mortar"]
+                    continue
+                off = (course * 3 + band * 2) % 5
+                for x in range(w):
+                    q = (x + off) // 5
+                    if (x + off) % 5 == 4:
+                        c[r, x] = C["mortar"]
+                    else:
+                        c[r, x] = BR[(q * 7 + course * 3 + band * 5) % 5] * (0.92 + 0.16 * ((q * 13 + band * 11 + course * 5) % 7) / 6)
+        c *= (0.9 + 0.1 * rng.random((1, w, 1))).astype(np.float32)  # soot streaks run down the wall
+        noise(c, 0.05)
+
+    def leaded(g, dx=3, dy=4, diamond=False):
+        h, w = g.shape[:2]
+        g[:] = C["glass"]
+        xx, yy = grid(h, w)
+        if diamond:
+            lead = (((xx + yy).astype(int) % 6) == 0) | (((xx - yy).astype(int) % 6) == 0)
+        else:
+            lead = ((xx.astype(int) % dx) == 0) | ((yy.astype(int) % dy) == 0)
+        g[lead] = C["lead"]
+        g[rng.random((h, w)) < 0.05] = C["glint"]
+
+    # -- the wall: the bacon bands
+    stripes(cell("vh_wall"))
+
+    # -- the great hall windows: a sandstone frame, three lights, a transom, cusped heads, the tracery
+    for name, variant in (("vh_hall", 0), ("vh_hall2", 1)):
+        c = cell(name)
+        h, w = c.shape[:2]
+        mk = shape_mask(w, h, HALLARCH)
+        c[:] = C["sand"]
+        for y in range(0, h, 9):  # the jamb stones
+            c[y, :] = C["sand"] * 0.86
+        inner = erode(mk, 4)
+        c[erode(mk, 3) & ~inner] = C["lo"]
+        g = np.zeros_like(c)
+        leaded(g, diamond=True)
+        c[inner] = g[inner]
+        spring = int(round(h * (1 - 0.62)))
+        lw = (w - 8) / 3
+        for k in (1, 2):
+            mx = int(round(4 + k * lw))
+            sub = c[spring - 4:h - 3, mx - 1:mx + 1]
+            sub[inner[spring - 4:h - 3, mx - 1:mx + 1]] = C["sand"]
+        ty = spring + int((h - 3 - spring) * 0.42)
+        c[ty:ty + 2][inner[ty:ty + 2]] = C["sand"]
+        am = shape_mask(int(lw), 12, arch_shape(0.3, 2))
+        edge = am & ~erode(am)
+        for k in range(3):  # the heads of the three lights
+            lx = int(round(4 + k * lw))
+            box = c[spring - 4:spring + 8, lx:lx + int(lw)]
+            box[edge & inner[spring - 4:spring + 8, lx:lx + int(lw)]] = C["sand"]
+        cx = w / 2
+        if variant == 0:  # a great ring with a quatrefoil, two daggers over the lights
+            xx, yy = grid(h, w)
+            ring = (np.abs(np.hypot(xx - cx, yy - 27) - 10) < 1.1) & inner
+            c[ring] = C["sand"]
+            for qx, qy in ((cx - 4, 27), (cx + 4, 27), (cx, 23), (cx, 31)):
+                c[(np.abs(np.hypot(xx - qx, yy - qy) - 3.4) < 0.8) & inner] = C["sand"]
+            for sx in (-1, 1):
+                c[(np.abs(np.hypot((xx - cx - sx * 15) / 0.7, yy - 44) - 6) < 1.0) & inner] = C["sand"]
+                line(c, cx + sx * (w / 2 - 4 - lw), spring - 4, cx + sx * 9, 36, C["sand"], inner, 2)
+        else:  # flowing mouchettes: two S curves from the mullions to the apex, a centre bar
+            for sx in (-1, 1):
+                pts = [(cx + sx * (lw / 2 + 12 * math.sin(math.pi * t) * (1 - t)), spring - 4 - t * (spring - 10)) for t in np.linspace(0, 1, 24)]
+                for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+                    line(c, x0, y0, x1, y1, C["sand"], inner, 2)
+                xx, yy = grid(h, w)
+                c[(np.abs(np.hypot((xx - cx - sx * 16) / 0.6, yy - 40) - 7) < 1.0) & inner] = C["sand"]
+            line(c, cx - 1, spring - 4, cx - 1, 12, C["sand"], inner, 2)
+        c[h - 3:] = C["sand"]
+        c[h - 3] = C["lo"]
+        noise(c, 0.04)
+
+    # -- the doors: planked oak, two leaves, iron straps and studs, a wicket in the right leaf
+    c = cell("vh_door")
+    h, w = c.shape[:2]
+    c[:] = C["wood"]
+    c *= (0.9 + 0.2 * rng.random((1, w, 1))).astype(np.float32)
+    c[:, ::5] = C["wood2"]
+    c[:, 31:33] = C["void"]
+    for y in (14, 38, 64):
+        c[y:y + 2] = C["iron"]
+        c[y + 5, 4:60:6] = C["iron"]
+    c[40:80, 40] = C["iron"]
+    c[40, 40:56] = C["iron"]
+    c[40:80, 56] = C["iron"]
+    c[58:60, 43:45] = C["gold"] * 0.6
+    c[:3] = C["wood2"] * 0.6  # the shadow under the arch
+    noise(c, 0.03)
+
+    # -- cross windows with a profiled sandstone frame, a relieving arch, jamb stones
+    for name, shut in (("vh_cross", False), ("vh_cross2", True)):
+        c = cell(name)
+        stripes(c)
+        h, w = c.shape[:2]
+        x0, x1, y0, y1 = 6, 42, 20, 90
+        xc, hw = (x0 + x1) / 2, (x1 - x0) / 2 + 3
+        for x in range(x0 - 3, x1 + 3):  # the relieving arch: a flat arch of sandstone and brick voussoirs
+            ya = y0 - 1 - 4 * (1 - ((x + 0.5 - xc) / hw) ** 2)
+            col = C["sand"] if (x // 4) % 2 == 0 else C["brick2"] * 1.1
+            c[int(ya) - 2:int(ya), x] = col
+            c[int(ya), x] = C["mortar"] * 0.8
+        for k, y in enumerate(range(y0, y1, 6)):  # the jamb stones, long and short
+            ln = 5 if k % 2 == 0 else 3
+            c[y:y + 5, x0 - ln:x0] = C["sand"]
+            c[y:y + 5, x1:x1 + ln] = C["sand"]
+            c[y + 5, x0 - ln:x1 + ln] = C["mortar"]
+        c[y0:y1, x0:x1] = C["sand"]
+        c[y0 + 1:y1 - 1, x0 + 1] = C["lo"]
+        ty = y0 + int((y1 - y0) * 0.38)
+        g = c[y0 + 3:y1 - 3, x0 + 3:x1 - 3]
+        leaded(g)
+        if shut:  # the lower lights shuttered: planks in a frame
+            s = c[ty + 2:y1 - 3, x0 + 3:x1 - 3]
+            s[:] = C["shutter"]
+            s[:, ::3] = C["shutter"] * 0.7
+            s[:2] = C["shutter"] * 1.3
+        c[y0:y1, int(xc) - 1:int(xc) + 1] = C["sand"]
+        c[ty:ty + 2, x0:x1] = C["sand"]
+        c[y1:y1 + 2, x0 - 3:x1 + 3] = C["hi"]
+        c[y1 + 2, x0 - 3:x1 + 3] = C["lo"]
+        noise(c, 0.03)
+
+    for name, shut in (("vh_small", False), ("vh_small2", True)):
+        c = cell(name)
+        stripes(c)
+        x0, x1, y0, y1 = 5, 27, 6, 32
+        c[y0 - 2:y0, x0 - 2:x1 + 2] = C["sand"]
+        c[y0:y1, x0:x1] = C["sand"]
+        g = c[y0 + 2:y1 - 2, x0 + 2:x1 - 2]
+        leaded(g)
+        ty = y0 + 10
+        if shut:
+            c[ty:y1 - 2, x0 + 2:x1 - 2] = C["shutter"]
+            c[ty:y1 - 2, x0 + 2:x1 - 2:3] = C["shutter"] * 0.7
+        c[y0:y1, 15:17] = C["sand"]
+        c[ty:ty + 2, x0:x1] = C["sand"]
+        c[y1:y1 + 2, x0 - 2:x1 + 2] = C["hi"]
+        noise(c, 0.03)
+
+    c = cell("vh_slit")
+    stripes(c)
+    c[4:34, 3:13] = C["sand"]
+    c[6:32, 5:11] = C["void"]
+    c[6:32, 7:9] = C["glass"]
+    c[6:32, 8] = C["iron"]
+    c[18, 5:11] = C["iron"]
+    noise(c, 0.03)
+
+    # -- the Madonna: crowned, the Child on her arm, a gilt glory, in a niche under a gablet with crockets
+    c = cell("vh_madonna")
+    h, w = c.shape[:2]
+    mk = shape_mask(w, h, GABLET)
+    c[:] = C["sand"]
+    inner = erode(mk, 3)
+    c[inner] = C["lo"] * 0.55
+    xx, yy = grid(h, w)
+    ang = np.arctan2(yy - 30, xx - 16)
+    rays = (np.hypot(xx - 16, yy - 30) < 14) & ((np.floor(ang * 16 / math.pi) % 2) == 0) & inner
+    c[rays] = C["gold"]
+    robe = (yy >= 19) & (yy <= 52) & (np.abs(xx - 16) <= 3 + (yy - 19) * 0.14) & inner
+    c[robe] = C["white"] * 0.95
+    c[robe & (xx > 17)] = C["white"] * 0.8
+    c[np.hypot(xx - 16, yy - 16) <= 3.2] = C["white"]
+    c[(yy >= 11) & (yy <= 13) & (np.abs(xx - 16) <= 3)] = C["gold"]
+    c[np.hypot(xx - 20, yy - 25) <= 2.2] = C["white"]
+    c[(np.abs(xx - 20) <= 2) & (yy > 26) & (yy < 32)] = C["white"] * 0.9
+    c[52:57, 8:24] = C["hi"]
+    c[57:60, 11:21] = C["hi"] * 0.9
+    for k in range(5):  # crockets on the gablet
+        y = int(h * 0.28 * (1 - k / 5)) + 1
+        c[y, max(0, 16 - int(16 * (1 - k / 5)) - 1)] = C["hi"]
+        c[y, min(w - 1, 16 + int(16 * (1 - k / 5)))] = C["hi"]
+    noise(c, 0.03)
+
+    c = cell("vh_grille")
+    c[:] = C["dstone"]
+    for y in range(0, 24, 8):
+        c[y] = C["dstone"] * 0.8
+        for x in range((y // 8 % 2) * 7, 32, 14):
+            c[y:y + 8, x] = C["dstone"] * 0.8
+    c[4:21, 5:27] = C["blue"] * 1.1
+    c[6:19, 7:25] = C["void"]
+    c[6:19, 8:25:4] = C["iron"] * 2
+    noise(c, 0.04)
+    return np.clip(A, 0, 1)
+
+
+def vleeshuis_materials():
+    if "vleeshuis_atlas" in bpy.data.materials:
+        return
+    import numpy as np
+
+    px = paint_vleeshuis_atlas()
+    img = bpy.data.images.new("vleeshuis_atlas", VAT, VAT, alpha=False)
+    rgba = np.ones((VAT, VAT, 4), np.float32)
+    rgba[..., :3] = np.flipud(px)
+    img.pixels.foreach_set(rgba.ravel())
+    img.pack()
+    mt = bpy.data.materials.new("vleeshuis_atlas")
+    nt = mt.node_tree
+    bsdf = nt.nodes.get("Principled BSDF")
+    tex = nt.nodes.new("ShaderNodeTexImage")
+    tex.image = img
+    tex.interpolation = "Closest"
+    nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    bsdf.inputs["Roughness"].default_value = 1.0
+    mt.diffuse_color = (0.55, 0.32, 0.25, 1)
+
+
+class VMesh(CMesh):
+    """The Vleeshuis: the cathedral mesh plus its own atlas, a stone tint and a little per-face weathering."""
+
+    mats = VLEES_MATS
+
+    def __init__(self, frame):
+        super().__init__(frame)
+        import random
+
+        self.rng = random.Random(1501)
+        self.tint = (1.0, 1.0, 1.0)
+        self.jit = 0.0
+
+    def poly(self, pts, mat, shade=1.0):
+        if mat in (STONE, VATLAS, BRICK) and self.jit:
+            shade *= 1 + self.rng.uniform(-self.jit, self.jit)
+        f = Mesh.poly(self, pts, mat, shade)
+        if f is not None and mat in (STONE, VATLAS) and self.tint != (1.0, 1.0, 1.0):
+            for loop in f.loops:
+                c = loop[self.col]
+                loop[self.col] = (c[0] * self.tint[0], c[1] * self.tint[1], c[2] * self.tint[2], 1.0)
+        return f
+
+    def tex(self, pts, cell, shape=RECT, shade=1.0, out=None):
+        if cell in VCELL:
+            return self.upoly(pts, [vuv(cell, x, t) for x, t in shape], VATLAS, shade, out)
+        return super().tex(pts, cell, shape, shade, out)
+
+
+def vleeshuis2(fr):
+    """The Vleeshuis in 1873 (M6, Steve 2026-09-24: "Give Vleeshuis an upgrade, more detail."): the hall of
+    1501-04 by Herman de Waghemakere in bands of red brick and white sandstone on a dark stone plinth; seven
+    bays of buttresses along each side, great pointed windows with tracery to the hall, cross windows above,
+    stepped wall dormers at the eaves and small dormers in the steep slate roof; the stepped east and west
+    gables with their coped steps and rows of small windows; a hexagonal corbelled stair turret at each
+    corner (the south-east one the biggest, with the Madonna) and the tall octagonal stair tower out of the
+    south side, all under kinked slate spires with iron vanes; two doors under basket arches in bluestone
+    frames on the east front and one on each long side. The outline, the doors of the long sides and the
+    buttress lines are those of the old model (the walk map's outline from OpenStreetMap)."""
+    cath_materials()
+    vleeshuis_materials()
+    m = VMesh(fr)
+    u0, u1, v0, v1 = -22.2, 22.2, -7.5, 9.0
+    H = 16.8  # the eaves: 35 bands
+    half, vm = (v1 - v0) / 2, (v0 + v1) / 2
+    SLOPE = 1.6  # the roof, 58 degrees
+    RISE = half * SLOPE
+    PL = 1.2  # the top of the plinth
+    SC = 9.6  # the drip course between the two storeys
+    SAND, BLUE, DARK = (1.0, 0.97, 0.88), (0.64, 0.68, 0.76), (0.56, 0.54, 0.55)
+    bl = [-20.4, -15.3, -9.1, -2.8, 3.5, 9.7, 15.8, 20.4]  # buttress lines on the outline (the ends are the towers)
+    door_s, door_n = (bl[2] + bl[3]) / 2, (bl[3] + bl[4]) / 2
+    TWR = (3.4, -8.58, 1.88)  # the octagonal stair tower out of the south side
+
+    def st(t=(1.0, 1.0, 1.0), jit=0.04):
+        m.tint, m.jit = t, jit
+
+    def W(fr_, s, e, y):
+        p, d, o = fr_
+        return (p[0] + d[0] * s + o[0] * e, p[1] + d[1] * s + o[1] * e, y)
+
+    def wall_rect(fr_, s0, s1, y0, y1, e=0.0, shade=1.0):
+        """Wall from s0 to s1, y0 to y1, tiled with the bands: cut where the world height crosses a whole
+        wall cell, so the stripes stay level everywhere."""
+        if s1 - s0 < 1e-3 or y1 - y0 < 1e-3:
+            return
+        o = fr_[2]
+        n = max(1, math.ceil((s1 - s0) / VTW - 1e-6))
+        cuts = [y0] + [k * VTH for k in range(math.floor(y0 / VTH) + 1, math.ceil(y1 / VTH)) if y0 + 1e-6 < k * VTH < y1 - 1e-6] + [y1]
+        for i in range(n):
+            a, b = s0 + (s1 - s0) * i / n, s0 + (s1 - s0) * (i + 1) / n
+            fw = (b - a) / VTW
+            xa = m.rng.uniform(0, 1 - fw) if fw < 0.98 else 0.0
+            for ya, yb in zip(cuts, cuts[1:]):
+                k = math.floor((ya + 1e-6) / VTH)
+                ta, tb = ya / VTH - k, yb / VTH - k
+                m.upoly([W(fr_, a, e, ya), W(fr_, b, e, ya), W(fr_, b, e, yb), W(fr_, a, e, yb)],
+                        [vuv("vh_wall", xa, ta), vuv("vh_wall", xa + fw, ta), vuv("vh_wall", xa + fw, tb), vuv("vh_wall", xa, tb)],
+                        VATLAS, shade, (o[0], o[1], 0))
+
+    def wall_poly(fr_, pts, e=0.0, shade=1.0):
+        """A wall polygon inside one wall cell (a spandrel, a cheek), UVs by position."""
+        o = fr_[2]
+        k = math.floor((min(y for _, y in pts) + 1e-6) / VTH)
+        s0 = min(s for s, _ in pts)
+        m.upoly([W(fr_, s, e, y) for s, y in pts], [vuv("vh_wall", (s - s0) / VTW, y / VTH - k) for s, y in pts], VATLAS, shade, (o[0], o[1], 0))
+
+    def plinth(fr_, s0, s1, proj=0.12):
+        """The dark stone plinth with its chamfered top."""
+        o = fr_[2]
+        st(DARK, 0.06)
+        m.orient(m.poly([W(fr_, s0, proj, 0), W(fr_, s1, proj, 0), W(fr_, s1, proj, PL), W(fr_, s0, proj, PL)], STONE, 0.72), (o[0], o[1], 0))
+        m.orient(m.poly([W(fr_, s0, proj, PL), W(fr_, s1, proj, PL), W(fr_, s1, 0, PL + 0.16), W(fr_, s0, 0, PL + 0.16)], STONE, 0.9), (o[0], o[1], 1))
+        st()
+
+    def box(fr_, s0, s1, e0, e1, y0, y1, tint, shade=1.05, top=True):
+        st(tint, 0.03)
+        p, d, o = fr_
+        _wbox(m, p, d, o, s0, s1, e0, e1, y0, y1, STONE, shade, top=top)
+        st()
+
+    def side_frames(fr_, sa, sb):
+        """The two side faces of something standing out of a wall between sa and sb."""
+        p, d, o = fr_
+        pa, pb = W(fr_, sa, 0, 0), W(fr_, sb, 0, 0)
+        return ((pa[0], pa[1]), o, (-d[0], -d[1])), ((pb[0], pb[1]), o, d)
+
+    def door(fr_, sc, hw, h, depth, name, y1):
+        """A doorway under a basket arch: the wall over it up to y1, reveals, the oak doors, a bluestone
+        frame and hood, a step. The door is noted at the back of the reveal, as the old model's portal did.
+        The arch's springing must lie in the wall cell that holds its crown (h 3.36: 2.55 and 3.36)."""
+        p, d, o = fr_
+        top = [((x - 0.5) * 2 * hw, t * h) for x, t in DOOR4[2:]]  # right spring over the top to the left spring
+        path = [(-hw, 0.0)] + list(reversed(top)) + [(hw, 0.0)]
+        band = math.ceil(h / VTH) * VTH
+        wall_rect(fr_, sc - hw, sc + hw, band, y1)
+        wall_poly(fr_, [(sc + s, y) for s, y in reversed(top)] + [(sc + hw, band), (sc - hw, band)])
+        st(BLUE, 0.03)
+        for (sa, ya), (sb, yb) in zip(path, path[1:]):
+            sm, ym = (sa + sb) / 2, (ya + yb) / 2
+            f = m.poly([W(fr_, sc + sa, 0, ya), W(fr_, sc + sb, 0, yb), W(fr_, sc + sb, -depth, yb), W(fr_, sc + sa, -depth, ya)], STONE, 0.55)
+            m.orient(f, (-d[0] * sm, -d[1] * sm, (0.4 * h - ym) * 0.5))
+        outer = [((x - 0.5) * 2 * (hw + 0.22), t * (h + 0.22)) for x, t in DOOR4[2:]]
+        opath = [(-hw - 0.22, 0.0)] + list(reversed(outer)) + [(hw + 0.22, 0.0)]
+        for (sa, ya), (sb, yb), (sc_, yc), (sd, yd) in zip(path, path[1:], opath[1:], opath):
+            f = m.poly([W(fr_, sc + sa, 0.05, ya), W(fr_, sc + sb, 0.05, yb), W(fr_, sc + sc_, 0.05, yc), W(fr_, sc + sd, 0.05, yd)], STONE, 0.95)
+            m.orient(f, (o[0], o[1], 0))
+        st()
+        m.tex([W(fr_, sc + (x - 0.5) * 2 * hw, -depth, t * h) for x, t in DOOR4], "vh_door", DOOR4, 0.85, (o[0], o[1], 0))
+        box(fr_, sc - hw - 0.4, sc + hw + 0.4, 0.0, 0.2, h + 0.22, h + 0.4, BLUE, 1.0)  # the hood
+        box(fr_, sc - hw - 0.3, sc + hw + 0.3, -depth, 0.35, 0.0, 0.16, BLUE, 0.8)  # the step
+        m.door(name, W(fr_, sc, -depth, 0))
+
+    def wall(fr_, s0, s1, y1, doors=()):
+        """A stretch of wall from the plinth up to y1, with doorways (sc, hw, h, depth, name) cut in it."""
+        x, px = s0, s0
+        for sc, hw, h, depth, name in sorted(doors):
+            wall_rect(fr_, x, sc - hw, PL, y1)
+            plinth(fr_, px, sc - hw - 0.22)
+            door(fr_, sc, hw, h, depth, name, y1)
+            x, px = sc + hw, sc + hw + 0.22
+        wall_rect(fr_, x, s1, PL, y1)
+        plinth(fr_, px, s1)
+
+    def buttress(fr_, s, w0, e0, w1, e1, ya, yb, yc, yd=None, pin=None):
+        """A stepped buttress: the plinth, a striped lower stage, a sloped sandstone water table, a
+        narrower upper stage, a sloped cap into the wall (yd) or a pinnacle (pin: height)."""
+        box(fr_, s - w0 - 0.06, s + w0 + 0.06, 0.0, e0 + 0.06, 0.0, PL, DARK, 0.75, top=False)
+        for (y0, y1, w, e) in ((PL, ya, w0, e0), (yb, yc, w1, e1)):
+            wall_rect(fr_, s - w, s + w, y0, y1, e=e)
+            for sf in side_frames(fr_, s - w, s + w):
+                wall_rect(sf, 0.0, e, y0, y1)
+        st(SAND, 0.03)
+        for (y0, y1, wa, ea, wb, eb) in ((ya, yb, w0, e0, w1, e1),) + (((yc, yd, w1, e1, w1, 0.0),) if yd else ()):
+            ww = wa + 0.05
+            f = m.poly([W(fr_, s - ww, ea + 0.05, y0), W(fr_, s + ww, ea + 0.05, y0), W(fr_, s + ww, eb, y1), W(fr_, s - ww, eb, y1)], STONE, 1.05)
+            m.orient(f, (fr_[2][0], fr_[2][1], 1))
+            for sg in (-1, 1):
+                f = m.poly([W(fr_, s + sg * ww, ea + 0.05, y0), W(fr_, s + sg * ww, eb, y1), W(fr_, s + sg * ww, eb, y0)], STONE, 0.9)
+                m.orient(f, (fr_[1][0] * sg, fr_[1][1] * sg, 0))
+        # the drip course wraps round the upper stage
+        box(fr_, s - w1 - 0.14, s + w1 + 0.14, 0.0, e1 + 0.14, SC, SC + 0.22, SAND, 1.08)
+        if pin:
+            box(fr_, s - w1 - 0.1, s + w1 + 0.1, -0.1, e1 + 0.1, yc, yc + 0.25, SAND, 1.08)
+            c = W(fr_, s, e1 / 2, 0)
+            st(SAND, 0.03)
+            m.pinnacle(c[0], c[1], yc + 0.25, pin, w1 * 0.85)
+            st()
+        st()
+
+    def stepped(fr_, s0, s1, y0, steps, hs, crown, thick, cope=0.16):
+        """A stepped gable with thickness standing on a wall top: striped rows, plain brick step ends and
+        back, a sandstone coping on every step. Returns the rows (s from, s to, y from, y to)."""
+        p, d, o = fr_
+        w = (s1 - s0) / (2 * steps + 1)
+        rows = []
+        for k in range(steps + 1):
+            ya = y0 + k * hs
+            yb = y0 + (k + 1) * hs if k < steps else y0 + steps * hs + crown
+            rows.append((s0 + k * w, s1 - k * w, ya, yb))
+        st(jit=0.03)
+        for a, b, ya, yb in rows:
+            wall_rect(fr_, a, b, ya, yb)
+            for sx, sg in ((a, -1), (b, 1)):
+                f = m.poly([W(fr_, sx, 0, ya), W(fr_, sx, -thick, ya), W(fr_, sx, -thick, yb), W(fr_, sx, 0, yb)], BRICK, 0.9)
+                m.orient(f, (d[0] * sg, d[1] * sg, 0))
+        left = [(s0, y0), (s0, rows[0][3])]
+        for a, b, ya, yb in rows[1:]:
+            left += [(a, ya), (a, yb)]
+        loop = left + [(s0 + s1 - s, y) for s, y in reversed(left)]
+        m.orient(m.poly([W(fr_, s, -thick, y) for s, y in loop], BRICK, 0.8), (-o[0], -o[1], 0))
+        st()
+        for k in range(steps):
+            a0, b0, _, yk = rows[k]
+            a1, b1 = rows[k + 1][0], rows[k + 1][1]
+            for lo, hi in ((a0, a1), (b1, b0)):
+                box(fr_, lo - 0.05, hi + 0.05, -thick - 0.05, 0.08, yk, yk + cope, SAND, 1.08)
+        a, b, _, yt = rows[-1]
+        box(fr_, a - 0.05, b + 0.05, -thick - 0.05, 0.08, yt, yt + cope, SAND, 1.08)
+        return rows
+
+    def ngon_faces(cu, cv, r, sides, rot, y0, y1, skip_inside=True, plinth_=False):
+        rg = m.ngon(cu, cv, r, sides, rot)
+        for i in range(sides):
+            a, b = rg[i], rg[(i + 1) % sides]
+            mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
+            if skip_inside and u0 + 0.05 < mid[0] < u1 - 0.05 and v0 + 0.05 < mid[1] < v1 - 0.05:
+                continue
+            L = math.hypot(b[0] - a[0], b[1] - a[1])
+            on = math.hypot(mid[0] - cu, mid[1] - cv)
+            fr_ = (a, ((b[0] - a[0]) / L, (b[1] - a[1]) / L), ((mid[0] - cu) / on, (mid[1] - cv) / on))
+            if plinth_:
+                st(DARK, 0.06)
+                m.orient(m.poly([W(fr_, 0, 0, y0), W(fr_, L, 0, y0), W(fr_, L, 0, y1), W(fr_, 0, 0, y1)], STONE, 0.72), (fr_[2][0], fr_[2][1], 0))
+                st()
+            else:
+                wall_rect(fr_, 0, L, y0, y1)
+
+    def tface(cu, cv, r, sides, rot, ang):
+        """The face of a tower nearest a direction: a point on it, along, out, its width."""
+        k = round(((ang - rot) * sides / math.pi - 1) / 2) % sides
+        a = rot + (2 * k + 1) * math.pi / sides
+        o = (math.cos(a), math.sin(a))
+        rr = r * math.cos(math.pi / sides)
+        return (cu + o[0] * rr, cv + o[1] * rr), (-o[1], o[0]), o, 2 * r * math.sin(math.pi / sides)
+
+    def tower(cu, cv, r, sides, rot, yb, yt, apex, wins=(), top_wins=()):
+        """A corbelled stair turret: the plinth, a striped shaft to yb, a sandstone corbel ring, the wider
+        top stage to yt (whole, above the roofs), a corbel table and cornice, a kinked slate spire, a vane."""
+        ngon_faces(cu, cv, r + 0.1, sides, rot, 0.0, PL, plinth_=True)
+        ngon_faces(cu, cv, r, sides, rot, PL, min(yb, H))
+        if yb > H:  # above the eaves the shaft shows all round
+            ngon_faces(cu, cv, r, sides, rot, H, yb, skip_inside=False)
+        R2 = r + 0.22
+        st(SAND, 0.03)
+        m.frustum(m.ngon(cu, cv, r, sides, rot), yb, m.ngon(cu, cv, R2, sides, rot), yb + 0.45, STONE, 1.02)
+        st()
+        ngon_faces(cu, cv, R2, sides, rot, yb + 0.45, yt, skip_inside=False)
+        st(SAND, 0.03)
+        m.frustum(m.ngon(cu, cv, R2, sides, rot), yt, m.ngon(cu, cv, R2 + 0.2, sides, rot), yt + 0.35, STONE, 1.0)
+        m.prism(m.ngon(cu, cv, R2 + 0.2, sides, rot), yt + 0.35, yt + 0.55, STONE, top=False, shade=1.08)
+        for q in m.ngon(cu, cv, R2 + 0.02, sides, rot):  # white stone quoins on the corners of the top stage
+            m.box(q[0] - 0.09, q[0] + 0.09, q[1] - 0.09, q[1] + 0.09, yb + 0.45, yt, STONE, top=False, shade=1.1)
+        st()
+        yk = yt + 0.55 + 0.9
+        m.frustum(m.ngon(cu, cv, R2 + 0.5, sides, rot), yt + 0.45, m.ngon(cu, cv, r * 0.66, sides, rot), yk, SLATE)
+        m.pyramid(m.ngon(cu, cv, r * 0.66, sides, rot), yk, apex, SLATE)
+        m.box(cu - 0.04, cu + 0.04, cv - 0.04, cv + 0.04, apex - 0.3, apex + 1.6, LEAD)
+        m.prism(m.ngon(cu, cv, 0.1, 6), apex + 0.3, apex + 0.5, LEAD, top=True)
+        m.box(cu - 0.015, cu + 0.015, cv, cv + 0.62, apex + 1.0, apex + 1.36, LEAD)
+        for ang, y0, cl, w, hh in wins:
+            pt, d, o, fw = tface(cu, cv, r, sides, rot, ang)
+            m.decal(pt, d, o, -w / 2, w / 2, y0, y0 + hh, cl, GABLET if cl == "vh_madonna" else RECT, off=0.05)
+        yw = math.ceil((yb + 0.7) / VP) * VP  # on a whole band, so the cell's stripes meet the wall's
+        for ang in top_wins:
+            pt, d, o, fw = tface(cu, cv, R2, sides, rot, ang)
+            m.decal(pt, d, o, -0.46, 0.46, yw, yw + 1.44, "vh_small", off=0.05)
+
+    S = ((0, v0), (1, 0), (0, -1))  # the south side (the open side)
+    N = ((0, v1), (1, 0), (0, 1))  # the north side
+    E = ((u0, 0), (0, 1), (-1, 0))  # the east front, on the Vleeshouwersstraat
+    Wf = ((u1, 0), (0, 1), (1, 0))  # the west gable, to the Scheldt
+
+    # ---- the long sides: seven bays between buttresses
+    segs = [u0] + bl[1:-1] + [u1]
+    for fr_, side, dn in ((S, -1, (door_s, "Vleeshuis, main door")), (N, 1, (door_n, "Vleeshuis, north door"))):
+        for a, b in zip(segs, segs[1:]):
+            ds = [(dn[0], 0.9, 3.36, 0.9, dn[1])] if a < dn[0] < b else []
+            wall(fr_, a, b, H, ds)
+        for i, (a, b) in enumerate(zip(bl, bl[1:])):
+            c = (a + b) / 2
+            is_door = abs(c - dn[0]) < 0.1
+            if is_door:
+                m.decal(*fr_, c - 1.1, c + 1.1, 4.32, 9.36, "vh_hall2" if i % 2 else "vh_hall", HALLARCH)
+            else:
+                m.decal(*fr_, c - 1.2, c + 1.2, 2.88, 9.36, "vh_hall2" if i % 2 else "vh_hall", HALLARCH)
+                m.decal(*fr_, c - 0.64, c + 0.64, 0.14, 1.1, "vh_grille", off=0.14)
+            m.decal(*fr_, c - 0.96, c + 0.96, 10.56, 14.4, "vh_cross2" if (i + (side > 0)) % 3 == 0 else "vh_cross")
+        for s in bl[1:-1]:
+            if side < 0 and abs(s - TWR[0]) < 0.5:
+                continue  # the stair tower stands here
+            buttress(fr_, s, 0.55, 1.25, 0.45, 0.8, 9.0, SC, 15.4, 16.5)
+        box(fr_, u0, u1, 0.0, 0.14, SC, SC + 0.22, SAND, 1.08)  # the drip course
+        box(fr_, u0 - 0.2, u1 + 0.2, 0.0, 0.35, H - 0.3, H + 0.02, SAND, 1.05)  # the eaves cornice
+
+    # ---- the stepped wall dormers at the eaves, one to a bay (Linnig 1849 and 1855)
+    for fr_ in (S, N):
+        p, d, o = fr_
+        for a, b in zip(bl, bl[1:]):
+            sc = (a + b) / 2
+            wall_rect(fr_, sc - 1.2, sc + 1.2, H, H + 1.44)
+            stepped(fr_, sc - 1.2, sc + 1.2, H + 1.44, 2, 0.96, 0.96, 0.3, cope=0.12)
+            m.decal(*fr_, sc - 0.64, sc + 0.64, H + 0.48, H + 1.92, "vh_small2" if (int(sc) % 2) else "vh_small")
+            yr = H + 1.44 + 2.0
+            for sg in (-1, 1):
+                se = sc + sg * 1.2
+                f = m.poly([W(fr_, se, 0, H), W(fr_, se, 0, H + 1.44), W(fr_, se, -1.44 / SLOPE, H + 1.44)], BRICK, 0.85)
+                m.orient(f, (d[0] * sg, d[1] * sg, 0))
+                f = m.poly([W(fr_, sc + sg * 1.3, -0.3, H + 1.38), W(fr_, sc, -0.3, yr), W(fr_, sc, -(yr - H) / SLOPE, yr),
+                            W(fr_, sc + sg * 1.3, -1.38 / SLOPE, H + 1.38)], SLATE)
+                m.orient(f, (d[0] * sg, d[1] * sg, 1))
+
+    # ---- the steep slate roof, two rows of small dormers, the lead on the ridge
+    over = 0.35
+    ye = H - over * SLOPE
+    for side, vv in ((-1, v0 - over), (1, v1 + over)):
+        f = m.poly([(u0 + 0.25, vv, ye), (u1 - 0.25, vv, ye), (u1 - 0.25, vm, H + RISE), (u0 + 0.25, vm, H + RISE)], SLATE)
+        m.orient(f, (0, side, 1))
+        P, D, O = (0, vv), (1, 0), (0, side)
+        for yb, row in ((H + 5.4, (-15.0, -9.0, -3.0, 9.0, 15.0) if side < 0 else (-15.0, -9.0, -3.0, 3.0, 9.0, 15.0)), (H + 8.8, (-12.0, -4.0, 4.0, 12.0))):
+            for s in row:
+                _roof_dormer(m, P, D, O, s, 0.0, ye, -half - over, H + RISE, yb, 1.1, 1.5)
+    m.box(u0 + 0.3, u1 - 0.3, vm - 0.12, vm + 0.12, H + RISE - 0.05, H + RISE + 0.12, LEAD)
+
+    # ---- the gable ends: two bays beside a middle buttress, the stepped gables
+    for fr_, front in ((E, True), (Wf, False)):
+        p, d, o = fr_
+        bays = (-2.7, 4.4)
+        if front:  # the two doors under the great windows
+            wall(fr_, v0, v1, H, [(bays[0], 0.8, 3.36, 0.6, "Vleeshuis, east front, left door"), (bays[1], 0.8, 3.36, 0.6, "Vleeshuis, east front, right door")])
+        else:
+            wall(fr_, v0, v1, H)
+        for i, c in enumerate(bays):
+            if front:
+                m.decal(*fr_, c - 1.2, c + 1.2, 4.32, 9.36, "vh_hall" if i == 0 else "vh_hall2", HALLARCH)
+            else:
+                m.decal(*fr_, c - 1.3, c + 1.3, 2.64, 9.36, "vh_hall2" if i == 0 else "vh_hall", HALLARCH)
+                m.decal(*fr_, c - 0.64, c + 0.64, 0.14, 1.1, "vh_grille", off=0.14)
+            m.decal(*fr_, c - 0.96, c + 0.96, 10.56, 14.4, "vh_cross")
+            m.decal(*fr_, c - 0.64, c + 0.64, 14.88, 16.32, "vh_small")
+        box(fr_, v0, v1, 0.0, 0.14, SC, SC + 0.22, SAND, 1.08)
+        box(fr_, v0, v1, 0.0, 0.12, H - 0.2, H, SAND, 1.08)
+        buttress(fr_, 0.8, 0.6, 1.1, 0.45, 0.75, 9.0, SC, H + 0.96, pin=3.4)
+        stepped(fr_, v0, v1, H, 9, 1.44, 1.44, 0.5)
+        for y0, ss in ((18.24, (-3.65, -1.75, 3.45, 5.35)), (21.12, (-2.7, 4.4)), (24.0, (-1.9, 3.4)), (26.88, (0.75,))):
+            for k, s in enumerate(ss):
+                m.decal(*fr_, s - 0.64, s + 0.64, y0, y0 + 1.44, "vh_small2" if (k + int(y0)) % 3 == 0 else "vh_small")
+        m.decal(*fr_, 0.43, 1.07, 28.32, 29.76, "vh_slit")
+
+    # ---- the stair turrets on the corners, the south-east one the biggest (the Madonna on it)
+    rot = math.pi / 6  # a face square to each gable
+    tower(-21.4, -7.1, 1.9, 6, rot, H - 0.6, 22.08, 32.2,
+          wins=((math.pi * 4 / 3, 4.8, "vh_madonna", 1.28, 2.56), (math.pi, 3.84, "vh_slit", 0.64, 1.44), (math.pi, 8.64, "vh_slit", 0.64, 1.44),
+                (math.pi * 4 / 3, 12.0, "vh_slit", 0.64, 1.44), (math.pi, 13.92, "vh_small", 1.28, 1.44)),
+          top_wins=(math.pi, math.pi * 4 / 3, math.pi * 2 / 3))
+    for cu, cv, r, sg_u, sg_v in ((-21.8, 8.6, 1.55, -1, 1), (21.6, 8.6, 1.55, 1, 1), (21.7, -7.0, 1.6, 1, -1)):
+        out = math.atan2(sg_v, sg_u)
+        tower(cu, cv, r, 6, rot, H - 0.6, 20.64, 27.9,
+              wins=((out, 5.28, "vh_slit", 0.64, 1.44), (out + 0.5 * sg_u * sg_v, 10.08, "vh_slit", 0.64, 1.44)),
+              top_wins=(out, out + 1.0, out - 1.0))
+    # the tall octagonal stair tower out of the middle of the south side
+    tu, tv, tr = TWR
+    tower(tu, tv, tr, 8, math.pi / 8, 23.52, 26.4, 34.4,
+          wins=tuple((-math.pi / 2 + (k % 3 - 1) * math.pi / 4, 2.88 + k * 3.84, "vh_slit", 0.64, 1.44) for k in range(5)),
+          top_wins=(-math.pi / 2, -math.pi / 4, -3 * math.pi / 4, 0.0, math.pi))
+    st()
+    return m
+
+
 # ------------------------------------------------------------------ the castle
 
 
@@ -3632,7 +4314,7 @@ def main():
     builders = {
         "cathedral": lambda: cathedral(frame("cathedral"), world_north),
         "stadhuis": lambda: stadhuis(frame("stadhuis", open_side=True)),
-        "vleeshuis": lambda: vleeshuis(frame("vleeshuis")),
+        "vleeshuis": lambda: vleeshuis2(frame("vleeshuis")),  # M6: in detail, as in 1873 (vleeshuis: the first model)
         "steen": lambda: steen5(frame("steen")),  # M3i: restored, c. 1890 (steen4: 1873; steen3: the first simple 1890s model)
         "hanzehuis": lambda: hanzehuis(frame("hanzehuis", away=True)),
         "stpaul": lambda: church(frame("stpaul"), 42, "bulb"),
