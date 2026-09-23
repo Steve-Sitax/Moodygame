@@ -18,7 +18,7 @@ import { isResident, town } from "./town/store.ts";
 import { residentChoice, residentFree, residentOpen } from "./town/talk.ts";
 import { catchThief, pickPocket } from "./town/thieves.ts";
 import { TRADES, TOWN_EMPLOYERS } from "./town/places.ts";
-import { alight, board as boardRide, isStop, ride, RIDE_FARE_C } from "./ride.ts";
+import { alight, board as boardRide, change as rideChange, isLine, isStop, ride, RIDE_FARE_C } from "./ride.ts";
 import { freeReply, openTalk, pickChoice, prefetchOpening, witness, type Line } from "./hooks/dialogue.ts";
 import { mountDeeds } from "./town/deedRoutes.ts";
 
@@ -40,7 +40,7 @@ function jobsPayload() {
     clock: clock(db),
     rent: { paid: rentPaid(db), price_c: RENT_C, bedtime: BEDTIME },
     ending: ending(db),
-    ride: { on: ride(db), fare_c: RIDE_FARE_C },
+    ride: { on: ride(db), fare_c: RIDE_FARE_C, change: rideChange(db) },
   };
 }
 
@@ -221,13 +221,14 @@ app.post("/api/swim", (c) => {
   return c.json({ ...r, ...jobsPayload() });
 });
 
-// ---- the horse omnibus along the quays (M3g): the server takes the fare and knows who rides
+// ---- the horse omnibuses (M3g): the server takes the fare, allows one free change, and knows who rides
 app.post("/api/ride", async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { action?: unknown; stop?: unknown };
+  const body = (await c.req.json().catch(() => ({}))) as { action?: unknown; stop?: unknown; line?: unknown };
   if (ending(db)) throw new GameError("the week is over", 409);
   if (body.action === "board") {
     if (!isStop(body.stop)) throw new GameError("no such stop", 400);
-    const r = boardRide(db, body.stop);
+    if (!isLine(body.line)) throw new GameError("no such line", 400);
+    const r = boardRide(db, body.stop, body.line);
     broadcast({ type: "jobs", ...jobsPayload() });
     return c.json({ ...r, ...jobsPayload() });
   }

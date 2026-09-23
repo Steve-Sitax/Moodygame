@@ -440,7 +440,22 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
     if (h) clear.push({ x: h.x + h.out[0] * 3.2 - h.out[1] * 5, z: h.z + h.out[1] * 3.2 + h.out[0] * 5, r: 3.5 });
   }
   for (const [x, z, r] of TOWN_CLEAR) clear.push({ x, z, r });
-  const isClear = (x: number, z: number, r: number) => clear.every((c) => Math.hypot(c.x - x, c.z - z) > c.r + r);
+  // the house doors of the city (props.glb), in 10 m buckets: nothing stands in a doorway
+  const doorGrid = new Map<string, Array<[number, number]>>();
+  const hd = props?.houseDoors ?? [];
+  for (let i = 0; i + 1 < hd.length; i += 2) {
+    const k = `${Math.floor(hd[i] / 10)},${Math.floor(hd[i + 1] / 10)}`;
+    let b = doorGrid.get(k);
+    if (!b) doorGrid.set(k, (b = []));
+    b.push([hd[i], hd[i + 1]]);
+  }
+  const nearDoor = (x: number, z: number, r: number) => {
+    const gx = Math.floor(x / 10);
+    const gz = Math.floor(z / 10);
+    for (let i = gx - 1; i <= gx + 1; i++) for (let j = gz - 1; j <= gz + 1; j++) for (const [dx, dz] of doorGrid.get(`${i},${j}`) ?? []) if (Math.hypot(dx - x, dz - z) < r) return true;
+    return false;
+  };
+  const isClear = (x: number, z: number, r: number) => clear.every((c) => Math.hypot(c.x - x, c.z - z) > c.r + r) && !nearDoor(x, z, r + 1.8);
 
   const flights = info.flights;
   const ladders = info.ladders;

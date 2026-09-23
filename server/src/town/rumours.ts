@@ -125,6 +125,31 @@ export function reputationWith(db: DB, id: string): number {
   return Math.max(-2, Math.min(2, sum / w));
 }
 
+/**
+ * A line in the speaker's own voice (Steve: Rosalie said Jef stole "from Rosalie's stall"):
+ * her own name becomes I, me, my. "Rosalie's stall" -> "my stall", "Rosalie saw it" -> "I saw
+ * it", "from Rosalie" -> "from me". Full name first, then the first name.
+ */
+export function ownVoice(text: string, names: string[]): string {
+  let s = text;
+  for (const n of names.filter(Boolean).sort((a, b) => b.length - a.length)) {
+    const e = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    s = s
+      .replace(new RegExp(`\\b${e}'s\\b`, "g"), "my")
+      .replace(new RegExp(`\\b${e} (saw|was|is|has|had|said|says|thinks|knows)\\b`, "g"), "I $1")
+      .replace(new RegExp(`(^|[.!?]\\s+)${e}\\b`, "g"), "$1I")
+      .replace(new RegExp(`\\b(from|to|at|with|of|by|for|off|on|behind|near|past) ${e}\\b`, "g"), "$1 me")
+      .replace(new RegExp(`\\b${e}\\b`, "g"), "me");
+  }
+  // the verb after "I"
+  return s
+    .replace(/\bI is\b/g, "I am")
+    .replace(/\bI has\b/g, "I have")
+    .replace(/\bI says\b/g, "I say")
+    .replace(/\bI thinks\b/g, "I think")
+    .replace(/\bI knows\b/g, "I know");
+}
+
 /** "Jef lifted Sooi's goods" -> "you lifted Sooi's goods": for the people's own lines. */
 export function toYou(gist: string): string {
   let s = gist.trim().replace(/\.$/, "");

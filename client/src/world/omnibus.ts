@@ -2,59 +2,132 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { psx } from "../retro/psx";
 import { makeHuman, type Human } from "../game/humans";
+import { glowTexture } from "./textures";
 import type { Rect } from "./geom";
 import type { HorsePool } from "./horses";
 import { Kit, type RGB } from "./kit";
 import type { OpeningLike } from "./railway";
 
-// The horse omnibus along the quays (M3g). Autumn 1873 had no tram on the river quays yet
-// (Antwerp's first horse tram ran from 25 May 1873, Meir to Berchem; the harbour tramways
-// came from 1881), but omnibuses had run between the harbour and the station since the
-// 1830s (docs/milestones/M3g.md). So: a pair-horse omnibus with a driver on the box and a
-// conductor on the back platform, going round the quays on the cobbles, no rails:
+// The horse omnibuses (M3g). Autumn 1873 had no tram on the river quays yet (Antwerp's first
+// horse tram ran from 25 May 1873, Meir to Berchem; the harbour tramways came from 1881), but
+// omnibuses had run between the harbour and the town since the 1830s (docs/milestones/M3g.md).
+// Pair-horse omnibuses with a driver on the box and a conductor on the back platform, on the
+// cobbles, no rails. Two lines, each with its colour and its destination board:
 //
-//   the Werf -> the Steenplein -> the Vismarkt -> the Rijnkaai -> the Petit Bassin
-//   -> back along the Rijnkaai -> the Vismarkt -> the Steenplein -> round behind the Werf.
+//   KAAIEN (green, one omnibus): the Werf -> the Steenplein -> the Vismarkt -> the Rijnkaai ->
+//     the Petit Bassin -> back along the Rijnkaai -> the Vismarkt -> the Steenplein -> round
+//     behind the Werf.
+//   GROTE MARKT (red, two omnibuses): the Vismarkt -> the Vleeshuis -> the Grote Markt (by the
+//     town hall) -> the Cathedral (the Handschoenmarkt; the square before the west portal kept
+//     free) -> the road to the Meir -> the Brouwersvliet (the canal quay) -> the Vismarkt.
 //
-// It stops at every stop (a post with a board) for a few seconds, longer while someone gets
-// on or off (game/ride.ts: E at the back platform). It stops for the player in its way, for
-// anything on its lane, and before an opening bridge that is not shut.
+// The lines meet at the Vismarkt (two bays, a short walk apart): a change there is free (the
+// server, server/src/ride.ts). The town line is a one-way ring with no crossings: in the wide
+// streets it keeps to its own lane each way, so two omnibuses never meet head-on; one that
+// catches up waits behind the other, at a stop too. Each stop post carries a plate in the
+// colour of every line that calls there. Two carriage lamps, lit after dusk.
+//
+// It stops at every stop for a few seconds, longer while someone gets on or off (game/ride.ts:
+// E at the back platform). It stops for the player in its way, for people and anything on its
+// lane, and before an opening bridge that is not shut.
+//
+// Cheap: all omnibuses share one InstancedMesh per part (body, paint, wheels, front carriage),
+// one mesh for all the boards, one for the lamp glass, one point set for the lamp glow, one for
+// the stop posts: nine draw calls for every omnibus, plus the driver and conductor near you.
 
 type P = [number, number];
 
+export interface LineDef {
+  id: string;
+  /** What the destination board says (a name: Dutch is fine). */
+  board: string;
+  /** The side boards: the line's stops. */
+  sideBoard: string;
+  /** In plain English, for the notes. */
+  name: string;
+  /** Paint (0..1). */
+  colour: RGB;
+  /** Corner points of the round, in the way it runs (rounded with a 5 m radius). */
+  route: P[];
+  buses: number;
+}
+
+/** The round along the quays. Checked on the walk map: all open ground. */
+const QUAY_ROUTE: P[] = [
+  [-305, 29.5], [-305, 8.3], [-158, 8.3], [-152, 7.6], [-140, 7.6], [-134, 8.3], [-90, 8.3], [-84, 7.8], [-68, 7.8],
+  [-62, 8.3], [66, 8.3], [76, 15], [76, 37], [-54, 37], [-58, 33], [-58, 12], [-62, 8.3], [-204, 8.3], [-204, 29.5],
+];
+
+/**
+ * The town ring (a one-way loop; the walk map gives at least 2.0 m from the lane's middle to any
+ * wall all round, every corner rounded). In the two-way stretches it keeps its own lane: the canal
+ * quay (south at x -89.5, north at x -84.5), the wide street west of the Vleeshuis (x -149 and
+ * -145), the street into the Handschoenmarkt (west at z 126.2, east at z 129.8).
+ */
+const TOWN_ROUTE: P[] = [
+  [-84.5, 20], [-96, 20], [-96, 38], [-89.5, 45], [-89.5, 114], [-149, 114], [-149, 126.2], [-238, 126.2], [-238, 70],
+  [-280, 70], [-280, 129.8], [-145, 129.8], [-145, 208.5], [-84.5, 208.5],
+];
+
+export const LINES: LineDef[] = [
+  {
+    id: "kaaien",
+    board: "KAAIEN",
+    sideBoard: "WERF  ·  STEENPLEIN  ·  VISMARKT  ·  RIJNKAAI  ·  PETIT BASSIN",
+    name: "the quay line",
+    colour: [0.4, 0.52, 0.42],
+    route: QUAY_ROUTE,
+    buses: 1,
+  },
+  {
+    id: "markt",
+    board: "GROTE MARKT",
+    sideBoard: "VISMARKT  ·  VLEESHUIS  ·  GROTE MARKT  ·  KATHEDRAAL  ·  MEIR",
+    name: "the Grote Markt line",
+    colour: [0.62, 0.26, 0.2],
+    route: TOWN_ROUTE,
+    buses: 2,
+  },
+];
+
 export interface OmnibusStop {
+  /** The stop (the server's name for it, server/src/ride.ts). Lines that meet share it. */
   id: string;
   name: string;
+  /** The line this bay is for. */
+  line: string;
   x: number;
   z: number;
   /** Where the post stands. */
   post: P;
 }
 
-/** The stops (ids as the server knows them, server/src/ride.ts RIDE_STOPS). */
+/** The stop bays, one per line and stop. */
 export const STOPS: OmnibusStop[] = [
-  { id: "werf", name: "the Werf", x: -270, z: 8.3, post: [-270, 10.4] },
-  { id: "steenplein", name: "the Steenplein", x: -180, z: 8.3, post: [-180, 10.4] },
-  { id: "vismarkt", name: "the Vismarkt", x: -112, z: 8.3, post: [-112, 10.4] },
-  { id: "rijnkaai", name: "the Rijnkaai", x: 30, z: 8.3, post: [30, 6.3] },
-  { id: "bassin", name: "the Petit Bassin", x: 76, z: 31, post: [78.3, 31] },
-  { id: "rijnkaai_back", name: "the Rijnkaai", x: 0, z: 37, post: [0, 39.3] },
+  { id: "werf", name: "the Werf", line: "kaaien", x: -270, z: 8.3, post: [-270, 10.4] },
+  { id: "steenplein", name: "the Steenplein", line: "kaaien", x: -180, z: 8.3, post: [-180, 10.4] },
+  { id: "vismarkt", name: "the Vismarkt", line: "kaaien", x: -112, z: 8.3, post: [-112, 10.4] },
+  { id: "rijnkaai", name: "the Rijnkaai", line: "kaaien", x: 30, z: 8.3, post: [30, 6.3] },
+  { id: "bassin", name: "the Petit Bassin", line: "kaaien", x: 76, z: 31, post: [78.3, 31] },
+  { id: "rijnkaai_back", name: "the Rijnkaai", line: "kaaien", x: 0, z: 37, post: [0, 39.3] },
+  { id: "vismarkt", name: "the Vismarkt", line: "markt", x: -96, z: 31, post: [-98.3, 31] },
+  { id: "vleeshuis", name: "the Vleeshuis", line: "markt", x: -118, z: 114, post: [-118, 111.6] },
+  { id: "grote_markt", name: "the Grote Markt", line: "markt", x: -257, z: 70, post: [-257, 67.6] },
+  { id: "cathedral", name: "the Cathedral", line: "markt", x: -248, z: 129.8, post: [-248, 132.3] },
+  { id: "meir", name: "the road to the Meir", line: "markt", x: -145, z: 198, post: [-141.6, 198] },
+  { id: "brouwersvliet", name: "the Brouwersvliet", line: "markt", x: -84.5, z: 180, post: [-87, 176] },
 ];
 
-/** The round, corner points (rounded with a 5 m radius). Checked on the walk map: all open ground. */
-const ROUTE: P[] = [
-  [-305, 29.5], [-305, 8.3], [-158, 8.3], [-152, 7.6], [-140, 7.6], [-134, 8.3], [-90, 8.3], [-84, 7.8], [-68, 7.8],
-  [-62, 8.3], [66, 8.3], [76, 15], [76, 37], [-54, 37], [-58, 33], [-58, 12], [-62, 8.3], [-204, 8.3], [-204, 29.5],
-];
-
-/** Boxes along the omnibus's lane, for props, pumps and troughs to keep off it (rijnkaai.ts). */
+/** Boxes along every omnibus lane, for props, pumps and troughs to keep off them (rijnkaai.ts). */
 export function omnibusKeepOut(): Rect[] {
-  const loop = new Loop(ROUTE, 5);
   const out: Rect[] = [];
-  for (let i = 0; i < loop.x.length; i += 8) {
-    const x = loop.x[i];
-    const z = loop.z[i];
-    out.push({ minX: x - 1.9, maxX: x + 1.9, minZ: z - 1.9, maxZ: z + 1.9 });
+  for (const line of LINES) {
+    const loop = new Loop(line.route, 5);
+    for (let i = 0; i < loop.x.length; i += 8) {
+      const x = loop.x[i];
+      const z = loop.z[i];
+      out.push({ minX: x - 1.9, maxX: x + 1.9, minZ: z - 1.9, maxZ: z + 1.9 });
+    }
   }
   return out;
 }
@@ -68,43 +141,61 @@ const WHEELBASE = 2.9; // rear axle to the front axle's pivot
 const HORSES = 3.1; // front pivot to the middle of the horses
 const R_REAR = 0.62;
 const R_FRONT = 0.46;
+const NOSE = WHEELBASE + HORSES + 1.7; // the horses' noses, ahead of the rear axle
+const TAIL = -2.3;
 
+/** One omnibus. */
 export interface Omnibus {
-  update(t: number, dt: number, player: { x: number; z: number } | null, camera?: THREE.Camera): void;
-  colliders(): Rect[];
-  busy(r: { minX: number; maxX: number; minZ: number; maxZ: number }): boolean;
+  readonly line: LineDef;
+  readonly index: number;
   /** The stop it stands at now (dwelling), or null. */
   atStop(): OmnibusStop | null;
   /** The next stop ahead. */
   nextStop(): OmnibusStop;
   /** Hold at the stop while someone gets on or off. */
   hold(on: boolean): void;
-  /** Someone rides: the omnibus no longer waits for "the player in the way". */
+  /** Someone rides: it no longer waits for "the player in the way". */
   rider: boolean;
   /** Where a rider stands on the back platform (feet), the way the omnibus points, its speed. */
   platform(): { x: number; y: number; z: number; yaw: number; speed: number };
   /** The foot of the step behind the platform (world), and the way out (yaw). */
   stepDown(): { x: number; z: number; yaw: number };
-  onArrive?: (stop: OmnibusStop) => void;
-  /** People walking about (the crowd, the town): it waits for anyone in its lane ahead. Set by main. */
+  info(): Record<string, unknown>;
+}
+
+/** All the omnibuses. */
+export interface Omnibuses {
+  buses: Omnibus[];
+  update(t: number, dt: number, player: { x: number; z: number } | null, camera?: THREE.Camera): void;
+  colliders(): Rect[];
+  busy(r: { minX: number; maxX: number; minZ: number; maxZ: number }): boolean;
+  onArrive?: (bus: Omnibus, stop: OmnibusStop) => void;
+  onDepart?: (bus: Omnibus, stop: OmnibusStop, next: OmnibusStop) => void;
+  /** People walking about (the crowd, the town): an omnibus waits for anyone in its lane ahead. Set by main. */
   people?: () => Iterable<{ x: number; z: number }>;
-  onDepart?: (stop: OmnibusStop, next: OmnibusStop) => void;
-  /** For the soundscape (setVehicles): hooves and wheels while it rolls. */
+  /** For the soundscape (setVehicles): hooves and wheels while they roll. */
   vehicles(): Array<{ kind: "dray"; x: number; z: number; state: string }>;
+  /** The lines that call at a stop. */
+  linesAt(stop: string): LineDef[];
   group: THREE.Group;
   info(): Record<string, unknown>;
-  /** Dev: put it just before a stop. */
-  jumpTo(id: string, before?: number): void;
+  /** Dev: put omnibus i just before a stop of its line. */
+  jumpTo(i: number, stop: string, before?: number): void;
 }
 
 export interface OmnibusOptions {
   horses: HorsePool;
-  /** First of the two horse instances to use. */
+  /** First of the horse instances to use (two per omnibus). */
   horseIndex: number;
   tex: { planks: THREE.Texture };
   bridges: () => OpeningLike[];
   isFree: (x: number, z: number, r: number) => boolean;
+  /** How far the gas lamps are lit, 0..1 (the carriage lamps follow). */
+  lit?: () => number;
 }
+
+/** How many horses the omnibuses need (railway.ts makes the pool). */
+export const OMNIBUS_HORSES = LINES.reduce((n, l) => n + l.buses * 2, 0);
 
 // ------------------------------------------------------------------ the path
 
@@ -213,69 +304,82 @@ class Loop {
 
 // ------------------------------------------------------------------ the model (code-built)
 
-const GREEN: RGB = [0.4, 0.52, 0.42];
-const GREEN_DARK: RGB = [0.26, 0.34, 0.28];
 const CREAM: RGB = [0.86, 0.8, 0.64];
 const GLASS: RGB = [0.08, 0.09, 0.1];
 const IRON: RGB = [0.18, 0.17, 0.16];
 const YELLOW: RGB = [0.72, 0.56, 0.22];
 const BROWN: RGB = [0.45, 0.33, 0.24];
 const ROOF: RGB = [0.35, 0.34, 0.33];
+/** The paint takes the line's colour (instance colour times this). */
+const PAINT: RGB = [1, 1, 1];
+const PAINT_DARK: RGB = [0.62, 0.62, 0.62];
 
-/** Body frame: +z forward, y up, origin on the ground under the rear axle. */
-function bodyGeometry(): THREE.BufferGeometry {
+const Z0 = -1.05; // back of the saloon
+const Z1 = 3.1; // front of the saloon
+const W = 1.72;
+
+/** Body frame: +z forward, y up, origin on the ground under the rear axle. `paint`: the panels only. */
+function bodyGeometry(paint: boolean): THREE.BufferGeometry {
   const k = new Kit();
-  const z0 = -1.05; // back of the saloon
-  const z1 = 3.1; // front of the saloon
-  const L = z1 - z0;
-  const zc = (z0 + z1) / 2;
-  const w = 1.72;
-  // floor and underframe, the perch to the front carriage
-  k.box(w, 0.1, L, 0, 0.78, zc, BROWN);
-  k.box(0.14, 0.12, 3.6, 0, 0.62, 1.2, IRON);
-  // lower panels (green), the waist rail, the window band (cream frame, dark glass), the roof
-  for (const s of [-1, 1]) {
-    k.box(0.06, 0.72, L, s * (w / 2), 1.2, zc, GREEN);
-    k.box(0.08, 0.08, L + 0.04, s * (w / 2 + 0.01), 1.6, zc, YELLOW);
-    k.box(0.05, 0.62, L, s * (w / 2), 1.95, zc, CREAM);
-    for (let i = 0; i < 5; i++) k.box(0.03, 0.46, 0.62, s * (w / 2 + 0.02), 1.95, z0 + 0.45 + i * 0.8, GLASS);
-    k.box(0.06, 0.26, L, s * (w / 2), 2.4, zc, GREEN_DARK); // the letter board (the route is painted on its own panel)
+  const L = Z1 - Z0;
+  const zc = (Z0 + Z1) / 2;
+  if (paint) {
+    for (const s of [-1, 1]) {
+      k.box(0.06, 0.72, L, s * (W / 2), 1.2, zc, PAINT);
+      k.box(0.06, 0.26, L, s * (W / 2), 2.4, zc, PAINT_DARK); // behind the letter board
+    }
+    k.box(W, 1.7, 0.06, 0, 1.63, Z1, PAINT); // front bulkhead
+    for (const s of [-1, 1]) k.box(0.56, 1.7, 0.06, s * 0.58, 1.63, Z0, PAINT);
+    k.box(W, 0.3, 0.06, 0, 2.33, Z0, PAINT);
+    return k.build();
   }
-  k.box(w, 1.7, 0.06, 0, 1.63, z1, GREEN); // front bulkhead
-  k.box(0.9, 0.5, 0.04, 0, 1.95, z1 + 0.02, GLASS);
-  // back: a door opening onto the platform
-  for (const s of [-1, 1]) k.box(0.56, 1.7, 0.06, s * 0.58, 1.63, z0, GREEN);
-  k.box(w, 0.3, 0.06, 0, 2.33, z0, GREEN);
-  k.box(0.6, 1.4, 0.02, 0, 1.5, z0 + 0.05, [0.05, 0.05, 0.05]);
+  // floor and underframe, the perch to the front carriage
+  k.box(W, 0.1, L, 0, 0.78, zc, BROWN);
+  k.box(0.14, 0.12, 3.6, 0, 0.62, 1.2, IRON);
+  // the waist rail, the window band (cream frame, dark glass)
+  for (const s of [-1, 1]) {
+    k.box(0.08, 0.08, L + 0.04, s * (W / 2 + 0.01), 1.6, zc, YELLOW);
+    k.box(0.05, 0.62, L, s * (W / 2), 1.95, zc, CREAM);
+    for (let i = 0; i < 5; i++) k.box(0.03, 0.46, 0.62, s * (W / 2 + 0.02), 1.95, Z0 + 0.45 + i * 0.8, GLASS);
+  }
+  k.box(0.9, 0.5, 0.04, 0, 1.95, Z1 + 0.02, GLASS);
+  k.box(0.6, 1.4, 0.02, 0, 1.5, Z0 + 0.05, [0.05, 0.05, 0.05]);
   // the roof, with a knifeboard seat along it and a rail round it
-  k.box(w + 0.14, 0.08, L + 0.3, 0, 2.56, zc, ROOF);
+  k.box(W + 0.14, 0.08, L + 0.3, 0, 2.56, zc, ROOF);
   k.box(0.1, 0.5, L - 0.6, 0, 2.85, zc, BROWN);
   k.box(0.9, 0.06, L - 0.6, 0, 2.72, zc, BROWN);
   for (const s of [-1, 1]) {
-    k.box(0.04, 0.04, L + 0.2, s * (w / 2 + 0.03), 2.95, zc, IRON);
-    for (let i = 0; i <= 4; i++) k.box(0.03, 0.36, 0.03, s * (w / 2 + 0.03), 2.77, z0 - 0.05 + (i * (L + 0.1)) / 4, IRON);
+    k.box(0.04, 0.04, L + 0.2, s * (W / 2 + 0.03), 2.95, zc, IRON);
+    for (let i = 0; i <= 4; i++) k.box(0.03, 0.36, 0.03, s * (W / 2 + 0.03), 2.77, Z0 - 0.05 + (i * (L + 0.1)) / 4, IRON);
   }
   // the back platform, its step and a hand rail, a ladder to the roof
-  k.box(1.5, 0.08, 0.75, 0, 0.7, z0 - 0.4, BROWN);
-  k.box(0.9, 0.05, 0.3, 0, 0.36, z0 - 0.85, BROWN);
-  for (const s of [-1, 1]) k.box(0.04, 0.45, 0.04, s * 0.45, 0.55, z0 - 0.85, IRON);
-  k.box(0.04, 1.9, 0.04, 0.72, 1.7, z0 - 0.75, IRON);
-  for (let i = 0; i < 6; i++) k.box(0.3, 0.03, 0.03, -0.6, 0.95 + i * 0.33, z0 - 0.72, IRON);
-  k.box(0.03, 2.1, 0.03, -0.75, 1.75, z0 - 0.72, IRON);
-  k.box(0.03, 2.1, 0.03, -0.45, 1.75, z0 - 0.72, IRON);
-  // the driver's box over the front wheels, the footboard, the dashboard, two lamps
-  k.box(1.3, 0.12, 0.8, 0, 2.2, z1 + 0.35, BROWN);
-  k.box(1.3, 0.35, 0.08, 0, 2.3, z1 - 0.02, BROWN);
-  k.box(1.4, 0.06, 0.5, 0, 1.45, z1 + 0.95, BROWN);
-  k.box(1.4, 0.55, 0.05, 0, 1.72, z1 + 1.2, [0.1, 0.1, 0.1]);
+  k.box(1.5, 0.08, 0.75, 0, 0.7, Z0 - 0.4, BROWN);
+  k.box(0.9, 0.05, 0.3, 0, 0.36, Z0 - 0.85, BROWN);
+  for (const s of [-1, 1]) k.box(0.04, 0.45, 0.04, s * 0.45, 0.55, Z0 - 0.85, IRON);
+  k.box(0.04, 1.9, 0.04, 0.72, 1.7, Z0 - 0.75, IRON);
+  for (let i = 0; i < 6; i++) k.box(0.3, 0.03, 0.03, -0.6, 0.95 + i * 0.33, Z0 - 0.72, IRON);
+  k.box(0.03, 2.1, 0.03, -0.75, 1.75, Z0 - 0.72, IRON);
+  k.box(0.03, 2.1, 0.03, -0.45, 1.75, Z0 - 0.72, IRON);
+  // the driver's box over the front wheels, the footboard, the dashboard, two lamp cases
+  k.box(1.3, 0.12, 0.8, 0, 2.2, Z1 + 0.35, BROWN);
+  k.box(1.3, 0.35, 0.08, 0, 2.3, Z1 - 0.02, BROWN);
+  k.box(1.4, 0.06, 0.5, 0, 1.45, Z1 + 0.95, BROWN);
+  k.box(1.4, 0.55, 0.05, 0, 1.72, Z1 + 1.2, [0.1, 0.1, 0.1]);
   for (const s of [-1, 1]) {
-    k.box(0.14, 0.2, 0.14, s * 0.92, 2.0, z1 + 0.05, YELLOW);
-    k.box(0.05, 0.9, 0.05, s * 0.6, 1.8, z1 + 0.5, IRON);
+    k.box(0.16, 0.22, 0.12, s * 0.92, 2.0, Z1 + 0.04, YELLOW);
+    k.box(0.06, 0.08, 0.06, s * 0.92, 2.15, Z1 + 0.04, YELLOW);
+    k.box(0.05, 0.9, 0.05, s * 0.6, 1.8, Z1 + 0.5, IRON);
   }
-  // rear springs and the rear axle boxes
+  // rear springs
   for (const s of [-1, 1]) k.box(0.1, 0.1, 1.2, s * 0.8, 0.72, 0, IRON);
   return k.build();
 }
+
+/** Where the lamp glass sits (body frame): the front of each lamp case. */
+const LAMPS: Array<[number, number, number]> = [
+  [-0.92, 2.0, Z1 + 0.11],
+  [0.92, 2.0, Z1 + 0.11],
+];
 
 function wheelsGeometry(r: number, track: number): THREE.BufferGeometry {
   const k = new Kit();
@@ -301,167 +405,333 @@ function foreGeometry(): THREE.BufferGeometry {
   return k.build();
 }
 
-function postGeometry(): THREE.BufferGeometry {
+/** A stop post: an iron pole, a cream sign, and a plate in the colour of each line that calls there. */
+function postGeometry(lines: LineDef[]): THREE.BufferGeometry {
   const k = new Kit();
-  k.box(0.1, 2.4, 0.1, 0, 1.2, 0, IRON);
-  k.box(0.08, 0.36, 0.62, 0, 2.3, 0, CREAM);
-  k.box(0.1, 0.4, 0.66, 0, 2.3, 0, GREEN_DARK);
+  k.box(0.1, 2.6, 0.1, 0, 1.3, 0, IRON);
+  k.box(0.1, 0.4, 0.66, 0, 2.45, 0, [0.2, 0.2, 0.2]);
+  k.box(0.12, 0.3, 0.56, 0, 2.45, 0, CREAM);
+  const bright = (c: RGB): RGB => [Math.min(1, c[0] * 1.5), Math.min(1, c[1] * 1.5), Math.min(1, c[2] * 1.5)];
+  lines.forEach((l, i) => k.box(0.14, 0.22, 0.52, 0, 2.02 - i * 0.28, 0, bright(l.colour)));
   k.box(0.2, 0.1, 0.2, 0, 0.05, 0, IRON);
   return k.build();
 }
 
-function boardTexture(text: string, w = 512, h = 32): THREE.CanvasTexture {
+/** Two rows per line: the side board (the stops) and the destination board (the line). */
+function boardAtlas(): { tex: THREE.CanvasTexture; rows: number } {
+  const w = 512;
+  const h = 32;
+  const rows = LINES.length * 2;
   const c = document.createElement("canvas");
   c.width = w;
-  c.height = h;
+  c.height = h * rows;
   const g = c.getContext("2d")!;
-  g.fillStyle = "#2e3d33";
-  g.fillRect(0, 0, w, h);
-  g.fillStyle = "#e0cf9a";
-  g.font = `bold ${Math.floor(h * 0.62)}px Georgia, serif`;
-  g.textAlign = "center";
-  g.textBaseline = "middle";
-  g.fillText(text, w / 2, h / 2 + 1);
+  LINES.forEach((l, i) => {
+    for (const [r, text, size] of [[i * 2, l.sideBoard, 0.6], [i * 2 + 1, l.board, 0.78]] as const) {
+      const [cr, cg, cb] = l.colour.map((v) => Math.round(v * 120));
+      g.fillStyle = `rgb(${cr},${cg},${cb})`;
+      g.fillRect(0, r * h, w, h);
+      g.fillStyle = "#e8d8a0";
+      g.font = `bold ${Math.floor(h * size)}px Georgia, serif`;
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.fillText(text, w / 2, r * h + h / 2 + 1, w - 12);
+    }
+  });
   const t = new THREE.CanvasTexture(c);
   t.magFilter = THREE.NearestFilter;
   t.minFilter = THREE.NearestFilter;
   t.generateMipmaps = false;
   t.colorSpace = THREE.SRGBColorSpace;
-  return t;
+  return { tex: t, rows };
 }
 
-// ------------------------------------------------------------------ the omnibus
+/**
+ * The boards in the body frame: [centre, the way "right" runs across the text, up, normal, width,
+ * height, row offset (0: side board, 1: destination)]. Text reads left to right from outside.
+ */
+const BOARDS: Array<{ c: [number, number, number]; right: [number, number, number]; n: [number, number, number]; w: number; h: number; row: 0 | 1 }> = [
+  { c: [-(W / 2 + 0.035), 2.4, 1.02], right: [0, 0, 1], n: [-1, 0, 0], w: 4.0, h: 0.22, row: 0 },
+  { c: [W / 2 + 0.035, 2.4, 1.02], right: [0, 0, -1], n: [1, 0, 0], w: 4.0, h: 0.22, row: 0 },
+  { c: [0, 2.74, Z1 + 0.2], right: [1, 0, 0], n: [0, 0, 1], w: 1.5, h: 0.26, row: 1 },
+  { c: [0, 2.74, Z0 - 0.2], right: [-1, 0, 0], n: [0, 0, -1], w: 1.5, h: 0.26, row: 1 },
+];
 
-export function createOmnibus(scene: THREE.Scene, opts: OmnibusOptions): Omnibus {
+// ------------------------------------------------------------------ the omnibuses
+
+interface BusState extends Omnibus {
+  loop: Loop;
+  watch: Uint8Array;
+  stopAt: Array<{ s: number; stop: OmnibusStop }>;
+  s: number;
+  v: number;
+  dwell: number;
+  held: boolean;
+  at: OmnibusStop | null;
+  nextI: number;
+  rollR: number;
+  rollF: number;
+  gait: number;
+  waitWhy: string;
+  rects: Rect[];
+  near: boolean;
+  /** The body's frame (humans ride in it). */
+  frame: THREE.Group;
+  driver: Human | null;
+  conductor: Human | null;
+  driverG: THREE.Group;
+  conductorG: THREE.Group;
+  // pose
+  pa: { x: number; z: number };
+  pb: { x: number; z: number };
+  pc: { x: number; z: number };
+  yaw: number;
+  foreYaw: number;
+  horseYaw: number;
+  spans: Map<object, Array<[number, number]>>;
+}
+
+export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnibuses {
   const group = new THREE.Group();
-  group.name = "omnibus";
+  group.name = "omnibuses";
   scene.add(group);
-  const loop = new Loop(ROUTE, 5);
-  const watch = new Uint8Array(loop.x.length);
-  for (let i = 0; i < loop.x.length; i++) watch[i] = opts.isFree(loop.x[i], loop.z[i], 0.5) ? 1 : 0;
 
+  // --- the buses, their lines' paths and stops
+  const loops = new Map<string, { loop: Loop; watch: Uint8Array; stopAt: Array<{ s: number; stop: OmnibusStop }> }>();
+  for (const l of LINES) {
+    const loop = new Loop(l.route, 5);
+    const watch = new Uint8Array(loop.x.length);
+    for (let i = 0; i < loop.x.length; i++) watch[i] = opts.isFree(loop.x[i], loop.z[i], 0.5) ? 1 : 0;
+    const stopAt: Array<{ s: number; stop: OmnibusStop }> = [];
+    for (const st of STOPS) if (st.line === l.id) for (const s of loop.passes(st.x, st.z, 1.5)) stopAt.push({ s, stop: st });
+    stopAt.sort((a, b) => a.s - b.s);
+    loops.set(l.id, { loop, watch, stopAt });
+  }
+  const buses: BusState[] = [];
+  for (const l of LINES) {
+    const { loop, watch, stopAt } = loops.get(l.id)!;
+    for (let k = 0; k < l.buses; k++) {
+      const frame = new THREE.Group();
+      const driverG = new THREE.Group();
+      const conductorG = new THREE.Group();
+      driverG.position.set(0.1, 0, 3.45);
+      conductorG.position.set(0.5, 0.74, -1.5);
+      conductorG.rotation.y = -0.6;
+      frame.add(driverG, conductorG);
+      group.add(frame);
+      // spread along the round: the first by the first stop, the others after it
+      const s0 = loop.wrap(stopAt[0].s - 20 + (k * loop.length) / l.buses);
+      const b: BusState = {
+        line: l,
+        index: buses.length,
+        loop,
+        watch,
+        stopAt,
+        s: s0,
+        v: 0,
+        dwell: 0,
+        held: false,
+        at: null,
+        nextI: 0,
+        rollR: 0,
+        rollF: 0,
+        gait: Math.random(),
+        waitWhy: "",
+        rects: [0, 1].map(() => ({ minX: 1e6, maxX: 1e6, minZ: 1e6, maxZ: 1e6, top: 2.6 })),
+        near: true,
+        frame,
+        driver: null,
+        conductor: null,
+        driverG,
+        conductorG,
+        pa: { x: 0, z: 0 },
+        pb: { x: 0, z: 0 },
+        pc: { x: 0, z: 0 },
+        yaw: 0,
+        foreYaw: 0,
+        horseYaw: 0,
+        spans: new Map(),
+        rider: false,
+        atStop: () => b.at,
+        nextStop: () => b.stopAt[b.nextI].stop,
+        hold(on) {
+          b.held = on;
+          if (!on && b.at) b.dwell = Math.max(b.dwell, 2.5);
+        },
+        platform() {
+          const back = -1.45;
+          return { x: b.pa.x + Math.sin(b.yaw) * back, y: 0.74 + b.frame.position.y, z: b.pa.z + Math.cos(b.yaw) * back, yaw: b.yaw, speed: b.v };
+        },
+        stepDown() {
+          const back = -2.6;
+          return { x: b.pa.x + Math.sin(b.yaw) * back, z: b.pa.z + Math.cos(b.yaw) * back, yaw: b.yaw + Math.PI };
+        },
+        info() {
+          return {
+            line: l.id,
+            s: +b.s.toFixed(1),
+            at: [+b.pa.x.toFixed(1), +b.pa.z.toFixed(1)],
+            v: +b.v.toFixed(2),
+            stop: b.at?.id ?? null,
+            next: b.stopAt[b.nextI].stop.id,
+            dwell: +b.dwell.toFixed(1),
+            held: b.held,
+            wait: b.waitWhy,
+            rider: b.rider,
+            length: +loop.length.toFixed(0),
+          };
+        },
+      };
+      findNext(b);
+      buses.push(b);
+    }
+  }
+
+  // --- drawing: one InstancedMesh per part for every bus, one mesh for all the boards
   const wood = psx(new THREE.MeshLambertMaterial({ map: opts.tex.planks, vertexColors: true }));
-  const body = new THREE.Mesh(bodyGeometry(), wood);
-  // the route painted along both letter boards
-  const boardMat = psx(new THREE.MeshLambertMaterial({ map: boardTexture("WERF  ·  STEENPLEIN  ·  VISMARKT  ·  RIJNKAAI  ·  PETIT BASSIN") }));
+  const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+  const inst = (g: THREE.BufferGeometry, n: number, name: string) => {
+    const m = new THREE.InstancedMesh(g, wood, n);
+    m.name = name;
+    m.frustumCulled = false;
+    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    for (let i = 0; i < n; i++) m.setMatrixAt(i, zero);
+    group.add(m);
+    return m;
+  };
+  const n = buses.length;
+  const bodyM = inst(bodyGeometry(false), n, "omnibus_body");
+  const paintM = inst(bodyGeometry(true), n, "omnibus_paint");
+  const rearM = inst(wheelsGeometry(R_REAR, 1.98), n, "omnibus_rear_wheels");
+  const foreM = inst(foreGeometry(), n, "omnibus_fore");
+  const frontM = inst(wheelsGeometry(R_FRONT, 1.62), n, "omnibus_front_wheels");
+  const col = new THREE.Color();
+  buses.forEach((b, i) => paintM.setColorAt(i, col.setRGB(...b.line.colour)));
+  if (paintM.instanceColor) paintM.instanceColor.needsUpdate = true;
+
+  const atlas = boardAtlas();
+  const boardMat = psx(new THREE.MeshLambertMaterial({ map: atlas.tex, side: THREE.DoubleSide }));
+  const nv = n * BOARDS.length * 6;
+  const boardGeo = new THREE.BufferGeometry();
+  const bPos = new THREE.Float32BufferAttribute(new Float32Array(nv * 3), 3);
+  const bNor = new THREE.Float32BufferAttribute(new Float32Array(nv * 3), 3);
+  const bUv = new THREE.Float32BufferAttribute(new Float32Array(nv * 2), 2);
+  bPos.setUsage(THREE.DynamicDrawUsage);
+  bNor.setUsage(THREE.DynamicDrawUsage);
+  boardGeo.setAttribute("position", bPos);
+  boardGeo.setAttribute("normal", bNor);
+  boardGeo.setAttribute("uv", bUv);
+  buses.forEach((b, i) => {
+    const li = LINES.indexOf(b.line);
+    BOARDS.forEach((bd, j) => {
+      const row = li * 2 + bd.row;
+      const v0 = 1 - (row + 1) / atlas.rows;
+      const v1 = 1 - row / atlas.rows;
+      const base = (i * BOARDS.length + j) * 6;
+      // corners: bottom-left, bottom-right, top-right, bottom-left, top-right, top-left
+      const uv: Array<[number, number]> = [[0, v0], [1, v0], [1, v1], [0, v0], [1, v1], [0, v1]];
+      uv.forEach(([u, v], k) => bUv.setXY(base + k, u, v));
+    });
+  });
+  const boards = new THREE.Mesh(boardGeo, boardMat);
+  boards.name = "omnibus_boards";
+  boards.frustumCulled = false;
+  group.add(boards);
+
+  // the carriage lamps: glass that glows after dusk, and a soft glow in the air round it
+  const glassMat = new THREE.MeshBasicMaterial({ color: 0x222222, fog: false });
+  const glass = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 0.14, 0.03), glassMat, n * 2);
+  glass.name = "omnibus_lamps";
+  glass.frustumCulled = false;
+  group.add(glass);
+  const haloGeo = new THREE.BufferGeometry();
+  const haloPos = new THREE.Float32BufferAttribute(new Float32Array(n * 2 * 3), 3);
+  haloPos.setUsage(THREE.DynamicDrawUsage);
+  haloGeo.setAttribute("position", haloPos);
+  const haloMat = new THREE.PointsMaterial({
+    map: glowTexture(),
+    color: 0xffb865,
+    size: 1.3,
+    sizeAttenuation: true,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    opacity: 0,
+  });
+  const halos = new THREE.Points(haloGeo, haloMat);
+  halos.name = "omnibus_lamp_glow";
+  halos.frustumCulled = false;
+  group.add(halos);
+
+  // the stop posts: one merged mesh; each post shows the lines that call at its stop
+  const linesAt = (id: string) => LINES.filter((l) => STOPS.some((s) => s.id === id && s.line === l.id));
   {
-    // both sides in one mesh
-    const sides = [-1, 1].map((s) => {
-      const g = new THREE.PlaneGeometry(4.0, 0.22);
-      g.applyMatrix4(new THREE.Matrix4().makeRotationY((s * Math.PI) / 2).setPosition(s * 0.895, 2.4, 1.02));
+    const geos = STOPS.map((st) => {
+      const g = postGeometry(linesAt(st.id));
+      g.applyMatrix4(new THREE.Matrix4().makeRotationY(Math.atan2(st.x - st.post[0], st.z - st.post[1]) + Math.PI / 2).setPosition(st.post[0], 0, st.post[1]));
       return g;
     });
-    body.add(new THREE.Mesh(mergeGeometries(sides, false) ?? sides[0], boardMat));
-  }
-  const rear = new THREE.Mesh(wheelsGeometry(R_REAR, 1.98), wood);
-  const fore = new THREE.Mesh(foreGeometry(), wood);
-  const front = new THREE.Mesh(wheelsGeometry(R_FRONT, 1.62), wood);
-  front.position.set(0, R_FRONT, 0);
-  fore.add(front);
-  group.add(body, rear, fore);
-  // the stop posts: one merged mesh
-  {
-    const g = postGeometry();
-    const geos: THREE.BufferGeometry[] = [];
-    for (const st of STOPS) {
-      const c = g.clone();
-      c.applyMatrix4(new THREE.Matrix4().makeRotationY(Math.atan2(st.x - st.post[0], st.z - st.post[1]) + Math.PI / 2).setPosition(st.post[0], 0, st.post[1]));
-      geos.push(c);
-    }
     const posts = new THREE.Mesh(mergeGeometries(geos, false) ?? geos[0], wood);
     posts.name = "omnibus_posts";
     scene.add(posts);
   }
-  let driver: Human | null = null;
-  let conductor: Human | null = null;
-  const driverG = new THREE.Group();
-  const conductorG = new THREE.Group();
-  body.add(driverG, conductorG);
-  driverG.position.set(0.1, 0, 3.45);
-  conductorG.position.set(0.5, 0.74, -1.5);
-  conductorG.rotation.y = -0.6;
 
-  // stops as arc positions (a stop on a stretch run both ways is served both ways)
-  const stopAt: Array<{ s: number; stop: OmnibusStop }> = [];
-  for (const st of STOPS) for (const s of loop.passes(st.x, st.z, 1.5)) stopAt.push({ s, stop: st });
-  stopAt.sort((a, b) => a.s - b.s);
-
-  const rects: Rect[] = [0, 1].map(() => ({ minX: 1e6, maxX: 1e6, minZ: 1e6, maxZ: 1e6, top: 2.6 }));
-  let s = stopAt.find((x) => x.stop.id === "werf")!.s - 30;
-  let v = 0;
-  let dwell = 0;
-  let held = false;
-  let at: OmnibusStop | null = null;
-  let nextI = 0;
-  let rollR = 0;
-  let rollF = 0;
-  let gait = 0;
-  let waitWhy = "";
-  const pa = { x: 0, z: 0 };
-  const pb = { x: 0, z: 0 };
-  const pc = { x: 0, z: 0 };
-
-  /** The nearest stop ahead. */
-  const findNext = () => {
+  // --- moving
+  function findNext(b: BusState): void {
     let best = Infinity;
-    stopAt.forEach((x, i) => {
-      const d = loop.wrap(x.s - s);
+    b.stopAt.forEach((x, i) => {
+      const d = b.loop.wrap(x.s - b.s);
       if (d > 0.3 && d < best) {
         best = d;
-        nextI = i;
+        b.nextI = i;
       }
     });
-  };
-  findNext();
+  }
 
-  const spans = new Map<object, Array<[number, number]>>();
-  function spanOf(r: { minX: number; maxX: number; minZ: number; maxZ: number }): Array<[number, number]> {
-    let sp = spans.get(r);
+  function spanOf(b: BusState, r: { minX: number; maxX: number; minZ: number; maxZ: number }): Array<[number, number]> {
+    let sp = b.spans.get(r);
     if (sp) return sp;
     sp = [];
     let s0 = -1;
-    for (let i = 0; i < loop.x.length; i++) {
-      const inside = loop.x[i] > r.minX - 0.5 && loop.x[i] < r.maxX + 0.5 && loop.z[i] > r.minZ - 0.5 && loop.z[i] < r.maxZ + 0.5;
+    const lp = b.loop;
+    for (let i = 0; i < lp.x.length; i++) {
+      const inside = lp.x[i] > r.minX - 0.5 && lp.x[i] < r.maxX + 0.5 && lp.z[i] > r.minZ - 0.5 && lp.z[i] < r.maxZ + 0.5;
       if (inside && s0 < 0) s0 = i * Loop.STEP;
       if (!inside && s0 >= 0) {
         sp.push([s0, i * Loop.STEP]);
         s0 = -1;
       }
     }
-    spans.set(r, sp);
+    b.spans.set(r, sp);
     return sp;
   }
 
-  /** The horses' noses: the front of the rig, ahead of the rear axle. */
-  const NOSE = WHEELBASE + HORSES + 1.7;
-  const TAIL = -2.3;
-
-  function room(player: { x: number; z: number } | null): number {
+  const pa = { x: 0, z: 0 };
+  const pb = { x: 0, z: 0 };
+  function room(b: BusState, player: { x: number; z: number } | null): number {
+    const lp = b.loop;
     let lim = Infinity;
-    waitWhy = "";
-    const nose = s + NOSE;
+    b.waitWhy = "";
+    const nose = b.s + NOSE;
     // the next stop
-    const st = stopAt[nextI];
-    const d = loop.wrap(st.s - s);
-    if (d < lim) lim = d;
-    // opening bridges not shut
+    lim = Math.min(lim, lp.wrap(b.stopAt[b.nextI].s - b.s));
+    // opening bridges not shut (8 m short: an open swing bridge lies on the quay across the lane)
     for (const br of opts.bridges()) {
-      for (const [s0] of spanOf(br.rect)) {
-        const ahead = loop.wrap(s0 - nose);
-        // 8 m short: an open swing bridge lies on the quay beside its pit, across the lane
+      for (const [s0] of spanOf(b, br.rect)) {
+        const ahead = lp.wrap(s0 - nose);
         if (ahead < 30 && !br.closed() && ahead - 8 < lim) {
           lim = Math.max(0, ahead - 8);
-          waitWhy = "bridge";
+          b.waitWhy = "bridge";
         }
       }
     }
-    // the player in the way; anything on the lane ahead
-    if (player && !api.rider) {
+    // the player in the way
+    if (player && !b.rider) {
       for (let dd = -1; dd <= 7; dd += 0.5) {
-        loop.at(nose + dd, pa);
+        lp.at(nose + dd, pa);
         if (Math.hypot(player.x - pa.x, player.z - pa.z) < 1.7) {
           lim = Math.min(lim, Math.max(0, dd - 7.5));
-          waitWhy = "player";
+          b.waitWhy = "player";
           break;
         }
       }
@@ -469,194 +739,227 @@ export function createOmnibus(scene: THREE.Scene, opts: OmnibusOptions): Omnibus
     // people in the lane ahead (not colliders: they walk)
     const folk = api.people?.();
     if (folk) {
-      loop.at(nose + 3, pb);
+      lp.at(nose + 3, pb);
       for (const p of folk) {
         if (Math.abs(p.x - pb.x) > 5 || Math.abs(p.z - pb.z) > 5) continue;
         for (let dd = 0; dd <= 6; dd += 1) {
-          loop.at(nose + dd, pa);
+          lp.at(nose + dd, pa);
           if (Math.hypot(p.x - pa.x, p.z - pa.z) < 1.5) {
             lim = Math.min(lim, Math.max(0, dd - 3));
-            waitWhy = "people";
+            b.waitWhy = "people";
             break;
           }
         }
       }
     }
-    // (its own boxes out of the way meanwhile: turned on a bend, they reach ahead of the noses)
-    const keep = rects.map((r) => [r.minX, r.maxX]);
-    for (const r of rects) r.minX = r.maxX = 1e6;
+    // anything on the lane ahead: goods, carts, the other omnibuses (its own boxes out of the way
+    // meanwhile: turned on a bend, they reach ahead of the noses)
+    const keep = b.rects.map((r) => [r.minX, r.maxX]);
+    for (const r of b.rects) r.minX = r.maxX = 1e6;
     for (const dd of [1.2, 2.6, 4]) {
-      const i = Math.floor(loop.wrap(nose + dd) / Loop.STEP);
-      if (!watch[i]) continue;
-      if (!opts.isFree(loop.x[i], loop.z[i], 0.5)) {
+      const i = Math.floor(lp.wrap(nose + dd) / Loop.STEP);
+      if (!b.watch[i]) continue;
+      if (!opts.isFree(lp.x[i], lp.z[i], 0.5)) {
         lim = Math.min(lim, Math.max(0, dd - 3));
-        waitWhy = "blocked";
+        b.waitWhy = "blocked";
         break;
       }
     }
-    rects.forEach((r, k) => ([r.minX, r.maxX] = keep[k]));
+    b.rects.forEach((r, k) => ([r.minX, r.maxX] = keep[k]));
     return lim;
   }
 
-  let near = true;
-  const api: Omnibus = {
-    rider: false,
+  function move(b: BusState, dt: number, player: { x: number; z: number } | null): void {
+    const lp = b.loop;
+    if (b.at) {
+      b.v = 0;
+      if (!b.held) b.dwell -= dt;
+      if (b.dwell <= 0 && !b.held) {
+        const was = b.at;
+        b.at = null;
+        b.nextI = (b.nextI + 1) % b.stopAt.length;
+        api.onDepart?.(b, was, b.stopAt[b.nextI].stop);
+      }
+    } else {
+      const r = room(b, player);
+      // slow for the bends ahead
+      let vmax = CRUISE;
+      for (let dd = 0; dd <= 10; dd += 2) {
+        const k = lp.curve(b.s + WHEELBASE + dd);
+        if (k > 1e-3) vmax = Math.min(vmax, Math.sqrt(LAT / k) + dd * 0.15);
+      }
+      const want = r <= 0.01 ? 0 : Math.min(vmax, Math.sqrt(2 * BRAKE * r));
+      b.v += THREE.MathUtils.clamp(want - b.v, -BRAKE * 2.5 * dt, ACCEL * dt);
+      if (b.v < 0.01 && want === 0) b.v = 0;
+      const ds = Math.min(b.v * dt, Math.max(0, r));
+      b.s = lp.wrap(b.s + ds);
+      b.rollR += ds / R_REAR;
+      b.rollF += ds / R_FRONT;
+      const st = b.stopAt[b.nextI];
+      const d = lp.wrap(st.s - b.s);
+      if (d < 0.05 || d > lp.length - 0.5) {
+        b.at = st.stop;
+        b.dwell = DWELL;
+        b.v = 0;
+        api.onArrive?.(b, st.stop);
+      }
+    }
+    const trot = b.v > 1.9;
+    b.gait = (b.gait + (b.v / (trot ? 2.8 : 1.35)) * dt * (trot ? 1.0 : 0.95)) % 1;
+    // pose: the body from the rear axle to the pivot, the fore-carriage toward the horses
+    lp.at(b.s, b.pa);
+    lp.at(b.s + WHEELBASE, b.pb);
+    lp.at(b.s + WHEELBASE + HORSES, b.pc);
+    b.yaw = Math.atan2(b.pb.x - b.pa.x, b.pb.z - b.pa.z);
+    b.foreYaw = Math.atan2(b.pc.x - b.pb.x, b.pc.z - b.pb.z);
+    b.horseYaw = lp.yaw(b.s + WHEELBASE + HORSES);
+    // a little sway on the springs as the horses trot
+    const go = Math.min(1, b.v / 2);
+    b.frame.position.set(b.pa.x, Math.abs(Math.sin(b.gait * Math.PI * 2)) * 0.012 * go, b.pa.z);
+    b.frame.rotation.set(0, b.yaw, Math.sin(b.gait * Math.PI * 4) * 0.006 * go, "YXZ");
+    // colliders: the saloon with its platform, the horses
+    const box = (r: Rect, x: number, z: number, yw: number, hl: number, hw: number) => {
+      const a = Math.abs(Math.sin(yw));
+      const c = Math.abs(Math.cos(yw));
+      r.minX = x - a * hl - c * hw;
+      r.maxX = x + a * hl + c * hw;
+      r.minZ = z - c * hl - a * hw;
+      r.maxZ = z + c * hl + a * hw;
+    };
+    box(b.rects[0], b.pa.x + Math.sin(b.yaw), b.pa.z + Math.cos(b.yaw), b.yaw, 3.1, 1.0);
+    box(b.rects[1], b.pc.x, b.pc.z, b.horseYaw, 1.6, 1.1);
+  }
+
+  const M = new THREE.Matrix4();
+  const M2 = new THREE.Matrix4();
+  const Q = new THREE.Quaternion();
+  const E = new THREE.Euler();
+  const V = new THREE.Vector3();
+  const S1 = new THREE.Vector3(1, 1, 1);
+  const tmp = new THREE.Vector3();
+  const tmpN = new THREE.Vector3();
+  const set = (m: THREE.InstancedMesh, i: number, x: number, y: number, z: number, yaw: number, pitch = 0, roll = 0) => {
+    E.set(pitch, yaw, roll, "YXZ");
+    Q.setFromEuler(E);
+    M.compose(V.set(x, y, z), Q, S1);
+    m.setMatrixAt(i, M);
+  };
+
+  function draw(camera?: THREE.Camera): void {
+    const far = ((scene.fog as THREE.Fog | null)?.far ?? 40) + 30;
+    const cam = camera?.position;
+    const lit = THREE.MathUtils.clamp(opts.lit?.() ?? 0, 0, 1);
+    let anyNear = false;
+    buses.forEach((b, i) => {
+      b.near = !cam || Math.hypot(b.pa.x - cam.x, b.pa.z - cam.z) < far;
+      anyNear ||= b.near;
+      b.frame.updateMatrixWorld();
+      bodyM.setMatrixAt(i, b.frame.matrixWorld);
+      paintM.setMatrixAt(i, b.frame.matrixWorld);
+      set(rearM, i, b.pa.x, R_REAR, b.pa.z, b.yaw, b.rollR);
+      set(foreM, i, b.pb.x, 0, b.pb.z, b.foreYaw);
+      set(frontM, i, b.pb.x, R_FRONT, b.pb.z, b.foreYaw, b.rollF);
+      // boards and lamps ride on the body
+      BOARDS.forEach((bd, j) => {
+        const base = (i * BOARDS.length + j) * 6;
+        const corner = (su: number, sv: number, out: THREE.Vector3) =>
+          out
+            .set(bd.c[0] + bd.right[0] * su * (bd.w / 2), bd.c[1] + sv * (bd.h / 2), bd.c[2] + bd.right[2] * su * (bd.w / 2))
+            .applyMatrix4(b.frame.matrixWorld);
+        tmpN.set(...bd.n).transformDirection(b.frame.matrixWorld);
+        ([[-1, -1], [1, -1], [1, 1], [-1, -1], [1, 1], [-1, 1]] as const).forEach(([su, sv], k) => {
+          corner(su, sv, tmp);
+          bPos.setXYZ(base + k, tmp.x, tmp.y, tmp.z);
+          bNor.setXYZ(base + k, tmpN.x, tmpN.y, tmpN.z);
+        });
+      });
+      LAMPS.forEach(([x, y, z], k) => {
+        tmp.set(x, y, z).applyMatrix4(b.frame.matrixWorld);
+        M2.compose(tmp, b.frame.quaternion, S1);
+        glass.setMatrixAt(i * 2 + k, M2);
+        tmp.set(x, y, z + 0.12).applyMatrix4(b.frame.matrixWorld);
+        haloPos.setXYZ(i * 2 + k, tmp.x, tmp.y, tmp.z);
+      });
+      // the driver on his box, the conductor on the platform; only near
+      if (!b.driver) {
+        b.driver = makeHuman("carter");
+        if (b.driver) {
+          b.driverG.add(b.driver.root);
+          if (b.driver.canSit) b.driver.play("sit", 0);
+          b.driver.root.position.y = 2.28 + b.driver.sitDrop(0);
+        }
+      }
+      if (!b.conductor) {
+        b.conductor = makeHuman("porter");
+        if (b.conductor) b.conductorG.add(b.conductor.root);
+      }
+      b.conductorG.position.x = b.rider ? 0.62 : 0.5; // nobody stands where the rider stands
+      b.frame.visible = b.near;
+    });
+    for (const m of [bodyM, paintM, rearM, foreM, frontM, glass]) m.instanceMatrix.needsUpdate = true;
+    bPos.needsUpdate = true;
+    bNor.needsUpdate = true;
+    boardGeo.computeBoundingSphere();
+    haloPos.needsUpdate = true;
+    // the lamps: dark glass by day, a warm flame after dusk
+    glassMat.color.setRGB(0.13 + 0.87 * lit, 0.13 + 0.6 * lit, 0.12 + 0.28 * lit);
+    haloMat.opacity = 0.7 * lit;
+    halos.visible = lit > 0.02 && anyNear;
+    opts.horses.show("omnibus", anyNear);
+  }
+
+  const api: Omnibuses = {
+    buses,
     update(_t, dt, player, camera) {
       dt = Math.min(dt, 0.1);
-      if (at) {
-        v = 0;
-        if (!held) dwell -= dt;
-        if (dwell <= 0 && !held) {
-          const was = at;
-          at = null;
-          nextI = (nextI + 1) % stopAt.length;
-          api.onDepart?.(was, stopAt[nextI].stop);
+      for (const b of buses) move(b, dt, player);
+      buses.forEach((b, i) => {
+        const cy = Math.cos(b.horseYaw);
+        const sy = Math.sin(b.horseYaw);
+        const amp = Math.min(1, b.v / 0.8);
+        const trot = b.v > 1.9;
+        for (const [k, side] of [[0, 0.55], [1, -0.55]] as const) {
+          opts.horses.set(opts.horseIndex + i * 2 + k, b.pc.x + cy * side, b.pc.z - sy * side, b.horseYaw, (b.gait + k * 0.08) % 1, amp, trot);
         }
-      } else {
-        const r = room(player);
-        // slow for the bends ahead
-        let vmax = CRUISE;
-        for (let dd = 0; dd <= 10; dd += 2) {
-          const k = loop.curve(s + WHEELBASE + dd);
-          if (k > 1e-3) vmax = Math.min(vmax, Math.sqrt(LAT / k) + dd * 0.15);
-        }
-        const want = r <= 0.01 ? 0 : Math.min(vmax, Math.sqrt(2 * BRAKE * r));
-        v += THREE.MathUtils.clamp(want - v, -BRAKE * 2.5 * dt, ACCEL * dt);
-        if (v < 0.01 && want === 0) v = 0;
-        const ds = Math.min(v * dt, Math.max(0, r));
-        s = loop.wrap(s + ds);
-        rollR += ds / R_REAR;
-        rollF += ds / R_FRONT;
-        const st = stopAt[nextI];
-        if (loop.wrap(st.s - s) < 0.05 || loop.wrap(st.s - s) > loop.length - 0.5) {
-          at = st.stop;
-          dwell = DWELL;
-          v = 0;
-          api.onArrive?.(st.stop);
-        }
-      }
-      const trot = v > 1.9;
-      gait = (gait + (v / (trot ? 2.8 : 1.35)) * dt * (trot ? 1.0 : 0.95)) % 1;
-
-      // pose: the body from the rear axle to the pivot, the fore-carriage toward the horses
-      loop.at(s, pa);
-      loop.at(s + WHEELBASE, pb);
-      loop.at(s + WHEELBASE + HORSES, pc);
-      const yaw = Math.atan2(pb.x - pa.x, pb.z - pa.z);
-      const foreYaw = Math.atan2(pc.x - pb.x, pc.z - pb.z);
-      body.position.set(pa.x, 0, pa.z);
-      body.rotation.y = yaw;
-      // a little sway on the springs as the horses trot
-      body.rotation.z = Math.sin(gait * Math.PI * 4) * 0.006 * Math.min(1, v / 2);
-      body.position.y = Math.abs(Math.sin(gait * Math.PI * 2)) * 0.012 * Math.min(1, v / 2);
-      rear.position.set(pa.x, R_REAR, pa.z);
-      rear.rotation.set(rollR, yaw, 0, "YXZ");
-      fore.position.set(pb.x, 0, pb.z);
-      fore.rotation.y = foreYaw;
-      front.rotation.x = rollF;
-      const hy = loop.yaw(s + WHEELBASE + HORSES);
-      const amp = Math.min(1, v / 0.8);
-      const cy = Math.cos(hy);
-      const sy = Math.sin(hy);
-      for (const [k, side] of [[0, 0.55], [1, -0.55]] as const) {
-        opts.horses.set(opts.horseIndex + k, pc.x + cy * side, pc.z - sy * side, hy, (gait + k * 0.08) % 1, amp, trot);
-      }
+      });
       opts.horses.commit();
-
-      // colliders: the saloon with its platform, the horses
-      const box = (r: Rect, x: number, z: number, yw: number, hl: number, hw: number) => {
-        const a = Math.abs(Math.sin(yw));
-        const c = Math.abs(Math.cos(yw));
-        r.minX = x - a * hl - c * hw;
-        r.maxX = x + a * hl + c * hw;
-        r.minZ = z - c * hl - a * hw;
-        r.maxZ = z + c * hl + a * hw;
-      };
-      const mid = 1.0;
-      box(rects[0], pa.x + Math.sin(yaw) * mid, pa.z + Math.cos(yaw) * mid, yaw, 3.1, 1.0);
-      box(rects[1], pc.x, pc.z, hy, 1.6, 1.1);
-
-      // the driver on his box, the conductor on the platform
-      if (!driver) {
-        driver = makeHuman("carter");
-        if (driver) {
-          driverG.add(driver.root);
-          if (driver.canSit) driver.play("sit", 0);
-          driver.root.position.y = 2.28 + driver.sitDrop(0);
-        }
-      }
-      if (!conductor) {
-        conductor = makeHuman("porter");
-        if (conductor) conductorG.add(conductor.root);
-      }
-      // nobody stands where the rider stands
-      conductorG.position.x = api.rider ? 0.62 : 0.5;
-      const far = ((scene.fog as THREE.Fog | null)?.far ?? 40) + 30;
-      const cam = camera?.position;
-      near = !cam || Math.hypot(pa.x - cam.x, pa.z - cam.z) < far;
-      group.visible = near;
-      driverG.visible = conductorG.visible = near;
-      opts.horses.show("omnibus", near);
-      if (near) {
-        driver?.update(dt);
-        conductor?.update(dt);
+      draw(camera);
+      for (const b of buses) {
+        if (!b.near) continue;
+        b.driver?.update(dt);
+        b.conductor?.update(dt);
       }
     },
-    colliders: () => rects,
+    colliders: () => buses.flatMap((b) => b.rects),
     busy(r) {
-      // the rig from its tail to 10 m before the horses' noses, against the bridge's stretch
-      const a = s + TAIL;
-      const lr = NOSE - TAIL + 10;
-      for (const [s0, s1] of spanOf(r)) {
-        const b = s0 - 1;
-        if (loop.wrap(b - a) < lr || loop.wrap(a - b) < s1 - s0 + 2) return true;
+      for (const b of buses) {
+        // the rig from its tail to 10 m before the horses' noses, against the bridge's stretch
+        const a = b.s + TAIL;
+        const lr = NOSE - TAIL + 10;
+        for (const [s0, s1] of spanOf(b, r)) {
+          const bb = s0 - 1;
+          if (b.loop.wrap(bb - a) < lr || b.loop.wrap(a - bb) < s1 - s0 + 2) return true;
+        }
       }
       return false;
     },
-    atStop: () => at,
-    nextStop: () => stopAt[nextI].stop,
-    hold(on) {
-      held = on;
-      if (!on && at) dwell = Math.max(dwell, 2.5);
-    },
-    platform() {
-      const yaw = body.rotation.y;
-      const b = -1.45;
-      return { x: body.position.x + Math.sin(yaw) * b, y: 0.74 + body.position.y, z: body.position.z + Math.cos(yaw) * b, yaw, speed: v };
-    },
-    stepDown() {
-      const yaw = body.rotation.y;
-      const b = -2.6;
-      return { x: body.position.x + Math.sin(yaw) * b, z: body.position.z + Math.cos(yaw) * b, yaw: yaw + Math.PI };
-    },
     vehicles() {
-      if (!near) return [];
-      return [{ kind: "dray" as const, x: pc.x, z: pc.z, state: v > 0.1 ? "go" : "wait" }];
+      return buses.filter((b) => b.near).map((b) => ({ kind: "dray" as const, x: b.pc.x, z: b.pc.z, state: b.v > 0.1 ? "go" : "wait" }));
     },
+    linesAt,
     group,
     info() {
-      return {
-        s: +s.toFixed(1),
-        at: [+pa.x.toFixed(1), +pa.z.toFixed(1)],
-        v: +v.toFixed(2),
-        stop: at?.id ?? null,
-        next: stopAt[nextI].stop.id,
-        dwell: +dwell.toFixed(1),
-        held,
-        wait: waitWhy,
-        rider: api.rider,
-        length: +loop.length.toFixed(0),
-        stops: stopAt.map((x) => [x.stop.id, +x.s.toFixed(0)]),
-      };
+      return { buses: buses.map((b) => b.info()), lines: LINES.map((l) => ({ id: l.id, length: +loops.get(l.id)!.loop.length.toFixed(0), stops: loops.get(l.id)!.stopAt.map((x) => [x.stop.id, +x.s.toFixed(0)]) })) };
     },
-    jumpTo(id, before = 20) {
-      const st = stopAt.find((x) => x.stop.id === id);
-      if (!st) return;
-      s = loop.wrap(st.s - before);
-      v = 0;
-      at = null;
-      held = false;
-      findNext();
+    jumpTo(i, stop, before = 20) {
+      const b = buses[i];
+      const st = b?.stopAt.find((x) => x.stop.id === stop);
+      if (!b || !st) return;
+      b.s = b.loop.wrap(st.s - before);
+      b.v = 0;
+      b.at = null;
+      b.held = false;
+      findNext(b);
     },
   };
   return api;

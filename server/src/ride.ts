@@ -1,21 +1,30 @@
 import type { DB } from "./db.ts";
 import { GameError, log, player } from "./game.ts";
 
-// The horse omnibus along the quays (M3g, client/src/world/omnibus.ts). The engine owns the
-// fare and what riding does to your needs: the client only says "I got on at this stop" and
-// "I got off". A fare buys one ride of at most RIDE_MAX_HOURS game hours; after that the
-// server no longer counts you as riding (a reload in the middle of a ride keeps nobody warm
-// for ever). Needs while riding: see applyHour in day.ts (the chill comes at half the rate:
-// inside, out of the wind). Food is not touched: a ride costs no extra food, and the time
-// it saves is time you are not hungry in.
+// The horse omnibuses (M3g, client/src/world/omnibus.ts): two lines that meet at the Vismarkt.
+// The engine owns the fare and what riding does to your needs: the client only says "I got on
+// this line at this stop" and "I got off". A fare buys a ticket good for RIDE_MAX_HOURS game
+// hours from the moment you first got on, with one free change: get off, and get on a bus of the
+// other line while the ticket runs, and you pay nothing more. Getting on the same line again,
+// or a second change, costs a new fare. While you ride, the chill comes at half the rate
+// (applyHour in day.ts: inside, out of the wind). Food is not touched: a ride costs no extra
+// food, and the time it saves is time you are not hungry in.
 
 /** The fare, in centimes (a herring, a beer). */
 export const RIDE_FARE_C = 5;
-/** A ticket is good for this many game hours: once round the whole line (about 20 at the game's clock). */
+/** A ticket is good for this many game hours: once round the longest line (about 20 at the game's clock). */
 export const RIDE_MAX_HOURS = 20;
-/** The stops of the line, west to east (client/src/world/omnibus.ts STOPS). */
-export const RIDE_STOPS = ["werf", "steenplein", "vismarkt", "rijnkaai", "rijnkaai_back", "bassin"] as const;
-export type RideStop = (typeof RIDE_STOPS)[number];
+/** Free changes on one ticket. */
+export const RIDE_CHANGES = 1;
+
+/** The lines and their stops (client/src/world/omnibus.ts LINES and STOPS). */
+export const RIDE_LINES = {
+  kaaien: ["werf", "steenplein", "vismarkt", "rijnkaai", "rijnkaai_back", "bassin"],
+  markt: ["vismarkt", "vleeshuis", "grote_markt", "cathedral", "meir", "brouwersvliet"],
+} as const;
+export type RideLine = keyof typeof RIDE_LINES;
+export type RideStop = (typeof RIDE_LINES)[RideLine][number];
+export const RIDE_STOPS = [...new Set(Object.values(RIDE_LINES).flat())] as RideStop[];
 
 const STOP_NAMES: Record<RideStop, string> = {
   werf: "the Werf",
@@ -24,17 +33,30 @@ const STOP_NAMES: Record<RideStop, string> = {
   rijnkaai: "the Rijnkaai",
   rijnkaai_back: "the Rijnkaai",
   bassin: "the Petit Bassin",
+  vleeshuis: "the Vleeshuis",
+  grote_markt: "the Grote Markt",
+  cathedral: "the Cathedral",
+  meir: "the road to the Meir",
+  brouwersvliet: "the Brouwersvliet",
 };
+const LINE_NAMES: Record<RideLine, string> = { kaaien: "the quay line", markt: "the Grote Markt line" };
 
-interface RideRow {
-  /** Game minutes since day 1, 0:00, when you got on. */
+interface Ticket {
+  /** Game minutes since day 1, 0:00, when the fare was paid. */
   since: number;
+  /** The line you are on (or were on last). */
+  line: RideLine;
   from: RideStop;
+  /** On board now. */
+  on: boolean;
+  /** Free changes used. */
+  changes: number;
 }
 
 export interface RideInfo {
+  line: RideLine;
   from: RideStop;
-  /** Game minutes on board so far. */
+  /** Game minutes since the fare was paid. */
   minutes: number;
   /** Game minutes left on the ticket. */
   left: number;
@@ -45,62 +67,94 @@ function gameMinutes(db: DB): number {
   return ((p.day - 1) * 24 + p.hour) * 60 + p.minute;
 }
 
-function read(db: DB): RideRow | null {
+export function isLine(s: unknown): s is RideLine {
+  return typeof s === "string" && Object.hasOwn(RIDE_LINES, s);
+}
+
+export function isStop(s: unknown): s is RideStop {
+  return typeof s === "string" && (RIDE_STOPS as string[]).includes(s);
+}
+
+/** Does this line call at this stop? */
+export function calls(line: RideLine, stop: RideStop): boolean {
+  return (RIDE_LINES[line] as readonly string[]).includes(stop);
+}
+
+function read(db: DB): Ticket | null {
   const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'ride'").get() as { value_json: string } | undefined;
   if (!row) return null;
   try {
-    const r = JSON.parse(row.value_json) as RideRow;
-    return typeof r.since === "number" && (RIDE_STOPS as readonly string[]).includes(r.from) ? r : null;
+    const t = JSON.parse(row.value_json) as Ticket;
+    if (typeof t.since !== "number" || !isLine(t.line) || !isStop(t.from)) return null;
+    return { since: t.since, line: t.line, from: t.from, on: t.on !== false, changes: Number(t.changes) || 0 };
   } catch {
     return null;
   }
 }
 
-function clear(db: DB): void {
-  db.prepare("DELETE FROM world_state WHERE key = 'ride'").run();
+function write(db: DB, t: Ticket): void {
+  db.prepare("INSERT INTO world_state (key, value_json) VALUES ('ride', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(
+    JSON.stringify(t),
+  );
+}
+
+/** The ticket, if it still runs. */
+function ticket(db: DB): Ticket | null {
+  const t = read(db);
+  if (!t) return null;
+  const minutes = gameMinutes(db) - t.since;
+  return minutes < 0 || minutes > RIDE_MAX_HOURS * 60 ? null : t;
 }
 
 /** The ride you are on now, or null (none, or the ticket ran out). */
 export function ride(db: DB): RideInfo | null {
-  const r = read(db);
-  if (!r) return null;
-  const minutes = gameMinutes(db) - r.since;
-  if (minutes < 0 || minutes > RIDE_MAX_HOURS * 60) return null;
-  return { from: r.from, minutes, left: RIDE_MAX_HOURS * 60 - minutes };
+  const t = ticket(db);
+  if (!t || !t.on) return null;
+  const minutes = gameMinutes(db) - t.since;
+  return { line: t.line, from: t.from, minutes, left: RIDE_MAX_HOURS * 60 - minutes };
 }
 
-/** Is Jef on the omnibus now (for the hourly needs)? */
+/** A free change you could make now: onto any line but this one. */
+export function change(db: DB): { from_line: RideLine } | null {
+  const t = ticket(db);
+  return t && !t.on && t.changes < RIDE_CHANGES ? { from_line: t.line } : null;
+}
+
+/** Is Jef on an omnibus now (for the hourly needs)? */
 export function riding(db: DB): boolean {
   return ride(db) !== null;
 }
 
-export function isStop(s: unknown): s is RideStop {
-  return typeof s === "string" && (RIDE_STOPS as readonly string[]).includes(s);
-}
-
-/** Get on at a stop: the conductor takes the fare. */
-export function board(db: DB, stop: RideStop): { fare_c: number; text: string } {
+/** Get on a line at a stop: the conductor takes the fare, or punches the ticket for a change. */
+export function board(db: DB, stop: RideStop, line: RideLine): { fare_c: number; change: boolean; text: string } {
+  if (!calls(line, stop)) throw new GameError("that line does not call there", 400);
   if (riding(db)) throw new GameError("you are on the omnibus already", 409);
+  const t = ticket(db);
+  const now = gameMinutes(db);
+  if (t && !t.on && t.line !== line && t.changes < RIDE_CHANGES) {
+    write(db, { since: t.since, line, from: stop, on: true, changes: t.changes + 1 });
+    log(db, "changed_omnibus", stop, `Jef changed onto ${LINE_NAMES[line]} at ${STOP_NAMES[stop]}.`);
+    return { fare_c: 0, change: true, text: "The conductor punches your ticket: a change, nothing to pay." };
+  }
   const p = player(db);
   if (p.money_c < RIDE_FARE_C) throw new GameError(`not enough money: the fare is ${RIDE_FARE_C} c`, 409);
   db.transaction(() => {
     db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(RIDE_FARE_C);
-    db.prepare("INSERT INTO world_state (key, value_json) VALUES ('ride', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(
-      JSON.stringify({ since: gameMinutes(db), from: stop } satisfies RideRow),
-    );
-    log(db, "rode_omnibus", stop, `Jef took the omnibus at ${STOP_NAMES[stop]} for ${RIDE_FARE_C} centimes.`);
+    write(db, { since: now, line, from: stop, on: true, changes: 0 });
+    log(db, "rode_omnibus", stop, `Jef took ${LINE_NAMES[line]} at ${STOP_NAMES[stop]} for ${RIDE_FARE_C} centimes.`);
   })();
-  return { fare_c: RIDE_FARE_C, text: `You pay the conductor ${RIDE_FARE_C} c and step up onto the back platform.` };
+  return { fare_c: RIDE_FARE_C, change: false, text: `You pay the conductor ${RIDE_FARE_C} c and step up onto the back platform.` };
 }
 
-/** Get off (at a stop, or put off). Always allowed; nothing to pay back. */
+/** Get off (at a stop, or put off). Always allowed; the ticket stays good for one change. */
 export function alight(db: DB): { text: string } {
-  const was = read(db) !== null;
-  clear(db);
-  return { text: was ? "You step down onto the cobbles." : "" };
+  const t = read(db);
+  if (!t || !t.on) return { text: "" };
+  write(db, { ...t, on: false });
+  return { text: "You step down onto the cobbles." };
 }
 
-/** The night ends every ride (day.ts sleep). */
+/** The night ends every ride and every ticket (day.ts sleep). */
 export function endRide(db: DB): void {
-  clear(db);
+  db.prepare("DELETE FROM world_state WHERE key = 'ride'").run();
 }

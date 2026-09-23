@@ -203,6 +203,7 @@ function frame(): void {
     if (rail && sound && !rail.onClack) {
       rail.onClack = (x, z) => sound?.railClack(x, z);
       rail.onCrane = (x, z) => sound?.craneWork({ kind: "crane", x, z, y: 6 });
+      world.railGate().onBell = (x, z) => sound?.gateBell(x, z);
     }
     // the ridden velocipede rattles like a handcart: iron tyres on stone (M3h)
     if (tr || rail || bus || deeds.velos.ridden)

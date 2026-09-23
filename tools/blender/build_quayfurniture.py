@@ -365,9 +365,9 @@ def paint_worn(seed):
     w, h = 32, 16
     rng = np.random.default_rng(seed)
     img = np.zeros((h, w, 4))
-    img[..., :3] = (0.62, 0.60, 0.55)
+    img[..., :3] = (0.40, 0.39, 0.36)
     img[..., :3] *= (0.85 + 0.25 * vnoise(rng, w, h, 6, 3))[..., None]
-    img[..., 3] = alpha_blob(rng, w, h) * 0.55
+    img[..., 3] = alpha_blob(rng, w, h) * 0.38
     return img
 
 

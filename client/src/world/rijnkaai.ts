@@ -15,9 +15,11 @@ import { buildTracks, trackKeepOut, type TrackData } from "./tracks";
 import { buildRuts } from "./ruts";
 import { buildFarBank } from "./farbank";
 import { createStreetLife, type StreetLife } from "./streetlife";
+import { createQuayFurniture, type QuayFurniture } from "./quayfurniture";
 import { createTraffic, type Traffic } from "./traffic";
 import { createRailway, type CraneSite, type Railway } from "./railway";
-import { createOmnibus, omnibusKeepOut, STOPS as OMNIBUS_STOPS, type Omnibus } from "./omnibus";
+import { createRailGate, type RailGate } from "./railgate";
+import { createOmnibuses, OMNIBUS_HORSES, omnibusKeepOut, STOPS as OMNIBUS_STOPS, type Omnibuses } from "./omnibus";
 import { quaySteps, shoreTexture, frameAt, type Exit } from "./quaysteps";
 import { buildPier, PIER_BOLLARD } from "./pier";
 import { waveAt } from "../retro/psx";
@@ -152,8 +154,10 @@ export interface World {
   traffic(): Traffic | null;
   /** The goods train and the cranes at work (M3g); null until loaded. */
   railway(): Railway | null;
-  /** The horse omnibus round the quays (M3g); null until loaded. */
-  omnibus(): Omnibus | null;
+  /** The railway gate of the Werf store, where the goods train comes and goes (M3g). */
+  railGate(): RailGate;
+  /** The horse omnibuses, quay and town lines (M3g); null until loaded. */
+  omnibus(): Omnibuses | null;
   /** Where the people walking are (the crowd and the town): bridges never open under them. */
   setPeople(fn: () => Iterable<{ x: number; z: number }>): void;
   /** Must someone at (x, z) wait? True on (or right at) an opening bridge that is opening, open or shutting. */
@@ -254,7 +258,16 @@ export function buildRijnkaai(): World {
   buildTracks(scene, trackData, bridgeRects.map((b) => ({ minX: Math.min(b[0], b[2]), maxX: Math.max(b[0], b[2]), minZ: Math.min(b[1], b[3]), maxZ: Math.max(b[1], b[3]) })));
   // the horse omnibus's lane round the quays (world/omnibus.ts): props, pumps and troughs keep off it
   const omnibusLane = omnibusKeepOut();
+  // the railway gate of the Werf store (world/railgate.ts): built now, so its collider is there
+  // before the train looks along its line
+  const railGate = createRailGate(scene, {
+    tex: { brick: tex.brick, stone: tex.quayWall, slate: tex.slate, planks: tex.planks },
+    addCollider: (r) => dynamic.add(r),
+    removeCollider: (r) => dynamic.delete(r),
+  });
+  colliders.push(...railGate.colliders);
   const propsKeepOut: Rect[] = [
+    ...railGate.colliders.map((r) => ({ minX: r.minX - 1, maxX: r.maxX + 4, minZ: r.minZ - 1, maxZ: r.maxZ + 1 })),
     { minX: -72, maxX: 66, minZ: -30, maxZ: 27 },
     ...bridgeRects.map((b) => ({ minX: Math.min(b[0], b[2]) - 4, maxX: Math.max(b[0], b[2]) + 4, minZ: Math.min(b[1], b[3]) - 4, maxZ: Math.max(b[1], b[3]) + 4 })),
     ...trackKeepOut(trackData),
@@ -263,6 +276,8 @@ export function buildRijnkaai(): World {
   // shop signs, awnings, corner Madonnas, pumps, washing lines, grime (world/streetlife.ts),
   // set after the carts and crates so the pumps keep off them
   let street: StreetLife | null = null;
+  // bollards, rings, fenders, huts, nets, signs along the quays (world/quayfurniture.ts)
+  let quayKit: QuayFurniture | null = null;
   city.ready
     .then(() => dressCity(scene, city.flags, { keepOut: propsKeepOut }))
     .then((d) => {
@@ -272,8 +287,16 @@ export function buildRijnkaai(): World {
     .then((sl) => {
       street = sl;
       colliders.push(...sl.colliders);
+      return createQuayFurniture(scene, city.flags, {
+        avoid: [...colliders, ...dynamic, ...omnibusLane], // M3g: nothing on the omnibus lanes
+        quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
+      });
     })
-    .catch((e) => console.warn("props or streetlife did not load", e));
+    .then((qf) => {
+      quayKit = qf;
+      colliders.push(...qf.colliders);
+    })
+    .catch((e) => console.warn("props, streetlife or quay furniture did not load", e));
   // drays and handcarts going round the quays (world/traffic.ts); they stop for you
   let traffic: Traffic | null = null;
   city.ready
@@ -346,7 +369,7 @@ export function buildRijnkaai(): World {
   let bridges: Bridges | null = null;
   let riverTraffic: River | null = null;
   let railway: Railway | null = null;
-  let omnibus: Omnibus | null = null;
+  let omnibus: Omnibuses | null = null;
   const LOCK_DECK = (() => {
     const b = (CITY_DATA as unknown as { bridges: Record<string, number[]> }).bridges.lock_bridge;
     return { minX: b[0], minZ: b[1], maxX: b[2], maxZ: b[3] };
@@ -463,15 +486,18 @@ export function buildRijnkaai(): World {
             addCollider: (r) => dynamic.add(r),
             removeCollider: (r) => dynamic.delete(r),
             waterY: WATER_Y,
+            spareHorses: OMNIBUS_HORSES,
+            gate: railGate,
           });
           for (const r of railway.colliders()) dynamic.add(r); // added once: the rects move in place
-          // the horse omnibus round the quays (world/omnibus.ts), its horses from the same pool
-          omnibus = createOmnibus(scene, {
+          // the horse omnibuses, quay and town lines (world/omnibus.ts), their horses from the same pool
+          omnibus = createOmnibuses(scene, {
             horses: railway.horses,
             horseIndex: 2,
             tex: { planks: m.planks.map! },
             bridges: () => bridges?.list ?? [],
             isFree: (x, z, r) => isFree(x, z, r),
+            lit: () => lampsLit,
           });
           for (const r of omnibus.colliders()) dynamic.add(r);
           for (const st of OMNIBUS_STOPS) colliders.push(rectAround(st.post[0], st.post[1], 0.12, 0.12));
@@ -924,6 +950,7 @@ export function buildRijnkaai(): World {
     riverTraffic?.update(t, dt);
     if (camera) traffic?.update(t, dt, camera.position);
     if (camera) railway?.update(t, dt, { x: camera.position.x, z: camera.position.z }, camera);
+    if (camera) railGate.update(dt, { x: camera.position.x, z: camera.position.z }, camera);
     if (camera) omnibus?.update(t, dt, { x: camera.position.x, z: camera.position.z }, camera);
     // the sky dome and the water sheet go where you go
     if (camera) {
@@ -964,6 +991,7 @@ export function buildRijnkaai(): World {
     if (camera) city.update(camera, fog.far);
     if (camera && !devView) ambient.update(t, dt, camera, dayNow, weatherNow);
     street?.update(t, dt, lampsLit, camera ?? undefined);
+    quayKit?.update(t, dt, lampsLit, camera ?? undefined);
     lantern.intensity = 7 * (0.92 + Math.sin(t * 5.1) * 0.04 + Math.sin(t * 13.7) * 0.03);
     waterTex.offset.x = t * 0.004;
     waterTex.offset.y = t * 0.011;
@@ -1013,6 +1041,7 @@ export function buildRijnkaai(): World {
     boats: () => boats,
     traffic: () => traffic,
     railway: () => railway,
+    railGate: () => railGate,
     omnibus: () => omnibus,
     devEvents: () => {
       let fog = false;

@@ -60,6 +60,13 @@ export interface RailwayOptions {
   removeCollider: (r: Rect) => void;
   waterY: number;
   seed?: number;
+  /** Horses in the pool for others (the omnibuses: two each), after the train's two. Default 2. */
+  spareHorses?: number;
+  /**
+   * The gate where the line enters the Werf store (world/railgate.ts): the train asks for it,
+   * waits till it stands open, and is hidden once it is wholly in the dark behind it.
+   */
+  gate?: { x: number; reach: number; amount(): number; want(open: boolean): void };
 }
 
 export interface Railway {
@@ -69,7 +76,7 @@ export interface Railway {
   colliders(): Rect[];
   /** Is the train on (or just at) this rectangle? A bridge must not open under it. */
   busy(r: { minX: number; maxX: number; minZ: number; maxZ: number }): boolean;
-  /** The horse instances (4: two for the train, two for the omnibus). */
+  /** The horse instances: two for the train, then `spareHorses` for the omnibuses. */
   horses: HorsePool;
   /** For the soundscape (setVehicles): the horses as a dray while they walk. */
   vehicles(): Array<{ kind: "dray"; x: number; z: number; state: string }>;
@@ -511,6 +518,24 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     axles: [0, 0],
   }));
   const trainLen = wagons[wagons.length - 1].front + L_BUF;
+
+  // --- the gate of the Werf store: where the line passes its facade and the tips of its open leaves
+  const gate = opts.gate ?? null;
+  const gateOut = { face: -1, tip: -1 };
+  const gateBack = { face: -1, tip: -1 };
+  /** Anything wholly west of this is in the dark behind the gate: not drawn. */
+  const hideX = gate ? gate.x - 5.2 : -Infinity;
+  if (gate) {
+    for (let i = 0; i < line.x.length - 1; i++) {
+      const a = line.x[i];
+      const b = line.x[i + 1];
+      const s = i * Line.STEP;
+      for (const [x, key] of [[gate.x, "face"], [gate.x + gate.reach, "tip"]] as const) {
+        if (a < x && b >= x && gateOut[key] < 0) gateOut[key] = s;
+        if (a > x && b <= x) gateBack[key] = s;
+      }
+    }
+  }
   const fillRandom = () => {
     for (const w of wagons) {
       const rows = w.goods ? Math.floor(rnd() * 3) : 0;
@@ -526,7 +551,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
   const links = inst(linkGeometry(), woodMat, wagons.length + 1, "wagon_chains");
   const goodsMesh = new Map<GoodsKind, THREE.InstancedMesh>();
   for (const g of GOODS) goodsMesh.set(g, inst(unitGeometry(g), g === "crates" ? crateMat : g === "casks" ? woodMat : sackMat, 48, `goods_${g}`));
-  const horses = new HorsePool(scene, opts.props, 4);
+  const horses = new HorsePool(scene, opts.props, 2 + (opts.spareHorses ?? 2));
   const horseRects: Rect[] = [0, 1].map(() => ({ minX: 1e6, maxX: 1e6, minZ: 1e6, maxZ: 1e6, top: 2.2 }));
   let shunter: Human | null = null;
   const shunterGroup = new THREE.Group();
@@ -690,6 +715,8 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       }
       const s = (lo + hi) / 2;
       if (Math.abs(angDiff(line.yaw(s + 3.5), line.yaw(s - 3.5))) > 0.04) continue;
+      // not under the gatehouse of the Werf store (the jib would swing through its roof)
+      if (gate && line.at(s, pa).x < gate.x + 2.5) continue;
       cand.push(s + off);
     }
     const ok = cand.filter((h) => h > head + 4);
@@ -779,6 +806,22 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       }
       lim = Math.min(lim, st.head);
       break;
+    }
+    // the gate of the Werf store: asked for as the train comes up to it, shut behind the last wagon;
+    // the train waits for it to stand open (on the way out in the dark behind it, on the way back
+    // short of its leaves)
+    if (gate) {
+      const out = head > gateOut.face - 30 && head - trainLen < gateOut.tip + 1;
+      const back = head > gateBack.tip - 16 && head - trainLen < gateBack.face + 0.5;
+      gate.want(state !== "shed" && (out || back));
+      if (gate.amount() < 0.99) {
+        for (const stopAt of [gateOut.face - 0.8, gateBack.tip - 1.5]) {
+          if (head <= stopAt + 0.01 && head > stopAt - 60 && stopAt < lim) {
+            lim = Math.max(head, stopAt);
+            waitWhy = "gate";
+          }
+        }
+      }
     }
     // an opening bridge ahead that is not shut
     for (const br of opts.bridges()) {
@@ -988,7 +1031,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     line.at(head - trainLen, pb);
     near = !hidden && (!cam || Math.min(Math.hypot(pa.x - cam.x, pa.z - cam.z), Math.hypot(pb.x - cam.x, pb.z - cam.z), Math.hypot((pa.x + pb.x) / 2 - cam.x, (pa.z + pb.z) / 2 - cam.z)) < far + trainLen / 2);
     horses.show("train", near);
-    shunterGroup.visible = near;
+    shunterGroup.visible = near && shunterGroup.position.x > hideX;
     for (const g of GOODS) gcount.set(g, 0);
 
     // wagons, wheels, chains, their goods
@@ -1002,10 +1045,14 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       const k = idx.get(w.kind) ?? 0;
       idx.set(w.kind, k + 1);
       const body = bodies.get(w.kind)!;
-      if (!near) {
+      // wholly in the dark behind the gate: not drawn
+      if (!near || wp.x < hideX - L_BUF / 2) {
         body.setMatrixAt(k, zero);
         wheels.setMatrixAt(i * 2, zero);
         wheels.setMatrixAt(i * 2 + 1, zero);
+        links.setMatrixAt(i, zero);
+        const e = L_BODY / 2 + 0.3;
+        prevRear = [wp.x - Math.sin(wp.yaw) * e, 0.98, wp.z - Math.cos(wp.yaw) * e];
         return;
       }
       put(body, k, wp.x, 0, wp.z, wp.yaw);
@@ -1129,7 +1176,8 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
           r.minX = r.maxX = r.minZ = r.maxZ = 1e6;
           continue;
         }
-        horses.set(i, pa.x, pa.z, yaw, (gait + i * 0.37) % 1, amp);
+        if (pa.x < hideX - 1.6) horses.hide(i);
+        else horses.set(i, pa.x, pa.z, yaw, (gait + i * 0.37) % 1, amp);
         const hs = Math.abs(Math.sin(yaw));
         const hc = Math.abs(Math.cos(yaw));
         r.minX = pa.x - hs * 1.5 - hc * 0.45;
@@ -1148,6 +1196,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
         const yaw = line.yaw(s);
         shunterGroup.position.set(pa.x - Math.cos(yaw) * 1.25, 0, pa.z + Math.sin(yaw) * 1.25);
         shunterGroup.rotation.y = working ? yaw + 1.2 : yaw;
+        shunterGroup.visible = near && shunterGroup.position.x > hideX;
         shunter.play(v > 0.08 ? "walk" : "idle");
         shunter.setPace(Math.max(0.3, v));
         if (near) shunter.update(dt);

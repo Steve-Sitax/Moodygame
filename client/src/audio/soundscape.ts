@@ -993,6 +993,14 @@ export class Soundscape {
     this.log("whistle far");
   }
 
+  /** The railway gate at the Werf store opens (M3g, world/railgate.ts): the keeper rings his hand bell. */
+  gateBell(x: number, z: number): void {
+    const bell = this.buf.get("handbell");
+    if (!bell || Math.hypot(x - this.listenerPos.x, z - this.listenerPos.z) > 150) return;
+    this.slice(bell, { x, z, y: 3 }, 0, rand(1.8, 2.8), 0.6, rand(0.95, 1.05), 150, 6);
+    this.log("railway gate bell");
+  }
+
   /** An iron wheel over a rail joint (M3g, world/railway.ts): a knock and a short ring, made in code. */
   railClack(x: number, z: number): void {
     if (Math.hypot(x - this.listenerPos.x, z - this.listenerPos.z) > 70) return;

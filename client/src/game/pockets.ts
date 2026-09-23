@@ -248,6 +248,10 @@ export class Pockets {
     if (!this.open) return;
     if (e.code === "Escape") return this.toggle();
     const n = Number(e.key);
-    if (n >= 1 && n <= SLOTS) void this.use(n - 1);
+    if (n >= 1 && n <= SLOTS) {
+      // use it and close the pockets (Steve: "when pressed I and a number, close I")
+      void this.use(n - 1);
+      this.toggle();
+    }
   }
 }

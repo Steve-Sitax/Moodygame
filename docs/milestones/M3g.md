@@ -137,3 +137,70 @@ Sources:
   and the town need a list of positions to feed it.
 - The rails run into the Werf store at x -318..-340 through its wall: a goods door there would look right.
 - Night: no lamps on the omnibus (the scene's lamp count is fixed); it shows only by the gas lamps.
+
+## M3g part 2: the omnibus network and the railway gate (2026-09-23)
+
+Steve: "so we can take the horse omnibus through town also", "several omnibuses can do different routes",
+the omnibus "has no lamps", and "the goods train clips out of a building: make nice opening gates".
+
+### Two lines (`client/src/world/omnibus.ts`, now a network)
+| Line | Board, colour | Omnibuses | Stops | Round |
+|---|---|---|---|---|
+| Quay line | KAAIEN, green | 1 | the Werf, the Steenplein, the Vismarkt, the Rijnkaai, the Petit Bassin, the Rijnkaai (back), the Vismarkt, the Steenplein | 841 m, 386 s (19 game hours) |
+| Grote Markt line | GROTE MARKT, red | 2, about 172 s apart | the Vismarkt, the Vleeshuis, the Grote Markt (by the town hall), the Cathedral (Handschoenmarkt), the road to the Meir, the Brouwersvliet | 866 m, 349 s (17.5 game hours) |
+
+- The town line is a one-way ring with no crossings, laid out on the walk map: at least 2.0 m from the lane's
+  middle to any wall all round, every corner rounded (5 m). In two-way stretches it keeps its own lane: the
+  canal quay (south x -89.5, north x -84.5), the wide street west of the Vleeshuis (x -149, x -145), the street
+  into the Handschoenmarkt (west z 126.2, east z 129.8). A gas lamp at (-230, 128) stands between those two
+  lanes, 0.6 m clear of each body. The ring goes round the Grote Markt stalls and leaves the square before the
+  cathedral's west portal free (the lane passes 19 m from the portal).
+- The Grote Markt's only wide way in is the street from the east (z 124-132); the north-west gap by the town
+  hall is 4 m. The Meir street (x -150..-140, z 212-300) is a dead end at the map's edge, too narrow to turn a
+  pair-horse omnibus: the stop "the road to the Meir" is at its mouth.
+- The lines meet at the Vismarkt: two bays, 25 m apart (the quay bay at (-112, 8.3), the town bay at (-96, 31)).
+- Omnibuses of one line follow: one that catches up waits behind the other, at a stop too.
+- Every stop post has a plate in the colour of each line that calls there. Destination boards front and back,
+  the stops on the side boards.
+- Two carriage lamps per omnibus: dark glass by day, a warm flame and a glow after dusk (they follow the gas lamps).
+- All omnibuses share one InstancedMesh per part (body, paint in the line colour, back wheels, front carriage,
+  front wheels), one mesh for all boards, one for the lamp glass, one point set for the glow, one for the posts.
+- Quay furniture now keeps off the omnibus lanes (its `avoid` list in rijnkaai.ts): two of its things stood on
+  the lanes (by the vliet bridge and on the canal quay) and stopped the omnibuses.
+
+### Fares and changes (`server/src/ride.ts`)
+- One fare (5 c) buys a ticket good for 20 game hours from the moment you pay, with **one free change**: get
+  off, and get on the other line while the ticket runs. Getting back on the same line, or a second change,
+  is a new fare. Stop and line names are checked; the line must call at the stop.
+- `POST /api/ride {action, stop, line}`; the payload has `ride: {on, fare_c, change}`. The prompt says
+  "get on the GROTE MARKT omnibus (a free change)" when a change is free.
+- Warmth on board as before (every 10 h by day, 6 h at night; on foot 5 and 3). Tests: 13 in `ride.test.ts`.
+
+### The railway gate (`client/src/world/railgate.ts`, new)
+- A gatehouse of the State Railways ("STAATSSPOORWEGEN") against the Werf store's east wall (x -318..-311,
+  z 1.3..9.1): brick, stone plinth, piers, lintel with a keystone, cornice, a slate roof, a keeper's lodge
+  with a window and a door, a hand bell on a bracket. Two timber leaves (dark green oak, Z braces, iron strap
+  hinges) swing out to just past square.
+- Belgium abolished its town tolls (octrois) in 1860: in 1873 this is a railway goods-shed door, not a customs gate.
+- The train asks for the gate as it comes up (out of the store, or back along the Werf), waits till the
+  leaves stand open, and they shut behind the last wagon; the keeper rings his bell (`soundscape.gateBell`,
+  the bridge-keeper's hand bell recording). Behind the leaves a short covered way ends in the dark; anything
+  wholly behind it is not drawn, so the train never appears or vanishes.
+- One solid collider for the whole gatehouse, opening and all (walking into the open gate stops at the
+  facade); the open leaves are solid too, and they do not move while the player stands in their sweep. The
+  crowd and the drays keep out (solids, isFree). A crane never picks a wagon row under the gatehouse roof.
+- The omnibuses never leave the map (both lines are closed loops).
+
+### Checks (test save only)
+- 800 s of both lines with the train and the drays: no stall; arrivals as in the table.
+- Change: quay line from the Steenplein to the Vismarkt (5 c), off; "The conductor calls out: the Vismarkt.
+  Change here for the Grote Markt line."; the town omnibus offered "a free change"; on it; money 40 -> 35.
+- Gate: opens while the train is still in the store (it rolls out without stopping); on the way back it
+  opens as the train comes up and shuts after the last wagon. The player walking into the open gate stops
+  at the facade (x -310.3).
+- Path check `[]` with three omnibuses about, and with the gate open and the train coming out.
+- Cost at the Vismarkt with two omnibuses in view: 151 -> 163 draw calls (horses and people included),
+  about +0.2 ms a frame (median of four), updates 0.05 ms.
+- Pictures: `data/shots/m3g_town_grote_markt.jpg`, `m3g_town_cathedral.jpg`, `m3g_night_lamps.jpg`,
+  `m3g_post_vismarkt.jpg`, `m3g_perf_vismarkt.jpg`, `m3g_gate_shut.jpg`, `m3g_gate_open_train.jpg`,
+  `m3g_gate_front.jpg`, `m3g_town_clear.png` (street clearance map).

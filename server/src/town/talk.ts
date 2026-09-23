@@ -12,7 +12,7 @@ import { waresOf } from "../trade.ts";
 import { activityAt, type Now } from "./schedule.ts";
 import { TRADES } from "./places.ts";
 import { family, personaLine, resident, setPersonaLine, town } from "./store.ts";
-import { reputationWith, rumoursOf, toYou, type Rumour } from "./rumours.ts";
+import { ownVoice, reputationWith, rumoursOf, toYou, type Rumour } from "./rumours.ts";
 import type { Resident } from "./population.ts";
 
 // Talk with any townsperson (M3e). Everyone answers by their own stats, job,
@@ -377,7 +377,8 @@ function apply(db: DB, r: Resident, sess: Session, line: ResidentLine): Line & {
   sess.turns.push(`- ${r.first}: ${line.npc_line}`);
   sess.lastAt = Date.now();
   return {
-    npc_line: plainEnglish(line.npc_line),
+    // in her own voice: "my stall", not "Rosalie's stall" (engine lines and model lines alike)
+    npc_line: ownVoice(plainEnglish(line.npc_line), [r.name, r.first]),
     mood: line.mood,
     choices: line.choices.map(plainEnglish),
     trust_delta: line.trust_delta,
