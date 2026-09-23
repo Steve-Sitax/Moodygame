@@ -38,6 +38,7 @@ What would make jobs interesting. Claude proposes, the engine plays and owns the
 When: Steve chose (2026-09-23) to build this now as milestone M2b, before M3. Scope in docs/06. Still open after M2b: row, find and talk task types; choices that feed M3 dialogue.
 
 ## Velocipedes, theft and the police (Steve, 2026-09-23, during M3e)
+Taken into M3h (`docs/milestones/M3h.md`), 2026-09-23. Still open: see "Not yet" there.
 Steve: "bikes available that we can take. If owner in vicinity we get bad rep for stealing. When we do bad things police comes to talk to us or arrests us."
 - **Bikes of 1873:** the velocipede ("boneshaker", iron tyres, pedals on the front wheel). Rare and costly in Antwerp then: a few stand by the houses of the well-off, a café, the Entrepot office. You can take one and ride it (faster than hurrying, noisy on the cobbles, falls over on the rails and in the ruts).
 - **Theft:** each bike has an owner (a resident from the living city). Taking it while the owner or anyone else sees it gives bad reputation and a rumour ("the man who took the notary's velocipede"). The engine owns the numbers: who saw it, how much trust is lost.

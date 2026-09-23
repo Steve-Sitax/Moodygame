@@ -87,6 +87,8 @@ Dogs and cats (`client/public/models/animals.glb`, M3e: four dogs, four cats, ri
 
 Market stalls and shop fronts (`client/public/models/stalls.glb`, M3e: stall frame, open and rolled awnings, tarpaulins, goods for fish, bread, vegetables, wares and cloth, shop table and wall awning) are our own models and textures, made by script in `tools/blender/build_stalls.py` (it reuses the wood, iron, rope and sackcloth materials of `build_props.py`); no third-party models or images.
 
+The velocipede (`client/public/models/velocipede.glb`, M3h: a Michaux-style "boneshaker" of the late 1860s, frame, steering fork and bar, two wooden wheels with iron tyres, pedals on the front hub, leather saddle on a leaf spring, spoon brake) is our own model, made by script in `tools/blender/build_velocipede.py` with the prop materials of `build_props.py`; no third-party models or images. The hand lantern, the lanterns standing where people work and the "POLICE" board over the police post (M3h, `client/src/game/lantern.ts`, `client/src/game/deeds.ts`) are built in code, lettering drawn with the browser's Georgia font into a canvas; no third-party assets.
+
 The goods train, its wagons and loads, the cranes' hook, rope and sling, the horse omnibus and its stop posts
 (M3g: `client/src/world/railway.ts`, `omnibus.ts`, `horses.ts`, `kit.ts`) are built in code from boxes, cylinders and
 lathes on the existing 64x64 textures; the horses are the dray horse of `props.glb` above. The route board on the
