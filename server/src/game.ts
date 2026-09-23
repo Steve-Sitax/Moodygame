@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { DB } from "./db.ts";
 import { EMPLOYERS, listJobs, type EmployerId, type JobRow, type Progress } from "./hooks/jobBoard.ts";
+import { remember } from "./npcs.ts";
 
 // Engine rules. Numbers change here and nowhere else (docs/03 rule one).
 
@@ -192,15 +193,10 @@ export function finishJob(db: DB, id: number, report: Report, rng?: () => number
 
 export function saveOutcome(db: DB, id: number, narration: string, memory: string, weight: number): void {
   const j = job(db, id);
-  const p = player(db);
   db.transaction(() => {
     db.prepare("UPDATE job SET outcome_text = ? WHERE id = ?").run(narration, id);
-    db.prepare("INSERT INTO npc_memory (npc_id, text, source, heard_from, weight, day) VALUES (?, ?, 'seen', NULL, ?, ?)").run(
-      j.employer_npc,
-      memory,
-      Math.max(3, Math.min(8, Math.round(weight))),
-      p.day,
-    );
     log(db, "job_outcome", String(id), narration, j.employer_npc);
   })();
+  // through remember() so the gossip rule runs (M3)
+  remember(db, j.employer_npc, memory, Math.max(3, Math.min(8, Math.round(weight))));
 }

@@ -91,12 +91,21 @@ export interface JobsPayload {
   player: Player;
 }
 
-async function call<T>(method: string, url: string, body?: unknown): Promise<T> {
+/** What an NPC says. Trust stays on the server (docs/08: hidden). */
+export interface TalkLine {
+  npc_line?: string;
+  mood?: string;
+  choices?: string[];
+  end?: boolean;
+  gated?: string | null;
+}
+
+async function call<T>(method: string, url: string, body?: unknown, timeoutMs = 8000): Promise<T> {
   const res = await fetch(url, {
     method,
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const data = (await res.json().catch(() => ({}))) as T & { error?: string };
   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -106,6 +115,10 @@ async function call<T>(method: string, url: string, body?: unknown): Promise<T> 
 export const api = {
   jobs: () => call<JobsPayload>("GET", "/api/jobs"),
   take: (id: number) => call<{ job: Job }>("POST", `/api/jobs/${id}/take`),
+  near: (npc: string) => call<{ ok: boolean }>("POST", `/api/npc/${npc}/near`),
+  talk: (npc: string, kind: "open" | "choice" | "free", text?: string) =>
+    call<TalkLine>("POST", `/api/npc/${npc}/talk`, { kind, text }, 30_000),
+  witness: (npc: string, event: "took" | "returned") => call<{ ok: boolean }>("POST", `/api/npc/${npc}/witness`, { event }),
   progress: (id: number, p: Progress) => call<{ job: Job }>("POST", `/api/jobs/${id}/progress`, p),
   done: (id: number, report: Report) =>
     call<{ job: Job; settlement: Settlement; money_c: number }>("POST", `/api/jobs/${id}/done`, report),

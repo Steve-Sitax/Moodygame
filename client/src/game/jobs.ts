@@ -3,13 +3,41 @@ import { api, connectPush, type Job, type JobsPayload, type OutcomeMsg, type Pro
 import { BOARD_POS, SPOTS, type World } from "../world/rijnkaai";
 import type { FirstPerson } from "../player/firstPerson";
 import { glowTexture } from "../world/textures";
-import { GOODS } from "./props";
-import { esc, makeRun, type Action, type Run, type RunCtx, type Sfx } from "./runs";
+import { GOODS, type Goods } from "./props";
+import { GoodsWorld, ahead, type Item } from "./goods";
+import { People } from "./people";
+import { Talk } from "./talk";
+import { esc, HaulRun, makeRun, type Action, type Run, type RunCtx, type Sfx } from "./runs";
 
-// Job board and the running job (M2, M2b). The server decides pay, task and
-// trust. This file shows the board, plays the task in 3D, and reports back.
+// The hands and the job (M2, M2b, M3). Everything you do with E and F goes
+// through here: lift, set down, stack, drop in the Schelde, talk, read the
+// board, and the job's own actions. The server decides pay, task and trust.
 
 const REACH_BOARD = 2.6;
+const REACH_ITEM = 1.8;
+const OWNER_SEES = 12;
+
+/** Goods that belong to people, lying about the quay from the start. */
+const OWNED: Array<{ kind: Goods; owner: string; at: Array<[number, number]> }> = [
+  { kind: "crates", owner: "sooi", at: [[-19.2, 18.4], [-18.4, 18.4], [-19.2, 18.4], [-18.8, 17.5]] },
+  { kind: "barrels", owner: "peeters", at: [[24.8, 17.6], [25.6, 17.6], [25.2, 16.8]] },
+  { kind: "barrels", owner: "tuur", at: [[7.7, -5.2], [6.9, -5.2]] },
+  { kind: "sacks", owner: "fientje", at: [[44.3, 12.4], [44.3, 13.1]] },
+];
+
+/** What an owner shouts when Jef lifts their goods under their nose. */
+const OWNER_SHOUT: Record<string, string> = {
+  sooi: `Sooi: "Hé! That's natie goods, jongen. Put it down or I'll put you down."`,
+  peeters: `Widow Peeters: "Thief! Those are mine. Put it back this instant!"`,
+  tuur: `Tuur: "Hands off, maat. That's not yours to carry."`,
+  fientje: `Fientje: "Oi! Fingers off my baskets, manneke!"`,
+};
+const OWNER_CALM: Record<string, string> = {
+  sooi: `Sooi grunts. "Goed. Keep your hands to your own work."`,
+  peeters: `The widow sniffs. "Hm. See that it stays there."`,
+  tuur: `Tuur nods slowly. "Wise."`,
+  fientje: `"That's better, schat. I'd have told the whole Vismarkt."`,
+};
 
 export class Jobs {
   private payload: JobsPayload | null = null;
@@ -19,6 +47,13 @@ export class Jobs {
   private boardOpen = false;
   private finishing = false;
   sfx: (name: Sfx, at?: THREE.Vector3) => void = () => {};
+
+  readonly goods: GoodsWorld;
+  readonly people: People;
+  readonly talk: Talk;
+  private sinking: Array<{ obj: THREE.Object3D; t: number; splashed: boolean }> = [];
+  /** An owner saw you lift this; set it back near where it was and they calm down. */
+  private watched: { item: Item; owner: string } | null = null;
 
   private readonly el = {
     prompt: div("prompt"),
@@ -43,6 +78,11 @@ export class Jobs {
     this.el.tick.textContent = "▾";
     // carried goods hang in front of the camera, so the camera joins the scene
     world.scene.add(player.camera);
+
+    this.goods = new GoodsWorld(world, player);
+    this.people = new People(world);
+    this.talk = new Talk(player);
+    for (const o of OWNED) for (const [x, z] of o.at) this.goods.spawn(o.kind, x, z, { owner: o.owner });
 
     this.glow = new THREE.Sprite(
       new THREE.SpriteMaterial({
@@ -86,23 +126,118 @@ export class Jobs {
 
   update(dt: number): void {
     this.run?.update(dt);
+    this.people.update(dt, this.player);
+    this.updateSinking(dt);
     this.acts = this.findActions();
-    const text = this.boardOpen ? "" : this.acts.map((a) => `${a.key.slice(3)}  ${a.text}`).join("     ");
+    const text = this.boardOpen || this.talk.isOpen ? "" : this.acts.map((a) => `${a.key.slice(3)}  ${a.text}`).join("     ");
     if (this.el.prompt.textContent !== text) this.el.prompt.textContent = text;
     this.el.prompt.style.display = text ? "block" : "none";
     this.renderTask();
     this.updatePointer(dt);
   }
 
+  /** Everything E and F can do right now, most specific first. */
   private findActions(): Action[] {
-    if (this.boardOpen) return [];
-    const acts = this.run?.actions() ?? [];
-    const busy = new Set(acts.map((a) => a.key));
-    if (!busy.has("KeyE") && Math.hypot(BOARD_POS.x - this.player.x, BOARD_POS.z - this.player.z) < REACH_BOARD) {
-      acts.push({ key: "KeyE", text: "read the hiring board", run: () => this.openBoard() });
+    if (this.boardOpen || this.talk.isOpen) return [];
+    const { x, z } = this.player;
+    const out: Action[] = [];
+    const add = (a: Action) => {
+      if (!out.some((o) => o.key === a.key)) out.push(a);
+    };
+    const carried = this.goods.carried;
+
+    if (carried) {
+      for (const a of this.run?.carryActions(carried) ?? []) add(a);
+      const [px, pz] = ahead(this.player, 0.95);
+      if (this.world.isWater(px, pz)) add({ key: "KeyE", text: "let it fall into the Schelde", run: () => this.drown(px, pz) });
+      else {
+        const where = this.goods.canPlace(px, pz);
+        if (where) {
+          const label = this.run?.placeLabel(carried, px, pz) ?? (where === "stack" ? "stack it" : "set it down");
+          add({ key: "KeyE", text: label, run: () => this.putDown(px, pz) });
+        }
+      }
+      return out;
     }
-    return acts;
+
+    for (const a of this.run?.actions() ?? []) add(a);
+    const item = this.goods.nearest(REACH_ITEM);
+    const npc = this.people.nearestTalker(x, z);
+    const board = Math.hypot(BOARD_POS.x - x, BOARD_POS.z - z);
+    // E goes to what is closest: goods, a person, or the board
+    const options: Array<[number, Action]> = [];
+    if (item) {
+      const d = Math.hypot(item.obj.position.x - x, item.obj.position.z - z);
+      options.push([d, { key: "KeyE", text: `lift the ${GOODS[item.kind].one}`, run: () => this.lift(item) }]);
+    }
+    if (npc) options.push([npc.distTo(x, z), { key: "KeyE", text: `talk to ${npc.def.name}`, run: () => this.talk.open(npc) }]);
+    if (board < REACH_BOARD) options.push([board, { key: "KeyE", text: "read the hiring board", run: () => this.openBoard() }]);
+    options.sort((a, b) => a[0] - b[0]);
+    if (options.length) add(options[0][1]);
+    return out;
   }
+
+  // ------------------------------------------------------------- hands
+
+  private lift(item: Item): void {
+    this.goods.lift(item, GOODS[item.kind].hold);
+    this.player.speedFactor = GOODS[item.kind].speed;
+    this.sfx("lift");
+    if (this.run instanceof HaulRun) this.run.onLifted(item);
+    // someone else's goods, and they are watching?
+    if (item.owner && item.jobId === null) {
+      const owner = this.people.get(item.owner);
+      if (owner && owner.distTo(this.player.x, this.player.z) < OWNER_SEES) {
+        owner.lookAt(this.player.x, this.player.z);
+        this.toastMsg(OWNER_SHOUT[item.owner] ?? `${owner.def.name} shouts at you.`);
+        this.watched = { item, owner: item.owner };
+        api.witness(item.owner, "took").catch(() => {});
+      }
+    }
+  }
+
+  private putDown(x: number, z: number): void {
+    const item = this.goods.putDown(x, z);
+    if (!item) return;
+    this.sfx(`thud_${GOODS[item.kind].thud}`, new THREE.Vector3(x, item.y, z));
+    this.run?.onPlaced(item);
+    const w = this.watched;
+    if (w?.item === item) {
+      this.watched = null;
+      const from = item.liftedFrom;
+      if (from && Math.hypot(from.x - x, from.z - z) < 2.5 && performance.now() - from.t < 15_000) {
+        this.toastMsg(OWNER_CALM[w.owner] ?? "They let it go.");
+        api.witness(w.owner, "returned").catch(() => {});
+      }
+    }
+  }
+
+  private drown(x: number, z: number): void {
+    const item = this.goods.release();
+    if (!item) return;
+    item.obj.position.set(x, 0.2, z);
+    this.world.scene.add(item.obj);
+    this.sinking.push({ obj: item.obj, t: 0, splashed: false });
+    const jobItem = item.jobId !== null && item.jobId === this.active?.id;
+    this.run?.onLost(item);
+    if (!jobItem) this.toastMsg("It goes over the edge. The Schelde takes it.");
+  }
+
+  private updateSinking(dt: number): void {
+    for (const s of this.sinking) {
+      s.t += dt;
+      s.obj.position.y = s.t < 0.5 ? 0.2 - s.t * s.t * 18 : -1.8 - (s.t - 0.5) * 0.35;
+      if (!s.splashed && s.obj.position.y <= -1.8) {
+        s.splashed = true;
+        this.sfx("splash", s.obj.position.clone());
+      }
+      s.obj.rotation.z += dt * 0.6;
+      if (s.t > 4) this.world.scene.remove(s.obj);
+    }
+    this.sinking = this.sinking.filter((s) => s.t <= 4);
+  }
+
+  // ------------------------------------------------------------- pointer
 
   private pulse = 0;
   private updatePointer(dt: number): void {
@@ -119,9 +254,9 @@ export class Jobs {
     this.pulse += dt;
     // glow hangs just above the goal; fades out when you are there
     const near = THREE.MathUtils.smoothstep(d, 1.5, 4);
-    this.glow.position.set(goal.x, 1.1 + Math.sin(this.pulse * 1.3) * 0.05, goal.z);
+    this.glow.position.set(goal.x, goal.y + 1.1 + Math.sin(this.pulse * 1.3) * 0.05, goal.z);
     this.glow.material.opacity = 0.35 * near * (0.85 + Math.sin(this.pulse * 2.1) * 0.15);
-    this.glowLight.position.set(goal.x, 1.2, goal.z);
+    this.glowLight.position.set(goal.x, goal.y + 1.2, goal.z);
     this.glowLight.intensity = 2.5 * near;
 
     // ink tick: slides along the top edge toward the goal, only when it is far or off-screen
@@ -138,7 +273,7 @@ export class Jobs {
   // ------------------------------------------------------------- input
 
   private onKey(e: KeyboardEvent): void {
-    if (e.repeat) return;
+    if (e.repeat || this.talk.isOpen) return;
     if (this.boardOpen) {
       if (e.code === "KeyE" || e.code === "Escape") this.closeBoard();
       const n = Number(e.key);
@@ -162,6 +297,13 @@ export class Jobs {
     this.boardOpen = false;
     this.player.frozen = false;
     this.el.board.style.display = "none";
+  }
+
+  /** Open work and your job, plus the last two finished ones. Number keys index this list. */
+  private visibleJobs(): Job[] {
+    const all = this.payload?.jobs ?? [];
+    const finished = all.filter((j) => j.status === "done" || j.status === "failed").slice(-2);
+    return all.filter((j) => j.status === "offered" || j.status === "taken" || finished.includes(j));
   }
 
   private renderBoard(): void {
@@ -195,18 +337,12 @@ export class Jobs {
       <p class="keys">Press a number to take a job &middot; E to step back</p>`;
   }
 
-  /** Open work and your job, plus the last two finished ones. Number keys index this list. */
-  private visibleJobs(): Job[] {
-    const all = this.payload?.jobs ?? [];
-    const finished = all.filter((j) => j.status === "done" || j.status === "failed").slice(-2);
-    return all.filter((j) => j.status === "offered" || j.status === "taken" || finished.includes(j));
-  }
-
   private async take(index: number): Promise<void> {
     const j = this.visibleJobs()[index];
     if (!j || j.status !== "offered") return;
     if (!j.playable) return this.toastMsg("That work is not in this build yet.");
     if (this.active) return this.toastMsg("Finish the job you have first.");
+    if (this.goods.carried) return this.toastMsg("Your hands are full. Set that down first.");
     try {
       const { job } = await api.take(j.id);
       this.closeBoard();
@@ -225,6 +361,8 @@ export class Jobs {
     const ctx: RunCtx = {
       world: this.world,
       player: this.player,
+      goods: this.goods,
+      people: this.people,
       sfx: (n, at) => this.sfx(n, at),
       toast: (t) => this.toastMsg(t),
       progress: (p) => this.saveProgress(job.id, p),
@@ -232,8 +370,12 @@ export class Jobs {
     };
     // the job line first; a twist may say something right after (the run toasts in its constructor)
     const t = job.task;
-    if (t.kind === "carry") this.toastMsg(`${job.employer_name}: ${t.count} ${t.goods} from ${SPOTS[t.from].label} to ${SPOTS[t.to].label}.`);
-    if (t.kind === "deliver") this.toastMsg(`${job.employer_name} hands you a ${GOODS[t.goods].one} for ${t.recipient}.`);
+    const who = this.people.get(job.employer_npc)?.def.name ?? job.employer_name;
+    if (t.kind === "carry") {
+      const from = t.from === "ship_gangway" ? "the Anna Maria (call up at the gangway)" : SPOTS[t.from].label;
+      this.toastMsg(`${who}: ${t.count} ${t.goods} from ${from} to ${SPOTS[t.to].label}.`);
+    }
+    if (t.kind === "deliver") this.toastMsg(`${who} has a ${GOODS[t.goods].one} for ${t.recipient}. Get it from ${who}.`);
     this.run = makeRun(job, ctx);
   }
 
@@ -251,7 +393,6 @@ export class Jobs {
       if (s.extra_c) parts.push(`${s.extra_c} c from other hands`);
       this.toastMsg(parts.join(", ") + ".");
       this.el.hud.textContent = `${r.money_c} c`;
-      this.el.note.textContent = "…";
       this.el.note.classList.add("waiting");
     } catch (e) {
       this.toastMsg(`Not settled: ${(e as Error).message}`);
@@ -296,7 +437,7 @@ export class Jobs {
   debug() {
     return {
       board: this.payload?.board,
-      jobs: this.payload?.jobs.map((j) => ({ id: j.id, title: j.title, type: j.task_type, status: j.status, playable: j.playable, task: j.task })),
+      jobs: this.payload?.jobs.map((j) => ({ id: j.id, title: j.title, type: j.task_type, employer: j.employer_npc, status: j.status, playable: j.playable, task: j.task })),
       active: this.active?.id ?? null,
       actions: this.acts.map((a) => `${a.key}:${a.text}`),
       goal: this.run?.goal()?.toArray().map((v) => +v.toFixed(2)) ?? null,
@@ -304,6 +445,9 @@ export class Jobs {
       money: this.payload?.player.money_c,
       toast: this.el.toast.innerText,
       note: this.el.note.innerText,
+      carrying: this.goods.carried ? `${this.goods.carried.kind}${this.goods.carried.jobId ? " (job)" : ""}` : null,
+      items: this.goods.items.length,
+      playerY: +this.player.y.toFixed(2),
     };
   }
 }

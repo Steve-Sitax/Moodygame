@@ -71,10 +71,12 @@ export interface Rect {
   maxX: number;
   minZ: number;
   maxZ: number;
+  /** Height of its top. Missing = a wall you cannot climb. */
+  top?: number;
 }
 
-export function rectAround(x: number, z: number, hw: number, hd: number): Rect {
-  return { minX: x - hw, maxX: x + hw, minZ: z - hd, maxZ: z + hd };
+export function rectAround(x: number, z: number, hw: number, hd: number, top?: number): Rect {
+  return { minX: x - hw, maxX: x + hw, minZ: z - hd, maxZ: z + hd, top };
 }
 
 export function inRect(r: Rect, x: number, z: number, pad = 0): boolean {

@@ -45,12 +45,14 @@ export interface World {
   lamps: Lamp[];
   shipPositions: THREE.Vector3[];
   /** Try to move from (x,z) by (dx,dz); returns the allowed position (slides on walls). */
-  move(x: number, z: number, dx: number, dz: number, radius: number): [number, number];
+  move(x: number, z: number, dx: number, dz: number, radius: number, feet?: number): [number, number];
+  /** Height of what you stand on at (x, z), given your feet height. */
+  groundAt(x: number, z: number, radius: number, feet: number): number;
   /** Colliders that come and go (job crates). */
   addCollider(r: Rect): void;
   removeCollider(r: Rect): void;
   /** Can something of radius r stand here? */
-  isFree(x: number, z: number, r: number): boolean;
+  isFree(x: number, z: number, r: number, feet?: number): boolean;
   /** Open water (off the quay edge, off the pier)? */
   isWater(x: number, z: number): boolean;
   /** Thick fog for a job twist; eases in and out. */
@@ -238,14 +240,32 @@ export function buildRijnkaai(): World {
     (x > QUAY.minX && x < QUAY.maxX && z > QUAY.minZ && z < QUAY.maxZ) ||
     (x > PIER.minX && x < PIER.maxX && z > PIER.minZ && z < PIER.maxZ);
   const dynamic = new Set<Rect>();
-  const isFree = (x: number, z: number, r: number) =>
-    isWalkable(x, z) && !colliders.some((c) => inRect(c, x, z, r)) && ![...dynamic].some((c) => inRect(c, x, z, r));
+  /** Things with a top lower than feet + STEP can be walked onto. */
+  const STEP = 0.36;
+  const blocks = (c: Rect, feet: number) => (c.top ?? Infinity) > feet + STEP;
+  const isFree = (x: number, z: number, r: number, feet = 0) => {
+    if (!isWalkable(x, z)) return false;
+    for (const c of colliders) if (inRect(c, x, z, r) && blocks(c, feet)) return false;
+    for (const c of dynamic) if (inRect(c, x, z, r) && blocks(c, feet)) return false;
+    return true;
+  };
 
-  function move(x: number, z: number, dx: number, dz: number, r: number): [number, number] {
+  /** Height to stand on at (x, z): the highest top you are over and could reach. */
+  function groundAt(x: number, z: number, r: number, feet: number): number {
+    let g = 0;
+    const consider = (c: Rect) => {
+      if (c.top !== undefined && c.top <= feet + STEP && inRect(c, x, z, r * 0.6)) g = Math.max(g, c.top);
+    };
+    colliders.forEach(consider);
+    dynamic.forEach(consider);
+    return g;
+  }
+
+  function move(x: number, z: number, dx: number, dz: number, r: number, feet = 0): [number, number] {
     let nx = x + dx;
-    if (!isFree(nx, z, r)) nx = x;
+    if (!isFree(nx, z, r, feet)) nx = x;
     let nz = z + dz;
-    if (!isFree(nx, nz, r)) nz = z;
+    if (!isFree(nx, nz, r, feet)) nz = z;
     return [nx, nz];
   }
 
@@ -296,6 +316,7 @@ export function buildRijnkaai(): World {
   return {
     scene,
     mats: m,
+    groundAt,
     addCollider: (r) => dynamic.add(r),
     removeCollider: (r) => dynamic.delete(r),
     isFree,
@@ -538,7 +559,7 @@ function crateStack(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z
   }
   const w = placed > 1 ? s * 2 + 0.04 : s;
   const d = Math.ceil(placed / 2) * (s + 0.04);
-  colliders.push({ minX: x - s / 2, maxX: x - s / 2 + w, minZ: z - s / 2, maxZ: z - s / 2 + d });
+  colliders.push({ minX: x - s / 2, maxX: x - s / 2 + w, minZ: z - s / 2, maxZ: z - s / 2 + d, top: n >= 2 ? s * 2 : s });
 }
 
 function barrels(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number, n: number): void {
@@ -551,7 +572,7 @@ function barrels(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: n
   }
   const cols = Math.min(n, 3);
   const rows = Math.ceil(n / 3);
-  colliders.push({ minX: x - 0.35, maxX: x + (cols - 1) * 0.75 + 0.35, minZ: z - 0.35, maxZ: z + (rows - 1) * 0.75 + 0.35 });
+  colliders.push({ minX: x - 0.35, maxX: x + (cols - 1) * 0.75 + 0.35, minZ: z - 0.35, maxZ: z + (rows - 1) * 0.75 + 0.35, top: 0.95 });
 }
 
 function sacks(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number): void {
@@ -560,7 +581,7 @@ function sacks(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: num
     s.rotation.y = Math.sin(i * 4.1) * 0.12;
     scene.add(s);
   }
-  colliders.push({ minX: x - 0.5, maxX: x + 2.3, minZ: z - 0.35, maxZ: z + 0.35 });
+  colliders.push({ minX: x - 0.5, maxX: x + 2.3, minZ: z - 0.35, maxZ: z + 0.35, top: 0.7 });
 }
 
 function cart(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number): void {
@@ -586,7 +607,7 @@ function cart(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: numb
 function bollard(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number): void {
   scene.add(cyl(0.2, 0.24, 0.7, 7, m.iron, x, 0.35, z));
   scene.add(cyl(0.3, 0.2, 0.12, 7, m.iron, x, 0.74, z));
-  colliders.push(rectAround(x, z, 0.28, 0.28));
+  colliders.push(rectAround(x, z, 0.28, 0.28, 0.8));
 }
 
 function ropeCoil(scene: THREE.Scene, m: Mats, x: number, z: number): void {

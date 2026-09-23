@@ -41,6 +41,7 @@ function start(): void {
     );
     player.onStep = (surface, hurry) => sound?.footstep(surface, hurry);
     jobs.sfx = (name, at) => sound?.play(name, at);
+    player.onLand = (surface) => sound?.footstep(surface, true);
   }
   sound.resume();
   player.lock();

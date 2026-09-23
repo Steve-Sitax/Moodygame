@@ -1,13 +1,15 @@
 import * as THREE from "three";
 import type { DeliverTask, CarryTask, Job, Progress, Report, WatchTask } from "../net/api";
-import { SPOTS, WATER_Y, type World } from "../world/rijnkaai";
-import { rectAround, type Rect } from "../world/geom";
+import { SPOTS, type World } from "../world/rijnkaai";
 import type { FirstPerson } from "../player/firstPerson";
 import { GOODS, makeGoods, type Goods } from "./props";
 import { Figure } from "./figures";
+import type { GoodsWorld, Item } from "./goods";
+import type { People } from "./people";
 
-// How each kind of job plays in 3D (M2b). A run reports engine facts when it
-// ends; the server settles money and trust.
+// How each kind of job plays in 3D (M2b, M3). Goods live in the shared
+// GoodsWorld; a run tags its own goods with the job id and watches what
+// happens to them. It reports engine facts when it ends; the server settles.
 
 export interface Action {
   key: "KeyE" | "KeyF";
@@ -20,6 +22,8 @@ export type Sfx = "lift" | "thud_wood" | "thud_soft" | "thud_plank" | "splash" |
 export interface RunCtx {
   world: World;
   player: FirstPerson;
+  goods: GoodsWorld;
+  people: People;
   sfx(name: Sfx, at?: THREE.Vector3): void;
   toast(text: string): void;
   progress(p: Progress): void;
@@ -28,16 +32,24 @@ export interface RunCtx {
 
 export interface Run {
   update(dt: number): void;
+  /** Job actions when your hands are empty (take a parcel, call the ship, shout at a thief). */
   actions(): Action[];
+  /** Job actions for what you carry (hand it over, sell it, pocket some). */
+  carryActions(item: Item): Action[];
+  /** Label for setting the carried item down here, if the job cares ("set it down here"). */
+  placeLabel(item: Item, x: number, z: number): string | null;
+  /** A carried item was set down at (x, z). */
+  onPlaced(item: Item): void;
+  /** A carried item went into the Schelde. */
+  onLost(item: Item): void;
   /** Where the job wants you now, for the pointer. */
   goal(): THREE.Vector3 | null;
   hud(): string;
   dispose(): void;
 }
 
-const REACH_ITEM = 1.7;
 const REACH_DROP = 2.2;
-const REACH_PERSON = 2.4;
+const REACH_PERSON = 2.6;
 const SELL_PRICE = { carry: 35, deliver: 60 } as const;
 
 const dist2 = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
@@ -46,7 +58,7 @@ export const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 /** Grid slot i around a spot, two columns, stacking along the spot's dir. */
-function slot(spot: string, i: number, gap = 0.95): [number, number] {
+export function slot(spot: string, i: number, gap = 0.95): [number, number] {
   const s = SPOTS[spot];
   const [dx, dz] = s.dir;
   const side = (i % 2 ? 1 : -1) * 0.5;
@@ -54,7 +66,7 @@ function slot(spot: string, i: number, gap = 0.95): [number, number] {
   return [s.x + dx * along - dz * side, s.z + dz * along + dx * side];
 }
 
-/** A point near (x, z), about d metres to the side of the line a->b, on free ground. */
+/** A point near the middle of a->b, about d metres to the side, on free ground. */
 function besideRoute(world: World, ax: number, az: number, bx: number, bz: number, d: number): [number, number] {
   const mx = (ax + bx) / 2;
   const mz = (az + bz) / 2;
@@ -71,19 +83,18 @@ function besideRoute(world: World, ax: number, az: number, bx: number, bz: numbe
 
 // ------------------------------------------------------------------ carry and deliver
 
-interface Item {
+/** Goods being lowered from the ship on a rope. */
+interface Lowering {
   obj: THREE.Object3D;
-  rect: Rect | null;
+  rope: THREE.Mesh;
+  from: THREE.Vector3;
+  to: [number, number];
+  t: number;
   broken: boolean;
   heavy: boolean;
 }
 
-/** Carry N goods from A to B, or deliver one item to a person. */
 export class HaulRun implements Run {
-  private items: Item[] = [];
-  private carried: Item | null = null;
-  private sinking: Array<{ obj: THREE.Object3D; t: number }> = [];
-  private stacked: THREE.Object3D[] = [];
   private delivered: number;
   private lost: number;
   private sold: number;
@@ -96,6 +107,11 @@ export class HaulRun implements Run {
   private strangerDone = false;
   private foreman: Figure | null = null;
   private recipient: Figure | null = null;
+  /** Deliver: the parcel is still with the employer. Carry from the ship: the cargo is still aboard. */
+  private waitingHandover: boolean;
+  private lowering: Lowering[] = [];
+  private toLower: Array<{ broken: boolean; heavy: boolean }> = [];
+  private lowerTimer = 0;
   private readonly kind: "carry" | "deliver";
   private readonly count: number;
   private readonly goods: Goods;
@@ -106,7 +122,7 @@ export class HaulRun implements Run {
     private readonly task: CarryTask | DeliverTask,
     private readonly ctx: RunCtx,
   ) {
-    const { world } = ctx;
+    const { world, goods } = ctx;
     this.kind = task.kind;
     this.goods = task.goods;
     this.count = task.kind === "carry" ? task.count : 1;
@@ -114,17 +130,31 @@ export class HaulRun implements Run {
     this.delivered = p.delivered;
     this.lost = p.lost;
     this.sold = p.sold;
-
     const left = this.count - this.delivered - this.lost - this.sold;
-    for (let i = 0; i < left; i++) {
-      const [x, z] = slot(task.from, i);
-      this.items.push(this.place({ obj: makeGoods(this.goods, world.mats), rect: null, broken: false, heavy: false }, x, z, i * 0.37));
+
+    // which of the goods carry a twist
+    const flags = Array.from({ length: left }, () => ({ broken: false, heavy: false }));
+    if (task.twist === "broken_goods" && left) flags[Math.min(1, left - 1)].broken = true;
+    if (task.twist === "heavy_load" && left) flags[0].heavy = true;
+
+    const fromShip = task.kind === "carry" && task.from === "ship_gangway";
+    const employer = ctx.people.get(job.employer_npc);
+    this.waitingHandover = left > 0 && ((task.kind === "deliver" && !!employer) || fromShip);
+    if (fromShip) this.toLower = flags;
+    else if (!this.waitingHandover) {
+      flags.forEach((f, i) => {
+        const [x, z] = slot(task.from, i);
+        goods.spawn(this.goods, x, z, { jobId: job.id, owner: job.employer_npc, ...f });
+      });
     }
-    for (let i = 0; i < this.delivered; i++) this.stack(makeGoods(this.goods, world.mats));
+    // goods already delivered before a reload lie at the drop spot
+    for (let i = 0; i < this.delivered && this.kind === "carry"; i++) {
+      const [x, z] = slot(task.to, i, 0.8);
+      goods.spawn(this.goods, x, z, { owner: job.employer_npc });
+    }
 
     const to = SPOTS[task.to];
     const from = SPOTS[task.from];
-    // chalk ring where carried goods go; for a delivery the person stands there instead
     this.mark = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.05, 12), world.mats.chalk);
     this.mark.rotation.x = -Math.PI / 2;
     this.mark.position.set(to.x, 0.02, to.z);
@@ -135,12 +165,6 @@ export class HaulRun implements Run {
     }
 
     switch (task.twist) {
-      case "broken_goods":
-        if (this.items.length) this.items[Math.min(1, this.items.length - 1)].broken = true;
-        break;
-      case "heavy_load":
-        if (this.items.length) this.items[0].heavy = true;
-        break;
       case "stranger_offer": {
         const [sx, sz] = besideRoute(world, from.x, from.z, to.x, to.z, 3.5);
         this.stranger = new Figure("stranger", sx, sz, world.scene);
@@ -159,144 +183,111 @@ export class HaulRun implements Run {
     }
   }
 
-  private place(item: Item, x: number, z: number, rot = 0): Item {
-    item.obj.position.set(x, 0, z);
-    item.obj.rotation.set(0, rot % 0.4, 0);
-    this.ctx.world.scene.add(item.obj);
-    item.rect = rectAround(x, z, 0.33, 0.33);
-    this.ctx.world.addCollider(item.rect);
-    return item;
-  }
-
-  private stack(obj: THREE.Object3D): void {
-    const to = SPOTS[this.task.to];
-    const n = this.stacked.length;
-    const [dx, dz] = to.dir;
-    const off = ((n % 3) - 1) * 0.78;
-    obj.position.set(to.x + dx * off, Math.floor(n / 3) * GOODS[this.goods].h, to.z + dz * off);
-    obj.rotation.set(0, (n * 0.23) % 0.2, 0);
-    this.ctx.world.scene.add(obj);
-    this.stacked.push(obj);
-  }
-
   private get noun(): string {
     return GOODS[this.goods].one;
   }
 
-  // ---- actions
+  private isMine(it: Item): boolean {
+    return it.jobId === this.job.id;
+  }
+
+  // ---- empty hands
 
   actions(): Action[] {
-    if (this.ended) return [];
-    const { player, world } = this.ctx;
-    const { x, z } = player;
+    if (this.ended || !this.waitingHandover) return [];
+    const { x, z } = this.ctx.player;
+    if (this.kind === "deliver") {
+      const e = this.ctx.people.get(this.job.employer_npc);
+      if (e && e.distTo(x, z) < REACH_PERSON) {
+        return [{ key: "KeyF", text: `take the ${this.noun} from ${e.def.name}`, run: () => this.takeParcel() }];
+      }
+    } else if (this.toLower.length && !this.lowering.length && dist2(x, z, SPOTS.ship_gangway.x, SPOTS.ship_gangway.z) < 5) {
+      return [{ key: "KeyF", text: "call up to the ship for the cargo", run: () => this.callShip() }];
+    }
+    return [];
+  }
+
+  private takeParcel(): void {
+    const e = this.ctx.people.get(this.job.employer_npc)!;
+    e.lookAt(this.ctx.player.x, this.ctx.player.z);
+    const it = this.ctx.goods.receive(this.goods, GOODS[this.goods].hold, { jobId: this.job.id, owner: this.job.employer_npc });
+    this.ctx.player.speedFactor = GOODS[this.goods].speed;
+    this.waitingHandover = false;
+    this.ctx.sfx("lift");
+    const line: Record<string, string> = {
+      tuur: `Tuur presses the ${this.noun} into your hands. "Don't open it. Don't lose it. Don't talk."`,
+      peeters: `The widow counts it out to you. "Signed for. It is on your head now, jongen."`,
+      sooi: `Sooi shoves it at you. "For ${(this.task as DeliverTask).recipient}. Go."`,
+    };
+    this.ctx.toast(line[this.job.employer_npc] ?? `You take the ${this.noun}.`);
+    void it;
+  }
+
+  private callShip(): void {
+    const s = this.ctx.people.get("sailor");
+    this.ctx.toast(`"Ahoy, the kaai!" A sailor leans over the rail and swings the cargo out on a rope.`);
+    s?.lookAt(this.ctx.player.x, this.ctx.player.z);
+    this.lowerTimer = 0.5;
+  }
+
+  // ---- carrying
+
+  carryActions(item: Item): Action[] {
+    if (this.ended || !this.isMine(item)) return [];
+    const { x, z } = this.ctx.player;
     const out: Action[] = [];
-    if (this.carried) {
-      const item = this.carried;
-      const to = SPOTS[this.task.to];
-      if (this.recipient && this.recipient.distTo(x, z) < REACH_PERSON) {
-        out.push({ key: "KeyE", text: `hand it to ${(this.task as DeliverTask).recipient}`, run: () => this.handIn() });
-      } else if (this.kind === "carry" && dist2(x, z, to.x, to.z) < REACH_DROP) {
-        out.push({ key: "KeyE", text: "set it down here", run: () => this.handIn() });
-      } else {
-        const [px, pz] = this.ahead(0.95);
-        if (world.isWater(px, pz)) out.push({ key: "KeyE", text: "let it fall into the Schelde", run: () => this.drown(px, pz) });
-        else if (world.isFree(px, pz, 0.36)) out.push({ key: "KeyE", text: "set it down", run: () => this.putDown(px, pz) });
-      }
-      if (this.stranger && !this.strangerDone && this.stranger.distTo(x, z) < 3) {
-        out.push({ key: "KeyF", text: `sell it to the stranger (${SELL_PRICE[this.kind]} c)`, run: () => this.sell() });
-      } else if (item.broken && !this.pocketed) {
-        out.push({ key: "KeyF", text: "fill your pockets", run: () => this.pocket() });
-      }
-      return out;
+    if (this.recipient && this.recipient.distTo(x, z) < REACH_PERSON) {
+      out.push({ key: "KeyE", text: `hand it to ${(this.task as DeliverTask).recipient}`, run: () => this.handIn(item) });
     }
-    let best: Item | null = null;
-    let bestD = REACH_ITEM;
-    for (const it of this.items) {
-      const d = dist2(x, z, it.obj.position.x, it.obj.position.z);
-      if (d < bestD) {
-        best = it;
-        bestD = d;
-      }
-    }
-    if (best) {
-      const it = best;
-      out.push({ key: "KeyE", text: `lift the ${this.noun}`, run: () => this.lift(it) });
+    if (this.stranger && !this.strangerDone && this.stranger.distTo(x, z) < 3) {
+      out.push({ key: "KeyF", text: `sell it to the stranger (${SELL_PRICE[this.kind]} c)`, run: () => this.sell(item) });
+    } else if (item.broken && !this.pocketed) {
+      out.push({ key: "KeyF", text: "fill your pockets", run: () => this.pocket() });
     }
     return out;
   }
 
-  private ahead(d: number): [number, number] {
-    const { player } = this.ctx;
-    return [player.x - Math.sin(player.yaw) * d, player.z - Math.cos(player.yaw) * d];
+  placeLabel(item: Item, x: number, z: number): string | null {
+    if (this.kind !== "carry" || !this.isMine(item)) return null;
+    const to = SPOTS[this.task.to];
+    return dist2(x, z, to.x, to.z) < REACH_DROP ? "set it down here" : null;
   }
 
-  private lift(it: Item): void {
-    const { world, player } = this.ctx;
-    this.items = this.items.filter((i) => i !== it);
-    if (it.rect) world.removeCollider(it.rect);
-    it.rect = null;
-    world.scene.remove(it.obj);
-    const [hx, hy, hz] = GOODS[this.goods].hold;
-    it.obj.position.set(hx, hy, hz);
-    it.obj.rotation.set(0.05, 0.08, 0);
-    player.camera.add(it.obj);
-    this.carried = it;
-    player.speedFactor = it.heavy ? 0.4 : GOODS[this.goods].speed;
-    this.ctx.sfx("lift");
-    if (it.heavy) this.ctx.toast(`This ${this.noun} is far too heavy for one man. You stagger under it.`);
-    if (it.broken && !this.brokenSeen) {
-      this.brokenSeen = true;
-      this.ctx.toast(GOODS[this.goods].broken);
-    }
-  }
-
-  private release(): Item {
-    const it = this.carried!;
-    this.ctx.player.camera.remove(it.obj);
-    this.carried = null;
-    this.ctx.player.speedFactor = 1;
-    return it;
-  }
-
-  private putDown(x: number, z: number): void {
-    const it = this.release();
-    this.items.push(this.place(it, x, z, Math.random()));
-    this.ctx.sfx(`thud_${GOODS[this.goods].thud}`, new THREE.Vector3(x, 0, z));
-  }
-
-  private handIn(): void {
-    const it = this.release();
-    const at = SPOTS[this.task.to];
-    if (this.kind === "carry") {
-      this.stack(it.obj);
-      this.ctx.sfx(`thud_${GOODS[this.goods].thud}`, new THREE.Vector3(at.x, 0, at.z));
-    } else {
-      this.recipient?.face(this.ctx.player.x, this.ctx.player.z);
-      this.ctx.toast(`${(this.task as DeliverTask).recipient} takes it without a word and turns away.`);
-    }
+  onPlaced(item: Item): void {
+    if (this.kind !== "carry" || !this.isMine(item)) return;
+    const to = SPOTS[this.task.to];
+    if (dist2(item.obj.position.x, item.obj.position.z, to.x, to.z) >= REACH_DROP) return;
+    // delivered: it now simply belongs to the employer, lying at their door
+    item.jobId = null;
     this.delivered++;
     this.changed();
   }
 
-  private drown(x: number, z: number): void {
-    const it = this.release();
-    it.obj.position.set(x, 0.2, z);
-    this.ctx.world.scene.add(it.obj);
-    this.sinking.push({ obj: it.obj, t: 0 });
+  onLost(item: Item): void {
+    if (!this.isMine(item)) return;
     this.lost++;
     this.ctx.toast(`The ${this.noun} goes over the edge. The Schelde takes it.`);
     this.changed();
   }
 
-  private sell(): void {
-    const it = this.release();
+  private handIn(item: Item): void {
+    this.ctx.goods.release();
+    item.obj.removeFromParent();
+    this.recipient?.face(this.ctx.player.x, this.ctx.player.z);
+    this.ctx.toast(`${(this.task as DeliverTask).recipient} takes it without a word and turns away.`);
+    this.delivered++;
+    this.changed();
+  }
+
+  private sell(item: Item): void {
+    this.ctx.goods.release();
     this.strangerDone = true;
     this.sold++;
     this.ctx.sfx("coins");
     this.ctx.toast("He counts coins into your hand and is gone in the fog.");
     const s = this.stranger!;
-    s.group.add(it.obj);
-    it.obj.position.set(0, 0.9, 0.35);
+    s.group.add(item.obj);
+    item.obj.position.set(0, 0.9, 0.35);
     const { x, z } = this.ctx.player;
     s.walkTo(s.pos.x + (s.pos.x - x) * 8, s.pos.z + (s.pos.z - z) * 8, 1.4);
     this.changed();
@@ -308,17 +299,24 @@ export class HaulRun implements Run {
     this.ctx.toast("You fill your coat. Nobody saw. Or did they?");
   }
 
+  /** Called by the controller when one of this job's goods is lifted. */
+  onLifted(item: Item): void {
+    if (!this.isMine(item)) return;
+    if (item.heavy) {
+      this.ctx.player.speedFactor = 0.4;
+      this.ctx.toast(`This ${this.noun} is far too heavy for one man. You stagger under it.`);
+    }
+    if (item.broken && !this.brokenSeen) {
+      this.brokenSeen = true;
+      this.ctx.toast(GOODS[this.goods].broken);
+    }
+  }
+
   private changed(): void {
     this.ctx.progress({ delivered: this.delivered, lost: this.lost, sold: this.sold });
     if (this.delivered + this.lost + this.sold >= this.count && !this.ended) {
       this.ended = true;
-      this.ctx.finish({
-        delivered: this.delivered,
-        lost: this.lost,
-        sold: this.sold,
-        pocketed: this.pocketed,
-        late: this.late,
-      });
+      this.ctx.finish({ delivered: this.delivered, lost: this.lost, sold: this.sold, pocketed: this.pocketed, late: this.late });
     }
   }
 
@@ -340,29 +338,62 @@ export class HaulRun implements Run {
     }
     this.foreman?.update(dt);
     this.recipient?.update(dt);
-    for (const s of this.sinking) {
-      const before = s.obj.position.y;
-      s.t += dt;
-      s.obj.position.y = s.t < 0.5 ? 0.2 - s.t * s.t * 18 : WATER_Y - (s.t - 0.5) * 0.35;
-      if (before > WATER_Y && s.obj.position.y <= WATER_Y) this.ctx.sfx("splash", s.obj.position.clone());
-      s.obj.rotation.z += dt * 0.6;
-      if (s.t > 4) this.ctx.world.scene.remove(s.obj);
+
+    // cargo swung down from the ship's rail, one at a time
+    if (this.lowerTimer > 0) {
+      this.lowerTimer -= dt;
+      if (this.lowerTimer <= 0 && this.toLower.length) {
+        const f = this.toLower.shift()!;
+        const i = this.count - this.delivered - this.lost - this.sold - this.toLower.length - 1;
+        const obj = makeGoods(this.goods, this.ctx.world.mats);
+        const from = new THREE.Vector3(SPOTS.ship_gangway.x + 1.5, 3.4, -2.6);
+        obj.position.copy(from);
+        const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1, 4), this.ctx.world.mats.rope);
+        this.ctx.world.scene.add(obj, rope);
+        this.lowering.push({ obj, rope, from, to: slot("ship_gangway", i), t: 0, ...f });
+        if (this.toLower.length) this.lowerTimer = 2.2;
+      }
     }
-    this.sinking = this.sinking.filter((s) => s.t <= 4);
+    for (const l of this.lowering) {
+      l.t += dt;
+      const k = Math.min(1, l.t / 2);
+      const [tx, tz] = l.to;
+      const px = THREE.MathUtils.lerp(l.from.x, tx, Math.min(1, k * 1.6));
+      const pz = THREE.MathUtils.lerp(l.from.z, tz, Math.min(1, k * 1.6));
+      const py = THREE.MathUtils.lerp(l.from.y, 0, k * k);
+      l.obj.position.set(px, py, pz);
+      const top = new THREE.Vector3(px, 5.5, THREE.MathUtils.lerp(-2.8, pz, 0.3));
+      l.rope.position.copy(top).add(l.obj.position).multiplyScalar(0.5);
+      l.rope.scale.y = top.distanceTo(l.obj.position);
+      l.rope.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), top.clone().sub(l.obj.position).normalize());
+      if (k >= 1) {
+        this.ctx.world.scene.remove(l.obj, l.rope);
+        this.ctx.goods.spawn(this.goods, tx, tz, { jobId: this.job.id, owner: this.job.employer_npc, broken: l.broken, heavy: l.heavy });
+        this.ctx.sfx(`thud_${GOODS[this.goods].thud}`, new THREE.Vector3(tx, 0, tz));
+      }
+    }
+    this.lowering = this.lowering.filter((l) => l.t < 2);
+    if (this.waitingHandover && this.kind === "carry" && !this.toLower.length && !this.lowering.length) this.waitingHandover = false;
   }
 
   goal(): THREE.Vector3 | null {
     if (this.ended) return null;
     const to = SPOTS[this.task.to];
-    if (this.carried) return this.recipient ? this.recipient.pos.clone() : new THREE.Vector3(to.x, 0, to.z);
+    const carried = this.ctx.goods.carried;
+    if (carried && this.isMine(carried)) return this.recipient ? this.recipient.pos.clone() : new THREE.Vector3(to.x, 0, to.z);
+    if (this.waitingHandover) {
+      if (this.kind === "deliver") return this.ctx.people.get(this.job.employer_npc)?.pos.clone() ?? null;
+      return new THREE.Vector3(SPOTS.ship_gangway.x, 0, SPOTS.ship_gangway.z);
+    }
     const { x, z } = this.ctx.player;
     let best: THREE.Vector3 | null = null;
     let bestD = Infinity;
-    for (const it of this.items) {
+    for (const it of this.ctx.goods.items) {
+      if (!this.isMine(it)) continue;
       const d = dist2(x, z, it.obj.position.x, it.obj.position.z);
       if (d < bestD) {
         bestD = d;
-        best = it.obj.position.clone();
+        best = new THREE.Vector3(it.obj.position.x, it.y, it.obj.position.z);
       }
     }
     return best;
@@ -371,32 +402,33 @@ export class HaulRun implements Run {
   hud(): string {
     const to = SPOTS[this.task.to];
     const from = SPOTS[this.task.from];
-    const step = this.carried
+    const carried = this.ctx.goods.carried;
+    const mine = carried && this.isMine(carried);
+    const employer = this.ctx.people.get(this.job.employer_npc)?.def.name ?? this.job.employer_name;
+    const step = mine
       ? this.kind === "deliver"
         ? `Bring it to ${esc((this.task as DeliverTask).recipient)} at ${to.label}`
         : `Bring it to ${to.label}`
-      : this.items.length
-        ? `Fetch the ${this.noun} at ${from.label}`
-        : "…";
-    const count = this.kind === "carry" ? `<br>${this.delivered} / ${this.count} delivered${this.lost ? `, ${this.lost} lost` : ""}${this.sold ? `, ${this.sold} sold` : ""}` : "";
+      : this.waitingHandover
+        ? this.kind === "deliver"
+          ? `Get the ${this.noun} from ${employer}`
+          : "Ask the ship for the cargo at the gangway"
+        : `Fetch the ${this.noun} at ${from.label}`;
+    const count =
+      this.kind === "carry"
+        ? `<br>${this.delivered} / ${this.count} delivered${this.lost ? `, ${this.lost} lost` : ""}${this.sold ? `, ${this.sold} sold` : ""}`
+        : "";
     const time = this.task.limit_s ? `<br>${this.late ? "Late" : `The bell in ${clock(this.task.limit_s - this.t)}`}` : "";
     return `<b>${esc(this.job.title)}</b><br>${step}${count}${time}`;
   }
 
   dispose(): void {
-    const { world, player } = this.ctx;
-    if (this.carried) player.camera.remove(this.carried.obj);
-    player.speedFactor = 1;
-    for (const it of this.items) {
-      world.scene.remove(it.obj);
-      if (it.rect) world.removeCollider(it.rect);
-    }
+    const { world, goods } = this.ctx;
+    goods.clearJob(this.job.id);
     world.scene.remove(this.mark);
+    for (const l of this.lowering) world.scene.remove(l.obj, l.rope);
     for (const f of [this.stranger, this.foreman, this.recipient]) if (f && !f.gone) f.remove();
     world.setThickFog(false);
-    // delivered goods stay a while, then the natie takes them in
-    const left = this.stacked;
-    setTimeout(() => left.forEach((o) => world.scene.remove(o)), 60_000);
   }
 }
 
@@ -404,8 +436,7 @@ export class HaulRun implements Run {
 
 /** Stand guard at a post until the bell. Things come out of the fog. */
 export class WatchRun implements Run {
-  private pile: THREE.Object3D[] = [];
-  private pileRects: Rect[] = [];
+  private pile: Item[] = [];
   private t = 0;
   private away = 0;
   private ended = false;
@@ -430,14 +461,7 @@ export class WatchRun implements Run {
     this.post = SPOTS[task.post];
     for (let i = 0; i < 3; i++) {
       const [x, z] = slot(task.post, i, 0.9);
-      const obj = makeGoods(task.goods, ctx.world.mats);
-      obj.position.set(x, 0, z);
-      obj.rotation.y = i * 0.4;
-      ctx.world.scene.add(obj);
-      this.pile.push(obj);
-      const r = rectAround(x, z, 0.33, 0.33);
-      ctx.world.addCollider(r);
-      this.pileRects.push(r);
+      this.pile.push(ctx.goods.spawn(task.goods, x, z, { jobId: job.id, owner: job.employer_npc, rot: i * 0.4 }));
     }
     if (task.twist === "thick_fog") ctx.world.setThickFog(true);
     ctx.toast(`Stand by the ${task.goods} at ${this.post.label} until the bell.`);
@@ -447,7 +471,6 @@ export class WatchRun implements Run {
     return dist2(this.ctx.player.x, this.ctx.player.z, this.post.x, this.post.z) < 7;
   }
 
-  /** A walkable point about d metres from the post, out in the fog. */
   private outInFog(d: number): [number, number] {
     const { world } = this.ctx;
     for (let a = Math.random() * Math.PI * 2, i = 0; i < 16; i++, a += 0.7) {
@@ -472,6 +495,15 @@ export class WatchRun implements Run {
     return out;
   }
 
+  carryActions(): Action[] {
+    return this.actions();
+  }
+  placeLabel(): string | null {
+    return null;
+  }
+  onPlaced(): void {}
+  onLost(): void {}
+
   private chase(): void {
     if (!this.thief || this.thiefState !== "coming") return;
     this.thiefState = "chased";
@@ -481,14 +513,15 @@ export class WatchRun implements Run {
     this.ctx.toast("He bolts into the fog. You hear him run, then nothing.");
   }
 
+  /** Someone walks off with the top item of the pile. */
   private takePileItem(by: Figure): void {
-    const obj = this.pile.pop();
-    const r = this.pileRects.pop();
-    if (!obj) return;
-    if (r) this.ctx.world.removeCollider(r);
-    this.ctx.world.scene.remove(obj);
-    by.group.add(obj);
-    obj.position.set(0, 0.9, 0.35);
+    const goods = this.ctx.goods;
+    const it = [...this.pile].reverse().find((p) => goods.items.includes(p) && !goods.above(p));
+    if (!it) return;
+    this.pile = this.pile.filter((p) => p !== it);
+    goods.remove(it);
+    by.group.add(it.obj);
+    it.obj.position.set(0, 0.9, 0.35);
   }
 
   private takeBribe(): void {
@@ -496,8 +529,7 @@ export class WatchRun implements Run {
     this.briberState = "paid";
     this.ctx.sfx("coins");
     this.ctx.toast("Coins, warm from his hand. You turn to look at the water.");
-    const b = this.briber!;
-    b.walkTo(this.post.x, this.post.z, 1.1);
+    this.briber!.walkTo(this.post.x, this.post.z, 1.1);
   }
 
   private sendOff(): void {
@@ -520,7 +552,6 @@ export class WatchRun implements Run {
       }
     } else this.warnedAway = false;
 
-    // twists
     if (this.task.twist === "thief" && this.thiefState === "none" && this.t > d * 0.3) {
       const [sx, sz] = this.outInFog(17);
       this.thief = new Figure("thief", sx, sz, this.ctx.world.scene);
@@ -550,8 +581,7 @@ export class WatchRun implements Run {
     if (this.briber) {
       const b = this.briber;
       if (this.briberState === "coming") {
-        const dd = b.distTo(x, z);
-        if (dd < 2) {
+        if (b.distTo(x, z) < 2) {
           b.stop();
           b.face(x, z);
           this.briberState = "waiting";
@@ -602,12 +632,7 @@ export class WatchRun implements Run {
       this.ctx.sfx("bell");
       this.ctx.toast("The bell. Your watch is over.");
       const thief = this.thiefState === "chased" ? "chased" : this.thiefState === "stole" || this.bribeTaken ? "stole" : "none";
-      this.ctx.finish({
-        left_post_s: Math.round(this.away),
-        thief,
-        bribe_taken: this.bribeTaken,
-        seen_away: this.seenAway,
-      });
+      this.ctx.finish({ left_post_s: Math.round(this.away), thief, bribe_taken: this.bribeTaken, seen_away: this.seenAway });
     }
   }
 
@@ -624,11 +649,10 @@ export class WatchRun implements Run {
   }
 
   dispose(): void {
-    const { world } = this.ctx;
-    for (const o of this.pile) world.scene.remove(o);
-    for (const r of this.pileRects) world.removeCollider(r);
+    // the goods stay; they are the employer's, no longer part of a job
+    for (const it of this.pile) it.jobId = null;
     for (const f of [this.thief, this.briber, this.foreman]) if (f && !f.gone) f.remove();
-    world.setThickFog(false);
+    this.ctx.world.setThickFog(false);
   }
 }
 

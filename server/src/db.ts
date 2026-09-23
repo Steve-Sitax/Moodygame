@@ -42,7 +42,8 @@ CREATE TABLE IF NOT EXISTS npc_memory (
   source TEXT NOT NULL CHECK (source IN ('seen','heard')),
   heard_from TEXT,
   weight INTEGER NOT NULL CHECK (weight BETWEEN 1 AND 10),
-  day INTEGER NOT NULL
+  day INTEGER NOT NULL,
+  spread INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS world_fact (
   id INTEGER PRIMARY KEY,
@@ -114,8 +115,15 @@ export function openDb(file: string): DB {
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   db.exec(SCHEMA);
+  migrate(db);
   seed(db);
   return db;
+}
+
+/** Small in-place upgrades for save files made by an older build. */
+function migrate(db: DB): void {
+  const cols = (db.prepare("PRAGMA table_info(npc_memory)").all() as Array<{ name: string }>).map((c) => c.name);
+  if (!cols.includes("spread")) db.exec("ALTER TABLE npc_memory ADD COLUMN spread INTEGER NOT NULL DEFAULT 0");
 }
 
 function seed(db: DB): void {

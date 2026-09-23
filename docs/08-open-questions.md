@@ -16,6 +16,7 @@ All answered by Steve on 2026-09-23.
 | 7 | Title | Scheldemist. |
 | 8 | Language | English with Flemish words. |
 | 9 | Camera | First person. |
+| 10 | Combat (asked again 2026-09-23 after M2b) | No combat in the demo. Thieves and gangs may appear, but danger is narrated, chased off, or costs money and trust. |
 
 ## Family rules that follow from 5 and 5b
 - Start screen: pick wife yes/no, kids 0-4 with names and ages 2-14. More mouths, harder game. Rent and food scale.

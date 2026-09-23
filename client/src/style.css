@@ -145,3 +145,39 @@ html, body {
 }
 .board .note-text { font-size: 16px; }
 .task { max-width: 380px; }
+
+/* ---- M3: the talk window ---- */
+.talk {
+  position: fixed;
+  left: 50%;
+  bottom: 6%;
+  transform: translateX(-50%) rotate(-0.4deg);
+  width: min(640px, 88vw);
+  background: #d4cab0;
+  padding: 12px 22px 8px;
+  font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  color: #2a2420;
+  box-shadow: 0 8px 36px rgba(0, 0, 0, 0.8);
+  filter: sepia(0.35);
+}
+.talk .who { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
+.talk .who i { font-weight: normal; font-size: 13px; opacity: 0.6; }
+.talk p { margin: 4px 0; font-size: 15px; line-height: 1.35; }
+.talk p.you { opacity: 0.7; font-size: 14px; }
+.talk p.wait { opacity: 0.6; }
+.talk ol.choices { list-style: none; padding: 0; margin: 8px 0 2px; border-top: 1px dashed rgba(42, 36, 32, 0.35); }
+.talk ol.choices li { font-size: 14px; padding: 3px 0; }
+.talk ol.choices .n { font-weight: bold; margin-right: 6px; }
+.talk .keys { font-size: 12px; opacity: 0.7; text-align: right; }
+.talk-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 6px 0 4px;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 15px;
+  background: #e6ddc6;
+  border: 1px solid #8a7a5a;
+  color: #2a2420;
+  outline: none;
+}

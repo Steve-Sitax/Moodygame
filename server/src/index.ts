@@ -6,6 +6,8 @@ import { openDb } from "./db.ts";
 import { listJobs, makeBoard } from "./hooks/jobBoard.ts";
 import { writeOutcome } from "./hooks/jobOutcome.ts";
 import { finishJob, GameError, player, ReportSchema, saveOutcome, saveProgress, takeJob } from "./game.ts";
+import { ensurePersonas, PLACED, npcRow } from "./npcs.ts";
+import { freeReply, openTalk, pickChoice, prefetchOpening, witness, type Line } from "./hooks/dialogue.ts";
 
 const db = openDb(DB_FILE);
 const app = new Hono();
@@ -72,6 +74,55 @@ async function narrate(id: number, settlement: import("./game.ts").Settlement): 
   console.log(`[job_outcome] ${r.source}${r.error ? " (" + r.error + ")" : ""}`);
   broadcast({ type: "outcome", job_id: id, text: r.outcome.narration, employer: job.employer_name });
 }
+
+// ---- people (M3). Trust stays hidden: the client gets words, never numbers (docs/08).
+
+const personasReady = ensurePersonas(db)
+  .then((r) => console.log(`[persona] ${r.join(", ") || "all present"}`))
+  .catch((e) => console.error("[persona] failed", e));
+
+/** Wait a little for personas on first start, never long. */
+const personasOrTimeout = () => Promise.race([personasReady, new Promise((r) => setTimeout(r, 5000))]);
+
+function placed(id: string): string {
+  if (!(id in PLACED) || !npcRow(db, id)) throw new GameError("nobody by that name here", 404);
+  return id;
+}
+
+function publicLine(l: Line & { gated?: string }) {
+  return { npc_line: l.npc_line, mood: l.mood, choices: l.choices, end: l.end_conversation, gated: l.gated ?? null };
+}
+
+app.get("/api/npcs", (c) =>
+  c.json(Object.keys(PLACED).map((id) => ({ id, name: npcRow(db, id)!.name, role: npcRow(db, id)!.role }))),
+);
+
+app.post("/api/npc/:id/near", (c) => {
+  const id = placed(c.req.param("id"));
+  void personasOrTimeout().then(() => prefetchOpening(db, id));
+  return c.json({ ok: true });
+});
+
+app.post("/api/npc/:id/talk", async (c) => {
+  const id = placed(c.req.param("id"));
+  const body = (await c.req.json().catch(() => ({}))) as { kind?: string; text?: unknown };
+  await personasOrTimeout();
+  if (body.kind === "choice" && typeof body.text === "string") return c.json(publicLine(await pickChoice(db, id, body.text)));
+  if (body.kind === "free" && typeof body.text === "string") {
+    const r = await freeReply(db, id, body.text);
+    if ("npc_line" in r) return c.json(publicLine(r));
+    return c.json({ gated: r.gated });
+  }
+  return c.json(publicLine(await openTalk(db, id)));
+});
+
+app.post("/api/npc/:id/witness", async (c) => {
+  const id = placed(c.req.param("id"));
+  const body = (await c.req.json().catch(() => ({}))) as { event?: string };
+  if (body.event !== "took" && body.event !== "returned") throw new GameError("bad event", 400);
+  witness(db, id, body.event);
+  return c.json({ ok: true });
+});
 
 if (DEV) {
   // dev only: put up a fresh board without waiting for night (M5 adds the day loop)
