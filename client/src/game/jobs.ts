@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { doorSpot } from "../world/city";
-import { api, connectPush, type Job, type JobsPayload, type OutcomeMsg, type Progress, type Report } from "../net/api";
+import { api, connectPush, type Job, type JobsPayload, type OutcomeMsg, type Progress, type PushMsg, type Report } from "../net/api";
 import { BOARD_POS, DOSS_POS, SPOTS, type World } from "../world/rijnkaai";
 import type { FirstPerson } from "../player/firstPerson";
 import { glowTexture } from "../world/textures";
@@ -59,6 +59,8 @@ export class Jobs {
   private boardOpen = false;
   private finishing = false;
   sfx: (name: Sfx, at?: THREE.Vector3) => void = () => {};
+  /** M4: pushes that are not the board (actions, events, a conversation); set by main. */
+  onPush: (m: PushMsg) => void = () => {};
 
   readonly goods: GoodsWorld;
   readonly people: People;
@@ -147,6 +149,7 @@ export class Jobs {
     connectPush(
       (p) => this.apply(p),
       (o) => this.showOutcome(o),
+      (m) => this.onPush(m),
     );
     api
       .jobs()

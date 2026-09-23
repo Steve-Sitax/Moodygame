@@ -360,3 +360,34 @@ body:has(.night[style*="block"]) #game { filter: brightness(0.35); }
 .devmenu .row { margin: 6px 0; font-size: 14px; }
 .devmenu .row b { display: inline-block; width: 70px; }
 .devmenu .row button { margin: 2px; font-size: 13px; padding: 2px 8px; }
+
+/* ---- M4: paper tags over the heads of townspeople talking (game/bubbles.ts) ---- */
+.bubble {
+  position: fixed;
+  transform: translate(-50%, -100%);
+  background: #d8cfb8;
+  color: #2a2420;
+  padding: 3px 9px 4px;
+  font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  font-size: calc(11px * var(--ui, 1));
+  line-height: 1.25;
+  max-width: calc(200px * var(--ui, 1));
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6);
+  filter: sepia(0.3) contrast(0.95);
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.bubble.on { opacity: 1; }
+.bubble b { display: block; font-size: 0.78em; opacity: 0.65; }
+.bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  margin-left: -6px;
+  border: 6px solid transparent;
+  border-top-color: #d8cfb8;
+  border-bottom: 0;
+}

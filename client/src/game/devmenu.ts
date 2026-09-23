@@ -7,7 +7,8 @@ export interface DevMenuDeps {
   /** Jump the player to (x, z). */
   place(x: number, z: number): void;
   places: Array<{ name: string; x: number; z: number }>;
-  events: Array<{ label: string; run: () => void }>;
+  /** An event button; a returned text (the server's answer) shows in the panel. */
+  events: Array<{ label: string; run: () => void | Promise<string | void> }>;
 }
 
 async function devSet(body: Record<string, unknown>): Promise<string> {
@@ -53,8 +54,9 @@ export function mountDevMenu(pausePaper: HTMLElement, deps: DevMenuDeps): void {
     else if (d.weather) say(`weather ${d.weather}: ${await devSet({ weather: d.weather })}`);
     else if (d.event) {
       const ev = deps.events[Number(d.event)];
-      ev.run();
-      say(`${ev.label}: started`);
+      say(`${ev.label}: ...`);
+      const r = await ev.run();
+      say(`${ev.label}: ${r ?? "started"}`);
     } else if (d.needs) say(`needs: ${await devSet({ food: 10, warmth: 10, sleep: 10, health: 10 })}`);
     else if (d.money) {
       const r = await fetch("/api/jobs").then((x) => x.json()).catch(() => null);

@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 import { RESIDENT_SCHEMA, dropTownCache, ensureGarrison, ensureTown, repairTown } from "./town/store.ts";
+import { ACTION_SCHEMA, EVENT_SCHEMA, EVENTLOG_SCHEMA } from "./director/schema.ts";
 
 // SQLite schema from docs/04-data-model.md. Only the server writes.
 // Delete data/game.sqlite to start over.
@@ -144,12 +145,16 @@ function migrate(db: DB): void {
   if (!mem.includes("origin")) db.exec("ALTER TABLE npc_memory ADD COLUMN origin INTEGER");
   if (!mem.includes("town_spread")) db.exec("ALTER TABLE npc_memory ADD COLUMN town_spread INTEGER NOT NULL DEFAULT 0");
   db.exec(RESIDENT_SCHEMA);
+  // M4: the event log for AI context (with its triggers), the actions and the town's events. Additive only.
+  db.exec(EVENTLOG_SCHEMA);
+  db.exec(ACTION_SCHEMA);
+  db.exec(EVENT_SCHEMA);
 }
 
 /** Start a new week: wipe the save and seed it again (the "new game" button). */
 export function resetDb(db: DB): void {
   db.transaction(() => {
-    for (const t of ["ai_call", "item", "event", "world_state", "job", "log", "world_fact", "npc_memory", "npc_relationship", "resident", "npc", "faction_trust", "player"]) {
+    for (const t of ["world_event_who", "world_event", "npc_action", "town_event", "ai_call", "item", "event", "world_state", "job", "log", "world_fact", "npc_memory", "npc_relationship", "resident", "npc", "faction_trust", "player"]) {
       db.prepare(`DELETE FROM ${t}`).run();
     }
   })();

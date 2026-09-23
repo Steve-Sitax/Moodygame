@@ -15,6 +15,7 @@ import { family, personaLine, resident, setPersonaLine, town } from "./store.ts"
 import { ownVoice, reputationWith, rumoursOf, toYou, type Rumour } from "./rumours.ts";
 import type { Resident } from "./population.ts";
 import { GUARD_POSTS, isGarrison, isSoldier } from "./garrison.ts";
+import { ActionProposalSchema } from "../director/vocab.ts";
 
 // Talk with any townsperson (M3e). Everyone answers by their own stats, job,
 // family, mood and the hour, and by what they have heard about Jef.
@@ -39,8 +40,21 @@ export const ResidentLineSchema = z.object({
   rumour_tone: z.number().int().min(-2).max(2),
   persona_line: z.string().max(160),
   end_conversation: z.boolean(),
+  /** M4: what the person would do for Jef. Optional: older stub lines carry none. The engine checks it (director/actions.ts). */
+  action: ActionProposalSchema.optional(),
 });
 export type ResidentLine = z.infer<typeof ResidentLineSchema>;
+
+/**
+ * M4 hooks (director/actions.ts installs them): extra rules for the system prompt, the
+ * person's task and surroundings for the prompt, and the check of the proposed action,
+ * which may replace the line. Defaults do nothing, so the talk works without M4.
+ */
+export const talkHooks: {
+  system: string;
+  context: (db: DB, r: Resident) => string;
+  proposal: (db: DB, r: Resident, line: ResidentLine) => ResidentLine;
+} = { system: "", context: () => "", proposal: (_db, _r, line) => line };
 
 const RULES = `
 YOU NOW SPEAK AS ONE ORDINARY PERSON OF THE TOWN, 1873. Not a hero, not a guide: a person with a trade, a family and their own worries.
@@ -464,7 +478,10 @@ ${work.length ? work.map((j) => `- ${j.employer_name} at ${spotOf(j)}: "${j.titl
       ? `\nYOUR OWN WORK ON THE BOARD (Jef can take it from you here)\n${mine.map((j) => `- "${j.title}", ${j.pay_c} centimes. ${j.status === "taken" ? "Jef is doing it now." : "Still open."}`).join("\n")}`
       : ""
   }${wares.length ? `\nYOU SELL (fixed prices; he pays at your stall or counter, never in talk): ${wares.map((w) => `${ITEMS[w.kind].name} ${w.price_c} centimes`).join(", ")}.` : ""}
-
+${(() => {
+    const extra = talkHooks.context(db, r);
+    return extra ? `\n${extra}\n` : "";
+  })()}
 THIS MEETING SO FAR
 ${turns.length ? turns.join("\n") : "- (nothing said yet)"}
 
@@ -490,7 +507,7 @@ async function generate(db: DB, r: Resident, sess: Session, scene: string, runne
   sess.calls++;
   const res = await callClaude(
     db,
-    { hook: "resident_talk", system: SYSTEM + "\n" + RULES, prompt: residentPrompt(db, r, scene, sess.turns.slice(0, -1)), schema: ResidentLineSchema },
+    { hook: "resident_talk", system: SYSTEM + "\n" + RULES + talkHooks.system, prompt: residentPrompt(db, r, scene, sess.turns.slice(0, -1)), schema: ResidentLineSchema },
     runner,
   );
   return res.ok && res.data ? res.data : null;
@@ -583,7 +600,9 @@ Answer him in character.`;
 }
 
 /** Claude's line: two of its suggested answers, and always a way to take leave. */
-function modelLine(db: DB, r: Resident, sess: Session, out: ResidentLine) {
+function modelLine(db: DB, r: Resident, sess: Session, raw: ResidentLine) {
+  // M4: the proposed action goes through the engine first; a refusal replaces the line
+  const out = talkHooks.proposal(db, r, raw);
   const bye = topicChoice("bye", r);
   const mine = out.choices.filter((c) => c !== bye).slice(0, 2);
   const shown = apply(db, r, sess, { ...out, choices: [...mine, bye] });

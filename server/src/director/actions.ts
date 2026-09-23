@@ -1,0 +1,784 @@
+import type { DB } from "../db.ts";
+import type { Runner } from "../ai/claude.ts";
+import { clock } from "../day.ts";
+import { log } from "../game.ts";
+import { SPOTS } from "../hooks/jobBoard.ts";
+import { relationship, remember } from "../npcs.ts";
+import { ITEMS, waresOf } from "../trade.ts";
+import { gameMinute } from "../town/deeds.ts";
+import { PLACES } from "../town/places.ts";
+import { policeDispatch, policeState } from "../town/police.ts";
+import type { Resident } from "../town/population.ts";
+import { resident, town, TOWN_EMPLOYER_IDS } from "../town/store.ts";
+import { nowOf, talkHooks, type ResidentLine } from "../town/talk.ts";
+import { walkMap } from "../town/walkmap.ts";
+import { notify } from "./bus.ts";
+import { runConvo, type Purpose } from "./convo.ts";
+import { eventSlice, writeEvent } from "./eventlog.ts";
+import {
+  ActionProposalSchema,
+  END_LINE,
+  FOLLOW_DEFAULT_MIN,
+  FOLLOW_LOST_M,
+  FOLLOW_MAX_MIN,
+  FOLLOW_MIN_MIN,
+  GO_TO_MAX_M,
+  LOOK_FOR_MIN,
+  LOOK_FOR_RADIUS_M,
+  MAX_TALK_ACTIONS,
+  REFUSE_LINE,
+  RULES_FOR_MODEL,
+  STORY_MINUTE_FACTOR,
+  TALK_TO_MAX_M,
+  TALK_TO_MIN,
+  WAIT_MAX_MIN,
+  limitLine,
+  type ActionKind,
+  type ActionProposal,
+  type EngineKind,
+  type RefuseReason,
+} from "./vocab.ts";
+
+// Townspeople who act (M4). A talk reply may carry a proposal ("follow", "go
+// there", "fetch the police", ...). The ENGINE checks it in a fixed order
+// (known kind, one thing at a time, not reserved, the trade, the stats, the
+// target, the distance), clamps every number, and REPLACES the model's line
+// with its own when it says no, so nobody says yes while the engine said no.
+// An accepted action is a row in npc_action (it survives a reload); the client
+// walks the person (game/actions.ts) and reports arrived / lost / blocked /
+// done; the server ends what runs out of time (actionsTick) and runs the
+// chains (fetch the police: go, report, the agent comes, looks, questions).
+// Money moves only for a robbery the log knows of (restitution).
+
+
+export interface ActionRow {
+  id: number;
+  npc_id: string;
+  kind: EngineKind;
+  target: string;
+  target_x: number | null;
+  target_z: number | null;
+  reason: string;
+  source: "talk" | "director" | "event" | "engine";
+  event_id: number | null;
+  status: "active" | "done" | "failed" | "stopped" | "refused";
+  started: number;
+  until: number;
+  max_m: number;
+  phase: string;
+  x: number | null;
+  z: number | null;
+  outcome: string | null;
+  data_json: string;
+}
+
+interface ActionData {
+  /** The next link of a chain, started when this one is done. */
+  then?: { kind: EngineKind; target?: string; target_x?: number; target_z?: number; minutes?: number; data?: ActionData };
+  purpose?: Purpose;
+  about?: string;
+  /** Where Jef was when he asked. */
+  jef?: { x: number; z: number };
+  /** Column order in a procession (attend). */
+  order?: number;
+  /** attend: guests, crowd (onlookers), mourners ... */
+  role?: string;
+  line?: string;
+}
+
+// ------------------------------------------------------------------ what the client tells us
+
+interface Known {
+  x: number;
+  z: number;
+  at: number;
+}
+const KNOWN_TTL_MS = 15_000;
+const sync = { x: NaN, z: NaN, at: 0, people: new Map<string, Known>() };
+
+/** The client says where Jef is and who is in the street near him (every 2 s while actions run). */
+export function syncFromClient(body: unknown, now = Date.now()): { ok: boolean } {
+  const b = (body ?? {}) as { x?: unknown; z?: unknown; people?: unknown };
+  if (typeof b.x === "number" && typeof b.z === "number" && Number.isFinite(b.x) && Number.isFinite(b.z)) {
+    sync.x = Math.max(-2000, Math.min(2000, b.x));
+    sync.z = Math.max(-2000, Math.min(2000, b.z));
+    sync.at = now;
+  }
+  if (Array.isArray(b.people)) {
+    for (const p of b.people.slice(0, 60) as Array<{ id?: unknown; x?: unknown; z?: unknown }>) {
+      if (typeof p.id !== "string" || typeof p.x !== "number" || typeof p.z !== "number") continue;
+      sync.people.set(p.id.slice(0, 20), { x: p.x, z: p.z, at: now });
+    }
+  }
+  return { ok: true };
+}
+
+export function jefAt(now = Date.now()): { x: number; z: number } | null {
+  return Number.isFinite(sync.x) && now - sync.at < KNOWN_TTL_MS * 4 ? { x: sync.x, z: sync.z } : null;
+}
+
+/** Test helper. */
+export function resetSync(): void {
+  sync.x = NaN;
+  sync.z = NaN;
+  sync.at = 0;
+  sync.people.clear();
+}
+
+// ------------------------------------------------------------------ where people are
+
+export interface Where {
+  x: number;
+  z: number;
+  indoors: boolean;
+}
+
+/** Where the engine thinks a resident is now, from their schedule (the client knows better for those in the street). */
+export function whereIs(db: DB, r: Resident): Where {
+  const now = nowOf(db, r);
+  const t = town(db).town;
+  const pl = (id: string) => t.places[id];
+  switch (now.act) {
+    case "home":
+      return { x: r.home.sx, z: r.home.sz, indoors: true };
+    case "work": {
+      const w = r.work;
+      if (w.kind === "inside") return { x: w.door?.[0] ?? r.home.sx, z: w.door?.[1] ?? r.home.sz, indoors: true };
+      if (w.at) return { x: w.at[0], z: w.at[1], indoors: false };
+      if (w.a) return { x: w.a[0], z: w.a[1], indoors: false };
+      if (w.route?.length) return { x: w.route[0][0], z: w.route[0][1], indoors: false };
+      const p = pl(w.place);
+      return p ? { x: p.x, z: p.z, indoors: false } : { x: r.home.sx, z: r.home.sz, indoors: true };
+    }
+    case "church":
+      return { x: -262, z: 149.5, indoors: true };
+    default: {
+      const p = pl(now.place) ?? pl(r.work.place);
+      if (p?.door) return { x: p.door[0], z: p.door[1], indoors: false };
+      return p ? { x: p.x, z: p.z, indoors: false } : { x: r.home.sx, z: r.home.sz, indoors: true };
+    }
+  }
+}
+
+/** The client's word first (if fresh), else the schedule. */
+export function posOf(db: DB, id: string, now = Date.now()): Where | null {
+  const k = sync.people.get(id);
+  if (k && now - k.at < KNOWN_TTL_MS) return { x: k.x, z: k.z, indoors: false };
+  const r = resident(db, id);
+  return r ? whereIs(db, r) : null;
+}
+
+// ------------------------------------------------------------------ targets
+
+const norm = (s: string) => s.toLowerCase().replace(/^(the|a|an|agent|old|young|mister|missus|mr|mrs)\s+/g, "").replace(/[^a-z\s'-]/g, "").trim();
+
+/** A person by name (full name, or a first name; the nearest to Jef when several share it). */
+export function findPerson(db: DB, name: string, near?: { x: number; z: number } | null): Resident | null {
+  const n = norm(name);
+  if (!n) return null;
+  const all = town(db).town.residents.filter((r) => r.trade !== "infant");
+  const exact = all.filter((r) => norm(r.name) === n);
+  const firsts = exact.length ? exact : all.filter((r) => norm(r.first) === n || norm(r.surname) === n);
+  const list = firsts.length ? firsts : all.filter((r) => norm(r.name).includes(n) && n.length >= 4);
+  if (!list.length) return null;
+  if (list.length === 1 || !near) return list[0];
+  return list
+    .map((r) => ({ r, d: (() => { const p = posOf(db, r.id); return p ? Math.hypot(p.x - near.x, p.z - near.z) : 9e9; })() }))
+    .sort((a, b) => a.d - b.d)[0].r;
+}
+
+export interface PlaceHit {
+  id: string;
+  label: string;
+  x: number;
+  z: number;
+}
+
+/** A place by id or by a bit of its label: the town's places (shops, taverns, squares), the board's spots. */
+export function findPlace(db: DB, name: string): PlaceHit | null {
+  const n = norm(name);
+  if (!n) return null;
+  const t = town(db).town;
+  const hits: PlaceHit[] = [];
+  for (const [id, p] of Object.entries(t.places)) hits.push({ id, label: p.label, x: p.door?.[0] ?? p.x, z: p.door?.[1] ?? p.z });
+  for (const p of PLACES) if (!t.places[p.id]) hits.push({ id: p.id, label: p.label, x: p.x, z: p.z });
+  for (const [id, s] of Object.entries(SPOTS)) if (!id.startsWith("_") && typeof s.label === "string") hits.push({ id, label: s.label, x: s.x, z: s.z });
+  hits.push({ id: "cathedral_west", label: "the west door of the cathedral", x: -262, z: 149.5 });
+  const byId = hits.find((h) => h.id === n.replace(/\s+/g, "_"));
+  if (byId) return byId;
+  const byLabel = hits.find((h) => norm(h.label) === n) ?? hits.find((h) => norm(h.label).includes(n)) ?? hits.find((h) => n.includes(norm(h.label)) && norm(h.label).length >= 5);
+  return byLabel ?? null;
+}
+
+// ------------------------------------------------------------------ the open crime
+
+export interface Crime {
+  thief: string;
+  amount_c: number;
+  logId: number;
+  day: number;
+}
+
+/** The last time Jef was robbed, if the money is not back yet (the engine fact the police case needs). */
+export function crimeOpen(db: DB): Crime | null {
+  const rows = db.prepare("SELECT id, day, verb, object, text FROM log WHERE verb IN ('robbed', 'caught_thief', 'restitution') ORDER BY id DESC LIMIT 6").all() as Array<{
+    id: number;
+    day: number;
+    verb: string;
+    object: string | null;
+    text: string;
+  }>;
+  const last = rows.find((r) => r.verb === "robbed");
+  if (!last || !last.object) return null;
+  const back = rows.find((r) => r.id > last.id && r.object === last.object && (r.verb === "caught_thief" || r.verb === "restitution"));
+  if (back) return null;
+  const m = /(\d+) centimes/.exec(last.text);
+  const amount = m ? Number(m[1]) : 0;
+  if (!amount) return null;
+  return { thief: last.object, amount_c: amount, logId: last.id, day: last.day };
+}
+
+// ------------------------------------------------------------------ rows
+
+const parseData = (r: ActionRow): ActionData => {
+  try {
+    return JSON.parse(r.data_json) as ActionData;
+  } catch {
+    return {};
+  }
+};
+
+export function activeActions(db: DB): ActionRow[] {
+  return db.prepare("SELECT * FROM npc_action WHERE status = 'active' ORDER BY id").all() as ActionRow[];
+}
+
+export function actionOf(db: DB, npcId: string): ActionRow | null {
+  return (db.prepare("SELECT * FROM npc_action WHERE status = 'active' AND npc_id = ? ORDER BY id DESC LIMIT 1").get(npcId) as ActionRow | undefined) ?? null;
+}
+
+export function actionRow(db: DB, id: number): ActionRow | null {
+  return (db.prepare("SELECT * FROM npc_action WHERE id = ?").get(id) as ActionRow | undefined) ?? null;
+}
+
+export interface NewAction {
+  npc_id: string;
+  kind: EngineKind;
+  target?: string;
+  target_x?: number | null;
+  target_z?: number | null;
+  reason?: string;
+  source: ActionRow["source"];
+  event_id?: number | null;
+  minutes: number;
+  max_m?: number;
+  phase?: string;
+  data?: ActionData;
+}
+
+/** Start an action (already checked). Writes the row and the event; tells the client. */
+export function startAction(db: DB, a: NewAction): ActionRow {
+  const now = gameMinute(db);
+  const r = resident(db, a.npc_id);
+  const pos = r ? posOf(db, a.npc_id) : null;
+  const res = db
+    .prepare(
+      `INSERT INTO npc_action (npc_id, kind, target, target_x, target_z, reason, source, event_id, status, started, until, max_m, phase, x, z, data_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(a.npc_id, a.kind, a.target ?? "", a.target_x ?? null, a.target_z ?? null, (a.reason ?? "").slice(0, 120), a.source, a.event_id ?? null, now, now + a.minutes, a.max_m ?? 0, a.phase ?? "going", pos?.x ?? null, pos?.z ?? null, JSON.stringify(a.data ?? {}));
+  const row = actionRow(db, Number(res.lastInsertRowid))!;
+  const name = r?.name ?? a.npc_id;
+  writeEvent(db, {
+    kind: "action",
+    verb: `action_${a.kind}`,
+    actor: a.npc_id,
+    target: a.target ?? null,
+    text: describeStart(name, row),
+    x: a.target_x ?? null,
+    z: a.target_z ?? null,
+    ref_type: "npc_action",
+    ref_id: row.id,
+    weight: a.source === "talk" ? 4 : 3,
+    who: [a.npc_id],
+  });
+  notify("actions");
+  return row;
+}
+
+function describeStart(name: string, a: ActionRow): string {
+  switch (a.kind) {
+    case "follow":
+      return `${name} set off with Jef${a.reason ? ` (${a.reason})` : ""}.`;
+    case "go_to":
+      return `${name} went to ${a.target || "a place"} for Jef.`;
+    case "wait":
+      return `${name} waited for Jef where they stood.`;
+    case "talk_to":
+      return `${name} went to have a word with ${a.target}.`;
+    case "look_for":
+      return `${name} went looking for ${a.target}.`;
+    case "fetch_police":
+      return `${name} went to fetch the police for Jef.`;
+    case "attend":
+      return `${name} joined ${a.target || "the gathering"}.`;
+    default:
+      return `${name} did something for Jef.`;
+  }
+}
+
+/** End an action with a status and the engine's words; the client shows the line. */
+export function endAction(db: DB, id: number, status: "done" | "failed" | "stopped", outcome: string, line = ""): ActionRow | null {
+  const row = actionRow(db, id);
+  if (!row || row.status !== "active") return row;
+  db.prepare("UPDATE npc_action SET status = ?, outcome = ?, data_json = ? WHERE id = ?").run(status, outcome, JSON.stringify({ ...parseData(row), line }), id);
+  const r = resident(db, row.npc_id);
+  const name = r?.name ?? row.npc_id;
+  if (row.kind !== "attend") {
+    writeEvent(db, {
+      kind: "action",
+      verb: `${row.kind}_${status}`,
+      actor: row.npc_id,
+      target: row.target || null,
+      text: `${name}: ${row.kind.replace("_", " ")} ${status} (${outcome}).`,
+      outcome,
+      ref_type: "npc_action",
+      ref_id: id,
+      weight: status === "done" ? 3 : 2,
+      who: [row.npc_id],
+    });
+  }
+  notify("actions", { ended: { id, npc: row.npc_id, name, kind: row.kind, status, outcome, line } });
+  return actionRow(db, id);
+}
+
+/** Every active action of one event ends (the event is over). */
+export function endEventActions(db: DB, eventId: number): void {
+  for (const a of activeActions(db).filter((x) => x.event_id === eventId)) endAction(db, a.id, "done", "event over");
+}
+
+// ------------------------------------------------------------------ the checks
+
+export interface Accepted {
+  ok: true;
+  action: NewAction | null;
+  /** What the person adds to their line (the limit), or the whole line for an instant thing. */
+  line: string;
+  /** No walking: it happened in the talk (an offer, the purse back, a stop). */
+  instant: boolean;
+}
+export interface Refused {
+  ok: false;
+  reason: RefuseReason;
+  line: string;
+}
+
+export function isReserved(db: DB, id: string): boolean {
+  const v = policeState(db).visit;
+  if (v && v.agent === id && v.state !== "due") return true;
+  const a = actionOf(db, id);
+  return !!a && (a.source === "event" || a.source === "engine");
+}
+
+function isNightNow(db: DB): boolean {
+  const h = clock(db).hour;
+  return h >= 20 || h < 6;
+}
+
+const refuse = (reason: RefuseReason, line = REFUSE_LINE[reason]): Refused => ({ ok: false, reason, line });
+
+/**
+ * The engine checks a proposal in order: known kind, one action per person, at most
+ * three asked in talk, not reserved, the trade, the stats, the target, the distance.
+ */
+export function validateProposal(db: DB, r: Resident, raw: unknown): Accepted | Refused {
+  const parsed = ActionProposalSchema.safeParse(raw);
+  if (!parsed.success) return { ok: true, action: null, line: "", instant: false };
+  const p = parsed.data;
+  if (p.kind === "none") return { ok: true, action: null, line: "", instant: false };
+  const jef = jefAt();
+  // they are talking face to face: where the client saw them, else where Jef is, else the schedule's guess
+  const known = sync.people.get(r.id);
+  const mine: Where = known && Date.now() - known.at < KNOWN_TTL_MS ? { x: known.x, z: known.z, indoors: false } : jef ? { ...jef, indoors: false } : whereIs(db, r);
+  const now = nowOf(db, r);
+  const police = r.trade === "police" || r.trade === "water_bailiff";
+  const crime = crimeOpen(db);
+  const crimeReason = /rob|thie|stol|pick|purse|pocket/i.test(p.reason) || !!crime;
+
+  // stop: only what was asked in talk
+  if (p.kind === "stop") {
+    const a = actionOf(db, r.id);
+    if (!a || a.source !== "talk") return refuse("nothing_to_stop");
+    endAction(db, a.id, "stopped", "asked to stop", END_LINE.stopped);
+    return { ok: true, action: null, line: END_LINE.stopped, instant: true };
+  }
+
+  // give: an offer from the wares, or the purse back; never other money
+  if (p.kind === "give") {
+    const wares = waresOf(db, r.id);
+    const want = norm(p.item);
+    const ware = want ? wares.find((w) => w.kind === want || norm(ITEMS[w.kind]?.name ?? "").includes(want)) : undefined;
+    if (ware) {
+      const nm = ITEMS[ware.kind].name;
+      return { ok: true, action: null, line: `${nm[0].toUpperCase() + nm.slice(1)}? ${ware.price_c} centimes, and you pay at the counter like anyone else.`, instant: true };
+    }
+    if (crime && crime.thief === r.id) {
+      payBackInTalk(db, r, crime);
+      return { ok: true, action: null, line: `Here. Your ${crime.amount_c} centimes. Take it and keep your voice down.`, instant: true };
+    }
+    return refuse("no_money");
+  }
+
+  // one thing at a time; the town's not an errand service
+  const busy = actionOf(db, r.id);
+  if (busy) {
+    if (busy.source !== "talk") return refuse("reserved");
+    return refuse("busy", busy.kind === p.kind ? "I'm on it already. Give me a moment." : REFUSE_LINE.busy);
+  }
+  if (activeActions(db).filter((a) => a.source === "talk").length >= MAX_TALK_ACTIONS) return refuse("too_many");
+  if (isReserved(db, r.id)) return refuse("reserved");
+  if (TOWN_EMPLOYER_IDS.includes(r.id)) return refuse("post");
+
+  // the trade
+  const keeper = (r.work.kind === "stall" || r.work.kind === "shop" || r.work.kind === "tavern") && now.act === "work";
+  if (keeper) return refuse("at_stall");
+  if (r.age < 13 && (p.kind === "talk_to" || p.kind === "fetch_police" || p.kind === "look_for")) return refuse("child");
+
+  // the stats
+  if (p.kind === "follow") {
+    const trust = relationship(db, r.id)?.trust ?? 0;
+    if (!(trust >= 2 || r.stats.warmth >= 6 || (police && crimeReason))) return refuse("no_trust");
+  }
+  if (isNightNow(db) && r.stats.courage <= 3 && r.age >= 13) return refuse("dark");
+
+  // the target, the way, the distance
+  switch (p.kind) {
+    case "follow": {
+      const max = FOLLOW_MAX_MIN[r.trade] ?? (r.age < 13 ? FOLLOW_MAX_MIN.child : FOLLOW_DEFAULT_MIN);
+      const minutes = p.minutes > 0 ? Math.max(FOLLOW_MIN_MIN, Math.min(max, p.minutes * STORY_MINUTE_FACTOR)) : max;
+      return {
+        ok: true,
+        instant: false,
+        line: limitLine("follow", minutes, police),
+        action: { npc_id: r.id, kind: "follow", target: "Jef", reason: p.reason, source: "talk", minutes, max_m: FOLLOW_LOST_M, data: jef ? { jef } : {} },
+      };
+    }
+    case "wait": {
+      const minutes = Math.max(60, Math.min(WAIT_MAX_MIN, p.minutes ? p.minutes * STORY_MINUTE_FACTOR : WAIT_MAX_MIN));
+      return { ok: true, instant: false, line: limitLine("wait", minutes, police), action: { npc_id: r.id, kind: "wait", target: "here", reason: p.reason, source: "talk", minutes, target_x: mine.x, target_z: mine.z } };
+    }
+    case "go_to": {
+      const place = findPlace(db, p.target);
+      if (!place) return refuse("unknown_place");
+      const open = walkMap().nearestOpen(place.x, place.z, 3);
+      if (!open) return refuse("no_way");
+      const d = Math.hypot(open.x - mine.x, open.z - mine.z);
+      if (d > GO_TO_MAX_M) return refuse("too_far");
+      // the walk at 1.2 m/s in real seconds is 3 game minutes a second, plus a stand of half an hour
+      const minutes = Math.min(120, Math.round((d / 1.2) * 3) + 30);
+      return { ok: true, instant: false, line: limitLine("go_to", minutes, police), action: { npc_id: r.id, kind: "go_to", target: place.label, target_x: open.x, target_z: open.z, reason: p.reason, source: "talk", minutes } };
+    }
+    case "talk_to":
+    case "look_for": {
+      const who = findPerson(db, p.target, jef ?? mine);
+      if (!who || who.id === r.id) return refuse("unknown_person");
+      const at = posOf(db, who.id)!;
+      if (p.kind === "talk_to") {
+        if (at.indoors) return refuse("indoors");
+        const open = walkMap().nearestOpen(at.x, at.z, 3);
+        if (!open) return refuse("no_way");
+        if (Math.hypot(open.x - mine.x, open.z - mine.z) > TALK_TO_MAX_M) return refuse("too_far");
+        const purpose: Purpose = police ? "question" : "chat";
+        return {
+          ok: true,
+          instant: false,
+          line: limitLine("talk_to", TALK_TO_MIN, police),
+          action: { npc_id: r.id, kind: "talk_to", target: who.id, target_x: open.x, target_z: open.z, reason: p.reason, source: "talk", minutes: TALK_TO_MIN, data: { purpose, about: p.reason } },
+        };
+      }
+      const centre = jef ?? mine;
+      return {
+        ok: true,
+        instant: false,
+        line: limitLine("look_for", LOOK_FOR_MIN, police),
+        action: { npc_id: r.id, kind: "look_for", target: who.id, target_x: centre.x, target_z: centre.z, reason: p.reason, source: "talk", minutes: LOOK_FOR_MIN, max_m: LOOK_FOR_RADIUS_M, data: { purpose: police ? "question" : "chat" } },
+      };
+    }
+    case "fetch_police": {
+      if (police) return refuse("busy", "I am the police. Tell me what happened.");
+      const agent = policeDispatch(db, mine);
+      if (!agent) return refuse("unknown_person", "There's no agent about at this hour. Try the post on the Grote Markt.");
+      const at = posOf(db, agent)!;
+      const open = walkMap().nearestOpen(at.x, at.z, 3) ?? { x: at.x, z: at.z };
+      const d = Math.hypot(open.x - mine.x, open.z - mine.z);
+      if (d > GO_TO_MAX_M) return refuse("too_far");
+      const minutes = Math.min(120, Math.round((d / 1.2) * 3) + 30);
+      return {
+        ok: true,
+        instant: false,
+        line: limitLine("fetch_police", minutes, police),
+        action: { npc_id: r.id, kind: "fetch_police", target: agent, target_x: open.x, target_z: open.z, reason: p.reason, source: "talk", minutes, data: { jef: jef ?? { x: mine.x, z: mine.z }, about: p.reason } },
+      };
+    }
+    default:
+      return { ok: true, action: null, line: "", instant: false };
+  }
+}
+
+/** The thief himself hands the purse back when asked (the logged amount, once). */
+function payBackInTalk(db: DB, r: Resident, crime: Crime): void {
+  db.transaction(() => {
+    db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = 1").run(crime.amount_c);
+    log(db, "restitution", r.id, `${r.name} gave Jef back the ${crime.amount_c} centimes he had lifted, when Jef asked him straight.`, r.id);
+  })();
+  remember(db, r.id, `Jef knew it was me and asked for his ${crime.amount_c} centimes back. I gave it him. He has a good eye.`, 7, "seen", null, { gist: "Jef got his money back from a pickpocket by asking him straight", tone: 1 });
+}
+
+/**
+ * The talk reply passes through here: the proposal is checked; on a refusal the
+ * person's line is REPLACED by the engine's; on acceptance the limit is added.
+ */
+export function applyProposal(db: DB, r: Resident, line: ResidentLine): ResidentLine & { action_id: number | null; refused: RefuseReason | null } {
+  const raw = (line as { action?: unknown }).action;
+  if (!raw || (raw as ActionProposal).kind === "none") return { ...line, action_id: null, refused: null };
+  const v = validateProposal(db, r, raw);
+  if (!v.ok) {
+    const p = ActionProposalSchema.safeParse(raw);
+    writeEvent(db, { kind: "action", verb: "refused", actor: r.id, text: `${r.name} would not ${p.success ? p.data.kind.replace("_", " ") : "do it"} for Jef (${v.reason}).`, outcome: v.reason, weight: 2, who: [r.id] });
+    db.prepare("INSERT INTO npc_action (npc_id, kind, target, reason, source, status, started, until, outcome) VALUES (?, ?, ?, ?, 'talk', 'refused', ?, ?, ?)").run(
+      r.id,
+      p.success ? p.data.kind : "none",
+      p.success ? p.data.target.slice(0, 60) : "",
+      p.success ? p.data.reason.slice(0, 120) : "",
+      gameMinute(db),
+      gameMinute(db),
+      v.reason,
+    );
+    return { ...line, npc_line: v.line, action_id: null, refused: v.reason };
+  }
+  if (v.instant) return { ...line, npc_line: v.line, action_id: null, refused: null };
+  if (!v.action) return { ...line, action_id: null, refused: null };
+  const row = startAction(db, v.action);
+  return { ...line, npc_line: `${line.npc_line} ${v.line}`.trim(), end_conversation: line.end_conversation || v.action.kind !== "follow", action_id: row.id, refused: null };
+}
+
+// ------------------------------------------------------------------ the client's reports and the chains
+
+export interface Report {
+  phase: "arrived" | "lost" | "blocked" | "done";
+  x?: number;
+  z?: number;
+  /** look_for: the person was seen. blocked: why. */
+  found?: boolean;
+  why?: string;
+}
+
+/** The client says what happened in the street. Runs the chain's next link. */
+export async function reportAction(db: DB, id: number, rep: Report, runner?: Runner): Promise<ActionRow | null> {
+  const a = actionRow(db, id);
+  if (!a || a.status !== "active") return a;
+  if (typeof rep.x === "number" && typeof rep.z === "number") db.prepare("UPDATE npc_action SET x = ?, z = ? WHERE id = ?").run(rep.x, rep.z, id);
+  const data = parseData(a);
+  const r = resident(db, a.npc_id);
+  if (!r) return endAction(db, id, "failed", "nobody by that name");
+  const crime = crimeOpen(db);
+  const police = r.trade === "police" || r.trade === "water_bailiff";
+
+  switch (a.kind) {
+    case "follow":
+      if (rep.phase === "lost") return endAction(db, id, "failed", "lost Jef", END_LINE.follow_lost);
+      if (rep.phase === "blocked") return endAction(db, id, "failed", rep.why === "water" ? "water" : "blocked", rep.why === "water" ? END_LINE.follow_water : END_LINE.follow_blocked);
+      return a;
+    case "go_to":
+      if (rep.phase === "arrived" || rep.phase === "done") {
+        endAction(db, id, "done", "arrived", data.then ? "" : END_LINE.go_to_arrived);
+        if (data.then) startNext(db, a, data.then);
+        return actionRow(db, id);
+      }
+      if (rep.phase === "blocked") return endAction(db, id, "failed", "blocked", END_LINE.follow_blocked);
+      return a;
+    case "wait":
+      return a;
+    case "look_for":
+      if (rep.phase === "done" || rep.phase === "arrived") {
+        if (rep.found) {
+          endAction(db, id, "done", "found", END_LINE.look_for_found);
+          const who = resident(db, a.target);
+          if (who) {
+            const at = posOf(db, who.id) ?? whereIs(db, who);
+            startAction(db, {
+              npc_id: r.id,
+              kind: "talk_to",
+              target: who.id,
+              target_x: at.x,
+              target_z: at.z,
+              source: "engine",
+              minutes: TALK_TO_MIN,
+              reason: a.reason,
+              data: { purpose: (data.purpose ?? (police ? "question" : "chat")) as Purpose, about: data.about },
+            });
+          }
+          return actionRow(db, id);
+        }
+        return endAction(db, id, "done", "not found", END_LINE.look_for_time);
+      }
+      return a;
+    case "talk_to": {
+      if (rep.phase !== "arrived" && rep.phase !== "done") return rep.phase === "blocked" ? endAction(db, id, "failed", "blocked", END_LINE.talk_to_time) : a;
+      const purpose = (data.purpose ?? "chat") as Purpose;
+      const fixed = purpose === "question" ? { guilty: !!crime && crime.thief === a.target, amount_c: crime?.amount_c ?? 0 } : undefined;
+      db.prepare("UPDATE npc_action SET phase = 'talking' WHERE id = ?").run(id);
+      try {
+        const c = await runConvo(db, { a: r.id, b: a.target, purpose, about: data.about, fixed }, runner);
+        endAction(db, id, "done", c.outcome === "none" ? "talked" : c.outcome, END_LINE.talk_to_done);
+      } catch (e) {
+        endAction(db, id, "failed", String(e).slice(0, 80), END_LINE.talk_to_time);
+      }
+      if (data.then) startNext(db, a, data.then);
+      return actionRow(db, id);
+    }
+    case "fetch_police": {
+      if (rep.phase !== "arrived" && rep.phase !== "done") return rep.phase === "blocked" ? endAction(db, id, "failed", "blocked", END_LINE.fetch_police_time) : a;
+      const agent = resident(db, a.target);
+      if (!agent) return endAction(db, id, "failed", "no agent", END_LINE.fetch_police_time);
+      db.prepare("UPDATE npc_action SET phase = 'talking' WHERE id = ?").run(id);
+      try {
+        await runConvo(db, { a: r.id, b: agent.id, purpose: "report", about: data.about }, runner);
+      } catch {
+        // the engine's lines stood in
+      }
+      endAction(db, id, "done", "fetched", "");
+      // the agent comes to where Jef was, then looks for the thief the log knows of, else waits for Jef there
+      const jef = data.jef ?? jefAt() ?? whereIs(db, r);
+      const spot = walkMap().nearestOpen(jef.x, jef.z, 6) ?? { x: jef.x, z: jef.z };
+      const d = Math.hypot(spot.x - (posOf(db, agent.id)?.x ?? spot.x), spot.z - (posOf(db, agent.id)?.z ?? spot.z));
+      const then: ActionData["then"] = crime
+        ? { kind: "look_for", target: crime.thief, minutes: LOOK_FOR_MIN, data: { purpose: "question", about: "a robbery" } }
+        : { kind: "wait", target: "Jef", minutes: WAIT_MAX_MIN };
+      startAction(db, { npc_id: agent.id, kind: "go_to", target: "where Jef was robbed", target_x: spot.x, target_z: spot.z, source: "engine", minutes: Math.min(120, Math.round((d / 1.2) * 3) + 20), reason: "fetched for Jef", data: { then } });
+      return actionRow(db, id);
+    }
+    default:
+      return a;
+  }
+}
+
+function startNext(db: DB, prev: ActionRow, next: NonNullable<ActionData["then"]>): void {
+  const tx = next.target_x ?? prev.x ?? prev.target_x ?? null;
+  const tz = next.target_z ?? prev.z ?? prev.target_z ?? null;
+  startAction(db, {
+    npc_id: prev.npc_id,
+    kind: next.kind,
+    target: next.target ?? "",
+    target_x: tx,
+    target_z: tz,
+    source: "engine",
+    minutes: next.minutes ?? 30,
+    max_m: next.kind === "look_for" ? LOOK_FOR_RADIUS_M : 0,
+    reason: prev.reason,
+    data: next.data ?? {},
+  });
+}
+
+/** Every tick: what has run out of time ends with a line. */
+export function actionsTick(db: DB): number {
+  const now = gameMinute(db);
+  let ended = 0;
+  for (const a of activeActions(db)) {
+    if (a.kind === "attend" || a.phase === "talking") continue;
+    if (now < a.until) continue;
+    const key = `${a.kind}_time`;
+    endAction(db, a.id, a.kind === "wait" || a.kind === "go_to" ? "done" : "failed", "time", END_LINE[key] ?? "");
+    ended++;
+  }
+  return ended;
+}
+
+/** For the client: the active actions with names, and the event's spot for attend. */
+export function listActions(db: DB) {
+  return activeActions(db).map((a) => {
+    const r = resident(db, a.npc_id);
+    const t = a.kind === "talk_to" || a.kind === "look_for" || a.kind === "fetch_police" ? resident(db, a.target) : null;
+    const data = parseData(a);
+    return {
+      id: a.id,
+      npc: a.npc_id,
+      name: r?.name ?? a.npc_id,
+      kind: a.kind,
+      target: a.target,
+      target_name: t?.name ?? null,
+      target_x: a.target_x,
+      target_z: a.target_z,
+      source: a.source,
+      event_id: a.event_id,
+      phase: a.phase,
+      until: a.until,
+      max_m: a.max_m,
+      order: data.order ?? 0,
+      role: data.role ?? null,
+      minutes_left: Math.max(0, a.until - gameMinute(db)),
+    };
+  });
+}
+
+/** A new game: nothing running. */
+export function clearActions(db: DB): void {
+  db.prepare("DELETE FROM npc_action").run();
+  resetSync();
+}
+
+// ------------------------------------------------------------------ the talk hooks (talk.ts calls these)
+
+function taskLine(db: DB, r: Resident): string {
+  const a = actionOf(db, r.id);
+  if (!a) return "nothing for Jef";
+  const left = Math.max(0, a.until - gameMinute(db));
+  const t = a.target && resident(db, a.target)?.name;
+  switch (a.kind) {
+    case "follow":
+      return `following Jef (about ${left} minutes left)`;
+    case "go_to":
+      return `on your way to ${a.target} for Jef`;
+    case "wait":
+      return `waiting here for Jef (about ${left} minutes left)`;
+    case "talk_to":
+      return `going to speak with ${t ?? a.target} for Jef`;
+    case "look_for":
+      return `looking for ${t ?? a.target} for Jef`;
+    case "fetch_police":
+      return "fetching the police for Jef";
+    case "attend":
+      return `at ${a.target}`;
+    default:
+      return "busy";
+  }
+}
+
+export function talkContext(db: DB, r: Resident): string {
+  const jef = jefAt();
+  const near: string[] = [];
+  if (jef) {
+    for (const [id, k] of sync.people) {
+      if (id === r.id || Date.now() - k.at > KNOWN_TTL_MS) continue;
+      const o = resident(db, id);
+      if (!o || Math.hypot(k.x - jef.x, k.z - jef.z) > 25) continue;
+      near.push(`${o.name} (${o.trade.replace("_", " ")})`);
+      if (near.length >= 6) break;
+    }
+  }
+  const crime = crimeOpen(db);
+  const facts = db.prepare("SELECT text FROM world_fact WHERE tags LIKE '%notice%' OR tags LIKE '%rumour%' ORDER BY weight DESC, id DESC LIMIT 3").all() as Array<{ text: string }>;
+  const lately = eventSlice(db, { about: r.id, limit: 5, maxChars: 500 });
+  return `YOUR TASK NOW: ${taskLine(db, r)}.
+PEOPLE NEAR: ${near.length ? near.join(", ") : "nobody you know"}.${crime ? `\nTHE TALK OF THE QUAYS: a man was robbed of ${crime.amount_c} centimes in the dark lately; nobody knows by whom.` : ""}${
+    facts.length ? `\nTALK OF THE TOWN: ${facts.map((f) => f.text).join(" ")}` : ""
+  }${lately.length ? `\nLATELY, THINGS YOU WERE IN:\n${lately.join("\n")}` : ""}`;
+}
+
+/** Wire the hooks into talk.ts (called once by routes.ts; tests call it too). */
+export function installTalkHooks(): void {
+  talkHooks.system = RULES_FOR_MODEL;
+  talkHooks.context = talkContext;
+  talkHooks.proposal = (db, r, line) => applyProposal(db, r, line);
+}
+
+export type { ActionKind };

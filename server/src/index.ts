@@ -22,9 +22,13 @@ import { alight, board as boardRide, change as rideChange, isLine, isStop, ride,
 import { freeReply, openTalk, pickChoice, prefetchOpening, witness, type Line } from "./hooks/dialogue.ts";
 import { mountDeeds } from "./town/deedRoutes.ts";
 import { mountRowing } from "./town/rowDeeds.ts";
+import { mountDirector } from "./director/routes.ts";
 
 const db = openDb(DB_FILE);
 const app = new Hono();
+// M4: townspeople who act, conversations in the street, the director and its events; first, so its
+// talk middleware (the event log) sees every talk before the police take theirs
+mountDirector(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 // theft, velocipedes, lanterns and the police (M3h); before the talk route, so the agent answers through it
 mountDeeds(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m), afterNight: (e) => afterNight(e) });
 // rowing boats for hire, and boats to steal (M3j): the server takes the hire, the fines and the price of a lost boat

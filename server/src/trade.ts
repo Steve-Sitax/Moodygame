@@ -3,6 +3,7 @@ import { GameError, log, player } from "./game.ts";
 import { remember } from "./npcs.ts";
 import { activityAt } from "./town/schedule.ts";
 import { resident, town } from "./town/store.ts";
+import { closedByEvent, priceFactor } from "./director/state.ts";
 
 // Buying, pockets and eating (M3b). Prices and effects are engine numbers
 // (docs/03: shop prices are engine code). Pockets hold small things only;
@@ -73,6 +74,14 @@ const TRADE_WARES: Record<string, Array<{ kind: string; price_c: number }>> = {
 
 /** What a person sells: the named sellers, or a townsperson by stall or shop. */
 export function waresOf(db: DB, id: string): Array<{ kind: string; price_c: number }> {
+  // M4: an event may move a price (0.5x to 3x) until it ends; rounded to the centime, never below 1
+  return baseWaresOf(db, id).map((w) => {
+    const f = priceFactor(db, w.kind);
+    return f === 1 ? w : { kind: w.kind, price_c: Math.max(1, Math.round(w.price_c * f)) };
+  });
+}
+
+function baseWaresOf(db: DB, id: string): Array<{ kind: string; price_c: number }> {
   if (WARES[id]) return WARES[id];
   const r = resident(db, id);
   if (!r) return [];
@@ -89,6 +98,8 @@ export function waresOf(db: DB, id: string): Array<{ kind: string; price_c: numb
 export function atWork(db: DB, id: string): boolean {
   const r = resident(db, id);
   if (!r) return true;
+  // M4: an event may shut a shop, a stall's place or a tavern until it ends
+  if (closedByEvent(db, r.work.place) || (r.work.shop && closedByEvent(db, r.work.shop))) return false;
   const p = db.prepare("SELECT day, hour, minute FROM player WHERE id = 1").get() as { day: number; hour: number; minute: number };
   return activityAt(r.sched, p.day, p.hour + p.minute / 60).act === "work";
 }

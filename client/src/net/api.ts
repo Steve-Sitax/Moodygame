@@ -226,6 +226,84 @@ export interface TownData {
   residents: TownResident[];
 }
 
+// ---- M4: townspeople who act, conversations in the street, the director's events
+
+export interface PublicAction {
+  id: number;
+  npc: string;
+  name: string;
+  kind: "none" | "follow" | "go_to" | "wait" | "talk_to" | "look_for" | "fetch_police" | "give" | "stop" | "attend";
+  target: string;
+  target_name: string | null;
+  target_x: number | null;
+  target_z: number | null;
+  source: "talk" | "director" | "event" | "engine";
+  event_id: number | null;
+  phase: string;
+  until: number;
+  max_m: number;
+  order: number;
+  /** attend: guests, crowd (onlookers), mourners ... */
+  role: string | null;
+  minutes_left: number;
+}
+export interface ConvoLine {
+  who: string;
+  name: string;
+  text: string;
+}
+export interface Convo {
+  id: number;
+  a: string;
+  b: string;
+  a_name: string;
+  b_name: string;
+  purpose: string;
+  lines: ConvoLine[];
+  source: string;
+  outcome: string;
+  at: number;
+  event_id: number | null;
+}
+export interface EventStage {
+  op: string;
+  minutes: number;
+  sound: "none" | "bells" | "music" | "murmur" | "handbell";
+  mood: string;
+  props: "none" | "crates" | "barrels" | "sacks" | "flowers" | "black_cloth";
+  x: number;
+  z: number;
+  label: string;
+  text: string;
+  count: number;
+}
+export interface TownEvent {
+  id: number;
+  title: string;
+  template: string;
+  place: string;
+  x: number;
+  z: number;
+  r: number;
+  status: "planned" | "running" | "done" | "cancelled";
+  stage: number;
+  stages: EventStage[];
+  people: string[];
+  /** Game minutes left in the stage now playing. */
+  stage_left: number;
+  starts_in: number;
+  ends_in: number;
+  source: string;
+}
+export interface ActionsPayload {
+  actions: PublicAction[];
+  convos: Convo[];
+  events: TownEvent[];
+  closed: string[];
+}
+/** Anything else the server pushes (M4: actions, events, convo). */
+export type PushMsg = { type: string } & Record<string, unknown>;
+
 async function call<T>(method: string, url: string, body?: unknown, timeoutMs = 8000): Promise<T> {
   const res = await fetch(url, {
     method,
@@ -266,6 +344,12 @@ export const api = {
   catchThief: (id: string) => call<JobsPayload & { back_c: number; text: string }>("POST", `/api/resident/${id}/catch`),
   done: (id: number, report: Report) =>
     call<{ job: Job; settlement: Settlement; money_c: number }>("POST", `/api/jobs/${id}/done`, report),
+  // M4
+  actions: () => call<ActionsPayload>("GET", "/api/actions"),
+  actionsSync: (body: { x: number; z: number; people: Array<{ id: string; x: number; z: number }> }) => call<{ ok: boolean }>("POST", "/api/actions/sync", body),
+  actionReport: (id: number, body: { phase: "arrived" | "lost" | "blocked" | "done"; x?: number; z?: number; found?: boolean; why?: string }) =>
+    call<JobsPayload & { action: PublicAction }>("POST", `/api/actions/${id}/report`, body, 30_000),
+  devDirector: (body: { think?: boolean; template?: string }) => call<Record<string, unknown>>("POST", "/api/dev/director", body, 40_000),
 };
 
 /** Push channel. Reconnects on its own; the game never waits on it. */
@@ -275,7 +359,7 @@ export interface OutcomeMsg {
   employer: string;
 }
 
-export function connectPush(onJobs: (p: JobsPayload) => void, onOutcome: (o: OutcomeMsg) => void = () => {}): void {
+export function connectPush(onJobs: (p: JobsPayload) => void, onOutcome: (o: OutcomeMsg) => void = () => {}, onOther: (m: PushMsg) => void = () => {}): void {
   let delay = 1000;
   const open = () => {
     const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
@@ -283,7 +367,8 @@ export function connectPush(onJobs: (p: JobsPayload) => void, onOutcome: (o: Out
     ws.onmessage = (e) => {
       const msg = JSON.parse(String(e.data)) as { type: string } & JobsPayload & OutcomeMsg;
       if (msg.type === "jobs") onJobs(msg);
-      if (msg.type === "outcome") onOutcome(msg);
+      else if (msg.type === "outcome") onOutcome(msg);
+      else onOther(msg as unknown as PushMsg);
     };
     ws.onclose = () => {
       setTimeout(open, delay);

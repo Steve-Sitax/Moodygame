@@ -25,6 +25,9 @@ import { Market } from "./game/market";
 import { setLitterClock } from "./world/litter";
 import { createTrades } from "./world/trades";
 import { createSteenLife } from "./world/steenlife";
+import { Actions } from "./game/actions";
+import { Bubbles } from "./game/bubbles";
+import { Events } from "./game/events";
 import { api } from "./net/api";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
@@ -97,6 +100,23 @@ deeds.sfx = (name, at) => sound?.play(name, at);
 const rowing = new Rowing(world, player, jobs, deeds);
 rowing.sfx = (name, at) => sound?.play(name, at);
 rowing.stroke = () => sound?.swimStroke();
+// M4: townspeople who act (game/actions.ts), the director's events (game/events.ts) and the
+// conversations shown over their heads (game/bubbles.ts); the server decides all of it
+const events = new Events(world, town, stalls);
+const bubbles = new Bubbles(town);
+const actions = new Actions(world, player, town, crowd, events);
+actions.say = (t) => jobs.say(t);
+actions.onPayload = (p) => {
+  events.set(p);
+  for (const c of p.convos) bubbles.show(c);
+};
+jobs.onPush = (m) => {
+  actions.handlePush(m);
+  if (m.type === "convo" && m.convo) bubbles.show(m.convo as import("./net/api").Convo);
+};
+bubbles.speak = (at, v, s) => sound?.speech(at, v, s);
+events.eventSound = (k, at, s) => sound?.eventSound(k, at, s) ?? null;
+events.say = (t) => jobs.say(t);
 town
   .load()
   .then(() => {
@@ -160,7 +180,30 @@ if (import.meta.env.DEV) {
       { name: "Lock", x: 96, z: 26 },
       { name: "Petit Bassin", x: 120, z: 117 },
     ],
-    events: world.devEvents(),
+    events: [
+      ...world.devEvents(),
+      // M4: the director and its templates
+      // the answer shows in the Dev panel itself (a toast would hide behind the pause paper)
+      {
+        label: "Director: think now",
+        run: () =>
+          api
+            .devDirector({ think: true })
+            .then((r) => {
+              const p = r.planned as { ok?: boolean; title?: string; why?: string } | null;
+              return `${r.decision} (${r.source})${p ? (p.ok ? `: planned "${p.title}"` : `: refused, ${p.why}`) : r.why ? `: ${r.why}` : ""}`;
+            })
+            .catch((e) => String(e)),
+      },
+      ...["wedding", "funeral", "musicians", "emigrant_ship", "fish_auction", "quarrel"].map((t) => ({
+        label: `Event: ${t.replace("_", " ")}`,
+        run: () =>
+          api
+            .devDirector({ template: t })
+            .then((r) => (r.ok ? `planned "${r.title}" at ${r.where}; it starts a game minute after you resume. Go there to see it.` : `refused: ${r.why}`))
+            .catch((e) => String(e)),
+      })),
+    ],
   });
 }
 
@@ -220,6 +263,9 @@ function frame(): void {
   steenLife.update(dt, jobs.day.hourF, player.camera);
   deeds.update(dt, jobs.day.hourF);
   rowing.update(dt);
+  actions.update(dt);
+  events.update(dt, player);
+  bubbles.update(dt, player.camera);
   animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
   sound?.setCrowd(crowd.stats.drawn);
   sound?.setRain(psxUniforms.uRain.value);
@@ -334,6 +380,9 @@ if (import.meta.env.DEV) {
     craneClimb,
     deeds,
     rowing,
+    actions,
+    events,
+    bubbles,
     get sound() {
       return sound;
     },
@@ -442,6 +491,9 @@ if (import.meta.env.DEV) {
         steenLife.update(dt, jobs.day.hourF, player.camera);
         deeds.update(dt, jobs.day.hourF);
         rowing.update(dt);
+        actions.update(dt);
+        events.update(dt, player);
+        bubbles.update(dt, player.camera);
         animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
       }
     },
