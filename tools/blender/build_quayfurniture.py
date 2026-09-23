@@ -1544,14 +1544,7 @@ def tar_fire():
                 t = Vector((-s, c, 0))
                 m.face([p - t * 0.03 - Vector((0, 0, 0.03)), p + t * 0.03 - Vector((0, 0, 0.03)), p + t * 0.03 + Vector((0, 0, 0.03)),
                         p - t * 0.03 + Vector((0, 0, 0.03))], "fire", uvs=[(0, 0.3), (1, 0.3), (1, 0.6), (0, 0.6)], mat=FIRE, out=(c, s, 0))
-        # flames: three crossed tongues
-        for k in range(3):
-            a = k * math.pi / 3
-            c, s = math.cos(a), math.sin(a)
-            pts = [(-0.22 * c, -0.22 * s, 0.55), (0.22 * c, 0.22 * s, 0.55), (0.12 * c, 0.12 * s, 0.85), (0.03 * c, 0.03 * s, 1.1 - 0.1 * k),
-                   (-0.08 * c, -0.08 * s, 0.9)]
-            uvs = [(0, 0), (1, 0), (0.8, 0.6), (0.5, 1), (0.2, 0.7)]
-            m.face(pts, "fire", uvs=uvs, mat=FIRE)
+        # the flames themselves are particles in the game (client/src/world/fire.ts), on the ash at 0.62
     m.quad([(-0.9, -0.9, 0.004), (0.9, -0.9, 0.004), (0.9, 0.9, 0.004), (-0.9, 0.9, 0.004)], "soot", mat=DECAL, out=(0, 0, 1))
     return m
 

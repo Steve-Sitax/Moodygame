@@ -17,6 +17,7 @@ const RADIUS = 0.32;
 const STEP_LEN = 0.72; // metres per footstep
 const TURN_SENS = 0.0019;
 const SWIM = 1.0; // m/s, heavy clothes in cold water
+const SWIM_FAST = 1.6; // Shift: a hard crawl, soon tiring; no faster than a brisk walk
 const SWIM_FEET = 1.45; // feet this far under the surface while you swim
 const SWIM_EYE = 0.17; // eye this far above it
 const CLIMB = 1.1; // m/s up a ladder
@@ -266,9 +267,10 @@ export class FirstPerson {
     const cos = Math.cos(this.yaw);
     let wx = 0;
     let wz = 0;
+    const stroke = k("ShiftLeft") || k("ShiftRight") ? SWIM_FAST : SWIM;
     if (len > 0) {
-      wx = ((fx * cos + fz * sin) / len) * SWIM;
-      wz = ((-fx * sin + fz * cos) / len) * SWIM;
+      wx = ((fx * cos + fz * sin) / len) * stroke;
+      wz = ((-fx * sin + fz * cos) / len) * stroke;
     }
     // water is thick: slow to get going, slow to stop
     const a = 1 - Math.exp(-dt * (len > 0 ? 2.2 : 1.6));

@@ -189,6 +189,8 @@ export class Animals {
   private readonly sphere = new THREE.Sphere();
   /** Doorsteps and quay spots where cats like to sit (the town gives its doors). */
   catSpots: Array<{ x: number; z: number }> = [];
+  /** M3i: fish scraps on the market stones (game/market.ts): strays go and sniff at them. */
+  scraps: Array<{ x: number; z: number }> = [];
   strays = 3;
   cats = 6;
   private spawnT = 0;
@@ -340,7 +342,9 @@ export class Animals {
     const toJef = Math.random() < 0.15 && Math.hypot(player.x - b.x, player.z - b.z) < 20;
     const a = Math.random() * Math.PI * 2;
     const r = rnd(4, 14);
-    b.goal = toJef ? { x: player.x + rnd(-1, 1), z: player.z + rnd(-1, 1) } : { x: b.x + Math.cos(a) * r, z: b.z + Math.sin(a) * r };
+    // fish scraps nearby: over there, nose down (the stop plays sniff)
+    const scrap = !toJef && Math.random() < 0.5 ? this.scraps.find((q) => Math.hypot(q.x - b.x, q.z - b.z) < 30 && Math.hypot(q.x - b.x, q.z - b.z) > 1) : undefined;
+    b.goal = toJef ? { x: player.x + rnd(-1, 1), z: player.z + rnd(-1, 1) } : scrap ? { x: scrap.x + rnd(-0.4, 0.4), z: scrap.z + rnd(-0.4, 0.4) } : { x: b.x + Math.cos(a) * r, z: b.z + Math.sin(a) * r };
     b.speed = Math.random() < 0.25 ? rnd(2.2, 3.2) : rnd(0.8, 1.3);
   }
 

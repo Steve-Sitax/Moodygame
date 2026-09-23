@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { doorSpot } from "../world/city";
 import { psx } from "../retro/psx";
 import { box, cyl, rectAround } from "../world/geom";
-import type { World } from "../world/rijnkaai";
+import { DECK, type World } from "../world/rijnkaai";
 import type { FirstPerson } from "../player/firstPerson";
 import { api } from "../net/api";
 import { Human, makeHuman, whenHumans, type HumanKind } from "./humans";
@@ -110,7 +110,7 @@ export const NPCS: NpcDef[] = [
     name: "a sailor",
     x: -38.5,
     z: -4.6,
-    y: 2.4,
+    y: DECK.y, // on the Anna Maria's deck (the brig's deck is a little below the quay)
     yaw: 0,
     talks: false,
     build: (m) => {

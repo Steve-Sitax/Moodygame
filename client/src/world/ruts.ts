@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { psx } from "../retro/psx";
+import { dirtAlong } from "./dirt";
 
 // Wheel ruts (Steve, 2026-09-23: "wheel ruts should be painted on top so they flow and
 // seem to create roads"). The carts of the city wear the same lines every day: from the
@@ -14,7 +15,8 @@ type P = [number, number];
 /** Roads the carts take: waypoints, in order (world x, z). */
 const ROADS: P[][] = [
   // the quay road behind the railway: the Werf, the Steenplein, the Vismarkt, the Rijnkaai
-  [[-336, 11], [-262, 10], [-200, 13], [-160, 12], [-118, 18], [-60, 17], [0, 18], [60, 24], [96, 27]],
+  // (over the Vismarkt it keeps to the omnibus lane at z 8.3, clear of the market and its lamps)
+  [[-336, 11], [-262, 10], [-205, 8.5], [-160, 12], [-140, 8.3], [-132, 8.3], [-124, 8.3], [-116, 8.3], [-108, 8.3], [-100, 8.3], [-92, 8.3], [-60, 17], [0, 18], [60, 24], [96, 27]],
   // from the quays up to the Grote Markt
   [[-270, 10], [-254, 60], [-254, 94]],
   [[-180, 20], [-230, 40], [-254, 94]],
@@ -257,7 +259,10 @@ export function buildRuts(scene: THREE.Scene, flags: Flags): Promise<THREE.Mesh>
         setTimeout(next, 0);
         return;
       }
-      for (const l of lines) ribbon(smooth(l), 2.4, pos, uv, col);
+      const smoothLines = lines.map(smooth);
+      for (const l of smoothLines) ribbon(l, 2.4, pos, uv, col);
+      // mud and dung along the same roads, in the paving itself
+      dirtAlong(smoothLines);
       const g = new THREE.BufferGeometry();
       g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
       g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));

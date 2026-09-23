@@ -5,8 +5,8 @@ streets in between. Edges completely jagged. Bridges are just land. Do a map red
 The real places stay, in their real order along the river and at their real
 size: the Rijnkaai and the Petit Bassin (Bonapartedok) with its lock and the
 Entrepot, the Hanseatic house, the Canal des Brasseurs (Brouwersvliet), the
-Vismarkt and the Sint-Pietersvliet, Het Steen on its bastion in the river with
-the ferry pontoon, the Vleeshuis, the Grote Markt with the town hall and the
+Vismarkt and the Sint-Pietersvliet, Het Steen on the quay line by the Werf's
+promontory, the ferry pontoon, the Vleeshuis, the Grote Markt with the town hall and the
 guild houses, the Handschoenmarkt, the cathedral. The ordinary streets between
 them are cut short. Every edge is straight; bridges are decks over water.
 
@@ -37,7 +37,8 @@ WATER = {
     "canal": box(-82, 0, -70, 205),  # Canal des Brasseurs (Brouwersvliet)
     "vliet": box(-150, 0, -142, 72),  # Sint-Pietersvliet
 }
-# the Steen stands on a bastion that juts into the river
+# the quay promontory north of the Steen (the 1873 map has it in front of the Place du Bourg;
+# M3i: the Steen itself stood on the quay line, not on it)
 BASTION = Polygon([(-214, 0), (-214, -30), (-204, -42), (-160, -42), (-150, -30), (-150, 0)])
 
 # ------------------------------------------------------------------ bridges: decks over water
@@ -90,7 +91,8 @@ BLOCKS = [
     ("houses", R(-200, 40, -156, 74)),  # the doss house is in this block, facing the Steenplein
     ("houses", R(-200, 82, -156, 124)),
     ("guild", R(-222, 64, -208, 124)),  # guild houses on the north side of the Grote Markt
-    ("houses", R(-300, 14, -222, 26)),  # riverside houses behind the town hall
+    ("houses", R(-300, 14, -246, 26)),  # riverside houses behind the town hall (the little fish market north of them)
+    ("houses", R(-217, 33, -206, 45)),  # houses across the lane from the Steen gatehouse (1838-1880 views; docs/milestones/M3i-steen.md)
     ("guild", R(-304, 66, -286, 124)),  # guild houses on the south side of the Grote Markt
     ("houses", R(-200, 132, -156, 205)),
     ("houses", R(-340, 14, -310, 300)),  # the west edge of the map
@@ -107,15 +109,18 @@ LANDMARKS = {
     "cathedral": {"osm": 26495164, "c": (-262, 208), "axis": (0, 1)},  # west front toward the Handschoenmarkt (-z)
     "stadhuis": {"osm": 22966134, "c": (-257, 48), "axis": (1, 0)},  # long front facing the Grote Markt (+z)
     "vleeshuis": {"osm": 179882624, "c": (-116, 99), "axis": (1, 0)},
-    "steen": {"osm": 29067925, "c": (-182, -20), "axis": (1, 0), "scale": 0.8},
+    # Het Steen as in 1873 (M3i): on the quay line, not on the bastion; the Steenstraat lane runs along its
+    # inland side (z 27..32.5) through the Steenpoort at its south end; a designed rect, not the OSM outline
+    # (that holds the 1889 and 2021 wings)
+    "steen": {"rect": (34, 16.5), "c": (-205, 18.75), "axis": (1, 0)},
     "hanzehuis": {"rect": (64, 38), "c": (120, 143), "axis": (1, 0)},
 }
 
 # street furniture after the period photos (the Steenplein, the Werf, the quays):
 # rows of young trees, an iron railing along the water, gas lamps
 DECOR = {
-    "trees": [(x, z) for z in (24.0, 34.0) for x in range(-208, -150, 8)]
-    + [(x, 11.0) for x in range(-300, -222, 12)],
+    "trees": [(x, z) for z in (24.0, 34.0) for x in range(-184, -150, 8)]
+    + [(x, 11.0) for x in range(-300, -246, 12)],
     "rails": [[-222, 0.6, -214, 0.6], [-150, 0.6, -142, 0.6], [-214, 0.6, -214, -29.4], [-214, -29.4, -204, -41.4],
               [-204, -41.4, -160, -41.4], [-160, -41.4, -150, -29.4], [-150, -29.4, -150, 0.6]],
     # the quay railway (standard gauge, laid in the cobbles; client/src/world/tracks.ts draws it).
@@ -131,7 +136,14 @@ DECOR = {
     # portal crane runways: the crane's legs run on these (gauge 5.2 m), the railway between them
     "crane_rails": [[-318, 1.4, -222, 1.4], [-318, 6.6, -222, 6.6], [-36, 1.4, 70, 1.4], [-36, 6.6, 70, 6.6],
                     [63.4, 50, 63.4, 104], [68.6, 50, 68.6, 104], [170.4, 50, 170.4, 108], [175.6, 50, 175.6, 108]],
-    "lamps": [(x, 9.5) for x in range(-310, -90, 24) if not -154 < x < -138] + [(-200, 38.0), (-160, 38.0), (-176, 20.0), (-118, 46.0), (-96, 14.0), (-150, 14.0),
+    # the Vismarkt (Steve: "the lights are quite random and even on a track"): three even rows at
+    # 12 m, off the railway, the omnibus lanes and the cart ruts (world/ruts.ts), the doors and steps:
+    # the quay row inland of the omnibus lane (z 11.2), the vliet edge (1.6 m from the wall), the row
+    # before the houses (z 47.6, between the doors)
+    "lamps": [(x, 9.5) for x in range(-310, -150, 24) if not -224 < x < -186] + [(-200, 38.0), (-160, 38.0), (-176, 20.0), (-151.6, 14.0),
+              (-138.6, 11.2), (-126.6, 11.2), (-114.6, 11.2), (-102.6, 11.2), (-90.6, 11.2),
+              (-140.4, 23.4), (-140.4, 35.6),
+              (-132.6, 47.6), (-120.6, 47.6), (-108.6, 47.6), (-96.6, 47.6),
               (-230, 60.0), (-280, 60.0), (-230, 128.0), (-290, 128.0), (-74, 60.0), (-74, 160.0), (69.4, 77.0), (69.4, 106.5), (120, 121.5), (170.8, 83.0)],
 }
 
@@ -151,7 +163,7 @@ PLACES = {
     "Hanseatic House": (120, 143, "building"),
     "Canal des Brasseurs": (-76, 110, "water"),
     "Vismarkt": (-118, 30, "square"),
-    "Het Steen": (-182, -20, "building"),
+    "Het Steen": (-205, 18.75, "building"),
     "Steenplein": (-180, 20, "square"),
     "Vleeshuis": (-116, 99, "building"),
     "Grote Markt": (-254, 94, "square"),

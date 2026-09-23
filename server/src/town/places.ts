@@ -96,18 +96,21 @@ export interface StallDef {
   goods: "fish" | "bread" | "veg" | "wares" | "cloth";
 }
 export const STALLS: StallDef[] = [
-  { place: "vismarkt", x: -128, z: 18, face: [1, 0], goods: "fish" },
-  { place: "vismarkt", x: -128, z: 24, face: [1, 0], goods: "fish" },
-  { place: "vismarkt", x: -128, z: 30, face: [1, 0], goods: "fish" },
-  { place: "vismarkt", x: -104, z: 18, face: [-1, 0], goods: "fish" },
-  { place: "vismarkt", x: -104, z: 24, face: [-1, 0], goods: "fish" },
-  { place: "vismarkt", x: -104, z: 30, face: [-1, 0], goods: "fish" },
-  { place: "grote_markt", x: -266, z: 84, face: [0, 1], goods: "veg" },
-  { place: "grote_markt", x: -258, z: 84, face: [0, 1], goods: "bread" },
-  { place: "grote_markt", x: -250, z: 84, face: [0, 1], goods: "cloth" },
-  { place: "grote_markt", x: -242, z: 84, face: [0, 1], goods: "veg" },
-  { place: "grote_markt", x: -266, z: 106, face: [0, -1], goods: "wares" },
-  { place: "grote_markt", x: -250, z: 106, face: [0, -1], goods: "veg" },
+  // M3i: the fish banks either side of the Vismarkt's middle aisle, a little askew (Steve: "stalls
+  // are too ordered"), clear of the cart ruts; the market days put their stalls round these
+  // (client game/market.ts). An older save keeps its old places until scripts/relay-stalls.ts.
+  { place: "vismarkt", x: -121.4, z: 18.4, face: [0.97, 0.24], goods: "fish" },
+  { place: "vismarkt", x: -120.9, z: 28.3, face: [0.99, -0.12], goods: "fish" },
+  { place: "vismarkt", x: -121.8, z: 37.2, face: [0.96, 0.28], goods: "fish" },
+  { place: "vismarkt", x: -111.2, z: 17.6, face: [-0.95, 0.31], goods: "fish" },
+  { place: "vismarkt", x: -111.9, z: 32.4, face: [-1, 0.06], goods: "fish" },
+  { place: "vismarkt", x: -110.8, z: 40.6, face: [-0.93, -0.36], goods: "fish" },
+  { place: "grote_markt", x: -266.3, z: 84.6, face: [0.14, 0.99], goods: "veg" },
+  { place: "grote_markt", x: -258.6, z: 83.4, face: [-0.1, 0.99], goods: "bread" },
+  { place: "grote_markt", x: -249.4, z: 84.9, face: [0.21, 0.98], goods: "cloth" },
+  { place: "grote_markt", x: -243.6, z: 83.2, face: [-0.17, 0.99], goods: "veg" },
+  { place: "grote_markt", x: -266.0, z: 106.8, face: [0.12, -0.99], goods: "wares" },
+  { place: "grote_markt", x: -247.6, z: 106.4, face: [-0.16, -0.99], goods: "veg" },
 ];
 
 /** Haul routes: a quay point (a) and a door or store (b) per workplace. */
@@ -142,8 +145,9 @@ export const HAULS: Record<string, Array<{ a: [number, number]; b: [number, numb
     { a: [-230, 3], b: [-226, 26] },
   ],
   vismarkt: [
-    { a: [-139, 22], b: [-128, 21] },
-    { a: [-139, 34], b: [-104, 27] },
+    // from the boats on the vliet to the backs of the fish banks (M3i)
+    { a: [-139, 22], b: [-123.2, 22.4] },
+    { a: [-139, 34], b: [-123.6, 33.2] },
   ],
   canal: [
     { a: [-65, 90], b: [-65, 108] },

@@ -151,6 +151,8 @@ interface Person {
   /** Puppets (M3e): what to play when standing, and which way to face (null: as they came). */
   pmotion?: Motion;
   pyaw?: number | null;
+  /** M3i: what they bought at the market, in the hand (puppetCarry). */
+  bought?: THREE.Object3D | null;
 }
 
 // Who is about, by kind of place. Weights; the night table multiplies them.
@@ -765,6 +767,49 @@ export class Crowd {
       this.scene.remove(p.lantern.g);
       p.lantern = null;
     }
+  }
+
+  /**
+   * M3i (game/market.ts): something bought, in the right hand: fish wrapped in paper, a
+   * parcel, a small sack or a basket; null to put it away.
+   */
+  puppetCarry(p: Puppet, what: "parcel" | "fish" | "sack" | "basket" | null): void {
+    if (p.bought) {
+      p.bought.removeFromParent();
+      p.bought = null;
+    }
+    if (!what || !p.hand) return;
+    const m = new THREE.Mesh(...this.boughtParts(what));
+    p.group.updateMatrixWorld(true);
+    const s = new THREE.Vector3();
+    p.hand.getWorldScale(s);
+    m.scale.setScalar(1 / (s.x || 1));
+    m.position.set(0, -0.07 / (s.x || 1), 0);
+    p.hand.add(m);
+    p.bought = m;
+  }
+
+  /** M3i: sit on a stool or a crate (men only: skirts do not sit); the body is lowered to the seat. */
+  puppetSit(p: Puppet, yaw: number | null = null): void {
+    this.puppetStand(p, "sit", yaw);
+    if (p.human.canSit) p.state = "sit";
+  }
+
+  private boughtGeo: Partial<Record<string, [THREE.BufferGeometry, THREE.Material]>> = {};
+  private boughtParts(what: "parcel" | "fish" | "sack" | "basket"): [THREE.BufferGeometry, THREE.Material] {
+    const had = this.boughtGeo[what];
+    if (had) return had;
+    const paper = psx(new THREE.MeshLambertMaterial({ color: 0xc8bea4 }));
+    const made: Record<string, () => [THREE.BufferGeometry, THREE.Material]> = {
+      // fish wrapped in paper: a long thin roll, the tail out of one end
+      fish: () => [new THREE.CylinderGeometry(0.045, 0.06, 0.32, 5).rotateZ(Math.PI / 2).translate(0, -0.04, 0), paper],
+      parcel: () => [new THREE.BoxGeometry(0.2, 0.12, 0.14).translate(0, -0.08, 0), paper],
+      sack: () => [new THREE.IcosahedronGeometry(0.14, 0).scale(1, 1.3, 0.9).translate(0, -0.16, 0), this.sackMat],
+      basket: () => [new THREE.CylinderGeometry(0.17, 0.13, 0.18, 6).translate(0, -0.2, 0), psx(new THREE.MeshLambertMaterial({ color: 0x7a6038 }))],
+    };
+    const r = made[what]();
+    this.boughtGeo[what] = r;
+    return r;
   }
 
   removePuppet(p: Puppet): void {
@@ -1773,6 +1818,10 @@ export class Crowd {
       }
     }
     if (p.sack) p.group.remove(p.sack);
+    if (p.bought) {
+      p.bought.removeFromParent();
+      p.bought = null;
+    }
     if (p.lantern) this.scene.remove(p.lantern.g);
     this.carts.get(p)?.dispose();
     this.carts.delete(p);

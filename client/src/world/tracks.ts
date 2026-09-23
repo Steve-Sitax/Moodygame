@@ -167,6 +167,30 @@ function rail(s: Strip, line: P[], nrm: P[], o: number): void {
   }
 }
 
+/** A height map from a stone texture: the light stone stands up, the dark joints sink. */
+function heightFrom(t: THREE.CanvasTexture): THREE.CanvasTexture {
+  const src = t.image as HTMLCanvasElement;
+  const c = document.createElement("canvas");
+  c.width = src.width;
+  c.height = src.height;
+  const g = c.getContext("2d")!;
+  g.drawImage(src, 0, 0);
+  const img = g.getImageData(0, 0, c.width, c.height);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const l = (img.data[i] + img.data[i + 1] + img.data[i + 2]) / 3;
+    const h = Math.max(0, Math.min(255, (l - 40) * 3.2));
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = h;
+  }
+  g.putImageData(img, 0, 0);
+  const h = new THREE.CanvasTexture(c);
+  h.wrapS = THREE.RepeatWrapping;
+  h.wrapT = THREE.ClampToEdgeWrapping;
+  h.magFilter = THREE.LinearFilter;
+  h.minFilter = THREE.LinearFilter;
+  h.generateMipmaps = false;
+  return h;
+}
+
 /** Boxes round the tracks and crane rails, for props to keep off them. */
 export function trackKeepOut(data: TrackData): Rect[] {
   const out: Rect[] = [];
@@ -239,9 +263,11 @@ export function buildTracks(scene: THREE.Scene, data: TrackData, bridges: Rect[]
     band(bandS, line, nrm, -0.3, 0.3, 0.36, 0.64);
     rail(railS, line, nrm, 0);
   }
+  const setts = settsTexture();
   const bandMat = psx(
-    new THREE.MeshLambertMaterial({ map: settsTexture(), polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }),
-    { noSnap: true, affine: 0 },
+    new THREE.MeshLambertMaterial({ map: setts, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }),
+    // relief light from the setts themselves (no parallax: the band's uv runs along the line)
+    { noSnap: true, affine: 0, vary: 0.8, relief: { height: heightFrom(setts), depth: 0, tile: 2, bump: 2.2 } },
   );
   const railMat = psx(
     new THREE.MeshPhongMaterial({ color: 0x8a8680, vertexColors: true, specular: 0x6a6a6a, shininess: 40, side: THREE.DoubleSide }),

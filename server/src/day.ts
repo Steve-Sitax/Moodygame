@@ -3,6 +3,7 @@ import { log, player } from "./game.ts";
 import { remember } from "./npcs.ts";
 import { spreadRumours } from "./town/rumours.ts";
 import { endRide, riding } from "./ride.ts";
+import { endRowNight, rowChillEvery, rowFood } from "./rowing.ts";
 
 // The day and the week (M5). The engine owns time and needs (docs/01, docs/03).
 // A client says "time passed while I played" with a tick; the server decides how
@@ -87,6 +88,8 @@ const clamp = (n: number) => Math.max(0, Math.min(10, n));
  * while any need is at 0; +1 every 4 h while all three are at 4 or more.
  * On the omnibus (M3g, ride.ts), out of the wind: warmth -1 only every 10 h by day
  * and every 6 h at night. Food is the same on board as on foot.
+ * In a rowing boat (M3j, rowing.ts), in the wind: warmth -1 every 4 h by day (3 in rain or a
+ * gale) and every 2 h at night; a long row and hard strokes cost food (rowFood).
  */
 export function applyHour(db: DB, hour: number): { healthZero: boolean } {
   const p = player(db);
@@ -95,7 +98,8 @@ export function applyHour(db: DB, hour: number): { healthZero: boolean } {
   if (hour % 3 === 0) sleep--;
   const cold = hour >= 20 || hour < 7;
   const inside = riding(db);
-  const chillEvery = cold ? (inside ? 6 : 3) : inside ? 10 : 5;
+  const chillEvery = rowChillEvery(db, cold) ?? (cold ? (inside ? 6 : 3) : inside ? 10 : 5);
+  food -= rowFood(db, hour);
   if (hour % chillEvery === 0) warmth--;
   food = clamp(food);
   warmth = clamp(warmth);
@@ -197,6 +201,7 @@ export function sleep(db: DB, want: "bed" | "rough"): SleepResult {
 
   db.transaction(() => {
     endRide(db); // nobody rides the omnibus through the night
+    endRowNight(db); // nor rows: the waterman takes his boat back (M3j)
     if (where === "bed") {
       db.prepare("UPDATE player SET sleep = 10, food = MAX(0, food - 2), warmth = MIN(10, warmth + 3), health = MIN(10, health + CASE WHEN food >= 3 THEN 1 ELSE 0 END) WHERE id = 1").run();
       summary.push(turnedAway ? "" : "You sleep in a bed of straw in the doss house, six men to the room. It is warm enough.");

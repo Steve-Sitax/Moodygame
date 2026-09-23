@@ -25,6 +25,9 @@ export const psxUniforms = {
   uWaterMirror: { value: farShore() as THREE.Texture },
   uWaterMirrorMat: { value: new THREE.Matrix4() },
   uWaterMirrorOn: { value: 0 },
+  /** Grime and mud on the paving, 1 px per metre (world/dirt.ts), and where it lies: x0, z0, w, h. */
+  uDirt: { value: null as THREE.Texture | null },
+  uDirtBox: { value: new THREE.Vector4(-340, -80, 540, 380) },
   /** Sea state: 1 = the river's usual chop, about 3.5 = a storm (world/rijnkaai.ts eases it by weather). */
   uSea: { value: 1 },
   /** Puddles on the ground, 0..1 (world/ambient.ts: rain fills them, a sunny day dries them). */
@@ -246,6 +249,10 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
     shader.uniforms.uLampColor = psxUniforms.uLampColor;
     shader.uniforms.uScatter = psxUniforms.uScatter;
     shader.uniforms.uAffine = { value: affine };
+    if (opts.vary) {
+      shader.uniforms.uDirt = psxUniforms.uDirt;
+      shader.uniforms.uDirtBox = psxUniforms.uDirtBox;
+    }
     if (opts.relief) {
       shader.uniforms.uHeight = { value: opts.relief.height };
       shader.uniforms.uReliefDepth = { value: opts.relief.depth };
@@ -352,6 +359,7 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         (opts.wet || opts.water ? wetFragment : "") +
         (opts.puddles ? "uniform float uPuddle;\nuniform sampler2D uMirror;\nuniform mat4 uMirrorMat;\nuniform sampler2D uPudNoise;\n" : "") +
         (opts.wet || opts.puddles || opts.vary ? pudNoiseGlsl : "") +
+        (opts.vary ? "uniform sampler2D uDirt;\nuniform vec4 uDirtBox;\n" : "") +
         (opts.relief ? "uniform sampler2D uHeight;\nuniform float uReliefDepth;\nuniform float uReliefTile;\nuniform float uReliefBump;\n" : "") +
         (opts.water
           ? "uniform sampler2D uShore;\nuniform vec4 uShoreBox;\nvarying float vWaveH;\nuniform sampler2D uWaterMirror;\nuniform mat4 uWaterMirrorMat;\nuniform float uWaterMirrorOn;\n"
@@ -368,7 +376,7 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         vec2 psxUv = mix(vMapUv, affUv, uAffine * near);
         ${opts.atlas ? `psxUv = (vCell + fract(psxUv)) / ${opts.atlas.toFixed(1)};` : ""}
         ${
-          opts.relief
+          opts.relief && opts.relief.depth > 0
             ? `// parallax occlusion: step into the stones along the view ray, near the eye only
         vec3 relV = cameraPosition - vPsxWorld;
         float relDist = length(relV);
@@ -404,6 +412,12 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
           vec3 tone = vec3(1.0 + (big * 0.26 + mid * 0.16) * ${(opts.vary ?? 0).toFixed(2)});
           tone *= mix(vec3(1.0), vec3(1.07, 1.05, 1.0), mend * ${(opts.vary ?? 0).toFixed(2)});
           tone *= mix(vec3(1.0), vec3(0.93, 0.95, 1.0), smoothstep(0.1, 0.4, mid) * 0.5 * ${(opts.vary ?? 0).toFixed(2)});
+          // grime in the gutters by the walls, mud and dung on the open ground (world/dirt.ts),
+          // broken up so it does not lie in smooth blobs
+          float dirt = texture2D(uDirt, (vp - uDirtBox.xy) / uDirtBox.zw).r;
+          dirt *= 0.6 + 0.8 * pudVal(vp * 1.7 + 5.1);
+          // (linear light: a factor of 0.25 shows as about half as bright on screen)
+          tone *= mix(vec3(1.0), vec3(0.24, 0.19, 0.13), clamp(dirt, 0.0, 1.0));
           diffuseColor.rgb *= tone;
         }`
             : ""

@@ -287,6 +287,17 @@ export function quaySteps(waterY: number, tex: { stone: THREE.Texture; iron: THR
       stone.box(f, i * TREAD, (i + 1) * TREAD, WIDTH, W, bedY, top, undefined, false);
       stone.box(f, i * TREAD, (i + 1) * TREAD, WIDTH - 0.04, W + 0.04, top, top + 0.07, [0.9, 0.88, 0.84], false); // coping
     }
+    // the head of the flight (Steve: "no nice finish to the quay"): a low parapet closes the top
+    // end over the water, a stone newel with a cap where the parapets meet, and a light edge
+    // stone along the quay where you step down onto the first tread
+    {
+      const pTop = 0.32;
+      stone.box(f, -0.34, 0, 0, W + 0.04, bedY, pTop, undefined, false);
+      stone.box(f, -0.38, 0.02, -0.04, W + 0.08, pTop, pTop + 0.07, [0.92, 0.9, 0.86], false);
+      stone.box(f, -0.36, 0.06, W - 0.38, W + 0.06, pTop, 0.95, [0.95, 0.93, 0.88], false);
+      stone.box(f, -0.4, 0.1, W - 0.42, W + 0.1, 0.95, 1.03, [1.02, 1.0, 0.95], false);
+      stone.box(f, 0, 1.25, -0.34, 0.02, -0.06, 0.03, [1.1, 1.08, 1.02], false);
+    }
     // the parapet runs on past the last tread onto the landing, then ends in a squared pier
     {
       const top = landY + 0.85;

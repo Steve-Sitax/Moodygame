@@ -577,9 +577,8 @@ def main():
     for b in data["backs"]:
         chunk_of(b["fp"]).back(b)
     decor = data.get("decor", {})
-    drng = random.Random(7)
-    for x, z in decor.get("trees", []):
-        chunk_of([(x, z)]).tree(x, z, drng)
+    # the decor trees are no longer part of the city mesh: tools/blender/build_trees.py makes
+    # them, client/src/world/trees3d.ts plants them (Builder.tree() is kept, unused)
     for x0, z0, x1, z1 in decor.get("rails", []):
         chunk_of([(x0, z0), (x1, z1)]).rail(x0, z0, x1, z1)
     for br in data.get("bridges", {}).values():

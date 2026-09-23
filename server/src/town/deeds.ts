@@ -8,6 +8,7 @@ import { activityAt } from "./schedule.ts";
 import { TOWN_EMPLOYER_IDS, resident, town } from "./store.ts";
 import { houseDoors, walkMap } from "./walkmap.ts";
 import type { Resident } from "./population.ts";
+import { rowBoatHome, rowBoatStates, rowBoats, rowOn, rowState, setRowBoat } from "../rowing.ts";
 import SPOTS from "../../../shared/spots.json" with { type: "json" };
 import CITY from "../../../shared/city.json" with { type: "json" };
 
@@ -24,13 +25,17 @@ import CITY from "../../../shared/city.json" with { type: "json" };
 // the police come (police.ts). Unseen: the thing is Jef's, but the owner finds
 // it gone, and a suspicion may start to go round a while later.
 
-export type Thing = "velocipede" | "lantern" | "food";
+/** M3j: "boat" a rowing boat taken from its steps (rowing.ts); "boat_lost" one taken and wrecked; "boat_debt" a hired boat lost and never paid for. */
+export type Thing = "velocipede" | "lantern" | "food" | "boat" | "boat_lost" | "boat_debt";
 
 /** Engine numbers per kind of thing: how bad it is (police points) and the fine. */
 export const THINGS: Record<Thing, { severity: number; fine_c: number; noun: string }> = {
   velocipede: { severity: 3, fine_c: 60, noun: "velocipede" },
   lantern: { severity: 2, fine_c: 25, noun: "lantern" },
   food: { severity: 1, fine_c: 10, noun: "food" },
+  boat: { severity: 3, fine_c: 50, noun: "rowing boat" },
+  boat_lost: { severity: 5, fine_c: 100, noun: "rowing boat" },
+  boat_debt: { severity: 2, fine_c: 30, noun: "boat" },
 };
 
 /** Stall goods -> the food you can lift off the table. */
@@ -511,6 +516,13 @@ function findThing(db: DB, ref: string) {
     const st = veloStates(db)[ref];
     return { thing: "velocipede" as Thing, item: "velocipede", owner: v.owner, x: st.x, z: st.z, where: v.where, noun: "velocipede", velo: st, at: null };
   }
+  if (ref.startsWith("boat:")) {
+    const b = rowBoats(db).find((q) => q.id === ref);
+    if (!b) throw new GameError("no such boat", 404);
+    const st = rowBoatStates(db)[ref];
+    if (st.lostDay !== undefined) throw new GameError("it is gone", 409);
+    return { thing: "boat" as Thing, item: b.kind, owner: b.owner, x: st.x, z: st.z, where: b.where, noun: "rowing boat", velo: null, at: null };
+  }
   if (ref.startsWith("lamp:")) {
     const l = s.lamps.find((q) => q.id === ref);
     if (!l) throw new GameError("no such lantern", 404);
@@ -551,6 +563,16 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
       saveVelo(db, req.ref, { ...t.velo, ridden: true, down: false });
       return { deed: t.velo.deed, again: true, seen: false, owner_saw: false, seen_by: [], owner: { id: t.owner, name: ownerName }, reaction: null, text: "", police: false, item_id: null };
     }
+  } else if (t.thing === "boat") {
+    // M3j: a rowing boat, like a velocipede: no pocket; his already (taken before): back in, no new deed
+    const st = rowBoatStates(db)[req.ref];
+    if (st.ridden) throw new GameError("you are already in it", 409);
+    if (rowState(db).on) throw new GameError("you are in a boat already", 409);
+    if (st.deed !== null) {
+      setRowBoat(db, req.ref, { ...st, ridden: true });
+      rowOn(db, req.ref);
+      return { deed: st.deed, again: true, seen: false, owner_saw: false, seen_by: [], owner: { id: t.owner, name: ownerName }, reaction: null, text: "", police: false, item_id: null };
+    }
   } else if (freeSlots(db) < 1) throw new GameError("your pockets are full", 409);
   if (t.thing === "lantern" && lampsTaken(db, p.day).includes(req.ref)) throw new GameError("it is gone already", 409);
   if (t.thing === "food") {
@@ -589,7 +611,7 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
   let deedId = 0;
   const pm = db.prepare("SELECT minute FROM player WHERE id = 1").get() as { minute: number };
   db.transaction(() => {
-    if (t.thing !== "velocipede") {
+    if (t.thing !== "velocipede" && t.thing !== "boat") {
       const r = db.prepare("INSERT INTO item (kind, job_id) VALUES (?, NULL)").run(t.item);
       itemId = Number(r.lastInsertRowid);
     }
@@ -601,6 +623,10 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
       .run(p.day, p.hour, pm.minute, t.thing, t.item, req.ref, t.owner, t.x, t.z, seen ? 1 : 0, ownerSaw ? 1 : 0, JSON.stringify(tellers.map((w) => w.id)), itemId, rumourAt);
     deedId = Number(ins.lastInsertRowid);
     if (t.velo) saveVelo(db, req.ref, { ...t.velo, ridden: true, deed: deedId, down: false });
+    if (t.thing === "boat") {
+      setRowBoat(db, req.ref, { ...rowBoatStates(db)[req.ref], ridden: true, deed: deedId });
+      rowOn(db, req.ref);
+    }
     if (t.thing === "lantern") setState(db, `lamps_taken:${p.day}`, [...lampsTaken(db, p.day), req.ref]);
     if (t.thing === "food") {
       const tt = tableTakes(db, p.day);
@@ -653,6 +679,8 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
         : `Somebody saw you. You can feel their eyes on your back.`
     : t.thing === "velocipede"
       ? "Nobody seems to have seen. The velocipede is yours now, for what that is worth."
+      : t.thing === "boat"
+        ? "Nobody seems to have seen. You cast off: the boat is yours now, for what that is worth."
       : t.thing === "lantern"
         ? "Nobody saw. The lantern is yours now."
         : `Nobody saw. ${FOOD_NAME[t.item][0].toUpperCase() + FOOD_NAME[t.item].slice(1)} goes into your pocket.`;
@@ -677,7 +705,8 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
 export function returnThing(db: DB, id: number, how: "gave" | "caught"): { text: string } {
   const d = deedRow(db, id);
   if (!d || d.status !== "open") throw new GameError("nothing to give back", 409);
-  if (d.thing !== "velocipede") {
+  if (d.thing === "boat_lost" || d.thing === "boat_debt") throw new GameError("there is nothing to give back", 409);
+  if (d.thing !== "velocipede" && d.thing !== "boat") {
     const has = db.prepare("SELECT 1 FROM item WHERE id = ?").get(d.item_id ?? -1);
     if (!has) throw new GameError("you have not got it any more", 409);
   }
@@ -689,6 +718,7 @@ export function returnThing(db: DB, id: number, how: "gave" | "caught"): { text:
     log(db, "gave_back", d.ref, how === "gave" ? `Jef gave ${noun} back to ${name}.` : `${name} caught Jef and took ${noun} back.`);
   })();
   if (d.thing === "velocipede") veloHome(db, d.ref);
+  if (d.thing === "boat") rowBoatHome(db, d.ref);
   if (how === "gave") {
     remember(db, d.owner, `Jef gave my ${d.thing === "food" ? d.item : d.thing} back when I asked. Still, he took it.`, 4, "seen", null, {
       gist: `Jef took ${name}'s ${d.thing === "food" ? d.item : d.thing} and gave it back when asked`,
@@ -721,7 +751,7 @@ export function deedRumours(db: DB): number {
     db.prepare("UPDATE deed SET rumour_at = NULL WHERE id = ?").run(d.id);
     const name = npcName(db, d.owner);
     const where = stealables(db).food.find((f) => f.id === d.ref)?.where ?? `${name}'s stall`;
-    const gone = d.thing === "food" ? `${FOOD_NAME[d.item] ?? d.item} went missing from ${where}` : `${name}'s ${d.thing} went missing`;
+    const gone = d.thing === "food" ? `${FOOD_NAME[d.item] ?? d.item} went missing from ${where}` : `${name}'s ${THINGS[d.thing]?.noun ?? d.thing} went missing`;
     remember(db, d.owner, `Someone says the new man, Jef, was about when ${gone.replace(`${name}'s`, "my")}.`, 5, "heard", null, {
       gist: `Jef was about when ${gone}`,
       tone: -1,

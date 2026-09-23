@@ -1,7 +1,7 @@
 import type { DB } from "../db.ts";
 import { generateTown, tidy, type Resident, type Town } from "./population.ts";
 import { walkMap } from "./walkmap.ts";
-import { TRADES, TOWN_EMPLOYERS } from "./places.ts";
+import { HAULS, STALLS, TRADES, TOWN_EMPLOYERS } from "./places.ts";
 
 // The town in SQLite (M3e). Each resident is also a row in `npc` (id r001...,
 // or the fixed ids of the board's employers), so relationships, memories and
@@ -86,6 +86,70 @@ export function repairTown(db: DB): number {
   })();
   if (fixed) cache.delete(db);
   return fixed;
+}
+
+/**
+ * Move a town's market stalls to the current STALLS layout (M3i: the fish banks of the
+ * Vismarkt and the Grote Markt stalls re-laid, off the cart ruts, a little askew), in place:
+ * the same stalls, goods and keepers; only where each stands, which way it faces, and where
+ * its keeper stands behind it (work.at). The Vismarkt haulers get the new ends of their
+ * hauls. Memories, relationships, schedules and everything else stay. Not run on start:
+ * scripts/relay-stalls.ts runs it on a save (with a backup). Returns how many stalls moved.
+ */
+export function relayStalls(db: DB): { stalls: number; keepers: number; haulers: number } {
+  const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'town'").get() as { value_json: string } | undefined;
+  if (!row) return { stalls: 0, keepers: 0, haulers: 0 };
+  const rest = JSON.parse(row.value_json) as Omit<Town, "residents">;
+  const wm = walkMap();
+  const snap = (x: number, z: number): [number, number] => {
+    const q = wm.nearestOpen(x, z, 8) ?? { x, z };
+    return [q.x, q.z];
+  };
+  let stalls = 0;
+  rest.stalls.forEach((s, i) => {
+    const d = STALLS[i];
+    if (!d || d.place !== s.place || d.goods !== s.goods) return; // not the same stall: leave it
+    const [x, z] = snap(d.x, d.z);
+    if (x === s.x && z === s.z && d.face[0] === s.face[0] && d.face[1] === s.face[1]) return;
+    s.x = x;
+    s.z = z;
+    s.face = d.face;
+    stalls++;
+  });
+  const rows = db.prepare("SELECT id, data_json FROM resident").all() as Array<{ id: string; data_json: string }>;
+  const upd = db.prepare("UPDATE resident SET data_json = ? WHERE id = ?");
+  let keepers = 0;
+  let haulers = 0;
+  const newHauls = HAULS.vismarkt ?? [];
+  db.transaction(() => {
+    for (const r0 of rows) {
+      const r = JSON.parse(r0.data_json) as Resident;
+      let changed = false;
+      if (r.work.kind === "stall" && r.work.stall !== undefined) {
+        const s = rest.stalls[r.work.stall];
+        if (s && s.keeper === r.id) {
+          const at = snap(s.x - s.face[0] * 1.0, s.z - s.face[1] * 1.0);
+          r.work.at = [at[0], at[1], Math.atan2(s.face[0], s.face[1])];
+          changed = true;
+          keepers++;
+        }
+      }
+      if (r.work.place === "vismarkt" && r.work.a && r.work.b && newHauls.length) {
+        // the haul with the same quay end, else the nearest one
+        const best = newHauls.reduce((b, h) => (Math.hypot(h.a[0] - r.work.a![0], h.a[1] - r.work.a![1]) < Math.hypot(b.a[0] - r.work.a![0], b.a[1] - r.work.a![1]) ? h : b), newHauls[0]);
+        const b = snap(best.b[0], best.b[1]);
+        if (b[0] !== r.work.b[0] || b[1] !== r.work.b[1]) {
+          r.work.b = b;
+          changed = true;
+          haulers++;
+        }
+      }
+      if (changed) upd.run(JSON.stringify(r), r0.id);
+    }
+    db.prepare("UPDATE world_state SET value_json = ? WHERE key = 'town'").run(JSON.stringify(rest));
+  })();
+  cache.delete(db);
+  return { stalls, keepers, haulers };
 }
 
 // ------------------------------------------------------------------ reading

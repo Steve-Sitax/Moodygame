@@ -5,6 +5,7 @@ import { psxUniforms } from "./retro/psx";
 import { mountSettings, type GameSettings } from "./game/settings";
 import { mountDevMenu } from "./game/devmenu";
 import { setAmbientViewHeight } from "./world/ambient";
+import { setFireViewHeight } from "./world/fire";
 import { setMirrorScale } from "./world/mirror";
 import { BOARD_POS, DOSS_POS, RAMP, SPOTS, buildRijnkaai } from "./world/rijnkaai";
 import { FirstPerson } from "./player/firstPerson";
@@ -17,6 +18,8 @@ import { Animals } from "./game/animals";
 import { Stalls } from "./game/stalls";
 import { Ride } from "./game/ride";
 import { Deeds } from "./game/deeds";
+import { Market } from "./game/market";
+import { createTrades } from "./world/trades";
 import { api } from "./net/api";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
@@ -62,6 +65,13 @@ const crowd = new Crowd(
 const animals = new Animals(world.scene, { isFree: (x, z, r) => world.isFree(x, z, r) });
 const stalls = new Stalls({ scene: world.scene, addCollider: world.addCollider });
 const town = new Town(world, crowd, jobs.people, animals, stalls);
+// M3i: market days on the Vismarkt and the Grote Markt (game/market.ts), and the working
+// trades: boat yard, farrier, rope walk, cooper, sailmaker, net menders (world/trades.ts)
+const market = new Market(world, crowd, town, stalls);
+town.market = market;
+animals.scraps = market.scrapSpots();
+const trades = createTrades(world.scene, world.city.flags, { clock: () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF }) });
+for (const r of trades.colliders) world.addCollider(r);
 jobs.town = town;
 town.clock = () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF });
 town.canRob = () => !jobs.talk.isOpen && !jobs.day.sheetOpen && (player.locked || player.freeInput);
@@ -76,6 +86,7 @@ town
   .load()
   .then(() => {
     for (const r of town.data!.residents) if (r.wares.length) jobs.talk.setWares(r.id, r.wares);
+    return market.build();
   })
   .catch((e) => console.warn("the town did not load; the old crowd stays", e));
 
@@ -105,6 +116,7 @@ function resize(): void {
   if (settings.wobble) psxUniforms.uSnapRes.value.set(Math.round(270 * aspect) * 0.5, 270 * 0.5);
   else psxUniforms.uSnapRes.value.set(1e5, 1e5);
   setAmbientViewHeight(retro.height);
+  setFireViewHeight(retro.height);
   setMirrorScale(retro.height / 270);
 }
 window.addEventListener("resize", resize);
@@ -184,6 +196,8 @@ function frame(): void {
   crowd.setHour(jobs.day.hour);
   crowd.update(dt, player, player.camera);
   town.update(dt, player);
+  market.update(dt, player, jobs.day.dayNum, jobs.day.hourF);
+  trades.update(elapsed, dt, player.camera, crowd.fogDistance);
   deeds.update(dt, jobs.day.hourF);
   animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
   sound?.setCrowd(crowd.stats.drawn);
@@ -291,6 +305,8 @@ if (import.meta.env.DEV) {
     town,
     animals,
     stalls,
+    market,
+    trades,
     ride,
     deeds,
     get sound() {
@@ -321,6 +337,8 @@ if (import.meta.env.DEV) {
       for (const q of town.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M3h: the velocipedes, the lanterns, the food tables, the police post
       for (const q of deeds.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      // M3i: the trades (the market stalls come through town.pathPoints())
+      for (const q of trades.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       if (!can(DOSS_POS.x, DOSS_POS.z, 2.0)) bad.push("the doss house gate");
       if (!can(RAMP.x - 0.6, RAMP.zHigh - 1.0, 2.4)) bad.push("the mate on deck");
       return bad;
@@ -390,6 +408,8 @@ if (import.meta.env.DEV) {
         jobs.update(dt);
         crowd.update(dt, player, player.camera);
         town.update(dt, player);
+        market.update(dt, player, jobs.day.dayNum, jobs.day.hourF);
+        trades.update(elapsed, dt, player.camera, crowd.fogDistance);
         deeds.update(dt, jobs.day.hourF);
         animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
       }

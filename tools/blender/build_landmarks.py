@@ -1012,7 +1012,7 @@ class CMesh(Mesh):
         self.tris = sum(len(f.verts) - 2 for f in self.bm.faces)
         self.bm.to_mesh(me)
         self.bm.free()
-        for mname in CATH_MATS:
+        for mname in getattr(self, "mats", CATH_MATS):
             me.materials.append(bpy.data.materials[mname])
         ob = bpy.data.objects.new(name, me)
         bpy.context.scene.collection.objects.link(ob)
@@ -2271,7 +2271,7 @@ def main():
         "cathedral": lambda: cathedral(frame("cathedral"), world_north),
         "stadhuis": lambda: stadhuis(frame("stadhuis", open_side=True)),
         "vleeshuis": lambda: vleeshuis(frame("vleeshuis")),
-        "steen": lambda: steen3(frame("steen", open_side=True)),
+        "steen": lambda: steen4(frame("steen")),  # M3i: the Steen of 1873 (steen3: the post-1890 look)
         "hanzehuis": lambda: hanzehuis(frame("hanzehuis", away=True)),
         "stpaul": lambda: church(frame("stpaul"), 42, "bulb"),
         "carolus": lambda: church(frame("carolus"), 44, "bulb"),

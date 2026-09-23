@@ -63,6 +63,11 @@ function load(): Promise<Parts | null> {
   return loading;
 }
 
+/** M3i (game/market.ts): the stall parts of stalls.glb (frame, awnings, goods, tables), psx materials already on them. */
+export async function stallProtos(): Promise<Map<string, THREE.Object3D> | null> {
+  return (await load())?.protos ?? null;
+}
+
 /** Footprints from the build report (local frame, customer side +z). */
 const STALL_RECT = { minX: -1.4, maxX: 1.4, minZ: -0.71, maxZ: 0.71 };
 const SHOP_RECT = { minX: -0.8, maxX: 0.8, minZ: 0.25, maxZ: 0.95 };

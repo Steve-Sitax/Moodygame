@@ -182,6 +182,11 @@ export class Human {
     for (const m of ["walk", "carry"] as Motion[]) this.actions.get(m)?.setEffectiveTimeScale(Math.max(0.3, speed / (this.stride.get(m) ?? 1.2)));
   }
 
+  /** M3i (world/trades.ts): play a clip at this speed; negative runs it backwards (the rope maker stepping back). */
+  clipSpeed(m: Motion, k: number): void {
+    this.actions.get(m)?.setEffectiveTimeScale(k);
+  }
+
   /** A woman's clips (hands folded in front, shorter steps)? */
   get woman(): boolean {
     return WOMEN.has(this.kind);

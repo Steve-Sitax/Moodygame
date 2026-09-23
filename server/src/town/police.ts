@@ -13,6 +13,7 @@ import { houseDoors } from "./walkmap.ts";
 import { canCall } from "./talk.ts";
 import { spreadRumours } from "./rumours.ts";
 import { FOOD_NAME, THINGS, gameMinute, hasDeeds, npcName, openDeeds, stealables, veloHome, type DeedRow } from "./deeds.ts";
+import { rowBoatHome, rowBoats } from "../rowing.ts";
 
 // The police (M3h). Engine first: after a deed someone saw, or when the town
 // talks enough about Jef's thieving, an agent on duty comes to find him. The
@@ -401,8 +402,10 @@ YOU NOW SPEAK AS AN AGENT OF THE CITY POLICE OF ANTWERP, 1873, in a dark blue co
 function describeDeed(db: DB, d: DeedRow): string {
   const owner = npcName(db, d.owner);
   const s = stealables(db);
-  const where = d.thing === "food" ? s.food.find((f) => f.id === d.ref)?.where ?? `${owner}'s stall` : d.thing === "velocipede" ? s.velos.find((v) => v.id === d.ref)?.where ?? "" : s.lamps.find((l) => l.id === d.ref)?.where ?? "";
-  const what = d.thing === "food" ? `${FOOD_NAME[d.item] ?? d.item} from ${where}` : `${owner}'s ${d.thing} ${where}`;
+  // M3j: boats (rowing.ts): taken, taken and wrecked, or hired, lost and never paid for
+  const boat = d.thing === "boat" || d.thing === "boat_lost" ? `${rowBoats(db).find((b) => b.id === d.ref)?.where ?? ""}${d.thing === "boat_lost" ? ", and wrecked it" : ""}` : d.thing === "boat_debt" ? "that Jef hired, lost and never paid for" : null;
+  const where = boat ?? (d.thing === "food" ? s.food.find((f) => f.id === d.ref)?.where ?? `${owner}'s stall` : d.thing === "velocipede" ? s.velos.find((v) => v.id === d.ref)?.where ?? "" : s.lamps.find((l) => l.id === d.ref)?.where ?? "");
+  const what = d.thing === "food" ? `${FOOD_NAME[d.item] ?? d.item} from ${where}` : `${owner}'s ${THINGS[d.thing]?.noun ?? d.thing} ${where}`;
   return what.trim();
 }
 
@@ -419,7 +422,7 @@ function factsOf(d: DeedRow): DeedFacts {
 function stillHeld(db: DB, deeds: DeedRow[]): DeedRow[] {
   return deeds.filter((d) => {
     if (d.status !== "open") return false;
-    if (d.thing === "velocipede") return true;
+    if (d.thing === "velocipede" || d.thing === "boat") return true;
     return !!db.prepare("SELECT 1 FROM item WHERE id = ?").get(d.item_id ?? -1);
   });
 }
@@ -606,6 +609,7 @@ function applyVerdict(db: DB, agent: string, dec: Decision, stance: Stance, text
     );
   })();
   for (const d of deeds) if (d.thing === "velocipede") veloHome(db, d.ref);
+  for (const d of deeds) if (d.thing === "boat") rowBoatHome(db, d.ref);
   if (dec.verdict === "warning") s.record.warnings++;
   if (dec.verdict === "fine") s.record.fines++;
   if (dec.verdict === "arrest") s.record.arrests++;

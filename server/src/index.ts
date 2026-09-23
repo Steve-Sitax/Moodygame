@@ -21,11 +21,14 @@ import { TRADES, TOWN_EMPLOYERS } from "./town/places.ts";
 import { alight, board as boardRide, change as rideChange, isLine, isStop, ride, RIDE_FARE_C } from "./ride.ts";
 import { freeReply, openTalk, pickChoice, prefetchOpening, witness, type Line } from "./hooks/dialogue.ts";
 import { mountDeeds } from "./town/deedRoutes.ts";
+import { mountRowing } from "./town/rowDeeds.ts";
 
 const db = openDb(DB_FILE);
 const app = new Hono();
 // theft, velocipedes, lanterns and the police (M3h); before the talk route, so the agent answers through it
 mountDeeds(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m), afterNight: (e) => afterNight(e) });
+// rowing boats for hire, and boats to steal (M3j): the server takes the hire, the fines and the price of a lost boat
+mountRowing(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 
 // Board status the client can show while Claude writes.
 let board: { state: "writing" | "ready"; source?: string; error?: string } = { state: "ready" };

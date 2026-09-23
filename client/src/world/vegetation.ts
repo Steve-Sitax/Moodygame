@@ -120,14 +120,16 @@ function crossGeo(w: number, h: number): THREE.BufferGeometry {
   const ib = Array.from(b.getIndex()!.array).map((i) => i + 4);
   g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
-  g.setIndex([...ia, ...ib]);
+  // each card twice, the second wound the other way: both sides are front faces, lit alike
+  const flip = (ix: number[]) => ix.flatMap((_, k, arr) => (k % 3 === 0 ? [arr[k], arr[k + 2], arr[k + 1]] : []));
+  g.setIndex([...ia, ...ib, ...flip(ia), ...flip(ib)]);
   // normals up: grass lit like the ground, not like a wall
   g.setAttribute("normal", new THREE.Float32BufferAttribute(new Array(8).fill([0, 1, 0]).flat(), 3));
   return g;
 }
 
 function plantMat(map: THREE.Texture): THREE.Material {
-  return psx(new THREE.MeshLambertMaterial({ map, alphaTest: 0.5, side: THREE.DoubleSide, vertexColors: false }), { affine: 0 });
+  return psx(new THREE.MeshLambertMaterial({ map, alphaTest: 0.5, side: THREE.FrontSide, vertexColors: false }), { affine: 0 });
 }
 
 export interface VegetationOptions {
@@ -219,9 +221,12 @@ export function buildVegetation(scene: THREE.Scene, flags: Flags, opts: Vegetati
       if (w === 0 || nearTree(px, pz, PIT + 0.5) || blocked(px, pz, 0.8)) continue;
       const corner = w >= 3;
       const roll = r();
-      if (corner && roll < 0.04) bushes.push({ x: px, z: pz, s: 0.8 + r() * 0.7, yaw: r() * Math.PI });
-      else if (corner && roll < 0.1) flowers.push({ x: px, z: pz, s: 0.7 + r() * 0.5, yaw: r() * Math.PI });
-      else if (roll < (corner ? 0.6 : 0.3)) grass.push({ x: px, z: pz, s: 0.6 + r() * 0.8, yaw: r() * Math.PI });
+      // grass does not grow on paved stone: only in forgotten corners (bushes, a few flowers,
+      // a little grass) and as small weeds in the cracks right at the wall foot
+      if (corner && roll < 0.03) bushes.push({ x: px, z: pz, s: 0.8 + r() * 0.7, yaw: r() * Math.PI });
+      else if (corner && roll < 0.06) flowers.push({ x: px, z: pz, s: 0.5 + r() * 0.35, yaw: r() * Math.PI });
+      else if (corner && roll < 0.2) grass.push({ x: px, z: pz, s: 0.45 + r() * 0.4, yaw: r() * Math.PI });
+      else if (w >= 2 && roll < 0.07) grass.push({ x: px, z: pz, s: 0.25 + r() * 0.2, yaw: r() * Math.PI });
     }
   }
   // the tree pits: grass at the edges, now and then a few flowers

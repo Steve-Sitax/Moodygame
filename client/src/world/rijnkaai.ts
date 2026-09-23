@@ -15,7 +15,12 @@ import { buildTracks, trackKeepOut, type TrackData } from "./tracks";
 import { buildRuts } from "./ruts";
 import { buildFarBank } from "./farbank";
 import { buildVegetation } from "./vegetation";
+import { buildTrees3D } from "./trees3d";
+import { applyDirt } from "./dirt";
+import { createFires, type Fires } from "./fire";
 import { createStreetLife, type StreetLife } from "./streetlife";
+import { tradeKeepOut } from "./trades";
+import { marketKeepOut } from "../game/market";
 import { createQuayFurniture, type QuayFurniture } from "./quayfurniture";
 import { createTraffic, type Traffic } from "./traffic";
 import { createRailway, type CraneSite, type Railway } from "./railway";
@@ -259,6 +264,8 @@ export function buildRijnkaai(): World {
   buildTracks(scene, trackData, bridgeRects.map((b) => ({ minX: Math.min(b[0], b[2]), maxX: Math.max(b[0], b[2]), minZ: Math.min(b[1], b[3]), maxZ: Math.max(b[1], b[3]) })));
   // the horse omnibus's lane round the quays (world/omnibus.ts): props, pumps and troughs keep off it
   const omnibusLane = omnibusKeepOut();
+  // M3i: the market squares and the trades' workshops (game/market.ts, world/trades.ts): nothing else put there
+  const workplaces = [...marketKeepOut(), ...tradeKeepOut()];
   // the railway gate of the Werf store (world/railgate.ts): built now, so its collider is there
   // before the train looks along its line
   const railGate = createRailGate(scene, {
@@ -273,29 +280,36 @@ export function buildRijnkaai(): World {
     ...bridgeRects.map((b) => ({ minX: Math.min(b[0], b[2]) - 4, maxX: Math.max(b[0], b[2]) + 4, minZ: Math.min(b[1], b[3]) - 4, maxZ: Math.max(b[1], b[3]) + 4 })),
     ...trackKeepOut(trackData),
     ...omnibusLane,
+    ...workplaces,
   ];
   // shop signs, awnings, corner Madonnas, pumps, washing lines, grime (world/streetlife.ts),
   // set after the carts and crates so the pumps keep off them
   let street: StreetLife | null = null;
   // bollards, rings, fenders, huts, nets, signs along the quays (world/quayfurniture.ts)
   let quayKit: QuayFurniture | null = null;
+  // the fires in the tar barrels on the quays (world/fire.ts)
+  let fires: Fires | null = null;
   city.ready
     .then(() => dressCity(scene, city.flags, { keepOut: propsKeepOut }))
     .then((d) => {
       colliders.push(...d.colliders);
-      return createStreetLife(scene, city.flags, { avoid: [...d.colliders, ...omnibusLane] });
+      return createStreetLife(scene, city.flags, { avoid: [...d.colliders, ...omnibusLane, ...workplaces] });
     })
     .then((sl) => {
       street = sl;
       colliders.push(...sl.colliders);
       return createQuayFurniture(scene, city.flags, {
-        avoid: [...colliders, ...dynamic, ...omnibusLane], // M3g: nothing on the omnibus lanes
+        avoid: [...colliders, ...dynamic, ...omnibusLane, ...workplaces], // M3g: nothing on the omnibus lanes; M3i: markets, trades
         quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
       });
     })
     .then((qf) => {
       quayKit = qf;
       colliders.push(...qf.colliders);
+      fires = createFires(
+        scene,
+        qf.sites.filter((q) => q.kind.startsWith("tar_fire")).map((q) => ({ x: q.x, y: 0.12 + 0.6, z: q.z, size: 0.9 })),
+      );
     })
     .catch((e) => console.warn("props, streetlife or quay furniture did not load", e));
   // drays and handcarts going round the quays (world/traffic.ts); they stop for you
@@ -307,6 +321,12 @@ export function buildRijnkaai(): World {
       for (const r of traffic.colliders()) dynamic.add(r); // added once: the rects move in place
     })
     .catch((e) => console.warn("traffic did not start", e));
+  // grime in the gutters and mud on the paving (world/dirt.ts)
+  city.ready.then(() => applyDirt(city.flags)).catch((e) => console.warn("dirt did not load", e));
+  // the trees of the Steenplein and the Werf (world/trees3d.ts, tools/blender/build_trees.py)
+  city.ready
+    .then(() => buildTrees3D(scene, (CITY_DATA as unknown as { decor?: { trees?: Array<[number, number]> } }).decor?.trees ?? []))
+    .catch((e) => console.warn("trees did not load", e));
   // tree pits, grass and weeds at the foot of walls, late flowers, bare bushes (world/vegetation.ts)
   city.ready
     .then(() =>
@@ -646,8 +666,19 @@ export function buildRijnkaai(): World {
     // the last half metre of stone that the coarse walk map counts as water: you fall at the true edge
     const f = city.flags(x, z);
     if (f !== undefined && (f & WATER) !== 0 && (f & (WALL | OUTSIDE)) === 0 && !inWater(x, z)) return baseAt(x, z);
+    // the edge's lip: your body stands out a hand over the edge before you go (Steve: you fell
+    // while the stone still showed at your feet); you fall once your middle is well past it
+    if (f !== undefined && (f & WALL) === 0) {
+      for (let i = 0; i < 8; i++) {
+        const a = (i * Math.PI) / 4;
+        const px = x + Math.cos(a) * EDGE_LIP;
+        const pz = z + Math.sin(a) * EDGE_LIP;
+        if (!inWater(px, pz) && isWalkable(px, pz)) return baseAt(px, pz);
+      }
+    }
     return null;
   };
+  const EDGE_LIP = 0.28;
   /** Railings along the water (tools/city/design.py decor rails): only drawn in the city model, so they stop the player here. Gap at the pontoon. */
   const railings: Rect[] = [];
   for (const [x0, z0, x1, z1] of (CITY_DATA as unknown as { decor?: { rails?: number[][] } }).decor?.rails ?? []) {
@@ -1002,6 +1033,7 @@ export function buildRijnkaai(): World {
     if (camera && !devView) ambient.update(t, dt, camera, dayNow, weatherNow);
     street?.update(t, dt, lampsLit, camera ?? undefined);
     quayKit?.update(t, dt, lampsLit, camera ?? undefined);
+    fires?.update(t);
     lantern.intensity = 7 * (0.92 + Math.sin(t * 5.1) * 0.04 + Math.sin(t * 13.7) * 0.03);
     waterTex.offset.x = t * 0.004;
     waterTex.offset.y = t * 0.011;

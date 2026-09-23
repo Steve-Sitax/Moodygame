@@ -110,6 +110,11 @@ export class Town {
   openWork = new Set<string>();
   /** Employers whose work Jef has in hand: they wait for him, whatever the hour. */
   takenWork = new Set<string>();
+  /**
+   * M3i (game/market.ts): the market days. Residents out on market errands browse its stalls
+   * (and the town's own) instead of wandering; set by main.
+   */
+  market: { browse(p: Puppet, place: string, dt: number): boolean; forget(p: Puppet): void; pathPoints(): Array<{ label: string; x: number; z: number; reach: number }> } | null = null;
   /** Set by main: game day (1-7) and hour with fraction. */
   clock: () => { day: number; hour: number } = () => ({ day: 1, hour: 9 });
   /** Set by main: may a thief try Jef now (not in a window, not asleep)? */
@@ -213,6 +218,7 @@ export class Town {
       return;
     }
     s.key = key;
+    if (s.p) this.market?.forget(s.p);
     s.goal = this.goalFor(s, now);
     s.step = 0;
     s.tries = 0;
@@ -507,6 +513,8 @@ export class Town {
       case "market":
       case "stroll":
       case "loiter":
+        // M3i: along the stalls, stop, look, haggle, buy (game/market.ts)
+        if (g.mode === "market" && this.market?.browse(p, g.place ?? "", dt)) return;
         if (busy) return;
         if ((s.wait -= dt) > 0) return;
         if (Math.random() < 0.45 || g.mode === "stroll") {
@@ -778,6 +786,17 @@ export class Town {
     for (const id of ["sooi", "peeters", "tuur", "fientje"]) this.people.get(id)?.setLantern(dark && this.openWork.has(id));
   }
 
+  /**
+   * M3i (game/market.ts): a stall keeper turns to a buyer at the stall and talks for a few
+   * seconds (only while at the stall: not walking, not held by Jef).
+   */
+  gesture(id: string, x: number, z: number, secs: number): void {
+    const s = this.byId.get(id);
+    if (!s?.p || s.held || s.goal.mode !== "stand" || this.crowd.puppetBusy(s.p)) return;
+    this.crowd.puppetStand(s.p, "talk", Math.atan2(x - s.p.x, z - s.p.z));
+    s.wait = secs;
+  }
+
   // ------------------------------------------------------------------ talking
 
   private speaker(s: Sim): Speaker {
@@ -877,6 +896,8 @@ export class Town {
     for (const [id, at] of this.stalls.sellerSpots) out.push({ label: `seller ${id}`, x: at.x, z: at.z, reach: 2.4 });
     for (const f of this.stalls.fronts) out.push({ label: f.label, x: f.x, z: f.z, reach: 1.8 });
     for (const [id, p] of Object.entries(d.places)) out.push({ label: `place ${id}`, x: p.x, z: p.z, reach: 3 });
+    // M3i: the market stalls that stand now
+    for (const q of this.market?.pathPoints() ?? []) out.push(q);
     return out;
   }
 

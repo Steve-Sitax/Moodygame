@@ -61,7 +61,7 @@ export const TRAFFIC_ROUTES: TrafficRoute[] = [
   {
     // the Werf along the river, round the block behind it
     name: "werf",
-    pts: [[-305, 8.3], [-216, 8.3], [-216, 30], [-305, 30]],
+    pts: [[-305, 8.3], [-240, 8.3], [-240, 30], [-305, 30]], // M3i: turns inland south of the Steen
     loop: true,
     stops: [{ at: [-249, 8.3], secs: 20, chance: 0.6 }],
     vehicles: [

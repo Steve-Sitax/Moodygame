@@ -1,4 +1,5 @@
 import CITY from "../../../shared/city.json";
+import { TRADE_SOUNDS } from "../world/trades";
 
 // Where the city's sounds come from. World frame: x along the river (north),
 // z inland, the Scheldt at z < 0. Most points come from shared/city.json
@@ -93,9 +94,10 @@ export function cityEmitters(): Emitter[] {
   const gm = place("Grote Markt");
   if (gm) out.push({ kind: "market", x: gm.x, z: gm.z, y: 1.6, gain: 0.5, name: "Grote Markt stalls" });
 
-  // a smithy near the docks (the Rijnkaai row) and a cooper by the brewers' canal
+  // a smithy near the docks (the Rijnkaai row); the working trades of M3i (world/trades.ts):
+  // the farrier's forge, the cooper by the brewers' canal, the caulker's mallet at the boat yard
   out.push({ kind: "smithy", x: 50, z: 46.5, y: 1.2, name: "smithy, Rijnkaai" });
-  out.push({ kind: "cooper", x: -92.5, z: 130, y: 1.2, name: "cooper, Canal des Brasseurs" });
+  for (const t of TRADE_SOUNDS) out.push({ kind: t.kind, x: t.x, z: t.z, y: 1.2, gain: t.gain, name: t.name });
 
   // taverns: street doors near the quays and the squares (singing at night)
   const doss = city.doors.doss;
