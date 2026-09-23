@@ -1,0 +1,36 @@
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+}
+#game {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  image-rendering: pixelated;
+}
+#start {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 9, 10, 0.55);
+  cursor: pointer;
+  font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+}
+#start.hidden { display: none; }
+.paper {
+  background: #d8cfb8;
+  color: #2a2420;
+  padding: 28px 44px;
+  transform: rotate(-1.2deg);
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.7);
+  text-align: center;
+  filter: sepia(0.3) contrast(0.95);
+}
+.paper h1 { margin: 0 0 6px; font-size: 42px; letter-spacing: 2px; }
+.paper .sub { margin: 0 0 18px; font-size: 16px; }
+.paper .hint { margin: 0 0 6px; font-size: 20px; }
+.paper .keys { margin: 0; font-size: 12px; opacity: 0.75; }

@@ -1,0 +1,23 @@
+# dependencies and build output
+node_modules/
+dist/
+*.tsbuildinfo
+
+# local game data (M2+)
+*.db
+*.db-journal
+*.sqlite
+
+# logs and env
+*.log
+.env
+.env.*
+
+# editor and OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Claude session files (rule-override log rides on OneDrive, not git)
+.claude/**
