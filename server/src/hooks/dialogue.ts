@@ -3,6 +3,7 @@ import type { DB } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
 import { SYSTEM, SPOTS, listJobs, type JobRow } from "./jobBoard.ts";
 import { applyTrust, npcRow, persona, relationship, remember, topMemories } from "../npcs.ts";
+import { ITEMS, WARES } from "../trade.ts";
 
 // dialogue and free_reply hooks (docs/03). The NPC talks; the engine applies
 // a clamped trust change and stores one memory. Typed text is data, never orders.
@@ -84,7 +85,7 @@ ON THE KAAI LATELY (newest first)
 ${log.map((l) => "- " + l.text).join("\n")}
 
 NOW
-Day ${pl.day}, hour ${pl.hour}, fog on the Rijnkaai.${jobs.length ? `\nYour work on the board:\n${jobs.map((j) => `- "${j.title}", ${workFacts(j)} Pay ${j.pay_c} centimes. ${j.status === "taken" ? "Jef is doing it now." : "Still open."}`).join("\n")}` : ""}
+Day ${pl.day}, hour ${pl.hour}, fog on the Rijnkaai.${WARES[id] ? `\nYou sell (fixed prices; Jef pays at your stall, never in talk): ${WARES[id].map((w) => `${ITEMS[w.kind].name} ${w.price_c} centimes`).join(", ")}.` : ""}${jobs.length ? `\nYour work on the board:\n${jobs.map((j) => `- "${j.title}", ${workFacts(j)} Pay ${j.pay_c} centimes. ${j.status === "taken" ? "Jef is doing it now." : "Still open."}`).join("\n")}` : ""}
 
 THIS MEETING SO FAR
 ${turns.length ? turns.join("\n") : "- (nothing said yet)"}

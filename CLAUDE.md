@@ -12,9 +12,10 @@ Read `docs/README.md` first. Every design decision is in `docs/`. Do not re-ask 
 - Every milestone ends with a run in the browser, not a backend check. Milestones in `docs/06-demo-scope.md`.
 - Bound every model call with a timeout (20 s) and a fallback line.
 - Third-party assets and packages enter only with a clear licence, noted in `assets/ATTRIBUTION.md`.
-- Commit when a milestone is done, and after each batch of fixes Steve has checked in the browser. Steve gave standing approval (2026-09-23): no need to ask first. Commit only work that builds (`npm run build`). Never commit secrets or `.claude/`. Pushing still needs Steve's OK.
+- Always make sure there is a path (Steve, 2026-09-23): every place, person and goal a job or the player needs must be reachable on foot. Run the path check (`__scheldemist.paths()` in dev) in the browser before a milestone ends; it must list nothing.
+- Commit when a milestone is done, and after each batch of fixes Steve has checked in the browser. Steve gave standing approval (2026-09-23): no need to ask first. Commit only work that builds (`npm run build`). Never commit secrets or `.claude/`. Push to `origin` (github.com/Steve-Sitax/Moodygame, private) after each commit: Steve's standing OK, 2026-09-23.
 
 ## Status
-2026-09-23: docs done, spikes passed (see `docs/07-spike-results.md`), Blender installed. M1 fog walk done (`docs/milestones/M1.md`). M2 server and job board done (`docs/milestones/M2.md`). M2b job depth done (`docs/milestones/M2b.md`). M3 talk and remember done (`docs/milestones/M3.md`). Next: M4, events and world ops. Ideas not yet planned: `docs/09-backlog.md`.
+2026-09-23: docs done, spikes passed (see `docs/07-spike-results.md`), Blender installed. M1 fog walk done (`docs/milestones/M1.md`). M2 server and job board done (`docs/milestones/M2.md`). M2b job depth done (`docs/milestones/M2b.md`). M3 talk and remember done (`docs/milestones/M3.md`). M3b paths, paying, pockets done (`docs/milestones/M3b.md`). Next: Steve picks (M4 events or M5 needs and week). Ideas not yet planned: `docs/09-backlog.md`.
 
 Run: `npm run setup` once, then `npm run dev` in the repo root. Game at http://localhost:5173, server on 127.0.0.1:8787, save file `data/game.sqlite`.

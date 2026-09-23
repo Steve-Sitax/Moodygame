@@ -7,6 +7,7 @@ import { listJobs, makeBoard } from "./hooks/jobBoard.ts";
 import { writeOutcome } from "./hooks/jobOutcome.ts";
 import { finishJob, GameError, player, ReportSchema, saveOutcome, saveProgress, takeJob } from "./game.ts";
 import { ensurePersonas, PLACED, npcRow } from "./npcs.ts";
+import { buy, handOverParcel, ITEMS, pockets, useItem, WARES } from "./trade.ts";
 import { freeReply, openTalk, pickChoice, prefetchOpening, witness, type Line } from "./hooks/dialogue.ts";
 
 const db = openDb(DB_FILE);
@@ -17,7 +18,7 @@ let board: { state: "writing" | "ready"; source?: string; error?: string } = { s
 
 function jobsPayload() {
   const p = player(db);
-  return { board, jobs: listJobs(db, p.day), player: p };
+  return { board, jobs: listJobs(db, p.day), player: p, pockets: pockets(db) };
 }
 
 async function writeBoard(): Promise<void> {
@@ -94,8 +95,40 @@ function publicLine(l: Line & { gated?: string }) {
 }
 
 app.get("/api/npcs", (c) =>
-  c.json(Object.keys(PLACED).map((id) => ({ id, name: npcRow(db, id)!.name, role: npcRow(db, id)!.role }))),
+  c.json(
+    Object.keys(PLACED).map((id) => ({
+      id,
+      name: npcRow(db, id)!.name,
+      role: npcRow(db, id)!.role,
+      wares: (WARES[id] ?? []).map((w) => ({ ...w, name: ITEMS[w.kind].name })),
+    })),
+  ),
 );
+
+// ---- pockets and paying (M3b)
+
+app.post("/api/buy", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { npc?: string; kind?: string };
+  const r = buy(db, placed(String(body.npc)), String(body.kind));
+  broadcast({ type: "jobs", ...jobsPayload() });
+  return c.json({ ...r, ...jobsPayload() });
+});
+
+app.post("/api/use", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { id?: number };
+  const r = useItem(db, Number(body.id));
+  broadcast({ type: "jobs", ...jobsPayload() });
+  return c.json({ ...r, ...jobsPayload() });
+});
+
+app.post("/api/jobs/:id/handover", (c) => {
+  const id = Number(c.req.param("id"));
+  const j = listJobs(db, player(db).day).find((r) => r.id === id);
+  if (!j || j.status !== "taken" || j.task?.kind !== "deliver") throw new GameError("nothing to hand over", 409);
+  handOverParcel(db, id);
+  broadcast({ type: "jobs", ...jobsPayload() });
+  return c.json(jobsPayload());
+});
 
 app.post("/api/npc/:id/near", (c) => {
   const id = placed(c.req.param("id"));

@@ -99,8 +99,8 @@ export const NPCS: NpcDef[] = [
   {
     id: "sailor",
     name: "a sailor",
-    x: 32,
-    z: -4.4,
+    x: 35.5,
+    z: -4.6,
     y: 2.4,
     yaw: 0,
     talks: false,

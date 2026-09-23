@@ -102,6 +102,7 @@ export class GoodsWorld {
 
   /** Can an item be set down at (x, z)? On free ground, or on a stack that has room. */
   canPlace(x: number, z: number): "ground" | "stack" | null {
+    if (this.world.baseAt(x, z) > 0.05) return null; // not on the gangway or the deck
     const under = this.topAt(x, z);
     if (under) return this.stackHeight(under) < MAX_STACK ? "stack" : null;
     // ignore the player's own feet height: goods go on the quay

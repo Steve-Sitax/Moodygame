@@ -1,11 +1,13 @@
 import * as THREE from "three";
 import type { DeliverTask, CarryTask, Job, Progress, Report, WatchTask } from "../net/api";
-import { SPOTS, type World } from "../world/rijnkaai";
+import { DECK, RAMP, SPOTS, type World } from "../world/rijnkaai";
 import type { FirstPerson } from "../player/firstPerson";
 import { GOODS, makeGoods, type Goods } from "./props";
 import { Figure } from "./figures";
 import type { GoodsWorld, Item } from "./goods";
 import type { People } from "./people";
+import type { Pockets } from "./pockets";
+import { api, type JobsPayload } from "../net/api";
 
 // How each kind of job plays in 3D (M2b, M3). Goods live in the shared
 // GoodsWorld; a run tags its own goods with the job id and watches what
@@ -24,6 +26,9 @@ export interface RunCtx {
   player: FirstPerson;
   goods: GoodsWorld;
   people: People;
+  pockets: Pockets;
+  /** New server state after a call (money, pockets). */
+  refresh(p: JobsPayload): void;
   sfx(name: Sfx, at?: THREE.Vector3): void;
   toast(text: string): void;
   progress(p: Progress): void;
@@ -139,7 +144,8 @@ export class HaulRun implements Run {
 
     const fromShip = task.kind === "carry" && task.from === "ship_gangway";
     const employer = ctx.people.get(job.employer_npc);
-    this.waitingHandover = left > 0 && ((task.kind === "deliver" && !!employer) || fromShip);
+    this.waitingHandover =
+      left > 0 && ((task.kind === "deliver" && !!employer && !(this.pocketed_ && ctx.pockets.hasJobParcel(job.id))) || fromShip);
     if (fromShip) this.toLower = flags;
     else if (!this.waitingHandover) {
       flags.forEach((f, i) => {
@@ -160,7 +166,11 @@ export class HaulRun implements Run {
     this.mark.position.set(to.x, 0.02, to.z);
     if (this.kind === "carry") world.scene.add(this.mark);
     else {
-      this.recipient = new Figure("recipient", to.x, to.z, world.scene);
+      // someone waiting for the delivery; on the ship they stand on deck at the top of the gangway
+      this.recipient =
+        task.to === "ship_gangway"
+          ? new Figure("recipient", RAMP.x - 0.6, RAMP.zHigh - 1.0, world.scene, DECK.y)
+          : new Figure("recipient", to.x, to.z, world.scene);
       this.recipient.face(from.x, from.z);
     }
 
@@ -191,11 +201,31 @@ export class HaulRun implements Run {
     return it.jobId === this.job.id;
   }
 
+  /** A parcel travels in the pocket, not in the hands (M3b). */
+  private get pocketed_(): boolean {
+    return this.task.kind === "deliver" && this.task.goods === "parcel";
+  }
+
+  private get parcelInPocket(): boolean {
+    return this.pocketed_ && this.ctx.pockets.hasJobParcel(this.job.id);
+  }
+
   // ---- empty hands
 
   actions(): Action[] {
-    if (this.ended || !this.waitingHandover) return [];
+    if (this.ended) return [];
     const { x, z } = this.ctx.player;
+    if (this.parcelInPocket) {
+      const out: Action[] = [];
+      if (this.recipient && this.recipient.distTo(x, z) < REACH_PERSON) {
+        out.push({ key: "KeyE", text: `give the parcel to ${(this.task as DeliverTask).recipient}`, run: () => this.giveParcel() });
+      }
+      if (this.stranger && !this.strangerDone && this.stranger.distTo(x, z) < 3) {
+        out.push({ key: "KeyF", text: `sell the parcel to the stranger (${SELL_PRICE.deliver} c)`, run: () => this.sellParcel() });
+      }
+      return out;
+    }
+    if (!this.waitingHandover) return [];
     if (this.kind === "deliver") {
       const e = this.ctx.people.get(this.job.employer_npc);
       if (e && e.distTo(x, z) < REACH_PERSON) {
@@ -210,8 +240,16 @@ export class HaulRun implements Run {
   private takeParcel(): void {
     const e = this.ctx.people.get(this.job.employer_npc)!;
     e.lookAt(this.ctx.player.x, this.ctx.player.z);
-    const it = this.ctx.goods.receive(this.goods, GOODS[this.goods].hold, { jobId: this.job.id, owner: this.job.employer_npc });
-    this.ctx.player.speedFactor = GOODS[this.goods].speed;
+    if (this.pocketed_) {
+      // the parcel goes into your pocket; the server keeps it (pockets are engine state)
+      api
+        .handover(this.job.id)
+        .then((p) => this.ctx.refresh(p))
+        .catch((err: Error) => this.ctx.toast(err.message));
+    } else {
+      this.ctx.goods.receive(this.goods, GOODS[this.goods].hold, { jobId: this.job.id, owner: this.job.employer_npc });
+      this.ctx.player.speedFactor = GOODS[this.goods].speed;
+    }
     this.waitingHandover = false;
     this.ctx.sfx("lift");
     const line: Record<string, string> = {
@@ -220,7 +258,24 @@ export class HaulRun implements Run {
       sooi: `Sooi shoves it at you. "For ${(this.task as DeliverTask).recipient}. Go."`,
     };
     this.ctx.toast(line[this.job.employer_npc] ?? `You take the ${this.noun}.`);
-    void it;
+  }
+
+  private giveParcel(): void {
+    this.recipient?.face(this.ctx.player.x, this.ctx.player.z);
+    this.ctx.toast(`${(this.task as DeliverTask).recipient} takes the parcel, weighs it in one hand, and turns away.`);
+    this.delivered++;
+    this.changed();
+  }
+
+  private sellParcel(): void {
+    this.strangerDone = true;
+    this.sold++;
+    this.ctx.sfx("coins");
+    this.ctx.toast("He counts coins into your hand, tucks the parcel under his coat, and is gone in the fog.");
+    const s = this.stranger!;
+    const { x, z } = this.ctx.player;
+    s.walkTo(s.pos.x + (s.pos.x - x) * 8, s.pos.z + (s.pos.z - z) * 8, 1.4);
+    this.changed();
   }
 
   private callShip(): void {
@@ -380,7 +435,8 @@ export class HaulRun implements Run {
     if (this.ended) return null;
     const to = SPOTS[this.task.to];
     const carried = this.ctx.goods.carried;
-    if (carried && this.isMine(carried)) return this.recipient ? this.recipient.pos.clone() : new THREE.Vector3(to.x, 0, to.z);
+    if ((carried && this.isMine(carried)) || this.parcelInPocket)
+      return this.recipient ? this.recipient.pos.clone() : new THREE.Vector3(to.x, 0, to.z);
     if (this.waitingHandover) {
       if (this.kind === "deliver") return this.ctx.people.get(this.job.employer_npc)?.pos.clone() ?? null;
       return new THREE.Vector3(SPOTS.ship_gangway.x, 0, SPOTS.ship_gangway.z);
@@ -403,7 +459,7 @@ export class HaulRun implements Run {
     const to = SPOTS[this.task.to];
     const from = SPOTS[this.task.from];
     const carried = this.ctx.goods.carried;
-    const mine = carried && this.isMine(carried);
+    const mine = (carried && this.isMine(carried)) || this.parcelInPocket;
     const employer = this.ctx.people.get(this.job.employer_npc)?.def.name ?? this.job.employer_name;
     const step = mine
       ? this.kind === "deliver"

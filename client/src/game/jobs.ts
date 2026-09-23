@@ -7,6 +7,7 @@ import { GOODS, type Goods } from "./props";
 import { GoodsWorld, ahead, type Item } from "./goods";
 import { People } from "./people";
 import { Talk } from "./talk";
+import { Pockets } from "./pockets";
 import { esc, HaulRun, makeRun, type Action, type Run, type RunCtx, type Sfx } from "./runs";
 
 // The hands and the job (M2, M2b, M3). Everything you do with E and F goes
@@ -51,6 +52,7 @@ export class Jobs {
   readonly goods: GoodsWorld;
   readonly people: People;
   readonly talk: Talk;
+  readonly pockets: Pockets;
   private sinking: Array<{ obj: THREE.Object3D; t: number; splashed: boolean }> = [];
   /** An owner saw you lift this; set it back near where it was and they calm down. */
   private watched: { item: Item; owner: string } | null = null;
@@ -82,6 +84,13 @@ export class Jobs {
     this.goods = new GoodsWorld(world, player);
     this.people = new People(world);
     this.talk = new Talk(player);
+    this.pockets = new Pockets(player, this.el.hud);
+    this.pockets.toast = (t) => this.toastMsg(t);
+    this.pockets.onChange = (p) => this.apply(p);
+    this.talk.onBought = (p, line) => {
+      this.apply(p);
+      this.toastMsg(line);
+    };
     for (const o of OWNED) for (const [x, z] of o.at) this.goods.spawn(o.kind, x, z, { owner: o.owner });
 
     this.glow = new THREE.Sprite(
@@ -116,6 +125,8 @@ export class Jobs {
   private apply(p: JobsPayload): void {
     this.payload = p;
     this.el.hud.textContent = `${p.player.money_c} c`;
+    this.talk.money = p.player.money_c;
+    this.pockets.apply(p);
     // pick up a job that is already taken (reload in the middle of a job)
     const taken = p.jobs.find((j) => j.status === "taken") ?? null;
     if (taken && !this.active) this.start(taken);
@@ -129,7 +140,7 @@ export class Jobs {
     this.people.update(dt, this.player);
     this.updateSinking(dt);
     this.acts = this.findActions();
-    const text = this.boardOpen || this.talk.isOpen ? "" : this.acts.map((a) => `${a.key.slice(3)}  ${a.text}`).join("     ");
+    const text = this.boardOpen || this.talk.isOpen || this.pockets.open ? "" : this.acts.map((a) => `${a.key.slice(3)}  ${a.text}`).join("     ");
     if (this.el.prompt.textContent !== text) this.el.prompt.textContent = text;
     this.el.prompt.style.display = text ? "block" : "none";
     this.renderTask();
@@ -138,7 +149,7 @@ export class Jobs {
 
   /** Everything E and F can do right now, most specific first. */
   private findActions(): Action[] {
-    if (this.boardOpen || this.talk.isOpen) return [];
+    if (this.boardOpen || this.talk.isOpen || this.pockets.open) return [];
     const { x, z } = this.player;
     const out: Action[] = [];
     const add = (a: Action) => {
@@ -174,6 +185,8 @@ export class Jobs {
     if (board < REACH_BOARD) options.push([board, { key: "KeyE", text: "read the hiring board", run: () => this.openBoard() }]);
     options.sort((a, b) => a[0] - b[0]);
     if (options.length) add(options[0][1]);
+    // next to a seller, F opens the wares straight away
+    if (npc && this.talk.sells(npc.id)) add({ key: "KeyF", text: `buy from ${npc.def.name}`, run: () => this.talk.open(npc, true) });
     return out;
   }
 
@@ -273,7 +286,7 @@ export class Jobs {
   // ------------------------------------------------------------- input
 
   private onKey(e: KeyboardEvent): void {
-    if (e.repeat || this.talk.isOpen) return;
+    if (e.repeat || this.talk.isOpen || this.pockets.open) return;
     if (this.boardOpen) {
       if (e.code === "KeyE" || e.code === "Escape") this.closeBoard();
       const n = Number(e.key);
@@ -363,6 +376,8 @@ export class Jobs {
       player: this.player,
       goods: this.goods,
       people: this.people,
+      pockets: this.pockets,
+      refresh: (p) => this.apply(p),
       sfx: (n, at) => this.sfx(n, at),
       toast: (t) => this.toastMsg(t),
       progress: (p) => this.saveProgress(job.id, p),

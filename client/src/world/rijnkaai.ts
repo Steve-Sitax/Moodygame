@@ -11,6 +11,10 @@ export const WATER_Y = -1.8;
 const QUAY = { minX: -58, maxX: 58, minZ: 0.45, maxZ: 21.4 };
 const PIER = { minX: 5.4, maxX: 8.6, minZ: -11.6, maxZ: 0.6 };
 const LOADING_DOCK = { minX: 9, maxX: 23, minZ: 17, maxZ: 21.4 }; // planks in front of W3
+/** Ship A (the Anna Maria) lies at x 14..54, z -11.7..-2.7; its deck is at y 2.4. */
+export const DECK = { minX: 16, maxX: 42.5, minZ: -11.2, maxZ: -3.1, y: 2.4 };
+/** The gangway: a plank from the quay (z 0.8, y 0) up to the deck (z -3.1, y 2.4). */
+export const RAMP = { x: 32, halfW: 0.45, zLow: 0.8, zHigh: -3.1 };
 
 export type Surface = "stone" | "wood";
 
@@ -55,6 +59,10 @@ export interface World {
   isFree(x: number, z: number, r: number, feet?: number): boolean;
   /** Open water (off the quay edge, off the pier)? */
   isWater(x: number, z: number): boolean;
+  /** Height of the walkable surface (quay 0, gangway slope, ship deck). */
+  baseAt(x: number, z: number): number;
+  /** Path check from a start point; see CLAUDE.md. */
+  reachFrom(x: number, z: number): (x: number, z: number, reach: number) => boolean;
   /** Thick fog for a job twist; eases in and out. */
   setThickFog(on: boolean): void;
   mats: Mats;
@@ -207,16 +215,18 @@ export function buildRijnkaai(): World {
   }
 
   // --- ships: dark walls in the fog
-  const shipA = ship(scene, m, 14, -7.2, 40, 9, false);
+  const shipA = ship(scene, m, 14, -7.2, 40, 9, false, RAMP.x - 14);
   const shipB = ship(scene, m, -56, -26, 44, 10, true);
+  // on ship A's deck: the deckhouse and the masts are in the way
+  colliders.push({ minX: 19.2, maxX: 26.4, minZ: -9.2, maxZ: -5.2 });
+  colliders.push(rectAround(33.2, -7.2, 0.3, 0.3));
   // gangway: a plank ramp from the quay up to ship A's rail
   {
-    const g = SPOTS.ship_gangway;
-    const ramp = rod(new THREE.Vector3(g.x, 0.15, 0.6), new THREE.Vector3(g.x, 2.5, -2.9), 0.02, m.planks);
-    ramp.scale.set(40, 1, 1); // a flat plank, 0.8 m wide
+    const ramp = rod(new THREE.Vector3(RAMP.x, 0.03, RAMP.zLow), new THREE.Vector3(RAMP.x, DECK.y + 0.03, RAMP.zHigh), 0.02, m.planks);
+    ramp.scale.set(45, 1, 1); // a flat plank, 0.9 m wide
     scene.add(ramp);
-    for (const s of [-0.45, 0.45]) {
-      scene.add(rod(new THREE.Vector3(g.x + s, 1.1, 0.6), new THREE.Vector3(g.x + s, 3.4, -2.9), 0.025, m.rope));
+    for (const s of [-0.5, 0.5]) {
+      scene.add(rod(new THREE.Vector3(RAMP.x + s, 1.0, RAMP.zLow), new THREE.Vector3(RAMP.x + s, DECK.y + 1.0, RAMP.zHigh), 0.025, m.rope));
     }
   }
   // mooring lines from ship A to two bollards
@@ -236,9 +246,19 @@ export function buildRijnkaai(): World {
   const lamps: Lamp[] = lampSpots.map(([x, z, broken], i) => gasLamp(scene, m, colliders, glow, x, z, i, broken));
 
   // --- movement rules
+  const onRamp = (x: number, z: number) => Math.abs(x - RAMP.x) < RAMP.halfW && z < RAMP.zLow && z > RAMP.zHigh - 0.2;
+  const onDeck = (x: number, z: number) => x > DECK.minX && x < DECK.maxX && z > DECK.minZ && z < DECK.maxZ;
+  /** Height of the walkable surface itself: 0 on the quay and pier, a slope on the gangway, the deck on the ship. */
+  const baseAt = (x: number, z: number) => {
+    if (onDeck(x, z)) return DECK.y;
+    if (onRamp(x, z)) return THREE.MathUtils.clamp((RAMP.zLow - z) / (RAMP.zLow - RAMP.zHigh), 0, 1) * DECK.y;
+    return 0;
+  };
   const isWalkable = (x: number, z: number) =>
     (x > QUAY.minX && x < QUAY.maxX && z > QUAY.minZ && z < QUAY.maxZ) ||
-    (x > PIER.minX && x < PIER.maxX && z > PIER.minZ && z < PIER.maxZ);
+    (x > PIER.minX && x < PIER.maxX && z > PIER.minZ && z < PIER.maxZ) ||
+    onRamp(x, z) ||
+    onDeck(x, z);
   const dynamic = new Set<Rect>();
   /** Things with a top lower than feet + STEP can be walked onto. */
   const STEP = 0.36;
@@ -252,7 +272,7 @@ export function buildRijnkaai(): World {
 
   /** Height to stand on at (x, z): the highest top you are over and could reach. */
   function groundAt(x: number, z: number, r: number, feet: number): number {
-    let g = 0;
+    let g = baseAt(x, z);
     const consider = (c: Rect) => {
       if (c.top !== undefined && c.top <= feet + STEP && inRect(c, x, z, r * 0.6)) g = Math.max(g, c.top);
     };
@@ -270,7 +290,64 @@ export function buildRijnkaai(): World {
   }
 
   const onPierDeck = (x: number, z: number) => x > 5 && x < 9 && z > -12 && z < 0;
-  const isWater = (x: number, z: number) => z < 0 && !onPierDeck(x, z) && z > -150;
+  const isWater = (x: number, z: number) => z < 0 && !onPierDeck(x, z) && !onRamp(x, z) && !onDeck(x, z) && z > -150;
+
+  /**
+   * Path check (CLAUDE.md: always make sure there is a path). Flood-fills the
+   * walkable ground from a start point on a 0.5 m grid, with the colliders
+   * as they are now. Returns a test: can you get within `reach` of (x, z)?
+   */
+  function reachFrom(sx: number, sz: number): (x: number, z: number, reach: number) => boolean {
+    const C = 0.5;
+    const X0 = -60;
+    const Z0 = -13;
+    const W = 240;
+    const H = 72;
+    const pass = new Uint8Array(W * H);
+    const seen = new Uint8Array(W * H);
+    const at = (i: number, j: number): [number, number] => [X0 + i * C, Z0 + j * C];
+    for (let j = 0; j < H; j++)
+      for (let i = 0; i < W; i++) {
+        const [x, z] = at(i, j);
+        pass[j * W + i] = isWalkable(x, z) && isFree(x, z, 0.3, baseAt(x, z)) ? 1 : 0;
+      }
+    const si = Math.round((sx - X0) / C);
+    const sj = Math.round((sz - Z0) / C);
+    const queue: number[] = [];
+    if (pass[sj * W + si]) {
+      seen[sj * W + si] = 1;
+      queue.push(sj * W + si);
+    }
+    while (queue.length) {
+      const k = queue.pop()!;
+      const i = k % W;
+      const j = (k - i) / W;
+      const [x, z] = at(i, j);
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const ni = i + di;
+        const nj = j + dj;
+        if (ni < 0 || nj < 0 || ni >= W || nj >= H) continue;
+        const n = nj * W + ni;
+        if (seen[n] || !pass[n]) continue;
+        const [nx, nz] = at(ni, nj);
+        if (Math.abs(baseAt(nx, nz) - baseAt(x, z)) > STEP) continue;
+        seen[n] = 1;
+        queue.push(n);
+      }
+    }
+    return (x, z, reach) => {
+      const r = Math.ceil(reach / C);
+      const ci = Math.round((x - X0) / C);
+      const cj = Math.round((z - Z0) / C);
+      for (let j = cj - r; j <= cj + r; j++)
+        for (let i = ci - r; i <= ci + r; i++) {
+          if (i < 0 || j < 0 || i >= W || j >= H || !seen[j * W + i]) continue;
+          const [px, pz] = at(i, j);
+          if (Math.hypot(px - x, pz - z) <= reach) return true;
+        }
+      return false;
+    };
+  }
 
   let fogTarget = 0;
   let fogMix = 0;
@@ -321,6 +398,8 @@ export function buildRijnkaai(): World {
     removeCollider: (r) => dynamic.delete(r),
     isFree,
     isWater,
+    baseAt,
+    reachFrom,
     setThickFog: (on) => (fogTarget = on ? 1 : 0),
     lamps,
     shipPositions: [new THREE.Vector3(34, 1, -3), new THREE.Vector3(-34, 1, -21)],
@@ -627,6 +706,8 @@ function ship(
   len: number,
   beam: number,
   steamer: boolean,
+  /** Local x of a gap in the quay-side rail, for a gangway. */
+  gapX?: number,
 ): THREE.Group {
   const g = new THREE.Group();
   g.position.set(x, 0, zc);
@@ -651,7 +732,15 @@ function ship(
 
   // bulwark rail and deckhouse
   g.add(box(len * 0.7, 0.9, 0.2, m.hull, len * 0.4, hullTop + 0.45, -hw + 0.1, 2));
-  g.add(box(len * 0.7, 0.9, 0.2, m.hull, len * 0.4, hullTop + 0.45, hw - 0.1, 2));
+  if (gapX === undefined) g.add(box(len * 0.7, 0.9, 0.2, m.hull, len * 0.4, hullTop + 0.45, hw - 0.1, 2));
+  else {
+    const a0 = len * 0.05;
+    const a1 = gapX - 0.6;
+    const b0 = gapX + 0.6;
+    const b1 = len * 0.75;
+    g.add(box(a1 - a0, 0.9, 0.2, m.hull, (a0 + a1) / 2, hullTop + 0.45, hw - 0.1, 2));
+    g.add(box(b1 - b0, 0.9, 0.2, m.hull, (b0 + b1) / 2, hullTop + 0.45, hw - 0.1, 2));
+  }
   g.add(box(len * 0.18, 2.4, beam * 0.45, m.darkWood, len * 0.22, hullTop + 1.2, 0, 2));
 
   const masts = steamer ? [0.3, 0.72] : [0.22, 0.48, 0.74];

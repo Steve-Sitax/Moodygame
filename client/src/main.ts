@@ -2,7 +2,7 @@ import * as THREE from "three";
 import "./style.css";
 import { RetroPass } from "./retro/retroPass";
 import { psxUniforms } from "./retro/psx";
-import { buildRijnkaai } from "./world/rijnkaai";
+import { BOARD_POS, RAMP, SPOTS, buildRijnkaai } from "./world/rijnkaai";
 import { FirstPerson } from "./player/firstPerson";
 import { Soundscape } from "./audio/soundscape";
 import { Jobs } from "./game/jobs";
@@ -87,6 +87,22 @@ if (import.meta.env.DEV) {
     },
     key(code: string, down: boolean) {
       player.setKey(code, down);
+    },
+    /**
+     * Path check (CLAUDE.md): can Jef walk from the start to every job place,
+     * every person, the board, and the mate's spot on deck? Lists what he cannot reach.
+     */
+    paths() {
+      const can = world.reachFrom(10, 12);
+      const bad: string[] = [];
+      for (const [id, s] of Object.entries(SPOTS)) if (!can(s.x, s.z, 1.7)) bad.push(`spot ${id}`);
+      for (const n of jobs.people.list) {
+        const reach = n.def.talks ? 2.4 : 5; // the sailor only needs to be called from the gangway foot
+        if (!can(n.pos.x, n.pos.z, reach)) bad.push(`person ${n.def.name}`);
+      }
+      if (!can(BOARD_POS.x, BOARD_POS.z, 2.5)) bad.push("hiring board");
+      if (!can(RAMP.x - 0.6, RAMP.zHigh - 1.0, 2.4)) bad.push("the mate on deck");
+      return bad;
     },
     /** Run the game logic for some seconds at 60 Hz, without waiting for frames. */
     step(seconds: number) {

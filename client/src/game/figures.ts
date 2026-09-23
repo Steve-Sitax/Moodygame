@@ -34,8 +34,10 @@ export class Figure {
     x: number,
     z: number,
     private readonly scene: THREE.Scene,
+    /** Height they stand at (the mate stands on the ship's deck). */
+    private readonly baseY = 0,
   ) {
-    this.pos = new THREE.Vector3(x, 0, z);
+    this.pos = new THREE.Vector3(x, baseY, z);
     const coat = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.34, 1.3, 6), mat(COAT[kind]));
     coat.position.y = 0.72;
     const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.13, 0), mat(0x6a5a4c));
@@ -82,7 +84,7 @@ export class Figure {
         this.phase += dt * this.speed * 4.5;
       }
     }
-    this.group.position.set(this.pos.x, Math.abs(Math.sin(this.phase)) * 0.03, this.pos.z);
+    this.group.position.set(this.pos.x, this.baseY + Math.abs(Math.sin(this.phase)) * 0.03, this.pos.z);
     this.group.rotation.y = this.facing;
   }
 

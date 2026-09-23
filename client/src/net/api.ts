@@ -83,12 +83,32 @@ export interface Player {
   money_c: number;
   day: number;
   hour: number;
+  food: number;
+  warmth: number;
+  health: number;
+  sleep: number;
+}
+
+export interface PocketItem {
+  id: number;
+  kind: string;
+  name: string;
+  job_id: number | null;
+  use: string | null;
+  note: string | null;
+}
+
+export interface Ware {
+  kind: string;
+  name: string;
+  price_c: number;
 }
 
 export interface JobsPayload {
   board: { state: "writing" | "ready"; source?: string; error?: string };
   jobs: Job[];
   player: Player;
+  pockets: PocketItem[];
 }
 
 /** What an NPC says. Trust stays on the server (docs/08: hidden). */
@@ -115,6 +135,10 @@ async function call<T>(method: string, url: string, body?: unknown, timeoutMs = 
 export const api = {
   jobs: () => call<JobsPayload>("GET", "/api/jobs"),
   take: (id: number) => call<{ job: Job }>("POST", `/api/jobs/${id}/take`),
+  npcs: () => call<Array<{ id: string; name: string; role: string; wares: Ware[] }>>("GET", "/api/npcs"),
+  buy: (npc: string, kind: string) => call<JobsPayload & { line: string }>("POST", "/api/buy", { npc, kind }),
+  use: (id: number) => call<JobsPayload & { text: string }>("POST", "/api/use", { id }),
+  handover: (jobId: number) => call<JobsPayload>("POST", `/api/jobs/${jobId}/handover`),
   near: (npc: string) => call<{ ok: boolean }>("POST", `/api/npc/${npc}/near`),
   talk: (npc: string, kind: "open" | "choice" | "free", text?: string) =>
     call<TalkLine>("POST", `/api/npc/${npc}/talk`, { kind, text }, 30_000),

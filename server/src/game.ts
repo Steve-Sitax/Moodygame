@@ -11,10 +11,16 @@ export interface PlayerState {
   day: number;
   hour: number;
   district: string;
+  food: number;
+  warmth: number;
+  health: number;
+  sleep: number;
 }
 
 export function player(db: DB): PlayerState {
-  return db.prepare("SELECT name, money_c, day, hour, district FROM player WHERE id = 1").get() as PlayerState;
+  return db
+    .prepare("SELECT name, money_c, day, hour, district, food, warmth, health, sleep FROM player WHERE id = 1")
+    .get() as PlayerState;
 }
 
 export function log(db: DB, verb: string, object: string | null, text: string, actor = "player"): void {
@@ -186,6 +192,8 @@ export function finishJob(db: DB, id: number, report: Report, rng?: () => number
       db.prepare("UPDATE faction_trust SET trust = MAX(0, MIN(10, trust + ?)) WHERE faction = ?").run(s.trust_delta, faction);
     }
     log(db, s.status === "done" ? "finished_job" : "failed_job", String(id), s.facts.join(" "));
+    // a parcel for this job leaves your pocket, whatever happened to it
+    db.prepare("DELETE FROM item WHERE job_id = ?").run(id);
   })();
   const p = player(db);
   return { job: job(db, id), settlement: s, money_c: p.money_c };
