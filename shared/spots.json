@@ -23,31 +23,31 @@
  "hessenatie_door": {
   "label": "the Hessenatie door",
   "desc": "big door of the Hessenatie warehouse",
-  "x": 29.8,
-  "z": 85.24,
+  "x": 23.99,
+  "z": 88.22,
   "dir": [
-   0.917,
-   -0.399
+   0.911,
+   -0.412
   ]
  },
  "katoen_door": {
   "label": "the Entrepot door",
   "desc": "the city's bonded warehouse north of the lock, where the Katoennatie works",
-  "x": 270.84,
-  "z": 85.99,
+  "x": 271.56,
+  "z": 86.35,
   "dir": [
-   -0.43,
-   -0.903
+   -0.431,
+   -0.902
   ]
  },
  "peeters_dock": {
   "label": "the widow's shop door",
   "desc": "door of the Peeters chandlery, facing the quay",
-  "x": -25.27,
-  "z": 43.55,
+  "x": -24.44,
+  "z": 44.07,
   "dir": [
-   0.995,
-   -0.1
+   0.996,
+   -0.088
   ]
  },
  "ship_gangway": {

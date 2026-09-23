@@ -115,14 +115,14 @@ def plan_block(bi, block, holes_out, public, rng, houses, backs):
                 continue
             placed.append(piece)
             placed_union = placed_union.union(piece)
-            houses.append(make_house(bi, piece, (ox, oz), (ux, uz), (nx, nz), w, depth, is_public, rng))
+            houses.append(make_house(bi, piece, (ox, oz), (ux, uz), (nx, nz), w, depth, is_public, rng, block))
     rest = block.difference(placed_union.buffer(0.05))
     for p in pieces(rest):
         if p.area > 25:
             backs.append({"fp": rnd(list(p.simplify(0.4).exterior.coords)[:-1]), "h": round(rng.uniform(6.5, 9.0), 2)})
 
 
-def make_house(bi, piece, o, u, n, w, depth, is_public, rng):
+def make_house(bi, piece, o, u, n, w, depth, is_public, rng, block=None):
     """A house on a plot. Rectangular plots get a pitched roof, odd corner plots a flat roof behind a parapet."""
     # footprint in the plot frame: s along the street, t into the block
     loc = [((x - o[0]) * u[0] + (z - o[1]) * u[1], (x - o[0]) * n[0] + (z - o[1]) * n[1]) for x, z in piece.exterior.coords[:-1]]
@@ -130,6 +130,11 @@ def make_house(bi, piece, o, u, n, w, depth, is_public, rng):
     t0, t1 = min(p[1] for p in loc), max(p[1] for p in loc)
     rect_area = (s1 - s0) * (t1 - t0)
     rect = piece.area >= 0.8 * rect_area
+    if rect and block is not None:
+        # the plot's rectangle may not stick out of the block into the street
+        corners = [(o[0] + u[0] * sv + n[0] * tv, o[1] + u[1] * sv + n[1] * tv) for sv, tv in ((s0, t0), (s1, t0), (s1, t1), (s0, t1))]
+        if not block.buffer(0.25).contains(Polygon(corners)):
+            rect = False
     st = storeys(rng) if not is_public else rng.choice([3, 3, 4])
     h = GROUND_H + STOREY_H * (st - 1)
     style = "public" if is_public else rng.choices(["brick", "plaster", "plaster_grey", "brick_dark"], weights=[40, 30, 15, 15])[0]

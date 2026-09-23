@@ -22,6 +22,11 @@ All textures are painted in code at 64x64 (`client/src/world/textures.ts`,
 `client/src/world/cityTextures.ts`). All models are our own: built in code or by our
 Blender scripts (`tools/blender/`). Blender (GPL) is a tool; the GPL does not cover what
 it makes.
+Street and quay props (`client/public/models/props.glb`: carts, dray, horse, barrows, crates, casks, sacks, rope, bollard, gas lamp, crane) are our own models and 64x64 textures, made by script in `tools/blender/build_props.py`; no third-party models or images.
+
+People (`client/public/models/people.glb`): our own models, made by script. Bodies, clothes,
+rig, animations and the 128x128 textures (faces and clothes painted pixel by pixel in code) all
+come from `tools/blender/build_people.py`. No downloaded models, textures or assets.
 
 ## Map data (M3c, the city of 1873)
 

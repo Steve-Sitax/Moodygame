@@ -137,7 +137,7 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
           ? ""
           : `{
         // snap only past arm's length: up close the jitter just looks broken
-        vec2 grid = uSnapRes * 0.5;
+        vec2 grid = uSnapRes;
         vec2 ndc = gl_Position.xy / gl_Position.w;
         vec2 snapped = floor(ndc * grid + 0.5) / grid;
         float k = smoothstep(1.5, 4.0, gl_Position.w);

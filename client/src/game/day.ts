@@ -65,6 +65,7 @@ export class Day {
 
   /** New state from the server (push or reply). */
   show(p: JobsPayload): void {
+    this.warnNeeds(p);
     this.payload = p;
     const c = p.clock;
     if (!c) return;
@@ -75,6 +76,23 @@ export class Day {
     this.world.setTimeOfDay(c.hour + c.minute / 60);
     this.world.setWeather(c.weather);
     if (p.ending && this.shown !== "night") this.showEnd(p.ending);
+  }
+
+  /** Say it when a need runs low, once each time it crosses the line. */
+  private warnNeeds(p: JobsPayload): void {
+    const before = this.payload?.player;
+    const now = p.player;
+    if (!before || !now || p.ending) return;
+    const lines: Array<[number, number, string, string]> = [
+      [before.food, now.food, "Your belly aches. Eat something soon: Fientje sells herring, the widow sells biscuit.", "You are starving. Your strength is going. Eat."],
+      [before.warmth, now.warmth, "You are cold to the bone. A bed or a nip of jenever warms you.", "You are freezing. Get under a roof or you will fall ill."],
+      [before.sleep, now.sleep, "Your eyes close by themselves. The doss house takes you early when you are this tired.", "You are dead on your feet. Sleep, or your health goes."],
+      [before.health, now.health, "You feel ill. Eat, get warm and sleep.", "You can hardly stand."],
+    ];
+    for (const [was, is, low, zero] of lines) {
+      if (is <= 0 && was > 0) return this.toast(zero);
+      if (is <= 2 && was > 2) return this.toast(low);
+    }
   }
 
   // ------------------------------------------------------------- server calls

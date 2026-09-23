@@ -23,15 +23,17 @@ describe("the clock", () => {
 
   it("the hour turns over and needs fall", () => {
     const db = openDb(":memory:");
-    set(db, "hour = 7, minute = 45, food = 6, sleep = 7, warmth = 5");
-    tick(db, 10_000); // 8:00: food -1 (8 % 4), sleep -1 (8 % 2), warmth stays (day, 8 % 3)
-    expect(clock(db)).toMatchObject({ hour: 8, minute: 0 });
+    set(db, "hour = 11, minute = 45, food = 6, sleep = 7, warmth = 5");
+    tick(db, 10_000); // 12:00: food -1 (12 % 6), sleep -1 (12 % 3), warmth stays (day, 12 % 5)
+    expect(clock(db)).toMatchObject({ hour: 12, minute: 0 });
     expect(player(db)).toMatchObject({ food: 5, sleep: 6, warmth: 5 });
   });
 
   it("health falls while a need is at 0, and heals slowly while all are fine", () => {
     const db = openDb(":memory:");
     set(db, "food = 0, warmth = 5, sleep = 5, health = 5");
+    applyHour(db, 10);
+    expect(player(db).health).toBe(5); // hungry, but health goes only every 3 h
     applyHour(db, 9);
     expect(player(db).health).toBe(4);
     set(db, "food = 8, warmth = 8, sleep = 8, health = 5");
@@ -41,7 +43,7 @@ describe("the clock", () => {
 
   it("health 0 ends the week early", () => {
     const db = openDb(":memory:");
-    set(db, "hour = 9, minute = 45, food = 0, health = 1");
+    set(db, "hour = 8, minute = 45, food = 0, health = 1");
     const r = tick(db, 10_000);
     expect(r.ended?.kind).toBe("health");
     expect(ending(db)?.kind).toBe("health");

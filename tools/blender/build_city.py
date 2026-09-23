@@ -319,24 +319,28 @@ class Builder:
                 ox, oz = -ox, -oz
             outs.append((ox, 0, oz))
             self.wall(a, b, 0, H, h["style"], h["street"][i], outs[-1], door=(i == door_i and lens[i] > 2))
-        # flat top
-        verts = [self.bm.verts.new(B(x, H + 0.1, z)) for x, z in fp]
-        try:
-            f = self.bm.faces.new(verts)
-            f.material_index = MAT_ROOF
-            f.normal_update()
-            if f.normal.dot(B(0, 1, 0)) < 0:
-                f.normal_flip()
-            for loop in f.loops:
-                i = verts.index(loop.vert)
-                loop[self.uv].uv = (fp[i][0] / BAY, fp[i][1] / BAY)
-                loop[self.cell].uv = ROOF_CELL["flat"]
-                loop[self.col] = (0.9, 0.9, 0.9, 1)
-        except ValueError:
-            pass
+        # a hipped roof: every eave edge slopes up to one point over the middle
+        # (corner plots are odd shapes; old Antwerp had almost no flat roofs)
+        cx = sum(p[0] for p in fp) / n
+        cz = sum(p[1] for p in fp) / n
+        rise = min(5.0, 0.45 * math.sqrt(abs(area) / 2))
+        cell = ROOF_CELL[h["roofMat"]]
         for i in range(n):
             a, b = fp[i], fp[(i + 1) % n]
-            self.wall(a, b, H, H + 0.6, h["style"], False, outs[i])
+            L = math.hypot(b[0] - a[0], b[1] - a[1])
+            d = abs((b[0] - a[0]) * (cz - a[1]) - (b[1] - a[1]) * (cx - a[0])) / (L or 1)
+            slope = math.hypot(d, rise)
+            self.face([(a[0], H, a[1]), (b[0], H, b[1]), (cx, H + rise, cz)], MAT_ROOF,
+                      [(0, 0), (L / BAY, 0), (L / 2 / BAY, slope / BAY)], cell, (outs[i][0], 1.0, outs[i][2]), shade=1.0)
+        # a cornice under the eaves on the street sides
+        for i in range(n):
+            if h["street"][i]:
+                a, b = fp[i], fp[(i + 1) % n]
+                L = math.hypot(b[0] - a[0], b[1] - a[1])
+                if L > 1:
+                    ux, uz = (b[0] - a[0]) / L, (b[1] - a[1]) / L
+                    mx, mz = (a[0] + b[0]) / 2 + outs[i][0] * 0.15, (a[1] + b[1]) / 2 + outs[i][2] * 0.15
+                    self.box(mx, H - 0.2, mz, L, 0.35, 0.35, ux, uz, MAT_STONE, (0, 0), 0.85)
 
     def back(self, b):
         fp = b["fp"]

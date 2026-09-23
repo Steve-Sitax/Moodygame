@@ -71,6 +71,28 @@ function frame(): void {
 }
 requestAnimationFrame(frame);
 
+// Warm-up: once the city is in, send every house chunk and landmark to the GPU
+// and build every shader now, not the first time you walk up to them (that was
+// the stutter).
+world.city.ready.then(() => {
+  const hidden: THREE.Object3D[] = [];
+  world.scene.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) {
+      if (!o.visible) {
+        hidden.push(o);
+        o.visible = true;
+      }
+      o.frustumCulled = false;
+    }
+  });
+  renderer.compile(world.scene, player.camera);
+  retro.render(world.scene, player.camera, elapsed);
+  world.scene.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) o.frustumCulled = true;
+  });
+  for (const o of hidden) o.visible = false;
+}).catch(() => {});
+
 // Dev hook for automated checks: teleport, hold keys, read state.
 if (import.meta.env.DEV) {
   (window as unknown as Record<string, unknown>).__scheldemist = {
@@ -134,6 +156,26 @@ if (import.meta.env.DEV) {
       cam.quaternion.copy(keep.q);
       const r = await fetch("/api/dev/shot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, url }) });
       return r.ok ? `data/shots/${name}.jpg` : `failed ${r.status}`;
+    },
+    /** Time n frames with the GPU finished each frame; draw calls and triangles of one frame. */
+    perf(n = 30) {
+      const gl = renderer.getContext();
+      const px = new Uint8Array(4);
+      renderer.info.autoReset = false;
+      const t0 = performance.now();
+      let calls = 0;
+      let tris = 0;
+      for (let i = 0; i < n; i++) {
+        renderer.info.reset();
+        world.update(elapsed, 1 / 60, player.camera);
+        retro.render(world.scene, player.camera, elapsed);
+        gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+        calls = renderer.info.render.calls;
+        tris = renderer.info.render.triangles;
+      }
+      const ms = (performance.now() - t0) / n;
+      renderer.info.autoReset = true;
+      return { msPerFrame: +ms.toFixed(2), calls, tris };
     },
     /** Run the game logic for some seconds at 60 Hz, without waiting for frames. */
     step(seconds: number) {

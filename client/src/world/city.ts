@@ -109,7 +109,11 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
       }
     }
     g.computeVertexNormals();
-    const ground = new THREE.Mesh(g, mats.cobble);
+    // the land is a few large triangles: no vertex snap and no affine warp on it,
+    // or the cobbles swirl (the texture uses world coordinates, so it stays straight)
+    const cob = mats.cobble as THREE.MeshPhongMaterial;
+    const groundMat = psx(new THREE.MeshPhongMaterial({ map: cob.map, color: cob.color, specular: cob.specular, shininess: cob.shininess }), { noSnap: true, affine: 0 });
+    const ground = new THREE.Mesh(g, groundMat);
     ground.name = "ground";
     group.add(ground);
   }
@@ -148,8 +152,8 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
     wallMat.side = THREE.DoubleSide;
     const copeMat = (mats.wallDecal as THREE.MeshLambertMaterial).clone();
     copeMat.side = THREE.DoubleSide;
-    mk(wall, wallUv, psx(wallMat));
-    mk(cope, copeUv, psx(copeMat));
+    mk(wall, wallUv, psx(wallMat, { noSnap: true, affine: 0 }));
+    mk(cope, copeUv, psx(copeMat, { noSnap: true, affine: 0 }));
   }
 
   // --- landmarks: stand-in blocks until their Blender models are in
@@ -167,11 +171,11 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
 
   // --- landmarks from Blender (tools/blender/build_landmarks.py) replace the stand-ins
   const lmMats: Record<string, THREE.Material> = {
-    stone: psx(new THREE.MeshLambertMaterial({ map: stoneTexture(), color: 0xd8d0c0, vertexColors: true }), { fogReach: 2.2 }),
-    slate: psx(new THREE.MeshLambertMaterial({ map: slateTexture(), vertexColors: true }), { fogReach: 2.2 }),
-    glass: psx(new THREE.MeshLambertMaterial({ map: glassTexture(), vertexColors: true }), { fogReach: 2.2 }),
-    brickband: psx(new THREE.MeshLambertMaterial({ map: brickBandTexture(), vertexColors: true }), { fogReach: 2.2 }),
-    lead: psx(new THREE.MeshLambertMaterial({ color: 0x4a4e52, vertexColors: true }), { fogReach: 2.2 }),
+    stone: psx(new THREE.MeshLambertMaterial({ map: stoneTexture(), color: 0xd8d0c0, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0.2 }),
+    slate: psx(new THREE.MeshLambertMaterial({ map: slateTexture(), vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0.2 }),
+    glass: psx(new THREE.MeshLambertMaterial({ map: glassTexture(), vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0.2 }),
+    brickband: psx(new THREE.MeshLambertMaterial({ map: brickBandTexture(), vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0.2 }),
+    lead: psx(new THREE.MeshLambertMaterial({ color: 0x4a4e52, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0.2 }),
   };
   const lmLoader = new GLTFLoader().setDRACOLoader(new DRACOLoader().setDecoderPath("/draco/"));
   const landmarks = lmLoader.loadAsync("/models/landmarks.glb").then((gltf) => {
@@ -194,9 +198,11 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
   });
 
   // --- houses from Blender
-  const facade = psx(new THREE.MeshLambertMaterial({ map: facadeAtlas(), vertexColors: true }), { atlas: 4, affine: 0.5 });
-  const roof = psx(new THREE.MeshLambertMaterial({ map: roofAtlas(), vertexColors: true }), { atlas: 2, affine: 0.5 });
-  const trim = psx(new THREE.MeshLambertMaterial({ map: stoneTexture(), vertexColors: true }));
+  // both sides drawn: a wall seen from behind (a party wall, a gable back) is never a hole
+  const DS = THREE.DoubleSide;
+  const facade = psx(new THREE.MeshLambertMaterial({ map: facadeAtlas(), vertexColors: true, side: DS }), { atlas: 4, affine: 0.12 });
+  const roof = psx(new THREE.MeshLambertMaterial({ map: roofAtlas(), vertexColors: true, side: DS }), { atlas: 2, affine: 0.12 });
+  const trim = psx(new THREE.MeshLambertMaterial({ map: stoneTexture(), vertexColors: true, side: DS }), { affine: 0.2 });
   const chunks: THREE.Mesh[] = [];
   const draco = new DRACOLoader().setDecoderPath("/draco/");
   const loader = new GLTFLoader().setDRACOLoader(draco);

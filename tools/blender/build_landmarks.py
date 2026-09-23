@@ -314,9 +314,17 @@ def cathedral(fr, world_north):
                 m.box(tu + su * h - 0.9, tu + su * h + 0.9, tv + sv * h - 0.9, tv + sv * h + 0.9, y0, y1 - 1.5, STONE, top=True)
                 m.pinnacle(tu + su * h, tv + sv * h, y1 - 1.5, 6 if y1 > 40 else 4, 0.7)
         for sign in (-1, 1):
-            m.window(("u", tu + sign * h, sign), tv - h * 0.45, tv + h * 0.45, y0 + 4, y1 - 5)
-            m.window(("v", tv + sign * h, sign), tu - h * 0.45, tu + h * 0.45, y0 + 4, y1 - 5)
-    # gallery at 72 m
+            # two tall lancets per face, and pinnacles on the middle of each side
+            for off in (-0.5, 0.5):
+                m.window(("u", tu + sign * h, sign), tv + off * h - h * 0.3, tv + off * h + h * 0.3, y0 + 4, y1 - 6)
+                m.window(("v", tv + sign * h, sign), tu + off * h - h * 0.3, tu + off * h + h * 0.3, y0 + 4, y1 - 6)
+            m.pinnacle(tu + sign * h, tv, y1 - 0.5, 4.5, 0.35)
+            m.pinnacle(tu, tv + sign * h, y1 - 0.5, 4.5, 0.35)
+    # gallery at 72 m, with a balustrade of little posts
+    for k in range(-6, 7, 2):
+        for su in (-1, 1):
+            m.box(tu + su * 6.6 - 0.12, tu + su * 6.6 + 0.12, tv + k - 0.12, tv + k + 0.12, 73, 74.2, STONE)
+            m.box(tu + k - 0.12, tu + k + 0.12, tv + su * 6.6 - 0.12, tv + su * 6.6 + 0.12, 73, 74.2, STONE)
     m.box(tu - 6.8, tu + 6.8, tv - 6.8, tv + 6.8, 72, 73, STONE)
     # first octagon, open tracery (dark openings), eight slender pinnacles around it
     o1 = m.ngon(tu, tv, 5.0, 8, math.pi / 8)
@@ -328,8 +336,16 @@ def cathedral(fr, world_north):
         f = m.poly([(pu - 0.9 * math.sin(a), pv + 0.9 * math.cos(a), 76), (pu + 0.9 * math.sin(a), pv - 0.9 * math.cos(a), 76),
                     (pu + 0.9 * math.sin(a), pv - 0.9 * math.cos(a), 91), (pu, pv, 93), (pu - 0.9 * math.sin(a), pv + 0.9 * math.cos(a), 91)], GLASS, 0.8)
         m.orient(f, (math.cos(a), math.sin(a), 0))
+        # a little gable (wimperg) over each opening
+        g0 = (pu - 1.3 * math.sin(a), pv + 1.3 * math.cos(a), 92.5)
+        g1 = (pu + 1.3 * math.sin(a), pv - 1.3 * math.cos(a), 92.5)
+        f = m.poly([(g0[0] + 0.1 * math.cos(a), g0[1] + 0.1 * math.sin(a), 92.5), (g1[0] + 0.1 * math.cos(a), g1[1] + 0.1 * math.sin(a), 92.5),
+                    (pu + 0.1 * math.cos(a), pv + 0.1 * math.sin(a), 96.5)], STONE)
+        m.orient(f, (math.cos(a), math.sin(a), 0))
         ca = math.pi / 8 + 2 * math.pi * k / 8
         m.pinnacle(tu + 6.3 * math.cos(ca), tv + 6.3 * math.sin(ca), 73, 21, 0.45)
+        # a thin flying buttress from the pinnacle to the octagon
+        m.box(tu + 5.6 * math.cos(ca) - 0.15, tu + 5.6 * math.cos(ca) + 0.15, tv + 5.6 * math.sin(ca) - 0.15, tv + 5.6 * math.sin(ca) + 0.15, 84, 85, STONE)
     # second octagon and the crown
     o2 = m.ngon(tu, tv, 3.4, 8, math.pi / 8)
     m.prism(o2, 96, 108, STONE, top=False)

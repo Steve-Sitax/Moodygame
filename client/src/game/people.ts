@@ -5,9 +5,12 @@ import { box, cyl, rectAround } from "../world/geom";
 import type { World } from "../world/rijnkaai";
 import type { FirstPerson } from "../player/firstPerson";
 import { api } from "../net/api";
+import { Human, makeHuman, whenHumans, type HumanKind } from "./humans";
 
-// The people of the Rijnkaai (M3). Grey-box bodies, each with a look of their
-// own, standing where their work is. They turn to face you when you come near.
+// The people of the Rijnkaai (M3), standing where their work is. They turn to
+// face you when you come near and move their hands when you stand close.
+// Bodies are the rigged models from people.glb (humans.ts); the grey-box
+// shapes below stand in until the models load, or for good if they fail.
 // What they say comes from the server (dialogue hook).
 
 export interface NpcDef {
@@ -19,6 +22,9 @@ export interface NpcDef {
   y?: number;
   yaw: number;
   talks: boolean;
+  /** Which model from people.glb (default: the id). */
+  model?: HumanKind;
+  /** Grey-box stand-in, used until (or if not) the model loads. */
   build: (m: Mat) => THREE.Object3D[];
 }
 
@@ -125,15 +131,28 @@ export class Npc {
   readonly pos: THREE.Vector3;
   private facing: number;
   private lastNear = -Infinity;
+  private body = new THREE.Group();
+  private human: Human | null = null;
+  /** Seconds left of a hand gesture, and the pause before the next one. */
+  private gesture = 0;
+  private gestureWait = 1 + Math.random() * 2;
 
   constructor(readonly def: NpcDef, world: World) {
     this.pos = new THREE.Vector3(def.x, def.y ?? 0, def.z);
     this.facing = def.yaw;
-    for (const o of def.build(mat)) this.group.add(o);
+    for (const o of def.build(mat)) this.body.add(o);
+    this.group.add(this.body);
     this.group.position.copy(this.pos);
     this.group.rotation.y = def.yaw;
     world.scene.add(this.group);
     if (!def.y) world.addCollider(rectAround(def.x, def.z, 0.35, 0.35));
+    whenHumans(() => {
+      const h = makeHuman(def.model ?? (def.id as HumanKind));
+      if (!h) return;
+      this.human = h;
+      this.group.remove(this.body);
+      this.group.add(h.root);
+    });
   }
 
   get id(): string {
@@ -156,11 +175,33 @@ export class Npc {
     const cur = this.group.rotation.y;
     const diff = Math.atan2(Math.sin(this.facing - cur), Math.cos(this.facing - cur));
     this.group.rotation.y = cur + diff * Math.min(1, dt * 3);
+    if (this.human) this.animate(dt, d);
     // prefetch the opening line while Jef walks up (docs/03 pacing)
     if (this.def.talks && d < 10 && now - this.lastNear > 60_000) {
       this.lastNear = now;
       api.near(this.id).catch(() => {});
     }
+  }
+
+  /** Idle; when you stand close, now and then a few words with the hands. */
+  private animate(dt: number, d: number): void {
+    const h = this.human!;
+    if (this.def.talks && d < 3.2) {
+      if (this.gesture > 0) {
+        this.gesture -= dt;
+        if (this.gesture <= 0) {
+          h.play("idle", 0.5);
+          this.gestureWait = 3 + Math.random() * 5;
+        }
+      } else if ((this.gestureWait -= dt) <= 0) {
+        h.play("talk", 0.4);
+        this.gesture = h.loopTime * (1 + Math.floor(Math.random() * 2));
+      }
+    } else if (h.motion !== "idle") {
+      this.gesture = 0;
+      h.play("idle", 0.5);
+    }
+    h.update(dt);
   }
 }
 

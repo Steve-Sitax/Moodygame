@@ -4,6 +4,7 @@ import { makeTextures, signTexture, glowTexture, type Textures } from "./texture
 import { box, cyl, rod, rectAround, inRect, type Rect } from "./geom";
 import SPOT_TABLE from "../../../shared/spots.json";
 import { buildCity, doorSpot, edgeZ, WALL, WATER, OUTSIDE, type CityWorld } from "./city";
+import { dressCity, loadProps } from "./props3d";
 
 // The Rijnkaai in the real 1873 city (world/city.ts). Water is at z < 0, the
 // quay edge runs along x (the world is turned 19 deg so it does). Quay top is
@@ -174,13 +175,18 @@ export function buildRijnkaai(): World {
 
   // --- the city: ground, quay walls, houses (world/city.ts)
   const city = buildCity(scene, m, WATER_Y);
+  // carts, barrels and sacks along the quays and on the squares (Blender models, props3d.ts)
+  city.ready.then(() => dressCity(scene, city.flags)).then((d) => colliders.push(...d.colliders)).catch(() => {});
 
-  // --- water: one sheet under the whole city; the land covers it
-  const water = new THREE.Mesh(new THREE.PlaneGeometry(2400, 2400, 360, 360), m.water);
+  // --- water: one sheet that goes where you go, under the land; it moves in
+  // whole texture tiles (4 m), so the ripples stay put on the water
+  const WATER_SIZE = 720;
+  const WATER_TILE = 4;
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 180, 180), m.water);
   water.rotation.x = -Math.PI / 2;
-  water.position.set(-300, WATER_Y, 200);
+  water.position.set(0, WATER_Y, 0);
   const wuv = water.geometry.getAttribute("uv");
-  for (let i = 0; i < wuv.count; i++) wuv.setXY(i, wuv.getX(i) * 600, wuv.getY(i) * 600);
+  for (let i = 0; i < wuv.count; i++) wuv.setXY(i, wuv.getX(i) * (WATER_SIZE / WATER_TILE), wuv.getY(i) * (WATER_SIZE / WATER_TILE));
   scene.add(water);
   const waterTex = tex.water;
 
@@ -213,7 +219,15 @@ export function buildRijnkaai(): World {
   barrels(scene, m, colliders, -6, 4.2, 2);
   sacks(scene, m, colliders, 14, 19.5);
   sacks(scene, m, colliders, -34, 17);
-  cart(scene, m, colliders, 47, 11);
+  // on the Rijnkaai: a loaded handcart by the cart stand and a dray with its horse
+  loadProps()
+    .then((p) => {
+      for (const [name, x, z, yaw] of [["handcart_loaded", 47, 12, 0.5], ["dray_horse", 58, 30, 1.9]] as const) {
+        p.place(name, x, z, yaw, scene);
+        colliders.push(...p.colliders(name, x, z, yaw));
+      }
+    })
+    .catch(() => cart(scene, m, colliders, 47, 11));
   for (let x = -54; x <= 54; x += 9) {
     if (x > 3 && x < 11) continue; // pier root
     if (Math.abs(x - RAMP.x) < 2) continue; // gangway foot
@@ -428,8 +442,12 @@ export function buildRijnkaai(): World {
   let camera: THREE.Camera | null = null;
   function update(t: number, dt: number, cam?: THREE.Camera): void {
     if (cam) camera = cam;
-    // the sky dome goes where you go
-    if (camera) sky.position.set(camera.position.x, 0, camera.position.z);
+    // the sky dome and the water sheet go where you go
+    if (camera) {
+      sky.position.set(camera.position.x, 0, camera.position.z);
+      water.position.x = Math.round(camera.position.x / WATER_TILE) * WATER_TILE;
+      water.position.z = Math.round(camera.position.z / WATER_TILE) * WATER_TILE;
+    }
     psxUniforms.uTime.value = t;
     fogMix += (fogTarget - fogMix) * Math.min(1, dt * 0.4);
     // ease along the clock, the short way round midnight

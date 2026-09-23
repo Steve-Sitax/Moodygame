@@ -71,23 +71,24 @@ export function rentPaid(db: DB): boolean {
 const clamp = (n: number) => Math.max(0, Math.min(10, n));
 
 /**
- * Needs for one game hour awake (docs/01 table, engine numbers):
- * food -1 every 4 h, sleep -1 every 2 h, warmth -1 every 3 h by day and every
- * 2 h at night (20:00 to 7:00). Health -1 an hour while any need is at 0;
- * +1 every 6 h while all three are at 5 or more.
+ * Needs for one game hour awake (engine numbers; eased 2026-09-23 after Steve
+ * starved within minutes): food -1 every 6 h, sleep -1 every 3 h, warmth -1
+ * every 5 h by day and every 3 h at night (20:00 to 7:00). Health -1 every 3 h
+ * while any need is at 0; +1 every 4 h while all three are at 4 or more.
  */
 export function applyHour(db: DB, hour: number): { healthZero: boolean } {
   const p = player(db);
   let { food, warmth, sleep, health } = p;
-  if (hour % 4 === 0) food--;
-  if (hour % 2 === 0) sleep--;
+  if (hour % 6 === 0) food--;
+  if (hour % 3 === 0) sleep--;
   const cold = hour >= 20 || hour < 7;
-  if (cold ? hour % 2 === 0 : hour % 3 === 0) warmth--;
+  if (cold ? hour % 3 === 0 : hour % 5 === 0) warmth--;
   food = clamp(food);
   warmth = clamp(warmth);
   sleep = clamp(sleep);
-  if (food === 0 || warmth === 0 || sleep === 0) health--;
-  else if (food >= 5 && warmth >= 5 && sleep >= 5 && hour % 6 === 0) health++;
+  if (food === 0 || warmth === 0 || sleep === 0) {
+    if (hour % 3 === 0) health--;
+  } else if (food >= 4 && warmth >= 4 && sleep >= 4 && hour % 4 === 0) health++;
   health = clamp(health);
   db.prepare("UPDATE player SET food = ?, warmth = ?, sleep = ?, health = ? WHERE id = 1").run(food, warmth, sleep, health);
   return { healthZero: health === 0 };

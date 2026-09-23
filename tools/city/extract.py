@@ -105,10 +105,15 @@ def clean(red, orange, water):
     built = cv2.morphologyEx(built, cv2.MORPH_CLOSE, k3, iterations=2)
     built = drop_small(built, int(12 / RES**2))  # red elevation numbers, specks
     built = fill_holes(built, int(4000 / RES**2))  # courtyards and gardens inside blocks
+    # the ink outline of each block makes it look fatter than it was: pull it back
+    # half a metre, so streets and quays keep their width
+    built = cv2.erode(built, k3, iterations=1)
     public = cv2.morphologyEx(orange, cv2.MORPH_CLOSE, k3, iterations=2)
     public = drop_small(public, int(60 / RES**2)) & built
     wat = cv2.morphologyEx(water, cv2.MORPH_OPEN, k3)
-    wat = cv2.morphologyEx(wat, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))  # lettering in the river
+    # a small close only: a big one swallows the narrow quays along the canals.
+    # lettering in the water is left as holes, and fill_holes below closes them
+    wat = cv2.morphologyEx(wat, cv2.MORPH_CLOSE, k3)
     wat = drop_small(wat, int(150 / RES**2)) & (1 - built)
     wat = fill_holes(wat, int(600 / RES**2)) & (1 - built)
     return built, public, wat

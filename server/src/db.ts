@@ -149,7 +149,7 @@ function seed(db: DB): void {
     // docs/01: 50 centimes, a thin coat, a bed in Sint-Andries. Day 1, dawn.
     db.prepare(
       `INSERT INTO player (id, name, money_c, food, warmth, health, sleep, day, hour, district, rent_paid_until)
-       VALUES (1, 'Jef', 50, 6, 5, 8, 7, 1, 6, 'rijnkaai', 0)`,
+       VALUES (1, 'Jef', 50, 7, 7, 8, 7, 1, 6, 'rijnkaai', 0)`,
     ).run();
     const ft = db.prepare("INSERT INTO faction_trust (faction, trust) VALUES (?, 0)");
     for (const f of FACTIONS) ft.run(f);

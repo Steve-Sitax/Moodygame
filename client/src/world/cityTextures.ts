@@ -53,13 +53,17 @@ function wallFill(g: CanvasRenderingContext2D, x: number, y: number, s: Style, r
   g.fillStyle = s.base;
   g.fillRect(x, y, C, C);
   if (s.brick) {
+    // one cell is 3 m: a course of brick with its mortar is about 2 px (9 cm),
+    // a brick about 5 px (23 cm); drawn soft so it reads as a wall, not a grid
     g.fillStyle = s.mortar!;
-    for (let row = 0; row < C; row += 4) {
+    g.globalAlpha = 0.55;
+    for (let row = 0; row < C; row += 2) {
       g.fillRect(x, y + row, C, 1);
-      const off = (row / 4) % 2 ? 0 : 4;
-      for (let col = off; col < C; col += 8) g.fillRect(x + col, y + row, 1, 4);
+      const off = (row / 2) % 2 ? 0 : 2;
+      for (let col = off; col < C; col += 5) g.fillRect(x + col, y + row, 1, 2);
     }
-    noise(g, x, y, C, C, 0.18, r);
+    g.globalAlpha = 1;
+    noise(g, x, y, C, C, 0.22, r);
   } else {
     noise(g, x, y, C, C, 0.12, r);
     // damp stain low on the wall and a few cracks
@@ -219,13 +223,14 @@ export function slateTexture(): THREE.CanvasTexture {
 export function brickBandTexture(): THREE.CanvasTexture {
   const [c, g] = canvas(1);
   const r = rand(5);
-  for (let row = 0; row < C; row += 4) {
-    const stone = Math.floor(row / 4) % 4 === 3;
+  // bands: about 60 cm of brick, then 20 cm of white stone
+  for (let row = 0; row < C; row += 2) {
+    const stone = Math.floor(row / 2) % 8 >= 6;
     g.fillStyle = stone ? "#c9c1ad" : "#8a3e2a";
-    g.fillRect(0, row, C, 4);
-    g.fillStyle = stone ? "#9e9684" : "#6e5448";
+    g.fillRect(0, row, C, 2);
+    g.fillStyle = stone ? "rgba(120,110,95,0.5)" : "rgba(110,84,72,0.55)";
     g.fillRect(0, row, C, 1);
-    if (!stone) for (let col = (row / 4) % 2 ? 0 : 4; col < C; col += 8) g.fillRect(col, row, 1, 4);
+    if (!stone) for (let col = (row / 2) % 2 ? 0 : 2; col < C; col += 5) g.fillRect(col, row, 1, 2);
   }
   noise(g, 0, 0, C, C, 0.16, r);
   const t = tex(c);
