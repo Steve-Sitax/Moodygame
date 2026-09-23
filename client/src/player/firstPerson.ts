@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { World, Surface } from "../world/rijnkaai";
 import type { Exit } from "../world/quaysteps";
+import { psxUniforms } from "../retro/psx";
 
 // First person walker: WASD, pointer-lock mouse look, head bob, footstep events.
 // Off an open quay edge you fall into the Schelde and swim (slow, eye just above the
@@ -23,6 +24,19 @@ const SWIM_EYE = 0.17; // eye this far above it
 const CLIMB = 1.1; // m/s up a ladder
 const STROKE_LEN = 0.9; // metres per swim stroke
 
+/** A ladder you climb (M3g: a portal crane's): where you hang, face, step off at the top and at the foot. */
+export interface ClimbLadder {
+  hang: { x: number; z: number };
+  foot: { x: number; z: number };
+  head: { x: number; z: number };
+  /** The player's yaw facing the rungs. */
+  face: number;
+  /** Feet heights: the ground, the deck at the top. */
+  bottom: number;
+  top: number;
+  done?: (at: "top" | "foot") => void;
+}
+
 /** Where a carried player stands (feet), the way the carriage points, and how fast it goes (m/s). */
 export interface RideAnchor {
   x: number;
@@ -41,6 +55,18 @@ export interface BikeGround {
   rut: boolean;
 }
 export type BikeEvent = "wobble" | "fall" | "steps" | "bump" | "edge";
+
+/** M3j: a rowing boat's size and where the rower sits (boat frame: bow along +z, y up from the waterline). */
+export interface RowHull {
+  /** Half the length of the hull on the water, and its half beam (m). */
+  half: number;
+  beam: number;
+  /** The rower's seat: z along the boat, y over the waterline. */
+  seatZ: number;
+  seatY: number;
+  /** A little slower for a flat punt. */
+  speed: number;
+}
 
 export class FirstPerson {
   readonly camera: THREE.PerspectiveCamera;
@@ -155,7 +181,9 @@ export class FirstPerson {
   update(dt: number): void {
     if (this.fly) return this.updateFly(dt);
     if (this.rideAnchor) return this.updateRide(dt);
+    if (this.climbLadder) return this.updateClimbLadder(dt);
     if (this.bikeRiding || this.bikeFallT > 0) return this.updateBike(dt);
+    if (this.rowing) return this.updateRow(dt);
     if (this.climb) return this.updateClimb(dt);
     if (this.swimming) return this.updateSwim(dt);
     const active = (this.locked || this.freeInput || this.testInput) && !this.frozen;
@@ -366,6 +394,77 @@ export class FirstPerson {
     const s = 1 - Math.exp(-dt * 22);
     this.lookYaw += (this.yaw - this.lookYaw) * s;
     this.lookPitch += (this.pitch - this.lookPitch) * s;
+    this.camera.position.set(this.x, this.y + EYE - pull, this.z);
+    this.camera.rotation.set(this.lookPitch, this.lookYaw, 0);
+  }
+
+  // ------------------------------------------------------------ up and down a ladder (M3g: the portal cranes)
+
+  /**
+   * On a ladder (game/craneclimb.ts): W climbs, S goes down, you face the rungs (look about a
+   * little). At the top you step off onto the deck; at the bottom onto the ground.
+   */
+  climbLadder: ClimbLadder | null = null;
+  private climbLadderRung = 0;
+
+  /** Onto the rungs: from the foot, or (fromTop) from the deck at the head. */
+  climbLadderStart(l: ClimbLadder, fromTop = false): void {
+    this.climbLadder = l;
+    this.x = l.hang.x;
+    this.z = l.hang.z;
+    this.y = fromTop ? l.top - 1.2 : l.bottom + 0.05;
+    this.vy = 0;
+    this.vel.set(0, 0);
+    this.crouching = false;
+    this.yaw = this.lookYaw = l.face;
+    this.pitch = Math.max(-0.4, Math.min(0.6, this.pitch));
+    this.climbLadderRung = this.y;
+  }
+
+  /** A key held now (the ladder: push into it to start climbing). */
+  pressing(code: string): boolean {
+    return (this.locked || this.freeInput || this.testInput) && !this.frozen && this.keys.has(code);
+  }
+
+  private updateClimbLadder(dt: number): void {
+    const l = this.climbLadder!;
+    const k = (c: string) => this.pressing(c);
+    const v = (k("KeyW") || k("ArrowUp") ? 1 : 0) - (k("KeyS") || k("ArrowDown") ? 1 : 0);
+    this.y += v * 0.9 * dt;
+    this.x = l.hang.x;
+    this.z = l.hang.z;
+    if (Math.abs(this.y - this.climbLadderRung) > 0.35) {
+      this.climbLadderRung = this.y;
+      this.onStep("wood", false);
+    }
+    if (this.y >= l.top - 1.0) {
+      // over the edge and onto the deck
+      this.climbLadder = null;
+      this.x = l.head.x;
+      this.z = l.head.z;
+      this.y = l.top;
+      this.grounded = true;
+      this.eye = EYE;
+      this.onLand?.("wood");
+      l.done?.("top");
+    } else if (this.y <= l.bottom && v < 0) {
+      this.climbLadder = null;
+      this.x = l.foot.x;
+      this.z = l.foot.z;
+      this.y = l.bottom;
+      this.grounded = true;
+      this.eye = EYE;
+      this.onLand?.(this.world.surfaceAt(this.x, this.z));
+      l.done?.("foot");
+    }
+    // face the rungs: the view turns only so far either way
+    let d = this.yaw - l.face;
+    d = Math.atan2(Math.sin(d), Math.cos(d));
+    this.yaw = l.face + Math.max(-1.1, Math.min(1.1, d));
+    const s = 1 - Math.exp(-dt * 22);
+    this.lookYaw += (this.yaw - this.lookYaw) * s;
+    this.lookPitch += (this.pitch - this.lookPitch) * s;
+    const pull = v ? Math.abs(Math.sin(this.y * 9)) * 0.03 : 0;
     this.camera.position.set(this.x, this.y + EYE - pull, this.z);
     this.camera.rotation.set(this.lookPitch, this.lookYaw, 0);
   }
@@ -635,8 +734,287 @@ export class FirstPerson {
     this.camera.rotation.set(this.lookPitch + jy * 0.6, this.lookYaw, lean * 0.45);
   }
 
+  // ------------------------------------------------------------ in a rowing boat (M3j)
+
+  /**
+   * In a rowing boat (game/rowing.ts keeps the boat, its oars and the rules of the water; this
+   * is the rower). You sit on the aft thwart FACING THE BOW and push the oars: a real rower
+   * faces aft and looks over his shoulder, but in a first-person game you must see the bridges,
+   * the ships and the landings ahead of you, and the mouse still looks all round. W pulls
+   * (both oars), S backs water, A/D pull one oar harder (with no W the other backs: the boat
+   * turns on the spot), Shift a harder, faster stroke. The boat surges with each stroke, bobs on
+   * the waves (waveAt), drifts with the current, and stops against walls and hulls.
+   * x, z are the boat's middle; `rowHeading` is where its bow points (a boat yaw: bow = (sin, cos)).
+   */
+  rowing = false;
+  rowHeading = 0;
+  /** Speed along the heading, m/s. */
+  rowSpeed = 0;
+  /** Turn rate, rad/s (+ turns to the left). */
+  rowTurn = 0;
+  /** Stroke phase 0..1: the drive (blades in the water) is 0..0.45, then the recovery. */
+  rowPhase = 0;
+  /** How hard each oar works now, -1 (backing) .. 1 (pulling): port (left), starboard (right). */
+  rowPort = 0;
+  rowStarboard = 0;
+  /** A hard stroke (Shift). */
+  rowHard = false;
+  /** The boat on the water now: height of its waterline, pitch (bow up +) and roll, rad. */
+  rowY = 0;
+  rowPitch = 0;
+  rowRoll = 0;
+  rowHull: RowHull = { half: 2.4, beam: 0.72, seatZ: -0.43, seatY: 0.38, speed: 1 };
+  /** Is this water free for the hull (set by game/rowing.ts): walls, hulls, piles, the lock, low bridges. */
+  rowFree: (x: number, z: number, r: number) => boolean = () => true;
+  /** The current here (m/s, x and z). */
+  rowCurrent: (x: number, z: number) => [number, number] = () => [0, 0];
+  /** A stroke caught the water (for the sound; hard strokes count on the server). */
+  onRowStroke?: (hard: boolean) => void;
+  /** Ran into something at `speed` m/s (a wall, a moored hull, a pile). No harm done. */
+  onRowBump?: (speed: number) => void;
+  private rowT = 0;
+  private rowCaught = false;
+
+  /** Sit down in a boat whose middle is at (x, z), bow along `heading`; look ahead. */
+  rowStart(x: number, z: number, heading: number, hull: RowHull): void {
+    this.rowing = true;
+    this.rowHull = hull;
+    this.x = x;
+    this.z = z;
+    this.rowHeading = heading;
+    this.rowSpeed = 0;
+    this.rowTurn = 0;
+    this.rowPort = this.rowStarboard = 0;
+    this.rowPhase = 0;
+    this.rowY = this.world.waterLevel(x, z);
+    this.y = this.rowY + hull.seatY;
+    this.yaw = this.lookYaw = heading + Math.PI;
+    this.pitch = this.lookPitch = -0.12;
+    this.swimming = false;
+    this.climb = null;
+    this.crouching = false;
+    this.vel.set(0, 0);
+    this.vy = 0;
+  }
+
+  /** Where the seat is now (world x, z). */
+  rowSeat(): [number, number] {
+    const z = this.rowHull.seatZ;
+    return [this.x + Math.sin(this.rowHeading) * z, this.z + Math.cos(this.rowHeading) * z];
+  }
+
+  /** Stand up and step out onto a landing, the foot of a ladder, a pontoon (game/rowing.ts found it). */
+  rowStepOut(e: Exit): void {
+    const [sx, sz] = this.rowSeat();
+    this.rowing = false;
+    this.x = sx;
+    this.z = sz;
+    this.y = this.rowY + this.rowHull.seatY;
+    const keys: Array<[number, number, number, number]> = [];
+    if (e.kind === "ladder") {
+      const lx = e.gx - e.nx * 0.12;
+      const lz = e.gz - e.nz * 0.12;
+      keys.push([lx, this.y - 0.4, lz, 0.6]);
+      keys.push([lx, e.ty + 0.15, lz, Math.max(0.3, (e.ty + 0.15 - this.y + 0.4) / CLIMB)]);
+      keys.push([e.tx, e.ty, e.tz, 0.7]);
+    } else {
+      keys.push([e.gx, Math.max(this.y - 0.3, e.ty - 0.4), e.gz, 0.5]);
+      keys.push([e.tx, e.ty, e.tz, 0.6]);
+    }
+    this.climb = { from: [this.x, this.y - 0.5, this.z], keys, i: 0, t: 0 };
+    this.vel.set(0, 0);
+    this.vy = 0;
+    this.rowSpeed = 0;
+  }
+
+  /** Over the side into the water, beside the boat. */
+  rowOverboard(): void {
+    const h = this.rowHeading;
+    const [sx, sz] = this.rowSeat();
+    this.rowing = false;
+    this.x = sx;
+    this.z = sz;
+    const side = this.rowHull.beam + 0.55;
+    for (const s of [1, -1]) {
+      const px = sx + Math.cos(h) * side * s;
+      const pz = sz - Math.sin(h) * side * s;
+      if (this.world.swimFree(px, pz, RADIUS)) {
+        this.x = px;
+        this.z = pz;
+        break;
+      }
+    }
+    this.y = this.world.waterLevel(this.x, this.z) - 0.3;
+    this.vy = -1.5;
+    this.enterWater();
+  }
+
+  /** Turning against a wall: a small push away from it (sideways first) that lets the turn go on, or null. */
+  private rowFendOff(h: number): [number, number] | null {
+    const fx = Math.sin(this.rowHeading);
+    const fz = Math.cos(this.rowHeading);
+    for (const [dx, dz] of [[fz, -fx], [-fz, fx], [-fx, -fz], [fx, fz]]) {
+      const x = this.x + dx * 0.03;
+      const z = this.z + dz * 0.03;
+      if (!this.rowBlocked(x, z, h)) return [x, z];
+    }
+    return null;
+  }
+
+  private rowBlocked(x: number, z: number, h: number): boolean {
+    const hl = this.rowHull.half - this.rowHull.beam * 0.6;
+    const fx = Math.sin(h);
+    const fz = Math.cos(h);
+    for (const k of [-1, 0, 1]) if (!this.rowFree(x + fx * hl * k, z + fz * hl * k, this.rowHull.beam)) return true;
+    return false;
+  }
+
+  private updateRow(dt: number): void {
+    const ROW_DRIVE = 0.45;
+    const active = (this.locked || this.freeInput || this.testInput) && !this.frozen;
+    const k = (c: string) => active && this.keys.has(c);
+    this.rowT += dt;
+    const fwd = k("KeyW") || k("ArrowUp");
+    const back = k("KeyS") || k("ArrowDown");
+    const left = k("KeyA") || k("ArrowLeft");
+    const right = k("KeyD") || k("ArrowRight");
+    this.rowHard = (k("ShiftLeft") || k("ShiftRight")) && (fwd || back || left || right);
+    // which oar does what: turning left = the starboard (right) oar harder, the port oar lighter or backing
+    let port = 0;
+    let stbd = 0;
+    if (fwd) port = stbd = 1;
+    else if (back) port = stbd = -1;
+    if (left && !right) {
+      stbd = fwd || !back ? 1 : -0.4;
+      port = fwd ? 0.35 : back ? -1 : -0.7;
+    } else if (right && !left) {
+      port = fwd || !back ? 1 : -0.4;
+      stbd = fwd ? 0.35 : back ? -1 : -0.7;
+    }
+    const ease = 1 - Math.exp(-dt * 5);
+    this.rowPort += (port - this.rowPort) * ease;
+    this.rowStarboard += (stbd - this.rowStarboard) * ease;
+    const working = Math.abs(port) + Math.abs(stbd) > 0;
+
+    // the stroke: faster and harder with Shift; let go, and it runs on to the end of the stroke
+    const rate = this.rowHard ? 1 / 1.35 : 1 / 1.8;
+    if (working || this.rowPhase > 0) {
+      const was = this.rowPhase;
+      this.rowPhase = (this.rowPhase + rate * dt) % 1;
+      if (!working && this.rowPhase < was) this.rowPhase = 0; // the stroke is done: rest
+      if (this.rowPhase < ROW_DRIVE && !this.rowCaught && working) {
+        this.rowCaught = true;
+        this.onRowStroke?.(this.rowHard);
+      }
+      if (this.rowPhase >= ROW_DRIVE) this.rowCaught = false;
+    }
+    // thrust: steady plus a surge in the drive (mean 1 over a stroke), in m/s^2
+    const inDrive = this.rowPhase < ROW_DRIVE && working;
+    const surge = inDrive ? Math.sin((Math.PI * this.rowPhase) / ROW_DRIVE) / 0.2865 : 0;
+    const K = (this.rowHard ? 1.5 : 0.9) * this.rowHull.speed;
+    const drive = working ? K * (0.6 + 0.4 * surge) : 0;
+    const both = (this.rowPort + this.rowStarboard) / 2;
+    const diff = (this.rowStarboard - this.rowPort) / 2;
+    let v = this.rowSpeed;
+    v += drive * (both >= 0 ? both : both * 0.65) * dt;
+    v -= (0.08 * v + 0.35 * v * Math.abs(v)) * dt;
+    let w = this.rowTurn;
+    w += (working ? 0.55 + 0.45 * surge : 0) * 0.95 * diff * dt;
+    w -= w * 1.8 * dt;
+    w -= w * Math.min(1, Math.abs(v) * 0.15) * dt; // a boat under way turns a little less
+    // the current on the river; in a gale the wind pushes the bow about
+    const [cx, cz] = this.rowCurrent(this.x, this.z);
+    const sea = psxUniforms.uSea.value;
+    if (sea > 2.5) w += Math.sin(this.rowT * 0.37) * 0.04 * (sea - 2.5) * dt;
+
+    const h1 = this.rowHeading + w * dt;
+    let nx = this.x + (Math.sin(h1) * v + cx) * dt;
+    let nz = this.z + (Math.cos(h1) * v + cz) * dt;
+    let h = h1;
+    if (this.rowBlocked(nx, nz, h)) {
+      const hit = Math.abs(v);
+      const bx = -Math.sin(this.rowHeading) * 0.04 * Math.sign(v || 1);
+      const bz = -Math.cos(this.rowHeading) * 0.04 * Math.sign(v || 1);
+      // turn on the spot; slide along a wall; turn while easing off it; else stop and come back a little
+      if (!this.rowBlocked(this.x, this.z, h1)) {
+        nx = this.x;
+        nz = this.z;
+        v *= 0.5;
+      } else if (!this.rowBlocked(nx, this.z, this.rowHeading)) {
+        nz = this.z;
+        h = this.rowHeading;
+        v *= 0.6;
+      } else if (!this.rowBlocked(this.x, nz, this.rowHeading)) {
+        nx = this.x;
+        h = this.rowHeading;
+        v *= 0.6;
+      } else if (!this.rowBlocked(this.x + bx, this.z + bz, h1)) {
+        nx = this.x + bx;
+        nz = this.z + bz;
+        v = 0;
+      } else if (w !== 0 && this.rowFendOff(h1)) {
+        // an oar against the wall: the boat is pushed off it as it turns
+        [nx, nz] = this.rowFendOff(h1)!;
+        v *= 0.5;
+      } else {
+        nx = this.x;
+        nz = this.z;
+        h = this.rowHeading;
+        v = -0.2 * v;
+        w *= 0.3;
+      }
+      if (hit > 0.45) this.onRowBump?.(hit);
+    }
+    const dh = h - this.rowHeading;
+    this.x = nx;
+    this.z = nz;
+    this.rowHeading = h;
+    this.rowSpeed = v;
+    this.rowTurn = w;
+    // the view turns with the boat
+    this.yaw += dh;
+    this.lookYaw += dh;
+
+    // on the waves: heave from the water under the middle, pitch and roll from bow, stern and sides
+    const fx = Math.sin(h);
+    const fz = Math.cos(h);
+    const L = this.rowHull.half * 0.8;
+    const B = this.rowHull.beam;
+    const mid = this.world.waterLevel(this.x, this.z);
+    const bow = this.world.waterLevel(this.x + fx * L, this.z + fz * L);
+    const stern = this.world.waterLevel(this.x - fx * L, this.z - fz * L);
+    const portY = this.world.waterLevel(this.x + fz * B, this.z - fx * B);
+    const stbdY = this.world.waterLevel(this.x - fz * B, this.z + fx * B);
+    const e = 1 - Math.exp(-dt * 4);
+    this.rowY += ((mid * 2 + bow + stern) / 4 - this.rowY) * e;
+    // the bow lifts a little on each drive; the boat rolls on the swell
+    this.rowPitch += (Math.atan2(bow - stern, 2 * L) * 0.8 + surge * 0.004 - this.rowPitch) * e;
+    this.rowRoll += (Math.atan2(portY - stbdY, 2 * B) * 0.7 + Math.sin(this.rowT * 1.9) * 0.008 * Math.min(sea, 2.5) - this.rowRoll) * e;
+    this.y = this.rowY + this.rowHull.seatY;
+
+    // the eye: seated, 0.78 m over the thwart; carried by the boat's pitch and roll
+    const EYE_SEATED = 0.78;
+    const sz = this.rowHull.seatZ;
+    const lean = inDrive ? Math.sin((Math.PI * this.rowPhase) / ROW_DRIVE) * 0.07 * Math.sign(both || 1) : 0; // lean into the push
+    const ey = this.rowY + this.rowHull.seatY + EYE_SEATED + sz * Math.sin(this.rowPitch);
+    const ez = sz + lean;
+    const s2 = 1 - Math.exp(-dt * 22);
+    this.lookYaw += (this.yaw - this.lookYaw) * s2;
+    this.lookPitch += (this.pitch - this.lookPitch) * s2;
+    const side = Math.sin(this.rowRoll) * EYE_SEATED;
+    this.camera.position.set(this.x + fx * ez - fz * side, ey, this.z + fz * ez + fx * side);
+    // the horizon tilts with the boat: its roll and pitch, as seen from where you look
+    const rel = this.lookYaw - (h + Math.PI);
+    this.camera.rotation.set(
+      this.lookPitch + this.rowPitch * Math.cos(rel) - this.rowRoll * Math.sin(rel) * 0.5,
+      this.lookYaw,
+      -this.rowRoll * Math.cos(rel) + this.rowPitch * Math.sin(rel) * 0.5,
+    );
+  }
+
   /** Debug / automation: teleport and face a direction. */
   place(x: number, z: number, yaw: number, pitch = 0): void {
+    this.rowing = false;
     this.x = x;
     this.z = z;
     this.y = 0;

@@ -8,8 +8,9 @@ import { town } from "./town/store.ts";
 // And: "We should be able to get out of a boat anywhere." "If it is a collision place, i.e. a
 // bridge, or in the path of a big boat, it breaks, sinks and disappears."
 //
-// A waterman hires out rowing boats at three flights of quay steps (the Werf, the Vismarkt,
-// the Petit Bassin). The ENGINE owns every number: the hire, what is owed for keeping it too
+// A waterman hires out rowing boats at three flights of quay steps (the Rijnkaai by the Anna
+// Maria's berth, the Vismarkt, the Petit Bassin; the Werf's own flight cannot be walked to from
+// the quay, the Werf store stands at its head). The ENGINE owns every number: the hire, what is owed for keeping it too
 // long, the fine for a boat left anywhere but a hire landing (his boy fetches it an hour
 // later), what a lost boat costs, and what a row does to the needs. The client only says what
 // happened (I hired at this landing, I got out here, the boat broke); every fact is checked
@@ -43,7 +44,7 @@ export const ROW_EFFORT_PER_FOOD = 60;
 export const ROW_STROKES_PER_S = 1;
 
 export type BoatKind = "rowboat" | "punt";
-export type LandingId = "werf" | "vismarkt" | "bassin";
+export type LandingId = "rijnkaai" | "vismarkt" | "bassin";
 
 export interface Flight {
   /** Top of the flight on the quay line (world/rijnkaai.ts FLIGHTS), the way down (t), the water side (n). */
@@ -60,7 +61,7 @@ const FLIGHT_W = 1.62;
 /** A boat's berth beside the landing of a flight: centre, and the bow pointing on down the wall. */
 export function berthOf(f: Flight): { x: number; z: number; yaw: number; landing: [number, number] } {
   const s = FLIGHT_LEN + LANDING_LEN / 2 + 0.05;
-  const u = FLIGHT_W + 0.78 + 0.22;
+  const u = FLIGHT_W + 0.78 + 0.6; // room to turn away from the steps
   const x = f.top[0] + f.t[0] * s + f.n[0] * u;
   const z = f.top[1] + f.t[1] * s + f.n[1] * u;
   const lx = f.top[0] + f.t[0] * (FLIGHT_LEN + LANDING_LEN / 2) + f.n[0] * FLIGHT_W * 0.5;
@@ -70,7 +71,7 @@ export function berthOf(f: Flight): { x: number; z: number; yaw: number; landing
 
 /** The hire landings: the waterman's boats lie at the foot of these flights. */
 export const LANDINGS: Record<LandingId, { label: string; flight: Flight; kind: BoatKind; place: string }> = {
-  werf: { label: "the Werf steps", flight: { top: [-320, 0], t: [-1, 0], n: [0, -1] }, kind: "rowboat", place: "werf" },
+  rijnkaai: { label: "the Rijnkaai steps", flight: { top: [-4, 0], t: [-1, 0], n: [0, -1] }, kind: "rowboat", place: "werf" },
   vismarkt: { label: "the Vismarkt steps", flight: { top: [-110, 0], t: [-1, 0], n: [0, -1] }, kind: "rowboat", place: "vismarkt" },
   bassin: { label: "the Petit Bassin steps", flight: { top: [90, 46], t: [1, 0], n: [0, 1] }, kind: "punt", place: "canal" },
 };
@@ -82,7 +83,7 @@ export function isLanding(s: unknown): s is LandingId {
 /** Unattended boats, tied up at other steps: their owners are boatmen of the town. */
 const LOOSE: Array<{ id: string; flight: Flight; kind: BoatKind; place: string; where: string }> = [
   { id: "boat:canal", flight: { top: [-70, 38], t: [0, 1], n: [-1, 0] }, kind: "punt", place: "canal", where: "from the canal steps" },
-  { id: "boat:rijnkaai", flight: { top: [-4, 0], t: [-1, 0], n: [0, -1] }, kind: "rowboat", place: "werf", where: "from the Rijnkaai steps" },
+  { id: "boat:cartstand", flight: { top: [50, 0], t: [1, 0], n: [0, -1] }, kind: "rowboat", place: "werf", where: "from the steps by the cart stand" },
   { id: "boat:north", flight: { top: [186, 0], t: [1, 0], n: [0, -1] }, kind: "punt", place: "vismarkt", where: "from the steps north of the lock" },
 ];
 
@@ -190,7 +191,7 @@ function people(db: DB) {
     if (r) used.add(r.id);
     return r?.id ?? null;
   };
-  const watermen = { werf: pick("werf"), vismarkt: pick("vismarkt"), bassin: pick("canal") } as Record<LandingId, string | null>;
+  const watermen = { rijnkaai: pick("werf"), vismarkt: pick("vismarkt"), bassin: pick("canal") } as Record<LandingId, string | null>;
   // the owners of the loose boats: the other boatmen, then men of the quays (a sailor, a docker keeps a boat too)
   const quayMen = t.residents.filter((r) => ["sailor", "docker", "natie", "porter"].includes(r.trade) && r.sex === "m" && r.age >= 20 && r.age < 65);
   const boats: LooseBoat[] = [];

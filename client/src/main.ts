@@ -17,7 +17,9 @@ import { Town } from "./game/town";
 import { Animals } from "./game/animals";
 import { Stalls } from "./game/stalls";
 import { Ride } from "./game/ride";
+import { CraneClimb } from "./game/craneclimb";
 import { Deeds } from "./game/deeds";
+import { Rowing } from "./game/rowing";
 import { Market } from "./game/market";
 import { createTrades } from "./world/trades";
 import { api } from "./net/api";
@@ -53,6 +55,9 @@ const jobs = new Jobs(world, player);
 // the horse omnibus round the quays (M3g, game/ride.ts): E at a stop to get on or off; the server takes the fare
 const ride = new Ride(player, world, () => world.omnibus(), (t) => jobs.say(t), (p) => jobs.refresh(p));
 jobs.extraActions.push((x, z) => ride.keys(x, z));
+// up a portal crane's ladder to its machinery deck (M3g, game/craneclimb.ts)
+const craneClimb = new CraneClimb(player, world, (t) => jobs.say(t));
+jobs.extraActions.push((x, z) => craneClimb.keys(x, z));
 // townspeople on the quays and squares (game/crowd.ts)
 const crowd = new Crowd(
   world.scene,
@@ -82,6 +87,10 @@ jobs.talk.onClose = (id) => town.hold(id, false);
 // M3h: velocipedes, a lantern to carry, theft and the police (game/deeds.ts)
 const deeds = new Deeds(world, player, jobs, town, crowd, stalls);
 deeds.sfx = (name, at) => sound?.play(name, at);
+// M3j: rowing boats for hire at three flights of steps, boats to steal, bridges and the lock (game/rowing.ts)
+const rowing = new Rowing(world, player, jobs, deeds);
+rowing.sfx = (name, at) => sound?.play(name, at);
+rowing.stroke = () => sound?.swimStroke();
 town
   .load()
   .then(() => {
@@ -193,12 +202,14 @@ function frame(): void {
   world.update(elapsed, dt, player.camera);
   player.update(dt);
   jobs.update(dt);
+  craneClimb.update(dt);
   crowd.setHour(jobs.day.hour);
   crowd.update(dt, player, player.camera);
   town.update(dt, player);
   market.update(dt, player, jobs.day.dayNum, jobs.day.hourF);
   trades.update(elapsed, dt, player.camera, crowd.fogDistance);
   deeds.update(dt, jobs.day.hourF);
+  rowing.update(dt);
   animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
   sound?.setCrowd(crowd.stats.drawn);
   sound?.setRain(psxUniforms.uRain.value);
@@ -218,6 +229,7 @@ function frame(): void {
       rail.onClack = (x, z) => sound?.railClack(x, z);
       rail.onCrane = (x, z) => sound?.craneWork({ kind: "crane", x, z, y: 6 });
       world.railGate().onBell = (x, z) => sound?.gateBell(x, z);
+      rail.onCraneTravel = (x, z) => sound?.gateBell(x, z); // the crane driver's warning bell
     }
     // the ridden velocipede rattles like a handcart: iron tyres on stone (M3h)
     if (tr || rail || bus || deeds.velos.ridden)
@@ -308,7 +320,9 @@ if (import.meta.env.DEV) {
     market,
     trades,
     ride,
+    craneClimb,
     deeds,
+    rowing,
     get sound() {
       return sound;
     },
@@ -337,6 +351,8 @@ if (import.meta.env.DEV) {
       for (const q of town.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M3h: the velocipedes, the lanterns, the food tables, the police post
       for (const q of deeds.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      // M3j: the boat hire landings and the boats lying at other steps
+      for (const q of rowing.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M3i: the trades (the market stalls come through town.pathPoints())
       for (const q of trades.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       if (!can(DOSS_POS.x, DOSS_POS.z, 2.0)) bad.push("the doss house gate");
@@ -411,6 +427,7 @@ if (import.meta.env.DEV) {
         market.update(dt, player, jobs.day.dayNum, jobs.day.hourF);
         trades.update(elapsed, dt, player.camera, crowd.fogDistance);
         deeds.update(dt, jobs.day.hourF);
+        rowing.update(dt);
         animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
       }
     },

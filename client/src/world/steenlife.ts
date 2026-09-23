@@ -1,0 +1,438 @@
+import * as THREE from "three";
+import { psx } from "../retro/psx";
+import { makeHuman, whenHumans, type Human, type HumanKind, type Motion } from "../game/humans";
+import type { Crowd, Puppet } from "../game/crowd";
+import { glowTexture } from "./textures";
+import type { Rect } from "./geom";
+
+// Life round Het Steen (M3i, docs/milestones/M3i-steen.md). In 1873 the Steen was the city's
+// Museum of Antiquities (decided 1862, open from 1864), in the old castle gate and prison.
+// Steve: "people visiting it would be nice, or other appropriate activities around it."
+//
+// By day, while the museum is open (10 to 4, the board by the door): an attendant in his coat
+// by the door, which stands open; visitors (the crowd's puppets) walk up the lane, stop and
+// look at the gatehouse, go in (they vanish in the doorway), come out a while later and stroll
+// on; some only look and walk on. Round it: a painter at his easel on the promontory, sketching
+// the Steen from the river side; an old man fishing over the railing at the tip; children and
+// a couple at the railings watching the ships; two benches. At night: the museum shut, nobody
+// at the door, only the lantern on the Steenpoort lit.
+//
+// Cheap: the figures exist only within 90 m; one mesh each for the easel, the benches, the rod
+// and line, the open doorway; one glow sprite. The visitors are crowd puppets (crowd.ts) and are
+// dropped when Jef is far.
+
+type P = [number, number];
+
+/** The museum door (the Charles V gate on the lane; tools/blender/build_landmarks.py steen4). */
+export const STEEN_DOOR = { x: -211.5, z: 27.0 };
+const OPEN: P = [10, 16]; // the board: OPEN 10 - 4
+const LANTERN = new THREE.Vector3(-222.42, 4.33, 32.35); // on the Steenpoort's outer face
+const WATER_Y = -2.8;
+
+interface Figure {
+  kind: HumanKind;
+  x: number;
+  z: number;
+  /** Facing (0 = +z). */
+  yaw: number;
+  motion: Motion;
+  /** Seat height when sitting. */
+  seat?: number;
+  hours: P;
+  h: Human | null;
+  root: THREE.Group;
+}
+
+const face = (fx: number, fz: number, tx: number, tz: number) => Math.atan2(tx - fx, tz - fz);
+
+// the painter on the promontory, looking at the corner tower and the river front
+const PAINTER: P = [-197, -18];
+const PAINTER_YAW = face(PAINTER[0], PAINTER[1], -214, 13);
+const ANGLER: P = [-166.5, -39.4];
+const BENCHES: Array<[number, number, number]> = [
+  [-203, -27.5, face(-203, -27.5, -230, -60)],
+  [-186, -34.5, Math.PI],
+];
+
+function figures(): Figure[] {
+  const f = (kind: HumanKind, x: number, z: number, yaw: number, motion: Motion, hours: P, seat?: number): Figure => ({
+    kind, x, z, yaw, motion, hours, seat, h: null, root: new THREE.Group(),
+  });
+  return [
+    // the attendant, in his coat, beside the open door
+    f("clerk", -214.3, 27.85, 0.15, "behind", [9.5, 16.5]),
+    // the painter on his stool
+    f("gentleman", PAINTER[0], PAINTER[1], PAINTER_YAW, "sit", [10, 16], 0.45),
+    // the old man fishing at the tip
+    f("old_man", ANGLER[0], ANGLER[1], Math.PI, "sit", [7, 17.5], 0.42),
+    // children at the west railing, watching the ships
+    f("boy", -213.1, -12.2, -Math.PI / 2, "idle", [11, 17]),
+    f("girl", -213.1, -13.3, -Math.PI / 2 + 0.3, "idle", [11, 17]),
+    // a couple at the railing of the tip, watching the river
+    f("clerk", -200.6, -40.75, Math.PI, "lean", [9, 18]),
+    f("wife_a", -199.4, -40.7, Math.PI - 0.2, "idle", [9, 18]),
+    // a sailor resting on the second bench
+    f("sailor_b", BENCHES[1][0] + 0.4, BENCHES[1][1] + 0.18, Math.PI, "sit", [8, 18], 0.47),
+  ];
+}
+
+/** Where the visitors come from and go to: the little fish market, the lane's north end, the square, the street behind the town hall. */
+const ENDS: P[] = [[-238, 18], [-194, 31], [-178, 22], [-232, 30]];
+/** Where they stand and look at the gatehouse. */
+const LOOK: P[] = [[-211.2, 30.4], [-209.2, 31.0], [-213.6, 30.9], [-207.5, 30.2]];
+const VISITORS: HumanKind[] = ["gentleman", "wife_a", "wife_b", "clerk", "priest", "old_woman", "sailor_b", "maid", "wife_a", "gentleman"];
+
+interface Visitor {
+  kind: HumanKind;
+  p: Puppet | null;
+  state: "coming" | "looking" | "entering" | "inside" | "leaving";
+  t: number;
+  goesIn: boolean;
+  look: P;
+}
+
+export interface SteenLife {
+  group: THREE.Group;
+  /** Walk colliders (the Steenpoort's east tower, the calvary, the easel, the benches): add them to the world. */
+  colliders: Rect[];
+  /** Once a frame: the game hour with fraction, the camera. */
+  update(dt: number, hour: number, cam: THREE.Camera): void;
+  /** Points a path must reach (main.ts paths()): the museum door, the Steenpoort from outside. */
+  pathPoints(): Array<{ label: string; x: number; z: number; reach: number }>;
+  /** Dev: who is where. */
+  info(): Record<string, unknown>;
+}
+
+export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenLife {
+  const group = new THREE.Group();
+  group.name = "steenlife";
+  scene.add(group);
+  let humansReady = false;
+  whenHumans(() => (humansReady = true));
+
+  const wood = psx(new THREE.MeshLambertMaterial({ color: 0x6b4a2e }));
+  const dark = psx(new THREE.MeshLambertMaterial({ color: 0x2a2622 }));
+  const iron = psx(new THREE.MeshLambertMaterial({ color: 0x33373a }));
+
+  // --- the easel with a sketch of the Steen, the stool, the paint box
+  const easel = new THREE.Group();
+  {
+    const leg = new THREE.BoxGeometry(0.035, 1.75, 0.035);
+    for (const [x, z, rx, rz] of [[-0.28, 0, 0.12, 0], [0.28, 0, 0.12, 0], [0, 0.45, -0.25, 0]] as const) {
+      const m = new THREE.Mesh(leg, wood);
+      m.position.set(x, 0.86, z);
+      m.rotation.set(rx, 0, rz + (x < 0 ? -0.12 : x > 0 ? 0.12 : 0));
+      easel.add(m);
+    }
+    const ledge = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.04, 0.08), wood);
+    ledge.position.set(0, 0.95, -0.08);
+    easel.add(ledge);
+    const canvas = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.48), psx(new THREE.MeshLambertMaterial({ map: sketchTexture(), side: THREE.DoubleSide })));
+    canvas.position.set(0, 1.22, -0.1);
+    canvas.rotation.x = -0.12;
+    canvas.rotation.y = Math.PI; // the painted side faces the painter
+    easel.add(canvas);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.5, 0.015), wood);
+    back.position.set(0, 1.22, -0.085);
+    back.rotation.x = -0.12;
+    easel.add(back);
+    const stool = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.05, 0.3), wood);
+    stool.position.set(0, 0.43, -0.95);
+    easel.add(stool);
+    for (const sx of [-0.14, 0.14]) {
+      const l = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.43, 0.03), wood);
+      l.position.set(sx, 0.21, -0.95);
+      l.rotation.x = sx < 0 ? 0.3 : -0.3;
+      easel.add(l);
+    }
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.1, 0.26), dark);
+    box.position.set(0.45, 0.05, -0.7);
+    easel.add(box);
+    // the easel stands 0.95 m in front of the painter, facing him
+    easel.position.set(PAINTER[0] + Math.sin(PAINTER_YAW) * 0.95, 0, PAINTER[1] + Math.cos(PAINTER_YAW) * 0.95);
+    easel.rotation.y = PAINTER_YAW;
+    group.add(easel);
+  }
+
+  // --- the angler's rod and line, his stool and bucket
+  const rod = new THREE.Group();
+  {
+    const stool = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.4, 0.3), wood);
+    stool.position.set(ANGLER[0], 0.2, ANGLER[1] + 0.05);
+    rod.add(stool);
+    const bucket = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.12, 0.26, 6), wood);
+    bucket.position.set(ANGLER[0] + 0.5, 0.13, ANGLER[1] - 0.1);
+    rod.add(bucket);
+    const from = new THREE.Vector3(ANGLER[0] + 0.12, 1.0, ANGLER[1] - 0.35);
+    const tip = new THREE.Vector3(ANGLER[0] + 0.35, 2.7, ANGLER[1] - 3.9);
+    const len = from.distanceTo(tip);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.02, len, 4).translate(0, len / 2, 0), wood);
+    pole.position.copy(from);
+    pole.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tip.clone().sub(from).normalize());
+    rod.add(pole);
+    const lineGeo = new THREE.BufferGeometry().setFromPoints([tip, new THREE.Vector3(tip.x, WATER_Y + 0.02, tip.z + 0.2)]);
+    rod.add(new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0x9a9890, transparent: true, opacity: 0.6 })));
+    const float = new THREE.Mesh(new THREE.SphereGeometry(0.03, 4, 3), psx(new THREE.MeshLambertMaterial({ color: 0xb03a28 })));
+    float.position.set(tip.x, WATER_Y + 0.02, tip.z + 0.2);
+    rod.add(float);
+    group.add(rod);
+  }
+
+  // --- two benches on the promontory
+  const benchRects: Rect[] = [];
+  for (const [x, z, yaw] of BENCHES) {
+    const b = new THREE.Group();
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.06, 0.42), wood);
+    seat.position.set(0, 0.46, 0);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.36, 0.05), wood);
+    back.position.set(0, 0.78, -0.2);
+    back.rotation.x = -0.12;
+    b.add(seat, back);
+    for (const sx of [-0.72, 0.72]) {
+      const l = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.46, 0.4), iron);
+      l.position.set(sx, 0.23, 0);
+      b.add(l);
+    }
+    b.position.set(x, 0, z);
+    b.rotation.y = yaw;
+    group.add(b);
+    const c = Math.abs(Math.cos(yaw));
+    const s = Math.abs(Math.sin(yaw));
+    const hw = 0.85 * c + 0.25 * s;
+    const hd = 0.85 * s + 0.25 * c;
+    benchRects.push({ minX: x - hw, maxX: x + hw, minZ: z - hd, maxZ: z + hd, top: 0.5 });
+  }
+
+  // --- the open doorway by day (the museum door stands open), a dark shape over the painted door
+  const doorway = new THREE.Mesh(
+    doorGeometry(2.3, 3.45),
+    psx(new THREE.MeshLambertMaterial({ color: 0x0d0b09 })),
+  );
+  doorway.position.set(STEEN_DOOR.x, 0.02, STEEN_DOOR.z - 0.17);
+  group.add(doorway);
+
+  // --- the lantern on the Steenpoort: a warm glow after dusk
+  const glowMat = new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffc47a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const glow = new THREE.Sprite(glowMat);
+  glow.position.copy(LANTERN);
+  glow.scale.setScalar(1.6);
+  group.add(glow);
+  const flame = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.36, 0.26), new THREE.MeshBasicMaterial({ color: 0xffd08a }));
+  flame.position.copy(LANTERN);
+  group.add(flame);
+
+  const colliders: Rect[] = [
+    // the Steenpoort's east tower and pier (the model stands over the lane, outside the walk map's wall)
+    { minX: -222.2, maxX: -217.75, minZ: 31.7, maxZ: 36.1 },
+    // the calvary against the back of the town hall, with its railing
+    { minX: -227.1, maxX: -224.9, minZ: 32.65, maxZ: 34.05 },
+    // the easel and the painter's stool
+    {
+      minX: Math.min(PAINTER[0], easel.position.x) - 0.45, maxX: Math.max(PAINTER[0], easel.position.x) + 0.45,
+      minZ: Math.min(PAINTER[1], easel.position.z) - 0.45, maxZ: Math.max(PAINTER[1], easel.position.z) + 0.45,
+    },
+    // the angler and his bucket
+    { minX: ANGLER[0] - 0.35, maxX: ANGLER[0] + 0.7, minZ: ANGLER[1] - 0.4, maxZ: ANGLER[1] + 0.35 },
+    ...benchRects,
+  ];
+
+  const figs = figures();
+  const visitors: Visitor[] = [];
+  let spawnT = 3;
+  let t = 0;
+
+  function show(f: Figure, on: boolean): void {
+    if (on && !f.h && humansReady) {
+      f.h = makeHuman(f.kind);
+      if (!f.h) return;
+      f.root.add(f.h.root);
+      group.add(f.root);
+      f.root.position.set(f.x, f.seat !== undefined ? f.h.sitDrop(f.seat) : 0, f.z);
+      f.root.rotation.y = f.yaw;
+      f.h.play(f.motion, 0);
+      f.h.update(Math.random() * 3);
+    } else if (!on && f.h) {
+      f.h.dispose();
+      f.h = null;
+      f.root.removeFromParent();
+    }
+  }
+
+  function drop(v: Visitor): void {
+    if (v.p && crowd?.alive(v.p)) crowd.removePuppet(v.p);
+    v.p = null;
+  }
+
+  function spawnVisitor(cx: number, cz: number): void {
+    if (!crowd) return;
+    const ends = ENDS.filter(([x, z]) => crowd.isHidden(x, z) && Math.hypot(x - cx, z - cz) > 8);
+    if (!ends.length) return;
+    const [x, z] = ends[Math.floor(Math.random() * ends.length)];
+    const kind = VISITORS[Math.floor(Math.random() * VISITORS.length)];
+    const p = crowd.addPuppet(kind, x, z, 0, 1.0 + Math.random() * 0.25);
+    if (!p) return;
+    const free = LOOK.filter((l) => !visitors.some((v) => v.look === l));
+    const look = (free.length ? free : LOOK)[Math.floor(Math.random() * (free.length || LOOK.length))];
+    crowd.puppetGo(p, look[0], look[1]);
+    visitors.push({ kind, p, state: "coming", t: 0, goesIn: Math.random() < 0.7, look });
+  }
+
+  function visitorsUpdate(dt: number, open: boolean, near: boolean, cx: number, cz: number): void {
+    if (!crowd) return;
+    // too far or shut: the ones outside go (dropped at once when Jef is far), the ones inside come out at closing
+    for (let i = visitors.length - 1; i >= 0; i--) {
+      const v = visitors[i];
+      if (v.p && !crowd.alive(v.p)) v.p = null;
+      if (!near) {
+        drop(v);
+        visitors.splice(i, 1);
+        continue;
+      }
+      v.t += dt;
+      const p = v.p;
+      switch (v.state) {
+        case "coming":
+          if (!p) {
+            visitors.splice(i, 1);
+          } else if (!crowd.puppetBusy(p) || Math.hypot(p.x - v.look[0], p.z - v.look[1]) < 0.6) {
+            crowd.puppetStand(p, Math.random() < 0.3 ? "fold" : "idle", face(p.x, p.z, STEEN_DOOR.x, STEEN_DOOR.z));
+            v.state = "looking";
+            v.t = -(5 + Math.random() * 6);
+          } else if (v.t > 60) {
+            drop(v);
+            visitors.splice(i, 1);
+          }
+          break;
+        case "looking":
+          if (!p) {
+            visitors.splice(i, 1);
+          } else if (v.t > 0) {
+            if (v.goesIn && open) {
+              crowd.puppetGo(p, STEEN_DOOR.x + (Math.random() - 0.5) * 0.6, STEEN_DOOR.z + 0.6, 0.9);
+              v.state = "entering";
+            } else {
+              const [x, z] = ENDS[Math.floor(Math.random() * ENDS.length)];
+              crowd.puppetGo(p, x, z);
+              v.state = "leaving";
+            }
+            v.t = 0;
+          }
+          break;
+        case "entering":
+          if (!p) {
+            visitors.splice(i, 1);
+          } else if (Math.hypot(p.x - STEEN_DOOR.x, p.z - STEEN_DOOR.z) < 1.1 || (!crowd.puppetBusy(p) && v.t > 1) || v.t > 25) {
+            drop(v); // in through the open door
+            v.state = "inside";
+            v.t = -(40 + Math.random() * 80);
+          }
+          break;
+        case "inside":
+          if (v.t > 0 || !open) {
+            const q = crowd.addPuppet(v.kind, STEEN_DOOR.x, STEEN_DOOR.z + 0.75, 0, 1.1);
+            if (!q) break; // try again next frame
+            v.p = q;
+            const [x, z] = ENDS[Math.floor(Math.random() * ENDS.length)];
+            crowd.puppetGo(q, x, z);
+            v.state = "leaving";
+            v.t = 0;
+          }
+          break;
+        case "leaving":
+          if (!p || !crowd.puppetBusy(p) || v.t > 90 || (Math.hypot(p.x - cx, p.z - cz) > 25 && crowd.isHidden(p.x, p.z))) {
+            drop(v);
+            visitors.splice(i, 1);
+          }
+          break;
+      }
+    }
+    if (!near || !open) return;
+    spawnT -= dt;
+    const outside = visitors.filter((v) => v.state !== "inside").length;
+    if (spawnT <= 0 && outside < 3 && visitors.length < 5) {
+      spawnT = 12 + Math.random() * 20;
+      spawnVisitor(cx, cz);
+    }
+  }
+
+  function update(dt: number, hour: number, cam: THREE.Camera): void {
+    t += dt;
+    const cx = cam.position.x;
+    const cz = cam.position.z;
+    const d = Math.hypot(cx - -205, cz - 0);
+    const near = d < 90;
+    const open = hour >= OPEN[0] && hour < OPEN[1];
+    const night = hour < 6.8 || hour >= 18.6;
+    group.visible = d < 260;
+    for (const f of figs) {
+      const on = near && hour >= f.hours[0] && hour < f.hours[1];
+      show(f, on);
+      if (f.h && Math.hypot(f.x - cx, f.z - cz) < 60) f.h.update(dt);
+    }
+    easel.visible = hour >= 10 && hour < 16;
+    rod.visible = hour >= 7 && hour < 17.5;
+    doorway.visible = open;
+    glow.visible = night;
+    flame.visible = night;
+    if (night) glowMat.opacity = 0.85 + 0.15 * Math.sin(t * 7.3) * Math.sin(t * 2.9);
+    visitorsUpdate(dt, open, d < 75, cx, cz);
+  }
+
+  return {
+    group,
+    colliders,
+    update,
+    pathPoints: () => [
+      { label: "the Steen, museum door", x: STEEN_DOOR.x, z: STEEN_DOOR.z + 0.6, reach: 1.6 },
+      { label: "the Steenpoort, outside", x: -223.5, z: 29.5, reach: 1.6 },
+      { label: "the Steen, the painter", x: PAINTER[0] + 1.2, z: PAINTER[1] - 0.8, reach: 2.0 },
+    ],
+    info: () => ({
+      figures: figs.filter((f) => f.h).map((f) => f.kind),
+      visitors: visitors.map((v) => ({ kind: v.kind, state: v.state, x: v.p ? +v.p.x.toFixed(1) : null, z: v.p ? +v.p.z.toFixed(1) : null, t: +v.t.toFixed(1) })),
+      doorOpen: doorway.visible,
+      lantern: glow.visible,
+    }),
+  };
+}
+
+/** The doorway: the four-centred head of the museum door, facing the lane (+z). */
+function doorGeometry(w: number, h: number): THREE.BufferGeometry {
+  const pts: P[] = [[0, 0], [1, 0], [1, 0.76], [0.9, 0.9], [0.7, 0.98], [0.5, 1], [0.3, 0.98], [0.1, 0.9], [0, 0.76]];
+  const shape = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2((x - 0.5) * w, y * h)));
+  return new THREE.ShapeGeometry(shape);
+}
+
+/** The painter's canvas: a pale ground, the Steen's towers and roofs sketched in grey and brown. */
+function sketchTexture(): THREE.CanvasTexture {
+  const c = document.createElement("canvas");
+  c.width = 64;
+  c.height = 48;
+  const g = c.getContext("2d")!;
+  g.fillStyle = "#d8d0bc";
+  g.fillRect(0, 0, 64, 48);
+  g.fillStyle = "#9aa4aa";
+  g.fillRect(0, 0, 64, 18); // sky
+  g.fillStyle = "#6f6a60";
+  g.fillRect(10, 22, 40, 18); // the walls
+  g.fillRect(8, 16, 9, 24); // the corner tower
+  g.fillStyle = "#4a4f55";
+  g.beginPath();
+  g.moveTo(6, 16);
+  g.lineTo(12.5, 4);
+  g.lineTo(19, 16);
+  g.fill(); // its roof
+  g.beginPath();
+  g.moveTo(18, 22);
+  g.lineTo(34, 12);
+  g.lineTo(50, 22);
+  g.fill();
+  g.fillStyle = "#7c8a90";
+  g.fillRect(0, 40, 64, 8); // the river
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.magFilter = THREE.NearestFilter;
+  t.minFilter = THREE.NearestFilter;
+  t.generateMipmaps = false;
+  return t;
+}

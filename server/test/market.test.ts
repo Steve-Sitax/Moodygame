@@ -18,7 +18,12 @@ describe("market days", () => {
       expect(marketOn("vismarkt", day, 10)).toBe(true);
       expect(marketShare("vismarkt", day, 13.25)).toBeGreaterThan(0);
       expect(marketShare("vismarkt", day, 13.25)).toBeLessThan(1);
-      expect(marketShare("vismarkt", day, 15)).toBe(0);
+      // the afternoon remainder: a third of the stalls until 16:30, all gone by 17:30
+      expect(marketShare("vismarkt", day, 15)).toBeCloseTo(0.35);
+      expect(marketOn("vismarkt", day, 15)).toBe(true);
+      expect(marketShare("vismarkt", day, 17)).toBeGreaterThan(0);
+      expect(marketShare("vismarkt", day, 17)).toBeLessThan(0.35);
+      expect(marketShare("vismarkt", day, 17.5)).toBe(0);
     }
     expect(marketShare("vismarkt", 7, 10)).toBe(0);
     expect(marketShare("vismarkt", 14, 10)).toBe(0); // the second Sunday

@@ -42,8 +42,8 @@ type DB = ReturnType<typeof openDb>;
 const setClock = (db: DB, day: number, hour: number, minute = 0) => db.prepare("UPDATE player SET day = ?, hour = ?, minute = ? WHERE id = 1").run(day, hour, minute);
 const set = (db: DB, sql: string) => db.prepare(`UPDATE player SET ${sql} WHERE id = 1`).run();
 const money = (db: DB) => player(db).money_c;
-const at = (id: "werf" | "vismarkt" | "bassin") => berthOf(LANDINGS[id].flight).landing;
-const berth = (id: "werf" | "vismarkt" | "bassin") => berthOf(LANDINGS[id].flight);
+const at = (id: "rijnkaai" | "vismarkt" | "bassin") => berthOf(LANDINGS[id].flight).landing;
+const berth = (id: "rijnkaai" | "vismarkt" | "bassin") => berthOf(LANDINGS[id].flight);
 const never = () => 0.999;
 const always = () => 0;
 
@@ -54,7 +54,7 @@ function fresh(hour = 10, cash = 100): DB {
   setWeather(db, "fog");
   return db;
 }
-function hire(db: DB, id: "werf" | "vismarkt" | "bassin" = "werf") {
+function hire(db: DB, id: "rijnkaai" | "vismarkt" | "bassin" = "rijnkaai") {
   const [x, z] = at(id);
   return hireBoat(db, id, x, z);
 }
@@ -67,7 +67,7 @@ beforeEach(() => {
 describe("the hire landings and the boats", () => {
   it("three hire landings, each with a waterman; the flights are reachable on foot", () => {
     const db = fresh();
-    for (const id of ["werf", "vismarkt", "bassin"] as const) {
+    for (const id of ["rijnkaai", "vismarkt", "bassin"] as const) {
       expect(waterman(db, id)).toBeTruthy();
       expect(resident(db, waterman(db, id)!)!.trade).toBe("boatman");
       const f = LANDINGS[id].flight;
@@ -80,13 +80,13 @@ describe("the hire landings and the boats", () => {
     }
     expect(rowBoats(db).length).toBe(3);
     // owners and watermen are different men
-    const all = [...rowBoats(db).map((b) => b.owner), waterman(db, "werf"), waterman(db, "vismarkt"), waterman(db, "bassin")];
+    const all = [...rowBoats(db).map((b) => b.owner), waterman(db, "rijnkaai"), waterman(db, "vismarkt"), waterman(db, "bassin")];
     expect(new Set(all).size).toBe(all.length);
   });
 
   it("only real landings count (the client's word is data)", () => {
     const db = fresh();
-    for (const bad of ["", "Werf", "werf; DROP TABLE player", 3, null, undefined, { id: "werf" }, "__proto__", "constructor"]) {
+    for (const bad of ["", "Werf", "werf", "werf; DROP TABLE player", 3, null, undefined, { id: "werf" }, "__proto__", "constructor"]) {
       expect(isLanding(bad)).toBe(false);
       expect(() => hireBoat(db, bad, 0, 0)).toThrow(/no such landing/);
     }
@@ -97,8 +97,8 @@ describe("the hire landings and the boats", () => {
 describe("hiring and returning", () => {
   it("the hire costs ROW_HIRE_C once; Jef must stand by the boat; one boat at a time", () => {
     const db = fresh();
-    expect(() => hireBoat(db, "werf", 0, 0)).toThrow(/too far/);
-    expect(() => hireBoat(db, "werf", NaN, 0)).toThrow(/too far/);
+    expect(() => hireBoat(db, "rijnkaai", 0, 0)).toThrow(/too far/);
+    expect(() => hireBoat(db, "rijnkaai", NaN, 0)).toThrow(/too far/);
     const r = hire(db);
     expect(r).toMatchObject({ fee_c: ROW_HIRE_C, kind: "rowboat" });
     expect(money(db)).toBe(100 - ROW_HIRE_C);
@@ -122,7 +122,7 @@ describe("hiring and returning", () => {
 
   it("back at any hire landing within the hours: nothing more to pay", () => {
     const db = fresh();
-    hire(db, "werf");
+    hire(db, "rijnkaai");
     setClock(db, 1, 10 + ROW_HIRE_HOURS);
     const b = berth("bassin");
     const r = leaveBoat(db, b.x + 1, b.z, 0);
@@ -133,7 +133,7 @@ describe("hiring and returning", () => {
   });
 
   it("late: ROW_LATE_C a game hour or part of one, never more than ROW_LATE_MAX_C", () => {
-    const h = { landing: "werf" as const, kind: "rowboat" as const, since: 0, left: null };
+    const h = { landing: "rijnkaai" as const, kind: "rowboat" as const, since: 0, left: null };
     expect(lateFee(h, ROW_HIRE_HOURS * 60)).toBe(0);
     expect(lateFee(h, ROW_HIRE_HOURS * 60 + 1)).toBe(ROW_LATE_C);
     expect(lateFee(h, ROW_HIRE_HOURS * 60 + 61)).toBe(2 * ROW_LATE_C);
@@ -141,7 +141,7 @@ describe("hiring and returning", () => {
     const db = fresh();
     hire(db);
     setClock(db, 1, 10 + ROW_HIRE_HOURS + 2, 30);
-    const b = berth("werf");
+    const b = berth("rijnkaai");
     const r = leaveBoat(db, b.x, b.z, 0);
     expect(r.late_c).toBe(3 * ROW_LATE_C);
     expect(money(db)).toBe(100 - ROW_HIRE_C - 3 * ROW_LATE_C);
@@ -203,7 +203,7 @@ describe("a lost boat", () => {
   it("a hired boat run down: Jef pays what he has, owes the rest; still owed after a night, the waterman goes to the police", () => {
     const db = fresh(10, 50);
     hire(db); // 40 left
-    const who = waterman(db, "werf")!;
+    const who = waterman(db, "rijnkaai")!;
     const r = loseHired(db, "ship");
     expect(r).toMatchObject({ lost_c: lostFee("rowboat"), paid_c: 40, owed_c: lostFee("rowboat") - 40 });
     expect(money(db)).toBe(0);
@@ -358,7 +358,7 @@ describe("rowing and the needs (engine numbers)", () => {
     applyHour(db, 11); // not a 4th hour, not a 6th: only the effort
     expect(player(db).food).toBe(5);
     // on foot it counts nothing
-    const b = berth("werf");
+    const b = berth("rijnkaai");
     leaveBoat(db, b.x, b.z, 0);
     expect(rowEffort(db, 30, t + 60_000)).toBe(0);
   });

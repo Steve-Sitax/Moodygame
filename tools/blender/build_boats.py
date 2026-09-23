@@ -2510,8 +2510,7 @@ def portal_crane():
     two crane rails, straddling a railway track, with a ladder. The turning part is portal_jib()."""
     m = Mesh(ao=0.0)
     TOP = PORTAL_TOP
-    for y in (-2.6, 2.6, -0.72, 0.72):
-        m.box((0, y, 0.03), (10.0, 0.09, 0.06), IRON, tile=2.0)
+    # (no rails of its own: the crane runs on the quay's runway and railway, client/src/world/tracks.ts)
     for sx in (1, -1):
         for sy in (1, -1):
             x, y = sx * 2.2, sy * 2.6

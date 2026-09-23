@@ -14,16 +14,23 @@ export interface MarketDef {
   label: string;
   /** Days of the week it is held (1 = Monday ... 7 = Sunday). */
   days: number[];
-  /** The first stalls go up at `setup`; all are up by `open`; the first come down at `close`; all are gone by `gone`. */
+  /** The first stalls go up at `setup`; all are up by `open`; the first come down at `close`; by `gone` only the rest is left. */
   setup: number;
   open: number;
   close: number;
   gone: number;
+  /**
+   * The afternoon remainder (Steve, 2026-09-23): this share of the stalls stays after `gone`,
+   * selling what is left, until `late`; all are packed by `lateGone`. 0 = a strict morning market.
+   */
+  rest: number;
+  late: number;
+  lateGone: number;
 }
 
 export const MARKET_DAYS: MarketDef[] = [
-  { place: "vismarkt", label: "the fish market", days: [1, 2, 3, 4, 5, 6], setup: 5.5, open: 7, close: 12.5, gone: 14 },
-  { place: "grote_markt", label: "the Grote Markt market", days: [3, 6], setup: 6, open: 7.5, close: 13, gone: 14.5 },
+  { place: "vismarkt", label: "the fish market", days: [1, 2, 3, 4, 5, 6], setup: 5.5, open: 7, close: 12.5, gone: 14, rest: 0.35, late: 16.5, lateGone: 17.5 },
+  { place: "grote_markt", label: "the Grote Markt market", days: [3, 6], setup: 6, open: 7.5, close: 13, gone: 14.5, rest: 0.3, late: 16.5, lateGone: 17.5 },
 ];
 
 export function marketFor(place: string): MarketDef | null {
@@ -40,13 +47,17 @@ export function marketShare(place: string, day: number, hour: number): number {
   const d = ((((day - 1) % 7) + 7) % 7) + 1;
   if (!m.days.includes(d)) return 0;
   const h = ((hour % 24) + 24) % 24;
-  if (h < m.setup || h >= m.gone) return 0;
+  if (h < m.setup || h >= m.lateGone) return 0;
   if (h < m.open) return (h - m.setup) / (m.open - m.setup);
   if (h < m.close) return 1;
-  return 1 - (h - m.close) / (m.gone - m.close);
+  // the morning market packs up down to the afternoon remainder, which packs up in its turn
+  if (h < m.gone) return 1 - (1 - m.rest) * ((h - m.close) / (m.gone - m.close));
+  if (h < m.late) return m.rest;
+  return m.rest * (1 - (h - m.late) / (m.lateGone - m.late));
 }
 
 /** Is the market in full swing (people come to buy)? A little before it is fully up, and until it starts to pack. */
 export function marketOn(place: string, day: number, hour: number): boolean {
-  return marketShare(place, day, hour) >= 0.6;
+  // the full market from a little before it is up; the afternoon remainder draws buyers too
+  return marketShare(place, day, hour) >= 0.25;
 }

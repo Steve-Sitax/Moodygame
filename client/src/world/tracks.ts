@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { psx } from "../retro/psx";
-import { settsTexture } from "./cityTextures";
+import { settsPaving } from "./paving";
 import type { Rect } from "./geom";
 
 // The quay railway (tools/city/design.py DECOR "tracks" and "crane_rails"): iron rails
@@ -167,30 +167,6 @@ function rail(s: Strip, line: P[], nrm: P[], o: number): void {
   }
 }
 
-/** A height map from a stone texture: the light stone stands up, the dark joints sink. */
-function heightFrom(t: THREE.CanvasTexture): THREE.CanvasTexture {
-  const src = t.image as HTMLCanvasElement;
-  const c = document.createElement("canvas");
-  c.width = src.width;
-  c.height = src.height;
-  const g = c.getContext("2d")!;
-  g.drawImage(src, 0, 0);
-  const img = g.getImageData(0, 0, c.width, c.height);
-  for (let i = 0; i < img.data.length; i += 4) {
-    const l = (img.data[i] + img.data[i + 1] + img.data[i + 2]) / 3;
-    const h = Math.max(0, Math.min(255, (l - 40) * 3.2));
-    img.data[i] = img.data[i + 1] = img.data[i + 2] = h;
-  }
-  g.putImageData(img, 0, 0);
-  const h = new THREE.CanvasTexture(c);
-  h.wrapS = THREE.RepeatWrapping;
-  h.wrapT = THREE.ClampToEdgeWrapping;
-  h.magFilter = THREE.LinearFilter;
-  h.minFilter = THREE.LinearFilter;
-  h.generateMipmaps = false;
-  return h;
-}
-
 /** Boxes round the tracks and crane rails, for props to keep off them. */
 export function trackKeepOut(data: TrackData): Rect[] {
   const out: Rect[] = [];
@@ -259,15 +235,19 @@ export function buildTracks(scene: THREE.Scene, data: TrackData, bridges: Rect[]
       [x1, z1],
     ];
     const nrm = normals(line);
-    // a narrow strip from the middle of the setts texture (no grooves there)
+    // a narrow strip of setts from the middle of the texture (no grooves there), and a row of
+    // long edge stones either side, where it meets the paving (as along the railway)
     band(bandS, line, nrm, -0.3, 0.3, 0.36, 0.64);
+    band(bandS, line, nrm, -0.44, -0.3, 0.0, 0.055);
+    band(bandS, line, nrm, 0.3, 0.44, 0.0, 0.055);
     rail(railS, line, nrm, 0);
   }
-  const setts = settsTexture();
+  // uneven setts with a height map, like the streets (world/paving.ts settsPaving)
+  const setts = settsPaving();
   const bandMat = psx(
-    new THREE.MeshLambertMaterial({ map: setts, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }),
-    // relief light from the setts themselves (no parallax: the band's uv runs along the line)
-    { noSnap: true, affine: 0, vary: 0.8, relief: { height: heightFrom(setts), depth: 0, tile: 2, bump: 2.2 } },
+    new THREE.MeshLambertMaterial({ map: setts.map, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }),
+    // relief light from the height map (no parallax: the band's uv runs along the line, not north)
+    { noSnap: true, affine: 0, vary: 0.8, relief: { height: setts.height, depth: 0, tile: 2, bump: 3.4 } },
   );
   const railMat = psx(
     new THREE.MeshPhongMaterial({ color: 0x8a8680, vertexColors: true, specular: 0x6a6a6a, shininess: 40, side: THREE.DoubleSide }),

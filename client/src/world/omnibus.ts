@@ -109,7 +109,7 @@ export const STOPS: OmnibusStop[] = [
   { id: "werf", name: "the Werf", line: "kaaien", x: -270, z: 8.3, post: [-270, 10.4] },
   { id: "steenplein", name: "the Steenplein", line: "kaaien", x: -180, z: 8.3, post: [-180, 10.4] },
   { id: "vismarkt", name: "the Vismarkt", line: "kaaien", x: -112, z: 8.3, post: [-112, 10.4] },
-  { id: "rijnkaai", name: "the Rijnkaai", line: "kaaien", x: 30, z: 8.3, post: [30, 6.3] },
+  { id: "rijnkaai", name: "the Rijnkaai", line: "kaaien", x: 30, z: 8.3, post: [30, 10.4] },
   { id: "bassin", name: "the Petit Bassin", line: "kaaien", x: 76, z: 31, post: [78.3, 31] },
   { id: "rijnkaai_back", name: "the Rijnkaai", line: "kaaien", x: 0, z: 37, post: [0, 39.3] },
   { id: "vismarkt", name: "the Vismarkt", line: "markt", x: -96, z: 31, post: [-98.3, 31] },

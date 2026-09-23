@@ -97,7 +97,7 @@ The goods train, its wagons and loads, the cranes' hook, rope and sling, the hor
 (M3g: `client/src/world/railway.ts`, `omnibus.ts`, `horses.ts`, `kit.ts`) are built in code from boxes, cylinders and
 lathes on the existing 64x64 textures; the horses are the dray horse of `props.glb` above. The route board on the
 omnibus is text painted on a canvas in code. The rail clack is made in code (`soundscape.ts` railClack); the train's
-horses and the omnibus reuse the hooves and wheels recordings above. No new third-party files. The railway gate of the Werf store (`railgate.ts`) is built in code the same way on the existing textures; its bell is the bridge-keeper's hand bell recording above.
+horses and the omnibus reuse the hooves and wheels recordings above. No new third-party files. The railway gate of the Werf store (`railgate.ts`) is built in code the same way on the existing textures; its bell is the bridge-keeper's hand bell recording above. The travelling cranes' bogie wheels are built in code too; the crane driver's warning bell reuses that hand bell.
 
 Quay furniture (`client/public/models/quayfurniture.glb`: mooring rings, fenders, bollards, oak posts, capstans, chains, hawsers, anchors, cable reels, the harbour master's hut, customs booths, the ferry toll shed, notice boards and signs, nets, a sail, oars, eel pots, fish baskets, coal, grain, timber, tar fires, boats on trestles, lanterns, painted quay names and notices) are our own models and textures, painted and built by script in `tools/blender/build_quayfurniture.py` (the 5x7 letters are the font of `build_streetlife.py`); period photos of the Antwerp quays looked at for reference only. No third-party models, images or fonts.
 

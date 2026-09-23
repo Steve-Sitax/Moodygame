@@ -155,6 +155,8 @@ export interface PsxOptions {
    * ground, so a tiled paving does not look like one repeated pattern. 0..1 strength.
    */
   vary?: number;
+  /** Break up the tiling of a ground texture: a second, turned and scaled sample blended in by a slow noise (needs vary). */
+  detile?: boolean;
 }
 
 const commonVertex = /* glsl */ `
@@ -400,6 +402,16 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
             : ""
         }
         vec4 sampledDiffuseColor = texture2D(map, psxUv);
+        ${
+          opts.detile
+            ? `{
+          // no tile repeats in a grid: where a slow noise says so, the same texture turned 37 deg and scaled
+          vec2 uv2 = mat2(0.8, -0.6, 0.6, 0.8) * psxUv * 0.77 + vec2(0.31, 0.57);
+          float dm = smoothstep(0.35, 0.65, pudVal(vPsxWorld.xz / 7.0));
+          sampledDiffuseColor = mix(sampledDiffuseColor, texture2D(map, uv2), dm);
+        }`
+            : ""
+        }
         diffuseColor *= sampledDiffuseColor;
         ${
           opts.vary
@@ -433,7 +445,8 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
           float hZ = texture2D(uHeight, psxUv + vec2(0.0, e)).r - texture2D(uHeight, psxUv - vec2(0.0, e)).r;
           vec3 rn = normalize(vec3(-hX * uReliefBump, 1.0, -hZ * uReliefBump));
           float lit = clamp(dot(rn, normalize(vec3(-0.45, 0.8, -0.35))), 0.0, 1.0);
-          float relief = mix(0.64, 1.1, lit) * (0.74 + 0.26 * hC);
+          // a stone that stands high catches the light; a sunk one lies in its own shade
+          float relief = mix(0.6, 1.12, lit) * (0.55 + 0.45 * hC);
           float far = smoothstep(8.0, 22.0, length(vPsxWorld - cameraPosition));
           diffuseColor.rgb *= mix(relief, 0.86, far);
         }`
@@ -594,6 +607,6 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
     );
     shader.fragmentShader = fs;
   };
-  mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}` : ""}${opts.vary ? `-v${opts.vary}` : ""}`;
+  mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}` : ""}${opts.vary ? `-v${opts.vary}` : ""}${opts.detile ? "-dt" : ""}`;
   return mat;
 }

@@ -2250,6 +2250,770 @@ def steen3(fr):
     return m
 
 
+# ------------------------------------------------------------------ Het Steen as it stood in 1873 (M3i)
+#
+# Sources (reference only, all public domain / CC0; docs/milestones/M3i-steen.md): J. Linnig's etchings
+# (before 1868) and his watercolour of 1886 (FelixArchief 12#2974), the lithographs of 1823, 1838 and
+# 1844, the 1880 photograph "La rue du Steen" (MAS), E. Puttaert's engraving of 1880, the photographs of
+# the cleared Steen (c. 1883-85), the heritage inventory (Onroerend Erfgoed 4602) and the 1873 Vuillaume
+# map. Not the 1889-90 restoration: no ramp, no neo-Gothic north wing, no spire tower, no pseudo-parapet.
+#
+# The frame is world-aligned: u = world x (north, along the river), v = world z (inland). The fp is the
+# walk-map wall; the Steenstraat lane runs along the inland side (v 8.25..14.25) through the Steenpoort,
+# which stands over the lane at the south end, outside the fp (the game gives its east tower a collider).
+
+SAT = 256
+SATLAS = 7
+STEEN_MATS = CATH_MATS + ["steen_atlas"]
+SCELL = {
+    "st_band": (0, 0, 128, 24),  # the painted name over the museum's ground floor (photo c. 1883)
+    "st_board": (128, 0, 128, 64),  # the board by the door, in plain English
+    "st_semini": (0, 24, 64, 64),  # the Semini relief in its round-headed niche over the Steenpoort
+    "st_arms": (64, 24, 64, 48),  # the oriel: Charles V's arms, the double eagle under the crown
+    "st_saltire": (0, 88, 64, 48),  # the oriel: the Burgundian saltire, fire steels, the pillars
+    "st_bars": (64, 72, 32, 64),  # a tall barred prison window in a stone frame
+    "st_smallbar": (96, 72, 32, 32),  # a small barred window
+    "st_oculus": (96, 104, 32, 32),  # a round window (the west front has two)
+    "st_twolight": (128, 64, 64, 64),  # a two-light late-Gothic window, barred
+    "st_door": (192, 64, 64, 64),  # the oak door under a four-centred head, with its wicket
+    "st_arched_door": (128, 128, 64, 64),  # a planked door in a round arch (the tower feet)
+    "st_tiles": (192, 128, 64, 64),  # red pantiles
+    "st_crossbar": (64, 136, 64, 64),  # a stone cross window with iron bars
+    "st_house": (0, 192, 64, 64),  # a small brick house front of the 1870s, door and windows
+    "st_housewin": (64, 200, 64, 56),  # the same house, upper floor
+}
+DOOR4 = [(0, 0), (1, 0), (1, 0.76), (0.9, 0.9), (0.7, 0.98), (0.5, 1), (0.3, 0.98), (0.1, 0.9), (0, 0.76)]
+ROUNDTOP = [(0, 0), (1, 0), (1, 0.62)] + [(0.5 + 0.5 * math.cos(math.pi * k / 8), 0.62 + 0.38 * math.sin(math.pi * k / 8)) for k in range(1, 8)] + [(0, 0.62)]
+
+FONT5 = {
+    "A": ["01110", "10001", "10001", "11111", "10001", "10001", "10001"],
+    "C": ["01110", "10001", "10000", "10000", "10000", "10001", "01110"],
+    "D": ["11110", "10001", "10001", "10001", "10001", "10001", "11110"],
+    "E": ["11111", "10000", "10000", "11110", "10000", "10000", "11111"],
+    "F": ["11111", "10000", "10000", "11110", "10000", "10000", "10000"],
+    "H": ["10001", "10001", "10001", "11111", "10001", "10001", "10001"],
+    "I": ["01110", "00100", "00100", "00100", "00100", "00100", "01110"],
+    "M": ["10001", "11011", "10101", "10101", "10001", "10001", "10001"],
+    "N": ["10001", "11001", "10101", "10011", "10001", "10001", "10001"],
+    "O": ["01110", "10001", "10001", "10001", "10001", "10001", "01110"],
+    "P": ["11110", "10001", "10001", "11110", "10000", "10000", "10000"],
+    "Q": ["01110", "10001", "10001", "10001", "10101", "10010", "01101"],
+    "S": ["01111", "10000", "10000", "01110", "00001", "00001", "11110"],
+    "T": ["11111", "00100", "00100", "00100", "00100", "00100", "00100"],
+    "U": ["10001", "10001", "10001", "10001", "10001", "10001", "01110"],
+    "V": ["10001", "10001", "10001", "10001", "10001", "01010", "00100"],
+    "0": ["01110", "10001", "10011", "10101", "11001", "10001", "01110"],
+    "1": ["00100", "01100", "00100", "00100", "00100", "00100", "01110"],
+    "4": ["00010", "00110", "01010", "10010", "11111", "00010", "00010"],
+    "-": ["00000", "00000", "00000", "01110", "00000", "00000", "00000"],
+    "'": ["00100", "00100", "01000", "00000", "00000", "00000", "00000"],
+    " ": ["00000"] * 7,
+}
+
+
+def scell_uv(name, x, t):
+    cx, cy, w, h = SCELL[name]
+    return ((cx + 0.5 + x * (w - 1)) / SAT, 1 - (cy + 0.5 + (1 - t) * (h - 1)) / SAT)
+
+
+def paint_steen_atlas():
+    """The Steen's own atlas, drawn pixel by pixel (rows top-down, sRGB 0..1)."""
+    import numpy as np
+
+    rng = np.random.default_rng(1520)
+    A = np.zeros((SAT, SAT, 3), np.float32)
+    C = {k: np.array(v, np.float32) for k, v in {
+        "stone": (0.56, 0.52, 0.44), "hi": (0.68, 0.64, 0.55), "lo": (0.36, 0.34, 0.30), "blue": (0.40, 0.42, 0.45),
+        "glass": (0.07, 0.085, 0.11), "lead": (0.20, 0.20, 0.19), "iron": (0.10, 0.10, 0.11), "void": (0.07, 0.07, 0.08),
+        "wood": (0.30, 0.20, 0.12), "wood2": (0.22, 0.14, 0.09), "plaster": (0.80, 0.76, 0.66), "ink": (0.13, 0.12, 0.11),
+        "board": (0.10, 0.15, 0.12), "chalk": (0.88, 0.86, 0.78), "gold": (0.80, 0.64, 0.28), "brick": (0.52, 0.28, 0.21),
+        "tile": (0.55, 0.26, 0.17), "white": (0.84, 0.82, 0.76), "shutter": (0.22, 0.32, 0.24),
+    }.items()}
+
+    def cell(name):
+        x, y, w, h = SCELL[name]
+        return A[y:y + h, x:x + w]
+
+    def grid(h, w):
+        yy, xx = np.mgrid[0:h, 0:w]
+        return xx + 0.5, yy + 0.5
+
+    def noise(c, amt):
+        c += (rng.random(c.shape[:2])[..., None] - 0.5) * amt
+
+    def stone_bg(c, course=6, col="stone"):
+        c[:] = C[col]
+        h, w = c.shape[:2]
+        for i, y in enumerate(range(0, h, course)):
+            c[min(h - 1, y + course - 1), :] *= 0.84
+            for x in range((i % 2) * 5 + int(rng.integers(0, 3)), w, 10 + int(rng.integers(0, 4))):
+                c[y:y + course - 1, x] *= 0.86
+        c *= (0.93 + 0.14 * rng.random((h, w, 1))).astype(np.float32)
+
+    def shape_mask(w, h, shape):
+        """Pixels inside a unit outline: its top edge is the shape's points above t = 0."""
+        xx, yy = grid(h, w)
+        x = xx / w
+        t = 1 - yy / h
+        top = sorted({(round(p[0], 4), p[1]) for p in shape if p[1] > 0})
+        xs = np.array([p[0] for p in top])
+        ts = np.array([p[1] for p in top])
+        return t <= np.interp(x, xs, ts)
+
+    def erode(mk, n=1):
+        for _ in range(n):
+            e = mk.copy()
+            e[1:, :] &= mk[:-1, :]
+            e[:-1, :] &= mk[1:, :]
+            e[:, 1:] &= mk[:, :-1]
+            e[:, :-1] &= mk[:, 1:]
+            e[0, :] = e[-1, :] = False
+            e[:, 0] = e[:, -1] = False
+            mk = e
+        return mk
+
+    def text(c, s, y0, col, x0=None):
+        w = len(s) * 6 - 1
+        x0 = (c.shape[1] - w) // 2 if x0 is None else x0
+        for i, ch in enumerate(s):
+            for r, row in enumerate(FONT5[ch]):
+                for k, b in enumerate(row):
+                    if b == "1":
+                        c[y0 + r, x0 + i * 6 + k] = col
+
+    def barred(c, x0, y0, x1, y1, frame=3, step=5, cross=True):
+        c[y0:y1, x0:x1] = C["hi"]
+        g = c[y0 + frame:y1 - frame, x0 + frame:x1 - frame]
+        g[:] = C["glass"]
+        g[rng.random(g.shape[:2]) < 0.06] = C["lead"] * 1.6
+        g[:, ::step] = C["iron"]
+        if cross:
+            g[::step * 2, :] = C["iron"]
+        c[y1 - 1:y1 + 1, x0 - 1:x1 + 1] = C["hi"] * 1.05  # the sill
+        c[y0:y1, x0] = C["lo"]
+
+    # -- the painted name (two lines, black on a limewashed band): a name, so Dutch and French
+    c = cell("st_band")
+    c[:] = C["plaster"]
+    noise(c, 0.05)
+    c[0] = C["lo"]
+    c[-1] = C["lo"]
+    text(c, "MUSEUM VAN OUDHEDEN", 3, C["ink"])
+    text(c, "MUSEE D'ANTIQUITES", 13, C["ink"])
+
+    # -- the board by the door (plain English)
+    c = cell("st_board")
+    c[:] = C["wood"]
+    c[3:-3, 3:-3] = C["board"]
+    noise(c, 0.04)
+    text(c, "MUSEUM OF", 9, C["chalk"])
+    text(c, "ANTIQUITIES", 21, C["chalk"])
+    c[33, 34:94] = C["gold"]
+    text(c, "OPEN 10 - 4", 42, C["gold"])
+
+    # -- Semini: a small worn relief of a standing man in a round-headed niche, face and hands chipped away
+    c = cell("st_semini")
+    stone_bg(c, 6, "blue")
+    mk = shape_mask(44, 58, ROUNDTOP)
+    sub = c[4:62, 10:54]
+    sub[mk] = C["hi"] * 0.95
+    inner = erode(mk, 3)
+    sub[inner] = C["lo"] * 0.8
+    xx, yy = grid(58, 44)
+    head = np.hypot(xx - 22, yy - 16) <= 4.5
+    torso = (np.abs(xx - 22) <= 6 - (yy - 22) * 0.05) & (yy >= 21) & (yy <= 38)
+    legs = ((np.abs(xx - 19) <= 2.2) | (np.abs(xx - 25) <= 2.2)) & (yy > 38) & (yy <= 54)
+    arms = ((np.abs(xx - 13.5) <= 1.8) | (np.abs(xx - 30.5) <= 1.8)) & (yy >= 23) & (yy <= 36)
+    fig = (head | torso | legs | arms) & inner
+    sub[fig] = C["stone"] * 1.05
+    sub[fig & (xx > 22)] *= 0.88  # the light from the left
+    sub[head & (rng.random(head.shape) < 0.55)] = C["hi"] * 1.15  # the chipped face
+    sub[np.hypot(xx - 22, yy - 37) < 2.5] = C["hi"] * 1.1  # chipped away in 1587
+    noise(c, 0.05)
+
+    # -- the oriel panels: stone relief, not gilded in 1873
+    c = cell("st_arms")
+    stone_bg(c, 6)
+    c[2:46, 2:62] = C["lo"]
+    c[4:44, 4:60] = C["stone"] * 1.02
+    xx, yy = grid(48, 64)
+    shield = ((np.abs(xx - 32) < 11) & (yy > 14) & (yy < 32)) | ((np.hypot(xx - 32, yy - 32) < 11) & (yy >= 32))
+    c[shield] = C["hi"]
+    body = (np.hypot((xx - 32) / 3.5, (yy - 26) / 7) < 1) & shield
+    wings = (np.abs(yy - 24 - np.abs(xx - 32) * 0.35) < 2.6) & (np.abs(xx - 32) < 10) & shield
+    heads = (np.hypot(xx - 28.5, yy - 17) < 2.2) | (np.hypot(xx - 35.5, yy - 17) < 2.2)
+    c[body | wings | heads] = C["lo"] * 0.9
+    crown = (yy > 6) & (yy < 12) & (np.abs(xx - 32) < 8) & ((yy > 9) | (np.abs(((xx - 24) % 5) - 2.5) < 1.2))
+    c[crown] = C["lo"] * 0.9
+    for x in (12, 52):  # the shield bearers, worn to shapes
+        c[(np.abs(xx - x) < 3.5) & (yy > 16) & (yy < 42)] = C["stone"] * 0.8
+        c[np.hypot(xx - x, yy - 13) < 3] = C["stone"] * 0.8
+    noise(c, 0.05)
+
+    c = cell("st_saltire")
+    stone_bg(c, 6)
+    c[2:46, 2:62] = C["lo"]
+    c[4:44, 4:60] = C["stone"] * 1.02
+    xx, yy = grid(48, 64)
+    for sgn in (-1, 1):  # the ragged cross of Burgundy
+        d = np.abs((yy - 24) - sgn * (xx - 32) * 0.75)
+        rag = d < 2.4 + 0.9 * (np.sin(xx * 1.7) > 0.6)
+        c[rag & (np.abs(xx - 32) < 18)] = C["lo"] * 0.9
+    c[np.hypot(xx - 32, yy - 24) < 4] = C["hi"]  # the fire steel
+    for x in (9, 55):  # the pillars of Hercules
+        c[8:42, x - 2:x + 3] = C["hi"] * 1.05
+        c[6:9, x - 4:x + 5] = C["hi"] * 1.1
+        c[41:44, x - 4:x + 5] = C["hi"] * 1.1
+    noise(c, 0.05)
+
+    c = cell("st_bars")
+    stone_bg(c, 6)
+    barred(c, 5, 4, 27, 60, frame=3, step=4)
+    noise(c, 0.04)
+    c = cell("st_smallbar")
+    stone_bg(c, 6)
+    barred(c, 6, 6, 26, 26, frame=3, step=4)
+    noise(c, 0.04)
+
+    c = cell("st_oculus")
+    stone_bg(c, 6)
+    xx, yy = grid(32, 32)
+    d = np.hypot(xx - 16, yy - 16)
+    c[d < 13] = C["hi"]
+    c[d < 10] = C["glass"]
+    c[(d < 10) & ((np.abs(xx - 16) < 1) | (np.abs(yy - 16) < 1))] = C["iron"]
+    noise(c, 0.04)
+
+    c = cell("st_twolight")
+    stone_bg(c, 6)
+    mk = shape_mask(48, 60, arch_shape(0.72, 3))
+    sub = c[2:62, 8:56]
+    sub[mk] = C["hi"]
+    inner = erode(mk, 3)
+    g = np.broadcast_to(C["glass"], sub.shape).copy()
+    g[:, ::4] = C["iron"]
+    g[::8, :] = C["iron"]
+    sub[inner] = g[inner]
+    sub[:, 23:25][inner[:, 23:25]] = C["hi"]  # the mullion
+    sub[20:22][inner[20:22]] = C["hi"]  # the transom
+    am = shape_mask(20, 12, arch_shape(0.3, 2))
+    e = am & ~erode(am)
+    for cx in (12, 36):  # the little heads of the two lights
+        box = sub[8:20, cx - 10:cx + 10]
+        box[e] = C["hi"]
+    noise(c, 0.04)
+
+    c = cell("st_door")
+    stone_bg(c, 6)
+    mk = shape_mask(52, 60, DOOR4)
+    sub = c[4:64, 6:58]
+    sub[mk] = C["hi"] * 1.04
+    ring = erode(mk, 2)
+    sub[ring] = C["lo"]
+    inner = erode(mk, 4)
+    wood = np.broadcast_to(C["wood"], sub.shape).copy()
+    wood[:, ::6] = C["wood2"]
+    wood *= (0.9 + 0.2 * rng.random(sub.shape[:2])[..., None]).astype(np.float32)
+    sub[inner] = wood[inner]
+    for y in (14, 30, 46):  # the iron straps
+        sub[y:y + 2][inner[y:y + 2]] = C["iron"]
+    sub[26:58, 30:31] = C["iron"]  # the wicket in the right leaf
+    sub[26:27, 30:44] = C["iron"]
+    sub[26:58, 43:44] = C["iron"]
+    sub[40:42, 32:34] = C["gold"] * 0.6  # its latch
+    sub[:, 25:27][inner[:, 25:27]] = C["wood2"] * 0.7
+    noise(c, 0.03)
+
+    c = cell("st_arched_door")
+    stone_bg(c, 6, "blue")
+    mk = shape_mask(40, 60, ROUNDTOP)
+    sub = c[4:64, 12:52]
+    sub[mk] = C["hi"] * 0.9
+    inner = erode(mk, 3)
+    wood = np.broadcast_to(C["wood2"], sub.shape).copy()
+    wood[:, ::5] = C["wood2"] * 0.7
+    sub[inner] = wood[inner]
+    for y in (18, 40):
+        sub[y:y + 2][inner[y:y + 2]] = C["iron"]
+    noise(c, 0.04)
+
+    c = cell("st_tiles")
+    c[:] = C["tile"]
+    for row in range(0, 64, 8):
+        c[row] = C["tile"] * 0.45
+        for col in range(((row // 8) % 2) * 4, 64, 8):
+            c[row + 1:row + 8, col:col + 3] *= 1.18
+            c[row + 1:row + 8, min(63, col + 6)] *= 0.7
+    c *= (0.85 + 0.3 * rng.random((64, 64, 1))).astype(np.float32)
+    c[rng.random((64, 64)) < 0.03] = C["stone"] * 0.6  # lichen
+
+    c = cell("st_crossbar")
+    stone_bg(c, 6)
+    barred(c, 10, 6, 54, 58, frame=4, step=5, cross=False)
+    c[6:58, 30:34] = C["hi"]
+    c[24:28, 10:54] = C["hi"]
+    noise(c, 0.04)
+
+    def house(c, door):
+        c[:] = C["brick"]
+        h, w = c.shape[:2]
+        for y in range(0, h, 3):
+            c[y] *= 0.8
+        c *= (0.9 + 0.2 * rng.random((h, w, 1))).astype(np.float32)
+        for x0 in ((6, 40) if door else (6, 23, 40)):
+            if door and x0 == 40:
+                c[20:62, 40:56] = C["white"]
+                c[22:62, 42:54] = C["shutter"] * 0.8  # the door
+                c[34, 50:52] = C["gold"]
+                continue
+            y0 = 18 if door else 8
+            c[y0:y0 + 26, x0:x0 + 16] = C["white"]
+            c[y0 + 2:y0 + 24, x0 + 2:x0 + 14] = C["glass"]
+            c[y0:y0 + 26, x0 + 7:x0 + 9] = C["white"]
+            c[y0 + 10:y0 + 12, x0:x0 + 16] = C["white"]
+            c[y0:y0 + 26, max(0, x0 - 3):x0] = C["shutter"]
+        noise(c, 0.03)
+
+    house(cell("st_house"), True)
+    house(cell("st_housewin"), False)
+    return np.clip(A, 0, 1)
+
+
+def steen_materials():
+    if "steen_atlas" in bpy.data.materials:
+        return
+    import numpy as np
+
+    px = paint_steen_atlas()
+    img = bpy.data.images.new("steen_atlas", SAT, SAT, alpha=False)
+    rgba = np.ones((SAT, SAT, 4), np.float32)
+    rgba[..., :3] = np.flipud(px)
+    img.pixels.foreach_set(rgba.ravel())
+    img.pack()
+    mt = bpy.data.materials.new("steen_atlas")
+    nt = mt.node_tree
+    bsdf = nt.nodes.get("Principled BSDF")
+    tex = nt.nodes.new("ShaderNodeTexImage")
+    tex.image = img
+    tex.interpolation = "Closest"
+    nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    bsdf.inputs["Roughness"].default_value = 1.0
+    mt.diffuse_color = (0.55, 0.5, 0.42, 1)
+
+
+class SMesh(CMesh):
+    """The Steen: the cathedral mesh plus its own atlas, a stone tint (blue-grey Tournai stone below,
+    the yellowish sandstone of the 1520s above) and a little per-face weathering."""
+
+    mats = STEEN_MATS
+
+    def __init__(self, frame):
+        super().__init__(frame)
+        import random
+
+        self.rng = random.Random(1520)
+        self.tint = (1.0, 1.0, 1.0)
+        self.jit = 0.0
+
+    def poly(self, pts, mat, shade=1.0):
+        if mat in (STONE, SATLAS) and self.jit:
+            shade *= 1 + self.rng.uniform(-self.jit, self.jit)
+        f = Mesh.poly(self, pts, mat, shade)
+        if f is not None and mat in (STONE, SATLAS) and self.tint != (1.0, 1.0, 1.0):
+            for loop in f.loops:
+                c = loop[self.col]
+                loop[self.col] = (c[0] * self.tint[0], c[1] * self.tint[1], c[2] * self.tint[2], 1.0)
+        return f
+
+    def tex(self, pts, cell, shape=RECT, shade=1.0, out=None):
+        if cell in SCELL:
+            return self.upoly(pts, [scell_uv(cell, x, t) for x, t in shape], SATLAS, shade, out)
+        return super().tex(pts, cell, shape, shade, out)
+
+
+def steen4(fr):
+    """Het Steen in 1873: the museum of antiquities (from 1862, open 1864) in the old castle gate and
+    prison, still built in among the houses of the Burcht. Rough blue-grey Tournai stone below, the
+    sandstone of Charles V's rebuilding (c. 1520) above; a big three-quarter round tower on the corner
+    by the river and a smaller one at the gate, both with conical slate roofs; stepped gables; a
+    corbelled battlement on the river side; a corbelled turret; small barred windows, slits, two oculi.
+    The Steenpoort: a pointed arch in a plain stone gate block with a tiled roof, the Semini relief in
+    its niche above, a round tower at its east side. Inside the gate, on the lane: Charles V's gatehouse
+    front with its oriel and the museum door; the prison range with its barred windows and the painted
+    museum name; a small brick house built against the north end. A calvary outside the gate."""
+    cath_materials()
+    steen_materials()
+    f = Frame({"c": fr.c, "ax": [1.0, 0.0], "n": [0.0, 1.0], "L": fr.L, "W": fr.W})
+    m = SMesh(f)
+    U0, U1, V0, V1 = -f.L / 2, f.L / 2, -f.W / 2, f.W / 2  # -17, 17, -8.25, 8.25
+    a0, a1, b0, b1 = U0 + 0.25, U1 - 0.25, V0 + 0.25, V1 - 0.25  # the wall faces; the plinth at the fp edge
+    TOUR, SAND, BRK, DARK = (0.64, 0.68, 0.74), (1.0, 0.93, 0.8), (0.86, 0.56, 0.46), (0.5, 0.5, 0.52)
+    BASE = 4.5  # the Tournai stone reaches this high
+
+    def st(t, jit=0.07):
+        m.tint, m.jit = t, jit
+
+    def mass(u0, u1, v0, v1, y1, top=False, base=BASE):
+        st(TOUR)
+        m.box(u0, u1, v0, v1, -1.0, base, STONE, top=False, shade=0.8)
+        st(SAND)
+        m.box(u0, u1, v0, v1, base, y1, STONE, top=top, top_mat=LEAD, shade=0.95)
+
+    def tiled(p00, p10, p11, p01, cell, nu, nv, out, shade=1.0):
+        def q(a, b):
+            return tuple(p00[k] * (1 - a) * (1 - b) + p10[k] * a * (1 - b) + p11[k] * a * b + p01[k] * (1 - a) * b for k in range(3))
+        for i in range(nu):
+            for j in range(nv):
+                m.tex([q(i / nu, j / nv), q((i + 1) / nu, j / nv), q((i + 1) / nu, (j + 1) / nv), q(i / nu, (j + 1) / nv)], cell, shade=shade, out=out)
+
+    def tile_roof(u0, u1, v0, v1, y, rise, along="u", over=0.3, n=2.0):
+        """A pantiled saddle roof (the atlas cell repeated every n metres)."""
+        if along == "u":
+            vm = (v0 + v1) / 2
+            yl = y - over * rise / ((v1 - v0) / 2)
+            nu = max(1, round((u1 - u0) / n))
+            nv = max(1, round(math.hypot((v1 - v0) / 2 + over, rise) / n))
+            tiled((u0, v0 - over, yl), (u1, v0 - over, yl), (u1, vm, y + rise), (u0, vm, y + rise), "st_tiles", nu, nv, (0, -1, 1))
+            tiled((u1, v1 + over, yl), (u0, v1 + over, yl), (u0, vm, y + rise), (u1, vm, y + rise), "st_tiles", nu, nv, (0, 1, 1))
+            for ue, uo in ((u0, -1), (u1, 1)):
+                m.orient(m.poly([(ue, v0, y), (ue, v1, y), (ue, vm, y + rise)], STONE, 0.9), (uo, 0, 0))
+        else:
+            um = (u0 + u1) / 2
+            yl = y - over * rise / ((u1 - u0) / 2)
+            nv = max(1, round((v1 - v0) / n))
+            nu = max(1, round(math.hypot((u1 - u0) / 2 + over, rise) / n))
+            tiled((u0 - over, v1, yl), (u0 - over, v0, yl), (um, v0, y + rise), (um, v1, y + rise), "st_tiles", nv, nu, (-1, 0, 1))
+            tiled((u1 + over, v0, yl), (u1 + over, v1, yl), (um, v1, y + rise), (um, v0, y + rise), "st_tiles", nv, nu, (1, 0, 1))
+            for ve, vo in ((v0, -1), (v1, 1)):
+                m.orient(m.poly([(u0, ve, y), (u1, ve, y), (um, ve, y + rise)], STONE, 0.9), (0, vo, 0))
+
+    def sgable(p, d, o, s0, s1, y0, rise, steps=4, crown=0.9, t=0.5, shade=0.95, wins=()):
+        """A stepped gable with thickness, standing on a wall top (p a point of the wall face, d along
+        it, o out of it); wins: (s, y0, y1, w, cell) decals on its face."""
+        hw = (s1 - s0) / 2
+        w = 2 * hw / (2 * steps + 1)
+        left = [(s0, y0)]
+        for k in range(steps):
+            y = y0 + rise * (k + 1) / (steps + 1)
+            left += [(s0 + k * w, y), (s0 + (k + 1) * w, y)]
+        ytop = y0 + rise + crown
+        left += [(s0 + steps * w, ytop)]
+        loop = left + [(s0 + s1 - s, y) for s, y in reversed(left)]
+        P = lambda s, y, e: (p[0] + d[0] * s + o[0] * e, p[1] + d[1] * s + o[1] * e, y)  # noqa: E731
+        m.orient(m.poly([P(s, y, 0.02) for s, y in loop], STONE, shade), (o[0], o[1], 0))
+        m.orient(m.poly([P(s, y, -t) for s, y in loop], STONE, shade * 0.9), (-o[0], -o[1], 0))
+        for i in range(len(loop) - 1):
+            (sa, ya), (sb, yb) = loop[i], loop[i + 1]
+            ns, ny = -(yb - ya), (sb - sa)  # the loop runs clockwise: outward is to the left
+            m.orient(m.poly([P(sa, ya, 0.02), P(sb, yb, 0.02), P(sb, yb, -t), P(sa, ya, -t)], STONE, 1.05 if ny > 0 else 0.9),
+                     (d[0] * ns, d[1] * ns, ny))
+        for s, wy0, wy1, ww, cl in wins:
+            m.decal(p, d, o, s - ww / 2, s + ww / 2, wy0, wy1, cl, off=0.07)
+
+    def tface(cu, cv, r, sides, ang):
+        """The face of an ngon tower nearest a direction: its middle point, along, out, width."""
+        k = round((ang * sides / math.pi - 1) / 2) % sides
+        a = (2 * k + 1) * math.pi / sides
+        o = (math.cos(a), math.sin(a))
+        rr = r * math.cos(math.pi / sides)
+        return (cu + o[0] * rr, cv + o[1] * rr), (-o[1], o[0]), o, 2 * r * math.sin(math.pi / sides)
+
+    def tower(cu, cv, r, y1, roof_top, sides=14, over=0.35, deco=(), vane=False):
+        """A round tower: Tournai plinth and base, sandstone above, a corbelled rim, a conical slate
+        roof. deco: (angle, y0, y1, width, cell)."""
+        st(TOUR, 0.05)
+        m.prism(m.ngon(cu, cv, r + 0.25, sides), -1.0, 0.7, STONE, top=True, shade=0.7)
+        m.prism(m.ngon(cu, cv, r, sides), -1.0, BASE, STONE, top=False, shade=0.8)
+        st(SAND, 0.05)
+        m.prism(m.ngon(cu, cv, r, sides), BASE, y1 - 1.0, STONE, top=False, shade=0.95)
+        m.prism(m.ngon(cu, cv, r + 0.1, sides), BASE - 0.14, BASE + 0.06, STONE, top=False, shade=1.06)  # the string course
+        m.prism(m.ngon(cu, cv, r + 0.3, sides), y1 - 1.0, y1, STONE, top=False, shade=1.02)  # the corbelled rim
+        for k in range(sides):
+            a = 2 * math.pi * (k + 0.5) / sides
+            pu, pv = cu + math.cos(a) * (r + 0.12), cv + math.sin(a) * (r + 0.12)
+            m.box(pu - 0.14, pu + 0.14, pv - 0.14, pv + 0.14, y1 - 1.7, y1 - 1.0, STONE, top=False, shade=0.8)
+        eave = m.ngon(cu, cv, r + 0.3 + over, sides)
+        m.pyramid(eave, y1, roof_top, SLATE)
+        m.orient(m.poly([(q[0], q[1], y1) for q in eave], SLATE, 0.5), (0, 0, -1))  # the eaves' underside
+        m.box(cu - 0.05, cu + 0.05, cv - 0.05, cv + 0.05, roof_top - 0.3, roof_top + 1.6, LEAD)
+        m.prism(m.ngon(cu, cv, 0.12, 6), roof_top + 0.2, roof_top + 0.45, LEAD, top=True)
+        if vane:
+            m.box(cu - 0.02, cu + 0.02, cv, cv + 0.75, roof_top + 1.05, roof_top + 1.45, GILT)
+        for ang, y0, yy1, w, cl in deco:
+            pt, d, o, fw = tface(cu, cv, r, sides, ang)
+            ww = min(w, fw * 0.92)
+            m.decal(pt, d, o, -ww / 2, ww / 2, y0, yy1, cl, ROUNDTOP if cl == "st_arched_door" else RECT, off=0.04)
+        st(SAND)
+
+    def corbel_parapet(p, d, o, s0, s1, y, proj=0.4, h=1.0, merlon=0.8, step=1.3):
+        """Machicolations: a row of corbels carrying a projecting parapet, with merlons on top."""
+        k = s0 + 0.35
+        while k < s1 - 0.2:
+            _wbox(m, p, d, o, k - 0.16, k + 0.16, 0.0, proj, y - 0.9, y, STONE, 0.8, top=False)
+            k += 0.75
+        _wbox(m, p, d, o, s0, s1, -0.3, proj, y, y + h, STONE, 0.98, top=True)
+        k = s0 + 0.1
+        while k + merlon <= s1:
+            _wbox(m, p, d, o, k, k + merlon, proj - 0.45, proj, y + h, y + h + merlon * 1.1, STONE, 1.0, top=True)
+            k += step
+
+    def chimney(u, v, y0, y1, w=0.9, dd=0.6):
+        st(BRK, 0.08)
+        m.box(u - w / 2, u + w / 2, v - dd / 2, v + dd / 2, y0, y1, STONE, top=False, shade=0.8)
+        m.box(u - w / 2 - 0.1, u + w / 2 + 0.1, v - dd / 2 - 0.1, v + dd / 2 + 0.1, y1, y1 + 0.2, STONE, top=True, top_mat=LEAD, shade=0.9)
+        st(SAND)
+
+    R = (0, b0), (1, 0), (0, -1)  # the river front
+    LN = (0, b1), (1, 0), (0, 1)  # the lane front
+    S = (a0, 0), (0, 1), (-1, 0)  # the south end
+
+    # ---- the plinth round the whole block (Tournai stone, a little batter)
+    st(TOUR, 0.05)
+    m.prism([(U0, V0), (U1, V0), (U1, V1), (U0, V1)], -1.0, 0.55, STONE, top=False, shade=0.66)
+    m.prism([(U0 + 0.12, V0 + 0.12), (U1 - 0.12, V0 + 0.12), (U1 - 0.12, V1 - 0.12), (U0 + 0.12, V1 - 0.12)], 0.55, 0.8, STONE, top=True, shade=0.75)
+
+    # ---- the river range, south part: the great hall, a corbelled battlement along the river
+    hs0, hs1 = -10.6, 3.0
+    mass(hs0, hs1, b0, -0.2, 12.5)
+    corbel_parapet(*R, hs0, hs1, 12.5)
+    st(SAND)
+    m.gable_roof(hs0, hs1, b0 + 0.6, -0.2, 12.5, 6.4, along="u", gable_mat=STONE, over=0.0)
+    for uu in (-6.8, -0.8):  # dormers behind the battlement
+        _roof_dormer(m, (0, b0 + 0.6), (1, 0), (0, -1), uu, 0.0, 12.5, -(-0.2 - b0 - 0.6) / 2, 18.9, 13.9, 1.2, 1.7)
+    for uu in (-8.0, -3.8, 0.6):
+        m.decal(*R, uu - 0.22, uu + 0.22, 1.2, 3.0, "slit")
+        m.decal(*R, uu + 1.1, uu + 1.9, 5.0, 6.1, "st_smallbar")
+    for uu in (-6.0, -1.4):
+        m.decal(*R, uu - 0.5, uu + 0.5, 7.6, 8.6, "st_oculus")
+    m.decal(*R, -9.8, -9.2, 9.4, 11.2, "slit")
+    # its stepped gable over the lower north part
+    sgable((hs1, 0), (0, 1), (1, 0), b0 + 0.6, -0.2, 12.5, 6.4, steps=4, wins=((-4.0, 13.4, 14.6, 0.7, "st_smallbar"),))
+
+    # ---- the river range, north part: tiled roof, cross windows, a corbelled turret
+    hn0, hn1 = 3.0, 12.6
+    mass(hn0, a1, b0, -0.2, 11.0)
+    tile_roof(hn0, a1, b0, -0.2, 11.0, 6.2, along="u", over=0.35)
+    for uu in (4.8, 8.2):
+        m.decal(*R, uu - 0.4, uu + 0.4, 1.4, 2.6, "st_smallbar")
+    for uu in (5.6, 8.8):
+        m.decal(*R, uu - 0.8, uu + 0.8, 5.2, 8.2, "st_crossbar")
+    for uu in (7.4, 13.6):
+        _roof_dormer(m, (0, b0), (1, 0), (0, -1), uu, 0.35, 11.0 - 0.35 * 6.2 / 3.9, -(-0.2 - b0) / 2, 17.2, 12.6, 1.4, 1.9)
+    m.decal(*R, 14.4, 15.4, 1.3, 2.5, "st_smallbar")
+    # the corbelled turret (on a squinch cone, loopholes, a conical cap) near the corner
+    tcu, tcv, tr = 11.3, b0 - 0.35, 1.05
+    ring = m.ngon(tcu, tcv, tr, 10)
+    st(SAND, 0.05)
+    m.prism(ring, 5.8, 9.8, STONE, top=False, shade=0.95)
+    m.frustum(m.ngon(tcu, tcv + 0.9, 0.15, 10), 4.4, ring, 5.8, STONE, 0.8)
+    m.prism(m.ngon(tcu, tcv, tr + 0.12, 10), 9.4, 9.8, STONE, top=False, shade=1.05)
+    m.pyramid(m.ngon(tcu, tcv, tr + 0.3, 10), 9.8, 12.6, SLATE)
+    m.box(tcu - 0.04, tcu + 0.04, tcv - 0.04, tcv + 0.04, 12.4, 13.3, LEAD)
+    for ang in (-math.pi / 2, -math.pi / 2 - 0.9, -math.pi / 2 + 0.9):
+        pt, d, o, fw = tface(tcu, tcv, tr, 10, ang)
+        m.decal(pt, d, o, -0.12, 0.12, 6.6, 8.2, "slit", off=0.03)
+
+    # its stepped gable on the square, a cross window under it
+    N = (a1, 0), (0, 1), (1, 0)
+    sgable(*N, b0, -0.2, 11.0, 6.2, steps=4, wins=((-4.1, 12.3, 13.9, 0.9, "st_twolight"),))
+    m.decal(*N, -5.9, -4.3, 5.4, 8.4, "st_crossbar")
+    m.decal(*N, -2.4, -1.6, 5.8, 7.4, "st_bars")
+    m.decal(*N, -6.6, -6.0, 1.4, 2.8, "slit")
+    m.decal(*N, -3.4, -2.6, 1.4, 2.6, "st_smallbar")
+
+    # ---- the small brick house built against the north-east corner, on the square and the lane
+    # (in 1873 the whole Steen was built in among houses)
+    hv0 = 0.2
+    st(BRK, 0.04)
+    m.box(hn1, a1, hv0, b1, -1.0, 7.4, STONE, top=False, shade=0.85)
+    st((1.0, 1.0, 1.0), 0.0)
+    m.tex([(a1 + 0.03, hv0, 0), (a1 + 0.03, b1, 0), (a1 + 0.03, b1, 3.8), (a1 + 0.03, hv0, 3.8)], "st_house", out=(1, 0, 0))
+    m.tex([(a1 + 0.03, hv0, 3.8), (a1 + 0.03, b1, 3.8), (a1 + 0.03, b1, 7.2), (a1 + 0.03, hv0, 7.2)], "st_housewin", out=(1, 0, 0))
+    m.tex([(hn1, b1 + 0.03, 3.8), (a1, b1 + 0.03, 3.8), (a1, b1 + 0.03, 7.2), (hn1, b1 + 0.03, 7.2)], "st_housewin", out=(0, 1, 0))
+    tile_roof(hn1, a1 + 0.3, hv0, b1, 7.4, 3.6, along="u", over=0.3)
+    st(BRK, 0.04)
+    sgable((a1, 0), (0, 1), (1, 0), hv0, b1, 7.4, 3.6, steps=3, crown=0.5, t=0.3, shade=0.9)
+    chimney(14.6, 4.6, 9.4, 12.2, 0.7, 0.5)
+    st(SAND)
+
+    # ---- the big three-quarter round tower on the corner by the river
+    tower(-13.55, -4.8, 3.2, 16.2, 25.4, sides=18, vane=True,
+          deco=((math.pi, 0.2, 2.9, 1.3, "st_arched_door"), (math.pi, 6.0, 7.6, 0.4, "slit"), (-math.pi / 2, 3.0, 4.8, 0.4, "slit"),
+                (-math.pi * 0.75, 8.6, 9.6, 0.7, "st_smallbar"), (-math.pi / 2, 11.6, 12.8, 0.7, "st_smallbar"), (math.pi * 0.9, 12.0, 13.6, 0.4, "slit")))
+
+    # ---- the south range: a blind wall, the stepped gable with its three small windows over the little fish market
+    mass(a0, -9.4, -3.0, 4.2, 12.0)
+    mass(-12.2, -9.4, 4.2, b1, 10.6, top=True)  # the link to the gatehouse, lead-topped
+    m.gable_roof(a0 + 0.3, -9.4, -3.0, 4.2, 12.0, 6.8, along="u", gable_mat=STONE, over=0.1)
+    sgable((a0, 0), (0, 1), (-1, 0), -3.0, 4.2, 12.0, 7.0, steps=4,
+           wins=((-1.8, 13.4, 14.2, 0.6, "st_smallbar"), (0.6, 13.4, 14.2, 0.6, "st_smallbar"), (3.0, 13.4, 14.2, 0.6, "st_smallbar")))
+    for vv in (-1.0, 2.4):
+        m.decal(*S, vv - 0.2, vv + 0.2, 2.0, 3.6, "slit")
+    m.decal(*S, 0.3, 0.9, 6.4, 7.2, "st_smallbar")
+    m.decal(*S, -0.4, 1.4, 0.0, 2.3, "st_arched_door", ROUNDTOP, off=0.04)  # a low door
+
+    # ---- the round tower at the gate's west side
+    tower(-14.15, 5.4, 2.6, 14.0, 21.4, sides=16,
+          deco=((math.pi, 0.2, 2.6, 1.1, "st_arched_door"), (math.pi, 5.6, 7.0, 0.36, "slit"), (math.pi * 0.8, 9.2, 10.4, 0.6, "st_smallbar"),
+                (math.pi / 2, 7.0, 8.4, 0.36, "slit")))
+
+    # ---- Charles V's gatehouse on the lane: the oriel over the door, a tall stepped gable to the lane
+    g0, g1 = -9.4, -3.6
+    mass(g0, g1, -0.2, b1, 12.6)
+    m.gable_roof(g0, g1, -0.2, b1 - 0.4, 12.6, 5.6, along="v", gable_mat=STONE, over=0.25)
+    sgable((0, b1), (1, 0), (0, 1), g0, g1, 12.6, 8.0, steps=5, crown=1.0, wins=((-6.5, 14.4, 16.4, 0.9, "st_twolight"),))
+    gc = -6.5
+    # the portal: short thick columns with tall capitals, a four-centred door, corbels over it
+    st(SAND, 0.03)
+    for sg in (-1, 1):
+        cu = gc + sg * 1.6
+        m.prism(m.ngon(cu, b1 + 0.3, 0.3, 8), 0.0, 2.7, STONE, top=False, shade=1.0)
+        m.prism(m.ngon(cu, b1 + 0.3, 0.42, 8), 2.7, 3.3, STONE, top=True, shade=1.08)
+        m.prism(m.ngon(cu, b1 + 0.3, 0.38, 8), -0.2, 0.35, STONE, top=True, shade=0.9)
+    m.decal(*LN, gc - 1.25, gc + 1.25, 0.0, 3.6, "st_door", DOOR4, off=0.05)
+    m.door("Steen, museum door (Charles V's gate)", (gc, V1, 0))
+    _wbox(m, *LN, gc - 2.0, gc + 2.0, 0.0, 0.32, 3.3, 3.6, STONE, 1.05, top=True)  # the string course over the capitals
+    for s in (gc - 1.6, gc + 1.6):
+        _wbox(m, *LN, s - 0.25, s + 0.25, 0.0, 0.6, 3.6, 4.2, STONE, 0.9, top=True)  # the corbels carrying the oriel
+    _wbox(m, *LN, gc - 1.3, gc + 1.3, 0.0, 0.5, 3.9, 4.2, STONE, 0.85, top=False)
+    # the three-sided oriel: carved panels under tall barred windows, a slate cap
+    oy0, oy1, ob = 4.2, 10.6, b1
+    op = [(gc - 1.75, ob), (gc - 0.95, ob + 0.85), (gc + 0.95, ob + 0.85), (gc + 1.75, ob)]
+    m.orient(m.poly([(q[0], q[1], oy0) for q in op], STONE, 0.7), (0, 0, -1))
+    for i in range(3):
+        pa, pb = op[i], op[i + 1]
+        du, dv = pb[0] - pa[0], pb[1] - pa[1]
+        Ln = math.hypot(du, dv)
+        d = (du / Ln, dv / Ln)
+        o = (d[1], -d[0])
+        if o[1] < 0:
+            o = (-o[0], -o[1])
+        m.orient(m.poly([(pa[0], pa[1], oy0), (pb[0], pb[1], oy0), (pb[0], pb[1], oy1), (pa[0], pa[1], oy1)], STONE, 1.0), (o[0], o[1], 0))
+        m.decal(pa, d, o, 0.08, Ln - 0.08, 4.35, 5.75, "st_arms" if i == 1 else "st_saltire", off=0.04)
+        m.decal(pa, d, o, 0.12, Ln - 0.12, 6.1, 10.1, "st_twolight" if i == 1 else "st_bars", off=0.04)
+        _wbox(m, pa, d, o, -0.05, Ln + 0.05, 0.0, 0.14, 5.85, 6.0, STONE, 1.08, top=True)
+        _wbox(m, pa, d, o, -0.05, Ln + 0.05, 0.0, 0.2, 10.4, 10.6, STONE, 1.08, top=True)
+    m.pyramid(op + [(gc, ob - 0.6)], 10.6, 12.2, SLATE)
+    # the barred windows of the gatehouse beside the oriel
+    for s in (g0 + 0.8, g1 - 0.8):
+        m.decal(*LN, s - 0.4, s + 0.4, 5.4, 7.6, "st_bars")
+        m.decal(*LN, s - 0.4, s + 0.4, 8.6, 10.6, "st_bars")
+
+    # ---- the prison range on the lane: two storeys of barred windows, the museum's painted name, dormers
+    e0, e1 = -3.6, hn1
+    mass(e0, e1, -0.2, b1, 10.4)
+    m.gable_roof(e0, e1, -0.2, b1, 10.4, 6.0, along="u", gable_mat=STONE, over=0.3)
+    sgable((e1, 0), (0, 1), (1, 0), -0.2, b1, 10.4, 6.0, steps=4, wins=((4.0, 11.2, 12.6, 0.8, "st_smallbar"),))
+    for k, uu in enumerate((-1.9, 1.3, 4.5, 7.7, 10.9)):
+        m.decal(*LN, uu - 0.7, uu + 0.7, 1.2, 3.9, "st_crossbar" if k == 4 else "st_bars")
+        m.decal(*LN, uu - 0.7, uu + 0.7, 5.8, 8.7, "st_bars")
+    m.decal(*LN, -0.4, 6.4, 4.35, 5.4, "st_band", off=0.05)
+    for uu in (1.3, 7.7):
+        _roof_dormer(m, (0, b1), (1, 0), (0, 1), uu, 0.3, 10.4 - 0.3 * 6.0 / 4.1, -(b1 + 0.2) / 2, 16.4, 11.3, 1.3, 1.8)
+    # the board by the door
+    m.decal(*LN, gc + 2.15, gc + 3.45, 1.35, 2.0, "st_board", off=0.09)
+
+    # ---- chimneys on the ridges
+    chimney(-14.2, 0.6, 16.0, 20.4)
+    chimney(-6.5, 2.0, 16.4, 19.6)
+    chimney(2.2, 4.4, 14.0, 17.2)
+    chimney(9.0, -4.6, 15.6, 18.6)
+    chimney(-4.0, -4.6, 16.6, 19.8, 0.7, 0.5)
+
+    # ---- the Steenpoort over the lane: a pointed arch through a plain gate block, a tiled roof, the
+    # Semini niche above the arch, a round tower on its east side (outside the fp: a collider in the game)
+    pu0, pu1 = a0, -13.0
+    pv0, pv1 = b1, V1 + 4.9  # the passage: v 8.25..13.15 (world z 27..31.9)
+    pc, phw, ph = (V1 + pv1) / 2, 2.25, 5.6
+    st(TOUR, 0.05)
+    for uf, o in ((pu0, (-1, 0)), (pu1, (1, 0))):
+        _holed_wall(m, (uf, 0), (0, 1), o, pv0, pv1 + 1.0, 0.0, 8.6, [(pc, phw, ph, 0.6)], mat=STONE, shade=0.95 if o[0] < 0 else 0.85)
+    arch = _arch_outline(phw, ph, 0.6)
+    for i in range(len(arch) - 1):  # the soffit of the passage
+        (sa, ya), (sb, yb) = arch[i], arch[i + 1]
+        fcc = m.poly([(pu0, pc + sa, ya), (pu0, pc + sb, yb), (pu1, pc + sb, yb), (pu1, pc + sa, ya)], STONE, 0.5)
+        m.orient(fcc, (0, -(sa + sb) / 2, -1 if (ya + yb) / 2 > 3.4 else 0))
+    m.orient(m.poly([(pu0, pv0, 8.6), (pu1, pv0, 8.6), (pu1, pv1 + 1.0, 8.6), (pu0, pv1 + 1.0, 8.6)], STONE, 0.8), (0, 0, 1))
+    tile_roof(pu0, pu1, pv0 - 0.2, pv1 + 1.0, 8.6, 2.3, along="v", over=0.3, n=1.6)
+    # the Semini relief in its niche, a small stone hood with a slate pent over it
+    st(TOUR, 0.0)
+    m.decal((pu0, 0), (0, 1), (-1, 0), pc - 0.5, pc + 0.5, 6.1, 7.6, "st_semini", ROUNDTOP, off=0.03)
+    _wbox(m, (pu0, 0), (0, 1), (-1, 0), pc - 0.7, pc + 0.7, 0.0, 0.35, 7.7, 7.9, STONE, 1.0, top=True)
+    for sg in (-1, 1):
+        _wbox(m, (pu0, 0), (0, 1), (-1, 0), pc + sg * 0.66 - 0.06, pc + sg * 0.66 + 0.06, 0.0, 0.3, 5.9, 7.7, STONE, 0.9, top=False)
+    m.orient(m.poly([(pu0 - 0.45, pc - 0.8, 7.95), (pu0 - 0.45, pc + 0.8, 7.95), (pu0, pc + 0.8, 8.5), (pu0, pc - 0.8, 8.5)], SLATE, 0.9), (-1, 0, 1))
+    # the east tower of the gate
+    tower(-14.95, pv1 + 1.95, 1.9, 11.0, 16.4, sides=12,
+          deco=((math.pi, 3.0, 4.4, 0.34, "slit"), (math.pi / 2, 6.0, 7.4, 0.34, "slit"), (math.pi * 0.75, 8.4, 9.2, 0.5, "st_smallbar")))
+
+    # ---- the finer things: string courses where the Tournai stone meets the sandstone, sill courses,
+    # lead on the ridges, iron wall anchors, downpipes, a lantern on a bracket at the gate
+    st(SAND, 0.03)
+    for u0_, u1_, v0_, v1_ in ((hs0, hs1, b0, -0.2), (hn0, a1, b0, -0.2), (a0, -9.4, -3.0, 4.2), (g0, g1, -0.2, b1), (e0, e1, -0.2, b1)):
+        m.box(u0_ - 0.1, u1_ + 0.1, v0_ - 0.1, v1_ + 0.1, BASE - 0.14, BASE + 0.06, STONE, top=True, shade=1.06)
+    _wbox(m, *LN, e0, e1, 0.0, 0.12, 5.55, 5.7, STONE, 1.08, top=True)  # the sill course of the upper floor
+    _wbox(m, *LN, e0, e1, 0.0, 0.25, 10.2, 10.4, STONE, 1.05, top=True)  # the eaves cornice
+    _wbox(m, *R, hn0, a1, 0.0, 0.25, 10.8, 11.0, STONE, 1.05, top=True)
+    for u0_, u1_, vm, yr in ((hs0, hs1, (b0 + 0.4) / 2, 18.9), (hn0, a1, (b0 - 0.2) / 2, 17.2), (e0, e1, (b1 - 0.2) / 2, 16.4), (a0 + 0.3, -9.4, 0.6, 18.8)):
+        m.box(u0_, u1_, vm - 0.12, vm + 0.12, yr - 0.05, yr + 0.12, LEAD, top=True)
+    m.box(g0 + 2.8, g0 + 3.0, -0.2, b1 - 0.4, 18.15, 18.32, LEAD, top=True)
+    for uu in (-8.4, -5.4, -2.4, 0.6):  # iron anchors, the S-shaped ends of the floor beams
+        m.box(uu - 0.04, uu + 0.04, b0 - 0.06, b0, 10.2, 10.8, LEAD, top=False, shade=0.6)
+        m.box(uu - 0.04, uu + 0.04, b0 - 0.06, b0, 5.9, 6.5, LEAD, top=False, shade=0.6)
+    for uu in (-0.3, 2.9, 6.1, 9.3):
+        m.box(uu - 0.04, uu + 0.04, b1, b1 + 0.06, 9.3, 9.9, LEAD, top=False, shade=0.6)
+        m.box(uu - 0.04, uu + 0.04, b1, b1 + 0.06, 4.9, 5.4, LEAD, top=False, shade=0.6)
+    for vv in (-6.0, -3.0):
+        m.box(a1, a1 + 0.06, vv - 0.04, vv + 0.04, 9.6, 10.2, LEAD, top=False, shade=0.6)
+    for uu, yt in ((-3.4, 12.6), (12.3, 10.4)):  # downpipes on the lane front
+        m.box(uu - 0.07, uu + 0.07, b1 + 0.02, b1 + 0.16, 0.0, yt, LEAD, top=True, shade=0.7)
+        m.box(uu - 0.25, uu + 0.25, b1 + 0.02, b1 + 0.3, yt - 0.25, yt, LEAD, top=True, shade=0.7)
+    for uu in (g0 + 0.8, g1 - 0.8):
+        m.decal(*LN, uu - 0.35, uu + 0.35, 1.4, 2.6, "st_smallbar")
+    # sandstone quoins, long and short, on the corners that show
+    for (qu, qv, du, dv, yq) in ((a1, b0, -1, 1, 11.0), (g0, b1, 1, -1, 12.6), (g1, b1, -1, -1, 12.6)):
+        k, y = 0, BASE + 0.1
+        while y + 0.36 < yq:
+            la, lb = (0.62, 0.34) if k % 2 == 0 else (0.34, 0.62)
+            m.box(min(qu, qu + du * la), max(qu, qu + du * la), min(qv, qv - dv * 0.04), max(qv, qv - dv * 0.04) + 0.0, y, y + 0.34, STONE, top=True, shade=1.1)
+            m.box(min(qu, qu - du * 0.04), max(qu, qu - du * 0.04), min(qv, qv + dv * lb), max(qv, qv + dv * lb), y, y + 0.34, STONE, top=True, shade=1.1)
+            y += 0.38
+            k += 1
+    # the lantern on its bracket on the Steenpoort's outer face, east of the arch
+    lv = V1 + 5.35
+    m.box(a0 - 0.7, a0, lv - 0.03, lv + 0.03, 4.95, 5.02, LEAD, top=True)
+    m.box(a0 - 0.7, a0 - 0.64, lv - 0.03, lv + 0.03, 4.6, 5.0, LEAD, top=False)
+    m.box(a0 - 0.84, a0 - 0.5, lv - 0.17, lv + 0.17, 4.1, 4.55, GLASS, top=False)
+    m.pyramid(m.ngon(a0 - 0.67, lv, 0.26, 4, math.pi / 4), 4.55, 4.8, LEAD)
+    m.box(a0 - 0.8, a0 - 0.54, lv - 0.13, lv + 0.13, 4.02, 4.1, LEAD, top=True)
+
+    # ---- the calvary outside the gate, against the back of the town hall (the 1880 photograph)
+    cu, cv = -21.0, 14.9  # world x -226, z 33.65
+    st(TOUR, 0.03)
+    m.box(cu - 0.6, cu + 0.6, cv - 0.45, cv + 0.35, 0.0, 0.9, STONE, top=True, shade=0.85)
+    m.box(cu - 0.72, cu + 0.72, cv - 0.55, cv + 0.45, 0.9, 1.05, STONE, top=True, shade=1.0)
+    st((1.0, 1.0, 1.0), 0.0)
+    for k in range(9):  # the iron railing round it
+        x = cu - 1.0 + k * 0.25
+        m.box(x - 0.02, x + 0.02, cv - 0.95, cv - 0.91, 0.0, 1.05, LEAD)
+    m.box(cu - 1.02, cu + 1.02, cv - 0.97, cv - 0.89, 0.95, 1.05, LEAD)
+    for sg in (-1, 1):
+        m.box(cu + sg * 1.0 - 0.02, cu + sg * 1.0 + 0.02, cv - 0.95, cv + 0.35, 0.0, 1.05, LEAD)
+        m.box(cu + sg * 1.0 - 0.03, cu + sg * 1.0 + 0.03, cv - 0.95, cv + 0.35, 0.95, 1.05, LEAD)
+    st(DARK, 0.0)
+    m.box(cu - 0.1, cu + 0.1, cv - 0.1, cv + 0.1, 1.05, 6.3, STONE, top=True, shade=0.45)  # the tarred cross
+    m.box(cu - 0.95, cu + 0.95, cv - 0.09, cv + 0.09, 5.05, 5.25, STONE, top=True, shade=0.45)
+    st((1.0, 0.97, 0.9), 0.0)
+    m.box(cu - 0.13, cu + 0.13, cv - 0.24, cv - 0.1, 3.5, 4.9, STONE, top=True, shade=1.2)  # the corpus
+    m.box(cu - 0.08, cu + 0.08, cv - 0.22, cv - 0.1, 2.75, 3.5, STONE, top=False, shade=1.15)
+    m.box(cu - 0.08, cu + 0.08, cv - 0.25, cv - 0.1, 4.9, 5.12, STONE, top=True, shade=1.2)
+    for sg in (-1, 1):
+        m.orient(m.poly([(cu + sg * 0.1, cv - 0.2, 4.75), (cu + sg * 0.85, cv - 0.2, 5.15), (cu + sg * 0.85, cv - 0.2, 5.02),
+                         (cu + sg * 0.1, cv - 0.2, 4.58)], STONE, 1.15), (0, -1, 0))
+    st(SAND)
+    return m
+
+
 def main():
     city = json.load(open(CITY))
     bpy.ops.wm.read_factory_settings(use_empty=True)

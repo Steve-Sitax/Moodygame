@@ -52,6 +52,10 @@ export interface Lock {
   gatesOpen(): number;
   /** Send a tow through now (dev): "in" from the river, "out" from the dock. */
   passNow(dir?: "in" | "out"): void;
+  /** M3j: a rowing boat asks for the lock (bridge up, gates open) or lets it go. It stays open while asked. */
+  request?(on: boolean): void;
+  /** M3j: how far the bridge's leaves are lifted, 0 (down) .. 1 (up). */
+  lift?(): number;
   group: THREE.Group;
 }
 
@@ -173,6 +177,7 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
   let bridgeAngle = 0; // current
   let gateOpen = 0; // 0..1
   let want = false; // the traffic wants the lock open
+  let boatWant = false; // M3j: a rowing boat wants it open
 
   loadModelSet("/models/bridges.glb")
     .then((set) => {
@@ -353,7 +358,7 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
     const gateSpeed = 0.05; // of the full swing, per second
     // slow at both ends of the swing, as when men start and stop a capstan
     const ease = 0.25 + 0.75 * Math.sin(Math.PI * THREE.MathUtils.clamp(bridgeAngle / OPEN_BRIDGE, 0, 1));
-    if (want) {
+    if (want || boatWant) {
       if (bridgeAngle > OPEN_BRIDGE && (bridgeAngle < -0.001 || !occupied)) bridgeAngle = Math.max(OPEN_BRIDGE, bridgeAngle - bridgeSpeed * ease * dt);
       if (bridgeAngle < -0.3) gateOpen = Math.min(1, gateOpen + gateSpeed * dt);
     } else {
@@ -424,6 +429,10 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
     bridgeClosed: () => bridgeAngle >= -0.001,
     bridgeRect,
     gatesOpen: () => smooth(gateOpen),
+    request: (on) => {
+      boatWant = on;
+    },
+    lift: () => smooth(bridgeAngle / OPEN_BRIDGE),
     passNow(dir = "in") {
       start(dir);
     },

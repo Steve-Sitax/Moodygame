@@ -56,6 +56,32 @@ export interface Bridges {
   /** Send a boat up (or down, if one is up there) the canal or the vliet now (dev). */
   passNow(where: "canal" | "vliet"): void;
   group: THREE.Group;
+  /**
+   * M3j: a rowing boat that does not fit under a bridge asks it to open (`on`), or lets it go.
+   * The bridge opens by the same rules as for the canal boats (never while anyone is on its
+   * deck: the boat waits) and stays open while anyone asks. `who` names the asker.
+   */
+  request(key: string, who: string, on: boolean): void;
+  /** M3j: world height of the underside of the bridge over (x, z) as it stands now, or null if none is over it. */
+  undersideAt(x: number, z: number): number | null;
+}
+
+/** The underside of a leaf below its deck top (bridges.glb: stringers and cross beams, measured 0.42 m). */
+export const DECK_UNDER = 0.42;
+
+/**
+ * Height of a lifting leaf's underside over a point, or null if the leaf is not over it.
+ * `amount` 0 (down) .. 1 (lifted to DRAW_MAX). The leaf turns about its hinge at the quay edge.
+ */
+export function leafUnderside(l: DrawLeaf, amount: number, x: number, z: number): number | null {
+  const dx = x - l.hinge[0];
+  const dz = z - l.hinge[1];
+  const lx = dx * Math.cos(l.yaw) - dz * Math.sin(l.yaw);
+  const lz = dx * Math.sin(l.yaw) + dz * Math.cos(l.yaw);
+  if (Math.abs(lz) > l.half || lx < 0) return null;
+  const a = DRAW_MAX * amount;
+  if (lx > l.L * Math.cos(a) + DECK_UNDER * Math.sin(a)) return null;
+  return lx * Math.tan(a) - DECK_UNDER / Math.cos(a);
 }
 
 /** One leaf of a lifting bridge: where it hinges, which way it points, its models. */
@@ -214,6 +240,8 @@ export function createDrawBridge(
 
 interface Ctl extends OpeningBridge {
   def: Def;
+  /** M3j: rowing boats asking it to open. */
+  boats: Set<string>;
   amount: number;
   want: number;
   speed: number;
@@ -239,11 +267,12 @@ export function createBridges(scene: THREE.Object3D, boats?: Boats | Promise<Boa
       def,
       amount: 0,
       want: 0,
+      boats: new Set(),
       speed: 1 / 20,
       draw: null,
       closed: () => c.amount <= 1e-4,
       open: () => smooth(c.amount),
-      opening: () => c.want > 0 || c.amount > 1e-4,
+      opening: () => c.want + c.boats.size > 0 || c.amount > 1e-4,
     };
     return c;
   });
@@ -428,7 +457,7 @@ export function createBridges(scene: THREE.Object3D, boats?: Boats | Promise<Boa
     for (const c of ctls) {
       const occupied = (!!pl && pl.x > c.rect.minX && pl.x < c.rect.maxX && pl.z > c.rect.minZ && pl.z < c.rect.maxZ) || !!opts.busy?.(c.rect);
       const ease = 0.25 + 0.75 * Math.sin(Math.PI * THREE.MathUtils.clamp(c.amount, 0, 1));
-      if (c.want > 0) {
+      if (c.want + c.boats.size > 0) {
         if (c.amount > 0 || !occupied) c.amount = Math.min(1, c.amount + c.speed * ease * dt);
       } else c.amount = Math.max(0, c.amount - c.speed * ease * dt);
       c.draw?.set(smooth(c.amount));
@@ -453,5 +482,35 @@ export function createBridges(scene: THREE.Object3D, boats?: Boats | Promise<Boa
       }
     },
     group,
+    request(key, who, on) {
+      const c = ctls.find((q) => q.key === key);
+      if (c) {
+        if (on) c.boats.add(who);
+        else c.boats.delete(who);
+      } else if (key === "lock_bridge") opts.lock?.request?.(on);
+    },
+    undersideAt(x, z) {
+      let best: number | null = null;
+      const take = (y: number | null) => {
+        if (y !== null && (best === null || y < best)) best = y;
+      };
+      for (const c of ctls) {
+        const r = c.rect;
+        if (x < r.minX || x > r.maxX || z < r.minZ || z > r.maxZ) continue;
+        for (const l of c.def.leaves) take(leafUnderside(l, smooth(c.amount), x, z));
+      }
+      const lk = opts.lock;
+      if (lk) {
+        const r = lk.bridgeRect;
+        if (x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ) {
+          const mid = (r.minZ + r.maxZ) / 2;
+          const L = (r.maxX - r.minX - 4) / 2;
+          const amt = lk.lift?.() ?? (lk.bridgeClosed() ? 0 : 1);
+          take(leafUnderside({ hinge: [r.minX + 2, mid], yaw: 0, L, half: 3.5, leaf: "", beam: "", frame: "" }, amt, x, z));
+          take(leafUnderside({ hinge: [r.maxX - 2, mid], yaw: Math.PI, L, half: 3.5, leaf: "", beam: "", frame: "" }, amt, x, z));
+        }
+      }
+      return best;
+    },
   };
 }

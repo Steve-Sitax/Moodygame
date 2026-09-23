@@ -23,7 +23,7 @@ import { tradeKeepOut } from "./trades";
 import { marketKeepOut } from "../game/market";
 import { createQuayFurniture, type QuayFurniture } from "./quayfurniture";
 import { createTraffic, type Traffic } from "./traffic";
-import { createRailway, type CraneSite, type Railway } from "./railway";
+import { createRailway, type CraneSite, type RaisedDeck, type Railway } from "./railway";
 import { createRailGate, type RailGate } from "./railgate";
 import { createOmnibuses, OMNIBUS_HORSES, omnibusKeepOut, STOPS as OMNIBUS_STOPS, type Omnibuses } from "./omnibus";
 import { quaySteps, shoreTexture, frameAt, type Exit } from "./quaysteps";
@@ -129,6 +129,17 @@ export interface World {
   waterLevel(x: number, z: number): number;
   /** A ladder or a landing to climb out on, within reach of a swimmer. */
   exitNear(x: number, z: number, reach: number): Exit | null;
+  /**
+   * M3j rowing (game/rowing.ts): open water for a boat's hull of radius r. As swimFree, but water
+   * under an opening bridge counts whatever the bridge does (the rower's own rules decide there),
+   * and `pass` may let a solid through (the boat itself; the lock while its gates stand open).
+   */
+  boatFree(x: number, z: number, r: number, pass?: (c: Rect) => boolean): boolean;
+  /** Things in the water that come and go (boats left lying): solid for swimmers and boats. */
+  addWaterSolid(r: Rect): void;
+  removeWaterSolid(r: Rect): void;
+  /** The lock's water (gates, tows): a solid for swimmers; boats pass while its gates stand open. */
+  lockWater: Rect;
   /** Dev: where the stone steps and the ladders are. */
   quayInfo(): { flights: Array<{ top: [number, number]; end: [number, number] }>; ladders: Array<{ x: number; z: number; top: number }> };
   /** Colliders that come and go (job crates). */
@@ -158,6 +169,9 @@ export interface World {
   boats(): Boats | null;
   /** The drays and handcarts (for the sound); null until loaded. */
   traffic(): Traffic | null;
+  /** M3j: the opening bridges and the lock (rowing boats ask them to open); null until loaded. */
+  bridges(): Bridges | null;
+  lock(): Lock | null;
   /** The goods train and the cranes at work (M3g); null until loaded. */
   railway(): Railway | null;
   /** The railway gate of the Werf store, where the goods train comes and goes (M3g). */
@@ -264,6 +278,13 @@ export function buildRijnkaai(): World {
   buildTracks(scene, trackData, bridgeRects.map((b) => ({ minX: Math.min(b[0], b[2]), maxX: Math.max(b[0], b[2]), minZ: Math.min(b[1], b[3]), maxZ: Math.max(b[1], b[3]) })));
   // the horse omnibus's lane round the quays (world/omnibus.ts): props, pumps and troughs keep off it
   const omnibusLane = omnibusKeepOut();
+  // the portal cranes travel along their runways (world/railway.ts): nothing stands on them
+  const craneRunways: Rect[] = (trackData.crane_rails ?? []).map(([x0, z0, x1, z1]) => ({
+    minX: Math.min(x0, x1) - 0.9,
+    maxX: Math.max(x0, x1) + 0.9,
+    minZ: Math.min(z0, z1) - 0.9,
+    maxZ: Math.max(z0, z1) + 0.9,
+  }));
   // M3i: the market squares and the trades' workshops (game/market.ts, world/trades.ts): nothing else put there
   const workplaces = [...marketKeepOut(), ...tradeKeepOut()];
   // the railway gate of the Werf store (world/railgate.ts): built now, so its collider is there
@@ -299,7 +320,7 @@ export function buildRijnkaai(): World {
       street = sl;
       colliders.push(...sl.colliders);
       return createQuayFurniture(scene, city.flags, {
-        avoid: [...colliders, ...dynamic, ...omnibusLane, ...workplaces], // M3g: nothing on the omnibus lanes; M3i: markets, trades
+        avoid: [...colliders, ...dynamic, ...omnibusLane, ...craneRunways, ...workplaces], // M3g: nothing on the omnibus lanes or crane runways; M3i: markets, trades
         quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
       });
     })
@@ -442,8 +463,8 @@ export function buildRijnkaai(): World {
       ];
       const craneSites: CraneSite[] = [];
       for (const [x, z, yaw] of cranes) {
+        // (their legs' colliders move with them: world/railway.ts, M3g travelling cranes)
         craneSites.push({ x, z, yaw, obj: b.crane(x, z, yaw, scene) });
-        colliders.push(...b.colliders("portal_crane", x, z, yaw));
       }
       // every hull is an obstacle for a swimmer (its footprint on the water, a little short of bow and stern)
       const hull = (name: Parameters<Boats["dims"]>[0], x: number, z: number, yaw: number) => {
@@ -518,6 +539,7 @@ export function buildRijnkaai(): World {
             waterY: WATER_Y,
             spareHorses: OMNIBUS_HORSES,
             gate: railGate,
+            raised: { add: (d) => raised.add(d) },
           });
           for (const r of railway.colliders()) dynamic.add(r); // added once: the rects move in place
           // the horse omnibuses, quay and town lines (world/omnibus.ts), their horses from the same pool
@@ -582,7 +604,10 @@ export function buildRijnkaai(): World {
   swimSolids.push({ minX: SHIP_X, maxX: SHIP_X + 40, minZ: -11.7, maxZ: -2.7 }, { minX: -56, maxX: -12, minZ: -31, maxZ: -21 });
   // the pontoon's barges, and the lock (its gates and the tows): no swimming there
   swimSolids.push({ minX: PONTOON.minX - 9.5, maxX: PONTOON.maxX + 9.5, minZ: PONTOON.minZ - 2, maxZ: -2.5 });
-  swimSolids.push({ minX: 103.5, maxX: 116.5, minZ: -3, maxZ: 47 });
+  const lockWater: Rect = { minX: 103.5, maxX: 116.5, minZ: -3, maxZ: 47 };
+  swimSolids.push(lockWater);
+  /** Boats left lying on the water (M3j): they move, so they are kept apart from the fixed solids. */
+  const waterDynamic = new Set<Rect>();
   // gangway: a plank ramp from the quay up to ship A's rail
   {
     const ramp = rod(new THREE.Vector3(RAMP.x, 0.03, RAMP.zLow), new THREE.Vector3(RAMP.x, DECK.y + 0.03, RAMP.zHigh), 0.02, m.planks);
@@ -602,7 +627,7 @@ export function buildRijnkaai(): World {
     [-48, 2.2, false],
     [-30, 2.2, false],
     [-10, 20.4, false],
-    [4, 1.4, true], // the one that sputters
+    [4, 2.2, true], // the one that sputters (off the crane runway at z 1.4, M3g)
     [24, 2.2, false],
     [44, 19.8, false],
   ];
@@ -718,6 +743,27 @@ export function buildRijnkaai(): World {
     }
     if (steps.solidAt(x, z, r)) return false;
     for (const c of swimSolids) if (inRect(c, x, z, r)) return false;
+    for (const c of waterDynamic) if (inRect(c, x, z, r)) return false;
+    return true;
+  }
+  /** M3j: open water for a boat (see World.boatFree). */
+  function boatFree(x: number, z: number, r: number, pass?: (c: Rect) => boolean): boolean {
+    // the walk map has the decks of the opening bridges as ground, a little past their rects: there, the water polygon says
+    const nearOpening = (px: number, pz: number) =>
+      !!bridges?.list.some((b) => px > b.rect.minX - 1 && px < b.rect.maxX + 1 && pz > b.rect.minZ - 1 && pz < b.rect.maxZ + 1);
+    const water = (px: number, pz: number) => {
+      if (nearOpening(px, pz)) return inWater(px, pz);
+      const f = city.flags(px, pz);
+      return f !== undefined && (f & WATER) !== 0 && (f & (WALL | OUTSIDE)) === 0;
+    };
+    if (!water(x, z) || wallWithin(x, z, r)) return false;
+    for (let i = 0; i < 8; i++) {
+      const a = (i * Math.PI) / 4;
+      if (!water(x + Math.cos(a) * r, z + Math.sin(a) * r)) return false;
+    }
+    if (steps.solidAt(x, z, r)) return false;
+    for (const c of swimSolids) if (inRect(c, x, z, r) && !pass?.(c)) return false;
+    for (const c of waterDynamic) if (inRect(c, x, z, r) && !pass?.(c)) return false;
     return true;
   }
   const SWIM_R = 0.32;
@@ -742,6 +788,12 @@ export function buildRijnkaai(): World {
     for (const b of bridgeRects) if (x > Math.min(b[0], b[2]) && x < Math.max(b[0], b[2]) && z > Math.min(b[1], b[3]) && z < Math.max(b[1], b[3])) return true;
     return false;
   };
+  /** Small walkable decks up in the air, railed all round (M3g: the cranes' machinery decks; moved in place). */
+  const raised = new Set<RaisedDeck>();
+  const raisedAt = (x: number, z: number, feet: number): RaisedDeck | null => {
+    for (const d of raised) if (Math.abs(feet - d.y) < 0.8 && x > d.minX && x < d.maxX && z > d.minZ && z < d.maxZ) return d;
+    return null;
+  };
   const hits = (x: number, z: number, r: number, feet: number) => {
     for (const c of colliders) if (inRect(c, x, z, r) && blocks(c, feet)) return true;
     for (const c of dynamic) if (inRect(c, x, z, r) && blocks(c, feet)) return true;
@@ -749,6 +801,9 @@ export function buildRijnkaai(): World {
     return false;
   };
   function walkFree(fx: number, fz: number, x: number, z: number, r: number, feet: number, laden: boolean): boolean {
+    // up on a raised deck (a crane's machinery deck): railed all round, nothing else counts
+    const up = raisedAt(fx, fz, feet);
+    if (up) return x > up.minX + r * 0.5 && x < up.maxX - r * 0.5 && z > up.minZ + r * 0.5 && z < up.maxZ - r * 0.5;
     const f = floorAt(x, z);
     if (f === null) {
       // off the edge, into the Schelde: never with goods in your arms, never over a rail
@@ -762,6 +817,8 @@ export function buildRijnkaai(): World {
 
   /** Height to stand on at (x, z): the highest top you are over and could reach. Open water: the river bed. */
   function groundAt(x: number, z: number, r: number, feet: number): number {
+    const up = raisedAt(x, z, feet);
+    if (up) return up.y;
     const f = floorAt(x, z);
     let g = f ?? WATER_Y - 6;
     const consider = (c: Rect) => {
@@ -1082,6 +1139,8 @@ export function buildRijnkaai(): World {
     },
     boats: () => boats,
     traffic: () => traffic,
+    bridges: () => bridges,
+    lock: () => lock,
     railway: () => railway,
     railGate: () => railGate,
     omnibus: () => omnibus,
@@ -1110,6 +1169,10 @@ export function buildRijnkaai(): World {
     nearestSwim,
     waterLevel,
     exitNear: (x, z, reach) => steps.exitNear(x, z, reach),
+    boatFree,
+    addWaterSolid: (r) => waterDynamic.add(r),
+    removeWaterSolid: (r) => waterDynamic.delete(r),
+    lockWater,
     quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
     surfaceAt,
     update,

@@ -204,3 +204,53 @@ the omnibus "has no lamps", and "the goods train clips out of a building: make n
 - Pictures: `data/shots/m3g_town_grote_markt.jpg`, `m3g_town_cathedral.jpg`, `m3g_night_lamps.jpg`,
   `m3g_post_vismarkt.jpg`, `m3g_perf_vismarkt.jpg`, `m3g_gate_shut.jpg`, `m3g_gate_open_train.jpg`,
   `m3g_gate_front.jpg`, `m3g_town_clear.png` (street clearance map).
+
+## M3g part 3: travelling cranes and a climbable ladder (2026-09-23)
+
+Steve: "big cranes can and should be able to move from boat to boat if their track allows. make the ladder climbable".
+
+### Travelling cranes (`client/src/world/railway.ts`)
+- Each portal crane runs on its runway (DECOR `crane_rails`, 5.2 m gauge): the Werf (x -304.5..-225.2; kept 6.5 m clear
+  of the railway gatehouse), the Rijnkaai (x -32.8..66.8), the Petit Bassin west (z 53.2..100.8) and east (z 53.2..104.8).
+- Berths: places along the runway with a moored hold under the hook (jib no more than 0.45 rad off rest), found
+  once from the hull footprints; a stretch of moored boats gives a berth about every 9 m (3 to 8 per crane).
+- At a berth it works (the train's lifts, or its slow idle swing); after 25-60 s it moves on to another berth
+  between its neighbours: jib swung in along the runway, hook up, the driver's bell (`onCraneTravel`, the hand
+  bell), then 0.42 m/s, easing in and out; bogie wheels turn (the model's own wheels and rail stubs folded away,
+  drawn per crane in one InstancedMesh); jib out over the new hold.
+- Never within 12 m of another crane on its runway (its targets lie between the neighbours' held stretches, and
+  it stops if one is closer ahead). It stops for the player, for people (the crowd's positions) and for anything
+  on its bogies' line; spots the walk map already closed when the runway was surveyed (a quay wall a hand off)
+  do not count. Held up 15 s, it works the boat it has come to.
+- Leg colliders move with it (four rects per crane in place, part of the railway's colliders). The static crane
+  colliders in rijnkaai.ts are gone.
+- The train and a crane agree on the spot: when the train comes up (70 m ahead) it takes the crane where it
+  stands or is going (a crane about to set off stays), and the crane stays there till the last lift.
+- Kept clear: the quay furniture's avoid list has the runways; the sputtering gas lamp on the Rijnkaai moved
+  from z 1.6 (on the runway) to 2.2; the omnibus post at the Rijnkaai moved inland to (30, 10.4).
+
+### The ladder (`client/src/game/craneclimb.ts`, `firstPerson.ts` climbLadder*)
+- The iron ladder up the portal leg (the model's, crane frame x 1.35..1.75, z -2.95) leads to the machinery deck
+  behind the cabin (6.42 m, railed round in the model). At the foot the crane stands still and swings its jib to
+  rest; then **E climb the crane's ladder** (or walk into the rungs). **W** up, **S** down, you face the rungs and
+  can look about a little; at the top you step onto the deck (3.0 x 1.2 m, walkable with a rail all round:
+  `rijnkaai.ts` raised decks). **E climb down the ladder** at the head. Not with goods in your arms.
+- While you stand at the foot, climb or are up there, the crane neither travels nor slews, and the train does
+  not plan a stop at it.
+- The east cranes of the Petit Bassin have their ladder side against the Entrepot wall: no room at the foot, so
+  no climbing there.
+- Other ladders: the iron ladders in the quay walls are for climbing out of the water only (push into one or E);
+  from the top you cannot climb down one (walking off the edge drops you in). There is no hold ladder on any ship.
+
+### Checks (test save only)
+- 600 s of all ten cranes: each made 1-8 trips; the closest two cranes on one runway came was 12.0 m.
+- The train stopped at a Rijnkaai crane standing at a new berth (x -32.8) and loaded; the next crane waited reserved.
+- Climb at the Werf crane: 0 to 6.42 m in about 13 s, stepped onto the deck, walked it: the rail held on all four
+  sides (x -281.34..-278.84, z 5.58..6.5); E at the head, S down to the ground; the crane went back to work.
+- Path check: the only entry is "boat hire at the Werf steps" (a new point from the rowing work): the Werf flight's
+  top at (-320, 0) is more than 2.2 m from any open ground, with or without the railway gatehouse (checked by
+  lifting its collider). Everything else reached.
+- Cost: +1 draw call (the crane wheels); the railway's update rose from about 0.1 to 0.16 ms a frame (world.update
+  0.37 vs 0.20 ms without the railway); frame time within noise (median 4.46 vs 4.36 ms, Rijnkaai view).
+- Pictures: `data/shots/m3g_crane_travel.jpg`, `m3g_crane_wheels.jpg`, `m3g_ladder_climb.jpg`,
+  `m3g_deck_view_quay.jpg`, `m3g_deck_view_river.jpg`.
