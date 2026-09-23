@@ -91,8 +91,7 @@ BLOCKS = [
     ("houses", R(-200, 40, -156, 74)),  # the doss house is in this block, facing the Steenplein
     ("houses", R(-200, 82, -156, 124)),
     ("guild", R(-222, 64, -208, 124)),  # guild houses on the north side of the Grote Markt
-    ("houses", R(-300, 14, -246, 26)),  # riverside houses behind the town hall (the little fish market north of them)
-    ("houses", R(-217, 33, -206, 45)),  # houses across the lane from the Steen gatehouse (1838-1880 views; docs/milestones/M3i-steen.md)
+    ("houses", R(-300, 14, -222, 26)),  # riverside houses behind the town hall
     ("guild", R(-304, 66, -286, 124)),  # guild houses on the south side of the Grote Markt
     ("houses", R(-200, 132, -156, 205)),
     ("houses", R(-340, 14, -310, 300)),  # the west edge of the map
@@ -109,18 +108,18 @@ LANDMARKS = {
     "cathedral": {"osm": 26495164, "c": (-262, 208), "axis": (0, 1)},  # west front toward the Handschoenmarkt (-z)
     "stadhuis": {"osm": 22966134, "c": (-257, 48), "axis": (1, 0)},  # long front facing the Grote Markt (+z)
     "vleeshuis": {"osm": 179882624, "c": (-116, 99), "axis": (1, 0)},
-    # Het Steen as in 1873 (M3i): on the quay line, not on the bastion; the Steenstraat lane runs along its
-    # inland side (z 27..32.5) through the Steenpoort at its south end; a designed rect, not the OSM outline
-    # (that holds the 1889 and 2021 wings)
-    "steen": {"rect": (34, 16.5), "c": (-205, 18.75), "axis": (1, 0)},
+    # Het Steen as restored in 1887-90 (M3i; Steve 2026-09-24: the restored look, with the ramp): on the
+    # promontory at the water, a raised courtyard along its inland side, the ramp up to the Steenpoort
+    # (STEEN below); a designed rect, not the OSM outline (that holds the 1950s and 2021 wings)
+    "steen": {"rect": (34, 16.5), "c": (-177.0, -31.25), "axis": (1, 0)},
     "hanzehuis": {"rect": (64, 38), "c": (120, 143), "axis": (1, 0)},
 }
 
 # street furniture after the period photos (the Steenplein, the Werf, the quays):
 # rows of young trees, an iron railing along the water, gas lamps
 DECOR = {
-    "trees": [(x, z) for z in (24.0, 34.0) for x in range(-184, -150, 8)]
-    + [(x, 11.0) for x in range(-300, -246, 12)],
+    "trees": [(x, z) for z in (24.0, 34.0) for x in range(-208, -150, 8)]
+    + [(x, 11.0) for x in range(-300, -222, 12)],
     "rails": [[-222, 0.6, -214, 0.6], [-150, 0.6, -142, 0.6], [-214, 0.6, -214, -29.4], [-214, -29.4, -204, -41.4],
               [-204, -41.4, -160, -41.4], [-160, -41.4, -150, -29.4], [-150, -29.4, -150, 0.6]],
     # the quay railway (standard gauge, laid in the cobbles; client/src/world/tracks.ts draws it).
@@ -140,12 +139,81 @@ DECOR = {
     # 12 m, off the railway, the omnibus lanes and the cart ruts (world/ruts.ts), the doors and steps:
     # the quay row inland of the omnibus lane (z 11.2), the vliet edge (1.6 m from the wall), the row
     # before the houses (z 47.6, between the doors)
-    "lamps": [(x, 9.5) for x in range(-310, -150, 24) if not -224 < x < -186] + [(-200, 38.0), (-160, 38.0), (-176, 20.0), (-151.6, 14.0),
+    "lamps": [(x, 9.5) for x in range(-310, -150, 24) ] + [(-200, 38.0), (-160, 38.0), (-176, 20.0), (-151.6, 14.0),
               (-138.6, 11.2), (-126.6, 11.2), (-114.6, 11.2), (-102.6, 11.2), (-90.6, 11.2),
               (-140.4, 23.4), (-140.4, 35.6),
               (-132.6, 47.6), (-120.6, 47.6), (-108.6, 47.6), (-96.6, 47.6),
               (-230, 60.0), (-280, 60.0), (-230, 128.0), (-290, 128.0), (-74, 60.0), (-74, 160.0), (69.4, 77.0), (69.4, 106.5), (120, 121.5), (170.8, 83.0)],
 }
+
+# ------------------------------------------------------------------ Het Steen, restored (1887-90)
+# The courtyard runs along the Steen's inland side at TERRACE_H; the Steenpoort stands over its south
+# end; outside the gate a landing, then the curved ramp with its balustrades and corner posts comes
+# down onto the promontory (the ground, y 0) and ends facing the quay. The game walks it
+# (client/src/world/steenramp.ts reads DECOR steen_ramp); plan.py paints the balustrades, the gate's
+# east tower, the north wing over the courtyard's end and the calvary as walls (DECOR solids,
+# solid_polys); tools/blender/build_landmarks.py steen5 builds it all from the same numbers.
+STEEN_C = LANDMARKS["steen"]["c"]
+TERRACE_H = 2.2
+RAMP_HALF = 2.0  # walkable half width; the balustrades stand 2.05..2.35 out
+
+
+def steen_layout():
+    cx, cz = STEEN_C
+    gate_x = cx - 17.0  # the Steenpoort's outer face
+    pc = cz + 8.25 + 2.45  # the middle of the passage (z)
+    land_x = gate_x - 3.2  # the landing's outer end
+    R = 5.0
+    foot_z = -3.0
+    # the centreline, gate to foot: (x, z, s) with s the distance down from the landing's end
+    pts = []
+    x = gate_x + 1.0
+    while x > land_x + 0.01:
+        pts.append((x, pc, 0.0))
+        x -= 0.5
+    ccx, ccz = land_x, pc + R
+    n = 16
+    for k in range(n + 1):
+        t = (math.pi / 2) * k / n
+        pts.append((ccx - R * math.sin(t), ccz - R * math.cos(t), R * t))
+    arc = R * math.pi / 2
+    z = ccz + 0.5
+    while z < foot_z - 0.01:
+        pts.append((ccx - R, z, arc + (z - ccz)))
+        z += 0.5
+    pts.append((ccx - R, foot_z, arc + (foot_z - ccz)))
+    total = pts[-1][2]
+    line = [[round(px, 3), round(pz, 3), round(TERRACE_H * (1 - s_ / total), 3)] for px, pz, s_ in pts]
+    # the balustrades: offset lines either side of the centreline, from the gate to the foot
+    def offset(d):
+        out = []
+        for i, (px, pz, _) in enumerate(line):
+            qx, qz, _ = line[min(i + 1, len(line) - 1)]
+            ox, oz, _ = line[max(i - 1, 0)]
+            tx, tz = qx - ox, qz - oz
+            L = math.hypot(tx, tz) or 1.0
+            out.append((px - tz / L * d, pz + tx / L * d))
+        return out
+    polys = []
+    for side in (1, -1):
+        a = offset(side * (RAMP_HALF + 0.05))
+        b = offset(side * (RAMP_HALF + 0.35))
+        polys.append([[round(x_, 2), round(z_, 2)] for x_, z_ in a + b[::-1]])
+    tower = [gate_x - 0.1, cz + 8.25 + 4.9 - 0.2, gate_x + 4.25, cz + 8.25 + 4.9 + 3.9]  # the gate's east tower
+    north_wing = [cx + 8.0, cz + 8.25, cx + 17.0, cz + 14.25 + 0.4]  # the new wing across the courtyard's end
+    edge = [gate_x + 4.2, cz + 14.25, cx + 8.0, cz + 14.65]  # the courtyard's balustrade on the promontory side
+    calvary = [ccx - R - 5.7, foot_z - 1.8, ccx - R - 3.6, foot_z]  # the calvary west of the ramp's foot
+    return {
+        "h": TERRACE_H, "half": RAMP_HALF, "line": line,
+        "terrace": [round(gate_x - 0.2, 2), round(cz + 8.25, 2), round(cx + 8.0, 2), round(cz + 14.25, 2)],
+        "gate": [gate_x, gate_x + 4.0], "calvary": calvary,
+    }, [tower, north_wing, edge, calvary], polys
+
+
+_ramp, _solids, _polys = steen_layout()
+DECOR["steen_ramp"] = _ramp
+DECOR["solids"] = [[round(v, 2) for v in r] for r in _solids]
+DECOR["solid_polys"] = _polys
 
 # game doors: target point and the way the door should face (plan.py finds the house)
 DOORS = {
@@ -163,7 +231,7 @@ PLACES = {
     "Hanseatic House": (120, 143, "building"),
     "Canal des Brasseurs": (-76, 110, "water"),
     "Vismarkt": (-118, 30, "square"),
-    "Het Steen": (-205, 18.75, "building"),
+    "Het Steen": (-177, -31, "building"),
     "Steenplein": (-180, 20, "square"),
     "Vleeshuis": (-116, 99, "building"),
     "Grote Markt": (-254, 94, "square"),

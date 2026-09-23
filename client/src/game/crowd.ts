@@ -43,6 +43,8 @@ export interface CrowdGround {
   solids?(): Rect[];
   /** Optional: must a walker stop before stepping to (x, z)? (an opening bridge: wait at its end) */
   gate?(x: number, z: number): boolean;
+  /** Optional: height of the walkable ground (the Steen's courtyard and ramp, the gangway, the pontoon). */
+  baseAt?(x: number, z: number): number;
   /** Optional: make the crates people sit on solid for the player. */
   addCollider?(r: Rect): void;
   removeCollider?(r: Rect): void;
@@ -151,6 +153,8 @@ interface Person {
   /** Puppets (M3e): what to play when standing, and which way to face (null: as they came). */
   pmotion?: Motion;
   pyaw?: number | null;
+  /** A town puppet walking at another's side (puppetFollow): back to a puppet when the lead goes. */
+  townFollow?: boolean;
   /** M3i: what they bought at the market, in the hand (puppetCarry). */
   bought?: THREE.Object3D | null;
 }
@@ -584,7 +588,7 @@ export class Crowd {
     const target = this.anonymous ? Math.round(this.budget * density(this.hour)) : 0;
     const crowdN = this.people.length - this.puppetCount;
     for (const p of [...this.people]) {
-      if (p.role !== "puppet" && Math.hypot(p.x - player.x, p.z - player.z) > this.radius + 8) this.recycle(p);
+      if (p.role !== "puppet" && !p.townFollow && Math.hypot(p.x - player.x, p.z - player.z) > this.radius + 8) this.recycle(p);
     }
     if (!this.filled) {
       // the first fill may put people anywhere (the start screen is up)
@@ -668,7 +672,7 @@ export class Crowd {
       const want = p.state === "sit" ? p.human.sitDrop() * p.size : 0;
       p.drop += (want - p.drop) * Math.min(1, dt * 4);
       if (inView) y = p.drop + (p.state === "sit" ? 0 : p.human.bob() * p.size);
-      p.group.position.set(p.x, y, p.z);
+      p.group.position.set(p.x, y + (this.ground.baseAt?.(p.x, p.z) ?? 0), p.z);
       p.group.rotation.y = p.yaw;
       if (p.kind === "carter") this.pushCart(p, dt, inView);
       if (p.lantern) this.placeLantern(p, d);
@@ -691,7 +695,7 @@ export class Crowd {
   anonymous = true;
   private get puppetCount(): number {
     let n = 0;
-    for (const p of this.people) if (p.role === "puppet") n++;
+    for (const p of this.people) if (p.role === "puppet" || p.townFollow) n++;
     return n;
   }
 
@@ -793,6 +797,38 @@ export class Crowd {
   puppetSit(p: Puppet, yaw: number | null = null): void {
     this.puppetStand(p, "sit", yaw);
     if (p.human.canSit) p.state = "sit";
+  }
+
+  /**
+   * Walk at another puppet's side, at their pace (two soldiers walking out: town.ts); null lets go.
+   * The couple's side-by-side walk of the nameless crowd (follow): keep to the lead's right.
+   */
+  puppetFollow(p: Puppet, lead: Puppet | null): void {
+    if (lead && lead !== p) {
+      if (p.lead === lead && p.role === "follow") return;
+      if (p.lead && p.lead.follower === p) p.lead.follower = null;
+      p.role = "follow";
+      p.townFollow = true;
+      p.lead = lead;
+      lead.follower = p;
+      p.path = [];
+      p.dest = null;
+      p.state = "stand";
+    } else if (p.townFollow) {
+      if (p.lead && p.lead.follower === p) p.lead.follower = null;
+      p.lead = null;
+      p.townFollow = false;
+      p.role = "puppet";
+      p.path = [];
+      p.dest = null;
+      p.state = "stand";
+      p.pmotion = "idle";
+    }
+  }
+
+  /** Is this puppet walking at someone's side now? */
+  puppetFollowing(p: Puppet): boolean {
+    return p.role === "follow" && !!p.lead;
   }
 
   private boughtGeo: Partial<Record<string, [THREE.BufferGeometry, THREE.Material]>> = {};
@@ -968,6 +1004,14 @@ export class Crowd {
   /** The one at a leader's side: keep to their right, at their pace; catch up by path if lost. */
   private follow(p: Person, dt: number): void {
     const l = p.lead;
+    if (!l && p.townFollow) {
+      // a townsperson whose companion went in or out of range: the town directs them again
+      p.townFollow = false;
+      p.role = "puppet";
+      p.state = "stand";
+      p.pmotion = "idle";
+      return;
+    }
     if (!l) {
       p.role = "wander";
       p.state = "pause";

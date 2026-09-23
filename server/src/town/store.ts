@@ -2,6 +2,7 @@ import type { DB } from "../db.ts";
 import { generateTown, tidy, type Resident, type Town } from "./population.ts";
 import { walkMap } from "./walkmap.ts";
 import { HAULS, STALLS, TRADES, TOWN_EMPLOYERS } from "./places.ts";
+import { GARRISON_TRADES, generateGarrison } from "./garrison.ts";
 
 // The town in SQLite (M3e). Each resident is also a row in `npc` (id r001...,
 // or the fixed ids of the board's employers), so relationships, memories and
@@ -56,6 +57,44 @@ export function ensureTown(db: DB, seed?: number): { made: boolean; residents: n
   })();
   cache.delete(db);
   return { made: true, residents: town.residents.length };
+}
+
+/**
+ * Give an older save its garrison and customs (garrison.ts), in place: the same men a new
+ * game with this town's seed would have, added after the last resident. Adds rows only
+ * (npc, npc_relationship, resident) and the new places (barracks, guard room, post) to the
+ * town's world_state; every existing resident, memory, relationship and Jef stay as they
+ * were. Runs once: a town that has any of them is left alone. Returns how many were added.
+ */
+export function ensureGarrison(db: DB): number {
+  const n = (db.prepare("SELECT COUNT(*) AS n FROM resident").get() as { n: number }).n;
+  if (n === 0) return 0; // no town yet: ensureTown makes one with its garrison
+  const q = `SELECT COUNT(*) AS n FROM resident WHERE trade IN (${GARRISON_TRADES.map(() => "?").join(", ")})`;
+  if ((db.prepare(q).get(...GARRISON_TRADES) as { n: number }).n > 0) return 0;
+  const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'town'").get() as { value_json: string } | undefined;
+  if (!row) return 0;
+  const rest = JSON.parse(row.value_json) as Omit<Town, "residents">;
+  const residents = (db.prepare("SELECT data_json FROM resident").all() as Array<{ data_json: string }>).map((r) => JSON.parse(r.data_json) as Resident);
+  const g = generateGarrison(rest.seed, rest.places, residents);
+  const insNpc = db.prepare("INSERT OR IGNORE INTO npc (id, name, role, district, faction, persona_json, spot_id, active) VALUES (?, ?, ?, ?, ?, '{}', NULL, 1)");
+  const insRel = db.prepare("INSERT OR IGNORE INTO npc_relationship (npc_id) VALUES (?)");
+  const insRes = db.prepare("INSERT OR IGNORE INTO resident (id, household, trade, data_json) VALUES (?, ?, ?, ?)");
+  const hasNpc = db.prepare("SELECT 1 FROM npc WHERE id = ?");
+  let added = 0;
+  db.transaction(() => {
+    const places = { ...rest.places, ...g.places };
+    for (const r of g.residents) {
+      if (hasNpc.get(r.id)) continue; // an id taken by something else: never overwrite
+      const district = places[r.work.place]?.district ?? "town";
+      insNpc.run(r.id, r.name, TRADES[r.trade].label, district, r.faction);
+      insRel.run(r.id);
+      insRes.run(r.id, r.household, r.trade, JSON.stringify(r));
+      added++;
+    }
+    db.prepare("UPDATE world_state SET value_json = ? WHERE key = 'town'").run(JSON.stringify({ ...rest, places }));
+  })();
+  cache.delete(db);
+  return added;
 }
 
 /**

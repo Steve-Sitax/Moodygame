@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { addMovingSource, isSteam, loadBoats, newShipId, ropeMaterial, type BoatName, type Boats, type MovingShip } from "./boats";
 import { Route, placeTrain, rng, trainLength, type TrainPart } from "./route";
+import { createAnchorage, type Anchorage } from "./anchorage";
 
 // Shipping on the Schelde, 1873: always something on the move. Big ships in the fairway (a
 // barque under sail or towed by a tug, a screw steamer, a paddle steamer, a topsail schooner)
@@ -9,6 +10,8 @@ import { Route, placeTrain, rng, trainLength, type TrainPart } from "./route";
 // other, along lanes that keep clear of the moored rows, the ships at anchor, the Steen's
 // bastion (x -218..-160, down to z -41) and the ferry pontoon (x -251..-247, z -58..0).
 // At most `maxShips` trains move at once (default 8); boats are pooled and reused.
+// Out beyond the fairway an ocean steamer lies at anchor, and two tows of lighters work her
+// cargo to the Rijnkaai and back (world/anchorage.ts); the ships here give way to them.
 
 export interface RiverOptions {
   /** Trains (a ship, or a tug and its tows) moving at once. Default 8. */
@@ -93,6 +96,7 @@ export function createRiver(scene: THREE.Object3D, boats?: Boats | Promise<Boats
   const movers: Mover[] = [];
   const pool = new Map<string, TrainPart[]>();
   let fleet: Boats | null = null;
+  let anchorage: Anchorage | null = null;
   let wait = 3;
 
   // hawsers of all tows in one line set
@@ -159,13 +163,14 @@ export function createRiver(scene: THREE.Object3D, boats?: Boats | Promise<Boats
   Promise.resolve(boats ?? loadBoats())
     .then((b) => {
       fleet = b;
+      anchorage = createAnchorage(group, b, scene, opts.seed ?? 1873);
       // the river is never empty: a few ships already under way
       for (let i = 0, n = 0; i < 20 && n < Math.min(5, maxShips); i++) if (spawn(false)) n++;
     })
     .catch((e) => console.warn("no boats for the river", e));
 
   const pose = { x: 0, z: 0, yaw: 0 };
-  function update(_t: number, dt: number): void {
+  function update(t: number, dt: number): void {
     if (!fleet) return;
     wait -= dt;
     if (wait <= 0) {
@@ -197,6 +202,17 @@ export function createRiver(scene: THREE.Object3D, boats?: Boats | Promise<Boats
         const room = along - (m.parts[0].len / 2 + (o.len - o.parts[0].len / 2)) - 12;
         if (room < 40) v = Math.min(v, Math.max(0, o.v * THREE.MathUtils.clamp(room / 40, 0, 1)));
       }
+      // the lighters' tows crossing the lanes (world/anchorage.ts): hold back till they are past
+      for (const o of anchorage?.obstacles() ?? []) {
+        const dx = o.x - m.x;
+        const dz = o.z - m.z;
+        const along = dx * m.hx + dz * m.hz;
+        const side = Math.abs(dx * m.hz - dz * m.hx);
+        if (along <= 0 || side > (m.beam + o.len) / 2 + 4) continue;
+        const room = along - m.parts[0].len / 2 - o.beam / 2 - 12;
+        const vAlong = Math.max(0, o.v * (Math.sin(o.yaw) * m.hx + Math.cos(o.yaw) * m.hz));
+        if (room < 40) v = Math.min(v, Math.max(0, vAlong * THREE.MathUtils.clamp(room / 40, 0, 1)));
+      }
       m.v += (v - m.v) * Math.min(1, dt * 0.5);
     }
     let at = 0;
@@ -212,6 +228,7 @@ export function createRiver(scene: THREE.Object3D, boats?: Boats | Promise<Boats
     }
     hg.setDrawRange(0, at);
     hawser.needsUpdate = true;
+    anchorage?.update(t, dt, movers);
   }
 
   addMovingSource((out) => {

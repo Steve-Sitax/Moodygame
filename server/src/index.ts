@@ -281,6 +281,7 @@ app.get("/api/town", (c) => {
       work: r.work,
       sched: r.sched,
       dog: r.dog,
+      mate: r.mate ?? null,
       wares: waresOf(db, r.id).map((w) => ({ ...w, name: ITEMS[w.kind].name })),
     })),
   });

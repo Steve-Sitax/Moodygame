@@ -22,6 +22,7 @@ import {
   type WorkKind,
 } from "./places.ts";
 import type { Schedule, Seg } from "./schedule.ts";
+import { generateGarrison } from "./garrison.ts";
 import SPOTS from "../../../shared/spots.json" with { type: "json" };
 import CITY from "../../../shared/city.json" with { type: "json" };
 
@@ -36,8 +37,10 @@ export interface WorkSpec {
   /** Haul: the quay end and the door end. */
   a?: Pt;
   b?: Pt;
-  /** Patrol and roam: the points of the round. */
+  /** Patrol and roam: the points of the round (soldiers: their walking-out round; customs: the landings of goods). */
   route?: Pt[];
+  /** Inspect (customs): which way to face at each point of the route (yaw, facing (sin, cos)). */
+  faces?: number[];
   /** Inside: the door to go in at (a step outside it). */
   door?: Pt;
   /** Stall index in the town's stall list, or the shop id. */
@@ -83,6 +86,10 @@ export interface Resident {
   sched: Schedule;
   stats: Stats;
   dog: { name: string; look: string } | null;
+  /** The garrison (garrison.ts): the comrade he walks out or stands guard with. */
+  mate?: string;
+  /** The garrison and the customs: the town or village he comes from. */
+  origin?: string;
 }
 
 export interface TownPlace {
@@ -643,6 +650,10 @@ export function generateTown(seed: number): Town {
     const owner = members.find((m) => DOG_OWNERS.has(m.trade));
     if (owner && chance(owner.trade === "beggar" ? 0.6 : 0.18)) owner.dog = { name: pick(DOGS), look: pick(DOG_LOOKS) };
   }
+  // the garrison and the customs (garrison.ts): their own random stream, so the rest stays as it was
+  const g = generateGarrison(seed, places, residents);
+  Object.assign(places, g.places);
+  residents.push(...g.residents);
   return { seed, places, stalls, shops, residents };
 
   function shuffleJobs(xs: Job[], r: () => number): Job[] {
@@ -658,7 +669,7 @@ export function generateTown(seed: number): Town {
 
 const q = (h: number) => Math.round(h * 4) / 4;
 
-function scheduleFor(r: Resident, places: Record<string, TownPlace>, taverns: string[], rng: () => number): Schedule {
+export function scheduleFor(r: Resident, places: Record<string, TownPlace>, taverns: string[], rng: () => number): Schedule {
   const j = (h: number, s = 0.5) => q(h + (rng() * 2 - 1) * s);
   const home: [number, number] = [r.home.sx, r.home.sz];
   const near = (keys: string[], p: [number, number]) =>

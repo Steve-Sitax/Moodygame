@@ -15,10 +15,16 @@ export type HumanKind =
   | "docker_a" | "docker_b" | "docker_c" | "docker_sack" | "porter" | "carter" | "fishwife_a" | "fishwife_b" | "maid"
   | "boy" | "girl" | "gentleman" | "priest" | "police" | "sailor_b"
   // the town's residents (M3e)
-  | "baker" | "shopkeeper" | "publican" | "clerk" | "old_man" | "beggar" | "wife_a" | "wife_b" | "shopwife" | "old_woman" | "urchin" | "girl_b";
-/** sit: on a crate (lower the body by sitDrop); behind: hands behind the back, looking out; lean: forearms on a rail. */
-export type Motion = "idle" | "walk" | "talk" | "fold" | "carry" | "sit" | "behind" | "lean";
-const MOTIONS: Motion[] = ["idle", "walk", "talk", "fold", "carry", "sit", "behind", "lean"];
+  | "baker" | "shopkeeper" | "publican" | "clerk" | "old_man" | "beggar" | "wife_a" | "wife_b" | "shopwife" | "old_woman" | "urchin" | "girl_b"
+  // the garrison and the customs (server town/garrison.ts): a soldier of the line walking out,
+  // a corporal, a sentry with his rifle at the shoulder, a customs officer with his book
+  | "soldier" | "soldier_b" | "sentry" | "customs";
+/**
+ * sit: on a crate (lower the body by sitDrop); behind: hands behind the back, looking out; lean: forearms on a rail;
+ * write: the book open on the left forearm, writing (the customs; others stand idle).
+ */
+export type Motion = "idle" | "walk" | "talk" | "fold" | "carry" | "sit" | "behind" | "lean" | "write";
+const MOTIONS: Motion[] = ["idle", "walk", "talk", "fold", "carry", "sit", "behind", "lean", "write"];
 
 const WOMEN = new Set<HumanKind>(["peeters", "fientje", "fishwife_a", "fishwife_b", "maid", "girl", "wife_a", "wife_b", "shopwife", "old_woman", "girl_b"]);
 /** Long aprons are open shells: the thighs would show through in the sit clip. */
@@ -31,7 +37,9 @@ export function isHumanKind(k: string): k is HumanKind {
 /** People whose load decides their clips: the sack on the shoulder, the sack truck, the handcart. */
 const SACK = { walk: "walk_sack", carry: "walk_sack", idle: "idle_sack", talk: "idle_sack", fold: "idle_sack", sit: "idle_sack", behind: "idle_sack", lean: "idle_sack" };
 const PUSH = { walk: "push", carry: "push", idle: "push_idle", talk: "push_idle", fold: "push_idle", sit: "push_idle", behind: "push_idle", lean: "push_idle" };
-const OWN_CLIPS: Partial<Record<HumanKind, Partial<Record<Motion, string>>>> = { docker_sack: SACK, porter: PUSH, carter: PUSH };
+/** A sentry: the rifle upright at the right shoulder, the right arm still ("portez armes"), whatever he does. */
+const RIFLE = { walk: "rifle_walk", carry: "rifle_walk", idle: "rifle_idle", talk: "rifle_talk", fold: "rifle_idle", sit: "rifle_idle", behind: "rifle_idle", lean: "rifle_idle", write: "rifle_idle" };
+const OWN_CLIPS: Partial<Record<HumanKind, Partial<Record<Motion, string>>>> = { docker_sack: SACK, porter: PUSH, carter: PUSH, sentry: RIFLE };
 /** Women stand with their hands folded in front, and do not sit (the skirt). */
 const WOMEN_CLIPS: Partial<Record<Motion, string>> = { sit: "idle_f", behind: "idle_f", fold: "idle_f", carry: "walk_f" };
 

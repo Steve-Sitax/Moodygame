@@ -1,6 +1,6 @@
-# M3i - Het Steen as it stood in 1873, 2026-09-23
+# M3i - Het Steen, restored as about 1890, 2026-09-23/24
 
-Why: Steve, 2026-09-23: "put an agent on het steen. It has to be way more detailed and true to how it was/is. It normally has an archway and sloped road, investigate find images and alter. If it is not in its place, move." Then, after the research: "Yes true to 1873, no ramp then." And: "people visiting it would be nice, or other appropriate activities around it."
+Why: Steve, 2026-09-23: "put an agent on het steen. It has to be way more detailed and true to how it was/is. It normally has an archway and sloped road, investigate find images and alter. If it is not in its place, move." Later: "people visiting it would be nice, or other appropriate activities around it." The decisions that followed are below; the game now has the restored Steen of 1887-90 with its walkable ramp.
 
 ## What the sources say
 
@@ -35,57 +35,55 @@ The 1873 Vuillaume map (`data/refs/vuillaume_1873.jpg`, georeference `data/refs/
 - The small fish market (Marché au poisson) lay just **south** of it; the Steenstraat reached the gate from there.
 - The Vleeshuis lies 53 m north and 135 m inland of it; the town hall 87 m south and 200 m inland.
 
+### The restored Steen (1887-90), the look the game now has
+From the photographs and prints of about 1890 (G. H. Phot., "l'Ancien Bourg du Steen"; the photochrom "Anvers, vue du steen avec le port"; F. Hens's two etchings from the quay; later views) and the heritage inventory:
+- The Steen stands free, at the water, on the old castle mound. A courtyard (the "open terrace") lies inside it, bounded by the 16th-century front with Charles V's gatehouse, the inside of the gate, and the new north wing.
+- A **curved ramp** with a balustrade and blue-stone corner posts climbs from the Steenplein to the Steenpoort. In 1890 the corner posts carried obelisks with winged lions.
+- The **Steenpoort** keeps its pointed arch and the Semini relief; a false parapet on corbels replaces its saddle roof. The corner towers get battlements and pointed caps; the gate's east tower is crenellated with a flat top.
+- The **neo-Gothic north wing**: the museum wing with a big stepped gable and a tall octagonal corner tower with a slate spire; the square five-storey book tower with a tent roof, stepped dormers and the Burgraviate's arms; a covered passage with a five-part timber gallery; a round corner tower with an overhanging polygonal top and a spire.
+
+## Decisions (2026-09-23 and 24)
+1. Steve: "put an agent on het steen ... It normally has an archway and sloped road ... If it is not in its place, move." The research showed the ramp is from 1887-90.
+2. Steve: "Yes true to 1873, no ramp then." A Steen of 1873 was built on the quay line, among houses, with the Steenstraat lane through the Steenpoort (the `steen4` model, still in `build_landmarks.py`, unused).
+3. Steve: "Steen is blocking a road with the tower. Is it not in the way of a tram?" The gate's east tower and the calvary closed the street along the town hall's north end; they were not in the walk map, so the cart ruts ran through the tower. Fixed (the Steen 6 m north, tower and calvary in the walk map), then overtaken by 4.
+4. Steve, 2026-09-24: build the **restored look of about 1890**; he found the 1873 Steen not impressive enough. With the ramp, walkable; not blocking any road, the omnibus, the railway or a cart road; keep the Steenpoort with Semini, the Steen's life and the calvary. He also allowed map changes if they fit better.
+
 ## What was built
 
-### Position (`tools/city/design.py`)
-- The Steen leaves the bastion and stands on the quay line: a designed rectangle of 34 x 16.5 m at x -222..-188, z 10.5..27, long side along the river (was: the OSM outline, which includes the 1889 and 2021 wings, at 0.8 scale, on the bastion at (-182, -20)). Its river front stands 10.5 m from the quay edge, behind the quay railway (z 4.0) and the omnibus lane (z 8.3).
-- The bastion stays, as the quay promontory north of the Steen; its railings are unchanged. Its middle lies 23 m north of the Steen's middle (real: about 40 m).
-- The Steenstraat: a 6 m lane along the Steen's inland side (z 27..33), in line with the street behind the town hall. The Steenpoort stands over it at the Steen's south end.
-- New block of houses across the lane from the gatehouse (x -217..-206, z 33..45), as in the 1838-1880 views.
-- The riverside houses behind the town hall end at x -246 (was -222): the small square between them and the Steen is the little fish market.
-- Trees: the Steenplein rows keep only x -184..-152 (the square north of the Steen, like the tree-lined Place du Bourg); the Werf row ends at x -252. Lamps: the two quay lamps at x -214 and -190 (z 9.5) are gone (they stood where the Steen is now).
-- Relations now: the Vleeshuis 89 m north and 80 m inland (real 53 / 135, before this change 66 / 119; the compact map cut the streets between), the town hall right behind the little fish market, the river in front.
-- `PLACES` "Het Steen" moved to (-205, 18.75).
+### Position and map (`tools/city/design.py`, `tools/city/plan.py`)
+- The Steen stands **back on the promontory** (the bastion) at the water, as the 1890 Steen stood at the new quay, with the quay railway running inland of it (the photographs of the cleared Steen show the rails at its foot). Footprint 34 x 16.5 m at x -194..-160, z -39.5..-23, long side along the river; 2.5 m from the promontory's edge.
+- The courtyard runs along the Steen's inland side at **2.2 m** (x -194.2..-169, z -23..-17). The Steenpoort stands over its south end (x -194..-190); the north wing closes its north end.
+- The 1873 map changes are undone (1890 had no houses there): the riverside houses behind the town hall run to x -222 again, the house block across the old lane is gone, the Steenplein trees (x -208..-152) and the quay lamps are as before M3i. The omnibus quay line turns inland at x -204 again, the Werf cart loop at x -216, the quay cart rut through (-200, 13): all as before M3i, clear of the Steen.
+- New in `DECOR`: `steen_ramp` (height, half width, the centreline gate to foot with heights, the courtyard rect, the calvary), `solids` (the gate's east tower, the north wing over the courtyard's end, the courtyard's balustrade, the calvary) and `solid_polys` (the ramp's two balustrades). `plan.py` paints `solids` and `solid_polys` as walls in `walk.png`, so the crowd, the town's walkers, the cart ruts and the path check go round them and reach the courtyard only by the ramp.
+- `PLACES` "Het Steen" at (-177, -31).
 
-### Clashes found and fixed
-- **Omnibus** (`world/omnibus.ts`): the quay line turned inland at x -204, through the new Steen. It now turns at x -234, over the little fish market.
-- **Cart traffic** (`world/traffic.ts`, the "werf" loop): turned at x -216; now at x -240.
-- **Cart ruts** (`world/ruts.ts`): a waypoint at (-200, 13) inside the Steen, now (-205, 8.5).
-- The quay railway (z 4.0), the crane runways (to x -222) and the ferry pontoon (x -251..-247) are untouched and clear.
+### The ramp
+- **Start (top):** in the Steenpoort's passage at (-193.0, -20.55), at 2.2 m; a flat landing outside the gate to (-197.2, -20.55).
+- **Curve:** a quarter circle of radius 5 m round (-197.2, -15.55), from heading south (-x) to heading inland (+z), to (-202.2, -15.55).
+- **Foot (bottom):** straight down to **(-202.2, -3.0)** at ground level, facing the quay road, 7 m short of the railway (z 4.0) and 11 m short of the omnibus lane (z 8.3).
+- **Side of the Steen:** it climbs from the Steen's **south end**, along its inland (city) side: from the quay by the promontory's root, up and round to the Steenpoort, then through the gate onto the courtyard.
+- 20.4 m of slope for 2.2 m (about 1 in 9), 4 m walkable between blue-stone balustrades; corner posts at the landing and at the foot, with obelisks at the foot.
+- Heights in the game: `client/src/world/steenramp.ts` `steenHeightAt(x, z)` (the courtyard, or the nearest point of the centreline within the ramp's width), wired into `rijnkaai.ts` `baseAt`, so `groundAt`, `move`, `reachFrom` (the path check) and the player's feet all follow it. `steenKeepOut()` keeps props, street things, quay furniture, litter and weeds off the courtyard and the ramp.
+- The crowd stands on it: `crowd.ts` takes the ground height from the world's `baseAt` (an optional `baseAt` in `CrowdGround`, two lines). That also lifts people on the gangway and the pontoon.
 
-### The model (`tools/blender/build_landmarks.py`, `steen4`, 4,518 triangles)
-World-aligned frame (u = x along the river, v = z inland). Materials: stone, slate, glass, lead, gilt, and a new 256x256 atlas `steen_atlas` (city.ts picks it up like every `*_atlas`). Stone gets a vertex tint: blue-grey Tournai stone below 4.5 m, yellowish sandstone above, a little per-face weathering.
-- The river front: the great hall with a battlement on corbels (machicolations) and dormers behind it, slits, small barred windows, the two oculi; the north part under red pantiles with dormers, cross windows, and a corbelled turret on a squinch cone with loopholes and a conical cap.
-- The big three-quarter round corner tower (18 sides) with a corbelled rim, a conical slate roof, a vane; the round tower by the gate; both with slits, barred windows, arched doors at their feet.
-- The south front on the little fish market: a blind wall and a stepped gable with its three small windows.
-- The Steenpoort over the lane: pointed arch (4.5 m wide, 5.6 m high) through a plain gate block with a pantiled roof, the arch's soffit, the Semini relief in its niche under a small hood, a lantern on a bracket, the east tower.
-- On the lane: Charles V's gatehouse (portal with columns and capitals, the museum door with its wicket, corbels, the three-sided oriel with the carved panels and barred windows, a slate cap, a tall stepped gable); the prison range with barred windows on two floors, the painted museum name (a name, so Dutch and French), dormers, a downpipe; the board by the door in plain English: "MUSEUM OF ANTIQUITIES / OPEN 10 - 4".
-- A small brick house built against the north-east corner (door and windows on the square, pantiles, a stepped gable); the Steen's own stepped gables rise behind it.
-- String courses, eaves cornices, sandstone quoins, lead on the ridges, iron wall anchors, five chimneys.
-- The calvary outside the gate, against the back of the town hall.
-- The old `steen3` (the 1890s look) stays in the file, unused.
+### The model (`tools/blender/build_landmarks.py`, `steen5` and `steen5_extras`, 6,686 triangles)
+- From `steen4`: the river front with its battlement on corbels, oculi, slits, the corbelled turret; the big corner tower; the south range and its stepped gable; the round tower at the gate; Charles V's gatehouse with the oriel and carved panels, the museum door and board, the prison range with the painted name; the Semini niche; string courses, quoins, anchors, chimneys. Everything on the courtyard side stands 2.2 m higher.
+- 1887-90: battlements with pointed caps on the corner towers; the gate's east tower crenellated with a flat top; a false parapet on corbels over the Steenpoort; the neo-Gothic north wing (museum wing and stepped gables, the octagonal spire tower to 43 m with a gilt vane, the book tower with a tent roof, stepped dormers and the arms, the covered passage with its heraldic shields and five-part timber gallery, the round corner tower with an overhanging top and a spire); the courtyard on its retaining wall with a balustrade and posts; the curved ramp with balustrades, coping, side walls and obelisk posts; the calvary at the ramp's foot, facing the quay.
+- The Steen's vertex shading now reaches the game: the mesh's own colour layer is made the active one before export (see Problems).
 
-### The ramp (dropped)
-Steve decided: true to 1873, no ramp. The gate stands at street level; the player walks along the lane, through the Steenpoort and up to the museum door. No height function was added to `rijnkaai.ts`. The gentle rise of the 1873 lane over the buried bridge is not modelled.
+### Life round the Steen (`client/src/world/steenlife.ts`, wired in `main.ts` by main)
+- By day while the museum is open (10:00-16:00): the door on the courtyard stands open, the attendant stands beside it (at courtyard height), visitors walk from the quay or the Steenplein up the ramp, look at the gatehouse, step into the doorway, come out 40-120 s later and walk back down. Tested over several hundred game seconds: they climb (0 to 2.2 m), look, go in, come out, leave.
+- On the promontory: the painter at his easel looking at the spire tower and the courtyard; the old man fishing over the east railing; children and a couple at the west railing; two benches, a sailor on one.
+- At night: the door shut, nobody at it, the lantern on the Steenpoort lit.
 
-### Life round the Steen (`client/src/world/steenlife.ts`, new)
-- By day, while the museum is open (10:00-16:00): the museum door stands open (a dark doorway over the painted door); an attendant in his coat beside it (9:30-16:30); visitors (crowd puppets: gentlemen, wives, a maid, a clerk, a priest, an old woman, a sailor) walk up the lane, stop and look at the gatehouse, step into the doorway and vanish, come out 40-120 s later and walk off; about a third only look and walk on. At most three outside and five in all, only while Jef is within 75 m.
-- Round it: a painter on a stool at his easel on the promontory, sketching the Steen's corner tower (a small painted canvas); an old man fishing over the railing at the tip (rod, line, float, bucket); a boy and a girl at the west railing; a couple at the railing of the tip; two benches, a sailor resting on one.
-- At night: no one at the door, the door shut, only the lantern on the Steenpoort lit (a glow).
-- Colliders: the Steenpoort's east tower (it stands over the lane, outside the walk map's wall), the calvary, the easel, the angler, the benches.
-- No change to crowd.ts or town.ts: it uses the crowd's puppet calls (addPuppet, puppetGo, puppetStand, removePuppet, isHidden, alive). The last steps into and out of the doorway are moved by hand (the crowd grid keeps walkers off the wall).
-
-Wiring (main.ts, for main to add):
-
-    import { createSteenLife } from "./world/steenlife";
-    // after the trades:
-    const steenLife = createSteenLife(world.scene, crowd);
-    for (const r of steenLife.colliders) world.addCollider(r);
-    // frame() and __scheldemist.step(), after trades.update(...):
-    steenLife.update(dt, jobs.day.hourF, player.camera);
-    // __scheldemist.paths(), with the other pathPoints:
-    for (const q of steenLife.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
-    // the dev object: steenLife,
+## Everything that depends on the map, checked
+- Walk map and path check: `__scheldemist.paths()` = `[]`, including the museum door on the courtyard (reached up the ramp) and the ramp's foot.
+- Walking by the world's own `move()`: from the quay up the ramp (0, 0.75, 1.34, 1.76, 1.99 m) onto the courtyard (2.2 m) to the museum door, and back down; you cannot step off the courtyard or climb onto it from the ground.
+- Omnibus lines and stops: the quay line passes 2.5 m or more from any wall near the Steen; the town line is far; the Steenplein stop (-180, 8.3) unchanged. Quay railway (z 4.0) 6.8 m from the nearest wall, crane runways far. The Werf cart loop 3.8 m from the nearest wall (the riverside houses). The cart ruts are routed on the walk map. Overview with the lanes drawn: `m3i_1890_overview`, `m3i_1890_overview_oblique`.
+- Quay walls: the promontory is unchanged. No stairs or ladders on or near it. No props, street things, quay furniture or litter on the courtyard or the ramp. The Steenplein name sign moved off the Steen to the promontory's south-east corner (`quayfurniture.ts`).
+- Lamps and trees: as before M3i (none on the promontory). Stalls and the market: far away (Vismarkt, Grote Markt). Job places (`spots.json`), the town's work spots, hauls, patrols and haunts, the rowing hire: none on the promontory or the ramp.
+- Dev menu go-to: "Het Steen (ramp)" at (-202.2, 0.5) (was "Het Steen (gate)" at (-205, 31)).
+- `npm test`: 167 of 167. `npm run build` passes.
 
 ## Reruns
     python tools/city/design.py && python tools/city/plan.py
@@ -95,17 +93,13 @@ Wiring (main.ts, for main to add):
     blender -b --factory-startup -P tools/blender/build_streetlife.py   # reads the house walls
     blender -b --factory-startup -P tools/blender/build_quayfurniture.py
 
-## Checks (2026-09-23)
-- `cd client && npx tsc --noEmit` and `npm run build` pass.
-- Path check in the browser: `[]`, with steenlife's colliders in and its three points (the museum door, the Steenpoort from outside, the painter) reachable.
-- Walking, by the world's own move(): from the street behind the town hall along the lane through the Steenpoort, at street level (y 0); the gatehouse wall stops you at the door; the east tower and the calvary are solid.
-- Visitors over 260 s of game logic: they came, looked, went in, came out and left, again and again.
-- Pictures (`data/shots/`): `m3i_air_sw`, `m3i_air_ne`, `m3i_air_top` (dev view), `m3i_eye_steenstraat` (the Steenpoort from the street behind the town hall), `m3i_eye_lane` (the lane, the painted name), `m3i_eye_werf`, `m3i_eye_steenplein`, `m3i_eye_bastion`, `m3i_door`, `m3i_visitor_in`, `m3i_visitor_out`, `m3i_painter`, `m3i_angler`, `m3i_couple`, `m3i_kids`, `m3i_bench`, `m3i_night_gate`, `m3i_night_lantern`. Steve's save was not touched.
+## Shots (`data/shots/`)
+- Before (the 1873 Steen on the quay line): `m3i_eye_steenstraat`, `m3i_eye_lane`, `m3i_eye_werf`, `m3i_road_before_air`, `m3i_road_before_north` (the tower in the street), `m3i_road_after_north`, `m3i_road_after_gate`.
+- After (restored, about 1890): `m3i_1890_plein` (from the Steenplein), `m3i_1890_foot` (the ramp's foot, the calvary), `m3i_1890_ramp` (on the ramp), `m3i_1890_courtyard`, `m3i_1890_visitors`, `m3i_1890_visitor_ramp`, `m3i_1890_promontory`, `m3i_1890_river`, `m3i_1890_overview`, `m3i_1890_overview_oblique`.
 
-## Open points
-- steenlife.ts is not wired into main.ts yet (lines above); it was tested by loading it into the running page.
-- The server reads `client/public/city/walk.png` when it starts (`server/src/town/walkmap.ts`): the town's walkers know the moved Steen after the next server restart.
-- The house list changed near the Steen, so the random looks of the houses in the blocks after it in `design.py` (storeys, styles) changed too.
-- The names "Steenplein" (map, omnibus stop, signs) stay; in 1873 the square north of the Steen was the Place du Bourg (Burchtplein), and the Steenplein only came with the 1880s works.
-- The 1873 Steen was bigger inland (about 40 x 30 m with its court); the compact map gives it 34 x 16.5 m, without a courtyard.
-- Reference copies (public domain and CC0, reference only) are in `data/refs/steen/` with `sources.json`; not in git.
+## Problems and open points
+- **Landmark vertex colours never reached the game.** Every landmark in `landmarks.glb` (the cathedral, town hall, Vleeshuis, Hanseatic House, and the Steen before this fix) exports an all-white `COLOR_0` and puts its shading in `COLOR_1`, which the game ignores. Fixed for the Steen only (`SMesh.to_object` makes its colour layer the active one). The same line in `CMesh.to_object` would give the other landmarks the shading their scripts intend (darker towards the ground, tints); not done, because it changes how they look.
+- The town's server reads `walk.png` when it starts: it needs a restart to know the Steen is back on the promontory.
+- `crowd.ts` got two lines (ground height from `baseAt`); the M4 work on `crowd.ts` should keep them.
+- The house list changed with the undone 1873 blocks, so the random looks of houses in later blocks shifted again (back towards, not exactly to, the look before M3i).
+- The names stay "Steenplein"; the painter, the angler and the benches moved to new spots on the promontory.

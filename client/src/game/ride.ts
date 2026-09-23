@@ -9,7 +9,9 @@ import type { Action } from "./runs";
 // on: the server takes the fare, or punches your ticket for a change (server/src/ride.ts: one
 // free change onto the other line while the ticket runs). You ride on the platform, looking
 // round as you like; the view turns with the omnibus. The conductor calls each stop, and says
-// where you can change; E there gets you off. The server also counts you as riding for the
+// where you can change; E there gets you off. Between stops, E on the back platform jumps you
+// off while it rolls (Steve: "I should be able to jump off anywhere"), as riders did from the
+// open platform in 1873. The server also counts you as riding for the
 // hourly needs (warmth goes slower on board). Carrying goods for a job, you cannot get on.
 
 const REACH = 2.8; // from the foot of the step
@@ -48,6 +50,14 @@ export class Ride {
   private hook(n: Omnibuses): void {
     if (this.hooked === n) return;
     this.hooked = n;
+    // a ride left open on the server (the page reloaded on board): you are on foot now, so step down
+    api
+      .jobs()
+      .then((p) => {
+        this.take(p);
+        if (p.ride?.on && !this.riding) return api.ride("alight", "").then((r) => this.take(r));
+      })
+      .catch(() => {});
     n.onDepart = (bus, _stop, next) => {
       if (this.riding && bus === this.bus) this.say(`Next stop: ${next.name}.`);
     };
@@ -123,10 +133,11 @@ export class Ride {
     }
   }
 
-  private getOff(stop: OmnibusStop, text?: string): void {
+  private getOff(stop: OmnibusStop | null, text?: string): void {
     const bus = this.bus;
     if (!bus || !this.riding) return;
-    bus.hold(true);
+    // at a stop it waits for you; between stops you jump and it rolls on
+    if (stop) bus.hold(true);
     // down the step behind the platform; if that is taken, beside the platform
     const d = bus.stepDown();
     const p = bus.platform();
@@ -136,22 +147,34 @@ export class Ride {
       [p.x - Math.cos(p.yaw) * 1.6, p.z + Math.sin(p.yaw) * 1.6],
     ];
     const spot = side.find(([x, z]) => this.world.isFree(x, z, 0.35)) ?? side[0];
+    if (!stop && !side.some(([x, z]) => this.world.isFree(x, z, 0.35))) return;
     bus.takeSeat(-1, null);
     this.seat = null;
     this.player.rideEnd(spot[0], spot[1]);
     bus.rider = false;
     this.bus = null;
-    this.say(text ?? `You step down at ${stop.name}.`);
+    this.say(text ?? (stop ? `You step down at ${stop.name}.` : "You jump down from the platform and land on your feet."));
     this.busy = true;
     api
-      .ride("alight", stop.id)
+      .ride("alight", stop?.id ?? "")
       .then((r) => this.take(r))
       .catch(() => {})
       .finally(() => {
         this.busy = false;
         // a moment to step clear before it moves off
-        window.setTimeout(() => bus.hold(false), 1200);
+        if (stop) window.setTimeout(() => bus.hold(false), 1200);
       });
+  }
+
+  /** Somewhere free to land beside or behind the platform (not a wall, not the water). */
+  private jumpSpot(bus: Omnibus): boolean {
+    const d = bus.stepDown();
+    const p = bus.platform();
+    return [
+      [d.x, d.z],
+      [p.x + Math.cos(p.yaw) * 1.6, p.z - Math.sin(p.yaw) * 1.6],
+      [p.x - Math.cos(p.yaw) * 1.6, p.z + Math.sin(p.yaw) * 1.6],
+    ].some(([x, z]) => this.world.isFree(x, z, 0.35));
   }
 
   /** The seat you sit on (SEATS index), or null. */
@@ -167,12 +190,14 @@ export class Ride {
       return [{ key: "KeyE", text: roof ? "climb down from the roof" : "stand up", run: () => this.standUp() }];
     }
     const out: Action[] = [];
+    const w = this.player.rideWalk;
+    const onPlatform = !!w && Math.hypot(w.x - PLATFORM_SPOT[0], w.z - PLATFORM_SPOT[1]) < 0.9;
     if (stop) out.push({ key: "KeyE", text: `get off at ${stop.name}`, run: () => this.getOff(stop) });
+    else if (onPlatform && this.jumpSpot(bus)) out.push({ key: "KeyE", text: "jump off", run: () => this.getOff(null) });
     else {
       const s = this.lookedAtSeat(bus);
       if (s !== null) out.push({ key: "KeyE", text: "sit down here", run: () => this.sitDown(s) });
     }
-    const w = this.player.rideWalk;
     if (w && Math.hypot(w.x - LADDER_SPOT[0], w.z - LADDER_SPOT[1]) < 0.85 && !this.player.laden) {
       const free = SEATS.map((q, i) => ({ q, i })).filter(({ q, i }) => q.roof && !bus.seatTaken(i));
       if (free.length) out.push({ key: "KeyF", text: "climb up to the roof seat", run: () => this.sitDown(free[0].i) });

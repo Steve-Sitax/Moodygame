@@ -267,7 +267,7 @@ const ANCHORED: Array<[string, number, number, number, "water" | "inland"]> = [
   ["notice_board", 96, 49, 12, "inland"],
   ["notice_board", -236, 2, 16, "inland"],
   ["sign_name_werf", -266, 1, 14, "inland"],
-  ["sign_name_steenplein", -186, -38, 24, "inland"],
+  ["sign_name_steenplein", -156.5, -34.5, 10, "inland"], // M3i: off the Steen, on the promontory's south-east corner
   ["sign_name_vismarkt", -124, 1, 10, "inland"],
   ["sign_name_rijnkaai", 86, 1, 14, "inland"],
   ["sign_name_bassin", 128, 108, 16, "inland"],

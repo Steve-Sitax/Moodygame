@@ -112,6 +112,8 @@ export interface MovingShip {
   /** m/s */
   speed: number;
   steam: boolean;
+  /** Lying at anchor (the liner, world/anchorage.ts): no engine, a deep blast now and then. */
+  anchored?: boolean;
 }
 /** Engine and wheels of a steam ship: paddle kinds churn, screw kinds thump and wash. */
 const PADDLE_LOOP: LoopDef = { layers: [["paddleWheels", 0.8], ["shipEngine", 0.3]], radius: 120, ref: 8, rolloff: 1, lowpass: 6000, wet: 0.3 };
@@ -739,6 +741,15 @@ export class Soundscape {
 
     for (const s of this.shipSounds) {
       const { ship } = s;
+      if (ship.anchored) {
+        // a ship at anchor (world/anchorage.ts): no engine, a deep blast every few minutes,
+        // heard far across the river (the whistle's own reach and the fog do the rest)
+        if (s.d < 600 && now > s.nextCall && this.hornFree()) {
+          this.whistle(ship, "pass");
+          s.nextCall = now + rand(150, 360);
+        }
+        continue;
+      }
       if (ship.steam) {
         const def = isPaddle(ship.kind) ? PADDLE_LOOP : SCREW_LOOP;
         if (s.d < def.radius && !s.voice) s.voice = this.startVoice({ x: ship.x, z: ship.z, y: 2 }, def);

@@ -23,10 +23,12 @@ import type { Rect } from "./geom";
 
 type P = [number, number];
 
-/** The museum door (the Charles V gate on the lane; tools/blender/build_landmarks.py steen4). */
-export const STEEN_DOOR = { x: -211.5, z: 27.0 };
+/** The museum door (Charles V's gate, on the raised courtyard; tools/blender/build_landmarks.py steen5). */
+export const STEEN_DOOR = { x: -183.5, z: -23.0 };
+/** The courtyard's height (tools/city/design.py TERRACE_H): the door, the attendant and the doorway stand on it. */
+const TY = 2.2;
 const OPEN: P = [10, 16]; // the board: OPEN 10 - 4
-const LANTERN = new THREE.Vector3(-222.42, 4.33, 32.35); // on the Steenpoort's outer face
+const LANTERN = new THREE.Vector3(-194.42, 6.53, -17.65); // on the Steenpoort's outer face, over the landing
 const WATER_Y = -2.8;
 
 interface Figure {
@@ -36,6 +38,8 @@ interface Figure {
   /** Facing (0 = +z). */
   yaw: number;
   motion: Motion;
+  /** Height of the ground it stands on. */
+  y: number;
   /** Seat height when sitting. */
   seat?: number;
   hours: P;
@@ -45,41 +49,49 @@ interface Figure {
 
 const face = (fx: number, fz: number, tx: number, tz: number) => Math.atan2(tx - fx, tz - fz);
 
-// the painter on the promontory, looking at the corner tower and the river front
-const PAINTER: P = [-197, -18];
-const PAINTER_YAW = face(PAINTER[0], PAINTER[1], -214, 13);
-const ANGLER: P = [-166.5, -39.4];
+// the painter on the promontory, looking at the north wing's spire tower and the courtyard
+const PAINTER: P = [-165.5, -9.5];
+const PAINTER_YAW = face(PAINTER[0], PAINTER[1], -178, -30);
+// the old man fishing over the promontory's east railing, into the river
+const ANGLER: P = [-151.5, -6.5];
+const ANGLER_YAW = Math.PI / 2;
 const BENCHES: Array<[number, number, number]> = [
   [-203, -27.5, face(-203, -27.5, -230, -60)],
-  [-186, -34.5, Math.PI],
+  [-209.5, -8.5, -Math.PI / 2],
+];
+/** Where someone sits on a bench: a little back from its middle, `side` along it. */
+const benchSeat = (b: [number, number, number], side: number): P => [
+  b[0] - Math.sin(b[2]) * 0.18 + Math.cos(b[2]) * side,
+  b[1] - Math.cos(b[2]) * 0.18 - Math.sin(b[2]) * side,
 ];
 
 function figures(): Figure[] {
-  const f = (kind: HumanKind, x: number, z: number, yaw: number, motion: Motion, hours: P, seat?: number): Figure => ({
-    kind, x, z, yaw, motion, hours, seat, h: null, root: new THREE.Group(),
+  const f = (kind: HumanKind, x: number, z: number, yaw: number, motion: Motion, hours: P, seat?: number, y = 0): Figure => ({
+    kind, x, z, yaw, motion, hours, seat, y, h: null, root: new THREE.Group(),
   });
+  const sailor = benchSeat(BENCHES[1], 0.4);
   return [
-    // the attendant, in his coat, beside the open door
-    f("clerk", -214.3, 27.85, 0.15, "behind", [9.5, 16.5]),
+    // the attendant, in his coat, beside the open door up on the courtyard
+    f("clerk", STEEN_DOOR.x - 2.8, STEEN_DOOR.z + 0.85, 0.15, "behind", [9.5, 16.5], undefined, TY),
     // the painter on his stool
     f("gentleman", PAINTER[0], PAINTER[1], PAINTER_YAW, "sit", [10, 16], 0.45),
-    // the old man fishing at the tip
-    f("old_man", ANGLER[0], ANGLER[1], Math.PI, "sit", [7, 17.5], 0.42),
+    // the old man fishing over the east railing
+    f("old_man", ANGLER[0], ANGLER[1], ANGLER_YAW, "sit", [7, 17.5], 0.42),
     // children at the west railing, watching the ships
     f("boy", -213.1, -12.2, -Math.PI / 2, "idle", [11, 17]),
     f("girl", -213.1, -13.3, -Math.PI / 2 + 0.3, "idle", [11, 17]),
-    // a couple at the railing of the tip, watching the river
-    f("clerk", -200.6, -40.75, Math.PI, "lean", [9, 18]),
-    f("wife_a", -199.4, -40.7, Math.PI - 0.2, "idle", [9, 18]),
+    // a couple at the west railing, watching the river
+    f("clerk", -213.2, -22.6, -Math.PI / 2, "lean", [9, 18]),
+    f("wife_a", -213.1, -21.4, -Math.PI / 2 + 0.2, "idle", [9, 18]),
     // a sailor resting on the second bench
-    f("sailor_b", BENCHES[1][0] + 0.4, BENCHES[1][1] + 0.18, Math.PI, "sit", [8, 18], 0.47),
+    f("sailor_b", sailor[0], sailor[1], BENCHES[1][2], "sit", [8, 18], 0.47),
   ];
 }
 
-/** Where the visitors come from and go to: the little fish market, the lane's north end, the square, the street behind the town hall. */
-const ENDS: P[] = [[-238, 18], [-194, 31], [-178, 22], [-232, 30]];
-/** Where they stand and look at the gatehouse. */
-const LOOK: P[] = [[-211.2, 30.4], [-209.2, 31.0], [-213.6, 30.9], [-207.5, 30.2]];
+/** Where the visitors come from and go to: the quay by the ramp's foot, the Steenplein, both sides of the promontory. */
+const ENDS: P[] = [[-196, 12], [-178, 22], [-210, -18], [-157, -12], [-212, 12]];
+/** Where they stand on the courtyard and look at the gatehouse. */
+const LOOK: P[] = [[-183.3, -20.2], [-181.2, -19.6], [-185.6, -19.8], [-179.2, -20.4]];
 const VISITORS: HumanKind[] = ["gentleman", "wife_a", "wife_b", "clerk", "priest", "old_woman", "sailor_b", "maid", "wife_a", "gentleman"];
 
 interface Visitor {
@@ -159,23 +171,26 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
   // --- the angler's rod and line, his stool and bucket
   const rod = new THREE.Group();
   {
+    const fx = Math.sin(ANGLER_YAW);
+    const fz = Math.cos(ANGLER_YAW);
+    const at = (fwd: number, side: number, y: number) => new THREE.Vector3(ANGLER[0] + fx * fwd - fz * side, y, ANGLER[1] + fz * fwd + fx * side);
     const stool = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.4, 0.3), wood);
-    stool.position.set(ANGLER[0], 0.2, ANGLER[1] + 0.05);
+    stool.position.copy(at(-0.05, 0, 0.2));
     rod.add(stool);
     const bucket = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.12, 0.26, 6), wood);
-    bucket.position.set(ANGLER[0] + 0.5, 0.13, ANGLER[1] - 0.1);
+    bucket.position.copy(at(0.1, 0.5, 0.13));
     rod.add(bucket);
-    const from = new THREE.Vector3(ANGLER[0] + 0.12, 1.0, ANGLER[1] - 0.35);
-    const tip = new THREE.Vector3(ANGLER[0] + 0.35, 2.7, ANGLER[1] - 3.9);
+    const from = at(0.35, 0.12, 1.0);
+    const tip = at(3.9, 0.35, 2.7);
     const len = from.distanceTo(tip);
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.02, len, 4).translate(0, len / 2, 0), wood);
     pole.position.copy(from);
     pole.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tip.clone().sub(from).normalize());
     rod.add(pole);
-    const lineGeo = new THREE.BufferGeometry().setFromPoints([tip, new THREE.Vector3(tip.x, WATER_Y + 0.02, tip.z + 0.2)]);
+    const lineGeo = new THREE.BufferGeometry().setFromPoints([tip, new THREE.Vector3(tip.x + fx * 0.2, WATER_Y + 0.02, tip.z + fz * 0.2)]);
     rod.add(new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0x9a9890, transparent: true, opacity: 0.6 })));
     const float = new THREE.Mesh(new THREE.SphereGeometry(0.03, 4, 3), psx(new THREE.MeshLambertMaterial({ color: 0xb03a28 })));
-    float.position.set(tip.x, WATER_Y + 0.02, tip.z + 0.2);
+    float.position.set(tip.x + fx * 0.2, WATER_Y + 0.02, tip.z + fz * 0.2);
     rod.add(float);
     group.add(rod);
   }
@@ -210,7 +225,7 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
     doorGeometry(2.3, 3.45),
     psx(new THREE.MeshLambertMaterial({ color: 0x0d0b09 })),
   );
-  doorway.position.set(STEEN_DOOR.x, 0.02, STEEN_DOOR.z - 0.17);
+  doorway.position.set(STEEN_DOOR.x, TY + 0.02, STEEN_DOOR.z - 0.17);
   group.add(doorway);
 
   // --- the lantern on the Steenpoort: a warm glow after dusk
@@ -224,18 +239,15 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
   flame.position.copy(LANTERN);
   group.add(flame);
 
+  // (the gate's east tower, the calvary, the courtyard's and the ramp's balustrades are walls in the walk map: design.py DECOR)
   const colliders: Rect[] = [
-    // the Steenpoort's east tower and pier (the model stands over the lane, outside the walk map's wall)
-    { minX: -222.2, maxX: -217.75, minZ: 31.7, maxZ: 36.1 },
-    // the calvary against the back of the town hall, with its railing
-    { minX: -227.1, maxX: -224.9, minZ: 32.65, maxZ: 34.05 },
     // the easel and the painter's stool
     {
       minX: Math.min(PAINTER[0], easel.position.x) - 0.45, maxX: Math.max(PAINTER[0], easel.position.x) + 0.45,
       minZ: Math.min(PAINTER[1], easel.position.z) - 0.45, maxZ: Math.max(PAINTER[1], easel.position.z) + 0.45,
     },
     // the angler and his bucket
-    { minX: ANGLER[0] - 0.35, maxX: ANGLER[0] + 0.7, minZ: ANGLER[1] - 0.4, maxZ: ANGLER[1] + 0.35 },
+    { minX: ANGLER[0] - 0.45, maxX: ANGLER[0] + 0.45, minZ: ANGLER[1] - 0.45, maxZ: ANGLER[1] + 0.75 },
     ...benchRects,
   ];
 
@@ -250,7 +262,7 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
       if (!f.h) return;
       f.root.add(f.h.root);
       group.add(f.root);
-      f.root.position.set(f.x, f.seat !== undefined ? f.h.sitDrop(f.seat) : 0, f.z);
+      f.root.position.set(f.x, f.y + (f.seat !== undefined ? f.h.sitDrop(f.seat) : 0), f.z);
       f.root.rotation.y = f.yaw;
       f.h.play(f.motion, 0);
       f.h.update(Math.random() * 3);
@@ -313,7 +325,7 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
             crowd.puppetStand(p, Math.random() < 0.3 ? "fold" : "idle", face(p.x, p.z, STEEN_DOOR.x, STEEN_DOOR.z));
             v.state = "looking";
             v.t = -(5 + Math.random() * 6);
-          } else if (v.t > 60) {
+          } else if (v.t > 150) { // the way up the ramp is long
             drop(v);
             visitors.splice(i, 1);
           }
@@ -395,7 +407,7 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
     t += dt;
     const cx = cam.position.x;
     const cz = cam.position.z;
-    const d = Math.hypot(cx - -205, cz - 0);
+    const d = Math.hypot(cx - -185, cz - -12);
     const near = d < 90;
     const open = hour >= OPEN[0] && hour < OPEN[1];
     const night = hour < 6.8 || hour >= 18.6;
@@ -419,8 +431,8 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
     colliders,
     update,
     pathPoints: () => [
-      { label: "the Steen, museum door", x: STEEN_DOOR.x, z: STEEN_DOOR.z + 0.6, reach: 1.6 },
-      { label: "the Steenpoort, outside", x: -223.5, z: 29.5, reach: 1.6 },
+      { label: "the Steen, museum door (up the ramp)", x: STEEN_DOOR.x, z: STEEN_DOOR.z + 1.1, reach: 1.6 },
+      { label: "the Steen, the ramp's foot", x: -202.2, z: -1.5, reach: 1.6 },
       { label: "the Steen, the painter", x: PAINTER[0] + 1.2, z: PAINTER[1] - 0.8, reach: 2.0 },
     ],
     info: () => ({

@@ -63,3 +63,12 @@ Nothing of this is committed yet. Last commit: 12d5bce (M3d).
 - Swing bridges replaced by lifting bridges (they clipped the quay).
 - Sounds fall off with distance (bells, market, taverns, ships), the foghorn is below -9 dBFS.
 - M4 (director, NPC actions, events, world_event log) is designed, not built: data/m4-draft/NOTES.md. Steve: finish the rest first, then M4 in a new session.
+
+## 2026-09-24 (main)
+- Cobbles: no pattern repeats. Each paving has a stone id map (paving.ts); the shader (psx.ts `relief.id`, `holes`) mixes the stone's number with the tile's place in the world, so each stone rolls its own height, tone, sinking or muddy hole. Rule: never bake a feature into a repeating tile; roll it in world space.
+- Cart wear: dirt.ts writes a wear channel (green) along the cart roads (wheel lines hardest) and in the middle of every street. Worn stones lie lower and rounder, are polished a little lighter, and sink or go missing far more often.
+- Omnibus: E on the back platform between stops jumps you off while it rolls (ride.ts). A ride left open on the server by a page reload is closed when the game starts.
+- Litter layer (M3j filth, docs/milestones/M3j-filth.md) wired in: dung, straw, gutters, ash, fish waste on the market clock, heaps, floating rubbish, rats at night.
+- Cranes (M3g4): no see-through parts, a caged ladder with a landing, a walkable gallery and cabin, CRANE_SPOTS for jobs.
+- Het Steen: Steve chose the restored look of about 1890 (ramp, north wing, spires, battlements), and allows map changes if every dependency is fixed.
+- Lesson: never junction node_modules into a temp worktree; `git worktree remove --force` follows the junction.

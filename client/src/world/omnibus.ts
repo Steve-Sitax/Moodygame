@@ -55,9 +55,8 @@ export interface LineDef {
 /** The round along the quays. Checked on the walk map: all open ground. */
 const QUAY_ROUTE: P[] = [
   [-305, 29.5], [-305, 8.3], [-158, 8.3], [-152, 7.6], [-140, 7.6], [-134, 8.3], [-90, 8.3], [-84, 7.8], [-68, 7.8],
-  [-62, 8.3], [66, 8.3], [76, 15], [76, 37], [-54, 37], [-58, 33], [-58, 12], [-62, 8.3], [-234, 8.3], [-234, 29.5],
-  // (M3i: the Steen stands on the quay line at x -222..-188 now; the round turns inland past it,
-  // over the little fish market south of it)
+  [-62, 8.3], [66, 8.3], [76, 15], [76, 37], [-54, 37], [-58, 33], [-58, 12], [-62, 8.3], [-204, 8.3], [-204, 29.5],
+  // (M3i: the Steen stands on the promontory again, restored as in 1890; the round turns inland over the Steenplein)
 ];
 
 /**

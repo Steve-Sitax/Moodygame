@@ -14,6 +14,7 @@ import { TRADES } from "./places.ts";
 import { family, personaLine, resident, setPersonaLine, town } from "./store.ts";
 import { ownVoice, reputationWith, rumoursOf, toYou, type Rumour } from "./rumours.ts";
 import type { Resident } from "./population.ts";
+import { GUARD_POSTS, isGarrison, isSoldier } from "./garrison.ts";
 
 // Talk with any townsperson (M3e). Everyone answers by their own stats, job,
 // family, mood and the hour, and by what they have heard about Jef.
@@ -106,8 +107,12 @@ export function doing(db: DB, r: Resident, now = nowOf(db, r)): string {
           return `at your post, ${placeLabel(db, r.work.place)}`;
         case "beg":
           return `begging by ${placeLabel(db, r.work.place)}`;
+        case "guard":
+          return r.trade === "corporal" ? `bringing the relief out to ${placeLabel(db, r.work.place)}` : `standing sentry at ${placeLabel(db, r.work.place)}, rifle at the shoulder`;
+        case "inspect":
+          return `checking the goods landed on ${placeLabel(db, r.work.place)} against the ships' papers, and writing them in your book`;
         case "inside":
-          return "on your way in to work";
+          return r.trade === "soldier" ? "on your way back in to the barracks" : "on your way in to work";
         default:
           if (r.trade === "thief") return "about your night business in the dark";
           if (r.trade === "child" || r.trade === "street_child") return `playing on ${where}`;
@@ -121,8 +126,10 @@ export function doing(db: DB, r: Resident, now = nowOf(db, r)): string {
       return `doing the day's errands on ${where}`;
     case "church":
       return "on your way to mass at the cathedral";
-    case "stroll":
-      return `out for a walk on ${where}`;
+    case "stroll": {
+      const mate = r.mate ? resident(db, r.mate) : undefined;
+      return isSoldier(r.trade) && mate ? `walking out with your comrade ${mate.first}, about ${where}` : `out for a walk on ${where}`;
+    }
     case "loiter":
       return `passing the time on ${where}`;
     default:
@@ -187,10 +194,17 @@ const TRADE_WORD: Partial<Record<string, string[]>> = {
   carter: ["Mind the wheel.", "The horse is in a worse mood than me."],
   laundress: ["My hands are raw with the cold water.", "Other people's shirts, all day long."],
   lamplighter: ["Every lamp from the Werf to the basin, twice a day.", "Mind the ladder."],
+  soldier: ["We're out till the tattoo, then it's the barracks.", "Sixteen centimes a day, when they've taken theirs. It buys tobacco."],
+  sentry: ["Keep moving, friend. I'm on duty.", "Stand back from the gate, if you please."],
+  corporal: ["Stand clear of my men.", "The relief goes out on the hour."],
+  customs: ["Every cask on this quay goes in my book.", "Papers first. Then the goods move."],
 };
 
+/** Where Jef reports a theft (police.ts policePost: a door on the Grote Markt by the town hall). */
+const POLICE_POST = "the police post on the Grote Markt, by the town hall";
+
 /** Topics the engine can answer on its own. */
-type Topic = "work" | "rumour" | "self" | "family" | "town" | "bye";
+type Topic = "work" | "rumour" | "self" | "family" | "town" | "theft" | "bye";
 
 function topicChoice(t: Topic, r: Resident): string {
   switch (t) {
@@ -203,11 +217,16 @@ function topicChoice(t: Topic, r: Resident): string {
       if (r.work.kind === "stall" || r.work.kind === "shop") return "How is trade today?";
       if (r.trade === "police") return "Anything I should know about?";
       if (r.trade === "beggar") return "How do you get by?";
+      if (r.trade === "sentry" || r.trade === "corporal") return "What are you guarding here?";
+      if (r.trade === "soldier") return "Where are you stationed?";
+      if (r.trade === "customs") return "What are you writing down?";
       return "What do you do here?";
     case "family":
       return r.age < 13 ? "Where do you live?" : "Have you family here?";
     case "town":
       return "What's the news?";
+    case "theft":
+      return "I've been robbed. Will you help me?";
     default:
       return "Good day to you.";
   }
@@ -300,10 +319,15 @@ export function engineReply(db: DB, r: Resident, topic: Topic | null, seed: stri
       const mood =
         s.greed >= 7 ? "It pays little enough, and less every year." : s.warmth >= 7 ? "It's a living, and I've good people round me." : s.honesty <= 3 ? "Honest work. More or less." : "It's work.";
       if (r.trade === "thief") return "Me? I help people carry their purses. It's a kindness, at night.";
+      if (r.trade === "sentry") return `On guard at ${place}. Two hours on, four off, and the corporal counts every minute. Nobody goes through without the railway's leave.`;
+      if (r.trade === "corporal") return "Corporal of the guard. I bring the relief out every two hours and see my men stay awake.";
+      if (r.trade === "soldier") return `The line, at ${placeLabel(db, "barracks")}. I drew a bad number at home in ${r.origin ?? "the Kempen"}, so here I am, two years of it.`;
+      if (r.trade === "customs") return "What comes off the ships: casks, bales, crates. I count them against the papers and write it down. Nothing leaves the quay till the duty's paid.";
       if (r.trade === "beggar") return "On what the good people give, and the soup at the church door.";
       return `${t[0].toUpperCase() + t.slice(1)}, on ${place}, ${years} years now. ${mood}`;
     }
     case "family": {
+      if (isSoldier(r.trade)) return `My people are back in ${r.origin ?? "the Kempen"}. Here I've the regiment, and ${r.mate ? `${resident(db, r.mate)?.first ?? "my comrade"} beside me` : "the corporal over me"}.`;
       const f = familyLine(db, r);
       if (r.age < 13) return `With my ${f}. Over there.`;
       if (f.startsWith("nobody")) return s.warmth >= 6 ? "Nobody. Just me and the four walls." : "That's my business.";
@@ -320,6 +344,12 @@ export function engineReply(db: DB, r: Resident, topic: Topic | null, seed: stri
       ];
       return pickBy(seed, news);
     }
+    case "theft":
+      // soldiers and customs never deal with thieves: they send Jef to the police (M3h)
+      if (r.trade === "sentry") return `I can't leave my post, and thieves are no business of a soldier. Go to ${POLICE_POST}. Tell the agent there.`;
+      if (r.trade === "customs") return `I watch the goods, not the pockets. Go to ${POLICE_POST}, and tell them what was taken.`;
+      if (isSoldier(r.trade)) return "We don't lay hands on thieves; that's the police. Their post is on the Grote Markt, by the town hall. Go and tell them.";
+      return `Go to ${POLICE_POST}.`;
     case "bye":
       return pickBy(seed, ["Good day, then.", "Go on, then.", "God keep you.", "Mind how you go."]);
     default:
@@ -356,7 +386,12 @@ function sessionFor(id: string): Session {
 }
 
 function nextChoices(r: Resident, sess: Session): string[] {
-  const order: Topic[] = r.age < 13 ? ["self", "family", "rumour", "bye"] : ["work", "rumour", "self", "family", "town", "bye"];
+  const order: Topic[] =
+    r.age < 13
+      ? ["self", "family", "rumour", "bye"]
+      : isGarrison(r.trade)
+        ? ["self", "theft", "rumour", "work", "family", "town", "bye"]
+        : ["work", "rumour", "self", "family", "town", "bye"];
   const left = order.filter((t) => !sess.used.has(t) && t !== "bye");
   const pickT = [...left.slice(0, 2), "bye" as Topic];
   sess.offered = new Map(pickT.map((t) => [topicChoice(t, r), t]));
@@ -409,8 +444,8 @@ export function residentPrompt(db: DB, r: Resident, scene: string, turns: string
   const mine = listJobs(db, c.day).filter((j) => j.employer_npc === r.id && (j.status === "offered" || j.status === "taken"));
   const wares = waresOf(db, r.id);
   return `PERSON
-${r.name}, ${r.age}, ${r.sex === "f" ? "woman" : "man"}${r.age < 15 ? " (a child)" : ""}. ${TRADES[r.trade].label}, works at ${placeLabel(db, r.work.place)}.
-Family: ${familyLine(db, r)}.
+${r.name}, ${r.age}, ${r.sex === "f" ? "woman" : "man"}${r.age < 15 ? " (a child)" : ""}. ${TRADES[r.trade].label}, works at ${placeLabel(db, r.work.place)}.${r.origin ? ` From ${r.origin}.` : ""}
+Family: ${isSoldier(r.trade) ? `your people are back in ${r.origin ?? "the Kempen"}; you live in barracks` : familyLine(db, r)}.${dutyOf(db, r)}
 Stats 0-10: honesty ${s.honesty}, temper ${s.temper}, piety ${s.piety}, warmth ${s.warmth}, greed ${s.greed}, courage ${s.courage}, gossip ${s.gossip}, wealth ${s.wealth}.
 PERSONA: ${persona || "none yet"}
 
@@ -435,6 +470,19 @@ ${turns.length ? turns.join("\n") : "- (nothing said yet)"}
 
 SCENE
 ${scene}`;
+}
+
+/** The garrison and the customs: what their duty is, and what it is not (they never fight or arrest). */
+function dutyOf(db: DB, r: Resident): string {
+  const police = `You never fight and never arrest anyone: thieves and theft are for the police alone. If Jef speaks of a theft, a thief or being robbed, tell him to report it at ${POLICE_POST}.`;
+  if (r.trade === "customs")
+    return `\nDUTY: a customs officer of the port. You check the goods landed on the quays against the ships' papers and write them in your book, and you watch for smuggled tobacco, gin and coffee. ${police}`;
+  if (!isSoldier(r.trade)) return "";
+  const post = GUARD_POSTS.find((g) => r.work.place === `post:${g.id}`);
+  const base = `\nDUTY: a soldier of the line infantry in the garrison of Antwerp, the kingdom's fortress. You drew a bad number in the militia lottery at home (or stand in for a richer man who paid), and serve your time for a few centimes a day. ${police}`;
+  if (r.trade === "sentry") return `${base} Now you stand sentry${post ? ` at ${post.label}` : ""}: you may not leave your post or let anyone through, and you keep talk short.`;
+  if (r.trade === "corporal") return `${base} You are the corporal of the guard${post ? ` at ${post.label}` : ""}: you bring out the relief every two hours.`;
+  return `${base} Off duty now: out with your comrade until the tattoo calls you back to ${placeLabel(db, "barracks")}.`;
 }
 
 async function generate(db: DB, r: Resident, sess: Session, scene: string, runner?: Runner): Promise<ResidentLine | null> {

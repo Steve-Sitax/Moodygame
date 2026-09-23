@@ -16,7 +16,7 @@ type P = [number, number];
 const ROADS: P[][] = [
   // the quay road behind the railway: the Werf, the Steenplein, the Vismarkt, the Rijnkaai
   // (over the Vismarkt it keeps to the omnibus lane at z 8.3, clear of the market and its lamps)
-  [[-336, 11], [-262, 10], [-205, 8.5], [-160, 12], [-140, 8.3], [-132, 8.3], [-124, 8.3], [-116, 8.3], [-108, 8.3], [-100, 8.3], [-92, 8.3], [-60, 17], [0, 18], [60, 24], [96, 27]],
+  [[-336, 11], [-262, 10], [-200, 13], [-160, 12], [-140, 8.3], [-132, 8.3], [-124, 8.3], [-116, 8.3], [-108, 8.3], [-100, 8.3], [-92, 8.3], [-60, 17], [0, 18], [60, 24], [96, 27]],
   // from the quays up to the Grote Markt
   [[-270, 10], [-254, 60], [-254, 94]],
   [[-180, 20], [-230, 40], [-254, 94]],

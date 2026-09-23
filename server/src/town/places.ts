@@ -15,7 +15,9 @@ export type WorkKind =
   | "roam" // walk about the place (carters, sailors, boatmen, errand boys)
   | "inside" // work indoors: go in at the door and vanish (clerks, maids, seamstresses)
   | "beg" // stand or sit by a church door or a bridge
-  | "post"; // stand at one point (employers, the priest at his door)
+  | "post" // stand at one point (employers, the priest at his door)
+  | "guard" // a sentry at his post (at), relieved every two hours from the guard room (garrison.ts)
+  | "inspect"; // a customs officer: from one landing of goods to the next (route), checking and writing
 
 export interface Place {
   id: string;
@@ -176,7 +178,9 @@ export type TradeId =
   | "police" | "priest" | "sexton" | "lamplighter" | "beggar" | "thief" | "retired"
   | "child" | "street_child" | "errand_boy" | "infant"
   // the employers of the job board (one each)
-  | "foreman" | "fish_merchant" | "water_bailiff" | "brewer";
+  | "foreman" | "fish_merchant" | "water_bailiff" | "brewer"
+  // the garrison and the customs (garrison.ts): they walk, stand and talk; they never fight or arrest
+  | "soldier" | "sentry" | "corporal" | "customs";
 
 export interface TradeDef {
   label: string;
@@ -232,6 +236,10 @@ export const TRADES: Record<TradeId, TradeDef> = {
   fish_merchant: { label: "fish merchant", work: "post", faction: "burgerij", wealth: [5, 7], bias: { greed: 2 } },
   water_bailiff: { label: "sergeant of the water police", work: "post", faction: "politie", wealth: [3, 5], bias: { honesty: 1, temper: 1 } },
   brewer: { label: "brewer", work: "post", faction: "burgerij", wealth: [6, 8], bias: { warmth: 1, greed: 1 } },
+  soldier: { label: "soldier of the line", work: "inside", faction: null, wealth: [0, 1], bias: { courage: 2, piety: -1, gossip: 1 } },
+  sentry: { label: "soldier of the line, on guard", work: "guard", faction: null, wealth: [0, 1], bias: { courage: 2, honesty: 1, warmth: -1 } },
+  corporal: { label: "corporal of the guard", work: "guard", faction: null, wealth: [0, 2], bias: { temper: 1, honesty: 1, courage: 2 } },
+  customs: { label: "customs officer", work: "inspect", faction: null, wealth: [2, 4], bias: { honesty: 1, greed: 1, warmth: -1 } },
 };
 
 /** The board's employers who live in the town: fixed ids, so the job board can name them. */

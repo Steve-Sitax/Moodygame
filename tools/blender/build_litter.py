@@ -156,9 +156,15 @@ def paint_gutter(seed, w=64, h=16):
     img[..., 1] = 0.06 + 0.04 * n
     img[..., 2] = 0.04 + 0.03 * n
     img[..., 3] = core * (0.72 + 0.2 * n)
-    # a lighter slick on the surface now and then, and scraps of straw carried along
-    sl = vnoise(rng, w, h, 8, 2) > 0.72
-    img[sl & (core > 0.5), :3] = (0.2, 0.19, 0.16)
+    # the wet shine: a pale line of sky along the water's edge and glints on it, a lighter
+    # slick now and then, scraps of straw carried along
+    edge = np.clip(1 - np.abs(d - 0.2) / 0.05, 0, 1) * (vnoise(rng, w, h, 10, 2) > 0.35)
+    img[..., :3] = img[..., :3] * (1 - edge[..., None]) + np.array((0.34, 0.35, 0.36)) * edge[..., None]
+    img[..., 3] = np.maximum(img[..., 3], edge * 0.8)
+    sl = vnoise(rng, w, h, 8, 2) > 0.7
+    img[sl & (core > 0.5), :3] = (0.24, 0.24, 0.23)
+    gl = (rng.random((h, w)) < 0.05) & (core > 0.6)
+    img[gl, :3] = (0.4, 0.41, 0.42)
     strokes(img, rng, 5, (0.55, 0.46, 0.25), 6, alpha=0.9, angle=0.0)
     return img
 
@@ -246,7 +252,7 @@ def paint_coal_dust(seed, s=32):
 def paint_dung_flat(seed, s=32):
     """Trodden horse dung: a flattened brown-green splat, straw fibres in it."""
     rng = np.random.default_rng(seed)
-    img = decal(seed, s, s, (0.2, 0.16, 0.07), 0.95, amt=0.35, edge=0.2, cells=6, hole=0.25)
+    img = decal(seed, s, s, (0.33, 0.27, 0.12), 0.95, amt=0.35, edge=0.2, cells=6, hole=0.25)
     tmp = img.copy()
     strokes(tmp, rng, 8, (0.42, 0.35, 0.18), 5)
     inside = img[..., 3] > 0.4
@@ -315,7 +321,7 @@ def paint_oil(seed, s=32):
     return img
 
 
-def paint_muck(seed, s=32, rgb=(0.13, 0.1, 0.06)):
+def paint_muck(seed, s=32, rgb=(0.2, 0.14, 0.07)):
     """Wet trodden mud and dung: dark, uneven, lighter where it dries."""
     rng = np.random.default_rng(seed)
     img = decal(seed, s, s, rgb, 0.85, amt=0.35, edge=0.35, cells=5)
@@ -328,7 +334,7 @@ def paint_muck(seed, s=32, rgb=(0.13, 0.1, 0.06)):
 
 def paint_guts(seed, s=16):
     rng = np.random.default_rng(seed)
-    img = decal(seed, s, s, (0.35, 0.1, 0.08), 0.9, amt=0.35, edge=0.2, cells=4, hole=0.3)
+    img = decal(seed, s, s, (0.3, 0.12, 0.1), 0.85, amt=0.35, edge=0.2, cells=4, hole=0.3)
     m = (rng.random((s, s)) < 0.15) & (img[..., 3] > 0.3)
     img[m, :3] = (0.55, 0.42, 0.36)
     return img
@@ -418,8 +424,8 @@ DECAL_ATLAS = Atlas(256)
 # flat marks: name -> (painter, drawn width m, drawn depth m)
 DECALS = {
     "muck_0": (lambda: paint_muck(501), 1.6, 1.3),
-    "muck_1": (lambda: paint_muck(502, rgb=(0.11, 0.09, 0.06)), 2.2, 1.4),
-    "muck_2": (lambda: paint_muck(503, rgb=(0.15, 0.12, 0.07)), 1.1, 1.0),
+    "muck_1": (lambda: paint_muck(502, rgb=(0.17, 0.13, 0.07)), 2.2, 1.4),
+    "muck_2": (lambda: paint_muck(503, rgb=(0.22, 0.17, 0.08)), 1.1, 1.0),
     "dungflat_0": (lambda: paint_dung_flat(511), 0.45, 0.4),
     "dungflat_1": (lambda: paint_dung_flat(512), 0.6, 0.45),
     "straw_0": (lambda: paint_straw(521), 0.8, 0.8),
@@ -442,14 +448,14 @@ DECALS = {
     "glass_0": (lambda: paint_glass(584), 0.45, 0.45),
     "shells_0": (lambda: paint_shellgrit(585), 0.8, 0.7),
     "drain": (lambda: paint_drain(586), 0.5, 0.5),
-    "gutter": (lambda: paint_gutter(590), 1.6, 0.36),
+    "gutter": (lambda: paint_gutter(590), 1.6, 0.5),
 }
 
 
 def build_atlases():
     A = SOLID_ATLAS
-    A.add("dung", flat(1, 32, 32, (0.26, 0.21, 0.1), 0.35, cells=6, speck=0.15))
-    A.add("dung_old", flat(2, 32, 32, (0.19, 0.16, 0.1), 0.3, cells=6, speck=0.1))
+    A.add("dung", flat(1, 32, 32, (0.38, 0.32, 0.15), 0.35, cells=6, speck=0.15))
+    A.add("dung_old", flat(2, 32, 32, (0.4, 0.36, 0.27), 0.3, cells=6, speck=0.1))
     straw = flat(3, 32, 32, (0.55, 0.45, 0.24), 0.2)
     strokes(straw, np.random.default_rng(3), 40, (0.72, 0.6, 0.33), 12, angle=0.1)
     A.add("straw", straw)
@@ -474,6 +480,13 @@ def build_atlases():
     A.add("mussel", flat(18, 16, 16, (0.08, 0.09, 0.13), 0.3))
     A.add("mussel_in", flat(19, 16, 16, (0.5, 0.52, 0.58), 0.2))
     A.add("oyster", flat(20, 16, 16, (0.5, 0.48, 0.42), 0.35, speck=0.25))
+    sh = flat(36, 32, 32, (0.1, 0.1, 0.12), 0.3, speck=0.0)
+    rs = np.random.default_rng(36)
+    m = rs.random((32, 32)) < 0.3
+    sh[m, :3] = np.array((0.55, 0.53, 0.5)) * (0.7 + 0.5 * rs.random((m.sum(), 1)))
+    m = rs.random((32, 32)) < 0.12
+    sh[m, :3] = (0.36, 0.34, 0.3)
+    A.add("shells", sh)
     A.add("glass_green", flat(21, 16, 16, (0.12, 0.2, 0.12), 0.25))
     A.add("glass_brown", flat(22, 16, 16, (0.22, 0.12, 0.05), 0.25))
     A.add("crock", flat(23, 16, 16, (0.46, 0.28, 0.14), 0.2))
@@ -497,7 +510,7 @@ def build_atlases():
     A.add("tail", flat(29, 8, 8, (0.46, 0.38, 0.36), 0.15))
     A.add("paper", flat(30, 16, 16, (0.7, 0.67, 0.58), 0.15))
     A.add("iron", flat(31, 16, 16, (0.12, 0.11, 0.1), 0.3))
-    A.add("refuse", flat(32, 32, 32, (0.2, 0.17, 0.12), 0.4, cells=8, speck=0.2))
+    A.add("refuse", flat(32, 32, 32, (0.3, 0.26, 0.19), 0.45, cells=8, speck=0.2))
     man = flat(33, 32, 32, (0.17, 0.12, 0.06), 0.35, cells=6, speck=0.1)
     strokes(man, np.random.default_rng(33), 30, (0.5, 0.41, 0.22), 7)
     A.add("manure", man)
@@ -761,7 +774,7 @@ def dung(seed, n, spread, cell="dung"):
     for k in range(n):
         a = rng.random() * 2 * math.pi
         d = rng.random() * spread
-        r = 0.045 + rng.random() * 0.02
+        r = 0.055 + rng.random() * 0.025
         z = r * 0.6 + (0.05 if k >= n - 2 and n > 4 else 0)
         m.lump((math.cos(a) * d, math.sin(a) * d, z), (r, r * 0.9, r * 0.8), cell, seed * 10 + k, detail=0 if k < 2 else -1)
     for k in range(3):
@@ -949,7 +962,7 @@ def oysters(seed, n=5):
 
 def shell_heap():
     m = Mesh(ao=0.1)
-    m.mound(0.42, 0.34, 0.12, "mussel", 90, rings=3, sides=8, jit=0.35)
+    m.mound(0.42, 0.34, 0.12, "shells", 90, rings=3, sides=8, jit=0.35)
     rng = np.random.default_rng(91)
     for k in range(10):
         a = rng.random() * 6.28
@@ -1145,9 +1158,9 @@ def dung_barrow():
 
 def build_models():
     B = []
-    B.append(("dung_0", dung(1, 5, 0.09)))
-    B.append(("dung_1", dung(2, 7, 0.13)))
-    B.append(("dung_2", dung(3, 3, 0.06, cell="dung_old")))
+    B.append(("dung_0", dung(1, 6, 0.12)))
+    B.append(("dung_1", dung(2, 8, 0.16)))
+    B.append(("dung_2", dung(3, 4, 0.1, cell="dung_old")))
     B.append(("straw_heap", straw_heap()))
     B.append(("straw_wisp", straw_wisp()))
     B.append(("slats_0", slats(10)))
@@ -1181,6 +1194,10 @@ def build_models():
     B.append(("refuse_heap", refuse_heap()))
     B.append(("manure_heap", manure_heap()))
     B.append(("dung_barrow", dung_barrow()))
+    # one quad that carries the flat marks' atlas into the glb (the game builds those quads itself)
+    carrier = Mesh(ao=0)
+    carrier.face([(0, 0, 0), (0.1, 0, 0), (0.1, 0.1, 0), (0, 0.1, 0)], "muck_0", uvs=[(0, 0), (1, 0), (1, 1), (0, 1)], mat=DECAL)
+    B.append(("decal_atlas", carrier))
     meta = {
         "decals": {k: {"cell": list(DECAL_ATLAS.cells[k]), "w": w, "d": d} for k, (_fn, w, d) in DECALS.items()},
         "decalSize": [DECAL_ATLAS.W, DECAL_ATLAS.H],

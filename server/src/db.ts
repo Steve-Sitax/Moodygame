@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
-import { RESIDENT_SCHEMA, dropTownCache, ensureTown, repairTown } from "./town/store.ts";
+import { RESIDENT_SCHEMA, dropTownCache, ensureGarrison, ensureTown, repairTown } from "./town/store.ts";
 
 // SQLite schema from docs/04-data-model.md. Only the server writes.
 // Delete data/game.sqlite to start over.
@@ -126,6 +126,8 @@ export function openDb(file: string): DB {
   // the town's residents (M3e): made once per game, also for a save from before M3e
   ensureTown(db);
   repairTown(db);
+  // the garrison and the customs (town/garrison.ts): an older save gets them once, added in place
+  ensureGarrison(db);
   return db;
 }
 

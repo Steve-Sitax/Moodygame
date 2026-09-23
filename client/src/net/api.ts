@@ -152,7 +152,7 @@ export interface TalkLine {
 export type Pt = [number, number];
 export type Act = "home" | "work" | "tavern" | "play" | "market" | "church" | "stroll" | "loiter";
 export type Seg = [number, number, Act, string?];
-export type WorkKind = "haul" | "stall" | "shop" | "tavern" | "patrol" | "roam" | "inside" | "beg" | "post";
+export type WorkKind = "haul" | "stall" | "shop" | "tavern" | "patrol" | "roam" | "inside" | "beg" | "post" | "guard" | "inspect";
 
 export interface WorkSpec {
   place: string;
@@ -161,6 +161,8 @@ export interface WorkSpec {
   a?: Pt;
   b?: Pt;
   route?: Pt[];
+  /** Inspect (customs): which way to face at each point of the route. */
+  faces?: number[];
   door?: Pt;
   stall?: number;
   shop?: string;
@@ -181,6 +183,8 @@ export interface TownResident {
   work: WorkSpec;
   sched: { day: Seg[]; sunday: Seg[] };
   dog: { name: string; look: string } | null;
+  /** The garrison: the comrade he walks out or stands guard with (server town/garrison.ts). */
+  mate?: string | null;
   wares: Ware[];
 }
 

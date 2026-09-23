@@ -3,6 +3,7 @@ import { psx, psxUniforms, MAX_LAMPS } from "../retro/psx";
 import { makeTextures, signTexture, glowTexture, type Textures } from "./textures";
 import { box, cyl, rod, rectAround, inRect, type Rect } from "./geom";
 import SPOT_TABLE from "../../../shared/spots.json";
+import { steenHeightAt, steenKeepOut } from "./steenramp";
 import CITY_DATA from "../../../shared/city.json";
 import { buildCity, doorSpot, edgeZ, WALL, WATER, OUTSIDE, type CityWorld } from "./city";
 import { dressCity, loadProps } from "./props3d";
@@ -18,6 +19,7 @@ import { buildVegetation } from "./vegetation";
 import { buildTrees3D } from "./trees3d";
 import { applyDirt } from "./dirt";
 import { createFires, type Fires } from "./fire";
+import { createLitter, type Litter } from "./litter";
 import { createStreetLife, type StreetLife } from "./streetlife";
 import { tradeKeepOut } from "./trades";
 import { marketKeepOut } from "../game/market";
@@ -286,7 +288,7 @@ export function buildRijnkaai(): World {
     maxZ: Math.max(z0, z1) + 0.9,
   }));
   // M3i: the market squares and the trades' workshops (game/market.ts, world/trades.ts): nothing else put there
-  const workplaces = [...marketKeepOut(), ...tradeKeepOut()];
+  const workplaces = [...marketKeepOut(), ...tradeKeepOut(), ...steenKeepOut()];
   // the railway gate of the Werf store (world/railgate.ts): built now, so its collider is there
   // before the train looks along its line
   const railGate = createRailGate(scene, {
@@ -310,6 +312,8 @@ export function buildRijnkaai(): World {
   let quayKit: QuayFurniture | null = null;
   // the fires in the tar barrels on the quays (world/fire.ts)
   let fires: Fires | null = null;
+  // the filth of 1873: dung, straw, gutters, ash, fish waste, heaps, rats (world/litter.ts)
+  let litter: Litter | null = null;
   city.ready
     .then(() => dressCity(scene, city.flags, { keepOut: propsKeepOut }))
     .then((d) => {
@@ -331,6 +335,16 @@ export function buildRijnkaai(): World {
         scene,
         qf.sites.filter((q) => q.kind.startsWith("tar_fire")).map((q) => ({ x: q.x, y: 0.12 + 0.6, z: q.z, size: 0.9 })),
       );
+      return createLitter(scene, city.flags, {
+        avoid: [...colliders, ...craneRunways, ...steenKeepOut()],
+        quaySites: qf.sites,
+        quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
+        swimFree,
+        waterY: WATER_Y,
+      }).then((l) => {
+        litter = l;
+        colliders.push(...l.colliders);
+      });
     })
     .catch((e) => console.warn("props, streetlife or quay furniture did not load", e));
   // drays and handcarts going round the quays (world/traffic.ts); they stop for you
@@ -353,7 +367,7 @@ export function buildRijnkaai(): World {
     .then(() =>
       buildVegetation(scene, city.flags, {
         trees: (CITY_DATA as unknown as { decor?: { trees?: Array<[number, number]> } }).decor?.trees ?? [],
-        avoid: [...trackKeepOut(trackData), ...omnibusLane],
+        avoid: [...trackKeepOut(trackData), ...omnibusLane, ...steenKeepOut()],
       }),
     )
     .catch((e) => console.warn("vegetation did not load", e));
@@ -539,7 +553,12 @@ export function buildRijnkaai(): World {
             waterY: WATER_Y,
             spareHorses: OMNIBUS_HORSES,
             gate: railGate,
-            raised: { add: (d) => raised.add(d) },
+            raised: {
+              add: (d) => {
+                raised.add(d);
+                raisedLow = Math.min(raisedLow, d.y);
+              },
+            },
           });
           for (const r of railway.colliders()) dynamic.add(r); // added once: the rects move in place
           // the horse omnibuses, quay and town lines (world/omnibus.ts), their horses from the same pool
@@ -649,6 +668,8 @@ export function buildRijnkaai(): World {
     if (onPontoon(x, z)) return pontoonY * THREE.MathUtils.clamp(-z / PONTOON.gangway, 0, 1);
     const st = steps.heightAt(x, z);
     if (st) return st.y;
+    const sh = steenHeightAt(x, z); // Het Steen's courtyard and ramp (M3i)
+    if (sh !== null) return sh;
     return 0;
   };
   const onPier = (x: number, z: number) => x > PIER.minX && x < PIER.maxX && z > PIER.minZ && z < PIER.maxZ;
@@ -788,11 +809,29 @@ export function buildRijnkaai(): World {
     for (const b of bridgeRects) if (x > Math.min(b[0], b[2]) && x < Math.max(b[0], b[2]) && z > Math.min(b[1], b[3]) && z < Math.max(b[1], b[3])) return true;
     return false;
   };
-  /** Small walkable decks up in the air, railed all round (M3g: the cranes' machinery decks; moved in place). */
+  /**
+   * Walkable areas up in the air (M3g: the cranes' galleries, doorways and cabins; moved in place).
+   * Overlapping areas make one place; its edges are rails and walls. Where two overlap, the higher
+   * floor counts (the cabin a step up from the gallery).
+   */
   const raised = new Set<RaisedDeck>();
+  /** The lowest of them: anyone walking below it (everyone on the ground) skips them all. */
+  let raisedLow = Infinity;
   const raisedAt = (x: number, z: number, feet: number): RaisedDeck | null => {
-    for (const d of raised) if (Math.abs(feet - d.y) < 0.8 && x > d.minX && x < d.maxX && z > d.minZ && z < d.maxZ) return d;
-    return null;
+    if (feet < raisedLow - 0.8) return null;
+    let best: RaisedDeck | null = null;
+    for (const d of raised) {
+      if (Math.abs(feet - d.y) < 0.8 && x > d.minX && x < d.maxX && z > d.minZ && z < d.maxZ && (!best || d.y > best.y)) best = d;
+    }
+    return best;
+  };
+  /** Up there: may you stand at (x, z)? Well inside one of the areas, a step up or down at most. */
+  const raisedFree = (x: number, z: number, r: number, feet: number) => {
+    const m = r * 0.5;
+    for (const d of raised) {
+      if (Math.abs(feet - d.y) <= STEP && x > d.minX + m && x < d.maxX - m && z > d.minZ + m && z < d.maxZ - m) return true;
+    }
+    return false;
   };
   const hits = (x: number, z: number, r: number, feet: number) => {
     for (const c of colliders) if (inRect(c, x, z, r) && blocks(c, feet)) return true;
@@ -801,9 +840,8 @@ export function buildRijnkaai(): World {
     return false;
   };
   function walkFree(fx: number, fz: number, x: number, z: number, r: number, feet: number, laden: boolean): boolean {
-    // up on a raised deck (a crane's machinery deck): railed all round, nothing else counts
-    const up = raisedAt(fx, fz, feet);
-    if (up) return x > up.minX + r * 0.5 && x < up.maxX - r * 0.5 && z > up.minZ + r * 0.5 && z < up.maxZ - r * 0.5;
+    // up on a raised deck (a crane's gallery and cabin): railed and walled all round, nothing else counts
+    if (raisedAt(fx, fz, feet)) return raisedFree(x, z, r, feet);
     const f = floorAt(x, z);
     if (f === null) {
       // off the edge, into the Schelde: never with goods in your arms, never over a rail
@@ -1090,6 +1128,7 @@ export function buildRijnkaai(): World {
     if (camera && !devView) ambient.update(t, dt, camera, dayNow, weatherNow);
     street?.update(t, dt, lampsLit, camera ?? undefined);
     quayKit?.update(t, dt, lampsLit, camera ?? undefined);
+    litter?.update(t, dt, camera ?? undefined);
     fires?.update(t);
     lantern.intensity = 7 * (0.92 + Math.sin(t * 5.1) * 0.04 + Math.sin(t * 13.7) * 0.03);
     waterTex.offset.x = t * 0.004;

@@ -37,6 +37,7 @@ export const BOAT_NAMES = [
   "pontoon_section",
   "portal_crane",
   "hand_crane",
+  "liner",
 ] as const;
 export type BoatName = (typeof BOAT_NAMES)[number];
 export type CraneKind = "portal_crane" | "hand_crane";
@@ -167,6 +168,7 @@ const MOTION: Record<string, [number, number, number, number]> = {
   rowboat: [0.05, 0.035, 0.015, 3.0],
   punt: [0.045, 0.03, 0.012, 3.2],
   pontoon_section: [0.008, 0.002, 0.001, 7.0],
+  liner: [0.015, 0.002, 0.0008, 11.0],
 };
 
 const DOUBLE = new Set(["shrouds", "lattice", "flag", "canvas", "canvas_tan", "tarp", "washing"]);
@@ -310,11 +312,13 @@ export interface MovingShip {
   heading: number;
   /** Metres a second. */
   speed: number;
-  /** Has a funnel and a steam whistle: steamer, paddle steamer, tug, paddle tug. */
+  /** Has a funnel and a steam whistle: steamer, paddle steamer, tug, paddle tug, the liner. */
   steam: boolean;
+  /** Lying at anchor (world/anchorage.ts): no engine, a deep blast now and then. */
+  anchored?: boolean;
 }
 
-const STEAM = new Set<BoatName>(["steamer", "paddle_tug", "tug"]);
+const STEAM = new Set<BoatName>(["steamer", "paddle_tug", "tug", "liner"]);
 export const isSteam = (k: BoatName): boolean => STEAM.has(k);
 const movingSources = new Set<(out: MovingShip[]) => void>();
 const movingOut: MovingShip[] = [];

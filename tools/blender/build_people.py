@@ -10,6 +10,9 @@ street children, a gentleman, a priest, a police agent, a sailor in oilskins.
 And the town, residents with homes and trades: a baker, a shopkeeper, a
 publican, a clerk, an old man, a beggar, two wives, a shopkeeper's wife, an old
 woman, an urchin and a second girl (appended after the crowd; TOWN is the first).
+And the garrison and the customs (server town/garrison.ts, appended last; GARRISON is the
+first): a soldier of the line walking out, a corporal, a sentry with his rifle at the
+shoulder, and a customs officer with a sabre and his book.
 PS1-era people: lofted rings, 600 to 1000 triangles each, one 128x128 texture per character painted
 here in code (our own work, nothing downloaded). Children are the same body
 at a smaller scale with a bigger head (hs).
@@ -36,6 +39,9 @@ export turns it back to Y up.
 crowd_cast_faces.png and crowd_poses.png (push, sack, sit, carry, behind, lean, walks);
 and the town: town_cast.png, town_cast_back.png, town_cast_faces.png, town_poses.png,
 and town_fog.png (crowd and town at 10 m in the game's fog, 480x270, the middle band blown up 4x).
+--garrison renders the garrison: data/shots/garrison_cast.png (front), garrison_back.png,
+garrison_poses.png (rifle_idle, rifle_walk, rifle_talk, write, walks) and garrison_fog.png
+(at 10 m in the game's fog, 480x270, blown up 4x).
 --out writes the .glb somewhere else (for trials; the game reads the default).
 """
 
@@ -55,6 +61,7 @@ if "--out" in sys.argv:
 SHOTS = os.path.join(ROOT, "data", "shots")
 PREVIEW = "--preview" in sys.argv
 CAST = "--cast" in sys.argv
+GARRISON_SHOTS = "--garrison" in sys.argv
 
 TEX = 128
 # Texture atlas cells (x, y, w, h) in pixels, y from the bottom.
@@ -232,8 +239,37 @@ PEOPLE = [
     dict(FEMALE, name="girl_b", h=1.18, hs=1.22, sh=0.166, skin=0xd0a488, hair=0xa87a40, face="woman", age=0.0,
          dress=0x2e4a3e, plaid=0x8a3a2a, collar=0xc0b8a0, lower="skirt", lower_col=0x2e4a3e, hem=0.22,
          apron=0xcac2ae, boots=0x2a1e16),
+
+    # ---- the garrison and the customs (server town/garrison.ts). Belgian line infantry about 1873
+    # (sources in the garrison note): a dark blue tunic with red piping at the collar and cuffs, brass
+    # buttons, a black belt; blue-grey trousers with a red stripe; the dark blue shako with a red
+    # pompom and a brass plate; the Albini-Braendlin rifle of 1867. The belt colour and the cut are
+    # not confirmed for 1873 (the plates found are of the 1880s-1914).
+    # a private walking out: shako, the bayonet in its scabbard on the left hip
+    dict(MALE, name="soldier", h=1.73, sh=0.204, skin=0xbc8c72, hair=0x5a4230, face="young_stubble", age=0.15,
+         tunic=0x1c2640, trousers=0x4e5868, stripe=0x9a2a22, boots=0x121010, hat="shako", hat_col=0x1a2034,
+         lower="tunic", stand_collar=0x9a2a22, buttons=0xb89a4a, pockets=False, piping=0x9a2a22, uniform=True,
+         props=["pompom", "bayonet"]),
+    # a corporal: the same, a moustache, two red stripes on each forearm
+    dict(MALE, name="soldier_b", h=1.77, sh=0.21, skin=0xb08068, hair=0x3a2c22, face="moustache", age=0.3,
+         tunic=0x1c2640, trousers=0x4e5868, stripe=0x9a2a22, boots=0x121010, hat="shako", hat_col=0x1a2034,
+         lower="tunic", stand_collar=0x9a2a22, buttons=0xb89a4a, pockets=False, piping=0x9a2a22, uniform=True,
+         stripes=0x9a2a22, props=["pompom", "bayonet"]),
+    # a sentry: cartridge pouches on the belt, the rifle with its bayonet fixed, upright at the right
+    # shoulder, the right hand at the butt ("portez armes": the clips rifle_idle, rifle_walk, rifle_talk)
+    dict(MALE, name="sentry", h=1.75, sh=0.207, skin=0xc09078, hair=0x2a221c, face="clean", age=0.1,
+         tunic=0x1c2640, trousers=0x4e5868, stripe=0x9a2a22, boots=0x121010, hat="shako", hat_col=0x1a2034,
+         lower="tunic", stand_collar=0x9a2a22, buttons=0xb89a4a, pockets=False, piping=0x9a2a22, uniform=True,
+         pouches=True, props=["pompom", "bayonet", "rifle"]),
+    # a customs officer of the port: a dark green tunic and kepi (the colour is not confirmed for Belgium
+    # in the 1870s), white metal buttons, a sabre (every rank carried one), his book in the left hand
+    dict(MALE, name="customs", h=1.76, sh=0.212, belly=0.03, skin=0xc09a84, hair=0x6a6258, face="gent", age=0.6,
+         tunic=0x243226, trousers=0x2a302c, stripe=0x5e6e50, boots=0x0e0e10, hat="kepi", hat_col=0x223024,
+         hat_band=0x5e6e50, lower="tunic", stand_collar=0x5e6e50, buttons=0xa8aaa4, pockets=True, uniform=True,
+         props=["sabre", "logbook"]),
 ]
 TOWN = [p["name"] for p in PEOPLE].index("baker")  # the first of the town; the crowd runs from 9 to here
+GARRISON = [p["name"] for p in PEOPLE].index("soldier")  # the first of the garrison
 
 
 # ---------------------------------------------------------------- mesh builder
@@ -671,6 +707,21 @@ def clothes(b, s):
                 row.append((math.sin(a) * (0.088 + dz * 0.5), 1.694 + dy, math.cos(a) * (0.1 + dz) - 0.006))
             rows.append(row)
         b.strip(rows, "head", "hat", sub=(0.0, 1.0, 0.0, 0.2))
+    elif hat == "shako":
+        # the line infantry's shako: a stiff drum a little narrower at the top, the top sloping down
+        # to the front, a black leather peak; the pompom is a prop
+        slope = lambda t: -0.014 * math.cos(t)  # noqa: E731
+        b.loft([ring(0, 1.686, -0.006, 0.088, 0.1, 0.104), ring(0, 1.722, -0.008, 0.087, 0.098, 0.102),
+                ring(0, 1.868, -0.016, 0.079, 0.089, 0.091, yoff=slope)], "head", "hat", 10, cap1=(0, -0.002, 0),
+               sub=(0.0, 1.0, 0.25, 1.0))
+        rows = []
+        for dz, dy in ((0.0, 0.0), (0.056, -0.03)):
+            row = []
+            for i in range(5):
+                a = math.radians(-56 + 28 * i)
+                row.append((math.sin(a) * (0.088 + dz * 0.5), 1.69 + dy, math.cos(a) * (0.1 + dz) - 0.006))
+            rows.append(row)
+        b.strip(rows, "head", "hat", sub=(0.0, 1.0, 0.0, 0.2))
     elif hat == "wide":
         # the priest's round hat: a wide flat brim, a low round crown
         hr = [ring(0, 1.692, -0.004, 0.086, 0.099, 0.101), ring(0, 1.7, -0.004, 0.2, 0.21, 0.21),
@@ -720,6 +771,33 @@ def clothes(b, s):
                phase=math.pi / 4, cap1=(0, -0.01, -0.004), sub=(0.5, 0.74, 0.0, 1.0))
         b.loft([ring(0.19, 0.93, -0.03, 0.02, 0.024), ring(0.18, 1.0, 0.0, 0.014, 0.03)], "hips", "prop", 4,
                phase=math.pi / 4, cap1=(0, 0.01, 0.01), sub=(0.76, 1.0, 0.0, 1.0))
+    if "pompom" in props:
+        # the red wool pompom on the front of the shako's top
+        b.loft([ring(0, 1.852, 0.07, 0.012, 0.012), ring(0, 1.876, 0.072, 0.024, 0.022), ring(0, 1.9, 0.07, 0.012, 0.012)],
+               "head", "prop", 6, cap0=(0, -0.006, 0), cap1=(0, 0.006, 0), sub=(0.0, 0.5, 0.0, 0.45))
+    if "bayonet" in props:
+        # the bayonet (or, with the rifle, its empty scabbard) on the left hip: black leather, a brass tip
+        b.loft([ring(0.196, 0.93, -0.035, 0.011, 0.02), ring(0.214, 0.47, -0.12, 0.008, 0.014)], "hips", "prop", 4,
+               phase=math.pi / 4, cap1=(0, -0.012, -0.002), sub=(0.5, 0.74, 0.0, 1.0))
+    if "rifle" in props:
+        # the Albini-Braendlin rifle of 1867 at the shoulder, bayonet fixed: held by the butt in the right
+        # hand, the arm down, the barrel upright in front of the shoulder. Bound to the right hand; the rifle
+        # clips keep that arm still. Stock and fore-end walnut, barrel and bayonet steel.
+        x = -sh + 0.012
+        zr = 0.078
+        b.loft([ring(x, 0.55, zr - 0.01, 0.017, 0.052), ring(x, 0.8, zr, 0.016, 0.03), ring(x, 0.96, zr, 0.015, 0.02),
+                ring(x, 1.72, zr + 0.004, 0.012, 0.015)], "handR", "prop", 4, phase=math.pi / 4,
+               cap0=(0, -0.004, 0), sub=(0.0, 0.5, 0.55, 1.0))
+        b.loft([ring(x, 1.7, zr + 0.004, 0.008, 0.008), ring(x, 1.9, zr + 0.004, 0.007, 0.007)], "handR", "prop", 4,
+               phase=math.pi / 4, sub=(0.75, 1.0, 0.0, 1.0))
+        b.loft([ring(x, 1.88, zr + 0.016, 0.006, 0.006), ring(x, 2.34, zr + 0.016, 0.002, 0.002)], "handR", "prop", 3,
+               cap1=(0, 0.01, 0), sub=(0.75, 1.0, 0.0, 1.0))
+    if "logbook" in props:
+        # the customs officer's book in the left hand: hanging down it lies along the hand; held up on the
+        # forearm (the clip write) it lies open and flat in front of him
+        x = sh + 0.004
+        b.loft([ring(x, 0.6, 0.035, 0.085, 0.014), ring(x, 0.84, 0.035, 0.085, 0.014)], "handL", "prop", 4,
+               p=12, phase=math.pi / 4, cap0=(0, 0, 0), cap1=(0, 0, 0), sub=(0.0, 0.5, 0.0, 1.0))
     if "sack_shoulder" in props:
         # a full grain sack lying front to back over the left shoulder
         x = sh + 0.01
@@ -1055,11 +1133,22 @@ def paint(s, seed):
             out = np.where(m(R <= 2), rgb(0x0a0a0c)[None, None, :], out)  # sash
         elif s.get("tunic"):
             out = P.cloth(s["tunic"], h, w, 0.05, 0.05)
-            out = np.where(m((ad < 0.7) & (R % 4 == 2) & (R > 4) & (R < 30)), rgb(0xb89a4a)[None, None, :], out)
-            out = np.where(m((np.abs(ad - 7.5) < 3) & (R == 21)), out * 0.6, out)  # breast pocket flaps
-            out = np.where(m((np.abs(ad - 7.5) < 0.6) & (R == 19)), rgb(0xb89a4a)[None, None, :], out)
+            btn = rgb(s.get("buttons", 0xb89a4a))
+            if s.get("piping"):
+                # red piping down the front edge, the buttons on it
+                edge = C - (w - 1) / 2  # one edge of the closure, not both
+                out = np.where(m((edge > 0.6) & (edge < 1.7) & (R > 3)), rgb(s["piping"])[None, None, :] * P.grain(h, w, 0.05), out)
+            out = np.where(m((ad < 0.7) & (R % 4 == 2) & (R > 4) & (R < 30)), btn[None, None, :], out)
+            if s.get("pockets", True):
+                out = np.where(m((np.abs(ad - 7.5) < 3) & (R == 21)), out * 0.6, out)  # breast pocket flaps
+                out = np.where(m((np.abs(ad - 7.5) < 0.6) & (R == 19)), btn[None, None, :], out)
             out = np.where(m(R <= 3), rgb(0x141414)[None, None, :] * P.grain(h, w, 0.05), out)  # belt
             out = np.where(m((R <= 3) & (ad < 1.8)), rgb(0xa08a4a)[None, None, :], out)  # buckle
+            if s.get("pouches"):
+                # two black cartridge pouches on the belt, either side of the buckle, with their flaps
+                pouch = (np.abs(ad - 7.5) < 2.6) & (R <= 6)
+                out = np.where(m(pouch), rgb(0x161412)[None, None, :] * P.grain(h, w, 0.05), out)
+                out = np.where(m(pouch & (R == 6)), rgb(0x2a2622)[None, None, :], out)
             out = np.where(m((np.abs(ad - 16) < 0.6) | (ad > 30.5)), out * 0.8, out)
         elif s.get("oilskin"):
             out = P.cloth(s["oilskin"], h, w, 0.05, 0.12) * P.sheen(h, w)
@@ -1168,6 +1257,9 @@ def paint(s, seed):
             out = np.where((R < 4)[..., None], out * (0.7 + 0.2 * (C % 2))[..., None], out)  # gathered cuff
         elif s.get("tunic"):
             out = np.where((R < 3)[..., None], rgb(s["stand_collar"])[None, None, :], out)
+            if s.get("stripes"):
+                # a corporal's two stripes round the forearm
+                out = np.where((((R >= 8) & (R <= 9)) | ((R >= 12) & (R <= 13)))[..., None], rgb(s["stripes"])[None, None, :] * P.grain(h, w, 0.05), out)
         elif s.get("oilskin"):
             out *= P.sheen(h, w)
         if s.get("rolled"):
@@ -1201,6 +1293,9 @@ def paint(s, seed):
             out *= P.check(h, w)
         out = np.where((ad < 0.7)[..., None], out * 1.12, out)  # crease
         out = np.where((np.abs(ad - 15.5) < 0.6)[..., None], out * 0.8, out)  # outer seam
+        if s.get("stripe"):
+            # the uniform's stripe down the side seams (the legs share one cell: both sides show it)
+            out = np.where((np.abs(ad - 7.75) < 0.9)[..., None], rgb(s["stripe"])[None, None, :] * P.grain(h, w, 0.05), out)
         out *= (0.84 + 0.16 * V)[..., None]
         if s.get("jacket_style") == "ragged":
             out = np.where(((np.abs(U - 0.5) < 0.1) & (np.abs(V - 0.1) < 0.1))[..., None], out * 1.35, out)
@@ -1220,6 +1315,8 @@ def paint(s, seed):
             if s.get("trouser_check"):
                 out *= P.check(h, w)
             out = np.where((ad < 0.7)[..., None], out * 1.1, out)
+            if s.get("stripe"):
+                out = np.where((np.abs(ad - 7.75) < 0.9)[..., None], rgb(s["stripe"])[None, None, :] * P.grain(h, w, 0.05), out)
             top = 0.16
         if s.get("barefoot"):
             # trousers cut off ragged above the ankle, dirty bare shins
@@ -1297,7 +1394,10 @@ def paint(s, seed):
             out = np.where(m((U < 0.03) | (U > 0.97)), out * 0.8, out)  # side edges
         elif low == "tunic":
             out = P.cloth(s["tunic"], h, w, 0.05, 0.05)
-            out = np.where(m((ad < 0.7) & (R % 6 == 2) & (R > 10)), rgb(0xb89a4a)[None, None, :], out)
+            if s.get("piping"):
+                edge = C - (w - 1) / 2
+                out = np.where(m((edge > 0.6) & (edge < 1.7) & (R < 28)), rgb(s["piping"])[None, None, :], out)
+            out = np.where(m((ad < 0.7) & (R % 6 == 2) & (R > 10)), rgb(s.get("buttons", 0xb89a4a))[None, None, :], out)
             out = np.where(m(ad < 0.6), out * 0.6, out)
             out = np.where(m(R >= 28), rgb(0x141414)[None, None, :], out)  # belt
             out = np.where(m(R <= 1), out * 0.7, out)
@@ -1345,8 +1445,16 @@ def paint(s, seed):
             out = np.where((R == 8)[..., None], out * 0.7, out)
             if s.get("badge"):  # a porter's numbered brass badge above the peak
                 out = np.where(((ad < 2.2) & (R >= 10) & (R <= 13))[..., None], rgb(0xb89a4a)[None, None, :], out)
+        elif kind == "shako":
+            out = np.where((R < 7)[..., None], rgb(0x0c0c0c)[None, None, :] * (1 + 0.4 * (R == 3))[..., None], out)  # peak
+            out = np.where(((R >= 8) & (R <= 10))[..., None], rgb(0x101010)[None, None, :] * P.grain(h, w, 0.04), out)  # leather band
+            out = np.where((R >= 29)[..., None], rgb(0x121212)[None, None, :], out)  # the leather top
+            plate = (ad < 2.4) & (R >= 13) & (R <= 21) & ~((ad > 1.2) & (R >= 19))
+            out = np.where(plate[..., None], rgb(0xb89a4a)[None, None, :] * (0.9 + 0.2 * (R % 2))[..., None], out)  # brass plate
+            out = np.where(((ad < 0.6) & (R >= 22) & (R <= 27))[..., None], rgb(0x7a2420)[None, None, :], out)  # the pompom's stem
         elif kind == "kepi":
-            out = np.where(((R >= 8) & (R <= 12))[..., None], out * 1.5, out)  # band
+            band = rgb(s["hat_band"])[None, None, :] if s.get("hat_band") else out * 1.5
+            out = np.where(((R >= 8) & (R <= 12))[..., None], band, out)  # band
             out = np.where(((ad < 1.6) & (R >= 13) & (R <= 17))[..., None], rgb(0xb89a4a)[None, None, :], out)
             out = np.where((R < 7)[..., None], rgb(0x0c0c0c)[None, None, :] * (1 + 0.4 * (R == 3))[..., None], out)
         elif kind == "wide":
@@ -1403,6 +1511,22 @@ def paint(s, seed):
         A = U < 0.5
         Bm = (U >= 0.5) & (U < 0.75)
         Cm = U >= 0.75
+        if s.get("uniform"):
+            # u 0-0.5: v < 0.5 red wool (the pompom), v > 0.5 walnut (the rifle); the customs: his book.
+            # u 0.5-0.74 black leather (scabbards); u 0.75-1 steel (barrel, bayonet), or brass (a sabre's hilt)
+            if "logbook" in props:
+                led = rgb(0x3a2a1c)[None, None, :] * P.grain(h, w, 0.06)
+                led = np.where(((C % 8 == 1) & (R > 1) & (R < h - 2))[..., None], rgb(0xc8c0a8)[None, None, :], led)
+                out = np.where(A[..., None], led, out)
+            else:
+                wool = rgb(0xa42a22)[None, None, :] * P.grain(h, w, 0.08)
+                walnut = rgb(0x5a3a22)[None, None, :] * P.grain(h, w, 0.07) * (0.9 + 0.15 * (R % 3 == 0))[..., None]
+                out = np.where((A & (V < 0.5))[..., None], wool, out)
+                out = np.where((A & (V >= 0.5))[..., None], walnut, out)
+            out = np.where(Bm[..., None], rgb(0x141312)[None, None, :] * P.grain(h, w, 0.05), out)
+            metal = rgb(0x70767c if "rifle" in props else 0xb8a060)[None, None, :] * P.grain(h, w, 0.06)
+            out = np.where(Cm[..., None], metal, out)
+            return out
         if "handcart" in props:
             # spoked wheels: v 0 the iron tyre, v 1 the hub
             wheel = rgb(0x1c1814)[None, None, :] * P.grain(h, w, 0.06)
@@ -1752,6 +1876,65 @@ def pose_sit(t):
     return pose
 
 
+def rifle_arm(pose):
+    """The rifle at the shoulder ("portez armes"): the right arm hangs still, the rifle upright in the hand."""
+    pose["armUpR"] = limb("R", fwd=-2, out=1)
+    pose["armLowR"] = RX(-2)
+    pose["handR"] = Quaternion()
+
+
+def pose_rifle_idle(t):
+    """A sentry at his post: stands straight, looks about now and then; the rifle does not move."""
+    pose = pose_idle(t)
+    p = 2 * math.pi * t
+    pose["spine"] = RX(-1 + 0.6 * math.sin(p * 2))
+    pose["hips"] = Quaternion()
+    for S in "LR":
+        pose["legUp" + S] = Quaternion()
+    pose["head"] = RZ(16 * math.sin(p) * math.sin(p * 0.5) ** 4) @ RX(1.0 * math.sin(p * 3))
+    pose["armUpL"] = limb("L", fwd=0, out=3)
+    pose["armLowL"] = RX(-4)
+    rifle_arm(pose)
+    return pose
+
+
+def pose_rifle_walk(t):
+    """Marching with the rifle at the shoulder: the left arm swings, the right stays down."""
+    pose = pose_walk(t, sw=21)
+    rifle_arm(pose)
+    return pose
+
+
+def pose_rifle_talk(t):
+    """A word with the relief: the left hand talks, the rifle stays at the shoulder."""
+    p = 2 * math.pi * t
+    pose = pose_rifle_idle(t)
+    g = math.sin(p * 2)
+    pose["head"] = RX(3 * math.sin(p * 3)) @ RZ(4 * math.sin(p))
+    pose["armUpL"] = limb("L", fwd=10 + 5 * g, out=8, twist=14)
+    pose["armLowL"] = RX(-(50 + 12 * math.sin(p * 2 + 0.6)))
+    pose["handL"] = RX(-(6 + 12 * math.sin(p * 4))) @ RZ(25)
+    return pose
+
+
+def pose_write(t):
+    """The customs officer: the book open on his left forearm in front of him, writing in it, looking
+    down; now and then he looks up at the goods."""
+    p = 2 * math.pi * t
+    pose = pose_idle(t)
+    look = max(0.0, math.sin(p)) ** 6  # a glance up once a loop
+    pose["neck"] = RX(10 - 12 * look)
+    pose["head"] = RX(12 - 14 * look + 1.5 * math.sin(p * 5)) @ RZ(6 * look)
+    pose["armUpL"] = limb("L", fwd=24, out=4, twist=28)
+    pose["armLowL"] = RX(-82)
+    pose["handL"] = RX(-4)
+    w = math.sin(p * 7)
+    pose["armUpR"] = limb("R", fwd=26, out=2, twist=34)
+    pose["armLowR"] = RX(-(80 + 4 * w))
+    pose["handR"] = RX(-14) @ RZ(-8 + 10 * w)
+    return pose
+
+
 CLIPS = [
     ("idle", pose_idle, 4.0, dict()),
     ("walk", pose_walk, 1.0, dict()),
@@ -1768,6 +1951,10 @@ CLIPS = [
     ("push_idle", pose_push_idle, 4.0, dict()),
     ("behind", pose_behind, 5.0, dict()),
     ("lean", pose_lean, 6.0, dict()),
+    ("rifle_idle", pose_rifle_idle, 6.0, dict()),
+    ("rifle_walk", pose_rifle_walk, 1.0, dict()),
+    ("rifle_talk", pose_rifle_talk, 3.0, dict()),
+    ("write", pose_write, 5.0, dict()),
 ]
 
 
@@ -2104,6 +2291,137 @@ def town_preview(chars, actions):
     out.save()
 
 
+GARRISON_POSES = [("sentry", "rifle_idle"), ("sentry", "rifle_walk"), ("sentry", "rifle_talk"), ("soldier", "walk"),
+                  ("soldier_b", "fold"), ("customs", "write"), ("customs", "walk"), ("police", "idle")]
+
+
+def garrison_preview(chars, actions):
+    """The garrison and the customs: garrison_cast (front, with the police agent and a docker for
+    comparison), garrison_back, garrison_poses, and garrison_fog (10 m in the game's fog)."""
+    scn = bpy.context.scene
+    acts = {a.name: a for a in actions}
+    byname = {c[2]["name"]: c for c in chars}
+
+    def use(ao, name):
+        ad = ao.animation_data_create()
+        for tr in list(ad.nla_tracks):
+            ad.nla_tracks.remove(tr)
+        ad.action = acts[name]
+        try:
+            if len(acts[name].slots):
+                ad.action_slot = acts[name].slots[0]
+        except AttributeError:
+            pass
+
+    for ao, _, _ in chars:
+        ao.location = B(0, -50, 0)
+        ao.rotation_euler = (0, 0, 0)
+    world = bpy.data.worlds.new("w_garrison")
+    world.color = (0.2, 0.22, 0.25)
+    scn.world = world
+    scn.render.engine = "BLENDER_WORKBENCH"
+    scn.display.shading.light = "STUDIO"
+    scn.display.shading.color_type = "TEXTURE"
+    scn.display.shading.show_backface_culling = False
+    scn.display.shading.show_specular_highlight = False
+    scn.view_settings.view_transform = "Standard"
+    cam_data = bpy.data.cameras.new("cam_garrison")
+    cam = bpy.data.objects.new("cam_garrison", cam_data)
+    scn.collection.objects.link(cam)
+    scn.camera = cam
+    bpy.ops.mesh.primitive_plane_add(size=60, location=(0, 0, 0))
+    floor = bpy.context.object
+    fm = bpy.data.materials.new("floor_garrison")
+    fm.diffuse_color = (0.12, 0.12, 0.12, 1)
+    floor.data.materials.append(fm)
+    os.makedirs(SHOTS, exist_ok=True)
+
+    def shoot(path, loc, look, lens, w, h, frame):
+        scn.frame_set(frame)
+        cam.location = loc
+        cam.rotation_euler = (look - loc).to_track_quat("-Z", "Y").to_euler()
+        cam_data.lens = lens
+        scn.render.resolution_x = w
+        scn.render.resolution_y = h
+        scn.render.filepath = path
+        bpy.ops.render.render(write_still=True)
+
+    row = [byname[n] for n in ("docker_a", "police", "soldier", "soldier_b", "sentry", "customs")]
+    gap = 0.95
+    n = len(row)
+    clip = {"sentry": "rifle_idle", "customs": "write"}
+    for i, (ao, _, s) in enumerate(row):
+        ao.location = B(i * gap - (n - 1) * gap / 2, 0, 0)
+        use(ao, clip.get(s["name"], "idle"))
+    shoot(os.path.join(SHOTS, "garrison_cast.png"), B(0, 1.2, 9.0), B(0, 1.0, 0), 50, 2000, 1000, 9)
+    shoot(os.path.join(SHOTS, "garrison_back.png"), B(0, 1.3, -9.0), B(0, 1.0, 0), 50, 2000, 1000, 9)
+    for ao, _, _ in chars:
+        ao.location = B(0, -50, 0)
+    # the poses: one copy each, turned a little
+    m = len(GARRISON_POSES)
+    copies = []
+    for i, (name, clipname) in enumerate(GARRISON_POSES):
+        ao, mo, s = byname[name]
+        if any(c[0] is ao for c in copies):
+            ao2 = ao.copy()
+            ao2.data = ao.data
+            scn.collection.objects.link(ao2)
+            mo2 = mo.copy()
+            scn.collection.objects.link(mo2)
+            mo2.parent = ao2
+            mo2.modifiers["rig"].object = ao2
+            ao = ao2
+            copies.append((ao2, mo2))
+        else:
+            copies.append((ao, None))
+        ao.location = B(i * 1.2 - (m - 1) * 0.6, 0, 0)
+        ao.rotation_euler = (0, 0, math.radians(35))
+        use(ao, clipname)
+    shoot(os.path.join(SHOTS, "garrison_poses.png"), B(0.5, 1.5, 12.5), B(0, 1.0, 0), 35, 2800, 1000, 7)
+    for ao, mo in copies:
+        if mo is not None:
+            bpy.data.objects.remove(mo)
+            bpy.data.objects.remove(ao)
+    for ao, _, _ in chars:
+        ao.location = B(0, -50, 0)
+        ao.rotation_euler = (0, 0, 0)
+    # the fog test: the row at 10 m, the game's camera, fog and 5-bit colour
+    for i, (ao, _, s) in enumerate(row):
+        ao.location = B(i * gap - (n - 1) * gap / 2, 0, 0)
+        use(ao, clip.get(s["name"], "idle"))
+    bpy.data.objects.remove(floor)
+    W, H, D = 480, 270, 10.0
+    cam_data.sensor_fit = "VERTICAL"
+    cam_data.angle_y = math.radians(75)
+    scn.render.film_transparent = True
+    path = os.path.join(SHOTS, "garrison_fog.png")
+    scn.frame_set(9)
+    cam.location = B(0, 1.6, D)
+    cam.rotation_euler = (B(0, 1.2, 0) - cam.location).to_track_quat("-Z", "Y").to_euler()
+    scn.render.resolution_x, scn.render.resolution_y = W, H
+    scn.render.filepath = path
+    bpy.ops.render.render(write_still=True)
+    scn.render.film_transparent = False
+    img = bpy.data.images.load(path)
+    px = np.array(img.pixels[:], dtype=np.float32).reshape(H, W, 4)
+    bpy.data.images.remove(img)
+    f = (D - 3.0) / (25.0 - 3.0)
+    fog = np.array(FOG, dtype=np.float32)
+    rgb_ = px[..., :3] * (1 - f) + fog * f
+    a = px[..., 3:4]
+    rgb_ = rgb_ * a + fog * (1 - a)
+    rgb_ = np.floor(rgb_ * 31 + 0.5) / 31
+    rgb_ = rgb_[80:190]
+    big = np.repeat(np.repeat(rgb_, 4, axis=0), 4, axis=1)
+    out = bpy.data.images.new("garrison_fog", W * 4, big.shape[0], alpha=False)
+    rgba = np.ones((big.shape[0], W * 4, 4), dtype=np.float32)
+    rgba[..., :3] = big
+    out.pixels.foreach_set(rgba.ravel())
+    out.filepath_raw = path
+    out.file_format = "PNG"
+    out.save()
+
+
 # ---------------------------------------------------------------- main
 
 def main():
@@ -2129,6 +2447,8 @@ def main():
     if CAST:
         cast_preview(chars, actions)
         town_preview(chars, actions)
+    if GARRISON_SHOTS:
+        garrison_preview(chars, actions)
 
 
 if __name__ == "__main__":

@@ -22,6 +22,7 @@ import { CraneClimb } from "./game/craneclimb";
 import { Deeds } from "./game/deeds";
 import { Rowing } from "./game/rowing";
 import { Market } from "./game/market";
+import { setLitterClock } from "./world/litter";
 import { createTrades } from "./world/trades";
 import { createSteenLife } from "./world/steenlife";
 import { api } from "./net/api";
@@ -150,7 +151,7 @@ if (import.meta.env.DEV) {
       { name: "Rijnkaai", x: 20, z: 20 },
       { name: "Werf", x: -270, z: 9 },
       { name: "Steenplein", x: -180, z: 20 },
-      { name: "Het Steen (gate)", x: -205, z: 31 },
+      { name: "Het Steen (ramp)", x: -202.2, z: 0.5 },
       { name: "Vismarkt", x: -118, z: 30 },
       { name: "Vleeshuis", x: -122, z: 84 },
       { name: "Grote Markt", x: -254, z: 90 },
@@ -214,6 +215,7 @@ function frame(): void {
   crowd.update(dt, player, player.camera);
   town.update(dt, player);
   market.update(dt, player, jobs.day.dayNum, jobs.day.hourF);
+  setLitterClock(jobs.day.dayNum, jobs.day.hourF);
   trades.update(elapsed, dt, player.camera, crowd.fogDistance);
   steenLife.update(dt, jobs.day.hourF, player.camera);
   deeds.update(dt, jobs.day.hourF);
@@ -435,6 +437,7 @@ if (import.meta.env.DEV) {
         crowd.update(dt, player, player.camera);
         town.update(dt, player);
         market.update(dt, player, jobs.day.dayNum, jobs.day.hourF);
+        setLitterClock(jobs.day.dayNum, jobs.day.hourF);
         trades.update(elapsed, dt, player.camera, crowd.fogDistance);
         steenLife.update(dt, jobs.day.hourF, player.camera);
         deeds.update(dt, jobs.day.hourF);

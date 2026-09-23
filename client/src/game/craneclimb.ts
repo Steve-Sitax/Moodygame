@@ -1,14 +1,16 @@
 import type { FirstPerson } from "../player/firstPerson";
 import type { World } from "../world/rijnkaai";
-import type { CraneLadder } from "../world/railway";
+import type { CraneLadder, CraneSpot } from "../world/railway";
 import type { Action } from "./runs";
 
 // Up a portal crane (M3g; Steve: "make the ladder climbable"). Each crane has an iron ladder up
-// a leg of its portal to the machinery deck behind the cabin. At the foot, E (or walking into the
-// rungs) starts the climb; W up, S down. At the top you step onto the deck, railed all round,
-// and look out over the quay and the ships; E at the ladder head climbs down. While you stand at
-// the foot, climb, or are up there, the crane stands still with its jib at rest (world/railway.ts
-// summon / occupy). Not with goods in your arms.
+// the back of its portal, caged over the upper part, to the gallery round the driver's cabin. At
+// the foot, E (or walking into the rungs) starts the climb; W up, S down. At the top you step onto
+// the gallery (M3g part 4): railed all round, walk it both sides of the cabin to the front and look
+// over the jib, go in at the open door (a step up), past the winch to the driver's window, and out
+// again; E at the ladder head climbs down. Nothing up there works the crane. While you stand at the
+// foot, climb, or are anywhere up there, the crane stands still with its jib at rest
+// (world/railway.ts summon / occupy). Not with goods in your arms.
 
 const REACH_FOOT = 1.4;
 const REACH_HEAD = 1.3;
@@ -99,6 +101,17 @@ export class CraneClimb {
       this.push += dt;
       if (this.push > 0.3) this.up(l);
     } else this.push = 0;
+  }
+
+  /**
+   * Places up on the climbable cranes for later jobs: a "crane_cabin" and a "crane_gallery" spot
+   * per crane you can climb (world/railway.ts CRANE_SPOTS), where the crane stands now (cranes
+   * travel). Not in shared/spots.json: the path check covers ground spots only.
+   */
+  spots(): CraneSpot[] {
+    return this.ladders()
+      .filter((l) => this.world.isFree(l.foot.x, l.foot.z, 0.3))
+      .flatMap((l) => l.spots);
   }
 
   /** Dev: state for checks. */

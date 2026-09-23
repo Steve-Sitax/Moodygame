@@ -67,11 +67,15 @@ export interface RailwayOptions {
    * waits till it stands open, and is hidden once it is wholly in the dark behind it.
    */
   gate?: { x: number; reach: number; amount(): number; want(open: boolean): void };
-  /** Small walkable decks up in the air (rijnkaai.ts): the cranes' machinery decks, moved in place. */
+  /** Walkable areas up in the air (rijnkaai.ts): the cranes' galleries and cabins, moved in place. */
   raised?: { add(d: RaisedDeck): void };
 }
 
-/** A walkable deck up in the air, railed all round (the world walks it at height y). */
+/**
+ * A walkable area up in the air (the world walks it at height y). Areas that overlap make one
+ * walkable place (a gallery round a cabin, a doorway, the cabin floor a step up); its edges are
+ * rails or walls: you cannot walk or fall off.
+ */
 export interface RaisedDeck {
   minX: number;
   maxX: number;
@@ -80,7 +84,20 @@ export interface RaisedDeck {
   y: number;
 }
 
-/** A crane's ladder, up a leg of the portal to the machinery deck behind the cabin. */
+/** A place up on a crane for jobs (M3g part 4): the driver's cabin, the gallery. Not in shared/spots.json. */
+export interface CraneSpot {
+  /** e.g. "crane_cabin_3" */
+  id: string;
+  kind: CraneSpotKind;
+  crane: number;
+  x: number;
+  z: number;
+  /** Feet height there. */
+  y: number;
+  label: string;
+}
+
+/** A crane's ladder, up the back of the portal to the gallery round the driver's cabin. */
 export interface CraneLadder {
   crane: number;
   /** Where you stand to climb, where you hang on the rungs, where you step off at the top. */
@@ -89,9 +106,12 @@ export interface CraneLadder {
   head: { x: number; z: number };
   /** The player's yaw that faces the ladder. */
   face: number;
-  /** Feet height at the top (the deck). */
+  /** Feet height at the top (the gallery). */
   top: number;
-  deck: RaisedDeck;
+  /** The walkable areas up there, in place (they move with the crane). */
+  decks: RaisedDeck[];
+  /** Its places for jobs, in place. */
+  spots: CraneSpot[];
   /** Standing still with its jib at rest: you may climb. */
   ready: boolean;
 }
@@ -167,13 +187,36 @@ const CRANE_WHEEL_R = 0.3;
 const CRANE_V = 0.42; // m/s along the runway
 const CRANE_GAP = 12; // never closer to the next crane on the runway
 const TRAVEL_HOOK = 6.8; // hook height for travelling
-/** The machinery deck behind the cabin (jib frame = crane frame with the jib at rest), and its height. */
-const DECK_LOCAL = { minX: -1.5, maxX: 1.5, minZ: -2.66, maxZ: -1.42 };
+/**
+ * Up on the crane (M3g part 4; build_boats.py portal_jib DECK_OUTLINE, RAIL_RIGHT, CAB): the gallery
+ * round the driver's cabin at DECK_Y, the doorway in the cabin's +x wall, and the cabin floor a step
+ * up. Jib frame = crane frame with the jib at rest (you only get up there with the jib at rest, and
+ * it stays so). Rects inside the rail and the walls; overlapping ones join (rijnkaai.ts raised decks).
+ */
 const DECK_Y = 5.8 + 0.62;
-/** The ladder up the portal leg: where you stand, where you hang, where you step off at the top. */
-const LADDER_FOOT: [number, number] = [1.55, -3.45];
-const LADDER_HANG: [number, number] = [1.55, -3.3];
-const LADDER_HEAD: [number, number] = [0.95, -2.05];
+const CAB_Y = 5.8 + 0.74;
+const DECK_AREAS: Array<{ minX: number; maxX: number; minZ: number; maxZ: number; y: number }> = [
+  { minX: 1.29, maxX: 1.93, minZ: -1.93, maxZ: 1.73, y: DECK_Y }, // the +x side gallery, to the front rail
+  { minX: -1.93, maxX: -1.29, minZ: -1.93, maxZ: 1.73, y: DECK_Y }, // the -x side gallery
+  { minX: -1.93, maxX: 1.93, minZ: -1.93, maxZ: -1.44, y: DECK_Y }, // behind the cabin, stepped in to the cut corners
+  { minX: -1.45, maxX: 1.45, minZ: -2.22, maxZ: -1.44, y: DECK_Y },
+  { minX: -1.1, maxX: 1.1, minZ: -2.44, maxZ: -1.44, y: DECK_Y },
+  { minX: -0.85, maxX: 0.85, minZ: -2.63, maxZ: -1.44, y: DECK_Y },
+  { minX: -0.24, maxX: 0.24, minZ: -2.93, maxZ: -2.2, y: DECK_Y }, // the tongue at the ladder head
+  { minX: 0.6, maxX: 1.7, minZ: -1.06, maxZ: -0.39, y: DECK_Y }, // through the doorway
+  { minX: 0.47, maxX: 1.13, minZ: -1.24, maxZ: 1.38, y: CAB_Y }, // the cabin's aisle past the winch
+  { minX: -0.76, maxX: 1.13, minZ: 0.8, maxZ: 1.38, y: CAB_Y }, // the driver's place at the front window
+];
+/** Places for jobs up there (crane frame, jib at rest): the driver's window, the gallery over the jib heel. */
+export type CraneSpotKind = "crane_cabin" | "crane_gallery";
+export const CRANE_SPOTS: ReadonlyArray<{ kind: CraneSpotKind; x: number; z: number; y: number; label: string }> = [
+  { kind: "crane_cabin", x: 0.2, z: 1.1, y: CAB_Y, label: "the crane driver's cabin, at the window over the jib" },
+  { kind: "crane_gallery", x: 1.62, z: 1.4, y: DECK_Y, label: "the crane's gallery, over the jib heel" },
+];
+/** The ladder up the back of the portal (rungs at z -3.05): where you stand, where you hang, where you step off at the top. */
+const LADDER_FOOT: [number, number] = [0, -3.55];
+const LADDER_HANG: [number, number] = [0, -3.4];
+const LADDER_HEAD: [number, number] = [0, -2.45];
 
 // ------------------------------------------------------------------ the line
 
@@ -574,7 +617,8 @@ interface Crane {
   stuck: number;
   roll: number;
   legs: Rect[];
-  deck: RaisedDeck;
+  /** Its walkable areas up there (DECK_AREAS in place). */
+  decks: RaisedDeck[];
   /** The train has it (from the approach to the last lift). */
   reserved: boolean;
   /** The player stands at its ladder (seconds), or is on it. */
@@ -725,7 +769,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       stuck: 0,
       roll: 0,
       legs: CRANE_FEET.map(() => ({ minX: 1e6, maxX: 1e6, minZ: 1e6, maxZ: 1e6 })),
-      deck: { minX: 1e6, maxX: 1e6, minZ: 1e6, maxZ: 1e6, y: DECK_Y },
+      decks: DECK_AREAS.map((a) => ({ minX: 1e6, maxX: 1e6, minZ: 1e6, maxZ: 1e6, y: a.y })),
       reserved: false,
       parkFor: 0,
       occupied: false,
@@ -813,7 +857,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     }
     return null;
   };
-  /** Move a crane's model, legs and deck to where it stands now. */
+  /** Move a crane's model, legs and walkable areas to where it stands now. */
   function placeCrane(c: Crane): void {
     const [x, z] = siteAt(c, c.pos);
     c.site.x = x;
@@ -821,7 +865,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     c.site.obj.position.x = x;
     c.site.obj.position.z = z;
     CRANE_FEET.forEach(([lx, lz, hx, hz], i) => rectAt(c, { minX: lx - hx, maxX: lx + hx, minZ: lz - hz, maxZ: lz + hz }, c.legs[i]));
-    rectAt(c, DECK_LOCAL, c.deck);
+    DECK_AREAS.forEach((a, i) => rectAt(c, a, c.decks[i]));
   }
   for (const c of cranes) {
     for (const [x0, z0, x1, z1] of craneRails) {
@@ -840,7 +884,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     if (c.pile) c.axis = null; // a crane that works a pile stays by it
     c.pos = c.axis === "x" ? c.site.x : c.site.z;
     placeCrane(c);
-    opts.raised?.add(c.deck);
+    for (const d of c.decks) opts.raised?.add(d);
     if (!c.axis) continue;
     // the Werf runway runs into the railway gatehouse: keep the legs clear of it
     if (gate && c.axis === "x" && c.lo < gate.x + 6.5) c.lo = gate.x + 6.5;
@@ -1686,7 +1730,11 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
           head: at(LADDER_HEAD),
           face: c.site.yaw + Math.PI,
           top: DECK_Y,
-          deck: c.deck,
+          decks: c.decks,
+          spots: CRANE_SPOTS.map((s) => {
+            const [x, z] = toWorld(c, s.x, s.z);
+            return { id: `${s.kind}_${c.index}`, kind: s.kind, crane: c.index, x, z, y: s.y, label: s.label };
+          }),
           ready: c.mode === "berth" && !c.reserved && !c.ops.length && Math.abs(angDiff(0, c.a)) < 0.01 && Math.abs(c.hy - HOOK_REST) < 0.05,
         };
       });

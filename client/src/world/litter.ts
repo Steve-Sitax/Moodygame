@@ -11,7 +11,7 @@ import type { Rect } from "./geom";
 import { omnibusKeepOut, STOPS as OMNIBUS_STOPS } from "./omnibus";
 import { trackKeepOut, type TrackData } from "./tracks";
 import { SITES as TRADE_SITES, tradeKeepOut } from "./trades";
-import { TRAFFIC_ROUTES } from "./traffic";
+import { TRAFFIC_ROUTES, trafficLanes } from "./traffic";
 
 // Litter (M3j, Steve: "research trash and dirt at that time, I feel we need that more").
 // The waste of a port town in 1873, after the research in docs/milestones/M3j-filth.md:
@@ -110,6 +110,13 @@ function rng(seed: number): () => number {
   };
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** A triangle of the gutter (x, z, u, v, alpha per corner), wound to face up whatever order it came in. */
+function upTri(buf: number[], a: number[], b: number[], c: number[]): void {
+  const cross = (b[1] - a[1]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[1] - a[1]);
+  if (cross >= 0) buf.push(...a, ...b, ...c);
+  else buf.push(...a, ...c, ...b);
+}
 
 // ------------------------------------------------------------------ loading
 
@@ -222,7 +229,9 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
   // the cart roads as the ruts found them (they come a road at a time after the city)
   const roads = await Promise.race([cartRoads(), sleep(30000).then(() => [] as P[][])]);
   const city = CITY as unknown as CityData;
-  const R = rng(opts.seed ?? 1873);
+  const seed = opts.seed ?? 1873;
+  // each pass draws from its own stream: a change in one does not reshuffle the others
+  let R = rng(seed);
   const waterY = opts.waterY ?? -2.8;
   const at = (x: number, z: number) => flags(x, z) ?? -1;
   const counts: Record<string, number> = {};
@@ -235,7 +244,9 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
   const inR = (r: Rect, x: number, z: number, pad = 0) => x > r.minX - pad && x < r.maxX + pad && z > r.minZ - pad && z < r.maxZ + pad;
   const decor = city.decor ?? {};
   const tracks = trackKeepOut(decor);
+  // the omnibus lanes and the drays' and handcarts' lanes (world/traffic.ts), as boxes every 2 m
   const lanes = omnibusKeepOut();
+  for (const l of trafficLanes()) for (let i = 0; i < l.x.length; i += 8) lanes.push({ minX: l.x[i] - l.half, maxX: l.x[i] + l.half, minZ: l.z[i] - l.half, maxZ: l.z[i] + l.half });
   const markets = marketKeepOut();
   const trades = tradeKeepOut();
   const runways: Rect[] = (decor.crane_rails ?? []).map(([x0, z0, x1, z1]) => ({ minX: Math.min(x0, x1) - 0.9, maxX: Math.max(x0, x1) + 0.9, minZ: Math.min(z0, z1) - 0.9, maxZ: Math.max(z0, z1) + 0.9 }));
@@ -298,9 +309,10 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
   const settle = (x: number, z: number, r: number): [number, number, number] => {
     const k = kerbOf(x, z);
     if (!k) return [x, 0, z];
-    if (k.d + r < KERB - 0.02) return [x, KERB_Y, z];
-    if (k.d - r > KERB + 0.02) return [x, 0, z];
-    const push = KERB + 0.04 + r - k.d;
+    // (a little overhang is not seen: the kerb is only 12 cm)
+    if (k.d < KERB - 0.05 && k.d + r * 0.6 < KERB + 0.05) return [x, KERB_Y, z];
+    if (k.d > KERB + 0.05 && k.d - r * 0.6 > KERB - 0.05) return [x, 0, z];
+    const push = KERB + 0.04 + r * 0.6 - k.d;
     return [x + k.w.ox * push, 0, z + k.w.oz * push];
   };
   // every house door: nothing solid in front of one
@@ -391,6 +403,7 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
   };
 
   // ================================================================ 1. the cart roads: dung, straw, muck
+  R = rng(seed + 1 * 7919);
   let roadMetres = 0;
   for (const line of roads) {
     for (let i = 0; i < line.length - 1; i++) {
@@ -437,6 +450,7 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
   }
 
   // ================================================================ 2. where horses stand: omnibus stops, drays' stops, the farrier
+  R = rng(seed + 2 * 7919);
   const stand = (x: number, z: number, tx: number, tz: number, reach: number, kind: string) => {
     for (let k = 0; k < 5; k++) {
       const a = (R() * 2 - 1) * reach;
@@ -492,7 +506,9 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
     stand(x, z, -s, -c, 2.5, "farrier stand");
   }
 
+  await sleep(0);
   // ================================================================ 3. the gutters: dark water along the kerbs, to the drains
+  R = rng(seed + 3 * 7919);
   const gutterQuads = new Map<string, number[]>(); // chunk -> [x, z, u, alpha, ...] per vertex (6 per quad)
   let gutterMetres = 0;
   const gutterGap = (x: number, z: number) => tracks.some((q) => inR(q, x, z, 0.3)) || bridges.some((q) => inR(q, x, z, 0.5)) || trades.some((q) => inR(q, x, z)) || nearSteps(x, z, 0.3);
@@ -518,16 +534,20 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
       if (pts.length >= 3) {
         const q0 = pts[0];
         const q1 = pts[pts.length - 1];
-        const d0 = KERB + 0.02;
-        const d1 = KERB + 0.38;
+        const d0 = KERB + 0.01;
+        const d1 = KERB + 0.5;
         const key = `${Math.floor((w.ax + w.tx * q0) / CH)},${Math.floor((w.az + w.tz * q0) / CH)}`;
         let buf = gutterQuads.get(key);
         if (!buf) gutterQuads.set(key, (buf = []));
-        const n = Math.max(1, Math.round((q1 - q0) / 1));
         const a0 = 0.6 + r() * 0.4;
-        for (let k = 0; k < n; k++) {
-          const qa = q0 + ((q1 - q0) * k) / n;
-          const qb = q0 + ((q1 - q0) * (k + 1)) / n;
+        // pieces that end at the texture's seams (one tile = 1.6 m), so no quad wraps the cell
+        const cuts = [q0];
+        for (let q = Math.ceil(q0 / 1.6) * 1.6; q < q1; q += 1.6) if (q > q0 + 0.02) cuts.push(q);
+        cuts.push(q1);
+        for (let k = 0; k < cuts.length - 1; k++) {
+          const qa = cuts[k];
+          const qb = cuts[k + 1];
+          const tile = Math.floor((qa + qb) / 2 / 1.6);
           const fa = Math.min(1, (qa - q0) / 1.2, (q1 - qa) / 1.2) * a0;
           const fb = Math.min(1, (qb - q0) / 1.2, (q1 - qb) / 1.2) * a0;
           const P = (q: number, d: number): [number, number] => [w.ax + w.tx * q + w.ox * d, w.az + w.tz * q + w.oz * d];
@@ -535,11 +555,10 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
           const [ax1, az1] = P(qa, d1);
           const [bx0, bz0] = P(qb, d0);
           const [bx1, bz1] = P(qb, d1);
-          const ua = qa / 1.6;
-          const ub = qb / 1.6;
-          // two triangles, wound to face up (as the ruts)
-          buf.push(ax0, az0, ua, 0, fa, bx1, bz1, ub, 1, fb, bx0, bz0, ub, 0, fb);
-          buf.push(ax0, az0, ua, 0, fa, ax1, az1, ua, 1, fa, bx1, bz1, ub, 1, fb);
+          const ua = qa / 1.6 - tile;
+          const ub = qb / 1.6 - tile;
+          upTri(buf, [ax0, az0, ua, 0, fa], [bx1, bz1, ub, 1, fb], [bx0, bz0, ub, 0, fb]);
+          upTri(buf, [ax0, az0, ua, 0, fa], [ax1, az1, ua, 1, fa], [bx1, bz1, ub, 1, fb]);
         }
         gutterMetres += q1 - q0;
         for (let q = q0; q <= q1; q += 1.2) stamps.push([w.ax + w.tx * q + w.ox * 0.9, w.az + w.tz * q + w.oz * 0.9, 0.55, 0.8]);
@@ -565,6 +584,7 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
   }
 
   // ================================================================ 4. corners: urine at the foot
+  R = rng(seed + 4 * 7919);
   for (const [cx, cz, dx, dz, o1x, o1z, t1x, t1z, , , , , , , store] of sl.corners) {
     const r = rng(Math.round(cx * 13 + cz * 7));
     if (store || r() > 0.6) continue;
@@ -579,6 +599,7 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
   }
 
   // ================================================================ 5. house doors: ash put out, slops thrown, a bucket
+  R = rng(seed + 5 * 7919);
   for (const w of walls) {
     if (w.kind !== 0 || w.door < 0 || w.store) continue;
     const r = rng(w.seed * 5 + 17);
@@ -616,29 +637,52 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
     }
   }
 
-  // ================================================================ 6. the streets at large: along the house fronts
+  await sleep(0);
+  // ================================================================ 6. the streets at large: along the house fronts,
+  R = rng(seed + 6 * 7919);
+  // and the horse line down the middle of every street (horses went down every one of them)
   for (const w of walls) {
     if (w.kind !== 0) continue;
     const r = rng(w.seed * 3 + 29);
-    for (let s = r() * 6; s < w.L; s += 6) {
-      if (r() > 0.45) continue;
-      const out = 1.1 + r() * 2.2;
-      const x = w.ax + w.tx * s + w.ox * out;
-      const z = w.az + w.tz * s + w.oz * out;
-      if (r() > swept(x, z)) continue;
-      place(
-        pick([
-          [3, "dungflat_0"], [2, "straw_0"], [2, "paper_0"], [2, "cabbage_0"], [1, "cabbage_1"], [1, "veg_rotten"], [1.5, "paper_ball"], [1, "rag_1"], [1, "rag_2"],
-          [1, "bottle"], [0.6, "bottle_brown"], [1, "glass_broken"], [1, "glass_0"], [1, "crockery"], [1.2, "straw_wisp"], [0.35, "rat_dead"], [1, "muck_0"], [0.6, "oil_0"],
-          [0.8, "slats_0"], [0.5, "sacking_0"], [0.8, "leafmush_0"], [0.6, "dung_2"],
-        ]),
-        x,
-        z,
-      );
+    for (let s = r() * 2.5; s < w.L; s += 2.5) {
+      const bx = w.ax + w.tx * s;
+      const bz = w.az + w.tz * s;
+      // how wide the street is here: to the house opposite (or 14 m: a square, a quay)
+      let W = 14;
+      for (let d = 1; d < 14; d += 0.5)
+        if (at(bx + w.ox * d, bz + w.oz * d) !== OPEN) {
+          W = d;
+          break;
+        }
+      if (W < 2.2) continue;
+      const k = swept(bx, bz);
+      if (r() < 0.5 * k) {
+        // by the houses: what was thrown out or dropped
+        const out = 1.0 + r() * Math.min(2.4, W / 2 - 0.9);
+        place(
+          pick([
+            [3, "dungflat_0"], [2.5, "straw_0"], [2, "paper_0"], [2, "cabbage_0"], [1, "cabbage_1"], [1, "veg_rotten"], [1.5, "paper_ball"], [1, "rag_1"], [1, "rag_2"],
+            [1, "bottle"], [0.6, "bottle_brown"], [1, "glass_broken"], [1, "glass_0"], [1, "crockery"], [1.2, "straw_wisp"], [0.35, "rat_dead"], [2, "muck_0"], [0.6, "oil_0"],
+            [0.8, "slats_0"], [0.5, "sacking_0"], [1.5, "leafmush_0"], [0.8, "dung_2"], [1, "ash_0"],
+          ]),
+          bx + w.ox * out,
+          bz + w.oz * out,
+        );
+      }
+      // the middle of the street (each side does its half: only walls facing +x or +z, so it is done once)
+      if (W >= 4 && (w.ox > 0.5 || w.oz > 0.5) && r() < 0.55 * k) {
+        const mid = W / 2 + (r() * 2 - 1) * Math.min(1, W / 2 - 1.5);
+        const x = bx + w.ox * mid;
+        const z = bz + w.oz * mid;
+        const kind = pick([[4, "dungflat_0"], [3, "dungflat_1"], [2.5, "muck_0"], [1.5, "muck_2"], [2, "straw_0"], [1, "straw_1"], [1.2, "dung_0"], [1, "dung_2"], [0.6, "straw_wisp"]]);
+        if (protos.has(kind)) solidAt(kind, x, z, { lane: true, market: true });
+        else flatAt(kind, x, z, 0.9 + r() * 0.7, Math.atan2(w.tx, w.tz) + (r() - 0.5) * 0.6);
+      }
     }
   }
 
   // ================================================================ 7. the quays: the waste of the work
+  R = rng(seed + 7 * 7919);
   const qsites = opts.quaySites ?? [];
   for (const [ax, az, bx, bz] of city.quays) {
     const L = Math.hypot(bx - ax, bz - az);
@@ -724,6 +768,7 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
   }
 
   // ================================================================ 8. the squares (not the markets): a little of everything; the swept ones less
+  R = rng(seed + 8 * 7919);
   for (const [name, n] of [["Steenplein", 34], ["Werf", 30], ["Rijnkaai", 14], ["Grote Markt", 8], ["Handschoenmarkt", 6]] as Array<[string, number]>) {
     const p = city.places[name];
     if (!p) continue;
@@ -742,6 +787,7 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
   }
 
   // ================================================================ 9. the markets: their waste, more after the market than during it
+  R = rng(seed + 9 * 7919);
   const marketOf = (r: Rect) => {
     const cx = (r.minX + r.maxX) / 2;
     const cz = (r.minZ + r.maxZ) / 2;
@@ -771,7 +817,9 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
     for (let k = 0; k < Math.round(area / 90); k++) stamps.push([rect.minX + R() * (rect.maxX - rect.minX), rect.minZ + R() * (rect.maxZ - rect.minZ), 1.5 + R() * 2, 0.6]);
   }
 
+  await sleep(0);
   // ================================================================ 10. heaps: refuse in back corners, a stable's manure heap
+  R = rng(seed + 10 * 7919);
   {
     type Cand = { x: number; z: number; score: number; wx: number; wz: number; wd: number };
     const cands: Cand[] = [];
@@ -796,10 +844,12 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
             wz = Math.sin(a);
           }
         }
-        if (closed < 10 || far < 1 || wd > 2.5) continue;
-        cands.push({ x, z, score: closed + R() * 0.5, wx, wz, wd });
+        if (closed < 8 || far < 1 || wd > 2.5) continue;
+        // a dead end (one way out) scores best: nobody has to pass the heap
+        cands.push({ x, z, score: closed + (far <= 3 ? 6 : 0) + R() * 0.5, wx, wz, wd });
       }
     cands.sort((a, b) => b.score - a.score);
+    counts["heap corners looked at"] = cands.length;
     const chosen: Array<Cand & { kind: string }> = [];
     const heapOk = (c: Cand, r: number) => {
       const x = c.x + c.wx * Math.max(0, c.wd - r - 0.1);
@@ -807,8 +857,8 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
       if (!open(x, z, r * 0.8)) return null;
       if ([...tracks, ...lanes, ...markets, ...trades, ...runways].some((q) => inR(q, x, z, 3)) || avoid.some((q) => inR(q, x, z, r + 0.5))) return null;
       if (inR(START, x, z, 10) || bridges.some((q) => inR(q, x, z, 4)) || nearSteps(x, z, 3)) return null;
-      if (clear.some((q) => Math.hypot(q.x - x, q.z - z) < q.r + 6) || houseDoors.some((d) => Math.hypot(d.x - x, d.z - z) < 6.5)) return null;
-      if (roadNear(x, z, 7) || chosen.some((q) => Math.hypot(q.x - x, q.z - z) < 50)) return null;
+      if (clear.some((q) => Math.hypot(q.x - x, q.z - z) < q.r + 6) || houseDoors.some((d) => Math.hypot(d.x - x, d.z - z) < 4.5)) return null;
+      if (roadNear(x, z, 5) || chosen.some((q) => Math.hypot(q.x - x, q.z - z) < 50)) return null;
       for (let k = 0; k < 8; k++) {
         const a = (k / 8) * Math.PI * 2;
         if (at(x + Math.cos(a) * 3.5, z + Math.sin(a) * 3.5) & WATER) return null;
@@ -817,7 +867,8 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
     };
     // the stable yard: a corner near where the drays stand (their stables), else any
     const drayStops = TRAFFIC_ROUTES.flatMap((r) => (r.stops ?? []).map((s) => s.at));
-    const byStable = [...cands].sort((a, b) => Math.min(...drayStops.map(([x, z]) => Math.hypot(x - a.x, z - a.z))) - Math.min(...drayStops.map(([x, z]) => Math.hypot(x - b.x, z - b.z))));
+    const deadEnds = cands.filter((c) => c.score >= 14);
+    const byStable = [...(deadEnds.length > 20 ? deadEnds : cands)].sort((a, b) => Math.min(...drayStops.map(([x, z]) => Math.hypot(x - a.x, z - a.z))) - Math.min(...drayStops.map(([x, z]) => Math.hypot(x - b.x, z - b.z))));
     for (const c of byStable.slice(0, 400)) {
       const p = heapOk(c, 1.45);
       if (p) {
@@ -826,7 +877,7 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
       }
     }
     for (const c of cands) {
-      if (chosen.filter((q) => q.kind === "refuse_heap").length >= 2) break;
+      if (chosen.filter((q) => q.kind === "refuse_heap").length >= 3) break;
       const p = heapOk(c, 1.3);
       if (p) chosen.push({ ...c, x: p[0], z: p[1], kind: "refuse_heap" });
     }
@@ -864,7 +915,9 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
     }
   }
 
+  await sleep(0);
   // ================================================================ 11. floating rubbish, and the foul water map
+  R = rng(seed + 11 * 7919);
   const floatKinds: Array<[number, string]> = [
     [3, "slats_0"], [3, "cabbage_0"], [2, "cabbage_1"], [3, "straw_wisp"], [1.5, "bottle"], [1, "bottle_brown"], [2, "paper_ball"], [0.5, "rat_dead"], [1.5, "veg_rotten"],
     [1.5, "sacking_1"], [1.5, "rope_end_0"], [1, "fish_small"], [0.8, "fish_heads"],
@@ -958,7 +1011,8 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
 
   // the flat marks' own geometries: one quad per kind, and the gutters merged per chunk
   const [DW, DH] = meta.decalSize;
-  const cellUv = (cell: [number, number, number, number], u: number, v: number): P => [(cell[0] + 0.5 + u * (cell[2] - 1)) / DW, 1 - (cell[1] + 0.5 + (1 - v) * (cell[3] - 1)) / DH];
+  // (glTF textures are not flipped: v runs down the image, as the rows of the atlas cells)
+  const cellUv = (cell: [number, number, number, number], u: number, v: number): P => [(cell[0] + 0.5 + u * (cell[2] - 1)) / DW, (cell[1] + 0.5 + (1 - v) * (cell[3] - 1)) / DH];
   const flatGeo = (pos: number[], uv: number[], col: number[]) => {
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
@@ -996,15 +1050,8 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
     for (let i = 0; i < b.length; i += 5) {
       const [x, z, u, v, a] = [b[i], b[i + 1], b[i + 2], b[i + 3], b[i + 4]];
       pos.push(x, 0.005, z);
-      // the gutter cell tiles along u: the fraction of u inside the cell (the seam every 1.6 m is not seen)
-      const fu = u - Math.floor(u);
-      uv.push(...cellUv(gc, fu, v));
+      uv.push(...cellUv(gc, u, v));
       col.push(1, 1, 1, a);
-    }
-    // a quad whose u wraps inside it would smear the whole cell: split by the tile seam instead
-    for (let i = 0; i < pos.length / 3; i += 6) {
-      const us = [0, 1, 2, 3, 4, 5].map((k) => uv[(i + k) * 2]);
-      if (Math.max(...us) - Math.min(...us) > 0.5 * ((gc[2] - 1) / DW)) for (let k = 0; k < 6; k++) col[(i + k) * 4 + 3] = 0;
     }
     gutterGeos.push({ key, g: flatGeo(pos, uv, col) });
   }
@@ -1239,14 +1286,11 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
         continue;
       }
       const dir = rat.speed >= 0 ? 1 : -1;
-      const yaw = Math.atan2(rat.tx * dir, rat.tz * dir) - Math.PI / 2;
-      // the model lies on its side along +x: stand it up (roll a quarter turn) and point it along the wall
-      Er.set(0, yaw, 0);
+      // the model's head is its +x: turn it along the way it runs
+      Er.set(0, Math.atan2(-rat.tz * dir, rat.tx * dir), 0);
       Qr.setFromEuler(Er);
       const bob = rat.wait > 0 ? 0 : Math.abs(Math.sin(rat.s * 9)) * 0.015;
       Mr.compose(Tr.set(x, rat.y + bob, z), Qr, Sr);
-      Mr.multiply(new THREE.Matrix4().makeRotationX(-Math.PI / 2 + 0.0));
-      Mr.multiply(new THREE.Matrix4().makeTranslation(0, -0.035, 0.0));
       floatBatch.setMatrixAt(rat.id, Mr);
     }
   }

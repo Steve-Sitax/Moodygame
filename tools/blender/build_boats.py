@@ -62,13 +62,13 @@ SHOTS = os.path.join(ROOT, "data", "shots")
 
 EXTRA = ["tar", "clinker", "iron_hull", "iron_ports", "band", "copper", "redlead", "deck", "paint_green",
          "paint_white", "canvas", "canvas_tan", "rigging", "shrouds", "lattice", "funnel", "window", "hatch",
-         "tarp", "flag", "names", "washing", "names2"]
+         "tarp", "flag", "names", "washing", "names2", "funnel_star", "names3"]
 # the street-prop materials we use, painted with build_props' painters (our own list: props.glb may change)
 BASE = ["wood", "wood_dark", "iron", "rope", "sackcloth", "crate", "barrel", "stone", "glass"]
 WOOD, DARK, IRON, ROPE, SACK, CRATE, BARREL, STONE, GLASS = range(len(BASE))
 MATS = BASE + EXTRA
 (TAR, CLINKER, IRONHULL, PORTS, BAND, COPPER, REDLEAD, DECK, GREEN, WHITE, CANVAS, TAN, RIG, SHROUD, LATTICE,
- FUNNEL, WINDOW, HATCH, TARP, FLAG, NAMES, WASH, NAMES2) = range(len(BASE), len(MATS))
+ FUNNEL, WINDOW, HATCH, TARP, FLAG, NAMES, WASH, NAMES2, FUNNEL_STAR, NAMES3) = range(len(BASE), len(MATS))
 # thin parts, seen from both sides (the game makes these double-sided too)
 THIN = {"shrouds", "lattice", "flag", "canvas", "canvas_tan", "tarp", "washing"}
 # metres per texture tile for faces mapped by position
@@ -265,6 +265,31 @@ def paint_funnel(seed):
     return speckle(img, rng, 0.05)
 
 
+def paint_funnel_star(seed):
+    """The ocean liner's funnel, v up: black, a broad white band with a red five-pointed star
+    (the Antwerp line of 1873: black funnel, white band, red star), soot at the top, rivet rings."""
+    rng = np.random.default_rng(seed)
+    n = 64
+    img = np.ones((n, n, 3)) * col((0.07, 0.065, 0.06))
+    b0, b1 = 30, 48
+    img[b0:b1] = col((0.72, 0.7, 0.64))
+    uu, vv = np.meshgrid(np.arange(n) + 0.5, np.arange(b1 - b0) + 0.5)
+    cu, cv = n / 2, (b1 - b0) / 2
+    a = np.arctan2(vv - cv, (uu - cu) * 0.5) - math.pi / 2
+    r = np.hypot((uu - cu) * 0.5, vv - cv)
+    k = np.cos(math.pi / 5) / np.cos((a % (2 * math.pi / 5)) - math.pi / 5)
+    star = r < 7.2 * (0.42 + 0.58 * (k - np.cos(math.pi / 5)) / (1 - np.cos(math.pi / 5)))
+    band = img[b0:b1]
+    band[star] = col((0.55, 0.06, 0.05))
+    img *= (0.85 + 0.3 * noise(rng, n, n, 6, 6))[..., None]
+    for r_ in (10, 22, b0 - 1, b1, 56):
+        img[r_] *= 0.5
+        img[r_ + 1] += 0.03
+    soot = np.clip((np.arange(n) - 52) / 12, 0, 1)[:, None, None]
+    img *= 1 - 0.55 * soot
+    return speckle(img, rng, 0.05)
+
+
 def paint_window(seed):
     rng = np.random.default_rng(seed)
     n = 32
@@ -335,6 +360,8 @@ FONT = {
 # rows of the name texture (row 0 at the top); name_board() picks one
 NAME_ROWS = ["ELISABETH", "ANTWERPEN", "SCHELDE", "HERCULES", "DE HOOP", "NOORDSTER", "ST ANNA", "ZWALUW"]
 NAME_ROWS2 = ["ANNA MARIA", "ANTWERPEN", "BRIG", "", "", "", "", ""]
+# the ocean steamer at anchor (liner): her name and port (a -land name, as the line of 1873 gave them)
+NAME_ROWS3 = ["KEMPENLAND", "ANTWERPEN", "", "", "", "", "", ""]
 
 
 def paint_names(seed, rows=None):
@@ -462,6 +489,8 @@ def make_materials():
         "names": lambda: paint_names(121),
         "washing": lambda: paint_washing(122),
         "names2": lambda: paint_names(123, NAME_ROWS2),
+        "funnel_star": lambda: paint_funnel_star(124),
+        "names3": lambda: paint_names(125, NAME_ROWS3),
     }
     for name in MATS:
         res = paint[name]()
@@ -2327,6 +2356,328 @@ def steamer():
     return m
 
 
+def liner():
+    """An ocean steamer of the Antwerp - New York line, 1873, ~97 m, built after what is known of
+    the Red Star Line's first ships, the Vaderland and the Nederland (Palmers, Jarrow, 1872-73:
+    iron, single screw, 320 ft by 38 ft 6 in, one funnel, three masts). Clipper bow with a
+    bowsprit, elliptical counter, black hull with two rows of ports, red below the waterline,
+    long low deckhouses, an open bridge, a black funnel with a white band and a red star,
+    barque rig (square yards on fore and main, gaffs on all three), six boats in davits.
+    She lies at anchor: the port anchor is down (its chain runs from the hawse forward into the
+    water), a derrick is swung out over the port side (+X) for the lighters, the accommodation
+    ladder is down on that side forward. The name is our own (KEMPENLAND), not a real ship."""
+    m = Mesh(ao=0.0)
+    L, B, KZ, SZ = 97.0, 11.7, -6.0, 4.6
+
+    def keel(t):
+        return KZ + 0.6 * sm((t - 0.95) / 0.05) + 1.3 * sm((0.05 - t) / 0.05)
+
+    def sheer(t):
+        return SZ + 1.5 * max(0.0, (t - 0.6) / 0.4) ** 2 + 0.8 * max(0.0, (0.3 - t) / 0.3) ** 2
+
+    SEC = [(0, 0.55), (0.08, 0.88), (0.2, 0.98), (1, 1.0)]
+
+    def uz(z):
+        return cl((z - KZ) / (SZ - KZ))
+
+    def hb(t, z):
+        u = uz(z)
+        sec = table(SEC, u)
+        if t > 0.64:
+            f = (t - 0.64) / 0.36
+            p = (1 - min(f, 1.0) ** 1.8) ** (0.75 * (1 + 0.7 * (1 - u)))
+        elif t < 0.28:
+            f = (0.28 - t) / 0.28
+            p = (1 - min(f, 1.0) ** 2) ** (0.4 + 1.8 * (1 - u))
+        else:
+            p = 1.0
+        return max(0.03, B / 2 * sec * p)
+
+    def yfn(t, z):
+        u = uz(z)
+        return -5.0 * u ** 1.6 * sm((t - 0.9) / 0.1) + 3.4 * u ** 2.2 * sm((0.06 - t) / 0.06)
+
+    ts = [0, 0.012, 0.03, 0.06, 0.1, 0.16, 0.24, 0.34, 0.46, 0.58, 0.68, 0.77, 0.85, 0.91, 0.95, 0.98, 1.0]
+    levels = [keel, lambda t: keel(t) + 1.0, lambda t: -2.6, lambda t: -0.02, lambda t: 1.1, lambda t: 1.65,
+              lambda t: sheer(t) - 2.2, lambda t: sheer(t) - 1.65, lambda t: sheer(t) - 0.22, sheer]
+    mats = [(REDLEAD, 0), (REDLEAD, 0), (REDLEAD, 0), (IRONHULL, 0), (PORTS, 8.0), (IRONHULL, 0), (PORTS, 8.0),
+            (IRONHULL, 0), (WHITE, 4.0)]
+    hull = Hull(L, ts, levels, hb, mats, yfn=yfn, shade=lambda p: 0.5 + 0.5 * sm((p.z + 4.5) / 9.0))
+    hull.outer(m)
+
+    def zd(t):
+        return sheer(t) - 1.1
+
+    hull.deck(m, zd, 0, 1, 0.12, DECK)
+    hull.rail(m, zd, sheer, 0, 1, 0.12, WHITE, DARK, shade=0.9)
+    PORT = 1  # +X: the side the lighters come to (the town side, as she lies)
+
+    # the midship house (saloon and engine casing), rails on its roof
+    zh = zd(0.5)
+    hy0, hy1 = hull.y(0.64, zh), hull.y(0.40, zh)
+    HH, HW = 2.4, 3.8
+    wins = []
+    for k in range(8):
+        a = hy0 + (hy1 - hy0) * (k + 0.5) / 8
+        wins += [("+x", a, zh + 1.5), ("-x", a, zh + 1.5)]
+    house(m, -HW, HW, hy0, hy1, zh - 0.05, zh + HH, wall=WOOD, roof=DECK, over=0.25, windows=wins,
+          door=("+y", 0.0, 0.9, 1.9))
+    zr = zh + HH + 0.1
+    for sx in (1, -1):
+        rig(m, (sx * (HW + 0.2), hy0 + 1.6, zr + 0.9), (sx * (HW + 0.2), hy1 + 0.2, zr + 0.9), 0.03, IRON)
+        for y in np.linspace(hy0 + 1.6, hy1 + 0.2, 9):
+            rig(m, (sx * (HW + 0.2), y, zr), (sx * (HW + 0.2), y, zr + 0.95), 0.025, IRON)
+    rig(m, (-(HW + 0.2), hy1 + 0.2, zr + 0.9), (HW + 0.2, hy1 + 0.2, zr + 0.9), 0.03, IRON)
+    # the bridge across the ship at the front of the house: platform, rails, dodger, wheelhouse
+    by0, by1 = hy0 - 0.3, hy0 + 1.5
+    zb = zr + 1.0
+    WB = B / 2 + 0.3
+    m.box((0, (by0 + by1) / 2, zb), (2 * WB, by1 - by0, 0.12), DECK, tile=1.6)
+    for sx in (1, -1):
+        for y in (by0 + 0.1, by1 - 0.1):
+            m.beam((sx * (WB - 0.3), y, zd(0.64)), (sx * (WB - 0.3), y, zb - 0.06), 0.1, 0.1, IRON, side=(1, 0, 0))
+    for y in (by0, by1):
+        rig(m, (-WB, y, zb + 1.0), (WB, y, zb + 1.0), 0.03, IRON)
+        for x in np.linspace(-WB, WB, 11):
+            rig(m, (x, y, zb + 0.06), (x, y, zb + 1.0), 0.025, IRON)
+    m.poly([V(-WB, by0 - 0.02, zb + 0.08), V(WB, by0 - 0.02, zb + 0.08), V(WB, by0 - 0.02, zb + 0.95),
+            V(-WB, by0 - 0.02, zb + 0.95)], CANVAS, uvs=[(0, 0), (8, 0), (8, 0.6), (0, 0.6)])
+    house(m, -1.3, 1.3, by0 + 0.15, by1 - 0.1, zb + 0.06, zb + 2.1, wall=WHITE, roof=DARK, over=0.1,
+          windows=[("-y", -0.6, zb + 1.4), ("-y", 0.6, zb + 1.4), ("+x", (by0 + by1) / 2, zb + 1.4),
+                   ("-x", (by0 + by1) / 2, zb + 1.4)])
+    for sx in (1, -1):
+        c = V(sx * (WB - 0.9), by0 - 0.06, zb + 0.55)
+        ring = [c + V(0.32 * math.cos(2 * math.pi * i / 8), 0, 0.32 * math.sin(2 * math.pi * i / 8)) for i in range(8)]
+        m.tube(ring, [0.07] * 8, 4, WHITE, side=(0, 1, 0), closed_path=True, smooth=False)
+    # the funnel: black, white band, red star; raked aft, steam pipe, guys
+    fy = hull.y(0.53, zr)
+    FH, FR, rake = 13.5, 1.45, 0.1
+    with m.at(move(0, fy, zr) @ Matrix.Rotation(-rake, 4, "X")):
+        m.lathe([(FR, -0.3), (FR, FH), (FR + 0.07, FH + 0.05), (FR + 0.07, FH + 0.25)], 12, FUNNEL_STAR, urep=2,
+                vscale=1 / FH, smooth=False)
+        spar(m, V(0, -FR - 0.18, 0), V(0, -FR - 0.18, FH + 0.9), 0.13, 0.13, IRON, sides=5, cap=True)
+    ring_h = FH * 0.75
+    ftop = V(0, fy + math.sin(rake) * ring_h, zr + math.cos(rake) * ring_h)
+    for dx, dy in ((3.4, 3.2), (-3.4, 3.2), (3.4, -1.5), (-3.4, -1.5)):
+        rig(m, ftop, (dx, fy + dy, zr + 0.05), 0.02)
+    m.smoke.append(V(0, fy + math.sin(rake) * (FH + 0.4), zr + math.cos(rake) * (FH + 0.4)))
+
+    def cowl(x, y, z, h, r, face):
+        path = [V(x, y, z), V(x, y, z + h * 0.75), V(x, y + face * r * 0.4, z + h * 0.95),
+                V(x, y + face * r * 1.1, z + h + r * 0.4)]
+        m.tube(path, [r * 0.7, r * 0.7, r * 0.85, (r * 1.3, r * 1.3)], 6, WHITE, smooth=False, urep=2, vscale=0.5)
+        m.tube([path[-1], path[-1] + V(0, face * 0.02, 0.01)], [r * 1.3, r * 0.5], 6, DARK, smooth=False, cap1=True)
+
+    for sx in (1, -1):
+        cowl(sx * 2.2, fy - 2.6, zr, 2.6, 0.5, -1)
+        cowl(sx * 2.2, fy + 3.0, zr, 2.2, 0.45, -1)
+        cowl(sx * 2.0, hull.y(0.79, zd(0.79)), zd(0.79), 1.8, 0.38, -1)
+    # engine-room skylight aft of the funnel
+    m.box((0, fy + 5.2, zr + 0.35), (2.2, 3.0, 0.7), DARK)
+    m.box((0, fy + 5.2, zr + 0.74), (2.1, 2.9, 0.08), WINDOW)
+    # boats in davits: two each side along the house, one each side on the quarters
+    for sx in (1, -1):
+        for bc, zb_ in ((hy0 + 4.0, zd(0.55)), (hy1 - 4.0, zd(0.45)), (hull.y(0.25, 0), zd(0.25))):
+            ships_boat(m, (sx * 5.05, bc, zb_ + 1.8), 7.0, 1.9, 0.8, mat=WHITE, cover=CANVAS)
+            for dy in (-2.7, 2.7):
+                base = V(sx * 5.55, bc + dy, zb_)
+                path = [base, base + V(0, 0, 3.2), base + V(-sx * 0.15, 0, 4.0), base + V(-sx * 0.5, 0, 4.3)]
+                m.tube(path, [0.09, 0.085, 0.075, 0.07], 4, WHITE, smooth=False, side=(0, 1, 0), urep=1)
+                rig(m, path[-1], V(sx * 5.05, bc + dy * 0.85, zb_ + 1.8 + 0.9), 0.02)
+    # the galley house forward, its chimney; the saloon house aft with its skylight
+    ga0, ga1 = hull.y(0.745, zd(0.72)), hull.y(0.69, zd(0.72))
+    zg = zd(0.72) - 0.05
+    house(m, -2.2, 2.2, ga0, ga1, zg, zg + 2.1, wall=WHITE, roof=DARK, over=0.12,
+          windows=[("+x", (ga0 + ga1) / 2, zg + 1.4), ("-x", (ga0 + ga1) / 2, zg + 1.4)], door=("-y", 0.0, 0.8, 1.8))
+    chimney(m, 1.2, (ga0 + ga1) / 2, zg + 2.2, 1.0, 0.14)
+    sa0, sa1 = hull.y(0.155, zd(0.1)), hull.y(0.065, zd(0.1))
+    zs = zd(0.1) - 0.05
+    sw = []
+    for k in range(3):
+        a = sa0 + (sa1 - sa0) * (k + 0.5) / 3
+        sw += [("+x", a, zs + 1.4), ("-x", a, zs + 1.4)]
+    house(m, -3.0, 3.0, sa0, sa1, zs, zs + 2.2, wall=WOOD, roof=DECK, over=0.2, windows=sw, door=("-y", 0.0, 0.9, 1.9))
+    m.box((0, (sa0 + sa1) / 2, zs + 2.45), (2.0, 3.0, 0.5), DARK)
+    m.box((0, (sa0 + sa1) / 2, zs + 2.72), (1.9, 2.9, 0.08), WINDOW)
+    # wheel and steering house right aft, flagstaff with the Belgian ensign
+    zq = zd(0.03)
+    m.box((0, hull.y(0.03, zq), zq + 0.45), (1.2, 0.8, 0.9), DARK)
+    wheel_helm(m, V(0, hull.y(0.03, zq) - 0.6, zq + 1.2), 0.7)
+    fs0 = V(0, hull.y(0.0, sheer(0.0)) - 0.5, zd(0.0))
+    spar(m, fs0, fs0 + V(0, 0.5, 5.5), 0.07, 0.045, cap=True)
+    flag(m, fs0 + V(0, 0.55, 5.4), 2.4, 1.6, along=(0, 1, -0.15), kind="belgian")
+
+    # masts: barque rig, square yards on fore and main (sails furled), a gaff on each
+    def plan(t, h1, h2, h3, rake_, r):
+        return MastPlan(hull.y(t, zd(t)), zd(t), zd(t) + h1, zd(t) + h2, zd(t) + h3, rake_, r)
+
+    fore = plan(0.83, 16.0, 27.0, 34.0, 0.05, 0.42)
+    main = plan(0.37, 16.5, 28.0, 35.0, 0.05, 0.42)
+    mizz = plan(0.21, 14.0, 24.0, 24.0, 0.06, 0.34)
+    for mp in (fore, main, mizz):
+        mp.build(m, top_w=3.0 if mp is not mizz else 2.4, top_d=2.0)
+    for mp in (fore, main):
+        spec = [(mp.h1 - 1.6, 20.0, 0.26, 0.42), (mp.h1 + (mp.h2 - mp.h1) * 0.5, 16.0, 0.2, 0.32),
+                (mp.h2 + (mp.h3 - mp.h2) * 0.55, 11.0, 0.13, 0.2)]
+        for i, (z, ln, r, sr) in enumerate(spec):
+            c = mp.at(z) + V(0, -0.55 - (0.5 if i >= 1 else 0) - (0.3 if i >= 2 else 0), 0)
+            lift = mp.at(z + 1.8) + V(0, -0.5 - (0.5 if i >= 1 else 0), 0)
+            yard(m, c, ln, r, sr, lifts_to=lift if i < 2 else None)
+            if i == 0:
+                for sx in (1, -1):
+                    t_to = 0.3 if mp is main else 0.74
+                    rig(m, c + V(sx * ln / 2 * 0.95, 0, 0), hull.P(t_to, sheer(t_to), sx) + V(0, 0, 0.1), 0.016)
+    for mp, glen, blen in ((fore, 6.0, 0.0), (main, 6.5, 0.0), (mizz, 8.0, 10.0)):
+        g0 = mp.at(mp.h1 - 1.2)
+        g1 = g0 + V(0, glen * math.cos(0.5), glen * math.sin(0.5))
+        spar(m, g0, g1, 0.15, 0.09)
+        rig(m, mp.top(2) - V(0, 0, 0.5), g1)
+        if blen:
+            b0 = mp.at(mp.zd + 2.4)
+            b1 = b0 + V(0, blen, 0.3)
+            spar(m, b0, b1, 0.17, 0.11)
+            bundle(m, b0 + V(0, 0.5, 0.3), b1 + V(0, -0.6, 0.28), 0.3, CANVAS, n=4)
+            bundle(m, g0 + V(0, 0.5, -0.3), g1 + V(0, -0.6, -0.3), 0.26, CANVAS, n=4)
+            rig(m, g1, b1, 0.018)
+        else:
+            bundle(m, mp.at(mp.zd + 3.0) + V(0, 0.5, 0), g0 + V(0, 0.5, -0.5), 0.28, CANVAS, n=3)
+    # the house flag (white, red star) at the main truck, a pennant at the fore
+    spar(m, main.top(3), main.top(3) + V(0, 0, 1.0), 0.04, 0.03)
+    flag(m, main.top(3) + V(0, 0, 0.95), 1.6, 1.1, along=(0, 1, 0), kind="house")
+    pennant(m, fore.top(3) + V(0, 0, 0.3), 5.0, h=0.35)
+    # bowsprit and jibboom over the clipper stem, the jib furled; trailboards and a scroll
+    stem_top = V(0, hull.y(1.0, sheer(1.0)), sheer(1.0))
+    a = math.radians(12)
+    dv = V(0, -math.cos(a), math.sin(a))
+    heel = stem_top + V(0, 2.6, -0.3)
+    bs_end = heel + dv * 10.0
+    spar(m, heel, bs_end, 0.38, 0.28)
+    jb0, jb1 = heel + dv * 7.0, heel + dv * 17.5
+    spar(m, jb0, jb1, 0.2, 0.09)
+    m.box(bs_end + V(0, 0.15, 0.05), (0.6, 0.35, 0.6), DARK)
+    bundle(m, heel + dv * 10.8 + V(0, 0, 0.22), heel + dv * 16.8 + V(0, 0, 0.14), 0.22, CANVAS, n=4)
+    striker = bs_end + V(0, 0.2, -2.2)
+    spar(m, bs_end + V(0, 0.2, -0.2), striker, 0.07, 0.06)
+    rig(m, bs_end, V(0, hull.y(1.0, 0.6) + 0.4, 0.6), 0.035)
+    rig(m, jb1, striker, 0.022)
+    rig(m, striker, V(0, hull.y(1.0, 1.8) + 0.3, 1.8), 0.022)
+    for sx in (1, -1):
+        rig(m, bs_end + V(sx * 0.25, 0, 0), hull.P(0.96, sheer(0.96) - 1.0, sx), 0.022)
+    sc = [V(0, hull.y(1.0, sheer(1.0) - 1.9) + 0.3, sheer(1.0) - 1.9), V(0, hull.y(1.0, sheer(1.0) - 1.1) - 0.2, sheer(1.0) - 1.1),
+          V(0, hull.y(1.0, sheer(1.0) - 0.4) - 0.5, sheer(1.0) - 0.45)]
+    m.tube(sc, [0.16, 0.22, 0.13], 5, WHITE, smooth=False, cap0=True, cap1=True, side=(1, 0, 0))
+    for sx in (1, -1):
+        a_ = hull.P(0.96, sheer(0.96) - 0.3, sx)
+        b_ = V(sx * 0.5, hull.y(1.0, sheer(1.0) - 1.0) - 0.4, sheer(1.0) - 1.1)
+        m.tube([a_, b_, V(sx * 0.12, sc[1].y - 0.2, sc[1].z + 0.1)], [0.07, 0.06, 0.05], 4, WHITE, smooth=False, side=(0, 0, 1))
+    # stays (the main stay goes to the funnel: steamers did)
+    for a_, b_ in ((fore.top(1), heel + dv * 5.5), (fore.top(2), jb0 + dv * 5.0), (fore.top(3) - V(0, 0, 1.2), jb1),
+                   (main.top(1), ftop + V(0, 0.7, 0.7)), (main.top(2), fore.top(2) - V(0, 0, 1.0)),
+                   (main.top(3) - V(0, 0, 1.2), fore.top(3) - V(0, 0, 1.4)),
+                   (mizz.top(1), main.at(main.h1 - 3.5)), (mizz.top(2), main.top(1) + V(0, 0, 0.4))):
+        rig(m, a_, b_, 0.03)
+    # shrouds with ratlines, backstays
+    for mp, tm in ((fore, 0.83), (main, 0.37), (mizz, 0.21)):
+        w = hull.hb(tm, sheer(tm))
+        for sx in (1, -1):
+            shroud_quad(m, (sx * (w - 0.05), mp.y - 1.2, sheer(tm)), (sx * (w - 0.05), mp.y + 2.0, sheer(tm)),
+                        mp.at(mp.h1 - 0.7) + V(sx * 0.35, 0.35, 0), mp.at(mp.h1 - 0.7) + V(sx * 0.35, -0.35, 0))
+            shroud_quad(m, mp.at(mp.h1 + 0.1) + V(sx * 1.4, -0.7, 0), mp.at(mp.h1 + 0.1) + V(sx * 1.4, 0.9, 0),
+                        mp.top(2) + V(sx * 0.2, 0.15, -0.6), mp.top(2) + V(sx * 0.2, -0.15, -0.6))
+            for lvl, dy in ((2, 4.0), (3, 5.2)):
+                if lvl == 3 and mp.h3 <= mp.h2:
+                    continue
+                rig(m, mp.top(lvl) - V(0, 0, 0.4), V(sx * (w - 0.05), mp.y + dy, sheer(tm)), 0.02)
+    # fife rails round the masts
+    for mp in (fore, main, mizz):
+        c = mp.at(mp.zd)
+        for (ax, ay), (bx, by) in (((-0.9, -0.9), (0.9, -0.9)), ((0.9, -0.9), (0.9, 0.9)), ((0.9, 0.9), (-0.9, 0.9)),
+                                   ((-0.9, 0.9), (-0.9, -0.9))):
+            m.beam(c + V(ax, ay, 0.72), c + V(bx, by, 0.72), 0.1, 0.08, DARK, side=(0, 0, 1))
+        coil(m, c + V(0.4, 1.3, 0), 0.3)
+    # derricks: two resting forward at the foremast; at the mainmast one swung out over the
+    # port side, a sling of cargo on its fall, over where the lighters lie
+    for sx in (1, -1):
+        dh = fore.at(fore.zd + 1.4) + V(sx * 0.4, 0.4, 0)
+        dt = dh + V(sx * 1.5, 7.5, 6.5)
+        spar(m, dh, dt, 0.15, 0.09)
+        rig(m, dt, fore.at(fore.h1 - 0.5), 0.025)
+    dh = main.at(main.zd + 1.4) + V(PORT * 0.45, 0.45, 0)
+    dt = dh + V(PORT * 9.2, 1.8, 5.8)
+    spar(m, dh, dt, 0.17, 0.1)
+    rig(m, dt, main.at(main.h1 - 0.4), 0.025)
+    for tg in (0.32, 0.42):
+        rig(m, dt, hull.P(tg, sheer(tg), PORT) + V(0, 0, 0.1), 0.018)
+    sling = dt - V(0, 0, 4.2)
+    rig(m, dt, sling + V(0, 0, 0.9), 0.02, IRON)
+    for dx, dy in ((-0.5, -0.5), (0.5, -0.5), (0.5, 0.5), (-0.5, 0.5)):
+        rig(m, sling + V(0, 0, 0.9), sling + V(dx * 0.9, dy * 1.1, 0.0))
+    crate_lo(m, sling + V(0, 0, -0.62), size=(1.1, 1.3, 0.62))
+    # hatches with tarpaulins
+    for t0_, t1_ in ((0.88, 0.915), (0.772, 0.808), (0.295, 0.34)):
+        ya, yb = hull.y(t1_, 0), hull.y(t0_, 0)
+        zc = zd((t0_ + t1_) / 2)
+        m.box((0, (ya + yb) / 2, zc + 0.3), (4.0, yb - ya, 0.6), DARK, shade=0.9)
+        m.box((0, (ya + yb) / 2, zc + 0.64), (4.15, yb - ya + 0.15, 0.08), TARP, shade=0.95)
+    # windlass; the starboard anchor at its cathead; the port hawse, and the port anchor's chain
+    # from the windlass to the hawse and out of it, forward and down into the river
+    yw = hull.y(0.94, zd(0.94))
+    windlass(m, 0, yw, zd(0.94) + 0.45, w=2.6, r=0.26)
+    cat = hull.P(0.955, sheer(0.955) + 0.15, -PORT) + V(-PORT * 0.6, 0, 0)
+    m.beam(hull.P(0.955, sheer(0.955) + 0.05, -PORT, 0.4), cat, 0.3, 0.3, IRON, side=(0, 1, 0))
+    with m.at(move(cat.x - PORT * 0.12, cat.y, cat.z - 0.3)):
+        anchor(m, V(0, 0, 0), side=(1, 0, 0), size=1.1)
+    hz = sheer(0.97) - 1.3
+    hawse = hull.P(0.97, hz, PORT) + V(PORT * 0.05, 0, 0)
+    m.box(hawse, (0.18, 0.6, 0.6), IRON)
+    deck_hawse = hull.P(0.965, zd(0.965), PORT, 0.5) + V(0, 0, 0.05)
+    m.line(V(PORT * 0.9, yw, zd(0.94) + 0.5), deck_hawse)
+    ahead, drop = 18.0, hz + 5.0
+    prev = hawse + V(PORT * 0.12, 0, 0)
+    for k in range(1, 9):
+        s_ = k / 8
+        p = hawse + V(PORT * (0.12 + 0.8 * s_), -ahead * s_, -drop * (1 - (1 - s_) ** 2))
+        m.line(prev, p)
+        prev = p
+    m.extras["hawse"] = [round(hawse.x, 3), round(hawse.y, 3), round(hawse.z, 3)]
+    # the accommodation ladder, down the port side forward of the lighters
+    lt, lb_ = hull.P(0.79, zd(0.79), PORT), hull.P(0.835, 0.7, PORT)
+    top = lt + V(PORT * 0.35, 0, 0.05)
+    low = lb_ + V(PORT * 1.3, 0, 0)
+    m.beam(top, low, 0.8, 0.12, WOOD, side=(1, 0, 0))
+    m.box(low + V(0, -0.7, -0.05), (1.3, 1.4, 0.12), WOOD)
+    for dx in (-0.4, 0.4):
+        rig(m, top + V(dx, 0, 1.0), low + V(dx, 0, 1.0), 0.02)
+        rig(m, low + V(dx, 0, 0), low + V(dx, 0, 1.0), 0.02)
+    rig(m, top + V(0, 0, 3.5), low + V(0, 0, 0.1), 0.02)
+    # names: on both bows, and on the quarters with the port of registry
+    hull_name(m, hull, 0.935, sheer(0.935) - 0.75, 4.2, 0.525, 0, mat=NAMES3)
+    hull_name(m, hull, 0.06, sheer(0.06) - 0.7, 4.0, 0.5, 0, mat=NAMES3)
+    hull_name(m, hull, 0.06, sheer(0.06) - 1.25, 3.4, 0.425, 1, mat=NAMES3)
+    # cargo and gear on deck
+    for t, x, r in ((0.95, -1.6, 0.36), (0.95, 1.6, 0.36), (0.3, 2.4, 0.32), (0.05, -1.6, 0.3)):
+        coil(m, (x, hull.y(t, zd(t)), zd(t)), r)
+    for i, x in enumerate((-3.0, -2.3, 2.8)):
+        barrel_lo(m, (x, hull.y(0.28, zd(0.28)), zd(0.28)), yaw=i)
+    zc = zd(0.86)
+    for i, (x, dy, sz) in enumerate(((-1.4, 0.0, (1.1, 0.9, 0.8)), (1.6, 0.3, (1.0, 1.0, 0.9)))):
+        crate_lo(m, (x, hull.y(0.86, zc) + dy, zc), size=sz, yaw=0.15 * i)
+    # propeller and rudder under the counter
+    py = L / 2 - 1.4
+    with m.at(move(0, py, -3.6) @ Matrix.Rotation(math.pi / 2, 4, "X")):
+        m.lathe([(0.4, -0.6), (0.45, 0.0), (0.3, 0.6)], 6, IRON, smooth=False, cap0=True, cap1=True)
+    for k in range(4):
+        a_ = math.pi / 2 * k + 0.4
+        d = V(math.cos(a_), 0, math.sin(a_))
+        s_ = V(-math.sin(a_), 0.35, math.cos(a_)).normalized()
+        c = V(0, py, -3.6)
+        m.slab([c + d * 0.4 - s_ * 0.5, c + d * 0.4 + s_ * 0.5, c + d * 2.3 + s_ * 0.45, c + d * 2.3 - s_ * 0.35], 0.06, IRON,
+               out=(0, -1, 0))
+    rud = [V(0, L / 2 + 0.2, KZ + 1.3), V(0, L / 2 + 2.4, KZ + 1.3), V(0, L / 2 + 2.4, 0.3), V(0, L / 2 + 0.2, 0.9)]
+    m.prism([p + V(-0.1, 0, 0) for p in rud], (0.2, 0, 0), IRON, tile=2.0)
+    return m
+
+
 def tug(paddle=False):
     """A harbour tug, ~19 m: iron hull, a tall thin funnel, engine casing with a small
     wheelhouse, towing arch aft, fenders. paddle=True: a paddle tug with paddle boxes."""
@@ -2505,6 +2856,159 @@ def pontoon_section():
     return m
 
 
+PORTAL_TOP = 5.8
+JIB_ANGLE, JIB_LEN = math.radians(40), 12.5
+# The walkable parts up on a portal crane (M3g part 4). client/src/world/railway.ts carries the same
+# numbers (crane frame there: x = blender x, z = -blender y) for the walk areas, the ladder and the spots.
+DECK_Z = 0.62  # the gallery floor, jib frame (world PORTAL_TOP + 0.62)
+CAB_FLOOR = 0.74  # the cabin floor, one step up
+CAB = (-1.25, 1.25, -1.5, 1.4)  # the cabin's outside: x0, x1, y0, y1
+CAB_WALL, CAB_TOP = 0.08, 3.0
+CAB_DOOR = (0.35, 1.1)  # the doorway in the +x wall, along y
+LADDER_Y, LADDER_HALF = 3.05, 0.23  # the rungs' plane (portal frame), the stiles either side of x = 0
+# The turning deck from above: square in front (the jib heel), the back corners cut off and a tongue
+# at the back that meets the ladder head when the jib is at rest. Its farthest point stays 3.0 m from
+# the axis and the ladder is 3.02 m off, so the deck clears the ladder as the crane slews.
+DECK_OUTLINE = [(-2.0, -1.8), (2.0, -1.8), (2.0, 1.95), (0.9, 2.7), (0.32, 2.7), (0.32, 2.97), (-0.32, 2.97),
+                (-0.32, 2.7), (-0.9, 2.7), (-2.0, 1.95)]
+# the gallery rail, starboard side (the port side is its mirror), 4 cm in from the edge; open at the tongue
+RAIL_RIGHT = [(1.29, -1.5), (1.29, -1.76), (1.96, -1.76), (1.96, 1.93), (0.88, 2.66), (0.28, 2.66), (0.28, 2.93)]
+
+
+def bar(m, a, b, r, mat=IRON, sides=6):
+    """A round iron bar, closed at both ends."""
+    m.tube([Vector(a), Vector(b)], [r, r], sides, mat, smooth=False, cap0=True, cap1=True, urep=1, vscale=0.5)
+
+
+def crane_wall(m, along, lo, hi, t0, t1, z0, z1, holes=(), mat=WOOD, shade=1.0):
+    """A wall with thickness, along x or y from lo to hi, t0..t1 across, z0..z1 tall, with openings
+    (a0, a1, z_bottom, z_top): solid boxes round each opening, so the reveals are closed too."""
+
+    def box(a0, a1, zb, zt):
+        if a1 - a0 < 1e-3 or zt - zb < 1e-3:
+            return
+        ca, ct = (a0 + a1) / 2, (t0 + t1) / 2
+        if along == "x":
+            m.box((ca, ct, (zb + zt) / 2), (a1 - a0, t1 - t0, zt - zb), mat, shade=shade, tile=1.6)
+        else:
+            m.box((ct, ca, (zb + zt) / 2), (t1 - t0, a1 - a0, zt - zb), mat, shade=shade, tile=1.6)
+
+    a = lo
+    for a0, a1, zb, zt in sorted(holes):
+        box(a, a0, z0, z1)
+        box(a0, a1, z0, zb)
+        box(a0, a1, zt, z1)
+        a = a1
+    box(a, hi, z0, z1)
+
+
+def window_frame(m, along, a0, a1, t, zb, zt, bars=1):
+    """A dark frame in a window opening (plane at t across), glazing bars, a sill outside."""
+    def piece(p, q, w, h):
+        if along == "x":
+            m.beam(V(p[0], t, p[1]), V(q[0], t, q[1]), w, h, DARK, side=(0, 1, 0))
+        else:
+            m.beam(V(t, p[0], p[1]), V(t, q[0], q[1]), w, h, DARK, side=(1, 0, 0))
+
+    k = 0.05
+    piece((a0, zb + k / 2), (a1, zb + k / 2), 0.1, k)
+    piece((a0, zt - k / 2), (a1, zt - k / 2), 0.1, k)
+    piece((a0 + k / 2, zb), (a0 + k / 2, zt), 0.1, k)
+    piece((a1 - k / 2, zb), (a1 - k / 2, zt), 0.1, k)
+    for i in range(1, bars + 1):
+        a = a0 + (a1 - a0) * i / (bars + 1)
+        piece((a, zb), (a, zt), 0.04, 0.03)
+    zm = zb + (zt - zb) * 0.55
+    piece((a0, zm), (a1, zm), 0.04, 0.03)
+
+
+def crane_roof(m, xa, xb, ya, yb, z1, rise, mat=IRON):
+    """A shallow arched roof over (xa..xb, ya..yb) from the eaves at z1: four panels, the gable ends
+    and a ceiling under it all (the soffit outside, the ceiling inside): a closed lid."""
+    xs = [xa, xa + (xb - xa) * 0.25, (xa + xb) / 2, xa + (xb - xa) * 0.75, xb]
+    zs = [z1, z1 + rise * 0.75, z1 + rise, z1 + rise * 0.75, z1]
+    for i in range(4):
+        pts = [V(xs[i], ya, zs[i]), V(xs[i + 1], ya, zs[i + 1]), V(xs[i + 1], yb, zs[i + 1]), V(xs[i], yb, zs[i])]
+        m.poly(pts, mat, out=(xs[i] + xs[i + 1] - xa - xb, 0, 1), uvs=[(p.y / 1.2, p.x / 1.2) for p in pts])
+    for yy, dy in ((ya, -1), (yb, 1)):
+        m.poly([V(x, yy, z) for x, z in zip(xs, zs)] + [V(xb, yy, z1 - 0.01), V(xa, yy, z1 - 0.01)], mat,
+               out=(0, dy, 0), shade=0.8)
+    m.poly([V(xa, ya, z1 - 0.01), V(xb, ya, z1 - 0.01), V(xb, yb, z1 - 0.01), V(xa, yb, z1 - 0.01)], WOOD,
+           out=(0, 0, -1), shade=0.55)
+    for xx, dx in ((xa, -1), (xb, 1)):  # the eave edges
+        m.poly([V(xx, ya, z1 - 0.01), V(xx, yb, z1 - 0.01), V(xx, yb, z1), V(xx, ya, z1)], mat, out=(dx, 0, 0), shade=0.8)
+
+    def z_at(x):
+        return table(list(zip(xs, zs)), x)
+
+    return z_at
+
+
+def gear(m, x0, x1, cy, cz, r, teeth, depth=0.04):
+    """A spur gear in the y-z plane, from x0 to x1."""
+    pts = []
+    for i in range(2 * teeth):
+        rr = r if i % 2 == 0 else r - depth
+        a = math.pi * i / teeth
+        pts.append(V(x0, cy + rr * math.cos(a), cz + rr * math.sin(a)))
+    m.prism(pts, (x1 - x0, 0, 0), IRON)
+
+
+def disc_x(m, x, cy, cz, r, half, mat=IRON, sides=10):
+    """A short closed cylinder on an axis along x (a drum, a flange, a flywheel)."""
+    with m.at(move(x, cy, cz) @ Matrix.Rotation(math.pi / 2, 4, "Y")):
+        m.lathe([(r, -half), (r, half)], sides, mat, smooth=False, cap0=True, cap1=True, cap_mat=IRON)
+
+
+def railing(m, pts, z0, h=1.0, step=0.9):
+    """Posts and two rails along a path of (x, y) at deck height z0."""
+    P = [V(x, y, z0) for x, y in pts]
+    posts = []
+    for a, b in zip(P, P[1:]):
+        n = max(1, math.ceil((b - a).length / step))
+        posts += [a + (b - a) * (k / n) for k in range(n)]
+    posts.append(P[-1])
+    for p in posts:
+        m.box((p.x, p.y, z0 + (h + 0.03) / 2), (0.05, 0.05, h + 0.03), IRON)
+    for zz, s in ((z0 + h, 0.05), (z0 + h * 0.5, 0.035)):
+        for a, b in zip(P, P[1:]):
+            t = (b - a).normalized() * 0.025
+            m.beam(V(a.x, a.y, zz) - t, V(b.x, b.y, zz) + t, s, s, IRON, side=(0, 0, 1))
+
+
+def crane_ladder(m, top):
+    """The iron ladder up the back of the portal: two flat stiles, round rungs 0.3 m apart, stays
+    to the portal frame, and a cage of hoops over the upper part. The stiles run on 1.1 m above the
+    gallery floor as hand holds; the deck's tongue meets it there (portal_jib)."""
+    y, hw = LADDER_Y, LADDER_HALF
+    z_hand = top + 1.1
+    for sx in (1, -1):
+        # flat bar stiles, 70 x 22 mm, the flat side facing the climber
+        m.box((sx * hw, y, (0.15 + z_hand) / 2), (0.022, 0.07, z_hand - 0.15), IRON)
+    for z in np.arange(0.35, top + 0.01, 0.3):  # (their ends inside the stiles: no caps needed)
+        m.tube([V(-hw, y, z), V(hw, y, z)], [0.017, 0.017], 6, IRON, smooth=False, urep=1, vscale=0.5)
+    # stays back to the portal: its bottom tie, the end plate, the end girder
+    for z, to in ((2.4, 2.55), (4.3, 2.47), (5.4, 2.52)):
+        for sx in (1, -1):
+            m.beam((sx * hw, y - 0.02, z), (sx * hw, to, z), 0.05, 0.022, IRON, side=(0, 0, 1))
+        m.beam((-hw, to + 0.04, z), (hw, to + 0.04, z), 0.05, 0.022, IRON, side=(0, 1, 0))
+    # the cage: flat hoops round the climber's back, and five straps up them
+    cy, R = y + 0.3, 0.382
+    a0 = math.atan2(-0.3, hw)
+    arc = [a0 + (math.pi - 2 * a0) * k / 8 for k in range(9)]
+    hoops = [3.3 + 0.7 * i for i in range(7) if 3.3 + 0.7 * i <= z_hand + 0.01]
+    for z in hoops:
+        pts = [V(R * math.cos(a), cy + R * math.sin(a), z) for a in arc]
+        for p, q in zip(pts, pts[1:]):
+            t = (q - p).normalized() * 0.012
+            m.beam(p - t, q + t, 0.016, 0.06, IRON, side=(q - p).cross(V(0, 0, 1)), caps=False)
+    for k in (1, 3, 4, 5, 7):
+        a = arc[k]
+        p = V(R * math.cos(a), cy + R * math.sin(a), 0)
+        m.beam((p.x, p.y, hoops[0] - 0.03), (p.x, p.y, hoops[-1] + 0.03), 0.05, 0.014, IRON,
+               side=V(-math.sin(a), math.cos(a), 0))
+
+
 def portal_crane():
     """The fixed part of a quay crane: an iron portal on four legs standing on bogies on
     two crane rails, straddling a railway track, with a ladder. The turning part is portal_jib()."""
@@ -2518,7 +3022,8 @@ def portal_crane():
             for dx in (-0.42, 0.42):
                 with m.at(move(x + dx, y, 0.32) @ Matrix.Rotation(math.pi / 2, 4, "X")):
                     m.lathe([(0.3, -0.1), (0.3, 0.1)], 8, IRON, cap0=True, cap1=True, smooth=False)
-            m.beam((x, y, 0.8), (sx * 1.15, sy * 2.35, TOP - 0.9), 0.44, 0.34, IRON, side=(1, 0, 0), w2=0.34, h2=0.3)
+            # the leg runs up into the top girder (no seam to see the sky through)
+            m.beam((x, y, 0.72), (sx * 1.15, sy * 2.35, TOP - 0.7), 0.44, 0.34, IRON, side=(1, 0, 0), w2=0.34, h2=0.3)
 
     def lx(z):
         return 2.2 - 1.05 * (z - 0.8) / (TOP - 1.7)
@@ -2530,8 +3035,10 @@ def portal_crane():
                0.06, IRON, out=(0, sy, 0))
         m.beam((-lx(2.4), y, 2.4), (0, y, TOP - 2.0), 0.16, 0.16, IRON, side=(0, 1, 0))
         m.beam((lx(2.4), y, 2.4), (0, y, TOP - 2.0), 0.16, 0.16, IRON, side=(0, 1, 0))
-        # a painted number board
-        panel(m, (0, y, TOP - 1.35), (sy, 0, 0), (0, 0, 1), 0.7, 0.35, WHITE, off=0.05)
+        # the end girder between the two top girders: the portal's ends are closed up to the top plate
+        m.box((0, sy * 2.5, TOP - 0.5), (2.2, 0.16, 0.96), IRON)
+        # a painted number board (off to one side at the back, where the ladder goes up)
+        panel(m, (0 if sy < 0 else -0.85, y, TOP - 1.35), (sy, 0, 0), (0, 0, 1), 0.7, 0.35, WHITE, off=0.05)
     for sx in (1, -1):
         m.box((sx * 1.15, 0, TOP - 0.45), (0.36, 5.3, 0.9), IRON)
         for sy in (1, -1):
@@ -2539,38 +3046,107 @@ def portal_crane():
                     (sx * 1.15, sy * 1.9, TOP - 1.4)], 0.05, IRON, out=(sx, 0, 0))
     m.box((0, 0, TOP - 0.06), (3.0, 5.3, 0.12), IRON)
     with m.at(move(0, 0, TOP)):
-        m.lathe([(1.4, 0.0), (1.4, 0.15)], 12, IRON, smooth=False, cap1=True, urep=3)
-    # ladder up the +y side of the portal
-    for x in (1.35, 1.75):
-        m.beam((x, 2.95, 0.0), (x, 2.95, TOP), 0.06, 0.08, IRON, side=(1, 0, 0))
-    for z in np.arange(0.35, TOP - 0.1, 0.35):
-        rig(m, (1.35, 2.95, z), (1.75, 2.95, z), 0.02, IRON)
-    m.box((1.55, 2.78, TOP - 0.06), (0.6, 0.5, 0.08), IRON)
+        m.lathe([(1.4, 0.0), (1.4, 0.15)], 12, IRON, smooth=False, cap0=True, cap1=True, urep=3)
+    crane_ladder(m, TOP + DECK_Z)
     return m
-
-
-PORTAL_TOP = 5.8
-JIB_ANGLE, JIB_LEN = math.radians(40), 12.5
 
 
 def portal_jib():
     """The turning part of the portal crane, origin on the slewing axis at the portal top:
-    slewing ring, machinery deck, wooden cabin, water-tank counterweight, A-frame, lattice jib,
-    ties, hoist rope and hook."""
+    slewing ring, the deck with a railed gallery round the driver's cabin (walkable: M3g part 4),
+    the cabin with its winch, boiler and levers, the A-frame on its roof, lattice jib, ties,
+    hoist rope and hook."""
     m = Mesh(ao=0.0)
-    m.lathe([(1.35, 0.15), (1.35, 0.32)], 12, IRON, smooth=False, cap1=True, urep=3)
-    m.box((0, 0.55, 0.47), (3.2, 4.3, 0.3), IRON)
-    cy0, cy1, cz0, cz1 = -1.4, 1.4, 0.62, 3.0
-    house(m, -1.3, 1.3, cy0, cy1, cz0, cz1, wall=WOOD, roof=IRON, over=0.14, roof_rise=0.5,
-          windows=[("-y", -0.5, 2.1), ("-y", 0.5, 2.1), ("+x", -0.6, 2.1), ("+x", 0.5, 2.1), ("-x", -0.6, 2.1),
-                   ("-x", 0.5, 2.1)], door=("+y", 0.4, 0.75, 1.9))
-    chimney(m, -0.7, 0.8, cz1 + 0.35, 0.6, 0.07)
-    with m.at(move(0, 2.3, 0.62)):
-        m.lathe([(0.85, 0.0), (0.85, 1.9), (0.72, 2.02)], 10, IRON, smooth=False, cap1=True, urep=3)
+    D, F = DECK_Z, CAB_FLOOR
+    m.lathe([(1.35, 0.15), (1.35, 0.34)], 12, IRON, smooth=False, cap0=True, cap1=True, urep=3)
+    # the deck: an iron platform planked on top, girders under it outside the ring
+    m.prism([V(x, y, 0.3) for x, y in DECK_OUTLINE], (0, 0, D - 0.02 - 0.3), IRON, tile=1.2)
+    m.prism([V(x, y, D - 0.02) for x, y in DECK_OUTLINE], (0, 0, 0.02), DECK, tile=1.6)
+    for y in (-1.6, 2.2):
+        m.box((0, y, 0.245), (3.8 if y < 0 else 3.2, 0.16, 0.13), IRON)
+    for sx in (1, -1):
+        m.box((sx * 1.8, 0.1, 0.245), (0.16, 3.6, 0.13), IRON)
+    # the gallery rail, open at the tongue for the ladder
+    railing(m, RAIL_RIGHT, D)
+    railing(m, [(-x, y) for x, y in RAIL_RIGHT], D)
+
+    # --- the driver's cabin: timber walls with thickness, a doorway, open windows, a floor a step up
+    x0, x1, y0, y1 = CAB
+    w = CAB_WALL
+    m.box((0, (y0 + y1) / 2, (D + F) / 2), (x1 - x0 - 2 * w, y1 - y0 - 2 * w, F - D), DECK, tile=1.6)
+    front_win = (-0.45, 0.45, 1.55, 2.5)
+    side_win = (-1.05, -0.55, 1.6, 2.25)
+    door = (CAB_DOOR[0], CAB_DOOR[1], D, D + 2.0)
+    crane_wall(m, "x", x0, x1, y0, y0 + w, D, CAB_TOP, [front_win])
+    crane_wall(m, "x", x0, x1, y1 - w, y1, D, CAB_TOP)
+    crane_wall(m, "y", y0 + w, y1 - w, x1 - w, x1, D, CAB_TOP, [side_win, door])
+    crane_wall(m, "y", y0 + w, y1 - w, x0, x0 + w, D, CAB_TOP, [side_win])
+    for cx in (x0, x1):
+        for cy in (y0, y1):
+            m.box((cx, cy, (D + CAB_TOP) / 2), (0.12, 0.12, CAB_TOP - D), DARK)
+    window_frame(m, "x", front_win[0], front_win[1], y0 + w / 2, front_win[2], front_win[3])
+    for sx in (1, -1):
+        window_frame(m, "y", side_win[0], side_win[1], sx * (x1 - w / 2), side_win[2], side_win[3], bars=0)
+    m.box((0, y0 - 0.03, front_win[2] - 0.03), (1.0, 0.1, 0.05), DARK)
+    # the door stands open, flat against the wall
+    for a in CAB_DOOR:
+        m.box((x1 + 0.01, a, D + 1.0), (0.1, 0.05, 2.0), DARK)
+    m.box((x1 + 0.01, sum(CAB_DOOR) / 2, D + 2.02), (0.1, CAB_DOOR[1] - CAB_DOOR[0] + 0.05, 0.05), DARK)
+    m.box((x1 + 0.03, CAB_DOOR[0] - 0.38, D + 1.0), (0.035, 0.74, 1.96), DARK, shade=0.9)
+    m.box((x1 + 0.06, CAB_DOOR[0] - 0.68, D + 1.0), (0.03, 0.04, 0.12), IRON)
+    z_roof = crane_roof(m, x0 - 0.14, x1 + 0.14, y0 - 0.14, y1 + 0.14, CAB_TOP, 0.4)
+
+    # --- the machinery (the left half of the cabin; the aisle runs down the +x side to the front)
+    dy, dz = -0.2, 1.25  # the winch drum's axis
+    disc_x(m, -0.325, dy, dz, 0.28, 0.5, ROPE)  # the drum, wound with the hoisting rope
+    for x in (-0.845, 0.195):
+        disc_x(m, x, dy, dz, 0.38, 0.02)  # its flanges
+    bar(m, (-1.0, dy, dz), (0.42, dy, dz), 0.05)
+    for x in (-0.93, 0.28):  # the cast-iron cheeks
+        m.slab([(x, -0.62, F), (x, 0.55, F), (x, 0.45, 1.85), (x, -0.5, 1.62)], 0.05, IRON, out=(1, 0, 0))
+    gear(m, 0.32, 0.38, dy, dz, 0.46, 20)  # the great wheel on the drum
+    py, pz = 0.33, 1.55  # the crankshaft
+    gear(m, 0.32, 0.38, py, pz, 0.14, 8, depth=0.03)
+    bar(m, (-1.12, py, pz), (0.42, py, pz), 0.035)
+    disc_x(m, -1.07, py, pz, 0.36, 0.03, sides=12)  # the flywheel
+    disc_x(m, 0.12, py, pz, 0.12, 0.025)  # the crank disc
+    # the engine: a steam cylinder lying fore and aft, its rod to the crank
+    with m.at(move(0.12, 0.95, pz) @ Matrix.Rotation(math.pi / 2, 4, "X")):
+        m.lathe([(0.12, -0.23), (0.12, 0.23)], 8, IRON, smooth=False, cap0=True, cap1=True)
+    bar(m, (0.12, 0.72, pz), (0.12, py + 0.02, pz + 0.08), 0.022)
+    m.box((0.12, 0.95, F + (pz - 0.12 - F) / 2), (0.3, 0.4, pz - 0.12 - F), IRON, shade=0.8)
+    # the vertical boiler in the back corner, its chimney through the roof
+    bx, by = -0.55, 0.85
+    with m.at(move(bx, by, 0)):
+        m.lathe([(0.4, F), (0.4, 2.35), (0.3, 2.52), (0.1, 2.6)], 10, IRON, smooth=False, cap1=True, urep=2)
+    m.box((bx + 0.4, by, 1.05), (0.05, 0.28, 0.26), DARK)
+    m.box((bx + 0.43, by, 1.05), (0.02, 0.06, 0.03), IRON)
+    chimney(m, bx, by, 2.58, z_roof(bx) - 2.58 + 0.6, 0.08)
+    bar(m, (bx + 0.25, by, 2.3), (0.12, 0.95, 2.3), 0.03)
+    bar(m, (0.12, 0.95, 2.33), (0.12, 0.95, pz + 0.1), 0.03)
+    # a coal box by the boiler
+    m.box((-1.08, -0.42, F + 0.14), (0.16, 0.62, 0.28), IRON, shade=0.8)
+    m.box((-1.08, -0.42, F + 0.27), (0.12, 0.58, 0.04), DARK, shade=0.35)
+    # the brake: a band over the left flange, and the driver's three levers on their quadrant plate
+    arc = [math.radians(a) for a in range(-40, 225, 33)]
+    pts = [V(-0.845, dy + 0.405 * math.cos(a), dz + 0.405 * math.sin(a)) for a in arc]
+    for p, q in zip(pts, pts[1:]):
+        m.beam(p, q, 0.05, 0.014, IRON, side=(1, 0, 0))
+    m.box((-0.36, -0.71, F + 0.03), (0.72, 0.1, 0.06), IRON)
+    for x in (-0.62, -0.36, -0.1):
+        m.slab([(x, -0.66, F), (x, -0.78, F), (x, -0.76, F + 0.2), (x, -0.66, F + 0.2)], 0.02, IRON, out=(1, 0, 0))
+        m.beam((x + 0.02, -0.7, F + 0.05), (x + 0.02, -0.79, F + 1.0), 0.04, 0.025, IRON, side=(1, 0, 0))
+        m.box((x + 0.02, -0.795, F + 1.03), (0.05, 0.05, 0.08), DARK)
+    bar(m, (-0.6, -0.72, F + 0.45), (-0.845, dy - 0.3, dz - 0.28), 0.018)
+    # the driver's bench: a locker in the front corner
+    m.box((-0.985, -1.11, F + 0.21), (0.33, 0.54, 0.42), DARK, shade=0.85)
+    m.box((-0.98, -1.11, F + 0.44), (0.37, 0.58, 0.04), WOOD)
+
+    # --- the A-frame on the roof, the lattice jib, its ties
     apex = V(0, 1.0, 5.6)
     for sx in (1, -1):
-        m.beam((sx * 1.05, 1.5, cz1 - 0.2), apex, 0.18, 0.18, IRON, side=(1, 0, 0))
-    m.beam((0, 2.3, 2.6), apex, 0.16, 0.16, IRON)
+        m.beam((sx * 1.1, 1.25, z_roof(sx * 1.1) - 0.05), apex, 0.18, 0.18, IRON, side=(1, 0, 0))
+    m.beam((0, 1.5, z_roof(0) - 0.05), apex, 0.16, 0.16, IRON)
     foot = V(0, -1.65, 0.7)
     d = V(0, -math.cos(JIB_ANGLE), math.sin(JIB_ANGLE))
     n = V(0, math.sin(JIB_ANGLE), math.cos(JIB_ANGLE))
@@ -2583,9 +3159,11 @@ def portal_jib():
         return 0.5 + 0.5 * math.sin(math.pi * s) - 0.2 * s
 
     ss = [0.0, 0.2, 0.45, 0.72, 1.0]
+    chords = {}
     for sx in (1, -1):
         lo = [foot + d * JIB_LEN * s + V(sx * w(s), 0, 0) - n * h(s) / 2 for s in ss]
         hi = [foot + d * JIB_LEN * s + V(sx * w(s), 0, 0) + n * h(s) / 2 for s in ss]
+        chords[sx] = (lo, hi)
         acc = 0.0
         for i in range(len(ss) - 1):
             ln = (lo[i + 1] - lo[i]).length
@@ -2594,6 +3172,15 @@ def portal_jib():
             acc += ln
             m.beam(lo[i], lo[i + 1], 0.09, 0.09, IRON, side=(1, 0, 0))
             m.beam(hi[i], hi[i + 1], 0.09, 0.09, IRON, side=(1, 0, 0))
+    # lattice on the top and bottom faces too: a box girder of lattice, not two flat sides
+    for k in (0, 1):
+        a_, b_ = chords[1][k], chords[-1][k]
+        acc = 0.0
+        for i in range(len(ss) - 1):
+            ln = (a_[i + 1] - a_[i]).length
+            m.poly([a_[i], a_[i + 1], b_[i + 1], b_[i]], LATTICE,
+                   uvs=[(acc / 1.4, 0), ((acc + ln) / 1.4, 0), ((acc + ln) / 1.4, 1), (acc / 1.4, 1)])
+            acc += ln
     for s in ss:
         c = foot + d * JIB_LEN * s
         for k in (-1, 1):
@@ -2605,9 +3192,12 @@ def portal_jib():
     with m.at(move(*head) @ Matrix.Rotation(math.pi / 2, 4, "Y")):
         m.lathe([(0.3, -0.06), (0.3, 0.06)], 8, IRON, smooth=False, cap0=True, cap1=True)
     for sx in (1, -1):
-        rig(m, apex + V(sx * 0.1, 0, 0), tip + n * 0.3 + V(sx * 0.2, 0, 0), 0.045, IRON)
-    rig(m, apex, (0, 2.3, 2.6), 0.03, IRON)
-    rig(m, (0, -0.9, 1.5), foot + d * JIB_LEN * 0.98 + n * 0.1, 0.025, IRON)
+        bar(m, apex + V(sx * 0.1, 0, 0), tip + n * 0.3 + V(sx * 0.2, 0, 0), 0.045, IRON, sides=4)
+    # the hoisting rope: off the drum, out under the front window to a lead sheave at the jib heel, up the jib
+    lead = V(0, -1.82, 0.95)
+    disc_x(m, 0, lead.y, lead.z, 0.14, 0.03, sides=8)
+    rig(m, (-0.1, dy - 0.28, dz - 0.05), lead + V(0, 0, 0.14), 0.025, IRON)
+    rig(m, lead + V(0, 0, 0.14), foot + d * JIB_LEN * 0.98 + n * 0.1, 0.025, IRON)
     hang = tip + V(0, -0.28, -0.1)
     HOOK_Z = -3.4
     for dx in (-0.08, 0.08):
@@ -2619,12 +3209,6 @@ def portal_jib():
     # a sling of rope under the hook
     rope_path(m, [V(-0.3, hang.y + 0.12, HOOK_Z - 1.0), V(0, hang.y + 0.12, HOOK_Z - 0.38),
                   V(0.3, hang.y + 0.12, HOOK_Z - 1.0)], 0.03, ROPE)
-    # hand rail round the machinery deck (back half)
-    for sx in (1, -1):
-        rig(m, (sx * 1.55, 1.4, 1.55), (sx * 1.55, 2.65, 1.55), 0.025, IRON)
-        for y in (1.4, 2.65):
-            rig(m, (sx * 1.55, y, 0.62), (sx * 1.55, y, 1.55), 0.025, IRON)
-    rig(m, (-1.55, 2.65, 1.55), (1.55, 2.65, 1.55), 0.025, IRON)
     return m
 
 
@@ -2713,6 +3297,7 @@ BUILDERS = [
     ("pontoon_section", pontoon_section),
     ("portal_crane", portal_crane),
     ("hand_crane", hand_crane),
+    ("liner", liner),
 ]
 CHILDREN = {"portal_crane": ("jib", portal_jib, (0, 0, PORTAL_TOP)), "hand_crane": ("hand_crane_jib", hand_jib, (0, 0, HAND_PIVOT))}
 

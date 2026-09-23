@@ -7,6 +7,7 @@ import { ALL_EMPLOYERS, listJobs, makeBoard, SPOTS, taskFor, type Board } from "
 import { remember, topMemories } from "../src/npcs.ts";
 import { generateTown, type Resident } from "../src/town/population.ts";
 import { STALLS, TOWN_EMPLOYERS } from "../src/town/places.ts";
+import { isGarrison } from "../src/town/garrison.ts";
 import { activityAt } from "../src/town/schedule.ts";
 import { ensureTown, personaLine, repairTown, resident, town } from "../src/town/store.ts";
 import { circleOf, rumoursOf, spreadRumours, toYou } from "../src/town/rumours.ts";
@@ -51,8 +52,10 @@ describe("population generator", () => {
   });
 
   it("has 150-200 people in families, with unique names", () => {
-    expect(T.residents.length).toBeGreaterThanOrEqual(150);
-    expect(T.residents.length).toBeLessThanOrEqual(200);
+    // the garrison and the customs come on top (garrison.ts; test/garrison.test.ts)
+    const folk = T.residents.filter((r) => !isGarrison(r.trade));
+    expect(folk.length).toBeGreaterThanOrEqual(150);
+    expect(folk.length).toBeLessThanOrEqual(200);
     const names = T.residents.map((r) => r.name);
     expect(new Set(names).size).toBe(names.length);
     const hh = new Map<number, Resident[]>();

@@ -24,6 +24,13 @@ import CITY from "../../../shared/city.json";
 // they take). The board's employers stand at their posts by day (people.ts);
 // after dark, while they have work open, they stand under a lamp or carry a
 // lantern.
+//
+// The garrison and the customs (server town/garrison.ts): sentries stand at their
+// post in pairs, and the relief waits a step in front of the old man until he
+// marches in to the guard room; soldiers off duty walk out side by side (the
+// crowd's follow); customs officers go from one landing to the next, up to the
+// crates and casks, and write in their book. Nobody of them ever lays hands on
+// anyone: the police alone come for a thief (deeds.ts).
 
 const SPAWN_R = 55;
 const DESPAWN_R = 68;
@@ -33,7 +40,7 @@ const HIDDEN_SPEED = 6;
 const SPOTS = SPOT_TABLE as unknown as Record<string, { x: number; z: number; label: string }>;
 const LAMPS = ((CITY as unknown as { decor?: { lamps?: Pt[] } }).decor?.lamps ?? []) as Pt[];
 
-type Mode = "home" | "inside" | "church" | "stand" | "haul" | "patrol" | "roam" | "play" | "market" | "loiter" | "tavern" | "stroll" | "thief";
+type Mode = "home" | "inside" | "church" | "stand" | "haul" | "patrol" | "roam" | "play" | "market" | "loiter" | "tavern" | "stroll" | "thief" | "guard" | "inspect";
 
 interface Goal {
   mode: Mode;
@@ -47,6 +54,8 @@ interface Goal {
   a?: Pt;
   b?: Pt;
   place?: string;
+  /** Inspect: which way to face at each point of the route. */
+  faces?: number[];
 }
 
 interface Sim {
@@ -73,6 +82,9 @@ interface Sim {
   thief: { mode: "idle" | "stalk" | "flee"; t: number; close: number } | null;
   /** 0-1, stable per person (spread, lanterns, who talks when). */
   h: number;
+  /** Customs at a landing: 0 arrived, 1 up to the goods, 2 writing, 3 looking; and which way the goods lie. */
+  ph?: number;
+  face?: number | null;
 }
 
 /** A person you can talk to, for the talk window (people.ts Npc has the same shape). */
@@ -86,6 +98,7 @@ export interface Speaker {
 const KIND_FALLBACK: Record<string, HumanKind> = {
   baker: "docker_c", shopkeeper: "recipient", publican: "foreman", clerk: "gentleman", old_man: "docker_b", beggar: "thief",
   wife_a: "fishwife_a", wife_b: "fishwife_b", shopwife: "maid", old_woman: "fishwife_b", urchin: "boy", girl_b: "girl",
+  soldier: "police", soldier_b: "police", sentry: "police", customs: "police",
 };
 
 const hash = (s: string) => {
@@ -95,6 +108,9 @@ const hash = (s: string) => {
 };
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const isNight = (h: number) => h >= 19 || h < 6.5;
+/** The garrison and the customs: no lanterns (a rifle, a book), a marching step. */
+const GARRISON = new Set(["soldier", "sentry", "corporal", "customs"]);
+const SOLDIERS = new Set(["soldier", "sentry", "corporal"]);
 const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
 
 export class Town {
@@ -283,6 +299,8 @@ export class Town {
       case "market":
       case "stroll":
       case "loiter": {
+        // soldiers walking out: their round of the town, the pair side by side (pair())
+        if (now.act === "stroll" && r.trade === "soldier" && w.route?.length) return { mode: "roam", x: w.route[0][0], z: w.route[0][1], route: w.route, place: now.place };
         const pl = P(now.place) ?? P(w.place) ?? P("rijnkaai")!;
         const [x, z] = this.spot(pl, s);
         return { mode: now.act, x, z, r: pl.r, place: now.place };
@@ -315,6 +333,13 @@ export class Town {
       case "inside":
         if (w.door) return { mode: "inside", x: w.door[0], z: w.door[1] };
         return { mode: "home", x: r.home.sx, z: r.home.sz };
+      case "guard":
+        // a sentry at his post, rifle at the shoulder; the corporal in front, watching his men
+        if (w.at) return { mode: "guard", x: w.at[0], z: w.at[1], yaw: w.at[2], motion: r.trade === "corporal" ? "fold" : "idle" };
+        break;
+      case "inspect":
+        if (w.route?.length) return { mode: "inspect", x: w.route[0][0], z: w.route[0][1], route: w.route, faces: w.faces };
+        break;
       default:
         break;
     }
@@ -333,7 +358,9 @@ export class Town {
 
   /** Nobody sees them: a straight walk to where they should be, briskly. */
   private coarse(s: Sim, dt: number): void {
-    const [tx, tz] = this.anchor(s);
+    const lead = s.goal.mode === "roam" ? this.leadOf(s) : null;
+    if (lead) s.step = lead.step;
+    const [tx, tz] = lead ? [lead.x + 0.6, lead.z] : this.anchor(s);
     const d = dist(s.x, s.z, tx, tz);
     if (d < 0.5) {
       if (s.goal.mode === "home" || s.goal.mode === "inside" || s.goal.mode === "church") {
@@ -365,7 +392,11 @@ export class Town {
       // people appear out of sight, or step out of their own door
       if (!anywhere && !fresh && !this.crowd.isHidden(s.x, s.z)) continue;
       if (!anywhere && d < 3) continue;
-      let at: { x: number; z: number } | null = this.crowd.canStand(s.x, s.z) ? { x: s.x, z: s.z } : this.crowd.openNear(s.x, s.z);
+      // two soldiers walking out: the second appears at his comrade's side
+      const lead = s.goal.mode === "roam" ? this.leadOf(s) : null;
+      const side = lead?.p ? { x: lead.p.x - Math.cos(lead.p.yaw) * 0.62, z: lead.p.z + Math.sin(lead.p.yaw) * 0.62 } : null;
+      let at: { x: number; z: number } | null =
+        side && this.crowd.canStand(side.x, side.z) ? side : this.crowd.canStand(s.x, s.z) ? { x: s.x, z: s.z } : this.crowd.openNear(s.x, s.z);
       if (!at) continue;
       if (!isHumanKind(s.kind)) s.kind = KIND_FALLBACK[s.kind] ?? "docker_a";
       const p = this.crowd.addPuppet(s.kind, at.x, at.z, Math.atan2(this.anchor(s)[0] - at.x, this.anchor(s)[1] - at.z), this.paceOf(s));
@@ -401,6 +432,8 @@ export class Town {
     if (r.age < 13) return rnd(1.1, 1.5);
     if (r.age >= 62) return rnd(0.8, 1.0);
     if (r.trade === "police" || r.trade === "priest") return rnd(0.95, 1.05);
+    if (SOLDIERS.has(r.trade)) return rnd(1.25, 1.35); // the marching step
+    if (r.trade === "customs") return rnd(1.0, 1.1);
     if (r.kind === "porter" || r.kind === "carter") return rnd(0.85, 1.0);
     return r.sex === "f" ? rnd(1.0, 1.25) : rnd(1.15, 1.4);
   }
@@ -418,9 +451,18 @@ export class Town {
         break;
       case "patrol":
       case "roam":
-      case "thief": {
+      case "thief":
+      case "inspect": {
         const q = g.route![s.step % g.route!.length];
-        this.crowd.puppetGo(p, q[0], q[1], g.mode === "thief" ? 0.9 : pace);
+        // soldiers walking out take it easy
+        this.crowd.puppetGo(p, q[0], q[1], g.mode === "thief" ? 0.9 : s.r.trade === "soldier" && g.mode === "roam" ? pace * 0.8 : pace);
+        s.ph = 0;
+        break;
+      }
+      case "guard": {
+        // the relief: to the waiting spot while the old sentry still stands at the post
+        const w = this.reliefWait(s);
+        this.crowd.puppetGo(p, w ? w[0] : g.x, w ? w[1] : g.z, pace);
         break;
       }
       default:
@@ -433,6 +475,7 @@ export class Town {
   private behave(s: Sim, dt: number, hour: number): void {
     const p = s.p!;
     const g = s.goal;
+    if (this.pair(s, dt)) return;
     const busy = this.crowd.puppetBusy(p);
     const at = (x: number, z: number, r = 1.0) => dist(p.x, p.z, x, z) < r;
     switch (g.mode) {
@@ -497,7 +540,10 @@ export class Town {
         if (!s.arrived) {
           s.arrived = true;
           s.wait = g.mode === "patrol" ? rnd(1, 4) : rnd(3, 12);
-          this.crowd.puppetStand(p, s.r.trade === "police" ? "behind" : "idle", null);
+          // two soldiers walking out stop and talk, the one at his side listening (crowd follow)
+          const mate = s.r.trade === "soldier" && s.r.mate ? this.byId.get(s.r.mate) : undefined;
+          const talk = !!mate?.p && dist(mate.p.x, mate.p.z, p.x, p.z) < 2 && Math.random() < 0.6;
+          this.crowd.puppetStand(p, s.r.trade === "police" ? "behind" : talk ? "talk" : "idle", talk && mate?.p ? Math.atan2(mate.p.x - p.x, mate.p.z - p.z) : null);
           return;
         }
         if ((s.wait -= dt) > 0) return;
@@ -508,6 +554,10 @@ export class Town {
       }
       case "thief":
         return this.thieve(s, dt, hour);
+      case "guard":
+        return this.guard(s, dt, busy);
+      case "inspect":
+        return this.inspect(s, dt, busy);
       case "play":
         return this.play(s, dt);
       case "market":
@@ -532,6 +582,172 @@ export class Town {
         }
         return;
     }
+  }
+
+  // ---- the garrison and the customs (server town/garrison.ts)
+
+  /** Two soldiers walking out: the one with the higher id walks at his comrade's side. */
+  private leadOf(s: Sim): Sim | null {
+    const m = s.r.mate;
+    if (!m || s.r.trade !== "soldier" || m > s.r.id) return null;
+    const l = this.byId.get(m);
+    return l && !l.inside && l.key === s.key ? l : null;
+  }
+
+  /** Keep with the comrade (true: the crowd walks him now). Lets go when they part. */
+  private pair(s: Sim, dt: number): boolean {
+    const p = s.p!;
+    const l = s.goal.mode === "roam" ? this.leadOf(s) : null;
+    if (l?.p && !l.held) {
+      const d = dist(l.p.x, l.p.z, p.x, p.z);
+      if (d < 14) {
+        this.crowd.puppetFollow(p, l.p);
+        s.step = l.step;
+        return true;
+      }
+      // too far to fall in beside him: catch up first
+      if (this.crowd.puppetFollowing(p)) this.crowd.puppetFollow(p, null);
+      if ((s.wait -= dt) <= 0) {
+        s.wait = 1;
+        this.crowd.puppetGo(p, l.p.x, l.p.z, 1.8); // a quick step to catch up
+      }
+      return true;
+    }
+    if (this.crowd.puppetFollowing(p)) {
+      this.crowd.puppetFollow(p, null);
+      s.wait = 0;
+      s.arrived = false;
+      this.direct(s);
+    }
+    return false;
+  }
+
+  /**
+   * A sentry at his post, facing down the quay. The relief comes out half an hour early and,
+   * while the old man still stands there, waits a step in front of him, facing him (the
+   * orders handed over), until he marches in; then takes the post.
+   */
+  private guard(s: Sim, dt: number, busy: boolean): void {
+    const p = s.p!;
+    const g = s.goal;
+    if (busy) return;
+    if (dist(p.x, p.z, g.x, g.z) > 0.7) {
+      const wait = this.reliefWait(s);
+      if (wait) {
+        const [fx, fz] = wait;
+        if (dist(p.x, p.z, fx, fz) > 0.7 && s.tries < 3) {
+          s.tries++;
+          this.crowd.puppetGo(p, fx, fz);
+          return;
+        }
+        if ((s.wait -= dt) <= 0) {
+          this.crowd.puppetStand(p, Math.random() < 0.5 ? "talk" : "idle", Math.atan2(g.x - p.x, g.z - p.z));
+          s.wait = rnd(1.5, 3);
+        }
+        return;
+      }
+      if (s.tries < 5) {
+        s.tries++;
+        s.wait = 0;
+        this.crowd.puppetGo(p, g.x, g.z);
+        return;
+      }
+    }
+    if ((s.wait -= dt) <= 0) {
+      this.crowd.puppetStand(p, g.motion ?? "idle", g.yaw ?? null);
+      s.wait = rnd(6, 14);
+    }
+  }
+
+  /**
+   * The old sentry still stands at this man's post: where the relief waits for him, a step in
+   * front and a step to the side (off the line of the pair), facing him. null: the post is free.
+   */
+  private reliefWait(s: Sim): Pt | null {
+    const g = s.goal;
+    if (g.mode !== "guard" || s.r.trade !== "sentry") return null;
+    const old = this.sims.find((o) => o !== s && o.p && o.goal.mode === "guard" && o.r.trade === s.r.trade && dist(o.p.x, o.p.z, g.x, g.z) < 0.9);
+    if (!old) return null;
+    const yaw = g.yaw ?? 0;
+    return [g.x + Math.sin(yaw) * 1.2 - Math.cos(yaw) * 1.2, g.z + Math.cos(yaw) * 1.2 + Math.sin(yaw) * 1.2];
+  }
+
+  /** A customs officer: at each landing up to the nearest goods, writes in his book, looks them over, goes on. */
+  private inspect(s: Sim, dt: number, busy: boolean): void {
+    const p = s.p!;
+    const g = s.goal;
+    const route = g.route!;
+    if (busy) return;
+    switch (s.ph ?? 0) {
+      case 0: {
+        const q = this.goodsNear(p.x, p.z, 5);
+        s.face = q?.yaw ?? g.faces?.[s.step % route.length] ?? null;
+        s.ph = 2;
+        s.wait = 0;
+        if (q && dist(p.x, p.z, q.x, q.z) > 0.5) {
+          s.ph = 1;
+          this.crowd.puppetGo(p, q.x, q.z);
+        }
+        return;
+      }
+      case 1:
+        s.ph = 2;
+        s.wait = 0;
+        return;
+      case 2:
+        if (s.wait <= 0) {
+          this.crowd.puppetStand(p, "write", s.face ?? null);
+          s.wait = rnd(7, 14);
+        }
+        if ((s.wait -= dt) <= 0) {
+          // look the goods over (or answer a docker), then write again or go on
+          this.crowd.puppetStand(p, Math.random() < 0.5 ? "behind" : "idle", s.face ?? null);
+          s.wait = rnd(3, 6);
+          s.ph = 3;
+        }
+        return;
+      default:
+        if ((s.wait -= dt) > 0) return;
+        if (Math.random() < 0.3) {
+          s.ph = 2;
+          return;
+        }
+        s.step++;
+        this.direct(s);
+    }
+  }
+
+  /**
+   * The nearest pile of goods (crates, casks, bales, a cart: the world's solids of that size)
+   * within r of (x, z): where to stand, 0.8 m out from its side, and the way to face it.
+   */
+  private goodsNear(x: number, z: number, r: number): { x: number; z: number; yaw: number } | null {
+    let best: { cx: number; cz: number; mx: number; mz: number } | null = null;
+    let bd = r;
+    for (const b of this.world.solids()) {
+      const w = b.maxX - b.minX;
+      const d = b.maxZ - b.minZ;
+      if (w * d < 0.4 || w * d > 30 || Math.max(w, d) > 9) continue; // not a lamp post or a tree, not a crane or a shed
+      const cx = Math.max(b.minX, Math.min(b.maxX, x));
+      const cz = Math.max(b.minZ, Math.min(b.maxZ, z));
+      const e = dist(x, z, cx, cz);
+      if (e < bd) {
+        bd = e;
+        best = { cx, cz, mx: (b.minX + b.maxX) / 2, mz: (b.minZ + b.maxZ) / 2 };
+      }
+    }
+    if (!best) return null;
+    let ox = best.cx - best.mx;
+    let oz = best.cz - best.mz;
+    if (Math.hypot(ox, oz) < 0.01) {
+      ox = x - best.mx;
+      oz = z - best.mz;
+    }
+    const L = Math.hypot(ox, oz) || 1;
+    const sx = best.cx + (ox / L) * 0.8;
+    const sz = best.cz + (oz / L) * 0.8;
+    if (!this.crowd.canStand(sx, sz)) return null;
+    return { x: sx, z: sz, yaw: Math.atan2(best.mx - sx, best.mz - sz) };
   }
 
   /** The way did not work out: try again, then give up and stand. */
@@ -741,6 +957,7 @@ export class Town {
       isNight(hour) &&
       s.r.age >= 14 &&
       s.r.trade !== "thief" &&
+      !GARRISON.has(s.r.trade) &&
       (s.r.trade === "police" || s.r.trade === "lamplighter" || s.goal.mode === "home" ? s.h < 0.5 || s.r.trade === "police" || s.r.trade === "lamplighter" : s.h < 0.3);
     if (on !== s.lamp) {
       s.lamp = on;
@@ -838,6 +1055,7 @@ export class Town {
   claim(id: string, from?: { x: number; z: number }): Puppet | null {
     const s = this.byId.get(id);
     if (!s) return null;
+    if (s.p) this.crowd.puppetFollow(s.p, null);
     if (!s.p && from) {
       if (!isHumanKind(s.kind)) s.kind = KIND_FALLBACK[s.kind] ?? "docker_a";
       const p = this.crowd.addPuppet(s.kind, from.x, from.z, 0, this.paceOf(s));
@@ -866,6 +1084,7 @@ export class Town {
   hold(id: string, on: boolean): void {
     const s = this.byId.get(id);
     if (!s?.p) return;
+    this.crowd.puppetFollow(s.p, null);
     s.held = on;
     if (on) this.crowd.puppetStand(s.p, "talk", Math.atan2(this.player.x - s.p.x, this.player.z - s.p.z));
     else {
@@ -892,6 +1111,8 @@ export class Town {
       if (w.b) out.push({ label: `${r.name}: door end`, x: w.b[0], z: w.b[1], reach: 2 });
       if (w.door) out.push({ label: `${r.name}: work door`, x: w.door[0], z: w.door[1], reach: 1.6 });
       if (w.at && w.kind !== "shop" && w.kind !== "stall") out.push({ label: `${r.name}: post`, x: w.at[0], z: w.at[1], reach: 2.4 });
+      // the garrison's walking-out rounds and the customs' landings
+      if ((w.kind === "inspect" || r.trade === "soldier") && w.route) w.route.forEach(([x, z], i) => out.push({ label: `${r.name}: round ${i + 1}`, x, z, reach: 2.4 }));
     }
     for (const [id, at] of this.stalls.sellerSpots) out.push({ label: `seller ${id}`, x: at.x, z: at.z, reach: 2.4 });
     for (const f of this.stalls.fronts) out.push({ label: f.label, x: f.x, z: f.z, reach: 1.8 });

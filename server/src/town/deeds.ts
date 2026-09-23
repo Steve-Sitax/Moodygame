@@ -421,6 +421,8 @@ export function seeChance(w: Witness, c: SeeCtx, trade?: string, age = 30): numb
   if (age < 12) att = 0.45;
   if (trade === "thief") att = 0.3;
   if (trade === "police") att = 1;
+  // a sentry on duty watches the street (but never lays hands on anyone: garrison.ts)
+  if (trade === "sentry" || trade === "corporal") att = Math.max(att, 0.8);
   const f = Math.max(-1, Math.min(1, w.facing));
   att *= f > 0.3 ? 1 : f > -0.3 ? 0.6 : 0.25;
   p *= att;

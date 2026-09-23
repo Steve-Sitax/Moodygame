@@ -343,6 +343,10 @@ def walk_map(city, houses, backs, landmarks):
     for l in landmarks.values():
         ds.polygon([P(p) for p in l["fp"]], fill=255)
         ds.polygon([P(p) for p in Polygon(l["fp"]).minimum_rotated_rectangle.exterior.coords], fill=255)
+    for x0_, z0_, x1_, z1_ in city.get("decor", {}).get("solids", []):  # design.py DECOR solids (M3i)
+        ds.polygon([P(p) for p in ((x0_, z0_), (x1_, z0_), (x1_, z1_), (x0_, z1_))], fill=255)
+    for poly in city.get("decor", {}).get("solid_polys", []):  # the Steen's ramp balustrades (M3i)
+        ds.polygon([P(p) for p in poly], fill=255)
     img = Image.merge("RGB", (solid, water, outside))
     out = os.path.join(ROOT, "client", "public", "city", "walk.png")
     os.makedirs(os.path.dirname(out), exist_ok=True)
