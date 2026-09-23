@@ -1232,8 +1232,38 @@ export class Soundscape {
 
   // ---------------------------------------------------------------- events (older)
 
-  footstep(surface: Surface, hurry: boolean): void {
+  /** A boot in a puddle: a wet slap and a spray of water (made here: filtered noise). */
+  splashStep(hurry: boolean, wet: number): void {
     const ctx = this.ctx;
+    const t = ctx.currentTime + 0.01;
+    const len = 0.28;
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * len), ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) {
+      const k = i / d.length;
+      // a sharp slap, then a hiss of drops falling back, patchy
+      const env = Math.exp(-k * 14) * 0.9 + Math.exp(-k * 5) * 0.25 * (Math.random() < 0.35 ? 1 : 0.3);
+      d[i] = (Math.random() * 2 - 1) * env;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = rand(0.85, 1.15) * (hurry ? 1.1 : 1);
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = rand(900, 1600);
+    bp.Q.value = 0.7;
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 3800;
+    const g = ctx.createGain();
+    g.gain.value = 0.32 * Math.min(1, wet) * (hurry ? 1.3 : 1);
+    src.connect(bp).connect(lp).connect(g).connect(this.master);
+    src.start(t);
+  }
+
+  footstep(surface: Surface, hurry: boolean, puddle = 0): void {
+    const ctx = this.ctx;
+    if (puddle > 0.3) this.splashStep(hurry, puddle);
     const t = ctx.currentTime + 0.005;
     const vol = hurry ? 1.25 : 1;
     const out = ctx.createGain();

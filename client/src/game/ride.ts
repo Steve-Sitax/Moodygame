@@ -1,5 +1,6 @@
 import type { FirstPerson } from "../player/firstPerson";
-import type { Omnibus, Omnibuses, OmnibusStop } from "../world/omnibus";
+import * as THREE from "three";
+import { LADDER_SPOT, PLATFORM_SPOT, SEATS, type Omnibus, type Omnibuses, type OmnibusStop } from "../world/omnibus";
 import type { World } from "../world/rijnkaai";
 import { api, type JobsPayload } from "../net/api";
 import type { Action } from "./runs";
@@ -75,10 +76,7 @@ export class Ride {
     const n = this.net();
     if (!n) return {};
     this.hook(n);
-    if (this.riding) {
-      const stop = this.bus?.atStop();
-      return { only: stop && !this.busy ? [{ key: "KeyE", text: `get off at ${stop.name}`, run: () => this.getOff(stop) }] : [] };
-    }
+    if (this.riding) return { only: this.busy ? [] : this.rideKeys() };
     if (this.busy || this.player.swimming || this.player.climbing) return {};
     let best: { bus: Omnibus; stop: OmnibusStop; d: number } | null = null;
     for (const bus of n.buses) {
@@ -107,9 +105,14 @@ export class Ride {
       this.take(r);
       bus.rider = true;
       this.bus = bus;
-      // look out over the left side of the platform, a little back
-      const p = bus.platform();
-      this.player.rideStart(() => bus.platform(), p.yaw - Math.PI / 2 + 0.4);
+      // onto the back platform: from there you may walk in along the aisle, or climb to the roof
+      const p = bus.pose();
+      this.player.rideStart(() => bus.pose(), p.yaw + Math.PI, {
+        x: PLATFORM_SPOT[0],
+        z: PLATFORM_SPOT[1],
+        walk: (fx, fz, x, z) => bus.walk(fx, fz, x, z),
+        floor: (x, z) => bus.floorAt(x, z),
+      });
       this.say(r.text);
     } catch (e) {
       const msg = String((e as Error).message ?? e);
@@ -133,6 +136,8 @@ export class Ride {
       [p.x - Math.cos(p.yaw) * 1.6, p.z + Math.sin(p.yaw) * 1.6],
     ];
     const spot = side.find(([x, z]) => this.world.isFree(x, z, 0.35)) ?? side[0];
+    bus.takeSeat(-1, null);
+    this.seat = null;
     this.player.rideEnd(spot[0], spot[1]);
     bus.rider = false;
     this.bus = null;
@@ -147,6 +152,91 @@ export class Ride {
         // a moment to step clear before it moves off
         window.setTimeout(() => bus.hold(false), 1200);
       });
+  }
+
+  /** The seat you sit on (SEATS index), or null. */
+  private seat: number | null = null;
+
+  /** Riding: E stands you up, sits you where you look, gets you off at a stop; F takes you up to the roof. */
+  private rideKeys(): Action[] {
+    const bus = this.bus;
+    if (!bus) return [];
+    const stop = bus.atStop();
+    if (this.seat !== null) {
+      const roof = SEATS[this.seat].roof;
+      return [{ key: "KeyE", text: roof ? "climb down from the roof" : "stand up", run: () => this.standUp() }];
+    }
+    const out: Action[] = [];
+    if (stop) out.push({ key: "KeyE", text: `get off at ${stop.name}`, run: () => this.getOff(stop) });
+    else {
+      const s = this.lookedAtSeat(bus);
+      if (s !== null) out.push({ key: "KeyE", text: "sit down here", run: () => this.sitDown(s) });
+    }
+    const w = this.player.rideWalk;
+    if (w && Math.hypot(w.x - LADDER_SPOT[0], w.z - LADDER_SPOT[1]) < 0.55 && !this.player.laden) {
+      const free = SEATS.map((q, i) => ({ q, i })).filter(({ q, i }) => q.roof && !bus.seatTaken(i));
+      if (free.length) out.push({ key: "KeyF", text: "climb up to the roof seat", run: () => this.sitDown(free[0].i) });
+    }
+    return out;
+  }
+
+  /** The free seat inside you are looking at, within reach. */
+  private lookedAtSeat(bus: Omnibus): number | null {
+    const cam = this.player.camera;
+    const dir = cam.getWorldDirection(new THREE.Vector3());
+    const p = bus.pose();
+    const co = Math.cos(p.yaw);
+    const si = Math.sin(p.yaw);
+    let best: number | null = null;
+    let bc = 0.9;
+    SEATS.forEach((s, i) => {
+      if (s.roof || bus.seatTaken(i)) return;
+      const v = new THREE.Vector3(p.x + s.x * co + s.z * si, p.y + s.y + 0.25, p.z - s.x * si + s.z * co).sub(cam.position);
+      const d = v.length();
+      if (d > 2.6) return;
+      const c = v.normalize().dot(dir);
+      if (c > bc) {
+        bc = c;
+        best = i;
+      }
+    });
+    return best;
+  }
+
+  private sitDown(i: number): void {
+    const bus = this.bus;
+    if (!bus || !bus.takeSeat(i, "player")) return;
+    const s = SEATS[i];
+    this.seat = i;
+    // sit back on the seat, facing across the aisle (inside) or out over the street (the roof)
+    this.player.rideSeat = { x: s.x * (s.roof ? 1.15 : 1.02), y: s.y, z: s.z, eye: 0.78 };
+    const p = bus.pose();
+    const fx = Math.sin(s.face);
+    const fz = Math.cos(s.face);
+    const wx = fx * Math.cos(p.yaw) + fz * Math.sin(p.yaw);
+    const wz = -fx * Math.sin(p.yaw) + fz * Math.cos(p.yaw);
+    this.player.yaw = Math.atan2(-wx, -wz);
+    this.player.pitch = -0.05;
+    if (s.roof) {
+      this.say("You climb the iron rungs to the roof and sit on the long bench, your back to the other side.");
+      api.ride("seat", "", undefined, "roof").then((r) => this.take(r)).catch(() => {});
+    }
+  }
+
+  private standUp(): void {
+    const bus = this.bus;
+    if (!bus || this.seat === null) return;
+    const s = SEATS[this.seat];
+    bus.takeSeat(-1, null);
+    this.seat = null;
+    this.player.rideSeat = null;
+    const w = this.player.rideWalk;
+    if (w) {
+      if (s.roof) {
+        [w.x, w.z] = LADDER_SPOT;
+        api.ride("seat", "", undefined, "inside").then((r) => this.take(r)).catch(() => {});
+      } else [w.x, w.z] = bus.walk(0, s.z, s.x * 0.3, s.z);
+    }
   }
 
   /** Dev: state for checks. */

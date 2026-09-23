@@ -24,6 +24,14 @@ const SWIM_EYE = 0.17; // eye this far above it
 const CLIMB = 1.1; // m/s up a ladder
 const STROKE_LEN = 0.9; // metres per swim stroke
 
+/** Walking in a carriage (its frame, origin under the rear axle): where you stand, where you may step, the floor. */
+export interface RideWalk {
+  x: number;
+  z: number;
+  walk(fx: number, fz: number, x: number, z: number): [number, number];
+  floor(x: number, z: number): number;
+}
+
 /** A ladder you climb (M3g: a portal crane's): where you hang, face, step off at the top and at the foot. */
 export interface ClimbLadder {
   hang: { x: number; z: number };
@@ -477,6 +485,10 @@ export class FirstPerson {
    */
   rideAnchor: (() => RideAnchor) | null = null;
   private rideYaw = 0;
+  /** Walking about inside the carriage (M3g: the omnibus), in its own frame; or sitting (a seat, body frame). */
+  rideWalk: RideWalk | null = null;
+  rideSeat: { x: number; y: number; z: number; eye: number } | null = null;
+  private rideStepDist = 0;
   private rideT = 0;
 
   get riding(): boolean {
@@ -484,9 +496,11 @@ export class FirstPerson {
   }
 
   /** Get carried. `faceYaw`: look this way to begin with (world yaw). */
-  rideStart(anchor: () => RideAnchor, faceYaw?: number): void {
+  rideStart(anchor: () => RideAnchor, faceYaw?: number, walk?: RideWalk): void {
     const a = anchor();
     this.rideAnchor = anchor;
+    this.rideWalk = walk ?? null;
+    this.rideSeat = null;
     this.rideYaw = a.yaw;
     this.swimming = false;
     this.climb = null;
@@ -499,6 +513,8 @@ export class FirstPerson {
   /** Set down on your feet at (x, z). */
   rideEnd(x: number, z: number): void {
     this.rideAnchor = null;
+    this.rideWalk = null;
+    this.rideSeat = null;
     this.x = x;
     this.z = z;
     this.y = this.world.groundAt(x, z, RADIUS, 0);
@@ -515,17 +531,65 @@ export class FirstPerson {
     this.rideYaw = a.yaw;
     this.yaw += d;
     this.lookYaw += d;
-    this.x = a.x;
-    this.z = a.z;
-    this.y = a.y;
     this.rideT += dt;
+    let eye = EYE;
+    const w = this.rideWalk;
+    if (w) {
+      // walking about in the carriage (its own frame), or sitting on a seat
+      let lx = w.x;
+      let lz = w.z;
+      let ly = w.floor(w.x, w.z);
+      eye = 1.52; // a low saloon: you stoop a little
+      if (this.rideSeat) {
+        lx = this.rideSeat.x;
+        ly = this.rideSeat.y;
+        lz = this.rideSeat.z;
+        eye = this.rideSeat.eye;
+      } else {
+        const k = (c: string) => this.pressing(c);
+        let fx = 0;
+        let fz = 0;
+        if (k("KeyW") || k("ArrowUp")) fz -= 1;
+        if (k("KeyS") || k("ArrowDown")) fz += 1;
+        if (k("KeyA") || k("ArrowLeft")) fx -= 1;
+        if (k("KeyD") || k("ArrowRight")) fx += 1;
+        const len = Math.hypot(fx, fz);
+        if (len > 0) {
+          const sy = Math.sin(this.yaw);
+          const cy = Math.cos(this.yaw);
+          const wx = ((fx * cy + fz * sy) / len) * 1.0 * dt;
+          const wz = ((-fx * sy + fz * cy) / len) * 1.0 * dt;
+          // world to the carriage's frame
+          const co = Math.cos(a.yaw);
+          const si = Math.sin(a.yaw);
+          const [nx, nz] = w.walk(w.x, w.z, w.x + wx * co - wz * si, w.z + wx * si + wz * co);
+          this.rideStepDist += Math.hypot(nx - w.x, nz - w.z);
+          w.x = lx = nx;
+          w.z = lz = nz;
+          ly = w.floor(nx, nz);
+          if (this.rideStepDist > STEP_LEN) {
+            this.rideStepDist = 0;
+            this.onStep("wood", false);
+          }
+        }
+      }
+      const co = Math.cos(a.yaw);
+      const si = Math.sin(a.yaw);
+      this.x = a.x + lx * co + lz * si;
+      this.z = a.z - lx * si + lz * co;
+      this.y = a.y + ly;
+    } else {
+      this.x = a.x;
+      this.z = a.z;
+      this.y = a.y;
+    }
     // the carriage rocks on its springs as the horses trot
     const go = Math.min(1, a.speed / 2);
     const bob = Math.sin(this.rideT * 9.5) * 0.018 * go + Math.sin(this.rideT * 2.3) * 0.01 * go;
     const s = 1 - Math.exp(-dt * 22);
     this.lookYaw += (this.yaw - this.lookYaw) * s;
     this.lookPitch += (this.pitch - this.lookPitch) * s;
-    this.camera.position.set(this.x, this.y + EYE + bob, this.z);
+    this.camera.position.set(this.x, this.y + eye + bob, this.z);
     this.camera.rotation.set(this.lookPitch, this.lookYaw, Math.sin(this.rideT * 1.7) * 0.006 * go);
   }
 
@@ -936,9 +1000,14 @@ export class FirstPerson {
       const bx = -Math.sin(this.rowHeading) * 0.04 * Math.sign(v || 1);
       const bz = -Math.cos(this.rowHeading) * 0.04 * Math.sign(v || 1);
       // turn on the spot; slide along a wall; turn while easing off it; else stop and come back a little
+      const fend = Math.abs(w) > 0.03 ? this.rowFendOff(h1) : null;
       if (!this.rowBlocked(this.x, this.z, h1)) {
         nx = this.x;
         nz = this.z;
+        v *= 0.5;
+      } else if (fend) {
+        // an oar against the wall: the boat is pushed off it as it turns
+        [nx, nz] = fend;
         v *= 0.5;
       } else if (!this.rowBlocked(nx, this.z, this.rowHeading)) {
         nz = this.z;
@@ -952,10 +1021,6 @@ export class FirstPerson {
         nx = this.x + bx;
         nz = this.z + bz;
         v = 0;
-      } else if (w !== 0 && this.rowFendOff(h1)) {
-        // an oar against the wall: the boat is pushed off it as it turns
-        [nx, nz] = this.rowFendOff(h1)!;
-        v *= 0.5;
       } else {
         nx = this.x;
         nz = this.z;

@@ -184,7 +184,10 @@ export class Rowing {
     const lock = this.world.lock();
     const lw = this.world.lockWater;
     const gatesOpen = (lock?.gatesOpen() ?? 0) > 0.95;
-    const pass = (c: Rect) => c === lw && (gatesOpen || (Math.abs(z - 7) > 1.8 && Math.abs(z - 42) > 1.8));
+    // the lock while its gates stand open (never across a shut pair); the open end of the ferry pontoon
+    // (its keep-out for swimmers runs 2 m past the deck: a boat may come up to the end of the deck)
+    const pass = (c: Rect) =>
+      (c === lw && (gatesOpen || (Math.abs(z - 7) > 1.8 && Math.abs(z - 42) > 1.8))) || (c.minZ === -60 && c.maxZ === -2.5 && z < -58.2 && Math.abs(x + 249) < 3);
     if (!this.world.boatFree(x, z, r * 0.9, pass)) return false;
     // a bridge you do not fit under: wait outside it until it stands open
     const br = this.world.bridges();
@@ -219,9 +222,14 @@ export class Rowing {
 
   // ------------------------------------------------------------------ loading and syncing
 
+  /** Bumped by every call that changes the boats: a poll sent before it is stale when it comes back. */
+  private epoch = 0;
+
   async load(): Promise<void> {
+    const e = this.epoch;
     try {
       const w = await net<RowWorld>("GET", "/api/row/world");
+      if (e !== this.epoch || this.busy) return;
       this.apply(w);
     } catch (e) {
       console.warn("[rowing] the boats did not load", e);
@@ -240,7 +248,7 @@ export class Rowing {
       // a hired boat goes back to its berth (we do not know where it was); a taken one stays where the server has it
       const at = w.on === "hire" ? w.hire?.left ?? w.landings.find((l) => l.id === w.hire?.landing) ?? null : w.boats.find((b) => b.id === w.on) ?? null;
       const spot = at ?? { x: this.player.x, z: this.player.z };
-      void net("POST", "/api/row/leave", { x: spot.x, z: spot.z, yaw: 0 }).catch(() => {});
+      void this.post("/api/row/leave", { x: spot.x, z: spot.z, yaw: 0 }).catch(() => {});
     }
     // the server took us out of the boat (the night, the police): step out where we are
     if (!w.on && this.boat && this.player.rowing && !this.busy) this.forceOut();
@@ -302,10 +310,12 @@ export class Rowing {
     for (const L of w.landings) {
       const key = `berth:${L.id}`;
       const had = this.lying.get(key);
-      // a new boat at a berth only when nobody is near to see it come
-      if (!had && Math.hypot(px - L.x, pz - L.z) < 40 && !this.fresh.has(key)) continue;
+      // a new boat at a berth only when nobody is near to see it come (at the start of the game: all there)
+      if (!had && this.synced && Math.hypot(px - L.x, pz - L.z) < 40 && !this.fresh.has(key)) continue;
       this.fresh.delete(key);
       want.add(key);
+      // a boat of another kind brought back here: it lies there till nobody sees the waterman swap it
+      if (had && had.kind !== L.kind && Math.hypot(px - L.x, pz - L.z) < 40) continue;
       this.lay(key, L.kind, L.x, L.z, L.yaw);
     }
     for (const b of w.boats) {
@@ -321,6 +331,7 @@ export class Rowing {
       const had = this.lying.get("mine");
       if (!had) this.lay("mine", w.hire.kind, w.hire.left.x, w.hire.left.z, 0, w.hire.left.z < -1);
     }
+    this.synced = true;
     for (const l of [...this.lying.values()]) {
       if (want.has(l.key)) continue;
       // the boy took it home: gone once you are not looking at it
@@ -330,6 +341,7 @@ export class Rowing {
   }
   /** Berths whose boat may come back while you stand there (you just brought one). */
   private fresh = new Set<string>();
+  private synced = false;
 
   // ------------------------------------------------------------------ keys
 
@@ -398,21 +410,32 @@ export class Rowing {
       if (atLanding) return { exit: e, text: `give the boat back to ${atLanding.waterman} and step out` };
       return { exit: e, text: e.kind === "ladder" ? "climb out up the ladder" : "step out onto the steps" };
     }
+    // at a hire landing, but his other boat lies alongside: he takes your line and hands you out onto the steps
+    if (atLanding) {
+      const le = this.world.exitNear(atLanding.landing[0], atLanding.landing[1], 3);
+      if (le) return { exit: le, text: `throw ${atLanding.waterman} your line and give the boat back` };
+    }
     // a low deck within reach from the side of the boat: the ferry pontoon, the pier's foot
     const h = p.rowHeading;
-    for (const off of [0, 0.8, -0.8, 1.6])
-      for (const side of [1, -1])
-        for (const out of [1.3, 1.8]) {
+    const bow = HULL[this.boat?.kind ?? "rowboat"].half - HULL[this.boat?.kind ?? "rowboat"].seatZ;
+    // beside the seat, and over the bow (you can climb forward over the thwarts)
+    const probes: Array<[number, number, number]> = [];
+    for (const off of [0, 0.8, -0.8, 1.6]) for (const side of [1, -1]) for (const out of [1.3, 1.8]) probes.push([off, side, out]);
+    for (const off of [bow + 0.5, bow + 1.1, bow + 1.7]) probes.push([off, 1, 0]);
+    for (const [off, side, out] of probes) {
+      {
           const ax = sx + Math.sin(h) * off + Math.cos(h) * out * side;
           const az = sz + Math.cos(h) * off - Math.sin(h) * out * side;
           if (this.world.isWater(ax, az)) continue;
           const y = this.world.baseAt(ax, az);
-          if (y < WATER_Y + 0.1 || y > WATER_Y + 1.7) continue;
+          if (y < WATER_Y + 0.1 || y > WATER_Y + 2.0) continue; // the ferry pontoon lies 1.8 m over the water; the brig's deck (2.4) is too high
           if (!this.world.isFree(ax, az, 0.3, y)) continue;
-          const gx = sx + Math.sin(h) * off + Math.cos(h) * 0.9 * side;
-          const gz = sz + Math.cos(h) * off - Math.sin(h) * 0.9 * side;
+          const g = out ? 0.9 : -0.6;
+          const gx = sx + Math.sin(h) * (out ? off : off + g) + Math.cos(h) * 0.9 * side * (out ? 1 : 0);
+          const gz = sz + Math.cos(h) * (out ? off : off + g) - Math.sin(h) * 0.9 * side * (out ? 1 : 0);
           return { exit: { kind: "landing", gx, gz, nx: 0, nz: 0, tx: ax, tz: az, ty: y }, text: "step out onto the pontoon" };
-        }
+      }
+    }
     return { exit: null, text: "go over the side into the water" };
   }
 
@@ -423,6 +446,19 @@ export class Rowing {
 
   // ------------------------------------------------------------------ in and out
 
+  /** Dev: what happened lately (calls, forced outs). */
+  trace: string[] = [];
+  private note(s: string): void {
+    this.trace.push(`${this.clock.toFixed(1)} ${s}`);
+    if (this.trace.length > 40) this.trace.shift();
+  }
+
+  private post<T>(url: string, body: unknown): Promise<T> {
+    this.note(`POST ${url} ${JSON.stringify(body).slice(0, 80)}`);
+    this.epoch++;
+    return net<T>("POST", url, body).finally(() => this.epoch++);
+  }
+
   private async hire(L: Landing): Promise<void> {
     if (this.busy) return;
     if (this.jobs.goods.carried || this.player.laden) {
@@ -431,7 +467,7 @@ export class Rowing {
     }
     this.busy = true;
     try {
-      const r = await net<JobsPayload & { text: string; row: RowWorld }>("POST", "/api/row/hire", { landing: L.id, x: +this.player.x.toFixed(2), z: +this.player.z.toFixed(2) });
+      const r = await this.post<JobsPayload & { text: string; row: RowWorld }>("/api/row/hire", { landing: L.id, x: +this.player.x.toFixed(2), z: +this.player.z.toFixed(2) });
       this.jobs.refresh(r);
       const l = this.lying.get(`berth:${L.id}`);
       this.sitIn(l ?? null, "hire", L.kind, L.x, L.z, L.yaw);
@@ -456,12 +492,12 @@ export class Rowing {
     const { x, z } = this.player;
     try {
       if (l.key === "mine") {
-        const r = await net<{ text: string; row: RowWorld }>("POST", "/api/row/board", { x: +l.x.toFixed(2), z: +l.z.toFixed(2) });
+        const r = await this.post<{ text: string; row: RowWorld }>("/api/row/board", { x: +l.x.toFixed(2), z: +l.z.toFixed(2) });
         this.data = r.row;
         this.sitIn(l, "hire", l.kind, l.x, l.z, l.yaw);
         this.jobs.say(r.text);
       } else {
-        const r = await net<JobsPayload & { again: boolean; text: string; reaction: { line: string } | null }>("POST", "/api/deed", {
+        const r = await this.post<JobsPayload & { again: boolean; text: string; reaction: { line: string } | null }>("/api/deed", {
           ref: l.key,
           x: +x.toFixed(2),
           z: +z.toFixed(2),
@@ -516,7 +552,7 @@ export class Rowing {
     this.boat = null;
     b.oars.visible = false;
     // the boat stays where it is (at a hire landing the waterman ties it up)
-    const L = b.what === "hire" ? this.data?.landings.find((q) => Math.hypot(q.x - at.x, q.z - at.z) < 9) : undefined;
+    const L = b.what === "hire" && exit ? this.data?.landings.find((q) => Math.hypot(q.x - at.x, q.z - at.z) < 9) : undefined;
     const key = b.what === "hire" ? (L ? `berth:${L.id}` : "mine") : b.what;
     if (L) {
       const old = this.lying.get(key);
@@ -525,7 +561,7 @@ export class Rowing {
       this.fresh.add(key);
     } else this.lay(key, b.kind, at.x, at.z, at.yaw, at.z < -1, b.obj);
     try {
-      const r = await net<JobsPayload & { text: string; returned: boolean; row: RowWorld }>("POST", "/api/row/leave", { x: +at.x.toFixed(2), z: +at.z.toFixed(2), yaw: +at.yaw.toFixed(3) });
+      const r = await this.post<JobsPayload & { text: string; returned: boolean; row: RowWorld }>("/api/row/leave", { x: +at.x.toFixed(2), z: +at.z.toFixed(2), yaw: +at.yaw.toFixed(3), ashore: !!exit });
       this.jobs.refresh(r);
       this.data = r.row;
       if (r.text) this.jobs.say(r.text);
@@ -540,6 +576,7 @@ export class Rowing {
 
   /** The server says we are out of the boat (the night; the police sent it home). */
   private forceOut(): void {
+    this.note("forceOut");
     const e = this.world.exitNear(...this.player.rowSeat(), 3);
     const b = this.boat!;
     if (e) this.player.rowStepOut(e);
@@ -586,7 +623,7 @@ export class Rowing {
     this.player.rowOverboard();
     this.jobs.say(cause === "ship" ? "The bow comes out of the fog right over you. Wood cracks, the boat breaks under you, and you are in the water." : "The deck comes down on the boat. Wood cracks and splits, and you are in the water.");
     try {
-      const r = await net<JobsPayload & { text: string; row: RowWorld }>("POST", "/api/row/lost", { cause });
+      const r = await this.post<JobsPayload & { text: string; row: RowWorld }>("/api/row/lost", { cause });
       this.jobs.refresh(r);
       this.data = r.row;
       window.setTimeout(() => this.jobs.say(r.text), 3500);
@@ -599,7 +636,7 @@ export class Rowing {
 
   private splinter(at: THREE.Vector3): void {
     if (!this.splinters) {
-      const m = new THREE.InstancedMesh(new THREE.BoxGeometry(0.34, 0.035, 0.09), this.world.mats.darkWood, 28);
+      const m = new THREE.InstancedMesh(new THREE.BoxGeometry(0.55, 0.05, 0.13), this.world.mats.planks, 28);
       m.frustumCulled = false;
       this.world.scene.add(m);
       this.splinters = m;
@@ -862,6 +899,7 @@ export class Rowing {
     const p = this.player;
     if (b) {
       if (!p.rowing) {
+        this.note("out by something else");
         // taken out of the boat by something else (the dev menu's "go to", the cell)
         if (!this.busy) {
           const keep = { x: b.obj.position.x, z: b.obj.position.z, yaw: b.obj.rotation.y };
@@ -869,7 +907,7 @@ export class Rowing {
           b.oars.visible = false;
           this.lay(b.what === "hire" ? "mine" : b.what, b.kind, keep.x, keep.z, keep.yaw, keep.z < -1, b.obj);
           this.boat = null;
-          void net("POST", "/api/row/leave", { x: keep.x, z: keep.z, yaw: keep.yaw }).then(() => this.load()).catch(() => {});
+          void this.post("/api/row/leave", { x: keep.x, z: keep.z, yaw: keep.yaw }).then(() => this.load()).catch(() => {});
         }
       } else {
         // the hull where the rower's physics put it; no float bob of its own (the rower's view moves with it)
@@ -1017,6 +1055,18 @@ export class Rowing {
     if (!at) return false;
     this.player.place(at[0], at[1], this.player.yaw);
     this.player.y = WATER_Y + 0.4;
+    return true;
+  }
+
+  /** Dev: move the boat being rowed (for checks: no walls are looked at). */
+  devMove(x: number, z: number, heading: number): boolean {
+    const p = this.player;
+    if (!this.rowing) return false;
+    p.x = x;
+    p.z = z;
+    p.rowHeading = heading;
+    p.yaw = heading + Math.PI;
+    p.rowSpeed = 0;
     return true;
   }
 

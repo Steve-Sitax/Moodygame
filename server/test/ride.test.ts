@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { openDb } from "../src/db.ts";
 import { applyHour, resetTickLimit, sleep, tick } from "../src/day.ts";
 import { player } from "../src/game.ts";
-import { alight, board, calls, change, isLine, isStop, ride, RIDE_FARE_C, RIDE_LINES, RIDE_MAX_HOURS, riding } from "../src/ride.ts";
+import { alight, board, calls, change, isLine, isStop, ride, RIDE_FARE_C, RIDE_LINES, RIDE_MAX_HOURS, ridePlace, riding, seat } from "../src/ride.ts";
 
 type DB = ReturnType<typeof openDb>;
 const set = (db: DB, sql: string) => db.prepare(`UPDATE player SET ${sql} WHERE id = 1`).run();
@@ -129,6 +129,39 @@ describe("riding and the needs (engine numbers)", () => {
     board(db, "vismarkt", "markt");
     applyHour(db, 15);
     expect(player(db).warmth).toBe(6);
+  });
+
+  it("on the roof seat: every 7 h by day and every 4 h at night, between inside and on foot", () => {
+    const db = openDb(":memory:");
+    set(db, "money_c = 50, warmth = 8");
+    board(db, "werf", "kaaien");
+    expect(ridePlace(db)).toBe("inside");
+    seat(db, "roof");
+    expect(ridePlace(db)).toBe("roof");
+    applyHour(db, 10); // inside nothing would happen at 10 % 10... on the roof: 10 % 7, nothing either
+    expect(player(db).warmth).toBe(8);
+    applyHour(db, 14); // 14 % 7: the wind gets in
+    expect(player(db).warmth).toBe(7);
+    applyHour(db, 21); // night: 21 % 4 no (on foot 21 % 3 yes)
+    expect(player(db).warmth).toBe(7);
+    applyHour(db, 0);
+    expect(player(db).warmth).toBe(6);
+    seat(db, "inside");
+    applyHour(db, 14); // back inside: 14 % 10 no
+    expect(player(db).warmth).toBe(6);
+  });
+
+  it("the roof needs a ride; getting off brings you down; the fare is the same", () => {
+    const db = openDb(":memory:");
+    set(db, "money_c = 50");
+    expect(() => seat(db, "roof")).toThrow(/not on an omnibus/);
+    board(db, "werf", "kaaien");
+    seat(db, "roof");
+    expect(player(db).money_c).toBe(50 - RIDE_FARE_C);
+    alight(db);
+    expect(ridePlace(db)).toBeNull();
+    board(db, "vismarkt", "markt"); // the change
+    expect(ridePlace(db)).toBe("inside");
   });
 
   it("at night on board: every 6 h instead of every 3 h", () => {

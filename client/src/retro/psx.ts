@@ -369,7 +369,8 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
     );
     fs = fs.replace(
       "#include <map_fragment>",
-      /* glsl */ `#ifdef USE_MAP
+      /* glsl */ `float psxH = 0.5; // how high the stone is here (relief height map); the puddles leave the tops dry
+      #ifdef USE_MAP
       {
         // affine warp fades in with distance: textures swim a little far off,
         // but stay straight at your feet and on walls you touch
@@ -441,6 +442,7 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
           // it melts into an even tone further off (no shimmer)
           float e = 1.0 / 128.0;
           float hC = texture2D(uHeight, psxUv).r;
+          psxH = hC;
           float hX = texture2D(uHeight, psxUv + vec2(e, 0.0)).r - texture2D(uHeight, psxUv - vec2(e, 0.0)).r;
           float hZ = texture2D(uHeight, psxUv + vec2(0.0, e)).r - texture2D(uHeight, psxUv - vec2(0.0, e)).r;
           vec3 rn = normalize(vec3(-hX * uReliefBump, 1.0, -hZ * uReliefBump));
@@ -576,6 +578,9 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
           // at most about a quarter of the ground is puddle, even in a storm: the rest is wet stone
           float th = 0.97 - lvl * 0.22;
           float water = smoothstep(th, th + 0.018, pn);
+          // stones and pebbles stand out of the water: the shallower the puddle, the more of them
+          ${opts.relief ? "water *= 1.0 - smoothstep(0.6 + lvl * 0.2, 0.7 + lvl * 0.2, psxH) * (1.0 - smoothstep(th + 0.05, th + 0.3, pn));" : ""}
+          water = clamp(water, 0.0, 1.0);
           float damp = smoothstep(th - 0.09, th, pn);
           gl_FragColor.rgb *= 1.0 - 0.38 * damp * (1.0 - water);
           if (water > 0.0) {

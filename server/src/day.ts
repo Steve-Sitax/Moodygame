@@ -2,7 +2,7 @@ import type { DB } from "./db.ts";
 import { log, player } from "./game.ts";
 import { remember } from "./npcs.ts";
 import { spreadRumours } from "./town/rumours.ts";
-import { endRide, riding } from "./ride.ts";
+import { endRide, ridePlace } from "./ride.ts";
 import { endRowNight, rowChillEvery, rowFood } from "./rowing.ts";
 
 // The day and the week (M5). The engine owns time and needs (docs/01, docs/03).
@@ -87,7 +87,8 @@ const clamp = (n: number) => Math.max(0, Math.min(10, n));
  * every 5 h by day and every 3 h at night (20:00 to 7:00). Health -1 every 3 h
  * while any need is at 0; +1 every 4 h while all three are at 4 or more.
  * On the omnibus (M3g, ride.ts), out of the wind: warmth -1 only every 10 h by day
- * and every 6 h at night. Food is the same on board as on foot.
+ * and every 6 h at night; up on its roof seat every 7 h by day and every 4 h at night.
+ * Food is the same on board as on foot.
  * In a rowing boat (M3j, rowing.ts), in the wind: warmth -1 every 4 h by day (3 in rain or a
  * gale) and every 2 h at night; a long row and hard strokes cost food (rowFood).
  */
@@ -97,8 +98,9 @@ export function applyHour(db: DB, hour: number): { healthZero: boolean } {
   if (hour % 6 === 0) food--;
   if (hour % 3 === 0) sleep--;
   const cold = hour >= 20 || hour < 7;
-  const inside = riding(db);
-  const chillEvery = rowChillEvery(db, cold) ?? (cold ? (inside ? 6 : 3) : inside ? 10 : 5);
+  // on the omnibus: inside out of the wind; on its roof seat a little better off than on foot
+  const on = ridePlace(db);
+  const chillEvery = rowChillEvery(db, cold) ?? (cold ? (on === "inside" ? 6 : on === "roof" ? 4 : 3) : on === "inside" ? 10 : on === "roof" ? 7 : 5);
   food -= rowFood(db, hour);
   if (hour % chillEvery === 0) warmth--;
   food = clamp(food);

@@ -85,7 +85,9 @@ const VISITORS: HumanKind[] = ["gentleman", "wife_a", "wife_b", "clerk", "priest
 interface Visitor {
   kind: HumanKind;
   p: Puppet | null;
-  state: "coming" | "looking" | "entering" | "inside" | "leaving";
+  state: "coming" | "looking" | "entering" | "stepIn" | "inside" | "stepOut" | "leaving";
+  /** Where the scripted steps through the doorway go (the crowd grid keeps walkers off the wall). */
+  to: P;
   t: number;
   goesIn: boolean;
   look: P;
@@ -217,7 +219,8 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
   glow.position.copy(LANTERN);
   glow.scale.setScalar(1.6);
   group.add(glow);
-  const flame = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.36, 0.26), new THREE.MeshBasicMaterial({ color: 0xffd08a }));
+  // the lit glass: a hair larger than the model's dark lantern glass, so it covers it
+  const flame = new THREE.Mesh(new THREE.BoxGeometry(0.37, 0.47, 0.37), new THREE.MeshBasicMaterial({ color: 0xffd08a }));
   flame.position.copy(LANTERN);
   group.add(flame);
 
@@ -274,7 +277,19 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
     const free = LOOK.filter((l) => !visitors.some((v) => v.look === l));
     const look = (free.length ? free : LOOK)[Math.floor(Math.random() * (free.length || LOOK.length))];
     crowd.puppetGo(p, look[0], look[1]);
-    visitors.push({ kind, p, state: "coming", t: 0, goesIn: Math.random() < 0.7, look });
+    visitors.push({ kind, p, state: "coming", t: 0, goesIn: Math.random() < 0.7, look, to: [0, 0] });
+  }
+
+  /** Move a standing puppet a step towards a point (the walk clip plays); true when there. */
+  function stepTo(p: Puppet, to: P, dt: number, speed: number): boolean {
+    const dx = to[0] - p.x;
+    const dz = to[1] - p.z;
+    const d = Math.hypot(dx, dz);
+    if (d < 0.08) return true;
+    const k = Math.min(1, (speed * dt) / d);
+    p.x += dx * k;
+    p.z += dz * k;
+    return false;
   }
 
   function visitorsUpdate(dt: number, open: boolean, near: boolean, cx: number, cz: number): void {
@@ -321,7 +336,18 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
         case "entering":
           if (!p) {
             visitors.splice(i, 1);
-          } else if (Math.hypot(p.x - STEEN_DOOR.x, p.z - STEEN_DOOR.z) < 1.1 || (!crowd.puppetBusy(p) && v.t > 1) || v.t > 25) {
+          } else if (Math.hypot(p.x - STEEN_DOOR.x, p.z - STEEN_DOOR.z) < 3.4 || (!crowd.puppetBusy(p) && v.t > 1) || v.t > 25) {
+            // the last steps by hand, into the doorway
+            v.to = [STEEN_DOOR.x + (Math.random() - 0.5) * 0.5, STEEN_DOOR.z + 0.3];
+            crowd.puppetStand(p, "walk", Math.PI);
+            v.state = "stepIn";
+          }
+          break;
+        case "stepIn":
+          if (!p) {
+            v.state = "inside";
+            v.t = -(40 + Math.random() * 80);
+          } else if (stepTo(p, v.to, dt, 0.8)) {
             drop(v); // in through the open door
             v.state = "inside";
             v.t = -(40 + Math.random() * 80);
@@ -329,17 +355,27 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
           break;
         case "inside":
           if (v.t > 0 || !open) {
-            const q = crowd.addPuppet(v.kind, STEEN_DOOR.x, STEEN_DOOR.z + 0.75, 0, 1.1);
+            const q = crowd.addPuppet(v.kind, STEEN_DOOR.x, STEEN_DOOR.z + 0.3, 0, 1.1);
             if (!q) break; // try again next frame
             v.p = q;
+            crowd.puppetStand(q, "walk", 0);
+            v.to = [STEEN_DOOR.x + (Math.random() - 0.5) * 1.2, STEEN_DOOR.z + 3.0];
+            v.state = "stepOut";
+            v.t = 0;
+          }
+          break;
+        case "stepOut":
+          if (!p) {
+            visitors.splice(i, 1);
+          } else if (stepTo(p, v.to, dt, 0.9) || v.t > 8) {
             const [x, z] = ENDS[Math.floor(Math.random() * ENDS.length)];
-            crowd.puppetGo(q, x, z);
+            crowd.puppetGo(p, x, z);
             v.state = "leaving";
             v.t = 0;
           }
           break;
         case "leaving":
-          if (!p || !crowd.puppetBusy(p) || v.t > 90 || (Math.hypot(p.x - cx, p.z - cz) > 25 && crowd.isHidden(p.x, p.z))) {
+          if (!p || (!crowd.puppetBusy(p) && v.t > 1.5) || v.t > 90 || (Math.hypot(p.x - cx, p.z - cz) > 25 && crowd.isHidden(p.x, p.z))) {
             drop(v);
             visitors.splice(i, 1);
           }

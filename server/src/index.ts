@@ -18,7 +18,7 @@ import { isResident, town } from "./town/store.ts";
 import { residentChoice, residentFree, residentOpen } from "./town/talk.ts";
 import { catchThief, pickPocket } from "./town/thieves.ts";
 import { TRADES, TOWN_EMPLOYERS } from "./town/places.ts";
-import { alight, board as boardRide, change as rideChange, isLine, isStop, ride, RIDE_FARE_C } from "./ride.ts";
+import { alight, board as boardRide, change as rideChange, isLine, isStop, ride, RIDE_FARE_C, seat as rideSeat } from "./ride.ts";
 import { freeReply, openTalk, pickChoice, prefetchOpening, witness, type Line } from "./hooks/dialogue.ts";
 import { mountDeeds } from "./town/deedRoutes.ts";
 import { mountRowing } from "./town/rowDeeds.ts";
@@ -226,7 +226,7 @@ app.post("/api/swim", (c) => {
 
 // ---- the horse omnibuses (M3g): the server takes the fare, allows one free change, and knows who rides
 app.post("/api/ride", async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { action?: unknown; stop?: unknown; line?: unknown };
+  const body = (await c.req.json().catch(() => ({}))) as { action?: unknown; stop?: unknown; line?: unknown; place?: unknown };
   if (ending(db)) throw new GameError("the week is over", 409);
   if (body.action === "board") {
     if (!isStop(body.stop)) throw new GameError("no such stop", 400);
@@ -239,7 +239,12 @@ app.post("/api/ride", async (c) => {
     const r = alight(db);
     return c.json({ ...r, ...jobsPayload() });
   }
-  throw new GameError("action must be board or alight", 400);
+  if (body.action === "seat") {
+    if (body.place !== "inside" && body.place !== "roof") throw new GameError("place must be inside or roof", 400);
+    const r = rideSeat(db, body.place);
+    return c.json({ ...r, ...jobsPayload() });
+  }
+  throw new GameError("action must be board, alight or seat", 400);
 });
 
 app.post("/api/jobs/:id/handover", (c) => {

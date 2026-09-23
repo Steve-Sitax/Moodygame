@@ -6,6 +6,7 @@ import { mountSettings, type GameSettings } from "./game/settings";
 import { mountDevMenu } from "./game/devmenu";
 import { setAmbientViewHeight } from "./world/ambient";
 import { setFireViewHeight } from "./world/fire";
+import { puddleAt } from "./world/puddlemask";
 import { setMirrorScale } from "./world/mirror";
 import { BOARD_POS, DOSS_POS, RAMP, SPOTS, buildRijnkaai } from "./world/rijnkaai";
 import { FirstPerson } from "./player/firstPerson";
@@ -22,6 +23,7 @@ import { Deeds } from "./game/deeds";
 import { Rowing } from "./game/rowing";
 import { Market } from "./game/market";
 import { createTrades } from "./world/trades";
+import { createSteenLife } from "./world/steenlife";
 import { api } from "./net/api";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
@@ -76,6 +78,9 @@ const market = new Market(world, crowd, town, stalls);
 town.market = market;
 animals.scraps = market.scrapSpots();
 const trades = createTrades(world.scene, world.city.flags, { clock: () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF }) });
+// visitors at the Steen (the Museum of Antiquities), the attendant, a painter, an angler (world/steenlife.ts)
+const steenLife = createSteenLife(world.scene, crowd);
+for (const r of steenLife.colliders) world.addCollider(r);
 for (const r of trades.colliders) world.addCollider(r);
 jobs.town = town;
 town.clock = () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF });
@@ -163,7 +168,8 @@ function start(): void {
       world.lamps.map((l) => l.pos),
       world.shipPositions,
     );
-    player.onStep = (surface, hurry) => sound?.footstep(surface, hurry);
+    // in a puddle the step splashes (world/puddlemask.ts: the same puddles the ground shows)
+    player.onStep = (surface, hurry) => sound?.footstep(surface, hurry, surface === "stone" ? puddleAt(player.x, player.z, 1.1) : 0);
     jobs.sfx = (name, at) => sound?.play(name, at);
     player.onLand = (surface) => sound?.footstep(surface, true);
   }
@@ -208,6 +214,7 @@ function frame(): void {
   town.update(dt, player);
   market.update(dt, player, jobs.day.dayNum, jobs.day.hourF);
   trades.update(elapsed, dt, player.camera, crowd.fogDistance);
+  steenLife.update(dt, jobs.day.hourF, player.camera);
   deeds.update(dt, jobs.day.hourF);
   rowing.update(dt);
   animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
@@ -319,6 +326,7 @@ if (import.meta.env.DEV) {
     stalls,
     market,
     trades,
+    steenLife,
     ride,
     craneClimb,
     deeds,
@@ -355,6 +363,7 @@ if (import.meta.env.DEV) {
       for (const q of rowing.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M3i: the trades (the market stalls come through town.pathPoints())
       for (const q of trades.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      for (const q of steenLife.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       if (!can(DOSS_POS.x, DOSS_POS.z, 2.0)) bad.push("the doss house gate");
       if (!can(RAMP.x - 0.6, RAMP.zHigh - 1.0, 2.4)) bad.push("the mate on deck");
       return bad;
@@ -426,6 +435,7 @@ if (import.meta.env.DEV) {
         town.update(dt, player);
         market.update(dt, player, jobs.day.dayNum, jobs.day.hourF);
         trades.update(elapsed, dt, player.camera, crowd.fogDistance);
+        steenLife.update(dt, jobs.day.hourF, player.camera);
         deeds.update(dt, jobs.day.hourF);
         rowing.update(dt);
         animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);

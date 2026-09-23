@@ -51,6 +51,8 @@ interface Ticket {
   on: boolean;
   /** Free changes used. */
   changes: number;
+  /** Up on the roof's knifeboard seat (out in the wind) rather than inside. */
+  roof?: boolean;
 }
 
 export interface RideInfo {
@@ -86,7 +88,7 @@ function read(db: DB): Ticket | null {
   try {
     const t = JSON.parse(row.value_json) as Ticket;
     if (typeof t.since !== "number" || !isLine(t.line) || !isStop(t.from)) return null;
-    return { since: t.since, line: t.line, from: t.from, on: t.on !== false, changes: Number(t.changes) || 0 };
+    return { since: t.since, line: t.line, from: t.from, on: t.on !== false, changes: Number(t.changes) || 0, roof: t.roof === true };
   } catch {
     return null;
   }
@@ -125,6 +127,20 @@ export function riding(db: DB): boolean {
   return ride(db) !== null;
 }
 
+/** Where Jef rides now: inside (the saloon, the back platform), on the roof, or nowhere. */
+export function ridePlace(db: DB): "inside" | "roof" | null {
+  const t = ticket(db);
+  return t && t.on ? (t.roof ? "roof" : "inside") : null;
+}
+
+/** Jef climbs onto the roof seat, or back down inside. */
+export function seat(db: DB, place: "inside" | "roof"): { place: "inside" | "roof" } {
+  const t = ticket(db);
+  if (!t || !t.on) throw new GameError("you are not on an omnibus", 409);
+  write(db, { ...t, roof: place === "roof" });
+  return { place };
+}
+
 /** Get on a line at a stop: the conductor takes the fare, or punches the ticket for a change. */
 export function board(db: DB, stop: RideStop, line: RideLine): { fare_c: number; change: boolean; text: string } {
   if (!calls(line, stop)) throw new GameError("that line does not call there", 400);
@@ -150,7 +166,7 @@ export function board(db: DB, stop: RideStop, line: RideLine): { fare_c: number;
 export function alight(db: DB): { text: string } {
   const t = read(db);
   if (!t || !t.on) return { text: "" };
-  write(db, { ...t, on: false });
+  write(db, { ...t, on: false, roof: false });
   return { text: "You step down onto the cobbles." };
 }
 

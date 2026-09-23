@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { psx } from "../retro/psx";
-import { makeHuman, type Human } from "../game/humans";
+import { makeHuman, type Human, type HumanKind } from "../game/humans";
 import { glowTexture } from "./textures";
 import type { Rect } from "./geom";
 import type { HorsePool } from "./horses";
@@ -162,6 +162,16 @@ export interface Omnibus {
   platform(): { x: number; y: number; z: number; yaw: number; speed: number };
   /** The foot of the step behind the platform (world), and the way out (yaw). */
   stepDown(): { x: number; z: number; yaw: number };
+  /** The body's frame: its origin (the ground under the rear axle), the way it points, its speed. */
+  pose(): { x: number; y: number; z: number; yaw: number; speed: number };
+  /** A rider's step in the body frame from (fx, fz) toward (x, z): kept to the platform, the doorway and the aisle. */
+  walk(fx: number, fz: number, x: number, z: number): [number, number];
+  /** The floor under a spot in the body frame (the platform, the saloon). */
+  floorAt(x: number, z: number): number;
+  /** Who has seat i (SEATS): the player, a passenger, or nobody. */
+  seatTaken(i: number): "player" | "passenger" | null;
+  /** The player takes seat i (true if it was free), or gives it up (null). */
+  takeSeat(i: number, who: "player" | null): boolean;
   info(): Record<string, unknown>;
 }
 
@@ -307,11 +317,13 @@ class Loop {
 // ------------------------------------------------------------------ the model (code-built)
 
 const CREAM: RGB = [0.86, 0.8, 0.64];
-const GLASS: RGB = [0.08, 0.09, 0.1];
 const IRON: RGB = [0.18, 0.17, 0.16];
 const YELLOW: RGB = [0.72, 0.56, 0.22];
 const BROWN: RGB = [0.45, 0.33, 0.24];
 const ROOF: RGB = [0.35, 0.34, 0.33];
+const VELVET: RGB = [0.5, 0.2, 0.17];
+const STRAW: RGB = [0.8, 0.68, 0.36];
+const CEILING: RGB = [0.78, 0.74, 0.62];
 /** The paint takes the line's colour (instance colour times this). */
 const PAINT: RGB = [1, 1, 1];
 const PAINT_DARK: RGB = [0.62, 0.62, 0.62];
@@ -319,52 +331,80 @@ const PAINT_DARK: RGB = [0.62, 0.62, 0.62];
 const Z0 = -1.05; // back of the saloon
 const Z1 = 3.1; // front of the saloon
 const W = 1.72;
+/** Heights (body frame): the saloon floor, the window openings, the letter board, the roof. */
+const FLOOR_Y = 0.83;
+const WIN_LO = 1.66;
+const WIN_HI = 2.24;
+const BOARD_Y = 2.61;
+const ROOF_Y = 2.78;
+const TOP = 2.74; // top of the walls
+const DOOR = 0.3; // half width of the rear doorway
+const DOOR_TOP = 2.3;
+/** The five side windows: their middles along z. */
+const WINDOWS = [0, 1, 2, 3, 4].map((i) => Z0 + 0.45 + i * 0.8);
+const WIN_W = 0.62;
 
 /** Body frame: +z forward, y up, origin on the ground under the rear axle. `paint`: the panels only. */
 function bodyGeometry(paint: boolean): THREE.BufferGeometry {
   const k = new Kit();
   const L = Z1 - Z0;
   const zc = (Z0 + Z1) / 2;
+  const wallH = TOP - FLOOR_Y;
   if (paint) {
     for (const s of [-1, 1]) {
-      k.box(0.06, 0.72, L, s * (W / 2), 1.2, zc, PAINT);
-      k.box(0.06, 0.26, L, s * (W / 2), 2.4, zc, PAINT_DARK); // behind the letter board
+      k.box(0.06, 0.74, L, s * (W / 2), 1.21, zc, PAINT);
+      k.box(0.06, 0.26, L, s * (W / 2), BOARD_Y, zc, PAINT_DARK); // behind the letter board
     }
-    k.box(W, 1.7, 0.06, 0, 1.63, Z1, PAINT); // front bulkhead
-    for (const s of [-1, 1]) k.box(0.56, 1.7, 0.06, s * 0.58, 1.63, Z0, PAINT);
-    k.box(W, 0.3, 0.06, 0, 2.33, Z0, PAINT);
+    // front bulkhead round its window; back panels either side of the doorway, and over it
+    k.box(W, WIN_LO - FLOOR_Y, 0.06, 0, (FLOOR_Y + WIN_LO) / 2, Z1, PAINT);
+    for (const s of [-1, 1]) k.box(W / 2 - 0.45, WIN_HI - WIN_LO, 0.06, s * (0.45 + (W / 2 - 0.45) / 2), (WIN_LO + WIN_HI) / 2, Z1, PAINT);
+    k.box(W, TOP - WIN_HI, 0.06, 0, (WIN_HI + TOP) / 2, Z1, PAINT);
+    for (const s of [-1, 1]) k.box(W / 2 - DOOR, wallH, 0.06, s * (DOOR + (W / 2 - DOOR) / 2), FLOOR_Y + wallH / 2, Z0, PAINT);
+    k.box(2 * DOOR, TOP - DOOR_TOP, 0.06, 0, (DOOR_TOP + TOP) / 2, Z0, PAINT);
     return k.build();
   }
   // floor and underframe, the perch to the front carriage
-  k.box(W, 0.1, L, 0, 0.78, zc, BROWN);
+  k.box(W, 0.1, L, 0, FLOOR_Y - 0.05, zc, BROWN);
   k.box(0.14, 0.12, 3.6, 0, 0.62, 1.2, IRON);
-  // the waist rail, the window band (cream frame, dark glass)
+  // the waist rail, the window band: sill, pillars, header; open windows with small panes
   for (const s of [-1, 1]) {
-    k.box(0.08, 0.08, L + 0.04, s * (W / 2 + 0.01), 1.6, zc, YELLOW);
-    k.box(0.05, 0.62, L, s * (W / 2), 1.95, zc, CREAM);
-    for (let i = 0; i < 5; i++) k.box(0.03, 0.46, 0.62, s * (W / 2 + 0.02), 1.95, Z0 + 0.45 + i * 0.8, GLASS);
+    const x = s * (W / 2);
+    k.box(0.08, 0.08, L + 0.04, x + s * 0.01, 1.6, zc, YELLOW);
+    k.box(0.07, 0.05, L, x, WIN_LO - 0.02, zc, CREAM);
+    k.box(0.06, TOP - WIN_HI - 0.26, L, x, (WIN_HI + BOARD_Y - 0.13) / 2, zc, CREAM);
+    for (let i = 0; i <= WINDOWS.length; i++) {
+      const za = i === 0 ? Z0 : WINDOWS[i - 1] + WIN_W / 2;
+      const zb = i === WINDOWS.length ? Z1 : WINDOWS[i] - WIN_W / 2;
+      if (zb - za > 0.01) k.box(0.06, WIN_HI - WIN_LO, zb - za, x, (WIN_LO + WIN_HI) / 2, (za + zb) / 2, CREAM);
+    }
+    for (const z of WINDOWS) {
+      // glazing bars: four small panes
+      k.box(0.025, WIN_HI - WIN_LO, 0.025, x, (WIN_LO + WIN_HI) / 2, z, BROWN);
+      k.box(0.025, 0.025, WIN_W, x, (WIN_LO + WIN_HI) / 2 + 0.04, z, BROWN);
+    }
   }
-  k.box(0.9, 0.5, 0.04, 0, 1.95, Z1 + 0.02, GLASS);
-  k.box(0.6, 1.4, 0.02, 0, 1.5, Z0 + 0.05, [0.05, 0.05, 0.05]);
-  // the roof, with a knifeboard seat along it and a rail round it
-  k.box(W + 0.14, 0.08, L + 0.3, 0, 2.56, zc, ROOF);
-  k.box(0.1, 0.5, L - 0.6, 0, 2.85, zc, BROWN);
-  k.box(0.9, 0.06, L - 0.6, 0, 2.72, zc, BROWN);
+  // the front window's bars
+  k.box(0.025, WIN_HI - WIN_LO, 0.03, 0, (WIN_LO + WIN_HI) / 2, Z1, BROWN);
+  k.box(0.9, 0.025, 0.03, 0, (WIN_LO + WIN_HI) / 2 + 0.04, Z1, BROWN);
+  // the roof, with a knifeboard seat along it (back to back) and a rail round it
+  k.box(W + 0.14, 0.08, L + 0.3, 0, ROOF_Y, zc, ROOF);
+  k.box(0.1, 0.5, L - 0.6, 0, ROOF_Y + 0.29, zc, BROWN);
+  k.box(0.9, 0.06, L - 0.6, 0, ROOF_Y + 0.16, zc, BROWN);
   for (const s of [-1, 1]) {
-    k.box(0.04, 0.04, L + 0.2, s * (W / 2 + 0.03), 2.95, zc, IRON);
-    for (let i = 0; i <= 4; i++) k.box(0.03, 0.36, 0.03, s * (W / 2 + 0.03), 2.77, Z0 - 0.05 + (i * (L + 0.1)) / 4, IRON);
+    k.box(0.04, 0.04, L + 0.2, s * (W / 2 + 0.03), ROOF_Y + 0.39, zc, IRON);
+    for (let i = 0; i <= 4; i++) k.box(0.03, 0.36, 0.03, s * (W / 2 + 0.03), ROOF_Y + 0.21, Z0 - 0.05 + (i * (L + 0.1)) / 4, IRON);
   }
-  // the back platform, its step and a hand rail, a ladder to the roof
+  // the back platform, its step and a hand rail, the ladder to the roof
   k.box(1.5, 0.08, 0.75, 0, 0.7, Z0 - 0.4, BROWN);
   k.box(0.9, 0.05, 0.3, 0, 0.36, Z0 - 0.85, BROWN);
   for (const s of [-1, 1]) k.box(0.04, 0.45, 0.04, s * 0.45, 0.55, Z0 - 0.85, IRON);
-  k.box(0.04, 1.9, 0.04, 0.72, 1.7, Z0 - 0.75, IRON);
-  for (let i = 0; i < 6; i++) k.box(0.3, 0.03, 0.03, -0.6, 0.95 + i * 0.33, Z0 - 0.72, IRON);
-  k.box(0.03, 2.1, 0.03, -0.75, 1.75, Z0 - 0.72, IRON);
-  k.box(0.03, 2.1, 0.03, -0.45, 1.75, Z0 - 0.72, IRON);
+  k.box(0.04, 2.1, 0.04, 0.72, 1.8, Z0 - 0.75, IRON);
+  for (let i = 0; i < 7; i++) k.box(0.3, 0.03, 0.03, -0.6, 0.95 + i * 0.33, Z0 - 0.72, IRON);
+  k.box(0.03, 2.4, 0.03, -0.75, 1.95, Z0 - 0.72, IRON);
+  k.box(0.03, 2.4, 0.03, -0.45, 1.95, Z0 - 0.72, IRON);
   // the driver's box over the front wheels, the footboard, the dashboard, two lamp cases
   k.box(1.3, 0.12, 0.8, 0, 2.2, Z1 + 0.35, BROWN);
-  k.box(1.3, 0.35, 0.08, 0, 2.3, Z1 - 0.02, BROWN);
+  k.box(1.3, 0.35, 0.08, 0, 2.3, Z1 + 0.06, BROWN);
   k.box(1.4, 0.06, 0.5, 0, 1.45, Z1 + 0.95, BROWN);
   k.box(1.4, 0.55, 0.05, 0, 1.72, Z1 + 1.2, [0.1, 0.1, 0.1]);
   for (const s of [-1, 1]) {
@@ -377,11 +417,67 @@ function bodyGeometry(paint: boolean): THREE.BufferGeometry {
   return k.build();
 }
 
-/** Where the lamp glass sits (body frame): the front of each lamp case. */
+/** The saloon inside: benches in velvet, straw on the floor, a ceiling, the check-string, the oil lamp. */
+function interiorGeometry(): THREE.BufferGeometry {
+  const k = new Kit();
+  const za = Z0 + 0.1;
+  const zb = Z1 - 0.1;
+  const L = zb - za;
+  const zc = (za + zb) / 2;
+  for (const s of [-1, 1]) {
+    k.box(0.42, 0.09, L, s * 0.62, FLOOR_Y + 0.38, zc, VELVET); // the seat
+    k.box(0.03, 0.34, L, s * 0.42, FLOOR_Y + 0.17, zc, BROWN); // the front board under it
+    k.box(0.07, 0.46, L, s * 0.8, FLOOR_Y + 0.68, zc, VELVET); // the back, against the wall
+    for (let i = 0; i <= 6; i++) k.box(0.4, 0.02, 0.03, s * 0.62, FLOOR_Y + 0.435, za + (i * L) / 6, [0.35, 0.14, 0.12]); // seams
+  }
+  // straw on the floor, a few loose wisps
+  k.box(0.8, 0.015, L, 0, FLOOR_Y + 0.008, zc, STRAW);
+  let seed = 7;
+  const r = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  for (let i = 0; i < 26; i++) k.box(0.25, 0.012, 0.03, (r() - 0.5) * 0.7, FLOOR_Y + 0.02, za + r() * L, [0.86, 0.74, 0.4], r() * Math.PI);
+  // the ceiling boards, the check-string to the driver along it
+  k.box(W - 0.1, 0.02, L + 0.18, 0, TOP - 0.03, zc, CEILING);
+  k.box(0.012, 0.012, L + 0.1, 0.35, TOP - 0.12, zc, [0.6, 0.5, 0.35]);
+  k.box(0.012, 0.25, 0.012, 0.35, TOP - 0.25, Z0 + 0.25, [0.6, 0.5, 0.35]); // its end, to pull
+  // the oil lamp on the front bulkhead, and its bracket
+  k.box(0.04, 0.04, 0.16, 0, 2.43, Z1 - 0.1, IRON);
+  k.box(0.14, 0.2, 0.14, 0, 2.3, Z1 - 0.16, YELLOW);
+  // the doorway's posts
+  for (const s of [-1, 1]) k.box(0.06, DOOR_TOP - FLOOR_Y, 0.08, s * DOOR, (FLOOR_Y + DOOR_TOP) / 2, Z0, BROWN);
+  return k.build();
+}
+
+/** Where the lamp glass sits (body frame): the two carriage lamps, the oil lamp inside. */
 const LAMPS: Array<[number, number, number]> = [
   [-0.92, 2.0, Z1 + 0.11],
   [0.92, 2.0, Z1 + 0.11],
+  [0, 2.3, Z1 - 0.24],
 ];
+
+/** A seat: where you sit (body frame, on the seat's top), the way you face (body yaw), inside or on the roof. */
+export interface OmnibusSeat {
+  x: number;
+  y: number;
+  z: number;
+  face: number;
+  roof: boolean;
+}
+/** Six a side inside, facing across; four a side on the roof's knifeboard, back to back, facing out. */
+export const SEATS: OmnibusSeat[] = [
+  ...[-1, 1].flatMap((s) => [0, 1, 2, 3, 4, 5].map((i) => ({ x: s * 0.6, y: FLOOR_Y + 0.43, z: Z0 + 0.42 + i * 0.64, face: -s * (Math.PI / 2), roof: false }))),
+  ...[-1, 1].flatMap((s) => [0, 1, 2, 3].map((i) => ({ x: s * 0.32, y: ROOF_Y + 0.19, z: Z0 + 0.55 + i * 0.95, face: s * (Math.PI / 2), roof: true }))),
+];
+/** Where a rider may stand: the back platform, the doorway, the aisle (body frame). */
+const WALK = {
+  platform: { minX: -0.55, maxX: 0.55, minZ: Z0 - 0.72, maxZ: Z0 - 0.12 },
+  door: { minX: -DOOR + 0.12, maxX: DOOR - 0.12, minZ: Z0 - 0.2, maxZ: Z0 + 0.15 },
+  aisle: { minX: -0.26, maxX: 0.26, minZ: Z0 + 0.1, maxZ: Z1 - 0.25 },
+};
+/** Floor heights: the platform, the saloon. */
+const PLATFORM_Y = 0.74;
+/** Where a rider stands on getting on (body frame), and where the roof ladder is (on the platform). */
+export const PLATFORM_SPOT: [number, number] = [0, Z0 - 0.45];
+export const LADDER_SPOT: [number, number] = [-0.45, Z0 - 0.55];
 
 function wheelsGeometry(r: number, track: number): THREE.BufferGeometry {
   const k = new Kit();
@@ -419,15 +515,21 @@ function postGeometry(lines: LineDef[]): THREE.BufferGeometry {
   return k.build();
 }
 
-/** Two rows per line: the side board (the stops) and the destination board (the line). */
-function boardAtlas(): { tex: THREE.CanvasTexture; rows: number } {
+/** Advertisements over the windows inside (plain English; the names are names). */
+const ADS = ["JENEVER  DE KUYPER", "SOAP  ·  DE WINTER", "COFFEE AND TEA  ·  PEETERS", "PIPE TOBACCO  ·  VAN ROMPAEY"];
+
+/** Two rows per line (the side board with the stops, the destination board), and a row of four advertisements. */
+function boardAtlas(): { tex: THREE.CanvasTexture; rows: number; adRow: number } {
   const w = 512;
   const h = 32;
-  const rows = LINES.length * 2;
+  const adRow = LINES.length * 2;
+  const rows = adRow + 1;
   const c = document.createElement("canvas");
   c.width = w;
   c.height = h * rows;
   const g = c.getContext("2d")!;
+  g.textAlign = "center";
+  g.textBaseline = "middle";
   LINES.forEach((l, i) => {
     for (const [r, text, size] of [[i * 2, l.sideBoard, 0.6], [i * 2 + 1, l.board, 0.78]] as const) {
       const [cr, cg, cb] = l.colour.map((v) => Math.round(v * 120));
@@ -435,28 +537,55 @@ function boardAtlas(): { tex: THREE.CanvasTexture; rows: number } {
       g.fillRect(0, r * h, w, h);
       g.fillStyle = "#e8d8a0";
       g.font = `bold ${Math.floor(h * size)}px Georgia, serif`;
-      g.textAlign = "center";
-      g.textBaseline = "middle";
       g.fillText(text, w / 2, r * h + h / 2 + 1, w - 12);
     }
+  });
+  // the advertisements: enamel colours, a thin border
+  const bg = ["#233a2c", "#e9dfc4", "#5a2a1e", "#1f2c44"];
+  const fg = ["#e8d49a", "#2a2a2a", "#f0e2b0", "#e6d7a8"];
+  ADS.forEach((text, i) => {
+    const x0 = i * 128;
+    g.fillStyle = bg[i];
+    g.fillRect(x0, adRow * h, 128, h);
+    g.strokeStyle = fg[i];
+    g.strokeRect(x0 + 2.5, adRow * h + 2.5, 123, h - 5);
+    g.fillStyle = fg[i];
+    g.font = `bold ${Math.floor(h * 0.36)}px Georgia, serif`;
+    const [a, b] = text.split("  ·  ");
+    if (b) {
+      g.fillText(a, x0 + 64, adRow * h + h * 0.34, 118);
+      g.fillText(b, x0 + 64, adRow * h + h * 0.72, 118);
+    } else g.fillText(a, x0 + 64, adRow * h + h / 2 + 1, 118);
   });
   const t = new THREE.CanvasTexture(c);
   t.magFilter = THREE.NearestFilter;
   t.minFilter = THREE.NearestFilter;
   t.generateMipmaps = false;
   t.colorSpace = THREE.SRGBColorSpace;
-  return { tex: t, rows };
+  return { tex: t, rows, adRow };
 }
 
-/**
- * The boards in the body frame: [centre, the way "right" runs across the text, up, normal, width,
- * height, row offset (0: side board, 1: destination)]. Text reads left to right from outside.
- */
-const BOARDS: Array<{ c: [number, number, number]; right: [number, number, number]; n: [number, number, number]; w: number; h: number; row: 0 | 1 }> = [
-  { c: [-(W / 2 + 0.035), 2.4, 1.02], right: [0, 0, 1], n: [-1, 0, 0], w: 4.0, h: 0.22, row: 0 },
-  { c: [W / 2 + 0.035, 2.4, 1.02], right: [0, 0, -1], n: [1, 0, 0], w: 4.0, h: 0.22, row: 0 },
-  { c: [0, 2.74, Z1 + 0.2], right: [1, 0, 0], n: [0, 0, 1], w: 1.5, h: 0.26, row: 1 },
-  { c: [0, 2.74, Z0 - 0.2], right: [-1, 0, 0], n: [0, 0, -1], w: 1.5, h: 0.26, row: 1 },
+interface Board {
+  c: [number, number, number];
+  /** The way "right" runs across the text (reads left to right from where it is seen). */
+  right: [number, number, number];
+  n: [number, number, number];
+  w: number;
+  h: number;
+  /** 0: side board, 1: destination board, "ad": advertisement number `ad`. */
+  row: 0 | 1 | "ad";
+  ad?: number;
+}
+
+/** The boards in the body frame: the line's outside, the advertisements inside over the windows. */
+const BOARDS: Board[] = [
+  { c: [-(W / 2 + 0.035), BOARD_Y, 1.02], right: [0, 0, 1], n: [-1, 0, 0], w: 4.0, h: 0.22, row: 0 },
+  { c: [W / 2 + 0.035, BOARD_Y, 1.02], right: [0, 0, -1], n: [1, 0, 0], w: 4.0, h: 0.22, row: 0 },
+  { c: [0, ROOF_Y + 0.18, Z1 + 0.2], right: [1, 0, 0], n: [0, 0, 1], w: 1.5, h: 0.26, row: 1 },
+  { c: [0, ROOF_Y + 0.18, Z0 - 0.2], right: [-1, 0, 0], n: [0, 0, -1], w: 1.5, h: 0.26, row: 1 },
+  ...[-1, 1].flatMap((s) =>
+    WINDOWS.map((z, i): Board => ({ c: [s * (W / 2 - 0.035), 2.37, z], right: [0, 0, s], n: [-s, 0, 0], w: WIN_W, h: 0.17, row: "ad", ad: (i + (s > 0 ? 2 : 0)) % ADS.length })),
+  ),
 ];
 
 // ------------------------------------------------------------------ the omnibuses
@@ -491,6 +620,17 @@ interface BusState extends Omnibus {
   foreYaw: number;
   horseYaw: number;
   spans: Map<object, Array<[number, number]>>;
+  taken: Array<"player" | "passenger" | null>;
+  passengers: Passenger[];
+}
+
+interface Passenger {
+  human: Human;
+  g: THREE.Group;
+  seat: number;
+  state: "in" | "seated" | "out";
+  path: P[];
+  t: number;
 }
 
 export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnibuses {
@@ -553,6 +693,29 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         foreYaw: 0,
         horseYaw: 0,
         spans: new Map(),
+        taken: SEATS.map(() => null),
+        passengers: [],
+        pose: () => ({ x: b.frame.position.x, y: b.frame.position.y, z: b.frame.position.z, yaw: b.yaw, speed: b.v }),
+        walk(fx, fz, x, z) {
+          const inside = (px: number, pz: number) =>
+            Object.values(WALK).some((r) => px >= r.minX && px <= r.maxX && pz >= r.minZ && pz <= r.maxZ);
+          if (inside(x, z)) return [x, z];
+          if (inside(x, fz)) return [x, fz];
+          if (inside(fx, z)) return [fx, z];
+          return [fx, fz];
+        },
+        floorAt: (_x, z) => (z < Z0 - 0.1 ? PLATFORM_Y : FLOOR_Y),
+        seatTaken: (i) => b.taken[i] ?? null,
+        takeSeat(i, who) {
+          if (who === null) {
+            b.taken = b.taken.map((t) => (t === "player" ? null : t));
+            return true;
+          }
+          if (b.taken[i]) return false;
+          b.taken = b.taken.map((t) => (t === "player" ? null : t));
+          b.taken[i] = "player";
+          return true;
+        },
         rider: false,
         atStop: () => b.at,
         nextStop: () => b.stopAt[b.nextI].stop,
@@ -607,6 +770,8 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
   const rearM = inst(wheelsGeometry(R_REAR, 1.98), n, "omnibus_rear_wheels");
   const foreM = inst(foreGeometry(), n, "omnibus_fore");
   const frontM = inst(wheelsGeometry(R_FRONT, 1.62), n, "omnibus_front_wheels");
+  // the saloon inside: drawn only for an omnibus you are in or near
+  const interiorM = inst(interiorGeometry(), n, "omnibus_interior");
   const col = new THREE.Color();
   buses.forEach((b, i) => paintM.setColorAt(i, col.setRGB(...b.line.colour)));
   if (paintM.instanceColor) paintM.instanceColor.needsUpdate = true;
@@ -626,12 +791,14 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
   buses.forEach((b, i) => {
     const li = LINES.indexOf(b.line);
     BOARDS.forEach((bd, j) => {
-      const row = li * 2 + bd.row;
+      const row = bd.row === "ad" ? atlas.adRow : li * 2 + bd.row;
       const v0 = 1 - (row + 1) / atlas.rows;
       const v1 = 1 - row / atlas.rows;
+      const u0 = bd.row === "ad" ? (bd.ad ?? 0) / ADS.length : 0;
+      const u1 = bd.row === "ad" ? ((bd.ad ?? 0) + 1) / ADS.length : 1;
       const base = (i * BOARDS.length + j) * 6;
       // corners: bottom-left, bottom-right, top-right, bottom-left, top-right, top-left
-      const uv: Array<[number, number]> = [[0, v0], [1, v0], [1, v1], [0, v0], [1, v1], [0, v1]];
+      const uv: Array<[number, number]> = [[u0, v0], [u1, v0], [u1, v1], [u0, v0], [u1, v1], [u0, v1]];
       uv.forEach(([u, v], k) => bUv.setXY(base + k, u, v));
     });
   });
@@ -642,12 +809,12 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
 
   // the carriage lamps: glass that glows after dusk, and a soft glow in the air round it
   const glassMat = new THREE.MeshBasicMaterial({ color: 0x222222, fog: false });
-  const glass = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 0.14, 0.03), glassMat, n * 2);
+  const glass = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 0.14, 0.03), glassMat, n * LAMPS.length);
   glass.name = "omnibus_lamps";
   glass.frustumCulled = false;
   group.add(glass);
   const haloGeo = new THREE.BufferGeometry();
-  const haloPos = new THREE.Float32BufferAttribute(new Float32Array(n * 2 * 3), 3);
+  const haloPos = new THREE.Float32BufferAttribute(new Float32Array(n * LAMPS.length * 3), 3);
   haloPos.setUsage(THREE.DynamicDrawUsage);
   haloGeo.setAttribute("position", haloPos);
   const haloMat = new THREE.PointsMaterial({
@@ -676,6 +843,91 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     const posts = new THREE.Mesh(mergeGeometries(geos, false) ?? geos[0], wood);
     posts.name = "omnibus_posts";
     scene.add(posts);
+  }
+
+
+  // --- passengers: townspeople who ride a stop or three, on the benches inside
+  const PASSENGER_KINDS: HumanKind[] = ["gentleman", "clerk", "old_man", "priest", "sailor_b", "docker_a", "porter", "carter", "docker_b"];
+  const floorLocal = (x: number, z: number) => (z < Z0 - 0.1 ? (Math.abs(x) < 0.8 && z > Z0 - 0.8 ? PLATFORM_Y : 0) : FLOOR_Y);
+  const insideSeats = SEATS.map((s, i) => ({ s, i })).filter((q) => !q.s.roof);
+  /** A walk from the step behind the platform to a seat (body frame), or back. */
+  const pathTo = (seat: OmnibusSeat): P[] => [
+    [0.15, Z0 - 1.3],
+    [0, Z0 - 0.45],
+    [0, Z0 + 0.3],
+    [0, seat.z],
+    [seat.x * 0.75, seat.z],
+  ];
+  function board(b: BusState): void {
+    const free = insideSeats.filter((q) => !b.taken[q.i]);
+    if (!free.length) return;
+    const human = makeHuman(PASSENGER_KINDS[Math.floor(Math.random() * PASSENGER_KINDS.length)]);
+    if (!human || !human.canSit) return;
+    const q = free[Math.floor(Math.random() * free.length)];
+    const g = new THREE.Group();
+    g.add(human.root);
+    b.frame.add(g);
+    b.taken[q.i] = "passenger";
+    b.passengers.push({ human, g, seat: q.i, state: "in", path: pathTo(q.s), t: 0 });
+  }
+  /** At a stop: some get off, some get on (one to four aboard). */
+  function atStop(b: BusState): void {
+    for (const p of b.passengers) {
+      if (p.state === "seated" && Math.random() < 0.4) {
+        p.state = "out";
+        p.path = pathTo(SEATS[p.seat]).reverse();
+        p.t = 0;
+        p.human.play("walk", 0.2);
+        p.human.setPace(1.1);
+      }
+    }
+    const want = 1 + Math.floor(Math.random() * 4);
+    const aboard = b.passengers.filter((p) => p.state !== "out").length;
+    for (let k = 0; k < Math.min(2, want - aboard); k++) board(b);
+  }
+  function movePassengers(b: BusState, dt: number): void {
+    for (const p of b.passengers) {
+      if (p.state === "seated") continue;
+      p.t += dt * 1.1;
+      // along the path at walking pace
+      let d = p.t;
+      let at: P = p.path[p.path.length - 1];
+      let yaw = p.g.rotation.y;
+      for (let k = 0; k < p.path.length - 1; k++) {
+        const [ax, az] = p.path[k];
+        const [bx, bz] = p.path[k + 1];
+        const L = Math.hypot(bx - ax, bz - az);
+        if (d <= L) {
+          at = [ax + ((bx - ax) * d) / L, az + ((bz - az) * d) / L];
+          yaw = Math.atan2(bx - ax, bz - az);
+          d = -1;
+          break;
+        }
+        d -= L;
+      }
+      p.g.position.set(at[0], floorLocal(at[0], at[1]), at[1]);
+      p.g.rotation.y = yaw;
+      if (p.human.motion !== "walk") {
+        p.human.play("walk", 0.2);
+        p.human.setPace(1.1);
+      }
+      if (d >= 0) {
+        // the end of the walk: sit down, or step off and go
+        if (p.state === "in") {
+          const s = SEATS[p.seat];
+          p.state = "seated";
+          p.human.play("sit", 0.3);
+          p.g.position.set(s.x, s.y + p.human.sitDrop(0) + 0.02, s.z);
+          p.g.rotation.y = s.face;
+        } else {
+          b.taken[p.seat] = null;
+          p.human.dispose();
+          p.g.removeFromParent();
+          p.state = "gone" as Passenger["state"];
+        }
+      }
+    }
+    b.passengers = b.passengers.filter((p) => (p.state as string) !== "gone");
   }
 
   // --- moving
@@ -775,7 +1027,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     const lp = b.loop;
     if (b.at) {
       b.v = 0;
-      if (!b.held) b.dwell -= dt;
+      if (!b.held && !b.passengers.some((p) => p.state === "out")) b.dwell -= dt;
       if (b.dwell <= 0 && !b.held) {
         const was = b.at;
         b.at = null;
@@ -802,6 +1054,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
       if (d < 0.05 || d > lp.length - 0.5) {
         b.at = st.stop;
         b.dwell = DWELL;
+        atStop(b);
         b.v = 0;
         api.onArrive?.(b, st.stop);
       }
@@ -852,11 +1105,15 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     const cam = camera?.position;
     const lit = THREE.MathUtils.clamp(opts.lit?.() ?? 0, 0, 1);
     let anyNear = false;
+    let anyInside = false;
     buses.forEach((b, i) => {
       b.near = !cam || Math.hypot(b.pa.x - cam.x, b.pa.z - cam.z) < far;
       anyNear ||= b.near;
       b.frame.updateMatrixWorld();
       bodyM.setMatrixAt(i, b.frame.matrixWorld);
+      const inside = b.rider || (!!cam && Math.hypot(b.pa.x - cam.x, b.pa.z - cam.z) < 15);
+      interiorM.setMatrixAt(i, inside ? b.frame.matrixWorld : zero);
+      anyInside ||= inside;
       paintM.setMatrixAt(i, b.frame.matrixWorld);
       set(rearM, i, b.pa.x, R_REAR, b.pa.z, b.yaw, b.rollR);
       set(foreM, i, b.pb.x, 0, b.pb.z, b.foreYaw);
@@ -878,9 +1135,9 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
       LAMPS.forEach(([x, y, z], k) => {
         tmp.set(x, y, z).applyMatrix4(b.frame.matrixWorld);
         M2.compose(tmp, b.frame.quaternion, S1);
-        glass.setMatrixAt(i * 2 + k, M2);
-        tmp.set(x, y, z + 0.12).applyMatrix4(b.frame.matrixWorld);
-        haloPos.setXYZ(i * 2 + k, tmp.x, tmp.y, tmp.z);
+        glass.setMatrixAt(i * LAMPS.length + k, M2);
+        tmp.set(x, y, z + (k < 2 ? 0.12 : -0.05)).applyMatrix4(b.frame.matrixWorld);
+        haloPos.setXYZ(i * LAMPS.length + k, tmp.x, tmp.y, tmp.z);
       });
       // the driver on his box, the conductor on the platform; only near
       if (!b.driver) {
@@ -898,7 +1155,8 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
       b.conductorG.position.x = b.rider ? 0.62 : 0.5; // nobody stands where the rider stands
       b.frame.visible = b.near;
     });
-    for (const m of [bodyM, paintM, rearM, foreM, frontM, glass]) m.instanceMatrix.needsUpdate = true;
+    for (const m of [bodyM, paintM, rearM, foreM, frontM, glass, interiorM]) m.instanceMatrix.needsUpdate = true;
+    interiorM.visible = anyInside;
     bPos.needsUpdate = true;
     bNor.needsUpdate = true;
     boardGeo.computeBoundingSphere();
@@ -927,9 +1185,11 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
       opts.horses.commit();
       draw(camera);
       for (const b of buses) {
+        movePassengers(b, dt);
         if (!b.near) continue;
         b.driver?.update(dt);
         b.conductor?.update(dt);
+        for (const p of b.passengers) p.human.update(dt);
       }
     },
     colliders: () => buses.flatMap((b) => b.rects),

@@ -389,7 +389,7 @@ export interface LeaveResult {
  * at a hire landing goes back to the waterman (late money taken); anywhere else it stays, and
  * his boy fetches it later for a fine (rowTick). A stolen boat stays where it is.
  */
-export function leaveBoat(db: DB, x: number, z: number, yaw: number): LeaveResult {
+export function leaveBoat(db: DB, x: number, z: number, yaw: number, ashore = true): LeaveResult {
   const s = rowState(db);
   if (!s.on) return { returned: false, late_c: 0, paid_c: 0, owed_c: 0, text: "" };
   if (!Number.isFinite(x) || !Number.isFinite(z)) throw new GameError("bad place", 400);
@@ -405,7 +405,8 @@ export function leaveBoat(db: DB, x: number, z: number, yaw: number): LeaveResul
     return { returned: false, late_c: 0, paid_c: 0, owed_c: 0, text: "" };
   }
   const h = s.hire!;
-  const at = landingAt(x, z);
+  // handed back only by a man who steps ashore there (over the side into the water is not giving it back)
+  const at = ashore ? landingAt(x, z) : null;
   s.on = null;
   if (at) {
     const late = lateFee(h, now);

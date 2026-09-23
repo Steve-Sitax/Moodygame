@@ -115,7 +115,7 @@ export function mountRowing(app: Hono, deps: RowDeps): void {
 
   app.post("/api/row/leave", async (c) => {
     const b = await body(c);
-    const r = leaveBoat(db, Number(b.x), Number(b.z), Number(b.yaw));
+    const r = leaveBoat(db, Number(b.x), Number(b.z), Number(b.yaw), b.ashore !== false);
     if (r.paid_c || r.owed_c) push();
     return c.json({ ...r, row: rowWorld(db), ...payload() });
   });

@@ -22,6 +22,11 @@ let field: Float32Array | null = null;
 /** Cart roads handed in before the map was made: laid in when it is. */
 let pending: P[][][] = [];
 let tex: THREE.DataTexture | null = null;
+/** The cart roads handed to dirtAlong (world/ruts.ts), for the litter layer (world/litter.ts). */
+const roads: P[][] = [];
+const roadWaiters: Array<(r: P[][]) => void> = [];
+/** Stamps handed in before the map was made (dirtStamp). */
+let pendingStamps: Array<[number, number, number, number]> = [];
 
 function rand(seed: number): () => number {
   let s = seed >>> 0;
@@ -133,7 +138,42 @@ export function applyDirt(flags: Flags, seed = 1873): void {
   upload();
   const later = pending;
   pending = [];
-  for (const lines of later) dirtAlong(lines);
+  for (const lines of later) paintAlong(lines);
+  if (later.length) upload();
+  const stamps = pendingStamps;
+  pendingStamps = [];
+  if (stamps.length) dirtStamp(stamps);
+}
+
+/** The cart roads as the ruts found them (smoothed lines): resolves once world/ruts.ts has laid them. */
+export function cartRoads(): Promise<P[][]> {
+  if (roads.length) return Promise.resolve(roads);
+  return new Promise((res) => roadWaiters.push(res));
+}
+
+/**
+ * M3j litter: darken the map in soft ragged spots [x, z, radius m, strength 0..1] (the muck
+ * where horses stand, the gutters' wet, the ground round a refuse heap). Max-blended.
+ */
+export function dirtStamp(spots: Array<[number, number, number, number]>, seed = 11): void {
+  if (!field) {
+    pendingStamps.push(...spots);
+    return;
+  }
+  const n = valueNoise(seed, 2);
+  for (const [x, z, rad, a] of spots) {
+    const cx = (x - X0) / RES;
+    const cz = (z - Z0) / RES;
+    const r = rad / RES;
+    for (let j = Math.max(0, Math.floor(cz - r)); j < Math.min(H, Math.ceil(cz + r)); j++)
+      for (let i = Math.max(0, Math.floor(cx - r)); i < Math.min(W, Math.ceil(cx + r)); i++) {
+        const t = 1 - Math.hypot(i - cx, j - cz) / r;
+        if (t <= 0) continue;
+        const k = j * W + i;
+        field[k] = Math.max(field[k], a * Math.min(1, t * 2.5) * (0.65 + 0.35 * n(i, j)));
+      }
+  }
+  upload();
 }
 
 /**
@@ -141,10 +181,18 @@ export function applyDirt(flags: Flags, seed = 1873): void {
  * two dark wheel lines 1.5 m apart, dung and trodden mud between them, soft at the sides.
  */
 export function dirtAlong(lines: P[][], seed = 7): void {
+  roads.push(...lines);
+  for (const w of roadWaiters.splice(0)) w(roads);
   if (!field) {
     pending.push(lines);
     return;
   }
+  paintAlong(lines, seed);
+  upload();
+}
+
+function paintAlong(lines: P[][], seed = 7): void {
+  if (!field) return;
   const r = rand(seed);
   const n = valueNoise(seed, 3);
   const n2 = valueNoise(seed + 1, 3);
@@ -189,5 +237,4 @@ export function dirtAlong(lines: P[][], seed = 7): void {
         }
     }
   }
-  upload();
 }

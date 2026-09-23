@@ -132,6 +132,15 @@ describe("hiring and returning", () => {
     expect(rowing(db)).toBe(false);
   });
 
+  it("over the side at a hire landing is not giving it back: the boy fetches it later", () => {
+    const db = fresh();
+    hire(db);
+    const b = berth("vismarkt");
+    const r = leaveBoat(db, b.x, b.z - 3, 0, false);
+    expect(r.returned).toBe(false);
+    expect(rowState(db).hire?.left).not.toBeNull();
+  });
+
   it("late: ROW_LATE_C a game hour or part of one, never more than ROW_LATE_MAX_C", () => {
     const h = { landing: "rijnkaai" as const, kind: "rowboat" as const, since: 0, left: null };
     expect(lateFee(h, ROW_HIRE_HOURS * 60)).toBe(0);
