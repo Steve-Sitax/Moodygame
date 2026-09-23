@@ -1,20 +1,63 @@
 import { z } from "zod";
 import type { DB, Faction } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
+import SPOT_TABLE from "../../../shared/spots.json" with { type: "json" };
 
-// job_board hook, docs/03. Claude writes the words. The engine owns pay,
-// tier, the task itself, and how many jobs there are.
+// job_board hook, docs/03. Claude writes the words and picks from engine
+// lists (goods, places, twist). The engine owns pay, counts, time limits,
+// and turns every pick into a task the 3D game can play (M2b).
 
 export const TASK_TYPES = ["carry", "watch", "deliver", "row", "find", "talk"] as const;
-/** Task types the 3D game can play right now. */
-export const PLAYABLE = new Set<string>(["carry"]);
+export const PLAYABLE = new Set<string>(["carry", "watch", "deliver"]);
 
-/** Employers that hire on the Rijnkaai in M2. Engine knows their faction. */
-const EMPLOYERS = {
-  sooi: { name: "Sooi", faction: "naties", note: "foreman of the Hessenatie, gruff but fair, hires day men at dawn" },
-  peeters: { name: "Widow Peeters", faction: "burgerij", note: "ship chandler, careful with money, remembers favours" },
-} as const satisfies Record<string, { name: string; faction: Faction; note: string }>;
-type EmployerId = keyof typeof EMPLOYERS;
+export const GOODS = ["crates", "sacks", "barrels", "hides", "rope", "parcel"] as const;
+export type Goods = (typeof GOODS)[number];
+
+type SpotId = Exclude<keyof typeof SPOT_TABLE, "_note">;
+export const SPOT_IDS = Object.keys(SPOT_TABLE).filter((k) => !k.startsWith("_")) as SpotId[];
+export const SPOTS = SPOT_TABLE as unknown as Record<SpotId, { label: string; desc: string; x: number; z: number }>;
+
+export const TWISTS = [
+  "none",
+  "broken_goods",
+  "stranger_offer",
+  "foreman_watches",
+  "thick_fog",
+  "heavy_load",
+  "thief",
+  "bribe",
+] as const;
+export type Twist = (typeof TWISTS)[number];
+
+/** Which twists each task type can play. Anything else becomes "none". */
+const TWISTS_FOR: Record<string, readonly Twist[]> = {
+  carry: ["none", "broken_goods", "stranger_offer", "foreman_watches", "thick_fog", "heavy_load"],
+  watch: ["none", "thief", "bribe", "foreman_watches", "thick_fog"],
+  deliver: ["none", "stranger_offer", "thick_fog"],
+};
+
+/** Employers that hire on the Rijnkaai. Engine knows their faction and door. */
+export const EMPLOYERS = {
+  sooi: {
+    name: "Sooi",
+    faction: "naties",
+    door: "hessenatie_door",
+    note: "foreman of the Hessenatie, gruff but fair, hires day men at dawn",
+  },
+  peeters: {
+    name: "Widow Peeters",
+    faction: "burgerij",
+    door: "peeters_dock",
+    note: "ship chandler, careful with money, remembers favours",
+  },
+  tuur: {
+    name: "Tuur",
+    faction: "smokkelaars",
+    door: "pier_head",
+    note: "ferryman and night lighter, pays for silence, asks few questions",
+  },
+} as const satisfies Record<string, { name: string; faction: Faction; door: SpotId; note: string }>;
+export type EmployerId = keyof typeof EMPLOYERS;
 
 /** docs/01 tier table. */
 const TIER_PAY: Array<[number, number]> = [
@@ -26,14 +69,22 @@ const TIER_PAY: Array<[number, number]> = [
 ];
 const TIER_TRUST = [0, 3, 5, 7, 9];
 
+const enumOf = <T extends string>(xs: readonly T[]) => z.enum(xs as [T, ...T[]]);
+
 // What the model may return. Anything else is rejected.
 export const BoardSchema = z.object({
   jobs: z
     .array(
       z.object({
         title: z.string().min(3).max(70),
-        employer: z.enum(Object.keys(EMPLOYERS) as [EmployerId, ...EmployerId[]]),
+        employer: enumOf(Object.keys(EMPLOYERS) as EmployerId[]),
         task_type: z.enum(TASK_TYPES),
+        goods: z.enum(GOODS),
+        from: enumOf(SPOT_IDS),
+        to: enumOf(SPOT_IDS),
+        twist: z.enum(TWISTS),
+        urgent: z.boolean(),
+        recipient: z.string().max(60),
         pay_c: z.number().int(),
         risk: z.enum(["low", "medium", "high"]),
         pitch: z.string().min(10).max(360),
@@ -43,13 +94,42 @@ export const BoardSchema = z.object({
     .max(5),
 });
 export type Board = z.infer<typeof BoardSchema>;
+type BoardJob = Board["jobs"][number];
+
+export interface Progress {
+  delivered: number;
+  lost: number;
+  sold: number;
+}
 
 export interface CarryTask {
   kind: "carry";
-  crates: number;
-  from: string;
-  to: string;
+  goods: Goods;
+  count: number;
+  from: SpotId;
+  to: SpotId;
+  twist: Twist;
+  limit_s: number | null;
+  progress?: Progress;
 }
+export interface WatchTask {
+  kind: "watch";
+  goods: Goods;
+  post: SpotId;
+  duration_s: number;
+  twist: Twist;
+}
+export interface DeliverTask {
+  kind: "deliver";
+  goods: Goods;
+  from: SpotId;
+  to: SpotId;
+  recipient: string;
+  twist: Twist;
+  limit_s: number | null;
+  progress?: Progress;
+}
+export type Task = CarryTask | WatchTask | DeliverTask;
 
 export interface JobRow {
   id: number;
@@ -63,10 +143,11 @@ export interface JobRow {
   risk: string;
   tier: number;
   pitch: string;
-  task: CarryTask | null;
+  task: Task | null;
   source: string;
   status: string;
   playable: boolean;
+  outcome_text: string | null;
 }
 
 export const SYSTEM = `You write for Scheldemist, a game set in Antwerp, autumn 1873.
@@ -82,8 +163,9 @@ Voice: English with a few Flemish words where a docker would use them
 (baas, kaai, natie, jenever, pastoor, dokwerker, Schelde, mist). Terse. Period flavour.
 No modern words, no modern money, no exclamation storms. Money is in centimes; 100 centimes = 1 franc.
 
-You only write text. The game engine owns every number and rule. Keep to the JSON schema.
-Never mention the game, the player's keyboard, or anything outside 1873 Antwerp.`;
+You only write text and pick from the lists you are given. The game engine owns every number
+and rule. Keep to the JSON schema. Never mention the game, the player's keyboard,
+or anything outside 1873 Antwerp.`;
 
 export function buildPrompt(db: DB): string {
   const p = db.prepare("SELECT name, money_c, day, hour FROM player WHERE id = 1").get() as {
@@ -100,30 +182,42 @@ export function buildPrompt(db: DB): string {
     (db.prepare("SELECT value_json FROM world_state WHERE key = 'weather'").get() as { value_json: string } | undefined)
       ?.value_json ?? '"fog"',
   ) as string;
-  const log = db.prepare("SELECT text FROM log ORDER BY id DESC LIMIT 5").all() as Array<{ text: string }>;
+  const log = db.prepare("SELECT text FROM log ORDER BY id DESC LIMIT 6").all() as Array<{ text: string }>;
   const tier = maxTier(db);
   const [lo, hi] = TIER_PAY[tier];
 
-  return `Write tomorrow's job board for the hiring spot on the Rijnkaai.
+  return `Write the job board for the hiring spot on the Rijnkaai.
 
 WORLD STATE
 Day ${p.day} of 7, hour ${p.hour}. Weather: ${weather}.
 ${p.name} has ${p.money_c} centimes. Trust per faction (0-10): ${trust.map((t) => `${t.faction} ${t.trust}`).join(", ")}.
-He is nobody yet. Only tier ${tier} work is open to him.
+Only tier ${tier} work is open to him.
 
 EMPLOYERS WHO HIRE HERE
 ${Object.entries(EMPLOYERS)
-  .map(([id, e]) => `- ${id}: ${e.name}, ${e.note}`)
+  .map(([id, e]) => `- ${id}: ${e.name}, ${e.note}. Their door: ${e.door}.`)
   .join("\n")}
+
+PLACES ON THE QUAY (use these ids for "from" and "to")
+${SPOT_IDS.map((id) => `- ${id}: ${SPOTS[id].desc}`).join("\n")}
 
 RECENT LOG (newest first)
 ${log.map((l) => "- " + l.text).join("\n")}
 
+KINDS OF WORK
+- carry: move goods from "from" to "to". Twists: none, broken_goods, stranger_offer, foreman_watches, thick_fog, heavy_load.
+- watch: stand guard over goods at "to" until the bell. "from" is ignored. Twists: none, thief, bribe, foreman_watches, thick_fog.
+- deliver: take one item from the employer's door to a person at "to". Name that person in "recipient" (short, e.g. "the mate of the Anna Maria"). Twists: none, stranger_offer, thick_fog.
+- goods is one of: ${GOODS.join(", ")}. Pick what fits the pitch.
+- twist is a hidden turn in the job. The pitch may hint at it but must not give it away. Use "none" for about a third of the jobs.
+- urgent: true if the pitch sets a deadline ("before the bell", "before the tide").
+- recipient: empty string unless the job is deliver.
+
 RULES FOR THE BOARD
-- 3 to 5 jobs. At least 2 must be task_type "carry" (move crates or sacks from one spot on the quay to another).
-- task_type is one of: ${TASK_TYPES.join(", ")}.
-- pay_c between ${lo} and ${hi}. Heavier or riskier work pays more.
-- pitch: 1 to 3 short sentences, as the employer or the board would say it. Name the goods and the place.
+- 3 to 5 jobs. At least one carry, one watch and one deliver. Vary employers, goods and places.
+- task_type may also be row, find or talk, but those cannot be played yet; use them at most once.
+- pay_c between ${lo} and ${hi}. Heavier, riskier or shadier work pays more.
+- pitch: 1 to 3 short sentences, as the employer or the board would say it. Name the goods and the places in words, not ids.
 - title: short, like a chalk line on a board.`;
 }
 
@@ -134,7 +228,7 @@ export function maxTier(db: DB): number {
   return tier;
 }
 
-/** Engine clamp: pay into the tier band, ids into the known set. */
+/** Engine clamp: pay into the tier band, trimmed text. */
 export function clampBoard(board: Board, tier: number): Board {
   const [lo, hi] = TIER_PAY[tier];
   return {
@@ -142,16 +236,52 @@ export function clampBoard(board: Board, tier: number): Board {
       ...j,
       title: j.title.trim(),
       pitch: j.pitch.trim(),
+      recipient: j.recipient.trim(),
       pay_c: Math.max(lo, Math.min(hi, Math.round(j.pay_c / 5) * 5)),
     })),
   };
 }
 
-/** Engine decides the carry task. The model never sets crate counts or spots. */
-export function carryTaskFor(employer: string, pay_c: number, index: number): CarryTask {
-  const crates = pay_c >= 130 ? 5 : pay_c >= 90 ? 4 : 3;
-  if (employer === "peeters") return { kind: "carry", crates, from: "pier_head", to: "peeters_dock" };
-  return { kind: "carry", crates, from: index % 2 ? "crane_foot" : "pier_head", to: "hessenatie_door" };
+const dist = (a: SpotId, b: SpotId) => Math.hypot(SPOTS[a].x - SPOTS[b].x, SPOTS[a].z - SPOTS[b].z);
+
+/**
+ * Engine turns a board line into a playable task. The model picked goods,
+ * places and a twist; the engine fixes what does not fit and sets all numbers.
+ */
+export function taskFor(j: BoardJob): Task | null {
+  const twist: Twist = (TWISTS_FOR[j.task_type] ?? ["none"]).includes(j.twist) ? j.twist : "none";
+  const employer = EMPLOYERS[j.employer];
+  if (j.task_type === "carry") {
+    const from = j.from;
+    let to = j.to;
+    if (from === to) to = from === employer.door ? "hessenatie_door" : employer.door;
+    if (from === to) to = "crane_foot";
+    const count = j.pay_c >= 130 ? 5 : j.pay_c >= 90 ? 4 : 3;
+    const goods: Goods = j.goods === "parcel" ? "crates" : j.goods;
+    return { kind: "carry", goods, count, from, to, twist, limit_s: j.urgent ? carryLimit(from, to, count) : null };
+  }
+  if (j.task_type === "watch") {
+    const goods: Goods = j.goods === "parcel" ? "barrels" : j.goods;
+    const duration_s = j.pay_c >= 110 ? 120 : 90;
+    return { kind: "watch", goods, post: j.to, duration_s, twist };
+  }
+  if (j.task_type === "deliver") {
+    const from = employer.door;
+    let to = j.to;
+    if (to === from) to = "ship_gangway";
+    if (to === from) to = "east_carts";
+    const recipient = j.recipient || "the mate on watch";
+    const limit_s = j.urgent ? Math.round((dist(from, to) / 0.95) * 1.6 + 20) : null;
+    return { kind: "deliver", goods: j.goods, from, to, recipient, twist, limit_s };
+  }
+  return null;
+}
+
+/** Time allowed when urgent: every trip there and back at carrying pace, plus slack. */
+export function carryLimit(from: SpotId, to: SpotId, count: number): number {
+  const d = dist(from, to);
+  const perItem = d / 0.9 + d / 1.4 + 4;
+  return Math.round(count * perItem * 1.5 + 20);
 }
 
 /** Canned board when the model is late or wrong. Written by hand, in voice. */
@@ -161,6 +291,12 @@ export const FALLBACK_BOARD: Board = {
       title: "Crates off the pier",
       employer: "sooi",
       task_type: "carry",
+      goods: "crates",
+      from: "pier_head",
+      to: "hessenatie_door",
+      twist: "none",
+      urgent: false,
+      recipient: "",
       pay_c: 90,
       risk: "low",
       pitch: "Coffee from the lighter at the pier head. Up to the Hessenatie door, and mind the wet planks.",
@@ -169,23 +305,49 @@ export const FALLBACK_BOARD: Board = {
       title: "Stores for the widow",
       employer: "peeters",
       task_type: "carry",
+      goods: "rope",
+      from: "crane_foot",
+      to: "peeters_dock",
+      twist: "broken_goods",
+      urgent: false,
+      recipient: "",
       pay_c: 110,
       risk: "low",
-      pitch: "Tar and rope for the chandlery. Carry them to my loading door. Count them twice, jongen.",
+      pitch: "Tarred rope from under the crane to my loading door. Count them twice, jongen.",
     },
     {
-      title: "Lantern watch, west sheds",
+      title: "Watch the west sheds",
       employer: "sooi",
       task_type: "watch",
-      pay_c: 70,
+      goods: "barrels",
+      from: "west_sheds",
+      to: "west_sheds",
+      twist: "thief",
+      urgent: false,
+      recipient: "",
+      pay_c: 80,
       risk: "medium",
-      pitch: "Stand by the sheds till the bell. Keep your eyes open and your mouth shut.",
+      pitch: "Stand by the barrels at the west sheds till the bell. Keep your eyes open and your mouth shut.",
+    },
+    {
+      title: "A parcel for the Anna Maria",
+      employer: "tuur",
+      task_type: "deliver",
+      goods: "parcel",
+      from: "pier_head",
+      to: "ship_gangway",
+      twist: "stranger_offer",
+      urgent: true,
+      recipient: "the mate of the Anna Maria",
+      pay_c: 100,
+      risk: "medium",
+      pitch: "Take this to the mate at the gangway before the tide turns. Don't open it. Don't sell it.",
     },
   ],
 };
 
 /**
- * Make the board for the player's current day: ask Claude, clamp, fall back
+ * Make a board for the player's current day: ask Claude, clamp, fall back
  * if needed, then write rows. Returns where the words came from.
  */
 export async function makeBoard(
@@ -202,7 +364,7 @@ export async function makeBoard(
   let board = res.ok && res.data ? res.data : FALLBACK_BOARD;
   const source: "claude" | "fallback" = res.ok ? "claude" : "fallback";
   board = clampBoard(board, tier);
-  board = ensureCarry(board);
+  board = ensurePlayable(board);
 
   const { day, hour } = db.prepare("SELECT day, hour FROM player WHERE id = 1").get() as { day: number; hour: number };
   const ins = db.prepare(
@@ -211,10 +373,10 @@ export async function makeBoard(
   );
   db.transaction(() => {
     db.prepare("UPDATE job SET status = 'expired' WHERE status = 'offered'").run();
-    board.jobs.forEach((j, i) => {
-      const task = j.task_type === "carry" ? carryTaskFor(j.employer, j.pay_c, i) : null;
+    for (const j of board.jobs) {
+      const task = PLAYABLE.has(j.task_type) ? taskFor(j) : null;
       ins.run(day, j.title, j.employer, j.task_type, j.pay_c, j.risk, tier, EMPLOYERS[j.employer].faction, j.pitch, JSON.stringify(task ?? {}), source);
-    });
+    }
     db.prepare(
       "INSERT INTO log (day, hour, place, actor, verb, object, text) VALUES (?, ?, 'rijnkaai', 'world', 'job_board', ?, ?)",
     ).run(day, hour, source, `A new job board went up on the Rijnkaai with ${board.jobs.length} jobs.`);
@@ -222,25 +384,23 @@ export async function makeBoard(
   return { source, error: res.error, ms: res.ms };
 }
 
-/** The game needs one playable job at least. */
-function ensureCarry(board: Board): Board {
-  if (board.jobs.some((j) => j.task_type === "carry")) return board;
-  const jobs = board.jobs.slice(0, 4);
-  jobs.unshift(FALLBACK_BOARD.jobs[0]);
-  return { jobs };
+/** The game needs at least one playable job; add a hand-written one if not. */
+function ensurePlayable(board: Board): Board {
+  if (board.jobs.some((j) => PLAYABLE.has(j.task_type))) return board;
+  return { jobs: [FALLBACK_BOARD.jobs[0], ...board.jobs.slice(0, 4)] };
 }
 
 export function listJobs(db: DB, day: number): JobRow[] {
   const rows = db
-    .prepare("SELECT * FROM job WHERE day = ? AND status IN ('offered','taken','done') ORDER BY id")
+    .prepare("SELECT * FROM job WHERE day = ? AND status IN ('offered','taken','done','failed') ORDER BY id")
     .all(day) as Array<Omit<JobRow, "task" | "employer_name" | "playable"> & { task_json: string }>;
   return rows.map(({ task_json, ...r }) => {
-    const parsed = JSON.parse(task_json) as Partial<CarryTask>;
+    const parsed = JSON.parse(task_json) as Partial<Task>;
     return {
       ...r,
       employer_name: EMPLOYERS[r.employer_npc as EmployerId]?.name ?? r.employer_npc,
-      task: parsed.kind === "carry" ? (parsed as CarryTask) : null,
-      playable: PLAYABLE.has(r.task_type),
+      task: parsed.kind ? (parsed as Task) : null,
+      playable: PLAYABLE.has(r.task_type) && !!parsed.kind,
     };
   });
 }

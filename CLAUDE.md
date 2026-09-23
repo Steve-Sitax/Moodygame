@@ -15,6 +15,6 @@ Read `docs/README.md` first. Every design decision is in `docs/`. Do not re-ask 
 - Commit when a milestone is done, and after each batch of fixes Steve has checked in the browser. Steve gave standing approval (2026-09-23): no need to ask first. Commit only work that builds (`npm run build`). Never commit secrets or `.claude/`. Pushing still needs Steve's OK.
 
 ## Status
-2026-09-23: docs done, spikes passed (see `docs/07-spike-results.md`), Blender installed. M1 fog walk done (`docs/milestones/M1.md`). M2 server and job board done (`docs/milestones/M2.md`). Next: M3, talk and remember.
+2026-09-23: docs done, spikes passed (see `docs/07-spike-results.md`), Blender installed. M1 fog walk done (`docs/milestones/M1.md`). M2 server and job board done (`docs/milestones/M2.md`). M2b job depth done (`docs/milestones/M2b.md`). Next: M3, talk and remember. Ideas not yet planned: `docs/09-backlog.md`.
 
 Run: `npm run setup` once, then `npm run dev` in the repo root. Game at http://localhost:5173, server on 127.0.0.1:8787, save file `data/game.sqlite`.

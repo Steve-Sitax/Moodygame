@@ -16,6 +16,8 @@ Status: documentation phase. No game code yet. Written 2026-09-23.
 | [06-demo-scope.md](06-demo-scope.md) | What is in the demo, milestones |
 | [07-spike-results.md](07-spike-results.md) | Tests done today with local Claude |
 | [08-open-questions.md](08-open-questions.md) | Decisions, all answered 2026-09-23 |
+| [09-backlog.md](09-backlog.md) | Ideas not yet in a milestone (job interaction, ...) |
+| [milestones/](milestones/) | One note per finished milestone |
 
 Reference game: Foghorns Drown (Studio Laaya, 2026). First person, PS1-style, foggy lake town, a ferryman.
 We copy the mood and the look. We do not copy assets, code or story.

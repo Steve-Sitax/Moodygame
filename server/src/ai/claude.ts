@@ -121,7 +121,7 @@ const sdkRunner: Runner = async ({ system, prompt, jsonSchema, signal }) => {
       strictMcpConfig: true,
       systemPrompt: system, // replaces the Claude Code prompt
       outputFormat: { type: "json_schema", schema: jsonSchema },
-      maxTurns: 1,
+      maxTurns: 3, // room for the CLI to correct its own JSON against the schema
       persistSession: false, // no session files on disk
       settingSources: [], // ignore user and project settings and CLAUDE.md
       cwd: AI_CWD, // an empty folder, no project files near the model

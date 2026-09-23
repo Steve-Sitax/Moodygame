@@ -40,6 +40,7 @@ function start(): void {
       world.shipPositions,
     );
     player.onStep = (surface, hurry) => sound?.footstep(surface, hurry);
+    jobs.sfx = (name, at) => sound?.play(name, at);
   }
   sound.resume();
   player.lock();
@@ -62,7 +63,7 @@ function frame(): void {
   elapsed += dt;
   world.update(elapsed, dt);
   player.update(dt);
-  jobs.update();
+  jobs.update(dt);
   sound?.update(player.camera);
   retro.render(world.scene, player.camera, elapsed);
   requestAnimationFrame(frame);
@@ -93,7 +94,7 @@ if (import.meta.env.DEV) {
         elapsed += dt;
         world.update(elapsed, dt);
         player.update(dt);
-        jobs.update();
+        jobs.update(dt);
       }
     },
     info() {

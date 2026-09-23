@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { psx, psxUniforms, MAX_LAMPS } from "../retro/psx";
 import { makeTextures, signTexture, glowTexture, type Textures } from "./textures";
 import { box, boxGeo, cyl, rod, rectAround, inRect, type Rect } from "./geom";
+import SPOT_TABLE from "../../../shared/spots.json";
 
 // Grey-box of the Rijnkaai. Water is at z < 0, the quay edge runs along x.
 // Quay top is y = 0. Warehouses stand at z >= 22 and face the river.
@@ -13,20 +14,18 @@ const LOADING_DOCK = { minX: 9, maxX: 23, minZ: 17, maxZ: 21.4 }; // planks in f
 
 export type Surface = "stone" | "wood";
 
-/** Named places for jobs. The server refers to these ids; positions live here. */
+/** Named places for jobs, shared with the server (shared/spots.json). */
 export interface Spot {
   label: string;
+  desc: string;
   x: number;
   z: number;
-  /** Direction crates stack away from the spot, as a unit vector on the ground. */
+  /** Direction goods stack away from the spot, as a unit vector on the ground. */
   dir: [number, number];
 }
-export const SPOTS: Record<string, Spot> = {
-  pier_head: { label: "the pier head", x: 7, z: -11, dir: [0, 1] },
-  crane_foot: { label: "the foot of the crane", x: -21, z: 5.2, dir: [1, 0] },
-  hessenatie_door: { label: "the Hessenatie door", x: -12, z: 19.6, dir: [1, 0] },
-  peeters_dock: { label: "the widow's loading door", x: 20, z: 19.2, dir: [1, 0] },
-};
+export const SPOTS = Object.fromEntries(
+  Object.entries(SPOT_TABLE).filter(([k]) => !k.startsWith("_")),
+) as unknown as Record<string, Spot>;
 
 /** The hiring spot: a notice board in front of the Hessenatie. */
 export const BOARD_POS = { x: -16.2, z: 20.5 };
@@ -50,6 +49,12 @@ export interface World {
   /** Colliders that come and go (job crates). */
   addCollider(r: Rect): void;
   removeCollider(r: Rect): void;
+  /** Can something of radius r stand here? */
+  isFree(x: number, z: number, r: number): boolean;
+  /** Open water (off the quay edge, off the pier)? */
+  isWater(x: number, z: number): boolean;
+  /** Thick fog for a job twist; eases in and out. */
+  setThickFog(on: boolean): void;
   mats: Mats;
   surfaceAt(x: number, z: number): Surface;
   update(t: number, dt: number): void;
@@ -202,6 +207,16 @@ export function buildRijnkaai(): World {
   // --- ships: dark walls in the fog
   const shipA = ship(scene, m, 14, -7.2, 40, 9, false);
   const shipB = ship(scene, m, -56, -26, 44, 10, true);
+  // gangway: a plank ramp from the quay up to ship A's rail
+  {
+    const g = SPOTS.ship_gangway;
+    const ramp = rod(new THREE.Vector3(g.x, 0.15, 0.6), new THREE.Vector3(g.x, 2.5, -2.9), 0.02, m.planks);
+    ramp.scale.set(40, 1, 1); // a flat plank, 0.8 m wide
+    scene.add(ramp);
+    for (const s of [-0.45, 0.45]) {
+      scene.add(rod(new THREE.Vector3(g.x + s, 1.1, 0.6), new THREE.Vector3(g.x + s, 3.4, -2.9), 0.025, m.rope));
+    }
+  }
   // mooring lines from ship A to two bollards
   scene.add(rod(new THREE.Vector3(18, 2.3, -2.9), new THREE.Vector3(18, 0.5, 1.0), 0.04, m.rope));
   scene.add(rod(new THREE.Vector3(50, 2.3, -2.9), new THREE.Vector3(45, 0.5, 1.0), 0.04, m.rope));
@@ -234,6 +249,13 @@ export function buildRijnkaai(): World {
     return [nx, nz];
   }
 
+  const onPierDeck = (x: number, z: number) => x > 5 && x < 9 && z > -12 && z < 0;
+  const isWater = (x: number, z: number) => z < 0 && !onPierDeck(x, z) && z > -150;
+
+  let fogTarget = 0;
+  let fogMix = 0;
+  const fog = scene.fog as THREE.Fog;
+
   function surfaceAt(x: number, z: number): Surface {
     if (x > PIER.minX && x < PIER.maxX && z < -1) return "wood";
     if (inRect(LOADING_DOCK as Rect, x, z)) return "wood";
@@ -246,6 +268,9 @@ export function buildRijnkaai(): World {
 
   function update(t: number, dt: number): void {
     psxUniforms.uTime.value = t;
+    fogMix += (fogTarget - fogMix) * Math.min(1, dt * 0.4);
+    fog.near = 3 - fogMix * 1.5;
+    fog.far = 25 - fogMix * 14;
     waterTex.offset.x = t * 0.004;
     waterTex.offset.y = t * 0.011;
 
@@ -273,6 +298,9 @@ export function buildRijnkaai(): World {
     mats: m,
     addCollider: (r) => dynamic.add(r),
     removeCollider: (r) => dynamic.delete(r),
+    isFree,
+    isWater,
+    setThickFog: (on) => (fogTarget = on ? 1 : 0),
     lamps,
     shipPositions: [new THREE.Vector3(34, 1, -3), new THREE.Vector3(-34, 1, -21)],
     move,

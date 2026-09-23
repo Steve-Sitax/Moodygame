@@ -4,7 +4,8 @@ import { WebSocketServer, WebSocket } from "ws";
 import { DB_FILE, DEV, HOST, PORT } from "./config.ts";
 import { openDb } from "./db.ts";
 import { listJobs, makeBoard } from "./hooks/jobBoard.ts";
-import { finishJob, GameError, player, takeJob } from "./game.ts";
+import { writeOutcome } from "./hooks/jobOutcome.ts";
+import { finishJob, GameError, player, ReportSchema, saveOutcome, saveProgress, takeJob } from "./game.ts";
 
 const db = openDb(DB_FILE);
 const app = new Hono();
@@ -41,12 +42,36 @@ app.post("/api/jobs/:id/take", (c) => {
   return c.json({ job });
 });
 
+app.post("/api/jobs/:id/progress", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const job = saveProgress(db, Number(c.req.param("id")), {
+    delivered: Number(body.delivered),
+    lost: Number(body.lost),
+    sold: Number(body.sold),
+  });
+  return c.json({ job });
+});
+
 app.post("/api/jobs/:id/done", async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { delivered?: unknown };
-  const res = finishJob(db, Number(c.req.param("id")), Number(body.delivered));
+  const parsed = ReportSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) throw new GameError("bad report", 400);
+  const res = finishJob(db, Number(c.req.param("id")), parsed.data);
   broadcast({ type: "jobs", ...jobsPayload() });
+  // the words come later; the game never waits for them
+  void narrate(res.job.id, res.settlement);
+  // no work left on the board: put up a fresh one (stand-in until the M5 day loop)
+  if (!listJobs(db, player(db).day).some((j) => j.status === "offered" && j.playable)) void writeBoard();
   return c.json(res);
 });
+
+async function narrate(id: number, settlement: import("./game.ts").Settlement): Promise<void> {
+  const job = listJobs(db, player(db).day).find((j) => j.id === id);
+  if (!job) return;
+  const r = await writeOutcome(db, job, settlement);
+  saveOutcome(db, id, r.outcome.narration, r.outcome.memory, r.outcome.weight);
+  console.log(`[job_outcome] ${r.source}${r.error ? " (" + r.error + ")" : ""}`);
+  broadcast({ type: "outcome", job_id: id, text: r.outcome.narration, employer: job.employer_name });
+}
 
 if (DEV) {
   // dev only: put up a fresh board without waiting for night (M5 adds the day loop)

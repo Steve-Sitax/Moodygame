@@ -1,11 +1,65 @@
 // Client side of the game server. The server owns all numbers;
 // the client shows them and reports what happened in 3D.
 
+import type { Goods } from "../game/props";
+
+export type Twist = "none" | "broken_goods" | "stranger_offer" | "foreman_watches" | "thick_fog" | "heavy_load" | "thief" | "bribe";
+
+export interface Progress {
+  delivered: number;
+  lost: number;
+  sold: number;
+}
+
 export interface CarryTask {
   kind: "carry";
-  crates: number;
+  goods: Goods;
+  count: number;
   from: string;
   to: string;
+  twist: Twist;
+  limit_s: number | null;
+  progress?: Progress;
+}
+export interface WatchTask {
+  kind: "watch";
+  goods: Goods;
+  post: string;
+  duration_s: number;
+  twist: Twist;
+}
+export interface DeliverTask {
+  kind: "deliver";
+  goods: Goods;
+  from: string;
+  to: string;
+  recipient: string;
+  twist: Twist;
+  limit_s: number | null;
+  progress?: Progress;
+}
+export type Task = CarryTask | WatchTask | DeliverTask;
+
+/** What happened in 3D, sent when a job ends. The server turns it into money. */
+export interface Report {
+  delivered?: number;
+  lost?: number;
+  sold?: number;
+  pocketed?: boolean;
+  late?: boolean;
+  left_post_s?: number;
+  thief?: "none" | "chased" | "stole";
+  bribe_taken?: boolean;
+  seen_away?: boolean;
+}
+
+export interface Settlement {
+  pay_c: number;
+  extra_c: number;
+  trust_delta: number;
+  caught: boolean;
+  status: "done" | "failed";
+  facts: string[];
 }
 
 export interface Job {
@@ -17,10 +71,11 @@ export interface Job {
   pay_c: number;
   risk: string;
   pitch: string;
-  task: CarryTask | null;
+  task: Task | null;
   source: string;
-  status: "offered" | "taken" | "done";
+  status: "offered" | "taken" | "done" | "failed";
   playable: boolean;
+  outcome_text: string | null;
 }
 
 export interface Player {
@@ -51,19 +106,27 @@ async function call<T>(method: string, url: string, body?: unknown): Promise<T> 
 export const api = {
   jobs: () => call<JobsPayload>("GET", "/api/jobs"),
   take: (id: number) => call<{ job: Job }>("POST", `/api/jobs/${id}/take`),
-  done: (id: number, delivered: number) =>
-    call<{ job: Job; paid_c: number; money_c: number }>("POST", `/api/jobs/${id}/done`, { delivered }),
+  progress: (id: number, p: Progress) => call<{ job: Job }>("POST", `/api/jobs/${id}/progress`, p),
+  done: (id: number, report: Report) =>
+    call<{ job: Job; settlement: Settlement; money_c: number }>("POST", `/api/jobs/${id}/done`, report),
 };
 
 /** Push channel. Reconnects on its own; the game never waits on it. */
-export function connectPush(onJobs: (p: JobsPayload) => void): void {
+export interface OutcomeMsg {
+  job_id: number;
+  text: string;
+  employer: string;
+}
+
+export function connectPush(onJobs: (p: JobsPayload) => void, onOutcome: (o: OutcomeMsg) => void = () => {}): void {
   let delay = 1000;
   const open = () => {
     const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
     ws.onopen = () => (delay = 1000);
     ws.onmessage = (e) => {
-      const msg = JSON.parse(String(e.data)) as { type: string } & JobsPayload;
+      const msg = JSON.parse(String(e.data)) as { type: string } & JobsPayload & OutcomeMsg;
       if (msg.type === "jobs") onJobs(msg);
+      if (msg.type === "outcome") onOutcome(msg);
     };
     ws.onclose = () => {
       setTimeout(open, delay);

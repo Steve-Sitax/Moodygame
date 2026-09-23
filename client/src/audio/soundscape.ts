@@ -33,6 +33,7 @@ export class Soundscape {
   private steps: Record<Surface, AudioBuffer[]> = { stone: [], wood: [] };
   private lastStep = -1;
   private gullBuf: AudioBuffer | null = null;
+  private fx = new Map<string, AudioBuffer[]>();
 
   constructor(
     private readonly lampPositions: THREE.Vector3[],
@@ -79,6 +80,7 @@ export class Soundscape {
 
     void this.loadSteps();
     void this.loadGulls();
+    void this.loadFx();
 
     const now = this.ctx.currentTime;
     this.nextHorn = now + rand(9, 16); // first one early, then 40-90 s
@@ -296,6 +298,68 @@ export class Soundscape {
       );
       this.steps[surface] = loaded.filter((b): b is AudioBuffer => b !== null);
     }
+  }
+
+  /** One-shot job sounds. All recorded, CC0 (assets/ATTRIBUTION.md). */
+  private async loadFx(): Promise<void> {
+    const k = (n: string) => `/audio/kenney-impact/${n}.ogg`;
+    const sets: Record<string, string[]> = {
+      thud_wood: [0, 1, 2].map((i) => k(`impactWood_heavy_00${i}`)),
+      thud_soft: [0, 1, 2].map((i) => k(`impactSoft_heavy_00${i}`)),
+      thud_plank: [0, 1, 2].map((i) => k(`impactPlank_medium_00${i}`)),
+      splash: ["/audio/bigsoundbank/splash-big-1519.ogg"],
+      bell: ["/audio/bigsoundbank/bell-5-oclock-3445.ogg"],
+    };
+    for (const [name, urls] of Object.entries(sets)) {
+      const bufs = await Promise.all(
+        urls.map(async (u) => {
+          try {
+            return await this.ctx.decodeAudioData(await (await fetch(u)).arrayBuffer());
+          } catch {
+            return null;
+          }
+        }),
+      );
+      this.fx.set(name, bufs.filter((b): b is AudioBuffer => b !== null));
+    }
+  }
+
+  /**
+   * Play a job sound. "lift" and "coins" reuse the thuds, played soft and
+   * high. With a position it sits in the world; without, it is far off.
+   */
+  play(name: string, at?: THREE.Vector3): void {
+    const ctx = this.ctx;
+    let key = name;
+    let rate = rand(0.9, 1.05);
+    let vol = 0.9;
+    if (name === "lift") [key, rate, vol] = ["thud_soft", rand(1.3, 1.5), 0.35];
+    if (name === "coins") [key, rate, vol] = ["thud_plank", rand(2.6, 3.0), 0.25];
+    const set = this.fx.get(key);
+    if (!set?.length) return;
+    const src = ctx.createBufferSource();
+    src.buffer = set[Math.floor(Math.random() * set.length)];
+    src.playbackRate.value = name === "bell" ? 1 : rate;
+    const g = ctx.createGain();
+    g.gain.value = name === "bell" ? 0.5 : vol;
+    const send = ctx.createGain();
+    send.gain.value = name === "bell" ? 1.2 : 0.3;
+    if (at) {
+      const pan = this.panner(2, 1.1);
+      pan.positionX.value = at.x;
+      pan.positionY.value = at.y;
+      pan.positionZ.value = at.z;
+      src.connect(g).connect(pan).connect(this.master);
+      g.connect(send).connect(this.reverbIn);
+    } else {
+      // far off in the fog: dull it down
+      const lp = ctx.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.value = name === "bell" ? 1800 : 6000;
+      src.connect(lp).connect(g).connect(this.master);
+      g.connect(send).connect(this.reverbIn);
+    }
+    src.start();
   }
 
   private async loadGulls(): Promise<void> {

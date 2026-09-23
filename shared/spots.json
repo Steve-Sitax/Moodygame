@@ -1,0 +1,11 @@
+{
+  "_note": "Named places on the Rijnkaai. The server offers these ids to Claude; the client places things here. x/z in metres, water is z < 0. dir = direction goods stack away from the spot.",
+  "pier_head": { "label": "the pier head", "desc": "end of the wooden pier, where lighters unload", "x": 7, "z": -11, "dir": [0, 1] },
+  "crane_foot": { "label": "the foot of the crane", "desc": "under the crane on the quay edge", "x": -21, "z": 5.2, "dir": [1, 0] },
+  "hessenatie_door": { "label": "the Hessenatie door", "desc": "big door of the Hessenatie warehouse", "x": -12, "z": 19.6, "dir": [1, 0] },
+  "katoen_door": { "label": "the Katoennatie door", "desc": "door of the Katoennatie warehouse, west", "x": -38, "z": 19.6, "dir": [1, 0] },
+  "peeters_dock": { "label": "the widow's loading door", "desc": "plank loading dock of the Peeters chandlery", "x": 20, "z": 19.2, "dir": [1, 0] },
+  "ship_gangway": { "label": "the gangway of the Anna Maria", "desc": "gangway of the three-master moored at the kaai", "x": 32, "z": 2.2, "dir": [1, 0] },
+  "west_sheds": { "label": "the west sheds", "desc": "fenced sheds at the far west end of the quay", "x": -54, "z": 17, "dir": [1, 0] },
+  "east_carts": { "label": "the cart stand", "desc": "where the carts wait, far east end of the quay", "x": 50.5, "z": 8, "dir": [0, 1] }
+}

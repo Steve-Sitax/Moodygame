@@ -30,6 +30,7 @@
 | M0 | Docs | This folder. Steve has answered 08-open-questions. |
 | M1 | Fog walk | You can walk the Rijnkaai in first person with the retro look and sound. No AI. |
 | M2 | Server and job board | Server runs. Claude writes a job board. It shows in the game. One carry job works. |
+| M2b | Job depth | Claude picks goods, spots, time limit and one twist per job from engine lists. Watch and deliver jobs play. Crates can be set down anywhere or lost in the Schelde. job_outcome narrates each job and writes an employer memory. Subtle pointer to the goal. Added 2026-09-23 on Steve's call, see 09-backlog. |
 | M3 | Talk and remember | Dialogue with Sooi and Fientje. Memory in SQLite. Fientje repeats what Sooi saw. |
 | M4 | Events and world ops | Night events fire. Fog closes the docks. Prices move. |
 | M5 | Needs and week | Needs, money, rent, sleep, 7 days, epilogue. |
