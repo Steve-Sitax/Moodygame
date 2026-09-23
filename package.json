@@ -4,6 +4,7 @@
   "scripts": {
     "setup": "npm install && npm --prefix server install && npm --prefix client install",
     "dev": "concurrently -k -n server,client -c yellow,cyan \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "dev:alt": "node tools/dev-alt.mjs",
     "test": "npm --prefix server test",
     "build": "npm --prefix client run build && npm --prefix server run typecheck"
   },
