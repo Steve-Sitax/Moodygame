@@ -234,6 +234,9 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
     const wallMat = (mats.quayWall as THREE.MeshLambertMaterial).clone();
     wallMat.side = THREE.DoubleSide;
     wallMat.vertexColors = true;
+    // the river walls face away from the sun: a little light off the water, or at low tide they fill the view nearly black
+    wallMat.emissive = new THREE.Color(0x5a5c50);
+    wallMat.emissiveMap = wallMat.map; // the glow carries the stones, so the face keeps its courses
     const copeMat = (mats.wallDecal as THREE.MeshLambertMaterial).clone();
     copeMat.side = THREE.DoubleSide;
     mk(wall, wallUv, psx(wallMat, { noSnap: true, affine: 0 })).geometry.setAttribute("color", new THREE.Float32BufferAttribute(wallCol, 3));

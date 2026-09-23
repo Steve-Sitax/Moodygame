@@ -64,11 +64,12 @@ export const slimeCuts = (waterY: number) => [waterY - 0.4, waterY + 0.15, water
  * through the tide range, a dark wet band at the high-water mark, dry stone only above the springs.
  */
 const TIDE_STOPS: Array<[number, V3]> = [
-  [LW_MIN - 0.3, [0.24, 0.25, 0.19]],
-  [MLW + 0.3, [0.3, 0.35, 0.24]],
-  [MID_Y, [0.37, 0.43, 0.3]],
-  [MHW - 0.25, [0.45, 0.48, 0.38]],
-  [MHW + 0.15, [0.6, 0.6, 0.54]],
+  // (a little lighter than true wet slime: at low water the walls filled the view nearly black)
+  [LW_MIN - 0.3, [0.3, 0.31, 0.24]],
+  [MLW + 0.3, [0.39, 0.44, 0.31]],
+  [MID_Y, [0.47, 0.53, 0.38]],
+  [MHW - 0.25, [0.55, 0.58, 0.47]],
+  [MHW + 0.15, [0.7, 0.7, 0.64]],
   [HW_MAX + 0.35, [1, 1, 1]],
 ];
 export function tideShade(dry: V3 = [1, 1, 1]): (y: number) => V3 {
