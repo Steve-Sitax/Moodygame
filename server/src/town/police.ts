@@ -556,7 +556,7 @@ function jobInHand(db: DB): string | null {
 const UNITS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, fifteen: 15, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90, hundred: 100 };
 /** "thirty-five centimes" -> "35 centimes", so the sum check reads words too. */
 export function wordsToDigits(line: string): string {
-  return line.replace(/(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|hundred)(?:[- ](one|two|three|four|five|six|seven|eight|nine))?/gi, (_m, a: string, b?: string) =>
+  return line.replace(/\b(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|hundred)(?:[- ](one|two|three|four|five|six|seven|eight|nine))?\b/gi, (_m, a: string, b?: string) =>
     String((UNITS[a.toLowerCase()] ?? 0) + (b ? (UNITS[b.toLowerCase()] ?? 0) : 0)),
   );
 }

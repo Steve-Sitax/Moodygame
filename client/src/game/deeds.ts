@@ -427,7 +427,7 @@ export class Deeds {
         continue;
       }
       if (d < 2.4 && !this.jobs.talk.isOpen && !this.jobs.day.sheetOpen) {
-        void this.arrived(pu);
+        if (!this.arriving) void this.arrived(pu);
         continue;
       }
       if (pu.goT <= 0) {
@@ -456,6 +456,7 @@ export class Deeds {
       return;
     }
     this.police = v;
+    if (!this.postSign) this.postSign = this.signAt(v.post);
     if (v.last && v.last.visit !== this.lastVerdict) {
       const first = this.lastVerdict === 0;
       this.lastVerdict = v.last.visit;
@@ -463,7 +464,9 @@ export class Deeds {
     }
     if (v.cell && !this.cell && !this.jobs.talk.isOpen) return void this.showCell();
     const visit = v.visit;
-    if (!visit || visit.state !== "coming" || this.pursuers.has(visit.agent) || this.cell) return;
+    // "talking" with nobody here (a reload in the middle of it): he comes up again
+    if (!visit || this.pursuers.has(visit.agent) || this.cell || this.walkedOff) return;
+    if (visit.state === "talking" && this.jobs.talk.isOpen) return;
     if (this.jobs.day.sheetOpen || !(this.player.locked || this.player.freeInput || this.player.testInput)) return;
     if (this.handedOff.has(`${visit.id}:${visit.agent}`)) return;
     if (this.policeCome?.(visit.agent, visit.name)) {
@@ -498,13 +501,48 @@ export class Deeds {
     void this.fled(pu ?? { id: agent, name: "The agent", p: null as unknown as Puppet, kind: "police", deed: null, t: 0, goT: 0 });
   }
 
+  private postSign: THREE.Mesh | null = null;
+  /** A board over the door of the police post, so it can be found. */
+  private signAt(post: PoliceView["post"]): THREE.Mesh {
+    const c = document.createElement("canvas");
+    c.width = 128;
+    c.height = 32;
+    const g = c.getContext("2d")!;
+    g.fillStyle = "#1c2430";
+    g.fillRect(0, 0, 128, 32);
+    g.strokeStyle = "#b8a878";
+    g.strokeRect(2, 2, 124, 28);
+    g.fillStyle = "#e0d4a8";
+    g.font = "bold 18px Georgia, serif";
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.fillText("POLICE", 64, 17);
+    const tex = new THREE.CanvasTexture(c);
+    tex.magFilter = THREE.NearestFilter;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.46), new THREE.MeshLambertMaterial({ map: tex }));
+    // over the door, facing out into the square (post.yaw is the look out of the door)
+    const ox = -Math.sin(post.yaw);
+    const oz = -Math.cos(post.yaw);
+    const door = (post as { door?: [number, number] }).door ?? [post.x - ox, post.z - oz];
+    m.position.set(door[0] + ox * 0.08, 2.95, door[1] + oz * 0.08);
+    m.rotation.y = Math.atan2(ox, oz);
+    this.world.scene.add(m);
+    return m;
+  }
+
+  private arriving = false;
   private async arrived(pu: Pursuer): Promise<void> {
+    this.arriving = true;
     try {
       await net("POST", "/api/police/arrived", { agent: pu.id });
     } catch {
       this.release(pu.id);
       return;
+    } finally {
+      this.arriving = false;
     }
+    if (this.jobs.talk.isOpen) return;
     this.crowd.puppetStand(pu.p, "talk", Math.atan2(this.player.x - pu.p.x, this.player.z - pu.p.z));
     if (this.velos.ridden && this.player.bikeRiding) this.player.bikeSpeed = 0;
     this.jobs.talk.open({ id: pu.id, def: { name: pu.name, title: "police agent" } });
@@ -578,13 +616,14 @@ export class Deeds {
     e.stopPropagation();
     if (e.repeat || (e.code !== "KeyE" && e.code !== "Enter")) return;
     const post = this.cell.post;
+    const lost = this.cell.summary.some((l) => l.startsWith("Your job is lost"));
     this.cell = null;
     this.sheet.style.display = "none";
     this.jobs.day.hold = false;
     this.player.frozen = false;
     this.player.place(post.x, post.z, post.yaw);
     void net("POST", "/api/police/cell/done").catch(() => {});
-    this.jobs.say("The door of the police post shuts behind you. The Grote Markt is grey and cold, and your job is gone.");
+    this.jobs.say(`The door of the police post shuts behind you. The Grote Markt is grey and cold${lost ? ", and your job is gone" : ""}.`);
   }
 
   /** For the path check (CLAUDE.md): every velocipede, lantern, food table and the police post. */

@@ -789,6 +789,11 @@ export class Crowd {
     return this.grid.built ? this.grid.nearestOpen(x, z, 4) : null;
   }
 
+  /** Where everyone walking is now (townspeople included): the train and the omnibus stop for them. */
+  positions(): Array<{ x: number; z: number }> {
+    return this.people.map((p) => ({ x: p.x, z: p.z }));
+  }
+
   get fogDistance(): number {
     return this.fogFar;
   }

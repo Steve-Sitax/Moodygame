@@ -77,6 +77,8 @@ export interface Railway {
   onClack?: (x: number, z: number) => void;
   /** A crane starts to hoist or lower (soundscape.craneWork). */
   onCrane?: (x: number, z: number) => void;
+  /** People walking about (the crowd, the town): the train waits for anyone on the line ahead. Set by main. */
+  people?: () => Iterable<{ x: number; z: number }>;
   group: THREE.Group;
   /** Dev: state for checks. */
   info(): Record<string, unknown>;
@@ -803,6 +805,22 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
         break;
       }
     }
+    // people on the line ahead (not colliders: they walk)
+    const folk = api.people?.();
+    if (folk) {
+      line.at(head + 3, pb);
+      for (const p of folk) {
+        if (Math.abs(p.x - pb.x) > 5 || Math.abs(p.z - pb.z) > 5) continue;
+        for (let d = 0; d <= 6; d += 1) {
+          line.at(head + d, pa);
+          if (Math.hypot(p.x - pa.x, p.z - pa.z) < 1.5) {
+            lim = Math.min(lim, Math.max(head, head + d - 3));
+            waitWhy = "people";
+            break;
+          }
+        }
+      }
+    }
     // (the train's own boxes out of the way meanwhile: turned on a bend, they reach ahead)
     const own = [...horseRects, ...wagons.map((w) => w.rect)];
     const keep = own.map((r) => [r.minX, r.maxX]);
@@ -1044,6 +1062,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     });
     for (const [g, m] of goodsMesh) {
       m.count = gcount.get(g) ?? 0;
+      m.visible = m.count > 0; // no draw call for goods nobody sees
       m.instanceMatrix.needsUpdate = true;
     }
     for (const m of [...bodies.values(), wheels, links, hooks, ropes, slings]) m.instanceMatrix.needsUpdate = true;

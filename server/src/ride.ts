@@ -11,8 +11,8 @@ import { GameError, log, player } from "./game.ts";
 
 /** The fare, in centimes (a herring, a beer). */
 export const RIDE_FARE_C = 5;
-/** A ticket is good for this many game hours (once round the whole line is about 12). */
-export const RIDE_MAX_HOURS = 16;
+/** A ticket is good for this many game hours: once round the whole line (about 20 at the game's clock). */
+export const RIDE_MAX_HOURS = 20;
 /** The stops of the line, west to east (client/src/world/omnibus.ts STOPS). */
 export const RIDE_STOPS = ["werf", "steenplein", "vismarkt", "rijnkaai", "rijnkaai_back", "bassin"] as const;
 export type RideStop = (typeof RIDE_STOPS)[number];

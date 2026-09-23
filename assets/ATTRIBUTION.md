@@ -87,6 +87,12 @@ Dogs and cats (`client/public/models/animals.glb`, M3e: four dogs, four cats, ri
 
 Market stalls and shop fronts (`client/public/models/stalls.glb`, M3e: stall frame, open and rolled awnings, tarpaulins, goods for fish, bread, vegetables, wares and cloth, shop table and wall awning) are our own models and textures, made by script in `tools/blender/build_stalls.py` (it reuses the wood, iron, rope and sackcloth materials of `build_props.py`); no third-party models or images.
 
+The goods train, its wagons and loads, the cranes' hook, rope and sling, the horse omnibus and its stop posts
+(M3g: `client/src/world/railway.ts`, `omnibus.ts`, `horses.ts`, `kit.ts`) are built in code from boxes, cylinders and
+lathes on the existing 64x64 textures; the horses are the dray horse of `props.glb` above. The route board on the
+omnibus is text painted on a canvas in code. The rail clack is made in code (`soundscape.ts` railClack); the train's
+horses and the omnibus reuse the hooves and wheels recordings above. No new third-party files.
+
 ## Map data (M3c, the city of 1873)
 
 | Data | Where in repo | Source | Licence | Checked |

@@ -207,6 +207,13 @@ function frame(): void {
     if (tr || rail || bus || deeds.velos.ridden)
       sound?.setVehicles([...(tr?.info() ?? []), ...(rail?.vehicles() ?? []), ...(bus?.vehicles() ?? []), ...deeds.velos.sounds()]);
   }
+  {
+    // the goods train and the omnibus stop for the people walking in front of them
+    const rail = world.railway();
+    if (rail && !rail.people) rail.people = () => crowd.positions();
+    const bus = world.omnibus();
+    if (bus && !bus.people) bus.people = () => crowd.positions();
+  }
   retro.render(world.scene, player.camera, elapsed);
   requestAnimationFrame(frame);
 }

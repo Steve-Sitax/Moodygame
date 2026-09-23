@@ -295,6 +295,8 @@ export class Velocipedes {
       if (b.front) b.front.rotation.x = p.bikeDist / RF;
       if (b.rear) b.rear.rotation.x = p.bikeDist / RR;
     }
+    // parked ones far off are not drawn (10 draw calls each)
+    for (const o of this.bikes.values()) if (o !== b && !o.info.ridden) o.root.visible = Math.hypot(o.info.x - this.player.x, o.info.z - this.player.z) < 70;
     if (!this.ruts && (this.rutTry -= dt) <= 0) {
       this.rutTry = 2;
       this.findRuts();

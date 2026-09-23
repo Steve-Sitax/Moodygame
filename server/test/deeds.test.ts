@@ -38,6 +38,8 @@ import {
   scheduleVisit,
   stanceOf,
   takeCellNight,
+  cellNightView,
+  wordsToDigits,
   type DeedFacts,
 } from "../src/town/police.ts";
 import { HOSTILE_LINES } from "./hostile-lines.ts";
@@ -354,6 +356,9 @@ describe("police rules", () => {
     expect(go([deed({ owner_saw: true })], { stance: "excuse" }).points).toBe(go([deed({ owner_saw: true })]).points - 1);
     expect(go([deed({ thing: "lantern" })], { stance: "excuse" }).points).toBe(go([deed({ thing: "lantern" })]).points);
   });
+  it("the sum check reads words as well as figures", () => {
+    expect(wordsToDigits("Thirty-five centimes, and someone else's ten")).toBe("35 centimes, and someone else's 10");
+  });
   it("his own words are read for a stance only", () => {
     expect(stanceOf("Yes, I took it, I'm sorry")).toBe("confess");
     expect(stanceOf("It wasn't me, I swear")).toBe("deny");
@@ -432,6 +437,7 @@ describe("police visits and talk", () => {
     expect(p.money_c).toBe(50 - out.verdict!.paid_c);
     expect((db.prepare("SELECT status FROM job").get() as { status: string }).status).toBe("failed");
     expect(pockets(db).find((i) => i.kind === "lantern")).toBeUndefined();
+    expect(cellNightView(db)).toBeTruthy(); // shown again after a reload, until Jef walks out
     const night = takeCellNight(db)!;
     expect(night.summary.join(" ")).toMatch(/cell/);
     expect(night.post).toEqual(policePost());

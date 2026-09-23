@@ -12,9 +12,9 @@
  },
  "crane_foot": {
   "label": "the foot of the crane",
-  "desc": "under the crane on the quay edge",
-  "x": -21,
-  "z": 5.2,
+  "desc": "beside the crane on the quay",
+  "x": -18,
+  "z": 8.2,
   "dir": [
    1,
    0
@@ -52,9 +52,9 @@
  },
  "ship_gangway": {
   "label": "the gangway of the Anna Maria",
-  "desc": "gangway of the three-master moored at the kaai",
+  "desc": "the quay by the gangway of the brig moored at the kaai",
   "x": -42,
-  "z": 5.6,
+  "z": 7.6,
   "dir": [
    1,
    0
@@ -104,7 +104,7 @@
   "label": "the south quay of the Petit Bassin",
   "desc": "the quay below the Hanseatic House, on the far side of the basin",
   "x": 120,
-  "z": 117,
+  "z": 120.8,
   "dir": [
    1,
    0
@@ -144,7 +144,7 @@
   "label": "the ferry pontoon",
   "desc": "the foot of the ferry pontoon on the Werf",
   "x": -249,
-  "z": 4,
+  "z": 8.2,
   "dir": [
    1,
    0
@@ -154,7 +154,7 @@
   "label": "the Werf",
   "desc": "the river wall of the Werf, west end",
   "x": -295,
-  "z": 6,
+  "z": 8.2,
   "dir": [
    1,
    0

@@ -1,4 +1,4 @@
-# M3g - Goods train, cranes at work, horse omnibus (2026-09-23, in progress)
+# M3g - Goods train, cranes at work, horse omnibus (2026-09-23, built, not yet committed)
 
 Steve asked: a freight train on the quay railway that stops at the cranes, the cranes taking goods from the
 ships or the quay into the wagons (or out of them); and a tram along the quays you can ride, if that is right
@@ -88,8 +88,8 @@ Sources:
 - Player mode: `firstPerson.ts` `rideStart / rideEnd / updateRide`, a generic "carried" mode.
 
 ### Server (engine numbers)
-- `server/src/ride.ts` (new): fare **5 c** (`RIDE_FARE_C`), a ticket good for **16 game hours**
-  (`RIDE_MAX_HOURS`; once round is about 12 at the game's clock), stops checked against a fixed list.
+- `server/src/ride.ts` (new): fare **5 c** (`RIDE_FARE_C`), a ticket good for **20 game hours**
+  (`RIDE_MAX_HOURS`: once round the line; Werf to Petit Bassin takes about 9.5 at the game's clock), stops checked against a fixed list.
   `POST /api/ride {action: "board" | "alight", stop}`; the payload has `ride: {on, fare_c}`.
 - `day.ts applyHour`: on board, warmth -1 every **10 h by day** (on foot 5) and every **6 h at night**
   (on foot 3). Food as on foot: a ride costs no extra food; the time it saves is time you are not hungry in.
@@ -102,5 +102,38 @@ Sources:
 - `soundscape.railClack(x, z)`: a knock and a ring at every rail joint under a wheel (made in code).
 - The cranes call `soundscape.craneWork` (ratchet or winch, chain) when they start to hoist.
 
-## Checks
-(filled in below as they are done)
+## Checks (on a copy of the save: test server 8797, vite 5183; never Steve's save)
+- Train: runs the whole line; at the Petit Bassin crane (173, 66) it shunts a row under the hook, the crane
+  swings to the moored hull, lowers into the hold, lifts two casks one by one and sets them in the flat wagon
+  (slots 000000 -> 001100), then the train goes on. On the Rijnkaai crane (-12, 4) it loaded casks from the
+  wagon into the Anna Maria. Wagons bend round the 10 m corners with each axle on the curve.
+- Stops 8.7 m short of the player standing on the rails on the Werf; goes on when he steps off.
+- Canal bridge opened for a boat: the train waited short of it. With the train at the bridge, the bridge
+  stayed shut until the last wagon was over, then opened for the waiting boat.
+- Omnibus: a whole round in 395 s (Werf 7 s, Steenplein 80, Vismarkt 111, Rijnkaai 166, Petit Bassin 196,
+  Rijnkaai 232, Vismarkt 286, Steenplein 318, Werf 395), about 50 s of it behind the Werf dray.
+  Werf to Petit Bassin 189 s; on foot the same way is about 250 s.
+- Riding: E at the step showed "get on the omnibus (5 c)"; money 46 -> 41 on the server; the view rode the
+  back platform over the canal bridge; "Next stop: the Rijnkaai." as it left; "The conductor calls out: the
+  Rijnkaai."; E "get off at the Rijnkaai"; stepped down on free ground; the server's ride ended.
+- Needs, live on the test server: board at 14:45, tick to 15:00: warmth 6 stays 6; on foot the same tick:
+  6 -> 5. A bad stop name, a bad action and 3 c in the pocket were all refused.
+- Path check `__scheldemist.paths()`: [] with the train in the store, and [] with the train working on the
+  narrow west quay of the Petit Bassin and the omnibus at its stops.
+- Frame cost (Rijnkaai view, both in sight): draw calls 357 -> 376-380, triangles +18k, render time within
+  the noise (3.9 vs 4.1 ms); the two updates together 0.10 ms a frame. Empty goods meshes are not drawn.
+- `cd client && npx tsc --noEmit`, `cd server && npx vitest run` (ride tests included), `npm run build`: pass.
+- Pictures: `data/shots/m3g_*.jpg` (dock crane at work, hook lowering a cask, the train on a curve, the
+  train in fog under a crane, the omnibus at the Vismarkt stop from the side and from behind, the view from
+  the platform, a map of the lanes `m3g_map.png`).
+
+## Open points
+- Job spots on or at the rails: `werf_pontoon` (-249, 4) lies on the track and stacks along it;
+  `crane_foot` (-21, 5.2), `ship_gangway` (-42, 5.6), `werf_quay` (-295, 6) and `bassin_south` (120, 117)
+  lie at the edge of the rail band. Goods put there stop the train (it waits for anything on the rails)
+  until they are carried off. Suggest moving these spots 2-3 m off the line in `shared/spots.json`.
+- Walking townspeople are not colliders, so the vehicles do not see them. Both have an optional
+  `people` hook for it (`world.railway().people = () => [...]`, the same for `world.omnibus()`); the crowd
+  and the town need a list of positions to feed it.
+- The rails run into the Werf store at x -318..-340 through its wall: a goods door there would look right.
+- Night: no lamps on the omnibus (the scene's lamp count is fixed); it shows only by the gas lamps.

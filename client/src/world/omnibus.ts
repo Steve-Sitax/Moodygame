@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { psx } from "../retro/psx";
 import { makeHuman, type Human } from "../game/humans";
 import type { Rect } from "./geom";
@@ -85,6 +86,8 @@ export interface Omnibus {
   /** The foot of the step behind the platform (world), and the way out (yaw). */
   stepDown(): { x: number; z: number; yaw: number };
   onArrive?: (stop: OmnibusStop) => void;
+  /** People walking about (the crowd, the town): it waits for anyone in its lane ahead. Set by main. */
+  people?: () => Iterable<{ x: number; z: number }>;
   onDepart?: (stop: OmnibusStop, next: OmnibusStop) => void;
   /** For the soundscape (setVehicles): hooves and wheels while it rolls. */
   vehicles(): Array<{ kind: "dray"; x: number; z: number; state: string }>;
@@ -341,11 +344,14 @@ export function createOmnibus(scene: THREE.Scene, opts: OmnibusOptions): Omnibus
   const body = new THREE.Mesh(bodyGeometry(), wood);
   // the route painted along both letter boards
   const boardMat = psx(new THREE.MeshLambertMaterial({ map: boardTexture("WERF  ·  STEENPLEIN  ·  VISMARKT  ·  RIJNKAAI  ·  PETIT BASSIN") }));
-  for (const s of [-1, 1]) {
-    const b = new THREE.Mesh(new THREE.PlaneGeometry(4.0, 0.22), boardMat);
-    b.position.set(s * 0.895, 2.4, 1.02);
-    b.rotation.y = (s * Math.PI) / 2;
-    body.add(b);
+  {
+    // both sides in one mesh
+    const sides = [-1, 1].map((s) => {
+      const g = new THREE.PlaneGeometry(4.0, 0.22);
+      g.applyMatrix4(new THREE.Matrix4().makeRotationY((s * Math.PI) / 2).setPosition(s * 0.895, 2.4, 1.02));
+      return g;
+    });
+    body.add(new THREE.Mesh(mergeGeometries(sides, false) ?? sides[0], boardMat));
   }
   const rear = new THREE.Mesh(wheelsGeometry(R_REAR, 1.98), wood);
   const fore = new THREE.Mesh(foreGeometry(), wood);
@@ -362,7 +368,7 @@ export function createOmnibus(scene: THREE.Scene, opts: OmnibusOptions): Omnibus
       c.applyMatrix4(new THREE.Matrix4().makeRotationY(Math.atan2(st.x - st.post[0], st.z - st.post[1]) + Math.PI / 2).setPosition(st.post[0], 0, st.post[1]));
       geos.push(c);
     }
-    const posts = new THREE.Mesh(mergeAll(geos), wood);
+    const posts = new THREE.Mesh(mergeGeometries(geos, false) ?? geos[0], wood);
     posts.name = "omnibus_posts";
     scene.add(posts);
   }
@@ -457,6 +463,22 @@ export function createOmnibus(scene: THREE.Scene, opts: OmnibusOptions): Omnibus
           lim = Math.min(lim, Math.max(0, dd - 7.5));
           waitWhy = "player";
           break;
+        }
+      }
+    }
+    // people in the lane ahead (not colliders: they walk)
+    const folk = api.people?.();
+    if (folk) {
+      loop.at(nose + 3, pb);
+      for (const p of folk) {
+        if (Math.abs(p.x - pb.x) > 5 || Math.abs(p.z - pb.z) > 5) continue;
+        for (let dd = 0; dd <= 6; dd += 1) {
+          loop.at(nose + dd, pa);
+          if (Math.hypot(p.x - pa.x, p.z - pa.z) < 1.5) {
+            lim = Math.min(lim, Math.max(0, dd - 3));
+            waitWhy = "people";
+            break;
+          }
         }
       }
     }
@@ -638,23 +660,4 @@ export function createOmnibus(scene: THREE.Scene, opts: OmnibusOptions): Omnibus
     },
   };
   return api;
-}
-
-function mergeAll(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
-  let n = 0;
-  for (const g of geos) n += g.getAttribute("position").count;
-  const out = new THREE.BufferGeometry();
-  for (const name of ["position", "normal", "uv", "color"]) {
-    const size = geos[0].getAttribute(name).itemSize;
-    const arr = new Float32Array(n * size);
-    let o = 0;
-    for (const g of geos) {
-      const a = g.getAttribute(name).array as Float32Array;
-      arr.set(a, o);
-      o += a.length;
-    }
-    out.setAttribute(name, new THREE.Float32BufferAttribute(arr, size));
-  }
-  out.computeBoundingSphere();
-  return out;
 }
