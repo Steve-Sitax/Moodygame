@@ -25,6 +25,8 @@ export interface OpeningBridge {
   closed(): boolean;
   /** 0 = shut, 1 = fully open. */
   open(): number;
+  /** Wants to open or is not yet shut again: people wait at the ends and do not step on. */
+  opening(): boolean;
 }
 
 export interface BridgesOptions {
@@ -241,13 +243,14 @@ export function createBridges(scene: THREE.Object3D, boats?: Boats | Promise<Boa
       draw: null,
       closed: () => c.amount <= 1e-4,
       open: () => smooth(c.amount),
+      opening: () => c.want > 0 || c.amount > 1e-4,
     };
     return c;
   });
-  const list: OpeningBridge[] = ctls.map((c) => ({ key: c.key, kind: c.kind, rect: c.rect, closed: c.closed, open: c.open }));
+  const list: OpeningBridge[] = ctls.map((c) => ({ key: c.key, kind: c.kind, rect: c.rect, closed: c.closed, open: c.open, opening: c.opening }));
   if (opts.lock) {
     const lock = opts.lock;
-    list.push({ key: "lock_bridge", kind: "draw", rect: lock.bridgeRect, closed: () => lock.bridgeClosed(), open: () => (lock.bridgeClosed() ? 0 : 1) });
+    list.push({ key: "lock_bridge", kind: "draw", rect: lock.bridgeRect, closed: () => lock.bridgeClosed(), open: () => (lock.bridgeClosed() ? 0 : 1), opening: () => !lock.bridgeClosed() });
   }
 
   loadModelSet("/models/bridges.glb")

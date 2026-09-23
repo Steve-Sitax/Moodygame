@@ -31,6 +31,7 @@ const retro = new RetroPass(renderer);
 let sound: Soundscape | null = null;
 // the soundscape hears the clock and the weather the Day sets on the world (audio/soundscape.ts)
 // null until the server has said: no foghorn before the weather is known
+let peopleWired = false;
 let weatherNow: "fog" | "mist" | "clear" | "rain" | "storm" | null = null;
 {
   const setTimeOfDay = world.setTimeOfDay;
@@ -52,7 +53,7 @@ jobs.extraActions.push((x, z) => ride.keys(x, z));
 // townspeople on the quays and squares (game/crowd.ts)
 const crowd = new Crowd(
   world.scene,
-  { flags: world.city.flags, isFree: world.isFree, solids: world.solids, addCollider: world.addCollider, removeCollider: world.removeCollider },
+  { flags: world.city.flags, isFree: world.isFree, solids: world.solids, gate: world.bridgeWait, addCollider: world.addCollider, removeCollider: world.removeCollider },
   placesFromCity((CITY as unknown as { places: Record<string, { x: number; z: number; kind: string }> }).places),
   { mats: { sack: world.mats.sack, crate: world.mats.crate } },
 );
@@ -211,6 +212,11 @@ function frame(): void {
     // the goods train and the omnibus stop for the people walking in front of them
     const rail = world.railway();
     if (rail && !rail.people) rail.people = () => crowd.positions();
+    if (!peopleWired) {
+      // bridges never open under anyone walking
+      world.setPeople(() => crowd.positions());
+      peopleWired = true;
+    }
     const bus = world.omnibus();
     if (bus && !bus.people) bus.people = () => crowd.positions();
   }

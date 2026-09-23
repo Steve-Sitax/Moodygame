@@ -154,6 +154,10 @@ export interface World {
   railway(): Railway | null;
   /** The horse omnibus round the quays (M3g); null until loaded. */
   omnibus(): Omnibus | null;
+  /** Where the people walking are (the crowd and the town): bridges never open under them. */
+  setPeople(fn: () => Iterable<{ x: number; z: number }>): void;
+  /** Must someone at (x, z) wait? True on (or right at) an opening bridge that is opening, open or shutting. */
+  bridgeWait(x: number, z: number): boolean;
   /** Dev menu: things to set off now (a lock passage, a boat up the canal, fog, rain). */
   devEvents(): Array<{ label: string; run: () => void }>;
   /** Dev: no fog, noon light, every chunk shown (fly mode). */
@@ -349,17 +353,26 @@ export function buildRijnkaai(): World {
   })();
   const onOpening = (x: number, z: number) =>
     bridges?.list.find((b) => x > b.rect.minX && x < b.rect.maxX && z > b.rect.minZ && z < b.rect.maxZ) ?? null;
+  // people walking: a bridge does not open while anyone is on its deck
+  let peopleFn: (() => Iterable<{ x: number; z: number }>) | null = null;
+  const peopleOn = (r: { minX: number; maxX: number; minZ: number; maxZ: number }) => {
+    if (!peopleFn) return false;
+    // on the deck itself only: people waiting at the ends (bridgeWait) must not hold it shut
+    for (const p of peopleFn()) if (p.x > r.minX && p.x < r.maxX && p.z > r.minZ && p.z < r.maxZ) return true;
+    return false;
+  };
   loadBoats()
     .then((b) => {
       boats = b;
       lock = createLock(scene, b, {
         world: { addCollider: (r) => dynamic.add(r), removeCollider: (r) => dynamic.delete(r) },
-        occupied: () => (!!camera && !!onOpening(camera.position.x, camera.position.z)) || !!railway?.busy(LOCK_DECK) || !!omnibus?.busy(LOCK_DECK),
+        occupied: () =>
+          (!!camera && !!onOpening(camera.position.x, camera.position.z)) || !!railway?.busy(LOCK_DECK) || !!omnibus?.busy(LOCK_DECK) || peopleOn(LOCK_DECK),
       });
       bridges = createBridges(scene, b, {
         lock,
         player: () => (camera ? { x: camera.position.x, z: camera.position.z } : null),
-        busy: (r) => !!railway?.busy(r) || !!omnibus?.busy(r),
+        busy: (r) => !!railway?.busy(r) || !!omnibus?.busy(r) || peopleOn(r),
         world: { addCollider: (r) => dynamic.add(r), removeCollider: (r) => dynamic.delete(r) },
       });
       riverTraffic = createRiver(scene, b);
@@ -992,6 +1005,11 @@ export function buildRijnkaai(): World {
       wTarget = WEATHER[weatherNow];
     },
     ambient,
+    setPeople: (fn) => (peopleFn = fn),
+    bridgeWait: (x, z) => {
+      const b = bridges?.list.find((q) => x > q.rect.minX - 0.4 && x < q.rect.maxX + 0.4 && z > q.rect.minZ - 0.4 && z < q.rect.maxZ + 0.4);
+      return !!b && b.opening();
+    },
     boats: () => boats,
     traffic: () => traffic,
     railway: () => railway,

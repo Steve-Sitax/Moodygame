@@ -41,6 +41,8 @@ export interface CrowdGround {
   isFree(x: number, z: number, r: number): boolean;
   /** Optional: everything solid on the ground, so paths go round it instead of into it. */
   solids?(): Rect[];
+  /** Optional: must a walker stop before stepping to (x, z)? (an opening bridge: wait at its end) */
+  gate?(x: number, z: number): boolean;
   /** Optional: make the crates people sit on solid for the player. */
   addCollider?(r: Rect): void;
   removeCollider?(r: Rect): void;
@@ -1088,6 +1090,12 @@ export class Crowd {
     const f = p.follower;
     const lag = f && f.state !== "walk" ? Math.hypot(f.x - p.x, f.z - p.z) : 0;
     const step = Math.min(len, p.pace * dt * (lag > 2 ? 0.3 : 1));
+    // an opening bridge ahead: wait at its end until it is down again (not while already on it)
+    if (this.ground.gate?.(p.x + mx * Math.max(step, 0.5), p.z + mz * Math.max(step, 0.5)) && !this.ground.gate(p.x, p.z)) {
+      p.stuckT = 0;
+      p.human.play(this.standMotion(p), 0.3);
+      return;
+    }
     const tryMove = (x: number, z: number) =>
       this.ground.isFree(x, z, 0.25) &&
       (this.grid.isOpen(x, z) || !this.grid.isOpen(p.x, p.z)) &&
