@@ -4,7 +4,7 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import CITY from "../../../shared/city.json";
 import { psx, psxUniforms } from "../retro/psx";
 import { createMirror } from "./mirror";
-import { cobblePaving, flagPaving } from "./paving";
+import { cobblePaving, edgeStoneTexture, flagPaving } from "./paving";
 import { brickBandTexture, earthTexture, facadeAtlas, glassTexture, leafTexture, roofAtlas, slateTexture, stoneTexture } from "./cityTextures";
 import { makeTextures } from "./textures";
 import { slimeCuts, slimeShade } from "./quaysteps";
@@ -101,11 +101,12 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
     const zoneMat: Record<string, [THREE.Material, number]> = {
       // bump maps from the texture itself: light stone stands up, dark joints sink, so the
       // sun and the gas lamps pick out every sett (Steve: "bump mapping?")
-      cobble: [psx(new THREE.MeshPhongMaterial({ map: cobPave.map, color: 0xffffff, specular: cob.specular, shininess: cob.shininess }), { noSnap: true, affine: 0, wet: true, puddles: 1, relief: { height: cobPave.height, depth: 0.06, tile: 2 } }), 2],
-      earth: [psx(new THREE.MeshLambertMaterial({ map: earthTex, bumpMap: earthTex, bumpScale: BUMP * 0.6 }), { noSnap: true, affine: 0, wet: true, puddles: 1.3 }), 4],
-      flags: [psx(new THREE.MeshPhongMaterial({ map: flagPave.map, specular: 0x1a1a1a, shininess: 12 }), { noSnap: true, affine: 0, wet: true, puddles: 0.75, relief: { height: flagPave.height, depth: 0.03, tile: 4, bump: 2 } }), 4],
+      cobble: [psx(new THREE.MeshPhongMaterial({ map: cobPave.map, color: 0xffffff, specular: cob.specular, shininess: cob.shininess }), { noSnap: true, affine: 0, wet: true, puddles: 1, vary: 1, relief: { height: cobPave.height, depth: 0.05, tile: 2, bump: 2.4 } }), 2],
+      earth: [psx(new THREE.MeshLambertMaterial({ map: earthTex, bumpMap: earthTex, bumpScale: BUMP * 0.6 }), { noSnap: true, affine: 0, wet: true, puddles: 1.3, vary: 1 }), 4],
+      flags: [psx(new THREE.MeshPhongMaterial({ map: flagPave.map, specular: 0x1a1a1a, shininess: 12 }), { noSnap: true, affine: 0, wet: true, puddles: 0.75, vary: 0.8, relief: { height: flagPave.height, depth: 0.025, tile: 4, bump: 1.6 } }), 4],
     };
     for (const [zone, tris] of Object.entries(zones)) {
+      if (zone === "edges") continue;
       const [mat, tile] = zoneMat[zone] ?? zoneMat.cobble;
       const pos: number[] = [];
       const uv: number[] = [];
@@ -126,6 +127,58 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
       ground.name = `ground_${zone}`;
       groundMirror.attach(ground);
       group.add(ground);
+    }
+  }
+
+  // --- edge stones along every seam where two pavings meet (tools/city/plan.py ground edges):
+  // a row of long granite kerbs covers the cut, as in a real street
+  {
+    const edges = ((data as unknown as { ground?: { edges?: Array<Array<[number, number]>> } }).ground?.edges ?? []) as Array<Array<[number, number]>>;
+    const W = 0.34;
+    const pos: number[] = [];
+    const uv: number[] = [];
+    for (const line of edges) {
+      let dist = 0;
+      const n = line.length;
+      const side = (i: number): [number, number] => {
+        const a = line[Math.max(0, i - 1)];
+        const b = line[Math.min(n - 1, i + 1)];
+        const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+        return [-(b[1] - a[1]) / l, (b[0] - a[0]) / l];
+      };
+      for (let i = 0; i < n - 1; i++) {
+        const [ax, az] = line[i];
+        const [bx, bz] = line[i + 1];
+        const L = Math.hypot(bx - ax, bz - az);
+        const [nax, naz] = side(i);
+        const [nbx, nbz] = side(i + 1);
+        const h = W / 2;
+        const u0 = dist / 2;
+        const u1 = (dist + L) / 2;
+        dist += L;
+        const A0 = [ax - nax * h, az - naz * h];
+        const A1 = [ax + nax * h, az + naz * h];
+        const B0 = [bx - nbx * h, bz - nbz * h];
+        const B1 = [bx + nbx * h, bz + nbz * h];
+        // two triangles, both wound to face up
+        for (const [p, u, v] of [[A0, u0, 0], [B1, u1, 1], [B0, u1, 0], [A0, u0, 0], [A1, u0, 1], [B1, u1, 1]] as const) {
+          pos.push(p[0], 0, p[1]);
+          uv.push(u, v);
+        }
+      }
+    }
+    if (pos.length) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+      g.computeVertexNormals();
+      const mat = psx(
+        new THREE.MeshLambertMaterial({ map: edgeStoneTexture(), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8 }),
+        { noSnap: true, affine: 0, wet: true },
+      );
+      const seam = new THREE.Mesh(g, mat);
+      seam.name = "ground_seams";
+      group.add(seam);
     }
   }
 

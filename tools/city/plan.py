@@ -468,6 +468,25 @@ def ground_zones(city, houses, landmarks):
     flags = land.difference(solids.buffer(9.0)).buffer(-1.0).buffer(1.0).difference(earth)
     cobble = land.difference(earth).difference(flags)
     out = {}
+    # where one paving meets another: a row of long edge stones along the join (Steve: the
+    # change from one texture to the next cut through half stones). Lines, not areas.
+    edges = []
+    zones = {"earth": earth.buffer(0), "flags": flags.buffer(0), "cobble": cobble.buffer(0)}
+    for za, zb in (("flags", "cobble"), ("earth", "cobble"), ("earth", "flags")):
+        seam = zones[za].buffer(0.05).intersection(zones[zb].buffer(0.05))
+        line = seam.boundary if not seam.is_empty else None
+        if line is None:
+            continue
+        # the middle line of the thin seam: the part of za's outline that lies in it
+        own = zones[za].boundary.intersection(seam.buffer(0.02))
+        for g in getattr(own, "geoms", [own]):
+            if g.is_empty or g.geom_type not in ("LineString", "LinearRing"):
+                continue
+            g = g.simplify(0.15)
+            if g.length < 0.8:
+                continue
+            edges.append([[round(x, 2), round(z, 2)] for x, z in g.coords])
+    out["edges"] = edges
     for name, g in (("earth", earth), ("flags", flags), ("cobble", cobble)):
         tris = []
         for p in pieces(g.buffer(0)):

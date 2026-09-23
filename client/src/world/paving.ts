@@ -106,6 +106,45 @@ function stones(seed: number, n: number, rowH: number, wMin: number, wMax: numbe
   return finish(mc, hc);
 }
 
+/**
+ * Long granite edge stones laid along a seam where two pavings meet: u along the seam
+ * (one tile = 2 m), v across (0..1 = the band). Stones of 40-80 cm, a lit top edge.
+ */
+export function edgeStoneTexture(): THREE.CanvasTexture {
+  const n = 64;
+  const c = document.createElement("canvas");
+  c.width = c.height = n;
+  const g = c.getContext("2d")!;
+  const r = rand(1875);
+  g.fillStyle = "rgb(34,31,27)";
+  g.fillRect(0, 0, n, n);
+  let x = 0;
+  while (x < n) {
+    const w = 13 + Math.floor(r() * 14);
+    const v = 96 + r() * 26;
+    g.fillStyle = `rgb(${v + 3},${v},${v - 6})`;
+    g.fillRect(x + 1, 6, w - 1, n - 12);
+    // worn, rounded top: lighter middle, darker long edges
+    g.fillStyle = "rgba(255,250,240,0.12)";
+    g.fillRect(x + 1, 14, w - 1, n - 28);
+    g.fillStyle = "rgba(0,0,0,0.25)";
+    g.fillRect(x + 1, n - 9, w - 1, 3);
+    x += w;
+  }
+  for (let i = 0; i < 180; i++) {
+    const a = (r() - 0.5) * 0.18;
+    g.fillStyle = a > 0 ? `rgba(255,255,255,${a})` : `rgba(0,0,0,${-a})`;
+    g.fillRect(Math.floor(r() * n), 6 + Math.floor(r() * (n - 12)), 1, 1);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.magFilter = THREE.NearestFilter;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.wrapS = THREE.RepeatWrapping;
+  t.wrapT = THREE.ClampToEdgeWrapping;
+  return t;
+}
+
 /** Street cobbles (Belgian setts, "kasseien"): 128 px per 2 m tile, rows of about 17 cm. */
 export function cobblePaving(): Paving {
   return stones(1873, 128, 11, 8, 13, 1, 3, (r) => {

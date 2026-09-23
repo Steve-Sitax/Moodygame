@@ -147,6 +147,11 @@ export interface PsxOptions {
    * worked out here (lit tops, dark joints) that reads in any light.
    */
   relief?: { height: THREE.Texture; depth: number; tile: number; bump?: number };
+  /**
+   * Large, soft patches of lighter and darker stone (worn, repaired, dirtier) over flat
+   * ground, so a tiled paving does not look like one repeated pattern. 0..1 strength.
+   */
+  vary?: number;
 }
 
 const commonVertex = /* glsl */ `
@@ -346,7 +351,7 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         (opts.atlas ? "varying vec2 vCell;\n" : "") +
         (opts.wet || opts.water ? wetFragment : "") +
         (opts.puddles ? "uniform float uPuddle;\nuniform sampler2D uMirror;\nuniform mat4 uMirrorMat;\nuniform sampler2D uPudNoise;\n" : "") +
-        (opts.wet || opts.puddles ? pudNoiseGlsl : "") +
+        (opts.wet || opts.puddles || opts.vary ? pudNoiseGlsl : "") +
         (opts.relief ? "uniform sampler2D uHeight;\nuniform float uReliefDepth;\nuniform float uReliefTile;\nuniform float uReliefBump;\n" : "") +
         (opts.water
           ? "uniform sampler2D uShore;\nuniform vec4 uShoreBox;\nvarying float vWaveH;\nuniform sampler2D uWaterMirror;\nuniform mat4 uWaterMirrorMat;\nuniform float uWaterMirrorOn;\n"
@@ -389,6 +394,21 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         vec4 sampledDiffuseColor = texture2D(map, psxUv);
         diffuseColor *= sampledDiffuseColor;
         ${
+          opts.vary
+            ? `{
+          // patches: worn paths, newer stones where it was mended, dirt by the walls
+          vec2 vp = vPsxWorld.xz;
+          float big = pudVal(vp / 23.0) - 0.5;
+          float mid = pudVal(vp / 6.5 + 17.3) - 0.5;
+          float mend = smoothstep(0.78, 0.82, pudVal(vp / 4.1 - 41.0));
+          vec3 tone = vec3(1.0 + (big * 0.26 + mid * 0.16) * ${(opts.vary ?? 0).toFixed(2)});
+          tone *= mix(vec3(1.0), vec3(1.07, 1.05, 1.0), mend * ${(opts.vary ?? 0).toFixed(2)});
+          tone *= mix(vec3(1.0), vec3(0.93, 0.95, 1.0), smoothstep(0.1, 0.4, mid) * 0.5 * ${(opts.vary ?? 0).toFixed(2)});
+          diffuseColor.rgb *= tone;
+        }`
+            : ""
+        }
+        ${
           opts.relief
             ? `{
           // relief light from the height map: the tops lit from the sky, the joints dark;
@@ -399,7 +419,7 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
           float hZ = texture2D(uHeight, psxUv + vec2(0.0, e)).r - texture2D(uHeight, psxUv - vec2(0.0, e)).r;
           vec3 rn = normalize(vec3(-hX * uReliefBump, 1.0, -hZ * uReliefBump));
           float lit = clamp(dot(rn, normalize(vec3(-0.45, 0.8, -0.35))), 0.0, 1.0);
-          float relief = mix(0.5, 1.15, lit) * (0.6 + 0.4 * hC);
+          float relief = mix(0.64, 1.1, lit) * (0.74 + 0.26 * hC);
           float far = smoothstep(8.0, 22.0, length(vPsxWorld - cameraPosition));
           diffuseColor.rgb *= mix(relief, 0.86, far);
         }`
@@ -560,6 +580,6 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
     );
     shader.fragmentShader = fs;
   };
-  mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}` : ""}`;
+  mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}` : ""}${opts.vary ? `-v${opts.vary}` : ""}`;
   return mat;
 }
