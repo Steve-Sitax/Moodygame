@@ -103,8 +103,10 @@ export function mountDirector(app: Hono, deps: DirectorDeps): void {
       if (body.template) {
         const t = templateById(body.template);
         if (!t) throw new GameError(`no template ${body.template}; have ${TEMPLATES.map((x) => x.id).join(", ")}`, 404);
-        const planned = planEvent(db, planFromTemplate(t, "engine", { start_in_min: 1, why: "dev button" }));
-        return c.json(planned.ok ? { ok: true, id: planned.event.id, title: planned.event.title } : planned);
+        const planned = planEvent(db, planFromTemplate(t, "engine", { start_in_min: 1, why: "dev button" }), { dev: true });
+        if (!planned.ok) return c.json(planned);
+        const first = (JSON.parse(planned.event.stages_json) as Array<{ label?: string }>)[0];
+        return c.json({ ok: true, id: planned.event.id, title: planned.event.title, where: first?.label ?? planned.event.place });
       }
       return c.json({ templates: TEMPLATES.map((t) => t.id) });
     });

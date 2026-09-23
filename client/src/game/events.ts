@@ -15,6 +15,8 @@ import type { Town } from "./town";
 // event closed. Everything is taken away when the event ends.
 
 const HEAR_M = 90;
+/** An event starting within this of Jef is named in a line at the bottom of the screen. */
+const TELL_M = 150;
 
 export type EventSoundKind = "bells" | "music" | "murmur" | "handbell";
 export interface EventSoundHandle {
@@ -37,6 +39,9 @@ export class Events {
   private closedKeepers = new Set<string>();
   /** Set by main: a sound at a place for some seconds, from the soundscape. */
   eventSound: (kind: EventSoundKind, at: { x: number; z: number }, seconds: number) => EventSoundHandle | null = () => null;
+  /** Set by main: a line at the bottom of the screen. */
+  say: (t: string) => void = () => {};
+  private told = new Set<number>();
   private clothMat: THREE.Material | null = null;
   private flowerMats: THREE.Material[] | null = null;
 
@@ -115,7 +120,12 @@ export class Events {
       if (ev.status !== "running") continue;
       const st = ev.stages[ev.stage];
       if (!st) continue;
-      const near = Math.hypot(st.x - player.x, st.z - player.z) < HEAR_M;
+      const dj = Math.hypot(st.x - player.x, st.z - player.z);
+      const near = dj < HEAR_M;
+      if (!this.told.has(ev.id) && dj < TELL_M) {
+        this.told.add(ev.id);
+        this.say(`${ev.title}, at ${st.label}.`);
+      }
       // sound: one per stage, started when Jef is near enough to hear it
       const key = `${ev.id}:${ev.stage}:${st.sound}`;
       if (l.soundKey !== key) {

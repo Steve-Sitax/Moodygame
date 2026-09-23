@@ -101,6 +101,7 @@ jobs.onPush = (m) => {
 };
 bubbles.speak = (at, v, s) => sound?.speech(at, v, s);
 events.eventSound = (k, at, s) => sound?.eventSound(k, at, s) ?? null;
+events.say = (t) => jobs.say(t);
 town
   .load()
   .then(() => {
@@ -166,10 +167,25 @@ if (import.meta.env.DEV) {
     events: [
       ...world.devEvents(),
       // M4: the director and its templates
-      { label: "Director: think now", run: () => void api.devDirector({ think: true }).then((r) => jobs.say(`Director: ${r.decision} (${r.source})${r.why ? ": " + r.why : ""}`)).catch((e) => jobs.say(String(e))) },
+      // the answer shows in the Dev panel itself (a toast would hide behind the pause paper)
+      {
+        label: "Director: think now",
+        run: () =>
+          api
+            .devDirector({ think: true })
+            .then((r) => {
+              const p = r.planned as { ok?: boolean; title?: string; why?: string } | null;
+              return `${r.decision} (${r.source})${p ? (p.ok ? `: planned "${p.title}"` : `: refused, ${p.why}`) : r.why ? `: ${r.why}` : ""}`;
+            })
+            .catch((e) => String(e)),
+      },
       ...["wedding", "funeral", "musicians", "emigrant_ship", "fish_auction", "quarrel"].map((t) => ({
         label: `Event: ${t.replace("_", " ")}`,
-        run: () => void api.devDirector({ template: t }).then((r) => jobs.say(r.ok ? `Event planned: ${r.title}` : `Refused: ${r.why}`)).catch((e) => jobs.say(String(e))),
+        run: () =>
+          api
+            .devDirector({ template: t })
+            .then((r) => (r.ok ? `planned "${r.title}" at ${r.where}; it starts a game minute after you resume. Go there to see it.` : `refused: ${r.why}`))
+            .catch((e) => String(e)),
       })),
     ],
   });

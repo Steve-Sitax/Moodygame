@@ -182,7 +182,8 @@ export function eventsToday(db: DB): EventRow[] {
 export type PlanResult = { ok: true; event: EventRow } | { ok: false; why: string };
 
 /** Plan an event: the checks, then the row. Nothing happens until its start. */
-export function planEvent(db: DB, plan: EventPlan): PlanResult {
+/** `dev`: the dev buttons skip the day's count and the two-at-once cap; the place, 60 m and people rules still hold. */
+export function planEvent(db: DB, plan: EventPlan, opts: { dev?: boolean } = {}): PlanResult {
   const place = resolvePlace(db, plan.place);
   if (!place) return { ok: false, why: `no such place: ${plan.place}` };
   const stages = cleanStages(plan.stages);
@@ -190,14 +191,14 @@ export function planEvent(db: DB, plan: EventPlan): PlanResult {
   const now = gameMinute(db);
   const start = now + Math.max(0, Math.min(180, Math.round(plan.start_in_min)));
   const end = start + stages.reduce((a, s) => a + s.minutes, 0);
-  if (eventsToday(db).length >= EVENTS_PER_DAY) return { ok: false, why: `${EVENTS_PER_DAY} events today already` };
+  if (!opts.dev && eventsToday(db).length >= EVENTS_PER_DAY) return { ok: false, why: `${EVENTS_PER_DAY} events today already` };
   const live = liveEvents(db);
   const overlapping = live.filter((o) => o.start_m - EVENT_MARGIN_MIN < end && o.end_m + EVENT_MARGIN_MIN > start);
   for (const o of overlapping) {
     if (o.place === place.id) return { ok: false, why: `"${o.title}" is at ${place.label} then` };
     if (Math.hypot(o.x - place.x, o.z - place.z) < EVENT_NEAR_M) return { ok: false, why: `"${o.title}" is too near, at ${o.place}` };
   }
-  if (overlapping.length >= EVENTS_AT_ONCE) return { ok: false, why: `${EVENTS_AT_ONCE} events run at once already` };
+  if (!opts.dev && overlapping.length >= EVENTS_AT_ONCE) return { ok: false, why: `${EVENTS_AT_ONCE} events run at once already` };
   // the engine puts every stage's place on the map now
   const stored: StoredStage[] = stages.map((s) => {
     const p = s.place ? resolvePlace(db, s.place) : null;
