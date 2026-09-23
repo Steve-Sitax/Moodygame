@@ -4,6 +4,7 @@ import { WATER_Y, type World } from "../world/rijnkaai";
 import type { Exit } from "../world/quaysteps";
 import { BOAT_NAMES, type BoatName } from "../world/boats";
 import { DECK_UNDER } from "../world/bridges";
+import { levelAt, tideRate, water } from "../world/tide";
 import type { Rect } from "../world/geom";
 import { psx, psxUniforms } from "../retro/psx";
 import type { JobsPayload } from "../net/api";
@@ -168,7 +169,7 @@ export class Rowing {
     player.onRowBump = (speed) => {
       if (this.clock - this.bumpAt < 1) return;
       this.bumpAt = this.clock;
-      this.sfx(speed > 1 ? "thud_wood" : "thud_soft", new THREE.Vector3(player.x, WATER_Y + 0.4, player.z));
+      this.sfx(speed > 1 ? "thud_wood" : "thud_soft", new THREE.Vector3(player.x, levelAt(player.x, player.z) + 0.4, player.z));
       this.jobs.say(speed > 1 ? "The boat knocks hard against it. No harm done, only your teeth." : "The boat bumps and comes off.");
     };
     jobs.extraActions.push((x, z) => this.keys(x, z));
@@ -187,11 +188,12 @@ export class Rowing {
   private free(x: number, z: number, r: number): boolean {
     const lock = this.world.lock();
     const lw = this.world.lockWater;
-    const gatesOpen = (lock?.gatesOpen() ?? 0) > 0.95;
-    // the lock while its gates stand open (never across a shut pair); the open end of the ferry pontoon
+    // M6 tides: each pair of gates on its own (the keeper levels the chamber between them)
+    const open = (i: 0 | 1) => (lock?.gateOpen ? lock.gateOpen(i) : lock?.gatesOpen() ?? 0) > 0.95;
+    // the lock, never across a shut pair; the open end of the ferry pontoon
     // (its keep-out for swimmers runs 2 m past the deck: a boat may come up to the end of the deck)
     const pass = (c: Rect) =>
-      (c === lw && (gatesOpen || (Math.abs(z - 7) > 1.8 && Math.abs(z - 42) > 1.8))) || (c.minZ === -60 && c.maxZ === -2.5 && z < -58.2 && Math.abs(x + 249) < 3);
+      (c === lw && (Math.abs(z - 7) > 1.8 || open(0)) && (Math.abs(z - 42) > 1.8 || open(1))) || (c.minZ === -60 && c.maxZ === -2.5 && z < -58.2 && Math.abs(x + 249) < 3);
     if (!this.world.boatFree(x, z, r * 0.9, pass)) return false;
     // a bridge you do not fit under: wait outside it until it stands open
     const br = this.world.bridges();
@@ -207,18 +209,19 @@ export class Rowing {
   /** Do we fit under a shut deck (quay level, its underside DECK_UNDER below) with the swell as it is? */
   fits(): boolean {
     const swell = 0.22 * psxUniforms.uSea.value;
-    return -DECK_UNDER > WATER_Y + HEAD + HEAD_ROOM + swell + this.devTall;
+    // M6 tides: at high water you no longer fit under a bridge you pass under at low water
+    return -DECK_UNDER > levelAt(this.player.x, this.player.z) + HEAD + HEAD_ROOM + swell + this.devTall;
   }
 
   /**
    * The tide on the Schelde (not in the canals, the vliet or the dock): along the river, ebb
-   * toward +x (downstream, north) and flood back, turning with a period of 12 h 25 min of game
-   * time; slack near the walls; stronger in a gale. At most about 0.2 m/s.
+   * toward +x (downstream, north) and flood back, with the rise and fall of the water (M6 tides,
+   * world/tide.ts): strongest at half tide, slack at high and low water; slack near the walls;
+   * stronger in a gale. At most about 0.2 m/s.
    */
   private current(x: number, z: number): [number, number] {
     if (z > -1 || (x > 100 && x < 120 && z > -6)) return [0, 0];
-    const h = this.jobs.day.hourF + this.jobs.day.dayNum * 24;
-    const tide = Math.sin((2 * Math.PI * h) / 12.42);
+    const tide = THREE.MathUtils.clamp(-tideRate(this.jobs.day.dayNum, this.jobs.day.hourF) / 1.2, -1, 1);
     const sea = psxUniforms.uSea.value;
     const wall = Math.min(1, Math.max(0.3, -z / 12));
     return [0.16 * tide * wall * (sea > 2.5 ? 1.6 : 1), 0];
@@ -300,7 +303,7 @@ export class Rowing {
       l.yaw = yaw;
       Object.assign(l.rect, this.rectOf(x, z, yaw, kind));
     }
-    l.obj.position.set(l.x, WATER_Y, l.z);
+    l.obj.position.set(l.x, levelAt(l.x, l.z), l.z);
     l.obj.rotation.set(0, l.yaw, 0);
     return l;
   }
@@ -372,12 +375,15 @@ export class Rowing {
       }
       return { options };
     }
-    // on a landing, a pontoon, the foot of a ladder: by the water
-    if (this.player.y > WATER_Y + 2.2) return {};
+    // on a landing, a pontoon, the foot of a ladder: by the water (M6 tides: at low water the
+    // boat lies below the landing and you climb down into it; at high water the landing is under
+    // water and you stand on the steps above it)
+    if (this.player.y > levelAt(x, z) + 3.2) return {};
     for (const L of w.landings) {
       const l = this.lying.get(`berth:${L.id}`);
       const d = Math.hypot(L.landing[0] - x, L.landing[1] - z);
-      if (!l || d > 2.4) continue;
+      const flooded = levelAt(L.x, L.z) > WATER_Y + 0.4 + 0.3;
+      if (!l || d > (flooded ? 4.8 : 2.4)) continue;
       const what = L.kind === "punt" ? "a punt" : "a rowing boat";
       const debt = w.debt_c ? `, and the ${w.debt_c} c you owe` : "";
       options.push([d, { key: "KeyE", text: w.hire ? `hire ${what} (you have one out already)` : `hire ${what} from ${L.waterman} (${w.fees.hire_c} c${debt})`, run: () => void this.hire(L) }]);
@@ -434,7 +440,8 @@ export class Rowing {
           const az = sz + Math.cos(h) * off - Math.sin(h) * out * side;
           if (this.world.isWater(ax, az)) continue;
           const y = this.world.baseAt(ax, az);
-          if (y < WATER_Y + 0.1 || y > WATER_Y + 2.0) continue; // the ferry pontoon lies 1.8 m over the water; the brig's deck (2.4) is too high
+          const lv = levelAt(ax, az);
+          if (y < lv + 0.1 || y > lv + 2.0) continue; // the ferry pontoon lies 1.8 m over the water; the brig's deck (2.4) is too high
           if (!this.world.isFree(ax, az, 0.3, y)) continue;
           const g = out ? 0.9 : -0.6;
           const gx = sx + Math.sin(h) * (out ? off : off + g) + Math.cos(h) * 0.9 * side * (out ? 1 : 0);
@@ -780,9 +787,14 @@ export class Rowing {
     if (lock?.request) {
       const inZone = p.x > 96 && p.x < 124 && p.z > -26 && p.z < 70;
       if (inZone && !this.lockAsked) {
-        lock.request(true);
+        lock.request(true, () => ({ x: this.player.x, z: this.player.z }));
         this.lockAsked = true;
-        if (lock.gatesOpen() < 0.95) this.jobs.say("You hail the lock-keeper. The bridge goes up, then the gates open. Wait for them.");
+        // M6 tides: the dock stays near high water; at other times the keeper levels the chamber
+        if (Math.abs(water.river - water.dock) > 0.3)
+          this.jobs.say(
+            `You hail the lock-keeper. The bridge goes up. The river stands ${Math.abs(water.river - water.dock).toFixed(1)} m ${water.river < water.dock ? "below" : "above"} the dock: he shuts the far gates and lets the water ${p.z < 7 === water.river < water.dock ? "out" : "in"} till the lock is at your level. Wait for the near gates.`,
+          );
+        else if (lock.gatesOpen() < 0.95) this.jobs.say("You hail the lock-keeper. The bridge goes up, then the gates open. Wait for them.");
       } else if (!inZone && this.lockAsked) {
         lock.request(false);
         this.lockAsked = false;
@@ -971,7 +983,7 @@ export class Rowing {
         l.z = nz;
         l.drifted = true;
         Object.assign(l.rect, this.rectOf(nx, nz, l.yaw, l.kind));
-        l.obj.position.set(nx, WATER_Y, nz);
+        l.obj.position.set(nx, levelAt(nx, nz), nz);
       } else l.drift = false;
     }
     // wrecks going down

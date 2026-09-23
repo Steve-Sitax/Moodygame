@@ -3,8 +3,8 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { psx, psxUniforms } from "../retro/psx";
-import { WATER_Y } from "./rijnkaai";
 import type { Rect } from "./geom";
+import { bedAt, draftOf, levelAt, levelOf, regionAt } from "./tide";
 
 // Boats, ships and quay cranes from Blender (tools/blender/build_boats.py ->
 // /models/boats.glb). Our own models, made by script. A vessel's origin is the
@@ -14,7 +14,9 @@ import type { Rect } from "./geom";
 // heave and roll, each on its own beat), swings the cranes now and then, lays
 // pontoon walkways and lines quay edges with moored boats.
 //
-// WATER_Y is only read inside functions: rijnkaai.ts may import this module.
+// M6 tides: every vessel floats on the level of its own water (world/tide.ts: the tidal river,
+// the dock, the lock chamber), read each frame; in the canal and the vliet a boat takes the
+// ground on the mud at low water and lies still with a small list.
 
 /** Every model in boats.glb. */
 export const BOAT_NAMES = [
@@ -190,6 +192,11 @@ const HEEL: Record<string, number> = { barque_sail: -0.05, schooner: -0.07, sloo
 
 interface Float {
   heel: number;
+  /** The boat's outer group (its y is the water level) and its draft (for taking the ground). */
+  outer: THREE.Object3D;
+  draft: number;
+  /** A small list when she lies on the mud. */
+  list: number;
   inner: THREE.Object3D;
   m: [number, number, number, number];
   p: [number, number, number];
@@ -223,6 +230,10 @@ interface Fleet {
     m: [number, number, number, number];
     p: [number, number, number];
     world: THREE.Matrix4;
+    /** Its water (tide.ts regionAt) and the height its waterline cannot go below (the mud + its draft). */
+    region: 0 | 1 | 2;
+    floor: number;
+    list: number;
   }>;
 }
 
@@ -268,19 +279,38 @@ export const capMaterial = psx(
     side: THREE.DoubleSide,
     stencilWrite: true,
     stencilRef: 1,
+    stencilWriteMask: 1,
     stencilFunc: THREE.AlwaysStencilFunc,
     stencilZPass: THREE.ReplaceStencilOp,
   }),
 );
 capMaterial.name = "cap";
 
-/** Make a water material skip the pixels the hull caps marked (and draw the water after them: renderOrder 2). */
+/**
+ * Make a water material skip the pixels the hull caps marked (and draw the water after them:
+ * renderOrder 2). M6 tides: it also skips the pixels the dock's own water marked (bit 2, see
+ * dockWaterStencil): the river sheet runs under the Petit Bassin, whose water stands at its own level.
+ */
 export function waterStencil(mat: THREE.Material): void {
   mat.stencilWrite = true; // enables the stencil test; the mask keeps the water from writing it
   mat.stencilWriteMask = 0;
-  mat.stencilRef = 1;
-  mat.stencilFunc = THREE.NotEqualStencilFunc;
+  mat.stencilRef = 0;
+  mat.stencilFunc = THREE.EqualStencilFunc;
   mat.stencilFuncMask = 0xff;
+}
+
+/**
+ * The water of the dock and the lock chamber (M6 tides): drawn after the hull caps and before the
+ * river sheet (renderOrder 1.5). It skips the caps' pixels (bit 1) and marks its own (bit 2), so the
+ * river sheet, whatever its level, never shows over the dock.
+ */
+export function dockWaterStencil(mat: THREE.Material): void {
+  mat.stencilWrite = true;
+  mat.stencilRef = 2;
+  mat.stencilFunc = THREE.EqualStencilFunc;
+  mat.stencilFuncMask = 1; // (2 & 1) == 0: only where no cap wrote
+  mat.stencilWriteMask = 2;
+  mat.stencilZPass = THREE.ReplaceStencilOp;
 }
 
 export function ropeMaterial(color = 0x16130f, instanced = false): THREE.Material {
@@ -708,10 +738,10 @@ async function load(): Promise<Boats> {
     }
     const outer = new THREE.Group();
     outer.name = name;
-    outer.position.set(x, WATER_Y, z);
+    outer.position.set(x, levelAt(x, z), z);
     outer.rotation.y = yaw;
     outer.add(inner);
-    floats.push({ inner, m: MOTION[name] ?? MOTION.lighter, p: phases(), heel: HEEL[name] ?? 0 });
+    floats.push({ inner, outer, draft: draftOf(name), list: (motionRand() - 0.5) * 0.08, m: MOTION[name] ?? MOTION.lighter, p: phases(), heel: HEEL[name] ?? 0 });
     for (const sp of smokePoints(name)) {
       const local = sp.clone();
       addEmitter({ at: (out) => void out.copy(local).applyMatrix4(inner.matrixWorld), strength: 0.55, phase: motionRand(), root: () => rootOf(outer) });
@@ -841,12 +871,16 @@ async function load(): Promise<Boats> {
       const b = f.boats[i];
       const sea = psxUniforms.uSea.value;
       const [h0, roll0, pitch0, period] = b.m;
-      const h = h0 * sea;
-      const roll = roll0 * Math.min(sea, 2.5);
-      const pitch = pitch0 * Math.min(sea, 2.5);
+      // on the mud (M6 tides): no heave, no roll, a small list
+      const level = levelOf(b.region);
+      const aground = Math.min(1, Math.max(0, (b.floor - level) / 0.25));
+      const free = 1 - aground;
+      const h = h0 * sea * free;
+      const roll = roll0 * Math.min(sea, 2.5) * free;
+      const pitch = pitch0 * Math.min(sea, 2.5) * free;
       const w = (Math.PI * 2) / period;
-      tmpP.set(b.x, WATER_Y + h * Math.sin(w * t + b.p[0]) + h * 0.4 * Math.sin(2.3 * w * t + b.p[0] * 1.7), b.z);
-      tmpE.set(pitch * Math.sin(1.13 * w * t + b.p[2]), b.yaw, roll * Math.sin(0.83 * w * t + b.p[1]));
+      tmpP.set(b.x, Math.max(level, b.floor) + h * Math.sin(w * t + b.p[0]) + h * 0.4 * Math.sin(2.3 * w * t + b.p[0] * 1.7), b.z);
+      tmpE.set(pitch * Math.sin(1.13 * w * t + b.p[2]), b.yaw, roll * Math.sin(0.83 * w * t + b.p[1]) + b.list * aground);
       tmpQ.setFromEuler(tmpE);
       tmpM.compose(tmpP, tmpQ, one);
       for (let k = 0; k < f.meshes.length; k++) {
@@ -907,6 +941,9 @@ async function load(): Promise<Boats> {
           m: MOTION[name] ?? MOTION.lighter,
           p: [r() * 6.283, r() * 6.283, r() * 6.283] as [number, number, number],
           world: new THREE.Matrix4(),
+          region: regionAt(b.x, b.z),
+          floor: bedAt(b.x, b.z) + draftOf(name),
+          list: (r() - 0.5) * 0.08,
         })),
       };
       for (const part of ps) {
@@ -968,19 +1005,27 @@ async function load(): Promise<Boats> {
         for (const b of list) place(b.name, b.x, b.z, b.yaw, scene);
       }
     }
-    return [{ minX: x - half, maxX: x + half, minZ: Math.min(z0, zEnd), maxZ: Math.max(z0, zEnd), y: WATER_Y + deckTop }];
+    return [{ minX: x - half, maxX: x + half, minZ: Math.min(z0, zEnd), maxZ: Math.max(z0, zEnd), y: levelAt(x, (z0 + zEnd) / 2) + deckTop }];
   }
 
   function update(t: number, dt: number): void {
     const sea = psxUniforms.uSea.value;
     for (const f of floats) {
       const [h0, roll0, pitch0, period] = f.m;
-      const h = h0 * sea;
-      const roll = roll0 * Math.min(sea, 2.5);
-      const pitch = pitch0 * Math.min(sea, 2.5);
+      // M6 tides: on the level of its water; in the canal and the vliet it may lie on the mud
+      // (river.ts, lock.ts, anchorage.ts, route.ts and rowing.ts set their own boats' y after this)
+      const o = f.outer.position;
+      const level = levelAt(o.x, o.z);
+      const floor = (f.outer.userData.floor as number | undefined) ?? bedAt(o.x, o.z) + f.draft;
+      const aground = Math.min(1, Math.max(0, (floor - level) / 0.25));
+      const free = 1 - aground;
+      o.y = Math.max(level, floor);
+      const h = h0 * sea * free;
+      const roll = roll0 * Math.min(sea, 2.5) * free;
+      const pitch = pitch0 * Math.min(sea, 2.5) * free;
       const w = (Math.PI * 2) / period;
       f.inner.position.y = h * Math.sin(w * t + f.p[0]) + h * 0.4 * Math.sin(2.3 * w * t + f.p[0] * 1.7);
-      f.inner.rotation.z = f.heel + roll * Math.sin(0.83 * w * t + f.p[1]);
+      f.inner.rotation.z = f.heel + roll * Math.sin(0.83 * w * t + f.p[1]) + f.list * aground;
       f.inner.rotation.x = pitch * Math.sin(1.13 * w * t + f.p[2]);
     }
     for (const f of fleets) writeFleet(f, t);
@@ -1024,7 +1069,7 @@ async function load(): Promise<Boats> {
         return { minX: Math.min(ax, bx), maxX: Math.max(ax, bx), minZ: Math.min(az, bz), maxZ: Math.max(az, bz) };
       };
       const [gx, gz] = at(d.gangway[0], d.gangway[1]);
-      return { rect: box(d.rect), y: WATER_Y + d.y, obstacles: d.obstacles.map(box), gangway: { x: gx, z: gz } };
+      return { rect: box(d.rect), y: levelAt(x, z) + d.y, obstacles: d.obstacles.map(box), gangway: { x: gx, z: gz } };
     },
     pontoon,
     mooreAlong,

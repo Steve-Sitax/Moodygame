@@ -31,6 +31,7 @@ import { countEvents, eventSlice, writeEvent } from "../src/director/eventlog.ts
 import { cleanStages, eventsTick, eventRow, gather, liveEvents, planEvent, stage, type EventPlan } from "../src/director/scheduler.ts";
 import { priceFactor } from "../src/director/state.ts";
 import { enginePick, planFromTemplate, templateById, TEMPLATES } from "../src/director/templates.ts";
+import { GATHER_MAX } from "../src/director/vocab.ts";
 import { ACTION_KINDS, FOLLOW_MAX_MIN, FOLLOW_DEFAULT_MIN, MAX_TALK_ACTIONS, REFUSE_LINE, WAIT_MAX_MIN, type ActionProposal } from "../src/director/vocab.ts";
 
 // M4: actions, conversations, the scheduler, the director, the event log, the budget.
@@ -561,7 +562,7 @@ describe("scheduler", () => {
       ...Array.from({ length: 8 }, () => stage({ op: "sound", minutes: 60, sound: "bells" })),
     ]);
     expect(out[0].minutes).toBe(180);
-    expect(out[0].count).toBe(24);
+    expect(out[0].count).toBe(Math.min(99, GATHER_MAX));
     expect(out[1].factor).toBe(3);
     expect(out.every((s) => (s.op as string) !== "explode" && s.item !== "gold")).toBe(true);
     expect(out.length).toBeLessThanOrEqual(6);
@@ -667,7 +668,7 @@ describe("director", () => {
   const out = (over: Partial<DirectorOut> = {}): DirectorOut => ({
     decision: "event",
     why: "a fine morning",
-    event: { title: "A wedding", template: "wedding", place: "cathedral_west", start_in_min: 15, stages: [stage({ op: "sound", minutes: 10, sound: "bells" })], notice: "", rumour: "" },
+    event: { title: "A wedding", kind: "wedding", place: "cathedral_west", start_in_min: 15, stages: [stage({ op: "sound", minutes: 10, sound: "bells" })], notice: "", rumour: "" },
     ...over,
   });
 
@@ -683,7 +684,7 @@ describe("director", () => {
     expect(dueNow(db)).toBe(true);
   });
 
-  it("plans the model's template event with the model's words; the stages are the template's", async () => {
+  it("M4b AI first: the model's own event is planned with its own stages, never swapped for a template", async () => {
     const db = fresh();
     const r = await think(db, reply(out({ event: { ...out().event, title: "The baker's daughter marries", notice: "Banns read for the baker's daughter." } })), true);
     expect(r.source).toBe("claude");
@@ -691,23 +692,24 @@ describe("director", () => {
     const ev = liveEvents(db)[0];
     expect(ev.title).toBe("The baker's daughter marries");
     expect(ev.notice).toMatch(/Banns/);
-    expect((JSON.parse(ev.stages_json) as unknown[]).length).toBe(templateById("wedding")!.stages.length);
+    expect(ev.template).toBe("wedding");
+    expect((JSON.parse(ev.stages_json) as unknown[]).length).toBe(1);
   });
 
   it("a custom event goes through the clamps; a bad place is refused and logged", async () => {
     const db = fresh();
     const r = await think(
       db,
-      reply(out({ event: { title: "A lost child", template: "custom", place: "steenplein", start_in_min: 5, stages: [stage({ op: "gather", minutes: 500, role: "crowd", count: 50, sound: "murmur" })], notice: "", rumour: "A child was lost and found on the Steenplein." } })),
+      reply(out({ event: { title: "A lost child", kind: "lost_child", place: "steenplein", start_in_min: 5, stages: [stage({ op: "gather", minutes: 500, role: "crowd", count: 50, sound: "murmur" })], notice: "", rumour: "A child was lost and found on the Steenplein." } })),
       true,
     );
     expect(r.planned?.ok).toBe(true);
     const ev = liveEvents(db)[0];
     const st = JSON.parse(ev.stages_json) as Array<{ minutes: number; count: number }>;
     expect(st[0].minutes).toBe(180);
-    expect(st[0].count).toBe(24);
+    expect(st[0].count).toBe(Math.min(50, GATHER_MAX));
     const db2 = fresh();
-    const bad = await think(db2, reply(out({ event: { ...out().event, template: "custom", place: "the moon" } })), true);
+    const bad = await think(db2, reply(out({ event: { ...out().event, kind: "custom", place: "the moon" } })), true);
     expect(bad.planned?.ok).toBe(false);
     expect(countEvents(db2, "director")).toBeGreaterThan(0);
   });
@@ -740,7 +742,9 @@ describe("director", () => {
     expect(p).toContain("OPEN THREADS");
     expect(p).toMatch(/robbed of \d+ centimes/);
     expect(p).toContain("cathedral_west");
-    expect(p).toContain("- wedding:");
+    expect(p).toContain("LEADS");
+    expect(p).toContain("scuffle");
+    expect(p).not.toContain("TEMPLATES");
     expect(p).not.toMatch(/[A-Z]:\\|\/Users\/|steve|MoodyGame/i);
   });
 });

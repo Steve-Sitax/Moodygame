@@ -100,6 +100,7 @@ CREATE TABLE IF NOT EXISTS town_event (
   stage INTEGER NOT NULL DEFAULT -1,
   stages_json TEXT NOT NULL,
   people_json TEXT NOT NULL DEFAULT '[]',
+  leads_json TEXT NOT NULL DEFAULT '[]',
   status TEXT NOT NULL CHECK (status IN ('planned', 'running', 'done', 'cancelled')),
   source TEXT NOT NULL,
   notice TEXT NOT NULL DEFAULT '',

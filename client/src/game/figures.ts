@@ -60,10 +60,10 @@ export class Figure {
     x: number,
     z: number,
     private readonly scene: THREE.Scene,
-    /** Height they stand at (the mate stands on the ship's deck). */
-    private readonly baseY = 0,
+    /** Height they stand at (the mate stands on the ship's deck: M6 tides, give a function, it moves). */
+    private readonly baseY: number | (() => number) = 0,
   ) {
-    this.pos = new THREE.Vector3(x, baseY, z);
+    this.pos = new THREE.Vector3(x, typeof baseY === "function" ? baseY() : baseY, z);
     this.human = makeHuman(MODEL[kind]);
     this.body = this.human ? this.human.root : greyBox(kind);
     this.group.add(this.body);
@@ -115,7 +115,7 @@ export class Figure {
         this.phase += dt * this.speed * 4.5;
       }
     }
-    let y = this.baseY;
+    let y = typeof this.baseY === "function" ? this.baseY() : this.baseY;
     if (this.human) {
       const h = this.human;
       const carrying = this.group.children.length > 1;

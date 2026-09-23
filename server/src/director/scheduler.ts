@@ -11,10 +11,12 @@ import { activityAt } from "../town/schedule.ts";
 import { resident, town, TOWN_EMPLOYER_IDS } from "../town/store.ts";
 import { walkMap } from "../town/walkmap.ts";
 import { setState, state } from "./state.ts";
-import { actionOf, activeActions, endEventActions, isReserved, startAction } from "./actions.ts";
+import { actionOf, activeActions, endAction, endEventActions, isReserved, startAction } from "./actions.ts";
 import { notify } from "./bus.ts";
 import { runConvo } from "./convo.ts";
 import { writeEvent } from "./eventlog.ts";
+import { cleanLeads, fillNames, leadLine, leadSpot, namesIn, pickLeads, type Lead, type LeadAsk } from "./leads.ts";
+import { applyScene, resolveScene, sceneForClient, type Scene } from "./scenes.ts";
 import {
   EVENT_MARGIN_MIN,
   EVENT_MAX_MIN,
@@ -22,13 +24,18 @@ import {
   EVENT_NEAR_M,
   EVENTS_AT_ONCE,
   EVENTS_PER_DAY,
+  EVENT_PEOPLE_MAX,
   GATHER_MAX,
   GATHER_MIN,
   PRICE_MAX,
   PRICE_MIN,
   STAGE_MAX_MIN,
   STAGE_MIN_MIN,
+  MONEY_TO_JEF_RE,
+  SOFTEN,
   StageSchema,
+  VIOLENCE_RE,
+  type LeadRole,
   type GatherRole,
   type Stage,
 } from "./vocab.ts";
@@ -45,7 +52,8 @@ import {
 
 /** A stage as stored: the model's flat object, plus where the engine put it. */
 /** `pre`: an onlookers' gathering already called at the start of the event (Steve: they come before it starts). */
-export type StoredStage = Stage & { x?: number; z?: number; label?: string; pre?: boolean };
+/** `scene`: a scuffle or a robbery as the engine set it up at the stage's start (scenes.ts). */
+export type StoredStage = Stage & { x?: number; z?: number; label?: string; pre?: boolean; scene?: Scene };
 
 export interface EventRow {
   id: number;
@@ -61,6 +69,8 @@ export interface EventRow {
   stage: number;
   stages_json: string;
   people_json: string;
+  /** M4b: the leads, picked at the start (leads.ts). */
+  leads_json: string;
   status: "planned" | "running" | "done" | "cancelled";
   source: string;
   notice: string;
@@ -90,10 +100,11 @@ export interface PlaceSpot {
 
 const stagesOf = (ev: EventRow): StoredStage[] => JSON.parse(ev.stages_json) as StoredStage[];
 const peopleOf = (ev: EventRow): string[] => JSON.parse(ev.people_json) as string[];
+export const leadsOf = (ev: EventRow): Lead[] => JSON.parse(ev.leads_json || "[]") as Lead[];
 
 /** A stage with every field, from a partial one (the templates). */
 export function stage(s: Partial<Stage> & { op: Stage["op"]; minutes: number }): Stage {
-  return { place: "", role: "crowd", count: 0, sound: "none", mood: "calm", props: "none", text: "", item: "", factor: 1, ...s };
+  return { place: "", role: "crowd", count: 0, sound: "none", mood: "calm", props: "none", text: "", item: "", factor: 1, leads: [], ...s };
 }
 
 // ------------------------------------------------------------------ places
@@ -141,18 +152,41 @@ export function resolvePlace(db: DB, name: string): PlaceSpot | null {
 /** The engine's clamp of a stage list: known ops only, minutes and counts in range, at most six, four hours in all. */
 export function cleanStages(raw: unknown[]): Stage[] {
   const out: Stage[] = [];
+  let scenes = 0;
   for (const s of raw.slice(0, EVENT_MAX_STAGES)) {
-    const p = StageSchema.safeParse(s);
+    // stages stored before M4b have no leads
+    const withLeads = s && typeof s === "object" && !Array.isArray((s as { leads?: unknown }).leads) ? { ...(s as object), leads: [] } : s;
+    const p = StageSchema.safeParse(withLeads);
     if (!p.success) continue;
     const st = { ...p.data };
     const num = (n: number, lo: number, hi: number, dflt: number) => (Number.isFinite(n) && n > 0 ? Math.max(lo, Math.min(hi, n)) : dflt);
     st.minutes = Math.round(num(st.minutes, STAGE_MIN_MIN, STAGE_MAX_MIN, STAGE_MIN_MIN));
-    st.count = st.op === "gather" ? Math.round(num(st.count, GATHER_MIN, GATHER_MAX, 6)) : Math.round(num(st.count, 0, GATHER_MAX, 0));
+    st.leads = cleanLeads(st.leads) as Stage["leads"];
+    // the scenes: fixed leads, one scene an event
+    if (st.op === "scuffle") {
+      if (scenes++) continue;
+      const two = st.leads.filter((l) => l === "quarreller" || l === "drunkard").slice(0, 2);
+      while (two.length < 2) two.push("quarreller");
+      st.leads = two;
+    }
+    if (st.op === "robbery") {
+      if (scenes++) continue;
+      st.leads = ["pickpocket", "victim"];
+    }
+    if (st.op === "gather") {
+      const c = Number.isFinite(st.count) ? st.count : 6;
+      st.count = Math.round(c <= 0 ? (st.leads.length ? 0 : 6) : Math.max(st.leads.length ? 1 : GATHER_MIN, Math.min(GATHER_MAX, c)));
+    } else st.count = Math.round(num(st.count, 0, GATHER_MAX, 0));
     st.factor = st.op === "price" ? num(st.factor, PRICE_MIN, PRICE_MAX, 1) : 1;
-    st.text = plainEnglish(st.text).slice(0, 160);
+    st.text = softText(st.text).slice(0, 160);
     st.item = st.item.trim().toLowerCase();
     if (st.op === "price" && !(st.item in ITEMS)) continue;
     out.push(st);
+  }
+  // a scene first thing: its two walk there before it plays
+  if (out[0] && (out[0].op === "scuffle" || out[0].op === "robbery")) {
+    out.unshift(stage({ op: "gather", minutes: 60, count: 0, place: out[0].place, leads: [...out[0].leads], mood: out[0].op === "robbery" ? "calm" : "tense" }));
+    if (out.length > EVENT_MAX_STAGES) out.pop();
   }
   let total = 0;
   const kept: Stage[] = [];
@@ -162,6 +196,27 @@ export function cleanStages(raw: unknown[]): Stage[] {
     kept.push(s);
   }
   return kept;
+}
+
+/**
+ * M4b: the engine's words check on everything the director writes. Money handed to Jef is
+ * struck out (only jobs and shops pay); a fight is a scuffle; plain English.
+ */
+export function softText(t: string): string {
+  let out = plainEnglish(t ?? "");
+  out = out.replace(MONEY_TO_JEF_RE, " ");
+  for (const [re, to] of SOFTEN) out = out.replace(re, to);
+  return out.replace(/\s{2,}/g, " ").trim();
+}
+
+/** A weapon, a killing, someone hurt: the event is refused whole (no combat in this game). */
+export function violent(plan: Pick<EventPlan, "title" | "notice" | "rumour" | "stages">): string | null {
+  const texts = [plan.title, plan.notice ?? "", plan.rumour ?? "", ...plan.stages.map((s) => (s as { text?: string }).text ?? "")];
+  for (const t of texts) {
+    const m = VIOLENCE_RE.exec(t ?? "");
+    if (m) return m[0];
+  }
+  return null;
 }
 
 // ------------------------------------------------------------------ rows
@@ -182,13 +237,44 @@ export function eventsToday(db: DB): EventRow[] {
 
 export type PlanResult = { ok: true; event: EventRow } | { ok: false; why: string };
 
+/** Leads an event is refused without: a wedding needs its couple, a scene its two. */
+const MUST_LEADS: LeadRole[] = ["bride", "groom", "pickpocket", "victim", "quarreller"];
+
+/** Every lead the stages name, with where they first stand. */
+function leadAsks(db: DB, stages: Stage[], place: PlaceSpot): LeadAsk[] {
+  const out: LeadAsk[] = [];
+  stages.forEach((s, i) => {
+    if (s.op === "procession" || !s.leads.length) return;
+    const p = s.place ? resolvePlace(db, s.place) : null;
+    const at = p ?? place;
+    for (const role of s.leads) out.push({ role, stage: i, at: { x: at.x, z: at.z } });
+  });
+  // leads named only in a procession start at the event's place
+  stages.forEach((s) => {
+    if (s.op !== "procession") return;
+    for (const role of s.leads) if (!out.some((a) => a.role === role)) out.push({ role, stage: 0, at: { x: place.x, z: place.z } });
+  });
+  return out;
+}
+
 /** Plan an event: the checks, then the row. Nothing happens until its start. */
 /** `dev`: the dev buttons skip the day's count and the two-at-once cap; the place, 60 m and people rules still hold. */
 export function planEvent(db: DB, plan: EventPlan, opts: { dev?: boolean } = {}): PlanResult {
+  const bad = violent(plan);
+  if (bad) return { ok: false, why: `no combat in this town: "${bad}"` };
   const place = resolvePlace(db, plan.place);
   if (!place) return { ok: false, why: `no such place: ${plan.place}` };
   const stages = cleanStages(plan.stages);
   if (!stages.length) return { ok: false, why: "no stages the engine can play" };
+  // the leads a scene or a wedding cannot do without: is there anyone free to play them now?
+  const asks = leadAsks(db, stages, place);
+  if (asks.length) {
+    const taken = new Set(liveEvents(db).flatMap((o) => [...peopleOf(o), ...leadsOf(o).map((l) => l.id)]));
+    const { missing } = pickLeads(db, asks, taken, "dry");
+    const must = missing.filter((m) => MUST_LEADS.includes(m));
+    if (must.length) return { ok: false, why: `nobody free to be ${[...new Set(must)].join(", ")}` };
+  }
+  plan = { ...plan, title: softText(plan.title), notice: softText(plan.notice ?? ""), rumour: softText(plan.rumour ?? "") };
   const now = gameMinute(db);
   const start = now + Math.max(0, Math.min(180, Math.round(plan.start_in_min)));
   const end = start + stages.reduce((a, s) => a + s.minutes, 0);
@@ -249,6 +335,11 @@ export function eventsTick(db: DB): number {
     let guard = 0;
     while (cur.status === "running" && now >= stageEnd(cur, stages, cur.stage) && guard++ < 10) {
       const next = cur.stage + 1;
+      // a scene that just played is settled by the engine
+      if (stagesOf(cur)[cur.stage]?.scene && !stagesOf(cur)[cur.stage].scene!.resolved) {
+        resolveScene(db, cur, cur.stage);
+        cur = eventRow(db, cur.id)!;
+      }
       if (next >= stages.length) {
         finishEvent(db, cur, "done");
         changed++;
@@ -266,17 +357,27 @@ export function eventsTick(db: DB): number {
 
 function startEvent(db: DB, ev: EventRow): void {
   db.prepare("UPDATE town_event SET status = 'running', stage = 0 WHERE id = ?").run(ev.id);
-  const cur = eventRow(db, ev.id)!;
-  writeEvent(db, { kind: "event", verb: "started", text: `${cur.title} began at ${stagesOf(cur)[0]?.label ?? cur.place}.`, place: cur.place, x: cur.x, z: cur.z, ref_type: "town_event", ref_id: cur.id, weight: 6 });
-  if (cur.notice) postNotice(db, cur, cur.notice);
+  let cur = eventRow(db, ev.id)!;
   const stages = stagesOf(cur);
+  // M4b: the leads first (the bride and groom, the musicians ...), so the notice can name them
+  const leads = castLeads(db, cur, stages);
+  if (leads === null) {
+    finishEvent(db, cur, "cancelled", "nobody free to play the leading parts");
+    return;
+  }
+  cur = eventRow(db, ev.id)!;
+  const who = leadLine(leads);
+  writeEvent(db, { kind: "event", verb: "started", text: `${cur.title} began at ${stages[0]?.label ?? cur.place}${who ? `, with ${who}` : ""}.`, place: cur.place, x: cur.x, z: cur.z, ref_type: "town_event", ref_id: cur.id, weight: 6, who: leads.map((l) => l.id) });
+  if (cur.notice) postNotice(db, cur, cur.notice);
   applyStage(db, cur, stages[0], 0);
   // Steve, 2026-09-24: "onlookers should already come running, walking, biking or take the tram to the
   // event". Every later gathering of onlookers (role crowd) is called now, so the crowd is already
   // there when the event visibly starts; at its own turn the stage keeps only its sound and mood.
+  // Not for a robbery: nobody knows it is coming.
+  const secret = stages.some((s) => s.op === "robbery");
   let pre = false;
   stages.forEach((s, i) => {
-    if (i === 0 || s.op !== "gather" || s.role !== "crowd") return;
+    if (i === 0 || s.op !== "gather" || s.role !== "crowd" || secret || !s.count) return;
     gather(db, eventRow(db, cur.id)!, s.role, s.count, { x: s.x ?? cur.x, z: s.z ?? cur.z }, s.label ?? cur.place);
     s.pre = true;
     pre = true;
@@ -284,7 +385,59 @@ function startEvent(db: DB, ev: EventRow): void {
   if (pre) db.prepare("UPDATE town_event SET stages_json = ? WHERE id = ?").run(JSON.stringify(stages), cur.id);
 }
 
-function finishEvent(db: DB, ev: EventRow, status: "done" | "cancelled"): void {
+/**
+ * M4b: pick the leads (leads.ts), give each an attend action to their spot at the place of
+ * the stage that first names them, and put them first in the event's people. null: a lead
+ * the event cannot do without was nobody free.
+ */
+function castLeads(db: DB, ev: EventRow, stages: StoredStage[]): Lead[] | null {
+  const asks: LeadAsk[] = [];
+  stages.forEach((s, i) => {
+    if (s.op === "procession") return;
+    for (const role of cleanLeads(s.leads)) asks.push({ role, stage: i, at: { x: s.x ?? ev.x, z: s.z ?? ev.z } });
+  });
+  stages.forEach((s) => {
+    if (s.op !== "procession") return;
+    for (const role of cleanLeads(s.leads)) if (!asks.some((a) => a.role === role)) asks.push({ role, stage: 0, at: { x: stages[0]?.x ?? ev.x, z: stages[0]?.z ?? ev.z } });
+  });
+  if (!asks.length) return [];
+  const taken = new Set(liveEvents(db).filter((o) => o.id !== ev.id).flatMap((o) => [...peopleOf(o), ...leadsOf(o).map((l) => l.id)]));
+  const { leads, missing } = pickLeads(db, asks, taken, String(ev.id));
+  if (missing.some((m) => MUST_LEADS.includes(m))) return null;
+  if (missing.length) writeEvent(db, { kind: "event", verb: "no_lead", text: `${ev.title}: nobody free to be ${[...new Set(missing)].join(", ")}; it goes on without.`, ref_type: "town_event", ref_id: ev.id, weight: 1 });
+  const now = gameMinute(db);
+  const wm = walkMap();
+  leads.forEach((l, i) => {
+    const s = stages[l.stage];
+    const at = { x: s?.x ?? ev.x, z: s?.z ?? ev.z };
+    const spot = leadSpot(l, leads, at);
+    const q = wm.nearestOpen(spot.x, spot.z, 4) ?? at;
+    startAction(db, { npc_id: l.id, kind: "attend", target: ev.title, target_x: q.x, target_z: q.z, source: "event", event_id: ev.id, minutes: Math.max(5, ev.end_m - now), data: { order: i, about: s?.label ?? ev.place, role: "lead", lead: l.role, n: l.n } });
+  });
+  const people = [...leads.map((l) => l.id), ...peopleOf(ev).filter((id) => !leads.some((l) => l.id === id))];
+  db.prepare("UPDATE town_event SET leads_json = ?, people_json = ? WHERE id = ?").run(JSON.stringify(leads), JSON.stringify(people), ev.id);
+  return leads;
+}
+
+/** The police agent on duty for a scene: a lead of the engine's own, sent to the spot. */
+export function castAgent(db: DB, ev: EventRow, agentId: string, spot: { x: number; z: number }): void {
+  const r = resident(db, agentId);
+  if (!r) return;
+  const leads = leadsOf(ev);
+  if (leads.some((l) => l.id === agentId)) return;
+  const lead: Lead = { role: "agent", id: agentId, name: r.name, stage: ev.stage };
+  const q = walkMap().nearestOpen(spot.x, spot.z, 4) ?? spot;
+  startAction(db, { npc_id: agentId, kind: "attend", target: ev.title, target_x: q.x, target_z: q.z, source: "event", event_id: ev.id, minutes: Math.max(5, ev.end_m - gameMinute(db)), data: { order: peopleOf(ev).length, about: ev.place, role: "lead", lead: "agent" } });
+  db.prepare("UPDATE town_event SET leads_json = ?, people_json = ? WHERE id = ?").run(JSON.stringify([...leads, lead]), JSON.stringify([...peopleOf(ev), agentId]), ev.id);
+}
+
+function finishEvent(db: DB, ev: EventRow, status: "done" | "cancelled", why = ""): void {
+  // a scene that was playing is settled by the engine first
+  if (status === "done" && ev.stage >= 0) {
+    const st = stagesOf(ev)[ev.stage];
+    if (st?.scene && !st.scene.resolved) resolveScene(db, ev, ev.stage);
+    ev = eventRow(db, ev.id) ?? ev;
+  }
   db.prepare("UPDATE town_event SET status = ? WHERE id = ?").run(status, ev.id);
   endEventActions(db, ev.id);
   // prices back, places open again
@@ -297,7 +450,7 @@ function finishEvent(db: DB, ev: EventRow, status: "done" | "cancelled"): void {
   if (status === "done") {
     if (ev.rumour) postRumour(db, ev, ev.rumour);
     writeEvent(db, { kind: "event", verb: "ended", text: `${ev.title} ended.`, place: ev.place, x: ev.x, z: ev.z, ref_type: "town_event", ref_id: ev.id, weight: 4, who: peopleOf(ev) });
-  } else writeEvent(db, { kind: "event", verb: "cancelled", text: `${ev.title} was called off.`, place: ev.place, ref_type: "town_event", ref_id: ev.id, weight: 2 });
+  } else writeEvent(db, { kind: "event", verb: "cancelled", text: `${ev.title} was called off${why ? ` (${why})` : ""}.`, place: ev.place, ref_type: "town_event", ref_id: ev.id, weight: 2 });
   notify("events");
 }
 
@@ -307,19 +460,32 @@ function applyStage(db: DB, ev: EventRow, s: StoredStage, i: number): void {
   const at = { x: s.x ?? ev.x, z: s.z ?? ev.z };
   switch (s.op) {
     case "gather":
-      if (!s.pre) gather(db, ev, s.role, s.count, at, s.label ?? ev.place);
+      if (!s.pre && s.count > 0) gather(db, ev, s.role, s.count, at, s.label ?? ev.place);
       break;
     case "procession":
-      procession(db, ev, at);
+      procession(db, ev, at, cleanLeads(s.leads));
       break;
     case "talk": {
-      const people = peopleOf(ev).filter((id) => (resident(db, id)?.age ?? 0) >= 14);
+      // the stage's two leads if it names two (the quarrellers), else two of the gathered who are not leads
+      const leads = leadsOf(ev);
+      const named = cleanLeads(s.leads).flatMap((role) => leads.filter((l) => l.role === role).map((l) => l.id));
+      const others = peopleOf(ev).filter((id) => !leads.some((l) => l.id === id) && (resident(db, id)?.age ?? 0) >= 14);
+      const all = peopleOf(ev).filter((id) => (resident(db, id)?.age ?? 0) >= 14);
+      const people = [...new Set(named)].length >= 2 ? [...new Set(named)] : others.length >= 2 ? others : all;
       if (people.length >= 2) {
         const purpose = s.mood === "tense" ? "argue" : "chat";
-        void runConvo(db, { a: people[0], b: people[1], purpose, about: s.text || ev.title, event_id: ev.id }).catch((e) => console.warn("[events] talk", e));
+        const who = leadLine(leads);
+        // the talkers' parts go with it, so the model knows who is the preacher and who the drunk
+        const parts = leadLine(leads.filter((l) => l.id === people[0] || l.id === people[1]));
+        const tell = parts ? `; ${parts}` : who ? ` (${who})` : "";
+        void runConvo(db, { a: people[0], b: people[1], purpose, about: `${s.text || ev.title}${tell}`, event_id: ev.id }).catch((e) => console.warn("[events] talk", e));
       }
       break;
     }
+    case "scuffle":
+    case "robbery":
+      applyScene(db, ev, s, i);
+      break;
     case "notice":
       if (s.text) postNotice(db, ev, s.text);
       break;
@@ -354,13 +520,22 @@ function applyStage(db: DB, ev: EventRow, s: StoredStage, i: number): void {
   writeEvent(db, { kind: "event", verb: `stage_${s.op}`, text: `${ev.title}: ${s.op}${s.label ? ` at ${s.label}` : ""}${s.text ? ` (${s.text})` : ""}.`, place: ev.place, x: at.x, z: at.z, ref_type: "town_event", ref_id: ev.id, weight: i === 0 ? 3 : 2 });
 }
 
+/** M4b: the leads' names in a notice or a rumour: "{bride}" filled in, or the names added. */
+export function withNames(ev: EventRow, text: string): string {
+  const leads = leadsOf(ev).filter((l) => l.role !== "agent");
+  let t = fillNames(plainEnglish(text), leads);
+  if (leads.length && !namesIn(t, leads)) t = `${t.replace(/[.\s]*$/, ".")} With ${leadLine(leads)}.`;
+  return t;
+}
+
 function postNotice(db: DB, ev: EventRow, text: string): void {
-  db.prepare("INSERT INTO world_fact (text, weight, day, tags) VALUES (?, 5, ?, ?)").run(plainEnglish(text).slice(0, 160), clock(db).day, `notice,event:${ev.id}`);
-  writeEvent(db, { kind: "event", verb: "notice", text: `A notice went up: ${text}`, place: ev.place, ref_type: "town_event", ref_id: ev.id, weight: 3 });
+  const t = withNames(ev, text).slice(0, 240);
+  db.prepare("INSERT INTO world_fact (text, weight, day, tags) VALUES (?, 5, ?, ?)").run(t, clock(db).day, `notice,event:${ev.id}`);
+  writeEvent(db, { kind: "event", verb: "notice", text: `A notice went up: ${t}`, place: ev.place, ref_type: "town_event", ref_id: ev.id, weight: 3, who: leadsOf(ev).map((l) => l.id) });
 }
 
 function postRumour(db: DB, ev: EventRow, text: string): void {
-  const t = plainEnglish(text).slice(0, 160);
+  const t = withNames(ev, text).slice(0, 240);
   db.prepare("INSERT INTO world_fact (text, weight, day, tags) VALUES (?, 6, ?, ?)").run(t, clock(db).day, `rumour,event:${ev.id}`);
   for (const id of peopleOf(ev).slice(0, 12)) remember(db, id, t, 4);
   writeEvent(db, { kind: "rumour", verb: "town_rumour", text: t, place: ev.place, ref_type: "town_event", ref_id: ev.id, weight: 4 });
@@ -396,7 +571,7 @@ function fits(r: Resident, role: GatherRole, db: DB): boolean {
 /** The people of a gathering: free, fitting, near, not in anything else; each gets an attend action to a ring round the spot. */
 export function gather(db: DB, ev: EventRow, role: GatherRole, count: number, at: { x: number; z: number }, label: string): string[] {
   const have = peopleOf(ev);
-  const inOthers = new Set(liveEvents(db).filter((o) => o.id !== ev.id).flatMap(peopleOf));
+  const inOthers = new Set(liveEvents(db).filter((o) => o.id !== ev.id).flatMap((o) => [...peopleOf(o), ...leadsOf(o).map((l) => l.id)]));
   const busy = new Set(activeActions(db).map((a) => a.npc_id));
   const wm = walkMap();
   const hash = (s: string) => {
@@ -413,14 +588,29 @@ export function gather(db: DB, ev: EventRow, role: GatherRole, count: number, at
     const hh = pool[0].household;
     pool = pool.filter((r) => r.household === hh);
   }
-  const picked = pool.slice(0, Math.max(GATHER_MIN, Math.min(GATHER_MAX, count)));
+  // M4b: one event never takes more than EVENT_PEOPLE_MAX of the town, leads included
+  const room = Math.max(0, EVENT_PEOPLE_MAX - have.length);
+  const picked = pool.slice(0, Math.min(room, Math.max(GATHER_MIN, Math.min(GATHER_MAX, count))));
   const n = picked.length;
-  // the musicians play in the middle, close together; everyone else stands round them
-  const ring = role === "musicians" ? 0.9 : Math.min(Math.max(2.5, ev.r * 0.6), 6) + n / 5;
   const now = gameMinute(db);
+  // M4b: up to a hundred round the leads, in rows: the first ring a few metres out, then ring
+  // after ring a metre further, a place every 0.9 m; a later gathering fills the rows behind
+  const inRing = have.length - leadsOf(ev).length;
+  const r0 = Math.min(Math.max(2.5, ev.r * 0.35), 4);
+  const slot = (k: number): { d: number; a: number } => {
+    let j = 0;
+    let left = k;
+    for (;;) {
+      const cap = Math.max(6, Math.floor((2 * Math.PI * (r0 + j)) / 0.9));
+      if (left < cap) return { d: r0 + j, a: (left / cap) * Math.PI * 2 + j * 0.37 };
+      left -= cap;
+      j++;
+    }
+  };
   picked.forEach((r, i) => {
-    const a = (i / Math.max(1, n)) * Math.PI * 2 + hash(ev.id + ":" + i) * 0.4;
-    const q = wm.nearestOpen(at.x + Math.cos(a) * ring, at.z + Math.sin(a) * ring, 6) ?? at;
+    // the old musicians' role plays in the middle, close together; everyone else stands in the rows
+    const { d, a } = role === "musicians" ? { d: 0.9, a: (i / Math.max(1, n)) * Math.PI * 2 } : slot(Math.max(0, inRing) + i);
+    const q = wm.nearestOpen(at.x + Math.cos(a) * d, at.z + Math.sin(a) * d, 6) ?? at;
     startAction(db, { npc_id: r.id, kind: "attend", target: ev.title, target_x: q.x, target_z: q.z, source: "event", event_id: ev.id, minutes: Math.max(5, ev.end_m - now), data: { order: have.length + i, about: label, role } });
   });
   const all = [...have, ...picked.map((r) => r.id)];
@@ -428,10 +618,23 @@ export function gather(db: DB, ev: EventRow, role: GatherRole, count: number, at
   return picked.map((r) => r.id);
 }
 
-/** The gathered walk in a column to the stage's place; the event moves there. */
-function procession(db: DB, ev: EventRow, to: { x: number; z: number }): void {
+/**
+ * The gathered walk in a column to the stage's place; the event moves there. M4b: the
+ * stage's leads walk first, in their order (the groom, then the bride on his arm; the
+ * bearers two by two); a priest who is not named stays at his church.
+ */
+function procession(db: DB, ev: EventRow, to: { x: number; z: number }, first: LeadRole[] = []): void {
   const wm = walkMap();
-  const people = peopleOf(ev);
+  const leads = leadsOf(ev);
+  const front: string[] = [];
+  for (const role of first) for (const l of leads.filter((x) => x.role === role).sort((a, b) => (a.n ?? 0) - (b.n ?? 0))) if (!front.includes(l.id)) front.push(l.id);
+  const stays = leads.filter((l) => l.role === "priest" && !first.includes("priest")).map((l) => l.id);
+  for (const id of stays) {
+    const a = actionOf(db, id);
+    if (a && a.event_id === ev.id) endAction(db, a.id, "done", "stays at the church");
+  }
+  const people = [...front, ...peopleOf(ev).filter((id) => !front.includes(id) && !stays.includes(id))];
+  db.prepare("UPDATE town_event SET people_json = ? WHERE id = ?").run(JSON.stringify([...people, ...stays]), ev.id);
   people.forEach((id, i) => {
     const a = actionOf(db, id);
     if (!a || a.event_id !== ev.id) return;
@@ -507,8 +710,11 @@ export function publicEvent(db: DB, ev: EventRow) {
     r: ev.r,
     status: ev.status,
     stage: ev.stage,
-    stages: stages.map((s) => ({ op: s.op, minutes: s.minutes, sound: s.sound, mood: s.mood, props: s.props, x: s.x ?? ev.x, z: s.z ?? ev.z, label: s.label ?? ev.place, text: s.text, count: s.count })),
+    stages: stages.map((s) => ({ op: s.op, minutes: s.minutes, sound: s.sound, mood: s.mood, props: s.props, x: s.x ?? ev.x, z: s.z ?? ev.z, label: s.label ?? ev.place, text: s.text, count: s.count, leads: s.leads ?? [] })),
     people: peopleOf(ev),
+    /** M4b: the leads with their parts, and the scene now playing (a scuffle, a robbery). */
+    leads: leadsOf(ev).map((l) => ({ role: l.role, id: l.id, name: l.name, n: l.n ?? 0 })),
+    scene: ev.status === "running" && ev.stage >= 0 ? sceneForClient(stages[ev.stage]) : null,
     /** Game minutes left in the stage now playing (the client starts a late sound for the rest of it). */
     stage_left: ev.status === "running" && ev.stage >= 0 ? Math.max(0, stageEnd(ev, stages, ev.stage) - now) : 0,
     starts_in: Math.max(0, ev.start_m - now),

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { psx } from "../retro/psx";
 import type { Rect } from "./geom";
+import { HW_MAX, LW_MIN, MHW, MID_Y, MLW, WADE, levelAt } from "./tide";
 
 // Stone steps down the quay walls to the water, and iron ladders to climb out
 // (Steve, 2026-09-23: "stairs that go to water like in some sample images, also
@@ -57,6 +58,36 @@ export function slimeShade(waterY: number, dry: V3 = [1, 1, 1]): (y: number) => 
 
 /** Heights where the slime colours change: tall faces are cut there so the bands stay sharp. */
 export const slimeCuts = (waterY: number) => [waterY - 0.4, waterY + 0.15, waterY + 0.8, waterY + 1.5];
+
+/**
+ * The tidal wall (M6 tides, world/tide.ts): black mud and weed below low water, green slime up
+ * through the tide range, a dark wet band at the high-water mark, dry stone only above the springs.
+ */
+const TIDE_STOPS: Array<[number, V3]> = [
+  [LW_MIN - 0.3, [0.24, 0.25, 0.19]],
+  [MLW + 0.3, [0.3, 0.35, 0.24]],
+  [MID_Y, [0.37, 0.43, 0.3]],
+  [MHW - 0.25, [0.45, 0.48, 0.38]],
+  [MHW + 0.15, [0.6, 0.6, 0.54]],
+  [HW_MAX + 0.35, [1, 1, 1]],
+];
+export function tideShade(dry: V3 = [1, 1, 1]): (y: number) => V3 {
+  const stops = TIDE_STOPS.map(([y, c], i): [number, V3] => [y, i === TIDE_STOPS.length - 1 ? dry : c]);
+  return (y) => {
+    if (y <= stops[0][0]) return stops[0][1];
+    for (let i = 1; i < stops.length; i++) {
+      const [y1, c1] = stops[i];
+      if (y <= y1) {
+        const [y0, c0] = stops[i - 1];
+        const k = (y - y0) / (y1 - y0);
+        return [c0[0] + (c1[0] - c0[0]) * k, c0[1] + (c1[1] - c0[1]) * k, c0[2] + (c1[2] - c0[2]) * k];
+      }
+    }
+    return dry;
+  };
+}
+/** Where the tidal wall's colours change (cut tall faces there). */
+export const tideCuts = (): number[] => TIDE_STOPS.map(([y]) => y);
 
 /**
  * A merged mesh built from boxes and rods, with world-space UVs and a colour per
@@ -193,9 +224,12 @@ const RAIL_H = 1.0;
 export interface QuaySteps {
   /** Height of a step or landing under (x, z), or null when not on a flight. `landing` tells which. */
   heightAt(x: number, z: number): { y: number; landing: boolean } | null;
-  /** Stone of a flight (steps, parapet, landing) within pad metres: solid for a swimmer. */
-  solidAt(x: number, z: number, pad: number): boolean;
-  /** The nearest place to climb out within reach, or null. */
+  /**
+   * Stone of a flight (steps, parapet, landing) within pad metres: solid for a swimmer. With a water
+   * level (M6 tides), stone under more than WADE metres of water is not in the way.
+   */
+  solidAt(x: number, z: number, pad: number, level?: number): boolean;
+  /** The nearest place to climb out within reach at the water level now (tide.ts levelAt), or null. */
   exitNear(x: number, z: number, reach: number): Exit | null;
   /** Rails and ladder hoops on the quay: they block walking. */
   colliders: Rect[];
@@ -214,17 +248,19 @@ export interface QuaySteps {
 }
 
 export function quaySteps(waterY: number, tex: { stone: THREE.Texture; iron: THREE.Texture }): QuaySteps {
-  const bedY = waterY - 1.5;
+  // M6 tides: the stone goes down below the lowest spring tide; the landing stays just above half
+  // tide (waterY), so it floods at high water and stands high and dry at low water
+  const bedY = LW_MIN - 1.0;
   const landY = waterY + 0.4;
   const steps = Math.max(4, Math.round(-landY / 0.185));
   const rise = -landY / steps;
   const flightLen = steps * TREAD;
-  const cuts = slimeCuts(waterY);
+  const cuts = tideCuts();
 
   const stoneMat = psx(new THREE.MeshLambertMaterial({ map: tex.stone, vertexColors: true }), { affine: 0.3 });
   const ironMat = psx(new THREE.MeshLambertMaterial({ map: tex.iron, vertexColors: true }), { affine: 0.3 });
-  let stone = new Geo(slimeShade(waterY), 2, cuts);
-  let iron = new Geo(slimeShade(waterY, [0.9, 0.86, 0.82]), 1, cuts);
+  let stone = new Geo(tideShade(), 2, cuts);
+  let iron = new Geo(tideShade([0.9, 0.86, 0.82]), 1, cuts);
 
   const stairs: Stair[] = [];
   const exits: Exit[] = [];
@@ -244,7 +280,7 @@ export function quaySteps(waterY: number, tex: { stone: THREE.Texture; iron: THR
     const half = 0.23;
     const u0 = 0.11; // stiles stand this far off the wall
     const u1 = 0.16;
-    const foot = waterY - 1.1;
+    const foot = LW_MIN - 0.7; // below the lowest spring tide
     const top = topY + 0.95; // the hoop over the edge, to grab
     for (const side of [-1, 1]) {
       const sc = s + side * half;
@@ -348,18 +384,63 @@ export function quaySteps(waterY: number, tex: { stone: THREE.Texture; iron: THR
     return null;
   }
 
-  function solidAt(x: number, z: number, pad: number): boolean {
+  /**
+   * The top of the stone of a flight near (s, u) in its frame, `pad` metres round: the treads fall
+   * along s, so the highest stone lies toward the top; the parapet stands 0.85 m over its tread.
+   */
+  function stoneTop(st: Stair, s: number, u: number, pad: number): number {
+    const end = st.flight + st.land;
+    const s0 = Math.max(-1, s - pad);
+    if (s0 < 0) return 0.4; // the head of the flight and its parapet
+    const tread = (sx: number) => (sx <= st.flight ? -Math.min(steps, Math.floor(sx / TREAD) + 1) * rise : sx > end - 0.2 ? st.landY + 0.12 : st.landY);
+    let top = tread(Math.min(s0, end));
+    if (u + pad > WIDTH) {
+      const sp = Math.min(s0, end);
+      const par = sp <= st.flight ? Math.min(tread(sp) + 0.85, 0.3) + 0.07 : sp <= st.flight + 0.7 ? st.landY + 0.92 : st.landY + 0.12;
+      top = Math.max(top, par);
+    }
+    return top;
+  }
+
+  function solidAt(x: number, z: number, pad: number, level?: number): boolean {
     for (const st of stairs) {
       const [s, u] = toFrame(st.f, x, z);
-      if (s > -pad && s < st.flight + st.land + pad && u > -0.5 && u < WIDTH + PARAPET + pad) return true;
+      if (s > -pad && s < st.flight + st.land + pad && u > -0.5 && u < WIDTH + PARAPET + pad) {
+        // M6 tides: with a level given, a flight under deep water is open water for a swimmer
+        if (level === undefined || stoneTop(st, s, u, pad) > level - WADE) return true;
+      }
     }
     return false;
+  }
+
+  /** M6 tides: where a swimmer finds his feet on a flooded flight: the treads at wading depth. */
+  function floodExit(st: Stair, level: number): Exit | null {
+    const deep = level - WADE; // the tread at this height is where swimming stops
+    if (deep <= st.landY + 0.05 || deep >= 0) return null;
+    const sLine = (deep / st.landY) * st.flight; // on the smooth slope heightAt uses
+    const sOut = Math.max(0.3, ((level - 0.55) / st.landY) * st.flight); // knee to thigh deep
+    const [gx, gz] = onFrame(st.f, Math.min(st.flight + st.land - 0.4, sLine + 0.75), WIDTH / 2);
+    const [tx, tz] = onFrame(st.f, sOut, WIDTH / 2);
+    return { kind: "landing", gx, gz, nx: st.f.tx, nz: st.f.tz, tx, tz, ty: (st.landY * sOut) / st.flight };
   }
 
   function exitNear(x: number, z: number, reach: number): Exit | null {
     let best: Exit | null = null;
     let bd = reach;
+    const level = levelAt(x, z);
     for (const e of exits) {
+      // a ladder whose top is under water, or a landing that is too deep or too high to climb onto
+      if (e.kind === "ladder" ? e.ty < level + 0.3 : level > e.ty + WADE || level < e.ty - 0.9) continue;
+      const d = Math.hypot(e.gx - x, e.gz - z);
+      if (d < bd) {
+        bd = d;
+        best = e;
+      }
+    }
+    for (const st of stairs) {
+      if (level <= st.landY + WADE) continue;
+      const e = floodExit(st, level);
+      if (!e) continue;
       const d = Math.hypot(e.gx - x, e.gz - z);
       if (d < bd) {
         bd = d;
@@ -376,8 +457,8 @@ export function quaySteps(waterY: number, tex: { stone: THREE.Texture; iron: THR
       mesh.name = name;
       scene.add(mesh);
     }
-    stone = new Geo(slimeShade(waterY), 2, cuts);
-    iron = new Geo(slimeShade(waterY, [0.9, 0.86, 0.82]), 1, cuts);
+    stone = new Geo(tideShade(), 2, cuts);
+    iron = new Geo(tideShade([0.9, 0.86, 0.82]), 1, cuts);
   }
 
   return { heightAt, solidAt, exitNear, colliders, ladders, flights, outlines, addFlight, addLadder, flush };

@@ -1,0 +1,56 @@
+/* ---- M6: interiors (game/interiors.ts): the fade at a door, the dice, the Poesje's caption ---- */
+.room-fade {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s;
+  z-index: 8;
+}
+.room-fade.on { opacity: 1; }
+
+.dice-panel {
+  position: fixed;
+  left: 50%;
+  bottom: 7%;
+  transform: translateX(-50%) rotate(-0.5deg);
+  width: min(520px, 86vw);
+  background: #d4cab0;
+  padding: 10px 22px 8px;
+  font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  color: #2a2420;
+  box-shadow: 0 8px 36px rgba(0, 0, 0, 0.8);
+  filter: sepia(0.35);
+  z-index: 6;
+}
+.dice-panel h3 { margin: 0 0 6px; font-size: 18px; }
+.dice-panel .row { display: flex; align-items: center; gap: 12px; font-size: 16px; margin: 2px 0; }
+.dice-panel .row .who { width: 90px; }
+.dice-panel .row .faces { font-family: "Segoe UI Symbol", "DejaVu Sans", serif; font-size: 34px; letter-spacing: 4px; line-height: 1; }
+.dice-panel .row .score { font-weight: bold; }
+.dice-panel .line { font-size: 15px; margin: 6px 0 4px; min-height: 1.3em; }
+.dice-panel .keys { font-size: 12px; opacity: 0.75; margin: 4px 0 0; }
+.dice-panel .won { color: #2a5a20; }
+.dice-panel .lost { color: #7a1a14; }
+
+.poesje-caption {
+  position: fixed;
+  left: 50%;
+  bottom: 5%;
+  transform: translateX(-50%);
+  max-width: min(760px, 90vw);
+  text-align: center;
+  color: #efe4c8;
+  font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  font-size: 19px;
+  line-height: 1.35;
+  text-shadow: 0 0 8px #000, 0 0 3px #000;
+  opacity: 0;
+  transition: opacity 0.4s;
+  pointer-events: none;
+  z-index: 5;
+}
+.poesje-caption.on { opacity: 1; }
+.poesje-caption b { color: #e0b060; }
+.poesje-caption.title { font-size: 24px; letter-spacing: 1px; }

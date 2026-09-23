@@ -1,11 +1,13 @@
-import { api, type ActionsPayload, type PublicAction, type PushMsg } from "../net/api";
+import * as THREE from "three";
+import { api, type ActionsPayload, type Convo, type EventScene, type PublicAction, type PushMsg } from "../net/api";
 import type { FirstPerson } from "../player/firstPerson";
 import type { World } from "../world/rijnkaai";
 import { STOPS as OMNIBUS_STOPS, type OmnibusStop } from "../world/omnibus";
 import type { Crowd, Puppet } from "./crowd";
 import type { Events } from "./events";
 import type { Town } from "./town";
-import { INSTRUMENTS, makeInstrument, playInstrument, type Instrument } from "./instruments";
+import { INSTRUMENTS, makeInstrument, playInstrument, type Instrument, type InstrumentKind } from "./instruments";
+import { makeCoffin, makeWear, playWear, WARDROBE_ROLES, type Wear, type WardrobeRole } from "./wardrobe";
 
 // Townspeople who act (M4), on the client. The server keeps every action as a
 // row (director/actions.ts) and decides what it means; this side walks the
@@ -38,6 +40,13 @@ const hash01 = (s: string) => {
   return (h >>> 0) / 4294967296;
 };
 const STUCK_S = 12;
+/** M4b: the lead roles that play an instrument. */
+const PLAYS: Record<string, InstrumentKind> = { organ_grinder: "organ", fiddler: "fiddle", accordionist: "accordion" };
+/** Leads who walk at another's side in a procession: the bride on the groom's arm; bearers two by two. */
+const SIDE_BY_SIDE = 14;
+/** A scuffle, in real seconds once the two stand face to face: words, then pushing and shoving. */
+const SCUFFLE_WORDS_S = 5;
+const SCUFFLE_SHOVE_S = 12;
 
 interface Run {
   a: PublicAction;
@@ -56,6 +65,10 @@ interface Run {
   tramT?: number;
   /** attend as a musician: standing in the middle, playing. */
   playing?: boolean;
+  /** M4b: a scene's lines shown once (the shout, the agent's word, the loser's). */
+  said?: Set<string>;
+  /** M4b: a scene's walk issued (the thief's run, the agent's chase). */
+  sceneGo?: number;
 }
 
 export class Actions {
@@ -75,6 +88,15 @@ export class Actions {
   /** The street musicians' instruments, by person (game/instruments.ts). */
   private instruments = new Map<string, { i: Instrument; p: Puppet }>();
   private clock = 0;
+  /** M4b: the leads' wardrobe by person (game/wardrobe.ts), and the coffins by event. */
+  private wear = new Map<string, { w: Wear; p: Puppet }>();
+  private coffins = new Map<number, THREE.Group>();
+  /** A scuffle's two first stood face to face (this.clock), by event. */
+  /** A robbery's lift happened (this.clock), by event. */
+  private lifted = new Map<number, number>();
+  private faceToFace = new Map<number, { t: number; x: number; z: number }>();
+  /** Set by main: show a line (a scene's shout) as a bubble. */
+  showLines: (c: Convo) => void = () => {};
 
   constructor(
     private readonly world: World,
@@ -119,6 +141,8 @@ export class Actions {
     }
     for (const r of this.runs.values()) this.run(r, dt);
     this.playMusic(dt);
+    this.dress();
+    this.carryCoffins();
     this.releaseBuses();
     for (const [id, t] of this.afterglow) {
       if (t < performance.now()) {
@@ -175,6 +199,8 @@ export class Actions {
   /** The action is over on the server: let the person go (after a moment for a talk). */
   private end(r: Run): void {
     const stillHeld = (id: string) => [...this.runs.values()].some((o) => o.a.npc === id || o.other === id);
+    if (r.p && this.crowd.puppetFollowing(r.p)) this.crowd.puppetFollow(r.p, null);
+    if (r.p) r.p.human.root.rotation.set(0, 0, 0);
     if (r.a.kind === "talk_to" || r.a.kind === "fetch_police") {
       const until = performance.now() + 9000;
       this.afterglow.set(r.a.npc, until);
@@ -350,6 +376,13 @@ export class Actions {
   private goTo(r: Run, dt: number): void {
     const a = r.a;
     const attend = a.kind === "attend";
+    // M4b: a lead in a scene now playing (a scuffle, a robbery): the scene moves them
+    const scene = attend && a.lead ? this.events.sceneOf(a.event_id) : null;
+    if (scene && !scene.resolved && (a.npc === scene.a || a.npc === scene.b || a.npc === scene.agent)) {
+      const p = this.ensure(r, { x: a.target_x ?? this.player.x, z: a.target_z ?? this.player.z }, dt, ATTEND_CLAIM_M);
+      if (p) this.playScene(r, p, scene, dt);
+      return;
+    }
     const tx = a.target_x ?? this.player.x;
     const tz = a.target_z ?? this.player.z;
     const how = attend && a.phase !== "procession" ? this.how(r, tx, tz) : "walk";
@@ -365,6 +398,17 @@ export class Actions {
       if (!attend && pos && Math.hypot(pos.x - tx, pos.z - tz) < 2) void this.report(r, "arrived");
       return;
     }
+    // M4b: the bride on the groom's arm, the bearers two by two (crowd.puppetFollow keeps them at the side)
+    const partner = attend && a.phase === "procession" ? this.partnerOf(a) : null;
+    if (partner) {
+      const pp = this.town.puppet(partner);
+      if (pp && this.crowd.alive(pp) && Math.hypot(pp.x - p.x, pp.z - p.z) < SIDE_BY_SIDE) {
+        this.crowd.puppetFollow(p, pp);
+        r.playing = false;
+        return;
+      }
+    }
+    if (this.crowd.puppetFollowing(p)) this.crowd.puppetFollow(p, null);
     // a procession: everyone but the leader keeps behind the one ahead
     let gx = tx;
     let gz = tz;
@@ -391,12 +435,27 @@ export class Actions {
     if (!attend) return void this.report(r, "arrived");
     const c = this.events.centreOf(a.event_id);
     // a street musician: in the middle, facing out to the crowd, playing (Steve: "no musicians visible")
-    if (a.role === "musicians") {
+    if (a.role === "musicians" || (a.lead && PLAYS[a.lead])) {
       r.playing = true;
       if (this.crowd.puppetBusy(p) || (r.wait -= dt) <= 0) {
         const yaw = c ? Math.atan2(p.x - c.x, p.z - c.z) : null;
         this.crowd.puppetStand(p, "talk", yaw);
         r.wait = 6 + Math.random() * 4;
+      }
+      return;
+    }
+    // M4b: a lead stands in the middle and faces the people who came to look (Jef, when he is near)
+    if (a.lead) {
+      if (this.crowd.puppetBusy(p) || (r.wait -= dt) <= 0) {
+        const jd = this.jefD(p.x, p.z);
+        // two who will quarrel eye each other; the pickpocket and his mark do not play to Jef
+        const rival = a.lead === "quarreller" || a.lead === "drunkard" ? this.list.find((o) => o.event_id === a.event_id && o.npc !== a.npc && (o.lead === "quarreller" || o.lead === "drunkard")) : null;
+        const rp = rival ? this.town.position(rival.npc) : null;
+        const quiet = a.lead === "pickpocket" || a.lead === "victim" || a.lead === "bearers" || a.lead === "agent";
+        const yaw = rp ? Math.atan2(rp.x - p.x, rp.z - p.z) : quiet ? null : jd < 30 ? Math.atan2(this.player.x - p.x, this.player.z - p.z) : c ? Math.atan2(p.x - c.x, p.z - c.z) : null;
+        const motion = a.lead === "speaker" || a.lead === "auctioneer" || a.lead === "hawker" || a.lead === "showman" ? (Math.random() < 0.7 ? "talk" : "idle") : a.lead === "widow" || a.lead === "priest" ? "fold" : a.lead === "agent" ? "behind" : Math.random() < 0.25 ? "talk" : "idle";
+        this.crowd.puppetStand(p, motion, yaw);
+        r.wait = 3 + Math.random() * 3;
       }
       return;
     }
@@ -414,7 +473,7 @@ export class Actions {
   private playMusic(dt: number): void {
     this.clock += dt;
     const want = new Map<string, { r: Run; p: Puppet }>();
-    for (const r of this.runs.values()) if (r.playing && r.p && r.a.role === "musicians" && r.a.kind === "attend") want.set(r.a.npc, { r, p: r.p });
+    for (const r of this.runs.values()) if (r.playing && r.p && (r.a.role === "musicians" || (r.a.lead && PLAYS[r.a.lead])) && r.a.kind === "attend") want.set(r.a.npc, { r, p: r.p });
     for (const [id, e] of this.instruments) {
       const w = want.get(id);
       if (w && w.p === e.p) continue;
@@ -423,11 +482,335 @@ export class Actions {
     }
     for (const [id, w] of want) {
       if (this.instruments.has(id)) continue;
-      const i = makeInstrument(INSTRUMENTS[w.r.a.order % INSTRUMENTS.length]);
+      const i = makeInstrument((w.r.a.lead && PLAYS[w.r.a.lead]) || INSTRUMENTS[w.r.a.order % INSTRUMENTS.length]);
       w.p.group.add(i.root);
       this.instruments.set(id, { i, p: w.p });
     }
     for (const e of this.instruments.values()) playInstrument(e.i, this.clock);
+  }
+
+  // ------------------------------------------------------------------ M4b: leads
+
+  /** The one this lead walks beside in a procession: the bride beside the groom, bearer 1 beside 0, 3 beside 2. */
+  private partnerOf(a: PublicAction): string | null {
+    const want = a.lead === "bride" ? { lead: "groom", n: 0 } : a.lead === "bearers" && a.n % 2 === 1 ? { lead: "bearers", n: a.n - 1 } : null;
+    if (!want) return null;
+    return this.list.find((o) => o.event_id === a.event_id && o.lead === want.lead && (want.lead !== "bearers" || o.n === want.n))?.npc ?? null;
+  }
+
+  /** Leads wear their part (game/wardrobe.ts) while they are in the street; it comes off when the run ends. */
+  private dress(): void {
+    const want = new Map<string, { role: WardrobeRole; p: Puppet }>();
+    for (const r of this.runs.values()) {
+      const l = r.a.lead;
+      if (r.a.kind !== "attend" || !l || !r.p || !this.crowd.alive(r.p)) continue;
+      if (WARDROBE_ROLES.has(l)) want.set(r.a.npc, { role: l as WardrobeRole, p: r.p });
+      // the one robbed carries her shopping
+      if (l === "victim" && !r.p.bought) this.crowd.puppetCarry(r.p, this.town.info(r.a.npc)?.sex === "f" ? "basket" : "parcel");
+    }
+    for (const [id, e] of this.wear) {
+      const w = want.get(id);
+      if (w && w.p === e.p) continue;
+      e.w.root.removeFromParent();
+      e.p.human.root.rotation.set(0, 0, 0);
+      this.wear.delete(id);
+    }
+    for (const [id, w] of want) {
+      if (this.wear.has(id)) continue;
+      const wear = makeWear(w.role, w.p.human.scale);
+      w.p.group.add(wear.root);
+      this.wear.set(id, { w: wear, p: w.p });
+    }
+    for (const [id, e] of this.wear) {
+      playWear(e.w, this.clock);
+      // the drunk sways on his feet
+      if (e.w.role === "drunkard" && !this.crowd.puppetBusy(e.p)) e.p.human.root.rotation.z = Math.sin(this.clock * 1.3 + e.w.phase) * 0.07;
+      // the purse shows in the pickpocket's hand once the scene says it is his
+      if (e.w.parts.purse) e.w.parts.purse.visible = this.hasPurse(id);
+    }
+  }
+
+  private hasPurse(id: string): boolean {
+    const r = [...this.runs.values()].find((x) => x.a.npc === id);
+    if (!r) return false;
+    const sc = this.events.sceneOf(r.a.event_id);
+    return !!sc && sc.kind === "robbery" && sc.a === id && (this.lifted.has(r.a.event_id ?? 0) || this.events.stageT(r.a.event_id) >= 0.9);
+  }
+
+  /** The coffin rides on the bearers' shoulders: between them, along the way they face. */
+  private carryCoffins(): void {
+    const byEvent = new Map<number, Puppet[]>();
+    for (const r of this.runs.values()) {
+      if (r.a.lead !== "bearers" || !r.p || r.a.event_id === null || !this.crowd.alive(r.p)) continue;
+      const list = byEvent.get(r.a.event_id) ?? [];
+      list[r.a.n] = r.p;
+      byEvent.set(r.a.event_id, list);
+    }
+    for (const [id, g] of this.coffins) {
+      if (byEvent.has(id)) continue;
+      g.removeFromParent();
+      this.coffins.delete(id);
+    }
+    for (const [id, list] of byEvent) {
+      const ps = list.filter(Boolean);
+      let g = this.coffins.get(id);
+      if (!g) {
+        g = makeCoffin();
+        this.world.scene.add(g);
+        this.coffins.set(id, g);
+      }
+      const cx = ps.reduce((a, p) => a + p.x, 0) / (ps.length || 1);
+      const cz = ps.reduce((a, p) => a + p.z, 0) / (ps.length || 1);
+      const together = ps.length >= 2 && ps.every((p) => Math.hypot(p.x - cx, p.z - cz) < 3);
+      g.visible = together;
+      if (!together) continue;
+      // along the line from the back pair to the front pair (or the way the first bearer faces)
+      const front = ps.slice(0, 2);
+      const back = ps.slice(2);
+      const fx = front.reduce((a, p) => a + p.x, 0) / front.length;
+      const fz = front.reduce((a, p) => a + p.z, 0) / front.length;
+      const bx = back.length ? back.reduce((a, p) => a + p.x, 0) / back.length : cx;
+      const bz = back.length ? back.reduce((a, p) => a + p.z, 0) / back.length : cz;
+      const yaw = Math.hypot(fx - bx, fz - bz) > 0.4 ? Math.atan2(fx - bx, fz - bz) : ps[0].yaw;
+      const lift = 1.5 * (ps[0].human.scale || 1) * (ps[0].size || 1);
+      g.position.set(cx, this.world.groundAt(cx, cz, 0.3, 0) + lift, cz);
+      g.rotation.set(0, yaw, 0);
+    }
+  }
+
+  // ------------------------------------------------------------------ M4b: the scenes (no combat)
+
+  /** A line from the engine's scene, once, as a bubble over the speaker. */
+  private sayOnce(r: Run, key: string, who: string | null, text: string | undefined): void {
+    if (!who || !text) return;
+    r.said ??= new Set();
+    if (r.said.has(key)) return;
+    r.said.add(key);
+    const info = this.town.info(who);
+    const id = -Math.abs((r.a.event_id ?? 0) * 100 + key.length * 7 + key.charCodeAt(0));
+    this.showLines({ id, a: who, b: who, a_name: info?.name ?? "", b_name: info?.name ?? "", purpose: "scene", lines: [{ who, name: info?.first ?? "", text }], source: "engine", outcome: "", at: Date.now(), event_id: r.a.event_id });
+  }
+
+  /**
+   * A scuffle or a robbery, played by the stage's clock (0..1, events.stageT). The engine
+   * already decided how it ends; this side only shows it. Nobody is hurt: a scuffle is a lunge
+   * and a stagger back, the police part them; a robbery is a lift, a shout and a run.
+   */
+  private playScene(r: Run, p: Puppet, sc: EventScene, dt: number): void {
+    const a = r.a;
+    const t = this.events.stageT(a.event_id);
+    const me = a.npc;
+    const spot = { x: a.target_x ?? p.x, z: a.target_z ?? p.z };
+    const pos = (id: string | null) => (id ? this.town.position(id) : null);
+    const lean = (x: number) => (p.human.root.rotation.x = x);
+    if (sc.kind === "scuffle") {
+      const other = me === sc.a ? sc.b : me === sc.b ? sc.a : null;
+      const ag = pos(sc.agent);
+      const c = this.events.centreOf(a.event_id) ?? spot;
+      const agentThere = !!ag && Math.hypot(ag.x - c.x, ag.z - c.z) < 3;
+      // the scene's own clock starts when both of them stand face to face (one may come from far):
+      // words for a few seconds, then shoving, then parted (the agent there, or it has gone on long enough)
+      const pa = pos(sc.a);
+      const pb = pos(sc.b);
+      const key = a.event_id ?? 0;
+      if (pa && pb && Math.hypot(pa.x - pb.x, pa.z - pb.z) < 3 && !this.faceToFace.has(key)) this.faceToFace.set(key, { t: this.clock, x: (pa.x + pb.x) / 2, z: (pa.z + pb.z) / 2 });
+      const met = this.faceToFace.get(key);
+      const since = met ? this.clock - met.t : -1;
+      const parted = t >= 0.97 || since > SCUFFLE_WORDS_S + SCUFFLE_SHOVE_S || (agentThere && since > SCUFFLE_WORDS_S + 4);
+      if (me === sc.agent) {
+        // the agent comes at a run once the shoving starts, and stands between them
+        const d = Math.hypot(p.x - spot.x, p.z - spot.z);
+        if (d > 1.4) this.go(r, p, spot.x, spot.z, since >= 0 ? 2.4 : 1.5, 0.8);
+        else {
+          const w = pos(sc.wrong);
+          if (this.crowd.puppetBusy(p) || (r.wait -= dt) <= 0) {
+            this.crowd.puppetStand(p, "talk", w ? Math.atan2(w.x - p.x, w.z - p.z) : null);
+            r.wait = 2.5;
+          }
+          if (parted) this.sayOnce(r, "part", me, sc.lines.agent);
+        }
+        return;
+      }
+      const o = pos(other);
+      if (!o) return;
+      // along the line from the middle (where they met) to the other one
+      const dx = o.x - (met?.x ?? p.x);
+      const dz = o.z - (met?.z ?? p.z);
+      const L = Math.hypot(dx, dz) || 1;
+      const ux = dx / L;
+      const uz = dz / L;
+      const face = Math.atan2(o.x - p.x, o.z - p.z);
+      if (since < 0 && !parted) {
+        // not face to face yet: go up to the other one
+        if (Math.hypot(p.x - o.x, p.z - o.z) > 1.6) this.go(r, p, o.x, o.z, 1.5, 0.8);
+        else if (this.crowd.puppetBusy(p) || (r.wait -= dt) <= 0) {
+          this.crowd.puppetStand(p, "talk", face);
+          r.wait = 1;
+        }
+        return;
+      }
+      if (parted) {
+        // stepped apart, two paces back, arms folded; the one in the wrong says his piece
+        lean(0);
+        const bx = (met?.x ?? spot.x) - ux * 1.6;
+        const bz = (met?.z ?? spot.z) - uz * 1.6;
+        if (Math.hypot(p.x - bx, p.z - bz) > 0.5 && !this.crowd.puppetBusy(p) && (r.sceneGo ?? 0) < 2) {
+          r.sceneGo = (r.sceneGo ?? 0) + 1;
+          this.crowd.puppetGo(p, bx, bz, 1.0);
+        } else if (!this.crowd.puppetBusy(p) && (r.wait -= dt) <= 0) {
+          this.crowd.puppetStand(p, "fold", ag ? Math.atan2(ag.x - p.x, ag.z - p.z) : face);
+          r.wait = 3;
+        }
+        if (me === sc.wrong && (agentThere || t >= 0.9)) this.sayOnce(r, "sorry", me, sc.lines.sorry);
+        return;
+      }
+      if (since < SCUFFLE_WORDS_S) {
+        // words first: face to face, hands going
+        lean(0);
+        if (this.crowd.puppetBusy(p) || (r.wait -= dt) <= 0 || p.pmotion !== "talk") {
+          this.crowd.puppetStand(p, "talk", face);
+          r.wait = 2;
+        }
+        return;
+      }
+      // pushing and shoving: turn about, a lunge half a pace in and a stagger back, never a blow
+      if (this.crowd.puppetBusy(p) || p.pmotion !== "idle") this.crowd.puppetStand(p, "idle", face);
+      p.yaw = face;
+      const cycle = Math.floor(this.clock / 1.5);
+      const u = (this.clock % 1.5) / 1.5;
+      const shover = (cycle % 3 === 2) === (sc.wrong === sc.a) ? sc.b : sc.a;
+      const iShove = me === shover;
+      let off = 0;
+      let tilt = 0;
+      if (iShove) {
+        const k = u < 0.3 ? Math.sin((u / 0.3) * Math.PI) : 0;
+        off = 0.35 * k;
+        tilt = 0.3 * k;
+      } else {
+        const k = u > 0.15 && u < 0.6 ? Math.sin(((u - 0.15) / 0.45) * Math.PI) : 0;
+        off = -0.45 * k;
+        tilt = -0.22 * k;
+      }
+      // my side of the middle, 0.55 m from it, moved in or out along the line between us
+      const mid = met ?? { x: (p.x + o.x) / 2, z: (p.z + o.z) / 2 };
+      const base = { x: mid.x - ux * 0.55, z: mid.z - uz * 0.55 };
+      const nx = base.x + ux * off;
+      const nz = base.z + uz * off;
+      if (this.world.isFree(nx, nz, 0.2)) {
+        p.x = nx;
+        p.z = nz;
+      }
+      lean(tilt);
+      return;
+    }
+
+    // a robbery: the lift happens when he is up close behind her (or late in the stage, whatever)
+    const victim = pos(sc.b);
+    const vp = this.town.puppet(sc.b);
+    const key = a.event_id ?? 0;
+    const lifted = this.lifted.has(key) || t >= 0.9;
+    if (me === sc.b) {
+      const d = Math.hypot(p.x - spot.x, p.z - spot.z);
+      if (d > 1.2 && !lifted) {
+        this.go(r, p, spot.x, spot.z, 1.2, 0.8);
+        return;
+      }
+      if (!lifted) {
+        // looking at the stalls, her back to the square
+        if (this.crowd.puppetBusy(p) || (r.wait -= dt) <= 0) {
+          this.crowd.puppetStand(p, "idle", null);
+          r.wait = 5;
+        }
+        return;
+      }
+      // the shout: she turns to where he ran
+      const th = pos(sc.a);
+      if (this.crowd.puppetBusy(p) || (r.wait -= dt) <= 0) {
+        this.crowd.puppetStand(p, "talk", th ? Math.atan2(th.x - p.x, th.z - p.z) : null);
+        r.wait = 1.5;
+      }
+      this.sayOnce(r, "shout", me, sc.lines.shout);
+      return;
+    }
+    if (me === sc.a) {
+      if (t < 0.3 && !lifted) {
+        const d = Math.hypot(p.x - spot.x, p.z - spot.z);
+        if (d > 1.4) return void this.go(r, p, spot.x, spot.z, 1.1, 0.8);
+        if (this.crowd.puppetBusy(p) || (r.wait -= dt) <= 0) {
+          this.crowd.puppetStand(p, "behind", victim ? Math.atan2(victim.x - p.x, victim.z - p.z) : null);
+          r.wait = 3;
+        }
+        return;
+      }
+      if (!lifted && victim) {
+        // up close behind her, where she cannot see him; the lift
+        const vy = vp?.yaw ?? 0;
+        const bx = victim.x - Math.sin(vy) * 0.55;
+        const bz = victim.z - Math.cos(vy) * 0.55;
+        const d = Math.hypot(p.x - bx, p.z - bz);
+        if (d > 0.6) {
+          this.go(r, p, bx, bz, d > 3 ? 1.2 : 0.8, 0.5);
+          r.wait = 1.5;
+        } else {
+          if (this.crowd.puppetBusy(p) || p.pmotion !== "idle") this.crowd.puppetStand(p, "idle", Math.atan2(victim.x - p.x, victim.z - p.z));
+          // a moment close behind her: the purse is his
+          if ((r.wait -= dt) <= 0 && t >= 0.35) this.lifted.set(key, this.clock);
+        }
+        return;
+      }
+      // the run: away to the engine's point; caught, he stops there with his hands behind his back
+      const f = sc.flee ?? spot;
+      const d = Math.hypot(p.x - f.x, p.z - f.z);
+      const ag = pos(sc.agent);
+      const away = victim ? Math.hypot(p.x - victim.x, p.z - victim.z) : 99;
+      if (sc.caught && ag && Math.hypot(ag.x - p.x, ag.z - p.z) < 1.6 && (away > 8 || d <= 1.2)) {
+        if (this.crowd.puppetBusy(p) || p.pmotion !== "behind") this.crowd.puppetStand(p, "behind", Math.atan2(ag.x - p.x, ag.z - p.z));
+        return;
+      }
+      if (d > 1.2) {
+        if (!this.crowd.puppetBusy(p) || (r.sceneGo ?? 0) === 0) {
+          r.sceneGo = (r.sceneGo ?? 0) + 1;
+          this.crowd.puppetGo(p, f.x, f.z, 2.9);
+        }
+      } else if (this.crowd.puppetBusy(p) || (r.wait -= dt) <= 0) {
+        this.crowd.puppetStand(p, sc.caught ? "behind" : "idle", null);
+        r.wait = 3;
+      }
+      return;
+    }
+    if (me === sc.agent) {
+      const th = pos(sc.a);
+      if (!lifted || !th) {
+        const d = Math.hypot(p.x - spot.x, p.z - spot.z);
+        if (d > 1.5) this.go(r, p, spot.x, spot.z, 1.3, 0.9);
+        else if (this.crowd.puppetBusy(p) || (r.wait -= dt) <= 0) {
+          this.crowd.puppetStand(p, "behind", null);
+          r.wait = 4;
+        }
+        return;
+      }
+      const d = Math.hypot(p.x - th.x, p.z - th.z);
+      if (sc.caught) {
+        if (d > 1.3) this.go(r, p, th.x, th.z, 2.7, 0.4);
+        else {
+          if (this.crowd.puppetBusy(p) || (r.wait -= dt) <= 0) {
+            this.crowd.puppetStand(p, "talk", Math.atan2(th.x - p.x, th.z - p.z));
+            r.wait = 2;
+          }
+          this.sayOnce(r, "agent", me, sc.lines.agent);
+        }
+        return;
+      }
+      // not caught: he gives chase, then gives up
+      if (this.clock - (this.lifted.get(key) ?? this.clock) < 9 && t < 0.97 && d > 1.3) this.go(r, p, th.x, th.z, 2.5, 0.5);
+      else {
+        if (this.crowd.puppetBusy(p) || (r.wait -= dt) <= 0) {
+          this.crowd.puppetStand(p, "idle", Math.atan2(th.x - p.x, th.z - p.z));
+          r.wait = 3;
+        }
+        this.sayOnce(r, "agent", me, sc.lines.agent);
+      }
+    }
   }
 
   private waitHere(r: Run, dt: number): void {
@@ -504,7 +887,7 @@ export class Actions {
   info() {
     return [...this.runs.values()].map((r) => {
       const pos = this.town.position(r.a.npc);
-      return { id: r.a.id, npc: r.a.npc, name: r.a.name, kind: r.a.kind, phase: r.a.phase, target: r.a.target_name ?? r.a.target, puppet: !!r.p, d: pos ? +this.jefD(pos.x, pos.z).toFixed(1) : null, left: r.a.minutes_left, reported: r.reported };
+      return { id: r.a.id, npc: r.a.npc, name: r.a.name, kind: r.a.kind, lead: r.a.lead, phase: r.a.phase, target: r.a.target_name ?? r.a.target, puppet: !!r.p, d: pos ? +this.jefD(pos.x, pos.z).toFixed(1) : null, at: pos ? [+pos.x.toFixed(1), +pos.z.toFixed(1)] : null, left: r.a.minutes_left, reported: r.reported, wears: this.wear.has(r.a.npc) || this.instruments.has(r.a.npc), side: r.p ? this.crowd.puppetFollowing(r.p) : false };
     });
   }
 }

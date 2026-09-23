@@ -65,7 +65,7 @@ export function takeJob(db: DB, id: number): JobRow {
 export function saveProgress(db: DB, id: number, p: Progress): JobRow {
   const j = job(db, id);
   if (j.status !== "taken" || !j.task || j.task.kind === "watch") throw new GameError("no progress to save", 409);
-  const count = j.task.kind === "carry" ? j.task.count : 1;
+  const count = j.task.kind === "carry" ? j.task.count : j.task.kind === "letters" ? j.task.stops.length : 1;
   const clean = (n: unknown) => Math.max(0, Math.min(count, Math.floor(Number(n) || 0)));
   const progress = { delivered: clean(p.delivered), lost: clean(p.lost), sold: clean(p.sold) };
   if (progress.delivered + progress.lost + progress.sold > count) throw new GameError("more goods than the job has", 400);
@@ -113,6 +113,21 @@ export function settle(j: JobRow, r: Report, rng: () => number = Math.random): S
   const watched = task.twist === "foreman_watches";
   const facts: string[] = [];
   const round5 = (n: number) => Math.round(n / 5) * 5;
+
+  // M6: a round of letters (paper/post.ts): the ENGINE counts the stops done, whatever the client says
+  if (task.kind === "letters") {
+    const count = task.stops.length;
+    const done = task.stops.filter((s) => s.done).length;
+    const pay = count ? (j.pay_c * done) / count : 0;
+    facts.push(
+      task.stops.some((s) => s.what === "telegraph")
+        ? done === count
+          ? `Jef sent the telegram${task.city ? ` to ${task.city}` : ""} for ${who}.`
+          : `The telegram for ${who} was never sent.`
+        : `Jef put ${done} of ${count} letters under the right doors for ${who}.`,
+    );
+    return { pay_c: round5(pay), extra_c: 0, trust_delta: done === count ? 1 : 0, caught: false, status: done === 0 ? "failed" : "done", facts };
+  }
 
   if (task.kind === "watch") {
     let pay = j.pay_c;

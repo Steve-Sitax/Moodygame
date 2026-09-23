@@ -62,8 +62,11 @@ export interface ConvoOpts {
   purpose: Purpose;
   /** What it is about, in engine words (an event's text, a robbery). */
   about?: string;
-  /** A questioning: the engine's verdict, fixed before the call. */
-  fixed?: { guilty: boolean; amount_c: number };
+  /**
+   * A questioning: the engine's verdict, fixed before the call. `victim` (M4b): a robbery in
+   * the street Jef saw; the purse goes back to the victim, never to Jef.
+   */
+  fixed?: { guilty: boolean; amount_c: number; victim?: string; crime_event?: number };
   event_id?: number;
 }
 
@@ -95,9 +98,16 @@ Stats 0-10: honesty ${s.honesty}, temper ${s.temper}, warmth ${s.warmth}, greed 
 Trust in Jef ${rel?.trust ?? 0} of 10. Knows of Jef: ${mem.length ? mem.map((m) => m.text).join(" / ") : "nothing; a stranger"}`;
 }
 
-function purposeText(o: ConvoOpts, a: Resident, b: Resident): string {
+function purposeText(db: DB, o: ConvoOpts, a: Resident, b: Resident): string {
   switch (o.purpose) {
     case "question":
+      if (o.fixed?.victim) {
+        const v = town(db).byId.get(o.fixed.victim);
+        const vn = v?.first ?? "someone";
+        return o.fixed.guilty
+          ? `${a.first} (a police agent) questions ${b.first} about the purse taken from ${vn} in the street; Jef saw it and told the police. OUTCOME (fixed): ${b.first} did take it, ${o.fixed.amount_c} centimes. ${b.first} denies it at first, then hands the ${o.fixed.amount_c} centimes over for ${vn}. No arrest today. Jef gets nothing.`
+          : `${a.first} (a police agent) questions ${b.first} about the purse taken from ${vn} in the street. OUTCOME (fixed): ${b.first} did NOT do it and is offended at being accused. ${a.first} lets it go.`;
+      }
       return o.fixed?.guilty
         ? `${a.first} (a police agent) questions ${b.first} about Jef's purse. OUTCOME (fixed): ${b.first} did pick Jef's pocket for ${o.fixed.amount_c} centimes. ${b.first} denies it at first, then hands the ${o.fixed.amount_c} centimes over. No arrest today.`
         : `${a.first} (a police agent) questions ${b.first} about Jef's purse. OUTCOME (fixed): ${b.first} did NOT do it and is offended at being accused. ${a.first} lets it go.`;
@@ -122,7 +132,7 @@ NOW
 ${c.weekday}, ${c.hour}:${String(c.minute).padStart(2, "0")}, ${WEATHER_TEXT[c.weather]}. In the street, near ${town(db).town.places[a.work.place]?.label ?? "the quays"}.
 
 WHAT HAPPENS
-${purposeText(o, a, b)}`;
+${purposeText(db, o, a, b)}`;
 }
 
 let nextId = 1;
@@ -142,7 +152,7 @@ export function resetConvos(): void {
 }
 
 function engineLines(o: ConvoOpts, a: Resident, b: Resident): ConvoLine[] {
-  const key = o.purpose === "question" ? (o.fixed?.guilty ? "question_guilty" : "question_innocent") : o.purpose;
+  const key = o.purpose === "question" ? (o.fixed?.victim ? (o.fixed.guilty ? "street_guilty" : "street_innocent") : o.fixed?.guilty ? "question_guilty" : "question_innocent") : o.purpose;
   const set = CONVO_FALLBACK[key] ?? CONVO_FALLBACK.chat;
   return set.map((f, i) => {
     const s = f(a.first, b.first);
@@ -179,7 +189,25 @@ export async function runConvo(db: DB, o: ConvoOpts, runner?: Runner): Promise<C
   let outcome: string = out?.outcome_kind ?? "none";
 
   // the engine's side: memories, trust by at most one, the rumour passed, the purse
-  if (o.purpose === "question" && o.fixed) {
+  if (o.purpose === "question" && o.fixed?.victim) {
+    // M4b: a robbery in the street Jef saw. The purse goes back to the victim on the record; Jef's money never moves.
+    const v = resident(db, o.fixed.victim);
+    if (o.fixed.guilty && v) {
+      const text = `${a.name} of the police made ${b.name} give ${v.name} back the ${o.fixed.amount_c} centimes he took in the street; Jef had seen it.`;
+      writeEvent(db, { kind: "theft", verb: "robbery_solved", actor: a.id, target: b.id, text, outcome: "guilty", ref_type: "world_event", ref_id: o.fixed.crime_event ?? null, weight: 7, data: { thief: b.id, victim: v.id, amount_c: o.fixed.amount_c }, who: [a.id, b.id, v.id] });
+      remember(db, a.id, `On Jef's word I made ${b.name} give ${v.name} back the ${o.fixed.amount_c} centimes he lifted.`, 6);
+      remember(db, b.id, `Jef saw me take ${v.name}'s purse and set the police on me. I had to give it back.`, 8, "seen", null, { gist: `Jef told the police who took ${v.name}'s purse`, tone: 0 });
+      remember(db, v.id, `Jef saw who took my purse and told the police. I have my ${o.fixed.amount_c} centimes back.`, 7, "seen", null, { gist: `Jef helped ${v.name} get her purse back through the police`.replace(" her ", v.sex === "m" ? " his " : " her "), tone: 1 });
+      applyTrust(db, b.id, -1, 0);
+      applyTrust(db, v.id, 1, 0);
+      outcome = "guilty";
+    } else {
+      remember(db, a.id, `Jef had me question ${b.name} over a purse taken in the street. Nothing in it.`, 4);
+      remember(db, b.id, `Jef sent the police after me for nothing. I'll not forget it.`, 6, "seen", null, { gist: `Jef accused ${b.name} to the police for nothing`, tone: -1 });
+      applyTrust(db, b.id, -1, 0);
+      outcome = "innocent";
+    }
+  } else if (o.purpose === "question" && o.fixed) {
     if (o.fixed.guilty) {
       payBack(db, b, o.fixed.amount_c);
       remember(db, a.id, `I made ${b.name} give Jef back the ${o.fixed.amount_c} centimes he lifted.`, 7, "seen", null, { gist: "Jef got his money back through the police", tone: 1 });
@@ -207,7 +235,7 @@ export async function runConvo(db: DB, o: ConvoOpts, runner?: Runner): Promise<C
   }
 
   const id = nextId++;
-  const text = o.purpose === "question" ? `${a.name} of the police questioned ${b.name} about Jef's purse` : o.purpose === "report" ? `${a.name} fetched ${b.name} of the police for Jef` : o.purpose === "argue" ? `${a.name} and ${b.name} quarrelled in the street` : `${a.name} spoke with ${b.name}`;
+  const text = o.purpose === "question" ? `${a.name} of the police questioned ${b.name} about ${o.fixed?.victim ? "a purse taken in the street" : "Jef's purse"}` : o.purpose === "report" ? `${a.name} fetched ${b.name} of the police for Jef` : o.purpose === "argue" ? `${a.name} and ${b.name} quarrelled in the street` : `${a.name} spoke with ${b.name}`;
   const eid = writeEvent(db, {
     kind: "talk",
     verb: "convo",

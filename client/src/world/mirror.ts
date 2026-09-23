@@ -23,6 +23,8 @@ export interface Mirror {
   attach(mesh: THREE.Object3D): void;
   /** Things never to show in this mirror (the surface itself is always hidden). */
   hide(...objs: THREE.Object3D[]): void;
+  /** Move the mirror plane (M6 tides: the river rises and falls). */
+  setPlane(y: number): void;
   dispose(): void;
 }
 
@@ -50,7 +52,8 @@ export function setMirrorScale(k: number): void {
   for (const d of mirrorsForDev) d.rt.setSize(Math.round(d.baseW * mirrorScale), Math.round(d.baseH * mirrorScale));
 }
 
-export function createMirror(planeY: number, opts: MirrorOptions = {}): Mirror {
+export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
+  let planeY = plane0;
   const baseW = opts.width ?? 320;
   const baseH = opts.height ?? 180;
   const rt = new THREE.WebGLRenderTarget(Math.round(baseW * mirrorScale), Math.round(baseH * mirrorScale), {
@@ -158,6 +161,10 @@ export function createMirror(planeY: number, opts: MirrorOptions = {}): Mirror {
     },
     hide(...objs) {
       hidden.push(...objs);
+    },
+    setPlane(y) {
+      planeY = y;
+      dev.planeY = y;
     },
     dispose() {
       rt.dispose();

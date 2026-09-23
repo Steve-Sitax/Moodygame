@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { addMovingSource, newShipId, ropeMaterial, type BoatName, type Boats, type MovingShip } from "./boats";
-import { WATER_Y } from "./rijnkaai";
+import { water } from "./tide";
 import { rng, type TrainPart } from "./route";
 
 // The ocean steamer at anchor in the Schelde, and the lighters that work her cargo (2026-09-24).
@@ -218,7 +218,7 @@ export function createAnchorage(group: THREE.Group, fleet: Boats, scene: THREE.O
     sheer = 0;
     for (const [a, p, ph] of SHEER) sheer += a * Math.sin((2 * Math.PI * t) / p + ph);
     const at = linerAt(sheer);
-    liner.position.set(at.x, WATER_Y, at.z);
+    liner.position.set(at.x, water.river, at.z);
     liner.rotation.y = at.yaw;
     linerShip.x = at.x;
     linerShip.z = at.z;
@@ -586,17 +586,17 @@ export function createAnchorage(group: THREE.Group, fleet: Boats, scene: THREE.O
       // walking in: the bow a little toward the wall; out: a little away
       const turn = tow.phase === "in" ? 0.06 * Math.sin(Math.PI * tow.crab) : tow.phase === "out" ? -0.06 * Math.sin(Math.PI * tow.crab) : 0;
       const q = towPose(tow, tow.s, tow.crab, turn);
-      tow.lighter.obj.position.set(q.lx, WATER_Y, q.lz);
+      tow.lighter.obj.position.set(q.lx, water.river, q.lz);
       tow.lighter.obj.rotation.y = q.yaw;
-      tow.tug.obj.position.set(q.tx, WATER_Y, q.tz);
+      tow.tug.obj.position.set(q.tx, water.river, q.tz);
       tow.tug.obj.rotation.y = q.yaw;
       obs.push({ x: q.lx, z: q.lz, yaw: q.yaw, len: tow.lighter.len, beam: tow.lb, v: tow.v });
       obs.push({ x: q.tx, z: q.tz, yaw: q.yaw, len: tow.tug.len, beam: tow.tb, v: tow.v });
       const fx = Math.sin(q.yaw);
       const fz = Math.cos(q.yaw);
       for (const k of [0.4, -0.4]) {
-        lash.setXYZ(at++, q.lx + fx * tow.lighter.len * k, WATER_Y + 1.0, q.lz + fz * tow.lighter.len * k);
-        lash.setXYZ(at++, q.tx + fx * tow.tug.len * k * 0.9, WATER_Y + 1.3, q.tz + fz * tow.tug.len * k * 0.9);
+        lash.setXYZ(at++, q.lx + fx * tow.lighter.len * k, water.river + 1.0, q.lz + fz * tow.lighter.len * k);
+        lash.setXYZ(at++, q.tx + fx * tow.tug.len * k * 0.9, water.river + 1.3, q.tz + fz * tow.tug.len * k * 0.9);
       }
       tow.ship.x = q.tx;
       tow.ship.z = q.tz;

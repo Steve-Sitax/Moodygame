@@ -180,7 +180,9 @@ export type TradeId =
   // the employers of the job board (one each)
   | "foreman" | "fish_merchant" | "water_bailiff" | "brewer"
   // the garrison and the customs (garrison.ts): they walk, stand and talk; they never fight or arrest
-  | "soldier" | "sentry" | "corporal" | "customs";
+  | "soldier" | "sentry" | "corporal" | "customs"
+  // M6 (paper/town.ts): boys who sell the morning paper at a corner, the clerk of the post office
+  | "newsboy" | "post_clerk";
 
 export interface TradeDef {
   label: string;
@@ -210,7 +212,7 @@ export const TRADES: Record<TradeId, TradeDef> = {
   grocer: { label: "grocer", work: "shop", faction: "burgerij", wealth: [3, 5], bias: { greed: 1 } },
   chandler: { label: "ship's chandler", work: "shop", faction: "burgerij", wealth: [3, 6], bias: { greed: 2 } },
   tobacconist: { label: "tobacconist", work: "shop", faction: "burgerij", wealth: [3, 5] },
-  pawnbroker: { label: "pawnbroker", work: "shop", faction: "burgerij", wealth: [4, 7], bias: { greed: 3, warmth: -2 } },
+  pawnbroker: { label: "clerk of the Berg van Barmhartigheid", work: "shop", faction: "burgerij", wealth: [4, 7], bias: { greed: 3, warmth: -2 } },
   cobbler: { label: "cobbler", work: "shop", faction: null, wealth: [1, 3], bias: { gossip: 1 } },
   draper: { label: "draper", work: "shop", faction: "burgerij", wealth: [4, 6], bias: { piety: 1 } },
   shopwife: { label: "shopkeeper's wife", work: "shop", faction: "burgerij", wealth: [3, 5], bias: { gossip: 2 } },
@@ -240,6 +242,8 @@ export const TRADES: Record<TradeId, TradeDef> = {
   sentry: { label: "soldier of the line, on guard", work: "guard", faction: null, wealth: [0, 1], bias: { courage: 2, honesty: 1, warmth: -1 } },
   corporal: { label: "corporal of the guard", work: "guard", faction: null, wealth: [0, 2], bias: { temper: 1, honesty: 1, courage: 2 } },
   customs: { label: "customs officer", work: "inspect", faction: null, wealth: [2, 4], bias: { honesty: 1, greed: 1, warmth: -1 } },
+  newsboy: { label: "newsboy", work: "post", faction: null, wealth: [0, 0], bias: { courage: 2, gossip: 2 } },
+  post_clerk: { label: "clerk of the post and telegraph office", work: "post", faction: "burgerij", wealth: [3, 5], bias: { honesty: 2, gossip: 1 } },
 };
 
 /** The board's employers who live in the town: fixed ids, so the job board can name them. */

@@ -9,6 +9,8 @@ export interface DevMenuDeps {
   places: Array<{ name: string; x: number; z: number }>;
   /** An event button; a returned text (the server's answer) shows in the panel. */
   events: Array<{ label: string; run: () => void | Promise<string | void> }>;
+  /** M6 tides: the tide in words, and hold the river at high or low water (null: follow the clock). */
+  tide?: { read(): string; hold(v: "high" | "low" | null): void };
 }
 
 async function devSet(body: Record<string, unknown>): Promise<string> {
@@ -37,6 +39,7 @@ export function mountDevMenu(pausePaper: HTMLElement, deps: DevMenuDeps): void {
   panel.innerHTML = `<h2>Dev</h2>
     <p class="row"><b>Time</b> ${hours.map((h) => `<button data-hour="${h}">${h}:00</button>`).join("")}</p>
     <p class="row"><b>Weather</b> ${weathers.map((w) => `<button data-weather="${w}">${w}</button>`).join("")}</p>
+    ${deps.tide ? `<p class="row"><b>Tide</b> <button data-tide="now">now</button><button data-tide="high">high water</button><button data-tide="low">low water</button><button data-tide="clock">follow the clock</button></p>` : ""}
     <p class="row"><b>Events</b> ${deps.events.map((e, i) => `<button data-event="${i}">${e.label}</button>`).join("")}</p>
     <p class="row"><b>Jef</b> <button data-needs="1">needs full</button><button data-money="100">+100 c</button></p>
     <p class="row"><b>Go to</b> ${deps.places.map((p, i) => `<button data-place="${i}">${p.name}</button>`).join("")}</p>
@@ -51,7 +54,11 @@ export function mountDevMenu(pausePaper: HTMLElement, deps: DevMenuDeps): void {
     const d = b.dataset;
     if (b.name === "back") panel.style.display = "none";
     else if (d.hour) say(`time ${d.hour}:00: ${await devSet({ hour: Number(d.hour), minute: 0 })}`);
-    else if (d.weather) say(`weather ${d.weather}: ${await devSet({ weather: d.weather })}`);
+    else if (d.tide && deps.tide) {
+      // local only: holds the river (spring high or low water) without touching the save
+      if (d.tide !== "now") deps.tide.hold(d.tide === "clock" ? null : (d.tide as "high" | "low"));
+      say(deps.tide.read());
+    } else if (d.weather) say(`weather ${d.weather}: ${await devSet({ weather: d.weather })}`);
     else if (d.event) {
       const ev = deps.events[Number(d.event)];
       say(`${ev.label}: ...`);

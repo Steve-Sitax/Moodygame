@@ -15,6 +15,7 @@ import { walkMap } from "../town/walkmap.ts";
 import { notify } from "./bus.ts";
 import { runConvo, type Purpose } from "./convo.ts";
 import { eventSlice, writeEvent } from "./eventlog.ts";
+import { streetCrimeOpen } from "./scenes.ts";
 import {
   ActionProposalSchema,
   END_LINE,
@@ -81,8 +82,12 @@ interface ActionData {
   jef?: { x: number; z: number };
   /** Column order in a procession (attend). */
   order?: number;
-  /** attend: guests, crowd (onlookers), mourners ... */
+  /** attend: guests, crowd (onlookers), mourners ... ("lead" for a lead). */
   role?: string;
+  /** M4b attend: the lead's part (bride, groom, fiddler, pickpocket, agent ...). */
+  lead?: string;
+  /** M4b bearers: which of the four. */
+  n?: number;
   line?: string;
 }
 
@@ -402,7 +407,9 @@ export function validateProposal(db: DB, r: Resident, raw: unknown): Accepted | 
   const now = nowOf(db, r);
   const police = r.trade === "police" || r.trade === "water_bailiff";
   const crime = crimeOpen(db);
-  const crimeReason = /rob|thie|stol|pick|purse|pocket/i.test(p.reason) || !!crime;
+  // M4b: a robbery in the street that Jef saw counts too (the police will listen to a witness)
+  const street = streetCrimeOpen(db);
+  const crimeReason = /rob|thie|stol|pick|purse|pocket/i.test(p.reason) || !!crime || !!street?.witnessed;
 
   // stop: only what was asked in talk
   if (p.kind === "stop") {
@@ -627,7 +634,16 @@ export async function reportAction(db: DB, id: number, rep: Report, runner?: Run
     case "talk_to": {
       if (rep.phase !== "arrived" && rep.phase !== "done") return rep.phase === "blocked" ? endAction(db, id, "failed", "blocked", END_LINE.talk_to_time) : a;
       const purpose = (data.purpose ?? "chat") as Purpose;
-      const fixed = purpose === "question" ? { guilty: !!crime && crime.thief === a.target, amount_c: crime?.amount_c ?? 0 } : undefined;
+      // the engine's verdict before the words: Jef's own purse first, else a robbery in the street Jef saw
+      const street = streetCrimeOpen(db);
+      const fixed =
+        purpose !== "question"
+          ? undefined
+          : crime && (crime.thief === a.target || !street || street.thief !== a.target)
+            ? { guilty: crime.thief === a.target, amount_c: crime.amount_c }
+            : street
+              ? { guilty: street.thief === a.target, amount_c: street.amount_c, victim: street.victim, crime_event: street.id }
+              : { guilty: false, amount_c: 0 };
       db.prepare("UPDATE npc_action SET phase = 'talking' WHERE id = ?").run(id);
       try {
         const c = await runConvo(db, { a: r.id, b: a.target, purpose, about: data.about, fixed }, runner);
@@ -653,8 +669,10 @@ export async function reportAction(db: DB, id: number, rep: Report, runner?: Run
       const jef = data.jef ?? jefAt() ?? whereIs(db, r);
       const spot = walkMap().nearestOpen(jef.x, jef.z, 6) ?? { x: jef.x, z: jef.z };
       const d = Math.hypot(spot.x - (posOf(db, agent.id)?.x ?? spot.x), spot.z - (posOf(db, agent.id)?.z ?? spot.z));
-      const then: ActionData["then"] = crime
-        ? { kind: "look_for", target: crime.thief, minutes: LOOK_FOR_MIN, data: { purpose: "question", about: "a robbery" } }
+      const street = streetCrimeOpen(db);
+      const thief = crime?.thief ?? (street?.witnessed ? street.thief : null);
+      const then: ActionData["then"] = thief
+        ? { kind: "look_for", target: thief, minutes: LOOK_FOR_MIN, data: { purpose: "question", about: "a robbery" } }
         : { kind: "wait", target: "Jef", minutes: WAIT_MAX_MIN };
       startAction(db, { npc_id: agent.id, kind: "go_to", target: "where Jef was robbed", target_x: spot.x, target_z: spot.z, source: "engine", minutes: Math.min(120, Math.round((d / 1.2) * 3) + 20), reason: "fetched for Jef", data: { then } });
       return actionRow(db, id);
@@ -717,6 +735,8 @@ export function listActions(db: DB) {
       max_m: a.max_m,
       order: data.order ?? 0,
       role: data.role ?? null,
+      lead: data.lead ?? null,
+      n: data.n ?? 0,
       minutes_left: Math.max(0, a.until - gameMinute(db)),
     };
   });
@@ -768,10 +788,14 @@ export function talkContext(db: DB, r: Resident): string {
     }
   }
   const crime = crimeOpen(db);
+  const street = streetCrimeOpen(db);
+  const victim = street ? resident(db, street.victim) : null;
   const facts = db.prepare("SELECT text FROM world_fact WHERE tags LIKE '%notice%' OR tags LIKE '%rumour%' ORDER BY weight DESC, id DESC LIMIT 3").all() as Array<{ text: string }>;
   const lately = eventSlice(db, { about: r.id, limit: 5, maxChars: 500 });
   return `YOUR TASK NOW: ${taskLine(db, r)}.
 PEOPLE NEAR: ${near.length ? near.join(", ") : "nobody you know"}.${crime ? `\nTHE TALK OF THE QUAYS: a man was robbed of ${crime.amount_c} centimes in the dark lately; nobody knows by whom.` : ""}${
+    street && victim ? `\nTHE TALK OF THE STREET: a pickpocket took ${victim.name}'s purse at ${street.place} lately and got away.${street.witnessed && (r.trade === "police" || r.trade === "water_bailiff") ? " Jef was there and saw it; if he names the thief, you may go and question them (talk_to)." : ""}` : ""
+  }${
     facts.length ? `\nTALK OF THE TOWN: ${facts.map((f) => f.text).join(" ")}` : ""
   }${lately.length ? `\nLATELY, THINGS YOU WERE IN:\n${lately.join("\n")}` : ""}`;
 }

@@ -18,8 +18,10 @@ export interface ItemDef {
   warmth?: number;
   health?: number;
   /** Verb for using it; none = cannot be used (a job parcel). */
-  use?: "eat" | "drink";
+  use?: "eat" | "drink" | "read";
   note?: string;
+  /** M6 interiors: eaten at the counter like a drink, never pocketed (a bowl of soup). */
+  atCounter?: boolean;
 }
 
 export const ITEMS: Record<string, ItemDef> = {
@@ -34,7 +36,21 @@ export const ITEMS: Record<string, ItemDef> = {
   parcel: { name: "a parcel", note: "Tied with tarred string. Don't open it." },
   // M3h: a light to carry (L holds it up or puts it away; the client shows it)
   lantern: { name: "a hand lantern", note: "Tin and horn, a tallow candle inside. L to hold it up." },
+  // M6 interiors: hot food at the tavern counter
+  soup: { name: "a bowl of pea soup", food: 3, warmth: 2, use: "eat", atCounter: true },
+  // M6 (paper/): the morning paper, letters, a pawn ticket, and something of Jef's own to pawn
+  newspaper: { name: "the morning Handelsblad", use: "read", note: "Four pages of small print, still smelling of ink." },
+  letter: { name: "a letter", use: "read", note: "Folded and sealed with a blob of wax." },
+  letters: { name: "a bundle of letters", note: "Tied with string. Each goes to its own door." },
+  pawn_ticket: { name: "a pawn ticket", use: "read", note: "Printed card from the Berg van Barmhartigheid. Keep it safe." },
+  medal: { name: "your mother's silver medal", note: "Our Lady, on a worn blue ribbon. She pressed it into your hand the day you left." },
 };
+
+/**
+ * M6: items made by other modules carry a ref in the pocket row (the paper's day, a letter,
+ * a pawn). A module sets the ref for what can be bought, or throws a GameError to refuse.
+ */
+export const ITEM_REF: Record<string, (db: DB) => number | null> = {};
 
 /** Who sells what, for how much (centimes). */
 export const WARES: Record<string, Array<{ kind: string; price_c: number }>> = {
@@ -68,8 +84,11 @@ const TRADE_WARES: Record<string, Array<{ kind: string; price_c: number }>> = {
   publican: [
     { kind: "beer", price_c: 5 },
     { kind: "jenever", price_c: 10 },
+    { kind: "soup", price_c: 8 }, // M6: eaten at the counter
   ],
   fish_merchant: STALL_WARES.fish,
+  // M6: the morning paper, from the newsboys at their corners (Het Handelsblad, 5 centimes)
+  newsboy: [{ kind: "newspaper", price_c: 5 }],
 };
 
 /** What a person sells: the named sellers, or a townsperson by stall or shop. */
@@ -116,6 +135,8 @@ export interface PocketItem {
   kind: string;
   name: string;
   job_id: number | null;
+  /** M6: the paper's day, the letter, the pawn (see ITEM_REF). */
+  ref: number | null;
   use: string | null;
   note: string | null;
 }
@@ -128,7 +149,7 @@ export interface Needs {
 }
 
 export function pockets(db: DB): PocketItem[] {
-  const rows = db.prepare("SELECT id, kind, job_id FROM item ORDER BY id").all() as Array<{ id: number; kind: string; job_id: number | null }>;
+  const rows = db.prepare("SELECT id, kind, job_id, ref FROM item ORDER BY id").all() as Array<{ id: number; kind: string; job_id: number | null; ref: number | null }>;
   return rows.map((r) => ({
     ...r,
     name: ITEMS[r.kind]?.name ?? r.kind,
@@ -151,13 +172,14 @@ export function buy(db: DB, npc: string, kind: string): { line: string; bought: 
   if (!atWork(db, npc)) throw new GameError("the shop is shut; come back in working hours", 409);
   const p = player(db);
   if (p.money_c < ware.price_c) throw new GameError(`not enough money: ${ware.price_c} c needed`, 409);
-  const drinkNow = ITEMS[kind].use === "drink";
+  const drinkNow = ITEMS[kind].use === "drink" || !!ITEMS[kind].atCounter;
+  const ref = ITEM_REF[kind]?.(db) ?? null;
   if (!drinkNow && freeSlots(db) < 1) throw new GameError("your pockets are full", 409);
   db.transaction(() => {
     db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(ware.price_c);
     // a drink is taken on the spot; food goes into your pocket
     if (drinkNow) applyNeeds(db, ITEMS[kind]);
-    else db.prepare("INSERT INTO item (kind, job_id) VALUES (?, NULL)").run(kind);
+    else db.prepare("INSERT INTO item (kind, job_id, ref) VALUES (?, NULL, ?)").run(kind, ref);
     log(db, "bought", kind, `Jef bought ${ITEMS[kind].name} for ${ware.price_c} centimes.`);
   })();
   remember(db, npc, `Jef bought ${ITEMS[kind].name} from me for ${ware.price_c} centimes.`, drinkNow ? 3 : 2);
@@ -182,6 +204,7 @@ export function useItem(db: DB, id: number): { text: string } {
   if (!row) throw new GameError("not in your pockets", 404);
   const def = ITEMS[row.kind];
   if (!def?.use) throw new GameError("that is not yours to use", 409);
+  if (def.use === "read") throw new GameError("open your pockets to read it", 409);
   db.transaction(() => {
     db.prepare("DELETE FROM item WHERE id = ?").run(id);
     applyNeeds(db, def);

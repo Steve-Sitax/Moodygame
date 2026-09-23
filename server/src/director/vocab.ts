@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { EVENT_GATHER_MAX, EVENT_PEOPLE_MAX as PEOPLE_MAX } from "../config.ts";
 
 // The vocabulary of M4: what a townsperson may be asked to do (an action), what
 // the engine says when it refuses or sets a limit, the primitives an event is
@@ -59,7 +60,7 @@ in character and set action.kind "none". Kinds: follow (walk with Jef), go_to (t
 (stay here), talk_to (target: a person's name; you go and speak to them), look_for (target: a person),
 fetch_police (go and bring an agent), give (item: what, amount_c: money; you never give money except what
 you yourself took from Jef), stop (stop what you were doing for him). minutes: how long you would give it.
-reason: why, in a few words (say "robbed" if Jef says he was robbed). A stall or shop keeper at work will not
+reason: why, in a few words (say "robbed" if Jef says he was robbed or saw someone robbed). A stall or shop keeper at work will not
 leave the stall; a child does no questioning of grown-ups; at night the timid stay put.`;
 
 // ------------------------------------------------------------------ engine lines
@@ -162,6 +163,16 @@ export const CONVO_FALLBACK: Record<string, Array<(a: string, b: string) => stri
     (_a, b) => `${b}: Me? I was nowhere near. Ask anyone. He's a liar, that one.`,
     (a) => `${a}: Then keep your nose clean and we'll say no more.`,
   ],
+  street_guilty: [
+    (a, b) => `${a}: A word, ${b}. You were seen with a purse that was not yours, in the street.`,
+    (_a, b) => `${b}: Seen by who? All right. All right. Here, the lot of it.`,
+    (a) => `${a}: It goes back to its owner. Next time it's the cell.`,
+  ],
+  street_innocent: [
+    (a, b) => `${a}: A word, ${b}. A purse went missing in the street.`,
+    (_a, b) => `${b}: And you come to me? I was nowhere near it.`,
+    (a) => `${a}: Then we'll say no more.`,
+  ],
   invite: [
     (a, b) => `${a}: ${b}, you're needed. Come along.`,
     (_a, b) => `${b}: What now? All right. Lead the way.`,
@@ -180,7 +191,7 @@ export const CONVO_FALLBACK: Record<string, Array<(a: string, b: string) => stri
 
 // ------------------------------------------------------------------ events
 
-export const STAGE_OPS = ["gather", "procession", "sound", "props", "talk", "notice", "rumour", "price", "close", "open", "job", "weather"] as const;
+export const STAGE_OPS = ["gather", "procession", "sound", "props", "talk", "notice", "rumour", "price", "close", "open", "job", "weather", "scuffle", "robbery"] as const;
 export type StageOp = (typeof STAGE_OPS)[number];
 export const EVENT_SOUNDS = ["none", "bells", "music", "murmur", "handbell"] as const;
 export type EventSound = (typeof EVENT_SOUNDS)[number];
@@ -189,6 +200,54 @@ export type EventProp = (typeof EVENT_PROPS)[number];
 export const GATHER_ROLES = ["guests", "mourners", "crowd", "sellers", "musicians", "police", "children", "family"] as const;
 export type GatherRole = (typeof GATHER_ROLES)[number];
 export const MOOD_WORDS = ["joy", "solemn", "lively", "tense", "curious", "calm"] as const;
+
+/**
+ * M4b: lead roles. A stage may name 1 to 4 leads; the ENGINE picks the resident for each
+ * (sex, age, trade; the bride and groom a courting pair) and the client dresses them from a
+ * fixed wardrobe (client/src/game/wardrobe.ts). "bearers" is one lead that brings four men
+ * and a coffin. The police agent of a scuffle or a robbery is the engine's own ("agent").
+ */
+export const LEAD_ROLES = [
+  "bride",
+  "groom",
+  "priest",
+  "organ_grinder",
+  "fiddler",
+  "accordionist",
+  "auctioneer",
+  "speaker",
+  "drunkard",
+  "pickpocket",
+  "victim",
+  "widow",
+  "bearers",
+  "hawker",
+  "showman",
+  "quarreller",
+] as const;
+export type LeadRole = (typeof LEAD_ROLES)[number] | "agent";
+export const LEADS_PER_STAGE = 4;
+export const BEARERS = 4;
+/** What a role is called in a notice or a rumour. */
+export const LEAD_LABEL: Record<LeadRole, string> = {
+  bride: "the bride",
+  groom: "the groom",
+  priest: "the priest",
+  organ_grinder: "the organ grinder",
+  fiddler: "the fiddler",
+  accordionist: "the accordion player",
+  auctioneer: "the auctioneer",
+  speaker: "the speaker",
+  drunkard: "a drunk",
+  pickpocket: "the pickpocket",
+  victim: "the one robbed",
+  widow: "the widow",
+  bearers: "the bearers",
+  hawker: "the hawker",
+  showman: "the showman",
+  quarreller: "one of the quarrellers",
+  agent: "the police agent",
+};
 
 /** A stage as the model may write it: flat, every field present, the engine ignores what the op does not use. */
 export const StageSchema = z.object({
@@ -204,6 +263,8 @@ export const StageSchema = z.object({
   text: z.string().max(160),
   item: z.string().max(30),
   factor: z.number(),
+  /** M4b: the leads of this stage (1-4, or none). The engine picks who; extra ones are dropped. */
+  leads: z.array(z.enum(LEAD_ROLES)).max(8),
 });
 export type Stage = z.infer<typeof StageSchema>;
 
@@ -212,8 +273,10 @@ export const STAGE_MAX_MIN = 180;
 export const EVENT_MAX_STAGES = 6;
 export const EVENT_MAX_MIN = 600;
 export const GATHER_MIN = 2;
-/** Steve, 2026-09-24: "should there not be hordes of people come for a wedding?" */
-export const GATHER_MAX = 24;
+/** Steve, 2026-09-24: "should there not be hordes of people come for a wedding?" (the number lives in config.ts) */
+export const GATHER_MAX = EVENT_GATHER_MAX;
+/** M4b: the most one event takes of the town, the leads and every gathering together (config.ts). */
+export const EVENT_PEOPLE_MAX = PEOPLE_MAX;
 export const PRICE_MIN = 0.5;
 export const PRICE_MAX = 3;
 /** Events may not share a place, stand within this of each other, or share a person, with a cleanup margin. */
@@ -224,20 +287,79 @@ export const EVENTS_PER_DAY = 4;
 /** The client claims an event's people only while Jef is within this. */
 export const EVENT_CLAIM_M = 70;
 
+// ------------------------------------------------------------------ M4b: the scenes (no combat)
+
+/** A scuffle or a robbery: the police agent on duty comes if one is within this. */
+export const SCENE_POLICE_M = 260;
+/** A robbery: the purse by the victim's trade, in centimes (the engine's numbers). */
+export const PURSE_RICH_C: [number, number] = [40, 90];
+export const PURSE_POOR_C: [number, number] = [8, 35];
+export const RICH_TRADES = ["merchant", "clerk", "fish_merchant", "brewer", "draper", "pawnbroker", "grocer", "tobacconist", "chandler"];
+/** Jef within this of a robbery saw it (the police will listen to him). */
+export const WITNESS_M = 45;
+/** The chance the police catch a street thief when an agent is near (the engine's roll). */
+export const CATCH_CHANCE = 0.5;
+
+/** The engine's own words in a scene (the client shows them as bubbles at the right moment). */
+export const SCENE_LINES = {
+  shout: ["Thief! Stop him, he has my purse!", "My purse! Stop that one!", "Hey! Thief! Somebody stop him!"],
+  caught: ["Got you. Hand it over, and walk with me.", "Not so fast. Turn your pockets out."],
+  escaped: ["Gone. Into the alleys, like a rat.", "Lost him. I know that face, though."],
+  part: ["Enough! Break it up, the pair of you.", "That will do! Step apart, or it's the cell for both."],
+  sorry: ["All right, all right. I was in the wrong.", "Fine. I'll go. But he knows what he said."],
+};
+
+/**
+ * Words the director may not use: no weapons, no killing, nobody hurt (the project has no
+ * combat). An event that carries them is refused whole.
+ */
+export const VIOLENCE_RE =
+  /\b(kill(s|ed|er|ing)?|murder\w*|stab\w*|shoot\w*|shot dead|guns?|gunfire|pistols?|revolvers?|rifles?|muskets?|knife|knives|daggers?|swords?|blades?|cudgels?|clubbed|clubbing|bludgeon\w*|strangl\w*|throttl\w*|blood\w*|wound\w*|injur\w*|beat (him|her|them) up|beaten up|beaten to|riot\w*|hanged|corpse|weapons?|dead body|bodies)\b/i;
+/** Softer words the engine cleans instead: the scene is a scuffle, a shove, never a fight. */
+export const SOFTEN: Array<[RegExp, string]> = [
+  [/\bfist ?fights?\b/gi, "scuffle"],
+  [/\bfights?\b/gi, "scuffle"],
+  [/\bfighting\b/gi, "scuffling"],
+  [/\bfought\b/gi, "scuffled"],
+  [/\bbrawl(s)?\b/gi, "scuffle$1"],
+  [/\bbrawling\b/gi, "scuffling"],
+  [/\bpunches\b/gi, "shoves"],
+  [/\bpunched\b/gi, "shoved"],
+  [/\bpunch\b/gi, "shove"],
+  [/\bcame to blows\b/gi, "came to shoving"],
+];
+/** A sentence that hands Jef money or goods: the engine strips it (only jobs and shops pay). */
+export const MONEY_TO_JEF_RE =
+  /[^.!?]*\b(jef|the player)\b[^.!?]*\b(gets?|receives?|is given|given|finds?|wins?|earns?|paid|rewarded|rewards?)\b[^.!?]*\b(centimes?|francs?|coins?|money|purse|reward|gold)\b[^.!?]*[.!?]?/gi;
+
 export const PRIMITIVES_FOR_MODEL = `
 STAGES. An event is 1-6 stages, played one after the other, each for "minutes" game minutes (5-180, 600 in all).
 The clock runs fast (a game hour is 20 real seconds): a stage under 60 minutes is over in a blink. Give a gathering
-120-180 minutes so people can walk there, a talk 90, a procession 150-180, a sound 60-120.
-Every stage has every field; fill the ones the op uses and put "" / 0 / "none" in the rest.
-- gather: role (guests, mourners, crowd, sellers, musicians, police, children, family), count 2-24, place. People walk to a ring round the place. A wedding or a ship leaving draws 20 or more; a quarrel draws a dozen onlookers.
-- procession: the gathered people walk in a column to "place". Give the stage a sound if they sing or a bell goes before them.
+120-180 minutes so people can walk there, a talk 90, a procession 150-180, a sound 60-120, a scuffle or a robbery 120-150.
+Every stage has every field; fill the ones the op uses and put "" / 0 / "none" / [] in the rest.
+- gather: role (guests, mourners, crowd, sellers, musicians, police, children, family), count 0-${EVENT_GATHER_MAX}, place, leads.
+  People walk to a ring round the place; the leads stand in the middle. One event takes ${PEOPLE_MAX} people at most in all.
+  A wedding, a big fire or a ship leaving draws 50 to ${PEOPLE_MAX}; a quarrel a dozen or two; street music twenty or thirty.
+- procession: everyone walks in a column to "place"; the stage's leads walk first (the groom and the bride arm in arm, the
+  bearers with the coffin). Give it a sound if they sing or a bell goes before them.
 - sound: bells, music, murmur or handbell at the place, with a mood word.
 - props: crates, barrels, sacks, flowers or black_cloth set out at the place.
-- talk: two of the gathered people talk in the street (a few lines the town can hear). text: what about.
+- talk: two people talk in the street (a few lines the town hears): the stage's two leads if it names two, else two of the
+  gathered. text: what about.
 - notice: text pinned up in the town (the townspeople will mention it).
 - rumour: text the town will repeat afterwards.
 - price: item (herring, eel, bread, apple, beer, jenever, biscuit) at factor 0.5-3 until the event ends.
 - close / open: a shop, stall or tavern by place id, until the event ends.
-- job: a piece of work for Jef goes on the board (the engine writes it).
+- job: a piece of work for Jef goes on the board (the engine writes it and pays it).
 - weather: the sky changes (fog, mist, clear, rain, storm) for the rest of the day; at most once a day.
+- scuffle: two leads (quarreller and quarreller, or quarreller and drunkard) argue, then push and shove; a crowd forms; the
+  police agent on duty comes and parts them. text: what they fell out over. The engine decides who was in the wrong.
+  Nobody is hurt, nobody has a weapon.
+- robbery: leads pickpocket and victim. The pickpocket lifts the victim's purse in the street, the victim shouts, the thief
+  runs, the police may give chase. The engine decides the sum and whether he is caught. Never Jef's purse.
+LEADS (1-4 a stage; the engine picks who): bride, groom, priest (a wedding: all three; the couple walk first), organ_grinder,
+fiddler, accordionist (street music), auctioneer (a sale: a handbell and a board), speaker (a preacher or a man with a
+paper), drunkard (a bottle), pickpocket, victim, widow (a funeral), bearers (four men with a coffin), hawker (a tray of
+wares), showman (a monkey on his shoulder), quarreller. Name a lead in the notice or the rumour as {bride}, {groom},
+{victim} and so on; the engine puts in the real name. Never write a person's name yourself.
 Any stage may also carry a sound and a mood while it runs.`;

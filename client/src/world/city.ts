@@ -7,7 +7,8 @@ import { createMirror } from "./mirror";
 import { cobblePaving, earthPaving, edgeStoneTexture, flagPaving } from "./paving";
 import { brickBandTexture, facadeAtlas, glassTexture, leafTexture, roofAtlas, slateTexture, stoneTexture } from "./cityTextures";
 import { makeTextures } from "./textures";
-import { slimeCuts, slimeShade } from "./quaysteps";
+import { slimeCuts, slimeShade, tideCuts, tideShade } from "./quaysteps";
+import { DOCK_Y, LW_MIN, regionAt } from "./tide";
 
 // Antwerp, 1873, traced from the Vuillaume map (CC0) and built in Blender
 // (tools/city, tools/blender). This module lays the ground and the quays, loads
@@ -193,13 +194,21 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
       arr.push(...a, ...b, ...c, ...a, ...c, ...d);
       uvs.push(0, 0, L, 0, L, H, 0, 0, L, H, 0, H);
     };
-    // the wall in bands, coloured by height: green slime at the waterline, a dark wet band above it
-    const shade = slimeShade(waterY);
-    const y0 = waterY - 1.5;
-    const bands = [y0, ...slimeCuts(waterY).filter((y) => y > y0 && y < 0), 0];
+    // the wall in bands, coloured by height: green slime at the waterline, a dark wet band above it.
+    // M6 tides: on the river the whole tide range is slimy up to the high-water mark and the wall
+    // goes down below the lowest spring tide; the Petit Bassin keeps one level (world/tide.ts)
+    const y0 = LW_MIN - 1.2;
+    const riverShade = tideShade();
+    const riverBands = [y0, ...tideCuts().filter((y) => y > y0 && y < 0), 0];
+    const dockShade = slimeShade(DOCK_Y);
+    const dockBands = [y0, ...slimeCuts(DOCK_Y).filter((y) => y > y0 && y < 0), 0];
+    void waterY;
     for (const [ax, az, bx, bz] of data.quays) {
       const L = Math.hypot(bx - ax, bz - az);
       if (L < 0.01) continue;
+      const inDock = regionAt((ax + bx) / 2, (az + bz) / 2) === 1;
+      const shade = inDock ? dockShade : riverShade;
+      const bands = inDock ? dockBands : riverBands;
       for (let i = 0; i < bands.length - 1; i++) {
         const [ya, yb] = [bands[i], bands[i + 1]];
         const [va, vb] = [(ya - y0) / 4, (yb - y0) / 4];

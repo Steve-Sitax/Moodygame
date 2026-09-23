@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { Surface } from "../world/rijnkaai";
+import { water } from "../world/tide";
 import { cartRoutes, cityEmitters, nearestQuay, overWater, type Emitter, type EmitterKind } from "./emitters";
 import { CARILLON_SHORT, DOG_SPANS, SAMPLES, TOOT_SPANS, type SampleName } from "./samples";
 
@@ -167,6 +168,12 @@ export interface SoundscapeOptions {
 export class Soundscape {
   private ctx: BaseAudioContext;
   private master: GainNode;
+  /** M6: the street's own master (master points at the room bus only inside `indoors`). */
+  private street: GainNode;
+  private streetLp: BiquadFilterNode;
+  private room: GainNode;
+  private roomKind: "tavern" | "cellar" | null = null;
+  private roomBeds: AudioScheduledSourceNode[] = [];
   private reverbIn: GainNode;
   /** Far bus: everything far off goes through the fog here. */
   /** Positioned sounds now playing; their air lowpass and fog gain follow the listener. */
@@ -235,7 +242,20 @@ export class Soundscape {
     comp.ratio.value = 3;
     this.master = this.ctx.createGain();
     this.master.gain.value = 0.9;
-    this.master.connect(comp).connect(this.ctx.destination);
+    // M6 interiors: the street goes through a lowpass (the walls, when you are inside); the room
+    // you stand in has its own bus with a short, close reverb (setInterior, indoors)
+    this.streetLp = this.ctx.createBiquadFilter();
+    this.streetLp.type = "lowpass";
+    this.streetLp.frequency.value = 20000;
+    this.master.connect(this.streetLp).connect(comp).connect(this.ctx.destination);
+    this.street = this.master;
+    this.room = this.ctx.createGain();
+    this.room.connect(comp);
+    const roomVerb = this.ctx.createConvolver();
+    roomVerb.buffer = this.impulse(0.7, 5);
+    const roomSend = this.ctx.createGain();
+    roomSend.gain.value = 0.22;
+    this.room.connect(roomSend).connect(roomVerb).connect(comp);
 
     // foggy outdoor space: long soft tail
     const verb = this.ctx.createConvolver();
@@ -314,6 +334,52 @@ export class Soundscape {
   resume(): void {
     const c = this.ctx;
     if (c instanceof AudioContext && c.state !== "running") void c.resume();
+  }
+
+  /**
+   * M6 interiors (game/interiors.ts): inside a tavern or the Poesje's cellar the street is
+   * heard through the walls (low and dull), and the room has its own sound, close and clear:
+   * the tavern's crowd and song (the same CC0 loops the street hears muffled at the door),
+   * the cellar's audience murmuring. null: back out in the street.
+   */
+  setInterior(kind: "tavern" | "cellar" | null): void {
+    if (kind === this.roomKind) return;
+    this.roomKind = kind;
+    const t = this.ctx.currentTime;
+    for (const b of this.roomBeds) b.stop(t + 0.3);
+    this.roomBeds = [];
+    this.streetLp.frequency.setTargetAtTime(kind ? 420 : 20000, t, 0.12);
+    this.street.gain.setTargetAtTime(kind ? 0.4 : 0.9, t, 0.12);
+    const beds: Array<[SampleName, number]> = kind === "tavern" ? [["tavernCrowd", 0.55], ["tavernSong", 0.32]] : kind === "cellar" ? [["murmur", 0.3]] : [];
+    for (const [name, gain] of beds) {
+      const b = this.buf.get(name);
+      if (!b) continue;
+      const src = this.ctx.createBufferSource();
+      src.buffer = b;
+      src.loop = true;
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(gain, t + 0.6);
+      src.connect(g).connect(this.room);
+      src.start(t, Math.random() * b.duration);
+      this.roomBeds.push(src);
+    }
+  }
+
+  /** Run `fn` with its one-shot sounds (steps, voices) in the room, not out in the street. */
+  indoors(fn: () => void): void {
+    const m = this.master;
+    this.master = this.room;
+    try {
+      fn();
+    } finally {
+      this.master = m;
+    }
+  }
+
+  /** Dev: the room sound now. */
+  get interior(): string | null {
+    return this.roomKind;
   }
 
   get state(): AudioContextState {
@@ -488,7 +554,8 @@ export class Soundscape {
       this.waterPanner.positionZ.value = q.z;
     }
     // swimming, the water is right at your ears
-    this.waterPanner.positionY.value = Math.min(-1.2, this.listenerPos.y - 0.4);
+    // M6 tides: the lapping is down at the water, wherever the tide has it (world/tide.ts)
+    this.waterPanner.positionY.value = Math.min(water.river + 0.2, this.listenerPos.y - 0.4);
 
     const now = ctx.currentTime;
     const slow = now > this.nextSlow;
@@ -595,7 +662,7 @@ export class Soundscape {
     const ctx = this.ctx;
     const layers = def.layers.filter(([n]) => n === "hiss" || this.buf.has(n));
     if (!layers.length) return null;
-    const spot = this.spot(e, def.ref, def.rolloff, def.reach ?? 150, def.wet ?? 0, def.lowpass);
+    const spot = this.spot(e, def.ref, def.rolloff, def.reach ?? 150, def.wet ?? 0, def.lowpass, this.street);
     const panner = spot.pan;
     const gain = ctx.createGain();
     gain.gain.value = 0;
@@ -1286,7 +1353,7 @@ export class Soundscape {
    * reverb send after the panner. Connect the source to `fog`. Tuned now and
    * four times a second after (tuneSpot); drop it when the sound ends.
    */
-  private spot(at: { x: number; z: number; y?: number }, ref: number, rolloff: number, reach: number, wet: number, cap = 14000): Spot {
+  private spot(at: { x: number; z: number; y?: number }, ref: number, rolloff: number, reach: number, wet: number, cap = 14000, out: AudioNode = this.master): Spot {
     const ctx = this.ctx;
     const pan = this.panner(ref, rolloff);
     const lp = ctx.createBiquadFilter();
@@ -1294,7 +1361,7 @@ export class Soundscape {
     lp.Q.value = 0.5;
     const fog = ctx.createGain();
     const w = ctx.createGain();
-    fog.connect(lp).connect(pan).connect(this.master);
+    fog.connect(lp).connect(pan).connect(out);
     pan.connect(w).connect(this.reverbIn);
     const sp: Spot = { x: at.x, y: at.y ?? 1, z: at.z, reach, cap, wetBase: wet, fog, lp, pan, wet: w };
     pan.positionX.value = sp.x;

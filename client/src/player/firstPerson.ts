@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { World, Surface } from "../world/rijnkaai";
 import type { Exit } from "../world/quaysteps";
+import { WADE } from "../world/tide";
 import { psxUniforms } from "../retro/psx";
 
 // First person walker: WASD, pointer-lock mouse look, head bob, footstep events.
@@ -250,6 +251,11 @@ export class FirstPerson {
         this.onLand?.(this.world.surfaceAt(this.x, this.z));
       }
     } else this.y = ground; // step up onto low things
+    // M6 tides: down a flight of steps into deep water (or the tide came up round you): swim
+    if (this.grounded && this.y < this.world.waterLevel(this.x, this.z) - WADE && this.world.swimmable(this.x, this.z)) {
+      this.enterWater();
+      return;
+    }
     this.eye += ((this.crouching ? EYE_CROUCH : EYE) - this.eye) * (1 - Math.exp(-dt * 10));
 
     // head bob follows distance walked: one full cycle = two steps

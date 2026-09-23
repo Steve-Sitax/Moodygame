@@ -169,7 +169,7 @@ export class HaulRun implements Run {
       // someone waiting for the delivery; on the ship they stand on deck at the top of the gangway
       this.recipient =
         task.to === "ship_gangway"
-          ? new Figure("recipient", RAMP.x - 0.6, RAMP.zHigh - 1.0, world.scene, DECK.y)
+          ? new Figure("recipient", RAMP.x - 0.6, RAMP.zHigh - 1.0, world.scene, () => DECK.y)
           : new Figure("recipient", to.x, to.z, world.scene);
       this.recipient.face(from.x, from.z);
     }
@@ -712,9 +712,15 @@ export class WatchRun implements Run {
   }
 }
 
+/** M6: other kinds of job register how they play (game/press.ts: the letters round). */
+export const RUN_MAKERS: Record<string, (job: Job, ctx: RunCtx) => Run> = {};
+
 export function makeRun(job: Job, ctx: RunCtx): Run | null {
   const t = job.task;
   if (!t) return null;
+  const maker = RUN_MAKERS[t.kind];
+  if (maker) return maker(job, ctx);
+  if (t.kind === "letters") return null;
   if (t.kind === "watch") return new WatchRun(job, t, ctx);
   return new HaulRun(job, t, ctx);
 }

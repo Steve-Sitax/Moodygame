@@ -11,7 +11,9 @@ import { TOWN_EMPLOYERS } from "../town/places.ts";
 // and turns every pick into a task the 3D game can play (M2b).
 
 export const TASK_TYPES = ["carry", "watch", "deliver", "row", "find", "talk"] as const;
-export const PLAYABLE = new Set<string>(["carry", "watch", "deliver"]);
+// M6: "letters" (a round of doors and counters: the post office's letters, a letter's errand) is
+// never on the model's list; the engine builds those jobs itself (paper/post.ts)
+export const PLAYABLE = new Set<string>(["carry", "watch", "deliver", "letters"]);
 
 export const GOODS = ["crates", "sacks", "barrels", "hides", "rope", "parcel"] as const;
 export type Goods = (typeof GOODS)[number];
@@ -95,7 +97,7 @@ export function employerName(db: DB, id: string): string {
 }
 
 /** docs/01 tier table. */
-const TIER_PAY: Array<[number, number]> = [
+export const TIER_PAY: Array<[number, number]> = [
   [50, 150],
   [150, 300],
   [300, 600],
@@ -164,7 +166,35 @@ export interface DeliverTask {
   limit_s: number | null;
   progress?: Progress;
 }
-export type Task = CarryTask | WatchTask | DeliverTask;
+/** M6: one stop of a letters round: a door to put a letter under, or the telegraph counter. */
+export interface RoundStop {
+  /** The addressee (a resident), or "telegraph". */
+  id: string;
+  name: string;
+  x: number;
+  z: number;
+  what: "door" | "telegraph";
+  /** Set by the engine when the stop is done (paper/post.ts), never by the client. */
+  done?: boolean;
+}
+/** M6: a round of letters (paper/post.ts). Engine-built; the engine counts the stops done. */
+export interface LettersTask {
+  kind: "letters";
+  goods: "letters";
+  /** Where the letters are picked up: the post office counter or the sender's door. */
+  from: { x: number; z: number; label: string };
+  stops: RoundStop[];
+  /** Paid at the telegraph counter by Jef, given back in the pay. */
+  fee_c: number;
+  /** The words of a telegram (at most 20), shown when it is sent. */
+  words?: string;
+  city?: string;
+  picked?: boolean;
+  twist: "none";
+  limit_s: null;
+  progress?: Progress;
+}
+export type Task = CarryTask | WatchTask | DeliverTask | LettersTask;
 
 export interface JobRow {
   id: number;
@@ -420,6 +450,9 @@ export const FALLBACK_BOARD: Board = {
   ],
 };
 
+/** M6: run after every new board (paper/routes.ts adds the post round and the morning paper). */
+export const boardExtras: Array<(db: DB) => void> = [];
+
 /**
  * Make a board for the player's current day: ask Claude, clamp, fall back
  * if needed, then write rows. Returns where the words came from.
@@ -457,6 +490,14 @@ export async function makeBoard(
       "INSERT INTO log (day, hour, place, actor, verb, object, text) VALUES (?, ?, 'rijnkaai', 'world', 'job_board', ?, ?)",
     ).run(day, hour, source, `A new job board went up on the Rijnkaai with ${board.jobs.length} jobs.`);
   })();
+  // M6: what comes with a new board (the post office's round, the morning paper); never fatal
+  for (const f of boardExtras) {
+    try {
+      f(db);
+    } catch (e) {
+      console.error("[job_board] extra", e);
+    }
+  }
   return { source, error: res.error, ms: res.ms };
 }
 

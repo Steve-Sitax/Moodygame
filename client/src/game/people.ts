@@ -20,6 +20,8 @@ export interface NpcDef {
   z: number;
   /** Height they stand at (the sailor stands on the ship's deck). */
   y?: number;
+  /** Stands on the Anna Maria's deck: rides up and down with the tide (M6). */
+  onDeck?: boolean;
   yaw: number;
   talks: boolean;
   /** Which model from people.glb (default: the id). */
@@ -111,6 +113,7 @@ export const NPCS: NpcDef[] = [
     x: -38.5,
     z: -4.6,
     y: DECK.y, // on the Anna Maria's deck (the brig's deck is a little below the quay)
+    onDeck: true, // M6 tides: the deck rises and falls with the tide
     yaw: 0,
     talks: false,
     build: (m) => {
@@ -216,6 +219,7 @@ export class Npc {
 
   update(dt: number, player: FirstPerson, now: number): void {
     const d = this.distTo(player.x, player.z);
+    if (this.def.onDeck) this.pos.y = DECK.y;
     this.group.position.copy(this.pos);
     if (d < 6) this.lookAt(player.x, player.z);
     else this.facing = this.def.yaw;

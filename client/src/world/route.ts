@@ -1,10 +1,10 @@
 import * as THREE from "three";
-import { WATER_Y } from "./rijnkaai";
+import { levelAt } from "./tide";
 
 // A water route for moving boats: a smoothed line through (x, z) points, and a "train" of
 // boats that follows it one behind the other (a tug and its tows, or a single boat). Used by
 // world/bridges.ts (canal and vliet passages) and world/river.ts (the Schelde traffic).
-// WATER_Y is only read inside functions (rijnkaai.ts imports the modules that import this).
+// M6 tides: the boats float on the level of the water they are in (world/tide.ts).
 
 export class Route {
   readonly curve: THREE.CatmullRomCurve3;
@@ -74,15 +74,15 @@ export function placeTrain(
     const p = parts[i];
     if (i > 0) sp -= dir * (parts[i - 1].len / 2 + gap + p.len / 2);
     route.pose(sp, dir, pose);
-    p.obj.position.set(pose.x, WATER_Y, pose.z);
+    p.obj.position.set(pose.x, levelAt(pose.x, pose.z), pose.z);
     p.obj.rotation.y = pose.yaw;
     if (i > 0 && hawser) {
       const a = parts[i - 1].obj;
       const b = p.obj;
       const la = parts[i - 1].len / 2 - 1.2;
       const lb = p.len / 2 - 0.5;
-      hawser.setXYZ(at++, a.position.x - Math.sin(a.rotation.y) * la, WATER_Y + 1.3, a.position.z - Math.cos(a.rotation.y) * la);
-      hawser.setXYZ(at++, b.position.x + Math.sin(b.rotation.y) * lb, WATER_Y + 1.1, b.position.z + Math.cos(b.rotation.y) * lb);
+      hawser.setXYZ(at++, a.position.x - Math.sin(a.rotation.y) * la, a.position.y + 1.3, a.position.z - Math.cos(a.rotation.y) * la);
+      hawser.setXYZ(at++, b.position.x + Math.sin(b.rotation.y) * lb, b.position.y + 1.1, b.position.z + Math.cos(b.rotation.y) * lb);
     }
   }
   return at;

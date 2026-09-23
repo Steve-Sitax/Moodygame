@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { LW_MIN } from "./tide";
 import { psx } from "../retro/psx";
 
 // The far bank of the Schelde (the left bank, the Vlaams Hoofd), across the
@@ -34,6 +35,8 @@ export function buildFarBank(scene: THREE.Scene, waterY: number): THREE.Group {
     quad([x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], k.map((v) => v * 0.8));
   };
   const y = waterY;
+  // the mud flat in front of the dyke, bare at low water (M6 tides: the river falls to LW_MIN)
+  quad([X0, LW_MIN - 1.2, BANK_Z + 30], [X1, LW_MIN - 1.2, BANK_Z + 30], [X1, y - 1, BANK_Z], [X0, y - 1, BANK_Z], [0.3, 0.29, 0.26]);
   // the stone foot and the grassed dyke
   quad([X0, y - 1, BANK_Z], [X1, y - 1, BANK_Z], [X1, y + 1.2, BANK_Z - 3], [X0, y + 1.2, BANK_Z - 3], [0.34, 0.33, 0.3]);
   quad([X0, y + 1.2, BANK_Z - 3], [X1, y + 1.2, BANK_Z - 3], [X1, y + 5, BANK_Z - 12], [X0, y + 5, BANK_Z - 12], [0.3, 0.34, 0.24]);

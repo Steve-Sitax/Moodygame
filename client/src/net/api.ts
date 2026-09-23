@@ -38,7 +38,29 @@ export interface DeliverTask {
   limit_s: number | null;
   progress?: Progress;
 }
-export type Task = CarryTask | WatchTask | DeliverTask;
+/** M6 (server paper/post.ts): a round of letters, or a telegram to send; the server marks each stop done. */
+export interface RoundStop {
+  id: string;
+  name: string;
+  x: number;
+  z: number;
+  what: "door" | "telegraph";
+  done?: boolean;
+}
+export interface LettersTask {
+  kind: "letters";
+  goods: "letters";
+  from: { x: number; z: number; label: string };
+  stops: RoundStop[];
+  fee_c: number;
+  words?: string;
+  city?: string;
+  picked?: boolean;
+  twist: "none";
+  limit_s: null;
+  progress?: Progress;
+}
+export type Task = CarryTask | WatchTask | DeliverTask | LettersTask;
 
 /** What happened in 3D, sent when a job ends. The server turns it into money. */
 export interface Report {
@@ -94,6 +116,8 @@ export interface PocketItem {
   kind: string;
   name: string;
   job_id: number | null;
+  /** M6: the paper's day, the letter or the pawn ticket this pocket row is. */
+  ref?: number | null;
   use: string | null;
   note: string | null;
 }
@@ -243,8 +267,12 @@ export interface PublicAction {
   until: number;
   max_m: number;
   order: number;
-  /** attend: guests, crowd (onlookers), mourners ... */
+  /** attend: guests, crowd (onlookers), mourners ... ("lead" for a lead). */
   role: string | null;
+  /** M4b attend: the lead's part (bride, groom, fiddler, pickpocket, agent ...), else null. */
+  lead: string | null;
+  /** M4b bearers: which of the four. */
+  n: number;
   minutes_left: number;
 }
 export interface ConvoLine {
@@ -276,6 +304,25 @@ export interface EventStage {
   label: string;
   text: string;
   count: number;
+  leads: string[];
+}
+/** M4b: a scuffle or a robbery as the engine set it up (director/scenes.ts). */
+export interface EventScene {
+  kind: "scuffle" | "robbery";
+  a: string;
+  b: string;
+  agent: string | null;
+  wrong: string | null;
+  caught: boolean | null;
+  flee: { x: number; z: number } | null;
+  lines: { shout?: string; agent?: string; sorry?: string };
+  resolved: boolean;
+}
+export interface EventLead {
+  role: string;
+  id: string;
+  name: string;
+  n: number;
 }
 export interface TownEvent {
   id: number;
@@ -289,6 +336,9 @@ export interface TownEvent {
   stage: number;
   stages: EventStage[];
   people: string[];
+  /** M4b: the leads with their parts, and the scene now playing. */
+  leads: EventLead[];
+  scene: EventScene | null;
   /** Game minutes left in the stage now playing. */
   stage_left: number;
   starts_in: number;
@@ -349,7 +399,7 @@ export const api = {
   actionsSync: (body: { x: number; z: number; people: Array<{ id: string; x: number; z: number }> }) => call<{ ok: boolean }>("POST", "/api/actions/sync", body),
   actionReport: (id: number, body: { phase: "arrived" | "lost" | "blocked" | "done"; x?: number; z?: number; found?: boolean; why?: string }) =>
     call<JobsPayload & { action: PublicAction }>("POST", `/api/actions/${id}/report`, body, 30_000),
-  devDirector: (body: { think?: boolean; template?: string }) => call<Record<string, unknown>>("POST", "/api/dev/director", body, 40_000),
+  devDirector: (body: { think?: boolean; invent?: boolean; template?: string }) => call<Record<string, unknown>>("POST", "/api/dev/director", body, 40_000),
 };
 
 /** Push channel. Reconnects on its own; the game never waits on it. */

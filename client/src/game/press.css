@@ -1,0 +1,98 @@
+/* M6: the paper page, letters, pawn tickets and the counters (game/press.ts). Paper and ink, docs/05. */
+.press-page {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 30;
+  max-height: 88vh;
+  overflow: auto;
+  color: #2a2420;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.75);
+}
+.press-page .keys { font-size: calc(11px * var(--ui, 1)); opacity: 0.7; margin: 10px 0 0; text-align: right; }
+
+/* the newspaper: yellowed newsprint, a black masthead, columns of small type */
+.press-page.paper {
+  width: min(880px, 92vw);
+  background: #e4d6ae;
+  background-image: radial-gradient(ellipse at 30% 20%, rgba(255, 250, 225, 0.45), transparent 60%), radial-gradient(ellipse at 80% 90%, rgba(120, 90, 40, 0.18), transparent 55%);
+  filter: sepia(0.25) contrast(0.96);
+  padding: 18px 26px 14px;
+  font-family: "Times New Roman", Georgia, serif;
+}
+.newspaper .mast { display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 3px double #2a2420; padding-bottom: 4px; }
+.newspaper .mast h1 {
+  margin: 0;
+  font-family: "Old English Text MT", "UnifrakturMaguntia", "Engravers MT", Georgia, serif;
+  font-size: calc(46px * var(--ui, 1));
+  font-weight: normal;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+.newspaper .ear { font-size: calc(11px * var(--ui, 1)); font-style: italic; width: 110px; }
+.newspaper .ear:last-child { text-align: right; }
+.newspaper .dateline { text-align: center; font-size: calc(12px * var(--ui, 1)); letter-spacing: 0.5px; border-bottom: 1px solid #2a2420; padding: 3px 0; margin-bottom: 10px; font-variant: small-caps; }
+.newspaper article h3 { margin: 0 0 3px; font-size: calc(12.5px * var(--ui, 1)); letter-spacing: 1px; text-align: center; }
+.newspaper article p { margin: 0 0 4px; font-size: calc(13px * var(--ui, 1)); line-height: 1.32; text-align: justify; hyphens: auto; }
+.newspaper article.lead { border-bottom: 1px solid #2a2420; padding-bottom: 8px; margin-bottom: 10px; }
+.newspaper article.lead h3 { font-size: calc(20px * var(--ui, 1)); letter-spacing: 2px; }
+.newspaper article.lead p { font-size: calc(15px * var(--ui, 1)); text-align: center; }
+.newspaper .cols { column-count: 3; column-gap: 20px; column-rule: 1px solid rgba(42, 36, 32, 0.6); }
+.newspaper .cols article { break-inside: avoid; margin-bottom: 10px; }
+.newspaper .ships h4 { margin: 4px 0 2px; font-size: calc(11px * var(--ui, 1)); font-style: italic; font-weight: normal; }
+.newspaper .ships p { font-size: calc(11.5px * var(--ui, 1)); text-align: left; }
+
+/* a letter: laid paper, ink */
+.press-page.letter {
+  width: min(520px, 90vw);
+  background: #efe6cf;
+  background-image: repeating-linear-gradient(0deg, transparent 0 23px, rgba(80, 60, 30, 0.08) 23px 24px);
+  padding: 22px 30px 14px;
+  font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  font-size: calc(15px * var(--ui, 1));
+  line-height: 1.5;
+  transform: translate(-50%, -50%) rotate(-0.6deg);
+}
+.letter .date { text-align: right; font-size: 0.85em; }
+.letter .body { white-space: pre-wrap; }
+.letter .close { text-align: right; }
+.letter .wire { font-family: "Courier New", monospace; font-size: 0.85em; background: rgba(255, 255, 255, 0.35); padding: 4px 8px; }
+.letter .offer { font-family: Georgia, serif; font-size: 0.8em; border-top: 1px dashed rgba(42, 36, 32, 0.5); padding-top: 6px; }
+
+/* a pawn ticket: a printed card */
+.press-page.ticket {
+  width: min(360px, 88vw);
+  background: #d9d2bd;
+  border: 2px solid #3a2320;
+  outline: 4px double #3a2320;
+  outline-offset: -9px;
+  padding: 20px 24px 12px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: calc(14px * var(--ui, 1));
+}
+.ticket p { margin: 4px 0; }
+.ticket .head { text-align: center; font-size: 0.8em; letter-spacing: 1px; }
+.ticket .no { text-align: center; font-size: 1.8em; margin: 6px 0 10px; }
+.ticket .due { font-style: italic; }
+
+/* the counters */
+.press-page.berg, .press-page.post {
+  width: min(560px, 90vw);
+  background: #d8cfb8;
+  padding: 16px 22px 12px;
+  font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+}
+.counter h2 { margin: 0; font-size: calc(22px * var(--ui, 1)); }
+.counter .sub { margin: 0 0 8px; font-size: calc(12px * var(--ui, 1)); opacity: 0.75; }
+.counter h4 { margin: 8px 0 2px; font-size: calc(13px * var(--ui, 1)); }
+.counter ol { list-style: none; margin: 0; padding: 0; }
+.counter li { display: flex; gap: 8px; align-items: baseline; font-size: calc(14px * var(--ui, 1)); padding: 3px 0; border-top: 1px dashed rgba(42, 36, 32, 0.3); }
+.counter li i { font-size: 0.8em; opacity: 0.75; }
+.counter .n { font-weight: bold; }
+.counter .price { margin-left: auto; font-weight: bold; white-space: nowrap; }
+.counter .none, .counter .shut { font-size: calc(13px * var(--ui, 1)); opacity: 0.75; margin: 2px 0; }
+.counter .terms { font-size: calc(11px * var(--ui, 1)); opacity: 0.8; margin: 10px 0 0; }
+.counter .msg { font-size: calc(12px * var(--ui, 1)); margin: 6px 0 0; }
+.counter li .what { flex: 1; }
+.counter li i.sub { display: block; font-size: 0.78em; opacity: 0.75; }

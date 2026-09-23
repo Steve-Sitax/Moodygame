@@ -23,6 +23,8 @@ import { freeReply, openTalk, pickChoice, prefetchOpening, witness, type Line } 
 import { mountDeeds } from "./town/deedRoutes.ts";
 import { mountRowing } from "./town/rowDeeds.ts";
 import { mountDirector } from "./director/routes.ts";
+import { mountInteriors } from "./interiors/routes.ts";
+import { mountPress } from "./paper/routes.ts";
 
 const db = openDb(DB_FILE);
 const app = new Hono();
@@ -33,6 +35,10 @@ mountDirector(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadca
 mountDeeds(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m), afterNight: (e) => afterNight(e) });
 // rowing boats for hire, and boats to steal (M3j): the server takes the hire, the fines and the price of a lost boat
 mountRowing(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
+// M6: inside the taverns (drink, dice, gossip) and the Poesje puppet cellar (interiors/)
+mountInteriors(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
+// M6: the morning paper and the newsboys, the post and the telegraph, the Berg van Barmhartigheid (paper/)
+mountPress(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 
 // Board status the client can show while Claude writes.
 let board: { state: "writing" | "ready"; source?: string; error?: string } = { state: "ready" };

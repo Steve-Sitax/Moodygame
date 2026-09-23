@@ -371,7 +371,10 @@ body:has(.night[style*="block"]) #game { filter: brightness(0.35); }
   font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
   font-size: calc(11px * var(--ui, 1));
   line-height: 1.25;
+  /* M4b (Steve): a bubble keeps its size at the screen's edge; bubbles.ts slides it inside instead */
+  width: max-content;
   max-width: calc(200px * var(--ui, 1));
+  box-sizing: border-box;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6);
   filter: sepia(0.3) contrast(0.95);
   pointer-events: none;
@@ -384,7 +387,7 @@ body:has(.night[style*="block"]) #game { filter: brightness(0.35); }
 .bubble::after {
   content: "";
   position: absolute;
-  left: 50%;
+  left: calc(50% + var(--tail, 0px));
   bottom: -6px;
   margin-left: -6px;
   border: 6px solid transparent;

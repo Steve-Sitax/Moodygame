@@ -103,6 +103,7 @@ function workFacts(j: JobRow): string {
   if (!t) return `${j.task_type} work.`;
   if (t.kind === "carry") return `carry ${t.count} ${t.goods} from ${SPOTS[t.from].label} to ${SPOTS[t.to].label}.`;
   if (t.kind === "deliver") return `deliver one ${t.goods === "parcel" ? "parcel" : t.goods} from your door to ${t.recipient} at ${SPOTS[t.to].label}.`;
+  if (t.kind === "letters") return `take ${t.stops.length === 1 ? "a letter" : `${t.stops.length} letters`} round the town.`;
   return `watch the ${t.goods} at ${SPOTS[t.post].label} for ${Math.round(t.duration_s / 60)} minutes, until the bell.`;
 }
 

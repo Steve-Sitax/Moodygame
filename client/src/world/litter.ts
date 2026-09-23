@@ -6,6 +6,7 @@ import SPOT_TABLE from "../../../shared/spots.json";
 import { MARKET_DAYS, marketShare } from "../../../server/src/town/market";
 import { marketKeepOut } from "../game/market";
 import { psx, psxUniforms, waveAt } from "../retro/psx";
+import { levelAt } from "./tide";
 import { cartRoads, dirtStamp } from "./dirt";
 import type { Rect } from "./geom";
 import { omnibusKeepOut, STOPS as OMNIBUS_STOPS } from "./omnibus";
@@ -1310,7 +1311,7 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
       // bob on the waves (waveAt is the water shader's sum), turn slowly, drift a hand's breadth
       const dx = Math.sin(t * 0.07 + f.ph) * 0.25;
       const dz = Math.cos(t * 0.05 + f.ph) * 0.25;
-      const y = waterY + waveAt(f.x + dx, f.z + dz, wt) - 0.025;
+      const y = levelAt(f.x + dx, f.z + dz) + waveAt(f.x + dx, f.z + dz, wt) - 0.025; // M6 tides
       Ef.set(Math.sin(t * 0.9 + f.ph) * 0.08, f.yaw + t * 0.02, Math.cos(t * 0.7 + f.ph) * 0.08);
       Mf.compose(Tf.set(f.x + dx, y, f.z + dz), Qf.setFromEuler(Ef), Sf);
       floatBatch.setMatrixAt(f.i, Mf);

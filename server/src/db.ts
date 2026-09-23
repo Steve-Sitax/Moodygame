@@ -3,6 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { RESIDENT_SCHEMA, dropTownCache, ensureGarrison, ensureTown, repairTown } from "./town/store.ts";
 import { ACTION_SCHEMA, EVENT_SCHEMA, EVENTLOG_SCHEMA } from "./director/schema.ts";
+import { PRESS_SCHEMA, PRESS_TABLES } from "./paper/schema.ts";
+import { ensurePressTown } from "./paper/town.ts";
 
 // SQLite schema from docs/04-data-model.md. Only the server writes.
 // Delete data/game.sqlite to start over.
@@ -129,6 +131,8 @@ export function openDb(file: string): DB {
   repairTown(db);
   // the garrison and the customs (town/garrison.ts): an older save gets them once, added in place
   ensureGarrison(db);
+  // M6: newsboys, the post office and its clerk, the Berg's counter; added in place to an older save
+  ensurePressTown(db);
   return db;
 }
 
@@ -149,12 +153,17 @@ function migrate(db: DB): void {
   db.exec(EVENTLOG_SCHEMA);
   db.exec(ACTION_SCHEMA);
   db.exec(EVENT_SCHEMA);
+  // M6: the paper, letters, the pawn office; a pocket row may point at one of them (item.ref)
+  db.exec(PRESS_SCHEMA);
+  if (!cols("item").includes("ref")) db.exec("ALTER TABLE item ADD COLUMN ref INTEGER");
+  // M4b: the leads of an event (bride, groom, musicians ...), picked by the engine at its start
+  if (!cols("town_event").includes("leads_json")) db.exec("ALTER TABLE town_event ADD COLUMN leads_json TEXT NOT NULL DEFAULT '[]'");
 }
 
 /** Start a new week: wipe the save and seed it again (the "new game" button). */
 export function resetDb(db: DB): void {
   db.transaction(() => {
-    for (const t of ["world_event_who", "world_event", "npc_action", "town_event", "ai_call", "item", "event", "world_state", "job", "log", "world_fact", "npc_memory", "npc_relationship", "resident", "npc", "faction_trust", "player"]) {
+    for (const t of [...PRESS_TABLES, "world_event_who", "world_event", "npc_action", "town_event", "ai_call", "item", "event", "world_state", "job", "log", "world_fact", "npc_memory", "npc_relationship", "resident", "npc", "faction_trust", "player"]) {
       db.prepare(`DELETE FROM ${t}`).run();
     }
   })();
@@ -162,6 +171,7 @@ export function resetDb(db: DB): void {
   // a new week, a new town
   dropTownCache(db);
   ensureTown(db);
+  ensurePressTown(db);
 }
 
 function seed(db: DB): void {

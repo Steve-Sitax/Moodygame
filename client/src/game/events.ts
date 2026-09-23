@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { ActionsPayload, TownEvent } from "../net/api";
+import type { ActionsPayload, EventScene, TownEvent } from "../net/api";
 import type { World } from "../world/rijnkaai";
 import { psx } from "../retro/psx";
 import { makeGoods } from "./props";
@@ -15,6 +15,8 @@ import type { Town } from "./town";
 // event closed. Everything is taken away when the event ends.
 
 const HEAR_M = 90;
+/** Game minutes a real second (a game hour is 20 s): the stage clock runs on between polls. */
+const GAME_MIN_PER_S = 3;
 /** An event starting within this of Jef is named in a line at the bottom of the screen. */
 const TELL_M = 90;
 
@@ -103,6 +105,21 @@ export class Events {
     return s ? { x: s.x, z: s.z } : { x: ev.x, z: ev.z };
   }
 
+  /** M4b: the scene now playing in an event (a scuffle, a robbery), if any. */
+  sceneOf(id: number | null): EventScene | null {
+    if (id === null) return null;
+    return this.live.get(id)?.ev.scene ?? null;
+  }
+
+  /** M4b: how far the stage now playing has run, 0..1 (the scenes play by it). */
+  stageT(id: number | null): number {
+    if (id === null) return 0;
+    const ev = this.live.get(id)?.ev;
+    const st = ev?.stages[ev.stage];
+    if (!ev || !st || st.minutes <= 0) return 0;
+    return Math.max(0, Math.min(1, 1 - ev.stage_left / st.minutes));
+  }
+
   moodOf(id: number | null): string {
     if (id === null) return "calm";
     const ev = this.live.get(id)?.ev;
@@ -115,10 +132,11 @@ export class Events {
     return this.live.get(id)?.ev.people[n] ?? null;
   }
 
-  update(_dt: number, player: { x: number; z: number }): void {
+  update(dt: number, player: { x: number; z: number }): void {
     for (const l of this.live.values()) {
       const ev = l.ev;
       if (ev.status !== "running") continue;
+      ev.stage_left = Math.max(0, ev.stage_left - dt * GAME_MIN_PER_S);
       const st = ev.stages[ev.stage];
       if (!st) continue;
       const dj = Math.hypot(st.x - player.x, st.z - player.z);
@@ -132,7 +150,10 @@ export class Events {
         }
         if (there >= Math.min(5, Math.max(2, Math.ceil(ev.people.length / 2)))) {
           this.told.add(ev.id);
-          this.say(`${ev.title}: people are gathering at ${st.label}.`);
+          // M4b: the leads by name (the bride and groom, the musicians ...)
+          const names = [...new Set(ev.leads.filter((x) => x.role !== "agent").map((x) => x.name))];
+          const who = names.length ? ` (${names.length > 2 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names.join(" and ")})` : "";
+          this.say(`${ev.title}${who}: people are gathering at ${st.label}.`);
         }
       }
       // sound: one per stage, started when Jef is near enough to hear it (also when he comes late)
@@ -227,6 +248,8 @@ export class Events {
       sound: l.sound ? l.soundKey : null,
       props: l.props.length,
       people: l.ev.people.length,
+      leads: l.ev.leads.map((x) => `${x.role}: ${x.name}`),
+      scene: l.ev.scene ? { kind: l.ev.scene.kind, t: +this.stageT(l.ev.id).toFixed(2), caught: l.ev.scene.caught } : null,
       at: [+l.ev.x.toFixed(0), +l.ev.z.toFixed(0)],
       starts_in: l.ev.starts_in,
       ends_in: l.ev.ends_in,

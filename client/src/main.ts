@@ -28,7 +28,9 @@ import { createSteenLife } from "./world/steenlife";
 import { Actions } from "./game/actions";
 import { Bubbles } from "./game/bubbles";
 import { Events } from "./game/events";
+import { Press } from "./game/press";
 import { api } from "./net/api";
+import { Interiors } from "./game/interiors";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const startEl = document.getElementById("start") as HTMLDivElement;
@@ -88,7 +90,9 @@ for (const r of steenLife.colliders) world.addCollider(r);
 for (const r of trades.colliders) world.addCollider(r);
 jobs.town = town;
 town.clock = () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF });
-town.canRob = () => !jobs.talk.isOpen && !jobs.day.sheetOpen && (player.locked || player.freeInput);
+// M6 tides: the river rises and falls with the game clock (world/tide.ts)
+world.setTideClock(() => ({ day: jobs.day.dayNum, hour: jobs.day.hourF }));
+town.canRob = () => !interiors.inside && !jobs.talk.isOpen && !jobs.day.sheetOpen && (player.locked || player.freeInput);
 town.toast = (t) => jobs.say(t);
 town.onPayload = (p) => jobs.refresh(p);
 jobs.talk.onOpen = (id) => town.hold(id, true);
@@ -115,6 +119,31 @@ jobs.onPush = (m) => {
   if (m.type === "convo" && m.convo) bubbles.show(m.convo as import("./net/api").Convo);
 };
 bubbles.speak = (at, v, s) => sound?.speech(at, v, s);
+// M6: the newsboys and the morning paper, letters, the post and telegraph, the Berg van Barmhartigheid (game/press.ts)
+const press = new Press(world, player, jobs, town, bubbles);
+{
+  const onPush = jobs.onPush;
+  jobs.onPush = (m) => {
+    onPush(m);
+    press.handlePush(m);
+  };
+}
+// M6: inside the taverns and the Poesje's cellar (game/interiors.ts); first in the key list, so its keys win inside
+const interiors = new Interiors(player, jobs, world.scene);
+jobs.extraActions.unshift((x, z) => interiors.keys(x, z));
+interiors.say = (t) => jobs.say(t);
+interiors.sfx = (n) => sound?.indoors(() => sound?.play(n));
+interiors.speak = (at, v, s) => sound?.indoors(() => sound?.speech(at, v, s));
+interiors.roomSound = (k) => sound?.setInterior(k);
+{
+  const onPush = jobs.onPush;
+  jobs.onPush = (m) => {
+    onPush(m);
+    if (m.type === "convo" && m.convo) interiors.convo(m.convo as import("./net/api").Convo);
+  };
+}
+// M4b: a scene's shout or the agent's word, as a bubble
+actions.showLines = (c) => bubbles.show(c);
 events.eventSound = (k, at, s) => sound?.eventSound(k, at, s) ?? null;
 events.say = (t) => jobs.say(t);
 town
@@ -167,6 +196,7 @@ settings = mountSettings(startEl.querySelector(".paper") as HTMLElement, (s) => 
 if (import.meta.env.DEV) {
   mountDevMenu(startEl.querySelector(".paper") as HTMLElement, {
     place: (x, z) => player.place(x, z, 0),
+    tide: world.tideDev,
     places: [
       { name: "Rijnkaai", x: 20, z: 20 },
       { name: "Werf", x: -270, z: 9 },
@@ -195,7 +225,20 @@ if (import.meta.env.DEV) {
             })
             .catch((e) => String(e)),
       },
-      ...["wedding", "funeral", "musicians", "emigrant_ship", "fish_auction", "quarrel"].map((t) => ({
+      // M4b: AI first. The model must invent an event now; the engine's checks hold; the result shows here.
+      {
+        label: "Director: invent an event now",
+        run: () =>
+          api
+            .devDirector({ invent: true })
+            .then((r) =>
+              r.ok
+                ? `invented "${r.title}" (${r.kind}) at ${r.where}, starts in ${r.starts_in} game minutes. Stages: ${(r.stages as string[]).join("; ")}.${r.notice ? ` Notice: ${r.notice}` : ""} Why: ${r.why}`
+                : `no event: ${r.why}`,
+            )
+            .catch((e) => String(e)),
+      },
+      ...["wedding", "funeral", "musicians", "emigrant_ship", "fish_auction", "quarrel", "scuffle", "street_robbery"].map((t) => ({
         label: `Event: ${t.replace("_", " ")}`,
         run: () =>
           api
@@ -214,7 +257,12 @@ function start(): void {
       world.shipPositions,
     );
     // in a puddle the step splashes (world/puddlemask.ts: the same puddles the ground shows)
-    player.onStep = (surface, hurry) => sound?.footstep(surface, hurry, surface === "stone" ? puddleAt(player.x, player.z, 1.1) : 0);
+    player.onStep = (surface, hurry) => {
+      // M6: inside a room the steps are the room's, not the street's
+      const step = () => sound?.footstep(surface, hurry, surface === "stone" && !interiors.inside ? puddleAt(player.x, player.z, 1.1) : 0);
+      if (interiors.inside) sound?.indoors(step);
+      else step();
+    };
     jobs.sfx = (name, at) => sound?.play(name, at);
     player.onLand = (surface) => sound?.footstep(surface, true);
   }
@@ -252,6 +300,8 @@ function frame(): void {
   elapsed += dt;
   world.update(elapsed, dt, player.camera);
   player.update(dt);
+  interiors.update(dt);
+  interiors.sway(dt);
   jobs.update(dt);
   craneClimb.update(dt);
   crowd.setHour(jobs.day.hour);
@@ -266,6 +316,7 @@ function frame(): void {
   actions.update(dt);
   events.update(dt, player);
   bubbles.update(dt, player.camera);
+  press.update(dt);
   animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
   sound?.setCrowd(crowd.stats.drawn);
   sound?.setRain(psxUniforms.uRain.value);
@@ -303,7 +354,8 @@ function frame(): void {
     const bus = world.omnibus();
     if (bus && !bus.people) bus.people = () => crowd.positions();
   }
-  retro.render(world.scene, player.camera, elapsed);
+  // M6: inside a room, its own scene instead of the street
+  retro.render(interiors.prepareRender(player.camera) ?? world.scene, player.camera, elapsed);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
@@ -383,6 +435,20 @@ if (import.meta.env.DEV) {
     actions,
     events,
     bubbles,
+    interiors,
+    /** M6: a picture inside the room Jef is in, camera at `from` looking at `to` (room frame: x across, y up, z into the house). */
+    async shotIn(name: string, from: [number, number, number], to: [number, number, number]) {
+      const cam = player.camera;
+      const keep = { p: cam.position.clone(), q: cam.quaternion.clone() };
+      if (!interiors.devCamera(cam, from, to)) return "not inside";
+      retro.render(interiors.prepareRender(cam)!, cam, elapsed);
+      const url = canvas.toDataURL("image/jpeg", 0.85);
+      cam.position.copy(keep.p);
+      cam.quaternion.copy(keep.q);
+      const r = await fetch("/api/dev/shot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, url }) });
+      return r.ok ? `data/shots/${name}.jpg` : `failed ${r.status}`;
+    },
+    press,
     get sound() {
       return sound;
     },
@@ -416,6 +482,10 @@ if (import.meta.env.DEV) {
       // M3i: the trades (the market stalls come through town.pathPoints())
       for (const q of trades.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       for (const q of steenLife.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      // M6: the tavern doors and the Poesje's cellar door
+      for (const q of interiors.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      // M6: the newsboys' corners, the post office, the Berg
+      for (const q of press.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       if (!can(DOSS_POS.x, DOSS_POS.z, 2.0)) bad.push("the doss house gate");
       if (!can(RAMP.x - 0.6, RAMP.zHigh - 1.0, 2.4)) bad.push("the mate on deck");
       return bad;
@@ -466,7 +536,7 @@ if (import.meta.env.DEV) {
       for (let i = 0; i < n; i++) {
         renderer.info.reset();
         world.update(elapsed, 1 / 60, player.camera);
-        retro.render(world.scene, player.camera, elapsed);
+        retro.render(interiors.prepareRender(player.camera) ?? world.scene, player.camera, elapsed);
         gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
         calls = renderer.info.render.calls;
         tris = renderer.info.render.triangles;
@@ -482,6 +552,7 @@ if (import.meta.env.DEV) {
         elapsed += dt;
         world.update(elapsed, dt);
         player.update(dt);
+        interiors.update(dt);
         jobs.update(dt);
         crowd.update(dt, player, player.camera);
         town.update(dt, player);
@@ -494,6 +565,7 @@ if (import.meta.env.DEV) {
         actions.update(dt);
         events.update(dt, player);
         bubbles.update(dt, player.camera);
+        press.update(dt);
         animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
       }
     },

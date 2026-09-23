@@ -11,9 +11,10 @@ import { resident } from "../town/store.ts";
 import { walkMap } from "../town/walkmap.ts";
 import { activeActions, crimeOpen, posOf, startAction, listActions } from "./actions.ts";
 import { eventSlice, writeEvent } from "./eventlog.ts";
+import { streetCrimeOpen } from "./scenes.ts";
 import { eventPlaces, eventsToday, liveEvents, planEvent, type EventPlan, type PlanResult } from "./scheduler.ts";
-import { enginePick, planFromTemplate, templateById, templatesForPrompt } from "./templates.ts";
-import { LOOK_FOR_MIN, LOOK_FOR_RADIUS_M, PRIMITIVES_FOR_MODEL, StageSchema } from "./vocab.ts";
+import { enginePick, planFromTemplate } from "./templates.ts";
+import { EVENTS_AT_ONCE, EVENTS_PER_DAY, LOOK_FOR_MIN, LOOK_FOR_RADIUS_M, PRIMITIVES_FOR_MODEL, StageSchema } from "./vocab.ts";
 
 // The director (M4): once a game hour at most (pulled forward by a notable
 // fact: a robbery, an arrest, a job's end, a heavy event, nightfall), it looks
@@ -24,14 +25,20 @@ import { LOOK_FOR_MIN, LOOK_FOR_RADIUS_M, PRIMITIVES_FOR_MODEL, StageSchema } fr
 // budget is gone (its own share of the day's calls, never the reserve) or the
 // model is late, the engine picks: an open thread first, else now and then a
 // template that fits the hour.
+//
+// M4b (Steve: "the events were meant to be created on the fly by AI"): AI first. The
+// model invents every event itself from the stages, the lead roles and the scenes
+// (a scuffle, a robbery); the templates are only the engine's fallback. The model is
+// not asked when no event could be planned anyway (night, the day's four held, two
+// running), so its share of the calls goes to the hours that can use it.
 
 export const DirectorSchema = z.object({
   decision: z.enum(["nothing", "event", "follow_up"]),
   why: z.string().max(200),
   event: z.object({
     title: z.string().max(80),
-    /** A template id, or "custom". */
-    template: z.string().max(30),
+    /** M4b: a short word for what it is (wedding, sermon, scuffle, robbery ...); the engine keeps it to spot repeats. */
+    kind: z.string().max(30),
     place: z.string().max(40),
     start_in_min: z.number().int().min(0).max(180),
     stages: z.array(StageSchema).min(1).max(6),
@@ -42,16 +49,23 @@ export const DirectorSchema = z.object({
 export type DirectorOut = z.infer<typeof DirectorSchema>;
 
 const RULES = `
-YOU ARE THE DIRECTOR OF THE TOWN: you decide what happens in the streets next, like a stage manager who never speaks.
-- Most hours: decision "nothing" (the town is busy enough). An event when the hour, the day and the log call for one:
-  a wedding on a fine morning, musicians on a square, a quarrel at the market, an emigrant ship, a funeral, or something
-  surprising and period-true you make from the STAGES (a fire drill, a lost child, a fight over a barrel, a ship's cat).
-- decision "follow_up": the open thread should move (the engine plays it). Use it when a robbery is unsolved.
-- Never repeat an event held today. Never overlap what runs. Nothing at night after 22:00 or before 6:00.
-- template: one of the ids below (then only title, notice and rumour are yours; the stages are the template's), or "custom".
-- place: one of the place ids below. notice: a line the townspeople will mention, or "". rumour: what the town will say afterwards, or "".
-- Engine facts only: never invent money, names of people, or things Jef did. Plain English; Dutch only in names.
-- why: one short line for the log.`;
+YOU ARE THE DIRECTOR OF THE TOWN: you invent what happens in the streets next, like a stage manager who never speaks.
+- You make the events yourself, fresh each time, from the STAGES and the LEADS below. Something period-true for Antwerp in
+  the autumn of 1873 that fits the hour, the day, the weather and what the town lately lived through: a working-class
+  wedding (the bride in her dark best dress with a white veil and a wreath of orange blossom), a funeral, street music, a
+  fish auction, a hawker or a showman with his monkey, a temperance preacher, a drunk who picks a quarrel, a scuffle over a
+  debt, a pickpocket at the market, sailors ashore, a lost child, a runaway horse, a ship's cat.
+- When nothing runs and the day has room: decision "event". "nothing" only when the town already has enough going on.
+- decision "follow_up": the open thread should move (the engine plays it). Use it when Jef's robbery is unsolved.
+- Never repeat what was held today. Never overlap what runs. Nothing at night after 22:00 or before 6:00.
+- kind: one short word for what it is. place: one of the place ids below. notice: a line the townspeople will mention,
+  or "". rumour: what the town will say afterwards, or "". Name the leads only as {bride}, {groom}, {victim} and so on.
+- The game has NO COMBAT. Nobody is hurt or killed, nobody has a weapon; a scuffle is pushing and shoving and the police
+  part them. Jef never fights. Never give Jef money or goods: only jobs and shops pay.
+- Engine facts only: never invent money sums, names of people, or things Jef did. Plain English; Dutch only in names.
+- why: one short line for the log.
+EXAMPLE of a stage list (a wedding): gather guests 20 at cathedral_west with leads [groom, bride, priest]; gather crowd 14
+with bells; talk about the couple; procession to engel with leads [groom, bride] and music; sound music.`;
 
 interface DirectorState {
   lastThinkMin: number;
@@ -76,6 +90,14 @@ export const THINK_GAP_MIN = 30;
 export const NIGHTFALL = 19;
 /** The chance per game hour (8:00 to 21:00) that the engine starts a template when the model cannot. */
 export const ENGINE_EVENT_CHANCE = 0.35;
+
+/** Could an event be planned now at all (daylight, room today, not two running)? The model is not asked otherwise. */
+export function roomForEvent(db: DB): boolean {
+  const h = clock(db).hour;
+  if (h < 6 || h >= 22) return false;
+  if (eventsToday(db).length >= EVENTS_PER_DAY) return false;
+  return liveEvents(db).length < EVENTS_AT_ONCE;
+}
 
 export function canCallDirector(db: DB): boolean {
   const day = clock(db).day;
@@ -125,12 +147,17 @@ export function openThreads(db: DB): string[] {
     const thief = resident(db, crime.thief);
     out.push(`Jef was robbed of ${crime.amount_c} centimes in the dark (day ${crime.day}); the money is not back. The engine knows who did it (${thief?.name ?? "a pickpocket"}); the town does not.`);
   }
+  const street = streetCrimeOpen(db);
+  if (street) {
+    const v = resident(db, street.victim);
+    out.push(`A pickpocket took ${v?.name ?? "someone"}'s purse at ${street.place} and got away${street.witnessed ? "; Jef saw it" : ""}. Unsolved.`);
+  }
   for (const e of liveEvents(db)) out.push(`${e.status === "running" ? "Running" : "Planned"}: ${e.title} at ${e.place}, ${e.status === "running" ? `stage ${e.stage + 1}` : `in ${Math.max(0, e.start_m - gameMinute(db))} minutes`}.`);
   for (const a of listActions(db)) if (a.source !== "event") out.push(`${a.name} is ${a.kind.replace("_", " ")}${a.target_name ? ` ${a.target_name}` : a.target && a.kind !== "follow" ? ` ${a.target}` : " Jef"} (${a.minutes_left} min left).`);
   return out;
 }
 
-export function directorPrompt(db: DB): string {
+export function directorPrompt(db: DB, invent = false): string {
   const c = clock(db);
   const today = eventsToday(db);
   const threads = openThreads(db);
@@ -151,12 +178,9 @@ ${eventSlice(db, { limit: 20, maxChars: 1500 }).join("\n") || "- quiet"}
 
 PLACES (ids)
 ${places}
-
-TEMPLATES (ids)
-${templatesForPrompt()}
 ${PRIMITIVES_FOR_MODEL}
 
-Decide.`;
+${invent ? "Invent an event now: decision \"event\", made by you from the stages and the leads." : "Decide."}`;
 }
 
 // ------------------------------------------------------------------ thinking
@@ -169,24 +193,38 @@ export interface ThinkResult {
   error?: string;
 }
 
-/** One think: the model if it can, else the engine; the result is checked against the state when it arrives. */
-export async function think(db: DB, runner?: Runner, force = false): Promise<ThinkResult> {
+/**
+ * One think: the model if it can, else the engine; the result is checked against the state when it arrives.
+ * `invent` (the dev button "Director: invent an event now"): the model must make a custom event now; the
+ * day's count and the two-at-once cap are skipped (as for the dev template buttons), every other check holds.
+ */
+export async function think(db: DB, runner?: Runner, force = false, invent = false): Promise<ThinkResult> {
   const s = directorState(db);
   const c = clock(db);
   const { newest } = notable(db, s);
   save(db, { ...s, lastThinkMin: gameMinute(db), lastHour: c.hour, lastDay: c.day, lastEventId: newest, thinks: s.thinks + 1 });
 
   // an open thread the engine can move on its own
-  const followed = followUp(db);
-  if (followed) return { source: "engine", decision: "follow_up", why: followed, planned: null };
+  if (!invent) {
+    const followed = followUp(db);
+    if (followed) return { source: "engine", decision: "follow_up", why: followed, planned: null };
+  }
 
   let out: DirectorOut | null = null;
   let error: string | undefined;
+  if (!force && !roomForEvent(db)) {
+    // no event could be planned now: no call spent
+    return { source: "engine", decision: "nothing", why: "no room for an event now", planned: null };
+  }
   if (force || canCallDirector(db)) {
-    const res = await callClaude(db, { hook: "director_think", system: SYSTEM + "\n" + RULES, prompt: directorPrompt(db), schema: DirectorSchema }, runner);
+    const res = await callClaude(db, { hook: "director_think", system: SYSTEM + "\n" + RULES, prompt: directorPrompt(db, invent), schema: DirectorSchema }, runner);
     if (res.ok && res.data) out = res.data;
     else error = res.error;
   } else error = "no budget";
+  if (invent && out && out.decision !== "event") {
+    error = `the model chose "${out.decision}"`;
+    out = null;
+  }
 
   if (out) {
     const why = plainEnglish(out.why);
@@ -199,30 +237,22 @@ export async function think(db: DB, runner?: Runner, force = false): Promise<Thi
       return { source: "claude", decision: "follow_up", why, planned: null };
     }
     const plan = planFromModel(out);
-    const planned = planEvent(db, plan);
+    const planned = planEvent(db, plan, { dev: invent });
     writeEvent(db, { kind: "director", verb: planned.ok ? "event" : "rejected", text: planned.ok ? `The director set up "${plan.title}": ${why}` : `The director's "${plan.title}" was refused: ${planned.why}`, weight: planned.ok ? 3 : 2 });
     return { source: "claude", decision: "event", why, planned };
   }
 
-  // the engine's pick: now and then, in daylight
+  // the engine's pick: now and then, in daylight (never for the invent button: that shows the model's miss)
+  if (invent) return { source: "engine", decision: "nothing", why: error ?? "", planned: null, error };
   const planned = enginePickNow(db);
   return { source: "engine", decision: planned ? "event" : "nothing", why: error ?? "", planned, error };
 }
 
-function planFromModel(out: DirectorOut): EventPlan {
+/** The model's event as a plan: always its own stages (M4b: AI first); the engine's checks follow in planEvent. */
+export function planFromModel(out: DirectorOut): EventPlan {
   const e = out.event;
-  const t = templateById(e.template);
-  if (t) {
-    return planFromTemplate(t, "claude", {
-      title: e.title.trim() || t.title,
-      start_in_min: e.start_in_min,
-      notice: e.notice.trim() || t.notice,
-      rumour: e.rumour.trim() || t.rumour,
-      place: t.place === "house" || !e.place.trim() ? t.place : e.place,
-      why: out.why,
-    });
-  }
-  return { title: e.title.trim() || "Something in the street", template: "custom", place: e.place, start_in_min: e.start_in_min, stages: e.stages, notice: e.notice, rumour: e.rumour, source: "claude", why: out.why };
+  const kind = e.kind.trim().toLowerCase().replace(/[^a-z_]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 24) || "custom";
+  return { title: e.title.trim() || "Something in the street", template: kind, place: e.place, start_in_min: e.start_in_min, stages: e.stages, notice: e.notice, rumour: e.rumour, source: "claude", why: out.why };
 }
 
 /** Daylight, a roll, a template that fits: the engine's own event. */

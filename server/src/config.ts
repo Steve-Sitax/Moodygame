@@ -37,3 +37,24 @@ export const RESIDENT_CALLS_PER_MEETING = 3;
  */
 export const DIRECTOR_CALLS_PER_DAY = 12;
 export const CONVO_CALLS_PER_DAY = 10;
+/**
+ * M6 interiors, also out of the 28 that were left, never the reserve: the tavern (a patron's
+ * remarks at dice, gossip overheard at a table) and the Poesje's evening play (one a day; two
+ * rows if the first try fails its schema). The chatter at the tables rides on CONVO_CALLS_PER_DAY.
+ */
+export const TAVERN_CALLS_PER_DAY = 6;
+export const POESJE_CALLS_PER_DAY = 2;
+/**
+ * M6 paper, post and pawn (paper/), also out of the 28 that were left, never the reserve:
+ * the morning paper (one a day, a second row if the first try fails its schema), a letter
+ * for Jef (at most one a day), and the clerks' remarks at the post and the Berg's counter.
+ * When the share is gone the engine writes the paper, the letter and the remarks itself.
+ */
+export const PAPER_CALLS_PER_DAY = 6;
+/**
+ * M4b (Steve, 2026-09-24: "events should gather up to 100 people"): the most townspeople one
+ * event may take, leads included, and the most one gathering stage may call. The director may
+ * ask for up to this; the engine clamps it. The town has about 218 residents.
+ */
+export const EVENT_PEOPLE_MAX = 100;
+export const EVENT_GATHER_MAX = 100;

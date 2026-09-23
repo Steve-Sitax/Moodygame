@@ -7,6 +7,7 @@ import { actionsTick, clearActions, installTalkHooks, listActions, reportAction,
 import { bus } from "./bus.ts";
 import { recentConvos } from "./convo.ts";
 import { clearDirector, directorTick, think } from "./director.ts";
+import { gameMinute } from "../town/deeds.ts";
 import { writeEvent } from "./eventlog.ts";
 import { clearEvents, eventsTick, listEvents, planEvent } from "./scheduler.ts";
 import { closedPlaces } from "./state.ts";
@@ -95,7 +96,29 @@ export function mountDirector(app: Hono, deps: DirectorDeps): void {
 
   if (DEV) {
     app.post("/api/dev/director", async (c) => {
-      const body = (await c.req.json().catch(() => ({}))) as { think?: boolean; template?: string };
+      const body = (await c.req.json().catch(() => ({}))) as { think?: boolean; invent?: boolean; template?: string };
+      // M4b: "Director: invent an event now": the model must make a custom event; the engine's checks hold
+      if (body.invent) {
+        const r = await think(db, undefined, true, true);
+        if (r.planned && r.planned.ok) {
+          const ev = r.planned.event;
+          const stages = JSON.parse(ev.stages_json) as Array<{ op: string; minutes: number; leads?: string[]; label?: string; text?: string }>;
+          return c.json({
+            ok: true,
+            source: r.source,
+            id: ev.id,
+            title: ev.title,
+            kind: ev.template,
+            where: stages[0]?.label ?? ev.place,
+            starts_in: Math.max(0, ev.start_m - gameMinute(db)),
+            stages: stages.map((s) => `${s.op} ${s.minutes}${s.leads?.length ? ` [${s.leads.join(", ")}]` : ""}${s.text ? ` (${s.text})` : ""}`),
+            notice: ev.notice,
+            rumour: ev.rumour,
+            why: r.why,
+          });
+        }
+        return c.json({ ok: false, source: r.source, why: r.planned && !r.planned.ok ? `refused by the engine: ${r.planned.why}` : r.error ?? r.why });
+      }
       if (body.think) {
         const r = await think(db, undefined, true);
         return c.json({ ...r, planned: r.planned && r.planned.ok ? { ok: true, id: r.planned.event.id, title: r.planned.event.title } : r.planned });

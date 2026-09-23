@@ -65,6 +65,42 @@ const ICON: Record<string, Draw> = {
     g.quadraticCurveTo(22, 4, 23, 8);
     g.stroke();
   },
+  // M6: the paper (folded, lines of print), a letter (an envelope, a seal), a pawn ticket (a numbered card)
+  newspaper: (g) => {
+    g.strokeRect(5, 7, 22, 18);
+    g.fillRect(8, 9, 16, 2.5);
+    for (const y of [14, 17, 20, 23]) {
+      g.fillRect(8, y, 7, 0.9);
+      g.fillRect(17, y, 7, 0.9);
+    }
+  },
+  letter: (g) => {
+    g.strokeRect(5, 9, 22, 15);
+    g.beginPath();
+    g.moveTo(5, 9);
+    g.lineTo(16, 18);
+    g.lineTo(27, 9);
+    g.stroke();
+    g.beginPath();
+    g.arc(16, 18, 2.2, 0, Math.PI * 2);
+    g.fill();
+  },
+  letters: (g) => {
+    for (const o of [0, 3, 6]) g.strokeRect(4 + o, 6 + o, 18, 12);
+    g.beginPath();
+    g.moveTo(17, 6);
+    g.lineTo(17, 30);
+    g.stroke();
+  },
+  pawn_ticket: (g) => {
+    g.strokeRect(6, 8, 20, 16);
+    g.beginPath();
+    g.arc(10, 12, 1.6, 0, Math.PI * 2);
+    g.stroke();
+    g.font = "bold 8px Georgia, serif";
+    g.fillText("No.", 13, 15);
+    g.fillRect(9, 19, 14, 1);
+  },
   parcel: (g) => {
     g.strokeRect(6, 9, 20, 15);
     g.beginPath();
@@ -161,6 +197,8 @@ export class Pockets {
   private lastNeeds = "";
   toast: (t: string) => void = () => {};
   onChange: (p: JobsPayload) => void = () => {};
+  /** M6 (game/press.ts): a paper, a letter or a pawn ticket to read. */
+  onRead: (it: PocketItem) => void = () => {};
 
   constructor(
     private readonly player: FirstPerson,
@@ -214,7 +252,7 @@ export class Pockets {
           )
           .join("")
       : `<li class="empty">Your pockets are empty. Lint, and a button.</li>`;
-    this.panel.innerHTML = `<h3>Pockets</h3><ol>${rows}</ol><p class="keys">1-6 eat or drink &middot; I to close</p>`;
+    this.panel.innerHTML = `<h3>Pockets</h3><ol>${rows}</ol><p class="keys">1-6 eat, drink or read &middot; I to close</p>`;
   }
 
   toggle(): void {
@@ -227,6 +265,7 @@ export class Pockets {
   private async use(index: number): Promise<void> {
     const it = this.items[index];
     if (!it) return;
+    if (it.use === "read") return this.onRead(it);
     if (!it.use) return this.toast(it.note ?? "Not yours to use.");
     try {
       const r = await api.use(it.id);

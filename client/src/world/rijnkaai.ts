@@ -7,7 +7,7 @@ import { steenHeightAt, steenKeepOut } from "./steenramp";
 import CITY_DATA from "../../../shared/city.json";
 import { buildCity, doorSpot, edgeZ, WALL, WATER, OUTSIDE, type CityWorld } from "./city";
 import { dressCity, loadProps } from "./props3d";
-import { loadBoats, waterStencil, type Boats } from "./boats";
+import { dockWaterStencil, loadBoats, waterStencil, type Boats } from "./boats";
 import { createAmbient, type Ambient } from "./ambient";
 import { createLock, type Lock } from "./lock";
 import { createBridges, type Bridges } from "./bridges";
@@ -32,21 +32,31 @@ import { quaySteps, shoreTexture, frameAt, type Exit } from "./quaysteps";
 import { buildPier, PIER_BOLLARD } from "./pier";
 import { waveAt } from "../retro/psx";
 import { createMirror } from "./mirror";
+import { BRIG_FLOOR, CHAMBER, DOCK, HW_MAX, LW_MIN, MID_Y, levelAt, tideAt, tideDev, tideInfo, water as tideWater } from "./tide";
+import { buildTideMud } from "./tidemud";
 
 // The Rijnkaai in the real 1873 city (world/city.ts). Water is at z < 0, the
 // quay edge runs along x (the world is turned 19 deg so it does). Quay top is
 // y = 0. Here: the game's own things on the quay (pier, crane, ship, lamps,
 // goods) and the rules for walking; the city itself comes from Blender.
 
-/** The river, well below the quay top (y 0), as in the period photos (Steve, 2026-09-23; was -1.8). */
-export const WATER_Y = -2.8;
+/**
+ * The river at half tide, well below the quay top (y 0), as in the period photos (Steve, 2026-09-23;
+ * was -1.8). M6 tides: the water now rises and falls about 2.15 m either side of it (world/tide.ts);
+ * the live level is tide.ts `water.river` / levelAt(x, z), and World.waterLevel with the waves.
+ */
+export const WATER_Y = MID_Y;
 /** Before the walk map is loaded, only the open quay by the start counts as ground. */
 const QUAY = { minX: -50, maxX: 60, minZ: 0.8, maxZ: 40 };
 const PIER = { minX: 5.4, maxX: 8.6, minZ: -11.6, maxZ: 0.6 };
 /** The Anna Maria's berth runs from x -60 to -20 off the Quai Tavernier (bollards, ropes, swim blockers). */
 const SHIP_X = -60;
 // the Anna Maria: a brig from Blender (build_boats.py "brig"); its deck sits a little below the quay
+// at half tide. M6 tides: `y` is live (the deck rises and falls with the tide; at low water she sits
+// on the bottom, BRIG_FLOOR); read it when you need it.
 export const DECK = { minX: -51.0, maxX: -29.0, minZ: -11.4, maxZ: -3.0, y: WATER_Y + 2.4 };
+/** The brig's deck over her waterline. */
+const DECK_OVER_WATER = 2.4;
 /** The ferry pontoon at the Werf (boats.ts), and the gangway (m) that slopes down to its deck. */
 const PONTOON = { x: -249, minX: -251, maxX: -247, minZ: -58, maxZ: 0, gangway: 6 };
 /** Stone steps down to the water (world/quaysteps.ts): top of the flight on the quay line, and the way down. */
@@ -60,8 +70,14 @@ const FLIGHTS: Array<[number, number, number, number]> = [
   [90, 46, 1, 0], // the Petit Bassin, south quay
   [116, 110, 1, 0], // the Petit Bassin, north quay
 ];
-/** The gangway: a plank from the quay (y 0) up to the deck (z -3.1, y DECK.y). */
+/**
+ * The gangway: a plank from the quay (y 0) up to the deck (z -3.1, y DECK.y). M6 tides: it hangs
+ * from the brig's rail (zHigh) and its foot rolls on the quay, so zLow is live (RAMP_LEN of plank).
+ */
 export const RAMP = { x: -42, halfW: 0.45, zLow: 0.3, zHigh: -3.0 };
+const RAMP_LEN = 4.0;
+/** The ferry pontoon's gangway: a plank this long, hinged at the quay edge (M6 tides). */
+const PONTOON_PLANK = 7.0;
 
 export type Surface = "stone" | "wood";
 
@@ -191,6 +207,10 @@ export interface World {
   mats: Mats;
   surfaceAt(x: number, z: number): Surface;
   update(t: number, dt: number, camera?: THREE.Camera): void;
+  /** M6 tides: the game clock the river follows (day 1 = Monday, hour with fractions). */
+  setTideClock(fn: () => { day: number; hour: number }): void;
+  /** M6 tides, dev: the tide now in words, and hold the river at high or low water (null: the clock). */
+  tideDev: { read(): string; hold(v: "high" | "low" | null): void };
 }
 
 // Thin details that sit on a wall or the ground (windows, doors, rails, planks).
@@ -253,8 +273,12 @@ export function buildRijnkaai(): World {
   const tex = makeTextures();
   const m = mats(tex);
   const colliders: Rect[] = [];
-  /** The ferry pontoon's deck height (it floats: WATER_Y + its deck), set when boats.ts has built it. */
-  let pontoonY = WATER_Y + 1.8;
+  /** The ferry pontoon's deck height (it floats: the river + its deck), live (M6 tides). */
+  let pontoonDeck = 1.8;
+  let pontoonY = WATER_Y + pontoonDeck;
+  /** How far out from the quay edge the pontoon's gangway reaches now (it is hinged at the edge). */
+  let pontoonReach = Math.sqrt(PONTOON_PLANK ** 2 - pontoonY ** 2);
+  let pontoonPivot: THREE.Object3D | null = null;
 
   // cold light from a sky nobody can see
   const skyLight = new THREE.HemisphereLight(0x8494a6, 0x2a2822, 1.1);
@@ -393,12 +417,51 @@ export function buildRijnkaai(): World {
   for (let i = 0; i < wuv.count; i++) wuv.setXY(i, wuv.getX(i) * (WATER_SIZE / WATER_TILE), wuv.getY(i) * (WATER_SIZE / WATER_TILE));
   scene.add(water);
   const waterTex = tex.water;
-  // real reflections: the scene mirrored in the still water level (world/mirror.ts)
+  // M6 tides: the Petit Bassin and the lock chamber have water of their own at their own levels
+  // (world/tide.ts); drawn before the river sheet, which the stencil keeps out from under them
+  const dockMat = psx(new THREE.MeshPhongMaterial({ map: tex.water, color: 0x8a9a92, specular: 0x3a342a, shininess: 120 }), { water: true, affine: 0.6 });
+  dockWaterStencil(dockMat);
+  const basinSheet = (r: { minX: number; maxX: number; minZ: number; maxZ: number }): THREE.Mesh => {
+    const w = r.maxX - r.minX;
+    const h = r.maxZ - r.minZ;
+    const g = new THREE.PlaneGeometry(w, h, Math.max(1, Math.ceil(w / WATER_TILE)), Math.max(1, Math.ceil(h / WATER_TILE)));
+    const cx = (r.minX + r.maxX) / 2;
+    const cz = (r.minZ + r.maxZ) / 2;
+    // the same texture tiles as the river sheet: uv = world / 4 m (plane y is -world z)
+    const pa = g.getAttribute("position");
+    const ua = g.getAttribute("uv");
+    for (let i = 0; i < pa.count; i++) ua.setXY(i, (cx + pa.getX(i)) / WATER_TILE, -(cz - pa.getY(i)) / WATER_TILE);
+    const m = new THREE.Mesh(g, dockMat);
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(cx, tideWater.dock, cz);
+    m.renderOrder = 1.5;
+    scene.add(m);
+    return m;
+  };
+  // the dock (its walls: x 70..170, z 46..110, and the lock's dock end up to the gates at z 42)
+  const dockSheet = basinSheet({ minX: 70, maxX: 170, minZ: 46, maxZ: 110 });
+  const dockMouth = basinSheet({ minX: 104, maxX: 116, minZ: CHAMBER.maxZ, maxZ: 46 });
+  const chamberSheet = basinSheet({ minX: 104, maxX: 116, minZ: CHAMBER.minZ, maxZ: CHAMBER.maxZ });
+  // real reflections: the scene mirrored in the still water level (world/mirror.ts); M6 tides: the
+  // plane follows the level of the water nearest the camera
   const mirror = createMirror(WATER_Y);
   mirror.attach(water);
+  mirror.attach(dockSheet);
+  mirror.attach(dockMouth);
+  mirror.attach(chamberSheet);
   psxUniforms.uWaterMirror.value = mirror.texture;
   psxUniforms.uWaterMirrorMat.value = mirror.matrix;
   psxUniforms.uWaterMirrorOn.value = 1;
+
+  // M6 tides: the mud at the foot of the walls and in the canal and vliet beds, bare at low water
+  buildTideMud(scene, {
+    quays: (CITY_DATA as unknown as { quays: number[][] }).quays,
+    inWater,
+    beds: [
+      { minX: -82, maxX: -70, minZ: 0.5, maxZ: 205 },
+      { minX: -150, maxX: -142, minZ: 0.5, maxZ: 72 },
+    ],
+  });
 
   // --- stone steps down to the water and iron ladders to climb out (world/quaysteps.ts)
   const steps = quaySteps(WATER_Y, { stone: tex.quayWall, iron: tex.iron });
@@ -465,7 +528,8 @@ export function buildRijnkaai(): World {
       });
       riverTraffic = createRiver(scene, b);
       // the Anna Maria at the Rijnkaai, her gangway at RAMP; a barque lies outside her
-      b.place("brig", -40, -7.2, Math.PI / 2, scene);
+      // M6 tides: at low water she sits on the bottom at her berth (tide.ts BRIG_FLOOR)
+      b.place("brig", -40, -7.2, Math.PI / 2, scene).userData.floor = BRIG_FLOOR;
       const d = b.deck("brig", -40, -7.2, Math.PI / 2);
       if (d) for (const o of d.obstacles) colliders.push(o);
       b.place("barque", -34, -26, Math.PI / 2, scene);
@@ -533,8 +597,8 @@ export function buildRijnkaai(): World {
       // the ferry pontoon at the Werf (its deck is walkable, see tools/city/design.py); it floats
       // below the quay now, so a gangway slopes down onto it
       const deckRect = b.pontoon(scene, PONTOON.x, PONTOON.maxZ, PONTOON.minZ)[0];
-      if (deckRect) pontoonY = deckRect.y;
-      pontoonGangway(scene, m, pontoonY);
+      if (deckRect) pontoonDeck = deckRect.y - levelAt(PONTOON.x, (PONTOON.minZ + PONTOON.maxZ) / 2);
+      pontoonPivot = pontoonGangway(scene, m);
       // ladders on the free stretches of wall, now that the boats lie where they lie
       city.ready.then(placeLadders).catch((e) => console.warn("ladders", e));
       // the goods train on the quay railway, the cranes at work (world/railway.ts, M3g)
@@ -627,18 +691,48 @@ export function buildRijnkaai(): World {
   swimSolids.push(lockWater);
   /** Boats left lying on the water (M3j): they move, so they are kept apart from the fixed solids. */
   const waterDynamic = new Set<Rect>();
-  // gangway: a plank ramp from the quay up to ship A's rail
+  // gangway: a plank from the brig's rail down (or up) to the quay. M6 tides: it hangs from the rail
+  // and its foot rolls on the quay, so it tilts with the tide (a pivot at the rail end)
+  const rampPivot = new THREE.Group();
   {
-    const ramp = rod(new THREE.Vector3(RAMP.x, 0.03, RAMP.zLow), new THREE.Vector3(RAMP.x, DECK.y + 0.03, RAMP.zHigh), 0.02, m.planks);
-    ramp.scale.set(45, 1, 1); // a flat plank, 0.9 m wide
-    scene.add(ramp);
+    const plank = box(0.9, 0.05, RAMP_LEN, m.planks, 0, 0.03, RAMP_LEN / 2, 1);
+    rampPivot.add(plank);
+    for (let i = 1; i < 8; i++) rampPivot.add(box(0.8, 0.04, 0.06, m.darkWood, 0, 0.07, (RAMP_LEN * i) / 8, 1));
     for (const s of [-0.5, 0.5]) {
-      scene.add(rod(new THREE.Vector3(RAMP.x + s, 1.0, RAMP.zLow), new THREE.Vector3(RAMP.x + s, DECK.y + 1.0, RAMP.zHigh), 0.025, m.rope));
+      rampPivot.add(rod(new THREE.Vector3(s, 1.0, 0), new THREE.Vector3(s, 1.0, RAMP_LEN), 0.025, m.rope));
+      for (const k of [0.05, 0.5, 0.95]) rampPivot.add(rod(new THREE.Vector3(s, 0.05, RAMP_LEN * k), new THREE.Vector3(s, 1.0, RAMP_LEN * k), 0.02, m.darkWood));
+    }
+    scene.add(rampPivot);
+  }
+  // mooring lines from the brig to two bollards: unit rods stretched each time the deck moves
+  const unitRope = new THREE.CylinderGeometry(0.04, 0.04, 1, 4, 1).translate(0, 0.5, 0);
+  const brigLines = [
+    { from: new THREE.Vector3(-56, 0.9, -3.2), to: new THREE.Vector3(SHIP_X + 4, 0.5, edgeZ(SHIP_X + 4) + 0.9), mesh: new THREE.Mesh(unitRope, m.rope) },
+    { from: new THREE.Vector3(-24, 0.9, -3.2), to: new THREE.Vector3(SHIP_X + 32, 0.5, edgeZ(SHIP_X + 32) + 0.9), mesh: new THREE.Mesh(unitRope, m.rope) },
+  ];
+  for (const l of brigLines) scene.add(l.mesh);
+  const lineA = new THREE.Vector3();
+  const lineD = new THREE.Vector3();
+  const UP = new THREE.Vector3(0, 1, 0);
+  let placedDeck = NaN;
+  /** Put the brig's gangway and lines where her deck is now (DECK.y). */
+  function placeBrigKit(): void {
+    if (Math.abs(DECK.y - placedDeck) < 0.005) return;
+    placedDeck = DECK.y;
+    const sin = THREE.MathUtils.clamp(DECK.y / RAMP_LEN, -0.95, 0.95);
+    RAMP.zLow = RAMP.zHigh + RAMP_LEN * Math.sqrt(1 - sin * sin);
+    rampPivot.position.set(RAMP.x, DECK.y, RAMP.zHigh);
+    rampPivot.rotation.x = Math.asin(sin);
+    for (const l of brigLines) {
+      lineA.copy(l.from);
+      lineA.y += DECK.y;
+      lineD.subVectors(l.to, lineA);
+      l.mesh.position.copy(lineA);
+      l.mesh.scale.set(1, lineD.length(), 1);
+      l.mesh.quaternion.setFromUnitVectors(UP, lineD.normalize());
     }
   }
-  // mooring lines from ship A to two bollards
-  scene.add(rod(new THREE.Vector3(-56, DECK.y + 0.9, -3.2), new THREE.Vector3(SHIP_X + 4, 0.5, edgeZ(SHIP_X + 4) + 0.9), 0.04, m.rope));
-  scene.add(rod(new THREE.Vector3(-24, DECK.y + 0.9, -3.2), new THREE.Vector3(SHIP_X + 32, 0.5, edgeZ(SHIP_X + 32) + 0.9), 0.04, m.rope));
+  placeBrigKit();
 
   // --- gas lamps (6)
   const glow = glowTexture();
@@ -665,7 +759,7 @@ export function buildRijnkaai(): World {
   const baseAt = (x: number, z: number) => {
     if (onDeck(x, z)) return DECK.y;
     if (onRamp(x, z)) return THREE.MathUtils.clamp((RAMP.zLow - z) / (RAMP.zLow - RAMP.zHigh), 0, 1) * DECK.y;
-    if (onPontoon(x, z)) return pontoonY * THREE.MathUtils.clamp(-z / PONTOON.gangway, 0, 1);
+    if (onPontoon(x, z)) return pontoonY * THREE.MathUtils.clamp(-z / pontoonReach, 0, 1);
     const st = steps.heightAt(x, z);
     if (st) return st.y;
     const sh = steenHeightAt(x, z); // Het Steen's courtyard and ramp (M3i)
@@ -762,11 +856,13 @@ export function buildRijnkaai(): World {
       const a = (i * Math.PI) / 4;
       if (!openWater(x + Math.cos(a) * r, z + Math.sin(a) * r)) return false;
     }
-    if (steps.solidAt(x, z, r)) return false;
+    if (steps.solidAt(x, z, r, stepsStatic ? undefined : levelAt(x, z))) return false;
     for (const c of swimSolids) if (inRect(c, x, z, r)) return false;
     for (const c of waterDynamic) if (inRect(c, x, z, r)) return false;
     return true;
   }
+  /** While the ladders are placed: the flights count as solid whatever the tide (M6 tides). */
+  let stepsStatic = false;
   /** M3j: open water for a boat (see World.boatFree). */
   function boatFree(x: number, z: number, r: number, pass?: (c: Rect) => boolean): boolean {
     // the walk map has the decks of the opening bridges as ground, a little past their rects: there, the water polygon says
@@ -782,7 +878,7 @@ export function buildRijnkaai(): World {
       const a = (i * Math.PI) / 4;
       if (!water(x + Math.cos(a) * r, z + Math.sin(a) * r)) return false;
     }
-    if (steps.solidAt(x, z, r)) return false;
+    if (steps.solidAt(x, z, r, levelAt(x, z))) return false;
     for (const c of swimSolids) if (inRect(c, x, z, r) && !pass?.(c)) return false;
     for (const c of waterDynamic) if (inRect(c, x, z, r) && !pass?.(c)) return false;
     return true;
@@ -800,7 +896,7 @@ export function buildRijnkaai(): World {
     return null;
   }
   /** Can you drop into the water at (x, z)? Open water, not onto a hull or a pile, with room to swim close by. */
-  const swimmable = (x: number, z: number) => openWater(x, z) && !steps.solidAt(x, z, 0) && !swimSolids.some((c) => inRect(c, x, z)) && nearestSwim(x, z) !== null;
+  const swimmable = (x: number, z: number) => openWater(x, z) && !steps.solidAt(x, z, 0, levelAt(x, z)) && !swimSolids.some((c) => inRect(c, x, z)) && nearestSwim(x, z) !== null;
   /** Rails, bulwarks and parapets: you do not fall off a ship, a gangway, a bridge, the pontoon or a flight of steps. */
   const railedFrom = (x: number, z: number) => {
     if (onDeck(x, z) || onRamp(x, z) || onPontoon(x, z)) return true;
@@ -858,7 +954,7 @@ export function buildRijnkaai(): World {
     const up = raisedAt(x, z, feet);
     if (up) return up.y;
     const f = floorAt(x, z);
-    let g = f ?? WATER_Y - 6;
+    let g = f ?? LW_MIN - 3;
     const consider = (c: Rect) => {
       if (c.top !== undefined && c.top <= feet + STEP && inRect(c, x, z, r * 0.6)) g = Math.max(g, c.top);
     };
@@ -895,7 +991,7 @@ export function buildRijnkaai(): World {
     const hc = waveAt(x0 + WATER_TILE, z0 + WATER_TILE, t);
     const hd = waveAt(x0 + WATER_TILE, z0, t);
     const h = fx + fz <= 1 ? ha + (hd - ha) * fx + (hb - ha) * fz : hc + (hb - hc) * (1 - fx) + (hd - hc) * (1 - fz);
-    return WATER_Y + h;
+    return levelAt(x, z) + h;
   }
 
   const onPierDeck = (x: number, z: number) => x > 5 && x < 9 && z > -12 && z < 0;
@@ -916,6 +1012,14 @@ export function buildRijnkaai(): World {
    * and not where something stands on the quay edge. Run once the boats are in.
    */
   function placeLadders(): void {
+    stepsStatic = true;
+    try {
+      placeLaddersNow();
+    } finally {
+      stepsStatic = false;
+    }
+  }
+  function placeLaddersNow(): void {
     const quays = (CITY_DATA as unknown as { quays: number[][] }).quays;
     const blocked = (x: number, z: number, nx: number, nz: number) => {
       const wx = x + nx * 0.8;
@@ -1071,9 +1175,41 @@ export function buildRijnkaai(): World {
   }
   applyDaylight(dayNow);
 
+  // --- M6 tides: the river follows the game clock (world/tide.ts); everything that floats reads it
+  let tideClock: (() => { day: number; hour: number }) | null = null;
+  let tideSeen = false;
+  function tideTarget(): number {
+    if (tideDev.hold === "high") return HW_MAX;
+    if (tideDev.hold === "low") return LW_MIN;
+    if (!tideClock) return tideWater.river;
+    const c = tideClock();
+    return tideAt(c.day, c.hour);
+  }
+  function updateTide(dt: number): void {
+    const target = tideTarget();
+    // a jump of the clock (sleep, the dev menu) or the first clock: the water goes there in a few seconds
+    const d = target - tideWater.river;
+    tideWater.river += tideSeen ? THREE.MathUtils.clamp(d, -0.6 * dt, 0.6 * dt) : d;
+    if (tideClock) tideSeen = true;
+    water.position.y = tideWater.river;
+    dockSheet.position.y = tideWater.dock;
+    dockMouth.position.y = tideWater.dock;
+    // the chamber: level, or sloping from the river gates to the dock gates while both pairs stand open
+    chamberSheet.position.y = (tideWater.chamberA + tideWater.chamberB) / 2;
+    chamberSheet.rotation.x = -Math.PI / 2 - Math.atan((tideWater.chamberB - tideWater.chamberA) / (CHAMBER.maxZ - CHAMBER.minZ));
+    // the brig (on the bottom below BRIG_FLOOR), her gangway and lines; the ferry pontoon and its gangway
+    DECK.y = Math.max(levelAt(-40, -7.2), BRIG_FLOOR) + DECK_OVER_WATER;
+    placeBrigKit();
+    pontoonY = levelAt(PONTOON.x, -30) + pontoonDeck;
+    const ps = THREE.MathUtils.clamp(pontoonY / PONTOON_PLANK, -0.95, 0.95);
+    pontoonReach = PONTOON_PLANK * Math.sqrt(1 - ps * ps);
+    if (pontoonPivot) pontoonPivot.rotation.x = Math.asin(ps);
+  }
+
   let camera: THREE.Camera | null = null;
   let devView = false;
   function update(t: number, dt: number, cam?: THREE.Camera): void {
+    updateTide(dt);
     // the sea: a storm raises the waves, the boats roll (psx water, waveAt, boats.ts)
     {
       const sea = weatherNow === "storm" ? 3.6 : weatherNow === "rain" ? 1.5 : weatherNow === "clear" ? 1.1 : 0.85;
@@ -1093,6 +1229,12 @@ export function buildRijnkaai(): World {
       sky.position.set(camera.position.x, 0, camera.position.z);
       water.position.x = Math.round(camera.position.x / WATER_TILE) * WATER_TILE;
       water.position.z = Math.round(camera.position.z / WATER_TILE) * WATER_TILE;
+      // the mirror lies in the water nearest the eye (the river, the dock or the lock)
+      const cx = camera.position.x;
+      const cz = camera.position.z;
+      const inLock = cx > CHAMBER.minX - 6 && cx < CHAMBER.maxX + 6 && cz > CHAMBER.minZ - 4 && cz < CHAMBER.maxZ;
+      const nearDock = cx > DOCK.minX - 25 && cx < DOCK.maxX + 25 && cz > DOCK.minZ - 10 && cz < DOCK.maxZ + 25;
+      mirror.setPlane(inLock ? tideWater.chamber : nearDock ? tideWater.dock : tideWater.river);
     }
     psxUniforms.uTime.value = t;
     fogMix += (fogTarget - fogMix) * Math.min(1, dt * 0.4);
@@ -1215,6 +1357,23 @@ export function buildRijnkaai(): World {
     quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
     surfaceAt,
     update,
+    setTideClock: (fn) => (tideClock = fn),
+    tideDev: {
+      read: () => {
+        const f = (y: number) => `${y >= 0 ? "+" : ""}${y.toFixed(2)}`;
+        const hm = (h: number) => `${Math.floor(h)}:${String(Math.floor((h % 1) * 60)).padStart(2, "0")}`;
+        const c = tideClock?.();
+        const hold = tideDev.hold ? ` (held at ${tideDev.hold} water)` : "";
+        if (!c) return `river ${f(tideWater.river)} m${hold}`;
+        const i = tideInfo(c.day, c.hour);
+        return (
+          `river ${f(tideWater.river)} m (quay top 0; ${f(i.fromMid)} m from half tide), ${i.rising ? "rising" : "falling"}, range ${i.range.toFixed(2)} m today${hold}. ` +
+          `High water day ${i.nextHigh.day} ${hm(i.nextHigh.hour)} (${f(i.nextHigh.y)}), low water day ${i.nextLow.day} ${hm(i.nextLow.hour)} (${f(i.nextLow.y)}). ` +
+          `Dock ${f(tideWater.dock)}, lock ${f(tideWater.chamberA)} / ${f(tideWater.chamberB)}.`
+        );
+      },
+      hold: (v) => (tideDev.hold = v),
+    },
   };
 }
 
@@ -1233,27 +1392,27 @@ function inWater(x: number, z: number): boolean {
   return inside;
 }
 
-/** A timber gangway from the Werf down onto the ferry pontoon's deck (it floats below the quay). */
-function pontoonGangway(scene: THREE.Scene, m: Mats, deckY: number): void {
-  const L = PONTOON.gangway;
+/**
+ * A timber gangway from the Werf down onto the ferry pontoon's deck (it floats below the quay).
+ * M6 tides: a plank of PONTOON_PLANK metres hinged at the quay edge; the returned pivot's rotation.x
+ * tilts it (sin = deck height / length), its far end rolling on the pontoon.
+ */
+function pontoonGangway(scene: THREE.Scene, m: Mats): THREE.Object3D {
+  const L = PONTOON_PLANK;
   const w = PONTOON.maxX - PONTOON.minX - 0.5;
   const g = new THREE.Group();
-  const slope = Math.atan2(-deckY, L);
-  const plank = box(w, 0.1, Math.hypot(L, deckY) + 0.3, m.planks, 0, 0, 0, 1.5);
-  plank.position.set(PONTOON.x, deckY / 2 - 0.02, -L / 2);
-  plank.rotation.x = -slope;
-  g.add(plank);
-  // cleats across, for the feet, and a hand rail on each side
-  for (let i = 1; i < 10; i++) {
-    const k = i / 10;
-    g.add(box(w - 0.2, 0.05, 0.08, m.darkWood, PONTOON.x, deckY * k + 0.04, -L * k, 1));
-  }
+  g.position.set(PONTOON.x, 0, 0);
+  // the plank runs out along -z from the hinge
+  g.add(box(w, 0.1, L + 0.3, m.planks, 0, -0.02, -L / 2, 1.5));
+  // cleats across, for the feet, and a hand rail on each side (posts square to the plank)
+  for (let i = 1; i < 11; i++) g.add(box(w - 0.2, 0.05, 0.08, m.darkWood, 0, 0.04, (-L * i) / 11, 1));
   for (const s of [-1, 1]) {
-    const x = PONTOON.x + s * (w / 2 - 0.05);
-    g.add(rod(new THREE.Vector3(x, 1.0, 0.2), new THREE.Vector3(x, deckY + 1.0, -L), 0.04, m.darkWood));
-    for (const k of [0, 0.5, 1]) g.add(box(0.08, 1.0, 0.08, m.darkWood, x, deckY * k + 0.5, -L * k + (k === 0 ? 0.2 : 0), 1));
+    const x = s * (w / 2 - 0.05);
+    g.add(rod(new THREE.Vector3(x, 1.0, 0.2), new THREE.Vector3(x, 1.0, -L), 0.04, m.darkWood));
+    for (const k of [0, 0.5, 1]) g.add(box(0.08, 1.0, 0.08, m.darkWood, x, 0.5, -L * k + (k === 0 ? 0.2 : 0), 1));
   }
   scene.add(g);
+  return g;
 }
 
 

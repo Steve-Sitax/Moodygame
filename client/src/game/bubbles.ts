@@ -14,6 +14,8 @@ const MAX_TAGS = 6;
 const SHOW_M = 30;
 const HEAD_M = 1.75;
 const CHILD_HEAD_M = 1.3;
+/** A bubble stays this far inside the screen's edge (it slides, it never shrinks). */
+const EDGE_PX = 6;
 
 interface Play {
   c: Convo;
@@ -94,11 +96,19 @@ export class Bubbles {
     if (d > SHOW_M) return void p.el.classList.remove("on");
     const head = info && info.age < 13 ? CHILD_HEAD_M : HEAD_M;
     this.v.set(at.x, head + 0.15, at.z).project(camera);
-    if (this.v.z > 1 || this.v.z < -1 || Math.abs(this.v.x) > 1.2 || Math.abs(this.v.y) > 1.2) return void p.el.classList.remove("on");
+    // the speaker off the screen: no bubble (Steve: never a squashed one at the edge)
+    if (this.v.z > 1 || this.v.z < -1 || Math.abs(this.v.x) > 1 || Math.abs(this.v.y) > 1) return void p.el.classList.remove("on");
     const x = ((this.v.x + 1) / 2) * window.innerWidth;
     const y = ((1 - this.v.y) / 2) * window.innerHeight;
-    p.el.style.left = `${x.toFixed(0)}px`;
-    p.el.style.top = `${y.toFixed(0)}px`;
+    // M4b: the bubble keeps its own size; near an edge it slides inside, the tail still points at the head
+    const w = p.el.offsetWidth;
+    const h = p.el.offsetHeight;
+    const cx = Math.max(EDGE_PX + w / 2, Math.min(window.innerWidth - EDGE_PX - w / 2, x));
+    const cy = Math.max(EDGE_PX + h, Math.min(window.innerHeight - EDGE_PX, y));
+    const tail = Math.max(-w / 2 + 10, Math.min(w / 2 - 10, x - cx));
+    p.el.style.left = `${cx.toFixed(0)}px`;
+    p.el.style.top = `${cy.toFixed(0)}px`;
+    p.el.style.setProperty("--tail", `${tail.toFixed(0)}px`);
     p.el.classList.add("on");
   }
 

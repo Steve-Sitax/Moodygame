@@ -601,6 +601,7 @@ function summary(j: Job): string {
   const urgent = "limit_s" in t && t.limit_s ? ", before the bell" : "";
   if (t.kind === "carry") return `carry ${t.count} ${t.goods}, ${SPOTS[t.from].label} to ${SPOTS[t.to].label}${urgent}`;
   if (t.kind === "deliver") return `deliver a ${GOODS[t.goods].one} to ${t.recipient}${urgent}`;
+  if (t.kind === "letters") return t.stops.some((s) => s.what === "telegraph") ? `send a telegram${t.city ? ` to ${t.city}` : ""}` : `${t.stops.length === 1 ? "a letter" : `${t.stops.length} letters`} to doors about the town`;
   return `watch the ${t.goods} at ${SPOTS[t.post].label}`;
 }
 

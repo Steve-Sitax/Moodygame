@@ -4,6 +4,7 @@ import { makeHuman, whenHumans, type Human, type HumanKind, type Motion } from "
 import type { Crowd, Puppet } from "../game/crowd";
 import { glowTexture } from "./textures";
 import type { Rect } from "./geom";
+import { water } from "./tide";
 
 // Life round Het Steen (M3i, docs/milestones/M3i-steen.md). In 1873 the Steen was the city's
 // Museum of Antiquities (decided 1862, open from 1864), in the old castle gate and prison.
@@ -170,6 +171,9 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
 
   // --- the angler's rod and line, his stool and bucket
   const rod = new THREE.Group();
+  /** M6 tides: the line's end and the float ride on the water (set in update). */
+  let fishLine: THREE.BufferGeometry | null = null;
+  let fishFloat: THREE.Mesh | null = null;
   {
     const fx = Math.sin(ANGLER_YAW);
     const fz = Math.cos(ANGLER_YAW);
@@ -192,6 +196,8 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
     const float = new THREE.Mesh(new THREE.SphereGeometry(0.03, 4, 3), psx(new THREE.MeshLambertMaterial({ color: 0xb03a28 })));
     float.position.set(tip.x + fx * 0.2, WATER_Y + 0.02, tip.z + fz * 0.2);
     rod.add(float);
+    fishLine = lineGeo;
+    fishFloat = float;
     group.add(rod);
   }
 
@@ -418,6 +424,13 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
       if (f.h && Math.hypot(f.x - cx, f.z - cz) < 60) f.h.update(dt);
     }
     easel.visible = hour >= 10 && hour < 16;
+    if (fishLine && fishFloat && near) {
+      const y = water.river + 0.02 + Math.sin(t * 1.3) * 0.02;
+      fishFloat.position.y = y;
+      const a = fishLine.getAttribute("position") as THREE.BufferAttribute;
+      a.setY(1, y);
+      a.needsUpdate = true;
+    }
     rod.visible = hour >= 7 && hour < 17.5;
     doorway.visible = open;
     glow.visible = night;

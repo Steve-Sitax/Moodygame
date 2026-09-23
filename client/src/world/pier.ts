@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { psx } from "../retro/psx";
 import { rectAround, type Rect } from "./geom";
-import { Geo, WORLD, frameAt, slimeCuts, slimeShade, type QuaySteps } from "./quaysteps";
+import { Geo, WORLD, frameAt, tideCuts, tideShade, type QuaySteps } from "./quaysteps";
+import { LW_MIN, MHW, MLW } from "./tide";
 
 // The timber jetty on the Rijnkaai (x 5..9, out to z -12), as in the 1870s photos:
 // a deck of loose planks on stringers and cap beams, rows of round piles with
@@ -35,10 +36,11 @@ function rng(seed: number): () => number {
 
 export function buildPier(scene: THREE.Object3D, waterY: number, planks: THREE.Texture, steps: QuaySteps): Pier {
   const r = rng(1873);
-  const bed = waterY - 2.2;
-  const cuts = slimeCuts(waterY);
+  // M6 tides: the piles stand in the mud below the lowest spring tide, slimy up to the high-water mark
+  const bed = LW_MIN - 1.6;
+  const cuts = tideCuts();
   const deck = new Geo(() => [0.72, 0.7, 0.66], 1.5);
-  const wood = new Geo(slimeShade(waterY, [0.5, 0.46, 0.42]), 1.5, cuts);
+  const wood = new Geo(tideShade([0.5, 0.46, 0.42]), 1.5, cuts);
   const shells = new Geo(() => [0.78, 0.78, 0.72], 1);
   const colliders: Rect[] = [];
   const piles: Rect[] = [];
@@ -65,10 +67,10 @@ export function buildPier(scene: THREE.Object3D, waterY: number, planks: THREE.T
     for (const x of pileX) {
       wood.rod(V(x, bed, z), V(x, capLo, z), 0.14 + r() * 0.03, 7, 12);
       piles.push(rectAround(x, z, 0.2, 0.2));
-      // barnacles and mussels at the tide line
-      for (let k = 0; k < 7; k++) {
+      // barnacles and mussels between the tide marks
+      for (let k = 0; k < 9; k++) {
         const a = r() * Math.PI * 2;
-        const y = waterY - 0.15 + r() * 0.5;
+        const y = MLW + r() * (MHW - 0.4 - MLW);
         const px = x + Math.cos(a) * 0.15;
         const pz = z + Math.sin(a) * 0.15;
         shells.box(WORLD, px - 0.03, px + 0.03, pz - 0.03, pz + 0.03, y, y + 0.04 + r() * 0.03);

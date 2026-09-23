@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { psx } from "../retro/psx";
 import { makeHuman, type Human } from "../game/humans";
 import type { Rect } from "./geom";
+import { levelAt } from "./tide";
 import type { Props } from "./props3d";
 import { HorsePool } from "./horses";
 import { Kit, type RGB } from "./kit";
@@ -1185,8 +1186,10 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       const wagonA = angleTo(c, at.x, at.z);
       const src: Source = plan.shipA !== null ? { kind: "ship" } : { kind: "pile" };
       const srcA = plan.shipA ?? angleTo(c, c.pile!.x, c.pile!.z);
-      const srcY = plan.shipA !== null ? c.shipY : c.pile ? pileSlot(c.pile, Math.max(0, c.pile.n - 1 - k)).y : 0;
-      const dstY = c.pile ? pileSlot(c.pile, Math.min(c.pile.cap - 1, c.pile.n + k)).y : c.shipY;
+      // M6 tides: the hold is where the water has the boat now
+      const shipY = levelAt(c.site.x, c.site.z) + (c.shipY - opts.waterY);
+      const srcY = plan.shipA !== null ? shipY : c.pile ? pileSlot(c.pile, Math.max(0, c.pile.n - 1 - k)).y : 0;
+      const dstY = c.pile ? pileSlot(c.pile, Math.min(c.pile.cap - 1, c.pile.n + k)).y : shipY;
       if (st.dir === "in") {
         ops.push({ t: "hoist", y: TRAVEL }, { t: "slew", a: srcA }, { t: "hoist", y: hookFor(srcY) });
         ops.push({ t: "wait", s: 1.6 }, { t: "take", from: src }, { t: "hoist", y: TRAVEL }, { t: "slew", a: wagonA }, { t: "gate" });
