@@ -560,12 +560,12 @@ describe("scheduler", () => {
       { op: "explode", minutes: 10 },
       ...Array.from({ length: 8 }, () => stage({ op: "sound", minutes: 60, sound: "bells" })),
     ]);
-    expect(out[0].minutes).toBe(120);
-    expect(out[0].count).toBe(16);
+    expect(out[0].minutes).toBe(180);
+    expect(out[0].count).toBe(24);
     expect(out[1].factor).toBe(3);
     expect(out.every((s) => (s.op as string) !== "explode" && s.item !== "gold")).toBe(true);
     expect(out.length).toBeLessThanOrEqual(6);
-    expect(out.reduce((a, s) => a + s.minutes, 0)).toBeLessThanOrEqual(240);
+    expect(out.reduce((a, s) => a + s.minutes, 0)).toBeLessThanOrEqual(600);
   });
 
   it("stages advance by game time; people are reserved by attend actions; the end cleans up", () => {
@@ -611,6 +611,26 @@ describe("scheduler", () => {
     expect(activeActions(db).filter((a) => a.event_id === id).length).toBe(0);
     if (pub) expect(atWork(db, pub.id)).toBe(true);
     expect(liveEvents(db).length).toBe(0);
+  });
+
+  it("onlookers are called when the event starts, not at their own stage", () => {
+    const db = fresh();
+    const p = planEvent(db, {
+      title: "Wedding",
+      template: "wedding",
+      place: "cathedral_west",
+      start_in_min: 0,
+      stages: [stage({ op: "gather", minutes: 60, role: "guests", count: 6 }), stage({ op: "gather", minutes: 60, role: "crowd", count: 8, sound: "bells" })],
+      source: "engine",
+    });
+    const id = p.ok ? p.event.id : 0;
+    eventsTick(db);
+    expect(eventRow(db, id)?.stage).toBe(0);
+    expect((JSON.parse(eventRow(db, id)!.people_json) as string[]).length).toBe(14);
+    setClock(db, 1, 11, 0);
+    eventsTick(db);
+    expect(eventRow(db, id)?.stage).toBe(1);
+    expect((JSON.parse(eventRow(db, id)!.people_json) as string[]).length).toBe(14);
   });
 
   it("gather picks fitting people: police for police, children for children, nobody twice", () => {
@@ -684,8 +704,8 @@ describe("director", () => {
     expect(r.planned?.ok).toBe(true);
     const ev = liveEvents(db)[0];
     const st = JSON.parse(ev.stages_json) as Array<{ minutes: number; count: number }>;
-    expect(st[0].minutes).toBe(120);
-    expect(st[0].count).toBe(16);
+    expect(st[0].minutes).toBe(180);
+    expect(st[0].count).toBe(24);
     const db2 = fresh();
     const bad = await think(db2, reply(out({ event: { ...out().event, template: "custom", place: "the moon" } })), true);
     expect(bad.planned?.ok).toBe(false);

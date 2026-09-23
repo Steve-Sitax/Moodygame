@@ -894,7 +894,7 @@ export class Town {
    * Claim a resident for an action wherever they are: in the street already, or out of
    * sight (they step into the street where they were, or round a corner from Jef).
    */
-  claimNear(id: string, near: { x: number; z: number }): Puppet | null {
+  claimNear(id: string, near: { x: number; z: number }, rMin = 26): Puppet | null {
     const s = this.byId.get(id);
     if (!s) return null;
     if (s.p) return this.claim(id);
@@ -908,7 +908,7 @@ export class Town {
         const turn = (i % 2 ? 1 : -1) * Math.floor(i / 2) * 0.5;
         const c = Math.cos(turn);
         const sn = Math.sin(turn);
-        const r = 26 + (i % 3) * 6;
+        const r = rMin + (i % 3) * 6;
         const q = this.crowd.openNear(near.x + (ux * c - uz * sn) * r, near.z + (ux * sn + uz * c) * r);
         if (q && this.crowd.isHidden(q.x, q.z)) from = q;
       }

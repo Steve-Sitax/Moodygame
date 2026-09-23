@@ -1,6 +1,7 @@
 import { api, type ActionsPayload, type PublicAction, type PushMsg } from "../net/api";
 import type { FirstPerson } from "../player/firstPerson";
 import type { World } from "../world/rijnkaai";
+import { STOPS as OMNIBUS_STOPS, type OmnibusStop } from "../world/omnibus";
 import type { Crowd, Puppet } from "./crowd";
 import type { Events } from "./events";
 import type { Town } from "./town";
@@ -24,6 +25,17 @@ const SYNC_S = 2;
 const CLAIM_M = 58;
 const ATTEND_CLAIM_M = 58;
 const LOST_S = 5;
+/** Coming to an event by omnibus: live this far off, and a stop this near the event. */
+const TRAM_FROM_M = 90;
+const TRAM_STOP_M = 70;
+/** Give up waiting for an omnibus after this long (real seconds) and walk. */
+const TRAM_WAIT_S = 70;
+
+const hash01 = (s: string) => {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return (h >>> 0) / 4294967296;
+};
 const STUCK_S = 12;
 
 interface Run {
@@ -37,6 +49,10 @@ interface Run {
   wait: number;
   /** talk_to and fetch_police: the other one, held while they speak. */
   other: string | null;
+  /** attend: how they come (Steve: running, walking, biking or by tram). */
+  how?: "walk" | "run" | "tram";
+  tramStop?: OmnibusStop;
+  tramT?: number;
 }
 
 export class Actions {
@@ -96,6 +112,7 @@ export class Actions {
       void this.sync();
     }
     for (const r of this.runs.values()) this.run(r, dt);
+    this.releaseBuses();
     for (const [id, t] of this.afterglow) {
       if (t < performance.now()) {
         this.afterglow.delete(id);
@@ -184,12 +201,14 @@ export class Actions {
   private ensure(r: Run, toward: { x: number; z: number } | null, dt: number, range: number): Puppet | null {
     const pos = this.town.position(r.a.npc);
     const d = pos ? this.jefD(pos.x, pos.z) : Infinity;
-    if (d > range) {
+    // a guest on the way to a gathering Jef can see: they step out of sight close to it, not across town
+    const guest = r.a.kind === "attend" && toward && this.jefD(toward.x, toward.z) < range;
+    if (d > range && !guest) {
       r.p = null;
       if (toward) this.town.moveHidden(r.a.npc, toward.x, toward.z, dt);
       return null;
     }
-    const p = this.town.claimNear(r.a.npc, { x: this.player.x, z: this.player.z });
+    const p = guest && d > range ? this.town.claimNear(r.a.npc, toward!, 12) : this.town.claimNear(r.a.npc, { x: this.player.x, z: this.player.z });
     r.p = p;
     return p;
   }
@@ -265,11 +284,73 @@ export class Actions {
     }
   }
 
+  /** How someone comes to an event, decided once: onlookers often run; the far-off take the omnibus. */
+  private how(r: Run, tx: number, tz: number): "walk" | "run" | "tram" {
+    if (r.how) return r.how;
+    const a = r.a;
+    const h = hash01(`${a.npc}:${a.event_id}`);
+    const pos = this.town.position(a.npc);
+    const far = !pos || Math.hypot(pos.x - tx, pos.z - tz) > TRAM_FROM_M;
+    let stop: OmnibusStop | null = null;
+    let best = TRAM_STOP_M;
+    for (const s of OMNIBUS_STOPS) {
+      const d = Math.hypot(s.x - tx, s.z - tz);
+      if (d < best) [best, stop] = [d, s];
+    }
+    const seen = pos?.shown ?? false;
+    if (far && stop && !seen && h < (a.role === "crowd" ? 0.4 : 0.3)) {
+      r.tramStop = stop;
+      r.tramT = 0;
+      return (r.how = "tram");
+    }
+    return (r.how = a.role === "crowd" && h > 0.6 ? "run" : "walk");
+  }
+
+  /** Waiting on the omnibus: they step off the back platform when one stands at their stop. */
+  private byTram(r: Run, dt: number): Puppet | null {
+    r.tramT = (r.tramT ?? 0) + dt;
+    const stop = r.tramStop!;
+    const bus = this.world.omnibus()?.buses.find((b) => {
+      const at = b.atStop();
+      return !!at && at.id === stop.id && at.line === stop.line;
+    });
+    if (bus && performance.now() >= (this.tramNext.get(bus) ?? 0)) {
+      // one at a time down the step, the omnibus waiting for them
+      bus.hold(true);
+      this.tramNext.set(bus, performance.now() + 700);
+      this.tramHeld.set(bus, performance.now() + 1500);
+      const step = bus.stepDown();
+      const p = this.town.claim(r.a.npc, { x: step.x, z: step.z });
+      if (p) {
+        r.how = "walk";
+        return p;
+      }
+    }
+    if (r.tramT > TRAM_WAIT_S) r.how = "walk"; // no omnibus came: they walk after all
+    return null;
+  }
+  private tramNext = new Map<object, number>();
+  private tramHeld = new Map<import("../world/omnibus").Omnibus, number>();
+
+  private releaseBuses(): void {
+    for (const [bus, until] of this.tramHeld) {
+      if (performance.now() < until) continue;
+      bus.hold(false);
+      this.tramHeld.delete(bus);
+    }
+  }
+
   private goTo(r: Run, dt: number): void {
     const a = r.a;
     const attend = a.kind === "attend";
     const tx = a.target_x ?? this.player.x;
     const tz = a.target_z ?? this.player.z;
+    const how = attend && a.phase !== "procession" ? this.how(r, tx, tz) : "walk";
+    if (how === "tram" && !r.p) {
+      const p = this.byTram(r, dt);
+      if (!p) return;
+      r.p = p;
+    }
     const p = this.ensure(r, { x: tx, z: tz }, dt, attend ? ATTEND_CLAIM_M : CLAIM_M);
     if (!p) {
       // unseen and there: a go_to is done all the same
@@ -291,7 +372,8 @@ export class Actions {
     }
     const d = Math.hypot(p.x - gx, p.z - gz);
     if (d > 1.6) {
-      this.go(r, p, gx, gz, attend ? (a.phase === "procession" ? 0.85 : 1.1) : 1.5, attend ? 0.9 : 0.6);
+      const pace = !attend ? 1.5 : a.phase === "procession" ? 0.95 : d <= 6 ? 1.1 : r.how === "run" ? 2.5 : 1.45;
+      this.go(r, p, gx, gz, pace, attend ? 0.9 : 0.6);
       if (this.stuck(r, d, dt, attend ? 20 : STUCK_S)) {
         if (!attend) void this.report(r, "blocked", { why: "wall" });
         else if (!this.crowd.puppetBusy(p)) this.crowd.puppetStand(p, "idle", null);

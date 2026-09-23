@@ -16,7 +16,7 @@ import type { Town } from "./town";
 
 const HEAR_M = 90;
 /** An event starting within this of Jef is named in a line at the bottom of the screen. */
-const TELL_M = 150;
+const TELL_M = 90;
 
 export type EventSoundKind = "bells" | "music" | "murmur" | "handbell";
 export interface EventSoundHandle {
@@ -28,6 +28,7 @@ interface Live {
   ev: TownEvent;
   soundKey: string;
   sound: EventSoundHandle | null;
+  soundStarted: boolean;
   props: THREE.Object3D[];
   propsKey: string;
 }
@@ -59,7 +60,7 @@ export class Events {
       seen.add(ev.id);
       const l = this.live.get(ev.id);
       if (l) l.ev = ev;
-      else this.live.set(ev.id, { ev, soundKey: "", sound: null, props: [], propsKey: "" });
+      else this.live.set(ev.id, { ev, soundKey: "", sound: null, soundStarted: false, props: [], propsKey: "" });
     }
     for (const [id, l] of this.live) {
       if (seen.has(id)) continue;
@@ -122,21 +123,31 @@ export class Events {
       if (!st) continue;
       const dj = Math.hypot(st.x - player.x, st.z - player.z);
       const near = dj < HEAR_M;
+      // Steve: the message comes when something visibly starts and people are already there
       if (!this.told.has(ev.id) && dj < TELL_M) {
-        this.told.add(ev.id);
-        this.say(`${ev.title}, at ${st.label}.`);
+        let there = 0;
+        for (const id of ev.people) {
+          const q = this.town.position(id);
+          if (q && Math.hypot(q.x - st.x, q.z - st.z) < ev.r + 6) there++;
+        }
+        if (there >= Math.min(5, Math.max(2, Math.ceil(ev.people.length / 2)))) {
+          this.told.add(ev.id);
+          this.say(`${ev.title}: people are gathering at ${st.label}.`);
+        }
       }
-      // sound: one per stage, started when Jef is near enough to hear it
+      // sound: one per stage, started when Jef is near enough to hear it (also when he comes late)
       const key = `${ev.id}:${ev.stage}:${st.sound}`;
       if (l.soundKey !== key) {
         l.sound?.stop();
         l.sound = null;
         l.soundKey = key;
-        if (st.sound !== "none" && near) {
-          // a game minute is a third of a real second
-          const secs = Math.max(8, Math.min(120, st.minutes / 3));
-          l.sound = this.eventSound(st.sound, { x: st.x, z: st.z }, secs);
-        }
+        l.soundStarted = false;
+      }
+      if (!l.soundStarted && st.sound !== "none" && near && ev.stage_left > 2) {
+        l.soundStarted = true;
+        // a game minute is a third of a real second
+        const secs = Math.max(6, Math.min(120, ev.stage_left / 3));
+        l.sound = this.eventSound(st.sound, { x: st.x, z: st.z }, secs);
       } else if (l.sound) l.sound.move(st.x, st.z);
       // props: once per event, at the first stage that names them
       if (st.props !== "none" && l.propsKey !== `${ev.id}:${st.props}` && near) {

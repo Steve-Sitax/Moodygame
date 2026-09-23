@@ -44,7 +44,8 @@ import {
 
 
 /** A stage as stored: the model's flat object, plus where the engine put it. */
-export type StoredStage = Stage & { x?: number; z?: number; label?: string };
+/** `pre`: an onlookers' gathering already called at the start of the event (Steve: they come before it starts). */
+export type StoredStage = Stage & { x?: number; z?: number; label?: string; pre?: boolean };
 
 export interface EventRow {
   id: number;
@@ -268,7 +269,19 @@ function startEvent(db: DB, ev: EventRow): void {
   const cur = eventRow(db, ev.id)!;
   writeEvent(db, { kind: "event", verb: "started", text: `${cur.title} began at ${stagesOf(cur)[0]?.label ?? cur.place}.`, place: cur.place, x: cur.x, z: cur.z, ref_type: "town_event", ref_id: cur.id, weight: 6 });
   if (cur.notice) postNotice(db, cur, cur.notice);
-  applyStage(db, cur, stagesOf(cur)[0], 0);
+  const stages = stagesOf(cur);
+  applyStage(db, cur, stages[0], 0);
+  // Steve, 2026-09-24: "onlookers should already come running, walking, biking or take the tram to the
+  // event". Every later gathering of onlookers (role crowd) is called now, so the crowd is already
+  // there when the event visibly starts; at its own turn the stage keeps only its sound and mood.
+  let pre = false;
+  stages.forEach((s, i) => {
+    if (i === 0 || s.op !== "gather" || s.role !== "crowd") return;
+    gather(db, eventRow(db, cur.id)!, s.role, s.count, { x: s.x ?? cur.x, z: s.z ?? cur.z }, s.label ?? cur.place);
+    s.pre = true;
+    pre = true;
+  });
+  if (pre) db.prepare("UPDATE town_event SET stages_json = ? WHERE id = ?").run(JSON.stringify(stages), cur.id);
 }
 
 function finishEvent(db: DB, ev: EventRow, status: "done" | "cancelled"): void {
@@ -294,7 +307,7 @@ function applyStage(db: DB, ev: EventRow, s: StoredStage, i: number): void {
   const at = { x: s.x ?? ev.x, z: s.z ?? ev.z };
   switch (s.op) {
     case "gather":
-      gather(db, ev, s.role, s.count, at, s.label ?? ev.place);
+      if (!s.pre) gather(db, ev, s.role, s.count, at, s.label ?? ev.place);
       break;
     case "procession":
       procession(db, ev, at);
@@ -405,7 +418,7 @@ export function gather(db: DB, ev: EventRow, role: GatherRole, count: number, at
   picked.forEach((r, i) => {
     const a = (i / Math.max(1, n)) * Math.PI * 2 + hash(ev.id + ":" + i) * 0.4;
     const q = wm.nearestOpen(at.x + Math.cos(a) * ring, at.z + Math.sin(a) * ring, 6) ?? at;
-    startAction(db, { npc_id: r.id, kind: "attend", target: ev.title, target_x: q.x, target_z: q.z, source: "event", event_id: ev.id, minutes: Math.max(5, ev.end_m - now), data: { order: have.length + i, about: label } });
+    startAction(db, { npc_id: r.id, kind: "attend", target: ev.title, target_x: q.x, target_z: q.z, source: "event", event_id: ev.id, minutes: Math.max(5, ev.end_m - now), data: { order: have.length + i, about: label, role } });
   });
   const all = [...have, ...picked.map((r) => r.id)];
   db.prepare("UPDATE town_event SET people_json = ? WHERE id = ?").run(JSON.stringify(all), ev.id);
@@ -493,6 +506,8 @@ export function publicEvent(db: DB, ev: EventRow) {
     stage: ev.stage,
     stages: stages.map((s) => ({ op: s.op, minutes: s.minutes, sound: s.sound, mood: s.mood, props: s.props, x: s.x ?? ev.x, z: s.z ?? ev.z, label: s.label ?? ev.place, text: s.text, count: s.count })),
     people: peopleOf(ev),
+    /** Game minutes left in the stage now playing (the client starts a late sound for the rest of it). */
+    stage_left: ev.status === "running" && ev.stage >= 0 ? Math.max(0, stageEnd(ev, stages, ev.stage) - now) : 0,
     starts_in: Math.max(0, ev.start_m - now),
     ends_in: Math.max(0, ev.end_m - now),
     source: ev.source,

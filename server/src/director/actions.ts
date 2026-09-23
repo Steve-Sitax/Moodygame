@@ -81,6 +81,8 @@ interface ActionData {
   jef?: { x: number; z: number };
   /** Column order in a procession (attend). */
   order?: number;
+  /** attend: guests, crowd (onlookers), mourners ... */
+  role?: string;
   line?: string;
 }
 
@@ -712,6 +714,7 @@ export function listActions(db: DB) {
       until: a.until,
       max_m: a.max_m,
       order: data.order ?? 0,
+      role: data.role ?? null,
       minutes_left: Math.max(0, a.until - gameMinute(db)),
     };
   });

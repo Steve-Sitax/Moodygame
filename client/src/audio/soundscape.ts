@@ -1043,8 +1043,31 @@ export class Soundscape {
     const ctx = this.ctx;
     const secs = Math.max(4, Math.min(180, seconds));
     if (kind === "bells") {
-      const tune = this.carillon(false);
-      this.strike(3, tune + 0.6);
+      // a festive peal from the tower: the big bell struck quickly at six pitches in rounds,
+      // a sound the hourly carillon never makes (the recorded stroke, played at different rates)
+      const b = this.buf.get("hourStroke");
+      const cat = this.cathedral();
+      if (!b || !cat) return { move: () => {}, stop: () => {} };
+      this.log("event peal");
+      const spot = this.spot(cat, BELL.ref, BELL.rolloff, BELL.reach, 0.9);
+      const rates = [1.5, 1.34, 1.2, 1.12, 1.0, 0.9];
+      const t0 = ctx.currentTime + 0.05;
+      const n = Math.floor(Math.min(secs, 40) / 0.34);
+      let last: AudioBufferSourceNode | null = null;
+      for (let i = 0; i < n; i++) {
+        const round = Math.floor(i / rates.length);
+        // every other round the order changes a little, as ringers do
+        const k = round % 2 ? [1, 0, 3, 2, 5, 4][i % 6] : i % 6;
+        const src = ctx.createBufferSource();
+        src.buffer = b;
+        src.playbackRate.value = rates[k];
+        const g = ctx.createGain();
+        g.gain.value = 0.55;
+        src.connect(g).connect(spot.fog);
+        src.start(t0 + i * 0.34 + round * 0.4, 0, 2.2); // a breath between rounds
+        last = src;
+      }
+      if (last) last.onended = () => this.dropSpot(spot);
       return { move: () => {}, stop: () => {} };
     }
     if (kind === "handbell") {

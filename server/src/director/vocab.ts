@@ -208,11 +208,12 @@ export const StageSchema = z.object({
 export type Stage = z.infer<typeof StageSchema>;
 
 export const STAGE_MIN_MIN = 5;
-export const STAGE_MAX_MIN = 120;
+export const STAGE_MAX_MIN = 180;
 export const EVENT_MAX_STAGES = 6;
-export const EVENT_MAX_MIN = 240;
+export const EVENT_MAX_MIN = 600;
 export const GATHER_MIN = 2;
-export const GATHER_MAX = 16;
+/** Steve, 2026-09-24: "should there not be hordes of people come for a wedding?" */
+export const GATHER_MAX = 24;
 export const PRICE_MIN = 0.5;
 export const PRICE_MAX = 3;
 /** Events may not share a place, stand within this of each other, or share a person, with a cleanup margin. */
@@ -224,10 +225,11 @@ export const EVENTS_PER_DAY = 4;
 export const EVENT_CLAIM_M = 70;
 
 export const PRIMITIVES_FOR_MODEL = `
-STAGES. An event is 1-6 stages, played one after the other, each for "minutes" game minutes (5-120, 240 in all).
-The clock runs fast: a stage under 30 minutes is over in a blink; give a gathering 60-120 minutes so people can arrive.
+STAGES. An event is 1-6 stages, played one after the other, each for "minutes" game minutes (5-180, 600 in all).
+The clock runs fast (a game hour is 20 real seconds): a stage under 60 minutes is over in a blink. Give a gathering
+120-180 minutes so people can walk there, a talk 90, a procession 150-180, a sound 60-120.
 Every stage has every field; fill the ones the op uses and put "" / 0 / "none" in the rest.
-- gather: role (guests, mourners, crowd, sellers, musicians, police, children, family), count 2-16, place. People walk to a ring round the place.
+- gather: role (guests, mourners, crowd, sellers, musicians, police, children, family), count 2-24, place. People walk to a ring round the place. A wedding or a ship leaving draws 20 or more; a quarrel draws a dozen onlookers.
 - procession: the gathered people walk in a column to "place". Give the stage a sound if they sing or a bell goes before them.
 - sound: bells, music, murmur or handbell at the place, with a mood word.
 - props: crates, barrels, sacks, flowers or black_cloth set out at the place.

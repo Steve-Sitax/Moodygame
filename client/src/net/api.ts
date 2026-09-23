@@ -239,6 +239,8 @@ export interface PublicAction {
   until: number;
   max_m: number;
   order: number;
+  /** attend: guests, crowd (onlookers), mourners ... */
+  role: string | null;
   minutes_left: number;
 }
 export interface ConvoLine {
@@ -283,6 +285,8 @@ export interface TownEvent {
   stage: number;
   stages: EventStage[];
   people: string[];
+  /** Game minutes left in the stage now playing. */
+  stage_left: number;
   starts_in: number;
   ends_in: number;
   source: string;
