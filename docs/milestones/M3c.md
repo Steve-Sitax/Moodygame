@@ -62,3 +62,17 @@ Steve: "Textures are weird. Everything is stuttering. 1 sided walls. Water direc
 Rebuild order now: extract.py, plan.py, then build_city.py, build_landmarks.py, build_props.py (it reads the house doors), build_people.py.
 
 Checks: `npm run build` passes, `npm test` 58 of 58, path check lists nothing, pictures in `data/shots/p2_*`, `p3_*`, `people_*`, `props_preview.png`. Steve's save was not touched by these checks.
+
+## Pass 3, 2026-09-23
+Steve: many issues with the buildings (pictures: blank walls, a paper-thin house, lone towers on the quay), "does not seem to be correct with the map", "is there an in-game map?", a dev mode to fly without fog, and the camera slips into houses.
+
+| Problem | Cause | Fix |
+|---|---|---|
+| Blank walls on streets | The street test looked 0.9 m out, but block outlines were smoothed by up to 1.2 m, so the test landed inside the block | Street test against the smoothed outlines themselves: 99% of fronts now face a street. |
+| Paper-thin houses | Corner slivers kept as plots | Plots under 3.2 m deep stay part of the inner block. |
+| Big windowless masses | The inner block was a blind box and sometimes met a street | The inner block is a house: windows where it meets a street, a hipped roof. |
+| Lone towers on the quay | Small sheds got 3-5 storeys | Blocks under 260 m2 get 1-2 storeys. |
+| Camera inside houses | Walking tested only the body's centre against the walk map | Walls must stay 0.45 m away (8 points on a ring); the path check grows walls by the same. Water still tests the centre, so the gangway works. |
+| Correct with the map? | | Checked: `data/refs/overlay_markt.jpg` lays the planned houses over the 1873 map at the Grote Markt; blocks, streets, town hall and cathedral line up. |
+| Dev fly mode | | F9 (dev builds): fly with WASD and the mouse, Space up, C down, Shift fast; no fog, noon light; a readout of x, y, z; F9 again lands you. |
+| In-game map | Existed, key M | Named on the start screen now too. |

@@ -292,3 +292,17 @@ html, body {
 .night .keys { text-align: right; margin-top: 12px; }
 .night.end { width: min(620px, 90vw); }
 body:has(.night[style*="block"]) #game { filter: brightness(0.35); }
+
+/* dev fly mode (F9, dev builds only) */
+.devfly {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  color: #e8e0c8;
+  font: 13px monospace;
+  padding: 4px 10px;
+  pointer-events: none;
+  z-index: 9;
+}

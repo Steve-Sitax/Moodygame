@@ -93,6 +93,8 @@ export interface World {
   setTimeOfDay(hour: number): void;
   /** The day's weather: how far you see and how much the lamps glow in the air. */
   setWeather(w: "fog" | "mist" | "clear"): void;
+  /** Dev: no fog, noon light, every chunk shown (fly mode). */
+  setDevView(on: boolean): void;
   mats: Mats;
   surfaceAt(x: number, z: number): Surface;
   update(t: number, dt: number, camera?: THREE.Camera): void;
@@ -290,8 +292,18 @@ export function buildRijnkaai(): World {
   /** Things with a top lower than feet + STEP can be walked onto. */
   const STEP = 0.36;
   const blocks = (c: Rect, feet: number) => (c.top ?? Infinity) > feet + STEP;
+  /** A house or landmark wall within m metres (8 points on a ring): keeps the eye out of walls. */
+  const wallNear = (x: number, z: number, m: number) => {
+    for (let i = 0; i < 8; i++) {
+      const a = (i * Math.PI) / 4;
+      const f = city.flags(x + Math.cos(a) * m, z + Math.sin(a) * m);
+      if (f !== undefined && (f & WALL) !== 0) return true;
+    }
+    return false;
+  };
   const isFree = (x: number, z: number, r: number, feet = 0) => {
     if (!isWalkable(x, z)) return false;
+    if (wallNear(x, z, r + 0.15)) return false;
     for (const c of colliders) if (inRect(c, x, z, r) && blocks(c, feet)) return false;
     for (const c of dynamic) if (inRect(c, x, z, r) && blocks(c, feet)) return false;
     return true;
@@ -343,7 +355,7 @@ export function buildRijnkaai(): World {
     for (let j = 0; j < H; j++)
       for (let i = 0; i < W; i++) {
         const [x, z] = at(i, j);
-        pass[j * W + i] = isWalkable(x, z) ? 1 : 0;
+        pass[j * W + i] = isWalkable(x, z) && !wallNear(x, z, 0.45) ? 1 : 0;
       }
     const R = 0.3;
     for (const c of [...colliders, ...dynamic]) {
@@ -440,6 +452,7 @@ export function buildRijnkaai(): World {
   applyDaylight(dayNow);
 
   let camera: THREE.Camera | null = null;
+  let devView = false;
   function update(t: number, dt: number, cam?: THREE.Camera): void {
     if (cam) camera = cam;
     // the sky dome and the water sheet go where you go
@@ -465,6 +478,16 @@ export function buildRijnkaai(): World {
     // the job twist "thick fog" always closes in, whatever the weather
     fog.near = THREE.MathUtils.lerp(3 * wNow[0], 1.5, fogMix);
     fog.far = THREE.MathUtils.lerp(dayFar * wNow[1], 11, fogMix);
+    sky.visible = !devView;
+    if (devView) {
+      // look at everything: no fog, bright day
+      fog.near = 1500;
+      fog.far = 4000;
+      skyLight.intensity = 2.1;
+      sun.intensity = 2.2;
+      fog.color.setHex(0x8a98a4);
+      (scene.background as THREE.Color).copy(fog.color);
+    }
     if (camera) city.update(camera, fog.far);
     lantern.intensity = 7 * (0.92 + Math.sin(t * 5.1) * 0.04 + Math.sin(t * 13.7) * 0.03);
     waterTex.offset.x = t * 0.004;
@@ -507,6 +530,10 @@ export function buildRijnkaai(): World {
     setTimeOfDay: (h) => (dayTarget = ((h % 24) + 24) % 24),
     city,
     setWeather: (w) => (wTarget = WEATHER[w] ?? WEATHER.fog),
+    setDevView: (on) => {
+      devView = on;
+      if (!on) applyDaylight(dayNow);
+    },
     lamps,
     shipPositions: [new THREE.Vector3(SHIP_X + 20, 1, -3), new THREE.Vector3(-34, 1, -21)],
     move,

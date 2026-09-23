@@ -75,7 +75,39 @@ export class FirstPerson {
     if (p instanceof Promise) p.catch(() => {});
   }
 
+  /** Dev fly mode: free camera, no walls, no ground (F9 in dev). */
+  fly = false;
+  flyY = 0;
+
+  private updateFly(dt: number): void {
+    const on = this.locked || this.freeInput;
+    const k = (c: string) => on && this.keys.has(c);
+    const fast = k("ShiftLeft") || k("ShiftRight") ? 45 : 12;
+    let fx = 0;
+    let fz = 0;
+    if (k("KeyW")) fz -= 1;
+    if (k("KeyS")) fz += 1;
+    if (k("KeyA")) fx -= 1;
+    if (k("KeyD")) fx += 1;
+    // fly where you look, pitch included
+    const cp = Math.cos(this.pitch);
+    const sy = Math.sin(this.yaw);
+    const cy = Math.cos(this.yaw);
+    const fwd = new THREE.Vector3(-sy * cp, Math.sin(this.pitch), -cy * cp);
+    const right = new THREE.Vector3(cy, 0, -sy);
+    const move = fwd.multiplyScalar(-fz).add(right.multiplyScalar(fx));
+    if (k("Space")) move.y += 1;
+    if (k("KeyC") || k("ControlLeft")) move.y -= 1;
+    if (move.lengthSq() > 0) move.normalize().multiplyScalar(fast * dt);
+    this.x += move.x;
+    this.z += move.z;
+    this.flyY += move.y;
+    this.camera.position.set(this.x, this.flyY, this.z);
+    this.camera.rotation.set(this.pitch, this.yaw, 0);
+  }
+
   update(dt: number): void {
+    if (this.fly) return this.updateFly(dt);
     const active = (this.locked || this.freeInput) && !this.frozen;
     const k = (c: string) => active && this.keys.has(c);
     let fx = 0;

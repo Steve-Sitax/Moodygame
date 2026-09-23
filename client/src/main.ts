@@ -93,6 +93,39 @@ world.city.ready.then(() => {
   for (const o of hidden) o.visible = false;
 }).catch(() => {});
 
+// Dev fly mode (F9): fly anywhere, no fog, noon light; a readout of where you are.
+if (import.meta.env.DEV) {
+  const hud = document.createElement("div");
+  hud.className = "devfly";
+  hud.style.display = "none";
+  document.body.appendChild(hud);
+  let back: { x: number; z: number } | null = null;
+  const toggleFly = () => {
+    player.fly = !player.fly;
+    world.setDevView(player.fly);
+    hud.style.display = player.fly ? "block" : "none";
+    if (player.fly) {
+      back = { x: player.x, z: player.z };
+      player.flyY = player.camera.position.y;
+    } else if (back) {
+      // land where you are if you can stand there, else back where you took off
+      const free = world.isFree(player.x, player.z, 0.35);
+      player.place(free ? player.x : back.x, free ? player.z : back.z, player.yaw, player.pitch);
+    }
+  };
+  window.addEventListener("keydown", (e) => {
+    if (e.code === "F9") {
+      e.preventDefault();
+      toggleFly();
+    }
+  });
+  setInterval(() => {
+    if (!player.fly) return;
+    const p = player.camera.position;
+    hud.textContent = `DEV FLY  x ${p.x.toFixed(0)}  y ${p.y.toFixed(0)}  z ${p.z.toFixed(0)}   WASD fly, mouse look, Space up, C down, Shift fast, F9 land`;
+  }, 200);
+}
+
 // Dev hook for automated checks: teleport, hold keys, read state.
 if (import.meta.env.DEV) {
   (window as unknown as Record<string, unknown>).__scheldemist = {

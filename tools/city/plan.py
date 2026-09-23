@@ -113,13 +113,34 @@ def plan_block(bi, block, holes_out, public, rng, houses, backs):
             piece = ps[0].simplify(0.25)
             if piece.area < 10 or piece.is_empty:
                 continue
+            mr = piece.minimum_rotated_rectangle
+            mc = list(mr.exterior.coords)
+            if min(math.hypot(mc[1][0] - mc[0][0], mc[1][1] - mc[0][1]), math.hypot(mc[2][0] - mc[1][0], mc[2][1] - mc[1][1])) < 3.2:
+                continue  # a sliver: it stays part of the inner block, not a paper-thin house
             placed.append(piece)
             placed_union = placed_union.union(piece)
-            houses.append(make_house(bi, piece, (ox, oz), (ux, uz), (nx, nz), w, depth, is_public, rng, block))
+            house = make_house(bi, piece, (ox, oz), (ux, uz), (nx, nz), w, depth, is_public, rng, block)
+            if block.area < 260:
+                # a lone small block on a quay or a square: a shed, a lock-keeper's
+                # house, a customs post; one or two storeys, not a tower
+                st = rng.choice([1, 2, 2])
+                house["st"] = st
+                house["h"] = round(GROUND_H + STOREY_H * (st - 1), 2)
+            houses.append(house)
     rest = block.difference(placed_union.buffer(0.05))
     for p in pieces(rest):
         if p.area > 25:
-            backs.append({"fp": rnd(list(p.simplify(0.4).exterior.coords)[:-1]), "h": round(rng.uniform(6.5, 9.0), 2)})
+            # the inside of the block: yards, sheds, back houses. It may touch a
+            # street where no plot was cut, so it is a house like the others:
+            # windows where it faces a street, a hipped roof
+            st = rng.choice([2, 2, 3])
+            houses.append({
+                "b": bi, "rect": False, "back": True,
+                "fp": rnd(list(shapely.geometry.polygon.orient(p.simplify(0.4), 1.0).exterior.coords)[:-1]),
+                "h": round(GROUND_H + STOREY_H * (st - 1), 2), "st": st, "roof": "flat", "gable": "none", "pitch": 40,
+                "style": rng.choice(["brick", "brick_dark", "plaster_grey"]), "tint": round(rng.uniform(0.8, 0.95), 3),
+                "roofMat": rng.choice(["tile", "slate"]), "seed": rng.randrange(1 << 30),
+            })
 
 
 def make_house(bi, piece, o, u, n, w, depth, is_public, rng, block=None):
@@ -423,14 +444,18 @@ def main():
     rng = random.Random(1873)
     houses, backs = [], []
     blocks = [poly_of(b) for b in city["blocks"]]
+    planned = []  # the block outlines the plots were cut from
     for bi, b in enumerate(blocks):
         for part in pieces(b.difference(cut)):
             if part.area < 12:
                 continue
             outline = Polygon(part.exterior).simplify(1.2, preserve_topology=True)
             if outline.is_valid and outline.area > 12:
+                planned.append(outline)
                 plan_block(bi, outline, part.interiors, public, rng, houses, backs)
-    solids = unary_union(blocks + [Polygon(l["fp"]) for l in landmarks.values()])
+    # a wall faces the street when the ground just outside it is not inside any
+    # planned block (the same outlines the plots come from) nor a landmark
+    solids = unary_union(planned + [Polygon(l["fp"]).buffer(0) for l in landmarks.values()])
     street_faces(houses, solids)
     landmark_frames(city, landmarks, unary_union([Polygon(house_solid(h)).buffer(0) for h in houses] + [Polygon(b["fp"]).buffer(0) for b in backs]))
     tris, quays = land_and_quays(city)
