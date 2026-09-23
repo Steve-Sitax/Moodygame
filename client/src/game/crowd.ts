@@ -2,6 +2,8 @@ import * as THREE from "three";
 import { psx } from "../retro/psx";
 import type { Rect } from "../world/geom";
 import { makeHuman, whenHumans, type Human, type HumanKind, type Motion } from "./humans";
+import { loadProps, type Props } from "../world/props3d";
+import { PushCart, handsOf, hideBakedCart } from "../world/traffic";
 
 // Townspeople: the ambient crowd on the streets and quays. Nobody here has a
 // name or a line. As on the old photographs of the quays: they walk, stroll in
@@ -37,6 +39,8 @@ export interface CrowdGround {
   flags(x: number, z: number): number | undefined;
   /** Can something of radius r stand here (walls, water, crates, carts)? */
   isFree(x: number, z: number, r: number): boolean;
+  /** Optional: everything solid on the ground, so paths go round it instead of into it. */
+  solids?(): Rect[];
   /** Optional: make the crates people sit on solid for the player. */
   addCollider?(r: Rect): void;
   removeCollider?(r: Rect): void;
@@ -61,7 +65,8 @@ interface V {
 const WALL = 1;
 const WATER = 2;
 
-type Role = "wander" | "haul" | "group" | "follow";
+/** puppet: a resident of the town (M3e, town.ts) says where to go and what to do; the crowd walks them on its grid. */
+type Role = "wander" | "haul" | "group" | "follow" | "puppet";
 type State = "walk" | "pause" | "chat" | "stand" | "sit" | "wait" | "blocked";
 
 interface Lantern {
@@ -81,6 +86,9 @@ interface Cluster {
   seats: THREE.Mesh[];
   rects: Rect[];
 }
+
+/** A townsperson walked by the crowd for town.ts (M3e). */
+export type Puppet = Person;
 
 interface Person {
   id: number;
@@ -135,6 +143,12 @@ interface Person {
   drop: number;
   shown: boolean;
   animAcc: number;
+  /** Stuck check: the nearest this person got to the next waypoint, and for how long no closer. */
+  bestD: number;
+  stuckT: number;
+  /** Puppets (M3e): what to play when standing, and which way to face (null: as they came). */
+  pmotion?: Motion;
+  pyaw?: number | null;
 }
 
 // Who is about, by kind of place. Weights; the night table multiplies them.
@@ -161,7 +175,8 @@ const CHILDREN = new Set<HumanKind>(["boy", "girl"]);
 const HAND_CARRIERS = new Set<HumanKind>(["docker_a", "docker_b", "docker_c"]);
 const LOADED = new Set<HumanKind>(["porter", "docker_sack", "carter"]);
 /** Pushing something that goes before them: how far ahead it reaches, and how wide. */
-const CART: Partial<Record<HumanKind, [number, number]>> = { porter: [0.9, 0.35], carter: [1.4, 0.5] };
+// the carter's handcart (a PushCart, world/traffic.ts) reaches 3.6 m before him
+const CART: Partial<Record<HumanKind, [number, number]>> = { porter: [0.9, 0.35], carter: [3.3, 0.6] };
 const PLACE_R: Record<PlaceKind, number> = { quay: 12, square: 10, street: 7 };
 
 /** Share of the budget out at each hour. */
@@ -218,7 +233,7 @@ class NavGrid {
   }
 
   /** Rebuild round (cx, cz). False while the walk map is not in. */
-  build(flags: CrowdGround["flags"], cx: number, cz: number): boolean {
+  build(flags: CrowdGround["flags"], cx: number, cz: number, solids: Rect[] = []): boolean {
     if (flags(cx, cz) === undefined) return false;
     const n = this.n;
     this.cx = Math.round(cx);
@@ -243,6 +258,23 @@ class NavGrid {
           flags(x - D, z - D) === 0
             ? 1
             : 0;
+      }
+    }
+    // crates, carts, crane legs, lamps and trees: close every cell within a body's
+    // width of them, so paths go round them instead of into them
+    const B = 0.45;
+    for (const c of solids) {
+      const i0 = Math.max(0, Math.floor(c.minX - B - this.x0));
+      const i1 = Math.min(n - 1, Math.floor(c.maxX + B - this.x0));
+      const j0 = Math.max(0, Math.floor(c.minZ - B - this.z0));
+      const j1 = Math.min(n - 1, Math.floor(c.maxZ + B - this.z0));
+      for (let iz = j0; iz <= j1; iz++) {
+        const z = this.z0 + iz + 0.5;
+        if (z < c.minZ - B || z > c.maxZ + B) continue;
+        for (let ix = i0; ix <= i1; ix++) {
+          const x = this.x0 + ix + 0.5;
+          if (x >= c.minX - B && x <= c.maxX + B) this.open[iz * n + ix] = 0;
+        }
       }
     }
     // what kind of ground is where, on a 4 m sample
@@ -450,6 +482,7 @@ export class Crowd {
   private cullT = 0;
   private turnoverT = 4;
   private gridAge = 0;
+  private solidCount = -1;
   private pathBudget = 0;
   private fogFar = 25;
   private player: V = { x: 0, z: 0 };
@@ -459,9 +492,12 @@ export class Crowd {
   private readonly sphere = new THREE.Sphere();
   private readonly tmp = new THREE.Vector3();
   private readonly sackMat: THREE.Material;
-  private readonly crateMat: THREE.Material;
+  private crateMat: THREE.Material;
   private readonly sackGeo: THREE.BufferGeometry;
-  private readonly crateGeo: THREE.BufferGeometry;
+  private crateGeo: THREE.BufferGeometry;
+  /** The props (for the carters' handcarts and the crates they sit on), once loaded. */
+  private cartProps: Props | null = null;
+  private readonly carts = new Map<Person, PushCart>();
   private readonly lanternGeo: THREE.BufferGeometry;
   private readonly lanternCapGeo: THREE.BufferGeometry;
   private readonly lanternMat: THREE.Material;
@@ -490,6 +526,17 @@ export class Crowd {
     this.lanternIron = psx(new THREE.MeshLambertMaterial({ color: 0x1a1a1a }));
     this.haloMat = new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffb060, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.45, fog: false });
     whenHumans(() => (this.ready = true));
+    // the carters' handcarts, and a proper packing crate to sit on (props.glb)
+    loadProps()
+      .then((pr) => {
+        this.cartProps = pr;
+        const seat = pr.parts("crate_seat")[0];
+        if (seat) {
+          this.crateGeo = seat.geometry;
+          this.crateMat = seat.material;
+        }
+      })
+      .catch(() => {});
   }
 
   /** Hour of the day, 0-24: how many are out, and lanterns after dark. */
@@ -513,9 +560,12 @@ export class Crowd {
     this.camera = camera ?? null;
     const g = this.grid;
     this.gridAge += dt;
-    if (!g.built || Math.hypot(player.x - g.cx, player.z - g.cz) > 20 || this.gridAge > 60) {
-      if (!g.build(this.ground.flags, player.x, player.z)) return;
+    const solids = this.ground.solids?.() ?? [];
+    // rebuild when the player has moved on, now and then, and when things were put down or taken away
+    if (!g.built || Math.hypot(player.x - g.cx, player.z - g.cz) > 20 || this.gridAge > 60 || solids.length !== this.solidCount) {
+      if (!g.build(this.ground.flags, player.x, player.z, solids)) return;
       this.gridAge = 0;
+      this.solidCount = solids.length;
     }
     this.fogFar = (this.scene.fog as THREE.Fog | null)?.far ?? 40;
     if (camera) {
@@ -526,27 +576,29 @@ export class Crowd {
     this.pathBudget = 3;
 
     // --- how many, by the hour
-    const target = Math.round(this.budget * density(this.hour));
+    // M3e: with the town's residents about (puppets), the nameless crowd stays home
+    const target = this.anonymous ? Math.round(this.budget * density(this.hour)) : 0;
+    const crowdN = this.people.length - this.puppetCount;
     for (const p of [...this.people]) {
-      if (Math.hypot(p.x - player.x, p.z - player.z) > this.radius + 8) this.recycle(p);
+      if (p.role !== "puppet" && Math.hypot(p.x - player.x, p.z - player.z) > this.radius + 8) this.recycle(p);
     }
     if (!this.filled) {
       // the first fill may put people anywhere (the start screen is up)
-      for (let i = 0; i < 60 && this.people.length < target; i++) this.spawn(true);
+      for (let i = 0; i < 60 && this.people.length - this.puppetCount < target; i++) this.spawn(true);
       this.filled = true;
-    } else if (this.people.length < target) {
+    } else if (crowdN < target) {
       this.spawnT -= dt;
       if (this.spawnT <= 0) {
         this.spawn(false);
         this.spawnT = 0.35;
       }
-    } else if (this.people.length > target + 1) {
+    } else if (crowdN > target + (this.anonymous ? 1 : 0)) {
       this.cullT -= dt;
       if (this.cullT <= 0) {
-        this.cullT = 1.5;
+        this.cullT = this.anonymous ? 1.5 : 0.3;
         // out of sight, and the ones who least belong at this hour first
         const out = this.people
-          .filter((p) => !p.shown && !p.cluster && !p.lead)
+          .filter((p) => !p.shown && !p.cluster && !p.lead && p.role !== "puppet")
           .sort((a, b) => this.belongs(a) - this.belongs(b))[0];
         if (out) this.recycle(out);
       }
@@ -557,7 +609,7 @@ export class Crowd {
       this.turnoverT = 4;
       if (isNight(this.hour)) {
         for (const p of this.people) {
-          if (p.shown || p.cluster || p.lead) continue;
+          if (p.shown || p.cluster || p.lead || p.role === "puppet") continue;
           if (this.belongs(p) < 0.35) {
             this.recycle(p);
             break;
@@ -569,7 +621,7 @@ export class Crowd {
         }
       } else {
         for (const p of this.people) if (!p.shown) p.lanternRoll = false;
-        const lit = this.people.find((p) => p.lantern && !p.shown);
+        const lit = this.people.find((p) => p.lantern && !p.shown && p.role !== "puppet");
         if (lit) {
           this.scene.remove(lit.lantern!.g);
           lit.lantern = null;
@@ -614,6 +666,7 @@ export class Crowd {
       if (inView) y = p.drop + (p.state === "sit" ? 0 : p.human.bob() * p.size);
       p.group.position.set(p.x, y, p.z);
       p.group.rotation.y = p.yaw;
+      if (p.kind === "carter") this.pushCart(p, dt, inView);
       if (p.lantern) this.placeLantern(p, d);
     }
     this.stats_ = { alive: this.people.length, drawn, animated, target, clusters: this.clusters.length };
@@ -625,10 +678,161 @@ export class Crowd {
     this.pool.clear();
   }
 
+  // ---------------------------------------------------------------- puppets (M3e, town.ts)
+  // The town's residents: town.ts decides where each one goes and what they do
+  // there; the crowd walks them on its grid (A*, keep right, go round the
+  // player, stuck checks), draws, animates and pools them like everyone else.
+
+  /** The nameless crowd (off when the town brings its residents). */
+  anonymous = true;
+  private get puppetCount(): number {
+    let n = 0;
+    for (const p of this.people) if (p.role === "puppet") n++;
+    return n;
+  }
+
+  /** A resident appears at (x, z); null while the models load. */
+  addPuppet(kind: HumanKind, x: number, z: number, yaw = 0, pace = 1.3): Puppet | null {
+    if (!this.ready) return null;
+    const p = this.make(kind, x, z, "puppet");
+    if (!p) return null;
+    p.yaw = yaw;
+    p.pace = pace;
+    p.state = "stand";
+    p.pyaw = null;
+    p.pmotion = "idle";
+    p.lanternRoll = true;
+    return p;
+  }
+
+  /** Walk there on the grid; the way is worked out over the next frames. */
+  puppetGo(p: Puppet, x: number, z: number, pace?: number): void {
+    if (pace) p.pace = pace;
+    p.replans = 0;
+    p.held = 0;
+    let tx = x;
+    let tz = z;
+    if (this.grid.built && !this.grid.inside(x, z, 4)) {
+      // beyond the walk grid round Jef: head for its edge that way; the town sends them on from there
+      for (let t = 1; t > 0.02; t -= 0.04) {
+        const qx = p.x + (x - p.x) * t;
+        const qz = p.z + (z - p.z) * t;
+        if (!this.grid.inside(qx, qz, 4)) continue;
+        const q = this.grid.nearestOpen(qx, qz, 4);
+        if (q) {
+          tx = q.x;
+          tz = q.z;
+          break;
+        }
+      }
+    }
+    this.goTo(p, { x: tx, z: tz });
+  }
+
+  /** Is (x, z) inside the walk grid round Jef (a puppet can be sent straight there)? */
+  onGrid(x: number, z: number): boolean {
+    return this.grid.built && this.grid.inside(x, z, 4);
+  }
+
+  /** Stand here, face this way (null: keep facing), play this. */
+  puppetStand(p: Puppet, motion: Motion = "idle", yaw: number | null = null): void {
+    p.path = [];
+    p.pi = 0;
+    p.dest = null;
+    p.state = "stand";
+    p.pmotion = motion;
+    p.pyaw = yaw;
+    p.human.play(motion, 0.35);
+  }
+
+  /** Still on the way (walking, waiting for a path, held up)? */
+  puppetBusy(p: Puppet): boolean {
+    return p.state === "walk" || p.state === "wait" || p.state === "blocked" || (p.state === "pause" && !!p.dest);
+  }
+
+  /** A sack on the shoulder while walking (dockers between the quay and the door). */
+  puppetLoad(p: Puppet, on: boolean): void {
+    p.handCarry = true;
+    this.setLoad(p, on);
+  }
+
+  /** A lantern in hand (police at night, people with work for Jef after dark). */
+  puppetLantern(p: Puppet, on: boolean): void {
+    if (on && !p.lantern) this.giveLantern(p);
+    else if (!on && p.lantern) {
+      this.scene.remove(p.lantern.g);
+      p.lantern = null;
+    }
+  }
+
+  removePuppet(p: Puppet): void {
+    this.recycle(p);
+  }
+
+  /** Is this puppet still in the crowd? */
+  alive(p: Puppet): boolean {
+    return this.people.includes(p);
+  }
+
+  /** Out of Jef's sight (in the fog, behind him, round a corner)? */
+  isHidden(x: number, z: number): boolean {
+    return this.hidden(x, z);
+  }
+
+  /** Can someone stand here (walk map, colliders, the grid)? */
+  canStand(x: number, z: number): boolean {
+    return this.grid.built && this.grid.isOpen(x, z) && this.ground.isFree(x, z, 0.3);
+  }
+
+  /** The nearest open grid point, for a puppet that would appear in a wall. */
+  openNear(x: number, z: number): V | null {
+    return this.grid.built ? this.grid.nearestOpen(x, z, 4) : null;
+  }
+
+  get fogDistance(): number {
+    return this.fogFar;
+  }
+
+  private puppetThink(p: Person, dt: number): void {
+    switch (p.state) {
+      case "walk":
+        this.walk(p, dt);
+        break;
+      case "wait":
+        if (p.dest) this.goTo(p, p.dest);
+        break;
+      case "blocked":
+        // Jef in the way: face him, wait, then find a way round
+        p.human.play("idle", 0.3);
+        this.face(p, Math.atan2(this.player.x - p.x, this.player.z - p.z), dt);
+        p.held += dt;
+        if (Math.hypot(this.player.x - p.x, this.player.z - p.z) > 1.4 + p.nose) p.state = "walk";
+        else if (p.held > 1.2 && (p.sinceDetour < 5 || !this.detour(p))) {
+          p.held = 0;
+          this.next(p, true);
+        }
+        break;
+      case "pause":
+        p.timer -= dt;
+        if (p.timer <= 0) {
+          if (p.dest) this.goTo(p, p.dest);
+          else p.state = "stand";
+        }
+        break;
+      default:
+        this.shoo(p, dt);
+        if (p.pyaw != null) this.face(p, p.pyaw, dt);
+    }
+  }
+
   // ---------------------------------------------------------------- per person
 
   private think(p: Person, dt: number): void {
     p.sinceDetour += dt;
+    if (p.role === "puppet") {
+      this.puppetThink(p, dt);
+      return;
+    }
     if (p.role === "follow") {
       this.follow(p, dt);
       return;
@@ -796,7 +1000,23 @@ export class Crowd {
     const len = Math.hypot(dx, dz);
     if (len < 0.35) {
       p.pi++;
+      p.bestD = Infinity;
+      p.stuckT = 0;
       if (p.pi >= p.path.length) this.arrive(p);
+      return;
+    }
+    // no closer to the next waypoint for a while (pushed aside, or something in the
+    // way the grid does not know): close the cell ahead and find another way
+    if (len < p.bestD - 0.25) {
+      p.bestD = len;
+      p.stuckT = 0;
+    } else if ((p.stuckT += dt) > 2.5) {
+      p.stuckT = 0;
+      p.bestD = Infinity;
+      this.grid.block(p.x + (dx / len) * (0.8 + p.nose), p.z + (dz / len) * (0.8 + p.nose));
+      p.replans++;
+      if (p.replans > 3 || !p.dest) this.next(p, true);
+      else this.goTo(p, p.dest);
       return;
     }
     const ux = dx / len;
@@ -930,6 +1150,12 @@ export class Crowd {
     p.path = [];
     p.pi = 0;
     p.replans = 0;
+    if (p.role === "puppet") {
+      p.dest = null;
+      p.state = "stand";
+      p.human.play(p.pmotion ?? "idle", 0.3);
+      return;
+    }
     if (p.role === "haul") {
       p.state = "pause";
       if (p.handCarry) {
@@ -946,6 +1172,16 @@ export class Crowd {
 
   /** What next, after a pause (or when the way is blocked). */
   private next(p: Person, blocked = false): void {
+    if (p.role === "puppet") {
+      // the town decides where; the crowd only tries the way again (or gives up and stands)
+      if (p.dest && p.replans <= 4) this.goTo(p, p.dest);
+      else {
+        p.dest = null;
+        p.state = "stand";
+        p.human.play(p.pmotion ?? "idle", 0.3);
+      }
+      return;
+    }
     if (p.role === "follow") {
       if (p.lead) this.goTo(p, { x: p.lead.x, z: p.lead.z });
       return;
@@ -989,6 +1225,8 @@ export class Crowd {
     if (path && path.length) {
       p.path = path;
       p.pi = 0;
+      p.bestD = Infinity;
+      p.stuckT = 0;
       p.state = "walk";
     } else {
       p.replans++;
@@ -1164,7 +1402,7 @@ export class Crowd {
       cluster: null, partner: null, chatCd: rnd(5, 30), folds: !WOMEN.has(kind) && !CHILDREN.has(kind) && Math.random() < 0.35,
       looks: this.quayRail ? "lean" : WOMEN.has(kind) || CHILDREN.has(kind) || Math.random() < 0.3 ? "idle" : "behind",
       lead: null, follower: null, reach: cart ? cart[1] : 0.25, nose: cart ? cart[0] : 0,
-      lantern: null, lanternRoll: isNight(this.hour), hand: human.root.getObjectByName("handR") ?? null, seat: false, drop: 0, shown: false, animAcc: 0,
+      lantern: null, lanternRoll: isNight(this.hour), hand: human.root.getObjectByName("handR") ?? null, seat: false, drop: 0, shown: false, animAcc: 0, bestD: Infinity, stuckT: 0,
     };
     group.position.set(x, 0, z);
     this.scene.add(group);
@@ -1475,6 +1713,25 @@ export class Crowd {
 
   // ---------------------------------------------------------------- away
 
+  /**
+   * A carter's handcart (world/traffic.ts PushCart) in place of the one baked into his model:
+   * on its own wheels on the ground, tipped up to his grip, swinging round behind him on a
+   * bend, wheels rolling. When he stands, he lets go and it settles on its prop legs.
+   */
+  private pushCart(p: Person, dt: number, shown: boolean): void {
+    if (!this.cartProps) return;
+    let cart = this.carts.get(p);
+    if (!cart) {
+      hideBakedCart(p.human.root);
+      cart = new PushCart(this.scene, this.cartProps);
+      this.carts.set(p, cart);
+    }
+    const walking = p.human.motion === "walk" || p.human.motion === "carry";
+    const hands = handsOf(p.human, p.group, p.x, p.z, p.yaw);
+    cart.push(dt, hands.x, hands.z, hands.y, p.yaw, walking ? 1 : 0);
+    cart.visible = shown;
+  }
+
   private recycle(p: Person): void {
     const i = this.people.indexOf(p);
     if (i < 0) return;
@@ -1504,6 +1761,8 @@ export class Crowd {
     }
     if (p.sack) p.group.remove(p.sack);
     if (p.lantern) this.scene.remove(p.lantern.g);
+    this.carts.get(p)?.dispose();
+    this.carts.delete(p);
     p.group.remove(p.human.root);
     this.scene.remove(p.group);
     let list = this.pool.get(p.kind);

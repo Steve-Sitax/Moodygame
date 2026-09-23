@@ -144,15 +144,30 @@ describe("epilogue", () => {
 });
 
 describe("weather", () => {
-  it("Monday is fog; each new morning rolls fog, mist or clear", async () => {
+  it("Monday is fog; each new morning rolls fog, mist, clear or rain", async () => {
     const { clock: c, rollWeather, weather } = await import("../src/day.ts");
     const db = openDb(":memory:");
     expect(c(db).weather).toBe("fog");
     expect(rollWeather(db, 0.1)).toBe("fog");
     expect(rollWeather(db, 0.5)).toBe("mist");
-    expect(rollWeather(db, 0.9)).toBe("clear");
-    expect(weather(db)).toBe("clear");
+    expect(rollWeather(db, 0.75)).toBe("clear");
+    expect(rollWeather(db, 0.9)).toBe("rain");
+    expect(weather(db)).toBe("rain");
     sleep(db, "bed");
-    expect(["fog", "mist", "clear"]).toContain(weather(db));
+    expect(["fog", "mist", "clear", "rain"]).toContain(weather(db));
+  });
+});
+
+describe("a dip in the Schelde", () => {
+  it("costs 1 warmth once per swim, clamped at 0", async () => {
+    const { swim, SWIM_EVERY_MS } = await import("../src/day.ts");
+    const db = openDb(":memory:");
+    set(db, "warmth = 1");
+    expect(swim(db, 100_000).cold).toBe(true);
+    expect(player(db).warmth).toBe(0);
+    expect(swim(db, 100_000 + 1_000).cold).toBe(false); // the same swim: nothing more
+    set(db, "warmth = 0");
+    expect(swim(db, 100_000 + SWIM_EVERY_MS).cold).toBe(true);
+    expect(player(db).warmth).toBe(0); // never below 0
   });
 });

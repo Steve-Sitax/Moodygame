@@ -140,7 +140,13 @@ function apply(db: DB, id: string, talk: Talk, line: Line): Line & { trust_appli
   const applied = applyTrust(db, id, line.trust_delta, talk.trust);
   talk.trust += applied;
   if (line.view_of_player.trim()) db.prepare("UPDATE npc_relationship SET view_of_player = ? WHERE npc_id = ?").run(line.view_of_player.trim(), id);
-  if (line.memory_note.trim()) remember(db, id, line.memory_note, Math.min(line.memory_weight, 8));
+  if (line.memory_note.trim()) {
+    const w = Math.min(line.memory_weight, 8);
+    const name = npcRow(db, id)!.name;
+    // M3e: a heavy moment is talked about in the town; the engine words it, the tone follows the trust change
+    const rumour = w >= 6 ? { gist: `Jef had words with ${name}${applied < 0 ? ", and it went badly" : applied > 0 ? ", and they parted on good terms" : ""}`, tone: applied } : null;
+    remember(db, id, line.memory_note, w, "seen", null, rumour);
+  }
   talk.turns.push(`- ${npcRow(db, id)!.name}: ${line.npc_line}`);
   talk.lastAt = Date.now();
   return { ...line, trust_applied: applied };
@@ -223,6 +229,7 @@ export async function freeReply(db: DB, id: string, raw: string, runner?: Runner
       id,
       "Jef said something strange that made no sense on the kaai.",
     );
+    remember(db, id, "Jef talked strange at me, words that made no sense.", 4, "seen", null, { gist: "Jef talked strange, about things nobody understands", tone: -1 });
     const line: Line = { ...fallbackLine(id), npc_line: CANNED[id] ?? "They stare at you.", mood: "suspicious", end_conversation: false };
     return { ...apply(db, id, talk, line), gated: "blocked" };
   }
@@ -239,10 +246,21 @@ Answer him in character.`;
   return apply(db, id, talk, line);
 }
 
+/** A typed line was let through or caught: start the 5 s wait (shared with the residents' talk, M3e). */
+export function markFreeLine(now = Date.now()): void {
+  lastFreeAt = now;
+}
+
 /** Test helper: forget meetings and the rate limit. */
 export function resetTalks(): void {
   talks.clear();
   lastFreeAt = 0;
+  for (const f of onReset) f();
+}
+const onReset: Array<() => void> = [];
+/** Other talk modules forget their meetings too when the game is reset (M3e). */
+export function onResetTalks(f: () => void): void {
+  onReset.push(f);
 }
 
 // ------------------------------------------------------------------ seen by an owner
@@ -252,7 +270,10 @@ export function witness(db: DB, id: string, event: "took" | "returned"): { trust
   const n = npcRow(db, id);
   if (!n) return { trust_applied: 0 };
   if (event === "took") {
-    remember(db, id, "Jef lifted my goods off the quay without asking, right in front of me.", 6);
+    remember(db, id, "Jef lifted my goods off the quay without asking, right in front of me.", 6, "seen", null, {
+      gist: `Jef lifted ${n.name}'s goods off the quay without asking`,
+      tone: -2,
+    });
     const applied = applyTrust(db, id, -1, 0);
     db.prepare("INSERT INTO log (day, hour, place, actor, verb, object, text) SELECT day, hour, 'rijnkaai', 'player', 'took_goods', ?, ? FROM player WHERE id = 1").run(
       id,

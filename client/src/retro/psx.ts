@@ -13,7 +13,87 @@ export const psxUniforms = {
   uLamps: { value: Array.from({ length: MAX_LAMPS }, () => new THREE.Vector4(0, -999, 0, 0)) },
   uLampColor: { value: new THREE.Color(1.0, 0.62, 0.28) },
   uScatter: { value: 0.55 },
+  /** Wet ground (rain), 0..1: only on materials made with psx(mat, { wet: true }). */
+  uWet: { value: 0 },
+  /** Rain on the water, 0..1: rings on the water material (psx(mat, { water: true })). */
+  uRain: { value: 0 },
+  /** Distance from the water to the nearest quay wall, R = 0..8 m (world/quaysteps.ts shoreTexture): foam at the walls. */
+  uShore: { value: farShore() as THREE.Texture },
+  /** Where uShore lies: x0, z0, width, depth (metres). */
+  uShoreBox: { value: new THREE.Vector4(0, 0, 1, 1) },
+  /** The river's own planar mirror (world/mirror.ts, set in rijnkaai.ts): picture, world -> picture, 0 = none yet. */
+  uWaterMirror: { value: farShore() as THREE.Texture },
+  uWaterMirrorMat: { value: new THREE.Matrix4() },
+  uWaterMirrorOn: { value: 0 },
+  /** Puddles on the ground, 0..1 (world/ambient.ts: rain fills them, a sunny day dries them). */
+  uPuddle: { value: 0 },
+  /** The ground mirror (world/mirror.ts): the street seen from under the paving. */
+  uMirror: { value: null as THREE.Texture | null },
+  uMirrorMat: { value: new THREE.Matrix4() },
+  /** Where water lies: a soft tiling noise (low spots fill first). */
+  uPudNoise: { value: null as THREE.Texture | null },
 };
+
+/** A soft tiling value noise, 128 x 128: where the puddles lie (psx option `puddles`). */
+function puddleNoise(): THREE.DataTexture {
+  const N = 128;
+  const data = new Uint8Array(N * N * 4);
+  let seed = 1873;
+  const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const octave = (cells: number) => {
+    const g = Array.from({ length: cells * cells }, rnd);
+    return (x: number, y: number) => {
+      const fx = (x / N) * cells;
+      const fy = (y / N) * cells;
+      const x0 = Math.floor(fx);
+      const y0 = Math.floor(fy);
+      const sx = fx - x0;
+      const sy = fy - y0;
+      const u = sx * sx * (3 - 2 * sx);
+      const v = sy * sy * (3 - 2 * sy);
+      const at = (i: number, j: number) => g[((j % cells) + cells) % cells * cells + (((i % cells) + cells) % cells)];
+      const a = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * u;
+      const b = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * u;
+      return a + (b - a) * v;
+    };
+  };
+  const o1 = octave(6);
+  const o2 = octave(12);
+  const o3 = octave(32);
+  for (let y = 0; y < N; y++)
+    for (let x = 0; x < N; x++) {
+      const n = o1(x, y) * 0.6 + o2(x, y) * 0.28 + o3(x, y) * 0.12;
+      const i = (y * N + x) * 4;
+      data[i] = data[i + 1] = data[i + 2] = Math.round(n * 255);
+      data[i + 3] = 255;
+    }
+  const t = new THREE.DataTexture(data, N, N);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearFilter;
+  t.needsUpdate = true;
+  return t;
+}
+
+/** Until the city sets its own: no wall anywhere near. */
+function farShore(): THREE.DataTexture {
+  const t = new THREE.DataTexture(new Uint8Array([255]), 1, 1, THREE.RedFormat, THREE.UnsignedByteType);
+  t.needsUpdate = true;
+  return t;
+}
+
+/**
+ * Height of the water waves above the still level at world (x, z), time t (uTime).
+ * The same sum as the water vertex shader below: keep the two in step (the swimmer's eye rides on it).
+ */
+export function waveAt(x: number, z: number, t: number): number {
+  return (
+    Math.sin(x * 0.11 + z * 0.07 + t * 0.45) * 0.08 +
+    Math.sin(x * 0.35 + t * 0.9) * 0.07 +
+    Math.sin(z * 0.55 - t * 0.7 + x * 0.2) * 0.05 +
+    Math.sin((x + z) * 1.3 + t * 1.7) * 0.02
+  );
+}
 
 export interface PsxOptions {
   /** Animate vertices as water waves. */
@@ -29,6 +109,16 @@ export interface PsxOptions {
   atlas?: number;
   /** Fog reaches this many times further (landmarks: a shape in the fog from afar). */
   fogReach?: number;
+  /**
+   * Flat ground that gets wet in the rain (uWet): darker stone, a sheen of sky at
+   * grazing angles, gas lamps mirrored in streaks. Assumes the surface faces up.
+   */
+  wet?: boolean;
+  /**
+   * Puddles on this ground (needs `wet`): how much more or less water lies here than
+   * elsewhere (1 = the city's normal; earth quays more, flagstones less).
+   */
+  puddles?: number;
 }
 
 const commonVertex = /* glsl */ `
@@ -79,6 +169,39 @@ float lampReflect(vec3 ro, vec3 rd, vec3 p) {
 }
 `;
 
+// Wet ground and rain on the water (world/ambient.ts drives uWet and uRain).
+const wetFragment = /* glsl */ `
+uniform float uTime;
+uniform float uWet;
+uniform float uRain;
+// A lamp mirrored in wet stone: a streak that runs toward the eye, narrow across.
+float wetStreak(vec3 ro, vec3 rr, vec3 p) {
+  vec3 q = p - ro;
+  float t0 = dot(q, rr);
+  if (t0 < 0.0) return 0.0;
+  vec3 perp = q - rr * t0;
+  vec3 across = normalize(vec3(-rr.z, 0.0, rr.x) + 1e-5);
+  float da = dot(perp, across);
+  float dv = length(perp - across * da);
+  return 1.0 / (1.0 + da * da * 5.0 + dv * dv * 0.35) / (1.0 + t0 * 0.08);
+}
+// Rain rings: drops land in a grid of cells, each ring grows and fades.
+float rainRings(vec2 wp, float t, float amount) {
+  float ring = 0.0;
+  for (int k = 0; k < 2; k++) {
+    vec2 g = wp * 1.3 + float(k) * vec2(0.37, 0.71);
+    vec2 id = floor(g);
+    vec2 f = fract(g) - 0.5;
+    float h = fract(sin(dot(id, vec2(127.1, 311.7)) + float(k) * 13.1) * 43758.5453);
+    vec2 c = (vec2(fract(h * 7.13), fract(h * 3.71)) - 0.5) * 0.4;
+    float ph = fract(t * 0.8 + h * 5.0);
+    float d = length(f - c);
+    ring += smoothstep(0.045, 0.0, abs(d - ph * 0.3)) * (1.0 - ph) * step(h, amount * 1.1);
+  }
+  return ring;
+}
+`;
+
 export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T {
   const affine = opts.affine ?? 1.0;
   mat.onBeforeCompile = (shader) => {
@@ -88,9 +211,30 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
     shader.uniforms.uLampColor = psxUniforms.uLampColor;
     shader.uniforms.uScatter = psxUniforms.uScatter;
     shader.uniforms.uAffine = { value: affine };
+    if (opts.wet || opts.water) {
+      shader.uniforms.uWet = psxUniforms.uWet;
+      shader.uniforms.uRain = psxUniforms.uRain;
+    }
+    if (opts.puddles) {
+      psxUniforms.uPudNoise.value ??= puddleNoise();
+      shader.uniforms.uPuddle = psxUniforms.uPuddle;
+      shader.uniforms.uMirror = psxUniforms.uMirror;
+      shader.uniforms.uMirrorMat = psxUniforms.uMirrorMat;
+      shader.uniforms.uPudNoise = psxUniforms.uPudNoise;
+    }
+    if (opts.water) {
+      shader.uniforms.uShore = psxUniforms.uShore;
+      shader.uniforms.uShoreBox = psxUniforms.uShoreBox;
+      shader.uniforms.uWaterMirror = psxUniforms.uWaterMirror;
+      shader.uniforms.uWaterMirrorMat = psxUniforms.uWaterMirrorMat;
+      shader.uniforms.uWaterMirrorOn = psxUniforms.uWaterMirrorOn;
+    }
 
     let vs = shader.vertexShader;
-    vs = vs.replace("#include <common>", "#include <common>\n" + commonVertex + (opts.atlas ? "attribute vec2 cell;\nvarying vec2 vCell;\n" : ""));
+    vs = vs.replace(
+      "#include <common>",
+      "#include <common>\n" + commonVertex + (opts.atlas ? "attribute vec2 cell;\nvarying vec2 vCell;\n" : "") + (opts.water ? "varying float vWaveH;\n" : ""),
+    );
     if (opts.atlas) vs = vs.replace("#include <uv_vertex>", "#include <uv_vertex>\nvCell = cell;");
 
     if (opts.water) {
@@ -102,13 +246,17 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         {
           vec4 wp = modelMatrix * vec4(position, 1.0);
           float t = uTime;
-          float dx = cos(wp.x * 0.35 + t * 0.9) * 0.035
+          // slopes of the waves below (a little steeper than true, for the glints)
+          float sw = cos(wp.x * 0.11 + wp.z * 0.07 + t * 0.45);
+          float dx = sw * 0.018
+                   + cos(wp.x * 0.35 + t * 0.9) * 0.045
                    + cos(wp.z * 0.55 - t * 0.7 + wp.x * 0.2) * 0.016
                    + cos((wp.x + wp.z) * 1.3 + t * 1.7) * 0.039
-                   + cos(wp.x * 3.1 - wp.z * 1.7 + t * 2.3) * 0.09;
-          float dz = cos(wp.z * 0.55 - t * 0.7 + wp.x * 0.2) * 0.044
+                   + cos(wp.x * 3.1 - wp.z * 1.7 + t * 2.3) * 0.07;
+          float dz = sw * 0.012
+                   + cos(wp.z * 0.55 - t * 0.7 + wp.x * 0.2) * 0.05
                    + cos((wp.x + wp.z) * 1.3 + t * 1.7) * 0.039
-                   - cos(wp.x * 3.1 - wp.z * 1.7 + t * 2.3) * 0.05;
+                   - cos(wp.x * 3.1 - wp.z * 1.7 + t * 2.3) * 0.04;
           objectNormal = normalize(vec3(-dx, dz, 1.0));
         }
         #ifdef USE_TANGENT
@@ -119,11 +267,14 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         "#include <begin_vertex>",
         /* glsl */ `#include <begin_vertex>
         {
+          // a long slow swell under shorter waves; waveAt() in TypeScript is the same sum
           vec4 wp = modelMatrix * vec4(transformed, 1.0);
-          float w = sin(wp.x * 0.35 + uTime * 0.9) * 0.10
-                  + sin(wp.z * 0.55 - uTime * 0.7 + wp.x * 0.2) * 0.08
-                  + sin((wp.x + wp.z) * 1.3 + uTime * 1.7) * 0.03;
+          float w = sin(wp.x * 0.11 + wp.z * 0.07 + uTime * 0.45) * 0.08
+                  + sin(wp.x * 0.35 + uTime * 0.9) * 0.07
+                  + sin(wp.z * 0.55 - uTime * 0.7 + wp.x * 0.2) * 0.05
+                  + sin((wp.x + wp.z) * 1.3 + uTime * 1.7) * 0.02;
           transformed.z += w;
+          vWaveH = w / 0.22;
         }`,
       );
     }
@@ -151,7 +302,17 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
     shader.vertexShader = vs;
 
     let fs = shader.fragmentShader;
-    fs = fs.replace("#include <common>", "#include <common>\n" + commonFragment + (opts.atlas ? "varying vec2 vCell;\n" : ""));
+    fs = fs.replace(
+      "#include <common>",
+      "#include <common>\n" +
+        commonFragment +
+        (opts.atlas ? "varying vec2 vCell;\n" : "") +
+        (opts.wet || opts.water ? wetFragment : "") +
+        (opts.puddles ? "uniform float uPuddle;\nuniform sampler2D uMirror;\nuniform mat4 uMirrorMat;\nuniform sampler2D uPudNoise;\n" : "") +
+        (opts.water
+          ? "uniform sampler2D uShore;\nuniform vec4 uShoreBox;\nvarying float vWaveH;\nuniform sampler2D uWaterMirror;\nuniform mat4 uWaterMirrorMat;\nuniform float uWaterMirrorOn;\n"
+          : ""),
+    );
     fs = fs.replace(
       "#include <map_fragment>",
       /* glsl */ `#ifdef USE_MAP
@@ -164,6 +325,28 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         ${opts.atlas ? `psxUv = (vCell + fract(psxUv)) / ${opts.atlas.toFixed(1)};` : ""}
         vec4 sampledDiffuseColor = texture2D(map, psxUv);
         diffuseColor *= sampledDiffuseColor;
+        ${
+          opts.water
+            ? `{
+          // far off, the ripples melt into one dark tone (no shimmer at the fog line)
+          vec2 wxz = vPsxWorld.xz;
+          float detail = smoothstep(70.0, 10.0, length(vPsxWorld - cameraPosition));
+          diffuseColor.rgb = mix(diffuse * vec3(0.045, 0.062, 0.05), diffuseColor.rgb, detail);
+          // wave crests a shade lighter, troughs darker
+          diffuseColor.rgb *= 1.0 + vWaveH * 0.18;
+          // along the walls: lighter, silty water and foam lapping at the stone, in 20 cm pixels
+          float shore = texture2D(uShore, (wxz - uShoreBox.xy) / uShoreBox.zw).r * 8.0;
+          vec2 cell = floor(wxz * 5.0);
+          float n = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
+          float lap = 0.5 + 0.5 * sin(uTime * 1.1 + wxz.x * 0.45 + wxz.y * 0.3);
+          float reach = (0.2 + 0.5 * lap) * (0.45 + 0.75 * n);
+          float foam = step(shore, reach) * (0.55 + 0.45 * step(0.5, n));
+          float silt = smoothstep(2.5, 0.2, shore);
+          diffuseColor.rgb *= 1.0 + silt * 0.45;
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.3, 0.32, 0.29), foam * 0.8);
+        }`
+            : ""
+        }
       }
       #endif`,
     );
@@ -181,18 +364,99 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         }
         float fogFactor = smoothstep(fogNear, fogFar * ${(opts.fogReach ?? 1).toFixed(2)}, vFogDepth);
         ${
+          (opts.fogReach ?? 1) > 1
+            ? `// a landmark seen further than the fog: past the normal fog it becomes one soft
+        // silhouette tone, so its dark windows do not stay black against the grey
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor * 0.74, smoothstep(fogNear, fogFar, vFogDepth));`
+            : ""
+        }
+        ${
           opts.water
             ? `{
-          // wet mirror: fog sheen at grazing angles, lamp light smeared by waves
+          // a dark mirror: the misty sky at low angles, black water looking down, the gas
+          // lamps drawn out into long broken streaks by fine ripples (in chunky world pixels)
           vec3 wn = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
-          float fres = pow(1.0 - max(dot(wn, -rd), 0.0), 3.0);
-          gl_FragColor.rgb += fogColor * fres * 0.3;
-          vec3 rr = reflect(rd, wn);
+          vec2 rp = floor(vPsxWorld.xz * 6.0) / 6.0;
+          vec2 rip = vec2(sin(rp.x * 2.7 + rp.y * 0.9 + uTime * 1.9), sin(rp.y * 3.3 - rp.x * 0.7 - uTime * 1.5)) * 0.06;
+          vec3 rn = normalize(wn + vec3(rip.x, 0.0, rip.y));
+          float cosV = max(dot(rn, -rd), 0.0);
+          if (uWaterMirrorOn > 0.5) {
+            // the quays, ships and sky mirrored (world/mirror.ts), shaken by the ripples
+            vec4 mr = uWaterMirrorMat * vec4(vPsxWorld, 1.0);
+            mr.xy += rip * 0.35 * mr.w;
+            vec3 mc = texture2DProj(uWaterMirror, mr).rgb;
+            float f = max(0.22, 0.04 + 0.96 * pow(1.0 - cosV, 5.0));
+            gl_FragColor.rgb = mix(gl_FragColor.rgb, mc * 0.92, clamp(f, 0.0, 0.9));
+          } else {
+            float fres = pow(1.0 - cosV, 4.0);
+            gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor * 1.08, clamp(fres * 0.8, 0.0, 0.75));
+          }
+          vec3 rr = reflect(rd, rn);
           float refl = 0.0;
+          float streak = 0.0;
           for (int i = 0; i < MAX_LAMPS; i++) {
             refl += uLamps[i].w * lampReflect(vPsxWorld, rr, uLamps[i].xyz);
+            streak += uLamps[i].w * wetStreak(vPsxWorld, rr, uLamps[i].xyz);
           }
-          gl_FragColor.rgb += uLampColor * refl * 0.12;
+          float dash = 0.5 + 0.5 * sin(rp.y * 7.0 + rp.x * 1.3 + uTime * 2.2);
+          gl_FragColor.rgb += uLampColor * (refl * 0.09 + streak * 0.5 * dash * dash);
+          if (uRain > 0.001) {
+            // rain on the water: rings that catch the sky
+            gl_FragColor.rgb += (fogColor * 0.7 + 0.015) * rainRings(vPsxWorld.xz, uTime, uRain) * 0.6 * uRain;
+          }
+        }`
+            : ""
+        }
+        ${
+          opts.wet
+            ? `if (uWet > 0.001) {
+          // wet stone: darker, the sky at grazing angles, the lamps in streaks
+          float stone = smoothstep(0.06, 0.4, dot(diffuseColor.rgb, vec3(0.333)));
+          gl_FragColor.rgb *= 1.0 - 0.3 * uWet;
+          float grazing = pow(1.0 - clamp(-rd.y, 0.0, 1.0), 4.0);
+          gl_FragColor.rgb += fogColor * grazing * 0.5 * uWet * (0.55 + 0.45 * stone);
+          vec3 rr = vec3(rd.x, -rd.y, rd.z);
+          float wrefl = 0.0;
+          for (int i = 0; i < MAX_LAMPS; i++) {
+            wrefl += uLamps[i].w * wetStreak(vPsxWorld, rr, uLamps[i].xyz);
+          }
+          gl_FragColor.rgb += uLampColor * wrefl * uWet * (0.4 + 0.6 * stone) * 1.2;
+          if (uRain > 0.001) gl_FragColor.rgb += fogColor * rainRings(vPsxWorld.xz * 1.6, uTime * 1.3, uRain * 0.6) * 0.25 * uWet;
+        }`
+            : ""
+        }
+        ${
+          opts.puddles
+            ? `if (uPuddle > 0.001) {
+          // Puddles in the paving (after Lagarde's wet surfaces): water lies where a soft
+          // noise is highest, so the edges are ragged, not round; a dark damp band round it;
+          // the water shows the ground under it looking down and turns to a mirror at a
+          // slant (Fresnel), with the street itself mirrored (world/mirror.ts).
+          float pn = texture2D(uPudNoise, vPsxWorld.xz / 21.0).r * 0.75 + texture2D(uPudNoise, vPsxWorld.xz / 6.1 + 0.37).r * 0.25;
+          // the smooth noise bunches round 0.5: stretch it so the fill level is the wet share of the ground
+          pn = clamp((pn - 0.5) * 2.4 + 0.5, 0.0, 1.0);
+          float lvl = clamp(uPuddle * ${(opts.puddles ?? 1).toFixed(2)}, 0.0, 1.0);
+          float th = 0.97 - lvl * 0.6;
+          float water = smoothstep(th, th + 0.018, pn);
+          float damp = smoothstep(th - 0.09, th, pn);
+          gl_FragColor.rgb *= 1.0 - 0.38 * damp * (1.0 - water);
+          if (water > 0.0) {
+            float cosT = clamp(-rd.y, 0.0, 1.0);
+            float F = max(0.02 + 0.98 * pow(1.0 - cosT, 5.0), 0.22);
+            vec2 rp = floor(vPsxWorld.xz * 8.0) / 8.0;
+            vec2 wob = vec2(sin(rp.x * 3.1 + uTime * 1.7), sin(rp.y * 2.7 - uTime * 1.3)) * 0.0025;
+            ${opts.wet ? "if (uRain > 0.001) wob += vec2(rainRings(vPsxWorld.xz * 1.4, uTime * 1.2, uRain)) * 0.012;" : ""}
+            vec4 mr = uMirrorMat * vec4(vPsxWorld, 1.0);
+            mr.xy += wob * mr.w;
+            vec3 refl = texture2DProj(uMirror, mr).rgb * 1.1;
+            vec3 rr = vec3(rd.x, -rd.y, rd.z);
+            float lamp = 0.0;
+            for (int i = 0; i < MAX_LAMPS; i++) lamp += uLamps[i].w * wetStreak(vPsxWorld, rr, uLamps[i].xyz);
+            refl += uLampColor * lamp * 0.8;
+            // shallow, a little brown: the ground under it, darker
+            vec3 under = gl_FragColor.rgb * vec3(0.52, 0.48, 0.42);
+            gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(under, refl, F), water);
+          }
         }`
             : ""
         }
@@ -205,6 +469,6 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
     );
     shader.fragmentShader = fs;
   };
-  mat.customProgramCacheKey = () => `psx-${opts.water ? 1 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}`;
+  mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}`;
   return mat;
 }

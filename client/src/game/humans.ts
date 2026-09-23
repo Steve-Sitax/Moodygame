@@ -13,12 +13,20 @@ export type HumanKind =
   | "sooi" | "peeters" | "tuur" | "fientje" | "sailor" | "stranger" | "thief" | "foreman" | "recipient"
   // the crowd (crowd.ts)
   | "docker_a" | "docker_b" | "docker_c" | "docker_sack" | "porter" | "carter" | "fishwife_a" | "fishwife_b" | "maid"
-  | "boy" | "girl" | "gentleman" | "priest" | "police" | "sailor_b";
+  | "boy" | "girl" | "gentleman" | "priest" | "police" | "sailor_b"
+  // the town's residents (M3e)
+  | "baker" | "shopkeeper" | "publican" | "clerk" | "old_man" | "beggar" | "wife_a" | "wife_b" | "shopwife" | "old_woman" | "urchin" | "girl_b";
 /** sit: on a crate (lower the body by sitDrop); behind: hands behind the back, looking out; lean: forearms on a rail. */
 export type Motion = "idle" | "walk" | "talk" | "fold" | "carry" | "sit" | "behind" | "lean";
 const MOTIONS: Motion[] = ["idle", "walk", "talk", "fold", "carry", "sit", "behind", "lean"];
 
-const WOMEN = new Set<HumanKind>(["peeters", "fientje", "fishwife_a", "fishwife_b", "maid", "girl"]);
+const WOMEN = new Set<HumanKind>(["peeters", "fientje", "fishwife_a", "fishwife_b", "maid", "girl", "wife_a", "wife_b", "shopwife", "old_woman", "girl_b"]);
+/** Long aprons are open shells: the thighs would show through in the sit clip. */
+const NO_SIT = new Set<HumanKind>(["baker", "shopkeeper", "publican"]);
+/** Every kind in people.glb (for a kind name that comes from the server). */
+export function isHumanKind(k: string): k is HumanKind {
+  return !!template?.roots.has(k);
+}
 
 /** People whose load decides their clips: the sack on the shoulder, the sack truck, the handcart. */
 const SACK = { walk: "walk_sack", carry: "walk_sack", idle: "idle_sack", talk: "idle_sack", fold: "idle_sack", sit: "idle_sack", behind: "idle_sack", lean: "idle_sack" };
@@ -181,7 +189,7 @@ export class Human {
 
   /** Can this body sit (the men's sit clip; not under a skirt, not with a load)? */
   get canSit(): boolean {
-    return !WOMEN.has(this.kind) && !OWN_CLIPS[this.kind];
+    return !WOMEN.has(this.kind) && !OWN_CLIPS[this.kind] && !NO_SIT.has(this.kind);
   }
 
   /** How far to lower the body (negative) so it sits on a seat `seat` metres high (the sit clip). */

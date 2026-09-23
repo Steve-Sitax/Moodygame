@@ -12,6 +12,7 @@ import { Pockets } from "./pockets";
 import { Day } from "./day";
 import { CityMap, type MapMark } from "./map";
 import { esc, HaulRun, makeRun, type Action, type Run, type RunCtx, type Sfx } from "./runs";
+import type { Town } from "./town";
 
 // The hands and the job (M2, M2b, M3). Everything you do with E and F goes
 // through here: lift, set down, stack, drop in the Schelde, talk, read the
@@ -66,6 +67,8 @@ export class Jobs {
   readonly day: Day;
   readonly map: CityMap;
   private sinking: Array<{ obj: THREE.Object3D; t: number; splashed: boolean }> = [];
+  /** The townspeople (M3e), set by main. */
+  town: Town | null = null;
   /** An owner saw you lift this; set it back near where it was and they calm down. */
   private watched: { item: Item; owner: string } | null = null;
 
@@ -157,6 +160,11 @@ export class Jobs {
     this.talk.money = p.player.money_c;
     this.pockets.apply(p);
     this.day.show(p);
+    // who has work open: after dark they show a light (M3e)
+    if (this.town) {
+      this.town.openWork = new Set(p.jobs.filter((j) => j.status === "offered" && j.playable).map((j) => j.employer_npc));
+      this.town.takenWork = new Set(p.jobs.filter((j) => j.status === "taken").map((j) => j.employer_npc));
+    }
     // pick up a job that is already taken (reload in the middle of a job)
     const taken = p.jobs.find((j) => j.status === "taken") ?? null;
     if (taken && !this.active) this.start(taken);
@@ -214,6 +222,15 @@ export class Jobs {
       options.push([d, { key: "KeyE", text: `lift the ${GOODS[item.kind].one}`, run: () => this.lift(item) }]);
     }
     if (npc) options.push([npc.distTo(x, z), { key: "KeyE", text: `talk to ${npc.def.name}`, run: () => this.talk.open(npc) }]);
+    // M3e: anyone in the street; a thief who just robbed you can be grabbed
+    const thief = this.town?.thiefInReach(x, z);
+    if (thief) options.push([0, { key: "KeyE", text: `grab ${thief.def.name.split(" ")[0]}!`, run: () => void this.town!.grab(thief.id) }]);
+    const res = this.town?.nearestTalker(x, z);
+    if (res && res.who.id !== thief?.id) {
+      const who = res.who;
+      options.push([res.d + 0.05, { key: "KeyE", text: `talk to ${who.def.name}`, run: () => this.talk.open(who) }]);
+      if (this.talk.sells(who.id) && !(npc && this.talk.sells(npc.id))) add({ key: "KeyF", text: `buy from ${who.def.name}`, run: () => this.talk.open(who, true) });
+    }
     if (board < REACH_BOARD) options.push([board, { key: "KeyE", text: "read the hiring board", run: () => this.openBoard() }]);
     const doss = Math.hypot(DOSS_POS.x - x, DOSS_POS.z - z);
     if (doss < REACH_DOSS) {
@@ -466,6 +483,12 @@ export class Jobs {
       const n = this.people.get(id);
       if (n && !offered.has(id)) out.push({ x: n.pos.x, z: n.pos.z, label, kind: "shop" });
     }
+    // the town's shops and taverns (M3e)
+    const d = this.town?.data;
+    if (d) {
+      for (const sh of d.shops) out.push({ x: sh.door[0], z: sh.door[1], label: sh.label, kind: "shop" });
+      for (const [id, pl] of Object.entries(d.places)) if (id.startsWith("tavern:")) out.push({ x: pl.x, z: pl.z, label: pl.label, kind: "shop" });
+    }
     return out;
   }
 
@@ -531,6 +554,16 @@ export class Jobs {
     this.el.toast.style.opacity = "1";
     clearTimeout(this.toastTimer);
     this.toastTimer = window.setTimeout(() => (this.el.toast.style.opacity = "0"), 5500);
+  }
+
+  /** Say something at the bottom of the screen (M3e: the town's thieves). */
+  say(text: string): void {
+    this.toastMsg(text);
+  }
+
+  /** New server state from elsewhere (M3e: a pocket picked, a thief caught). */
+  refresh(p: JobsPayload): void {
+    this.apply(p);
   }
 
   /** Dev hook: state for scripted checks. */

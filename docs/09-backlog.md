@@ -36,3 +36,13 @@ What would make jobs interesting. Claude proposes, the engine plays and owns the
 - **Choices with weight:** sell the loose crate or hand it in; tell Sooi about the stranger or keep quiet. These feed trust per faction and NPC memory (M3).
 
 When: Steve chose (2026-09-23) to build this now as milestone M2b, before M3. Scope in docs/06. Still open after M2b: row, find and talk task types; choices that feed M3 dialogue.
+
+## Velocipedes, theft and the police (Steve, 2026-09-23, during M3e)
+Steve: "bikes available that we can take. If owner in vicinity we get bad rep for stealing. When we do bad things police comes to talk to us or arrests us."
+- **Bikes of 1873:** the velocipede ("boneshaker", iron tyres, pedals on the front wheel). Rare and costly in Antwerp then: a few stand by the houses of the well-off, a café, the Entrepot office. You can take one and ride it (faster than hurrying, noisy on the cobbles, falls over on the rails and in the ruts).
+- **Theft:** each bike has an owner (a resident from the living city). Taking it while the owner or anyone else sees it gives bad reputation and a rumour ("the man who took the notary's velocipede"). The engine owns the numbers: who saw it, how much trust is lost.
+- **Police:** a police agent comes to talk after a bad deed (theft, a crate in the Schelde, a fight), asks questions, and gives a warning or a fine; after repeated or serious deeds, arrest: a night in the cell of the Steen (it was a prison until 1823, later a museum; use the police post on the Grote Markt instead), the job lost. Free text to the agent is data, not orders (docs/03).
+- **A lamp to carry** (Steve, same day): buy a hand lantern from a stall or a shop, or pick one up where people work (a dock gang's lantern, a stall's lamp). You carry it in your hand: a small warm light round you at night and in fog, other people see you coming. A lamp that is not yours is theft (same rules as the bikes).
+- **Food theft:** food on a stall that is not covered (the tarps come on at night, M3e) can be taken. Seen by the stall keeper or others: theft, reputation, the police. Unseen: free food, and maybe a rumour later ("herring went missing from Fientje's stall").
+- One system for all of this: what is taken, whose it was, who saw it (line of sight and distance, fog helps the thief), what it costs you with whom.
+- Wait for the living-city work (residents, owners, rumours, M3e) to land first; it builds the people and reputation this needs.

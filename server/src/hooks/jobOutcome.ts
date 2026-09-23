@@ -2,7 +2,7 @@ import { z } from "zod";
 import { plainEnglish } from "../text.ts";
 import type { DB } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
-import { EMPLOYERS, SYSTEM, type EmployerId, type JobRow } from "./jobBoard.ts";
+import { ALL_EMPLOYERS, SYSTEM, type JobRow } from "./jobBoard.ts";
 import type { Settlement } from "../game.ts";
 
 // job_outcome hook, docs/03. The engine has already paid and moved trust.
@@ -16,8 +16,9 @@ export const OutcomeSchema = z.object({
 export type Outcome = z.infer<typeof OutcomeSchema>;
 
 export function buildPrompt(job: JobRow, s: Settlement): string {
-  const e = EMPLOYERS[job.employer_npc as EmployerId];
-  return `A job on the Rijnkaai has just ended. Write how it ends.
+  const d = ALL_EMPLOYERS[job.employer_npc];
+  const e = d ? { name: job.employer_name, note: d.note } : undefined;
+  return `A job on the quays has just ended. Write how it ends.
 
 EMPLOYER
 ${e ? `${e.name}: ${e.note}.` : job.employer_name}

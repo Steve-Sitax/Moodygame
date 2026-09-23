@@ -6,13 +6,19 @@ import CITY from "../../../shared/city.json";
 import SPOT_TABLE from "../../../shared/spots.json";
 import { psx } from "../retro/psx";
 import type { Rect } from "./geom";
+import { trafficLanes } from "./traffic";
 
 // Street and quay props from Blender (tools/blender/build_props.py ->
 // /models/props.glb): carts, a dray and its horse, barrows, crates, casks,
-// sacks, rope, bollards, a gas lamp, a hand crane. Our own models, made by
-// script. Each prop stands on the ground at its origin; its front (shafts,
-// handles, jib) looks along local +z. This module loads them once, gives them
-// PS1 materials, places copies, and dresses the city with a few of them.
+// sacks, rope, bollards, a gas lamp, a hand crane; the port goods of the naties
+// (cotton bales, coffee and grain sacks, hides, casks of wine and petroleum,
+// crates, bluestone, timber, tarpaulin heaps, the weighing beam) and the parts
+// of the traffic (traffic.ts). Our own models, made by script. Each prop stands
+// on the ground at its origin; its front (shafts, handles, jib) looks along
+// local +z. This module loads them once, gives them PS1 materials, places
+// copies, and dresses the city: goods along the busy quays and the storehouse
+// walls, carts and casks elsewhere. The goods share one atlas material
+// ("goods", 4 x 4 cells), so a quay of them is one draw call per chunk.
 
 /** Single models in props.glb. */
 export const PROP_NAMES = [
@@ -34,6 +40,50 @@ export const PROP_NAMES = [
   "bollard",
   "gas_lamp",
   "crane",
+  // port goods (one atlas material)
+  "casks_row",
+  "casks_pyramid",
+  "casks_standing",
+  "petrol_row",
+  "petrol_pyramid",
+  "bales_block",
+  "bales_row",
+  "coffee_stack",
+  "grain_pile",
+  "hides_pile",
+  "crates_stack",
+  "stones_stack",
+  "stone_blocks",
+  "timber_stack",
+  "planks_pile",
+  "tarp_heap",
+  "beam_scale",
+  "weigh_scale",
+  "sack_truck_sacks",
+  "ladder_lean",
+  "planks_lean",
+  "crate_open",
+  "crate_broken",
+  "crate_seat",
+  "crate_big",
+] as const;
+
+/** Parts the traffic moves (traffic.ts): the dray, its wheels, loads, the horse and its legs, the handcart. */
+export const TRAFFIC_PARTS = [
+  "tr_dray_bed",
+  "tr_dray_fore",
+  "tr_wheels_rear",
+  "tr_wheels_front",
+  "tr_load_casks",
+  "tr_load_sacks",
+  "tr_load_bales",
+  "tr_load_tarp",
+  "tr_horse_body",
+  "tr_leg_front",
+  "tr_leg_hind",
+  "tr_handcart",
+  "tr_handcart_wheels",
+  "tr_handcart_load",
 ] as const;
 
 /** Groups of models placed as one: [model, x, y, z, yaw] in the group's frame. */
@@ -101,10 +151,26 @@ export interface Props {
   footprint(name: string): Footprint;
   /** Walk colliders for a prop placed at (x, z, yaw): a few boxes along its length. */
   colliders(name: string, x: number, z: number, yaw: number): Rect[];
-  /** The PS1 materials by name: wood, wood_dark, iron, rope, sackcloth, crate, barrel, stone, glass, horse, horsehair, leather. */
+  /** The PS1 materials by name: wood, wood_dark, iron, rope, sackcloth, crate, barrel, stone, glass, horse, horsehair, leather, goods (the atlas). */
   materials: Record<string, THREE.Material>;
   /** Front doors of the city's houses as x, z pairs (from the city build, carried in props.glb). */
   houseDoors: number[];
+  /**
+   * Street walls of the storehouses (from the city build): [ax, az, bx, bz, outx, outz, gate...],
+   * the wall from a to b, its outward normal, and the loading gates as metres from a (2.6 m wide).
+   */
+  storeFronts: number[][];
+  /**
+   * The meshes of a model as geometry in the model's own frame and its material (shared; do not
+   * dispose). For moving parts (traffic.ts) and merged copies.
+   */
+  parts(name: string): Array<{ geometry: THREE.BufferGeometry; material: THREE.Material }>;
+  /**
+   * Put a copy down for good, merged with every other copy batched in the same moment into one
+   * mesh per material under `parent` (cheap static dressing: a dozen crates are one draw call).
+   * y lifts it (a crate on a crate), scale sizes it.
+   */
+  batch(parent: THREE.Object3D, name: string, x: number, z: number, yaw?: number, y?: number, scale?: number): void;
 }
 
 let loading: Promise<Props> | null = null;
@@ -136,7 +202,9 @@ async function load(): Promise<Props> {
     const mat =
       name === "glass"
         ? new THREE.MeshBasicMaterial({ map, color: 0xffc070, fog: false })
-        : psx(new THREE.MeshLambertMaterial({ map, vertexColors: true }), { affine: 0.6 });
+        : name === "goods"
+          ? psx(new THREE.MeshLambertMaterial({ map, vertexColors: true }), { affine: 0.6, atlas: 4 })
+          : psx(new THREE.MeshLambertMaterial({ map, vertexColors: true }), { affine: 0.6 });
     mat.name = name;
     materials[name] = mat;
     return mat;
@@ -144,9 +212,15 @@ async function load(): Promise<Props> {
 
   const protos = new Map<string, THREE.Object3D>();
   let houseDoors: number[] = [];
+  let storeFronts: number[][] = [];
   for (const node of [...gltf.scene.children]) {
     if (node.name === "house_doors") {
       houseDoors = JSON.parse((node.userData.doors as string | undefined) ?? "[]");
+      node.removeFromParent();
+      continue;
+    }
+    if (node.name === "store_fronts") {
+      storeFronts = JSON.parse((node.userData.fronts as string | undefined) ?? "[]");
       node.removeFromParent();
       continue;
     }
@@ -154,6 +228,17 @@ async function load(): Promise<Props> {
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;
       m.material = Array.isArray(m.material) ? m.material.map(swap) : swap(m.material);
+      // atlas meshes: the second uv set is the cell (column, row); glTF turned v over, so turn it back
+      const cell = m.geometry.getAttribute("uv1") as THREE.BufferAttribute | undefined;
+      if (cell) {
+        const c = new Float32Array(cell.count * 2);
+        for (let i = 0; i < cell.count; i++) {
+          c[i * 2] = Math.round(cell.getX(i));
+          c[i * 2 + 1] = Math.round(1 - cell.getY(i));
+        }
+        m.geometry.setAttribute("cell", new THREE.BufferAttribute(c, 2));
+        m.geometry.deleteAttribute("uv1");
+      }
       m.geometry.computeBoundingSphere();
     });
     node.removeFromParent();
@@ -249,8 +334,63 @@ async function load(): Promise<Props> {
     return out;
   }
 
-  return { names: [...protos.keys()], place, footprint, colliders, materials, houseDoors };
+  const partCache = new Map<string, Array<{ geometry: THREE.BufferGeometry; material: THREE.Material }>>();
+  function parts(name: string): Array<{ geometry: THREE.BufferGeometry; material: THREE.Material }> {
+    let out = partCache.get(name);
+    if (out) return out;
+    const src = protos.get(name);
+    if (!src) throw new Error(`no prop ${name}`);
+    out = [];
+    src.updateMatrixWorld(true);
+    src.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      const g = m.matrixWorld.equals(IDENTITY) ? m.geometry : m.geometry.clone().applyMatrix4(m.matrixWorld);
+      out!.push({ geometry: g, material: m.material as THREE.Material });
+    });
+    partCache.set(name, out);
+    return out;
+  }
+
+  const queued: Array<{ parent: THREE.Object3D; o: THREE.Object3D }> = [];
+  function batch(parent: THREE.Object3D, name: string, x: number, z: number, yaw = 0, y = 0, scale = 1): void {
+    const o = place(name, x, z, yaw);
+    o.position.y = y;
+    o.scale.setScalar(scale);
+    if (!queued.length) queueMicrotask(flush);
+    queued.push({ parent, o });
+  }
+  function flush(): void {
+    const buckets = new Map<string, { parent: THREE.Object3D; mat: THREE.Material; geos: THREE.BufferGeometry[] }>();
+    for (const { parent, o } of queued.splice(0)) {
+      o.updateMatrixWorld(true);
+      o.traverse((c) => {
+        const m = c as THREE.Mesh;
+        if (!m.isMesh) return;
+        const mat = m.material as THREE.Material;
+        const g = m.geometry.clone().applyMatrix4(m.matrixWorld);
+        for (const a of Object.keys(g.attributes)) if (!["position", "normal", "uv", "color", "cell"].includes(a)) g.deleteAttribute(a);
+        const k = `${parent.uuid}|${mat.uuid}`;
+        let b = buckets.get(k);
+        if (!b) buckets.set(k, (b = { parent, mat, geos: [] }));
+        b.geos.push(g);
+      });
+    }
+    for (const { parent, mat, geos } of buckets.values()) {
+      const merged = mergeGeometries(geos, false);
+      for (const g of geos) if (g !== merged) g.dispose();
+      if (!merged) continue;
+      merged.computeBoundingSphere();
+      const mesh = new THREE.Mesh(merged, mat);
+      mesh.name = "props_batch";
+      parent.add(mesh);
+    }
+  }
+
+  return { names: [...protos.keys()], place, footprint, colliders, materials, houseDoors, storeFronts, parts, batch };
 }
+
+const IDENTITY = new THREE.Matrix4();
 
 // ------------------------------------------------------------------ dressing the city
 
@@ -266,6 +406,10 @@ export interface DressOptions {
   /** Most things along the quays and on the squares. */
   maxQuay?: number;
   maxSquare?: number;
+  /** The port goods along the busy quays and the storehouse walls. Default true. */
+  goods?: boolean;
+  /** Quay cranes (x, z): nothing within 3.8 m. Default: the cranes rijnkaai.ts puts up. */
+  cranes?: Array<[number, number]>;
 }
 
 export interface Dressing {
@@ -273,6 +417,8 @@ export interface Dressing {
   /** Walk colliders for everything placed; add them to the world. */
   colliders: Rect[];
   placed: Array<{ name: string; x: number; z: number; yaw: number }>;
+  /** How many of `placed` are port goods (the rest: carts, casks, crates by the old rules). */
+  goods: number;
 }
 
 interface CityData {
@@ -287,6 +433,79 @@ const WALL = 1;
 const WATER = 2;
 /** Free ground to leave in front of anything we put down (metres). */
 const PASSAGE = 3.0;
+
+/** The portal cranes of rijnkaai.ts (keep in step): goods keep 3.8 m from them. */
+const CRANES: Array<[number, number]> = [
+  [-24, 3.2], [-12, 3.2], [72, 3.2], [66, 62], [66, 92], [173, 66], [173, 100], [-280, 3.2], [-240, 3.2], [-300, 3.2],
+];
+
+/**
+ * Where the port goods go, after the period photos of the Vlaamse Kaai, the Werf and the
+ * Quai Godefroid: rows along the water on the busy quays, each quay with its own trade.
+ */
+type Table = Array<[string, number]>;
+const WINE_AND_STONE: Table = [
+  ["casks_row", 3], ["casks_pyramid", 2.5], ["casks_standing", 1], ["stones_stack", 1.5], ["stone_blocks", 1.2],
+  ["timber_stack", 1], ["tarp_heap", 1], ["crates_stack", 1], ["planks_pile", 0.6],
+];
+const PETROLEUM: Table = [
+  ["petrol_row", 3], ["petrol_pyramid", 2.5], ["casks_row", 1.5], ["crates_stack", 1.5], ["grain_pile", 1], ["tarp_heap", 1], ["coffee_stack", 1],
+];
+const COTTON_AND_COFFEE: Table = [
+  ["bales_block", 3], ["bales_row", 2.5], ["coffee_stack", 2], ["hides_pile", 1.5], ["grain_pile", 1.5], ["casks_row", 1],
+  ["crates_stack", 1], ["tarp_heap", 0.8],
+];
+const WATER_ROWS: Array<{ rect: Rect; table: Table }> = [
+  { rect: { minX: -320, maxX: -213, minZ: -3, maxZ: 3 }, table: WINE_AND_STONE }, // the Werf
+  { rect: { minX: 60, maxX: 105, minZ: -3, maxZ: 3 }, table: PETROLEUM }, // the Rijnkaai, north end
+  { rect: { minX: 115, maxX: 201, minZ: -3, maxZ: 3 }, table: PETROLEUM }, // beyond the lock
+  { rect: { minX: 67, maxX: 73, minZ: 44, maxZ: 112 }, table: COTTON_AND_COFFEE }, // the Petit Bassin, west quay
+  { rect: { minX: 68, maxX: 172, minZ: 107, maxZ: 113 }, table: COTTON_AND_COFFEE }, // south quay
+  { rect: { minX: 114, maxX: 172, minZ: 43, maxZ: 49 }, table: COTTON_AND_COFFEE }, // north quay
+];
+/** Against the storehouse walls, between the loading gates. */
+const WALL_GOODS: Table = [
+  ["bales_block", 2.5], ["bales_row", 2], ["coffee_stack", 2], ["grain_pile", 1.5], ["hides_pile", 1.2], ["crates_stack", 1.5],
+  ["casks_standing", 1], ["crate_open", 0.5], ["crate_broken", 0.3], ["tarp_heap", 0.7], ["ladder_lean", 0.8], ["planks_lean", 0.6],
+  ["sack_truck_sacks", 0.8], ["weigh_scale", 0.5],
+];
+/** Things that have a back and a front: their back to the wall. Leaning things: how far their foot stands out. */
+const FACING = new Set(["ladder_lean", "planks_lean", "sack_truck_sacks", "weigh_scale"]);
+const LEAN: Record<string, number> = { ladder_lean: 0.5, planks_lean: 0.42 };
+/** Heaps out on the open quay, with a 3 m passage on both sides (or one: `n`). */
+const FIELDS: Array<{ rect: Rect; step: [number, number]; t: [number, number]; n?: [number, number]; table: Table }> = [
+  {
+    rect: { minX: 72, maxX: 100, minZ: 9, maxZ: 33 },
+    step: [8, 7],
+    t: [1, 0],
+    table: [["casks_pyramid", 2], ["petrol_pyramid", 2], ["bales_block", 1.5], ["tarp_heap", 1.5], ["timber_stack", 1], ["stones_stack", 1], ["coffee_stack", 1]],
+  },
+  {
+    // in front of the Hanseatic House, the naties' storehouse: cotton being weighed
+    rect: { minX: 80, maxX: 150, minZ: 119.5, maxZ: 123.5 },
+    step: [7.5, 10],
+    t: [1, 0],
+    n: [0, -1],
+    table: [["beam_scale", 2], ["bales_block", 2], ["bales_row", 1.5], ["tarp_heap", 1], ["hides_pile", 1]],
+  },
+  {
+    // a second row beyond the lock, between the row at the water and the cart road
+    rect: { minX: 122, maxX: 176, minZ: 6.2, maxZ: 7.2 },
+    step: [5.5, 10],
+    t: [1, 0],
+    n: [0, -1],
+    table: PETROLEUM,
+  },
+  {
+    // the Werf: its water edge is the railway and the crane runways; the goods stand on the town
+    // side, between the trees
+    rect: { minX: -309, maxX: -220, minZ: 10.3, maxZ: 11.5 },
+    step: [12, 10],
+    t: [1, 0],
+    n: [0, -1],
+    table: WINE_AND_STONE,
+  },
+];
 
 function rng(seed: number): () => number {
   let s = seed >>> 0;
@@ -349,6 +568,7 @@ export async function dressCity(scene: THREE.Scene, flags: Flags, opts: DressOpt
 
   const clear: Array<{ x: number; z: number; r: number }> = [...(opts.keepClear ?? [])];
   for (const d of Object.values(city.doors)) {
+    if (d.width > 12) continue; // a whole storehouse front: its gates and spot are kept clear on their own
     clear.push({ x: d.x + d.out[0] * 2, z: d.z + d.out[1] * 2, r: d.width / 2 + 3.5 });
   }
   for (const [k, s] of Object.entries(SPOT_TABLE as unknown as Record<string, { x?: number; z?: number }>)) {
@@ -538,6 +758,171 @@ export async function dressCity(scene: THREE.Scene, flags: Flags, opts: DressOpt
     return true;
   }
 
+  // --- the port goods
+  let goods = 0;
+  if (opts.goods !== false) goods = dressGoods();
+
+  function dressGoods(): number {
+    const n0 = placed.length;
+    // reserved ground: the traffic lanes stay open (2); lamps and trees are in the way (1); crane feet
+    const decor = (CITY as unknown as { decor?: { lamps?: Array<[number, number]>; trees?: Array<[number, number]> } }).decor ?? {};
+    const mark = (cx: number, cz: number, rad: number, v: 1 | 2) =>
+      cells(cx, cz, 1, 0, rad, rad, (x, z, i, j) => {
+        if (Math.hypot(x - cx, z - cz) > rad) return;
+        if (v === 1 || !occ.has(key(i, j))) occ.set(key(i, j), v);
+      });
+    for (const [x, z] of decor.lamps ?? []) mark(x, z, 0.6, 1);
+    for (const [x, z] of decor.trees ?? []) mark(x, z, 0.8, 1);
+    for (const [x, z] of opts.cranes ?? CRANES) mark(x, z, 3.8, 2);
+    for (const lane of trafficLanes()) for (let i = 0; i < lane.x.length; i += 2) mark(lane.x[i], lane.z[i], lane.half, 2);
+
+    // rows along the water on the busy quays
+    for (const [ax, az, bx, bz] of city.quays) {
+      const L = Math.hypot(bx - ax, bz - az);
+      if (L < 3) continue;
+      const tx = (bx - ax) / L;
+      const tz = (bz - az) / L;
+      const mx = (ax + bx) / 2;
+      const mz = (az + bz) / 2;
+      let nx = -tz;
+      let nz = tx;
+      const land = (sg: number) => {
+        let k = 0;
+        for (const f of [0.2, 0.5, 0.8]) if (at(ax + (bx - ax) * f + nx * sg * 2.5, az + (bz - az) * f + nz * sg * 2.5) === OPEN) k++;
+        return k;
+      };
+      if (land(-1) > land(1)) {
+        nx = -nx;
+        nz = -nz;
+      }
+      if (!land(1) || !WATER_ROWS.some((w) => inside(w.rect, mx, mz, L / 2))) continue;
+      let s = 1 + r() * 2;
+      while (s < L - 1) {
+        const px = ax + tx * s;
+        const pz = az + tz * s;
+        const zone = WATER_ROWS.find((w) => inside(w.rect, px, pz, 0));
+        if (!zone) {
+          s += 2;
+          continue;
+        }
+        const name = pick(r, zone.table);
+        const f = props.footprint(name);
+        const hl = Math.max(f.maxX - f.minX, f.maxZ - f.minZ) / 2;
+        const hs = Math.min(f.maxX - f.minX, f.maxZ - f.minZ) / 2;
+        const run = 1 + Math.floor(r() * 3);
+        for (let k = 0; k < run && s + 2 * hl < L - 0.5; k++) {
+          const sc = s + hl;
+          if (!inside(zone.rect, ax + tx * sc, az + tz * sc, 0)) break;
+          const cx = ax + tx * sc + nx * (0.55 + hs);
+          const cz = az + tz * sc + nz * (0.55 + hs);
+          if (!putItem(name, cx, cz, tx, tz, nx, nz, PASSAGE)) {
+            s += 1;
+            break;
+          }
+          s += 2 * hl + 0.3;
+        }
+        s += 3 + r() * 3.5;
+      }
+    }
+
+    // against the storehouse walls, between the loading gates
+    for (const fr of props.storeFronts) {
+      const [ax, az, bx, bz, ox, oz, ...gates] = fr;
+      const L = Math.hypot(bx - ax, bz - az);
+      const tx = (bx - ax) / L;
+      const tz = (bz - az) / L;
+      const gateNear = (s0: number, s1: number) => gates.some((g) => s1 > g - 2.4 && s0 < g + 2.4);
+      let s = 0.7;
+      let tools = 0;
+      while (s < L - 0.7) {
+        const name = pick(r, WALL_GOODS);
+        const f = props.footprint(name);
+        const facing = FACING.has(name);
+        // ladders, sack trucks and scales: one to a wall, next to a gate
+        if (facing && (tools > 0 || !gates.some((g) => Math.abs(s - g) < 5.5))) {
+          s += 0.2;
+          continue;
+        }
+        const w = f.maxX - f.minX;
+        const d = f.maxZ - f.minZ;
+        const hl = facing ? w / 2 : Math.max(w, d) / 2;
+        const hs = facing ? d / 2 : Math.min(w, d) / 2;
+        if (s + 2 * hl > L - 0.7) break;
+        if (gateNear(s, s + 2 * hl)) {
+          s += 0.5;
+          continue;
+        }
+        const sc = s + hl;
+        // leaning things: the foot stands out LEAN from the wall; the rest stand 0.12 off it
+        const off = LEAN[name] !== undefined ? LEAN[name] + (f.minZ + f.maxZ) / 2 : 0.12 + hs;
+        const cx = ax + tx * sc + ox * off;
+        const cz = az + tz * sc + oz * off;
+        if (putItem(name, cx, cz, tx, tz, ox, oz, PASSAGE, { facing })) {
+          s += 2 * hl + 0.4 + r() * 1.2;
+          if (facing) tools++;
+        } else s += 0.8;
+      }
+    }
+
+    // heaps out on the open quay
+    for (const fz of FIELDS) {
+      const [tx, tz] = fz.t;
+      const [nx, nz] = fz.n ?? [-tz, tx];
+      for (let x = fz.rect.minX + 3; x <= fz.rect.maxX - 2; x += fz.step[0])
+        for (let z = fz.rect.minZ + Math.min(1.5, (fz.rect.maxZ - fz.rect.minZ) / 2); z <= fz.rect.maxZ; z += fz.step[1]) {
+          const name = pick(r, fz.table);
+          putItem(name, x + (r() - 0.5) * 0.8, z + (r() - 0.5) * 0.6, tx, tz, nx, nz, PASSAGE, { both: !fz.n });
+        }
+    }
+    return placed.length - n0;
+  }
+
+  /**
+   * Stand `name` with its footprint centre at (cx, cz), its long side along t (or, `facing`, its
+   * front toward n), on open ground clear of doors, spots and other things, with `deep` metres of
+   * free ground in front (toward n; `both`: behind it too).
+   */
+  function putItem(name: string, cx: number, cz: number, tx: number, tz: number, nx: number, nz: number, deep: number, o: { both?: boolean; facing?: boolean } = {}): boolean {
+    const f = props.footprint(name);
+    const w = f.maxX - f.minX;
+    const d = f.maxZ - f.minZ;
+    const along = d >= w;
+    const hl = o.facing ? w / 2 : Math.max(w, d) / 2;
+    const hs = o.facing ? d / 2 : Math.min(w, d) / 2;
+    for (const c of clear) if (Math.hypot(c.x - cx, c.z - cz) < c.r + hl) return false;
+    for (const k of keepOut) if (cx > k.minX - hl && cx < k.maxX + hl && cz > k.minZ - hl && cz < k.maxZ + hl) return false;
+    if (nearDoor(cx, cz, tx, tz, hl, hs, 1.6)) return false;
+    if (!cells(cx, cz, tx, tz, hl + 0.15, hs + 0.15, (x, z, i, j) => at(x, z) === OPEN && !occ.has(key(i, j)))) return false;
+    const bands: Array<[number, number]> = o.both ? [[nx, nz], [-nx, -nz]] : [[nx, nz]];
+    for (const [bx, bz] of bands) {
+      const fx = cx + bx * (hs + deep / 2 + 0.05);
+      const fz = cz + bz * (hs + deep / 2 + 0.05);
+      if (!cells(fx, fz, tx, tz, hl + 0.6, deep / 2, (x, z, i, j) => at(x, z) === OPEN && occ.get(key(i, j)) !== 1)) return false;
+    }
+    let yaw: number;
+    if (o.facing) yaw = Math.atan2(nx, nz);
+    else {
+      const flip = r() < 0.5 ? 1 : -1;
+      yaw = along ? Math.atan2(tx * flip, tz * flip) : Math.atan2(tx * flip, tz * flip) - Math.PI / 2;
+    }
+    const ox = (f.minX + f.maxX) / 2;
+    const oz = (f.minZ + f.maxZ) / 2;
+    const c = Math.cos(yaw);
+    const s = Math.sin(yaw);
+    const x = cx - (ox * c + oz * s);
+    const z = cz - (-ox * s + oz * c);
+    cells(cx, cz, tx, tz, hl + 0.3, hs + 0.3, (_x, _z, i, j) => void occ.set(key(i, j), 1));
+    for (const [bx, bz] of bands) {
+      cells(cx + bx * (hs + deep / 2 + 0.05), cz + bz * (hs + deep / 2 + 0.05), tx, tz, hl + 0.3, deep / 2, (_x, _z, i, j) => {
+        if (!occ.has(key(i, j))) occ.set(key(i, j), 2);
+      });
+    }
+    all.push(props.place(name, x, z, yaw));
+    colliders.push(...props.colliders(name, x, z, yaw));
+    placed.push({ name, x, z, yaw });
+    return true;
+  }
+
   // --- along the quays: points along every water edge, nearest the Rijnkaai first
   {
     const cand: Array<[number, number, number]> = [];
@@ -609,7 +994,7 @@ export async function dressCity(scene: THREE.Scene, flags: Flags, opts: DressOpt
       if (!m.isMesh) return;
       const mat = m.material as THREE.Material;
       const g = m.geometry.clone().applyMatrix4(m.matrixWorld);
-      for (const a of Object.keys(g.attributes)) if (!["position", "normal", "uv", "color"].includes(a)) g.deleteAttribute(a);
+      for (const a of Object.keys(g.attributes)) if (!["position", "normal", "uv", "color", "cell"].includes(a)) g.deleteAttribute(a);
       const k = `${ck}|${mat.uuid}`;
       let b = buckets.get(k);
       if (!b) buckets.set(k, (b = { mat, geos: [] }));
@@ -634,21 +1019,28 @@ export async function dressCity(scene: THREE.Scene, flags: Flags, opts: DressOpt
       }
     }
   }
-  // An empty mesh that is always drawn: before each render it hides the chunks beyond the fog.
-  const sentinel = new THREE.Mesh(
-    new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(9), 3)),
-    new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }),
-  );
-  sentinel.frustumCulled = false;
-  sentinel.onBeforeRender = (_r, sc, cam) => {
-    const far = ((sc.fog as THREE.Fog | null)?.far ?? 60) + 10;
+  // Before each render (before three.js sorts out what to draw, so a new camera place counts at
+  // once): hide the chunks beyond the fog. Chained onto the scene's own hook.
+  const hideFar = (cam: THREE.Camera) => {
+    const far = ((scene.fog as THREE.Fog | null)?.far ?? 60) + 10;
     const p = cam.position;
     for (const m of chunks) {
       const s = m.geometry.boundingSphere!;
       m.visible = s.center.distanceTo(p) - s.radius < far;
     }
   };
-  group.add(sentinel);
+  type SceneHook = (renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, target: THREE.WebGLRenderTarget | null) => void;
+  const hooked = scene as unknown as { onBeforeRender: SceneHook };
+  const before = hooked.onBeforeRender;
+  hooked.onBeforeRender = function (this: THREE.Scene, renderer, sc, cam, target) {
+    before?.call(this, renderer, sc, cam, target);
+    hideFar(cam);
+  };
   scene.add(group);
-  return { group, colliders, placed };
+  return { group, colliders, placed, goods };
+}
+
+/** Is (x, z) inside the box, grown by `m`? */
+function inside(b: Rect, x: number, z: number, m: number): boolean {
+  return x > b.minX - m && x < b.maxX + m && z > b.minZ - m && z < b.maxZ + m;
 }

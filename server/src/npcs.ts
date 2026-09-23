@@ -173,15 +173,31 @@ export function topMemories(db: DB, id: string, n = 8): Memory[] {
     .all(id, n) as Memory[];
 }
 
-export function remember(db: DB, id: string, text: string, weight: number, source: "seen" | "heard" = "seen", from: string | null = null): void {
+/**
+ * Keep a memory. `rumour` (M3e) makes it something the town may repeat: a gist
+ * ("Jef ...", past tense) and a tone from -2 (bad) to +2 (good); see town/rumours.ts.
+ */
+export function remember(
+  db: DB,
+  id: string,
+  text: string,
+  weight: number,
+  source: "seen" | "heard" = "seen",
+  from: string | null = null,
+  rumour?: { gist: string; tone: number } | null,
+): void {
   const day = (db.prepare("SELECT day FROM player WHERE id = 1").get() as { day: number }).day;
-  db.prepare("INSERT INTO npc_memory (npc_id, text, source, heard_from, weight, day) VALUES (?, ?, ?, ?, ?, ?)").run(
+  const gist = rumour?.gist.trim().slice(0, 160) || null;
+  const tone = Math.max(-2, Math.min(2, Math.round(rumour?.tone ?? 0)));
+  db.prepare("INSERT INTO npc_memory (npc_id, text, source, heard_from, weight, day, gist, tone) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(
     id,
     text.trim().slice(0, 200),
     source,
     from,
     Math.max(1, Math.min(10, Math.round(weight))),
     day,
+    gist,
+    tone,
   );
   spreadGossip(db);
 }
@@ -193,16 +209,19 @@ export function remember(db: DB, id: string, text: string, weight: number, sourc
  */
 export function spreadGossip(db: DB): number {
   const rows = db
-    .prepare("SELECT m.id, m.npc_id, m.text, m.weight, n.name FROM npc_memory m JOIN npc n ON n.id = m.npc_id WHERE m.source = 'seen' AND m.weight >= 6 AND m.spread = 0 AND m.npc_id <> 'fientje'")
-    .all() as Array<{ id: number; npc_id: string; text: string; weight: number; name: string }>;
+    .prepare(
+      "SELECT m.id, m.npc_id, m.text, m.weight, m.gist, m.tone, COALESCE(m.origin, m.id) AS origin, n.name FROM npc_memory m JOIN npc n ON n.id = m.npc_id WHERE m.source = 'seen' AND m.weight >= 6 AND m.spread = 0 AND m.npc_id <> 'fientje'",
+    )
+    .all() as Array<{ id: number; npc_id: string; text: string; weight: number; gist: string | null; tone: number; origin: number; name: string }>;
   const day = (db.prepare("SELECT day FROM player WHERE id = 1").get() as { day: number }).day;
   for (const r of rows) {
-    db.prepare("INSERT INTO npc_memory (npc_id, text, source, heard_from, weight, day, spread) VALUES ('fientje', ?, 'heard', ?, ?, ?, 1)").run(
-      `${r.name} was saying: ${r.text}`,
-      r.npc_id,
-      Math.max(1, r.weight - 2),
-      day,
-    );
+    // she keeps the gist, so she can pass it on through the town (M3e)
+    const knows = db.prepare("SELECT 1 FROM npc_memory WHERE npc_id = 'fientje' AND origin = ?").get(r.origin);
+    if (!knows) {
+      db.prepare(
+        "INSERT INTO npc_memory (npc_id, text, source, heard_from, weight, day, spread, gist, tone, origin) VALUES ('fientje', ?, 'heard', ?, ?, ?, 1, ?, ?, ?)",
+      ).run(`${r.name} was saying: ${r.text}`, r.npc_id, Math.max(1, r.weight - 2), day, r.gist, r.tone, r.origin);
+    }
     db.prepare("UPDATE npc_memory SET spread = 1 WHERE id = ?").run(r.id);
   }
   return rows.length;

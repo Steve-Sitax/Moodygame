@@ -41,14 +41,16 @@ WATER = {
 BASTION = Polygon([(-214, 0), (-214, -30), (-204, -42), (-160, -42), (-150, -30), (-150, 0)])
 
 # ------------------------------------------------------------------ bridges: decks over water
-# kind: stone (arch bridge), swing (timber swing bridge), pontoon (floating walkway, boats.ts)
+# kind: stone (arch bridge), swing (iron swing bridge, world/lock.ts and world/bridges.ts),
+# draw (timber lifting bridge with a balance, world/bridges.ts), pontoon (floating walkway, boats.ts).
+# Swing and draw bridges open for passing boats; the game walks them only while they are shut.
 BRIDGES = {
     "lock_bridge": {"kind": "swing", "rect": [102, 14, 118, 21]},
-    "canal_mouth": {"kind": "stone", "rect": [-84, 2, -68, 10]},
-    "canal_mid": {"kind": "stone", "rect": [-84, 66, -68, 73]},
-    "canal_high": {"kind": "stone", "rect": [-84, 150, -68, 157]},
-    "vliet_mouth": {"kind": "stone", "rect": [-152, 2, -140, 9]},
-    "vliet_mid": {"kind": "stone", "rect": [-152, 40, -140, 47]},
+    "canal_mouth": {"kind": "swing", "rect": [-84, 2, -68, 10]},
+    "canal_mid": {"kind": "draw", "rect": [-84, 66, -68, 73]},
+    "canal_high": {"kind": "draw", "rect": [-84, 150, -68, 157]},
+    "vliet_mouth": {"kind": "swing", "rect": [-152, 2, -140, 9]},
+    "vliet_mid": {"kind": "draw", "rect": [-152, 40, -140, 47]},
     "ferry_pontoon": {"kind": "pontoon", "rect": [-251, -58, -247, 0]},
 }
 
@@ -113,10 +115,23 @@ LANDMARKS = {
 DECOR = {
     "trees": [(x, z) for z in (24.0, 34.0) for x in range(-208, -150, 8)]
     + [(x, 11.0) for x in range(-300, -222, 12)],
-    "rails": [[-318, 0.6, -214, 0.6], [-150, 0.6, -142, 0.6], [-214, 0.6, -214, -29.4], [-214, -29.4, -204, -41.4],
+    "rails": [[-222, 0.6, -214, 0.6], [-150, 0.6, -142, 0.6], [-214, 0.6, -214, -29.4], [-214, -29.4, -204, -41.4],
               [-204, -41.4, -160, -41.4], [-160, -41.4, -150, -29.4], [-150, -29.4, -150, 0.6]],
-    "lamps": [(x, 3.0) for x in range(-310, -90, 24)] + [(-200, 38.0), (-160, 38.0), (-176, 20.0), (-118, 46.0), (-96, 14.0), (-150, 14.0),
-              (-230, 60.0), (-280, 60.0), (-230, 128.0), (-290, 128.0), (-74, 60.0), (-74, 160.0), (66, 60.0), (66, 104.0), (120, 115.0), (172, 50.0)],
+    # the quay railway (standard gauge, laid in the cobbles; client/src/world/tracks.ts draws it).
+    # Polylines; every corner is rounded with radius r. One line runs along all the river quays
+    # (from the station, off the map to the west) under the portal cranes, over the vliet and
+    # canal bridges, to the lock bridge; past the lock it loops round the Petit Bassin and comes
+    # back onto the Rijnkaai. A loading siding runs beside it on the Rijnkaai.
+    "tracks": [
+        {"pts": [[-345, 4.0], [80, 4.0], [95, 17.5], [101.8, 17.5]], "r": 18, "end": [False, False]},
+        {"pts": [[118.2, 17.5], [173, 17.5], [173, 116], [66, 116], [66, 4.0], [44, 4.0]], "r": [0, 10, 10, 10, 22, 0], "end": [False, False]},
+        {"pts": [[-64, 4.0], [-52, 10.3], [12, 10.3], [24, 4.0]], "r": 24, "end": [False, False]},
+    ],
+    # portal crane runways: the crane's legs run on these (gauge 5.2 m), the railway between them
+    "crane_rails": [[-318, 1.4, -222, 1.4], [-318, 6.6, -222, 6.6], [-36, 1.4, 70, 1.4], [-36, 6.6, 70, 6.6],
+                    [63.4, 50, 63.4, 104], [68.6, 50, 68.6, 104], [170.4, 50, 170.4, 108], [175.6, 50, 175.6, 108]],
+    "lamps": [(x, 9.5) for x in range(-310, -90, 24) if not -154 < x < -138] + [(-200, 38.0), (-160, 38.0), (-176, 20.0), (-118, 46.0), (-96, 14.0), (-150, 14.0),
+              (-230, 60.0), (-280, 60.0), (-230, 128.0), (-290, 128.0), (-74, 60.0), (-74, 160.0), (69.4, 77.0), (69.4, 106.5), (120, 121.5), (170.8, 83.0)],
 }
 
 # game doors: target point and the way the door should face (plan.py finds the house)

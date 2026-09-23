@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
+import { RESIDENT_SCHEMA, dropTownCache, ensureTown, repairTown } from "./town/store.ts";
 
 // SQLite schema from docs/04-data-model.md. Only the server writes.
 // Delete data/game.sqlite to start over.
@@ -122,6 +123,9 @@ export function openDb(file: string): DB {
   db.exec(SCHEMA);
   migrate(db);
   seed(db);
+  // the town's residents (M3e): made once per game, also for a save from before M3e
+  ensureTown(db);
+  repairTown(db);
   return db;
 }
 
@@ -130,16 +134,27 @@ function migrate(db: DB): void {
   const cols = (table: string) => (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map((c) => c.name);
   if (!cols("npc_memory").includes("spread")) db.exec("ALTER TABLE npc_memory ADD COLUMN spread INTEGER NOT NULL DEFAULT 0");
   if (!cols("player").includes("minute")) db.exec("ALTER TABLE player ADD COLUMN minute INTEGER NOT NULL DEFAULT 0");
+  // M3e: rumours in the town. gist = one line others may repeat about Jef, tone -2..+2,
+  // origin = the memory it came from (so nobody hears the same thing twice), town_spread = told on.
+  const mem = cols("npc_memory");
+  if (!mem.includes("gist")) db.exec("ALTER TABLE npc_memory ADD COLUMN gist TEXT");
+  if (!mem.includes("tone")) db.exec("ALTER TABLE npc_memory ADD COLUMN tone INTEGER NOT NULL DEFAULT 0");
+  if (!mem.includes("origin")) db.exec("ALTER TABLE npc_memory ADD COLUMN origin INTEGER");
+  if (!mem.includes("town_spread")) db.exec("ALTER TABLE npc_memory ADD COLUMN town_spread INTEGER NOT NULL DEFAULT 0");
+  db.exec(RESIDENT_SCHEMA);
 }
 
 /** Start a new week: wipe the save and seed it again (the "new game" button). */
 export function resetDb(db: DB): void {
   db.transaction(() => {
-    for (const t of ["ai_call", "item", "event", "world_state", "job", "log", "world_fact", "npc_memory", "npc_relationship", "npc", "faction_trust", "player"]) {
+    for (const t of ["ai_call", "item", "event", "world_state", "job", "log", "world_fact", "npc_memory", "npc_relationship", "resident", "npc", "faction_trust", "player"]) {
       db.prepare(`DELETE FROM ${t}`).run();
     }
   })();
   seed(db);
+  // a new week, a new town
+  dropTownCache(db);
+  ensureTown(db);
 }
 
 function seed(db: DB): void {

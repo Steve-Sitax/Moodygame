@@ -2,9 +2,11 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import CITY from "../../../shared/city.json";
-import { psx } from "../retro/psx";
-import { brickBandTexture, facadeAtlas, glassTexture, roofAtlas, slateTexture, stoneTexture } from "./cityTextures";
+import { psx, psxUniforms } from "../retro/psx";
+import { createMirror } from "./mirror";
+import { brickBandTexture, earthTexture, facadeAtlas, flagsTexture, glassTexture, leafTexture, roofAtlas, slateTexture, stoneTexture } from "./cityTextures";
 import { makeTextures } from "./textures";
+import { slimeCuts, slimeShade } from "./quaysteps";
 
 // Antwerp, 1873, traced from the Vuillaume map (CC0) and built in Blender
 // (tools/city, tools/blender). This module lays the ground and the quays, loads
@@ -78,63 +80,72 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
   group.name = "city";
   scene.add(group);
 
-  // --- ground: the land of the traced map, cobbles everywhere
+  // the street mirrored in the puddles (world/mirror.ts), drawn only while there are puddles
+  const groundMirror = createMirror(0, { width: 480, height: 270, enabled: () => psxUniforms.uPuddle.value > 0.01 });
+  psxUniforms.uMirror.value = groundMirror.texture;
+  psxUniforms.uMirrorMat.value = groundMirror.matrix;
+
+  // --- ground: three kinds of paving (tools/city/plan.py ground_zones): earth on the
+  // working quays, flagstones on the squares, cobbles in the streets. The land is a
+  // few large triangles: no vertex snap and no affine warp on it, or it swirls (the
+  // texture uses world coordinates, so it stays straight).
   {
-    const pos: number[] = [];
-    const uv: number[] = [];
-    for (const t of data.land) {
-      for (let i = 0; i < 3; i++) {
-        const x = t[i * 2];
-        const z = t[i * 2 + 1];
-        pos.push(x, 0, z);
-        uv.push(x / 2, z / 2);
-      }
-    }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-    g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
-    // wind every triangle upward
-    const p = g.getAttribute("position") as THREE.BufferAttribute;
-    for (let i = 0; i < p.count; i += 3) {
-      const ax = p.getX(i), az = p.getZ(i);
-      const bx = p.getX(i + 1), bz = p.getZ(i + 1);
-      const cx = p.getX(i + 2), cz = p.getZ(i + 2);
-      const cross = (bx - ax) * (cz - az) - (bz - az) * (cx - ax);
-      if (cross > 0) {
-        // swap b and c so the normal points up (+y)
-        p.setXYZ(i + 1, cx, 0, cz);
-        p.setXYZ(i + 2, bx, 0, bz);
-        const u = g.getAttribute("uv") as THREE.BufferAttribute;
-        const ub = [u.getX(i + 1), u.getY(i + 1)];
-        u.setXY(i + 1, u.getX(i + 2), u.getY(i + 2));
-        u.setXY(i + 2, ub[0], ub[1]);
-      }
-    }
-    g.computeVertexNormals();
-    // the land is a few large triangles: no vertex snap and no affine warp on it,
-    // or the cobbles swirl (the texture uses world coordinates, so it stays straight)
     const cob = mats.cobble as THREE.MeshPhongMaterial;
-    const groundMat = psx(new THREE.MeshPhongMaterial({ map: cob.map, color: cob.color, specular: cob.specular, shininess: cob.shininess }), { noSnap: true, affine: 0 });
-    const ground = new THREE.Mesh(g, groundMat);
-    ground.name = "ground";
-    group.add(ground);
+    const zones = (data as unknown as { ground?: Record<string, number[][]> }).ground ?? { cobble: data.land };
+    const zoneMat: Record<string, [THREE.Material, number]> = {
+      cobble: [psx(new THREE.MeshPhongMaterial({ map: cob.map, color: cob.color, specular: cob.specular, shininess: cob.shininess }), { noSnap: true, affine: 0, wet: true, puddles: 1 }), 2],
+      earth: [psx(new THREE.MeshLambertMaterial({ map: earthTexture() }), { noSnap: true, affine: 0, wet: true, puddles: 1.3 }), 4],
+      flags: [psx(new THREE.MeshPhongMaterial({ map: flagsTexture(), specular: 0x1a1a1a, shininess: 12 }), { noSnap: true, affine: 0, wet: true, puddles: 0.75 }), 4],
+    };
+    for (const [zone, tris] of Object.entries(zones)) {
+      const [mat, tile] = zoneMat[zone] ?? zoneMat.cobble;
+      const pos: number[] = [];
+      const uv: number[] = [];
+      for (const t of tris) {
+        // wind every triangle upward (normal +y)
+        let [ax, az, bx, bz, cx, cz] = t;
+        if ((bx - ax) * (cz - az) - (bz - az) * (cx - ax) > 0) [bx, bz, cx, cz] = [cx, cz, bx, bz];
+        for (const [x, z] of [[ax, az], [bx, bz], [cx, cz]]) {
+          pos.push(x, 0, z);
+          uv.push(x / tile, z / tile);
+        }
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+      g.computeVertexNormals();
+      const ground = new THREE.Mesh(g, mat);
+      ground.name = `ground_${zone}`;
+      groundMirror.attach(ground);
+      group.add(ground);
+    }
   }
 
   // --- quay walls and edge stones along every water edge
   {
     const wall: number[] = [];
     const wallUv: number[] = [];
+    const wallCol: number[] = [];
     const cope: number[] = [];
     const copeUv: number[] = [];
     const quad = (arr: number[], uvs: number[], a: number[], b: number[], c: number[], d: number[], L: number, H: number) => {
       arr.push(...a, ...b, ...c, ...a, ...c, ...d);
       uvs.push(0, 0, L, 0, L, H, 0, 0, L, H, 0, H);
     };
+    // the wall in bands, coloured by height: green slime at the waterline, a dark wet band above it
+    const shade = slimeShade(waterY);
+    const y0 = waterY - 1.5;
+    const bands = [y0, ...slimeCuts(waterY).filter((y) => y > y0 && y < 0), 0];
     for (const [ax, az, bx, bz] of data.quays) {
       const L = Math.hypot(bx - ax, bz - az);
       if (L < 0.01) continue;
-      const y0 = waterY - 1.5;
-      quad(wall, wallUv, [ax, y0, az], [bx, y0, bz], [bx, 0, bz], [ax, 0, az], L / 4, (0 - y0) / 4);
+      for (let i = 0; i < bands.length - 1; i++) {
+        const [ya, yb] = [bands[i], bands[i + 1]];
+        const [va, vb] = [(ya - y0) / 4, (yb - y0) / 4];
+        wall.push(ax, ya, az, bx, ya, bz, bx, yb, bz, ax, ya, az, bx, yb, bz, ax, yb, az);
+        wallUv.push(0, va, L / 4, va, L / 4, vb, 0, va, L / 4, vb, 0, vb);
+        for (const y of [ya, ya, yb, ya, yb, yb]) wallCol.push(...shade(y));
+      }
       // edge stones: a flat band on top, 0.5 m wide, slightly raised
       const nx = -(bz - az) / L;
       const nz = (bx - ax) / L;
@@ -152,10 +163,11 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
     };
     const wallMat = (mats.quayWall as THREE.MeshLambertMaterial).clone();
     wallMat.side = THREE.DoubleSide;
+    wallMat.vertexColors = true;
     const copeMat = (mats.wallDecal as THREE.MeshLambertMaterial).clone();
     copeMat.side = THREE.DoubleSide;
-    mk(wall, wallUv, psx(wallMat, { noSnap: true, affine: 0 }));
-    mk(cope, copeUv, psx(copeMat, { noSnap: true, affine: 0 }));
+    mk(wall, wallUv, psx(wallMat, { noSnap: true, affine: 0 })).geometry.setAttribute("color", new THREE.Float32BufferAttribute(wallCol, 3));
+    mk(cope, copeUv, psx(copeMat, { noSnap: true, affine: 0, wet: true }));
   }
 
   // --- landmarks: stand-in blocks until their Blender models are in
@@ -178,6 +190,8 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
     glass: psx(new THREE.MeshLambertMaterial({ map: glassTexture(), vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 }),
     brickband: psx(new THREE.MeshLambertMaterial({ map: brickBandTexture(), vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 }),
     lead: psx(new THREE.MeshLambertMaterial({ color: 0x4a4e52, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 }),
+    // the gilt cross, ball and clock dials of the cathedral
+    gilt: psx(new THREE.MeshLambertMaterial({ color: 0xc8a040, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 }),
   };
   const lmLoader = new GLTFLoader().setDRACOLoader(new DRACOLoader().setDecoderPath("/draco/"));
   const landmarks = lmLoader.loadAsync("/models/landmarks.glb").then((gltf) => {
@@ -186,6 +200,16 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;
       const name = (m.material as THREE.Material).name;
+      // "<building>_atlas": windows, clock, statues painted into a texture in the glb
+      if (name.endsWith("_atlas") && !lmMats[name]) {
+        const map = (m.material as THREE.MeshStandardMaterial).map;
+        if (map) {
+          map.magFilter = THREE.NearestFilter;
+          map.minFilter = THREE.NearestFilter;
+          map.generateMipmaps = false;
+          lmMats[name] = psx(new THREE.MeshLambertMaterial({ map, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 });
+        }
+      }
       m.material = lmMats[name] ?? lmMats.stone;
       meshes.push(m);
     });
@@ -205,7 +229,7 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
   const facade = psx(new THREE.MeshLambertMaterial({ map: facadeAtlas(), vertexColors: true, side: DS }), { atlas: 4, affine: 0 });
   const roof = psx(new THREE.MeshLambertMaterial({ map: roofAtlas(), vertexColors: true, side: DS }), { atlas: 2, affine: 0 });
   const wood = psx(new THREE.MeshLambertMaterial({ map: makeTextures().planks, vertexColors: true, side: DS }), { affine: 0.2 });
-  const leaves = psx(new THREE.MeshLambertMaterial({ vertexColors: true, side: DS }), { affine: 0 });
+  const leaves = psx(new THREE.MeshLambertMaterial({ map: leafTexture(), vertexColors: true, side: DS }), { affine: 0 });
   const trim = psx(new THREE.MeshLambertMaterial({ map: stoneTexture(), vertexColors: true, side: DS }), { affine: 0.2 });
   const chunks: THREE.Mesh[] = [];
   const draco = new DRACOLoader().setDecoderPath("/draco/");

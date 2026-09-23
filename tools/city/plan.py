@@ -455,6 +455,31 @@ def make_storehouse(bi, poly, kind, water, rng):
     }
 
 
+def ground_zones(city, houses, landmarks):
+    """Split the land into three paving kinds, as in the period photos:
+    earth: the working quays along the river and the dock (packed earth, setts, straw);
+    flags: the open squares (big flagstones); cobble: the streets and the canal quays."""
+    area = Polygon(city["area"])
+    water = unary_union([poly_of(w) for w in city["water"]])
+    land = area.difference(water).buffer(0)
+    solids = unary_union([Polygon(house_solid(h)).buffer(0) for h in houses] + [Polygon(l["fp"]).buffer(0) for l in landmarks.values()])
+    open_water = water.buffer(-7).buffer(7)  # the river and the dock; the narrow canals drop out
+    earth = land.intersection(open_water.buffer(24)).difference(solids.buffer(3.0))
+    flags = land.difference(solids.buffer(9.0)).buffer(-1.0).buffer(1.0).difference(earth)
+    cobble = land.difference(earth).difference(flags)
+    out = {}
+    for name, g in (("earth", earth), ("flags", flags), ("cobble", cobble)):
+        tris = []
+        for p in pieces(g.buffer(0)):
+            if p.area < 1:
+                continue
+            for t in shapely.constrained_delaunay_triangles(p.simplify(0.2)).geoms:
+                c = list(t.exterior.coords)[:3]
+                tris.append([round(v, 2) for xy in c for v in xy])
+        out[name] = tris
+    return out
+
+
 def main():
     global BRIDGES, DOORS
     city = json.load(open(CITY))
@@ -523,6 +548,7 @@ def main():
     tris, quays = land_and_quays(city)
     city["landmarks"] = landmarks
     city["land"] = tris
+    city["ground"] = ground_zones(city, houses, landmarks)
     city["quays"] = quays
     city["bridges"] = BRIDGES
     if designed:

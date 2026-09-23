@@ -109,7 +109,7 @@ export interface Clock {
   hour: number;
   minute: number;
   weekday: string;
-  weather: "fog" | "mist" | "clear";
+  weather: "fog" | "mist" | "clear" | "rain";
 }
 
 export interface Ending {
@@ -145,6 +145,81 @@ export interface TalkLine {
   gated?: string | null;
 }
 
+// ---- the town (M3e). The server made it; the client walks it by the game clock.
+
+export type Pt = [number, number];
+export type Act = "home" | "work" | "tavern" | "play" | "market" | "church" | "stroll" | "loiter";
+export type Seg = [number, number, Act, string?];
+export type WorkKind = "haul" | "stall" | "shop" | "tavern" | "patrol" | "roam" | "inside" | "beg" | "post";
+
+export interface WorkSpec {
+  place: string;
+  kind: WorkKind;
+  at?: [number, number, number];
+  a?: Pt;
+  b?: Pt;
+  route?: Pt[];
+  door?: Pt;
+  stall?: number;
+  shop?: string;
+}
+
+export interface TownResident {
+  id: string;
+  name: string;
+  first: string;
+  age: number;
+  sex: "m" | "f";
+  kind: string;
+  trade: string;
+  label: string;
+  household: number;
+  role: string;
+  home: { house: number; x: number; z: number; sx: number; sz: number };
+  work: WorkSpec;
+  sched: { day: Seg[]; sunday: Seg[] };
+  dog: { name: string; look: string } | null;
+  wares: Ware[];
+}
+
+export interface TownPlace {
+  label: string;
+  x: number;
+  z: number;
+  r: number;
+  district: string;
+  door?: Pt;
+  out?: Pt;
+}
+
+export interface TownStall {
+  place: string;
+  x: number;
+  z: number;
+  face: Pt;
+  goods: string;
+  keeper: string | null;
+}
+
+export interface TownShop {
+  id: string;
+  label: string;
+  door: Pt;
+  wall: Pt;
+  out: Pt;
+  goods: string | null;
+  keeper: string;
+}
+
+export interface TownData {
+  seed: number;
+  places: Record<string, TownPlace>;
+  stalls: TownStall[];
+  shops: TownShop[];
+  employers: Array<{ id: string; spot: string }>;
+  residents: TownResident[];
+}
+
 async function call<T>(method: string, url: string, body?: unknown, timeoutMs = 8000): Promise<T> {
   const res = await fetch(url, {
     method,
@@ -172,9 +247,14 @@ export const api = {
   tick: () => call<JobsPayload & { advanced: boolean; night?: Night; ended?: Ending }>("POST", "/api/tick"),
   sleep: () => call<JobsPayload & { night: Night }>("POST", "/api/sleep"),
   rent: () => call<JobsPayload & { paid: boolean; text: string }>("POST", "/api/rent"),
+  /** Fell into the Schelde: the server takes the cold off your warmth (once per swim). */
+  swim: () => call<JobsPayload & { cold: boolean }>("POST", "/api/swim"),
   newGame: () => call<JobsPayload>("POST", "/api/new-game"),
   devSet: (v: Partial<Record<"day" | "hour" | "minute" | "food" | "warmth" | "health" | "sleep" | "money_c", number>>) =>
     call<JobsPayload>("POST", "/api/dev/set", v),
+  town: () => call<TownData>("GET", "/api/town", undefined, 15_000),
+  pick: (id: string) => call<JobsPayload & { took_c: number; felt: boolean; text: string }>("POST", `/api/resident/${id}/pick`),
+  catchThief: (id: string) => call<JobsPayload & { back_c: number; text: string }>("POST", `/api/resident/${id}/catch`),
   done: (id: number, report: Report) =>
     call<{ job: Job; settlement: Settlement; money_c: number }>("POST", `/api/jobs/${id}/done`, report),
 };

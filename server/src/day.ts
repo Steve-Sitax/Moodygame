@@ -1,5 +1,7 @@
 import type { DB } from "./db.ts";
 import { log, player } from "./game.ts";
+import { remember } from "./npcs.ts";
+import { spreadRumours } from "./town/rumours.ts";
 
 // The day and the week (M5). The engine owns time and needs (docs/01, docs/03).
 // A client says "time passed while I played" with a tick; the server decides how
@@ -16,22 +18,23 @@ export const RENT_C = 150; // a week's bed in the doss house, due by Sunday (day
 export const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 /** Weather for the day (Steve, 2026-09-23: "we do not always need fog"). Monday is always fog. */
-export type Weather = "fog" | "mist" | "clear";
+export type Weather = "fog" | "mist" | "clear" | "rain";
 export const WEATHER_TEXT: Record<Weather, string> = {
   fog: "thick river fog",
   mist: "a thin mist that lifts by noon",
   clear: "clear and cold, the far bank in sight",
+  rain: "cold rain off the sea, the cobbles running wet",
 };
 
 export function weather(db: DB): Weather {
   const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'weather'").get() as { value_json: string } | undefined;
   const w = row ? (JSON.parse(row.value_json) as string) : "fog";
-  return w === "mist" || w === "clear" ? w : "fog";
+  return w === "mist" || w === "clear" || w === "rain" ? w : "fog";
 }
 
-/** A new morning, a new sky: fog 40 %, mist 35 %, clear 25 %. */
+/** A new morning, a new sky: fog 35 %, mist 30 %, clear 20 %, rain 15 %. */
 export function rollWeather(db: DB, roll = Math.random()): Weather {
-  const w: Weather = roll < 0.4 ? "fog" : roll < 0.75 ? "mist" : "clear";
+  const w: Weather = roll < 0.35 ? "fog" : roll < 0.65 ? "mist" : roll < 0.85 ? "clear" : "rain";
   db.prepare("INSERT INTO world_state (key, value_json) VALUES ('weather', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(
     JSON.stringify(w),
   );
@@ -95,10 +98,27 @@ export function applyHour(db: DB, hour: number): { healthZero: boolean } {
 }
 
 let lastTickAt = 0;
+let lastSwimAt = -Infinity;
 
 /** Test helper. */
 export function resetTickLimit(): void {
   lastTickAt = 0;
+  lastSwimAt = -Infinity;
+}
+
+/** A dip counts once however long you are in: a new one only after this long. */
+export const SWIM_EVERY_MS = 60_000;
+
+/**
+ * Jef fell into the Schelde (the client says so once per fall): the cold takes 1 warmth,
+ * clamped at 0. At most once a minute, whatever the client sends.
+ */
+export function swim(db: DB, now = Date.now()): { cold: boolean } {
+  if (ending(db)) return { cold: false };
+  if (now - lastSwimAt < SWIM_EVERY_MS) return { cold: false };
+  lastSwimAt = now;
+  db.prepare("UPDATE player SET warmth = MAX(0, warmth - 1) WHERE id = 1").run();
+  return { cold: true };
 }
 
 export type TickResult = { advanced: boolean; night?: SleepResult; ended?: Ending };
@@ -116,6 +136,8 @@ export function tick(db: DB, now = Date.now()): TickResult {
     hour++;
     db.prepare("UPDATE player SET hour = ?, minute = ? WHERE id = 1").run(hour, minute);
     const { healthZero } = applyHour(db, hour % 24);
+    // M3e: an hour of talk in the town; rumours about Jef pass on
+    spreadRumours(db);
     if (healthZero) return { advanced: true, ended: endGame(db, "health") };
     if (hour >= 24) return { advanced: true, night: sleep(db, "rough") };
   } else db.prepare("UPDATE player SET minute = ? WHERE id = 1").run(minute);
@@ -180,10 +202,14 @@ export function sleep(db: DB, want: "bed" | "rough"): SleepResult {
       db.prepare("UPDATE job SET status = 'failed' WHERE id = ?").run(j.id);
       db.prepare("DELETE FROM item WHERE job_id = ?").run(j.id);
       log(db, "abandoned_job", String(j.id), `Jef left the job "${j.title}" undone when night fell.`);
+      const boss = (db.prepare("SELECT name FROM npc WHERE id = ?").get(j.employer_npc) as { name: string } | undefined)?.name ?? "his employer";
+      remember(db, j.employer_npc, `Jef took my job "${j.title}" and left it undone when night fell.`, 5, "seen", null, { gist: `Jef left a job for ${boss} undone`, tone: -1 });
     }
     if (open.length) summary.push(`You left ${open.length === 1 ? "a job" : open.length + " jobs"} undone. Nobody pays for that.`);
     log(db, where === "bed" ? "slept" : "slept_rough", null, where === "bed" ? "Jef slept in the doss house." : "Jef slept rough on the quay.");
     consolidate(db);
+    // a night of talk in the taverns and over the back walls (M3e)
+    for (let i = 0; i < 3; i++) spreadRumours(db);
   })();
 
   const after = player(db);

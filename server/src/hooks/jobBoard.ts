@@ -4,6 +4,7 @@ import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import type { DB, Faction } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
 import SPOT_TABLE from "../../../shared/spots.json" with { type: "json" };
+import { TOWN_EMPLOYERS } from "../town/places.ts";
 
 // job_board hook, docs/03. Claude writes the words and picks from engine
 // lists (goods, places, twist). The engine owns pay, counts, time limits,
@@ -59,7 +60,39 @@ export const EMPLOYERS = {
     note: "ferryman and night lighter, pays for silence, asks few questions",
   },
 } as const satisfies Record<string, { name: string; faction: Faction; door: SpotId; note: string }>;
-export type EmployerId = keyof typeof EMPLOYERS;
+
+/** The ground of the first three employers: the eight spots of M2 (unchanged). */
+const RIJNKAAI_SPOTS: SpotId[] = ["pier_head", "crane_foot", "hessenatie_door", "katoen_door", "peeters_dock", "ship_gangway", "west_sheds", "east_carts"];
+
+export interface EmployerDef {
+  faction: Faction;
+  door: SpotId;
+  note: string;
+  /** The spots their work may use: from, to, post. The engine holds them to it. */
+  area: SpotId[];
+  /** A townsperson (M3e): the name comes from the town, the id is fixed. */
+  town: boolean;
+  /** Fixed name (the Rijnkaai three). */
+  name?: string;
+}
+
+/**
+ * Everyone who hires (M3e): the three of the Rijnkaai and the five townspeople
+ * at the other quays (town/places.ts TOWN_EMPLOYERS).
+ */
+export const ALL_EMPLOYERS: Record<string, EmployerDef> = {
+  ...Object.fromEntries(Object.entries(EMPLOYERS).map(([id, e]) => [id, { ...e, area: RIJNKAAI_SPOTS, town: false }])),
+  ...Object.fromEntries(TOWN_EMPLOYERS.map((e) => [e.id, { faction: e.faction, door: e.spot as SpotId, note: e.note, area: e.area as SpotId[], town: true }])),
+};
+export const EMPLOYER_IDS = Object.keys(ALL_EMPLOYERS) as [string, ...string[]];
+export type EmployerId = string;
+
+/** An employer's name: fixed for the Rijnkaai three, from the town for the others. */
+export function employerName(db: DB, id: string): string {
+  const e = ALL_EMPLOYERS[id];
+  if (e?.name) return e.name;
+  return (db.prepare("SELECT name FROM npc WHERE id = ?").get(id) as { name: string } | undefined)?.name ?? id;
+}
 
 /** docs/01 tier table. */
 const TIER_PAY: Array<[number, number]> = [
@@ -79,7 +112,7 @@ export const BoardSchema = z.object({
     .array(
       z.object({
         title: z.string().min(3).max(70),
-        employer: enumOf(Object.keys(EMPLOYERS) as EmployerId[]),
+        employer: enumOf(EMPLOYER_IDS),
         task_type: z.enum(TASK_TYPES),
         goods: z.enum(GOODS),
         from: enumOf(SPOT_IDS),
@@ -93,7 +126,7 @@ export const BoardSchema = z.object({
       }),
     )
     .min(3)
-    .max(5),
+    .max(7),
 });
 export type Board = z.infer<typeof BoardSchema>;
 type BoardJob = Board["jobs"][number];
@@ -185,19 +218,19 @@ export function buildPrompt(db: DB): string {
   const tier = maxTier(db);
   const [lo, hi] = TIER_PAY[tier];
 
-  return `Write the job board for the hiring spot on the Rijnkaai.
+  return `Write the job board for the hiring spot on the Rijnkaai. It carries work from all the quays of the town.
 
 WORLD STATE
 Day ${p.day} of 7, hour ${p.hour}. Weather: ${sky}.
 ${p.name} has ${p.money_c} centimes. Trust per faction (0-10): ${trust.map((t) => `${t.faction} ${t.trust}`).join(", ")}.
 Only tier ${tier} work is open to him.
 
-EMPLOYERS WHO HIRE HERE
-${Object.entries(EMPLOYERS)
-  .map(([id, e]) => `- ${id}: ${e.name}, ${e.note}. Their door: ${e.door}.`)
+EMPLOYERS WHO HIRE (id: name, what they are. Their own places: only these ids for their "from" and "to")
+${Object.entries(ALL_EMPLOYERS)
+  .map(([id, e]) => `- ${id}: ${employerName(db, id)}, ${e.note}. Their door: ${e.door}. Their places: ${e.area.join(", ")}.`)
   .join("\n")}
 
-PLACES ON THE QUAY (use these ids for "from" and "to")
+PLACES (use these ids for "from" and "to")
 ${SPOT_IDS.map((id) => `- ${id}: ${SPOTS[id].desc}`).join("\n")}
 
 RECENT LOG (newest first)
@@ -213,7 +246,9 @@ KINDS OF WORK
 - recipient: empty string unless the job is deliver.
 
 RULES FOR THE BOARD
-- 3 to 5 jobs. At least one carry, one watch and one deliver. Vary employers, goods and places.
+- 4 to 7 jobs. At least one carry, one watch and one deliver. Vary employers, goods and places.
+- At least two jobs from employers away from the Rijnkaai (katoen, vishandel, waterschout, brouwer, koster).
+- Each job uses only its employer's own places.
 - task_type may also be row, find or talk, but those cannot be played yet; use them at most once.
 - pay_c between ${lo} and ${hi}. Heavier, riskier or shadier work pays more.
 - pitch: 1 to 3 short sentences, as the employer or the board would say it. Name the goods and the places in words, not ids.
@@ -249,7 +284,19 @@ const dist = (a: SpotId, b: SpotId) => Math.hypot(SPOTS[a].x - SPOTS[b].x, SPOTS
  */
 export function taskFor(j: BoardJob): Task | null {
   const twist: Twist = (TWISTS_FOR[j.task_type] ?? ["none"]).includes(j.twist) ? j.twist : "none";
-  const employer = EMPLOYERS[j.employer];
+  const employer = ALL_EMPLOYERS[j.employer];
+  // M3e: a townsperson's work stays on their own ground (walking range); the engine moves strays back
+  const area = employer.area;
+  if (employer.town) {
+    const own = (s: SpotId, other: SpotId): SpotId => (area.includes(s) ? s : (area.find((a) => a !== other && a !== employer.door) ?? employer.door));
+    j = { ...j, from: own(j.from, j.to), to: own(j.to, j.from) };
+    if (j.task_type !== "watch" && j.from === j.to) j = { ...j, to: j.from === employer.door ? (area.find((a) => a !== employer.door) ?? employer.door) : employer.door };
+    // a carry is short work: at most 70 m a trip; else the nearest of their places
+    if (j.task_type === "carry" && dist(j.from, j.to) > 70) {
+      const near = area.filter((a) => a !== j.from).sort((a, b) => dist(j.from, a) - dist(j.from, b))[0];
+      if (near) j = { ...j, to: near };
+    }
+  }
   if (j.task_type === "carry") {
     const from = j.from;
     let to = j.to;
@@ -267,7 +314,7 @@ export function taskFor(j: BoardJob): Task | null {
   if (j.task_type === "deliver") {
     const from = employer.door;
     let to = j.to;
-    if (to === from) to = "ship_gangway";
+    if (to === from) to = employer.town ? (area.find((a) => a !== from) ?? to) : "ship_gangway";
     if (to === from) to = "east_carts";
     const recipient = j.recipient || "the mate on watch";
     const limit_s = j.urgent ? Math.round((dist(from, to) / 0.95) * 1.6 + 20) : null;
@@ -342,6 +389,34 @@ export const FALLBACK_BOARD: Board = {
       risk: "medium",
       pitch: "Take this to the mate at the gangway before the tide turns. Don't open it. Don't sell it.",
     },
+    {
+      title: "Cotton bales to the Entrepot",
+      employer: "katoen",
+      task_type: "carry",
+      goods: "sacks",
+      from: "entrepot_quay",
+      to: "katoen_door",
+      twist: "none",
+      urgent: false,
+      recipient: "",
+      pay_c: 100,
+      risk: "low",
+      pitch: "Bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+    },
+    {
+      title: "A letter for the pump",
+      employer: "koster",
+      task_type: "deliver",
+      goods: "parcel",
+      from: "cathedral_door",
+      to: "handschoen_well",
+      twist: "none",
+      urgent: false,
+      recipient: "the chapter's messenger",
+      pay_c: 60,
+      risk: "low",
+      pitch: "The chapter's letter, to the messenger who waits by the pump on the Handschoenmarkt. Straight there.",
+    },
   ],
 };
 
@@ -368,13 +443,15 @@ export async function makeBoard(
   const { day, hour } = db.prepare("SELECT day, hour FROM player WHERE id = 1").get() as { day: number; hour: number };
   const ins = db.prepare(
     `INSERT INTO job (day, title, employer_npc, district, task_type, pay_c, risk, tier, required_faction, pitch, task_json, source, status)
-     VALUES (?, ?, ?, 'rijnkaai', ?, ?, ?, ?, ?, ?, ?, ?, 'offered')`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'offered')`,
   );
   db.transaction(() => {
     db.prepare("UPDATE job SET status = 'expired' WHERE status = 'offered'").run();
     for (const j of board.jobs) {
       const task = PLAYABLE.has(j.task_type) ? taskFor(j) : null;
-      ins.run(day, j.title, j.employer, j.task_type, j.pay_c, j.risk, tier, EMPLOYERS[j.employer].faction, j.pitch, JSON.stringify(task ?? {}), source);
+      const e = ALL_EMPLOYERS[j.employer];
+      const district = e.town ? ((db.prepare("SELECT district FROM npc WHERE id = ?").get(j.employer) as { district: string } | undefined)?.district ?? "town") : "rijnkaai";
+      ins.run(day, j.title, j.employer, district, j.task_type, j.pay_c, j.risk, tier, e.faction, j.pitch, JSON.stringify(task ?? {}), source);
     }
     db.prepare(
       "INSERT INTO log (day, hour, place, actor, verb, object, text) VALUES (?, ?, 'rijnkaai', 'world', 'job_board', ?, ?)",
@@ -397,7 +474,7 @@ export function listJobs(db: DB, day: number): JobRow[] {
     const parsed = JSON.parse(task_json) as Partial<Task>;
     return {
       ...r,
-      employer_name: EMPLOYERS[r.employer_npc as EmployerId]?.name ?? r.employer_npc,
+      employer_name: employerName(db, r.employer_npc),
       task: parsed.kind ? (parsed as Task) : null,
       playable: PLAYABLE.has(r.task_type) && !!parsed.kind,
     };

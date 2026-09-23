@@ -1,6 +1,10 @@
 import { api, type Job, type JobsPayload, type TalkLine, type Ware } from "../net/api";
 import type { FirstPerson } from "../player/firstPerson";
-import type { Npc } from "./people";
+/** Anyone you can talk to: the people of the quay (people.ts) and every townsperson (town.ts). */
+export interface Speaker {
+  id: string;
+  def: { name: string; title?: string };
+}
 import { esc } from "./runs";
 
 // The talk window (M3). The NPC speaks; Jef picks one of three lines (1-3),
@@ -9,7 +13,10 @@ import { esc } from "./runs";
 // model: a "..." shows while the line is written (4-9 s, docs/03).
 
 export class Talk {
-  private npc: Npc | null = null;
+  private npc: Speaker | null = null;
+  /** Set by main: a townsperson stops and faces Jef while they talk (M3e). */
+  onOpen: (id: string) => void = () => {};
+  onClose: (id: string) => void = () => {};
   private busy = false;
   private ended = false;
   private choices: string[] = [];
@@ -58,9 +65,16 @@ export class Talk {
     return (this.wares.get(id)?.length ?? 0) > 0;
   }
 
+  /** What a townsperson sells (M3e: from the town, not from /api/npcs). */
+  setWares(id: string, wares: Ware[]): void {
+    this.wares.set(id, wares);
+  }
+
   /** Talk, or (shopOnly) go straight to the wares without a conversation. */
-  open(npc: Npc, shopOnly = false): void {
+  open(npc: Speaker, shopOnly = false): void {
+    if (this.npc && this.npc.id !== npc.id) this.onClose(this.npc.id);
     this.npc = npc;
+    this.onOpen(npc.id);
     this.lines = [];
     this.choices = [];
     this.ended = shopOnly;
@@ -74,6 +88,7 @@ export class Talk {
   }
 
   close(): void {
+    if (this.npc) this.onClose(this.npc.id);
     this.npc = null;
     this.typing = false;
     this.player.frozen = false;
@@ -166,7 +181,7 @@ export class Talk {
         : opts
           ? `<ol class="choices">${opts}</ol>`
           : "";
-    this.el.innerHTML = `<div class="who">${esc(npc.def.name)}${this.mood ? ` <i>${esc(this.mood)}</i>` : ""}</div>
+    this.el.innerHTML = `<div class="who">${esc(npc.def.name)}${npc.def.title ? `<span class="title">, ${esc(npc.def.title)}</span>` : ""}${this.mood ? ` <i>${esc(this.mood)}</i>` : ""}</div>
       ${body}${wait}
       ${list}
       <p class="keys">${this.note ? esc(this.note) : keys}</p>`;

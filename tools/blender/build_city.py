@@ -93,6 +93,12 @@ class Builder:
             self.face([(a[0], y0, a[1]), (b[0], y0, b[1]), (b[0], y1, b[1]), (a[0], y1, a[1])], MAT_FACADE,
                       [(0, y0 / self.sh), (L / BAY, y0 / self.sh), (L / BAY, y1 / self.sh), (0, y1 / self.sh)], cell, facing)
             return
+        # a kerb of stone slabs along the street wall, and the gutter outside it
+        if y0 == 0:
+            ox, oz = facing[0], facing[2]
+            ux, uz = (b[0] - a[0]) / L, (b[1] - a[1]) / L
+            mx, mz = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
+            self.box(mx + ox * 0.35, 0.06, mz + oz * 0.35, L, 0.12, 0.7, ux, uz, MAT_STONE, (0, 0), 0.42)
         # ground storey: one bay with the door (on the house front), the others with windows
         gy = min(y1, self.gh)
         if gy > y0:
@@ -156,6 +162,20 @@ class Builder:
         street = h["street"]
         for i in range(4):
             self.wall(c[i], c[(i + 1) % 4], 0, H, style, street[i], outs[i], door=(i == 0 and street[0]))
+        if not h.get("store") and street[0] and W >= 6.5 and rng.random() < 0.22:
+            # a carriage gateway: a stone arch round a tall wooden gate, in the door bay
+            bays = max(1, round(W / BAY))
+            sc = s0 + (bays // 2 + 0.5) * W / bays
+            ga = (-nx, -nz)
+            for side in (-1, 1):
+                px, pz = P(sc + side * 1.55, t0 - 0.12)
+                self.box(px, 1.5, pz, 0.35, 3.0, 0.3, ux, uz, MAT_STONE, (0, 0), 0.85)
+            for k in range(7):
+                ang = math.pi * k / 6
+                ax_, az_ = P(sc - math.cos(ang) * 1.55, t0 - 0.12)
+                self.box(ax_, 3.0 + math.sin(ang) * 0.9, az_, 0.45, 0.35, 0.3, ux, uz, MAT_STONE, (0, 0), 0.9)
+            gx, gz = P(sc, t0 - 0.07)
+            self.box(gx, 1.75, gz, 2.7, 3.5, 0.08, ux, uz, MAT_WOOD, (0, 0), 0.55)
         if h.get("store") and street[0]:
             # a storehouse: a column of loading doors up the front every few bays,
             # each under a hoist beam that sticks out at the eaves
@@ -469,7 +489,7 @@ class Builder:
         a crown of three low-poly clumps in yellow, rust and faded green."""
         h = rng.uniform(3.6, 4.6)
         self.box(x, h / 2, z, 0.22, h, 0.22, 1.0, 0.0, MAT_WOOD, (0, 0), 0.35)
-        colours = [(0.42, 0.24, 0.05), (0.33, 0.12, 0.04), (0.15, 0.19, 0.06), (0.5, 0.35, 0.09)]  # linear: rust, brown, faded green, yellow
+        colours = [(1.0, 0.86, 0.72), (0.92, 0.72, 0.62), (0.78, 0.9, 0.7), (1.0, 0.96, 0.78)]  # tints over the leaf texture
         for i in range(5):
             cx = x + rng.uniform(-0.9, 0.9)
             cz = z + rng.uniform(-0.9, 0.9)
@@ -489,6 +509,17 @@ class Builder:
                     loop[self.cell].uv = (0, 0)
                     g = 0.75 + 0.25 * (co.z - (cy - r)) / (2 * r)
                     loop[self.col] = (col[0] * g, col[1] * g, col[2] * g, 1.0)
+
+    def track(self, x0, z0, x1, z1):
+        """A railway track laid in the cobbles: two iron rails, standard gauge."""
+        L = math.hypot(x1 - x0, z1 - z0)
+        ux, uz = (x1 - x0) / L, (z1 - z0) / L
+        nx, nz = -uz, ux
+        mx, mz = (x0 + x1) / 2, (z0 + z1) / 2
+        for off in (-0.72, 0.72):
+            self.box(mx + nx * off, 0.018, mz + nz * off, L, 0.036, 0.07, ux, uz, MAT_STONE, (0, 0), 0.25)
+        # the stone setts along the rails
+        self.box(mx, 0.006, mz, L, 0.012, 2.1, ux, uz, MAT_STONE, (0, 0), 0.55)
 
     def rail(self, x0, z0, x1, z1):
         """An iron railing along the water: posts every 2 m, a top rail and a middle rail."""
@@ -552,7 +583,7 @@ def main():
     for x0, z0, x1, z1 in decor.get("rails", []):
         chunk_of([(x0, z0), (x1, z1)]).rail(x0, z0, x1, z1)
     for br in data.get("bridges", {}).values():
-        if br["kind"] in ("stone", "swing"):
+        if br["kind"] == "stone":  # the swing bridge over the lock moves: client/src/world/lock.ts
             x0, z0, x1, z1 = br["rect"]
             chunk_of([(x0, z0), (x1, z1)]).bridge(br)
     count = 0

@@ -252,3 +252,121 @@ export function glassTexture(): THREE.CanvasTexture {
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   return t;
 }
+
+/** The working quays: packed earth, scattered setts, straw and wheel ruts. One tile = 4 m. */
+export function earthTexture(): THREE.CanvasTexture {
+  const [c, g] = canvas(1);
+  const r = rand(21);
+  g.fillStyle = "#4a4136";
+  g.fillRect(0, 0, C, C);
+  noise(g, 0, 0, C, C, 0.35, r);
+  for (let i = 0; i < 26; i++) {
+    const x = Math.floor(r() * C);
+    const y = Math.floor(r() * C);
+    const v = 70 + Math.floor(r() * 40);
+    g.fillStyle = `rgb(${v},${v - 4},${v - 10})`;
+    g.fillRect(x, y, 3 + Math.floor(r() * 3), 2 + Math.floor(r() * 2));
+  }
+  g.fillStyle = "rgba(160,140,70,0.35)";
+  for (let i = 0; i < 40; i++) g.fillRect(Math.floor(r() * C), Math.floor(r() * C), 2, 1);
+  // soft darker and lighter patches (no straight lines: they repeat every tile and show as bands)
+  for (let i = 0; i < 10; i++) {
+    const x = r() * C;
+    const y = r() * C;
+    const rad = 4 + r() * 8;
+    g.fillStyle = r() < 0.5 ? "rgba(0,0,0,0.08)" : "rgba(255,240,210,0.05)";
+    for (const [ox, oy] of [[0, 0], [C, 0], [-C, 0], [0, C], [0, -C]]) {
+      g.beginPath();
+      g.arc(x + ox, y + oy, rad, 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+  const t = tex(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+/** The squares: big worn flagstones. One tile = 4 m. */
+export function flagsTexture(): THREE.CanvasTexture {
+  const [c, g] = canvas(1);
+  const r = rand(23);
+  g.fillStyle = "#57524c";
+  g.fillRect(0, 0, C, C);
+  for (let y = 0; y < C; y += 16) {
+    let x = (y / 16) % 2 ? -8 : 0;
+    while (x < C) {
+      const w = 12 + Math.floor(r() * 10);
+      const v = 84 + Math.floor(r() * 30);
+      const warm = Math.floor(r() * 8);
+      g.fillStyle = `rgb(${v + warm},${v},${v - 6})`;
+      g.fillRect(x + 1, y + 1, w - 1, 15);
+      // worn, dished middle and a chipped corner now and then
+      g.fillStyle = "rgba(0,0,0,0.07)";
+      g.fillRect(x + 3, y + 4, w - 5, 9);
+      if (r() < 0.3) {
+        g.fillStyle = "#57524c";
+        g.fillRect(x + w - 3, y + 12, 3, 4);
+      }
+      x += w;
+    }
+  }
+  noise(g, 0, 0, C, C, 0.2, r);
+  const t = tex(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+/** Autumn leaves: clumps of rust, yellow and brown with a little green left. */
+export function leafTexture(): THREE.CanvasTexture {
+  const [c, g] = canvas(1);
+  const r = rand(29);
+  g.fillStyle = "#3a2410";
+  g.fillRect(0, 0, C, C);
+  const cols = ["#8a4a18", "#a86a20", "#6e3a14", "#b88a30", "#5a5a24", "#7a3010"];
+  for (let i = 0; i < 700; i++) {
+    g.fillStyle = cols[Math.floor(r() * cols.length)];
+    g.fillRect(Math.floor(r() * C), Math.floor(r() * C), 2, 2);
+  }
+  const t = tex(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+/**
+ * The stone setts along a railway track (world/tracks.ts). u runs along the track
+ * (one tile = 2 m), v across the band (0..1 = 2.2 m): courses of small granite setts
+ * laid across, long edge stones on both sides, a dark groove inside each rail.
+ */
+export function settsTexture(): THREE.CanvasTexture {
+  const [c, g] = canvas(1);
+  const r = rand(31);
+  g.fillStyle = "#2c2a27";
+  g.fillRect(0, 0, C, C);
+  // courses across the track (canvas x = along, y = across)
+  for (let x = 0; x < C; x += 4) {
+    let y = 4 + Math.floor(r() * 3);
+    while (y < C - 4) {
+      const h = 4 + Math.floor(r() * 3);
+      const v = 70 + Math.floor(r() * 26);
+      g.fillStyle = `rgb(${v},${v - 1},${v - 5})`;
+      g.fillRect(x, y, 3, Math.min(h - 1, C - 4 - y));
+      y += h;
+    }
+  }
+  // edge stones: long, laid along the track
+  for (const y of [0, C - 4]) {
+    for (let x = 0; x < C; x += 16) {
+      const v = 82 + Math.floor(r() * 16);
+      g.fillStyle = `rgb(${v},${v - 2},${v - 7})`;
+      g.fillRect(x, y, 15, 3);
+    }
+  }
+  // the grooves on the inside of the rails (the rails sit at v = 0.174 and 0.826)
+  g.fillStyle = "#141210";
+  for (const v of [0.174, 0.826]) g.fillRect(0, Math.round(v * C) + (v < 0.5 ? 1 : -3), C, 2);
+  noise(g, 0, 0, C, C, 0.2, r);
+  const t = tex(c);
+  t.wrapS = THREE.RepeatWrapping;
+  t.wrapT = THREE.ClampToEdgeWrapping;
+  return t;
+}

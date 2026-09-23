@@ -72,6 +72,8 @@ export class RetroPass {
   private readonly mat: THREE.ShaderMaterial;
   width = 480;
   height = TARGET_HEIGHT;
+  /** Render height from the settings: TARGET_HEIGHT is the PS1 look, 0 = the full window. */
+  renderHeight = TARGET_HEIGHT;
 
   constructor(private readonly renderer: THREE.WebGLRenderer) {
     this.target = new THREE.WebGLRenderTarget(this.width, this.height, {
@@ -95,12 +97,17 @@ export class RetroPass {
     this.quadScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.mat));
   }
 
-  /** Keep 270 px height, follow the window aspect (480 wide at 16:9). */
-  resize(aspect: number): void {
-    this.height = TARGET_HEIGHT;
-    this.width = Math.max(1, Math.round(TARGET_HEIGHT * aspect));
+  /** Keep the render height (270 px: 480 wide at 16:9), follow the window aspect. */
+  resize(aspect: number, windowHeight = TARGET_HEIGHT): void {
+    this.height = Math.max(1, Math.round(this.renderHeight > 0 ? Math.min(this.renderHeight, windowHeight) : windowHeight));
+    this.width = Math.max(1, Math.round(this.height * aspect));
     this.target.setSize(this.width, this.height);
     (this.mat.uniforms.uRes.value as THREE.Vector2).set(this.width, this.height);
+  }
+
+  /** PS1 colour (5-bit with dither) or full colour. */
+  setPsxColour(on: boolean): void {
+    this.mat.uniforms.uLevels.value = on ? 32 : 256;
   }
 
   render(scene: THREE.Scene, camera: THREE.Camera, time: number): void {

@@ -39,6 +39,32 @@ const ICON: Record<string, Draw> = {
     g.strokeRect(11, 11, 10, 16);
     g.strokeRect(14, 5, 4, 6);
   },
+  // M3e: the town's shops
+  bread: (g) => {
+    g.beginPath();
+    g.ellipse(16, 18, 12, 7, 0, Math.PI, 0);
+    g.lineTo(28, 22);
+    g.lineTo(4, 22);
+    g.closePath();
+    g.stroke();
+    for (const x of [10, 16, 22]) {
+      g.beginPath();
+      g.moveTo(x - 2, 14);
+      g.lineTo(x + 2, 12);
+      g.stroke();
+    }
+  },
+  apple: (g) => {
+    g.beginPath();
+    g.arc(16, 18, 8, 0, Math.PI * 2);
+    g.stroke();
+    g.beginPath();
+    g.moveTo(16, 10);
+    g.lineTo(17, 5);
+    g.moveTo(17, 7);
+    g.quadraticCurveTo(22, 4, 23, 8);
+    g.stroke();
+  },
   parcel: (g) => {
     g.strokeRect(6, 9, 20, 15);
     g.beginPath();
@@ -69,56 +95,60 @@ const iconUrl = (kind: string) => {
 };
 
 /**
- * Needs as small drawings, full or hollow (one per 2 points): loaves (belly)
- * and flames (warmth) on top; moons (sleep) and hearts (health) below (M5).
+ * Needs, one row each with its name (Steve: "these icons I have no idea what they
+ * mean"): a word, then five small drawings, full or hollow (one per 2 points):
+ * loaves (food), flames (warmth), moons (sleep), hearts (health). A low need is red.
  */
 function needsDrawing(food: number, warmth: number, sleep: number, health: number): string {
+  const S = 2; // drawn at twice the size, shown at half: crisp on big screens
   const c = document.createElement("canvas");
-  c.width = 110;
-  c.height = 44;
+  c.width = 200 * S;
+  c.height = 92 * S;
   const g = c.getContext("2d")!;
-  g.strokeStyle = INK;
-  g.fillStyle = INK;
-  g.lineWidth = 1.2;
-  for (let i = 0; i < 5; i++) {
-    const x = 4 + i * 10;
-    g.beginPath();
-    g.ellipse(x + 4, 10, 4, 2.6, 0, Math.PI, 0);
-    g.lineTo(x + 8, 12);
-    g.lineTo(x, 12);
+  g.scale(S, S);
+  g.lineWidth = 1.3;
+  const loaf = (x: number, y: number) => {
+    g.ellipse(x + 5, y + 1, 5, 3.4, 0, Math.PI, 0);
+    g.lineTo(x + 10, y + 3.5);
+    g.lineTo(x, y + 3.5);
     g.closePath();
-    if (food >= (i + 1) * 2) g.fill();
-    else g.stroke();
-  }
-  for (let i = 0; i < 5; i++) {
-    const x = 58 + i * 10;
-    g.beginPath();
-    g.moveTo(x + 4, 16);
-    g.quadraticCurveTo(x + 9, 22, x + 4, 28);
-    g.quadraticCurveTo(x - 1, 22, x + 4, 16);
-    if (warmth >= (i + 1) * 2) g.fill();
-    else g.stroke();
-  }
-  for (let i = 0; i < 5; i++) {
-    // a crescent moon
-    const x = 4 + i * 10;
-    g.beginPath();
-    g.arc(x + 4, 37, 4, Math.PI * 0.35, Math.PI * 1.65);
-    g.arc(x + 6, 37, 3.2, Math.PI * 1.45, Math.PI * 0.55, true);
+  };
+  const flame = (x: number, y: number) => {
+    g.moveTo(x + 5, y - 6);
+    g.quadraticCurveTo(x + 11, y + 1, x + 5, y + 6);
+    g.quadraticCurveTo(x - 1, y + 1, x + 5, y - 6);
+  };
+  const moon = (x: number, y: number) => {
+    g.arc(x + 5, y, 5, Math.PI * 0.35, Math.PI * 1.65);
+    g.arc(x + 7.5, y, 4, Math.PI * 1.45, Math.PI * 0.55, true);
     g.closePath();
-    if (sleep >= (i + 1) * 2) g.fill();
-    else g.stroke();
-  }
-  for (let i = 0; i < 5; i++) {
-    // a heart
-    const x = 58 + i * 10;
-    g.beginPath();
-    g.moveTo(x + 4, 42);
-    g.bezierCurveTo(x - 2, 37, x + 1, 31, x + 4, 35);
-    g.bezierCurveTo(x + 7, 31, x + 10, 37, x + 4, 42);
-    if (health >= (i + 1) * 2) g.fill();
-    else g.stroke();
-  }
+  };
+  const heart = (x: number, y: number) => {
+    g.moveTo(x + 5, y + 6);
+    g.bezierCurveTo(x - 3, y, x + 1, y - 7, x + 5, y - 2);
+    g.bezierCurveTo(x + 9, y - 7, x + 13, y, x + 5, y + 6);
+  };
+  const rows: Array<[string, number, (x: number, y: number) => void]> = [
+    ["Food", food, loaf],
+    ["Warmth", warmth, flame],
+    ["Sleep", sleep, moon],
+    ["Health", health, heart],
+  ];
+  g.font = "bold 14px Georgia, 'Palatino Linotype', serif";
+  g.textBaseline = "middle";
+  rows.forEach(([label, v, draw], r) => {
+    const y = 12 + r * 22;
+    const col = v <= 2 ? "#8a1c10" : INK;
+    g.fillStyle = col;
+    g.strokeStyle = col;
+    g.fillText(label, 4, y);
+    for (let i = 0; i < 5; i++) {
+      g.beginPath();
+      draw(76 + i * 17, y);
+      if (v >= (i + 1) * 2) g.fill();
+      else g.stroke();
+    }
+  });
   return c.toDataURL();
 }
 
@@ -156,7 +186,7 @@ export class Pockets {
     if (key !== this.lastNeeds) {
       this.lastNeeds = key;
       this.needsImg.src = needsDrawing(food, warmth, sleep, health);
-      this.needsImg.title = `belly ${food}/10, warmth ${warmth}/10, sleep ${sleep}/10, health ${health}/10`;
+      this.needsImg.title = `food ${food}/10, warmth ${warmth}/10, sleep ${sleep}/10, health ${health}/10`;
     }
     this.render();
   }

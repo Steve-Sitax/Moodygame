@@ -1,14 +1,23 @@
 import * as THREE from "three";
 import type { Surface } from "../world/rijnkaai";
+import { cartRoutes, cityEmitters, nearestQuay, overWater, type Emitter, type EmitterKind } from "./emitters";
+import { CARILLON_SHORT, DOG_SPANS, SAMPLES, TOOT_SPANS, type SampleName } from "./samples";
 
-// Web Audio soundscape. Footsteps (Kenney Impact Sounds) and gulls
-// (BigSoundBank "Gulls on the Harbor") are CC0 recordings, see
-// assets/ATTRIBUTION.md. Everything else is made in code.
+// Web Audio soundscape. Recorded CC0 sounds wherever we have them (footsteps:
+// Kenney; gulls, bells, street and harbour sounds: BigSoundBank and Freesound;
+// see assets/ATTRIBUTION.md and audio/samples.ts). Made in code: the water and
+// wind beds under the recordings, gas hiss, the foghorn, the reverb.
 //
-// Beds: water against the quay, low wind, gas hiss per lamp.
-// Events: foghorn every 40-90 s, gulls, rope creak from the ships, footsteps.
+// Beds: water at the nearest quay edge, wind, crowd murmur (setCrowd), rain (setRain).
+// Positioned loops (emitters): bridges, pontoons, smithy, ships, taverns, markets, lamps.
+// Events: hour bells and carillon (setClock), watch bells on the ships, foghorn,
+// gulls, dogs, steam whistles, cranes, cooper, pumps, carts in the fog, footsteps.
+// Day and night (setClock): fewer street sounds at night, more water and wind.
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
+const pick = <T>(a: readonly T[]): T => a[Math.floor(Math.random() * a.length)];
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+const ramp = (v: number, a: number, b: number) => clamp01((v - a) / (b - a));
 
 // Parts of the gull recording (seconds) with clean calls and no boat noise.
 const GULL_SPANS: Array<[number, number]> = [
@@ -16,30 +25,178 @@ const GULL_SPANS: Array<[number, number]> = [
   [106, 114],
 ];
 
+export type Weather = "fog" | "mist" | "clear" | "rain";
+/** How far sounds carry: fog dulls and softens everything far off. The foghorn only in fog (Steve). */
+const WEATHER_FAR: Record<Weather, { lp: number; gain: number; horn: number }> = {
+  fog: { lp: 1300, gain: 0.6, horn: 1 },
+  mist: { lp: 2300, gain: 0.8, horn: 0 },
+  clear: { lp: 6000, gain: 1, horn: 0 },
+  rain: { lp: 2000, gain: 0.75, horn: 0 },
+};
+/** Before the first setWeather: a soft far bus and no foghorn (start silent, not "fog"). */
+const WEATHER_UNKNOWN = { lp: 2300, gain: 0.8, horn: 0 };
+/** Every horn or whistle (foghorn, ships) keeps this far from the one before, in seconds. */
+const HORN_GAP: [number, number] = [40, 90];
+
+/** Positioned loops by emitter kind: layers (sample, gain), audible radius, panner. */
+interface LoopDef {
+  layers: Array<[SampleName | "hiss", number]>;
+  radius: number;
+  ref: number;
+  rolloff: number;
+  lowpass?: number;
+  wet?: number;
+}
+const LOOPS: Partial<Record<EmitterKind, LoopDef>> = {
+  bridge: { layers: [["waterBridge", 0.9]], radius: 40, ref: 3, rolloff: 1.3, wet: 0.3 },
+  pontoon: { layers: [["waterPontoon", 1.3]], radius: 40, ref: 3, rolloff: 1.3, wet: 0.2 },
+  smithy: { layers: [["anvil", 0.6]], radius: 90, ref: 5, rolloff: 1.1, wet: 0.35 },
+  ship: { layers: [["shipCreak", 0.3]], radius: 30, ref: 3, rolloff: 1.4, wet: 0.2 },
+  tavern: { layers: [["tavernCrowd", 0.5], ["tavernSong", 0.55]], radius: 45, ref: 3, rolloff: 1.2, lowpass: 750, wet: 0.15 },
+  market: { layers: [["market", 0.6]], radius: 100, ref: 10, rolloff: 1, wet: 0.2 },
+  lamp: { layers: [["hiss", 0.012]], radius: 12, ref: 0.6, rolloff: 2.2 },
+};
+/** A horse and cart: hooves on the setts and iron-shod wheels, on one panner. */
+const CART: LoopDef = { layers: [["hooves", 0.9], ["wheels", 0.55]], radius: 120, ref: 5, rolloff: 1, wet: 0.25 };
+/** A handcart: just the wheels, smaller. */
+const HANDCART: LoopDef = { layers: [["wheels", 0.4]], radius: 50, ref: 3, rolloff: 1.2, wet: 0.2 };
+
+/** A vehicle the world shows (world/traffic.ts info()): its sound follows it. */
+export interface VehicleSound {
+  kind: "dray" | "handcart";
+  x: number;
+  z: number;
+  /** "go" rolls; anything else stands still (silent). */
+  state: string;
+}
+
+/**
+ * A ship under way on the river (world/boats.ts moving()). `steam`: it has an
+ * engine (steamer, paddle steamer, tug, paddle tug); otherwise it sails.
+ */
+export interface MovingShip {
+  id: string | number;
+  kind: string;
+  x: number;
+  z: number;
+  heading?: number;
+  /** m/s */
+  speed: number;
+  steam: boolean;
+}
+/** Engine and wheels of a steam ship: paddle kinds churn, screw kinds thump and wash. */
+const PADDLE_LOOP: LoopDef = { layers: [["paddleWheels", 0.8], ["shipEngine", 0.3]], radius: 120, ref: 8, rolloff: 1, lowpass: 6000, wet: 0.3 };
+const SCREW_LOOP: LoopDef = { layers: [["shipEngine", 0.6], ["waterBridge", 0.35]], radius: 120, ref: 8, rolloff: 1, lowpass: 6000, wet: 0.3 };
+const isTug = (k: string) => k.includes("tug");
+const isPaddle = (k: string) => k.includes("paddle");
+
+interface ShipSound {
+  ship: MovingShip;
+  voice: Voice | null;
+  d: number;
+  level: number;
+  /** Came within 150 m this pass (reset past 220 m). */
+  approached: boolean;
+  /** Sailing ships: next bell or shout. */
+  nextCall: number;
+}
+
+/** A running positioned loop. */
+interface Voice {
+  srcs: AudioScheduledSourceNode[];
+  gain: GainNode;
+  panner: PannerNode;
+  lp: BiquadFilterNode | null;
+}
+interface Live {
+  e: Emitter;
+  voice: Voice | null;
+  level: number;
+}
+interface Cart {
+  route: Array<[number, number]>;
+  lens: number[];
+  total: number;
+  s: number;
+  dir: 1 | -1;
+  speed: number;
+  x: number;
+  z: number;
+  voice: Voice | null;
+  level: number;
+}
+
+export interface SoundscapeOptions {
+  /** Use this context instead of a new AudioContext (tests: an OfflineAudioContext). */
+  ctx?: BaseAudioContext;
+  /** Emitters instead of the ones from shared/city.json. */
+  emitters?: Emitter[];
+}
+
 export class Soundscape {
-  private ctx: AudioContext;
+  private ctx: BaseAudioContext;
   private master: GainNode;
   private reverbIn: GainNode;
+  /** Far bus: everything far off goes through the fog here. */
+  private farLp: BiquadFilterNode;
+  private farGain: GainNode;
   private noise: AudioBuffer;
   private brown: AudioBuffer;
   private waterPanner: PannerNode;
   private waterGain: GainNode;
+  private windGain: GainNode;
+  private windRec: GainNode;
+  private murmurGain: GainNode;
+  private rainRoofGain: GainNode;
+  private rainCobbleGain: GainNode;
   private listenerPos = new THREE.Vector3();
   private nextHorn: number;
   private nextGull: number;
   private nextLap = 0;
   private nextCreak: number;
+  private nextDog: number;
+  private nextWhistle: number;
+  private nextCrane: number;
+  private nextCooper: number;
+  private nextPump: number;
+  private nextCarriage: number;
+  private nextSlow = 0;
+  private lastMove = 0;
   hornCount = 0;
   private steps: Record<Surface, AudioBuffer[]> = { stone: [], wood: [] };
   private lastStep = -1;
   private gullBuf: AudioBuffer | null = null;
   private fx = new Map<string, AudioBuffer[]>();
+  private buf = new Map<SampleName, AudioBuffer>();
+  private failed: string[] = [];
+  private live: Live[] = [];
+  private carts: Cart[] = [];
+  private vehicles: Array<{ v: VehicleSound; voice: Voice | null }> = [];
+  private shipSounds: ShipSound[] = [];
+  private shipTickAt = 0;
+  /** Pairs of steam ships that greeted each other: no greeting again before this time. */
+  private greeted = new Map<string, number>();
+  private bedsStarted = new Set<string>();
+
+  // state set from outside
+  private clock: number | null = null;
+  private weather: Weather | null = null;
+  /** No horn or whistle before this (the shared gap, HORN_GAP). */
+  private hornOkAt = 0;
+  private crowdN = 0;
+  private rain = 0;
+  // the smithy works and rests
+  private smithyOn = true;
+  private smithyNext = 0;
+  /** Log of bells rung (dev checks). */
+  readonly rung: string[] = [];
 
   constructor(
     private readonly lampPositions: THREE.Vector3[],
     private readonly shipPositions: THREE.Vector3[],
+    opts: SoundscapeOptions = {},
   ) {
-    this.ctx = new AudioContext();
+    this.ctx = opts.ctx ?? new AudioContext();
     const comp = this.ctx.createDynamicsCompressor();
     comp.threshold.value = -18;
     comp.ratio.value = 3;
@@ -54,6 +211,17 @@ export class Soundscape {
     this.reverbIn.gain.value = 0.55;
     this.reverbIn.connect(verb).connect(this.master);
 
+    // far bus
+    this.farLp = this.ctx.createBiquadFilter();
+    this.farLp.type = "lowpass";
+    this.farLp.Q.value = 0.5;
+    this.farGain = this.ctx.createGain();
+    this.farLp.connect(this.farGain).connect(this.master);
+    const farSend = this.ctx.createGain();
+    farSend.gain.value = 0.9;
+    this.farGain.connect(farSend).connect(this.reverbIn);
+    this.applyWeather(true);
+
     this.noise = this.makeNoise(3, "white");
     this.brown = this.makeNoise(4, "brown");
 
@@ -65,36 +233,210 @@ export class Soundscape {
     this.loopNoise(this.brown, "lowpass", 380, 0.5, this.waterPanner, 0.13, 0.11);
     this.loopNoise(this.noise, "bandpass", 900, 0.8, this.waterPanner, 0.018, 0.23);
 
-    // wind bed, everywhere
-    this.loopNoise(this.brown, "lowpass", 180, 0.7, this.master, 0.06, 0.05);
+    // wind bed, everywhere (made in code), and wind in the rigging (recorded)
+    this.windGain = this.ctx.createGain();
+    this.windGain.connect(this.master);
+    this.loopNoise(this.brown, "lowpass", 180, 0.7, this.windGain, 0.06, 0.05);
+    this.windRec = this.ctx.createGain();
+    this.windRec.gain.value = 0;
+    this.windRec.connect(this.master);
 
-    // gas hiss per lamp, only heard up close
-    for (const p of this.lampPositions) {
-      const pan = this.panner(0.6, 2.2);
-      pan.positionX.value = p.x;
-      pan.positionY.value = p.y;
-      pan.positionZ.value = p.z;
-      pan.connect(this.master);
-      this.loopNoise(this.noise, "highpass", 3800, 0.4, pan, 0.012, 0.9);
-    }
+    // crowd murmur: follows how many people are near (setCrowd)
+    this.murmurGain = this.ctx.createGain();
+    this.murmurGain.gain.value = 0;
+    const murmurLp = this.ctx.createBiquadFilter();
+    murmurLp.type = "lowpass";
+    murmurLp.frequency.value = 2200;
+    murmurLp.connect(this.murmurGain).connect(this.master);
+    const murmurWet = this.ctx.createGain();
+    murmurWet.gain.value = 0.15;
+    this.murmurGain.connect(murmurWet).connect(this.reverbIn);
+
+    // rain beds (setRain)
+    this.rainRoofGain = this.ctx.createGain();
+    this.rainRoofGain.gain.value = 0;
+    this.rainRoofGain.connect(this.master);
+    this.rainCobbleGain = this.ctx.createGain();
+    this.rainCobbleGain.gain.value = 0;
+    this.rainCobbleGain.connect(this.master);
+
+    // positioned loops and events; the world's own lamps join the city's
+    const list = opts.emitters ?? cityEmitters();
+    const lamps: Emitter[] = this.lampPositions
+      .filter((p) => !list.some((e) => e.kind === "lamp" && Math.hypot(e.x - p.x, e.z - p.z) < 1))
+      .map((p) => ({ kind: "lamp", x: p.x, z: p.z, y: p.y, name: "gas lamp" }));
+    this.emitters([...list, ...lamps]);
+    this.carts = cartRoutes().map((route, i) => this.makeCart(route, i));
 
     void this.loadSteps();
     void this.loadGulls();
     void this.loadFx();
+    void this.loadSamples().then(() => {
+      this.startBed("murmur", murmurLp, 1);
+      this.startBed("windMasts", this.windRec, 1);
+      this.startBed("waterWall", this.waterPanner, 0.55);
+    });
 
     const now = this.ctx.currentTime;
     this.nextHorn = now + rand(9, 16); // first one early, then 40-90 s
     this.nextGull = now + rand(4, 10);
     this.nextCreak = now + rand(3, 8);
+    this.nextDog = now + rand(20, 45);
+    this.nextWhistle = now + rand(60, 140);
+    this.nextCrane = now + rand(6, 15);
+    this.nextCooper = now + rand(5, 12);
+    this.nextPump = now + rand(10, 30);
+    this.nextCarriage = now + rand(30, 70);
   }
 
   resume(): void {
-    if (this.ctx.state !== "running") void this.ctx.resume();
+    const c = this.ctx;
+    if (c instanceof AudioContext && c.state !== "running") void c.resume();
   }
 
   get state(): AudioContextState {
     return this.ctx.state;
   }
+
+  /** Stop everything and close the audio context. */
+  async dispose(): Promise<void> {
+    const c = this.ctx;
+    if (c instanceof AudioContext && c.state !== "closed") await c.close();
+  }
+
+  // ---------------------------------------------------------------- inputs
+
+  /**
+   * The game clock. `hour` may carry fractions (7.25 = 7:15); `minute` adds to it.
+   * Crossing a full hour rings the carillon and strikes the hours from the
+   * cathedral; crossing a half hour plays a short carillon phrase and the
+   * watch bells on a ship near you. Jumps backwards or of more than two hours
+   * (sleep, a new day) ring nothing.
+   */
+  setClock(hour: number, minute = 0): void {
+    const t = hour + minute / 60;
+    const before = this.clock;
+    this.clock = t;
+    if (before === null) return;
+    const dt = t - before;
+    if (dt <= 0 || dt > 2) return;
+    const halfBefore = Math.floor(before * 2);
+    const halfNow = Math.floor(t * 2);
+    if (halfNow === halfBefore) return;
+    if (halfNow % 2 === 0) this.hourBells(halfNow / 2);
+    else this.carillon(true);
+    this.watchBells(halfNow % 8 || 8);
+  }
+
+  /** The day's weather: fog dulls far sounds and the bells; the foghorn only sounds in fog. */
+  setWeather(w: Weather): void {
+    if (!WEATHER_FAR[w]) return; // unknown: keep what we had (at first: no foghorn)
+    this.weather = w;
+    this.applyWeather(false);
+  }
+
+  /** How many people are near (e.g. crowd.stats.drawn): the murmur follows. */
+  setCrowd(n: number): void {
+    this.crowdN = Math.max(0, n);
+  }
+
+  /** Rain 0-1: on roofs and cobbles; dampens gulls, market and dogs. */
+  setRain(a: number): void {
+    this.rain = clamp01(a);
+    if (this.rain > 0) {
+      this.startBed("rainRoofs", this.rainRoofGain, 1);
+      this.startBed("rainCobbles", this.rainCobbleGain, 1);
+    }
+  }
+
+  /**
+   * The carts the world shows, every frame (world/traffic.ts info()): a dray
+   * gets hooves and wheels, a handcart its wheels, while it rolls. The unseen
+   * carts in the fog keep away from them.
+   */
+  setVehicles(list: readonly VehicleSound[]): void {
+    const now = this.ctx.currentTime;
+    const px = this.listenerPos.x;
+    const pz = this.listenerPos.z;
+    while (this.vehicles.length > list.length) this.stopVoice(this.vehicles.pop()!.voice);
+    list.forEach((v, i) => {
+      let slot = this.vehicles[i];
+      if (!slot || slot.v.kind !== v.kind) {
+        if (slot) this.stopVoice(slot.voice);
+        slot = this.vehicles[i] = { v, voice: null };
+      }
+      slot.v = v;
+      const def = v.kind === "dray" ? CART : HANDCART;
+      const d = Math.hypot(v.x - px, v.z - pz);
+      const on = d < def.radius;
+      if (on && !slot.voice) slot.voice = this.startVoice({ x: v.x, z: v.z, y: 1 }, def);
+      if (!slot.voice) return;
+      if (!on && d > def.radius + 10) {
+        this.stopVoice(slot.voice);
+        slot.voice = null;
+        return;
+      }
+      slot.voice.panner.positionX.value = v.x;
+      slot.voice.panner.positionZ.value = v.z;
+      const level = v.state === "go" ? 1 - 0.3 * this.rain : 0;
+      slot.voice.gain.gain.setTargetAtTime(level, now, 0.25);
+    });
+  }
+
+  /** Replace the positioned sound sources (loops and event spots). */
+  emitters(list: Emitter[]): void {
+    for (const l of this.live) this.stopVoice(l.voice);
+    this.live = list.map((e) => ({ e, voice: null, level: 0 }));
+  }
+
+  // ---------------------------------------------------------------- time of day
+
+  /** 0 at night, 1 by day; clock unknown counts as day. */
+  private get dayness(): number {
+    const h = this.clock === null ? 10 : ((this.clock % 24) + 24) % 24;
+    return h < 12 ? ramp(h, 5.5, 8) : 1 - ramp(h, 18, 21);
+  }
+
+  private get hourNow(): number {
+    return this.clock === null ? 10 : ((this.clock % 24) + 24) % 24;
+  }
+
+  /** Gas lamps lit (the world's DAYLIGHT table, roughly); unknown clock: lit. */
+  private get lampsLit(): number {
+    if (this.clock === null) return 1;
+    const h = this.hourNow;
+    if (h < 5.5 || h >= 18.5) return 1;
+    if (h < 7) return 1 - 0.3 * ramp(h, 5.5, 7);
+    if (h < 9) return 0.7 * (1 - ramp(h, 7, 9));
+    if (h < 15) return 0;
+    if (h < 17) return 0.4 * ramp(h, 15, 17);
+    return 0.4 + 0.6 * ramp(h, 17, 18.5);
+  }
+
+  /** How loud a kind of loop is at this hour and weather. */
+  private kindLevel(kind: EmitterKind): number {
+    const day = this.dayness;
+    const night = 1 - day;
+    const h = this.hourNow;
+    switch (kind) {
+      case "bridge":
+      case "pontoon":
+        return 1 + 0.4 * night + 0.3 * this.rain;
+      case "smithy":
+        return this.smithyOn ? ramp(h, 7, 7.5) * (1 - ramp(h, 18.5, 19)) : 0;
+      case "tavern":
+        return h >= 18 ? ramp(h, 18, 20) : h < 2 ? 1 - ramp(h, 0.5, 2) : 0;
+      case "market":
+        // the fish market is a morning market
+        return ramp(h, 6, 7) * (1 - ramp(h, 13, 15)) * (1 - 0.5 * this.rain);
+      case "lamp":
+        return this.lampsLit;
+      default:
+        return 1;
+    }
+  }
+
+  // ---------------------------------------------------------------- per frame
 
   update(cam: THREE.Camera): void {
     const ctx = this.ctx;
@@ -112,32 +454,715 @@ export class Soundscape {
     l.upY.value = up.y;
     l.upZ.value = up.z;
 
-    // water follows along the edge; pier is water on three sides
-    const onPier = this.listenerPos.z < 0.3;
-    this.waterPanner.positionX.value = this.listenerPos.x;
-    this.waterPanner.positionY.value = -1.2;
-    this.waterPanner.positionZ.value = onPier ? this.listenerPos.z : -0.5;
+    // water sits on the nearest quay edge; over the water (pier, deck, pontoon) all round you
+    const px = this.listenerPos.x;
+    const pz = this.listenerPos.z;
+    if (overWater(px, pz)) {
+      this.waterPanner.positionX.value = px;
+      this.waterPanner.positionZ.value = pz;
+    } else {
+      const q = nearestQuay(px, pz);
+      this.waterPanner.positionX.value = q.x;
+      this.waterPanner.positionZ.value = q.z;
+    }
+    // swimming, the water is right at your ears
+    this.waterPanner.positionY.value = Math.min(-1.2, this.listenerPos.y - 0.4);
 
     const now = ctx.currentTime;
+    const slow = now > this.nextSlow;
+    if (slow) {
+      this.slowTick(now);
+      this.nextSlow = now + 0.25;
+    }
+    this.moveCarts(now, slow);
+
     if (now > this.nextLap) {
       this.lap();
       this.nextLap = now + rand(0.25, 1.4);
     }
     if (now > this.nextHorn) {
-      this.foghorn();
+      // the foghorn only in fog (Steve), and never within the horn gap of a ship's whistle
+      const chance = this.weather ? WEATHER_FAR[this.weather].horn : 0;
+      if (this.weather === "fog" && this.hornFree() && Math.random() < chance) this.foghorn();
       this.nextHorn = now + rand(40, 90);
     }
     if (now > this.nextGull) {
-      this.gulls();
+      // gulls by day; rain keeps them down
+      if (this.dayness > 0.3 && Math.random() > this.rain * 0.8) this.gulls();
       this.nextGull = now + rand(12, 35);
     }
     if (now > this.nextCreak) {
       this.creak();
       this.nextCreak = now + rand(5, 14);
     }
+    const day = this.dayness;
+    if (now > this.nextDog) {
+      if (Math.random() > this.rain * 0.6) this.dog();
+      this.nextDog = now + (day > 0.5 ? rand(35, 90) : rand(15, 45));
+    }
+    if (now > this.nextWhistle) {
+      // a steamer far down the river, unseen; only while the world reports no ships of its own
+      if (!this.shipSounds.length && this.hornFree()) this.steamWhistle();
+      this.nextWhistle = now + rand(90, 240) * (day > 0.5 ? 1 : 2);
+    }
+    if (now > this.nextCrane) {
+      const c = this.nearest("crane", 90);
+      if (c && Math.random() < day) this.craneWork(c);
+      this.nextCrane = now + rand(14, 40);
+    }
+    if (now > this.nextCooper) {
+      const c = this.nearest("cooper", 70);
+      if (c && Math.random() < day) this.cooperWork(c);
+      this.nextCooper = now + rand(5, 14);
+    }
+    if (now > this.nextPump) {
+      const p = this.nearest("pump", 50);
+      if (p && Math.random() < 0.3 + 0.7 * day) this.pump(p);
+      this.nextPump = now + rand(25, 70);
+    }
+    if (now > this.nextCarriage) {
+      if (Math.random() < day) this.carriageFar();
+      this.nextCarriage = now + rand(50, 120);
+    }
   }
 
-  // ---------------------------------------------------------------- events
+  /** Four times a second: beds follow the state; loops start and stop by distance. */
+  private slowTick(now: number): void {
+    const night = 1 - this.dayness;
+    const tau = 0.8;
+    this.waterGain.gain.setTargetAtTime(0.5 * (1 + 0.4 * night), now, tau);
+    this.windGain.gain.setTargetAtTime(1 + 0.5 * night, now, tau);
+    this.windRec.gain.setTargetAtTime(0.05 + 0.09 * night + 0.05 * this.rain, now, tau);
+    const crowd = Math.min(1, Math.sqrt(this.crowdN / 20));
+    this.murmurGain.gain.setTargetAtTime(0.22 * crowd * (1 - 0.3 * this.rain), now, 1.5);
+    this.rainRoofGain.gain.setTargetAtTime(0.4 * this.rain, now, 1.5);
+    this.rainCobbleGain.gain.setTargetAtTime(1.1 * this.rain, now, 1.5);
+
+    if (now > this.smithyNext) {
+      this.smithyOn = !this.smithyOn;
+      this.smithyNext = now + (this.smithyOn ? rand(20, 45) : rand(6, 18));
+    }
+
+    const px = this.listenerPos.x;
+    const pz = this.listenerPos.z;
+    for (const l of this.live) {
+      const def = LOOPS[l.e.kind];
+      if (!def) continue;
+      const d = Math.hypot(l.e.x - px, l.e.z - pz);
+      const level = d < def.radius ? this.kindLevel(l.e.kind) * (l.e.gain ?? 1) : 0;
+      if (level > 0.001 && !l.voice) l.voice = this.startVoice(l.e, def);
+      if (l.voice) {
+        if (level <= 0.001 && d > def.radius + 10) {
+          this.stopVoice(l.voice);
+          l.voice = null;
+        } else if (Math.abs(level - l.level) > 0.002 || l.level === 0) {
+          l.voice.gain.gain.setTargetAtTime(level, now, 0.6);
+        }
+      }
+      l.level = level;
+    }
+  }
+
+  // ---------------------------------------------------------------- loops
+
+  private startVoice(e: { x: number; z: number; y?: number }, def: LoopDef, out: AudioNode = this.master): Voice | null {
+    const ctx = this.ctx;
+    const layers = def.layers.filter(([n]) => n === "hiss" || this.buf.has(n));
+    if (!layers.length) return null;
+    const panner = this.panner(def.ref, def.rolloff);
+    panner.positionX.value = e.x;
+    panner.positionY.value = e.y ?? 1;
+    panner.positionZ.value = e.z;
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    let head: AudioNode = gain;
+    let lp: BiquadFilterNode | null = null;
+    if (def.lowpass) {
+      lp = ctx.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.value = def.lowpass;
+      lp.connect(gain);
+      head = lp;
+    }
+    gain.connect(panner).connect(out);
+    if (def.wet) {
+      const wet = ctx.createGain();
+      wet.gain.value = def.wet;
+      panner.connect(wet).connect(this.reverbIn);
+    }
+    const srcs: AudioScheduledSourceNode[] = [];
+    for (const [name, g] of layers) {
+      const src = ctx.createBufferSource();
+      src.loop = true;
+      const lg = ctx.createGain();
+      lg.gain.value = g;
+      if (name === "hiss") {
+        src.buffer = this.noise;
+        const hp = ctx.createBiquadFilter();
+        hp.type = "highpass";
+        hp.frequency.value = 3800;
+        hp.Q.value = 0.4;
+        src.connect(hp).connect(lg);
+      } else {
+        const b = this.buf.get(name)!;
+        src.buffer = b;
+        src.playbackRate.value = rand(0.97, 1.03);
+        src.connect(lg);
+      }
+      lg.connect(head);
+      src.start(ctx.currentTime, Math.random() * (src.buffer!.duration - 0.1));
+      srcs.push(src);
+    }
+    return { srcs, gain, panner, lp };
+  }
+
+  private stopVoice(v: Voice | null): void {
+    if (!v) return;
+    const t = this.ctx.currentTime;
+    v.gain.gain.cancelScheduledValues(t);
+    v.gain.gain.setTargetAtTime(0, t, 0.3);
+    for (const s of v.srcs) s.stop(t + 1.6);
+    v.srcs[0].onended = () => v.panner.disconnect();
+  }
+
+  /** A non-positional bed loop into `out`. */
+  private startBed(name: SampleName, out: AudioNode, gain: number): void {
+    const b = this.buf.get(name);
+    if (!b || this.bedsStarted.has(name)) return;
+    this.bedsStarted.add(name);
+    const src = this.ctx.createBufferSource();
+    src.buffer = b;
+    src.loop = true;
+    const g = this.ctx.createGain();
+    g.gain.value = gain;
+    src.connect(g).connect(out);
+    src.start(this.ctx.currentTime, Math.random() * b.duration);
+  }
+
+  // ---------------------------------------------------------------- carts in the fog
+
+  private makeCart(route: Array<[number, number]>, i: number): Cart {
+    const lens: number[] = [];
+    let total = 0;
+    for (let k = 1; k < route.length; k++) {
+      const d = Math.hypot(route[k][0] - route[k - 1][0], route[k][1] - route[k - 1][1]);
+      lens.push(d);
+      total += d;
+    }
+    return { route, lens, total, s: rand(0, total), dir: i % 2 ? -1 : 1, speed: rand(1.1, 1.5), x: route[0][0], z: route[0][1], voice: null, level: 0 };
+  }
+
+  /**
+   * Horses and carts walk their streets, heard but never seen: within 18 m
+   * they fall silent (the fog hides them past 20-30 m; a cart you could see
+   * but not find would be wrong). Day only, a stray one at night.
+   */
+  private moveCarts(now: number, slow: boolean): void {
+    const dt = Math.min(0.1, Math.max(0, now - this.lastMove));
+    this.lastMove = now;
+    const px = this.listenerPos.x;
+    const pz = this.listenerPos.z;
+    for (const c of this.carts) {
+      c.s += c.dir * c.speed * dt;
+      if (c.s > c.total) [c.s, c.dir] = [c.total, -1];
+      if (c.s < 0) [c.s, c.dir] = [0, 1];
+      let s = c.s;
+      let k = 0;
+      while (k < c.lens.length - 1 && s > c.lens[k]) s -= c.lens[k++];
+      const t = c.lens[k] ? s / c.lens[k] : 0;
+      const [ax, az] = c.route[k];
+      const [bx, bz] = c.route[k + 1];
+      c.x = ax + (bx - ax) * t;
+      c.z = az + (bz - az) * t;
+      if (c.voice) {
+        c.voice.panner.positionX.value = c.x;
+        c.voice.panner.positionZ.value = c.z;
+      }
+      if (!slow) continue; // gains four times a second
+      const d = Math.hypot(c.x - px, c.z - pz);
+      const real = this.vehicles.some((s) => Math.hypot(s.v.x - c.x, s.v.z - c.z) < 40);
+      const level = d < 120 && !real ? (0.1 + 0.9 * this.dayness) * ramp(d, 18, 30) * (1 - 0.3 * this.rain) : 0;
+      if (level > 0.001 && !c.voice) c.voice = this.startVoice({ x: c.x, z: c.z, y: 1 }, CART);
+      if (c.voice) {
+        if (level <= 0.001 && d > 130) {
+          this.stopVoice(c.voice);
+          c.voice = null;
+        } else c.voice.gain.gain.setTargetAtTime(level, now, 0.5);
+      }
+      c.level = level;
+    }
+  }
+
+  // ---------------------------------------------------------------- ships under way
+
+  /**
+   * The ships moving on the river, every frame (world/boats.ts moving()). Each
+   * steam ship within 120 m gets its engine (and paddle wheels) on its own
+   * panner, dulled by distance and fog. Steam ships whistle now and then: once
+   * as they come within 150 m, and to greet another steamer near them; tugs
+   * toot short, big steamers give a deep long blast. Sailing ships only ring
+   * their bell or call an order. All whistles share the horn gap (HORN_GAP)
+   * with the foghorn. Web Audio panners have no doppler; nothing here adds one.
+   */
+  setMovingShips(list: readonly MovingShip[]): void {
+    const now = this.ctx.currentTime;
+    const px = this.listenerPos.x;
+    const pz = this.listenerPos.z;
+    const ids = new Set(list.map((s) => s.id));
+    this.shipSounds = this.shipSounds.filter((s) => {
+      if (ids.has(s.ship.id)) return true;
+      this.stopVoice(s.voice);
+      return false;
+    });
+    for (const ship of list) {
+      let s = this.shipSounds.find((q) => q.ship.id === ship.id);
+      if (!s) {
+        s = { ship, voice: null, d: Infinity, level: 0, approached: false, nextCall: now + rand(5, 30) };
+        this.shipSounds.push(s);
+      }
+      s.ship = ship;
+      s.d = Math.hypot(ship.x - px, ship.z - pz);
+      if (s.voice) {
+        s.voice.panner.positionX.value = ship.x;
+        s.voice.panner.positionZ.value = ship.z;
+      }
+    }
+    if (now < this.shipTickAt) return;
+    this.shipTickAt = now + 0.25;
+
+    for (const s of this.shipSounds) {
+      const { ship } = s;
+      if (ship.steam) {
+        const def = isPaddle(ship.kind) ? PADDLE_LOOP : SCREW_LOOP;
+        if (s.d < def.radius && !s.voice) s.voice = this.startVoice({ x: ship.x, z: ship.z, y: 2 }, def);
+        if (s.voice && s.d > def.radius + 10) {
+          this.stopVoice(s.voice);
+          s.voice = null;
+        }
+        s.level = s.voice ? (0.3 + 0.7 * clamp01(ship.speed / 3)) * (isTug(ship.kind) ? 0.8 : 1) : 0;
+        if (s.voice) {
+          s.voice.gain.gain.setTargetAtTime(s.level, now, 0.5);
+          s.voice.lp?.frequency.setTargetAtTime(this.distLp(s.d), now, 0.5);
+        }
+        // a whistle as it comes by
+        // (inside the horn gap it waits, and gives up once the ship is close)
+        if (!s.approached && s.d < 150) {
+          if (this.hornFree()) {
+            s.approached = true;
+            if (Math.random() < 0.7) this.whistle(ship, s.d, "pass");
+          } else if (s.d < 60) s.approached = true;
+        } else if (s.approached && s.d > 220) s.approached = false;
+      } else if (s.d < 70 && now > s.nextCall) {
+        // a sailing ship: the bell, or an order called on deck
+        if (Math.random() < 0.5) this.shipBellAt(ship, s.d, 2);
+        else this.shoutAt(ship, s.d);
+        s.nextCall = now + rand(35, 80);
+      }
+    }
+
+    // two steamers meeting greet each other: one whistles, the other answers
+    const steam = this.shipSounds.filter((s) => s.ship.steam && s.d < 300);
+    for (let i = 0; i < steam.length; i++) {
+      for (let j = i + 1; j < steam.length; j++) {
+        const a = steam[i];
+        const b = steam[j];
+        if (Math.hypot(a.ship.x - b.ship.x, a.ship.z - b.ship.z) > 90) continue;
+        const key = [String(a.ship.id), String(b.ship.id)].sort().join("|");
+        if (now < (this.greeted.get(key) ?? 0) || !this.hornFree()) continue;
+        this.greeted.set(key, now + rand(240, 420));
+        if (Math.random() < 0.6) {
+          const dur = this.whistle(a.ship, a.d, "greet");
+          this.whistle(b.ship, b.d, "greet", dur + rand(1.5, 3), true);
+        }
+      }
+    }
+  }
+
+  /**
+   * A ship asks the lock or a bridge to open (world/boats.ts onSignal): one
+   * long, one short blast (a sailing ship calls and rings its bell, long then
+   * short), answered by the bridge-keeper's hand bell from the nearest bridge.
+   * Signals always sound (the world shows the bridge opening) but still hold
+   * back the next horn by the horn gap.
+   */
+  shipSignal(ship: MovingShip, at: "lock" | "bridge"): void {
+    const d = Math.hypot(ship.x - this.listenerPos.x, ship.z - this.listenerPos.z);
+    let dur: number;
+    if (ship.steam) dur = this.whistle(ship, d, "signal", 0, true);
+    else {
+      this.shoutAt(ship, d);
+      this.shipBellAt(ship, d, 2, 1.2);
+      dur = 3;
+    }
+    this.log(`signal ${at} ${ship.kind}`);
+    const keeper = this.nearestTo("bridge", ship.x, ship.z, 250);
+    const bell = this.buf.get("handbell");
+    if (!keeper || !bell) return;
+    const kd = Math.hypot(keeper.x - this.listenerPos.x, keeper.z - this.listenerPos.z);
+    const len = rand(2.2, 4.4);
+    this.slice(bell, { x: keeper.x, z: keeper.z, y: 3 }, 0, len, 0.7, rand(0.95, 1.05), kd > 40 ? this.farLp : this.master, 4, dur + rand(1.5, 3));
+    this.log("bridge-keeper's bell");
+  }
+
+  /**
+   * A steam whistle from a ship. Tugs: short toots; big steamers: a deep long
+   * blast; "signal": one long, one short. Returns how long it lasts (s).
+   * `force`: play even inside the horn gap (an answer, a signal).
+   */
+  private whistle(ship: MovingShip, d: number, why: "pass" | "greet" | "signal", delay = 0, force = false): number {
+    if (!force && !this.hornFree()) return 0;
+    const long = this.buf.get("steamboatWhistle");
+    const toots = this.buf.get("tugToots");
+    if (!long) return 0;
+    const tug = isTug(ship.kind);
+    const rate = tug ? rand(1.0, 1.08) : rand(0.7, 0.78);
+    const out = d > 40 ? this.farLp : this.master;
+    const at = { x: ship.x, z: ship.z, y: 8 };
+    let dur: number;
+    if (why === "signal") {
+      const l = 2.2 / rate;
+      this.slice(long, at, 0, 2.2, 0.8, rate, out, 30, delay);
+      this.slice(long, at, 0, 0.6, 0.8, rate, out, 30, delay + l + 0.7);
+      dur = l + 0.7 + 0.6 / rate;
+    } else if (tug && toots) {
+      const n = why === "greet" ? 1 : Math.random() < 0.5 ? 2 : 3;
+      let t = delay;
+      for (let i = 0; i < n; i++) {
+        const [a, b] = TOOT_SPANS[i % TOOT_SPANS.length];
+        this.slice(toots, at, a, b, 0.75, rate, out, 25, t);
+        t += (b - a) / rate + 0.35;
+      }
+      dur = t - delay;
+    } else {
+      const len = why === "greet" ? rand(1.6, 2.4) : rand(3.2, 4.6);
+      this.slice(long, at, 0, len, 0.85, rate, out, 40, delay);
+      dur = len / rate;
+    }
+    this.hornCount++;
+    this.hornUsed();
+    this.log(`whistle ${why} ${ship.kind}`);
+    return dur;
+  }
+
+  /** A ship's bell rung n times on a moving ship; `hold` lets the first ring sound longer. */
+  private shipBellAt(ship: MovingShip, d: number, n: number, hold = 0): void {
+    const b = this.buf.get("shipBell");
+    if (!b) return;
+    const out = d > 40 ? this.farLp : this.master;
+    let t = 0;
+    for (let i = 0; i < n; i++) {
+      const first = i === 0 && hold > 0;
+      this.slice(b, { x: ship.x, z: ship.z, y: 4 }, 0, first ? b.duration : 1.6, 0.5, 0.9, out, 6, t);
+      t += first ? hold : 0.45;
+    }
+    this.log(`ship's bell ${ship.kind}`);
+  }
+
+  /** An order called on deck. */
+  private shoutAt(ship: MovingShip, d: number): void {
+    const b = this.buf.get("heaveShout");
+    if (!b) return;
+    this.slice(b, { x: ship.x, z: ship.z, y: 3 }, 0, b.duration, 0.6, rand(0.88, 1.0), d > 40 ? this.farLp : this.master, 6);
+    this.log(`shout ${ship.kind}`);
+  }
+
+  /** Close sounds bright, far ones as dull as the weather makes them. */
+  private distLp(d: number): number {
+    const far = this.weather ? WEATHER_FAR[this.weather].lp : WEATHER_UNKNOWN.lp;
+    return far + (7000 - far) * (1 - ramp(d, 15, 90));
+  }
+
+  private hornFree(): boolean {
+    return this.ctx.currentTime >= this.hornOkAt;
+  }
+
+  private hornUsed(): void {
+    this.hornOkAt = this.ctx.currentTime + rand(HORN_GAP[0], HORN_GAP[1]);
+  }
+
+  private nearestTo(kind: EmitterKind, x: number, z: number, within: number): Emitter | null {
+    let best: Emitter | null = null;
+    let bd = within;
+    for (const l of this.live) {
+      if (l.e.kind !== kind) continue;
+      const d = Math.hypot(l.e.x - x, l.e.z - z);
+      if (d < bd) [best, bd] = [l.e, d];
+    }
+    return best;
+  }
+
+  // ---------------------------------------------------------------- bells
+
+  /** The hour: the carillon's voorslag, then the strokes of the big bell. */
+  hourBells(hour: number): void {
+    const n = ((Math.round(hour) % 12) + 12) % 12 || 12;
+    const tune = this.carillon(false);
+    this.strike(n, tune + 0.8);
+  }
+
+  /** Strike the big bell n times, starting `delay` s from now. */
+  strike(n: number, delay = 0): void {
+    const b = this.buf.get("hourStroke");
+    const cat = this.cathedral();
+    if (!b || !cat) return;
+    this.log(`hour ${n}`);
+    const pan = this.panner(80, 1);
+    this.place(pan, cat);
+    pan.connect(this.farLp);
+    const t0 = this.ctx.currentTime + delay + 0.05;
+    for (let i = 0; i < n; i++) {
+      const src = this.ctx.createBufferSource();
+      src.buffer = b;
+      src.playbackRate.value = 0.82; // a big bell, deeper than the village one recorded
+      const g = this.ctx.createGain();
+      g.gain.value = 1.4;
+      src.connect(g).connect(pan);
+      src.start(t0 + i * 2.6);
+    }
+  }
+
+  /** The cathedral carillon: the whole tune, or a short phrase. Returns its length (s). */
+  carillon(short: boolean): number {
+    const b = this.buf.get("carillon");
+    const cat = this.cathedral();
+    if (!b || !cat) return 0;
+    this.log(short ? "carillon short" : "carillon");
+    const pan = this.panner(80, 1);
+    this.place(pan, cat);
+    pan.connect(this.farLp);
+    const dur = short ? CARILLON_SHORT : b.duration;
+    const src = this.ctx.createBufferSource();
+    src.buffer = b;
+    const g = this.ctx.createGain();
+    const t = this.ctx.currentTime + 0.05;
+    g.gain.setValueAtTime(1, t);
+    if (short) {
+      g.gain.setValueAtTime(1, t + dur - 1.2);
+      g.gain.linearRampToValueAtTime(0, t + dur);
+    }
+    src.connect(g).connect(pan);
+    src.start(t, 0, dur + 0.05);
+    return dur;
+  }
+
+  /** Ship's watch bells, rung in pairs, from a ship near you. */
+  watchBells(n: number): void {
+    const b = this.buf.get("shipBell");
+    const ship = this.nearest("ship", 160);
+    if (!b || !ship) return;
+    this.log(`watch ${n}`);
+    const pan = this.panner(6, 1);
+    this.place(pan, ship, 4);
+    pan.connect(this.master);
+    const wet = this.ctx.createGain();
+    wet.gain.value = 0.6;
+    pan.connect(wet).connect(this.reverbIn);
+    let t = this.ctx.currentTime + rand(1, 4);
+    for (let i = 0; i < n; i++) {
+      const src = this.ctx.createBufferSource();
+      src.buffer = b;
+      src.playbackRate.value = 0.9;
+      const g = this.ctx.createGain();
+      g.gain.value = 0.55;
+      src.connect(g).connect(pan);
+      src.start(t);
+      t += i % 2 === 0 ? 0.42 : 1.25;
+    }
+  }
+
+  // ---------------------------------------------------------------- street events
+
+  /** A dog far off, inland. */
+  dog(): void {
+    const b = this.buf.get("dogFar");
+    if (!b) return;
+    let x = 0;
+    let z = 0;
+    for (let i = 0; i < 8; i++) {
+      const a = rand(0, Math.PI * 2);
+      const d = rand(60, 150);
+      x = this.listenerPos.x + Math.cos(a) * d;
+      z = Math.abs(this.listenerPos.z + Math.sin(a) * d) + 10;
+      if (!overWater(x, z)) break;
+    }
+    const [a, e] = pick(DOG_SPANS);
+    this.slice(b, { x, z, y: 2 }, a, e, 1, rand(0.95, 1.05), this.farLp, 10);
+  }
+
+  /** A steam whistle from a boat on the river. */
+  steamWhistle(): void {
+    const name: SampleName = Math.random() < 0.5 ? "steamWhistleFar" : "steamboatWhistle";
+    const b = this.buf.get(name);
+    if (!b) return;
+    const pos = { x: this.listenerPos.x + rand(-250, 250), z: rand(-250, -120), y: 8 };
+    this.slice(b, pos, 0, b.duration, name === "steamboatWhistle" ? 0.7 : 0.9, rand(0.9, 1.0), this.farLp, 60);
+    this.hornCount++;
+    this.hornUsed();
+    this.log("whistle far");
+  }
+
+  /** A crane at work: ratchet or winch, then the chain. */
+  craneWork(c: Emitter): void {
+    const r = this.buf.get(Math.random() < 0.5 ? "ratchet" : "winch");
+    if (!r) return;
+    const dur = rand(2.5, 4.5);
+    const start = rand(0, r.duration - dur);
+    this.slice(r, c, start, start + dur, 0.7, rand(0.85, 1.0), this.master, 6);
+    const ch = this.buf.get("chain");
+    if (ch && Math.random() < 0.7) this.slice(ch, c, 0, ch.duration, 0.6, rand(0.8, 0.95), this.master, 6, dur - 0.2);
+  }
+
+  /** A cooper driving hoops on a cask: a run of mallet blows (Kenney wood impacts). */
+  cooperWork(c: Emitter): void {
+    const wood = this.fx.get("thud_wood");
+    const plank = this.fx.get("thud_plank");
+    if (!wood?.length || !plank?.length) return;
+    const n = Math.floor(rand(5, 10));
+    const gap = rand(0.42, 0.52);
+    const rate = rand(0.68, 0.78);
+    for (let i = 0; i < n; i++) {
+      const hoop = i % 3 === 2;
+      const b = pick(hoop ? plank : wood);
+      this.slice(b, c, 0, b.duration, hoop ? 0.35 : 0.55, hoop ? rate * 1.9 : rate, this.master, 5, i * gap + rand(-0.02, 0.02));
+    }
+  }
+
+  /** A pump handle worked a few strokes. */
+  pump(p: Emitter): void {
+    const b = this.buf.get("pump");
+    if (!b) return;
+    const dur = rand(3, 7);
+    const start = rand(0, b.duration - dur);
+    this.slice(b, p, start, start + dur, 0.6, rand(0.95, 1.05), this.master, 4);
+  }
+
+  /** A carriage passing somewhere off in the fog. */
+  carriageFar(): void {
+    const b = this.buf.get(Math.random() < 0.5 ? "carriageFar" : "carriageArch");
+    if (!b) return;
+    const a = rand(0, Math.PI * 2);
+    const d = rand(50, 90);
+    const pos = { x: this.listenerPos.x + Math.cos(a) * d, z: Math.abs(this.listenerPos.z + Math.sin(a) * d) + 20, y: 1 };
+    this.slice(b, pos, 0, b.duration, 0.8, 1, this.farLp, 12);
+  }
+
+  /**
+   * Play part of a buffer at a place, with short fades. Goes to `out`
+   * (master, or the far bus for things far off) and a little to the reverb.
+   */
+  private slice(
+    b: AudioBuffer,
+    at: { x: number; z: number; y?: number },
+    from: number,
+    to: number,
+    vol: number,
+    rate: number,
+    out: AudioNode,
+    ref: number,
+    delay = 0,
+  ): void {
+    const ctx = this.ctx;
+    const pan = this.panner(ref, 1);
+    this.place(pan, at);
+    pan.connect(out);
+    const wet = ctx.createGain();
+    wet.gain.value = 0.35;
+    pan.connect(wet).connect(this.reverbIn);
+    const src = ctx.createBufferSource();
+    src.buffer = b;
+    src.playbackRate.value = rate;
+    const env = ctx.createGain();
+    const t = ctx.currentTime + 0.03 + Math.max(0, delay);
+    const dur = Math.max(0.05, (to - from) / rate);
+    const f = Math.min(0.08, dur / 4);
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(vol, t + (from > 0 ? f : 0.005));
+    env.gain.setValueAtTime(vol, t + dur - f);
+    env.gain.linearRampToValueAtTime(0, t + dur);
+    src.connect(env).connect(pan);
+    src.start(t, from, to - from);
+    src.onended = () => pan.disconnect();
+  }
+
+  private log(what: string): void {
+    this.rung.push(what);
+    if (this.rung.length > 40) this.rung.shift();
+  }
+
+  private nearest(kind: EmitterKind, within: number): Emitter | null {
+    let best: Emitter | null = null;
+    let bd = within;
+    for (const l of this.live) {
+      if (l.e.kind !== kind) continue;
+      const d = Math.hypot(l.e.x - this.listenerPos.x, l.e.z - this.listenerPos.z);
+      if (d < bd) [best, bd] = [l.e, d];
+    }
+    return best;
+  }
+
+  private cathedral(): Emitter | null {
+    return this.live.find((l) => l.e.kind === "cathedral")?.e ?? null;
+  }
+
+  private place(pan: PannerNode, at: { x: number; z: number; y?: number }, spread = 0): void {
+    pan.positionX.value = at.x + (spread ? rand(-spread, spread) : 0);
+    pan.positionY.value = at.y ?? 1;
+    pan.positionZ.value = at.z + (spread ? rand(-spread, spread) : 0);
+  }
+
+  private applyWeather(first: boolean): void {
+    const w = this.weather ? WEATHER_FAR[this.weather] : WEATHER_UNKNOWN;
+    const t = this.ctx.currentTime;
+    if (first) {
+      this.farLp.frequency.value = w.lp;
+      this.farGain.gain.value = w.gain;
+    } else {
+      this.farLp.frequency.setTargetAtTime(w.lp, t, 3);
+      this.farGain.gain.setTargetAtTime(w.gain, t, 3);
+    }
+  }
+
+  // ---------------------------------------------------------------- dev
+
+  /** What the audio graph holds now (dev checks: log it). */
+  graph(): Record<string, unknown> {
+    const active = this.live.filter((l) => l.voice).map((l) => ({ kind: l.e.kind, name: l.e.name ?? "", level: +l.level.toFixed(3), layers: l.voice!.srcs.length }));
+    const byKind: Record<string, number> = {};
+    for (const l of this.live) byKind[l.e.kind] = (byKind[l.e.kind] ?? 0) + 1;
+    return {
+      state: this.ctx.state,
+      samples: { loaded: [...this.buf.keys()], failed: this.failed },
+      emitters: byKind,
+      active,
+      carts: this.carts.map((c) => ({ x: +c.x.toFixed(1), z: +c.z.toFixed(1), level: +c.level.toFixed(3), playing: !!c.voice })),
+      vehicles: this.vehicles.map((s) => ({ kind: s.v.kind, x: +s.v.x.toFixed(1), z: +s.v.z.toFixed(1), state: s.v.state, playing: !!s.voice })),
+      beds: [...this.bedsStarted],
+      gains: {
+        water: +this.waterGain.gain.value.toFixed(3),
+        wind: +this.windGain.gain.value.toFixed(3),
+        windRigging: +this.windRec.gain.value.toFixed(3),
+        murmur: +this.murmurGain.gain.value.toFixed(3),
+        rainRoofs: +this.rainRoofGain.gain.value.toFixed(3),
+        rainCobbles: +this.rainCobbleGain.gain.value.toFixed(3),
+        far: +this.farGain.gain.value.toFixed(3),
+        farLowpass: Math.round(this.farLp.frequency.value),
+      },
+      clock: this.clock,
+      dayness: +this.dayness.toFixed(2),
+      weather: this.weather ?? "unknown",
+      hornOkIn: +Math.max(0, this.hornOkAt - this.ctx.currentTime).toFixed(1),
+      ships: this.shipSounds.map((s) => ({ id: s.ship.id, kind: s.ship.kind, steam: s.ship.steam, d: Math.round(s.d), loop: !!s.voice, level: +s.level.toFixed(3) })),
+      crowd: this.crowdN,
+      rain: this.rain,
+      rung: [...this.rung],
+    };
+  }
+
+  get samplesLoaded(): number {
+    return this.buf.size;
+  }
+
+  // ---------------------------------------------------------------- events (older)
 
   footstep(surface: Surface, hurry: boolean): void {
     const ctx = this.ctx;
@@ -186,10 +1211,14 @@ export class Soundscape {
     }
   }
 
+  /** The foghorn far out on the river. Only in fog: in any other weather (or none yet) it stays silent. */
   foghorn(): void {
+    if (this.weather !== "fog") return;
     const ctx = this.ctx;
     const t = ctx.currentTime + 0.05;
     this.hornCount++;
+    this.hornUsed();
+    this.log("foghorn");
     const pan = this.panner(40, 0.4);
     pan.positionX.value = rand(-160, 160);
     pan.positionY.value = 5;
@@ -269,7 +1298,17 @@ export class Soundscape {
     src.start(t, start, dur + 0.1);
   }
 
+  /** Rope and timber creak from a ship near you: the recorded pulley, or the made one while it loads. */
   creak(): void {
+    const rec = this.buf.get("pulleyCreak");
+    const ship = this.nearest("ship", 60);
+    if (rec && ship) {
+      const dur = rand(1.8, 4);
+      const start = rand(0, rec.duration - dur);
+      this.slice(rec, { x: ship.x + rand(-6, 6), z: ship.z, y: ship.y ?? 1 }, start, start + dur, 0.45, rand(0.8, 1.0), this.master, 5);
+      return;
+    }
+    if (rec || !this.shipPositions.length) return; // no ship near: no creak
     const p = this.shipPositions[Math.floor(Math.random() * this.shipPositions.length)];
     const pan = this.panner(6, 0.9);
     pan.positionX.value = p.x + rand(-15, 15);
@@ -281,20 +1320,34 @@ export class Soundscape {
     if (Math.random() < 0.5) this.creakAt(t + rand(0.9, 1.6), rand(160, 260), rand(0.4, 0.9), 0.15, pan);
   }
 
-  // ---------------------------------------------------------------- parts
+  // ---------------------------------------------------------------- loading
+
+  private async decode(url: string): Promise<AudioBuffer | null> {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`${res.status}`);
+      return await this.ctx.decodeAudioData(await res.arrayBuffer());
+    } catch {
+      this.failed.push(url);
+      return null;
+    }
+  }
+
+  /** The street sounds (audio/samples.ts). A file that fails stays silent. */
+  private async loadSamples(): Promise<void> {
+    await Promise.all(
+      (Object.entries(SAMPLES) as Array<[SampleName, string]>).map(async ([name, url]) => {
+        const b = await this.decode(url);
+        if (b) this.buf.set(name, b);
+      }),
+    );
+  }
 
   private async loadSteps(): Promise<void> {
     const files: Record<Surface, string> = { stone: "concrete", wood: "wood" };
     for (const surface of ["stone", "wood"] as const) {
       const loaded = await Promise.all(
-        [0, 1, 2, 3, 4].map(async (n) => {
-          try {
-            const res = await fetch(`/audio/kenney-impact/footstep_${files[surface]}_00${n}.ogg`);
-            return await this.ctx.decodeAudioData(await res.arrayBuffer());
-          } catch {
-            return null; // keep the synth fallback for this one
-          }
-        }),
+        [0, 1, 2, 3, 4].map((n) => this.decode(`/audio/kenney-impact/footstep_${files[surface]}_00${n}.ogg`)),
       );
       this.steps[surface] = loaded.filter((b): b is AudioBuffer => b !== null);
     }
@@ -311,15 +1364,7 @@ export class Soundscape {
       bell: ["/audio/bigsoundbank/bell-5-oclock-3445.ogg"],
     };
     for (const [name, urls] of Object.entries(sets)) {
-      const bufs = await Promise.all(
-        urls.map(async (u) => {
-          try {
-            return await this.ctx.decodeAudioData(await (await fetch(u)).arrayBuffer());
-          } catch {
-            return null;
-          }
-        }),
-      );
+      const bufs = await Promise.all(urls.map((u) => this.decode(u)));
       this.fx.set(name, bufs.filter((b): b is AudioBuffer => b !== null));
     }
   }
@@ -363,12 +1408,8 @@ export class Soundscape {
   }
 
   private async loadGulls(): Promise<void> {
-    try {
-      const res = await fetch("/audio/bigsoundbank/gulls-harbor-2573-mono.ogg");
-      this.gullBuf = await this.ctx.decodeAudioData(await res.arrayBuffer());
-    } catch {
-      this.gullBuf = null; // no gulls then; better silence than a bad fake
-    }
+    // no gulls if it fails; better silence than a bad fake
+    this.gullBuf = await this.decode("/audio/bigsoundbank/gulls-harbor-2573-mono.ogg");
   }
 
   get gullsLoaded(): boolean {
@@ -378,6 +1419,8 @@ export class Soundscape {
   get stepSamples(): number {
     return this.steps.stone.length + this.steps.wood.length;
   }
+
+  // ---------------------------------------------------------------- made in code
 
   /** Rope or timber creak: friction pulses through a resonant filter. */
   private creakAt(t: number, f: number, dur: number, vol: number, out: AudioNode): void {
@@ -405,6 +1448,16 @@ export class Soundscape {
     const t = this.ctx.currentTime + 0.01;
     const dur = rand(0.18, 0.5);
     this.burst(t, dur, "bandpass", rand(250, 700), rand(1.5, 4), rand(0.25, 0.6), this.waterPanner, 0.35);
+  }
+
+  /** A swim stroke: an arm through the water, then the wash (made in code). */
+  swimStroke(): void {
+    const t = this.ctx.currentTime + 0.01;
+    const out = this.ctx.createGain();
+    out.gain.value = 0.7;
+    out.connect(this.master);
+    this.burst(t, rand(0.35, 0.55), "bandpass", rand(500, 900), 1.2, 0.35, out, 0.08);
+    this.burst(t + 0.14, rand(0.3, 0.45), "lowpass", rand(350, 480), 0.7, 0.3, out, 0.05);
   }
 
   private burst(

@@ -26,6 +26,8 @@ export interface NpcDef {
   model?: HumanKind;
   /** Grey-box stand-in, used until (or if not) the model loads. */
   build: (m: Mat) => THREE.Object3D[];
+  /** A townsperson (M3e): the line under the name in the talk window ("fish merchant"). */
+  title?: string;
 }
 
 type Mat = (hex: number) => THREE.Material;
@@ -129,6 +131,10 @@ const mat: Mat = (c) => {
 export class Npc {
   readonly group = new THREE.Group();
   readonly pos: THREE.Vector3;
+  /** Out at their post (M3e: townspeople go home at night). */
+  present = true;
+  private lantern: THREE.Group | null = null;
+  private home: { x: number; z: number; yaw: number };
   private facing: number;
   private lastNear = -Infinity;
   private body = new THREE.Group();
@@ -140,6 +146,7 @@ export class Npc {
   constructor(readonly def: NpcDef, world: World) {
     this.pos = new THREE.Vector3(def.x, def.y ?? 0, def.z);
     this.facing = def.yaw;
+    this.home = { x: def.x, z: def.z, yaw: def.yaw };
     for (const o of def.build(mat)) this.body.add(o);
     this.group.add(this.body);
     this.group.position.copy(this.pos);
@@ -152,7 +159,46 @@ export class Npc {
       this.human = h;
       this.group.remove(this.body);
       this.group.add(h.root);
+      if (this.lantern) this.setLantern(true, true);
     });
+  }
+
+  /** At the post, or gone home (hidden, and nobody to talk to). */
+  setPresent(on: boolean): void {
+    this.present = on;
+    this.group.visible = on;
+  }
+
+  /**
+   * After dark, someone with work for Jef shows it (Steve, M3e): they stand by a
+   * lamp near their post, or carry a lantern. null: back to the post.
+   */
+  nightPost(at: { x: number; z: number; yaw: number } | null): void {
+    const to = at ?? this.home;
+    if (this.pos.x === to.x && this.pos.z === to.z) return;
+    this.pos.set(to.x, this.pos.y, to.z);
+    this.group.position.copy(this.pos);
+    this.def.yaw = to.yaw;
+  }
+
+  /** A lit lantern in the right hand. */
+  setLantern(on: boolean, force = false): void {
+    if (!force && !!this.lantern === on) return;
+    if (this.lantern) {
+      this.lantern.removeFromParent();
+      if (!on) this.lantern = null;
+    }
+    if (!on) return;
+    if (!this.lantern) this.lantern = handLantern();
+    const hand = this.human?.root.getObjectByName("handR");
+    if (hand) {
+      this.lantern.position.set(0, -0.12, 0);
+      this.lantern.scale.setScalar(1 / Math.max(0.01, hand.getWorldScale(new THREE.Vector3()).y || 1));
+      hand.add(this.lantern);
+    } else {
+      this.lantern.position.set(0.3, 0.75, 0.15);
+      this.group.add(this.lantern);
+    }
   }
 
   get id(): string {
@@ -170,6 +216,7 @@ export class Npc {
 
   update(dt: number, player: FirstPerson, now: number): void {
     const d = this.distTo(player.x, player.z);
+    this.group.position.copy(this.pos);
     if (d < 6) this.lookAt(player.x, player.z);
     else this.facing = this.def.yaw;
     const cur = this.group.rotation.y;
@@ -217,12 +264,19 @@ export class People {
     return this.list.find((n) => n.id === id);
   }
 
+  /** A townsperson who hires (M3e), standing at their post by day. */
+  addTownEmployer(def: NpcDef, world: World): Npc {
+    const n = new Npc(def, world);
+    this.list.push(n);
+    return n;
+  }
+
   /** Nearest person you could talk to, within reach. */
   nearestTalker(x: number, z: number, reach = 2.6): Npc | null {
     let best: Npc | null = null;
     let bestD = reach;
     for (const n of this.list) {
-      if (!n.def.talks) continue;
+      if (!n.def.talks || !n.present) continue;
       const d = n.distTo(x, z);
       if (d < bestD) {
         best = n;
@@ -234,8 +288,40 @@ export class People {
 
   update(dt: number, player: FirstPerson): void {
     const now = performance.now();
-    for (const n of this.list) n.update(dt, player, now);
+    for (const n of this.list) if (n.present) n.update(dt, player, now);
   }
+}
+
+/** A small lantern with a warm glow (the crowd's lanterns look the same). */
+let lanternParts: { glass: THREE.BufferGeometry; cap: THREE.BufferGeometry; lit: THREE.Material; iron: THREE.Material; halo: THREE.SpriteMaterial } | null = null;
+function handLantern(): THREE.Group {
+  if (!lanternParts) {
+    const c = document.createElement("canvas");
+    c.width = c.height = 32;
+    const g = c.getContext("2d")!;
+    const grd = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+    grd.addColorStop(0, "rgba(255,255,255,1)");
+    grd.addColorStop(0.3, "rgba(255,255,255,0.45)");
+    grd.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = grd;
+    g.fillRect(0, 0, 32, 32);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    lanternParts = {
+      glass: new THREE.CylinderGeometry(0.06, 0.05, 0.16, 4).translate(0, -0.08, 0),
+      cap: new THREE.ConeGeometry(0.075, 0.07, 4).translate(0, 0.035, 0),
+      lit: new THREE.MeshBasicMaterial({ color: 0xffc070, fog: false }),
+      iron: psx(new THREE.MeshLambertMaterial({ color: 0x1a1a1a })),
+      halo: new THREE.SpriteMaterial({ map: tex, color: 0xffb060, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.45, fog: false }),
+    };
+  }
+  const L = lanternParts;
+  const grp = new THREE.Group();
+  const halo = new THREE.Sprite(L.halo);
+  halo.scale.set(0.9, 0.9, 1);
+  halo.position.y = -0.08;
+  grp.add(new THREE.Mesh(L.glass, L.lit), new THREE.Mesh(L.cap, L.iron), halo);
+  return grp;
 }
 
 /** Tuur's rowing boat, tied up beside the pier. */

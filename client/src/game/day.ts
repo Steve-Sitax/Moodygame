@@ -53,6 +53,20 @@ export class Day {
     return this.payload?.clock.hour ?? 6;
   }
 
+  /** Day of the week, 1 = Monday (M3e: the town's schedules). */
+  get dayNum(): number {
+    return this.payload?.clock.day ?? 1;
+  }
+
+  /** The hour with its fraction, run on smoothly between the server's ticks (15 game minutes per 5 s). */
+  get hourF(): number {
+    const c = this.payload?.clock;
+    if (!c) return 6;
+    const ahead = this.playing ? Math.min(0.25, ((performance.now() - this.shownAt) / 1000) * (15 / 5 / 60)) : 0;
+    return c.hour + c.minute / 60 + ahead;
+  }
+  private shownAt = performance.now();
+
   get rentPaid(): boolean {
     return this.payload?.rent.paid ?? false;
   }
@@ -66,6 +80,7 @@ export class Day {
   /** New state from the server (push or reply). */
   show(p: JobsPayload): void {
     this.warnNeeds(p);
+    if (!this.payload || this.payload.clock.minute !== p.clock.minute || this.payload.clock.hour !== p.clock.hour) this.shownAt = performance.now();
     this.payload = p;
     const c = p.clock;
     if (!c) return;
@@ -171,7 +186,7 @@ export class Day {
     this.player.frozen = false;
     // from the doss house you step out of the alley gate at dawn, facing the river
     if (n?.where === "bed") this.player.place(DOSS_POS.x, DOSS_POS.z - 0.4, 0);
-    const sky = { fog: "The fog is thick on the Schelde.", mist: "A thin mist lies on the river.", clear: "The air is clear and cold. You can see the far bank." };
+    const sky = { fog: "The fog is thick on the Schelde.", mist: "A thin mist lies on the river.", clear: "The air is clear and cold. You can see the far bank.", rain: "Rain is coming in off the Schelde." };
     const c = this.payload?.clock;
     this.toast(`${c?.weekday ?? "A new day"}. ${sky[c?.weather ?? "fog"]} New work is on the board.`);
   }

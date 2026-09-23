@@ -155,7 +155,7 @@ async function main(): Promise<void> {
       crowd.setHour(h);
       world?.setTimeOfDay(h);
     },
-    weather(w: "fog" | "mist" | "clear") {
+    weather(w: "fog" | "mist" | "clear" | "rain") {
       world?.setWeather(w);
     },
     pause(on = true) {

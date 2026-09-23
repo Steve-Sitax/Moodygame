@@ -79,5 +79,155 @@
    0,
    1
   ]
+ },
+ "entrepot_quay": {
+  "label": "the Entrepot quay",
+  "desc": "the narrow quay between the Petit Bassin and the Entrepot",
+  "x": 173,
+  "z": 60,
+  "dir": [
+   0,
+   1
+  ]
+ },
+ "bassin_quay": {
+  "label": "the Petit Bassin quay",
+  "desc": "the open quay by the Petit Bassin, near the lock",
+  "x": 160,
+  "z": 30,
+  "dir": [
+   -1,
+   0
+  ]
+ },
+ "bassin_south": {
+  "label": "the south quay of the Petit Bassin",
+  "desc": "the quay below the Hanseatic House, on the far side of the basin",
+  "x": 120,
+  "z": 117,
+  "dir": [
+   1,
+   0
+  ]
+ },
+ "vismarkt_stalls": {
+  "label": "the fish stalls",
+  "desc": "between the two rows of fish stalls on the Vismarkt",
+  "x": -116,
+  "z": 24,
+  "dir": [
+   0,
+   1
+  ]
+ },
+ "vliet_steps": {
+  "label": "the Vliet landing",
+  "desc": "the landing on the Sint-Pietersvliet where the fish boats unload",
+  "x": -137,
+  "z": 40,
+  "dir": [
+   0,
+   -1
+  ]
+ },
+ "vleeshuis_door": {
+  "label": "the Vleeshuis",
+  "desc": "the street in front of the Vleeshuis, the butchers hall",
+  "x": -116,
+  "z": 84,
+  "dir": [
+   1,
+   0
+  ]
+ },
+ "werf_pontoon": {
+  "label": "the ferry pontoon",
+  "desc": "the foot of the ferry pontoon on the Werf",
+  "x": -249,
+  "z": 4,
+  "dir": [
+   1,
+   0
+  ]
+ },
+ "werf_quay": {
+  "label": "the Werf",
+  "desc": "the river wall of the Werf, west end",
+  "x": -295,
+  "z": 6,
+  "dir": [
+   1,
+   0
+  ]
+ },
+ "steen_gate": {
+  "label": "the gate of Het Steen",
+  "desc": "in front of the gate of Het Steen, by the river",
+  "x": -182,
+  "z": -2,
+  "dir": [
+   1,
+   0
+  ]
+ },
+ "canal_quay": {
+  "label": "the canal quay",
+  "desc": "the east quay of the Canal des Brasseurs",
+  "x": -65,
+  "z": 95,
+  "dir": [
+   0,
+   1
+  ]
+ },
+ "brewery_yard": {
+  "label": "the brewery door",
+  "desc": "the brewery door facing the Canal des Brasseurs",
+  "x": -62,
+  "z": 119.5,
+  "dir": [
+   0,
+   -1
+  ]
+ },
+ "canal_west": {
+  "label": "the west canal quay",
+  "desc": "the west quay of the Canal des Brasseurs",
+  "x": -87,
+  "z": 100,
+  "dir": [
+   0,
+   1
+  ]
+ },
+ "cathedral_door": {
+  "label": "the cathedral door",
+  "desc": "the door of the cathedral on the Handschoenmarkt",
+  "x": -262,
+  "z": 142,
+  "dir": [
+   1,
+   0
+  ]
+ },
+ "markt_stalls": {
+  "label": "the Grote Markt stalls",
+  "desc": "between the market stalls on the Grote Markt",
+  "x": -254,
+  "z": 95,
+  "dir": [
+   1,
+   0
+  ]
+ },
+ "handschoen_well": {
+  "label": "the pump on the Handschoenmarkt",
+  "desc": "the old pump on the Handschoenmarkt",
+  "x": -236,
+  "z": 136,
+  "dir": [
+   1,
+   0
+  ]
  }
 }

@@ -38,10 +38,24 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 OUT = os.path.join(ROOT, "client", "public", "models", "props.glb")
 SHOT = os.path.join(ROOT, "data", "shots", "props_preview.png")
 
-MATS = ["wood", "wood_dark", "iron", "rope", "sackcloth", "crate", "barrel", "stone", "glass", "horse", "horsehair", "leather"]
-WOOD, DARK, IRON, ROPE, SACK, CRATE, BARREL, STONE, GLASS, HORSE, HAIR, LEATHER = range(len(MATS))
+MATS = ["wood", "wood_dark", "iron", "rope", "sackcloth", "crate", "barrel", "stone", "glass", "horse", "horsehair", "leather", "goods"]
+WOOD, DARK, IRON, ROPE, SACK, CRATE, BARREL, STONE, GLASS, HORSE, HAIR, LEATHER, GOODS = range(len(MATS))
 
 S = 64
+
+# The goods atlas: one 256x256 texture of 4 x 4 cells (64 px each) for the port goods
+# and the traffic, so a whole quay of goods is one material and one draw call per
+# chunk. A face of an atlas mesh names a cell; its uv repeats inside that cell (the
+# game's psx shader, option atlas: 4). The cell goes out as a second uv set ("Cell",
+# TEXCOORD_1): (column, row), row 0 at the top of the picture.
+ATLAS_N = 4
+CELLS = ["wood", "wood_dark", "iron", "rope", "horse", "horsehair", "leather", "tarp",
+         "bale", "coffee", "grain", "hide", "cask", "petrol", "crate_mark", "bluestone"]
+(A_WOOD, A_DARK, A_IRON, A_ROPE, A_HORSE, A_HAIR, A_LEATHER, A_TARP,
+ A_BALE, A_COFFEE, A_GRAIN, A_HIDE, A_CASK, A_PETROL, A_CRATE, A_STONE) = range(100, 100 + len(CELLS))
+# the ordinary materials, as drawn in an atlas mesh
+TO_CELL = {WOOD: A_WOOD, DARK: A_DARK, IRON: A_IRON, ROPE: A_ROPE, HORSE: A_HORSE, HAIR: A_HAIR, LEATHER: A_LEATHER,
+           SACK: A_GRAIN, BARREL: A_CASK, CRATE: A_CRATE, STONE: A_STONE}
 
 # ------------------------------------------------------------------ textures
 
@@ -147,18 +161,31 @@ def paint_sack(seed):
     return speckle(img, rng, 0.04)
 
 
-def paint_crate(seed):
-    """Pine boards (vertical) with a stencilled shipping mark."""
+def paint_crate(seed, number="N.127"):
+    """The side of a packing crate, fitted to the whole face: four pine boards across (as the
+    geometry, seams at the gaps), worn pale at the ends, a stencilled merchant's mark (a
+    diamond with a K), ANTWERPEN and a number, nail heads at the battens."""
     rng = np.random.default_rng(seed)
-    img = paint_planks(seed, (0.56, 0.45, 0.30), boards=4, joints=False, knots=2).transpose(1, 0, 2).copy()
+    img = paint_planks(seed, (0.57, 0.46, 0.31), boards=4, seams=True, joints=False, knots=2)
     uu, vv = np.meshgrid(np.arange(S), np.arange(S))
-    dia = np.abs(uu - 32) + np.abs(vv - 32)
-    mark = (dia > 13) & (dia < 15.5)
-    mark |= (np.abs(vv - 32) < 2) & (np.abs(uu - 32) < 7)
-    mark |= (np.abs(vv - 12) < 2) & (np.abs(uu - 32) < 12) & ((uu // 4) % 2 == 0)
-    mark &= rng.random((S, S)) < 0.75
-    img[mark] = img[mark] * 0.3 + col((0.08, 0.07, 0.06)) * 0.4
-    return img
+    # worn edges: the board ends and corners handled pale, a few dark chips
+    wear = np.clip(1 - np.minimum(uu, S - 1 - uu) / 5.0, 0, 1) * (0.5 + 0.5 * rng.random((S, S)))
+    img = img * (1 + 0.35 * wear[..., None])
+    chips = (rng.random((S, S)) < 0.03) & (wear > 0.4)
+    img[chips] *= 0.45
+    # the merchant's mark: a diamond with a K, on the top board
+    dia = np.abs(uu - 32) + np.abs(vv - 55) * 1.25
+    mark = (dia > 7.5) & (dia < 9.5) & (rng.random((S, S)) < 0.85)
+    ink = col((0.07, 0.06, 0.05))
+    img[mark] = img[mark] * 0.3 + ink * 0.6
+    stencil(img, rng, "K", 31, 52, ink)
+    stencil(img, rng, "ANTWERPEN", 14, 34, ink)
+    stencil(img, rng, number, 23, 18, ink)
+    # nail heads where the battens cross the boards
+    for u in (3, 60):
+        for v in (4, 20, 36, 52):
+            img[v:v + 2, u:u + 2] = col((0.1, 0.09, 0.08))
+    return speckle(img, rng, 0.03, 0.7, 0.95)
 
 
 def paint_staves(seed):
@@ -209,6 +236,174 @@ def paint_hide(seed, base, stretch=False, specks=0.03):
     return speckle(img, rng, specks, 0.7, 0.95)
 
 
+# A 3x5 stencil font for the merchants' marks on crates, sacks and casks.
+GLYPHS = {
+    "A": ["010", "101", "111", "101", "101"], "N": ["101", "111", "111", "111", "101"], "V": ["101", "101", "101", "101", "010"],
+    "E": ["111", "100", "110", "100", "111"], "R": ["110", "101", "110", "101", "101"], "S": ["011", "100", "010", "001", "110"],
+    "I": ["111", "010", "010", "010", "111"], "O": ["010", "101", "101", "101", "010"], "T": ["111", "010", "010", "010", "010"],
+    "W": ["101", "101", "111", "111", "101"], "P": ["110", "101", "110", "100", "100"], "H": ["101", "101", "111", "101", "101"],
+    "L": ["100", "100", "100", "100", "111"], "C": ["011", "100", "100", "100", "011"], "K": ["101", "110", "100", "110", "101"],
+    "0": ["111", "101", "101", "101", "111"], "1": ["010", "110", "010", "010", "111"], "2": ["110", "001", "010", "100", "111"],
+    "3": ["110", "001", "010", "001", "110"], "4": ["101", "101", "111", "001", "001"], "5": ["111", "100", "110", "001", "110"],
+    "6": ["011", "100", "111", "101", "111"], "7": ["111", "001", "010", "010", "010"], "8": ["111", "101", "111", "101", "111"],
+    "9": ["111", "101", "111", "001", "110"], "-": ["000", "000", "111", "000", "000"], ".": ["000", "000", "000", "000", "010"],
+}
+
+
+def stencil(img, rng, text, u0, v0, ink, scale=1, wear=0.8):
+    """Letters on a painted array [v, u] (row 0 = v 0, the bottom): the text reads upright, left to right."""
+    u = u0
+    for ch in text:
+        g = GLYPHS.get(ch)
+        if g:
+            for gy, row in enumerate(g):
+                for gx, bit in enumerate(row):
+                    if bit != "1":
+                        continue
+                    for a in range(scale):
+                        for b in range(scale):
+                            vv = v0 + (4 - gy) * scale + a
+                            uu = u + gx * scale + b
+                            if 0 <= vv < S and 0 <= uu < S and rng.random() < wear:
+                                img[vv, uu] = img[vv, uu] * 0.3 + col(ink) * 0.7
+        u += 4 * scale
+    return img
+
+
+def paint_tarp(seed):
+    """Tarred canvas: near black with a green-brown cast, folds, seams, worn light patches."""
+    rng = np.random.default_rng(seed)
+    fold = vnoise(rng, S, 3, 12) * 0.6 + vnoise(rng, S, 8, 24) * 0.4
+    img = col((0.17, 0.17, 0.13)) * (0.7 + 0.6 * fold)[..., None]
+    worn = np.clip((vnoise(rng, S, 6, 6) - 0.62) * 5, 0, 1)[..., None]
+    img = img * (1 - worn * 0.6) + col((0.33, 0.31, 0.25)) * worn * 0.6
+    img[::32] *= 0.5  # seams
+    img[1::32] *= 1.25
+    return speckle(img, rng, 0.05, 0.6, 0.9)
+
+
+def paint_bale(seed):
+    """A cotton bale: grey-brown bagging, white cotton bursting through, iron bands across u."""
+    rng = np.random.default_rng(seed)
+    uu, vv = np.meshgrid(np.arange(S), np.arange(S))
+    weave = np.where((uu + vv) % 2 == 0, 0.06, -0.04)
+    img = col((0.47, 0.41, 0.32)) * (0.88 + weave + 0.3 * vnoise(rng, S, 6, 6))[..., None]
+    cotton = np.clip((vnoise(rng, S, 10, 7) - 0.66) * 5, 0, 1)[..., None]
+    img = img * (1 - cotton) + col((0.74, 0.72, 0.66)) * cotton * (0.9 + 0.1 * rng.random((S, S, 1)))
+    img *= (0.85 + 0.3 * vnoise(rng, S, 3, 3))[..., None]  # dirt
+    for u0 in (7, 23, 40, 56):
+        band = (uu >= u0) & (uu < u0 + 2)
+        rust = rng.random((S, S)) < 0.3
+        img[band] = col((0.12, 0.11, 0.10))
+        img[band & rust] = col((0.32, 0.18, 0.1))
+        img[uu == u0 + 2] *= 0.75
+    return speckle(img, rng, 0.04)
+
+
+def paint_coffee(seed):
+    """Coffee sack: fine jute, a faded blue stripe at each end, a stencilled port mark and number."""
+    rng = np.random.default_rng(seed)
+    uu, vv = np.meshgrid(np.arange(S), np.arange(S))
+    weave = np.where((uu + vv) % 2 == 0, 0.07, -0.05)
+    img = col((0.60, 0.51, 0.36)) * (0.9 + weave + 0.2 * vnoise(rng, S, 4, 4))[..., None]
+    for u0 in (5, 56):
+        img[:, u0:u0 + 3] = img[:, u0:u0 + 3] * 0.55 + col((0.2, 0.26, 0.36)) * 0.45
+    stencil(img, rng, "RIO", 20, 34, (0.1, 0.08, 0.07), scale=2)
+    stencil(img, rng, "N.47", 24, 22, (0.1, 0.08, 0.07))
+    return speckle(img, rng, 0.05)
+
+
+def paint_hides(seed):
+    """Dried hides. Lower half (v < 0.5): the edge of a folded bundle, thin layers of hair with
+    pale flesh-side lines between. Upper half: the hair side of a hide lying on top, brown with
+    white patches (pied cattle from the River Plate)."""
+    rng = np.random.default_rng(seed)
+    img = np.zeros((S, S, 3))
+    h = S // 2
+    vv = np.arange(h)[:, None] + 1.5 * np.sin(np.arange(S)[None, :] * 0.3 + rng.uniform(0, 6)) + 3 * vnoise(rng, S, 4, 2)[:h]
+    hair = col((0.24, 0.15, 0.09)) * (0.75 + 0.45 * vnoise(rng, S, 32, 6)[:h])[..., None]
+    img[:h] = hair
+    edge = (vv.astype(int) % 5) == 0
+    img[:h][edge] = col((0.58, 0.47, 0.34)) * 0.9
+    img[:h][(vv.astype(int) % 5) == 1] *= 0.6
+    top = col((0.30, 0.19, 0.11)) * (0.8 + 0.35 * vnoise(rng, S, 16, 16)[h:])[..., None]
+    white = np.clip((vnoise(rng, S, 5, 5)[h:] - 0.6) * 6, 0, 1)[..., None]
+    top = top * (1 - white) + col((0.66, 0.62, 0.55)) * white
+    top *= (0.85 + 0.3 * vnoise(rng, S, 64, 8)[h:])[..., None]  # the lie of the hair
+    img[h:] = top
+    img[h:h + 1] *= 0.5
+    return speckle(img, rng, 0.05, 0.6, 0.9)
+
+
+def paint_cask(seed, base, paint=None):
+    """Cask staves along v (the cask's length, 0..1), four iron hoops, maybe a coat of paint."""
+    rng = np.random.default_rng(seed)
+    img = np.zeros((S, S, 3))
+    for k in range(8):
+        tone = 1 + rng.uniform(-0.15, 0.15)
+        img[:, k * 8:(k + 1) * 8] = col(base) * tone
+        img[:, k * 8] *= 0.45
+    grain = vnoise(rng, S, 32, 3) * 0.6 + vnoise(rng, S, 64, 6) * 0.4
+    img *= (0.8 + 0.35 * grain)[..., None]
+    if paint is not None:
+        worn = np.clip((vnoise(rng, S, 8, 8) - 0.66) * 5, 0, 1)[..., None]
+        img = col(paint) * (0.85 + 0.25 * grain)[..., None] * (1 - worn) + img * worn
+        for k in range(8):
+            img[:, k * 8] *= 0.55
+    for v0, v1 in ((3, 7), (16, 20), (44, 48), (57, 61)):
+        img[v0:v1] = col((0.11, 0.10, 0.10)) * (0.8 + 0.4 * rng.random((v1 - v0, S, 1)))
+        img[v0:v1][rng.random((v1 - v0, S)) < 0.2] = col((0.30, 0.17, 0.10))
+    return speckle(img, rng, 0.05)
+
+
+def paint_crate_mark(seed):
+    """The crate side of the goods atlas (same design, another number)."""
+    return paint_crate(seed, "N.12")
+
+
+def paint_bluestone(seed):
+    """Belgian bluestone: blue-grey, fine tooling lines, a darker arris round the face, lime spots."""
+    rng = np.random.default_rng(seed)
+    img = col((0.34, 0.36, 0.38)) * (0.85 + 0.25 * vnoise(rng, S, 6, 6))[..., None]
+    img[::2] *= 0.93  # the claw tool's lines
+    img *= (0.95 + 0.1 * vnoise(rng, S, 32, 2))[..., None]
+    img[:2] *= 0.65
+    img[-2:] *= 0.65
+    img[:, :2] *= 0.65
+    img[:, -2:] *= 0.65
+    lime = rng.random((S, S)) < 0.015
+    img[lime] = col((0.62, 0.62, 0.58))
+    return speckle(img, rng, 0.08, 0.75, 1.15)
+
+
+def paint_atlas():
+    """The 4 x 4 goods atlas, in Blender's order (row 0 of the array = the bottom of the picture)."""
+    cells = {
+        "wood": paint_planks(1, (0.43, 0.37, 0.29)),
+        "wood_dark": paint_planks(2, (0.25, 0.19, 0.14), boards=2, seams=False, joints=False, knots=1),
+        "iron": paint_iron(3),
+        "rope": paint_rope(4),
+        "horse": paint_hide(10, (0.36, 0.21, 0.12), specks=0.0),
+        "horsehair": paint_hide(11, (0.09, 0.07, 0.055), stretch=True),
+        "leather": paint_hide(12, (0.21, 0.13, 0.08)),
+        "tarp": paint_tarp(21),
+        "bale": paint_bale(22),
+        "coffee": paint_coffee(23),
+        "grain": paint_sack(5),
+        "hide": paint_hides(24),
+        "cask": paint_cask(25, (0.42, 0.28, 0.17)),
+        "petrol": paint_cask(26, (0.40, 0.30, 0.20), paint=(0.24, 0.31, 0.38)),
+        "crate_mark": paint_crate_mark(27),
+        "bluestone": paint_bluestone(28),
+    }
+    N = ATLAS_N
+    out = np.zeros((S * N, S * N, 3))
+    for k, name in enumerate(CELLS):
+        c, r = k % N, k // N
+        out[(N - 1 - r) * S:(N - r) * S, c * S:(c + 1) * S] = cells[name]
+    return out
+
+
 def image(name, arr):
     h, w, _ = arr.shape
     img = bpy.data.images.new(name, w, h, alpha=False)
@@ -233,6 +428,7 @@ def make_materials():
         "horse": lambda: paint_hide(10, (0.36, 0.21, 0.12), specks=0.0),
         "horsehair": lambda: paint_hide(11, (0.09, 0.07, 0.055), stretch=True),
         "leather": lambda: paint_hide(12, (0.21, 0.13, 0.08)),
+        "goods": paint_atlas,
     }
     for name in MATS:
         img = image(f"{name}_tex", paint[name]())
@@ -283,10 +479,13 @@ def planar_uv(pts, tile=1.0, mode="metric"):
 
 
 class Mesh:
-    def __init__(self, ao=0.45):
+    def __init__(self, ao=0.45, atlas=False):
         self.bm = bmesh.new()
         self.uv = self.bm.loops.layers.uv.new("UVMap")
         self.col = self.bm.loops.layers.float_color.new("Col")
+        # atlas meshes: every face is the "goods" material, the cell in a second uv set
+        self.atlas = atlas
+        self.cell = self.bm.loops.layers.uv.new("Cell") if atlas else None
         self.xf = Matrix.Identity(4)
         self.ao = ao
         self.shadefn = None
@@ -308,7 +507,18 @@ class Mesh:
             f = self.bm.faces.new(vs)
         except ValueError:
             return None
-        f.material_index = mat
+        if self.atlas:
+            a = TO_CELL.get(mat, mat)
+            if a < 100:
+                raise ValueError(f"material {MATS[mat]} has no cell in the goods atlas")
+            k = a - 100
+            f.material_index = GOODS
+            for loop in f.loops:
+                loop[self.cell].uv = (k % ATLAS_N, k // ATLAS_N)
+        else:
+            if mat >= 100:
+                raise ValueError("an atlas cell on a mesh without the atlas")
+            f.material_index = mat
         f.smooth = smooth
         for k, (loop, uv) in enumerate(zip(f.loops, uvs)):
             loop[self.uv].uv = uv
@@ -501,10 +711,9 @@ def wheel(m, c, r, w, spokes, segs, fel=None, hub=None, spoke=None):
             m.beam(d * hr * 0.8, d * (r - fel * 0.6), sw, sw * 1.3, DARK, side=(0, 0, 1), caps=False, tile=0.8)
 
 
-def sack(m, seed, L=0.9, W=0.52, H=0.27):
+def sack(m, seed, L=0.9, W=0.52, H=0.27, nx=7, na=10, mat=SACK):
     """A full jute sack lying down, long along X, tied ends pinched flat."""
     rng = random.Random(seed)
-    nx, na = 7, 10
     rings = []
     for k in range(nx):
         t = -1 + 2 * k / (nx - 1)
@@ -524,7 +733,7 @@ def sack(m, seed, L=0.9, W=0.52, H=0.27):
             ring.append((x + rng.uniform(-j, j), y + rng.uniform(-j, j), z + (rng.uniform(-j, j) if z > 0.01 else 0)))
         rings.append(ring)
     m.shadefn = lambda p: 0.7 + 0.3 * min(1.0, p.z / H)
-    m.grid(rings, SACK, cap0=True, cap1=True, uvfn=lambda p: (p.x / L + 0.5, p.y / L + 0.5))
+    m.grid(rings, mat, cap0=True, cap1=True, uvfn=lambda p: (p.x / L + 0.5, p.y / L + 0.5))
     m.shadefn = None
 
 
@@ -587,14 +796,51 @@ def crate_body(m, sx, sy, sz):
 # ------------------------------------------------------------------ props
 
 
-def handcart(loaded=False):
-    """The dockers' two-wheeled push cart: big wheels, a plank bed, long shafts."""
-    m = Mesh()
-    R, zf = 0.62, 0.72
+HANDCART_R = 0.57  # wheel radius (1.14 m wheels); the axle is at y 0.1
+HANDCART_GRIP = (0.34, -2.05, 0.75)  # the grips, level (Blender): x across, y out along the shafts, z height
+
+
+def handcart(loaded=False, part="all", atlas=False):
+    """The dockers' two-wheeled push cart: big wheels, a plank bed, long shafts.
+    part: "all", or for the traffic "body" (no wheels), "wheels" (origin on the axle), "load";
+    the parts have their origin under (or on) the axle."""
+    m = Mesh(atlas=atlas)
+    R, zf = HANDCART_R, 0.72
+    shift = {"all": (0, 0, 0), "body": (0, -0.1, 0), "wheels": (0, -0.1, -R), "load": (0, -0.1, 0)}[part]
+    with m.at(move(*shift)):
+        handcart_parts(m, loaded, part, R, zf)
+    return m
+
+
+def handcart_parts(m, loaded, part, R, zf):
+    if part in ("all", "wheels"):
+        for sx in (-1, 1):
+            wheel(m, (sx * 0.64, 0.1, R), R, 0.065, 12, 14)
+        # the axle turns with the wheels (so the pair is one part)
+        m.beam((-0.72, 0.1, R), (0.72, 0.1, R), 0.045, 0.045, IRON, side=(0, 1, 0))
+    top = zf + 0.045 + 0.04
+    if part == "load" or (part == "all" and loaded):
+        for i, y in enumerate((-0.42, 0.12, 0.66)):
+            with m.at(move(0, y, top) @ rot_z(math.pi / 2 + 1.52 + 0.06 * i)):
+                sack(m, 20 + i, L=0.88, W=0.5, H=0.26, nx=5 if part == "load" else 7, na=7 if part == "load" else 10)
+        for i, y in enumerate((-0.15, 0.42)):
+            with m.at(move(0.03 * i, y, top + 0.23) @ rot_z(math.pi / 2 + 1.5 - 0.1 * i) @ Matrix.Rotation(0.05, 4, "X")):
+                sack(m, 30 + i, L=0.86, W=0.5, H=0.26, nx=5 if part == "load" else 7, na=7 if part == "load" else 10)
+        # a small crate at the back, and the load lashed down with two ropes to the stakes
+        with m.at(move(0.0, 0.62, top + 0.26) @ rot_z(0.1)):
+            crate_detail(m, 0.55, 0.42, 0.34, 23, handles=False)
+        for y in (-0.3, 0.45):
+            path = [(-0.545, y, top + 0.28), (-0.46, y, top + 0.44), (-0.2, y + 0.02, top + 0.53), (0.2, y - 0.02, top + 0.53),
+                    (0.46, y, top + 0.44), (0.545, y, top + 0.28)]
+            m.tube(path, [0.018] * len(path), 3, ROPE, side=(0, 1, 0), vscale=5)
+    if part not in ("all", "body"):
+        return
+    # the bolster between the axle and the bed
+    m.beam((-0.5, 0.1, R + 0.06), (0.5, 0.1, R + 0.06), 0.1, 0.12, DARK, side=(0, 1, 0))
+    # worn grips at the shaft ends: a darker, greasy band where the hands hold
+    gx, gy, gz = HANDCART_GRIP
     for sx in (-1, 1):
-        wheel(m, (sx * 0.64, 0.1, R), R, 0.065, 12, 14)
-    m.beam((-0.72, 0.1, R), (0.72, 0.1, R), 0.045, 0.045, IRON, side=(0, 1, 0))
-    m.beam((-0.5, 0.1, R + 0.03), (0.5, 0.1, R + 0.03), 0.1, 0.07, DARK, side=(0, 1, 0))
+        m.beam((sx * gx, gy + 0.33, gz + 0.02), (sx * (gx - 0.004), gy - 0.02, gz + 0.03), 0.058, 0.064, LEATHER, shade=0.8)
     for sx in (-1, 1):
         m.beam((sx * 0.44, 0.95, zf), (sx * 0.44, -0.72, zf), 0.07, 0.09, DARK)
         m.beam((sx * 0.44, -0.72, zf), (sx * 0.34, -2.05, zf + 0.03), 0.07, 0.09, DARK, w2=0.05, h2=0.055)
@@ -611,33 +857,59 @@ def handcart(loaded=False):
             m.beam((sx * 0.545, y, zf - 0.05), (sx * 0.545, y, top + 0.3), 0.045, 0.045, DARK, side=(1, 0, 0))
     m.slab([(-0.52, 0.96, top), (0.52, 0.96, top), (0.52, 0.96, top + 0.16), (-0.52, 0.96, top + 0.16)], 0.03, WOOD, out=(0, 1, 0), shade=0.9)
     m.slab([(-0.52, -0.74, top), (0.52, -0.74, top), (0.52, -0.74, top + 0.3), (-0.52, -0.74, top + 0.3)], 0.03, WOOD, out=(0, -1, 0), shade=0.9)
-    if loaded:
-        for i, y in enumerate((-0.42, 0.12, 0.66)):
-            with m.at(move(0, y, top) @ rot_z(math.pi / 2 + 1.52 + 0.06 * i)):
-                sack(m, 20 + i, L=0.88, W=0.5, H=0.26)
-        for i, y in enumerate((-0.15, 0.42)):
-            with m.at(move(0.03 * i, y, top + 0.23) @ rot_z(math.pi / 2 + 1.5 - 0.1 * i) @ Matrix.Rotation(0.05, 4, "X")):
-                sack(m, 30 + i, L=0.86, W=0.5, H=0.26)
-    return m
 
 
 DRAY_HORSE_Y = -3.2  # where the horse stands in front of the hitched dray (Blender y)
 
 
-def dray(hitched=False):
-    """Four-wheeled flat dray for one horse: plank bed on sills, fore-carriage on a turntable."""
-    m = Mesh()
+DRAY_REAR_Y, DRAY_FRONT_Y = 1.25, -1.15  # the axles (Blender y); wheel radii 0.52 and 0.42
+
+
+def dray(hitched=False, part="all", atlas=False):
+    """Four-wheeled flat dray for one horse: plank bed on sills, fore-carriage on a turntable.
+    part: "all", or for the traffic "bed" (origin under the rear axle), "fore" (the fore-carriage
+    and shafts, origin under the front axle, it turns with the horse), "wheels_rear" and
+    "wheels_front" (a pair of wheels, origin on the axle)."""
+    m = Mesh(atlas=atlas)
+    shift = {"all": (0, 0, 0), "bed": (0, -DRAY_REAR_Y, 0), "fore": (0, -DRAY_FRONT_Y, 0),
+             "wheels_rear": (0, -DRAY_REAR_Y, -0.52), "wheels_front": (0, -DRAY_FRONT_Y, -0.42)}[part]
+    with m.at(move(*shift)):
+        dray_parts(m, hitched, part)
+    return m
+
+
+def dray_parts(m, hitched, part):
+    def want(p):
+        return part in ("all", p)
+
     for sx in (-1, 1):
-        wheel(m, (sx * 0.8, 1.25, 0.52), 0.52, 0.07, 12, 14)
-        wheel(m, (sx * 0.76, -1.15, 0.42), 0.42, 0.065, 10, 12)
-    # rear axle and bolster
-    m.beam((-0.88, 1.25, 0.52), (0.88, 1.25, 0.52), 0.1, 0.1, DARK, side=(0, 1, 0))
-    m.box((0, 1.25, 0.71), (1.25, 0.14, 0.28), DARK)
-    # fore-carriage: axle, bolster, turntable, upper bolster
-    m.beam((-0.84, -1.15, 0.42), (0.84, -1.15, 0.42), 0.1, 0.1, DARK, side=(0, 1, 0))
-    m.box((0, -1.15, 0.55), (1.15, 0.14, 0.18), DARK)
-    with m.at(move(0, -1.15, 0)):
-        m.lathe([(0.38, 0.64), (0.38, 0.70)], 10, IRON, smooth=False, cap1=True)
+        if want("wheels_rear"):
+            wheel(m, (sx * 0.8, 1.25, 0.52), 0.52, 0.07, 12, 14)
+        if want("wheels_front"):
+            wheel(m, (sx * 0.76, -1.15, 0.42), 0.42, 0.065, 10, 12)
+    if want("bed"):
+        # rear axle and bolster
+        m.beam((-0.88, 1.25, 0.52), (0.88, 1.25, 0.52), 0.1, 0.1, DARK, side=(0, 1, 0))
+        m.box((0, 1.25, 0.71), (1.25, 0.14, 0.28), DARK)
+    if want("fore"):
+        # fore-carriage: axle, bolster, turntable
+        m.beam((-0.84, -1.15, 0.42), (0.84, -1.15, 0.42), 0.1, 0.1, DARK, side=(0, 1, 0))
+        m.box((0, -1.15, 0.55), (1.15, 0.14, 0.18), DARK)
+        with m.at(move(0, -1.15, 0)):
+            m.lathe([(0.38, 0.64), (0.38, 0.70)], 10, IRON, smooth=False, cap1=True)
+        # shafts: resting on the ground, or up at a horse's shoulders
+        tip_z, tip_y = (1.12, -3.95) if hitched else (0.05, -3.85)
+        for sx in (-1, 1):
+            m.beam((sx * 0.52, -1.2, 0.56), (sx * 0.43, tip_y, tip_z), 0.075, 0.09, DARK, w2=0.05, h2=0.06)
+            if hitched:
+                m.beam((sx * 0.43, tip_y + 0.12, tip_z), (sx * 0.43, tip_y - 0.02, tip_z + 0.02), 0.06, 0.07, IRON)
+        f = (1.75 - 1.2) / (-tip_y - 1.2)
+        zc = 0.56 + (tip_z - 0.56) * f
+        xc = 0.52 - 0.09 * f
+        m.beam((-xc, -1.75, zc), (xc, -1.75, zc), 0.06, 0.06, DARK, side=(0, 1, 0))
+    if not want("bed"):
+        return
+    # the upper bolster on the turntable carries the bed
     m.box((0, -1.15, 0.775), (1.25, 0.14, 0.15), DARK)
     # sills, bearers, bed
     for sx in (-1, 1):
@@ -656,22 +928,31 @@ def dray(hitched=False):
     for sx in (-1, 1):
         m.box((sx * 0.5, -1.55, 1.3), (0.06, 0.3, 0.5), DARK)
     m.box((0, -1.55, 1.58), (1.3, 0.38, 0.05), WOOD)
-    # shafts: resting on the ground, or up at a horse's shoulders
-    tip_z, tip_y = (1.12, -3.95) if hitched else (0.05, -3.85)
-    for sx in (-1, 1):
-        m.beam((sx * 0.52, -1.2, 0.56), (sx * 0.43, tip_y, tip_z), 0.075, 0.09, DARK, w2=0.05, h2=0.06)
-        if hitched:
-            m.beam((sx * 0.43, tip_y + 0.12, tip_z), (sx * 0.43, tip_y - 0.02, tip_z + 0.02), 0.06, 0.07, IRON)
-    f = (1.75 - 1.2) / (-tip_y - 1.2)
-    zc = 0.56 + (tip_z - 0.56) * f
-    xc = 0.52 - 0.09 * f
-    m.beam((-xc, -1.75, zc), (xc, -1.75, zc), 0.06, 0.06, DARK, side=(0, 1, 0))
-    return m
 
 
-def horse():
-    """A heavy draught horse (Brabant type), standing, in a leather collar."""
-    m = Mesh(ao=0.0)
+# where the legs hang from (Blender): front at the shoulder, hind at the hip
+HORSE_FRONT_HIP = (0.19, -0.62, 1.05)
+HORSE_HIND_HIP = (0.2, 0.62, 1.10)
+
+
+def horse_leg(m, pts):
+    m.tube([(x, y, z) for x, y, z, _ in pts], [r for *_, r in pts], 6, HORSE, side=(0, 1, 0),
+           mats=[HORSE, HORSE, HAIR, HAIR, HAIR], cap0=True, cap1=True, cap_mat=HAIR, vscale=0.7)
+
+
+def horse(part="all", atlas=False):
+    """A heavy draught horse (Brabant type), standing, in a leather collar.
+    part: "all", or for the traffic "body" (no legs), "leg_front" and "leg_hind" (one leg,
+    hanging from its hip at the origin; the game swings it)."""
+    m = Mesh(ao=0.0, atlas=atlas)
+    if part == "leg_front":
+        horse_leg(m, [(0, 0.0, 0.0, 0.12), (0, -0.02, -0.33, 0.09), (0, -0.02, -0.53, 0.075),
+                      (0, -0.02, -0.83, 0.055), (0, -0.03, -0.95, 0.085), (0, -0.04, -1.05, 0.09)])
+        return m
+    if part == "leg_hind":
+        horse_leg(m, [(0, 0.0, 0.0, 0.15), (0, 0.12, -0.32, 0.10), (0, 0.18, -0.55, 0.075),
+                      (0, 0.12, -0.88, 0.055), (0, 0.10, -1.0, 0.085), (0, 0.08, -1.10, 0.09)])
+        return m
     body = [(0.98, 1.30, 0.10, 0.14), (0.90, 1.32, 0.26, 0.30), (0.65, 1.34, 0.34, 0.37), (0.25, 1.28, 0.36, 0.40),
             (-0.15, 1.26, 0.36, 0.42), (-0.50, 1.30, 0.33, 0.42), (-0.78, 1.34, 0.26, 0.38), (-0.93, 1.30, 0.14, 0.24)]
     m.shadefn = lambda p: 0.72 + 0.28 * min(1.0, max(0.0, (p.z - 0.85) / 0.6))
@@ -693,9 +974,9 @@ def horse():
                      (sx * 0.19, -0.64, 0.22, 0.055), (sx * 0.19, -0.65, 0.10, 0.085), (sx * 0.19, -0.66, 0.0, 0.09)])
         legs.append([(sx * 0.2, 0.62, 1.10, 0.15), (sx * 0.2, 0.74, 0.78, 0.10), (sx * 0.2, 0.80, 0.55, 0.075),
                      (sx * 0.2, 0.74, 0.22, 0.055), (sx * 0.2, 0.72, 0.10, 0.085), (sx * 0.2, 0.70, 0.0, 0.09)])
-    for leg in legs:
-        m.tube([(x, y, z) for x, y, z, _ in leg], [r for *_, r in leg], 6, HORSE, side=(0, 1, 0),
-               mats=[HORSE, HORSE, HAIR, HAIR, HAIR], cap0=True, cap1=True, cap_mat=HAIR, vscale=0.7)
+    if part == "all":
+        for leg in legs:
+            horse_leg(m, leg)
     m.tube([(0, 0.99, 1.47), (0, 1.09, 1.33), (0, 1.13, 1.0), (0, 1.11, 0.66)], [0.06, 0.085, 0.10, 0.05], 5, HAIR,
            cap0=True, cap1=True, vscale=1)
     m.tube([(0, -0.58, 1.84), (0, -0.84, 2.0), (0, -1.04, 2.15), (0, -1.14, 2.24)], [(0.03, 0.07)] * 4, 4, HAIR,
@@ -740,9 +1021,9 @@ def wheelbarrow():
     return m
 
 
-def sack_truck():
+def sack_truck(atlas=False):
     """Two-wheeled hand truck for sacks: a ladder frame on an iron nose, standing up."""
-    m = Mesh()
+    m = Mesh(atlas=atlas)
     for sx in (-1, 1):
         wheel(m, (sx * 0.28, 0.1, 0.15), 0.15, 0.045, 6, 10, fel=0.035, hub=0.035, spoke=0.022)
         m.beam((sx * 0.19, -0.01, 0.02), (sx * 0.19, 0.11, 1.28), 0.045, 0.06, DARK, side=(1, 0, 0))
@@ -759,9 +1040,102 @@ def sack_truck():
     return m
 
 
-def crate(sx=1.0, sy=1.0, sz=1.0):
-    m = Mesh()
-    crate_body(m, sx, sy, sz)
+def crate_detail(m, sx, sy, sz, seed=0, lid=True, broken=False, handles=True):
+    """A packing crate of the 1870s, long along x: four boards a side with gaps (the dark
+    inside shows through), corner battens, battens round the top and foot, a diagonal
+    brace on the long sides, iron straps on the top corners, rope handles on the ends.
+    lid=False: open, filled with straw; broken=True: boards missing from one side."""
+    rng = random.Random(seed)
+    hx, hy = sx / 2, sy / 2
+    # the dark inside (seen through the gaps)
+    m.box((0, 0, sz / 2), (sx - 0.05, sy - 0.05, sz - 0.03), DARK, skip=("-z",) if lid else ("-z", "+z"), shade=0.35)
+    gap = 0.018
+    nb = 4
+    hb = (sz - gap * (nb - 1)) / nb
+    lost = rng.randrange(nb) if broken else -1
+    # the four sides: (corner a, corner b along the face, outward normal)
+    faces = [((-hx, -hy), (hx, -hy), (0, -1)), ((hx, hy), (-hx, hy), (0, 1)), ((hx, -hy), (hx, hy), (1, 0)), ((-hx, hy), (-hx, -hy), (-1, 0))]
+    for fi, ((ax, ay), (bx, by), n) in enumerate(faces):
+        for k in range(nb):
+            if fi == 0 and (k == lost or (broken and k == lost + 1 and lost < nb - 1 and rng.random() < 0.5)):
+                continue
+            z0 = k * (hb + gap)
+            z1 = z0 + hb
+            pts = [(ax, ay, z0), (bx, by, z0), (bx, by, z1), (ax, ay, z1)]
+            m.poly(pts, CRATE, out=(n[0], n[1], 0), uvs=[(0, z0 / sz), (1, z0 / sz), (1, z1 / sz), (0, z1 / sz)])
+    if lid:
+        nt = max(3, round(sy / 0.22))
+        wt = (sy - gap * (nt - 1)) / nt
+        for k in range(nt):
+            y0 = -hy + k * (wt + gap)
+            y1 = y0 + wt
+            m.poly([(-hx, y0, sz), (hx, y0, sz), (hx, y1, sz), (-hx, y1, sz)], CRATE, out=(0, 0, 1),
+                   uvs=[(0, (y0 + hy) / sy), (1, (y0 + hy) / sy), (1, (y1 + hy) / sy), (0, (y1 + hy) / sy)])
+    else:
+        # packing straw, heaped a little
+        rows = []
+        for j in range(4):
+            y = -hy + 0.03 + (sy - 0.06) * j / 3
+            rows.append([(-hx + 0.03 + (sx - 0.06) * i / 4, y, sz - 0.08 + (0.07 * rng.random() if 0 < i < 4 and 0 < j < 3 else 0.0))
+                         for i in range(5)])
+        m.grid(rows, ROPE, closed=False, smooth=False, uvfn=lambda p: (p.x * 3, p.y * 3))
+    b, o = 0.055, 0.012  # batten size, stand-off from the boards
+    for cx in (-hx, hx):
+        for cy in (-hy, hy):
+            m.beam((cx + math.copysign(o, cx) * 0.5, cy + math.copysign(o, cy) * 0.5, 0.0),
+                   (cx + math.copysign(o, cx) * 0.5, cy + math.copysign(o, cy) * 0.5, sz), b, b, WOOD, side=(1, 0, 0), caps=False, shade=0.9)
+    for z in (b / 2, sz - b / 2):
+        for cy in (-hy - o, hy + o):
+            m.beam((-hx, cy, z), (hx, cy, z), b, 0.022, WOOD, side=(0, 1, 0), caps=False, shade=0.85)
+        for cx in (-hx - o, hx + o):
+            m.beam((cx, -hy, z), (cx, hy, z), b, 0.022, WOOD, side=(1, 0, 0), caps=False, shade=0.85)
+    for cy in (-hy - o, hy + o):
+        if broken and cy < 0:
+            continue
+        m.beam((-hx + b, cy, b), (hx - b, cy, sz - b), b * 0.9, 0.02, WOOD, side=(0, 1, 0), caps=False, shade=0.8)
+    # iron straps over the top corners (a plate on each face next to the corner)
+    so = o + 0.012
+    for cx in (-1, 1):
+        for cy in (-1, 1):
+            x, y = cx * (hx + so), cy * (hy + so)
+            z0, z1 = sz - 0.16, sz + 0.004
+            m.poly([(x, y, z0), (x - cx * 0.16, y, z0), (x - cx * 0.16, y, z1), (x, y, z1)], IRON, out=(0, cy, 0), mode="fit", shade=0.9)
+            m.poly([(x, y, z0), (x, y - cy * 0.16, z0), (x, y - cy * 0.16, z1), (x, y, z1)], IRON, out=(cx, 0, 0), mode="fit", shade=0.9)
+    # rope handles on the ends
+    if handles:
+        zh = sz * 0.72
+        for cx in (-1, 1):
+            x = cx * (hx + o + 0.01)
+            path = [(x, -0.12, zh), (x + cx * 0.04, -0.09, zh - 0.07), (x + cx * 0.05, 0.0, zh - 0.1), (x + cx * 0.04, 0.09, zh - 0.07), (x, 0.12, zh)]
+            m.tube(path, [0.016] * 5, 3, ROPE, side=(0, 0, 1), cap0=False, cap1=False, vscale=5)
+
+
+def crate(sx=1.0, sy=1.0, sz=1.0, seed=0, atlas=False, **kw):
+    m = Mesh(atlas=atlas)
+    crate_detail(m, sx, sy, sz, seed, **kw)
+    return m
+
+
+def crate_open(seed=21):
+    """An opened crate: the lid off and leaning on its side, straw inside, a plank on the ground."""
+    m = Mesh(atlas=True)
+    crate_detail(m, 1.0, 0.8, 0.75, seed, lid=False)
+    # the lid: boards on two battens, leaning on the long side (-y)
+    with m.at(move(0.0, -0.4 - 0.32, 0.0) @ Matrix.Rotation(-0.35, 4, "X")):
+        for k in range(4):
+            y0 = -0.4 + k * 0.2
+            m.box((0, 0.0, y0 + 0.4 + 0.09), (1.0, 0.025, 0.18), CRATE, mode="fit")
+        for x in (-0.35, 0.35):
+            m.box((x, 0.022, 0.4), (0.06, 0.022, 0.78), WOOD)
+    return m
+
+
+def crate_broken(seed=22):
+    """A crate with boards stove in on one side, one of them lying in front of it."""
+    m = Mesh(atlas=True)
+    crate_detail(m, 1.1, 0.85, 0.8, seed, broken=True)
+    with m.at(move(0.15, -0.85, 0.0) @ rot_z(0.4)):
+        m.box((0, 0, 0.01), (1.05, 0.19, 0.02), CRATE, mode="fit")
     return m
 
 
@@ -905,6 +1279,466 @@ def crane():
     return m
 
 
+
+# ------------------------------------------------------------------ port goods (atlas)
+#
+# What the naties handled on the quays of the 1870s: cotton (the Katoennatie), coffee,
+# hides, grain, wool, wine and petroleum in casks, timber, stone. Low poly: a quay holds
+# hundreds of these, so a cask is 8-sided and its hoops are painted, not modelled.
+
+CASK_L, CASK_R = 0.9, 0.3
+
+
+def cask_lo(m, cell=A_CASK, L=CASK_L, R=CASK_R, sides=8):
+    """A cask standing on its head at the origin, 8 staves round, painted hoops."""
+    prof = [(R * 0.84, 0.0), (R * 0.96, L * 0.22), (R, L * 0.5), (R * 0.96, L * 0.78), (R * 0.84, L)]
+    m.lathe(prof, sides, cell, urep=2, vscale=0.98 / L)
+    # the heads: boards across, taken from the middle of the texture (between the hoops)
+    for z, out in ((0.0, (0, 0, -1)), (L, (0, 0, 1))):
+        r = R * 0.84
+        pts = [(r * math.cos(2 * math.pi * i / sides), r * math.sin(2 * math.pi * i / sides), z) for i in range(sides)]
+        uvs = [(0.5 + x / (2 * r) * 0.5, 0.35 + (y / (2 * r) + 0.5) * 0.3) for x, y, _ in pts]
+        m.poly(pts, cell, out=out, uvs=uvs, shade=0.85)
+
+
+def cask_lying(m, x, y, z, cell=A_CASK, along="y", spin=0.0):
+    """A cask lying down, its middle at (x, y, z), its length along y (or x)."""
+    turn = Matrix.Rotation(math.pi / 2, 4, "X") if along == "y" else Matrix.Rotation(math.pi / 2, 4, "Y")
+    with m.at(move(x, y, z) @ turn @ rot_z(spin) @ move(0, 0, -CASK_L / 2)):
+        cask_lo(m, cell)
+
+
+def casks_row(cell=A_CASK, n=6, seed=1):
+    """Casks lying side by side on two timber chocks, heads to the front and back."""
+    m = Mesh(atlas=True)
+    rng = random.Random(seed)
+    D = 2 * CASK_R + 0.03
+    w = n * D
+    for y in (-0.26, 0.26):
+        m.beam((-w / 2, y, 0.04), (w / 2, y, 0.04), 0.1, 0.08, A_DARK, side=(0, 0, 1))
+    for i in range(n):
+        cask_lying(m, (i - (n - 1) / 2) * D, rng.uniform(-0.05, 0.05), CASK_R + 0.05, cell, spin=rng.uniform(0, 1))
+    return m
+
+
+def casks_pyramid(cell=A_CASK, tiers=(4, 3, 2, 1), seed=2):
+    """Casks lying in tiers, each in the grooves of the one below (the Quai Godefroid look)."""
+    m = Mesh(atlas=True)
+    rng = random.Random(seed)
+    D = 2 * CASK_R + 0.03
+    w = tiers[0] * D
+    for y in (-0.26, 0.26):
+        m.beam((-w / 2, y, 0.04), (w / 2, y, 0.04), 0.1, 0.08, A_DARK, side=(0, 0, 1))
+    for k, n in enumerate(tiers):
+        z = CASK_R + 0.05 + k * D * 0.866
+        for i in range(n):
+            cask_lying(m, (i - (n - 1) / 2) * D, rng.uniform(-0.04, 0.04), z, cell, spin=rng.uniform(0, 1))
+    return m
+
+
+def casks_standing(cell=A_CASK, seed=3):
+    """Six casks on end in two rows, one lying across the top."""
+    m = Mesh(atlas=True)
+    rng = random.Random(seed)
+    D = 2 * CASK_R + 0.04
+    for i in range(3):
+        for j in range(2):
+            with m.at(move((i - 1) * D + rng.uniform(-0.03, 0.03), (j - 0.5) * D + rng.uniform(-0.03, 0.03), 0) @ rot_z(rng.uniform(0, 1))):
+                cask_lo(m, cell)
+    cask_lying(m, -D / 2, 0.0, CASK_L + CASK_R, cell, along="x", spin=0.4)
+    return m
+
+
+def bale(m, cell=A_BALE, L=1.3, W=0.72, H=0.74, seed=0):
+    """A pressed bale lying down, long along x: bagging, iron bands, the middle bulging."""
+    rng = random.Random(seed)
+    c = 0.08
+
+    def ring(x, s):
+        w, h = W / 2 * s, H * (0.97 + 0.03 * s)
+        pts = [(-w + c, 0), (w - c, 0), (w, c), (w, h - c), (w - c, h), (-w + c, h), (-w, h - c), (-w, c)]
+        return [(x, y + rng.uniform(-0.01, 0.01), z) for y, z in pts]
+
+    rings = [ring(-L / 2, 0.92), ring(-L / 2 + 0.06, 1.0), ring(L / 2 - 0.06, 1.0), ring(L / 2, 0.92)]
+    m.shadefn = lambda p: 0.75 + 0.25 * min(1.0, p.z / H)
+    m.grid(rings, cell, smooth=False, uvfn=lambda p: ((p.x + L / 2) / L, (p.y + p.z) / 0.9))
+    for r, out in ((rings[0], (-1, 0, 0)), (rings[-1], (1, 0, 0))):
+        # the ends: bagging only, from between two bands
+        m.poly(r, cell, out=out, shade=0.9, uvs=[(0.42 + 0.18 * (p[1] / W + 0.5), p[2] / H * 0.8) for p in r])
+    m.shadefn = None
+
+
+def bale_at(m, x, y, z, yaw=0.0, standing=False, cell=A_BALE, seed=0, L=1.3, W=0.72, H=0.74):
+    if standing:
+        # on end: the length goes up
+        with m.at(move(x, y, z + L / 2) @ rot_z(yaw) @ Matrix.Rotation(math.pi / 2, 4, "Y") @ move(0, 0, -H / 2)):
+            bale(m, cell, L, W, H, seed)
+    else:
+        with m.at(move(x, y, z) @ rot_z(yaw)):
+            bale(m, cell, L, W, H, seed)
+
+
+def bales_block(seed=4):
+    """Cotton bales two high: three below lying across, two on top."""
+    m = Mesh(atlas=True)
+    rng = random.Random(seed)
+    for i in range(3):
+        bale_at(m, (i - 1) * 0.76, rng.uniform(-0.05, 0.05), 0, math.pi / 2 + rng.uniform(-0.04, 0.04), seed=seed + i)
+    for i in range(2):
+        bale_at(m, (i - 0.5) * 0.8, rng.uniform(-0.06, 0.06), 0.74, math.pi / 2 + rng.uniform(-0.08, 0.08), seed=seed + 5 + i)
+    return m
+
+
+def bales_row(seed=5):
+    """Bales standing on end in a row, one lying across the top."""
+    m = Mesh(atlas=True)
+    rng = random.Random(seed)
+    for i in range(4):
+        bale_at(m, (i - 1.5) * 0.78, rng.uniform(-0.04, 0.04), 0, rng.uniform(-0.06, 0.06), standing=True, seed=seed + i)
+    bale_at(m, -0.6, 0.0, 1.3, rng.uniform(-0.05, 0.05), seed=seed + 9)
+    return m
+
+
+def coffee_stack(seed=6, layers=5):
+    """Coffee sacks stacked crosswise in a block, as in the storehouse doors."""
+    m = Mesh(atlas=True)
+    rng = random.Random(seed)
+    L, W, H = 0.72, 0.46, 0.22
+    k = 0
+    for layer in range(layers):
+        z = layer * (H - 0.02)
+        spots = [((i - 1.5) * 0.47, 0.0, math.pi / 2) for i in range(4)] if layer % 2 == 0 else \
+                [((i - 0.5) * 0.9, (j - 0.5) * 0.4, 0.0) for i in range(2) for j in range(2)]
+        if layer == layers - 1:
+            spots = spots[:3]
+        for x, y, a in spots:
+            with m.at(move(x + rng.uniform(-0.02, 0.02), y + rng.uniform(-0.02, 0.02), z) @ rot_z(a + rng.uniform(-0.05, 0.05))):
+                sack(m, 60 + k, L=L, W=W, H=H, nx=5, na=6, mat=A_COFFEE)
+            k += 1
+    return m
+
+
+def grain_pile(seed=7):
+    """Grain sacks lying in a pyramid, four, three, two."""
+    m = Mesh(atlas=True)
+    rng = random.Random(seed)
+    k = 0
+    for tier, n in enumerate((4, 3, 2)):
+        for i in range(n):
+            x = (i - (n - 1) / 2) * 0.5
+            with m.at(move(x + rng.uniform(-0.02, 0.02), rng.uniform(-0.04, 0.04), tier * 0.22) @ rot_z(math.pi / 2 + rng.uniform(-0.06, 0.06))):
+                sack(m, 80 + k, L=0.9, W=0.52, H=0.26, nx=5, na=6, mat=A_GRAIN)
+            k += 1
+    return m
+
+
+def hides_pile(seed=8):
+    """Dried hides, folded into flat bundles and piled in two stacks, one draped over."""
+    m = Mesh(atlas=True)
+    rng = random.Random(seed)
+    for sx in (-0.52, 0.52):
+        z = 0.0
+        for k in range(rng.choice([4, 5])):
+            w, d, h = 0.95 + rng.uniform(-0.05, 0.05), 0.66 + rng.uniform(-0.04, 0.04), 0.15 + rng.uniform(-0.02, 0.03)
+            a = rng.uniform(-0.12, 0.12)
+            ca, sa = math.cos(a), math.sin(a)
+            P = []
+            for i in range(8):
+                lx = (w / 2 if i & 1 else -w / 2) * (0.96 if i & 4 else 1.0)
+                ly = (d / 2 if i & 2 else -d / 2) * (0.96 if i & 4 else 1.0)
+                lz = z + (h + rng.uniform(-0.03, 0.03) if i & 4 else 0.0)
+                P.append((sx + lx * ca - ly * sa + rng.uniform(-0.03, 0.03), lx * sa + ly * ca, lz))
+            hide_bundle(m, P)
+            z += h
+    # one hide thrown over the left stack, hanging down its side
+    top = 0.7
+    rows = []
+    for j, y in enumerate((-0.4, -0.13, 0.13, 0.4)):
+        row = []
+        for i, (x, z) in enumerate(((-1.05, 0.25), (-0.95, top), (-0.52, top + 0.06), (-0.1, top), (0.0, top - 0.3))):
+            row.append((x, y + rng.uniform(-0.03, 0.03), z + rng.uniform(-0.03, 0.03)))
+        rows.append(row)
+    m.grid(rows, A_HIDE, closed=False, smooth=False, uvfn=lambda p: ((p.x + 1.1) / 1.2, 0.53 + (p.y + 0.45) / 0.9 * 0.44))
+    return m
+
+
+def hide_bundle(m, P):
+    """A folded bundle of hides over 8 corners (like hexa): the layered edge on the sides
+    (lower half of the hide cell), the hair side on top (upper half)."""
+    P = [Vector(p) for p in P]
+    vs = [m.vert(p) for p in P]
+    for key, idx in HEX_FACES.items():
+        if key == "-z":
+            continue
+        pts = [P[i] for i in idx]
+        uv = planar_uv(pts, 1.0, "fit")
+        if key == "+z":
+            uv = [(0.05 + 0.9 * u, 0.53 + 0.44 * v) for u, v in uv]
+        else:
+            uv = [(u * 1.5, 0.03 + 0.44 * v) for u, v in uv]
+        m.face([vs[i] for i in idx], uv, A_HIDE, 1.0, local=pts)
+
+
+def crate_lo(m, sx, sy, sz, seed=0, handles=True):
+    """A packing crate in a stack: the detailed crate (boards, battens, straps, rope handles)."""
+    crate_detail(m, sx, sy, sz, seed, handles=handles)
+
+
+def crates_stack(seed=9):
+    """Crates in two layers, of three sizes."""
+    m = Mesh(atlas=True)
+    rng = random.Random(seed)
+    x = -1.45
+    tops = []
+    for i, (sx, sy, sz) in enumerate(((1.0, 0.85, 0.8), (1.1, 0.8, 0.7), (0.9, 0.85, 0.8))):
+        with m.at(move(x + sx / 2, rng.uniform(-0.03, 0.03), 0) @ rot_z(rng.uniform(-0.05, 0.05))):
+            crate_lo(m, sx, sy, sz, seed + i, handles=i != 1)
+        tops.append((x + sx / 2, sz))
+        x += sx + 0.04
+    for i, ((cx, z), (sx, sy, sz)) in enumerate(zip(tops[:2], ((0.8, 0.6, 0.55), (0.7, 0.55, 0.5)))):
+        with m.at(move(cx + 0.3, rng.uniform(-0.05, 0.05), z) @ rot_z(rng.uniform(-0.2, 0.2))):
+            crate_lo(m, sx, sy, sz, seed + 5 + i, handles=False)
+    return m
+
+
+def stones_stack(seed=10):
+    """Bluestone kerbs stacked in three layers."""
+    m = Mesh(atlas=True)
+    rng = random.Random(seed)
+    for layer, n in enumerate((4, 4, 3)):
+        for i in range(n):
+            y = (i - (n - 1) / 2) * 0.33
+            with m.at(move(rng.uniform(-0.05, 0.05), y, layer * 0.26) @ rot_z(rng.uniform(-0.03, 0.03))):
+                m.box((0, 0, 0.125), (1.1, 0.3, 0.25), A_STONE, mode="fit", skip=("-z",))
+    return m
+
+
+def stone_blocks(seed=11):
+    """Dressed quay-wall blocks: two on the ground, one on top."""
+    m = Mesh(atlas=True)
+    rng = random.Random(seed)
+    for x, y, z, a in ((-0.6, 0.0, 0.0, 0.03), (0.62, 0.05, 0.0, -0.06), (0.05, 0.0, 0.55, 0.12)):
+        with m.at(move(x, y + rng.uniform(-0.03, 0.03), z) @ rot_z(a)):
+            m.box((0, 0, 0.275), (1.15, 0.75, 0.55), A_STONE, mode="fit", skip=("-z",))
+    return m
+
+
+def timber_stack(seed=12):
+    """Sawn beams in three layers on bearers, sticks between the layers to let them dry."""
+    m = Mesh(atlas=True)
+    rng = random.Random(seed)
+    L = 4.2
+    z = 0.0
+    for layer in range(4):
+        # bearers (the first on the ground) or sticks
+        hb = 0.12 if layer == 0 else 0.05
+        for x in (-1.7, 0.0, 1.7):
+            m.box((x + rng.uniform(-0.05, 0.05), 0, z + hb / 2), (0.1, 1.3, hb), A_DARK, skip=("-z",), shade=0.8)
+        z += hb
+        if layer == 3:
+            break
+        for i in range(5):
+            y = (i - 2) * 0.25
+            dx = rng.uniform(-0.12, 0.12)
+            m.box((dx, y, z + 0.08), (L, 0.19, 0.16), A_WOOD, skip=("-z",))
+        z += 0.16
+    return m
+
+
+def planks_pile(seed=13):
+    """Planks on two bearers, the top ones askew."""
+    m = Mesh(atlas=True)
+    rng = random.Random(seed)
+    for x in (-1.2, 1.2):
+        m.box((x, 0, 0.05), (0.12, 1.1, 0.1), A_DARK, skip=("-z",), shade=0.8)
+    z = 0.1
+    for layer in range(3):
+        for i in range(3):
+            y = (i - 1) * 0.3
+            m.box((rng.uniform(-0.1, 0.1), y + rng.uniform(-0.02, 0.02), z + 0.0225), (3.6, 0.27, 0.045), A_WOOD, skip=("-z",))
+        z += 0.045
+    for a in (0.12, -0.2):
+        with m.at(move(rng.uniform(-0.2, 0.2), 0, z) @ rot_z(a)):
+            m.box((0, 0, 0.0225), (3.4, 0.26, 0.045), A_WOOD, skip=("-z",))
+        z += 0.045
+    return m
+
+
+def tarp_surface(X, Y, H, seed, nu=8, nv=6):
+    """Points of a tarpaulin over a heap: half sizes X, Y, height H; the rim on the ground."""
+    rng = random.Random(seed)
+    pts = []
+    for j in range(nv + 1):
+        row = []
+        v = -1 + 2 * j / nv
+        for i in range(nu + 1):
+            u = -1 + 2 * i / nu
+            e = max(abs(u), abs(v))
+            f = max(0.0, 1 - e ** 5) ** 0.45
+            bump = 0.0 if e > 0.99 else rng.uniform(-0.06, 0.06) + 0.05 * math.sin(u * 5 + v * 3)
+            flare = 1.0 + (0.08 if e > 0.99 else 0.0)
+            row.append((u * X * flare, v * Y * flare, max(0.0, H * f + bump * f)))
+        pts.append(row)
+    return pts
+
+
+def tarp_heap_at(m, X, Y, H, seed=14, ropes=3, weights=True):
+    pts = tarp_surface(X, Y, H, seed)
+    nv = len(pts) - 1
+    nu = len(pts[0]) - 1
+    m.shadefn = lambda p: 0.7 + 0.3 * min(1.0, p.z / max(H, 0.1))
+    # rows run along x; the grid wants rings, so give it the rows (open strip) bottom to top
+    m.grid(pts, A_TARP, closed=False, smooth=True, uvfn=lambda p: (p.x / 1.6, p.y / 1.6))
+    m.shadefn = None
+    # ropes over the top, across y, tied to stones at the foot
+    for k in range(ropes):
+        i = round((k + 1) * nu / (ropes + 1))
+        path = [(pts[j][i][0], pts[j][i][1] * 1.02, pts[j][i][2] + 0.035) for j in range(nv + 1)]
+        m.tube(path, [0.022] * len(path), 3, A_ROPE, side=(1, 0, 0), vscale=4)
+        if weights:
+            for j in (0, nv):
+                x, y, _ = pts[j][i]
+                m.box((x, y * 1.08, 0.09), (0.26, 0.2, 0.18), A_STONE, mode="fit", skip=("-z",), shade=0.85)
+
+
+def tarp_heap(seed=14):
+    """Goods under a tarred tarpaulin, roped down to stones."""
+    m = Mesh(atlas=True)
+    tarp_heap_at(m, 1.45, 0.95, 1.3, seed)
+    return m
+
+
+def beam_scale():
+    """The natie's weighing beam: two timber trestles and a top beam, an iron balance hanging
+    from it, a platform on chains at the short arm with a bale on it, the poise and a pile of
+    weights by the long arm."""
+    m = Mesh(atlas=True, ao=0.3)
+    top = 3.0
+    for x in (-1.25, 1.25):
+        for sy in (-1, 1):
+            m.beam((x, sy * 0.85, 0.0), (x, sy * 0.06, top - 0.1), 0.14, 0.14, A_DARK, side=(1, 0, 0))
+        m.beam((x, -0.6, 0.9), (x, 0.6, 0.9), 0.08, 0.1, A_DARK, side=(1, 0, 0))
+    m.beam((-1.45, 0, top), (1.45, 0, top), 0.2, 0.22, A_DARK, side=(0, 1, 0))
+    # the hanger and the balance: short arm to -x (the platform), long arm to +x (the poise)
+    m.beam((0, 0, top - 0.11), (0, 0, 2.62), 0.05, 0.05, A_IRON, side=(1, 0, 0))
+    m.beam((-0.45, 0, 2.55), (1.05, 0, 2.55), 0.08, 0.14, A_IRON, side=(0, 1, 0), w2=0.05, h2=0.07)
+    m.box((0, 0, 2.58), (0.16, 0.12, 0.16), A_IRON)
+    # the platform on four chains from the hook
+    hook = Vector((-0.45, 0, 2.45))
+    m.beam((-0.45, 0, 2.55), tuple(hook), 0.03, 0.03, A_IRON, side=(1, 0, 0))
+    pz = 0.16
+    for cx in (-0.5, 0.5):
+        for cy in (-0.5, 0.5):
+            m.beam(tuple(hook), (-0.45 + cx, cy, pz + 0.06), 0.022, 0.022, A_IRON, caps=False)
+    m.box((-0.45, 0, pz), (1.1, 1.1, 0.07), A_WOOD, shade=0.9)
+    for cy in (-0.4, 0.0, 0.4):
+        m.box((-0.45, cy, pz - 0.06), (1.1, 0.08, 0.05), A_DARK, shade=0.7)
+    bale_at(m, -0.45, 0.0, pz + 0.035, math.pi / 2 + 0.08, standing=False, seed=31)
+    # the poise hanging on the long arm
+    with m.at(move(0.85, 0, 0)):
+        m.beam((0, 0, 2.48), (0, 0, 2.2), 0.02, 0.02, A_IRON, caps=False, side=(1, 0, 0))
+        m.lathe([(0.03, 1.95), (0.11, 2.02), (0.12, 2.12), (0.06, 2.2)], 8, A_IRON, cap0=True, cap1=True, smooth=False)
+    # the weights on the ground: stacked discs and two bell weights
+    for k, (r, h) in enumerate(((0.16, 0.07), (0.14, 0.07), (0.12, 0.06), (0.1, 0.06))):
+        with m.at(move(1.0, 0.55, sum(hh for _, hh in ((0.16, 0.07), (0.14, 0.07), (0.12, 0.06), (0.1, 0.06))[:k]))):
+            m.lathe([(r, 0.0), (r, h)], 8, A_IRON, cap1=True, smooth=False)
+    for x, y, r in ((0.65, 0.62, 0.1), (0.72, 0.35, 0.08)):
+        with m.at(move(x, y, 0)):
+            m.lathe([(r, 0.0), (r * 1.05, r * 0.9), (r * 0.6, r * 1.6), (r * 0.25, r * 1.9), (r * 0.25, r * 2.2)], 6, A_IRON,
+                    cap1=True, smooth=False)
+    return m
+
+
+def weigh_scale():
+    """A decimal platform scale (the bascule of the naties): a low platform, the column with its
+    beam and weight pan at the back, a sack being weighed."""
+    m = Mesh(atlas=True, ao=0.3)
+    m.box((0, 0.0, 0.1), (0.95, 0.75, 0.2), A_DARK, skip=("-z",), shade=0.8)
+    m.box((0, -0.03, 0.22), (0.85, 0.62, 0.04), A_WOOD)
+    # the column at the back (+y), the beam across on top, the pan hanging at its end
+    m.beam((0, 0.33, 0.2), (0, 0.33, 1.15), 0.12, 0.1, A_DARK, side=(1, 0, 0))
+    m.beam((-0.3, 0.33, 1.2), (0.42, 0.33, 1.2), 0.05, 0.05, A_IRON, side=(0, 1, 0))
+    m.box((0, 0.33, 1.2), (0.08, 0.08, 0.1), A_IRON)
+    m.beam((0.4, 0.33, 1.18), (0.4, 0.33, 0.85), 0.015, 0.015, A_IRON, caps=False, side=(1, 0, 0))
+    with m.at(move(0.4, 0.33, 0)):
+        m.lathe([(0.02, 0.8), (0.12, 0.84), (0.12, 0.86)], 8, A_IRON, cap0=True, smooth=False)
+        m.lathe([(0.05, 0.86), (0.05, 0.92)], 6, A_IRON, cap1=True, smooth=False)
+    with m.at(move(-0.05, -0.05, 0.24) @ rot_z(0.3)):
+        sack_standing(m, 41)
+    return m
+
+
+def sack_truck_sacks():
+    """A sack truck standing ready with a sack on its nose, a second sack leaning on it."""
+    m = sack_truck(atlas=True)
+    with m.at(move(0, -0.13, 0.03) @ Matrix.Rotation(-0.1, 4, "X")):
+        sack_standing(m, 42)
+    with m.at(move(0.55, -0.1, 0) @ rot_z(0.9)):
+        sack_standing(m, 43)
+    return m
+
+
+def ladder_lean():
+    """A ladder leaning on a wall behind it (+y); its foot to the front."""
+    m = Mesh(atlas=True)
+    foot, top_y, top_z = -0.5, 0.42, 3.6
+    for sx in (-0.23, 0.23):
+        m.beam((sx, foot, 0.0), (sx, top_y, top_z), 0.06, 0.07, A_WOOD)
+    for k in range(1, 11):
+        t = k / 11
+        y = foot + (top_y - foot) * t
+        m.beam((-0.23, y, top_z * t), (0.23, y, top_z * t), 0.035, 0.035, A_DARK, side=(0, 1, 0), caps=False)
+    return m
+
+
+def planks_lean(seed=15):
+    """Planks and a gangway board stood up against a wall behind them (+y)."""
+    m = Mesh(atlas=True)
+    rng = random.Random(seed)
+    for i, x in enumerate((-0.55, -0.25, 0.05, 0.4)):
+        top = 2.6 + rng.uniform(-0.3, 0.5)
+        w = 0.28 if i < 3 else 0.45
+        foot = -0.45 - rng.uniform(0, 0.15)
+        m.beam((x, foot, 0.0), (x + rng.uniform(-0.08, 0.08), 0.35, top), w, 0.045, A_WOOD, side=(1, 0, 0))
+    return m
+
+
+# ------------------------------------------------------------------ traffic parts (atlas)
+# The game moves these (client/src/world/traffic.ts): the dray's bed, its fore-carriage that
+# turns with the horse, two wheel pairs that roll, a load, the horse's body and its four legs.
+
+
+def tr_load(kind):
+    """A load on the dray's bed (origin under the rear axle, like the bed; bed top at 1.05 m)."""
+    m = Mesh(atlas=True)
+    rng = random.Random(len(kind))
+    z0 = 1.06
+    yc = -1.15  # middle of the load area
+    if kind == "casks":
+        for i, y in enumerate((-2.45, -1.8, -1.15, -0.5, 0.15)):
+            cask_lying(m, 0, y, z0 + CASK_R, A_PETROL if i % 2 else A_CASK, along="x", spin=rng.uniform(0, 1))
+        for y in (-2.12, -0.82):
+            cask_lying(m, 0.05, y, z0 + CASK_R + 0.53, A_CASK, along="x", spin=rng.uniform(0, 1))
+    elif kind == "sacks":
+        k = 0
+        for tier, (n, x0) in enumerate(((6, 0.0), (5, 0.0), (3, 0.0))):
+            for i in range(n):
+                for sx in ((-0.43, 0.43) if tier < 2 else (0.0,)):
+                    y = yc + (i - (n - 1) / 2) * 0.5
+                    with m.at(move(sx + rng.uniform(-0.03, 0.03), y, z0 + tier * 0.22) @ rot_z(rng.uniform(-0.08, 0.08))):
+                        sack(m, 100 + k, L=0.84, W=0.48, H=0.25, nx=5, na=6, mat=A_GRAIN if tier else A_COFFEE)
+                    k += 1
+    elif kind == "bales":
+        for i, y in enumerate((-2.55, -1.8, -1.05, -0.3)):
+            bale_at(m, rng.uniform(-0.04, 0.04), y, z0, rng.uniform(-0.05, 0.05), seed=110 + i)
+        for i, y in enumerate((-2.15, -1.4)):
+            bale_at(m, 0.0, y, z0 + 0.74, rng.uniform(-0.1, 0.1), seed=120 + i)
+    elif kind == "tarp":
+        with m.at(move(0, yc, z0)):
+            tarp_heap_at(m, 0.88, 1.6, 0.95, seed=130, ropes=3, weights=False)
+    return m
+
+
 BUILDERS = [
     ("handcart", lambda: handcart(False)),
     ("handcart_loaded", lambda: handcart(True)),
@@ -913,8 +1747,8 @@ BUILDERS = [
     ("horse", horse),
     ("wheelbarrow", wheelbarrow),
     ("sack_truck", sack_truck),
-    ("crate", lambda: crate(1.0, 1.0, 1.0)),
-    ("crate_small", lambda: crate(0.7, 0.5, 0.48)),
+    ("crate", lambda: crate(1.0, 1.0, 1.0, 1)),
+    ("crate_small", lambda: crate(0.7, 0.5, 0.48, 2)),
     ("barrel", lambda: barrel(False)),
     ("barrel_lying", lambda: barrel(True)),
     ("sack", sack_one),
@@ -924,7 +1758,53 @@ BUILDERS = [
     ("bollard", bollard),
     ("gas_lamp", gas_lamp),
     ("crane", crane),
+    # port goods (one atlas material)
+    ("casks_row", lambda: casks_row(A_CASK, 6, 1)),
+    ("casks_pyramid", lambda: casks_pyramid(A_CASK, (4, 3, 2, 1), 2)),
+    ("casks_standing", lambda: casks_standing(A_CASK, 3)),
+    ("petrol_row", lambda: casks_row(A_PETROL, 6, 11)),
+    ("petrol_pyramid", lambda: casks_pyramid(A_PETROL, (5, 4, 3), 12)),
+    ("bales_block", bales_block),
+    ("bales_row", bales_row),
+    ("coffee_stack", coffee_stack),
+    ("grain_pile", grain_pile),
+    ("hides_pile", hides_pile),
+    ("crates_stack", crates_stack),
+    ("stones_stack", stones_stack),
+    ("stone_blocks", stone_blocks),
+    ("timber_stack", timber_stack),
+    ("planks_pile", planks_pile),
+    ("tarp_heap", tarp_heap),
+    ("beam_scale", beam_scale),
+    ("weigh_scale", weigh_scale),
+    ("sack_truck_sacks", sack_truck_sacks),
+    ("ladder_lean", ladder_lean),
+    ("crate_open", crate_open),
+    ("crate_broken", crate_broken),
+    ("crate_seat", lambda: crate(0.5, 0.4, 0.45, 24, atlas=True, handles=False)),
+    ("crate_big", lambda: crate(1.0, 1.0, 1.0, 25, atlas=True)),
+    ("planks_lean", planks_lean),
+    # traffic parts (one atlas material; client/src/world/traffic.ts moves them)
+    ("tr_dray_bed", lambda: dray(True, "bed", atlas=True)),
+    ("tr_dray_fore", lambda: dray(True, "fore", atlas=True)),
+    ("tr_wheels_rear", lambda: dray(True, "wheels_rear", atlas=True)),
+    ("tr_wheels_front", lambda: dray(True, "wheels_front", atlas=True)),
+    ("tr_load_casks", lambda: tr_load("casks")),
+    ("tr_load_sacks", lambda: tr_load("sacks")),
+    ("tr_load_bales", lambda: tr_load("bales")),
+    ("tr_load_tarp", lambda: tr_load("tarp")),
+    ("tr_horse_body", lambda: horse("body", atlas=True)),
+    ("tr_leg_front", lambda: horse("leg_front", atlas=True)),
+    ("tr_leg_hind", lambda: horse("leg_hind", atlas=True)),
+    ("tr_handcart", lambda: handcart(False, "body", atlas=True)),
+    ("tr_handcart_wheels", lambda: handcart(False, "wheels", atlas=True)),
+    ("tr_handcart_load", lambda: handcart(True, "load", atlas=True)),
 ]
+
+GOODS_NAMES = ["casks_row", "casks_pyramid", "casks_standing", "petrol_row", "petrol_pyramid", "bales_block", "bales_row",
+               "coffee_stack", "grain_pile", "hides_pile", "crates_stack", "stones_stack", "stone_blocks", "timber_stack",
+               "planks_pile", "tarp_heap", "beam_scale", "weigh_scale", "sack_truck_sacks", "ladder_lean", "planks_lean",
+               "crate_open", "crate_broken", "crate_seat", "crate_big"]
 
 
 def house_doors():
@@ -958,6 +1838,41 @@ def house_doors():
     return out
 
 
+def store_fronts():
+    """The street fronts of the storehouses (shared/city_build.json, "store"), with their loading
+    gates as build_city.py puts them (every 9 m from 4.5 m in, 2.6 m wide), so the game can stack
+    goods along the walls between the gates. One entry: [ax, az, bx, bz, outx, outz, g1, g2, ...]
+    (gate positions as metres along a->b)."""
+    src = os.path.join(ROOT, "shared", "city_build.json")
+    if not os.path.exists(src):
+        return []
+    out = []
+    for h in json.load(open(src))["houses"]:
+        if not h.get("store") or not h["rect"]:
+            continue
+        (ox, oz), (ux, uz), (nx, nz) = h["o"], h["u"], h["n"]
+        s0, s1 = h["s"]
+        t0, t1 = h["t"]
+
+        def P(s, t):
+            return [round(ox + ux * s + nx * t, 2), round(oz + uz * s + nz * t, 2)]
+
+        # the four walls: front (gates), the far side, the two ends; out = away from the house
+        walls = [(P(s0, t0), P(s1, t0), (-nx, -nz), 0), (P(s1, t0), P(s1, t1), (ux, uz), 1),
+                 (P(s1, t1), P(s0, t1), (nx, nz), 2), (P(s0, t1), P(s0, t0), (-ux, -uz), 3)]
+        for a, b, o, i in walls:
+            if not h["street"][i]:
+                continue
+            gates = []
+            if i == 0:
+                k = s0 + 4.5
+                while k < s1 - 3:
+                    gates.append(round(k - s0, 2))
+                    k += 9.0
+            out.append(a + b + [o[0], o[1]] + gates)
+    return out
+
+
 def tris(ob):
     return sum(len(p.vertices) - 2 for p in ob.data.polygons)
 
@@ -980,6 +1895,37 @@ def preview_materials():
         nt.links.new(vc.outputs["Color"], mix.inputs[7])
         nt.links.new(mix.outputs[2], bsdf.inputs["Base Color"])
         mt.use_backface_culling = True
+        if mt.name == "goods":
+            # the atlas as the game reads it: (cell + fract(uv)) / N, rows counted from the top
+            uv = nt.nodes.new("ShaderNodeUVMap")
+            uv.uv_map = "UVMap"
+            cell = nt.nodes.new("ShaderNodeUVMap")
+            cell.uv_map = "Cell"
+            fr = nt.nodes.new("ShaderNodeVectorMath")
+            fr.operation = "FRACTION"
+            nt.links.new(uv.outputs["UV"], fr.inputs[0])
+            sf = nt.nodes.new("ShaderNodeSeparateXYZ")
+            sc = nt.nodes.new("ShaderNodeSeparateXYZ")
+            nt.links.new(fr.outputs["Vector"], sf.inputs[0])
+            nt.links.new(cell.outputs["UV"], sc.inputs[0])
+
+            def math_node(op, a, b):
+                n = nt.nodes.new("ShaderNodeMath")
+                n.operation = op
+                for k, v in enumerate((a, b)):
+                    if isinstance(v, (int, float)):
+                        n.inputs[k].default_value = v
+                    else:
+                        nt.links.new(v, n.inputs[k])
+                return n.outputs[0]
+
+            u = math_node("DIVIDE", math_node("ADD", sc.outputs["X"], sf.outputs["X"]), ATLAS_N)
+            row = math_node("SUBTRACT", ATLAS_N - 1, sc.outputs["Y"])
+            v = math_node("DIVIDE", math_node("ADD", row, sf.outputs["Y"]), ATLAS_N)
+            cmb = nt.nodes.new("ShaderNodeCombineXYZ")
+            nt.links.new(u, cmb.inputs["X"])
+            nt.links.new(v, cmb.inputs["Y"])
+            nt.links.new(cmb.outputs["Vector"], tex.inputs["Vector"])
 
 
 def stage():
@@ -1083,6 +2029,74 @@ def preview_rows(objs):
     render(SHOT, (1920, 1080))
 
 
+def preview_goods(objs):
+    """The port goods in rows, and the traffic parts put together as the game does."""
+    for o in objs.values():
+        o.hide_render = True
+    cam = stage()
+    rows = [["casks_row", "casks_pyramid", "casks_standing", "petrol_row", "petrol_pyramid", "bales_block", "bales_row"],
+            ["coffee_stack", "grain_pile", "hides_pile", "crates_stack", "stones_stack", "stone_blocks", "tarp_heap"],
+            ["timber_stack", "planks_pile", "beam_scale", "weigh_scale", "sack_truck_sacks", "ladder_lean", "planks_lean"],
+            ["crate", "crate_small", "crate_open", "crate_broken", "crate_seat", "crates_stack"]]
+    for r, names in enumerate(rows):
+        x = 0.0
+        for n in names:
+            o = objs[n]
+            o.hide_render = False
+            o.rotation_euler = (0, 0, math.radians(-20))
+            bpy.context.view_layer.update()
+            lo, hi = bounds([o])
+            o.location.x += x - lo.x
+            o.location.y += 7.0 - r * 4.6
+            x += hi.x - lo.x + 0.9
+        for n in names:
+            objs[n].location.x -= x / 2
+    bpy.context.view_layer.update()
+    aim(cam, (0.5, -17.0, 8.0), (0.0, 1.5, 0.9), lens=24)
+    render(os.path.join(ROOT, "data", "shots", "goods_preview.png"), (1920, 1080))
+    for n in [k for rr in rows for k in rr]:
+        objs[n].hide_render = True
+    # the traffic: a dray with each load and its horse, legs in a walk, and a handcart
+    cam.location = (0, 0, 0)
+    parts = []
+
+    def put(name, x, y, z, rz=0.0, rx=0.0):
+        src = objs[name]
+        o = src.copy()
+        bpy.context.scene.collection.objects.link(o)
+        o.hide_render = False
+        o.location = (x, y, z)
+        o.rotation_euler = (rx, 0, rz)
+        parts.append(o)
+        return o
+
+    for k, load in enumerate(("casks", "sacks", "bales", "tarp")):
+        x0 = (k - 1.5) * 3.2
+        rear = 1.2
+        front = rear - (DRAY_REAR_Y - DRAY_FRONT_Y)
+        put("tr_dray_bed", x0, rear, 0)
+        put("tr_load_" + load, x0, rear, 0)
+        put("tr_wheels_rear", x0, rear, 0.52, rx=0.3 * k)
+        put("tr_dray_fore", x0, front, 0)
+        put("tr_wheels_front", x0, front, 0.42, rx=0.5 * k)
+        hy = front + (DRAY_HORSE_Y - DRAY_FRONT_Y)
+        put("tr_horse_body", x0, hy, 0)
+        for sx, (lx, ly, lz), ph in ((-1, HORSE_FRONT_HIP, 0.25), (1, HORSE_FRONT_HIP, 0.75), (-1, HORSE_HIND_HIP, 0.0), (1, HORSE_HIND_HIP, 0.5)):
+            put("tr_leg_front" if ly < 0 else "tr_leg_hind", x0 + sx * lx, hy + ly, lz, rx=0.35 * math.sin(2 * math.pi * (ph + 0.1 * k)))
+    put("tr_handcart", 8.2, 0.0, 0)
+    put("tr_handcart_wheels", 8.2, 0.0, HANDCART_R, rx=0.4)
+    put("tr_handcart_load", 8.2, 0.0, 0)
+    bpy.context.view_layer.update()
+    aim(cam, (9.5, -9.0, 4.2), (1.2, -1.0, 1.0), lens=24)
+    render(os.path.join(ROOT, "data", "shots", "goods_traffic.png"), (1920, 1080))
+    for o in parts:
+        o.hide_render = True
+    # one heap of each in close-up, as the game's camera sees them at eye height
+    for name, az in (("casks_pyramid", -30.0), ("bales_block", 30.0), ("beam_scale", -40.0), ("tarp_heap", 25.0), ("coffee_stack", -30.0),
+                     ("hides_pile", 35.0)):
+        closeup(objs, [name], os.path.join(ROOT, "data", "shots", f"goods_{name}.png"), az)
+
+
 def closeup(objs, names, path, az=-35.0):
     cam = stage()
     sel = [objs[n] for n in names]
@@ -1114,6 +2128,9 @@ def main():
     doors = bpy.data.objects.new("house_doors", None)
     doors["doors"] = json.dumps(house_doors(), separators=(",", ":"))
     bpy.context.scene.collection.objects.link(doors)
+    stores = bpy.data.objects.new("store_fronts", None)
+    stores["fronts"] = json.dumps(store_fronts(), separators=(",", ":"))
+    bpy.context.scene.collection.objects.link(stores)
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_yup=True, export_texcoords=True, export_normals=True,
                               export_materials="EXPORT", export_apply=False, use_selection=False, export_extras=True,
@@ -1124,9 +2141,12 @@ def main():
     for n, c in counts.items():
         print(f"[build_props] {n:16s} {c:5d} tris")
     print(f"[build_props] {len(json.loads(doors['doors'])) // 2} house doors kept for the game")
+    print(f"[build_props] {len(json.loads(stores['fronts']))} storehouse walls for the goods")
     print(f"[build_props] {len(objs)} props, {sum(counts.values())} tris -> {OUT} ({os.path.getsize(OUT) // 1024} KB)")
-    if "--preview" in argv or "--closeup" in argv:
+    if "--preview" in argv or "--closeup" in argv or "--goods" in argv:
         preview_materials()
+    if "--goods" in argv:
+        preview_goods(objs)
     if "--preview" in argv:
         preview_rows(objs)
     if "--closeup" in argv:

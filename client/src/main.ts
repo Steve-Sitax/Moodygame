@@ -2,12 +2,19 @@ import * as THREE from "three";
 import "./style.css";
 import { RetroPass } from "./retro/retroPass";
 import { psxUniforms } from "./retro/psx";
+import { mountSettings, type GameSettings } from "./game/settings";
+import { setAmbientViewHeight } from "./world/ambient";
+import { setMirrorScale } from "./world/mirror";
 import { BOARD_POS, DOSS_POS, RAMP, SPOTS, buildRijnkaai } from "./world/rijnkaai";
 import { FirstPerson } from "./player/firstPerson";
 import { Soundscape } from "./audio/soundscape";
 import { Jobs } from "./game/jobs";
 import CITY from "../../shared/city.json";
 import { Crowd, placesFromCity } from "./game/crowd";
+import { Town } from "./game/town";
+import { Animals } from "./game/animals";
+import { Stalls } from "./game/stalls";
+import { api } from "./net/api";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const startEl = document.getElementById("start") as HTMLDivElement;
@@ -19,14 +26,61 @@ const world = buildRijnkaai();
 const player = new FirstPerson(world, canvas);
 const retro = new RetroPass(renderer);
 let sound: Soundscape | null = null;
+// the soundscape hears the clock and the weather the Day sets on the world (audio/soundscape.ts)
+// null until the server has said: no foghorn before the weather is known
+let weatherNow: "fog" | "mist" | "clear" | "rain" | null = null;
+{
+  const setTimeOfDay = world.setTimeOfDay;
+  world.setTimeOfDay = (h) => {
+    setTimeOfDay(h);
+    sound?.setClock(h);
+  };
+  const setWeather = world.setWeather;
+  world.setWeather = (w) => {
+    weatherNow = w;
+    setWeather(w);
+    sound?.setWeather(w);
+  };
+}
 const jobs = new Jobs(world, player);
 // townspeople on the quays and squares (game/crowd.ts)
 const crowd = new Crowd(
   world.scene,
-  { flags: world.city.flags, isFree: world.isFree, addCollider: world.addCollider, removeCollider: world.removeCollider },
+  { flags: world.city.flags, isFree: world.isFree, solids: world.solids, addCollider: world.addCollider, removeCollider: world.removeCollider },
   placesFromCity((CITY as unknown as { places: Record<string, { x: number; z: number; kind: string }> }).places),
   { mats: { sack: world.mats.sack, crate: world.mats.crate } },
 );
+// the town's residents (M3e): homes, families, trades and days, from the server;
+// their dogs and the cats; the market stalls and shop fronts (game/town.ts)
+const animals = new Animals(world.scene, { isFree: (x, z, r) => world.isFree(x, z, r) });
+const stalls = new Stalls({ scene: world.scene, addCollider: world.addCollider });
+const town = new Town(world, crowd, jobs.people, animals, stalls);
+jobs.town = town;
+town.clock = () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF });
+town.canRob = () => !jobs.talk.isOpen && !jobs.day.sheetOpen && (player.locked || player.freeInput);
+town.toast = (t) => jobs.say(t);
+town.onPayload = (p) => jobs.refresh(p);
+jobs.talk.onOpen = (id) => town.hold(id, true);
+jobs.talk.onClose = (id) => town.hold(id, false);
+town
+  .load()
+  .then(() => {
+    for (const r of town.data!.residents) if (r.wares.length) jobs.talk.setWares(r.id, r.wares);
+  })
+  .catch((e) => console.warn("the town did not load; the old crowd stays", e));
+
+// into the Schelde (player/firstPerson.ts): a splash, a word the first time, and the
+// server takes the cold off your warmth (the client never changes needs itself)
+let warnedCold = false;
+player.onSplash = (x, z) => {
+  sound?.play("splash", new THREE.Vector3(x, world.waterLevel(x, z), z));
+  if (!warnedCold) {
+    warnedCold = true;
+    jobs.say("The water is ice cold. Find a ladder or steps.");
+  }
+  if (player.locked || player.freeInput) api.swim().then((p) => jobs.refresh(p)).catch(() => {});
+};
+player.onStroke = () => sound?.swimStroke();
 
 function resize(): void {
   const w = window.innerWidth;
@@ -35,12 +89,22 @@ function resize(): void {
   const aspect = w / h;
   player.camera.aspect = aspect;
   player.camera.updateProjectionMatrix();
-  retro.resize(aspect);
-  // vertex snap grid: half the render resolution, so things wobble visibly
-  psxUniforms.uSnapRes.value.set(retro.width * 0.5, retro.height * 0.5);
+  retro.resize(aspect, h);
+  // vertex snap grid: half the render resolution, so things wobble visibly (off: a grid too fine to see)
+  if (settings.wobble) psxUniforms.uSnapRes.value.set(retro.width * 0.5, retro.height * 0.5);
+  else psxUniforms.uSnapRes.value.set(1e5, 1e5);
+  setAmbientViewHeight(retro.height);
+  setMirrorScale(retro.height / 270);
 }
 window.addEventListener("resize", resize);
-resize();
+// the settings (Esc: the pause paper has a Settings button); applying them resizes
+let settings: GameSettings = { height: 270, psxColour: true, wobble: true };
+settings = mountSettings(startEl.querySelector(".paper") as HTMLElement, (s) => {
+  settings = s;
+  retro.renderHeight = s.height;
+  retro.setPsxColour(s.psxColour);
+  resize();
+});
 
 function start(): void {
   if (!sound) {
@@ -52,6 +116,7 @@ function start(): void {
     jobs.sfx = (name, at) => sound?.play(name, at);
     player.onLand = (surface) => sound?.footstep(surface, true);
   }
+  if (weatherNow) sound.setWeather(weatherNow);
   sound.resume();
   player.lock();
 }
@@ -76,7 +141,21 @@ function frame(): void {
   jobs.update(dt);
   crowd.setHour(jobs.day.hour);
   crowd.update(dt, player, player.camera);
+  town.update(dt, player);
+  animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
+  sound?.setCrowd(crowd.stats.drawn);
+  sound?.setRain(psxUniforms.uRain.value);
   sound?.update(player.camera);
+  {
+    // ships under way whistle and churn; they signal at the lock and the bridges
+    const b = world.boats();
+    if (b && sound) {
+      sound.setMovingShips(b.moving());
+      if (!b.onSignal) b.onSignal = (ship, at) => sound?.shipSignal(ship, at);
+    }
+    const tr = world.traffic();
+    if (tr) sound?.setVehicles(tr.info());
+  }
   retro.render(world.scene, player.camera, elapsed);
   requestAnimationFrame(frame);
 }
@@ -144,6 +223,9 @@ if (import.meta.env.DEV) {
     world,
     jobs,
     crowd,
+    town,
+    animals,
+    stalls,
     get sound() {
       return sound;
     },
@@ -168,12 +250,17 @@ if (import.meta.env.DEV) {
         if (!can(n.pos.x, n.pos.z, reach)) bad.push(`person ${n.def.name}`);
       }
       if (!can(BOARD_POS.x, BOARD_POS.z, 2.5)) bad.push("hiring board");
+      // M3e: every home, workplace, stall front and post of the town
+      for (const q of town.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       if (!can(DOSS_POS.x, DOSS_POS.z, 2.0)) bad.push("the doss house gate");
       if (!can(RAMP.x - 0.6, RAMP.zHigh - 1.0, 2.4)) bad.push("the mate on deck");
       return bad;
     },
     /** Save a picture of the game to data/shots/<name>.jpg (dev server). */
     async shot(name = "shot") {
+      // people and animals decide what is in view from the camera: ask them again for this one
+      crowd.update(0.0001, player, player.camera);
+      animals.update(0.0001, player, player.camera, crowd.fogDistance, false);
       retro.render(world.scene, player.camera, elapsed);
       const url = canvas.toDataURL("image/jpeg", 0.85);
       const r = await fetch("/api/dev/shot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, url }) });
@@ -187,6 +274,8 @@ if (import.meta.env.DEV) {
       cam.lookAt(...to);
       cam.updateMatrixWorld();
       world.update(elapsed, 0.016, cam);
+      crowd.update(0.0001, player, cam);
+      animals.update(0.0001, player, cam, fogFar || crowd.fogDistance, false);
       const fog = world.scene.fog as THREE.Fog;
       const keepFog = [fog.near, fog.far];
       if (fogFar) {
@@ -230,7 +319,9 @@ if (import.meta.env.DEV) {
         world.update(elapsed, dt);
         player.update(dt);
         jobs.update(dt);
-        crowd.update(dt, player);
+        crowd.update(dt, player, player.camera);
+        town.update(dt, player);
+        animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
       }
     },
     info() {

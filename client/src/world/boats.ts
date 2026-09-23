@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { psx } from "../retro/psx";
 import { WATER_Y } from "./rijnkaai";
 import type { Rect } from "./geom";
@@ -26,6 +27,10 @@ export const BOAT_NAMES = [
   "tug",
   "paddle_tug",
   "sloop",
+  "barque_sail",
+  "schooner",
+  "sloop_sail",
+  "hengst_sail",
   "rowboat",
   "punt",
   "pontoon_section",
@@ -125,6 +130,14 @@ export interface Boats {
   update(t: number, dt: number): void;
   /** The PS1 materials by name. */
   materials: Record<string, THREE.Material>;
+  /**
+   * Every boat under way now (river traffic, tows through the lock, boats on the canal and the
+   * vliet): one entry per boat or tow (its leading boat). The same array is refilled on each
+   * call, so read it at once; cheap enough for every frame.
+   */
+  moving(): MovingShip[];
+  /** Called when a boat sounds its signal to ask for the lock or an opening bridge. */
+  onSignal: ((ship: MovingShip, where: "lock" | "bridge") => void) | null;
 }
 
 /** Heave (m), roll and pitch (rad), period (s): small boats move more and faster. */
@@ -138,13 +151,16 @@ const MOTION: Record<string, [number, number, number, number]> = {
   tug: [0.035, 0.015, 0.006, 4.5],
   paddle_tug: [0.035, 0.014, 0.006, 4.6],
   sloop: [0.04, 0.02, 0.008, 4.0],
+  barque_sail: [0.03, 0.01, 0.004, 8.0],
+  schooner: [0.04, 0.02, 0.008, 5.5],
+  sloop_sail: [0.05, 0.03, 0.012, 4.0],
+  hengst_sail: [0.04, 0.02, 0.008, 5.0],
   rowboat: [0.05, 0.035, 0.015, 3.0],
   punt: [0.045, 0.03, 0.012, 3.2],
   pontoon_section: [0.008, 0.002, 0.001, 7.0],
 };
 
-const DOUBLE = new Set(["shrouds", "lattice", "flag", "canvas", "canvas_tan", "tarp"]);
-const CUTOUT = new Set(["shrouds", "lattice"]);
+const DOUBLE = new Set(["shrouds", "lattice", "flag", "canvas", "canvas_tan", "tarp", "washing"]);
 const JIB_NODES = ["jib", "hand_crane_jib"];
 
 function rng(seed: number): () => number {
@@ -158,7 +174,11 @@ function rng(seed: number): () => number {
   };
 }
 
+/** A steady list to leeward under sail (the sails belly toward +x, so +x goes down). */
+const HEEL: Record<string, number> = { barque_sail: -0.05, schooner: -0.07, sloop_sail: -0.09, hengst_sail: -0.06 };
+
 interface Float {
+  heel: number;
   inner: THREE.Object3D;
   m: [number, number, number, number];
   p: [number, number, number];
@@ -182,8 +202,101 @@ interface Part {
 
 interface Fleet {
   meshes: THREE.InstancedMesh[];
+  /** Rigging drawn once per boat: one instanced line set; matrices in four vec4 attributes. */
+  lines: THREE.LineSegments | null;
   parts: Part[];
-  boats: Array<{ x: number; z: number; yaw: number; m: [number, number, number, number]; p: [number, number, number] }>;
+  boats: Array<{
+    x: number;
+    z: number;
+    yaw: number;
+    m: [number, number, number, number];
+    p: [number, number, number];
+    world: THREE.Matrix4;
+  }>;
+}
+
+/** A small soft puff of coal smoke, 16 px, nearest filter: PS1 smoke. */
+function puffTexture(): THREE.DataTexture {
+  const n = 16;
+  const d = new Uint8Array(n * n * 4);
+  const r = rng(11);
+  for (let y = 0; y < n; y++)
+    for (let x = 0; x < n; x++) {
+      const dx = (x + 0.5 - n / 2) / (n / 2);
+      const dy = (y + 0.5 - n / 2) / (n / 2);
+      const k = Math.max(0, 1 - Math.hypot(dx, dy));
+      const i = (y * n + x) * 4;
+      const v = 150 + Math.floor(r() * 60);
+      d[i] = d[i + 1] = d[i + 2] = v;
+      d[i + 3] = Math.floor(255 * Math.min(1, k * 1.6) * (0.75 + r() * 0.25));
+    }
+  const t = new THREE.DataTexture(d, n, n, THREE.RGBAFormat);
+  t.magFilter = THREE.NearestFilter;
+  t.minFilter = THREE.NearestFilter;
+  t.needsUpdate = true;
+  return t;
+}
+
+/**
+ * Rope, chain and hawser lines: a plain line with the same PS1 fog as the hulls (psx: the gas
+ * lamps' glow in the air included), so it takes exactly the colour of the misty air; and it is
+ * lost in the fog by 60% of the fog distance, before the hull, so far rigging never draws dark
+ * on the sky. `instanced`: for line sets drawn once per boat with the matrix in attributes i0..i3.
+ */
+export function ropeMaterial(color = 0x16130f, instanced = false): THREE.Material {
+  const mat = psx(new THREE.LineBasicMaterial({ color, fog: true }), { fogReach: 0.6 });
+  if (instanced) {
+    const base = mat.onBeforeCompile;
+    mat.onBeforeCompile = (shader, renderer) => {
+      base.call(mat, shader, renderer);
+      shader.vertexShader = shader.vertexShader
+        .replace("#include <common>", "#include <common>\nattribute vec4 i0;\nattribute vec4 i1;\nattribute vec4 i2;\nattribute vec4 i3;")
+        .replace("#include <begin_vertex>", "vec3 transformed = (mat4(i0, i1, i2, i3) * vec4(position, 1.0)).xyz;");
+    };
+    const key = mat.customProgramCacheKey.bind(mat);
+    mat.customProgramCacheKey = () => `${key()}-inst`;
+  }
+  mat.name = instanced ? "rope_instanced" : "rope";
+  return mat;
+}
+
+/** A boat under way, for sound and the like. */
+export interface MovingShip {
+  /** Stable while this passage lasts. */
+  id: number;
+  /** The leading boat (the tug of a tow). */
+  kind: BoatName;
+  x: number;
+  z: number;
+  /** Heading about +y: 0 = toward +z, as a yaw. */
+  heading: number;
+  /** Metres a second. */
+  speed: number;
+  /** Has a funnel and a steam whistle: steamer, paddle steamer, tug, paddle tug. */
+  steam: boolean;
+}
+
+const STEAM = new Set<BoatName>(["steamer", "paddle_tug", "tug"]);
+export const isSteam = (k: BoatName): boolean => STEAM.has(k);
+const movingSources = new Set<(out: MovingShip[]) => void>();
+const movingOut: MovingShip[] = [];
+let signalHandler: ((ship: MovingShip, where: "lock" | "bridge") => void) | null = null;
+let nextShipId = 1;
+
+/** A new id for a boat setting out (world/river.ts, lock.ts, bridges.ts). */
+export function newShipId(): number {
+  return nextShipId++;
+}
+
+/** Register something that moves boats: it pushes its boats under way into `out`. Returns a remover. */
+export function addMovingSource(fn: (out: MovingShip[]) => void): () => void {
+  movingSources.add(fn);
+  return () => movingSources.delete(fn);
+}
+
+/** A boat sounds its signal for the lock or a bridge (goes to Boats.onSignal). */
+export function signal(ship: MovingShip, where: "lock" | "bridge"): void {
+  signalHandler?.(ship, where);
 }
 
 let loading: Promise<Boats> | null = null;
@@ -194,55 +307,167 @@ export function loadBoats(): Promise<Boats> {
   return loading;
 }
 
-async function load(): Promise<Boats> {
+export interface ModelSet {
+  /** Each model merged into a solid and a thin mesh (plus its rigging lines), by node name. */
+  protos: Map<string, THREE.Object3D>;
+  /** The glTF extras of each model's node (rig, smoke, deck sizes...). */
+  extras: Map<string, Record<string, unknown>>;
+  materials: Record<string, THREE.Material>;
+}
+
+/**
+ * Load a model file made by our Blender scripts (boats.glb, bridges.glb): every material's
+ * picture goes into one texture atlas, and each model is merged into two meshes, solid and
+ * thin (double-sided, cut-out), so a model costs two draw calls, three with its rigging lines.
+ */
+export async function loadModelSet(url: string): Promise<ModelSet> {
   const draco = new DRACOLoader().setDecoderPath("/draco/");
-  const gltf = await new GLTFLoader().setDRACOLoader(draco).loadAsync("/models/boats.glb");
+  const gltf = await new GLTFLoader().setDRACOLoader(draco).loadAsync(url);
   draco.dispose();
 
-  const materials: Record<string, THREE.Material> = {};
-  const swap = (src: THREE.Material): THREE.Material => {
-    const name = src.name || "wood";
-    if (materials[name]) return materials[name];
-    const map = (src as THREE.MeshStandardMaterial).map ?? null;
-    if (map) {
-      map.magFilter = THREE.NearestFilter;
-      map.minFilter = THREE.NearestFilter;
-      map.generateMipmaps = false;
-      map.colorSpace = THREE.SRGBColorSpace;
-      map.wrapS = map.wrapT = THREE.RepeatWrapping;
-      map.needsUpdate = true;
+  // One texture atlas for the whole file: every material's picture in a 128 px cell. Each
+  // model (and a crane's turning jib) is merged into two meshes, solid and thin (double-sided,
+  // cut-out), so a ship costs two draw calls, three with its rigging lines.
+  const CELL = 128;
+  const srcMats = new Map<string, THREE.MeshStandardMaterial>();
+  gltf.scene.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    for (const mt of Array.isArray(m.material) ? m.material : [m.material]) {
+      if (!srcMats.has(mt.name)) srcMats.set(mt.name, mt as THREE.MeshStandardMaterial);
     }
-    const mat = psx(
-      new THREE.MeshLambertMaterial({
-        map,
-        vertexColors: true,
-        side: DOUBLE.has(name) ? THREE.DoubleSide : THREE.FrontSide,
-        alphaTest: CUTOUT.has(name) ? 0.5 : 0,
-      }),
-      { affine: 0.6 },
-    );
-    mat.name = name;
-    materials[name] = mat;
-    src.dispose();
-    return mat;
-  };
+  });
+  const matNames = [...srcMats.keys()];
+  const N = Math.max(1, Math.ceil(Math.sqrt(matNames.length)));
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = N * CELL;
+  const g2 = canvas.getContext("2d")!;
+  g2.imageSmoothingEnabled = false;
+  const cellOf = new Map<string, [number, number]>();
+  matNames.forEach((name, i) => {
+    const c = i % N;
+    const r = Math.floor(i / N);
+    cellOf.set(name, [c, r]);
+    const img = srcMats.get(name)!.map?.image as CanvasImageSource | undefined;
+    if (img) g2.drawImage(img, c * CELL, r * CELL, CELL, CELL);
+    else {
+      g2.fillStyle = "#555";
+      g2.fillRect(c * CELL, r * CELL, CELL, CELL);
+    }
+  });
+  const atlas = new THREE.CanvasTexture(canvas);
+  atlas.flipY = false; // glTF uv: v = 0 at the top of each picture, as in the canvas
+  atlas.magFilter = THREE.NearestFilter;
+  atlas.minFilter = THREE.NearestFilter;
+  atlas.generateMipmaps = false;
+  atlas.colorSpace = THREE.SRGBColorSpace;
+  for (const m of srcMats.values()) {
+    m.map?.dispose();
+    m.dispose();
+  }
+  const solidMat = psx(new THREE.MeshLambertMaterial({ map: atlas, vertexColors: true }), { affine: 0.6, atlas: N });
+  const thinMat = psx(
+    new THREE.MeshLambertMaterial({ map: atlas, vertexColors: true, side: THREE.DoubleSide, alphaTest: 0.5 }),
+    { affine: 0.6, atlas: N },
+  );
+  solidMat.name = "boats_solid";
+  thinMat.name = "boats_thin";
+  const lineMat = ropeMaterial();
+  lineMat.name = "boats_rigging";
+  const materials: Record<string, THREE.Material> = { solid: solidMat, thin: thinMat, rigging: lineMat };
 
-  const protos = new Map<BoatName, THREE.Object3D>();
-  const extras = new Map<BoatName, Record<string, unknown>>();
+  /** Merge a node's own meshes (not those of a child jib) into a solid and a thin mesh. */
+  function atlasify(node: THREE.Object3D): void {
+    node.updateMatrixWorld(true);
+    const inv = node.matrixWorld.clone().invert();
+    const meshes: THREE.Mesh[] = [];
+    const visit = (o: THREE.Object3D) => {
+      if (o !== node && JIB_NODES.includes(o.name)) return;
+      if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh);
+      for (const c of o.children) visit(c);
+    };
+    visit(node);
+    const solid: THREE.BufferGeometry[] = [];
+    const thin: THREE.BufferGeometry[] = [];
+    const rel = new THREE.Matrix4();
+    for (const m of meshes) {
+      const name = (m.material as THREE.Material).name;
+      let g = m.geometry.clone();
+      g.applyMatrix4(rel.multiplyMatrices(inv, m.matrixWorld));
+      for (const a of Object.keys(g.attributes)) if (!["position", "normal", "uv", "color"].includes(a)) g.deleteAttribute(a);
+      if (g.index) g = g.toNonIndexed();
+      const n = g.getAttribute("position").count;
+      if (!g.getAttribute("color")) g.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(n * 3).fill(1), 3));
+      if (!g.getAttribute("uv")) g.setAttribute("uv", new THREE.Float32BufferAttribute(new Float32Array(n * 2), 2));
+      const [c, r] = cellOf.get(name) ?? [0, 0];
+      const cell = new Float32Array(n * 2);
+      for (let i = 0; i < n; i++) {
+        cell[i * 2] = c;
+        cell[i * 2 + 1] = r;
+      }
+      g.setAttribute("cell", new THREE.Float32BufferAttribute(cell, 2));
+      (DOUBLE.has(name) ? thin : solid).push(g);
+      m.geometry.dispose();
+    }
+    const holder = node as THREE.Mesh;
+    for (const m of meshes) if (m !== holder) m.removeFromParent();
+    const add = (geos: THREE.BufferGeometry[], mat: THREE.Material, tag: string) => {
+      if (!geos.length) return;
+      const merged = mergeGeometries(geos, false) ?? geos[0];
+      merged.computeBoundingSphere();
+      if (holder.isMesh && holder.material !== solidMat && holder.material !== thinMat) {
+        holder.geometry = merged;
+        holder.material = mat;
+      } else {
+        const mesh = new THREE.Mesh(merged, mat);
+        mesh.name = `${node.name}_${tag}`;
+        node.add(mesh);
+      }
+    };
+    add(solid, solidMat, "solid");
+    add(thin, thinMat, "thin");
+    // rigging: line segments in the node's frame (Blender x, y, z -> x, z, -y)
+    const rig = node.userData.rig as string | undefined;
+    if (rig) {
+      const f = JSON.parse(rig) as number[];
+      const pos = new Float32Array(f.length);
+      for (let i = 0; i < f.length; i += 3) {
+        pos[i] = f[i];
+        pos[i + 1] = f[i + 2];
+        pos[i + 2] = -f[i + 1];
+      }
+      const lg = new THREE.BufferGeometry();
+      lg.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+      lg.computeBoundingSphere();
+      const lines = new THREE.LineSegments(lg, lineMat);
+      lines.name = `${node.name}_rigging`;
+      node.add(lines);
+    }
+  }
+
+  const protos = new Map<string, THREE.Object3D>();
+  const extras = new Map<string, Record<string, unknown>>();
   for (const node of [...gltf.scene.children]) {
-    node.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (!m.isMesh) return;
-      m.material = Array.isArray(m.material) ? m.material.map(swap) : swap(m.material);
-      m.geometry.computeBoundingSphere();
-    });
     node.removeFromParent();
     node.position.set(0, 0, 0);
     node.rotation.set(0, 0, 0);
     node.updateMatrixWorld(true);
-    protos.set(node.name as BoatName, node);
-    extras.set(node.name as BoatName, node.userData ?? {});
+    atlasify(node);
+    node.traverse((o) => {
+      if (o !== node && JIB_NODES.includes(o.name)) atlasify(o);
+    });
+    node.updateMatrixWorld(true);
+    protos.set(node.name, node);
+    extras.set(node.name, node.userData ?? {});
   }
+  return { protos, extras, materials };
+}
+
+async function load(): Promise<Boats> {
+  const set = await loadModelSet("/models/boats.glb");
+  const protos = set.protos as Map<BoatName, THREE.Object3D>;
+  const extras = set.extras as Map<BoatName, Record<string, unknown>>;
+  const materials = set.materials;
   const proto = (name: BoatName): THREE.Object3D => {
     const p = protos.get(name);
     if (!p) throw new Error(`no boat ${name}`);
@@ -295,6 +520,120 @@ async function load(): Promise<Boats> {
     return ps;
   }
 
+  /** The rigging lines of a model's root node (for instanced fleets), or null. */
+  function rigLines(name: BoatName): THREE.BufferAttribute | null {
+    const root = proto(name);
+    const l = root.children.find((c) => (c as THREE.LineSegments).isLineSegments) as THREE.LineSegments | undefined;
+    return l ? (l.geometry.getAttribute("position") as THREE.BufferAttribute) : null;
+  }
+
+  /** Funnel tops of a model in its own frame (game axes). */
+  function smokePoints(name: BoatName): THREE.Vector3[] {
+    const raw = extras.get(name)?.smoke as string | undefined;
+    if (!raw) return [];
+    const f = JSON.parse(raw) as number[];
+    const out: THREE.Vector3[] = [];
+    for (let i = 0; i + 2 < f.length; i += 3) out.push(new THREE.Vector3(f[i], f[i + 2], -f[i + 1]));
+    return out;
+  }
+
+  // ---- smoke from the funnels: one Points object, a few puffs per funnel
+  const PUFFS = 9;
+  const LIFE = 8;
+  const emitters: Array<{ at: (out: THREE.Vector3) => void; strength: number; phase: number; root: () => THREE.Object3D | null }> = [];
+  let smoke: THREE.Points | null = null;
+  const smokeMat = new THREE.ShaderMaterial({
+    uniforms: THREE.UniformsUtils.merge([
+      THREE.UniformsLib.fog,
+      { map: { value: puffTexture() }, color: { value: new THREE.Color(0x4a4744) }, scale: { value: 150 } },
+    ]),
+    vertexShader: /* glsl */ `
+      attribute float size;
+      attribute float alpha;
+      uniform float scale;
+      varying float vAlpha;
+      #include <fog_pars_vertex>
+      void main() {
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        gl_Position = projectionMatrix * mvPosition;
+        gl_PointSize = size * scale / max(0.5, -mvPosition.z);
+        vAlpha = alpha;
+        #include <fog_vertex>
+      }`,
+    fragmentShader: /* glsl */ `
+      uniform sampler2D map;
+      uniform vec3 color;
+      varying float vAlpha;
+      #include <fog_pars_fragment>
+      void main() {
+        vec4 t = texture2D(map, gl_PointCoord);
+        float a = t.a * vAlpha;
+        if (a < 0.03) discard;
+        gl_FragColor = vec4(color * t.rgb, a);
+        #include <fog_fragment>
+      }`,
+    transparent: true,
+    depthWrite: false,
+    fog: true,
+  });
+  function growSmoke(): void {
+    const n = emitters.length * PUFFS;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+    g.setAttribute("size", new THREE.BufferAttribute(new Float32Array(n), 1));
+    g.setAttribute("alpha", new THREE.BufferAttribute(new Float32Array(n), 1));
+    if (!smoke) {
+      smoke = new THREE.Points(g, smokeMat);
+      smoke.name = "funnel_smoke";
+      smoke.frustumCulled = false;
+      smoke.renderOrder = 2;
+      const sz = new THREE.Vector2();
+      smoke.onBeforeRender = (renderer, _scene, camera) => {
+        const rt = renderer.getRenderTarget();
+        const h = rt ? rt.height : renderer.getDrawingBufferSize(sz).y;
+        smokeMat.uniforms.scale.value = (h / 2) * camera.projectionMatrix.elements[5];
+      };
+    } else {
+      smoke.geometry.dispose();
+      smoke.geometry = g;
+    }
+  }
+  function addEmitter(e: (typeof emitters)[number]): void {
+    emitters.push(e);
+    growSmoke();
+  }
+  const wind = new THREE.Vector3(0.75, 0, 0.3);
+  const ep = new THREE.Vector3();
+  function updateSmoke(t: number): void {
+    if (!smoke || !emitters.length) return;
+    if (!smoke.parent) {
+      const r = emitters[0].root();
+      if (r) r.add(smoke);
+    }
+    const pos = smoke.geometry.getAttribute("position") as THREE.BufferAttribute;
+    const size = smoke.geometry.getAttribute("size") as THREE.BufferAttribute;
+    const alpha = smoke.geometry.getAttribute("alpha") as THREE.BufferAttribute;
+    for (let e = 0; e < emitters.length; e++) {
+      const em = emitters[e];
+      em.at(ep);
+      for (let k = 0; k < PUFFS; k++) {
+        const f = (t / LIFE + k / PUFFS + em.phase) % 1;
+        const age = f * LIFE;
+        const i = e * PUFFS + k;
+        const wob = Math.sin(age * 1.7 + k * 2.1 + em.phase * 9) * 0.25;
+        pos.setXYZ(i, ep.x + wind.x * age + wob, ep.y + age * 0.9 - age * age * 0.03, ep.z + wind.z * age - wob);
+        size.setX(i, 1.0 + age * 0.75);
+        alpha.setX(i, em.strength * Math.pow(1 - f, 1.4) * Math.min(1, age * 2.5));
+      }
+    }
+    pos.needsUpdate = size.needsUpdate = alpha.needsUpdate = true;
+  }
+  const rootOf = (o: THREE.Object3D): THREE.Object3D | null => {
+    let r = o;
+    while (r.parent) r = r.parent;
+    return r === o && !o.parent ? null : r;
+  };
+
   const floats: Float[] = [];
   const swings: Swing[] = [];
   const fleets: Fleet[] = [];
@@ -323,7 +662,11 @@ async function load(): Promise<Boats> {
     outer.position.set(x, WATER_Y, z);
     outer.rotation.y = yaw;
     outer.add(inner);
-    floats.push({ inner, m: MOTION[name] ?? MOTION.lighter, p: phases() });
+    floats.push({ inner, m: MOTION[name] ?? MOTION.lighter, p: phases(), heel: HEEL[name] ?? 0 });
+    for (const sp of smokePoints(name)) {
+      const local = sp.clone();
+      addEmitter({ at: (out) => void out.copy(local).applyMatrix4(inner.matrixWorld), strength: 0.55, phase: motionRand(), root: () => rootOf(outer) });
+    }
     parent?.add(outer);
     return outer;
   }
@@ -437,6 +780,7 @@ async function load(): Promise<Boats> {
   }
 
   const tmpM = new THREE.Matrix4();
+  const instancedLineMat = ropeMaterial(0x16130f, true);
   const tmpQ = new THREE.Quaternion();
   const tmpE = new THREE.Euler(0, 0, 0, "YXZ");
   const tmpP = new THREE.Vector3();
@@ -455,8 +799,17 @@ async function load(): Promise<Boats> {
       for (let k = 0; k < f.meshes.length; k++) {
         f.meshes[k].setMatrixAt(i, _m.multiplyMatrices(tmpM, f.parts[k].matrix));
       }
+      if (f.lines) {
+        const e = tmpM.elements;
+        for (let c = 0; c < 4; c++) {
+          const a = f.lines.geometry.getAttribute(`i${c}`) as THREE.InstancedBufferAttribute;
+          a.setXYZW(i, e[c * 4], e[c * 4 + 1], e[c * 4 + 2], e[c * 4 + 3]);
+        }
+      }
+      b.world.copy(tmpM);
     }
     for (const m of f.meshes) m.instanceMatrix.needsUpdate = true;
+    if (f.lines) for (let c = 0; c < 4; c++) f.lines.geometry.getAttribute(`i${c}`).needsUpdate = true;
   }
 
   function mooreAlong(
@@ -492,6 +845,7 @@ async function load(): Promise<Boats> {
       const ps = parts(name);
       const fleet: Fleet = {
         meshes: [],
+        lines: null,
         parts: ps,
         boats: list.map((b) => ({
           x: b.x,
@@ -499,6 +853,7 @@ async function load(): Promise<Boats> {
           yaw: b.yaw,
           m: MOTION[name] ?? MOTION.lighter,
           p: [r() * 6.283, r() * 6.283, r() * 6.283] as [number, number, number],
+          world: new THREE.Matrix4(),
         })),
       };
       for (const part of ps) {
@@ -507,6 +862,24 @@ async function load(): Promise<Boats> {
         fleet.meshes.push(im);
         group.add(im);
       }
+      const rl = rigLines(name);
+      if (rl) {
+        const ig = new THREE.InstancedBufferGeometry();
+        ig.setAttribute("position", rl);
+        for (let c = 0; c < 4; c++) ig.setAttribute(`i${c}`, new THREE.InstancedBufferAttribute(new Float32Array(list.length * 4), 4));
+        ig.instanceCount = list.length;
+        const ls = new THREE.LineSegments(ig, instancedLineMat);
+        ls.frustumCulled = false;
+        ls.name = `${name}_moored_rigging`;
+        fleet.lines = ls;
+        group.add(ls);
+      }
+      fleet.boats.forEach((b, i) => {
+        for (const sp of smokePoints(name)) {
+          const local = sp.clone();
+          addEmitter({ at: (out) => void out.copy(local).applyMatrix4(b.world), strength: 0.3, phase: (i * 0.37) % 1, root: () => rootOf(group) });
+        }
+      });
       writeFleet(fleet, 0);
       for (const im of fleet.meshes) im.computeBoundingSphere();
       if (opts.bob ?? true) fleets.push(fleet);
@@ -549,10 +922,11 @@ async function load(): Promise<Boats> {
       const [h, roll, pitch, period] = f.m;
       const w = (Math.PI * 2) / period;
       f.inner.position.y = h * Math.sin(w * t + f.p[0]) + h * 0.4 * Math.sin(2.3 * w * t + f.p[0] * 1.7);
-      f.inner.rotation.z = roll * Math.sin(0.83 * w * t + f.p[1]);
+      f.inner.rotation.z = f.heel + roll * Math.sin(0.83 * w * t + f.p[1]);
       f.inner.rotation.x = pitch * Math.sin(1.13 * w * t + f.p[2]);
     }
     for (const f of fleets) writeFleet(f, t);
+    updateSmoke(t);
     for (const s of swings) {
       if (s.wait > 0) {
         s.wait -= dt;
@@ -582,5 +956,16 @@ async function load(): Promise<Boats> {
     mooreAlong,
     update,
     materials,
+    moving() {
+      movingOut.length = 0;
+      for (const src of movingSources) src(movingOut);
+      return movingOut;
+    },
+    get onSignal() {
+      return signalHandler;
+    },
+    set onSignal(fn) {
+      signalHandler = fn;
+    },
   };
 }

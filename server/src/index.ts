@@ -6,14 +6,18 @@ import { WebSocketServer, WebSocket } from "ws";
 import { DB_FILE, DEV, HOST, PORT } from "./config.ts";
 import { openDb, resetDb } from "./db.ts";
 import { plainEnglish } from "./text.ts";
-import { BEDTIME, clock, ending, markDayStart, payRent, RENT_C, rentPaid, resetTickLimit, setEnding, sleep, tick, type Ending } from "./day.ts";
+import { BEDTIME, clock, ending, markDayStart, payRent, RENT_C, rentPaid, resetTickLimit, setEnding, sleep, swim, tick, type Ending } from "./day.ts";
 import { writeEpilogue } from "./hooks/epilogue.ts";
 import { resetTalks } from "./hooks/dialogue.ts";
 import { listJobs, makeBoard } from "./hooks/jobBoard.ts";
 import { writeOutcome } from "./hooks/jobOutcome.ts";
-import { finishJob, GameError, player, ReportSchema, saveOutcome, saveProgress, takeJob } from "./game.ts";
+import { finishJob, GameError, jobRumour, player, ReportSchema, saveOutcome, saveProgress, takeJob } from "./game.ts";
 import { ensurePersonas, PLACED, npcRow } from "./npcs.ts";
-import { buy, handOverParcel, ITEMS, pockets, useItem, WARES } from "./trade.ts";
+import { buy, handOverParcel, ITEMS, pockets, useItem, WARES, waresOf } from "./trade.ts";
+import { isResident, town } from "./town/store.ts";
+import { residentChoice, residentFree, residentOpen } from "./town/talk.ts";
+import { catchThief, pickPocket } from "./town/thieves.ts";
+import { TRADES, TOWN_EMPLOYERS } from "./town/places.ts";
 import { freeReply, openTalk, pickChoice, prefetchOpening, witness, type Line } from "./hooks/dialogue.ts";
 
 const db = openDb(DB_FILE);
@@ -91,7 +95,7 @@ async function narrate(id: number, settlement: import("./game.ts").Settlement): 
   const job = listJobs(db, player(db).day).find((j) => j.id === id);
   if (!job) return;
   const r = await writeOutcome(db, job, settlement);
-  saveOutcome(db, id, r.outcome.narration, r.outcome.memory, r.outcome.weight);
+  saveOutcome(db, id, r.outcome.narration, r.outcome.memory, r.outcome.weight, jobRumour(job, settlement));
   console.log(`[job_outcome] ${r.source}${r.error ? " (" + r.error + ")" : ""}`);
   broadcast({ type: "outcome", job_id: id, text: r.outcome.narration, employer: job.employer_name });
 }
@@ -106,6 +110,7 @@ const personasReady = ensurePersonas(db)
 const personasOrTimeout = () => Promise.race([personasReady, new Promise((r) => setTimeout(r, 5000))]);
 
 function placed(id: string): string {
+  if (isResident(db, id)) return id; // M3e: everyone in town talks
   if (!(id in PLACED) || !npcRow(db, id)) throw new GameError("nobody by that name here", 404);
   return id;
 }
@@ -172,7 +177,7 @@ app.post("/api/rent", (c) => {
 });
 
 app.post("/api/new-game", (c) => {
-  resetDb(db);
+  resetDb(db); // a new week: a new town as well (db.ts)
   resetTalks();
   markDayStart(db);
   void ensurePersonas(db).then((r) => console.log(`[persona] ${r.join(", ")}`));
@@ -197,6 +202,13 @@ app.post("/api/use", async (c) => {
   return c.json({ ...r, ...jobsPayload() });
 });
 
+// ---- a dip in the Schelde: the cold costs warmth (the client never changes needs itself)
+app.post("/api/swim", (c) => {
+  const r = swim(db);
+  if (r.cold) broadcast({ type: "jobs", ...jobsPayload() });
+  return c.json({ ...r, ...jobsPayload() });
+});
+
 app.post("/api/jobs/:id/handover", (c) => {
   const id = Number(c.req.param("id"));
   const j = listJobs(db, player(db).day).find((r) => r.id === id);
@@ -206,8 +218,51 @@ app.post("/api/jobs/:id/handover", (c) => {
   return c.json(jobsPayload());
 });
 
+// ---- the town (M3e): residents, their homes, work and days; stalls and shop fronts.
+// No numbers about Jef here: stats of the townspeople stay on the server too.
+app.get("/api/town", (c) => {
+  const t = town(db).town;
+  return c.json({
+    seed: t.seed,
+    places: t.places,
+    stalls: t.stalls,
+    shops: t.shops,
+    employers: TOWN_EMPLOYERS.map((e) => ({ id: e.id, spot: e.spot })),
+    residents: t.residents.map((r) => ({
+      id: r.id,
+      name: r.name,
+      first: r.first,
+      age: r.age,
+      sex: r.sex,
+      kind: r.kind,
+      trade: r.trade,
+      label: TRADES[r.trade].label,
+      household: r.household,
+      role: r.family_role,
+      home: r.home,
+      work: r.work,
+      sched: r.sched,
+      dog: r.dog,
+      wares: waresOf(db, r.id).map((w) => ({ ...w, name: ITEMS[w.kind].name })),
+    })),
+  });
+});
+
+app.post("/api/resident/:id/pick", (c) => {
+  const r = pickPocket(db, c.req.param("id"));
+  broadcast({ type: "jobs", ...jobsPayload() });
+  return c.json({ ...r, ...jobsPayload() });
+});
+
+app.post("/api/resident/:id/catch", (c) => {
+  const r = catchThief(db, c.req.param("id"));
+  broadcast({ type: "jobs", ...jobsPayload() });
+  return c.json({ ...r, ...jobsPayload() });
+});
+
 app.post("/api/npc/:id/near", (c) => {
   const id = placed(c.req.param("id"));
+  if (isResident(db, id)) return c.json({ ok: true }); // their opening is the engine's: nothing to fetch
   void personasOrTimeout().then(() => prefetchOpening(db, id));
   return c.json({ ok: true });
 });
@@ -215,6 +270,15 @@ app.post("/api/npc/:id/near", (c) => {
 app.post("/api/npc/:id/talk", async (c) => {
   const id = placed(c.req.param("id"));
   const body = (await c.req.json().catch(() => ({}))) as { kind?: string; text?: unknown };
+  if (isResident(db, id)) {
+    if (body.kind === "choice" && typeof body.text === "string") return c.json(publicLine(await residentChoice(db, id, body.text)));
+    if (body.kind === "free" && typeof body.text === "string") {
+      const r = await residentFree(db, id, body.text);
+      if ("npc_line" in r) return c.json(publicLine(r));
+      return c.json({ gated: r.gated });
+    }
+    return c.json(publicLine(residentOpen(db, id)));
+  }
   await personasOrTimeout();
   if (body.kind === "choice" && typeof body.text === "string") return c.json(publicLine(await pickChoice(db, id, body.text)));
   if (body.kind === "free" && typeof body.text === "string") {

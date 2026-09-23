@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { DB } from "./db.ts";
-import { EMPLOYERS, listJobs, type EmployerId, type JobRow, type Progress } from "./hooks/jobBoard.ts";
+import { ALL_EMPLOYERS, listJobs, type JobRow, type Progress } from "./hooks/jobBoard.ts";
 import { remember } from "./npcs.ts";
 
 // Engine rules. Numbers change here and nowhere else (docs/03 rule one).
@@ -184,7 +184,7 @@ export function finishJob(db: DB, id: number, report: Report, rng?: () => number
   const j = job(db, id);
   if (j.status !== "taken") throw new GameError("that job is not in hand", 409);
   const s = settle(j, report, rng);
-  const faction = EMPLOYERS[j.employer_npc as EmployerId]?.faction;
+  const faction = ALL_EMPLOYERS[j.employer_npc]?.faction;
   db.transaction(() => {
     db.prepare("UPDATE job SET status = ? WHERE id = ?").run(s.status, id);
     // time passes while the job is played (M5 clock), so no extra hour here
@@ -200,12 +200,22 @@ export function finishJob(db: DB, id: number, report: Report, rng?: () => number
   return { job: job(db, id), settlement: s, money_c: p.money_c };
 }
 
-export function saveOutcome(db: DB, id: number, narration: string, memory: string, weight: number): void {
+/** What the town will say about a finished job (M3e rumours): engine words from engine facts. */
+export function jobRumour(j: JobRow, s: Settlement): { gist: string; tone: number } {
+  const who = j.employer_name;
+  if (s.caught) return { gist: `Jef was caught cheating ${who}`, tone: -2 };
+  if (s.status === "failed") return { gist: `Jef let ${who} down on a job`, tone: -1 };
+  if (s.facts.some((f) => f.includes("went into the Schelde"))) return { gist: `Jef dropped ${who}'s goods in the Schelde`, tone: -1 };
+  if (s.trust_delta > 0) return { gist: `Jef did honest work for ${who}`, tone: 1 };
+  return { gist: `Jef did a job for ${who}`, tone: 0 };
+}
+
+export function saveOutcome(db: DB, id: number, narration: string, memory: string, weight: number, rumour?: { gist: string; tone: number }): void {
   const j = job(db, id);
   db.transaction(() => {
     db.prepare("UPDATE job SET outcome_text = ? WHERE id = ?").run(narration, id);
     log(db, "job_outcome", String(id), narration, j.employer_npc);
   })();
   // through remember() so the gossip rule runs (M3)
-  remember(db, j.employer_npc, memory, Math.max(3, Math.min(8, Math.round(weight))));
+  remember(db, j.employer_npc, memory, Math.max(3, Math.min(8, Math.round(weight))), "seen", null, rumour ?? null);
 }

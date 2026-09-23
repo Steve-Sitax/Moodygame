@@ -7,6 +7,9 @@ kind. The named cast (sooi, peeters, tuur, fientje, sailor, stranger, thief,
 foreman, recipient) and the townspeople of the crowd (crowd.ts): dockers,
 a porter with a sack truck, a carter with a handcart, fishwives, a maid,
 street children, a gentleman, a priest, a police agent, a sailor in oilskins.
+And the town, residents with homes and trades: a baker, a shopkeeper, a
+publican, a clerk, an old man, a beggar, two wives, a shopkeeper's wife, an old
+woman, an urchin and a second girl (appended after the crowd; TOWN is the first).
 PS1-era people: lofted rings, 600 to 1000 triangles each, one 128x128 texture per character painted
 here in code (our own work, nothing downloaded). Children are the same body
 at a smaller scale with a bigger head (hs).
@@ -30,7 +33,9 @@ export turns it back to Y up.
 
 --preview also renders data/shots/people_preview.png and people_faces.png.
 --cast renders the crowd: data/shots/crowd_cast.png (front), crowd_cast_back.png,
-crowd_cast_faces.png and crowd_poses.png (push, sack, sit, carry, behind, lean, walks).
+crowd_cast_faces.png and crowd_poses.png (push, sack, sit, carry, behind, lean, walks);
+and the town: town_cast.png, town_cast_back.png, town_cast_faces.png, town_poses.png,
+and town_fog.png (crowd and town at 10 m in the game's fog, 480x270, the middle band blown up 4x).
 --out writes the .glb somewhere else (for trials; the game reads the default).
 """
 
@@ -178,7 +183,57 @@ PEOPLE = [
     # a sailor in oilskins and a sou'wester
     dict(MALE, name="sailor_b", h=1.76, sh=0.21, skin=0xa06a50, hair=0x8a6a40, face="stubble", age=0.5,
          oilskin=0x6a5a2e, trousers=0x2a2e36, boots=0x1a1612, hat="souwester", hat_col=0x6a5a2e, lower="oilskin"),
+
+    # ---- the town: residents with homes, families and trades
+    # a baker all in white: shirt sleeves rolled, a long apron, a soft cap, floury trousers
+    dict(MALE, name="baker", h=1.74, sh=0.208, belly=0.015, skin=0xc4927a, hair=0x6a5038, face="moustache", age=0.4,
+         shirt=0xe0dcd0, rolled=True, trousers=0xb4ae9e, boots=0x3a2e22, hat="knitcap", hat_col=0xe4e0d6,
+         lower="apron", apron=0xe8e4da),
+    # a shopkeeper behind his counter: grey waistcoat, white sleeves, a long brown apron, a low cap
+    dict(MALE, name="shopkeeper", h=1.72, sh=0.206, belly=0.025, skin=0xc4987e, hair=0x7a6a58, face="moustache", age=0.6,
+         shirt=0xd8d4c8, vest=0x6a6a66, chain=0xa08038, trousers=0x3a3834, boots=0x1a1410, hat="flatcap",
+         hat_col=0x2a2a2e, lower="apron", apron=0x6a4a30),
+    # the publican: a big belly, a red waistcoat, sleeves rolled, a white apron, no hat
+    dict(MALE, name="publican", h=1.76, sh=0.22, belly=0.06, cl=0.012, skin=0xc4806a, hair=0x4a3428, face="chops", age=0.55,
+         shirt=0xc8c2b4, vest=0x5e2a24, rolled=True, trousers=0x3a3630, boots=0x1e1812, lower="apron", apron=0xdcd6c8),
+    # a young clerk: thin, a dark grey suit buttoned up, white collar and black tie, a bowler
+    dict(MALE, name="clerk", h=1.77, sh=0.196, cl=0.004, skin=0xc8a490, hair=0x3a2a1e, face="clean", age=0.1,
+         shirt=0xdedad0, vest=0x3c3e42, jacket=0x3a3c42, jacket_style="coat", trousers=0x3a3a3e, boots=0x0e0e10,
+         hat="bowler", hat_col=0x141414, lower="jacket", cravat=0x121214),
+    # an old man: grey hair and beard, a long worn coat, a flat cap, a stick
+    dict(MALE, name="old_man", h=1.66, sh=0.2, skin=0xb89078, hair=0xa8a49c, face="gent", age=0.95,
+         shirt=0xa8a090, vest=0x3a342a, jacket=0x6a4632, jacket_style="coat", trousers=0x3e3a32, boots=0x221a12,
+         hat="flatcap", hat_col=0x4a463e, lower="coat", neckerchief=0x3a3634, props=["cane"]),
+    # a beggar: a ragged, patched long coat, a battered stovepipe hat, grey stubble
+    dict(MALE, name="beggar", h=1.70, sh=0.2, skin=0x9a7460, hair=0x8a8478, face="stubble", age=0.75,
+         shirt=0x5a5446, jacket=0x4a4236, jacket_style="ragged", trousers=0x3e3830, boots=0x3a3026,
+         hat="tophat", hat_col=0x3a342c, lower="coat", neckerchief=0x5a4a34),
+    # wives: a working man's wife in blue-grey with a red check shawl, white apron and cap;
+    # one in brown with a dark shawl and a blue headscarf
+    dict(FEMALE, name="wife_a", h=1.60, sh=0.18, skin=0xc89a84, hair=0x4a3424, face="woman", age=0.35,
+         dress=0x3a4250, collar=0xc8c2b4, hat="whitecap", hat_col=0xdcd8cc, lower="skirt", lower_col=0x3a4250,
+         apron=0xd8d4c8, shawl=0x8a3a2e, shawl_style="check", boots=0x221a14),
+    dict(FEMALE, name="wife_b", h=1.63, sh=0.182, skin=0xb88870, hair=0x2a201a, face="woman", age=0.45,
+         dress=0x5a3e2a, collar=0xa8a090, hat="kerchief", hat_col=0x2e3a52, lower="skirt", lower_col=0x4e3624,
+         shawl=0x2a2626, shawl_style="plain", boots=0x1e1814),
+    # the shopkeeper's wife: black dress, white bib apron, white lace cap, a stout figure
+    dict(FEMALE, name="shopwife", h=1.64, sh=0.19, cl=0.014, skin=0xd0a890, hair=0x7a5a38, face="woman", age=0.5,
+         dress=0x1c1a1c, collar=0xe4e0d6, hat="whitecap", hat_col=0xece8e0, lower="skirt", lower_col=0x1c1a1c,
+         apron=0xe4e0d8, boots=0x121010),
+    # an old woman: black dress, dark shawl, white cap over grey hair
+    dict(FEMALE, name="old_woman", h=1.54, sh=0.176, skin=0xc0a08c, hair=0xb0aca4, face="widow", age=0.95,
+         dress=0x1a1a1c, collar=0x9a968c, hat="whitecap", hat_col=0xd8d4c8, lower="skirt", lower_col=0x1e1e20,
+         shawl=0x3a3230, shawl_style="plain", boots=0x141210),
+    # children: a street urchin in a torn shirt, sleeves rolled, bare dirty legs, a big brown cap;
+    # a girl in a green plaid dress and a pinafore
+    dict(MALE, name="urchin", h=1.20, hs=1.22, sh=0.185, skin=0xb08870, hair=0x3a2a1e, face="clean", age=0.0,
+         shirt=0x8a7e66, jacket_style="ragged", rolled=True, trousers=0x4a4032, barefoot=True, boots=0x6a4c3a,
+         hat="flatcap", hat_col=0x5a4a36),
+    dict(FEMALE, name="girl_b", h=1.18, hs=1.22, sh=0.166, skin=0xd0a488, hair=0xa87a40, face="woman", age=0.0,
+         dress=0x2e4a3e, plaid=0x8a3a2a, collar=0xc0b8a0, lower="skirt", lower_col=0x2e4a3e, hem=0.22,
+         apron=0xcac2ae, boots=0x2a1e16),
 ]
+TOWN = [p["name"] for p in PEOPLE].index("baker")  # the first of the town; the crowd runs from 9 to here
 
 
 # ---------------------------------------------------------------- mesh builder
@@ -545,6 +600,14 @@ def clothes(b, s):
         # to the ankles; the legs swing inside it like under a skirt
         b.loft([ring(0, 0.07, 0.012, 0.23, 0.215, 0.235), ring(0, 0.45, 0.006, 0.2, 0.172, 0.18),
                 ring(0, 0.84, 0.0, 0.178, 0.132, 0.13), ring(0, 1.04, 0.0, 0.16, 0.114, 0.108)], "hips", "lower", 10, p=2.3)
+    elif low == "apron":
+        # a man's long apron over shirt and trousers: an open shell in front, waist to below the
+        # knee, flared so the knees stay inside it when he walks (not for sitting)
+        bl = s["belly"]
+        b.loft([ring(0, 0.4, 0.0, 0.2, 0.235), ring(0, 0.62, 0.0, 0.192, 0.195),
+                ring(0, 0.86, 0.0, 0.18 + bl * 0.3, 0.136 + bl * 0.6),
+                ring(0, 1.04, 0.0, 0.168 + bl * 0.4, 0.118 + s["cl"] + bl * 1.05)], "hips", "lower", 10, p=2.2,
+               arc=(-78, 78))
 
     # --- shawl over the shoulders, pointed at the back
     if s.get("shawl"):
@@ -823,6 +886,14 @@ class Painter:
         C, R = np.meshgrid(np.arange(w), np.arange(h))
         return 1 + (0.1 * (((C // 3) + (R // 3)) % 2) - 0.12 * ((C % 6 == 0) | (R % 6 == 0)))[..., None]
 
+    def plaid(self, out, col):
+        """A plaid for a child's dress: light and dark bands both ways, thin lines in a second colour."""
+        h, w = out.shape[:2]
+        C, R = np.meshgrid(np.arange(w), np.arange(h))
+        out = out * (0.86 + 0.16 * ((C % 8) < 3) + 0.16 * ((R % 8) < 3))[..., None]
+        line = (C % 8 == 5) | (R % 8 == 5)
+        return np.where(line[..., None], rgb(col)[None, None, :] * (0.9 + 0.1 * ((C + R) % 2))[..., None], out)
+
 
 def paint(s, seed):
     P = Painter(s, seed)
@@ -958,6 +1029,8 @@ def paint(s, seed):
             out = np.where(m(R <= 1), out * 0.8, out)
         elif s.get("dress"):
             out = P.cloth(s["dress"], h, w, 0.05, 0.06)
+            if s.get("plaid"):
+                out = P.plaid(out, s["plaid"])
             # darts and folds
             out = np.where(m((np.abs(ad - 6.5) < 0.6) & (R < 22)), out * 0.75, out)
             out = np.where(m((ad < 0.7) & (R % 3 == 1) & (R < 29)), rgb(0x3a3a3a)[None, None, :], out)
@@ -1064,6 +1137,8 @@ def paint(s, seed):
 
     def arm_up(U, V, C, R, w, h):
         out = P.cloth(sleeve, h, w)
+        if s.get("plaid") and s.get("dress"):
+            out = P.plaid(out, s["plaid"])
         if s.get("jersey"):
             out *= (0.85 + 0.2 * (C % 2))[..., None]
         if s.get("oilskin"):
@@ -1079,6 +1154,8 @@ def paint(s, seed):
 
     def arm_low(U, V, C, R, w, h):
         out = P.cloth(sleeve, h, w)
+        if s.get("plaid") and s.get("dress"):
+            out = P.plaid(out, s["plaid"])
         if s.get("jersey"):
             out *= (0.85 + 0.2 * (C % 2))[..., None]
             out = np.where((R < 5)[..., None], out * 0.85, out)
@@ -1181,6 +1258,8 @@ def paint(s, seed):
         m = lambda cond: cond[..., None]  # noqa: E731
         if low == "skirt":
             out = P.cloth(s["lower_col"], h, w, 0.05, 0.07)
+            if s.get("plaid"):
+                out = P.plaid(out, s["plaid"])
             if s.get("skirt_stripe"):
                 out = np.where(m((C % 4) == 0), P.cloth(s["skirt_stripe"], h, w, 0.05), out)
             fold = (C % 6 == 0) | (C % 6 == 1)
@@ -1207,6 +1286,15 @@ def paint(s, seed):
             out = np.where(m(C % 7 == 3), out * 0.78, out)  # folds
             out = np.where(m(R <= 1), out * 0.6, out)
             out = np.where(m(R >= 30), rgb(0x0a0a0c)[None, None, :], out)  # sash
+        elif low == "apron":
+            # a man's long apron: the cell spans the front only (u across it), a pocket, the waistband
+            out = P.cloth(s["apron"], h, w, 0.05, 0.08)
+            out = np.where(m(C % 9 == 4), out * 0.86, out)  # folds
+            out = np.where(m((np.abs(U - 0.5) < 0.14) & (R >= 17) & (R <= 21)), out * 0.9, out)  # pocket
+            out = np.where(m((np.abs(U - 0.5) < 0.14) & (R == 21)), out * 0.75, out)
+            out = np.where(m(R <= 1), out * 0.75, out)  # hem
+            out = np.where(m(R >= 29), out * 0.82, out)  # waistband
+            out = np.where(m((U < 0.03) | (U > 0.97)), out * 0.8, out)  # side edges
         elif low == "tunic":
             out = P.cloth(s["tunic"], h, w, 0.05, 0.05)
             out = np.where(m((ad < 0.7) & (R % 6 == 2) & (R > 10)), rgb(0xb89a4a)[None, None, :], out)
@@ -1794,7 +1882,7 @@ def cast_preview(chars, actions):
     """The crowd, for a look: crowd_cast (front), _back, _faces, and crowd_poses."""
     scn = bpy.context.scene
     acts = {a.name: a for a in actions}
-    crowd = [c for c in chars if c[2]["name"] not in {p["name"] for p in PEOPLE[:9]}]
+    crowd = [c for c in chars if c[2]["name"] in {p["name"] for p in PEOPLE[9:TOWN]}]
     others = [c for c in chars if c not in crowd]
 
     def use(ao, name):
@@ -1890,6 +1978,132 @@ def cast_preview(chars, actions):
     bpy.data.objects.remove(floor)
 
 
+TOWN_CLIP = {"baker": "fold", "shopkeeper": "talk", "clerk": "walk", "beggar": "behind", "urchin": "walk"}
+TOWN_POSES = [("baker", "walk"), ("shopkeeper", "fold"), ("publican", "talk"), ("clerk", "walk"), ("old_man", "walk"),
+              ("beggar", "sit"), ("wife_a", "walk_f"), ("wife_b", "talk_f"), ("shopwife", "walk_f"),
+              ("old_woman", "walk_f"), ("urchin", "walk"), ("girl_b", "walk_f")]
+FOG = (0x3e / 255, 0x46 / 255, 0x4d / 255)  # rijnkaai.ts: THREE.Fog(0x3e464d, 3, 25)
+
+
+def town_preview(chars, actions):
+    """The town, for a look: town_cast (front), _back, _faces, town_poses; and town_fog:
+    the crowd and the town side by side 10 m off, at the game's 480x270, 75 degrees,
+    with its linear fog (3 to 25 m) and 5-bit colour, blown up 4x."""
+    scn = bpy.context.scene
+    acts = {a.name: a for a in actions}
+    town = chars[TOWN:]
+    crowd = chars[9:TOWN]
+
+    def use(ao, name):
+        ad = ao.animation_data_create()
+        for tr in list(ad.nla_tracks):
+            ad.nla_tracks.remove(tr)
+        ad.action = acts[name]
+        try:
+            if len(acts[name].slots):
+                ad.action_slot = acts[name].slots[0]
+        except AttributeError:
+            pass
+
+    for ao, _, _ in chars:
+        ao.location = B(0, -50, 0)
+        ao.rotation_euler = (0, 0, 0)
+    world = bpy.data.worlds.new("w_town")
+    world.color = (0.2, 0.22, 0.25)
+    scn.world = world
+    cam_data = bpy.data.cameras.new("cam_town")
+    cam = bpy.data.objects.new("cam_town", cam_data)
+    scn.collection.objects.link(cam)
+    scn.camera = cam
+    bpy.ops.mesh.primitive_plane_add(size=60, location=(0, 0, 0))
+    floor = bpy.context.object
+    fm = bpy.data.materials.new("floor_town")
+    fm.diffuse_color = (0.12, 0.12, 0.12, 1)
+    floor.data.materials.append(fm)
+
+    def shoot(path, loc, look, lens, w, h, frame):
+        scn.frame_set(frame)
+        cam.location = loc
+        cam.rotation_euler = (look - loc).to_track_quat("-Z", "Y").to_euler()
+        cam_data.lens = lens
+        scn.render.resolution_x = w
+        scn.render.resolution_y = h
+        scn.render.filepath = path
+        bpy.ops.render.render(write_still=True)
+
+    n = len(town)
+    gap = 0.95
+    for i, (ao, _, s) in enumerate(town):
+        ao.location = B(i * gap - (n - 1) * gap / 2, 0, 0)
+        use(ao, TOWN_CLIP.get(s["name"], "idle_f" if s["female"] else "idle"))
+    shoot(os.path.join(SHOTS, "town_cast.png"), B(0, 1.0, 16.0), B(0, 0.85, 0), 50, 2400, 900, 9)
+    shoot(os.path.join(SHOTS, "town_cast_back.png"), B(0, 1.2, -16.0), B(0, 0.85, 0), 50, 2400, 900, 9)
+    for i, (ao, _, s) in enumerate(town):
+        ao.location = B(i * 0.3 - (n - 1) * 0.15, 0, 0)
+    shoot(os.path.join(SHOTS, "town_cast_faces.png"), B(0, 1.45, 5.6), B(0, 1.45, 0), 50, 2400, 700, 9)
+
+    byname = {c[2]["name"]: c for c in town}
+    for ao, _, _ in town:
+        ao.location = B(0, -50, 0)
+    m = len(TOWN_POSES)
+    extra = []
+    for i, (name, clip) in enumerate(TOWN_POSES):
+        ao, _, s = byname[name]
+        x = i * 1.25 - (m - 1) * 0.625
+        ao.location = B(x, sit_drop(s) if clip == "sit" else 0.0, 0)
+        ao.rotation_euler = (0, 0, math.radians(35))
+        use(ao, clip)
+        if clip == "sit":
+            bpy.ops.mesh.primitive_cube_add(size=1, location=B(x - 0.03, 0.225, -0.12))
+            seat = bpy.context.object
+            seat.scale = (0.55, 0.4, 0.45)
+            seat.rotation_euler = (0, 0, math.radians(35))
+            extra.append(seat)
+    shoot(os.path.join(SHOTS, "town_poses.png"), B(0.5, 1.6, 15.5), B(0, 0.8, 0), 35, 2800, 900, 7)
+    for o in extra:
+        bpy.data.objects.remove(o)
+
+    # the fog test: everyone in the crowd and the town in one row, 10 m from the eye
+    row = crowd + town
+    k = len(row)
+    for i, (ao, _, s) in enumerate(row):
+        ao.rotation_euler = (0, 0, 0)
+        ao.location = B(i * gap - (k - 1) * gap / 2, 0, 0)
+        name = s["name"]
+        use(ao, "idle_f" if s["female"] else CAST_CLIP.get(name, TOWN_CLIP.get(name, "idle")))
+    bpy.data.objects.remove(floor)
+    W, H, D = 480, 270, 10.0
+    cam_data.sensor_fit = "VERTICAL"
+    cam_data.angle_y = math.radians(75)
+    scn.render.film_transparent = True
+    path = os.path.join(SHOTS, "town_fog.png")
+    scn.frame_set(9)
+    cam.location = B(0, 1.6, D)
+    cam.rotation_euler = (B(0, 1.2, 0) - cam.location).to_track_quat("-Z", "Y").to_euler()
+    scn.render.resolution_x, scn.render.resolution_y = W, H
+    scn.render.filepath = path
+    bpy.ops.render.render(write_still=True)
+    scn.render.film_transparent = False
+    img = bpy.data.images.load(path)
+    px = np.array(img.pixels[:], dtype=np.float32).reshape(H, W, 4)
+    bpy.data.images.remove(img)
+    f = (D - 3.0) / (25.0 - 3.0)
+    fog = np.array(FOG, dtype=np.float32)
+    rgb_ = px[..., :3] * (1 - f) + fog * f
+    a = px[..., 3:4]
+    rgb_ = rgb_ * a + fog * (1 - a)
+    rgb_ = np.floor(rgb_ * 31 + 0.5) / 31  # 5 bits per channel, as the retro pass
+    rgb_ = rgb_[90:180]  # the band with the people in it (row 0 is the bottom)
+    big = np.repeat(np.repeat(rgb_, 4, axis=0), 4, axis=1)
+    out = bpy.data.images.new("town_fog", W * 4, big.shape[0], alpha=False)
+    rgba = np.ones((big.shape[0], W * 4, 4), dtype=np.float32)
+    rgba[..., :3] = big
+    out.pixels.foreach_set(rgba.ravel())
+    out.filepath_raw = path
+    out.file_format = "PNG"
+    out.save()
+
+
 # ---------------------------------------------------------------- main
 
 def main():
@@ -1914,6 +2128,7 @@ def main():
         preview(chars[:9], actions)
     if CAST:
         cast_preview(chars, actions)
+        town_preview(chars, actions)
 
 
 if __name__ == "__main__":

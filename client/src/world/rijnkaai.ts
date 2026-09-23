@@ -7,20 +7,48 @@ import CITY_DATA from "../../../shared/city.json";
 import { buildCity, doorSpot, edgeZ, WALL, WATER, OUTSIDE, type CityWorld } from "./city";
 import { dressCity, loadProps } from "./props3d";
 import { loadBoats, type Boats } from "./boats";
+import { createAmbient, type Ambient } from "./ambient";
+import { createLock, type Lock } from "./lock";
+import { createBridges, type Bridges } from "./bridges";
+import { createRiver, type River } from "./river";
+import { buildTracks, trackKeepOut, type TrackData } from "./tracks";
+import { buildRuts } from "./ruts";
+import { createStreetLife, type StreetLife } from "./streetlife";
+import { createTraffic, type Traffic } from "./traffic";
+import { quaySteps, shoreTexture, frameAt, type Exit } from "./quaysteps";
+import { buildPier, PIER_BOLLARD } from "./pier";
+import { waveAt } from "../retro/psx";
+import { createMirror } from "./mirror";
 
 // The Rijnkaai in the real 1873 city (world/city.ts). Water is at z < 0, the
 // quay edge runs along x (the world is turned 19 deg so it does). Quay top is
 // y = 0. Here: the game's own things on the quay (pier, crane, ship, lamps,
 // goods) and the rules for walking; the city itself comes from Blender.
 
-export const WATER_Y = -1.8;
+/** The river, well below the quay top (y 0), as in the period photos (Steve, 2026-09-23; was -1.8). */
+export const WATER_Y = -2.8;
 /** Before the walk map is loaded, only the open quay by the start counts as ground. */
 const QUAY = { minX: -50, maxX: 60, minZ: 0.8, maxZ: 40 };
 const PIER = { minX: 5.4, maxX: 8.6, minZ: -11.6, maxZ: 0.6 };
-/** Ship A (the Anna Maria) lies at x -60..-20, z -11.7..-2.7, off the Quai Tavernier; its deck is at y 2.4. */
+/** The code-built ships float with the water: this much lower than when the water was at -1.8. */
+const SHIP_DROP = WATER_Y + 1.8;
+/** Ship A (the Anna Maria) lies at x -60..-20, z -11.7..-2.7, off the Quai Tavernier; its deck is at y 1.4. */
 const SHIP_X = -60;
-export const DECK = { minX: SHIP_X + 2, maxX: SHIP_X + 28.5, minZ: -11.2, maxZ: -3.1, y: 2.4 };
-/** The gangway: a plank from the quay (y 0) up to the deck (z -3.1, y 2.4). */
+export const DECK = { minX: SHIP_X + 2, maxX: SHIP_X + 28.5, minZ: -11.2, maxZ: -3.1, y: 2.4 + SHIP_DROP };
+/** The ferry pontoon at the Werf (boats.ts), and the gangway (m) that slopes down to its deck. */
+const PONTOON = { x: -249, minX: -251, maxX: -247, minZ: -58, maxZ: 0, gangway: 6 };
+/** Stone steps down to the water (world/quaysteps.ts): top of the flight on the quay line, and the way down. */
+const FLIGHTS: Array<[number, number, number, number]> = [
+  [-320, 0, -1, 0], // the Werf, west of the railing
+  [-110, 0, -1, 0], // the Vismarkt quay
+  [-70, 38, 0, 1], // the Canal des Brasseurs, east wall
+  [-4, 0, -1, 0], // the Rijnkaai, by the start
+  [50, 0, 1, 0], // the Rijnkaai, by the cart stand
+  [186, 0, 1, 0], // the river quay north of the lock
+  [90, 46, 1, 0], // the Petit Bassin, south quay
+  [116, 110, 1, 0], // the Petit Bassin, north quay
+];
+/** The gangway: a plank from the quay (y 0) up to the deck (z -3.1, y DECK.y). */
 export const RAMP = { x: SHIP_X + 18, halfW: 0.45, zLow: 3.8, zHigh: -3.1 };
 
 export type Surface = "stone" | "wood";
@@ -72,15 +100,34 @@ export interface World {
   scene: THREE.Scene;
   lamps: Lamp[];
   shipPositions: THREE.Vector3[];
-  /** Try to move from (x,z) by (dx,dz); returns the allowed position (slides on walls). */
-  move(x: number, z: number, dx: number, dz: number, radius: number, feet?: number): [number, number];
-  /** Height of what you stand on at (x, z), given your feet height. */
+  /**
+   * The player walks from (x,z) by (dx,dz); returns the allowed position (slides on walls).
+   * He may step off an open quay edge into the water, unless he carries something (laden).
+   */
+  move(x: number, z: number, dx: number, dz: number, radius: number, feet?: number, laden?: boolean): [number, number];
+  /** Height of what you stand on at (x, z), given your feet height; far below the water over open water. */
   groundAt(x: number, z: number, radius: number, feet: number): number;
+  /** Open water a swimmer of radius r fits in (not a wall, hull, pile or flight of steps). */
+  swimFree(x: number, z: number, r: number): boolean;
+  /** Can the player drop into the water here? (open water, room to swim nearby) */
+  swimmable(x: number, z: number): boolean;
+  /** A swimmer moves; slides along walls and hulls. */
+  swimMove(x: number, z: number, dx: number, dz: number, radius: number): [number, number];
+  /** The nearest spot within 1 m where a swimmer fits, or null. */
+  nearestSwim(x: number, z: number, radius: number): [number, number] | null;
+  /** Height of the water surface at (x, z) now, waves included (as drawn). */
+  waterLevel(x: number, z: number): number;
+  /** A ladder or a landing to climb out on, within reach of a swimmer. */
+  exitNear(x: number, z: number, reach: number): Exit | null;
+  /** Dev: where the stone steps and the ladders are. */
+  quayInfo(): { flights: Array<{ top: [number, number]; end: [number, number] }>; ladders: Array<{ x: number; z: number; top: number }> };
   /** Colliders that come and go (job crates). */
   addCollider(r: Rect): void;
   removeCollider(r: Rect): void;
   /** Can something of radius r stand here? */
   isFree(x: number, z: number, r: number, feet?: number): boolean;
+  /** Everything solid on the ground now (crates, carts, cranes, lamps, trees): for path finding. */
+  solids(): Rect[];
   /** Open water (off the quay edge, off the pier)? */
   isWater(x: number, z: number): boolean;
   /** Height of the walkable surface (quay 0, gangway slope, ship deck). */
@@ -94,7 +141,13 @@ export interface World {
   /** Hour of the day, 0-24 with fractions: fog, sky light and gas lamps follow (M5). */
   setTimeOfDay(hour: number): void;
   /** The day's weather: how far you see and how much the lamps glow in the air. */
-  setWeather(w: "fog" | "mist" | "clear"): void;
+  setWeather(w: "fog" | "mist" | "clear" | "rain"): void;
+  /** Chimney smoke, birds, rain and puddles, lit windows (world/ambient.ts). */
+  ambient: Ambient;
+  /** The boats (moving ships for the sound, signals at bridges); null until loaded. */
+  boats(): Boats | null;
+  /** The drays and handcarts (for the sound); null until loaded. */
+  traffic(): Traffic | null;
   /** Dev: no fog, noon light, every chunk shown (fly mode). */
   setDevView(on: boolean): void;
   mats: Mats;
@@ -140,9 +193,9 @@ function mats(tex: Textures) {
     water: psx(
       new THREE.MeshPhongMaterial({
         map: tex.water,
-        color: 0xa8b8aa,
-        specular: 0x605440,
-        shininess: 90,
+        color: 0x8a9a92, // the deep Schelde: dark, a little green
+        specular: 0x3a342a,
+        shininess: 120,
       }),
       { water: true, affine: 0.6 },
     ),
@@ -162,6 +215,8 @@ export function buildRijnkaai(): World {
   const tex = makeTextures();
   const m = mats(tex);
   const colliders: Rect[] = [];
+  /** The ferry pontoon's deck height (it floats: WATER_Y + its deck), set when boats.ts has built it. */
+  let pontoonY = WATER_Y + 1.8;
 
   // cold light from a sky nobody can see
   const skyLight = new THREE.HemisphereLight(0x8494a6, 0x2a2822, 1.1);
@@ -180,7 +235,45 @@ export function buildRijnkaai(): World {
   // --- the city: ground, quay walls, houses (world/city.ts)
   const city = buildCity(scene, m, WATER_Y);
   // carts, barrels and sacks along the quays and on the squares (Blender models, props3d.ts)
-  city.ready.then(() => dressCity(scene, city.flags)).then((d) => colliders.push(...d.colliders)).catch(() => {});
+  const ambient = createAmbient(scene, city);
+  // the quay railway and the crane runways (world/tracks.ts); carts and crates keep off them
+  const trackData = (CITY_DATA as unknown as { decor?: TrackData }).decor ?? {};
+  const bridgeRects = Object.values((CITY_DATA as unknown as { bridges?: Record<string, number[]> }).bridges ?? {});
+  buildTracks(scene, trackData, bridgeRects.map((b) => ({ minX: Math.min(b[0], b[2]), maxX: Math.max(b[0], b[2]), minZ: Math.min(b[1], b[3]), maxZ: Math.max(b[1], b[3]) })));
+  const propsKeepOut: Rect[] = [
+    { minX: -72, maxX: 66, minZ: -30, maxZ: 27 },
+    ...bridgeRects.map((b) => ({ minX: Math.min(b[0], b[2]) - 4, maxX: Math.max(b[0], b[2]) + 4, minZ: Math.min(b[1], b[3]) - 4, maxZ: Math.max(b[1], b[3]) + 4 })),
+    ...trackKeepOut(trackData),
+  ];
+  // shop signs, awnings, corner Madonnas, pumps, washing lines, grime (world/streetlife.ts),
+  // set after the carts and crates so the pumps keep off them
+  let street: StreetLife | null = null;
+  city.ready
+    .then(() => dressCity(scene, city.flags, { keepOut: propsKeepOut }))
+    .then((d) => {
+      colliders.push(...d.colliders);
+      return createStreetLife(scene, city.flags, { avoid: d.colliders });
+    })
+    .then((sl) => {
+      street = sl;
+      colliders.push(...sl.colliders);
+    })
+    .catch((e) => console.warn("props or streetlife did not load", e));
+  // drays and handcarts going round the quays (world/traffic.ts); they stop for you
+  let traffic: Traffic | null = null;
+  city.ready
+    .then(() => loadProps())
+    .then((p) => {
+      traffic = createTraffic(scene, city.flags, p, { isFree });
+      for (const r of traffic.colliders()) dynamic.add(r); // added once: the rects move in place
+    })
+    .catch((e) => console.warn("traffic did not start", e));
+  // wheel ruts down the cart roads (world/ruts.ts)
+  city.ready.then(() => buildRuts(scene, city.flags)).catch(() => {});
+  // tree trunks on the squares and quays (tools/city/design.py decor)
+  for (const [x, z] of (CITY_DATA as unknown as { decor?: { trees?: Array<[number, number]> } }).decor?.trees ?? []) {
+    colliders.push(rectAround(x, z, 0.22, 0.22));
+  }
 
   // --- water: one sheet that goes where you go, under the land; it moves in
   // whole texture tiles (4 m), so the ripples stay put on the water
@@ -193,15 +286,30 @@ export function buildRijnkaai(): World {
   for (let i = 0; i < wuv.count; i++) wuv.setXY(i, wuv.getX(i) * (WATER_SIZE / WATER_TILE), wuv.getY(i) * (WATER_SIZE / WATER_TILE));
   scene.add(water);
   const waterTex = tex.water;
+  // real reflections: the scene mirrored in the still water level (world/mirror.ts)
+  const mirror = createMirror(WATER_Y);
+  mirror.attach(water);
+  psxUniforms.uWaterMirror.value = mirror.texture;
+  psxUniforms.uWaterMirrorMat.value = mirror.matrix;
+  psxUniforms.uWaterMirrorOn.value = 1;
 
-  // --- wooden pier (flush with the quay)
-  const pierDeck = box(4, 0.25, 11, m.planks, 7, -0.125, -6.5, 3); // z -12..-1, wall top covers -1..0
-  scene.add(pierDeck);
-  for (let z = -11.5; z <= -0.5; z += 2.75) {
-    for (const x of [5.2, 8.8]) scene.add(cyl(0.16, 0.18, 3.2, 6, m.darkWood, x, -1.7, z));
+  // --- stone steps down to the water and iron ladders to climb out (world/quaysteps.ts)
+  const steps = quaySteps(WATER_Y, { stone: tex.quayWall, iron: tex.iron });
+  for (const [x, z, tx, tz] of FLIGHTS) {
+    // the water side of the wall: the normal whose point a metre out lies in the river polygon
+    const [nx, nz] = inWater(x - tz + tx * 2, z + tx + tz * 2) ? [-tz, tx] : [tz, -tx];
+    steps.addFlight(x, z, tx, tz, nx, nz);
   }
-  scene.add(cyl(0.2, 0.22, 1.0, 6, m.darkWood, 5.4, 0.4, -11.4));
-  scene.add(cyl(0.2, 0.22, 1.0, 6, m.darkWood, 8.6, 0.4, -11.4));
+  // --- the timber jetty (world/pier.ts): level with the quay, deck under the edge stones
+  const pier = buildPier(scene, WATER_Y, tex.planks, steps);
+  colliders.push(...pier.colliders, ...steps.colliders);
+  bollard(scene, m, colliders, PIER_BOLLARD.x, PIER_BOLLARD.z);
+  steps.flush(scene);
+  /** Things in the water a swimmer bumps into: piles, hulls, the pontoon and its barges. */
+  const swimSolids: Rect[] = [...pier.piles];
+  // foam and lighter water along every wall and flight of steps (psx water, uShore)
+  psxUniforms.uShore.value = shoreTexture([...(CITY_DATA as unknown as { quays: number[][] }).quays, ...steps.outlines], [-340, -80, 540, 380]);
+  psxUniforms.uShoreBox.value.set(-340, -80, 540, 380);
 
   // --- signs on the real houses where the game's people work
   doorSign(scene, "hessenatie", "HESSENATIE");
@@ -212,65 +320,111 @@ export function buildRijnkaai(): World {
   // --- boats and cranes (Blender models, world/boats.ts): the quays full of shipping,
   // as in the period photos. The Anna Maria stays the game's own ship (its deck is walkable).
   let boats: Boats | null = null;
+  // the lock of the Petit Bassin: a swing bridge and mitre gates that let tows through (world/lock.ts)
+  let lock: Lock | null = null;
+  // the opening bridges over the canal, the vliet and the lock (world/bridges.ts) and the
+  // ships always on the move on the Schelde (world/river.ts)
+  let bridges: Bridges | null = null;
+  let riverTraffic: River | null = null;
+  const onOpening = (x: number, z: number) =>
+    bridges?.list.find((b) => x > b.rect.minX && x < b.rect.maxX && z > b.rect.minZ && z < b.rect.maxZ) ?? null;
   loadBoats()
     .then((b) => {
       boats = b;
+      lock = createLock(scene, b, {
+        world: { addCollider: (r) => dynamic.add(r), removeCollider: (r) => dynamic.delete(r) },
+        occupied: () => !!camera && !!onOpening(camera.position.x, camera.position.z),
+      });
+      bridges = createBridges(scene, b, {
+        lock,
+        player: () => (camera ? { x: camera.position.x, z: camera.position.z } : null),
+        world: { addCollider: (r) => dynamic.add(r), removeCollider: (r) => dynamic.delete(r) },
+      });
+      riverTraffic = createRiver(scene, b);
       // portal cranes on the quays; the jib rests along +z, yaw turns it over the water
       const cranes: Array<[number, number, number]> = [
-        [-24, 3.2, Math.PI], [-12, 3.2, Math.PI], [72, 3.2, Math.PI],
+        [-24, 4.0, Math.PI], [-12, 4.0, Math.PI], [60, 4.0, Math.PI],
         [66, 62, Math.PI / 2], [66, 92, Math.PI / 2], [173, 66, -Math.PI / 2], [173, 100, -Math.PI / 2],
-        [-280, 3.2, Math.PI], [-240, 3.2, Math.PI], [-300, 3.2, Math.PI],
+        [-280, 4.0, Math.PI], [-240, 4.0, Math.PI], [-300, 4.0, Math.PI],
       ];
       for (const [x, z, yaw] of cranes) {
         b.crane(x, z, yaw, scene);
         colliders.push(...b.colliders("portal_crane", x, z, yaw));
       }
+      // every hull is an obstacle for a swimmer (its footprint on the water, a little short of bow and stern)
+      const hull = (name: Parameters<Boats["dims"]>[0], x: number, z: number, yaw: number) => {
+        const d = b.dims(name);
+        const s = Math.abs(Math.sin(yaw));
+        const c = Math.abs(Math.cos(yaw));
+        const hl = d.length * 0.45;
+        const hb = d.beam * 0.5;
+        swimSolids.push({ minX: x - s * hl - c * hb, maxX: x + s * hl + c * hb, minZ: z - c * hl - s * hb, maxZ: z + c * hl + s * hb });
+      };
+      const moor = (...a: Parameters<Boats["mooreAlong"]>) => {
+        for (const p of b.mooreAlong(...a).placed) hull(p.name, p.x, p.z, p.yaw);
+      };
+      const put = (...a: Parameters<Boats["place"]>) => {
+        b.place(...a);
+        hull(a[0], a[1], a[2], a[3]);
+      };
       // the river: moored along the Werf and the north Rijnkaai, ships at anchor further out
+      // (gaps left for the stone steps, FLIGHTS)
       const river = { x: 0, z: -40 };
-      b.mooreAlong(scene, -316, 0, -258, 0, river, ["rhine_barge", "hengst", "lighter_loaded", "sloop", "lighter"], { rows: 2, seed: 3 });
-      b.mooreAlong(scene, -240, 0, -216, 0, river, ["hengst", "lighter", "rowboat"], { seed: 4 });
-      b.mooreAlong(scene, -140, 0, -90, 0, river, ["hengst", "lighter_loaded", "sloop", "punt"], { rows: 2, seed: 5 });
-      b.mooreAlong(scene, 60, 0, 100, 0, river, ["tug", "lighter", "hengst"], { seed: 6 });
-      b.mooreAlong(scene, 120, 0, 176, 0, river, ["rhine_barge", "lighter_loaded", "sloop"], { rows: 2, seed: 7 });
-      b.place("steamer", -150, -62, Math.PI / 2, scene);
-      b.place("barque", -40, -48, Math.PI / 2, scene);
-      b.place("barque", 110, -44, -Math.PI / 2, scene);
-      b.place("paddle_tug", -205, -64, Math.PI / 2 + 0.3, scene);
-      b.place("sloop", 30, -70, 1.2, scene);
+      moor(scene, -316, 0, -258, 0, river, ["rhine_barge", "hengst", "lighter_loaded", "sloop", "lighter"], { rows: 2, seed: 3 });
+      moor(scene, -240, 0, -216, 0, river, ["hengst", "lighter", "rowboat"], { seed: 4 });
+      moor(scene, -140, 0, -119, 0, river, ["hengst", "lighter_loaded", "sloop", "punt"], { rows: 2, seed: 5 });
+      moor(scene, -107, 0, -90, 0, river, ["hengst", "lighter_loaded", "sloop", "punt"], { rows: 2, seed: 8 });
+      moor(scene, 60, 0, 100, 0, river, ["tug", "lighter", "hengst"], { seed: 6 });
+      moor(scene, 120, 0, 176, 0, river, ["rhine_barge", "lighter_loaded", "sloop"], { rows: 2, seed: 7 });
+      put("steamer", -150, -62, Math.PI / 2, scene);
+      put("barque", -40, -48, Math.PI / 2, scene);
+      put("barque", 110, -44, -Math.PI / 2, scene);
+      put("paddle_tug", -205, -64, Math.PI / 2 + 0.3, scene);
+      put("sloop", 30, -70, 1.2, scene);
       // the Canal des Brasseurs and the Sint-Pietersvliet: narrow boats against both walls
       const canal = { x: -76, z: 100 };
       for (const [z0, z1] of [[12, 64], [76, 148], [160, 202]]) {
-        b.mooreAlong(scene, -82, z0, -82, z1, canal, ["hengst", "lighter", "punt", "rowboat", "lighter_loaded"], { maxBeam: 4.5, seed: z0 });
-        b.mooreAlong(scene, -70, z0, -70, z1, canal, ["lighter", "punt", "rowboat"], { maxBeam: 4.5, seed: z0 + 1 });
+        moor(scene, -82, z0, -82, z1, canal, ["hengst", "lighter", "punt", "rowboat", "lighter_loaded"], { maxBeam: 4.5, seed: z0 });
+        if (z0 === 12) {
+          // the steps on the east wall at z 38..44
+          moor(scene, -70, 12, -70, 35, canal, ["lighter", "punt", "rowboat"], { maxBeam: 4.5, seed: 13 });
+          moor(scene, -70, 47, -70, 64, canal, ["lighter", "punt", "rowboat"], { maxBeam: 4.5, seed: 14 });
+        } else moor(scene, -70, z0, -70, z1, canal, ["lighter", "punt", "rowboat"], { maxBeam: 4.5, seed: z0 + 1 });
       }
       const vliet = { x: -146, z: 30 };
-      b.mooreAlong(scene, -150, 11, -150, 38, vliet, ["punt", "rowboat"], { maxBeam: 3, seed: 21 });
-      b.mooreAlong(scene, -142, 49, -142, 70, vliet, ["punt", "rowboat"], { maxBeam: 3, seed: 22 });
+      moor(scene, -150, 11, -150, 38, vliet, ["punt", "rowboat"], { maxBeam: 3, seed: 21 });
+      moor(scene, -142, 49, -142, 70, vliet, ["punt", "rowboat"], { maxBeam: 3, seed: 22 });
       // the Petit Bassin: barges and lighters along all four quays, a barque in the middle
       const dock = { x: 120, z: 78 };
-      b.mooreAlong(scene, 70, 50, 70, 106, dock, ["rhine_barge", "lighter_loaded", "hengst"], { rows: 2, seed: 31 });
-      b.mooreAlong(scene, 170, 50, 170, 106, dock, ["rhine_barge", "lighter_loaded", "tug"], { rows: 2, seed: 32 });
-      b.mooreAlong(scene, 76, 110, 164, 110, dock, ["hengst", "lighter", "rhine_barge"], { seed: 33 });
-      b.mooreAlong(scene, 120, 46, 164, 46, dock, ["lighter_loaded", "hengst"], { seed: 34 });
-      b.place("barque", 125, 80, 0, scene);
-      // the ferry pontoon at the Werf (its deck is walkable, see tools/city/design.py)
-      b.pontoon(scene, -249, 0, -58);
+      moor(scene, 70, 50, 70, 106, dock, ["rhine_barge", "lighter_loaded", "hengst"], { rows: 2, seed: 31 });
+      moor(scene, 170, 50, 170, 106, dock, ["rhine_barge", "lighter_loaded", "tug"], { rows: 2, seed: 32 });
+      moor(scene, 76, 110, 164, 110, dock, ["hengst", "lighter", "rhine_barge"], { seed: 33 });
+      moor(scene, 120, 46, 164, 46, dock, ["lighter_loaded", "hengst"], { seed: 34 });
+      put("barque", 125, 80, 0, scene);
+      // the ferry pontoon at the Werf (its deck is walkable, see tools/city/design.py); it floats
+      // below the quay now, so a gangway slopes down onto it
+      const deckRect = b.pontoon(scene, PONTOON.x, PONTOON.maxZ, PONTOON.minZ)[0];
+      if (deckRect) pontoonY = deckRect.y;
+      pontoonGangway(scene, m, pontoonY);
+      // ladders on the free stretches of wall, now that the boats lie where they lie
+      city.ready.then(placeLadders).catch((e) => console.warn("ladders", e));
     })
     .catch((e) => {
       console.warn("boats.glb did not load", e);
       crane(scene, m, colliders, -24, 1.6);
+      city.ready.then(placeLadders).catch(() => {});
     });
 
   // --- props
   crateStack(scene, m, colliders, -20, 14, 3);
   crateStack(scene, m, colliders, -14.6, 15.2, 2);
-  crateStack(scene, m, colliders, 3, 3.4, 2);
+  crateStack(scene, m, colliders, 12, 12.8, 2);
   crateStack(scene, m, colliders, 36, 18, 3);
   crateStack(scene, m, colliders, 41, 16.5, 1);
   crateStack(scene, m, colliders, -52, 12, 2);
   barrels(scene, m, colliders, -44, 18, 5);
-  barrels(scene, m, colliders, 30, 5, 3);
-  barrels(scene, m, colliders, -6, 4.2, 2);
+  barrels(scene, m, colliders, 30, 13, 3);
+  barrels(scene, m, colliders, -6, 12.8, 2);
   sacks(scene, m, colliders, 14, 19.5);
   sacks(scene, m, colliders, -34, 17);
   // on the Rijnkaai: a loaded handcart by the cart stand and a dray with its horse
@@ -300,6 +454,13 @@ export function buildRijnkaai(): World {
   // --- ships: dark walls in the fog
   const shipA = ship(scene, m, SHIP_X, -7.2, 40, 9, false, RAMP.x - SHIP_X);
   const shipB = ship(scene, m, -56, -26, 44, 10, true);
+  // they float on the lower water; their hulls stop a swimmer
+  shipA.position.y += SHIP_DROP;
+  shipB.position.y += SHIP_DROP;
+  swimSolids.push({ minX: SHIP_X, maxX: SHIP_X + 40, minZ: -11.7, maxZ: -2.7 }, { minX: -56, maxX: -12, minZ: -31, maxZ: -21 });
+  // the pontoon's barges, and the lock (its gates and the tows): no swimming there
+  swimSolids.push({ minX: PONTOON.minX - 9.5, maxX: PONTOON.maxX + 9.5, minZ: PONTOON.minZ - 2, maxZ: -2.5 });
+  swimSolids.push({ minX: 103.5, maxX: 116.5, minZ: -3, maxZ: 47 });
   // on ship A's deck: the deckhouse and the masts are in the way
   colliders.push({ minX: SHIP_X + 5.2, maxX: SHIP_X + 12.4, minZ: -9.2, maxZ: -5.2 });
   colliders.push(rectAround(SHIP_X + 19.2, -7.2, 0.3, 0.3));
@@ -313,8 +474,8 @@ export function buildRijnkaai(): World {
     }
   }
   // mooring lines from ship A to two bollards
-  scene.add(rod(new THREE.Vector3(SHIP_X + 4, 2.3, -2.9), new THREE.Vector3(SHIP_X + 4, 0.5, edgeZ(SHIP_X + 4) + 0.9), 0.04, m.rope));
-  scene.add(rod(new THREE.Vector3(SHIP_X + 36, 2.3, -2.9), new THREE.Vector3(SHIP_X + 32, 0.5, edgeZ(SHIP_X + 32) + 0.9), 0.04, m.rope));
+  scene.add(rod(new THREE.Vector3(SHIP_X + 4, 2.3 + SHIP_DROP, -2.9), new THREE.Vector3(SHIP_X + 4, 0.5, edgeZ(SHIP_X + 4) + 0.9), 0.04, m.rope));
+  scene.add(rod(new THREE.Vector3(SHIP_X + 36, 2.3 + SHIP_DROP, -2.9), new THREE.Vector3(SHIP_X + 32, 0.5, edgeZ(SHIP_X + 32) + 0.9), 0.04, m.rope));
 
   // --- gas lamps (6)
   const glow = glowTexture();
@@ -333,14 +494,25 @@ export function buildRijnkaai(): World {
   // --- movement rules
   const onRamp = (x: number, z: number) => Math.abs(x - RAMP.x) < RAMP.halfW && z < RAMP.zLow && z > RAMP.zHigh - 0.2;
   const onDeck = (x: number, z: number) => x > DECK.minX && x < DECK.maxX && z > DECK.minZ && z < DECK.maxZ;
-  /** Height of the walkable surface itself: 0 on the quay and pier, a slope on the gangway, the deck on the ship. */
+  const onPontoon = (x: number, z: number) => x > PONTOON.minX && x < PONTOON.maxX && z > PONTOON.minZ && z < PONTOON.maxZ;
+  /**
+   * Height of the walkable surface itself: 0 on the quay and pier, a slope on the gangway, the deck
+   * on the ship, the steps down to the water, the pontoon and the gangway down onto it.
+   */
   const baseAt = (x: number, z: number) => {
     if (onDeck(x, z)) return DECK.y;
     if (onRamp(x, z)) return THREE.MathUtils.clamp((RAMP.zLow - z) / (RAMP.zLow - RAMP.zHigh), 0, 1) * DECK.y;
+    if (onPontoon(x, z)) return pontoonY * THREE.MathUtils.clamp(-z / PONTOON.gangway, 0, 1);
+    const st = steps.heightAt(x, z);
+    if (st) return st.y;
     return 0;
   };
   const onPier = (x: number, z: number) => x > PIER.minX && x < PIER.maxX && z > PIER.minZ && z < PIER.maxZ;
   const isWalkable = (x: number, z: number) => {
+    {
+      const ob = onOpening(x, z);
+      if (ob) return ob.closed();
+    }
     if (onPier(x, z) || onRamp(x, z) || onDeck(x, z)) return true;
     const f = city.flags(x, z);
     if (f === undefined) return x > QUAY.minX && x < QUAY.maxX && z > QUAY.minZ && z < QUAY.maxZ;
@@ -367,9 +539,101 @@ export function buildRijnkaai(): World {
     return true;
   };
 
-  /** Height to stand on at (x, z): the highest top you are over and could reach. */
+  // --- the player's own rules: stone steps, falling in, swimming (the crowd and the path
+  // check keep to isWalkable/isFree above: water and steps are never a path)
+  /** What the player may stand on here: a height, or null for open water or a wall. */
+  const floorAt = (x: number, z: number): number | null => {
+    if (steps.heightAt(x, z) || isWalkable(x, z)) return baseAt(x, z);
+    // the last half metre of stone that the coarse walk map counts as water: you fall at the true edge
+    const f = city.flags(x, z);
+    if (f !== undefined && (f & WATER) !== 0 && (f & (WALL | OUTSIDE)) === 0 && !inWater(x, z)) return baseAt(x, z);
+    return null;
+  };
+  /** Railings along the water (tools/city/design.py decor rails): only drawn in the city model, so they stop the player here. Gap at the pontoon. */
+  const railings: Rect[] = [];
+  for (const [x0, z0, x1, z1] of (CITY_DATA as unknown as { decor?: { rails?: number[][] } }).decor?.rails ?? []) {
+    const L = Math.hypot(x1 - x0, z1 - z0);
+    for (let s = 0; s < L; s += 0.5) {
+      const x = x0 + ((x1 - x0) * s) / L;
+      const z = z0 + ((z1 - z0) * s) / L;
+      if (Math.abs(x - PONTOON.x) < 2.2 && Math.abs(z) < 1.5) continue;
+      railings.push(rectAround(x, z, 0.3, 0.3));
+    }
+  }
+  /** Open water by the walk map: not a wall, not beyond the map, not the lock (its gates and tows). */
+  const openWater = (x: number, z: number) => {
+    {
+      const ob = onOpening(x, z);
+      if (ob && !ob.closed()) return false;
+    }
+    const f = city.flags(x, z);
+    return f !== undefined && (f & WATER) !== 0 && (f & (WALL | OUTSIDE)) === 0;
+  };
+  /** A quay wall face within r (exact, from the quay lines: the walk map is only 0.5 m fine). */
+  const QUAY_LINES = (CITY_DATA as unknown as { quays: number[][] }).quays;
+  const wallWithin = (x: number, z: number, r: number) => {
+    for (const [ax, az, bx, bz] of QUAY_LINES) {
+      if (x < Math.min(ax, bx) - r || x > Math.max(ax, bx) + r || z < Math.min(az, bz) - r || z > Math.max(az, bz) + r) continue;
+      const L2 = (bx - ax) ** 2 + (bz - az) ** 2 || 1;
+      const t = Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / L2));
+      if (Math.hypot(x - ax - (bx - ax) * t, z - az - (bz - az) * t) < r) return true;
+    }
+    return false;
+  };
+  function swimFree(x: number, z: number, r: number): boolean {
+    if (!openWater(x, z) || wallWithin(x, z, r)) return false;
+    for (let i = 0; i < 8; i++) {
+      const a = (i * Math.PI) / 4;
+      if (!openWater(x + Math.cos(a) * r, z + Math.sin(a) * r)) return false;
+    }
+    if (steps.solidAt(x, z, r)) return false;
+    for (const c of swimSolids) if (inRect(c, x, z, r)) return false;
+    return true;
+  }
+  const SWIM_R = 0.32;
+  function nearestSwim(x: number, z: number, r = SWIM_R): [number, number] | null {
+    if (swimFree(x, z, r)) return [x, z];
+    for (let d = 0.15; d <= 1.0; d += 0.15)
+      for (let i = 0; i < 12; i++) {
+        const a = (i * Math.PI) / 6;
+        const px = x + Math.cos(a) * d;
+        const pz = z + Math.sin(a) * d;
+        if (swimFree(px, pz, r)) return [px, pz];
+      }
+    return null;
+  }
+  /** Can you drop into the water at (x, z)? Open water, not onto a hull or a pile, with room to swim close by. */
+  const swimmable = (x: number, z: number) => openWater(x, z) && !steps.solidAt(x, z, 0) && !swimSolids.some((c) => inRect(c, x, z)) && nearestSwim(x, z) !== null;
+  /** Rails, bulwarks and parapets: you do not fall off a ship, a gangway, a bridge, the pontoon or a flight of steps. */
+  const railedFrom = (x: number, z: number) => {
+    if (onDeck(x, z) || onRamp(x, z) || onPontoon(x, z)) return true;
+    const st = steps.heightAt(x, z);
+    if (st && !st.landing) return true;
+    for (const b of bridgeRects) if (x > Math.min(b[0], b[2]) && x < Math.max(b[0], b[2]) && z > Math.min(b[1], b[3]) && z < Math.max(b[1], b[3])) return true;
+    return false;
+  };
+  const hits = (x: number, z: number, r: number, feet: number) => {
+    for (const c of colliders) if (inRect(c, x, z, r) && blocks(c, feet)) return true;
+    for (const c of dynamic) if (inRect(c, x, z, r) && blocks(c, feet)) return true;
+    for (const c of railings) if (inRect(c, x, z, r)) return true;
+    return false;
+  };
+  function walkFree(fx: number, fz: number, x: number, z: number, r: number, feet: number, laden: boolean): boolean {
+    const f = floorAt(x, z);
+    if (f === null) {
+      // off the edge, into the Schelde: never with goods in your arms, never over a rail
+      if (laden || railedFrom(fx, fz) || !swimmable(x, z)) return false;
+      return !hits(x, z, r, feet);
+    }
+    if (f > feet + STEP) return false; // a wall face: the quay from the steps, the pier from the landing
+    if (wallNear(x, z, r + 0.15)) return false;
+    return !hits(x, z, r, feet);
+  }
+
+  /** Height to stand on at (x, z): the highest top you are over and could reach. Open water: the river bed. */
   function groundAt(x: number, z: number, r: number, feet: number): number {
-    let g = baseAt(x, z);
+    const f = floorAt(x, z);
+    let g = f ?? WATER_Y - 6;
     const consider = (c: Rect) => {
       if (c.top !== undefined && c.top <= feet + STEP && inRect(c, x, z, r * 0.6)) g = Math.max(g, c.top);
     };
@@ -378,21 +642,87 @@ export function buildRijnkaai(): World {
     return g;
   }
 
-  function move(x: number, z: number, dx: number, dz: number, r: number, feet = 0): [number, number] {
+  function move(x: number, z: number, dx: number, dz: number, r: number, feet = 0, laden = false): [number, number] {
     let nx = x + dx;
-    if (!isFree(nx, z, r, feet)) nx = x;
+    if (!walkFree(x, z, nx, z, r, feet, laden)) nx = x;
     let nz = z + dz;
-    if (!isFree(nx, nz, r, feet)) nz = z;
+    if (!walkFree(nx, z, nx, nz, r, feet, laden)) nz = z;
     return [nx, nz];
+  }
+
+  function swimMove(x: number, z: number, dx: number, dz: number, r: number): [number, number] {
+    let nx = x + dx;
+    if (!swimFree(nx, z, r)) nx = x;
+    let nz = z + dz;
+    if (!swimFree(nx, nz, r)) nz = z;
+    return [nx, nz];
+  }
+
+  /** The water surface as drawn: the wave sampled on the sheet's 4 m grid, cut into the same triangles. */
+  function waterLevel(x: number, z: number): number {
+    const t = psxUniforms.uTime.value;
+    const x0 = Math.floor(x / WATER_TILE) * WATER_TILE;
+    const z0 = Math.floor(z / WATER_TILE) * WATER_TILE;
+    const fx = (x - x0) / WATER_TILE;
+    const fz = (z - z0) / WATER_TILE;
+    const ha = waveAt(x0, z0, t);
+    const hb = waveAt(x0, z0 + WATER_TILE, t);
+    const hc = waveAt(x0 + WATER_TILE, z0 + WATER_TILE, t);
+    const hd = waveAt(x0 + WATER_TILE, z0, t);
+    const h = fx + fz <= 1 ? ha + (hd - ha) * fx + (hb - ha) * fz : hc + (hb - hc) * (1 - fx) + (hd - hc) * (1 - fz);
+    return WATER_Y + h;
   }
 
   const onPierDeck = (x: number, z: number) => x > 5 && x < 9 && z > -12 && z < 0;
   const isWater = (x: number, z: number) => {
-    if (onPierDeck(x, z) || onRamp(x, z) || onDeck(x, z)) return false;
+    {
+      const ob = onOpening(x, z);
+      if (ob) return !ob.closed();
+    }
+    if (onPierDeck(x, z) || onRamp(x, z) || onDeck(x, z) || steps.heightAt(x, z)) return false;
     const f = city.flags(x, z);
     if (f === undefined) return z < 0;
     return (f & (WATER | OUTSIDE)) !== 0 && (f & WALL) === 0;
   };
+
+  /**
+   * Iron ladders every 30-50 m on the free stretches of every quay wall: not behind a moored
+   * boat, not at a railing, a bridge, the pier, the pontoon, the lock or a flight of steps,
+   * and not where something stands on the quay edge. Run once the boats are in.
+   */
+  function placeLadders(): void {
+    const quays = (CITY_DATA as unknown as { quays: number[][] }).quays;
+    const blocked = (x: number, z: number, nx: number, nz: number) => {
+      const wx = x + nx * 0.8;
+      const wz = z + nz * 0.8;
+      if (!swimFree(wx, wz, 0.45)) return true; // a hull, a pile, the steps, a bridge
+      if (steps.solidAt(x, z, 3)) return true;
+      if (Math.hypot(x - 7, z) < 5) return true; // the pier root
+      if (Math.abs(x - PONTOON.x) < 12 && z > -1 && z < 1) return true;
+      for (const c of railings) if (inRect(c, x - nx * 0.3, z - nz * 0.3, 1.5)) return true;
+      for (const b of bridgeRects) if (x > Math.min(b[0], b[2]) - 3 && x < Math.max(b[0], b[2]) + 3 && z > Math.min(b[1], b[3]) - 3 && z < Math.max(b[1], b[3]) + 3) return true;
+      for (const c of colliders) if (inRect(c, x - nx * 0.4, z - nz * 0.4, 0.6)) return true;
+      return false;
+    };
+    for (const [ax, az, bx, bz] of quays) {
+      const L = Math.hypot(bx - ax, bz - az);
+      if (L < 12) continue;
+      const tx = (bx - ax) / L;
+      const tz = (bz - az) / L;
+      const [nx, nz] = inWater((ax + bx) / 2 - tz, (az + bz) / 2 + tx) ? [-tz, tx] : [tz, -tx];
+      const f = frameAt(ax, az, tx, tz, nx, nz);
+      let last = -20;
+      for (let s = 4; s <= L - 4; s += 2) {
+        if (s - last < 40) continue;
+        const x = ax + tx * s;
+        const z = az + tz * s;
+        if (blocked(x, z, nx, nz)) continue;
+        steps.addLadder(f, s, 0);
+        last = s;
+      }
+    }
+    steps.flush(scene);
+  }
 
   /**
    * Path check (CLAUDE.md: always make sure there is a path). Flood-fills the
@@ -474,6 +804,7 @@ export function buildRijnkaai(): World {
 
   function surfaceAt(x: number, z: number): Surface {
     if (x > PIER.minX && x < PIER.maxX && z < -1) return "wood";
+    if (onPontoon(x, z) || onRamp(x, z) || onDeck(x, z)) return "wood";
     return "stone";
   }
 
@@ -488,7 +819,8 @@ export function buildRijnkaai(): World {
   let lampsLit = 0;
   let dayFar = 25;
   // weather: near/far multipliers and lamp in-scatter; eased like the clock
-  const WEATHER = { fog: [1, 1, 1], mist: [1.6, 1.5, 0.7], clear: [3, 2.3, 0.3] } as const;
+  const WEATHER = { fog: [1, 1, 1], mist: [1.6, 1.5, 0.7], clear: [3, 2.3, 0.3], rain: [1.3, 1.3, 0.85] } as const;
+  let weatherNow: keyof typeof WEATHER = "fog";
   let wTarget: readonly number[] = WEATHER.fog;
   const wNow = [1, 1, 1];
   const SCATTER = psxUniforms.uScatter.value;
@@ -514,6 +846,10 @@ export function buildRijnkaai(): World {
   function update(t: number, dt: number, cam?: THREE.Camera): void {
     boats?.update(t, dt);
     if (cam) camera = cam;
+    lock?.update(t, dt, camera ?? undefined);
+    bridges?.update(t, dt, camera ?? undefined);
+    riverTraffic?.update(t, dt);
+    if (camera) traffic?.update(t, dt, camera.position);
     // the sky dome and the water sheet go where you go
     if (camera) {
       sky.position.set(camera.position.x, 0, camera.position.z);
@@ -548,6 +884,8 @@ export function buildRijnkaai(): World {
       (scene.background as THREE.Color).copy(fog.color);
     }
     if (camera) city.update(camera, fog.far);
+    if (camera && !devView) ambient.update(t, dt, camera, dayNow, weatherNow);
+    street?.update(t, dt, lampsLit, camera ?? undefined);
     lantern.intensity = 7 * (0.92 + Math.sin(t * 5.1) * 0.04 + Math.sin(t * 13.7) * 0.03);
     waterTex.offset.x = t * 0.004;
     waterTex.offset.y = t * 0.011;
@@ -582,13 +920,20 @@ export function buildRijnkaai(): World {
     addCollider: (r) => dynamic.add(r),
     removeCollider: (r) => dynamic.delete(r),
     isFree,
+    solids: () => [...colliders, ...dynamic].filter((c) => blocks(c, 0)),
     isWater,
     baseAt,
     reachFrom,
     setThickFog: (on) => (fogTarget = on ? 1 : 0),
     setTimeOfDay: (h) => (dayTarget = ((h % 24) + 24) % 24),
     city,
-    setWeather: (w) => (wTarget = WEATHER[w] ?? WEATHER.fog),
+    setWeather: (w) => {
+      weatherNow = w in WEATHER ? w : "fog";
+      wTarget = WEATHER[weatherNow];
+    },
+    ambient,
+    boats: () => boats,
+    traffic: () => traffic,
     setDevView: (on) => {
       devView = on;
       if (!on) applyDaylight(dayNow);
@@ -596,12 +941,55 @@ export function buildRijnkaai(): World {
     lamps,
     shipPositions: [new THREE.Vector3(SHIP_X + 20, 1, -3), new THREE.Vector3(-34, 1, -21)],
     move,
+    swimFree,
+    swimmable,
+    swimMove,
+    nearestSwim,
+    waterLevel,
+    exitNear: (x, z, reach) => steps.exitNear(x, z, reach),
+    quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
     surfaceAt,
     update,
   };
 }
 
 // -------------------------------------------------------------------------
+
+const WATER_RING = (CITY_DATA as unknown as { water: Array<{ outer: number[][] }> }).water.map((w) => w.outer);
+/** Inside the river, the docks or a canal (the water polygons of shared/city.json)? */
+function inWater(x: number, z: number): boolean {
+  let inside = false;
+  for (const ring of WATER_RING)
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, zi] = ring[i];
+      const [xj, zj] = ring[j];
+      if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
+    }
+  return inside;
+}
+
+/** A timber gangway from the Werf down onto the ferry pontoon's deck (it floats below the quay). */
+function pontoonGangway(scene: THREE.Scene, m: Mats, deckY: number): void {
+  const L = PONTOON.gangway;
+  const w = PONTOON.maxX - PONTOON.minX - 0.5;
+  const g = new THREE.Group();
+  const slope = Math.atan2(-deckY, L);
+  const plank = box(w, 0.1, Math.hypot(L, deckY) + 0.3, m.planks, 0, 0, 0, 1.5);
+  plank.position.set(PONTOON.x, deckY / 2 - 0.02, -L / 2);
+  plank.rotation.x = -slope;
+  g.add(plank);
+  // cleats across, for the feet, and a hand rail on each side
+  for (let i = 1; i < 10; i++) {
+    const k = i / 10;
+    g.add(box(w - 0.2, 0.05, 0.08, m.darkWood, PONTOON.x, deckY * k + 0.04, -L * k, 1));
+  }
+  for (const s of [-1, 1]) {
+    const x = PONTOON.x + s * (w / 2 - 0.05);
+    g.add(rod(new THREE.Vector3(x, 1.0, 0.2), new THREE.Vector3(x, deckY + 1.0, -L), 0.04, m.darkWood));
+    for (const k of [0, 0.5, 1]) g.add(box(0.08, 1.0, 0.08, m.darkWood, x, deckY * k + 0.5, -L * k + (k === 0 ? 0.2 : 0), 1));
+  }
+  scene.add(g);
+}
 
 
 /** Gas flame: slow breathing, small fast noise, now and then a dip. */
@@ -755,43 +1143,62 @@ function crane(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: num
 function crateStack(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number, n: number): void {
   const s = 1.1;
   let placed = 0;
+  const spots: Array<[number, number, number, number]> = []; // x, z, yaw, lift
   for (let i = 0; i < n; i++) {
     const cx = x + (i % 2) * (s + 0.04);
     const cz = z + Math.floor(i / 2) * (s + 0.04);
-    const c = box(s, s, s, m.crate, cx, s / 2, cz, 1.1);
-    c.rotation.y = Math.sin(x * 3 + i) * 0.08;
-    scene.add(c);
+    spots.push([cx, cz, Math.sin(x * 3 + i) * 0.08, 0]);
     placed++;
   }
-  if (n >= 2) {
-    const top = box(s, s, s, m.crate, x + s / 2, s * 1.5, z, 1.1);
-    top.rotation.y = 0.2;
-    scene.add(top);
-  }
+  if (n >= 2) spots.push([x + s / 2, z, 0.2, s]);
+  // the packing crates of props.glb (all merged into one draw call); plain boxes if it will not load
+  loadProps()
+    .then((p) => spots.forEach(([cx, cz, yaw, y], i) => p.batch(scene, n === 1 ? "crate_open" : n === 3 && i === 2 ? "crate_broken" : "crate_big", cx, cz, yaw, y, s)))
+    .catch(() => {
+      for (const [cx, cz, yaw, y] of spots) {
+        const c = box(s, s, s, m.crate, cx, y + s / 2, cz, 1.1);
+        c.rotation.y = yaw;
+        scene.add(c);
+      }
+    });
   const w = placed > 1 ? s * 2 + 0.04 : s;
   const d = Math.ceil(placed / 2) * (s + 0.04);
   colliders.push({ minX: x - s / 2, maxX: x - s / 2 + w, minZ: z - s / 2, maxZ: z - s / 2 + d, top: n >= 2 ? s * 2 : s });
 }
 
 function barrels(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number, n: number): void {
-  for (let i = 0; i < n; i++) {
-    const bx = x + (i % 3) * 0.75;
-    const bz = z + Math.floor(i / 3) * 0.75;
-    scene.add(cyl(0.3, 0.3, 0.95, 8, m.darkWood, bx, 0.475, bz));
-    scene.add(cyl(0.335, 0.335, 0.06, 8, m.ironDecal, bx, 0.2, bz));
-    scene.add(cyl(0.335, 0.335, 0.06, 8, m.ironDecal, bx, 0.75, bz));
-  }
+  const at = (i: number): [number, number] => [x + (i % 3) * 0.75, z + Math.floor(i / 3) * 0.75];
+  // the casks of props.glb (merged); plain cylinders if it will not load
+  loadProps()
+    .then((p) => {
+      for (let i = 0; i < n; i++) p.batch(scene, "barrel", ...at(i), i * 1.7);
+    })
+    .catch(() => {
+      for (let i = 0; i < n; i++) {
+        const [bx, bz] = at(i);
+        scene.add(cyl(0.3, 0.3, 0.95, 8, m.darkWood, bx, 0.475, bz));
+        scene.add(cyl(0.335, 0.335, 0.06, 8, m.ironDecal, bx, 0.2, bz));
+        scene.add(cyl(0.335, 0.335, 0.06, 8, m.ironDecal, bx, 0.75, bz));
+      }
+    });
   const cols = Math.min(n, 3);
   const rows = Math.ceil(n / 3);
   colliders.push({ minX: x - 0.35, maxX: x + (cols - 1) * 0.75 + 0.35, minZ: z - 0.35, maxZ: z + (rows - 1) * 0.75 + 0.35, top: 0.95 });
 }
 
 function sacks(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number): void {
-  for (let i = 0; i < 6; i++) {
-    const s = box(0.9, 0.35, 0.55, m.sack, x + (i % 3) * 0.92, 0.18 + Math.floor(i / 3) * 0.35, z, 0.9);
-    s.rotation.y = Math.sin(i * 4.1) * 0.12;
-    scene.add(s);
-  }
+  // jute sacks of props.glb, two layers (merged); plain boxes if it will not load
+  loadProps()
+    .then((p) => {
+      for (let i = 0; i < 6; i++) p.batch(scene, "sack", x + (i % 3) * 0.92, z, Math.sin(i * 4.1) * 0.12, Math.floor(i / 3) * 0.25);
+    })
+    .catch(() => {
+      for (let i = 0; i < 6; i++) {
+        const s = box(0.9, 0.35, 0.55, m.sack, x + (i % 3) * 0.92, 0.18 + Math.floor(i / 3) * 0.35, z, 0.9);
+        s.rotation.y = Math.sin(i * 4.1) * 0.12;
+        scene.add(s);
+      }
+    });
   colliders.push({ minX: x - 0.5, maxX: x + 2.3, minZ: z - 0.35, maxZ: z + 0.35, top: 0.7 });
 }
 

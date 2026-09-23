@@ -1,0 +1,291 @@
+// Places of the town (M3e): where people work, drink, play, shop and pray.
+// Anchors in world metres on the compact map (shared/city.json; x along the
+// river, z inland, water at z < 0). The generator snaps every point to open,
+// reachable ground (walkmap.ts), so a map change moves them, not breaks them.
+
+import type { Faction } from "../db.ts";
+
+/** How a trade is done at the workplace (the client plays each kind). */
+export type WorkKind =
+  | "haul" // back and forth between a quay point (a) and a door (b), a load each way
+  | "stall" // behind a market stall
+  | "shop" // at the shop table by the own door
+  | "tavern" // the publican at his door
+  | "patrol" // walk a round of points (police, the lamplighter)
+  | "roam" // walk about the place (carters, sailors, boatmen, errand boys)
+  | "inside" // work indoors: go in at the door and vanish (clerks, maids, seamstresses)
+  | "beg" // stand or sit by a church door or a bridge
+  | "post"; // stand at one point (employers, the priest at his door)
+
+export interface Place {
+  id: string;
+  label: string;
+  x: number;
+  z: number;
+  /** Radius people spread over. */
+  r: number;
+  district: string;
+}
+
+/** Workplaces with a fixed anchor. Shops and taverns are house doors found near an anchor. */
+export const PLACES: Place[] = [
+  { id: "rijnkaai", label: "the Rijnkaai", x: 0, z: 18, r: 22, district: "rijnkaai" },
+  { id: "hessenatie", label: "the Hessenatie", x: 10.8, z: 43.5, r: 8, district: "rijnkaai" },
+  { id: "entrepot", label: "the Entrepot", x: 173, z: 83, r: 12, district: "eilandje" },
+  { id: "bassin", label: "the Petit Bassin", x: 120, z: 18, r: 20, district: "eilandje" },
+  { id: "bassin_south", label: "the south quay of the Petit Bassin", x: 118, z: 117, r: 14, district: "eilandje" },
+  { id: "werf", label: "the Werf", x: -275, z: 7, r: 30, district: "werf" },
+  { id: "steenplein", label: "the Steenplein", x: -182, z: 22, r: 20, district: "steenplein" },
+  { id: "vismarkt", label: "the Vismarkt", x: -116, z: 26, r: 18, district: "vismarkt" },
+  { id: "canal", label: "the Canal des Brasseurs", x: -65, z: 110, r: 30, district: "canal" },
+  { id: "grote_markt", label: "the Grote Markt", x: -254, z: 94, r: 24, district: "grote-markt" },
+  { id: "cathedral", label: "the cathedral door", x: -262, z: 140, r: 8, district: "grote-markt" },
+  { id: "handschoenmarkt", label: "the Handschoenmarkt", x: -250, z: 135, r: 14, district: "grote-markt" },
+  { id: "vleeshuis", label: "the Vleeshuis", x: -116, z: 88, r: 12, district: "vismarkt" },
+  { id: "back_lane", label: "the lane behind the Rijnkaai", x: 0, z: 69, r: 20, district: "rijnkaai" },
+  { id: "town_hall", label: "the town hall", x: -282, z: 94, r: 6, district: "grote-markt" },
+];
+
+/** Squares and lanes where children play and people stroll. */
+export const PLAY = ["steenplein", "vismarkt", "back_lane", "grote_markt", "handschoenmarkt", "bassin_south", "canal"];
+/** Where wives and maids do their errands. */
+export const MARKETS = ["grote_markt", "vismarkt"];
+
+/** Shops: a house door near the anchor becomes the shop; the family lives above it. */
+export interface ShopDef {
+  id: string;
+  label: string;
+  trade: TradeId;
+  x: number;
+  z: number;
+  goods: "bread" | "veg" | "wares" | "fish" | "cloth" | null;
+}
+export const SHOPS: ShopDef[] = [
+  { id: "bakery_rijn", label: "the bakery behind the Rijnkaai", trade: "baker", x: 10, z: 72, goods: "bread" },
+  { id: "bakery_steen", label: "the bakery on the Steenplein", trade: "baker", x: -200, z: 40, goods: "bread" },
+  { id: "grocer_canal", label: "the grocer by the canal", trade: "grocer", x: -58, z: 70, goods: "veg" },
+  { id: "grocer_werf", label: "the grocer on the Werf", trade: "grocer", x: -250, z: 28, goods: "veg" },
+  { id: "chandler_werf", label: "the ship's chandler on the Werf", trade: "chandler", x: -290, z: 14, goods: "wares" },
+  { id: "tobacco_markt", label: "the tobacconist on the Grote Markt", trade: "tobacconist", x: -230, z: 64, goods: "wares" },
+  { id: "pawn_vis", label: "the pawnshop by the Vleeshuis", trade: "pawnbroker", x: -140, z: 82, goods: null },
+  { id: "cobbler_lane", label: "the cobbler in the back lane", trade: "cobbler", x: -30, z: 72, goods: "wares" },
+  { id: "draper_markt", label: "the draper on the Handschoenmarkt", trade: "draper", x: -230, z: 146, goods: "cloth" },
+];
+
+export interface TavernDef {
+  id: string;
+  label: string;
+  x: number;
+  z: number;
+}
+export const TAVERNS: TavernDef[] = [
+  { id: "ankere", label: "In de Ankere", x: -52, z: 46 },
+  { id: "schipke", label: "Het Schipke", x: -236, z: 14 },
+  { id: "vliet", label: "De Vliet", x: -120, z: 50 },
+  { id: "engel", label: "Den Engel", x: -240, z: 64 },
+  { id: "bassin", label: "Het Bassin", x: 100, z: 124 },
+];
+
+/** Market stalls: where they stand and what they sell. Stalls face +face (a unit vector). */
+export interface StallDef {
+  place: string;
+  x: number;
+  z: number;
+  /** Direction the customers stand, from the stall. */
+  face: [number, number];
+  goods: "fish" | "bread" | "veg" | "wares" | "cloth";
+}
+export const STALLS: StallDef[] = [
+  { place: "vismarkt", x: -128, z: 18, face: [1, 0], goods: "fish" },
+  { place: "vismarkt", x: -128, z: 24, face: [1, 0], goods: "fish" },
+  { place: "vismarkt", x: -128, z: 30, face: [1, 0], goods: "fish" },
+  { place: "vismarkt", x: -104, z: 18, face: [-1, 0], goods: "fish" },
+  { place: "vismarkt", x: -104, z: 24, face: [-1, 0], goods: "fish" },
+  { place: "vismarkt", x: -104, z: 30, face: [-1, 0], goods: "fish" },
+  { place: "grote_markt", x: -266, z: 84, face: [0, 1], goods: "veg" },
+  { place: "grote_markt", x: -258, z: 84, face: [0, 1], goods: "bread" },
+  { place: "grote_markt", x: -250, z: 84, face: [0, 1], goods: "cloth" },
+  { place: "grote_markt", x: -242, z: 84, face: [0, 1], goods: "veg" },
+  { place: "grote_markt", x: -266, z: 106, face: [0, -1], goods: "wares" },
+  { place: "grote_markt", x: -250, z: 106, face: [0, -1], goods: "veg" },
+];
+
+/** Haul routes: a quay point (a) and a door or store (b) per workplace. */
+export const HAULS: Record<string, Array<{ a: [number, number]; b: [number, number] }>> = {
+  rijnkaai: [
+    { a: [-12, 4], b: [-10, 40] },
+    { a: [26, 5], b: [40, 42] },
+    { a: [-40, 5], b: [-44, 40] },
+    { a: [45, 5], b: [56, 40] },
+  ],
+  hessenatie: [
+    { a: [12, 5], b: [10.8, 43.5] },
+    { a: [2, 5], b: [10.8, 43.5] },
+  ],
+  entrepot: [
+    { a: [173, 55], b: [173, 83] },
+    { a: [173, 108], b: [173, 88] },
+    { a: [160, 40], b: [173, 78] },
+  ],
+  bassin: [
+    { a: [90, 44], b: [96, 8] },
+    { a: [130, 44], b: [150, 10] },
+    { a: [66, 60], b: [70, 20] },
+  ],
+  bassin_south: [
+    { a: [90, 113], b: [100, 122] },
+    { a: [140, 113], b: [150, 122] },
+  ],
+  werf: [
+    { a: [-300, 3], b: [-306, 12] },
+    { a: [-262, 3], b: [-270, 12] },
+    { a: [-230, 3], b: [-226, 26] },
+  ],
+  vismarkt: [
+    { a: [-139, 22], b: [-128, 21] },
+    { a: [-139, 34], b: [-104, 27] },
+  ],
+  canal: [
+    { a: [-65, 90], b: [-65, 108] },
+    { a: [-87, 120], b: [-87, 84] },
+  ],
+};
+
+/** A round for the police agents and the lamplighter (the lamps come from city.json). */
+export const PATROLS: Record<string, Array<[number, number]>> = {
+  quays: [[0, 20], [50, 20], [110, 16], [60, 69], [-30, 69], [-60, 30], [-118, 26], [-60, 8]],
+  town: [[-182, 22], [-254, 80], [-250, 135], [-200, 128], [-150, 150], [-116, 88], [-118, 26], [-182, 5]],
+  werf: [[-300, 7], [-230, 7], [-182, 22], [-240, 30], [-306, 20]],
+};
+
+/** Night haunts of the thieves: dark corners near taverns and quays. */
+export const HAUNTS: Array<[number, number]> = [
+  [-60, 30], [-10, 69], [-150, 30], [-200, 6], [-270, 10], [-88, 60], [-65, 70], [110, 20], [60, 69], [-236, 30],
+];
+
+// ------------------------------------------------------------------ trades
+
+export type TradeId =
+  | "docker" | "natie" | "porter" | "carter" | "boatman" | "sailor" | "fishwife" | "market_woman"
+  | "baker" | "grocer" | "chandler" | "tobacconist" | "pawnbroker" | "cobbler" | "draper" | "shopwife"
+  | "publican" | "clerk" | "merchant" | "maid" | "laundress" | "seamstress" | "housewife"
+  | "police" | "priest" | "sexton" | "lamplighter" | "beggar" | "thief" | "retired"
+  | "child" | "street_child" | "errand_boy" | "infant"
+  // the employers of the job board (one each)
+  | "foreman" | "fish_merchant" | "water_bailiff" | "brewer";
+
+export interface TradeDef {
+  label: string;
+  work: WorkKind;
+  faction: Faction | null;
+  /** Bias on the 0-10 stats: added to a base roll. */
+  bias?: Partial<Record<Stat, number>>;
+  /** Wealth range 0-10. */
+  wealth: [number, number];
+  /** Night people keep other hours (see schedules). */
+  night?: boolean;
+}
+
+export const STATS = ["honesty", "temper", "piety", "warmth", "greed", "courage", "gossip"] as const;
+export type Stat = (typeof STATS)[number];
+
+export const TRADES: Record<TradeId, TradeDef> = {
+  docker: { label: "docker", work: "haul", faction: "naties", wealth: [0, 2], bias: { courage: 2, temper: 1 } },
+  natie: { label: "natie man", work: "haul", faction: "naties", wealth: [1, 3], bias: { courage: 1 } },
+  porter: { label: "porter with a sack truck", work: "roam", faction: "naties", wealth: [0, 2] },
+  carter: { label: "carter", work: "roam", faction: null, wealth: [1, 3], bias: { temper: 1 } },
+  boatman: { label: "boatman", work: "haul", faction: "smokkelaars", wealth: [1, 3], bias: { honesty: -1, courage: 1 } },
+  sailor: { label: "sailor ashore", work: "roam", faction: null, wealth: [0, 2], bias: { temper: 1, piety: -2 } },
+  fishwife: { label: "fishwife", work: "stall", faction: null, wealth: [1, 2], bias: { gossip: 3, temper: 1 } },
+  market_woman: { label: "market woman", work: "stall", faction: "burgerij", wealth: [1, 3], bias: { gossip: 2, greed: 1 } },
+  baker: { label: "baker", work: "shop", faction: "burgerij", wealth: [3, 5], bias: { piety: 1 } },
+  grocer: { label: "grocer", work: "shop", faction: "burgerij", wealth: [3, 5], bias: { greed: 1 } },
+  chandler: { label: "ship's chandler", work: "shop", faction: "burgerij", wealth: [3, 6], bias: { greed: 2 } },
+  tobacconist: { label: "tobacconist", work: "shop", faction: "burgerij", wealth: [3, 5] },
+  pawnbroker: { label: "pawnbroker", work: "shop", faction: "burgerij", wealth: [4, 7], bias: { greed: 3, warmth: -2 } },
+  cobbler: { label: "cobbler", work: "shop", faction: null, wealth: [1, 3], bias: { gossip: 1 } },
+  draper: { label: "draper", work: "shop", faction: "burgerij", wealth: [4, 6], bias: { piety: 1 } },
+  shopwife: { label: "shopkeeper's wife", work: "shop", faction: "burgerij", wealth: [3, 5], bias: { gossip: 2 } },
+  publican: { label: "publican", work: "tavern", faction: null, wealth: [3, 5], bias: { gossip: 3, warmth: 1 }, night: true },
+  clerk: { label: "clerk", work: "inside", faction: "burgerij", wealth: [3, 5], bias: { courage: -1, honesty: 1 } },
+  merchant: { label: "merchant", work: "inside", faction: "burgerij", wealth: [7, 10], bias: { greed: 2, warmth: -1 } },
+  maid: { label: "maid", work: "inside", faction: null, wealth: [0, 1], bias: { gossip: 2 } },
+  laundress: { label: "laundress", work: "roam", faction: null, wealth: [0, 1], bias: { gossip: 2 } },
+  seamstress: { label: "seamstress", work: "inside", faction: null, wealth: [0, 2], bias: { piety: 1 } },
+  housewife: { label: "housewife", work: "inside", faction: null, wealth: [0, 3], bias: { gossip: 1, piety: 1 } },
+  police: { label: "police agent", work: "patrol", faction: "politie", wealth: [2, 4], bias: { honesty: 1, courage: 2 } },
+  priest: { label: "priest", work: "post", faction: "kerk", wealth: [3, 5], bias: { piety: 5, warmth: 1 } },
+  sexton: { label: "sexton of the cathedral", work: "post", faction: "kerk", wealth: [2, 3], bias: { piety: 4 } },
+  lamplighter: { label: "lamplighter", work: "patrol", faction: null, wealth: [0, 2] },
+  beggar: { label: "beggar", work: "beg", faction: null, wealth: [0, 0], bias: { piety: 1, courage: -1 } },
+  thief: { label: "pickpocket", work: "roam", faction: "smokkelaars", wealth: [0, 2], bias: { honesty: -6, courage: 1, greed: 2 }, night: true },
+  retired: { label: "old hand, past work", work: "roam", faction: null, wealth: [0, 3], bias: { gossip: 2 } },
+  child: { label: "child", work: "roam", faction: null, wealth: [0, 0] },
+  street_child: { label: "street child", work: "roam", faction: null, wealth: [0, 0], bias: { honesty: -2, courage: 2 } },
+  errand_boy: { label: "errand boy", work: "roam", faction: null, wealth: [0, 1] },
+  infant: { label: "small child", work: "inside", faction: null, wealth: [0, 0] },
+  foreman: { label: "foreman of the Katoennatie", work: "post", faction: "naties", wealth: [4, 6], bias: { temper: 2, honesty: 1 } },
+  fish_merchant: { label: "fish merchant", work: "post", faction: "burgerij", wealth: [5, 7], bias: { greed: 2 } },
+  water_bailiff: { label: "sergeant of the water police", work: "post", faction: "politie", wealth: [3, 5], bias: { honesty: 1, temper: 1 } },
+  brewer: { label: "brewer", work: "post", faction: "burgerij", wealth: [6, 8], bias: { warmth: 1, greed: 1 } },
+};
+
+/** The board's employers who live in the town: fixed ids, so the job board can name them. */
+export interface TownEmployer {
+  id: string;
+  trade: TradeId;
+  sex: "m" | "f";
+  faction: Faction;
+  /** Their post: the spot in shared/spots.json they stand at. */
+  spot: string;
+  /** Spots their work uses (from, to, post). */
+  area: string[];
+  note: string;
+}
+export const TOWN_EMPLOYERS: TownEmployer[] = [
+  {
+    id: "katoen",
+    trade: "foreman",
+    sex: "m",
+    faction: "naties",
+    spot: "katoen_door",
+    area: ["katoen_door", "entrepot_quay", "bassin_quay"],
+    note: "foreman of the Katoennatie at the Entrepot on the Petit Bassin, loud and quick, pays by the load",
+  },
+  {
+    id: "vishandel",
+    trade: "fish_merchant",
+    sex: "f",
+    faction: "burgerij",
+    spot: "vismarkt_stalls",
+    area: ["vismarkt_stalls", "vliet_steps", "west_sheds", "vleeshuis_door"],
+    note: "fish merchant who supplies the stalls of the Vismarkt, sharp and fast, hates waste",
+  },
+  {
+    id: "waterschout",
+    trade: "water_bailiff",
+    sex: "m",
+    faction: "politie",
+    spot: "werf_pontoon",
+    area: ["werf_pontoon", "werf_quay", "steen_gate"],
+    note: "sergeant of the water police at the Werf, watches the ferry and seizes smuggled goods, wants honest eyes",
+  },
+  {
+    id: "brouwer",
+    trade: "brewer",
+    sex: "m",
+    faction: "burgerij",
+    spot: "canal_quay",
+    area: ["canal_quay", "brewery_yard", "canal_west"],
+    note: "brewer on the Canal des Brasseurs, barrels in and out all day, generous when the beer sells",
+  },
+  {
+    id: "koster",
+    trade: "sexton",
+    sex: "m",
+    faction: "kerk",
+    spot: "cathedral_door",
+    area: ["cathedral_door", "markt_stalls", "handschoen_well"],
+    note: "sexton of the cathedral, errands for the chapter and the poor box, trusts the sober and the pious",
+  },
+];

@@ -24,8 +24,10 @@ things); the game multiplies it into the texture, as in props.glb.
 quay scene (data/shots/boats_harbour.png).
 """
 
+import json
 import math
 import os
+import random
 import sys
 
 import bmesh
@@ -36,21 +38,37 @@ from mathutils import Matrix, Vector
 sys.dont_write_bytecode = True  # no __pycache__ next to the scripts
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_props as bp  # noqa: E402  (mesh helpers, painters, the prop materials)
-from build_props import Mesh, col, move, rot_z, speckle, vnoise  # noqa: E402
-from build_props import BARREL, CRATE, DARK, IRON, ROPE, SACK, STONE, WOOD  # noqa: E402
+from build_props import col, move, rot_z, speckle, vnoise  # noqa: E402
 
 ROOT = bp.ROOT
+
+
+class Mesh(bp.Mesh):
+    """build_props' mesh builder, plus the rigging kept as line segments: the game draws them
+    as 1-pixel lines (thin tubes break up into dots at 480x270)."""
+
+    def __init__(self, ao=0.45):
+        super().__init__(ao)
+        self.lines = []
+        self.smoke = []
+
+    def line(self, a, b):
+        self.lines.append((self.xf @ Vector(a), self.xf @ Vector(b)))
+
 OUT = os.path.join(ROOT, "client", "public", "models", "boats.glb")
 SHOTS = os.path.join(ROOT, "data", "shots")
 
 EXTRA = ["tar", "clinker", "iron_hull", "iron_ports", "band", "copper", "redlead", "deck", "paint_green",
          "paint_white", "canvas", "canvas_tan", "rigging", "shrouds", "lattice", "funnel", "window", "hatch",
-         "tarp", "flag"]
-MATS = bp.MATS + EXTRA
+         "tarp", "flag", "names", "washing"]
+# the street-prop materials we use, painted with build_props' painters (our own list: props.glb may change)
+BASE = ["wood", "wood_dark", "iron", "rope", "sackcloth", "crate", "barrel", "stone", "glass"]
+WOOD, DARK, IRON, ROPE, SACK, CRATE, BARREL, STONE, GLASS = range(len(BASE))
+MATS = BASE + EXTRA
 (TAR, CLINKER, IRONHULL, PORTS, BAND, COPPER, REDLEAD, DECK, GREEN, WHITE, CANVAS, TAN, RIG, SHROUD, LATTICE,
- FUNNEL, WINDOW, HATCH, TARP, FLAG) = range(len(bp.MATS), len(MATS))
+ FUNNEL, WINDOW, HATCH, TARP, FLAG, NAMES, WASH) = range(len(BASE), len(MATS))
 # thin parts, seen from both sides (the game makes these double-sided too)
-THIN = {"shrouds", "lattice", "flag", "canvas", "canvas_tan", "tarp"}
+THIN = {"shrouds", "lattice", "flag", "canvas", "canvas_tan", "tarp", "washing"}
 # metres per texture tile for faces mapped by position
 TILE = {TAR: 2.0, CLINKER: 1.0, IRONHULL: 4.0, COPPER: 2.0, REDLEAD: 2.0, GREEN: 1.6, WHITE: 1.6, DECK: 1.6,
         WOOD: 1.6, DARK: 1.2}
@@ -212,6 +230,9 @@ def paint_canvas(seed, base):
         u = int(rng.integers(0, 64))
         img[:, u] *= 0.55
     img *= (0.9 + 0.15 * noise(rng, 64, 64, 6, 6))[..., None]
+    for r0 in (14, 46):  # gaskets: the rope bands that hold a furled sail, one a metre
+        img[r0:r0 + 3] = img[r0:r0 + 3] * 0.35 + col((0.2, 0.16, 0.11)) * 0.5
+        img[r0 + 3] *= 1.15
     return speckle(img, rng, 0.04)
 
 
@@ -260,16 +281,93 @@ def paint_window(seed):
 
 
 def paint_flag(seed):
-    """Left half: a white house flag with a red star. Right half: red, for pennants."""
-    w, h = 32, 16
-    img = np.ones((h, w, 3)) * col((0.78, 0.76, 0.7))
-    img[:, 16:] = col((0.5, 0.07, 0.06))
-    uu, vv = np.meshgrid(np.arange(w) + 0.5, np.arange(h) + 0.5)
-    a = np.arctan2(vv - 8, uu - 8) - math.pi / 2
-    r = np.hypot(uu - 8, vv - 8)
+    """Four flags, v up: top left a white house flag with a red star, top right plain red
+    (pennants), bottom left the Dutch tricolour, bottom right the Belgian one. Muted colours."""
+    w, h = 64, 32
+    img = np.zeros((h, w, 3))
+    img[16:, :32] = col((0.78, 0.76, 0.7))
+    img[16:, 32:] = col((0.5, 0.07, 0.06))
+    img[11:16, :32] = col((0.5, 0.1, 0.08))
+    img[5:11, :32] = col((0.76, 0.74, 0.68))
+    img[0:5, :32] = col((0.12, 0.18, 0.36))
+    img[:16, 32:43] = col((0.05, 0.05, 0.05))
+    img[:16, 43:54] = col((0.66, 0.54, 0.16))
+    img[:16, 54:] = col((0.5, 0.09, 0.07))
+    uu, vv = np.meshgrid(np.arange(32) + 0.5, np.arange(16) + 0.5)
+    a = np.arctan2(vv - 8, uu - 16) - math.pi / 2
+    r = np.hypot(uu - 16, vv - 8)
     k = np.cos(math.pi / 5) / np.cos((a % (2 * math.pi / 5)) - math.pi / 5)
-    star = (r < 5.6 * (0.45 + 0.55 * (k - np.cos(math.pi / 5)) / (1 - np.cos(math.pi / 5)))) & (uu < 16)
-    img[star] = col((0.55, 0.06, 0.05))
+    star = r < 6.2 * (0.45 + 0.55 * (k - np.cos(math.pi / 5)) / (1 - np.cos(math.pi / 5)))
+    top = img[16:, :32]
+    top[star] = col((0.55, 0.06, 0.05))
+    rng = np.random.default_rng(seed)
+    img *= (0.85 + 0.25 * noise(rng, w, h, 8, 4))[..., None]
+    return img
+
+
+FONT = {
+    "A": ["01110", "10001", "10001", "11111", "10001", "10001", "10001"],
+    "B": ["11110", "10001", "10001", "11110", "10001", "10001", "11110"],
+    "C": ["01110", "10001", "10000", "10000", "10000", "10001", "01110"],
+    "D": ["11110", "10001", "10001", "10001", "10001", "10001", "11110"],
+    "E": ["11111", "10000", "10000", "11110", "10000", "10000", "11111"],
+    "G": ["01110", "10001", "10000", "10111", "10001", "10001", "01111"],
+    "H": ["10001", "10001", "10001", "11111", "10001", "10001", "10001"],
+    "I": ["01110", "00100", "00100", "00100", "00100", "00100", "01110"],
+    "K": ["10001", "10010", "10100", "11000", "10100", "10010", "10001"],
+    "L": ["10000", "10000", "10000", "10000", "10000", "10000", "11111"],
+    "M": ["10001", "11011", "10101", "10101", "10001", "10001", "10001"],
+    "N": ["10001", "11001", "10101", "10011", "10001", "10001", "10001"],
+    "O": ["01110", "10001", "10001", "10001", "10001", "10001", "01110"],
+    "P": ["11110", "10001", "10001", "11110", "10000", "10000", "10000"],
+    "R": ["11110", "10001", "10001", "11110", "10100", "10010", "10001"],
+    "S": ["01111", "10000", "10000", "01110", "00001", "00001", "11110"],
+    "T": ["11111", "00100", "00100", "00100", "00100", "00100", "00100"],
+    "U": ["10001", "10001", "10001", "10001", "10001", "10001", "01110"],
+    "V": ["10001", "10001", "10001", "10001", "10001", "01010", "00100"],
+    "W": ["10001", "10001", "10001", "10101", "10101", "10101", "01010"],
+    "Z": ["11111", "00001", "00010", "00100", "01000", "10000", "11111"],
+    ".": ["00000", "00000", "00000", "00000", "00000", "01100", "01100"],
+    " ": ["00000"] * 7,
+}
+# rows of the name texture (row 0 at the top); name_board() picks one
+NAME_ROWS = ["ELISABETH", "ANTWERPEN", "SCHELDE", "HERCULES", "DE HOOP", "NOORDSTER", "ST ANNA", "ZWALUW"]
+
+
+def paint_names(seed):
+    """Ship names in painted letters, 16 px rows (row 0 at the top): cream on black."""
+    rng = np.random.default_rng(seed)
+    n = 128
+    img = np.ones((n, n, 3)) * col((0.05, 0.045, 0.04))
+    img *= (0.8 + 0.4 * noise(rng, n, n, 16, 16))[..., None]
+    ink = col((0.8, 0.72, 0.52))
+    for r, text in enumerate(NAME_ROWS):
+        wpx = len(text) * 12 - 2
+        x0 = (n - wpx) // 2
+        ytop = n - 16 * r - 2  # image rows run bottom-up
+        for k, ch in enumerate(text):
+            g = FONT.get(ch, FONT[" "])
+            for gy, row in enumerate(g):
+                for gx, bit in enumerate(row):
+                    if bit == "1":
+                        x = x0 + k * 12 + gx * 2
+                        y = ytop - gy * 2 - 2
+                        img[y:y + 2, x:x + 2] = ink * (0.85 + 0.3 * rng.random())
+        img[n - 16 * (r + 1)] *= 0.5
+    return img
+
+
+def paint_washing(seed):
+    """Washing: four cloths, one per quarter: linen, a blue check shirt, a faded red cloth, a striped sheet."""
+    rng = np.random.default_rng(seed)
+    img = np.zeros((64, 64, 3))
+    uu, vv = np.meshgrid(np.arange(32), np.arange(32))
+    q = [col((0.78, 0.76, 0.68)) * np.ones((32, 32, 3)),
+         np.where((((uu // 4) + (vv // 4)) % 2 == 0)[..., None], col((0.3, 0.36, 0.48)), col((0.6, 0.62, 0.64))),
+         col((0.52, 0.2, 0.16)) * np.ones((32, 32, 3)),
+         np.where(((uu // 3) % 3 == 0)[..., None], col((0.35, 0.4, 0.5)), col((0.76, 0.74, 0.66)))]
+    img[32:, :32], img[32:, 32:], img[:32, :32], img[:32, 32:] = q
+    img *= (0.8 + 0.3 * noise(rng, 64, 64, 8, 8))[..., None]
     return img
 
 
@@ -328,8 +426,16 @@ def image_rgba(name, arr, alpha=None):
 
 
 def make_materials():
-    bp.make_materials()
     paint = {
+        "wood": lambda: bp.paint_planks(1, (0.43, 0.37, 0.29)),
+        "wood_dark": lambda: bp.paint_planks(2, (0.25, 0.19, 0.14), boards=2, seams=False, joints=False, knots=1),
+        "iron": lambda: bp.paint_iron(3),
+        "rope": lambda: bp.paint_rope(4),
+        "sackcloth": lambda: bp.paint_sack(5),
+        "crate": lambda: bp.paint_crate(6),
+        "barrel": lambda: bp.paint_staves(7),
+        "stone": lambda: bp.paint_stone(8),
+        "glass": lambda: bp.paint_glass(9),
         "tar": lambda: paint_tar(101),
         "clinker": lambda: paint_clinker(102),
         "iron_hull": lambda: paint_iron_hull(103),
@@ -350,8 +456,10 @@ def make_materials():
         "hatch": lambda: paint_hatch(118),
         "tarp": lambda: paint_tarp(119),
         "flag": lambda: paint_flag(120),
+        "names": lambda: paint_names(121),
+        "washing": lambda: paint_washing(122),
     }
-    for name in EXTRA:
+    for name in MATS:
         res = paint[name]()
         arr, alpha = res if isinstance(res, tuple) else (res, None)
         img = image_rgba(f"{name}_tex", arr, alpha)
@@ -412,6 +520,11 @@ def to_object(m, name, parent=None, loc=(0, 0, 0)):
     if parent is not None:
         ob.parent = parent
     ob.location = loc
+    if getattr(m, "lines", None):
+        flat = [round(c, 3) for a, b in m.lines for c in (a.x, a.y, a.z, b.x, b.y, b.z)]
+        ob["rig"] = json.dumps(flat, separators=(",", ":"))
+    if getattr(m, "smoke", None):
+        ob["smoke"] = json.dumps([round(c, 3) for p in m.smoke for c in (p.x, p.y, p.z)])
     return ob
 
 
@@ -558,7 +671,11 @@ def spar(m, a, b, r0, r1, mat=DARK, sides=6, cap=False):
 
 
 def rig(m, a, b, r=0.022, mat=RIG):
-    m.tube([Vector(a), Vector(b)], [r, r], 3, mat, smooth=False, urep=1, vscale=0.3)
+    """Rope, wire or chain: a line in the game. Bars 4 cm and thicker stay solid."""
+    if r >= 0.04:
+        m.tube([Vector(a), Vector(b)], [r, r], 4, mat, smooth=False, urep=1, vscale=0.3)
+    else:
+        m.line(a, b)
 
 
 def rope_path(m, pts, r=0.022, mat=RIG):
@@ -579,6 +696,30 @@ def bundle(m, a, b, r, mat=CANVAS, n=4, sides=5, droop=0.0):
     m.tube(path, radii, sides, mat, side=(0, 0, 1), smooth=False, cap0=True, cap1=True, urep=2, vscale=0.5)
 
 
+def sail(m, h0, h1, f0, f1, belly, nu=4, nv=3, mat=CANVAS):
+    """A sail set and drawing: a sheet between the head (h0 -> h1) and the foot (f0 -> f1),
+    bulging by the vector `belly` in the middle (downwind). A triangle: give h0 == h1."""
+    h0, h1, f0, f1, belly = Vector(h0), Vector(h1), Vector(f0), Vector(f1), Vector(belly)
+    P = []
+    for j in range(nv + 1):
+        v = j / nv
+        row = []
+        for i in range(nu + 1):
+            u = i / nu
+            p = h0.lerp(h1, u).lerp(f0.lerp(f1, u), v)
+            p = p + belly * (math.sin(math.pi * u) * math.sin(math.pi * min(1.0, 0.15 + 0.85 * v)))
+            row.append(p)
+        P.append(row)
+    w = max((h1 - h0).length, (f1 - f0).length, 0.5)
+    h = max(((f0 + f1) / 2 - (h0 + h1) / 2).length, 0.5)
+    for j in range(nv):
+        for i in range(nu):
+            pts = [P[j][i], P[j][i + 1], P[j + 1][i + 1], P[j + 1][i]]
+            uvs = [(i / nu * w / 2, -j / nv * h / 2), ((i + 1) / nu * w / 2, -j / nv * h / 2),
+                   ((i + 1) / nu * w / 2, -(j + 1) / nv * h / 2), (i / nu * w / 2, -(j + 1) / nv * h / 2)]
+            m.poly(pts, mat, uvs=uvs)
+
+
 def yard(m, c, length, r, sail_r, mat=DARK, sail=CANVAS, lifts_to=None):
     c = Vector(c)
     for sx in (1, -1):
@@ -591,22 +732,77 @@ def yard(m, c, length, r, sail_r, mat=DARK, sail=CANVAS, lifts_to=None):
             rig(m, c + V(sx * length / 2 * 0.95, 0, 0), Vector(lifts_to), 0.018)
 
 
-def shroud_quad(m, b0, b1, t1, t0, spacing=3.2):
+def shroud_quad(m, b0, b1, t1, t0, n=4, ratline=0.5):
+    """A set of shrouds from the chains (b0..b1) up to the mast (t0..t1), with ratlines across."""
     b0, b1, t0, t1 = Vector(b0), Vector(b1), Vector(t0), Vector(t1)
+    for i in range(n):
+        f = i / (n - 1)
+        m.line(b0.lerp(b1, f), t0.lerp(t1, f))
     h = ((b0 + b1) / 2 - (t0 + t1) / 2).length
-    m.poly([b0, b1, t1, t0], SHROUD, uvs=[(0, 0), (1, 0), (1, h / spacing), (0, h / spacing)])
+    k = 1
+    while k * ratline < h * 0.86:
+        f = k * ratline / h
+        m.line(b0.lerp(t0, f), b1.lerp(t1, f))
+        k += 1
 
 
-def flag(m, top, w, h, along=(0, 1, 0), wave=0.12):
-    """A house flag hoisted at `top`, flying along `along`: two quads with a little wave."""
+def name_board(m, c, right, up, w, h, row, off=0.03):
+    """A name painted on a board or straight on the hull: row of NAME_ROWS (0 = top)."""
+    c, r, u = Vector(c), Vector(right).normalized(), Vector(up).normalized()
+    n = r.cross(u)
+    c = c + n * off
+    v0, v1 = 1 - (row + 1) / 8, 1 - row / 8
+    pts = [c - r * w / 2 - u * h / 2, c + r * w / 2 - u * h / 2, c + r * w / 2 + u * h / 2, c - r * w / 2 + u * h / 2]
+    m.poly(pts, NAMES, out=n, uvs=[(0, v0), (1, v0), (1, v1), (0, v1)])
+
+
+def hull_name(m, hull, t, z, w, h, row, both=True):
+    """A name on the bow (or quarter) of a hull, following the planking there."""
+    for sx in ((1, -1) if both else (1,)):
+        p = hull.P(t, z, sx)
+        tan = (hull.P(min(1.0, t + 0.02), z, sx) - hull.P(max(0.0, t - 0.02), z, sx)).normalized()
+        right = -tan if sx > 0 else tan
+        name_board(m, p, right, (0, 0, 1), w, h, row, off=0.04)
+
+
+def washing_line(m, a, b, seed=1, n=5):
+    """A line with washing hung out to dry: shirts, a sheet, a red cloth."""
+    rnd = random.Random(seed)
+    a, b = Vector(a), Vector(b)
+    m.line(a, b)
+    for i in range(n):
+        f0 = (i + 0.3) / n
+        f1 = f0 + rnd.uniform(0.35, 0.6) / n
+        p0, p1 = a.lerp(b, f0) - V(0, 0, 0.03), a.lerp(b, f1) - V(0, 0, 0.03)
+        hgt = rnd.uniform(0.45, 0.9)
+        qx, qy = rnd.choice([(0, 0.5), (0.5, 0.5), (0, 0), (0.5, 0)])
+        side = (p1 - p0).cross(V(0, 0, 1)).normalized() * rnd.uniform(-0.06, 0.06)
+        m.poly([p0 - V(0, 0, hgt) + side, p1 - V(0, 0, hgt * 0.92) + side, p1, p0], WASH,
+               uvs=[(qx, qy), (qx + 0.5, qy), (qx + 0.5, qy + 0.5), (qx, qy + 0.5)])
+
+
+def coil(m, c, r=0.32):
+    """A flaked coil of rope on deck."""
+    with m.at(move(*Vector(c))):
+        m.lathe([(r * 0.35, 0.0), (r, 0.0), (r * 1.02, 0.08), (r * 0.8, 0.13), (r * 0.35, 0.1)], 8, ROPE, smooth=False,
+                urep=4, vscale=2)
+
+
+FLAG_UV = {"house": (0.0, 0.5), "dutch": (0.0, 0.0), "belgian": (0.5, 0.0)}
+
+
+def flag(m, top, w, h, along=(0, 1, 0), wave=0.12, kind="house"):
+    """A flag hoisted at `top`, flying along `along`: two quads with a little wave."""
     top = Vector(top)
     d = Vector(along).normalized()
     side = d.cross(V(0, 0, 1)).normalized()
     up = V(0, 0, h)
     mid = top + d * (w / 2) + side * wave
-    end = top + d * w
-    m.poly([top - up, mid - up, mid, top], FLAG, uvs=[(0, 0), (0.25, 0), (0.25, 1), (0, 1)])
-    m.poly([mid - up, end - up, end, mid], FLAG, uvs=[(0.25, 0), (0.5, 0), (0.5, 1), (0.25, 1)])
+    end = top + d * w - side * wave * 0.5
+    u0, v0 = FLAG_UV[kind]
+    m.poly([top - up, mid - up, mid, top], FLAG, uvs=[(u0, v0), (u0 + 0.25, v0), (u0 + 0.25, v0 + 0.5), (u0, v0 + 0.5)])
+    m.poly([mid - up, end - up, end, mid], FLAG,
+           uvs=[(u0 + 0.25, v0), (u0 + 0.5, v0), (u0 + 0.5, v0 + 0.5), (u0 + 0.25, v0 + 0.5)])
 
 
 def pennant(m, top, length, along=(0, 1, 0), h=0.3):
@@ -614,8 +810,8 @@ def pennant(m, top, length, along=(0, 1, 0), h=0.3):
     d = Vector(along).normalized()
     side = d.cross(V(0, 0, 1)).normalized()
     mid = top + d * (length * 0.5) + side * 0.08 - V(0, 0, h * 0.35)
-    m.poly([top - V(0, 0, h), mid, top], FLAG, uvs=[(0.6, 0.1), (0.9, 0.5), (0.6, 0.9)])
-    m.poly([mid, top + d * length - V(0, 0, h * 0.6), mid + V(0, 0, 0.05)], FLAG, uvs=[(0.7, 0.3), (0.95, 0.5), (0.7, 0.7)])
+    m.poly([top - V(0, 0, h), mid, top], FLAG, uvs=[(0.6, 0.55), (0.9, 0.75), (0.6, 0.95)])
+    m.poly([mid, top + d * length - V(0, 0, h * 0.6), mid + V(0, 0, 0.05)], FLAG, uvs=[(0.7, 0.65), (0.95, 0.75), (0.7, 0.85)])
 
 
 def panel(m, c, right, up, w, h, mat=WINDOW, off=0.02):
@@ -754,7 +950,7 @@ def leeboard(m, pivot, length, width, sx, angle=0.52):
     m.box(pivot + V(sx * 0.12, 0, 0), (0.1, 0.16, 0.16), IRON)
 
 
-def barge(kind):
+def barge(kind, sailing=False):
     """kind 'rhine': a big Rhine barge (Rijnaak), towed, short mast, hatch boards.
     kind 'hengst': a Flemish sailing barge, bluff and high-ended, tall mast, tarpaulins."""
     m = Mesh(ao=0.0)
@@ -878,17 +1074,30 @@ def barge(kind):
     blen = 9.0 if rh else 10.5
     boom_a, boom_b = V(0, ym + 0.25, zbm), V(0, ym + blen, zbm + 0.35)
     spar(m, boom_a, boom_b, 0.11, 0.08)
-    gaff_a, gaff_b = V(0, ym + 0.35, zbm + 0.5), V(0, ym + blen * 0.72, zbm + 0.72)
+    if sailing:
+        gaff_a = V(0, ym + 0.4, zm + H * 0.7)
+        gaff_b = gaff_a + V(0, blen * 0.62 * math.cos(0.55), blen * 0.62 * math.sin(0.55))
+    else:
+        gaff_a, gaff_b = V(0, ym + 0.35, zbm + 0.5), V(0, ym + blen * 0.72, zbm + 0.72)
     spar(m, gaff_a, gaff_b, 0.09, 0.06)
-    bundle(m, boom_a.lerp(gaff_a, 0.5) + V(0, 0.4, 0.05), boom_b.lerp(gaff_b, 0.4) + V(0, -0.8, 0.12),
-           0.32 if rh else 0.4, CANVAS if rh else TAN, n=5)
+    if sailing:
+        sail(m, gaff_a + V(0, 0.25, -0.15), gaff_b + V(0, -0.2, -0.15), boom_a + V(0, 0.35, 0.2), boom_b + V(0, -0.4, 0.2),
+             V(1.1, 0, 0), nu=4, nv=4, mat=CANVAS if rh else TAN)
+    else:
+        bundle(m, boom_a.lerp(gaff_a, 0.5) + V(0, 0.4, 0.05), boom_b.lerp(gaff_b, 0.4) + V(0, -0.8, 0.12),
+               0.32 if rh else 0.4, CANVAS if rh else TAN, n=5)
     # the peak halyard and topping lift from the masthead
     rig(m, top - V(0, 0, 0.5), gaff_b)
     rig(m, top - V(0, 0, 0.3), boom_b)
     # forestay with the foresail bundled at its foot, shrouds, running backstays
     stem = V(0, hull.y(1.0, sheer(1.0)) + 0.25, sheer(1.0) + 0.1)
     rig(m, top - V(0, 0, 0.4), stem, 0.028)
-    bundle(m, stem + V(0, 0.3, 0.25), stem.lerp(top, 0.2) + V(0, 0.4, -0.3), 0.22, CANVAS if rh else TAN, n=3)
+    if sailing:
+        head = stem.lerp(top - V(0, 0, 0.4), 0.66)
+        sail(m, head, head, stem + V(0, 0.3, 0.15), V(1.6, stem.y + 5.5, sheer(0.8) + 0.9), V(0.8, 0, 0), nu=2, nv=3,
+             mat=CANVAS if rh else TAN)
+    else:
+        bundle(m, stem + V(0, 0.3, 0.25), stem.lerp(top, 0.2) + V(0, 0.4, -0.3), 0.22, CANVAS if rh else TAN, n=3)
     for sx in (1, -1):
         for dt in ((0.01, -0.02) if rh else (0.012, -0.012, -0.035)):
             t = tm + dt
@@ -918,6 +1127,17 @@ def barge(kind):
         # the hengst's sweep lying on the tarpaulin
         m.beam((cw * 0.4, ya - 1.5, ztop + rise * 0.9 + 0.08), (cw * 0.2, ya - 7.5, ztop + rise * 0.95 + 0.08), 0.08, 0.08,
                WOOD)
+    # her name on the bow, the flag at the stern, washing out to dry over the aft deck
+    tn = 0.925 if rh else 0.9
+    hull_name(m, hull, tn, sheer(tn) - 0.42, 2.6 if rh else 2.2, 0.3 if rh else 0.26, 5 if rh else 4)
+    flag(m, (0.4, ys + 0.1, zr + 2.15), 1.2, 0.75, along=(0, 1, -0.1), kind="dutch" if rh else "belgian")
+    pole = V(cabw - 0.1, y0 + 0.1, zt)
+    spar(m, pole, pole + V(0, 0, 1.9), 0.04, 0.03)
+    if not sailing:
+        washing_line(m, (0.4, ys + 0.05, zr + 2.0), pole + V(0, 0, 1.85), seed=3 if rh else 5, n=5 if rh else 4)
+    for t, x, r in ((0.97, -0.8, 0.3), (0.955, 0.7, 0.26), (0.03, 0.9, 0.28)):
+        coil(m, (x, hull.y(t, zd(t)), zd(t)), r)
+    barrel_lo(m, (cabw * 0.7, y0 - 0.7, zd(c1 + 0.01)), yaw=1.1)
     return m
 
 
@@ -1007,6 +1227,8 @@ def lighter(loaded):
         # dunnage boards in the empty hold
         for x in (-1.2, -0.4, 0.4, 1.2):
             m.box((x, hull.y(0.48, 0), zf + 0.03), (0.22, 7.5, 0.05), WOOD, shade=0.8)
+    hull_name(m, hull, 0.9, sheer(0.9) - 0.4, 1.9, 0.24, 7)
+    coil(m, (-0.5, hull.y(0.95, zd(0.95)), zd(0.95)), 0.26)
     return m
 
 
@@ -1109,7 +1331,7 @@ def punt():
     return m
 
 
-def sloop():
+def sloop(sailing=False):
     """A hoogaars-type Scheldt fishing sloop: flat bottom, hard chine, raked straight stem,
     leeboards, one mast with the gaff sail furled on the boom (tanned sails)."""
     m = Mesh(ao=0.0)
@@ -1161,13 +1383,25 @@ def sloop():
     pennant(m, top + V(0, 0, 0.2), 1.4, h=0.22)
     boom_a, boom_b = V(0, ym + 0.2, zm + 1.1), V(0, ym + 7.2, zm + 1.25)
     spar(m, boom_a, boom_b, 0.09, 0.07)
-    gaff_a, gaff_b = V(0, ym + 0.3, zm + 1.55), V(0, ym + 3.6, zm + 1.9)
+    if sailing:
+        gaff_a = V(0, ym + 0.35, zm + 8.2)
+        gaff_b = gaff_a + V(0, 3.6 * math.cos(1.0), 3.6 * math.sin(1.0))
+    else:
+        gaff_a, gaff_b = V(0, ym + 0.3, zm + 1.55), V(0, ym + 3.6, zm + 1.9)
     spar(m, gaff_a, gaff_b, 0.07, 0.05)
-    bundle(m, boom_a + V(0, 0.4, 0.3), boom_b + V(0, -0.5, 0.25), 0.3, TAN, n=5)
+    if sailing:
+        sail(m, gaff_a + V(0, 0.2, -0.1), gaff_b + V(0, -0.1, -0.15), boom_a + V(0, 0.3, 0.15), boom_b + V(0, -0.3, 0.15),
+             V(0.8, 0, 0), nu=3, nv=4, mat=TAN)
+    else:
+        bundle(m, boom_a + V(0, 0.4, 0.3), boom_b + V(0, -0.5, 0.25), 0.3, TAN, n=5)
     rig(m, top - V(0, 0, 0.3), boom_b)
     stem = V(0, hull.y(1.0, sheer(1.0)) + 0.15, sheer(1.0) + 0.05)
     rig(m, top - V(0, 0, 0.3), stem, 0.024)
-    bundle(m, stem + V(0, 0.25, -0.05), stem + V(0, 2.0, -0.35), 0.18, TAN, n=3)
+    if sailing:
+        head = stem.lerp(top - V(0, 0, 0.3), 0.7)
+        sail(m, head, head, stem + V(0, 0.25, 0.1), V(1.1, stem.y + 3.4, sheer(0.8) + 0.7), V(0.5, 0, 0), nu=2, nv=3, mat=TAN)
+    else:
+        bundle(m, stem + V(0, 0.25, -0.05), stem + V(0, 2.0, -0.35), 0.18, TAN, n=3)
     for sx in (1, -1):
         rig(m, top - V(0, 0, 0.8), hull.P(tm - 0.02, sheer(tm - 0.02), sx) + V(0, 0, 0.05), 0.02)
         piv = hull.P(0.55, sheer(0.55) - 0.1, sx) + V(sx * 0.05, 0, 0)
@@ -1185,6 +1419,126 @@ def sloop():
 
 
 # ------------------------------------------------------------------ ships
+
+
+def schooner():
+    """A two-masted topsail schooner of the 1870s, ~26 m, under sail: fore and main gaff sails,
+    a square fore topsail, two jibs, all set. Black hull, a white sheer strake, coppered."""
+    m = Mesh(ao=0.0)
+    L, B, KZ, SZ = 26.0, 6.6, -2.6, 1.8
+
+    def keel(t):
+        return KZ + 0.9 * sm((t - 0.9) / 0.1) ** 1.5 + 0.2 * sm((0.05 - t) / 0.05)
+
+    def sheer(t):
+        return SZ + 0.9 * max(0.0, (t - 0.5) / 0.5) ** 2 + 0.5 * max(0.0, (0.4 - t) / 0.4) ** 2
+
+    SEC = [(0, 0.22), (0.15, 0.72), (0.35, 0.92), (0.6, 0.99), (1.0, 0.96)]
+
+    def uz(z):
+        return cl((z - KZ) / (SZ - KZ))
+
+    def hb(t, z):
+        u = uz(z)
+        if t > 0.58:
+            f = (t - 0.58) / 0.42
+            p = (1 - min(f, 1.0) ** 2) ** (0.7 + 1.0 * (1 - u))
+        elif t < 0.3:
+            f = (0.3 - t) / 0.3
+            p = (1 - min(f, 1.0) ** 2.2) ** (0.5 + 1.4 * (1 - u))
+            p = max(p, 0.5 * sm((u - 0.5) / 0.5) * (1 - t / 0.3))
+        else:
+            p = 1.0
+        return max(0.03, B / 2 * table(SEC, u) * p)
+
+    def yfn(t, z):
+        u = uz(z)
+        return -1.6 * u ** 1.3 * sm((t - 0.9) / 0.1) + 1.0 * u ** 2 * sm((0.06 - t) / 0.06)
+
+    ts = [0, 0.03, 0.08, 0.16, 0.3, 0.45, 0.6, 0.72, 0.82, 0.9, 0.95, 0.98, 1.0]
+    levels = [keel, lambda t: keel(t) + 0.6, lambda t: -1.0, lambda t: 0.1, lambda t: sheer(t) - 0.35, sheer]
+    hull = Hull(L, ts, levels, hb, [(COPPER, 0), (COPPER, 0), (COPPER, 0), (TAR, 0), (WHITE, 3.0)], yfn=yfn,
+                shade=lambda p: 0.5 + 0.5 * sm((p.z + 2.2) / 4.5))
+    hull.outer(m)
+
+    def zd(t):
+        return sheer(t) - 0.75
+
+    hull.deck(m, zd, 0, 1, 0.1, DECK)
+    hull.rail(m, zd, sheer, 0, 1, 0.1, WHITE, DARK)
+    # masts, raked aft
+    yf, ym_ = hull.y(0.68, zd(0.68)), hull.y(0.38, zd(0.38))
+    zf, zm_ = zd(0.68), zd(0.38)
+    rk = 0.08
+    ftop = V(0, yf + rk * 17.0, zf + 17.0)
+    mtop = V(0, ym_ + rk * 19.0, zm_ + 19.0)
+    spar(m, (0, yf, zf - 0.3), ftop, 0.24, 0.12, cap=True)
+    spar(m, (0, ym_, zm_ - 0.3), mtop, 0.26, 0.12, cap=True)
+
+    def on(y0, z0, z):
+        return V(0, y0 + rk * (z - z0), z)
+
+    # fore: gaff foresail and the square topsail above it
+    fg0 = on(yf, zf, zf + 10.5)
+    fg1 = fg0 + V(0, 5.5 * math.cos(0.5), 5.5 * math.sin(0.5))
+    spar(m, fg0, fg1, 0.1, 0.07)
+    ffoot0, ffoot1 = on(yf, zf, zf + 1.6) + V(0, 0.3, 0), V(0, ym_ - 1.2, zf + 1.8)
+    sail(m, fg0 + V(0, 0.25, -0.15), fg1 + V(0, -0.15, -0.1), ffoot0, ffoot1, V(0.9, 0, 0), nu=3, nv=4)
+    ty = on(yf, zf, zf + 15.8) + V(0, -0.4, 0)
+    by = on(yf, zf, zf + 12.2) + V(0, -0.4, 0)
+    yard(m, ty, 8.5, 0.12, 0)
+    yard(m, by, 10.5, 0.14, 0)
+    sail(m, ty + V(-3.9, -0.1, -0.1), ty + V(3.9, -0.1, -0.1), by + V(-4.8, -0.15, 0.2), by + V(4.8, -0.15, 0.2),
+         V(0, -0.5, 0), nu=4, nv=2)
+    # main: gaff mainsail on a long boom over the stern
+    mg0 = on(ym_, zm_, zm_ + 12.5)
+    mg1 = mg0 + V(0, 7.0 * math.cos(0.55), 7.0 * math.sin(0.55))
+    spar(m, mg0, mg1, 0.11, 0.07)
+    mb0 = on(ym_, zm_, zm_ + 1.8)
+    mb1 = mb0 + V(0, 11.5, 0.4)
+    spar(m, mb0, mb1, 0.14, 0.09)
+    sail(m, mg0 + V(0, 0.25, -0.15), mg1 + V(0, -0.15, -0.1), mb0 + V(0, 0.3, 0.2), mb1 + V(0, -0.4, 0.2), V(1.2, 0, 0),
+         nu=4, nv=4)
+    # bowsprit and jibboom, two jibs set, stays and shrouds
+    stem_top = V(0, hull.y(1.0, sheer(1.0)), sheer(1.0))
+    a = math.radians(12)
+    dv = V(0, -math.cos(a), math.sin(a))
+    heel = stem_top + V(0, 1.8, -0.2)
+    spar(m, heel, heel + dv * 7.0, 0.22, 0.15)
+    spar(m, heel + dv * 4.5, heel + dv * 12.0, 0.12, 0.06)
+    for k, (tk, hd) in enumerate(((6.5, 0.62), (11.5, 0.7))):
+        tack = heel + dv * tk
+        stay_top = ftop - V(0, 0, 3.5 if k == 0 else 0.4)
+        rig(m, stay_top, tack, 0.025)
+        head = tack.lerp(stay_top, hd)
+        sail(m, head, head, tack + V(0, 0.1, 0.1), V(1.2, yf - 3.0 - 2.5 * k, zf + 1.4 + 0.5 * k), V(0.8, 0, 0), nu=2,
+             nv=3)
+    rig(m, mtop - V(0, 0, 0.6), ftop - V(0, 0, 3.0))
+    rig(m, heel + dv * 7.0, V(0, hull.y(1.0, 0.3) + 0.2, 0.3))
+    for y0, z0, top_ in ((yf, zf, ftop), (ym_, zm_, mtop)):
+        for sx in (1, -1):
+            t0 = 0.68 if top_ is ftop else 0.38
+            w = hull.hb(t0, sheer(t0))
+            shroud_quad(m, (sx * w, y0 - 0.8, sheer(t0)), (sx * w, y0 + 1.3, sheer(t0)), top_ - V(0, 0, 4.5) + V(sx * 0.2, 0.2, 0),
+                        top_ - V(0, 0, 4.5) + V(sx * 0.2, -0.2, 0), n=3)
+            rig(m, top_ - V(0, 0, 0.8), V(sx * w, y0 + 4.5, sheer(t0)))
+    # peak halyards and a sheet, deckhouse, wheel, flag at the main peak
+    rig(m, ftop - V(0, 0, 1.0), fg1)
+    rig(m, mtop - V(0, 0, 0.8), mg1)
+    rig(m, mb1, hull.P(0.02, sheer(0.02), 1) + V(0, 0, 0.2))
+    y0, y1 = hull.y(0.56, zd(0.56)), hull.y(0.47, zd(0.47))
+    house(m, -1.5, 1.5, y0, y1, zd(0.5) - 0.05, zd(0.5) + 1.3, wall=WOOD, roof=DARK, over=0.1,
+          windows=[("+x", (y0 + y1) / 2, zd(0.5) + 0.9), ("-x", (y0 + y1) / 2, zd(0.5) + 0.9)])
+    zq = zd(0.08)
+    m.box((0, hull.y(0.08, zq), zq + 0.35), (0.8, 0.6, 0.7), DARK)
+    wheel_helm(m, V(0, hull.y(0.08, zq) - 0.5, zq + 1.0), 0.5)
+    windlass(m, 0, hull.y(0.93, zd(0.93)), zd(0.93) + 0.35, w=1.4, r=0.17)
+    for t, x in ((0.6, 1.2), (0.3, -1.3)):
+        coil(m, (x, hull.y(t, zd(t)), zd(t)), 0.28)
+    flag(m, mg1 + V(0, 0.05, -0.05), 1.5, 1.0, along=(0, 0.2, -1), kind="dutch")
+    pennant(m, ftop + V(0, 0, 0.2), 2.5, h=0.25)
+    hull_name(m, hull, 0.9, sheer(0.9) - 0.3, 2.2, 0.275, 7)
+    return m
 
 
 class MastPlan:
@@ -1215,7 +1569,7 @@ class MastPlan:
         return self.at(z) + V(0, (0, -0.5, -0.8)[level - 1], 0)
 
 
-def barque():
+def barque(sailing=False):
     """A three-masted barque of the 1870s, ~48 m: black hull with a painted port band,
     copper below the waterline, square yards on fore and main with the sails furled,
     fore-and-aft mizzen, bowsprit and jibboom, deckhouse with a boat on it."""
@@ -1226,7 +1580,7 @@ def barque():
         return KZ + 1.3 * sm((t - 0.93) / 0.07) ** 1.5 + 0.3 * sm((0.04 - t) / 0.04)
 
     def sheer(t):
-        return SZ + 1.0 * max(0.0, (t - 0.55) / 0.45) ** 2 + 0.7 * max(0.0, (0.35 - t) / 0.35) ** 2
+        return SZ + 1.5 * max(0.0, (t - 0.5) / 0.5) ** 2 + 1.0 * max(0.0, (0.4 - t) / 0.4) ** 2
 
     SEC = [(0, 0.22), (0.12, 0.7), (0.3, 0.9), (0.55, 0.99), (0.8, 1.0), (1.0, 0.95)]
 
@@ -1273,15 +1627,27 @@ def barque():
     mizz = plan(0.27, 12.5, 21.5, 21.5, 0.05, 0.28)
     for mp in (fore, main, mizz):
         mp.build(m, top_w=2.8 if mp is not mizz else 2.2)
-    # yards with furled sails, fore and main
+    # yards with furled sails, fore and main (under sail: all square sails set and drawing)
     for mp, s in ((fore, 0.93), (main, 1.0)):
         h1, h2, h3 = mp.h1, mp.h2, mp.h3
         spec = [(h1 - 1.6, 18.5, 0.24, 0.42), (h1 + 0.7, 16.0, 0.2, 0.34), (h1 + (h2 - h1) * 0.55, 14.0, 0.17, 0.3),
                 (h2 + 1.0, 10.5, 0.13, 0.22), (h2 + (h3 - h2) * 0.62, 7.5, 0.1, 0.16)]
+        heads = []
         for i, (z, ln, r, sr) in enumerate(spec):
             c = mp.at(z) + V(0, -0.55 - (0.5 if i >= 2 else 0) - (0.3 if i >= 3 else 0), 0)
             lift = mp.at(z + (1.8 if i < 3 else 1.2)) + V(0, -0.5, 0)
-            yard(m, c, ln * s, r, sr, lifts_to=lift if i < 4 else None)
+            yard(m, c, ln * s, r, 0 if sailing else sr, lifts_to=lift if i < 4 else None)
+            heads.append((c, ln * s * 0.92))
+        if sailing:
+            for i, (c, w) in enumerate(heads):
+                if i == 0:
+                    fc, fw = V(c.x, c.y - 1.0, mp.zd + 3.0), w * 1.02
+                else:
+                    pc, pw = heads[i - 1]
+                    fc, fw = pc + V(0, -0.1, 0.25), pw
+                hgt = (c.z - fc.z)
+                sail(m, c + V(-w / 2, -0.12, -0.12), c + V(w / 2, -0.12, -0.12), fc + V(-fw / 2, -0.2, 0),
+                     fc + V(fw / 2, -0.2, 0), V(0, -0.13 * hgt, 0), nu=4, nv=3)
             if i < 2:
                 # braces: from the yardarms aft to the rail
                 for sx in (1, -1):
@@ -1294,12 +1660,16 @@ def barque():
     b0 = mizz.at(mizz.zd + 2.3)
     b1 = b0 + V(0, 13.0, 0.4)
     spar(m, b0, b1, 0.18, 0.12)
-    bundle(m, g0 + V(0, 0.6, -0.35), g1 + V(0, -0.8, -0.3), 0.3, CANVAS, n=5)
-    bundle(m, mizz.at(mizz.zd + 3.2) + V(0, 0.4, 0), g0 + V(0, 0.4, -0.6), 0.28, CANVAS, n=3)
+    if sailing:
+        sail(m, g0 + V(0, 0.35, -0.25), g1 + V(0, -0.3, -0.2), b0 + V(0, 0.4, 0.25), b1 + V(0, -0.8, 0.25),
+             V(1.3, 0, 0), nu=4, nv=3)
+    else:
+        bundle(m, g0 + V(0, 0.6, -0.35), g1 + V(0, -0.8, -0.3), 0.3, CANVAS, n=5)
+        bundle(m, mizz.at(mizz.zd + 3.2) + V(0, 0.4, 0), g0 + V(0, 0.4, -0.6), 0.28, CANVAS, n=3)
     rig(m, g1, b1, 0.018)
     rig(m, mizz.top(2) - V(0, 0, 0.5), g1)
     rig(m, mizz.top(2) - V(0, 0, 0.3), b1)
-    flag(m, g1 + V(0, 0.05, -0.1), 2.0, 1.3, along=(0, 0.2, -1))
+    flag(m, g1 + V(0, 0.05, -0.1), 2.0, 1.3, along=(0, 0.2, -1), kind="belgian")
     # bowsprit, jibboom, headsails furled on the boom
     tb = 1.0
     stem_top = V(0, hull.y(tb, sheer(tb)), sheer(tb))
@@ -1311,7 +1681,8 @@ def barque():
     jb0, jb1 = heel + dv * 7.5, heel + dv * 19.0
     spar(m, jb0, jb1, 0.2, 0.09)
     m.box(bs_end + V(0, 0.15, 0.05), (0.6, 0.35, 0.6), DARK)
-    bundle(m, heel + dv * 11.8 + V(0, 0, 0.22), heel + dv * 18.3 + V(0, 0, 0.14), 0.22, CANVAS, n=4)
+    if not sailing:
+        bundle(m, heel + dv * 11.8 + V(0, 0, 0.22), heel + dv * 18.3 + V(0, 0, 0.14), 0.22, CANVAS, n=4)
     striker = bs_end + V(0, 0.2, -2.2)
     spar(m, bs_end + V(0, 0.2, -0.2), striker, 0.07, 0.06)
     rig(m, bs_end, V(0, hull.y(1.0, 0.4) + 0.4, 0.4), 0.035)
@@ -1329,6 +1700,13 @@ def barque():
     zs = [(mizz.top(1), main.at(main.h1 - 3.5)), (mizz.top(2), main.top(1) + V(0, 0, 0.4))]
     for a_, b_ in fs + ms + zs:
         rig(m, a_, b_, 0.03)
+    if sailing:
+        # the headsails set on the fore stays: staysail, inner jib, outer jib
+        for k, (top_, low_) in enumerate(fs):
+            tack = Vector(low_)
+            head = tack.lerp(Vector(top_), 0.72 - 0.08 * k)
+            clew = V(1.5, stem_top.y + 3.5 - 2.2 * k, sheer(1.0) + 1.6 + 0.6 * k)
+            sail(m, head, head, tack + V(0, 0.2, 0.1), clew, V(1.0, 0, 0), nu=2, nv=3)
     # shrouds (with ratlines), channels, backstays
     for mp, tm in ((fore, 0.77), (main, 0.52), (mizz, 0.27)):
         ym = mp.y
@@ -1379,9 +1757,65 @@ def barque():
     m.box((0, hull.y(0.13, zd(0.13)), zd(0.13) + 0.35), (1.6, 1.3, 0.7), DARK)
     m.box((0, hull.y(0.13, zd(0.13)), zd(0.13) + 0.74), (1.5, 1.2, 0.08), WINDOW)
     m.box((1.4, hull.y(0.2, zd(0.2)), zd(0.2) + 0.5), (1.0, 1.2, 1.0), DARK)
-    # house flag at the main truck
+    # house flag at the main truck, a long pennant at the fore
     flag(m, main.top(3) + V(0, -0.8, 0.9), 1.3, 0.9, along=(0, 1, 0))
     spar(m, main.top(3) + V(0, -0.8, 0), main.top(3) + V(0, -0.8, 1.0), 0.04, 0.03)
+    pennant(m, fore.top(3) + V(0, -0.8, 0.25), 5.0, h=0.35)
+    # the stern: name board, port of registry, four stern windows (on the raked transom)
+    def on_transom(z, x, w, h, row=None):
+        y = hull.y(0.0, z)
+        dy = (hull.y(0.0, z + 0.3) - hull.y(0.0, z - 0.3)) / 0.6
+        up = V(0, dy, 1).normalized()
+        if row is None:
+            panel(m, (x, y, z), (-1, 0, 0), up, w, h, WINDOW, off=0.06)
+        else:
+            name_board(m, (x, y, z), (-1, 0, 0), up, w, h, row, off=0.07)
+
+    zt0 = sheer(0.0)
+    wn = hull.hb(0.0, zt0 - 0.5) * 1.55
+    on_transom(zt0 - 0.45, 0, wn, wn / 8, 0)
+    on_transom(zt0 - 0.9, 0, wn * 0.75, wn * 0.75 / 8, 1)
+    for x in (-1.3, -0.45, 0.45, 1.3):
+        on_transom(zt0 - 1.55, x, 0.5, 0.55)
+    hull_name(m, hull, 0.905, sheer(0.905) - 0.42, 3.0, 0.375, 0)
+    # head rails from the catheads down to the figurehead
+    for sx in (1, -1):
+        a = hull.P(0.95, sheer(0.95) - 0.2, sx)
+        b = V(sx * 0.55, hull.y(1.0, sheer(1.0) - 0.9) - 0.5, sheer(1.0) - 1.0)
+        c = V(sx * 0.14, fh[1].y - 0.2, fh[1].z + 0.1)
+        m.tube([a, b, c], [0.07, 0.06, 0.05], 4, WHITE, smooth=False, side=(0, 0, 1))
+    # boats in davits on the quarters
+    for sx in (1, -1):
+        tq = 0.1
+        xb = sx * (hull.hb(tq, sheer(tq)) + 0.95)
+        yb_ = hull.y(tq, 0)
+        zb_ = sheer(tq) - 0.7
+        ships_boat(m, (xb, yb_, zb_), 5.0, 1.5, 0.62, mat=WHITE, cover=CANVAS)
+        for dy in (-1.8, 1.8):
+            base = hull.P(tq, zd(tq), sx, 0.3) + V(0, dy, 0)
+            top = V(xb, yb_ + dy, zb_ + 2.0)
+            m.tube([base, base + V(0, 0, 2.0), base.lerp(top, 0.75) + V(0, 0, 0.35), top], [0.07, 0.065, 0.06, 0.055], 4, IRON,
+                   smooth=False, side=(0, 1, 0))
+            rig(m, top, V(xb, yb_ + dy * 0.85, zb_ + 0.7))
+    # fife rails round the masts with coils of the running rigging at their feet
+    for mp in (fore, main, mizz):
+        c = mp.at(mp.zd)
+        for (ax, ay), (bx, by) in (((-0.8, -0.8), (0.8, -0.8)), ((0.8, -0.8), (0.8, 0.8)), ((0.8, 0.8), (-0.8, 0.8)),
+                                   ((-0.8, 0.8), (-0.8, -0.8))):
+            m.beam(c + V(ax, ay, 0.72), c + V(bx, by, 0.72), 0.1, 0.08, DARK, side=(0, 0, 1))
+        for ax, ay in ((-0.8, -0.8), (0.8, -0.8), (0.8, 0.8), (-0.8, 0.8)):
+            m.box(c + V(ax, ay, 0.36), (0.12, 0.12, 0.72), DARK)
+        coil(m, c + V(0.35, 1.25, 0), 0.3)
+        coil(m, c + V(-0.4, -1.2, 0), 0.26)
+    ycap = hull.y(0.34, zd(0.34))
+    with m.at(move(0, ycap, zd(0.34))):
+        m.lathe([(0.45, 0.0), (0.36, 0.2), (0.3, 0.75), (0.48, 0.82), (0.48, 0.95), (0.2, 1.02)], 8, DARK, smooth=False,
+                cap1=True, urep=2)
+    m.box((1.9, hull.y(0.2, zd(0.2)) - 1.5, zd(0.2) + 0.35), (0.7, 1.8, 0.7), WOOD)  # hen coop
+    for i, (x, t) in enumerate(((-1.6, 0.66), (-1.1, 0.665), (1.5, 0.45))):
+        barrel_lo(m, (x, hull.y(t, zd(t)), zd(t)), yaw=0.7 * i)
+    crate_lo(m, (1.6, hull.y(0.7, zd(0.7)), zd(0.7)), yaw=0.2)
+    coil(m, (0.9, hull.y(0.92, zd(0.92)), zd(0.92)), 0.34)
     return m
 
 
@@ -1422,8 +1856,9 @@ def steamer():
 
     ts = [0, 0.015, 0.035, 0.07, 0.12, 0.2, 0.3, 0.45, 0.6, 0.7, 0.8, 0.88, 0.94, 0.975, 1.0]
     levels = [keel, lambda t: keel(t) + 0.8, lambda t: -1.4, lambda t: -0.02, lambda t: 1.2, lambda t: sheer(t) - 2.0,
-              lambda t: sheer(t) - 1.45, sheer]
-    mats = [(REDLEAD, 0), (REDLEAD, 0), (REDLEAD, 0), (IRONHULL, 0), (IRONHULL, 0), (PORTS, 8.0), (IRONHULL, 0)]
+              lambda t: sheer(t) - 1.45, lambda t: sheer(t) - 0.2, sheer]
+    mats = [(REDLEAD, 0), (REDLEAD, 0), (REDLEAD, 0), (IRONHULL, 0), (IRONHULL, 0), (PORTS, 8.0), (IRONHULL, 0),
+            (WHITE, 4.0)]
     hull = Hull(L, ts, levels, hb, mats, yfn=yfn, shade=lambda p: 0.5 + 0.5 * sm((p.z + 3.0) / 6.0))
     hull.outer(m)
 
@@ -1553,7 +1988,24 @@ def steamer():
     wheel_helm(m, V(0, hull.y(0.1, zq) - 0.55, zq + 1.1), 0.6)
     fs0 = V(0, hull.y(0.0, sheer(0.0)) - 0.4, zd(0.0))
     spar(m, fs0, fs0 + V(0, 0.4, 4.5), 0.06, 0.04, cap=True)
-    flag(m, fs0 + V(0, 0.45, 4.4), 1.7, 1.1, along=(0, 1, -0.15))
+    flag(m, fs0 + V(0, 0.45, 4.4), 1.7, 1.1, along=(0, 1, -0.15), kind="belgian")
+    pennant(m, fore.top(2) + V(0, 0, 0.3), 3.5, h=0.3)
+    m.smoke.append(V(0, fy + math.sin(rake) * (FH + 0.3), zr + math.cos(rake) * (FH + 0.3)))
+    hull_name(m, hull, 0.92, sheer(0.92) - 0.62, 3.4, 0.425, 2)
+    hull_name(m, hull, 0.1, sheer(0.1) - 0.62, 3.2, 0.4, 2)
+    hull_name(m, hull, 0.1, sheer(0.1) - 1.1, 2.6, 0.325, 1)
+    # lifebuoys on the bridge rail, coils and cargo on deck
+    for sx in (1, -1):
+        c = V(sx * 3.4, by0 - 0.06, zb + 0.55)
+        ring = [c + V(0.3 * math.cos(2 * math.pi * i / 8), 0, 0.3 * math.sin(2 * math.pi * i / 8)) for i in range(8)]
+        m.tube(ring, [0.07] * 8, 4, WHITE, side=(0, 1, 0), closed_path=True, smooth=False)
+    for t, x, r in ((0.95, -1.4, 0.34), (0.95, 1.4, 0.34), (0.25, 1.8, 0.3), (0.06, -1.2, 0.3)):
+        coil(m, (x, hull.y(t, zd(t)), zd(t)), r)
+    zc = zd(0.69)
+    for i, (x, dy, sz) in enumerate(((-0.9, 0.0, (1.1, 0.9, 0.8)), (0.4, 0.3, (1.0, 1.0, 0.9)), (-0.3, -0.2, (0.8, 0.7, 0.6)))):
+        crate_lo(m, (x, hull.y(0.69, zc) + dy, zc + 0.68 + (0.8 if i == 2 else 0)), size=sz, yaw=0.15 * i)
+    for i, x in enumerate((-2.2, -1.5, 2.1)):
+        barrel_lo(m, (x, hull.y(0.34, zd(0.34)), zd(0.34)), yaw=i)
     # propeller and rudder under the counter
     py = L / 2 - 0.9
     with m.at(move(0, py, -2.3) @ Matrix.Rotation(math.pi / 2, 4, "X")):
@@ -1668,6 +2120,13 @@ def tug(paddle=False):
         for t in (0.35, 0.55, 0.72):
             p = hull.P(t, 0.55, sx) + V(sx * 0.12, 0, 0)
             m.tube([p + V(0, 0, 0.25), p - V(0, 0, 0.3)], [0.14, 0.14], 5, ROPE, smooth=False, cap0=True, cap1=True)
+    m.smoke.append(V(0, fy + math.sin(0.06) * (FH + 0.25), zw + math.cos(0.06) * (FH + 0.25)))
+    fs = V(0, hull.y(0.0, sheer(0.0)) - 0.35, zd(0.0))
+    spar(m, fs, fs + V(0, 0.2, 3.2), 0.045, 0.03, cap=True)
+    flag(m, fs + V(0, 0.25, 3.1), 1.2, 0.8, along=(0, 1, -0.1), kind="belgian")
+    if not paddle:
+        hull_name(m, hull, 0.86, sheer(0.86) - 0.28, 2.4, 0.3, 3)
+    coil(m, (-0.7, hull.y(0.93, zd(0.93)), zd(0.93)), 0.26)
     if paddle:
         yc = hull.y(0.47, 0)
         for sx in (1, -1):
@@ -1675,6 +2134,7 @@ def tug(paddle=False):
             prof = [V(x0, yc + 2.0 * math.cos(math.pi * j / 8), 0.3 + 1.9 * math.sin(math.pi * j / 8)) for j in range(9)]
             m.prism(prof, (sx * 1.1, 0, 0), DARK, tile=1.2, side_mat=WHITE)
             m.box((sx * (abs(x0) + 0.55), yc, zd(0.47) + 0.05), (1.1, 5.2, 0.1), DECK)
+            name_board(m, (sx * (abs(x0) + 1.1), yc, 1.15), (0, sx, 0), (0, 0, 1), 2.8, 0.35, 6, off=0.02)
     else:
         py = L / 2 - 0.55
         with m.at(move(0, py, -1.3) @ Matrix.Rotation(math.pi / 2, 4, "X")):
@@ -1939,6 +2399,10 @@ BUILDERS = [
     ("tug", lambda: tug(False)),
     ("paddle_tug", lambda: tug(True)),
     ("sloop", sloop),
+    ("barque_sail", lambda: barque(True)),
+    ("schooner", schooner),
+    ("sloop_sail", lambda: sloop(True)),
+    ("hengst_sail", lambda: barge("hengst", True)),
     ("rowboat", rowboat),
     ("punt", punt),
     ("pontoon_section", pontoon_section),
@@ -2040,6 +2504,27 @@ def quay(x0, x1, y0, y1, top=1.8):
     return q
 
 
+def root_of(o):
+    while o.parent is not None:
+        o = o.parent
+    return o
+
+
+def preview_lines(objs):
+    """Blender renders no loose edges: give each object's rigging lines thin tubes, preview only."""
+    for o in list(objs.values()):
+        if "rig" not in o:
+            continue
+        flat = json.loads(o["rig"])
+        m = Mesh(ao=0.0)
+        for i in range(0, len(flat), 6):
+            a, b = V(*flat[i:i + 3]), V(*flat[i + 3:i + 6])
+            if (b - a).length > 1e-4:
+                m.tube([a, b], [0.022, 0.022], 3, RIG, smooth=False)
+        m.lines = []
+        to_object(m, o.name + "_rigprev", parent=o)
+
+
 def preview_materials():
     bp.preview_materials()
     for mt in bpy.data.materials:
@@ -2111,8 +2596,9 @@ def preview_harbour(objs):
     """A stretch of quay (top 1.8 m above the water) with ships moored along it, cranes on it,
     a pontoon walkway going out with barges alongside, small boats about."""
     cam = stage()
-    for o in objs.values():
-        o.hide_render = True
+    for o in bpy.context.scene.objects:
+        if o.type == "MESH" and o.name not in ("water", "quay"):
+            o.hide_render = True
     quay(-120, 120, 0, 40)
     R = math.pi / 2
     pl = [("steamer", (-55, -4.6, 0), -R), ("barque", (18, -5.0, 0), R), ("barque", (18, -15.0, 0), R),
@@ -2134,8 +2620,9 @@ def preview_harbour(objs):
 def closeup(objs, names, path, az=-35.0, el=0.35):
     cam = stage()
     sel = [objs[n] for n in names]
-    for o in objs.values():
-        o.hide_render = o not in sel and (o.parent not in sel)
+    for o in bpy.context.scene.objects:
+        if o.type == "MESH" and o.name not in ("water", "quay"):
+            o.hide_render = root_of(o) not in sel
     x = 0.0
     for o in sel:
         o.location = (x, 0, 0)
@@ -2171,6 +2658,7 @@ def main():
     print(f"[build_boats] {len(counts)} objects, {sum(counts.values())} tris -> {OUT} ({os.path.getsize(OUT) // 1024} KB)")
     if "--preview" in argv or "--closeup" in argv or "--harbour" in argv:
         preview_materials()
+        preview_lines(objs)
     if "--preview" in argv:
         preview_lineup(objs)
     if "--harbour" in argv or "--preview" in argv:
