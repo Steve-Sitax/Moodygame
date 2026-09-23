@@ -28,6 +28,7 @@ import {
   MAX_TALK_ACTIONS,
   REFUSE_LINE,
   RULES_FOR_MODEL,
+  STORY_MINUTE_FACTOR,
   TALK_TO_MAX_M,
   TALK_TO_MIN,
   WAIT_MAX_MIN,
@@ -450,8 +451,8 @@ export function validateProposal(db: DB, r: Resident, raw: unknown): Accepted | 
   // the target, the way, the distance
   switch (p.kind) {
     case "follow": {
-      const max = FOLLOW_MAX_MIN[r.trade] ?? (r.age < 13 ? 60 : FOLLOW_DEFAULT_MIN);
-      const minutes = p.minutes > 0 ? Math.max(FOLLOW_MIN_MIN, Math.min(max, p.minutes)) : max;
+      const max = FOLLOW_MAX_MIN[r.trade] ?? (r.age < 13 ? FOLLOW_MAX_MIN.child : FOLLOW_DEFAULT_MIN);
+      const minutes = p.minutes > 0 ? Math.max(FOLLOW_MIN_MIN, Math.min(max, p.minutes * STORY_MINUTE_FACTOR)) : max;
       return {
         ok: true,
         instant: false,
@@ -460,7 +461,7 @@ export function validateProposal(db: DB, r: Resident, raw: unknown): Accepted | 
       };
     }
     case "wait": {
-      const minutes = Math.max(5, Math.min(WAIT_MAX_MIN, p.minutes || WAIT_MAX_MIN));
+      const minutes = Math.max(60, Math.min(WAIT_MAX_MIN, p.minutes ? p.minutes * STORY_MINUTE_FACTOR : WAIT_MAX_MIN));
       return { ok: true, instant: false, line: limitLine("wait", minutes, police), action: { npc_id: r.id, kind: "wait", target: "here", reason: p.reason, source: "talk", minutes, target_x: mine.x, target_z: mine.z } };
     }
     case "go_to": {

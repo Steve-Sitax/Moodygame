@@ -920,7 +920,14 @@ export class Town {
   /** Unseen and held: move them on toward a point at the hidden pace (a long go_to across town). */
   moveHidden(id: string, tx: number, tz: number, dt: number): void {
     const s = this.byId.get(id);
-    if (!s || s.p) return;
+    if (!s) return;
+    if (s.p) {
+      // still in the street but off the walk grid: the crowd cannot path them; they go on unseen
+      if (this.crowd.onGrid(s.p.x, s.p.z)) return;
+      this.lose(s, true);
+    }
+    // held: the schedule's own unseen walk (coarse) must not pull them the other way
+    s.held = true;
     s.inside = false;
     const d = dist(s.x, s.z, tx, tz);
     if (d < 0.5) return;

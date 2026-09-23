@@ -20,8 +20,9 @@ import type { Town } from "./town";
 
 const POLL_S = 2;
 const SYNC_S = 2;
-const CLAIM_M = 90;
-const ATTEND_CLAIM_M = 70;
+/** Within this of Jef a person is walked on the crowd's grid (it reaches about 55 m; beyond 68 m the town despawns them). */
+const CLAIM_M = 58;
+const ATTEND_CLAIM_M = 58;
 const LOST_S = 5;
 const STUCK_S = 12;
 

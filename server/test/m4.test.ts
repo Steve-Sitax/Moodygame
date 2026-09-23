@@ -186,10 +186,10 @@ describe("action validation and clamps", () => {
     if (v.ok) {
       expect(v.action?.kind).toBe("follow");
       expect(v.action?.minutes).toBe(FOLLOW_DEFAULT_MIN);
-      expect(v.line).toMatch(/two hours/);
+      expect(v.line).toMatch(/spare you/);
     }
     const short = validateProposal(db, r, prop({ kind: "follow", minutes: 5 }));
-    expect(short.ok && short.action?.minutes).toBe(30);
+    expect(short.ok && short.action?.minutes).toBe(240);
   });
 
   it("a stranger with no trust and little warmth will not follow", () => {
@@ -319,7 +319,7 @@ describe("action validation and clamps", () => {
     const l = applyProposal(db, r, line({ action: prop({ kind: "follow", minutes: 30 }) }));
     expect(l.action_id).not.toBeNull();
     expect(actionsTick(db)).toBe(0);
-    setClock(db, 1, 10, 45);
+    setClock(db, 1, 16, 15);
     expect(actionsTick(db)).toBe(1);
     const row = db.prepare("SELECT status, outcome, data_json FROM npc_action WHERE id = ?").get(l.action_id) as { status: string; outcome: string; data_json: string };
     expect(row.status).toBe("failed");

@@ -28,17 +28,24 @@ export const NO_ACTION: ActionProposal = { kind: "none", target: "", minutes: 0,
 /** Engine-made actions (events and chains) use these kinds too. */
 export type EngineKind = ActionKind | "attend";
 
-/** How long a person will follow Jef, in game minutes, by trade (M4 notes). */
-export const FOLLOW_MAX_MIN: Record<string, number> = { police: 240, water_bailiff: 240, child: 60, street_child: 60, errand_boy: 60 };
-export const FOLLOW_DEFAULT_MIN = 120;
-export const FOLLOW_MIN_MIN = 30;
+/**
+ * Time limits in GAME minutes. The clock runs fast (a game hour is 20 real seconds; a walk
+ * across town is several game hours), so these are large: the police follow up to 720 game
+ * minutes (4 real minutes), others 480 (160 s), children 240 (80 s); never under 240 (80 s).
+ * The model's own "minutes" are story minutes: the engine takes them times twelve, then clamps.
+ */
+export const FOLLOW_MAX_MIN: Record<string, number> = { police: 720, water_bailiff: 720, child: 240, street_child: 240, errand_boy: 240 };
+export const FOLLOW_DEFAULT_MIN = 480;
+export const FOLLOW_MIN_MIN = 240;
+/** A story minute (what the model asks for) is this many game minutes: "half an hour" walks two real minutes. */
+export const STORY_MINUTE_FACTOR = 12;
 /** Jef further off than this for this long: the follower gives up. */
 export const FOLLOW_LOST_M = 40;
 export const FOLLOW_LOST_S = 5;
-export const WAIT_MAX_MIN = 30;
-export const LOOK_FOR_MIN = 30;
+export const WAIT_MAX_MIN = 180;
+export const LOOK_FOR_MIN = 240;
 export const LOOK_FOR_RADIUS_M = 40;
-export const TALK_TO_MIN = 20;
+export const TALK_TO_MIN = 240;
 export const TALK_TO_MAX_LINES = 6;
 export const GO_TO_MAX_M = 400;
 export const TALK_TO_MAX_M = 150;
@@ -93,10 +100,10 @@ export const REFUSE_LINE: Record<RefuseReason, string> = {
   nothing_to_stop: "I wasn't doing anything for you.",
 };
 
-/** What the person adds when the engine sets a limit. */
+/** What the person adds when the engine sets a limit (in story time: four game minutes to one). */
 export function limitLine(kind: ActionKind, minutes: number, police: boolean): string {
-  const h = minutes / 60;
-  const span = h >= 3.5 ? "four hours" : h >= 1.75 ? "two hours" : h >= 0.9 ? "an hour" : "half an hour";
+  const h = minutes / STORY_MINUTE_FACTOR / 60;
+  const span = h >= 2.5 ? "three hours" : h >= 1.75 ? "two hours" : h >= 0.9 ? "an hour" : "half an hour";
   switch (kind) {
     case "follow":
       return police ? `Lead on. I'll give it ${span}, then I've a beat to walk.` : `I can spare you ${span}, no more.`;
