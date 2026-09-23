@@ -44,6 +44,8 @@ export interface QuayFurnitureOptions {
   bollards?: Array<[number, number]>;
   /** Extra circles to keep clear. */
   keepClear?: Array<{ x: number; z: number; r: number }>;
+  /** Dev: list every copy in `sites`, not only the bigger things. */
+  allSites?: boolean;
 }
 
 export interface QuayFurniture {
@@ -247,11 +249,11 @@ function distSeg(px: number, pz: number, ax: number, az: number, bx: number, bz:
 const CLUTTER: Record<District, Array<[string, number]>> = {
   werf: [["boat_trestles", 1], ["timber_baulks", 1], ["tar_fire", 1], ["anchor", 1], ["cable_reel", 1], ["oars_rack", 1], ["sail_drying", 1], ["hawser_coil", 1]],
   steen: [["hawser_coil", 1]],
-  vismarkt: [["fish_baskets", 3], ["eel_pots", 3], ["nets_drying", 2], ["oars_rack", 1], ["boat_trestles", 1], ["tar_fire", 1], ["hawser_coil", 1]],
+  vismarkt: [["fish_baskets", 3], ["eel_pots", 3], ["nets_drying", 2], ["sail_drying", 1], ["oars_rack", 1], ["boat_trestles", 1], ["anchor", 1], ["tar_fire", 1], ["hawser_coil", 1]],
   canal: [["eel_pots", 1], ["nets_drying", 1], ["oars_rack", 1]],
   rijnkaai: [["coal_heap", 1], ["grain_pallet", 2], ["cable_reel", 1], ["anchor", 1]],
-  north: [["coal_heap", 2], ["grain_pallet", 1], ["cable_reel", 1], ["anchor", 1], ["tar_fire", 1], ["timber_baulks", 1]],
-  bassin: [["grain_pallet", 2], ["timber_baulks", 2], ["cable_reel", 1], ["anchor", 1], ["coal_heap", 1], ["hawser_coil", 1], ["boat_trestles", 1]],
+  north: [["coal_heap", 2], ["grain_pallet", 1], ["cable_reel", 1], ["anchor", 1], ["tar_fire", 1], ["timber_baulks", 1], ["hawser_coil", 1]],
+  bassin: [["grain_pallet", 2], ["timber_baulks", 2], ["cable_reel", 1], ["anchor", 1], ["coal_heap", 1], ["hawser_coil", 2], ["boat_trestles", 1], ["sail_drying", 1], ["tar_fire", 1]],
 };
 /** Things with a place of their own: model, anchor, search radius, facing (toward the water or inland). */
 const ANCHORED: Array<[string, number, number, number, "water" | "inland"]> = [
@@ -299,6 +301,17 @@ const WALL_NAME_AT: Array<[string, number, number]> = [
   ["PETIT BASSIN", 140, 46],
   ["PETIT BASSIN", 70, 70],
 ];
+/**
+ * Where boats lie along the walls (rijnkaai.ts: its moor() calls; keep in step): [x0, z0, x1, z1].
+ * Bollards here get a line down to the water.
+ */
+const MOORED: number[][] = [
+  [-316, 0, -258, 0], [-240, 0, -216, 0], [-140, 0, -119, 0], [-107, 0, -90, 0], [60, 0, 100, 0], [120, 0, 176, 0],
+  [-82, 12, -82, 202], [-70, 12, -70, 202], [-150, 11, -150, 38], [-142, 49, -142, 70],
+  [70, 50, 70, 106], [170, 50, 170, 106], [76, 110, 164, 110], [120, 46, 164, 46],
+];
+const moored = (x: number, z: number) => MOORED.some(([x0, z0, x1, z1]) => distSeg(x, z, x0, z0, x1, z1) < 1.5);
+
 /** Where the town's people haul and sell (server town/places.ts HAULS quay ends and STALLS): keep open. */
 const TOWN_CLEAR: Array<[number, number, number]> = [
   [-12, 4, 2], [26, 5, 2], [-40, 5, 2], [45, 5, 2], [12, 5, 2], [2, 5, 2], [173, 55, 2.5], [173, 108, 2.5], [160, 40, 2.5],
@@ -383,7 +396,7 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
       for (let i = 0; i < uv.length; i++) b.uv.push(uv[i]);
     }
     count(name.replace(/_\d+$/, ""));
-    if (SITE.test(name)) sites.push({ kind: name, x: +x.toFixed(1), z: +z.toFixed(1), yaw: +yaw.toFixed(2) });
+    if (opts.allSites || SITE.test(name)) sites.push({ kind: name, x: +x.toFixed(1), z: +z.toFixed(1), yaw: +yaw.toFixed(2) });
   }
 
   /** UV of a point in a solid-atlas cell (u, v in 0..1, v up), as the glb does it. */
@@ -632,7 +645,7 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
       if (s >= nextRing) {
         if (!wallBusy(x, z, 0.4)) {
           // mostly rings on staples in the wall face; now and then one let into the edge stone
-          if (k++ % 3 === 2 && at(x - g.nx * 0.6, z - g.nz * 0.6) === OPEN && !inRectP(START, x, z)) put("ring_top", x, 0, z, yaw);
+          if (k++ % 2 === 1 && at(x - g.nx * 0.6, z - g.nz * 0.6) === OPEN && !inRectP(START, x, z)) put("ring_top", x, 0, z, yaw);
           else put("ring_wall", x, -0.05 * (k % 2), z, yaw);
           nextRing = s + (dist === "canal" ? 5 : 6) + R() * 3;
         }
@@ -752,10 +765,14 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
       take(name, spot.x, spot.z, spot.yaw, true);
       turn++;
       next = s + style.step * (0.8 + R() * 0.4);
+      // a line from it down to a boat lying off the wall
+      if (moored(x, z) && R() < 0.65) {
+        put(R() < 0.5 ? "line_out" : "line_along", spot.x, 0, spot.z, spot.yaw);
+      }
       // a hawser or a chain lying out on the stones beside it, now and then
       const lie = R();
-      if (lie < 0.3) {
-        const kind = lie < 0.12 ? "chain_run" : "hawser_flake";
+      if (lie < 0.45) {
+        const kind = lie < 0.15 ? "chain_run" : lie < 0.3 ? "hawser_flake" : "hawser_coil";
         const side = R() < 0.5 ? 1 : -1;
         const ls = s + side * 3.2;
         if (ls > 2 && ls < g.L - 2) {
@@ -828,7 +845,7 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
       const s0 = (ax - g.ax) * g.tx + (az - g.az) * g.tz;
       for (let s = Math.max(1, s0 - rad); s <= Math.min(g.L - 1, s0 + rad); s += 1) {
         const [x, z] = along(g, s);
-        for (const u of small ? [0.5, 0.9, 1.6, 2.6] : [0.6, 1.4, 2.5, 4, 6, 8, 10, 12]) {
+        for (const u of small ? [0.5, 0.9, 1.6, 2.6] : [0.6, 1.4, 2.5, 4, 6, 8, 10, 11, 12, 13]) {
           const d = Math.hypot(x - g.nx * u - ax, z - g.nz * u - az);
           if (d < rad) cands.push([g, s, u, d]);
         }
@@ -838,10 +855,10 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
     for (const [g, s, u] of cands) {
       const [x, z] = along(g, s);
       if (!districtAt(x, z)) continue;
-      const spot = standAt(name, g, s, u, facing, rules, small ? 1.2 : 1.6);
+      const spot = standAt(name, g, s, u, facing, rules, small ? 1.2 : 0);
       if (!spot) continue;
-      // a door or a counter needs room in front of it too
-      if (!small && facing === "water" && !sideOpen(p, spot.x, spot.z, spot.yaw, 1, 1.4)) continue;
+      // a door or a counter needs room in front; a hut may stand with its back to a house wall
+      if (!small && !sideOpen(p, spot.x, spot.z, spot.yaw, 1, 1.6)) continue;
       put(name, spot.x, 0, spot.z, spot.yaw);
       take(name, spot.x, spot.z, spot.yaw, true);
       break;

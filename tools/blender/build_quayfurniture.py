@@ -1010,6 +1010,17 @@ def capstan():
     return m
 
 
+def mooring_line(along=0.0):
+    """A mooring line: a bight round a bollard's neck (0.5 m up), out over the edge stone, down the wall
+    to a boat lying off the quay. `along`: how far it runs along the quay on its way (m)."""
+    m = Mesh()
+    m.tube(ring_path(0.2, 7, 0, 0, 0.5, plane="xy"), 0.03, 3, "hawser", closed=True, up=(0, 0, 1))
+    pts = [(0.0, -0.2, 0.5), (along * 0.1, -0.5, 0.35), (along * 0.2, -0.85, 0.12), (along * 0.28, -1.05, 0.02),
+           (along * 0.4, -1.3, -0.5), (along * 0.6, -1.7, -1.3), (along * 0.8, -2.2, -1.85), (along, -2.9, -2.1)]
+    m.tube(pts, 0.03, 3, "hawser")
+    return m
+
+
 # ------------------------------------------------------------------ models: on the stones
 
 
@@ -1649,6 +1660,8 @@ def build_models():
     B.append(("bitt_double", bitt_double()))
     B.append(("post_timber", post_timber()))
     B.append(("capstan", capstan()))
+    B.append(("line_out", mooring_line(0.0)))
+    B.append(("line_along", mooring_line(1.6)))
     B.append(("chain_run", chain_run()))
     B.append(("hawser_flake", hawser_flake()))
     B.append(("hawser_coil", hawser_coil()))

@@ -604,10 +604,13 @@ function windowMaterials(): { win: THREE.ShaderMaterial; spill: THREE.ShaderMate
       float morn = smoothstep(aLit.z, aLit.z + 0.12, h) * (1.0 - smoothstep(aLit.w, aLit.w + 0.12, h));
       return max(eve, morn) * uNight;
     }`;
+  // lit windows ADD light (Steve: far off they showed dark against the fog): added light can
+  // never be darker than what is behind it, so a window fades into the fog as a faint glow
   const win = shaderMat({
     transparent: true,
     depthWrite: false,
     decal: true,
+    blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide,
     vertexShader: /* glsl */ `
       ${VCOMMON}
@@ -643,7 +646,8 @@ function windowMaterials(): { win: THREE.ShaderMaterial; spill: THREE.ShaderMate
         warm *= 1.0 - 0.7 * min(bars, 1.0);
         warm *= 0.94 + 0.06 * sin(uTime * 3.1 + vTone.x * 40.0) * sin(uTime * 7.7 + vTone.x * 13.0);
         float f = fogK();
-        gl_FragColor = vec4(mix(warm, fogColor, f * 0.95), vLit * (1.0 - f * 0.4));
+        // a faint warm glow stays in the fog: lamplight carries further than the walls show
+        gl_FragColor = vec4(warm * vLit * (1.0 - f * 0.82) * 1.25, 1.0);
         #include <colorspace_fragment>
       }`,
   });
