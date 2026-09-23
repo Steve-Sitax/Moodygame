@@ -18,6 +18,8 @@ const frag = /* glsl */ `
 precision highp float;
 uniform sampler2D tScene;
 uniform vec2 uRes;
+// the PS1 grain, dither and colour steps keep their 270-line size at any render size (settings)
+uniform vec2 uFxRes;
 uniform float uTime;
 uniform float uLevels;
 varying vec2 vUv;
@@ -42,6 +44,7 @@ void main() {
   vec2 px = floor(vUv * uRes);
   vec2 uv = (px + 0.5) / uRes;
   vec3 c = toSRGB(texture2D(tScene, uv).rgb);
+  vec2 fx = floor(vUv * uFxRes);
 
   // grade: lift shadows toward cold green-grey, crush a little, desaturate
   float l = dot(c, vec3(0.299, 0.587, 0.114));
@@ -54,12 +57,12 @@ void main() {
   c *= 1.0 - dot(d, d) * 0.95;
 
   // grain, per low-res pixel, slow
-  float g = hash(px + floor(uTime * 12.0)) - 0.5;
+  float g = hash(fx + floor(uTime * 12.0)) - 0.5;
   c += g * 0.018;
 
   // 5-bit quantize with ordered dither
   float levels = uLevels - 1.0;
-  c = floor(c * levels + 0.5 + bayer4(px)) / levels;
+  c = floor(c * levels + 0.5 + bayer4(fx)) / levels;
 
   gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
 }
@@ -88,6 +91,7 @@ export class RetroPass {
       uniforms: {
         tScene: { value: this.target.texture },
         uRes: { value: new THREE.Vector2(this.width, this.height) },
+        uFxRes: { value: new THREE.Vector2(480, TARGET_HEIGHT) },
         uTime: { value: 0 },
         uLevels: { value: 32 }, // 5 bits per channel
       },
@@ -103,6 +107,7 @@ export class RetroPass {
     this.width = Math.max(1, Math.round(this.height * aspect));
     this.target.setSize(this.width, this.height);
     (this.mat.uniforms.uRes.value as THREE.Vector2).set(this.width, this.height);
+    (this.mat.uniforms.uFxRes.value as THREE.Vector2).set(Math.round(TARGET_HEIGHT * aspect), TARGET_HEIGHT);
   }
 
   /** PS1 colour (5-bit with dither) or full colour. */

@@ -25,13 +25,14 @@ const GULL_SPANS: Array<[number, number]> = [
   [106, 114],
 ];
 
-export type Weather = "fog" | "mist" | "clear" | "rain";
+export type Weather = "fog" | "mist" | "clear" | "rain" | "storm";
 /** How far sounds carry: fog dulls and softens everything far off. The foghorn only in fog (Steve). */
 const WEATHER_FAR: Record<Weather, { lp: number; gain: number; horn: number }> = {
   fog: { lp: 1300, gain: 0.6, horn: 1 },
   mist: { lp: 2300, gain: 0.8, horn: 0 },
   clear: { lp: 6000, gain: 1, horn: 0 },
   rain: { lp: 2000, gain: 0.75, horn: 0 },
+  storm: { lp: 1600, gain: 0.7, horn: 0 },
 };
 /** Before the first setWeather: a soft far bus and no foghorn (start silent, not "fog"). */
 const WEATHER_UNKNOWN = { lp: 2300, gain: 0.8, horn: 0 };

@@ -3,6 +3,7 @@ import "./style.css";
 import { RetroPass } from "./retro/retroPass";
 import { psxUniforms } from "./retro/psx";
 import { mountSettings, type GameSettings } from "./game/settings";
+import { mountDevMenu } from "./game/devmenu";
 import { setAmbientViewHeight } from "./world/ambient";
 import { setMirrorScale } from "./world/mirror";
 import { BOARD_POS, DOSS_POS, RAMP, SPOTS, buildRijnkaai } from "./world/rijnkaai";
@@ -28,7 +29,7 @@ const retro = new RetroPass(renderer);
 let sound: Soundscape | null = null;
 // the soundscape hears the clock and the weather the Day sets on the world (audio/soundscape.ts)
 // null until the server has said: no foghorn before the weather is known
-let weatherNow: "fog" | "mist" | "clear" | "rain" | null = null;
+let weatherNow: "fog" | "mist" | "clear" | "rain" | "storm" | null = null;
 {
   const setTimeOfDay = world.setTimeOfDay;
   world.setTimeOfDay = (h) => {
@@ -91,7 +92,8 @@ function resize(): void {
   player.camera.updateProjectionMatrix();
   retro.resize(aspect, h);
   // vertex snap grid: half the render resolution, so things wobble visibly (off: a grid too fine to see)
-  if (settings.wobble) psxUniforms.uSnapRes.value.set(retro.width * 0.5, retro.height * 0.5);
+  // the wobble keeps its PS1 size at any render size (a 270-line grid)
+  if (settings.wobble) psxUniforms.uSnapRes.value.set(Math.round(270 * aspect) * 0.5, 270 * 0.5);
   else psxUniforms.uSnapRes.value.set(1e5, 1e5);
   setAmbientViewHeight(retro.height);
   setMirrorScale(retro.height / 270);
@@ -105,6 +107,25 @@ settings = mountSettings(startEl.querySelector(".paper") as HTMLElement, (s) => 
   retro.setPsxColour(s.psxColour);
   resize();
 });
+// dev builds: a Dev button next to Settings (time, weather, events, jump to places)
+if (import.meta.env.DEV) {
+  mountDevMenu(startEl.querySelector(".paper") as HTMLElement, {
+    place: (x, z) => player.place(x, z, 0),
+    places: [
+      { name: "Rijnkaai", x: 20, z: 20 },
+      { name: "Werf", x: -270, z: 9 },
+      { name: "Steenplein", x: -180, z: 20 },
+      { name: "Vismarkt", x: -118, z: 30 },
+      { name: "Vleeshuis", x: -122, z: 84 },
+      { name: "Grote Markt", x: -254, z: 90 },
+      { name: "Cathedral", x: -262, z: 138 },
+      { name: "Canal", x: -64, z: 100 },
+      { name: "Lock", x: 96, z: 26 },
+      { name: "Petit Bassin", x: 120, z: 117 },
+    ],
+    events: world.devEvents(),
+  });
+}
 
 function start(): void {
   if (!sound) {

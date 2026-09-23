@@ -186,7 +186,7 @@ export class Day {
     this.player.frozen = false;
     // from the doss house you step out of the alley gate at dawn, facing the river
     if (n?.where === "bed") this.player.place(DOSS_POS.x, DOSS_POS.z - 0.4, 0);
-    const sky = { fog: "The fog is thick on the Schelde.", mist: "A thin mist lies on the river.", clear: "The air is clear and cold. You can see the far bank.", rain: "Rain is coming in off the Schelde." };
+    const sky = { fog: "The fog is thick on the Schelde.", mist: "A thin mist lies on the river.", clear: "The air is clear and cold. You can see the far bank.", rain: "Rain is coming in off the Schelde.", storm: "A gale off the sea. The river runs high and grey. Keep off the quay edge." };
     const c = this.payload?.clock;
     this.toast(`${c?.weekday ?? "A new day"}. ${sky[c?.weather ?? "fog"]} New work is on the board.`);
   }

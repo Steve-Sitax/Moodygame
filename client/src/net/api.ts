@@ -109,7 +109,7 @@ export interface Clock {
   hour: number;
   minute: number;
   weekday: string;
-  weather: "fog" | "mist" | "clear" | "rain";
+  weather: "fog" | "mist" | "clear" | "rain" | "storm";
 }
 
 export interface Ending {

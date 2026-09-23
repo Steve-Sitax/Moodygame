@@ -18,23 +18,29 @@ export const RENT_C = 150; // a week's bed in the doss house, due by Sunday (day
 export const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 /** Weather for the day (Steve, 2026-09-23: "we do not always need fog"). Monday is always fog. */
-export type Weather = "fog" | "mist" | "clear" | "rain";
+export type Weather = "fog" | "mist" | "clear" | "rain" | "storm";
 export const WEATHER_TEXT: Record<Weather, string> = {
   fog: "thick river fog",
   mist: "a thin mist that lifts by noon",
   clear: "clear and cold, the far bank in sight",
   rain: "cold rain off the sea, the cobbles running wet",
+  storm: "a gale off the sea, rain in sheets, the river running high",
 };
 
 export function weather(db: DB): Weather {
   const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'weather'").get() as { value_json: string } | undefined;
   const w = row ? (JSON.parse(row.value_json) as string) : "fog";
-  return w === "mist" || w === "clear" || w === "rain" ? w : "fog";
+  return w === "mist" || w === "clear" || w === "rain" || w === "storm" ? w : "fog";
 }
 
-/** A new morning, a new sky: fog 35 %, mist 30 %, clear 20 %, rain 15 %. */
+/** A new morning, a new sky: fog 35 %, mist 30 %, clear 18 %, rain 12 %, storm 5 %. */
 export function rollWeather(db: DB, roll = Math.random()): Weather {
-  const w: Weather = roll < 0.35 ? "fog" : roll < 0.65 ? "mist" : roll < 0.85 ? "clear" : "rain";
+  const w: Weather = roll < 0.35 ? "fog" : roll < 0.65 ? "mist" : roll < 0.83 ? "clear" : roll < 0.95 ? "rain" : "storm";
+  return setWeather(db, w);
+}
+
+/** Set the day's weather (the morning roll, or the dev menu). */
+export function setWeather(db: DB, w: Weather): Weather {
   db.prepare("INSERT INTO world_state (key, value_json) VALUES ('weather', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(
     JSON.stringify(w),
   );

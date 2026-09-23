@@ -819,8 +819,8 @@ def paint_atlas():
     # -- Vleeshuis upper floors: three small windows with white stone frames on the stripes
     c = cell("vh_upper")
     c[:] = C["brick"]
-    for y in range(0, 128, 8):
-        c[y:y + 2] = C["plaster"] * 0.95
+    for y in range(0, 128, 13):  # the game's striped brick: a white band every 0.75 m
+        c[y:y + 3] = C["plaster"] * 0.95
     for y0 in (6, 48, 90):
         cross_win(c, 16, y0, 48, y0 + 28, frame=4)
     noise(c, 0.05)
@@ -1256,10 +1256,10 @@ def _cath_tower(m, tu, tv, north):
     if north:
         holes.append((tv + 3.3, 0.62, 3.0, 0.8))
     _holed_wall(m, *Wt, tv - hs[0], tv + hs[0], 0, 17.3, holes, "tower_blind", shade=0.88)
-    _portal(m, *Wt, tv, 2.2, 1.25, 1.5, 8.4, 6.6, 0.58, 4.1, bands=3)
+    _portal(m, *Wt, tv, 2.2, 1.25, 1.5, 8.4, 6.6, 0.58, 4.1, bands=3, door=f"cathedral, {'north' if north else 'south'} side portal")
     _wimperg(m, *Wt, tv, 2.5, 7.0, 11.6, off=0.3, w=0.35)
     if north:
-        _portal(m, *Wt, tv + 3.3, 0.62, 0.52, 0.45, 3.0, 2.8, 0.8, 2.45, bands=1, steps=False)
+        _portal(m, *Wt, tv + 3.3, 0.62, 0.52, 0.45, 3.0, 2.8, 0.8, 2.45, bands=1, steps=False, door="cathedral, north tower door")
     top = ys[nst]
     if not north:
         m.balustrade_ring(_sq(tu, tv, 5.95), top, 1.2)
@@ -1508,7 +1508,7 @@ def cathedral(fr, world_north):
         o = (0, side)
         Wt = ((0, tv_), (1, 0), o)
         _holed_wall(m, *Wt, T0, T1, 0, NE, [(74.6, 3.2, 12.0, 0.56)])
-        _portal(m, *Wt, 74.6, 3.2, 1.75, 2.6, 12.0, 9.0, 0.56, 5.4, bands=4, trumeau=True)
+        _portal(m, *Wt, 74.6, 3.2, 1.75, 2.6, 12.0, 9.0, 0.56, 5.4, bands=4, trumeau=True, door=f"cathedral, {'north' if side > 0 else 'south'} transept portal")
         _wimperg(m, *Wt, 74.6, 3.5, 9.6, 16.6, off=0.35)
         m.pinnacle(70.8, tv_ + side * 0.5, 9.5, 7.5, 0.35)
         m.pinnacle(78.4, tv_ + side * 0.5, 9.5, 7.5, 0.35)
@@ -1625,7 +1625,7 @@ def cathedral(fr, world_north):
     for sv in (-1, 1):  # the sides of the bay, back to the towers
         f = m.poly([(FU, sv * fw, 0), (TU - 6.0, sv * fw, 0), (TU - 6.0, sv * fw, 40.0), (FU, sv * fw, 40.0)], STONE, 0.9)
         m.orient(f, (0, sv, 0))
-    _portal(m, *W_, 0.0, 4.9, 2.55, 2.8, 15.4, 11.2, 0.56, 7.0, bands=5, trumeau=True)
+    _portal(m, *W_, 0.0, 4.9, 2.55, 2.8, 15.4, 11.2, 0.56, 7.0, bands=5, trumeau=True, door="cathedral, central west portal")
     _wimperg(m, *W_, 0.0, 5.2, 12.6, 21.6, off=0.4)
     for sv in (-1, 1):
         m.pinnacle(FU - 0.5, sv * 5.3, 12.8, 8.4, 0.38)
@@ -1749,7 +1749,7 @@ def stadhuis(fr):
     _portal(m, Pf, Df, Of, 0.0, 1.7, 1.4, 1.2, 6.2, 5.8, 0.6, 4.2, bands=3, rnd=True, door="town hall, main door", tymp="fanlight")
     for sc in (-3.6, 3.6):
         _portal(m, Pf, Df, Of, sc, 1.2, 1.0, 0.7, 5.2, 4.9, 0.6, 3.6, bands=2, rnd=True, steps=False,
-                door=f"town hall, {'west' if sc < 0 else 'east'} side door", tymp="fanlight")
+                door=f"town hall, {'left' if sc < 0 else 'right'} side door (seen from the Grote Markt)", tymp="fanlight")
     for sg in (-1, 1):  # the returns of the frontispiece, back to the wings
         f = m.poly([(sg * FW, vf, 0), (sg * FW, FV, 0), (sg * FW, FV, LG), (sg * FW, vf, LG)], STONE, 0.9)
         m.orient(f, (sg, 0, 0))

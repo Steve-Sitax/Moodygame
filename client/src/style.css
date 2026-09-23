@@ -356,3 +356,7 @@ body:has(.night[style*="block"]) #game { filter: brightness(0.35); }
 .settings select { font: inherit; margin-left: 8px; }
 .settings .note-small { font-size: 13px; opacity: 0.8; }
 .settings button { font: inherit; padding: 3px 14px; cursor: pointer; }
+.devmenu { width: min(660px, 94vw); }
+.devmenu .row { margin: 6px 0; font-size: 14px; }
+.devmenu .row b { display: inline-block; width: 70px; }
+.devmenu .row button { margin: 2px; font-size: 13px; padding: 2px 8px; }

@@ -13,7 +13,7 @@ import { edgeZ, type CityWorld } from "./city";
 // Cost (measured on the Rijnkaai, see the report): 1 draw call for smoke, 1 for
 // birds, 1 for rain, 1 for puddles, and 2 per window chunk (100 m) within the fog.
 
-export type AmbientWeather = "fog" | "mist" | "clear" | "rain";
+export type AmbientWeather = "fog" | "mist" | "clear" | "rain" | "storm";
 
 export interface Ambient {
   /**
@@ -59,9 +59,9 @@ const NIGHT_BY_HOUR = [
   [0, 1], [6.2, 1], [8.2, 0], [16.2, 0], [18.3, 1], [24, 1],
 ] as const;
 /** Cold days keep more fires going; clear is "clear and cold" (server/src/day.ts). */
-const COLD: Record<string, number> = { fog: 0.05, mist: 0, clear: 0.12, rain: 0.08 };
+const COLD: Record<string, number> = { fog: 0.05, mist: 0, clear: 0.12, rain: 0.08, storm: 0.1 };
 /** Wind speed by weather, m/s-ish: fog lies still, rain comes on a wind. */
-const WIND: Record<string, number> = { fog: 0.35, mist: 0.6, clear: 0.9, rain: 1.5 };
+const WIND: Record<string, number> = { fog: 0.35, mist: 0.6, clear: 0.9, rain: 1.5, storm: 3.2 };
 
 const GROUND_H = 3.8;
 const STOREY_H = 3.0;
@@ -1187,13 +1187,16 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
     if (dh < -12) dh += 24;
     hourNow = (hourNow + dh * Math.min(1, dt * 0.8) + 24) % 24;
     U.uHourN.value = hourNow < 12 ? hourNow + 24 : hourNow;
-    const dim = weather === "fog" || weather === "rain" ? 0.4 : 0; // a dark day lights up earlier
+    const dim = weather === "fog" || weather === "rain" || weather === "storm" ? 0.4 : 0; // a dark day lights up earlier
     const night = Math.max(curve(NIGHT_BY_HOUR, hourNow + dim), curve(NIGHT_BY_HOUR, hourNow - dim));
     U.uNight.value = night;
 
     // rain: on a rain day showers come and go over the hours, with drizzle between
     let auto = 0;
-    if (weather === "rain") {
+    if (weather === "storm") {
+      // a gale: heavy rain in squalls, never quite stopping
+      auto = 0.65 + 0.35 * (0.5 + 0.5 * Math.sin(hourNow * 2.3) * Math.sin(hourNow * 0.9 + 1.0));
+    } else if (weather === "rain") {
       const n = 0.5 + 0.5 * Math.sin(hourNow * 1.7) * Math.sin(hourNow * 0.63 + 2.0);
       auto = 0.2 + 0.8 * THREE.MathUtils.smoothstep(n, 0.3, 0.75);
     }
@@ -1201,14 +1204,14 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
     rainNow += (target - rainNow) * Math.min(1, dt * 0.3);
     if (rainNow < 0.002 && target === 0) rainNow = 0;
     // the ground gets wet fast and dries slowly
-    const wetTarget = rainNow > 0.05 ? Math.min(1, 0.35 + rainNow) : weather === "rain" ? 0.45 : 0;
+    const wetTarget = rainNow > 0.05 ? Math.min(1, 0.35 + rainNow) : weather === "rain" || weather === "storm" ? 0.45 : 0;
     wet += wetTarget > wet ? (wetTarget - wet) * Math.min(1, dt * 0.12) : Math.max(wetTarget - wet, -dt * 0.01);
     psxUniforms.uRain.value = rainNow;
     psxUniforms.uWet.value = wet;
     rain.visible = rainNow > 0.01;
     // puddles: rain fills them; fog and mist keep the big ones; a sunny day dries them out
     const sunny = weather === "clear" && hourNow > 8 && hourNow < 18;
-    const pudTarget = rainNow > 0.05 ? 0.7 : weather === "rain" ? 0.5 : weather === "fog" ? 0.34 : weather === "mist" ? 0.26 : sunny ? 0 : 0.12;
+    const pudTarget = rainNow > 0.05 ? 0.7 : weather === "rain" || weather === "storm" ? 0.5 : weather === "fog" ? 0.34 : weather === "mist" ? 0.26 : sunny ? 0 : 0.12;
     pudBase += pudTarget > pudBase ? (pudTarget - pudBase) * Math.min(1, dt * 0.08) : Math.max(pudTarget - pudBase, -dt * 0.004);
     // the puddles are in the ground shader (retro/psx.ts option puddles)
     psxUniforms.uPuddle.value = Math.max(pudBase, wet * 0.9);

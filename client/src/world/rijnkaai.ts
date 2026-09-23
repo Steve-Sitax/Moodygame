@@ -141,13 +141,15 @@ export interface World {
   /** Hour of the day, 0-24 with fractions: fog, sky light and gas lamps follow (M5). */
   setTimeOfDay(hour: number): void;
   /** The day's weather: how far you see and how much the lamps glow in the air. */
-  setWeather(w: "fog" | "mist" | "clear" | "rain"): void;
+  setWeather(w: "fog" | "mist" | "clear" | "rain" | "storm"): void;
   /** Chimney smoke, birds, rain and puddles, lit windows (world/ambient.ts). */
   ambient: Ambient;
   /** The boats (moving ships for the sound, signals at bridges); null until loaded. */
   boats(): Boats | null;
   /** The drays and handcarts (for the sound); null until loaded. */
   traffic(): Traffic | null;
+  /** Dev menu: things to set off now (a lock passage, a boat up the canal, fog, rain). */
+  devEvents(): Array<{ label: string; run: () => void }>;
   /** Dev: no fog, noon light, every chunk shown (fly mode). */
   setDevView(on: boolean): void;
   mats: Mats;
@@ -819,7 +821,7 @@ export function buildRijnkaai(): World {
   let lampsLit = 0;
   let dayFar = 25;
   // weather: near/far multipliers and lamp in-scatter; eased like the clock
-  const WEATHER = { fog: [1, 1, 1], mist: [1.6, 1.5, 0.7], clear: [3, 2.3, 0.3], rain: [1.3, 1.3, 0.85] } as const;
+  const WEATHER = { fog: [1, 1, 1], mist: [1.6, 1.5, 0.7], clear: [3, 2.3, 0.3], rain: [1.3, 1.3, 0.85], storm: [1.1, 1.05, 0.9] } as const;
   let weatherNow: keyof typeof WEATHER = "fog";
   let wTarget: readonly number[] = WEATHER.fog;
   const wNow = [1, 1, 1];
@@ -844,6 +846,11 @@ export function buildRijnkaai(): World {
   let camera: THREE.Camera | null = null;
   let devView = false;
   function update(t: number, dt: number, cam?: THREE.Camera): void {
+    // the sea: a storm raises the waves, the boats roll (psx water, waveAt, boats.ts)
+    {
+      const sea = weatherNow === "storm" ? 3.6 : weatherNow === "rain" ? 1.5 : weatherNow === "clear" ? 1.1 : 0.85;
+      psxUniforms.uSea.value += (sea - psxUniforms.uSea.value) * Math.min(1, dt * 0.05);
+    }
     boats?.update(t, dt);
     if (cam) camera = cam;
     lock?.update(t, dt, camera ?? undefined);
@@ -934,6 +941,18 @@ export function buildRijnkaai(): World {
     ambient,
     boats: () => boats,
     traffic: () => traffic,
+    devEvents: () => {
+      let fog = false;
+      let rain = false;
+      return [
+        { label: "ship into the dock", run: () => lock?.passNow("in") },
+        { label: "ship out of the dock", run: () => lock?.passNow("out") },
+        { label: "boat up the canal", run: () => bridges?.passNow("canal") },
+        { label: "boat up the vliet", run: () => bridges?.passNow("vliet") },
+        { label: "thick fog on/off", run: () => { fog = !fog; fogTarget = fog ? 1 : 0; } },
+        { label: "rain shower on/off", run: () => { rain = !rain; ambient.setRain(rain ? 1 : 0); } },
+      ];
+    },
     setDevView: (on) => {
       devView = on;
       if (!on) applyDaylight(dayNow);

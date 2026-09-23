@@ -153,8 +153,10 @@ describe("weather", () => {
     expect(rollWeather(db, 0.75)).toBe("clear");
     expect(rollWeather(db, 0.9)).toBe("rain");
     expect(weather(db)).toBe("rain");
+    expect(rollWeather(db, 0.97)).toBe("storm");
+    expect(weather(db)).toBe("storm");
     sleep(db, "bed");
-    expect(["fog", "mist", "clear", "rain"]).toContain(weather(db));
+    expect(["fog", "mist", "clear", "rain", "storm"]).toContain(weather(db));
   });
 });
 

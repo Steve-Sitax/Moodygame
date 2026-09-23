@@ -6,7 +6,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { DB_FILE, DEV, HOST, PORT } from "./config.ts";
 import { openDb, resetDb } from "./db.ts";
 import { plainEnglish } from "./text.ts";
-import { BEDTIME, clock, ending, markDayStart, payRent, RENT_C, rentPaid, resetTickLimit, setEnding, sleep, swim, tick, type Ending } from "./day.ts";
+import { BEDTIME, clock, ending, markDayStart, payRent, RENT_C, rentPaid, resetTickLimit, setEnding, setWeather, sleep, swim, tick, type Ending } from "./day.ts";
 import { writeEpilogue } from "./hooks/epilogue.ts";
 import { resetTalks } from "./hooks/dialogue.ts";
 import { listJobs, makeBoard } from "./hooks/jobBoard.ts";
@@ -320,6 +320,9 @@ if (DEV) {
     for (const k of ["day", "hour", "minute", "food", "warmth", "health", "sleep", "money_c"]) {
       if (typeof b[k] === "number") db.prepare(`UPDATE player SET ${k} = ? WHERE id = 1`).run(Math.round(b[k]));
     }
+    // the dev menu may set the weather (only the five known kinds)
+    const w = (b as unknown as { weather?: unknown }).weather;
+    if (w === "fog" || w === "mist" || w === "clear" || w === "rain" || w === "storm") setWeather(db, w);
     resetTickLimit();
     broadcast({ type: "jobs", ...jobsPayload() });
     return c.json(jobsPayload());

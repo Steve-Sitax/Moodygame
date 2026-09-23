@@ -25,6 +25,8 @@ export const psxUniforms = {
   uWaterMirror: { value: farShore() as THREE.Texture },
   uWaterMirrorMat: { value: new THREE.Matrix4() },
   uWaterMirrorOn: { value: 0 },
+  /** Sea state: 1 = the river's usual chop, about 3.5 = a storm (world/rijnkaai.ts eases it by weather). */
+  uSea: { value: 1 },
   /** Puddles on the ground, 0..1 (world/ambient.ts: rain fills them, a sunny day dries them). */
   uPuddle: { value: 0 },
   /** The ground mirror (world/mirror.ts): the street seen from under the paving. */
@@ -88,12 +90,32 @@ function farShore(): THREE.DataTexture {
  */
 export function waveAt(x: number, z: number, t: number): number {
   return (
-    Math.sin(x * 0.11 + z * 0.07 + t * 0.45) * 0.08 +
-    Math.sin(x * 0.35 + t * 0.9) * 0.07 +
-    Math.sin(z * 0.55 - t * 0.7 + x * 0.2) * 0.05 +
-    Math.sin((x + z) * 1.3 + t * 1.7) * 0.02
+    (Math.sin(x * 0.11 + z * 0.07 + t * 0.45) * 0.08 +
+      Math.sin(x * 0.35 + t * 0.9) * 0.07 +
+      Math.sin(z * 0.55 - t * 0.7 + x * 0.2) * 0.05 +
+      Math.sin((x + z) * 1.3 + t * 1.7) * 0.02) *
+    psxUniforms.uSea.value
   );
 }
+
+/** Value noise from a hash of the cell corners: no texture, so no tiling (the puddles). */
+const pudNoiseGlsl = /* glsl */ `
+float pudHash(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+float pudVal(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  float a = pudHash(i);
+  float b = pudHash(i + vec2(1.0, 0.0));
+  float c = pudHash(i + vec2(0.0, 1.0));
+  float d = pudHash(i + vec2(1.0, 1.0));
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+`;
 
 export interface PsxOptions {
   /** Animate vertices as water waves. */
@@ -122,6 +144,7 @@ export interface PsxOptions {
 }
 
 const commonVertex = /* glsl */ `
+uniform float uSea;
 uniform vec2 uSnapRes;
 uniform float uTime;
 varying vec3 vPsxWorld;
@@ -207,6 +230,7 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uSnapRes = psxUniforms.uSnapRes;
     shader.uniforms.uTime = psxUniforms.uTime;
+    shader.uniforms.uSea = psxUniforms.uSea;
     shader.uniforms.uLamps = psxUniforms.uLamps;
     shader.uniforms.uLampColor = psxUniforms.uLampColor;
     shader.uniforms.uScatter = psxUniforms.uScatter;
@@ -273,6 +297,7 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
                   + sin(wp.x * 0.35 + uTime * 0.9) * 0.07
                   + sin(wp.z * 0.55 - uTime * 0.7 + wp.x * 0.2) * 0.05
                   + sin((wp.x + wp.z) * 1.3 + uTime * 1.7) * 0.02;
+          w *= uSea;
           transformed.z += w;
           vWaveH = w / 0.22;
         }`,
@@ -308,7 +333,7 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         commonFragment +
         (opts.atlas ? "varying vec2 vCell;\n" : "") +
         (opts.wet || opts.water ? wetFragment : "") +
-        (opts.puddles ? "uniform float uPuddle;\nuniform sampler2D uMirror;\nuniform mat4 uMirrorMat;\nuniform sampler2D uPudNoise;\n" : "") +
+        (opts.puddles ? "uniform float uPuddle;\nuniform sampler2D uMirror;\nuniform mat4 uMirrorMat;\nuniform sampler2D uPudNoise;\n" + pudNoiseGlsl : "") +
         (opts.water
           ? "uniform sampler2D uShore;\nuniform vec4 uShoreBox;\nvarying float vWaveH;\nuniform sampler2D uWaterMirror;\nuniform mat4 uWaterMirrorMat;\nuniform float uWaterMirrorOn;\n"
           : ""),
@@ -432,8 +457,10 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
           // noise is highest, so the edges are ragged, not round; a dark damp band round it;
           // the water shows the ground under it looking down and turns to a mirror at a
           // slant (Fresnel), with the street itself mirrored (world/mirror.ts).
-          float pn = texture2D(uPudNoise, vPsxWorld.xz / 21.0).r * 0.75 + texture2D(uPudNoise, vPsxWorld.xz / 6.1 + 0.37).r * 0.25;
-          // the smooth noise bunches round 0.5: stretch it so the fill level is the wet share of the ground
+          // value noise worked out here from the world position: it never repeats (Steve: "puddles repeat")
+          vec2 pp = vPsxWorld.xz;
+          float pn = pudVal(pp / 17.0) * 0.55 + pudVal(pp / 7.3 + 31.7) * 0.3 + pudVal(pp / 2.9 - 12.1) * 0.15;
+          // the sum bunches round 0.5: stretch it so the fill level is the wet share of the ground
           pn = clamp((pn - 0.5) * 2.4 + 0.5, 0.0, 1.0);
           float lvl = clamp(uPuddle * ${(opts.puddles ?? 1).toFixed(2)}, 0.0, 1.0);
           float th = 0.97 - lvl * 0.6;

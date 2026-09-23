@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { psx } from "../retro/psx";
+import { psx, psxUniforms } from "../retro/psx";
 import { WATER_Y } from "./rijnkaai";
 import type { Rect } from "./geom";
 
@@ -790,7 +790,11 @@ async function load(): Promise<Boats> {
   function writeFleet(f: Fleet, t: number): void {
     for (let i = 0; i < f.boats.length; i++) {
       const b = f.boats[i];
-      const [h, roll, pitch, period] = b.m;
+      const sea = psxUniforms.uSea.value;
+      const [h0, roll0, pitch0, period] = b.m;
+      const h = h0 * sea;
+      const roll = roll0 * Math.min(sea, 2.5);
+      const pitch = pitch0 * Math.min(sea, 2.5);
       const w = (Math.PI * 2) / period;
       tmpP.set(b.x, WATER_Y + h * Math.sin(w * t + b.p[0]) + h * 0.4 * Math.sin(2.3 * w * t + b.p[0] * 1.7), b.z);
       tmpE.set(pitch * Math.sin(1.13 * w * t + b.p[2]), b.yaw, roll * Math.sin(0.83 * w * t + b.p[1]));
@@ -918,8 +922,12 @@ async function load(): Promise<Boats> {
   }
 
   function update(t: number, dt: number): void {
+    const sea = psxUniforms.uSea.value;
     for (const f of floats) {
-      const [h, roll, pitch, period] = f.m;
+      const [h0, roll0, pitch0, period] = f.m;
+      const h = h0 * sea;
+      const roll = roll0 * Math.min(sea, 2.5);
+      const pitch = pitch0 * Math.min(sea, 2.5);
       const w = (Math.PI * 2) / period;
       f.inner.position.y = h * Math.sin(w * t + f.p[0]) + h * 0.4 * Math.sin(2.3 * w * t + f.p[0] * 1.7);
       f.inner.rotation.z = f.heel + roll * Math.sin(0.83 * w * t + f.p[1]);
