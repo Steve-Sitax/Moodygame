@@ -150,6 +150,7 @@ if (import.meta.env.DEV) {
       { name: "Rijnkaai", x: 20, z: 20 },
       { name: "Werf", x: -270, z: 9 },
       { name: "Steenplein", x: -180, z: 20 },
+      { name: "Het Steen (gate)", x: -205, z: 31 },
       { name: "Vismarkt", x: -118, z: 30 },
       { name: "Vleeshuis", x: -122, z: 84 },
       { name: "Grote Markt", x: -254, z: 90 },
