@@ -60,6 +60,10 @@ export function setSceneRoll(f: ((key: string) => number) | null): void {
 }
 
 const pick = <T>(list: T[], key: string): T => list[Math.floor(hash(key) * list.length) % list.length];
+/** "over a spilled jug of beer", or the model's longer line in brackets. */
+const overWhat = (about: string): string => (about.length <= 50 && !/[.;!?]/.test(about.replace(/[.\s]+$/, "")) ? `over ${about.replace(/[.\s]+$/, "")}` : `in a row (${about.replace(/[.\s]+$/, "")})`);
+/** A first name, or the full name when both share it. */
+const who = (r: { first: string; name: string }, other: { first: string }): string => (r.first === other.first ? r.name : r.first);
 /** The engine's lines say "him"; a woman thief or quarreller is "her". */
 const forSex = (t: string, sex: "m" | "f"): string => (sex === "f" ? t.replace(/\bhim\b/g, "her").replace(/\bhe\b/g, "she").replace(/\bHe\b/g, "She").replace(/\bhis\b/g, "her") : t);
 
@@ -121,7 +125,7 @@ export function applyScene(db: DB, ev: EventRow, s: StoredStage, i: number): Sce
       place: ev.place,
       x: at.x,
       z: at.z,
-      text: `${a.name} and ${b.name} fell out at ${place} over ${about}, and came to pushing and shoving. A crowd stood round.${agent ? "" : " No agent was near."}`,
+      text: `${a.name} and ${b.name} fell out at ${place} ${overWhat(about)}, and came to pushing and shoving. A crowd stood round.${agent ? "" : " No agent was near."}`,
       ref_type: "town_event",
       ref_id: ev.id,
       weight: 6,
@@ -229,10 +233,10 @@ export function resolveScene(db: DB, ev: EventRow, i: number): void {
   if (sc.kind === "scuffle") {
     const wrong = sc.wrong === a.id ? a : b;
     const right = wrong === a ? b : a;
-    remember(db, wrong.id, `I lost my temper with ${right.name} at ${sc.place} over ${sc.about}.${agent ? ` ${agent.name} of the police parted us.` : ""} I was in the wrong, they say.`, 5);
-    remember(db, right.id, `${wrong.name} went for me at ${sc.place} over ${sc.about}.${agent ? ` The police parted us.` : ""} He was in the wrong.`, 5);
-    if (agent) remember(db, agent.id, `I parted ${a.name} and ${b.name} at ${sc.place}. ${wrong.first} started it.`, 3);
-    const text = `${a.name} and ${b.name} came to shoving at ${sc.place} over ${sc.about}; ${agent ? "the police parted them" : "the crowd pulled them apart"}. ${wrong.first} was in the wrong, they say.`;
+    remember(db, wrong.id, `I lost my temper with ${right.name} at ${sc.place} ${overWhat(sc.about)}.${agent ? ` ${agent.name} of the police parted us.` : ""} I was in the wrong, they say.`, 5);
+    remember(db, right.id, `${wrong.name} went for me at ${sc.place} ${overWhat(sc.about)}.${agent ? ` The police parted us.` : ""} ${wrong.sex === "f" ? "She" : "He"} was in the wrong.`, 5);
+    if (agent) remember(db, agent.id, `I parted ${a.name} and ${b.name} at ${sc.place}. ${who(wrong, right)} started it.`, 3);
+    const text = `${a.name} and ${b.name} came to shoving at ${sc.place} ${overWhat(sc.about)}; ${agent ? "the police parted them" : "the crowd pulled them apart"}. ${who(wrong, right)} was in the wrong, they say.`;
     fact(text);
     writeEvent(db, {
       kind: "event",
