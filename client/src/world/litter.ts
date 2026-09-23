@@ -640,7 +640,6 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
 
   // ================================================================ 7. the quays: the waste of the work
   const qsites = opts.quaySites ?? [];
-  const near = (kind: RegExp, x: number, z: number, r: number) => qsites.some((q) => kind.test(q.kind) && Math.hypot(q.x - x, q.z - z) < r);
   for (const [ax, az, bx, bz] of city.quays) {
     const L = Math.hypot(bx - ax, bz - az);
     if (L < 2) continue;

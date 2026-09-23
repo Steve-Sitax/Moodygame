@@ -19,6 +19,8 @@ const H = 760;
 const WALL = 1;
 
 let field: Float32Array | null = null;
+/** How worn the stones are (the cart roads): the green channel. The shader sinks, polishes and breaks stones by it. */
+let wear: Float32Array | null = null;
 /** Cart roads handed in before the map was made: laid in when it is. */
 let pending: P[][][] = [];
 let tex: THREE.DataTexture | null = null;
@@ -59,7 +61,8 @@ function upload(): void {
   const data = new Uint8Array(W * H * 4);
   for (let k = 0; k < W * H; k++) {
     const v = Math.round(Math.min(1, Math.max(0, field[k])) * 255);
-    data[k * 4] = data[k * 4 + 1] = data[k * 4 + 2] = v;
+    data[k * 4] = data[k * 4 + 2] = v;
+    data[k * 4 + 1] = wear ? Math.round(Math.min(1, Math.max(0, wear[k])) * 255) : 0;
     data[k * 4 + 3] = 255;
   }
   if (!tex) {
@@ -105,6 +108,7 @@ export function applyDirt(flags: Flags, seed = 1873): void {
     if (j < H - 1 && d[c + W] > n) (d[c + W] = n), q.push(c + W);
   }
   field = new Float32Array(W * H);
+  wear = new Float32Array(W * H);
   for (let j = 0; j < H; j++)
     for (let i = 0; i < W; i++) {
       const k = j * W + i;
@@ -118,6 +122,9 @@ export function applyDirt(flags: Flags, seed = 1873): void {
       // and everywhere a little: no stone in a port town of 1873 is clean
       const base = 0.18 + 0.2 * n2(i + 7, j) * n4(i, j);
       field[k] = Math.max(gutter, mud, base) * (0.85 + 0.3 * n6(i, j));
+      // the middle of every street is where the carts go: worn there, harder in some stretches
+      const mid = Math.max(0, Math.min(1, (m - 1.8) / 1.7));
+      wear[k] = mid * Math.max(0, Math.min(1, 0.15 + 0.75 * n2(i + 31, j + 9) + 0.25 * (n1(i + 5, j) - 0.5)));
     }
   // big stains: ash by a door, oil by a store, a heap of dung swept aside
   for (let s = 0; s < 260; s++) {
@@ -192,10 +199,11 @@ export function dirtAlong(lines: P[][], seed = 7): void {
 }
 
 function paintAlong(lines: P[][], seed = 7): void {
-  if (!field) return;
+  if (!field || !wear) return;
   const r = rand(seed);
   const n = valueNoise(seed, 3);
   const n2 = valueNoise(seed + 1, 3);
+  const n3 = valueNoise(seed + 2, 10); // 5 m: some stretches worn much harder than others
   for (const line of lines) {
     for (let s = 0; s < line.length - 1; s++) {
       const [ax, az] = line[s];
@@ -222,6 +230,10 @@ function paintAlong(lines: P[][], seed = 7): void {
           const v = (0.25 * side + 0.6 * wheel + middle * (0.5 + 0.5 * n(i, j))) * (0.7 + 0.5 * n2(i, j));
           const k = j * W + i;
           field[k] = Math.max(field[k], v);
+          // worn stones: the whole lane a little, the wheel lines hard, uneven along the road
+          const wl = Math.max(0, 1 - Math.abs(across - 0.75) / 0.45);
+          const wv = (0.3 * side + 0.7 * wl * wl) * (0.55 + 0.7 * n3(i, j));
+          wear[k] = Math.max(wear[k], Math.min(1, wv));
         }
     }
     // dung now and then in the middle of the road

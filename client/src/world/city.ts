@@ -100,10 +100,10 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
     const zoneMat: Record<string, [THREE.Material, number]> = {
       // bump maps from the texture itself: light stone stands up, dark joints sink, so the
       // sun and the gas lamps pick out every sett (Steve: "bump mapping?")
-      cobble: [psx(new THREE.MeshPhongMaterial({ map: cobPave.map, color: 0xffffff, specular: cob.specular, shininess: cob.shininess }), { noSnap: true, affine: 0, wet: true, puddles: 1, vary: 1, relief: { height: cobPave.height, depth: 0.075, tile: 2, bump: 4.0 } }), 2],
+      cobble: [psx(new THREE.MeshPhongMaterial({ map: cobPave.map, color: 0xffffff, specular: cob.specular, shininess: cob.shininess }), { noSnap: true, affine: 0, wet: true, puddles: 1, vary: 1, relief: { height: cobPave.height, id: cobPave.id, holes: 1, depth: 0.075, tile: 2, bump: 4.0 } }), 2],
       // packed earth with its own height map: lumps, pebbles, hollows (world/paving.ts)
       earth: [psx(new THREE.MeshLambertMaterial({ map: earthPave.map }), { noSnap: true, affine: 0, wet: true, puddles: 1.3, vary: 1, detile: true, relief: { height: earthPave.height, depth: 0.045, tile: 4, bump: 3.2 } }), 4],
-      flags: [psx(new THREE.MeshPhongMaterial({ map: flagPave.map, specular: 0x1a1a1a, shininess: 12 }), { noSnap: true, affine: 0, wet: true, puddles: 0.75, vary: 0.8, relief: { height: flagPave.height, depth: 0.025, tile: 4, bump: 1.6 } }), 4],
+      flags: [psx(new THREE.MeshPhongMaterial({ map: flagPave.map, specular: 0x1a1a1a, shininess: 12 }), { noSnap: true, affine: 0, wet: true, puddles: 0.75, vary: 0.8, relief: { height: flagPave.height, id: flagPave.id, holes: 0, depth: 0.025, tile: 4, bump: 1.6 } }), 4],
     };
     for (const [zone, tris] of Object.entries(zones)) {
       if (zone === "edges") continue;

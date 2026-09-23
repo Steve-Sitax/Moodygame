@@ -9,6 +9,13 @@ import * as THREE from "three";
 export interface Paving {
   map: THREE.CanvasTexture;
   height: THREE.CanvasTexture;
+  /**
+   * Which stone a pixel belongs to (Steve: "missing cobbles are a repeating pattern"): r = the
+   * stone's number in the tile, g = 1 on a stone (0 in a joint), b = 1 where a stone runs on
+   * from the tile before. The shader mixes the number with the tile's place in the world, so
+   * every stone in the city sinks, goes missing or takes its tone by its own dice.
+   */
+  id?: THREE.CanvasTexture;
 }
 
 function rand(seed: number): () => number {
@@ -26,7 +33,7 @@ function canvasPair(n: number): [HTMLCanvasElement, CanvasRenderingContext2D, HT
   return [a, a.getContext("2d")!, b, b.getContext("2d")!];
 }
 
-function finish(map: HTMLCanvasElement, height: HTMLCanvasElement): Paving {
+function finish(map: HTMLCanvasElement, height: HTMLCanvasElement, idc?: HTMLCanvasElement): Paving {
   const m = new THREE.CanvasTexture(map);
   m.colorSpace = THREE.SRGBColorSpace;
   // pixels up close (the PS1 look), smaller copies further off: no stripes toward the horizon
@@ -40,7 +47,12 @@ function finish(map: HTMLCanvasElement, height: HTMLCanvasElement): Paving {
   h.minFilter = THREE.LinearMipmapLinearFilter;
   h.generateMipmaps = true;
   h.wrapS = h.wrapT = THREE.RepeatWrapping;
-  return { map: m, height: h };
+  if (!idc) return { map: m, height: h };
+  const id = new THREE.CanvasTexture(idc);
+  id.magFilter = id.minFilter = THREE.NearestFilter;
+  id.generateMipmaps = false;
+  id.wrapS = id.wrapT = THREE.RepeatWrapping;
+  return { map: m, height: h, id };
 }
 
 /**
@@ -76,6 +88,13 @@ function stones(
   hg.fillRect(0, 0, n, n);
   const hImg = hg.getImageData(0, 0, n, n);
   const mImg = mg.getImageData(0, 0, n, n);
+  const idc = document.createElement("canvas");
+  idc.width = idc.height = n;
+  const ig = idc.getContext("2d")!;
+  const iImg = ig.createImageData(n, n);
+  for (let i = 3; i < iImg.data.length; i += 4) iImg.data[i] = 255;
+  const ri = rand(seed + 991); // stone numbers: their own dice, so the layout stays as it was
+  let sid = 0;
   const put = (x: number, y: number, rgb: [number, number, number], h: number) => {
     const xx = ((x % n) + n) % n;
     const yy = ((y % n) + n) % n;
@@ -85,6 +104,9 @@ function stones(
     mImg.data[i + 2] = rgb[2];
     const v = Math.round(h * 255);
     hImg.data[i] = hImg.data[i + 1] = hImg.data[i + 2] = v;
+    iImg.data[i] = sid;
+    iImg.data[i + 1] = 255;
+    iImg.data[i + 2] = x >= n ? 255 : 0; // wrapped round from the tile before
   };
   const rows = Math.round(n / rowH);
   const rh = n / rows;
@@ -96,6 +118,7 @@ function stones(
     while (x < xEnd) {
       const w = Math.round(wMin + r() * (wMax - wMin));
       const base = colour(r);
+      sid = 1 + Math.floor(ri() * 254);
       // some stones stand higher, some are worn or sunk; a few have gone, leaving a muddy hole
       const roll = r();
       const missing = roll < wear.missing;
@@ -126,7 +149,8 @@ function stones(
   }
   mg.putImageData(mImg, 0, 0);
   hg.putImageData(hImg, 0, 0);
-  return finish(mc, hc);
+  ig.putImageData(iImg, 0, 0);
+  return finish(mc, hc, idc);
 }
 
 /**
@@ -277,7 +301,8 @@ export function earthPaving(): Paving {
 
 /** Street cobbles (Belgian setts, "kasseien"): 128 px per 2 m tile, rows of about 17 cm. */
 export function cobblePaving(): Paving {
-  // old street setts: no two at the same height, tilted by the carts, some sunk, a few gone
+  // old street setts, tilted by the carts. Which stones stand high, sink or have gone is rolled
+  // per stone in the shader (retro/psx.ts), never baked into the tile: no pattern repeats
   return stones(
     1873,
     128,
@@ -291,7 +316,7 @@ export function cobblePaving(): Paving {
       const warm = r() * 10;
       return [v + warm, v + warm * 0.6, v - 4];
     },
-    { topMin: 0.3, tilt: 0.8, sunk: 0.1, missing: 0.025 },
+    { topMin: 0.85, tilt: 0.8, sunk: 0, missing: 0 },
   );
 }
 
@@ -313,11 +338,13 @@ export function settsPaving(): Paving {
       const v = 62 + r() * 36;
       return [v + 2, v, v - 5];
     },
-    { topMin: 0.5, tilt: 0.5, sunk: 0.05, missing: 0.01 },
+    { topMin: 0.85, tilt: 0.5, sunk: 0, missing: 0 },
   );
   const n = 128;
   const mg = (p.map.image as HTMLCanvasElement).getContext("2d")!;
   const hg = (p.height.image as HTMLCanvasElement).getContext("2d")!;
+  const ig = (p.id!.image as HTMLCanvasElement).getContext("2d")!;
+  ig.fillStyle = "rgb(0,0,0)"; // edge stones and grooves are no setts: the shader leaves them be
   // edge stones along both sides of the band: long, flat, lighter
   for (const y of [0, n - 7]) {
     for (let x = 0; x < n; x += 22) {
@@ -325,6 +352,7 @@ export function settsPaving(): Paving {
       mg.fillRect(x + 1, y + 1, 21, 5);
       hg.fillStyle = "rgb(200,200,200)";
       hg.fillRect(x + 1, y + 1, 21, 5);
+      ig.fillRect(x, y, 22, 7);
     }
   }
   // the grooves: where the wheel flanges run, dark and deep
@@ -334,11 +362,14 @@ export function settsPaving(): Paving {
     mg.fillRect(0, y, n, 2);
     hg.fillStyle = "rgb(0,0,0)";
     hg.fillRect(0, y, n, 2);
+    ig.fillRect(0, y, n, 2);
   }
   p.map.needsUpdate = true;
   p.height.needsUpdate = true;
+  p.id!.needsUpdate = true;
   p.map.wrapT = THREE.ClampToEdgeWrapping;
   p.height.wrapT = THREE.ClampToEdgeWrapping;
+  p.id!.wrapT = THREE.ClampToEdgeWrapping;
   return p;
 }
 

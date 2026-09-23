@@ -172,7 +172,16 @@ export interface PsxOptions {
    * parallax (the stones hide the joints behind them at a slant) and for a relief light
    * worked out here (lit tops, dark joints) that reads in any light.
    */
-  relief?: { height: THREE.Texture; depth: number; tile: number; bump?: number };
+  relief?: {
+    height: THREE.Texture;
+    depth: number;
+    tile: number;
+    bump?: number;
+    /** Stone ids (world/paving.ts): each stone rolls its own height, tone and sinking in world space. */
+    id?: THREE.Texture;
+    /** How many stones sink or have gone (1 = old street setts; 0 = none gone, a few sunk). */
+    holes?: number;
+  };
   /**
    * Large, soft patches of lighter and darker stone (worn, repaired, dirtier) over flat
    * ground, so a tiled paving does not look like one repeated pattern. 0..1 strength.
@@ -283,6 +292,7 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
       shader.uniforms.uReliefDepth = { value: opts.relief.depth };
       shader.uniforms.uReliefTile = { value: opts.relief.tile };
       shader.uniforms.uReliefBump = { value: opts.relief.bump ?? 3 };
+      if (opts.relief.id) shader.uniforms.uStoneId = { value: opts.relief.id };
     }
     if (opts.wet || opts.water) {
       shader.uniforms.uWet = psxUniforms.uWet;
@@ -388,6 +398,32 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         (opts.wet || opts.puddles || opts.vary ? pudNoiseGlsl : "") +
         (opts.vary ? "uniform sampler2D uDirt;\nuniform vec4 uDirtBox;\n" : "") +
         (opts.relief ? "uniform sampler2D uHeight;\nuniform float uReliefDepth;\nuniform float uReliefTile;\nuniform float uReliefBump;\n" : "") +
+        (opts.relief?.id
+          ? /* glsl */ `uniform sampler2D uStoneId;
+// every stone its own dice: its number in the tile mixed with the tile's place in the world
+float psxStoneR(vec2 uv, vec3 s) {
+  vec2 t = floor(uv) - vec2(step(0.5, s.b), 0.0);
+  return fract(sin(dot(vec3(t, floor(s.r * 255.0 + 0.5)), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+}
+// x: gone (a muddy hole), y: sunk; far more of both in the wheel lines of the cart roads
+vec2 psxStoneMS(float r, float wear) {
+  float holes = ${(opts.relief.holes ?? 0).toFixed(2)};
+  return vec2(step(r, (0.012 + 0.07 * wear) * holes), step(r, (0.06 + 0.22 * wear) * holes + 0.02));
+}
+float psxRelH(vec2 uv, float wear) {
+  float h = texture2D(uHeight, uv).r;
+  vec3 s = texture2D(uStoneId, uv).rgb;
+  if (s.g < 0.5) return h;
+  float r = psxStoneR(uv, s);
+  vec2 ms = psxStoneMS(r, wear);
+  // no two stones at the same height; worn ones rounder and lower; sunk ones low; gone ones a hole
+  float top = mix(0.35 + 0.65 * fract(r * 53.7), 0.22, ms.y) * (1.0 - 0.3 * wear);
+  return mix(h * top, 0.02, ms.x);
+}
+`
+          : opts.relief
+            ? "float psxRelH(vec2 uv, float wear) { return texture2D(uHeight, uv).r; }\n"
+            : "") +
         (opts.water
           ? "uniform sampler2D uShore;\nuniform vec4 uShoreBox;\nvarying float vWaveH;\nuniform sampler2D uWaterMirror;\nuniform mat4 uWaterMirrorMat;\nuniform float uWaterMirrorOn;\nuniform sampler2D uFoul;\nuniform vec4 uFoulBox;\n" + foulGlsl
           : ""),
@@ -395,6 +431,8 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
     fs = fs.replace(
       "#include <map_fragment>",
       /* glsl */ `float psxH = 0.5; // how high the stone is here (relief height map); the puddles leave the tops dry
+      // how worn the ground is here: the cart roads (world/dirt.ts, green channel)
+      float psxWear = ${opts.vary ? "texture2D(uDirt, (vPsxWorld.xz - uDirtBox.xy) / uDirtBox.zw).g" : "0.0"};
       #ifdef USE_MAP
       {
         // affine warp fades in with distance: textures swim a little far off,
@@ -416,11 +454,11 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
           vec2 duv = (-relV.xz / max(relV.y, 0.2)) * (uReliefDepth * relFade / uReliefTile) * dl;
           vec2 ruv = psxUv;
           float depth = 0.0;
-          float hDepth = 1.0 - texture2D(uHeight, ruv).r;
+          float hDepth = 1.0 - psxRelH(ruv, psxWear);
           for (int i = 0; i < 14; i++) {
             if (depth >= hDepth) break;
             ruv += duv;
-            hDepth = 1.0 - texture2D(uHeight, ruv).r;
+            hDepth = 1.0 - psxRelH(ruv, psxWear);
             depth += dl;
           }
           psxUv = ruv;
@@ -466,16 +504,36 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
           // relief light from the height map: the tops lit from the sky, the joints dark;
           // it melts into an even tone further off (no shimmer)
           float e = 1.0 / 128.0;
-          float hC = texture2D(uHeight, psxUv).r;
+          float hC = psxRelH(psxUv, psxWear);
           psxH = hC;
-          float hX = texture2D(uHeight, psxUv + vec2(e, 0.0)).r - texture2D(uHeight, psxUv - vec2(e, 0.0)).r;
-          float hZ = texture2D(uHeight, psxUv + vec2(0.0, e)).r - texture2D(uHeight, psxUv - vec2(0.0, e)).r;
+          float hX = psxRelH(psxUv + vec2(e, 0.0), psxWear) - psxRelH(psxUv - vec2(e, 0.0), psxWear);
+          float hZ = psxRelH(psxUv + vec2(0.0, e), psxWear) - psxRelH(psxUv - vec2(0.0, e), psxWear);
           vec3 rn = normalize(vec3(-hX * uReliefBump, 1.0, -hZ * uReliefBump));
           float lit = clamp(dot(rn, normalize(vec3(-0.45, 0.8, -0.35))), 0.0, 1.0);
           // a stone that stands high catches the light; a sunk one lies in its own shade
           float relief = mix(0.6, 1.12, lit) * (0.55 + 0.45 * hC);
+          // worn by the wheels: smoother, the tops polished a little lighter
+          relief = mix(relief, 1.0 + 0.12 * hC, psxWear * 0.45);
           float far = smoothstep(8.0, 22.0, length(vPsxWorld - cameraPosition));
           diffuseColor.rgb *= mix(relief, 0.86, far);
+          ${
+            opts.relief.id
+              ? `{
+            vec3 sid = texture2D(uStoneId, psxUv).rgb;
+            if (sid.g > 0.5) {
+              float r = psxStoneR(psxUv, sid);
+              vec2 ms = psxStoneMS(r, psxWear);
+              // each stone its own tone: lighter, darker, warmer, bluer (the tile's tones never line up)
+              vec3 st = vec3(0.8 + 0.36 * fract(r * 91.3)) * mix(vec3(1.06, 1.0, 0.9), vec3(0.94, 0.98, 1.06), fract(r * 17.9));
+              // a stone gone: a hole of mud and muck; further off only a dark patch (no flicker)
+              st = mix(st, vec3(0.2, 0.15, 0.1) * (0.7 + 0.6 * fract(r * 7.7)), ms.x);
+              st = mix(st, st * 0.85, ms.y * (1.0 - ms.x));
+              float farS = smoothstep(14.0, 30.0, length(vPsxWorld - cameraPosition));
+              diffuseColor.rgb *= mix(st, vec3(mix(1.0, 0.6, ms.x)), farS);
+            }
+          }`
+              : ""
+          }
         }`
             : ""
         }
@@ -555,8 +613,8 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
             if (foul > 0.01) {
               vec2 sp = vPsxWorld.xz * 0.8 + vec2(uTime * 0.03, uTime * 0.017);
               float scum = smoothstep(0.5, 0.68, foulVal(sp) * 0.7 + foulVal(sp * 3.1 + 7.7) * 0.3) * foul;
-              gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor * vec3(0.36, 0.34, 0.28), foul * 0.4);
-              gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor * vec3(0.5, 0.46, 0.36) + vec3(0.015, 0.013, 0.008), scum * 0.85);
+              gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor * vec3(0.3, 0.28, 0.22), foul * 0.45);
+              gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor * vec3(0.26, 0.23, 0.17) + vec3(0.03, 0.024, 0.014), scum * 0.8);
             }
           }
           vec3 rr = reflect(rd, rn);
@@ -651,6 +709,6 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
     );
     shader.fragmentShader = fs;
   };
-  mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}` : ""}${opts.vary ? `-v${opts.vary}` : ""}${opts.detile ? "-dt" : ""}`;
+  mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}${opts.relief.id ? `-id${opts.relief.holes ?? 0}` : ""}` : ""}${opts.vary ? `-v${opts.vary}` : ""}${opts.detile ? "-dt" : ""}`;
   return mat;
 }
