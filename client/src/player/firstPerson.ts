@@ -19,6 +19,10 @@ export class FirstPerson {
   locked = false;
   /** Allow movement without pointer lock (debug/automation). */
   freeInput = false;
+  /** Slower when carrying. Set by the job code. */
+  speedFactor = 1;
+  /** No walking while a paper is up in front of your face. */
+  frozen = false;
   onStep: (surface: Surface, hurry: boolean) => void = () => {};
 
   private keys = new Set<string>();
@@ -60,7 +64,7 @@ export class FirstPerson {
   }
 
   update(dt: number): void {
-    const active = this.locked || this.freeInput;
+    const active = (this.locked || this.freeInput) && !this.frozen;
     const k = (c: string) => active && this.keys.has(c);
     let fx = 0;
     let fz = 0;
@@ -70,7 +74,7 @@ export class FirstPerson {
     if (k("KeyD") || k("ArrowRight")) fx += 1;
     const hurry = k("ShiftLeft") || k("ShiftRight");
     const len = Math.hypot(fx, fz);
-    const speed = hurry ? HURRY : WALK;
+    const speed = (hurry ? HURRY : WALK) * this.speedFactor;
 
     // wish velocity in world space
     const sin = Math.sin(this.yaw);

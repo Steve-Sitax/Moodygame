@@ -26,3 +26,23 @@ None from third parties yet. All M1 textures are painted in code at 64x64
 | @types/three | 0.186.x | MIT |
 | vite | 7.x | MIT |
 | typescript | 7.x | Apache-2.0 |
+
+## npm packages (server, M2)
+
+| Package | Version | Licence |
+|---|---|---|
+| hono | 4.13.8 | MIT |
+| @hono/node-server | 2.1.1 | MIT |
+| ws | 8.21.3 | MIT |
+| better-sqlite3 | 13.0.3 | MIT |
+| zod | 4.6.5 | MIT |
+| @anthropic-ai/claude-agent-sdk | 0.3.280 | Proprietary, (c) Anthropic PBC. Use under Anthropic's legal agreements (https://code.claude.com/docs/en/legal-and-compliance). Declared dependency, not copied into our source. Chosen in docs/02. |
+| vitest | 5.0.1 | MIT |
+| typescript | 7.0.2 | Apache-2.0 |
+| @types/node, @types/ws, @types/better-sqlite3 | 24.x, 8.x, 9.x | MIT |
+
+## npm packages (repo root)
+
+| Package | Version | Licence |
+|---|---|---|
+| concurrently | 10.0.5 | MIT |

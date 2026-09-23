@@ -3,10 +3,12 @@ node_modules/
 dist/
 *.tsbuildinfo
 
-# local game data (M2+)
+# local game data (M2+): save file, WAL files, the empty AI work folder
+data/
 *.db
 *.db-journal
 *.sqlite
+*.sqlite-*
 
 # logs and env
 *.log

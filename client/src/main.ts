@@ -5,6 +5,7 @@ import { psxUniforms } from "./retro/psx";
 import { buildRijnkaai } from "./world/rijnkaai";
 import { FirstPerson } from "./player/firstPerson";
 import { Soundscape } from "./audio/soundscape";
+import { Jobs } from "./game/jobs";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const startEl = document.getElementById("start") as HTMLDivElement;
@@ -16,6 +17,7 @@ const world = buildRijnkaai();
 const player = new FirstPerson(world, canvas);
 const retro = new RetroPass(renderer);
 let sound: Soundscape | null = null;
+const jobs = new Jobs(world, player);
 
 function resize(): void {
   const w = window.innerWidth;
@@ -60,6 +62,7 @@ function frame(): void {
   elapsed += dt;
   world.update(elapsed, dt);
   player.update(dt);
+  jobs.update();
   sound?.update(player.camera);
   retro.render(world.scene, player.camera, elapsed);
   requestAnimationFrame(frame);
@@ -71,6 +74,7 @@ if (import.meta.env.DEV) {
   (window as unknown as Record<string, unknown>).__scheldemist = {
     player,
     world,
+    jobs,
     get sound() {
       return sound;
     },
@@ -81,6 +85,16 @@ if (import.meta.env.DEV) {
     },
     key(code: string, down: boolean) {
       player.setKey(code, down);
+    },
+    /** Run the game logic for some seconds at 60 Hz, without waiting for frames. */
+    step(seconds: number) {
+      const dt = 1 / 60;
+      for (let t = 0; t < seconds; t += dt) {
+        elapsed += dt;
+        world.update(elapsed, dt);
+        player.update(dt);
+        jobs.update();
+      }
     },
     info() {
       return {

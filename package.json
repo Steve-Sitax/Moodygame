@@ -1,0 +1,13 @@
+{
+  "name": "scheldemist",
+  "private": true,
+  "scripts": {
+    "setup": "npm install && npm --prefix server install && npm --prefix client install",
+    "dev": "concurrently -k -n server,client -c yellow,cyan \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "test": "npm --prefix server test",
+    "build": "npm --prefix client run build && npm --prefix server run typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}

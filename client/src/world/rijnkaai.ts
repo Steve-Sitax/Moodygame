@@ -13,6 +13,24 @@ const LOADING_DOCK = { minX: 9, maxX: 23, minZ: 17, maxZ: 21.4 }; // planks in f
 
 export type Surface = "stone" | "wood";
 
+/** Named places for jobs. The server refers to these ids; positions live here. */
+export interface Spot {
+  label: string;
+  x: number;
+  z: number;
+  /** Direction crates stack away from the spot, as a unit vector on the ground. */
+  dir: [number, number];
+}
+export const SPOTS: Record<string, Spot> = {
+  pier_head: { label: "the pier head", x: 7, z: -11, dir: [0, 1] },
+  crane_foot: { label: "the foot of the crane", x: -21, z: 5.2, dir: [1, 0] },
+  hessenatie_door: { label: "the Hessenatie door", x: -12, z: 19.6, dir: [1, 0] },
+  peeters_dock: { label: "the widow's loading door", x: 20, z: 19.2, dir: [1, 0] },
+};
+
+/** The hiring spot: a notice board in front of the Hessenatie. */
+export const BOARD_POS = { x: -16.2, z: 20.5 };
+
 export interface Lamp {
   pos: THREE.Vector3;
   light: THREE.PointLight;
@@ -29,6 +47,10 @@ export interface World {
   shipPositions: THREE.Vector3[];
   /** Try to move from (x,z) by (dx,dz); returns the allowed position (slides on walls). */
   move(x: number, z: number, dx: number, dz: number, radius: number): [number, number];
+  /** Colliders that come and go (job crates). */
+  addCollider(r: Rect): void;
+  removeCollider(r: Rect): void;
+  mats: Mats;
   surfaceAt(x: number, z: number): Surface;
   update(t: number, dt: number): void;
 }
@@ -44,6 +66,7 @@ function mats(tex: Textures) {
     psx(new THREE.MeshLambertMaterial({ map, color, ...DECAL }));
   return {
     wallDecal: decal(tex.quayWall),
+    chalk: psx(new THREE.MeshLambertMaterial({ color: 0xbdb6a0, ...DECAL })),
     woodDecal: decal(tex.planks, 0x5a5048),
     ironDecal: decal(tex.iron),
     planksDecal: psx(
@@ -81,7 +104,7 @@ function mats(tex: Textures) {
   };
 }
 
-type Mats = ReturnType<typeof mats>;
+export type Mats = ReturnType<typeof mats>;
 
 export function buildRijnkaai(): World {
   const scene = new THREE.Scene();
@@ -199,8 +222,9 @@ export function buildRijnkaai(): World {
   const isWalkable = (x: number, z: number) =>
     (x > QUAY.minX && x < QUAY.maxX && z > QUAY.minZ && z < QUAY.maxZ) ||
     (x > PIER.minX && x < PIER.maxX && z > PIER.minZ && z < PIER.maxZ);
+  const dynamic = new Set<Rect>();
   const isFree = (x: number, z: number, r: number) =>
-    isWalkable(x, z) && !colliders.some((c) => inRect(c, x, z, r));
+    isWalkable(x, z) && !colliders.some((c) => inRect(c, x, z, r)) && ![...dynamic].some((c) => inRect(c, x, z, r));
 
   function move(x: number, z: number, dx: number, dz: number, r: number): [number, number] {
     let nx = x + dx;
@@ -242,8 +266,13 @@ export function buildRijnkaai(): World {
     }
   }
 
+  noticeBoard(scene, m, colliders, BOARD_POS.x, BOARD_POS.z);
+
   return {
     scene,
+    mats: m,
+    addCollider: (r) => dynamic.add(r),
+    removeCollider: (r) => dynamic.delete(r),
     lamps,
     shipPositions: [new THREE.Vector3(34, 1, -3), new THREE.Vector3(-34, 1, -21)],
     move,
@@ -394,6 +423,30 @@ function warehouse(
   scene.add(plate);
 
   colliders.push({ minX: cx - half, maxX: cx + half, minZ: front - 0.3, maxZ: front + depth });
+}
+
+/** Hiring board: two posts, a plank face with pinned papers, a little roof. */
+function noticeBoard(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number): void {
+  const g = new THREE.Group();
+  g.position.set(x, 0, z);
+  for (const s of [-1, 1]) g.add(box(0.12, 2.3, 0.12, m.darkWood, s * 0.85, 1.15, 0, 1));
+  g.add(box(1.9, 1.1, 0.08, m.darkWood, 0, 1.55, 0, 1.5));
+  g.add(box(2.1, 0.08, 0.4, m.darkWood, 0, 2.3, -0.05, 1));
+  const paper = psx(new THREE.MeshLambertMaterial({ color: 0x9a927c, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }));
+  const spots: Array<[number, number, number, number]> = [
+    [-0.55, 1.7, 0.42, 0.52],
+    [0.0, 1.62, 0.36, 0.46],
+    [0.5, 1.72, 0.4, 0.5],
+    [-0.2, 1.25, 0.5, 0.3],
+  ];
+  for (const [px, py, w, h] of spots) {
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), paper);
+    p.position.set(px, py, -0.045);
+    p.rotation.set(0, Math.PI, (px * 7) % 0.12);
+    g.add(p);
+  }
+  scene.add(g);
+  colliders.push(rectAround(x, z, 1.0, 0.2));
 }
 
 function fence(scene: THREE.Scene, m: Mats, x0: number, x1: number, z: number): void {
