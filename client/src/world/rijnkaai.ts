@@ -17,7 +17,7 @@ import { buildFarBank } from "./farbank";
 import { createStreetLife, type StreetLife } from "./streetlife";
 import { createTraffic, type Traffic } from "./traffic";
 import { createRailway, type CraneSite, type Railway } from "./railway";
-import { createOmnibus, STOPS as OMNIBUS_STOPS, type Omnibus } from "./omnibus";
+import { createOmnibus, omnibusKeepOut, STOPS as OMNIBUS_STOPS, type Omnibus } from "./omnibus";
 import { quaySteps, shoreTexture, frameAt, type Exit } from "./quaysteps";
 import { buildPier, PIER_BOLLARD } from "./pier";
 import { waveAt } from "../retro/psx";
@@ -248,10 +248,13 @@ export function buildRijnkaai(): World {
   const trackData = (CITY_DATA as unknown as { decor?: TrackData }).decor ?? {};
   const bridgeRects = Object.values((CITY_DATA as unknown as { bridges?: Record<string, number[]> }).bridges ?? {});
   buildTracks(scene, trackData, bridgeRects.map((b) => ({ minX: Math.min(b[0], b[2]), maxX: Math.max(b[0], b[2]), minZ: Math.min(b[1], b[3]), maxZ: Math.max(b[1], b[3]) })));
+  // the horse omnibus's lane round the quays (world/omnibus.ts): props, pumps and troughs keep off it
+  const omnibusLane = omnibusKeepOut();
   const propsKeepOut: Rect[] = [
     { minX: -72, maxX: 66, minZ: -30, maxZ: 27 },
     ...bridgeRects.map((b) => ({ minX: Math.min(b[0], b[2]) - 4, maxX: Math.max(b[0], b[2]) + 4, minZ: Math.min(b[1], b[3]) - 4, maxZ: Math.max(b[1], b[3]) + 4 })),
     ...trackKeepOut(trackData),
+    ...omnibusLane,
   ];
   // shop signs, awnings, corner Madonnas, pumps, washing lines, grime (world/streetlife.ts),
   // set after the carts and crates so the pumps keep off them
@@ -260,7 +263,7 @@ export function buildRijnkaai(): World {
     .then(() => dressCity(scene, city.flags, { keepOut: propsKeepOut }))
     .then((d) => {
       colliders.push(...d.colliders);
-      return createStreetLife(scene, city.flags, { avoid: d.colliders });
+      return createStreetLife(scene, city.flags, { avoid: [...d.colliders, ...omnibusLane] });
     })
     .then((sl) => {
       street = sl;

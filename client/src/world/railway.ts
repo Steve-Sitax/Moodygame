@@ -783,9 +783,10 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       const sp = spanOf(br.rect);
       if (!sp) continue;
       for (const [s0] of sp) {
+        // 8 m short: an open swing bridge lies on the quay beside its pit, over the rails
         if (s0 > head - 0.5 && s0 - head < 40 && !br.closed()) {
-          if (s0 - 2 < lim) {
-            lim = s0 - 2;
+          if (s0 - 8 < lim) {
+            lim = Math.max(head, s0 - 8);
             waitWhy = "bridge";
           }
         }
@@ -802,6 +803,10 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
         break;
       }
     }
+    // (the train's own boxes out of the way meanwhile: turned on a bend, they reach ahead)
+    const own = [...horseRects, ...wagons.map((w) => w.rect)];
+    const keep = own.map((r) => [r.minX, r.maxX]);
+    for (const r of own) r.minX = r.maxX = 1e6;
     for (const d of [1.5, 3, 4.5]) {
       const i = Math.round((head + d) / Line.STEP);
       if (i < 0 || i >= line.x.length || !watch[i]) continue;
@@ -813,6 +818,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
         break;
       }
     }
+    own.forEach((r, k) => ([r.minX, r.maxX] = keep[k]));
     return lim;
   }
 
@@ -1149,7 +1155,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     colliders: () => [...horseRects, ...wagons.map((w) => w.rect)],
     busy(r) {
       if (state === "shed") return false;
-      for (const [s0, s1] of spanOf(r)) if (head + 6 > s0 - 1 && head - trainLen < s1 + 1) return true;
+      for (const [s0, s1] of spanOf(r)) if (head + 10 > s0 - 1 && head - trainLen < s1 + 1) return true;
       return false;
     },
     horses,

@@ -4,7 +4,8 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import CITY from "../../../shared/city.json";
 import { psx, psxUniforms } from "../retro/psx";
 import { createMirror } from "./mirror";
-import { brickBandTexture, earthTexture, facadeAtlas, flagsTexture, glassTexture, leafTexture, roofAtlas, slateTexture, stoneTexture } from "./cityTextures";
+import { cobblePaving, flagPaving } from "./paving";
+import { brickBandTexture, earthTexture, facadeAtlas, glassTexture, leafTexture, roofAtlas, slateTexture, stoneTexture } from "./cityTextures";
 import { makeTextures } from "./textures";
 import { slimeCuts, slimeShade } from "./quaysteps";
 
@@ -94,13 +95,15 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
     const zones = (data as unknown as { ground?: Record<string, number[][]> }).ground ?? { cobble: data.land };
     const BUMP = 4;
     const earthTex = earthTexture();
-    const flagsTex = flagsTexture();
+    // cobbles and flagstones with height maps (world/paving.ts): they stand up (psx relief)
+    const cobPave = cobblePaving();
+    const flagPave = flagPaving();
     const zoneMat: Record<string, [THREE.Material, number]> = {
       // bump maps from the texture itself: light stone stands up, dark joints sink, so the
       // sun and the gas lamps pick out every sett (Steve: "bump mapping?")
-      cobble: [psx(new THREE.MeshPhongMaterial({ map: cob.map, bumpMap: cob.map, bumpScale: BUMP, color: cob.color, specular: cob.specular, shininess: cob.shininess }), { noSnap: true, affine: 0, wet: true, puddles: 1 }), 2],
+      cobble: [psx(new THREE.MeshPhongMaterial({ map: cobPave.map, color: 0xffffff, specular: cob.specular, shininess: cob.shininess }), { noSnap: true, affine: 0, wet: true, puddles: 1, relief: { height: cobPave.height, depth: 0.06, tile: 2 } }), 2],
       earth: [psx(new THREE.MeshLambertMaterial({ map: earthTex, bumpMap: earthTex, bumpScale: BUMP * 0.6 }), { noSnap: true, affine: 0, wet: true, puddles: 1.3 }), 4],
-      flags: [psx(new THREE.MeshPhongMaterial({ map: flagsTex, bumpMap: flagsTex, bumpScale: BUMP, specular: 0x1a1a1a, shininess: 12 }), { noSnap: true, affine: 0, wet: true, puddles: 0.75 }), 4],
+      flags: [psx(new THREE.MeshPhongMaterial({ map: flagPave.map, specular: 0x1a1a1a, shininess: 12 }), { noSnap: true, affine: 0, wet: true, puddles: 0.75, relief: { height: flagPave.height, depth: 0.03, tile: 4, bump: 2 } }), 4],
     };
     for (const [zone, tris] of Object.entries(zones)) {
       const [mat, tile] = zoneMat[zone] ?? zoneMat.cobble;

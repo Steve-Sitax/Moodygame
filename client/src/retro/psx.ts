@@ -141,6 +141,12 @@ export interface PsxOptions {
    * elsewhere (1 = the city's normal; earth quays more, flagstones less).
    */
   puddles?: number;
+  /**
+   * Stones that stand up (flat ground only, uv = world xz / tile): a height map for
+   * parallax (the stones hide the joints behind them at a slant) and for a relief light
+   * worked out here (lit tops, dark joints) that reads in any light.
+   */
+  relief?: { height: THREE.Texture; depth: number; tile: number; bump?: number };
 }
 
 const commonVertex = /* glsl */ `
@@ -235,6 +241,12 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
     shader.uniforms.uLampColor = psxUniforms.uLampColor;
     shader.uniforms.uScatter = psxUniforms.uScatter;
     shader.uniforms.uAffine = { value: affine };
+    if (opts.relief) {
+      shader.uniforms.uHeight = { value: opts.relief.height };
+      shader.uniforms.uReliefDepth = { value: opts.relief.depth };
+      shader.uniforms.uReliefTile = { value: opts.relief.tile };
+      shader.uniforms.uReliefBump = { value: opts.relief.bump ?? 3 };
+    }
     if (opts.wet || opts.water) {
       shader.uniforms.uWet = psxUniforms.uWet;
       shader.uniforms.uRain = psxUniforms.uRain;
@@ -335,6 +347,7 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         (opts.wet || opts.water ? wetFragment : "") +
         (opts.puddles ? "uniform float uPuddle;\nuniform sampler2D uMirror;\nuniform mat4 uMirrorMat;\nuniform sampler2D uPudNoise;\n" : "") +
         (opts.wet || opts.puddles ? pudNoiseGlsl : "") +
+        (opts.relief ? "uniform sampler2D uHeight;\nuniform float uReliefDepth;\nuniform float uReliefTile;\nuniform float uReliefBump;\n" : "") +
         (opts.water
           ? "uniform sampler2D uShore;\nuniform vec4 uShoreBox;\nvarying float vWaveH;\nuniform sampler2D uWaterMirror;\nuniform mat4 uWaterMirrorMat;\nuniform float uWaterMirrorOn;\n"
           : ""),
@@ -349,8 +362,49 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         float near = smoothstep(4.0, 14.0, length(vPsxWorld - cameraPosition));
         vec2 psxUv = mix(vMapUv, affUv, uAffine * near);
         ${opts.atlas ? `psxUv = (vCell + fract(psxUv)) / ${opts.atlas.toFixed(1)};` : ""}
+        ${
+          opts.relief
+            ? `// parallax occlusion: step into the stones along the view ray, near the eye only
+        vec3 relV = cameraPosition - vPsxWorld;
+        float relDist = length(relV);
+        relV /= max(relDist, 1e-4);
+        float relFade = 1.0 - smoothstep(6.0, 14.0, relDist);
+        if (relFade > 0.0) {
+          float layers = mix(14.0, 5.0, clamp(relV.y, 0.0, 1.0));
+          float dl = 1.0 / layers;
+          vec2 duv = (-relV.xz / max(relV.y, 0.2)) * (uReliefDepth * relFade / uReliefTile) * dl;
+          vec2 ruv = psxUv;
+          float depth = 0.0;
+          float hDepth = 1.0 - texture2D(uHeight, ruv).r;
+          for (int i = 0; i < 14; i++) {
+            if (depth >= hDepth) break;
+            ruv += duv;
+            hDepth = 1.0 - texture2D(uHeight, ruv).r;
+            depth += dl;
+          }
+          psxUv = ruv;
+        }`
+            : ""
+        }
         vec4 sampledDiffuseColor = texture2D(map, psxUv);
         diffuseColor *= sampledDiffuseColor;
+        ${
+          opts.relief
+            ? `{
+          // relief light from the height map: the tops lit from the sky, the joints dark;
+          // it melts into an even tone further off (no shimmer)
+          float e = 1.0 / 128.0;
+          float hC = texture2D(uHeight, psxUv).r;
+          float hX = texture2D(uHeight, psxUv + vec2(e, 0.0)).r - texture2D(uHeight, psxUv - vec2(e, 0.0)).r;
+          float hZ = texture2D(uHeight, psxUv + vec2(0.0, e)).r - texture2D(uHeight, psxUv - vec2(0.0, e)).r;
+          vec3 rn = normalize(vec3(-hX * uReliefBump, 1.0, -hZ * uReliefBump));
+          float lit = clamp(dot(rn, normalize(vec3(-0.45, 0.8, -0.35))), 0.0, 1.0);
+          float relief = mix(0.5, 1.15, lit) * (0.6 + 0.4 * hC);
+          float far = smoothstep(8.0, 22.0, length(vPsxWorld - cameraPosition));
+          diffuseColor.rgb *= mix(relief, 0.86, far);
+        }`
+            : ""
+        }
         ${
           opts.water
             ? `{
@@ -506,6 +560,6 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
     );
     shader.fragmentShader = fs;
   };
-  mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}`;
+  mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}` : ""}`;
   return mat;
 }

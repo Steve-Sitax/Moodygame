@@ -506,7 +506,7 @@ async function verdictAndReply(db: DB, id: string, stance: Stance, said: string,
       ? "A warning. No fine this time. The thing goes back to its owner."
       : dec.verdict === "fine"
         ? `A fine of ${dec.fine_c} centimes, which he pays to you here and now. The thing goes back to its owner.`
-        : `Arrest. You take him by the arm to ${policePost().label} for a night in the cell. ${Math.min(dec.fine_c, p.money_c) > 0 ? `The fine, ${Math.min(dec.fine_c, p.money_c)} centimes, is taken from him.` : "He has no money for the fine."} Whatever work he had is lost.`;
+        : `Arrest. You take him by the arm to ${policePost().label} for a night in the cell. ${Math.min(dec.fine_c, p.money_c) > 0 ? `The fine, ${Math.min(dec.fine_c, p.money_c)} centimes, is taken from him.` : "He has no money for the fine."}${jobInHand(db) ? ` The job he had in hand ("${jobInHand(db)}") is lost.` : " He has no work in hand."}`;
   const c = clock(db);
   const prompt = `PERSON
 ${r ? `${r.name}, ${r.age}, agent of the city police` : "An agent of the city police"}. Stats 0-10: honesty ${r?.stats.honesty ?? 6}, temper ${r?.stats.temper ?? 5}, warmth ${r?.stats.warmth ?? 4}, courage ${r?.stats.courage ?? 7}.
@@ -549,8 +549,21 @@ Tell him, in character.`;
   };
 }
 
-/** The model may not name another sum than the engine's. */
-function sumsOk(line: string, verdict: Verdict, fine: number, paid: number): boolean {
+function jobInHand(db: DB): string | null {
+  return (db.prepare("SELECT title FROM job WHERE status = 'taken' LIMIT 1").get() as { title: string } | undefined)?.title ?? null;
+}
+
+const UNITS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, fifteen: 15, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90, hundred: 100 };
+/** "thirty-five centimes" -> "35 centimes", so the sum check reads words too. */
+export function wordsToDigits(line: string): string {
+  return line.replace(/(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|hundred)(?:[- ](one|two|three|four|five|six|seven|eight|nine))?/gi, (_m, a: string, b?: string) =>
+    String((UNITS[a.toLowerCase()] ?? 0) + (b ? (UNITS[b.toLowerCase()] ?? 0) : 0)),
+  );
+}
+
+/** The model may not name another sum than the engine's (in figures or in words). */
+function sumsOk(raw: string, verdict: Verdict, fine: number, paid: number): boolean {
+  const line = wordsToDigits(raw);
   const nums = [...line.matchAll(/(\d+)\s*(?:centimes?|c\b|francs?)/gi)].map((m) => ({ n: Number(m[1]), franc: /franc/i.test(m[0]) }));
   const allowed = new Set([fine, paid]);
   for (const x of nums) {
@@ -653,7 +666,12 @@ export function cellNight(db: DB, paid: number): CellNight {
   return { summary, day: c.day + 1, post };
 }
 
-/** The client has shown the night: hand it over once. */
+/** The night in the cell, for the sheet (kept until the client says Jef is out: a reload shows it again). */
+export function cellNightView(db: DB): CellNight | null {
+  return policeState(db).cell;
+}
+
+/** Jef walked out of the post in the morning: the night is done with. */
 export function takeCellNight(db: DB): CellNight | null {
   const s = policeState(db);
   const n = s.cell;

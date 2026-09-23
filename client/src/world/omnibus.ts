@@ -46,6 +46,18 @@ const ROUTE: P[] = [
   [-62, 8.3], [66, 8.3], [76, 15], [76, 37], [-54, 37], [-58, 33], [-58, 12], [-62, 8.3], [-204, 8.3], [-204, 29.5],
 ];
 
+/** Boxes along the omnibus's lane, for props, pumps and troughs to keep off it (rijnkaai.ts). */
+export function omnibusKeepOut(): Rect[] {
+  const loop = new Loop(ROUTE, 5);
+  const out: Rect[] = [];
+  for (let i = 0; i < loop.x.length; i += 8) {
+    const x = loop.x[i];
+    const z = loop.z[i];
+    out.push({ minX: x - 1.9, maxX: x + 1.9, minZ: z - 1.9, maxZ: z + 1.9 });
+  }
+  return out;
+}
+
 const CRUISE = 3.2; // m/s: a brisk trot (11 km/h)
 const LAT = 1.0; // m/s2 sideways on the bends
 const ACCEL = 0.7;
@@ -430,8 +442,9 @@ export function createOmnibus(scene: THREE.Scene, opts: OmnibusOptions): Omnibus
     for (const br of opts.bridges()) {
       for (const [s0] of spanOf(br.rect)) {
         const ahead = loop.wrap(s0 - nose);
-        if (ahead < 30 && !br.closed() && ahead - 2 < lim) {
-          lim = Math.max(0, ahead - 2);
+        // 8 m short: an open swing bridge lies on the quay beside its pit, across the lane
+        if (ahead < 30 && !br.closed() && ahead - 8 < lim) {
+          lim = Math.max(0, ahead - 8);
           waitWhy = "bridge";
         }
       }
@@ -447,6 +460,9 @@ export function createOmnibus(scene: THREE.Scene, opts: OmnibusOptions): Omnibus
         }
       }
     }
+    // (its own boxes out of the way meanwhile: turned on a bend, they reach ahead of the noses)
+    const keep = rects.map((r) => [r.minX, r.maxX]);
+    for (const r of rects) r.minX = r.maxX = 1e6;
     for (const dd of [1.2, 2.6, 4]) {
       const i = Math.floor(loop.wrap(nose + dd) / Loop.STEP);
       if (!watch[i]) continue;
@@ -456,6 +472,7 @@ export function createOmnibus(scene: THREE.Scene, opts: OmnibusOptions): Omnibus
         break;
       }
     }
+    rects.forEach((r, k) => ([r.minX, r.maxX] = keep[k]));
     return lim;
   }
 
@@ -565,9 +582,9 @@ export function createOmnibus(scene: THREE.Scene, opts: OmnibusOptions): Omnibus
     },
     colliders: () => rects,
     busy(r) {
-      // the rig from its tail to 8 m before the horses' noses, against the bridge's stretch
+      // the rig from its tail to 10 m before the horses' noses, against the bridge's stretch
       const a = s + TAIL;
-      const lr = NOSE - TAIL + 8;
+      const lr = NOSE - TAIL + 10;
       for (const [s0, s1] of spanOf(r)) {
         const b = s0 - 1;
         if (loop.wrap(b - a) < lr || loop.wrap(a - b) < s1 - s0 + 2) return true;

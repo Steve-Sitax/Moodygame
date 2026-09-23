@@ -4,7 +4,7 @@ import type { Ending } from "../day.ts";
 import { GameError } from "../game.ts";
 import { plainEnglish } from "../text.ts";
 import { clearDeeds, deedRow, deedRumours, deedWorld, leaveVelo, returnThing, takeThing } from "./deeds.ts";
-import { deedSettled, isPoliceTalk, policeEvents, policeAnswer, policeArrived, policeFled, policeOpen, policeTick, policeView, policeRespond, resetPolice, takeCellNight } from "./police.ts";
+import { deedSettled, isPoliceTalk, policeEvents, policeAnswer, policeArrived, policeFled, policeOpen, policeTick, policeView, policeRespond, resetPolice, takeCellNight, cellNightView } from "./police.ts";
 import { isResident } from "./store.ts";
 
 // The HTTP side of theft and the police (M3h). Mounted by index.ts before the
@@ -82,9 +82,13 @@ export function mountDeeds(app: Hono, deps: DeedDeps): void {
     return c.json({ ...r, ...policeView(db) });
   });
 
-  /** The night in the cell, once, for the sheet. */
+  app.post("/api/police/cell/done", (c) => {
+    takeCellNight(db);
+    return c.json({ ok: true });
+  });
+  /** The night in the cell, for the sheet (again after a reload, until "done"). */
   app.post("/api/police/cell", (c) => {
-    const n = takeCellNight(db);
+    const n = cellNightView(db);
     if (!n) throw new GameError("no night to show", 409);
     return c.json({ night: n, ...payload() });
   });

@@ -5,7 +5,7 @@ import { applyTrust, remember } from "../npcs.ts";
 import { POCKET_SLOTS, atWork } from "../trade.ts";
 import { weather, type Weather } from "../day.ts";
 import { activityAt } from "./schedule.ts";
-import { resident, town } from "./store.ts";
+import { TOWN_EMPLOYER_IDS, resident, town } from "./store.ts";
 import { houseDoors, walkMap } from "./walkmap.ts";
 import type { Resident } from "./population.ts";
 import SPOTS from "../../../shared/spots.json" with { type: "json" };
@@ -486,7 +486,8 @@ export interface DeedResult {
 /** How the owner answers a theft under their nose: by their stats (engine). */
 export function reactionOf(db: DB, owner: string): Reaction {
   const r = resident(db, owner);
-  if (!r) return ({ sooi: "chase", peeters: "shout", tuur: "ask", fientje: "shout" } as Record<string, Reaction>)[owner] ?? "shout";
+  // the quay's own people and the board's employers keep their posts: they shout, and remember
+  if (!r || TOWN_EMPLOYER_IDS.includes(owner)) return "shout";
   if (r.age < 14 || r.age >= 65) return "shout";
   if (r.stats.courage >= 6 && r.stats.temper >= 5) return "chase";
   if (r.stats.warmth >= 6 || r.stats.courage <= 3) return "ask";
@@ -606,13 +607,12 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
       tt[req.ref] = (tt[req.ref] ?? 0) + 1;
       setState(db, `table_takes:${p.day}`, tt);
     }
+    const took = t.thing === "food" ? `Jef took ${FOOD_NAME[t.item]} from ${t.where}` : `Jef took ${ownerName}'s ${t.noun} ${t.where}`;
     log(
       db,
       "stole",
       req.ref,
-      seen
-        ? `Jef took ${ownerName}'s ${t.noun} ${t.where}, and ${ownerSaw ? `${ownerName} saw it` : `${tellers.length === 1 ? npcName(db, tellers[0].id) : `${tellers.length} people`} saw it`}.`
-        : `Jef took ${ownerName}'s ${t.noun} ${t.where}. Nobody saw.`,
+      seen ? `${took}, and ${ownerSaw ? `${ownerName} saw it` : `${tellers.length === 1 ? npcName(db, tellers[0].id) : `${tellers.length} people`} saw it`}.` : `${took}. Nobody saw.`,
     );
   })();
 

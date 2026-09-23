@@ -583,6 +583,7 @@ export class Deeds {
     this.jobs.day.hold = false;
     this.player.frozen = false;
     this.player.place(post.x, post.z, post.yaw);
+    void net("POST", "/api/police/cell/done").catch(() => {});
     this.jobs.say("The door of the police post shuts behind you. The Grote Markt is grey and cold, and your job is gone.");
   }
 
