@@ -4,6 +4,7 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import CITY from "../../../shared/city.json";
 import { psx } from "../retro/psx";
 import { brickBandTexture, facadeAtlas, glassTexture, roofAtlas, slateTexture, stoneTexture } from "./cityTextures";
+import { makeTextures } from "./textures";
 
 // Antwerp, 1873, traced from the Vuillaume map (CC0) and built in Blender
 // (tools/city, tools/blender). This module lays the ground and the quays, loads
@@ -69,6 +70,7 @@ const LANDMARK_HEIGHT: Record<string, number> = {
   carolus: 24,
   stpaul: 20,
   stjacob: 24,
+  hanzehuis: 16,
 };
 
 export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; quayWall: THREE.Material; wallDecal: THREE.Material }, waterY: number): CityWorld {
@@ -171,11 +173,11 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
 
   // --- landmarks from Blender (tools/blender/build_landmarks.py) replace the stand-ins
   const lmMats: Record<string, THREE.Material> = {
-    stone: psx(new THREE.MeshLambertMaterial({ map: stoneTexture(), color: 0xd8d0c0, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0.2 }),
-    slate: psx(new THREE.MeshLambertMaterial({ map: slateTexture(), vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0.2 }),
-    glass: psx(new THREE.MeshLambertMaterial({ map: glassTexture(), vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0.2 }),
-    brickband: psx(new THREE.MeshLambertMaterial({ map: brickBandTexture(), vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0.2 }),
-    lead: psx(new THREE.MeshLambertMaterial({ color: 0x4a4e52, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0.2 }),
+    stone: psx(new THREE.MeshLambertMaterial({ map: stoneTexture(), color: 0xd8d0c0, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 }),
+    slate: psx(new THREE.MeshLambertMaterial({ map: slateTexture(), vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 }),
+    glass: psx(new THREE.MeshLambertMaterial({ map: glassTexture(), vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 }),
+    brickband: psx(new THREE.MeshLambertMaterial({ map: brickBandTexture(), vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 }),
+    lead: psx(new THREE.MeshLambertMaterial({ color: 0x4a4e52, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 }),
   };
   const lmLoader = new GLTFLoader().setDRACOLoader(new DRACOLoader().setDecoderPath("/draco/"));
   const landmarks = lmLoader.loadAsync("/models/landmarks.glb").then((gltf) => {
@@ -200,8 +202,10 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
   // --- houses from Blender
   // both sides drawn: a wall seen from behind (a party wall, a gable back) is never a hole
   const DS = THREE.DoubleSide;
-  const facade = psx(new THREE.MeshLambertMaterial({ map: facadeAtlas(), vertexColors: true, side: DS }), { atlas: 4, affine: 0.12 });
-  const roof = psx(new THREE.MeshLambertMaterial({ map: roofAtlas(), vertexColors: true, side: DS }), { atlas: 2, affine: 0.12 });
+  const facade = psx(new THREE.MeshLambertMaterial({ map: facadeAtlas(), vertexColors: true, side: DS }), { atlas: 4, affine: 0 });
+  const roof = psx(new THREE.MeshLambertMaterial({ map: roofAtlas(), vertexColors: true, side: DS }), { atlas: 2, affine: 0 });
+  const wood = psx(new THREE.MeshLambertMaterial({ map: makeTextures().planks, vertexColors: true, side: DS }), { affine: 0.2 });
+  const leaves = psx(new THREE.MeshLambertMaterial({ vertexColors: true, side: DS }), { affine: 0 });
   const trim = psx(new THREE.MeshLambertMaterial({ map: stoneTexture(), vertexColors: true, side: DS }), { affine: 0.2 });
   const chunks: THREE.Mesh[] = [];
   const draco = new DRACOLoader().setDecoderPath("/draco/");
@@ -221,7 +225,7 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
         g.deleteAttribute("uv1");
       }
       const name = (m.material as THREE.Material).name;
-      m.material = name === "facade" ? facade : name === "roof" ? roof : trim;
+      m.material = name === "facade" ? facade : name === "roof" ? roof : name === "wood" ? wood : name === "leaves" ? leaves : trim;
       g.computeBoundingSphere();
       chunks.push(m);
     });

@@ -227,7 +227,9 @@ def signed_area(fp):
 
 def land_and_quays(city):
     area = Polygon(city["area"])
-    water = unary_union([poly_of(w) for w in city["water"]]).difference(unary_union(bridge_polys()))
+    water = unary_union([poly_of(w) for w in city["water"]])
+    if not city.get("designed"):
+        water = water.difference(unary_union(bridge_polys()))  # the traced map: bridges were land
     land = area.difference(water).buffer(0)
     tris = []
     for p in pieces(land):
@@ -419,15 +421,59 @@ def door_spots(doors):
     json.dump(spots, open(path, "w"), indent=1)
 
 
+def make_storehouse(bi, poly, kind, water, rng):
+    """One long storehouse over a whole block (warehouses on the docks, the Entrepot).
+    Its front, with the loading door, is the long side nearest the water."""
+    r = poly.minimum_rotated_rectangle
+    cs = list(r.exterior.coords)[:4]
+    best = None
+    for i in range(4):
+        a, b = cs[i], cs[(i + 1) % 4]
+        L = math.hypot(b[0] - a[0], b[1] - a[1])
+        ux, uz = (b[0] - a[0]) / L, (b[1] - a[1]) / L
+        # inward normal: toward the rectangle's centre
+        nx, nz = -uz, ux
+        cx, cz = r.centroid.x, r.centroid.y
+        if (cx - a[0]) * nx + (cz - a[1]) * nz < 0:
+            nx, nz = -nx, -nz
+        mid = Point((a[0] + b[0]) / 2 - nx * 4, (a[1] + b[1]) / 2 - nz * 4)
+        score = (L, -mid.distance(water))
+        if best is None or score > best[0]:
+            W = max(math.hypot(cs[(i + 2) % 4][0] - b[0], cs[(i + 2) % 4][1] - b[1]), 1)
+            best = (score, a, (ux, uz), (nx, nz), L, W)
+    _, o, u, n, L, W = best
+    st = 4 if kind == "entrepot" else rng.choice([3, 4])
+    return {
+        "b": bi, "rect": True, "store": kind,
+        "fp": rnd(list(r.exterior.coords)[:-1]),
+        "o": [round(o[0], 2), round(o[1], 2)], "u": [round(u[0], 5), round(u[1], 5)], "n": [round(n[0], 5), round(n[1], 5)],
+        "s": [0.0, round(L, 2)], "t": [0.0, round(W, 2)],
+        "h": round(GROUND_H + 0.6 + STOREY_H * (st - 1), 2), "st": st,
+        "roof": "side", "gable": "none", "pitch": 32.0,
+        "style": "brick" if kind == "entrepot" else "brick_dark", "tint": round(rng.uniform(0.9, 1.02), 3),
+        "roofMat": "slate", "seed": rng.randrange(1 << 30),
+    }
+
+
 def main():
+    global BRIDGES, DOORS
     city = json.load(open(CITY))
-    osm = json.load(open(OSM))
-    ways = {e["id"]: e for e in osm["elements"] if e["type"] == "way"}
+    designed = city.get("designed", False)
     landmarks = {}
-    for name, wid in LANDMARKS.items():
-        pts = [world_from_latlon(city, p["lat"], p["lon"]) for p in ways[wid]["geometry"]]
-        poly = Polygon(pts).buffer(0)
-        landmarks[name] = {"fp": rnd(list(shapely.geometry.polygon.orient(poly, 1.0).exterior.coords)[:-1]), "osm": wid}
+    if designed:
+        # the compact designed map (tools/city/design.py): landmarks, doors and bridges come with it
+        for name, l in city["designedLandmarks"].items():
+            poly = Polygon(l["fp"]).buffer(0)
+            landmarks[name] = {"fp": rnd(list(shapely.geometry.polygon.orient(poly, 1.0).exterior.coords)[:-1]), "osm": l.get("osm")}
+        BRIDGES = {k: v["rect"] for k, v in city["designedBridges"].items()}
+        DOORS = {k: tuple(v) for k, v in city["designedDoors"].items()}
+    else:
+        osm = json.load(open(OSM))
+        ways = {e["id"]: e for e in osm["elements"] if e["type"] == "way"}
+        for name, wid in LANDMARKS.items():
+            pts = [world_from_latlon(city, p["lat"], p["lon"]) for p in ways[wid]["geometry"]]
+            poly = Polygon(pts).buffer(0)
+            landmarks[name] = {"fp": rnd(list(shapely.geometry.polygon.orient(poly, 1.0).exterior.coords)[:-1]), "osm": wid}
     public_polys = [poly_of(p) for p in city["public"]]
     public = unary_union(public_polys)
     # a landmark takes its whole orange patch of the old map (it sits a few metres
@@ -445,14 +491,30 @@ def main():
     houses, backs = [], []
     blocks = [poly_of(b) for b in city["blocks"]]
     planned = []  # the block outlines the plots were cut from
+    water_all = unary_union([poly_of(w) for w in city["water"]])
     for bi, b in enumerate(blocks):
+        kind = city["blocks"][bi].get("kind", "houses")
         for part in pieces(b.difference(cut)):
             if part.area < 12:
                 continue
-            outline = Polygon(part.exterior).simplify(1.2, preserve_topology=True)
-            if outline.is_valid and outline.area > 12:
-                planned.append(outline)
+            outline = Polygon(part.exterior).simplify(0.3 if designed else 1.2, preserve_topology=True)
+            if not (outline.is_valid and outline.area > 12):
+                continue
+            planned.append(outline)
+            if kind in ("warehouse", "entrepot"):
+                houses.append(make_storehouse(bi, outline, kind, water_all, rng))
+            else:
+                n0 = len(houses)
                 plan_block(bi, outline, part.interiors, public, rng, houses, backs)
+                if kind == "guild":
+                    # guild houses: tall, narrow, stone and plaster, stepped or bell gables to the square
+                    for h in houses[n0:]:
+                        if h.get("back") or not h["rect"]:
+                            continue
+                        st = rng.choice([4, 5, 5])
+                        h.update({"st": st, "h": round(GROUND_H + STOREY_H * (st - 1), 2), "roof": "front",
+                                  "gable": rng.choice(["step", "spout", "spout"]), "pitch": round(rng.uniform(55, 62), 1),
+                                  "style": rng.choice(["plaster", "plaster", "brick", "plaster_grey"]), "tint": round(rng.uniform(0.95, 1.1), 3)})
     # a wall faces the street when the ground just outside it is not inside any
     # planned block (the same outlines the plots come from) nor a landmark
     solids = unary_union(planned + [Polygon(l["fp"]).buffer(0) for l in landmarks.values()])
@@ -463,12 +525,15 @@ def main():
     city["land"] = tris
     city["quays"] = quays
     city["bridges"] = BRIDGES
+    if designed:
+        city["bridgeKinds"] = {k: v["kind"] for k, v in city["designedBridges"].items()}
     city["doors"] = find_doors(houses)
     door_spots(city["doors"])
     city["walk"] = walk_map(city, houses, backs, landmarks)
     city["rijnkaaiEdge"] = quay_edge(city)
     json.dump(city, open(CITY, "w"), separators=(",", ":"))
-    json.dump({"houses": houses, "backs": backs, "landmarks": landmarks, "ground_h": GROUND_H, "storey_h": STOREY_H}, open(BUILD, "w"), separators=(",", ":"))
+    json.dump({"houses": houses, "backs": backs, "landmarks": landmarks, "ground_h": GROUND_H, "storey_h": STOREY_H,
+               "bridges": city.get("designedBridges", {}), "decor": city.get("decor", {})}, open(BUILD, "w"), separators=(",", ":"))
     kinds = {}
     for h in houses:
         k = h["roof"] + ("/" + h["gable"] if h["gable"] != "none" else "")

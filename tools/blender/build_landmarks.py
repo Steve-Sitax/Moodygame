@@ -529,6 +529,229 @@ def material(name, rgb):
     return mt
 
 
+def steen2(fr):
+    """Het Steen, the castle on the river, in more detail: curtain walls with
+    battlements, three round towers under conical slate roofs, a tall gatehouse
+    with a stepped gable facing the Steenplein, the main hall with dormers and a
+    slender watch turret. v > 0 is the Steenplein side (the frame's open side)."""
+    m = Mesh(fr)
+    L, W = fr.L, fr.W
+    u0, u1, v0, v1 = -L / 2 + 1.5, L / 2 - 1.5, -W / 2 + 1.5, W / 2 - 1.5
+    H = 11.0
+    # rough stone base, slightly battered
+    m.box(u0 - 0.6, u1 + 0.6, v0 - 0.6, v1 + 0.6, -1.0, 2.2, STONE, top=False, shade=0.7)
+    m.box(u0, u1, v0, v1, 2.2, H, STONE, top=True, top_mat=LEAD, shade=0.82)
+    # battlements: a walkway parapet with merlons all round
+    for (a0, a1, fixed, axis) in ((u0, u1, v0, "v"), (u0, u1, v1, "v"), (v0, v1, u0, "u"), (v0, v1, u1, "u")):
+        k = a0 + 0.5
+        while k < a1 - 0.8:
+            if axis == "v":
+                m.box(k, k + 0.9, fixed - 0.35, fixed + 0.35, H, H + 1.2, STONE, shade=0.8)
+            else:
+                m.box(fixed - 0.35, fixed + 0.35, k, k + 0.9, H, H + 1.2, STONE, shade=0.8)
+            k += 1.8
+    # arrow slits and a few later windows on the long walls
+    for side in (-1, 1):
+        vv = v1 if side > 0 else v0
+        for k in range(int((u1 - u0) / 5)):
+            a = u0 + 2.5 + k * 5
+            m.window(("v", vv, side), a, a + 0.5, 4.0, 6.5, pointed=False, mat=LEAD)
+            if k % 2:
+                m.window(("v", vv, side), a - 0.6, a + 1.1, 7.5, 9.5, pointed=True)
+    # three round towers with conical slate roofs
+    for uu, vv, r, h in ((u0, v0, 3.8, 16.0), (u1, v0, 3.4, 15.0), (u0, v1, 3.2, 14.0)):
+        ring = m.ngon(uu, vv, r, 12)
+        m.prism(ring, -1.0, h, STONE, top=False, shade=0.8)
+        m.prism(m.ngon(uu, vv, r + 0.35, 12), h - 1.0, h, STONE, top=False, shade=0.9)  # corbelled rim
+        m.pyramid(m.ngon(uu, vv, r + 0.4, 12), h, h + r * 2.1, SLATE)
+    # the gatehouse on the Steenplein side: tall, stepped gable, the gate arch
+    gu = u1 - L * 0.28
+    g0, g1 = gu - 4.0, gu + 4.0
+    m.box(g0, g1, v1 - 5.0, v1 + 1.5, -1.0, 19.0, STONE, top=False, shade=0.85)
+    m.window(("v", v1 + 1.5, 1), gu - 1.6, gu + 1.6, 0.0, 4.2, pointed=True, mat=LEAD)  # the gate
+    for y0 in (8.0, 12.5):
+        m.window(("v", v1 + 1.5, 1), gu - 0.9, gu + 0.9, y0, y0 + 2.4, pointed=True)
+    m.gable_roof(g0, g1, v1 - 5.0, v1 + 1.5, 19.0, 6.5, along="v", gable_mat=STONE, over=0.1)
+    k = 5
+    for i in range(k):
+        du = (g1 - g0) / 2 * (1 - i / k)
+        y = 19.0 + 6.5 * i / k + 0.9
+        for s in (-1, 1):
+            m.box(gu + s * du - 0.55, gu + s * du + 0.55, v1 + 1.2, v1 + 1.9, y - 0.9, y, STONE, shade=0.95)
+    m.pinnacle(gu, v1 + 1.5, 25.5, 3.0, 0.35)
+    for s in (-1, 1):  # two slim corner turrets on the gatehouse
+        ring = m.ngon(gu + s * 4.0, v1 + 1.5, 0.9, 8)
+        m.prism(ring, 12.0, 21.0, STONE, top=False)
+        m.pyramid(ring, 21.0, 25.0, SLATE)
+    # the main hall along the river side, with dormers and a watch turret
+    hu0, hu1, hv0, hv1 = u0 + 5, u1 - 6, v0 + 1, v0 + 10
+    m.box(hu0, hu1, hv0, hv1, H, 16.0, STONE, top=False, shade=0.85)
+    m.gable_roof(hu0, hu1, hv0, hv1, 16.0, 7.5, along="u", gable_mat=STONE)
+    for k in range(int((hu1 - hu0) / 5)):
+        a = hu0 + 3 + k * 5
+        m.box(a - 0.8, a + 0.8, hv1 - 1.8, hv1 + 0.1, 16.0, 18.4, STONE, shade=0.9)
+        m.gable_roof(a - 1.0, a + 1.0, hv1 - 1.9, hv1 + 0.2, 18.4, 1.1, along="v", over=0.1)
+        m.window(("v", hv1 + 0.1, 1), a - 0.5, a + 0.5, 16.3, 17.8, pointed=False)
+        m.window(("v", hv1, 1), a - 0.7, a + 0.7, 12.2, 14.8, pointed=True)
+    tu, tv = hu1 - 1.5, hv1 - 1.5
+    ring = m.ngon(tu, tv, 1.5, 8, math.pi / 8)
+    m.prism(ring, H, 27.0, STONE, top=False, shade=0.9)
+    m.pyramid(m.ngon(tu, tv, 1.8, 8, math.pi / 8), 27.0, 33.0, SLATE)
+    m.box(tu - 0.06, tu + 0.06, tv - 0.06, tv + 0.06, 33.0, 34.5, LEAD)
+    for uu in (hu0 + 2, hu1 - 5):
+        m.box(uu - 0.4, uu + 0.4, hv0 + 2, hv0 + 2.8, 20.0, 25.0, STONE, shade=0.7)  # chimneys
+    return m
+
+
+def hanzehuis(fr):
+    """The Hanseatic House (Oostershuis, 1564-68, burned 1893): a great square
+    Renaissance block round a courtyard, arcades below, rows of cross windows,
+    hipped roofs with dormers, and a high tower on the dock side (-v)."""
+    m = Mesh(fr)
+    L, W = fr.L, fr.W
+    u0, u1, v0, v1 = -L / 2, L / 2, -W / 2, W / 2
+    H = 16.0
+    d = 10.0  # wing depth
+    wings = [(u0, u1, v0, v0 + d), (u0, u1, v1 - d, v1), (u0, u0 + d, v0 + d, v1 - d), (u1 - d, u1, v0 + d, v1 - d)]
+    for a0, a1, b0, b1 in wings:
+        m.box(a0, a1, b0, b1, 0, H, BRICK, top=False)
+        m.box(a0 - 0.2, a1 + 0.2, b0 - 0.2, b1 + 0.2, H, H + 0.6, STONE)
+        m.hip_roof(a0, a1, b0, b1, H + 0.6, 6.0, SLATE)
+    for side, vv in ((1, v1), (-1, v0)):
+        for k in range(int(L / 4)):
+            a = u0 + 1.2 + k * 4
+            m.window(("v", vv, side), a, a + 2.2, 0.2, 4.4, pointed=False, mat=LEAD)
+            for y0 in (6.0, 11.0):
+                m.window(("v", vv, side), a + 0.4, a + 1.8, y0, y0 + 3.2, pointed=False)
+    for side, uu in ((1, u1), (-1, u0)):
+        for k in range(int(W / 4)):
+            a = v0 + 1.2 + k * 4
+            for y0 in (6.0, 11.0):
+                m.window(("u", uu, side), a + 0.4, a + 1.8, y0, y0 + 3.2, pointed=False)
+    tu = 0.0
+    t0 = 4.5
+    m.box(tu - t0, tu + t0, v0 - 2.0, v0 + 7.0, 0, 30.0, BRICK, top=False)
+    for y0 in (18.0, 23.5):
+        m.window(("v", v0 - 2.0, -1), tu - 1.4, tu + 1.4, y0, y0 + 3.5, pointed=True)
+    m.box(tu - t0 - 0.3, tu + t0 + 0.3, v0 - 2.3, v0 + 7.3, 30.0, 31.0, STONE)
+    lan = m.ngon(tu, v0 + 2.5, 3.2, 8, math.pi / 8)
+    m.prism(lan, 31.0, 37.0, STONE, top=False)
+    for k in range(8):
+        a = math.pi / 8 + 2 * math.pi * k / 8 + math.pi / 8
+        pu, pv = tu + 3.25 * math.cos(a), v0 + 2.5 + 3.25 * math.sin(a)
+        f = m.poly([(pu - 0.7 * math.sin(a), pv + 0.7 * math.cos(a), 32.0), (pu + 0.7 * math.sin(a), pv - 0.7 * math.cos(a), 32.0),
+                    (pu + 0.7 * math.sin(a), pv - 0.7 * math.cos(a), 35.5), (pu - 0.7 * math.sin(a), pv + 0.7 * math.cos(a), 35.5)], GLASS, 0.8)
+        m.orient(f, (math.cos(a), math.sin(a), 0))
+    m.pyramid(m.ngon(tu, v0 + 2.5, 3.5, 8, math.pi / 8), 37.0, 47.0, LEAD)
+    m.box(tu - 0.08, tu + 0.08, v0 + 2.42, v0 + 2.58, 47.0, 49.0, LEAD)
+    return m
+
+
+def steen3(fr):
+    """Het Steen as in Steve's reference photo from the Steenplein: a tall slim
+    tower with a spire on the left, the main hall with two stepped gables and
+    dormers under a big slate roof, two round towers with pointed roofs, a
+    battlemented gallery and a squat round tower on the right. Rough dark stone
+    below, lighter stone above. u runs left to right seen from the square (+v)."""
+    m = Mesh(fr)
+    L, W = fr.L, fr.W
+    u0, u1 = -L / 2 + 1.0, L / 2 - 1.0
+    v0, v1 = -W / 2 + 1.0, W / 2 - 1.0
+    front = v1
+
+    def stepgable(uc, width, v, y0, rise, steps=5):
+        """A stepped gable standing up from a front wall at v, with its roof behind."""
+        pts = [(uc - width / 2, v, y0)]
+        for i in range(steps):
+            du = width / 2 * (1 - i / steps)
+            y = y0 + rise * (i + 1) / steps
+            pts += [(uc - du, v, y), (uc - du + width / (2 * steps), v, y)]
+        pts += [(uc, v, y0 + rise + 0.8)]
+        right = [(2 * uc - p[0], p[1], p[2]) for p in reversed(pts[1:-1])]
+        pts = pts + right + [(uc + width / 2, v, y0)]
+        m.orient(m.poly(pts, STONE, 0.95), (0, 1, 0))
+        m.gable_roof(uc - width / 2 + 0.3, uc + width / 2 - 0.3, v - 8, v - 0.1, y0, rise * 0.85, along="v", over=0.1)
+
+    # ---- the main hall
+    h0, h1 = u0 + 7, u0 + 24
+    m.box(h0, h1, v0 + 2, front, -1.0, 4.0, STONE, top=False, shade=0.6)  # rough dark base
+    m.box(h0, h1, v0 + 2, front, 4.0, 14.0, STONE, top=False, shade=0.92)
+    m.gable_roof(h0, h1, v0 + 2, front, 14.0, 9.0, along="u", gable_mat=STONE)
+    m.window(("v", front, 1), h0 + 7.0, h0 + 10.0, 0.0, 4.5, pointed=True, mat=LEAD)  # the gate
+    for uu in (h0 + 2.5, h0 + 13.5):
+        m.window(("v", front, 1), uu, uu + 1.4, 5.5, 8.5, pointed=False)
+        m.window(("v", front, 1), uu, uu + 1.4, 9.8, 12.5, pointed=False)
+    stepgable(h0 + 4.5, 6.0, front + 0.05, 14.0, 7.0)
+    stepgable(h0 + 12.5, 6.0, front + 0.05, 14.0, 7.0)
+    for uu in (h0 + 8.5, h1 - 1.5):  # dormers
+        m.box(uu - 0.8, uu + 0.8, front - 3.2, front - 1.4, 16.0, 18.2, STONE, shade=0.9)
+        m.gable_roof(uu - 1.0, uu + 1.0, front - 3.3, front - 1.3, 18.2, 1.0, along="v", over=0.1)
+        m.window(("v", front - 1.4, 1), uu - 0.45, uu + 0.45, 16.3, 17.8, pointed=False)
+    # ---- the tall tower on the left: square, then octagonal with a corbelled gallery, then the spire
+    tu, tv, ts = u0 + 3.2, front - 3.0, 3.1
+    m.box(tu - ts, tu + ts, tv - ts, tv + ts, -1.0, 4.0, STONE, top=False, shade=0.6)
+    m.box(tu - ts, tu + ts, tv - ts, tv + ts, 4.0, 21.0, STONE, top=False, shade=0.95)
+    for y0 in (6.0, 10.5, 15.0):
+        m.window(("v", tv + ts, 1), tu - 0.5, tu + 0.5, y0, y0 + 2.4, pointed=False)
+    oc = m.ngon(tu, tv, ts * 0.95, 8, math.pi / 8)
+    m.prism(oc, 21.0, 27.0, STONE, top=False, shade=0.95)
+    m.prism(m.ngon(tu, tv, ts * 1.12, 8, math.pi / 8), 26.2, 27.4, STONE, top=False, shade=1.0)  # corbelled gallery
+    for k in range(8):
+        a = math.pi / 4 * k + math.pi / 8
+        m.box(tu + math.cos(a) * ts * 1.1 - 0.2, tu + math.cos(a) * ts * 1.1 + 0.2, tv + math.sin(a) * ts * 1.1 - 0.2, tv + math.sin(a) * ts * 1.1 + 0.2, 27.4, 28.4, STONE)
+        m.window(("u", tu + math.cos(a) * ts * 0.97, 1 if math.cos(a) > 0 else -1), tv + math.sin(a) * ts * 0.9 - 0.3, tv + math.sin(a) * ts * 0.9 + 0.3, 22.5, 25.0, pointed=True) if abs(math.cos(a)) > 0.9 else None
+    m.pyramid(m.ngon(tu, tv, ts * 0.85, 8, math.pi / 8), 27.4, 40.0, SLATE)
+    m.box(tu - 0.06, tu + 0.06, tv - 0.06, tv + 0.06, 40.0, 42.0, LEAD)  # the weathervane rod
+    m.box(tu - 0.05, tu + 0.9, tv - 0.02, tv + 0.02, 41.2, 41.7, LEAD)
+    # ---- round tower 1, tall with a pointed roof, between the hall and the east wing
+    r1u = h1 + 1.5
+    ring = m.ngon(r1u, front - 3.0, 3.1, 12)
+    m.prism(ring, -1.0, 4.0, STONE, top=False, shade=0.6)
+    m.prism(ring, 4.0, 19.0, STONE, top=False, shade=0.95)
+    m.window(("v", front + 0.1, 1), r1u - 0.4, r1u + 0.4, 9.0, 11.2, pointed=False)
+    m.window(("v", front + 0.1, 1), r1u - 0.4, r1u + 0.4, 14.0, 16.2, pointed=False)
+    m.pyramid(m.ngon(r1u, front - 3.0, 3.4, 12), 19.0, 28.0, SLATE)
+    # ---- the east wing, lower, with a stepped gable and a dormer
+    e0, e1 = h1 + 4.5, h1 + 15.0
+    m.box(e0, e1, v0 + 2, front - 1.0, -1.0, 4.0, STONE, top=False, shade=0.6)
+    m.box(e0, e1, v0 + 2, front - 1.0, 4.0, 12.0, STONE, top=False, shade=0.9)
+    m.gable_roof(e0, e1, v0 + 2, front - 1.0, 12.0, 7.0, along="u", gable_mat=STONE)
+    stepgable((e0 + e1) / 2, 5.5, front - 0.95, 12.0, 6.0, 4)
+    m.window(("v", front - 1.0, 1), e0 + 2.0, e0 + 3.4, 6.0, 9.0, pointed=False)
+    m.window(("v", front - 1.0, 1), e1 - 3.4, e1 - 2.0, 6.0, 9.0, pointed=False)
+    # ---- round tower 2 with a slender pointed roof and a spike
+    r2u = e1 + 1.8
+    ring = m.ngon(r2u, front - 3.2, 2.8, 12)
+    m.prism(ring, -1.0, 4.0, STONE, top=False, shade=0.6)
+    m.prism(ring, 4.0, 17.0, STONE, top=False, shade=0.95)
+    m.pyramid(m.ngon(r2u, front - 3.2, 3.1, 12), 17.0, 27.0, SLATE)
+    m.box(r2u - 0.05, r2u + 0.05, front - 3.25, front - 3.15, 27.0, 28.6, LEAD)
+    # ---- the battlemented gallery and the squat round tower on the right
+    g0, g1 = r2u + 2.5, u1 - 4.0
+    if g1 > g0 + 1:
+        m.box(g0, g1, v0 + 2, front - 2.0, -1.0, 4.0, STONE, top=False, shade=0.6)
+        m.box(g0, g1, v0 + 2, front - 2.0, 4.0, 10.0, STONE, top=True, top_mat=LEAD, shade=0.9)
+        m.window(("v", front - 2.0, 1), (g0 + g1) / 2 - 1.6, (g0 + g1) / 2 + 1.6, 0.0, 4.0, pointed=True, mat=LEAD)
+        k = g0 + 0.3
+        while k < g1 - 0.6:
+            m.box(k, k + 0.6, front - 2.35, front - 1.65, 10.0, 11.0, STONE, shade=0.95)
+            k += 1.2
+    r3u = u1 - 3.2
+    ring = m.ngon(r3u, front - 3.4, 3.4, 12)
+    m.prism(ring, -1.0, 4.0, STONE, top=False, shade=0.6)
+    m.prism(ring, 4.0, 13.0, STONE, top=False, shade=0.95)
+    m.prism(m.ngon(r3u, front - 3.4, 3.7, 12), 12.2, 13.0, STONE, top=True, top_mat=LEAD, shade=1.0)
+    for k in range(12):
+        a = math.pi * 2 * k / 12
+        if k % 2 == 0:
+            cx, cz = r3u + math.cos(a) * 3.55, front - 3.4 + math.sin(a) * 3.55
+            m.box(cx - 0.3, cx + 0.3, cz - 0.3, cz + 0.3, 13.0, 14.0, STONE)
+    m.window(("v", front + 0.05, 1), r3u - 0.5, r3u + 0.5, 6.0, 8.5, pointed=True)
+    # ---- the river side: plain curtain wall joining it all
+    m.box(u0, u1, v0, v0 + 2.2, -1.0, 11.0, STONE, top=True, top_mat=LEAD, shade=0.75)
+    return m
+
+
 def main():
     city = json.load(open(CITY))
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -538,20 +761,28 @@ def main():
     world_north = (math.cos(th), -math.sin(th))
     L = city["landmarks"]
     built = []
-    cathedral(Frame(L["cathedral"]["frame"]), world_north).to_object("landmark_cathedral")
-    built.append("cathedral")
-    sf = L["stadhuis"]["frame"]
-    stadhuis(Frame(sf, flip_v=sf["open"] < 0)).to_object("landmark_stadhuis")
-    built.append("stadhuis")
-    vf = L["vleeshuis"]["frame"]
-    vleeshuis(Frame(vf)).to_object("landmark_vleeshuis")
-    built.append("vleeshuis")
-    stf = L["steen"]["frame"]
-    steen(Frame(stf, flip_v=stf["open"] < 0)).to_object("landmark_steen")
-    built.append("steen")
-    for name, h, sp in (("stpaul", 42, "bulb"), ("carolus", 44, "bulb"), ("stjacob", 55, "flat")):
-        church(Frame(L[name]["frame"]), h, sp).to_object(f"landmark_{name}")
-        built.append(name)
+
+    def frame(name, open_side=False, away=False):
+        f = dict(L[name]["frame"])
+        # open_side: v > 0 looks to the open ground; away: v < 0 does
+        if (open_side and f["open"] < 0) or (away and f["open"] > 0):
+            f["n"] = [-f["n"][0], -f["n"][1]]
+        return Frame(f)
+
+    builders = {
+        "cathedral": lambda: cathedral(frame("cathedral"), world_north),
+        "stadhuis": lambda: stadhuis(frame("stadhuis", open_side=True)),
+        "vleeshuis": lambda: vleeshuis(frame("vleeshuis")),
+        "steen": lambda: steen3(frame("steen", open_side=True)),
+        "hanzehuis": lambda: hanzehuis(frame("hanzehuis", away=True)),
+        "stpaul": lambda: church(frame("stpaul"), 42, "bulb"),
+        "carolus": lambda: church(frame("carolus"), 44, "bulb"),
+        "stjacob": lambda: church(frame("stjacob"), 55, "flat"),
+    }
+    for name in L:
+        if name in builders:
+            builders[name]().to_object(f"landmark_{name}")
+            built.append(name)
     bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_yup=True, export_texcoords=True, export_normals=True,
                               export_materials="EXPORT", use_selection=False, export_vertex_color="ACTIVE", export_all_vertex_colors=True,
                               export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=7)

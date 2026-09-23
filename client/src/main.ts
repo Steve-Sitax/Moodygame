@@ -6,6 +6,8 @@ import { BOARD_POS, DOSS_POS, RAMP, SPOTS, buildRijnkaai } from "./world/rijnkaa
 import { FirstPerson } from "./player/firstPerson";
 import { Soundscape } from "./audio/soundscape";
 import { Jobs } from "./game/jobs";
+import CITY from "../../shared/city.json";
+import { Crowd, placesFromCity } from "./game/crowd";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const startEl = document.getElementById("start") as HTMLDivElement;
@@ -18,6 +20,13 @@ const player = new FirstPerson(world, canvas);
 const retro = new RetroPass(renderer);
 let sound: Soundscape | null = null;
 const jobs = new Jobs(world, player);
+// townspeople on the quays and squares (game/crowd.ts)
+const crowd = new Crowd(
+  world.scene,
+  { flags: world.city.flags, isFree: world.isFree, addCollider: world.addCollider, removeCollider: world.removeCollider },
+  placesFromCity((CITY as unknown as { places: Record<string, { x: number; z: number; kind: string }> }).places),
+  { mats: { sack: world.mats.sack, crate: world.mats.crate } },
+);
 
 function resize(): void {
   const w = window.innerWidth;
@@ -65,6 +74,8 @@ function frame(): void {
   world.update(elapsed, dt, player.camera);
   player.update(dt);
   jobs.update(dt);
+  crowd.setHour(jobs.day.hour);
+  crowd.update(dt, player, player.camera);
   sound?.update(player.camera);
   retro.render(world.scene, player.camera, elapsed);
   requestAnimationFrame(frame);
@@ -132,6 +143,7 @@ if (import.meta.env.DEV) {
     player,
     world,
     jobs,
+    crowd,
     get sound() {
       return sound;
     },
@@ -218,6 +230,7 @@ if (import.meta.env.DEV) {
         world.update(elapsed, dt);
         player.update(dt);
         jobs.update(dt);
+        crowd.update(dt, player);
       }
     },
     info() {

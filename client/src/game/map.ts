@@ -40,17 +40,14 @@ const LANDMARK_NAMES: Record<string, string> = {
   carolus: "St. Charles Borromeo",
   stpaul: "St. Paul's",
   stjacob: "St. James",
+  hanzehuis: "Hanseatic House",
 };
 
-/** Names of places, in world metres (where the 1873 map writes them). */
-const PLACE_NAMES: Array<[string, number, number, number]> = [
-  ["RIJNKAAI", 10, -30, 0],
-  ["Petit Bassin", 160, 150, 0],
-  ["Grand Bassin", 330, 300, 0],
-  ["Canal des Brasseurs", -55, 120, -0.4],
-  ["GROTE MARKT", -675, 270, 0],
-  ["SCHELDE", -300, -150, -1.2],
-];
+/** Names of places, in world metres, from the map design (shared/city.json places). */
+const PLACES = ((CITY as unknown as { places?: Record<string, { x: number; z: number; kind: string }> }).places ?? {}) as Record<string, { x: number; z: number; kind: string }>;
+const PLACE_NAMES: Array<[string, number, number, number]> = Object.entries(PLACES)
+  .filter(([, p]) => p.kind !== "building")
+  .map(([name, p]) => [p.kind === "water" || p.kind === "quay" ? name : name.toUpperCase(), p.x, p.z, 0]);
 
 const SCALE = 2; // px per metre on the stored map
 

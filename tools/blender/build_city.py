@@ -36,7 +36,7 @@ STYLE_ROW = {"brick": 0, "plaster": 1, "plaster_grey": 2, "brick_dark": 3, "publ
 PART_COL = {"ground": 0, "upper": 1, "blind": 2, "door": 3}
 ROOF_CELL = {"tile": (0, 0), "slate": (1, 0), "flat": (0, 1), "lead": (1, 1)}
 
-MAT_FACADE, MAT_ROOF, MAT_STONE = 0, 1, 2
+MAT_FACADE, MAT_ROOF, MAT_STONE, MAT_WOOD, MAT_LEAF = 0, 1, 2, 3, 4
 
 
 def B(x, y, z):
@@ -156,6 +156,18 @@ class Builder:
         street = h["street"]
         for i in range(4):
             self.wall(c[i], c[(i + 1) % 4], 0, H, style, street[i], outs[i], door=(i == 0 and street[0]))
+        if h.get("store") and street[0]:
+            # a storehouse: a column of loading doors up the front every few bays,
+            # each under a hoist beam that sticks out at the eaves
+            k = s0 + 4.5
+            while k < s1 - 3:
+                cx, cz = P(k, t0 - 0.08)
+                self.box(cx, (self.gh + H) / 2, cz, 1.7, H - self.gh - 0.8, 0.16, ux, uz, MAT_WOOD, (0, 0), 0.7)
+                bx, bz = P(k, t0 - 0.7)
+                self.box(bx, H + 0.35, bz, 0.3, 0.3, 1.6, ux, uz, MAT_WOOD, (0, 0), 0.6)
+                gx, gz = P(k, t0 - 0.06)
+                self.box(gx, 1.9, gz, 2.6, 3.4, 0.14, ux, uz, MAT_WOOD, (0, 0), 0.55)  # the loading gate
+                k += 9.0
         roof_cell = ROOF_CELL[h["roofMat"]]
         pitch = math.radians(h["pitch"])
         if h["roof"] == "front":
@@ -371,6 +383,126 @@ class Builder:
         except ValueError:
             pass
 
+    # ------------------------------------------------------------ bridges
+
+    def bridge(self, br):
+        """A bridge over a canal or the lock: its long side spans the water.
+        stone: an arch with parapets; swing: a timber deck with iron railings."""
+        x0, z0, x1, z1 = br["rect"]
+        along_x = (x1 - x0) >= (z1 - z0)
+        # local frame: s spans the water, w across the deck
+        if along_x:
+            s0, s1, w0, w1 = x0, x1, z0, z1
+            P = lambda s, y, w: (s, y, w)  # noqa: E731
+            ux, uz = 1.0, 0.0
+        else:
+            s0, s1, w0, w1 = z0, z1, x0, x1
+            P = lambda s, y, w: (w, y, s)  # noqa: E731
+            ux, uz = 0.0, 1.0
+        self.tint = (1, 1, 1)
+        span = s1 - s0
+        wm = (w0 + w1) / 2
+        if br["kind"] == "stone":
+            top = 0.05
+            bottom = -3.4
+            spring = -1.9
+            a0, a1 = s0 + 2.2, s1 - 2.2
+            apex = -0.55
+            arch = []
+            n = 10
+            for i in range(n + 1):
+                t = math.pi * i / n
+                arch.append(((a0 + a1) / 2 - math.cos(t) * (a1 - a0) / 2, spring + math.sin(t) * (apex - spring)))
+            for w, sign in ((w0, -1), (w1, 1)):
+                outline = [(s0, bottom), (a0, bottom)] + arch + [(a1, bottom), (s1, bottom), (s1, top), (s0, top)]
+                pts = [P(s, y, w) for s, y in outline]
+                out = (0, 0, sign) if along_x else (sign, 0, 0)
+                self.ngon_mat(pts, [(s / BAY, y / BAY) for s, y in outline], MAT_STONE, (0, 0), out, 0.85)
+            # the underside of the arch
+            for i in range(n):
+                (sa, ya), (sb, yb) = arch[i], arch[i + 1]
+                self.face([P(sa, ya, w0), P(sb, yb, w0), P(sb, yb, w1), P(sa, ya, w1)], MAT_STONE,
+                          [(0, 0), (1, 0), (1, (w1 - w0) / BAY), (0, (w1 - w0) / BAY)], (0, 0), (0, -1, 0), 0.55)
+            # the deck and the parapets with their coping
+            self.face([P(s0, top, w0), P(s1, top, w0), P(s1, top, w1), P(s0, top, w1)], MAT_STONE,
+                      [(0, 0), (span / 2, 0), (span / 2, (w1 - w0) / 2), (0, (w1 - w0) / 2)], (0, 0), (0, 1, 0), 0.8)
+            for w in (w0 + 0.2, w1 - 0.2):
+                c = P((s0 + s1) / 2, 0.5, w)
+                self.box(c[0], c[1], c[2], span, 0.9, 0.4, ux, uz, MAT_STONE, (0, 0), 0.9)
+                c = P((s0 + s1) / 2, 1.0, w)
+                self.box(c[0], c[1], c[2], span + 0.2, 0.12, 0.55, ux, uz, MAT_STONE, (0, 0), 1.0)
+        else:
+            # timber swing bridge: deck on two iron girders, railings of posts and two rails
+            self.box(*P((s0 + s1) / 2, -0.15, wm), span, 0.3, w1 - w0, ux, uz, MAT_WOOD, (0, 0), 0.8)
+            for w in (w0 + 0.6, w1 - 0.6):
+                self.box(*P((s0 + s1) / 2, -0.7, w), span, 0.8, 0.3, ux, uz, MAT_STONE, (0, 0), 0.3)
+            for w in (w0 + 0.1, w1 - 0.1):
+                k = 0
+                s = s0 + 0.3
+                while s < s1:
+                    self.box(*P(s, 0.55, w), 0.1, 1.1, 0.1, ux, uz, MAT_STONE, (0, 0), 0.25)
+                    s += 1.6
+                    k += 1
+                for y in (0.55, 1.05):
+                    self.box(*P((s0 + s1) / 2, y, w), span, 0.07, 0.07, ux, uz, MAT_STONE, (0, 0), 0.25)
+
+    def ngon_mat(self, world, uvs, mat, cell, out, shade):
+        verts = [self.bm.verts.new(B(*p)) for p in world]
+        try:
+            f = self.bm.faces.new(verts)
+        except ValueError:
+            return
+        f.material_index = mat
+        f.normal_update()
+        if f.normal.dot(B(*out)) < 0:
+            f.normal_flip()
+        for loop in f.loops:
+            i = verts.index(loop.vert)
+            loop[self.uv].uv = uvs[i]
+            loop[self.cell].uv = cell
+            loop[self.col] = (shade, shade, shade, 1.0)
+
+    # ------------------------------------------------------------ street furniture
+
+    def tree(self, x, z, rng):
+        """A young tree in autumn, like the rows on the Steenplein: a thin trunk and
+        a crown of three low-poly clumps in yellow, rust and faded green."""
+        h = rng.uniform(3.6, 4.6)
+        self.box(x, h / 2, z, 0.22, h, 0.22, 1.0, 0.0, MAT_WOOD, (0, 0), 0.35)
+        colours = [(0.42, 0.24, 0.05), (0.33, 0.12, 0.04), (0.15, 0.19, 0.06), (0.5, 0.35, 0.09)]  # linear: rust, brown, faded green, yellow
+        for i in range(5):
+            cx = x + rng.uniform(-0.9, 0.9)
+            cz = z + rng.uniform(-0.9, 0.9)
+            cy = h * 0.72 + i * 0.55 + rng.uniform(0.0, 0.5)
+            r = rng.uniform(1.0, 1.5) * (1.0 - i * 0.1)
+            col = rng.choice(colours)
+            ret = bmesh.ops.create_icosphere(self.bm, subdivisions=1, radius=r)
+            for v in ret["verts"]:
+                v.co = B(cx + v.co.x, cy + v.co.z * 1.1, cz - v.co.y)
+            faces = {f for v in ret["verts"] for f in v.link_faces}
+            for f in faces:
+                f.material_index = MAT_LEAF
+                f.normal_update()
+                for loop in f.loops:
+                    co = loop.vert.co
+                    loop[self.uv].uv = (co.x / 1.5, co.z / 1.5)
+                    loop[self.cell].uv = (0, 0)
+                    g = 0.75 + 0.25 * (co.z - (cy - r)) / (2 * r)
+                    loop[self.col] = (col[0] * g, col[1] * g, col[2] * g, 1.0)
+
+    def rail(self, x0, z0, x1, z1):
+        """An iron railing along the water: posts every 2 m, a top rail and a middle rail."""
+        L = math.hypot(x1 - x0, z1 - z0)
+        if L < 0.1:
+            return
+        ux, uz = (x1 - x0) / L, (z1 - z0) / L
+        n = max(1, int(L / 2.0))
+        for i in range(n + 1):
+            t = i / n
+            self.box(x0 + (x1 - x0) * t, 0.55, z0 + (z1 - z0) * t, 0.09, 1.1, 0.09, ux, uz, MAT_STONE, (0, 0), 0.22)
+        for y in (0.6, 1.08):
+            self.box((x0 + x1) / 2, y, (z0 + z1) / 2, L, 0.06, 0.06, ux, uz, MAT_STONE, (0, 0), 0.22)
+
     def to_object(self, name, mats):
         me = bpy.data.meshes.new(name)
         self.bm.to_mesh(me)
@@ -396,7 +528,8 @@ def material(name, rgb):
 def main():
     data = json.load(open(SRC))
     bpy.ops.wm.read_factory_settings(use_empty=True)
-    mats = [material("facade", (0.55, 0.35, 0.28)), material("roof", (0.35, 0.22, 0.18)), material("stone", (0.6, 0.58, 0.52))]
+    mats = [material("facade", (0.55, 0.35, 0.28)), material("roof", (0.35, 0.22, 0.18)), material("stone", (0.6, 0.58, 0.52)),
+            material("wood", (0.35, 0.28, 0.2)), material("leaves", (0.6, 0.45, 0.2))]
     chunks = {}
 
     def chunk_of(pts):
@@ -412,6 +545,16 @@ def main():
         chunk_of(h["fp"]).house(h, rng)
     for b in data["backs"]:
         chunk_of(b["fp"]).back(b)
+    decor = data.get("decor", {})
+    drng = random.Random(7)
+    for x, z in decor.get("trees", []):
+        chunk_of([(x, z)]).tree(x, z, drng)
+    for x0, z0, x1, z1 in decor.get("rails", []):
+        chunk_of([(x0, z0), (x1, z1)]).rail(x0, z0, x1, z1)
+    for br in data.get("bridges", {}).values():
+        if br["kind"] in ("stone", "swing"):
+            x0, z0, x1, z1 = br["rect"]
+            chunk_of([(x0, z0), (x1, z1)]).bridge(br)
     count = 0
     for (i, j), bld in sorted(chunks.items()):
         bld.to_object(f"city_{i}_{j}", mats)

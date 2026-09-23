@@ -3,8 +3,10 @@ import { psx, psxUniforms, MAX_LAMPS } from "../retro/psx";
 import { makeTextures, signTexture, glowTexture, type Textures } from "./textures";
 import { box, cyl, rod, rectAround, inRect, type Rect } from "./geom";
 import SPOT_TABLE from "../../../shared/spots.json";
+import CITY_DATA from "../../../shared/city.json";
 import { buildCity, doorSpot, edgeZ, WALL, WATER, OUTSIDE, type CityWorld } from "./city";
 import { dressCity, loadProps } from "./props3d";
+import { loadBoats, type Boats } from "./boats";
 
 // The Rijnkaai in the real 1873 city (world/city.ts). Water is at z < 0, the
 // quay edge runs along x (the world is turned 19 deg so it does). Quay top is
@@ -207,7 +209,57 @@ export function buildRijnkaai(): World {
   doorSign(scene, "entrepot", "ENTREPOT");
 
   // --- crane
-  crane(scene, m, colliders, -24, 1.6);
+  // --- boats and cranes (Blender models, world/boats.ts): the quays full of shipping,
+  // as in the period photos. The Anna Maria stays the game's own ship (its deck is walkable).
+  let boats: Boats | null = null;
+  loadBoats()
+    .then((b) => {
+      boats = b;
+      // portal cranes on the quays; the jib rests along +z, yaw turns it over the water
+      const cranes: Array<[number, number, number]> = [
+        [-24, 3.2, Math.PI], [-12, 3.2, Math.PI], [72, 3.2, Math.PI],
+        [66, 62, Math.PI / 2], [66, 92, Math.PI / 2], [173, 66, -Math.PI / 2], [173, 100, -Math.PI / 2],
+        [-280, 3.2, Math.PI], [-240, 3.2, Math.PI], [-300, 3.2, Math.PI],
+      ];
+      for (const [x, z, yaw] of cranes) {
+        b.crane(x, z, yaw, scene);
+        colliders.push(...b.colliders("portal_crane", x, z, yaw));
+      }
+      // the river: moored along the Werf and the north Rijnkaai, ships at anchor further out
+      const river = { x: 0, z: -40 };
+      b.mooreAlong(scene, -316, 0, -258, 0, river, ["rhine_barge", "hengst", "lighter_loaded", "sloop", "lighter"], { rows: 2, seed: 3 });
+      b.mooreAlong(scene, -240, 0, -216, 0, river, ["hengst", "lighter", "rowboat"], { seed: 4 });
+      b.mooreAlong(scene, -140, 0, -90, 0, river, ["hengst", "lighter_loaded", "sloop", "punt"], { rows: 2, seed: 5 });
+      b.mooreAlong(scene, 60, 0, 100, 0, river, ["tug", "lighter", "hengst"], { seed: 6 });
+      b.mooreAlong(scene, 120, 0, 176, 0, river, ["rhine_barge", "lighter_loaded", "sloop"], { rows: 2, seed: 7 });
+      b.place("steamer", -150, -62, Math.PI / 2, scene);
+      b.place("barque", -40, -48, Math.PI / 2, scene);
+      b.place("barque", 110, -44, -Math.PI / 2, scene);
+      b.place("paddle_tug", -205, -64, Math.PI / 2 + 0.3, scene);
+      b.place("sloop", 30, -70, 1.2, scene);
+      // the Canal des Brasseurs and the Sint-Pietersvliet: narrow boats against both walls
+      const canal = { x: -76, z: 100 };
+      for (const [z0, z1] of [[12, 64], [76, 148], [160, 202]]) {
+        b.mooreAlong(scene, -82, z0, -82, z1, canal, ["hengst", "lighter", "punt", "rowboat", "lighter_loaded"], { maxBeam: 4.5, seed: z0 });
+        b.mooreAlong(scene, -70, z0, -70, z1, canal, ["lighter", "punt", "rowboat"], { maxBeam: 4.5, seed: z0 + 1 });
+      }
+      const vliet = { x: -146, z: 30 };
+      b.mooreAlong(scene, -150, 11, -150, 38, vliet, ["punt", "rowboat"], { maxBeam: 3, seed: 21 });
+      b.mooreAlong(scene, -142, 49, -142, 70, vliet, ["punt", "rowboat"], { maxBeam: 3, seed: 22 });
+      // the Petit Bassin: barges and lighters along all four quays, a barque in the middle
+      const dock = { x: 120, z: 78 };
+      b.mooreAlong(scene, 70, 50, 70, 106, dock, ["rhine_barge", "lighter_loaded", "hengst"], { rows: 2, seed: 31 });
+      b.mooreAlong(scene, 170, 50, 170, 106, dock, ["rhine_barge", "lighter_loaded", "tug"], { rows: 2, seed: 32 });
+      b.mooreAlong(scene, 76, 110, 164, 110, dock, ["hengst", "lighter", "rhine_barge"], { seed: 33 });
+      b.mooreAlong(scene, 120, 46, 164, 46, dock, ["lighter_loaded", "hengst"], { seed: 34 });
+      b.place("barque", 125, 80, 0, scene);
+      // the ferry pontoon at the Werf (its deck is walkable, see tools/city/design.py)
+      b.pontoon(scene, -249, 0, -58);
+    })
+    .catch((e) => {
+      console.warn("boats.glb did not load", e);
+      crane(scene, m, colliders, -24, 1.6);
+    });
 
   // --- props
   crateStack(scene, m, colliders, -20, 14, 3);
@@ -227,6 +279,12 @@ export function buildRijnkaai(): World {
       for (const [name, x, z, yaw] of [["handcart_loaded", 47, 12, 0.5], ["dray_horse", 58, 30, 1.9]] as const) {
         p.place(name, x, z, yaw, scene);
         colliders.push(...p.colliders(name, x, z, yaw));
+      }
+      // gas lamps along the Werf, the Steenplein and the squares (tools/city/design.py decor)
+      const decor = (CITY_DATA as unknown as { decor?: { lamps?: Array<[number, number]> } }).decor;
+      for (const [x, z] of decor?.lamps ?? []) {
+        p.place("gas_lamp", x, z, 0, scene);
+        colliders.push(rectAround(x, z, 0.2, 0.2));
       }
     })
     .catch(() => cart(scene, m, colliders, 47, 11));
@@ -454,6 +512,7 @@ export function buildRijnkaai(): World {
   let camera: THREE.Camera | null = null;
   let devView = false;
   function update(t: number, dt: number, cam?: THREE.Camera): void {
+    boats?.update(t, dt);
     if (cam) camera = cam;
     // the sky dome and the water sheet go where you go
     if (camera) {
