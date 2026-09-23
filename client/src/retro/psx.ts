@@ -22,6 +22,13 @@ export interface PsxOptions {
   affine?: number;
   /** Skip vertex snap (UI-ish objects like the sky). */
   noSnap?: boolean;
+  /**
+   * Texture atlas of N x N cells (the city houses): the geometry has a "cell"
+   * attribute (column, row) and the uv repeats inside that cell.
+   */
+  atlas?: number;
+  /** Fog reaches this many times further (landmarks: a shape in the fog from afar). */
+  fogReach?: number;
 }
 
 const commonVertex = /* glsl */ `
@@ -83,7 +90,8 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
     shader.uniforms.uAffine = { value: affine };
 
     let vs = shader.vertexShader;
-    vs = vs.replace("#include <common>", "#include <common>\n" + commonVertex);
+    vs = vs.replace("#include <common>", "#include <common>\n" + commonVertex + (opts.atlas ? "attribute vec2 cell;\nvarying vec2 vCell;\n" : ""));
+    if (opts.atlas) vs = vs.replace("#include <uv_vertex>", "#include <uv_vertex>\nvCell = cell;");
 
     if (opts.water) {
       // Plane is rotated -90 deg on X: local x = world x, local y = -world z,
@@ -143,7 +151,7 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
     shader.vertexShader = vs;
 
     let fs = shader.fragmentShader;
-    fs = fs.replace("#include <common>", "#include <common>\n" + commonFragment);
+    fs = fs.replace("#include <common>", "#include <common>\n" + commonFragment + (opts.atlas ? "varying vec2 vCell;\n" : ""));
     fs = fs.replace(
       "#include <map_fragment>",
       /* glsl */ `#ifdef USE_MAP
@@ -153,6 +161,7 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         vec2 affUv = vAffineUv.xy / vAffineUv.z;
         float near = smoothstep(4.0, 14.0, length(vPsxWorld - cameraPosition));
         vec2 psxUv = mix(vMapUv, affUv, uAffine * near);
+        ${opts.atlas ? `psxUv = (vCell + fract(psxUv)) / ${opts.atlas.toFixed(1)};` : ""}
         vec4 sampledDiffuseColor = texture2D(map, psxUv);
         diffuseColor *= sampledDiffuseColor;
       }
@@ -170,7 +179,7 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         for (int i = 0; i < MAX_LAMPS; i++) {
           glow += uLamps[i].w * lampScatter(ro, rd, len, uLamps[i].xyz);
         }
-        float fogFactor = smoothstep(fogNear, fogFar, vFogDepth);
+        float fogFactor = smoothstep(fogNear, fogFar * ${(opts.fogReach ?? 1).toFixed(2)}, vFogDepth);
         ${
           opts.water
             ? `{
@@ -196,6 +205,6 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
     );
     shader.fragmentShader = fs;
   };
-  mat.customProgramCacheKey = () => `psx-${opts.water ? 1 : 0}-${opts.noSnap ? 1 : 0}`;
+  mat.customProgramCacheKey = () => `psx-${opts.water ? 1 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}`;
   return mat;
 }

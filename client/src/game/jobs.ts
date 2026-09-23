@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { doorSpot } from "../world/city";
 import { api, connectPush, type Job, type JobsPayload, type OutcomeMsg, type Progress, type Report } from "../net/api";
 import { BOARD_POS, DOSS_POS, SPOTS, type World } from "../world/rijnkaai";
 import type { FirstPerson } from "../player/firstPerson";
@@ -9,6 +10,7 @@ import { People } from "./people";
 import { Talk } from "./talk";
 import { Pockets } from "./pockets";
 import { Day } from "./day";
+import { CityMap, type MapMark } from "./map";
 import { esc, HaulRun, makeRun, type Action, type Run, type RunCtx, type Sfx } from "./runs";
 
 // The hands and the job (M2, M2b, M3). Everything you do with E and F goes
@@ -20,10 +22,16 @@ const REACH_DOSS = 2.4;
 const REACH_ITEM = 1.8;
 const OWNER_SEES = 12;
 
+/** A point by a door of the city, as [x, z]. */
+function ds(door: string, out: number, side: number): [number, number] {
+  const p = doorSpot(door, out, side);
+  return [p.x, p.z];
+}
+
 /** Goods that belong to people, lying about the quay from the start. */
 const OWNED: Array<{ kind: Goods; owner: string; at: Array<[number, number]> }> = [
-  { kind: "crates", owner: "sooi", at: [[-19.2, 18.4], [-18.4, 18.4], [-19.2, 18.4], [-18.8, 17.5]] },
-  { kind: "barrels", owner: "peeters", at: [[24.8, 17.6], [25.6, 17.6], [25.2, 16.8]] },
+  { kind: "crates", owner: "sooi", at: [ds("hessenatie", 3.5, -5), ds("hessenatie", 3.5, -6), ds("hessenatie", 3.5, -5), ds("hessenatie", 4.4, -5.5)] },
+  { kind: "barrels", owner: "peeters", at: [ds("peeters", 3.2, 3.5), ds("peeters", 3.2, 4.3), ds("peeters", 4.0, 3.9)] },
   { kind: "barrels", owner: "tuur", at: [[7.7, -5.2], [6.9, -5.2]] },
   { kind: "sacks", owner: "fientje", at: [[44.3, 12.4], [44.3, 13.1]] },
 ];
@@ -56,6 +64,7 @@ export class Jobs {
   readonly talk: Talk;
   readonly pockets: Pockets;
   readonly day: Day;
+  readonly map: CityMap;
   private sinking: Array<{ obj: THREE.Object3D; t: number; splashed: boolean }> = [];
   /** An owner saw you lift this; set it back near where it was and they calm down. */
   private watched: { item: Item; owner: string } | null = null;
@@ -101,12 +110,15 @@ export class Jobs {
       this.toastMsg(line);
     };
     this.day = new Day(world, player);
+    this.map = new CityMap(player);
+    this.map.marks = () => this.mapMarks();
     this.day.apply = (p) => this.apply(p);
     this.day.toast = (t) => this.toastMsg(t);
     this.day.onSheet = () => {
       this.talk.close();
       if (this.boardOpen) this.closeBoard();
       if (this.pockets.open) this.pockets.toggle();
+      if (this.map.open) this.map.toggle();
     };
     for (const o of OWNED) for (const [x, z] of o.at) this.goods.spawn(o.kind, x, z, { owner: o.owner });
 
@@ -160,7 +172,7 @@ export class Jobs {
     this.people.update(dt, this.player);
     this.updateSinking(dt);
     this.acts = this.findActions();
-    const text = this.boardOpen || this.talk.isOpen || this.pockets.open || this.day.sheetOpen ? "" : this.acts.map((a) => `${a.key.slice(3)}  ${a.text}`).join("     ");
+    const text = this.boardOpen || this.talk.isOpen || this.pockets.open || this.day.sheetOpen || this.map.open ? "" : this.acts.map((a) => `${a.key.slice(3)}  ${a.text}`).join("     ");
     if (this.el.prompt.textContent !== text) this.el.prompt.textContent = text;
     this.el.prompt.style.display = text ? "block" : "none";
     this.renderTask();
@@ -169,7 +181,7 @@ export class Jobs {
 
   /** Everything E and F can do right now, most specific first. */
   private findActions(): Action[] {
-    if (this.boardOpen || this.talk.isOpen || this.pockets.open || this.day.sheetOpen) return [];
+    if (this.boardOpen || this.talk.isOpen || this.pockets.open || this.day.sheetOpen || this.map.open) return [];
     const { x, z } = this.player;
     const out: Action[] = [];
     const add = (a: Action) => {
@@ -321,7 +333,7 @@ export class Jobs {
   // ------------------------------------------------------------- input
 
   private onKey(e: KeyboardEvent): void {
-    if (e.repeat || this.talk.isOpen || this.pockets.open || this.day.sheetOpen) return;
+    if (e.repeat || this.talk.isOpen || this.pockets.open || this.day.sheetOpen || this.map.open) return;
     if (this.boardOpen) {
       if (e.code === "KeyE" || e.code === "Escape") this.closeBoard();
       const n = Number(e.key);
@@ -433,6 +445,28 @@ export class Jobs {
     }
     if (t.kind === "deliver") this.toastMsg(`${who} has a ${GOODS[t.goods].one} for ${t.recipient}. Get it from ${who}.`);
     this.run = makeRun(job, ctx);
+  }
+
+  /** What the paper map marks: the job's goal, people with work, the board, bed and shops. */
+  private mapMarks(): MapMark[] {
+    const out: MapMark[] = [];
+    const goal = this.run?.goal();
+    if (goal && this.active) out.push({ x: goal.x, z: goal.z, label: `your job: ${this.active.title}`, kind: "goal" });
+    const t = this.active?.task;
+    if (t && "to" in t && SPOTS[t.to]) out.push({ x: SPOTS[t.to].x, z: SPOTS[t.to].z, label: SPOTS[t.to].label, kind: "goal" });
+    const offered = new Set((this.payload?.jobs ?? []).filter((j) => j.status === "offered" && j.playable).map((j) => j.employer_npc));
+    for (const id of offered) {
+      const n = this.people.get(id);
+      if (n) out.push({ x: n.pos.x, z: n.pos.z, label: `work: ${n.def.name}`, kind: "work" });
+    }
+    out.push({ x: BOARD_POS.x, z: BOARD_POS.z, label: "hiring board", kind: "place" });
+    out.push({ x: DOSS_POS.x, z: DOSS_POS.z, label: "doss house", kind: "bed" });
+    const shops: Array<[string, string]> = [["fientje", "Fientje's fish"], ["peeters", "the chandlery"], ["tuur", "Tuur's jenever"]];
+    for (const [id, label] of shops) {
+      const n = this.people.get(id);
+      if (n && !offered.has(id)) out.push({ x: n.pos.x, z: n.pos.z, label, kind: "shop" });
+    }
+    return out;
   }
 
   /** Stop the running job without settling it (the server already closed it). */

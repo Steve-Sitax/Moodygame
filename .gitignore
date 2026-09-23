@@ -23,3 +23,6 @@ Thumbs.db
 
 # Claude session files (rule-override log rides on OneDrive, not git)
 .claude/**
+
+# copied from node_modules/three by client/scripts/copy-draco.mjs
+client/public/draco/

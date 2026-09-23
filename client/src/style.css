@@ -247,6 +247,18 @@ html, body {
 .talk .wares li { font-size: 14px; padding: 3px 0; display: flex; gap: 8px; }
 .talk .wares .price { margin-left: auto; font-weight: bold; }
 
+/* ---- the paper map (M) ---- */
+.citymap {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(-0.5deg);
+  padding: 12px 12px 6px;
+  z-index: 6;
+}
+.citymap canvas { display: block; box-shadow: inset 0 0 40px rgba(60, 40, 20, 0.4); }
+.citymap .keys { text-align: right; margin: 6px 0 0; font-family: "Segoe Print", "Bradley Hand", cursive; }
+
 /* ---- M5: the clock, the night and the end of the week ---- */
 .clock {
   position: fixed;

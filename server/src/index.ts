@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { WebSocketServer, WebSocket } from "ws";
@@ -236,6 +238,17 @@ if (DEV) {
   app.post("/api/dev/new-board", (c) => {
     void writeBoard();
     return c.json({ started: true });
+  });
+  // dev only: a picture of the game from the browser, for checks without a screen
+  app.post("/api/dev/shot", async (c) => {
+    const b = (await c.req.json().catch(() => ({}))) as { name?: string; url?: string };
+    const name = String(b.name ?? "shot").replace(/[^a-z0-9_-]/gi, "").slice(0, 40) || "shot";
+    const m = /^data:image\/jpeg;base64,(.+)$/.exec(b.url ?? "");
+    if (!m) throw new GameError("bad picture", 400);
+    const dir = join(dirname(DB_FILE), "shots");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, `${name}.jpg`), Buffer.from(m[1], "base64"));
+    return c.json({ ok: true });
   });
   // dev only: jump the clock or set needs, to test the night without waiting
   app.post("/api/dev/set", async (c) => {

@@ -18,8 +18,29 @@ foghorn, rope and timber creak, reverb. See `client/src/audio/soundscape.ts`.
 
 ## Textures and models
 
-None from third parties yet. All M1 textures are painted in code at 64x64
-(`client/src/world/textures.ts`). Geometry is grey-box, built in code.
+All textures are painted in code at 64x64 (`client/src/world/textures.ts`,
+`client/src/world/cityTextures.ts`). All models are our own: built in code or by our
+Blender scripts (`tools/blender/`). Blender (GPL) is a tool; the GPL does not cover what
+it makes.
+
+## Map data (M3c, the city of 1873)
+
+| Data | Where in repo | Source | Licence | Checked |
+|---|---|---|---|---|
+| The 1873 city plan, traced: blocks, public buildings, water (`shared/city.json`, `shared/city_build.json`, `client/public/city/walk.png`, `client/public/models/city.glb`) | derived data only; the scan itself is not in git | "1853/1873: Vuillaume (1/5000)", FelixArchief 12#487, via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:1853-1873-_Vuillaume_(1-5000),_Vuillaume,_Felixarchief,_12_487_recto.jpg | CC0 1.0 (Commons file page) | 2026-09-23. Full-res JPEG SHA-256 `55f3c7c039dcea733b0b55d18d74dc7f5dadda7149e16efa2ffaf1f9ed27b096`. |
+| Landmark outlines (cathedral, town hall, Vleeshuis, Steen, St. Paul's, St. Charles Borromeo, St. James) and the points that fit the old map to metres (`shared/city.json` landmarks) | derived data | OpenStreetMap, Overpass API export 2026-09-23 | ODbL 1.0. Credit: "(c) OpenStreetMap contributors". The repo is private; if the derived data is ever shared publicly, it must be under ODbL. | 2026-09-23 |
+
+Not used: a stock photo of an 1830s map that Steve sent (Alamy watermark); OpenHistoricalMap (looked at, too coarse).
+
+## Runtime libraries copied at build time
+
+| File | Where | Source | Licence |
+|---|---|---|---|
+| Draco decoder: `draco_decoder.js`, `draco_decoder.wasm`, `draco_wasm_wrapper.js` | `client/public/draco/` (copied from `node_modules/three/examples/jsm/libs/draco/` by `client/scripts/copy-draco.mjs`; not in git) | Google Draco, shipped inside the three package | Apache-2.0 |
+
+## Dev tools (not shipped)
+
+Blender 5.2 (GPL-3.0), Python packages numpy (BSD-3), opencv-python-headless (Apache-2.0), shapely (BSD-3), Pillow (MIT-CMU).
 
 ## npm packages (client)
 

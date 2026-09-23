@@ -1,11 +1,83 @@
 {
-  "_note": "Named places on the Rijnkaai. The server offers these ids to Claude; the client places things here. x/z in metres, water is z < 0. dir = direction goods stack away from the spot.",
-  "pier_head": { "label": "the pier head", "desc": "end of the wooden pier, where lighters unload", "x": 7, "z": -11, "dir": [0, 1] },
-  "crane_foot": { "label": "the foot of the crane", "desc": "under the crane on the quay edge", "x": -21, "z": 5.2, "dir": [1, 0] },
-  "hessenatie_door": { "label": "the Hessenatie door", "desc": "big door of the Hessenatie warehouse", "x": -12, "z": 19.6, "dir": [1, 0] },
-  "katoen_door": { "label": "the Katoennatie door", "desc": "door of the Katoennatie warehouse, west", "x": -38, "z": 19.6, "dir": [1, 0] },
-  "peeters_dock": { "label": "the widow's loading door", "desc": "plank loading dock of the Peeters chandlery", "x": 20, "z": 19.2, "dir": [1, 0] },
-  "ship_gangway": { "label": "the gangway of the Anna Maria", "desc": "gangway of the three-master moored at the kaai", "x": 32, "z": 2.2, "dir": [1, 0] },
-  "west_sheds": { "label": "the west sheds", "desc": "fenced sheds at the far west end of the quay", "x": -54, "z": 17, "dir": [1, 0] },
-  "east_carts": { "label": "the cart stand", "desc": "where the carts wait, far east end of the quay", "x": 50.5, "z": 8, "dir": [0, 1] }
+ "_note": "Named places on the Rijnkaai. The server offers these ids to Claude; the client places things here. x/z in metres, water is z < 0. dir = direction goods stack away from the spot. Placed on the 1873 map (shared/city.json, M6): doors from tools/city/plan.py.",
+ "pier_head": {
+  "label": "the pier head",
+  "desc": "end of the wooden pier, where lighters unload",
+  "x": 7,
+  "z": -11,
+  "dir": [
+   0,
+   1
+  ]
+ },
+ "crane_foot": {
+  "label": "the foot of the crane",
+  "desc": "under the crane on the quay edge",
+  "x": -21,
+  "z": 5.2,
+  "dir": [
+   1,
+   0
+  ]
+ },
+ "hessenatie_door": {
+  "label": "the Hessenatie door",
+  "desc": "big door of the Hessenatie warehouse",
+  "x": 29.8,
+  "z": 85.24,
+  "dir": [
+   0.917,
+   -0.399
+  ]
+ },
+ "katoen_door": {
+  "label": "the Entrepot door",
+  "desc": "the city's bonded warehouse north of the lock, where the Katoennatie works",
+  "x": 270.84,
+  "z": 85.99,
+  "dir": [
+   -0.43,
+   -0.903
+  ]
+ },
+ "peeters_dock": {
+  "label": "the widow's shop door",
+  "desc": "door of the Peeters chandlery, facing the quay",
+  "x": -25.27,
+  "z": 43.55,
+  "dir": [
+   0.995,
+   -0.1
+  ]
+ },
+ "ship_gangway": {
+  "label": "the gangway of the Anna Maria",
+  "desc": "gangway of the three-master moored at the kaai",
+  "x": -42,
+  "z": 5.6,
+  "dir": [
+   1,
+   0
+  ]
+ },
+ "west_sheds": {
+  "label": "the Van Metter quay",
+  "desc": "across the canal bridge, south along the river",
+  "x": -105,
+  "z": 12,
+  "dir": [
+   1,
+   0
+  ]
+ },
+ "east_carts": {
+  "label": "the cart stand",
+  "desc": "where the carts wait, far east end of the quay",
+  "x": 50.5,
+  "z": 8,
+  "dir": [
+   0,
+   1
+  ]
+ }
 }

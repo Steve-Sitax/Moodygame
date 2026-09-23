@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "predev": "node scripts/copy-draco.mjs",
+    "prebuild": "node scripts/copy-draco.mjs"
   },
   "dependencies": {
     "three": "^0.186.0"

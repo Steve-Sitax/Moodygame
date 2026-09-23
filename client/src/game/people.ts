@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { doorSpot } from "../world/city";
 import { psx } from "../retro/psx";
 import { box, cyl, rectAround } from "../world/geom";
 import type { World } from "../world/rijnkaai";
@@ -38,8 +39,8 @@ export const NPCS: NpcDef[] = [
   {
     id: "sooi",
     name: "Sooi",
-    x: -14.3,
-    z: 19.8,
+    x: doorSpot("hessenatie", 1.6, -2.2).x,
+    z: doorSpot("hessenatie", 1.6, -2.2).z,
     yaw: Math.PI,
     talks: true,
     build: (m) => {
@@ -53,8 +54,8 @@ export const NPCS: NpcDef[] = [
   {
     id: "peeters",
     name: "Widow Peeters",
-    x: 23.3,
-    z: 19.5,
+    x: doorSpot("peeters", 1.3, -2.0).x,
+    z: doorSpot("peeters", 1.3, -2.0).z,
     yaw: Math.PI,
     talks: true,
     build: (m) => {
@@ -99,7 +100,7 @@ export const NPCS: NpcDef[] = [
   {
     id: "sailor",
     name: "a sailor",
-    x: 35.5,
+    x: -38.5,
     z: -4.6,
     y: 2.4,
     yaw: 0,

@@ -49,7 +49,7 @@ export class FirstPerson {
     private readonly world: World,
     private readonly dom: HTMLElement,
   ) {
-    this.camera = new THREE.PerspectiveCamera(75, 16 / 9, 0.08, 220);
+    this.camera = new THREE.PerspectiveCamera(75, 16 / 9, 0.08, 480);
     this.camera.rotation.order = "YXZ";
 
     window.addEventListener("keydown", (e) => {

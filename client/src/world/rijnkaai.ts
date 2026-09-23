@@ -1,20 +1,24 @@
 import * as THREE from "three";
 import { psx, psxUniforms, MAX_LAMPS } from "../retro/psx";
 import { makeTextures, signTexture, glowTexture, type Textures } from "./textures";
-import { box, boxGeo, cyl, rod, rectAround, inRect, type Rect } from "./geom";
+import { box, cyl, rod, rectAround, inRect, type Rect } from "./geom";
 import SPOT_TABLE from "../../../shared/spots.json";
+import { buildCity, doorSpot, edgeZ, WALL, WATER, OUTSIDE, type CityWorld } from "./city";
 
-// Grey-box of the Rijnkaai. Water is at z < 0, the quay edge runs along x.
-// Quay top is y = 0. Warehouses stand at z >= 22 and face the river.
+// The Rijnkaai in the real 1873 city (world/city.ts). Water is at z < 0, the
+// quay edge runs along x (the world is turned 19 deg so it does). Quay top is
+// y = 0. Here: the game's own things on the quay (pier, crane, ship, lamps,
+// goods) and the rules for walking; the city itself comes from Blender.
 
 export const WATER_Y = -1.8;
-const QUAY = { minX: -58, maxX: 58, minZ: 0.45, maxZ: 21.4 };
+/** Before the walk map is loaded, only the open quay by the start counts as ground. */
+const QUAY = { minX: -50, maxX: 60, minZ: 0.8, maxZ: 40 };
 const PIER = { minX: 5.4, maxX: 8.6, minZ: -11.6, maxZ: 0.6 };
-const LOADING_DOCK = { minX: 9, maxX: 23, minZ: 17, maxZ: 21.4 }; // planks in front of W3
-/** Ship A (the Anna Maria) lies at x 14..54, z -11.7..-2.7; its deck is at y 2.4. */
-export const DECK = { minX: 16, maxX: 42.5, minZ: -11.2, maxZ: -3.1, y: 2.4 };
-/** The gangway: a plank from the quay (z 0.8, y 0) up to the deck (z -3.1, y 2.4). */
-export const RAMP = { x: 32, halfW: 0.45, zLow: 0.8, zHigh: -3.1 };
+/** Ship A (the Anna Maria) lies at x -60..-20, z -11.7..-2.7, off the Quai Tavernier; its deck is at y 2.4. */
+const SHIP_X = -60;
+export const DECK = { minX: SHIP_X + 2, maxX: SHIP_X + 28.5, minZ: -11.2, maxZ: -3.1, y: 2.4 };
+/** The gangway: a plank from the quay (y 0) up to the deck (z -3.1, y 2.4). */
+export const RAMP = { x: SHIP_X + 18, halfW: 0.45, zLow: 3.8, zHigh: -3.1 };
 
 export type Surface = "stone" | "wood";
 
@@ -31,19 +35,21 @@ export const SPOTS = Object.fromEntries(
   Object.entries(SPOT_TABLE).filter(([k]) => !k.startsWith("_")),
 ) as unknown as Record<string, Spot>;
 
-/** The hiring spot: a notice board in front of the Hessenatie. */
-export const BOARD_POS = { x: -16.2, z: 20.5 };
-/** The doss house: through the Sint-Andries alley gate, between the two naties (M5). */
-export const DOSS_POS = { x: -25, z: 21.0 };
+/** The hiring spot: a notice board by the Hessenatie's door. */
+const boardAt = doorSpot("hessenatie", 3.2, 5);
+export const BOARD_POS = { x: boardAt.x, z: boardAt.z };
+/** The doss house door (M5), on the canal side of the Quai Ste-Aldegonde row. */
+const dossAt = doorSpot("doss", 1.2);
+export const DOSS_POS = { x: dossAt.x, z: dossAt.z };
 
 /** Light through the day (M5). Hour, fog colour, sky light, fog far, gas lamps lit 0-1. */
 const DAYLIGHT: Array<[number, number, number, number, number]> = [
   [0, 0x171b21, 0.38, 19, 1],
   [5.5, 0x1a1e25, 0.42, 19, 1],
-  [7, 0x343a42, 0.85, 22, 0.7],
-  [9, 0x58616a, 1.5, 30, 0],
-  [15, 0x58616a, 1.5, 30, 0],
-  [17, 0x4b4540, 1.0, 25, 0.4],
+  [7, 0x343a42, 1.0, 22, 0.7],
+  [9, 0x5e6870, 2.1, 30, 0],
+  [15, 0x5e6870, 2.1, 30, 0],
+  [17, 0x4b4540, 1.3, 25, 0.4],
   [18.5, 0x2c2e34, 0.65, 21, 1],
   [21, 0x1a1e25, 0.42, 19, 1],
   [24, 0x171b21, 0.38, 19, 1],
@@ -80,13 +86,15 @@ export interface World {
   reachFrom(x: number, z: number): (x: number, z: number, reach: number) => boolean;
   /** Thick fog for a job twist; eases in and out. */
   setThickFog(on: boolean): void;
+  /** The city of 1873: houses, walk map. */
+  city: CityWorld;
   /** Hour of the day, 0-24 with fractions: fog, sky light and gas lamps follow (M5). */
   setTimeOfDay(hour: number): void;
   /** The day's weather: how far you see and how much the lamps glow in the air. */
   setWeather(w: "fog" | "mist" | "clear"): void;
   mats: Mats;
   surfaceAt(x: number, z: number): Surface;
-  update(t: number, dt: number): void;
+  update(t: number, dt: number, camera?: THREE.Camera): void;
 }
 
 // Thin details that sit on a wall or the ground (windows, doors, rails, planks).
@@ -107,7 +115,7 @@ function mats(tex: Textures) {
       new THREE.MeshPhongMaterial({ map: tex.planks, color: 0xb0b0b0, specular: 0x1a1a1a, shininess: 10, ...DECAL }),
     ),
     cobble: psx(
-      new THREE.MeshPhongMaterial({ map: tex.cobble, color: 0xc8c8c8, specular: 0x2a2a2a, shininess: 18 }),
+      new THREE.MeshPhongMaterial({ map: tex.cobble, color: 0xffffff, specular: 0x2a2a2a, shininess: 18 }),
       { affine: 0.75 },
     ),
     quayWall: lambert(tex.quayWall),
@@ -153,30 +161,26 @@ export function buildRijnkaai(): World {
   // cold light from a sky nobody can see
   const skyLight = new THREE.HemisphereLight(0x8494a6, 0x2a2822, 1.1);
   scene.add(skyLight);
+  // a low sun from the south-west, weak through fog, gives walls and roofs their form
+  const sun = new THREE.DirectionalLight(0xfff0d8, 0);
+  sun.position.set(-0.75, 0.9, 0.55);
+  scene.add(sun);
+  scene.add(sun.target);
+  let sunDay = 0;
 
   // --- sky dome: takes the fog colour and the lamp glow in the air
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(150, 16, 8), m.sky);
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(460, 16, 8), m.sky);
   scene.add(sky);
 
-  // --- ground and quay wall
-  const ground = new THREE.Mesh(
-    worldPlane(120, 46, 60, 23, 2),
-    m.cobble,
-  );
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.set(0, 0, 23);
-  scene.add(ground);
+  // --- the city: ground, quay walls, houses (world/city.ts)
+  const city = buildCity(scene, m, WATER_Y);
 
-  scene.add(box(120, 4.2, 1, m.quayWall, 0, -2.1, -0.5, 4));
-  // edge stones
-  scene.add(box(120, 0.18, 0.6, m.wallDecal, 0, 0.02, 0.3, 1));
-
-  // --- water
-  const water = new THREE.Mesh(new THREE.PlaneGeometry(400, 170, 160, 68), m.water);
+  // --- water: one sheet under the whole city; the land covers it
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(2400, 2400, 360, 360), m.water);
   water.rotation.x = -Math.PI / 2;
-  water.position.set(0, WATER_Y, -85);
+  water.position.set(-300, WATER_Y, 200);
   const wuv = water.geometry.getAttribute("uv");
-  for (let i = 0; i < wuv.count; i++) wuv.setXY(i, wuv.getX(i) * 100, wuv.getY(i) * 42);
+  for (let i = 0; i < wuv.count; i++) wuv.setXY(i, wuv.getX(i) * 600, wuv.getY(i) * 600);
   scene.add(water);
   const waterTex = tex.water;
 
@@ -189,29 +193,10 @@ export function buildRijnkaai(): World {
   scene.add(cyl(0.2, 0.22, 1.0, 6, m.darkWood, 5.4, 0.4, -11.4));
   scene.add(cyl(0.2, 0.22, 1.0, 6, m.darkWood, 8.6, 0.4, -11.4));
 
-  // loading dock planks in front of W3
-  scene.add(box(14, 0.06, 4.4, m.planksDecal, 16, 0.02, 19.2, 3));
-
-  // --- rails in the cobbles
-  for (const z of [8.3, 9.73]) scene.add(box(120, 0.04, 0.08, m.ironDecal, 0, 0.01, z, 4));
-
-  // --- warehouses
-  warehouse(scene, m, colliders, -38, 16, "KATOENNATIE", false);
-  warehouse(scene, m, colliders, -12, 14, "HESSENATIE", true);
-  warehouse(scene, m, colliders, 16, 18, "WED. PEETERS", false);
-
-  // fences in the gaps and at the ends; the gap between the naties has the alley gate
-  for (const [x0, x1] of [
-    [-58, -46],
-    [-31, -26.6],
-    [-23.4, -19],
-    [-5, 7],
-    [25, 58],
-  ] as const) {
-    fence(scene, m, x0, x1, 22.3);
-  }
-  fenceZ(scene, m, -58.3, 0.5, 22.3);
-  fenceZ(scene, m, 58.3, 0.5, 22.3);
+  // --- signs on the real houses where the game's people work
+  doorSign(scene, "hessenatie", "HESSENATIE");
+  doorSign(scene, "peeters", "WED. PEETERS");
+  doorSign(scene, "entrepot", "ENTREPOT");
 
   // --- crane
   crane(scene, m, colliders, -24, 1.6);
@@ -231,16 +216,19 @@ export function buildRijnkaai(): World {
   cart(scene, m, colliders, 47, 11);
   for (let x = -54; x <= 54; x += 9) {
     if (x > 3 && x < 11) continue; // pier root
-    bollard(scene, m, colliders, x, 1.0);
-    if (Math.abs(x - 23) < 5 || Math.abs(x - 41) < 5) ropeCoil(scene, m, x + 1.1, 1.6);
+    if (Math.abs(x - RAMP.x) < 2) continue; // gangway foot
+    const ez = edgeZ(x);
+    if (ez > 6) continue; // the canal mouth
+    bollard(scene, m, colliders, x, ez + 0.9);
+    if (Math.abs(x - (SHIP_X + 4)) < 5 || Math.abs(x - (SHIP_X + 32)) < 5) ropeCoil(scene, m, x + 1.1, ez + 1.5);
   }
 
   // --- ships: dark walls in the fog
-  const shipA = ship(scene, m, 14, -7.2, 40, 9, false, RAMP.x - 14);
+  const shipA = ship(scene, m, SHIP_X, -7.2, 40, 9, false, RAMP.x - SHIP_X);
   const shipB = ship(scene, m, -56, -26, 44, 10, true);
   // on ship A's deck: the deckhouse and the masts are in the way
-  colliders.push({ minX: 19.2, maxX: 26.4, minZ: -9.2, maxZ: -5.2 });
-  colliders.push(rectAround(33.2, -7.2, 0.3, 0.3));
+  colliders.push({ minX: SHIP_X + 5.2, maxX: SHIP_X + 12.4, minZ: -9.2, maxZ: -5.2 });
+  colliders.push(rectAround(SHIP_X + 19.2, -7.2, 0.3, 0.3));
   // gangway: a plank ramp from the quay up to ship A's rail
   {
     const ramp = rod(new THREE.Vector3(RAMP.x, 0.03, RAMP.zLow), new THREE.Vector3(RAMP.x, DECK.y + 0.03, RAMP.zHigh), 0.02, m.planks);
@@ -251,8 +239,8 @@ export function buildRijnkaai(): World {
     }
   }
   // mooring lines from ship A to two bollards
-  scene.add(rod(new THREE.Vector3(18, 2.3, -2.9), new THREE.Vector3(18, 0.5, 1.0), 0.04, m.rope));
-  scene.add(rod(new THREE.Vector3(50, 2.3, -2.9), new THREE.Vector3(45, 0.5, 1.0), 0.04, m.rope));
+  scene.add(rod(new THREE.Vector3(SHIP_X + 4, 2.3, -2.9), new THREE.Vector3(SHIP_X + 4, 0.5, edgeZ(SHIP_X + 4) + 0.9), 0.04, m.rope));
+  scene.add(rod(new THREE.Vector3(SHIP_X + 36, 2.3, -2.9), new THREE.Vector3(SHIP_X + 32, 0.5, edgeZ(SHIP_X + 32) + 0.9), 0.04, m.rope));
 
   // --- gas lamps (6)
   const glow = glowTexture();
@@ -264,8 +252,9 @@ export function buildRijnkaai(): World {
     [24, 2.2, false],
     [44, 19.8, false],
   ];
-  const lamps: Lamp[] = lampSpots.map(([x, z, broken], i) => gasLamp(scene, m, colliders, glow, x, z, i, broken));
-  const lantern = dossHouse(scene, m, glow, DOSS_POS.x);
+  // lamps on the quay stand a step back from the edge
+  const lamps: Lamp[] = lampSpots.map(([x, z, broken], i) => gasLamp(scene, m, colliders, glow, x, z < 6 ? Math.max(z, edgeZ(x) + 1.6) : z, i, broken));
+  const lantern = dossLantern(scene, m, glow);
 
   // --- movement rules
   const onRamp = (x: number, z: number) => Math.abs(x - RAMP.x) < RAMP.halfW && z < RAMP.zLow && z > RAMP.zHigh - 0.2;
@@ -276,11 +265,13 @@ export function buildRijnkaai(): World {
     if (onRamp(x, z)) return THREE.MathUtils.clamp((RAMP.zLow - z) / (RAMP.zLow - RAMP.zHigh), 0, 1) * DECK.y;
     return 0;
   };
-  const isWalkable = (x: number, z: number) =>
-    (x > QUAY.minX && x < QUAY.maxX && z > QUAY.minZ && z < QUAY.maxZ) ||
-    (x > PIER.minX && x < PIER.maxX && z > PIER.minZ && z < PIER.maxZ) ||
-    onRamp(x, z) ||
-    onDeck(x, z);
+  const onPier = (x: number, z: number) => x > PIER.minX && x < PIER.maxX && z > PIER.minZ && z < PIER.maxZ;
+  const isWalkable = (x: number, z: number) => {
+    if (onPier(x, z) || onRamp(x, z) || onDeck(x, z)) return true;
+    const f = city.flags(x, z);
+    if (f === undefined) return x > QUAY.minX && x < QUAY.maxX && z > QUAY.minZ && z < QUAY.maxZ;
+    return f === 0;
+  };
   const dynamic = new Set<Rect>();
   /** Things with a top lower than feet + STEP can be walked onto. */
   const STEP = 0.36;
@@ -312,7 +303,12 @@ export function buildRijnkaai(): World {
   }
 
   const onPierDeck = (x: number, z: number) => x > 5 && x < 9 && z > -12 && z < 0;
-  const isWater = (x: number, z: number) => z < 0 && !onPierDeck(x, z) && !onRamp(x, z) && !onDeck(x, z) && z > -150;
+  const isWater = (x: number, z: number) => {
+    if (onPierDeck(x, z) || onRamp(x, z) || onDeck(x, z)) return false;
+    const f = city.flags(x, z);
+    if (f === undefined) return z < 0;
+    return (f & (WATER | OUTSIDE)) !== 0 && (f & WALL) === 0;
+  };
 
   /**
    * Path check (CLAUDE.md: always make sure there is a path). Flood-fills the
@@ -320,19 +316,36 @@ export function buildRijnkaai(): World {
    * as they are now. Returns a test: can you get within `reach` of (x, z)?
    */
   function reachFrom(sx: number, sz: number): (x: number, z: number, reach: number) => boolean {
+    // a 0.5 m grid over the whole city; walls and water from the walk map, then
+    // the quay's own obstacles (colliders, grown by the body radius) on top
     const C = 0.5;
-    const X0 = -60;
-    const Z0 = -13;
-    const W = 240;
-    const H = 72;
+    const X0 = -1100;
+    const Z0 = -440;
+    const W = Math.ceil(1600 / C);
+    const H = Math.ceil(1260 / C);
     const pass = new Uint8Array(W * H);
     const seen = new Uint8Array(W * H);
     const at = (i: number, j: number): [number, number] => [X0 + i * C, Z0 + j * C];
     for (let j = 0; j < H; j++)
       for (let i = 0; i < W; i++) {
         const [x, z] = at(i, j);
-        pass[j * W + i] = isWalkable(x, z) && isFree(x, z, 0.3, baseAt(x, z)) ? 1 : 0;
+        pass[j * W + i] = isWalkable(x, z) ? 1 : 0;
       }
+    const R = 0.3;
+    for (const c of [...colliders, ...dynamic]) {
+      if (c.top !== undefined && c.top <= STEP) continue;
+      const i0 = Math.max(0, Math.floor((c.minX - R - X0) / C));
+      const i1 = Math.min(W - 1, Math.ceil((c.maxX + R - X0) / C));
+      const j0 = Math.max(0, Math.floor((c.minZ - R - Z0) / C));
+      const j1 = Math.min(H - 1, Math.ceil((c.maxZ + R - Z0) / C));
+      for (let j = j0; j <= j1; j++)
+        for (let i = i0; i <= i1; i++) {
+          const [x, z] = at(i, j);
+          // a collider with a top you could stand on only blocks you from below
+          if (c.top !== undefined && baseAt(x, z) + STEP >= c.top) continue;
+          if (inRect(c, x, z, R)) pass[j * W + i] = 0;
+        }
+    }
     const si = Math.round((sx - X0) / C);
     const sj = Math.round((sz - Z0) / C);
     const queue: number[] = [];
@@ -377,7 +390,6 @@ export function buildRijnkaai(): World {
 
   function surfaceAt(x: number, z: number): Surface {
     if (x > PIER.minX && x < PIER.maxX && z < -1) return "wood";
-    if (inRect(LOADING_DOCK as Rect, x, z)) return "wood";
     return "stone";
   }
 
@@ -407,12 +419,17 @@ export function buildRijnkaai(): World {
     fog.color.copy(fogFrom.setHex(c0)).lerp(fogTo.setHex(c1), k);
     (scene.background as THREE.Color).copy(fog.color);
     skyLight.intensity = THREE.MathUtils.lerp(s0, s1, k);
+    sunDay = Math.max(0, (skyLight.intensity - 0.55) / 1.55);
     dayFar = THREE.MathUtils.lerp(f0, f1, k);
     lampsLit = THREE.MathUtils.lerp(l0, l1, k);
   }
   applyDaylight(dayNow);
 
-  function update(t: number, dt: number): void {
+  let camera: THREE.Camera | null = null;
+  function update(t: number, dt: number, cam?: THREE.Camera): void {
+    if (cam) camera = cam;
+    // the sky dome goes where you go
+    if (camera) sky.position.set(camera.position.x, 0, camera.position.z);
     psxUniforms.uTime.value = t;
     fogMix += (fogTarget - fogMix) * Math.min(1, dt * 0.4);
     // ease along the clock, the short way round midnight
@@ -424,10 +441,13 @@ export function buildRijnkaai(): World {
       applyDaylight(dayNow);
     }
     for (let i = 0; i < 3; i++) wNow[i] += (wTarget[i] - wNow[i]) * Math.min(1, dt * 0.5);
+    // the sun: nothing at night, a glow through fog, real light on a clear day
+    sun.intensity = sunDay * (1.35 - wNow[2]) * 2.6;
     psxUniforms.uScatter.value = SCATTER * wNow[2];
     // the job twist "thick fog" always closes in, whatever the weather
     fog.near = THREE.MathUtils.lerp(3 * wNow[0], 1.5, fogMix);
     fog.far = THREE.MathUtils.lerp(dayFar * wNow[1], 11, fogMix);
+    if (camera) city.update(camera, fog.far);
     lantern.intensity = 7 * (0.92 + Math.sin(t * 5.1) * 0.04 + Math.sin(t * 13.7) * 0.03);
     waterTex.offset.x = t * 0.004;
     waterTex.offset.y = t * 0.011;
@@ -467,9 +487,10 @@ export function buildRijnkaai(): World {
     reachFrom,
     setThickFog: (on) => (fogTarget = on ? 1 : 0),
     setTimeOfDay: (h) => (dayTarget = ((h % 24) + 24) % 24),
+    city,
     setWeather: (w) => (wTarget = WEATHER[w] ?? WEATHER.fog),
     lamps,
-    shipPositions: [new THREE.Vector3(34, 1, -3), new THREE.Vector3(-34, 1, -21)],
+    shipPositions: [new THREE.Vector3(SHIP_X + 20, 1, -3), new THREE.Vector3(-34, 1, -21)],
     move,
     surfaceAt,
     update,
@@ -478,12 +499,6 @@ export function buildRijnkaai(): World {
 
 // -------------------------------------------------------------------------
 
-function worldPlane(w: number, h: number, sw: number, sh: number, tile: number): THREE.PlaneGeometry {
-  const g = new THREE.PlaneGeometry(w, h, sw, sh);
-  const uv = g.getAttribute("uv");
-  for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) * w) / tile, (uv.getY(i) * h) / tile);
-  return g;
-}
 
 /** Gas flame: slow breathing, small fast noise, now and then a dip. */
 function flicker(t: number, seed: number, broken: boolean): number {
@@ -552,72 +567,34 @@ function gasLamp(
   return { pos, light, glass, halo, seed: seed * 1.37 + 0.5, broken, level: 1 };
 }
 
-function warehouse(
-  scene: THREE.Scene,
-  m: Mats,
-  colliders: Rect[],
-  cx: number,
-  width: number,
-  sign: string,
-  litWindow: boolean,
-): void {
-  const front = 22;
-  const depth = 18;
-  const wallH = 9;
-  const roofH = 6;
-  const zc = front + depth / 2;
-  scene.add(box(width, wallH, depth, m.brick, cx, wallH / 2, zc, 2));
+/** A lantern on a bracket over the doss house door (M5). Returns its light. */
+function dossLantern(scene: THREE.Scene, m: Mats, glow: THREE.Texture): THREE.PointLight {
+  const d = doorSpot("doss", 0.5);
+  const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.26, 4), m.lampGlass);
+  glass.position.set(d.x, 3.1, d.z);
+  scene.add(glass);
+  const halo = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: glow, color: 0xffb060, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.5, fog: false }),
+  );
+  halo.position.copy(glass.position);
+  halo.scale.set(1.1, 1.1, 1);
+  scene.add(halo);
+  doorSign(scene, "doss", "BEDS");
+  const light = new THREE.PointLight(0xffa048, 7, 10, 1.7);
+  light.position.set(d.x, 2.9, d.z);
+  scene.add(light);
+  return light;
+}
 
-  // stepped gable (trapgevel) facing the quay
-  const steps = 5;
-  const stepH = roofH / steps;
-  for (let i = 0; i < steps; i++) {
-    const w = Math.max(1.6, width * (1 - (i * stepH) / roofH) - 0.4);
-    scene.add(box(w, stepH, 0.6, m.brick, cx, wallH + stepH * (i + 0.5), front + 0.1, 2));
-    // coping stone on each step
-    scene.add(box(w + 0.1, 0.12, 0.7, m.wallDecal, cx, wallH + stepH * (i + 1), front + 0.1, 1));
-  }
-
-  // roof
-  const half = width / 2;
-  const slope = Math.hypot(half, roofH);
-  const ang = Math.atan2(roofH, half);
-  for (const s of [-1, 1]) {
-    const r = new THREE.Mesh(boxGeo(slope + 0.4, 0.3, depth - 0.3, 2), m.slate);
-    r.position.set(cx + (s * half) / 2, wallH + roofH / 2, zc + 0.2);
-    r.rotation.z = -s * ang;
-    scene.add(r);
-  }
-
-  // door, hoist door above, windows
-  scene.add(box(3.2, 4.2, 0.2, m.woodDecal, cx, 2.1, front - 0.05, 1.5));
-  scene.add(box(2.0, 2.4, 0.2, m.woodDecal, cx, 10.6, front - 0.2, 1.5));
-  const beam = box(0.3, 0.3, 1.6, m.darkWood, cx, 12.4, front - 0.7, 1);
-  scene.add(beam);
-  scene.add(rod(new THREE.Vector3(cx, 12.3, front - 1.4), new THREE.Vector3(cx, 6.5, front - 1.4), 0.03, m.rope));
-  scene.add(box(0.25, 0.35, 0.1, m.iron, cx, 6.4, front - 1.4, 1));
-
-  const cols = Math.max(2, Math.floor((width - 5) / 3));
-  for (let row = 0; row < 2; row++) {
-    for (let c = 0; c < cols; c++) {
-      const side = c < cols / 2 ? -1 : 1;
-      const k = c < cols / 2 ? c : c - Math.ceil(cols / 2);
-      const x = cx + side * (2.6 + k * 2.4);
-      const y = row === 0 ? 3.3 : 7.0;
-      const lit = litWindow && row === 1 && c === cols - 1;
-      scene.add(box(1.0, 1.5, 0.12, lit ? m.litWindow : m.window, x, y, front - 0.04, 1));
-      scene.add(box(1.2, 0.12, 0.25, m.wallDecal, x, y - 0.8, front - 0.1, 1)); // sill
-    }
-  }
-
-  // painted sign
-  const signMat = psx(new THREE.MeshLambertMaterial({ map: signTexture(sign), ...DECAL }), { affine: 0.5 });
-  const plate = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(width - 2, 9), 1.1, 4, 1), signMat);
-  plate.position.set(cx, 5.1, front - 0.08);
-  plate.rotation.y = Math.PI;
+/** A painted board over a door of the city, flat on the wall. */
+function doorSign(scene: THREE.Scene, door: string, text: string): void {
+  const d = doorSpot(door, 0.08);
+  const signMat = psx(new THREE.MeshLambertMaterial({ map: signTexture(text), ...DECAL }), { affine: 0.5 });
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.36, 3, 1), signMat);
+  plate.position.set(d.x, 4.15, d.z);
+  // the plane's front (+z local) looks out of the wall, away from the house
+  plate.lookAt(d.x - d.face[0], 4.15, d.z - d.face[1]);
   scene.add(plate);
-
-  colliders.push({ minX: cx - half, maxX: cx + half, minZ: front - 0.3, maxZ: front + depth });
 }
 
 /** Hiring board: two posts, a plank face with pinned papers, a little roof. */
@@ -642,61 +619,6 @@ function noticeBoard(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, 
   }
   scene.add(g);
   colliders.push(rectAround(x, z, 1.0, 0.2));
-}
-
-/**
- * The Sint-Andries alley: a gate in the fence between the two naties, a narrow
- * lane between blind walls, and the doss house door at the end under a lantern.
- * You cannot walk in; E at the gate takes you to bed (M5). Returns the lantern.
- */
-function dossHouse(scene: THREE.Scene, m: Mats, glow: THREE.Texture, x: number): THREE.PointLight {
-  const z0 = 22.3;
-  const z1 = 31;
-  // gate posts and a beam with the alley name
-  for (const s of [-1, 1]) scene.add(box(0.22, 3.4, 0.22, m.darkWood, x + s * 1.6, 1.7, z0, 1));
-  scene.add(box(3.6, 0.22, 0.22, m.darkWood, x, 3.3, z0, 2));
-  const signMat = psx(new THREE.MeshLambertMaterial({ map: signTexture("SINT-ANDRIES"), ...DECAL }), { affine: 0.5 });
-  const plate = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.36, 3, 1), signMat);
-  plate.position.set(x, 2.95, z0 - 0.13);
-  plate.rotation.y = Math.PI;
-  scene.add(plate);
-  // blind side walls of the lane, and the house at the end
-  for (const s of [-1, 1]) scene.add(box(0.4, 6, z1 - z0, m.brickDark, x + s * 1.8, 3, (z0 + z1) / 2, 2));
-  scene.add(box(4, 8, 0.6, m.brickDark, x, 4, z1, 2));
-  scene.add(box(1.2, 2.2, 0.12, m.woodDecal, x, 1.1, z1 - 0.36, 1)); // door
-  scene.add(box(0.8, 0.9, 0.1, m.litWindow, x + 1.1, 3.6, z1 - 0.34, 1)); // a lit window upstairs
-  scene.add(box(0.8, 0.9, 0.1, m.window, x - 1.1, 3.6, z1 - 0.34, 1));
-  // a lantern on a bracket above the door
-  scene.add(box(0.06, 0.06, 0.5, m.iron, x, 2.75, z1 - 0.55, 1));
-  const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.26, 4), m.lampGlass);
-  glass.position.set(x, 2.55, z1 - 0.8);
-  scene.add(glass);
-  const halo = new THREE.Sprite(
-    new THREE.SpriteMaterial({ map: glow, color: 0xffb060, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.5, fog: false }),
-  );
-  halo.position.copy(glass.position);
-  halo.scale.set(1.1, 1.1, 1);
-  scene.add(halo);
-  const light = new THREE.PointLight(0xffa048, 7, 10, 1.7);
-  light.position.set(x, 2.4, z1 - 1.2);
-  scene.add(light);
-  return light;
-}
-
-function fence(scene: THREE.Scene, m: Mats, x0: number, x1: number, z: number): void {
-  for (let x = x0; x <= x1 + 0.01; x += 2.5) scene.add(box(0.14, 2.4, 0.14, m.darkWood, x, 1.2, z, 1));
-  for (const y of [0.6, 1.8]) scene.add(box(x1 - x0, 0.12, 0.08, m.darkWood, (x0 + x1) / 2, y, z, 2));
-  // boards, a few missing
-  for (let x = x0 + 0.2; x < x1; x += 0.32) {
-    if (Math.sin(x * 12.9898) > 0.8) continue;
-    scene.add(box(0.26, 2.1 + Math.sin(x * 7.1) * 0.12, 0.04, m.darkWood, x, 1.05, z + 0.08, 2));
-  }
-}
-
-function fenceZ(scene: THREE.Scene, m: Mats, x: number, z0: number, z1: number): void {
-  for (let z = z0; z <= z1 + 0.01; z += 2.5) scene.add(box(0.14, 2.4, 0.14, m.darkWood, x, 1.2, z, 1));
-  for (const y of [0.6, 1.8]) scene.add(box(0.08, 0.12, z1 - z0, m.darkWood, x, y, (z0 + z1) / 2, 2));
-  scene.add(box(0.04, 2.0, z1 - z0, m.darkWood, x + 0.06, 1.0, (z0 + z1) / 2, 2));
 }
 
 function crane(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number): void {

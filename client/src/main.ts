@@ -62,7 +62,7 @@ function frame(): void {
   timer.update();
   const dt = Math.min(timer.getDelta(), 0.1);
   elapsed += dt;
-  world.update(elapsed, dt);
+  world.update(elapsed, dt, player.camera);
   player.update(dt);
   jobs.update(dt);
   sound?.update(player.camera);
@@ -104,6 +104,36 @@ if (import.meta.env.DEV) {
       if (!can(DOSS_POS.x, DOSS_POS.z, 2.0)) bad.push("the doss house gate");
       if (!can(RAMP.x - 0.6, RAMP.zHigh - 1.0, 2.4)) bad.push("the mate on deck");
       return bad;
+    },
+    /** Save a picture of the game to data/shots/<name>.jpg (dev server). */
+    async shot(name = "shot") {
+      retro.render(world.scene, player.camera, elapsed);
+      const url = canvas.toDataURL("image/jpeg", 0.85);
+      const r = await fetch("/api/dev/shot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, url }) });
+      return r.ok ? `data/shots/${name}.jpg` : `failed ${r.status}`;
+    },
+    /** A picture from any point: camera at `from`, looking at `to` (world metres). */
+    async shotFrom(name: string, from: [number, number, number], to: [number, number, number], fogFar = 0) {
+      const cam = player.camera;
+      const keep = { p: cam.position.clone(), q: cam.quaternion.clone() };
+      cam.position.set(...from);
+      cam.lookAt(...to);
+      cam.updateMatrixWorld();
+      world.update(elapsed, 0.016, cam);
+      const fog = world.scene.fog as THREE.Fog;
+      const keepFog = [fog.near, fog.far];
+      if (fogFar) {
+        fog.near = fogFar * 0.3;
+        fog.far = fogFar;
+        world.city.update(cam, fogFar);
+      }
+      retro.render(world.scene, cam, elapsed);
+      [fog.near, fog.far] = keepFog;
+      const url = canvas.toDataURL("image/jpeg", 0.85);
+      cam.position.copy(keep.p);
+      cam.quaternion.copy(keep.q);
+      const r = await fetch("/api/dev/shot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, url }) });
+      return r.ok ? `data/shots/${name}.jpg` : `failed ${r.status}`;
     },
     /** Run the game logic for some seconds at 60 Hz, without waiting for frames. */
     step(seconds: number) {
