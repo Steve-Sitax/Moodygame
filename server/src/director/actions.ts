@@ -441,6 +441,8 @@ export function validateProposal(db: DB, r: Resident, raw: unknown): Accepted | 
   // the trade
   const keeper = (r.work.kind === "stall" || r.work.kind === "shop" || r.work.kind === "tavern") && now.act === "work";
   if (keeper) return refuse("at_stall");
+  // the guard (town/garrison.ts): a sentry or the corporal is on guard the whole day, at the post or in the guard room
+  if (r.work.kind === "guard") return refuse("post");
   if (r.age < 13 && (p.kind === "talk_to" || p.kind === "fetch_police" || p.kind === "look_for")) return refuse("child");
 
   // the stats

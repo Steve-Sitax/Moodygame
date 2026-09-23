@@ -10,6 +10,8 @@ import { engineReply, residentChoice, residentOpen, residentPrompt } from "../sr
 import { policeDispatch } from "../src/town/police.ts";
 import { seeChance } from "../src/town/deeds.ts";
 import { walkMap } from "../src/town/walkmap.ts";
+import { validateProposal } from "../src/director/actions.ts";
+import { gather, planEvent, stage } from "../src/director/scheduler.ts";
 
 // The garrison and the customs (garrison.ts, Steve 2026-09-24): sentries in pairs at the
 // railway gate, soldiers off duty in pairs, customs officers on the quays. They walk, stand
@@ -263,5 +265,36 @@ describe("generateGarrison on its own", () => {
     const b = generateGarrison(1873, T.places, base);
     expect(a.residents.map((r) => r.name)).toEqual(b.residents.map((r) => r.name));
     expect(a.residents.map((r) => r.id)).toEqual(T.residents.slice(base.length).map((r) => r.id));
+  });
+});
+
+describe("M4: the guard stays at its post", () => {
+  it("a sentry asked to go somewhere or follow Jef refuses: he cannot leave his post; a soldier off duty may", () => {
+    const db = openDb(":memory:");
+    setClock(db, 2, 10);
+    const t = town(db).town;
+    const prop = (kind: string, target = "") => ({ kind, target, minutes: 30, item: "", amount_c: 0, reason: "Jef was robbed" });
+    for (const r of t.residents.filter((o) => o.trade === "sentry" || o.trade === "corporal")) {
+      for (const kind of ["follow", "go_to", "fetch_police", "wait"]) {
+        const v = validateProposal(db, r, prop(kind, kind === "go_to" ? "the Werf" : ""));
+        expect(v.ok, `${r.trade} ${kind}`).toBe(false);
+        if (!v.ok) expect(v.reason).toBe("post");
+      }
+    }
+    const soldier = t.residents.find((o) => o.trade === "soldier")!;
+    const v = validateProposal(db, soldier, prop("fetch_police"));
+    if (!v.ok) expect(v.reason).not.toBe("post");
+  });
+
+  it("a gathering of onlookers never pulls a sentry or the corporal off guard", () => {
+    const db = openDb(":memory:");
+    setClock(db, 2, 10);
+    const p = planEvent(db, { title: "A crowd at the gate", template: "quarrel", place: "werf", start_in_min: 0, stages: [stage({ op: "gather", minutes: 20, role: "crowd", count: 20 })], source: "engine" });
+    expect(p.ok).toBe(true);
+    const ev = p.ok ? p.event : null;
+    const gp = GUARD_POSTS[0].posts[0];
+    const picked = gather(db, ev!, "crowd", 20, { x: gp[0], z: gp[1] }, "the railway gate");
+    expect(picked.length).toBeGreaterThan(0);
+    for (const id of picked) expect(["sentry", "corporal"]).not.toContain(town(db).byId.get(id)!.trade);
   });
 });

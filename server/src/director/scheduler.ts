@@ -368,6 +368,8 @@ function postRumour(db: DB, ev: EventRow, text: string): void {
 
 function fits(r: Resident, role: GatherRole, db: DB): boolean {
   if (r.trade === "infant") return false;
+  // the guard (town/garrison.ts) never leaves the post for an event, on a tour or in the guard room
+  if (r.work.kind === "guard") return false;
   const c = clock(db);
   const now = activityAt(r.sched, c.day, c.hour + c.minute / 60);
   const keeperAtWork = (r.work.kind === "stall" || r.work.kind === "shop" || r.work.kind === "tavern") && now.act === "work";
@@ -413,7 +415,8 @@ export function gather(db: DB, ev: EventRow, role: GatherRole, count: number, at
   }
   const picked = pool.slice(0, Math.max(GATHER_MIN, Math.min(GATHER_MAX, count)));
   const n = picked.length;
-  const ring = Math.min(Math.max(2.5, ev.r * 0.6), 6) + n / 5;
+  // the musicians play in the middle, close together; everyone else stands round them
+  const ring = role === "musicians" ? 0.9 : Math.min(Math.max(2.5, ev.r * 0.6), 6) + n / 5;
   const now = gameMinute(db);
   picked.forEach((r, i) => {
     const a = (i / Math.max(1, n)) * Math.PI * 2 + hash(ev.id + ":" + i) * 0.4;

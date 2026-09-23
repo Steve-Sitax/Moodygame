@@ -5,6 +5,7 @@ import { STOPS as OMNIBUS_STOPS, type OmnibusStop } from "../world/omnibus";
 import type { Crowd, Puppet } from "./crowd";
 import type { Events } from "./events";
 import type { Town } from "./town";
+import { INSTRUMENTS, makeInstrument, playInstrument, type Instrument } from "./instruments";
 
 // Townspeople who act (M4), on the client. The server keeps every action as a
 // row (director/actions.ts) and decides what it means; this side walks the
@@ -53,6 +54,8 @@ interface Run {
   how?: "walk" | "run" | "tram";
   tramStop?: OmnibusStop;
   tramT?: number;
+  /** attend as a musician: standing in the middle, playing. */
+  playing?: boolean;
 }
 
 export class Actions {
@@ -69,6 +72,9 @@ export class Actions {
   say: (t: string) => void = () => {};
   /** Dev: what was reported. */
   readonly reports: string[] = [];
+  /** The street musicians' instruments, by person (game/instruments.ts). */
+  private instruments = new Map<string, { i: Instrument; p: Puppet }>();
+  private clock = 0;
 
   constructor(
     private readonly world: World,
@@ -112,6 +118,7 @@ export class Actions {
       void this.sync();
     }
     for (const r of this.runs.values()) this.run(r, dt);
+    this.playMusic(dt);
     this.releaseBuses();
     for (const [id, t] of this.afterglow) {
       if (t < performance.now()) {
@@ -372,6 +379,7 @@ export class Actions {
     }
     const d = Math.hypot(p.x - gx, p.z - gz);
     if (d > 1.6) {
+      r.playing = false;
       const pace = !attend ? 1.5 : a.phase === "procession" ? 0.95 : d <= 6 ? 1.1 : r.how === "run" ? 2.5 : 1.45;
       this.go(r, p, gx, gz, pace, attend ? 0.9 : 0.6);
       if (this.stuck(r, d, dt, attend ? 20 : STUCK_S)) {
@@ -381,8 +389,18 @@ export class Actions {
       return;
     }
     if (!attend) return void this.report(r, "arrived");
-    // there: face the middle of it, and talk now and then like a crowd
     const c = this.events.centreOf(a.event_id);
+    // a street musician: in the middle, facing out to the crowd, playing (Steve: "no musicians visible")
+    if (a.role === "musicians") {
+      r.playing = true;
+      if (this.crowd.puppetBusy(p) || (r.wait -= dt) <= 0) {
+        const yaw = c ? Math.atan2(p.x - c.x, p.z - c.z) : null;
+        this.crowd.puppetStand(p, "talk", yaw);
+        r.wait = 6 + Math.random() * 4;
+      }
+      return;
+    }
+    // there: face the middle of it, and talk now and then like a crowd
     if (this.crowd.puppetBusy(p) || (r.wait -= dt) <= 0) {
       const yaw = c ? Math.atan2(c.x - p.x, c.z - p.z) : null;
       const mood = this.events.moodOf(a.event_id);
@@ -390,6 +408,26 @@ export class Actions {
       this.crowd.puppetStand(p, talk ? "talk" : mood === "solemn" ? "fold" : "idle", yaw);
       r.wait = talk ? 2.5 + Math.random() * 2 : 4 + Math.random() * 6;
     }
+  }
+
+  /** Musicians who stand and play get their instrument; anyone else loses theirs. */
+  private playMusic(dt: number): void {
+    this.clock += dt;
+    const want = new Map<string, { r: Run; p: Puppet }>();
+    for (const r of this.runs.values()) if (r.playing && r.p && r.a.role === "musicians" && r.a.kind === "attend") want.set(r.a.npc, { r, p: r.p });
+    for (const [id, e] of this.instruments) {
+      const w = want.get(id);
+      if (w && w.p === e.p) continue;
+      e.i.root.removeFromParent();
+      this.instruments.delete(id);
+    }
+    for (const [id, w] of want) {
+      if (this.instruments.has(id)) continue;
+      const i = makeInstrument(INSTRUMENTS[w.r.a.order % INSTRUMENTS.length]);
+      w.p.group.add(i.root);
+      this.instruments.set(id, { i, p: w.p });
+    }
+    for (const e of this.instruments.values()) playInstrument(e.i, this.clock);
   }
 
   private waitHere(r: Run, dt: number): void {
