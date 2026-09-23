@@ -2,6 +2,20 @@
 
 Newest on top. Each item says who raised it and when.
 
+## Feedback after playing M2b (Steve, 2026-09-23)
+M2b "works, that was more interesting". Ideas and wishes from that play:
+- **More thieves, a gang, and combat.** Note: docs/06 says "no combat in the demo; danger is narrated". This idea changes that decision. Steve decides before it goes into a milestone.
+- **People hand things over.** A parcel should come from a person (the employer or a clerk), not lie on the pier. Crates too, where it fits: you speak to someone on the ship and they lower crates from the boat with the crane or a rope. Needs M3 NPCs.
+- **Better physics for goods:** put a crate anywhere (also on top of other crates), pick up any crate, stack crates. Goods rest on what is under them.
+- **Owners react:** if you pick up a crate that belongs to someone and they are near, they get angry. Trust, memory and rumour follow (M3).
+- **Movement:** jump and crouch. Crouch also fits eavesdropping and hiding from a thief or the police.
+
+## World and art: better models, true to 1873 Antwerp (question from Steve, 2026-09-23)
+Plan already in docs/05 (asset plan); not yet in a milestone:
+- A Blender kit: 10 wall pieces, 4 roofs, 6 street props, 3 boat parts, 2 lamp types; 8 NPC bodies with texture swaps. Low poly and PS1 style on purpose; "true to life" means right shapes, materials, signs, clothes and layout, not photo-real.
+- Layout from public-domain sources: 1870s city plans of Antwerp, old photos and engravings of the Rijnkaai, the Steen, the Vismarkt, the cathedral. Only sources with a clear licence or public-domain status, noted in assets/ATTRIBUTION.md.
+- The four districts of the demo (docs/01): Rijnkaai, Vismarkt with the Steen, Sint-Andries, a slice of the Grote Markt.
+
 ## Gameplay ideas (Steve, 2026-09-23, during M2b)
 Stored for later. Not planned into a milestone yet.
 - **Buy a cart, then upgrade it:** a handcart first, a better cart or a mule later. Carries more goods per trip and moves them faster. A money sink that makes carry jobs pay better over time. Needs: a seller (chandler or a natie yard), a cart prop you push, cart speed and capacity owned by the engine.
