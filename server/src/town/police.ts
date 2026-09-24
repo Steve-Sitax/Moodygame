@@ -95,6 +95,17 @@ function save(db: DB, s: PoliceState): void {
   db.prepare("INSERT INTO world_state (key, value_json) VALUES ('police', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(JSON.stringify(s));
 }
 
+/**
+ * M6 ideas (ideas/): a mark on Jef's record without a visit: a blackmail reported, a bribe the
+ * customs officer told of. It counts in the next verdict like a warning. Logged as `police_note`.
+ */
+export function noteOnRecord(db: DB, text: string): void {
+  const s = policeState(db);
+  s.record.warnings += 1;
+  save(db, s);
+  log(db, "police_note", null, text);
+}
+
 // ------------------------------------------------------------------ the police post
 
 export interface PolicePost {

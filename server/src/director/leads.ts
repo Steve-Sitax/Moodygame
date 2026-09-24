@@ -4,6 +4,7 @@ import type { Resident } from "../town/population.ts";
 import { activityAt } from "../town/schedule.ts";
 import { town, TOWN_EMPLOYER_IDS } from "../town/store.ts";
 import { activeActions, isReserved } from "./actions.ts";
+import { isEmigrant } from "../town/emigrants.ts";
 import { BEARERS, LEAD_LABEL, LEADS_PER_STAGE, type LeadRole } from "./vocab.ts";
 
 // M4b: lead roles. A stage may name up to four leads (bride, groom, priest, the three
@@ -13,8 +14,18 @@ import { BEARERS, LEAD_LABEL, LEADS_PER_STAGE, type LeadRole } from "./vocab.ts"
 // unmarried man and woman, not of one family, close in age, living near each other). The
 // client dresses them from a fixed wardrobe. Nothing here is the model's.
 
+/**
+ * M6 town life: leads the ENGINE casts itself, never named by the model (they are not in the
+ * director's schema): the firemen at a house fire and the natie foreman at the dawn hiring.
+ */
+export type EngineLeadRole = "fireman" | "natie_foreman";
+export type AnyLeadRole = LeadRole | EngineLeadRole;
+export const ENGINE_LEAD_LABEL: Record<EngineLeadRole, string> = { fireman: "the firemen", natie_foreman: "the natie foreman" };
+/** What a role is called in a line: the director's roles and the engine's own. */
+export const labelOf = (role: AnyLeadRole): string => (role in ENGINE_LEAD_LABEL ? ENGINE_LEAD_LABEL[role as EngineLeadRole] : LEAD_LABEL[role as LeadRole]) ?? "someone";
+
 export interface Lead {
-  role: LeadRole;
+  role: AnyLeadRole;
   id: string;
   name: string;
   /** The stage that first names them (where they walk to at the start). */
@@ -92,7 +103,8 @@ export function pickLeads(db: DB, asks: LeadAsk[], taken: Set<string>, salt: str
   const c = clock(db);
   const busy = new Set(activeActions(db).map((a) => a.npc_id));
   const all = town(db).town.residents;
-  const free = (r: Resident) => !taken.has(r.id) && !busy.has(r.id) && !TOWN_EMPLOYER_IDS.includes(r.id) && !isReserved(db, r.id);
+  // M6 emigrants: nobody waiting by the chests to board is cast in a part
+  const free = (r: Resident) => !taken.has(r.id) && !busy.has(r.id) && !TOWN_EMPLOYER_IDS.includes(r.id) && !isReserved(db, r.id) && !isEmigrant(r);
   const keeper = (r: Resident) => (r.work.kind === "stall" || r.work.kind === "shop" || r.work.kind === "tavern") && activityAt(r.sched, c.day, c.hour + c.minute / 60).act === "work";
   const leads: Lead[] = [];
   const missing: LeadRole[] = [];
@@ -168,10 +180,10 @@ export function fillNames(text: string, leads: Lead[]): string {
   const nameOf = (role: string) => {
     const ls = leads.filter((l) => l.role === role);
     if (!ls.length) return null;
-    if (role === "bearers") return ls.map((l) => l.name.split(" ")[0]).join(", ");
+    if (role === "bearers" || role === "fireman") return ls.map((l) => l.name.split(" ")[0]).join(", ");
     return ls.map((l) => l.name).join(" and ");
   };
-  const out = text.replace(/\{([a-z_]+)\}/g, (_m, role: string) => nameOf(role) ?? LEAD_LABEL[role as LeadRole] ?? "someone");
+  const out = text.replace(/\{([a-z_]+)\}/g, (_m, role: string) => nameOf(role) ?? labelOf(role as AnyLeadRole));
   return out.replace(/\s{2,}/g, " ").trim();
 }
 
@@ -181,13 +193,13 @@ export function leadLine(leads: Lead[]): string {
   const parts: string[] = [];
   for (const l of leads) {
     if (l.role === "agent") continue;
-    if (l.role === "bearers") {
-      if (seen.has("bearers")) continue;
-      seen.add("bearers");
-      parts.push(`${leads.filter((x) => x.role === "bearers").map((x) => x.name.split(" ")[0]).join(", ")} (the bearers)`);
+    if (l.role === "bearers" || l.role === "fireman") {
+      if (seen.has(l.role)) continue;
+      seen.add(l.role);
+      parts.push(`${leads.filter((x) => x.role === l.role).map((x) => x.name.split(" ")[0]).join(", ")} (${labelOf(l.role)})`);
       continue;
     }
-    parts.push(`${l.name} (${LEAD_LABEL[l.role].replace(/^one of the (\w+)s$/, "the $1").replace(/^a /, "the ")})`);
+    parts.push(`${l.name} (${labelOf(l.role).replace(/^one of the (\w+)s$/, "the $1").replace(/^a /, "the ")})`);
   }
   if (parts.length <= 1) return parts.join("");
   return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;

@@ -9,6 +9,7 @@ import { TOWN_EMPLOYER_IDS, resident, town } from "./store.ts";
 import { houseDoors, walkMap } from "./walkmap.ts";
 import type { Resident } from "./population.ts";
 import { rowBoatHome, rowBoatStates, rowBoats, rowOn, rowState, setRowBoat } from "../rowing.ts";
+import { wantedFactor } from "../ideas/wanted.ts";
 import SPOTS from "../../../shared/spots.json" with { type: "json" };
 import CITY from "../../../shared/city.json" with { type: "json" };
 
@@ -587,9 +588,11 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
   const ctx: SeeCtx = { weather: weather(db), hour: p.hour, lantern: req.lantern, crouch: req.crouch };
   const saw: Witness[] = [];
   let nearMiss = false;
+  // M6 ideas: a wanted bill with Jef's name on a wall: the town watches him (ideas/wanted.ts)
+  const eyes = wantedFactor(db);
   for (const w of ws) {
     const r = resident(db, w.id);
-    const chance = seeChance(w, ctx, r?.trade, r?.age ?? 40);
+    const chance = Math.min(1, seeChance(w, ctx, r?.trade, r?.age ?? 40) * eyes);
     if (rng() < chance) saw.push(w);
     else if (w.d < 12) nearMiss = true;
   }

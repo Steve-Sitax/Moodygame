@@ -23,13 +23,23 @@ import { freeReply, openTalk, pickChoice, prefetchOpening, witness, type Line } 
 import { mountDeeds } from "./town/deedRoutes.ts";
 import { mountRowing } from "./town/rowDeeds.ts";
 import { mountDirector } from "./director/routes.ts";
+import { mountFamilies } from "./director/familyRoutes.ts";
 import { mountInteriors } from "./interiors/routes.ts";
 import { mountPress } from "./paper/routes.ts";
+import { mountIdeas } from "./ideas/routes.ts";
+import { mountHomes } from "./homes/routes.ts";
+import { mountTownLife } from "./director/townlife-routes.ts";
+import { mountEmigrants } from "./town/emigrantRoutes.ts";
 
 const db = openDb(DB_FILE);
 const app = new Hono();
+// M6: emigrant families come and go with the clock (town/emigrants.ts); first, so its after-tick step wraps every tick route
+mountEmigrants(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 // M4: townspeople who act, conversations in the street, the director and its events; first, so its
 // talk middleware (the event log) sees every talk before the police take theirs
+// M6: families who share and act, the fortune teller, strangers, schemes, dreams; first, so its
+// day-change check wraps every route that can end a night
+mountFamilies(app, { db, payload: () => jobsPayload() });
 mountDirector(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 // theft, velocipedes, lanterns and the police (M3h); before the talk route, so the agent answers through it
 mountDeeds(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m), afterNight: (e) => afterNight(e) });
@@ -39,6 +49,12 @@ mountRowing(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast
 mountInteriors(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 // M6: the morning paper and the newsboys, the post and the telegraph, the Berg van Barmhartigheid (paper/)
 mountPress(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
+// M6 AI ideas: wall posters, Jef's own letters, jobs that go wrong, news from abroad, lost diaries (ideas/)
+mountIdeas(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
+// M6: homes to rent, the night at home, furniture from the second-hand dealer (homes/)
+mountHomes(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m), afterNight: (e) => afterNight(e) });
+// M6 town life: the lamplighters' rounds, the soot of a fire, Jef in a bucket chain or at the natie gate
+mountTownLife(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 
 // Board status the client can show while Claude writes.
 let board: { state: "writing" | "ready"; source?: string; error?: string } = { state: "ready" };

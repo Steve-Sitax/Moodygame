@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { psx } from "../retro/psx";
 import { makeTextures, signTexture, glowTexture } from "./textures";
 import { createFires, type Fires } from "./fire";
+import type { HomeRoom } from "./homeRooms";
 
 // Rooms you walk into (M6): a tavern's taproom and the Poesje's cellar, built in code in the
 // PS1 way (a few boxes, painted 64 px textures, lamp and fire light). Each room is its own
@@ -32,7 +33,7 @@ export interface Stage {
 }
 
 export interface Room {
-  kind: "tavern" | "cellar";
+  kind: "tavern" | "cellar" | "home";
   scene: THREE.Scene;
   group: THREE.Group;
   /** Keep a walker of radius 0.3 inside and off the furniture (room frame). */
@@ -47,6 +48,8 @@ export interface Room {
   exit: Spot;
   entry: Spot;
   stage?: Stage;
+  /** M6 homes: the rented room's grid, its pieces and the ghost of the one Jef moves (world/homeRooms.ts). */
+  home?: HomeRoom;
   /** Lamp and fire points (world) and their brightness now, for the psx glow in the smoke. */
   lamps: Array<{ p: THREE.Vector3; w: number }>;
   /** Room frame -> world. */
@@ -58,7 +61,7 @@ export interface Room {
 
 // ---------------------------------------------------------------- paint
 
-function canvasTex(w: number, h: number, paint: (g: CanvasRenderingContext2D) => void, repeat = true): THREE.CanvasTexture {
+export function canvasTex(w: number, h: number, paint: (g: CanvasRenderingContext2D) => void, repeat = true): THREE.CanvasTexture {
   const c = document.createElement("canvas");
   c.width = w;
   c.height = h;
@@ -72,13 +75,13 @@ function canvasTex(w: number, h: number, paint: (g: CanvasRenderingContext2D) =>
   return t;
 }
 
-function rand(seed: number): () => number {
+export function rand(seed: number): () => number {
   let s = seed >>> 0 || 1;
   return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
 }
 
 /** Lime plaster gone yellow with smoke: blotches, soot toward the top, scuffs toward the floor. */
-function plaster(seed: number, base: [number, number, number]): THREE.CanvasTexture {
+export function plaster(seed: number, base: [number, number, number]): THREE.CanvasTexture {
   const r = rand(seed);
   return canvasTex(64, 64, (g) => {
     g.fillStyle = `rgb(${base.join(",")})`;
@@ -199,18 +202,18 @@ function vogelpik(): THREE.CanvasTexture {
 // ---------------------------------------------------------------- building blocks
 
 const mats = new Map<string, THREE.Material>();
-function mat(key: string, make: () => THREE.Material): THREE.Material {
+export function mat(key: string, make: () => THREE.Material): THREE.Material {
   let m = mats.get(key);
   if (!m) mats.set(key, (m = make()));
   return m;
 }
-const lambert = (key: string, o: THREE.MeshLambertMaterialParameters, affine = 0.4) => mat(key, () => psx(new THREE.MeshLambertMaterial(o), { affine }));
+export const lambert = (key: string, o: THREE.MeshLambertMaterialParameters, affine = 0.4) => mat(key, () => psx(new THREE.MeshLambertMaterial(o), { affine }));
 
 let texCache: ReturnType<typeof makeTextures> | null = null;
-const tex = () => (texCache ??= makeTextures());
+export const tex = () => (texCache ??= makeTextures());
 
 /** A box whose texture tiles by its size (`tile` metres a repeat). */
-function boxGeo(w: number, h: number, d: number, tile = 1): THREE.BoxGeometry {
+export function boxGeo(w: number, h: number, d: number, tile = 1): THREE.BoxGeometry {
   const g = new THREE.BoxGeometry(w, h, d);
   const uv = g.getAttribute("uv") as THREE.BufferAttribute;
   // faces +x, -x, +y, -y, +z, -z; four vertices each
@@ -223,7 +226,7 @@ function boxGeo(w: number, h: number, d: number, tile = 1): THREE.BoxGeometry {
   return g;
 }
 
-class Builder {
+export class Builder {
   readonly boxes: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }> = [];
   constructor(readonly group: THREE.Group) {}
   /** A box by its centre; `solid` adds it to the walk blocks. */
@@ -289,7 +292,7 @@ function walker(W: number, zMin: number, D: number, boxes: Builder["boxes"]): Ro
 }
 
 /** A hanging oil lamp: a chain, a brass font, a glass chimney that glows; with its light. */
-function hangingLamp(b: Builder, x: number, y: number, z: number, top: number, lights: THREE.PointLight[], glows: THREE.Sprite[]): void {
+export function hangingLamp(b: Builder, x: number, y: number, z: number, top: number, lights: THREE.PointLight[], glows: THREE.Sprite[]): void {
   b.cyl(0.012, top - y - 0.15, x, (top + y + 0.15) / 2, z, lambert("iron", { color: 0x1c1a18 }), false, 4);
   b.cyl(0.09, 0.1, x, y, z, lambert("brass", { color: 0x8a6a2a }), false, 8);
   const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.18, 6), mat("lampglass", () => new THREE.MeshBasicMaterial({ color: 0xffd490 })));
@@ -306,7 +309,7 @@ function hangingLamp(b: Builder, x: number, y: number, z: number, top: number, l
   lights.push(l);
 }
 
-function frameRoom(origin: { x: number; z: number }, yaw: number, fog: number): { scene: THREE.Scene; group: THREE.Group; toWorld: Room["toWorld"] } {
+export function frameRoom(origin: { x: number; z: number }, yaw: number, fog: number): { scene: THREE.Scene; group: THREE.Group; toWorld: Room["toWorld"] } {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(fog);
   scene.fog = new THREE.Fog(fog, 3.5, 20);
@@ -319,7 +322,7 @@ function frameRoom(origin: { x: number; z: number }, yaw: number, fog: number): 
   return { scene, group, toWorld };
 }
 
-function flicker(t: number, seed: number): number {
+export function flicker(t: number, seed: number): number {
   return 0.9 + Math.sin(t * 7.3 + seed) * 0.04 + Math.sin(t * 17.1 + seed * 3) * 0.03 + Math.sin(t * 2.1 + seed) * 0.03;
 }
 

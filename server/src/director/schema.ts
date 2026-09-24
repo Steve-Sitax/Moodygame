@@ -109,3 +109,51 @@ CREATE TABLE IF NOT EXISTS town_event (
 );
 `;
 
+
+// M6 families and surprises (director/families.ts, surprises.ts; town/rumours.ts). Additive only.
+export const FAMILY_SCHEMA = /* sql */ `
+CREATE TABLE IF NOT EXISTS family_news (
+  id INTEGER PRIMARY KEY,
+  day INTEGER NOT NULL,
+  minute INTEGER NOT NULL,
+  teller TEXT NOT NULL,
+  listener TEXT NOT NULL,
+  memory_id INTEGER NOT NULL,
+  origin INTEGER NOT NULL,
+  gist TEXT NOT NULL,
+  tone INTEGER NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('waiting', 'heard', 'pending', 'acting', 'done', 'lapsed')),
+  reaction TEXT,
+  amount_c INTEGER NOT NULL DEFAULT 0,
+  opening TEXT NOT NULL DEFAULT '',
+  source TEXT NOT NULL DEFAULT '',
+  outcome TEXT,
+  action_id INTEGER,
+  not_before INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS family_news_status ON family_news(status);
+CREATE TABLE IF NOT EXISTS town_scheme (
+  id INTEGER PRIMARY KEY,
+  day INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  a TEXT NOT NULL,
+  b TEXT NOT NULL,
+  hour REAL NOT NULL,
+  text TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('planned', 'running', 'done', 'failed')),
+  outcome TEXT,
+  jef_helped INTEGER NOT NULL DEFAULT 0,
+  tries INTEGER NOT NULL DEFAULT 0,
+  data_json TEXT NOT NULL DEFAULT '{}'
+);
+`;
+
+/** Tables of this file that a new game empties (db.ts resetDb). */
+export const FAMILY_TABLES = ["family_news", "town_scheme"];
+
+/** db.ts migrate(): the tables, and the told wording of a rumour next to its fact (npc_memory.told_as). */
+export function familyMigrate(db: import("../db.ts").DB): void {
+  db.exec(FAMILY_SCHEMA);
+  const cols = (db.prepare("PRAGMA table_info(npc_memory)").all() as Array<{ name: string }>).map((c) => c.name);
+  if (!cols.includes("told_as")) db.exec("ALTER TABLE npc_memory ADD COLUMN told_as TEXT");
+}

@@ -46,6 +46,8 @@ export interface WorkSpec {
   /** Stall index in the town's stall list, or the shop id. */
   stall?: number;
   shop?: string;
+  /** Wait (M6 emigrants): sit at `at` (on the family's chest), else stand there. */
+  seat?: boolean;
 }
 
 export interface Stats {
@@ -90,6 +92,8 @@ export interface Resident {
   mate?: string;
   /** The garrison and the customs: the town or village he comes from. */
   origin?: string;
+  /** M6 emigrants (emigrants.ts): the family's number in the arrivals; the story is on the family. */
+  emigrant?: number;
 }
 
 export interface TownPlace {

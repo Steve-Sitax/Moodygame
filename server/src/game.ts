@@ -195,10 +195,15 @@ export function settle(j: JobRow, r: Report, rng: () => number = Math.random): S
 }
 
 /** Apply a settlement: money, trust, job row, log, and a plain memory for the employer. */
+/** M6 ideas: run on every settlement before it is applied; may change pay, trust and facts (within their own caps). */
+export const settleExtras: Array<(db: DB, j: JobRow, s: Settlement) => void> = [];
+
 export function finishJob(db: DB, id: number, report: Report, rng?: () => number) {
   const j = job(db, id);
   if (j.status !== "taken") throw new GameError("that job is not in hand", 409);
   const s = settle(j, report, rng);
+  // M6 ideas: a job that went wrong (ideas/trouble.ts) adds its engine-set pay change and facts
+  for (const f of settleExtras) f(db, j, s);
   const faction = ALL_EMPLOYERS[j.employer_npc]?.faction;
   db.transaction(() => {
     db.prepare("UPDATE job SET status = ? WHERE id = ?").run(s.status, id);

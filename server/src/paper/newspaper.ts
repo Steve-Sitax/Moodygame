@@ -10,6 +10,7 @@ import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { ITEM_REF, ITEMS, waresOf } from "../trade.ts";
 import { rngFrom } from "../town/population.ts";
 import { resident, town } from "../town/store.ts";
+import { rollNews } from "../ideas/abroad.ts";
 
 // The morning paper (M6). Every game morning the ENGINE picks the day's facts
 // from the world_event log (yesterday's events, thefts, arrests, what people saw
@@ -117,6 +118,9 @@ export function writeHarbour(db: DB, day: number): ShipFact[] {
         : `The ${s.type} ${s.name} (${s.master}) sailed from ${s.berth} for ${s.port}.`;
     writeEvent(db, { kind: "log", verb: s.dir === "in" ? "ship_in" : "ship_out", text, place: s.berth, weight: 3, data: s });
   }
+  // M6 ideas: now and then a ship brings news from abroad that moves prices (before the prices line)
+  const firstIn = ships.find((s) => s.dir === "in");
+  rollNews(db, day, firstIn ? { name: firstIn.name, type: firstIn.type } : null);
   writeEvent(db, { kind: "log", verb: "weather_day", text: `The day came up with ${WEATHER_TEXT[weather(db)]}.`, weight: 2 });
   writeEvent(db, { kind: "log", verb: "prices", text: `Prices at the stalls and counters this morning: ${pricesNow(db).map((p) => `${p.name} ${p.price_c} c`).join(", ")}.`, weight: 2 });
   return ships;
@@ -135,7 +139,7 @@ export function pricesNow(db: DB): Array<{ kind: string; name: string; price_c: 
 
 // ------------------------------------------------------------------ the facts (engine)
 
-export type FactKind = "ship" | "weather" | "market" | "coming" | "work" | "police" | "theft" | "talk" | "event";
+export type FactKind = "ship" | "weather" | "market" | "coming" | "work" | "police" | "theft" | "talk" | "event" | "abroad";
 
 export interface Fact {
   n: number;
@@ -235,12 +239,13 @@ export function paperFacts(db: DB, day: number): Fact[] {
   };
   // this morning: the harbour, the weather, the prices, what is planned for today
   const today = db
-    .prepare("SELECT * FROM world_event WHERE day = ? AND verb IN ('ship_in', 'ship_out', 'weather_day', 'prices', 'planned') ORDER BY id")
+    .prepare("SELECT * FROM world_event WHERE day = ? AND verb IN ('ship_in', 'ship_out', 'weather_day', 'prices', 'planned', 'news_abroad') ORDER BY id")
     .all(day) as EvRow[];
   for (const e of today) {
     const ref = `we:${e.id}`;
     if (e.verb === "ship_in" || e.verb === "ship_out") add({ kind: "ship", text: e.text, weight: 3, ref, ship: JSON.parse(e.data_json) as ShipFact });
     else if (e.verb === "weather_day") add({ kind: "weather", text: e.text, weight: 3, ref });
+    else if (e.verb === "news_abroad") add({ kind: "abroad", text: e.text, weight: 6, ref });
     else if (e.verb === "prices") add({ kind: "market", text: e.text, weight: 3, ref });
     else if (e.verb === "planned" && e.ref_type === "town_event" && e.ref_id) {
       const ev = db.prepare("SELECT title, place, start_m, notice, status, stages_json FROM town_event WHERE id = ?").get(e.ref_id) as
@@ -332,6 +337,7 @@ WRITE
   headline: a few words in small capitals style, like "THEFT ON THE QUAYS" or "THE WEATHER".
   text: 1 to 3 short sentences. Only what the fact says. Any number or sum must be the fact's own.
   Use the weather and the market facts if there is little else. A "work" fact is a small notice of work wanted.
+  An "abroad" fact (news the ships brought) must be one of the articles, with its prices as given.
 - shipping: one line per ship above ("ship" = its number), like "Vaderland, steamer, Capt. Randle, from New York, petroleum; at the Rijnkaai."
 - cry: what a newsboy shouts on the corner, a few words from the first headline, e.g. "Handelsblad! Theft on the quays!"`;
 }
@@ -350,6 +356,7 @@ export function engineArticle(f: Fact): Article {
     theft: "THEFT ON THE QUAYS",
     talk: "SAID ON THE QUAYS",
     event: "YESTERDAY",
+    abroad: "NEWS FROM ABROAD",
   };
   return { fact: f.n, kind: f.kind, headline: head[f.kind], text: f.text };
 }
@@ -400,6 +407,12 @@ export function cleanPaper(day: number, facts: Fact[], out: PaperOut): Paper {
     const allowed = new Set(digits(f.text));
     const okNumbers = digits(text + " " + headline).every((d) => allowed.has(d));
     articles.push(okNumbers && text.length >= 15 ? { fact: f.n, kind: f.kind, headline, text } : engineArticle(f));
+  }
+  // M6 ideas: the news from abroad is always in the paper (the model's words, or the engine's)
+  const abroad = facts.find((x) => x.kind === "abroad" && !used.has(x.n));
+  if (abroad) {
+    used.add(abroad.n);
+    articles.splice(Math.min(1, articles.length), 0, engineArticle(abroad));
   }
   // at least four: the heaviest facts not yet written, in the engine's words
   for (const f of facts.filter((x) => x.kind !== "ship" && !used.has(x.n)).sort((a, b) => b.weight - a.weight)) {

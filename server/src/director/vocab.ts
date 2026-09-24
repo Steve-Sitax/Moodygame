@@ -27,7 +27,8 @@ export type ActionProposal = z.infer<typeof ActionProposalSchema>;
 export const NO_ACTION: ActionProposal = { kind: "none", target: "", minutes: 0, item: "", amount_c: 0, reason: "" };
 
 /** Engine-made actions (events and chains) use these kinds too. */
-export type EngineKind = ActionKind | "attend";
+/** M6 families: "seek" (a townsperson comes to find Jef: to talk, to thank, to settle a grievance). */
+export type EngineKind = ActionKind | "attend" | "seek";
 
 /**
  * Time limits in GAME minutes. The clock runs fast (a game hour is 20 real seconds; a walk
@@ -182,6 +183,12 @@ export const CONVO_FALLBACK: Record<string, Array<(a: string, b: string) => stri
     (_a, b) => `${b}: Your pitch? Your grandmother's pitch, maybe.`,
     (a) => `${a}: Say that again and see what you get.`,
     (_a, b) => `${b}: Go on then. In front of everyone.`,
+  ],
+  complaint: [
+    (a, b) => `${a}: Agent ${b}, a word. There's a man called Jef who wants talking to.`,
+    (_a, b) => `${b}: Does he. What's he done?`,
+    (a) => `${a}: Ask him yourself. My family won't stand for it.`,
+    (_a, b) => `${b}: I'll have a word with him. No more than that, mind.`,
   ],
   report: [
     (a, b) => `${a}: Agent ${b}. There's a man on the quay says he's been robbed.`,

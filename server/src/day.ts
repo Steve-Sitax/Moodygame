@@ -162,12 +162,35 @@ export function tick(db: DB, now = Date.now()): TickResult {
 }
 
 export interface SleepResult {
-  where: "bed" | "rough";
+  where: "bed" | "rough" | "home";
   turnedAway: boolean;
   summary: string[];
   day: number;
   ended?: Ending;
+  /** M6 homes: which home Jef slept in ("the garret in the Schipperskwartier"). */
+  place?: string;
+  home?: string;
 }
+
+/**
+ * M6 homes: a night in a rented home, by the engine's numbers (homes/homes.ts works them
+ * out from the room's comfort; every home beats the doss house bed).
+ */
+export interface HomeNight {
+  id: string;
+  label: string;
+  warmth: number;
+  healthFed: number;
+  healthHungry: number;
+  food: number;
+  text: string;
+}
+
+/**
+ * M6: other modules' night work (the rent of a home), run inside the night's transaction
+ * before the memories fade. Each may add lines to the night sheet.
+ */
+export const NIGHT_HOOKS: Array<(db: DB, day: number) => string[]> = [];
 
 function startOfDayMoney(db: DB): number {
   const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'day_start_money'").get() as { value_json: string } | undefined;
@@ -184,12 +207,12 @@ export function markDayStart(db: DB): void {
  * The night. In the doss house bed (after 18:00, rent paid or not yet due) or
  * rough on the quay. Needs change, memories fade, the day counter moves on.
  */
-export function sleep(db: DB, want: "bed" | "rough"): SleepResult {
+export function sleep(db: DB, want: "bed" | "rough" | "home", home?: HomeNight): SleepResult {
   const p = player(db);
   const c = clock(db);
   // Sunday night: no rent, no bed (docs/01)
   const turnedAway = want === "bed" && c.day >= WEEK_DAYS && !rentPaid(db);
-  const where = turnedAway ? "rough" : want;
+  const where = turnedAway ? "rough" : want === "home" && !home ? "rough" : want;
 
   const jobsDone = (db.prepare("SELECT COUNT(*) n FROM log WHERE day = ? AND verb = 'finished_job'").get(c.day) as { n: number }).n;
   const meals = (db.prepare("SELECT COUNT(*) n FROM log WHERE day = ? AND verb = 'ate'").get(c.day) as { n: number }).n;
@@ -204,7 +227,13 @@ export function sleep(db: DB, want: "bed" | "rough"): SleepResult {
   db.transaction(() => {
     endRide(db); // nobody rides the omnibus through the night
     endRowNight(db); // nor rows: the waterman takes his boat back (M3j)
-    if (where === "bed") {
+    if (where === "home" && home) {
+      // M6 homes: your own room; the old food value decides the health, as in the doss house
+      db.prepare(
+        "UPDATE player SET sleep = 10, food = MAX(0, food - ?), warmth = MIN(10, warmth + ?), health = MIN(10, health + CASE WHEN food >= 3 THEN ? ELSE ? END) WHERE id = 1",
+      ).run(home.food, home.warmth, home.healthFed, home.healthHungry);
+      summary.push(home.text);
+    } else if (where === "bed") {
       db.prepare("UPDATE player SET sleep = 10, food = MAX(0, food - 2), warmth = MIN(10, warmth + 3), health = MIN(10, health + CASE WHEN food >= 3 THEN 1 ELSE 0 END) WHERE id = 1").run();
       summary.push(turnedAway ? "" : "You sleep in a bed of straw in the doss house, six men to the room. It is warm enough.");
     } else {
@@ -225,20 +254,23 @@ export function sleep(db: DB, want: "bed" | "rough"): SleepResult {
       remember(db, j.employer_npc, `Jef took my job "${j.title}" and left it undone when night fell.`, 5, "seen", null, { gist: `Jef left a job for ${boss} undone`, tone: -1 });
     }
     if (open.length) summary.push(`You left ${open.length === 1 ? "a job" : open.length + " jobs"} undone. Nobody pays for that.`);
-    log(db, where === "bed" ? "slept" : "slept_rough", null, where === "bed" ? "Jef slept in the doss house." : "Jef slept rough on the quay.");
+    if (where === "home" && home) log(db, "slept_home", home.id, `Jef slept in his own room, ${home.label}.`);
+    else log(db, where === "bed" ? "slept" : "slept_rough", null, where === "bed" ? "Jef slept in the doss house." : "Jef slept rough on the quay.");
+    for (const h of NIGHT_HOOKS) summary.push(...h(db, c.day));
     consolidate(db);
     // a night of talk in the taverns and over the back walls (M3e)
     for (let i = 0; i < 3; i++) spreadRumours(db);
   })();
 
   const after = player(db);
-  if (after.health === 0) return { where, turnedAway, summary: summary.filter(Boolean), day: c.day, ended: endGame(db, "health") };
-  if (c.day >= WEEK_DAYS) return { where, turnedAway, summary: summary.filter(Boolean), day: c.day, ended: endGame(db, "week") };
+  const at = where === "home" && home ? { place: home.label, home: home.id } : {};
+  if (after.health === 0) return { where, turnedAway, summary: summary.filter(Boolean), day: c.day, ended: endGame(db, "health"), ...at };
+  if (c.day >= WEEK_DAYS) return { where, turnedAway, summary: summary.filter(Boolean), day: c.day, ended: endGame(db, "week"), ...at };
 
   db.prepare("UPDATE player SET day = day + 1, hour = ?, minute = 0 WHERE id = 1").run(DAWN);
   markDayStart(db);
   rollWeather(db);
-  return { where, turnedAway, summary: summary.filter(Boolean), day: c.day + 1 };
+  return { where, turnedAway, summary: summary.filter(Boolean), day: c.day + 1, ...at };
 }
 
 /**

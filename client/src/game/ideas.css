@@ -1,0 +1,85 @@
+/* M6 AI ideas (game/ideas.ts): a bill read large, a lost notebook, trouble on the job, a letter being written. Paper and ink, docs/05. */
+
+/* a printed bill: rag paper, big wood type, a rule under the heading */
+.press-page.bill {
+  width: min(430px, 88vw);
+  background: #e7ddc0;
+  background-image: radial-gradient(ellipse at 20% 15%, rgba(255, 250, 225, 0.5), transparent 60%), radial-gradient(ellipse at 85% 90%, rgba(110, 80, 40, 0.22), transparent 55%);
+  border: 1px solid #8a7a5a;
+  padding: 22px 28px 14px;
+  font-family: "Times New Roman", Georgia, serif;
+  text-align: center;
+  transform: translate(-50%, -50%) rotate(0.8deg);
+  filter: sepia(0.2) contrast(0.97);
+}
+.press-page.bill.wanted { background-color: #eadfbe; }
+.press-page.bill.lost { background-color: #e2e0cf; }
+.press-page.bill.sailing { background-color: #d8d2b6; }
+.press-page.bill.auction { background-color: #e7d2a4; }
+.bill h1 {
+  margin: 0 0 10px;
+  font-family: "Rockwell Extra Bold", "Clarendon", "Bookman Old Style", Georgia, serif;
+  font-size: calc(34px * var(--ui, 1));
+  letter-spacing: 2px;
+  line-height: 1.05;
+  border-bottom: 3px double #2a2420;
+  padding-bottom: 8px;
+}
+.bill .body { font-size: calc(17px * var(--ui, 1)); line-height: 1.4; margin: 0 0 12px; }
+.bill .foot { font-style: italic; font-size: calc(14px * var(--ui, 1)); margin: 0 0 10px; }
+.bill .printer { font-size: calc(9px * var(--ui, 1)); letter-spacing: 1px; opacity: 0.65; margin: 8px 0 0; font-variant: small-caps; }
+
+/* a lost notebook: small ruled pages in pencil */
+.press-page.diary {
+  width: min(460px, 88vw);
+  background: #efe8d4;
+  background-image: repeating-linear-gradient(0deg, transparent 0 21px, rgba(60, 80, 120, 0.16) 21px 22px);
+  border-left: 14px solid #3b2c22;
+  padding: 16px 26px 12px;
+  font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  color: #3a3530;
+  font-size: calc(14px * var(--ui, 1));
+  line-height: 1.55;
+}
+.notebook .cover { text-align: center; font-size: 0.95em; border-bottom: 1px solid rgba(58, 53, 48, 0.4); padding-bottom: 6px; margin: 0 0 6px; }
+.notebook h4 { margin: 8px 0 0; font-size: 0.95em; text-decoration: underline; }
+.notebook p { margin: 0 0 2px; }
+
+/* trouble on the job: a torn sheet with the choices */
+.press-page.trouble {
+  width: min(560px, 90vw);
+  background: #d8cfb8;
+  padding: 16px 22px 12px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: calc(15px * var(--ui, 1));
+}
+.scene h2 { margin: 0 0 6px; font-size: calc(19px * var(--ui, 1)); letter-spacing: 1px; }
+.scene .what { margin: 0 0 8px; line-height: 1.4; }
+.scene .line { margin: 0 0 4px; font-style: italic; }
+.scene ol { list-style: none; margin: 10px 0 0; padding: 0; }
+.scene li { padding: 4px 0; border-top: 1px dashed rgba(42, 36, 32, 0.35); }
+.scene li i { font-size: 0.82em; opacity: 0.75; }
+.scene .n { font-weight: bold; margin-right: 6px; }
+
+/* writing a letter */
+.press-page.writing {
+  width: min(520px, 90vw);
+  background: #efe6cf;
+  padding: 20px 28px 12px;
+  font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  font-size: calc(15px * var(--ui, 1));
+}
+.press-page.writing textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: transparent;
+  border: none;
+  border-top: 1px dashed rgba(42, 36, 32, 0.35);
+  font: inherit;
+  color: #1d2a44;
+  resize: none;
+  outline: none;
+  background-image: repeating-linear-gradient(0deg, transparent 0 23px, rgba(80, 60, 30, 0.1) 23px 24px);
+  line-height: 24px;
+}
+.press-page.writing .date { text-align: right; font-size: 0.85em; margin: 0; }

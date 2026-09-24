@@ -1,10 +1,16 @@
+import { FACTIONS, type Faction } from "./factions.ts";
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 import { RESIDENT_SCHEMA, dropTownCache, ensureGarrison, ensureTown, repairTown } from "./town/store.ts";
-import { ACTION_SCHEMA, EVENT_SCHEMA, EVENTLOG_SCHEMA } from "./director/schema.ts";
+import { ACTION_SCHEMA, EVENT_SCHEMA, EVENTLOG_SCHEMA, FAMILY_TABLES, familyMigrate } from "./director/schema.ts";
 import { PRESS_SCHEMA, PRESS_TABLES } from "./paper/schema.ts";
+import { IDEAS_SCHEMA, IDEAS_TABLES } from "./ideas/schema.ts";
 import { ensurePressTown } from "./paper/town.ts";
+import { ensureLamplighters } from "./town/lamplighters.ts";
+import { ensureHomesTown, HOMES_SCHEMA, HOMES_TABLES } from "./homes/town.ts";
+import { ensureVisitors } from "./town/visitors.ts";
+import { ensureEmigrants } from "./town/emigrants.ts";
 
 // SQLite schema from docs/04-data-model.md. Only the server writes.
 // Delete data/game.sqlite to start over.
@@ -101,8 +107,7 @@ CREATE TABLE IF NOT EXISTS ai_call (
 );
 `;
 
-export const FACTIONS = ["naties", "kerk", "politie", "smokkelaars", "burgerij"] as const;
-export type Faction = (typeof FACTIONS)[number];
+export { FACTIONS, type Faction } from "./factions.ts";
 
 // The 8 town NPCs from docs/01. Personas come in M3.
 const NPCS: Array<[string, string, string, string, Faction | null]> = [
@@ -133,6 +138,14 @@ export function openDb(file: string): DB {
   ensureGarrison(db);
   // M6: newsboys, the post office and its clerk, the Berg's counter; added in place to an older save
   ensurePressTown(db);
+  // M6 homes: rooms to let, the widow who lets one, the second-hand dealer; added in place to an older save
+  ensureHomesTown(db);
+  // M6 town life: two lamplighters and their rounds of the gas lamps; in place, once
+  ensureLamplighters(db);
+  // M6 surprises: the fortune teller and the strangers' places (town/visitors.ts); in place, once
+  ensureVisitors(db);
+  // M6 emigrants: the Logement, its keeper, the runner and the families waiting for the liner (town/emigrants.ts); in place, once
+  ensureEmigrants(db);
   return db;
 }
 
@@ -155,6 +168,12 @@ function migrate(db: DB): void {
   db.exec(EVENT_SCHEMA);
   // M6: the paper, letters, the pawn office; a pocket row may point at one of them (item.ref)
   db.exec(PRESS_SCHEMA);
+  // M6 homes: the key and the rent, the furniture Jef owns (homes/)
+  db.exec(HOMES_SCHEMA);
+  // M6 families and surprises: family news, the day's schemes, a rumour's told wording
+  familyMigrate(db);
+  // M6 AI ideas: posters, Jef's own letters, jobs that go wrong, news from abroad, lost diaries (ideas/)
+  db.exec(IDEAS_SCHEMA);
   if (!cols("item").includes("ref")) db.exec("ALTER TABLE item ADD COLUMN ref INTEGER");
   // M4b: the leads of an event (bride, groom, musicians ...), picked by the engine at its start
   if (!cols("town_event").includes("leads_json")) db.exec("ALTER TABLE town_event ADD COLUMN leads_json TEXT NOT NULL DEFAULT '[]'");
@@ -163,7 +182,7 @@ function migrate(db: DB): void {
 /** Start a new week: wipe the save and seed it again (the "new game" button). */
 export function resetDb(db: DB): void {
   db.transaction(() => {
-    for (const t of [...PRESS_TABLES, "world_event_who", "world_event", "npc_action", "town_event", "ai_call", "item", "event", "world_state", "job", "log", "world_fact", "npc_memory", "npc_relationship", "resident", "npc", "faction_trust", "player"]) {
+    for (const t of [...FAMILY_TABLES, ...IDEAS_TABLES, ...HOMES_TABLES, ...PRESS_TABLES, "world_event_who", "world_event", "npc_action", "town_event", "ai_call", "item", "event", "world_state", "job", "log", "world_fact", "npc_memory", "npc_relationship", "resident", "npc", "faction_trust", "player"]) {
       db.prepare(`DELETE FROM ${t}`).run();
     }
   })();
@@ -172,6 +191,10 @@ export function resetDb(db: DB): void {
   dropTownCache(db);
   ensureTown(db);
   ensurePressTown(db);
+  ensureHomesTown(db);
+  ensureLamplighters(db);
+  ensureVisitors(db);
+  ensureEmigrants(db);
 }
 
 function seed(db: DB): void {

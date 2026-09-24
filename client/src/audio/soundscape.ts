@@ -172,7 +172,7 @@ export class Soundscape {
   private street: GainNode;
   private streetLp: BiquadFilterNode;
   private room: GainNode;
-  private roomKind: "tavern" | "cellar" | null = null;
+  private roomKind: "tavern" | "cellar" | "home" | null = null;
   private roomBeds: AudioScheduledSourceNode[] = [];
   private reverbIn: GainNode;
   /** Far bus: everything far off goes through the fog here. */
@@ -342,7 +342,7 @@ export class Soundscape {
    * the tavern's crowd and song (the same CC0 loops the street hears muffled at the door),
    * the cellar's audience murmuring. null: back out in the street.
    */
-  setInterior(kind: "tavern" | "cellar" | null): void {
+  setInterior(kind: "tavern" | "cellar" | "home" | null): void {
     if (kind === this.roomKind) return;
     this.roomKind = kind;
     const t = this.ctx.currentTime;
@@ -1117,10 +1117,12 @@ export class Soundscape {
    * move it (a procession) or stop it early. Nothing new recorded: all CC0 samples
    * already in the game.
    */
-  eventSound(kind: "bells" | "music" | "murmur" | "handbell", at: { x: number; z: number }, seconds: number): { move(x: number, z: number): void; stop(): void } {
+  eventSound(kind: "bells" | "music" | "murmur" | "handbell" | "alarm", at: { x: number; z: number }, seconds: number): { move(x: number, z: number): void; stop(): void } {
     const ctx = this.ctx;
     const secs = Math.max(4, Math.min(180, seconds));
-    if (kind === "bells") {
+    // M6 town life: the fire alarm, the same big bell struck fast and hard at one pitch, no rounds
+    const alarm = kind === "alarm";
+    if (kind === "bells" || alarm) {
       // a festive peal from the tower: the big bell struck quickly at six pitches in rounds,
       // a sound the hourly carillon never makes (the recorded stroke, played at different rates)
       const b = this.buf.get("hourStroke");
@@ -1128,7 +1130,7 @@ export class Soundscape {
       if (!b || !cat) return { move: () => {}, stop: () => {} };
       this.log("event peal");
       const spot = this.spot(cat, BELL.ref, BELL.rolloff, BELL.reach, 0.9);
-      const rates = [1.5, 1.34, 1.2, 1.12, 1.0, 0.9];
+      const rates = alarm ? [1.18, 1.18, 1.18, 1.18, 1.18, 1.18] : [1.5, 1.34, 1.2, 1.12, 1.0, 0.9];
       const t0 = ctx.currentTime + 0.05;
       const n = Math.floor(Math.min(secs, 40) / 0.34);
       let last: AudioBufferSourceNode | null = null;
@@ -1142,7 +1144,7 @@ export class Soundscape {
         const g = ctx.createGain();
         g.gain.value = 0.55;
         src.connect(g).connect(spot.fog);
-        src.start(t0 + i * 0.34 + round * 0.4, 0, 2.2); // a breath between rounds
+        src.start(t0 + i * 0.34 + (alarm ? 0 : round * 0.4), 0, 2.2); // a breath between rounds (not in an alarm)
         last = src;
       }
       if (last) last.onended = () => this.dropSpot(spot);

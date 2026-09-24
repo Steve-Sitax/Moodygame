@@ -33,7 +33,8 @@ export const ConvoSchema = z.object({
 });
 export type ConvoOut = z.infer<typeof ConvoSchema>;
 
-export type Purpose = "chat" | "question" | "invite" | "argue" | "report";
+/** M6: "share" (a household passing on news of Jef) and "scheme" (a resident's own business of the day) are run by their own modules. */
+export type Purpose = "chat" | "question" | "invite" | "argue" | "report" | "share" | "scheme" | "menace";
 
 export interface ConvoLine {
   who: string;
@@ -112,6 +113,9 @@ function purposeText(db: DB, o: ConvoOpts, a: Resident, b: Resident): string {
         ? `${a.first} (a police agent) questions ${b.first} about Jef's purse. OUTCOME (fixed): ${b.first} did pick Jef's pocket for ${o.fixed.amount_c} centimes. ${b.first} denies it at first, then hands the ${o.fixed.amount_c} centimes over. No arrest today.`
         : `${a.first} (a police agent) questions ${b.first} about Jef's purse. OUTCOME (fixed): ${b.first} did NOT do it and is offended at being accused. ${a.first} lets it go.`;
     case "report":
+      // M6 families: a complaint about Jef, not a robbery; the agent will have a word with him (no arrest)
+      if (o.about?.startsWith("complaint:"))
+        return `${a.first} has come to a police agent, ${b.first}, with a complaint about a man called Jef: ${o.about.slice(10).trim()} OUTCOME (fixed): ${b.first} agrees to go and have a word with Jef. Nobody is arrested for words.`;
       return `${a.first} has come to fetch ${b.first}, a police agent: a man called Jef says he was robbed${o.about ? ` (${o.about})` : ""}. OUTCOME (fixed): ${b.first} agrees to come and see.`;
     case "invite":
       return `${a.first} asks ${b.first} to come along${o.about ? `: ${o.about}` : ""}. OUTCOME (fixed): ${b.first} agrees.`;
@@ -146,13 +150,21 @@ export function recentConvos(): ConvoResult[] {
   return recent.slice();
 }
 
+/** M6: a conversation another module wrote (a family, a scheme, a menace): shown once, like any other. */
+export function publishConvo(c: Omit<ConvoResult, "id" | "at"> & { id?: number }): ConvoResult {
+  const result: ConvoResult = { ...c, id: c.id || nextId++, at: Date.now() };
+  recent.push(result);
+  notify("convo", { convo: result });
+  return result;
+}
+
 /** Test helper. */
 export function resetConvos(): void {
   recent.length = 0;
 }
 
 function engineLines(o: ConvoOpts, a: Resident, b: Resident): ConvoLine[] {
-  const key = o.purpose === "question" ? (o.fixed?.victim ? (o.fixed.guilty ? "street_guilty" : "street_innocent") : o.fixed?.guilty ? "question_guilty" : "question_innocent") : o.purpose;
+  const key = o.purpose === "report" && o.about?.startsWith("complaint:") ? "complaint" : o.purpose === "question" ? (o.fixed?.victim ? (o.fixed.guilty ? "street_guilty" : "street_innocent") : o.fixed?.guilty ? "question_guilty" : "question_innocent") : o.purpose;
   const set = CONVO_FALLBACK[key] ?? CONVO_FALLBACK.chat;
   return set.map((f, i) => {
     const s = f(a.first, b.first);

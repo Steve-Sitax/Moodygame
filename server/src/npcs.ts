@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { LANGUAGE_RULE, plainEnglish } from "./text.ts";
 import type { DB } from "./db.ts";
-import { FACTIONS } from "./db.ts";
+import { FACTIONS } from "./factions.ts";
 import { callClaude, type Runner } from "./ai/claude.ts";
 import { SYSTEM } from "./hooks/jobBoard.ts";
 

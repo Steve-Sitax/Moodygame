@@ -15,6 +15,7 @@ import { streetCrimeOpen } from "./scenes.ts";
 import { eventPlaces, eventsToday, liveEvents, planEvent, type EventPlan, type PlanResult } from "./scheduler.ts";
 import { enginePick, planFromTemplate } from "./templates.ts";
 import { EVENTS_AT_ONCE, EVENTS_PER_DAY, LOOK_FOR_MIN, LOOK_FOR_RADIUS_M, PRIMITIVES_FOR_MODEL, StageSchema } from "./vocab.ts";
+import { keepPromise, promiseThread, strangersHere } from "./surprises.ts";
 
 // The director (M4): once a game hour at most (pulled forward by a notable
 // fact: a robbery, an arrest, a job's end, a heavy event, nightfall), it looks
@@ -153,6 +154,10 @@ export function openThreads(db: DB): string[] {
     out.push(`A pickpocket took ${v?.name ?? "someone"}'s purse at ${street.place} and got away${street.witnessed ? "; Jef saw it" : ""}. Unsolved.`);
   }
   for (const e of liveEvents(db)) out.push(`${e.status === "running" ? "Running" : "Planned"}: ${e.title} at ${e.place}, ${e.status === "running" ? `stage ${e.stage + 1}` : `in ${Math.max(0, e.start_m - gameMinute(db))} minutes`}.`);
+  // M6 surprises: the cards' promise to bring about, and a stranger in town the director may use
+  const promise = promiseThread(db);
+  if (promise) out.push(promise);
+  for (const v of strangersHere(db)) out.push(`A stranger is in town: ${v.name} from ${v.visitor?.origin ?? "abroad"}, ${v.visitor?.label ?? ""}. Wants ${v.visitor?.goal ?? "something"}.`);
   for (const a of listActions(db)) if (a.source !== "event") out.push(`${a.name} is ${a.kind.replace("_", " ")}${a.target_name ? ` ${a.target_name}` : a.target && a.kind !== "follow" ? ` ${a.target}` : " Jef"} (${a.minutes_left} min left).`);
   return out;
 }
@@ -244,6 +249,9 @@ export async function think(db: DB, runner?: Runner, force = false, invent = fal
 
   // the engine's pick: now and then, in daylight (never for the invent button: that shows the model's miss)
   if (invent) return { source: "engine", decision: "nothing", why: error ?? "", planned: null, error };
+  // M6: the engine keeps the fortune teller's promise itself when the model did not (now and then; surely on its last day)
+  const kept = await keepPromise(db, { runner });
+  if (kept) return { source: "engine", decision: "follow_up", why: `the cards' promise: ${kept}`, planned: null, error };
   const planned = enginePickNow(db);
   return { source: "engine", decision: planned ? "event" : "nothing", why: error ?? "", planned, error };
 }

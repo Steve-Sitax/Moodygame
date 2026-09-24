@@ -28,9 +28,14 @@ import { createSteenLife } from "./world/steenlife";
 import { Actions } from "./game/actions";
 import { Bubbles } from "./game/bubbles";
 import { Events } from "./game/events";
+import { TownLife } from "./game/townlife";
 import { Press } from "./game/press";
+import { Ideas } from "./game/ideas";
+import { Emigrants } from "./game/emigrants";
 import { api } from "./net/api";
 import { Interiors } from "./game/interiors";
+import { Families } from "./game/families";
+import { Homes } from "./game/homes";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const startEl = document.getElementById("start") as HTMLDivElement;
@@ -128,6 +133,24 @@ const press = new Press(world, player, jobs, town, bubbles);
     press.handlePush(m);
   };
 }
+// M6 AI ideas: bills on the walls, letters of your own, trouble on a job, lost things and notebooks (game/ideas.ts)
+const ideas = new Ideas(world, player, jobs, town, press);
+{
+  const onPush = jobs.onPush;
+  jobs.onPush = (m) => {
+    onPush(m);
+    ideas.handlePush(m);
+  };
+}
+// M6: emigrant families on the Rijnkaai, the Logement, the runner, boarding the lighters (game/emigrants.ts)
+const emigrants = new Emigrants(world, player, jobs, town, crowd, bubbles);
+{
+  const onPush = jobs.onPush;
+  jobs.onPush = (m) => {
+    onPush(m);
+    emigrants.handlePush(m);
+  };
+}
 // M6: inside the taverns and the Poesje's cellar (game/interiors.ts); first in the key list, so its keys win inside
 const interiors = new Interiors(player, jobs, world.scene);
 jobs.extraActions.unshift((x, z) => interiors.keys(x, z));
@@ -135,6 +158,10 @@ interiors.say = (t) => jobs.say(t);
 interiors.sfx = (n) => sound?.indoors(() => sound?.play(n));
 interiors.speak = (at, v, s) => sound?.indoors(() => sound?.speech(at, v, s));
 interiors.roomSound = (k) => sound?.setInterior(k);
+// M6 homes: rooms to rent, the night at home, furniture from the second-hand dealer (game/homes.ts); its door keys before the interiors' street keys
+const homes = new Homes(world, player, jobs, interiors);
+jobs.extraActions.unshift((x, z) => homes.keys(x, z));
+homes.say = (t) => jobs.say(t);
 {
   const onPush = jobs.onPush;
   jobs.onPush = (m) => {
@@ -146,10 +173,35 @@ interiors.roomSound = (k) => sound?.setInterior(k);
 actions.showLines = (c) => bubbles.show(c);
 events.eventSound = (k, at, s) => sound?.eventSound(k, at, s) ?? null;
 events.say = (t) => jobs.say(t);
+// M6 town life: the lamplighters, the house fire and its bucket chain, the naties' hiring at dawn (game/townlife.ts)
+const townLife = new TownLife(world, town, crowd, events);
+townLife.say = (t) => jobs.say(t);
+townLife.refresh = (p) => jobs.refresh(p);
+townLife.showLines = (c) => bubbles.show(c);
+townLife.actions = () => actions.active;
+jobs.extraActions.push((x, z) => townLife.keys(x, z));
+{
+  const onPush = jobs.onPush;
+  jobs.onPush = (m) => {
+    onPush(m);
+    townLife.handlePush(m);
+  };
+}
+townLife.load().catch((e) => console.warn("town life did not load", e));
+// M6 families and surprises (game/families.ts): visits, a menace, dreams, strangers, the fortune teller's table
+const families = new Families(world, player, jobs, town);
+{
+  const onPush = jobs.onPush;
+  jobs.onPush = (m) => {
+    onPush(m);
+    families.handlePush(m);
+  };
+}
 town
   .load()
   .then(() => {
     for (const r of town.data!.residents) if (r.wares.length) jobs.talk.setWares(r.id, r.wares);
+    void families.load();
     return market.build();
   })
   .catch((e) => console.warn("the town did not load; the old crowd stays", e));
@@ -238,7 +290,7 @@ if (import.meta.env.DEV) {
             )
             .catch((e) => String(e)),
       },
-      ...["wedding", "funeral", "musicians", "emigrant_ship", "fish_auction", "quarrel", "scuffle", "street_robbery"].map((t) => ({
+      ...["wedding", "funeral", "musicians", "emigrant_ship", "fish_auction", "quarrel", "scuffle", "street_robbery", "house_fire", "hiring"].map((t) => ({
         label: `Event: ${t.replace("_", " ")}`,
         run: () =>
           api
@@ -301,6 +353,7 @@ function frame(): void {
   world.update(elapsed, dt, player.camera);
   player.update(dt);
   interiors.update(dt);
+  homes.update(dt);
   interiors.sway(dt);
   jobs.update(dt);
   craneClimb.update(dt);
@@ -314,9 +367,13 @@ function frame(): void {
   deeds.update(dt, jobs.day.hourF);
   rowing.update(dt);
   actions.update(dt);
+  families.update(dt);
   events.update(dt, player);
+  townLife.update(dt, player, jobs.day.hourF);
   bubbles.update(dt, player.camera);
   press.update(dt);
+  ideas.update(dt);
+  emigrants.update(dt);
   animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
   sound?.setCrowd(crowd.stats.drawn);
   sound?.setRain(psxUniforms.uRain.value);
@@ -434,8 +491,11 @@ if (import.meta.env.DEV) {
     rowing,
     actions,
     events,
+    townLife,
     bubbles,
     interiors,
+    families,
+    homes,
     /** M6: a picture inside the room Jef is in, camera at `from` looking at `to` (room frame: x across, y up, z into the house). */
     async shotIn(name: string, from: [number, number, number], to: [number, number, number]) {
       const cam = player.camera;
@@ -449,6 +509,14 @@ if (import.meta.env.DEV) {
       return r.ok ? `data/shots/${name}.jpg` : `failed ${r.status}`;
     },
     press,
+    ideas,
+    /** M6 ideas: the page on screen over the game picture, to data/shots/<name>.jpg. */
+    pageShot: (name: string) => {
+      crowd.update(0.0001, player, player.camera);
+      retro.render(interiors.prepareRender(player.camera) ?? world.scene, player.camera, elapsed);
+      return ideas.pageShot(name, canvas);
+    },
+    emigrants,
     get sound() {
       return sound;
     },
@@ -486,6 +554,14 @@ if (import.meta.env.DEV) {
       for (const q of interiors.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M6: the newsboys' corners, the post office, the Berg
       for (const q of press.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      // M6 AI ideas: the bills, lost things and notebooks, the owners' doors, a meeting, a trouble's step
+      for (const q of ideas.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      // M6 town life: the lamplighters' stands at every lamp
+      for (const q of townLife.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      // M6: the Logement door, the emigrants' places on the quay, the Red Star Line notice
+      for (const q of emigrants.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      // M6 homes: every home's door and the second-hand dealer
+      for (const q of homes.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       if (!can(DOSS_POS.x, DOSS_POS.z, 2.0)) bad.push("the doss house gate");
       if (!can(RAMP.x - 0.6, RAMP.zHigh - 1.0, 2.4)) bad.push("the mate on deck");
       return bad;
@@ -553,6 +629,7 @@ if (import.meta.env.DEV) {
         world.update(elapsed, dt);
         player.update(dt);
         interiors.update(dt);
+        homes.update(dt);
         jobs.update(dt);
         crowd.update(dt, player, player.camera);
         town.update(dt, player);
@@ -563,9 +640,13 @@ if (import.meta.env.DEV) {
         deeds.update(dt, jobs.day.hourF);
         rowing.update(dt);
         actions.update(dt);
+        families.update(dt);
         events.update(dt, player);
+        townLife.update(dt, player, jobs.day.hourF);
         bubbles.update(dt, player.camera);
         press.update(dt);
+        ideas.update(dt);
+        emigrants.update(dt);
         animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
       }
     },

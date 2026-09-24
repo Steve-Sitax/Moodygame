@@ -2,6 +2,7 @@ import type { DB } from "../db.ts";
 import { clock } from "../day.ts";
 import { stage, eventsToday, type EventPlan } from "./scheduler.ts";
 import type { Stage } from "./vocab.ts";
+import { isShipDay } from "../town/emigrants.ts";
 
 // The event templates (M4): what the engine falls back on when the director
 // has no budget or writes something the engine cannot play, and what the dev
@@ -20,6 +21,15 @@ export interface Template {
   weight: number;
   /** The player may only see it once a day. */
   oncePerDay: boolean;
+  /**
+   * M6 town life: scripted stages. The engine's own act for each stage (fire.ts, hiring.ts), in
+   * place of the op's plain work; a scripted template keeps its stages whatever the model wrote.
+   */
+  acts?: Array<string | null>;
+  /** The town's own routine (the dawn hiring): never the engine's random pick, not counted as one of the day's events. */
+  routine?: boolean;
+  /** Rare: not again within this many days (the house fire). */
+  gapDays?: number;
 }
 
 const weekday = (d: number) => ((d - 1) % 7) + 1;
@@ -87,7 +97,7 @@ export const TEMPLATES: Template[] = [
     ],
     notice: "Red Star Line: passage to America. The Kempenland lies at anchor in the stream; lighters take her emigrants out from the Rijnkaai today.",
     rumour: "The lighters took a shipload of emigrants out to the Kempenland at anchor, bound for America; whole families with their chests.",
-    fits: (d, h) => weekday(d) !== 7 && h >= 8 && h < 16,
+    fits: (d, h) => isShipDay(d) && h >= 8 && h < 16, // only on the Red Star Line's ship days (town/emigrants.ts)
     weight: 2,
     oncePerDay: true,
   },
@@ -154,7 +164,69 @@ export const TEMPLATES: Template[] = [
     weight: 1,
     oncePerDay: true,
   },
+  // M6 town life: a house fire (director/fire.ts). The engine picks the house (never Jef's home),
+  // the alarm bell rings, the pump comes with its horses and the firemen, a bucket chain forms
+  // from the water, the fire dies down and the front is left black.
+  {
+    id: "house_fire",
+    title: "A house on fire",
+    place: "fire_house",
+    stages: [
+      // the alarm bell: the client rings it from the cathedral tower (game/townlife.ts), heard across the town
+      stage({ op: "sound", minutes: 45, sound: "none", mood: "tense" }),
+      stage({ op: "gather", minutes: 60, role: "crowd", count: 40, sound: "murmur", mood: "tense" }),
+      stage({ op: "gather", minutes: 150, role: "family", count: 45, sound: "murmur", mood: "tense" }),
+      stage({ op: "sound", minutes: 120, sound: "murmur", mood: "solemn" }),
+    ],
+    acts: ["fire_start", "fire_brigade", "fire_chain", "fire_down"],
+    notice: "",
+    rumour: "",
+    fits: (_d, h) => h >= 9 && h < 20,
+    weight: 0.4,
+    oncePerDay: true,
+    gapDays: 3,
+  },
+  // M6 town life: the naties hire day men at dawn (director/hiring.ts); planned by the engine every
+  // working morning, never picked at random, not one of the day's four events
+  {
+    id: "hiring",
+    title: "The naties hire at dawn",
+    place: "rijnkaai",
+    stages: [
+      stage({ op: "gather", minutes: 50, role: "family", count: 30, sound: "murmur", mood: "calm" }),
+      stage({ op: "sound", minutes: 60, sound: "murmur", mood: "lively" }),
+    ],
+    acts: ["hire_gather", "hire_call"],
+    notice: "",
+    rumour: "",
+    fits: (d, h) => weekday(d) !== 7 && h >= 5 && h < 7,
+    weight: 0,
+    oncePerDay: true,
+    routine: true,
+  },
 ];
+
+/** The town's routine templates (not counted as the day's events). */
+export const ROUTINE_TEMPLATES = new Set(TEMPLATES.filter((t) => t.routine).map((t) => t.id));
+
+/**
+ * M6: a plan that is really one of the scripted templates (the dev button, the engine, or the
+ * director asking for a fire in its own words: kind "house_fire", "fire", "blaze" ...).
+ */
+export function scriptFor(plan: { template: string; title: string }): Template | null {
+  const id = plan.template.trim().toLowerCase();
+  const byId = TEMPLATES.find((t) => t.id === id && t.acts);
+  if (byId) return byId;
+  if (/\b(house fire|fire|blaze|burning|ablaze|on fire)\b/.test(id.replace(/_/g, " ")) || /\b(fire|blaze|ablaze|burning)\b/i.test(plan.title))
+    return TEMPLATES.find((t) => t.id === "house_fire") ?? null;
+  return null;
+}
+
+/** The last day a template was held (planned, running or done), or null. */
+export function lastHeldDay(db: DB, id: string): number | null {
+  const row = db.prepare("SELECT MAX(day) AS d FROM town_event WHERE template = ? AND status <> 'cancelled'").get(id) as { d: number | null };
+  return row.d ?? null;
+}
 
 export function templateById(id: string): Template | null {
   return TEMPLATES.find((t) => t.id === id.trim().toLowerCase()) ?? null;
@@ -169,7 +241,7 @@ export function planFromTemplate(t: Template, source: "claude" | "engine", over:
 export function enginePick(db: DB, rng: () => number = Math.random): Template | null {
   const c = clock(db);
   const held = new Set(eventsToday(db).map((e) => e.template));
-  const fit = TEMPLATES.filter((t) => t.fits(c.day, c.hour) && !(t.oncePerDay && held.has(t.id)));
+  const fit = TEMPLATES.filter((t) => !t.routine && t.fits(c.day, c.hour) && !(t.oncePerDay && held.has(t.id)) && !(t.gapDays && (lastHeldDay(db, t.id) ?? -99) > c.day - t.gapDays));
   if (!fit.length) return null;
   const total = fit.reduce((a, t) => a + t.weight, 0);
   let roll = rng() * total;

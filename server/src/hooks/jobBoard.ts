@@ -16,7 +16,8 @@ export const TASK_TYPES = ["carry", "watch", "deliver", "row", "find", "talk"] a
 export const PLAYABLE = new Set<string>(["carry", "watch", "deliver", "letters"]);
 
 export const GOODS = ["crates", "sacks", "barrels", "hides", "rope", "parcel"] as const;
-export type Goods = (typeof GOODS)[number];
+// M6 emigrants (town/emigrants.ts): "chests" is never on the model's list; the engine builds those errands itself
+export type Goods = (typeof GOODS)[number] | "chests";
 
 type SpotId = Exclude<keyof typeof SPOT_TABLE, "_note">;
 export const SPOT_IDS = Object.keys(SPOT_TABLE).filter((k) => !k.startsWith("_")) as SpotId[];

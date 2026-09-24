@@ -19,6 +19,7 @@ import { buildVegetation } from "./vegetation";
 import { buildTrees3D } from "./trees3d";
 import { applyDirt } from "./dirt";
 import { createFires, type Fires } from "./fire";
+import { createGasLamps, type GasLamps } from "./gaslamps";
 import { createLitter, type Litter } from "./litter";
 import { createStreetLife, type StreetLife } from "./streetlife";
 import { tradeKeepOut } from "./trades";
@@ -127,6 +128,8 @@ export interface Lamp {
 export interface World {
   scene: THREE.Scene;
   lamps: Lamp[];
+  /** M6 town life: every gas lamp's own lit state, set by the lamplighters (world/gaslamps.ts). */
+  gasLamps: GasLamps;
   shipPositions: THREE.Vector3[];
   /**
    * The player walks from (x,z) by (dx,dz); returns the allowed position (slides on walls).
@@ -666,10 +669,11 @@ export function buildRijnkaai(): World {
       }
       // gas lamps along the Werf, the Steenplein and the squares (tools/city/design.py decor)
       const decor = (CITY_DATA as unknown as { decor?: { lamps?: Array<[number, number]> } }).decor;
-      for (const [x, z] of decor?.lamps ?? []) {
-        p.place("gas_lamp", x, z, 0, scene);
+      (decor?.lamps ?? []).forEach(([x, z], i) => {
+        // M6: each lit by the lamplighter on his round (world/gaslamps.ts)
+        gasLamps.addDecor(i, p.place("gas_lamp", x, z, 0, scene), x, z);
         colliders.push(rectAround(x, z, 0.2, 0.2));
-      }
+      });
     })
     .catch(() => cart(scene, m, colliders, 47, 11));
   for (let x = -54; x <= 54; x += 9) {
@@ -747,6 +751,7 @@ export function buildRijnkaai(): World {
   // lamps on the quay stand a step back from the edge
   const lamps: Lamp[] = lampSpots.map(([x, z, broken], i) => gasLamp(scene, m, colliders, glow, x, z < 6 ? Math.max(z, edgeZ(x) + 1.6) : z, i, broken));
   const lantern = dossLantern(scene, m, glow);
+  const gasLamps = createGasLamps(scene, lamps.map((l) => ({ x: l.pos.x, z: l.pos.z })));
 
   // --- movement rules
   const onRamp = (x: number, z: number) => Math.abs(x - RAMP.x) < RAMP.halfW && z < RAMP.zLow && z > RAMP.zHigh - 0.2;
@@ -1277,9 +1282,10 @@ export function buildRijnkaai(): World {
     waterTex.offset.y = t * 0.011;
 
 
+    gasLamps.update(dt, lampsLit, fog.color);
     for (let i = 0; i < lamps.length; i++) {
       const l = lamps[i];
-      const target = flicker(t, l.seed, l.broken) * lampsLit;
+      const target = flicker(t, l.seed, l.broken) * lampsLit * gasLamps.quay(i);
       l.level += (target - l.level) * Math.min(1, dt * 18);
       l.light.intensity = 26 * l.level;
       // unlit glass takes the colour of the air around it, so it never shows as a black box
@@ -1342,6 +1348,7 @@ export function buildRijnkaai(): World {
       if (!on) applyDaylight(dayNow);
     },
     lamps,
+    gasLamps,
     shipPositions: [new THREE.Vector3(SHIP_X + 20, 1, -3), new THREE.Vector3(-34, 1, -21)],
     move,
     swimFree,

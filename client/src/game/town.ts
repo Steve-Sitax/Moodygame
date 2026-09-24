@@ -340,6 +340,10 @@ export class Town {
       case "inspect":
         if (w.route?.length) return { mode: "inspect", x: w.route[0][0], z: w.route[0][1], route: w.route, faces: w.faces };
         break;
+      case "wait":
+        // M6 emigrants: on the family's chest (men), or standing beside it (game/emigrants.ts draws the chests)
+        if (w.at) return { mode: "stand", x: w.at[0], z: w.at[1], yaw: w.at[2], motion: w.seat ? "sit" : "idle" };
+        break;
       default:
         break;
     }
@@ -494,9 +498,18 @@ export class Town {
       case "tavern":
         if (busy) return;
         if (!at(g.x, g.z, 1.4) && s.tries < 3) return this.retry(s);
+        if (g.motion === "sit") {
+          // M6 emigrants: sit down on the chest (the last step onto the seat itself), and stay sat
+          if (p.state !== "sit") {
+            p.x = g.x;
+            p.z = g.z;
+            this.crowd.puppetSit(p, g.yaw ?? null);
+          }
+          return;
+        }
         if ((s.wait -= dt) <= 0) {
-          // sellers call out now and then; drinkers take turns talking
-          const talky = g.mode === "tavern" || s.r.work.kind === "stall" || s.r.work.kind === "shop";
+          // sellers call out now and then; drinkers take turns talking; the emigrant women talk among themselves
+          const talky = g.mode === "tavern" || s.r.work.kind === "stall" || s.r.work.kind === "shop" || s.r.work.kind === "wait";
           const talking = talky && Math.random() < (g.mode === "tavern" ? 0.4 : 0.25);
           this.crowd.puppetStand(p, talking ? "talk" : (g.motion ?? "idle"), g.yaw ?? null);
           s.wait = talking ? rnd(2.5, 5) : rnd(4, 10);
@@ -1178,6 +1191,55 @@ export class Town {
 
   wares(id: string) {
     return this.data?.residents.find((r) => r.id === id)?.wares ?? [];
+  }
+
+  // ---- M6 (game/emigrants.ts): people who come to town and leave it while the game runs
+
+  /**
+   * New residents (a family off the train), or a changed record (the runner taken to the cell).
+   * A new one starts out in the street at `from` (unseen: they walk in from the station road);
+   * a changed one keeps where they are and takes up the new day at once.
+   */
+  upsertResidents(list: TownResident[], from?: Pt): string[] {
+    if (!this.data) return [];
+    const added: string[] = [];
+    for (const r of list) {
+      const s = this.byId.get(r.id);
+      if (s) {
+        if (JSON.stringify(s.r.home) === JSON.stringify(r.home) && JSON.stringify(s.r.sched) === JSON.stringify(r.sched) && JSON.stringify(s.r.work) === JSON.stringify(r.work)) continue;
+        s.r = r;
+        s.key = "";
+        const i = this.data.residents.findIndex((x) => x.id === r.id);
+        if (i >= 0) this.data.residents[i] = r;
+        continue;
+      }
+      if (this.employers.has(r.id)) continue;
+      const at = from ?? [r.home.sx, r.home.sz];
+      const n: Sim = {
+        r, kind: r.kind as HumanKind, x: at[0], z: at[1], inside: !from, door: [r.home.sx, r.home.sz], key: "", goal: { mode: "home", x: r.home.sx, z: r.home.sz },
+        p: null, step: 0, wait: 0, toB: false, arrived: false, tries: 0, held: false, outAt: 0, lamp: false, thief: null, h: hash(r.id),
+      };
+      this.sims.push(n);
+      this.byId.set(r.id, n);
+      this.data.residents.push(r);
+      added.push(r.id);
+    }
+    return added;
+  }
+
+  /** A resident leaves the town for good (an emigrant family gone down into the lighter). */
+  dropResident(id: string): void {
+    const s = this.byId.get(id);
+    if (!s) return;
+    this.lose(s, true);
+    this.byId.delete(id);
+    this.sims.splice(this.sims.indexOf(s), 1);
+    if (this.data) this.data.residents = this.data.residents.filter((r) => r.id !== id);
+  }
+
+  /** Is this resident in town (a sim)? */
+  has(id: string): boolean {
+    return this.byId.has(id);
   }
 
   // ------------------------------------------------------------------ checks

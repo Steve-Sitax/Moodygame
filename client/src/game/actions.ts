@@ -279,7 +279,44 @@ export class Actions {
       case "fetch_police":
         return this.talkTo(r, dt);
       default:
+        // M6 families: someone comes to find Jef (a visit, the police's word, a man with a grudge)
+        if ((a.kind as string) === "seek") return this.seek(r, dt);
         return;
+    }
+  }
+
+  /**
+   * M6 families: walk up to Jef and report "arrived" (the server then opens the talk, or has the
+   * man say his piece); at Jef, stand facing him; a menace keeps on Jef's heels at a brisk walk,
+   * so running (the server's RAN_M) is a real way out. Never a blow here: the server narrates.
+   */
+  private seek(r: Run, dt: number): void {
+    const px = this.player.x;
+    const pz = this.player.z;
+    const p = this.ensure(r, { x: px, z: pz }, dt, CLAIM_M);
+    if (!p) return;
+    const d = this.jefD(p.x, p.z);
+    const face = Math.atan2(px - p.x, pz - p.z);
+    const phase = r.a.phase;
+    if (phase === "going") {
+      if (d > 2.2) {
+        const L = d || 1;
+        this.go(r, p, px + ((p.x - px) / L) * 1.5, pz + ((p.z - pz) / L) * 1.5, d > 14 ? 1.9 : 1.45, 0.5);
+        if (this.stuck(r, d, dt, 20)) void this.report(r, "blocked", { why: "wall" });
+        return;
+      }
+      this.crowd.puppetStand(p, "talk", face);
+      return void this.report(r, "arrived");
+    }
+    // a menace keeps on Jef's heels; a visitor waiting to talk stays by him (also after a reload)
+    if ((phase === "menace" && d > 1.9) || (phase === "at_jef" && d > 2.6)) {
+      const L = d || 1;
+      this.go(r, p, px + ((p.x - px) / L) * 1.3, pz + ((p.z - pz) / L) * 1.3, phase === "menace" ? 2.1 : 1.6, 0.35);
+      return;
+    }
+    if (this.crowd.puppetBusy(p) || (r.wait -= dt) <= 0) {
+      this.crowd.puppetStand(p, phase === "menace" || Math.random() < 0.5 ? "talk" : "idle", face);
+      r.wait = 1.5;
     }
   }
 

@@ -6,7 +6,7 @@ import type { Mats } from "../world/rijnkaai";
 // Job goods. Claude picks one of these names; the game builds the prop.
 // Placeholders until the Blender kit (docs/05).
 
-export type Goods = "crates" | "sacks" | "barrels" | "hides" | "rope" | "parcel";
+export type Goods = "crates" | "sacks" | "barrels" | "hides" | "rope" | "parcel" | "chests";
 
 interface GoodsInfo {
   /** One item, for text: "lift the crate". */
@@ -64,6 +64,15 @@ export const GOODS: Record<Goods, GoodsInfo> = {
     hold: [0, -0.62, -0.78],
     broken: "The coil comes loose. Nobody would miss a length of good tarred rope.",
   },
+  // M6 emigrants (game/emigrants.ts): a family's travelling chest, iron-bound, with a curved lid
+  chests: {
+    one: "chest",
+    h: 0.47,
+    speed: 0.6,
+    thud: "wood",
+    hold: [0, -0.7, -0.85],
+    broken: "The hasp gives. Folded linen, a Bible and a pair of good boots: all a family owns.",
+  },
   parcel: {
     one: "parcel",
     h: 0.3,
@@ -74,7 +83,7 @@ export const GOODS: Record<Goods, GoodsInfo> = {
   },
 };
 
-let extra: { hides: THREE.Material; parcel: THREE.Material } | null = null;
+let extra: { hides: THREE.Material; parcel: THREE.Material; chest?: THREE.Material } | null = null;
 
 export function makeGoods(kind: Goods, m: Mats): THREE.Object3D {
   extra ??= {
@@ -110,6 +119,17 @@ export function makeGoods(kind: Goods, m: Mats): THREE.Object3D {
         g.add(t);
       }
       break;
+    case "chests": {
+      // painted pine, a curved lid, two iron bands (lower than a crate: a man sits on it)
+      extra.chest ??= psx(new THREE.MeshLambertMaterial({ map: (m.darkWood as THREE.MeshLambertMaterial).map, color: 0x9a7650 }));
+      g.add(box(0.9, 0.34, 0.52, extra.chest, 0, 0.17, 0, 0.9));
+      const lid = cyl(0.26, 0.26, 0.9, 6, extra.chest, 0, 0.34, 0);
+      lid.rotation.z = Math.PI / 2;
+      lid.scale.set(0.5, 1, 1); // (rotated: local x is up) a low curved lid, the full depth of the chest
+      g.add(lid);
+      for (const x of [-0.3, 0.3]) g.add(box(0.05, 0.36, 0.54, m.ironDecal, x, 0.18, 0, 0.3));
+      break;
+    }
     case "parcel":
       g.add(box(0.45, 0.3, 0.35, extra.parcel, 0, 0.15, 0, 0.45));
       g.add(box(0.47, 0.02, 0.04, m.rope, 0, 0.3, 0, 0.3));

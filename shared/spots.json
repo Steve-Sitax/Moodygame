@@ -229,5 +229,25 @@
    1,
    0
   ]
+ },
+ "emigrant_quay": {
+  "label": "the emigrants' place on the Rijnkaai",
+  "desc": "where the emigrant families wait with their chests for the lighters to the liner",
+  "x": 31.0,
+  "z": 27.0,
+  "dir": [
+   1.0,
+   0.0
+  ]
+ },
+ "lighter_berth": {
+  "label": "the quay above the lighter berth",
+  "desc": "across the rails from the berth where the lighters lie against the Rijnkaai wall",
+  "x": 35.0,
+  "z": 11.6,
+  "dir": [
+   1.0,
+   0.0
+  ]
  }
 }

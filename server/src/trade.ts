@@ -4,6 +4,8 @@ import { remember } from "./npcs.ts";
 import { activityAt } from "./town/schedule.ts";
 import { resident, town } from "./town/store.ts";
 import { closedByEvent, priceFactor } from "./director/state.ts";
+import { newsFactor } from "./ideas/prices.ts";
+import { FURNITURE, FURNITURE_KINDS } from "../../shared/homes.ts";
 
 // Buying, pockets and eating (M3b). Prices and effects are engine numbers
 // (docs/03: shop prices are engine code). Pockets hold small things only;
@@ -22,6 +24,8 @@ export interface ItemDef {
   note?: string;
   /** M6 interiors: eaten at the counter like a drink, never pocketed (a bowl of soup). */
   atCounter?: boolean;
+  /** M6 homes: a big piece of furniture, carried home in both arms (no pocket slot; homes/homes.ts). */
+  carry?: "arms";
 }
 
 export const ITEMS: Record<string, ItemDef> = {
@@ -89,13 +93,16 @@ const TRADE_WARES: Record<string, Array<{ kind: string; price_c: number }>> = {
   fish_merchant: STALL_WARES.fish,
   // M6: the morning paper, from the newsboys at their corners (Het Handelsblad, 5 centimes)
   newsboy: [{ kind: "newspaper", price_c: 5 }],
+  // M6 homes: the second-hand dealer's furniture (prices in shared/homes.ts FURNITURE; homes/homes.ts adds the items)
+  dealer: FURNITURE_KINDS.map((kind) => ({ kind, price_c: FURNITURE[kind].price_c })),
 };
 
 /** What a person sells: the named sellers, or a townsperson by stall or shop. */
 export function waresOf(db: DB, id: string): Array<{ kind: string; price_c: number }> {
   // M4: an event may move a price (0.5x to 3x) until it ends; rounded to the centime, never below 1
   return baseWaresOf(db, id).map((w) => {
-    const f = priceFactor(db, w.kind);
+    // M6 ideas: news from abroad moves a price 10 to 30 in the hundred for 1 to 3 days (ideas/abroad.ts)
+    const f = Math.max(0.5, Math.min(3, priceFactor(db, w.kind) * newsFactor(db, w.kind)));
     return f === 1 ? w : { kind: w.kind, price_c: Math.max(1, Math.round(w.price_c * f)) };
   });
 }
@@ -174,12 +181,13 @@ export function buy(db: DB, npc: string, kind: string): { line: string; bought: 
   if (p.money_c < ware.price_c) throw new GameError(`not enough money: ${ware.price_c} c needed`, 409);
   const drinkNow = ITEMS[kind].use === "drink" || !!ITEMS[kind].atCounter;
   const ref = ITEM_REF[kind]?.(db) ?? null;
-  if (!drinkNow && freeSlots(db) < 1) throw new GameError("your pockets are full", 409);
+  const inArms = ITEMS[kind].carry === "arms";
+  if (!drinkNow && !inArms && freeSlots(db) < 1) throw new GameError("your pockets are full", 409);
   db.transaction(() => {
     db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(ware.price_c);
     // a drink is taken on the spot; food goes into your pocket
     if (drinkNow) applyNeeds(db, ITEMS[kind]);
-    else db.prepare("INSERT INTO item (kind, job_id, ref) VALUES (?, NULL, ?)").run(kind, ref);
+    else if (!inArms) db.prepare("INSERT INTO item (kind, job_id, ref) VALUES (?, NULL, ?)").run(kind, ref);
     log(db, "bought", kind, `Jef bought ${ITEMS[kind].name} for ${ware.price_c} centimes.`);
   })();
   remember(db, npc, `Jef bought ${ITEMS[kind].name} from me for ${ware.price_c} centimes.`, drinkNow ? 3 : 2);

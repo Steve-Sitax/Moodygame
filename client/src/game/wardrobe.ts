@@ -23,7 +23,11 @@ export type WardrobeRole =
   | "widow"
   | "bearers"
   | "hawker"
-  | "showman";
+  | "showman"
+  // M6 town life: the lamplighter on his round, a fireman of the pompiers, the natie foreman at the gate
+  | "lamplighter"
+  | "fireman"
+  | "natie_foreman";
 
 let mats: Record<string, THREE.Material> | null = null;
 function m(): Record<string, THREE.Material> {
@@ -52,6 +56,11 @@ function m(): Record<string, THREE.Material> {
     coffin: psx(new THREE.MeshLambertMaterial({ color: 0x3a2616 })),
     pall: psx(new THREE.MeshLambertMaterial({ color: 0x121114 })),
     cross: psx(new THREE.MeshLambertMaterial({ color: 0xd8d4c8 })),
+    helmet: psx(new THREE.MeshLambertMaterial({ color: 0xc89a3c })),
+    iron: psx(new THREE.MeshLambertMaterial({ color: 0x2a2a2c })),
+    ladder: psx(new THREE.MeshLambertMaterial({ color: 0x6a4a2c })),
+    flame: new THREE.MeshBasicMaterial({ color: 0xffc860 }),
+    bowler: psx(new THREE.MeshLambertMaterial({ color: 0x1e1a18 })),
   };
   return mats;
 }
@@ -205,6 +214,62 @@ export function makeWear(role: WardrobeRole, bodyScale = 1): Wear {
       root.add(box(0.03, 0.02, 0.36, k.strap, 0.14, 1.28 * s, 0.14)).rotation.x = 0.8;
       break;
     }
+    case "lamplighter": {
+      // Antwerp's lamplighters: a short ladder on the shoulder and a long pole with a small flame
+      // at its tip, to reach up into the lantern (Het Stille Pand, "Schetsken energie")
+      root.add(cyl(0.11, 0.11, 0.06, k.cap, 0, top - 0.02, -0.01, 8));
+      root.add(box(0.15, 0.012, 0.07, k.cap, 0, top - 0.04, 0.1));
+      // the ladder over the right shoulder, the foot end down behind him
+      const ladder = new THREE.Group();
+      ladder.position.set(-0.2, 1.45 * s, 0);
+      ladder.rotation.x = -0.45;
+      for (const x of [-0.14, 0.14]) ladder.add(box(0.035, 0.035, 2.1, k.ladder, x, 0, 0));
+      for (let i = 0; i < 6; i++) ladder.add(box(0.28, 0.025, 0.025, k.ladder, 0, 0, -0.9 + i * 0.36));
+      root.add(ladder);
+      parts.ladder = ladder;
+      // the pole in the left hand, upright; it swings up to the lamp (setPole)
+      const pole = new THREE.Group();
+      pole.position.set(0.3, 1.0 * s, 0.14);
+      pole.userData.s = s;
+      pole.add(cyl(0.016, 0.02, 2.6, k.wood, 0, 1.0, 0, 5));
+      pole.add(cyl(0.022, 0.022, 0.08, k.brass, 0, 2.3, 0, 6));
+      const flame = new THREE.Mesh(new THREE.IcosahedronGeometry(0.035, 0), k.flame);
+      flame.position.set(0, 2.36, 0);
+      pole.add(flame);
+      root.add(pole);
+      parts.pole = pole;
+      parts.flame = flame;
+      break;
+    }
+    case "fireman": {
+      // the pompier's brass helmet with its crest and a leather neck flap; a hand at the pump
+      const h = new THREE.Group();
+      h.position.set(0, top - 0.06, -0.005);
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), k.helmet);
+      h.add(dome);
+      h.add(box(0.03, 0.08, 0.24, k.helmet, 0, 0.12, -0.01)); // the crest
+      h.add(cyl(0.155, 0.16, 0.02, k.helmet, 0, 0.0, 0, 10)); // the brim
+      const flap = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.17, 0.12, 8, 1, true, Math.PI * 0.6, Math.PI * 0.8), k.strap);
+      flap.position.set(0, -0.06, -0.02);
+      h.add(flap);
+      root.add(h);
+      // a leather belt with the hook
+      root.add(cyl(0.2, 0.2, 0.05, k.strap, 0, 1.0 * s, 0, 10));
+      break;
+    }
+    case "natie_foreman": {
+      // a round black hat and his book of names, held up when he calls them
+      root.add(cyl(0.15, 0.15, 0.015, k.bowler, 0, top - 0.02, 0, 10));
+      root.add(cyl(0.095, 0.105, 0.11, k.bowler, 0, top + 0.04, 0, 10));
+      const book = new THREE.Group();
+      book.position.set(0.2, 1.22 * s, 0.26);
+      book.rotation.x = -0.6;
+      book.add(box(0.13, 0.18, 0.025, k.strap, 0, 0, 0));
+      book.add(box(0.12, 0.17, 0.028, k.paper, 0.004, 0, 0.002));
+      root.add(book);
+      parts.book = book;
+      break;
+    }
     case "showman": {
       root.add(topHat(k, top));
       // a monkey in a red cap on his right shoulder, its tail down his back
@@ -253,4 +318,31 @@ export function makeCoffin(): THREE.Group {
   return g;
 }
 
-export const WARDROBE_ROLES = new Set<string>(["bride", "groom", "priest", "auctioneer", "speaker", "drunkard", "pickpocket", "widow", "bearers", "hawker", "showman"]);
+export const WARDROBE_ROLES = new Set<string>(["bride", "groom", "priest", "auctioneer", "speaker", "drunkard", "pickpocket", "widow", "bearers", "hawker", "showman", "fireman", "natie_foreman"]);
+
+/**
+ * M6: the lamplighter's pole: 0 held upright at his side, 1 raised into the lantern in front of
+ * him (the lamp 0.9 m ahead, its glass at 3.65 m); the small flame shows at dusk only.
+ */
+export function setPole(w: Wear, up: number, flame: boolean): void {
+  const p = w.parts.pole;
+  if (!p) return;
+  const k = Math.max(0, Math.min(1, up));
+  p.position.y = (1.0 + 0.45 * k) * (p.userData.s ?? 1);
+  p.position.z = 0.14 + 0.1 * k;
+  p.rotation.x = 0.3 * k;
+  if (w.parts.flame) w.parts.flame.visible = flame;
+}
+
+/** M6: a wooden bucket with iron hoops (the bucket chain at a fire), 0.3 m high, standing on y = 0. */
+export function makeBucket(): THREE.Group {
+  const k = m();
+  const g = new THREE.Group();
+  g.add(cyl(0.13, 0.1, 0.28, k.ladder, 0, 0.14, 0, 8));
+  g.add(cyl(0.135, 0.135, 0.025, k.iron, 0, 0.25, 0, 8));
+  g.add(cyl(0.108, 0.108, 0.025, k.iron, 0, 0.05, 0, 8));
+  const handle = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.008, 4, 10, Math.PI), k.iron);
+  handle.position.y = 0.28;
+  g.add(handle);
+  return g;
+}

@@ -18,22 +18,32 @@ export interface FireSpot {
 
 const FLAMES = 34;
 const SPARKS = 10;
-const SMOKE = 10;
+const SMOKE_DEFAULT = 10;
 
 /** The render height (settings): point sizes are in its pixels. */
 let viewH = 270;
 export function setFireViewHeight(h: number): void {
   viewH = h;
 }
+/** The render height now (the gas lamps' halos size their points by it too). */
+export function fireViewHeight(): number {
+  return viewH;
+}
 
 export interface Fires {
   group: THREE.Group;
   update(t: number): void;
+  /** M6 house fire: how fierce (0 out .. 1 full), and how thick the smoke (0..1.5; steam when the water hits). */
+  setLevel(flame: number, smoke?: number): void;
+  /** Take it out of the scene and free the GPU side. */
+  dispose(): void;
 }
 
-export function createFires(scene: THREE.Scene, spots: FireSpot[]): Fires {
+/** M6: `smoke` particles per spot (default 10; a burning house wants a column of it). */
+export function createFires(scene: THREE.Scene, spots: FireSpot[], opts: { smoke?: number } = {}): Fires {
   const group = new THREE.Group();
   group.name = "fires";
+  const SMOKE = opts.smoke ?? SMOKE_DEFAULT;
   const per = FLAMES + SPARKS + SMOKE;
   const n = spots.length * per;
   const pos = new Float32Array(n * 3);
@@ -58,10 +68,13 @@ export function createFires(scene: THREE.Scene, spots: FireSpot[]): Fires {
     ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
     uTime: psxUniforms.uTime,
     uViewH: { value: 270 },
+    uLevel: { value: 1 },
+    uSmoke: { value: 1 },
   };
   const vs = /* glsl */ `
     uniform float uTime;
     uniform float uViewH;
+    uniform float uLevel;
     attribute vec2 aSeed;
     attribute float aSize;
     varying float vLife;
@@ -100,18 +113,20 @@ export function createFires(scene: THREE.Scene, spots: FireSpot[]): Fires {
       vec4 mv = modelViewMatrix * vec4(p, 1.0);
       vFogDepth = -mv.z;
       gl_Position = projectionMatrix * mv;
-      float px = kind < 0.5 ? (0.28 - 0.18 * age) * aSize : kind < 1.5 ? 0.035 : (0.35 + 0.9 * age) * aSize;
+      float px = kind < 0.5 ? (0.28 - 0.18 * age) * aSize * uLevel : kind < 1.5 ? 0.035 * step(0.05, uLevel) : (0.35 + 0.9 * age) * aSize;
       gl_PointSize = clamp(px * projectionMatrix[1][1] * uViewH * 0.5 / max(-mv.z, 0.1), 1.0, 64.0);
     }`;
   const fs = /* glsl */ `
     uniform vec3 fogColor;
     uniform float fogNear;
     uniform float fogFar;
+    uniform float uLevel;
     varying float vLife;
     varying float vKind;
     varying float vFogDepth;
     varying float vSeed;
     void main() {
+      if (uLevel < 0.01) discard;
       vec2 c = gl_PointCoord - 0.5;
       float d = length(c) * 2.0;
       if (d > 1.0) discard;
@@ -148,15 +163,16 @@ export function createFires(scene: THREE.Scene, spots: FireSpot[]): Fires {
       uniform vec3 fogColor;
       uniform float fogNear;
       uniform float fogFar;
+      uniform float uSmoke;
       varying float vLife;
       varying float vKind;
       varying float vFogDepth;
       void main() {
-        if (vKind < 1.5) discard;
+        if (vKind < 1.5 || uSmoke < 0.01) discard;
         vec2 c = gl_PointCoord - 0.5;
         float d = length(c) * 2.0;
         if (d > 1.0) discard;
-        float a = (1.0 - d) * smoothstep(0.0, 0.15, vLife) * (1.0 - vLife) * 0.35;
+        float a = min(0.85, (1.0 - d) * smoothstep(0.0, 0.15, vLife) * (1.0 - vLife) * 0.35 * min(uSmoke, 2.5));
         vec3 col = mix(vec3(0.16, 0.15, 0.14), fogColor, 0.4 + 0.5 * vLife);
         float fog = smoothstep(fogNear, fogFar, vFogDepth);
         gl_FragColor = vec4(mix(col, fogColor, fog), a * (1.0 - fog));
@@ -196,15 +212,28 @@ export function createFires(scene: THREE.Scene, spots: FireSpot[]): Fires {
     glows.push({ sp, base: b, sd: r() * 10 });
   }
   scene.add(group);
+  let level = 1;
   return {
     group,
     update(t: number) {
       uniforms.uViewH.value = viewH;
       for (const g of glows) {
         const f = 0.85 + 0.1 * Math.sin(t * 9.1 + g.sd) + 0.06 * Math.sin(t * 23.7 + g.sd * 3);
-        g.sp.scale.set(g.base * f, g.base * f, 1);
-        (g.sp.material as THREE.SpriteMaterial).opacity = 0.45 * f;
+        g.sp.scale.set(g.base * f * (0.3 + 0.7 * level), g.base * f * (0.3 + 0.7 * level), 1);
+        (g.sp.material as THREE.SpriteMaterial).opacity = 0.45 * f * level;
       }
+    },
+    setLevel(flame: number, smoke = 1) {
+      level = Math.max(0, Math.min(1, flame));
+      uniforms.uLevel.value = level;
+      uniforms.uSmoke.value = Math.max(0, smoke);
+    },
+    dispose() {
+      group.removeFromParent();
+      geo.dispose();
+      flameMat.dispose();
+      smokeMat.dispose();
+      for (const g of glows) g.sp.material.dispose();
     },
   };
 }

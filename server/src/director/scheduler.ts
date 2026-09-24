@@ -17,6 +17,11 @@ import { runConvo } from "./convo.ts";
 import { writeEvent } from "./eventlog.ts";
 import { cleanLeads, fillNames, leadLine, leadSpot, namesIn, pickLeads, type Lead, type LeadAsk } from "./leads.ts";
 import { applyScene, resolveScene, sceneForClient, type Scene } from "./scenes.ts";
+import { fireEnd, fireForClient, fireGapWhy, pickFireHouse, runFireAct, type FireScene } from "./fire.ts";
+import { hiringEnd, hiringForClient, hiringTick, runHiringAct, type HiringScene } from "./hiring.ts";
+import { ROUTINE_TEMPLATES, scriptFor } from "./templates.ts";
+import { emigrantShip, isEmigrant } from "../town/emigrants.ts";
+import type { AnyLeadRole } from "./leads.ts";
 import {
   EVENT_MARGIN_MIN,
   EVENT_MAX_MIN,
@@ -53,7 +58,8 @@ import {
 /** A stage as stored: the model's flat object, plus where the engine put it. */
 /** `pre`: an onlookers' gathering already called at the start of the event (Steve: they come before it starts). */
 /** `scene`: a scuffle or a robbery as the engine set it up at the stage's start (scenes.ts). */
-export type StoredStage = Stage & { x?: number; z?: number; label?: string; pre?: boolean; scene?: Scene };
+/** M6 town life: `act`, the engine's scripted act for a stage (fire.ts, hiring.ts); `fire` and `hiring`, what it set up. */
+export type StoredStage = Stage & { x?: number; z?: number; label?: string; pre?: boolean; scene?: Scene; act?: string; fire?: FireScene; hiring?: HiringScene };
 
 export interface EventRow {
   id: number;
@@ -229,8 +235,9 @@ export function liveEvents(db: DB): EventRow[] {
   return db.prepare("SELECT * FROM town_event WHERE status IN ('planned', 'running') ORDER BY start_m").all() as EventRow[];
 }
 
+/** The day's events (M6: not the town's routine, the dawn hiring). */
 export function eventsToday(db: DB): EventRow[] {
-  return db.prepare("SELECT * FROM town_event WHERE day = ? AND status <> 'cancelled' ORDER BY id").all(clock(db).day) as EventRow[];
+  return (db.prepare("SELECT * FROM town_event WHERE day = ? AND status <> 'cancelled' ORDER BY id").all(clock(db).day) as EventRow[]).filter((e) => !ROUTINE_TEMPLATES.has(e.template));
 }
 
 // ------------------------------------------------------------------ planning
@@ -262,6 +269,22 @@ function leadAsks(db: DB, stages: Stage[], place: PlaceSpot): LeadAsk[] {
 export function planEvent(db: DB, plan: EventPlan, opts: { dev?: boolean } = {}): PlanResult {
   const bad = violent(plan);
   if (bad) return { ok: false, why: `no combat in this town: "${bad}"` };
+  // M6 town life: a scripted template (the house fire, the dawn hiring) keeps its own stages and
+  // acts whatever the model wrote; the fire's house is the engine's choice, never Jef's home
+  const script = scriptFor(plan);
+  let acts: Array<string | null> = [];
+  if (script?.acts) {
+    acts = script.acts;
+    const modelWords = plan.source === "claude" && plan.template !== script.id;
+    plan = { ...plan, template: script.id, stages: script.stages.map((s) => ({ ...s })), title: modelWords ? plan.title : plan.title || script.title };
+    if (script.id === "house_fire") {
+      const gap = opts.dev ? null : fireGapWhy(db, script.gapDays ?? 3);
+      if (gap) return { ok: false, why: gap };
+      const house = pickFireHouse(db);
+      if (!house) return { ok: false, why: "no house near enough to water for a bucket chain" };
+      plan = { ...plan, place: `house:${house}` };
+    }
+  }
   const place = resolvePlace(db, plan.place);
   if (!place) return { ok: false, why: `no such place: ${plan.place}` };
   const stages = cleanStages(plan.stages);
@@ -278,18 +301,21 @@ export function planEvent(db: DB, plan: EventPlan, opts: { dev?: boolean } = {})
   const now = gameMinute(db);
   const start = now + Math.max(0, Math.min(180, Math.round(plan.start_in_min)));
   const end = start + stages.reduce((a, s) => a + s.minutes, 0);
-  if (!opts.dev && eventsToday(db).length >= EVENTS_PER_DAY) return { ok: false, why: `${EVENTS_PER_DAY} events today already` };
+  // M6: the town's routine (the dawn hiring) is not one of the day's events and does not take a slot
+  const routine = ROUTINE_TEMPLATES.has(plan.template);
+  if (!opts.dev && !routine && eventsToday(db).length >= EVENTS_PER_DAY) return { ok: false, why: `${EVENTS_PER_DAY} events today already` };
   const live = liveEvents(db);
   const overlapping = live.filter((o) => o.start_m - EVENT_MARGIN_MIN < end && o.end_m + EVENT_MARGIN_MIN > start);
   for (const o of overlapping) {
     if (o.place === place.id) return { ok: false, why: `"${o.title}" is at ${place.label} then` };
     if (Math.hypot(o.x - place.x, o.z - place.z) < EVENT_NEAR_M) return { ok: false, why: `"${o.title}" is too near, at ${o.place}` };
   }
-  if (!opts.dev && overlapping.length >= EVENTS_AT_ONCE) return { ok: false, why: `${EVENTS_AT_ONCE} events run at once already` };
+  if (!opts.dev && !routine && overlapping.filter((o) => !ROUTINE_TEMPLATES.has(o.template)).length >= EVENTS_AT_ONCE) return { ok: false, why: `${EVENTS_AT_ONCE} events run at once already` };
   // the engine puts every stage's place on the map now
-  const stored: StoredStage[] = stages.map((s) => {
+  const stored: StoredStage[] = stages.map((s, i) => {
     const p = s.place ? resolvePlace(db, s.place) : null;
-    return p ? { ...s, x: p.x, z: p.z, label: p.label } : { ...s, x: place.x, z: place.z, label: place.label };
+    const act = acts[i] ? { act: acts[i]! } : {};
+    return p ? { ...s, x: p.x, z: p.z, label: p.label, ...act } : { ...s, x: place.x, z: place.z, label: place.label, ...act };
   });
   const res = db
     .prepare(
@@ -315,6 +341,8 @@ const stageEnd = (ev: EventRow, stages: StoredStage[], i: number) => ev.start_m 
 
 /** Every tick: start what is due, advance stages, end what is over. Returns how many changed. */
 export function eventsTick(db: DB): number {
+  // M6 town life: the naties' hiring is planned before dawn every working day
+  hiringTick(db);
   const now = gameMinute(db);
   let changed = 0;
   for (const ev of liveEvents(db)) {
@@ -376,13 +404,15 @@ function startEvent(db: DB, ev: EventRow): void {
   // Not for a robbery: nobody knows it is coming.
   const secret = stages.some((s) => s.op === "robbery");
   let pre = false;
-  stages.forEach((s, i) => {
+  // M6: the first stage's act may have stored its own set-up (a fire's house and chain): read them again
+  const now = stagesOf(eventRow(db, cur.id)!);
+  now.forEach((s, i) => {
     if (i === 0 || s.op !== "gather" || s.role !== "crowd" || secret || !s.count) return;
     gather(db, eventRow(db, cur.id)!, s.role, s.count, { x: s.x ?? cur.x, z: s.z ?? cur.z }, s.label ?? cur.place);
     s.pre = true;
     pre = true;
   });
-  if (pre) db.prepare("UPDATE town_event SET stages_json = ? WHERE id = ?").run(JSON.stringify(stages), cur.id);
+  if (pre) db.prepare("UPDATE town_event SET stages_json = ? WHERE id = ?").run(JSON.stringify(now), cur.id);
 }
 
 /**
@@ -421,14 +451,68 @@ function castLeads(db: DB, ev: EventRow, stages: StoredStage[]): Lead[] | null {
 
 /** The police agent on duty for a scene: a lead of the engine's own, sent to the spot. */
 export function castAgent(db: DB, ev: EventRow, agentId: string, spot: { x: number; z: number }): void {
-  const r = resident(db, agentId);
-  if (!r) return;
+  castEngineLead(db, ev, agentId, "agent", spot);
+}
+
+/**
+ * A lead the ENGINE casts itself (the police agent of a scene; M6: a fireman, the natie
+ * foreman): an attend action to the spot, and first-class in the event's leads and people.
+ */
+export function castEngineLead(db: DB, ev: EventRow, id: string, role: AnyLeadRole, spot: { x: number; z: number }, n?: number): boolean {
+  const r = resident(db, id);
+  if (!r) return false;
+  ev = eventRow(db, ev.id) ?? ev;
   const leads = leadsOf(ev);
-  if (leads.some((l) => l.id === agentId)) return;
-  const lead: Lead = { role: "agent", id: agentId, name: r.name, stage: ev.stage };
+  if (leads.some((l) => l.id === id)) return false;
+  const lead: Lead = { role, id, name: r.name, stage: Math.max(0, ev.stage), ...(n !== undefined ? { n } : {}) };
   const q = walkMap().nearestOpen(spot.x, spot.z, 4) ?? spot;
-  startAction(db, { npc_id: agentId, kind: "attend", target: ev.title, target_x: q.x, target_z: q.z, source: "event", event_id: ev.id, minutes: Math.max(5, ev.end_m - gameMinute(db)), data: { order: peopleOf(ev).length, about: ev.place, role: "lead", lead: "agent" } });
-  db.prepare("UPDATE town_event SET leads_json = ?, people_json = ? WHERE id = ?").run(JSON.stringify([...leads, lead]), JSON.stringify([...peopleOf(ev), agentId]), ev.id);
+  const old = actionOf(db, id);
+  if (old && old.event_id === ev.id) endAction(db, old.id, "done", "a part in it");
+  startAction(db, { npc_id: id, kind: "attend", target: ev.title, target_x: q.x, target_z: q.z, source: "event", event_id: ev.id, minutes: Math.max(5, ev.end_m - gameMinute(db)), data: { order: peopleOf(ev).length, about: ev.place, role: "lead", lead: role, ...(n !== undefined ? { n } : {}) } });
+  const people = peopleOf(ev).includes(id) ? peopleOf(ev) : [...peopleOf(ev), id];
+  db.prepare("UPDATE town_event SET leads_json = ?, people_json = ? WHERE id = ?").run(JSON.stringify([...leads, lead]), JSON.stringify(people), ev.id);
+  return true;
+}
+
+/**
+ * M6: people to fixed places of an event (a bucket chain in a line, dockers before the
+ * foreman): each gets an attend action to their slot. `ids` in the order of the slots; those
+ * already in this event are moved, others join it. Returns who was placed.
+ */
+export function placeAt(db: DB, ev: EventRow, ids: string[], slots: Array<{ x: number; z: number }>, role: string, extra: (i: number) => Record<string, unknown> = () => ({})): string[] {
+  ev = eventRow(db, ev.id) ?? ev;
+  const have = peopleOf(ev);
+  const now = gameMinute(db);
+  const placed: string[] = [];
+  ids.slice(0, slots.length).forEach((id, i) => {
+    const q = slots[i];
+    const a = actionOf(db, id);
+    if (a && a.event_id === ev.id) {
+      db.prepare("UPDATE npc_action SET target_x = ?, target_z = ?, phase = 'going', data_json = json_set(json_set(data_json, '$.role', ?), '$.slot', ?) WHERE id = ?").run(q.x, q.z, role, i, a.id);
+      for (const [k, v] of Object.entries(extra(i))) db.prepare("UPDATE npc_action SET data_json = json_set(data_json, ?, ?) WHERE id = ?").run(`$.${k}`, typeof v === "object" ? JSON.stringify(v) : v, a.id);
+    } else {
+      if (a) return; // busy with something else
+      startAction(db, { npc_id: id, kind: "attend", target: ev.title, target_x: q.x, target_z: q.z, source: "event", event_id: ev.id, minutes: Math.max(5, ev.end_m - now), data: { order: have.length + i, about: ev.place, role, ...({ slot: i, ...extra(i) } as object) } as NonNullable<Parameters<typeof startAction>[1]["data"]> });
+    }
+    placed.push(id);
+  });
+  const all = [...have, ...placed.filter((id) => !have.includes(id))];
+  db.prepare("UPDATE town_event SET people_json = ? WHERE id = ?").run(JSON.stringify(all), ev.id);
+  notify("actions");
+  return placed;
+}
+
+/** M6: free residents for an event's own use (not in another event, not busy, not reserved, not an employer at a post). */
+export function freeResidents(db: DB, ev: EventRow, ok: (r: Resident) => boolean): Resident[] {
+  const inOthers = new Set(liveEvents(db).filter((o) => o.id !== ev.id).flatMap((o) => [...peopleOf(o), ...leadsOf(o).map((l) => l.id)]));
+  const busy = new Set(activeActions(db).filter((a) => a.event_id !== ev.id).map((a) => a.npc_id));
+  return town(db).town.residents.filter((r) => !inOthers.has(r.id) && !busy.has(r.id) && !TOWN_EMPLOYER_IDS.includes(r.id) && r.trade !== "infant" && r.work.kind !== "guard" && !isEmigrant(r) && ok(r));
+}
+
+/** M6: take someone out of an event (the man the foreman picked goes to his ship). */
+export function releaseFromEvent(db: DB, ev: EventRow, id: string, why: string): void {
+  const a = actionOf(db, id);
+  if (a && a.event_id === ev.id) endAction(db, a.id, "done", why);
 }
 
 function finishEvent(db: DB, ev: EventRow, status: "done" | "cancelled", why = ""): void {
@@ -438,6 +522,9 @@ function finishEvent(db: DB, ev: EventRow, status: "done" | "cancelled", why = "
     if (st?.scene && !st.scene.resolved) resolveScene(db, ev, ev.stage);
     ev = eventRow(db, ev.id) ?? ev;
   }
+  // M6 town life: a fire leaves its soot and settles Jef's place in the chain; the hiring its record
+  if (ev.template === "house_fire") fireEnd(db, ev, status);
+  if (ev.template === "hiring") hiringEnd(db, ev, status);
   db.prepare("UPDATE town_event SET status = ? WHERE id = ?").run(status, ev.id);
   endEventActions(db, ev.id);
   // prices back, places open again
@@ -458,6 +545,13 @@ function finishEvent(db: DB, ev: EventRow, status: "done" | "cancelled", why = "
 
 function applyStage(db: DB, ev: EventRow, s: StoredStage, i: number): void {
   const at = { x: s.x ?? ev.x, z: s.z ?? ev.z };
+  // M6 town life: a scripted act does the stage's work itself (fire.ts, hiring.ts)
+  if (s.act) {
+    if (s.act.startsWith("fire_")) runFireAct(db, ev, s, i);
+    else if (s.act.startsWith("hire_")) runHiringAct(db, ev, s, i);
+    writeEvent(db, { kind: "event", verb: `stage_${s.act}`, text: `${ev.title}: ${s.act.replace(/_/g, " ")}${s.label ? ` at ${s.label}` : ""}.`, place: ev.place, x: at.x, z: at.z, ref_type: "town_event", ref_id: ev.id, weight: i === 0 ? 3 : 2 });
+    return;
+  }
   switch (s.op) {
     case "gather":
       if (!s.pre && s.count > 0) gather(db, ev, s.role, s.count, at, s.label ?? ev.place);
@@ -547,6 +641,11 @@ function fits(r: Resident, role: GatherRole, db: DB): boolean {
   if (r.work.kind === "guard") return false;
   const c = clock(db);
   const now = activityAt(r.sched, c.day, c.hour + c.minute / 60);
+  // M6: the lamplighter on his round does not stop for an event
+  if (r.trade === "lamplighter" && now.act === "work") return false;
+  // M6 emigrants: a family gathering takes only the households boarding today; nobody else takes an emigrant from the chests
+  if (role === "family") return isEmigrant(r) && emigrantShip(db).households.includes(r.household) && r.age >= 6;
+  if (isEmigrant(r)) return false;
   const keeperAtWork = (r.work.kind === "stall" || r.work.kind === "shop" || r.work.kind === "tavern") && now.act === "work";
   switch (role) {
     case "police":
@@ -561,8 +660,6 @@ function fits(r: Resident, role: GatherRole, db: DB): boolean {
       return r.age >= 14 && r.trade !== "thief" && !keeperAtWork && r.trade !== "police";
     case "guests":
       return r.age >= 8 && r.trade !== "thief" && r.trade !== "beggar" && !keeperAtWork && r.trade !== "police";
-    case "family":
-      return r.age >= 6 && !keeperAtWork;
     default:
       return r.age >= 8 && !keeperAtWork && r.trade !== "police";
   }
@@ -715,6 +812,10 @@ export function publicEvent(db: DB, ev: EventRow) {
     /** M4b: the leads with their parts, and the scene now playing (a scuffle, a robbery). */
     leads: leadsOf(ev).map((l) => ({ role: l.role, id: l.id, name: l.name, n: l.n ?? 0 })),
     scene: ev.status === "running" && ev.stage >= 0 ? sceneForClient(stages[ev.stage]) : null,
+    /** M6 town life: the house fire (the house, the water, the chain, the pump's way) and the dawn hiring (the spots, the call). */
+    acts: stages.map((s) => s.act ?? null),
+    fire: ev.template === "house_fire" ? fireForClient(stages) : null,
+    hiring: ev.template === "hiring" ? hiringForClient(stages) : null,
     /** Game minutes left in the stage now playing (the client starts a late sound for the rest of it). */
     stage_left: ev.status === "running" && ev.stage >= 0 ? Math.max(0, stageEnd(ev, stages, ev.stage) - now) : 0,
     starts_in: Math.max(0, ev.start_m - now),

@@ -388,7 +388,8 @@ export class Jobs {
 
   /** Open work and your job, plus the last two finished ones. Number keys index this list. */
   private visibleJobs(): Job[] {
-    const all = this.payload?.jobs ?? [];
+    // M6: an emigrant family's errand is asked in talk, not chalked on the hiring board (unless Jef has it in hand)
+    const all = (this.payload?.jobs ?? []).filter((j) => j.source !== "emigrant" || j.status === "taken");
     const finished = all.filter((j) => j.status === "done" || j.status === "failed").slice(-2);
     return all.filter((j) => j.status === "offered" || j.status === "taken" || finished.includes(j));
   }

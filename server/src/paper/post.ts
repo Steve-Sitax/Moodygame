@@ -276,7 +276,8 @@ export interface LetterText {
 export function letterDue(db: DB, rng: () => number = Math.random): boolean {
   const { day } = now(db);
   if (day < 2) return false;
-  const all = db.prepare("SELECT day FROM letter").all() as Array<{ day: number }>;
+  // M6 ideas: replies to Jef's own letters (ideas/letters.ts) do not count against these
+  const all = db.prepare("SELECT day FROM letter WHERE kind <> 'reply'").all() as Array<{ day: number }>;
   if (all.some((l) => l.day === day)) return false;
   if (all.length >= LETTERS_PER_WEEK) return false;
   if (!all.length && day >= 3) return true;

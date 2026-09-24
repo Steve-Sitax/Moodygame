@@ -70,6 +70,7 @@ YOU NOW SPEAK AS ONE ORDINARY PERSON OF THE TOWN, 1873. Not a hero, not a guide:
 - memory_note: one sentence from your point of view worth remembering, or "".
 - memory_weight: 1-10. Small talk 2, a favour or an insult 5-7.
 - rumour: if this moment is something you would tell others about Jef, one short sentence in the past tense that starts with "Jef" (e.g. "Jef asked after work at the Entrepot"). Else "".
+  Always write one when Jef is rude to you, insults you, lies and you catch it, or is kind, helps you or gives you something (your family will hear of it).
 - rumour_tone: how it makes Jef look, -2 bad to +2 good.
 - persona_line: if PERSONA says "none yet", one line: who you are and how you talk (your own words, third person). Else "".
 - end_conversation: true when you are done talking or send him off.`;
@@ -125,6 +126,8 @@ export function doing(db: DB, r: Resident, now = nowOf(db, r)): string {
           return r.trade === "corporal" ? `bringing the relief out to ${placeLabel(db, r.work.place)}` : `standing sentry at ${placeLabel(db, r.work.place)}, rifle at the shoulder`;
         case "inspect":
           return `checking the goods landed on ${placeLabel(db, r.work.place)} against the ships' papers, and writing them in your book`;
+        case "wait":
+          return "waiting on the Rijnkaai by your family's chests and bundles for the lighter out to the liner";
         case "inside":
           return r.trade === "soldier" ? "on your way back in to the barracks" : "on your way in to work";
         default:
@@ -220,7 +223,38 @@ const POLICE_POST = "the police post on the Grote Markt, by the town hall";
 /** Topics the engine can answer on its own. */
 type Topic = "work" | "rumour" | "self" | "family" | "town" | "theft" | "bye";
 
+/** M6 (town/emigrants.ts): a line Jef may say that the ENGINE answers, with its engine effects (never the model's). */
+export interface ExtraTopic {
+  choice: string;
+  /** M6 surprises: may be async (the fortune teller's cards need a model call; the talk waits, bounded by claude.ts). */
+  answer(db: DB, r: Resident): { text: string; trust?: number; end?: boolean } | Promise<{ text: string; trust?: number; end?: boolean }>;
+}
+
+/**
+ * M6 extension points for people with a story of their own (the emigrants, their keeper, the
+ * runner; town/emigrants.ts registers them). Each returns null or "" to leave the ordinary talk alone.
+ * - greet: the engine's opening line; - choice: the wording of a topic; - reply: the engine's answer
+ *   to a topic; - topics: extra lines Jef may say, answered and applied by the engine;
+ * - context: a block for the model's prompt (who they are, their story, how they speak).
+ */
+export const talkExtras = {
+  greet: [] as Array<(db: DB, r: Resident, mood: string, met: number) => string | null>,
+  choice: [] as Array<(r: Resident, topic: Topic) => string | null>,
+  reply: [] as Array<(db: DB, r: Resident, topic: Topic, seed: string) => string | null>,
+  topics: [] as Array<(db: DB, r: Resident) => ExtraTopic[]>,
+  context: [] as Array<(db: DB, r: Resident) => string>,
+};
+const firstOf = <T>(fs: Array<() => T | null>): T | null => {
+  for (const f of fs) {
+    const v = f();
+    if (v) return v;
+  }
+  return null;
+};
+
 function topicChoice(t: Topic, r: Resident): string {
+  const own = firstOf(talkExtras.choice.map((f) => () => f(r, t)));
+  if (own) return own;
   switch (t) {
     case "work":
       return "Is there any work going?";
@@ -252,6 +286,8 @@ function youHeard(rs: Rumour[]): Rumour | null {
 
 function openingText(db: DB, r: Resident, mood: string, met: number): string {
   const seed = `${r.id}:${met}:${clockOf(db).day}:${clockOf(db).hour}`;
+  const own = firstOf(talkExtras.greet.map((f) => () => f(db, r, mood, met)));
+  if (own) return own;
   if (r.age < 13) return pickBy(seed, CHILD_GREET);
   let line = pickBy(seed, GREET[mood] ?? GREET.neutral);
   const heard = youHeard(rumoursOf(db, r.id, 3));
@@ -302,6 +338,10 @@ function familyLine(db: DB, r: Resident): string {
 
 /** The engine's answer to a topic: always true to the game's facts. */
 export function engineReply(db: DB, r: Resident, topic: Topic | null, seed: string): string {
+  if (topic) {
+    const own = firstOf(talkExtras.reply.map((f) => () => f(db, r, topic, seed)));
+    if (own) return own;
+  }
   const s = r.stats;
   switch (topic) {
     case "work": {
@@ -383,8 +423,14 @@ interface Session {
   calls: number;
   lastAt: number;
   used: Set<Topic>;
-  /** The choices on offer now, and what they mean to the engine (null: a line Claude wrote). */
-  offered: Map<string, Topic | null>;
+  /** The choices on offer now, and what they mean to the engine (null: a line Claude wrote; M6: an engine topic of talkExtras). */
+  offered: Map<string, Topic | ExtraTopic | null>;
+}
+
+/** M6: the extra lines Jef may say to this person now (engine-answered), not yet said in this meeting. */
+function extraTopics(db: DB, r: Resident, sess: Session): ExtraTopic[] {
+  const said = new Set(sess.turns);
+  return talkExtras.topics.flatMap((f) => f(db, r)).filter((t) => !said.has(`- Jef: ${t.choice}`));
 }
 const sessions = new Map<string, Session>();
 const TTL_MS = 90_000;
@@ -399,7 +445,7 @@ function sessionFor(id: string): Session {
   return s;
 }
 
-function nextChoices(r: Resident, sess: Session): string[] {
+function nextChoices(db: DB, r: Resident, sess: Session): string[] {
   const order: Topic[] =
     r.age < 13
       ? ["self", "family", "rumour", "bye"]
@@ -407,8 +453,10 @@ function nextChoices(r: Resident, sess: Session): string[] {
         ? ["self", "theft", "rumour", "work", "family", "town", "bye"]
         : ["work", "rumour", "self", "family", "town", "bye"];
   const left = order.filter((t) => !sess.used.has(t) && t !== "bye");
-  const pickT = [...left.slice(0, 2), "bye" as Topic];
-  sess.offered = new Map(pickT.map((t) => [topicChoice(t, r), t]));
+  // M6: an engine topic (warn the emigrants, report the runner) takes the first place
+  const extra = extraTopics(db, r, sess).slice(0, 2); // M6 families: a visit may offer two (sorry / defy)
+  const pickT = [...left.slice(0, 2 - extra.length), "bye" as Topic];
+  sess.offered = new Map<string, Topic | ExtraTopic | null>([...extra.map((t) => [t.choice, t] as [string, ExtraTopic]), ...pickT.map((t) => [topicChoice(t, r), t] as [string, Topic])]);
   return [...sess.offered.keys()];
 }
 
@@ -479,7 +527,7 @@ ${work.length ? work.map((j) => `- ${j.employer_name} at ${spotOf(j)}: "${j.titl
       : ""
   }${wares.length ? `\nYOU SELL (fixed prices; he pays at your stall or counter, never in talk): ${wares.map((w) => `${ITEMS[w.kind].name} ${w.price_c} centimes`).join(", ")}.` : ""}
 ${(() => {
-    const extra = talkHooks.context(db, r);
+    const extra = [talkHooks.context(db, r), ...talkExtras.context.map((f) => f(db, r))].filter(Boolean).join("\n");
     return extra ? `\n${extra}\n` : "";
   })()}
 THIS MEETING SO FAR
@@ -517,7 +565,7 @@ function engineLine(db: DB, r: Resident, sess: Session, text: string, end = fals
   return {
     npc_line: text,
     mood: moodOf(db, r),
-    choices: end ? ["Good day.", "Good day.", "Good day."] : nextChoices(r, sess),
+    choices: end ? ["Good day.", "Good day.", "Good day."] : nextChoices(db, r, sess),
     trust_delta: 0,
     memory_note: "",
     memory_weight: 1,
@@ -554,8 +602,14 @@ export async function residentChoice(db: DB, id: string, choice: string, runner?
   const r = need(db, id);
   const sess = sessionFor(id);
   const said = choice.slice(0, 120);
-  const topic = sess.offered.has(said) ? sess.offered.get(said)! : null;
+  const offered = sess.offered.has(said) ? sess.offered.get(said)! : null;
   sess.turns.push(`- Jef: ${said}`);
+  // M6: an engine topic (talkExtras): the engine answers and applies it, never the model
+  if (offered && typeof offered === "object") {
+    const a = await offered.answer(db, r);
+    return apply(db, r, sess, { ...engineLine(db, r, sess, a.text, a.end ?? false), trust_delta: a.trust ?? 0 });
+  }
+  const topic = offered;
   if (topic) sess.used.add(topic);
   if (topic === "bye") return apply(db, r, sess, engineLine(db, r, sess, engineReply(db, r, "bye", `${id}:${sess.turns.length}`), true));
   // the first real reply of a meeting, and lines Claude wrote, go to Claude (when the budget allows)
@@ -604,9 +658,11 @@ function modelLine(db: DB, r: Resident, sess: Session, raw: ResidentLine) {
   // M4: the proposed action goes through the engine first; a refusal replaces the line
   const out = talkHooks.proposal(db, r, raw);
   const bye = topicChoice("bye", r);
-  const mine = out.choices.filter((c) => c !== bye).slice(0, 2);
-  const shown = apply(db, r, sess, { ...out, choices: [...mine, bye] });
-  sess.offered = new Map<string, Topic | null>([...mine.map((c) => [c, null] as [string, null]), [bye, "bye"]]);
+  // M6: an engine topic (warn the emigrants, report the runner) keeps its place after a model line
+  const extra = extraTopics(db, r, sess).slice(0, 2); // M6 families: a visit may offer two (sorry / defy)
+  const mine = out.choices.filter((c) => c !== bye && !extra.some((t) => t.choice === c)).slice(0, 2 - extra.length);
+  const shown = apply(db, r, sess, { ...out, choices: [...extra.map((t) => t.choice), ...mine, bye] });
+  sess.offered = new Map<string, Topic | ExtraTopic | null>([...extra.map((t) => [t.choice, t] as [string, ExtraTopic]), ...mine.map((c) => [c, null] as [string, null]), [bye, "bye"]]);
   return shown;
 }
 

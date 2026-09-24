@@ -17,7 +17,8 @@ export type WorkKind =
   | "beg" // stand or sit by a church door or a bridge
   | "post" // stand at one point (employers, the priest at his door)
   | "guard" // a sentry at his post (at), relieved every two hours from the guard room (garrison.ts)
-  | "inspect"; // a customs officer: from one landing of goods to the next (route), checking and writing
+  | "inspect" // a customs officer: from one landing of goods to the next (route), checking and writing
+  | "wait"; // M6 emigrants (emigrants.ts): by the family's chests on the quay, sitting on one (seat) or standing (at)
 
 export interface Place {
   id: string;
@@ -182,7 +183,11 @@ export type TradeId =
   // the garrison and the customs (garrison.ts): they walk, stand and talk; they never fight or arrest
   | "soldier" | "sentry" | "corporal" | "customs"
   // M6 (paper/town.ts): boys who sell the morning paper at a corner, the clerk of the post office
-  | "newsboy" | "post_clerk";
+  | "newsboy" | "post_clerk"
+  // M6 homes (homes/town.ts): the second-hand dealer who sells furniture at his door
+  | "dealer"
+  // M6 emigrants (emigrants.ts): families waiting for the liner, the lodging-house keeper, the ticket runner
+  | "emigrant" | "lodging_keeper" | "runner";
 
 export interface TradeDef {
   label: string;
@@ -244,6 +249,11 @@ export const TRADES: Record<TradeId, TradeDef> = {
   customs: { label: "customs officer", work: "inspect", faction: null, wealth: [2, 4], bias: { honesty: 1, greed: 1, warmth: -1 } },
   newsboy: { label: "newsboy", work: "post", faction: null, wealth: [0, 0], bias: { courage: 2, gossip: 2 } },
   post_clerk: { label: "clerk of the post and telegraph office", work: "post", faction: "burgerij", wealth: [3, 5], bias: { honesty: 2, gossip: 1 } },
+  dealer: { label: "second-hand dealer", work: "post", faction: null, wealth: [2, 4], bias: { greed: 2, gossip: 2 } },
+  emigrant: { label: "emigrant bound for America", work: "wait", faction: null, wealth: [1, 3], bias: { piety: 1, courage: -1, gossip: -1 } },
+  lodging_keeper: { label: "keeper of the emigrants' lodging house", work: "post", faction: null, wealth: [3, 5], bias: { greed: 2, gossip: 2 } },
+  // he calls himself an agent's man; the talk title shows only that
+  runner: { label: "agent's man", work: "roam", faction: "smokkelaars", wealth: [1, 3], bias: { honesty: -6, greed: 3, warmth: 2 } },
 };
 
 /** The board's employers who live in the town: fixed ids, so the job board can name them. */

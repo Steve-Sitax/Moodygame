@@ -89,6 +89,11 @@ interface ActionData {
   /** M4b bearers: which of the four. */
   n?: number;
   line?: string;
+  /** M6 families and schemes: what a seek or a talk_to is for (the family_news row, the scheme). */
+  news?: number;
+  scheme?: number;
+  reaction?: string;
+  complaint?: number;
 }
 
 // ------------------------------------------------------------------ what the client tells us
@@ -121,6 +126,35 @@ export function syncFromClient(body: unknown, now = Date.now()): { ok: boolean }
 export function jefAt(now = Date.now()): { x: number; z: number } | null {
   return Number.isFinite(sync.x) && now - sync.at < KNOWN_TTL_MS * 4 ? { x: sync.x, z: sync.z } : null;
 }
+
+/**
+ * M6 families: the people the client last saw in the street within r metres of (x, z), fresh
+ * only (the engine's deterrence and witnesses). Ids and distances; nothing the client says is
+ * trusted beyond who stood where.
+ */
+export function peopleNear(x: number, z: number, r: number, now = Date.now()): Array<{ id: string; d: number }> {
+  const out: Array<{ id: string; d: number }> = [];
+  for (const [id, k] of sync.people) {
+    if (now - k.at > KNOWN_TTL_MS) continue;
+    const d = Math.hypot(k.x - x, k.z - z);
+    if (d <= r) out.push({ id, d });
+  }
+  return out.sort((a, b) => a.d - b.d);
+}
+
+/**
+ * M6: other modules plug into the actions here (director/families.ts, surprises.ts), so this file
+ * needs no import of them. `reserved`: someone nobody may use for anything else (a stranger who
+ * has not arrived, the fortune teller at her table). `report`: the client's word on a kind this
+ * file does not walk itself ("seek"). `talkTo`: a talk_to with its own purpose (share, scheme)
+ * when the two meet. `timeUp`: an action of theirs ran out of time.
+ */
+export const actionHooks = {
+  reserved: [] as Array<(db: DB, id: string) => boolean>,
+  report: {} as Record<string, (db: DB, a: ActionRow, rep: Report, runner?: Runner) => Promise<ActionRow | null>>,
+  talkTo: {} as Record<string, (db: DB, a: ActionRow, runner?: Runner) => Promise<string>>,
+  timeUp: {} as Record<string, (db: DB, a: ActionRow) => boolean>,
+};
 
 /** Test helper. */
 export function resetSync(): void {
@@ -326,6 +360,8 @@ function describeStart(name: string, a: ActionRow): string {
       return `${name} went to fetch the police for Jef.`;
     case "attend":
       return `${name} joined ${a.target || "the gathering"}.`;
+    case "seek":
+      return `${name} went to find Jef${a.reason ? ` (${a.reason})` : ""}.`;
     default:
       return `${name} did something for Jef.`;
   }
@@ -381,7 +417,8 @@ export function isReserved(db: DB, id: string): boolean {
   const v = policeState(db).visit;
   if (v && v.agent === id && v.state !== "due") return true;
   const a = actionOf(db, id);
-  return !!a && (a.source === "event" || a.source === "engine");
+  if (a && (a.source === "event" || a.source === "engine")) return true;
+  return actionHooks.reserved.some((f) => f(db, id));
 }
 
 function isNightNow(db: DB): boolean {
@@ -591,6 +628,8 @@ export async function reportAction(db: DB, id: number, rep: Report, runner?: Run
   if (!r) return endAction(db, id, "failed", "nobody by that name");
   const crime = crimeOpen(db);
   const police = r.trade === "police" || r.trade === "water_bailiff";
+  const own = actionHooks.report[a.kind];
+  if (own) return own(db, a, rep, runner);
 
   switch (a.kind) {
     case "follow":
@@ -634,6 +673,18 @@ export async function reportAction(db: DB, id: number, rep: Report, runner?: Run
     case "talk_to": {
       if (rep.phase !== "arrived" && rep.phase !== "done") return rep.phase === "blocked" ? endAction(db, id, "failed", "blocked", END_LINE.talk_to_time) : a;
       const purpose = (data.purpose ?? "chat") as Purpose;
+      // M6: a talk with its own purpose (a family passing on news, a scheme): its module writes and applies it
+      const ownTalk = actionHooks.talkTo[purpose];
+      if (ownTalk) {
+        db.prepare("UPDATE npc_action SET phase = 'talking' WHERE id = ?").run(id);
+        try {
+          const outcome = await ownTalk(db, a, runner);
+          endAction(db, id, "done", outcome || "talked", "");
+        } catch (e) {
+          endAction(db, id, "failed", String(e).slice(0, 80), END_LINE.talk_to_time);
+        }
+        return actionRow(db, id);
+      }
       // the engine's verdict before the words: Jef's own purse first, else a robbery in the street Jef saw
       const street = streetCrimeOpen(db);
       const fixed =
@@ -665,6 +716,11 @@ export async function reportAction(db: DB, id: number, rep: Report, runner?: Run
         // the engine's lines stood in
       }
       endAction(db, id, "done", "fetched", "");
+      // M6 families: a complaint about Jef: the agent goes to find Jef for a word (director/families.ts)
+      if (data.complaint) {
+        startAction(db, { npc_id: agent.id, kind: "seek", target: "Jef", source: "engine", minutes: 360, reason: "a complaint about Jef", data: { reaction: "police_word", news: data.complaint } });
+        return actionRow(db, id);
+      }
       // the agent comes to where Jef was, then looks for the thief the log knows of, else waits for Jef there
       const jef = data.jef ?? jefAt() ?? whereIs(db, r);
       const spot = walkMap().nearestOpen(jef.x, jef.z, 6) ?? { x: jef.x, z: jef.z };
@@ -706,6 +762,12 @@ export function actionsTick(db: DB): number {
   for (const a of activeActions(db)) {
     if (a.kind === "attend" || a.phase === "talking") continue;
     if (now < a.until) continue;
+    const purpose = (parseData(a).purpose ?? "") as string;
+    const hook = actionHooks.timeUp[a.kind] ?? actionHooks.timeUp[`talk_to:${purpose}`];
+    if (hook && hook(db, a)) {
+      ended++;
+      continue;
+    }
     const key = `${a.kind}_time`;
     endAction(db, a.id, a.kind === "wait" || a.kind === "go_to" ? "done" : "failed", "time", END_LINE[key] ?? "");
     ended++;
@@ -737,6 +799,7 @@ export function listActions(db: DB) {
       role: data.role ?? null,
       lead: data.lead ?? null,
       n: data.n ?? 0,
+      reaction: data.reaction ?? null,
       minutes_left: Math.max(0, a.until - gameMinute(db)),
     };
   });

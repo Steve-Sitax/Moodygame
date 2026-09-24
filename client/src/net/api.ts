@@ -143,7 +143,10 @@ export interface Ending {
 }
 
 export interface Night {
-  where: "bed" | "rough";
+  where: "bed" | "rough" | "home";
+  /** M6 homes: the home Jef slept in. */
+  place?: string;
+  home?: string;
   turnedAway: boolean;
   summary: string[];
   day: number;
@@ -176,7 +179,7 @@ export interface TalkLine {
 export type Pt = [number, number];
 export type Act = "home" | "work" | "tavern" | "play" | "market" | "church" | "stroll" | "loiter";
 export type Seg = [number, number, Act, string?];
-export type WorkKind = "haul" | "stall" | "shop" | "tavern" | "patrol" | "roam" | "inside" | "beg" | "post" | "guard" | "inspect";
+export type WorkKind = "haul" | "stall" | "shop" | "tavern" | "patrol" | "roam" | "inside" | "beg" | "post" | "guard" | "inspect" | "wait";
 
 export interface WorkSpec {
   place: string;
@@ -190,6 +193,8 @@ export interface WorkSpec {
   door?: Pt;
   stall?: number;
   shop?: string;
+  /** Wait (M6 emigrants): sit at `at` (on the family's chest), else stand there. */
+  seat?: boolean;
 }
 
 export interface TownResident {
@@ -344,6 +349,10 @@ export interface TownEvent {
   starts_in: number;
   ends_in: number;
   source: string;
+  /** M6 town life: the engine's act per stage, and what the fire or the hiring set up (game/townlife.ts). */
+  acts?: Array<string | null>;
+  fire?: import("../game/townlife").FireView | null;
+  hiring?: import("../game/townlife").HiringView | null;
 }
 export interface ActionsPayload {
   actions: PublicAction[];
@@ -400,7 +409,13 @@ export const api = {
   actionReport: (id: number, body: { phase: "arrived" | "lost" | "blocked" | "done"; x?: number; z?: number; found?: boolean; why?: string }) =>
     call<JobsPayload & { action: PublicAction }>("POST", `/api/actions/${id}/report`, body, 30_000),
   devDirector: (body: { think?: boolean; invent?: boolean; template?: string }) => call<Record<string, unknown>>("POST", "/api/dev/director", body, 40_000),
+  /** M6 town life (game/townlife.ts): the lamplighters' rounds, the soot of burned fronts; Jef in a bucket chain or at a natie gate. */
+  townlife: () => call<import("../game/townlife").TownLifeData>("GET", "/api/townlife"),
+  fireJoin: (x: number, z: number) => call<JobsPayload & { result: TownLifeResult }>("POST", "/api/fire/join", { x, z }),
+  fireLeave: () => call<JobsPayload & { result: TownLifeResult }>("POST", "/api/fire/leave"),
+  hiringStand: (x: number, z: number) => call<JobsPayload & { result: TownLifeResult }>("POST", "/api/hiring/stand", { x, z }),
 };
+export type TownLifeResult = { ok: true; text: string } | { ok: false; why: string };
 
 /** Push channel. Reconnects on its own; the game never waits on it. */
 export interface OutcomeMsg {

@@ -63,7 +63,7 @@ export class Interiors {
   info: InteriorsInfo | null = null;
   /** The room Jef is in, or null in the street. */
   room: Room | null = null;
-  private here: { kind: "tavern" | "cellar"; place: string; label: string; step: Pt; out: Pt; origin: { x: number; z: number }; yaw: number } | null = null;
+  private here: { kind: "tavern" | "cellar" | "home"; place: string; label: string; step: Pt; out: Pt; origin: { x: number; z: number }; yaw: number } | null = null;
   private rooms = new Map<string, Room>();
   private occ = new Map<string, Occ>();
   private seatTaken = new Map<Seat, string>();
@@ -90,7 +90,9 @@ export class Interiors {
   sfx: (name: Sfx) => void = () => {};
   speak: (at: { x: number; z: number }, voice: { sex: "m" | "f"; age: number }, seconds: number) => void = () => {};
   /** The room's sound: "tavern", "cellar", or null back in the street. */
-  roomSound: (kind: "tavern" | "cellar" | null) => void = () => {};
+  roomSound: (kind: "tavern" | "cellar" | "home" | null) => void = () => {};
+  /** M6 homes (game/homes.ts): the keys inside a rented room, besides the door and the people. */
+  homeKeys: ((x: number, z: number) => { options: Array<[number, Action]>; extra: Action[] }) | null = null;
 
   constructor(
     private readonly player: FirstPerson,
@@ -234,6 +236,11 @@ export class Interiors {
       const d = Math.hypot(o.x - w.x, o.z - w.z);
       if (d < 1.5) opts.push([d, { key: "KeyE", text: `talk to ${o.p.name}`, run: () => this.talkTo(o) }]);
     }
+    if (room.kind === "home" && this.homeKeys) {
+      const hk = this.homeKeys(w.x, w.z);
+      opts.push(...hk.options);
+      extra.push(...hk.extra);
+    }
     let best: Seat | null = null;
     let bd = 0.85;
     for (const s of room.seats) {
@@ -270,6 +277,44 @@ export class Interiors {
         }
       }, 360),
     );
+  }
+
+  /**
+   * M6 homes: go into a room made elsewhere (a rented home, world/homeRooms.ts), at its door,
+   * with the same fade, walk and sound as the taverns. `then` runs inside the fade.
+   */
+  async enterOwn(room: Room, d: { place: string; label: string; step: Pt; out: Pt; wall?: Pt }, then?: () => void, quiet = false): Promise<boolean> {
+    if (this.busy || this.room) return false;
+    this.busy = true;
+    try {
+      const f = this.frame(d.step, d.out, d.wall);
+      const go = () => {
+        this.enterRoom(room, { kind: "home", place: d.place, label: d.label, step: d.step, out: d.out, ...f });
+        then?.();
+      };
+      if (quiet) go();
+      else await this.fade(go);
+      return true;
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  /** M6 homes: where a room made elsewhere must stand for its door (origin and turn of its frame). */
+  frameOf(step: Pt, out: Pt, wall?: Pt): { origin: { x: number; z: number }; yaw: number } {
+    return this.frame(step, out, wall);
+  }
+
+  /** The place of the room Jef is in ("tavern:ankere", "poesje", a home's id), or null. */
+  get placeId(): string | null {
+    return this.here?.place ?? null;
+  }
+
+  /** M6 homes: someone at the door of the room (the widow, a neighbour) says a line; null sends them off. */
+  visit(p: Person | null, line?: string): void {
+    if (!this.room) return;
+    this.syncPeople(p ? [p] : [], null, false);
+    if (p && line) this.play([{ who: p.id, name: p.first, text: line }]);
   }
 
   private frame(step: Pt, out: Pt, wall?: Pt): { origin: { x: number; z: number }; yaw: number } {

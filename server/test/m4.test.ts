@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { openDb } from "../src/db.ts";
 import type { Runner } from "../src/ai/claude.ts";
-import { CALLS_PER_DAY, CALLS_RESERVE, CONVO_CALLS_PER_DAY, DIRECTOR_CALLS_PER_DAY, RESIDENT_CALLS_PER_DAY } from "../src/config.ts";
+import { CALLS_PER_DAY, CALLS_RESERVE, CONVO_CALLS_PER_DAY, DIRECTOR_CALLS_PER_DAY, FAMILY_CALLS_PER_DAY, RESIDENT_CALLS_PER_DAY, SURPRISE_CALLS_PER_DAY } from "../src/config.ts";
 import { resetTalks } from "../src/hooks/dialogue.ts";
 import { remember } from "../src/npcs.ts";
 import { town } from "../src/town/store.ts";
@@ -753,7 +753,8 @@ describe("director", () => {
 
 describe("budget shares", () => {
   it("add up to the day's calls, and each share stops at its line and before the reserve", () => {
-    expect(RESIDENT_CALLS_PER_DAY + DIRECTOR_CALLS_PER_DAY + CONVO_CALLS_PER_DAY + 28).toBe(CALLS_PER_DAY);
+    // M6: the families and surprises shares came out of the director and the conversations
+    expect(RESIDENT_CALLS_PER_DAY + DIRECTOR_CALLS_PER_DAY + CONVO_CALLS_PER_DAY + FAMILY_CALLS_PER_DAY + SURPRISE_CALLS_PER_DAY + 28).toBe(CALLS_PER_DAY);
     const db = fresh();
     useCalls(db, "job_board", CALLS_PER_DAY - CALLS_RESERVE);
     expect(canCallConvo(db)).toBe(false);

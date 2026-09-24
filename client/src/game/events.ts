@@ -20,7 +20,7 @@ const GAME_MIN_PER_S = 3;
 /** An event starting within this of Jef is named in a line at the bottom of the screen. */
 const TELL_M = 90;
 
-export type EventSoundKind = "bells" | "music" | "murmur" | "handbell";
+export type EventSoundKind = "bells" | "music" | "murmur" | "handbell" | "alarm";
 export interface EventSoundHandle {
   move(x: number, z: number): void;
   stop(): void;
