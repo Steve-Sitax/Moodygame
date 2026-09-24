@@ -275,6 +275,22 @@ html, body {
 .citymap canvas { display: block; box-shadow: inset 0 0 40px rgba(60, 40, 20, 0.4); }
 .citymap .keys { text-align: right; margin: 6px 0 0; font-family: "Segoe Print", "Bradley Hand", cursive; }
 
+/* ---- The top-left column: the clock, then the task card under it (game/corner.ts) ---- */
+.top-left {
+  position: fixed;
+  left: 18px;
+  top: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  pointer-events: none;
+  z-index: 2;
+}
+.top-left > .clock, .top-left > .task { position: static; left: auto; top: auto; }
+.top-left > .clock { order: 0; }
+.top-left > .task { order: 1; }
+
 /* ---- M5: the clock, the night and the end of the week ---- */
 .clock {
   position: fixed;

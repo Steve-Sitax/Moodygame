@@ -13,6 +13,7 @@ import { Day } from "./day";
 import { CityMap, type MapMark } from "./map";
 import { esc, HaulRun, makeRun, type Action, type Run, type RunCtx, type Sfx } from "./runs";
 import type { Town } from "./town";
+import { topLeft } from "./corner";
 
 // The hands and the job (M2, M2b, M3). Everything you do with E and F goes
 // through here: lift, set down, stack, drop in the Schelde, talk, read the
@@ -101,6 +102,8 @@ export class Jobs {
     private readonly player: FirstPerson,
   ) {
     for (const e of Object.values(this.el)) document.body.appendChild(e);
+    // the task card goes under the clock, in the top-left column (game/corner.ts)
+    topLeft().appendChild(this.el.task);
     this.el.board.style.display = "none";
     this.el.tick.textContent = "▾";
     // carried goods hang in front of the camera, so the camera joins the scene

@@ -2,6 +2,7 @@ import { api, type Ending, type JobsPayload, type Night } from "../net/api";
 import type { FirstPerson } from "../player/firstPerson";
 import { DOSS_POS, type World } from "../world/rijnkaai";
 import { esc } from "./runs";
+import { topLeft } from "./corner";
 
 // The day and the week (M5). The server owns the clock; this side asks for a
 // tick every 5 s while you play, shows the time, turns the light, and shows
@@ -29,7 +30,7 @@ export class Day {
   ) {
     this.clockEl = document.createElement("div");
     this.clockEl.className = "clock";
-    document.body.appendChild(this.clockEl);
+    topLeft().prepend(this.clockEl);
     this.sheet = document.createElement("div");
     this.sheet.className = "night paper";
     this.sheet.style.display = "none";
