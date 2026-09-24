@@ -86,7 +86,7 @@ export function mountFamilies(app: Hono, deps: FamilyDeps): void {
   if (DEV) {
     // Dev: make it happen now, for a browser check on a test save
     app.post("/api/dev/families", async (c) => {
-      const b = (await c.req.json().catch(() => ({}))) as { do?: string; id?: string; reaction?: string; kind?: string };
+      const b = (await c.req.json().catch(() => ({}))) as { do?: string; id?: string; reaction?: string; kind?: string; news?: number };
       const jef = jefAt();
       const nearest = (pred: (id: string) => boolean) => {
         const all = town(db).town.residents.filter((r) => pred(r.id));
@@ -98,7 +98,7 @@ export function mountFamilies(app: Hono, deps: FamilyDeps): void {
           // a household member comes at once with the reaction asked (the engine's checks on the news are skipped)
           const r = b.id ? resident(db, b.id) : nearest((id) => !activeActions(db).some((a) => a.npc_id === id) && (resident(db, id)?.age ?? 0) >= 18 && resident(db, id)?.sex === "m");
           if (!r) throw new GameError("nobody", 404);
-          const row = startSeek(db, r.id, (b.reaction ?? "talk_angry") as VisitKind, { reason: "dev" });
+          const row = startSeek(db, r.id, (b.reaction ?? "talk_angry") as VisitKind, { reason: "dev", news: typeof b.news === "number" ? b.news : undefined });
           return c.json({ ok: true, action: row.id, who: r.name });
         }
         case "share": {

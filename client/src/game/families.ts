@@ -109,7 +109,7 @@ export class Families {
       for (const v of s.visitors) this.patchVisitor(v);
       if (s.fortune?.at) this.buildTable(s.fortune.at);
       if (s.menace) this.showMenace(s.menace);
-      if (s.visit) this.visit = { ...s.visit, t: 25 };
+      if (s.visit) this.visit = { ...s.visit, t: 180 };
       if (s.dream) this.lastDream = s.dream.text;
     } catch {
       // the server is away: nothing of this shows
@@ -121,7 +121,7 @@ export class Families {
     const v = m.visitor as VisitorView | undefined;
     if (v) this.patchVisitor(v);
     const visit = m.visit as { npc: string; name: string; title: string } | undefined;
-    if (visit) this.visit = { ...visit, t: 25 };
+    if (visit) this.visit = { ...visit, t: 180 };
     const men = m.menace as MenaceView | undefined;
     if (men) this.showMenace(men);
     const end = m.menace_end as { outcome: string; text: string } | undefined;

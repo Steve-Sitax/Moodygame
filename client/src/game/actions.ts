@@ -308,10 +308,12 @@ export class Actions {
       this.crowd.puppetStand(p, "talk", face);
       return void this.report(r, "arrived");
     }
-    // a menace keeps on Jef's heels; a visitor waiting to talk stays by him (also after a reload)
+    // a menace keeps on Jef's heels; a visitor waiting to talk stays by him (also after a reload).
+    // Far off: the same walk as going (a path re-asked too often never gets anywhere); close: brisk.
     if ((phase === "menace" && d > 1.9) || (phase === "at_jef" && d > 2.6)) {
       const L = d || 1;
-      this.go(r, p, px + ((p.x - px) / L) * 1.3, pz + ((p.z - pz) / L) * 1.3, phase === "menace" ? 2.1 : 1.6, 0.35);
+      const far = d > 8;
+      this.go(r, p, px + ((p.x - px) / L) * 1.3, pz + ((p.z - pz) / L) * 1.3, phase === "menace" ? 2.1 : far ? 1.9 : 1.45, far ? 0.5 : 0.35);
       return;
     }
     if (this.crowd.puppetBusy(p) || (r.wait -= dt) <= 0) {

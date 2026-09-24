@@ -615,7 +615,7 @@ function visitFacts(db: DB, a: ActionRow): { n: NewsRow | null; r: Resident; kin
 export function visitOpening(db: DB, a: ActionRow): string {
   const d = seekData(a);
   const { n, r, kin, fact } = visitFacts(db, a);
-  if (n?.opening) return n.opening;
+  if (n?.opening && n.reaction === d.reaction) return n.opening;
   const amt = n?.amount_c ?? 0;
   const who = kin === "someone" ? "People say" : `${cap(kin)} tells me`;
   switch (d.reaction) {
@@ -862,7 +862,9 @@ function startMenace(db: DB, a: ActionRow, _runner?: Runner): ActionRow | null {
   const d = seekData(a);
   const kind = d.reaction === "mug" ? "mug" : "knock_down";
   const n = d.news ? newsRow(db, d.news) : null;
-  const line = (n?.opening && cleanLine(n.opening)) || THREAT[kind][a.id % 2].replace("{kin}", cap(kin));
+  // the model's opening only when it was written for this menace
+  const own = n?.opening && n.reaction === d.reaction ? cleanLine(n.opening) : null;
+  const line = own || THREAT[kind][a.id % 2].replace("{kin}", cap(kin));
   const det = deterrence(db, r.id);
   if (det.police || det.crowd >= CROWD_DETER) {
     const text = det.police ? "Not with the police stood there. Another time, Jef." : "Too many eyes about. Another time, Jef. When you're alone.";
@@ -874,7 +876,7 @@ function startMenace(db: DB, a: ActionRow, _runner?: Runner): ActionRow | null {
   }
   const demand = clampAmount(db, kind, n?.amount_c ?? 0);
   setSeek(db, a, "menace", gameMinute(db) + MENACE_MIN, { line, demand });
-  publishConvo({ a: r.id, b: r.id, a_name: r.name, b_name: r.name, purpose: "menace", lines: [{ who: r.id, name: r.first, text: line }], source: n?.opening ? "claude" : "engine", outcome: "", event_id: null });
+  publishConvo({ a: r.id, b: r.id, a_name: r.name, b_name: r.name, purpose: "menace", lines: [{ who: r.id, name: r.first, text: line }], source: own ? "claude" : "engine", outcome: "", event_id: null });
   writeEvent(db, { kind: "action", verb: "menace", actor: r.id, text: `${r.name} came up to Jef in the street with a grudge (${kind === "mug" ? "after his money" : "to knock him down"}).`, weight: 6, who: [r.id] });
   const view: MenaceView = { action: a.id, npc: r.id, name: r.name, kind, demand_c: demand, line };
   bus.broadcast({ type: "families", menace: view });
