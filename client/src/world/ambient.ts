@@ -278,6 +278,8 @@ function buildSmoke(chimneys: Chimney[]): THREE.Points {
   pts.frustumCulled = false;
   pts.renderOrder = 2;
   pts.name = "ambient_smoke";
+  // M7 rendering (world/cull.ts): past 1.15 fog-fars the puffs are dropped, before that they fade to the fog colour
+  mat.userData.fogReach = 1.15;
   return pts;
 }
 

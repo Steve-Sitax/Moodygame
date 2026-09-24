@@ -192,6 +192,8 @@ export function createFires(scene: THREE.Scene, spots: FireSpot[], opts: { smoke
     fog: true,
   });
   const flames = new THREE.Points(geo, flameMat);
+  // M7 rendering (world/cull.ts): the smoke is gone at the fog's far end (the flames are not: additive)
+  smokeMat.userData.fogReach = 1;
   const smoke = new THREE.Points(geo, smokeMat);
   flames.frustumCulled = false;
   smoke.frustumCulled = false;

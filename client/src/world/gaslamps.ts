@@ -93,6 +93,8 @@ export function createGasLamps(scene: THREE.Scene, quay: Array<{ x: number; z: n
     blending: THREE.AdditiveBlending,
     fog: true,
   });
+  // M7 rendering (world/cull.ts): an unlit halo is not drawn (size 0), so it shows nothing past the fog
+  mat.userData.litAttr = "aLit";
   const halos = new THREE.Points(geo, mat);
   halos.frustumCulled = false;
   halos.renderOrder = 3;

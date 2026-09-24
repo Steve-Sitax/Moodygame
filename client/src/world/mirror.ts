@@ -36,7 +36,26 @@ export interface MirrorOptions {
   far?: number;
   /** Render only while this says yes (nothing to mirror: save the frame time). */
   enabled?: () => boolean;
+  /** A name for the culler and the dev view (world/cull.ts: "puddles" gets its own occlusion). */
+  name?: string;
 }
+
+/**
+ * M7 rendering: each mirror's pass, for the culler (world/cull.ts). Its camera is known once it
+ * has drawn; `willRender` says whether it may draw this frame for an eye there.
+ */
+export interface MirrorPass {
+  readonly name: string;
+  readonly index: number;
+  readonly planeY: number;
+  readonly camera: THREE.Camera;
+  /** How far it sees (m). */
+  readonly far: number;
+  /** One pixel of its picture, as a slope (2 tan(fov / 2) / height). */
+  readonly pixel: number;
+  willRender(eye: THREE.Vector3): boolean;
+}
+export const mirrorPasses: MirrorPass[] = [];
 
 /** Dev: every mirror made, with the renderer that drew it last (read its picture in the console). */
 export const mirrorsForDev: Array<{ planeY: number; rt: THREE.WebGLRenderTarget; renderer: THREE.WebGLRenderer | null; renders: number; calls: number; error: string; why: string; baseW: number; baseH: number }> = [];
@@ -63,8 +82,24 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
     // the boats' hull caps write stencil here too (world/boats.ts), so mirrored water stays out of hulls
     stencilBuffer: true,
   });
-  const cam = new THREE.PerspectiveCamera();
+  const cam = new THREE.PerspectiveCamera(75);
   mirrorCams.add(cam);
+  const index = mirrorPasses.length;
+  mirrorPasses.push({
+    name: opts.name ?? `mirror${index}`,
+    index,
+    get planeY() {
+      return planeY;
+    },
+    camera: cam,
+    get far() {
+      return opts.far ?? 160;
+    },
+    get pixel() {
+      return (2 * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2))) / rt.height;
+    },
+    willRender: (eye) => (!opts.enabled || opts.enabled()) && eye.y > planeY + 0.02,
+  });
   const matrix = new THREE.Matrix4();
   const plane = new THREE.Plane();
   const clip = new THREE.Vector4();

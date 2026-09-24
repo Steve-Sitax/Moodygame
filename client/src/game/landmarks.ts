@@ -2,7 +2,7 @@ import * as THREE from "three";
 import "./landmarks.css";
 import type { FirstPerson } from "../player/firstPerson";
 import type { JobsPayload, Pt } from "../net/api";
-import { landmarksApi, type DoorNow, type InPerson, type LandmarkNow, type SermonView } from "../net/landmarksApi";
+import { landmarksApi, type DoorNow, type HushResult, type InPerson, type LandmarkNow, type SermonView } from "../net/landmarksApi";
 import { CANDLE_C, CLOSED_TEXT, LANDMARK_LABEL, type LandmarkId } from "../../../shared/landmarks";
 import { buildCathedral, type LandmarkRoom, type Mark } from "../world/landmarkRooms";
 import { buildOostershuis, buildSteen, buildTownhall, buildVleeshuis } from "../world/landmarkHalls";
@@ -11,6 +11,11 @@ import { isHumanKind, makeHuman, type Human, type HumanKind, type Motion } from 
 import type { Interiors } from "./interiors";
 import type { Jobs } from "./jobs";
 import type { Action, Sfx } from "./runs";
+import type { RideWalk } from "../player/firstPerson";
+import type { World } from "../world/rijnkaai";
+import type { InWorld } from "../world/inworld";
+import { createCathedralInWorld, type CathedralInWorld } from "../world/cathedralInWorld";
+import * as PLAN from "../../../shared/cathedralPlan";
 
 // Inside the landmarks (M6 landmark interiors): E at the cathedral's west door, the town hall's
 // door, the Vleeshuis's two doors, the museum door in the Steen's courtyard or the Oostershuis's
@@ -26,6 +31,12 @@ import type { Action, Sfx } from "./runs";
 // the client gives each role a place and a small routine (a walk round, a seat, a stand) and
 // walks them there from the door. Talk as usual (E). The confessional has its own panel: Jef's
 // words go to the server and are kept nowhere.
+//
+// M7: the cathedral is no longer a room of its own. Its hall stands in the world inside its shell
+// (world/cathedralInWorld.ts): Jef walks in through the open west door and runs as anywhere; its
+// people walk in from the square; while he is near, its life runs here as for the other halls.
+// Running in the nave with people near: a hiss, heads turn, the kerk's trust (the engine's, hush.ts),
+// and the third time the beadle walks him out.
 
 type P2 = [number, number];
 
@@ -131,6 +142,8 @@ interface Fig {
   barrel: { outer: THREE.Group; inner: THREE.Group; roll: number } | null;
   /** M6 sermon: held at a place and pose by a scene (the preacher on the pulpit's stair and in it). */
   hold?: { x: number; z: number; y: number; yaw: number; motion: Motion } | null;
+  /** M7: seconds left turning to look at Jef (he ran). */
+  look?: number;
 }
 
 /** A barrel lying on its side, to roll (the Vleeshuis's cellarmen). */
@@ -200,6 +213,26 @@ export class Landmarks {
   private readonly caption = document.createElement("div");
   private nods = new Map<string, number>();
   private whisper: { el: HTMLDivElement; who: string; t: number } | null = null;
+  /** M7: the cathedral in the world (world/cathedralInWorld.ts); its life runs while Jef is near it. */
+  private cath: CathedralInWorld | null = null;
+  /** `here` is the cathedral in the world, not an instanced hall. */
+  private inWorldHere = false;
+  /** Jef is in the nave (not on the square); when he was last welcomed. */
+  private jefIn = false;
+  private welcomedAt = -1e9;
+  /** Jef's chair in the world's cathedral. */
+  private jefSeat: Seat | null = null;
+  private firstSync = false;
+  /** Running: for how long now, when he was last hissed at, where he stood a frame ago; the hiss's bubble. */
+  private runT = 0;
+  private hushAt = -1e9;
+  private hushBusy = false;
+  private lastPos: { x: number; z: number } | null = null;
+  private hushBubble: { el: HTMLDivElement; who: string; t: number } | null = null;
+  /** M7: the nave's sound as Jef goes in and out (set by main: the soundscape's interior). */
+  roomSound: (k: string | null) => void = () => {};
+  /** M7: the day's light (0 night .. 1 noon) and the weather's (1 clear .. 0.5 storm), for the glass (set by main). */
+  daylight: () => { day: number; sky: number } = () => ({ day: 1, sky: 1 });
 
   constructor(
     private readonly player: FirstPerson,
@@ -224,7 +257,23 @@ export class Landmarks {
   }
 
   get inside(): LandmarkId | null {
+    if (this.inWorldHere) return this.jefIn ? "cathedral" : null;
     return this.here?.id ?? null;
+  }
+
+  /** M7: stand the cathedral's hall in the world (main, once, after the world is built). */
+  attachWorld(world: World, inWorld: InWorld): void {
+    this.cath = createCathedralInWorld(world, inWorld);
+  }
+
+  /** M7: Jef is in the cathedral's nave (the footsteps' echo). */
+  get inCathedral(): boolean {
+    return this.jefIn;
+  }
+
+  /** M7: the cathedral in the world, for the dev checks. */
+  get cathedral(): CathedralInWorld | null {
+    return this.cath;
   }
 
   private async loadDoors(): Promise<void> {
@@ -237,11 +286,30 @@ export class Landmarks {
 
   // ------------------------------------------------------------------ in the street
 
-  keys(x: number, z: number): { options?: Array<[number, Action]> } {
+  keys(x: number, z: number): { only?: Action[]; options?: Array<[number, Action]>; extra?: Action[] } {
     if (this.interiors.inside || this.busy) return {};
+    // M7: in the cathedral in the world: its keys (talk, sit, a candle, the confessional, what to look at)
+    if (this.inWorldHere && this.cath) {
+      if (this.panel.isOpen) return { only: [] };
+      if (this.jefSeat) return { only: [{ key: "KeyE", text: "stand up", run: () => this.standInWorld() }] };
+      if (!this.player.riding && this.cath.insideness(x, z) > 0.3) {
+        const [lx, lz] = this.cath.local(x, z);
+        const r = this.insideKeys(lx, lz);
+        const seat = this.freeSeatNear(lx, lz);
+        if (seat) r.options.push([seat.d + 0.1, { key: "KeyE", text: "sit down", run: () => this.sitInWorld(seat.s) }]);
+        return r;
+      }
+    }
     if (this.player.riding || this.player.swimming || this.player.climbing || this.player.bikeRiding) return {};
     const options: Array<[number, Action]> = [];
+    // M7: before the cathedral's shut leaves, in the porch
+    if (this.cath && !this.cath.doorOpen) {
+      const [lx, lz] = this.cath.local(x, z);
+      if (Math.abs(lx) < 3 && lz > -1.5 && lz < PLAN.DOORWAY.z0) options.push([0.1, { key: "KeyE", text: `try the door of ${LANDMARK_LABEL.cathedral}`, run: () => this.say(CLOSED_TEXT.cathedral) }]);
+    }
     for (const d of this.doors) {
+      // M7: the cathedral's west door stands open by day: walk in
+      if (d.landmark === "cathedral" && this.cath && d.open) continue;
       const dist = Math.hypot(d.step[0] - x, d.step[1] - z);
       if (dist > REACH_DOOR || Math.abs(this.player.y - d.y) > 1.2) continue;
       options.push([
@@ -254,7 +322,27 @@ export class Landmarks {
 
   /** For the path check: every landmark door must be reachable on foot. */
   pathPoints(): Array<{ label: string; x: number; z: number; reach: number }> {
-    return this.doors.map((d) => ({ label: `landmark door: ${d.label}`, x: d.step[0], z: d.step[1], reach: 1.6 }));
+    const out = this.doors.map((d) => ({ label: `landmark door: ${d.label}`, x: d.step[0], z: d.step[1], reach: 1.6 }));
+    // M7: in through the west door to the cathedral's places (by day, when the door stands open)
+    if (this.cath?.doorOpen) {
+      const m = PLAN.MARKS;
+      const pts: Array<[string, number, number, number]> = [
+        ["the cathedral's nave", 0, PLAN.ROW0 - 1.5, 1.2],
+        ["the cathedral's chairs (a row's end)", 0.6, PLAN.ROW0 + 5 * PLAN.ROWD, 1.0],
+        ["the curate's confessional", m.penitent.x, m.penitent.z, 1.0],
+        ["the candle stand at the Lady altar", PLAN.SETS.standAt[2].x, PLAN.SETS.standAt[2].z, 1.2],
+        ["the communion rail", m.railN.x, m.railN.z, 1.2],
+        ["the Elevation of the Cross", PLAN.NORTH * PLAN.TRIPTYCH_X, PLAN.CROSS1 - 3.2, 1.5],
+        ["the Descent from the Cross", -PLAN.NORTH * PLAN.TRIPTYCH_X, PLAN.CROSS1 - 3.2, 1.5],
+        ["the pulpit", PLAN.PULPIT.x + 1.6, PLAN.PULPIT.z, 1.5],
+        ["the ambulatory behind the high altar", 0, PLAN.AC + 9, 1.5],
+      ];
+      for (const [label, lx, lz, reach] of pts) {
+        const [x, z] = PLAN.toWorld(lx, lz);
+        out.push({ label: `in the cathedral: ${label}`, x, z, reach });
+      }
+    }
+    return out;
   }
 
   private roomFor(id: LandmarkId, d: DoorNow): LandmarkRoom {
@@ -273,6 +361,12 @@ export class Landmarks {
     if (this.busy || this.interiors.inside) return false;
     const d = this.doors.find((q) => q.id === doorId);
     if (!d) return false;
+    // M7: the cathedral is walked into; this puts Jef in the nave (dev)
+    if (d.landmark === "cathedral" && this.cath) {
+      const [x, z] = PLAN.toWorld(0, PLAN.W0 + 6);
+      this.player.place(x, z, Math.PI, 0.03);
+      return true;
+    }
     if (this.jobs.goods.carried) {
       this.say("Not with that in your arms. Set it down first.");
       return false;
@@ -346,6 +440,9 @@ export class Landmarks {
     this.caption.classList.remove("on");
     this.whisper?.el.remove();
     this.whisper = null;
+    this.hushBubble?.el.remove();
+    this.hushBubble = null;
+    this.inWorldHere = false;
     if (this.sermon && this.sermon.stage !== "done" && this.sermon.stage !== "wait") this.sermon.stage = "done";
     this.clear();
     this.organ(false);
@@ -552,6 +649,12 @@ export class Landmarks {
       else h.play(this.talking === id ? "talk" : this.motionNow(f));
       h.root.position.set(f.x, f.y + (f.seated ? h.sitDrop(f.spec.sit!) : 0) + h.bob(), f.z);
       h.root.rotation.y = f.yaw;
+      // M7: they turn to look at the one who ran (seated ones turn in the chair)
+      if (f.look && f.look > 0) {
+        f.look -= dt;
+        const j = this.jefLocal();
+        if (j && !walking) h.root.rotation.y = f.yaw + Math.atan2(Math.sin(Math.atan2(j.x - f.x, j.z - f.z) - f.yaw), Math.cos(Math.atan2(j.x - f.x, j.z - f.z) - f.yaw)) * (f.seated ? 0.5 : 1);
+      }
       // M6 sermon: a nod of agreement from the pious (the whole figure dips a little, twice)
       const nod = this.nods.get(id) ?? 0;
       h.root.rotation.x = nod > 0 ? Math.max(0, Math.sin((1.4 - nod) * 9)) * 0.08 : 0;
@@ -601,7 +704,7 @@ export class Landmarks {
     if (n.id === "vleeshuis") room.setLit?.(!!n.theatre);
     if (n.id === "cathedral") {
       room.setLit?.(!!n.service);
-      this.organ(n.organ);
+      this.organ(n.organ && this.hears);
       const key = n.service ? `${n.day}:${n.service.kind}:${n.service.from}` : "";
       if (key !== this.serviceKey) this.serviceKey = key;
     }
@@ -615,7 +718,7 @@ export class Landmarks {
     const extra: Action[] = [];
     if (!here) return { options, extra };
     const room = here.room;
-    for (const [door, s] of Object.entries(room.exits)) {
+    for (const [door, s] of this.inWorldHere ? [] : Object.entries(room.exits)) {
       const d = Math.hypot(s.x - x, s.z - z);
       if (d < 1.3) options.push([d, { key: "KeyE", text: door === "main" ? "go out into the street" : "go out by the north door", run: () => this.leaveBy(door) }]);
     }
@@ -625,7 +728,7 @@ export class Landmarks {
     }
     let best: Fig | null = null;
     let bd = TALK_R;
-    const py = this.player.rideWalk ? (room.floor?.(x, z) ?? 0) : 0;
+    const py = this.player.rideWalk || this.inWorldHere ? (room.floor?.(x, z) ?? 0) : 0;
     for (const f of this.figs.values()) {
       if (f.leaving || f.spec.noTalk) continue;
       const d = Math.hypot(f.x - x, f.z - z);
@@ -665,7 +768,7 @@ export class Landmarks {
   private talkTo(f: Fig): void {
     this.talking = f.p.id;
     this.jobs.talk.open({ id: f.p.id, def: { name: f.p.name, title: f.p.title } });
-    const w = this.player.rideWalk;
+    const w = this.jefLocal();
     if (w && !f.seated && !f.path.length) f.yaw = Math.atan2(w.x - f.x, w.z - f.z);
   }
 
@@ -696,19 +799,23 @@ export class Landmarks {
     const room = this.here?.room;
     const pen = room?.marks.penitent;
     const w = this.player.rideWalk;
-    if (!room || !pen || !w) return;
+    if (!room || !pen || (!w && !this.inWorldHere)) return;
     try {
       const b = await landmarksApi.begin();
       // kneel at the grille, facing it
-      w.x = pen.x;
-      w.z = pen.z;
-      this.player.rideSeat = { x: pen.x, y: 0, z: pen.z, eye: 0.98 };
+      if (this.inWorldHere) this.rideInWorld(pen.x, pen.z, 0.98);
+      else if (w) {
+        w.x = pen.x;
+        w.z = pen.z;
+        this.player.rideSeat = { x: pen.x, y: 0, z: pen.z, eye: 0.98 };
+      }
       const f = room.toWorld(pen.x + Math.sin(pen.yaw), pen.z + Math.cos(pen.yaw));
       const p = room.toWorld(pen.x, pen.z);
       this.player.yaw = Math.atan2(-(f.x - p.x), -(f.z - p.z));
       this.player.pitch = 0.05;
       this.panel.open(b.line, () => {
-        this.player.rideSeat = null;
+        if (this.inWorldHere) this.standInWorld();
+        else this.player.rideSeat = null;
       });
     } catch (e) {
       this.say(String((e as Error).message ?? e));
@@ -724,9 +831,10 @@ export class Landmarks {
       this.doorsT = 12;
       void this.loadDoors();
     }
+    this.updateCathedral(dt);
     const here = this.here;
     if (!here) return;
-    if (!this.interiors.inside || this.interiors.placeId !== `landmark:${here.id}`) {
+    if (!this.inWorldHere && (!this.interiors.inside || this.interiors.placeId !== `landmark:${here.id}`)) {
       // taken out some other way (the night): forget it
       this.gone();
       void landmarksApi.here(null).catch(() => {});
@@ -735,14 +843,17 @@ export class Landmarks {
     if (!this.jobs.talk.isOpen) this.talking = null;
     here.room.animate?.(this.t, dt);
     this.updatePeople(dt);
+    this.updateHushBubble(dt);
     if (here.id === "cathedral") this.updateSermon(dt);
     // the altar bell at the elevation, once a mass (M6: not while the sermon is preached)
     if (here.id === "cathedral" && this.now?.service && this.now.service.kind !== "vespers" && !this.preaching) {
       const key = `${this.serviceKey}`;
       if (this.phase() > 0.5 && this.bellRung !== key) {
         this.bellRung = key;
-        this.altarBell();
-        this.sayOnce("The small bell rings at the altar. Heads bow along the rows.");
+        if (this.hears) {
+          this.altarBell();
+          this.sayOnce("The small bell rings at the altar. Heads bow along the rows.");
+        }
       }
     }
     // the theatre upstairs: the society's lines while Jef is up there
@@ -768,6 +879,19 @@ export class Landmarks {
         .now(id)
         .then((n) => {
           if (this.here?.id !== id) return;
+          // M7: the cathedral in the world: its door follows the server; at closing time Jef is shown out
+          if (this.inWorldHere && this.cath) {
+            this.cath.doorOpen = n.open || !!n.wedding;
+            const first = this.firstSync;
+            this.firstSync = false;
+            const wasService = !!this.now?.service;
+            this.now = n;
+            if (!this.cath.doorOpen && this.jefIn) this.putOut("The sexton rattles his keys: the church is closing. You go out, and the west door shuts behind you.");
+            this.sync(n, first);
+            this.applyNow(n);
+            if (this.jefIn && !wasService && !first && n.service && n.service.kind !== "wedding") this.sayOnce(n.service.kind === "high" ? "The bell for high mass. The priest comes out of the sacristy; the organ begins." : "A little bell from the sacristy: mass is beginning.");
+            return;
+          }
           if (!n.open && !n.people.length) {
             this.say(id === "cathedral" ? "The sexton rattles his keys: the church is closing. You go out." : id === "townhall" ? "The porter calls out: the offices are closing. You go out." : "They are locking up. You go out.");
             this.leaveBy("main");
@@ -781,6 +905,218 @@ export class Landmarks {
         })
         .catch(() => {});
     }
+  }
+
+  // ------------------------------------------------------------------ M7: the cathedral in the world
+
+  /** The hall's words and sounds reach Jef: always in an instanced hall; in the world's cathedral, in the nave. */
+  private get hears(): boolean {
+    return !this.inWorldHere || this.jefIn;
+  }
+
+  /** Where Jef stands in the hall's frame (the world's cathedral, or the room walked in). */
+  private jefLocal(): { x: number; z: number } | null {
+    if (this.inWorldHere && this.cath) {
+      const [x, z] = this.cath.local(this.player.x, this.player.z);
+      return { x, z };
+    }
+    const w = this.player.rideWalk;
+    return w ? { x: w.x, z: w.z } : null;
+  }
+
+  /** Each frame: the leaves and the glass; the hall's life starts when Jef comes near and stops when he goes. */
+  private updateCathedral(dt: number): void {
+    const cath = this.cath;
+    if (!cath) return;
+    // the west door: the doors' list says open or shut until the hall's own word comes (a wedding keeps it open)
+    const west = this.doors.find((d) => d.id === "cathedral_west");
+    if (west && !(this.inWorldHere && this.now)) cath.doorOpen = west.open;
+    const { day, sky } = this.daylight();
+    cath.update(this.t, dt, day, sky, this.inWorldHere);
+    const near = !this.interiors.inside && cath.near(this.player.x, this.player.z);
+    if (near && !this.here) this.arrive();
+    else if (!near && this.inWorldHere) this.depart();
+    if (!this.inWorldHere) return;
+    // in or out of the nave (a little either way so it never flickers at the threshold)
+    const k = cath.insideness(this.player.x, this.player.z);
+    const inNow = this.jefIn ? k > 0.35 : k > 0.55;
+    if (inNow !== this.jefIn) this.crossed(inNow);
+    this.updateHush(dt, k);
+  }
+
+  private arrive(): void {
+    const door = this.doors.find((d) => d.id === "cathedral_west");
+    if (!door || !this.cath) return; // the doors are not in yet: next frame
+    this.clear();
+    this.here = { id: "cathedral", room: this.cath.room, door };
+    this.inWorldHere = true;
+    this.now = null;
+    this.firstSync = true;
+    this.syncT = 0;
+  }
+
+  private depart(): void {
+    if (this.jefIn) this.crossed(false);
+    this.gone();
+    this.inWorldHere = false;
+  }
+
+  /** Jef went into the nave or out onto the square. */
+  private crossed(inNow: boolean): void {
+    this.jefIn = inNow;
+    void landmarksApi.here(inNow ? "cathedral" : null).catch(() => {});
+    this.roomSound(inNow ? "church" : null);
+    this.organ(inNow && !!this.now?.organ);
+    if (!inNow) {
+      this.caption.classList.remove("on");
+      return;
+    }
+    const n = this.now;
+    if (n?.barred) return this.putOut('The beadle stands in the doorway, his staff across it. "Not today, young man. You had your chance."');
+    if (n && this.t - this.welcomedAt > 90) {
+      this.welcomedAt = this.t;
+      this.say(this.welcome(n));
+    }
+  }
+
+  /** Out onto the square before the west door (the church closing, the beadle), facing the square. */
+  private putOut(text: string): void {
+    if (text) this.say(text);
+    this.panel.close(true);
+    if (this.player.riding) this.standInWorld();
+    const [x, z] = PLAN.toWorld(1.2, -1.2);
+    this.player.place(x, z, 0, 0);
+    if (this.jefIn) this.crossed(false);
+  }
+
+  /** Carried in the hall's frame (a chair, the kneeler): the world's cathedral does not turn, so its frame is the world's moved. */
+  private rideInWorld(x: number, z: number, eye: number): void {
+    const room = this.here!.room;
+    const anchor = { x: PLAN.ORIGIN.x, y: PLAN.FLOOR_Y, z: PLAN.ORIGIN.z, yaw: 0, speed: 0 };
+    const walk: RideWalk = { x, z, walk: room.walk, floor: (a, b) => room.floor?.(a, b) ?? 0, pace: room.pace, eye: room.eye, surface: "stone" };
+    this.player.rideStart(() => anchor, undefined, walk);
+    this.player.rideSeat = { x, y: room.floor?.(x, z) ?? 0, z, eye };
+  }
+
+  /** A free chair for Jef close by (the row ends). */
+  private freeSeatNear(x: number, z: number): { s: Seat; d: number } | null {
+    let best: { s: Seat; d: number } | null = null;
+    for (const s of this.here?.room.seats ?? []) {
+      const d = Math.hypot(s.x - x, s.z - z);
+      if (d < 0.9 && (!best || d < best.d) && !this.seatHeld(s)) best = { s, d };
+    }
+    return best;
+  }
+
+  private sitInWorld(s: Seat): void {
+    this.rideInWorld(s.x, s.z, s.h + 0.72);
+    this.jefSeat = s;
+    this.player.yaw = Math.atan2(-Math.sin(s.yaw), -Math.cos(s.yaw));
+    this.player.pitch = 0.05;
+    this.onSeat(s);
+  }
+
+  /** Up from the chair into the walk, or up from the kneeler. */
+  private standInWorld(): void {
+    const s = this.jefSeat;
+    this.jefSeat = null;
+    if (!this.player.riding) return;
+    const w = this.player.rideWalk;
+    let lx = w?.x ?? 0;
+    let lz = w?.z ?? PLAN.W0 + 2;
+    if (s) lx = Math.sign(s.x) * 0.6;
+    else lx -= 0.8; // back from the confessional's grille
+    const [x, z] = PLAN.toWorld(lx, lz);
+    const yaw = this.player.yaw;
+    this.player.rideEnd(x, z);
+    this.player.yaw = yaw;
+    if (s) this.onSeat(null);
+  }
+
+  /**
+   * Running in the nave with people near: the engine decides (server/src/landmarks/hush.ts); here
+   * the hiss over the beadle or a churchgoer, the heads turning, and the beadle walking Jef out.
+   */
+  private updateHush(dt: number, k: number): void {
+    const p = { x: this.player.x, z: this.player.z };
+    const last = this.lastPos;
+    this.lastPos = p;
+    if (!last || k < 0.6 || this.player.riding || !this.here || !this.cath) {
+      this.runT = 0;
+      return;
+    }
+    const v = Math.hypot(p.x - last.x, p.z - last.z) / Math.max(dt, 1e-3);
+    this.runT = v > 2.5 && v < 12 ? this.runT + dt : Math.max(0, this.runT - dt * 2);
+    if (this.runT < 0.5 || this.hushBusy || this.t - this.hushAt < 6) return;
+    const [jx, jz] = this.cath.local(p.x, p.z);
+    const R = this.now?.service ? 22 : 14;
+    const near = [...this.figs.values()].filter((f) => !f.leaving && f.y < 2 && Math.hypot(f.x - jx, f.z - jz) < R).sort((a, b) => Math.hypot(a.x - jx, a.z - jz) - Math.hypot(b.x - jx, b.z - jz));
+    if (!near.length) return;
+    this.hushAt = this.t;
+    this.hushBusy = true;
+    landmarksApi
+      .ran(near.length)
+      .then((r) => {
+        this.jobs.refresh(r as JobsPayload);
+        this.hushed(r, near, jx, jz);
+      })
+      .catch(() => {})
+      .finally(() => (this.hushBusy = false));
+  }
+
+  private hushed(r: HushResult, near: Fig[], jx: number, jz: number): void {
+    if (!r.counted || !this.inWorldHere) return;
+    // heads turn along the rows
+    for (const f of this.figs.values()) if (!f.leaving && Math.hypot(f.x - jx, f.z - jz) < 16) f.look = 3.5;
+    const beadle = [...this.figs.values()].find((f) => /^beadle/.test(f.p.role) && !f.leaving && Math.hypot(f.x - jx, f.z - jz) < 30);
+    const who = r.speaker === "beadle" && beadle ? beadle : (near.find((f) => this.figs.has(f.p.id)) ?? beadle);
+    if (who) {
+      this.hushBubble?.el.remove();
+      const el = document.createElement("div");
+      el.className = "bubble hush";
+      el.innerHTML = `<b>${esc(who.p.name)}${/^beadle/.test(who.p.role) ? ", the beadle" : ""}</b>${esc(r.line)}`;
+      document.body.appendChild(el);
+      this.hushBubble = { el, who: who.p.id, t: 4.5 };
+      const at = this.here!.room.toWorld(who.x, who.z);
+      this.speak({ x: at.x, z: at.z }, { sex: who.p.sex, age: who.p.age }, 1.8);
+      who.look = 4.5;
+    }
+    if (r.text) this.say(r.text);
+    if (r.leave) {
+      // the beadle comes down the nave to him, then walks him out; nobody fights
+      if (beadle) {
+        beadle.loop = null;
+        beadle.path = this.here!.room.path([beadle.x, beadle.z], [jx - 0.6, jz]);
+      }
+      setTimeout(() => {
+        if (this.inWorldHere && this.jefIn) this.putOut("");
+      }, 2600);
+    }
+  }
+
+  private updateHushBubble(dt: number): void {
+    const b = this.hushBubble;
+    if (!b) return;
+    b.t -= dt;
+    const f = this.figs.get(b.who);
+    const room = this.here?.room;
+    if (b.t <= 0 || !f || !room) {
+      b.el.remove();
+      this.hushBubble = null;
+      return;
+    }
+    const cam = this.player.camera;
+    cam.updateMatrixWorld();
+    const v = room.toWorld(f.x, f.z, f.y + (f.seated ? 1.35 : 1.85)).project(cam);
+    if (v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) return void b.el.classList.remove("on");
+    b.el.style.left = `${(((v.x + 1) / 2) * window.innerWidth).toFixed(0)}px`;
+    b.el.style.top = `${(((1 - v.y) / 2) * window.innerHeight).toFixed(0)}px`;
+    b.el.classList.add("on");
+  }
+
+  /** Dev: the hiss on screen (for scripted checks: the bubble's text is read from the page). */
+  get hushInfo() {
+    return { runT: +this.runT.toFixed(2), bubble: this.hushBubble ? this.hushBubble.el.textContent : null, shown: !!this.hushBubble?.el.classList.contains("on"), jefIn: this.jefIn, k: this.cath ? +this.cath.insideness(this.player.x, this.player.z).toFixed(2) : 0 };
   }
 
   // ------------------------------------------------------------------ the Sunday sermon (M6)
@@ -842,7 +1178,7 @@ export class Landmarks {
         s.from = { x: f.x, z: f.z };
         s.stage = "climb";
         s.t = 0;
-        this.sayOnce(`${f.p.first}, ${f.p.title ?? "the priest"}, climbs the pulpit. The chairs creak as the rows turn toward him.`);
+        if (this.hears) this.sayOnce(`${f.p.first}, ${f.p.title ?? "the priest"}, climbs the pulpit. The chairs creak as the rows turn toward him.`);
         return;
       }
       case "climb": {
@@ -872,17 +1208,17 @@ export class Landmarks {
           this.caption.classList.remove("on");
           s.stage = "down";
           s.t = 0;
-          this.heard();
+          if (this.hears) this.heard();
           return;
         }
         const text = lines[s.i];
         // short enough that six to ten lines fit in high mass (two game hours are forty seconds)
         s.t = Math.max(3, Math.min(4.6, 2.2 + text.length / 55));
         this.caption.innerHTML = `<b>${esc(fig.p.first)}, from the pulpit</b>${esc(text)}`;
-        this.caption.classList.add("on");
+        this.caption.classList.toggle("on", this.hears);
         fig.hold = { x: pulpit.x, z: pulpit.z, y: PULPIT_UP, yaw: pulpit.yaw + (s.i % 2 ? 0.35 : -0.35), motion: "talk" };
         const at = room.toWorld(pulpit.x, pulpit.z);
-        this.speak({ x: at.x, z: at.z }, { sex: fig.p.sex, age: fig.p.age }, Math.min(s.t - 0.4, 5));
+        if (this.hears) this.speak({ x: at.x, z: at.z }, { sex: fig.p.sex, age: fig.p.age }, Math.min(s.t - 0.4, 5));
         // the pious nod along; halfway through, the gossip whispers
         const present = s.view.nodders.filter((id) => this.figs.has(id));
         for (let k = 0; k < 2 && present.length; k++) this.nods.set(present[(s.i * 3 + k * 5) % present.length], 1.4);
@@ -956,7 +1292,7 @@ export class Landmarks {
     const cam = this.player.camera;
     cam.updateMatrixWorld();
     const v = room.toWorld(f.x, f.z, f.y + (f.seated ? 1.35 : 1.8)).project(cam);
-    if (v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) return void w.el.classList.remove("on");
+    if (!this.hears || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) return void w.el.classList.remove("on");
     w.el.style.left = `${(((v.x + 1) / 2) * window.innerWidth).toFixed(0)}px`;
     w.el.style.top = `${(((1 - v.y) / 2) * window.innerHeight).toFixed(0)}px`;
     w.el.classList.add("on");
@@ -991,6 +1327,12 @@ export class Landmarks {
   /** Dev: go straight in by a door ("cathedral_west", or a landmark id). */
   async devEnter(id: string): Promise<string> {
     if (this.interiors.inside) this.interiors.leave(true);
+    // M7: the cathedral is in the world: stand in its nave, looking at the altar
+    if ((id === "cathedral" || id === "cathedral_west") && this.cath) {
+      const [x, z] = PLAN.toWorld(0, PLAN.W0 + 6);
+      this.player.place(x, z, Math.PI, 0.03);
+      return "in the nave of the cathedral";
+    }
     this.gone();
     await this.loadDoors();
     const d = this.doors.find((q) => q.id === id) ?? this.doors.find((q) => q.landmark === id);
@@ -1002,6 +1344,12 @@ export class Landmarks {
 
   /** Dev: walk Jef to a point of the hall. */
   devGo(x: number, z: number): void {
+    if (this.inWorldHere && this.cath) {
+      if (this.player.riding) this.standInWorld();
+      const [wx, wz] = PLAN.toWorld(x, z);
+      this.player.place(wx, wz, this.player.yaw, this.player.pitch);
+      return;
+    }
     const w = this.player.rideWalk;
     if (!w) return;
     this.player.rideSeat = null;
@@ -1010,9 +1358,14 @@ export class Landmarks {
   }
 
   debug() {
-    const w = this.player.rideWalk;
+    const w = this.jefLocal();
     return {
       inside: this.here?.id ?? null,
+      inWorld: this.inWorldHere,
+      jefIn: this.jefIn,
+      seated: !!this.jefSeat,
+      doorOpen: this.cath?.doorOpen ?? null,
+      barred: this.now?.barred ?? false,
       jef: w ? [+w.x.toFixed(2), +w.z.toFixed(2), +(this.here?.room.floor?.(w.x, w.z) ?? 0).toFixed(2)] : null,
       level: this.here?.room.levels?.level ?? 0,
       service: this.now?.service ?? null,
@@ -1025,7 +1378,7 @@ export class Landmarks {
       register: this.now?.register ?? [],
       posters: (this.now?.posters ?? []).length,
       people: [...this.figs.values()].map((f) => ({ name: f.p.name, role: f.p.role, kind: f.kind, at: [+f.x.toFixed(1), +f.z.toFixed(1), +f.y.toFixed(2)], walking: f.path.length > 0, seated: f.seated, model: !!f.human })),
-      keys: this.interiors.inside ? this.insideKeys(w?.x ?? 0, w?.z ?? 0).options.map(([d, a]) => `${d.toFixed(2)} ${a.key.slice(3)}: ${a.text}`) : [],
+      keys: this.interiors.inside || this.inWorldHere ? (this.here ? this.insideKeys(w?.x ?? 0, w?.z ?? 0).options.map(([d, a]) => `${d.toFixed(2)} ${a.key.slice(3)}: ${a.text}`) : []) : [],
       doors: this.doors.map((d) => ({ id: d.id, open: d.open, step: d.step })),
     };
   }
@@ -1041,12 +1394,20 @@ export class Landmarks {
 
   /** Dev: a picture of the hall from `from` to `to` in its own frame (y up). */
   camera(cam: THREE.PerspectiveCamera, from: [number, number, number], to: [number, number, number]): boolean {
+    if (this.cath && !this.interiors.inside) {
+      // M7: the cathedral's frame in the world (y up from the nave's floor)
+      const room = this.cath.room;
+      cam.position.copy(room.toWorld(from[0], from[2], from[1]));
+      cam.lookAt(room.toWorld(to[0], to[2], to[1]));
+      cam.updateMatrixWorld();
+      return true;
+    }
     return this.interiors.devCamera(cam, from, to);
   }
 
   /** Dev: world point of a hall point (for sound checks). */
   worldOf(x: number, z: number): Pt | null {
-    const r = this.here?.room;
+    const r = this.here?.room ?? this.cath?.room;
     if (!r) return null;
     const v = r.toWorld(x, z);
     return [v.x, v.z];
@@ -1074,6 +1435,10 @@ class ConfessionPanel {
     this.input.placeholder = "Say it in your own words, then Enter";
     document.body.appendChild(this.el);
     window.addEventListener("keydown", (e) => this.onKey(e), true);
+  }
+
+  get isOpen(): boolean {
+    return this.openNow;
   }
 
   open(first: string, onClose: () => void): void {

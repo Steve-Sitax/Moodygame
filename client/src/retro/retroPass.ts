@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import type { Culler } from "../world/cull";
+import { drawPlan, type InWorld } from "../world/inworld";
 
 // Renders the scene into a small target (270 px high, 480x270 on 16:9),
 // then draws it full screen with nearest upscale, 5-bit colour and a
@@ -117,10 +119,32 @@ export class RetroPass {
     this.mat.uniforms.uLevels.value = on ? 32 : 256;
   }
 
+  /** M7 rendering: what cannot be seen is left out of the world's passes (world/cull.ts). */
+  cull: Culler | null = null;
+
+  /** M7 in the world: rooms drawn over the street through their openings (world/inworld.ts). */
+  inWorld: InWorld | null = null;
+
   render(scene: THREE.Scene, camera: THREE.Camera, time: number): void {
     this.mat.uniforms.uTime.value = time;
-    this.renderer.setRenderTarget(this.target);
-    this.renderer.render(scene, camera);
+    const plan = this.inWorld && scene === this.inWorld.scene && (camera as THREE.PerspectiveCamera).isPerspectiveCamera ? this.inWorld.plan(camera as THREE.PerspectiveCamera) : null;
+    // M7: inside a room in the world with no door in view the street is not drawn at all: nothing to cull
+    const cull = this.cull && scene === this.cull.scene && (camera as THREE.PerspectiveCamera).isPerspectiveCamera && (!plan || plan.world.draw) ? this.cull : null;
+    // M7: the culler brought every matrix up to date; the passes (the main one and the mirrors in it) skip theirs
+    const fresh = cull?.prepare(camera as THREE.PerspectiveCamera, plan?.world.rect ?? null) ?? false;
+    const auto = scene.matrixWorldAutoUpdate;
+    if (fresh) scene.matrixWorldAutoUpdate = false;
+    try {
+      this.renderer.setRenderTarget(this.target);
+      if (plan) drawPlan(this.renderer, this.target, plan, scene, camera as THREE.PerspectiveCamera, () => cull?.drawHidden(this.renderer, camera));
+      else {
+        this.renderer.render(scene, camera);
+        cull?.drawHidden(this.renderer, camera);
+      }
+    } finally {
+      scene.matrixWorldAutoUpdate = auto;
+      cull?.finish();
+    }
     this.renderer.setRenderTarget(null);
     this.renderer.render(this.quadScene, this.quadCam);
   }
