@@ -138,6 +138,21 @@ function rollingBarrel(): { outer: THREE.Group; inner: THREE.Group; roll: number
   return { outer, inner, roll: 0 };
 }
 
+/** The theatre society at rehearsal (our own lines: a Flemish history drama of the kind they played). */
+const REHEARSAL: Array<{ who: "prompter" | "actor"; text: string }> = [
+  { who: "prompter", text: "From the top of the second act, please. And louder: the back row is deaf." },
+  { who: "actor", text: "Father! The Spanish soldiers are at the city gate!" },
+  { who: "actor", text: "Then bar the door, my daughter, and hide the silver in the well." },
+  { who: "actor", text: "I would rather die than see Antwerp in chains!" },
+  { who: "prompter", text: "In chains, not in trains. Again, with feeling." },
+  { who: "actor", text: "Who knocks at this hour? Friend or Spaniard?" },
+  { who: "actor", text: "A friend, and a Fleming, with news from Ghent!" },
+  { who: "actor", text: "Then come in out of the fog, and speak low. The walls have ears." },
+  { who: "prompter", text: "Stop. The walls have ears, not the audience. Face the hall when you say it." },
+  { who: "actor", text: "Oh, my heart! He is alive, and the town is free!" },
+  { who: "prompter", text: "Good. Nobody will weep, but it is good. Once more, from the knock." },
+];
+
 const WALK = 1.0;
 const TALK_R = 1.7;
 const REACH_DOOR = 2.0;
@@ -170,6 +185,10 @@ export class Landmarks {
   /** The organ and the altar bell (the soundscape), set by main. */
   organ: (on: boolean) => void = () => {};
   altarBell: () => void = () => {};
+  /** A voice in the hall (the murmur of speech, made in code by the soundscape), set by main. */
+  speak: (at: { x: number; z: number }, voice: { sex: "m" | "f"; age: number }, seconds: number) => void = () => {};
+  private lineT = 4;
+  private lineI = 0;
 
   constructor(
     private readonly player: FirstPerson,
@@ -545,6 +564,7 @@ export class Landmarks {
   private applyNow(n: LandmarkNow): void {
     const room = this.here?.room;
     if (!room) return;
+    if (n.id === "vleeshuis") room.setLit?.(!!n.theatre);
     if (n.id === "cathedral") {
       room.setLit?.(!!n.service);
       this.organ(n.organ);
@@ -688,6 +708,21 @@ export class Landmarks {
         this.bellRung = key;
         this.altarBell();
         this.sayOnce("The small bell rings at the altar. Heads bow along the rows.");
+      }
+    }
+    // the theatre upstairs: the society's lines while Jef is up there
+    if (here.id === "vleeshuis" && this.now?.theatre && (here.room.levels?.level ?? 0) === 1) {
+      this.lineT -= dt;
+      if (this.lineT <= 0) {
+        this.lineT = 7 + Math.random() * 3;
+        const line = REHEARSAL[this.lineI++ % REHEARSAL.length];
+        const cast = [...this.figs.values()].filter((f) => f.p.role === line.who);
+        const f = cast[this.lineI % Math.max(1, cast.length)];
+        if (f) {
+          this.say(`${f.p.first}${line.who === "prompter" ? ", the prompter" : ", on the stage"}: "${line.text}"`);
+          const at = here.room.toWorld(f.x, f.z);
+          this.speak({ x: at.x, z: at.z }, { sex: f.p.sex, age: f.p.age }, 2.5);
+        }
       }
     }
     this.syncT -= dt;

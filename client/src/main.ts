@@ -170,6 +170,7 @@ landmarks.say = (t) => jobs.say(t);
 landmarks.sfx = (n) => sound?.indoors(() => sound?.play(n));
 landmarks.organ = (on) => sound?.organ(on);
 landmarks.altarBell = () => sound?.altarBell();
+landmarks.speak = (at, v, s) => sound?.indoors(() => sound?.speech(at, v, s));
 {
   const onPush = jobs.onPush;
   jobs.onPush = (m) => {

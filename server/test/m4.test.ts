@@ -754,7 +754,8 @@ describe("director", () => {
 describe("budget shares", () => {
   it("add up to the day's calls, and each share stops at its line and before the reserve", () => {
     // M6: the families and surprises shares came out of the director and the conversations
-    expect(RESIDENT_CALLS_PER_DAY + DIRECTOR_CALLS_PER_DAY + CONVO_CALLS_PER_DAY + FAMILY_CALLS_PER_DAY + SURPRISE_CALLS_PER_DAY + 28).toBe(CALLS_PER_DAY);
+    // Steve 2026-09-24: 120 a day; these five shares leave 52 for the board, outcomes, named people and the M6 shares
+    expect(RESIDENT_CALLS_PER_DAY + DIRECTOR_CALLS_PER_DAY + CONVO_CALLS_PER_DAY + FAMILY_CALLS_PER_DAY + SURPRISE_CALLS_PER_DAY + 52).toBe(CALLS_PER_DAY);
     const db = fresh();
     useCalls(db, "job_board", CALLS_PER_DAY - CALLS_RESERVE);
     expect(canCallConvo(db)).toBe(false);

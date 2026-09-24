@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { openDb } from "../src/db.ts";
 import type { Runner } from "../src/ai/claude.ts";
-import { IDEAS_CALLS_PER_DAY } from "../src/config.ts";
+import { CALLS_PER_DAY, CALLS_RESERVE, IDEAS_CALLS_PER_DAY } from "../src/config.ts";
 import { finishJob, takeJob } from "../src/game.ts";
 import { makeBoard, listJobs } from "../src/hooks/jobBoard.ts";
 import { relationship } from "../src/npcs.ts";
@@ -81,7 +81,7 @@ describe("the ideas' share of the calls", () => {
     useCalls(db, "poster", IDEAS_CALLS_PER_DAY);
     expect(canCallIdeas(db)).toBe(false);
     const db2 = fresh();
-    useCalls(db2, "resident_talk", 66);
+    useCalls(db2, "resident_talk", CALLS_PER_DAY - CALLS_RESERVE); // up to the reserve
     expect(canCallIdeas(db2)).toBe(false);
   });
 });

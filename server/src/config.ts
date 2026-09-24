@@ -20,11 +20,16 @@ export const CLAUDE = {
   timeoutMs: 20_000, // CLAUDE.md: every model call bounded, then a fallback
 } as const;
 
-/** Stop runaway loops: at most this many model calls per in-game day. */
-export const CALLS_PER_DAY = 80;
+/**
+ * Stop runaway loops: at most this many model calls per in-game day. Steve, 2026-09-24: 80 -> 120
+ * ("120 calls is ok"): the M6 features had taken nearly all of the 80, leaving the board, the
+ * outcomes and the named people almost nothing. The extra 40: townspeople +10, director +3,
+ * conversations +3, and the rest (now about 23) for the board, outcomes, named people, epilogue.
+ */
+export const CALLS_PER_DAY = 120;
 
 /** Talk with the townspeople (M3e): at most this many model calls a day for them... */
-export const RESIDENT_CALLS_PER_DAY = 30;
+export const RESIDENT_CALLS_PER_DAY = 40;
 /** ...and never when fewer than this many calls are left for the board, outcomes and the named people. */
 export const CALLS_RESERVE = 15;
 /** Model calls in one meeting with a townsperson; after that, engine lines. */
@@ -35,8 +40,8 @@ export const RESIDENT_CALLS_PER_MEETING = 3;
  * in the talk's own reply, so they cost no extra call. What is left (28) is for the board,
  * the outcomes, the named people and the epilogue.
  */
-export const DIRECTOR_CALLS_PER_DAY = 9;
-export const CONVO_CALLS_PER_DAY = 7;
+export const DIRECTOR_CALLS_PER_DAY = 12;
+export const CONVO_CALLS_PER_DAY = 10;
 /**
  * M6 families and surprises (director/families.ts, surprises.ts), taken from the two shares above
  * (the director 12 -> 9, the conversations 10 -> 7), so the day's total and the reserve do not move.

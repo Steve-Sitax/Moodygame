@@ -19,6 +19,7 @@ import {
   type Service,
 } from "../../../shared/landmarks.ts";
 import { LANDMARK_PLACE, newcomerLandmark } from "./town.ts";
+import { getState, setState } from "../interiors/state.ts";
 
 // Who is inside a landmark now, and what goes on there (M6 landmark interiors). ENGINE only:
 // everything follows from the residents' schedules, the clock and the town's events; no model
@@ -78,7 +79,7 @@ export interface LandmarkNow {
 }
 
 /** How many of each come in, at most (the draw calls inside stay low). */
-export const CAP = { congregation: 44, weekdayMass: 12, prayers: 5, guests: 30, callers: 3, visitors: 6, audience: 16, cast: 5 };
+export const CAP = { congregation: 30, weekdayMass: 12, prayers: 5, guests: 26, callers: 3, visitors: 6, audience: 16, cast: 5 };
 
 export const TITLES: Record<string, string> = {
   lm_curate: "the curate",
@@ -285,20 +286,50 @@ function cathedralPeople(db: DB, day: number, hour: number, busy: Set<string>): 
 /** Today's civil couple (Tuesday, Thursday, Saturday): a courting pair of the town, the engine's pick. */
 export function civilCouple(db: DB, day: number): { groom: Resident; bride: Resident } | null {
   if (!civilWeddingDay(day)) return null;
+  // the day's couple is picked once and kept (the register must not change its mind)
+  const key = `landmarks:civil:${day}`;
+  const kept = getState<{ groom: string; bride: string } | null | "none">(db, key, null);
+  if (kept === "none") return null;
+  if (kept) {
+    const g = resident(db, kept.groom);
+    const b = resident(db, kept.bride);
+    return g && b ? { groom: g, bride: b } : null;
+  }
+  const c = pickCouple(db, day);
+  setState(db, key, c ? { groom: c.groom.id, bride: c.bride.id } : "none");
+  return c;
+}
+
+function pickCouple(db: DB, day: number): { groom: Resident; bride: Resident } | null {
   const t = town(db).town;
-  // free to marry this morning: at home, or at work indoors (a maid, a clerk: out of sight of the street, and given the morning off); not the garrison
-  const home = (r: Resident) => {
-    const a = at(r, day, 11.5);
-    return (a.act === "home" || (a.act === "work" && r.work.kind === "inside")) && !["soldier", "sentry", "corporal", "priest"].includes(r.trade) && !isAwayVisitor(r) && r.work.kind !== "wait" && !newcomerLandmark(r.id);
-  };
-  const men = t.residents.filter((r) => r.sex === "m" && r.age >= 21 && r.age <= 40 && ["son", "single", "lodger", "widower"].includes(r.family_role) && home(r));
-  const women = t.residents.filter((r) => r.sex === "f" && r.age >= 18 && r.age <= 36 && ["daughter", "single", "lodger", "widow"].includes(r.family_role) && home(r));
-  const groom = pickFew(men, 1, `civil:${day}`)[0];
-  if (!groom) return null;
-  const bride = women
-    .filter((w) => w.household !== groom.household && Math.abs(w.age - groom.age) <= 10)
-    .sort((a, b) => Math.hypot(a.home.sx - groom.home.sx, a.home.sz - groom.home.sz) - Math.hypot(b.home.sx - groom.home.sx, b.home.sz - groom.home.sz))[0];
-  return bride ? { groom, bride } : null;
+  // who may marry: grown, of the town, not the garrison, the clergy, the police or a stranger passing through.
+  // (A man takes the morning off for his wedding: the street may still show him at his work.)
+  const home = (r: Resident) => !["soldier", "sentry", "corporal", "priest", "police", "emigrant", "beggar", "thief"].includes(r.trade) && !isAwayVisitor(r) && r.work.kind !== "wait" && !newcomerLandmark(r.id) && !r.id.startsWith("stranger_");
+  // not one already wed in the town's events (M4 leads), not one busy in an event or an action, not the town hall's own clerks
+  const wed = new Set<string>();
+  try {
+    for (const r of db.prepare("SELECT leads_json FROM town_event WHERE status IN ('running', 'done')").all() as Array<{ leads_json: string }>)
+      for (const l of JSON.parse(r.leads_json || "[]") as LeadRow[]) if (l.role === "bride" || l.role === "groom") wed.add(l.id);
+  } catch {
+    /* an old save without the M4 tables */
+  }
+  // and not one married at the town hall on an earlier day
+  for (const r of db.prepare("SELECT value_json FROM world_state WHERE key LIKE 'landmarks:civil:%'").all() as Array<{ value_json: string }>) {
+    const v = JSON.parse(r.value_json) as { groom?: string; bride?: string } | string;
+    if (typeof v === "object" && v) for (const id of [v.groom, v.bride]) if (id) wed.add(id);
+  }
+  const busy = busyIds(db);
+  const ok = (r: Resident) => home(r) && !wed.has(r.id) && !busy.has(r.id) && r.work.place !== "town_hall";
+  const men = t.residents.filter((r) => r.sex === "m" && r.age >= 21 && r.age <= 48 && ["son", "single", "lodger", "widower"].includes(r.family_role) && ok(r));
+  const women = t.residents.filter((r) => r.sex === "f" && r.age >= 16 && r.age <= 42 && ["daughter", "single", "lodger", "widow"].includes(r.family_role) && ok(r));
+  // the first man (in the day's hash order) for whom there is a woman near his age, not of his household; she is the one living nearest him
+  for (const groom of pickFew(men, men.length, `civil:${day}`)) {
+    const bride = women
+      .filter((w) => w.household !== groom.household && Math.abs(w.age - groom.age) <= 14)
+      .sort((a, b) => Math.hypot(a.home.sx - groom.home.sx, a.home.sz - groom.home.sz) - Math.hypot(b.home.sx - groom.home.sx, b.home.sz - groom.home.sz))[0];
+    if (bride) return { groom, bride };
+  }
+  return null;
 }
 
 /** The register of the civil state for today: the town hall's weddings, and those of the town's events (M4). */
@@ -338,7 +369,7 @@ function townhallPeople(db: DB, day: number, hour: number, busy: Set<string>): P
   const couple = civilNow ? civilCouple(db, day) : null;
   const registrar = resident(db, "lm_registrar");
   const alderman = resident(db, "lm_alderman");
-  if (couple && !busy.has(couple.groom.id) && !busy.has(couple.bride.id)) {
+  if (couple) {
     add(couple.groom, "c_groom");
     add(couple.bride, "c_bride");
     add(alderman, "alderman_wed");
@@ -410,9 +441,32 @@ function oostershuisPeople(db: DB, day: number, hour: number): InPerson[] {
 
 // ------------------------------------------------------------------ now
 
+/** The order in which the landmarks take their people: an earlier one's are busy for a later one. */
+const ORDER: LandmarkId[] = ["cathedral", "townhall", "vleeshuis", "steen", "oostershuis"];
+
 export function landmarkNow(db: DB, id: LandmarkId): LandmarkNow {
   const c = clock(db);
   const hour = c.hour + c.minute / 60;
+  const busy = busyIds(db);
+  // the day's civil couple is spoken for in its hour
+  if (civilWeddingAt(c.day, hour)) {
+    const cc = civilCouple(db, c.day);
+    if (cc) for (const r of [cc.groom, cc.bride]) busy.add(r.id);
+  }
+  // nobody in two landmarks at once: those an earlier landmark takes now are busy for this one
+  for (const prior of ORDER) {
+    if (prior === id) break;
+    for (const p of nowOf(db, prior, c.day, hour, new Set(busy)).people) busy.add(p.id);
+  }
+  if (id === "townhall" && civilWeddingAt(c.day, hour)) {
+    const cc = civilCouple(db, c.day);
+    if (cc) for (const r of [cc.groom, cc.bride]) busy.delete(r.id);
+  }
+  return nowOf(db, id, c.day, hour, busy);
+}
+
+function nowOf(db: DB, id: LandmarkId, day: number, hour: number, busy: Set<string>): LandmarkNow {
+  const c = { day };
   const open = landmarkOpen(id, c.day, hour);
   const base: LandmarkNow = {
     id,
@@ -430,7 +484,6 @@ export function landmarkNow(db: DB, id: LandmarkId): LandmarkNow {
     posters: [],
     theatre: null,
   };
-  const busy = busyIds(db);
   switch (id) {
     case "cathedral": {
       const r = cathedralPeople(db, c.day, hour, busy);
