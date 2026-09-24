@@ -125,6 +125,20 @@ export interface Lamp {
   level: number;
 }
 
+/** M7: a building's inside in the world, walked by its own plan (World.addWalkArea). */
+export interface WalkArea {
+  /** A box round it (world): nothing outside is asked. */
+  box: Rect;
+  /** Is (x, z) the building's to answer (its porch, doorway and halls with their walls)? */
+  has(x: number, z: number): boolean;
+  /** Floor there (not a wall)? */
+  walkable(x: number, z: number): boolean;
+  /** The floor's height (world). */
+  floor(x: number, z: number): number;
+  /** A body of radius r at (x, z) touches one of its solids (piers, chairs, altars)? */
+  hits(x: number, z: number, r: number): boolean;
+}
+
 export interface World {
   scene: THREE.Scene;
   lamps: Lamp[];
@@ -165,6 +179,12 @@ export interface World {
   quayInfo(): { flights: Array<{ top: [number, number]; end: [number, number] }>; ladders: Array<{ x: number; z: number; top: number }> };
   /** Colliders that come and go (job crates). */
   addCollider(r: Rect): void;
+  /**
+   * M7 interiors in the world (world/inworld.ts): inside a building's area its own floor, walls and
+   * solids count instead of the walk map (which marks the footprint as wall). For Jef, the crowd
+   * and the path check alike.
+   */
+  addWalkArea(a: WalkArea): void;
   removeCollider(r: Rect): void;
   /**
    * M6 handcart: things that move with a walker (a pushed cart, a led horse and dray). Solid for
@@ -497,6 +517,8 @@ export function buildRijnkaai(): World {
   const eyeWas = new THREE.Vector3(1e9, 0, 1e9);
   const mirror = createMirror(WATER_Y, {
     enabled: (camera) => {
+      // the culler asks without a camera: the last answer
+      if (!camera) return waterNear;
       const now = performance.now();
       eyeAt.setFromMatrixPosition(camera.matrixWorld);
       if (now - waterNearAt < 500 && Math.abs(eyeAt.x - eyeWas.x) + Math.abs(eyeAt.z - eyeWas.z) < 6) return waterNear;
@@ -858,18 +880,34 @@ export function buildRijnkaai(): World {
    * Height of the walkable surface itself: 0 on the quay and pier, a slope on the gangway, the deck
    * on the ship, the steps down to the water, the pontoon and the gangway down onto it.
    */
+  // M7 interiors in the world: their areas (World.addWalkArea)
+  const walkAreas: WalkArea[] = [];
+  const areaAt = (x: number, z: number): WalkArea | null => {
+    for (const a of walkAreas) if (x > a.box.minX && x < a.box.maxX && z > a.box.minZ && z < a.box.maxZ && a.has(x, z)) return a;
+    return null;
+  };
+  const areaHits = (x: number, z: number, r: number) => {
+    for (const a of walkAreas) if (x > a.box.minX - r && x < a.box.maxX + r && z > a.box.minZ - r && z < a.box.maxZ + r && a.hits(x, z, r)) return true;
+    return false;
+  };
   const baseAt = (x: number, z: number) => {
     if (onDeck(x, z)) return DECK.y;
     if (onRamp(x, z)) return THREE.MathUtils.clamp((RAMP.zLow - z) / (RAMP.zLow - RAMP.zHigh), 0, 1) * DECK.y;
     if (onPontoon(x, z)) return pontoonY * THREE.MathUtils.clamp(-z / pontoonReach, 0, 1);
     const st = steps.heightAt(x, z);
     if (st) return st.y;
+    const wa = areaAt(x, z); // M7: a building's inside in the world
+    if (wa) return wa.floor(x, z);
     const sh = steenHeightAt(x, z); // Het Steen's courtyard and ramp (M3i)
     if (sh !== null) return sh;
     return 0;
   };
   const onPier = (x: number, z: number) => x > PIER.minX && x < PIER.maxX && z > PIER.minZ && z < PIER.maxZ;
   const isWalkable = (x: number, z: number) => {
+    {
+      const wa = areaAt(x, z);
+      if (wa) return wa.walkable(x, z);
+    }
     {
       const ob = onOpening(x, z);
       if (ob) return ob.closed();
@@ -950,7 +988,15 @@ export function buildRijnkaai(): World {
   /** A house or landmark wall within m metres (8 points on a ring): keeps the eye out of walls. */
   const wallNear = (x: number, z: number, m: number) => {
     for (let i = 0; i < 8; i++) {
-      const f = city.flags(x + RING_COS[i] * m, z + RING_SIN[i] * m);
+      const px = x + RING_COS[i] * m;
+      const pz = z + RING_SIN[i] * m;
+      // M7: inside a building in the world, its own walls
+      const wa = areaAt(px, pz);
+      if (wa) {
+        if (!wa.walkable(px, pz)) return true;
+        continue;
+      }
+      const f = city.flags(px, pz);
       if (f !== undefined && (f & WALL) !== 0) return true;
     }
     return false;
@@ -958,6 +1004,7 @@ export function buildRijnkaai(): World {
   const isFree = (x: number, z: number, r: number, feet = 0) => {
     if (!isWalkable(x, z)) return false;
     if (wallNear(x, z, r + 0.15)) return false;
+    if (areaHits(x, z, r)) return false;
     if (staticHit(x, z, r, feet)) return false;
     for (const c of dynamic) if (inRect(c, x, z, r) && blocks(c, feet)) return false;
     return true;
@@ -1103,6 +1150,7 @@ export function buildRijnkaai(): World {
     return false;
   };
   const hits = (x: number, z: number, r: number, feet: number) => {
+    if (areaHits(x, z, r)) return true;
     if (staticHit(x, z, r, feet)) return true;
     for (const c of dynamic) if (inRect(c, x, z, r) && blocks(c, feet)) return true;
     for (const c of railings) if (inRect(c, x, z, r)) return true;
@@ -1260,7 +1308,7 @@ export function buildRijnkaai(): World {
     for (let j = 0; j < H; j++)
       for (let i = 0; i < W; i++) {
         const [x, z] = at(i, j);
-        pass[j * W + i] = isWalkable(x, z) && !wallNear(x, z, 0.45) ? 1 : 0;
+        pass[j * W + i] = isWalkable(x, z) && !wallNear(x, z, 0.45) && !areaHits(x, z, 0.3) ? 1 : 0;
       }
     const R = 0.3;
     for (const c of [...colliders, ...dynamic]) {
@@ -1514,6 +1562,7 @@ export function buildRijnkaai(): World {
     groundAt,
     addCollider: (r) => dynamic.add(r),
     removeCollider: (r) => dynamic.delete(r),
+    addWalkArea: (a) => void walkAreas.push(a),
     addMover: (r) => movers.add(r),
     removeMover: (r) => movers.delete(r),
     moverAt,

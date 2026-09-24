@@ -1239,12 +1239,18 @@ def _cath_tower(m, tu, tv, north):
     cells = ["tower_blind", "tower_lancets", "tower_lancets", "tower_lancets"]
     bs = [0.95, 0.85, 0.75, 0.65]
     nst = 4 if north else 3
+    # M7: the ground stage's face toward the nave and its east face are inside the church (the hall
+    # of world/cathedralInWorld.ts stands there, under the aisle roofs): not built, nor its east
+    # corner buttresses, which would stand in the nave and the aisle
+    inner = 0 if north else 2
     for i in range(nst):
         y0, y1, h = ys[i], ys[i + 1], hs[i]
-        m.tex_prism(_sq(tu, tv, h), y0, y1 - 0.7, cells[i], skip=(3,) if i == 0 else ())
+        m.tex_prism(_sq(tu, tv, h), y0, y1 - 0.7, cells[i], skip=(3, 1, inner) if i == 0 else ())
         m.prism(_sq(tu, tv, h + 0.25), y1 - 0.7, y1, STONE, top=(i == nst - 1), top_mat=LEAD, shade=1.05)
         for su in (-1, 1):
             for sv in (-1, 1):
+                if su > 0 and (i == 0 or (i == 1 and sv * tv < 0)):
+                    continue
                 cu, cv = tu + su * (h + 0.15), tv + sv * (h + 0.15)
                 b = bs[i]
                 m.tex_prism(_sq(cu, cv, b), y0, y1 - 1.0, "buttress", rep=2)
@@ -1448,8 +1454,10 @@ def cathedral(fr, world_north):
     # ---- the high walls of nave and choir, clerestory windows, balustrade, pinnacles
     for side in (-1, 1):
         v = side * HN
-        f = m.poly([(13.8, v, 0), (AU, v, 0), (AU, v, NE), (13.8, v, NE)], STONE)
-        m.orient(f, (0, side, 0))
+        # M7: from the aisle roofs up (below them it is inside the church), and not across the transept
+        for ua, ub in ((13.8, T0), (T1, AU)):
+            f = m.poly([(ua, v, AE), (ub, v, AE), (ub, v, NE), (ua, v, NE)], STONE)
+            m.orient(f, (0, side, 0))
         for bays in (nave_bays, choir_bays):
             for ua, ub in zip(bays, bays[1:]):
                 m.decal((0, v), (1, 0), (0, side), ua + 1.8, ub - 1.8, 22.6, 29.4, "great_window", arch_shape(0.66, 3))
@@ -1510,8 +1518,11 @@ def cathedral(fr, world_north):
     for side in (-1, 1):
         va, vb = sorted((side * HN, side * TV))
         for ue, sg in ((T0, -1), (T1, 1)):
-            f = m.poly([(ue, va, 0), (ue, vb, 0), (ue, vb, NE), (ue, va, NE)], STONE)
-            m.orient(f, (sg, 0, 0))
+            # M7: over the aisles only from their roofs up (below is inside the church)
+            for a, b in (sorted((side * HN, side * VO)), sorted((side * VO, side * TV))):
+                yb = AE if abs(a + b) / 2 < VO else 0
+                f = m.poly([(ue, a, yb), (ue, b, yb), (ue, b, NE), (ue, a, NE)], STONE)
+                m.orient(f, (sg, 0, 0))
             s0, s1 = sorted((side * 27.0, side * 35.0))
             m.decal((ue, 0), (0, 1), (sg, 0), s0, s1, 4.0, 27.8, "great_window", arch_shape(0.7, 3))
             for c0 in (9.0, 17.0):

@@ -712,6 +712,8 @@ float psxRelH(vec2 uv, float wear) {
     );
     shader.fragmentShader = fs;
   };
+  // M7 rendering (world/cull.ts): how far the fog lets this material show, and water (waves reach over the sheet)
+  mat.userData.psx = { fogReach: opts.fogReach ?? 1, water: !!opts.water };
   mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}${opts.relief.id ? `-id${opts.relief.holes ?? 0}` : ""}` : ""}${opts.vary ? `-v${opts.vary}` : ""}${opts.detile ? "-dt" : ""}`;
   return mat;
 }

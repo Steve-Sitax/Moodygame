@@ -30,6 +30,19 @@ export interface LandmarkNow {
   register: string[];
   posters: Array<{ kind: string; heading: string; body: string; footer: string }>;
   theatre: { kind: "rehearsal" | "performance" } | null;
+  /** M7: the cathedral's door is shut to Jef for a while (the beadle put him out for running). */
+  barred?: boolean;
+}
+
+/** M7: the engine's answer to Jef running in the cathedral (server/src/landmarks/hush.ts). */
+export interface HushResult {
+  counted: boolean;
+  strike: number;
+  line: string;
+  speaker: "beadle" | "churchgoer";
+  delta: number;
+  leave: boolean;
+  text: string;
 }
 
 export type DoorNow = LandmarkDoor & { open: boolean };
@@ -65,6 +78,8 @@ export const landmarksApi = {
   // M6 sermon (server/src/ballads/sermon.ts): Sunday's words (a model call may be behind it) and "Jef heard it"
   sermon: () => call<SermonView>("GET", "/api/sermon", undefined, 25_000),
   heard: () => call<JobsPayload & { delta: number; text: string }>("POST", "/api/sermon/heard", {}),
+  // M7: Jef ran in the cathedral with this many people near
+  ran: (witnesses: number) => call<JobsPayload & HushResult>("POST", "/api/landmark/ran", { witnesses }),
 };
 
 export interface SermonView {

@@ -8,7 +8,12 @@ import { setAmbientViewHeight } from "./world/ambient";
 import { setFireViewHeight } from "./world/fire";
 import { puddleAt } from "./world/puddlemask";
 import { setMirrorScale } from "./world/mirror";
+import { Culler, mountCullHud } from "./world/cull";
+import { buildHeightfield } from "./world/occlusion";
+import { OUTSIDE, WATER } from "./world/city";
+import { water as tideWater } from "./world/tide";
 import { BOARD_POS, DOSS_POS, RAMP, SPOTS, buildRijnkaai } from "./world/rijnkaai";
+import { InWorld } from "./world/inworld";
 import { FirstPerson } from "./player/firstPerson";
 import { Soundscape, type VehicleSound } from "./audio/soundscape";
 import { Jobs } from "./game/jobs";
@@ -56,6 +61,17 @@ renderer.setPixelRatio(1);
 const world = buildRijnkaai();
 const player = new FirstPerson(world, canvas);
 const retro = new RetroPass(renderer);
+// M7 rendering: what cannot be seen is not drawn: beyond the fog, behind the houses, the mirrors'
+// extra passes, the river mirror when no water shows (world/cull.ts, world/occlusion.ts)
+const cull = new Culler(world.scene, {
+  heights: world.city.ready.then(() => buildHeightfield(world.city.flags, WATER, OUTSIDE)),
+  waterTop: () => Math.max(tideWater.river, tideWater.dock, tideWater.chamberA, tideWater.chamberB),
+  paused: () => player.fly,
+});
+retro.cull = cull;
+// M7: interiors in the world, drawn through their doors (world/inworld.ts): the cathedral first
+const inWorld = new InWorld(world.scene);
+retro.inWorld = inWorld;
 let sound: Soundscape | null = null;
 // the soundscape hears the clock and the weather the Day sets on the world (audio/soundscape.ts)
 // null until the server has said: no foghorn before the weather is known
@@ -185,6 +201,15 @@ landmarks.sfx = (n) => sound?.indoors(() => sound?.play(n));
 landmarks.organ = (on) => sound?.organ(on);
 landmarks.altarBell = () => sound?.altarBell();
 landmarks.speak = (at, v, s) => sound?.indoors(() => sound?.speech(at, v, s));
+// M7: the cathedral's hall stands in the world; Jef walks in through the west door (world/cathedralInWorld.ts)
+landmarks.attachWorld(world, inWorld);
+landmarks.roomSound = (k) => sound?.setInterior(k);
+landmarks.daylight = () => {
+  const h = jobs.day.hourF;
+  const day = Math.max(0, Math.min(1, h < 12 ? (h - 6.5) / 3 : (18.5 - h) / 3));
+  const sky = { fog: 0.7, mist: 0.8, clear: 1, rain: 0.6, storm: 0.5 }[weatherNow ?? "fog"];
+  return { day, sky };
+};
 {
   const onPush = jobs.onPush;
   jobs.onPush = (m) => {
@@ -334,6 +359,10 @@ if (import.meta.env.DEV) {
     places: JUMPS,
     events: [
       ...world.devEvents(),
+      // M7 rendering: the culler off for comparison, occlusion alone off, and the view of what it hides
+      { label: "Culling on/off", run: () => `culling ${(cull.enabled = !cull.enabled) ? "on" : "off: everything is drawn"}` },
+      { label: "Occlusion on/off", run: () => `occlusion by the houses ${(cull.occlusion = !cull.occlusion) ? "on" : "off (the fog and the mirrors still cull)"}` },
+      { label: "Culling view on/off", run: () => `culling view ${(cull.view = !cull.view) ? "on: hidden things drawn through the walls, red behind houses, amber beyond the fog" : "off"}` },
       // M4: the director and its templates
       // the answer shows in the Dev panel itself (a toast would hide behind the pause paper)
       {
@@ -381,8 +410,10 @@ function start(): void {
     // in a puddle the step splashes (world/puddlemask.ts: the same puddles the ground shows)
     player.onStep = (surface, hurry) => {
       // M6: inside a room the steps are the room's, not the street's
-      const step = () => sound?.footstep(surface, hurry, surface === "stone" && !interiors.inside ? puddleAt(player.x, player.z, 1.1) : 0);
-      if (interiors.inside) sound?.indoors(step);
+      // M7: and in the cathedral's nave in the world
+      const indoors = interiors.inside || landmarks.inCathedral;
+      const step = () => sound?.footstep(surface, hurry, surface === "stone" && !indoors ? puddleAt(player.x, player.z, 1.1) : 0);
+      if (indoors) sound?.indoors(step);
       else step();
     };
     jobs.sfx = (name, at) => sound?.play(name, at);
@@ -576,23 +607,25 @@ requestAnimationFrame(frame);
 // the stutter).
 world.city.ready.then(() => {
   const hidden: THREE.Object3D[] = [];
-  // each mesh gets its own culling flag back (birds, trains, cranes... are built unculled)
-  const culled: THREE.Object3D[] = [];
+  // M7: each mesh gets its own frustumCulled back (it was set true on all, also on those that must not be culled)
+  const culled = new Map<THREE.Object3D, boolean>();
   world.scene.traverse((o) => {
     if ((o as THREE.Mesh).isMesh) {
       if (!o.visible) {
         hidden.push(o);
         o.visible = true;
       }
-      if (o.frustumCulled) {
-        culled.push(o);
-        o.frustumCulled = false;
-      }
+      culled.set(o, o.frustumCulled);
+      o.frustumCulled = false;
     }
   });
   renderer.compile(world.scene, player.camera);
+  // M7: the warm-up draws everything, so the culler stands aside for it
+  const culling = cull.enabled;
+  cull.enabled = false;
   retro.render(world.scene, player.camera, elapsed);
-  for (const o of culled) o.frustumCulled = true;
+  cull.enabled = culling;
+  for (const [o, f] of culled) o.frustumCulled = f;
   for (const o of hidden) o.visible = false;
 }).catch(() => {});
 
@@ -655,6 +688,8 @@ if (import.meta.env.DEV) {
     families,
     homes,
     landmarks,
+    /** M7: interiors in the world (world/inworld.ts): plan(camera), visibility(), enabled. */
+    inWorld,
     ballads,
     handcarts,
     steps,
@@ -856,4 +891,10 @@ if (import.meta.env.DEV) {
     shotFrom: (n, f, t, fog) => dev.shotFrom(n, f, t, fog),
     audio: () => sound as unknown as { ctx: BaseAudioContext } | null,
   });
+}
+
+// M7 rendering, dev: the culler and the renderer for checks (__scheldemist.cull), and the view's numbers
+if (import.meta.env.DEV) {
+  Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, { cull, renderer, retro });
+  mountCullHud(cull);
 }

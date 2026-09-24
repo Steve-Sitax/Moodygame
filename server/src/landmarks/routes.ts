@@ -5,6 +5,7 @@ import { talkExtras } from "../town/talk.ts";
 import { LANDMARK_IDS, type LandmarkId } from "../../../shared/landmarks.ts";
 import { absolve, beginConfession, confess } from "./confession.ts";
 import { lightCandle, payChair } from "./deeds.ts";
+import { hushBarred, ranInChurch } from "./hush.ts";
 import { landmarkDoors, landmarkNow, landmarkTalkContext, setJefIn } from "./life.ts";
 
 // The HTTP side of the landmark interiors (M6), mounted by index.ts. What moves money answers
@@ -33,7 +34,19 @@ export function mountLandmarks(app: Hono, deps: LandmarkDeps): void {
 
   app.get("/api/landmarks", (c) => c.json({ doors: landmarkDoors(db) }));
 
-  app.get("/api/landmark/:id", (c) => c.json(landmarkNow(db, lm(c.req.param("id")))));
+  app.get("/api/landmark/:id", (c) => {
+    const id = lm(c.req.param("id"));
+    // M7: the cathedral also says whether its door is shut to Jef (put out for running)
+    return c.json({ ...landmarkNow(db, id), ...(id === "cathedral" ? { barred: hushBarred(db).barred } : {}) });
+  });
+
+  // M7: Jef ran in the cathedral with people near; the engine decides the rest (hush.ts)
+  app.post("/api/landmark/ran", async (c) => {
+    const b = await body(c);
+    const r = ranInChurch(db, b.witnesses);
+    if (r.delta) moved();
+    return c.json({ ...r, ...payload() });
+  });
 
   // the client says when Jef goes in and comes out (for the talk context only)
   app.post("/api/landmark/here", async (c) => {

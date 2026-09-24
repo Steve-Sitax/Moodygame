@@ -691,6 +691,8 @@ async function load(): Promise<Boats> {
     depthWrite: false,
     fog: true,
   });
+  // M7 rendering (world/cull.ts): three.js fog, the fog colour at its far end
+  smokeMat.userData.fogReach = 1;
   function growSmoke(): void {
     const n = emitters.length * PUFFS;
     const g = new THREE.BufferGeometry();
