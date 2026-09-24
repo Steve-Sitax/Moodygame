@@ -34,9 +34,9 @@
 | M3 | Talk and remember | Dialogue with Sooi and Fientje. Memory in SQLite. Fientje repeats what Sooi saw. Added 2026-09-23 on Steve's call: people hand over goods (parcel from the employer, crates lowered from the ship), owners react when you take their goods, lift and stack any goods, jump and crouch. |
 | M3c | The city of 1873 | Added 2026-09-23 on Steve's call ("visuals first"): the old centre traced from the 1873 Vuillaume map, houses and landmarks built in Blender (cathedral, town hall, Vleeshuis, Steen), the Rijnkaai in its real place, a paper map (M). Done 2026-09-23, see milestones/M3c.md. |
 | M3d | The compact city | Added 2026-09-23 on Steve's call ("way too big"): a designed map with the real places close together, straight quays, real bridges, boats, cranes, storehouses, townspeople. Done 2026-09-23, see milestones/M3d.md. |
-| M4 | Events and world ops | Night events fire. Fog closes the docks. Prices move. |
+| M4 | Events and world ops | Done 2026-09-24 (milestones/M4.md, with M4b): the director and its events, townspeople who act, conversations as bubbles, the world_event log. |
 | M5 | Needs and week | Needs, money, rent, sleep, 7 days, epilogue. Done 2026-09-23, plus daily weather (fog, mist, clear). |
-| M6 | Codex mix | Router sends rumours and newspaper to GPT-6. Only after approval. |
+| M6 | The living town | Done 2026-09-24 (milestones/M6.md): the overnight run and the afternoon after it: tides and the liner, paper and post, taverns and interiors, homes, emigrants, families, town life, landmark interiors, transport, handcart, cranes, gifts and hired hands, lively back streets, AI routines, and the model router (GPT Luna for cheap text). |
 | M7 | Polish and playtest | Audio pass, fallbacks, timeouts, three playtests, fixes. |
 
 Each milestone ends with a run in the browser and a short note in this folder. Not a backend check.
