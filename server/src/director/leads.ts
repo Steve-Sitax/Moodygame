@@ -5,7 +5,33 @@ import { activityAt } from "../town/schedule.ts";
 import { town, TOWN_EMPLOYER_IDS } from "../town/store.ts";
 import { activeActions, isReserved } from "./actions.ts";
 import { isEmigrant } from "../town/emigrants.ts";
+import { visitorOf } from "../town/visitors.ts";
 import { BEARERS, LEAD_LABEL, LEADS_PER_STAGE, type LeadRole } from "./vocab.ts";
+import { newcomerLandmark } from "../landmarks/town.ts";
+
+/** Work at a counter or a post: a stall, a shop, a tavern, a post (the dealer, the post office, the Logement, the pawnshop ...). */
+const COUNTER_KINDS = new Set(["stall", "shop", "tavern", "post"]);
+/** Trades that keep a counter or a post wherever their work kind puts them. */
+const COUNTER_TRADES = new Set([
+  "dealer", "pawnbroker", "post_clerk", "lodging_keeper", "publican", "baker", "grocer", "chandler", "tobacconist", "cobbler", "shopwife",
+  "market_woman", "fishwife", "fish_merchant", "newsboy", "sexton", "brewer", "water_bailiff", "foreman",
+]);
+
+/**
+ * Someone the town needs where they are (QA 2026-09-24: the second-hand dealer was taken for a
+ * wedding and then the ballad crowd, and nobody could buy furniture for a day and a half):
+ * at work now, and working at a counter or a post, or on the staff of a landmark (the town hall,
+ * the cathedral, the Vleeshuis, the Steen, the Oostershuis). Never gathered for an event.
+ */
+export function keptAtWork(db: DB, r: Resident): boolean {
+  const c = clock(db);
+  if (activityAt(r.sched, c.day, c.hour + c.minute / 60).act !== "work") return false;
+  if (COUNTER_KINDS.has(r.work.kind) || COUNTER_TRADES.has(r.trade)) return true;
+  // the fortune teller at her table on the Grote Markt
+  if (visitorOf(r)?.role === "fortune") return true;
+  const place = r.work.place ?? "";
+  return place.startsWith("landmark:") || place === "town_hall" || place === "cathedral" || place === "cathedral_door" || newcomerLandmark(r.id) !== null;
+}
 
 // M4b: lead roles. A stage may name up to four leads (bride, groom, priest, the three
 // musicians, an auctioneer, a pickpocket and his victim ...). The ENGINE picks the resident
@@ -100,12 +126,12 @@ export interface LeadAsk {
  * leads found and the roles nobody could fill.
  */
 export function pickLeads(db: DB, asks: LeadAsk[], taken: Set<string>, salt: string): { leads: Lead[]; missing: LeadRole[] } {
-  const c = clock(db);
   const busy = new Set(activeActions(db).map((a) => a.npc_id));
   const all = town(db).town.residents;
   // M6 emigrants: nobody waiting by the chests to board is cast in a part
-  const free = (r: Resident) => !taken.has(r.id) && !busy.has(r.id) && !TOWN_EMPLOYER_IDS.includes(r.id) && !isReserved(db, r.id) && !isEmigrant(r);
-  const keeper = (r: Resident) => (r.work.kind === "stall" || r.work.kind === "shop" || r.work.kind === "tavern") && activityAt(r.sched, c.day, c.hour + c.minute / 60).act === "work";
+  // M6 surprises: the strangers and the fortune teller are never cast in a part (QA 2026-09-24: a stranger who had left was a fireman)
+  const free = (r: Resident) => !taken.has(r.id) && !busy.has(r.id) && !TOWN_EMPLOYER_IDS.includes(r.id) && !isReserved(db, r.id) && !isEmigrant(r) && !visitorOf(r);
+  const keeper = (r: Resident) => keptAtWork(db, r);
   const leads: Lead[] = [];
   const missing: LeadRole[] = [];
   const used = new Set<string>();

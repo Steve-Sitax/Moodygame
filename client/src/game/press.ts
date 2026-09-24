@@ -277,20 +277,24 @@ export class Press {
     const rows: string[] = [];
     if (!v.open) rows.push(`<p class="shut">The office is shut. Open from eight in the morning till seven at night, not on Sunday.</p>`);
     else {
+      // the choices are numbered from 1 in the order shown (QA 2026-09-24: the round alone showed as "2")
+      let k = 0;
       if (v.waiting) {
-        rows.push(`<li><span class="n">1</span> ${v.waiting === 1 ? "A letter waits" : `${v.waiting} letters wait`} for you in the pigeonholes</li>`);
-        keys.Digit1 = () => void this.act("/api/post/collect", {}, () => this.openPost());
+        const n = ++k;
+        rows.push(`<li><span class="n">${n}</span> ${v.waiting === 1 ? "A letter waits" : `${v.waiting} letters wait`} for you in the pigeonholes</li>`);
+        keys[`Digit${n}`] = () => void this.act("/api/post/collect", {}, () => this.openPost());
       } else rows.push(`<p class="none">"Nothing for you in the pigeonholes."</p>`);
       if (v.round) {
-        rows.push(`<li><span class="n">2</span> ${esc(v.round.title)}: ${esc(v.round.pitch)}<span class="price">${v.round.pay_c} c</span></li>`);
-        keys.Digit2 = () => void this.takeJob(v.round!);
+        const n = ++k;
+        rows.push(`<li><span class="n">${n}</span> ${esc(v.round.title)}: ${esc(v.round.pitch)}<span class="price">${v.round.pay_c} c</span></li>`);
+        keys[`Digit${n}`] = () => void this.takeJob(v.round!);
       } else rows.push(`<p class="none">No round of letters to give out today.</p>`);
     }
     rows.push(`<p class="terms">Telegrams: ${v.telegram_fee_c} centimes for ${v.telegram_words} words, anywhere in the kingdom.</p>`);
     this.show(
       "post",
       `<div class="counter"><h2>${esc(cap(v.label))}</h2><p class="sub">${v.clerk_name ? `${esc(v.clerk_name)} at the counter` : ""}</p>
-       <ol>${rows.join("")}</ol>${msg ? `<p class="msg">${esc(msg)}</p>` : ""}<p class="keys">${Object.keys(keys).length ? "1-2 choose &middot; " : ""}E or Esc to step away</p></div>`,
+       <ol>${rows.join("")}</ol>${msg ? `<p class="msg">${esc(msg)}</p>` : ""}<p class="keys">${Object.keys(keys).length > 1 ? "1-2 choose &middot; " : Object.keys(keys).length ? "1 choose &middot; " : ""}E or Esc to step away</p></div>`,
       keys,
     );
   }

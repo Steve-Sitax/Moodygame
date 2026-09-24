@@ -29,6 +29,9 @@ crowd: sit (men, on a crate or bench; the game lowers the body), walk_sack and
 idle_sack (a sack held on the left shoulder), push and push_idle (the porter
 behind his sack truck, the carter behind his handcart), behind (hands behind
 the back, looking out over the water) and lean (forearms on a rail).
+M6 transport: ride (pedalling a boneshaker, one loop a turn of the front wheel)
+and row (seated, facing the stern, a stroke in two seconds). Appended last, so
+every clip and figure before them is byte for byte as it was.
 
 Coordinates: we build in game space (x = the character's left, y up, z forward,
 the character faces +z). B() turns that into Blender space (Z up); the glTF
@@ -1935,6 +1938,81 @@ def pose_write(t):
     return pose
 
 
+# ---- M6 transport: riding a velocipede (pedalling), rowing a boat
+
+# The boneshaker (tools/blender/build_velocipede.py) in the rider's body frame: the game seats the
+# body so the hip joints are over the saddle (humans.ts rideLift: the body raised RIDE_LIFT for a
+# 1.74 m man, the root RIDE_BACK behind the machine's origin). Front hub, crank, handlebar grips.
+RIDE_LIFT = 0.14
+RIDE_BACK = 0.05
+RIDE_HUB = (0.46 - RIDE_LIFT, 0.56 + RIDE_BACK)  # (y, z)
+RIDE_CRANK = 0.13
+RIDE_LEAN = 18.0  # the spine forward over the bar
+
+
+def leg_ik(pose, S, ay, az, toe=8.0):
+    """Hip at (0.90, 0) in (y, z); ankle target (ay, az): thigh 0.40, shin 0.415 (joints()); the knee forward."""
+    L1, L2 = 0.40, 0.415
+    dy = ay - 0.90
+    dz = az
+    d = min(L1 + L2 - 0.004, max(0.3, math.hypot(dy, dz)))
+    phi = math.atan2(dz, -dy)  # forward of straight down
+    alpha = math.acos(max(-1.0, min(1.0, (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d))))
+    knee = math.acos(max(-1.0, min(1.0, (L1 * L1 + L2 * L2 - d * d) / (2 * L1 * L2))))
+    thigh = math.degrees(phi + alpha)
+    bend = 180.0 - math.degrees(knee)
+    pose["legUp" + S] = limb(S, fwd=thigh, out=2.0)
+    pose["legLow" + S] = RX(bend)
+    pose["foot" + S] = RX(thigh - bend - toe)
+
+
+def pose_ride(t):
+    """Pedalling a boneshaker: seated, leaning a little over the bar, both hands on the grips, the
+    feet on the pedals of the front hub. One loop is one turn of the front wheel (the game sets
+    the loop from the wheel, so the feet stay on the pedals). The right pedal is down at t = 0."""
+    th = 2 * math.pi * t
+    pose = {}
+    pose["hips"] = RY(1.2 * math.sin(th))
+    pose["spine"] = RX(RIDE_LEAN) @ RZ(1.5 * math.sin(th))
+    pose["neck"] = RX(-10)
+    pose["head"] = RX(-8) @ RZ(-1.0 * math.sin(th))
+    hy, hz = RIDE_HUB
+    for S, sg in (("R", -1.0), ("L", 1.0)):
+        # the pedal on the crank (the wheel turns forward: its bottom goes back), the ball of the foot on it
+        py = hy + sg * RIDE_CRANK * math.cos(th)
+        pz = hz + sg * RIDE_CRANK * math.sin(th)
+        leg_ik(pose, S, py + 0.08, pz - 0.10, toe=6 + 8 * max(0.0, math.sin(th) * -sg))
+    for S in "LR":
+        pose["armUp" + S] = limb(S, fwd=29, out=9, twist=6)
+        pose["armLow" + S] = RX(-8)
+        pose["hand" + S] = RX(-12)
+    return pose
+
+
+def ease(u):
+    u = max(0.0, min(1.0, u))
+    return u * u * (3 - 2 * u)
+
+
+def pose_row(t):
+    """Rowing, seated on a thwart facing the stern: the catch (leaning toward the stern, arms out),
+    the drive (leaning back, pulling the handles to the chest), the recovery. The game draws each
+    oar from the hand through its rowlock (game/rowing.ts), so the oars follow the hands."""
+    drive = ease(t / 0.42) if t < 0.42 else 1.0 - ease((t - 0.42) / 0.58)
+    pose = {}
+    pose["spine"] = RX(26 - 42 * drive)
+    pose["neck"] = RX(-8 + 10 * drive)
+    pose["head"] = RX(-4)
+    for S in "LR":
+        pose["legUp" + S] = limb(S, fwd=70 - 12 * drive, out=9)
+        pose["legLow" + S] = RX(96 - 22 * drive)
+        pose["foot" + S] = RX(-18)
+        pose["armUp" + S] = limb(S, fwd=78 - 46 * drive, out=14 + 10 * drive, twist=10)
+        pose["armLow" + S] = RX(-(10 + 95 * drive))
+        pose["hand" + S] = RX(-10)
+    return pose
+
+
 CLIPS = [
     ("idle", pose_idle, 4.0, dict()),
     ("walk", pose_walk, 1.0, dict()),
@@ -1955,6 +2033,9 @@ CLIPS = [
     ("rifle_walk", pose_rifle_walk, 1.0, dict()),
     ("rifle_talk", pose_rifle_talk, 3.0, dict()),
     ("write", pose_write, 5.0, dict()),
+    # M6 transport (appended: the clips above stay as they were)
+    ("ride", pose_ride, 1.0, dict()),
+    ("row", pose_row, 2.0, dict()),
 ]
 
 
@@ -1971,7 +2052,8 @@ def make_actions(ao):
         act.use_fake_user = True
         ad.action = act
         frames = int(round(secs * FPS))
-        step = 2 if secs <= 1.0 else 4
+        # the pedalling is keyed every frame (the feet must stay on the turning pedals)
+        step = 1 if name == "ride" else 2 if secs <= 1.0 else 4
         for f in list(range(0, frames, step)) + [frames]:
             t = (f % frames) / frames
             pose = fn(t, **kw)

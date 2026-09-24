@@ -90,6 +90,21 @@ const WALK_TIMEOUT = 45;
 const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
+/** The server's answer as a view, or null when it is not one (empty, an error page, a half answer). */
+function sane(raw: unknown): View | null {
+  if (!raw || typeof raw !== "object") return null;
+  const v = raw as Partial<View>;
+  if (!Array.isArray(v.families)) return null;
+  const families = v.families.filter((f): f is FamView => !!f && typeof f === "object" && typeof f.household === "number" && Array.isArray(f.members));
+  for (const f of families) if (!Array.isArray(f.props)) f.props = [];
+  return {
+    ...(v as View),
+    families,
+    residents: Array.isArray(v.residents) ? v.residents : [],
+    camps: Array.isArray(v.camps) ? v.camps : [],
+  };
+}
+
 async function call<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(url, {
     method,
@@ -182,7 +197,7 @@ export class Emigrants {
     }
     this.busy = true;
     try {
-      this.apply(await call<View>("GET", "/api/emigrants"));
+      this.apply(await call<unknown>("GET", "/api/emigrants"));
     } catch {
       /* the next poll tries again */
     } finally {
@@ -192,13 +207,15 @@ export class Emigrants {
 
   // ------------------------------------------------------------------ the families in town
 
-  private apply(v: View): void {
+  private apply(raw: unknown): void {
+    // a bad or empty answer (QA 2026-09-24): keep the last good view, and the next poll tries again
+    const v = sane(raw);
+    if (!v) return;
     const first = !this.loaded;
     this.view = v;
-    if (!v.families) return;
-    for (const r of v.residents) this.kinds.set(r.id, r.kind);
+    for (const r of v.residents) if (r?.id) this.kinds.set(r.id, r.kind);
     // new people come in from the station road; a changed record (the runner in the cell) takes effect
-    const fresh = v.residents.filter((r) => !this.leaving.has(r.id));
+    const fresh = v.residents.filter((r) => r?.id && !this.leaving.has(r.id));
     const known = fresh.filter((r) => this.town.has(r.id));
     const newcomers = fresh.filter((r) => !this.town.has(r.id));
     this.town.upsertResidents(known);
@@ -340,11 +357,12 @@ export class Emigrants {
   // ------------------------------------------------------------------ signs
 
   private buildSigns(v: View): void {
-    if (!this.signs.length) {
+    if (!this.signs.length && v.logement?.wall && v.logement.out) {
       const lg = v.logement;
       this.signs.push(this.sign(lg.wall, lg.out, ["LOGEMENT", "BEDS FOR EMIGRANTS"], "#2d3a4a", 3.3));
     }
-    const next = v.ship.today && v.hour < v.ship.to ? "TODAY" : DAYS[(v.ship.next - 1) % 7].toUpperCase();
+    if (!v.ship) return;
+    const next = v.ship.today && v.hour < v.ship.to ? "TODAY" : (DAYS[(((v.ship.next - 1) % 7) + 7) % 7] ?? "SOON").toUpperCase();
     const text = `RED STAR LINE|ANTWERP - PHILADELPHIA|S.S. KEMPENLAND AT ANCHOR|EMIGRANTS BOARD ${next}|LIGHTERS FROM THIS QUAY`;
     if (!this.board) this.board = this.noticeBoard();
     if (this.board.text !== text) {
@@ -446,16 +464,17 @@ export class Emigrants {
   // ------------------------------------------------------------------ per frame
 
   update(dt: number): void {
+    // the poll first: one bad or empty answer must never stop it (QA 2026-09-24)
+    if ((this.pollT -= dt) <= 0) {
+      this.pollT = 6;
+      void this.refresh();
+    }
     const v = this.view;
     if (!v?.families) return;
     this.t += dt;
     const hour = this.jobs.day.hourF;
     const px = this.player.x;
     const pz = this.player.z;
-    if ((this.pollT -= dt) <= 0) {
-      this.pollT = 6;
-      void this.refresh();
-    }
     // the things on the quay: out by day (and while anyone of the family sits there), in at night
     for (const c of this.camps.values()) {
       const f = c.fam;
@@ -506,6 +525,7 @@ export class Emigrants {
   // ------------------------------------------------------------------ the runner at a family's elbow
 
   private runnerScene(v: View): void {
+    if (!v.runner?.id) return;
     const id = v.runner.id;
     const hh = v.runner.working;
     const fam = hh !== null ? v.families.find((f) => f.household === hh) : undefined;
@@ -747,7 +767,7 @@ export class Emigrants {
     const v = this.view;
     if (!v?.logement) return [];
     const out = [{ label: "the Logement door", x: v.logement.step[0], z: v.logement.step[1], reach: 1.8 }];
-    for (const c of v.camps) out.push({ label: `the emigrants' place ${c.slot + 1}`, x: c.x, z: c.z, reach: 3 });
+    for (const c of v.camps ?? []) out.push({ label: `the emigrants' place ${c.slot + 1}`, x: c.x, z: c.z, reach: 3 });
     out.push({ label: "the Red Star Line notice", x: this.boardAt[0], z: this.boardAt[1] - 1, reach: 2 });
     return out;
   }

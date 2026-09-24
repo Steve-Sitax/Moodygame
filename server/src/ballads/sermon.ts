@@ -214,7 +214,7 @@ export function hearSermon(db: DB): { delta: number; text: string } {
   if (getState(db, k, false)) return { delta: 0, text: "" };
   setState(db, k, true);
   const delta = s.hint?.kind === "warn" ? -1 : 1;
-  db.prepare("UPDATE faction_trust SET trust = MAX(0, MIN(10, trust + ?)) WHERE faction = 'kerk'").run(delta);
+  db.prepare("UPDATE faction_trust SET trust = MAX(-5, MIN(10, trust + ?)) WHERE faction = 'kerk'").run(delta);
   const text =
     delta < 0
       ? "Heads turn along the rows toward you. Somebody tuts. The church will remember that you were here, and what was said."

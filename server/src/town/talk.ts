@@ -6,13 +6,13 @@ import { DAY_NAMES, weather, WEATHER_TEXT, type Weather } from "../day.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { ALL_EMPLOYERS, SPOTS, SYSTEM, employerName, listJobs, type JobRow } from "../hooks/jobBoard.ts";
 import { MOODS, gateText, markFreeLine, onResetTalks, type Line } from "../hooks/dialogue.ts";
-import { applyTrust, relationship, remember, topMemories } from "../npcs.ts";
+import { applyTrust, relationship, remember, topMemories, trustText } from "../npcs.ts";
 import { ITEMS } from "../trade.ts";
 import { waresOf } from "../trade.ts";
 import { activityAt, type Now } from "./schedule.ts";
-import { TRADES } from "./places.ts";
+import { shownTrade, TRADES } from "./places.ts";
 import { family, personaLine, resident, setPersonaLine, town } from "./store.ts";
-import { ownVoice, reputationWith, rumoursOf, toYou, type Rumour } from "./rumours.ts";
+import { ownVoice, reputationWith, rumoursOf, stillTrue, toYou, whoYou, type Rumour } from "./rumours.ts";
 import type { Resident } from "./population.ts";
 import { GUARD_POSTS, isGarrison, isSoldier } from "./garrison.ts";
 import { ActionProposalSchema } from "../director/vocab.ts";
@@ -163,6 +163,9 @@ export function moodOf(db: DB, r: Resident): (typeof MOODS)[number] {
   const late = c.hour >= 21 || c.hour < 6;
   if (r.age < 13) return rep < -1 ? "afraid" : "amused";
   if (r.trade === "thief") return late ? "amused" : "suspicious";
+  // trust below 0 (Steve 2026-09-24): someone who can't stand Jef is angry or cold; one who dislikes him is cold
+  if (trust <= -3) return s.temper >= 6 ? "angry" : "cold";
+  if (trust < 0 && rep < 1) return s.courage <= 3 ? "suspicious" : "cold";
   if (rep <= -1.2 && s.temper >= 7) return "angry";
   if (rep <= -0.8) return s.courage <= 3 ? "afraid" : "suspicious";
   if (late && s.courage <= 3) return "afraid";
@@ -311,10 +314,12 @@ function openingText(db: DB, r: Resident, mood: string, met: number): string {
   if (own) return own;
   if (r.age < 13) return pickBy(seed, CHILD_GREET);
   let line = pickBy(seed, GREET[mood] ?? GREET.neutral);
-  const heard = youHeard(rumoursOf(db, r.id, 3));
+  const heard = youHeard(rumoursOf(db, r.id, 3).filter((h) => stillTrue(db, h.fact)));
   if (heard && r.stats.gossip >= 5 && met <= 1) {
-    const you = toYou(heard.gist);
-    line += heard.tone < 0 ? ` You're the one who ${you}, aren't you?` : heard.tone > 0 ? ` You're the one who ${you}. I heard.` : ` I heard ${you}.`;
+    const mine = ownVoice(heard.gist, [r.name, r.first]);
+    // "You're the one who rents a room from me", never "the one who you rents" (QA 2026-09-24)
+    const who = whoYou(mine);
+    line += heard.tone !== 0 && who ? (heard.tone < 0 ? ` You're the one who ${who}, aren't you?` : ` You're the one who ${who}. I heard.`) : ` I heard ${toYou(mine)}.`;
   } else if (met > 1) {
     line += pickBy(seed + "m", [" You again.", " Back again, are you?", ""]);
   } else {
@@ -346,12 +351,12 @@ function familyLine(db: DB, r: Resident): string {
   const spouse = fam.find((o) => o.family_role === "wife" || o.family_role === "husband" || (r.family_role !== "head" && o.family_role === "head" && o.sex !== r.sex && o.age > 17));
   const kids = fam.filter((o) => (o.family_role === "son" || o.family_role === "daughter") && o.id !== r.id);
   const bits: string[] = [];
-  if (spouse) bits.push(`${spouse.sex === "f" ? "wife" : "husband"} ${spouse.first}, ${TRADES[spouse.trade].label}`);
+  if (spouse) bits.push(`${spouse.sex === "f" ? "wife" : "husband"} ${spouse.first}, ${shownTrade(spouse)}`);
   if (kids.length) bits.push(`${kids.length === 1 ? "one child" : `${kids.length} children`}: ${kids.map((k) => `${k.first} (${k.age})`).join(", ")}`);
   if (r.family_role === "widow" || r.family_role === "widower") bits.unshift(r.family_role === "widow" ? "a widow" : "a widower");
   if (r.family_role === "lodger") bits.push("a lodger in another family's house");
   if (r.age < 15) {
-    const parents = fam.filter((o) => o.age >= 18).map((o) => `${o.sex === "f" ? "mother" : "father"} ${o.first}, ${TRADES[o.trade].label}`);
+    const parents = fam.filter((o) => o.age >= 18).map((o) => `${o.sex === "f" ? "mother" : "father"} ${o.first}, ${shownTrade(o)}`);
     return parents.length ? parents.join("; ") : "no parents living";
   }
   return bits.join("; ") || "nobody; you live alone";
@@ -376,7 +381,7 @@ export function engineReply(db: DB, r: Resident, topic: Topic | null, seed: stri
       return `${lead} ${j.employer_name} at ${spotOf(j)}. Wanted a hand this morning: ${j.title.toLowerCase()}.`;
     }
     case "rumour": {
-      const rs = rumoursOf(db, r.id, 4);
+      const rs = rumoursOf(db, r.id, 4).filter((x) => stillTrue(db, x.fact));
       const h = youHeard(rs);
       if (!h) return s.gossip >= 7 ? "Nothing yet. And I hear everything, so you've done nothing worth telling." : "Nobody talks about you. Nobody knows you yet.";
       const who = h.source === "seen" ? "I saw it myself" : h.from ? `${h.from} says so` : "people say so";
@@ -536,7 +541,7 @@ NOW
 ${c.weekday}, ${c.hour}:${String(c.minute).padStart(2, "0")}, ${WEATHER_TEXT[c.weather]}. You are ${doing(db, r)}. Your mood: ${moodOf(db, r)}.
 
 YOU AND JEF
-Met ${rel?.times_met ?? 0} times. Trust ${rel?.trust ?? 0} of 10.
+Met ${rel?.times_met ?? 0} times. Trust ${trustText(rel?.trust ?? 0)}.
 
 WHAT YOU KNOW OF JEF (strongest first)
 ${mem.length ? mem.map((m) => `- ${m.text} (${m.source})`).join("\n") : "- nothing; a stranger to you"}
@@ -699,7 +704,7 @@ function modelLine(db: DB, r: Resident, sess: Session, raw: ResidentLine) {
 /** For the client: who they are, in a line (no numbers; trust stays hidden). */
 export function describe(db: DB, id: string): string {
   const r = need(db, id);
-  return `${r.name}, ${TRADES[r.trade].label}`;
+  return `${r.name}, ${shownTrade(r)}`;
 }
 
 export { employerName };

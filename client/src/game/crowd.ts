@@ -1,9 +1,10 @@
 import * as THREE from "three";
 import { psx } from "../retro/psx";
 import type { Rect } from "../world/geom";
-import { makeHuman, whenHumans, type Human, type HumanKind, type Motion } from "./humans";
+import { makeHuman, whenHumans, RIDE_BACK, type Human, type HumanKind, type Motion } from "./humans";
 import { loadProps, type Props } from "../world/props3d";
-import { PushCart, handsOf, hideBakedCart } from "../world/traffic";
+import { LedDray, PushCart, handsOf, hideBakedCart } from "../world/traffic";
+import { loadVelocipede, WHEEL_R } from "./velocipedes";
 
 // Townspeople: the ambient crowd on the streets and quays. Nobody here has a
 // name or a line. As on the old photographs of the quays: they walk, stroll in
@@ -157,6 +158,31 @@ interface Person {
   townFollow?: boolean;
   /** M3i: what they bought at the market, in the hand (puppetCarry). */
   bought?: THREE.Object3D | null;
+  /** M6 transport: riding a velocipede, pushing a handcart, leading a dray (puppetVehicle). */
+  veh?: Vehicle | null;
+}
+
+/** M6 transport: what a townsperson rides, pushes or leads (game/journeys.ts says which). */
+export type PuppetVehicle =
+  | { kind: "velo" }
+  | { kind: "cart"; items: number; what?: "goods" | "fish" | "furniture" | "chests" | "sacks" }
+  | { kind: "dray"; loaded: boolean };
+
+interface Vehicle {
+  spec: PuppetVehicle;
+  obj: THREE.Object3D | null;
+  steer?: THREE.Object3D | null;
+  front?: THREE.Object3D | null;
+  rear?: THREE.Object3D | null;
+  cart?: PushCart;
+  dray?: LedDray;
+  /** Ground covered (the wheels, the pedals), and where he was last frame. */
+  dist: number;
+  lx: number;
+  lz: number;
+  speed: number;
+  /** What the person had before (the crowd's own reach and size). */
+  was: { nose: number; reach: number; size: number };
 }
 
 // Who is about, by kind of place. Weights; the night table multiplies them.
@@ -678,7 +704,8 @@ export class Crowd {
       if (inView) y = p.drop + (p.state === "sit" ? 0 : p.human.bob() * p.size);
       p.group.position.set(p.x, y + (this.ground.baseAt?.(p.x, p.z) ?? 0), p.z);
       p.group.rotation.y = p.yaw;
-      if (p.kind === "carter") this.pushCart(p, dt, inView);
+      if (p.veh) this.moveVehicle(p, dt, inView);
+      else if (p.kind === "carter") this.pushCart(p, dt, inView);
       if (p.lantern) this.placeLantern(p, d);
     }
     this.stats_ = { alive: this.people.length, drawn, animated, target, clusters: this.clusters.length };
@@ -830,6 +857,130 @@ export class Crowd {
     }
   }
 
+  /**
+   * M6 transport: this townsperson rides a velocipede, pushes a handcart (with a number of things
+   * on it) or leads a dray; null gets them off or lets go (the caller parks the machine or the
+   * cart: see puppetCartAt). The crowd draws it, turns its wheels and pedals, and walks them on
+   * its grid with the vehicle's reach.
+   */
+  puppetVehicle(p: Puppet, spec: PuppetVehicle | null): void {
+    const had = p.veh;
+    if (had && spec && had.spec.kind === spec.kind) {
+      had.spec = spec;
+      if (spec.kind === "cart") had.cart?.setItems(spec.items, spec.what);
+      if (spec.kind === "dray" && had.dray) had.dray.loaded = spec.loaded;
+      return;
+    }
+    if (had) this.dropVehicle(p);
+    if (!spec) return;
+    const v: Vehicle = { spec, obj: null, dist: 0, lx: p.x, lz: p.z, speed: 0, was: { nose: p.nose, reach: p.reach, size: p.size } };
+    p.veh = v;
+    if (spec.kind === "velo") {
+      // the machine is 1.7 m long: its front wheel about a metre before the man
+      p.nose = 0.8;
+      p.reach = 0.35;
+      p.size = 1;
+      p.group.scale.setScalar(1);
+      void (this.veloProto ??= loadVelocipede()).then((proto) => {
+        if (!proto || p.veh !== v) return;
+        const m = proto.clone(true);
+        m.rotation.order = "YXZ";
+        v.obj = m;
+        v.steer = m.getObjectByName("velocipede_steer") ?? null;
+        v.front = m.getObjectByName("velocipede_front") ?? null;
+        v.rear = m.getObjectByName("velocipede_rear") ?? null;
+        this.scene.add(m);
+      });
+      p.human.play("ride", 0.2);
+    } else if (spec.kind === "cart") {
+      p.nose = CART.carter![0];
+      p.reach = CART.carter![1];
+      if (this.cartProps) {
+        v.cart = new PushCart(this.scene, this.cartProps, { load: false });
+        v.cart.setItems(spec.items, spec.what);
+        v.cart.place(p.x + Math.sin(p.yaw) * 0.5, p.z + Math.cos(p.yaw) * 0.5, p.yaw);
+      }
+    } else if (spec.kind === "dray") {
+      if (this.cartProps) {
+        v.dray = new LedDray(this.scene, this.cartProps, "sacks");
+        v.dray.loaded = spec.loaded;
+        v.dray.place(p.x, p.z, p.yaw);
+      }
+    }
+  }
+
+  /** M6: what this puppet rides, pushes or leads now (null: nothing). */
+  puppetVehicleOf(p: Puppet): PuppetVehicle | null {
+    return p.veh?.spec ?? null;
+  }
+
+  /** M6: where the cart stands (its axle, the way it points), to park it where he let go. */
+  puppetCartAt(p: Puppet): { x: number; z: number; yaw: number } | null {
+    return p.veh?.cart?.axle ?? null;
+  }
+
+  private veloProto: Promise<THREE.Object3D | null> | null = null;
+
+  /** The clip for someone with a vehicle: pedalling, pushing, or walking at the horse's head. */
+  private vehMotion(p: Person, moving: boolean): Motion {
+    const k = p.veh!.spec.kind;
+    if (k === "velo") return "ride";
+    if (k === "cart") return moving ? (p.kind === "carter" || p.kind === "porter" ? "walk" : "push") : "idle";
+    return moving ? "walk" : "idle";
+  }
+
+  /** Each frame: the velocipede under him (wheels and pedals by the ground covered), the cart before him, the dray behind. */
+  private moveVehicle(p: Person, dt: number, shown: boolean): void {
+    const v = p.veh!;
+    const step = Math.hypot(p.x - v.lx, p.z - v.lz);
+    v.lx = p.x;
+    v.lz = p.z;
+    v.speed += (Math.min(6, step / Math.max(dt, 1e-3)) - v.speed) * Math.min(1, dt * 6);
+    v.dist += step;
+    const base = this.ground.baseAt?.(p.x, p.z) ?? 0;
+    if (v.spec.kind === "velo") {
+      // on the saddle: the body raised and set back over it; the pedals turn with the front wheel
+      const lift = p.human.rideLift();
+      p.group.position.set(p.x - Math.sin(p.yaw) * RIDE_BACK, base + lift, p.z - Math.cos(p.yaw) * RIDE_BACK);
+      const turn = v.dist / WHEEL_R.front;
+      p.human.play("ride", 0.2);
+      p.human.setPhase("ride", turn / (Math.PI * 2));
+      if (v.obj) {
+        v.obj.visible = shown;
+        v.obj.position.set(p.x, base, p.z);
+        v.obj.rotation.y = p.yaw;
+        if (v.front) v.front.rotation.x = turn;
+        if (v.rear) v.rear.rotation.x = v.dist / WHEEL_R.rear;
+      }
+      return;
+    }
+    if (v.spec.kind === "cart" && v.cart) {
+      const walking = p.state === "walk";
+      const hands = handsOf(p.human, p.group, p.x, p.z, p.yaw);
+      v.cart.push(dt, hands.x, hands.z, hands.y, p.yaw, walking ? 1 : 0);
+      v.cart.visible = shown;
+      return;
+    }
+    if (v.spec.kind === "dray" && v.dray) {
+      v.dray.follow(dt, p.x, p.z, p.yaw, p.state === "walk" ? v.speed : 0);
+      v.dray.visible = Math.hypot(p.x - this.player.x, p.z - this.player.z) < this.fogFar + 10;
+    }
+  }
+
+  private dropVehicle(p: Person): void {
+    const v = p.veh;
+    if (!v) return;
+    v.obj?.removeFromParent();
+    v.cart?.dispose();
+    v.dray?.dispose();
+    p.nose = v.was.nose;
+    p.reach = v.was.reach;
+    p.size = v.was.size;
+    p.group.scale.setScalar(p.size);
+    p.veh = null;
+    p.human.play(p.pmotion ?? "idle", 0.3);
+  }
+
   /** Is this puppet walking at someone's side now? */
   puppetFollowing(p: Puppet): boolean {
     return p.role === "follow" && !!p.lead;
@@ -895,7 +1046,7 @@ export class Crowd {
         break;
       case "blocked":
         // Jef in the way: face him, wait, then find a way round
-        p.human.play("idle", 0.3);
+        p.human.play(p.veh ? this.vehMotion(p, false) : "idle", 0.3);
         this.face(p, Math.atan2(this.player.x - p.x, this.player.z - p.z), dt);
         p.held += dt;
         if (Math.hypot(this.player.x - p.x, this.player.z - p.z) > 1.4 + p.nose) p.state = "walk";
@@ -1210,10 +1361,10 @@ export class Crowd {
       else this.goTo(p, p.dest);
       return;
     }
-    this.face(p, Math.atan2(mx, mz), dt * 1.4);
-    const motion: Motion = p.loaded && p.handCarry ? "carry" : "walk";
+    this.face(p, Math.atan2(mx, mz), dt * (p.veh?.spec.kind === "velo" ? 2.4 : 1.4));
+    const motion: Motion = p.veh ? this.vehMotion(p, true) : p.loaded && p.handCarry ? "carry" : "walk";
     p.human.play(motion, 0.25);
-    p.human.setPace(p.pace / p.size);
+    if (motion !== "ride") p.human.setPace(p.pace / p.size);
   }
 
   /** A way round the player (right first, as on the street), put in front of the path. */
@@ -1259,7 +1410,7 @@ export class Crowd {
     if (p.role === "puppet") {
       p.dest = null;
       p.state = "stand";
-      p.human.play(p.pmotion ?? "idle", 0.3);
+      p.human.play(p.veh ? this.vehMotion(p, false) : (p.pmotion ?? "idle"), 0.3);
       return;
     }
     if (p.role === "haul") {
@@ -1871,6 +2022,7 @@ export class Crowd {
       p.bought = null;
     }
     if (p.lantern) this.scene.remove(p.lantern.g);
+    if (p.veh) this.dropVehicle(p);
     this.carts.get(p)?.dispose();
     this.carts.delete(p);
     p.group.remove(p.human.root);

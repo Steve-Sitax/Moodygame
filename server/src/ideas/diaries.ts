@@ -11,6 +11,7 @@ import { TRADES } from "../town/places.ts";
 import { rngFrom, type Resident } from "../town/population.ts";
 import { family, resident, town } from "../town/store.ts";
 import { walkMap } from "../town/walkmap.ts";
+import { visitorOf } from "../town/visitors.ts";
 import { noteOnRecord } from "../town/police.ts";
 import { pressTown } from "../paper/town.ts";
 import { canCallIdeas, clamp, d2, digitsOf, now, numbersOk, OUT_OF_WORLD, round5 } from "./common.ts";
@@ -42,6 +43,9 @@ export interface DiaryRow {
   status: "writing" | "lying" | "held" | "returned" | "sold" | "squeezed" | "gone";
   read: number;
   closed_day: number | null;
+  /** Game minute the writing began (day * 1440 + minutes), and how many times it was tried. */
+  started_min?: number | null;
+  tries?: number;
 }
 
 export interface Entry {
@@ -169,11 +173,23 @@ function dropPoint(r: Resident, rng: () => number): { x: number; z: number } {
   return p && wm.reachable(p.x, p.z) ? p : { x: r.home.sx, z: r.home.sz };
 }
 
+/** A notebook still being written after this many game minutes is stuck (QA 2026-09-24). */
+export const DIARY_STUCK_MIN = 30;
+const gameMin = (db: DB) => {
+  const t = now(db);
+  return t.day * 1440 + t.hour * 60 + (t.minute ?? 0);
+};
+/** Notebooks being written by this server process now: id -> a token, so a stale write never lands. */
+const writingHere = new Map<number, number>();
+let writeToken = 0;
+
 /**
  * `force`: a resident id, or "*" for anyone now (dev). Now and then (from day 2, about half the mornings, one lying at a time) a notebook is
  * dropped. The engine picks whose and the facts; the model writes the pages.
  */
 export async function maybeDiary(db: DB, opts: { runner?: Runner; timeoutMs?: number; rng?: () => number; force?: string } = {}): Promise<DiaryRow | null> {
+  // a notebook stuck in "writing" (a call that never came back, a server restart) first
+  await unstickDiaries(db, opts);
   const { day } = now(db);
   const rng = opts.rng ?? rngFrom(((town(db).town.seed || 1873) * 53 + day * 3571) >>> 0);
   if (!opts.force) {
@@ -182,7 +198,7 @@ export async function maybeDiary(db: DB, opts: { runner?: Runner; timeoutMs?: nu
   }
   const had = new Set((db.prepare("SELECT owner FROM diary").all() as Array<{ owner: string }>).map((x) => x.owner));
   const pool = town(db).town.residents.filter(
-    (r) => r.age >= 16 && !had.has(r.id) && !["soldier", "sentry", "corporal", "emigrant", "runner", "priest", "infant"].includes(r.trade),
+    (r) => r.age >= 16 && !had.has(r.id) && !visitorOf(r) && !["soldier", "sentry", "corporal", "emigrant", "runner", "priest", "infant"].includes(r.trade),
   );
   const r = opts.force && opts.force !== "*" ? resident(db, opts.force) : pool[Math.floor(rng() * pool.length)];
   if (!r) return null;
@@ -193,23 +209,77 @@ export async function maybeDiary(db: DB, opts: { runner?: Runner; timeoutMs?: nu
   const fb = engineEntries(r, facts, dates);
   const id = Number(
     db
-      .prepare("INSERT INTO diary (owner, day, x, z, facts_json, entries_json, source, status) VALUES (?, ?, ?, ?, ?, ?, 'engine', 'writing')")
-      .run(r.id, day, +p.x.toFixed(2), +p.z.toFixed(2), JSON.stringify(facts), JSON.stringify(fb)).lastInsertRowid,
+      .prepare("INSERT INTO diary (owner, day, x, z, facts_json, entries_json, source, status, started_min, tries) VALUES (?, ?, ?, ?, ?, ?, 'engine', 'writing', ?, 1)")
+      .run(r.id, day, +p.x.toFixed(2), +p.z.toFixed(2), JSON.stringify(facts), JSON.stringify(fb), gameMin(db)).lastInsertRowid,
   );
-  let entries = fb;
-  let source = "engine";
-  if (canCallIdeas(db)) {
-    const res = await callClaude(db, { hook: "diary", system: DIARY_SYSTEM, prompt: diaryPrompt(r, facts, dates), schema: DiarySchema, timeoutMs: opts.timeoutMs }, opts.runner);
-    if (res.ok && res.data) {
-      const c = cleanEntries(db, facts, dates, res.data, fb);
-      entries = c.entries;
-      source = c.ok ? "claude" : "engine";
+  return writeDiary(db, id, r, facts, dates, fb, true, opts);
+}
+
+/** The model writes the pages (or the engine's stand), and the notebook is dropped in the street. */
+async function writeDiary(
+  db: DB,
+  id: number,
+  r: Resident,
+  facts: string[],
+  dates: string[],
+  fb: Entry[],
+  useModel: boolean,
+  opts: { runner?: Runner; timeoutMs?: number },
+): Promise<DiaryRow | null> {
+  const token = ++writeToken;
+  writingHere.set(id, token);
+  try {
+    let entries = fb;
+    let source = "engine";
+    if (useModel && canCallIdeas(db)) {
+      const res = await callClaude(db, { hook: "diary", system: DIARY_SYSTEM, prompt: diaryPrompt(r, facts, dates), schema: DiarySchema, timeoutMs: opts.timeoutMs }, opts.runner);
+      if (res.ok && res.data) {
+        const c = cleanEntries(db, facts, dates, res.data, fb);
+        entries = c.entries;
+        source = c.ok ? "claude" : "engine";
+      }
     }
+    // a later retry took this notebook over: its write stands, not this one
+    if (writingHere.get(id) !== token) return diaryRow(db, id);
+    const done = db.prepare("UPDATE diary SET entries_json = ?, source = ?, status = 'lying' WHERE id = ? AND status = 'writing'").run(JSON.stringify(entries), source, id);
+    if (!done.changes) return diaryRow(db, id);
+    const d = diaryRow(db, id)!;
+    remember(db, r.id, "I have lost my notebook somewhere in the street. I hope nobody reads it.", 4);
+    writeEvent(db, { kind: "log", verb: "diary_lost", text: `${r.name} lost a small notebook in the street near ${nearLabel(d.x, d.z)}.`, actor: r.id, weight: 2 });
+    return d;
+  } finally {
+    if (writingHere.get(id) === token) writingHere.delete(id);
   }
-  db.prepare("UPDATE diary SET entries_json = ?, source = ?, status = 'lying' WHERE id = ?").run(JSON.stringify(entries), source, id);
-  remember(db, r.id, "I have lost my notebook somewhere in the street. I hope nobody reads it.", 4);
-  writeEvent(db, { kind: "log", verb: "diary_lost", text: `${r.name} lost a small notebook in the street near ${nearLabel(p.x, p.z)}.`, actor: r.id, weight: 2 });
-  return diaryRow(db, id);
+}
+
+/**
+ * A notebook left in "writing" (QA 2026-09-24: one stood so for days, and no new one ever came):
+ * one left over from a server restart, or older than DIARY_STUCK_MIN game minutes, is written
+ * again by the model once; after that the engine's own pages stand. The owner gone: it is gone.
+ */
+export async function unstickDiaries(db: DB, opts: { runner?: Runner; timeoutMs?: number } = {}): Promise<number[]> {
+  const rows = db.prepare("SELECT * FROM diary WHERE status = 'writing'").all() as Array<DiaryRow & { started_min: number | null; tries: number }>;
+  const nowMin = gameMin(db);
+  const out: number[] = [];
+  for (const d of rows) {
+    const leftOver = !writingHere.has(d.id);
+    const old = d.started_min === null || nowMin - d.started_min >= DIARY_STUCK_MIN;
+    if (!leftOver && !old) continue;
+    const r = resident(db, d.owner);
+    if (!r) {
+      db.prepare("UPDATE diary SET status = 'gone', closed_day = ? WHERE id = ?").run(now(db).day, d.id);
+      continue;
+    }
+    const facts = JSON.parse(d.facts_json) as string[];
+    const fb = JSON.parse(d.entries_json) as Entry[];
+    const dates = fb.map((e) => e.date);
+    const retry = (d.tries ?? 0) < 2;
+    db.prepare("UPDATE diary SET tries = ?, started_min = ? WHERE id = ?").run((d.tries ?? 0) + 1, nowMin, d.id);
+    console.log(`[diary] notebook ${d.id} (${d.owner}) was stuck writing: ${retry ? "one more try" : "the engine's pages"}`);
+    await writeDiary(db, d.id, r, facts, dates, fb, retry, opts);
+    out.push(d.id);
+  }
+  return out;
 }
 
 export function diaryRow(db: DB, id: number): DiaryRow | null {

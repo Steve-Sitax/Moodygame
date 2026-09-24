@@ -675,6 +675,9 @@ float psxRelH(vec2 uv, float wear) {
           // at most about a quarter of the ground is puddle, even in a storm: the rest is wet stone
           float th = 0.97 - lvl * 0.22;
           float water = smoothstep(th, th + 0.018, pn);
+          // broken into puddles a few metres across (QA 2026-09-24: in a narrow lane one big patch of
+          // the slow noise filled it wall to wall, a street-long mirror): a second, finer noise cuts it up
+          water *= smoothstep(0.46, 0.56, pudVal(pp / 2.1 + 57.1)) * smoothstep(0.3, 0.42, pudVal(pp / 4.7 - 23.9));
           // stones and pebbles stand out of the water: the shallower the puddle, the more of them
           ${opts.relief ? "water *= 1.0 - smoothstep(0.6 + lvl * 0.2, 0.7 + lvl * 0.2, psxH) * (1.0 - smoothstep(th + 0.05, th + 0.3, pn));" : ""}
           water = clamp(water, 0.0, 1.0);

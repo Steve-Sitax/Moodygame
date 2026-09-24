@@ -192,6 +192,18 @@ export interface Omnibuses {
   info(): Record<string, unknown>;
   /** Dev: put omnibus i just before a stop of its line. */
   jumpTo(i: number, stop: string, before?: number): void;
+  /**
+   * M6 transport: a townsperson gets on this omnibus (standing at a stop) to ride to the stop
+   * `alight` of its line (game/journeys.ts); no fare for residents. False: no room. They walk up
+   * the step and sit (a woman stands on the platform: no seat for a skirt in our clips).
+   */
+  boardResident(bus: Omnibus, who: { id: string; kind: HumanKind }, alight: string): boolean;
+  /** M6: a townsperson got off at their stop and stands at the foot of the step. */
+  onResidentOff?: (bus: Omnibus, id: string, at: { x: number; z: number; yaw: number }) => void;
+  /** M6: the townspeople riding now: who, on which omnibus, to which stop. */
+  residents(): Array<{ id: string; bus: number; alight: string; seated: boolean }>;
+  /** M6: no nameless passengers (the town's own people ride instead). */
+  anonymous: boolean;
 }
 
 export interface OmnibusOptions {
@@ -640,6 +652,8 @@ interface Passenger {
   state: "in" | "seated" | "out";
   path: P[];
   t: number;
+  /** M6: a townsperson of the town, riding to their stop (-1 seat: standing on the platform). */
+  who?: { id: string; alight: string };
 }
 
 export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnibuses {
@@ -882,9 +896,51 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     b.taken[q.i] = "passenger";
     b.passengers.push({ human, g, seat: q.i, state: "in", path: pathTo(q.s), t: 0 });
   }
+  /** M6: a townsperson of the town gets on here, to ride to `alight`. */
+  function boardResident(b: BusState, who: { id: string; kind: HumanKind }, alight: string): boolean {
+    if (b.passengers.some((p) => p.who?.id === who.id)) return true;
+    const human = makeHuman(who.kind);
+    if (!human) return false;
+    const g = new THREE.Group();
+    g.add(human.root);
+    if (human.canSit) {
+      const free = insideSeats.filter((q) => !b.taken[q.i]);
+      if (!free.length) {
+        human.dispose();
+        return false;
+      }
+      const q = free[Math.floor(Math.random() * free.length)];
+      b.frame.add(g);
+      b.taken[q.i] = "passenger";
+      b.passengers.push({ human, g, seat: q.i, state: "in", path: pathTo(q.s), t: 0, who: { id: who.id, alight } });
+      return true;
+    }
+    // no seat for a skirt: she stands on the back platform, holding on (two at most)
+    const standing = b.passengers.filter((p) => p.seat < 0).length;
+    if (standing >= 2) {
+      human.dispose();
+      return false;
+    }
+    b.frame.add(g);
+    const spot: P = [standing ? -0.35 : 0.3, Z0 - 0.55];
+    b.passengers.push({ human, g, seat: -1 - standing, state: "in", path: [[0.15, Z0 - 1.3], spot], t: 0, who: { id: who.id, alight } });
+    return true;
+  }
+
   /** At a stop: some get off, some get on (one to four aboard). */
   function atStop(b: BusState): void {
     for (const p of b.passengers) {
+      // M6: the town's own get off at their stop, and only there
+      if (p.who) {
+        if (p.state === "seated" && b.at?.id === p.who.alight) {
+          p.state = "out";
+          p.path = p.seat >= 0 ? pathTo(SEATS[p.seat]).reverse() : [[p.g.position.x, p.g.position.z], [0.15, Z0 - 1.3]];
+          p.t = 0;
+          p.human.play("walk", 0.2);
+          p.human.setPace(1.1);
+        }
+        continue;
+      }
       if (p.state === "seated" && Math.random() < 0.4) {
         p.state = "out";
         p.path = pathTo(SEATS[p.seat]).reverse();
@@ -893,6 +949,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         p.human.setPace(1.1);
       }
     }
+    if (!api.anonymous) return;
     const want = 1 + Math.floor(Math.random() * 4);
     const aboard = b.passengers.filter((p) => p.state !== "out").length;
     for (let k = 0; k < Math.min(2, want - aboard); k++) board(b);
@@ -925,17 +982,23 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
       }
       if (d >= 0) {
         // the end of the walk: sit down, or step off and go
-        if (p.state === "in") {
+        if (p.state === "in" && p.seat < 0) {
+          // standing on the platform, facing across it
+          p.state = "seated";
+          p.human.play("idle", 0.3);
+          p.g.rotation.y = Math.PI / 2;
+        } else if (p.state === "in") {
           const s = SEATS[p.seat];
           p.state = "seated";
           p.human.play("sit", 0.3);
           p.g.position.set(s.x, s.y + p.human.sitDrop(0) + 0.02, s.z);
           p.g.rotation.y = s.face;
         } else {
-          b.taken[p.seat] = null;
+          if (p.seat >= 0) b.taken[p.seat] = null;
           p.human.dispose();
           p.g.removeFromParent();
           p.state = "gone" as Passenger["state"];
+          if (p.who) api.onResidentOff?.(b, p.who.id, b.stepDown());
         }
       }
     }
@@ -1227,6 +1290,16 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     group,
     info() {
       return { buses: buses.map((b) => b.info()), lines: LINES.map((l) => ({ id: l.id, length: +loops.get(l.id)!.loop.length.toFixed(0), stops: loops.get(l.id)!.stopAt.map((x) => [x.stop.id, +x.s.toFixed(0)]) })) };
+    },
+    anonymous: true,
+    boardResident(bus, who, alight) {
+      const b = buses.find((q) => q === (bus as unknown as BusState));
+      return b ? boardResident(b, who, alight) : false;
+    },
+    residents() {
+      const out: Array<{ id: string; bus: number; alight: string; seated: boolean }> = [];
+      for (const b of buses) for (const p of b.passengers) if (p.who && (p.state as string) !== "gone") out.push({ id: p.who.id, bus: b.index, alight: p.who.alight, seated: p.state === "seated" });
+      return out;
     },
     jumpTo(i, stop, before = 20) {
       const b = buses[i];

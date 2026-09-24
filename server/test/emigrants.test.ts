@@ -309,7 +309,10 @@ describe("the runner", () => {
       const g = db.prepare("SELECT gist, tone FROM npc_memory WHERE npc_id = ? AND gist IS NOT NULL").get(adult) as { gist: string; tone: number };
       expect(g).toEqual({ gist: "Jef warned the emigrants off a runner's false tickets", tone: 2 });
       expect((db.prepare("SELECT tone FROM npc_memory WHERE npc_id = ? AND gist IS NOT NULL").get(RUNNER_ID) as { tone: number }).tone).toBe(-1);
-      // a warned family asks Jef to watch their things (a thief may come)
+      // a warned family asks Jef to watch their things (a thief may come), at once, in the same answer
+      // (QA 2026-09-24: the ask came only on a later tick, and only if he spoke to the head again)
+      expect(line.npc_line).toMatch(/watch our things/);
+      expect(listJobs(db, 3).some((x) => x.employer_npc === f.head && x.status === "offered" && x.task_type === "watch")).toBe(true);
       emigrantsTick(db);
       const w = listJobs(db, 3).find((x) => x.employer_npc === f.head && x.status === "offered")!;
       expect(w.task).toMatchObject({ kind: "watch", post: "emigrant_quay", twist: "thief" });

@@ -3,6 +3,8 @@ import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 import { RESIDENT_SCHEMA, dropTownCache, ensureGarrison, ensureTown, repairTown } from "./town/store.ts";
+import { ensureTransport, dropTransport } from "./town/possessions.ts";
+import { ensureBikeShop } from "./town/bikeshop.ts";
 import { ACTION_SCHEMA, EVENT_SCHEMA, EVENTLOG_SCHEMA, FAMILY_TABLES, familyMigrate } from "./director/schema.ts";
 import { PRESS_SCHEMA, PRESS_TABLES } from "./paper/schema.ts";
 import { IDEAS_SCHEMA, IDEAS_TABLES } from "./ideas/schema.ts";
@@ -28,7 +30,7 @@ CREATE TABLE IF NOT EXISTS player (
 );
 CREATE TABLE IF NOT EXISTS faction_trust (
   faction TEXT PRIMARY KEY,
-  trust INTEGER NOT NULL CHECK (trust BETWEEN 0 AND 10)
+  trust INTEGER NOT NULL CHECK (trust BETWEEN -5 AND 10)
 );
 CREATE TABLE IF NOT EXISTS npc (
   id TEXT PRIMARY KEY,
@@ -149,12 +151,26 @@ export function openDb(file: string): DB {
   ensureEmigrants(db);
   // M6 landmark interiors: the curate, the organist, clerks, cellarmen, the museum's attendant ... (landmarks/town.ts); in place, once
   ensureLandmarksTown(db);
+  // M6 transport: the velocipede maker, then what each household owns (town/bikeshop.ts, possessions.ts); in place, once
+  ensureBikeShop(db);
+  ensureTransport(db);
   return db;
 }
 
 /** Small in-place upgrades for save files made by an older build. */
 function migrate(db: DB): void {
   const cols = (table: string) => (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map((c) => c.name);
+  // Steve 2026-09-24: trust may go below 0 (-5 to 10). An older save's faction_trust carries the old
+  // CHECK (0 to 10): the table is rebuilt with the new range, every row copied as it is.
+  const ft = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'faction_trust'").get() as { sql: string } | undefined;
+  if (ft && /BETWEEN\s+0\s+AND\s+10/i.test(ft.sql)) {
+    db.transaction(() => {
+      db.exec("CREATE TABLE faction_trust_new (faction TEXT PRIMARY KEY, trust INTEGER NOT NULL CHECK (trust BETWEEN -5 AND 10))");
+      db.exec("INSERT INTO faction_trust_new (faction, trust) SELECT faction, trust FROM faction_trust");
+      db.exec("DROP TABLE faction_trust");
+      db.exec("ALTER TABLE faction_trust_new RENAME TO faction_trust");
+    })();
+  }
   if (!cols("npc_memory").includes("spread")) db.exec("ALTER TABLE npc_memory ADD COLUMN spread INTEGER NOT NULL DEFAULT 0");
   if (!cols("player").includes("minute")) db.exec("ALTER TABLE player ADD COLUMN minute INTEGER NOT NULL DEFAULT 0");
   // M3e: rumours in the town. gist = one line others may repeat about Jef, tone -2..+2,
@@ -177,6 +193,9 @@ function migrate(db: DB): void {
   familyMigrate(db);
   // M6 AI ideas: posters, Jef's own letters, jobs that go wrong, news from abroad, lost diaries (ideas/)
   db.exec(IDEAS_SCHEMA);
+  // a notebook stuck in "writing" is found by its start and its tries (ideas/diaries.ts)
+  if (!cols("diary").includes("started_min")) db.exec("ALTER TABLE diary ADD COLUMN started_min INTEGER");
+  if (!cols("diary").includes("tries")) db.exec("ALTER TABLE diary ADD COLUMN tries INTEGER NOT NULL DEFAULT 0");
   if (!cols("item").includes("ref")) db.exec("ALTER TABLE item ADD COLUMN ref INTEGER");
   // M4b: the leads of an event (bride, groom, musicians ...), picked by the engine at its start
   if (!cols("town_event").includes("leads_json")) db.exec("ALTER TABLE town_event ADD COLUMN leads_json TEXT NOT NULL DEFAULT '[]'");
@@ -199,6 +218,9 @@ export function resetDb(db: DB): void {
   ensureVisitors(db);
   ensureEmigrants(db);
   ensureLandmarksTown(db);
+  dropTransport(db);
+  ensureBikeShop(db);
+  ensureTransport(db);
 }
 
 function seed(db: DB): void {

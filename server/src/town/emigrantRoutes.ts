@@ -3,7 +3,7 @@ import type { DB } from "../db.ts";
 import { DEV } from "../config.ts";
 import { clock } from "../day.ts";
 import { ITEMS, waresOf } from "../trade.ts";
-import { TRADES } from "./places.ts";
+import { shownTrade } from "./places.ts";
 import { town } from "./store.ts";
 import type { Resident } from "./population.ts";
 import { boardByLighter, devEarly, emigrantsTick, emigrantsView, emigrantTown, abs, RUNNER_ID, KEEPER_ID, SCAM_HOURS } from "./emigrants.ts";
@@ -22,7 +22,7 @@ function publicResident(db: DB, r: Resident) {
     sex: r.sex,
     kind: r.kind,
     trade: r.trade,
-    label: TRADES[r.trade].label,
+    label: shownTrade(r),
     household: r.household,
     role: r.family_role,
     home: r.home,

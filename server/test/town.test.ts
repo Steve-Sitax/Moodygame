@@ -279,7 +279,7 @@ describe("talk with anyone", () => {
     const r = T.residents.find((o) => o.stats.gossip >= 6 && o.age > 16)!;
     remember(db, r.id, "Heard it from Sooi.", 6, "heard", "sooi", { gist: "Jef lifted Sooi's goods off the quay without asking", tone: -2 });
     const l = residentOpen(db, r.id);
-    expect(l.npc_line).toMatch(/you lifted Sooi's goods/);
+    expect(l.npc_line).toMatch(/You're the one who lifted Sooi's goods/);
   });
 
   it("falls back to engine lines when the model is late or wrong, and on the topic asked", async () => {
@@ -362,7 +362,7 @@ describe("talk with anyone", () => {
     expect(gated + fenced).toBe(HOSTILE_LINES.length);
     expect(gated).toBeGreaterThan(5);
     expect(money(db)).toBe(before);
-    expect((db.prepare("SELECT trust FROM npc_relationship WHERE npc_id = ?").get(r.id) as { trust: number }).trust).toBeGreaterThanOrEqual(0);
+    expect((db.prepare("SELECT trust FROM npc_relationship WHERE npc_id = ?").get(r.id) as { trust: number }).trust).toBeGreaterThanOrEqual(-5);
     expect((db.prepare("SELECT COUNT(*) n FROM item").get() as { n: number }).n).toBe(0);
   });
 

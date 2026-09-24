@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { openDb } from "../src/db.ts";
 import { callClaude, setProviderRunner, type Runner } from "../src/ai/claude.ts";
@@ -173,4 +173,90 @@ describe("the Codex schema", () => {
     expect(back).toEqual({ a: "x", d: [{ e: true }] });
     expect(z.object({ a: z.string(), b: z.string().optional() }).safeParse(back).success).toBe(true);
   });
+});
+
+// QA 2026-09-24: the ballad hook took 27 s on a 20 s limit, and once a 22.1 s answer was taken as
+// a success. The limit is hard now: at the deadline the caller has the timeout, the process is
+// killed, and a late answer is thrown away.
+describe("the hard time limit", () => {
+  it("a slow model that ignores the abort: the caller has the timeout at the limit, not when the model is done", async () => {
+    const db = openDb(":memory:");
+    let aborted = false;
+    const slow: Runner = (r) =>
+      new Promise((res) => {
+        r.signal.signal.addEventListener("abort", () => (aborted = true));
+        setTimeout(() => res({ output: { line: "Too late." } }), 1_500); // ignores the abort
+      });
+    const t0 = Date.now();
+    const res = await callClaude(db, { hook: "test_slow", system: "s", prompt: "p", schema: Schema, timeoutMs: 300 }, slow);
+    const took = Date.now() - t0;
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/timeout after 300 ms/);
+    expect(took).toBeLessThan(600);
+    expect(aborted).toBe(true);
+    const row = db.prepare("SELECT ms, ok FROM ai_call").get() as { ms: number; ok: number };
+    expect(row.ok).toBe(0);
+    expect(row.ms).toBeLessThan(600);
+  });
+
+  it("an answer that comes just after the limit is never accepted", async () => {
+    const db = openDb(":memory:");
+    const late: Runner = () => new Promise((res) => setTimeout(() => res({ output: { line: "Just late." } }), 380));
+    const res = await callClaude(db, { hook: "test_late", system: "s", prompt: "p", schema: Schema, timeoutMs: 300 }, late);
+    expect(res.ok).toBe(false);
+    expect(res.data).toBeUndefined();
+    await new Promise((r) => setTimeout(r, 150)); // the late answer arrives now, and changes nothing
+    expect((db.prepare("SELECT COUNT(*) AS n FROM ai_call WHERE ok = 1").get() as { n: number }).n).toBe(0);
+  });
+
+  it("no caller can set the limit past 20 s", async () => {
+    const db = openDb(":memory:");
+    vi.useFakeTimers();
+    try {
+      const stuck: Runner = () => new Promise(() => {}); // never answers
+      let res: Awaited<ReturnType<typeof callClaude>> | null = null;
+      void callClaude(db, { hook: "test_cap", system: "s", prompt: "p", schema: Schema, timeoutMs: 60_000 }, stuck).then((r) => (res = r));
+      await vi.advanceTimersByTimeAsync(19_900);
+      expect(res).toBeNull();
+      await vi.advanceTimersByTimeAsync(200);
+      expect(res).toMatchObject({ ok: false, error: "timeout after 20000 ms" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a second call on the same hook waits for the first only until its own limit", async () => {
+    const db = openDb(":memory:");
+    const stuck: Runner = () => new Promise(() => {}); // never answers
+    const t0 = Date.now();
+    const first = callClaude(db, { hook: "test_busy", system: "s", prompt: "p", schema: Schema, timeoutMs: 400 }, stuck);
+    await new Promise((r) => setTimeout(r, 50));
+    const second = await callClaude(db, { hook: "test_busy", system: "s", prompt: "p", schema: Schema, timeoutMs: 200 }, stuck);
+    expect(second.ok).toBe(false);
+    expect(second.error).toMatch(/timeout/);
+    expect(Date.now() - t0).toBeLessThan(450);
+    expect((await first).error).toMatch(/timeout after 400 ms/);
+  });
+
+  it("the timed-out model process is killed", async () => {
+    const { spawn } = await import("node:child_process");
+    const { killTree } = await import("../src/ai/codex.ts");
+    const db = openDb(":memory:");
+    let exited: Promise<number | null> | null = null;
+    // a stand-in model: a real process that would run for 30 s and never answer
+    const proc: Runner = (r) =>
+      new Promise((_res, rej) => {
+        const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 30000)"], { stdio: "ignore", windowsHide: true });
+        exited = new Promise((done) => child.once("exit", (code) => done(code)));
+        r.signal.signal.addEventListener("abort", () => killTree(child.pid), { once: true });
+        child.once("exit", () => rej(new Error("killed")));
+      });
+    const t0 = Date.now();
+    const res = await callClaude(db, { hook: "test_proc", system: "s", prompt: "p", schema: Schema, timeoutMs: 500 }, proc);
+    expect(res.error).toMatch(/timeout after 500 ms/);
+    expect(Date.now() - t0).toBeLessThan(800);
+    const t1 = Date.now();
+    await exited;
+    expect(Date.now() - t1).toBeLessThan(5_000);
+  }, 10_000);
 });

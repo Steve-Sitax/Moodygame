@@ -434,13 +434,13 @@ describe("the Sunday sermon", () => {
     const wk = fresh(3, 10);
     setJefIn("cathedral");
     expect(hearSermon(wk).delta).toBe(0);
-    // never below 0
+    // below 0 now (Steve 2026-09-24: trust runs from -5 to 10)
     const z = fresh(7, 7);
     remember(z, "r065", "Jef stole.", 5, "seen", null, { gist: "Jef stole a herring from Fientje", tone: -2 });
     await writeSermon(z, reply({ lines: GOOD.slice(0, 6) }));
     setClock(z, 7, 10);
     expect(hearSermon(z).delta).toBe(-1);
-    expect(kerk(z)).toBe(0);
+    expect(kerk(z)).toBe(-1);
   });
 
   it("the congregation: a gossip whispers the engine's line, the pious nod", async () => {

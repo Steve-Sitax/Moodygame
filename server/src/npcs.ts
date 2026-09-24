@@ -148,11 +148,25 @@ export function relationship(db: DB, id: string): Relationship {
     .get(id) as Relationship;
 }
 
+/**
+ * Trust, personal and per faction (Steve, 2026-09-24: "trust should be able to go below 0; we can
+ * later implement hate and fights then"): from TRUST_MIN to TRUST_MAX. Below 0 the person dislikes
+ * Jef; the reactions lean colder within the rules (no fighting system yet, docs/08 #10).
+ */
+export const TRUST_MIN = -5;
+export const TRUST_MAX = 10;
+
+/** Trust as a prompt says it: the number, and below 0 the words for it. */
+export function trustText(t: number): string {
+  if (t >= 0) return `${t} of 10`;
+  return `${t}, on a scale from -5 to 10: ${t <= -3 ? "can't stand Jef" : "dislikes Jef"}`;
+}
+
 /** Trust moves by at most 2 per conversation (docs/03 clamp). */
 export function applyTrust(db: DB, id: string, delta: number, soFar: number): number {
   const clamped = Math.max(-2 - soFar, Math.min(2 - soFar, Math.round(delta)));
   const d = Math.max(-2, Math.min(2, clamped));
-  if (d) db.prepare("UPDATE npc_relationship SET trust = MAX(0, MIN(10, trust + ?)) WHERE npc_id = ?").run(d, id);
+  if (d) db.prepare("UPDATE npc_relationship SET trust = MAX(-5, MIN(10, trust + ?)) WHERE npc_id = ?").run(d, id);
   return d;
 }
 

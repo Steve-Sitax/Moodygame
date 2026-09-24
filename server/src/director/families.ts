@@ -6,11 +6,11 @@ import { clock, WEATHER_TEXT } from "../day.ts";
 import { log, player } from "../game.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
 import { gateText, markFreeLine } from "../hooks/dialogue.ts";
-import { applyTrust, relationship, remember, topMemories } from "../npcs.ts";
+import { applyTrust, relationship, remember, topMemories, trustText } from "../npcs.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { ITEMS, POCKET_SLOTS, waresOf } from "../trade.ts";
 import { gameMinute } from "../town/deeds.ts";
-import { TRADES } from "../town/places.ts";
+import { shownTrade, TRADES } from "../town/places.ts";
 import { policeDispatch } from "../town/police.ts";
 import type { Resident } from "../town/population.ts";
 import { circleOf, ownVoice, toYou } from "../town/rumours.ts";
@@ -370,7 +370,7 @@ function personBlock(db: DB, tag: string, r: Resident): string {
   const persona = personaLine(db, r.id);
   return `PERSON ${tag}: ${r.name}, ${r.age}, ${r.sex === "f" ? "woman" : "man"}, ${TRADES[r.trade]?.label ?? r.trade}.
 Stats 0-10: honesty ${s.honesty}, temper ${s.temper}, warmth ${s.warmth}, greed ${s.greed}, courage ${s.courage}, piety ${s.piety}, gossip ${s.gossip}.${persona ? ` ${persona}` : ""}
-Trust in Jef ${rel?.trust ?? 0} of 10. Knows of Jef: ${mem.length ? mem.map((m) => m.text).join(" / ") : "nothing"}`;
+Trust in Jef ${trustText(rel?.trust ?? 0)}. Knows of Jef: ${mem.length ? mem.map((m) => m.text).join(" / ") : "nothing"}`;
 }
 
 function sharePrompt(db: DB, a: Resident, b: Resident, n: NewsRow, allowed: Allowed[]): string {
@@ -632,11 +632,17 @@ export function visitOpening(db: DB, a: ActionRow): string {
     case "invite_supper":
       return `${who} ${fact}. Come and eat with us tonight. There's stew, and bread enough.`;
     case "gift":
-      return n ? `${who} ${fact}. Here, take this. No, no, I insist.` : "You look half starved, lad. Here, take this. No, no, I insist.";
+      if (n) return `${who} ${fact}. Here, take this. No, no, I insist.`;
+      {
+        // how Jef looks, from his real needs (QA 2026-09-24: "half starved" with food at 8)
+        const p = player(db);
+        const look = p.food <= 2 ? "You look half starved, lad." : p.food <= 4 ? "You look as if you could do with a bite, lad." : p.warmth <= 3 ? "You look frozen through, lad." : "Something for later, lad.";
+        return `${look} Here, take this. No, no, I insist.`;
+      }
     case "police_word":
       return `A word, Jef. ${n ? `${resident(db, n.listener)?.name ?? "Someone"} came to me: ${fact}.` : "There's been a complaint about you."} I'll not have trouble on my beat.`;
     case "meet":
-      return r.stats.warmth >= 6 ? `You look like a man who could use a friendly face. ${r.first}, ${TRADES[r.trade]?.label ?? ""}.` : `You're new here. I'm ${r.first}. Mind how you go on these quays.`;
+      return r.stats.warmth >= 6 ? `You look like a man who could use a friendly face. ${r.first}, ${shownTrade(r)}.` : `You're new here. I'm ${r.first}. Mind how you go on these quays.`;
     default:
       return `${who} ${fact}.`;
   }
@@ -657,7 +663,7 @@ async function seekReport(db: DB, a: ActionRow, rep: Report, runner?: Runner): P
   // a gift is handed over as they meet (the engine's: one thing from their wares, if Jef has room)
   if (d.reaction === "gift") giveGift(db, r);
   setSeek(db, a, "at_jef", now + AT_JEF_MIN);
-  bus.broadcast({ type: "families", visit: { action: a.id, npc: r.id, name: r.name, title: TRADES[r.trade]?.label ?? "", reaction: d.reaction }, jobs: true });
+  bus.broadcast({ type: "families", visit: { action: a.id, npc: r.id, name: r.name, title: shownTrade(r), reaction: d.reaction }, jobs: true });
   return actionRow(db, a.id);
 }
 
@@ -887,7 +893,7 @@ function startMenace(db: DB, a: ActionRow, _runner?: Runner): ActionRow | null {
 export function visitNow(db: DB): { action: number; npc: string; name: string; title: string; reaction: VisitKind | null } | null {
   const a = activeActions(db).find((x) => x.kind === "seek" && x.phase === "at_jef" && !seekData(x).opened);
   const r = a ? resident(db, a.npc_id) : null;
-  return a && r ? { action: a.id, npc: r.id, name: r.name, title: TRADES[r.trade]?.label ?? "", reaction: seekData(a).reaction ?? null } : null;
+  return a && r ? { action: a.id, npc: r.id, name: r.name, title: shownTrade(r), reaction: seekData(a).reaction ?? null } : null;
 }
 
 /** The menace that stands before Jef now, if any. */

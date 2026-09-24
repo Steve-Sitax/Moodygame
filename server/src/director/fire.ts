@@ -6,6 +6,8 @@ import { remember } from "../npcs.ts";
 import { walkPath } from "../town/lamplighters.ts";
 import type { Resident } from "../town/population.ts";
 import { resident, town, TOWN_EMPLOYER_IDS } from "../town/store.ts";
+import { activityAt } from "../town/schedule.ts";
+import { actionOf } from "./actions.ts";
 import { houseDoors, walkMap, WATER, type HouseDoor } from "../town/walkmap.ts";
 import { gameMinute } from "../town/deeds.ts";
 import { notify } from "./bus.ts";
@@ -337,7 +339,7 @@ export function runFireAct(db: DB, ev: EventRow, s: StoredStage, _i: number): vo
         return;
       }
       // the household out in the street, across from the door
-      const fam = freeResidents(db, ev, (r) => f!.family.includes(r.id) && r.age >= 3);
+      const fam = freeResidents(db, ev, (r) => f!.family.includes(r.id) && r.age >= 3, { evenAtWork: true });
       const across = fam.map((_r, k): P2 => {
         const wm = walkMap();
         const side: P2 = [-f!.out[1], f!.out[0]];
@@ -368,6 +370,10 @@ export function runFireAct(db: DB, ev: EventRow, s: StoredStage, _i: number): vo
         if (castEngineLead(db, ev, r.id, "fireman", spot, k)) f!.firemen.push(r.id);
       });
       saveFire(db, ev, f);
+      // the street lines up while the pump comes (QA 2026-09-24: a chain called only at its own
+      // stage was still walking in when the fire was out): the chain forms now, and passes buckets
+      // from the next stage
+      formChain(db, ev, f);
       writeEvent(db, {
         kind: "event",
         verb: "fire_brigade",
@@ -384,19 +390,8 @@ export function runFireAct(db: DB, ev: EventRow, s: StoredStage, _i: number): vo
     }
     case "fire_chain": {
       if (!f) return;
-      const cur = eventRow(db, ev.id)!;
-      const leads = new Set(leadsOf(cur).map((l) => l.id));
-      const people = JSON.parse(cur.people_json) as string[];
-      const able = (r: Resident) => r.age >= 14 && r.age <= 66 && !["police", "priest", "lamplighter"].includes(r.trade) && !leads.has(r.id);
-      const near = (r: Resident) => Math.hypot(r.home.sx - f!.water[0], r.home.sz - f!.water[1]);
-      // the onlookers step in first, then people from the nearest houses
-      const onlookers = people.map((id) => resident(db, id)).filter((r): r is Resident => !!r && able(r) && !f!.family.includes(r.id));
-      const fresh = freeResidents(db, ev, (r) => able(r) && !people.includes(r.id)).sort((a, b) => near(a) - near(b));
-      const want = Math.max(CHAIN_MIN, Math.min(CHAIN_MAX, f.chain.length));
-      const ids = [...onlookers, ...fresh].slice(0, Math.min(want, f.chain.length)).map((r) => r.id);
-      // the nearest to each end: order by who is nearest the water for the first places
-      f.chainIds = placeAt(db, ev, ids, f.chain.map(([x, z]) => ({ x, z })), "chain", (k) => ({ line: k < f!.full ? "full" : "empty" }));
-      saveFire(db, ev, f);
+      // the line stands already (formChain at the brigade); gaps are filled now
+      formChain(db, ev, f);
       writeEvent(db, { kind: "event", verb: "bucket_chain", text: `${f.chainIds.length} people stood in a bucket chain from the water to ${f.place}.`, place: ev.place, x: f.water[0], z: f.water[1], ref_type: "town_event", ref_id: ev.id, weight: 4 });
       return;
     }
@@ -407,6 +402,74 @@ export function runFireAct(db: DB, ev: EventRow, s: StoredStage, _i: number): vo
       return;
     }
   }
+}
+
+/** Where a resident is now by the clock: at the work place when working, else at home (for who is near a fire). */
+function whereNow(db: DB, r: Resident): P2 {
+  const c = clock(db);
+  const now = activityAt(r.sched, c.day, c.hour + c.minute / 60);
+  if (now.act === "work" && r.work.at) return [r.work.at[0], r.work.at[1]];
+  if (now.act !== "home") {
+    const pl = town(db).town.places[now.act === "work" ? r.work.place : now.place];
+    if (pl) return [pl.x, pl.z];
+  }
+  return [r.home.sx, r.home.sz];
+}
+
+/** How far off the chain takes people who are not there already: nobody walks in from across the town. */
+export const CHAIN_FROM_M = 140;
+
+/**
+ * The bucket chain's people: the onlookers step in first (the nearest to the water first), then
+ * free residents who are near now; each to a place in the line. Called when the pump comes (so
+ * the line stands when the buckets start) and again at the chain's stage (to fill gaps). Nobody
+ * already in it is moved.
+ */
+export function formChain(db: DB, ev: EventRow, f: FireScene): string[] {
+  const cur = eventRow(db, ev.id)!;
+  const leads = new Set(leadsOf(cur).map((l) => l.id));
+  const people = JSON.parse(cur.people_json) as string[];
+  const able = (r: Resident) => r.age >= 14 && r.age <= 66 && !["police", "priest", "lamplighter", "soldier", "sentry", "corporal"].includes(r.trade) && !leads.has(r.id) && !f.family.includes(r.id);
+  const water = f.water;
+  const near = (r: Resident) => {
+    const [x, z] = whereNow(db, r);
+    return Math.hypot(x - water[0], z - water[1]);
+  };
+  const have = new Set(f.chainIds.filter((id) => people.includes(id)));
+  const taken = new Set<number>();
+  // who already has a place keeps it
+  const slotOf = new Map<string, number>();
+  for (const id of [...have]) {
+    // the place is the one their action walks to
+    const a = actionOf(db, id);
+    const k = a && a.event_id === ev.id && a.target_x !== null && a.target_z !== null ? f.chain.findIndex(([x, z]) => Math.abs(x - a.target_x!) < 0.05 && Math.abs(z - a.target_z!) < 0.05) : -1;
+    if (k >= 0 && !taken.has(k)) {
+      slotOf.set(id, k);
+      taken.add(k);
+    } else have.delete(id);
+  }
+  const onlookers = people.map((id) => resident(db, id)).filter((r): r is Resident => !!r && able(r) && !have.has(r.id));
+  const fresh = freeResidents(db, ev, (r) => able(r) && !people.includes(r.id) && near(r) <= CHAIN_FROM_M).sort((a, b) => near(a) - near(b));
+  const want = Math.max(CHAIN_MIN, Math.min(CHAIN_MAX, f.chain.length));
+  const free = [...Array(f.chain.length).keys()].filter((k) => !taken.has(k));
+  const room = Math.max(0, Math.min(want, f.chain.length) - have.size);
+  const add = [...onlookers, ...fresh].slice(0, Math.min(room, free.length));
+  // the free places in order from the water (the full line first), the newcomers in the order found
+  const ids: string[] = [];
+  const slots: Array<{ x: number; z: number }> = [];
+  add.forEach((r, i) => {
+    ids.push(r.id);
+    const k = free[i];
+    slots.push({ x: f.chain[k][0], z: f.chain[k][1] });
+    slotOf.set(r.id, k);
+  });
+  const placed = placeAt(db, ev, ids, slots, "chain", (i) => ({ line: free[i] < f.full ? "full" : "empty" }));
+  const byslot: string[] = new Array(f.chain.length).fill("");
+  for (const [id, k] of slotOf) if (have.has(id) || placed.includes(id)) byslot[k] = id;
+  f.chainIds = byslot.filter(Boolean);
+  // chainIds in slot order, with the slot kept: the client matches people to places by their action's target
+  saveFire(db, ev, f);
+  return placed;
 }
 
 /** The game minute the chain stage ends. */

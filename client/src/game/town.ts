@@ -7,6 +7,7 @@ import type { Stalls } from "./stalls";
 import type { Npc, People } from "./people";
 import { isHumanKind, type HumanKind, type Motion } from "./humans";
 import type { World } from "../world/rijnkaai";
+import type { Journeys, JourneyTown, Trip } from "./journeys";
 import SPOT_TABLE from "../../../shared/spots.json";
 import CITY from "../../../shared/city.json";
 
@@ -86,6 +87,14 @@ interface Sim {
   /** Customs at a landing: 0 arrived, 1 up to the goods, 2 writing, 3 looking; and which way the goods lie. */
   ph?: number;
   face?: number | null;
+  /** M6 transport (game/journeys.ts): the trip under way (by velocipede, cart, omnibus, boat, dray). */
+  trip?: Trip | null;
+  /** Held by someone else's trip (loading the cart, in the boat): the town leaves them be. */
+  inTrip?: boolean;
+  /** On the omnibus or in a boat: not in the street. */
+  aboard?: boolean;
+  /** The day's errand they are on (a family boat, a dray). */
+  errand?: string;
 }
 
 /** A person you can talk to, for the talk window (people.ts Npc has the same shape). */
@@ -113,6 +122,8 @@ const isNight = (h: number) => h >= 19 || h < 6.5;
 const GARRISON = new Set(["soldier", "sentry", "corporal", "customs"]);
 const SOLDIERS = new Set(["soldier", "sentry", "corporal"]);
 const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
+/** The town's key of a place of the day ("home:home", "work:work") as the engine's (transport.ts placeKey: "home", "work:work"). */
+const plainKey = (k: string) => (k.startsWith("home:") ? "home" : k);
 
 export class Town {
   data: TownData | null = null;
@@ -140,6 +151,8 @@ export class Town {
   canRob: () => boolean = () => true;
   toast: (t: string) => void = () => {};
   onPayload: (p: JobsPayload) => void = () => {};
+  /** M6 transport: how the residents get about (game/journeys.ts); set by main. */
+  journeys: Journeys | null = null;
   private player = { x: 0, z: 0, yaw: 0 };
   private busyNet = false;
   private lastDay = 0;
@@ -230,12 +243,18 @@ export class Town {
   // ------------------------------------------------------------------ the schedule
 
   private reschedule(s: Sim, day: number, hour: number, first: boolean): void {
+    if (s.inTrip) return; // someone else's trip has them (the cart, the boat)
+    // M6 transport: the day's errand with a load (a family boat, a dray) comes first
+    const err = !first ? (this.journeys?.errandFor(s.r.id, day, hour) ?? null) : null;
+    if (err || s.errand) return this.errandStep(s, err, day, hour);
     const now = activityAt(s.r.sched, day, hour);
     const key = `${now.act}:${now.place}`;
     if (key === s.key) {
       this.lanterns(s, hour);
       return;
     }
+    const prevKey = s.key;
+    const prevPt: Pt | null = s.p ? [s.p.x, s.p.z] : s.inside ? null : [s.x, s.z];
     s.key = key;
     if (s.p) this.market?.forget(s.p);
     s.goal = this.goalFor(s, now);
@@ -262,8 +281,45 @@ export class Town {
       s.z = s.door[1];
       s.outAt = performance.now();
     }
+    // M6 transport: how they go (a velocipede, the cart with the goods, the omnibus): journeys.ts
+    if (!first && !s.held && prevKey) this.journeys?.begin(s, plainKey(prevKey), prevPt);
     if (s.p) this.direct(s);
     this.lanterns(s, hour);
+  }
+
+  /**
+   * M6 transport: an errand of the day (server town/possessions.ts errandsFor): the family boat
+   * rows a load to another flight and back, the dray goes from its yard to a shop door. The owner
+   * leads; the crew go with him (journeys.ts holds them). Out at its hour, back at its end.
+   */
+  private errandStep(s: Sim, err: { id: string; who: string[]; to: [number, number] } | null, day: number, hour: number): void {
+    const j = this.journeys;
+    if (err && s.errand !== err.id) {
+      s.errand = err.id;
+      s.key = `errand:${err.id}`;
+      if (s.inside) {
+        s.inside = false;
+        s.x = s.door[0];
+        s.z = s.door[1];
+        s.outAt = performance.now();
+      }
+      s.goal = { mode: "stand", x: err.to[0], z: err.to[1], motion: "idle" };
+      if (j && s.r.id === err.who[0]) j.beginErrand(s, err as never, false);
+      if (s.p && !s.trip) this.direct(s);
+      return;
+    }
+    if (err) return;
+    // the errand's time is up, but the way there is not done yet: finish it first
+    if (s.trip?.errand === s.errand) return;
+    // the errand is over: the owner rows the boat home (a dray came back to its yard already); then the day goes on
+    const was = j?.data?.errands.find((e) => e.id === s.errand) ?? null;
+    s.errand = undefined;
+    s.key = "";
+    const now = activityAt(s.r.sched, day, hour);
+    s.key = `${now.act}:${now.place}`;
+    s.goal = this.goalFor(s, now);
+    if (j && was && was.kind === "boat" && s.r.id === was.who[0]) j.beginErrand(s, was, true);
+    if (s.p && !s.trip) this.direct(s);
   }
 
   private place(id: string): TownPlace | null {
@@ -356,7 +412,8 @@ export class Town {
     return { mode: "loiter", x, z, r: pl.r, place: w.place };
   }
 
-  private anchor(s: Sim): Pt {
+  /** Where their goal is (a trip's end): the stand, the door, the first point of a round. */
+  anchor(s: Sim): Pt {
     const g = s.goal;
     if (g.mode === "haul" && g.a) return g.a;
     if (g.route?.length) return g.route[s.step % g.route.length];
@@ -365,6 +422,8 @@ export class Town {
 
   /** Nobody sees them: a straight walk to where they should be, briskly. */
   private coarse(s: Sim, dt: number): void {
+    // M6 transport: on a trip, the way of going sets the pace (journeys.ts)
+    if (s.trip && this.journeys?.coarse(s, dt)) return;
     const lead = s.goal.mode === "roam" ? this.leadOf(s) : null;
     if (lead) s.step = lead.step;
     const [tx, tz] = lead ? [lead.x + 0.6, lead.z] : this.anchor(s);
@@ -401,7 +460,7 @@ export class Town {
     const px = this.player.x;
     const pz = this.player.z;
     const want = this.sims
-      .filter((s) => !s.p && !s.inside && dist(s.x, s.z, px, pz) < SPAWN_R)
+      .filter((s) => !s.p && !s.inside && !s.aboard && dist(s.x, s.z, px, pz) < SPAWN_R)
       .sort((a, b) => dist(a.x, a.z, px, pz) - dist(b.x, b.z, px, pz));
     for (const s of want) {
       if (alive >= this.maxPuppets) break;
@@ -460,6 +519,10 @@ export class Town {
   private direct(s: Sim): void {
     const p = s.p!;
     const g = s.goal;
+    if (s.trip && this.journeys) {
+      this.journeys.direct(s);
+      return;
+    }
     this.crowd.puppetLoad(p, false);
     const pace = this.paceOf(s);
     switch (g.mode) {
@@ -491,6 +554,8 @@ export class Town {
   // ------------------------------------------------------------------ what they do there
 
   private behave(s: Sim, dt: number, hour: number): void {
+    // M6 transport: riding, pushing the cart, waiting for the omnibus, going to the boat
+    if (s.trip && this.journeys?.behave(s, dt)) return;
     const p = s.p!;
     const g = s.goal;
     if (this.pair(s, dt)) return;
@@ -1082,6 +1147,9 @@ export class Town {
   claim(id: string, from?: { x: number; z: number }): Puppet | null {
     const s = this.byId.get(id);
     if (!s) return null;
+    // M6 transport: an action or the police take them off their trip (the vehicle goes back to its spot)
+    if (s.trip) this.journeys?.end(s, false);
+    if (s.inTrip || s.aboard) return null;
     if (s.p) this.crowd.puppetFollow(s.p, null);
     if (!s.p && from) {
       if (!isHumanKind(s.kind)) s.kind = KIND_FALLBACK[s.kind] ?? "docker_a";
@@ -1163,7 +1231,7 @@ export class Town {
   }
 
   /** Unseen and held: move them on toward a point at the hidden pace (a long go_to across town). */
-  moveHidden(id: string, tx: number, tz: number, dt: number): void {
+  moveHidden(id: string, tx: number, tz: number, dt: number, speed = HIDDEN_SPEED): void {
     const s = this.byId.get(id);
     if (!s) return;
     if (s.p) {
@@ -1176,7 +1244,7 @@ export class Town {
     s.inside = false;
     const d = dist(s.x, s.z, tx, tz);
     if (d < 0.5) return;
-    const k = Math.min(1, (HIDDEN_SPEED * dt) / d);
+    const k = Math.min(1, (speed * dt) / d);
     s.x += (tx - s.x) * k;
     s.z += (tz - s.z) * k;
   }
@@ -1256,6 +1324,55 @@ export class Town {
     return this.byId.has(id);
   }
 
+  // ------------------------------------------------------------------ M6 transport
+
+  /** What journeys.ts may do with the town's residents. */
+  journeyHost(): JourneyTown {
+    return {
+      sims: () => this.sims,
+      sim: (id) => this.byId.get(id),
+      anchor: (s) => this.anchor(s as Sim),
+      clock: () => this.clock(),
+      drop: (s) => this.lose(s as Sim, true),
+      resume: (s) => {
+        const q = s as Sim;
+        q.wait = 0;
+        q.tries = 0;
+        q.arrived = false;
+        if (q.p) this.direct(q);
+      },
+      pace: (s) => this.paceOf(s as Sim),
+      hiddenSpeed: HIDDEN_SPEED,
+    };
+  }
+
+  /** M6: on the omnibus for an action (actions.ts byTram): not in the street. */
+  setAboard(id: string, on: boolean): void {
+    const s = this.byId.get(id);
+    if (!s) return;
+    s.aboard = on;
+    if (on) {
+      if (s.p) this.lose(s, true);
+      s.held = true;
+      s.inside = false;
+    }
+  }
+
+  /** M6: where someone out of sight is now (riding the omnibus). */
+  placeHidden(id: string, x: number, z: number): void {
+    const s = this.byId.get(id);
+    if (!s || s.p) return;
+    s.x = x;
+    s.z = z;
+  }
+
+  /** Unseen and held for an action: the pace of the way they go (a velocipede at hand goes faster). */
+  hiddenPace(id: string, tx: number, tz: number): number {
+    const s = this.byId.get(id);
+    if (!s || !this.journeys) return HIDDEN_SPEED;
+    return this.journeys.hiddenPace(id, [s.x, s.z], [tx, tz]);
+  }
+
   // ------------------------------------------------------------------ checks
 
   /** Every home, workplace and post the town uses, for the path check (CLAUDE.md). */
@@ -1299,7 +1416,7 @@ export class Town {
   /** Dev: one resident's state. */
   who(id: string) {
     const s = this.byId.get(id);
-    return s && { name: s.r.name, trade: s.r.trade, key: s.key, mode: s.goal.mode, x: +s.x.toFixed(1), z: +s.z.toFixed(1), inside: s.inside, puppet: !!s.p };
+    return s && { name: s.r.name, trade: s.r.trade, key: s.key, mode: s.goal.mode, x: +s.x.toFixed(1), z: +s.z.toFixed(1), inside: s.inside, puppet: !!s.p, trip: s.trip ? `${s.trip.mode}:${s.trip.phase}` : null, inTrip: !!s.inTrip, aboard: !!s.aboard };
   }
 
   /** Dev: the nearest puppets with what they do. */

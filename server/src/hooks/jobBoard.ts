@@ -253,7 +253,7 @@ export function buildPrompt(db: DB): string {
 
 WORLD STATE
 Day ${p.day} of 7, hour ${p.hour}. Weather: ${sky}.
-${p.name} has ${p.money_c} centimes. Trust per faction (0-10): ${trust.map((t) => `${t.faction} ${t.trust}`).join(", ")}.
+${p.name} has ${p.money_c} centimes. Trust per faction (-5 to 10; below 0 they dislike Jef): ${trust.map((t) => `${t.faction} ${t.trust}`).join(", ")}.
 Only tier ${tier} work is open to him.
 
 EMPLOYERS WHO HIRE (id: name, what they are. Their own places: only these ids for their "from" and "to")

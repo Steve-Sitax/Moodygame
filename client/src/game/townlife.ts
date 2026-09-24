@@ -81,6 +81,10 @@ const TOWER = { x: -266, z: 158 };
 const SEE_M = 140;
 const CHAIN_REACH = 2.4;
 const CHAIN_LEAVE = 2.8;
+/** A chain member this near their place steps onto it; farther, and standing, they have given up on the way. */
+const CHAIN_STEP_IN = 4;
+/** One still walking this far off, out of sight, is put in place. */
+const CHAIN_SNAP = 6;
 const HIRE_REACH = 11;
 /** A game minute is a third of a real second. */
 const REAL_S_PER_GAME_MIN = 1 / 3;
@@ -191,6 +195,10 @@ export class TownLife {
     this.pollT = Math.min(this.pollT, 1);
   }
   private inChainOrWas = false;
+  /** Chain people sent on their way again (event:npc -> clock). */
+  private resent = new Map<string, number>();
+  /** Dev: how many stand in the chain now. */
+  private chainHands = 0;
 
   update(dt: number, player: { x: number; z: number }, hour: number): void {
     this.clock += dt;
@@ -295,8 +303,9 @@ export class TownLife {
         f.pump.set(x, z, Math.atan2(ax - x, az - z), 1, this.clock, false);
       }
     }
-    // the bucket chain: full buckets up to the door, empties back to the water
-    if (act === "fire_chain" || act === "fire_down") bucketN = this.chain(ev, v, bucketN, act === "fire_chain");
+    // the bucket chain: the street lines up while the pump comes, then full buckets go up to the
+    // door and empties back to the water; after, they stand and watch it die
+    if (act === "fire_brigade" || act === "fire_chain" || act === "fire_down") bucketN = this.chain(ev, v, bucketN, act === "fire_chain" ? "pass" : act === "fire_brigade" ? "line" : "watch", _dt);
     return bucketN;
   }
 
@@ -367,17 +376,56 @@ export class TownLife {
       }
   }
 
-  private chain(ev: TownEvent, v: FireView, bucketN: number, passing: boolean): number {
+  /**
+   * The chain's people and the buckets. QA 2026-09-24: the chain never formed (people stopped
+   * a step and a half off their places, or were still walking, and a bucket moved only between two
+   * neighbours both exactly in place, so none moved). Now: whoever has arrived near their place
+   * steps onto it, so the two lines stand straight from the water to the door; one stuck out of
+   * sight is put in place; and the buckets go hand to hand along whoever stands in the line,
+   * across a gap if one is still coming.
+   */
+  private chain(ev: TownEvent, v: FireView, bucketN: number, mode: "line" | "pass" | "watch", dt: number): number {
     const slots = v.chain;
     const F = v.full;
-    // who stands in the chain now, and where their hands are (the crowd keeps people a little
-    // apart, so each stands near their place, not on it)
+    const passing = mode === "pass";
     const hands: Array<{ x: number; z: number } | null> = new Array(slots.length).fill(null);
     for (const a of this.actions()) {
       if (a.event_id !== ev.id || a.role !== "chain" || a.target_x === null || a.target_z === null) continue;
       const p = this.town.puppet(a.npc);
       const k = slots.findIndex(([x, z]) => Math.abs(x - a.target_x!) < 0.05 && Math.abs(z - a.target_z!) < 0.05);
-      if (!p || k < 0 || this.crowd.puppetBusy(p) || dist(p.x, p.z, slots[k][0], slots[k][1]) > 2.2) continue;
+      if (!p || k < 0 || !this.crowd.alive(p)) continue;
+      const [sx, sz] = slots[k];
+      let d = dist(p.x, p.z, sx, sz);
+      if (this.crowd.puppetBusy(p)) {
+        // still walking: one held up out of Jef's sight near the end of the way is simply there
+        if (d > CHAIN_SNAP && this.crowd.isHidden(p.x, p.z) && this.crowd.isHidden(sx, sz)) this.snapTo(p, sx, sz);
+        else continue;
+        d = 0;
+      } else if (d > CHAIN_STEP_IN) {
+        // standing, but far from the place (given up on the way): out of sight, put in place; else on its way again
+        if (this.crowd.isHidden(p.x, p.z) && this.crowd.isHidden(sx, sz)) {
+          this.snapTo(p, sx, sz);
+          d = 0;
+        } else {
+          const key = `${ev.id}:${a.npc}`;
+          const t = this.resent.get(key) ?? -99;
+          if (this.clock - t > 6) {
+            this.resent.set(key, this.clock);
+            this.crowd.puppetGo(p, sx, sz, 1.6);
+          }
+          continue;
+        }
+      } else if (d > 0.08) {
+        // the last steps onto the place itself (the crowd's paths stop short of it)
+        const step = Math.min(d, 1.2 * dt);
+        const nx = p.x + ((sx - p.x) / d) * step;
+        const nz = p.z + ((sz - p.z) / d) * step;
+        if (this.world.isFree(nx, nz, 0.2)) {
+          p.x = nx;
+          p.z = nz;
+          d -= step;
+        }
+      }
       hands[k] = { x: p.x, z: p.z };
       // face the other line across (the two lines pass to each other), a bucket in both hands
       const i = k < F ? k : k - F;
@@ -385,28 +433,39 @@ export class TownLife {
       const [ax, az] = slots[Math.max(0, Math.min(F - 1, i))];
       const [bx, bz] = slots[Math.max(0, Math.min(F - 1, i + 1))];
       let yaw = other ? Math.atan2(other[0] - p.x, other[1] - p.z) : Math.atan2(-(bz - az), bx - ax);
-      if (!passing) yaw = Math.atan2(v.step[0] - p.x, v.step[1] - p.z);
+      if (mode === "watch") yaw = Math.atan2(v.step[0] - p.x, v.step[1] - p.z);
       const want = passing ? "carry" : "idle";
       if (p.pmotion !== want || Math.abs(Math.atan2(Math.sin((p.pyaw ?? yaw) - yaw), Math.cos((p.pyaw ?? yaw) - yaw))) > 0.3) this.crowd.puppetStand(p, want, yaw);
     }
     if (this.inChain?.ev === ev.id) hands[this.inChain.slot] = { x: this.inChain.x, z: this.inChain.z };
+    this.chainHands = hands.filter(Boolean).length;
     if (!passing) return bucketN;
-    // buckets hand to hand: two places apart up the full line, three apart down the empty one, a place every 0.7 s
-    const put = (list: number[], u: number) => {
+    // buckets hand to hand along whoever stands in each line (a gap is passed across): two
+    // places apart up the full line, three apart down the empty one, a place every 0.7 s
+    const fullLine = [...Array(F).keys()].map((k) => hands[k]).filter((h): h is { x: number; z: number } => !!h);
+    const backLine = [...Array(slots.length - F).keys()].map((k) => hands[F + k]).filter((h): h is { x: number; z: number } => !!h).reverse();
+    const put = (line: Array<{ x: number; z: number }>, u: number) => {
       const i = Math.floor(u);
       const fr = u - i;
-      const a = hands[list[i]];
-      const b = hands[list[Math.min(list.length - 1, i + 1)]];
+      const a = line[i];
+      const b = line[Math.min(line.length - 1, i + 1)];
       if (!a || !b || bucketN >= 64) return;
       this.M.makeTranslation(a.x + (b.x - a.x) * fr, 0.95 + Math.sin(fr * Math.PI) * 0.12, a.z + (b.z - a.z) * fr);
       this.buckets.setMatrixAt(bucketN++, this.M);
     };
-    const full = [...Array(F).keys()];
-    const back = [...Array(slots.length - F).keys()].map((k) => F + k).reverse();
     const step = this.clock / 0.7;
-    for (let j = 0; j < F; j += 2) put(full, (step + j) % Math.max(1, F - 1));
-    for (let j = 0; j < back.length; j += 3) put(back, (step + j) % Math.max(1, back.length - 1));
+    if (fullLine.length >= 2) for (let j = 0; j < fullLine.length; j += 2) put(fullLine, (step + j) % (fullLine.length - 1));
+    if (backLine.length >= 2) for (let j = 0; j < backLine.length; j += 3) put(backLine, (step + j) % (backLine.length - 1));
     return bucketN;
+  }
+
+  /** Put a chain puppet on its place at once (only ever out of Jef's sight). */
+  private snapTo(p: { x: number; z: number }, x: number, z: number): void {
+    const q = this.world.isFree(x, z, 0.2) ? { x, z } : this.crowd.openNear(x, z);
+    if (!q) return;
+    p.x = q.x;
+    p.z = q.z;
+    this.crowd.puppetStand(p as Parameters<Crowd["puppetStand"]>[0], "idle", null);
   }
 
   // ------------------------------------------------------------------ the hiring
@@ -528,6 +587,7 @@ export class TownLife {
       lamplighters: this.lamplighters.info(),
       fires: [...this.fires.values()].map((f) => ({ id: f.id, level: +f.level.toFixed(2), flames: !!f.fx, pump: !!f.pump, soot: !!f.soot, chain: f.view.chain.length, full: f.view.full, owner: f.view.owner_name })),
       buckets: this.buckets.count,
+      chainHands: this.chainHands,
       inChain: this.inChain,
       oldSoot: this.oldSoot.size,
     };

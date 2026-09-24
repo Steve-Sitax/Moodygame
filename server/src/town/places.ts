@@ -186,6 +186,8 @@ export type TradeId =
   | "newsboy" | "post_clerk"
   // M6 homes (homes/town.ts): the second-hand dealer who sells furniture at his door
   | "dealer"
+  // M6 transport (bikeshop.ts): the velocipede maker, a smith who builds, sells and hires out "boneshakers"
+  | "velo_maker"
   // M6 emigrants (emigrants.ts): families waiting for the liner, the lodging-house keeper, the ticket runner
   | "emigrant" | "lodging_keeper" | "runner"
   // M6 landmark interiors (landmarks/town.ts): who works inside the cathedral, the town hall, the Vleeshuis, the Steen and the Oostershuis
@@ -252,6 +254,7 @@ export const TRADES: Record<TradeId, TradeDef> = {
   newsboy: { label: "newsboy", work: "post", faction: null, wealth: [0, 0], bias: { courage: 2, gossip: 2 } },
   post_clerk: { label: "clerk of the post and telegraph office", work: "post", faction: "burgerij", wealth: [3, 5], bias: { honesty: 2, gossip: 1 } },
   dealer: { label: "second-hand dealer", work: "post", faction: null, wealth: [2, 4], bias: { greed: 2, gossip: 2 } },
+  velo_maker: { label: "velocipede maker, a smith who builds and hires out velocipedes", work: "post", faction: "burgerij", wealth: [4, 6], bias: { greed: 1, courage: 1 } },
   emigrant: { label: "emigrant bound for America", work: "wait", faction: null, wealth: [1, 3], bias: { piety: 1, courage: -1, gossip: -1 } },
   lodging_keeper: { label: "keeper of the emigrants' lodging house", work: "post", faction: null, wealth: [3, 5], bias: { greed: 2, gossip: 2 } },
   // he calls himself an agent's man; the talk title shows only that
@@ -328,3 +331,14 @@ export const TOWN_EMPLOYERS: TownEmployer[] = [
     note: "sexton of the cathedral, errands for the chapter and the poor box, trusts the sober and the pious",
   },
 ];
+
+/**
+ * The trade Jef and the town see (QA 2026-09-24): never a secret or hidden one. A thief goes as
+ * the day labourer he passes for; Madame Zelie (a visitor with the cards) as the fortune teller.
+ * The engine's own trade id stays for the rules; this is for every label on screen and in letters.
+ */
+export function shownTrade(r: { trade: string; visitor?: { role?: string } | null }): string {
+  if (r.visitor?.role === "fortune") return "fortune teller";
+  if (r.trade === "thief") return "day labourer";
+  return (TRADES as Record<string, { label: string } | undefined>)[r.trade]?.label ?? r.trade.replace(/_/g, " ");
+}

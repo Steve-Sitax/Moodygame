@@ -4,7 +4,7 @@ import { LANGUAGE_RULE } from "../text.ts";
 import type { DB } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
 import { SYSTEM, SPOTS, listJobs, type JobRow } from "./jobBoard.ts";
-import { applyTrust, npcRow, persona, relationship, remember, topMemories } from "../npcs.ts";
+import { applyTrust, npcRow, persona, relationship, remember, topMemories, trustText } from "../npcs.ts";
 import { ITEMS, WARES } from "../trade.ts";
 
 // dialogue and free_reply hooks (docs/03). The NPC talks; the engine applies
@@ -79,7 +79,7 @@ Secret (never tell it easily): ${p.secret}
 Speech: ${p.speech.length} sentences. Tics: ${p.speech.tics.map((x) => `"${x}"`).join(", ")}.
 
 YOU AND JEF
-Trust ${r.trust}, affection ${r.affection}, respect ${r.respect}, fear ${r.fear} (0-10). Met ${r.times_met} times.${r.view_of_player ? ` How you see him: ${r.view_of_player}` : " You do not know him yet."}
+Trust ${trustText(r.trust)}; affection ${r.affection}, respect ${r.respect}, fear ${r.fear} (0-10). Met ${r.times_met} times.${r.view_of_player ? ` How you see him: ${r.view_of_player}` : " You do not know him yet."}
 
 YOUR MEMORIES (strongest first)
 ${mem.length ? mem.map((m) => `- ${m.text} (${m.source === "heard" ? "heard" : "seen"}, day ${m.day})`).join("\n") : "- none about Jef yet"}

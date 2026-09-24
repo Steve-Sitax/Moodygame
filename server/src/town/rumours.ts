@@ -126,7 +126,21 @@ export function rumoursOf(db: DB, id: string, n = 5): Rumour[] {
     )
     .all(id, n) as Array<{ gist: string; told_as: string | null; tone: number; weight: number; source: "seen" | "heard"; heard_from: string | null }>;
   // M6: they say it as they heard it (the told wording); the engine's fact stays in `fact`
-  return rows.map((r) => ({ gist: r.told_as ?? r.gist, fact: r.gist, tone: r.tone, weight: r.weight, source: r.source, from: r.heard_from ? nameOf(db, r.heard_from) : null }));
+  return rows.map((r) => ({ gist: mended(r.told_as ?? r.gist), fact: mended(r.gist), tone: r.tone, weight: r.weight, source: r.source, from: r.heard_from ? nameOf(db, r.heard_from) : null }));
+}
+
+/** Older saves' wordings, said right: "told Anna a lie to get her eel cheaper" (whose eel?) is "lied to Anna to get eel cheaper". */
+function mended(gist: string): string {
+  return gist.replace(/\btold (.+?) a lie to get (?:her|his) (.+?) cheaper\b/, "lied to $1 to get $2 cheaper");
+}
+
+/**
+ * Checks that a fact about Jef is still true now (M6 homes: "Jef rents a room from ..." ends with the
+ * lease). Modules add their own; a fact no check knows is true.
+ */
+export const STILL_TRUE: Array<(db: DB, fact: string) => boolean> = [];
+export function stillTrue(db: DB, fact: string): boolean {
+  return STILL_TRUE.every((f) => f(db, fact));
 }
 
 /** The town's feeling about Jef as this person has it: the weighted tone of what they know. */
@@ -179,7 +193,36 @@ export function toYou(gist: string): string {
     .replace(/\bhimself\b/g, "yourself")
     .replace(/\bhis\b/g, "your")
     .replace(/\bhim\b/g, "you");
+  // "you rents", "you carries", "you goes": the verb after "you" in its plain form (QA 2026-09-24)
+  s = s.replace(/^you (\w+)\b/, (_m, v: string) => `you ${plainVerb(v)}`);
   return s;
+}
+
+/** A third-person present verb in its plain form: rents -> rent, carries -> carry, goes -> go. Other words stay. */
+function plainVerb(v: string): string {
+  const low = v.toLowerCase();
+  if (["was", "is", "has", "does", "always", "perhaps", "across", "towards", "this", "thus", "yes", "less", "unless", "as"].includes(low)) return v;
+  if (!/[a-z]s$/.test(low) || /(ss|us|is|ous)$/.test(low)) return v;
+  if (/[^aeiou]ies$/.test(low)) return v.slice(0, -3) + "y";
+  if (/(sh|ch|x|z|o)es$/.test(low)) return v.slice(0, -2);
+  return v.slice(0, -1);
+}
+
+/**
+ * The rumour as the end of "You're the one who ...": the gist without "Jef", his and him as your
+ * and you, the verb left as it is ("You're the one who rents a room", not "who you rents").
+ */
+export function whoYou(gist: string): string | null {
+  let s = gist.trim().replace(/\.$/, "");
+  if (!/^Jef\s/.test(s)) return null;
+  s = s
+    .replace(/^Jef\s+/, "")
+    .replace(/\bJef's\b/g, "your")
+    .replace(/\bJef\b/g, "you")
+    .replace(/\bhimself\b/g, "yourself")
+    .replace(/\bhis\b/g, "your")
+    .replace(/\bhim\b/g, "you");
+  return s || null;
 }
 
 // ------------------------------------------------------------------ M6: rumours that twist (within the fact)

@@ -23,8 +23,12 @@ export type HumanKind =
  * sit: on a crate (lower the body by sitDrop); behind: hands behind the back, looking out; lean: forearms on a rail;
  * write: the book open on the left forearm, writing (the customs; others stand idle).
  */
-export type Motion = "idle" | "walk" | "talk" | "fold" | "carry" | "sit" | "behind" | "lean" | "write";
-const MOTIONS: Motion[] = ["idle", "walk", "talk", "fold", "carry", "sit", "behind", "lean", "write"];
+export type Motion = "idle" | "walk" | "talk" | "fold" | "carry" | "sit" | "behind" | "lean" | "write" | "ride" | "row" | "push";
+/**
+ * M6 transport: ride (pedalling a velocipede: the body is raised by rideLift, the loop set from the
+ * front wheel by setPhase), row (on a thwart facing the stern), push (behind a handcart, anyone).
+ */
+const MOTIONS: Motion[] = ["idle", "walk", "talk", "fold", "carry", "sit", "behind", "lean", "write", "ride", "row", "push"];
 
 const WOMEN = new Set<HumanKind>(["peeters", "fientje", "fishwife_a", "fishwife_b", "maid", "girl", "wife_a", "wife_b", "shopwife", "old_woman", "girl_b"]);
 /** Long aprons are open shells: the thighs would show through in the sit clip. */
@@ -45,6 +49,9 @@ const WOMEN_CLIPS: Partial<Record<Motion, string>> = { sit: "idle_f", behind: "i
 
 /** Metres covered by one loop of a walking clip, for a 1.74 m body. */
 const STRIDE: Record<string, number> = { push: 0.9, walk_sack: 1.05 };
+/** The velocipede (tools/blender/build_velocipede.py): the saddle's top, and the rider's hips over it (build_people.py RIDE_BACK). */
+export const SADDLE_Y = 0.97;
+export const RIDE_BACK = 0.05;
 
 interface Template {
   roots: Map<string, THREE.Object3D>;
@@ -187,7 +194,20 @@ export class Human {
 
   /** Walk clips cover 1.2 m per loop (less for a child or a load); match the feet to the ground speed. */
   setPace(speed: number): void {
-    for (const m of ["walk", "carry"] as Motion[]) this.actions.get(m)?.setEffectiveTimeScale(Math.max(0.3, speed / (this.stride.get(m) ?? 1.2)));
+    for (const m of ["walk", "carry", "push"] as Motion[]) this.actions.get(m)?.setEffectiveTimeScale(Math.max(0.3, speed / (this.stride.get(m) ?? 1.2)));
+  }
+
+  /** M6: hold a clip at a point of its loop (0..1): the pedals follow the front wheel's turn. */
+  setPhase(m: Motion, phase: number): void {
+    const a = this.actions.get(m);
+    if (!a) return;
+    a.setEffectiveTimeScale(0);
+    a.time = (((phase % 1) + 1) % 1) * a.getClip().duration;
+  }
+
+  /** M6: how far to raise the body so the hips sit on a velocipede's saddle (the ride clip). */
+  rideLift(saddle = SADDLE_Y): number {
+    return saddle + 0.07 * this.scale - 0.9 * this.scale;
   }
 
   /** M3i (world/trades.ts): play a clip at this speed; negative runs it backwards (the rope maker stepping back). */

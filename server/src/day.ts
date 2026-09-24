@@ -26,7 +26,7 @@ export const WEATHER_TEXT: Record<Weather, string> = {
   mist: "a thin mist that lifts by noon",
   clear: "clear and cold, the far bank in sight",
   rain: "cold rain off the sea, the cobbles running wet",
-  storm: "a gale off the sea, rain in sheets, the river running high",
+  storm: "a gale off the sea, rain in sheets, the river rough and grey", // not "running high": the tide decides that (QA 2026-09-24)
 };
 
 export function weather(db: DB): Weather {
@@ -215,7 +215,8 @@ export function sleep(db: DB, want: "bed" | "rough" | "home", home?: HomeNight):
   const where = turnedAway ? "rough" : want === "home" && !home ? "rough" : want;
 
   const jobsDone = (db.prepare("SELECT COUNT(*) n FROM log WHERE day = ? AND verb = 'finished_job'").get(c.day) as { n: number }).n;
-  const meals = (db.prepare("SELECT COUNT(*) n FROM log WHERE day = ? AND verb = 'ate'").get(c.day) as { n: number }).n;
+  // every meal: from the pocket, at a counter (ate), at a family's table (supper)
+  const meals = (db.prepare("SELECT COUNT(*) n FROM log WHERE day = ? AND verb IN ('ate', 'supper')").get(c.day) as { n: number }).n;
   const earned = p.money_c - startOfDayMoney(db);
   const summary = [
     `${DAY_NAMES[(c.day - 1) % 7]} ends.`,

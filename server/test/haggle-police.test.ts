@@ -203,7 +203,7 @@ describe("haggling: lies, rudeness and the talk", () => {
     expect(out.npc_line).toMatch(/not true/);
     expect(relationship(db, r.id).trust).toBe(4);
     expect(haggleState(db).lies[r.id]).toBe(1);
-    expect(rumoursOf(db, r.id)[0].gist).toMatch(/^Jef told .* a lie/);
+    expect(rumoursOf(db, r.id)[0].gist).toMatch(/^Jef lied to .* to get smoked eel cheaper/);
     expect(waresFor(db, r.id).find((w) => w.kind === "eel")!.price_c).toBe(12);
     // the next try: the seller remembers (the prompt says so, and the score is lower)
     resetTalks();

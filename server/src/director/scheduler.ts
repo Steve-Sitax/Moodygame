@@ -6,7 +6,7 @@ import { remember } from "../npcs.ts";
 import { plainEnglish } from "../text.ts";
 import { ITEMS } from "../trade.ts";
 import { gameMinute } from "../town/deeds.ts";
-import { PLACES, TOWN_EMPLOYERS } from "../town/places.ts";
+import { PLACES, shownTrade, TOWN_EMPLOYERS } from "../town/places.ts";
 import type { Resident } from "../town/population.ts";
 import { activityAt } from "../town/schedule.ts";
 import { resident, town, TOWN_EMPLOYER_IDS } from "../town/store.ts";
@@ -16,13 +16,15 @@ import { actionOf, activeActions, endAction, endEventActions, isReserved, startA
 import { notify } from "./bus.ts";
 import { runConvo } from "./convo.ts";
 import { writeEvent } from "./eventlog.ts";
-import { cleanLeads, fillNames, leadLine, leadSpot, namesIn, pickLeads, type Lead, type LeadAsk } from "./leads.ts";
+import { cleanLeads, fillNames, keptAtWork, leadLine, leadSpot, namesIn, pickLeads, type Lead, type LeadAsk } from "./leads.ts";
+export { keptAtWork };
 import { applyScene, resolveScene, sceneForClient, type Scene } from "./scenes.ts";
 import { fireEnd, fireForClient, fireGapWhy, pickFireHouse, runFireAct, type FireScene } from "./fire.ts";
 import { hiringEnd, hiringForClient, hiringTick, runHiringAct, type HiringScene } from "./hiring.ts";
 import { runBalladAct } from "../ballads/ballad.ts";
 import { ROUTINE_TEMPLATES, scriptFor } from "./templates.ts";
 import { emigrantShip, isEmigrant } from "../town/emigrants.ts";
+import { visitorOf } from "../town/visitors.ts";
 import type { AnyLeadRole } from "./leads.ts";
 import {
   EVENT_MARGIN_MIN,
@@ -60,7 +62,18 @@ import {
 /** `pre`: an onlookers' gathering already called at the start of the event (Steve: they come before it starts). */
 /** `scene`: a scuffle or a robbery as the engine set it up at the stage's start (scenes.ts). */
 /** M6 town life: `act`, the engine's scripted act for a stage (fire.ts, hiring.ts); `fire` and `hiring`, what it set up. */
-export type StoredStage = Stage & { x?: number; z?: number; label?: string; pre?: boolean; scene?: Scene; act?: string; fire?: FireScene; hiring?: HiringScene };
+export type StoredStage = Stage & {
+  x?: number;
+  z?: number;
+  label?: string;
+  pre?: boolean;
+  scene?: Scene;
+  act?: string;
+  fire?: FireScene;
+  hiring?: HiringScene;
+  /** A funeral (on the first stage): the widow the engine chose, the real widow of the one buried (null: none). */
+  widow?: string | null;
+};
 
 export interface EventRow {
   id: number;
@@ -248,6 +261,57 @@ export type PlanResult = { ok: true; event: EventRow } | { ok: false; why: strin
 /** Leads an event is refused without: a wedding needs its couple, a scene its two. */
 const MUST_LEADS: LeadRole[] = ["bride", "groom", "pickpocket", "victim", "quarreller"];
 
+/** A funeral, by its template or its words. */
+export function isFuneral(plan: { template?: string; title?: string }): boolean {
+  return plan.template === "funeral" || /\b(funeral|burial|buried|coffin|mourn\w*)\b/i.test(plan.title ?? "");
+}
+
+/**
+ * The widow of a funeral (QA 2026-09-24: the Logement's keeper walked as the widow of a docker who
+ * was nobody's husband): the one buried is the late husband of a real widow of the town, and she
+ * walks behind him. Free, not at a counter or a post, not already in an event; by the day.
+ */
+export function funeralWidow(db: DB, salt = ""): Resident | null {
+  const taken = new Set(liveEvents(db).flatMap((o) => [...peopleOf(o), ...leadsOf(o).map((l) => l.id)]));
+  const busy = new Set(activeActions(db).map((a) => a.npc_id));
+  const day = clock(db).day;
+  const hash = (x: string) => {
+    let h = 2166136261;
+    for (let i = 0; i < x.length; i++) h = Math.imul(h ^ x.charCodeAt(i), 16777619);
+    return (h >>> 0) / 4294967296;
+  };
+  const pool = town(db).town.residents.filter(
+    (r) => r.sex === "f" && r.family_role === "widow" && r.age >= 38 && !taken.has(r.id) && !busy.has(r.id) && !isReserved(db, r.id) && !isEmigrant(r) && !visitorOf(r) && !keptAtWork(db, r),
+  );
+  return pool.sort((a, b) => hash(`${a.id}:${day}${salt}`) - hash(`${b.id}:${day}${salt}`))[0] ?? null;
+}
+
+/**
+ * The title said with the real leads (QA 2026-09-24: "A docker's wedding" for a town-hall clerk,
+ * and the paper printed it): "a docker's wedding" takes the groom's trade; "a docker's funeral"
+ * becomes the funeral from the widow's house; any other trade word in it that no lead has goes.
+ */
+export function fitTitle(db: DB, title: string, leads: Array<{ role: string; id: string }>): string {
+  const m = /\b(an?|the)\s+([a-z][a-z -]*?)'s\s+(wedding|marriage|funeral|burial)\b/i.exec(title);
+  if (!m) return title;
+  const kind = m[3].toLowerCase();
+  const lead = (role: string) => resident(db, leads.find((l) => l.role === role)?.id ?? "");
+  let who: string | null = null;
+  if (kind === "wedding" || kind === "marriage") {
+    const g = lead("groom");
+    who = g ? shownTrade(g) : null;
+  }
+  if (who) {
+    const art = /^[aeiou]/i.test(who) ? "an" : "a";
+    const a = m[1][0] === m[1][0].toUpperCase() ? art[0].toUpperCase() + art.slice(1) : art;
+    return title.replace(m[0], `${m[1].toLowerCase() === "the" ? m[1] : a} ${who}'s ${m[3]}`);
+  }
+  // a funeral: the widow's late husband, not a trade the town cannot show
+  const w = lead("widow");
+  if (kind === "funeral" || kind === "burial") return w ? `The funeral of ${w.name}'s husband` : title.replace(m[0], `${m[1]} ${m[3]}`).replace(/^a /, "A ");
+  return title.replace(m[0], `${m[1]} ${m[3]}`);
+}
+
 /** Every lead the stages name, with where they first stand. */
 function leadAsks(db: DB, stages: Stage[], place: PlaceSpot): LeadAsk[] {
   const out: LeadAsk[] = [];
@@ -286,6 +350,26 @@ export function planEvent(db: DB, plan: EventPlan, opts: { dev?: boolean } = {})
       plan = { ...plan, place: `house:${house}` };
     }
   }
+  // a funeral: the engine picks the widow (a real widow; the one buried is her late husband) and
+  // the house it goes from (hers, when the plan says "house"); a priest leads the procession
+  let widowId: string | null | undefined;
+  if (isFuneral(plan)) {
+    const w = funeralWidow(db);
+    widowId = w?.id ?? null;
+    if (w && /^house(:|$)/i.test(plan.place.trim())) plan = { ...plan, place: `house:${w.id}` };
+    let led = false;
+    const st2 = (plan.stages as Stage[]).map((s) => {
+      let leads = [...(s.leads ?? [])] as Stage["leads"];
+      if (!w) leads = leads.filter((l) => l !== "widow");
+      if (s.op === "procession" && !led) {
+        led = true;
+        leads = ["priest", ...leads.filter((l) => l !== "priest")] as Stage["leads"];
+      }
+      return { ...s, leads };
+    });
+    if (!led && st2.length) st2[0] = { ...st2[0], leads: [...new Set(["priest", ...(st2[0].leads ?? [])])] as Stage["leads"] };
+    plan = { ...plan, stages: st2 };
+  }
   const place = resolvePlace(db, plan.place);
   if (!place) return { ok: false, why: `no such place: ${plan.place}` };
   const stages = cleanStages(plan.stages);
@@ -294,9 +378,11 @@ export function planEvent(db: DB, plan: EventPlan, opts: { dev?: boolean } = {})
   const asks = leadAsks(db, stages, place);
   if (asks.length) {
     const taken = new Set(liveEvents(db).flatMap((o) => [...peopleOf(o), ...leadsOf(o).map((l) => l.id)]));
-    const { missing } = pickLeads(db, asks, taken, "dry");
-    const must = missing.filter((m) => MUST_LEADS.includes(m));
+    const { leads: dry, missing } = pickLeads(db, asks.filter((a) => !(widowId && a.role === "widow")), taken, "dry");
+    const must = missing.filter((m) => MUST_LEADS.includes(m) || (widowId !== undefined && m === "priest"));
     if (must.length) return { ok: false, why: `nobody free to be ${[...new Set(must)].join(", ")}` };
+    // the title with the leads it will have (fixed again at the start with the ones it gets)
+    plan = { ...plan, title: fitTitle(db, plan.title, [...dry, ...(widowId ? [{ role: "widow", id: widowId }] : [])]) };
   }
   plan = { ...plan, title: softText(plan.title), notice: softText(plan.notice ?? ""), rumour: softText(plan.rumour ?? "") };
   const now = gameMinute(db);
@@ -316,7 +402,8 @@ export function planEvent(db: DB, plan: EventPlan, opts: { dev?: boolean } = {})
   const stored: StoredStage[] = stages.map((s, i) => {
     const p = s.place ? resolvePlace(db, s.place) : null;
     const act = acts[i] ? { act: acts[i]! } : {};
-    return p ? { ...s, x: p.x, z: p.z, label: p.label, ...act } : { ...s, x: place.x, z: place.z, label: place.label, ...act };
+    const widow = i === 0 && widowId !== undefined ? { widow: widowId } : {};
+    return p ? { ...s, x: p.x, z: p.z, label: p.label, ...act, ...widow } : { ...s, x: place.x, z: place.z, label: place.label, ...act, ...widow };
   });
   const res = db
     .prepare(
@@ -433,8 +520,18 @@ function castLeads(db: DB, ev: EventRow, stages: StoredStage[]): Lead[] | null {
   });
   if (!asks.length) return [];
   const taken = new Set(liveEvents(db).filter((o) => o.id !== ev.id).flatMap((o) => [...peopleOf(o), ...leadsOf(o).map((l) => l.id)]));
-  const { leads, missing } = pickLeads(db, asks, taken, String(ev.id));
-  if (missing.some((m) => MUST_LEADS.includes(m))) return null;
+  // a funeral's widow is the engine's (planEvent): the real widow, or nobody
+  const funeral = stages[0]?.widow !== undefined;
+  const widowAsk = asks.find((a) => a.role === "widow");
+  const { leads, missing } = pickLeads(db, funeral ? asks.filter((a) => a.role !== "widow") : asks, taken, String(ev.id));
+  if (funeral && widowAsk && stages[0].widow) {
+    const w = resident(db, stages[0].widow);
+    if (w && !taken.has(w.id)) leads.push({ role: "widow", id: w.id, name: w.name, stage: widowAsk.stage });
+  }
+  if (missing.some((m) => MUST_LEADS.includes(m) || (funeral && m === "priest"))) return null;
+  // the title with the leads it really has
+  const fitted = fitTitle(db, ev.title, leads);
+  if (fitted !== ev.title) db.prepare("UPDATE town_event SET title = ? WHERE id = ?").run(fitted.slice(0, 80), ev.id);
   if (missing.length) writeEvent(db, { kind: "event", verb: "no_lead", text: `${ev.title}: nobody free to be ${[...new Set(missing)].join(", ")}; it goes on without.`, ref_type: "town_event", ref_id: ev.id, weight: 1 });
   const now = gameMinute(db);
   const wm = walkMap();
@@ -504,10 +601,11 @@ export function placeAt(db: DB, ev: EventRow, ids: string[], slots: Array<{ x: n
 }
 
 /** M6: free residents for an event's own use (not in another event, not busy, not reserved, not an employer at a post). */
-export function freeResidents(db: DB, ev: EventRow, ok: (r: Resident) => boolean): Resident[] {
+export function freeResidents(db: DB, ev: EventRow, ok: (r: Resident) => boolean, o: { evenAtWork?: boolean } = {}): Resident[] {
   const inOthers = new Set(liveEvents(db).filter((o) => o.id !== ev.id).flatMap((o) => [...peopleOf(o), ...leadsOf(o).map((l) => l.id)]));
   const busy = new Set(activeActions(db).filter((a) => a.event_id !== ev.id).map((a) => a.npc_id));
-  return town(db).town.residents.filter((r) => !inOthers.has(r.id) && !busy.has(r.id) && !TOWN_EMPLOYER_IDS.includes(r.id) && r.trade !== "infant" && r.work.kind !== "guard" && !isEmigrant(r) && ok(r));
+  // a counter, a post or a landmark's staff at work stays there (keptAtWork); a household whose own house burns runs home
+  return town(db).town.residents.filter((r) => !inOthers.has(r.id) && !busy.has(r.id) && !TOWN_EMPLOYER_IDS.includes(r.id) && r.trade !== "infant" && r.work.kind !== "guard" && !isEmigrant(r) && !visitorOf(r) && !isReserved(db, r.id) && (o.evenAtWork || !keptAtWork(db, r)) && ok(r));
 }
 
 /** M6: take someone out of an event (the man the foreman picked goes to his ship). */
@@ -637,7 +735,7 @@ function postRumour(db: DB, ev: EventRow, text: string): void {
   writeEvent(db, { kind: "rumour", verb: "town_rumour", text: t, place: ev.place, ref_type: "town_event", ref_id: ev.id, weight: 4 });
 }
 
-function fits(r: Resident, role: GatherRole, db: DB): boolean {
+function fits(r: Resident, role: GatherRole, db: DB, place = ""): boolean {
   if (r.trade === "infant") return false;
   // the guard (town/garrison.ts) never leaves the post for an event, on a tour or in the guard room
   if (r.work.kind === "guard") return false;
@@ -648,12 +746,13 @@ function fits(r: Resident, role: GatherRole, db: DB): boolean {
   // M6 emigrants: a family gathering takes only the households boarding today; nobody else takes an emigrant from the chests
   if (role === "family") return isEmigrant(r) && emigrantShip(db).households.includes(r.household) && r.age >= 6;
   if (isEmigrant(r)) return false;
-  const keeperAtWork = (r.work.kind === "stall" || r.work.kind === "shop" || r.work.kind === "tavern") && now.act === "work";
+  const keeperAtWork = keptAtWork(db, r);
   switch (role) {
     case "police":
       return r.trade === "police";
     case "sellers":
-      return r.work.kind === "stall" || r.work.kind === "shop";
+      // sellers at their own market may stand for it; nobody leaves a counter elsewhere
+      return (r.work.kind === "stall" || r.work.kind === "shop") && (!keeperAtWork || (!!place && r.work.place === place));
     case "children":
       return r.age < 13;
     case "musicians":
@@ -679,7 +778,7 @@ export function gather(db: DB, ev: EventRow, role: GatherRole, count: number, at
     return (h >>> 0) / 4294967296;
   };
   let pool = town(db)
-    .town.residents.filter((r) => !have.includes(r.id) && !inOthers.has(r.id) && !busy.has(r.id) && !TOWN_EMPLOYER_IDS.includes(r.id) && !isReserved(db, r.id) && fits(r, role, db))
+    .town.residents.filter((r) => !have.includes(r.id) && !inOthers.has(r.id) && !busy.has(r.id) && !TOWN_EMPLOYER_IDS.includes(r.id) && !isReserved(db, r.id) && fits(r, role, db, ev.place))
     .map((r) => ({ r, d: Math.hypot(r.home.sx - at.x, r.home.sz - at.z) + hash(r.id + ev.id) * 60 }))
     .sort((a, b) => a.d - b.d)
     .map((x) => x.r);

@@ -91,8 +91,19 @@ export class Talk {
     this.mood = "";
     this.player.frozen = true;
     this.el.style.display = "block";
-    if (shopOnly) this.render();
-    else void this.send("open");
+    if (shopOnly) {
+      this.render();
+      // the prices he asks Jef now (a haggled price still good), not only the list
+      const id = npc.id;
+      void fetch(`/api/npc/${encodeURIComponent(id)}/wares`, { signal: AbortSignal.timeout(6000) })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j: { wares?: Ware[] } | null) => {
+          if (!j || !Array.isArray(j.wares) || !j.wares.length || this.npc?.id !== id) return;
+          this.newPrices(id, j.wares);
+          this.render();
+        })
+        .catch(() => {});
+    } else void this.send("open");
   }
 
   close(): void {
@@ -179,9 +190,11 @@ export class Talk {
       this.money = r.player.money_c;
       this.onBought(r, r.line);
       this.flash(`Paid ${r.price_c ?? w.price_c} c.`);
-      // a price agreed in a haggle is spent: show the list price again
+      // the server's prices after this purchase: a haggled price still good for more stays shown (QA 2026-09-24)
+      const after = (r as { wares?: Ware[] }).wares;
       const list = this.listBefore.get(npc.id);
-      if (list && (r.price_c ?? w.price_c) < (list.find((x) => x.kind === w.kind)?.price_c ?? 0)) {
+      if (Array.isArray(after) && after.length) this.wares.set(npc.id, after);
+      else if (list && (r.price_c ?? w.price_c) < (list.find((x) => x.kind === w.kind)?.price_c ?? 0)) {
         this.wares.set(npc.id, (this.wares.get(npc.id) ?? list).map((x) => (x.kind === w.kind ? (list.find((l) => l.kind === x.kind) ?? x) : x)));
       }
     } catch (e) {

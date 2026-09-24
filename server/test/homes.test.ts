@@ -464,7 +464,7 @@ describe("the landlady's or a neighbour's remark", () => {
       expect(placedIn(db, "widow")).toEqual(before.placed);
       expect(lease(db)).toEqual(before.lease);
     }
-  });
+  }, 20_000); // seventeen fresh saves: about 4 s alone, more with the other files running
 
   it("a model that never answers: the engine's line after the timeout", async () => {
     setTestTimeout(300);

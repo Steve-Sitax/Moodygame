@@ -87,7 +87,7 @@ describe("gossip", () => {
   it("an owner who sees Jef take goods remembers it, trust drops, Fientje hears", () => {
     const db = openDb(":memory:");
     witness(db, "peeters", "took");
-    expect(relationship(db, "peeters").trust).toBe(0); // was 0, floor 0
+    expect(relationship(db, "peeters").trust).toBe(-1); // was 0: a stranger now thinks less of him too (floor -5)
     expect(topMemories(db, "peeters")[0].text).toMatch(/without asking/);
     expect(topMemories(db, "fientje")[0].text).toMatch(/Widow Peeters was saying/);
   });

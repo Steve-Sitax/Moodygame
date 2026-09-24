@@ -17,7 +17,7 @@ import { buy, handOverParcel, ITEMS, pockets, useItem, WARES, waresOf } from "./
 import { isResident, town } from "./town/store.ts";
 import { residentChoice, residentFree, residentOpen } from "./town/talk.ts";
 import { catchThief, pickPocket } from "./town/thieves.ts";
-import { TRADES, TOWN_EMPLOYERS } from "./town/places.ts";
+import { shownTrade, TOWN_EMPLOYERS } from "./town/places.ts";
 import { alight, board as boardRide, change as rideChange, isLine, isStop, ride, RIDE_FARE_C, seat as rideSeat } from "./ride.ts";
 import { freeReply, openTalk, pickChoice, prefetchOpening, witness, type Line } from "./hooks/dialogue.ts";
 import { mountDeeds } from "./town/deedRoutes.ts";
@@ -33,10 +33,28 @@ import { mountEmigrants } from "./town/emigrantRoutes.ts";
 import { mountLandmarks } from "./landmarks/routes.ts";
 import { mountPopulation } from "./town/popsettings.ts";
 import { mountHaggle } from "./town/haggleRoutes.ts";
+import { waresFor } from "./town/haggle.ts";
 import { mountBallads } from "./ballads/routes.ts";
+import { mountTransport } from "./town/transportRoutes.ts";
 
 const db = openDb(DB_FILE);
 const app = new Hono();
+// Every paid action refreshes the money on screen (QA 2026-09-24: 5 c behind after the fortune,
+// paid in a talk choice): a POST that changed Jef's money pushes the new payload to the client.
+app.use("/api/*", async (c, next) => {
+  if (c.req.method !== "POST") return next();
+  const before = moneyNow();
+  await next();
+  const after = moneyNow();
+  if (before !== null && after !== null && after !== before) broadcast({ type: "jobs", ...jobsPayload() });
+});
+function moneyNow(): number | null {
+  try {
+    return (db.prepare("SELECT money_c FROM player WHERE id = 1").get() as { money_c: number } | undefined)?.money_c ?? null;
+  } catch {
+    return null;
+  }
+}
 // M6 population: the event size and the town size for a new game (Settings)
 mountPopulation(app, db);
 // M6: emigrant families come and go with the clock (town/emigrants.ts); first, so its after-tick step wraps every tick route
@@ -67,6 +85,8 @@ mountLandmarks(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadc
 mountBallads(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 // M6: haggling in your own words, and talking your way out with the police over a complaint (town/haggle.ts, storyWord.ts)
 mountHaggle(app, { db, payload: () => jobsPayload() });
+// M6 transport: who owns what, errands with a load, Jef's own velocipede (town/possessions.ts, bikeshop.ts)
+mountTransport(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 
 // Board status the client can show while Claude writes.
 let board: { state: "writing" | "ready"; source?: string; error?: string } = { state: "ready" };
@@ -246,9 +266,11 @@ app.post("/api/new-game", async (c) => {
 
 app.post("/api/buy", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { npc?: string; kind?: string };
-  const r = buy(db, placed(String(body.npc)), String(body.kind));
+  const npc = placed(String(body.npc));
+  const r = buy(db, npc, String(body.kind));
   broadcast({ type: "jobs", ...jobsPayload() });
-  return c.json({ ...r, ...jobsPayload() });
+  // the prices after this purchase: a haggled price still good for more stays on the list (QA 2026-09-24)
+  return c.json({ ...r, wares: waresFor(db, npc), ...jobsPayload() });
 });
 
 app.post("/api/use", async (c) => {
@@ -315,7 +337,7 @@ app.get("/api/town", (c) => {
       sex: r.sex,
       kind: r.kind,
       trade: r.trade,
-      label: TRADES[r.trade].label,
+      label: shownTrade(r),
       household: r.household,
       role: r.family_role,
       home: r.home,
@@ -347,6 +369,9 @@ app.post("/api/npc/:id/near", (c) => {
   return c.json({ ok: true });
 });
 
+// the prices a seller asks Jef now, a haggled price included (the shop list opened without a talk)
+app.get("/api/npc/:id/wares", (c) => c.json({ wares: waresFor(db, placed(c.req.param("id"))) }));
+
 app.post("/api/npc/:id/talk", async (c) => {
   const id = placed(c.req.param("id"));
   const body = (await c.req.json().catch(() => ({}))) as { kind?: string; text?: unknown };
@@ -357,7 +382,7 @@ app.post("/api/npc/:id/talk", async (c) => {
       if ("npc_line" in r) return c.json(publicLine(r));
       return c.json({ gated: r.gated });
     }
-    return c.json(publicLine(residentOpen(db, id)));
+    return c.json({ ...publicLine(residentOpen(db, id)), wares: waresFor(db, id) });
   }
   await personasOrTimeout();
   if (body.kind === "choice" && typeof body.text === "string") return c.json(publicLine(await pickChoice(db, id, body.text)));
@@ -366,7 +391,7 @@ app.post("/api/npc/:id/talk", async (c) => {
     if ("npc_line" in r) return c.json(publicLine(r));
     return c.json({ gated: r.gated });
   }
-  return c.json(publicLine(await openTalk(db, id)));
+  return c.json({ ...publicLine(await openTalk(db, id)), wares: waresFor(db, id) });
 });
 
 app.post("/api/npc/:id/witness", async (c) => {

@@ -66,7 +66,9 @@ CREATE TABLE IF NOT EXISTS diary (
   source TEXT NOT NULL DEFAULT 'engine',
   status TEXT NOT NULL CHECK (status IN ('writing', 'lying', 'held', 'returned', 'sold', 'squeezed', 'gone')),
   read INTEGER NOT NULL DEFAULT 0,
-  closed_day INTEGER
+  closed_day INTEGER,
+  started_min INTEGER,
+  tries INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS meeting (
   id INTEGER PRIMARY KEY,

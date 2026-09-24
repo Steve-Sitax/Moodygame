@@ -64,6 +64,9 @@ const CSS = `
 .night .dream{font-style:italic;opacity:.9;border-top:1px solid rgba(0,0,0,.2);padding-top:8px}
 `;
 
+/** A dream may wait this long (real seconds) for its night sheet to open (the cell sheet opens after the agent's talk). */
+const DREAM_WAIT_S = 120;
+
 export class Families {
   private panel: HTMLDivElement;
   private veil: HTMLDivElement;
@@ -77,6 +80,9 @@ export class Families {
   private visit: { npc: string; name: string; title: string; t: number } | null = null;
   private table: THREE.Group | null = null;
   private lastDream = "";
+  /** A dream that came before its night sheet opened, and how long it may still wait (real seconds). */
+  private dreamWaiting = "";
+  private dreamWaitT = 0;
   /** Dev: what was shown. */
   readonly log: string[] = [];
 
@@ -289,16 +295,28 @@ export class Families {
 
   private showDream(text: string): void {
     this.lastDream = text;
-    const sheet = document.querySelector(".night.paper") as HTMLDivElement | null;
-    if (sheet && sheet.style.display !== "none") {
-      sheet.querySelector(".dream")?.remove();
-      const p = document.createElement("p");
-      p.className = "dream";
-      p.textContent = `You dream. ${text}`;
-      const keys = sheet.querySelector(".keys");
-      sheet.insertBefore(p, keys);
-    } else this.jobs.say(`You dreamt: ${text}`);
+    // QA 2026-09-24: the cell's night sheet is a second ".night.paper"; the dream goes on whichever is open,
+    // or, if none is open yet (the cell sheet comes after the agent's talk), on the next one that opens
+    this.dreamWaiting = text;
+    this.dreamWaitT = DREAM_WAIT_S;
+    if (!this.putDream()) this.jobs.say(`You dreamt: ${text}`);
     this.log.push(`dream ${text.slice(0, 60)}`);
+  }
+
+  /** The dream on an open night sheet (the doss house, a home, the cell), once. */
+  private putDream(): boolean {
+    const text = this.dreamWaiting;
+    if (!text) return false;
+    const sheet = [...document.querySelectorAll<HTMLDivElement>(".night.paper")].find((el) => el.style.display !== "none" && el.isConnected);
+    if (!sheet) return false;
+    sheet.querySelector(".dream")?.remove();
+    const p = document.createElement("p");
+    p.className = "dream";
+    p.textContent = `You dream. ${text}`;
+    const keys = sheet.querySelector(".keys");
+    sheet.insertBefore(p, keys);
+    this.dreamWaiting = "";
+    return true;
   }
 
   // ---- Madame Zelie's table: a folding table with a red cloth, the cards laid out, a stool
@@ -351,6 +369,8 @@ export class Families {
   }
 
   update(dt: number): void {
+    if (this.dreamWaiting && (this.dreamWaitT -= dt) > 0) this.putDream();
+    else this.dreamWaiting = "";
     this.openVisit(dt);
     this.tickMenace(dt);
     if (this.veilT > 0) {

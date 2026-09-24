@@ -6,6 +6,7 @@ import { resident, town } from "./town/store.ts";
 import { closedByEvent, priceFactor } from "./director/state.ts";
 import { newsFactor } from "./ideas/prices.ts";
 import { FURNITURE, FURNITURE_KINDS } from "../../shared/homes.ts";
+import { VELO_PRICE } from "./town/transport.ts";
 
 // Buying, pockets and eating (M3b). Prices and effects are engine numbers
 // (docs/03: shop prices are engine code). Pockets hold small things only;
@@ -48,7 +49,17 @@ export const ITEMS: Record<string, ItemDef> = {
   letters: { name: "a bundle of letters", note: "Tied with string. Each goes to its own door." },
   pawn_ticket: { name: "a pawn ticket", use: "read", note: "Printed card from the Berg van Barmhartigheid. Keep it safe." },
   medal: { name: "your mother's silver medal", note: "Our Lady, on a worn blue ribbon. She pressed it into your hand the day you left." },
+  // M6 transport: the velocipede maker's machines (town/bikeshop.ts); they stand at his door, never in a pocket
+  velocipede_new: { name: "a new velocipede", note: "Iron backbone, oak wheels with iron tyres, a leather saddle. Yours." },
+  velocipede_used: { name: "a second-hand velocipede", note: "Scratched paint, a patched saddle, and it goes as well as any. Yours." },
+  velocipede_hire: { name: "a velocipede for the day", note: "Back at his door before the day is out, or his boy fetches it." },
 };
+
+/**
+ * M6: things bought that are not pocket items (a velocipede stands in the street). The module
+ * does what buying one means, in the same transaction as the money (town/bikeshop.ts).
+ */
+export const ITEM_BUY: Record<string, (db: DB) => void> = {};
 
 /**
  * M6: items made by other modules carry a ref in the pocket row (the paper's day, a letter,
@@ -95,6 +106,12 @@ const TRADE_WARES: Record<string, Array<{ kind: string; price_c: number }>> = {
   newsboy: [{ kind: "newspaper", price_c: 5 }],
   // M6 homes: the second-hand dealer's furniture (prices in shared/homes.ts FURNITURE; homes/homes.ts adds the items)
   dealer: FURNITURE_KINDS.map((kind) => ({ kind, price_c: FURNITURE[kind].price_c })),
+  // M6 transport: the velocipede maker sells new and second-hand machines and hires one out by the day
+  velo_maker: [
+    { kind: "velocipede_used", price_c: VELO_PRICE.used_c },
+    { kind: "velocipede_new", price_c: VELO_PRICE.new_c },
+    { kind: "velocipede_hire", price_c: VELO_PRICE.hire_c },
+  ],
 };
 
 /** What a person sells: the named sellers, or a townsperson by stall or shop. */
@@ -202,13 +219,17 @@ export function buy(db: DB, npc: string, kind: string): { line: string; bought: 
   const drinkNow = ITEMS[kind].use === "drink" || !!ITEMS[kind].atCounter;
   const ref = ITEM_REF[kind]?.(db) ?? null;
   const inArms = ITEMS[kind].carry === "arms";
-  if (!drinkNow && !inArms && freeSlots(db) < 1) throw new GameError("your pockets are full", 409);
+  const special = ITEM_BUY[kind];
+  if (!drinkNow && !inArms && !special && freeSlots(db) < 1) throw new GameError("your pockets are full", 409);
   db.transaction(() => {
     db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(ware.price_c);
     // a drink is taken on the spot; food goes into your pocket
-    if (drinkNow) applyNeeds(db, ITEMS[kind]);
+    if (special) special(db);
+    else if (drinkNow) applyNeeds(db, ITEMS[kind]);
     else if (!inArms) db.prepare("INSERT INTO item (kind, job_id, ref) VALUES (?, NULL, ?)").run(kind, ref);
     log(db, "bought", kind, `Jef bought ${ITEMS[kind].name} for ${ware.price_c} centimes.`);
+    // food eaten at the counter (the tavern's pea soup) is a meal too (QA 2026-09-24: the night sheet said "You ate nothing")
+    if (drinkNow && !special && ITEMS[kind].use === "eat") log(db, "ate", kind, `Jef ate ${ITEMS[kind].name} at the counter.`);
   })();
   remember(db, npc, `Jef bought ${ITEMS[kind].name} from me for ${ware.price_c} centimes.`, drinkNow ? 3 : 2);
   if (price_c < listed.price_c) haggleHooks.bought(db, npc, kind);

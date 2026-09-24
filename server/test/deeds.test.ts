@@ -97,7 +97,9 @@ describe("stealables", () => {
     const db = fresh();
     const s = stealables(db);
     expect(s.velos.length).toBeGreaterThanOrEqual(4);
-    expect(s.velos.length).toBeLessThanOrEqual(6);
+    // M6 transport adds a few more (young men and clerks who go far, the velocipede maker's own)
+    expect(s.velos.filter((v) => /^velo:\d+$/.test(v.id)).length).toBeLessThanOrEqual(6);
+    expect(s.velos.length).toBeLessThanOrEqual(12);
     const wm = walkMap();
     for (const v of s.velos) {
       const r = resident(db, v.owner)!;

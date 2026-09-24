@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { DB } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
 import { SYSTEM } from "./jobBoard.ts";
-import { PLACED, npcRow, relationship, topMemories } from "../npcs.ts";
+import { PLACED, npcRow, relationship, topMemories, trustText } from "../npcs.ts";
 import type { Ending } from "../day.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 
@@ -23,7 +23,7 @@ export function buildPrompt(db: DB, e: Ending): string {
       const n = npcRow(db, id)!;
       const r = relationship(db, id);
       const m = topMemories(db, id, 2).map((x) => x.text);
-      return `- ${n.name} (${n.role}): trust ${r.trust}/10, met ${r.times_met} times. ${r.view_of_player || "Hardly knows him."}${m.length ? " Remembers: " + m.join(" / ") : ""}`;
+      return `- ${n.name} (${n.role}): trust ${trustText(r.trust)}, met ${r.times_met} times. ${r.view_of_player || "Hardly knows him."}${m.length ? " Remembers: " + m.join(" / ") : ""}`;
     })
     .join("\n");
   return `The story of Jef's first week in Antwerp is over. Write the epilogue.
@@ -33,7 +33,7 @@ ${e.kind === "health" ? `His body gave out on day ${e.day}. This is an early, ba
 
 HOW HE STANDS AT THE END
 Money: ${p.money_c} centimes. Belly ${p.food}/10, warmth ${p.warmth}/10, health ${p.health}/10. Rent for the week ${Number(p.rent_paid_until) >= 7 ? "paid" : "not paid"}.
-Trust per faction (0-10): ${trust.map((t) => `${t.faction} ${t.trust}`).join(", ")}.
+Trust per faction (-5 to 10; below 0 they dislike Jef): ${trust.map((t) => `${t.faction} ${t.trust}`).join(", ")}.
 
 THE PEOPLE OF THE RIJNKAAI
 ${people}

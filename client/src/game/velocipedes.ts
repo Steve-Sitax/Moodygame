@@ -42,6 +42,12 @@ const RF = 0.46;
 const RR = 0.38;
 
 let loading: Promise<THREE.Object3D | null> | null = null;
+/** M6 transport: the machine for a rider of the town (game/crowd.ts clones it). */
+export function loadVelocipede(): Promise<THREE.Object3D | null> {
+  return loadModel();
+}
+/** The front and rear wheel radii (velocipede.glb). */
+export const WHEEL_R = { front: 0.46, rear: 0.38 };
 function loadModel(): Promise<THREE.Object3D | null> {
   if (loading) return loading;
   const draco = new DRACOLoader().setDecoderPath("/draco/");
@@ -157,6 +163,10 @@ export class Velocipedes {
   private rutTry = 0;
   /** The one being ridden. */
   ridden: Bike | null = null;
+  /** M6 transport: machines their owners are riding now (game/journeys.ts): not standing anywhere. */
+  private inUse = new Set<string>();
+  /** M6: where an owner left his machine, until the server's list says so too. */
+  private placed = new Map<string, { x: number; z: number; yaw: number; t: number }>();
 
   constructor(
     private readonly world: World,
@@ -171,6 +181,8 @@ export class Velocipedes {
 
   /** The server's list: add, move and drop machines to match. */
   sync(list: VeloInfo[]): void {
+    // a hiccup on the line can bring no list at all: keep what stands
+    if (!Array.isArray(list)) return;
     const seen = new Set<string>();
     for (const info of list) {
       seen.add(info.id);
@@ -185,7 +197,9 @@ export class Velocipedes {
         b.info = { ...info, ridden: true };
         continue;
       }
-      b.info = info;
+      // M6: an owner put it down here a moment ago; the server's list catches up within a minute
+      const put = this.placed.get(info.id);
+      b.info = put && performance.now() - put.t < 60_000 && !info.mine ? { ...info, x: put.x, z: put.z, yaw: put.yaw } : info;
       this.stand(b);
     }
     for (const [id, b] of this.bikes) if (!seen.has(id) && b !== this.ridden) this.drop(id);
@@ -219,10 +233,11 @@ export class Velocipedes {
     b.root.rotation.z = i.down ? -1.42 : 0.06;
     if (i.down) b.root.position.y += 0.33;
     if (b.steer) b.steer.rotation.y = i.down ? 0.3 : 0.12;
-    b.root.visible = !i.ridden;
+    const away = this.inUse.has(i.id);
+    b.root.visible = !i.ridden && !away;
     if (b.collider) this.world.removeCollider(b.collider);
     b.collider = null;
-    if (!i.ridden) {
+    if (!i.ridden && !away) {
       // 1.7 m long, 0.5 m wide (a lying one a little wider), turned by its yaw
       const c = Math.abs(Math.cos(i.yaw));
       const s = Math.abs(Math.sin(i.yaw));
@@ -240,7 +255,7 @@ export class Velocipedes {
     let best: Bike | null = null;
     let bd = reach;
     for (const b of this.bikes.values()) {
-      if (b === this.ridden || b.info.ridden) continue;
+      if (b === this.ridden || b.info.ridden || this.inUse.has(b.info.id)) continue;
       const d = Math.hypot(b.info.x - x, b.info.z - z);
       if (d < bd) {
         bd = d;
@@ -296,7 +311,7 @@ export class Velocipedes {
       if (b.rear) b.rear.rotation.x = p.bikeDist / RR;
     }
     // parked ones far off are not drawn (10 draw calls each)
-    for (const o of this.bikes.values()) if (o !== b && !o.info.ridden) o.root.visible = Math.hypot(o.info.x - this.player.x, o.info.z - this.player.z) < 70;
+    for (const o of this.bikes.values()) if (o !== b && !o.info.ridden) o.root.visible = !this.inUse.has(o.info.id) && Math.hypot(o.info.x - this.player.x, o.info.z - this.player.z) < 70;
     if (!this.ruts && (this.rutTry -= dt) <= 0) {
       this.rutTry = 2;
       this.findRuts();
@@ -345,6 +360,29 @@ export class Velocipedes {
   sounds(): Array<{ kind: "handcart"; x: number; z: number; state: string }> {
     if (!this.ridden || Math.abs(this.player.bikeSpeed) < 0.6) return [];
     return [{ kind: "handcart", x: this.player.x, z: this.player.z, state: "go" }];
+  }
+
+  /**
+   * M6 transport: an owner takes his machine (on) or puts it down at `at` (off). While in use it
+   * stands nowhere (not drawn, not solid, not to be taken).
+   */
+  use(id: string, on: boolean, at?: { x: number; z: number; yaw: number }): void {
+    const b = this.bikes.get(id);
+    if (on) this.inUse.add(id);
+    else {
+      this.inUse.delete(id);
+      if (at) this.placed.set(id, { ...at, t: performance.now() });
+    }
+    if (!b || b === this.ridden) return;
+    if (!on && at && !b.info.mine) b.info = { ...b.info, x: at.x, z: at.z, yaw: at.yaw };
+    this.stand(b);
+  }
+
+  /** M6: is this machine standing where it can be used (not Jef's, not ridden, not in use)? */
+  standing(id: string): VeloInfo | null {
+    const b = this.bikes.get(id);
+    if (!b || b === this.ridden || b.info.ridden || b.info.mine || this.inUse.has(id)) return null;
+    return b.info;
   }
 
   /** Dev: where they are. */

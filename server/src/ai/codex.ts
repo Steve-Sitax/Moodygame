@@ -75,11 +75,18 @@ export function stripNulls(v: unknown): unknown {
 /** Only these event items may appear: the model's text and its reasoning. Anything else is a tool. */
 const ALLOWED_ITEMS = new Set(["agent_message", "reasoning"]);
 
-function killTree(pid: number | undefined): void {
+/**
+ * Kill a model process and its children at once. Never blocks: the kill runs beside the game,
+ * so the caller of a timed-out call gets its fallback without waiting for the process to die.
+ */
+export function killTree(pid: number | undefined): void {
   if (!pid) return;
   try {
-    if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(pid), "/T", "/F"], { stdio: "ignore", timeout: 5_000 });
-    else process.kill(pid, "SIGKILL");
+    if (process.platform === "win32") {
+      const k = spawn("taskkill", ["/pid", String(pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
+      k.on("error", () => {});
+      k.unref();
+    } else process.kill(pid, "SIGKILL");
   } catch {
     // already gone
   }

@@ -1,7 +1,7 @@
 import type { DB } from "../db.ts";
 import { generateTown, tidy, type Resident, type Town } from "./population.ts";
 import { walkMap } from "./walkmap.ts";
-import { HAULS, STALLS, TRADES, TOWN_EMPLOYERS } from "./places.ts";
+import { HAULS, shownTrade, STALLS, TOWN_EMPLOYERS } from "./places.ts";
 import { GARRISON_TRADES, generateGarrison } from "./garrison.ts";
 import { townSize } from "./popsettings.ts";
 import type { TownSize } from "../config.ts";
@@ -53,7 +53,7 @@ export function ensureTown(db: DB, seed?: number, size?: TownSize): { made: bool
   db.transaction(() => {
     for (const r of town.residents) {
       const district = town.places[r.work.place]?.district ?? "town";
-      insNpc.run(r.id, r.name, TRADES[r.trade].label, district, r.faction);
+      insNpc.run(r.id, r.name, shownTrade(r), district, r.faction);
       insRel.run(r.id);
       insRes.run(r.id, r.household, r.trade, JSON.stringify(r));
     }
@@ -91,7 +91,7 @@ export function ensureGarrison(db: DB): number {
     for (const r of g.residents) {
       if (hasNpc.get(r.id)) continue; // an id taken by something else: never overwrite
       const district = places[r.work.place]?.district ?? "town";
-      insNpc.run(r.id, r.name, TRADES[r.trade].label, district, r.faction);
+      insNpc.run(r.id, r.name, shownTrade(r), district, r.faction);
       insRel.run(r.id);
       insRes.run(r.id, r.household, r.trade, JSON.stringify(r));
       added++;

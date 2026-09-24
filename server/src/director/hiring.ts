@@ -72,7 +72,12 @@ const TAVERN_AT: Record<string, [number, number]> = { ankere: [-52, 46], bassin:
 
 /** Engine numbers. */
 export const HIRING_PLAN_FROM = 4.5;
-export const HIRING_PLAN_UNTIL = 6.25;
+/**
+ * The last hour the morning's hiring is still planned (QA 2026-09-24: a night at home ended at
+ * 6:00 and the first tick after the night sheet came past 6:15, so the day had no hiring). Up to
+ * the template's own limit: a late plan starts at once.
+ */
+export const HIRING_PLAN_UNTIL = 7;
 export const HIRING_START = 5.5;
 export const HIRE_MEN_PER_SPOT = 16;
 export { HIRING_CALLS_PER_DAY } from "../config.ts";

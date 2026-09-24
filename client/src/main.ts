@@ -21,6 +21,7 @@ import { Ride } from "./game/ride";
 import { CraneClimb } from "./game/craneclimb";
 import { Deeds } from "./game/deeds";
 import { Rowing } from "./game/rowing";
+import { Journeys } from "./game/journeys";
 import { Market } from "./game/market";
 import { setLitterClock } from "./world/litter";
 import { createTrades } from "./world/trades";
@@ -111,6 +112,11 @@ deeds.sfx = (name, at) => sound?.play(name, at);
 const rowing = new Rowing(world, player, jobs, deeds);
 rowing.sfx = (name, at) => sound?.play(name, at);
 rowing.stroke = () => sound?.swimStroke();
+// M6 transport: residents go by velocipede, handcart, dray, omnibus or boat (game/journeys.ts)
+const journeys = new Journeys(world, crowd, deeds.velos, rowing, town.journeyHost());
+town.journeys = journeys;
+journeys.say = (t) => jobs.say(t);
+journeys.onJefVelos = () => void deeds.load();
 // M4: townspeople who act (game/actions.ts), the director's events (game/events.ts) and the
 // conversations shown over their heads (game/bubbles.ts); the server decides all of it
 const events = new Events(world, town, stalls);
@@ -389,6 +395,7 @@ function frame(): void {
   crowd.setHour(jobs.day.hour);
   crowd.update(dt, player, player.camera);
   town.update(dt, player);
+  journeys.update(dt, player);
   market.update(dt, player, jobs.day.dayNum, jobs.day.hourF);
   setLitterClock(jobs.day.dayNum, jobs.day.hourF);
   trades.update(elapsed, dt, player.camera, crowd.fogDistance);
@@ -440,6 +447,8 @@ function frame(): void {
     }
     const bus = world.omnibus();
     if (bus && !bus.people) bus.people = () => crowd.positions();
+    // M6 transport: the town's own people ride the omnibus (no fare), and step off at their stop
+    if (bus && !bus.onResidentOff) bus.onResidentOff = (_b, id, at) => journeys.offBus(id, at);
   }
   // M6: inside a room, its own scene instead of the street
   retro.render(interiors.prepareRender(player.camera) ?? world.scene, player.camera, elapsed);
@@ -519,6 +528,7 @@ if (import.meta.env.DEV) {
     craneClimb,
     deeds,
     rowing,
+    journeys,
     actions,
     events,
     townLife,
@@ -590,6 +600,8 @@ if (import.meta.env.DEV) {
       for (const q of ideas.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M6 town life: the lamplighters' stands at every lamp
       for (const q of townLife.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      // M6 transport: where velocipedes and handcarts stand, the errands' ends, the velocipede maker
+      for (const q of journeys.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M6: the Logement door, the emigrants' places on the quay, the Red Star Line notice
       for (const q of emigrants.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M6 homes: every home's door and the second-hand dealer
@@ -670,6 +682,7 @@ if (import.meta.env.DEV) {
         jobs.update(dt);
         crowd.update(dt, player, player.camera);
         town.update(dt, player);
+        journeys.update(dt, player);
         market.update(dt, player, jobs.day.dayNum, jobs.day.hourF);
         setLitterClock(jobs.day.dayNum, jobs.day.hourF);
         trades.update(elapsed, dt, player.camera, crowd.fogDistance);

@@ -54,7 +54,7 @@ interface DeedReply extends JobsPayload {
 }
 interface PoliceView {
   visit: { id: number; agent: string; name: string; state: "coming" | "talking"; reason: string } | null;
-  last: { visit: number; verdict: "warning" | "fine" | "arrest"; fine_c: number; paid_c: number; agent: string; text: string } | null;
+  last: { visit: number; verdict: "let_off" | "warning" | "fine" | "arrest"; fine_c: number; paid_c: number; agent: string; text: string } | null;
   cell: boolean;
   post: { x: number; z: number; yaw: number; label: string };
 }
@@ -171,17 +171,20 @@ export class Deeds {
 
   async load(): Promise<void> {
     try {
-      const w = await net<DeedsWorld>("GET", "/api/deeds/world");
-      this.food = w.food;
-      // a velocipede the server has as ridden, but nobody here is on it (a reload): leave it where it was
-      for (const v of w.velos) {
-        if (v.ridden && this.velos.ridden?.info.id !== v.id) {
-          await net("POST", `/api/velo/${v.id.split(":")[1]}/leave`, { x: v.x, z: v.z, yaw: v.yaw }).catch(() => {});
-          v.ridden = false;
+      const w = (await net<Partial<DeedsWorld> | null>("GET", "/api/deeds/world")) ?? {};
+      // a bad or empty answer (QA 2026-09-24: "w.velos is not iterable"): keep what is shown, try again next time
+      if (Array.isArray(w.food)) this.food = w.food;
+      if (Array.isArray(w.velos)) {
+        // a velocipede the server has as ridden, but nobody here is on it (a reload): leave it where it was
+        for (const v of w.velos) {
+          if (v && v.ridden && this.velos.ridden?.info.id !== v.id) {
+            await net("POST", `/api/velo/${v.id.split(":")[1]}/leave`, { x: v.x, z: v.z, yaw: v.yaw }).catch(() => {});
+            v.ridden = false;
+          }
         }
+        this.velos.sync(w.velos);
       }
-      this.velos.sync(w.velos);
-      this.lantern.syncStanding(w.lamps, (x, z) => this.world.groundAt(x, z, 0.2, 0));
+      if (Array.isArray(w.lamps)) this.lantern.syncStanding(w.lamps, (x, z) => this.world.groundAt(x, z, 0.2, 0));
     } catch (e) {
       console.warn("[deeds] the town's things did not load", e);
     }
@@ -455,8 +458,9 @@ export class Deeds {
     } catch {
       return;
     }
+    if (!v || typeof v !== "object") return;
     this.police = v;
-    if (!this.postSign) this.postSign = this.signAt(v.post);
+    if (!this.postSign && v.post) this.postSign = this.signAt(v.post);
     if (v.last && v.last.visit !== this.lastVerdict) {
       const first = this.lastVerdict === 0;
       this.lastVerdict = v.last.visit;
@@ -588,7 +592,8 @@ export class Deeds {
   private verdict(l: NonNullable<PoliceView["last"]>): void {
     if (this.velos.ridden) this.velos.forget();
     void this.load();
-    if (l.verdict === "warning") this.jobs.say("A warning from the police. What you took goes back.");
+    if (l.verdict === "let_off") this.jobs.say("The agent believes you and lets you go. What you took goes back where it belongs, and that is the end of it.");
+    else if (l.verdict === "warning") this.jobs.say("A warning from the police. What you took goes back.");
     else if (l.verdict === "fine") this.jobs.say(`You pay the police a fine of ${l.paid_c} centimes. What you took goes back.`);
     else this.jobs.say(`The agent takes you by the arm${l.paid_c ? ` and ${l.paid_c} centimes for the fine` : ""}. To the police post.`);
   }
@@ -632,7 +637,7 @@ export class Deeds {
     for (const v of this.velos.list()) out.push({ label: `velocipede ${v.id} (${v.owner_name})`, x: v.x, z: v.z, reach: 1.6 });
     for (const l of this.lantern.standingList()) out.push({ label: `lantern ${l.id}`, x: l.x, z: l.z, reach: l.y > 0.5 ? 2.2 : 1.8 });
     for (const f of this.food) out.push({ label: `food ${f.id}`, x: f.x, z: f.z, reach: 2.2 });
-    if (this.police) out.push({ label: "the police post", x: this.police.post.x, z: this.police.post.z, reach: 1.5 });
+    if (this.police?.post) out.push({ label: "the police post", x: this.police.post.x, z: this.police.post.z, reach: 1.5 });
     return out;
   }
 

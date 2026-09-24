@@ -379,7 +379,10 @@ export class Interiors {
         this.tipsyTarget = st.tipsy;
         this.chatT = 6 + Math.random() * 6;
       });
-      this.say(`${d.label}. Smoke, beer and wet wool. ${st.patrons.length ? `${st.patrons.length} at the tables.` : "Quiet tonight."}`);
+      // words for the hour (QA 2026-09-24: "Quiet tonight" at one in the afternoon)
+      const h = this.jobs.day.hourF;
+      const quiet = h >= 18 || h < 4 ? "Quiet tonight." : h < 12 ? "Quiet this morning." : "Quiet this afternoon.";
+      this.say(`${d.label}. Smoke, beer and wet wool. ${st.patrons.length ? `${st.patrons.length} at the tables.` : quiet}`);
     } catch (e) {
       this.say(String((e as Error).message ?? e));
     } finally {

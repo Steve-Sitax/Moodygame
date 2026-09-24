@@ -8,7 +8,7 @@ import { SYSTEM } from "../hooks/jobBoard.ts";
 import { applyTrust, remember } from "../npcs.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { gameMinute } from "../town/deeds.ts";
-import { TRADES } from "../town/places.ts";
+import { shownTrade, TRADES } from "../town/places.ts";
 import type { Resident } from "../town/population.ts";
 import { withinFact } from "../town/rumours.ts";
 import type { Seg } from "../town/schedule.ts";
@@ -283,13 +283,31 @@ const STRANGER_DAY: Record<StrangerKind, Seg[]> = {
 
 /** The errand a stranger may ask of Jef: whom to find (trades, in order), and what to ask. */
 const ERRAND: Record<StrangerKind, { trades: string[]; ask: string; yes: string; no: string }> = {
-  sailor: { trades: ["boatman", "sailor", "docker"], ask: "whether a boatman called Hovinga works the river", yes: "he knows the man, and where he ties up", no: "he never heard the name" },
+  sailor: { trades: ["boatman", "sailor", "docker"], ask: "whether a boatman called {surname} works the river", yes: "he knows the man, and where he ties up", no: "he never heard the name" },
   merchant: { trades: ["chandler", "grocer", "tobacconist"], ask: "whether they would buy coffee by the sack", yes: "they would, at a fair price", no: "they have coffee enough" },
   runaway: { trades: ["laundress", "seamstress", "housewife"], ask: "whether they need a girl for the washing", yes: "they could use a pair of hands, for board", no: "they have no work to give" },
   preacher: { trades: ["sexton", "priest"], ask: "whether a travelling man may speak at the church door on Sunday", yes: "after the high mass, and briefly", no: "the church door is the church's" },
   gambler: { trades: ["publican"], ask: "whether there is a back room free tonight", yes: "there is, for a price", no: "not for card players" },
 };
 export const ERRAND_PAY_C = 15;
+
+/**
+ * What each kind of stranger wants, fixed by the engine: the errand asks exactly this, so the
+ * model's greeting is told to be about it and the goal is the engine's (QA 2026-09-24: Halvor
+ * Brekke asked where to sign on for the America ships, and his errand was about a boatman).
+ */
+const STRANGER_WANTS: Record<StrangerKind, string> = {
+  sailor: "word of his brother, a boatman on the Schelde with the same surname as his own",
+  merchant: "a chandler or grocer who will buy coffee by the sack",
+  runaway: "honest work, washing or sewing, where nobody asks questions",
+  preacher: "leave to preach at the church door on Sunday",
+  gambler: "a back room at a tavern, and a few men with money, for a game of cards tonight",
+};
+
+/** The errand's question with the stranger's own name in it (the sailor's brother has his surname). */
+function errandAsk(kind: StrangerKind, s: { surname?: string } | null | undefined): string {
+  return ERRAND[kind].ask.replace("{surname}", s?.surname || "Hovinga");
+}
 
 export function strangersHere(db: DB): VisitorResident[] {
   return STRANGER_KINDS.map((k) => resident(db, strangerId(k)) as VisitorResident | undefined).filter((r): r is VisitorResident => !!r && !!visitorOf(r)?.here);
@@ -324,7 +342,7 @@ export async function arriveStranger(db: DB, opts: { kind?: StrangerKind; runner
     const c = clock(db);
     const res = await callClaude(
       db,
-      { hook: "stranger_arrive", system: SYSTEM + "\n" + STRANGER_RULES, prompt: `KIND: ${kind} (${r.sex === "f" ? "a young woman" : "a man"}, about ${r.age}).\nNOW: ${c.weekday}, ${WEATHER_TEXT[c.weather]}.`, schema: StrangerSchema },
+      { hook: "stranger_arrive", system: SYSTEM + "\n" + STRANGER_RULES, prompt: `KIND: ${kind} (${r.sex === "f" ? "a young woman" : "a man"}, about ${r.age}).\nWHAT THEY WANT (fixed by the game; the greeting asks about this and nothing else): ${STRANGER_WANTS[kind]}.\nNOW: ${c.weekday}, ${WEATHER_TEXT[c.weather]}.`, schema: StrangerSchema },
       opts.runner,
     );
     const d = res.ok ? res.data : null;
@@ -334,7 +352,8 @@ export async function arriveStranger(db: DB, opts: { kind?: StrangerKind; runner
       const secret = clean(d.secret, 140);
       const greeting = clean(d.greeting, 160);
       if (story && goal && secret && greeting) {
-        words = { first: d.first.trim(), surname: d.surname.trim(), origin: plainEnglish(d.origin).slice(0, 40) || words.origin, story, goal, secret, greeting };
+        // the goal is the engine's (the errand asks exactly this); the model words the rest
+        words = { first: d.first.trim(), surname: d.surname.trim(), origin: plainEnglish(d.origin).slice(0, 40) || words.origin, story, goal: goal && `to find ${STRANGER_WANTS[kind]}`, secret, greeting };
         source = "claude";
       }
     }
@@ -446,8 +465,8 @@ function strangerTopics(db: DB, r: Resident): ExtraTopic[] {
           const t = pickTarget(db2, kind, Math.random);
           if (!t) return { text: "Kind of you. But I'll manage on my own." };
           setSt(db2, `errand:${r.id}`, { stranger: r.id, target: t.id, stage: "asked", pay: ERRAND_PAY_C } satisfies Errand);
-          writeEvent(db2, { kind: "action", verb: "errand_given", actor: r.id, target: t.id, text: `${r.name} asked Jef to find ${t.name} and ask ${ERRAND[kind].ask}.`, weight: 3, who: [r.id, t.id] });
-          return { text: `Would you? Find ${t.name}, the ${TRADES[t.trade]?.label ?? t.trade}, about ${placeOf(db2, t)}. Ask ${t.sex === "f" ? "her" : "him"} ${ERRAND[kind].ask}. Come back and tell me. ${ERRAND_PAY_C} centimes for your trouble.` };
+          writeEvent(db2, { kind: "action", verb: "errand_given", actor: r.id, target: t.id, text: `${r.name} asked Jef to find ${t.name} and ask ${errandAsk(kind, r)}.`, weight: 3, who: [r.id, t.id] });
+          return { text: `Would you? Find ${t.name}, the ${shownTrade(t)}, about ${placeOf(db2, t)}. Ask ${t.sex === "f" ? "her" : "him"} ${errandAsk(kind, r)}. Come back and tell me. ${ERRAND_PAY_C} centimes for your trouble.` };
         },
       });
     } else if (e.stage === "answered") {
@@ -473,7 +492,7 @@ function strangerTopics(db: DB, r: Resident): ExtraTopic[] {
     const kind = visitorOf(s)?.kind;
     if (s && kind) {
       out.push({
-        choice: `A stranger, ${s.name}, sent me. ${cap(ERRAND[kind].ask)}?`,
+        choice: `A stranger, ${s.name}, sent me. ${cap(errandAsk(kind, s))}?`,
         answer: (db2) => {
           const yes = r.stats.warmth + (10 - r.stats.greed) / 2 + Math.random() * 6 >= 9;
           setSt(db2, `errand:${s.id}`, { ...mine, stage: "answered", yes });

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { makeHuman, type Human, type HumanKind } from "../game/humans";
+import { psx } from "../retro/psx";
 import type { Props } from "./props3d";
 import type { Rect } from "./geom";
 
@@ -275,6 +276,9 @@ export class PushCart {
     { minX: 0, maxX: 0, minZ: 0, maxZ: 0, top: 1.0 },
   ];
 
+  /** M6 transport: the things put on it one by one (a resident's goods), in the bed's frame. */
+  private items: THREE.Mesh[] = [];
+
   constructor(parent: THREE.Object3D, props: Props, opts: PushCartOptions = {}) {
     const body = mergedPart(props, opts.load === false ? ["tr_handcart"] : ["tr_handcart", "tr_handcart_load"]);
     const wheels = mergedPart(props, ["tr_handcart_wheels"]);
@@ -326,6 +330,31 @@ export class PushCart {
     this.pose();
   }
 
+  /**
+   * M6 transport: show n things on the bed (baskets, crates, sacks, a chair), loaded one at a
+   * time by the family (game/journeys.ts). Up to six; made once, shown or hidden.
+   */
+  setItems(n: number, what: "goods" | "fish" | "furniture" | "chests" | "sacks" = "goods"): void {
+    if (!this.items.length) {
+      for (let i = 0; i < 6; i++) {
+        const m = new THREE.Mesh(itemGeo(i), itemMat(i));
+        // two rows across the bed, from the axle toward the grips; the upper row on top
+        const [x, z, y] = ITEM_AT[i];
+        m.position.set(x, y, z);
+        m.rotation.y = (i * 0.37) % 0.5 - 0.25;
+        m.visible = false;
+        this.pivot.add(m);
+        this.items.push(m);
+      }
+    }
+    this.items.forEach((m, i) => {
+      m.visible = i < n;
+      if (what !== this.what) m.geometry = itemGeo(i, what);
+    });
+    this.what = what;
+  }
+  private what = "goods";
+
   /** Where the cart stands: axle point on the ground, heading (the way it is pushed). */
   get axle(): { x: number; z: number; yaw: number } {
     return { x: this.ax, z: this.az, yaw: this.dir };
@@ -369,6 +398,35 @@ export class PushCart {
   }
 }
 
+/** Where the things lie on a resident's handcart (pivot frame: y up from the axle, z toward the grips). */
+const ITEM_AT: Array<[number, number, number]> = [
+  [-0.22, -0.2, 0.2], [0.22, -0.2, 0.2], [-0.22, 0.3, 0.2], [0.22, 0.3, 0.2], [0, 0.05, 0.52], [0, 0.55, 0.45],
+];
+const itemGeos = new Map<string, THREE.BufferGeometry>();
+function itemGeo(i: number, what = "goods"): THREE.BufferGeometry {
+  const kind = what === "fish" ? (i % 2 ? "basket" : "tub") : what === "furniture" ? (i % 3 === 0 ? "chair" : "crate") : what === "sacks" ? "sack" : i % 3 === 1 ? "sack" : i % 3 === 2 ? "basket" : "crate";
+  let g = itemGeos.get(kind);
+  if (!g) {
+    g =
+      kind === "crate"
+        ? new THREE.BoxGeometry(0.4, 0.3, 0.42).translate(0, 0.15, 0)
+        : kind === "sack"
+          ? new THREE.IcosahedronGeometry(0.24, 0).scale(1.1, 0.7, 0.9).translate(0, 0.16, 0)
+          : kind === "basket"
+            ? new THREE.CylinderGeometry(0.2, 0.16, 0.24, 7).translate(0, 0.12, 0)
+            : kind === "tub"
+              ? new THREE.CylinderGeometry(0.22, 0.2, 0.2, 8).translate(0, 0.1, 0)
+              : (mergeGeometries([new THREE.BoxGeometry(0.4, 0.05, 0.4).translate(0, 0.42, 0), new THREE.BoxGeometry(0.4, 0.45, 0.05).translate(0, 0.62, -0.18), ...[[-0.17, -0.17], [0.17, -0.17], [-0.17, 0.17], [0.17, 0.17]].map(([x, z]) => new THREE.BoxGeometry(0.04, 0.42, 0.04).translate(x, 0.21, z))], false) as THREE.BufferGeometry);
+    itemGeos.set(kind, g);
+  }
+  return g;
+}
+const itemMats: THREE.Material[] = [];
+function itemMat(i: number): THREE.Material {
+  if (!itemMats.length) for (const c of [0x6a5236, 0x9a8a62, 0x7a6038, 0x5a4a34]) itemMats.push(psx(new THREE.MeshLambertMaterial({ color: c })));
+  return itemMats[i % itemMats.length];
+}
+
 /** One geometry from parts of props.glb (all on the goods atlas). */
 function mergedPart(props: Props, names: string[]): THREE.BufferGeometry {
   const geos = names.flatMap((n) => props.parts(n).map((p) => p.geometry));
@@ -392,6 +450,16 @@ export interface Traffic {
   group: THREE.Group;
   /** Dev: where each vehicle is and what it does. */
   info(): Array<{ route: string; kind: VehicleKind; x: number; z: number; state: string }>;
+  /**
+   * M6 transport: the drays belong to townspeople (server town/possessions.ts). The owner's
+   * model walks at the horse's head; when `working()` says his day is done, the dray goes on to
+   * its yard (the round's stop) and stands there.
+   */
+  setOwners(list: Array<{ route: string; kind: HumanKind; name: string; working: () => boolean }>): void;
+  /** M6: the dray of this round is out on an errand (led through the streets, game/journeys.ts): not drawn here. */
+  away(route: string, on: boolean): void;
+  /** M6: the yard of each dray round (where an errand starts and ends), and the way out of it. */
+  yards(): Array<{ route: string; x: number; z: number; yaw: number }>;
 }
 
 interface Vehicle {
@@ -423,6 +491,9 @@ interface Vehicle {
   /** Where it is now (the reference point), for culling. */
   px: number;
   pz: number;
+  /** M6: the owner (his model at the horse's head), whether he works now; out on an errand. */
+  owner?: { kind: HumanKind; name: string; working: () => boolean };
+  away?: boolean;
 }
 
 // dray layout along the path (metres ahead of the rear axle)
@@ -611,8 +682,25 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
     dt = Math.min(dt, 0.1);
     const far = ((scene.fog as THREE.Fog | null)?.far ?? 40) + 15;
     for (const v of vehicles) {
+      // M6: out on an errand (led through the streets): not here at all
+      if (v.away) {
+        v.shown = false;
+        v.manGroup.visible = false;
+        for (const r of v.rects) r.minX = r.maxX = r.minZ = r.maxZ = 1e6;
+        if (v.kind === "dray") hideDray(v.index);
+        continue;
+      }
       // --- where to go
       let target = v.pace;
+      // M6: the owner's day is done: on to the yard (the round's first stop), and stand there
+      const yard = v.owner && !v.owner.working() && v.stops.length ? v.stops[0] : null;
+      if (yard) {
+        const ahead = wrap(yard.s - v.s, v.path.length);
+        if (ahead < 0.3 || ahead > v.path.length - 0.5) {
+          v.state = "stand";
+          v.timer = 5;
+        } else target = Math.min(target, 0.35 + ahead * 0.25);
+      }
       if (v.state === "stand") {
         target = 0;
         v.timer -= dt;
@@ -647,7 +735,12 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
       // animate only what the player could see
       v.shown = Math.hypot(player.x - a.x, player.z - a.z) < far;
 
-      // --- the carter
+      // --- the carter (M6: the owner, in his own clothes)
+      if (v.owner && v.owner.kind !== v.manKind && v.kind === "dray") {
+        v.man?.dispose();
+        v.man = null;
+        v.manKind = v.owner.kind;
+      }
       if (!v.man) {
         v.man = makeHuman(v.manKind);
         if (v.man) {
@@ -722,6 +815,48 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
     for (const m of instanced()) m.instanceMatrix.needsUpdate = true;
   }
 
+  const zeroM = new THREE.Matrix4().makeScale(0, 0, 0);
+  function hideDray(i: number): void {
+    for (const m of [parts.bed, parts.fore, parts.rear, parts.front, parts.horse]) m?.setMatrixAt(i, zeroM);
+    for (const k of [0, 1]) {
+      parts.legF?.setMatrixAt(i * 2 + k, zeroM);
+      parts.legH?.setMatrixAt(i * 2 + k, zeroM);
+    }
+    const d = drays[i];
+    const ld = loads.get(d.load);
+    if (ld) ld.mesh.setMatrixAt(ld.who.indexOf(d), zeroM);
+  }
+
+  function setOwners(list: Array<{ route: string; kind: HumanKind; name: string; working: () => boolean }>): void {
+    for (const o of list) {
+      const v = vehicles.find((q) => q.route.name === o.route && q.kind === "dray");
+      if (v) v.owner = { kind: o.kind, name: o.name, working: o.working };
+    }
+  }
+
+  function away(route: string, on: boolean): void {
+    const v = vehicles.find((q) => q.route.name === route && q.kind === "dray");
+    if (!v || !!v.away === on) return;
+    v.away = on;
+    // back from the errand: in the yard, standing a moment
+    if (!on && v.stops.length) {
+      v.s = v.stops[0].s;
+      v.v = 0;
+      v.state = "stand";
+      v.timer = 8;
+      v.lastStop = 0;
+    }
+  }
+
+  function yards() {
+    return vehicles
+      .filter((v) => v.kind === "dray" && v.stops.length)
+      .map((v) => {
+        at(v.path, v.stops[0].s, tmp);
+        return { route: v.route.name, x: tmp.x, z: tmp.z, yaw: heading(v.path, v.stops[0].s) };
+      });
+  }
+
   function info() {
     return vehicles.map((v) => {
       at(v.path, v.s, tmp);
@@ -729,7 +864,139 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
     });
   }
 
-  return { update, colliders: () => colliders, group, info };
+  return { update, colliders: () => colliders, group, info, setOwners, away, yards };
+}
+
+// ------------------------------------------------------------------ M6: a dray led through the streets
+
+/**
+ * A townsperson leads his dray on an errand (game/journeys.ts): he walks the crowd's path at the
+ * horse's head, on its left; the horse, the fore-carriage and the bed follow the ground he walked
+ * (a trail of his steps), so the rig keeps to his way round the corners. Its own meshes (a rig
+ * or two at a time, near Jef only), the parts of props.glb the quay drays use.
+ */
+export class LedDray {
+  readonly root = new THREE.Group();
+  private readonly bed: THREE.Mesh;
+  private readonly fore: THREE.Mesh;
+  private readonly rear: THREE.Mesh;
+  private readonly front: THREE.Mesh;
+  private readonly horse: THREE.Mesh;
+  private readonly legs: THREE.Mesh[];
+  private readonly load: THREE.Mesh | null;
+  /** The man's steps, newest first (every 0.2 m). */
+  private trail: Array<[number, number]> = [];
+  private gait = 0;
+  private roll: [number, number] = [0, 0];
+  /** Walk colliders: the bed in two, the horse (moved in place). */
+  readonly rects: Rect[] = [0, 1, 2].map(() => ({ minX: 1e6, maxX: 1e6, minZ: 1e6, maxZ: 1e6, top: 1.7 }) as Rect);
+
+  constructor(parent: THREE.Object3D, props: Props, load: DrayLoad | null = "sacks") {
+    const mat = props.materials.goods;
+    const mesh = (n: string) => new THREE.Mesh(mergedPart(props, [n]), mat);
+    this.bed = mesh("tr_dray_bed");
+    this.fore = mesh("tr_dray_fore");
+    this.rear = mesh("tr_wheels_rear");
+    this.front = mesh("tr_wheels_front");
+    this.horse = mesh("tr_horse_body");
+    this.legs = [mesh("tr_leg_front"), mesh("tr_leg_front"), mesh("tr_leg_hind"), mesh("tr_leg_hind")];
+    this.load = load ? mesh(`tr_load_${load}`) : null;
+    for (const m of [this.bed, this.fore, this.rear, this.front, this.horse, ...this.legs]) this.root.add(m);
+    if (this.load) this.root.add(this.load);
+    this.root.name = "led_dray";
+    parent.add(this.root);
+  }
+
+  /** Show or hide the load (unloaded at the door). */
+  set loaded(on: boolean) {
+    if (this.load) this.load.visible = on;
+  }
+  set visible(v: boolean) {
+    this.root.visible = v;
+  }
+
+  /** Put the rig down behind a man standing at (x, z) facing yaw (the trail laid out straight behind him). */
+  place(x: number, z: number, yaw: number): void {
+    this.trail = [];
+    for (let d = 0; d <= 7; d += 0.2) this.trail.push([x - Math.sin(yaw) * d, z - Math.cos(yaw) * d]);
+  }
+
+  /** The point `d` metres back along the trail, and the heading there. */
+  private back(d: number, out: { x: number; z: number; yaw: number }): void {
+    const t = this.trail;
+    let acc = 0;
+    for (let i = 0; i + 1 < t.length; i++) {
+      const L = Math.hypot(t[i][0] - t[i + 1][0], t[i][1] - t[i + 1][1]);
+      if (acc + L >= d) {
+        const f = (d - acc) / (L || 1);
+        out.x = t[i][0] + (t[i + 1][0] - t[i][0]) * f;
+        out.z = t[i][1] + (t[i + 1][1] - t[i][1]) * f;
+        out.yaw = Math.atan2(t[i][0] - t[i + 1][0], t[i][1] - t[i + 1][1]);
+        return;
+      }
+      acc += L;
+    }
+    const n = t.length - 1;
+    const [ax, az] = t[Math.max(0, n - 1)];
+    const [bx, bz] = t[n];
+    out.yaw = Math.atan2(ax - bx, az - bz);
+    out.x = bx - Math.sin(out.yaw) * (d - acc);
+    out.z = bz - Math.cos(out.yaw) * (d - acc);
+  }
+
+  /** The man is at (x, z), walking at `speed` m/s: the rig follows. */
+  follow(dt: number, x: number, z: number, yaw: number, speed: number): void {
+    if (!this.trail.length) this.place(x, z, yaw);
+    const [hx, hz] = this.trail[0];
+    if (Math.hypot(x - hx, z - hz) >= 0.2) {
+      this.trail.unshift([x, z]);
+      if (this.trail.length > 60) this.trail.length = 60;
+    }
+    const H = { x: 0, z: 0, yaw: 0 };
+    const B = { x: 0, z: 0, yaw: 0 };
+    const A = { x: 0, z: 0, yaw: 0 };
+    // the horse's middle a metre behind him, to his right (he walks at its head on its left)
+    this.back(1.0, H);
+    this.back(1.0 + HORSE_AHEAD, B);
+    this.back(1.0 + HORSE_AHEAD + WHEELBASE, A);
+    for (const p of [H, B, A]) {
+      p.x -= Math.cos(p.yaw) * 0.85;
+      p.z += Math.sin(p.yaw) * 0.85;
+    }
+    const bedYaw = Math.atan2(B.x - A.x, B.z - A.z);
+    const foreYaw = Math.atan2(H.x - B.x, H.z - B.z);
+    const ds = speed * dt;
+    this.roll[0] += ds / 0.52;
+    this.roll[1] += ds / 0.42;
+    this.gait = (this.gait + (speed / 1.35) * dt) % 1;
+    const put = (m: THREE.Object3D, px: number, py: number, pz: number, yw: number, pitch = 0) => {
+      m.position.set(px, py, pz);
+      m.rotation.set(pitch, yw, 0, "YXZ");
+    };
+    put(this.bed, A.x, 0, A.z, bedYaw);
+    if (this.load) put(this.load, A.x, 0, A.z, bedYaw);
+    put(this.fore, B.x, 0, B.z, foreYaw);
+    put(this.rear, A.x, 0.52, A.z, bedYaw, this.roll[0]);
+    put(this.front, B.x, 0.42, B.z, foreYaw, this.roll[1]);
+    const amp = Math.min(1, speed / 0.8);
+    const bob = 0.025 * amp * Math.abs(Math.sin(this.gait * Math.PI * 4));
+    put(this.horse, H.x, bob, H.z, H.yaw);
+    const cy = Math.cos(H.yaw);
+    const sy = Math.sin(H.yaw);
+    LEG_POS.forEach(([lx, ly, lz, , ph], k) => {
+      const phase = (this.gait + ph) % 1;
+      const u = phase < 0.6 ? 1 - (2 * phase) / 0.6 : -1 + 2 * THREE.MathUtils.smoothstep((phase - 0.6) / 0.4, 0, 1);
+      const lift = phase >= 0.6 ? 0.05 * Math.sin(((phase - 0.6) / 0.4) * Math.PI) : 0;
+      put(this.legs[k], H.x + lx * cy + lz * sy, ly + bob + lift * amp, H.z - lx * sy + lz * cy, H.yaw, -0.36 * u * amp);
+    });
+    boxAround(this.rects[0], A.x + Math.sin(bedYaw) * 0.25, A.z + Math.cos(bedYaw) * 0.25, bedYaw, 0.95, 0.95, 1.6);
+    boxAround(this.rects[1], A.x + Math.sin(bedYaw) * 2.1, A.z + Math.cos(bedYaw) * 2.1, bedYaw, 0.95, 0.95, 1.6);
+    boxAround(this.rects[2], H.x, H.z, H.yaw, 1.2, 0.4, 1.8);
+  }
+
+  dispose(): void {
+    this.root.removeFromParent();
+  }
 }
 
 const hv = new THREE.Vector3();

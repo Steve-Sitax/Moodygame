@@ -153,6 +153,17 @@ export interface FoodSpot {
   item: string;
   where: string;
 }
+/**
+ * M6 transport (town/possessions.ts, town/bikeshop.ts): more velocipedes than the six of M3h
+ * (a few young men and clerks), where an owner's machine stands now by his day, and Jef's own
+ * machines (bought or hired at the velocipede maker's). Defaults: the M3h behaviour.
+ */
+export const veloHooks = {
+  extra: (_db: DB): Velo[] => [],
+  at: (_db: DB, _v: Velo): { x: number; z: number; yaw: number } | null => null,
+  jef: (_db: DB): Velo[] => [],
+};
+
 export interface Stealables {
   velos: Velo[];
   lamps: WorkLamp[];
@@ -236,6 +247,8 @@ export function stealables(db: DB): Stealables {
       addVelo(clerk, "from outside the Entrepot office", { x: r1(x), z: r1(z), yaw: Math.atan2(-oz, ox) });
     }
   }
+  // M6 transport: a few young men and clerks who ride far in their day (town/possessions.ts)
+  for (const v of veloHooks.extra(db)) if (!velos.some((q) => q.id === v.id || q.owner === v.owner)) velos.push(v);
 
   // lanterns standing where people work (lit after dark)
   const lamps: WorkLamp[] = [];
@@ -309,17 +322,34 @@ export interface VeloState {
   deed: number | null;
   /** Lying on its side after a fall. */
   down?: boolean;
+  /** M6: Jef's own machine (bought, or hired for the day): no deed, no owner to miss it. */
+  own?: boolean;
 }
 
 export function veloStates(db: DB): Record<string, VeloState> {
   const saved = state<Record<string, VeloState>>(db, "velos", {});
   const out: Record<string, VeloState> = {};
-  for (const v of stealables(db).velos) out[v.id] = saved[v.id] ?? { x: v.x, z: v.z, yaw: v.yaw, ridden: false, deed: null };
+  for (const v of stealables(db).velos) {
+    const s = saved[v.id] ?? { x: v.x, z: v.z, yaw: v.yaw, ridden: false, deed: null };
+    // M6 transport: the owner's own machine goes where his day takes it (not while Jef has it)
+    const at = s.deed === null && !s.ridden && !s.own ? veloHooks.at(db, v) : null;
+    out[v.id] = at ? { ...s, x: at.x, z: at.z, yaw: at.yaw, down: false } : s;
+  }
+  // M6: Jef's own machines stand where he left them
+  for (const v of veloHooks.jef(db)) out[v.id] = saved[v.id] ?? { x: v.x, z: v.z, yaw: v.yaw, ridden: false, deed: null, own: true };
   return out;
 }
 function saveVelo(db: DB, id: string, s: VeloState): void {
   const all = veloStates(db);
   all[id] = s;
+  setState(db, "velos", all);
+}
+
+/** M6 (town/bikeshop.ts): set or drop the saved state of a machine (Jef's own: bought, hired, stolen from him). */
+export function setVeloState(db: DB, id: string, st: VeloState | null): void {
+  const all = state<Record<string, VeloState>>(db, "velos", {});
+  if (st) all[id] = st;
+  else delete all[id];
   setState(db, "velos", all);
 }
 
@@ -339,7 +369,7 @@ export function leaveVelo(db: DB, id: string, x: number, z: number, yaw: number,
   const wm = walkMap();
   const q = wm.open(x, z, 0.25) ? { x, z } : wm.nearestOpen(x, z, 4);
   if (!q) throw new GameError("you cannot leave it there", 409);
-  const next: VeloState = { x: r1(q.x), z: r1(q.z), yaw: Number.isFinite(yaw) ? +yaw.toFixed(3) : s.yaw, ridden: false, deed: s.deed, down };
+  const next: VeloState = { x: r1(q.x), z: r1(q.z), yaw: Number.isFinite(yaw) ? +yaw.toFixed(3) : s.yaw, ridden: false, deed: s.deed, down, ...(s.own ? { own: true } : {}) };
   saveVelo(db, id, next);
   return next;
 }
@@ -359,7 +389,11 @@ export function deedWorld(db: DB) {
   const taken = new Set(lampsTaken(db, day));
   const vs = veloStates(db);
   return {
-    velos: s.velos.map((v) => ({ id: v.id, owner: v.owner, owner_name: npcName(db, v.owner), ...vs[v.id], mine: vs[v.id].deed !== null })),
+    velos: [
+      ...s.velos.map((v) => ({ id: v.id, owner: v.owner, owner_name: npcName(db, v.owner), ...vs[v.id], mine: vs[v.id].deed !== null })),
+      // M6: Jef's own (bought, or hired for the day)
+      ...veloHooks.jef(db).filter((v) => vs[v.id]).map((v) => ({ id: v.id, owner: v.owner, owner_name: "you", ...vs[v.id], mine: true, own: true })),
+    ],
     lamps: s.lamps.filter((l) => !taken.has(l.id)).map((l) => ({ ...l, owner_name: npcName(db, l.owner) })),
     food: s.food.map((f) => ({ ...f, name: FOOD_NAME[f.item] })),
   };
@@ -515,7 +549,7 @@ function reactionLine(db: DB, who: string, kind: Reaction, noun: string, owner: 
 function findThing(db: DB, ref: string) {
   const s = stealables(db);
   if (ref.startsWith("velo:")) {
-    const v = s.velos.find((q) => q.id === ref);
+    const v = s.velos.find((q) => q.id === ref) ?? veloHooks.jef(db).find((q) => q.id === ref);
     if (!v) throw new GameError("no such velocipede", 404);
     const st = veloStates(db)[ref];
     return { thing: "velocipede" as Thing, item: "velocipede", owner: v.owner, x: st.x, z: st.z, where: v.where, noun: "velocipede", velo: st, at: null };
@@ -562,8 +596,8 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
   if (t.velo) {
     if (t.velo.ridden) throw new GameError("you are already on it", 409);
     if (Object.values(veloStates(db)).some((s) => s.ridden)) throw new GameError("you are already riding one", 409);
-    if (t.velo.deed !== null) {
-      // his already (taken before and not given back): up he gets, no new deed
+    if (t.velo.deed !== null || t.velo.own) {
+      // his already (taken before and not given back, or his own): up he gets, no new deed
       saveVelo(db, req.ref, { ...t.velo, ridden: true, down: false });
       return { deed: t.velo.deed, again: true, seen: false, owner_saw: false, seen_by: [], owner: { id: t.owner, name: ownerName }, reaction: null, text: "", police: false, item_id: null };
     }
@@ -661,7 +695,7 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
       applyTrust(db, w.id, -1, 0);
     }
     const faction = (db.prepare("SELECT faction FROM npc WHERE id = ?").get(t.owner) as { faction: string | null } | undefined)?.faction;
-    if (faction) db.prepare("UPDATE faction_trust SET trust = MAX(0, trust - 1) WHERE faction = ?").run(faction);
+    if (faction) db.prepare("UPDATE faction_trust SET trust = MAX(-5, trust - 1) WHERE faction = ?").run(faction);
   } else {
     // the owner finds it gone, sooner or later; nobody knows who
     remember(db, t.owner, t.thing === "food" ? `Somebody lifted ${FOOD_NAME[t.item]} off my table while I looked the other way.` : `Somebody took my ${t.noun} ${t.where}.`, 4);

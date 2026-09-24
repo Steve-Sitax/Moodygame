@@ -3,6 +3,7 @@ import { BEDTIME, clock, ending, NIGHT_HOOKS, sleep, WEEK_DAYS, type HomeNight, 
 import { GameError, log, player } from "../game.ts";
 import { remember } from "../npcs.ts";
 import { resident } from "../town/store.ts";
+import { STILL_TRUE } from "../town/rumours.ts";
 import { activityAt } from "../town/schedule.ts";
 import { ITEM_REF, ITEMS, POCKET_SLOTS } from "../trade.ts";
 import { getState, minuteNow, setState } from "../interiors/state.ts";
@@ -156,6 +157,15 @@ export function rentNight(db: DB, day: number): string[] {
   return [];
 }
 NIGHT_HOOKS.push(rentNight);
+
+// "Jef rents a room from X" is true only while that lease runs (QA 2026-09-24: said after it ended)
+STILL_TRUE.push((db, fact) => {
+  const m = /^Jef rents a room from (.+?)\.?$/.exec(fact);
+  if (!m) return true;
+  const l = lease(db);
+  const h = l ? homeDef(db, l.home) : null;
+  return !!h && landlordName(db, h) === m[1];
+});
 
 // ---------------------------------------------------------------- the night at home
 

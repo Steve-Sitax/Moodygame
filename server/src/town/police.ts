@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { DB } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
-import { DAWN, DAY_NAMES, WEATHER_TEXT, WEEK_DAYS, clock, consolidate, endGame, markDayStart, rollWeather, weather, type Ending } from "../day.ts";
+import { DAWN, DAY_NAMES, NIGHT_HOOKS, WEATHER_TEXT, WEEK_DAYS, clock, consolidate, endGame, markDayStart, rollWeather, weather, type Ending } from "../day.ts";
 import { GameError, log, player } from "../game.ts";
 import { MOODS, gateText, markFreeLine } from "../hooks/dialogue.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
@@ -13,7 +13,7 @@ import { houseDoors } from "./walkmap.ts";
 import { canCall } from "./talk.ts";
 import { spreadRumours } from "./rumours.ts";
 import { FOOD_NAME, THINGS, gameMinute, hasDeeds, npcName, openDeeds, stealables, veloHome, type DeedRow } from "./deeds.ts";
-import { rowBoatHome, rowBoats } from "../rowing.ts";
+import { rowBoatHome, rowBoatStates, rowBoats } from "../rowing.ts";
 import { STORY_RULES, StorySchema, evidenceOf, judgeStory, statementWords, storyNote, supportedClaims, type Statement, type StoryClaim, type StoryJudgement, type StoryRating } from "./story.ts";
 
 // The police (M3h). Engine first: after a deed someone saw, or when the town
@@ -92,6 +92,12 @@ interface PoliceState {
   talkDay: number;
   /** M6: what he told the police before, newest last (story.ts). */
   said?: Statement[];
+  /**
+   * The game minute of the last time an agent heard Jef out and gave a verdict: the town's talk
+   * brings no agent over anything done before it (QA 2026-09-24: a let-off, and a third agent came
+   * the same afternoon over an old deed and "the town's talk").
+   */
+  settledAt?: number;
 }
 
 const EMPTY: PoliceState = { record: { warnings: 0, fines: 0, arrests: 0, fled: 0 }, visit: null, last: null, cell: null, nextId: 1, talkDay: 0 };
@@ -335,7 +341,8 @@ export function policeTick(db: DB): Visit | null {
   const now = gameMinute(db);
   const day = player(db).day;
   if (!s.visit && s.talkDay !== day) {
-    const open = openDeeds(db).filter((d) => d.status === "open");
+    const settled = s.settledAt ?? -1;
+    const open = openDeeds(db).filter((d) => d.status === "open" && (d.day - 1) * 1440 + d.hour * 60 + d.minute > settled);
     if (open.length && theftTalk(db) >= RUMOUR_HOLDERS) {
       s.visit = { id: s.nextId++, reason: "talk", deeds: open.map((d) => d.id), due: now + 30, state: "due", agent: null, fled: 0, offered: {}, calls: 0 };
       s.talkDay = day;
@@ -409,7 +416,7 @@ export function policeFled(db: DB): { text: string } {
   save(db, s);
   remember(db, agent, "Jef ran from me when I called him. A guilty man runs.", 7, "seen", null, { gist: "Jef ran from the police", tone: -2 });
   applyTrust(db, agent, -2, 0);
-  db.prepare("UPDATE faction_trust SET trust = MAX(0, trust - 1) WHERE faction = 'politie'").run();
+  db.prepare("UPDATE faction_trust SET trust = MAX(-5, trust - 1) WHERE faction = 'politie'").run();
   log(db, "fled_police", agent, `Jef ran from ${npcName(db, agent)} of the police.`);
   const r = resident(db, agent);
   return { text: `Behind you ${r?.first ?? "the agent"} shouts: "Stop! In the name of the law!" He will not forget your face.` };
@@ -478,7 +485,15 @@ function factsOf(d: DeedRow): DeedFacts {
 function stillHeld(db: DB, deeds: DeedRow[]): DeedRow[] {
   return deeds.filter((d) => {
     if (d.status !== "open") return false;
-    if (d.thing === "velocipede" || d.thing === "boat") return true;
+    if (d.thing === "velocipede") return true;
+    // a boat by where it really lies (QA 2026-09-24: "in your hands still" while it lay back at its
+    // steps): his only while its state still carries this deed and it is not home, or he sits in it
+    if (d.thing === "boat") {
+      const b = rowBoats(db).find((q) => q.id === d.ref);
+      const st = rowBoatStates(db)[d.ref ?? ""];
+      if (!b || !st || st.deed !== d.id) return false;
+      return st.ridden || Math.hypot(st.x - b.x, st.z - b.z) > 3;
+    }
     return !!db.prepare("SELECT 1 FROM item WHERE id = ?").get(d.item_id ?? -1);
   });
 }
@@ -814,9 +829,10 @@ function applyVerdict(db: DB, agent: string, dec: Decision, stance: Stance, text
     tone: V === "let_off" ? 0 : V === "warning" ? -1 : -2,
   });
   applyTrust(db, agent, V === "warning" || V === "let_off" ? 0 : -1, 0);
-  if (V === "fine" || V === "arrest") db.prepare("UPDATE faction_trust SET trust = MAX(0, trust - ?) WHERE faction = 'politie'").run(V === "arrest" ? 2 : 1);
+  if (V === "fine" || V === "arrest") db.prepare("UPDATE faction_trust SET trust = MAX(-5, trust - ?) WHERE faction = 'politie'").run(V === "arrest" ? 2 : 1);
   const last: LastVerdict = { visit: v.id, verdict: dec.verdict, fine_c: dec.fine_c, paid_c: paid, agent, text };
   s.last = last;
+  s.settledAt = gameMinute(db);
   s.visit = null;
   save(db, s);
   if (dec.verdict !== "arrest") return { last };
@@ -851,6 +867,8 @@ export function cellNight(db: DB, paid: number): CellNight {
     db.prepare("UPDATE player SET sleep = MAX(sleep, 6), food = MAX(0, food - 2), warmth = MAX(0, warmth - 2) WHERE id = 1").run();
     summary.push("A plank bed, a bucket, a barred window onto the square. A drunk sings in the next cell until the bells ring three.");
     log(db, "cell", null, "Jef spent the night in the cell at the police post.");
+    // the night's other work goes on without him (QA 2026-09-24: rent owed on his room, and no note came)
+    for (const h of NIGHT_HOOKS) summary.push(...h(db, c.day));
     consolidate(db);
     for (let i = 0; i < 3; i++) spreadRumours(db);
   })();

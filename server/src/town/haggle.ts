@@ -6,12 +6,12 @@ import { DAY_NAMES, WEATHER_TEXT, weather } from "../day.ts";
 import { GameError, log, player } from "../game.ts";
 import { gateText, markFreeLine, type MOODS } from "../hooks/dialogue.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
-import { applyTrust, relationship, remember, topMemories } from "../npcs.ts";
+import { applyTrust, relationship, remember, topMemories, trustText } from "../npcs.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { ITEMS, POCKET_SLOTS, WARES, atWork, haggleHooks, priceFloor, waresOf } from "../trade.ts";
 import { priceFactor } from "../director/state.ts";
 import { newsFactor } from "../ideas/prices.ts";
-import { TRADES } from "./places.ts";
+import { shownTrade } from "./places.ts";
 import { activityAt } from "./schedule.ts";
 import { personaLine, resident, town } from "./store.ts";
 import { gameMinute, npcName } from "./deeds.ts";
@@ -106,7 +106,7 @@ const NAMED: Record<string, { sex: "f" | "m"; label: string; stats: Stats }> = {
 
 export function sellerOf(db: DB, id: string): Seller | null {
   const r = resident(db, id);
-  if (r) return { id, name: r.name, first: r.first, sex: r.sex === "f" ? "f" : "m", label: TRADES[r.trade]?.label ?? r.trade, stats: r.stats, resident: true };
+  if (r) return { id, name: r.name, first: r.first, sex: r.sex === "f" ? "f" : "m", label: shownTrade(r), stats: r.stats, resident: true };
   const n = NAMED[id];
   if (!n || !WARES[id]) return null;
   const name = npcName(db, id);
@@ -171,6 +171,11 @@ export function installHaggle(): void {
   if (installed) return;
   installed = true;
   haggleHooks.refuse = (db, npc) => {
+    // a seller who can't stand Jef (trust -3 or less, Steve 2026-09-24) will not sell to him at all
+    if ((relationship(db, npc)?.trust ?? 0) <= -3) {
+      const s = sellerOf(db, npc);
+      return `${s?.first ?? "The seller"} will not sell to you`;
+    }
     if (!refusedUntil(db, npc)) return null;
     const s = sellerOf(db, npc);
     return `${s?.first ?? "The seller"} will not sell to you just now`;
@@ -596,7 +601,7 @@ ${r ? `Now: ${DAY_NAMES[(c.day - 1) % 7]}, ${c.hour}:${String(c.minute).padStart
 
 WHAT YOU KNOW OF JEF
 ${mem.length ? mem.map((m) => `- ${m.text}`).join("\n") : "- nothing; a stranger to you"}
-Trust in him: ${f.trust} of 10.
+Trust in him: ${trustText(f.trust)}.
 
 THE FACTS (the engine's; true whatever Jef says)
 - He wants ${ITEMS[kind]?.name ?? kind}. Your price is fixed by the engine; you may only give way a little or keep it.
@@ -648,7 +653,7 @@ function applyHaggle(db: DB, s: Seller, kind: string, item: string, d: HaggleDec
   } else if (d.outcome === "caught") {
     st.lies[s.id] = (st.lies[s.id] ?? 0) + 1;
     applyTrust(db, s.id, -1, 0);
-    remember(db, s.id, `Jef tried to beat my price down with a lie: he ${CLAIM_SAID[d.caught[0]] ?? "told me a story"}.`, 5, "seen", null, { gist: `Jef told ${s.name} a lie to get ${her} ${item} cheaper`, tone: -1 });
+    remember(db, s.id, `Jef tried to beat my price down with a lie: he ${CLAIM_SAID[d.caught[0]] ?? "told me a story"}.`, 5, "seen", null, { gist: `Jef lied to ${s.name} to get ${item} cheaper`, tone: -1 });
     log(db, "haggle_lie", s.id, `Jef lied to ${s.name} over the price of ${item}, and was found out.`);
   } else if (d.outcome === "refuse") {
     st.refused[s.id] = gameMinute(db) + d.refuseMin;

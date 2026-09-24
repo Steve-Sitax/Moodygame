@@ -9,7 +9,7 @@ import { newsRow, newsTalkLine, rollNews, NEWS_TABLE } from "./abroad.ts";
 import { morningPlans, pickLost, posterView, putUp, returnLost, takeDown, wantedPlans, lostPlan, POSTERS_UP_MAX } from "./posters.ts";
 import { answerLetters, meet, meetingsOpen, missMeetings, postLetter, STAMP_C, LETTER_MAX_CHARS, writeTo } from "./letters.ts";
 import { chooseTrouble, maybeTrouble, troubleStep, troubleView, TROUBLE_KINDS, type TroubleKind } from "./trouble.ts";
-import { diaryWorld, maybeDiary, pickDiary, readDiary, returnDiary, sellDiary, squeeze } from "./diaries.ts";
+import { diaryWorld, maybeDiary, pickDiary, readDiary, returnDiary, sellDiary, squeeze, unstickDiaries } from "./diaries.ts";
 
 // The HTTP side of the M6 AI ideas (mounted by index.ts, after the paper): the morning
 // (bills up and down, replies to Jef's letters, a lost notebook), the tick (a wanted
@@ -74,6 +74,9 @@ export function mountIdeas(app: Hono, deps: IdeasDeps): void {
 
   /** In the day: a wanted bill after a theft, a solved robbery's reward, meetings missed. */
   async function during(): Promise<void> {
+    // a notebook stuck in "writing": tried once more, then the engine's pages (diaries.ts)
+    const unstuck = await unstickDiaries(db).catch((e) => (console.error("[diary]", e), [] as number[]));
+    if (unstuck.length) pushWorld();
     const down = takeDown(db);
     for (const x of down) if (x.paid_c) say(`The police paid you the ${x.paid_c} centimes reward on the bill: the pickpocket you named was found.`);
     missMeetings(db);

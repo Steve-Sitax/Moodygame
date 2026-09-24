@@ -34,7 +34,7 @@ import {
 import { wantedFactor, WANTED_EYES } from "../src/ideas/wanted.ts";
 import { answerLetters, gateLetter, meet, planEffect, postLetter, STAMP_C, toneOf, writeTo, type JefLetterRow } from "../src/ideas/letters.ts";
 import { capFor, chooseTrouble, maybeTrouble, planTrouble, troubleOf, troubleStep, troubleView, TROUBLE_KINDS } from "../src/ideas/trouble.ts";
-import { maybeDiary, pickDiary, readDiary, returnDiary, sellDiary, squeeze, diaryRow } from "../src/ideas/diaries.ts";
+import { maybeDiary, pickDiary, readDiary, returnDiary, sellDiary, squeeze, diaryRow, unstickDiaries, DIARY_STUCK_MIN } from "../src/ideas/diaries.ts";
 import { postCounter } from "../src/paper/post.ts";
 import { pressTown } from "../src/paper/town.ts";
 
@@ -544,6 +544,55 @@ describe("lost diaries", () => {
     const r = sellDiary(db, d.id, { x: berg.door[0], z: berg.door[1] }, () => 0.1);
     expect(money(db)).toBe(m0 + r.paid_c);
     expect(trustOf(db, owner.id)).toBeLessThanOrEqual(0);
+  });
+
+  // QA 2026-09-24: a notebook stayed in "writing" for days (a server restart mid-call), so no new one came
+  it("a notebook stuck in writing (left over from a restart) is tried once more, then the engine's pages stand", async () => {
+    const db = fresh(3, 8);
+    const owner = grown(db)[3];
+    const d = (await maybeDiary(db, { force: owner.id, rng: () => 0.4, runner: broken }))!;
+    // as the QA save had it: still writing, from an earlier process, no start recorded
+    db.prepare("UPDATE diary SET status = 'writing', started_min = NULL, tries = 0 WHERE id = ?").run(d.id);
+    let calls = 0;
+    const counting: Runner = async (r) => {
+      calls++;
+      return broken(r);
+    };
+    expect(await unstickDiaries(db, { runner: counting })).toEqual([d.id]);
+    expect(calls).toBeGreaterThan(0); // the retry went to the model
+    expect(diaryRow(db, d.id)!.status).toBe("lying");
+    // and now a new morning can drop a new one once this one is picked up
+    // a second stuck row that was already retried: the engine writes it, no model call
+    db.prepare("UPDATE diary SET status = 'writing', started_min = 0, tries = 2 WHERE id = ?").run(d.id);
+    calls = 0;
+    expect(await unstickDiaries(db, { runner: counting })).toEqual([d.id]);
+    expect(calls).toBe(0);
+    const row = diaryRow(db, d.id)!;
+    expect(row.status).toBe("lying");
+    expect(row.source).toBe("engine");
+    expect((JSON.parse(row.entries_json) as unknown[]).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("a notebook being written now is left alone until it is DIARY_STUCK_MIN game minutes old", async () => {
+    const db = fresh(3, 8);
+    const owner = grown(db)[5];
+    let release: () => void = () => {};
+    let n = 0;
+    // the first call hangs until released; the schema retry after it fails at once
+    const slow: Runner = () => (n++ ? Promise.reject(new Error("broken")) : new Promise((res) => (release = () => res({ output: { entries: [] } }))));
+    const p = maybeDiary(db, { force: owner.id, rng: () => 0.4, runner: slow, timeoutMs: 5_000 });
+    await new Promise((r) => setTimeout(r, 20));
+    const id = (db.prepare("SELECT id FROM diary WHERE status = 'writing'").get() as { id: number }).id;
+    expect(await unstickDiaries(db, { runner: broken })).toEqual([]);
+    // the clock jumps past the limit (a sleep): the stuck one is taken over; the old call's late answer changes nothing
+    db.prepare("UPDATE player SET hour = hour + 1").run();
+    expect(DIARY_STUCK_MIN).toBeLessThanOrEqual(60);
+    expect(await unstickDiaries(db, { runner: broken, timeoutMs: 200 })).toEqual([id]);
+    expect(diaryRow(db, id)!.status).toBe("lying");
+    release();
+    await p;
+    expect(diaryRow(db, id)!.status).toBe("lying");
+    expect((db.prepare("SELECT COUNT(*) AS n FROM diary").get() as { n: number }).n).toBe(1);
   });
 
   it("squeeze them with it: trust -2 and a mark on the police record, paid or refused", async () => {

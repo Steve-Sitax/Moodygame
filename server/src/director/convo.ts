@@ -5,7 +5,7 @@ import { callClaude, type Runner } from "../ai/claude.ts";
 import { clock, WEATHER_TEXT } from "../day.ts";
 import { log } from "../game.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
-import { applyTrust, relationship, remember, topMemories } from "../npcs.ts";
+import { applyTrust, relationship, remember, topMemories, trustText } from "../npcs.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { TRADES } from "../town/places.ts";
 import { personaLine, resident, town } from "../town/store.ts";
@@ -96,7 +96,7 @@ function personBlock(db: DB, tag: string, r: Resident): string {
   const persona = personaLine(db, r.id);
   return `PERSON ${tag}: ${r.name}, ${r.age}, ${r.sex === "f" ? "woman" : "man"}, ${TRADES[r.trade].label}.
 Stats 0-10: honesty ${s.honesty}, temper ${s.temper}, warmth ${s.warmth}, greed ${s.greed}, courage ${s.courage}, gossip ${s.gossip}.${persona ? ` ${persona}` : ""}
-Trust in Jef ${rel?.trust ?? 0} of 10. Knows of Jef: ${mem.length ? mem.map((m) => m.text).join(" / ") : "nothing; a stranger"}`;
+Trust in Jef ${trustText(rel?.trust ?? 0)}. Knows of Jef: ${mem.length ? mem.map((m) => m.text).join(" / ") : "nothing; a stranger"}`;
 }
 
 function purposeText(db: DB, o: ConvoOpts, a: Resident, b: Resident): string {

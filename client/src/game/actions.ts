@@ -63,6 +63,12 @@ interface Run {
   how?: "walk" | "run" | "tram";
   tramStop?: OmnibusStop;
   tramT?: number;
+  /** M6 transport: the stop they get on at (the nearest of the line), and whether they are aboard. */
+  tramBoard?: OmnibusStop;
+  tramOn?: boolean;
+  /** Stuck on the way to an event: how often a new way was tried, and whether they gave up (stand). */
+  replans?: number;
+  gaveUp?: boolean;
   /** attend as a musician: standing in the middle, playing. */
   playing?: boolean;
   /** M4b: a scene's lines shown once (the shout, the agent's word, the loser's). */
@@ -209,6 +215,9 @@ export class Actions {
     }
     if (!stillHeld(r.a.npc)) this.town.release(r.a.npc);
     if (r.other && !stillHeld(r.other)) this.town.release(r.other);
+    // M6 transport: a velocipede taken for the action is home again
+    this.town.journeys?.actionDone(r.a.npc);
+    if (r.tramOn) this.town.setAboard(r.a.npc, false);
   }
 
   private async report(r: Run, phase: "arrived" | "lost" | "blocked" | "done", extra: { found?: boolean; why?: string } = {}): Promise<void> {
@@ -238,7 +247,8 @@ export class Actions {
     const guest = r.a.kind === "attend" && toward && this.jefD(toward.x, toward.z) < range;
     if (d > range && !guest) {
       r.p = null;
-      if (toward) this.town.moveHidden(r.a.npc, toward.x, toward.z, dt);
+      // M6 transport: unseen, at the pace of the way they go (their own velocipede, if it is at home)
+      if (toward) this.town.moveHidden(r.a.npc, toward.x, toward.z, dt, this.town.hiddenPace(r.a.npc, toward.x, toward.z));
       return null;
     }
     const p = guest && d > range ? this.town.claimNear(r.a.npc, toward!, 12) : this.town.claimNear(r.a.npc, { x: this.player.x, z: this.player.z });
@@ -360,6 +370,8 @@ export class Actions {
   private how(r: Run, tx: number, tz: number): "walk" | "run" | "tram" {
     if (r.how) return r.how;
     const a = r.a;
+    // the fire's bucket chain: they run, never wait for an omnibus
+    if ((a.role as string) === "chain") return (r.how = "run");
     const h = hash01(`${a.npc}:${a.event_id}`);
     const pos = this.town.position(a.npc);
     const far = !pos || Math.hypot(pos.x - tx, pos.z - tz) > TRAM_FROM_M;
@@ -378,30 +390,69 @@ export class Actions {
     return (r.how = a.role === "crowd" && h > 0.6 ? "run" : "walk");
   }
 
-  /** Waiting on the omnibus: they step off the back platform when one stands at their stop. */
+  /**
+   * By omnibus (M6 transport: a real ride, no fare for residents): unseen to the stop of the line
+   * nearest them, on the next omnibus that stands there, riding inside it, and off the back
+   * platform at the event's stop (omnibus.ts, journeys.ts offBus).
+   */
   private byTram(r: Run, dt: number): Puppet | null {
     r.tramT = (r.tramT ?? 0) + dt;
+    const id = r.a.npc;
     const stop = r.tramStop!;
-    const bus = this.world.omnibus()?.buses.find((b) => {
-      const at = b.atStop();
-      return !!at && at.id === stop.id && at.line === stop.line;
-    });
-    if (bus && performance.now() >= (this.tramNext.get(bus) ?? 0)) {
-      // one at a time down the step, the omnibus waiting for them
-      bus.hold(true);
-      this.tramNext.set(bus, performance.now() + 700);
-      this.tramHeld.set(bus, performance.now() + 1500);
-      const step = bus.stepDown();
-      const p = this.town.claim(r.a.npc, { x: step.x, z: step.z });
+    const j = this.town.journeys;
+    const om = this.world.omnibus();
+    if (!j || !om) {
+      r.how = "walk";
+      return null;
+    }
+    if (!r.tramBoard) {
+      r.tramBoard = j.busFor(id, stop) ?? undefined;
+      if (!r.tramBoard) {
+        r.how = "walk";
+        return null;
+      }
+    }
+    if (!r.tramOn) {
+      const b = r.tramBoard;
+      this.town.moveHidden(id, b.post[0], b.post[1], dt);
+      const pos = this.town.position(id);
+      if (pos && Math.hypot(pos.x - b.post[0], pos.z - b.post[1]) < 3) {
+        const bus = om.buses.find((q) => {
+          const at = q.atStop();
+          return !!at && at.id === b.id && at.line === b.line;
+        });
+        if (bus && j.boardFor(id, bus, stop)) {
+          r.tramOn = true;
+          this.town.setAboard(id, true);
+        }
+      }
+      if (r.tramT > TRAM_WAIT_S * 2.5) r.how = "walk"; // no omnibus came: they walk after all
+      return null;
+    }
+    // riding: where the omnibus goes, until they step off at the stop
+    const off = j.takeOff(id);
+    if (off) {
+      this.town.setAboard(id, false);
+      r.tramOn = false;
+      const p = this.town.claim(id, { x: off.x, z: off.z });
       if (p) {
         r.how = "walk";
         return p;
       }
+      return null;
     }
-    if (r.tramT > TRAM_WAIT_S) r.how = "walk"; // no omnibus came: they walk after all
+    const ride = om.residents().find((q) => q.id === id);
+    if (ride) {
+      const q = om.buses[ride.bus].pose();
+      this.town.placeHidden(id, q.x, q.z);
+    } else if (r.tramT > 5) {
+      // not on any omnibus (a reload of the buses): on foot from here
+      this.town.setAboard(id, false);
+      r.tramOn = false;
+      r.how = "walk";
+    }
     return null;
   }
-  private tramNext = new Map<object, number>();
   private tramHeld = new Map<import("../world/omnibus").Omnibus, number>();
 
   private releaseBuses(): void {
@@ -464,10 +515,33 @@ export class Actions {
     if (d > 1.6) {
       r.playing = false;
       const pace = !attend ? 1.5 : a.phase === "procession" ? 0.95 : d <= 6 ? 1.1 : r.how === "run" ? 2.5 : 1.45;
+      // gave up on the way after several tries: they stand where they are (once), and look on from
+      // there, until the event moves on (a procession starts: a new way)
+      if (r.gaveUp && (r as Run & { gavePhase?: string }).gavePhase !== a.phase) {
+        r.gaveUp = false;
+        r.replans = 0;
+      }
+      if (attend && r.gaveUp) return;
       this.go(r, p, gx, gz, pace, attend ? 0.9 : 0.6);
       if (this.stuck(r, d, dt, attend ? 20 : STUCK_S)) {
         if (!attend) void this.report(r, "blocked", { why: "wall" });
-        else if (!this.crowd.puppetBusy(p)) this.crowd.puppetStand(p, "idle", null);
+        else {
+          // a new way: to an open point beside the goal, a little further round each time; after four, stand
+          r.replans = (r.replans ?? 0) + 1;
+          r.stuckT = 0;
+          r.bestD = Infinity;
+          if (r.replans <= 4) {
+            const ang = Math.random() * Math.PI * 2;
+            const rr = 1.5 + r.replans * 1.5;
+            const q = this.crowd.openNear(gx + Math.cos(ang) * rr, gz + Math.sin(ang) * rr) ?? { x: gx, z: gz };
+            this.crowd.puppetGo(p, q.x, q.z, pace);
+            r.goT = 4; // let the new way run a while before aiming at the goal again
+          } else {
+            r.gaveUp = true;
+            (r as Run & { gavePhase?: string }).gavePhase = a.phase;
+            this.crowd.puppetStand(p, "idle", null);
+          }
+        }
       }
       return;
     }

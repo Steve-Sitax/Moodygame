@@ -1,9 +1,10 @@
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 import { AI_CWD, CALLS_PER_DAY, CLAUDE, MODELS, ROUTE_DEFAULT, type Provider } from "../config.ts";
 import type { DB } from "../db.ts";
-import { codexRunner } from "./codex.ts";
+import { codexRunner, killTree } from "./codex.ts";
 import { routeFor, type Route } from "./router.ts";
 
 // One way to call a model: no tools, our own system prompt, JSON schema output. docs/02 and docs/03.
@@ -44,11 +45,20 @@ export async function callClaude<S extends z.ZodType>(
   req: CallRequest<S>,
   runner?: Runner,
 ): Promise<CallResult<z.infer<S>>> {
-  // one call in flight per hook: a second caller waits for the first
-  const busy = inFlight.get(req.hook);
-  if (busy) await busy.catch(() => {});
+  // The limit is hard (CLAUDE.md, QA 2026-09-24): it counts from the moment the caller asks,
+  // waiting for the hook's last call included, and no caller may set it higher than 20 s.
+  const started = Date.now();
+  const timeoutMs = Math.min(req.timeoutMs ?? CLAUDE.timeoutMs, CLAUDE.timeoutMs);
+  const deadline = started + timeoutMs;
 
-  const p = run(db, req, runner);
+  // one call in flight per hook: a second caller waits for the first, but never past its own limit
+  const busy = inFlight.get(req.hook);
+  if (busy) {
+    const free = await beforeDeadline(busy.then(() => true, () => true), deadline);
+    if (free === TIMED_OUT) return { ok: false, error: `timeout after ${timeoutMs} ms (the last ${req.hook} call was still running)`, ms: Date.now() - started };
+  }
+
+  const p = run(db, req, runner, started, deadline, timeoutMs);
   inFlight.set(req.hook, p);
   try {
     return await p;
@@ -57,7 +67,47 @@ export async function callClaude<S extends z.ZodType>(
   }
 }
 
-async function run<S extends z.ZodType>(db: DB, req: CallRequest<S>, stub: Runner | undefined): Promise<CallResult<z.infer<S>>> {
+const TIMED_OUT = Symbol("timed out");
+
+/**
+ * Wait for p, but never past the deadline: at the deadline the answer is TIMED_OUT at once,
+ * whatever p does later. A late rejection of p is swallowed.
+ */
+function beforeDeadline<T>(p: Promise<T>, deadline: number, onTimeout?: () => void): Promise<T | typeof TIMED_OUT> {
+  p.catch(() => {});
+  return new Promise((resolve, reject) => {
+    let done = false;
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      resolve(TIMED_OUT);
+      onTimeout?.();
+    }, Math.max(0, deadline - Date.now()));
+    p.then(
+      (v) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
+  });
+}
+
+async function run<S extends z.ZodType>(
+  db: DB,
+  req: CallRequest<S>,
+  stub: Runner | undefined,
+  started: number,
+  deadline: number,
+  timeoutMs: number,
+): Promise<CallResult<z.infer<S>>> {
   const { day, hour } = db.prepare("SELECT day, hour FROM player WHERE id = 1").get() as { day: number; hour: number };
   const used = (db.prepare("SELECT COUNT(*) AS n FROM ai_call WHERE day = ?").get(day) as { n: number }).n;
   if (used >= CALLS_PER_DAY) {
@@ -66,10 +116,7 @@ async function run<S extends z.ZodType>(db: DB, req: CallRequest<S>, stub: Runne
 
   // the claude CLI rejects the draft 2020-12 "$schema" tag, so drop it
   const { $schema: _drop, ...jsonSchema } = z.toJSONSchema(req.schema) as Record<string, unknown>;
-  const timeoutMs = req.timeoutMs ?? CLAUDE.timeoutMs;
-  const deadline = Date.now() + timeoutMs;
   let lastError = "no attempt";
-  const started = Date.now();
   // the model for this hook; a stub runner (tests) stands in for whatever it picks
   let route: Route = routeFor(req.hook);
 
@@ -77,11 +124,20 @@ async function run<S extends z.ZodType>(db: DB, req: CallRequest<S>, stub: Runne
   for (let attempt = 0; attempt < 2 && Date.now() < deadline - Math.min(2_000, timeoutMs / 10); attempt++) {
     const t0 = Date.now();
     const abort = new AbortController();
-    const timer = setTimeout(() => abort.abort(), deadline - Date.now());
     let usage: { in?: number; out?: number; cacheRead?: number } | undefined;
     try {
       const runner = stub ?? providers[route.provider];
-      const res = await runner({ system: req.system, prompt: req.prompt, jsonSchema, signal: abort, model: route.model, effort: route.effort });
+      // Hard limit: at the deadline the caller has its timeout at once, the process is killed
+      // (the abort), and an answer that comes later is thrown away.
+      const res = await beforeDeadline(
+        Promise.resolve().then(() => runner({ system: req.system, prompt: req.prompt, jsonSchema, signal: abort, model: route.model, effort: route.effort })),
+        deadline,
+        () => abort.abort(),
+      );
+      if (res === TIMED_OUT || Date.now() > deadline) {
+        if (!abort.signal.aborted) abort.abort();
+        throw new Error("late");
+      }
       usage = res.usage;
       const parsed = req.schema.safeParse(res.output);
       if (parsed.success) {
@@ -91,8 +147,6 @@ async function run<S extends z.ZodType>(db: DB, req: CallRequest<S>, stub: Runne
       lastError = "schema: " + parsed.error.issues.map((i) => `${i.path.join(".")} ${i.message}`).join("; ");
     } catch (e) {
       lastError = abort.signal.aborted ? `timeout after ${timeoutMs} ms` : errText(e);
-    } finally {
-      clearTimeout(timer);
     }
     logCall(db, day, hour, req.hook, route, Date.now() - t0, usage, false, lastError);
     if (abort.signal.aborted) break;
@@ -145,6 +199,17 @@ export const sdkRunner: Runner = async ({ system, prompt, jsonSchema, signal, mo
       cwd: AI_CWD, // an empty folder, no project files near the model
       abortController: signal,
       env: { ...process.env, CLAUDE_AGENT_SDK_CLIENT_APP: "scheldemist/0.1" },
+      // The SDK's own abort closes stdin and waits a grace of a few seconds before it kills; a
+      // timed-out call must not linger, so our abort kills the process tree at once.
+      spawnClaudeCodeProcess: ({ command, args, cwd, env, signal: sdkSignal }) => {
+        const child = spawn(command, args, { cwd, env, stdio: ["pipe", "pipe", "ignore"], windowsHide: true });
+        const kill = () => killTree(child.pid);
+        if (signal.signal.aborted) kill();
+        signal.signal.addEventListener("abort", kill, { once: true });
+        sdkSignal?.addEventListener("abort", kill, { once: true });
+        child.once("exit", () => signal.signal.removeEventListener("abort", kill));
+        return child;
+      },
     },
   });
   for await (const msg of q) {

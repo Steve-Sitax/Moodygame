@@ -4,7 +4,7 @@ import { WATER_Y, type World } from "../world/rijnkaai";
 import type { Exit } from "../world/quaysteps";
 import { BOAT_NAMES, type BoatName } from "../world/boats";
 import { DECK_UNDER } from "../world/bridges";
-import { bedAt, levelAt, tideRate, water } from "../world/tide";
+import { bedAt, levelAt, MID_Y, tideRate, water } from "../world/tide";
 import type { Rect } from "../world/geom";
 import { psx, psxUniforms } from "../retro/psx";
 import type { JobsPayload } from "../net/api";
@@ -12,6 +12,7 @@ import type { Jobs } from "./jobs";
 import type { Deeds } from "./deeds";
 import type { Action } from "./runs";
 import type { MapMark } from "./map";
+import { makeHuman, type Human, type HumanKind } from "./humans";
 
 // Rowing boats (M3j), on the client. Steve, 2026-09-23: "We should be able to take a boat and
 // row to other places. Bridge goes up if we don't fit underneath. Only rowing boats, no big
@@ -106,6 +107,24 @@ interface Lying {
   /** Has drifted from where the server has it (keep it where it drifted to). */
   drifted?: boolean;
 }
+
+/** M6 transport: a family boat under way, rowed by its owner (game/journeys.ts). */
+interface TownBoat {
+  id: string;
+  kind: Kind;
+  obj: THREE.Object3D;
+  oars: THREE.Group;
+  people: Array<{ h: Human; g: THREE.Group; row: boolean }>;
+  load: THREE.Mesh[];
+  x: number;
+  z: number;
+  yaw: number;
+  path: Array<[number, number]>;
+  pi: number;
+  phase: number;
+  wait: number;
+}
+const TOWN_SACK = new THREE.IcosahedronGeometry(0.22, 0).scale(1.2, 0.75, 0.9);
 
 /** Someone else's boat under way: river traffic, a tow in the lock, a canal boat. */
 interface Vessel {
@@ -330,6 +349,8 @@ export class Rowing {
     }
     for (const b of w.boats) {
       if (b.lost || (this.boat && this.boat.what === b.id)) continue;
+      // M6 transport: its owners are out in it (a family errand): it lies at no berth now
+      if (this.townAway.has(b.id)) continue;
       want.add(b.id);
       const had = this.lying.get(b.id);
       // one we left drifting: keep where it drifted to, unless the server moved it (home again)
@@ -611,7 +632,10 @@ export class Rowing {
   private stormWarning(): void {
     if (this.warned || psxUniforms.uSea.value <= 2.5) return;
     this.warned = true;
-    this.jobs.say("The river is running high and the wind is up. Keep close under the quay, and keep out of the fairway.");
+    // the words follow the real water (QA 2026-09-24: "running high" was said at low water)
+    const fromMid = water.river - MID_Y;
+    const tide = fromMid > 0.8 ? "The river is running high" : fromMid < -0.8 ? "The tide is out, the mud shows at the foot of the walls," : "The river is choppy";
+    this.jobs.say(`${tide} and the wind is up. Keep close under the quay, and keep out of the fairway.`);
   }
 
   // ------------------------------------------------------------------ breaking
@@ -919,6 +943,189 @@ export class Rowing {
       dip.rotation.z = -dp;
       feather.rotation.x = port ? fe : -fe;
     }
+  }
+
+  // ------------------------------------------------------------------ M6 transport: the town's own boats
+
+  /** Boats whose owners are out in them (game/journeys.ts): not lying at their berth. */
+  private townAway = new Set<string>();
+  private townBoats = new Map<string, TownBoat>();
+
+  /**
+   * Open water a family boat may take: the walk map's water with room for the hull, not through
+   * the lock (the town's boats never wait for it), not under any opening bridge, deep enough at
+   * this tide (the canal and the vliet run dry at low water).
+   */
+  townFree(x: number, z: number): boolean {
+    if (!this.world.boatFree(x, z, 1.05, () => false)) return false;
+    if (levelAt(x, z) - bedAt(x, z) < 0.6) return false;
+    for (const b of this.world.bridges()?.list ?? []) {
+      const R = b.rect;
+      if (x > R.minX - 1.5 && x < R.maxX + 1.5 && z > R.minZ - 1.5 && z < R.maxZ + 1.5) return false;
+    }
+    return true;
+  }
+
+  /**
+   * A family takes their boat out: it leaves its berth and rows along `path` (open water) with
+   * the rower at the oars, the others sitting, and the load in the stern. Drawn near Jef only.
+   */
+  townBoatOut(id: string, kind: Kind, at: { x: number; z: number; yaw: number }, path: Array<[number, number]>, crew: Array<{ id: string; kind: HumanKind }>, sacks: number): void {
+    this.townAway.add(id);
+    const l = this.lying.get(id);
+    if (l) this.drop(l);
+    this.townBoats.get(id)?.obj && this.townBoatEnd(id, null);
+    const obj = this.objFor(kind);
+    if (!obj) return;
+    obj.position.set(at.x, levelAt(at.x, at.z), at.z);
+    obj.rotation.set(0, at.yaw, 0);
+    const oars = this.oarsFor(obj, kind);
+    const people: Array<{ h: Human; g: THREE.Group; row: boolean }> = [];
+    const H = HULL[kind];
+    crew.slice(0, 3).forEach((c, i) => {
+      const h = makeHuman(c.kind);
+      if (!h) return;
+      const g = new THREE.Group();
+      g.add(h.root);
+      // the first rows on the thwart, facing the stern; the others sit forward and aft, facing him
+      const row = i === 0;
+      const z = row ? H.seatZ : i === 1 ? H.seatZ + 1.4 : H.seatZ - 1.25;
+      g.position.set(0, H.seatY + h.sitDrop(0) + 0.02, z);
+      g.rotation.y = row ? Math.PI : i === 1 ? Math.PI : 0;
+      h.play(row ? "row" : h.canSit ? "sit" : "idle", 0);
+      obj.add(g);
+      people.push({ h, g, row });
+    });
+    const load: THREE.Mesh[] = [];
+    for (let i = 0; i < sacks; i++) {
+      const m = new THREE.Mesh(TOWN_SACK, this.world.mats.darkWood);
+      m.position.set(i % 2 ? 0.2 : -0.2, 0.42, H.seatZ - 0.8 - Math.floor(i / 2) * 0.42);
+      m.rotation.y = i * 0.7;
+      obj.add(m);
+      load.push(m);
+    }
+    this.townBoats.set(id, { id, kind, obj, oars, people, load, x: at.x, z: at.z, yaw: at.yaw, path, pi: 0, phase: 0, wait: 0 });
+  }
+
+  /**
+   * Row on along the way: `near` draws and animates (and rows at a boat's pace); far off it goes
+   * at the unseen pace of the town. Returns where it is, and whether it is at the end.
+   */
+  townBoatStep(id: string, dt: number, near: boolean, pace: number): { x: number; z: number; yaw: number; done: boolean } | null {
+    const b = this.townBoats.get(id);
+    if (!b) return null;
+    const tgt = b.path[b.pi];
+    if (!tgt) return { x: b.x, z: b.z, yaw: b.yaw, done: true };
+    const dx = tgt[0] - b.x;
+    const dz = tgt[1] - b.z;
+    const d = Math.hypot(dx, dz);
+    if (d < 0.8) {
+      b.pi++;
+      return { x: b.x, z: b.z, yaw: b.yaw, done: b.pi >= b.path.length };
+    }
+    // turn toward the next point, then pull; a ship or a hull across the way: wait (the oars rest)
+    const want = Math.atan2(dx, dz);
+    const turn = Math.atan2(Math.sin(want - b.yaw), Math.cos(want - b.yaw));
+    b.yaw += Math.max(-0.9 * dt, Math.min(0.9 * dt, turn));
+    const fwd = Math.max(0, Math.cos(turn));
+    const step = Math.min(d, pace * dt * (0.35 + 0.65 * fwd));
+    const nx = b.x + Math.sin(b.yaw) * step;
+    const nz = b.z + Math.cos(b.yaw) * step;
+    const ahead = this.world.boatFree(nx + Math.sin(b.yaw) * 2.2, nz + Math.cos(b.yaw) * 2.2, 0.6, () => false) || !near;
+    if (ahead) {
+      b.x = nx;
+      b.z = nz;
+      b.wait = 0;
+    } else b.wait += dt;
+    b.phase = (b.phase + dt / 2) % 1;
+    const vis = near && Math.hypot(b.x - this.player.x, b.z - this.player.z) < 90;
+    b.obj.visible = vis;
+    if (vis) {
+      b.obj.position.set(b.x, levelAt(b.x, b.z), b.z);
+      b.obj.rotation.set(0, b.yaw, Math.sin(this.clock * 1.3 + b.x) * 0.02, "YXZ");
+      for (const q of b.people) {
+        if (q.row) q.h.setPhase("row", ahead ? b.phase : 0.7);
+        q.h.update(dt);
+      }
+      this.poseTownOars(b, ahead ? b.phase : -1);
+    }
+    return { x: b.x, z: b.z, yaw: b.yaw, done: false };
+  }
+
+  /** The oars with the rower's stroke (the row clip: the drive in the first 42 in the hundred), or resting (-1). */
+  private poseTownOars(b: TownBoat, phase: number): void {
+    const pin = HULL[b.kind].pin;
+    const bladeMid = OAR_OUT - BLADE / 2;
+    const dipIn = Math.asin(Math.min(0.95, (pin[1] + 0.06) / bladeMid));
+    const dipOut = Math.asin(Math.min(0.95, Math.max(0, pin[1] - 0.22) / bladeMid));
+    const CATCH = 0.55;
+    const FINISH = -0.45;
+    let th = 0;
+    let dp = dipOut + 0.04;
+    let fe = 0;
+    if (phase >= 0 && phase < 0.42) {
+      const u = THREE.MathUtils.smoothstep(phase / 0.42, 0, 1);
+      th = CATCH + (FINISH - CATCH) * u;
+      dp = dipIn;
+    } else if (phase >= 0.42) {
+      const u = (phase - 0.42) / 0.58;
+      th = FINISH + (CATCH - FINISH) * THREE.MathUtils.smoothstep(u, 0, 1);
+      dp = dipOut;
+      fe = Math.sin(Math.PI * Math.min(1, u * 1.15)) * (Math.PI / 2) * 0.95;
+    }
+    for (const pivot of b.oars.children) {
+      if (!(pivot instanceof THREE.Group) || !pivot.children.length) continue;
+      const port = pivot.name === "port";
+      const sweep = pivot.children[0] as THREE.Group;
+      const dip = sweep.children[0] as THREE.Group;
+      const feather = dip.children[0] as THREE.Group;
+      sweep.rotation.y = port ? -th : Math.PI + th;
+      dip.rotation.z = -dp;
+      feather.rotation.x = port ? fe : -fe;
+    }
+  }
+
+  /**
+   * The row is over: the family is ashore. At home it lies at its berth again (as the server has
+   * it); elsewhere it lies where it stopped (`at`), tied up, until they row it home.
+   */
+  townBoatEnd(id: string, at: { x: number; z: number; yaw: number } | null, home = false): void {
+    const b = this.townBoats.get(id);
+    if (b) {
+      for (const q of b.people) {
+        q.h.dispose();
+        q.g.removeFromParent();
+      }
+      for (const m of b.load) m.removeFromParent();
+      b.oars.visible = false;
+      this.townBoats.delete(id);
+      if (at && !home) {
+        this.lay(`town:${id}`, b.kind, at.x, at.z, at.yaw, false, b.obj);
+      } else {
+        b.obj.visible = false;
+        this.pool[b.kind].push(b.obj);
+      }
+    }
+    if (home) {
+      const l = this.lying.get(`town:${id}`);
+      if (l) this.drop(l);
+      this.townAway.delete(id);
+      this.syncLying();
+    }
+  }
+
+  /** M6: the family takes the boat from where it lies away from home (the way back). */
+  townBoatFrom(id: string): { x: number; z: number; yaw: number } | null {
+    const l = this.lying.get(`town:${id}`);
+    if (!l) return null;
+    const at = { x: l.x, z: l.z, yaw: l.yaw };
+    this.drop(l);
+    return at;
+  }
+
+  /** Dev: the town's boats out now. */
+  townBoatsInfo() {
+    return [...this.townBoats.values()].map((b) => ({ id: b.id, x: +b.x.toFixed(1), z: +b.z.toFixed(1), at: `${b.pi}/${b.path.length}`, crew: b.people.length }));
   }
 
   // ------------------------------------------------------------------ per frame

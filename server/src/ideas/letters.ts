@@ -8,6 +8,8 @@ import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { ITEMS, POCKET_SLOTS, waresOf } from "../trade.ts";
 import { atWork } from "../trade.ts";
 import { rngFrom, type Resident } from "../town/population.ts";
+import { shownTrade } from "../town/places.ts";
+import { isAwayVisitor } from "../town/visitors.ts";
 import { family, resident, town } from "../town/store.ts";
 import { dateLine } from "../paper/newspaper.ts";
 import { postClerk, postCounter } from "../paper/post.ts";
@@ -75,8 +77,8 @@ export function writeTo(db: DB): Array<{ id: string; name: string; trade: string
   const out: Array<{ id: string; name: string; trade: string; near: string }> = [];
   for (const r of rows) {
     const p = resident(db, r.npc_id);
-    if (!p || p.age < 12 || p.id === postClerk(db)) continue;
-    out.push({ id: p.id, name: p.name, trade: p.trade.replace(/_/g, " "), near: nearLabel(p.home.sx, p.home.sz) });
+    if (!p || p.age < 12 || p.id === postClerk(db) || isAwayVisitor(p)) continue;
+    out.push({ id: p.id, name: p.name, trade: shownTrade(p), near: nearLabel(p.home.sx, p.home.sz) });
     if (out.length >= 9) break;
   }
   return out;

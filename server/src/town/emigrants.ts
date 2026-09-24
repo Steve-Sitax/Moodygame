@@ -900,8 +900,17 @@ export function warnFamily(db: DB, by: string): { ok: boolean; text: string; tru
   remember(db, by, "Jef warned me the smooth man's railway tickets were false. He saved our money.", 7, "seen", null, { gist: "Jef warned the emigrants off a runner's false tickets", tone: 2 });
   remember(db, e.runner, "That lad Jef spoiled my sale to the emigrants on the quay.", 5, "seen", null, { gist: "Jef sticks his nose in other men's business on the Rijnkaai", tone: -1 });
   logRow(db, "player", "warned_emigrants", String(f.household), `Jef warned the ${f.surname} family that the runner's tickets were false.`);
+  // they ask him at once to watch their things while they go to the real office (M6-emigrants.md;
+  // QA 2026-09-24: the watch was only made on a later tick and only said if he spoke to the head again)
+  errandsTick(db, e);
   save(db, e);
-  return { ok: true, text: "", trust: 2 };
+  const er = openErrand(db, f);
+  const head = by === f.head ? null : town(db).byId.get(f.head);
+  const ask =
+    er && er.kind === "watch" && er.status === "offered"
+      ? ` Please, will you watch our things while we go to the office to ask about the tickets? ${er.pay_c} centimes, we pay.${head ? ` ${head.first} will tell you.` : ""}`
+      : "";
+  return { ok: true, text: ask, trust: 2 };
 }
 
 /** Jef reports the runner to a police agent: he is taken off the quays; money the family paid comes back. */
@@ -915,7 +924,7 @@ export function reportRunner(db: DB, agent: string): { ok: boolean; returned: bo
   s.state = "reported";
   s.by = agent;
   e.runner_jailed = true;
-  db.prepare("UPDATE faction_trust SET trust = MAX(0, MIN(10, trust + 1)) WHERE faction = 'politie'").run();
+  db.prepare("UPDATE faction_trust SET trust = MAX(-5, MIN(10, trust + 1)) WHERE faction = 'politie'").run();
   remember(db, agent, "Jef told me a runner was selling false tickets to the emigrants on the Rijnkaai. We took the man in.", 6, "seen", null, { gist: "Jef reported the ticket runner on the Rijnkaai to the police", tone: 1 });
   remember(db, e.runner, "The police took me in off the Rijnkaai. Somebody talked: that lad Jef.", 7, "seen", null, { gist: "Jef went to the police about honest men's business on the quay", tone: -2 });
   if (f && f.status === "here") {
@@ -1213,7 +1222,7 @@ export function installEmigrantTalk(): void {
         answer: (db2, r2) => {
           const w = warnFamily(db2, r2.id);
           if (!w.ok) return { text: "Which man? He is gone already." };
-          return { text: pickBy(r2.id, ["False? But he has a stamp, and a paper with an eagle... No. You are right, the price was too good. Thank you, thank you. We keep our money.", "Oh. Oh, God. We almost paid him everything. Thank you, young man. We ask at the real office.", "False? Then he is a thief with a nice coat. Thank you. We do not forget this."]), trust: w.trust };
+          return { text: pickBy(r2.id, ["False? But he has a stamp, and a paper with an eagle... No. You are right, the price was too good. Thank you, thank you. We keep our money.", "Oh. Oh, God. We almost paid him everything. Thank you, young man. We ask at the real office.", "False? Then he is a thief with a nice coat. Thank you. We do not forget this."]) + w.text, trust: w.trust };
         },
       });
     }
