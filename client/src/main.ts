@@ -386,45 +386,61 @@ document.addEventListener("pointerlockchange", () => {
   startEl.classList.toggle("hidden", locked || player.freeInput);
 });
 
+/** Run one part of the frame; an error is logged once (by its message) and the rest of the frame goes on. */
+const frameErrors = new Set<string>();
+function safe(name: string, fn: () => void): void {
+  try {
+    fn();
+  } catch (e) {
+    const key = `${name}: ${(e as Error)?.message ?? e}`;
+    if (!frameErrors.has(key)) {
+      frameErrors.add(key);
+      console.error(`[frame] ${key}`, e);
+    }
+  }
+}
 const timer = new THREE.Timer();
 timer.connect(document);
 let elapsed = 0;
 function frame(): void {
+  // the next frame first: an error below never stops the game (QA 2026-09-24: one throw froze it for good)
+  requestAnimationFrame(frame);
   timer.update();
   const dt = Math.min(timer.getDelta(), 0.1);
   elapsed += dt;
-  world.update(elapsed, dt, player.camera);
-  player.update(dt);
-  handcarts.update(dt);
-  interiors.update(dt);
-  homes.update(dt);
-  landmarks.update(dt);
-  interiors.sway(dt);
-  jobs.update(dt);
-  craneClimb.update(dt);
-  crowd.setHour(jobs.day.hour);
-  crowd.update(dt, player, player.camera);
-  town.update(dt, player);
-  journeys.update(dt, player);
-  market.update(dt, player, jobs.day.dayNum, jobs.day.hourF);
+  safe("world.update", () => world.update(elapsed, dt, player.camera));
+  safe("player.update", () => player.update(dt));
+  safe("handcarts.update", () => handcarts.update(dt));
+  safe("interiors.update", () => interiors.update(dt));
+  safe("homes.update", () => homes.update(dt));
+  safe("landmarks.update", () => landmarks.update(dt));
+  safe("interiors.sway", () => interiors.sway(dt));
+  safe("jobs.update", () => jobs.update(dt));
+  safe("craneClimb.update", () => craneClimb.update(dt));
+  safe("crowd.setHour", () => crowd.setHour(jobs.day.hour));
+  safe("crowd.update", () => crowd.update(dt, player, player.camera));
+  safe("town.update", () => town.update(dt, player));
+  safe("journeys.update", () => journeys.update(dt, player));
+  safe("market.update", () => market.update(dt, player, jobs.day.dayNum, jobs.day.hourF));
   setLitterClock(jobs.day.dayNum, jobs.day.hourF);
-  trades.update(elapsed, dt, player.camera, crowd.fogDistance);
-  steenLife.update(dt, jobs.day.hourF, player.camera);
-  deeds.update(dt, jobs.day.hourF);
-  rowing.update(dt);
-  actions.update(dt);
-  families.update(dt);
-  events.update(dt, player);
-  townLife.update(dt, player, jobs.day.hourF);
-  bubbles.update(dt, player.camera);
-  ballads.update(dt, player.camera);
-  press.update(dt);
-  ideas.update(dt);
-  emigrants.update(dt);
-  animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
-  sound?.setCrowd(crowd.stats.drawn);
-  sound?.setRain(psxUniforms.uRain.value);
-  sound?.update(player.camera);
+  safe("trades.update", () => trades.update(elapsed, dt, player.camera, crowd.fogDistance));
+  safe("steenLife.update", () => steenLife.update(dt, jobs.day.hourF, player.camera));
+  safe("deeds.update", () => deeds.update(dt, jobs.day.hourF));
+  safe("rowing.update", () => rowing.update(dt));
+  safe("actions.update", () => actions.update(dt));
+  safe("families.update", () => families.update(dt));
+  safe("events.update", () => events.update(dt, player));
+  safe("townLife.update", () => townLife.update(dt, player, jobs.day.hourF));
+  safe("bubbles.update", () => bubbles.update(dt, player.camera));
+  safe("ballads.update", () => ballads.update(dt, player.camera));
+  safe("press.update", () => press.update(dt));
+  safe("ideas.update", () => ideas.update(dt));
+  safe("emigrants.update", () => emigrants.update(dt));
+  safe("animals.update", () => animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7));
+  safe("sound.setCrowd", () => sound?.setCrowd(crowd.stats.drawn));
+  safe("sound.setRain", () => sound?.setRain(psxUniforms.uRain.value));
+  safe("sound.update", () => sound?.update(player.camera));
+  safe("vehicles and people wiring", () => {
   {
     // ships under way whistle and churn; they signal at the lock and the bridges
     const b = world.boats();
@@ -463,10 +479,10 @@ function frame(): void {
     // M6 transport: the town's own people ride the omnibus (no fare), and step off at their stop
     if (bus && !bus.onResidentOff) bus.onResidentOff = (_b, id, at) => journeys.offBus(id, at);
   }
+  });
   // M6: inside a room, its own scene instead of the street
   retro.render(interiors.prepareRender(player.camera) ?? world.scene, player.camera, elapsed);
-  requestAnimationFrame(frame);
-}
+  }
 requestAnimationFrame(frame);
 
 // Warm-up: once the city is in, send every house chunk and landmark to the GPU

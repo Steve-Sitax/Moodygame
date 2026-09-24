@@ -68,7 +68,8 @@ export class Homes {
   }
 
   private apply(info: HomesInfo): void {
-    this.info = info;
+    // a half answer (no items) must never throw in the frame loop (QA: the game froze for good)
+    this.info = { ...info, homes: info.homes ?? [], items: info.items ?? [], dealer: info.dealer ?? null, lease: info.lease ?? null, widow: info.widow ?? null };
     this.showCarried();
     if (!this.dealerShow && info.dealer) this.buildDealerShow();
     const room = this.room();
