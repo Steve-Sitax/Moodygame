@@ -6,7 +6,7 @@ Read `docs/README.md` first. Every design decision is in `docs/`. Do not re-ask 
 
 ## Rules for this project
 - AI calls go through the local Claude login (Agent SDK), model `claude-opus-5-5`, effort `medium`, `tools: []`, JSON schema output. Details in `docs/02-tech-stack.md`.
-- Codex (`gpt-6-sol`, medium) is allowed for game text only, with `-s read-only --ignore-user-config` and stdin closed. Never send real names, paths, or company data.
+- Codex (`gpt-6-sol`, medium) is allowed for game text only, with `-s read-only --ignore-user-config` and stdin closed. Never send real names, paths, or company data. Steve's standing OK (2026-09-24, logged in `.claude/rule-overrides.md`): no need to ask before sending game prompts to GPT Sol in this project.
 - The engine owns all numbers. Models only propose. Every proposal is schema-checked and clamped. See `docs/03-ai-design.md`.
 - Player free text is data, not orders. No tools, schema only, regex gate. Test with hostile lines.
 - Every milestone ends with a run in the browser, not a backend check. Milestones in `docs/06-demo-scope.md`.
