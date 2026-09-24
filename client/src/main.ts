@@ -41,6 +41,9 @@ import { Landmarks } from "./game/landmarks";
 import { Ballads } from "./game/ballads";
 import { Handcarts } from "./game/handcart";
 import { routeClips } from "./dev/routeClips";
+import { Lively } from "./game/lively";
+import { Steps } from "./game/steps";
+import { Hands } from "./game/hands";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const startEl = document.getElementById("start") as HTMLDivElement;
@@ -239,6 +242,33 @@ const families = new Families(world, player, jobs, town);
     families.handlePush(m);
   };
 }
+// M6 gifts and hired hands: routines of steps the server runs (game/steps.ts walks them), a thing handed
+// over, a drink stood at the tavern, hands paid to carry (game/hands.ts); after the ballads (their tavern keys)
+const steps = new Steps(world, player, town, crowd, jobs);
+steps.say = (t) => jobs.say(t);
+const hands = new Hands(player, jobs, town, crowd, interiors, steps);
+hands.say = (t) => jobs.say(t);
+hands.sfx = (n) => sound?.play(n);
+{
+  const onPush = jobs.onPush;
+  jobs.onPush = (m) => {
+    onPush(m);
+    hands.handlePush(m);
+  };
+}
+const routinesRun = () => actions.active.some((a) => (a.kind as string) === "routine");
+// M6 lively: the back streets and the cathedral quarter: dog carts, street sellers and their cries,
+// door life, the children's games, the stalls against the cathedral, lane life (game/lively.ts)
+const lively = new Lively(world, town, crowd);
+town.lively = lively.hook();
+lively.clock = () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF });
+lively.weather = () => weatherNow;
+lively.sfx = {
+  cry: (at, v, notes, beat) => void sound?.sing(at, v, notes, beat),
+  work: (kind, at, secs) => sound?.streetWork(kind, at, secs),
+  bell: (at) => void sound?.eventSound("handbell", at, 3),
+};
+lively.load().catch((e) => console.warn("the lively streets did not load", e));
 town
   .load()
   .then(() => {
@@ -428,6 +458,8 @@ function frame(): void {
   safe("deeds.update", () => deeds.update(dt, jobs.day.hourF));
   safe("rowing.update", () => rowing.update(dt));
   safe("actions.update", () => actions.update(dt));
+  safe("steps.update", () => steps.update(dt, routinesRun()));
+  safe("hands.update", () => hands.update(dt, routinesRun()));
   safe("families.update", () => families.update(dt));
   safe("events.update", () => events.update(dt, player));
   safe("townLife.update", () => townLife.update(dt, player, jobs.day.hourF));
@@ -436,6 +468,7 @@ function frame(): void {
   safe("press.update", () => press.update(dt));
   safe("ideas.update", () => ideas.update(dt));
   safe("emigrants.update", () => emigrants.update(dt));
+  safe("lively.update", () => lively.update(dt, player, player.camera, crowd.fogDistance));
   safe("animals.update", () => animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7));
   safe("sound.setCrowd", () => sound?.setCrowd(crowd.stats.drawn));
   safe("sound.setRain", () => sound?.setRain(psxUniforms.uRain.value));
@@ -568,6 +601,9 @@ if (import.meta.env.DEV) {
     landmarks,
     ballads,
     handcarts,
+    steps,
+    hands,
+    lively,
     /** M6 handcart: where a dray, a handcart or an omnibus round touches a wall or a fixed thing (should be []). */
     routeClips: () => routeClips(world, []),
     /** M6: a picture inside the room Jef is in, camera at `from` looking at `to` (room frame: x across, y up, z into the house). */
@@ -644,6 +680,8 @@ if (import.meta.env.DEV) {
       for (const q of ballads.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M6 handcart: the wheelwright's door and his carts
       for (const q of handcarts.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      // M6 lively: the stalls against the cathedral, the Madonnas' stands, the beggars' places, every stop of a round
+      for (const q of lively.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       if (!can(DOSS_POS.x, DOSS_POS.z, 2.0)) bad.push("the doss house gate");
       if (!can(RAMP.x - 0.6, RAMP.zHigh - 1.0, 2.4)) bad.push("the mate on deck");
       return bad;
@@ -725,6 +763,8 @@ if (import.meta.env.DEV) {
         deeds.update(dt, jobs.day.hourF);
         rowing.update(dt);
         actions.update(dt);
+        steps.update(dt, routinesRun());
+        hands.update(dt, routinesRun());
         families.update(dt);
         events.update(dt, player);
         townLife.update(dt, player, jobs.day.hourF);
@@ -733,6 +773,7 @@ if (import.meta.env.DEV) {
         press.update(dt);
         ideas.update(dt);
         emigrants.update(dt);
+        lively.update(dt, player, player.camera, crowd.fogDistance);
         animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
       }
     },

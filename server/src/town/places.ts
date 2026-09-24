@@ -18,7 +18,8 @@ export type WorkKind =
   | "post" // stand at one point (employers, the priest at his door)
   | "guard" // a sentry at his post (at), relieved every two hours from the guard room (garrison.ts)
   | "inspect" // a customs officer: from one landing of goods to the next (route), checking and writing
-  | "wait"; // M6 emigrants (emigrants.ts): by the family's chests on the quay, sitting on one (seat) or standing (at)
+  | "wait" // M6 emigrants (emigrants.ts): by the family's chests on the quay, sitting on one (seat) or standing (at)
+  | "round"; // M6 lively (lively.ts): a round of doors in the back streets (route), a stop at each (faces: toward the door)
 
 export interface Place {
   id: string;
@@ -193,7 +194,11 @@ export type TradeId =
   // M6 emigrants (emigrants.ts): families waiting for the liner, the lodging-house keeper, the ticket runner
   | "emigrant" | "lodging_keeper" | "runner"
   // M6 landmark interiors (landmarks/town.ts): who works inside the cathedral, the town hall, the Vleeshuis, the Steen and the Oostershuis
-  | "organist" | "beadle" | "chair_woman" | "registrar" | "alderman" | "concierge" | "cellar_master" | "cellarman" | "painter" | "attendant" | "storekeeper";
+  | "organist" | "beadle" | "chair_woman" | "registrar" | "alderman" | "concierge" | "cellar_master" | "cellarman" | "painter" | "attendant" | "storekeeper"
+  // M6 lively (lively.ts): the back streets and the cathedral quarter. Dog carts, street sellers
+  // with their cries, the stalls against the cathedral, nuns, beguines, English travellers
+  | "milk_woman" | "baker_boy" | "grinder" | "ragman" | "coalman" | "sweep" | "mussel_seller" | "broom_seller"
+  | "devotion_seller" | "nun" | "beguine" | "tourist";
 
 export interface TradeDef {
   label: string;
@@ -273,6 +278,19 @@ export const TRADES: Record<TradeId, TradeDef> = {
   painter: { label: "painter with a studio in the Vleeshuis", work: "inside", faction: null, wealth: [1, 4], bias: { piety: -1, warmth: 1 } },
   attendant: { label: "attendant of the Museum of Antiquities in the Steen", work: "inside", faction: "burgerij", wealth: [1, 3], bias: { honesty: 1, gossip: 1 } },
   storekeeper: { label: "storekeeper of the State warehouse in the Oostershuis", work: "inside", faction: null, wealth: [3, 5], bias: { honesty: 1, temper: 1 } },
+  // M6 lively (lively.ts)
+  milk_woman: { label: "milk woman with a dog cart", work: "round", faction: null, wealth: [1, 2], bias: { gossip: 2, warmth: 1 } },
+  baker_boy: { label: "baker's boy with the bread cart", work: "round", faction: null, wealth: [0, 1], bias: { courage: 1, gossip: 1 } },
+  grinder: { label: "knife grinder", work: "round", faction: null, wealth: [0, 1], bias: { gossip: 2, piety: -1 } },
+  ragman: { label: "rag-and-bone man", work: "round", faction: null, wealth: [0, 1], bias: { greed: 2, honesty: -1 } },
+  coalman: { label: "coal man", work: "round", faction: null, wealth: [1, 2], bias: { courage: 1, temper: 1 } },
+  sweep: { label: "chimney sweep", work: "round", faction: null, wealth: [0, 1], bias: { courage: 2, gossip: 1 } },
+  mussel_seller: { label: "mussel seller", work: "round", faction: null, wealth: [0, 2], bias: { gossip: 2 } },
+  broom_seller: { label: "broom seller from the Kempen", work: "round", faction: null, wealth: [0, 1], bias: { piety: 1, gossip: -1 } },
+  devotion_seller: { label: "keeper of a stall against the cathedral (rosaries, candles, holy pictures)", work: "post", faction: "kerk", wealth: [1, 3], bias: { piety: 3, gossip: 2, greed: 1 } },
+  nun: { label: "Black Sister, who nurses the sick at home", work: "round", faction: "kerk", wealth: [0, 0], bias: { piety: 5, warmth: 2, honesty: 2 } },
+  beguine: { label: "beguine", work: "inside", faction: "kerk", wealth: [1, 3], bias: { piety: 5, gossip: 1 } },
+  tourist: { label: "English traveller come to see the Rubens paintings", work: "round", faction: null, wealth: [7, 9], bias: { courage: -1, warmth: 1, gossip: 1 } },
 };
 
 /** The board's employers who live in the town: fixed ids, so the job board can name them. */

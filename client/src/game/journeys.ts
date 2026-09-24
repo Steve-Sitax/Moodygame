@@ -134,12 +134,22 @@ export interface Trip {
   errand?: string;
   /** For the dev list. */
   started: number;
+  /** Seconds on the way to the boat in Jef's sight (fixes 2026-09-24). */
+  seenT?: number;
 }
 
 const d2 = (a: Pt, b: Pt) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 const STOPS_PLAIN: Stop[] = OMNIBUS_STOPS.map((s) => ({ id: s.id, line: s.line, x: s.x, z: s.z }));
 /** Seconds of the street for a thing carried from the door to the cart and back. */
 const CARRY_S = 9;
+/**
+ * Fixes 2026-09-24: on the way to his boat in Jef's sight, after this long (real seconds) he goes
+ * on unseen as soon as he is out of sight, and after BERTH_GIVE_UP_S he gives up and walks.
+ */
+const BERTH_SEEN_S = 30;
+const BERTH_GIVE_UP_S = 45;
+/** Unseen, he is at his boat within about this many seconds of play. */
+const BERTH_UNSEEN_S = 6;
 
 /** The flights of quay steps a family boat lands at (server town/possessions.ts FLIGHTS). */
 const FLIGHTS: Array<{ id: string; top: Pt; t: Pt; n: Pt; water: string }> = [
@@ -414,6 +424,7 @@ export class Journeys {
   beginErrand(s: JourneySim, e: Errand, back: boolean): Trip | null {
     const v = this.data?.vehicles.find((q) => q.id === e.vehicle);
     if (!v || s.r.id !== e.who[0]) return null;
+    if (back && this.gaveUp.has(e.id)) return null; // the boat never left: home on foot
     if (s.trip) this.end(s, false);
     const t: Trip = { mode: e.kind === "boat" ? "boat" : "dray", phase: "toberth", why: back ? "home with the boat" : `an errand to ${e.toLabel}`, t: 0, goT: 0, from: [s.x, s.z], to: this.town.anchor(s), key: s.key, veh: v, loaded: 0, unload: 0, helpers: [], errand: e.id, started: performance.now() };
     if (e.kind === "boat" && v.boat) {
@@ -687,7 +698,16 @@ export class Journeys {
           if (move([t.fetchAt![0], t.fetchAt![1]], "walk")) this.startDray(s, t, null);
           return true;
         }
-        if (move([t.fetchAt![0], t.fetchAt![1]], "walk")) this.startRow(s, t);
+        {
+          // unseen to his boat in a few seconds of play (fixes 2026-09-24: the errand is two and a
+          // half game hours, 50 s, and a family's steps may be 360 m off)
+          const d = Math.hypot(t.fetchAt![0] - s.x, t.fetchAt![1] - s.z);
+          if (d > 0.6) {
+            const step = Math.min(d, Math.max(SPEED.walk * k, d / BERTH_UNSEEN_S) * dt);
+            s.x += ((t.fetchAt![0] - s.x) / d) * step;
+            s.z += ((t.fetchAt![1] - s.z) / d) * step;
+          } else this.startRow(s, t);
+        }
         return true;
       case "row":
         return this.row(s, t, dt, false);
@@ -760,6 +780,18 @@ export class Journeys {
           if (t.mode === "dray") this.startDray(s, t, p);
           else if (this.crewReady(s, t)) this.startRow(s, t);
           else this.crowd.puppetStand(p, "idle", null);
+        } else if (t.mode === "boat" && (!this.crowd.onGrid(bx, bz) || (t.seenT = (t.seenT ?? 0) + dt) > BERTH_SEEN_S) && !p.shown) {
+          // fixes 2026-09-24 (Karel Van Loock stood at the Steenplein for minutes, his boat 360 m
+          // off at the north steps, beyond the walk grid round Jef): out of sight, on unseen
+          this.town.drop(s);
+          return true;
+        } else if (t.mode === "boat" && (t.seenT ?? 0) > BERTH_GIVE_UP_S) {
+          // in sight all the while and not there: no boat today, he walks to where he was going
+          this.note(`${s.r.name} gives up on the boat and walks`);
+          if (t.errand) this.gaveUp.add(t.errand);
+          this.end(s, false);
+          this.town.resume(s);
+          return false;
         } else go(bx, bz, this.town.pace(s));
         this.crewFollow(s, t);
         return true;
@@ -1322,6 +1354,8 @@ export class Journeys {
 
   /** Dev: move an errand of today to start now (this side only, until the next day). */
   private devShift = new Map<string, number>();
+  /** Boat errands given up on the way out (no rowing home for those): fixes 2026-09-24. */
+  private gaveUp = new Set<string>();
   devErrandNow(vehicle: string): string | null {
     const e = this.data?.errands.find((q) => q.vehicle === vehicle);
     if (!e) return null;

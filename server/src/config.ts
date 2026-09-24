@@ -167,6 +167,14 @@ export const HIRING_CALLS_PER_DAY = 1;
 export const BALLAD_CALLS_PER_DAY = 2;
 export const SERMON_CALLS_PER_DAY = 1;
 /**
+ * M6 hired hands (town/hire.ts): a hand's four lines (done, asking for more, quitting, grumbling on),
+ * one call per hand, at most this many a day, out of what was left of the 120, never the reserve;
+ * then the engine's lines. The gifts and the treat ride in the talk call (the townspeople's share).
+ * The shares now come to 90 of 120, leaving 30 for the board, the outcomes, the named people and
+ * the epilogue (the last 15 of them the reserve).
+ */
+export const HANDS_CALLS_PER_DAY = 2;
+/**
  * M4b (Steve, 2026-09-24: "events should gather up to 100 people"): the most townspeople one
  * event may take, leads included, and the most one gathering stage may call. The director may
  * ask for up to this; the engine clamps it. The town has about 218 residents.
@@ -187,13 +195,14 @@ export const EVENT_SIZE_DEFAULT = 100;
 /**
  * The town's size for a NEW game (Restart). `target` is how many townspeople the generator makes
  * (population.ts, without the garrison and the people other parts add in place: the press, the
- * homes, the lamplighters, the visitors, the emigrants, about 50 more). Normal is the town as it was.
+ * homes, the lamplighters, the visitors, the emigrants, about 50 more; M6 lively: the dog carts, the
+ * street sellers, the stalls' keepers, nuns, beguines, beggars and travellers, 25 more). Normal is the town as it was.
  */
 export type TownSize = "small" | "normal" | "large" | "very_large";
 export const TOWN_SIZES: Record<TownSize, { label: string; target: number; about: number }> = {
-  small: { label: "Small", target: 100, about: 150 },
-  normal: { label: "Normal", target: 190, about: 240 },
-  large: { label: "Large", target: 300, about: 350 },
-  very_large: { label: "Very large", target: 450, about: 500 },
+  small: { label: "Small", target: 100, about: 175 },
+  normal: { label: "Normal", target: 190, about: 265 },
+  large: { label: "Large", target: 300, about: 375 },
+  very_large: { label: "Very large", target: 450, about: 525 },
 };
 export const TOWN_SIZE_DEFAULT: TownSize = "normal";

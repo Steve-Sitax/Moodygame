@@ -11,6 +11,7 @@ import { resident, town } from "../src/town/store.ts";
 import { OUTSIDE, WALL, WATER, walkMap } from "../src/town/walkmap.ts";
 import { stealables, takeThing, veloStates, leaveVelo, deedWorld } from "../src/town/deeds.ts";
 import { rowBoats } from "../src/rowing.ts";
+import { isLivelyId } from "../src/town/lively.ts";
 import {
   ensureTransport,
   errandsFor,
@@ -159,8 +160,8 @@ describe("who owns what (the migration)", () => {
       expect(veloShop(db)).toBeTruthy();
       const after = db.prepare("SELECT id, data_json FROM resident").all() as Array<{ id: string; data_json: string }>;
       for (const r of after) if (before.has(r.id)) expect(r.data_json, r.id).toBe(before.get(r.id));
-      // the velocipede maker, and the wheelwright (M6 handcart, town/handcart.ts)
-      expect(after.length).toBe(before.size + 2);
+      // the velocipede maker, and the wheelwright (M6 handcart, town/handcart.ts); M6 lively adds its own people after them
+      expect(after.filter((r) => !isLivelyId(r.id)).length).toBe(before.size + 2);
       expect((db.prepare("SELECT COUNT(*) n FROM npc_memory").get() as { n: number }).n).toBe(mem);
       db.close();
     } finally {

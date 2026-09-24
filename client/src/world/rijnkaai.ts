@@ -196,6 +196,8 @@ export interface World {
   setWeather(w: "fog" | "mist" | "clear" | "rain" | "storm"): void;
   /** Chimney smoke, birds, rain and puddles, lit windows (world/ambient.ts). */
   ambient: Ambient;
+  /** M6 lively: street life once it is placed (the corner Madonnas, the shop fronts); null until then. */
+  streetLife(): StreetLife | null;
   /** The boats (moving ships for the sound, signals at bridges); null until loaded. */
   boats(): Boats | null;
   /** The drays and handcarts (for the sound); null until loaded. */
@@ -1196,6 +1198,24 @@ export function buildRijnkaai(): World {
   const WEATHER = { fog: [1, 1, 1, 0], mist: [2.5, 3.5, 0.6, 0.25], clear: [40, 16, 0.2, 1], rain: [1.8, 2.5, 0.8, 0], storm: [1.3, 1.6, 0.9, 0] } as const;
   /** The air of a clear autumn noon: lighter and bluer than the grey of a fog day. */
   const CLEAR_SKY = new THREE.Color(0x9db0c2);
+  /**
+   * Fixes 2026-09-24 (shot 4: a clear 16:40-17:00 stayed grey): the golden hour of a clear day.
+   * The low sun goes warm and the air gold toward evening, a little at sunrise too; fog, mist and
+   * rain days stay grey (it follows the clear-sky weight). 0..1 by the hour.
+   */
+  const GOLD_AIR = new THREE.Color(0xdca868);
+  const SUN_WHITE = new THREE.Color(0xfff0d8);
+  const SUN_GOLD = new THREE.Color(0xffa24a);
+  const SKY_COLD = new THREE.Color(0x8494a6);
+  const SKY_WARM = new THREE.Color(0xb49a7c);
+  const SUN_HIGH = new THREE.Vector3(-0.75, 0.9, 0.55);
+  const SUN_LOW = new THREE.Vector3(-0.95, 0.38, 0.35);
+  const sunDir = new THREE.Vector3();
+  function goldenAt(h: number): number {
+    const bump = (h: number, a: number, peak0: number, peak1: number, b: number) =>
+      h <= a || h >= b ? 0 : h < peak0 ? THREE.MathUtils.smoothstep(h, a, peak0) : h <= peak1 ? 1 : 1 - THREE.MathUtils.smoothstep(h, peak1, b);
+    return Math.max(bump(h, 15.1, 16.4, 17.3, 18.3), 0.45 * bump(h, 6.9, 7.6, 8.0, 9.0));
+  }
   const baseFog = new THREE.Color();
   let weatherNow: keyof typeof WEATHER = "fog";
   let wTarget: readonly number[] = WEATHER.fog;
@@ -1293,9 +1313,16 @@ export function buildRijnkaai(): World {
     for (let i = 0; i < 4; i++) wNow[i] += (wTarget[i] - wNow[i]) * Math.min(1, dt * 0.5);
     // a clear day: the air lighter and bluer (by day only)
     fog.color.copy(baseFog).lerp(CLEAR_SKY, wNow[3] * sunDay * 0.6);
+    // the golden hour of a clear day: warm air, a low warm sun from the west (fog days stay grey)
+    const gold = goldenAt(dayNow) * wNow[3];
+    fog.color.lerp(GOLD_AIR, gold * 0.55);
     (scene.background as THREE.Color).copy(fog.color);
-    // the sun: nothing at night, a glow through fog, real light on a clear day
-    sun.intensity = sunDay * (1.35 - wNow[2]) * 2.6;
+    sun.color.copy(SUN_WHITE).lerp(SUN_GOLD, gold);
+    skyLight.color.copy(SKY_COLD).lerp(SKY_WARM, gold * 0.55);
+    sun.position.copy(sunDir.copy(SUN_HIGH).lerp(SUN_LOW, gold));
+    // the sun: nothing at night, a glow through fog, real light on a clear day (warmer and a
+    // little stronger in the golden hour: the low light is what shows)
+    sun.intensity = sunDay * (1.35 - wNow[2]) * 2.6 * (1 + 0.8 * gold);
     psxUniforms.uScatter.value = SCATTER * wNow[2];
     // the job twist "thick fog" always closes in, whatever the weather
     fog.near = THREE.MathUtils.lerp(3 * wNow[0], 1.5, fogMix);
@@ -1362,6 +1389,7 @@ export function buildRijnkaai(): World {
       wTarget = WEATHER[weatherNow];
     },
     ambient,
+    streetLife: () => street,
     setPeople: (fn) => (peopleFn = fn),
     bridgeWait: (x, z) => {
       const b = bridges?.list.find((q) => x > q.rect.minX - 0.4 && x < q.rect.maxX + 0.4 && z > q.rect.minZ - 0.4 && z < q.rect.maxZ + 0.4);

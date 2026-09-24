@@ -203,7 +203,8 @@ export function createRiver(scene: THREE.Object3D, boats?: Boats | Promise<Boats
         if (room < 40) v = Math.min(v, Math.max(0, o.v * THREE.MathUtils.clamp(room / 40, 0, 1)));
       }
       // the lighters' tows crossing the lanes (world/anchorage.ts): hold back till they are past
-      // (only a hull that reaches into this ship's way: not one waiting at the edge of the lane)
+      // (only a hull that reaches into this ship's way: not one waiting at the edge of the lane;
+      // and the crossing a tow holds while it crosses, fixes 2026-09-24)
       for (const o of anchorage?.obstacles() ?? []) {
         const dx = o.x - m.x;
         const dz = o.z - m.z;
@@ -216,6 +217,9 @@ export function createRiver(scene: THREE.Object3D, boats?: Boats | Promise<Boats
         const lengthwise = (o.len / 2) * cos + (o.beam / 2) * sin;
         if (along <= 0 || side - across > m.beam / 2 + 3) continue;
         const room = along - m.parts[0].len / 2 - lengthwise - 12;
+        // a tow's crossing held (anchorage.ts): a ship under way already too close to stop short
+        // of it carries on (the tow waited for that one); one standing still stays
+        if (o.soft && room < m.v * 2.5 - 1) continue;
         const vAlong = Math.max(0, o.v * (Math.sin(o.yaw) * m.hx + Math.cos(o.yaw) * m.hz));
         if (room < 40) v = Math.min(v, Math.max(0, vAlong * THREE.MathUtils.clamp(room / 40, 0, 1)));
       }

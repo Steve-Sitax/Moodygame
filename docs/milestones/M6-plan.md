@@ -34,6 +34,11 @@ commits and pushes it (a finished part = a milestone).
 
 Homes: every townsperson already has a home and a daily schedule (M3e) and families share a household; what is new is that they pass on to each other what happened with Jef, and act on it.
 
+## Next (Steve, 2026-09-24 afternoon)
+- Gifts from Jef's pockets (anti-farming trust caps), a drink together at a tavern, paid hands and a crew: running (M6-gifts-hire.md), built on a small step executor.
+- AI-composed routines: from Jef's request the model plans from engine primitives (walk, pick up, carry, buy, give, talk, wait, follow, sit, enter or leave); the engine checks and runs each step; the model checks in after each step or failure and steers until done (capped check-ins, a time limit, a budget share). After the gifts work.
+- Livelier back streets and the cathedral area: 10 period ideas offered to Steve (street Madonnas, dog carts, doorstep scrubbing and lace makers, street sellers with cries, children's games, shops spilling out, lane life, the Quinten Matsys well, the shops against the cathedral, tourists, beggars and clergy). Waiting for his pick.
+
 ## AI unpredictability pack (fun ideas, wave 3)
 - A fortune teller at the fair or the quay: her prophecy for Jef (AI words) is a hidden promise the director later tries to make come true.
 - Strangers off the ships: now and then a visitor with an AI-made backstory, a goal and a secret, who stays a few days and leaves.

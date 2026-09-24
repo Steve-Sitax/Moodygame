@@ -18,19 +18,29 @@ export type HumanKind =
   | "baker" | "shopkeeper" | "publican" | "clerk" | "old_man" | "beggar" | "wife_a" | "wife_b" | "shopwife" | "old_woman" | "urchin" | "girl_b"
   // the garrison and the customs (server town/garrison.ts): a soldier of the line walking out,
   // a corporal, a sentry with his rifle at the shoulder, a customs officer with his book
-  | "soldier" | "soldier_b" | "sentry" | "customs";
+  | "soldier" | "soldier_b" | "sentry" | "customs"
+  // M6 lively (server town/lively.ts): the milk woman, the baker's boy, the street sellers, a Black
+  // Sister, a beguine, the English travellers
+  | "milk_woman" | "baker_boy" | "grinder" | "ragman" | "coalman" | "sweep" | "sweep_boy" | "nun" | "beguine" | "tourist" | "tourist_lady";
 /**
  * sit: on a crate (lower the body by sitDrop); behind: hands behind the back, looking out; lean: forearms on a rail;
  * write: the book open on the left forearm, writing (the customs; others stand idle).
  */
-export type Motion = "idle" | "walk" | "talk" | "fold" | "carry" | "sit" | "behind" | "lean" | "write" | "ride" | "row" | "push";
+export type Motion = "idle" | "walk" | "talk" | "fold" | "carry" | "sit" | "behind" | "lean" | "write" | "ride" | "row" | "push"
+  // M6 lively (game/lively.ts): kneeling to scrub the step, at the lace pillow, the sign of the cross, pointing
+  // up at a spire, begging, a street cry, a child crouched at marbles, a hop, turning a rope, at the grinding
+  // wheel, drawing water. Some lower or lift the body (motionLift).
+  | "scrub" | "lace" | "cross" | "point" | "beg" | "call" | "crouch" | "hop" | "rope" | "grind" | "pull";
 /**
  * M6 transport: ride (pedalling a velocipede: the body is raised by rideLift, the loop set from the
  * front wheel by setPhase), row (on a thwart facing the stern), push (behind a handcart, anyone).
  */
-const MOTIONS: Motion[] = ["idle", "walk", "talk", "fold", "carry", "sit", "behind", "lean", "write", "ride", "row", "push"];
+const MOTIONS: Motion[] = ["idle", "walk", "talk", "fold", "carry", "sit", "behind", "lean", "write", "ride", "row", "push", "scrub", "lace", "cross", "point", "beg", "call", "crouch", "hop", "rope", "grind", "pull"];
+/** M6 lively: how far the hips come down (a 1.74 m body) kneeling or crouched (build_people.py KNEEL_DROP, CROUCH_DROP). */
+const KNEEL_DROP = 0.44;
+const CROUCH_DROP = 0.4;
 
-const WOMEN = new Set<HumanKind>(["peeters", "fientje", "fishwife_a", "fishwife_b", "maid", "girl", "wife_a", "wife_b", "shopwife", "old_woman", "girl_b"]);
+const WOMEN = new Set<HumanKind>(["peeters", "fientje", "fishwife_a", "fishwife_b", "maid", "girl", "wife_a", "wife_b", "shopwife", "old_woman", "girl_b", "milk_woman", "nun", "beguine", "tourist_lady"]);
 /** Long aprons are open shells: the thighs would show through in the sit clip. */
 const NO_SIT = new Set<HumanKind>(["baker", "shopkeeper", "publican"]);
 /** Every kind in people.glb (for a kind name that comes from the server). */
@@ -228,6 +238,27 @@ export class Human {
   /** How far to lower the body (negative) so it sits on a seat `seat` metres high (the sit clip). */
   sitDrop(seat = 0.45): number {
     return seat + 0.07 * this.scale - 0.9 * this.scale;
+  }
+
+  /**
+   * M6 lively: how far to lower (negative) or lift the body for what it plays now: on the knees to
+   * scrub, on a chair at the lace pillow (seat 0.45 m), crouched at marbles, off the ground in a hop.
+   */
+  motionLift(): number {
+    switch (this.motion) {
+      case "scrub":
+        return -KNEEL_DROP * this.scale;
+      case "crouch":
+        return -CROUCH_DROP * this.scale;
+      case "lace":
+        return this.sitDrop(0.45);
+      case "hop": {
+        const a = this.current!;
+        return 0.13 * this.scale * Math.max(0, Math.sin((a.time / a.getClip().duration) * Math.PI * 2));
+      }
+      default:
+        return 0;
+    }
   }
 
   /** How far the hips dip below standing height right now (walking only). */

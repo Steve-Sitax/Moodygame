@@ -53,9 +53,9 @@ function laneRects() {
   return lanes;
 }
 
-type Mode = "home" | "inside" | "church" | "stand" | "haul" | "patrol" | "roam" | "play" | "market" | "loiter" | "tavern" | "stroll" | "thief" | "guard" | "inspect";
+export type Mode = "home" | "inside" | "church" | "stand" | "haul" | "patrol" | "roam" | "play" | "market" | "loiter" | "tavern" | "stroll" | "thief" | "guard" | "inspect";
 
-interface Goal {
+export interface Goal {
   mode: Mode;
   x: number;
   z: number;
@@ -71,7 +71,7 @@ interface Goal {
   faces?: number[];
 }
 
-interface Sim {
+export interface Sim {
   r: TownResident;
   kind: HumanKind;
   x: number;
@@ -89,6 +89,8 @@ interface Sim {
   arrived: boolean;
   tries: number;
   held: boolean;
+  /** Fixes 2026-09-24: gone on unseen for an action (hideAway): the town does not bring them back into the street. */
+  away?: boolean;
   outAt: number;
   lamp: boolean;
   /** A thief's night: walking the haunts, stalking Jef, or running off. */
@@ -164,6 +166,18 @@ export class Town {
   onPayload: (p: JobsPayload) => void = () => {};
   /** M6 transport: how the residents get about (game/journeys.ts); set by main. */
   journeys: Journeys | null = null;
+  /**
+   * M6 lively (game/lively.ts): the back streets. It may add to the key of a person's hour (door life:
+   * scrubbing the step, lace at the door, flowers to the Madonna), give their goal (a round of doors,
+   * the door itself), and have the first say over a puppet (a stop on the round, a game, a Madonna).
+   */
+  lively: {
+    key(s: Sim, now: Now, day: number, hour: number): string;
+    goal(s: Sim, now: Now): Goal | null;
+    behave(s: Sim, dt: number, hour: number): boolean;
+    spawned(s: Sim): void;
+    lost(s: Sim): void;
+  } | null = null;
   private player = { x: 0, z: 0, yaw: 0 };
   private busyNet = false;
   private lastDay = 0;
@@ -263,7 +277,7 @@ export class Town {
     const err = !first ? (this.journeys?.errandFor(s.r.id, day, hour) ?? null) : null;
     if (err || s.errand) return this.errandStep(s, err, day, hour);
     const now = activityAt(s.r.sched, day, hour);
-    const key = `${now.act}:${now.place}`;
+    const key = `${now.act}:${now.place}${this.lively?.key(s, now, day, hour) ?? ""}`;
     if (key === s.key) {
       this.lanterns(s, hour);
       return;
@@ -349,6 +363,8 @@ export class Town {
   }
 
   private goalFor(s: Sim, now: Now): Goal {
+    const lively = this.lively?.goal(s, now);
+    if (lively) return lively;
     const r = s.r;
     const w = r.work;
     const P = (id: string) => this.place(id);
@@ -439,7 +455,8 @@ export class Town {
   private coarse(s: Sim, dt: number): void {
     // M6 transport: on a trip, the way of going sets the pace (journeys.ts)
     if (s.trip && this.journeys?.coarse(s, dt)) return;
-    const lead = s.goal.mode === "roam" ? this.leadOf(s) : null;
+    // (M6 lively: the pairs on a round, the sweep and his boy, two Sisters, a man and his wife, keep together unseen too)
+    const lead = s.goal.mode === "roam" || s.goal.mode === "patrol" ? this.leadOf(s) : null;
     if (lead) s.step = lead.step;
     const [tx, tz] = lead ? [lead.x + 0.6, lead.z] : this.anchor(s);
     const d = dist(s.x, s.z, tx, tz);
@@ -475,7 +492,7 @@ export class Town {
     const px = this.player.x;
     const pz = this.player.z;
     const want = this.sims
-      .filter((s) => !s.p && !s.inside && !s.aboard && dist(s.x, s.z, px, pz) < SPAWN_R)
+      .filter((s) => !s.p && !s.inside && !s.aboard && !(s.held && s.away) && dist(s.x, s.z, px, pz) < SPAWN_R)
       .sort((a, b) => dist(a.x, a.z, px, pz) - dist(b.x, b.z, px, pz));
     for (const s of want) {
       if (alive >= this.maxPuppets) break;
@@ -485,7 +502,7 @@ export class Town {
       if (!anywhere && !fresh && !this.crowd.isHidden(s.x, s.z)) continue;
       if (!anywhere && d < 3) continue;
       // two soldiers walking out: the second appears at his comrade's side
-      const lead = s.goal.mode === "roam" ? this.leadOf(s) : null;
+      const lead = s.goal.mode === "roam" || s.goal.mode === "patrol" ? this.leadOf(s) : null;
       const side = lead?.p ? { x: lead.p.x - Math.cos(lead.p.yaw) * 0.62, z: lead.p.z + Math.sin(lead.p.yaw) * 0.62 } : null;
       let at: { x: number; z: number } | null =
         side && this.crowd.canStand(side.x, side.z) ? side : this.crowd.canStand(s.x, s.z) ? { x: s.x, z: s.z } : this.crowd.openNear(s.x, s.z);
@@ -501,6 +518,7 @@ export class Town {
       alive++;
       this.direct(s);
       this.lanterns(s, this.clock().hour);
+      this.lively?.spawned(s);
       if (s.r.dog) {
         const sim = s;
         this.animals.addDog(s.r.id, s.r.dog.look, at, () =>
@@ -513,6 +531,7 @@ export class Town {
 
   /** Back to the schedule only (out of range, or in at the door). */
   private lose(s: Sim, remove = false): void {
+    if (s.p) this.lively?.lost(s);
     if (s.p && remove) this.crowd.removePuppet(s.p);
     s.p = null;
     s.held = false;
@@ -571,6 +590,7 @@ export class Town {
   private behave(s: Sim, dt: number, hour: number): void {
     // M6 transport: riding, pushing the cart, waiting for the omnibus, going to the boat
     if (s.trip && this.journeys?.behave(s, dt)) return;
+    if (this.lively?.behave(s, dt, hour)) return;
     const p = s.p!;
     const g = s.goal;
     if (this.pair(s, dt)) return;
@@ -696,7 +716,7 @@ export class Town {
   /** Two soldiers walking out: the one with the higher id walks at his comrade's side. */
   private leadOf(s: Sim): Sim | null {
     const m = s.r.mate;
-    if (!m || s.r.trade !== "soldier" || m > s.r.id) return null;
+    if (!m || (s.r.trade !== "soldier" && s.r.work.kind !== "round") || m > s.r.id) return null;
     const l = this.byId.get(m);
     return l && !l.inside && l.key === s.key ? l : null;
   }
@@ -1178,6 +1198,7 @@ export class Town {
     }
     if (!s.p) return null;
     s.held = true;
+    s.away = false;
     return s.p;
   }
 
@@ -1264,11 +1285,29 @@ export class Town {
     s.z += (tz - s.z) * k;
   }
 
+  /**
+   * Fixes 2026-09-24: out of Jef's sight and far from where an action sends them, a townsperson
+   * leaves the street to go on unseen (moveHidden), and steps out again near the place: a crowd
+   * then forms in a few game minutes, not in the half hour of a walk in view.
+   */
+  hideAway(id: string): boolean {
+    const s = this.byId.get(id);
+    if (!s?.p || s.p.shown || s.trip || s.aboard) return false;
+    s.x = s.p.x;
+    s.z = s.p.z;
+    this.lose(s, true);
+    s.held = true;
+    s.away = true;
+    s.inside = false;
+    return true;
+  }
+
   /** Back to their day. */
   release(id: string): void {
     const s = this.byId.get(id);
     if (!s) return;
     s.held = false;
+    s.away = false;
     s.wait = 0;
     if (s.p) this.direct(s);
   }

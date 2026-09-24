@@ -183,7 +183,7 @@ export interface TalkLine {
 export type Pt = [number, number];
 export type Act = "home" | "work" | "tavern" | "play" | "market" | "church" | "stroll" | "loiter";
 export type Seg = [number, number, Act, string?];
-export type WorkKind = "haul" | "stall" | "shop" | "tavern" | "patrol" | "roam" | "inside" | "beg" | "post" | "guard" | "inspect" | "wait";
+export type WorkKind = "haul" | "stall" | "shop" | "tavern" | "patrol" | "roam" | "inside" | "beg" | "post" | "guard" | "inspect" | "wait" | "round";
 
 export interface WorkSpec {
   place: string;

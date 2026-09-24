@@ -8,6 +8,7 @@ import { newsFactor } from "./ideas/prices.ts";
 import { FURNITURE, FURNITURE_KINDS } from "../../shared/homes.ts";
 import { VELO_PRICE } from "./town/transport.ts";
 import { CART_PRICE } from "../../shared/handcart.ts";
+import { LIVELY_ITEMS, LIVELY_USE_TEXT, LIVELY_WARES } from "./town/livelyWares.ts";
 
 // Buying, pockets and eating (M3b). Prices and effects are engine numbers
 // (docs/03: shop prices are engine code). Pockets hold small things only;
@@ -54,6 +55,8 @@ export const ITEMS: Record<string, ItemDef> = {
   velocipede_new: { name: "a new velocipede", note: "Iron backbone, oak wheels with iron tyres, a leather saddle. Yours." },
   velocipede_used: { name: "a second-hand velocipede", note: "Scratched paint, a patched saddle, and it goes as well as any. Yours." },
   velocipede_hire: { name: "a velocipede for the day", note: "Back at his door before the day is out, or his boy fetches it." },
+  // M6 lively: the street sellers' wares, the stalls against the cathedral (town/livelyWares.ts)
+  ...LIVELY_ITEMS,
 };
 
 /**
@@ -119,6 +122,8 @@ const TRADE_WARES: Record<string, Array<{ kind: string; price_c: number }>> = {
     { kind: "handcart_new", price_c: CART_PRICE.new_c },
     { kind: "handcart_hire", price_c: CART_PRICE.hire_c },
   ],
+  // M6 lively: the dog carts, the street sellers, the stalls against the cathedral (town/livelyWares.ts)
+  ...LIVELY_WARES,
 };
 
 /** What a person sells: the named sellers, or a townsperson by stall or shop. */
@@ -275,6 +280,7 @@ export function useItem(db: DB, id: number): { text: string } {
     bread: "Dark rye, still a little warm. It fills you properly.",
     apple: "Sour and crisp. Not much, but something.",
     beer: "Thin brown beer. It warms you a little and fills a corner of your belly.",
+    ...LIVELY_USE_TEXT,
   };
   return { text: text[row.kind] ?? "Done." };
 }

@@ -15,6 +15,7 @@ import { ensureHomesTown, HOMES_SCHEMA, HOMES_TABLES } from "./homes/town.ts";
 import { ensureVisitors } from "./town/visitors.ts";
 import { ensureEmigrants } from "./town/emigrants.ts";
 import { ensureLandmarksTown } from "./landmarks/town.ts";
+import { ensureLively } from "./town/lively.ts";
 
 // SQLite schema from docs/04-data-model.md. Only the server writes.
 // Delete data/game.sqlite to start over.
@@ -157,6 +158,8 @@ export function openDb(file: string): DB {
   // M6 handcart: the wheelwright (town/handcart.ts); in place, once
   ensureCartwright(db);
   ensureTransport(db);
+  // M6 lively: dog carts, street sellers, the stalls against the cathedral, nuns, beguines, travellers (town/lively.ts); in place, once
+  ensureLively(db);
   return db;
 }
 
@@ -226,6 +229,7 @@ export function resetDb(db: DB): void {
   // M6 handcart: the wheelwright (town/handcart.ts); in place, once
   ensureCartwright(db);
   ensureTransport(db);
+  ensureLively(db);
 }
 
 function seed(db: DB): void {

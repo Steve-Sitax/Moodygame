@@ -16,7 +16,7 @@ export interface FireSpot {
   size?: number;
 }
 
-const FLAMES = 34;
+const FLAMES = 40;
 const SPARKS = 10;
 const SMOKE_DEFAULT = 10;
 
@@ -113,7 +113,8 @@ export function createFires(scene: THREE.Scene, spots: FireSpot[], opts: { smoke
       vec4 mv = modelViewMatrix * vec4(p, 1.0);
       vFogDepth = -mv.z;
       gl_Position = projectionMatrix * mv;
-      float px = kind < 0.5 ? (0.28 - 0.18 * age) * aSize * uLevel : kind < 1.5 ? 0.035 * step(0.05, uLevel) : (0.35 + 0.9 * age) * aSize;
+      // (fixes 2026-09-24: flames drawn as tongues, taller than wide, so they are bigger points)
+      float px = kind < 0.5 ? (0.46 - 0.26 * age) * aSize * uLevel : kind < 1.5 ? 0.035 * step(0.05, uLevel) : (0.35 + 0.9 * age) * aSize;
       gl_PointSize = clamp(px * projectionMatrix[1][1] * uViewH * 0.5 / max(-mv.z, 0.1), 1.0, 64.0);
     }`;
   const fs = /* glsl */ `
@@ -121,6 +122,7 @@ export function createFires(scene: THREE.Scene, spots: FireSpot[], opts: { smoke
     uniform float fogNear;
     uniform float fogFar;
     uniform float uLevel;
+    uniform float uTime;
     varying float vLife;
     varying float vKind;
     varying float vFogDepth;
@@ -132,12 +134,20 @@ export function createFires(scene: THREE.Scene, spots: FireSpot[], opts: { smoke
       if (d > 1.0) discard;
       float fog = smoothstep(fogNear, fogFar, vFogDepth);
       if (vKind < 0.5) {
-        // flame: white-yellow core, orange, deep red, gone; a ragged edge
+        // a tongue of flame (fixes 2026-09-24: round blobs read as a column of puffs): wide at the
+        // root, drawn up to a flickering point, bent by the draught; white-yellow in its heart,
+        // orange, deep red toward its tip and as it dies
         float t = vLife;
-        vec3 col = mix(vec3(1.0, 0.92, 0.6), vec3(1.0, 0.55, 0.12), smoothstep(0.0, 0.35, t));
-        col = mix(col, vec3(0.7, 0.14, 0.03), smoothstep(0.35, 0.85, t));
-        float edge = 1.0 - smoothstep(0.35, 1.0, d + fract(sin(vSeed * 91.0 + floor(t * 12.0)) * 43758.5) * 0.25);
-        float a = edge * (1.0 - smoothstep(0.6, 1.0, t)) * 0.9;
+        float up = 0.5 - c.y; // 0 at the root .. 1 at the tip
+        float bend = sin(up * 4.0 + vSeed * 31.0 + uTime * 8.0) * 0.09 * up;
+        float w = 0.44 * pow(max(0.0, 1.0 - up), 0.8) * (0.85 + 0.15 * sin(uTime * 11.0 + vSeed * 17.0));
+        float dx = abs(c.x - bend);
+        if (dx > w || up < 0.0) discard;
+        float core = 1.0 - dx / max(w, 0.001);
+        float heat = core * (1.0 - up * 0.8) * (1.0 - t * 0.6);
+        vec3 col = mix(vec3(0.75, 0.16, 0.03), vec3(1.0, 0.55, 0.12), smoothstep(0.1, 0.45, heat));
+        col = mix(col, vec3(1.0, 0.93, 0.62), smoothstep(0.5, 0.85, heat));
+        float a = smoothstep(0.0, 0.35, core) * (1.0 - smoothstep(0.65, 1.0, t)) * 0.95;
         gl_FragColor = vec4(col * a * (1.0 - fog * 0.85), 1.0);
       } else if (vKind < 1.5) {
         float a = (1.0 - vLife) * step(0.3, fract(vSeed * 13.0 + vLife * 9.0));

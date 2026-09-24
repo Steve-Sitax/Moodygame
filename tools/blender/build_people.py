@@ -270,9 +270,51 @@ PEOPLE = [
          tunic=0x243226, trousers=0x2a302c, stripe=0x5e6e50, boots=0x0e0e10, hat="kepi", hat_col=0x223024,
          hat_band=0x5e6e50, lower="tunic", stand_collar=0x5e6e50, buttons=0xa8aaa4, pockets=True, uniform=True,
          props=["sabre", "logbook"]),
+
+    # ---- M6 lively (server town/lively.ts): the back streets and the cathedral quarter (appended last:
+    # every figure before them stays as it was). After period photos and prints: the Flemish milk woman
+    # with her white cap and blue apron beside the dog cart; the knife grinder in his leather apron; the
+    # rag-and-bone man; the coal man in a coal-heaver's hood with the long flap down the back; the chimney
+    # sweep and his boy, black from head to foot; a Black Sister (the Zwartzusters nursed the sick at
+    # home: a black habit, a white collar, a black veil); a beguine (black, a white cap, the black
+    # hooded cloak); an English couple come to see the Rubens paintings, with the red guidebook.
+    dict(FEMALE, name="milk_woman", h=1.61, sh=0.184, skin=0xc8906e, hair=0x6a4a2a, face="woman", age=0.4,
+         dress=0x46505a, collar=0xd0c8b8, hat="whitecap", hat_col=0xe0dcd0, lower="skirt", lower_col=0x3a4652,
+         apron=0x4a6a8a, shawl=0x8a3a2e, shawl_style="check", boots=0x6a4a2e),
+    dict(MALE, name="baker_boy", h=1.44, hs=1.14, sh=0.19, skin=0xc89a80, hair=0x8a6a3a, face="clean", age=0.0,
+         shirt=0xe0dcd0, rolled=True, trousers=0xb8b2a2, boots=0x3a2e22, hat="knitcap", hat_col=0xe4e0d6,
+         lower="apron", apron=0xe8e4da),
+    dict(MALE, name="grinder", h=1.70, sh=0.204, skin=0xa87458, hair=0x6a6258, face="walrus", age=0.7,
+         shirt=0x9a9282, jacket=0x5a4632, jacket_style="open", trousers=0x4a4236, boots=0x2a1e14,
+         hat="bowler", hat_col=0x3a3026, lower="apron", apron=0x5a3a22, neckerchief=0x6a2a22),
+    dict(MALE, name="ragman", h=1.68, sh=0.2, skin=0xa07860, hair=0x8a8478, face="chops", age=0.8,
+         shirt=0x6a6250, jacket=0x5a5040, jacket_style="ragged", trousers=0x4a4032, boots=0x3a2e22,
+         hat="bowler", hat_col=0x2e2a24, lower="coat", neckerchief=0x7a5a2a),
+    dict(MALE, name="coalman", h=1.78, sh=0.216, skin=0x8a7868, hair=0x1a1612, face="stubble", age=0.4,
+         smock=0x2a2a2a, trousers=0x222222, boots=0x141210, hat="souwester", hat_col=0x1c1c1c, lower="smock",
+         neckerchief=0x2a2622),
+    dict(MALE, name="sweep", h=1.72, sh=0.2, skin=0x7e706a, hair=0x141210, face="stubble", age=0.4,
+         shirt=0x2a2826, jacket=0x1e1c1a, jacket_style="ragged", trousers=0x1c1a18, boots=0x121010,
+         hat="tophat", hat_col=0x121212, lower="jacket", props=["brushes"]),
+    dict(MALE, name="sweep_boy", h=1.26, hs=1.2, sh=0.185, skin=0x857670, hair=0x1a1612, face="clean", age=0.0,
+         shirt=0x2a2826, jacket_style="ragged", rolled=True, trousers=0x1e1c1a, barefoot=True, boots=0x3a3230,
+         hat="knitcap", hat_col=0x1a1a1a),
+    dict(FEMALE, name="nun", h=1.62, sh=0.178, skin=0xd0a894, hair=0x2a2420, face="woman", age=0.4,
+         dress=0x121214, collar=0xe8e6de, hat="veil", hat_col=0x0e0e10, lower="skirt", lower_col=0x121214,
+         boots=0x0e0e0e, props=["book"]),
+    dict(FEMALE, name="beguine", h=1.58, sh=0.176, skin=0xc8a28c, hair=0x7a7470, face="widow", age=0.7,
+         dress=0x16161a, collar=0xdedad0, hat="whitecap", hat_col=0xecebe4, lower="skirt", lower_col=0x16161a,
+         shawl=0x0e0e10, shawl_style="plain", boots=0x121010, props=["book"]),
+    dict(MALE, name="tourist", h=1.80, sh=0.206, skin=0xd8a890, hair=0x8a5a30, face="chops", age=0.5,
+         shirt=0xe4e0d6, vest=0x7a6a4a, jacket=0x8a7a58, jacket_style="coat", trousers=0x7a6e56, trouser_check=True,
+         boots=0x3a2418, hat="bowler", hat_col=0x5a4a38, lower="coat", cravat=0x2a3a5a, props=["book"], book_col=0x8a1c16),
+    dict(FEMALE, name="tourist_lady", h=1.66, sh=0.18, skin=0xe0b8a4, hair=0x7a4a26, face="woman", age=0.3,
+         dress=0x2a3e34, collar=0xe0dcd0, hat="bonnet", hat_col=0x3a2a3a, lower="skirt", lower_col=0x2a3e34,
+         shawl=0x8a8680, shawl_style="plain", boots=0x1a1412, gloves=0xd8d0c0, props=["cane"]),
 ]
 TOWN = [p["name"] for p in PEOPLE].index("baker")  # the first of the town; the crowd runs from 9 to here
 GARRISON = [p["name"] for p in PEOPLE].index("soldier")  # the first of the garrison
+LIVELY = [p["name"] for p in PEOPLE].index("milk_woman")  # the first of M6 lively
 
 
 # ---------------------------------------------------------------- mesh builder
@@ -744,6 +786,14 @@ def clothes(b, s):
         b.loft([ring(0, 1.6, -0.012, 0.086, 0.09, 0.1), ring(0, 1.67, -0.006, 0.09, 0.098, 0.106),
                 ring(0, 1.73, -0.008, 0.078, 0.088, 0.098), ring(0, 1.772, -0.012, 0.036, 0.042, 0.05)],
                "head", "hat", 8, arc=(55, 305), cap1=None)
+    elif hat == "veil":
+        # M6 lively: a nun's veil: a white band across the brow (painted), the black veil over the head,
+        # framing the face and falling over the neck to the shoulders at the back
+        drop = lambda t: -0.07 * max(0.0, -math.cos(t)) ** 1.2  # noqa: E731
+        b.loft([ring(0, 1.4, -0.05, 0.19, 0.11, 0.17, yoff=drop), ring(0, 1.5, -0.03, 0.12, 0.1, 0.13),
+                ring(0, 1.6, -0.008, 0.098, 0.104, 0.114), ring(0, 1.7, -0.006, 0.097, 0.103, 0.113),
+                ring(0, 1.758, -0.01, 0.072, 0.08, 0.096), ring(0, 1.787, -0.014, 0.03, 0.034, 0.044)],
+               "head", "hat", 8, arc=(58, 302))
 
     # --- props
     props = s.get("props", [])
@@ -827,6 +877,20 @@ def clothes(b, s):
                 row.append((cx - math.cos(a) * 0.155, cy + 0.06 + math.sin(a) * 0.17, cz + w))
             rows.append(row)
         b.strip(rows, "hips", "prop", sub=(0.0, 0.5, 0.75, 0.8))
+    if "brushes" in props:
+        # M6 lively: the sweep's gear over the left shoulder: two cane rods, the round brush (a ring of
+        # black bristles) at the top in front, a coil of rope at the back
+        x = sh * 0.72
+        a, e = (x, 1.0, -0.3), (x, 1.9, 0.26)
+        for dx in (-0.018, 0.018):
+            b.loft([ring(a[0] + dx, a[1], a[2], 0.012, 0.012), ring(e[0] + dx, e[1], e[2], 0.011, 0.011)], "spine", "prop", 4,
+                   side=(1, 0, 0), fwd=(0, 0.53, -0.85), phase=math.pi / 4, cap0=(0, 0, 0), cap1=(0, 0, 0), sub=(0.5, 0.74, 0.0, 1.0))
+        cx, cy, cz = e[0], e[1] + 0.02, e[2] + 0.02
+        b.loft([ring(cx, cy - 0.03, cz - 0.02, 0.05, 0.05), ring(cx, cy, cz, 0.2, 0.2), ring(cx, cy + 0.04, cz + 0.025, 0.2, 0.2),
+                ring(cx, cy + 0.07, cz + 0.045, 0.05, 0.05)], "spine", "prop", 10, side=(1, 0, 0), fwd=(0, -0.53, 0.848),
+               cap0=(0, 0, 0), cap1=(0, 0, 0), sub=(0.0, 0.5, 0.0, 1.0))
+        b.loft([ring(x, 1.06, -0.24, 0.07, 0.07), ring(x, 1.12, -0.2, 0.08, 0.08), ring(x, 1.18, -0.16, 0.07, 0.07)], "spine", "prop", 6,
+               side=(1, 0, 0), fwd=(0, 0.53, -0.85), sub=(0.75, 1.0, 0.0, 1.0))
 
 
 def fk_point(pose, J, bone, p):
@@ -1485,6 +1549,9 @@ def paint(s, seed):
         elif kind == "whitecap":
             out = np.where(((C <= 2) | (C >= w - 3))[..., None], out * (0.85 + 0.15 * (R % 2))[..., None], out)  # frill
             out = np.where((R <= 2)[..., None], out * 0.85, out)
+        elif kind == "veil":
+            # the white band framing the face: the front edges of the veil, from the brow down the cheeks
+            out = np.where(((C <= 2) | (C >= w - 3))[..., None], rgb(0xe8e6de)[None, None, :] * P.grain(h, w, 0.03), out)
         out *= (0.85 + 0.15 * V)[..., None]
         return out
 
@@ -1544,6 +1611,9 @@ def paint(s, seed):
             sack *= (0.88 + 0.16 * (((C + R) % 2) == 0))[..., None]
             sack = np.where(((np.abs(V - 0.5) < 0.1) & (U > 0.15) & (U < 0.35))[..., None], sack * 0.55, sack)
             out = np.where(A[..., None], sack, out)
+        elif "brushes" in props:
+            # the sweep's round brush: black bristles, sooty
+            out = np.where(A[..., None], rgb(0x161412)[None, None, :] * P.grain(h, w, 0.12) * (0.8 + 0.4 * (C % 2))[..., None], out)
         else:
             # basket: wicker; what lies in it on top (v 0.8-1)
             wick = rgb(0x7a6040)[None, None, :] * (0.8 + 0.3 * (((C + R) % 3) == 0))[..., None]
@@ -1554,7 +1624,7 @@ def paint(s, seed):
             else:
                 top = rgb(0x8a9098)[None, None, :] * (0.75 + 0.4 * ((C % 4) == 1))[..., None]
             out = np.where((A & (V > 0.8))[..., None], top, out)
-        if "sacktruck" in props or "cane" in props or "handcart" in props:
+        if "sacktruck" in props or "cane" in props or "handcart" in props or "brushes" in props:
             wood = rgb(0x2a1c14 if "cane" in props else 0x5a4430)[None, None, :] * P.grain(h, w, 0.08)
             wood = np.where((R % 5 == 0)[..., None], wood * 0.8, wood)
             out = np.where(Bm[..., None], wood, out)
@@ -1562,7 +1632,7 @@ def paint(s, seed):
             out = np.where(Bm[..., None], rgb(0x161616)[None, None, :] * P.grain(h, w, 0.05), out)
         else:
             # ledger (or the priest's book): leather, page edges
-            led = rgb(0x121214 if "book" in props else 0x3a2418)[None, None, :] * P.grain(h, w, 0.06)
+            led = rgb(s.get("book_col", 0x121214) if "book" in props else 0x3a2418)[None, None, :] * P.grain(h, w, 0.06)
             led = np.where(((C % 8 == 1) & (R > 1) & (R < h - 2))[..., None], rgb(0xb8b098)[None, None, :], led)
             out = np.where(Bm[..., None], led, out)
         if "sacktruck" in props:
@@ -1575,6 +1645,9 @@ def paint(s, seed):
             out = np.where(Cm[..., None], keg, out)
         elif "cane" in props or "sabre" in props:
             out = np.where(Cm[..., None], rgb(0xb8a060 if "sabre" in props else 0xb0b0a8)[None, None, :] * P.grain(h, w, 0.06), out)
+        elif "brushes" in props:
+            # a coil of rope, sooty
+            out = np.where(Cm[..., None], rgb(0x3a3228)[None, None, :] * P.grain(h, w, 0.1) * (0.8 + 0.3 * (R % 3 == 0))[..., None], out)
         else:
             # pipe: white clay, darker at the burnt bowl rim
             clay = rgb(0xb0a894)[None, None, :] * P.grain(h, w, 0.05)
@@ -2013,6 +2086,252 @@ def pose_row(t):
     return pose
 
 
+# ---- M6 lively: the back streets. Some bodies are lowered by the game (humans.ts motionLift):
+# kneeling to scrub the step (the knees on the ground), sitting at the lace pillow (a chair seat at
+# 0.45 m), a child crouched at marbles or tops, the hop of hopscotch and the skipping rope.
+
+KNEEL_DROP = 0.44  # the hip joint comes down this far (1.74 m body) when the knees rest on the ground
+CROUCH_DROP = 0.40
+
+
+def arm_reach(pose, S, target, twist=20.0, start=(40.0, 10.0, 60.0)):
+    """Aim one arm so its wrist reaches `target` (game space of the upright 1.74 m body, after the
+    pose's hips and spine): a small search over the shoulder's swing and the elbow's bend."""
+    J = joints(PEOPLE[0])
+    tv = Vector(target)
+
+    def err(f, o, b):
+        q = dict(pose)
+        q["armUp" + S] = limb(S, fwd=f, out=o, twist=twist)
+        q["armLow" + S] = RX(-b)
+        return (fk_point(q, J, "hand" + S, J["hand" + S][0]) - tv).length
+
+    f, o, b = start
+    e = err(f, o, b)
+    step = 16.0
+    while step > 0.4:
+        better = False
+        for df, do, db in ((step, 0, 0), (-step, 0, 0), (0, step, 0), (0, -step, 0), (0, 0, step), (0, 0, -step)):
+            nf, no, nb = f + df, max(-30.0, min(90.0, o + do)), max(0.0, min(150.0, b + db))
+            ne = err(nf, no, nb)
+            if ne < e - 1e-6:
+                f, o, b, e = nf, no, nb, ne
+                better = True
+        if not better:
+            step *= 0.5
+    pose["armUp" + S] = limb(S, fwd=f, out=o, twist=twist)
+    pose["armLow" + S] = RX(-b)
+    return e
+
+
+def lerp3(a, b, u):
+    return tuple(a[i] + (b[i] - a[i]) * u for i in range(3))
+
+
+def pose_scrub(t):
+    """On her knees on the step, scrubbing the stone with a brush in both hands, forward and back."""
+    p = 2 * math.pi * t
+    sw = math.sin(p)
+    pose = {}
+    pose["hips"] = RX(10)
+    pose["spine"] = RX(44 + 5 * sw) @ RZ(3 * math.sin(p))
+    pose["neck"] = RX(-14)
+    pose["head"] = RX(-6)
+    for S in "LR":
+        pose["legUp" + S] = limb(S, fwd=-10, out=4)
+        pose["legLow" + S] = RX(92)
+        pose["foot" + S] = RX(-62)
+    g = KNEEL_DROP + 0.1  # the brush on the ground, in the upright body's frame
+    reach = 0.42 + 0.12 * sw
+    arm_reach(pose, "L", (0.07, g, reach), twist=14)
+    arm_reach(pose, "R", (-0.07, g, reach), twist=14)
+    for S in "LR":
+        pose["hand" + S] = RX(-24)
+    return pose
+
+
+def pose_lace(t):
+    """Sitting at the door, the lace pillow on its stand before her knees: the bobbins crossed and
+    passed from hand to hand, the head bent over the work."""
+    p = 2 * math.pi * t
+    pose = {}
+    pose["spine"] = RX(16 + 1.2 * math.sin(2 * p))
+    pose["neck"] = RX(12)
+    pose["head"] = RX(12 + 2 * math.sin(p * 3)) @ RZ(3 * math.sin(p))
+    for S in "LR":
+        pose["legUp" + S] = limb(S, fwd=84, out=5)
+        pose["legLow" + S] = RX(84)
+        pose["foot" + S] = RX(2)
+    wl = math.sin(p * 4)
+    wr = math.sin(p * 4 + math.pi)
+    # the pillow's working face, about 0.2 m over the lap and 0.4 m out (the seated body's frame, upright)
+    arm_reach(pose, "L", (0.07 + 0.03 * wl, 1.0 + 0.02 * wl, 0.38), twist=26)
+    arm_reach(pose, "R", (-0.07 + 0.03 * wr, 1.0 + 0.02 * wr, 0.38), twist=26)
+    for S, w in (("L", wl), ("R", wr)):
+        pose["hand" + S] = RX(-12) @ RZ(8 * w)
+    return pose
+
+
+def pose_cross(t):
+    """The sign of the cross before a Madonna (forehead, breast, left shoulder, right shoulder), then
+    the hands folded in prayer and the head bowed a while."""
+    pose = pose_idle(t, fem=False)
+    pts = [(-0.02, 1.66, 0.12), (-0.02, 1.33, 0.16), (0.12, 1.42, 0.12), (-0.14, 1.42, 0.12)]
+    # 0-0.3: the four touches; 0.3-0.38 the hands come together; to 1.0: praying
+    if t < 0.3:
+        k = t / 0.3 * 4
+        i = min(3, int(k))
+        u = ease(min(1.0, (k - i) * 1.6))
+        a = pts[i - 1] if i else (-0.2, 0.9, 0.05)
+        pos = lerp3(a, pts[i], u)
+        arm_reach(pose, "R", pos, twist=40)
+        pose["handR"] = RX(-20)
+        pose["neck"] = RX(4)
+        pose["head"] = RX(6)
+    else:
+        u = ease((t - 0.3) / 0.08)
+        bow = 10 * u
+        pose["neck"] = RX(6 + bow)
+        pose["head"] = RX(8 + bow * 0.6)
+        arm_reach(pose, "R", lerp3(pts[3], (-0.02, 1.25, 0.2), u), twist=40)
+        arm_reach(pose, "L", lerp3((0.2, 0.9, 0.05), (0.02, 1.25, 0.2), u), twist=40)
+        pose["handR"] = RX(-30)
+        pose["handL"] = RX(-30)
+    return pose
+
+
+def pose_point(t):
+    """A traveller looks up at the spire and points it out, the guidebook open in his right hand."""
+    p = 2 * math.pi * t
+    pose = pose_idle(t)
+    pose["spine"] = RX(-6 + 1.0 * math.sin(2 * p))
+    pose["neck"] = RX(-22)
+    pose["head"] = RX(-18 + 3 * math.sin(p)) @ RZ(8 * math.sin(p * 0.5))
+    lift = 0.5 + 0.5 * math.sin(p)
+    # the left arm points (the book stays in the right hand, open before him)
+    pose["armUpL"] = limb("L", fwd=120 + 20 * lift, out=14, twist=10)
+    pose["armLowL"] = RX(-10)
+    pose["handL"] = RX(10)
+    pose["armUpR"] = limb("R", fwd=30, out=4, twist=30)
+    pose["armLowR"] = RX(-78)
+    pose["handR"] = RX(-4)
+    return pose
+
+
+def pose_beg(t):
+    """Stooped by the church door, the right hand held out for alms, the head bowed."""
+    p = 2 * math.pi * t
+    pose = pose_idle(t)
+    pose["spine"] = RX(20 + 1.5 * math.sin(2 * p))
+    pose["neck"] = RX(6)
+    pose["head"] = RX(14 + 6 * max(0.0, math.sin(p)) ** 4) @ RZ(6 * math.sin(p * 0.5))
+    ask = max(0.0, math.sin(p + 0.5)) ** 2
+    pose["armUpR"] = limb("R", fwd=34 + 14 * ask, out=6, twist=-30)
+    pose["armLowR"] = RX(-(46 - 10 * ask))
+    pose["handR"] = RX(20) @ RZ(-30)
+    pose["armUpL"] = limb("L", fwd=10, out=6)
+    pose["armLowL"] = RX(-20)
+    return pose
+
+
+def pose_call(t):
+    """A street cry: the head up, a hand at the side of the mouth, the chest lifted for the call."""
+    p = 2 * math.pi * t
+    pose = pose_idle(t)
+    cry = max(0.0, math.sin(p)) ** 1.5
+    pose["spine"] = RX(-4 - 4 * cry)
+    pose["neck"] = RX(-10 - 6 * cry)
+    pose["head"] = RX(-8 - 8 * cry) @ RZ(6 * math.sin(p * 0.5))
+    arm_reach(pose, "R", (-0.09, 1.54, 0.1), twist=50)
+    pose["handR"] = RX(-10) @ RZ(-20)
+    pose["armUpL"] = limb("L", fwd=8, out=8)
+    pose["armLowL"] = RX(-18)
+    return pose
+
+
+def pose_crouch(t):
+    """A child down on one knee at marbles or a top: the left knee on the ground, the right foot
+    planted, the right hand flicking at the ground."""
+    p = 2 * math.pi * t
+    pose = {}
+    pose["spine"] = RX(38 + 3 * math.sin(p))
+    pose["neck"] = RX(-18)
+    pose["head"] = RX(-4)
+    pose["legUpL"] = limb("L", fwd=8, out=6)
+    pose["legLowL"] = RX(96)
+    pose["footL"] = RX(-64)
+    pose["legUpR"] = limb("R", fwd=92, out=10)
+    pose["legLowR"] = RX(96)
+    pose["footR"] = RX(4)
+    flick = max(0.0, math.sin(p * 2)) ** 6
+    arm_reach(pose, "R", (-0.12, CROUCH_DROP + 0.12 + 0.06 * flick, 0.36 + 0.08 * flick), twist=20)
+    pose["handR"] = RX(-20 - 30 * flick)
+    pose["armUpL"] = limb("L", fwd=44, out=10, twist=20)
+    pose["armLowL"] = RX(-70)
+    return pose
+
+
+def pose_hop(t):
+    """Hopscotch and skipping: a little jump, the knees drawn up at the top (the game lifts the body)."""
+    p = 2 * math.pi * t
+    up = max(0.0, math.sin(p))
+    pose = {}
+    pose["spine"] = RX(8 - 4 * up)
+    pose["head"] = RX(-4)
+    for S in "LR":
+        pose["legUp" + S] = limb(S, fwd=10 + 30 * up, out=4)
+        pose["legLow" + S] = RX(14 + 52 * up)
+        pose["foot" + S] = RX(-10 - 20 * up)
+        pose["armUp" + S] = limb(S, fwd=14 + 18 * up, out=22 + 14 * up)
+        pose["armLow" + S] = RX(-(30 + 20 * up))
+    return pose
+
+
+def pose_rope(t):
+    """Turning a skipping rope: the right arm swings the end round in big circles."""
+    p = 2 * math.pi * t
+    pose = pose_idle(t)
+    pose["spine"] = RZ(3 * math.sin(p))
+    pose["armUpR"] = limb("R", fwd=46 + 26 * math.cos(p), out=26 + 22 * math.sin(p), twist=10)
+    pose["armLowR"] = RX(-(24 + 10 * math.sin(p)))
+    pose["handR"] = RX(-10)
+    return pose
+
+
+def pose_grind(t):
+    """The knife grinder at his wheel: the right foot works the treadle, both hands hold the blade to the stone."""
+    p = 2 * math.pi * t
+    tread = 0.5 + 0.5 * math.sin(p)
+    pose = {}
+    pose["spine"] = RX(24)
+    pose["neck"] = RX(-6)
+    pose["head"] = RX(4)
+    pose["legUpR"] = limb("R", fwd=18 + 22 * tread, out=4)
+    pose["legLowR"] = RX(22 + 30 * tread)
+    pose["footR"] = RX(-8 - 10 * tread)
+    pose["legUpL"] = limb("L", fwd=-4, out=4)
+    pose["legLowL"] = RX(6)
+    wob = 0.02 * math.sin(p * 2)
+    arm_reach(pose, "L", (0.07, 0.98 + wob, 0.5), twist=24)
+    arm_reach(pose, "R", (-0.05, 0.96 + wob, 0.46), twist=24)
+    pose["handL"] = RX(-20)
+    pose["handR"] = RX(-20)
+    return pose
+
+
+def pose_pull(t):
+    """Drawing water at the well: the rope hand over hand."""
+    p = 2 * math.pi * t
+    pose = pose_idle(t)
+    pose["spine"] = RX(12 + 4 * math.sin(p * 2))
+    pose["neck"] = RX(-6)
+    for S, ph in (("L", 0.0), ("R", math.pi)):
+        u = 0.5 + 0.5 * math.sin(p + ph)
+        arm_reach(pose, S, ((0.04 if S == "L" else -0.04), 1.1 + 0.42 * u, 0.36), twist=30)
+        pose["hand" + S] = RX(-20)
+    return pose
+
+
 CLIPS = [
     ("idle", pose_idle, 4.0, dict()),
     ("walk", pose_walk, 1.0, dict()),
@@ -2036,6 +2355,18 @@ CLIPS = [
     # M6 transport (appended: the clips above stay as they were)
     ("ride", pose_ride, 1.0, dict()),
     ("row", pose_row, 2.0, dict()),
+    # M6 lively (appended: the clips above stay as they were)
+    ("scrub", pose_scrub, 2.0, dict()),
+    ("lace", pose_lace, 3.0, dict()),
+    ("cross", pose_cross, 5.0, dict()),
+    ("point", pose_point, 5.0, dict()),
+    ("beg", pose_beg, 4.0, dict()),
+    ("call", pose_call, 3.0, dict()),
+    ("crouch", pose_crouch, 2.0, dict()),
+    ("hop", pose_hop, 0.6, dict()),
+    ("rope", pose_rope, 0.8, dict()),
+    ("grind", pose_grind, 0.8, dict()),
+    ("pull", pose_pull, 1.6, dict()),
 ]
 
 
@@ -2053,7 +2384,7 @@ def make_actions(ao):
         ad.action = act
         frames = int(round(secs * FPS))
         # the pedalling is keyed every frame (the feet must stay on the turning pedals)
-        step = 1 if name == "ride" else 2 if secs <= 1.0 else 4
+        step = 1 if name == "ride" else 2 if secs <= 1.0 or name == "cross" else 4
         for f in list(range(0, frames, step)) + [frames]:
             t = (f % frames) / frames
             pose = fn(t, **kw)

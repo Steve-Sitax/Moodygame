@@ -493,6 +493,32 @@ export function cartSeen(db: DB, x: number, z: number, at = Date.now()): void {
   if (finite(x, z)) lastJef.set(db, { x, z, at });
 }
 
+/** M6 hired hands (town/hire.ts): a hand Jef pays to watch his things keeps thieves off a cart near him. */
+export const cartGuards: Array<(db: DB, x: number, z: number) => boolean> = [];
+
+/**
+ * M6 hired hands: Jef lends an empty cart of his (not in his hands) to a hand, who pushes it for
+ * him: it is out of Jef's list while lent (the client takes it off the street; the hand's own cart
+ * is drawn instead). Null when it cannot be lent.
+ */
+export function lendCart(db: DB, id: string): JefCart | null {
+  const s = jefCarts(db);
+  const c = s.list.find((q) => q.id === id);
+  if (!c || c.held || c.load.length) return null;
+  s.list = s.list.filter((q) => q !== c);
+  save(db, s);
+  return c;
+}
+
+/** The lent cart back in Jef's list, empty, where the hand left it (on open ground). */
+export function returnCart(db: DB, c: JefCart, x: number, z: number, yaw: number): void {
+  const s = jefCarts(db);
+  if (s.list.some((q) => q.id === c.id)) return;
+  const q = walkMap().nearestOpen(x, z, 4) ?? { x: c.x, z: c.z };
+  s.list.push({ ...c, x: r1(q.x), z: r1(q.z), yaw: r3(yaw), held: false, load: [] });
+  save(db, s);
+}
+
 /** Safe: at the wheelwright's door, or at Jef's rented home's door (M6 homes). */
 function safeAt(db: DB, x: number, z: number): boolean {
   const shop = cartShop(db);
@@ -537,7 +563,7 @@ export function cartHour(db: DB, rng: () => number = Math.random, now = Date.now
       continue;
     }
     // a cart of his own (bought or hired) left alone in a busy place, Jef not by it
-    if (c.kind === "taken" || safeAt(db, c.x, c.z) || !busyAt(db, c.x, c.z)) continue;
+    if (c.kind === "taken" || safeAt(db, c.x, c.z) || !busyAt(db, c.x, c.z) || cartGuards.some((g) => g(db, c.x, c.z))) continue;
     const seen = lastJef.get(db);
     if (seen && now - seen.at < 30_000 && Math.hypot(seen.x - c.x, seen.z - c.z) < CART_WATCHED_M) continue;
     const night = p.hour >= 20 || p.hour < 6;

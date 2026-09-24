@@ -11,8 +11,8 @@ import type { Props } from "./props3d";
 
 export interface PumpCart {
   group: THREE.Group;
-  /** Put it at (x, z) facing yaw; `trot` 0 standing .. 1 at a trot; `pumping` the men at the brakes. */
-  set(x: number, z: number, yaw: number, trot: number, t: number, pumping: boolean): void;
+  /** Put it at (x, z) facing yaw; `trot` 0 standing .. 1 at a trot; `pumping` the men at the brakes; `y` the ground there. */
+  set(x: number, z: number, yaw: number, trot: number, t: number, pumping: boolean, y?: number): void;
   /** A hose from the pump to this point (null: rolled up). */
   hoseTo(p: { x: number; z: number } | null): void;
   dispose(): void;
@@ -21,11 +21,13 @@ export interface PumpCart {
 let mats: Record<string, THREE.Material> | null = null;
 function m(): Record<string, THREE.Material> {
   mats ??= {
-    red: psx(new THREE.MeshLambertMaterial({ color: 0x7a2a22 })),
-    wood: psx(new THREE.MeshLambertMaterial({ color: 0x5a3e26 })),
+    // (fixes 2026-09-24: the pump was hard to see in a lane at dusk: a brighter red, and a lantern)
+    red: psx(new THREE.MeshLambertMaterial({ color: 0xb03a2c })),
+    wood: psx(new THREE.MeshLambertMaterial({ color: 0x6a4a2c })),
     dark: psx(new THREE.MeshLambertMaterial({ color: 0x2a2420 })),
     iron: psx(new THREE.MeshLambertMaterial({ color: 0x2c2c2e })),
-    brass: psx(new THREE.MeshLambertMaterial({ color: 0xc09238 })),
+    brass: psx(new THREE.MeshLambertMaterial({ color: 0xd8aa48 })),
+    lamp: new THREE.MeshBasicMaterial({ color: 0xffc27a }),
     hose: psx(new THREE.MeshLambertMaterial({ color: 0x4a3222 })),
   };
   return mats;
@@ -40,6 +42,21 @@ function cyl(r: number, h: number, mat: THREE.Material, x: number, y: number, z:
   const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, seg), mat);
   o.position.set(x, y, z);
   return o;
+}
+
+let glowTex: THREE.Texture | null = null;
+function glowTexture(): THREE.Texture {
+  if (glowTex) return glowTex;
+  const c = document.createElement("canvas");
+  c.width = c.height = 32;
+  const g = c.getContext("2d")!;
+  const grd = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+  grd.addColorStop(0, "rgba(255,200,120,0.9)");
+  grd.addColorStop(0.45, "rgba(255,150,60,0.3)");
+  grd.addColorStop(1, "rgba(255,120,40,0)");
+  g.fillStyle = grd;
+  g.fillRect(0, 0, 32, 32);
+  return (glowTex = new THREE.CanvasTexture(c));
 }
 
 /** A spoked wheel lying in the y-z plane (its axle along x). */
@@ -107,6 +124,14 @@ export function createPumpCart(scene: THREE.Scene, props: Props | null): PumpCar
   // the pole and the bar the horses pull on
   body.add(box(0.07, 0.07, 2.6, k.wood, 0, 0.72, 2.45));
   body.add(box(1.3, 0.06, 0.06, k.wood, 0, 0.72, 2.0));
+  // the brigade's lantern on an iron stalk at the front corner, and its glow
+  body.add(box(0.04, 0.9, 0.04, k.iron, 0.42, 1.2, 0.55));
+  body.add(box(0.2, 0.26, 0.2, k.lamp, 0.42, 1.72, 0.55));
+  body.add(box(0.26, 0.05, 0.26, k.iron, 0.42, 1.87, 0.55));
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.55, fog: true }));
+  glow.scale.set(1.6, 1.6, 1);
+  glow.position.set(0.42, 1.72, 0.55);
+  body.add(glow);
   scene.add(group);
 
   // two horses side by side in front
@@ -118,8 +143,8 @@ export function createPumpCart(scene: THREE.Scene, props: Props | null): PumpCar
 
   return {
     group,
-    set(x, z, yaw, trot, t, pumping) {
-      group.position.set(x, 0, z);
+    set(x, z, yaw, trot, t, pumping, y = 0) {
+      group.position.set(x, y, z);
       group.rotation.y = yaw;
       const moved = Number.isFinite(lastX) ? Math.hypot(x - lastX, z - lastZ) : 0;
       lastX = x;

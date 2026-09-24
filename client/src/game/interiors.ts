@@ -102,6 +102,8 @@ export class Interiors {
   tavernKeys: ((x: number, z: number) => { options: Array<[number, Action]>; extra: Action[] }) | null = null;
   /** Jef sat down or stood up (the landmarks: the chair money at mass). */
   onSeat: (s: Seat | null) => void = () => {};
+  /** M6 treat (game/hands.ts): keys while Jef sits at a table (talk to the one he stood a drink). */
+  seatedKeys: (() => Action[]) | null = null;
 
   constructor(
     private readonly player: FirstPerson,
@@ -228,6 +230,7 @@ export class Interiors {
       const out: Action[] = [{ key: "KeyE", text: "stand up", run: () => this.standUp() }];
       const mate = this.dicePartner();
       if (mate) out.push({ key: "KeyG", text: `play pitjesbak with ${mate.p.first}`, run: () => void this.openDice(mate) });
+      if (this.seatedKeys) out.push(...this.seatedKeys());
       return out;
     }
     const near = (s: Spot | undefined, r: number) => (s ? Math.hypot(s.x - w.x, s.z - w.z) < r : false);
@@ -473,7 +476,12 @@ export class Interiors {
       }
     }
     for (const p of list) {
-      if (this.occ.has(p.id)) continue;
+      const had = this.occ.get(p.id);
+      if (had) {
+        // M6 treat: the guest's part changes as the rounds go (merry: guest_tipsy)
+        if (had.p.role !== p.role) had.p = { ...had.p, role: p.role };
+        continue;
+      }
       const keeper = p.id === keeperId;
       // indoors nobody carries his load: the sack man, the porter and the carter come in empty-handed
       const k = UNLOADED[p.kind] ?? p.kind;
@@ -497,9 +505,16 @@ export class Interiors {
     const sitter = !o.p.stand && !STANDERS.has(o.kind) && (room.kind === "cellar" || o.p.age >= 16);
     const h = hash(o.p.id);
     if (sitter) {
-      // in the cellar the children sit in front
-      const seats = room.kind === "cellar" && o.p.age < 16 ? [...room.seats].sort((a, b) => b.z - a.z) : room.seats;
-      const start = room.kind === "cellar" && o.p.age < 16 ? 0 : h % seats.length;
+      // in the cellar the children sit in front; M6 treat: Jef's guest takes a table with a free seat beside for him
+      const guest = o.p.role?.startsWith("guest") && room.kind === "tavern";
+      const freeAt = (tb: number) => room.seats.filter((q) => q.table === tb && !this.seatTaken.has(q)).length;
+      const seats =
+        room.kind === "cellar" && o.p.age < 16
+          ? [...room.seats].sort((a, b) => b.z - a.z)
+          : guest
+            ? room.seats.filter((q) => q.table !== 9 && freeAt(q.table) >= 2)
+            : room.seats;
+      const start = (room.kind === "cellar" && o.p.age < 16) || !seats.length ? 0 : h % seats.length;
       for (let k = 0; k < seats.length; k++) {
         const s = seats[(start + k) % seats.length];
         if (!this.seatTaken.has(s)) {
@@ -588,6 +603,8 @@ export class Interiors {
       else h.play(speaking === id || (talkingTo && o.keeper) ? "talk" : o.keeper ? "idle" : "fold");
       h.root.position.set(o.x, (sitting ? h.sitDrop(o.seat!.h) : 0) + h.bob(), o.z);
       h.root.rotation.y = o.yaw;
+      // M6 treat: a guest merry on Jef's rounds sways a little in the seat
+      h.root.rotation.z = o.p.role === "guest_tipsy" ? Math.sin(this.t * 1.3 + (hash(id) % 7)) * 0.06 : 0;
       h.update(dt);
     }
   }

@@ -37,6 +37,8 @@ import { waresFor } from "./town/haggle.ts";
 import { mountBallads } from "./ballads/routes.ts";
 import { mountTransport } from "./town/transportRoutes.ts";
 import { mountHandcart } from "./town/handcartRoutes.ts";
+import { mountLively } from "./town/livelyRoutes.ts";
+import { mountErrands } from "./town/handsRoutes.ts";
 
 const db = openDb(DB_FILE);
 const app = new Hono();
@@ -90,6 +92,10 @@ mountHaggle(app, { db, payload: () => jobsPayload() });
 mountTransport(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 // M6 handcart: Jef's handcart, bought, hired or taken; loads by size and weight (town/handcart.ts)
 mountHandcart(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
+// M6 lively: door life by the clock (who scrubs the step, sits with her lace, leans out of the window), the cathedral quarter (town/lively.ts, doorlife.ts)
+mountLively(app, { db });
+// M6 gifts and hired hands: giving from the pockets, a drink at the tavern, hands paid to carry (town/gifts.ts, treat.ts, hire.ts; director/steps.ts)
+mountErrands(app, { db, payload: () => jobsPayload() });
 
 // Board status the client can show while Claude writes.
 let board: { state: "writing" | "ready"; source?: string; error?: string } = { state: "ready" };
@@ -184,7 +190,7 @@ function placed(id: string): string {
   return id;
 }
 
-function publicLine(l: Line & { gated?: string; note?: string; wares?: unknown }) {
+function publicLine(l: Line & { gated?: string; note?: string; wares?: unknown; handover?: unknown }) {
   return {
     npc_line: l.npc_line ? plainEnglish(l.npc_line) : l.npc_line,
     mood: l.mood,
@@ -194,6 +200,8 @@ function publicLine(l: Line & { gated?: string; note?: string; wares?: unknown }
     // M6 haggle and police story: how it went down, in words, and the seller's prices after a haggle
     ...(l.note ? { note: l.note } : {}),
     ...(l.wares ? { wares: l.wares } : {}),
+    // M6 gifts: the thing handed over (the client shows Jef's hand, their take)
+    ...(l.handover ? { handover: l.handover } : {}),
   };
 }
 

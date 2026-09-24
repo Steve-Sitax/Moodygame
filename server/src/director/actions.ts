@@ -362,6 +362,8 @@ function describeStart(name: string, a: ActionRow): string {
       return `${name} joined ${a.target || "the gathering"}.`;
     case "seek":
       return `${name} went to find Jef${a.reason ? ` (${a.reason})` : ""}.`;
+    case "routine":
+      return `${name} set off with Jef${a.reason ? `: ${a.reason}` : ""}.`;
     default:
       return `${name} did something for Jef.`;
   }
@@ -406,12 +408,26 @@ export interface Accepted {
   line: string;
   /** No walking: it happened in the talk (an offer, the purse back, a stop). */
   instant: boolean;
+  /** M6 gifts and hired hands: keep the person's own line and add this one after it (instant only). */
+  keep?: boolean;
+  /** M6: fields of the reply the engine sets (the model's trust delta is not the gift's). */
+  patch?: Partial<ResidentLine>;
+  /** M6: what the client shows with the line (the hand-over, a note). */
+  extra?: Record<string, unknown>;
 }
 export interface Refused {
   ok: false;
   reason: RefuseReason;
   line: string;
+  patch?: Partial<ResidentLine>;
+  extra?: Record<string, unknown>;
 }
+
+/**
+ * M6 gifts, the treat and hired hands (town/gifts.ts, treat.ts, hire.ts): a module that checks a
+ * kind of proposal itself. null: not mine, the checks below go on.
+ */
+export const proposeHooks: Record<string, (db: DB, r: Resident, p: ActionProposal, at: { jef: { x: number; z: number } | null; mine: Where }) => Accepted | Refused | null> = {};
 
 export function isReserved(db: DB, id: string): boolean {
   const v = policeState(db).visit;
@@ -447,6 +463,8 @@ export function validateProposal(db: DB, r: Resident, raw: unknown): Accepted | 
   // M4b: a robbery in the street that Jef saw counts too (the police will listen to a witness)
   const street = streetCrimeOpen(db);
   const crimeReason = /rob|thie|stol|pick|purse|pocket/i.test(p.reason) || !!crime || !!street?.witnessed;
+  const own = proposeHooks[p.kind]?.(db, r, p, { jef, mine });
+  if (own) return own;
 
   // stop: only what was asked in talk
   if (p.kind === "stop") {
@@ -599,12 +617,13 @@ export function applyProposal(db: DB, r: Resident, line: ResidentLine): Resident
       gameMinute(db),
       v.reason,
     );
-    return { ...line, npc_line: v.line, action_id: null, refused: v.reason };
+    return { ...line, ...v.patch, npc_line: v.line, action_id: null, refused: v.reason, ...(v.extra ? { extra: v.extra } : {}) };
   }
-  if (v.instant) return { ...line, npc_line: v.line, action_id: null, refused: null };
-  if (!v.action) return { ...line, action_id: null, refused: null };
+  const more = { ...v.patch, ...(v.extra ? { extra: v.extra } : {}) };
+  if (v.instant) return { ...line, ...more, npc_line: v.keep ? `${line.npc_line} ${v.line}`.trim() : v.line, action_id: null, refused: null };
+  if (!v.action) return { ...line, ...more, action_id: null, refused: null };
   const row = startAction(db, v.action);
-  return { ...line, npc_line: `${line.npc_line} ${v.line}`.trim(), end_conversation: line.end_conversation || v.action.kind !== "follow", action_id: row.id, refused: null };
+  return { ...line, ...more, npc_line: `${line.npc_line} ${v.line}`.trim(), end_conversation: line.end_conversation || v.action.kind !== "follow", action_id: row.id, refused: null };
 }
 
 // ------------------------------------------------------------------ the client's reports and the chains
@@ -645,6 +664,13 @@ export async function reportAction(db: DB, id: number, rep: Report, runner?: Run
       if (rep.phase === "blocked") return endAction(db, id, "failed", "blocked", END_LINE.follow_blocked);
       return a;
     case "wait":
+      return a;
+    case "attend":
+      // fixes 2026-09-24: at their place in the ring (or the row): "there", no longer "going"
+      if (rep.phase === "arrived" && a.phase === "going") {
+        db.prepare("UPDATE npc_action SET phase = 'there' WHERE id = ?").run(id);
+        return actionRow(db, id);
+      }
       return a;
     case "look_for":
       if (rep.phase === "done" || rep.phase === "arrived") {

@@ -11,9 +11,10 @@ city's house fronts, merged per chunk. What is in it:
              lettering straight on plaster (letters_*, a decal), iron bracket signs with
              a boot, a pretzel, a key, a tankard, a barber's basin, a hat (hang_*)
   awnings    striped canvas over the shop windows (awning_<bays>_<colour>)
-  madonna    a corner Madonna in her niche on a stone console, a lantern under her
+  madonna    corner Madonnas (three kinds: a stone niche, a painted statue on a corbel, a glazed
+             shrine box), each under a canopy with stars and a fringe, the lantern on an arm beside
   water      a cast-iron pump, a blue-stone pump, the wrought-iron well of the
-             Handschoenmarkt (after Quinten Matsijs' well), a stone horse trough
+             Handschoenmarkt (Quinten Matsijs' well on its square stone well of 1873), a stone horse trough
   washing    garments (cloth_*) for lines across narrow lanes, poles out of windows
   walls      posters and bills (poster_*), street name plates (plate_*), house numbers
              (number_*), doorsteps, cellar hatches, boot scrapers
@@ -254,6 +255,13 @@ PLAIN = {
     "cloth_red": ((0.55, 0.16, 0.12), 0.12),
     "cloth_grey": ((0.42, 0.41, 0.38), 0.12),
     "cloth_brown": ((0.36, 0.26, 0.18), 0.12),
+    # M6 lively: the Madonnas' canopies and flowers, the well's bronze
+    "canopy_blue": ((0.16, 0.24, 0.42), 0.15),
+    "flower_red": ((0.66, 0.12, 0.10), 0.2),
+    "flower_white": ((0.86, 0.84, 0.78), 0.12),
+    "leaf": ((0.16, 0.30, 0.12), 0.25),
+    "bronze": ((0.36, 0.28, 0.16), 0.25),
+    "polychrome": ((0.62, 0.20, 0.16), 0.15),
 }
 
 # awning stripes: (stripe colour, ground colour)
@@ -948,18 +956,84 @@ def awning(bays, colour):
     return m
 
 
+def madonna_mary(m, x, y, z, scale=1.0, robe="robe_blue"):
+    """Mary with the child, standing, crowned; her base at (x, y, z), facing -Y."""
+    with m.at(move(x, y, z) @ Matrix.Scale(scale, 4)):
+        m.lathe([(0.07, 0.0), (0.09, 0.02), (0.07, 0.06)], 6, "whitestone", cap0=True)
+        m.lathe([(0.1, 0.06), (0.105, 0.2), (0.09, 0.4), (0.07, 0.52), (0.05, 0.56)], 8, robe)
+        m.lathe([(0.105, 0.08), (0.11, 0.3), (0.085, 0.5)], 8, "robe_white", arc=(-2.4, -0.74))
+        m.lathe([(0.03, 0.55), (0.05, 0.6), (0.048, 0.66), (0.0, 0.7)], 6, "skin")
+        m.lathe([(0.056, 0.58), (0.06, 0.65), (0.042, 0.71), (0.0, 0.72)], 6, "robe_white", arc=(0.4, math.pi * 2 - 0.4 - math.pi))
+        m.lathe([(0.035, 0.71), (0.045, 0.76), (0.0, 0.77)], 6, "gold", cap0=True)
+        ring_ = [(0.14 * math.cos(a), 0.05, 0.68 + 0.14 * math.sin(a)) for a in np.linspace(0, 2 * math.pi, 12, endpoint=False)]
+        m.tube(ring_, 0.011, 3, "gold", closed=True)
+        with m.at(move(0.075, -0.08, 0.34)):
+            m.lathe([(0.03, 0.0), (0.045, 0.06), (0.03, 0.12), (0.0, 0.13)], 6, "robe_white", cap0=True)
+            m.lathe([(0.02, 0.12), (0.03, 0.15), (0.0, 0.18)], 5, "skin")
+
+
+def madonna_lantern(m, side, z, reach=0.42):
+    """The oil lantern on a wrought-iron arm out of one of the two walls beside the corner (side +1 the
+    wall toward +X, -1 toward -X); the walls run back at 45 degrees from the corner (y = |x|)."""
+    wx, wy = side * 0.55, 0.55
+    nx, ny = side * 0.7071, -0.7071
+    ex, ey = wx + nx * reach, wy + ny * reach
+    m.box((wx + nx * 0.02, wy + ny * 0.02, z), (0.1, 0.1, 0.16), "iron")
+    m.beam((wx, wy, z), (ex, ey, z), 0.022, 0.022, "iron")
+    curl = [(wx + nx * (0.1 + 0.08 * math.cos(a)), wy + ny * (0.1 + 0.08 * math.cos(a)), z - 0.1 + 0.08 * math.sin(a)) for a in np.linspace(0.3, 2 * math.pi - 0.3, 8)]
+    m.tube(curl, 0.01, 4, "iron")
+    m.beam((ex, ey, z), (ex, ey, z - 0.16), 0.012, 0.012, "iron")
+    with m.at(move(ex, ey, z - 0.36)):
+        lo, hi = 0.06, 0.085
+        for i in range(4):
+            a0 = math.pi / 4 + i * math.pi / 2
+            a1 = a0 + math.pi / 2
+            q = [(lo * math.cos(a0) * 1.41, lo * math.sin(a0) * 1.41, -0.12), (lo * math.cos(a1) * 1.41, lo * math.sin(a1) * 1.41, -0.12),
+                 (hi * math.cos(a1) * 1.41, hi * math.sin(a1) * 1.41, 0.08), (hi * math.cos(a0) * 1.41, hi * math.sin(a0) * 1.41, 0.08)]
+            m.face(q, "glass", mat=GLOW, out=(math.cos(a0 + math.pi / 4), math.sin(a0 + math.pi / 4), 0))
+        m.lathe([(0.11, 0.08), (0.12, 0.1), (0.0, 0.2)], 4, "iron", rot=math.pi / 4, cap0=True)
+        m.lathe([(0.09, -0.12), (0.09, -0.15), (0.0, -0.19)], 4, "iron", rot=math.pi / 4)
+
+
+def madonna_canopy(m, yc, z, r, sides, cell):
+    """The baldachin over her: a half-round (or many-sided) metal hood out of the corner, a ring of
+    stars under its rim, a scalloped fringe, a gilt ball on top."""
+    with m.at(move(0, yc + 0.12, 0)):
+        prof = [(r, z), (r * 0.92, z + 0.12), (r * 0.62, z + 0.28), (r * 0.2, z + 0.4), (0.0, z + 0.42)]
+        m.lathe(prof, sides, cell, arc=(math.pi, 2 * math.pi))
+        m.face([(r * math.cos(a), r * math.sin(a), z) for a in np.linspace(math.pi, 2 * math.pi, sides + 1)], cell, shade=0.6, out=(0, 0, -1))
+        # the fringe: little gilt scallops hanging from the rim
+        for k in range(sides * 2):
+            a = math.pi + math.pi * (k + 0.5) / (sides * 2)
+            cx, cy = r * math.cos(a), r * math.sin(a)
+            tx, ty = -math.sin(a) * 0.035, math.cos(a) * 0.035
+            m.face([(cx - tx, cy - ty, z), (cx + tx, cy + ty, z), (cx, cy, z - 0.06)], "gold", out=(math.cos(a), math.sin(a), 0))
+        # twelve stars on the rim
+        for k in range(12):
+            a = math.pi + math.pi * (k + 0.5) / 12
+            m.box((r * 0.98 * math.cos(a), r * 0.98 * math.sin(a), z + 0.07), (0.03, 0.03, 0.03), "gold")
+        m.lathe([(0.0, z + 0.4), (0.045, z + 0.45), (0.04, z + 0.5), (0.0, z + 0.54)], 6, "gold")
+
+
+def madonna_flowers(m, x, y, z):
+    """A small vase of flowers on the console (the neighbours keep them fresh)."""
+    m.lathe([(0.03, z), (0.045, z + 0.05), (0.03, z + 0.12), (0.035, z + 0.14)], 6, "whitestone", cap0=True)
+    for k, (dx, dy, cell) in enumerate(((0.0, 0.0, "flower_red"), (0.035, -0.02, "flower_white"), (-0.035, -0.015, "flower_red"), (0.01, 0.03, "flower_white"))):
+        m.beam((x + dx * 0.3, y + dy * 0.3, z + 0.12), (x + dx, y + dy, z + 0.26), 0.008, 0.008, "leaf")
+        m.box((x + dx, y + dy, z + 0.27), (0.045, 0.045, 0.04), cell)
+
+
 def madonna():
-    """Corner Madonna: a stone console, a white shell niche, Mary in a blue mantle with the
-    child, a gilt crown and a ring of stars; a lantern on a curled iron arm below.
-    Built facing -Y (out of the corner); the niche sits 4.3-5.5 m up."""
+    """Corner Madonna in her stone niche on a console, under a half-round blue canopy with a ring of
+    stars, a fringe and a gilt ball; the oil lantern on an iron arm out of the wall beside her; a
+    vase of flowers either side. Built facing -Y (out of the corner); the niche sits 4.3-5.5 m up
+    (the first floor, as the inventory's entries have it)."""
     m = Mesh()
     z0 = 4.3
-    yc = -0.36  # centre of the niche: in front of the corner, the building is behind (y > |x|)
-    # console, stepped out of the corner
+    yc = -0.36
     m.box((0, yc, z0 - 0.08), (0.7, 0.56, 0.16), "whitestone")
     m.box((0, yc + 0.06, z0 - 0.24), (0.5, 0.42, 0.16), "whitestone", shade=0.9)
     m.box((0, yc + 0.1, z0 - 0.4), (0.3, 0.3, 0.16), "whitestone", shade=0.8)
-    # niche: a half round shell open to the street under a half dome and a hood
     with m.at(move(0, yc, 0)):
         m.lathe([(0.3, z0), (0.3, z0 + 0.85)], 6, "plaster", arc=(0, math.pi))
         dome = [(0.3 * math.cos(a), z0 + 0.85 + 0.3 * math.sin(a)) for a in np.linspace(0, math.pi / 2, 4)]
@@ -969,37 +1043,56 @@ def madonna():
         m.face(half, "whitestone", out=(0, 0, 1))
         for sx in (-1, 1):
             m.box((sx * 0.33, 0.0, z0 + 0.4), (0.06, 0.06, 0.8), "whitestone")
-    # Mary, standing at the back of the niche
-    with m.at(move(0, yc + 0.08, z0)):
-        m.lathe([(0.07, 0.0), (0.09, 0.02), (0.07, 0.06)], 6, "whitestone", cap0=True)
-        m.lathe([(0.1, 0.06), (0.105, 0.2), (0.09, 0.4), (0.07, 0.52), (0.05, 0.56)], 8, "robe_blue")
-        m.lathe([(0.105, 0.08), (0.11, 0.3), (0.085, 0.5)], 8, "robe_white", arc=(-2.4, -0.74))
-        m.lathe([(0.03, 0.55), (0.05, 0.6), (0.048, 0.66), (0.0, 0.7)], 6, "skin")
-        m.lathe([(0.056, 0.58), (0.06, 0.65), (0.042, 0.71), (0.0, 0.72)], 6, "robe_white", arc=(0.4, math.pi * 2 - 0.4 - math.pi))
-        m.lathe([(0.035, 0.71), (0.045, 0.76), (0.0, 0.77)], 6, "gold", cap0=True)
-        ring = [(0.14 * math.cos(a), 0.05, 0.68 + 0.14 * math.sin(a)) for a in np.linspace(0, 2 * math.pi, 10, endpoint=False)]
-        m.tube(ring, 0.011, 3, "gold", closed=True)
-        # the child on her arm
-        with m.at(move(0.075, -0.08, 0.34)):
-            m.lathe([(0.03, 0.0), (0.045, 0.06), (0.03, 0.12), (0.0, 0.13)], 6, "robe_white", cap0=True)
-            m.lathe([(0.02, 0.12), (0.03, 0.15), (0.0, 0.18)], 5, "skin")
-    # lantern on a curled arm under the console
-    zl = z0 - 0.66
-    ya = yc - 0.55
-    m.beam((0, yc + 0.1, z0 - 0.45), (0, ya, z0 - 0.45), 0.025, 0.025, "iron")
-    curl = [(0, yc - 0.2 - 0.1 * math.sin(a), z0 - 0.53 + 0.08 * math.cos(a)) for a in np.linspace(0.2, 2 * math.pi - 0.4, 8)]
-    m.tube(curl, 0.01, 4, "iron")
-    m.beam((0, ya, z0 - 0.45), (0, ya, zl + 0.2), 0.012, 0.012, "iron")
-    with m.at(move(0, ya, zl)):
-        lo, hi = 0.06, 0.085
-        for i in range(4):
-            a0 = math.pi / 4 + i * math.pi / 2
-            a1 = a0 + math.pi / 2
-            p = [(lo * math.cos(a0) * 1.41, lo * math.sin(a0) * 1.41, -0.12), (lo * math.cos(a1) * 1.41, lo * math.sin(a1) * 1.41, -0.12),
-                 (hi * math.cos(a1) * 1.41, hi * math.sin(a1) * 1.41, 0.08), (hi * math.cos(a0) * 1.41, hi * math.sin(a0) * 1.41, 0.08)]
-            m.face(p, "glass", mat=GLOW, out=(math.cos(a0 + math.pi / 4), math.sin(a0 + math.pi / 4), 0))
-        m.lathe([(0.11, 0.08), (0.12, 0.1), (0.0, 0.2)], 4, "iron", rot=math.pi / 4, cap0=True)
-        m.lathe([(0.09, -0.12), (0.09, -0.15), (0.0, -0.19)], 4, "iron", rot=math.pi / 4)
+    madonna_mary(m, 0, yc + 0.08, z0)
+    madonna_canopy(m, yc, z0 + 1.34, 0.48, 8, "canopy_blue")
+    for sx in (-1, 1):
+        madonna_flowers(m, sx * 0.25, yc - 0.12, z0)
+    madonna_lantern(m, 1, z0 + 0.5)
+    return m
+
+
+def madonna_b():
+    """A painted wooden Madonna on a carved corbel, no niche, under a many-sided iron canopy hung
+    from the corner; the lantern on the other wall."""
+    m = Mesh()
+    z0 = 4.4
+    yc = -0.3
+    m.lathe([(0.04, z0 - 0.5), (0.1, z0 - 0.4), (0.16, z0 - 0.2), (0.22, z0 - 0.04), (0.24, z0)], 8, "whitestone", arc=(math.pi, 2 * math.pi), M=move(0, yc + 0.18, 0))
+    m.box((0, yc, z0 + 0.02), (0.46, 0.4, 0.05), "whitestone")
+    madonna_mary(m, 0, yc, z0 + 0.04, 1.08, "polychrome")
+    for sx in (-1, 1):
+        m.beam((sx * 0.5, 0.5, z0 + 1.35), (sx * 0.2, yc - 0.1, z0 + 1.28), 0.016, 0.016, "iron")
+    madonna_canopy(m, yc - 0.02, z0 + 1.1, 0.4, 6, "iron_green")
+    madonna_flowers(m, 0.16, yc - 0.1, z0 + 0.04)
+    madonna_lantern(m, -1, z0 + 0.45)
+    return m
+
+
+def madonna_c():
+    """A glazed wooden shrine box on the corner (a little chapel): a gabled roof, the statue behind
+    the glass with flowers at her feet, the lantern hanging on a curled arm below the box."""
+    m = Mesh()
+    z0 = 4.2
+    yc = -0.3
+    W, D, H = 0.52, 0.34, 0.86
+    m.box((0, yc, z0 - 0.05), (W + 0.1, D + 0.1, 0.1), "wood_dark")
+    for sx in (-1, 1):
+        m.box((sx * W / 2, yc, z0 + H / 2), (0.05, D, H), "wood_dark")
+    m.box((0, yc + D / 2, z0 + H / 2), (W, 0.03, H), "canopy_blue", shade=0.8)
+    for sx in (-1, 1):
+        m.face([(0, yc - D / 2 - 0.06, z0 + H + 0.26), (0, yc + D / 2 + 0.03, z0 + H + 0.26),
+                (sx * (W / 2 + 0.08), yc + D / 2 + 0.03, z0 + H - 0.02), (sx * (W / 2 + 0.08), yc - D / 2 - 0.06, z0 + H - 0.02)],
+               "slate", out=(sx, 0, 1))
+    m.face([(-W / 2, yc - D / 2, z0 + H), (W / 2, yc - D / 2, z0 + H), (0, yc - D / 2, z0 + H + 0.24)], "wood_dark", out=(0, -1, 0))
+    madonna_mary(m, 0, yc + 0.02, z0, 0.92)
+    for sx in (-1, 1):
+        madonna_flowers(m, sx * 0.17, yc - 0.06, z0)
+    # the glass: dark panes in a thin frame
+    m.face([(-W / 2 + 0.03, yc - D / 2 - 0.005, z0 + 0.02), (W / 2 - 0.03, yc - D / 2 - 0.005, z0 + 0.02),
+            (W / 2 - 0.03, yc - D / 2 - 0.005, z0 + H - 0.04), (-W / 2 + 0.03, yc - D / 2 - 0.005, z0 + H - 0.04)],
+           "water_dark", shade=0.5, out=(0, -1, 0))
+    m.beam((0, yc - D / 2 - 0.01, z0 + 0.02), (0, yc - D / 2 - 0.01, z0 + H - 0.04), 0.02, 0.02, "wood_dark")
+    madonna_lantern(m, 1, z0 + 0.35, reach=0.38)
     return m
 
 
@@ -1078,34 +1171,62 @@ def trough():
 
 
 def well():
-    """The Handschoenmarkt well: a round stone curb and, over it, four wrought-iron posts that
-    rise to pinnacles, joined by scrolled arches, with a small figure on the top
-    (after the well said to be Quinten Matsijs' work; a free, simple reading)."""
-    m = Mesh(ao=0.7)
-    m.lathe([(0.8, 0.0), (0.8, 0.75), (0.86, 0.8), (0.86, 0.86), (0.62, 0.86), (0.62, 0.3)], 12, "bluestone", rot=math.pi / 12)
-    m.face([(0.62 * math.cos(a), 0.62 * math.sin(a), 0.3) for a in np.linspace(0, 2 * math.pi, 12, endpoint=False)], "water_dark", out=(0, 0, 1))
-    R = 0.66
-    posts = [(R * math.cos(a), R * math.sin(a)) for a in (math.pi / 4, 3 * math.pi / 4, 5 * math.pi / 4, 7 * math.pi / 4)]
-    for x, y in posts:
-        m.beam((x, y, 0.86), (x, y, 2.9), 0.05, 0.05, "iron")
-        m.lathe([(0.04, 2.9), (0.06, 2.95), (0.0, 3.3)], 4, "iron", M=move(x, y, 0))
+    """The Handschoenmarkt well, as it stood in 1873 (inventaris onroerend erfgoed 83723; Baedeker
+    1869): the wrought-iron canopy said to be Quinten Matsijs' work (c. 1490) on a square stone
+    well with neo-Gothic tracery (the round bluestone basin of today came only in 1900-01). Four
+    iron posts rise to pinnacles, joined by twisting tendrils; a wild man and a wild woman in skins
+    stand on the posts; the bronze Brabo on top. Its height is not recorded: about 5 m here."""
+    m = Mesh(ao=0.8)
+    S = 0.78  # half the width of the stone well
+    m.box((0, 0, 0.06), (2 * S + 0.16, 2 * S + 0.16, 0.12), "bluestone", shade=0.9)
+    m.box((0, 0, 0.5), (2 * S, 2 * S, 0.76), "bluestone")
+    m.box((0, 0, 0.93), (2 * S + 0.08, 2 * S + 0.08, 0.1), "bluestone", shade=1.05)
+    m.face([(-S + 0.1, -S + 0.1, 0.99), (S - 0.1, -S + 0.1, 0.99), (S - 0.1, S - 0.1, 0.99), (-S + 0.1, S - 0.1, 0.99)], "water_dark", out=(0, 0, 1))
+    # neo-Gothic tracery: two pointed panels on each face, a little proud of the stone
+    for k in range(4):
+        a = k * math.pi / 2
+        c, sn = math.cos(a), math.sin(a)
+        with m.at(Matrix.Rotation(a, 4, "Z")):
+            for px in (-0.36, 0.36):
+                y = -S - 0.012
+                lancet = [(px - 0.22, y, 0.22), (px + 0.22, y, 0.22), (px + 0.22, y, 0.58), (px + 0.12, y, 0.72), (px, y, 0.78), (px - 0.12, y, 0.72), (px - 0.22, y, 0.58)]
+                m.face(lancet, "whitestone", shade=0.85, out=(0, -1, 0))
+                m.beam((px, y - 0.01, 0.24), (px, y - 0.01, 0.7), 0.025, 0.02, "bluestone", shade=0.8)
+    R = S - 0.08
+    posts = [(R, R), (-R, R), (-R, -R), (R, -R)]
+    for i, (x, y) in enumerate(posts):
+        m.beam((x, y, 0.98), (x, y, 3.3), 0.06, 0.06, "iron")
+        m.lathe([(0.05, 3.3), (0.07, 3.36), (0.0, 3.78)], 4, "iron", M=move(x, y, 0))
+        for zz in (1.6, 2.5):
+            m.box((x, y, zz), (0.1, 0.1, 0.05), "iron")
     for i in range(4):
         (x0, y0), (x1, y1) = posts[i], posts[(i + 1) % 4]
-        arc = [(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, 2.3 + 0.45 * math.sin(math.pi * t)) for t in np.linspace(0, 1, 7)]
-        m.tube(arc, 0.022, 4, "iron")
+        arc = [(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, 2.55 + 0.5 * math.sin(math.pi * t)) for t in np.linspace(0, 1, 9)]
+        m.tube(arc, 0.024, 4, "iron")
         mx, my = (x0 + x1) / 2, (y0 + y1) / 2
-        curl = [(mx + (x1 - x0) * 0.2 * math.cos(a), my + (y1 - y0) * 0.2 * math.cos(a), 1.95 + 0.18 * math.sin(a)) for a in np.linspace(0, 2 * math.pi - 0.8, 8)]
-        m.tube(curl, 0.015, 4, "iron")
+        # twisting tendrils: a spiral climbing between the posts, leaves at its ends
+        vine = [(mx + (x1 - x0) * 0.22 * math.cos(a) , my + (y1 - y0) * 0.22 * math.cos(a), 1.1 + 0.18 * a) for a in np.linspace(0, 4 * math.pi, 16)]
+        m.tube(vine, 0.014, 4, "iron")
+        for t in (0.25, 0.75):
+            lx, ly = x0 + (x1 - x0) * t, y0 + (y1 - y0) * t
+            m.box((lx, ly, 2.25), (0.08, 0.08, 0.02), "iron")
         m.beam((x0, y0, 1.6), (x1, y1, 1.6), 0.025, 0.025, "iron")
         # the arches bend up into the spire
-        m.tube([(x0, y0, 2.9), (x0 * 0.5, y0 * 0.5, 3.4), (0, 0, 3.75)], 0.02, 4, "iron")
-    m.beam((0, 0, 3.7), (0, 0, 4.1), 0.05, 0.05, "iron")
-    # Brabo on top: a little bronze figure with the hand held up
-    with m.at(move(0, 0, 4.1)):
-        m.lathe([(0.07, 0.0), (0.08, 0.18), (0.06, 0.34), (0.03, 0.38), (0.045, 0.42), (0.0, 0.48)], 6, "brass", cap0=True)
-        m.beam((0.05, 0, 0.32), (0.12, 0, 0.58), 0.03, 0.03, "brass")
-    # the pulley bar
-    m.beam((-R * 0.7, -R * 0.7, 2.05), (R * 0.7, R * 0.7, 2.05), 0.04, 0.04, "iron")
+        m.tube([(x0, y0, 3.3), (x0 * 0.5, y0 * 0.5, 3.75), (0, 0, 4.1)], 0.022, 4, "iron")
+    # the wild man and the wild woman in their skins, on two of the posts
+    for (x, y), rot_ in ((posts[0], 0.8), (posts[2], -2.3)):
+        with m.at(move(x, y, 2.62) @ Matrix.Rotation(rot_, 4, "Z")):
+            m.lathe([(0.05, 0.0), (0.06, 0.14), (0.045, 0.26), (0.03, 0.3), (0.04, 0.34), (0.0, 0.4)], 6, "bronze", cap0=True)
+            m.beam((0.04, 0, 0.24), (0.1, -0.02, 0.44), 0.025, 0.025, "bronze")
+    m.beam((0, 0, 4.05), (0, 0, 4.45), 0.055, 0.055, "iron")
+    # Brabo on top, a bronze figure with the giant's hand held up
+    with m.at(move(0, 0, 4.45)):
+        m.lathe([(0.08, 0.0), (0.09, 0.2), (0.07, 0.38), (0.035, 0.42), (0.05, 0.47), (0.0, 0.54)], 6, "bronze", cap0=True)
+        m.beam((0.05, 0, 0.36), (0.14, 0, 0.64), 0.032, 0.032, "bronze")
+        m.box((0.15, 0, 0.66), (0.06, 0.04, 0.06), "bronze")
+    # the pulley bar and the rope
+    m.beam((-R * 0.8, 0, 2.3), (R * 0.8, 0, 2.3), 0.05, 0.05, "wood_dark")
+    m.beam((0, 0, 2.3), (0, 0, 1.0), 0.012, 0.012, "rope")
     return m
 
 
@@ -1391,6 +1512,8 @@ def build_models():
         for c in range(len(AWNINGS)):
             B.append((f"awning_{bays}_{c}", awning(bays, c)))
     B.append(("madonna", madonna()))
+    B.append(("madonna_b", madonna_b()))
+    B.append(("madonna_c", madonna_c()))
     B.append(("pump_iron", pump_iron()))
     B.append(("pump_stone", pump_stone()))
     B.append(("well", well()))
@@ -1540,7 +1663,7 @@ def preview(objs):
     cam = stage()
     rows = [
         [n for n in objs if n.startswith("board_") or n.startswith("letters_")],
-        [n for n in objs if n.startswith("hang_") or n.startswith("awning_")] + ["madonna"],
+        [n for n in objs if n.startswith("hang_") or n.startswith("awning_")] + ["madonna", "madonna_b", "madonna_c"],
         ["pump_iron", "pump_stone", "well", "trough", "step_1", "step_2", "hatch", "scraper"] + [n for n in objs if n.startswith("poster_")],
         [n for n in objs if n.startswith("cloth_") or n.startswith("washpole_") or n.startswith("plate_") or n.startswith("number_")][:40],
         [n for n in objs if n.startswith(("straw_", "dung_", "puddle_", "stain_"))],

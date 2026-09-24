@@ -702,9 +702,11 @@ export class Crowd {
           animated++;
         }
       }
-      const want = p.state === "sit" ? p.human.sitDrop() * p.size : 0;
+      // M6 lively (humans.ts motionLift): down on the knees, on a chair, crouched (eased), or a hop (at once)
+      const lift = p.state === "sit" ? 0 : p.human.motionLift() * p.size;
+      const want = p.state === "sit" ? p.human.sitDrop() * p.size : Math.min(0, lift);
       p.drop += (want - p.drop) * Math.min(1, dt * 4);
-      if (inView) y = p.drop + (p.state === "sit" ? 0 : p.human.bob() * p.size);
+      if (inView) y = p.drop + Math.max(0, lift) + (p.state === "sit" ? 0 : p.human.bob() * p.size);
       p.group.position.set(p.x, y + (this.ground.baseAt?.(p.x, p.z) ?? 0), p.z);
       p.group.rotation.y = p.yaw;
       if (p.veh) this.moveVehicle(p, dt, inView);
@@ -1031,6 +1033,13 @@ export class Crowd {
   /** The nearest open grid point, for a puppet that would appear in a wall. */
   openNear(x: number, z: number): V | null {
     return this.grid.built ? this.grid.nearestOpen(x, z, 4) : null;
+  }
+
+  /** The walk on the grid round Jef from a to b (corner points), or null (fixes 2026-09-24: where a townsperson steps out on the way to an event). */
+  pathOn(ax: number, az: number, bx: number, bz: number): V[] | null {
+    if (!this.grid.built || !this.grid.inside(bx, bz, 2)) return null;
+    const a = this.grid.nearestOpen(ax, az, 6);
+    return a ? this.grid.path(a.x, a.z, bx, bz, 6000) : null;
   }
 
   /** Where everyone walking is now (townspeople included): the train and the omnibus stop for them. */

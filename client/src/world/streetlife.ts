@@ -43,6 +43,14 @@ export interface StreetLife {
   stats: { counts: Record<string, number>; meshes: number; triangles: number };
   /** Where the landmarks of street life stand (pumps, the well, troughs, Madonnas, washing lines, shops), for maps and checks. */
   sites: Array<{ kind: string; x: number; z: number; yaw: number }>;
+  /**
+   * M6 lively (game/lively.ts): the corner Madonnas (the corner, the way she looks, and where someone
+   * stands before her in the street), and the shop fronts with their door (for the goods set out).
+   */
+  madonnas: Array<{ x: number; z: number; yaw: number; sx: number; sz: number }>;
+  shops: Array<{ key: string; ax: number; az: number; tx: number; tz: number; ox: number; oz: number; len: number; door: number }>;
+  /** M6 lively: every house front with a door (its bays are 3 m wide, the door in the middle one): where its windows are. */
+  fronts: Array<{ ax: number; az: number; tx: number; tz: number; ox: number; oz: number; len: number; door: number; bays: number; storeys: number }>;
 }
 
 interface Meta {
@@ -74,6 +82,11 @@ interface CityData {
 const OPEN = 0;
 const WALL = 1;
 const CHUNK = 64;
+/** M6 lively: the Matsijs well on the Handschoenmarkt (world metres). */
+export const WELL_AT: [number, number] = [-248, 137.5];
+/** M6 lively: how many corner Madonnas at most, and how far apart (Antwerp kept some 150-200 in its old centre; the game's map is compact). */
+const MADONNAS_MAX = 48;
+const MADONNA_GAP = 16;
 
 /** Material slots, one merged mesh per chunk and slot. */
 const SOLID = 0;
@@ -467,9 +480,10 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
     // the well on the Handschoenmarkt, standing free
     const hm = city.places["Handschoenmarkt"];
     if (hm) {
-      // toward the north corner of the square, as on the old prints, clear of the cathedral's central door
-      const wx = hm.x + 22;
-      const wz = hm.z + 2;
+      // M6 lively: "adjacent to the principal portal, and opposite the door of the tower" (Baedeker 1869):
+      // before the north tower, clear of the central door and of the omnibus lane over the square
+      const wx = WELL_AT[0];
+      const wz = WELL_AT[1];
       let done = false;
       for (let r = 0; r < 30 && !done; r += 1.5) {
         for (let k = 0; k < 16 && !done; k++) {
@@ -483,8 +497,8 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
           }
           if (!ok) continue;
           put("well", x, 0, z, 0);
-          colliders.push({ minX: x - 0.9, maxX: x + 0.9, minZ: z - 0.9, maxZ: z + 0.9, top: 0.9 });
-          taken.push([x, z, 1.5]);
+          colliders.push({ minX: x - 0.95, maxX: x + 0.95, minZ: z - 0.95, maxZ: z + 0.95, top: 1.0 });
+          taken.push([x, z, 1.6]);
           done = true;
         }
       }
@@ -495,6 +509,7 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
   const tradeByWhere = (where: string) => meta.trades.map((t) => [t, t.where === where ? 3 : t.where === "any" ? 2 : 0.6] as const);
   const brackets: Array<[number, number]> = [];
   const shopsNear: Array<{ x: number; z: number; key: string }> = [];
+  const shopFronts: StreetLife["shops"] = [];
   const lines: Array<[number, number]> = [];
   const nameGameDoorNear = (x: number, z: number, r: number) => Object.values(city.doors).some((d) => Math.hypot(d.x - x, d.z - z) < r + Math.min(d.width / 2, 6));
 
@@ -532,6 +547,7 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
       if (trade) {
         shop = true;
         shopsNear.push({ x: mid[0], z: mid[1], key: trade.key });
+        shopFronts.push({ key: trade.key, ax: w.ax, az: w.az, tx: w.tx, tz: w.tz, ox: w.ox, oz: w.oz, len: w.L, door: doorS });
         count("shop");
         sites.push({ kind: `shop ${trade.key}`, x: +mid[0].toFixed(1), z: +mid[1].toFixed(1), yaw: +w.yaw.toFixed(2) });
         // the board over the middle of the front
@@ -617,7 +633,8 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
     }
 
     // --- a washing line across a narrow lane, from this front to the house opposite
-    if (w.L >= 4 && r() < 0.35) {
+    // (M6 lively: more of them, 0.35 -> 0.6; the one draw per front keeps everything else where it was)
+    if (w.L >= 4 && r() < 0.6) {
       const s = w.L * (0.3 + r() * 0.4);
       const [lx, lz] = along(w, s);
       let D = 0;
@@ -684,11 +701,37 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
     const off = Math.round((x * ox + z * oz) / 5);
     return hash(ang, off) % (meta.streetNames.length - meta.squareNames.length);
   };
+  // M6 lively: the corner Madonnas. Antwerp had hundreds (some 150-200 survive in the old centre), a
+  // statue in a niche or on a corbel at the first floor, under a canopy, with an oil lamp beside
+  // her (inventaris onroerend erfgoed, "Mariabeelden"). Here up to MADONNAS_MAX at the corners of
+  // the old town, never two within MADONNA_GAP metres, in three kinds; each with a spot before her
+  // in the street where the pious stop.
+  const madonnas: StreetLife["madonnas"] = [];
+  {
+    const cands: Array<{ x: number; z: number; yaw: number; sx: number; sz: number; k: number }> = [];
+    for (const [cx, cz, ddx, ddz, , , , , , , , , H, , store] of meta.corners) {
+      if (H < 6.5 || store || !openOut(cx, cz, ddx, ddz, 0.4, 2.2) || nameGameDoorNear(cx, cz, 2) || inStart(cx, cz)) continue;
+      const sx = cx + ddx * 1.9;
+      const sz = cz + ddz * 1.9;
+      if (!isClear(sx, sz, 0.3)) continue;
+      // the old town first: the lanes round the cathedral and the markets, then the rest
+      const kk = rng(hash(cx, cz, 7))();
+      const old = Math.hypot(cx + 250, cz - 150) < 130 ? 0 : 0.35;
+      cands.push({ x: cx, z: cz, yaw: Math.atan2(ddx, ddz), sx: +sx.toFixed(2), sz: +sz.toFixed(2), k: kk + old });
+    }
+    cands.sort((a, b) => a.k - b.k);
+    for (const c of cands) {
+      if (madonnas.length >= MADONNAS_MAX) break;
+      if (madonnas.some((m) => Math.hypot(m.x - c.x, m.z - c.z) < MADONNA_GAP)) continue;
+      const kind = ["madonna", "madonna_b", "madonna_c"][hash(c.x, c.z, 3) % 3];
+      put(kind, c.x, 0, c.z, c.yaw, 1, "madonna");
+      madonnas.push({ x: c.x, z: c.z, yaw: +c.yaw.toFixed(3), sx: c.sx, sz: c.sz });
+    }
+  }
   for (const [cx, cz, ddx, ddz, o1x, o1z, t1x, t1z, o2x, o2z, t2x, t2z, H, , store] of meta.corners) {
     const r = rng(hash(cx, cz));
     if (!openOut(cx, cz, ddx, ddz, 0.4, 1.4)) continue;
-    const gameDoor = nameGameDoorNear(cx, cz, 2);
-    if (H >= 6.5 && !store && r() < 0.3 && !gameDoor) put("madonna", cx, 0, cz, Math.atan2(ddx, ddz), 1, "madonna");
+    if (H >= 6.5 && !store) r(); // (the old Madonna draw: kept, so the name plates stay where they were)
     for (const [ox, oz, tx, tz] of [[o1x, o1z, t1x, t1z], [o2x, o2z, t2x, t2z]]) {
       if (r() > 0.75) continue;
       const px = cx + tx * 0.75;
@@ -843,5 +886,8 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
   }
   update(0, 0, 0);
 
-  return { group, colliders, update, stats: { counts, meshes: chunks.length, triangles }, sites };
+  const fronts: StreetLife["fronts"] = walls
+    .filter((w) => w.kind === 0 && w.door >= 0)
+    .map((w) => ({ ax: w.ax, az: w.az, tx: w.tx, tz: w.tz, ox: w.ox, oz: w.oz, len: w.L, door: w.door * w.L, bays: Math.max(1, Math.round(w.L / 3)), storeys: w.st }));
+  return { group, colliders, update, stats: { counts, meshes: chunks.length, triangles }, sites, madonnas, shops: shopFronts, fronts };
 }

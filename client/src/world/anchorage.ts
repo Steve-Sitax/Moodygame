@@ -23,6 +23,15 @@ import { rng, type TrainPart } from "./route";
 // are in it; they stop for rowing boats in their way and keep off each other. The ships on the
 // lanes give way to a tow that reaches into their way (river.ts reads obstacles()).
 //
+// Right of way (fixes 2026-09-24, afternoon: the two tows stood for over six minutes, one at the
+// liner "waiting for room", the other at the quay "waiting for the fairway"): after RELAX_S of
+// waiting a tow takes the right of way a harbour tug had, and crosses once every ship on the
+// lanes is either past, or far enough off to stop for it (YIELD_M; river.ts slows them). It gives
+// way only to ships under way that come across its bow, never to one that has stopped for it.
+// A watchdog: a tow stopped for more than WATCHDOG_S backs off (BACK_M astern along its loop, at
+// BACK_V) when a ship stands in its way, and then crosses on the right of way; when it is the
+// other tow that holds its berth, that one takes the right of way at once.
+//
 // World frame: x along the river (down river = +x), water at z < 0, the quay line at z 0.
 
 /** The liner's middle at rest, and her heading (bow toward -x). */
@@ -96,9 +105,31 @@ const LANE_Z: Array<{ lane: string; z: number; xMin: number }> = [
   { lane: "near", z: -36, xMin: -55 },
 ];
 const STRIP = 11;
+/** A committed tow eases in behind a ship still going through, by at most PACE_S s, at no less than PACE_MIN m/s. */
+const PACE_S = 16;
+const PACE_MIN = 0.5;
+/** Lane crossings less than this apart are crossed in one go (a tow cannot wait between them). */
+const MERGE_GAP = 30;
 /** Speed up and slow down, m/s per second. */
 const ACCEL = 0.12;
 const BRAKE = 0.35;
+/** Right of way (see the top): after this long a tow crosses when ships can stop for it. */
+const RELAX_S = 20;
+/** A ship this far off the crossing when the tow comes into its lane stops short of it (river.ts: it stops 12 m off a hull, slowing over 40 m before that). */
+const YIELD_M = 28;
+/** The watchdog: stopped this long, a tow backs off this far astern at this speed, then holds a moment. */
+const WATCHDOG_S = 60;
+const BACK_M = 14;
+const BACK_V = 0.45;
+const BACK_HOLD_S = 12;
+/** A ship stopped for the tow right on its way: the tow goes this far astern at once (then holds). */
+const ASTERN_M = 6;
+/** Alongside the liner a tow works on this long at most while the quay berth is taken, seconds. */
+const BERTH_WAIT_MAX = 420;
+/** A tow holds a lane's crossing (a soft obstacle for river.ts) from this far before its bow gets there. */
+const HOLD_AHEAD = 22;
+/** Metres a tow keeps off the stern of the other one ahead. */
+const KEEP = 25;
 
 /** A train on the river (river.ts Mover): head position and heading, its speed, its whole length. */
 export interface Traffic {
@@ -111,6 +142,8 @@ export interface Traffic {
   len: number;
   beam: number;
   lane: string;
+  /** Its hulls, the lead one first (for where its bow is). */
+  parts?: ReadonlyArray<{ len: number }>;
 }
 
 /** A hull in the way, for river.ts: middle, heading, length, beam and speed. */
@@ -121,6 +154,11 @@ export interface Obstacle {
   len: number;
   beam: number;
   v: number;
+  /**
+   * Not a hull: a tow's crossing, held while it crosses that lane (the tug has the right of way).
+   * A ship already too close to stop short of it carries on (the tow waited for that one).
+   */
+  soft?: boolean;
 }
 
 export interface Anchorage {
@@ -135,6 +173,10 @@ interface Strip {
   s0: number;
   s1: number;
   x: number;
+  /** The lane's line (z), and the loop's heading there (|x|, |z| of its unit tangent). */
+  z: number;
+  ax: number;
+  az: number;
 }
 
 /** Lane crossings close together, crossed in one go (a tow may not stop between them). */
@@ -168,6 +210,13 @@ interface Tow {
   committed: number;
   /** Seconds it has waited for a rowing boat in its way. */
   blocked: number;
+  /** Seconds it has stood still on the loop (not at a stop), for the right of way and the watchdog. */
+  waited: number;
+  /** The watchdog: metres still to go astern, then seconds to hold before going ahead again. */
+  back: number;
+  hold: number;
+  /** Times the watchdog made it back off (dev). */
+  backs: number;
   ship: MovingShip;
   why: string;
 }
@@ -264,7 +313,7 @@ export function createAnchorage(group: THREE.Group, fleet: Boats, scene: THREE.O
       const inside = Math.abs(p.z - ln.z) < STRIP && p.x > ln.xMin;
       const s = (i / N) * LEN;
       if (inside) {
-        if (!cur) cur = { lane: ln.lane, s0: s, s1: s, x: 0 };
+        if (!cur) cur = { lane: ln.lane, s0: s, s1: s, x: 0, z: ln.z, ax: 0, az: 1 };
         cur.s1 = s;
         xs += p.x;
         n++;
@@ -278,10 +327,22 @@ export function createAnchorage(group: THREE.Group, fleet: Boats, scene: THREE.O
     if (cur) strips.push({ ...cur, x: xs / n });
   }
   strips.sort((a, b) => a.s0 - b.s0);
+  // the loop's slant where it crosses each lane (a tow's reach along the lane: reach() below)
+  for (const st of strips) {
+    const t = curve.getTangentAt(wrap((st.s0 + st.s1) / 2) / LEN, new THREE.Vector3());
+    const l = Math.hypot(t.x, t.z) || 1;
+    st.ax = Math.abs(t.x / l);
+    st.az = Math.abs(t.z / l);
+  }
+  /** Half the stretch of a lane a tow covers where it crosses it (both hulls, on the slant), plus room. */
+  const reach = (tow: { len: number; width: number }, st: Strip) => (tow.len / 2) * st.ax + (tow.width / 2) * st.az + 3;
   const zones: Zone[] = [];
   for (const st of strips) {
     const last = zones[zones.length - 1];
-    if (last && st.s0 - last.s1 < 60) {
+    // (fixes 2026-09-24: 60 m merged the near lane with the fairway on the way back, a crossing of
+    // over 100 m that needed three lanes clear at once; with 35 m between them a tow of 21 m waits
+    // between the two, clear of both)
+    if (last && st.s0 - last.s1 < MERGE_GAP) {
       last.s1 = Math.max(last.s1, st.s1);
       last.strips.push(st);
     } else zones.push({ s0: st.s0, s1: st.s1, strips: [st] });
@@ -332,6 +393,10 @@ export function createAnchorage(group: THREE.Group, fleet: Boats, scene: THREE.O
       crab: atQuay ? 1 : 0,
       committed: -1,
       blocked: 0,
+      waited: 0,
+      back: 0,
+      hold: 0,
+      backs: 0,
       ship: { id: newShipId(), kind: tugName, x: 0, z: 0, heading: 0, speed: 0, steam: true },
       why: "",
     });
@@ -406,19 +471,53 @@ export function createAnchorage(group: THREE.Group, fleet: Boats, scene: THREE.O
    * in to its stern out), against the time each ship on that lane is over the crossing point
    * (at its own speed, or at half of it if it is held up). They must not meet.
    */
-  function clear(tow: Tow, z: Zone, traffic: readonly Traffic[]): boolean {
+  /** `level`: 0 the strict rule, 1 the right of way (after RELAX_S), 2 the watchdog's (after WATCHDOG_S: ships nearer still must stop). */
+  function clear(tow: Tow, z: Zone, traffic: readonly Traffic[], level = 0, why?: string[]): boolean {
+    const relaxed = level > 0;
+    const yieldM = level > 1 ? YIELD_M / 2 : YIELD_M;
+    const late = level > 1 ? 0 : 2;
     const half = tow.len / 2;
-    const pad = tow.width / 2 + 6;
     for (const st of z.strips) {
+      const pad = Math.max(tow.width / 2 + 6, reach(tow, st));
       // (the tug alongside may lead into the lane by a few metres on a slant)
       const tIn = eta(Math.max(0, ahead(tow.s, st.s0) - half - 6), tow.v) - 3;
       const tOut = eta(ahead(tow.s, st.s1) + half, tow.v) + 6;
       for (const m of traffic) {
         if (m.lane !== st.lane) continue;
-        const a = m.x + m.hx * 30; // its bow: half the longest lead ship ahead of its middle
+        const a = m.x + m.hx * (m.parts?.[0] ? m.parts[0].len / 2 + 2 : 30); // its bow: half its lead ship ahead of its middle
         const b = m.x - m.hx * m.len;
         const lo = Math.min(a, b);
         const hi = Math.max(a, b);
+        if (relaxed) {
+          // the right of way: a ship that has stopped only matters when it lies over the crossing
+          if (m.v < 0.2) {
+            if (hi > st.x - pad - 3 && lo < st.x + pad + 3) {
+              if (!why) return false;
+              why.push(`${st.lane}: stopped over it at x ${m.x.toFixed(0)}`);
+            }
+            continue;
+          }
+          // under way: not if it is over the crossing before the tow shows in its lane, or too
+          // close by then to stop for it (river.ts slows a ship for a hull in its way)
+          const u = m.hx * Math.max(m.speed, m.v);
+          const ta = (st.x - pad - hi) / u;
+          const tb = (st.x + pad - lo) / u;
+          const t1 = Math.min(ta, tb);
+          const t2 = Math.max(ta, tb);
+          // over the crossing while the tow is in the lane, and not coming late enough and far
+          // enough off to stop for it
+          const meets = t2 > Math.max(0, tIn - 2) && t1 < tOut;
+          const stops = t1 >= tIn + late && (t1 - tIn) * Math.abs(u) >= yieldM;
+          // one that is nearly through when the tow gets there: the tow eases its way in behind
+          // it (pace() below), if that takes it no slower than PACE_MIN
+          const dist = Math.max(0, ahead(tow.s, st.s0) - half - 6);
+          const eases = t2 < tIn + PACE_S && t2 + 3 <= dist / PACE_MIN;
+          if (meets && !stops && !eases) {
+            if (!why) return false;
+            why.push(`${st.lane}: x ${m.x.toFixed(0)} v ${m.v.toFixed(1)} over it ${t1.toFixed(0)}..${t2.toFixed(0)} s, tow in ${tIn.toFixed(0)}..${tOut.toFixed(0)} s`);
+          }
+          continue;
+        }
         const u = m.hx * Math.max(m.speed, m.v);
         if (Math.abs(u) < 0.05) {
           if (hi > st.x - pad && lo < st.x + pad) return false;
@@ -446,7 +545,145 @@ export function createAnchorage(group: THREE.Group, fleet: Boats, scene: THREE.O
     tow.stop = tow.stop === 0 ? 1 : 0;
   }
 
+  /**
+   * Room on the far side of a zone: stopped KEEP m off the other tow's stern, this one must be
+   * clear of the zone (its middle a tow length past it) and a few metres more. (With less, it once
+   * stopped with its stern in the near lane, a rowing boat stopped for it right on the other
+   * tow's crossing, and the three waited on each other for good.)
+   */
+  function roomFor(tow: Tow, z: Zone): boolean {
+    for (const o of tows) {
+      if (o === tow) continue;
+      if (ahead(tow.s, wrap(o.s - o.len / 2)) < ahead(tow.s, z.s1) + tow.len * 1.5 + KEEP + 8) return false;
+    }
+    return true;
+  }
+
+  /** The next zone ahead of the tow on the loop. */
+  function nextZone(tow: Tow): number {
+    let best = 0;
+    for (let i = 1; i < zones.length; i++) if (ahead(tow.s, zones[i].s0) < ahead(tow.s, zones[best].s0)) best = i;
+    return best;
+  }
+
+  /** May the tow go astern BACK_M from here: not back into a lane, onto a stop, or onto the tow behind. */
+  function canBack(tow: Tow): boolean {
+    const to = wrap(tow.s - BACK_M);
+    for (const z of zones) if (ahead(wrap(z.s0 - tow.len / 2), to) <= z.s1 - z.s0 + tow.len) return false;
+    for (const st of stops) if (ahead(to, st) <= BACK_M + 1) return false;
+    for (const o of tows) {
+      if (o === tow) continue;
+      if (ahead(o.s, tow.s) - o.len / 2 - tow.len / 2 < BACK_M + 20) return false;
+    }
+    return true;
+  }
+
+  /**
+   * A ship lying on the tow's way in the next 16 m of the loop (the middle of the two hulls there,
+   * their half width and the ship's half beam): how far ahead of the bow, or -1.
+   */
+  function onWayAhead(tow: Tow, m: Traffic): number {
+    const mid = tow.tugOff / 2;
+    const i0 = Math.floor((tow.s / LEN) * N);
+    const r2 = (tow.width / 2 + m.beam / 2 + 1) ** 2;
+    for (let k = 0; k <= 16; k += 2) {
+      const i = (i0 + Math.round(tow.len / 2) + k) % N;
+      const q = pts[i];
+      const q2 = pts[(i + 1) % N];
+      const ex = q2.x - q.x;
+      const ez = q2.z - q.z;
+      const el = Math.hypot(ex, ez) || 1;
+      const cx = q.x + (ez / el) * mid;
+      const cz = q.z - (ex / el) * mid;
+      for (let u = 0; u <= 1.0001; u += 0.1) {
+        const px = m.x - m.hx * m.len * u;
+        const pz = m.z - m.hz * m.len * u;
+        if ((px - cx) ** 2 + (pz - cz) ** 2 < r2) return k;
+      }
+    }
+    return -1;
+  }
+
+  /**
+   * A committed tow's speed so that it comes into each lane of its zone only after a ship under
+   * way there, too near to stop for its crossing, is through (the right of way is not taken from
+   * a ship that cannot stop). Infinity when nothing is in the way.
+   */
+  function pace(tow: Tow, z: Zone, traffic: readonly Traffic[]): number {
+    let best = Infinity;
+    const half = tow.len / 2;
+    for (const st of z.strips) {
+      const dist = ahead(tow.s, st.s0) - half - 6;
+      if (dist <= 0 || dist > 200) continue;
+      const pad = Math.max(tow.width / 2 + 6, reach(tow, st));
+      for (const m of traffic) {
+        if (m.lane !== st.lane || m.v < 0.2) continue;
+        const bow = m.x + m.hx * (m.parts?.[0] ? m.parts[0].len / 2 + 2 : 30);
+        const stern = m.x - m.hx * m.len;
+        const lo = Math.min(bow, stern);
+        const hi = Math.max(bow, stern);
+        const u = m.hx * m.v;
+        const t1 = Math.min((st.x - pad - hi) / u, (st.x + pad - lo) / u);
+        const t2 = Math.max((st.x - pad - hi) / u, (st.x + pad - lo) / u);
+        if (t2 <= 0) continue;
+        // it stops for the crossing the tow holds (river.ts) if it is far enough off
+        if (t1 > 0 && t1 * Math.abs(u) > YIELD_M) continue;
+        best = Math.min(best, Math.max(PACE_MIN, dist / (t2 + 3)));
+      }
+    }
+    return best;
+  }
+
+  /** Is this ship held up by the tow's hulls (the same test as river.ts, with half a metre more)? */
+  function stoppedFor(tow: Tow, m: Traffic): boolean {
+    for (const h of [tow.lighter, tow.tug]) {
+      const o = h.obj;
+      const dx = o.position.x - m.x;
+      const dz = o.position.z - m.z;
+      const along = dx * m.hx + dz * m.hz;
+      if (along <= 0 || along > 90) continue;
+      const side = Math.abs(dx * m.hz - dz * m.hx);
+      const cos = Math.abs(Math.sin(o.rotation.y) * m.hx + Math.cos(o.rotation.y) * m.hz);
+      const sin = Math.sqrt(Math.max(0, 1 - cos * cos));
+      const beam = h === tow.lighter ? tow.lb : tow.tb;
+      const across = (h.len / 2) * sin + (beam / 2) * cos;
+      if (side - across <= m.beam / 2 + 3.5) return true;
+    }
+    return false;
+  }
+
+  /** A ship lying still within 45 m of the tow: likely stopped for it (it backs off to let it by). */
+  function shipStopsNear(tow: Tow, traffic: readonly Traffic[]): boolean {
+    const l = tow.lighter.obj.position;
+    for (const m of traffic) {
+      if (m.v >= 0.2) continue;
+      for (let k = 0; k <= 1.0001; k += 0.25) if (Math.hypot(m.x - m.hx * m.len * k - l.x, m.z - m.hz * m.len * k - l.z) < 45) return true;
+    }
+    return false;
+  }
+
+  /** The watchdog's back-off: astern at BACK_V, a short hold, then on again on the right of way. */
+  function backOff(tow: Tow, dt: number): void {
+    tow.why = "backs off";
+    if (tow.back > 0) {
+      tow.v = -BACK_V;
+      const d = Math.min(tow.back, BACK_V * dt);
+      tow.s = wrap(tow.s - d);
+      tow.back -= d;
+      if (tow.back <= 0) tow.hold = BACK_HOLD_S;
+      return;
+    }
+    tow.v = 0;
+    tow.hold -= dt;
+    if (tow.hold <= 0) {
+      tow.hold = 0;
+      tow.waited = RELAX_S + 1;
+    }
+  }
+
+  let lastTraffic: readonly Traffic[] = [];
   function update(t: number, dt: number, traffic: readonly Traffic[]): void {
+    lastTraffic = traffic;
     placeLiner(t);
     if (t - rowersAt > 0.5 || rowersAt < 0 || t < rowersAt) {
       rowersAt = t;
@@ -461,6 +698,7 @@ export function createAnchorage(group: THREE.Group, fleet: Boats, scene: THREE.O
       // at a stop: in to the wall (Q), wait, out again, then off to the other stop
       if (tow.phase !== "run") {
         tow.v = 0;
+        tow.waited = 0;
         tow.why = tow.stop === 0 ? "alongside the liner" : "at the quay";
         if (tow.phase === "in") {
           tow.crab = Math.min(1, tow.crab + dt / CRAB_T);
@@ -470,7 +708,11 @@ export function createAnchorage(group: THREE.Group, fleet: Boats, scene: THREE.O
           }
         } else if (tow.phase === "dwell") {
           tow.dwell -= dt;
-          if (tow.dwell <= 0) {
+          // alongside the liner it goes on working while the quay berth is taken (the other tow
+          // there, or not yet through the lanes beyond it), rather than wait out on the water
+          if (tow.dwell <= 0 && tow.stop === 0 && tow.dwell > -BERTH_WAIT_MAX && !roomFor(tow, zones[nextZone(tow)])) {
+            tow.why = "alongside the liner (the quay berth is taken)";
+          } else if (tow.dwell <= 0) {
             if (tow.stop === 1) tow.phase = "out";
             else leave(tow);
           }
@@ -480,9 +722,15 @@ export function createAnchorage(group: THREE.Group, fleet: Boats, scene: THREE.O
         }
         continue;
       }
+      // the watchdog: going astern, then a short hold, then ahead again on the right of way
+      if (tow.back > 0 || tow.hold > 0) {
+        backOff(tow, dt);
+        continue;
+      }
       let target = CRUISE;
       const sStop = stops[tow.stop];
       const toStop = ahead(tow.s, sStop);
+      const level = tow.waited > WATCHDOG_S ? 2 : tow.waited > RELAX_S ? 1 : 0;
       // brake for the stop ahead (a crawl for the last metre)
       if (toStop < 60) target = Math.min(target, Math.sqrt(2 * 0.05 * Math.max(0, toStop - 0.2)) + 0.08);
       // lanes: decide at the last braking point whether to cross; wait at the edge until the
@@ -502,23 +750,32 @@ export function createAnchorage(group: THREE.Group, fleet: Boats, scene: THREE.O
         const hold = tow.len / 2 + 12;
         const decide = (tow.v * tow.v) / (2 * 0.08) + hold + 2;
         if (toZone > decide + 2) continue;
-        // room on the far side: the other tow's stern must lie beyond the zone and a tow length
-        let room = true;
-        for (const o of tows) {
-          if (o === tow) continue;
-          if (ahead(tow.s, wrap(o.s - o.len / 2)) < ahead(tow.s, z.s1) + tow.len + 20) room = false;
-        }
-        if (room && clear(tow, z, traffic)) tow.committed = zi;
+        const room = roomFor(tow, z);
+        if (room && clear(tow, z, traffic, level)) tow.committed = zi;
         else {
           target = Math.min(target, Math.sqrt(2 * 0.08 * Math.max(0, toZone - hold)));
           tow.why = room ? "waits for the fairway" : "waits for room";
         }
       }
-      // the other tow ahead on the loop: keep 25 m off its stern
+      // committed: ease in behind a ship that is still going through a lane ahead
+      if (tow.committed >= 0) {
+        const p = pace(tow, zones[tow.committed], traffic);
+        if (p < target) {
+          target = p;
+          tow.why = "lets a ship through";
+        }
+      }
+      // the other tow ahead on the loop: keep KEEP m off its stern
       for (const o of tows) {
         if (o === tow) continue;
         const gap = ahead(tow.s, o.s) - o.len / 2 - tow.len / 2;
-        if (gap < 80) target = Math.min(target, Math.max(0, (gap - 25) * 0.06));
+        if (gap < 80) {
+          const v = Math.max(0, (gap - KEEP) * 0.06);
+          if (v < target) {
+            target = v;
+            if (v < 0.3) tow.why = "keeps off the other tow";
+          }
+        }
       }
       // rowing boats in the way: within reach of the loop in the next 40 m, measured from the
       // middle of the two hulls (one lying at the steps beside the way is not in the way)
@@ -551,22 +808,68 @@ export function createAnchorage(group: THREE.Group, fleet: Boats, scene: THREE.O
         }
       }
       tow.blocked = blocked ? tow.blocked + dt : 0;
-      // a ship under way right in front
+      // a ship under way coming across its bow. Not once it has decided to cross a lane (the
+      // lanes were judged clear, and the ships there stop for it), and never for a ship that has
+      // stopped (it stopped for this tow: waiting on each other is how they stood for minutes).
+      // A ship lying still right on its way is still not run into.
       const head = tow.lighter.obj;
       const fx = Math.sin(head.rotation.y);
       const fz = Math.cos(head.rotation.y);
+      const crossing = tow.committed >= 0 || zones.some((z) => ahead(z.s0, tow.s) <= z.s1 - z.s0 + tow.len);
       for (const m of traffic) {
-        const dx = m.x - head.position.x;
-        const dz = m.z - head.position.z;
-        const along = dx * fx + dz * fz;
-        const sideDist = Math.abs(dx * fz - dz * fx);
-        if (along > 0 && along < 60 && sideDist < (tow.width + m.beam) / 2 + 12) {
-          target = Math.min(target, Math.max(0, (along - 30) * 0.06));
+        // the ship as a line from its bow back along its length: its nearest point ahead
+        let best = Infinity;
+        let bestAlong = 0;
+        for (let k = 0; k <= 1.0001; k += 0.25) {
+          const px = m.x - m.hx * m.len * k;
+          const pz = m.z - m.hz * m.len * k;
+          const dx = px - head.position.x;
+          const dz = pz - head.position.z;
+          const along = dx * fx + dz * fz;
+          const side = Math.abs(dx * fz - dz * fx);
+          if (along > 0 && side < best) {
+            best = side;
+            bestAlong = along;
+          }
+        }
+        if (best === Infinity) continue;
+        if (m.v < 0.3) {
+          // lying still: only when it lies on the loop just ahead (the way the tow will really
+          // go), never one that has stopped beside it (it stopped for the tow)
+          const k = onWayAhead(tow, m);
+          if (k >= 0) {
+            // stopped for this tow (its hull in the ship's way, river.ts): the tow goes astern a
+            // few metres and holds, and the ship goes on by; else it waits for it
+            if (stoppedFor(tow, m) && tow.v < 0.3) {
+              tow.back = ASTERN_M;
+              tow.committed = -1;
+            }
+            target = Math.min(target, Math.max(0, (k - 4) * 0.06));
+            tow.why = "waits for a ship";
+          }
+          continue;
+        }
+        if (crossing) continue;
+        if (bestAlong < 60 && best < (tow.width + m.beam) / 2 + 12) {
+          target = Math.min(target, Math.max(0, (bestAlong - 30) * 0.06));
           tow.why = "gives way";
         }
       }
       tow.v += THREE.MathUtils.clamp(target - tow.v, -BRAKE * dt, ACCEL * dt);
       tow.v = Math.max(0, tow.v);
+      // standing still on the loop: after RELAX_S it takes the right of way (above); after
+      // WATCHDOG_S with a ship in the way it backs off a little; when the other tow holds its
+      // berth, that one takes the right of way at once
+      tow.waited = tow.v < 0.05 ? tow.waited + dt : Math.max(0, tow.waited - dt * 2);
+      if (tow.waited > WATCHDOG_S) {
+        if (tow.why === "waits for room") {
+          for (const o of tows) if (o !== tow && o.phase === "run") o.waited = Math.max(o.waited, RELAX_S + 1);
+        } else if (tow.why !== "stops for a rowing boat" && shipStopsNear(tow, traffic) && canBack(tow)) {
+          tow.back = BACK_M;
+          tow.backs++;
+          tow.committed = -1;
+        }
+      }
       if (toStop < 3 && tow.v * dt >= toStop - 0.02) {
         // made fast at the stop
         tow.s = sStop;
@@ -598,10 +901,22 @@ export function createAnchorage(group: THREE.Group, fleet: Boats, scene: THREE.O
         lash.setXYZ(at++, q.lx + fx * tow.lighter.len * k, water.river + 1.0, q.lz + fz * tow.lighter.len * k);
         lash.setXYZ(at++, q.tx + fx * tow.tug.len * k * 0.9, water.river + 1.3, q.tz + fz * tow.tug.len * k * 0.9);
       }
+      // its crossing, held on each lane from a little before its bow reaches the lane until its
+      // stern is out (the ships stop short of it: river.ts)
+      const zi = tow.committed >= 0 ? tow.committed : zones.findIndex((z) => ahead(z.s0, tow.s) <= z.s1 - z.s0 + tow.len);
+      if (zi >= 0 && tow.phase === "run") {
+        for (const st of zones[zi].strips) {
+          const from = wrap(st.s0 - tow.len / 2 - HOLD_AHEAD);
+          const to = st.s1 + tow.len / 2 + 2;
+          if (ahead(from, tow.s) > wrap(to - from)) continue;
+          const r = reach(tow, st);
+          obs.push({ x: st.x, z: st.z, yaw: 0, len: STRIP * 2, beam: r * 2, v: 0, soft: true });
+        }
+      }
       tow.ship.x = q.tx;
       tow.ship.z = q.tz;
       tow.ship.heading = q.yaw;
-      tow.ship.speed = tow.v;
+      tow.ship.speed = Math.abs(tow.v);
     }
     lash.needsUpdate = true;
   }
@@ -695,11 +1010,20 @@ export function createAnchorage(group: THREE.Group, fleet: Boats, scene: THREE.O
   const dev = {
     liner: () => ({ x: +liner.position.x.toFixed(1), z: +liner.position.z.toFixed(1), sheerDeg: +((sheer * 180) / Math.PI).toFixed(1), hawse: H }),
     tows: () =>
-      tows.map((t) => ({ kind: t.names.join("+"), s: +t.s.toFixed(1), v: +t.v.toFixed(2), x: +t.lighter.obj.position.x.toFixed(1), z: +t.lighter.obj.position.z.toFixed(1), to: t.stop === 0 ? "liner" : "quay", phase: t.phase, crab: +t.crab.toFixed(2), dwell: +t.dwell.toFixed(0), why: t.why })),
+      tows.map((t) => ({ kind: t.names.join("+"), s: +t.s.toFixed(1), v: +t.v.toFixed(2), x: +t.lighter.obj.position.x.toFixed(1), z: +t.lighter.obj.position.z.toFixed(1), to: t.stop === 0 ? "liner" : "quay", phase: t.phase, crab: +t.crab.toFixed(2), dwell: +t.dwell.toFixed(0), why: t.why, waited: Math.round(t.waited), backs: t.backs })),
     zones: () => zones.map((z) => ({ s0: +z.s0.toFixed(0), s1: +z.s1.toFixed(0), strips: z.strips.map((q) => `${q.lane} ${q.s0.toFixed(0)}..${q.s1.toFixed(0)} x ${q.x.toFixed(0)}`) })),
-    loop: () => ({ length: +LEN.toFixed(0), stops: stops.map((s) => +s.toFixed(0)) }),
+    loop: () => ({ length: +LEN.toFixed(1), stops: stops.map((s) => +s.toFixed(1)) }),
     hulls: () => tows.flatMap((t) => [t.lighter.obj, t.tug.obj]),
+    traffic: () => lastTraffic.map((m) => ({ lane: m.lane, x: +m.x.toFixed(1), z: +m.z.toFixed(1), hx: +m.hx.toFixed(2), hz: +m.hz.toFixed(2), v: +m.v.toFixed(2), speed: +m.speed.toFixed(2), len: +m.len.toFixed(0), beam: +m.beam.toFixed(1) })),
     check,
+    /** Why tow i may not cross its next zone on the right of way now (dev). */
+    blockers: (i: number) => {
+      const tow = tows[i];
+      const z = zones.slice().sort((a, b) => ahead(tow.s, a.s0) - ahead(tow.s, b.s0))[0];
+      const why: string[] = [];
+      clear(tow, z, lastTraffic, tow.waited > WATCHDOG_S ? 2 : 1, why);
+      return why;
+    },
   };
   (window as unknown as { __anchorage?: unknown }).__anchorage = dev;
   if (import.meta.env.DEV) {

@@ -269,13 +269,25 @@ export function setupFire(db: DB, ev: EventRow): FireScene | null {
   const wm = walkMap();
   const side: P2 = [-d.out[1], d.out[0]];
   const chainSide = (w.path[Math.max(0, w.path.length - 3)][0] - step[0]) * side[0] + (w.path[Math.max(0, w.path.length - 3)][1] - step[1]) * side[1] > 0 ? 1 : -1;
+  // (fixes 2026-09-24: in a narrow lane it stood jammed in the dark against the far wall among
+  // the people; now the place along the front with the most room round it, where the lane is
+  // widest, and clear of the chain: seen from along the street)
   let pumpAt: P2 | null = null;
-  for (const along of [6, 8, 10, 4])
-    for (const outM of [3.2, 2.4, 4.2]) {
-      if (pumpAt) break;
+  let best = -1;
+  for (const along of [6, 8, 10, 12, 4])
+    for (const outM of [2.4, 3.2, 4.2, 5.2]) {
       const x = d.sx + d.out[0] * outM - side[0] * along * chainSide;
       const z = d.sz + d.out[1] * outM - side[1] * along * chainSide;
-      if (wm.reachable(x, z) && wm.open(x, z, 1.1)) pumpAt = [Math.round(x * 10) / 10, Math.round(z * 10) / 10];
+      if (!wm.reachable(x, z) || !wm.open(x, z, 1.1)) continue;
+      if (slots.some(([cx, cz]) => Math.hypot(cx - x, cz - z) < 2.2)) continue;
+      let room = 1.1;
+      for (const rr of [1.4, 1.8, 2.2, 2.8]) if (wm.open(x, z, rr)) room = rr;
+      // most room first; then nearer the door (it is the house's pump)
+      const score = room * 10 - along * 0.3;
+      if (score > best) {
+        best = score;
+        pumpAt = [Math.round(x * 10) / 10, Math.round(z * 10) / 10];
+      }
     }
   pumpAt ??= [step[0] + d.out[0] * 3, step[1] + d.out[1] * 3];
   const st = wm.nearestOpen(FIRE_POST.x, FIRE_POST.z, 10) ?? { x: FIRE_POST.x, z: FIRE_POST.z };

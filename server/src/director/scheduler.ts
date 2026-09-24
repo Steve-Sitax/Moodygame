@@ -118,6 +118,9 @@ export interface PlaceSpot {
   r: number;
 }
 
+/** A routine event may start this many game minutes before its hour (half a 15-minute tick). */
+export const ROUTINE_EARLY_MIN = 7;
+
 const stagesOf = (ev: EventRow): StoredStage[] => JSON.parse(ev.stages_json) as StoredStage[];
 const peopleOf = (ev: EventRow): string[] => JSON.parse(ev.people_json) as string[];
 export const leadsOf = (ev: EventRow): Lead[] => JSON.parse(ev.leads_json || "[]") as Lead[];
@@ -436,7 +439,9 @@ export function eventsTick(db: DB): number {
   for (const ev of liveEvents(db)) {
     const stages = stagesOf(ev);
     if (ev.status === "planned") {
-      if (now < ev.start_m) continue;
+      // the town's routine (the ballad singer, the dawn hiring) starts at the tick nearest its
+      // hour, not up to a tick late (fixes 2026-09-24: the clock moves 15 minutes a tick)
+      if (now < ev.start_m - (ROUTINE_TEMPLATES.has(ev.template) ? ROUTINE_EARLY_MIN : 0)) continue;
       if (now > ev.end_m) {
         // the clock jumped past it (a night, a dev jump): it never happened
         finishEvent(db, ev, "cancelled");

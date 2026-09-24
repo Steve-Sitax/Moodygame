@@ -39,6 +39,8 @@ export class Talk {
   private wares = new Map<string, Ware[]>();
   /** After a purchase: new money and pockets, and what the seller does. */
   onBought: (p: JobsPayload, line: string) => void = () => {};
+  /** M6 gifts: every reply as it comes (game/hands.ts shows a thing handed over). */
+  onReply: (id: string, r: TalkLine) => void = () => {};
   money = 0;
 
   constructor(private readonly player: FirstPerson) {
@@ -106,6 +108,16 @@ export class Talk {
     } else void this.send("open");
   }
 
+  /** Dev: say this in Jef's own words to whoever the window is open with (the browser checks). */
+  devSay(text: string): Promise<void> {
+    return this.send("free", text);
+  }
+
+  /** Dev: the lines on the paper now. */
+  devLines(): Array<{ who: string; text: string; note?: string }> {
+    return [...this.lines];
+  }
+
   close(): void {
     if (this.npc) this.onClose(this.npc.id);
     this.npc = null;
@@ -139,6 +151,7 @@ export class Talk {
     }
     this.lines.push({ who: npc.def.name, text: r.npc_line, note: r.note });
     if (r.wares) this.newPrices(npc.id, r.wares);
+    this.onReply(npc.id, r);
     this.mood = r.mood ?? "";
     this.choices = r.end ? [] : (r.choices ?? []);
     this.lastChoices = this.choices;

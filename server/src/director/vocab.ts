@@ -8,7 +8,8 @@ import { EVENT_GATHER_MAX, EVENT_PEOPLE_MAX as PEOPLE_MAX } from "../config.ts";
 
 // ------------------------------------------------------------------ actions
 
-export const ACTION_KINDS = ["none", "follow", "go_to", "wait", "talk_to", "look_for", "fetch_police", "give", "stop"] as const;
+/** M6: receive_gift (Jef gives them a thing), come_for_drink (Jef treats them at a tavern), work_for_pay (Jef hires them). */
+export const ACTION_KINDS = ["none", "follow", "go_to", "wait", "talk_to", "look_for", "fetch_police", "give", "stop", "receive_gift", "come_for_drink", "work_for_pay"] as const;
 export type ActionKind = (typeof ACTION_KINDS)[number];
 
 /** What the talk reply may carry. Optional on the reply: the stub lines of the older tests have none. */
@@ -28,7 +29,8 @@ export const NO_ACTION: ActionProposal = { kind: "none", target: "", minutes: 0,
 
 /** Engine-made actions (events and chains) use these kinds too. */
 /** M6 families: "seek" (a townsperson comes to find Jef: to talk, to thank, to settle a grievance). */
-export type EngineKind = ActionKind | "attend" | "seek";
+/** M6 steps (director/steps.ts): "routine", a list of steps one person works through for Jef (a treat, a hired hand). */
+export type EngineKind = ActionKind | "attend" | "seek" | "routine";
 
 /**
  * Time limits in GAME minutes. The clock runs fast (a game hour is 20 real seconds; a walk
@@ -62,7 +64,12 @@ in character and set action.kind "none". Kinds: follow (walk with Jef), go_to (t
 fetch_police (go and bring an agent), give (item: what, amount_c: money; you never give money except what
 you yourself took from Jef), stop (stop what you were doing for him). minutes: how long you would give it.
 reason: why, in a few words (say "robbed" if Jef says he was robbed or saw someone robbed). A stall or shop keeper at work will not
-leave the stall; a child does no questioning of grown-ups; at night the timid stay put.`;
+leave the stall; a child does no questioning of grown-ups; at night the timid stay put.
+receive_gift: Jef offers you something of his (item: what it is, as he said it); set it only if you would take it.
+come_for_drink: Jef asks you to a tavern for a drink he pays for (target: the tavern he names, or ""); set it only if
+you would go. work_for_pay: Jef asks you to work for him for a wage (item: the work, e.g. "carry the crates", "watch
+my cart"; amount_c: the wage HE named, 0 if he named none); set it only if you would do it for that. For all three the
+game checks what Jef really has, what the tavern and the work are, and the money; you never name a price yourself.`;
 
 // ------------------------------------------------------------------ engine lines
 
@@ -82,7 +89,11 @@ export type RefuseReason =
   | "too_far"
   | "no_money"
   | "post"
-  | "nothing_to_stop";
+  | "nothing_to_stop"
+  // M6 gifts, the treat, hired hands (their lines come from their modules)
+  | "gift"
+  | "treat"
+  | "hire";
 
 export const REFUSE_LINE: Record<RefuseReason, string> = {
   busy: "I've my hands full already. Ask me when I'm done.",
@@ -100,6 +111,9 @@ export const REFUSE_LINE: Record<RefuseReason, string> = {
   no_money: "My money stays in my pocket.",
   post: "I can't leave my post. Ask someone with time on their hands.",
   nothing_to_stop: "I wasn't doing anything for you.",
+  gift: "No, thank you.",
+  treat: "Not today, thank you.",
+  hire: "Not for that, no.",
 };
 
 /** What the person adds when the engine sets a limit (in story time: four game minutes to one). */

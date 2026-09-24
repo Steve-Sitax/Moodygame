@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { Organ } from "./organ";
 import { singPhrase, type Note } from "./ballad";
+import { workSound, type StreetWork } from "./cries";
 import type { Surface } from "../world/rijnkaai";
 import { water } from "../world/tide";
 import { cartRoutes, cityEmitters, nearestQuay, overWater, type Emitter, type EmitterKind } from "./emitters";
@@ -1162,6 +1163,18 @@ export class Soundscape {
    * voice made in code at a point, louder than talk and carrying further (reach 55 m).
    * Indoors (a tavern) run it through indoors(). Returns the seconds it lasts.
    */
+  /**
+   * M6 lively (audio/cries.ts): the sound of a street trade at a point for some seconds: the knife
+   * grinder's stone, the mussel seller's rattle, the milk cans, a brush scrubbing the step.
+   */
+  streetWork(kind: StreetWork, at: { x: number; z: number }, seconds: number): void {
+    const spot = this.spot({ x: at.x, z: at.z, y: 1.0 }, 2, 1.3, kind === "rattle" ? 45 : 30, 0.25);
+    const out = this.ctx.createGain();
+    out.gain.value = kind === "scrub" ? 0.12 : 0.22;
+    out.connect(spot.fog);
+    workSound(this.ctx, out, this.noise, kind, seconds, () => this.dropSpot(spot));
+  }
+
   sing(at: { x: number; z: number }, voice: { sex: "m" | "f"; age: number }, notes: Note[], beat: number): number {
     const ctx = this.ctx;
     const spot = this.spot({ x: at.x, z: at.z, y: 1.6 }, 3, 1.1, 55, 0.3);

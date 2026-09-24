@@ -49,7 +49,7 @@ export const CORNERS = ["grote_markt", "vismarkt", "handschoenmarkt", "steenplei
 /** A small crowd: the M4 gather clamps it again. */
 export const CROWD = 10;
 /** Planned this long before the slot, so the singer and the crowd walk there. */
-const PLAN_AHEAD_MIN = 40;
+const PLAN_AHEAD_MIN = 60;
 
 // ------------------------------------------------------------------ the words
 
@@ -295,27 +295,57 @@ export function planBallad(db: DB, corner?: string, startIn = 0, dev = false) {
   let last = "";
   for (const place of order) {
     const r = planEvent(db, planFromTemplate(t, "engine", { place, start_in_min: startIn, why: "the ballad singer's round" }), { dev });
-    if (r.ok) return r;
+    if (r.ok) {
+      // fixes 2026-09-24: the singer and his crowd set off now, so they stand at the corner when
+      // it starts (a game hour is 20 s of play: gathered at the start, they came in late)
+      callSinging(db, r.event);
+      return { ok: true as const, event: eventRow(db, r.event.id) ?? r.event };
+    }
     last = r.why;
   }
   return { ok: false as const, why: last };
 }
 
 /**
- * The act of the ballad's one stage (scheduler.ts): the singer takes his corner (a lead the engine
- * casts) and a small crowd gathers round him. A song about Jef is remembered by a few of them.
+ * The singer to his corner (a lead the engine casts) and a small crowd round him. Called when the
+ * singing is planned and again when it starts (nothing twice: a free singer is cast once, the
+ * crowd is topped up to CROWD). The crowd from nearby first (gather: by home, near first).
+ * Returns the crowd, or null when no singer is free.
+ */
+export function callSinging(db: DB, ev: EventRow): string[] | null {
+  const s = (JSON.parse(ev.stages_json) as StoredStage[])[0];
+  const at = { x: s?.x ?? ev.x, z: s?.z ?? ev.z };
+  let cur = eventRow(db, ev.id) ?? ev;
+  const leads = JSON.parse(cur.leads_json || "[]") as Array<{ role: string; id: string }>;
+  if (!leads.some((l) => l.role === "ballad_singer")) {
+    const singer = freeSinger(db, cur);
+    if (!singer) return null;
+    castEngineLead(db, cur, singer.id, "ballad_singer", at);
+    cur = eventRow(db, ev.id) ?? cur;
+  }
+  const people = JSON.parse(cur.people_json || "[]") as string[];
+  const have = people.length - 1;
+  if (have < CROWD) gather(db, cur, "crowd", CROWD - have, at, s?.label ?? ev.place);
+  cur = eventRow(db, ev.id) ?? cur;
+  const lead = (JSON.parse(cur.leads_json || "[]") as Array<{ role: string; id: string }>).find((l) => l.role === "ballad_singer");
+  return (JSON.parse(cur.people_json || "[]") as string[]).filter((id) => id !== lead?.id);
+}
+
+/**
+ * The act of the ballad's one stage (scheduler.ts): the singer takes his corner and a small crowd
+ * stands round him (called when it was planned; topped up now). A song about Jef is remembered by
+ * a few of them.
  */
 export function runBalladAct(db: DB, ev: EventRow, s: StoredStage, _i: number): void {
   if (s.act !== "ballad_sing") return;
   const at = { x: s.x ?? ev.x, z: s.z ?? ev.z };
-  const singer = freeSinger(db, ev);
-  if (!singer) {
+  const crowd = callSinging(db, ev);
+  const lead = (JSON.parse((eventRow(db, ev.id) ?? ev).leads_json || "[]") as Array<{ role: string; id: string }>).find((l) => l.role === "ballad_singer");
+  const singer = lead ? resident(db, lead.id) : null;
+  if (!crowd || !singer) {
     cancelEvent(db, ev.id);
     return;
   }
-  castEngineLead(db, ev, singer.id, "ballad_singer", at);
-  const cur = eventRow(db, ev.id) ?? ev;
-  const crowd = gather(db, cur, "crowd", CROWD, at, s.label ?? ev.place);
   const b = balladToday(db);
   writeEvent(db, {
     kind: "event",

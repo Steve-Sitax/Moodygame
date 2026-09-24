@@ -6,6 +6,7 @@ import { createFires, type Fires, type FireSpot } from "../world/fire";
 import { loadProps, type Props } from "../world/props3d";
 import { createPumpCart, type PumpCart } from "../world/pumpcart";
 import type { World } from "../world/rijnkaai";
+import type { Rect } from "../world/geom";
 import type { Action } from "./runs";
 import type { Crowd } from "./crowd";
 import type { Events } from "./events";
@@ -74,6 +75,8 @@ export interface HiringView {
 
 /** The storey heights of the city build (tools/city/plan.py): ground 3.8 m, then 3 m. */
 const GROUND_H = 3.8;
+/** The houses' window bays (tools/blender/build_city.py BAY). */
+const HOUSE_BAY_M = 3.0;
 const STOREY_H = 3.0;
 const SOOT_DAYS = 3;
 /** Where the alarm is rung: the cathedral tower (the soundscape rings it there whatever the point). */
@@ -94,6 +97,8 @@ interface FireLive {
   view: FireView;
   fx: Fires | null;
   pump: PumpCart | null;
+  /** The pump standing at work is solid (fixes 2026-09-24: the crowd stood all over it and hid it). */
+  pumpRect?: Rect | null;
   hosed: boolean;
   soot: THREE.Mesh | null;
   alarmed: boolean;
@@ -266,7 +271,7 @@ export class TownLife {
     else if (act === "fire_down") [flame, smoke] = [0.45 * (1 - t), 2.4 * (1 - t) + 0.2];
     f.level = flame;
     const near = dist(player.x, player.z, v.step[0], v.step[1]) < SEE_M;
-    if (near && !f.fx) f.fx = createFires(this.world.scene, this.fireSpots(v), { smoke: 30 });
+    if (near && !f.fx) f.fx = createFires(this.world.scene, this.fireSpots(v), { smoke: 18 });
     if (!near && f.fx) {
       f.fx.dispose();
       f.fx = null;
@@ -292,15 +297,23 @@ export class TownLife {
       const went = stageNo > brigadeAt ? len : Math.min(len, from + since * speed);
       const arrived = went >= len - 0.05;
       if (arrived) {
-        f.pump.set(v.pump_at[0], v.pump_at[1], v.pump_at[2], 0, this.clock, flame > 0.04);
+        f.pump.set(v.pump_at[0], v.pump_at[1], v.pump_at[2], 0, this.clock, flame > 0.04, this.world.groundAt(v.pump_at[0], v.pump_at[1], 0.3, 0));
         if (!f.hosed) {
           f.hosed = true;
           f.pump.hoseTo({ x: v.step[0] + v.out[0] * 0.4, z: v.step[1] + v.out[1] * 0.4 });
         }
+        if (!f.pumpRect) {
+          const c = Math.abs(Math.cos(v.pump_at[2]));
+          const sn = Math.abs(Math.sin(v.pump_at[2]));
+          const hx = 0.75 * c + 1.4 * sn;
+          const hz = 0.75 * sn + 1.4 * c;
+          f.pumpRect = { minX: v.pump_at[0] - hx, maxX: v.pump_at[0] + hx, minZ: v.pump_at[1] - hz, maxZ: v.pump_at[1] + hz };
+          this.world.addCollider(f.pumpRect);
+        }
       } else {
         const [x, z] = along(path, went);
         const [ax, az] = along(path, Math.min(len, went + 1.5));
-        f.pump.set(x, z, Math.atan2(ax - x, az - z), 1, this.clock, false);
+        f.pump.set(x, z, Math.atan2(ax - x, az - z), 1, this.clock, false, this.world.groundAt(x, z, 0.3, 0));
       }
     }
     // the bucket chain: the street lines up while the pump comes, then full buckets go up to the
@@ -319,16 +332,23 @@ export class TownLife {
     const eaves = GROUND_H + STOREY_H * (st - 1);
     const out: FireSpot[] = [];
     const at = (side: number, outM: number, y: number, size: number) => out.push({ x: dx + sx * side + ox * outM, y, z: dz + sz * side + oz * outM, size });
-    // flames lick out of the windows (a little out from the wall) and stand over the roof
-    at(1.5, 0.5, 1.1, 1.2);
+    // flames lick out of the windows and up the wall, and stand in a band over the roof. (Fixes
+    // 2026-09-24: they came out at 1.5 m from the door, between the windows, a column of puffs
+    // up the bare wall.) The houses are built in bays of about 3 m (tools/blender/build_city.py
+    // BAY), the door in the middle bay: a window in the bays either side of it on the ground
+    // floor, and one in every bay above. Two tongues' roots across each window opening.
+    const win = (side: number, y: number, size: number) => {
+      for (const d of [-0.32, 0.32]) at(side + d, 0.3, y, size);
+    };
+    win(-HOUSE_BAY_M, 1.6, 0.95);
+    win(HOUSE_BAY_M, 1.6, 1.05);
     for (let k = 1; k < Math.min(st, 4); k++) {
-      const y = GROUND_H + STOREY_H * (k - 1) + 0.7;
-      at(-1.5, 0.55, y, 1.6);
-      at(1.5, 0.55, y, 1.8);
+      const y = GROUND_H + STOREY_H * (k - 1) + 1.0;
+      win(-HOUSE_BAY_M, y, 1.3);
+      win(0, y, 1.45);
+      win(HOUSE_BAY_M, y, 1.35);
     }
-    at(0, -1.8, eaves + 0.6, 3.4);
-    at(-2.2, -3.4, eaves + 0.3, 2.6);
-    at(2.0, -3.0, eaves + 0.2, 2.2);
+    for (const side of [-3.3, -1.1, 1.1, 3.3]) at(side, -2.4 - Math.abs(side) * 0.15, eaves + 1.0, 2.5 + (side > 0 ? 0.3 : 0));
     return out;
   }
 
@@ -348,6 +368,7 @@ export class TownLife {
   private endFire(f: FireLive): void {
     f.fx?.dispose();
     f.pump?.dispose();
+    if (f.pumpRect) this.world.removeCollider(f.pumpRect);
     f.soot?.removeFromParent();
     this.fires.delete(f.id);
     if (this.inChain?.ev === f.id) this.inChain = null;

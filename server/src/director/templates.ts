@@ -193,7 +193,9 @@ export const TEMPLATES: Template[] = [
     title: "The naties hire at dawn",
     place: "rijnkaai",
     stages: [
-      stage({ op: "gather", minutes: 50, role: "family", count: 30, sound: "murmur", mood: "calm" }),
+      // fixes 2026-09-24: the men gather from 5:00, the call stays at about 6:20 (80 minutes: a game hour is
+      // 20 s of play, and 50 minutes was too short for the men to walk to the gates in time)
+      stage({ op: "gather", minutes: 80, role: "family", count: 30, sound: "murmur", mood: "calm" }),
       stage({ op: "sound", minutes: 60, sound: "murmur", mood: "lively" }),
     ],
     acts: ["hire_gather", "hire_call"],

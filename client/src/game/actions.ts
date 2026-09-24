@@ -33,6 +33,24 @@ const TRAM_FROM_M = 90;
 const TRAM_STOP_M = 70;
 /** Give up waiting for an omnibus after this long (real seconds) and walk. */
 const TRAM_WAIT_S = 70;
+/**
+ * Fixes 2026-09-24 (a game hour is 20 s of play, so a crowd that walked the whole way came when
+ * the event was half over; the ballad listeners and the dawn hiring's men): coming to an event,
+ * unseen, they cross town in about this many seconds of play (a few game minutes); an omnibus
+ * is waited for this long at most; and near the event, out of Jef's sight, they step into the
+ * street at the first place that is out of view (or, far from Jef, right at their own place).
+ */
+const ATTEND_HIDDEN_S = 6;
+const TRAM_EVENT_WAIT_S = 15;
+const CLAIM_RETRY_S = 0.4;
+/** On the way to an event and no nearer for this long (real seconds; was 20, a quarter of a game hour): another way. */
+const ATTEND_STUCK_S = 10;
+/** In the street out of Jef's sight and further than this from the place: they go on unseen. */
+const HIDE_AWAY_M = 22;
+/** Unseen at their place and Jef further off than this: they are simply there when he comes. */
+const ATTEND_POP_M = 30;
+/** The roles that may come by omnibus (onlookers; never the men for hire, the chain or the leads). */
+const TRAM_ROLES = new Set(["crowd", "guests", "mourners", "children"]);
 
 const hash01 = (s: string) => {
   let h = 2166136261;
@@ -46,7 +64,11 @@ const PLAYS: Record<string, InstrumentKind> = { organ_grinder: "organ", fiddler:
 const SIDE_BY_SIDE = 14;
 /** A scuffle, in real seconds once the two stand face to face: words, then pushing and shoving. */
 const SCUFFLE_WORDS_S = 5;
-const SCUFFLE_SHOVE_S = 12;
+const SCUFFLE_SHOVE_S = 14;
+/** The agent parts them only after this much shoving (real seconds). */
+const SCUFFLE_SHOVE_MIN_S = 8;
+/** A scuffle's two start at once when they have not met at their meeting point after this long (real seconds). */
+const SCUFFLE_MEET_S = 8;
 
 interface Run {
   a: PublicAction;
@@ -75,6 +97,9 @@ interface Run {
   said?: Set<string>;
   /** M4b: a scene's walk issued (the thief's run, the agent's chase). */
   sceneGo?: number;
+  /** Attend: the next try to step into the street near the event, and where (fixes 2026-09-24). */
+  claimT?: number;
+  out?: { x: number; z: number };
 }
 
 export class Actions {
@@ -101,6 +126,8 @@ export class Actions {
   /** A robbery's lift happened (this.clock), by event. */
   private lifted = new Map<number, number>();
   private faceToFace = new Map<number, { t: number; x: number; z: number }>();
+  /** A scuffle's meeting point by event: a free spot by their middle, the line between them, when it was set. */
+  private meetAt = new Map<number, { x: number; z: number; ux: number; uz: number; since: number }>();
   /** Set by main: show a line (a scene's shout) as a bubble. */
   showLines: (c: Convo) => void = () => {};
 
@@ -192,6 +219,8 @@ export class Actions {
     for (const a of p.actions) {
       seen.add(a.id);
       const had = this.runs.get(a.id);
+      // sent on to a new place (the hiring's men to the tavern): report arriving there too
+      if (had && a.kind === "attend" && had.a.phase !== "going" && a.phase === "going") had.reported = false;
       if (had) had.a = a;
       else this.runs.set(a.id, { a, p: null, goT: 0, lostT: 0, stuckT: 0, bestD: Infinity, reported: false, wait: 0, other: null });
     }
@@ -243,17 +272,125 @@ export class Actions {
   private ensure(r: Run, toward: { x: number; z: number } | null, dt: number, range: number): Puppet | null {
     const pos = this.town.position(r.a.npc);
     const d = pos ? this.jefD(pos.x, pos.z) : Infinity;
+    if (r.a.kind === "attend" && toward) return this.ensureAttend(r, toward, pos, d, dt, range);
     // a guest on the way to a gathering Jef can see: they step out of sight close to it, not across town
-    const guest = r.a.kind === "attend" && toward && this.jefD(toward.x, toward.z) < range;
-    if (d > range && !guest) {
+    if (d > range) {
       r.p = null;
       // M6 transport: unseen, at the pace of the way they go (their own velocipede, if it is at home)
       if (toward) this.town.moveHidden(r.a.npc, toward.x, toward.z, dt, this.town.hiddenPace(r.a.npc, toward.x, toward.z));
       return null;
     }
-    const p = guest && d > range ? this.town.claimNear(r.a.npc, toward!, 12) : this.town.claimNear(r.a.npc, { x: this.player.x, z: this.player.z });
+    const p = this.town.claimNear(r.a.npc, { x: this.player.x, z: this.player.z });
     r.p = p;
     return p;
+  }
+
+  /**
+   * Coming to an event (fixes 2026-09-24). Unseen they cross town in ATTEND_HIDDEN_S; near it
+   * they step into the street out of Jef's sight, a ring further out each try (never stuck
+   * unseen for good, as the Hessenatie's men and the ballad's listeners were); unseen at their
+   * own place with Jef still far off, they are simply standing there when he comes.
+   */
+  private ensureAttend(r: Run, toward: { x: number; z: number }, pos: { x: number; z: number; shown: boolean } | null, d: number, dt: number, range: number): Puppet | null {
+    const id = r.a.npc;
+    const toGoal = pos ? Math.hypot(pos.x - toward.x, pos.z - toward.z) : Infinity;
+    const jefToGoal = this.jefD(toward.x, toward.z);
+    const pace = Math.max(this.town.hiddenPace(id, toward.x, toward.z), (Number.isFinite(toGoal) ? toGoal : 0) / ATTEND_HIDDEN_S);
+    // far from Jef, going somewhere he cannot see: on unseen, quickly
+    if (d > range && jefToGoal >= range) {
+      r.p = null;
+      this.town.moveHidden(id, toward.x, toward.z, dt, pace);
+      return null;
+    }
+    // in the street already: walked there, on the walk grid round Jef (one standing far off it
+    // cannot find a way: the ballad singer stood at the Steenplein all morning; moveHidden
+    // takes such a one out of the street and on unseen)
+    const have = this.town.puppet(id);
+    if (have && this.crowd.alive(have)) {
+      // out of sight and far from the place: on unseen, and out again near it
+      const left = Math.hypot(have.x - toward.x, have.z - toward.z);
+      if (!have.shown && left > HIDE_AWAY_M && this.jefD(have.x, have.z) > 12 && this.town.hideAway(id)) {
+        r.p = null;
+        r.claimT = CLAIM_RETRY_S;
+        return null;
+      }
+      if (d > range && !this.crowd.onGrid(have.x, have.z)) this.town.moveHidden(id, toward.x, toward.z, dt, pace);
+      else {
+        r.p = this.town.claim(id);
+        return r.p;
+      }
+    }
+    r.p = null;
+    if (!pos) {
+      // indoors: out of the door first
+      this.town.moveHidden(id, toward.x, toward.z, dt, pace);
+      return null;
+    }
+    r.claimT = (r.claimT ?? 0) - dt;
+    // Jef is not by the place: to it unseen, and simply there (they step out at their own place
+    // while he is still 30 m or more from them)
+    if (jefToGoal > ATTEND_POP_M) {
+      if (toGoal > 0.5) this.town.moveHidden(id, toward.x, toward.z, dt, pace);
+      if (toGoal < 3 && r.claimT <= 0) {
+        r.claimT = CLAIM_RETRY_S;
+        const p = d > ATTEND_POP_M ? this.town.claim(id, this.crowd.openNear(pos.x, pos.z) ?? pos) : this.town.claimNear(id, toward, 12) ?? this.town.claimNear(id, toward, 30);
+        if (p) return (r.p = p);
+      }
+      return null;
+    }
+    // Jef is by the place: they step out of his sight on their own way to it, 6 to 40 m of walk
+    // before it (not behind a block of houses, as the ring did: the Hessenatie's men came out
+    // behind the warehouses and walked round the block too late for the call)
+    if (toGoal > 45) {
+      this.town.moveHidden(id, toward.x, toward.z, dt, pace);
+      return null;
+    }
+    if (r.claimT <= 0) {
+      r.claimT = CLAIM_RETRY_S;
+      const out = r.out && this.crowd.isHidden(r.out.x, r.out.z) ? r.out : this.stepOut(pos, toward);
+      r.out = out ?? undefined;
+      if (out && Math.hypot(pos.x - out.x, pos.z - out.z) < 1.2) {
+        const p = this.town.claim(id, out);
+        if (p) {
+          r.out = undefined;
+          return (r.p = p);
+        }
+      }
+      if (!out) {
+        // no way on the walk grid out of his sight: out of sight near the place (a ring further out each time), else near him
+        const p = this.town.claimNear(id, toward, 12) ?? this.town.claimNear(id, toward, 30) ?? (d <= range ? this.town.claimNear(id, { x: this.player.x, z: this.player.z }) : null);
+        if (p) return (r.p = p);
+      }
+    }
+    if (r.out) this.town.moveHidden(id, r.out.x, r.out.z, dt, Math.max(pace, 6));
+    else if (toGoal > 13.5) {
+      const L = toGoal || 1;
+      this.town.moveHidden(id, toward.x + ((pos.x - toward.x) / L) * 13, toward.z + ((pos.z - toward.z) / L) * 13, dt, pace);
+    }
+    return null;
+  }
+
+  /** A point on the walk from `from` to the place, 6 to 40 m of walk before it, out of Jef's sight and free to stand on. */
+  private stepOut(from: { x: number; z: number }, to: { x: number; z: number }): { x: number; z: number } | null {
+    const path = this.crowd.pathOn(from.x, from.z, to.x, to.z);
+    const start = this.crowd.openNear(from.x, from.z);
+    if (!path?.length || !start) return null;
+    const pts = [start, ...path];
+    let acc = 0;
+    for (let i = pts.length - 1; i > 0; i--) {
+      const b = pts[i];
+      const a = pts[i - 1];
+      const L = Math.hypot(b.x - a.x, b.z - a.z);
+      for (let t = 0; t < L; t += 1) {
+        const dd = acc + t;
+        if (dd > 40) return null;
+        const x = b.x + ((a.x - b.x) * t) / (L || 1);
+        const z = b.z + ((a.z - b.z) * t) / (L || 1);
+        if (dd >= 6 && this.crowd.isHidden(x, z) && this.crowd.canStand(x, z) && this.world.isFree(x, z, 0.3)) return { x, z };
+      }
+      acc += L;
+    }
+    return null;
   }
 
   private go(r: Run, p: Puppet, x: number, z: number, pace: number, every = 0.45): void {
@@ -261,6 +398,22 @@ export class Actions {
     if (r.goT > 0) return;
     r.goT = every;
     this.crowd.puppetGo(p, x, z, pace);
+  }
+
+  /** A puppet standing where nobody can stand (the walk map's colliders): a step to the nearest free spot (2 m at most). */
+  private unwedge(p: Puppet): boolean {
+    if (this.world.isFree(p.x, p.z, 0.3)) return false;
+    for (let rr = 0.5; rr <= 2; rr += 0.5)
+      for (let k = 0; k < 8; k++) {
+        const x = p.x + Math.cos((k / 8) * Math.PI * 2) * rr;
+        const z = p.z + Math.sin((k / 8) * Math.PI * 2) * rr;
+        if (this.world.isFree(x, z, 0.3) && this.crowd.canStand(x, z)) {
+          p.x = x;
+          p.z = z;
+          return true;
+        }
+      }
+    return false;
   }
 
   private stuck(r: Run, d: number, dt: number, limit = STUCK_S): boolean {
@@ -374,7 +527,9 @@ export class Actions {
     if ((a.role as string) === "chain") return (r.how = "run");
     const h = hash01(`${a.npc}:${a.event_id}`);
     const pos = this.town.position(a.npc);
-    const far = !pos || Math.hypot(pos.x - tx, pos.z - tz) > TRAM_FROM_M;
+    // (fixes 2026-09-24: someone indoors counted as far, and the dawn hiring's men waited for an
+    // omnibus at dawn; only onlookers take it, and only from far)
+    const far = !!pos && Math.hypot(pos.x - tx, pos.z - tz) > TRAM_FROM_M && TRAM_ROLES.has(a.role as string) && !a.lead;
     let stop: OmnibusStop | null = null;
     let best = TRAM_STOP_M;
     for (const s of OMNIBUS_STOPS) {
@@ -426,7 +581,7 @@ export class Actions {
           this.town.setAboard(id, true);
         }
       }
-      if (r.tramT > TRAM_WAIT_S * 2.5) r.how = "walk"; // no omnibus came: they walk after all
+      if (r.tramT > Math.min(TRAM_WAIT_S * 2.5, TRAM_EVENT_WAIT_S)) r.how = "walk"; // no omnibus came: they walk after all
       return null;
     }
     // riding: where the omnibus goes, until they step off at the stop
@@ -514,7 +669,7 @@ export class Actions {
     const d = Math.hypot(p.x - gx, p.z - gz);
     if (d > 1.6) {
       r.playing = false;
-      const pace = !attend ? 1.5 : a.phase === "procession" ? 0.95 : d <= 6 ? 1.1 : r.how === "run" ? 2.5 : 1.45;
+      const pace = !attend ? 1.5 : a.phase === "procession" ? 0.95 : d <= 6 ? 1.1 : r.how === "run" ? 2.5 : d > 15 ? 1.75 : 1.45;
       // gave up on the way after several tries: they stand where they are (once), and look on from
       // there, until the event moves on (a procession starts: a new way)
       if (r.gaveUp && (r as Run & { gavePhase?: string }).gavePhase !== a.phase) {
@@ -523,9 +678,14 @@ export class Actions {
       }
       if (attend && r.gaveUp) return;
       this.go(r, p, gx, gz, pace, attend ? 0.9 : 0.6);
-      if (this.stuck(r, d, dt, attend ? 20 : STUCK_S)) {
+      if (this.stuck(r, d, dt, attend ? ATTEND_STUCK_S : STUCK_S)) {
         if (!attend) void this.report(r, "blocked", { why: "wall" });
-        else {
+        else if (this.unwedge(p)) {
+          // stood in something (a doorstep, a cart put down beside them): a step out, and on again
+          r.stuckT = 0;
+          r.bestD = Infinity;
+          r.goT = 0;
+        } else {
           // a new way: to an open point beside the goal, a little further round each time; after four, stand
           r.replans = (r.replans ?? 0) + 1;
           r.stuckT = 0;
@@ -546,6 +706,8 @@ export class Actions {
       return;
     }
     if (!attend) return void this.report(r, "arrived");
+    // at their place: "there" on the server (it no longer says "going" all through the event)
+    if (a.phase === "going" && !r.reported) void this.report(r, "arrived");
     const c = this.events.centreOf(a.event_id);
     // a street musician: in the middle, facing out to the crowd, playing (Steve: "no musicians visible")
     if (a.role === "musicians" || (a.lead && PLAYS[a.lead])) {
@@ -693,6 +855,36 @@ export class Actions {
 
   // ------------------------------------------------------------------ M4b: the scenes (no combat)
 
+  /**
+   * Where a scuffle's two meet: a free spot near the middle of the two (toward the event's centre
+   * if the middle is taken, a stall say), with room for both, and the line from a to b.
+   */
+  private meetingPoint(pa: { x: number; z: number }, pb: { x: number; z: number }, c: { x: number; z: number }): { x: number; z: number; ux: number; uz: number } {
+    let ux = pb.x - pa.x;
+    let uz = pb.z - pa.z;
+    const L = Math.hypot(ux, uz);
+    if (L < 0.2) {
+      ux = 1;
+      uz = 0;
+    } else {
+      ux /= L;
+      uz /= L;
+    }
+    const mid = { x: (pa.x + pb.x) / 2, z: (pa.z + pb.z) / 2 };
+    const ok = (x: number, z: number) => this.world.isFree(x - ux * 0.6, z - uz * 0.6, 0.25) && this.world.isFree(x + ux * 0.6, z + uz * 0.6, 0.25) && this.crowd.canStand(x, z);
+    for (const t of [0, 0.3, 0.6, 1]) {
+      const x = mid.x + (c.x - mid.x) * t;
+      const z = mid.z + (c.z - mid.z) * t;
+      for (let rr = 0; rr <= 2; rr += 0.5)
+        for (let k = 0; k < (rr ? 8 : 1); k++) {
+          const qx = x + Math.cos((k / 8) * Math.PI * 2) * rr;
+          const qz = z + Math.sin((k / 8) * Math.PI * 2) * rr;
+          if (ok(qx, qz)) return { x: qx, z: qz, ux, uz };
+        }
+    }
+    return { ...mid, ux, uz };
+  }
+
   /** A line from the engine's scene, once, as a bubble over the speaker. */
   private sayOnce(r: Run, key: string, who: string | null, text: string | undefined): void {
     if (!who || !text) return;
@@ -726,10 +918,21 @@ export class Actions {
       const pa = pos(sc.a);
       const pb = pos(sc.b);
       const key = a.event_id ?? 0;
-      if (pa && pb && Math.hypot(pa.x - pb.x, pa.z - pb.z) < 3 && !this.faceToFace.has(key)) this.faceToFace.set(key, { t: this.clock, x: (pa.x + pb.x) / 2, z: (pa.z + pb.z) / 2 });
+      // (fixes 2026-09-24: they stood 3.3 m apart all through, the old test wanted 3, and walking at
+      // each other's feet got nowhere round a stall) they walk to a meeting point, a free spot by
+      // the middle, each to his own side of it; face to face when both are there, or near enough
+      // each other, or after SCUFFLE_MEET_S (then the shoving steps them in)
+      if (pa && pb && !this.meetAt.has(key)) this.meetAt.set(key, { ...this.meetingPoint(pa, pb, c), since: this.clock });
+      const mp = this.meetAt.get(key);
+      if (pa && pb && mp && !this.faceToFace.has(key)) {
+        const gap = Math.hypot(pa.x - pb.x, pa.z - pb.z);
+        const there = (q: { x: number; z: number }, sign: number) => Math.hypot(q.x - (mp.x - sign * mp.ux * 0.6), q.z - (mp.z - sign * mp.uz * 0.6)) < 0.9;
+        if (gap < 1.9 || (there(pa, 1) && there(pb, -1)) || (this.clock - mp.since > SCUFFLE_MEET_S && gap < 8)) this.faceToFace.set(key, { t: this.clock, x: mp.x, z: mp.z });
+      }
       const met = this.faceToFace.get(key);
       const since = met ? this.clock - met.t : -1;
-      const parted = t >= 0.97 || since > SCUFFLE_WORDS_S + SCUFFLE_SHOVE_S || (agentThere && since > SCUFFLE_WORDS_S + 4);
+      // (the agent parts them after some shoving, not at once: fixes 2026-09-24)
+      const parted = t >= 0.97 || since > SCUFFLE_WORDS_S + SCUFFLE_SHOVE_S || (agentThere && since > SCUFFLE_WORDS_S + SCUFFLE_SHOVE_MIN_S);
       if (me === sc.agent) {
         // the agent comes at a run once the shoving starts, and stands between them
         const d = Math.hypot(p.x - spot.x, p.z - spot.z);
@@ -754,8 +957,11 @@ export class Actions {
       const uz = dz / L;
       const face = Math.atan2(o.x - p.x, o.z - p.z);
       if (since < 0 && !parted) {
-        // not face to face yet: go up to the other one
-        if (Math.hypot(p.x - o.x, p.z - o.z) > 1.6) this.go(r, p, o.x, o.z, 1.5, 0.8);
+        // not face to face yet: up to my side of the meeting point, hands already going
+        const sign = me === sc.a ? 1 : -1;
+        const gx = mp ? mp.x - sign * mp.ux * 0.6 : o.x;
+        const gz = mp ? mp.z - sign * mp.uz * 0.6 : o.z;
+        if (Math.hypot(p.x - gx, p.z - gz) > 0.5) this.go(r, p, gx, gz, 1.5, 0.8);
         else if (this.crowd.puppetBusy(p) || (r.wait -= dt) <= 0) {
           this.crowd.puppetStand(p, "talk", face);
           r.wait = 1;
@@ -778,40 +984,56 @@ export class Actions {
         return;
       }
       if (since < SCUFFLE_WORDS_S) {
-        // words first: face to face, hands going
+        // words first: face to face, hands going (up to my side of the middle first, if not there)
         lean(0);
+        const sg = me === sc.a ? 1 : -1;
+        const mx = (met?.x ?? p.x) - sg * (mp?.ux ?? ux) * 0.6;
+        const mz = (met?.z ?? p.z) - sg * (mp?.uz ?? uz) * 0.6;
+        if (Math.hypot(p.x - mx, p.z - mz) > 0.6) {
+          this.go(r, p, mx, mz, 1.6, 0.6);
+          return;
+        }
         if (this.crowd.puppetBusy(p) || (r.wait -= dt) <= 0 || p.pmotion !== "talk") {
           this.crowd.puppetStand(p, "talk", face);
           r.wait = 2;
         }
         return;
       }
-      // pushing and shoving: turn about, a lunge half a pace in and a stagger back, never a blow
-      if (this.crowd.puppetBusy(p) || p.pmotion !== "idle") this.crowd.puppetStand(p, "idle", face);
+      // pushing and shoving: a lunge in with both hands and a stagger back, turn about, never a
+      // blow (fixes 2026-09-24: bigger, so a picture shows it; the shover's arms go)
       p.yaw = face;
       const cycle = Math.floor(this.clock / 1.5);
       const u = (this.clock % 1.5) / 1.5;
       const shover = (cycle % 3 === 2) === (sc.wrong === sc.a) ? sc.b : sc.a;
       const iShove = me === shover;
+      const want = iShove && u < 0.5 ? "talk" : "idle";
+      if (this.crowd.puppetBusy(p) || p.pmotion !== want) this.crowd.puppetStand(p, want, face);
       let off = 0;
       let tilt = 0;
       if (iShove) {
-        const k = u < 0.3 ? Math.sin((u / 0.3) * Math.PI) : 0;
-        off = 0.35 * k;
-        tilt = 0.3 * k;
+        const k = u < 0.35 ? Math.sin((u / 0.35) * Math.PI) : 0;
+        off = 0.5 * k;
+        tilt = 0.38 * k;
       } else {
-        const k = u > 0.15 && u < 0.6 ? Math.sin(((u - 0.15) / 0.45) * Math.PI) : 0;
-        off = -0.45 * k;
-        tilt = -0.22 * k;
+        const k = u > 0.15 && u < 0.65 ? Math.sin(((u - 0.15) / 0.5) * Math.PI) : 0;
+        off = -0.65 * k;
+        tilt = -0.3 * k;
       }
-      // my side of the middle, 0.55 m from it, moved in or out along the line between us
+      // my side of the middle, 0.55 m from it, moved in or out along the line between us (stepped
+      // in from where they stood, a little each frame, when the meeting point was not reached)
       const mid = met ?? { x: (p.x + o.x) / 2, z: (p.z + o.z) / 2 };
-      const base = { x: mid.x - ux * 0.55, z: mid.z - uz * 0.55 };
-      const nx = base.x + ux * off;
-      const nz = base.z + uz * off;
-      if (this.world.isFree(nx, nz, 0.2)) {
-        p.x = nx;
-        p.z = nz;
+      const mu = mp ? { x: mp.ux, z: mp.uz } : { x: ux, z: uz };
+      const sign = me === sc.a ? 1 : -1;
+      const base = { x: mid.x - sign * mu.x * 0.55, z: mid.z - sign * mu.z * 0.55 };
+      const nx = base.x + sign * mu.x * off;
+      const nz = base.z + sign * mu.z * off;
+      const far = Math.hypot(nx - p.x, nz - p.z);
+      const step = far > 0.8 ? Math.min(far, 2.2 * dt) / far : 1;
+      const sx = p.x + (nx - p.x) * step;
+      const sz = p.z + (nz - p.z) * step;
+      if (this.world.isFree(sx, sz, 0.2)) {
+        p.x = sx;
+        p.z = sz;
       }
       lean(tilt);
       return;

@@ -78,7 +78,8 @@ export const HIRING_PLAN_FROM = 4.5;
  * the template's own limit: a late plan starts at once.
  */
 export const HIRING_PLAN_UNTIL = 7;
-export const HIRING_START = 5.5;
+/** The men gather from 5:00 (fixes 2026-09-24; was 5:30), the call about 6:20 (the template's 80 minutes). */
+export const HIRING_START = 5;
 export const HIRE_MEN_PER_SPOT = 16;
 export { HIRING_CALLS_PER_DAY } from "../config.ts";
 /** Jef must stand this near the foreman to be seen at the call. */
