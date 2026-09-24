@@ -20,16 +20,16 @@ import { walkMap } from "./walkmap.ts";
 // his name, family, home, stats and memories stay. No new house is taken (the homes helper
 // rents houses out). Runs once per version (world_state 'townlife_lamps').
 
-/** The six gas lamps of the Rijnkaai quay (world/rijnkaai.ts lampSpots, as built; z is set back from the edge there). */
+/** The six gas lamps of the Rijnkaai quay (world/rijnkaai.ts lampSpots, where they stand as built). */
 export const QUAY_LAMPS: RPt[] = [
-  [-48, 3.4],
-  [-30, 3.4],
+  [-48, 2.2],
+  [-30, 2.2],
   [-10, 20.4],
-  [4, 3.4],
-  [24, 3.4],
+  [4, 2.2],
+  [24, 2.2],
   [44, 19.8],
 ];
-export const LAMPS_VERSION = 2;
+export const LAMPS_VERSION = 3;
 const STATE_KEY = "townlife_lamps";
 
 export interface LampRounds {

@@ -76,6 +76,15 @@ export const HOME_CALLS_PER_DAY = 2;
  */
 export const IDEAS_CALLS_PER_DAY = 4;
 /**
+ * M6 landmark interiors (landmarks/confession.ts): the priest's answer in the confessional, in
+ * the model's words (advice and humour only; the penance is the engine's). Out of what was left,
+ * never the reserve; when the share is gone the engine answers. 6 are left for the board, the
+ * outcomes, the named people and the epilogue.
+ */
+export const CONFESSION_CALLS_PER_DAY = 2;
+/** M6 town life: the natie foreman's call at the dawn hiring (director/hiring.ts), one a working morning. */
+export const HIRING_CALLS_PER_DAY = 1;
+/**
  * M4b (Steve, 2026-09-24: "events should gather up to 100 people"): the most townspeople one
  * event may take, leads included, and the most one gathering stage may call. The director may
  * ask for up to this; the engine clamps it. The town has about 218 residents.

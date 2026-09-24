@@ -107,6 +107,12 @@ function sootTexture(): THREE.Texture {
   c.height = 128;
   const g = c.getContext("2d")!;
   g.clearRect(0, 0, 64, 128);
+  // the whole front dulled by the smoke, darkest high up
+  const base = g.createLinearGradient(0, 128, 0, 0);
+  base.addColorStop(0, "rgba(10,8,6,0.12)");
+  base.addColorStop(1, "rgba(10,8,6,0.5)");
+  g.fillStyle = base;
+  g.fillRect(0, 0, 64, 128);
   let s = 7;
   const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
   // a plume up from each window column and over the top
@@ -117,14 +123,14 @@ function sootTexture(): THREE.Texture {
       const len = 20 + r() * 50;
       const grd = g.createLinearGradient(0, y0, 0, y0 - len);
       grd.addColorStop(0, "rgba(10,8,6,0)");
-      grd.addColorStop(0.3, `rgba(12,10,8,${0.18 + r() * 0.2})`);
-      grd.addColorStop(1, "rgba(10,8,6,0.05)");
+      grd.addColorStop(0.3, `rgba(12,10,8,${0.4 + r() * 0.3})`);
+      grd.addColorStop(1, "rgba(10,8,6,0.15)");
       g.fillStyle = grd;
       g.fillRect(x - 2 - r() * 3, y0 - len, 4 + r() * 5, len);
     }
   }
   const top = g.createLinearGradient(0, 0, 0, 50);
-  top.addColorStop(0, "rgba(8,6,5,0.75)");
+  top.addColorStop(0, "rgba(8,6,5,0.95)");
   top.addColorStop(1, "rgba(8,6,5,0)");
   g.fillStyle = top;
   g.fillRect(0, 0, 64, 50);
@@ -160,8 +166,8 @@ export class TownLife {
     private readonly events: Events,
   ) {
     this.lamplighters = new Lamplighters(town, crowd, world.gasLamps);
-    const bucketMat = psx(new THREE.MeshLambertMaterial({ color: 0x5e4028 }));
-    this.buckets = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.13, 0.1, 0.28, 7), bucketMat, 64);
+    const bucketMat = psx(new THREE.MeshLambertMaterial({ color: 0x9a7448 }));
+    this.buckets = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.16, 0.12, 0.32, 7), bucketMat, 64);
     this.buckets.count = 0;
     this.buckets.frustumCulled = false;
     this.buckets.name = "chain_buckets";

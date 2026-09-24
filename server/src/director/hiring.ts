@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { DB } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
-import { CALLS_PER_DAY, CALLS_RESERVE } from "../config.ts";
+import { CALLS_PER_DAY, CALLS_RESERVE, HIRING_CALLS_PER_DAY } from "../config.ts";
 import { clock, WEATHER_TEXT } from "../day.ts";
 import { ALL_EMPLOYERS, SYSTEM, clampBoard, maxTier, taskFor, type Board } from "../hooks/jobBoard.ts";
 import { remember } from "../npcs.ts";
@@ -75,7 +75,7 @@ export const HIRING_PLAN_FROM = 4.5;
 export const HIRING_PLAN_UNTIL = 6.25;
 export const HIRING_START = 5.5;
 export const HIRE_MEN_PER_SPOT = 16;
-export const HIRING_CALLS_PER_DAY = 1;
+export { HIRING_CALLS_PER_DAY } from "../config.ts";
 /** Jef must stand this near the foreman to be seen at the call. */
 export const HIRE_STAND_M = 12;
 export const HIRE_PAY_C = 150;
