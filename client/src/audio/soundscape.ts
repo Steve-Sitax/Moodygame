@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { Organ } from "./organ";
+import { singPhrase, type Note } from "./ballad";
 import type { Surface } from "../world/rijnkaai";
 import { water } from "../world/tide";
 import { cartRoutes, cityEmitters, nearestQuay, overWater, type Emitter, type EmitterKind } from "./emitters";
@@ -1154,6 +1155,25 @@ export class Soundscape {
     osc.stop(t + 0.1);
     breath.stop(t + 0.1);
     osc.onended = () => this.dropSpot(spot);
+  }
+
+  /**
+   * M6 ballads: a line of a ballad, sung (audio/ballad.ts): the tune's notes, a beat each, from a
+   * voice made in code at a point, louder than talk and carrying further (reach 55 m).
+   * Indoors (a tavern) run it through indoors(). Returns the seconds it lasts.
+   */
+  sing(at: { x: number; z: number }, voice: { sex: "m" | "f"; age: number }, notes: Note[], beat: number): number {
+    const ctx = this.ctx;
+    const spot = this.spot({ x: at.x, z: at.z, y: 1.6 }, 3, 1.1, 55, 0.3);
+    const out = ctx.createGain();
+    out.gain.value = 0.2;
+    out.connect(spot.fog);
+    const child = voice.age < 13;
+    const f0 = (child ? 262 : voice.sex === "f" ? 220 : 131) * (voice.age >= 60 ? 0.94 : 1);
+    const t0 = ctx.currentTime + 0.03;
+    const end = singPhrase(ctx, out, this.noise, { f0, formant: child ? 1.3 : voice.sex === "f" ? 1.15 : 1, notes, beat, t0 }, () => this.dropSpot(spot));
+    this.log("ballad line");
+    return end - t0;
   }
 
   /**

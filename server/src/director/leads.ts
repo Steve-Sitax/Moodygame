@@ -18,9 +18,9 @@ import { BEARERS, LEAD_LABEL, LEADS_PER_STAGE, type LeadRole } from "./vocab.ts"
  * M6 town life: leads the ENGINE casts itself, never named by the model (they are not in the
  * director's schema): the firemen at a house fire and the natie foreman at the dawn hiring.
  */
-export type EngineLeadRole = "fireman" | "natie_foreman";
+export type EngineLeadRole = "fireman" | "natie_foreman" | "ballad_singer";
 export type AnyLeadRole = LeadRole | EngineLeadRole;
-export const ENGINE_LEAD_LABEL: Record<EngineLeadRole, string> = { fireman: "the firemen", natie_foreman: "the natie foreman" };
+export const ENGINE_LEAD_LABEL: Record<EngineLeadRole, string> = { fireman: "the firemen", natie_foreman: "the natie foreman", ballad_singer: "the ballad singer" };
 /** What a role is called in a line: the director's roles and the engine's own. */
 export const labelOf = (role: AnyLeadRole): string => (role in ENGINE_LEAD_LABEL ? ENGINE_LEAD_LABEL[role as EngineLeadRole] : LEAD_LABEL[role as LeadRole]) ?? "someone";
 

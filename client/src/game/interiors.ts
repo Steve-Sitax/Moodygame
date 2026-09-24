@@ -41,6 +41,8 @@ interface Line {
   who: string;
   name: string;
   text: string;
+  /** M6 ballads: how long this line stays up (a sung line lasts its tune). */
+  secs?: number;
 }
 
 const HEAD_STAND = 1.78;
@@ -77,7 +79,7 @@ export class Interiors {
   private tipsyTarget = 0;
   private tipsyT = 0;
   private swayT = 0;
-  private script: { lines: Line[]; i: number; t: number; tag: HTMLDivElement | null; onLine?: (l: Line) => void; onEnd?: () => void } | null = null;
+  private script: { lines: Line[]; i: number; t: number; tag: HTMLDivElement | null; onLine?: (l: Line) => void; onEnd?: () => void; sung?: boolean } | null = null;
   private readonly fadeEl = document.createElement("div");
   private readonly caption = document.createElement("div");
   private readonly dice = new DicePanel();
@@ -96,6 +98,8 @@ export class Interiors {
   /** M6 landmark interiors (game/landmarks.ts): the keys inside a landmark, and which seats its people hold. */
   landmarkKeys: ((x: number, z: number) => { options: Array<[number, Action]>; extra: Action[] }) | null = null;
   seatBusy: ((s: Seat) => boolean) | null = null;
+  /** M6 ballads (game/ballads.ts): keys in a tavern besides the counter, the fire and the people (buy a ballad sheet). */
+  tavernKeys: ((x: number, z: number) => { options: Array<[number, Action]>; extra: Action[] }) | null = null;
   /** Jef sat down or stood up (the landmarks: the chair money at mass). */
   onSeat: (s: Seat | null) => void = () => {};
 
@@ -250,6 +254,11 @@ export class Interiors {
       const lk = this.landmarkKeys(w.x, w.z);
       opts.push(...lk.options);
       extra.push(...lk.extra);
+    }
+    if (room.kind === "tavern" && this.tavernKeys) {
+      const tk = this.tavernKeys(w.x, w.z);
+      opts.push(...tk.options);
+      extra.push(...tk.extra);
     }
     let best: Seat | null = null;
     let bd = 0.85;
@@ -481,7 +490,8 @@ export class Interiors {
   /** A seat for those who can sit (by id, so the same man takes the same place), else a place to stand. */
   private place(o: Occ): void {
     const room = this.room!;
-    const sitter = !STANDERS.has(o.kind) && (room.kind === "cellar" || o.p.age >= 16);
+    // M6 ballads: a guest who stands to sing (the ballad singer) takes no seat
+    const sitter = !o.p.stand && !STANDERS.has(o.kind) && (room.kind === "cellar" || o.p.age >= 16);
     const h = hash(o.p.id);
     if (sitter) {
       // in the cellar the children sit in front
@@ -705,6 +715,32 @@ export class Interiors {
     this.script = { lines, i: -1, t: 0, tag: null, onLine, onEnd };
   }
 
+  /**
+   * M6 ballads: someone in the room sings (game/ballads.ts): the lines over their head, each for
+   * its own time; the tune is played by `onLine`, so no murmur of speech. False if they are not here.
+   */
+  sing(who: string, lines: Line[], onLine: (l: Line) => void, onEnd?: () => void): boolean {
+    if (!this.room || !this.occ.has(who) || this.script) return false;
+    this.play(lines, onLine, onEnd);
+    this.script!.sung = true;
+    return true;
+  }
+
+  /** M6 ballads: is someone singing or talking in the room now? */
+  get scriptBusy(): boolean {
+    return this.script !== null;
+  }
+
+  /** M6 ballads: where someone in the room stands (world metres) and their voice; null if not here. */
+  personAt(who: string): { x: number; z: number; voice: { sex: "m" | "f"; age: number }; dist: number } | null {
+    const o = this.occ.get(who);
+    const room = this.room;
+    if (!o || !room || o.gone || o.leaving) return null;
+    const at = room.toWorld(o.x, o.z);
+    const w = this.player.rideWalk;
+    return { x: at.x, z: at.z, voice: { sex: o.p.sex, age: o.p.age }, dist: w ? Math.hypot(o.x - w.x, o.z - w.z) : 99 };
+  }
+
   private endScript(): void {
     this.script?.tag?.remove();
     this.script = null;
@@ -738,7 +774,7 @@ export class Interiors {
         return;
       }
       const l = s.lines[s.i];
-      s.t = Math.min(5.5, 2.6 + l.text.length / 38);
+      s.t = l.secs ?? Math.min(5.5, 2.6 + l.text.length / 38);
       if (!s.tag) {
         s.tag = document.createElement("div");
         s.tag.className = "bubble";
@@ -747,7 +783,7 @@ export class Interiors {
       s.tag.innerHTML = `<b>${esc(l.name)}</b>${esc(l.text)}`;
       s.onLine?.(l);
       const h = this.headOf(l.who);
-      if (h) {
+      if (h && !s.sung) {
         const at = this.room.toWorld(h.local.x, h.local.z);
         this.speak({ x: at.x, z: at.z }, h.voice, Math.min(s.t - 0.4, 4));
       }

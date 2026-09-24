@@ -33,6 +33,7 @@ import { mountEmigrants } from "./town/emigrantRoutes.ts";
 import { mountLandmarks } from "./landmarks/routes.ts";
 import { mountPopulation } from "./town/popsettings.ts";
 import { mountHaggle } from "./town/haggleRoutes.ts";
+import { mountBallads } from "./ballads/routes.ts";
 
 const db = openDb(DB_FILE);
 const app = new Hono();
@@ -62,6 +63,8 @@ mountHomes(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(
 mountTownLife(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 // M6: inside the landmarks (the cathedral, the town hall, the Vleeshuis, the Steen, the Oostershuis) and the confessional (landmarks/)
 mountLandmarks(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
+// M6: the ballad singer at the corners and in a tavern, and the Sunday sermon (ballads/)
+mountBallads(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 // M6: haggling in your own words, and talking your way out with the police over a complaint (town/haggle.ts, storyWord.ts)
 mountHaggle(app, { db, payload: () => jobsPayload() });
 

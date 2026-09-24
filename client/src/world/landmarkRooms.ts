@@ -580,6 +580,9 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
     penitent,
     stand: STAND,
     pulpit: { x: PX, z: PZ, yaw: Math.PI / 2, y: 2.4 },
+    // M6 sermon: the preacher waits at the foot of the pulpit's stair during high mass, then climbs
+    preacherWait: { x: PX - 0.3, z: PZ - 2.3, yaw: Math.PI / 2 },
+    pulpitFoot: { x: PX - 0.45, z: PZ - 1.35, yaw: 0 },
     door: { x: 0, z: 1.6, yaw: 0 },
   };
   const sets: Record<string, Mark[]> = {

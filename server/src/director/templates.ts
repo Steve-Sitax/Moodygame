@@ -204,6 +204,21 @@ export const TEMPLATES: Template[] = [
     oncePerDay: true,
     routine: true,
   },
+  // M6 ballads: the ballad singer at a busy corner, morning and afternoon (ballads/ballad.ts); the
+  // engine plans it, casts the singer and gathers a small crowd; the town's routine, not an event
+  {
+    id: "ballad",
+    title: "The ballad singer",
+    place: "grote_markt",
+    stages: [stage({ op: "gather", minutes: 180, role: "crowd", count: 10, sound: "none", mood: "lively" })],
+    acts: ["ballad_sing"],
+    notice: "",
+    rumour: "",
+    fits: (_d, h) => h >= 9 && h < 17,
+    weight: 0,
+    oncePerDay: false,
+    routine: true,
+  },
 ];
 
 /** The town's routine templates (not counted as the day's events). */

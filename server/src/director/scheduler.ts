@@ -20,6 +20,7 @@ import { cleanLeads, fillNames, leadLine, leadSpot, namesIn, pickLeads, type Lea
 import { applyScene, resolveScene, sceneForClient, type Scene } from "./scenes.ts";
 import { fireEnd, fireForClient, fireGapWhy, pickFireHouse, runFireAct, type FireScene } from "./fire.ts";
 import { hiringEnd, hiringForClient, hiringTick, runHiringAct, type HiringScene } from "./hiring.ts";
+import { runBalladAct } from "../ballads/ballad.ts";
 import { ROUTINE_TEMPLATES, scriptFor } from "./templates.ts";
 import { emigrantShip, isEmigrant } from "../town/emigrants.ts";
 import type { AnyLeadRole } from "./leads.ts";
@@ -549,6 +550,7 @@ function applyStage(db: DB, ev: EventRow, s: StoredStage, i: number): void {
   if (s.act) {
     if (s.act.startsWith("fire_")) runFireAct(db, ev, s, i);
     else if (s.act.startsWith("hire_")) runHiringAct(db, ev, s, i);
+    else if (s.act.startsWith("ballad_")) runBalladAct(db, ev, s, i); // M6 ballads: the singer and his crowd
     writeEvent(db, { kind: "event", verb: `stage_${s.act}`, text: `${ev.title}: ${s.act.replace(/_/g, " ")}${s.label ? ` at ${s.label}` : ""}.`, place: ev.place, x: at.x, z: at.z, ref_type: "town_event", ref_id: ev.id, weight: i === 0 ? 3 : 2 });
     return;
   }

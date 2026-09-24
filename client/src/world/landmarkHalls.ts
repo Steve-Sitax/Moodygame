@@ -103,6 +103,99 @@ function desk(k: Kit, x: number, y: number, z: number, w = 1.4, yaw = 0): void {
   k.box(0.08, 0.08, 0.08, x + w * 0.35, y + 0.85, z, M.black, { ry: yaw });
 }
 
+/** Chalk marks for cask heads, four to a texture: a year and a cross, a house's letters, strokes, a circle. */
+function chalkTex(): THREE.CanvasTexture {
+  return canvasTex(64, 64, (g) => {
+    g.clearRect(0, 0, 64, 64);
+    g.strokeStyle = "rgba(236, 230, 214, 0.92)";
+    g.fillStyle = "rgba(236, 230, 214, 0.92)";
+    g.lineWidth = 1.6;
+    g.font = "bold 11px serif";
+    g.fillText("71", 5, 14);
+    g.beginPath();
+    g.moveTo(18, 20);
+    g.lineTo(28, 28);
+    g.moveTo(28, 20);
+    g.lineTo(18, 28);
+    g.stroke();
+    g.fillText("B.G.", 35, 15);
+    g.beginPath();
+    g.moveTo(35, 22);
+    g.lineTo(60, 20);
+    g.stroke();
+    for (let i = 0; i < 4; i++) {
+      g.beginPath();
+      g.moveTo(6 + i * 5, 38);
+      g.lineTo(7 + i * 5, 56);
+      g.stroke();
+    }
+    g.beginPath();
+    g.moveTo(4, 50);
+    g.lineTo(26, 44);
+    g.stroke();
+    g.beginPath();
+    g.arc(48, 46, 9, 0, Math.PI * 2);
+    g.stroke();
+    g.fillText("R", 44, 50);
+  }, false);
+}
+
+/** Bottle ends in their pigeonholes: dark glass, a glint, dusty timber between. */
+function bottleTex(): THREE.CanvasTexture {
+  return canvasTex(32, 32, (g) => {
+    g.fillStyle = "#2a1c12";
+    g.fillRect(0, 0, 32, 32);
+    for (let y = 0; y < 2; y++)
+      for (let x = 0; x < 2; x++) {
+        const cx = 8 + x * 16;
+        const cy = 8 + y * 16;
+        g.fillStyle = "#120c08";
+        g.fillRect(cx - 7, cy - 7, 14, 14);
+        g.fillStyle = "#1c3020";
+        g.beginPath();
+        g.arc(cx, cy, 5.5, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = "#0c140c";
+        g.beginPath();
+        g.arc(cx, cy, 2.4, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = "#7a9a6a";
+        g.fillRect(cx - 3, cy - 4, 2, 1);
+      }
+  });
+}
+
+type Pool = [x: number, y: number, z: number, radius: number, strength: number];
+
+/**
+ * Pools of warm lamplight baked into the vertex colours of everything below `maxY` (the PS1 way:
+ * the light lives in the corners): each vertex is warmed by the lamps near it, falling off to
+ * nothing at the pool's edge. Runs once after the hall is built (its meshes are merged by then).
+ */
+function bakePools(group: THREE.Group, pools: Pool[], maxY: number): void {
+  for (const o of group.children) {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) continue;
+    const pos = m.geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
+    const col = m.geometry.getAttribute("color") as THREE.BufferAttribute | undefined;
+    if (!pos || !col) continue;
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i);
+      if (y > maxY) continue;
+      const x = pos.getX(i);
+      const z = pos.getZ(i);
+      let w = 0;
+      for (const [px, py, pz, rad, k] of pools) {
+        const d = Math.hypot(x - px, (y - py) * 1.2, z - pz);
+        if (d < rad) w += k * (1 - d / rad) ** 2;
+      }
+      if (w <= 0) continue;
+      col.setXYZ(i, col.getX(i) * (1 + w * 1.7), col.getY(i) * (1 + w * 1.15), col.getZ(i) * (1 + w * 0.55));
+    }
+    col.needsUpdate = true;
+  }
+}
+
 function looksAdd(list: Lookable[], id: string, x: number, z: number, r: number, label: string, text: string): void {
   list.push({ id, x, z, r, label, text });
 }
@@ -436,8 +529,16 @@ export function buildVleeshuis(opts: { origin: { x: number; z: number }; yaw: nu
   const D = 18.2;
   const UP = 6.2;
   const r = rand(77);
-  // ground: floor, walls (brick and white sandstone bands, as outside), three aisles of vaults on columns
-  k.box(X1 - X0, 0.1, D, (X0 + X1) / 2, -0.05, D / 2, lmMat("lm_vh_floor", { map: slabs(8), color: 0xd8d0c4 }, 0.1), { tile: 1.8, flat: true });
+  // ground: floor, walls (brick and white sandstone bands, as outside), three aisles of vaults on columns.
+  // The floor is cut into metre squares so the lamps' pools of light can sit in its corners (baked below).
+  {
+    const fg = new THREE.PlaneGeometry(X1 - X0, D, X1 - X0, Math.round(D));
+    fg.rotateX(-Math.PI / 2);
+    const fp = fg.getAttribute("position") as THREE.BufferAttribute;
+    const fu = fg.getAttribute("uv") as THREE.BufferAttribute;
+    for (let i = 0; i < fu.count; i++) fu.setXY(i, fp.getX(i) / 1.8, fp.getZ(i) / 1.8);
+    k.add(fg, lmMat("lm_vh_floor", { map: slabs(8), color: 0xd8d0c4 }, 0.1), (X0 + X1) / 2, 0, D / 2, { flat: true });
+  }
   // inside the walls are brick below and whitewashed above the vaults; doors in the south and the north walls
   const vw = (w: number, d: number, x: number, z: number, y0 = 0, h = UP + 5.5) => {
     const lo = Math.max(0, Math.min(h, UP - y0));
@@ -462,24 +563,98 @@ export function buildVleeshuis(opts: { origin: { x: number; z: number }; yaw: nu
     }
     k.box(X1 - X0, 0.5, 0.5, (X0 + X1) / 2, 3.65, z, M.stone, { tile: 1.5 });
   }
-  // racks of barrels, two high, along both long walls; rows of standing barrels in the middle aisle
+  // Peyrot's wine warehouse (M6 ballads pass, Steve: "fill it"): casks lying on timber stillages, two
+  // high, heads to the aisle, along both long walls and in long rows either side of the middle aisle
+  // (gaps between the columns to cross); chalk marks on the heads; racks of bottles on the west wall;
+  // a tasting table with a candle; skids down from the north door and a hoist over them; lanterns.
   const wood = lmMat("lm_cask", { map: tex().planks, color: 0xd8a870 }, 0.2);
   const hoop = lmMat("lm_hoop", { color: 0x2a2622, side: THREE.DoubleSide });
-  const rack = (z: number, x0: number, x1: number, zDir: number) => {
-    k.box(x1 - x0, 0.25, 1.1, (x0 + x1) / 2, 0.125, z, H.timber, { solid: true });
+  const chalkMat = lmMat("lm_vh_chalk", { map: chalkTex(), transparent: true, alphaTest: 0.35, depthWrite: false }, 0);
+  const bottleRack = lmMat("lm_vh_bottles", { map: bottleTex(), color: 0xffffff }, 0.1);
+  const bottleGlass = lmMat("lm_vh_glass", { color: 0x1e3a24, emissive: 0x020402 });
+  const lanternGlass = lmBasic("lm_vh_lantern", { color: 0xffc478 });
+  /** A chalk mark on a cask's head (one of four in the texture), facing the aisle. */
+  const chalk = (x: number, y: number, z: number, ry: number) => {
+    const g = new THREE.PlaneGeometry(0.34, 0.26);
+    const q = Math.floor(r() * 4);
+    const uv = g.getAttribute("uv") as THREE.BufferAttribute;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, (q % 2) * 0.5 + uv.getX(i) * 0.5, Math.floor(q / 2) * 0.5 + uv.getY(i) * 0.5);
+    k.add(g, chalkMat, x, y, z, { ry, rz: (r() - 0.5) * 0.4, flat: true });
+  };
+  /** A stillage: two timber rails with chocks, casks lying on it heads out, a second tier in the grooves. */
+  const rack = (z: number, x0: number, x1: number, zDir: number, marks = 0) => {
+    for (const s of [-0.28, 0.28]) k.box(x1 - x0, 0.2, 0.16, (x0 + x1) / 2, 0.1, z + s, H.timber, {});
+    k.solid(x1 - x0, 1.1, (x0 + x1) / 2, z);
     for (let x = x0 + 0.45; x < x1 - 0.3; x += 0.82) {
-      k.barrel(x, 0.62, z, wood, hoop, { lying: true, ry: Math.PI / 2, tint: 0.85 + r() * 0.3 });
-      if (r() < 0.8) k.barrel(x + 0.41, 1.26, z + zDir * 0.05, wood, hoop, { lying: true, ry: Math.PI / 2, tint: 0.8 + r() * 0.3 });
+      k.barrel(x, 0.6, z, wood, hoop, { lying: true, ry: Math.PI / 2, tint: 0.8 + r() * 0.35 });
+      if (x + 0.8 < x1 && r() < 0.94) k.barrel(x + 0.41, 1.24, z + zDir * 0.04, wood, hoop, { lying: true, ry: Math.PI / 2, tint: 0.75 + r() * 0.35 });
+      // chalk on the heads that face the aisle: the cellar master's marks (growth, year, the buyer)
+      if (marks && r() < 0.65) chalk(x, 0.62, z + marks * 0.5, marks > 0 ? 0 : Math.PI);
     }
   };
-  rack(0.95, X0 + 0.5, -2.4, 1);
-  rack(0.95, 2.4, X1 - 0.5, 1);
-  rack(D - 0.95, X0 + 0.5, 4.8, -1);
-  rack(D - 3.6, X0 + 0.5, -5, -1);
-  for (let x = -12; x < 8; x += 2.3) {
-    if (Math.abs(x) < 2) continue;
-    k.barrel(x, 0.48, 7.4 + r() * 0.4, wood, hoop, { tint: 0.8 + r() * 0.3, solid: true });
-    if (r() < 0.5) k.barrel(x + 0.8, 0.48, 10.9 + r() * 0.4, wood, hoop, { tint: 0.8 + r() * 0.3, solid: true });
+  rack(0.95, X0 + 0.5, -2.4, 1, 1);
+  rack(0.95, 2.4, X1 - 0.5, 1, 1);
+  rack(D - 0.95, X0 + 0.5, 4.8, -1, -1);
+  rack(D - 3.6, X0 + 0.5, -5, -1, -1);
+  // the long rows either side of the middle aisle, broken between the columns so one can cross
+  const ROWS: Array<[number, number]> = [[-13.2, -8.4], [-6.6, 1.6], [3.4, 11.6], [13.4, 17.9]];
+  for (const [x0, x1] of ROWS) {
+    rack(7.25, x0, x1, 1, 1);
+    rack(11.05, x0, x1, -1, -1);
+  }
+  // racks of bottles against the west wall: pigeonholes of dark glass, a timber frame
+  for (const [z0, z1] of [[2.0, 6.2], [7.9, 10.4]] as Array<[number, number]>) {
+    k.box(0.45, 2.1, z1 - z0, X0 + 0.25, 1.05, (z0 + z1) / 2, bottleRack, { tile: 0.5, solid: true });
+    for (const z of [z0, (z0 + z1) / 2, z1]) k.box(0.5, 2.2, 0.08, X0 + 0.27, 1.1, z, H.timber);
+    for (const y of [0.05, 1.05, 2.15]) k.box(0.5, 0.06, z1 - z0, X0 + 0.27, y, (z0 + z1) / 2, H.timber, { tile: 1 });
+  }
+  // the tasting table in the south aisle: bottles, glasses of red, a candle, the cellar book; a cask on a trestle with its tap
+  {
+    const TX = -9.0;
+    const TZ = 2.95;
+    k.box(1.7, 0.06, 0.8, TX, 0.8, TZ, M.oak, { solid: true });
+    for (const [dx, dz] of [[-0.75, -0.32], [0.75, -0.32], [-0.75, 0.32], [0.75, 0.32]]) k.box(0.07, 0.78, 0.07, TX + dx, 0.39, TZ + dz, M.oakDark);
+    for (const [sx, sz] of [[-0.4, -0.72], [0.45, 0.7]]) {
+      k.cyl(0.19, 0.19, 0.05, TX + sx, 0.45, TZ + sz, M.oak, { seg: 8 });
+      k.cyl(0.03, 0.03, 0.43, TX + sx, 0, TZ + sz, M.oakDark, { seg: 4 });
+    }
+    k.cyl(0.04, 0.045, 0.24, TX - 0.5, 0.83, TZ - 0.1, bottleGlass, { seg: 6 });
+    k.cyl(0.016, 0.02, 0.09, TX - 0.5, 1.07, TZ - 0.1, bottleGlass, { seg: 4 });
+    k.cyl(0.04, 0.045, 0.24, TX + 0.62, 0.83, TZ + 0.15, bottleGlass, { seg: 6 });
+    k.box(0.28, 0.08, 0.08, TX + 0.2, 0.87, TZ - 0.25, bottleGlass, { ry: 0.5 }); // one lying, empty
+    for (const [gx, gz] of [[-0.2, 0.1], [0.05, -0.05], [0.35, 0.18]]) {
+      k.cyl(0.006, 0.006, 0.05, TX + gx, 0.83, TZ + gz, bottleGlass, { seg: 3 });
+      k.cyl(0.03, 0.02, 0.07, TX + gx, 0.88, TZ + gz, H.cloth, { seg: 5 });
+    }
+    k.cyl(0.03, 0.035, 0.03, TX, 0.83, TZ, M.oakDark, { seg: 6 });
+    k.cyl(0.013, 0.013, 0.13, TX, 0.86, TZ, H.paper, { seg: 5 });
+    k.box(0.32, 0.04, 0.24, TX + 0.45, 0.85, TZ - 0.12, H.paper, { ry: -0.2 });
+    // a small cask on a trestle with a wooden tap
+    for (const s of [-0.2, 0.2]) k.box(0.06, 0.62, 0.5, TX - 1.35 + s, 0.31, TZ, H.timber, { rz: s > 0 ? 0.12 : -0.12 });
+    k.barrel(TX - 1.35, 0.82, TZ, wood, hoop, { lying: true, r: 0.24, len: 0.62, tint: 0.95, solid: true });
+    k.box(0.12, 0.04, 0.04, TX - 1.35 + 0.36, 0.74, TZ, M.oakDark);
+  }
+  // the ramp: two skids with battens down from the north door (casks are rolled in and out on them)
+  {
+    const len = 3.4;
+    const tilt = Math.atan2(0.42, len);
+    for (const x of [5.8, 6.8]) k.box(0.14, 0.1, len, x, 0.24, D - len / 2 - 0.05, H.timber, { rx: -tilt });
+    for (let i = 1; i < 5; i++) k.box(1.2, 0.05, 0.08, 6.3, 0.05 + (0.42 * i) / 5, D - len + (len * i) / 5 - 0.05, H.timber, { rx: -tilt });
+  }
+  // the hoist over the ramp's foot: a post, a jib, a pulley block (the rope and the cask on it move, below)
+  k.box(0.26, 3.3, 0.26, 8.4, 1.65, 15.4, H.timber, { solid: true });
+  k.box(2.6, 0.22, 0.22, 7.2, 3.2, 15.4, H.timber);
+  k.box(0.1, 1.6, 0.1, 7.9, 2.55, 15.4, H.timber, { rz: 0.75 });
+  k.box(0.16, 0.26, 0.12, 6.3, 3.0, 15.4, M.oakDark);
+  // lanterns hanging from the vaults on chains: the pools of warm light the cellar works by
+  const LANTERNS: Array<[number, number, number]> = [[-10, 2.75, 9.15], [-2.5, 2.75, 9.15], [5, 2.75, 9.15], [12.5, 2.75, 9.15], [-8.5, 2.6, 13.6], [7.3, 2.45, 15.9], [15, 2.6, 3.4], [-4.2, 2.6, 3.4]];
+  for (const [x, y, z] of LANTERNS) {
+    const top = z > 12.2 ? 5.75 : z < 6 ? 5.75 : 5.85;
+    k.cyl(0.012, 0.012, top - y - 0.2, x, y + 0.2, z, M.iron, { seg: 3 });
+    k.cyl(0.09, 0.14, 0.06, x, y + 0.17, z, M.iron, { seg: 6 });
+    k.box(0.2, 0.03, 0.2, x, y - 0.17, z, M.iron);
+    for (const [dx, dz] of [[-0.09, -0.09], [0.09, -0.09], [-0.09, 0.09], [0.09, 0.09]]) k.box(0.02, 0.32, 0.02, x + dx, y, z + dz, M.iron);
+    k.box(0.16, 0.26, 0.16, x, y, z, lanternGlass, { flat: true });
   }
   // the great windows of the old meat hall, their lower lights shuttered (a warehouse now)
   const vwin = glassMat("grisaille", 52);
@@ -550,22 +725,38 @@ export function buildVleeshuis(opts: { origin: { x: number; z: number }; yaw: nu
   for (let i = 0; i < 5; i++) k.box(0.9, 1.1, 0.04, 19.6, UP + 0.55, 10 + i * 0.15, H.paper, { ry: -Math.PI / 2 + 0.2 });
   k.finish();
 
-  // light: lanterns in the cellar, the studio window, the footlights when they play
-  const L = lights(scene, 0x9a8a78, 0x2a1e14, 0x3a2c20);
-  const lanternA = point(group, 0xffa860, -6, 2.6, 9, 12);
-  const lanternB = point(group, 0xffa860, 8, 2.6, 9, 12);
+  // light: lanterns in the cellar, the studio window, the footlights when they play. The pools under
+  // the lanterns are baked into the corners of the ground floor (PS1 vertex light); four real lights
+  // flicker on top of them (two lanterns, the candle, the hoist's lantern).
+  bakePools(group, [...LANTERNS.map(([x, y, z]) => [x, y, z, 7, 2.1] as Pool), [-9, 0.95, 2.95, 3.2, 1.6], [4, 1.6, 2.4, 3.4, 1.0]], UP - 0.4);
+  const L = lights(scene, 0x9a8a78, 0x2a1e14, 0x4a3a2a);
+  const lanternA = point(group, 0xffa860, -6.2, 2.6, 9.15, 13);
+  const lanternB = point(group, 0xffa860, 8.7, 2.6, 9.15, 13);
+  const candleL = point(group, 0xffb060, -9, 1.15, 2.95, 4.5);
+  const hoistL = point(group, 0xffa860, 7.3, 2.3, 15.9, 8);
   const deskL = point(group, 0xffb070, 4, 1.6, 2.4, 5);
   const stageL = point(group, 0xffc070, SX + 0.6, UP + 1.2, D / 2, 12);
   const hallL = point(group, 0xffb070, 0, UP + 4, D / 2, 18);
   const dayFill = point(group, 0xd0d4dc, 2, 2.8, 9, 30);
   const flames = new Flames(group, 20, 0.16);
-  for (const [x, z] of [[-6, 9], [8, 9], [4, 2.4], [-11, 3], [14, 9]] as Array<[number, number]>) flames.addFlame(x, x === 4 ? 1.45 : 2.6, z);
+  for (const [x, y, z] of LANTERNS) flames.addFlame(x, y - 0.02, z);
+  flames.addFlame(4, 1.45, 2.4);
+  flames.addFlame(-9, 1.02, 2.95);
   const foot = new Flames(group, 12, 0.13);
   for (let z = 2.6; z < D - 2; z += 1.3) foot.addFlame(SX + 0.35, UP + 0.9, z);
   const shaftMat = shaftMaterial();
   lightShaft(group, new THREE.Vector3(X1 - 0.3, UP + 3.5, 7.5), new THREE.Vector3(14.5, UP, 7.8), 2.6, shaftMat);
   let playing = false;
   let day = 1;
+  const hoist = new THREE.Group();
+  const hk = new Kit(hoist);
+  hk.barrel(0, 0, 0, wood, hoop, { r: 0.3, len: 0.8, tint: 0.9 });
+  hk.cyl(0.018, 0.018, 1, 0, 0, 0, H.rope, { seg: 4 });
+  const [caskM, hoopM, ropeM] = hk.finish();
+  for (const m of [caskM, hoopM]) if (m) m.matrixAutoUpdate = true;
+  if (ropeM) ropeM.matrixAutoUpdate = true;
+  hoist.position.set(6.3, 0, 15.4);
+  group.add(hoist);
 
   // walking: the wine hall below, the theatre, the landing and the studio above
   const lv = new Levels(
@@ -602,7 +793,11 @@ export function buildVleeshuis(opts: { origin: { x: number; z: number }; yaw: nu
   );
   const free = freeFn(lv.levels[0].floors, lv.levels[0].solids);
   const path = walkGraph(
-    [[0, 1.5], [0, 4.5], [-10, 4.5], [10, 4.5], [17, 4.5], [-12, 9.2], [-4, 9.2], [4, 9.2], [12, 9.2], [18, 9.2], [-10, 13.8], [0, 13.8], [8, 13.8], [6.3, 16.8], [19.2, 13]],
+    [
+      [0, 1.5], [0, 4.5], [-10, 4.5], [10, 4.5], [17, 4.5], [-12, 9.2], [-4, 9.2], [4, 9.2], [12, 9.2], [18, 9.2], [-10, 13.8], [0, 13.8], [8, 13.8], [6.3, 16.8], [19.2, 13],
+      // the gaps in the long rows of casks, between the columns
+      [-7.5, 4.5], [-7.5, 9.2], [-7.5, 13.8], [2.5, 4.5], [2.5, 9.2], [2.5, 13.8], [12.5, 4.5], [12.5, 9.2], [12.5, 13.8],
+    ],
     free,
   );
   const marks: Record<string, Mark> = {
@@ -631,6 +826,10 @@ export function buildVleeshuis(opts: { origin: { x: number; z: number }; yaw: nu
   const looks: Lookable[] = [];
   looksAdd(looks, "barrels", -4, 4.2, 1.8, "look at the barrels", "Barrels of wine in racks two high, stencilled with the names of Bordeaux houses and Rhine towns. The old meat hall smells of oak and must now, not of blood.");
   looksAdd(looks, "vaults", 8, 9.2, 1.6, "look up at the vaults", "Brick vaults on stone columns, three aisles of them, built for the butchers' guild in 1504. Soot from lanterns streaks the brick.");
+  looksAdd(looks, "tasting", -9, 4.1, 1.5, "look at the tasting table", "A table among the casks: two bottles, three glasses with a red rim of wine, a candle stuck in its own wax, the cellar book open at a page of figures. Here the buyers taste before they bargain.");
+  looksAdd(looks, "chalk", -4, 8.2, 1.4, "read the chalk on the casks", "Chalk on the cask heads, in the cellar master's hand: a cross, a year, the first letters of a Bordeaux house, a buyer's name half rubbed out.");
+  looksAdd(looks, "bottles", X0 + 1.3, 4.2, 1.6, "look at the bottle racks", "Pigeonholes of dark bottles, necks in, dust on every one. The better growths lie down here till they are sold.");
+  looksAdd(looks, "hoist", 7.2, 14.4, 1.6, "look at the hoist", "A jib on a post over the skids by the north door, a pulley block and a rope. A cask swings slowly on it, going up to be rolled out or coming down to be laid on the stillage.");
   looksAdd(looks, "stage", SX + 1.6, D / 2, 2.2, "look at the stage", "A small stage with a painted castle and town on the backcloth, red curtains looped back, a row of candle footlights. The society Liefde en Eendragt plays here.");
   looksAdd(looks, "studio", 14.5, 8.8, 1.8, "look at the canvases", "A studio: canvases turned to the wall, one on each easel half done, a model's platform with a draped chair. The north light falls in a grey sheet from the tall window.");
   const seats: Seat[] = [...bseats];
@@ -673,14 +872,28 @@ export function buildVleeshuis(opts: { origin: { x: number; z: number }; yaw: nu
       flames.update(t);
       foot.update(t);
       const f = flicker(t, 4.4);
-      lanternA.intensity = 10 * f;
-      lanternB.intensity = 10 * flicker(t, 1.9);
+      lanternA.intensity = 11 * f;
+      lanternB.intensity = 11 * flicker(t, 1.9);
+      candleL.intensity = 3 * flicker(t, 8.3);
+      hoistL.intensity = 6 * flicker(t, 3.7);
       deskL.intensity = 2.5 * flicker(t, 6.6);
+      // the hoist: the cask goes up and down on its rope, slowly, swinging a little
+      const cy = 1.9 + Math.sin(t * 0.21) * 0.75;
+      if (caskM) caskM.position.set(Math.sin(t * 0.9) * 0.04, cy, 0);
+      if (hoopM) hoopM.position.copy(caskM?.position ?? hoopM.position);
+      if (ropeM) {
+        ropeM.scale.y = 2.9 - (cy + 0.4);
+        ropeM.position.set(0, cy + 0.4, 0);
+      }
       stageL.intensity = playing ? 6 * f : 0;
       hallL.intensity = playing ? 3 : day < 0.4 ? 1.5 : 0.8;
       room.lamps = [
-        { p: toWorld(-6, 9, 2.6), w: 0.3 * f },
-        { p: toWorld(8, 9, 2.6), w: 0.3 * f },
+        { p: toWorld(-10, 9.15, 2.75), w: 0.3 * f },
+        { p: toWorld(-2.5, 9.15, 2.75), w: 0.3 * flicker(t, 2.7) },
+        { p: toWorld(5, 9.15, 2.75), w: 0.3 * flicker(t, 1.9) },
+        { p: toWorld(12.5, 9.15, 2.75), w: 0.3 * f },
+        { p: toWorld(-9, 2.95, 1.0), w: 0.22 * flicker(t, 8.3) },
+        { p: toWorld(7.3, 15.9, 2.45), w: 0.28 * flicker(t, 3.7) },
       ];
     },
   };

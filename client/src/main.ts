@@ -37,6 +37,7 @@ import { Interiors } from "./game/interiors";
 import { Families } from "./game/families";
 import { Homes } from "./game/homes";
 import { Landmarks } from "./game/landmarks";
+import { Ballads } from "./game/ballads";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const startEl = document.getElementById("start") as HTMLDivElement;
@@ -176,6 +177,23 @@ landmarks.speak = (at, v, s) => sound?.indoors(() => sound?.speech(at, v, s));
   jobs.onPush = (m) => {
     onPush(m);
     if (m.type === "convo" && m.convo) interiors.convo(m.convo as import("./net/api").Convo);
+  };
+}
+// M6 ballads: the ballad singer at his corners and in a tavern, his sheets (game/ballads.ts); the Sunday sermon is in game/landmarks.ts
+const ballads = new Ballads(player, jobs, town, interiors);
+ballads.sing = (at, v, notes, beat, inside) => {
+  const s = sound;
+  if (!s) return 0;
+  let secs = 0;
+  if (inside) s.indoors(() => (secs = s.sing(at, v, notes, beat)));
+  else secs = s.sing(at, v, notes, beat);
+  return secs;
+};
+{
+  const onPush = jobs.onPush;
+  jobs.onPush = (m) => {
+    onPush(m);
+    ballads.handlePush(m);
   };
 }
 // M4b: a scene's shout or the agent's word, as a bubble
@@ -382,6 +400,7 @@ function frame(): void {
   events.update(dt, player);
   townLife.update(dt, player, jobs.day.hourF);
   bubbles.update(dt, player.camera);
+  ballads.update(dt, player.camera);
   press.update(dt);
   ideas.update(dt);
   emigrants.update(dt);
@@ -508,6 +527,7 @@ if (import.meta.env.DEV) {
     families,
     homes,
     landmarks,
+    ballads,
     /** M6: a picture inside the room Jef is in, camera at `from` looking at `to` (room frame: x across, y up, z into the house). */
     async shotIn(name: string, from: [number, number, number], to: [number, number, number]) {
       const cam = player.camera;
@@ -576,6 +596,8 @@ if (import.meta.env.DEV) {
       for (const q of homes.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M6 landmark interiors: every landmark door
       for (const q of landmarks.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      // M6 ballads: the ballad singer's corners
+      for (const q of ballads.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       if (!can(DOSS_POS.x, DOSS_POS.z, 2.0)) bad.push("the doss house gate");
       if (!can(RAMP.x - 0.6, RAMP.zHigh - 1.0, 2.4)) bad.push("the mate on deck");
       return bad;
@@ -659,6 +681,7 @@ if (import.meta.env.DEV) {
         events.update(dt, player);
         townLife.update(dt, player, jobs.day.hourF);
         bubbles.update(dt, player.camera);
+        ballads.update(dt, player.camera);
         press.update(dt);
         ideas.update(dt);
         emigrants.update(dt);

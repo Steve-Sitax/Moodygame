@@ -27,7 +27,9 @@ export type WardrobeRole =
   // M6 town life: the lamplighter on his round, a fireman of the pompiers, the natie foreman at the gate
   | "lamplighter"
   | "fireman"
-  | "natie_foreman";
+  | "natie_foreman"
+  // M6 ballads: the ballad singer in rags, a sheaf of printed sheets on his arm (game/ballads.ts)
+  | "ballad_singer";
 
 let mats: Record<string, THREE.Material> | null = null;
 function m(): Record<string, THREE.Material> {
@@ -61,6 +63,9 @@ function m(): Record<string, THREE.Material> {
     ladder: psx(new THREE.MeshLambertMaterial({ color: 0x6a4a2c })),
     flame: new THREE.MeshBasicMaterial({ color: 0xffc860 }),
     bowler: psx(new THREE.MeshLambertMaterial({ color: 0x1e1a18 })),
+    kerchief: psx(new THREE.MeshLambertMaterial({ color: 0x8a2a20 })),
+    sheet: psx(new THREE.MeshLambertMaterial({ color: 0xcfc6ac, side: THREE.DoubleSide })),
+    rag: psx(new THREE.MeshLambertMaterial({ color: 0x5a5244, side: THREE.DoubleSide })),
   };
   return mats;
 }
@@ -270,6 +275,32 @@ export function makeWear(role: WardrobeRole, bodyScale = 1): Wear {
       parts.book = book;
       break;
     }
+    case "ballad_singer": {
+      // (the beggar's own battered hat stays on) a red kerchief at the neck; a torn sack of a
+      // shawl over the shoulders; a sheaf of printed sheets on the left arm, one held up in the right
+      root.add(cyl(0.1, 0.12, 0.07, k.kerchief, 0, 1.47 * s, 0.01, 8));
+      const shawl = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 0.34, 8, 1, true, Math.PI * 0.35, Math.PI * 1.3), k.rag);
+      shawl.position.set(0, 1.3 * s, -0.01);
+      root.add(shawl);
+      const sheaf = new THREE.Group();
+      sheaf.position.set(0.2, 1.05 * s, 0.16);
+      sheaf.rotation.set(-0.3, 0.3, 0);
+      for (let i = 0; i < 4; i++) {
+        const p = box(0.2, 0.004, 0.27, k.sheet, i * 0.006, i * 0.006, i * 0.004);
+        p.rotation.y = (i - 1.5) * 0.08;
+        sheaf.add(p);
+      }
+      root.add(sheaf);
+      const held = new THREE.Group();
+      held.position.set(-0.22, 1.32 * s, 0.26);
+      const sheet = new THREE.Mesh(new THREE.PlaneGeometry(0.19, 0.27), k.sheet);
+      sheet.position.y = 0.12;
+      held.add(sheet);
+      held.add(box(0.08, 0.02, 0.008, k.black, 0, 0.21, 0.002)); // the woodcut at the top
+      root.add(held);
+      parts.sheet = held;
+      break;
+    }
     case "showman": {
       root.add(topHat(k, top));
       // a monkey in a red cap on his right shoulder, its tail down his back
@@ -302,6 +333,8 @@ export function playWear(w: Wear, t: number): void {
   if (w.parts.monkeyHead) w.parts.monkeyHead.rotation.y = Math.sin(p * 1.3) * 0.9;
   if (w.parts.monkey) w.parts.monkey.position.y = (w.parts.monkey.userData.y as number) + Math.max(0, Math.sin(p * 3)) * 0.03;
   if (w.parts.bottle) w.parts.bottle.rotation.x = Math.max(0, Math.sin(p * 0.5)) > 0.95 ? -1.6 : 0;
+  // the ballad singer waves his sheet in time
+  if (w.parts.sheet) w.parts.sheet.rotation.z = Math.sin(p * 2.4) * 0.18;
 }
 
 /** The coffin with its black pall, carried on the bearers' shoulders (placed in world space). */
@@ -318,7 +351,7 @@ export function makeCoffin(): THREE.Group {
   return g;
 }
 
-export const WARDROBE_ROLES = new Set<string>(["bride", "groom", "priest", "auctioneer", "speaker", "drunkard", "pickpocket", "widow", "bearers", "hawker", "showman", "fireman", "natie_foreman"]);
+export const WARDROBE_ROLES = new Set<string>(["bride", "groom", "priest", "auctioneer", "speaker", "drunkard", "pickpocket", "widow", "bearers", "hawker", "showman", "fireman", "natie_foreman", "ballad_singer"]);
 
 /**
  * M6: the lamplighter's pole: 0 held upright at his side, 1 raised into the lantern in front of

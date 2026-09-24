@@ -12,7 +12,7 @@ All answered by Steve on 2026-09-23.
 | 4 | Player voice | Three generated choices plus a free text box. Free text is guarded (see 03). |
 | 5 | Family | Player picks the family at start: none, a wife, up to 4 kids. Every family member is a full NPC with persona and memory. |
 | 5b | Child labour | Yes, as a hard choice. Kids 10+ can work for small pay. Health, wife and priest react. |
-| 6 | Second model | Codex with `gpt-6-sol`, medium. Tested, approved for game text only. Rumours, newspaper, event seeds, some NPC voices. |
+| 6 | Second model | Codex with `gpt-6-luna` and `gpt-6-sol`, medium, approved for game text only. M6 router (2026-09-24): GPT Luna writes the paper and the wall bills; GPT Sol routes nothing (slower, flatter). See docs/milestones/M6-models.md. |
 | 7 | Title | Scheldemist. |
 | 8 | Language | Plain English. Dutch only in names of people, places, firms and ships (and jenever). No Dutch forms of address or exclamations (jongen, maat, schat, goed...). Steve, 2026-09-23: "the dutch words are weird". Prompts carry the rule; `server/src/text.ts` filters what slips through. |
 | 9 | Camera | First person. |

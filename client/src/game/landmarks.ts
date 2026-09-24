@@ -2,7 +2,7 @@ import * as THREE from "three";
 import "./landmarks.css";
 import type { FirstPerson } from "../player/firstPerson";
 import type { JobsPayload, Pt } from "../net/api";
-import { landmarksApi, type DoorNow, type InPerson, type LandmarkNow } from "../net/landmarksApi";
+import { landmarksApi, type DoorNow, type InPerson, type LandmarkNow, type SermonView } from "../net/landmarksApi";
 import { CANDLE_C, CLOSED_TEXT, LANDMARK_LABEL, type LandmarkId } from "../../../shared/landmarks";
 import { buildCathedral, type LandmarkRoom, type Mark } from "../world/landmarkRooms";
 import { buildOostershuis, buildSteen, buildTownhall, buildVleeshuis } from "../world/landmarkHalls";
@@ -57,6 +57,8 @@ const ROLES: Record<LandmarkId, Record<string, RoleSpec>> = {
     celebrant: { at: "altar", motion: "idle", appear: true },
     wedding_priest: { at: "choirFront", motion: "talk", appear: true },
     sexton: { at: "server", motion: "fold", appear: true },
+    // M6 sermon: the other priest waits by the pulpit at Sunday high mass, then climbs it to preach
+    preacher: { at: "preacherWait", motion: "fold", appear: true },
     beadle_mass: { at: "beadleMass", motion: "behind" },
     beadle: { loop: "beadleRound", pause: 7, speed: 0.75, motion: "behind" },
     chairs: { at: "chairsPost", motion: "fold" },
@@ -127,6 +129,8 @@ interface Fig {
   arrived: boolean;
   /** A cellarman's barrel, rolled along the floor ahead of him. */
   barrel: { outer: THREE.Group; inner: THREE.Group; roll: number } | null;
+  /** M6 sermon: held at a place and pose by a scene (the preacher on the pulpit's stair and in it). */
+  hold?: { x: number; z: number; y: number; yaw: number; motion: Motion } | null;
 }
 
 /** A barrel lying on its side, to roll (the Vleeshuis's cellarmen). */
@@ -154,6 +158,8 @@ const REHEARSAL: Array<{ who: "prompter" | "actor"; text: string }> = [
 ];
 
 const WALK = 1.0;
+/** M6 sermon: the preacher stands this high in the pulpit's tub (its floor; he shows from the chest up over the rim). */
+const PULPIT_UP = 2.8;
 const TALK_R = 1.7;
 const REACH_DOOR = 2.0;
 
@@ -189,6 +195,11 @@ export class Landmarks {
   speak: (at: { x: number; z: number }, voice: { sex: "m" | "f"; age: number }, seconds: number) => void = () => {};
   private lineT = 4;
   private lineI = 0;
+  /** M6 sermon: this Sunday's words and how far the preacher is with them; who nods; the whisper. */
+  private sermon: { key: string; view: SermonView | null; loading: boolean; stage: "wait" | "climb" | "preach" | "down" | "done"; i: number; t: number; fig: string | null; from: { x: number; z: number } } | null = null;
+  private readonly caption = document.createElement("div");
+  private nods = new Map<string, number>();
+  private whisper: { el: HTMLDivElement; who: string; t: number } | null = null;
 
   constructor(
     private readonly player: FirstPerson,
@@ -198,6 +209,8 @@ export class Landmarks {
     interiors.landmarkKeys = (x, z) => this.insideKeys(x, z);
     interiors.seatBusy = (s) => this.seatHeld(s);
     interiors.onSeat = (s) => this.onSeat(s);
+    this.caption.className = "sermon-caption";
+    document.body.appendChild(this.caption);
     this.panel = new ConfessionPanel(player);
     this.panel.say = (t) => this.say(t);
     // the night sheet takes Jef out of any room: forget the hall
@@ -330,6 +343,10 @@ export class Landmarks {
 
   /** Forget the people and the hall's state (out, or taken out by the night). */
   private gone(): void {
+    this.caption.classList.remove("on");
+    this.whisper?.el.remove();
+    this.whisper = null;
+    if (this.sermon && this.sermon.stage !== "done" && this.sermon.stage !== "wait") this.sermon.stage = "done";
     this.clear();
     this.organ(false);
     this.here = null;
@@ -466,6 +483,20 @@ export class Landmarks {
           room.group.add(h.root);
         }
       }
+      // M6 sermon: a scene holds them (the preacher climbing and in the pulpit)
+      if (f.hold) {
+        const h = f.human;
+        [f.x, f.z, f.y, f.yaw] = [f.hold.x, f.hold.z, f.hold.y, f.hold.yaw];
+        f.path = [];
+        if (h) {
+          h.play(f.hold.motion);
+          if (f.hold.motion === "walk") h.setPace(0.6);
+          h.root.position.set(f.x, f.y + h.bob(), f.z);
+          h.root.rotation.set(0, f.yaw, 0);
+          h.update(dt);
+        }
+        continue;
+      }
       const pace = (f.spec.speed ?? WALK) * (f.leaving ? 1.1 : 1);
       if (f.path.length) {
         const [tx, tz] = f.path[0];
@@ -521,6 +552,9 @@ export class Landmarks {
       else h.play(this.talking === id ? "talk" : this.motionNow(f));
       h.root.position.set(f.x, f.y + (f.seated ? h.sitDrop(f.spec.sit!) : 0) + h.bob(), f.z);
       h.root.rotation.y = f.yaw;
+      // M6 sermon: a nod of agreement from the pious (the whole figure dips a little, twice)
+      const nod = this.nods.get(id) ?? 0;
+      h.root.rotation.x = nod > 0 ? Math.max(0, Math.sin((1.4 - nod) * 9)) * 0.08 : 0;
       h.update(dt);
       // the cellarman's barrel rolls ahead of him as he walks, and lies by him when he stops
       const b = f.barrel;
@@ -701,8 +735,9 @@ export class Landmarks {
     if (!this.jobs.talk.isOpen) this.talking = null;
     here.room.animate?.(this.t, dt);
     this.updatePeople(dt);
-    // the altar bell at the elevation, once a mass
-    if (here.id === "cathedral" && this.now?.service && this.now.service.kind !== "vespers") {
+    if (here.id === "cathedral") this.updateSermon(dt);
+    // the altar bell at the elevation, once a mass (M6: not while the sermon is preached)
+    if (here.id === "cathedral" && this.now?.service && this.now.service.kind !== "vespers" && !this.preaching) {
       const key = `${this.serviceKey}`;
       if (this.phase() > 0.5 && this.bellRung !== key) {
         this.bellRung = key;
@@ -746,6 +781,203 @@ export class Landmarks {
         })
         .catch(() => {});
     }
+  }
+
+  // ------------------------------------------------------------------ the Sunday sermon (M6)
+
+  /** Is the preacher on the stair or in the pulpit now? */
+  private get preaching(): boolean {
+    return this.sermon?.stage === "climb" || this.sermon?.stage === "preach";
+  }
+
+  /**
+   * At Sunday high mass: fetch the sermon (the server's words, server/src/ballads/sermon.ts); a
+   * little into the mass the preacher climbs the pulpit and says it line by line (a caption and
+   * the murmur of his voice); the pious nod, a gossip whispers to her neighbour; at the end the
+   * server hears that Jef was there (the kerk's trust, the engine's rule), and he climbs down.
+   */
+  private updateSermon(dt: number): void {
+    for (const [id, t] of this.nods) {
+      if (t - dt <= 0) this.nods.delete(id);
+      else this.nods.set(id, t - dt);
+    }
+    this.updateWhisper(dt);
+    const n = this.now;
+    const room = this.here?.room;
+    const high = !!n?.service && n.service.kind === "high";
+    // once begun, the sermon is preached to its end even if the mass's hour runs out (a game hour is 20 s)
+    const going = !!this.sermon && (this.sermon.stage === "climb" || this.sermon.stage === "preach" || this.sermon.stage === "down");
+    if (!n || !room || (!high && !going)) {
+      if (this.sermon && this.sermon.stage !== "done" && this.sermon.stage !== "wait") this.endSermon();
+      return;
+    }
+    const key = `${n.day}`;
+    if (!going && (!this.sermon || this.sermon.key !== key)) this.sermon = { key, view: null, loading: false, stage: "wait", i: -1, t: 0, fig: null, from: { x: 0, z: 0 } };
+    const s = this.sermon;
+    if (!s) return;
+    if (!s.view && !s.loading) {
+      s.loading = true;
+      landmarksApi
+        .sermon()
+        .then((v) => {
+          if (this.sermon === s) s.view = v;
+        })
+        .catch(() => {})
+        .finally(() => {
+          // again in a while if it failed
+          setTimeout(() => {
+            if (this.sermon === s) s.loading = false;
+          }, 8000);
+        });
+    }
+    const pulpit = room.marks.pulpit;
+    const foot = room.marks.pulpitFoot ?? pulpit;
+    const fig = s.fig ? this.figs.get(s.fig) : null;
+    switch (s.stage) {
+      case "wait": {
+        if (!s.view || this.phase() < 0.06 || !pulpit) return;
+        const f = [...this.figs.values()].find((q) => q.p.role === "preacher" && !q.leaving) ?? [...this.figs.values()].find((q) => q.p.role === "celebrant" && !q.leaving);
+        if (!f) return;
+        s.fig = f.p.id;
+        s.from = { x: f.x, z: f.z };
+        s.stage = "climb";
+        s.t = 0;
+        this.sayOnce(`${f.p.first}, ${f.p.title ?? "the priest"}, climbs the pulpit. The chairs creak as the rows turn toward him.`);
+        return;
+      }
+      case "climb": {
+        if (!fig || !pulpit) return this.endSermon();
+        s.t += dt;
+        // to the foot of the stair, then round the pier and up into the tub
+        const k1 = Math.min(1, s.t / 2);
+        const k2 = Math.max(0, Math.min(1, (s.t - 2) / 3));
+        const x = k2 > 0 ? foot.x + (pulpit.x - foot.x) * k2 : s.from.x + (foot.x - s.from.x) * k1;
+        const z = k2 > 0 ? foot.z + (pulpit.z - foot.z) * k2 : s.from.z + (foot.z - s.from.z) * k1;
+        fig.hold = { x, z, y: PULPIT_UP * k2, yaw: k2 > 0 ? Math.PI * (0.5 + (1 - k2) * 1.5) : Math.atan2(foot.x - s.from.x, foot.z - s.from.z), motion: "walk" };
+        if (k2 >= 1) {
+          s.stage = "preach";
+          s.i = -1;
+          s.t = 1.2;
+          fig.hold = { x: pulpit.x, z: pulpit.z, y: PULPIT_UP, yaw: pulpit.yaw, motion: "idle" };
+        }
+        return;
+      }
+      case "preach": {
+        if (!fig || !s.view || !pulpit) return this.endSermon();
+        s.t -= dt;
+        if (s.t > 0) return;
+        s.i++;
+        const lines = s.view.lines;
+        if (s.i >= lines.length) {
+          this.caption.classList.remove("on");
+          s.stage = "down";
+          s.t = 0;
+          this.heard();
+          return;
+        }
+        const text = lines[s.i];
+        // short enough that six to ten lines fit in high mass (two game hours are forty seconds)
+        s.t = Math.max(3, Math.min(4.6, 2.2 + text.length / 55));
+        this.caption.innerHTML = `<b>${esc(fig.p.first)}, from the pulpit</b>${esc(text)}`;
+        this.caption.classList.add("on");
+        fig.hold = { x: pulpit.x, z: pulpit.z, y: PULPIT_UP, yaw: pulpit.yaw + (s.i % 2 ? 0.35 : -0.35), motion: "talk" };
+        const at = room.toWorld(pulpit.x, pulpit.z);
+        this.speak({ x: at.x, z: at.z }, { sex: fig.p.sex, age: fig.p.age }, Math.min(s.t - 0.4, 5));
+        // the pious nod along; halfway through, the gossip whispers
+        const present = s.view.nodders.filter((id) => this.figs.has(id));
+        for (let k = 0; k < 2 && present.length; k++) this.nods.set(present[(s.i * 3 + k * 5) % present.length], 1.4);
+        if (s.i === Math.floor(lines.length / 2) && s.view.gossip && this.figs.has(s.view.gossip.id)) this.startWhisper(s.view.gossip);
+        return;
+      }
+      case "down": {
+        if (!fig || !pulpit) return this.endSermon();
+        s.t += dt;
+        const k = Math.min(1, s.t / 3);
+        const back = room.marks.preacherWait ?? s.from;
+        fig.hold = { x: pulpit.x + (back.x - pulpit.x) * k, z: pulpit.z + (back.z - pulpit.z) * k, y: PULPIT_UP * (1 - k), yaw: Math.PI * (1.5 - k * 0.5), motion: "walk" };
+        if (k >= 1) this.endSermon();
+        return;
+      }
+    }
+  }
+
+  private endSermon(): void {
+    const s = this.sermon;
+    if (!s) return;
+    const f = s.fig ? this.figs.get(s.fig) : null;
+    if (f) {
+      f.hold = null;
+      f.y = 0;
+      this.place(f, true);
+    }
+    s.stage = "done";
+    this.caption.classList.remove("on");
+  }
+
+  /** The sermon is over with Jef in the nave: the server applies the kerk's trust (once a Sunday). */
+  private heard(): void {
+    landmarksApi
+      .heard()
+      .then((r) => {
+        this.jobs.refresh(r as JobsPayload);
+        if (r.text) this.say(r.text);
+      })
+      .catch(() => {});
+  }
+
+  private startWhisper(g: NonNullable<SermonView["gossip"]>): void {
+    this.whisper?.el.remove();
+    const el = document.createElement("div");
+    el.className = "bubble whisper";
+    el.innerHTML = `<b>${esc(g.name)}, in a whisper</b>${esc(g.text)}`;
+    document.body.appendChild(el);
+    this.whisper = { el, who: g.id, t: 4.5 };
+    const f = this.figs.get(g.id);
+    const room = this.here?.room;
+    if (f && room) {
+      const at = room.toWorld(f.x, f.z);
+      this.speak({ x: at.x, z: at.z }, { sex: f.p.sex, age: f.p.age }, 1.6);
+      // the one she whispers to leans in
+      if (g.to) this.nods.set(g.to, 1.4);
+    }
+  }
+
+  private updateWhisper(dt: number): void {
+    const w = this.whisper;
+    if (!w) return;
+    w.t -= dt;
+    const f = this.figs.get(w.who);
+    const room = this.here?.room;
+    if (w.t <= 0 || !f || !room) {
+      w.el.remove();
+      this.whisper = null;
+      return;
+    }
+    const cam = this.player.camera;
+    cam.updateMatrixWorld();
+    const v = room.toWorld(f.x, f.z, f.y + (f.seated ? 1.35 : 1.8)).project(cam);
+    if (v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) return void w.el.classList.remove("on");
+    w.el.style.left = `${(((v.x + 1) / 2) * window.innerWidth).toFixed(0)}px`;
+    w.el.style.top = `${(((1 - v.y) / 2) * window.innerHeight).toFixed(0)}px`;
+    w.el.classList.add("on");
+  }
+
+  /** Dev: the sermon's state. */
+  get sermonInfo() {
+    const s = this.sermon;
+    return s
+      ? {
+          stage: s.stage,
+          line: s.i,
+          of: s.view?.lines.length ?? 0,
+          source: s.view?.source ?? null,
+          preacher: s.fig,
+          hint: s.view?.hint ?? null,
+          caption: this.caption.classList.contains("on") ? this.caption.textContent : null,
+          whisper: this.whisper ? this.whisper.el.textContent : null,
+          nods: [...this.nods.keys()],
+        }
+      : null;
   }
 
   private sayOnce(t: string): void {

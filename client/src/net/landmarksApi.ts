@@ -62,4 +62,17 @@ export const landmarksApi = {
   // a model call may be behind this: 20 s on the server, a little more here
   confess: (text: string) => call<{ line: string; penance: string | null; source: string; gated?: string }>("POST", "/api/landmark/confess", { text }, 25_000),
   end: () => call<{ line: string }>("POST", "/api/landmark/confess/end", {}),
+  // M6 sermon (server/src/ballads/sermon.ts): Sunday's words (a model call may be behind it) and "Jef heard it"
+  sermon: () => call<SermonView>("GET", "/api/sermon", undefined, 25_000),
+  heard: () => call<JobsPayload & { delta: number; text: string }>("POST", "/api/sermon/heard", {}),
 };
+
+export interface SermonView {
+  day: number;
+  lines: string[];
+  source: "claude" | "engine";
+  hint: "warn" | "praise" | null;
+  gossip: { id: string; name: string; to: string | null; text: string } | null;
+  nodders: string[];
+  heard: boolean;
+}

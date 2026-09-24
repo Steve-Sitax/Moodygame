@@ -247,6 +247,8 @@ function cathedralPeople(db: DB, day: number, hour: number, busy: Set<string>): 
   if (service && !(wed && wed.stage === "vows")) {
     const celebrant = service.celebrant === "parish" && atWork(parish, day, hour) ? parish : atWork(curate, day, hour) ? curate : parish;
     add(celebrant, "celebrant", "the priest");
+    // M6 sermon: at Sunday high mass the other priest waits by the pulpit to preach (ballads/sermon.ts)
+    if (service.kind === "high") add(celebrant === curate ? parish : curate, "preacher", celebrant === curate ? "the priest" : "the curate");
     if (service.kind !== "low" || atWork(sexton, day, hour)) add(sexton, "sexton", "the sexton");
     if (atWork(beadle, day, hour)) add(beadle, "beadle_mass");
     if (atWork(chairs, day, hour)) add(chairs, "chairs_collect");
@@ -525,6 +527,7 @@ const ROLE_WORDS: Record<string, string> = {
   confessor: "hearing confession in your confessional in the south aisle",
   sacristy: "about the sacristy and the altars between masses",
   sexton: "serving at the altar as the sexton",
+  preacher: "at high mass, waiting by the pulpit to preach the sermon",
   beadle: "keeping order in the aisles with your staff",
   beadle_mass: "standing at the head of the nave with your staff during mass",
   chairs: "minding the chairs you let at mass",

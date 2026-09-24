@@ -101,6 +101,12 @@ const ICON: Record<string, Draw> = {
     g.fillText("No.", 13, 15);
     g.fillRect(9, 19, 14, 1);
   },
+  // M6 ballads: a broadside, a woodcut block at the top and lines of verse
+  ballad: (g) => {
+    g.strokeRect(8, 4, 16, 24);
+    g.fillRect(11, 7, 10, 5);
+    for (const y of [15, 18, 21, 24]) g.fillRect(11, y, y === 21 ? 7 : 10, 0.9);
+  },
   parcel: (g) => {
     g.strokeRect(6, 9, 20, 15);
     g.beginPath();

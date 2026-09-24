@@ -75,18 +75,29 @@ export interface TavernNow {
   label: string;
   open: boolean;
   keeper: { id: string; name: string; first: string; kind: string } | null;
-  patrons: Array<{ id: string; name: string; first: string; kind: string; sex: "m" | "f"; age: number }>;
+  patrons: Array<{ id: string; name: string; first: string; kind: string; sex: "m" | "f"; age: number; stand?: boolean; role?: string }>;
 }
+
+/**
+ * M6 ballads: others who come into a tavern by the engine's own plan, not their schedule (the
+ * ballad singer in the evening, standing to sing). Registered by their modules.
+ */
+export const TAVERN_GUESTS: Array<(db: DB, place: string) => Array<{ r: Resident; stand?: boolean; role?: string }>> = [];
 
 export function tavernNow(db: DB, place: string): TavernNow {
   const k = keeperOf(db, place);
   const open = keeperAtWork(db, place);
+  const regulars = open ? patronsIn(db, place) : [];
+  const guests = open ? TAVERN_GUESTS.flatMap((f) => f(db, place)).filter((g) => !regulars.some((r) => r.id === g.r.id)) : [];
   return {
     place,
     label: tavernLabel(db, place),
     open,
     keeper: k ? { id: k.id, name: k.name, first: k.first, kind: k.kind } : null,
-    patrons: open ? patronsIn(db, place).map((r) => ({ id: r.id, name: r.name, first: r.first, kind: r.kind, sex: r.sex, age: r.age })) : [],
+    patrons: [
+      ...regulars.map((r) => ({ id: r.id, name: r.name, first: r.first, kind: r.kind, sex: r.sex, age: r.age })),
+      ...guests.map((g) => ({ id: g.r.id, name: g.r.name, first: g.r.first, kind: g.r.kind, sex: g.r.sex, age: g.r.age, ...(g.stand ? { stand: true } : {}), ...(g.role ? { role: g.role } : {}) })),
+    ],
   };
 }
 

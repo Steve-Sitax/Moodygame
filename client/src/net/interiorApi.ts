@@ -10,6 +10,9 @@ export interface Person {
   kind: string;
   sex: "m" | "f";
   age: number;
+  /** M6 ballads: a guest who stands (the ballad singer), and what they do there. */
+  stand?: boolean;
+  role?: string;
 }
 
 export interface TavernDoor {

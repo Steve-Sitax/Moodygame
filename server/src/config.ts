@@ -20,6 +20,73 @@ export const CLAUDE = {
   timeoutMs: 20_000, // CLAUDE.md: every model call bounded, then a fallback
 } as const;
 
+// ------------------------------------------------------------------ the model router (M6, docs/milestones/M6-models.md)
+
+export type Provider = "claude" | "codex";
+export interface ModelChoice {
+  provider: Provider;
+  model: string;
+  /** Left out for Haiku 4.5, which takes no effort setting. */
+  effort?: "low" | "medium" | "high";
+}
+/** The models the router may pick. Claude ones go through the Agent SDK, GPT Sol through the Codex CLI (ai/codex.ts). */
+export const MODELS = {
+  opus: { provider: "claude", model: CLAUDE.model, effort: CLAUDE.effort },
+  sonnet: { provider: "claude", model: "claude-sonnet-5", effort: "medium" },
+  haiku: { provider: "claude", model: "claude-haiku-4-5-20251001" },
+  sol: { provider: "codex", model: "gpt-6-sol", effort: "medium" },
+  luna: { provider: "codex", model: "gpt-6-luna", effort: "medium" },
+} as const satisfies Record<string, ModelChoice>;
+export type ModelKey = keyof typeof MODELS;
+
+/** A hook not in MODEL_ROUTE goes here. */
+export const ROUTE_DEFAULT: ModelKey = "opus";
+/**
+ * Hook -> model. Measured 2026-09-24 on 43 real prompts of 11 hooks (docs/milestones/M6-models.md).
+ * Opus 5.5 was the best writer and as fast as any (median 7.4 s). A cheaper model takes a hook only
+ * where it was good enough: judged within 0.6 of Opus, no more rule breaks, done in 20 s at least
+ * 95% of the time, at most twice Opus's time, not much less varied, and no player text in the
+ * prompt. Of those, the cheapest wins (GPT Luna, then Haiku, then Sonnet). Every other hook,
+ * and every hook not listed, stays on Opus 5.5. Change the table, not the game.
+ */
+export const MODEL_ROUTE: Record<string, ModelKey> = {
+  newspaper: "luna",
+  poster: "luna",
+  rumour_twist: "haiku",
+  dream: "haiku",
+  npc_convo: "sonnet",
+  family_share: "sonnet",
+};
+
+/** The switch "all Claude": every GPT Sol route goes to ROUTE_DEFAULT instead. SCHELDEMIST_ALL_CLAUDE=1 sets it. */
+export const ALL_CLAUDE = process.env.SCHELDEMIST_ALL_CLAUDE === "1";
+
+/**
+ * Hooks whose prompt can hold the player's own typed words (a line, a letter, a confession).
+ * These go only to Claude, whatever MODEL_ROUTE says, unless CODEX_PLAYER_TEXT is on (docs/03, wall 1).
+ */
+export const PLAYER_TEXT_HOOKS: ReadonlySet<string> = new Set([
+  "free_reply",
+  "resident_talk",
+  "resident_talkdown",
+  "resident_haggle",
+  "resident_police",
+  "letter_reply",
+  "confession",
+]);
+/**
+ * GPT Sol held all 35 hostile lines, 2026-09-24 (M6-models-injection.md), but wrote the townspeople
+ * a grade flatter than Opus, so there is no reason to send it the player's words. Off.
+ */
+export const CODEX_PLAYER_TEXT = false;
+
+/** GPT Sol through the Codex CLI: same 20 s bound as Claude; an empty folder of its own to run in. */
+export const CODEX = {
+  model: MODELS.sol.model,
+  effort: MODELS.sol.effort,
+  cwd: path.join(ROOT, "data", "ai-cwd-codex"),
+} as const;
+
 /**
  * Stop runaway loops: at most this many model calls per in-game day. Steve, 2026-09-24: 80 -> 120
  * ("120 calls is ok"): the M6 features had taken nearly all of the 80, leaving the board, the
@@ -89,6 +156,15 @@ export const IDEAS_CALLS_PER_DAY = 4;
 export const CONFESSION_CALLS_PER_DAY = 2;
 /** M6 town life: the natie foreman's call at the dawn hiring (director/hiring.ts), one a working morning. */
 export const HIRING_CALLS_PER_DAY = 1;
+/**
+ * M6 ballads and the sermon (ballads/): the street singer's ballad of the day (one call; a second
+ * row if the first fails its schema) and the Sunday sermon (one call a Sunday). Out of what was
+ * left of the 120, never the reserve; when a share is gone the engine writes them. The shares
+ * now come to 88 of 120, leaving 32 for the board, the outcomes, the named people and the
+ * epilogue (the last 15 of them the reserve).
+ */
+export const BALLAD_CALLS_PER_DAY = 2;
+export const SERMON_CALLS_PER_DAY = 1;
 /**
  * M4b (Steve, 2026-09-24: "events should gather up to 100 people"): the most townspeople one
  * event may take, leads included, and the most one gathering stage may call. The director may
