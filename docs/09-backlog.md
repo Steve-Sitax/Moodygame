@@ -5,6 +5,7 @@ Newest on top. Each item says who raised it and when.
 ## Feedback after playing M2b (Steve, 2026-09-23)
 M2b "works, that was more interesting". Ideas and wishes from that play:
 - **More thieves, a gang, and combat.** Steve decided (2026-09-23): no combat in the demo (docs/08 #10). More thieves and a gang are welcome, without fighting: chase off, pay off, report, or lose goods.
+- **Hate and fights (later).** Steve, 2026-09-24: trust may now go below 0 (-5 to 10), "we can later implement hate and fights then". Until that milestone the no-combat rule (docs/08 #10) stands: negative trust only makes people colder (refuse to sell or talk, warn others, call the police).
 - **People hand things over.** (Taken into M3.) A parcel should come from a person (the employer or a clerk), not lie on the pier. Crates too, where it fits: you speak to someone on the ship and they lower crates from the boat with the crane or a rope. Needs M3 NPCs.
 - **Better physics for goods:** (Stacking and lifting any goods taken into M3.) put a crate anywhere (also on top of other crates), pick up any crate, stack crates. Goods rest on what is under them.
 - **Owners react:** (Taken into M3.) if you pick up a crate that belongs to someone and they are near, they get angry. Trust, memory and rumour follow (M3).
