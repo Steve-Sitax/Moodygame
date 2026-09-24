@@ -213,6 +213,10 @@ export interface World {
   omnibus(): Omnibuses | null;
   /** Where the people walking are (the crowd and the town): bridges never open under them. */
   setPeople(fn: () => Iterable<{ x: number; z: number }>): void;
+  /** Fixes 2026-09-24: where the handcarts stand (main.ts: game/handcart.ts), for the lock gates. */
+  setCarts(fn: () => Iterable<{ x: number; z: number }>): void;
+  /** Does a lock gate's balance beam swing over (x, z)? No cart is left standing there. */
+  lockSweep(x: number, z: number, r: number): boolean;
   /** Must someone at (x, z) wait? True on (or right at) an opening bridge that is opening, open or shutting. */
   bridgeWait(x: number, z: number): boolean;
   /** Dev menu: things to set off now (a lock passage, a boat up the canal, fog, rain). */
@@ -545,6 +549,8 @@ export function buildRijnkaai(): World {
     bridges?.list.find((b) => x > b.rect.minX && x < b.rect.maxX && z > b.rect.minZ && z < b.rect.maxZ) ?? null;
   // people walking: a bridge does not open while anyone is on its deck
   let peopleFn: (() => Iterable<{ x: number; z: number }>) | null = null;
+  /** Fixes 2026-09-24: where the handcarts stand (parked or pushed): the lock gates' beams keep off them. */
+  let cartsFn: (() => Iterable<{ x: number; z: number }>) | null = null;
   const peopleOn = (r: { minX: number; maxX: number; minZ: number; maxZ: number }) => {
     if (!peopleFn) return false;
     // on the deck itself only: people waiting at the ends (bridgeWait) must not hold it shut
@@ -558,6 +564,13 @@ export function buildRijnkaai(): World {
         world: { addCollider: (r) => dynamic.add(r), removeCollider: (r) => dynamic.delete(r) },
         occupied: () =>
           (!!camera && !!onOpening(camera.position.x, camera.position.z)) || !!railway?.busy(LOCK_DECK) || !!omnibus?.busy(LOCK_DECK) || peopleOn(LOCK_DECK),
+        // fixes 2026-09-24: a gate waits while Jef or a cart stands where its balance beam swings
+        sweepBusy: (inSweep) => {
+          if (camera && inSweep(camera.position.x, camera.position.z, 0.32)) return true;
+          for (const c of cartsFn?.() ?? []) if (inSweep(c.x, c.z, 0.6)) return true;
+          for (const m of movers) if (inSweep((m.minX + m.maxX) / 2, (m.minZ + m.maxZ) / 2, Math.max(m.maxX - m.minX, m.maxZ - m.minZ) / 2)) return true;
+          return false;
+        },
       });
       bridges = createBridges(scene, b, {
         lock,
@@ -1013,8 +1026,22 @@ export function buildRijnkaai(): World {
       return !hits(x, z, r, feet);
     }
     if (f > feet + STEP) return false; // a wall face: the quay from the steps, the pier from the landing
+    // fixes 2026-09-24 (Steve: "the quay wall is partly see through"): on the quay steps the body, not
+    // only its centre, keeps off the wall face. The centre could reach the wall line, the eye came within
+    // the camera's near plane (8 cm) of the wall sheet, and the wall was cut away round it.
+    if (steps.heightAt(x, z) && faceNear(x, z, r + 0.1, feet)) return false;
     if (wallNear(x, z, r + 0.15)) return false;
     return !hits(x, z, r, feet);
+  }
+
+  /** Is there stone higher than a step within m of (x, z) (a wall face beside the quay steps)? */
+  function faceNear(x: number, z: number, m: number, feet: number): boolean {
+    for (let i = 0; i < 8; i++) {
+      const a = (i * Math.PI) / 4;
+      const g = floorAt(x + Math.cos(a) * m, z + Math.sin(a) * m);
+      if (g !== null && g > feet + STEP) return true;
+    }
+    return false;
   }
 
   /** Height to stand on at (x, z): the highest top you are over and could reach. Open water: the river bed. */
@@ -1413,6 +1440,8 @@ export function buildRijnkaai(): World {
     ambient,
     streetLife: () => street,
     setPeople: (fn) => (peopleFn = fn),
+    setCarts: (fn) => (cartsFn = fn),
+    lockSweep: (x, z, r) => !!lock?.inSweep?.(x, z, r),
     bridgeWait: (x, z) => {
       const b = bridges?.list.find((q) => x > q.rect.minX - 0.4 && x < q.rect.maxX + 0.4 && z > q.rect.minZ - 0.4 && z < q.rect.maxZ + 0.4);
       return !!b && b.opening();

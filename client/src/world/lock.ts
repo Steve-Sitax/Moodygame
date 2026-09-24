@@ -42,6 +42,11 @@ export interface LockOptions {
   occupied?: () => boolean;
   /** Colliders for the bridge's gallows posts (World.addCollider / removeCollider). */
   world?: { addCollider(r: Rect): void; removeCollider(r: Rect): void };
+  /**
+   * Fixes 2026-09-24 (Steve: "cart lodged in lock boom"): is anything the keeper must not swing a
+   * balance beam into (Jef, a cart) where `inSweep` says a beam passes? Then that pair waits.
+   */
+  sweepBusy?: (inSweep: (x: number, z: number, r: number) => boolean) => boolean;
   /** Seconds of game time between passages, min and max. Default 150..330. */
   interval?: [number, number];
   /** The route of a tow, river end first (x, z): out of the fog, through the lock, to a berth in the dock. */
@@ -68,6 +73,8 @@ export interface Lock {
   request?(on: boolean, where?: () => { x: number; z: number }): void;
   /** M3j: how far the bridge's leaves are lifted, 0 (down) .. 1 (up). */
   lift?(): number;
+  /** Fixes 2026-09-24: does a gate's balance beam swing over (x, z) (radius r)? Keep carts out of there. */
+  inSweep?(x: number, z: number, r: number): boolean;
   group: THREE.Group;
 }
 
@@ -185,7 +192,51 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
   const OPEN_BRIDGE = -Math.PI / 2;
   const GATE_OPEN = (75 * Math.PI) / 180;
   let bridge: DrawBridge | null = null;
-  const gates: Array<{ obj: THREE.Object3D; closed: number; dir: number; pair: 0 | 1 }> = [];
+  const gates: Array<{ obj: THREE.Object3D; closed: number; dir: number; pair: 0 | 1; rects: Rect[]; at: number }> = [];
+  /**
+   * The balance beam of a leaf (tools/blender/build_lock.py gate_leaf): from the heel post back along
+   * the leaf's -X over the quay, 5.6 m (times the leaf's x scale), its top about 1.2 m up. Its
+   * direction on the ground for a leaf turned to `yaw` (three.js turns local +x to (cos, -sin)).
+   */
+  const BEAM_LEN = 5.6;
+  const BEAM_HALF = 0.3;
+  const beamDir = (yaw: number): [number, number] => [-Math.cos(yaw), Math.sin(yaw)];
+  const beamLen = (gt: (typeof gates)[number]) => BEAM_LEN * gt.obj.scale.x;
+  /** Solid squares along the beam where it lies now (Jef, the townspeople and the carts go round it). */
+  const beamRects = (gt: (typeof gates)[number]): Rect[] => {
+    const [dx, dz] = beamDir(gt.obj.rotation.y);
+    const out: Rect[] = [];
+    for (let d = 0.3; d <= beamLen(gt) + 0.01; d += 0.55) {
+      const x = gt.obj.position.x + dx * d;
+      const z = gt.obj.position.z + dz * d;
+      out.push({ minX: x - BEAM_HALF, maxX: x + BEAM_HALF, minZ: z - BEAM_HALF, maxZ: z + BEAM_HALF, top: 1.25 });
+    }
+    return out;
+  };
+  const setBeam = (gt: (typeof gates)[number]) => {
+    if (Math.abs(gt.obj.rotation.y - gt.at) < 0.01 && gt.rects.length) return;
+    for (const r of gt.rects) opts.world?.removeCollider(r);
+    gt.rects = beamRects(gt);
+    for (const r of gt.rects) opts.world?.addCollider(r);
+    gt.at = gt.obj.rotation.y;
+  };
+  /** Does the beam of a pair (or of any pair) pass over (x, z) somewhere between shut and open? */
+  const inSweep = (x: number, z: number, r: number, pair?: 0 | 1): boolean => {
+    for (const gt of gates) {
+      if (pair !== undefined && gt.pair !== pair) continue;
+      const hx = gt.obj.position.x;
+      const hz = gt.obj.position.z;
+      const L = beamLen(gt);
+      if (Math.hypot(x - hx, z - hz) > L + r + BEAM_HALF + 0.2) continue;
+      for (let k = 0; k <= 12; k++) {
+        const [dx, dz] = beamDir(gt.closed + gt.dir * GATE_OPEN * (k / 12));
+        // the distance from (x, z) to the beam's line segment
+        const t = Math.max(0, Math.min(L, (x - hx) * dx + (z - hz) * dz));
+        if (Math.hypot(x - (hx + dx * t), z - (hz + dz * t)) < r + BEAM_HALF + 0.15) return true;
+      }
+    }
+    return false;
+  };
   let bridgeAngle = 0; // current
   const gateOpen: [number, number] = [0, 0]; // river pair, dock pair: 0..1
   let want = false; // the traffic wants the lock open
@@ -234,7 +285,7 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
           const closed = side === 0 ? -(15 * Math.PI) / 180 : Math.PI + (15 * Math.PI) / 180;
           o.rotation.y = closed;
           group.add(o);
-          gates.push({ obj: o, closed, dir: side === 0 ? -1 : 1, pair });
+          gates.push({ obj: o, closed, dir: side === 0 ? -1 : 1, pair, rects: [], at: NaN });
           if (cap) {
             const c = cap.clone();
             c.position.set(side === 0 ? channel.minX - 3.2 : channel.maxX + 3.2, 0, z - 3.5);
@@ -411,6 +462,9 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
       // the chamber at this side's level (a tow: near enough; the water then runs through)
       const level = towGo || Math.abs(flat - sideLevel(i)) < 0.04;
       const mayOpen = wantGate[i] && bridgeUp && (towGo || gateOpen[other] < 0.01) && level;
+      // the keeper does not swing a balance beam into Jef or a cart standing in its way
+      const moving = (mayOpen && gateOpen[i] < 1) || (!wantGate[i] && gateOpen[i] > 0);
+      if (moving && opts.sweepBusy?.((x, z, r) => inSweep(x, z, r, i))) continue;
       if (mayOpen) gateOpen[i] = Math.min(1, gateOpen[i] + gateSpeed * dt);
       else if (!wantGate[i]) gateOpen[i] = Math.max(0, gateOpen[i] - gateSpeed * dt);
     }
@@ -430,7 +484,10 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
     water.chamberB += (ends[1] - water.chamberB) * k;
     water.chamber = (water.chamberA + water.chamberB) / 2;
     bridge?.set(smooth(bridgeAngle / OPEN_BRIDGE));
-    for (const gt of gates) gt.obj.rotation.y = gt.closed + gt.dir * GATE_OPEN * smooth(gateOpen[gt.pair]);
+    for (const gt of gates) {
+      gt.obj.rotation.y = gt.closed + gt.dir * GATE_OPEN * smooth(gateOpen[gt.pair]);
+      setBeam(gt);
+    }
 
     // --- traffic
     if (!tow) return;
@@ -502,6 +559,7 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
       }
     },
     lift: () => smooth(bridgeAngle / OPEN_BRIDGE),
+    inSweep: (x, z, r) => inSweep(x, z, r),
     passNow(dir = "in") {
       start(dir);
     },

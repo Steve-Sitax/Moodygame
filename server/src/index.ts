@@ -9,7 +9,7 @@ import { plainEnglish } from "./text.ts";
 import { BEDTIME, clock, ending, markDayStart, payRent, RENT_C, rentPaid, resetTickLimit, setEnding, setWeather, sleep, swim, tick, type Ending } from "./day.ts";
 import { writeEpilogue } from "./hooks/epilogue.ts";
 import { resetTalks } from "./hooks/dialogue.ts";
-import { listJobs, makeBoard } from "./hooks/jobBoard.ts";
+import { devJob, listJobs, makeBoard } from "./hooks/jobBoard.ts";
 import { writeOutcome } from "./hooks/jobOutcome.ts";
 import { finishJob, GameError, jobRumour, player, ReportSchema, saveOutcome, saveProgress, takeJob } from "./game.ts";
 import { ensurePersonas, PLACED, npcRow } from "./npcs.ts";
@@ -421,6 +421,13 @@ if (DEV) {
   app.post("/api/dev/new-board", (c) => {
     void writeBoard();
     return c.json({ started: true });
+  });
+  // dev only (docs/testing.md): one job of a chosen kind and twist on today's board
+  app.post("/api/dev/job", async (c) => {
+    const b = (await c.req.json().catch(() => ({}))) as Parameters<typeof devJob>[1];
+    const r = devJob(db, b);
+    broadcast({ type: "jobs", ...jobsPayload() });
+    return c.json(r);
   });
   // dev only: a picture of the game from the browser, for checks without a screen
   app.post("/api/dev/shot", async (c) => {

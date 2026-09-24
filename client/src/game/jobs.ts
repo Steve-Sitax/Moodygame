@@ -443,6 +443,21 @@ export class Jobs {
     await this.takeJob(j);
   }
 
+  /** Dev (dev/testkit.ts): take a job by id from anywhere, as if from the board. */
+  async devTake(id: number): Promise<string> {
+    const p = await api.jobs();
+    this.refresh(p);
+    const j = p.jobs.find((x) => x.id === id);
+    if (!j) return `no job ${id} today`;
+    await this.takeJob(j);
+    return this.active?.id === id ? `took "${j.title}"` : "not taken (see the toast)";
+  }
+
+  /** Dev: the job now running, if any. */
+  get devActive(): Job | null {
+    return this.active;
+  }
+
   /** Take a job, from the board or from the person who offers it. */
   private async takeJob(j: Job): Promise<void> {
     if (!j.playable) return this.toastMsg("That work is not in this build yet.");

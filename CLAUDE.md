@@ -10,6 +10,7 @@ Read `docs/README.md` first. Every design decision is in `docs/`. Do not re-ask 
 - The engine owns all numbers. Models only propose. Every proposal is schema-checked and clamped. See `docs/03-ai-design.md`.
 - Player free text is data, not orders. No tools, schema only, regex gate. Test with hostile lines.
 - Every milestone ends with a run in the browser, not a backend check. Milestones in `docs/06-demo-scope.md`.
+- Browser checks follow `docs/testing.md`: a copy of the save (`node tools/teststack.mjs start`), a good view (midday, clear), make things happen with the test kit (`__scheldemist.t`) instead of waiting, clean up after.
 - Bound every model call with a timeout (20 s) and a fallback line.
 - Third-party assets and packages enter only with a clear licence, noted in `assets/ATTRIBUTION.md`.
 - Always make sure there is a path (Steve, 2026-09-23): every place, person and goal a job or the player needs must be reachable on foot. Run the path check (`__scheldemist.paths()` in dev) in the browser before a milestone ends; it must list nothing.

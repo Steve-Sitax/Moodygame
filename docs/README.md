@@ -17,6 +17,7 @@ Status: documentation phase. No game code yet. Written 2026-09-23.
 | [07-spike-results.md](07-spike-results.md) | Tests done today with local Claude |
 | [08-open-questions.md](08-open-questions.md) | Decisions, all answered 2026-09-23 |
 | [09-backlog.md](09-backlog.md) | Ideas not yet in a milestone (job interaction, ...) |
+| [testing.md](testing.md) | How to check a change in the browser: the test stack, the test kit, where and when things happen |
 | [milestones/](milestones/) | One note per finished milestone; [milestones/M6.md](milestones/M6.md) is the index of the M6 parts |
 
 Reference game: Foghorns Drown (Studio Laaya, 2026). First person, PS1-style, foggy lake town, a ferryman.

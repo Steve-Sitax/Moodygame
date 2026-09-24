@@ -555,6 +555,11 @@ export class Handcarts {
       this.say("Not on the rails: the goods train comes along here. Push it clear first.");
       return;
     }
+    // fixes 2026-09-24 (Steve: "cart lodged in lock boom"): never where a lock gate's balance beam swings
+    if (!force && this.held && footprint({ px: this.player.x, pz: this.player.z, dir: this.dir }).some(([x, z, r]) => this.world.lockSweep(x, z, r * 0.5))) {
+      this.say("Not here: the lock gate's beam swings round over this spot. Push it clear first.");
+      return;
+    }
     const id = this.held;
     const at = this.release();
     if (!id || !at) return;
@@ -745,6 +750,13 @@ export class Handcarts {
   }
 
   /** The pushed cart for the vehicles' eyes (world/traffic.ts, omnibus, train: they stop for it). */
+  /** Fixes 2026-09-24: every cart's middle (parked, and the pushed one's wheels), for the lock gates. */
+  allPoints(): Array<{ x: number; z: number }> {
+    const out = this.points();
+    for (const d of this.drawn.values()) if (!d.info.held) out.push({ x: d.info.x, z: d.info.z });
+    return out;
+  }
+
   points(): Array<{ x: number; z: number }> {
     if (!this.held) return [];
     return footprint({ px: this.player.x, pz: this.player.z, dir: this.dir })

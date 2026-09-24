@@ -45,6 +45,7 @@ import { Lively } from "./game/lively";
 import { Steps } from "./game/steps";
 import { Hands } from "./game/hands";
 import { figureNav } from "./game/figures";
+import { JUMPS, makeTestKit } from "./dev/testkit";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const startEl = document.getElementById("start") as HTMLDivElement;
@@ -238,6 +239,8 @@ handcarts.say = (t) => jobs.say(t);
 handcarts.sfx = (name, at) => sound?.play(name, at);
 handcarts.away = () => interiors.inside;
 handcarts.people = () => crowd.positions();
+// fixes 2026-09-24: the lock gates' balance beams wait for carts in their way (world/lock.ts)
+world.setCarts(() => handcarts.allPoints());
 // M6 families and surprises (game/families.ts): visits, a menace, dreams, strangers, the fortune teller's table
 const families = new Families(world, player, jobs, town);
 {
@@ -327,19 +330,7 @@ if (import.meta.env.DEV) {
   mountDevMenu(startEl.querySelector(".paper") as HTMLElement, {
     place: (x, z) => player.place(x, z, 0),
     tide: world.tideDev,
-    places: [
-      { name: "Rijnkaai", x: 20, z: 20 },
-      { name: "Werf", x: -270, z: 9 },
-      { name: "Steenplein", x: -180, z: 20 },
-      { name: "Het Steen (ramp)", x: -202.2, z: 0.5 },
-      { name: "Vismarkt", x: -118, z: 30 },
-      { name: "Vleeshuis", x: -122, z: 84 },
-      { name: "Grote Markt", x: -254, z: 90 },
-      { name: "Cathedral", x: -262, z: 138 },
-      { name: "Canal", x: -64, z: 100 },
-      { name: "Lock", x: 96, z: 26 },
-      { name: "Petit Bassin", x: 120, z: 117 },
-    ],
+    places: JUMPS,
     events: [
       ...world.devEvents(),
       // M4: the director and its templates
@@ -829,4 +820,16 @@ if (import.meta.env.DEV) {
       };
     },
   };
+  // the test kit (docs/testing.md): __scheldemist.t.help()
+  const dev = (window as unknown as { __scheldemist: { step(s: number): void; shotFrom(n: string, f: [number, number, number], t: [number, number, number], fog?: number): Promise<string>; t?: unknown } }).__scheldemist;
+  dev.t = makeTestKit({
+    player,
+    world,
+    town,
+    jobs,
+    events,
+    step: (s) => dev.step(s),
+    shotFrom: (n, f, t, fog) => dev.shotFrom(n, f, t, fog),
+    audio: () => sound as unknown as { ctx: BaseAudioContext } | null,
+  });
 }

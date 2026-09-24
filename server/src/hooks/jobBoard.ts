@@ -502,6 +502,41 @@ export async function makeBoard(
   return { source, error: res.error, ms: res.ms };
 }
 
+/**
+ * Dev (docs/testing.md): one job of a chosen kind and twist on today's board, offered, for quick
+ * tests (the watch with the thief without waiting for a board that happens to have one). It starts
+ * from the hand-written job of that kind and goes through the same engine clamps (taskFor).
+ */
+export function devJob(
+  db: DB,
+  spec: { type?: string; twist?: string; goods?: string; from?: string; to?: string; employer?: string; urgent?: boolean },
+): { id: number; title: string; task: Task | null } {
+  const type = spec.type === "watch" || spec.type === "deliver" ? spec.type : "carry";
+  const base = FALLBACK_BOARD.jobs.find((j) => j.task_type === type)!;
+  const pick = <T extends string>(v: string | undefined, ok: readonly T[] | Record<string, unknown>, dflt: T): T =>
+    v && (Array.isArray(ok) ? (ok as readonly string[]).includes(v) : v in ok) ? (v as T) : dflt;
+  const j: BoardJob = {
+    ...base,
+    twist: pick(spec.twist, TWISTS, base.twist),
+    employer: pick(spec.employer, ALL_EMPLOYERS, base.employer) as BoardJob["employer"],
+    from: pick(spec.from, SPOTS, base.from) as BoardJob["from"],
+    to: pick(spec.to, SPOTS, base.to) as BoardJob["to"],
+    goods: (spec.goods ?? base.goods) as BoardJob["goods"],
+    urgent: spec.urgent ?? base.urgent,
+    title: `Test: ${type}${spec.twist && spec.twist !== "none" ? `, ${spec.twist}` : ""}`,
+  };
+  const task = taskFor(j);
+  const e = ALL_EMPLOYERS[j.employer];
+  const { day } = db.prepare("SELECT day FROM player WHERE id = 1").get() as { day: number };
+  const r = db
+    .prepare(
+      `INSERT INTO job (day, title, employer_npc, district, task_type, pay_c, risk, tier, required_faction, pitch, task_json, source, status)
+       VALUES (?, ?, ?, 'rijnkaai', ?, ?, ?, 1, ?, ?, ?, 'dev', 'offered')`,
+    )
+    .run(day, j.title, j.employer, j.task_type, j.pay_c, j.risk, e.faction, j.pitch, JSON.stringify(task ?? {}));
+  return { id: Number(r.lastInsertRowid), title: j.title, task };
+}
+
 /** The game needs at least one playable job; add a hand-written one if not. */
 function ensurePlayable(board: Board): Board {
   if (board.jobs.some((j) => PLAYABLE.has(j.task_type))) return board;
