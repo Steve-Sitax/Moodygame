@@ -300,3 +300,9 @@ hostile lines: its talk scored -1.0, so it is not a candidate for player text.
 - `cd server; node scripts/model-compare.ts [--models opus,sonnet,haiku,sol,luna] [--no-judge] [--capture-only]`
   (about 25 minutes for all five; results in `data/model-compare/`, finished calls are not made again).
 - `cd server; node scripts/injection-eval-sol.ts > ../docs/milestones/M6-models-injection.md` (about 20 minutes).
+
+## Steve's choice (2026-09-24)
+"Do not use sonnet or haiku, use luna instead" and "and fallback opus indeed": rumour_twist, dream,
+npc_convo and family_share now go to GPT Luna (config.ts MODEL_ROUTE), next to the newspaper and
+the wall bills. Any GPT call that fails its schema, times out or errors is retried on Opus 5.5.
+Everything else, and every hook that can hold the player's typed words, stays on Opus 5.5.

@@ -46,16 +46,17 @@ export const ROUTE_DEFAULT: ModelKey = "opus";
  * Opus 5.5 was the best writer and as fast as any (median 7.4 s). A cheaper model takes a hook only
  * where it was good enough: judged within 0.6 of Opus, no more rule breaks, done in 20 s at least
  * 95% of the time, at most twice Opus's time, not much less varied, and no player text in the
- * prompt. Of those, the cheapest wins (GPT Luna, then Haiku, then Sonnet). Every other hook,
+ * prompt. Steve then chose GPT Luna for every cheap hook (no Sonnet, no Haiku). Every other hook,
  * and every hook not listed, stays on Opus 5.5. Change the table, not the game.
  */
 export const MODEL_ROUTE: Record<string, ModelKey> = {
   newspaper: "luna",
   poster: "luna",
-  rumour_twist: "haiku",
-  dream: "haiku",
-  npc_convo: "sonnet",
-  family_share: "sonnet",
+  // Steve, 2026-09-24: "do not use sonnet or haiku, use luna instead", "and fallback opus indeed"
+  rumour_twist: "luna",
+  dream: "luna",
+  npc_convo: "luna",
+  family_share: "luna",
 };
 
 /** The switch "all Claude": every GPT Sol route goes to ROUTE_DEFAULT instead. SCHELDEMIST_ALL_CLAUDE=1 sets it. */

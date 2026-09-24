@@ -67,8 +67,7 @@ Change the table, not the game. Every `ai_call` row records the provider and the
 | Hook | Model | Why (vs Opus 5.5, blind judge, 5 = best) |
 |---|---|---|
 | newspaper, poster | GPT Luna (`gpt-6-luna`), medium, via Codex | Good enough (-0.35, -0.60), no rule breaks, as fast; off the Claude plan |
-| rumour_twist, dream | Claude Haiku 4.5, thinking off | Good enough (-0.60, -0.50), as fast or near |
-| npc_convo, family_share | Claude Sonnet 5, medium | Close to Opus (-0.20, -0.05), a little cheaper on the plan |
+| rumour_twist, dream, npc_convo, family_share | GPT Luna | Steve, 2026-09-24: "do not use sonnet or haiku, use luna instead"; a failed call falls back to Opus 5.5 |
 | every other hook (talk, typed lines, letters, director, Poesje, job board, outcomes, epilogue, ...) | Claude Opus 5.5, medium | Best on every hook, median 7.4 s, and the one tested on the hostile lines |
 | textures, portraits, posters (asset phase, not run time) | GPT image model | See 03-ai-design, Images and textures. |
 
