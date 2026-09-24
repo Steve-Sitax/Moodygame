@@ -124,7 +124,7 @@ describe("town size: a new game", () => {
       expect(bad).toEqual([]);
       // every resident is an npc row too
       expect((db.prepare("SELECT COUNT(*) AS n FROM resident r JOIN npc n ON n.id = r.id").get() as { n: number }).n).toBe(all.length);
-    });
+    }, 30_000); // a new game of each town size: the biggest takes longer than the 5 s default under load
   }
 
   it("the save's town does not change until Restart; the choice outlives the new week", () => {

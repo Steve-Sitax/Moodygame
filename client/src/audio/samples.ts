@@ -44,6 +44,9 @@ export const SAMPLES = {
   // rain
   rainRoofs: F + "rain-roofs-669487-loop.ogg",
   rainCobbles: B + "rain-puddle-1290-loop.ogg",
+  // boots in puddles
+  puddleWalk: F + "puddle-walk-106395.ogg",
+  puddleSteps: F + "puddle-steps-531566.ogg",
 } as const;
 
 export type SampleName = keyof typeof SAMPLES;
@@ -55,6 +58,30 @@ export const DOG_SPANS: Array<[number, number]> = [
   [8.5, 10.4],
   [11.3, 13.7],
   [15.5, 17.9],
+];
+
+/**
+ * One boot in a puddle each: [recording, start s, length s, gain to an even level]. puddleWalk is the
+ * soft, soppy one (boots in wet goo); puddleSteps splashes more. Levels measured 2026-09-24.
+ */
+export const PUDDLE_SPANS: Array<["puddleWalk" | "puddleSteps", number, number, number]> = [
+  ["puddleWalk", 1.28, 0.34, 1.04],
+  ["puddleWalk", 1.84, 0.3, 3.0],
+  ["puddleWalk", 2.32, 0.5, 2.43],
+  ["puddleWalk", 2.92, 0.38, 0.66],
+  ["puddleWalk", 3.86, 0.3, 2.81],
+  ["puddleWalk", 4.16, 0.44, 2.17],
+  ["puddleWalk", 4.76, 0.34, 2.38],
+  ["puddleWalk", 5.84, 0.3, 1.95],
+  ["puddleWalk", 6.32, 0.3, 2.09],
+  ["puddleSteps", 2.64, 0.4, 1.05],
+  ["puddleSteps", 3.64, 0.36, 1.2],
+  ["puddleSteps", 5.0, 0.32, 2.41],
+  ["puddleSteps", 5.4, 0.38, 1.06],
+  ["puddleSteps", 6.2, 0.42, 0.99],
+  ["puddleSteps", 7.06, 0.5, 0.3],
+  ["puddleSteps", 8.0, 0.34, 0.63],
+  ["puddleSteps", 9.26, 0.36, 1.05],
 ];
 
 /** Carillon: the whole tune (voorslag before the hour) and a short phrase (half hour). */

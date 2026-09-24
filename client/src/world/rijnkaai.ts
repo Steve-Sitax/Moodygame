@@ -150,6 +150,8 @@ export interface World {
    * He may step off an open quay edge into the water, unless he carries something (laden).
    */
   move(x: number, z: number, dx: number, dz: number, radius: number, feet?: number, laden?: boolean): [number, number];
+  /** May the player stand at (x, z) with his feet at `feet`? */
+  standFree(x: number, z: number, radius: number, feet: number): boolean;
   /** Height of what you stand on at (x, z), given your feet height; far below the water over open water. */
   groundAt(x: number, z: number, radius: number, feet: number): number;
   /** Open water a swimmer of radius r fits in (not a wall, hull, pile or flight of steps). */
@@ -1151,10 +1153,14 @@ export function buildRijnkaai(): World {
   };
   const hits = (x: number, z: number, r: number, feet: number) => {
     if (areaHits(x, z, r)) return true;
-    if (staticHit(x, z, r, feet)) return true;
-    for (const c of dynamic) if (inRect(c, x, z, r) && blocks(c, feet)) return true;
-    for (const c of railings) if (inRect(c, x, z, r)) return true;
-    for (const c of movers) if (inRect(c, x, z, r) && blocks(c, feet)) return true;
+    const hit = (c: Rect) => inRect(c, x, z, r) && !inside?.has(c);
+    // the grid cannot leave out the colliders Jef stands inside: then the plain loop
+    if (inside?.size) {
+      for (const c of colliders) if (hit(c) && blocks(c, feet)) return true;
+    } else if (staticHit(x, z, r, feet)) return true;
+    for (const c of dynamic) if (hit(c) && blocks(c, feet)) return true;
+    for (const c of railings) if (hit(c)) return true;
+    for (const c of movers) if (hit(c) && blocks(c, feet)) return true;
     return false;
   };
   function walkFree(fx: number, fz: number, x: number, z: number, r: number, feet: number, laden: boolean): boolean {
@@ -1204,8 +1210,38 @@ export function buildRijnkaai(): World {
     if (!walkFree(x, z, nx, z, r, feet, laden)) nx = x;
     let nz = z + dz;
     if (!walkFree(nx, z, nx, nz, r, feet, laden)) nz = z;
+    if (nx === x && nz === z && (dx || dz)) return moveOut(x, z, dx, dz, r, feet, laden);
     return [nx, nz];
   }
+
+  /**
+   * Fixes 2026-09-24 (Steve: stuck at the top of a ladder out of the water): a crane's leg or a wagon
+   * stood on the spot, and every step from inside it was refused. What you already stand in does not
+   * hold you: you walk out of it (everything else still counts).
+   */
+  let inside: Set<Rect> | null = null;
+  function moveOut(x: number, z: number, dx: number, dz: number, r: number, feet: number, laden: boolean): [number, number] {
+    const got = new Set<Rect>();
+    for (const set of [colliders, dynamic, movers] as Iterable<Rect>[]) for (const c of set) if (inRect(c, x, z, r) && blocks(c, feet)) got.add(c);
+    for (const c of railings) if (inRect(c, x, z, r)) got.add(c);
+    if (!got.size) return [x, z];
+    inside = got;
+    try {
+      let nx = x + dx;
+      if (!walkFree(x, z, nx, z, r, feet, laden)) nx = x;
+      let nz = z + dz;
+      if (!walkFree(nx, z, nx, nz, r, feet, laden)) nz = z;
+      return [nx, nz];
+    } finally {
+      inside = null;
+    }
+  }
+
+  /** May the player stand at (x, z) with his feet at `feet`? (Climbing out of the water: a free spot at the top.) */
+  const standFree = (x: number, z: number, r: number, feet: number) => {
+    const f = raisedAt(x, z, feet)?.y ?? floorAt(x, z);
+    return f !== null && Math.abs(f - feet) <= STEP && walkFree(x, z, x, z, r, feet, false);
+  };
 
   function swimMove(x: number, z: number, dx: number, dz: number, r: number): [number, number] {
     let nx = x + dx;
@@ -1617,6 +1653,7 @@ export function buildRijnkaai(): World {
     gasLamps,
     shipPositions: [new THREE.Vector3(SHIP_X + 20, 1, -3), new THREE.Vector3(-34, 1, -21)],
     move,
+    standFree,
     swimFree,
     swimmable,
     swimMove,

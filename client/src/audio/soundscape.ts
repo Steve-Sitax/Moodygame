@@ -6,7 +6,7 @@ import { playCue, type CueSpec } from "./eventcues";
 import type { Surface } from "../world/rijnkaai";
 import { water } from "../world/tide";
 import { cartRoutes, cityEmitters, nearestQuay, overWater, type Emitter, type EmitterKind } from "./emitters";
-import { CARILLON_SHORT, DOG_SPANS, SAMPLES, TOOT_SPANS, type SampleName } from "./samples";
+import { CARILLON_SHORT, DOG_SPANS, PUDDLE_SPANS, SAMPLES, TOOT_SPANS, type SampleName } from "./samples";
 
 // Web Audio soundscape. Recorded CC0 sounds wherever we have them (footsteps:
 // Kenney; gulls, bells, street and harbour sounds: BigSoundBank and Freesound;
@@ -57,14 +57,25 @@ interface Spot {
   reach: number;
   /** Highest cutoff (a tavern heard through its door stays at 750 Hz). */
   cap: number;
+  /** Past `reach` the cutoff falls as (reach / d) to this power (default 0.5; the bells go dull fast). */
+  dull?: number;
   wetBase: number;
   fog: GainNode;
   lp: BiquadFilterNode;
   pan: PannerNode;
   wet: GainNode;
 }
-/** Where the bells are hung: loud at the tower's foot (63 m below them), clearly distant but heard across town. */
-const BELL = { ref: 60, rolloff: 1, reach: 500 };
+/**
+ * Where the bells are hung: loud at the tower's foot (63 m below them). Fixes 2026-09-24 (Steve: "extremely
+ * loud over the entire map; faint and dull from far"): they fall off fast past the cathedral square, go
+ * dull past 100 m, and the echo does not make up for the distance any more.
+ */
+const BELL = { ref: 60, rolloff: 2.5, reach: 100, dull: 1.5, wet: 0.5 };
+/**
+ * Fixes 2026-09-24 (Steve: "only at appropriate hours"): the tune and the strokes on the hour from 7:00
+ * to 21:00, the short phrase on the half hour from 7:30 to 20:30. The night is quiet.
+ */
+const BELL_HOURS = { from: 7, to: 21 };
 /** Foghorn level: peaks under -3 dBFS even from the pontoon, the nearest place to it. */
 const FOGHORN_GAIN = 0.8;
 /** Every horn or whistle (foghorn, ships) keeps this far from the one before, in seconds. */
@@ -214,6 +225,7 @@ export class Soundscape {
   hornCount = 0;
   private steps: Record<Surface, AudioBuffer[]> = { stone: [], wood: [] };
   private lastStep = -1;
+  private lastSplash = -1;
   private gullBuf: AudioBuffer | null = null;
   private fx = new Map<string, AudioBuffer[]>();
   private buf = new Map<SampleName, AudioBuffer>();
@@ -460,8 +472,11 @@ export class Soundscape {
     const halfBefore = Math.floor(before * 2);
     const halfNow = Math.floor(t * 2);
     if (halfNow === halfBefore) return;
-    if (halfNow % 2 === 0) this.hourBells(halfNow / 2);
-    else this.carillon(true);
+    const at = (halfNow / 2) % 24;
+    if (at >= BELL_HOURS.from && at <= BELL_HOURS.to) {
+      if (halfNow % 2 === 0) this.hourBells(halfNow / 2);
+      else this.carillon(true);
+    }
     this.watchBells(halfNow % 8 || 8);
   }
 
@@ -1031,7 +1046,7 @@ export class Soundscape {
     const cat = this.cathedral();
     if (!b || !cat) return;
     this.log(`hour ${n}`);
-    const spot = this.spot(cat, BELL.ref, BELL.rolloff, BELL.reach, 0.9);
+    const spot = this.bellSpot(cat);
     const t0 = this.ctx.currentTime + delay + 0.05;
     for (let i = 0; i < n; i++) {
       const src = this.ctx.createBufferSource();
@@ -1051,7 +1066,7 @@ export class Soundscape {
     const cat = this.cathedral();
     if (!b || !cat) return 0;
     this.log(short ? "carillon short" : "carillon");
-    const spot = this.spot(cat, BELL.ref, BELL.rolloff, BELL.reach, 0.9);
+    const spot = this.bellSpot(cat);
     const dur = short ? CARILLON_SHORT : b.duration;
     const src = this.ctx.createBufferSource();
     src.buffer = b;
@@ -1209,7 +1224,7 @@ export class Soundscape {
       const cat = this.cathedral();
       if (!b || !cat) return { move: () => {}, stop: () => {} };
       this.log("event peal");
-      const spot = this.spot(cat, BELL.ref, BELL.rolloff, BELL.reach, 0.9);
+      const spot = this.bellSpot(cat);
       // every stroke through one gain, so stop() can fade the peal out and silence the strokes still to come
       const out = ctx.createGain();
       out.connect(spot.fog);
@@ -1518,6 +1533,14 @@ export class Soundscape {
     return sp;
   }
 
+  /** The cathedral tower's bells: their own fall-off and dullness (BELL). */
+  private bellSpot(cat: Emitter): Spot {
+    const sp = this.spot(cat, BELL.ref, BELL.rolloff, BELL.reach, BELL.wet);
+    sp.dull = BELL.dull;
+    this.tuneSpot(sp, this.ctx.currentTime, true);
+    return sp;
+  }
+
   private moveSpot(sp: Spot, x: number, z: number): void {
     sp.x = x;
     sp.z = z;
@@ -1539,7 +1562,7 @@ export class Soundscape {
 
   private tuneSpot(sp: Spot, now: number, first: boolean): void {
     const d = this.distTo(sp.x, sp.y, sp.z);
-    const lp = Math.min(sp.cap, this.airLp(d, sp.reach));
+    const lp = Math.min(sp.cap, this.airLp(d, sp.reach, sp.dull));
     const fog = this.fogLoss(d);
     // far off, more of what you hear is the echo off the fog and the walls
     const wet = sp.wetBase * (0.6 + 1.4 * ramp(d, 20, 400));
@@ -1559,10 +1582,10 @@ export class Soundscape {
   }
 
   /** Air lowpass: 14 kHz within 10 m, down to the weather's cutoff at `reach` m, duller beyond. */
-  private airLp(d: number, reach: number): number {
+  private airLp(d: number, reach: number, dull = 0.5): number {
     const far = this.weatherFar().lp;
     let f = 14000 * Math.pow(far / 14000, ramp(d, 10, reach));
-    if (d > reach) f *= Math.sqrt(reach / d);
+    if (d > reach) f *= Math.pow(reach / d, dull);
     return Math.max(300, f);
   }
 
@@ -1613,10 +1636,40 @@ export class Soundscape {
 
   // ---------------------------------------------------------------- events (older)
 
-  /** A boot in a puddle: a wet slap and a spray of water (made here: filtered noise). */
+  /**
+   * A boot in a puddle: one step cut from two recordings (PUDDLE_SPANS). Fixes 2026-09-24 (Steve: "walking
+   * in water sounds like a hihat, find a soppy puddle sound"): the filtered noise below only plays while
+   * the recordings load. The rumble under the recordings is cut, and the top kept soft.
+   */
   splashStep(hurry: boolean, wet: number): void {
     const ctx = this.ctx;
     const t = ctx.currentTime + 0.01;
+    const have = PUDDLE_SPANS.map((s, i) => [s, i] as const).filter(([s]) => this.buf.has(s[0]));
+    if (have.length > 0) {
+      let k = Math.floor(Math.random() * have.length);
+      if (have[k][1] === this.lastSplash && have.length > 1) k = (k + 1) % have.length;
+      const [[name, start, dur, level], i] = have[k];
+      this.lastSplash = i;
+      const src = ctx.createBufferSource();
+      src.buffer = this.buf.get(name)!;
+      src.playbackRate.value = rand(0.9, 1.04) * (hurry ? 1.06 : 1);
+      const hp = ctx.createBiquadFilter();
+      hp.type = "highpass";
+      hp.frequency.value = 110;
+      const lp = ctx.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.value = name === "puddleSteps" ? 3600 : 5000;
+      lp.Q.value = 0.5;
+      const g = ctx.createGain();
+      const peak = 0.7 * level * Math.min(1, 0.4 + wet * 0.6) * (hurry ? 1.25 : 1) * rand(0.85, 1);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(peak, t + 0.006);
+      g.gain.setValueAtTime(peak, t + dur * 0.6);
+      g.gain.linearRampToValueAtTime(0, t + dur);
+      src.connect(hp).connect(lp).connect(g).connect(this.master);
+      src.start(t, start, dur + 0.02);
+      return;
+    }
     const len = 0.28;
     const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * len), ctx.sampleRate);
     const d = buf.getChannelData(0);
@@ -1669,7 +1722,9 @@ export class Soundscape {
       lp.frequency.value = surface === "wood" ? 2600 : 2200;
       lp.Q.value = 0.5;
       const g = ctx.createGain();
-      g.gain.value = (surface === "wood" ? 0.8 : 0.65) * vol * rand(0.8, 1.0);
+      // in a puddle the water takes the hard click off the stone
+      const soft = puddle > 0.3 ? 1 - 0.55 * Math.min(1, puddle) : 1;
+      g.gain.value = (surface === "wood" ? 0.8 : 0.65) * vol * rand(0.8, 1.0) * soft;
       src.connect(lp).connect(g).connect(out);
       src.start(t);
       return;
