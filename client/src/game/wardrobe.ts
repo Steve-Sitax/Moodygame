@@ -153,27 +153,25 @@ export function makeWear(role: WardrobeRole, bodyScale = 1): Wear {
       break;
     }
     case "auctioneer": {
-      // the handbell in the right hand, swung; the board on its easel beside him
+      // the handbell in the right hand, swung (fixes 2026-09-24, Steve: "a board floats next to him":
+      // the board on its easel no longer rides on him; actions.ts plants it at his spot, makeBoard)
       const bell = new THREE.Group();
       bell.position.set(-0.3, 1.2 * s, 0.18);
       bell.add(cyl(0.012, 0.012, 0.14, k.wood, 0, 0.1, 0, 5));
       bell.add(cyl(0.035, 0.07, 0.09, k.brass, 0, 0, 0, 8));
       root.add(bell);
       parts.bell = bell;
-      const board = new THREE.Group();
-      board.position.set(0.75, 0, 0.35);
-      board.rotation.y = -0.5;
-      board.add(box(0.04, 1.3, 0.04, k.wood, -0.25, 0.65, 0));
-      board.add(box(0.04, 1.3, 0.04, k.wood, 0.25, 0.65, 0));
-      board.add(box(0.6, 0.45, 0.03, k.slate, 0, 1.05, 0.03));
-      for (let i = 0; i < 3; i++) board.add(box(0.36 - i * 0.08, 0.02, 0.01, k.chalk, -0.05, 1.18 - i * 0.1, 0.05));
-      root.add(board);
       break;
     }
     case "speaker": {
+      // fixes 2026-09-24 (Steve: "a weird floating page in front of him"): the page hung in the air at
+      // his chest. Now a rolled paper, gripped in the left hand where the arm hangs, a string round it
       root.add(topHat(k, top));
-      const paper = box(0.2, 0.26, 0.01, k.paper, -0.18, 1.25 * s, 0.3);
-      paper.rotation.x = -0.5;
+      const paper = new THREE.Group();
+      paper.position.set(0.215, 0.82 * s, 0.07);
+      paper.rotation.set(0.55, 0, 0.1);
+      paper.add(cyl(0.02, 0.02, 0.26, k.paper, 0, 0, 0, 7));
+      paper.add(cyl(0.022, 0.022, 0.012, k.strap, 0, 0.03, 0, 7));
       root.add(paper);
       parts.paper = paper;
       break;
@@ -335,6 +333,19 @@ export function playWear(w: Wear, t: number): void {
   if (w.parts.bottle) w.parts.bottle.rotation.x = Math.max(0, Math.sin(p * 0.5)) > 0.95 ? -1.6 : 0;
   // the ballad singer waves his sheet in time
   if (w.parts.sheet) w.parts.sheet.rotation.z = Math.sin(p * 2.4) * 0.18;
+}
+
+/** The auctioneer's board on its easel (placed in world space by actions.ts at his spot, feet at y = 0). */
+export function makeBoard(): THREE.Group {
+  const k = m();
+  const board = new THREE.Group();
+  board.name = "auction_board";
+  board.add(box(0.04, 1.3, 0.04, k.wood, -0.25, 0.65, 0));
+  board.add(box(0.04, 1.3, 0.04, k.wood, 0.25, 0.65, 0));
+  board.add(box(0.04, 1.2, 0.04, k.wood, 0, 0.6, -0.3)); // the easel's back leg
+  board.add(box(0.6, 0.45, 0.03, k.slate, 0, 1.05, 0.03));
+  for (let i = 0; i < 3; i++) board.add(box(0.36 - i * 0.08, 0.02, 0.01, k.chalk, -0.05, 1.18 - i * 0.1, 0.05));
+  return board;
 }
 
 /** The coffin with its black pall, carried on the bearers' shoulders (placed in world space). */

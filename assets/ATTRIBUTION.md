@@ -50,7 +50,10 @@ high-passed where they had rumble, normalised (one-shots to -1 dBFS peak, loops 
 crossfaded seam) and saved as OGG Vorbis at 44.1 kHz. Which file plays where: `client/src/audio/samples.ts`.
 The cooper's mallet re-uses the Kenney wood impacts above; no new file.
 
-Made in code (our own work, no third-party source): water bed and lapping under the recordings, wind, gas-lamp
+Made in code (our own work, no third-party source; `client/src/audio/eventcues.ts`): the sound cues of events (a
+cheer, laughter, applause, a shout, a child's cry, a hymn of vowels, a fiddle, a drum, a whistle, glass breaking,
+wood knocked, fire); the rest of the palette plays the recordings above (the bells, chain, anvil, pump, whistle,
+hooves, wheels, the dog, the walla). Also made in code: water bed and lapping under the recordings, wind, gas-lamp
 hiss, foghorn, reverb, swim strokes, and a rope creak used only until the recorded one has loaded. See
 `client/src/audio/soundscape.ts`. Falling into the water plays the BigSoundBank splash above; no new file.
 

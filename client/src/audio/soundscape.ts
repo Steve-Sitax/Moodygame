@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { Organ } from "./organ";
 import { singPhrase, type Note } from "./ballad";
 import { workSound, type StreetWork } from "./cries";
+import { playCue, type CueSpec } from "./eventcues";
 import type { Surface } from "../world/rijnkaai";
 import { water } from "../world/tide";
 import { cartRoutes, cityEmitters, nearestQuay, overWater, type Emitter, type EmitterKind } from "./emitters";
@@ -1276,6 +1277,45 @@ export class Soundscape {
         src.stop(now + 1.05);
       },
     };
+  }
+
+  /**
+   * The sound of an event's stage as the director composed it (Steve, 2026-09-24: "let AI create
+   * sounds at events"): each cue fires at the place, then again every `every_s` seconds (a little
+   * uneven, as life is) until the stage ends or `stop()`. The cues themselves are made in
+   * audio/eventcues.ts: voices, a fiddle, a drum, glass, wood, fire in code; the bells, hooves
+   * and the dog from the CC0 recordings already in the game. Returns a handle to move or stop it.
+   */
+  eventCues(cues: CueSpec[], at: { x: number; z: number }, seconds: number): { move(x: number, z: number): void; stop(): void } {
+    const ctx = this.ctx;
+    const secs = Math.max(4, Math.min(180, seconds));
+    const spot = this.spot({ x: at.x, z: at.z, y: 1.5 }, 3, 1.15, 75, 0.3);
+    const out = ctx.createGain();
+    out.gain.value = 0.9;
+    out.connect(spot.fog);
+    let on = true;
+    const timers: number[] = [];
+    const endAt = performance.now() + secs * 1000;
+    for (const c of cues.slice(0, 4)) {
+      const fire = () => {
+        if (!on) return;
+        const len = playCue(ctx, out, this.noise, this.buf, c, ctx.currentTime + 0.03);
+        this.log(`cue ${c.source}`);
+        if (c.every_s <= 0) return;
+        const wait = Math.max(c.every_s * rand(0.75, 1.3), len + 0.6);
+        if (performance.now() + wait * 1000 < endAt) timers.push(window.setTimeout(fire, wait * 1000));
+      };
+      timers.push(window.setTimeout(fire, rand(0.2, 2.5) * 1000));
+    }
+    const stop = () => {
+      if (!on) return;
+      on = false;
+      for (const t of timers) clearTimeout(t);
+      // the last hits ring out before the spot goes
+      window.setTimeout(() => this.dropSpot(spot), 12_000);
+    };
+    timers.push(window.setTimeout(stop, secs * 1000));
+    return { move: (x, z) => this.moveSpot(spot, x, z), stop };
   }
 
   // ---------------------------------------------------------------- street events

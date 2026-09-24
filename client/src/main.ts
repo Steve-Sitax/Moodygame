@@ -210,6 +210,7 @@ ballads.sing = (at, v, notes, beat, inside) => {
 // M4b: a scene's shout or the agent's word, as a bubble
 actions.showLines = (c) => bubbles.show(c);
 events.eventSound = (k, at, s) => sound?.eventSound(k, at, s) ?? null;
+events.eventCues = (cues, at, s) => sound?.eventCues(cues, at, s) ?? null;
 events.say = (t) => jobs.say(t);
 // M6 town life: the lamplighters, the house fire and its bucket chain, the naties' hiring at dawn (game/townlife.ts)
 const townLife = new TownLife(world, town, crowd, events);

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { ActionsPayload, EventScene, TownEvent } from "../net/api";
+import type { ActionsPayload, EventCue, EventScene, TownEvent } from "../net/api";
 import type { World } from "../world/rijnkaai";
 import { psx } from "../retro/psx";
 import { makeGoods } from "./props";
@@ -31,6 +31,9 @@ interface Live {
   soundKey: string;
   sound: EventSoundHandle | null;
   soundStarted: boolean;
+  /** The stage's composed cues (the director's sound design), started like the sound. */
+  cueKey: string;
+  cues: EventSoundHandle | null;
   props: THREE.Object3D[];
   propsKey: string;
 }
@@ -42,6 +45,8 @@ export class Events {
   private closedKeepers = new Set<string>();
   /** Set by main: a sound at a place for some seconds, from the soundscape. */
   eventSound: (kind: EventSoundKind, at: { x: number; z: number }, seconds: number) => EventSoundHandle | null = () => null;
+  /** Set by main: the stage's cues at a place for some seconds (audio/eventcues.ts through the soundscape). */
+  eventCues: (cues: EventCue[], at: { x: number; z: number }, seconds: number) => EventSoundHandle | null = () => null;
   /** Set by main: a line at the bottom of the screen. */
   say: (t: string) => void = () => {};
   private told = new Set<number>();
@@ -62,7 +67,7 @@ export class Events {
       seen.add(ev.id);
       const l = this.live.get(ev.id);
       if (l) l.ev = ev;
-      else this.live.set(ev.id, { ev, soundKey: "", sound: null, soundStarted: false, props: [], propsKey: "" });
+      else this.live.set(ev.id, { ev, soundKey: "", sound: null, soundStarted: false, cueKey: "", cues: null, props: [], propsKey: "" });
     }
     for (const [id, l] of this.live) {
       if (seen.has(id)) continue;
@@ -76,6 +81,9 @@ export class Events {
     l.sound?.stop();
     l.sound = null;
     l.soundKey = "";
+    l.cues?.stop();
+    l.cues = null;
+    l.cueKey = "";
     for (const o of l.props) o.removeFromParent();
     l.props = [];
     l.propsKey = "";
@@ -170,6 +178,17 @@ export class Events {
         const secs = Math.max(6, Math.min(120, ev.stage_left / 3));
         l.sound = this.eventSound(st.sound, { x: st.x, z: st.z }, secs);
       } else if (l.sound) l.sound.move(st.x, st.z);
+      // the composed cues: once per stage, when Jef is near enough to hear them
+      const ck = `${ev.id}:${ev.stage}`;
+      if (l.cueKey !== ck) {
+        l.cues?.stop();
+        l.cues = null;
+        l.cueKey = ck;
+      }
+      if (!l.cues && st.cues?.length && near && ev.stage_left > 2) {
+        const secs = Math.max(6, Math.min(120, ev.stage_left / 3));
+        l.cues = this.eventCues(st.cues, { x: st.x, z: st.z }, secs);
+      } else if (l.cues) l.cues.move(st.x, st.z);
       // props: once per event, at the first stage that names them
       if (st.props !== "none" && l.propsKey !== `${ev.id}:${st.props}` && near) {
         for (const o of l.props) o.removeFromParent();
@@ -246,6 +265,7 @@ export class Events {
       stage: l.ev.stage,
       op: l.ev.stages[l.ev.stage]?.op ?? null,
       sound: l.sound ? l.soundKey : null,
+      cues: l.cues ? (l.ev.stages[l.ev.stage]?.cues ?? []).map((c) => c.source) : [],
       props: l.props.length,
       people: l.ev.people.length,
       leads: l.ev.leads.map((x) => `${x.role}: ${x.name}`),

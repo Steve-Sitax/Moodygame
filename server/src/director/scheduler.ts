@@ -44,6 +44,7 @@ import {
   SOFTEN,
   StageSchema,
   VIOLENCE_RE,
+  cleanCues,
   type LeadRole,
   type GatherRole,
   type Stage,
@@ -180,12 +181,16 @@ export function cleanStages(raw: unknown[]): Stage[] {
   for (const s of raw.slice(0, EVENT_MAX_STAGES)) {
     // stages stored before M4b have no leads
     const withLeads = s && typeof s === "object" && !Array.isArray((s as { leads?: unknown }).leads) ? { ...(s as object), leads: [] } : s;
-    const p = StageSchema.safeParse(withLeads);
+    // the cues are cleaned first: one unknown sound drops that cue, never the stage
+    const withCues = withLeads && typeof withLeads === "object" ? { ...(withLeads as object), cues: cleanCues((withLeads as { cues?: unknown }).cues) } : withLeads;
+    const p = StageSchema.safeParse(withCues);
     if (!p.success) continue;
     const st = { ...p.data };
     const num = (n: number, lo: number, hi: number, dflt: number) => (Number.isFinite(n) && n > 0 ? Math.max(lo, Math.min(hi, n)) : dflt);
     st.minutes = Math.round(num(st.minutes, STAGE_MIN_MIN, STAGE_MAX_MIN, STAGE_MIN_MIN));
     st.leads = cleanLeads(st.leads) as Stage["leads"];
+    // the sound cues the model composed: the engine's palette only, numbers held, at most four
+    st.cues = cleanCues(st.cues);
     // the scenes: fixed leads, one scene an event
     if (st.op === "scuffle") {
       if (scenes++) continue;
@@ -928,7 +933,7 @@ export function publicEvent(db: DB, ev: EventRow) {
     r: ev.r,
     status: ev.status,
     stage: ev.stage,
-    stages: stages.map((s) => ({ op: s.op, minutes: s.minutes, sound: s.sound, mood: s.mood, props: s.props, x: s.x ?? ev.x, z: s.z ?? ev.z, label: s.label ?? ev.place, text: s.text, count: s.count, leads: s.leads ?? [] })),
+    stages: stages.map((s) => ({ op: s.op, minutes: s.minutes, sound: s.sound, mood: s.mood, props: s.props, x: s.x ?? ev.x, z: s.z ?? ev.z, label: s.label ?? ev.place, text: s.text, count: s.count, leads: s.leads ?? [], cues: s.cues ?? [] })),
     people: peopleOf(ev),
     /** M4b: the leads with their parts, and the scene now playing (a scuffle, a robbery). */
     leads: leadsOf(ev).map((l) => ({ role: l.role, id: l.id, name: l.name, n: l.n ?? 0 })),

@@ -55,7 +55,12 @@ export const talkHooks: {
   system: string;
   context: (db: DB, r: Resident) => string;
   proposal: (db: DB, r: Resident, line: ResidentLine) => ResidentLine;
-} = { system: "", context: () => "", proposal: (_db, _r, line) => line };
+  /**
+   * Fixes 2026-09-24 (Steve: the tobacconist, cast as a preacher on the square, spoke as if Jef blocked his
+   * shop door): where they really are when an event took them from their day. null: their own schedule.
+   */
+  doing: (db: DB, r: Resident) => string | null;
+} = { system: "", context: () => "", proposal: (_db, _r, line) => line, doing: () => null };
 
 const RULES = `
 YOU NOW SPEAK AS ONE ORDINARY PERSON OF THE TOWN, 1873. Not a hero, not a guide: a person with a trade, a family and their own worries.
@@ -544,7 +549,7 @@ Stats 0-10: honesty ${s.honesty}, temper ${s.temper}, piety ${s.piety}, warmth $
 PERSONA: ${persona || "none yet"}
 
 NOW
-${c.weekday}, ${c.hour}:${String(c.minute).padStart(2, "0")}, ${WEATHER_TEXT[c.weather]}. You are ${doing(db, r)}. Your mood: ${moodOf(db, r)}.
+${c.weekday}, ${c.hour}:${String(c.minute).padStart(2, "0")}, ${WEATHER_TEXT[c.weather]}. You are ${talkHooks.doing(db, r) ?? doing(db, r)}. Your mood: ${moodOf(db, r)}.
 
 YOU AND JEF
 Met ${rel?.times_met ?? 0} times. Trust ${trustText(rel?.trust ?? 0)}.

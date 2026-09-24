@@ -223,6 +223,78 @@ export const STAGE_OPS = ["gather", "procession", "sound", "props", "talk", "not
 export type StageOp = (typeof STAGE_OPS)[number];
 export const EVENT_SOUNDS = ["none", "bells", "music", "murmur", "handbell"] as const;
 export type EventSound = (typeof EVENT_SOUNDS)[number];
+/**
+ * Sound cues (Steve, 2026-09-24: "let AI create sounds at events"). The model composes the sound of a
+ * stage from this palette: what is heard, how often, how high, how loud. The engine makes every sound
+ * itself (client/src/audio/eventcues.ts: voices, a fiddle, a drum, glass, wood, fire, made in code; the
+ * bells, hooves, a dog and so on from the CC0 recordings already in the game). Nothing is recorded new,
+ * and no text is ever sung: the voices sing vowels only.
+ */
+export const CUE_SOURCES = [
+  // people
+  "cheer",
+  "laughter",
+  "applause",
+  "shout",
+  "cry",
+  "hymn",
+  "murmur",
+  // music
+  "fiddle",
+  "drum",
+  "whistle",
+  // things
+  "glass",
+  "clatter",
+  "crackle",
+  "handbell",
+  "bell",
+  "ship_bell",
+  "chain",
+  "anvil",
+  "pump",
+  "steam_whistle",
+  // animals and carts
+  "horse",
+  "hooves",
+  "wheels",
+  "dog",
+] as const;
+export type CueSource = (typeof CUE_SOURCES)[number];
+export const CueSchema = z.object({
+  source: z.enum(CUE_SOURCES),
+  /** Seconds between repeats; 0: once, at the start of the stage. The engine clamps it. */
+  every_s: z.number(),
+  /** 1 is the natural pitch; the engine clamps it. */
+  pitch: z.number(),
+  /** 0 to 1; the engine clamps it. */
+  level: z.number(),
+});
+export type Cue = z.infer<typeof CueSchema>;
+export const CUES_PER_STAGE = 4;
+export const CUE_EVERY_MIN_S = 2;
+export const CUE_EVERY_MAX_S = 45;
+export const CUE_PITCH_MIN = 0.6;
+export const CUE_PITCH_MAX = 1.5;
+export const CUE_LEVEL_MIN = 0.15;
+export const CUE_LEVEL_MAX = 1;
+
+/** The engine's clamp of a model's (or a template's) cues: unknown sources dropped, numbers held, at most four. */
+export function cleanCues(raw: unknown): Cue[] {
+  if (!Array.isArray(raw)) return [];
+  const out: Cue[] = [];
+  const seen = new Set<string>();
+  for (const c of raw) {
+    const p = CueSchema.safeParse(c);
+    if (!p.success || seen.has(p.data.source)) continue;
+    seen.add(p.data.source);
+    const n = (v: number, lo: number, hi: number, dflt: number) => (Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : dflt);
+    const every = Number.isFinite(p.data.every_s) && p.data.every_s <= 0 ? 0 : n(p.data.every_s, CUE_EVERY_MIN_S, CUE_EVERY_MAX_S, 12);
+    out.push({ source: p.data.source, every_s: Math.round(every * 10) / 10, pitch: Math.round(n(p.data.pitch, CUE_PITCH_MIN, CUE_PITCH_MAX, 1) * 100) / 100, level: Math.round(n(p.data.level, CUE_LEVEL_MIN, CUE_LEVEL_MAX, 0.6) * 100) / 100 });
+    if (out.length >= CUES_PER_STAGE) break;
+  }
+  return out;
+}
 export const EVENT_PROPS = ["none", "crates", "barrels", "sacks", "flowers", "black_cloth"] as const;
 export type EventProp = (typeof EVENT_PROPS)[number];
 export const GATHER_ROLES = ["guests", "mourners", "crowd", "sellers", "musicians", "police", "children", "family"] as const;
@@ -293,6 +365,8 @@ export const StageSchema = z.object({
   factor: z.number(),
   /** M4b: the leads of this stage (1-4, or none). The engine picks who; extra ones are dropped. */
   leads: z.array(z.enum(LEAD_ROLES)).max(8),
+  /** The sound of the stage, composed by the model from the palette (cleanCues clamps it). Old stored stages have none. */
+  cues: z.array(CueSchema).max(8).optional(),
 });
 export type Stage = z.infer<typeof StageSchema>;
 
@@ -390,4 +464,12 @@ fiddler, accordionist (street music), auctioneer (a sale: a handbell and a board
 paper), drunkard (a bottle), pickpocket, victim, widow (a funeral), bearers (four men with a coffin), hawker (a tray of
 wares), showman (a monkey on his shoulder), quarreller. Name a lead in the notice or the rumour as {bride}, {groom},
 {victim} and so on; the engine puts in the real name. Never write a person's name yourself.
-Any stage may also carry a sound and a mood while it runs.`;
+Any stage may also carry a sound and a mood while it runs.
+CUES: every stage also has "cues", the sound of it as the town hears it: 0-4 cues from this palette, each
+{source, every_s, pitch, level}. source: cheer, laughter, applause, shout, cry (a child), hymn (a few voices singing,
+slow), murmur, fiddle, drum, whistle, glass (a bottle breaks), clatter (wood, chests, a stall), crackle (fire), handbell,
+bell (the big bell, one stroke), ship_bell, chain, anvil, pump, steam_whistle, horse (a neigh), hooves, wheels, dog.
+every_s: seconds between repeats (2-45), or 0 for once at the start of the stage. pitch: 0.6-1.5 (1 is natural).
+level: 0.15-1. Compose what the scene would really sound like: a wedding crowd cheers now and then and a fiddle plays;
+at an auction a man shouts and a bell rings; at a fire the flames crackle, the pump works and a horse frets; at a
+funeral, nothing but the handbell. Use [] for a stage that makes no sound of its own.`;

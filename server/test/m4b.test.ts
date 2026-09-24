@@ -12,7 +12,8 @@ import { cleanLeads, fillNames, fitsLead, type Lead } from "../src/director/lead
 import { setSceneRoll, streetCrimeOpen } from "../src/director/scenes.ts";
 import { cleanStages, eventRow, eventsTick, leadsOf, liveEvents, planEvent, publicEvent, softText, stage, type EventPlan, type EventRow } from "../src/director/scheduler.ts";
 import { planFromTemplate, templateById } from "../src/director/templates.ts";
-import { EVENT_PEOPLE_MAX, GATHER_MAX, LEADS_PER_STAGE } from "../src/director/vocab.ts";
+import { CUE_EVERY_MAX_S, CUE_EVERY_MIN_S, CUE_LEVEL_MAX, CUE_LEVEL_MIN, CUE_PITCH_MAX, CUE_PITCH_MIN, cleanCues, EVENT_PEOPLE_MAX, GATHER_MAX, LEADS_PER_STAGE } from "../src/director/vocab.ts";
+import { residentPrompt, talkHooks } from "../src/town/talk.ts";
 
 // M4b: lead roles with looks, the director first, and the two scenes (a scuffle, a robbery
 // in the street) the model may ask for and the ENGINE plays and settles. No combat, no money
@@ -437,5 +438,83 @@ describe("M4b director: AI first, hostile output refused or cleaned", () => {
     const r = await think(db, async () => (called++, { output: base() }));
     expect(called).toBe(0);
     expect(r.decision).toBe("nothing");
+  });
+});
+
+// ------------------------------------------------------------------ fixes 2026-09-24: sound cues, and where a lead really stands
+
+describe("fixes 2026-09-24: the director's sound cues", () => {
+  it("cleanCues keeps the palette only, holds every number, and takes four at most", () => {
+    const out = cleanCues([
+      { source: "cheer", every_s: 900, pitch: 9, level: 7 },
+      { source: "gunshot", every_s: 5, pitch: 1, level: 1 },
+      { source: "glass", every_s: -3, pitch: 0.1, level: 0 },
+      { source: "cheer", every_s: 5, pitch: 1, level: 1 },
+      { source: "fiddle", every_s: 10, pitch: 1, level: 0.5 },
+      { source: "drum", every_s: 10, pitch: 1, level: 0.5 },
+      { source: "dog", every_s: 10, pitch: 1, level: 0.5 },
+      { source: "horse", every_s: 10, pitch: 1, level: 0.5 },
+      "nonsense",
+    ]);
+    expect(out.map((c) => c.source)).toEqual(["cheer", "glass", "fiddle", "drum"]);
+    expect(out[0]).toEqual({ source: "cheer", every_s: CUE_EVERY_MAX_S, pitch: CUE_PITCH_MAX, level: CUE_LEVEL_MAX });
+    expect(out[1]).toEqual({ source: "glass", every_s: 0, pitch: CUE_PITCH_MIN, level: CUE_LEVEL_MIN });
+    expect(cleanCues(undefined)).toEqual([]);
+    expect(cleanCues("bells")).toEqual([]);
+  });
+
+  it("a stage's cues go through the clamp and reach the client; a stage without them has []", () => {
+    const out = cleanStages([
+      { ...stage({ op: "gather", minutes: 120, role: "crowd", count: 10, place: "grote_markt" }), cues: [{ source: "shout", every_s: 1, pitch: 1, level: 2 }, { source: "cannon", every_s: 5, pitch: 1, level: 1 }] },
+      stage({ op: "talk", minutes: 60, text: "the weather" }),
+    ]);
+    expect(out[0].cues).toEqual([{ source: "shout", every_s: CUE_EVERY_MIN_S, pitch: 1, level: 1 }]);
+    expect(out[1].cues).toEqual([]);
+    const db = fresh(10);
+    const ev = startTemplate(db, "fish_auction");
+    const pub = publicEvent(db, ev);
+    expect(pub.stages[1].cues.map((c) => c.source)).toEqual(["shout", "clatter"]);
+    expect(pub.stages[0].cues).toEqual([]);
+  });
+
+  it("the director's own event keeps its cues", () => {
+    const db = fresh(10);
+    const p = planEvent(db, {
+      title: "The temperance preacher",
+      template: "preacher",
+      place: "steenplein",
+      start_in_min: 0,
+      stages: [{ ...stage({ op: "gather", minutes: 120, role: "crowd", count: 12, place: "steenplein", leads: ["speaker"] }), cues: [{ source: "hymn", every_s: 30, pitch: 1, level: 0.6 }, { source: "laughter", every_s: 20, pitch: 1, level: 0.4 }] }],
+      source: "claude",
+    });
+    expect(p.ok).toBe(true);
+    const ev = eventRow(db, p.ok ? p.event.id : 0)!;
+    expect(publicEvent(db, ev).stages[0].cues.map((c) => c.source)).toEqual(["hymn", "laughter"]);
+  });
+});
+
+describe("fixes 2026-09-24: the talk prompt knows where a lead stands", () => {
+  it("the auctioneer at the auction is on the Vismarkt, not at his stall; a bystander is in the crowd; nobody else changes", () => {
+    const db = fresh(10);
+    const ev = startTemplate(db, "fish_auction");
+    const auct = leadsOf(ev).find((l) => l.role === "auctioneer")!;
+    const r = res(db, auct.id);
+    const line = talkHooks.doing(db, r)!;
+    expect(line).toMatch(/Vismarkt/);
+    expect(line).toMatch(/auctioneer/);
+    expect(line).toMatch(/not at your shop/i);
+    // while still walking there: on the way
+    expect(actionOf(db, auct.id)?.phase).toBe("going");
+    expect(talkHooks.doing(db, r)).toMatch(/on your way to/);
+    reportAction(db, actionOf(db, auct.id)!.id, { phase: "arrived", x: ev.x, z: ev.z });
+    expect(talkHooks.doing(db, r)).toMatch(/^on /);
+    expect(residentPrompt(db, r, "scene", [])).toMatch(/You are on .*Vismarkt.*auctioneer/);
+    // a person of the crowd
+    const people = JSON.parse(eventRow(db, ev.id)!.people_json) as string[];
+    const by = people.find((id) => id !== auct.id);
+    if (by) expect(talkHooks.doing(db, res(db, by))).toMatch(/in the crowd/);
+    // someone not in it: the schedule's own line
+    const other = [...town(db).byId.values()].find((x) => !people.includes(x.id) && x.trade === "tobacconist") ?? [...town(db).byId.values()].find((x) => !people.includes(x.id))!;
+    expect(talkHooks.doing(db, other)).toBeNull();
   });
 });

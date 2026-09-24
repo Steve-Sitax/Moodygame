@@ -875,6 +875,51 @@ function taskLine(db: DB, r: Resident): string {
   }
 }
 
+/** What a lead is doing, for the talk prompt (fixes 2026-09-24: the person speaks from the event, not from the shop). */
+const LEAD_DOING: Record<string, string> = {
+  speaker: "you are the speaker: you stand before the crowd and hold forth, a paper in your hand; you were not at your trade when Jef came up",
+  auctioneer: "you are the auctioneer, with your handbell and your board, calling the lots",
+  bride: "you are the bride, in your dark best dress with the white veil; it is your wedding day",
+  groom: "you are the groom, in your best coat; it is your wedding day",
+  priest: "you are the priest, here for the service",
+  widow: "you are the widow and walk behind the coffin; you are in mourning",
+  bearers: "you carry the coffin with three other men",
+  hawker: "you hawk your wares from a tray to the crowd",
+  showman: "you are the showman, your monkey on your shoulder",
+  drunkard: "you are drunk, a bottle in your hand, and loud",
+  pickpocket: "you keep your eyes on the purses and say nothing of it",
+  victim: "you have just had your purse taken and are upset",
+  quarreller: "you are in a quarrel and hot about it",
+  organ_grinder: "you play the barrel organ",
+  fiddler: "you play the fiddle",
+  accordionist: "you play the accordion",
+  agent: "you are the police agent on the spot and keep order",
+  ballad_singer: "you sing the day's ballad to the crowd and sell the printed sheets, a centime each",
+  natie_foreman: "you are the natie foreman at the gate, hiring day men from your book",
+  fireman: "you are a fireman of the pompiers at the fire",
+};
+
+/**
+ * Fixes 2026-09-24: where they really are when an event took them from their day, for the prompt's
+ * "You are ..." line. The talk prompt used the daily schedule alone, so a shopkeeper cast as the
+ * preacher on the Steenplein spoke of Jef "blocking my door". null: not in an event, the schedule holds.
+ */
+export function eventDoing(db: DB, r: Resident): string | null {
+  const a = actionOf(db, r.id);
+  if (!a || a.kind !== "attend" || !a.event_id) return null;
+  const ev = db.prepare("SELECT id, title, place, status, leads_json FROM town_event WHERE id = ?").get(a.event_id) as { id: number; title: string; place: string; status: string; leads_json: string } | undefined;
+  if (!ev || ev.status !== "running") return null;
+  const data = JSON.parse(a.data_json || "{}") as { about?: string; lead?: string };
+  const places = town(db).town.places as Record<string, { label: string } | undefined>;
+  const about = data.about ?? ev.place;
+  const where = places[about]?.label ?? (about && !/^[a-z0-9_]+$/.test(about) ? about : (places[ev.place]?.label ?? "the square"));
+  const lead = data.lead ?? (JSON.parse(ev.leads_json || "[]") as Array<{ id: string; role: string }>).find((l) => l.id === r.id)?.role;
+  const part = (lead && LEAD_DOING[lead]) ?? "you stand in the crowd, watching, among your neighbours";
+  const title = ev.title.replace(/^(a|an|the)\s+/i, "");
+  if (a.phase === "going") return `on your way to ${where}, where the town's ${title} is on (${part}). You are not at your shop, stall or work`;
+  return `on ${where}, out in the open, in the middle of the town's ${title}: ${part}. You are NOT at your shop, your stall or your work; you left it for this. Speak from where you stand: the square, the crowd, the weather`;
+}
+
 export function talkContext(db: DB, r: Resident): string {
   const jef = jefAt();
   const near: string[] = [];
@@ -904,6 +949,7 @@ PEOPLE NEAR: ${near.length ? near.join(", ") : "nobody you know"}.${crime ? `\nT
 export function installTalkHooks(): void {
   talkHooks.system = RULES_FOR_MODEL;
   talkHooks.context = talkContext;
+  talkHooks.doing = eventDoing;
   talkHooks.proposal = (db, r, line) => applyProposal(db, r, line);
 }
 

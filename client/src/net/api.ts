@@ -314,6 +314,14 @@ export interface EventStage {
   text: string;
   count: number;
   leads: string[];
+  /** The sound of the stage as the director composed it from the engine's palette (audio/eventcues.ts). */
+  cues?: EventCue[];
+}
+export interface EventCue {
+  source: string;
+  every_s: number;
+  pitch: number;
+  level: number;
 }
 /** M4b: a scuffle or a robbery as the engine set it up (director/scenes.ts). */
 export interface EventScene {

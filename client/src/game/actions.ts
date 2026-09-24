@@ -7,7 +7,7 @@ import type { Crowd, Puppet } from "./crowd";
 import type { Events } from "./events";
 import type { Town } from "./town";
 import { INSTRUMENTS, makeInstrument, playInstrument, type Instrument, type InstrumentKind } from "./instruments";
-import { makeCoffin, makeWear, playWear, WARDROBE_ROLES, type Wear, type WardrobeRole } from "./wardrobe";
+import { makeBoard, makeCoffin, makeWear, playWear, WARDROBE_ROLES, type Wear, type WardrobeRole } from "./wardrobe";
 
 // Townspeople who act (M4), on the client. The server keeps every action as a
 // row (director/actions.ts) and decides what it means; this side walks the
@@ -122,6 +122,8 @@ export class Actions {
   /** M4b: the leads' wardrobe by person (game/wardrobe.ts), and the coffins by event. */
   private wear = new Map<string, { w: Wear; p: Puppet }>();
   private coffins = new Map<number, THREE.Group>();
+  /** Fixes 2026-09-24: the auctioneer's board stands at his spot, not on him (by person). */
+  private boards = new Map<string, THREE.Group>();
   /** A scuffle's two first stood face to face (this.clock), by event. */
   /** A robbery's lift happened (this.clock), by event. */
   private lifted = new Map<number, number>();
@@ -789,6 +791,22 @@ export class Actions {
       e.w.root.removeFromParent();
       e.p.human.root.rotation.set(0, 0, 0);
       this.wear.delete(id);
+      this.boards.get(id)?.removeFromParent();
+      this.boards.delete(id);
+    }
+    // the auctioneer's board is planted once, at the spot the server gave him, and stays there
+    for (const [id, w] of want) {
+      if (w.role !== "auctioneer" || this.boards.has(id)) continue;
+      const a = [...this.runs.values()].find((r) => r.a.npc === id)?.a;
+      if (!a || a.target_x === null || a.target_z === null) continue;
+      const bx = a.target_x + 0.9;
+      const bz = a.target_z + 0.4;
+      if (!this.world.isFree(bx, bz, 0.4)) continue;
+      const g = makeBoard();
+      g.position.set(bx, this.world.groundAt(bx, bz, 0.3, 0), bz);
+      g.rotation.y = Math.atan2(a.target_x - bx, a.target_z - bz) + Math.PI * 0.75;
+      this.world.scene.add(g);
+      this.boards.set(id, g);
     }
     for (const [id, w] of want) {
       if (this.wear.has(id)) continue;
