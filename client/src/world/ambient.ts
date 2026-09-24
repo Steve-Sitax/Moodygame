@@ -238,14 +238,15 @@ function buildSmoke(chimneys: Chimney[]): THREE.Points {
       varying float vSeed;
       void main() {
         float act = smoothstep(aSeed.x - 0.03, aSeed.x + 0.03, uSmoke);
-        float life = 9.0 + aSeed.z * 3.0;
+        // Steve: the smoke read as standing still; a quicker rise and more curl, so it is seen to move
+        float life = 6.0 + aSeed.z * 2.5;
         float age = fract(uTime / life + aSeed.y);
         vec3 p = position;
         // buoyant at first, then it levels off and goes with the wind
-        p.y += 2.6 * (1.0 - exp(-age * 2.4)) + age * 0.9;
+        p.y += 3.0 * (1.0 - exp(-age * 2.6)) + age * 1.3;
         float along = age * life;
         p.xz += uWind * along * (0.35 + age * 0.9);
-        p.xz += vec2(sin(uTime * 0.7 + aSeed.w * 6.28 + age * 5.0), cos(uTime * 0.55 + aSeed.z * 6.28 + age * 4.0)) * 0.3 * age;
+        p.xz += vec2(sin(uTime * 1.1 + aSeed.w * 6.28 + age * 6.0), cos(uTime * 0.9 + aSeed.z * 6.28 + age * 5.0)) * 0.45 * age;
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         vFogDepth = -mv.z;
         gl_Position = psxSnap(projectionMatrix * mv);
