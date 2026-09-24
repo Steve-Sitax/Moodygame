@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { EVENT_GATHER_MAX, EVENT_PEOPLE_MAX as PEOPLE_MAX } from "../config.ts";
+import { ROUTINE_RULES_FOR_MODEL, RoutinePlanSchema } from "./routineVocab.ts";
 
 // The vocabulary of M4: what a townsperson may be asked to do (an action), what
 // the engine says when it refuses or sets a limit, the primitives an event is
@@ -9,7 +10,8 @@ import { EVENT_GATHER_MAX, EVENT_PEOPLE_MAX as PEOPLE_MAX } from "../config.ts";
 // ------------------------------------------------------------------ actions
 
 /** M6: receive_gift (Jef gives them a thing), come_for_drink (Jef treats them at a tavern), work_for_pay (Jef hires them). */
-export const ACTION_KINDS = ["none", "follow", "go_to", "wait", "talk_to", "look_for", "fetch_police", "give", "stop", "receive_gift", "come_for_drink", "work_for_pay"] as const;
+/** M6 routines: routine (an errand of several steps the model plans; director/routines.ts checks it). */
+export const ACTION_KINDS = ["none", "follow", "go_to", "wait", "talk_to", "look_for", "fetch_police", "give", "stop", "receive_gift", "come_for_drink", "work_for_pay", "routine"] as const;
 export type ActionKind = (typeof ACTION_KINDS)[number];
 
 /** What the talk reply may carry. Optional on the reply: the stub lines of the older tests have none. */
@@ -22,6 +24,8 @@ export const ActionProposalSchema = z.object({
   item: z.string().max(30),
   amount_c: z.number().int().min(0).max(100000),
   reason: z.string().max(120),
+  /** M6 routines: the plan, with kind "routine" only (director/routineVocab.ts). */
+  plan: RoutinePlanSchema.optional(),
 });
 export type ActionProposal = z.infer<typeof ActionProposalSchema>;
 
@@ -69,7 +73,7 @@ receive_gift: Jef offers you something of his (item: what it is, as he said it);
 come_for_drink: Jef asks you to a tavern for a drink he pays for (target: the tavern he names, or ""); set it only if
 you would go. work_for_pay: Jef asks you to work for him for a wage (item: the work, e.g. "carry the crates", "watch
 my cart"; amount_c: the wage HE named, 0 if he named none); set it only if you would do it for that. For all three the
-game checks what Jef really has, what the tavern and the work are, and the money; you never name a price yourself.`;
+game checks what Jef really has, what the tavern and the work are, and the money; you never name a price yourself.${ROUTINE_RULES_FOR_MODEL}`;
 
 // ------------------------------------------------------------------ engine lines
 
@@ -93,7 +97,9 @@ export type RefuseReason =
   // M6 gifts, the treat, hired hands (their lines come from their modules)
   | "gift"
   | "treat"
-  | "hire";
+  | "hire"
+  // M6 routines (director/routines.ts gives the line)
+  | "routine";
 
 export const REFUSE_LINE: Record<RefuseReason, string> = {
   busy: "I've my hands full already. Ask me when I'm done.",
@@ -114,6 +120,7 @@ export const REFUSE_LINE: Record<RefuseReason, string> = {
   gift: "No, thank you.",
   treat: "Not today, thank you.",
   hire: "Not for that, no.",
+  routine: "Not that errand, no.",
 };
 
 /** What the person adds when the engine sets a limit (in story time: four game minutes to one). */

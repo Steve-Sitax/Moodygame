@@ -22,11 +22,12 @@ let mats: Record<string, THREE.Material> | null = null;
 function m(): Record<string, THREE.Material> {
   mats ??= {
     // (fixes 2026-09-24: the pump was hard to see in a lane at dusk: a brighter red, and a lantern)
-    red: psx(new THREE.MeshLambertMaterial({ color: 0xb03a2c })),
-    wood: psx(new THREE.MeshLambertMaterial({ color: 0x6a4a2c })),
+    // (a little light of their own: at a fire by night it stands in the glow of the flames)
+    red: psx(new THREE.MeshLambertMaterial({ color: 0xb03a2c, emissive: 0x3a0c06 })),
+    wood: psx(new THREE.MeshLambertMaterial({ color: 0x6a4a2c, emissive: 0x160c04 })),
     dark: psx(new THREE.MeshLambertMaterial({ color: 0x2a2420 })),
     iron: psx(new THREE.MeshLambertMaterial({ color: 0x2c2c2e })),
-    brass: psx(new THREE.MeshLambertMaterial({ color: 0xd8aa48 })),
+    brass: psx(new THREE.MeshLambertMaterial({ color: 0xd8aa48, emissive: 0x3a2a08 })),
     lamp: new THREE.MeshBasicMaterial({ color: 0xffc27a }),
     hose: psx(new THREE.MeshLambertMaterial({ color: 0x4a3222 })),
   };
@@ -129,7 +130,7 @@ export function createPumpCart(scene: THREE.Scene, props: Props | null): PumpCar
   body.add(box(0.2, 0.26, 0.2, k.lamp, 0.42, 1.72, 0.55));
   body.add(box(0.26, 0.05, 0.26, k.iron, 0.42, 1.87, 0.55));
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.55, fog: true }));
-  glow.scale.set(1.6, 1.6, 1);
+  glow.scale.set(2.4, 2.4, 1);
   glow.position.set(0.42, 1.72, 0.55);
   body.add(glow);
   scene.add(group);

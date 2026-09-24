@@ -39,6 +39,7 @@ import { mountTransport } from "./town/transportRoutes.ts";
 import { mountHandcart } from "./town/handcartRoutes.ts";
 import { mountLively } from "./town/livelyRoutes.ts";
 import { mountErrands } from "./town/handsRoutes.ts";
+import { mountRoutines } from "./director/routineRoutes.ts";
 
 const db = openDb(DB_FILE);
 const app = new Hono();
@@ -96,6 +97,8 @@ mountHandcart(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadca
 mountLively(app, { db });
 // M6 gifts and hired hands: giving from the pockets, a drink at the tavern, hands paid to carry (town/gifts.ts, treat.ts, hire.ts; director/steps.ts)
 mountErrands(app, { db, payload: () => jobsPayload() });
+// M6 AI-composed routines: errands the model plans from Jef's words and steers in check-ins (director/routines.ts)
+mountRoutines(app, { db, payload: () => jobsPayload() });
 
 // Board status the client can show while Claude writes.
 let board: { state: "writing" | "ready"; source?: string; error?: string } = { state: "ready" };

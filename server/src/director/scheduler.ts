@@ -25,6 +25,7 @@ import { runBalladAct } from "../ballads/ballad.ts";
 import { ROUTINE_TEMPLATES, scriptFor } from "./templates.ts";
 import { emigrantShip, isEmigrant } from "../town/emigrants.ts";
 import { visitorOf } from "../town/visitors.ts";
+import { errandsFor } from "../town/possessions.ts";
 import type { AnyLeadRole } from "./leads.ts";
 import {
   EVENT_MARGIN_MIN,
@@ -609,6 +610,7 @@ export function placeAt(db: DB, ev: EventRow, ids: string[], slots: Array<{ x: n
 export function freeResidents(db: DB, ev: EventRow, ok: (r: Resident) => boolean, o: { evenAtWork?: boolean } = {}): Resident[] {
   const inOthers = new Set(liveEvents(db).filter((o) => o.id !== ev.id).flatMap((o) => [...peopleOf(o), ...leadsOf(o).map((l) => l.id)]));
   const busy = new Set(activeActions(db).filter((a) => a.event_id !== ev.id).map((a) => a.npc_id));
+  for (const id of onErrand(db)) busy.add(id);
   // a counter, a post or a landmark's staff at work stays there (keptAtWork); a household whose own house burns runs home
   return town(db).town.residents.filter((r) => !inOthers.has(r.id) && !busy.has(r.id) && !TOWN_EMPLOYER_IDS.includes(r.id) && r.trade !== "infant" && r.work.kind !== "guard" && !isEmigrant(r) && !visitorOf(r) && !isReserved(db, r.id) && (o.evenAtWork || !keptAtWork(db, r)) && ok(r));
 }
@@ -771,11 +773,23 @@ function fits(r: Resident, role: GatherRole, db: DB, place = ""): boolean {
   }
 }
 
+/**
+ * Fixes 2026-09-24: who is out on the day's errand with the family boat or a dray now (half an
+ * hour either side): not taken for an event (the ballad's crowd took Karel Van Loock from his
+ * boat errand, and the boat never came).
+ */
+export function onErrand(db: DB): Set<string> {
+  const c = clock(db);
+  const h = c.hour + c.minute / 60;
+  return new Set(errandsFor(db, c.day).filter((e) => h >= e.hour - 0.5 && h < e.back + 0.5).flatMap((e) => e.who));
+}
+
 /** The people of a gathering: free, fitting, near, not in anything else; each gets an attend action to a ring round the spot. */
 export function gather(db: DB, ev: EventRow, role: GatherRole, count: number, at: { x: number; z: number }, label: string): string[] {
   const have = peopleOf(ev);
   const inOthers = new Set(liveEvents(db).filter((o) => o.id !== ev.id).flatMap((o) => [...peopleOf(o), ...leadsOf(o).map((l) => l.id)]));
   const busy = new Set(activeActions(db).map((a) => a.npc_id));
+  for (const id of onErrand(db)) busy.add(id);
   const wm = walkMap();
   const hash = (s: string) => {
     let h = 2166136261;

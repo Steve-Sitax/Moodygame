@@ -52,6 +52,8 @@ export interface Step {
   inside?: string;
   /** A short reason for the log. */
   why?: string;
+  /** M6 routines: the purpose's own mark on a step (which plan step it belongs to). Never sent to the client. */
+  tag?: string;
 }
 
 export interface StepResult {
@@ -103,6 +105,10 @@ export const stepHooks = {
   afterAny: [] as AfterHook[],
   ended: {} as Record<string, (db: DB, row: ActionRow, r: Routine, status: "done" | "failed", outcome: string) => string>,
   timeUp: {} as Record<string, (db: DB, row: ActionRow, r: Routine) => boolean>,
+  /** M6 routines: a purpose's own check of a step before it starts (null: it may; a reason; undefined: the executor's own check). */
+  check: {} as Record<string, (db: DB, r: Routine, s: Step, id: number) => string | null | undefined>,
+  /** M6 routines: a purpose's own engine step (it may change `r.state`); undefined: the executor's own. */
+  run: {} as Record<string, (db: DB, row: ActionRow, r: Routine, s: Step) => { ok: boolean; why: string } | undefined>,
 };
 
 // ------------------------------------------------------------------ rows
@@ -345,7 +351,8 @@ export function advance(db: DB, id: number): void {
       endRoutine(db, id, "done", "all steps done");
       return;
     }
-    const bad = checkStep(db, r, s, id);
+    const own = stepHooks.check[r.purpose]?.(db, r, s, id);
+    const bad = own !== undefined ? own : checkStep(db, r, s, id);
     if (bad) {
       if (settleStep(db, id, r, false, bad) === "end") return;
       continue;
@@ -354,7 +361,7 @@ export function advance(db: DB, id: number): void {
       notify("actions");
       return;
     }
-    const out = runEngineStep(db, row, r, s);
+    const out = stepHooks.run[r.purpose]?.(db, row, r, s) ?? runEngineStep(db, row, r, s);
     if (settleStep(db, id, r, out.ok, out.why) === "end") return;
   }
 }

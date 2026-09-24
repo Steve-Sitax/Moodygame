@@ -74,6 +74,8 @@ export const PLAYER_TEXT_HOOKS: ReadonlySet<string> = new Set([
   "resident_police",
   "letter_reply",
   "confession",
+  // M6 routines (director/routines.ts): the check-in sees the errand the model planned from Jef's words
+  "routine_checkin",
 ]);
 /**
  * GPT Sol held all 35 hostile lines, 2026-09-24 (M6-models-injection.md), but wrote the townspeople
@@ -174,6 +176,14 @@ export const SERMON_CALLS_PER_DAY = 1;
  * the epilogue (the last 15 of them the reserve).
  */
 export const HANDS_CALLS_PER_DAY = 2;
+/**
+ * M6 AI-composed routines (director/routines.ts): the model's check-ins while an errand runs (hook
+ * routine_checkin), out of what was left of the 120, never the reserve. The plan itself rides in the
+ * talk call (the townspeople's share). When the share is gone the engine steers by simple rules
+ * (retry once, then come back and report). The shares now come to 96 of 120, leaving 24 for the
+ * board, the outcomes, the named people and the epilogue (the last 15 of them the reserve).
+ */
+export const ROUTINE_CALLS_PER_DAY = 6;
 /**
  * M4b (Steve, 2026-09-24: "events should gather up to 100 people"): the most townspeople one
  * event may take, leads included, and the most one gathering stage may call. The director may

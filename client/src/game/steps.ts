@@ -72,6 +72,8 @@ interface Walk {
   goal?: { x: number; z: number } | null;
   /** Where they stood when last seen moving (the stuck test). */
   lastAt?: { x: number; z: number } | null;
+  /** M6 routines: a walk up to a person (or back to Jef): seconds until the goal is looked up again. */
+  goalT?: number;
 }
 
 async function call<T>(method: string, url: string, body?: unknown): Promise<T> {
@@ -270,6 +272,15 @@ export class Steps {
         w.load.push(it);
       }
     }
+    // M6 routines: a walk up to a person, or back to Jef, goes to where they are now (looked up each second)
+    if (s.who && s.kind !== "follow") {
+      w.goalT = (w.goalT ?? 0) - dt;
+      if (!w.goal || w.goalT <= 0) {
+        w.goalT = 1;
+        const at = s.who === "jef" ? { x: this.player.x, z: this.player.z } : this.town.position(s.who);
+        if (at) w.goal = this.crowd.openNear(at.x, at.z) ?? at;
+      }
+    }
     // the goal itself may be solid (Jef's cart, a pile of goods): the open ground next to it
     if (!w.goal) w.goal = s.x !== null && s.z !== null ? (this.crowd.onGrid(s.x, s.z) ? (this.crowd.openNear(s.x, s.z) ?? { x: s.x, z: s.z }) : { x: s.x, z: s.z }) : null;
     const tx = w.goal?.x ?? s.x ?? this.player.x;
@@ -282,8 +293,8 @@ export class Steps {
       return;
     }
     const d = Math.hypot(p.x - tx, p.z - tz);
-    // there: at the open point, or up against a solid goal itself (Jef's cart, a pile)
-    const dRaw = s.x !== null && s.z !== null ? Math.hypot(p.x - s.x, p.z - s.z) : d;
+    // there: at the open point, or up against a solid goal itself (Jef's cart, a pile); a person: where they are now
+    const dRaw = s.x !== null && s.z !== null && !s.who ? Math.hypot(p.x - s.x, p.z - s.z) : d;
     // pushing a cart they stop with the cart's length between them and the goal
     if (d > REACH && dRaw > (w.r.cart ? 4.6 : 2.6)) {
       const pace = carrying ? (w.r.strong ? 1.1 : 0.85) : d > 12 ? 1.5 : 1.3;

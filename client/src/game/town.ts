@@ -1270,6 +1270,9 @@ export class Town {
   moveHidden(id: string, tx: number, tz: number, dt: number, speed = HIDDEN_SPEED): void {
     const s = this.byId.get(id);
     if (!s) return;
+    // in a boat on the water, or on someone's trip: the trip has them (fixes 2026-09-24: the
+    // afternoon's ballad crowd took Karel Van Loock out of his boat in mid-river); they come after
+    if (s.inTrip || s.aboard) return;
     if (s.p) {
       // still in the street but off the walk grid: the crowd cannot path them; they go on unseen
       if (this.crowd.onGrid(s.p.x, s.p.z)) return;
@@ -1292,7 +1295,7 @@ export class Town {
    */
   hideAway(id: string): boolean {
     const s = this.byId.get(id);
-    if (!s?.p || s.p.shown || s.trip || s.aboard) return false;
+    if (!s?.p || s.p.shown || s.trip || s.aboard || s.inTrip) return false;
     s.x = s.p.x;
     s.z = s.p.z;
     this.lose(s, true);
