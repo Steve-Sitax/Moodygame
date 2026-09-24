@@ -332,7 +332,7 @@ export function startAction(db: DB, a: NewAction): ActionRow {
     verb: `action_${a.kind}`,
     actor: a.npc_id,
     target: a.target ?? null,
-    text: describeStart(name, row),
+    text: describeStart(name, { ...row, target: targetLabel(db, row.target) }),
     x: a.target_x ?? null,
     z: a.target_z ?? null,
     ref_type: "npc_action",
@@ -342,6 +342,17 @@ export function startAction(db: DB, a: NewAction): ActionRow {
   });
   notify("actions");
   return row;
+}
+
+/** A person's or a place's name for a line the player may read: never a bare id (r147). */
+function targetLabel(db: DB, t: string | null | undefined): string {
+  if (!t) return "";
+  const r = resident(db, t);
+  if (r) return r.name;
+  const n = db.prepare("SELECT name FROM npc WHERE id = ?").get(t) as { name: string } | undefined;
+  if (n) return n.name;
+  const p = PLACES.find((q) => q.id === t);
+  return p?.label ?? t;
 }
 
 function describeStart(name: string, a: ActionRow): string {

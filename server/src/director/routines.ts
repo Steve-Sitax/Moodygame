@@ -114,6 +114,8 @@ export interface ErrandState {
   steering: number | null;
   /** What they said to the message's addressee, and what came back. */
   reply: string | null;
+  /** Things of Jef's (or bought with his coins) handed back to him on his return. */
+  back?: string[];
   [k: string]: unknown;
 }
 const st = (r: Routine) => r.state as ErrandState;
@@ -270,10 +272,15 @@ function personSpot(db: DB, who: Resident): (Spot & { home: boolean }) | null {
   return null;
 }
 
+/** Where Jef is now (on the walk grid), else where he asked them, else where he is. */
 function jefSpot(state: { jef: { x: number; z: number } | null }): Spot {
+  for (const j of [jefAt(), state.jef]) {
+    if (!j) continue;
+    const q = walkMap().nearestOpen(j.x, j.z, 12);
+    if (q) return { x: q.x, z: q.z, label: "Jef", who: "jef" };
+  }
   const j = jefAt() ?? state.jef ?? { x: 0, z: 0 };
-  const q = walkMap().nearestOpen(j.x, j.z, 6) ?? j;
-  return { x: q.x, z: q.z, label: "Jef", who: "jef" };
+  return { x: j.x, z: j.z, label: "Jef", who: "jef" };
 }
 
 /** A place from words (a shop, a tavern, a square), on the walk grid. */
@@ -370,6 +377,8 @@ interface Mapped {
   limit?: string;
   cart?: ErrandState["cart"];
   waitMin?: number;
+  /** buy: the shut seller the engine sent them past. */
+  swappedFrom?: { x: number; z: number };
 }
 
 const tag = (k: number | "e", role: string) => `${k}:${role}`;
@@ -469,7 +478,7 @@ export function mapStep(ctx: MapCtx, ps: PlanStep): Mapped {
         end: { x: w.step.x!, z: w.step.z! },
         metres: w.metres,
         cost,
-        ...(swapped ? { limit: `${named!.label[0].toUpperCase()}${named!.label.slice(1)} is shut; I'll try ${seller.label}.` } : {}),
+        ...(swapped ? { swappedFrom: { x: named!.x, z: named!.z }, limit: `${named!.label[0].toUpperCase()}${named!.label.slice(1)} is shut; I'll try ${seller.label}.` } : {}),
       };
     }
     case "give":
@@ -610,6 +619,20 @@ function besideCart(c: { x: number; z: number }, toward: { x: number; z: number 
   return walkMap().nearestOpen(c.x + (dx / L) * 2.2, c.z + (dz / L) * 2.2, 3) ?? { x: c.x, z: c.z };
 }
 
+/**
+ * Game minutes a walk of this many straight-line metres takes: streets wind (about half as far
+ * again), and in Jef's sight they walk (a game minute is a third of a real second); unseen they go
+ * faster, so this is the long case.
+ */
+export function walkMinutes(metres: number): number {
+  return Math.round(metres * 1.5 * 2.4);
+}
+
+/** A changed way gets its own time, never past the routine's cap from its start. */
+function extendTime(db: DB, id: number, minutes: number): void {
+  db.prepare("UPDATE npc_action SET until = MIN(started + ?, until + ?) WHERE id = ? AND status = 'active'").run(ROUTINE_MAX_MIN, Math.max(0, Math.round(minutes)), id);
+}
+
 // ------------------------------------------------------------------ the whole plan
 
 export interface Checked {
@@ -646,8 +669,10 @@ function successOf(plan: PlanStep[], asked: SuccessKind, mapped: Mapped[]): Succ
  * The engine's check of a whole plan for one person: the rules, every step, the money. Pure of side
  * effects: nothing moves until startErrand. `words`: Jef's own words in this meeting.
  */
-export function checkPlan(db: DB, r: Resident, plan: RoutinePlan, words: string, amount_c: number, at: { jef: { x: number; z: number } | null; mine: Where }): Checked {
-  const no = (refusal: ErrandRefusal, line: string, dropped: Drop[] = []): Checked => ({ ok: false, refusal, line, steps: [], dropped, limits: [] });
+export function checkPlan(db: DB, r: Resident, plan: RoutinePlan, words: string, amount_c: number, asked: { jef: { x: number; z: number } | null; mine: Where }): Checked {
+  // face to face: where Jef stands is where they stand, when the client has not said
+  const at = { mine: asked.mine, jef: asked.jef ?? { x: asked.mine.x, z: asked.mine.z } };
+  const no =(refusal: ErrandRefusal, line: string, dropped: Drop[] = []): Checked => ({ ok: false, refusal, line, steps: [], dropped, limits: [] });
   // the rules first: Jef's words, the goal and every step's words
   const rule = brokenRule(db, r, `${words} ${plan.goal}`) ?? plan.steps.map((s) => brokenRule(db, r, `${s.target} ${s.item} ${s.message}`)).find(Boolean) ?? null;
   if (rule) return no(rule.kind, rule.line);
@@ -705,6 +730,15 @@ export function checkPlan(db: DB, r: Resident, plan: RoutinePlan, words: string,
   });
   const fatal = mapped.find((m) => m.fatal)?.fatal;
   if (fatal) return no(fatal.kind, fatal.line, dropped);
+  // a plain walk straight into another walk to the same spot, or to a shut shop the engine sent them past: left out
+  const past = mapped.flatMap((m) => (m.swappedFrom ? [m.swappedFrom] : []));
+  for (let j = steps.length - 2; j >= 0; j--) {
+    const a = steps[j];
+    const b = steps[j + 1];
+    if (a.kind !== "walk_to" || b.kind !== "walk_to" || tagRole(a) !== "walk" || plan.steps[Number(tagK(a))]?.kind !== "walk_to") continue;
+    const sameWho = !!a.who && a.who === b.who;
+    if (sameWho || dist(a as { x: number; z: number }, b as { x: number; z: number }) < 25 || past.some((q) => dist(q, a as { x: number; z: number }) < 25)) steps.splice(j, 1);
+  }
   // something to do beside walking and coming back
   const doing = steps.some((s) => s.kind !== "walk_to" || tagRole(s) === "cart") || takes.length > 0 || plan.steps.some((p, i) => p.kind === "walk_to" && mapped[i].steps.length > 0);
   if (!doing) return no("nothing_left", dropped[0]?.line ?? LINES.nothing, dropped);
@@ -723,7 +757,7 @@ export function checkPlan(db: DB, r: Resident, plan: RoutinePlan, words: string,
   const trust = relationship(db, r.id)?.trust ?? 0;
   const units = Math.max(1, Math.round(metres / 150) + Math.round(waits / 120));
   const price = askFor(db, r, units);
-  const offer = wageIn(words) ? offerFrom(words, amount_c) : 0;
+  const offer = wageIn(words, cost > 0) ? offerFrom(words, amount_c) : 0;
   const friend = trust >= 2 || (trust >= 0 && r.stats.warmth >= 7);
   const childPay = r.age < 16 || ["street_child", "errand_boy", "beggar"].includes(r.trade);
   let wage = 0;
@@ -732,7 +766,7 @@ export function checkPlan(db: DB, r: Resident, plan: RoutinePlan, words: string,
     if (offer > MAX_WAGE_C) return no("wage", "That much for an errand? What's the catch? No.", dropped);
     if (offer < price) return no("wage", offer < price / 2 ? `For ${offer}? I don't run about for nothing. ${price}, and I'll go.` : `Make it ${price} and I'll go.`, dropped);
     wage = offer;
-  } else if (friend && !childPay && units <= 3) favour = true;
+  } else if (friend && !childPay && (trust >= 2 || units <= 3)) favour = true;
   else return no("wage", `For ${price} centimes I'll do it. Half now, half when it's done.`, dropped);
   const pay: PayPlan = favour ? "end" : planFrom(words);
   if (!favour && pay === "end" && trust < 2) return no("wage", "Half now, or find someone else. I don't know you.", dropped);
@@ -746,7 +780,7 @@ export function checkPlan(db: DB, r: Resident, plan: RoutinePlan, words: string,
     ...(first > 0 ? [{ kind: "pay" as const, who: r.id, amount_c: first, why: pay === "now" ? "an errand's wage" : "half an errand's wage", tag: tag("e", "wage") }] : []),
   ];
   const all = [...head, ...steps];
-  const minutes = Math.max(ROUTINE_MIN_MIN, Math.min(ROUTINE_MAX_MIN, Math.round(metres * 2.4) + waits + 120));
+  const minutes = Math.max(ROUTINE_MIN_MIN, Math.min(ROUTINE_MAX_MIN, walkMinutes(metres) + waits + 120));
   const c = clock(db);
   const state: ErrandState = {
     goal: cleanGoal(plan.goal),
@@ -776,8 +810,13 @@ export function checkPlan(db: DB, r: Resident, plan: RoutinePlan, words: string,
   return { ok: true, line: "", steps: all, state, minutes, dropped, limits, first_c: first, price_c: cost };
 }
 
-/** Jef's words offer a wage for the errand (else a sum in them is a price, not a wage). */
-export function wageIn(words: string): boolean {
+/**
+ * Jef's words offer a wage for the errand. With nothing to buy, any sum he names with its coin is
+ * the wage ("All right, 35 centimes"); with something to buy, a sum may be its price, so the words
+ * must say it is for them ("I'll pay you", "for your trouble").
+ */
+export function wageIn(words: string, buying = true): boolean {
+  if (!buying && sumsIn(words).unit.length > 0) return true;
   return /\b(pay you|i'?ll pay|for your trouble|for you(r time)?|wage|i'?ll give you|and i'?ll give|earn|a tip|reward you)\b/i.test(words) && (sumsIn(words).unit.length > 0 || sumsIn(words).bare.length > 0);
 }
 
@@ -1278,6 +1317,7 @@ function arriveAtJef(db: DB, row: ActionRow, e: ErrandState): void {
   const runner = resident(db, row.npc_id);
   const handed = handBack(db, e);
   if (handed.length && e.success === "brought") e.outcome.brought = true;
+  if (handed.length) e.back = [...(e.back ?? []), ...handed];
   if (e.cart?.taken && e.cart.data) {
     // where the runner stopped with it (the client says), else beside Jef
     const near = jefAt();
@@ -1337,7 +1377,7 @@ function steer(db: DB, row: ActionRow, r: Routine, trig: Trigger): void | "end" 
     return "end";
   }
   if (!canCheckIn(db, e)) {
-    engineSteer(db, r, r.i, trig);
+    engineSteer(db, r, r.i, trig, row.id);
     writeEvent(db, { kind: "action", verb: "errand_steered", actor: row.npc_id, text: `${resident(db, row.npc_id)?.name ?? "Someone"} kept on with Jef's errand by their own lights (${trig.kind}).`, outcome: "engine", weight: 2, who: [row.npc_id] });
     saveRoutine(db, row.id, r);
     return;
@@ -1384,7 +1424,7 @@ export function finishCheckin(db: DB, id: number, trig: Trigger, out: Checkin | 
         if (out!.decision === "come_back" || out!.decision === "give_up") e.report_line = said;
       }
     } else {
-      engineSteer(db, rt, i + 1, trig);
+      engineSteer(db, rt, i + 1, trig, id);
       decision = out ? `engine (the model's ${out.decision} was refused)` : "engine (no answer)";
     }
     note(e, `stopped to think: ${decision}`);
@@ -1488,6 +1528,7 @@ export function applyDecision(db: DB, row: ActionRow, r: Routine, from: number, 
       for (let j = from; j < r.steps.length; j++) if (sameKind(r.steps[j]) && tagK(r.steps[j]) !== "e") superseded.add(tagK(r.steps[j]));
       for (const kk of superseded) removeAt(r, groupOf(r, from, kk));
       r.steps.splice(from, 0, ...m.steps);
+      extendTime(db, row.id, walkMinutes(m.metres) + 30);
       void trig;
       return true;
     }
@@ -1496,7 +1537,7 @@ export function applyDecision(db: DB, row: ActionRow, r: Routine, from: number, 
 }
 
 /** The engine's own steering: retry a failed step once (after a wait if it was shut), then come back and report. */
-export function engineSteer(db: DB, r: Routine, from: number, trig: Trigger): void {
+export function engineSteer(db: DB, r: Routine, from: number, trig: Trigger, id?: number): void {
   const e = st(r);
   if (trig.kind !== "failed") return; // the rain, the night: carry on
   const k = tagK(trig.step) + ":" + tagRole(trig.step);
@@ -1507,6 +1548,7 @@ export function engineSteer(db: DB, r: Routine, from: number, trig: Trigger): vo
     if (trig.why === "closed" || trig.why === "not_about") again.push({ kind: "wait", minutes: RETRY_WAIT_MIN, x: e.at?.x, z: e.at?.z, label: "waiting a while", tag: tag("e", "retrywait") });
     again.push({ ...trig.step });
     r.steps.splice(from, 0, ...again);
+    if (id !== undefined) extendTime(db, id, again.length > 1 ? RETRY_WAIT_MIN + 30 : 30);
     return;
   }
   onlyReport(db, r, from);
@@ -1516,18 +1558,19 @@ export function engineSteer(db: DB, r: Routine, from: number, trig: Trigger): vo
 
 function reportLine(db: DB, _row: ActionRow, e: ErrandState, done: boolean, outcome: string): string {
   const to = e.recipient ? resident(db, e.recipient) : null;
+  const she = to ? (to.sex === "f" ? "She" : "He") : "They";
   if (e.report_line) return e.report_line;
   if (!done) {
-    const last = [...e.said].reverse().find((x) => x.includes("failed"));
+    const last = [...e.said].reverse().find((x) => x.includes("failed") && !x.startsWith("go back to Jef"));
     if (outcome === "time") return "That took too long. I've given it up.";
     if (outcome === "stopped") return "All right. As you like.";
     return last ? `No luck: I couldn't ${last.replace(/: failed.*$/, "")}.` : "No luck, I'm afraid.";
   }
   switch (e.success) {
     case "delivered":
-      return `It's done. ${to?.first ?? "They"} has it${e.reply?.startsWith("For me") ? ", and sends you thanks" : ""}.`;
+      return `It's done. ${to ? `${to.first} has it.` : "They have it."}${e.reply ? ` ${she} said: "${e.reply}"` : ""}`;
     case "told":
-      return `I told ${to?.first ?? "them"}. ${e.reply?.startsWith("And he couldn't") ? "Not best pleased you didn't come yourself." : "They'll mind it."}`;
+      return `I told ${to?.first ?? "them"}.${e.reply ? ` ${she} said: "${e.reply}"` : ""}`;
     case "brought":
       return "Here you are, as you asked.";
     case "cart_back":
@@ -1553,9 +1596,9 @@ function errandEnded(db: DB, row: ActionRow, r: Routine, status: "done" | "faile
     e.cart = null;
     parts.push("Your cart's where I left it.");
   }
-  // what they still carry of Jef's (or bought with his coins): back to him
-  const back = handBack(db, e);
-  if (back.length && status !== "done") parts.push(`Here's the ${nameOf(back[0]).replace(/^(a|an|the) /, "")} back.`);
+  // what they still carry of Jef's (or bought with his coins): back to him (on the way back, or now)
+  const back = [...(e.back ?? []), ...handBack(db, e)];
+  if (back.length && !(done && e.success === "brought")) parts.push(`Here's the ${nameOf(back[0]).replace(/^(a|an|the) /, "")} back.`);
   if (e.carried.length && runner) remember(db, runner.id, `I still have ${e.carried.map((c) => nameOf(c.kind)).join(", ")} of Jef's; his pockets were full.`, 3);
   // his change
   const change = Math.max(0, e.purse_c - e.spent_c);

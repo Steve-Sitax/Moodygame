@@ -74,6 +74,8 @@ interface Walk {
   lastAt?: { x: number; z: number } | null;
   /** M6 routines: a walk up to a person (or back to Jef): seconds until the goal is looked up again. */
   goalT?: number;
+  /** M6 routines: seconds stood where nobody can stand (then they squeeze out). */
+  wedgedT?: number;
 }
 
 async function call<T>(method: string, url: string, body?: unknown): Promise<T> {
@@ -292,6 +294,20 @@ export class Steps {
       if (pos && Math.hypot(pos.x - tx, pos.z - tz) < 2) this.arrive(w, s, carrying);
       return;
     }
+    // M6 routines: someone wedged where nobody can stand (a stall set down on them, pressed to a wall
+    // after an unseen walk) cannot take a step; after a moment they squeeze out to the open ground beside
+    if (w.r.purpose === "errand" && !this.crowd.canStand(p.x, p.z)) {
+      w.wedgedT = (w.wedgedT ?? 0) + dt;
+      if (w.wedgedT > 1.5) {
+        w.wedgedT = 0;
+        const q = this.crowd.openNear(p.x, p.z);
+        if (q && Math.hypot(q.x - p.x, q.z - p.z) < 3) {
+          p.x = q.x;
+          p.z = q.z;
+          w.goT = 0;
+        }
+      }
+    } else w.wedgedT = 0;
     const d = Math.hypot(p.x - tx, p.z - tz);
     // there: at the open point, or up against a solid goal itself (Jef's cart, a pile); a person: where they are now
     const dRaw = s.x !== null && s.z !== null && !s.who ? Math.hypot(p.x - s.x, p.z - s.z) : d;
