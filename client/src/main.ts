@@ -398,11 +398,32 @@ function start(): void {
 startEl.addEventListener("click", start);
 // the pause screen: a walking key (or Space, Enter) goes back into the game, no click needed.
 // (Esc cannot: browsers do not let the Esc key take the mouse back.)
+// Steve: going to another app (a snipping tool) must not open the menu; Esc opens it, Esc again closes it.
+// Away (the window lost focus): only a small hint in the corner. Back: click or a walking key goes on.
+const resumeEl = document.createElement("div");
+resumeEl.className = "resume-hint hidden";
+resumeEl.textContent = "Click or press W to go on · Esc: menu";
+document.body.appendChild(resumeEl);
+/** Paused without the menu: after the window lost focus, or the menu was closed with Esc. */
+let quietPause = false;
+function showMenu(on: boolean): void {
+  startEl.classList.toggle("hidden", !on);
+  resumeEl.classList.toggle("hidden", on || player.locked || player.freeInput || !quietPause);
+}
 window.addEventListener("keydown", (e) => {
-  if (player.locked || startEl.classList.contains("hidden") || e.repeat) return;
+  if (player.locked || player.freeInput || e.repeat) return;
+  const menuOpen = !startEl.classList.contains("hidden");
+  if (!menuOpen && !quietPause) return;
   const t = document.activeElement as HTMLElement | null;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
   if (document.querySelector(".settings:not([style*='none'])")) return; // a panel is open: its keys first
+  if (e.code === "Escape") {
+    // Esc toggles the menu while the game waits (the browser keeps Esc from taking the mouse back)
+    e.preventDefault();
+    quietPause = menuOpen;
+    showMenu(!menuOpen);
+    return;
+  }
   if (["KeyW", "KeyA", "KeyS", "KeyD", "Space", "Enter", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) {
     e.preventDefault();
     start();
@@ -411,9 +432,24 @@ window.addEventListener("keydown", (e) => {
 canvas.addEventListener("click", () => {
   if (!player.locked) start();
 });
+let lostFocusAt = -1e9;
+window.addEventListener("blur", () => (lostFocusAt = performance.now()));
 document.addEventListener("pointerlockchange", () => {
   const locked = document.pointerLockElement === canvas;
-  startEl.classList.toggle("hidden", locked || player.freeInput);
+  if (locked || player.freeInput) {
+    quietPause = false;
+    startEl.classList.add("hidden");
+    resumeEl.classList.add("hidden");
+    return;
+  }
+  // the mouse was let go: by Esc (the window still has focus) or by going to another app (it has not).
+  // The focus change can come a moment after the lock change, so look again shortly.
+  window.setTimeout(() => {
+    if (player.locked || player.freeInput) return;
+    const away = !document.hasFocus() || performance.now() - lostFocusAt < 600;
+    quietPause = away;
+    showMenu(!away);
+  }, 150);
 });
 
 /** Run one part of the frame; an error is logged once (by its message) and the rest of the frame goes on. */

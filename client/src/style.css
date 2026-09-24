@@ -21,6 +21,22 @@ html, body {
   font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
 }
 #start.hidden { display: none; }
+/* paused without the menu (after going to another app): a small note, the game stays in view */
+.resume-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  background: rgba(216, 207, 184, 0.9);
+  color: #2a241c;
+  font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  font-size: 16px;
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 50;
+}
+.resume-hint.hidden { display: none; }
 .paper {
   background: #d8cfb8;
   color: #2a2420;
