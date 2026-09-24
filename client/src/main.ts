@@ -44,6 +44,7 @@ import { routeClips } from "./dev/routeClips";
 import { Lively } from "./game/lively";
 import { Steps } from "./game/steps";
 import { Hands } from "./game/hands";
+import { figureNav } from "./game/figures";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const startEl = document.getElementById("start") as HTMLDivElement;
@@ -210,6 +211,9 @@ ballads.sing = (at, v, notes, beat, inside) => {
 // M4b: a scene's shout or the agent's word, as a bubble
 actions.showLines = (c) => bubbles.show(c);
 events.eventSound = (k, at, s) => sound?.eventSound(k, at, s) ?? null;
+// fixes 2026-09-24: the job figures (a thief, a stranger, a foreman) walk the crowd's grid, never over the water
+figureNav.path = (ax, az, bx, bz) => crowd.pathOn(ax, az, bx, bz);
+figureNav.water = (x, z) => world.isWater(x, z);
 events.eventCues = (cues, at, s) => sound?.eventCues(cues, at, s) ?? null;
 events.say = (t) => jobs.say(t);
 // M6 town life: the lamplighters, the house fire and its bucket chain, the naties' hiring at dawn (game/townlife.ts)

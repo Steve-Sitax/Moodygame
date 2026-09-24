@@ -43,10 +43,23 @@ function greyBox(kind: FigureKind): THREE.Group {
   return g;
 }
 
+/**
+ * Fixes 2026-09-24 (Steve: the watch job's thief "walked in the air above the water"): the figures
+ * walked straight lines to any point, and the thief's bolt went to a point never checked. main.ts sets
+ * this: `path` is the crowd's walk grid round Jef (A*, water and walls shut), `water` the open water.
+ * A figure on the ground now follows the grid, and never takes a step onto water whatever it is told.
+ */
+export const figureNav: {
+  path: ((ax: number, az: number, bx: number, bz: number) => Array<{ x: number; z: number }> | null) | null;
+  water: ((x: number, z: number) => boolean) | null;
+} = { path: null, water: null };
+
 export class Figure {
   readonly group = new THREE.Group();
   readonly pos: THREE.Vector3;
   private target: THREE.Vector3 | null = null;
+  /** The waypoints still to walk after `target` (the grid's corners). */
+  private ahead: THREE.Vector3[] = [];
   private speed = 1;
   private phase = Math.random() * 10;
   private facing = 0;
@@ -83,12 +96,34 @@ export class Figure {
   }
 
   walkTo(x: number, z: number, speed: number): void {
-    this.target = new THREE.Vector3(x, 0, z);
     this.speed = speed;
+    this.ahead = [];
+    // on a deck (a moving height) the figure keeps its straight line: the grid is the quay's
+    const onGround = typeof this.baseY === "number";
+    const water = figureNav.water;
+    // a goal on the water is pulled back towards the figure until it is on land
+    if (onGround && water?.(x, z)) {
+      const fx = this.pos.x;
+      const fz = this.pos.z;
+      let k = 1;
+      while (k > 0 && water(fx + (x - fx) * k, fz + (z - fz) * k)) k -= 0.05;
+      x = fx + (x - fx) * Math.max(0, k);
+      z = fz + (z - fz) * Math.max(0, k);
+    }
+    const way = onGround ? figureNav.path?.(this.pos.x, this.pos.z, x, z) : null;
+    if (way && way.length) {
+      const pts = way.map((p) => new THREE.Vector3(p.x, 0, p.z));
+      // the grid ends at the nearest open cell: finish on the asked point when that is land
+      const last = pts[pts.length - 1];
+      if (Math.hypot(last.x - x, last.z - z) > 0.3 && !water?.(x, z)) pts.push(new THREE.Vector3(x, 0, z));
+      this.target = pts.shift()!;
+      this.ahead = pts;
+    } else this.target = new THREE.Vector3(x, 0, z);
   }
 
   stop(): void {
     this.target = null;
+    this.ahead = [];
   }
 
   get moving(): boolean {
@@ -107,12 +142,20 @@ export class Figure {
     if (this.target) {
       const d = this.target.clone().sub(this.pos);
       const len = d.length();
-      if (len < 0.05) this.target = null;
+      if (len < 0.05) this.target = this.ahead.shift() ?? null;
       else {
         const step = Math.min(len, this.speed * dt);
-        this.pos.addScaledVector(d.normalize(), step);
-        this.facing = Math.atan2(d.x, d.z);
-        this.phase += dt * this.speed * 4.5;
+        const dir = d.normalize();
+        const nx = this.pos.x + dir.x * step;
+        const nz = this.pos.z + dir.z * step;
+        // never a step onto open water (from land): the walk ends here instead
+        if (typeof this.baseY === "number" && figureNav.water?.(nx, nz) && !figureNav.water(this.pos.x, this.pos.z)) this.stop();
+        else {
+          this.pos.x = nx;
+          this.pos.z = nz;
+          this.facing = Math.atan2(dir.x, dir.z);
+          this.phase += dt * this.speed * 4.5;
+        }
       }
     }
     let y = typeof this.baseY === "function" ? this.baseY() : this.baseY;

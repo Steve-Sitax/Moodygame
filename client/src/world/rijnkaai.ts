@@ -33,7 +33,7 @@ import { quaySteps, shoreTexture, frameAt, type Exit } from "./quaysteps";
 import { buildPier, PIER_BOLLARD } from "./pier";
 import { waveAt } from "../retro/psx";
 import { createMirror } from "./mirror";
-import { BRIG_FLOOR, CHAMBER, DOCK, HW_MAX, LW_MIN, MID_Y, levelAt, tideAt, tideDev, tideInfo, water as tideWater } from "./tide";
+import { BRIG_FLOOR, CHAMBER, DOCK, HW_MAX, LW_MIN, MID_Y, gateLine, levelAt, tideAt, tideDev, tideInfo, water as tideWater } from "./tide";
 import { buildTideMud } from "./tidemud";
 
 // The Rijnkaai in the real 1873 city (world/city.ts). Water is at z < 0, the
@@ -438,15 +438,36 @@ export function buildRijnkaai(): World {
   // (world/tide.ts); drawn before the river sheet, which the stencil keeps out from under them
   const dockMat = psx(new THREE.MeshPhongMaterial({ map: tex.water, color: 0x8a9a92, specular: 0x3a342a, shininess: 120 }), { water: true, affine: 0.6 });
   dockWaterStencil(dockMat);
-  const basinSheet = (r: { minX: number; maxX: number; minZ: number; maxZ: number }): THREE.Mesh => {
+  /**
+   * A sheet of still water over a rectangle. `ends` (fixes 2026-09-24): the near and far edges in z
+   * follow a line of x instead (the closed lock gates' V), so the water stops at the gate leaves.
+   */
+  const basinSheet = (
+    r: { minX: number; maxX: number; minZ: number; maxZ: number },
+    ends?: { min?: (x: number) => number; max?: (x: number) => number },
+  ): THREE.Mesh => {
     const w = r.maxX - r.minX;
     const h = r.maxZ - r.minZ;
-    const g = new THREE.PlaneGeometry(w, h, Math.max(1, Math.ceil(w / WATER_TILE)), Math.max(1, Math.ceil(h / WATER_TILE)));
+    // a V needs a vertex at its point: 1 m columns when an edge bends
+    const cols = ends ? Math.max(1, Math.ceil(w)) : Math.max(1, Math.ceil(w / WATER_TILE));
+    const g = new THREE.PlaneGeometry(w, h, cols, Math.max(1, Math.ceil(h / WATER_TILE)));
     const cx = (r.minX + r.maxX) / 2;
     const cz = (r.minZ + r.maxZ) / 2;
     // the same texture tiles as the river sheet: uv = world / 4 m (plane y is -world z)
     const pa = g.getAttribute("position");
     const ua = g.getAttribute("uv");
+    if (ends) {
+      for (let i = 0; i < pa.count; i++) {
+        const x = cx + pa.getX(i);
+        const t = (cz - pa.getY(i) - r.minZ) / h; // 0 at minZ, 1 at maxZ
+        const z0 = ends.min ? ends.min(x) : r.minZ;
+        const z1 = ends.max ? ends.max(x) : r.maxZ;
+        pa.setY(i, cz - (z0 + (z1 - z0) * t));
+      }
+      pa.needsUpdate = true;
+      g.computeBoundingBox();
+      g.computeBoundingSphere();
+    }
     for (let i = 0; i < pa.count; i++) ua.setXY(i, (cx + pa.getX(i)) / WATER_TILE, -(cz - pa.getY(i)) / WATER_TILE);
     const m = new THREE.Mesh(g, dockMat);
     m.rotation.x = -Math.PI / 2;
@@ -457,8 +478,9 @@ export function buildRijnkaai(): World {
   };
   // the dock (its walls: x 70..170, z 46..110, and the lock's dock end up to the gates at z 42)
   const dockSheet = basinSheet({ minX: 70, maxX: 170, minZ: 46, maxZ: 110 });
-  const dockMouth = basinSheet({ minX: 104, maxX: 116, minZ: CHAMBER.maxZ, maxZ: 46 });
-  const chamberSheet = basinSheet({ minX: 104, maxX: 116, minZ: CHAMBER.minZ, maxZ: CHAMBER.maxZ });
+  // fixes 2026-09-24: each sheet ends on the V of the closed gates (tide.ts gateLine), not on the hinge line
+  const dockMouth = basinSheet({ minX: 104, maxX: 116, minZ: CHAMBER.maxZ, maxZ: 46 }, { min: (x) => gateLine(CHAMBER.maxZ, x) });
+  const chamberSheet = basinSheet({ minX: 104, maxX: 116, minZ: CHAMBER.minZ, maxZ: CHAMBER.maxZ }, { min: (x) => gateLine(CHAMBER.minZ, x), max: (x) => gateLine(CHAMBER.maxZ, x) });
   // real reflections: the scene mirrored in the still water level (world/mirror.ts); M6 tides: the
   // plane follows the level of the water nearest the camera
   const mirror = createMirror(WATER_Y);

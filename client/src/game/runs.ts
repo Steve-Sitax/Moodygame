@@ -536,14 +536,24 @@ export class WatchRun implements Run {
     return dist2(this.ctx.player.x, this.ctx.player.z, this.post.x, this.post.z) < 7;
   }
 
-  private outInFog(d: number): [number, number] {
+  /** A free spot on land about d m from the post; nearer in when none is free that far (never on the water). */
+  private outInFog(d: number, awayFrom?: { x: number; z: number }): [number, number] {
     const { world } = this.ctx;
-    for (let a = Math.random() * Math.PI * 2, i = 0; i < 16; i++, a += 0.7) {
-      const x = this.post.x + Math.cos(a) * d;
-      const z = this.post.z + Math.sin(a) * d;
-      if (world.isFree(x, z, 0.5)) return [x, z];
+    for (let dd = d; dd >= 4; dd *= 0.7) {
+      let best: [number, number] | null = null;
+      let bestD = -1;
+      for (let a = Math.random() * Math.PI * 2, i = 0; i < 16; i++, a += 0.7) {
+        const x = this.post.x + Math.cos(a) * dd;
+        const z = this.post.z + Math.sin(a) * dd;
+        if (!world.isFree(x, z, 0.5) || world.isWater(x, z)) continue;
+        if (!awayFrom) return [x, z];
+        // fixes 2026-09-24: the bolt goes to the free spot furthest from Jef, not to a point over the river
+        const far = Math.hypot(x - awayFrom.x, z - awayFrom.z);
+        if (far > bestD) (best = [x, z]), (bestD = far);
+      }
+      if (best) return best;
     }
-    return [this.post.x + d, this.post.z];
+    return [this.post.x, this.post.z];
   }
 
   actions(): Action[] {
@@ -573,8 +583,8 @@ export class WatchRun implements Run {
     if (!this.thief || this.thiefState !== "coming") return;
     this.thiefState = "chased";
     const { x, z } = this.ctx.player;
-    const t = this.thief;
-    t.walkTo(t.pos.x + (t.pos.x - x) * 6, t.pos.z + (t.pos.z - z) * 6, 3.2);
+    const [ox, oz] = this.outInFog(30, { x, z });
+    this.thief.walkTo(ox, oz, 3.2);
     this.ctx.toast("He bolts into the fog. You hear him run, then nothing.");
   }
 

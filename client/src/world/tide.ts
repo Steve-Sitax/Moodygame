@@ -125,8 +125,30 @@ const CANALS = [
   { minX: -151, maxX: -141, minZ: 1, maxZ: 73 },
 ];
 
+/**
+ * Fixes 2026-09-24 (Steve: "water is higher in the dock than schelde, but it clips through the door"):
+ * the lock's mitre gates do not close on a straight line. Each leaf hinges 0.3 m in from the channel
+ * wall (x 104..116) and stands 15 degrees off square toward the dock, so a closed pair makes a V whose
+ * point lies about 1.5 m dock-side of the hinges (world/lock.ts). The water on each side ends on that V.
+ * This is the z of the closed leaves at x, for the pair whose hinges stand at gz.
+ */
+export const LOCK_CHANNEL = { minX: 104, maxX: 116 };
+const GATE_HINGE_IN = 0.3;
+const GATE_TAN = Math.tan((15 * Math.PI) / 180);
+export function gateLine(gz: number, x: number): number {
+  const half = (LOCK_CHANNEL.maxX - LOCK_CHANNEL.minX) / 2 - GATE_HINGE_IN;
+  const d = Math.max(0, Math.min(half, x - (LOCK_CHANNEL.minX + GATE_HINGE_IN), LOCK_CHANNEL.maxX - GATE_HINGE_IN - x));
+  return gz + d * GATE_TAN;
+}
+
 /** 0 river (tidal), 1 dock, 2 lock chamber. */
 export function regionAt(x: number, z: number): 0 | 1 | 2 {
+  // in the lock channel the gates' V decides (river | chamber | dock)
+  if (x > LOCK_CHANNEL.minX && x < LOCK_CHANNEL.maxX && z > CHAMBER.minZ - 8 && z < DOCK.minZ + 6) {
+    if (z < gateLine(CHAMBER.minZ, x)) return 0;
+    if (z < gateLine(CHAMBER.maxZ, x)) return 2;
+    return 1;
+  }
   if (x > DOCK.minX && x < DOCK.maxX && z > DOCK.minZ && z < DOCK.maxZ) return 1;
   if (x > CHAMBER.minX && x < CHAMBER.maxX && z > CHAMBER.minZ && z < CHAMBER.maxZ) return 2;
   return 0;

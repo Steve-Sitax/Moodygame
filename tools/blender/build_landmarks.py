@@ -1072,10 +1072,12 @@ def _holed_wall(m, p, d, o, s0, s1, y0, y1, holes, cell=None, mat=STONE, shade=1
     return f
 
 
-def _portal(m, p, d, o, sc, hw0, hw1, depth, h0, h1, tsp, lintel, bands=5, trumeau=False, steps=True, rnd=False, door=None, tymp="tympanum"):
+def _portal(m, p, d, o, sc, hw0, hw1, depth, h0, h1, tsp, lintel, bands=5, trumeau=False, steps=True, rnd=False, door=None, tymp="tympanum", leaves=True):
     """A splayed portal cut into a wall (see _holed_wall): stepped archivolt bands from the
     wall face (hw0, h0) to the doors `depth` inside (hw1, h1), a tympanum over a carved
-    lintel, two dark door leaves with iron hinges, a trumeau with a statue, steps."""
+    lintel, two dark door leaves with iron hinges, a trumeau with a statue, steps.
+    leaves=False (M7, the cathedral's west door): no leaves, a real opening under the lintel;
+    the game hangs its own leaves there and draws the nave behind (world/cathedralInWorld.ts)."""
     def W(s, y, dep):
         return (p[0] + d[0] * s - o[0] * dep, p[1] + d[1] * s - o[1] * dep, y)
     ysp = h0 - hw0 if rnd else h0 * tsp
@@ -1112,7 +1114,7 @@ def _portal(m, p, d, o, sc, hw0, hw1, depth, h0, h1, tsp, lintel, bands=5, trume
     # the door leaves: dark oak, iron hinges
     tw = 0.3 if trumeau else 0.03
     dh = lintel - 0.62
-    for s0, s1, hinge_side in ((-hw1, -tw, -1), (tw, hw1, 1)):
+    for s0, s1, hinge_side in ((-hw1, -tw, -1), (tw, hw1, 1)) if leaves else ():
         f = m.poly([W(sc + s0, 0.3, dep), W(sc + s1, 0.3, dep), W(sc + s1, dh, dep), W(sc + s0, dh, dep)], LEAD, 0.14)
         m.orient(f, (o[0], o[1], 0))
         hs = s1 if hinge_side > 0 else s0
@@ -1637,7 +1639,7 @@ def cathedral(fr, world_north):
     for sv in (-1, 1):  # the sides of the bay, back to the towers
         f = m.poly([(FU, sv * fw, 0), (TU - 6.0, sv * fw, 0), (TU - 6.0, sv * fw, 40.0), (FU, sv * fw, 40.0)], STONE, 0.9)
         m.orient(f, (0, sv, 0))
-    _portal(m, *W_, 0.0, 4.9, 2.55, 2.8, 15.4, 11.2, 0.56, 7.0, bands=5, trumeau=True, door="cathedral, central west portal")
+    _portal(m, *W_, 0.0, 4.9, 2.55, 2.8, 15.4, 11.2, 0.56, 7.0, bands=5, trumeau=True, door="cathedral, central west portal", leaves=False)
     _wimperg(m, *W_, 0.0, 5.2, 12.6, 21.6, off=0.4)
     for sv in (-1, 1):
         m.pinnacle(FU - 0.5, sv * 5.3, 12.8, 8.4, 0.38)
