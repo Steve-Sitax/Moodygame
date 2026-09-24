@@ -32,6 +32,8 @@ const FOOT = 0.33;
 export class GoodsWorld {
   items: Item[] = [];
   carried: Item | null = null;
+  /** M6 handcart: how many of a job's goods lie on Jef's carts now (game/handcart.ts sets it). */
+  onCart: (jobId: number) => number = () => 0;
 
   constructor(
     private readonly world: World,

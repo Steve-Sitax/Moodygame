@@ -36,6 +36,7 @@ import { mountHaggle } from "./town/haggleRoutes.ts";
 import { waresFor } from "./town/haggle.ts";
 import { mountBallads } from "./ballads/routes.ts";
 import { mountTransport } from "./town/transportRoutes.ts";
+import { mountHandcart } from "./town/handcartRoutes.ts";
 
 const db = openDb(DB_FILE);
 const app = new Hono();
@@ -87,6 +88,8 @@ mountBallads(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcas
 mountHaggle(app, { db, payload: () => jobsPayload() });
 // M6 transport: who owns what, errands with a load, Jef's own velocipede (town/possessions.ts, bikeshop.ts)
 mountTransport(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
+// M6 handcart: Jef's handcart, bought, hired or taken; loads by size and weight (town/handcart.ts)
+mountHandcart(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 
 // Board status the client can show while Claude writes.
 let board: { state: "writing" | "ready"; source?: string; error?: string } = { state: "ready" };

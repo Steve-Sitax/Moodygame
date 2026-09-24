@@ -2,11 +2,28 @@ import * as THREE from "three";
 import { psx } from "../retro/psx";
 import { makeHuman, type Human } from "../game/humans";
 import type { Rect } from "./geom";
-import { levelAt } from "./tide";
+import { levelAt, HW_MAX, DOCK_Y } from "./tide";
 import type { Props } from "./props3d";
 import { HorsePool } from "./horses";
 import { Kit, type RGB } from "./kit";
 import { smoothLine, type TrackData } from "./tracks";
+import {
+  JIB_GAP,
+  PORTAL_GAP,
+  REACH,
+  awayAngle,
+  car,
+  craneGap,
+  craneParts,
+  mast,
+  outranks,
+  portalGap,
+  segDist,
+  thingsGap,
+  type Capsule,
+  type CranePose,
+  type PartKind,
+} from "../../../shared/cranes";
 
 // The quay railway at work (M3g). A short goods train, drawn by two heavy horses in tandem
 // with a shunter at their heads (horses moved the wagons on the quay lines of the 1860s-70s;
@@ -56,6 +73,11 @@ export interface RailwayOptions {
   isFree: (x: number, z: number, r: number) => boolean;
   /** Is there a moored hull under (x, z)? (the crane lifts from its hold) */
   hullAt: (x: number, z: number) => boolean;
+  /**
+   * The tall things on the moored ships (masts, rigging, funnels; boats.ts tall): [x, z, top over
+   * the waterline, the level she sits on below it]. The cranes' jibs keep off them (M6 cranes).
+   */
+  tall?: ReadonlyArray<[number, number, number, number]>;
   /** Piles of goods on the quay come and go: their colliders. */
   addCollider: (r: Rect) => void;
   removeCollider: (r: Rect) => void;
@@ -149,6 +171,12 @@ export interface Railway {
   jump(s: number): void;
   /** Dev: the length of the line and the arc position of each crane pass. */
   plan(): { length: number; passes: Array<{ crane: number; s: number; mode: string }> };
+  /**
+   * Dev (M6 cranes): the closest the cranes came to each other (jibs and cabins, portals), to the
+   * masts and to the train since the last reset, and what each crane did. `rules: false` turns the
+   * checks off (the old behaviour), `true` on again.
+   */
+  craneCheck(o?: { reset?: boolean; rules?: boolean }): Record<string, unknown>;
 }
 
 // ------------------------------------------------------------------ numbers
@@ -186,7 +214,19 @@ const CRANE_FEET: Array<[number, number, number, number]> = [
 const CRANE_WHEELS: Array<[number, number]> = CRANE_FEET.flatMap(([x, z]) => [[x - 0.42, z], [x + 0.42, z]] as Array<[number, number]>);
 const CRANE_WHEEL_R = 0.3;
 const CRANE_V = 0.42; // m/s along the runway
-const CRANE_GAP = 12; // never closer to the next crane on the runway
+/**
+ * Never closer to the next crane on the runway (M6 cranes: 17, was 12). With the hook 11.5 m out
+ * and a load on it, a crane can lower into a wagon on its neighbour's side only if that
+ * neighbour's portal stands about 16.2 m off or more (shared/cranes.ts); at 12 m the hook of a
+ * crane travelling with its jib along the runway hung in its neighbour's cabin.
+ */
+const CRANE_GAP = 17;
+/** Blocked this long (s), a crane gives up what it is doing (a lift for the train: 45). */
+const GIVE_UP = 12;
+const GIVE_UP_WORK = 45;
+/** The tall things on ships count from this height over the waterline (boats.ts tall default). */
+const TALL_ABOVE = 4;
+const MAST_R = 0.75;
 const TRAVEL_HOOK = 6.8; // hook height for travelling
 /**
  * Up on the crane (M3g part 4; build_boats.py portal_jib DECK_OUTLINE, RAIL_RIGHT, CAB): the gallery
@@ -625,7 +665,49 @@ interface Crane {
   /** The player stands at its ladder (seconds), or is on it. */
   parkFor: number;
   occupied: boolean;
+  // --- keeping clear (M6 cranes, shared/cranes.ts)
+  /** Cranes that can ever come within reach; the tall things on ships within reach of its runway. */
+  near: Crane[];
+  masts: Array<[number, number, number, number]>;
+  /** Its parts where it stands now, and the pose they were made for. */
+  parts: Capsule[];
+  partsAt: [number, number, number, number];
+  /** The jib's side along the runway for this trip (chosen as it sets off), and the sides clear of masts. */
+  along: number;
+  sides: number[];
+  /** A step was refused this frame (by what), and for how many seconds in a row. */
+  blocked: boolean;
+  blockedBy: string;
+  blocker: Crane | null;
+  blockT: number;
+  /** Asked to make way: seconds left, the way to go (a push away from those asking), the rank they lend it. */
+  yieldT: number;
+  awayX: number;
+  awayZ: number;
+  lend: number;
+  /** Its cabin or portal (not its jib) is in the way: it moves along to a berth away from them. */
+  moveOn: boolean;
+  yielding: boolean;
+  /** Found nowhere to move along to: seconds before it looks again. */
+  noAway: number;
+  /** For the dev check. */
+  stat: CraneStat;
 }
+
+interface CraneStat {
+  lifts: number;
+  trips: number;
+  swings: number;
+  yields: number;
+  blockedS: number;
+  maxBlock: number;
+  gaveUp: number;
+  /** Train stops let go because no wagon row or swing was clear. */
+  skipped: number;
+  /** Seconds blocked, by what. */
+  by: Record<string, number>;
+}
+const newStat = (): CraneStat => ({ lifts: 0, trips: 0, swings: 0, yields: 0, blockedS: 0, maxBlock: 0, gaveUp: 0, skipped: 0, by: {} });
 
 interface Stop {
   crane: Crane;
@@ -774,6 +856,24 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       reserved: false,
       parkFor: 0,
       occupied: false,
+      near: [],
+      masts: [],
+      parts: [],
+      partsAt: [NaN, NaN, NaN, NaN],
+      along: Math.PI / 2,
+      sides: [],
+      blocked: false,
+      blockedBy: "",
+      blocker: null,
+      blockT: 0,
+      yieldT: 0,
+      awayX: 0,
+      awayZ: 0,
+      lend: 0,
+      moveOn: false,
+      yielding: false,
+      noAway: 0,
+      stat: newStat(),
     };
     // a hold under the hook on the water side, nearest the jib's rest; else a pile on the quay
     const worldA = (ca: number) => site.yaw + ca;
@@ -845,18 +945,200 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     out.minZ = Math.min(az, bz);
     out.maxZ = Math.max(az, bz);
   };
+  // --- keeping clear of each other, the masts and the train (M6 cranes, shared/cranes.ts)
+  let rules = true;
+  const loadOf = (c: Crane) => (c.carry ? SLING + UNIT_H[c.carry] : 0);
+  const poseOf = (c: Crane, pos = c.pos, a = c.a, hy = c.hy): CranePose => {
+    const [x, z] = siteAt(c, pos);
+    return { x, z, yaw: c.site.yaw, a, hy, load: loadOf(c) };
+  };
+  /** A crane's parts where it stands now (made again only when it has moved). */
+  const partsOf = (c: Crane): Capsule[] => {
+    const k = c.partsAt;
+    const load = loadOf(c);
+    if (k[0] !== c.pos || k[1] !== c.a || k[2] !== c.hy || k[3] !== load) {
+      c.parts = craneParts(poseOf(c));
+      c.partsAt = [c.pos, c.a, c.hy, load];
+    }
+    return c.parts;
+  };
+  /**
+   * The tall things on ships near the jib of a crane set so (`high`: at the highest tide). The jib
+   * keeps off them; the hook's rope may hang past rigging into a hold (it is the jib Steve saw).
+   */
+  function mastCaps(c: Crane, p: CranePose, high = false): Capsule[] {
+    const out: Capsule[] = [];
+    if (!c.masts.length) return out;
+    const h = p.yaw + p.a;
+    const ux = Math.sin(h);
+    const uz = Math.cos(h);
+    for (const m of c.masts) {
+      // in plan: near the line from the axis out to the hook (else it cannot touch)
+      const dx = m[0] - p.x;
+      const dz = m[1] - p.z;
+      const t = THREE.MathUtils.clamp(dx * ux + dz * uz, 0, 11.6);
+      if (Math.hypot(dx - ux * t, dz - uz * t) > MAST_R + 0.75 + JIB_GAP + 0.6) continue;
+      const w = Math.max(high ? Math.max(HW_MAX, DOCK_Y) : levelAt(m[0], m[1]), m[3]);
+      out.push(mast(m[0], m[1], w + TALL_ABOVE, w + m[2], MAST_R));
+    }
+    return out;
+  }
+  /** The goods train's wagons and horses where they are this frame (for the hooks of the other cranes). */
+  let trainCaps: Capsule[] = [];
+  /** The crane the train works with, or has booked: its hook goes down into the wagons. */
+  const withTrain = (c: Crane) => c.reserved || c.ops.length > 0;
+  /**
+   * How much room a crane set so would have beyond the margins, thing by thing: for each crane
+   * that can reach it the room of its jib, fall and cabin and the room between the portals, then
+   * the masts, then the train. Negative: too close. Also which is worst, and the other's part there.
+   */
+  function roomOf(c: Crane, p: CranePose, out: number[]): { k: number; theirs: PartKind | null } {
+    const mine = craneParts(p);
+    let worst = Infinity;
+    let k = -1;
+    let theirs: PartKind | null = null;
+    out.length = 0;
+    for (const o of c.near) {
+      if (Math.hypot(o.site.x - p.x, o.site.z - p.z) > REACH) {
+        out.push(Infinity, Infinity);
+        continue;
+      }
+      const g = craneGap(mine, partsOf(o));
+      const jg = g.gap - JIB_GAP;
+      const pg = portalGap(p, poseOf(o)) - PORTAL_GAP;
+      out.push(jg, pg);
+      if (jg < worst) {
+        worst = jg;
+        k = out.length - 2;
+        theirs = g.theirs;
+      }
+      if (pg < worst) {
+        worst = pg;
+        k = out.length - 1;
+        theirs = "portal";
+      }
+    }
+    out.push(thingsGap(mine, mastCaps(c, p), ["jib"]) - JIB_GAP);
+    out.push(!withTrain(c) && trainCaps.length ? thingsGap(mine, trainCaps, ["fall"]) - JIB_GAP : Infinity);
+    for (const i of [out.length - 2, out.length - 1]) {
+      if (out[i] < worst) {
+        worst = out[i];
+        k = i;
+        theirs = null;
+      }
+    }
+    return { k, theirs };
+  }
+  const minOf = (a: number[]) => a.reduce((m, v) => Math.min(m, v), Infinity);
+  const whatOf = (c: Crane, k: number) =>
+    k < 0 ? "" : k < c.near.length * 2 ? `crane ${c.near[k >> 1].index}${k & 1 ? " portal" : ""}` : k === c.near.length * 2 ? "mast" : "train";
+  /** Its rank when it is in another's way (shared/cranes.ts outranks). */
+  const rank = (c: Crane) =>
+    Math.max(c.occupied || c.parkFor > 0 ? 4 : withTrain(c) ? 3 : c.mode !== "berth" ? 2 : 1, c.yieldT > 0 ? c.lend : 0);
+  /** The player's crane stands still: it cannot make way. */
+  const canYield = (c: Crane) => !c.occupied && c.parkFor <= 0;
+  /** Ask crane o to make way for c: its jib away from c, or (its cabin or portal in the way) along to another berth. */
+  function ask(o: Crane, c: Crane, theirs: PartKind | null): void {
+    o.yieldT = 1.2;
+    o.lend = Math.max(o.lend, rank(c) - 0.5);
+    const d = Math.hypot(o.site.x - c.site.x, o.site.z - c.site.z) || 1;
+    o.awayX += (o.site.x - c.site.x) / d;
+    o.awayZ += (o.site.z - c.site.z) / d;
+    if (theirs !== "jib" && theirs !== "fall") o.moveOn = true;
+  }
+  const after: number[] = [];
+  const before: number[] = [];
+  /** A step refused by thing k (roomOf's order): it stays; a crane it outranks there is asked to make way. */
+  function refused(c: Crane, k: number, theirs: PartKind | null): void {
+    c.blocked = true;
+    c.blockedBy = whatOf(c, k);
+    const o = k < c.near.length * 2 ? c.near[k >> 1] : null;
+    c.blocker = o;
+    if (o && canYield(o) && outranks({ rank: rank(c), index: c.index }, { rank: rank(o), index: o.index })) ask(o, c, theirs);
+  }
+  /**
+   * Move a crane to runway position `pos`, jib angle `a`, hook height `hy`, if the whole step keeps
+   * its room (checked every 0.3 m of the jib head's path): every other crane, mast and the train
+   * at least the margin off, or no closer than before the step. Refused: it stays, and a crane it
+   * outranks that is in its way is asked to make way. Returns whether it moved.
+   */
+  function tryMove(c: Crane, pos: number, a: number, hy: number): boolean {
+    const da = angDiff(a, c.a);
+    if (pos === c.pos && da === 0 && hy === c.hy) return true;
+    if (rules) {
+      const n = Math.max(1, Math.ceil(Math.max(Math.abs(da) * 11.6, Math.abs(pos - c.pos), Math.abs(hy - c.hy)) / 0.3));
+      let had = false;
+      for (let i = 1; i <= n; i++) {
+        const f = i / n;
+        const r = roomOf(c, poseOf(c, c.pos + (pos - c.pos) * f, c.a + da * f, c.hy + (hy - c.hy) * f), after);
+        if (minOf(after) >= 0) continue;
+        if (!had) {
+          roomOf(c, poseOf(c), before);
+          had = true;
+        }
+        let bad = -1;
+        for (let k = 0; k < after.length && bad < 0; k++) if (after[k] < 0 && after[k] < before[k] - 1e-6) bad = k;
+        if (bad < 0) continue;
+        refused(c, bad, bad === r.k ? r.theirs : bad & 1 ? "portal" : "body");
+        return false;
+      }
+    }
+    const moved = pos !== c.pos;
+    c.pos = pos;
+    c.a = a;
+    c.hy = hy;
+    if (moved) placeCrane(c);
+    return true;
+  }
+  /**
+   * Is the jib's whole swing from a0 to a1 (the short way round, as it slews) clear of the ships'
+   * masts, for a crane standing at (x, z)? For planning a trip or a lift (M6 cranes).
+   */
+  function mastPathClear(c: Crane, x: number, z: number, a0: number, a1: number): boolean {
+    if (!rules || !c.masts.length) return true;
+    const d = angDiff(a1, a0);
+    const n = Math.max(1, Math.ceil(Math.abs(d) / 0.04));
+    for (let i = 0; i <= n; i++) {
+      const p: CranePose = { x, z, yaw: c.site.yaw, a: a0 + (d * i) / n, hy: HOOK_REST, load: 0 };
+      if (thingsGap(craneParts(p), mastCaps(c, p), ["jib"]) < JIB_GAP) return false;
+    }
+    return true;
+  }
+  /** Is the hook over the railway (a crane not working the train keeps it up there)? */
+  const railKey = (x: number, z: number) => (Math.floor(x) + 4096) * 8192 + (Math.floor(z) + 4096);
+  const railBand = new Set<number>();
+  for (let i = 0; i < line.x.length; i += 4) {
+    if (line.x[i] < -316) continue;
+    for (let dx = -4; dx <= 4; dx++) for (let dz = -4; dz <= 4; dz++) if (dx * dx + dz * dz <= 13) railBand.add(railKey(line.x[i] + dx, line.z[i] + dz));
+  }
+  const overRail = (c: Crane) => {
+    const wa = c.site.yaw + c.a;
+    return railBand.has(railKey(c.site.x + Math.sin(wa) * R_HOOK, c.site.z + Math.cos(wa) * R_HOOK));
+  };
   /** Where a crane would stand at runway position p. */
   const siteAt = (c: Crane, p: number): P => (c.axis === "x" ? [p, c.site.z] : c.axis === "z" ? [c.site.x, p] : [c.site.x, c.site.z]);
-  /** A hold under the hook for a crane standing at (cx, cz): the jib angle nearest rest, or null. */
+  /**
+   * A hold under the hook for a crane standing at (cx, cz): the jib angle nearest rest, or null.
+   * The jib and the hook's fall keep clear of the ships' masts and rigging there, even at the
+   * highest spring tide (M6 cranes).
+   */
   const holdAngle = (c: Crane, cx: number, cz: number, maxK = 5): number | null => {
     for (let k = 0; k <= maxK; k++) {
       for (const sgn of k ? [1, -1] : [1]) {
         const ca = sgn * k * 0.09;
         const wa = c.site.yaw + ca;
-        if (opts.hullAt(cx + Math.sin(wa) * R_HOOK, cz + Math.cos(wa) * R_HOOK)) return ca;
+        if (!opts.hullAt(cx + Math.sin(wa) * R_HOOK, cz + Math.cos(wa) * R_HOOK)) continue;
+        const p: CranePose = { x: cx, z: cz, yaw: c.site.yaw, a: ca, hy: HOOK_REST, load: 0 };
+        if (thingsGap(craneParts(p), mastCaps(c, p, true), ["jib"]) >= JIB_GAP) return ca;
       }
     }
     return null;
+  };
+  /** Its runway in plan (a point for a crane that stays put). */
+  const runOf = (c: Crane): Capsule => {
+    const [ax, az] = siteAt(c, c.axis ? c.lo : c.pos);
+    const [bx, bz] = siteAt(c, c.axis ? c.hi : c.pos);
+    return { ax, ay: 0, az, bx, by: 0, bz, r: 0, kind: "leg" };
   };
   /** Move a crane's model, legs and walkable areas to where it stands now. */
   function placeCrane(c: Crane): void {
@@ -886,9 +1168,37 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     c.pos = c.axis === "x" ? c.site.x : c.site.z;
     placeCrane(c);
     for (const d of c.decks) opts.raised?.add(d);
+    // the tall things on ships its jib could reach from anywhere on its runway
+    const runway = runOf(c);
+    c.masts = (opts.tall ?? []).filter(([x, z]) => segDist(runway, { ax: x, ay: 0, az: z, bx: x, by: 0, bz: z, r: 0, kind: "mast" }) < R_HOOK + 3.5);
+    // its hold where it stands: clear of the masts at high water
+    if (c.shipA !== null) {
+      const h0 = holdAngle(c, c.site.x, c.site.z, 14);
+      if (h0 !== null) c.shipA = c.a = h0;
+    }
     if (!c.axis) continue;
     // the Werf runway runs into the railway gatehouse: keep the legs clear of it
     if (gate && c.axis === "x" && c.lo < gate.x + 6.5) c.lo = gate.x + 6.5;
+    // M6 (vehicle deadlocks, 2026-09-24): where the goods train's line leaves the runway (the curve
+    // up to the lock bridge) it crosses a leg line; a crane standing there shut the train in for good.
+    // Keep the legs clear of the line: the runway's working range ends short of the crossing.
+    {
+      const fouls = (p: number) => {
+        const [cx, cz] = siteAt(c, p);
+        for (const lz of [-2.6, 2.6])
+          for (const lx of [-2.95, -1.45, 1.45, 2.95]) {
+            const [x, z] = toWorld(c, lx, lz, cx, cz);
+            for (let i = 0; i < line.x.length; i += 2) if (Math.abs(line.x[i] - x) < 1.8 && Math.abs(line.z[i] - z) < 1.8) return true;
+          }
+        return false;
+      };
+      while (c.hi > c.lo && fouls(c.hi)) c.hi -= 0.5;
+      while (c.lo < c.hi && fouls(c.lo)) c.lo += 0.5;
+      if (c.pos > c.hi || c.pos < c.lo) {
+        c.pos = Math.max(c.lo, Math.min(c.hi, c.pos));
+        placeCrane(c);
+      }
+    }
     let run: Array<{ p: number; a: number }> = [];
     // a stretch with holds under the hook, split into berths about 9 m apart (a boat or two each)
     const flush = () => {
@@ -922,6 +1232,9 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       }
     }
   }
+  // the cranes that can ever come within reach of each other (their runways closer than two jibs)
+  for (const c of cranes) c.near = cranes.filter((o) => o !== c && segDist(runOf(c), runOf(o)) < REACH + 1);
+
   const sameRunway = (c: Crane, o: Crane) =>
     o !== c && !!c.axis && o.axis === c.axis && (c.axis === "x" ? Math.abs(o.site.z - c.site.z) < 1 : Math.abs(o.site.x - c.site.x) < 1);
   /** The stretch of runway another crane holds: where it is and where it is going. */
@@ -937,8 +1250,27 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       if (o.pos < c.pos) lo = Math.max(lo, b + CRANE_GAP);
       else hi = Math.min(hi, a - CRANE_GAP);
     }
-    const ok = c.berths.filter((b) => b.p >= lo && b.p <= hi && Math.abs(b.p - c.pos) > 4);
-    return ok.length ? ok[Math.floor(c.r() * ok.length)] : null;
+    // M6 cranes: only a berth it can swing to without its jib going through a mast: in along the
+    // runway here, out over the hold there (and the side along the runway that allows it)
+    const sidesOf = new Map<{ p: number; a: number }, number[]>();
+    const ok = c.berths.filter((b) => {
+      if (b.p < lo || b.p > hi || Math.abs(b.p - c.pos) <= 4) return false;
+      const [tx, tz] = siteAt(c, b.p);
+      const sides = [alongA(c), -alongA(c)].filter((s) => mastPathClear(c, c.site.x, c.site.z, c.a, s) && mastPathClear(c, tx, tz, s, b.a));
+      sidesOf.set(b, sides);
+      return sides.length > 0;
+    });
+    const pick = (b: { p: number; a: number } | null) => {
+      c.sides = b ? (sidesOf.get(b) ?? []) : [];
+      return b;
+    };
+    if (c.moveOn) {
+      // making way: the berth furthest from those asking (their push along the runway)
+      const push = c.axis === "x" ? c.awayX : c.awayZ;
+      const away = ok.filter((b) => (b.p - c.pos) * push > 3);
+      return pick(away.length ? away.reduce((m, b) => ((b.p - c.pos) * push > (m.p - c.pos) * push ? b : m)) : null);
+    }
+    return pick(ok.length ? ok[Math.floor(c.r() * ok.length)] : null);
   }
 
   const ownOut = (c: Crane, fn: () => boolean): boolean => {
@@ -962,20 +1294,47 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     }
     // on the bogies' line only (the bollards on the quay edge stand just clear of them); a spot the
     // walk map already closed when the runway was surveyed (a quay wall a hand's width off) does not count
-    return ownOut(c, () => ahead.some(([x, z]) => !runwayBad.has(runKey(x, z)) && !opts.isFree(x, z, 0.15)));
+    // (the same half-metre spot the survey looked at: a bogie on the quay edge at x 170.4 read the
+    // wall a hand off as in the way, and the crane stood there for good; M6 cranes)
+    return ownOut(c, () => ahead.some(([x, z]) => !runwayBad.has(runKey(x, z)) && !opts.isFree(Math.round(x * 2) / 2, Math.round(z * 2) / 2, 0.15)));
   }
   const slewTo = (c: Crane, a: number, dt: number, rate = SLEW): boolean => {
     const d = angDiff(a, c.a);
-    c.a += Math.sign(d) * Math.min(Math.abs(d), rate * dt * THREE.MathUtils.clamp(Math.abs(d) / 0.35, 0.18, 1));
+    if (Math.abs(d) < 0.003) return true;
+    const na = c.a + Math.sign(d) * Math.min(Math.abs(d), rate * dt * THREE.MathUtils.clamp(Math.abs(d) / 0.35, 0.18, 1));
+    if (!tryMove(c, c.pos, na, c.hy)) return false;
     return Math.abs(angDiff(a, c.a)) < 0.003;
   };
   const hoistTo = (c: Crane, y: number, dt: number): boolean => {
     const d = y - c.hy;
-    c.hy += Math.sign(d) * Math.min(Math.abs(d), HOIST * dt * THREE.MathUtils.clamp(Math.abs(d) / 0.6, 0.25, 1));
+    if (Math.abs(d) < 0.01) return true;
+    const ny = c.hy + Math.sign(d) * Math.min(Math.abs(d), HOIST * dt * THREE.MathUtils.clamp(Math.abs(d) / 0.6, 0.25, 1));
+    if (!tryMove(c, c.pos, c.a, ny)) return false;
     return Math.abs(y - c.hy) < 0.01;
   };
   /** The jib along the runway for travel (whichever way is nearer). */
   const alongA = (c: Crane) => (Math.abs(angDiff(Math.PI / 2, c.a)) < Math.abs(angDiff(-Math.PI / 2, c.a)) ? Math.PI / 2 : -Math.PI / 2);
+  /**
+   * The jib along the runway for this trip: the side with more room from the others, where it
+   * stands and where it goes (a neighbour 17 m off must not get the hook in its cabin); on a tie
+   * the nearer.
+   */
+  function chooseAlong(c: Crane): number {
+    let best = c.sides[0] ?? alongA(c);
+    let bestRoom = -Infinity;
+    for (const a of c.sides.length ? c.sides : [best, -best]) {
+      let room = Infinity;
+      for (const pos of [c.pos, c.target ?? c.pos]) {
+        roomOf(c, poseOf(c, pos, a, TRAVEL_HOOK), after);
+        room = Math.min(room, minOf(after));
+      }
+      if (room > bestRoom + 0.5 || (room >= 0 && bestRoom < 0)) {
+        best = a;
+        bestRoom = room;
+      }
+    }
+    return best;
+  }
 
   /**
    * Travel: true while it is busy with it (the lifts wait). At a berth it works (the train's
@@ -996,22 +1355,27 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       c.stay -= dt;
       if (c.stay <= 0 && c.berths.length) {
         const b = nextBerth(c);
+        c.moveOn = false;
         if (b) {
           c.target = b.p;
           c.nextA = b.a;
           c.mode = "swingIn";
+          c.along = chooseAlong(c);
         } else c.stay = 8 + c.r() * 10;
       }
       return false;
     }
     if (c.mode === "swingIn") {
-      if (c.reserved || c.occupied || c.parkFor > 0) {
+      // blocked too long on the way in (another crane working next to it): back out over the hold
+      if (c.reserved || c.occupied || c.parkFor > 0 || c.blockT > GIVE_UP) {
+        if (c.blockT > GIVE_UP) c.stat.gaveUp++;
+        c.blockT = 0;
         c.target = null;
         c.mode = "swingOut";
         return true;
       }
-      const s1 = slewTo(c, alongA(c), dt);
       const s2 = hoistTo(c, TRAVEL_HOOK, dt);
+      const s1 = slewTo(c, c.along, dt);
       if (s1 && s2) {
         c.mode = "travel";
         c.stuck = 0;
@@ -1028,6 +1392,8 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
         want = 0;
         c.speed = Math.min(c.speed, 0.05);
         c.stuck += dt;
+        // booked by the train on its way and held up for good: it lets the stop go (M6 cranes)
+        if (c.stuck > 20 && c.reserved) giveUpWork(c);
         // held up too long: it works the boat it has come to (none there: its jib goes back to rest)
         if (c.stuck > 15 && !c.reserved) {
           c.target = c.pos;
@@ -1038,9 +1404,29 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       c.speed += THREE.MathUtils.clamp(want - c.speed, -0.4 * dt, 0.15 * dt);
       if (c.speed < 0.002 && want === 0) c.speed = 0;
       const step = Math.min(c.speed * dt, dist);
-      c.pos += dir * step;
-      c.roll += step / CRANE_WHEEL_R;
-      placeCrane(c);
+      if (step > 0 && tryMove(c, c.pos + dir * step, c.a, c.hy)) c.roll += step / CRANE_WHEEL_R;
+      else if (step > 0) {
+        // another crane (or a mast) in the way: it stands. Held up by a crane 2 s, it turns back
+        // (the other may stand there a long while, a load on its hook, waiting for the train);
+        // held up 15 s, it works the boat it has come to. (c.blockT: c.stuck is reset by the
+        // bogie check every frame nothing stands on the rails)
+        c.speed = 0;
+        const o = c.blocker;
+        if (o && c.blockT > 2 && !c.reserved) {
+          const d = Math.hypot(c.site.x - o.site.x, c.site.z - o.site.z) || 1;
+          c.awayX = (c.site.x - o.site.x) / d;
+          c.awayZ = (c.site.z - o.site.z) / d;
+          const back = retreat(c);
+          c.awayX = c.awayZ = 0;
+          if (back) c.blockT = 0;
+        }
+        if (c.blockT > 20 && c.reserved) giveUpWork(c);
+        if (c.blockT > 15 && !c.reserved) {
+          c.target = c.pos;
+          const [cx, cz] = siteAt(c, c.pos);
+          c.nextA = holdAngle(c, cx, cz) ?? 0;
+        }
+      }
       if (Math.abs((c.target ?? c.pos) - c.pos) < 0.005) {
         c.pos = c.target ?? c.pos;
         c.speed = 0;
@@ -1048,11 +1434,15 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
         c.shipA = c.nextA;
         c.target = null;
         c.mode = "swingOut";
+        c.stat.trips++;
       }
       return true;
     }
-    // swingOut: jib out over the hold again
-    if (slewTo(c, c.shipA ?? 0, dt) && hoistTo(c, HOOK_REST, dt)) {
+    // swingOut: jib out over the hold again (blocked too long: it stands at its berth as it is,
+    // and swings out when the way is free)
+    if ((slewTo(c, c.shipA ?? 0, dt) && hoistTo(c, HOOK_REST, dt)) || c.blockT > GIVE_UP) {
+      if (c.blockT > GIVE_UP) c.stat.gaveUp++;
+      c.blockT = 0;
       c.mode = "berth";
       c.stay = 25 + c.r() * 35;
       c.idle = 4 + c.r() * 6;
@@ -1161,7 +1551,27 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       if (gate && line.at(s, pa).x < gate.x + 2.5) continue;
       cand.push(s + off);
     }
-    const ok = cand.filter((h) => h > head + 4);
+    let ok = cand.filter((h) => h > head + 4);
+    // M6 cranes: only a row the crane can reach with a load on the hook and keep its room from the
+    // cranes about it; and the hold clear of the ships' masts. Else no stop here (it goes on).
+    if (rules) {
+      const load = SLING + UNIT_H[w.goods!];
+      const clearAt = (a: number, hy: number) => {
+        roomOf(c, { x: plan.x, z: plan.z, yaw: c.site.yaw, a, hy, load }, after);
+        return after.slice(0, c.near.length * 2 + 1).every((v) => v >= 0);
+      };
+      ok = ok.filter((h) => {
+        const at = slotAt(w, st.row * 2, h);
+        const wa = angDiff(Math.atan2(at.x - plan.x, at.z - plan.z), c.site.yaw);
+        const src = plan.shipA ?? (c.pile ? angleTo(c, c.pile.x, c.pile.z) : wa);
+        return clearAt(wa, FLOOR + load) && mastPathClear(c, plan.x, plan.z, src, wa);
+      });
+      const shipY = levelAt(plan.x, plan.z) + (c.shipY - opts.waterY);
+      if ((plan.shipA !== null && !clearAt(plan.shipA, shipY + load)) || !ok.length) {
+        c.stat.skipped++;
+        return false;
+      }
+    }
     if (!ok.length) return false;
     st.head = ok[Math.floor(rnd() * ok.length)];
     c.reserved = true;
@@ -1358,21 +1768,153 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     const wa = c.site.yaw + c.a;
     return out.set(c.site.x + Math.sin(wa) * R_HOOK, c.hy, c.site.z + Math.cos(wa) * R_HOOK);
   };
+  /**
+   * Blocked too long at a lift for the train (another crane that cannot make way, the player's):
+   * it lets the stop go and the train goes on. A last resort; counted as gaveUp in the dev check.
+   */
+  function giveUpWork(c: Crane): void {
+    c.stat.gaveUp++;
+    c.blockT = 0;
+    const st = stops.find((s, i) => i >= stopI && s.crane === c && s.queued);
+    if (!st) {
+      c.ops = [{ t: "hoist", y: TRAVEL }];
+      c.carry = null;
+      c.reserved = false;
+      return;
+    }
+    const was = working === st;
+    abandon(st);
+    if (was) {
+      stopI++;
+      state = "run";
+    } else st.head = -1e9; // passed at once in limit()
+  }
+
+  /**
+   * A travelling crane in the way of a crane that outranks it (its cabin or portal, not its jib):
+   * it turns back, 8 m the other way, as far as its runway and its other neighbour allow.
+   */
+  function retreat(c: Crane): boolean {
+    const push = c.axis === "x" ? c.awayX : c.awayZ;
+    if (Math.abs(push) < 0.3) return false;
+    let lo = c.lo;
+    let hi = c.hi;
+    for (const o of cranes) {
+      if (!sameRunway(c, o)) continue;
+      const [a, b] = heldBy(o);
+      if (o.pos < c.pos) lo = Math.max(lo, b + CRANE_GAP);
+      else hi = Math.min(hi, a - CRANE_GAP);
+    }
+    const to = THREE.MathUtils.clamp(c.pos + Math.sign(push) * 8, Math.min(lo, c.pos), Math.max(hi, c.pos));
+    if (Math.abs(to - c.pos) < 1 || (c.target !== null && Math.sign(c.target - c.pos) === Math.sign(push) && Math.abs(c.target - c.pos) >= Math.abs(to - c.pos))) return false;
+    c.target = to;
+    const [cx, cz] = siteAt(c, to);
+    c.nextA = holdAngle(c, cx, cz) ?? 0;
+    c.stuck = 0;
+    return true;
+  }
+
+  /** May the load come on the hook (it hangs lower and wider): the same rule as a step. */
+  function loadOk(c: Crane, g: GoodsKind): boolean {
+    if (!rules) return true;
+    roomOf(c, poseOf(c), before);
+    const was = c.carry;
+    c.carry = g;
+    const r = roomOf(c, poseOf(c), after);
+    c.carry = was;
+    const bad = after.findIndex((v, k) => v < 0 && v < before[k] - 1e-6);
+    if (bad < 0) return true;
+    refused(c, bad, bad === r.k ? r.theirs : bad & 1 ? "portal" : "body");
+    return false;
+  }
+
   function updateCrane(c: Crane, dt: number, trainStopped: boolean, player: { x: number; z: number } | null): void {
+    // asked to make way (M6 cranes): its cabin or portal in the way, it moves along (standing free
+    // at a berth: to a berth away from those asking; travelling at them: back the way it came);
+    // else hook up out of the hold or the wagon, then the jib away from those asking
+    if (c.yieldT > 0 && canYield(c)) {
+      c.yieldT -= dt;
+      c.noAway = Math.max(0, c.noAway - dt);
+      if (!c.yielding) {
+        c.yielding = true;
+        c.stat.yields++;
+      }
+      const clear = () => {
+        c.yieldT = 0;
+        c.yielding = false;
+        c.lend = 0;
+        c.awayX = c.awayZ = 0;
+        c.moveOn = false;
+      };
+      let moved = false;
+      // (travelling, it always backs off; its jib cannot swing away past the other's hook, and a
+      // jib that has been stuck making way a while moves along too)
+      if ((c.moveOn || c.mode === "travel" || c.blockT > 3) && c.axis && c.noAway <= 0 && !withTrain(c)) {
+        if (c.mode === "berth" && c.berths.length) {
+          const b = nextBerth(c);
+          if (b) {
+            c.target = b.p;
+            c.nextA = b.a;
+            c.mode = "swingIn";
+            c.along = chooseAlong(c);
+            moved = true;
+          }
+        } else if (c.mode === "travel") moved = retreat(c);
+        if (moved) clear();
+        else c.noAway = 5; // nowhere to go: make way with the jib for a while
+      }
+      if (!moved) {
+        c.moveOn = false;
+        if (c.mode === "travel") c.speed = 0;
+        if (c.hy < TRAVEL - 0.01) hoistTo(c, TRAVEL, dt);
+        else {
+          const L = Math.hypot(c.awayX, c.awayZ);
+          const to = L < 0.3 ? 0 : awayAngle({ x: c.site.x, z: c.site.z, yaw: c.site.yaw }, c.site.x - c.awayX / L, c.site.z - c.awayZ / L);
+          slewTo(c, to, dt, SLEW * 0.8);
+        }
+        const k = Math.pow(0.5, dt);
+        c.awayX *= k;
+        c.awayZ *= k;
+        if (c.yieldT <= 0) clear();
+        return;
+      }
+    }
     // travelling from boat to boat (the lifts wait till it stands at its berth)
     if (travelStep(c, dt, player)) return;
     const op = c.ops[0];
     if (!op) {
-      // idle: now and then a slow swing about its rest over the water (or the pile)
+      // idle: now and then a slow swing about its rest over the water (or the pile); never over the
+      // masts, and a swing that runs into another crane stops there for a while
       c.idle -= dt;
       if (c.idle <= 0) {
         const home = c.shipA ?? angleTo(c, c.pile!.x, c.pile!.z);
-        c.idleTo = home + (c.r() * 2 - 1) * 0.5;
         c.idle = 10 + c.r() * 20;
+        for (let k = 0; k < 4; k++) {
+          const to = home + (c.r() * 2 - 1) * 0.5;
+          const p = poseOf(c, c.pos, to, HOOK_REST);
+          if (!rules || thingsGap(craneParts(p), mastCaps(c, p), ["jib"]) >= JIB_GAP) {
+            c.idleTo = to;
+            c.stat.swings++;
+            break;
+          }
+        }
       }
       const d = angDiff(c.idleTo, c.a);
-      c.a += Math.sign(d) * Math.min(Math.abs(d), SLEW * 0.5 * dt * THREE.MathUtils.clamp(Math.abs(d) / 0.3, 0.2, 1));
-      c.hy += (HOOK_REST - c.hy) * Math.min(1, dt * 0.5);
+      if (Math.abs(d) > 1e-4) {
+        const na = c.a + Math.sign(d) * Math.min(Math.abs(d), SLEW * 0.5 * dt * THREE.MathUtils.clamp(Math.abs(d) / 0.3, 0.2, 1));
+        if (!tryMove(c, c.pos, na, c.hy)) {
+          c.idleTo = c.a;
+          c.idle = Math.min(c.idle, 3 + c.r() * 5);
+        }
+      }
+      // the hook sags to its rest, but stays up over the railway (the train passes under it)
+      const hy = overRail(c) ? Math.max(TRAVEL, Math.min(c.hy, TRAVEL_HOOK)) : HOOK_REST;
+      const dh = hy - c.hy;
+      if (Math.abs(dh) > 1e-3) tryMove(c, c.pos, c.a, Math.abs(dh) < 0.005 ? hy : c.hy + dh * Math.min(1, dt * 0.5));
+      return;
+    }
+    if (c.blockT > GIVE_UP_WORK) {
+      giveUpWork(c);
       return;
     }
     switch (op.t) {
@@ -1383,8 +1925,8 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
           api.onCrane?.(c.site.x, c.site.z);
         }
         const ease = THREE.MathUtils.clamp(Math.abs(d) / 0.6, 0.25, 1);
-        c.hy += Math.sign(d) * Math.min(Math.abs(d), HOIST * ease * dt);
-        if (Math.abs(d) < 0.005) {
+        tryMove(c, c.pos, c.a, c.hy + Math.sign(d) * Math.min(Math.abs(d), HOIST * ease * dt));
+        if (Math.abs(op.y - c.hy) < 0.005) {
           c.hy = op.y;
           c.hoisting = false;
           c.ops.shift();
@@ -1394,8 +1936,8 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       case "slew": {
         const d = angDiff(op.a, c.a);
         const ease = THREE.MathUtils.clamp(Math.abs(d) / 0.35, 0.18, 1);
-        c.a += Math.sign(d) * Math.min(Math.abs(d), SLEW * ease * dt);
-        if (Math.abs(d) < 0.002) {
+        tryMove(c, c.pos, c.a + Math.sign(d) * Math.min(Math.abs(d), SLEW * ease * dt), c.hy);
+        if (Math.abs(angDiff(op.a, c.a)) < 0.002) {
           c.a = op.a;
           c.ops.shift();
         }
@@ -1413,6 +1955,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
         break;
       case "take": {
         const f = op.from;
+        if (!loadOk(c, f.kind === "wagon" ? wagons[f.w].goods! : c.goods)) break; // the load would touch: wait
         if (f.kind === "wagon") wagons[f.w].slots[f.slot] = false;
         if (f.kind === "pile" && c.pile) {
           c.pile.n = Math.max(0, c.pile.n - 1);
@@ -1420,6 +1963,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
         }
         c.carry = f.kind === "wagon" ? wagons[f.w].goods : c.goods;
         c.ops.shift();
+        c.stat.lifts++;
         break;
       }
       case "drop": {
@@ -1575,6 +2119,43 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     for (const m of [...bodies.values(), wheels, links, hooks, ropes, slings, craneWheels]) m.instanceMatrix.needsUpdate = true;
   }
 
+  // --- dev (M6 cranes): the closest approaches, measured on the poses as they stand after each update
+  let watching = false;
+  const fresh = () => ({ t: 0, jib: Infinity, jibAt: "", portal: Infinity, portalAt: "", mast: Infinity, mastAt: "", train: Infinity, trainAt: "" });
+  const seen = fresh();
+  function watchCranes(dt: number): void {
+    seen.t += dt;
+    const when = () => `t ${seen.t.toFixed(0)} s`;
+    for (const c of cranes) {
+      const mine = partsOf(c);
+      for (const o of c.near) {
+        if (o.index < c.index) continue;
+        const g = craneGap(mine, partsOf(o));
+        if (g.gap < seen.jib) {
+          seen.jib = g.gap;
+          seen.jibAt = `cranes ${c.index} and ${o.index} (${g.mine} / ${g.theirs}), ${when()}`;
+        }
+        const pg = portalGap(poseOf(c), poseOf(o));
+        if (pg < seen.portal) {
+          seen.portal = pg;
+          seen.portalAt = `cranes ${c.index} and ${o.index}, ${when()}`;
+        }
+      }
+      const mg = thingsGap(mine, mastCaps(c, poseOf(c)), ["jib"]);
+      if (mg < seen.mast) {
+        seen.mast = mg;
+        seen.mastAt = `crane ${c.index}, ${when()}`;
+      }
+      if (!withTrain(c) && trainCaps.length) {
+        const tg = thingsGap(mine, trainCaps, ["fall"]);
+        if (tg < seen.train) {
+          seen.train = tg;
+          seen.trainAt = `crane ${c.index}, ${when()}`;
+        }
+      }
+    }
+  }
+
   // --- per frame
   const api: Railway = {
     update(_t, dt, player, camera) {
@@ -1622,7 +2203,32 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
           fillRandom();
         }
       }
+      // M6 cranes: the train's wagons and horses, as the other cranes' hooks see them
+      trainCaps = [];
+      if (state !== "shed") {
+        const wp = { x: 0, z: 0, yaw: 0 };
+        for (const w of wagons) {
+          wagonAt(w, head, wp);
+          trainCaps.push(car(wp.x, wp.z, wp.yaw, L_BODY / 2 - 1.6, 1.9, 1.6));
+        }
+        for (let i = 0; i < 2; i++) {
+          const s = head - 1.6 - i * HORSE_GAP;
+          line.at(s, pa);
+          trainCaps.push(car(pa.x, pa.z, line.yaw(s), 0.6, 1.3, 1.0));
+        }
+      }
+      for (const c of cranes) c.blocked = false;
       for (const c of cranes) updateCrane(c, dt, state === "work" && stopped && working?.crane === c, player);
+      for (const c of cranes) {
+        c.blockT = c.blocked ? c.blockT + dt : 0;
+        if (c.blocked) {
+          c.stat.blockedS += dt;
+          const k = `${c.mode}${c.ops.length ? " lift" : ""}: ${c.blockedBy}`;
+          c.stat.by[k] = (c.stat.by[k] ?? 0) + dt;
+        }
+        c.stat.maxBlock = Math.max(c.stat.maxBlock, c.blockT);
+      }
+      if (watching) watchCranes(dt);
 
       // horses and the shunter
       const amp = Math.min(1, v / 0.8);
@@ -1706,7 +2312,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
         working: working ? working.crane.index : null,
         bridges: opts.bridges().map((b) => ({ x: (b.rect.minX + b.rect.maxX) / 2, shut: b.closed(), busy: api.busy(b.rect) })),
         wagons: wagons.map((w) => ({ kind: w.kind, goods: w.goods, slots: w.slots.map((x) => (x ? 1 : 0)).join("") })),
-        cranes: cranes.map((c) => ({ at: [+c.site.x.toFixed(2), +c.site.z.toFixed(2)], move: c.mode, to: c.target === null ? null : +c.target.toFixed(1), berths: c.berths.length, range: c.axis ? [c.lo, c.hi] : null, reserved: c.reserved, occupied: c.occupied, stay: +c.stay.toFixed(0), goods: c.goods, mode: c.shipA !== null ? "ship" : "quay", a: +c.a.toFixed(2), hy: +c.hy.toFixed(2), carry: c.carry, ops: c.ops.length, pile: c.pile ? [+c.pile.x.toFixed(1), +c.pile.z.toFixed(1), c.pile.n] : null })),
+        cranes: cranes.map((c) => ({ at: [+c.site.x.toFixed(2), +c.site.z.toFixed(2)], move: c.mode, blocked: c.blockT > 0 ? `${c.blockedBy} ${c.blockT.toFixed(1)} s` : "", yielding: c.yieldT > 0, to: c.target === null ? null : +c.target.toFixed(1), berths: c.berths.length, range: c.axis ? [c.lo, c.hi] : null, reserved: c.reserved, occupied: c.occupied, stay: +c.stay.toFixed(0), goods: c.goods, mode: c.shipA !== null ? "ship" : "quay", a: +c.a.toFixed(2), hy: +c.hy.toFixed(2), carry: c.carry, ops: c.ops.length, pile: c.pile ? [+c.pile.x.toFixed(1), +c.pile.z.toFixed(1), c.pile.n] : null })),
       };
     },
     jump(s) {
@@ -1751,6 +2357,41 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     },
     plan() {
       return { length: line.length, passes: cranes.flatMap((c) => c.passes.map((s) => ({ crane: c.index, s, mode: c.shipA !== null ? "ship" : "quay" }))) };
+    },
+    craneCheck(o = {}) {
+      if (o.rules !== undefined) rules = o.rules;
+      if (o.reset || !watching) {
+        watching = true;
+        Object.assign(seen, fresh());
+        for (const c of cranes) c.stat = newStat();
+      }
+      const r2 = (v: number) => (Number.isFinite(v) ? +v.toFixed(2) : null);
+      return {
+        rules,
+        seconds: +seen.t.toFixed(0),
+        margins: { jib: JIB_GAP, portal: PORTAL_GAP },
+        closest: {
+          jibs: r2(seen.jib),
+          jibsAt: seen.jibAt,
+          portals: r2(seen.portal),
+          portalsAt: seen.portalAt,
+          masts: r2(seen.mast),
+          mastsAt: seen.mastAt,
+          train: r2(seen.train),
+          trainAt: seen.trainAt,
+        },
+        cranes: cranes.map((c) => ({
+          i: c.index,
+          at: [+c.site.x.toFixed(1), +c.site.z.toFixed(1)],
+          mode: c.mode,
+          ...c.stat,
+          blockedS: +c.stat.blockedS.toFixed(0),
+          maxBlock: +c.stat.maxBlock.toFixed(1),
+          berths: c.berths.map((b) => +b.p.toFixed(1)),
+          masts: c.masts.length,
+          near: c.near.map((n) => n.index),
+        })),
+      };
     },
   };
   return api;

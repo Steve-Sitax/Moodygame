@@ -73,6 +73,12 @@ export class Jobs {
   town: Town | null = null;
   /** M3h (game/deeds.ts): more things the keys can do: only these (on a velocipede), or options by distance, or extra keys. */
   extraActions: Array<(x: number, z: number) => { only?: Action[]; options?: Array<[number, Action]>; extra?: Action[] }> = [];
+  /** M6 handcart (game/handcart.ts): keys for the goods in Jef's hands (put it on the cart). */
+  carryExtra: Array<(item: Item, x: number, z: number) => Action[]> = [];
+  /** M6 handcart: the job in hand and how it plays, for the cart's loading and unloading. */
+  get running(): { job: Job; run: Run } | null {
+    return this.active && this.run ? { job: this.active, run: this.run } : null;
+  }
   /** An owner saw you lift this; set it back near where it was and they calm down. */
   private watched: { item: Item; owner: string } | null = null;
 
@@ -207,6 +213,8 @@ export class Jobs {
 
     if (carried) {
       for (const a of this.run?.carryActions(carried) ?? []) add(a);
+      // M6 handcart: put it on the cart
+      for (const f of this.carryExtra) for (const a of f(carried, x, z)) add(a);
       const [px, pz] = ahead(this.player, 0.95);
       if (this.world.isWater(px, pz)) add({ key: "KeyE", text: "let it fall into the Schelde", run: () => this.drown(px, pz) });
       else {

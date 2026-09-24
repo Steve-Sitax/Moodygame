@@ -10,6 +10,8 @@ import type { World } from "../world/rijnkaai";
 import type { Journeys, JourneyTown, Trip } from "./journeys";
 import SPOT_TABLE from "../../../shared/spots.json";
 import CITY from "../../../shared/city.json";
+import { omnibusKeepOut } from "../world/omnibus";
+import { trafficLanes } from "../world/traffic";
 
 // The town (M3e): the residents the server made (homes, families, trades,
 // schedules) living by the game clock. Everyone is simulated cheaply by
@@ -41,6 +43,15 @@ const MAX_PUPPETS = 50;
 const HIDDEN_SPEED = 6;
 const SPOTS = SPOT_TABLE as unknown as Record<string, { x: number; z: number; label: string }>;
 const LAMPS = ((CITY as unknown as { decor?: { lamps?: Pt[] } }).decor?.lamps ?? []) as Pt[];
+/** M6 handcart: the omnibus lanes and the drays' lanes (boxes along them), where nobody is posted to stand. */
+let lanes: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }> | null = null;
+function laneRects() {
+  if (!lanes) {
+    lanes = [...omnibusKeepOut()];
+    for (const l of trafficLanes()) for (let i = 0; i < l.x.length; i += 8) lanes.push({ minX: l.x[i] - l.half, maxX: l.x[i] + l.half, minZ: l.z[i] - l.half, maxZ: l.z[i] + l.half });
+  }
+  return lanes;
+}
 
 type Mode = "home" | "inside" | "church" | "stand" | "haul" | "patrol" | "roam" | "play" | "market" | "loiter" | "tavern" | "stroll" | "thief" | "guard" | "inspect";
 
@@ -184,7 +195,11 @@ export class Town {
       const s = this.byId.get(e.id);
       if (!s) continue;
       const sp = SPOTS[e.spot];
-      const at = s.r.work.at ?? [sp.x + 1.2, sp.z + 1.2, 0];
+      // M6 handcart: not where a dray or the omnibus passes (the water bailiff stood in the Werf lane)
+      const clear = (x: number, z: number) => !laneRects().some((r) => x > r.minX - 0.4 && x < r.maxX + 0.4 && z > r.minZ - 0.4 && z < r.maxZ + 0.4);
+      const base = s.r.work.at ?? [sp.x + 1.2, sp.z + 1.2, 0];
+      const off = [[0, 0], [0, 1.4], [0, 2.2], [-1.2, 1.4], [1.2, 1.4], [0, -2.2]].find(([dx, dz]) => clear(base[0] + dx, base[1] + dz)) ?? [0, 0];
+      const at = [base[0] + off[0], base[1] + off[1], base[2]];
       const n = this.people.addTownEmployer(
         {
           id: e.id, name: s.r.name, title: s.r.label, x: at[0], z: at[1], yaw: Math.atan2(sp.x - at[0], sp.z - at[1]), talks: true,

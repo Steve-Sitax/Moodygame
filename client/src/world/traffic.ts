@@ -4,6 +4,7 @@ import { makeHuman, type Human, type HumanKind } from "../game/humans";
 import { psx } from "../retro/psx";
 import type { Props } from "./props3d";
 import type { Rect } from "./geom";
+import { goRound, type GoRound } from "../game/cartPhysics";
 
 // Traffic on the quays (props from tools/blender/build_props.py, the "tr_" parts):
 // one-horse drays and handcarts going round at walking pace, as in the period photos
@@ -51,7 +52,8 @@ export const TRAFFIC_ROUTES: TrafficRoute[] = [
   {
     // the Eilandje: past the lock, along the storehouses, the north quay of the Petit Bassin
     name: "eilandje",
-    pts: [[120, 11], [160, 11], [160, 43], [120, 43]],
+    // (M6 handcart: the east leg at x 158.6, clear of the farrier's forge at x 160; it clipped it)
+    pts: [[120, 11], [158.6, 11], [158.6, 43], [120, 43]],
     loop: true,
     stops: [{ at: [137.5, 43], secs: 25, chance: 0.7 }],
     vehicles: [
@@ -260,7 +262,8 @@ export interface PushCartOptions {
  */
 export class PushCart {
   readonly root = new THREE.Group();
-  private readonly pivot = new THREE.Group();
+  /** The bed tips about the axle; things put on the cart hang here (M6 handcart: Jef's load). */
+  readonly pivot = new THREE.Group();
   private readonly wheels: THREE.Mesh;
   /** The cart's heading (the way it is pushed), its axle point, wheel turn and tilt. */
   private dir = 0;
@@ -354,6 +357,11 @@ export class PushCart {
     this.what = what;
   }
   private what = "goods";
+
+  /** M6 handcart: point the cart this way now (Jef's cart turns by the game's rules, game/cartPhysics.ts). */
+  steer(dir: number): void {
+    this.dir = dir;
+  }
 
   /** Where the cart stands: axle point on the ground, heading (the way it is pushed). */
   get axle(): { x: number; z: number; yaw: number } {
@@ -460,6 +468,8 @@ export interface Traffic {
   away(route: string, on: boolean): void;
   /** M6: the yard of each dray round (where an errand starts and ends), and the way out of it. */
   yards(): Array<{ route: string; x: number; z: number; yaw: number }>;
+  /** M6 handcart: people walking (the crowd): a rig stops for anyone in its way, and goes round after a while. */
+  people: (() => Iterable<{ x: number; z: number }>) | null;
 }
 
 interface Vehicle {
@@ -494,7 +504,18 @@ interface Vehicle {
   /** M6: the owner (his model at the horse's head), whether he works now; out on an errand. */
   owner?: { kind: HumanKind; name: string; working: () => boolean };
   away?: boolean;
+  /** M6 handcart: held up by Jef or a thing for a while, it goes round on a side lane (cartPhysics.ts goRound). */
+  go: GoRound;
+  /** The watchdog: seconds held up with no way round, metres still to back off, how often it backed. */
+  stuckT: number;
+  backM: number;
+  backs: number;
 }
+
+/** M6 handcart: held up this long with no way round (another rig face to face), it backs off this far (m) at this pace. */
+const BACK_AFTER_S = 60;
+const BACK_M = 6;
+const BACK_V = 0.6;
 
 // dray layout along the path (metres ahead of the rear axle)
 const WHEELBASE = 2.4;
@@ -577,6 +598,10 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
         back: dray ? -0.8 : -(GRIP_Z + 0.9),
         px: 0,
         pz: 0,
+        go: { wait: 0, off: 0, want: 0, gone: 0 },
+        stuckT: 0,
+        backM: 0,
+        backs: 0,
       };
       if (veh.cart) veh.rects = veh.cart.rects;
       vehicles.push(veh);
@@ -656,31 +681,90 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
   const b = { x: 0, z: 0 };
   const c = { x: 0, z: 0 };
 
-  /** Anything in the way of this vehicle: the player near it, another vehicle ahead, something on the lane? */
-  function blocked(v: Vehicle, player: { x: number; z: number }): boolean {
+  /** A point of the round, `off` metres to the side of it (M6 handcart: going round). */
+  function atOff(p: Path, s: number, off: number, out: { x: number; z: number }): { x: number; z: number } {
+    at(p, s, out);
+    if (off !== 0) {
+      const h = heading(p, s);
+      const x = out.x;
+      const z = out.z;
+      out.x = x + Math.cos(h) * off;
+      out.z = z - Math.sin(h) * off;
+    }
+    return out;
+  }
+
+  /**
+   * Anything in the way of this vehicle: the player near it or ahead ("player"), another vehicle
+   * ahead on its round ("queue": it follows), something on the lane or a person ("thing")? Along
+   * its lane, or `off` to the side of it.
+   */
+  function blocked(v: Vehicle, player: { x: number; z: number }, folk: Array<{ x: number; z: number }>, off = v.go.off): "player" | "queue" | "thing" | null {
     // the player anywhere along the rig or just ahead of it
     for (let o = v.back; o <= v.front + 2.5; o += 0.8) {
-      at(v.path, v.s + o, tmp);
-      const r = (v.kind === "dray" ? 1.0 : 0.8) + (o > v.front ? 0.6 : 1.0);
-      if (Math.hypot(player.x - tmp.x, player.z - tmp.z) < r) return true;
+      atOff(v.path, v.s + o, off, tmp);
+      // (going round him on a side lane: only the rig's own width and a hand's breadth)
+      const r = (v.kind === "dray" ? 1.0 : 0.8) + (off !== 0 ? 0.45 : o > v.front ? 0.6 : 1.0);
+      if (Math.hypot(player.x - tmp.x, player.z - tmp.z) < r) return "player";
     }
     // the next vehicle on the same route
     for (const w of vehicles) {
       if (w === v || w.path !== v.path) continue;
       const gap = wrap(w.s + w.back - (v.s + v.front), v.path.length);
-      if (gap < 2.5) return true;
+      if (gap < 2.5) return "queue";
     }
-    // something on the lane (a crate put down, a person standing)
-    if (opts.isFree) {
-      at(v.path, v.s + v.front + 1.3, tmp);
-      if (!opts.isFree(tmp.x, tmp.z, 0.45)) return true;
+    // something on the lane (a crate put down, a cart, a horse), or a person standing in it
+    for (const d of [1.3, 2.4]) {
+      atOff(v.path, v.s + v.front + d, off, tmp);
+      if (opts.isFree && !opts.isFree(tmp.x, tmp.z, 0.45)) return "thing";
+      for (const q of folk) if (Math.abs(q.x - tmp.x) < 0.9 && Math.abs(q.z - tmp.z) < 0.9) return "thing";
     }
-    return false;
+    return null;
+  }
+
+  /** Is the way behind the rig clear to back into (its own rects out of the way)? */
+  function behindClear(v: Vehicle, player: { x: number; z: number }, folk: Array<{ x: number; z: number }>): boolean {
+    if (!opts.isFree) return false;
+    const keep = v.rects.map((r) => [r.minX, r.maxX]);
+    for (const r of v.rects) r.minX = r.maxX = 1e6;
+    let ok = true;
+    for (const d of [0.6, 1.6]) {
+      atOff(v.path, v.s + v.back - d, v.go.off, tmp);
+      if (!opts.isFree(tmp.x, tmp.z, 0.6) || Math.hypot(player.x - tmp.x, player.z - tmp.z) < 1.4) ok = false;
+      else for (const q of folk) if (Math.hypot(q.x - tmp.x, q.z - tmp.z) < 0.9) ok = false;
+    }
+    // (and the rig behind on the same round)
+    for (const w of vehicles) {
+      if (w === v || w.path !== v.path) continue;
+      if (wrap(v.s + v.back - (w.s + w.front), v.path.length) < 3) ok = false;
+    }
+    v.rects.forEach((r, k) => ([r.minX, r.maxX] = keep[k]));
+    return ok;
+  }
+
+  /** Is the lane `off` to the side clear for the whole rig and a way ahead (its own rects out of the way)? */
+  function sideClear(v: Vehicle, player: { x: number; z: number }, off: number, folk: Array<{ x: number; z: number }>): boolean {
+    if (!opts.isFree) return false;
+    const keep = v.rects.map((r) => [r.minX, r.maxX]);
+    for (const r of v.rects) r.minX = r.maxX = 1e6;
+    let ok = true;
+    const body = v.kind === "dray" ? 1.0 : 0.8;
+    for (let o = v.back; o <= v.front + 8 && ok; o += 1.2) {
+      atOff(v.path, v.s + o, off, tmp);
+      if (!opts.isFree(tmp.x, tmp.z, body)) ok = false;
+      else if (Math.hypot(player.x - tmp.x, player.z - tmp.z) < body + 0.6) ok = false;
+      else for (const q of folk) if (Math.hypot(q.x - tmp.x, q.z - tmp.z) < body + 0.4) ok = false;
+    }
+    v.rects.forEach((r, k) => ([r.minX, r.maxX] = keep[k]));
+    return ok;
   }
 
   function update(_t: number, dt: number, player: { x: number; z: number }): void {
     dt = Math.min(dt, 0.1);
     const far = ((scene.fog as THREE.Fog | null)?.far ?? 40) + 15;
+    // the people walking (once a frame; M6 handcart)
+    const folk: Array<{ x: number; z: number }> = [];
+    if (api.people) for (const q of api.people()) folk.push(q);
     for (const v of vehicles) {
       // M6: out on an errand (led through the streets): not here at all
       if (v.away) {
@@ -706,9 +790,31 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
         v.timer -= dt;
         if (v.timer <= 0) v.state = "go";
       } else {
-        const stopped = blocked(v, player);
+        const why = blocked(v, player, folk);
+        const stopped = why !== null;
         v.state = stopped ? "wait" : "go";
         if (stopped) target = 0;
+        // M6 handcart: held up by Jef or a thing for a while: over to a clear side lane, round, and back
+        goRound(v.go, dt, why === "player" || why === "thing", (off) => sideClear(v, player, off, folk), v.v * dt);
+        // the watchdog: a thing in the way and no side lane clear for a minute (another rig face to
+        // face, a narrow street): back off a few metres and try again
+        if (why === "thing") v.stuckT += dt;
+        else v.stuckT = 0;
+        if (v.stuckT > BACK_AFTER_S) {
+          v.stuckT = 0;
+          v.backM = BACK_M;
+          v.backs++;
+        }
+        if (v.backM > 0) {
+          const d = Math.min(BACK_V * dt, v.backM);
+          if (behindClear(v, player, folk)) {
+            v.s = wrap(v.s - d, v.path.length);
+            v.backM -= d;
+          } else v.backM = 0;
+          v.state = "wait";
+          target = 0;
+          v.v = 0;
+        }
         // a stop coming up: stand there a while (once per pass, by chance)
         for (let k = 0; k < v.stops.length; k++) {
           const st = v.stops[k];
@@ -729,7 +835,7 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
       if (v.v < 0.01 && target === 0) v.v = 0;
       const ds = v.v * dt;
       v.s = wrap(v.s + ds, v.path.length);
-      at(v.path, v.s, a);
+      atOff(v.path, v.s, v.go.off, a);
       v.px = a.x;
       v.pz = a.z;
       // animate only what the player could see
@@ -751,8 +857,8 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
 
       if (v.kind === "dray") {
         const i = v.index;
-        at(v.path, v.s + WHEELBASE, b);
-        at(v.path, v.s + WHEELBASE + HORSE_AHEAD, c);
+        atOff(v.path, v.s + WHEELBASE, v.go.off, b);
+        atOff(v.path, v.s + WHEELBASE + HORSE_AHEAD, v.go.off, c);
         const bedYaw = Math.atan2(b.x - a.x, b.z - a.z);
         const foreYaw = Math.atan2(c.x - b.x, c.z - b.z);
         const horseYaw = heading(v.path, v.s + WHEELBASE + HORSE_AHEAD);
@@ -796,7 +902,7 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
       } else {
         // the handcart goes before its carter: he walks GRIP_Z + 0.5 behind the axle
         const yaw = heading(v.path, v.s - GRIP_Z * 0.5);
-        at(v.path, v.s - GRIP_Z, b);
+        atOff(v.path, v.s - GRIP_Z, v.go.off, b);
         const mx = b.x - Math.sin(yaw) * 0.45;
         const mz = b.z - Math.cos(yaw) * 0.45;
         v.manGroup.position.set(mx, 0, mz);
@@ -860,11 +966,12 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
   function info() {
     return vehicles.map((v) => {
       at(v.path, v.s, tmp);
-      return { route: v.route.name, kind: v.kind, x: +tmp.x.toFixed(1), z: +tmp.z.toFixed(1), state: v.state };
+      return { route: v.route.name, kind: v.kind, x: +tmp.x.toFixed(1), z: +tmp.z.toFixed(1), state: v.state, off: +v.go.off.toFixed(2), stuck: +v.stuckT.toFixed(1), backs: v.backs };
     });
   }
 
-  return { update, colliders: () => colliders, group, info, setOwners, away, yards };
+  const api: Traffic = { update, colliders: () => colliders, group, info, setOwners, away, yards, people: null };
+  return api;
 }
 
 // ------------------------------------------------------------------ M6: a dray led through the streets

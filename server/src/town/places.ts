@@ -188,6 +188,8 @@ export type TradeId =
   | "dealer"
   // M6 transport (bikeshop.ts): the velocipede maker, a smith who builds, sells and hires out "boneshakers"
   | "velo_maker"
+  // M6 handcart (handcart.ts): the wheelwright, who builds, sells and hires out handcarts
+  | "wheelwright"
   // M6 emigrants (emigrants.ts): families waiting for the liner, the lodging-house keeper, the ticket runner
   | "emigrant" | "lodging_keeper" | "runner"
   // M6 landmark interiors (landmarks/town.ts): who works inside the cathedral, the town hall, the Vleeshuis, the Steen and the Oostershuis
@@ -255,6 +257,7 @@ export const TRADES: Record<TradeId, TradeDef> = {
   post_clerk: { label: "clerk of the post and telegraph office", work: "post", faction: "burgerij", wealth: [3, 5], bias: { honesty: 2, gossip: 1 } },
   dealer: { label: "second-hand dealer", work: "post", faction: null, wealth: [2, 4], bias: { greed: 2, gossip: 2 } },
   velo_maker: { label: "velocipede maker, a smith who builds and hires out velocipedes", work: "post", faction: "burgerij", wealth: [4, 6], bias: { greed: 1, courage: 1 } },
+  wheelwright: { label: "wheelwright, who builds and hires out handcarts", work: "post", faction: null, wealth: [3, 5], bias: { honesty: 1, courage: 1 } },
   emigrant: { label: "emigrant bound for America", work: "wait", faction: null, wealth: [1, 3], bias: { piety: 1, courage: -1, gossip: -1 } },
   lodging_keeper: { label: "keeper of the emigrants' lodging house", work: "post", faction: null, wealth: [3, 5], bias: { greed: 2, gossip: 2 } },
   // he calls himself an agent's man; the talk title shows only that

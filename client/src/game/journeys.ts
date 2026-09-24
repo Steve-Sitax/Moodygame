@@ -164,7 +164,7 @@ export class Journeys {
   private byHousehold = new Map<number, VehicleView[]>();
   /** Where each cart stands now (a place key of its owner's day), as this side has moved it. */
   private cartAt = new Map<string, string>();
-  private parked = new Map<string, { cart: PushCart | null; rect: Rect | null; items: number; x: number; z: number; yaw: number }>();
+  private parked = new Map<string, { cart: PushCart | null; rect: Rect | null; shafts?: Rect | null; items: number; x: number; z: number; yaw: number }>();
   private props: Props | null = null;
   private pollT = 0;
   private seenT = 0;
@@ -299,7 +299,7 @@ export class Journeys {
     // a velocipede Jef has: the owner wanted it and it is not there; he walks and is cross
     if (velo?.gone && (velo.parks[newKey] || velo.parks.home) && d2(from, to) > WALK_MAX_M) void this.missed(velo.id, s);
     const cartKey = cart ? this.cartAt.get(cart.id) ?? "home" : null;
-    const cartHere = !!cart && !this.inUse.has(cart.id) && cartKey === prevKey && !!cart.parks[newKey];
+    const cartHere = !!cart && !cart.gone && !this.jefHas.has(cart.id) && !this.inUse.has(cart.id) && cartKey === prevKey && !!cart.parks[newKey];
     const plan = chooseMode({
       from,
       to,
@@ -534,6 +534,18 @@ export class Journeys {
     if (!d || !this.props) return;
     for (const v of d.vehicles) {
       if (v.kind !== "handcart") continue;
+      // M6 handcart: Jef has it (game/handcart.ts draws it where he has it): not here
+      if (v.gone || this.jefHas.has(v.id)) {
+        const pk = this.parked.get(v.id);
+        if (pk?.cart) {
+          pk.cart.dispose();
+          pk.cart = null;
+          if (pk.rect) this.world.removeCollider(pk.rect);
+          if (pk.shafts) this.world.removeCollider(pk.shafts);
+          pk.rect = pk.shafts = null;
+        }
+        continue;
+      }
       const key = this.cartAt.get(v.id) ?? v.at;
       const spot = v.parks[key] ?? v.home;
       let pk = this.parked.get(v.id);
@@ -554,13 +566,38 @@ export class Journeys {
         pk.cart.setItems(pk.items, "goods");
         pk.rect = { ...pk.cart.rects[0] };
         this.world.addCollider(pk.rect);
+        // the shafts are solid too (M6 handcart)
+        pk.shafts = { ...pk.cart.rects[1] };
+        this.world.addCollider(pk.shafts);
       } else if (!near && pk.cart) {
         pk.cart.dispose();
         pk.cart = null;
         if (pk.rect) this.world.removeCollider(pk.rect);
-        pk.rect = null;
+        if (pk.shafts) this.world.removeCollider(pk.shafts);
+        pk.rect = pk.shafts = null;
       }
     }
+  }
+
+  /** M6 handcart: carts Jef has taken (until the server's list says so, and after). */
+  private jefHas = new Set<string>();
+
+  /** M6 handcart: Jef took this household's cart (on), or it went back to them (off). */
+  jefTook(id: string, on: boolean): void {
+    if (on) this.jefHas.add(id);
+    else this.jefHas.delete(id);
+  }
+
+  /** M6 handcart: the households' carts standing still near Jef now (not in use): to be taken. */
+  standingCarts(): Array<{ id: string; x: number; z: number; yaw: number; label: string; owner: string }> {
+    const out: Array<{ id: string; x: number; z: number; yaw: number; label: string; owner: string }> = [];
+    for (const v of this.data?.vehicles ?? []) {
+      if (v.kind !== "handcart" || v.gone || this.jefHas.has(v.id) || this.inUse.has(v.id) || this.pushed.has(v.id)) continue;
+      const pk = this.parked.get(v.id);
+      if (!pk?.cart) continue;
+      out.push({ id: v.id, x: pk.x, z: pk.z, yaw: pk.yaw, label: v.label, owner: v.owner });
+    }
+    return out;
   }
 
   /** A parked cart: show the things on it now (loading one by one). */
@@ -589,7 +626,8 @@ export class Journeys {
     pk.cart?.dispose();
     pk.cart = null;
     if (pk.rect) this.world.removeCollider(pk.rect);
-    pk.rect = null;
+    if (pk.shafts) this.world.removeCollider(pk.shafts);
+    pk.rect = pk.shafts = null;
   }
 
   // ------------------------------------------------------------------ the traveller, unseen
@@ -1321,7 +1359,7 @@ export class Journeys {
     }
     const velo = this.veloOf(s);
     const cart = this.cartOf(s);
-    const has = { velocipede: !!velo && !!this.veloHere(velo, prevKey), handcart: !!cart && !this.inUse.has(cart.id) };
+    const has = { velocipede: !!velo && !!this.veloHere(velo, prevKey), handcart: !!cart && !cart.gone && !this.jefHas.has(cart.id) && !this.inUse.has(cart.id) };
     const plan = chooseMode({ from: [s.x, s.z], to: [x, z], load: load ?? null, has, stops: STOPS_PLAIN, age: s.r.age });
     const t: Trip = { mode: plan.mode, phase: "fetch", why: `dev: ${plan.why}`, t: 0, goT: 0, from: [s.x, s.z], to: [x, z], key: s.key, loaded: 0, unload: 0, helpers: [], started: performance.now() };
     if (plan.mode === "velocipede" && velo) {

@@ -266,6 +266,15 @@ export class Deeds {
     return true;
   }
 
+  /** M6 handcart: a household's cart was taken (the server said yes; `again`: his already). */
+  onCart: ((ref: string, again: boolean) => void) | null = null;
+  /** M6 handcart: what he took may have gone back (given back, caught, the police): reload. */
+  onBack: (() => void) | null = null;
+  /** M6 handcart: take a household's cart ("cart:<household>"), by the theft rules. */
+  takeCart(ref: string): Promise<void> {
+    return this.take(ref);
+  }
+
   private async take(ref: string): Promise<void> {
     if (this.busy) return;
     this.busy = true;
@@ -285,6 +294,10 @@ export class Deeds {
         if (b) this.velos.mount(b);
         if (!r.again) this.jobs.say(r.text || "You swing a leg over the saddle. W to pedal, S to brake, A and D or the mouse to steer, E to get off.");
         else this.jobs.say("You get back on. W pedal, S brake, E get off.");
+      } else if (ref.startsWith("cart:")) {
+        // M6 handcart: a household's cart; game/handcart.ts puts Jef's hands on the shafts
+        this.onCart?.(ref, r.again);
+        if (r.text) this.jobs.say(r.text);
       } else {
         if (ref.startsWith("lamp:")) this.lantern.removeStanding(ref);
         this.jobs.say(r.text);
@@ -327,6 +340,7 @@ export class Deeds {
       this.jobs.refresh(r);
       this.jobs.say(r.text);
       if (this.velos.ridden) this.velos.forget();
+      this.onBack?.();
       await this.load();
     } catch (e) {
       this.jobs.say((e as Error).message);
@@ -592,6 +606,7 @@ export class Deeds {
   private verdict(l: NonNullable<PoliceView["last"]>): void {
     if (this.velos.ridden) this.velos.forget();
     void this.load();
+    this.onBack?.();
     if (l.verdict === "let_off") this.jobs.say("The agent believes you and lets you go. What you took goes back where it belongs, and that is the end of it.");
     else if (l.verdict === "warning") this.jobs.say("A warning from the police. What you took goes back.");
     else if (l.verdict === "fine") this.jobs.say(`You pay the police a fine of ${l.paid_c} centimes. What you took goes back.`);

@@ -96,6 +96,11 @@ export class FirstPerson {
   frozen = false;
   /** Carrying goods: no jumping. Set by the job code. */
   laden = false;
+  /**
+   * M6 handcart: while Jef pushes a cart, every step is checked for the whole cart: from (x, z)
+   * the walk rules allow (nx, nz); this returns where he may go (game/handcart.ts), and turns the cart.
+   */
+  cartStep: ((x: number, z: number, nx: number, nz: number, dt: number) => [number, number]) | null = null;
   /** Feet height above the quay. */
   y = 0;
   crouching = false;
@@ -234,7 +239,12 @@ export class FirstPerson {
     this.vel.x += (wx - this.vel.x) * a;
     this.vel.y += (wz - this.vel.y) * a;
 
-    const [nx, nz] = this.world.move(this.x, this.z, this.vel.x * dt, this.vel.y * dt, RADIUS, this.y, this.laden);
+    let [nx, nz] = this.world.move(this.x, this.z, this.vel.x * dt, this.vel.y * dt, RADIUS, this.y, this.laden);
+    // M6 handcart: pushing a cart, the cart must fit where the step takes it (game/handcart.ts)
+    if (this.cartStep) {
+      [nx, nz] = this.cartStep(this.x, this.z, nx, nz, dt);
+      if (nx === this.x && nz === this.z) this.vel.set(0, 0);
+    }
     const moved = Math.hypot(nx - this.x, nz - this.z);
     this.x = nx;
     this.z = nz;

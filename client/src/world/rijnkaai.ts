@@ -166,6 +166,16 @@ export interface World {
   /** Colliders that come and go (job crates). */
   addCollider(r: Rect): void;
   removeCollider(r: Rect): void;
+  /**
+   * M6 handcart: things that move with a walker (a pushed cart, a led horse and dray). Solid for
+   * Jef and for the drays, the train and the omnibus; not for the crowd's own paths (their pusher
+   * would bump into his own cart). Moved in place: add once.
+   */
+  addMover(r: Rect): void;
+  removeMover(r: Rect): void;
+  moverAt(x: number, z: number, r: number): boolean;
+  /** M6 handcart: on the quay railway's band or a crane runway (the train and the cranes run here)? */
+  onRails(x: number, z: number, r?: number): boolean;
   /** Can something of radius r stand here? */
   isFree(x: number, z: number, r: number, feet?: number): boolean;
   /** Everything solid on the ground now (crates, carts, cranes, lamps, trees): for path finding. */
@@ -308,6 +318,8 @@ export function buildRijnkaai(): World {
   // the horse omnibus's lane round the quays (world/omnibus.ts): props, pumps and troughs keep off it
   const omnibusLane = omnibusKeepOut();
   // the portal cranes travel along their runways (world/railway.ts): nothing stands on them
+  // M6 handcart: the rails' band and the crane runways (a cart is never left standing there)
+  const railBand = trackKeepOut(trackData);
   const craneRunways: Rect[] = (trackData.crane_rails ?? []).map(([x0, z0, x1, z1]) => ({
     minX: Math.min(x0, x1) - 0.9,
     maxX: Math.max(x0, x1) + 0.9,
@@ -379,7 +391,7 @@ export function buildRijnkaai(): World {
   city.ready
     .then(() => loadProps())
     .then((p) => {
-      traffic = createTraffic(scene, city.flags, p, { isFree });
+      traffic = createTraffic(scene, city.flags, p, { isFree: freeOfMovers });
       for (const r of traffic.colliders()) dynamic.add(r); // added once: the rects move in place
     })
     .catch((e) => console.warn("traffic did not start", e));
@@ -530,15 +542,25 @@ export function buildRijnkaai(): World {
         world: { addCollider: (r) => dynamic.add(r), removeCollider: (r) => dynamic.delete(r) },
       });
       riverTraffic = createRiver(scene, b);
+      // the tall things on the moored ships (masts, rigging, funnels): the cranes' jibs keep off them
+      // (world/railway.ts, M6 cranes): [x, z, top over the waterline, the level she sits on below]
+      const tallThings: Array<[number, number, number, number]> = [];
+      const addTall = (name: Parameters<Boats["tall"]>[0], x: number, z: number, yaw: number, floor = -Infinity) => {
+        const c = Math.cos(yaw);
+        const s = Math.sin(yaw);
+        for (const [lx, lz, top] of b.tall(name)) tallThings.push([x + lx * c + lz * s, z - lx * s + lz * c, top, floor]);
+      };
       // the Anna Maria at the Rijnkaai, her gangway at RAMP; a barque lies outside her
       // M6 tides: at low water she sits on the bottom at her berth (tide.ts BRIG_FLOOR)
       b.place("brig", -40, -7.2, Math.PI / 2, scene).userData.floor = BRIG_FLOOR;
+      addTall("brig", -40, -7.2, Math.PI / 2, BRIG_FLOOR);
       const d = b.deck("brig", -40, -7.2, Math.PI / 2);
       if (d) for (const o of d.obstacles) colliders.push(o);
       b.place("barque", -34, -26, Math.PI / 2, scene);
+      addTall("barque", -34, -26, Math.PI / 2);
       // portal cranes on the quays; the jib rests along +z, yaw turns it over the water
       const cranes: Array<[number, number, number]> = [
-        [-24, 4.0, Math.PI], [-12, 4.0, Math.PI], [60, 4.0, Math.PI],
+        [-24, 4.0, Math.PI], [0, 4.0, Math.PI], [60, 4.0, Math.PI], // 17 m apart at least (M6 cranes)
         [66, 62, Math.PI / 2], [66, 92, Math.PI / 2], [173, 66, -Math.PI / 2], [173, 100, -Math.PI / 2],
         [-280, 4.0, Math.PI], [-240, 4.0, Math.PI], [-300, 4.0, Math.PI],
       ];
@@ -557,11 +579,15 @@ export function buildRijnkaai(): World {
         swimSolids.push({ minX: x - s * hl - c * hb, maxX: x + s * hl + c * hb, minZ: z - c * hl - s * hb, maxZ: z + c * hl + s * hb });
       };
       const moor = (...a: Parameters<Boats["mooreAlong"]>) => {
-        for (const p of b.mooreAlong(...a).placed) hull(p.name, p.x, p.z, p.yaw);
+        for (const p of b.mooreAlong(...a).placed) {
+          hull(p.name, p.x, p.z, p.yaw);
+          addTall(p.name, p.x, p.z, p.yaw);
+        }
       };
       const put = (...a: Parameters<Boats["place"]>) => {
         b.place(...a);
         hull(a[0], a[1], a[2], a[3]);
+        addTall(a[0], a[1], a[2], a[3]);
       };
       // the river: moored along the Werf and the north Rijnkaai, ships at anchor further out
       // (gaps left for the stone steps, FLIGHTS)
@@ -613,8 +639,9 @@ export function buildRijnkaai(): World {
             props: p,
             tex: { planks: m.planks.map!, sack: m.sack.map!, crate: m.crate.map! },
             bridges: () => bridges?.list ?? [],
-            isFree: (x, z, r) => isFree(x, z, r),
+            isFree: freeOfMovers,
             hullAt: (x, z) => swimSolids.some((c) => inRect(c, x, z)),
+            tall: tallThings,
             addCollider: (r) => dynamic.add(r),
             removeCollider: (r) => dynamic.delete(r),
             waterY: WATER_Y,
@@ -634,8 +661,11 @@ export function buildRijnkaai(): World {
             horseIndex: 2,
             tex: { planks: m.planks.map! },
             bridges: () => bridges?.list ?? [],
-            isFree: (x, z, r) => isFree(x, z, r),
+            isFree: freeOfMovers,
             lit: () => lampsLit,
+            // M6 handcart: where its round crosses the rails the goods train has the right of way
+            onRails: (x: number, z: number) => railBand.some((r) => inRect(r, x, z, 1.0)),
+            trainBusy: (r) => !!railway?.busy(r),
           });
           for (const r of omnibus.colliders()) dynamic.add(r);
           for (const st of OMNIBUS_STOPS) colliders.push(rectAround(st.post[0], st.post[1], 0.12, 0.12));
@@ -802,6 +832,14 @@ export function buildRijnkaai(): World {
     for (const c of dynamic) if (inRect(c, x, z, r) && blocks(c, feet)) return false;
     return true;
   };
+  /** M6 handcart: carts pushed by walkers and led drays (World.addMover): solid for Jef and the vehicles. */
+  const movers = new Set<Rect>();
+  const moverAt = (x: number, z: number, r: number) => {
+    for (const c of movers) if (inRect(c, x, z, r)) return true;
+    return false;
+  };
+  /** Free for a dray, the train or the omnibus: as isFree, and no pushed cart or led horse in the way. */
+  const freeOfMovers = (x: number, z: number, r: number) => isFree(x, z, r) && !moverAt(x, z, r);
 
   // --- the player's own rules: stone steps, falling in, swimming (the crowd and the path
   // check keep to isWalkable/isFree above: water and steps are never a path)
@@ -938,6 +976,7 @@ export function buildRijnkaai(): World {
     for (const c of colliders) if (inRect(c, x, z, r) && blocks(c, feet)) return true;
     for (const c of dynamic) if (inRect(c, x, z, r) && blocks(c, feet)) return true;
     for (const c of railings) if (inRect(c, x, z, r)) return true;
+    for (const c of movers) if (inRect(c, x, z, r) && blocks(c, feet)) return true;
     return false;
   };
   function walkFree(fx: number, fz: number, x: number, z: number, r: number, feet: number, laden: boolean): boolean {
@@ -1306,6 +1345,10 @@ export function buildRijnkaai(): World {
     groundAt,
     addCollider: (r) => dynamic.add(r),
     removeCollider: (r) => dynamic.delete(r),
+    addMover: (r) => movers.add(r),
+    removeMover: (r) => movers.delete(r),
+    moverAt,
+    onRails: (x, z, r = 0) => railBand.some((c) => inRect(c, x, z, r)),
     isFree,
     solids: () => [...colliders, ...dynamic].filter((c) => blocks(c, 0)),
     isWater,

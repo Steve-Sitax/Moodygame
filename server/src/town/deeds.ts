@@ -27,7 +27,7 @@ import CITY from "../../../shared/city.json" with { type: "json" };
 // it gone, and a suspicion may start to go round a while later.
 
 /** M3j: "boat" a rowing boat taken from its steps (rowing.ts); "boat_lost" one taken and wrecked; "boat_debt" a hired boat lost and never paid for. */
-export type Thing = "velocipede" | "lantern" | "food" | "boat" | "boat_lost" | "boat_debt";
+export type Thing = "velocipede" | "lantern" | "food" | "boat" | "boat_lost" | "boat_debt" | "handcart";
 
 /** Engine numbers per kind of thing: how bad it is (police points) and the fine. */
 export const THINGS: Record<Thing, { severity: number; fine_c: number; noun: string }> = {
@@ -37,6 +37,23 @@ export const THINGS: Record<Thing, { severity: number; fine_c: number; noun: str
   boat: { severity: 3, fine_c: 50, noun: "rowing boat" },
   boat_lost: { severity: 5, fine_c: 100, noun: "rowing boat" },
   boat_debt: { severity: 2, fine_c: 30, noun: "boat" },
+  // M6 handcart (town/handcart.ts): a household's handcart, taken from their door or their stall
+  handcart: { severity: 2, fine_c: 40, noun: "handcart" },
+};
+
+/**
+ * M6 handcart (town/handcart.ts sets these): a household's cart as a thing to take ("cart:<household>").
+ * find: where it stands now and whether Jef has it already; taken: it is Jef's now (he holds it);
+ * again: he takes hold of it again; home: back to its household; held: does he still have it for
+ * this deed; gone: is it away from its household (the family cannot use it).
+ */
+export const cartHooks = {
+  find: (_db: DB, _ref: string): { owner: string; x: number; z: number; yaw?: number; where: string; mine: { deed: number | null; held: boolean } | null } | null => null,
+  taken: (_db: DB, _ref: string, _deed: number, _at: { x: number; z: number; yaw: number }): void => {},
+  again: (_db: DB, _ref: string): void => {},
+  home: (_db: DB, _ref: string): void => {},
+  held: (_db: DB, _d: DeedRow): boolean => false,
+  gone: (_db: DB, _id: string): boolean => false,
 };
 
 /** Stall goods -> the food you can lift off the table. */
@@ -554,6 +571,11 @@ function findThing(db: DB, ref: string) {
     const st = veloStates(db)[ref];
     return { thing: "velocipede" as Thing, item: "velocipede", owner: v.owner, x: st.x, z: st.z, where: v.where, noun: "velocipede", velo: st, at: null };
   }
+  if (ref.startsWith("cart:")) {
+    const c = cartHooks.find(db, ref);
+    if (!c) throw new GameError("no such handcart", 404);
+    return { thing: "handcart" as Thing, item: "handcart", owner: c.owner, x: c.x, z: c.z, where: c.where, noun: "handcart", velo: null, at: null, cart: c };
+  }
   if (ref.startsWith("boat:")) {
     const b = rowBoats(db).find((q) => q.id === ref);
     if (!b) throw new GameError("no such boat", 404);
@@ -611,6 +633,14 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
       rowOn(db, req.ref);
       return { deed: st.deed, again: true, seen: false, owner_saw: false, seen_by: [], owner: { id: t.owner, name: ownerName }, reaction: null, text: "", police: false, item_id: null };
     }
+  } else if (t.thing === "handcart") {
+    // M6: a household's handcart: no pocket; his already (taken before): hold of it again, no new deed
+    const c = (t as { cart?: ReturnType<typeof cartHooks.find> }).cart;
+    if (c?.mine) {
+      if (c.mine.held) throw new GameError("you have hold of it already", 409);
+      cartHooks.again(db, req.ref);
+      return { deed: c.mine.deed, again: true, seen: false, owner_saw: false, seen_by: [], owner: { id: t.owner, name: ownerName }, reaction: null, text: "", police: false, item_id: null };
+    }
   } else if (freeSlots(db) < 1) throw new GameError("your pockets are full", 409);
   if (t.thing === "lantern" && lampsTaken(db, p.day).includes(req.ref)) throw new GameError("it is gone already", 409);
   if (t.thing === "food") {
@@ -651,7 +681,7 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
   let deedId = 0;
   const pm = db.prepare("SELECT minute FROM player WHERE id = 1").get() as { minute: number };
   db.transaction(() => {
-    if (t.thing !== "velocipede" && t.thing !== "boat") {
+    if (t.thing !== "velocipede" && t.thing !== "boat" && t.thing !== "handcart") {
       const r = db.prepare("INSERT INTO item (kind, job_id) VALUES (?, NULL)").run(t.item);
       itemId = Number(r.lastInsertRowid);
     }
@@ -666,6 +696,10 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
     if (t.thing === "boat") {
       setRowBoat(db, req.ref, { ...rowBoatStates(db)[req.ref], ridden: true, deed: deedId });
       rowOn(db, req.ref);
+    }
+    if (t.thing === "handcart") {
+      const c = (t as { cart?: ReturnType<typeof cartHooks.find> }).cart;
+      cartHooks.taken(db, req.ref, deedId, { x: t.x, z: t.z, yaw: c?.yaw ?? 0 });
     }
     if (t.thing === "lantern") setState(db, `lamps_taken:${p.day}`, [...lampsTaken(db, p.day), req.ref]);
     if (t.thing === "food") {
@@ -721,6 +755,8 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
       ? "Nobody seems to have seen. The velocipede is yours now, for what that is worth."
       : t.thing === "boat"
         ? "Nobody seems to have seen. You cast off: the boat is yours now, for what that is worth."
+      : t.thing === "handcart"
+        ? "Nobody seems to have seen. You take the shafts: the handcart is yours now, for what that is worth."
       : t.thing === "lantern"
         ? "Nobody saw. The lantern is yours now."
         : `Nobody saw. ${FOOD_NAME[t.item][0].toUpperCase() + FOOD_NAME[t.item].slice(1)} goes into your pocket.`;
@@ -746,7 +782,8 @@ export function returnThing(db: DB, id: number, how: "gave" | "caught"): { text:
   const d = deedRow(db, id);
   if (!d || d.status !== "open") throw new GameError("nothing to give back", 409);
   if (d.thing === "boat_lost" || d.thing === "boat_debt") throw new GameError("there is nothing to give back", 409);
-  if (d.thing !== "velocipede" && d.thing !== "boat") {
+  if (d.thing === "handcart" && !cartHooks.held(db, d)) throw new GameError("you have not got it any more", 409);
+  if (d.thing !== "velocipede" && d.thing !== "boat" && d.thing !== "handcart") {
     const has = db.prepare("SELECT 1 FROM item WHERE id = ?").get(d.item_id ?? -1);
     if (!has) throw new GameError("you have not got it any more", 409);
   }
@@ -759,6 +796,7 @@ export function returnThing(db: DB, id: number, how: "gave" | "caught"): { text:
   })();
   if (d.thing === "velocipede") veloHome(db, d.ref);
   if (d.thing === "boat") rowBoatHome(db, d.ref);
+  if (d.thing === "handcart") cartHooks.home(db, d.ref);
   if (how === "gave") {
     remember(db, d.owner, `Jef gave my ${d.thing === "food" ? d.item : d.thing} back when I asked. Still, he took it.`, 4, "seen", null, {
       gist: `Jef took ${name}'s ${d.thing === "food" ? d.item : d.thing} and gave it back when asked`,

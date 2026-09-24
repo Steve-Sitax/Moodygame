@@ -159,7 +159,8 @@ describe("who owns what (the migration)", () => {
       expect(veloShop(db)).toBeTruthy();
       const after = db.prepare("SELECT id, data_json FROM resident").all() as Array<{ id: string; data_json: string }>;
       for (const r of after) if (before.has(r.id)) expect(r.data_json, r.id).toBe(before.get(r.id));
-      expect(after.length).toBe(before.size + 1);
+      // the velocipede maker, and the wheelwright (M6 handcart, town/handcart.ts)
+      expect(after.length).toBe(before.size + 2);
       expect((db.prepare("SELECT COUNT(*) n FROM npc_memory").get() as { n: number }).n).toBe(mem);
       db.close();
     } finally {

@@ -215,7 +215,18 @@ export interface OmnibusOptions {
   isFree: (x: number, z: number, r: number) => boolean;
   /** How far the gas lamps are lit, 0..1 (the carriage lamps follow). */
   lit?: () => number;
+  /** M6 handcart: is (x, z) on the goods train's band (the quay railway)? The omnibus crosses it only when the train is not coming. */
+  onRails?: (x: number, z: number) => boolean;
+  /** M6 handcart: is the goods train on or coming up to this stretch (railway.ts busy)? The train has the right of way. */
+  trainBusy?: (r: { minX: number; maxX: number; minZ: number; maxZ: number }) => boolean;
 }
+
+/** M6 handcart: held up this long by another vehicle, an omnibus backs off (s); face to face with the train in its lane, sooner. */
+const BACK_AFTER_S = 60;
+const BACK_AFTER_TRAIN_S = 8;
+/** How far it backs (m), and how fast (m/s). */
+const BACK_M = 9;
+const BACK_V = 0.9;
 
 /** How many horses the omnibuses need (railway.ts makes the pool). */
 export const OMNIBUS_HORSES = LINES.reduce((n, l) => n + l.buses * 2, 0);
@@ -643,6 +654,12 @@ interface BusState extends Omnibus {
   spans: Map<object, Array<[number, number]>>;
   taken: Array<"player" | "passenger" | null>;
   passengers: Passenger[];
+  /** M6 handcart: stretches of its round on the train's band (s of the nose going in and out, and their box). */
+  zones: Array<{ s0: number; s1: number; rect: Rect }>;
+  /** Seconds held up by a thing or the train, metres still to back off, and how often it backed. */
+  blockT: number;
+  backM: number;
+  backs: number;
 }
 
 interface Passenger {
@@ -716,6 +733,10 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         foreYaw: 0,
         horseYaw: 0,
         spans: new Map(),
+        zones: railZones(loop),
+        blockT: 0,
+        backM: 0,
+        backs: 0,
         taken: SEATS.map(() => null),
         passengers: [],
         pose: () => ({ x: b.frame.position.x, y: b.frame.position.y, z: b.frame.position.z, yaw: b.yaw, speed: b.v }),
@@ -765,6 +786,9 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
             dwell: +b.dwell.toFixed(1),
             held: b.held,
             wait: b.waitWhy,
+            blocked: +b.blockT.toFixed(1),
+            backs: b.backs,
+            railZones: b.zones.map((zn) => [+zn.s0.toFixed(0), +zn.s1.toFixed(0)]),
             rider: b.rider,
             length: +loop.length.toFixed(0),
             passengers: b.passengers.map((p) => `${p.seat}:${p.state}`).join(" "),
@@ -1035,6 +1059,36 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     return sp;
   }
 
+  /** M6 handcart: the stretches of a round where the lane lies on the train's band (found once). */
+  function railZones(lp: Loop): Array<{ s0: number; s1: number; rect: Rect }> {
+    const out: Array<{ s0: number; s1: number; rect: Rect }> = [];
+    if (!opts.onRails) return out;
+    const n = lp.x.length;
+    const on = new Uint8Array(n);
+    for (let i = 0; i < n; i++) on[i] = opts.onRails(lp.x[i], lp.z[i]) ? 1 : 0;
+    // start where the round is off the band, so no zone is cut in two at the loop's seam
+    const i0 = on.indexOf(0);
+    if (i0 < 0) return out;
+    let cur: { s0: number; s1: number; rect: Rect } | null = null;
+    for (let k = 0; k <= n; k++) {
+      const i = (i0 + k) % n;
+      if (on[i] && k < n) {
+        const x = lp.x[i];
+        const z = lp.z[i];
+        if (!cur) cur = { s0: i * Loop.STEP, s1: i * Loop.STEP, rect: { minX: x, maxX: x, minZ: z, maxZ: z } };
+        cur.s1 = i * Loop.STEP;
+        cur.rect.minX = Math.min(cur.rect.minX, x - 1.5);
+        cur.rect.maxX = Math.max(cur.rect.maxX, x + 1.5);
+        cur.rect.minZ = Math.min(cur.rect.minZ, z - 1.5);
+        cur.rect.maxZ = Math.max(cur.rect.maxZ, z + 1.5);
+      } else if (cur) {
+        out.push(cur);
+        cur = null;
+      }
+    }
+    return out;
+  }
+
   const pa = { x: 0, z: 0 };
   const pb = { x: 0, z: 0 };
   function room(b: BusState, player: { x: number; z: number } | null): number {
@@ -1051,6 +1105,22 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         if (ahead < 30 && !br.closed() && ahead - 8 < lim) {
           lim = Math.max(0, ahead - 8);
           b.waitWhy = "bridge";
+        }
+      }
+    }
+    // M6 handcart: the train has the right of way where the round lies on its band: wait short of
+    // the stretch while it is on it or coming up to it (never stand on the rails in its way)
+    if (opts.trainBusy) {
+      for (const zn of b.zones) {
+        const len = lp.wrap(zn.s1 - zn.s0);
+        const inside = lp.wrap(nose - zn.s0) < len + (NOSE - TAIL) + 1;
+        if (inside) continue;
+        const ahead = lp.wrap(zn.s0 - nose);
+        if (ahead < 30 && opts.trainBusy(zn.rect)) {
+          if (ahead - 1.5 < lim) {
+            lim = Math.max(0, ahead - 1.5);
+            b.waitWhy = "train";
+          }
         }
       }
     }
@@ -1098,6 +1168,30 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     return lim;
   }
 
+  /** M6 handcart: is the body on a stretch of the train's band now? */
+  function inRailZone(b: BusState): boolean {
+    const lp = b.loop;
+    const nose = b.s + NOSE;
+    return b.zones.some((zn) => lp.wrap(nose - zn.s0) < lp.wrap(zn.s1 - zn.s0) + (NOSE - TAIL) + 1);
+  }
+
+  /** M6 handcart: the lane behind the omnibus free to back into (its own boxes out of the way)? */
+  function behindClear(b: BusState, player: { x: number; z: number } | null): boolean {
+    const lp = b.loop;
+    const keep = b.rects.map((r) => [r.minX, r.maxX]);
+    for (const r of b.rects) r.minX = r.maxX = 1e6;
+    let ok = true;
+    for (const dd of [0.8, 2, 3.2]) {
+      lp.at(lp.wrap(b.s + TAIL - dd), pa);
+      if (!opts.isFree(pa.x, pa.z, 0.6) || (player && Math.hypot(player.x - pa.x, player.z - pa.z) < 1.6)) {
+        ok = false;
+        break;
+      }
+    }
+    b.rects.forEach((r, k) => ([r.minX, r.maxX] = keep[k]));
+    return ok;
+  }
+
   function move(b: BusState, dt: number, player: { x: number; z: number } | null): void {
     const lp = b.loop;
     if (b.at) {
@@ -1109,8 +1203,28 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         b.nextI = (b.nextI + 1) % b.stopAt.length;
         api.onDepart?.(b, was, b.stopAt[b.nextI].stop);
       }
+    } else if (b.backM > 0) {
+      // M6 handcart: backing off (a vehicle it cannot pass, the train in its lane): slowly, while the way behind is clear
+      b.v = 0;
+      const ds = Math.min(BACK_V * dt, b.backM);
+      if (behindClear(b, player)) {
+        b.s = lp.wrap(b.s - ds);
+        b.backM -= ds;
+        b.rollR -= ds / R_REAR;
+        b.rollF -= ds / R_FRONT;
+      } else b.backM = 0;
+      b.waitWhy = "backing";
     } else {
       const r = room(b, player);
+      // M6 handcart: held up by a thing or the train for long: back off and let it by
+      if (r <= 0.01 && (b.waitWhy === "blocked" || b.waitWhy === "train")) b.blockT += dt;
+      else b.blockT = 0;
+      // (waiting short of the rails for the train is no hold-up: it waits there as long as it takes)
+      if (b.blockT > (inRailZone(b) ? BACK_AFTER_TRAIN_S : b.waitWhy === "train" ? Infinity : BACK_AFTER_S)) {
+        b.blockT = 0;
+        b.backM = BACK_M;
+        b.backs++;
+      }
       // slow for the bends ahead
       let vmax = CRUISE;
       for (let dd = 0; dd <= 10; dd += 2) {

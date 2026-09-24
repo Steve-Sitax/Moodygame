@@ -46,7 +46,7 @@ export interface Run {
   /** A carried item was set down at (x, z). */
   onPlaced(item: Item): void;
   /** A carried item went into the Schelde. */
-  onLost(item: Item): void;
+  onLost(item: Item, why?: string): void;
   /** Where the job wants you now, for the pointer. */
   goal(): THREE.Vector3 | null;
   hud(): string;
@@ -135,7 +135,8 @@ export class HaulRun implements Run {
     this.delivered = p.delivered;
     this.lost = p.lost;
     this.sold = p.sold;
-    const left = this.count - this.delivered - this.lost - this.sold;
+    // M6 handcart: goods already on Jef's cart (a reload) are not laid out again
+    const left = Math.max(0, this.count - this.delivered - this.lost - this.sold - goods.onCart(job.id));
 
     // which of the goods carry a twist
     const flags = Array.from({ length: left }, () => ({ broken: false, heavy: false }));
@@ -318,11 +319,18 @@ export class HaulRun implements Run {
     this.changed();
   }
 
-  onLost(item: Item): void {
+  /** Lost: into the Schelde, or (M6 handcart) gone with a cart someone wheeled off (`why`: what to say, or "" for nothing). */
+  onLost(item: Item, why?: string): void {
     if (!this.isMine(item)) return;
     this.lost++;
-    this.ctx.toast(`The ${this.noun} goes over the edge. The Schelde takes it.`);
+    const say = why ?? `The ${this.noun} goes over the edge. The Schelde takes it.`;
+    if (say) this.ctx.toast(say);
     this.changed();
+  }
+
+  /** M6 handcart: how many of this job's goods are on Jef's cart now. */
+  private get onCart(): number {
+    return this.ctx.goods.onCart(this.job.id);
   }
 
   private handIn(item: Item): void {
@@ -435,7 +443,8 @@ export class HaulRun implements Run {
     if (this.ended) return null;
     const to = SPOTS[this.task.to];
     const carried = this.ctx.goods.carried;
-    if ((carried && this.isMine(carried)) || this.parcelInPocket)
+    const lying = this.ctx.goods.items.some((it) => this.isMine(it));
+    if ((carried && this.isMine(carried)) || this.parcelInPocket || (this.onCart > 0 && !lying))
       return this.recipient ? this.recipient.pos.clone() : new THREE.Vector3(to.x, 0, to.z);
     if (this.waitingHandover) {
       if (this.kind === "deliver") return this.ctx.people.get(this.job.employer_npc)?.pos.clone() ?? null;
@@ -459,7 +468,7 @@ export class HaulRun implements Run {
     const to = SPOTS[this.task.to];
     const from = SPOTS[this.task.from];
     const carried = this.ctx.goods.carried;
-    const mine = (carried && this.isMine(carried)) || this.parcelInPocket;
+    const mine = (carried && this.isMine(carried)) || this.parcelInPocket || (this.onCart > 0 && !this.ctx.goods.items.some((it) => this.isMine(it)));
     const employer = this.ctx.people.get(this.job.employer_npc)?.def.name ?? this.job.employer_name;
     const step = mine
       ? this.kind === "deliver"
@@ -472,7 +481,7 @@ export class HaulRun implements Run {
         : `Fetch the ${this.noun} at ${from.label}`;
     const count =
       this.kind === "carry"
-        ? `<br>${this.delivered} / ${this.count} delivered${this.lost ? `, ${this.lost} lost` : ""}${this.sold ? `, ${this.sold} sold` : ""}`
+        ? `<br>${this.delivered} / ${this.count} delivered${this.onCart ? `, ${this.onCart} on the cart` : ""}${this.lost ? `, ${this.lost} lost` : ""}${this.sold ? `, ${this.sold} sold` : ""}`
         : "";
     const time = this.task.limit_s ? `<br>${this.late ? "Late" : `The bell in ${clock(this.task.limit_s - this.t)}`}` : "";
     return `<b>${esc(this.job.title)}</b><br>${step}${count}${time}`;

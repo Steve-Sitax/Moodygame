@@ -49,6 +49,9 @@ export interface CrowdGround {
   /** Optional: make the crates people sit on solid for the player. */
   addCollider?(r: Rect): void;
   removeCollider?(r: Rect): void;
+  /** Optional (M6 handcart): the carts people push and the drays they lead, solid for the player and the vehicles (World.addMover). */
+  addMover?(r: Rect): void;
+  removeMover?(r: Rect): void;
 }
 
 export interface CrowdOptions {
@@ -899,12 +902,14 @@ export class Crowd {
         v.cart = new PushCart(this.scene, this.cartProps, { load: false });
         v.cart.setItems(spec.items, spec.what);
         v.cart.place(p.x + Math.sin(p.yaw) * 0.5, p.z + Math.cos(p.yaw) * 0.5, p.yaw);
+        for (const r of v.cart.rects) this.ground.addMover?.(r);
       }
     } else if (spec.kind === "dray") {
       if (this.cartProps) {
         v.dray = new LedDray(this.scene, this.cartProps, "sacks");
         v.dray.loaded = spec.loaded;
         v.dray.place(p.x, p.z, p.yaw);
+        for (const r of v.dray.rects) this.ground.addMover?.(r);
       }
     }
   }
@@ -971,6 +976,7 @@ export class Crowd {
     const v = p.veh;
     if (!v) return;
     v.obj?.removeFromParent();
+    for (const r of [...(v.cart?.rects ?? []), ...(v.dray?.rects ?? [])]) this.ground.removeMover?.(r);
     v.cart?.dispose();
     v.dray?.dispose();
     p.nose = v.was.nose;
@@ -1982,6 +1988,7 @@ export class Crowd {
       hideBakedCart(p.human.root);
       cart = new PushCart(this.scene, this.cartProps);
       this.carts.set(p, cart);
+      for (const r of cart.rects) this.ground.addMover?.(r);
     }
     const walking = p.human.motion === "walk" || p.human.motion === "carry";
     const hands = handsOf(p.human, p.group, p.x, p.z, p.yaw);
@@ -2023,6 +2030,7 @@ export class Crowd {
     }
     if (p.lantern) this.scene.remove(p.lantern.g);
     if (p.veh) this.dropVehicle(p);
+    for (const r of this.carts.get(p)?.rects ?? []) this.ground.removeMover?.(r);
     this.carts.get(p)?.dispose();
     this.carts.delete(p);
     p.group.remove(p.human.root);

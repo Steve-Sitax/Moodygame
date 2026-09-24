@@ -39,6 +39,8 @@ import { Families } from "./game/families";
 import { Homes } from "./game/homes";
 import { Landmarks } from "./game/landmarks";
 import { Ballads } from "./game/ballads";
+import { Handcarts } from "./game/handcart";
+import { routeClips } from "./dev/routeClips";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const startEl = document.getElementById("start") as HTMLDivElement;
@@ -77,7 +79,7 @@ jobs.extraActions.push((x, z) => craneClimb.keys(x, z));
 // townspeople on the quays and squares (game/crowd.ts)
 const crowd = new Crowd(
   world.scene,
-  { flags: world.city.flags, isFree: world.isFree, solids: world.solids, gate: world.bridgeWait, addCollider: world.addCollider, removeCollider: world.removeCollider },
+  { flags: world.city.flags, isFree: world.isFree, solids: world.solids, gate: world.bridgeWait, addCollider: world.addCollider, removeCollider: world.removeCollider, addMover: world.addMover, removeMover: world.removeMover },
   placesFromCity((CITY as unknown as { places: Record<string, { x: number; z: number; kind: string }> }).places),
   { mats: { sack: world.mats.sack, crate: world.mats.crate } },
 );
@@ -221,6 +223,13 @@ jobs.extraActions.push((x, z) => townLife.keys(x, z));
   };
 }
 townLife.load().catch((e) => console.warn("town life did not load", e));
+// M6 handcart: Jef's own cart (bought, hired, taken), loads by size and weight (game/handcart.ts); first in the key list: holding the shafts, only its keys
+const handcarts = new Handcarts(world, player, jobs, deeds, journeys, homes);
+jobs.extraActions.unshift((x, z) => handcarts.keys(x, z));
+handcarts.say = (t) => jobs.say(t);
+handcarts.sfx = (name, at) => sound?.play(name, at);
+handcarts.away = () => interiors.inside;
+handcarts.people = () => crowd.positions();
 // M6 families and surprises (game/families.ts): visits, a menace, dreams, strangers, the fortune teller's table
 const families = new Families(world, player, jobs, town);
 {
@@ -386,6 +395,7 @@ function frame(): void {
   elapsed += dt;
   world.update(elapsed, dt, player.camera);
   player.update(dt);
+  handcarts.update(dt);
   interiors.update(dt);
   homes.update(dt);
   landmarks.update(dt);
@@ -434,19 +444,22 @@ function frame(): void {
     }
     // the ridden velocipede rattles like a handcart: iron tyres on stone (M3h)
     if (tr || rail || bus || deeds.velos.ridden)
-      sound?.setVehicles([...(tr?.info() ?? []), ...(rail?.vehicles() ?? []), ...(bus?.vehicles() ?? []), ...deeds.velos.sounds()]);
+      sound?.setVehicles([...(tr?.info() ?? []), ...(rail?.vehicles() ?? []), ...(bus?.vehicles() ?? []), ...deeds.velos.sounds(), ...handcarts.sounds()]);
   }
   {
     // the goods train and the omnibus stop for the people walking in front of them
     const rail = world.railway();
-    if (rail && !rail.people) rail.people = () => crowd.positions();
+    // (M6 handcart: and for the cart Jef pushes; the drays of the quay traffic too)
+    if (rail && !rail.people) rail.people = () => [...crowd.positions(), ...handcarts.points()];
+    const trf = world.traffic();
+    if (trf && !trf.people) trf.people = () => [...crowd.positions(), ...handcarts.points()];
     if (!peopleWired) {
       // bridges never open under anyone walking
       world.setPeople(() => crowd.positions());
       peopleWired = true;
     }
     const bus = world.omnibus();
-    if (bus && !bus.people) bus.people = () => crowd.positions();
+    if (bus && !bus.people) bus.people = () => [...crowd.positions(), ...handcarts.points()];
     // M6 transport: the town's own people ride the omnibus (no fare), and step off at their stop
     if (bus && !bus.onResidentOff) bus.onResidentOff = (_b, id, at) => journeys.offBus(id, at);
   }
@@ -538,6 +551,9 @@ if (import.meta.env.DEV) {
     homes,
     landmarks,
     ballads,
+    handcarts,
+    /** M6 handcart: where a dray, a handcart or an omnibus round touches a wall or a fixed thing (should be []). */
+    routeClips: () => routeClips(world, []),
     /** M6: a picture inside the room Jef is in, camera at `from` looking at `to` (room frame: x across, y up, z into the house). */
     async shotIn(name: string, from: [number, number, number], to: [number, number, number]) {
       const cam = player.camera;
@@ -610,6 +626,8 @@ if (import.meta.env.DEV) {
       for (const q of landmarks.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M6 ballads: the ballad singer's corners
       for (const q of ballads.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      // M6 handcart: the wheelwright's door and his carts
+      for (const q of handcarts.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       if (!can(DOSS_POS.x, DOSS_POS.z, 2.0)) bad.push("the doss house gate");
       if (!can(RAMP.x - 0.6, RAMP.zHigh - 1.0, 2.4)) bad.push("the mate on deck");
       return bad;
@@ -676,6 +694,7 @@ if (import.meta.env.DEV) {
         elapsed += dt;
         world.update(elapsed, dt);
         player.update(dt);
+        handcarts.update(dt);
         interiors.update(dt);
         homes.update(dt);
         landmarks.update(dt);

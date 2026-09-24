@@ -5,6 +5,7 @@ import path from "node:path";
 import { RESIDENT_SCHEMA, dropTownCache, ensureGarrison, ensureTown, repairTown } from "./town/store.ts";
 import { ensureTransport, dropTransport } from "./town/possessions.ts";
 import { ensureBikeShop } from "./town/bikeshop.ts";
+import { ensureCartwright } from "./town/handcart.ts";
 import { ACTION_SCHEMA, EVENT_SCHEMA, EVENTLOG_SCHEMA, FAMILY_TABLES, familyMigrate } from "./director/schema.ts";
 import { PRESS_SCHEMA, PRESS_TABLES } from "./paper/schema.ts";
 import { IDEAS_SCHEMA, IDEAS_TABLES } from "./ideas/schema.ts";
@@ -153,6 +154,8 @@ export function openDb(file: string): DB {
   ensureLandmarksTown(db);
   // M6 transport: the velocipede maker, then what each household owns (town/bikeshop.ts, possessions.ts); in place, once
   ensureBikeShop(db);
+  // M6 handcart: the wheelwright (town/handcart.ts); in place, once
+  ensureCartwright(db);
   ensureTransport(db);
   return db;
 }
@@ -220,6 +223,8 @@ export function resetDb(db: DB): void {
   ensureLandmarksTown(db);
   dropTransport(db);
   ensureBikeShop(db);
+  // M6 handcart: the wheelwright (town/handcart.ts); in place, once
+  ensureCartwright(db);
   ensureTransport(db);
 }
 

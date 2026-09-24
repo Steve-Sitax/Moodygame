@@ -106,7 +106,7 @@ const minuteNow = (db: DB) => {
 
 // ------------------------------------------------------------------ the shop in the town
 
-function freeDoors(db: DB): HouseDoor[] {
+export function freeDoors(db: DB): HouseDoor[] {
   const t = town(db).town;
   const houses = new Set(t.residents.map((r) => r.home.house));
   const taken: Pt[] = [];

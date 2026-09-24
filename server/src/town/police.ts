@@ -12,7 +12,7 @@ import { resident, town } from "./store.ts";
 import { houseDoors } from "./walkmap.ts";
 import { canCall } from "./talk.ts";
 import { spreadRumours } from "./rumours.ts";
-import { FOOD_NAME, THINGS, gameMinute, hasDeeds, npcName, openDeeds, stealables, veloHome, type DeedRow } from "./deeds.ts";
+import { FOOD_NAME, THINGS, cartHooks, gameMinute, hasDeeds, npcName, openDeeds, stealables, veloHome, type DeedRow } from "./deeds.ts";
 import { rowBoatHome, rowBoatStates, rowBoats } from "../rowing.ts";
 import { STORY_RULES, StorySchema, evidenceOf, judgeStory, statementWords, storyNote, supportedClaims, type Statement, type StoryClaim, type StoryJudgement, type StoryRating } from "./story.ts";
 
@@ -486,6 +486,8 @@ function stillHeld(db: DB, deeds: DeedRow[]): DeedRow[] {
   return deeds.filter((d) => {
     if (d.status !== "open") return false;
     if (d.thing === "velocipede") return true;
+    // M6: a household's handcart, while Jef still has it for this deed
+    if (d.thing === "handcart") return cartHooks.held(db, d);
     // a boat by where it really lies (QA 2026-09-24: "in your hands still" while it lay back at its
     // steps): his only while its state still carries this deed and it is not home, or he sits in it
     if (d.thing === "boat") {
@@ -818,6 +820,7 @@ function applyVerdict(db: DB, agent: string, dec: Decision, stance: Stance, text
   })();
   for (const d of deeds) if (d.thing === "velocipede") veloHome(db, d.ref);
   for (const d of deeds) if (d.thing === "boat") rowBoatHome(db, d.ref);
+  for (const d of deeds) if (d.thing === "handcart") cartHooks.home(db, d.ref);
   if (V === "warning") s.record.warnings++;
   if (V === "fine") s.record.fines++;
   if (V === "arrest") s.record.arrests++;

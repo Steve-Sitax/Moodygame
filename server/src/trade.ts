@@ -7,6 +7,7 @@ import { closedByEvent, priceFactor } from "./director/state.ts";
 import { newsFactor } from "./ideas/prices.ts";
 import { FURNITURE, FURNITURE_KINDS } from "../../shared/homes.ts";
 import { VELO_PRICE } from "./town/transport.ts";
+import { CART_PRICE } from "../../shared/handcart.ts";
 
 // Buying, pockets and eating (M3b). Prices and effects are engine numbers
 // (docs/03: shop prices are engine code). Pockets hold small things only;
@@ -111,6 +112,12 @@ const TRADE_WARES: Record<string, Array<{ kind: string; price_c: number }>> = {
     { kind: "velocipede_used", price_c: VELO_PRICE.used_c },
     { kind: "velocipede_new", price_c: VELO_PRICE.new_c },
     { kind: "velocipede_hire", price_c: VELO_PRICE.hire_c },
+  ],
+  // M6 handcart: the wheelwright sells new and second-hand handcarts and hires one out by the day (town/handcart.ts)
+  wheelwright: [
+    { kind: "handcart_used", price_c: CART_PRICE.used_c },
+    { kind: "handcart_new", price_c: CART_PRICE.new_c },
+    { kind: "handcart_hire", price_c: CART_PRICE.hire_c },
   ],
 };
 

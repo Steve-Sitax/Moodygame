@@ -4,7 +4,7 @@ import { remember } from "../npcs.ts";
 import { dropTownCache, town, TOWN_EMPLOYER_IDS } from "./store.ts";
 import { houseDoors, walkMap } from "./walkmap.ts";
 import type { Resident, TownPlace } from "./population.ts";
-import { deedRow, dropStealables, stealables, veloHooks, type Velo, type VeloState } from "./deeds.ts";
+import { cartHooks, deedRow, dropStealables, stealables, veloHooks, type Velo, type VeloState } from "./deeds.ts";
 import { berthOf, rowBoats } from "../rowing.ts";
 import { activityAt } from "./schedule.ts";
 import { dayKeys, placeKey, scheduleLoad, vehicleAt, WALK_MAX_M, type Act, type Load, type Pt } from "./transport.ts";
@@ -103,7 +103,7 @@ const LANES: Array<{ s: Seg2; half: number }> = (() => {
   poly([[-84.5, 20], [-96, 20], [-96, 38], [-89.5, 45], [-89.5, 114], [-149, 114], [-149, 126.2], [-238, 126.2], [-238, 70], [-280, 70], [-280, 129.8], [-145, 129.8], [-145, 208.5], [-84.5, 208.5]], 2.4, true);
   // the drays' and handcarts' rounds (world/traffic.ts TRAFFIC_ROUTES)
   poly([[33, 69.5], [33, 108.5], [-4.75, 108.5], [-4.75, 69.5]], 2.2, true);
-  poly([[120, 11], [160, 11], [160, 43], [120, 43]], 2.2, true);
+  poly([[120, 11], [158.6, 11], [158.6, 43], [120, 43]], 2.2, true); // (M6 handcart: moved off the farrier's forge)
   poly([[-305, 8.3], [-216, 8.3], [-216, 30], [-305, 30]], 2.2, true);
   poly([[74, 119.5], [168, 119.5], [176, 122], [196, 122]], 1.8, false);
   const decor = (CITY as unknown as { decor?: { tracks?: Array<{ pts: Pt[] }>; crane_rails?: Seg2[] } }).decor ?? {};
@@ -572,7 +572,7 @@ export function transportView(db: DB, states: Record<string, VeloState>) {
     vehicles: rec.vehicles.map((v) => {
       const st = v.kind === "velocipede" ? states[v.id] : undefined;
       // Jef has it (taken and not given back): the owner walks
-      const gone = !!st && (st.deed !== null || st.ridden);
+      const gone = (!!st && (st.deed !== null || st.ridden)) || (v.kind === "handcart" && cartHooks.gone(db, v.id));
       const now = vehicleNow(db, v, day, hour);
       return { ...v, gone, at: now.key };
     }),

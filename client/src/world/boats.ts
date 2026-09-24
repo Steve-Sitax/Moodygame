@@ -108,6 +108,12 @@ export interface Boats {
   /** Walk colliders for a crane's legs (portal) or stone base (hand crane) placed at (x, z, yaw). */
   colliders(name: CraneKind, x: number, z: number, yaw: number): Rect[];
   /**
+   * The tall things on a vessel (masts, rigging, yards, funnels): 1 m cells of its plan with
+   * anything higher than `above` metres over the waterline, [x, z, top] in the model's frame
+   * (x across, z along, bow +z). The cranes keep their jibs off them (world/railway.ts, M6 cranes).
+   */
+  tall(name: BoatName, above?: number): Array<[number, number, number]>;
+  /**
    * A ship's walkable deck placed at (x, z, yaw) (for now the brig, the Anna Maria): the flat
    * waist as a rectangle at world height y (WATER_Y + its deck height), the things on deck in the
    * way (masts, the open hatch, the cabin, casks) as colliders, and where the gangway port is.
@@ -580,6 +586,36 @@ async function load(): Promise<Boats> {
       dimCache.set(name, d);
     }
     return d;
+  }
+
+  const tallCache = new Map<string, Array<[number, number, number]>>();
+  function tall(name: BoatName, above = 4): Array<[number, number, number]> {
+    const key = `${name}:${above}`;
+    let t = tallCache.get(key);
+    if (!t) {
+      const cells = new Map<string, [number, number, number]>();
+      const v = new THREE.Vector3();
+      const root = proto(name);
+      root.updateMatrixWorld(true);
+      root.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh) return;
+        const pos = m.geometry.getAttribute("position");
+        for (let i = 0; i < pos.count; i++) {
+          v.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
+          if (v.y < above) continue;
+          const cx = Math.floor(v.x) + 0.5;
+          const cz = Math.floor(v.z) + 0.5;
+          const k = `${cx},${cz}`;
+          const c = cells.get(k);
+          if (!c) cells.set(k, [cx, cz, v.y]);
+          else if (v.y > c[2]) c[2] = v.y;
+        }
+      });
+      t = [...cells.values()];
+      tallCache.set(key, t);
+    }
+    return t;
   }
 
   // parts of a model for instancing: geometry, material and matrix relative to the model root
@@ -1055,6 +1091,7 @@ async function load(): Promise<Boats> {
     place,
     crane,
     colliders,
+    tall,
     deck(name, x, z, yaw) {
       const raw = extras.get(name)?.deck as string | undefined;
       if (!raw) return null;

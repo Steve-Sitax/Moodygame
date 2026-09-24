@@ -46,7 +46,7 @@ const city = CITY as unknown as CityData;
 
 // portal cranes (world/rijnkaai.ts, "cranes")
 const CRANES: Pt[] = [
-  [-24, 4], [-12, 4], [60, 4], [66, 62], [66, 92], [173, 66], [173, 100], [-280, 4], [-240, 4], [-300, 4],
+  [-24, 4], [0, 4], [60, 4], [66, 62], [66, 92], [173, 66], [173, 100], [-280, 4], [-240, 4], [-300, 4],
 ];
 
 // moored rows (world/rijnkaai.ts, mooreAlong): from, to, and the water they lie towards
