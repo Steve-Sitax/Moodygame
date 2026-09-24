@@ -373,19 +373,34 @@ export class FirstPerson {
     this.camera.rotation.set(this.lookPitch, this.lookYaw, Math.sin(this.swimT * 1.1) * 0.02);
   }
 
+  /**
+   * Fixes 2026-09-24 (Steve: stuck at the top of a ladder): the spot at the top can hold a crane's leg
+   * or a wagon now. Step off beside it: a little further in, or to a side, wherever you can stand.
+   */
+  private climbSpot(e: Exit): [number, number] {
+    for (const d of [0, 0.4, 0.8, 1.2])
+      for (const s of [0, 0.6, -0.6, 1.2, -1.2]) {
+        const x = e.tx - e.nx * d - e.nz * s;
+        const z = e.tz - e.nz * d + e.nx * s;
+        if (this.world.standFree(x, z, RADIUS, e.ty)) return [x, z];
+      }
+    return [e.tx, e.tz]; // nowhere free: world.move lets you walk out of what stands there
+  }
+
   private startClimb(e: Exit): void {
     const floatY = this.world.waterLevel(this.x, this.z) - SWIM_FEET;
     const keys: Array<[number, number, number, number]> = [];
+    const [tx, tz] = this.climbSpot(e);
     if (e.kind === "ladder") {
       const lx = e.gx - e.nx * 0.12;
       const lz = e.gz - e.nz * 0.12;
       keys.push([lx, floatY, lz, 0.4]);
       keys.push([lx, e.ty + 0.15, lz, (e.ty + 0.15 - floatY) / CLIMB]);
-      keys.push([e.tx, e.ty, e.tz, 0.7]);
+      keys.push([tx, e.ty, tz, 0.7]);
     } else {
       keys.push([e.gx, floatY, e.gz, 0.35]);
       keys.push([e.gx - e.nx * 0.45, e.ty + 0.1, e.gz - e.nz * 0.45, 1.1]);
-      keys.push([e.tx, e.ty, e.tz, 0.5]);
+      keys.push([tx, e.ty, tz, 0.5]);
     }
     this.climb = { from: [this.x, this.y, this.z], keys, i: 0, t: 0 };
     this.swimming = false;

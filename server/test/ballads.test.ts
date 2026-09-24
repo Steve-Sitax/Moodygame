@@ -207,7 +207,7 @@ describe("the ballad", () => {
     expect(facts.some((f) => f.jef)).toBe(false);
     const withJef: BalladText = { ...GOOD_BALLAD, verses: [GOOD_BALLAD.verses[0], ["And Jef the farm boy lit the fire,", "a b", "c d", "e f"]] };
     expect(cleanBallad(quiet, withJef, facts)).toBeNull();
-  });
+  }, 30_000); // several fresh test saves: slower than the 5 s default when the whole suite runs
 
   it("the name check: the town's own names and the facts' pass, strangers and famous men do not", () => {
     const db = fresh();
