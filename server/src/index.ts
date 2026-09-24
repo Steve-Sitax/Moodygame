@@ -1,9 +1,10 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { serve } from "@hono/node-server";
-import { Hono } from "hono";
+import { Hono, type MiddlewareHandler } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { WebSocketServer, WebSocket } from "ws";
-import { DB_FILE, DEV, HOST, PORT } from "./config.ts";
+import { allowedHost, allowedOrigin, DB_FILE, DEV, HOST, PORT } from "./config.ts";
 import { openDb, resetDb } from "./db.ts";
 import { plainEnglish } from "./text.ts";
 import { BEDTIME, clock, ending, markDayStart, payRent, RENT_C, rentPaid, resetTickLimit, setEnding, setWeather, sleep, swim, tick, type Ending } from "./day.ts";
@@ -43,6 +44,20 @@ import { mountRoutines } from "./director/routineRoutes.ts";
 
 const db = openDb(DB_FILE);
 const app = new Hono();
+// Only the game's own pages talk to the server (config.ts allowedHost/allowedOrigin): another site
+// in the browser, or a name that points at this machine (DNS rebinding), gets a 403. A body is
+// JSON, sent as JSON (a plain form post from another page cannot fake that), and small.
+app.use("/api/*", async (c, next) => {
+  const origin = c.req.header("origin");
+  if (!allowedHost(c.req.header("host")) || (origin !== undefined && !allowedOrigin(origin))) return c.json({ error: "forbidden" }, 403);
+  const hasBody = Number(c.req.header("content-length") ?? 0) > 0 || c.req.header("transfer-encoding") !== undefined;
+  if (c.req.method !== "GET" && c.req.method !== "HEAD" && hasBody && !/^application\/json\b/i.test(c.req.header("content-type") ?? "")) return c.json({ error: "send JSON" }, 415);
+  return next();
+});
+const tooLarge = (c: Parameters<MiddlewareHandler>[0]) => c.json({ error: "too large" }, 413);
+const apiLimit = bodyLimit({ maxSize: 64 * 1024, onError: tooLarge });
+const shotLimit = bodyLimit({ maxSize: 16 * 1024 * 1024, onError: tooLarge }); // a dev picture of the game
+app.use("/api/*", (c, next) => (c.req.path === "/api/dev/shot" ? shotLimit : apiLimit)(c, next));
 // Every paid action refreshes the money on screen (QA 2026-09-24: 5 c behind after the fortune,
 // paid in a talk choice): a POST that changed Jef's money pushes the new payload to the client.
 app.use("/api/*", async (c, next) => {
@@ -389,19 +404,18 @@ app.get("/api/npc/:id/wares", (c) => c.json({ wares: waresFor(db, placed(c.req.p
 app.post("/api/npc/:id/talk", async (c) => {
   const id = placed(c.req.param("id"));
   const body = (await c.req.json().catch(() => ({}))) as { kind?: string; text?: unknown };
+  // a "choice" that was not on offer is typed text: gated and fenced like one (hooks/dialogue.ts, town/talk.ts)
   if (isResident(db, id)) {
-    if (body.kind === "choice" && typeof body.text === "string") return c.json(publicLine(await residentChoice(db, id, body.text)));
-    if (body.kind === "free" && typeof body.text === "string") {
-      const r = await residentFree(db, id, body.text);
+    if ((body.kind === "choice" || body.kind === "free") && typeof body.text === "string") {
+      const r = body.kind === "choice" ? await residentChoice(db, id, body.text) : await residentFree(db, id, body.text);
       if ("npc_line" in r) return c.json(publicLine(r));
       return c.json({ gated: r.gated });
     }
     return c.json({ ...publicLine(residentOpen(db, id)), wares: waresFor(db, id) });
   }
   await personasOrTimeout();
-  if (body.kind === "choice" && typeof body.text === "string") return c.json(publicLine(await pickChoice(db, id, body.text)));
-  if (body.kind === "free" && typeof body.text === "string") {
-    const r = await freeReply(db, id, body.text);
+  if ((body.kind === "choice" || body.kind === "free") && typeof body.text === "string") {
+    const r = body.kind === "choice" ? await pickChoice(db, id, body.text) : await freeReply(db, id, body.text);
     if ("npc_line" in r) return c.json(publicLine(r));
     return c.json({ gated: r.gated });
   }
@@ -466,7 +480,12 @@ const server = serve({ fetch: app.fetch, hostname: HOST, port: PORT }, (info) =>
 });
 
 // push channel: the game never waits on a call, results arrive here
-const wss = new WebSocketServer({ server: server as import("node:http").Server, path: "/ws" });
+const wss = new WebSocketServer({
+  server: server as import("node:http").Server,
+  path: "/ws",
+  // the same rule as /api: the game's own pages only (a browser always sends an Origin here)
+  verifyClient: (info: { origin: string; req: import("node:http").IncomingMessage }) => allowedHost(info.req.headers.host) && (!info.req.headers.origin || allowedOrigin(info.origin)),
+});
 wss.on("connection", (ws) => ws.send(JSON.stringify({ type: "jobs", ...jobsPayload() })));
 
 function broadcast(msg: unknown): void {

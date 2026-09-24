@@ -115,11 +115,27 @@ export class Day {
 
   // ------------------------------------------------------------- server calls
 
+  /**
+   * Replies come back in any order: a slow /api/tick sent before a sleep must not put the clock
+   * back to the evening. Each call takes a number when it is sent; a tick older than the last
+   * reply applied is dropped. A sleep is always applied, and no tick goes out while it is on its way.
+   */
+  private sleeping = false;
+  private sent = 0;
+  private applied = 0;
+  private fresh(seq: number): boolean {
+    if (seq < this.applied) return false;
+    this.applied = seq;
+    return true;
+  }
+
   async tick(): Promise<void> {
-    if (this.busy) return;
+    if (this.busy || this.sleeping) return;
     this.busy = true;
+    const seq = ++this.sent;
     try {
       const r = await api.tick();
+      if (!this.fresh(seq)) return;
       this.apply(r);
       if (r.night) this.showNight(r.night);
     } catch {
@@ -133,12 +149,18 @@ export class Day {
   onWakeHome: (home: string) => void = () => {};
 
   async sleep(call: () => Promise<JobsPayload & { night: Night }> = api.sleep): Promise<void> {
+    if (this.sleeping) return; // E twice: one night
+    const seq = ++this.sent;
+    this.sleeping = true;
     try {
       const r = await call();
+      this.applied = Math.max(this.applied, seq);
       this.apply(r);
       this.showNight(r.night);
     } catch (e) {
       this.toast((e as Error).message);
+    } finally {
+      this.sleeping = false;
     }
   }
 

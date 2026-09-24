@@ -203,17 +203,19 @@ export function remember(
   const day = (db.prepare("SELECT day FROM player WHERE id = 1").get() as { day: number }).day;
   const gist = rumour?.gist.trim().slice(0, 160) || null;
   const tone = Math.max(-2, Math.min(2, Math.round(rumour?.tone ?? 0)));
+  const w = Math.max(1, Math.min(10, Math.round(weight)));
   db.prepare("INSERT INTO npc_memory (npc_id, text, source, heard_from, weight, day, gist, tone) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(
     id,
     text.trim().slice(0, 200),
     source,
     from,
-    Math.max(1, Math.min(10, Math.round(weight))),
+    w,
     day,
     gist,
     tone,
   );
-  spreadGossip(db);
+  // only a memory that can spread starts the gossip (the scan reads every unspread row)
+  if (source === "seen" && w >= 6 && id !== "fientje") spreadGossip(db);
 }
 
 /**

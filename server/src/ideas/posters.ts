@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { DB } from "../db.ts";
+import { gameGeneration, type DB } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
 import { DAY_NAMES } from "../day.ts";
 import { writeEvent } from "../director/eventlog.ts";
@@ -13,7 +13,7 @@ import { houseDoors, walkMap, WALL } from "../town/walkmap.ts";
 import { hasDeeds, THINGS, type DeedRow } from "../town/deeds.ts";
 import { policePost } from "../town/police.ts";
 import { pressTown } from "../paper/town.ts";
-import { canCallIdeas, clamp, d2, digitsOf, GIFTS, namesOk, now, numbersOk, OUT_OF_WORLD, round5 } from "./common.ts";
+import { canCallIdeas, clamp, d2, digitsOf, GIFTS, namesOk, now, numbersOk, OUT_OF_WORLD, round5, within } from "./common.ts";
 
 // Wall posters (M6 AI ideas). Printed bills pasted on the walls at busy spots.
 // The ENGINE picks what goes up, from the log and the calendar, and owns every
@@ -101,19 +101,21 @@ export function nearLabel(x: number, z: number): string {
   return best[0];
 }
 
-let spotCache: PosterSpot[] | null = null;
+/** Kept per town (its seed and its post office): a new game may put the post office elsewhere. */
+let spotCache: { key: string; spots: PosterSpot[] } | null = null;
 /**
  * Two places on a house front near each busy spot (and by the police post and the post
  * office): a stretch of wall beside a door, and a reachable place to stand and read.
  */
 export function posterSpots(db: DB): PosterSpot[] {
-  if (spotCache) return spotCache;
+  const post = pressTown(db)?.post;
+  const key = `${town(db).town.seed}:${post ? post.step.join(",") : "-"}`;
+  if (spotCache?.key === key) return spotCache.spots;
   const wm = walkMap();
   const doors = houseDoors();
   const anchors = ANCHORS.slice();
   const pp = policePost();
   anchors.push({ id: "police", label: pp.label, x: pp.x, z: pp.z });
-  const post = pressTown(db)?.post;
   if (post) anchors.push({ id: "post", label: "the post office", x: post.step[0], z: post.step[1] });
   const out: PosterSpot[] = [];
   const used: Array<[number, number]> = [];
@@ -140,7 +142,7 @@ export function posterSpots(db: DB): PosterSpot[] {
       }
     }
   }
-  spotCache = out;
+  spotCache = { key, spots: out };
   return out;
 }
 
@@ -480,6 +482,7 @@ export async function putUp(db: DB, plans: PosterPlan[], opts: { runner?: Runner
   if (!plans.length) return [];
   let words: Array<PosterText | null> = plans.map(() => null);
   let source = "engine";
+  const gen = gameGeneration();
   if (canCallIdeas(db)) {
     const res = await callClaude(db, { hook: "poster", system: POSTER_SYSTEM, prompt: posterPrompt(plans), schema: PosterBatchSchema, timeoutMs: opts.timeoutMs }, opts.runner);
     if (res.ok && res.data) {
@@ -493,18 +496,22 @@ export async function putUp(db: DB, plans: PosterPlan[], opts: { runner?: Runner
       });
     }
   }
+  // a new game began while the model wrote: these bills were for the old week
+  if (gameGeneration() !== gen) return [];
   // the spots may have been taken while the model wrote
   const ids: number[] = [];
-  plans.forEach((p, i) => {
-    if (hasRef(db, p.ref)) return;
-    if (db.prepare("SELECT 1 FROM poster WHERE status = 'up' AND spot = ?").get(p.spot.id)) {
-      const s = freeSpot(db, p.thing ? { x: p.thing.x, z: p.thing.z } : null);
-      if (!s) return;
-      p = { ...p, spot: s };
-    }
-    const w = words[i];
-    ids.push(insertPoster(db, p, w ?? engineText(p), w ? source : "engine"));
-  });
+  db.transaction(() => {
+    plans.forEach((p, i) => {
+      if (hasRef(db, p.ref)) return;
+      if (db.prepare("SELECT 1 FROM poster WHERE status = 'up' AND spot = ?").get(p.spot.id)) {
+        const s = freeSpot(db, p.thing ? { x: p.thing.x, z: p.thing.z } : null);
+        if (!s) return;
+        p = { ...p, spot: s };
+      }
+      const w = words[i];
+      ids.push(insertPoster(db, p, w ?? engineText(p), w ? source : "engine"));
+    });
+  })();
   return ids;
 }
 
@@ -557,12 +564,14 @@ export function takeDown(db: DB): Array<{ id: number; why: string; paid_c?: numb
       const solved = db.prepare("SELECT id FROM world_event WHERE verb = 'robbery_solved' AND ref_id = ?").get(Number(p.ref.slice(3))) as { id: number } | undefined;
       if (solved) {
         // Jef told the police and the thief was found: the police pay the bill's reward, once
-        down(p.id, "solved");
-        db.transaction(() => {
+        // (the bill comes down in the same transaction as the pay, and only if it was still up)
+        const paid = db.transaction(() => {
+          if (db.prepare("UPDATE poster SET status = 'down', why_down = 'solved' WHERE id = ? AND status = 'up'").run(p.id).changes !== 1) return false;
           db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = 1").run(p.reward_c);
           log(db, "reward_paid", String(p.id), `The police paid Jef the ${p.reward_c} centimes reward on the bill: the pickpocket he named was found.`);
+          return true;
         })();
-        out.push({ id: p.id, why: "solved", paid_c: p.reward_c });
+        if (paid) out.push({ id: p.id, why: "solved", paid_c: p.reward_c });
         continue;
       }
     }
@@ -612,7 +621,7 @@ function lostRow(db: DB, posterId: number): { p: PosterRow; t: LostThing } {
 export function pickLost(db: DB, posterId: number, at: { x: number; z: number }): { text: string } {
   const { p, t } = lostRow(db, posterId);
   if (t.state !== "lying") throw new GameError("it is not there any more", 409);
-  if (d2(at, t) > REACH_M) throw new GameError("you are not there yet", 409);
+  if (!within(at, t, REACH_M)) throw new GameError("you are not there yet", 409);
   if (!t.dog && (db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n >= POCKET_SLOTS) throw new GameError("your pockets are full", 409);
   db.transaction(() => {
     db.prepare("UPDATE poster SET thing_json = ? WHERE id = ?").run(JSON.stringify({ ...t, state: "held" }), p.id);
@@ -628,7 +637,7 @@ export function returnLost(db: DB, posterId: number, at: { x: number; z: number 
   if (t.state !== "held") throw new GameError("you do not have it", 409);
   const o = p.owner ? resident(db, p.owner) : undefined;
   if (!o) throw new GameError("nobody to give it to", 409);
-  if (d2(at, { x: o.home.sx, z: o.home.sz }) > REACH_M) throw new GameError("this is not their door", 409);
+  if (!within(at, { x: o.home.sx, z: o.home.sz }, REACH_M)) throw new GameError("this is not their door", 409);
   db.transaction(() => {
     db.prepare("UPDATE poster SET thing_json = ?, status = 'down', why_down = 'found' WHERE id = ?").run(JSON.stringify({ ...t, state: "returned" }), p.id);
     db.prepare("DELETE FROM item WHERE kind = 'found' AND ref = ?").run(p.id);

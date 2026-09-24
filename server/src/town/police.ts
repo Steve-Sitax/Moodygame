@@ -64,7 +64,12 @@ export interface Visit {
   /** The choices on offer in the talk, and what they mean to the engine. */
   offered: Record<string, Stance>;
   calls: number;
+  /** Date.now() when a model call for Jef's answer began; cleared when it ends. */
+  answering?: number;
 }
+
+/** A mark older than this is from a request that died: the 20 s model bound, and room to spare. */
+const ANSWERING_MS = 60_000;
 
 export interface LastVerdict {
   visit: number;
@@ -538,14 +543,20 @@ export function policeOpen(db: DB, id: string): PublicLine {
 
 /** Jef answers: a choice, or his own words (gated and fenced). Then the engine decides. */
 export async function policeAnswer(db: DB, id: string, kind: "choice" | "free", raw: string, runner?: Runner): Promise<PublicLine & { verdict?: LastVerdict; night?: CellNight }> {
-  const { v } = need(db, id);
-  if (v.state !== "talking") v.state = "talking";
+  const { v, s } = need(db, id);
+  // one answer at a time: while the model writes the reply to the first, a second is refused
+  if (v.answering && Date.now() - v.answering < ANSWERING_MS) throw new GameError("he is still speaking", 409);
+  if (v.state !== "talking") {
+    v.state = "talking";
+    save(db, s);
+  }
   let stance: Stance;
   let said: string;
   let free = false;
-  if (kind === "choice") {
+  // a "choice" that was not on offer is his own words: the gate and the fence below
+  if (kind === "choice" && Object.hasOwn(v.offered, raw.slice(0, 120))) {
     said = raw.slice(0, 120);
-    stance = v.offered[said] ?? stanceOf(said);
+    stance = v.offered[said];
   } else {
     const g0 = gateText(raw);
     const g = g0.ok && POLICE_BLOCK.some((re) => re.test(g0.text)) ? { ok: false as const, reason: "blocked" } : g0;
@@ -619,6 +630,7 @@ async function storyAndReply(db: DB, id: string, said: string, runner?: Runner):
   const sess = { calls: v.calls };
   if (canCall(db, sess)) {
     v.calls++;
+    v.answering = Date.now();
     save(db, s);
     const matter = deeds.map((d, i) => {
       const e = ev[i];
@@ -654,7 +666,8 @@ ${said}
 >>>
 
 Rate his story and write your four lines.`;
-    const res = await callClaude(db, { hook: "resident_police", system: SYSTEM + "\n" + STORY_RULES, prompt, schema: StorySchema }, runner);
+    const res = await callClaude(db, { hook: "resident_police", system: SYSTEM + "\n" + STORY_RULES, prompt, schema: StorySchema }, runner).finally(() => doneAnswering(db, v.id));
+    stillTalking(db, id, v.id);
     // a claim that would help him counts only where his own words show it (story.ts supportedClaims)
     if (res.ok && res.data) rating = { ...res.data, claims: supportedClaims(res.data.claims, said) };
   }
@@ -680,7 +693,7 @@ Rate his story and write your four lines.`;
     remember(db, id, `Jef told me a story about ${deeds[0] ? describeDeed(db, deeds[0]) : "a theft"}, and the facts showed it for a lie.`, 6, "seen", null, { gist: "Jef lied to the police", tone: -1 });
     applyTrust(db, id, -1, 0);
   } else if (j.trueStory) remember(db, id, "Jef told me his side plainly, and it fitted what I knew.", 4);
-  const out = applyVerdict(db, id, dec, stance, text);
+  const out = applyVerdict(db, id, v.id, dec, stance, text);
   return {
     npc_line: text,
     mood,
@@ -739,14 +752,15 @@ Tell him, in character.`;
   const sess = { calls: v.calls };
   if (!noCall && canCall(db, sess)) {
     v.calls++;
+    v.answering = Date.now();
     save(db, s);
-    const res = await callClaude(db, { hook: "resident_police", system: SYSTEM + "\n" + POLICE_RULES, prompt, schema: PoliceLineSchema }, runner);
+    const res = await callClaude(db, { hook: "resident_police", system: SYSTEM + "\n" + POLICE_RULES, prompt, schema: PoliceLineSchema }, runner).finally(() => doneAnswering(db, v.id));
     if (res.ok && res.data && sumsOk(res.data.npc_line, dec.verdict, dec.fine_c, Math.min(dec.fine_c, p.money_c))) {
       text = plainEnglish(res.data.npc_line);
       mood = res.data.mood;
     }
   }
-  const out = applyVerdict(db, id, dec, stance, text);
+  const out = applyVerdict(db, id, v.id, dec, stance, text);
   return {
     npc_line: text,
     mood,
@@ -789,8 +803,27 @@ export function fallbackLine(verdict: Verdict, fine: number, paid: number): stri
   return `That's enough. You're coming with me to the post by the town hall. A night in the cell${paid ? `, and ${paid} centimes for the fine` : ""}. Walk.`;
 }
 
+/** The mark of a model call for his answer is gone (the call ended, well or not). */
+function doneAnswering(db: DB, visit: number): void {
+  const s = policeState(db);
+  if (s.visit?.id !== visit || s.visit.answering === undefined) return;
+  delete s.visit.answering;
+  save(db, s);
+}
+
+/**
+ * Review 2026-09-24: the model call takes seconds, and the visit may change meanwhile (he ran, the
+ * agent went off duty, another answer settled it). A verdict is applied only to the visit it was made for.
+ */
+function stillTalking(db: DB, agent: string, visit: number): Visit {
+  const v = policeState(db).visit;
+  if (!v || v.id !== visit || v.agent !== agent || v.state !== "talking") throw new GameError("the agent has no more to say to you", 409);
+  return v;
+}
+
 /** Engine side of the verdict: money, record, memories, rumours, the thing back, maybe the cell. */
-function applyVerdict(db: DB, agent: string, dec: Decision, stance: Stance, text: string): { last: LastVerdict; night?: CellNight } {
+function applyVerdict(db: DB, agent: string, visit: number, dec: Decision, stance: Stance, text: string): { last: LastVerdict; night?: CellNight } {
+  stillTalking(db, agent, visit);
   const s = policeState(db);
   const v = s.visit!;
   const deeds = visitDeeds(db, v);

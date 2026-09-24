@@ -191,7 +191,16 @@ export class Town {
   ) {}
 
   async load(): Promise<void> {
-    const d = await api.town();
+    // the server may still be starting (or busy): ask again, waiting longer each time
+    let d: TownData | null = null;
+    for (let wait = 2000; !d; wait = Math.min(wait * 2, 30_000)) {
+      try {
+        d = await api.town();
+      } catch (e) {
+        console.warn(`the town did not load; again in ${wait / 1000} s`, e);
+        await new Promise((res) => setTimeout(res, wait));
+      }
+    }
     this.data = d;
     this.crowd.anonymous = false;
     for (const r of d.residents) {
@@ -1060,13 +1069,18 @@ export class Town {
     return null;
   }
 
+  private grabbing = false;
   async grab(id: string): Promise<void> {
+    if (this.grabbing) return; // E twice: one grab
+    this.grabbing = true;
     try {
       const r = await api.catchThief(id);
       this.onPayload(r);
       this.toast(r.text);
     } catch (e) {
       this.toast(`${(e as Error).message}.`);
+    } finally {
+      this.grabbing = false;
     }
     this.robbed.set(id, 0);
   }

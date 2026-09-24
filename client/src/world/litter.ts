@@ -923,7 +923,7 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
     [3, "slats_0"], [3, "cabbage_0"], [2, "cabbage_1"], [3, "straw_wisp"], [1.5, "bottle"], [1, "bottle_brown"], [2, "paper_ball"], [0.5, "rat_dead"], [1.5, "veg_rotten"],
     [1.5, "sacking_1"], [1.5, "rope_end_0"], [1, "fish_small"], [0.8, "fish_heads"],
   ];
-  const floaters: Array<{ i: number; x: number; z: number; yaw: number; ph: number; name: string }> = [];
+  const floaters: Array<{ i: number; x: number; z: number; yaw: number; ph: number; name: string; chunk: string }> = [];
   const waterOk = (x: number, z: number) =>
     (at(x, z) & WATER) !== 0 && (at(x, z) & 1) === 0 && !bridges.some((q) => inR(q, x, z, 4)) && (opts.swimFree ? opts.swimFree(x, z, 0.6) : true);
   const floatIn = (n: number, box: [number, number, number, number], wallBand: number) => {
@@ -1130,8 +1130,8 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
     if (!fgid.has(p.name)) fgid.set(p.name, floatBatch.addGeometry(protos.get(p.name)!.geo));
     const id = floatBatch.addInstance(fgid.get(p.name)!);
     floatBatch.setColorAt(id, fcol.setScalar(p.shade));
-    floaters.push({ i: id, x: p.x, z: p.z, yaw: p.yaw, ph: R() * 6.28, name: p.name });
     const inst: Inst = { batch: floatBatch, id, chunk: chunkKey(p.x, p.z) };
+    floaters.push({ i: id, x: p.x, z: p.z, yaw: p.yaw, ph: R() * 6.28, name: p.name, chunk: inst.chunk });
     insts.push(inst);
     let l = chunkInsts.get(inst.chunk);
     if (!l) chunkInsts.set(inst.chunk, (l = []));
@@ -1307,7 +1307,7 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
     applyLevels();
     const wt = psxUniforms.uTime.value;
     for (const f of floaters) {
-      if (!chunkShown.get(chunkKey(f.x, f.z))) continue;
+      if (!chunkShown.get(f.chunk)) continue;
       // bob on the waves (waveAt is the water shader's sum), turn slowly, drift a hand's breadth
       const dx = Math.sin(t * 0.07 + f.ph) * 0.25;
       const dz = Math.cos(t * 0.05 + f.ph) * 0.25;

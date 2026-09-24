@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { DB } from "../db.ts";
+import { gameGeneration, type DB } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
 import { CALLS_PER_DAY, CALLS_RESERVE, PAPER_CALLS_PER_DAY } from "../config.ts";
 import { DAY_NAMES, WEATHER_TEXT, weather } from "../day.ts";
@@ -7,7 +7,7 @@ import { writeEvent } from "../director/eventlog.ts";
 import { GameError } from "../game.ts";
 import { listJobs } from "../hooks/jobBoard.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
-import { ITEM_REF, ITEMS, waresOf } from "../trade.ts";
+import { ITEM_REF, ITEMS, marketOf, waresOf } from "../trade.ts";
 import { rngFrom } from "../town/population.ts";
 import { resident, town } from "../town/store.ts";
 import { rollNews } from "../ideas/abroad.ts";
@@ -129,9 +129,10 @@ export function writeHarbour(db: DB, day: number): ShipFact[] {
 /** The lowest price of each food and drink in town now (engine prices, with any event's factor). */
 export function pricesNow(db: DB): Array<{ kind: string; name: string; price_c: number }> {
   const best = new Map<string, number>();
+  const market = marketOf(db);
   for (const r of town(db).town.residents) {
     if (r.work.stall === undefined && !r.work.shop && r.trade !== "publican") continue;
-    for (const w of waresOf(db, r.id)) if (ITEMS[w.kind]?.use === "eat" || ITEMS[w.kind]?.use === "drink") best.set(w.kind, Math.min(best.get(w.kind) ?? Infinity, w.price_c));
+    for (const w of waresOf(db, r.id, market)) if (ITEMS[w.kind]?.use === "eat" || ITEMS[w.kind]?.use === "drink") best.set(w.kind, Math.min(best.get(w.kind) ?? Infinity, w.price_c));
   }
   const order = ["herring", "eel", "bread", "apple", "beer", "jenever"];
   return order.filter((k) => best.has(k)).map((k) => ({ kind: k, name: ITEMS[k].name.replace(/^(a|an) (pot of |loaf of |nip of )?/, ""), price_c: best.get(k)! }));
@@ -458,12 +459,15 @@ export async function makePaper(db: DB, runner?: Runner, timeoutMs?: number): Pr
   const facts = paperFacts(db, day);
   let paper: Paper | null = null;
   let error: string | undefined;
+  const gen = gameGeneration();
   if (canCallPress(db)) {
     const res = await callClaude(db, { hook: "newspaper", system: PAPER_SYSTEM, prompt: paperPrompt(day, facts), schema: PaperSchema, timeoutMs }, runner);
     if (res.ok && res.data) paper = cleanPaper(day, facts, res.data);
     else error = res.error;
   } else error = "no budget";
   if (!paper) paper = enginePaper(day, facts);
+  // a new game began while the model wrote: this paper was for the old week
+  if (gameGeneration() !== gen) return { paper, error: "new game" };
   // printed while we waited? keep the first
   const again = paperOf(db, day);
   if (again) return { paper: again };

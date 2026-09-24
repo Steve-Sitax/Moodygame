@@ -5,7 +5,7 @@ import { callClaude, type Runner } from "../ai/claude.ts";
 import { DAY_NAMES, weather, WEATHER_TEXT, type Weather } from "../day.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { ALL_EMPLOYERS, SPOTS, SYSTEM, employerName, listJobs, type JobRow } from "../hooks/jobBoard.ts";
-import { MOODS, gateText, markFreeLine, onResetTalks, type Line } from "../hooks/dialogue.ts";
+import { MOODS, fenceTurns, gateText, markFreeLine, onResetTalks, type Line } from "../hooks/dialogue.ts";
 import { applyTrust, relationship, remember, topMemories, trustText } from "../npcs.ts";
 import { ITEMS } from "../trade.ts";
 import { waresOf } from "../trade.ts";
@@ -17,6 +17,7 @@ import type { Resident } from "./population.ts";
 import { GUARD_POSTS, isGarrison, isSoldier } from "./garrison.ts";
 import { roundDoing } from "./lively.ts";
 import { ActionProposalSchema } from "../director/vocab.ts";
+import { GameError } from "../game.ts";
 
 // Talk with any townsperson (M3e). Everyone answers by their own stats, job,
 // family, mood and the hour, and by what they have heard about Jef.
@@ -462,6 +463,12 @@ interface Session {
   used: Set<Topic>;
   /** The choices on offer now, and what they mean to the engine (null: a line Claude wrote; M6: an engine topic of talkExtras). */
   offered: Map<string, Topic | ExtraTopic | null>;
+  /**
+   * Jef typed his own words in this meeting. Every later prompt of the meeting replays them, so
+   * what the model writes to keep (memory, rumour, persona) is worded by the engine instead: those
+   * go on to prompts that GPT Luna writes (npc_convo, family_share, rumour_twist; docs/03 wall 1).
+   */
+  typed: boolean;
 }
 
 /** M6: the extra lines Jef may say to this person now (engine-answered), not yet said in this meeting. */
@@ -476,7 +483,7 @@ onResetTalks(() => sessions.clear());
 function sessionFor(id: string): Session {
   let s = sessions.get(id);
   if (!s || Date.now() - s.lastAt > TTL_MS) {
-    s = { turns: [], trust: 0, calls: 0, lastAt: Date.now(), used: new Set(), offered: new Map() };
+    s = { turns: [], trust: 0, calls: 0, lastAt: Date.now(), used: new Set(), offered: new Map(), typed: false };
     sessions.set(id, s);
   }
   return s;
@@ -501,10 +508,16 @@ function nextChoices(db: DB, r: Resident, sess: Session): string[] {
 function apply(db: DB, r: Resident, sess: Session, line: ResidentLine): Line & { trust_applied: number } {
   const applied = applyTrust(db, r.id, line.trust_delta, sess.trust);
   sess.trust += applied;
-  if (line.persona_line.trim()) setPersonaLine(db, r.id, plainEnglish(line.persona_line));
+  if (line.persona_line.trim() && !sess.typed) setPersonaLine(db, r.id, plainEnglish(line.persona_line));
   const note = line.memory_note.trim();
   const rumour = line.rumour.trim();
-  if (note || rumour) {
+  if ((note || rumour) && sess.typed) {
+    // after Jef's own words: the engine words what is kept, the tone follows the model's
+    const tone = Math.sign(line.rumour_tone || applied);
+    const how = tone < 0 ? ", and it went badly" : tone > 0 ? ", and they parted on good terms" : "";
+    const gist = /^Jef\b/.test(rumour) ? { gist: `Jef had words with ${r.name}${how}`, tone: line.rumour_tone } : null;
+    remember(db, r.id, `Jef talked with me in his own words${tone < 0 ? ", and it went badly" : tone > 0 ? ", and we parted on good terms" : ""}.`, Math.min(line.memory_weight, 7), "seen", null, gist);
+  } else if (note || rumour) {
     const gist = /^Jef\b/.test(rumour) ? plainEnglish(rumour) : null;
     remember(db, r.id, note || rumour, Math.min(line.memory_weight, 7), "seen", null, gist ? { gist, tone: line.rumour_tone } : null);
   }
@@ -568,7 +581,7 @@ ${(() => {
     return extra ? `\n${extra}\n` : "";
   })()}
 THIS MEETING SO FAR
-${turns.length ? turns.join("\n") : "- (nothing said yet)"}
+${turns.length ? fenceTurns(turns).join("\n") : "- (nothing said yet)"}
 
 SCENE
 ${scene}`;
@@ -634,12 +647,18 @@ export function residentOpen(db: DB, id: string) {
   return apply(db, r, sess, line);
 }
 
-/** Jef picks one of the offered lines. */
+/** Jef picks one of the offered lines. A line that was not offered is typed text: the gate and the fence (residentFree). */
 export async function residentChoice(db: DB, id: string, choice: string, runner?: Runner) {
   const r = need(db, id);
   const sess = sessionFor(id);
-  const said = choice.slice(0, 120);
-  const offered = sess.offered.has(said) ? sess.offered.get(said)! : null;
+  // as offered, or as the client showed it (plainEnglish)
+  const said = [...sess.offered.keys()].find((k) => k.slice(0, 120) === choice.slice(0, 120) || plainEnglish(k).slice(0, 120) === choice.slice(0, 120));
+  if (said === undefined) {
+    const own = await residentFree(db, id, choice, runner);
+    if (!("npc_line" in own)) throw new GameError(`not said (${own.gated})`, own.gated === "too fast" ? 409 : 400);
+    return own;
+  }
+  const offered = sess.offered.get(said)!;
   sess.turns.push(`- Jef: ${said}`);
   // M6: an engine topic (talkExtras): the engine answers and applies it, never the model
   if (offered && typeof offered === "object") {
@@ -678,6 +697,7 @@ export async function residentFree(db: DB, id: string, raw: string, runner?: Run
     return { ...apply(db, r, sess, { ...engineLine(db, r, sess, text), mood: "suspicious" }), gated: "blocked", note: `${r.sex === "f" ? "She" : "He"} looks at you as if you had been drinking.` };
   }
   markFreeLine();
+  sess.typed = true;
   sess.turns.push(`- Jef (in his own words): ${g.text}`);
   // M6: a price argued at a stall, a story told to the police: another module answers, in this meeting's call
   const meeting: Meeting = { canCall: () => canCall(db, sess), spend: () => void sess.calls++ };

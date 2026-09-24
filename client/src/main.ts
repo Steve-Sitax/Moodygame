@@ -10,7 +10,7 @@ import { puddleAt } from "./world/puddlemask";
 import { setMirrorScale } from "./world/mirror";
 import { BOARD_POS, DOSS_POS, RAMP, SPOTS, buildRijnkaai } from "./world/rijnkaai";
 import { FirstPerson } from "./player/firstPerson";
-import { Soundscape } from "./audio/soundscape";
+import { Soundscape, type VehicleSound } from "./audio/soundscape";
 import { Jobs } from "./game/jobs";
 import CITY from "../../shared/city.json";
 import { Crowd, placesFromCity } from "./game/crowd";
@@ -84,7 +84,7 @@ jobs.extraActions.push((x, z) => craneClimb.keys(x, z));
 // townspeople on the quays and squares (game/crowd.ts)
 const crowd = new Crowd(
   world.scene,
-  { flags: world.city.flags, isFree: world.isFree, solids: world.solids, gate: world.bridgeWait, addCollider: world.addCollider, removeCollider: world.removeCollider, addMover: world.addMover, removeMover: world.removeMover },
+  { flags: world.city.flags, isFree: world.isFree, solids: world.solids, solidsVersion: world.solidsVersion, gate: world.bridgeWait, addCollider: world.addCollider, removeCollider: world.removeCollider, addMover: world.addMover, removeMover: world.removeMover },
   placesFromCity((CITY as unknown as { places: Record<string, { x: number; z: number; kind: string }> }).places),
   { mats: { sack: world.mats.sack, crate: world.mats.crate } },
 );
@@ -302,6 +302,7 @@ player.onStroke = () => sound?.swimStroke();
 function resize(): void {
   const w = window.innerWidth;
   const h = window.innerHeight;
+  if (w < 1 || h < 1) return; // a minimised window: no Infinity aspect, no zero-size target
   renderer.setSize(w, h, false);
   const aspect = w / h;
   player.camera.aspect = aspect;
@@ -461,6 +462,17 @@ function safe(name: string, fn: () => void): void {
     }
   }
 }
+// the people walking (and Jef's pushed cart) for the vehicles' and bridges' eyes: one list a
+// frame, made before anything reads it (they read it a dozen times a frame)
+let crowdNow: Array<{ x: number; z: number }> = [];
+const folkNow: Array<{ x: number; z: number }> = [];
+function refreshFolk(): void {
+  crowdNow = crowd.positions();
+  folkNow.length = 0;
+  for (const q of crowdNow) folkNow.push(q);
+  for (const q of handcarts.points()) folkNow.push(q);
+}
+const vehicleSounds: VehicleSound[] = [];
 const timer = new THREE.Timer();
 timer.connect(document);
 let elapsed = 0;
@@ -470,6 +482,7 @@ function frame(): void {
   timer.update();
   const dt = Math.min(timer.getDelta(), 0.1);
   elapsed += dt;
+  safe("refreshFolk", refreshFolk);
   safe("world.update", () => world.update(elapsed, dt, player.camera));
   safe("player.update", () => player.update(dt));
   safe("handcarts.update", () => handcarts.update(dt));
@@ -524,23 +537,31 @@ function frame(): void {
       rail.onCraneTravel = (x, z) => sound?.gateBell(x, z); // the crane driver's warning bell
     }
     // the ridden velocipede rattles like a handcart: iron tyres on stone (M3h)
-    if (tr || rail || bus || deeds.velos.ridden)
-      sound?.setVehicles([...(tr?.info() ?? []), ...(rail?.vehicles() ?? []), ...(bus?.vehicles() ?? []), ...deeds.velos.sounds(), ...handcarts.sounds()]);
+    if (sound && (tr || rail || bus || deeds.velos.ridden)) {
+      // one reused list (the drays' own light list, not their dev readout)
+      vehicleSounds.length = 0;
+      tr?.sounds(vehicleSounds);
+      for (const q of rail?.vehicles() ?? []) vehicleSounds.push(q);
+      for (const q of bus?.vehicles() ?? []) vehicleSounds.push(q);
+      for (const q of deeds.velos.sounds()) vehicleSounds.push(q);
+      for (const q of handcarts.sounds()) vehicleSounds.push(q);
+      sound.setVehicles(vehicleSounds);
+    }
   }
   {
     // the goods train and the omnibus stop for the people walking in front of them
     const rail = world.railway();
     // (M6 handcart: and for the cart Jef pushes; the drays of the quay traffic too)
-    if (rail && !rail.people) rail.people = () => [...crowd.positions(), ...handcarts.points()];
+    if (rail && !rail.people) rail.people = () => folkNow;
     const trf = world.traffic();
-    if (trf && !trf.people) trf.people = () => [...crowd.positions(), ...handcarts.points()];
+    if (trf && !trf.people) trf.people = () => folkNow;
     if (!peopleWired) {
       // bridges never open under anyone walking
-      world.setPeople(() => crowd.positions());
+      world.setPeople(() => crowdNow);
       peopleWired = true;
     }
     const bus = world.omnibus();
-    if (bus && !bus.people) bus.people = () => [...crowd.positions(), ...handcarts.points()];
+    if (bus && !bus.people) bus.people = () => folkNow;
     // M6 transport: the town's own people ride the omnibus (no fare), and step off at their stop
     if (bus && !bus.onResidentOff) bus.onResidentOff = (_b, id, at) => journeys.offBus(id, at);
   }
@@ -555,20 +576,23 @@ requestAnimationFrame(frame);
 // the stutter).
 world.city.ready.then(() => {
   const hidden: THREE.Object3D[] = [];
+  // each mesh gets its own culling flag back (birds, trains, cranes... are built unculled)
+  const culled: THREE.Object3D[] = [];
   world.scene.traverse((o) => {
     if ((o as THREE.Mesh).isMesh) {
       if (!o.visible) {
         hidden.push(o);
         o.visible = true;
       }
-      o.frustumCulled = false;
+      if (o.frustumCulled) {
+        culled.push(o);
+        o.frustumCulled = false;
+      }
     }
   });
   renderer.compile(world.scene, player.camera);
   retro.render(world.scene, player.camera, elapsed);
-  world.scene.traverse((o) => {
-    if ((o as THREE.Mesh).isMesh) o.frustumCulled = true;
-  });
+  for (const o of culled) o.frustumCulled = true;
   for (const o of hidden) o.visible = false;
 }).catch(() => {});
 

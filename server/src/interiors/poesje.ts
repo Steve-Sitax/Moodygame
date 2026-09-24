@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { DB } from "../db.ts";
+import { gameGeneration, type DB } from "../db.ts";
 import { POESJE_CALLS_PER_DAY } from "../config.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
 import { clock, WEATHER_TEXT } from "../day.ts";
@@ -184,6 +184,7 @@ export async function writeShow(db: DB, runner?: Runner): Promise<Show> {
   writing = (async () => {
     const c = clock(db);
     const facts = showFacts(db);
+    const gen = gameGeneration();
     let play: Play | null = null;
     if (canCallPoesje(db)) {
       const prompt = `FACTS (what really happened in town lately; the game's words):
@@ -196,7 +197,8 @@ ${c.weekday} evening, ${WEATHER_TEXT[c.weather]}.`;
     }
     const show: Show = { day: c.day, play: play ?? fallbackPlay(facts, c.day), source: play ? "claude" : "engine", facts: facts.map((f) => f.text), aboutJef: facts.some((f) => f.jef) };
     // the day may have turned while it was written: it belongs to the day it was begun
-    if (!getState(db, showKey(c.day), null)) setState(db, showKey(c.day), show);
+    // and a new game begun meanwhile does not get the old week's play
+    if (gameGeneration() === gen && !getState(db, showKey(c.day), null)) setState(db, showKey(c.day), show);
     return show;
   })();
   try {

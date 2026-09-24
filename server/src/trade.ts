@@ -3,8 +3,8 @@ import { GameError, log, player } from "./game.ts";
 import { remember } from "./npcs.ts";
 import { activityAt } from "./town/schedule.ts";
 import { resident, town } from "./town/store.ts";
-import { closedByEvent, priceFactor } from "./director/state.ts";
-import { newsFactor } from "./ideas/prices.ts";
+import { closedByEvent, state } from "./director/state.ts";
+import { newsFactors } from "./ideas/prices.ts";
 import { FURNITURE, FURNITURE_KINDS } from "../../shared/homes.ts";
 import { VELO_PRICE } from "./town/transport.ts";
 import { CART_PRICE } from "../../shared/handcart.ts";
@@ -126,12 +126,29 @@ const TRADE_WARES: Record<string, Array<{ kind: string; price_c: number }>> = {
   ...LIVELY_WARES,
 };
 
-/** What a person sells: the named sellers, or a townsperson by stall or shop. */
-export function waresOf(db: DB, id: string): Array<{ kind: string; price_c: number }> {
+/** The market's factor per item (an event's price and the news from abroad), each read once. */
+export type Market = (kind: string) => number;
+export function marketOf(db: DB): Market {
+  const events = state<Record<string, { factor: number }>>(db, "m4_prices", {});
+  const news = newsFactors(db);
+  return (kind) => {
+    const f = events[kind]?.factor;
+    return Math.max(0.5, Math.min(3, (f && f > 0 ? f : 1) * news(kind)));
+  };
+}
+
+/**
+ * What a person sells: the named sellers, or a townsperson by stall or shop. `market`: the
+ * factors read once (marketOf) when a loop asks many sellers; else they are read for this call.
+ */
+export function waresOf(db: DB, id: string, market?: Market): Array<{ kind: string; price_c: number }> {
+  const base = baseWaresOf(db, id);
+  if (!base.length) return base;
+  const m = market ?? marketOf(db);
   // M4: an event may move a price (0.5x to 3x) until it ends; rounded to the centime, never below 1
-  return baseWaresOf(db, id).map((w) => {
+  return base.map((w) => {
     // M6 ideas: news from abroad moves a price 10 to 30 in the hundred for 1 to 3 days (ideas/abroad.ts)
-    const f = Math.max(0.5, Math.min(3, priceFactor(db, w.kind) * newsFactor(db, w.kind)));
+    const f = m(w.kind);
     return f === 1 ? w : { kind: w.kind, price_c: Math.max(1, Math.round(w.price_c * f)) };
   });
 }

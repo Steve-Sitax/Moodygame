@@ -73,7 +73,7 @@ export function mountDirector(app: Hono, deps: DirectorDeps): void {
 
   app.post("/api/actions/sync", async (c) => {
     const body = await c.req.json().catch(() => ({}));
-    return c.json(syncFromClient(body));
+    return c.json(syncFromClient(body, Date.now(), db));
   });
 
   app.post("/api/actions/:id/report", async (c) => {

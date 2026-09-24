@@ -258,9 +258,12 @@ export class Hands {
     return [{ key: "KeyF", text: `talk to ${g.first}`, run: () => this.jobs.talk.open({ id: g.npc, def: { name: g.name } }) }];
   }
 
+  private pouring = false;
   async round(kind: "beer" | "jenever"): Promise<string> {
     const place = this.interiors.placeId;
     if (!place) return "not inside";
+    if (this.pouring) return "the last round is still being poured"; // G twice: one round, paid once
+    this.pouring = true;
     try {
       const r = await call<JobsPayload & { line: string; note: string; paid_c: number; rounds: number }>("POST", "/api/treat/round", { place, kind });
       this.jobs.refresh(r);
@@ -272,6 +275,8 @@ export class Hands {
       const m = (e as Error).message;
       this.say(m);
       return m;
+    } finally {
+      this.pouring = false;
     }
   }
 

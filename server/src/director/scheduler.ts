@@ -1,6 +1,6 @@
 import { eventPeopleMax } from "../town/popsettings.ts";
 import type { DB } from "../db.ts";
-import { clock, setWeather, type Weather } from "../day.ts";
+import { clock, setWeather, TICK_MINUTES, type Weather } from "../day.ts";
 import { ALL_EMPLOYERS, SPOTS, clampBoard, maxTier, taskFor, type Board } from "../hooks/jobBoard.ts";
 import { remember } from "../npcs.ts";
 import { plainEnglish } from "../text.ts";
@@ -12,7 +12,7 @@ import { activityAt } from "../town/schedule.ts";
 import { resident, town, TOWN_EMPLOYER_IDS } from "../town/store.ts";
 import { walkMap } from "../town/walkmap.ts";
 import { setState, state } from "./state.ts";
-import { actionOf, activeActions, endAction, endEventActions, isReserved, startAction } from "./actions.ts";
+import { actionOf, activeActions, endAction, endEventActions, isReserved, reserveSnap, startAction } from "./actions.ts";
 import { notify } from "./bus.ts";
 import { runConvo } from "./convo.ts";
 import { writeEvent } from "./eventlog.ts";
@@ -283,14 +283,16 @@ export function isFuneral(plan: { template?: string; title?: string }): boolean 
 export function funeralWidow(db: DB, salt = ""): Resident | null {
   const taken = new Set(liveEvents(db).flatMap((o) => [...peopleOf(o), ...leadsOf(o).map((l) => l.id)]));
   const busy = new Set(activeActions(db).map((a) => a.npc_id));
-  const day = clock(db).day;
+  const c = clock(db);
+  const day = c.day;
+  const snap = reserveSnap(db);
   const hash = (x: string) => {
     let h = 2166136261;
     for (let i = 0; i < x.length; i++) h = Math.imul(h ^ x.charCodeAt(i), 16777619);
     return (h >>> 0) / 4294967296;
   };
   const pool = town(db).town.residents.filter(
-    (r) => r.sex === "f" && r.family_role === "widow" && r.age >= 38 && !taken.has(r.id) && !busy.has(r.id) && !isReserved(db, r.id) && !isEmigrant(r) && !visitorOf(r) && !keptAtWork(db, r),
+    (r) => r.sex === "f" && r.family_role === "widow" && r.age >= 38 && !taken.has(r.id) && !busy.has(r.id) && !isReserved(db, r.id, snap) && !isEmigrant(r) && !visitorOf(r) && !keptAtWork(db, r, c),
   );
   return pool.sort((a, b) => hash(`${a.id}:${day}${salt}`) - hash(`${b.id}:${day}${salt}`))[0] ?? null;
 }
@@ -400,6 +402,8 @@ export function planEvent(db: DB, plan: EventPlan, opts: { dev?: boolean } = {})
   // M6: the town's routine (the dawn hiring) is not one of the day's events and does not take a slot
   const routine = ROUTINE_TEMPLATES.has(plan.template);
   if (!opts.dev && !routine && eventsToday(db).length >= EVENTS_PER_DAY) return { ok: false, why: `${EVENTS_PER_DAY} events today already` };
+  // the town is abed by ten: an event that would still run then is not planned (the night would carry it into the morning)
+  if (!opts.dev && !routine && end > Math.floor(start / 1440) * 1440 + EVENT_LAST_HOUR * 60) return { ok: false, why: `it would run past ${EVENT_LAST_HOUR}:00` };
   const live = liveEvents(db);
   const overlapping = live.filter((o) => o.start_m - EVENT_MARGIN_MIN < end && o.end_m + EVENT_MARGIN_MIN > start);
   for (const o of overlapping) {
@@ -436,6 +440,9 @@ export function cancelEvent(db: DB, id: number): void {
 
 const stageEnd = (ev: EventRow, stages: StoredStage[], i: number) => ev.start_m + stages.slice(0, i + 1).reduce((a, s) => a + s.minutes, 0);
 
+/** No event of the day's own (the routine aside) runs past this hour. */
+export const EVENT_LAST_HOUR = 22;
+
 /** Every tick: start what is due, advance stages, end what is over. Returns how many changed. */
 export function eventsTick(db: DB): number {
   // M6 town life: the naties' hiring is planned before dawn every working day
@@ -443,24 +450,51 @@ export function eventsTick(db: DB): number {
   const now = gameMinute(db);
   let changed = 0;
   for (const ev of liveEvents(db)) {
-    const stages = stagesOf(ev);
-    if (ev.status === "planned") {
-      // the town's routine (the ballad singer, the dawn hiring) starts at the tick nearest its
-      // hour, not up to a tick late (fixes 2026-09-24: the clock moves 15 minutes a tick)
-      if (now < ev.start_m - (ROUTINE_TEMPLATES.has(ev.template) ? ROUTINE_EARLY_MIN : 0)) continue;
-      if (now > ev.end_m) {
-        // the clock jumped past it (a night, a dev jump): it never happened
-        finishEvent(db, ev, "cancelled");
-        changed++;
-        continue;
+    // one event that goes wrong is called off; the others and the director still get their turn
+    try {
+      changed += eventStep(db, ev, now);
+    } catch (e) {
+      console.error(`[events] ${ev.title}`, e);
+      try {
+        cancelEvent(db, ev.id);
+      } catch (e2) {
+        console.error("[events] cancel", e2);
       }
-      startEvent(db, ev);
       changed++;
-      continue;
     }
-    let cur = eventRow(db, ev.id)!;
-    let guard = 0;
-    while (cur.status === "running" && now >= stageEnd(cur, stages, cur.stage) && guard++ < 10) {
+  }
+  if (changed) notify("events");
+  return changed;
+}
+
+/** One event's turn in the tick: start it, or play the stages whose time has come. Each change is one transaction. */
+function eventStep(db: DB, ev: EventRow, now: number): number {
+  let changed = 0;
+  const stages = stagesOf(ev);
+  if (ev.status === "planned") {
+    // the town's routine (the ballad singer, the dawn hiring) starts at the tick nearest its
+    // hour, not up to a tick late (fixes 2026-09-24: the clock moves 15 minutes a tick)
+    if (now < ev.start_m - (ROUTINE_TEMPLATES.has(ev.template) ? ROUTINE_EARLY_MIN : 0)) return 0;
+    if (now > ev.end_m) {
+      // the clock jumped past it (a night, a dev jump): it never happened
+      finishEvent(db, ev, "cancelled");
+      return 1;
+    }
+    db.transaction(() => startEvent(db, ev))();
+    return 1;
+  }
+  let cur = eventRow(db, ev.id)!;
+  let guard = 0;
+  while (cur.status === "running" && now >= stageEnd(cur, stages, cur.stage) && guard++ < 10) {
+    // the night passed (a sleep moves the clock to the next dawn): the stages it slept through are
+    // not played in the morning; it is over. A jump within the day (the dev clock) still plays them.
+    const ended = stageEnd(cur, stages, cur.stage);
+    if (now - ended > TICK_MINUTES && Math.floor(now / 1440) > Math.floor(ended / 1440)) {
+      finishEvent(db, cur, "done");
+      changed++;
+      break;
+    }
+    const step = db.transaction((): "done" | "next" => {
       const next = cur.stage + 1;
       // a scene that just played is settled by the engine
       if (stagesOf(cur)[cur.stage]?.scene && !stagesOf(cur)[cur.stage].scene!.resolved) {
@@ -469,16 +503,16 @@ export function eventsTick(db: DB): number {
       }
       if (next >= stages.length) {
         finishEvent(db, cur, "done");
-        changed++;
-        break;
+        return "done";
       }
       db.prepare("UPDATE town_event SET stage = ? WHERE id = ?").run(next, cur.id);
       cur = eventRow(db, cur.id)!;
       applyStage(db, cur, stages[next], next);
-      changed++;
-    }
+      return "next";
+    })();
+    changed++;
+    if (step === "done") break;
   }
-  if (changed) notify("events");
   return changed;
 }
 
@@ -537,7 +571,8 @@ function castLeads(db: DB, ev: EventRow, stages: StoredStage[]): Lead[] | null {
   const { leads, missing } = pickLeads(db, funeral ? asks.filter((a) => a.role !== "widow") : asks, taken, String(ev.id));
   if (funeral && widowAsk && stages[0].widow) {
     const w = resident(db, stages[0].widow);
-    if (w && !taken.has(w.id)) leads.push({ role: "widow", id: w.id, name: w.name, stage: widowAsk.stage });
+    // she may have been given something else to do since the plan: then nobody walks as the widow
+    if (w && !taken.has(w.id) && !actionOf(db, w.id) && !isReserved(db, w.id)) leads.push({ role: "widow", id: w.id, name: w.name, stage: widowAsk.stage });
   }
   if (missing.some((m) => MUST_LEADS.includes(m) || (funeral && m === "priest"))) return null;
   // the title with the leads it really has
@@ -574,9 +609,11 @@ export function castEngineLead(db: DB, ev: EventRow, id: string, role: AnyLeadRo
   const leads = leadsOf(ev);
   if (leads.some((l) => l.id === id)) return false;
   const lead: Lead = { role, id, name: r.name, stage: Math.max(0, ev.stage), ...(n !== undefined ? { n } : {}) };
-  const q = walkMap().nearestOpen(spot.x, spot.z, 4) ?? spot;
   const old = actionOf(db, id);
-  if (old && old.event_id === ev.id) endAction(db, old.id, "done", "a part in it");
+  // busy with something else (a walk for Jef, another event), or nobody's to borrow: not cast (one action at a time)
+  if (old ? old.event_id !== ev.id : isReserved(db, id)) return false;
+  const q = walkMap().nearestOpen(spot.x, spot.z, 4) ?? spot;
+  if (old) endAction(db, old.id, "done", "a part in it");
   startAction(db, { npc_id: id, kind: "attend", target: ev.title, target_x: q.x, target_z: q.z, source: "event", event_id: ev.id, minutes: Math.max(5, ev.end_m - gameMinute(db)), data: { order: peopleOf(ev).length, about: ev.place, role: "lead", lead: role, ...(n !== undefined ? { n } : {}) } });
   const people = peopleOf(ev).includes(id) ? peopleOf(ev) : [...peopleOf(ev), id];
   db.prepare("UPDATE town_event SET leads_json = ?, people_json = ? WHERE id = ?").run(JSON.stringify([...leads, lead]), JSON.stringify(people), ev.id);
@@ -616,8 +653,10 @@ export function freeResidents(db: DB, ev: EventRow, ok: (r: Resident) => boolean
   const inOthers = new Set(liveEvents(db).filter((o) => o.id !== ev.id).flatMap((o) => [...peopleOf(o), ...leadsOf(o).map((l) => l.id)]));
   const busy = new Set(activeActions(db).filter((a) => a.event_id !== ev.id).map((a) => a.npc_id));
   for (const id of onErrand(db)) busy.add(id);
+  const snap = reserveSnap(db);
+  const c = clock(db);
   // a counter, a post or a landmark's staff at work stays there (keptAtWork); a household whose own house burns runs home
-  return town(db).town.residents.filter((r) => !inOthers.has(r.id) && !busy.has(r.id) && !TOWN_EMPLOYER_IDS.includes(r.id) && r.trade !== "infant" && r.work.kind !== "guard" && !isEmigrant(r) && !visitorOf(r) && !isReserved(db, r.id) && (o.evenAtWork || !keptAtWork(db, r)) && ok(r));
+  return town(db).town.residents.filter((r) => !inOthers.has(r.id) && !busy.has(r.id) && !TOWN_EMPLOYER_IDS.includes(r.id) && r.trade !== "infant" && r.work.kind !== "guard" && !isEmigrant(r) && !visitorOf(r) && !isReserved(db, r.id, snap) && (o.evenAtWork || !keptAtWork(db, r, c)) && ok(r));
 }
 
 /** M6: take someone out of an event (the man the foreman picked goes to his ship). */
@@ -747,18 +786,17 @@ function postRumour(db: DB, ev: EventRow, text: string): void {
   writeEvent(db, { kind: "rumour", verb: "town_rumour", text: t, place: ev.place, ref_type: "town_event", ref_id: ev.id, weight: 4 });
 }
 
-function fits(r: Resident, role: GatherRole, db: DB, place = ""): boolean {
+function fits(r: Resident, role: GatherRole, db: DB, place = "", c = clock(db)): boolean {
   if (r.trade === "infant") return false;
   // the guard (town/garrison.ts) never leaves the post for an event, on a tour or in the guard room
   if (r.work.kind === "guard") return false;
-  const c = clock(db);
   const now = activityAt(r.sched, c.day, c.hour + c.minute / 60);
   // M6: the lamplighter on his round does not stop for an event
   if (r.trade === "lamplighter" && now.act === "work") return false;
   // M6 emigrants: a family gathering takes only the households boarding today; nobody else takes an emigrant from the chests
   if (role === "family") return isEmigrant(r) && emigrantShip(db).households.includes(r.household) && r.age >= 6;
   if (isEmigrant(r)) return false;
-  const keeperAtWork = keptAtWork(db, r);
+  const keeperAtWork = keptAtWork(db, r, c);
   switch (role) {
     case "police":
       return r.trade === "police";
@@ -795,6 +833,8 @@ export function gather(db: DB, ev: EventRow, role: GatherRole, count: number, at
   const inOthers = new Set(liveEvents(db).filter((o) => o.id !== ev.id).flatMap((o) => [...peopleOf(o), ...leadsOf(o).map((l) => l.id)]));
   const busy = new Set(activeActions(db).map((a) => a.npc_id));
   for (const id of onErrand(db)) busy.add(id);
+  const snap = reserveSnap(db);
+  const c = clock(db);
   const wm = walkMap();
   const hash = (s: string) => {
     let h = 2166136261;
@@ -802,7 +842,7 @@ export function gather(db: DB, ev: EventRow, role: GatherRole, count: number, at
     return (h >>> 0) / 4294967296;
   };
   let pool = town(db)
-    .town.residents.filter((r) => !have.includes(r.id) && !inOthers.has(r.id) && !busy.has(r.id) && !TOWN_EMPLOYER_IDS.includes(r.id) && !isReserved(db, r.id) && fits(r, role, db, ev.place))
+    .town.residents.filter((r) => !have.includes(r.id) && !inOthers.has(r.id) && !busy.has(r.id) && !TOWN_EMPLOYER_IDS.includes(r.id) && !isReserved(db, r.id, snap) && fits(r, role, db, ev.place, c))
     .map((r) => ({ r, d: Math.hypot(r.home.sx - at.x, r.home.sz - at.z) + hash(r.id + ev.id) * 60 }))
     .sort((a, b) => a.d - b.d)
     .map((x) => x.r);

@@ -33,12 +33,18 @@ export type Runner = (req: { system: string; prompt: string; jsonSchema: Record<
   Promise<{ output: unknown; usage?: { in?: number; out?: number; cacheRead?: number } }>;
 
 /** The runner per provider; tests swap them (setProviderRunner) to check the routing without a live call. */
-const providers: Record<Provider, Runner> = { claude: (r) => sdkRunner(r), codex: (r) => codexRunner(r) };
+// Under the tests there is no live model: a call without a stub fails at once and takes its
+// fallback. (Background calls, like a hired hand's lines, used to reach the real Claude.)
+const offline: Runner = async () => {
+  throw new Error("no live model under the tests");
+};
+const liveRunner = (p: Provider): Runner => (process.env.VITEST ? offline : p === "claude" ? (x) => sdkRunner(x) : (x) => codexRunner(x));
+const providers: Record<Provider, Runner> = { claude: liveRunner("claude"), codex: liveRunner("codex") };
 export function setProviderRunner(p: Provider, r: Runner | null): void {
-  providers[p] = r ?? (p === "claude" ? (x) => sdkRunner(x) : (x) => codexRunner(x));
+  providers[p] = r ?? liveRunner(p);
 }
 
-const inFlight = new Map<string, Promise<unknown>>();
+const inFlight = new Map<string, Promise<void>>();
 
 export async function callClaude<S extends z.ZodType>(
   db: DB,
@@ -51,19 +57,21 @@ export async function callClaude<S extends z.ZodType>(
   const timeoutMs = Math.min(req.timeoutMs ?? CLAUDE.timeoutMs, CLAUDE.timeoutMs);
   const deadline = started + timeoutMs;
 
-  // one call in flight per hook: a second caller waits for the first, but never past its own limit
-  const busy = inFlight.get(req.hook);
-  if (busy) {
-    const free = await beforeDeadline(busy.then(() => true, () => true), deadline);
-    if (free === TIMED_OUT) return { ok: false, error: `timeout after ${timeoutMs} ms (the last ${req.hook} call was still running)`, ms: Date.now() - started };
-  }
-
-  const p = run(db, req, runner, started, deadline, timeoutMs);
-  inFlight.set(req.hook, p);
+  // One call in flight per hook, in the order asked: each caller waits for the one before it
+  // (never past its own limit). The chain is set before any await, so two waiting callers
+  // can never start together.
+  const before = inFlight.get(req.hook) ?? Promise.resolve();
+  let release!: () => void;
+  const mine = new Promise<void>((r) => (release = r));
+  const tail = before.then(() => mine);
+  inFlight.set(req.hook, tail);
   try {
-    return await p;
+    const free = await beforeDeadline(before.then(() => true), deadline);
+    if (free === TIMED_OUT) return { ok: false, error: `timeout after ${timeoutMs} ms (the last ${req.hook} call was still running)`, ms: Date.now() - started };
+    return await run(db, req, runner, started, deadline, timeoutMs);
   } finally {
-    if (inFlight.get(req.hook) === p) inFlight.delete(req.hook);
+    release();
+    if (inFlight.get(req.hook) === tail) inFlight.delete(req.hook);
   }
 }
 
@@ -109,10 +117,6 @@ async function run<S extends z.ZodType>(
   timeoutMs: number,
 ): Promise<CallResult<z.infer<S>>> {
   const { day, hour } = db.prepare("SELECT day, hour FROM player WHERE id = 1").get() as { day: number; hour: number };
-  const used = (db.prepare("SELECT COUNT(*) AS n FROM ai_call WHERE day = ?").get(day) as { n: number }).n;
-  if (used >= CALLS_PER_DAY) {
-    return { ok: false, error: `call budget for day ${day} used up`, ms: 0 };
-  }
 
   // the claude CLI rejects the draft 2020-12 "$schema" tag, so drop it
   const { $schema: _drop, ...jsonSchema } = z.toJSONSchema(req.schema) as Record<string, unknown>;
@@ -122,6 +126,13 @@ async function run<S extends z.ZodType>(
 
   // schema failure gets one retry, if time is left (docs/03 guardrails)
   for (let attempt = 0; attempt < 2 && Date.now() < deadline - Math.min(2_000, timeoutMs / 10); attempt++) {
+    // Check the budget and book the attempt in one step, before any await: calls from other
+    // hooks that start in the same moment then see this one, and the retry is counted too.
+    const booked = book(db, day, hour, req.hook, route);
+    if (booked === null) {
+      if (attempt === 0) return { ok: false, error: `call budget for day ${day} used up`, ms: 0 };
+      break;
+    }
     const t0 = Date.now();
     const abort = new AbortController();
     let usage: { in?: number; out?: number; cacheRead?: number } | undefined;
@@ -141,14 +152,14 @@ async function run<S extends z.ZodType>(
       usage = res.usage;
       const parsed = req.schema.safeParse(res.output);
       if (parsed.success) {
-        logCall(db, day, hour, req.hook, route, Date.now() - t0, usage, true, null);
+        logCall(db, booked, route, Date.now() - t0, usage, true, null);
         return { ok: true, data: parsed.data, ms: Date.now() - started };
       }
       lastError = "schema: " + parsed.error.issues.map((i) => `${i.path.join(".")} ${i.message}`).join("; ");
     } catch (e) {
       lastError = abort.signal.aborted ? `timeout after ${timeoutMs} ms` : errText(e);
     }
-    logCall(db, day, hour, req.hook, route, Date.now() - t0, usage, false, lastError);
+    logCall(db, booked, route, Date.now() - t0, usage, false, lastError);
     if (abort.signal.aborted) break;
     // GPT Sol broke (not there, logged out, used a tool): the retry goes to Claude
     if (route.provider === "codex" && !lastError.startsWith("schema:")) route = { key: ROUTE_DEFAULT, ...MODELS[ROUTE_DEFAULT], overruled: "no_codex" };
@@ -156,11 +167,19 @@ async function run<S extends z.ZodType>(
   return { ok: false, error: lastError, ms: Date.now() - started };
 }
 
+/** Books one attempt if the day's budget allows it: the row id, or null when the budget is used up. */
+function book(db: DB, day: number, hour: number, hook: string, route: Route): number | null {
+  const used = (db.prepare("SELECT COUNT(*) AS n FROM ai_call WHERE day = ?").get(day) as { n: number }).n;
+  if (used >= CALLS_PER_DAY) return null;
+  const r = db
+    .prepare("INSERT INTO ai_call (day, hour, hook, provider, model, ms, ok, error) VALUES (?, ?, ?, ?, ?, 0, 0, 'running')")
+    .run(day, hour, hook, route.provider, route.model);
+  return Number(r.lastInsertRowid);
+}
+
 function logCall(
   db: DB,
-  day: number,
-  hour: number,
-  hook: string,
+  id: number,
   route: Route,
   ms: number,
   usage: { in?: number; out?: number; cacheRead?: number } | undefined,
@@ -168,9 +187,8 @@ function logCall(
   error: string | null,
 ): void {
   db.prepare(
-    `INSERT INTO ai_call (day, hour, hook, provider, model, ms, in_tokens, out_tokens, cache_read, ok, error)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(day, hour, hook, route.provider, route.model, ms, usage?.in ?? null, usage?.out ?? null, usage?.cacheRead ?? null, ok ? 1 : 0, error);
+    `UPDATE ai_call SET provider = ?, model = ?, ms = ?, in_tokens = ?, out_tokens = ?, cache_read = ?, ok = ?, error = ? WHERE id = ?`,
+  ).run(route.provider, route.model, ms, usage?.in ?? null, usage?.out ?? null, usage?.cacheRead ?? null, ok ? 1 : 0, error, id);
 }
 
 function errText(e: unknown): string {
@@ -203,11 +221,17 @@ export const sdkRunner: Runner = async ({ system, prompt, jsonSchema, signal, mo
       // timed-out call must not linger, so our abort kills the process tree at once.
       spawnClaudeCodeProcess: ({ command, args, cwd, env, signal: sdkSignal }) => {
         const child = spawn(command, args, { cwd, env, stdio: ["pipe", "pipe", "ignore"], windowsHide: true });
-        const kill = () => killTree(child.pid);
+        // only a live child: after exit its process id may already belong to another program
+        const kill = () => {
+          if (child.exitCode === null && child.signalCode === null) killTree(child.pid);
+        };
         if (signal.signal.aborted) kill();
         signal.signal.addEventListener("abort", kill, { once: true });
         sdkSignal?.addEventListener("abort", kill, { once: true });
-        child.once("exit", () => signal.signal.removeEventListener("abort", kill));
+        child.once("exit", () => {
+          signal.signal.removeEventListener("abort", kill);
+          sdkSignal?.removeEventListener("abort", kill);
+        });
         return child;
       },
     },

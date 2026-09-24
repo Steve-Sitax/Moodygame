@@ -35,7 +35,7 @@ export interface MirrorOptions {
   /** How far the mirror sees (default 160 m; the fog hides the rest). */
   far?: number;
   /** Render only while this says yes (nothing to mirror: save the frame time). */
-  enabled?: () => boolean;
+  enabled?: (camera: THREE.Camera) => boolean;
 }
 
 /** Dev: every mirror made, with the renderer that drew it last (read its picture in the console). */
@@ -85,7 +85,7 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
     if (busy) return void (dev.why = "busy");
     if (!(camera instanceof THREE.PerspectiveCamera)) return void (dev.why = "camera " + camera.type);
     if (mirrorCams.has(camera)) return void (dev.why = "inside another mirror");
-    if (opts.enabled && !opts.enabled()) return void (dev.why = "disabled");
+    if (opts.enabled && !opts.enabled(camera)) return void (dev.why = "disabled");
     eye.setFromMatrixPosition(camera.matrixWorld);
     if (eye.y <= planeY + 0.02) return void (dev.why = "eye below " + eye.y.toFixed(2));
     // once per frame, however many surfaces use this mirror: a whole frame is drawn in

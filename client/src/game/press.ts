@@ -299,17 +299,26 @@ export class Press {
     );
   }
 
+  /** One counter request at a time: 1 then 2 pressed quickly does not buy, pawn or take twice. */
+  private acting = false;
+
   private async takeJob(j: Job): Promise<void> {
+    if (this.acting) return;
+    this.acting = true;
     try {
       await call("POST", `/api/jobs/${j.id}/take`);
       this.close();
       this.jobs.say(`You take the work: ${j.title}.`);
     } catch (e) {
       this.jobs.say((e as Error).message);
+    } finally {
+      this.acting = false;
     }
   }
 
   private async act(url: string, body: unknown, again: () => Promise<void>): Promise<void> {
+    if (this.acting) return;
+    this.acting = true;
     try {
       const r = await call<JobsPayload & { text: string }>("POST", url, body);
       this.jobs.refresh(r);
@@ -317,6 +326,8 @@ export class Press {
       await again();
     } catch (e) {
       this.jobs.say((e as Error).message);
+    } finally {
+      this.acting = false;
     }
   }
 

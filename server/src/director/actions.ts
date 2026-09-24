@@ -106,18 +106,32 @@ interface Known {
 const KNOWN_TTL_MS = 15_000;
 const sync = { x: NaN, z: NaN, at: 0, people: new Map<string, Known>() };
 
-/** The client says where Jef is and who is in the street near him (every 2 s while actions run). */
-export function syncFromClient(body: unknown, now = Date.now()): { ok: boolean } {
+/** A point the client sent: finite numbers only, kept inside the map (+-2000 m); else null. */
+export function clampXZ(x: unknown, z: unknown): { x: number; z: number } | null {
+  if (typeof x !== "number" || typeof z !== "number" || !Number.isFinite(x) || !Number.isFinite(z)) return null;
+  return { x: Math.max(-2000, Math.min(2000, x)), z: Math.max(-2000, Math.min(2000, z)) };
+}
+
+/**
+ * The client says where Jef is and who is in the street near him (every 2 s while actions run).
+ * With `db`, only the town's residents are kept; stale entries go on every write.
+ */
+export function syncFromClient(body: unknown, now = Date.now(), db?: DB): { ok: boolean } {
   const b = (body ?? {}) as { x?: unknown; z?: unknown; people?: unknown };
-  if (typeof b.x === "number" && typeof b.z === "number" && Number.isFinite(b.x) && Number.isFinite(b.z)) {
-    sync.x = Math.max(-2000, Math.min(2000, b.x));
-    sync.z = Math.max(-2000, Math.min(2000, b.z));
+  const jef = clampXZ(b.x, b.z);
+  if (jef) {
+    sync.x = jef.x;
+    sync.z = jef.z;
     sync.at = now;
   }
   if (Array.isArray(b.people)) {
+    for (const [id, k] of sync.people) if (now - k.at > KNOWN_TTL_MS) sync.people.delete(id);
     for (const p of b.people.slice(0, 60) as Array<{ id?: unknown; x?: unknown; z?: unknown }>) {
-      if (typeof p.id !== "string" || typeof p.x !== "number" || typeof p.z !== "number") continue;
-      sync.people.set(p.id.slice(0, 20), { x: p.x, z: p.z, at: now });
+      if (typeof p?.id !== "string") continue;
+      const at = clampXZ(p.x, p.z);
+      const id = p.id.slice(0, 20);
+      if (!at || (db && !town(db).byId.has(id))) continue;
+      sync.people.set(id, { x: at.x, z: at.z, at: now });
     }
   }
   return { ok: true };
@@ -440,10 +454,26 @@ export interface Refused {
  */
 export const proposeHooks: Record<string, (db: DB, r: Resident, p: ActionProposal, at: { jef: { x: number; z: number } | null; mine: Where }) => Accepted | Refused | null> = {};
 
-export function isReserved(db: DB, id: string): boolean {
+/** One read of what isReserved needs (the police visit, who is acting now), for a loop over the whole town. */
+export interface ReserveSnap {
+  agent: string | null;
+  acting: Map<string, ActionRow>;
+}
+export function reserveSnap(db: DB): ReserveSnap {
   const v = policeState(db).visit;
-  if (v && v.agent === id && v.state !== "due") return true;
-  const a = actionOf(db, id);
+  const acting = new Map<string, ActionRow>();
+  for (const a of activeActions(db)) acting.set(a.npc_id, a); // by id: the newest wins, as in actionOf
+  return { agent: v && v.state !== "due" ? v.agent : null, acting };
+}
+
+export function isReserved(db: DB, id: string, snap?: ReserveSnap): boolean {
+  if (snap) {
+    if (snap.agent === id) return true;
+  } else {
+    const v = policeState(db).visit;
+    if (v && v.agent === id && v.state !== "due") return true;
+  }
+  const a = snap ? snap.acting.get(id) : actionOf(db, id);
   if (a && (a.source === "event" || a.source === "engine")) return true;
   return actionHooks.reserved.some((f) => f(db, id));
 }
@@ -494,8 +524,7 @@ export function validateProposal(db: DB, r: Resident, raw: unknown): Accepted | 
       const nm = ITEMS[ware.kind].name;
       return { ok: true, action: null, line: `${nm[0].toUpperCase() + nm.slice(1)}? ${ware.price_c} centimes, and you pay at the counter like anyone else.`, instant: true };
     }
-    if (crime && crime.thief === r.id) {
-      payBackInTalk(db, r, crime);
+    if (crime && crime.thief === r.id && payBackInTalk(db, r, crime)) {
       return { ok: true, action: null, line: `Here. Your ${crime.amount_c} centimes. Take it and keep your voice down.`, instant: true };
     }
     return refuse("no_money");
@@ -599,13 +628,18 @@ export function validateProposal(db: DB, r: Resident, raw: unknown): Accepted | 
   }
 }
 
-/** The thief himself hands the purse back when asked (the logged amount, once). */
-function payBackInTalk(db: DB, r: Resident, crime: Crime): void {
-  db.transaction(() => {
+/** The thief himself hands the purse back when asked (the logged amount, once: the robbery must still be open). */
+function payBackInTalk(db: DB, r: Resident, crime: Crime): boolean {
+  const paid = db.transaction(() => {
+    const c = crimeOpen(db);
+    if (!c || c.logId !== crime.logId || c.thief !== r.id) return false;
     db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = 1").run(crime.amount_c);
     log(db, "restitution", r.id, `${r.name} gave Jef back the ${crime.amount_c} centimes he had lifted, when Jef asked him straight.`, r.id);
+    return true;
   })();
+  if (!paid) return false;
   remember(db, r.id, `Jef knew it was me and asked for his ${crime.amount_c} centimes back. I gave it him. He has a good eye.`, 7, "seen", null, { gist: "Jef got his money back from a pickpocket by asking him straight", tone: 1 });
+  return true;
 }
 
 /**
@@ -652,7 +686,10 @@ export interface Report {
 export async function reportAction(db: DB, id: number, rep: Report, runner?: Runner): Promise<ActionRow | null> {
   const a = actionRow(db, id);
   if (!a || a.status !== "active") return a;
-  if (typeof rep.x === "number" && typeof rep.z === "number") db.prepare("UPDATE npc_action SET x = ?, z = ? WHERE id = ?").run(rep.x, rep.z, id);
+  // a second report while the words are being written: the first one runs the chain
+  if (a.phase === "talking") return a;
+  const at = clampXZ(rep.x, rep.z);
+  if (at) db.prepare("UPDATE npc_action SET x = ?, z = ? WHERE id = ?").run(at.x, at.z, id);
   const data = parseData(a);
   const r = resident(db, a.npc_id);
   if (!r) return endAction(db, id, "failed", "nobody by that name");
@@ -713,7 +750,7 @@ export async function reportAction(db: DB, id: number, rep: Report, runner?: Run
       // M6: a talk with its own purpose (a family passing on news, a scheme): its module writes and applies it
       const ownTalk = actionHooks.talkTo[purpose];
       if (ownTalk) {
-        db.prepare("UPDATE npc_action SET phase = 'talking' WHERE id = ?").run(id);
+        if (!claimTalk(db, id)) return actionRow(db, id);
         try {
           const outcome = await ownTalk(db, a, runner);
           endAction(db, id, "done", outcome || "talked", "");
@@ -728,11 +765,11 @@ export async function reportAction(db: DB, id: number, rep: Report, runner?: Run
         purpose !== "question"
           ? undefined
           : crime && (crime.thief === a.target || !street || street.thief !== a.target)
-            ? { guilty: crime.thief === a.target, amount_c: crime.amount_c }
+            ? { guilty: crime.thief === a.target, amount_c: crime.amount_c, log_id: crime.logId }
             : street
               ? { guilty: street.thief === a.target, amount_c: street.amount_c, victim: street.victim, crime_event: street.id }
               : { guilty: false, amount_c: 0 };
-      db.prepare("UPDATE npc_action SET phase = 'talking' WHERE id = ?").run(id);
+      if (!claimTalk(db, id)) return actionRow(db, id);
       try {
         const c = await runConvo(db, { a: r.id, b: a.target, purpose, about: data.about, fixed }, runner);
         endAction(db, id, "done", c.outcome === "none" ? "talked" : c.outcome, END_LINE.talk_to_done);
@@ -746,7 +783,7 @@ export async function reportAction(db: DB, id: number, rep: Report, runner?: Run
       if (rep.phase !== "arrived" && rep.phase !== "done") return rep.phase === "blocked" ? endAction(db, id, "failed", "blocked", END_LINE.fetch_police_time) : a;
       const agent = resident(db, a.target);
       if (!agent) return endAction(db, id, "failed", "no agent", END_LINE.fetch_police_time);
-      db.prepare("UPDATE npc_action SET phase = 'talking' WHERE id = ?").run(id);
+      if (!claimTalk(db, id)) return actionRow(db, id);
       try {
         await runConvo(db, { a: r.id, b: agent.id, purpose: "report", about: data.about }, runner);
       } catch {
@@ -773,6 +810,11 @@ export async function reportAction(db: DB, id: number, rep: Report, runner?: Run
     default:
       return a;
   }
+}
+
+/** Only one report gets to run the talk: the phase moves to "talking" once, conditionally. */
+function claimTalk(db: DB, id: number): boolean {
+  return db.prepare("UPDATE npc_action SET phase = 'talking' WHERE id = ? AND status = 'active' AND phase <> 'talking'").run(id).changes === 1;
 }
 
 function startNext(db: DB, prev: ActionRow, next: NonNullable<ActionData["then"]>): void {

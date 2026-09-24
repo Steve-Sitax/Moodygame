@@ -1210,6 +1210,10 @@ export class Soundscape {
       if (!b || !cat) return { move: () => {}, stop: () => {} };
       this.log("event peal");
       const spot = this.spot(cat, BELL.ref, BELL.rolloff, BELL.reach, 0.9);
+      // every stroke through one gain, so stop() can fade the peal out and silence the strokes still to come
+      const out = ctx.createGain();
+      out.connect(spot.fog);
+      const srcs: AudioBufferSourceNode[] = [];
       const rates = alarm ? [1.18, 1.18, 1.18, 1.18, 1.18, 1.18] : [1.5, 1.34, 1.2, 1.12, 1.0, 0.9];
       const t0 = ctx.currentTime + 0.05;
       const n = Math.floor(Math.min(secs, 40) / 0.34);
@@ -1223,12 +1227,31 @@ export class Soundscape {
         src.playbackRate.value = rates[k];
         const g = ctx.createGain();
         g.gain.value = 0.55;
-        src.connect(g).connect(spot.fog);
+        src.connect(g).connect(out);
         src.start(t0 + i * 0.34 + (alarm ? 0 : round * 0.4), 0, 2.2); // a breath between rounds (not in an alarm)
+        srcs.push(src);
         last = src;
       }
       if (last) last.onended = () => this.dropSpot(spot);
-      return { move: () => {}, stop: () => {} };
+      let stopped = false;
+      return {
+        move: () => {},
+        stop: () => {
+          if (stopped) return;
+          stopped = true;
+          const now = ctx.currentTime;
+          out.gain.cancelScheduledValues(now);
+          out.gain.setValueAtTime(out.gain.value, now);
+          out.gain.linearRampToValueAtTime(0, now + 1);
+          for (const q of srcs) {
+            try {
+              q.stop(now + 1.05); // the last one's onended drops the spot
+            } catch {
+              // already over
+            }
+          }
+        },
+      };
     }
     if (kind === "handbell") {
       const bell = this.buf.get("handbell");
@@ -1299,8 +1322,10 @@ export class Soundscape {
     for (const c of cues.slice(0, 4)) {
       const fire = () => {
         if (!on) return;
-        const len = playCue(ctx, out, this.noise, this.buf, c, ctx.currentTime + 0.03);
-        this.log(`cue ${c.source}`);
+        // Jef far off: this hit is skipped (nobody hears it), the next one still comes
+        const far = this.distTo(spot.x, spot.y, spot.z) > spot.reach * 1.5;
+        const len = far ? 0 : playCue(ctx, out, this.noise, this.buf, c, ctx.currentTime + 0.03);
+        if (!far) this.log(`cue ${c.source}`);
         if (c.every_s <= 0) return;
         const wait = Math.max(c.every_s * rand(0.75, 1.3), len + 0.6);
         if (performance.now() + wait * 1000 < endAt) timers.push(window.setTimeout(fire, wait * 1000));

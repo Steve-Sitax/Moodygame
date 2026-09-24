@@ -624,7 +624,10 @@ Rate his argument and write your four lines.`.replace(/\n{3,}/g, "\n\n");
   }
   const read = rating ? supportedHaggle(rating, text) : ratingByWords(text);
   const d = decideHaggle(read, f, s, opts.rng);
-  applyHaggle(db, s, kind, item, d, read.manner, f);
+  // the model call took seconds: another haggle may have used the last try, or ended in a refusal
+  const late = applyHaggle(db, s, kind, item, d, read.manner, f);
+  if (late === "refuse") return done("I said I'll not sell to you. Go on.", "refuse", `${he} will not deal with you for now.`, "angry");
+  if (late === "enough") return done("My price is my price. Buy or move on.", "enough", `${he} has heard enough about the price.`, "cold");
   const pick = rating ? { yield: rating.line_yield, hold: rating.line_hold, caught: rating.line_caught, refuse: rating.line_refuse }[d.outcome] : "";
   const model = !!pick.trim() && lineOk(pick);
   const line = model ? plainEnglish(pick.trim()) : engineLine(d.outcome, d, f, s, read, item);
@@ -640,10 +643,16 @@ Rate his argument and write your four lines.`.replace(/\n{3,}/g, "\n\n");
   };
 }
 
-/** The engine's effects of a haggle: the deal, the refusal, trust, memories, rumours, the log. */
-function applyHaggle(db: DB, s: Seller, kind: string, item: string, d: HaggleDecision, manner: Manner, f: Facts): void {
+/**
+ * The engine's effects of a haggle: the deal, the refusal, trust, memories, rumours, the log.
+ * Checked again first, after the model call: a refusal or the day's last try since then drops
+ * this one (nothing applied; the reason is returned).
+ */
+function applyHaggle(db: DB, s: Seller, kind: string, item: string, d: HaggleDecision, manner: Manner, f: Facts): "refuse" | "enough" | null {
+  if (refusedUntil(db, s.id)) return "refuse";
   const st = haggleState(db);
   const day = player(db).day;
+  if ((st.tries[`${day}:${s.id}:${kind}`] ?? 0) >= HAGGLE.triesPerDay) return "enough";
   st.tries[`${day}:${s.id}:${kind}`] = (st.tries[`${day}:${s.id}:${kind}`] ?? 0) + 1;
   const her = s.sex === "f" ? "her" : "his";
   if (d.outcome === "yield") {
@@ -669,6 +678,7 @@ function applyHaggle(db: DB, s: Seller, kind: string, item: string, d: HaggleDec
     remember(db, s.id, `Jef was ${manner === "threatening" ? "threatening" : "rude"} about my prices.`, 4, "seen", null, { gist: `Jef was rude to ${s.name} about ${her} prices`, tone: -1 });
   }
   save(db, st);
+  return null;
 }
 
 function toFree(o: HaggleOut): FreeAnswer {

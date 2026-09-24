@@ -117,7 +117,7 @@ export function payRent(db: DB, plan: unknown): { text: string; paid_c: number }
   const end = weekEnd(c.day);
   const to = plan === "day" ? Math.max(l.paid_through, c.day - 1) + 1 : end;
   const days = to - l.paid_through;
-  if (days <= 0) throw new GameError("paid to Sunday already", 409);
+  if (days <= 0 || to > end) throw new GameError("paid to Sunday already", 409);
   const cost = rentFor(h.cls, days);
   if (player(db).money_c < cost) throw new GameError(`not enough money: ${cost} c needed`, 409);
   db.transaction(() => {

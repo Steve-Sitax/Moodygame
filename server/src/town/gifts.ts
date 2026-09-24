@@ -345,6 +345,11 @@ export function judgeGift(db: DB, r: Resident, pick: GiftPick, jefWords: string)
  * memory, the rumour, the log. A person who dislikes Jef takes it coldly (half the credit).
  */
 export function applyGift(db: DB, r: Resident, v: GiftVerdict): GiftVerdict {
+  // one transaction: the thing handed over and the trust it earns, or neither
+  return db.transaction(() => applyGiftNow(db, r, v))();
+}
+
+function applyGiftNow(db: DB, r: Resident, v: GiftVerdict): GiftVerdict {
   const h = v.held!;
   if (h.from === "pocket") {
     stepGive(db, r.id, h.kind, h.id);

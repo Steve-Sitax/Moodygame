@@ -789,10 +789,11 @@ export function returnThing(db: DB, id: number, how: "gave" | "caught"): { text:
   }
   const name = npcName(db, d.owner);
   const noun = d.thing === "food" ? FOOD_NAME[d.item] : `the ${d.thing}`;
-  db.transaction(() => {
+  const trustBack = db.transaction((): boolean => {
     if (d.item_id !== null) db.prepare("DELETE FROM item WHERE id = ?").run(d.item_id);
     db.prepare("UPDATE deed SET status = 'returned', rumour_at = NULL WHERE id = ?").run(id);
     log(db, "gave_back", d.ref, how === "gave" ? `Jef gave ${noun} back to ${name}.` : `${name} caught Jef and took ${noun} back.`);
+    return how === "gave" && giveBackTrust(db, d);
   })();
   if (d.thing === "velocipede") veloHome(db, d.ref);
   if (d.thing === "boat") rowBoatHome(db, d.ref);
@@ -802,7 +803,7 @@ export function returnThing(db: DB, id: number, how: "gave" | "caught"): { text:
       gist: `Jef took ${name}'s ${d.thing === "food" ? d.item : d.thing} and gave it back when asked`,
       tone: -1,
     });
-    applyTrust(db, d.owner, 1, 0);
+    if (trustBack) applyTrust(db, d.owner, 1, 0);
   } else {
     remember(db, d.owner, `I caught Jef with my ${d.thing === "food" ? d.item : d.thing} and took it back off him.`, 6, "seen", null, {
       gist: `Jef was caught with ${name}'s ${d.thing === "food" ? d.item : d.thing} and had to hand it back`,
@@ -818,6 +819,21 @@ export function returnThing(db: DB, id: number, how: "gave" | "caught"): { text:
           ? `${first} grabs the handlebars and pulls. You are off, and the velocipede is ${first}'s again.`
           : `${first} catches your sleeve and takes ${noun} back off you.`,
   };
+}
+
+/**
+ * Giving a stolen thing back earns the owner's +1 at most once a game day, and only for a deed
+ * somebody saw (an unseen one the owner never knew of): take and give back is no trust farm.
+ * The ledger (owner: the day it was granted) lives in world_state and goes with a new game.
+ */
+function giveBackTrust(db: DB, d: DeedRow): boolean {
+  if (!d.seen) return false;
+  const day = Math.floor(gameMinute(db) / 1440) + 1;
+  const ledger = state<Record<string, number>>(db, "deed_trust_back", {});
+  if (ledger[d.owner] === day) return false;
+  ledger[d.owner] = day;
+  setState(db, "deed_trust_back", ledger);
+  return true;
 }
 
 /** Unseen deeds that start to be talked about, when their hour comes (every tick). */

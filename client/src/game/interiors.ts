@@ -404,9 +404,10 @@ export class Interiors {
     }
     this.busy = true;
     try {
+      // what is on first (free), then pay: a failed look no longer costs Jef his entry money
+      const info = await interiorApi.poesje();
       const paid = await interiorApi.enter();
       this.jobs.refresh(paid);
-      const info = await interiorApi.poesje();
       const f = this.frame(d.step, d.out, p.wall);
       let room = this.rooms.get("poesje");
       if (!room) this.rooms.set("poesje", (room = buildCellar({ origin: f.origin, yaw: f.yaw })));
@@ -427,15 +428,17 @@ export class Interiors {
   }
 
   private async fetchPlay(): Promise<void> {
-    if (!this.show) return;
-    this.show.writing = true;
+    // this show's own fetch: a slow one from an earlier visit must not touch the show on now
+    const show = this.show;
+    if (!show) return;
+    show.writing = true;
     try {
       const pl = await interiorApi.play();
-      if (this.show) this.show.play = pl;
+      if (this.show === show) show.play = pl;
     } catch {
       /* the server's own play is written by then, or the evening is over */
     } finally {
-      if (this.show) this.show.writing = false;
+      show.writing = false;
     }
   }
 

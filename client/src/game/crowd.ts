@@ -42,6 +42,8 @@ export interface CrowdGround {
   isFree(x: number, z: number, r: number): boolean;
   /** Optional: everything solid on the ground, so paths go round it instead of into it. */
   solids?(): Rect[];
+  /** Optional: changes whenever a solid is put down or taken away (so solids() is not read every frame). */
+  solidsVersion?(): number;
   /** Optional: must a walker stop before stepping to (x, z)? (an opening bridge: wait at its end) */
   gate?(x: number, z: number): boolean;
   /** Optional: height of the walkable ground (the Steen's courtyard and ramp, the gangway, the pontoon). */
@@ -163,6 +165,8 @@ interface Person {
   bought?: THREE.Object3D | null;
   /** M6 transport: riding a velocipede, pushing a handcart, leading a dray (puppetVehicle). */
   veh?: Vehicle | null;
+  /** puppetGo gave a new goal (dest) when no way could be worked out this frame: the old way is walked till then. */
+  repath?: boolean;
 }
 
 /** M6 transport: what a townsperson rides, pushes or leads (game/journeys.ts says which). */
@@ -523,6 +527,7 @@ export class Crowd {
   private turnoverT = 4;
   private gridAge = 0;
   private solidCount = -1;
+  private solidVersion = -1;
   private pathBudget = 0;
   private fogFar = 25;
   private player: V = { x: 0, z: 0 };
@@ -596,16 +601,23 @@ export class Crowd {
 
   update(dt: number, player: V, camera?: THREE.Camera): void {
     if (!this.ready) return;
-    this.player = { x: player.x, z: player.z };
+    this.player.x = player.x;
+    this.player.z = player.z;
     this.camera = camera ?? null;
     const g = this.grid;
     this.gridAge += dt;
-    const solids = this.ground.solids?.() ?? [];
     // rebuild when the player has moved on, now and then, and when things were put down or taken away
-    if (!g.built || Math.hypot(player.x - g.cx, player.z - g.cz) > 20 || this.gridAge > 60 || solids.length !== this.solidCount) {
+    // (by the world's solids version, at most twice a second: a lock beam swinging moves every frame;
+    // without a version, by the count of solids)
+    const ver = this.ground.solidsVersion?.();
+    let solids: Rect[] | null = null;
+    const changed = ver !== undefined ? ver !== this.solidVersion && this.gridAge > 0.5 : (solids = this.ground.solids?.() ?? []).length !== this.solidCount;
+    if (!g.built || Math.hypot(player.x - g.cx, player.z - g.cz) > 20 || this.gridAge > 60 || changed) {
+      solids ??= this.ground.solids?.() ?? [];
       if (!g.build(this.ground.flags, player.x, player.z, solids)) return;
       this.gridAge = 0;
       this.solidCount = solids.length;
+      this.solidVersion = ver ?? -1;
     }
     this.fogFar = (this.scene.fog as THREE.Fog | null)?.far ?? 40;
     if (camera) {
@@ -619,7 +631,9 @@ export class Crowd {
     // M3e: with the town's residents about (puppets), the nameless crowd stays home
     const target = this.anonymous ? Math.round(this.budget * density(this.hour)) : 0;
     const crowdN = this.people.length - this.puppetCount;
-    for (const p of [...this.people]) {
+    // (backwards: recycle takes out only the one it is given)
+    for (let i = this.people.length - 1; i >= 0; i--) {
+      const p = this.people[i];
       if (p.role !== "puppet" && !p.townFollow && Math.hypot(p.x - player.x, p.z - player.z) > this.radius + 8) this.recycle(p);
     }
     if (!this.filled) {
@@ -670,7 +684,8 @@ export class Crowd {
     }
 
     // --- groups
-    for (const c of [...this.clusters]) this.updateCluster(c, dt);
+    // (backwards: a group that breaks up takes only itself out of the list)
+    for (let i = this.clusters.length - 1; i >= 0; i--) this.updateCluster(this.clusters[i], dt);
     if (this.strays.length) {
       this.strays = this.strays.filter((s) => {
         if (!this.hidden(s.mesh.position.x, s.mesh.position.z)) return true;
@@ -770,6 +785,16 @@ export class Crowd {
         }
       }
     }
+    // (the town and the followers send them every half second or so)
+    const walking = p.state === "walk" && p.pi < p.path.length;
+    // the same goal while on the way there: keep the way (a new one each time made them stutter)
+    if (walking && p.dest && Math.hypot(p.dest.x - tx, p.dest.z - tz) < 0.5) return;
+    // no way can be worked out this frame: walk on the old one, change over when one can
+    if (walking && this.pathBudget <= 0) {
+      p.dest = { x: tx, z: tz };
+      p.repath = true;
+      return;
+    }
     this.goTo(p, { x: tx, z: tz });
   }
 
@@ -783,6 +808,7 @@ export class Crowd {
     p.path = [];
     p.pi = 0;
     p.dest = null;
+    p.repath = false;
     p.state = "stand";
     p.pmotion = motion;
     p.pyaw = yaw;
@@ -849,6 +875,7 @@ export class Crowd {
       lead.follower = p;
       p.path = [];
       p.dest = null;
+      p.repath = false;
       p.state = "stand";
     } else if (p.townFollow) {
       if (p.lead && p.lead.follower === p) p.lead.follower = null;
@@ -857,6 +884,7 @@ export class Crowd {
       p.role = "puppet";
       p.path = [];
       p.dest = null;
+      p.repath = false;
       p.state = "stand";
       p.pmotion = "idle";
     }
@@ -1042,10 +1070,21 @@ export class Crowd {
     return a ? this.grid.path(a.x, a.z, bx, bz, 6000) : null;
   }
 
-  /** Where everyone walking is now (townspeople included): the train and the omnibus stop for them. */
+  /** Where everyone walking is now (townspeople included): the train and the omnibus stop for them.
+   *  One reused list, refilled on every call: read it now, do not keep or change it. */
   positions(): Array<{ x: number; z: number }> {
-    return this.people.map((p) => ({ x: p.x, z: p.z }));
+    const out = this.posOut;
+    const n = this.people.length;
+    for (let i = 0; i < n; i++) {
+      const p = this.people[i];
+      const o = out[i] ?? (out[i] = { x: 0, z: 0 });
+      o.x = p.x;
+      o.z = p.z;
+    }
+    out.length = n;
+    return out;
   }
+  private readonly posOut: Array<{ x: number; z: number }> = [];
 
   get fogDistance(): number {
     return this.fogFar;
@@ -1054,6 +1093,11 @@ export class Crowd {
   private puppetThink(p: Person, dt: number): void {
     switch (p.state) {
       case "walk":
+        // a goal from puppetGo that waited for a path budget: take the new way now
+        if (p.repath && this.pathBudget > 0 && p.dest) {
+          this.goTo(p, p.dest);
+          if (p.state !== "walk") break;
+        }
         this.walk(p, dt);
         break;
       case "wait":
@@ -1423,6 +1467,12 @@ export class Crowd {
     p.pi = 0;
     p.replans = 0;
     if (p.role === "puppet") {
+      if (p.repath && p.dest) {
+        // the old way is walked out and a new goal waits: on there as soon as a way is found
+        p.repath = false;
+        p.state = "wait";
+        return;
+      }
       p.dest = null;
       p.state = "stand";
       p.human.play(p.veh ? this.vehMotion(p, false) : (p.pmotion ?? "idle"), 0.3);
@@ -1487,6 +1537,7 @@ export class Crowd {
 
   private goTo(p: Person, dest: V): void {
     p.dest = dest;
+    p.repath = false;
     if (this.pathBudget <= 0) {
       p.state = "wait";
       p.human.play(this.standMotion(p), 0.3);

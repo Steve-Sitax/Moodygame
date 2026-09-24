@@ -110,6 +110,8 @@ CREATE TABLE IF NOT EXISTS ai_call (
   ok INTEGER NOT NULL,
   error TEXT
 );
+-- every model call counts the day's calls first, per hook
+CREATE INDEX IF NOT EXISTS ai_call_day_hook ON ai_call (day, hook);
 `;
 
 export { FACTIONS, type Faction } from "./factions.ts";
@@ -207,8 +209,18 @@ function migrate(db: DB): void {
   if (!cols("town_event").includes("leads_json")) db.exec("ALTER TABLE town_event ADD COLUMN leads_json TEXT NOT NULL DEFAULT '[]'");
 }
 
+/**
+ * A new game bumps this. A model call begun before it drops its write when it comes back
+ * (take it before the await, compare after): the old week's words never land in the new one.
+ */
+let generation = 0;
+export function gameGeneration(): number {
+  return generation;
+}
+
 /** Start a new week: wipe the save and seed it again (the "new game" button). */
 export function resetDb(db: DB): void {
+  generation++;
   db.transaction(() => {
     for (const t of [...FAMILY_TABLES, ...IDEAS_TABLES, ...HOMES_TABLES, ...PRESS_TABLES, "world_event_who", "world_event", "npc_action", "town_event", "ai_call", "item", "event", "world_state", "job", "log", "world_fact", "npc_memory", "npc_relationship", "resident", "npc", "faction_trust", "player"]) {
       db.prepare(`DELETE FROM ${t}`).run();

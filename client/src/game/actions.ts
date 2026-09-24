@@ -163,7 +163,11 @@ export class Actions {
     return this.list.some((a) => a.npc === id && a.kind === "follow");
   }
 
+  /** This frame's step in seconds, for go()'s re-aim timer (it counted frames, not seconds). */
+  private frameDt = 1 / 60;
+
   update(dt: number): void {
+    this.frameDt = dt;
     this.pollT -= dt;
     if (this.pollT <= 0 && !this.busy) {
       this.pollT = this.dirty ? 0.3 : this.runs.size ? POLL_S : 6;
@@ -396,7 +400,7 @@ export class Actions {
   }
 
   private go(r: Run, p: Puppet, x: number, z: number, pace: number, every = 0.45): void {
-    r.goT -= 1 / 60;
+    r.goT -= this.frameDt;
     if (r.goT > 0) return;
     r.goT = every;
     this.crowd.puppetGo(p, x, z, pace);

@@ -37,7 +37,11 @@ export function mountInteriors(app: Hono, deps: InteriorDeps): void {
   app.use("/api/tick", async (_c, next) => {
     await next();
     try {
-      if (hourNow(db) >= 17 && !showToday(db) && !showWriting()) void writeShow(db).then((s) => console.log(`[poesje_show] ${s.source}: ${s.play.title}`));
+      if (hourNow(db) >= 17 && !showToday(db) && !showWriting()) {
+        void writeShow(db)
+          .then((s) => console.log(`[poesje_show] ${s.source}: ${s.play.title}`))
+          .catch((e) => console.error("[poesje_show]", e));
+      }
     } catch (e) {
       console.error("[interiors] tick", e);
     }
@@ -116,7 +120,7 @@ export function mountInteriors(app: Hono, deps: InteriorDeps): void {
   app.post("/api/poesje/enter", async (c) => {
     const r = admit(db);
     // not written yet (the server came up late in the evening): write it now; the client waits at most 20 s
-    if (!showToday(db) && !showWriting()) void writeShow(db);
+    if (!showToday(db) && !showWriting()) void writeShow(db).catch((e) => console.error("[poesje_show]", e));
     if (r.paid_c) moneyMoved();
     return c.json({ ...r, ...payload() });
   });

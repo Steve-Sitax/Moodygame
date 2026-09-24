@@ -2,6 +2,8 @@
 // resolution so we can try higher res"). Kept in the browser (localStorage), put
 // on the pause screen (#start). The PS1 look stays the default.
 
+import { esc } from "./runs";
+
 export interface GameSettings {
   /** Render height in pixels: 270 is the PS1 look; 0 = the full window. */
   height: number;
@@ -76,9 +78,9 @@ async function drawServer(box: HTMLElement): Promise<void> {
       </label>
       <p class="note-small">The most people a wedding, a funeral or a street show may gather.</p>
       <label>Town size for a new game
-        <select name="townSize">${v.townSizes.map((t) => `<option value="${t.id}"${t.id === v.townSize ? " selected" : ""}>${t.label} (about ${t.about} people)</option>`).join("")}</select>
+        <select name="townSize">${v.townSizes.map((t) => `<option value="${esc(t.id)}"${t.id === v.townSize ? " selected" : ""}>${esc(t.label)} (about ${Number(t.about)} people)</option>`).join("")}</select>
       </label>
-      <p class="note-small">This week's town stays as it is: ${v.current.residents} people (${cur}). The new size starts when you press Restart for a new week.</p>`;
+      <p class="note-small">This week's town stays as it is: ${Number(v.current.residents)} people (${esc(cur)}). The new size starts when you press Restart for a new week.</p>`;
     const post = async (body: Record<string, unknown>) => {
       try {
         const r = await fetch("/api/settings/population", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -119,17 +121,23 @@ export function mountSettings(pausePaper: HTMLElement, apply: (s: GameSettings) 
   restart.textContent = "Restart";
   pausePaper.appendChild(restart);
   let armed = false;
+  let disarm = 0;
   restart.addEventListener("click", async (e) => {
     e.stopPropagation();
+    if (restart.disabled) return;
     if (!armed) {
       armed = true;
       restart.textContent = "Start a new week? Click again";
-      setTimeout(() => {
+      disarm = window.setTimeout(() => {
         armed = false;
         restart.textContent = "Restart";
       }, 4000);
       return;
     }
+    // the second click: one new game only (a third click must not ask the server again)
+    armed = false;
+    clearTimeout(disarm);
+    restart.disabled = true;
     restart.textContent = "Starting a new week...";
     try {
       const r = await fetch("/api/new-game", { method: "POST" });
@@ -137,6 +145,7 @@ export function mountSettings(pausePaper: HTMLElement, apply: (s: GameSettings) 
       location.reload();
     } catch (err) {
       restart.textContent = `Could not restart (${String(err)})`;
+      restart.disabled = false;
     }
   });
 

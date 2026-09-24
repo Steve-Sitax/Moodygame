@@ -46,7 +46,9 @@ export function mountIdeas(app: Hono, deps: IdeasDeps): void {
     const { day } = now(db);
     if (running || !boardUp(day) || db.prepare("SELECT 1 FROM world_state WHERE key = 'ending'").get()) return;
     if (flag(db, "ideas_morning") === day) {
-      running = during().finally(() => (running = null));
+      running = during()
+        .catch((e) => console.error("[ideas] during", e))
+        .finally(() => (running = null));
       return;
     }
     if (!paperOf(db, day)) return;

@@ -767,7 +767,15 @@ function board(db: DB, e: EmigrantTown, fam: Family, by: "lighter" | "engine"): 
       db.prepare("DELETE FROM resident WHERE id = ?").run(id);
       db.prepare("UPDATE npc SET active = 0 WHERE id = ?").run(id);
     }
-    for (const er of e.errands.filter((x) => x.family === fam.n)) db.prepare("UPDATE job SET status = 'expired' WHERE id = ? AND status = 'offered'").run(er.job);
+    for (const er of e.errands.filter((x) => x.family === fam.n)) {
+      db.prepare("UPDATE job SET status = 'expired' WHERE id = ? AND status = 'offered'").run(er.job);
+      // an errand still in Jef's hands when the ship took them: it comes to nothing (no job left orphaned)
+      const j = db.prepare("SELECT title FROM job WHERE id = ? AND status = 'taken'").get(er.job) as { title: string } | undefined;
+      if (!j) continue;
+      db.prepare("UPDATE job SET status = 'failed' WHERE id = ?").run(er.job);
+      db.prepare("DELETE FROM item WHERE job_id = ?").run(er.job);
+      logRow(db, "player", "abandoned_job", String(er.job), `The ${fam.surname} family went out to the ship before Jef finished "${j.title}".`);
+    }
   })();
   if (e.scam?.family === fam.n && e.scam.state === "working") e.scam.state = "sold"; // they went with his paper in their pocket
   logRow(db, fam.head, "emigrants_boarded", String(fam.household), `The ${fam.surname} family went out by lighter to the Kempenland at anchor, bound for ${fam.bound.split(",")[0]}.`);
@@ -1038,6 +1046,8 @@ export function boardByLighter(db: DB, household: number, dev = false): { ok: bo
   const c = clock(db);
   if (!f || f.status !== "here") return { ok: false, why: "no such family waiting" };
   if (!dev && (f.board_day !== c.day || c.hour < BOARD_FROM || c.hour >= BOARD_TO + 1)) return { ok: false, why: "their ship does not take them now" };
+  // they do not go down to the lighter without their chests (the errand in Jef's hands)
+  if (!dev && waitingForJef(db, e, f)) return { ok: false, why: "they are waiting for Jef" };
   board(db, e, f, "lighter");
   save(db, e);
   dropTownCache(db);

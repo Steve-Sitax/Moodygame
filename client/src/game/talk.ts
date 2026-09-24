@@ -18,6 +18,8 @@ export class Talk {
   onOpen: (id: string) => void = () => {};
   onClose: (id: string) => void = () => {};
   private busy = false;
+  /** Bumped on every open, close and request: a reply for an older one is dropped (Jef switched people meanwhile). */
+  private req = 0;
   private ended = false;
   private choices: string[] = [];
   /** note: M6, how a haggle or a story went down ("He looks doubtful"), shown small under the line. */
@@ -91,10 +93,13 @@ export class Talk {
     this.picking = false;
     this.haggleKind = null;
     this.mood = "";
+    // a reply still on its way for the last person is dropped, and this window starts clean
+    this.req++;
+    this.busy = false;
     this.player.frozen = true;
     this.el.style.display = "block";
+    this.render();
     if (shopOnly) {
-      this.render();
       // the prices he asks Jef now (a haggled price still good), not only the list
       const id = npc.id;
       void fetch(`/api/npc/${encodeURIComponent(id)}/wares`, { signal: AbortSignal.timeout(6000) })
@@ -121,6 +126,8 @@ export class Talk {
   close(): void {
     if (this.npc) this.onClose(this.npc.id);
     this.npc = null;
+    this.req++;
+    this.busy = false;
     this.typing = false;
     this.player.frozen = false;
     this.el.style.display = "none";
@@ -130,6 +137,7 @@ export class Talk {
     const npc = this.npc;
     if (!npc || this.busy) return;
     this.busy = true;
+    const my = ++this.req;
     if (text) this.lines.push({ who: "You", text });
     this.choices = [];
     this.render();
@@ -139,8 +147,9 @@ export class Talk {
     } catch {
       r = { npc_line: `${npc.def.name} does not answer.`, choices: [], end: true };
     }
+    if (my !== this.req) return; // walked away or turned to someone else meanwhile
     this.busy = false;
-    if (this.npc !== npc) return; // walked away meanwhile
+    if (this.npc !== npc) return;
     if (!r.npc_line) {
       // gated without a line: too fast, too long or empty
       if (text) this.lines.pop();
@@ -170,6 +179,7 @@ export class Talk {
     const npc = this.npc;
     if (!npc || this.busy) return;
     this.busy = true;
+    const my = ++this.req;
     const ware = this.stock.find((w) => w.kind === kind);
     this.lines.push({ who: "You", text });
     this.render();
@@ -179,6 +189,7 @@ export class Talk {
     } catch (e) {
       r = { npc_line: `${npc.def.name} shrugs. (${(e as Error).message})` };
     }
+    if (my !== this.req) return;
     this.busy = false;
     if (this.npc !== npc) return;
     if (!r.npc_line) {

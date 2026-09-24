@@ -59,7 +59,8 @@ export function singPhrase(ctx: BaseAudioContext, dest: AudioNode, noise: AudioB
   o.notes.forEach(([semi, beats], i) => {
     const len = beats * o.beat;
     const f = o.f0 * 2 ** (semi / 12);
-    const v = VOWELS[(i * 7 + Math.round(semi)) % VOWELS.length];
+    // semi can be below the home note (the day's shift), so keep the index positive
+    const v = VOWELS[(((i * 7 + Math.round(semi)) % VOWELS.length) + VOWELS.length) % VOWELS.length];
     // slide into the note a little, as untrained voices do
     osc.frequency.setTargetAtTime(f, t, i === 0 ? 0.005 : 0.03);
     f1.frequency.setTargetAtTime(v[0] * o.formant, t, 0.025);

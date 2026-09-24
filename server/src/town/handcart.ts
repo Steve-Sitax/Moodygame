@@ -535,6 +535,11 @@ function safeAt(db: DB, x: number, z: number): boolean {
  * `rng` and `now` are test seams. Returns what happened.
  */
 export function cartHour(db: DB, rng: () => number = Math.random, now = Date.now()): string[] {
+  // one transaction: a fee taken and the cart gone, or neither
+  return db.transaction(() => cartHourNow(db, rng, now))();
+}
+
+function cartHourNow(db: DB, rng: () => number, now: number): string[] {
   const s = jefCarts(db);
   if (!s.list.length) return [];
   const minute = minuteNow(db);

@@ -205,6 +205,11 @@ export interface RoundResult {
  * earns trust through the gifts' ledger and loosens the guest's tongue (the engine picks what).
  */
 export function standRound(db: DB, place: string, kind: string): RoundResult {
+  // one transaction: the round paid, the trust and the count kept, or none of it
+  return db.transaction(() => standRoundNow(db, place, kind))();
+}
+
+function standRoundNow(db: DB, place: string, kind: string): RoundResult {
   if (kind !== "beer" && kind !== "jenever") throw new GameError("a round is beer or jenever", 400);
   const g = activeRoutines(db, "treat").find(({ r }) => st(r).inside === place);
   if (!g) throw new GameError("you have nobody here to stand a drink", 409);

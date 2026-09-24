@@ -3,7 +3,7 @@ import { clock } from "../day.ts";
 import type { Resident } from "../town/population.ts";
 import { activityAt } from "../town/schedule.ts";
 import { town, TOWN_EMPLOYER_IDS } from "../town/store.ts";
-import { activeActions, isReserved } from "./actions.ts";
+import { activeActions, isReserved, reserveSnap } from "./actions.ts";
 import { isEmigrant } from "../town/emigrants.ts";
 import { visitorOf } from "../town/visitors.ts";
 import { BEARERS, LEAD_LABEL, LEADS_PER_STAGE, type LeadRole } from "./vocab.ts";
@@ -23,8 +23,7 @@ const COUNTER_TRADES = new Set([
  * at work now, and working at a counter or a post, or on the staff of a landmark (the town hall,
  * the cathedral, the Vleeshuis, the Steen, the Oostershuis). Never gathered for an event.
  */
-export function keptAtWork(db: DB, r: Resident): boolean {
-  const c = clock(db);
+export function keptAtWork(db: DB, r: Resident, c: { day: number; hour: number; minute: number } = clock(db)): boolean {
   if (activityAt(r.sched, c.day, c.hour + c.minute / 60).act !== "work") return false;
   if (COUNTER_KINDS.has(r.work.kind) || COUNTER_TRADES.has(r.trade)) return true;
   // the fortune teller at her table on the Grote Markt
@@ -127,11 +126,18 @@ export interface LeadAsk {
  */
 export function pickLeads(db: DB, asks: LeadAsk[], taken: Set<string>, salt: string): { leads: Lead[]; missing: LeadRole[] } {
   const busy = new Set(activeActions(db).map((a) => a.npc_id));
-  const all = town(db).town.residents;
+  // the clock, the police visit and who is acting: read once for the whole town, not per resident
+  const snap = reserveSnap(db);
+  const c = clock(db);
   // M6 emigrants: nobody waiting by the chests to board is cast in a part
   // M6 surprises: the strangers and the fortune teller are never cast in a part (QA 2026-09-24: a stranger who had left was a fireman)
-  const free = (r: Resident) => !taken.has(r.id) && !busy.has(r.id) && !TOWN_EMPLOYER_IDS.includes(r.id) && !isReserved(db, r.id) && !isEmigrant(r) && !visitorOf(r);
-  const keeper = (r: Resident) => keptAtWork(db, r);
+  const all = town(db).town.residents.filter((r) => !taken.has(r.id) && !busy.has(r.id) && !TOWN_EMPLOYER_IDS.includes(r.id) && !isReserved(db, r.id, snap) && !isEmigrant(r) && !visitorOf(r));
+  const kept = new Map<string, boolean>();
+  const keeper = (r: Resident) => {
+    let k = kept.get(r.id);
+    if (k === undefined) kept.set(r.id, (k = keptAtWork(db, r, c)));
+    return k;
+  };
   const leads: Lead[] = [];
   const missing: LeadRole[] = [];
   const used = new Set<string>();
@@ -139,7 +145,7 @@ export function pickLeads(db: DB, asks: LeadAsk[], taken: Set<string>, salt: str
     Math.hypot(r.home.sx - at.x, r.home.sz - at.z) + hash(r.id + salt + role) * 80 - (role === "quarreller" || role === "drunkard" ? r.stats.temper * 12 - (r.sex === "f" ? 60 : 0) : 0);
   const pool = (role: LeadRole, at: { x: number; z: number }) =>
     all
-      .filter((r) => !used.has(r.id) && free(r) && fitsLead(r, role, keeper(r)))
+      .filter((r) => !used.has(r.id) && fitsLead(r, role, keeper(r)))
       .sort((a, b) => score(a, at, role) - score(b, at, role));
   const take = (r: Resident, role: LeadRole, stage: number, n?: number) => {
     used.add(r.id);
@@ -151,8 +157,10 @@ export function pickLeads(db: DB, asks: LeadAsk[], taken: Set<string>, salt: str
   const brideAsk = asks.find((a) => a.role === "bride");
   if (groomAsk && brideAsk) {
     let paired = false;
+    // the brides once, not once per groom (nobody is taken until the pair is found)
+    const brides = pool("bride", brideAsk.at);
     for (const g of pool("groom", groomAsk.at).slice(0, 12)) {
-      const b = pool("bride", brideAsk.at)
+      const b = brides
         .filter((w) => (w.household !== g.household || w.family_role === "lodger" || g.family_role === "lodger") && w.surname !== g.surname && Math.abs(w.age - g.age) <= 12 && w.age <= g.age + 4)
         .sort((x, y) => Math.hypot(x.home.sx - g.home.sx, x.home.sz - g.home.sz) - Math.hypot(y.home.sx - g.home.sx, y.home.sz - g.home.sz))[0];
       if (!b) continue;

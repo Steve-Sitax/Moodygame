@@ -295,6 +295,11 @@ function safeAt(db: DB, x: number, z: number): boolean {
  * machine in a busy place may be ridden off. `rng` and `now` are test seams. Returns what happened.
  */
 export function bikeHour(db: DB, rng: () => number = Math.random, now = Date.now()): string[] {
+  // one transaction: a fee taken and the machine gone, or neither
+  return db.transaction(() => bikeHourNow(db, rng, now))();
+}
+
+function bikeHourNow(db: DB, rng: () => number, now: number): string[] {
   const s = jefVelos(db);
   if (!s.list.length) return [];
   const minute = minuteNow(db);

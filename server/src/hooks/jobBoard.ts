@@ -316,11 +316,12 @@ const dist = (a: SpotId, b: SpotId) => Math.hypot(SPOTS[a].x - SPOTS[b].x, SPOTS
 export function taskFor(j: BoardJob): Task | null {
   const twist: Twist = (TWISTS_FOR[j.task_type] ?? ["none"]).includes(j.twist) ? j.twist : "none";
   const employer = ALL_EMPLOYERS[j.employer];
-  // M3e: a townsperson's work stays on their own ground (walking range); the engine moves strays back
+  // M3e: a townsperson's work stays on their own ground (walking range); the engine moves strays back.
+  // Every employer's (review 2026-09-24): the board prompt gives the quay's employers the quay's places only.
   const area = employer.area;
+  const own = (s: SpotId, other: SpotId): SpotId => (area.includes(s) ? s : (area.find((a) => a !== other && a !== employer.door) ?? employer.door));
+  j = { ...j, from: own(j.from, j.to), to: own(j.to, j.from) };
   if (employer.town) {
-    const own = (s: SpotId, other: SpotId): SpotId => (area.includes(s) ? s : (area.find((a) => a !== other && a !== employer.door) ?? employer.door));
-    j = { ...j, from: own(j.from, j.to), to: own(j.to, j.from) };
     if (j.task_type !== "watch" && j.from === j.to) j = { ...j, to: j.from === employer.door ? (area.find((a) => a !== employer.door) ?? employer.door) : employer.door };
     // a carry is short work: at most 70 m a trip; else the nearest of their places
     if (j.task_type === "carry" && dist(j.from, j.to) > 70) {
@@ -513,15 +514,16 @@ export function devJob(
 ): { id: number; title: string; task: Task | null } {
   const type = spec.type === "watch" || spec.type === "deliver" ? spec.type : "carry";
   const base = FALLBACK_BOARD.jobs.find((j) => j.task_type === type)!;
+  // own keys only: "toString" or "__proto__" are not employers or spots, nor is "_note" in the spot table
   const pick = <T extends string>(v: string | undefined, ok: readonly T[] | Record<string, unknown>, dflt: T): T =>
-    v && (Array.isArray(ok) ? (ok as readonly string[]).includes(v) : v in ok) ? (v as T) : dflt;
+    typeof v === "string" && (Array.isArray(ok) ? (ok as readonly string[]).includes(v) : !v.startsWith("_") && Object.hasOwn(ok, v)) ? (v as T) : dflt;
   const j: BoardJob = {
     ...base,
     twist: pick(spec.twist, TWISTS, base.twist),
     employer: pick(spec.employer, ALL_EMPLOYERS, base.employer) as BoardJob["employer"],
     from: pick(spec.from, SPOTS, base.from) as BoardJob["from"],
     to: pick(spec.to, SPOTS, base.to) as BoardJob["to"],
-    goods: (spec.goods ?? base.goods) as BoardJob["goods"],
+    goods: pick(spec.goods, GOODS, base.goods),
     urgent: spec.urgent ?? base.urgent,
     title: `Test: ${type}${spec.twist && spec.twist !== "none" ? `, ${spec.twist}` : ""}`,
   };

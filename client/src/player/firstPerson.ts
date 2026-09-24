@@ -1021,23 +1021,24 @@ export class FirstPerson {
       const bx = -Math.sin(this.rowHeading) * 0.04 * Math.sign(v || 1);
       const bz = -Math.cos(this.rowHeading) * 0.04 * Math.sign(v || 1);
       // turn on the spot; slide along a wall; turn while easing off it; else stop and come back a little
+      // (the rub takes off the same speed a second at any frame rate: the factors are per 60th of a second)
       const fend = Math.abs(w) > 0.03 ? this.rowFendOff(h1) : null;
       if (!this.rowBlocked(this.x, this.z, h1)) {
         nx = this.x;
         nz = this.z;
-        v *= 0.5;
+        v *= Math.pow(0.5, dt * 60);
       } else if (fend) {
         // an oar against the wall: the boat is pushed off it as it turns
         [nx, nz] = fend;
-        v *= 0.5;
+        v *= Math.pow(0.5, dt * 60);
       } else if (!this.rowBlocked(nx, this.z, this.rowHeading)) {
         nz = this.z;
         h = this.rowHeading;
-        v *= 0.6;
+        v *= Math.pow(0.6, dt * 60);
       } else if (!this.rowBlocked(this.x, nz, this.rowHeading)) {
         nx = this.x;
         h = this.rowHeading;
-        v *= 0.6;
+        v *= Math.pow(0.6, dt * 60);
       } else if (!this.rowBlocked(this.x + bx, this.z + bz, h1)) {
         nx = this.x + bx;
         nz = this.z + bz;

@@ -458,6 +458,8 @@ export interface Traffic {
   group: THREE.Group;
   /** Dev: where each vehicle is and what it does. */
   info(): Array<{ route: string; kind: VehicleKind; x: number; z: number; state: string }>;
+  /** The soundscape's vehicles, pushed onto `out` (one stable object per vehicle, moved in place). */
+  sounds(out: Array<{ kind: VehicleKind; x: number; z: number; state: string }>): void;
   /**
    * M6 transport: the drays belong to townspeople (server town/possessions.ts). The owner's
    * model walks at the horse's head; when `working()` says his day is done, the dray goes on to
@@ -661,7 +663,8 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
     const p = cam.position;
     let drays = false;
     for (const v of vehicles) {
-      const near = Math.hypot(v.px - p.x, v.pz - p.z) < far;
+      // (out on an errand: its carter is not left standing where the dray was)
+      const near = !v.away && Math.hypot(v.px - p.x, v.pz - p.z) < far;
       v.manGroup.visible = near;
       if (v.cart) v.cart.visible = near;
       if (near && v.kind === "dray") drays = true;
@@ -888,7 +891,7 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
           const wz = c.z - lx * sy + lz * cy;
           set(leg === "leg_front" ? parts.legF : parts.legH, i * 2 + (k % 2), wx, ly + bob + lift * amp, wz, horseYaw, swing);
         });
-        if (!moving) v.gait = v.gait * 0.98;
+        if (!moving) v.gait = v.gait * Math.pow(0.98, dt * 60);
         // colliders: the bed in two, the horse in two
         boxAround(v.rects[0], a.x + Math.sin(bedYaw) * 0.25, a.z + Math.cos(bedYaw) * 0.25, bedYaw, 0.95, 0.95, 1.6);
         boxAround(v.rects[1], a.x + Math.sin(bedYaw) * 2.1, a.z + Math.cos(bedYaw) * 2.1, bedYaw, 0.95, 0.95, 1.6);
@@ -970,7 +973,21 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
     });
   }
 
-  const api: Traffic = { update, colliders: () => colliders, group, info, setOwners, away, yards, people: null };
+  const heard: Array<{ kind: VehicleKind; x: number; z: number; state: string }> = [];
+  function sounds(out: Array<{ kind: VehicleKind; x: number; z: number; state: string }>): void {
+    for (let i = 0; i < vehicles.length; i++) {
+      const v = vehicles[i];
+      let o = heard[i];
+      if (!o || o.kind !== v.kind) o = heard[i] = { kind: v.kind, x: 0, z: 0, state: "" };
+      at(v.path, v.s, tmp);
+      o.x = tmp.x;
+      o.z = tmp.z;
+      o.state = v.state;
+      out.push(o);
+    }
+  }
+
+  const api: Traffic = { update, colliders: () => colliders, group, info, sounds, setOwners, away, yards, people: null };
   return api;
 }
 
@@ -1107,12 +1124,20 @@ export class LedDray {
 }
 
 const hv = new THREE.Vector3();
-/** The point between a man's hands (world), or where they would be in the push pose. */
+/** Each model's hand bones, found once (not looked up by name every frame). */
+const handBones = new WeakMap<THREE.Object3D, [THREE.Object3D, THREE.Object3D]>();
+const handsOut = { x: 0, z: 0, y: 0 };
+/** The point between a man's hands (world), or where they would be in the push pose. One reused answer: read it now, do not keep it. */
 export function handsOf(man: Human | null, group: THREE.Object3D, x: number, z: number, yaw: number): { x: number; z: number; y: number } {
-  const L = man?.root.getObjectByName("handL");
-  const R = man?.root.getObjectByName("handR");
-  if (L && R && group.visible) {
-    group.updateMatrixWorld(true);
+  let bones = man ? handBones.get(man.root) : undefined;
+  if (man && !bones) {
+    const l = man.root.getObjectByName("handL");
+    const r = man.root.getObjectByName("handR");
+    if (l && r) handBones.set(man.root, (bones = [l, r]));
+  }
+  if (bones && group.visible) {
+    const [L, R] = bones;
+    // getWorldPosition brings each bone's chain up to date (updateWorldMatrix(true, false)): not the whole body
     L.getWorldPosition(hv);
     let hx = hv.x;
     let hy = hv.y;
@@ -1123,7 +1148,13 @@ export function handsOf(man: Human | null, group: THREE.Object3D, x: number, z: 
     hz = (hz + hv.z) / 2;
     // only the reach ahead of the body is taken from the pose (the hands sway; the cart does not)
     const ahead = THREE.MathUtils.clamp((hx - x) * Math.sin(yaw) + (hz - z) * Math.cos(yaw), 0.25, 0.75);
-    return { x: x + Math.sin(yaw) * ahead, z: z + Math.cos(yaw) * ahead, y: THREE.MathUtils.clamp(hy, 0.7, 1.1) };
+    handsOut.x = x + Math.sin(yaw) * ahead;
+    handsOut.z = z + Math.cos(yaw) * ahead;
+    handsOut.y = THREE.MathUtils.clamp(hy, 0.7, 1.1);
+    return handsOut;
   }
-  return { x: x + Math.sin(yaw) * 0.5, z: z + Math.cos(yaw) * 0.5, y: 0.9 };
+  handsOut.x = x + Math.sin(yaw) * 0.5;
+  handsOut.z = z + Math.cos(yaw) * 0.5;
+  handsOut.y = 0.9;
+  return handsOut;
 }

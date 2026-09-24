@@ -440,16 +440,38 @@ export interface OutcomeMsg {
 
 export function connectPush(onJobs: (p: JobsPayload) => void, onOutcome: (o: OutcomeMsg) => void = () => {}, onOther: (m: PushMsg) => void = () => {}): void {
   let delay = 1000;
+  let dropped = false;
   const open = () => {
     const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
-    ws.onopen = () => (delay = 1000);
+    ws.onopen = () => {
+      delay = 1000;
+      // back after a drop: what was pushed meanwhile is lost, so the state is asked for once
+      if (dropped) {
+        dropped = false;
+        api
+          .jobs()
+          .then((p) => onJobs(p))
+          .catch(() => {});
+      }
+    };
     ws.onmessage = (e) => {
-      const msg = JSON.parse(String(e.data)) as { type: string } & JobsPayload & OutcomeMsg;
-      if (msg.type === "jobs") onJobs(msg);
-      else if (msg.type === "outcome") onOutcome(msg);
-      else onOther(msg as unknown as PushMsg);
+      // a bad message or a handler that throws must not take the channel's later messages with it
+      let msg: { type: string } & JobsPayload & OutcomeMsg;
+      try {
+        msg = JSON.parse(String(e.data)) as { type: string } & JobsPayload & OutcomeMsg;
+      } catch {
+        return;
+      }
+      try {
+        if (msg.type === "jobs") onJobs(msg);
+        else if (msg.type === "outcome") onOutcome(msg);
+        else onOther(msg as unknown as PushMsg);
+      } catch (err) {
+        console.warn(`push "${msg.type}" failed`, err);
+      }
     };
     ws.onclose = () => {
+      dropped = true;
       setTimeout(open, delay);
       delay = Math.min(delay * 2, 15000);
     };

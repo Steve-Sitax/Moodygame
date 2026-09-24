@@ -225,6 +225,19 @@ export class Ideas {
     if (m.type === "ideas" || m.type === "trouble") void this.load();
   }
 
+  /** Free what build() and makeThing() made for one thing alone: its geometry, material and texture. */
+  private free(o: THREE.Object3D): void {
+    o.traverse((c) => {
+      const m = c as THREE.Mesh;
+      if (!m.isMesh) return;
+      m.geometry.dispose();
+      for (const mat of [m.material].flat()) {
+        (mat as THREE.MeshLambertMaterial).map?.dispose();
+        mat.dispose();
+      }
+    });
+  }
+
   private build(): void {
     const v = this.view;
     if (!v) return;
@@ -233,7 +246,7 @@ export class Ideas {
     for (const [id, m] of this.bills) {
       if (want.has(id)) continue;
       m.removeFromParent();
-      (m.material as THREE.MeshLambertMaterial).map?.dispose();
+      this.free(m);
       this.bills.delete(id);
     }
     for (const p of v.posters) {
@@ -261,7 +274,9 @@ export class Ideas {
     for (const [k, t] of this.things) {
       if (keys.has(k)) continue;
       t.obj.removeFromParent();
-      t.animal?.dispose();
+      // an animal frees its own (its model's parts may be shared); a thing made here is freed here
+      if (t.animal) t.animal.dispose();
+      else this.free(t.obj);
       this.things.delete(k);
     }
   }
@@ -337,7 +352,7 @@ export class Ideas {
     this.activeCheck -= dt;
     if (this.activeCheck <= 0) {
       this.activeCheck = 0.5;
-      const active = this.jobs.debug().active;
+      const active = this.jobs.devActive?.id ?? null; // not debug(): that reads the HUD's text (a layout) each time
       if (active === null) this.jobSeen = null;
       else if (this.jobSeen?.id !== active) {
         this.jobSeen = { id: active, t: performance.now() };
@@ -413,7 +428,14 @@ export class Ideas {
     return { options, extra };
   }
 
+  /** One request at a time per kind: a key pressed twice does not pay or knock twice. */
+  private posting = false;
+  private choosing = false;
+  private sending = false;
+
   private async post(url: string, body: Record<string, unknown> = {}): Promise<void> {
+    if (this.posting) return;
+    this.posting = true;
     try {
       const r = await call<Partial<JobsPayload> & { text: string }>("POST", url, { x: this.player.x, z: this.player.z, ...body });
       if (r.player) this.jobs.refresh(r as JobsPayload);
@@ -421,6 +443,8 @@ export class Ideas {
       await this.load();
     } catch (e) {
       this.jobs.say((e as Error).message);
+    } finally {
+      this.posting = false;
     }
   }
 
@@ -473,6 +497,8 @@ export class Ideas {
   }
 
   private async choose(t: TroubleV, n: number): Promise<void> {
+    if (this.choosing) return;
+    this.choosing = true;
     try {
       const r = await call<Partial<JobsPayload> & { text: string }>("POST", `/api/trouble/${t.id}/choose`, { n });
       if (r.player) this.jobs.refresh(r as JobsPayload);
@@ -483,6 +509,8 @@ export class Ideas {
     } catch (e) {
       this.close(true);
       this.jobs.say((e as Error).message);
+    } finally {
+      this.choosing = false;
     }
   }
 
@@ -519,6 +547,7 @@ export class Ideas {
       e.stopPropagation(); // the letters go on the page, not to the game
       if (e.code === "Enter" && !e.shiftKey) {
         e.preventDefault();
+        if (e.repeat) return;
         const text = ta.value.trim();
         if (!text) return;
         void this.send(p.id, text);
@@ -528,6 +557,8 @@ export class Ideas {
   }
 
   private async send(to: string, text: string): Promise<void> {
+    if (this.sending) return; // one letter, one stamp
+    this.sending = true;
     try {
       const r = await call<Partial<JobsPayload> & { text: string }>("POST", "/api/post/write", { to, text, x: this.player.x, z: this.player.z });
       if (r.player) this.jobs.refresh(r as JobsPayload);
@@ -535,6 +566,8 @@ export class Ideas {
       this.jobs.say(r.text);
     } catch (e) {
       this.jobs.say((e as Error).message);
+    } finally {
+      this.sending = false;
     }
   }
 

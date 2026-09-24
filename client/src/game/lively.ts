@@ -182,9 +182,25 @@ export class Lively {
   // ------------------------------------------------------------------ loading
 
   async load(): Promise<void> {
-    const [view] = await Promise.all([fetch("/api/lively").then((r) => r.json() as Promise<LivelyView>), this.loadModels()]);
+    const [view] = await Promise.all([this.fetchView(), this.loadModels()]);
     this.view = view;
     this.ready = true;
+  }
+
+  /** The streets' plan from the server; while it is away (or answers an error), asked again, waiting longer each time. */
+  private async fetchView(): Promise<LivelyView> {
+    for (let wait = 2000; ; wait = Math.min(wait * 2, 30_000)) {
+      try {
+        const r = await fetch("/api/lively", { signal: AbortSignal.timeout(10_000) });
+        if (r.ok) {
+          const v = (await r.json()) as LivelyView;
+          if (v && Array.isArray(v.stalls)) return v;
+        }
+      } catch {
+        // away or too slow: below, and again
+      }
+      await new Promise((res) => setTimeout(res, wait));
+    }
   }
 
   private async loadModels(): Promise<void> {

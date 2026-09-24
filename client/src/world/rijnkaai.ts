@@ -180,6 +180,8 @@ export interface World {
   isFree(x: number, z: number, r: number, feet?: number): boolean;
   /** Everything solid on the ground now (crates, carts, cranes, lamps, trees): for path finding. */
   solids(): Rect[];
+  /** Changes whenever a solid is put down or taken away (the crowd rebuilds its paths' grid then). */
+  solidsVersion(): number;
   /** Open water (off the quay edge, off the pier)? */
   isWater(x: number, z: number): boolean;
   /** Height of the walkable surface (quay 0, gangway slope, ship deck). */
@@ -487,7 +489,35 @@ export function buildRijnkaai(): World {
   const chamberSheet = basinSheet({ minX: 104, maxX: 116, minZ: CHAMBER.minZ, maxZ: CHAMBER.maxZ }, { min: (x) => gateLine(CHAMBER.minZ, x), max: (x) => gateLine(CHAMBER.maxZ, x) });
   // real reflections: the scene mirrored in the still water level (world/mirror.ts); M6 tides: the
   // plane follows the level of the water nearest the camera
-  const mirror = createMirror(WATER_Y);
+  // (only while some water lies inside the fog: beyond it the water is all fog colour; sampled
+  // every 4 m of the walk map, twice a second, and at once after a jump)
+  let waterNear = true;
+  let waterNearAt = -1e9;
+  const eyeAt = new THREE.Vector3();
+  const eyeWas = new THREE.Vector3(1e9, 0, 1e9);
+  const mirror = createMirror(WATER_Y, {
+    enabled: (camera) => {
+      const now = performance.now();
+      eyeAt.setFromMatrixPosition(camera.matrixWorld);
+      if (now - waterNearAt < 500 && Math.abs(eyeAt.x - eyeWas.x) + Math.abs(eyeAt.z - eyeWas.z) < 6) return waterNear;
+      waterNearAt = now;
+      eyeWas.copy(eyeAt);
+      const fog = scene.fog as THREE.Fog | null;
+      const r = Math.min(172, (fog?.isFog ? fog.far : 160) + 12);
+      waterNear = false;
+      for (let dx = -r; dx <= r && !waterNear; dx += 4) {
+        for (let dz = -r; dz <= r; dz += 4) {
+          if (dx * dx + dz * dz > r * r) continue;
+          const f = city.flags(eyeAt.x + dx, eyeAt.z + dz);
+          if (f === undefined || (f & WATER) !== 0) {
+            waterNear = true;
+            break;
+          }
+        }
+      }
+      return waterNear;
+    },
+  });
   mirror.attach(water);
   mirror.attach(dockSheet);
   mirror.attach(dockMouth);
@@ -849,15 +879,78 @@ export function buildRijnkaai(): World {
     if (f === undefined) return x > QUAY.minX && x < QUAY.maxX && z > QUAY.minZ && z < QUAY.maxZ;
     return f === 0;
   };
-  const dynamic = new Set<Rect>();
+  /** Counts every real add and delete of the colliders that come and go (World.solidsVersion). */
+  let dynamicVersion = 0;
+  const dynamic = new (class extends Set<Rect> {
+    add(r: Rect): this {
+      if (!this.has(r)) dynamicVersion++;
+      return super.add(r);
+    }
+    delete(r: Rect): boolean {
+      const had = super.delete(r);
+      if (had) dynamicVersion++;
+      return had;
+    }
+  })();
   /** Things with a top lower than feet + STEP can be walked onto. */
   const STEP = 0.36;
   const blocks = (c: Rect, feet: number) => (c.top ?? Infinity) > feet + STEP;
+  // the fixed colliders filed in 4 m cells, so a question looks at the few near it, not all of
+  // them; the list only grows (the new ones are filed at the next question)
+  const CELL = 4;
+  const cells = new Map<number, Rect[]>();
+  const bigSolids: Rect[] = [];
+  let filed = 0;
+  const cellKey = (i: number, j: number) => (i + 32768) * 65536 + (j + 32768);
+  const fileSolids = () => {
+    if (colliders.length < filed) {
+      cells.clear();
+      bigSolids.length = 0;
+      filed = 0;
+    }
+    for (; filed < colliders.length; filed++) {
+      const c = colliders[filed];
+      const i0 = Math.floor(c.minX / CELL);
+      const i1 = Math.floor(c.maxX / CELL);
+      const j0 = Math.floor(c.minZ / CELL);
+      const j1 = Math.floor(c.maxZ / CELL);
+      // (a long one, or odd numbers: looked at every time)
+      if (!(i1 - i0 <= 16 && j1 - j0 <= 16 && Math.abs(i0) < 30000 && Math.abs(j0) < 30000)) {
+        bigSolids.push(c);
+        continue;
+      }
+      for (let i = i0; i <= i1; i++)
+        for (let j = j0; j <= j1; j++) {
+          const k = cellKey(i, j);
+          const l = cells.get(k);
+          if (l) l.push(c);
+          else cells.set(k, [c]);
+        }
+    }
+  };
+  /** A fixed collider within r of (x, z) that stops feet at this height (the same answer as trying them all). */
+  const staticHit = (x: number, z: number, r: number, feet: number) => {
+    fileSolids();
+    for (const c of bigSolids) if (inRect(c, x, z, r) && blocks(c, feet)) return true;
+    // a hair wider than r, so rounding never leaves out a cell inRect would reach
+    const e = Math.abs(r) + 1e-6;
+    const i0 = Math.floor((x - e) / CELL);
+    const i1 = Math.floor((x + e) / CELL);
+    const j0 = Math.floor((z - e) / CELL);
+    const j1 = Math.floor((z + e) / CELL);
+    for (let i = i0; i <= i1; i++)
+      for (let j = j0; j <= j1; j++) {
+        const l = cells.get(cellKey(i, j));
+        if (l) for (const c of l) if (inRect(c, x, z, r) && blocks(c, feet)) return true;
+      }
+    return false;
+  };
+  const RING_COS = Array.from({ length: 8 }, (_, i) => Math.cos((i * Math.PI) / 4));
+  const RING_SIN = Array.from({ length: 8 }, (_, i) => Math.sin((i * Math.PI) / 4));
   /** A house or landmark wall within m metres (8 points on a ring): keeps the eye out of walls. */
   const wallNear = (x: number, z: number, m: number) => {
     for (let i = 0; i < 8; i++) {
-      const a = (i * Math.PI) / 4;
-      const f = city.flags(x + Math.cos(a) * m, z + Math.sin(a) * m);
+      const f = city.flags(x + RING_COS[i] * m, z + RING_SIN[i] * m);
       if (f !== undefined && (f & WALL) !== 0) return true;
     }
     return false;
@@ -865,7 +958,7 @@ export function buildRijnkaai(): World {
   const isFree = (x: number, z: number, r: number, feet = 0) => {
     if (!isWalkable(x, z)) return false;
     if (wallNear(x, z, r + 0.15)) return false;
-    for (const c of colliders) if (inRect(c, x, z, r) && blocks(c, feet)) return false;
+    if (staticHit(x, z, r, feet)) return false;
     for (const c of dynamic) if (inRect(c, x, z, r) && blocks(c, feet)) return false;
     return true;
   };
@@ -1010,7 +1103,7 @@ export function buildRijnkaai(): World {
     return false;
   };
   const hits = (x: number, z: number, r: number, feet: number) => {
-    for (const c of colliders) if (inRect(c, x, z, r) && blocks(c, feet)) return true;
+    if (staticHit(x, z, r, feet)) return true;
     for (const c of dynamic) if (inRect(c, x, z, r) && blocks(c, feet)) return true;
     for (const c of railings) if (inRect(c, x, z, r)) return true;
     for (const c of movers) if (inRect(c, x, z, r) && blocks(c, feet)) return true;
@@ -1427,6 +1520,8 @@ export function buildRijnkaai(): World {
     onRails: (x, z, r = 0) => railBand.some((c) => inRect(c, x, z, r)),
     isFree,
     solids: () => [...colliders, ...dynamic].filter((c) => blocks(c, 0)),
+    // (the fixed list only grows: its length and the count of changes to the others)
+    solidsVersion: () => colliders.length + dynamicVersion,
     isWater,
     baseAt,
     reachFrom,

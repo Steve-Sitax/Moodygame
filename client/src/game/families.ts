@@ -109,18 +109,26 @@ export class Families {
 
   /** After the town loaded: the strangers' names and days, the fortune teller's table, a menace in progress. */
   async load(): Promise<void> {
+    let s: State;
     try {
-      const r = await fetch("/api/families/state");
-      const s = (await r.json()) as State;
-      for (const v of s.visitors) this.patchVisitor(v);
-      if (s.fortune?.at) this.buildTable(s.fortune.at);
-      if (s.menace) this.showMenace(s.menace);
-      if (s.visit) this.visit = { ...s.visit, t: 180 };
-      if (s.dream) this.lastDream = s.dream.text;
+      const r = await fetch("/api/families/state", { signal: AbortSignal.timeout(8000) });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      s = (await r.json()) as State;
     } catch {
-      // the server is away: nothing of this shows
+      // the server is away (or answered an error): ask again, waiting longer each time
+      const wait = this.loadWait;
+      this.loadWait = Math.min(wait * 2, 60_000);
+      setTimeout(() => void this.load(), wait);
+      return;
     }
+    this.loadWait = 2000;
+    for (const v of s.visitors ?? []) this.patchVisitor(v);
+    if (s.fortune?.at) this.buildTable(s.fortune.at);
+    if (s.menace) this.showMenace(s.menace);
+    if (s.visit) this.visit = { ...s.visit, t: 180 };
+    if (s.dream) this.lastDream = s.dream.text;
   }
+  private loadWait = 2000;
 
   handlePush(m: PushMsg): void {
     if (m.type !== "families") return;

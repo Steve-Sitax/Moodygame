@@ -19,6 +19,16 @@ const HEAR_M = 90;
 const GAME_MIN_PER_S = 3;
 /** An event starting within this of Jef is named in a line at the bottom of the screen. */
 const TELL_M = 90;
+/** Beyond this the stage's composed cues are stopped (started again at HEAR_M: a gap so they do not flicker). */
+const CUES_OFF_M = HEAR_M * 1.5;
+
+/** Take the props away and free their geometry (every prop builds its own; the materials are shared and stay). */
+function dropProps(props: THREE.Object3D[]): void {
+  for (const o of props) {
+    o.removeFromParent();
+    o.traverse((c) => (c as THREE.Mesh).geometry?.dispose());
+  }
+}
 
 export type EventSoundKind = "bells" | "music" | "murmur" | "handbell" | "alarm";
 export interface EventSoundHandle {
@@ -84,7 +94,7 @@ export class Events {
     l.cues?.stop();
     l.cues = null;
     l.cueKey = "";
-    for (const o of l.props) o.removeFromParent();
+    dropProps(l.props);
     l.props = [];
     l.propsKey = "";
   }
@@ -188,10 +198,14 @@ export class Events {
       if (!l.cues && st.cues?.length && near && ev.stage_left > 2) {
         const secs = Math.max(6, Math.min(120, ev.stage_left / 3));
         l.cues = this.eventCues(st.cues, { x: st.x, z: st.z }, secs);
+      } else if (l.cues && dj > CUES_OFF_M) {
+        // Jef walked off: no hits played for nobody (they start again when he comes back)
+        l.cues.stop();
+        l.cues = null;
       } else if (l.cues) l.cues.move(st.x, st.z);
       // props: once per event, at the first stage that names them
       if (st.props !== "none" && l.propsKey !== `${ev.id}:${st.props}` && near) {
-        for (const o of l.props) o.removeFromParent();
+        dropProps(l.props);
         l.props = this.placeProps(st.props, st.x, st.z, ev.r);
         l.propsKey = `${ev.id}:${st.props}`;
       }

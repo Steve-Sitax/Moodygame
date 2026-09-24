@@ -588,7 +588,8 @@ export function createTrades(scene: THREE.Scene, _flags: (x: number, z: number) 
       const d = Math.hypot(p.site.x - cx, p.site.z - cz);
       const near = d < fogFar + 25 || (p.site.id === "ropewalk" && Math.abs(cz - ROPE.z) < fogFar + 20 && cx > ROPE.x0 - fogFar - 20 && cx < ROPE.x0 + 50 + fogFar);
       p.group.visible = near;
-      const staff = near && work && d < 70;
+      // the workers are made within 70 m and let go beyond 85 (not made and dropped over and over at one distance)
+      const staff = near && work && d < (p.people.some((w) => w.h) ? 85 : 70);
       for (const w of p.people) {
         if (staff && !w.h && humansReady) {
           w.h = makeHuman(w.w.kind);

@@ -690,7 +690,7 @@ export class Journeys {
         }
         return true;
       case "wait":
-        return this.waitBus(s, t, null);
+        return this.waitBus(s, t, null, dt);
       case "bus":
         return this.onBus(s, t);
       case "toberth":
@@ -758,7 +758,7 @@ export class Journeys {
         return true;
       }
       case "unload":
-        this.unloading(s, t, p);
+        this.unloading(s, t, p, dt);
         return true;
       case "tostop": {
         const [sx, sz] = this.stopSpot(t.bus!.board);
@@ -770,7 +770,7 @@ export class Journeys {
         return true;
       }
       case "wait":
-        return this.waitBus(s, t, p);
+        return this.waitBus(s, t, p, dt);
       case "bus":
         return this.onBus(s, t);
       case "toberth": {
@@ -793,7 +793,7 @@ export class Journeys {
           this.town.resume(s);
           return false;
         } else go(bx, bz, this.town.pace(s));
-        this.crewFollow(s, t);
+        this.crewFollow(s, t, dt);
         return true;
       }
       case "row":
@@ -992,11 +992,11 @@ export class Journeys {
   }
 
   /** At the stall or the door: the one who brought them carries the things off the cart. */
-  private unloading(_s: JourneySim, t: Trip, p: Puppet): void {
+  private unloading(_s: JourneySim, t: Trip, p: Puppet, dt: number): void {
     const own = (t as Trip & { offStep?: { step: number; goT: number; tt: number } }).offStep ?? { step: 0, goT: 0, tt: 0 };
     (t as Trip & { offStep?: { step: number; goT: number; tt: number } }).offStep = own;
-    own.goT -= 1 / 60;
-    own.tt += 1 / 60;
+    own.goT -= dt;
+    own.tt += dt;
     // the dray's bed (where he stopped, 4 m behind him), or the cart's spot
     const tt = t as Trip & { from4?: Pt };
     if (t.mode === "dray" && !tt.from4) tt.from4 = [p.x - Math.sin(p.yaw) * 4, p.z - Math.cos(p.yaw) * 4];
@@ -1042,9 +1042,9 @@ export class Journeys {
   // ------------------------------------------------------------------ the omnibus
 
   /** At the stop: the next omnibus of the line that stands here takes them (no fare). */
-  private waitBus(s: JourneySim, t: Trip, p: Puppet | null): boolean {
+  private waitBus(s: JourneySim, t: Trip, p: Puppet | null, dt: number): boolean {
     const b = t.bus!;
-    b.waitT += 1 / 60;
+    b.waitT += dt;
     const buses = this.world.omnibus()?.buses ?? [];
     const bus = buses.find((q) => {
       const at = q.atStop();
@@ -1066,7 +1066,7 @@ export class Journeys {
       t.phase = "walkon";
       t.t = 0;
     }
-    if (p && !this.crowd.puppetBusy(p) && Math.random() < 0.01) this.crowd.puppetStand(p, "idle", Math.atan2(b.board.x - p.x, b.board.z - p.z));
+    if (p && !this.crowd.puppetBusy(p) && Math.random() < 0.6 * dt) this.crowd.puppetStand(p, "idle", Math.atan2(b.board.x - p.x, b.board.z - p.z));
     return true;
   }
 
@@ -1139,7 +1139,7 @@ export class Journeys {
   }
 
   /** The crew walk after the owner to the steps (or come unseen). */
-  private crewFollow(_s: JourneySim, t: Trip): void {
+  private crewFollow(_s: JourneySim, t: Trip, dt: number): void {
     const [bx, bz] = t.fetchAt!;
     for (const id of t.boat?.crew.slice(1) ?? []) {
       const o = this.town.sim(id);
@@ -1156,7 +1156,7 @@ export class Journeys {
       } else {
         const d = Math.hypot(bx - o.x, bz - o.z);
         if (d > 0.6) {
-          const k = Math.min(1, (this.town.hiddenSpeed * (1 / 60)) / d);
+          const k = Math.min(1, (this.town.hiddenSpeed * dt) / d);
           o.x += (bx - o.x) * k;
           o.z += (bz - o.z) * k;
         }

@@ -472,13 +472,13 @@ export class HaulRun implements Run {
     const employer = this.ctx.people.get(this.job.employer_npc)?.def.name ?? this.job.employer_name;
     const step = mine
       ? this.kind === "deliver"
-        ? `Bring it to ${esc((this.task as DeliverTask).recipient)} at ${to.label}`
-        : `Bring it to ${to.label}`
+        ? `Bring it to ${esc((this.task as DeliverTask).recipient)} at ${esc(to.label)}`
+        : `Bring it to ${esc(to.label)}`
       : this.waitingHandover
         ? this.kind === "deliver"
-          ? `Get the ${this.noun} from ${employer}`
+          ? `Get the ${esc(this.noun)} from ${esc(employer)}`
           : "Ask the ship for the cargo at the gangway"
-        : `Fetch the ${this.noun} at ${from.label}`;
+        : `Fetch the ${esc(this.noun)} at ${esc(from.label)}`;
     const count =
       this.kind === "carry"
         ? `<br>${this.delivered} / ${this.count} delivered${this.onCart ? `, ${this.onCart} on the cart` : ""}${this.lost ? `, ${this.lost} lost` : ""}${this.sold ? `, ${this.sold} sold` : ""}`
@@ -720,7 +720,7 @@ export class WatchRun implements Run {
 
   hud(): string {
     const status = this.near() ? `The bell in ${clock(this.task.duration_s - this.t)}` : "Back to your post!";
-    return `<b>${esc(this.job.title)}</b><br>Stand watch at ${this.post.label}<br>${status}`;
+    return `<b>${esc(this.job.title)}</b><br>Stand watch at ${esc(this.post.label)}<br>${status}`;
   }
 
   dispose(): void {

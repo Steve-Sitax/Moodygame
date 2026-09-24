@@ -1,6 +1,6 @@
 import type { DB } from "../db.ts";
 import { writeEvent } from "../director/eventlog.ts";
-import { ITEMS, WARES, waresOf } from "../trade.ts";
+import { ITEMS, marketOf, WARES, waresOf } from "../trade.ts";
 import { rngFrom, type Resident } from "../town/population.ts";
 import { town } from "../town/store.ts";
 import { clamp } from "./common.ts";
@@ -95,10 +95,11 @@ export interface PriceMove {
 /** The lowest price of an item among the town's sellers (engine prices, with every factor). */
 export function lowestPrice(db: DB, item: string): number | null {
   let best = Infinity;
-  for (const id of Object.keys(WARES)) for (const w of waresOf(db, id)) if (w.kind === item) best = Math.min(best, w.price_c);
+  const market = marketOf(db);
+  for (const id of Object.keys(WARES)) for (const w of waresOf(db, id, market)) if (w.kind === item) best = Math.min(best, w.price_c);
   for (const r of town(db).town.residents as Resident[]) {
     if (r.work.stall === undefined && !r.work.shop && r.trade !== "publican" && r.trade !== "chandler") continue;
-    for (const w of waresOf(db, r.id)) if (w.kind === item) best = Math.min(best, w.price_c);
+    for (const w of waresOf(db, r.id, market)) if (w.kind === item) best = Math.min(best, w.price_c);
   }
   return Number.isFinite(best) ? best : null;
 }

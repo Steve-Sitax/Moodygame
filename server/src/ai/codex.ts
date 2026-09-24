@@ -120,7 +120,8 @@ export const codexRunner: Runner = async ({ system, prompt, jsonSchema, signal, 
     "-o", outFile,
   ];
   const long = args.join(" ").length + prompt.length > ARGV_MAX;
-  args.push(long ? "-" : prompt);
+  // "--": the prompt is never read as a flag, whatever it starts with
+  args.push("--", long ? "-" : prompt);
   try {
     const events = await new Promise<string>((resolve, reject) => {
       const child = spawn(bin, args, {

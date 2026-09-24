@@ -11,6 +11,39 @@ export const AI_CWD = path.join(ROOT, "data", "ai-cwd");
 
 export const HOST = "127.0.0.1"; // localhost only, never the LAN
 export const PORT = Number(process.env.SCHELDEMIST_PORT) || 8787;
+
+/**
+ * Who may talk to the server (index.ts): the game's own pages only. Through vite, /api (string
+ * shorthand: changeOrigin) arrives with Host 127.0.0.1:PORT, /ws (no changeOrigin) with the page's
+ * Host (localhost:5173); the Origin is the page's either way. The ports: this server, npm run dev (5173), npm run dev:alt (5183,
+ * tools/dev-alt.mjs), the test stack (5341, tools/teststack.mjs), and SCHELDEMIST_CLIENT_PORT.
+ * Another page in the browser (another site, another local port) gets a 403.
+ */
+export const CLIENT_PORTS: ReadonlySet<number> = new Set(
+  [PORT, 5173, 5183, 5341, Number(process.env.SCHELDEMIST_CLIENT_PORT)].filter((p) => Number.isInteger(p) && p > 0),
+);
+const LOCAL_NAMES = new Set(["127.0.0.1", "localhost", "[::1]"]);
+
+/** A Host header naming this machine on one of the game's ports (no DNS rebinding). */
+export function allowedHost(host: string | undefined, ports: ReadonlySet<number> = CLIENT_PORTS): boolean {
+  if (!host) return false;
+  try {
+    const u = new URL(`http://${host}`);
+    return LOCAL_NAMES.has(u.hostname) && ports.has(Number(u.port));
+  } catch {
+    return false;
+  }
+}
+
+/** An Origin header of one of the game's own pages (http, this machine, a game port). */
+export function allowedOrigin(origin: string, ports: ReadonlySet<number> = CLIENT_PORTS): boolean {
+  try {
+    const u = new URL(origin);
+    return u.protocol === "http:" && u.origin === origin && LOCAL_NAMES.has(u.hostname) && ports.has(Number(u.port));
+  } catch {
+    return false;
+  }
+}
 export const DEV = process.env.NODE_ENV !== "production";
 
 // Fixed Claude call settings, docs/02-tech-stack.md
@@ -67,6 +100,8 @@ export const ALL_CLAUDE = process.env.SCHELDEMIST_ALL_CLAUDE === "1";
  * These go only to Claude, whatever MODEL_ROUTE says, unless CODEX_PLAYER_TEXT is on (docs/03, wall 1).
  */
 export const PLAYER_TEXT_HOOKS: ReadonlySet<string> = new Set([
+  // a named person's reply to a picked line still replays Jef's typed lines of the meeting (fenced)
+  "dialogue",
   "free_reply",
   "resident_talk",
   "resident_talkdown",

@@ -91,10 +91,12 @@ export function mountPress(app: Hono, deps: PressDeps): void {
   /** A clerk's remark, later, as a bubble (never blocks the counter). */
   const remark = (who: string | null, situation: string, fallback: string) => {
     if (!who) return;
-    void clerkRemark(db, who, situation, fallback).then((r) => {
-      console.log(`[clerk] ${r.source}: ${r.text}`);
-      broadcast({ type: "clerk", who, name: resident(db, who)?.name ?? "The clerk", text: r.text, source: r.source });
-    });
+    void clerkRemark(db, who, situation, fallback)
+      .then((r) => {
+        console.log(`[clerk] ${r.source}: ${r.text}`);
+        broadcast({ type: "clerk", who, name: resident(db, who)?.name ?? "The clerk", text: r.text, source: r.source });
+      })
+      .catch((e) => console.error("[clerk]", e));
   };
 
   // ---- what the client needs to place things: corners, the post office, the Berg

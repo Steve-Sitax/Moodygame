@@ -60,8 +60,25 @@ export class Jobs {
   private boardOpen = false;
   private finishing = false;
   sfx: (name: Sfx, at?: THREE.Vector3) => void = () => {};
-  /** M4: pushes that are not the board (actions, events, a conversation); set by main. */
-  onPush: (m: PushMsg) => void = () => {};
+  /**
+   * M4: pushes that are not the board (actions, events, a conversation); set by main, each part
+   * wrapping the one before. Read back, the handler comes in its own try: a part that throws does
+   * not stop the parts after it (each wrapper calls the one before through this getter).
+   */
+  private pushFn: (m: PushMsg) => void = () => {};
+  get onPush(): (m: PushMsg) => void {
+    const f = this.pushFn;
+    return (m) => {
+      try {
+        f(m);
+      } catch (e) {
+        console.warn(`push "${m.type}" failed`, e);
+      }
+    };
+  }
+  set onPush(f: (m: PushMsg) => void) {
+    this.pushFn = f;
+  }
 
   readonly goods: GoodsWorld;
   readonly people: People;
@@ -193,13 +210,32 @@ export class Jobs {
     this.run?.update(dt);
     this.people.update(dt, this.player);
     this.updateSinking(dt);
-    this.acts = this.findActions();
+    // what E and F can do: ten times a second, or at once when Jef moved or turned, or his hands
+    // or a window changed (findActions asks every part of the town; not needed each frame)
+    this.actsT -= dt;
+    const pl = this.player;
+    const sig = this.goods.carried;
+    const shut = this.boardOpen || this.talk.isOpen || this.pockets.open || this.day.sheetOpen || this.map.open;
+    if (this.actsT <= 0 || Math.hypot(pl.x - this.actsAt.x, pl.z - this.actsAt.z) > 0.2 || Math.abs(pl.yaw - this.actsAt.yaw) > 0.15 || sig !== this.actsSig || shut !== this.actsShut || this.run !== this.actsRun) {
+      this.actsT = 0.1;
+      this.actsAt = { x: pl.x, z: pl.z, yaw: pl.yaw };
+      this.actsSig = sig;
+      this.actsShut = shut;
+      this.actsRun = this.run;
+      this.acts = this.findActions();
+    }
     const text = this.boardOpen || this.talk.isOpen || this.pockets.open || this.day.sheetOpen || this.map.open ? "" : this.acts.map((a) => `${a.key.slice(3)}  ${a.text}`).join("     ");
     if (this.el.prompt.textContent !== text) this.el.prompt.textContent = text;
     this.el.prompt.style.display = text ? "block" : "none";
     this.renderTask();
     this.updatePointer(dt);
   }
+
+  private actsT = 0;
+  private actsAt = { x: NaN, z: NaN, yaw: NaN };
+  private actsSig: unknown = null;
+  private actsShut = false;
+  private actsRun: Run | null = null;
 
   /** Everything E and F can do right now, most specific first. */
   private findActions(): Action[] {
@@ -378,6 +414,9 @@ export class Jobs {
       if (n >= 1 && n <= 9) void this.take(n - 1);
       return;
     }
+    // the list shown may be up to a tenth of a second old: asked afresh for the key pressed
+    if (!this.acts.some((a) => a.key === e.code)) return;
+    this.acts = this.findActions();
     const act = this.acts.find((a) => a.key === e.code);
     if (act) act.run();
   }
@@ -458,17 +497,22 @@ export class Jobs {
     return this.active;
   }
 
+  private taking = false;
   /** Take a job, from the board or from the person who offers it. */
   private async takeJob(j: Job): Promise<void> {
+    if (this.taking) return; // the first ask is still on its way (a second key press, the board and the talk window)
     if (!j.playable) return this.toastMsg("That work is not in this build yet.");
     if (this.active) return this.toastMsg("Finish the job you have first.");
     if (this.goods.carried) return this.toastMsg("Your hands are full. Set that down first.");
+    this.taking = true;
     try {
       const { job } = await api.take(j.id);
       this.closeBoard();
       this.start(job);
     } catch (e) {
       this.toastMsg(String((e as Error).message));
+    } finally {
+      this.taking = false;
     }
   }
 

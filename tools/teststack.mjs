@@ -98,7 +98,7 @@ export default {
   );
   const server = spawn(process.execPath, ["src/index.ts"], {
     cwd: path.join(root, "server"),
-    env: { ...process.env, SCHELDEMIST_DB: db, SCHELDEMIST_PORT: String(SERVER) },
+    env: { ...process.env, SCHELDEMIST_DB: db, SCHELDEMIST_PORT: String(SERVER), SCHELDEMIST_CLIENT_PORT: String(VITE) },
     detached: true,
     windowsHide: true,
     stdio: ["ignore", openSync(logS, "w"), openSync(logS, "a")],

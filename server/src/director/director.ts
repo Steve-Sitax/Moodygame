@@ -13,7 +13,7 @@ import { activeActions, crimeOpen, posOf, startAction, listActions } from "./act
 import { eventSlice, writeEvent } from "./eventlog.ts";
 import { streetCrimeOpen } from "./scenes.ts";
 import { eventPlaces, eventsToday, liveEvents, planEvent, type EventPlan, type PlanResult } from "./scheduler.ts";
-import { enginePick, planFromTemplate } from "./templates.ts";
+import { enginePick, planFromTemplate, ROUTINE_TEMPLATES } from "./templates.ts";
 import { EVENTS_AT_ONCE, EVENTS_PER_DAY, LOOK_FOR_MIN, LOOK_FOR_RADIUS_M, PRIMITIVES_FOR_MODEL, StageSchema } from "./vocab.ts";
 import { keepPromise, promiseThread, strangersHere } from "./surprises.ts";
 
@@ -94,12 +94,15 @@ export const NIGHTFALL = 19;
 /** The chance per game hour (8:00 to 21:00) that the engine starts a template when the model cannot. */
 export const ENGINE_EVENT_CHANCE = 0.35;
 
-/** Could an event be planned now at all (daylight, room today, not two running)? The model is not asked otherwise. */
+/**
+ * Could an event be planned now at all (daylight, room today, not two running)? The model is not asked otherwise.
+ * The town's routine (the ballad singer, the dawn hiring) takes no slot, as in planEvent.
+ */
 export function roomForEvent(db: DB): boolean {
   const h = clock(db).hour;
   if (h < 6 || h >= 22) return false;
   if (eventsToday(db).length >= EVENTS_PER_DAY) return false;
-  return liveEvents(db).length < EVENTS_AT_ONCE;
+  return liveEvents(db).filter((e) => !ROUTINE_TEMPLATES.has(e.template)).length < EVENTS_AT_ONCE;
 }
 
 export function canCallDirector(db: DB): boolean {

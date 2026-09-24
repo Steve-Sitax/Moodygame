@@ -901,8 +901,16 @@ async function load(): Promise<Boats> {
   const tmpP = new THREE.Vector3();
   const one = new THREE.Vector3(1, 1, 1);
   const _m = new THREE.Matrix4();
+  /** Each rigging geometry's four matrix columns (i0..i3), looked up once. */
+  const rigAttrs = new WeakMap<THREE.BufferGeometry, THREE.InstancedBufferAttribute[]>();
 
   function writeFleet(f: Fleet, t: number): void {
+    let rig: THREE.InstancedBufferAttribute[] | null = null;
+    if (f.lines) {
+      const g = f.lines.geometry;
+      rig = rigAttrs.get(g) ?? null;
+      if (!rig) rigAttrs.set(g, (rig = [0, 1, 2, 3].map((c) => g.getAttribute(`i${c}`) as THREE.InstancedBufferAttribute)));
+    }
     for (let i = 0; i < f.boats.length; i++) {
       const b = f.boats[i];
       const sea = psxUniforms.uSea.value;
@@ -922,17 +930,14 @@ async function load(): Promise<Boats> {
       for (let k = 0; k < f.meshes.length; k++) {
         f.meshes[k].setMatrixAt(i, _m.multiplyMatrices(tmpM, f.parts[k].matrix));
       }
-      if (f.lines) {
+      if (rig) {
         const e = tmpM.elements;
-        for (let c = 0; c < 4; c++) {
-          const a = f.lines.geometry.getAttribute(`i${c}`) as THREE.InstancedBufferAttribute;
-          a.setXYZW(i, e[c * 4], e[c * 4 + 1], e[c * 4 + 2], e[c * 4 + 3]);
-        }
+        for (let c = 0; c < 4; c++) rig[c].setXYZW(i, e[c * 4], e[c * 4 + 1], e[c * 4 + 2], e[c * 4 + 3]);
       }
       b.world.copy(tmpM);
     }
     for (const m of f.meshes) m.instanceMatrix.needsUpdate = true;
-    if (f.lines) for (let c = 0; c < 4; c++) f.lines.geometry.getAttribute(`i${c}`).needsUpdate = true;
+    if (rig) for (const a of rig) a.needsUpdate = true;
   }
 
   function mooreAlong(

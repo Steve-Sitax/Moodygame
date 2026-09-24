@@ -13,7 +13,7 @@ import { isAwayVisitor } from "../town/visitors.ts";
 import { family, resident, town } from "../town/store.ts";
 import { dateLine } from "../paper/newspaper.ts";
 import { postClerk, postCounter } from "../paper/post.ts";
-import { canCallIdeas, clamp, d2, digitsOf, GIFTS, namesOk, now, numbersOk, OUT_OF_WORLD } from "./common.ts";
+import { canCallIdeas, clamp, d2, digitsOf, GIFTS, namesOk, now, numbersOk, OUT_OF_WORLD, within } from "./common.ts";
 import { nearLabel } from "./posters.ts";
 
 // Jef's own letters, with replies (M6 AI ideas). At the post office counter Jef writes,
@@ -351,7 +351,7 @@ export function meet(db: DB, id: number, at: { x: number; z: number }): { text: 
   if (!m || m.status !== "open") throw new GameError("nobody expects you", 409);
   const { day, hour } = now(db);
   if (day !== m.day || hour < m.from_h || hour >= m.to_h) throw new GameError(`they said between ${m.from_h}:00 and ${m.to_h}:00`, 409);
-  if (d2(at, m) > 4) throw new GameError("this is not their door", 409);
+  if (!within(at, m, 4)) throw new GameError("this is not their door", 409);
   const r = resident(db, m.who);
   db.prepare("UPDATE meeting SET status = 'met' WHERE id = ?").run(id);
   applyTrust(db, m.who, 1, 0);

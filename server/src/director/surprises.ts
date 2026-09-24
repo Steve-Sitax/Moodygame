@@ -15,7 +15,7 @@ import type { Seg } from "../town/schedule.ts";
 import { resident, town } from "../town/store.ts";
 import { nowOf, talkExtras, type ExtraTopic } from "../town/talk.ts";
 import { AWAY, FORTUNE_ID, isAwayVisitor, saveVisitor, STRANGER_KINDS, strangerId, visitorOf, type StrangerKind, type VisitorResident } from "../town/visitors.ts";
-import { actionHooks, actionOf, activeActions, isReserved, jefAt, posOf, startAction, type ActionRow } from "./actions.ts";
+import { actionHooks, actionOf, activeActions, isReserved, jefAt, posOf, reserveSnap, startAction, type ActionRow, type ReserveSnap } from "./actions.ts";
 import { bus } from "./bus.ts";
 import { publishConvo, type ConvoLine } from "./convo.ts";
 import { eventSlice, writeEvent } from "./eventlog.ts";
@@ -97,7 +97,8 @@ export interface Promise_ {
   text: string;
   /** The last day it may come true. */
   due: number;
-  status: "open" | "kept" | "lapsed";
+  /** pending: paid, the words still being written; keeping: the engine is bringing it about now. */
+  status: "open" | "kept" | "lapsed" | "pending" | "keeping";
   how?: string;
 }
 export function promiseOf(db: DB): Promise_ | null {
@@ -137,11 +138,21 @@ function fortuneTopics(db: DB, r: Resident): ExtraTopic[] {
 /** The cards: the engine takes the coin, the model words it, the engine keeps the promise. */
 export async function tellFortune(db: DB, runner?: Runner, rng: () => number = Math.random): Promise<{ text: string; trust?: number }> {
   const p = player(db);
-  if (p.money_c < FORTUNE_C) return { text: "No coin, no cards, my dear. The cards are hungry too." };
-  db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(FORTUNE_C);
-  log(db, "fortune", FORTUNE_ID, `Jef paid Madame Zelie ${FORTUNE_C} centimes to read his fortune.`);
   let kind: PromiseKind = PROMISE_KINDS[Math.floor(rng() * PROMISE_KINDS.length)];
   let text = FORTUNE_FALLBACK[kind];
+  // the coin and today's mark in one go, before the model call: a second click the same day pays nothing
+  const paid = db.transaction((): "ok" | "poor" | "done" => {
+    const today = clock(db).day;
+    const had = promiseOf(db);
+    if (had && had.day === today) return "done";
+    if (player(db).money_c < FORTUNE_C) return "poor";
+    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(FORTUNE_C);
+    log(db, "fortune", FORTUNE_ID, `Jef paid Madame Zelie ${FORTUNE_C} centimes to read his fortune.`);
+    setSt(db, "fortune_promise", { day: today, kind, text, due: today + 2, status: "pending" } satisfies Promise_);
+    return "ok";
+  })();
+  if (paid === "poor") return { text: "No coin, no cards, my dear. The cards are hungry too." };
+  if (paid === "done") return { text: "The cards have spoken for today, my dear. Come back tomorrow." };
   let source = "engine";
   if (canCallResident(db)) {
     const c = clock(db);
@@ -161,7 +172,7 @@ ${p.money_c < 20 ? "thin purse" : "a few coins"}, ${p.health <= 4 ? "pale and wo
       source = "claude";
     }
   }
-  const day = clock(db).day;
+  const day = promiseOf(db)?.day ?? clock(db).day;
   setSt(db, "fortune_promise", { day, kind, text, due: day + 2, status: "open" } satisfies Promise_);
   writeEvent(db, { kind: "talk", verb: "fortune", actor: FORTUNE_ID, target: "player", text: `Madame Zelie read Jef's cards (${source}); she foretold ${kind === "meeting" ? "a meeting" : kind === "loss" ? "a small loss" : kind === "gift" ? "a gift" : "a stranger"}.`, weight: 4, data: { promise: kind, text }, who: [FORTUNE_ID] });
   remember(db, FORTUNE_ID, "I read the cards for Jef, the new man. They had something to say.", 4, "seen", null, { gist: "Jef had his fortune told by Madame Zelie", tone: 0 });
@@ -193,13 +204,32 @@ export async function keepPromise(db: DB, opts: { rng?: () => number; runner?: R
   const soon = c.day > p.day || gameMinute(db) - ((p.day - 1) * 1440) > 14 * 60;
   const last = c.day === p.due && c.hour >= 14;
   if (!opts.force && !last && !(soon && rng() < 0.3)) return null;
+  // marked before any await: a second tick meanwhile finds it not open and leaves it be
+  setSt(db, "fortune_promise", { ...p, status: "keeping" } satisfies Promise_);
+  let how: string | null = null;
+  try {
+    how = await bringAbout(db, p, rng, opts.runner);
+  } finally {
+    const now = promiseOf(db);
+    if (!how && now?.status === "keeping" && now.day === p.day) setSt(db, "fortune_promise", p);
+  }
+  const cur = promiseOf(db);
+  if (!how || cur?.status !== "keeping" || cur.day !== p.day) return null;
+  setSt(db, "fortune_promise", { ...p, status: "kept", how });
+  writeEvent(db, { kind: "director", verb: "promise_kept", text: `The cards' promise came true: ${how}.`, weight: 3 });
+  return how;
+}
+
+/** keepPromise's part that does it: who comes, what is lost, which stranger. null: not today. */
+async function bringAbout(db: DB, p: Promise_, rng: () => number, runner?: Runner): Promise<string | null> {
   let how: string | null = null;
   const jef = jefAt();
   const near = (r: Resident) => {
     const at = posOf(db, r.id);
     return !!jef && !!at && !at.indoors && Math.hypot(at.x - jef.x, at.z - jef.z) < 200;
   };
-  const free = (r: Resident) => r.age >= 18 && !actionOf(db, r.id) && !isReserved(db, r.id) && r.trade !== "police" && !visitorOf(r);
+  const snap = reserveSnap(db);
+  const free = (r: Resident) => r.age >= 18 && !snap.acting.has(r.id) && !isReserved(db, r.id, snap) && r.trade !== "police" && !visitorOf(r);
   switch (p.kind) {
     case "meeting":
     case "gift": {
@@ -224,7 +254,7 @@ export async function keepPromise(db: DB, opts: { rng?: () => number; runner?: R
     case "stranger": {
       const here = strangersHere(db);
       if (!here.length) {
-        const s = await arriveStranger(db, { runner: opts.runner, rng });
+        const s = await arriveStranger(db, { runner, rng });
         how = s ? `${s.name} arrived` : null;
       } else how = `${here[0].name} is in town`;
       // the stranger comes to find Jef (the meeting the cards spoke of)
@@ -233,9 +263,6 @@ export async function keepPromise(db: DB, opts: { rng?: () => number; runner?: R
       break;
     }
   }
-  if (!how) return null;
-  setSt(db, "fortune_promise", { ...p, status: "kept", how });
-  writeEvent(db, { kind: "director", verb: "promise_kept", text: `The cards' promise came true: ${how}.`, weight: 3 });
   return how;
 }
 
@@ -326,8 +353,21 @@ function goodName(db: DB, first: string, surname: string): boolean {
   return !town(db).town.residents.some((r) => r.name === full);
 }
 
+/** One arrival at a time: a second caller while the model words the first gets nothing. */
+let arriving = false;
+
 /** A stranger arrives: the engine picks the kind and the stay; the model words the rest. */
 export async function arriveStranger(db: DB, opts: { kind?: StrangerKind; runner?: Runner; rng?: () => number } = {}): Promise<VisitorResident | null> {
+  if (arriving) return null;
+  arriving = true;
+  try {
+    return await arriveNow(db, opts);
+  } finally {
+    arriving = false;
+  }
+}
+
+async function arriveNow(db: DB, opts: { kind?: StrangerKind; runner?: Runner; rng?: () => number }): Promise<VisitorResident | null> {
   const rng = opts.rng ?? Math.random;
   const s0 = st<StrangerState>(db, "strangers", { last: null, next: 0 });
   const away = STRANGER_KINDS.filter((k) => isAwayVisitor(resident(db, strangerId(k))));
@@ -532,13 +572,14 @@ function schemeRow(db: DB, id: number): SchemeRow | null {
   return (db.prepare("SELECT * FROM town_scheme WHERE id = ?").get(id) as SchemeRow | undefined) ?? null;
 }
 
-const free = (db: DB, r: Resident) => r.age >= 18 && !visitorOf(r) && !isReserved(db, r.id) && r.trade !== "police" && r.work.kind !== "guard" && r.trade !== "infant";
+const free = (db: DB, r: Resident, snap?: ReserveSnap) => r.age >= 18 && !visitorOf(r) && !isReserved(db, r.id, snap) && r.trade !== "police" && r.work.kind !== "guard" && r.trade !== "infant";
 
 /** The morning's schemes: two or three, the engine's (who, what, when). Returns the rows made. */
 export function planSchemes(db: DB, rng: () => number = Math.random): SchemeRow[] {
   const day = clock(db).day;
   if (schemesToday(db).length) return [];
-  const all = town(db).town.residents.filter((r) => free(db, r));
+  const snap = reserveSnap(db);
+  const all = town(db).town.residents.filter((r) => free(db, r, snap));
   const used = new Set<string>();
   const n = 2 + (rng() < 0.5 ? 1 : 0);
   const kinds = [...SCHEME_KINDS].sort(() => rng() - 0.5).slice(0, n);

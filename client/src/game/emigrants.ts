@@ -189,10 +189,16 @@ export class Emigrants {
     if (m.type === "emigrants") void this.refresh();
   }
 
+  /** The one wait for the town to load (a push meanwhile does not start a second loop). */
+  private retry = 0;
   async refresh(): Promise<void> {
     if (this.busy) return;
     if (!this.town.data) {
-      setTimeout(() => void this.refresh(), 1500);
+      if (!this.retry)
+        this.retry = window.setTimeout(() => {
+          this.retry = 0;
+          void this.refresh();
+        }, 1500);
       return;
     }
     this.busy = true;

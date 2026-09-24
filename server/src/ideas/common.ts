@@ -32,6 +32,8 @@ export function setFlag(db: DB, key: string, v: number): void {
 export const round5 = (n: number) => Math.round(n / 5) * 5;
 export const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 export const d2 = (a: { x: number; z: number }, b: { x: number; z: number }) => Math.hypot(a.x - b.x, a.z - b.z);
+/** Is the client's point within m metres? A missing or broken x/z is never near (NaN > m is false, so check it). */
+export const within = (at: { x: number; z: number }, b: { x: number; z: number }, m: number) => Number.isFinite(at?.x) && Number.isFinite(at?.z) && d2(at, b) <= m;
 
 /** A sum written in words ("five francs", "a hundred centimes"): never allowed, the engine writes digits. */
 export const WORD_SUMS = /\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|a|some|many)\s+(francs?|centimes?|guilders?|pounds?|napoleons?|louis|sous?|crowns?|thalers?)\b/i;

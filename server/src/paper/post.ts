@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { DB } from "../db.ts";
+import { gameGeneration, type DB } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
 import { GameError, log, player } from "../game.ts";
 import { listJobs, maxTier, TIER_PAY, type JobRow, type LettersTask, type RoundStop } from "../hooks/jobBoard.ts";
@@ -9,6 +9,7 @@ import { atWork, POCKET_SLOTS } from "../trade.ts";
 import { rngFrom, type Resident } from "../town/population.ts";
 import { resident, town } from "../town/store.ts";
 import { writeEvent } from "../director/eventlog.ts";
+import { within } from "../ideas/common.ts";
 import { canCallPress, dateLine } from "./newspaper.ts";
 import { POST_LABEL, pressTown } from "./town.ts";
 
@@ -165,7 +166,7 @@ function saveTask(db: DB, id: number, t: LettersTask): void {
 export function pickUp(db: DB, jobId: number, at: { x: number; z: number }): { text: string } {
   const { j, t } = takenLetters(db, jobId);
   if (t.picked) return { text: "You have them already." };
-  if (d2(at, t.from) > REACH_M + 2) throw new GameError("you are not there yet", 409);
+  if (!within(at, t.from, REACH_M + 2)) throw new GameError("you are not there yet", 409);
   const fromPost = t.from.label === POST_LABEL;
   if (fromPost && !postOpen(db)) throw new GameError("the post office is shut", 409);
   const n = (db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n;
@@ -192,7 +193,7 @@ export function deliverAt(db: DB, jobId: number, index: number, at: { x: number;
   const s = t.stops[index];
   if (!s || s.what !== "door") throw new GameError("no such door on the round", 404);
   if (s.done) return { text: "That one is delivered.", left: t.stops.filter((x) => !x.done).length };
-  if (d2(at, s) > REACH_M) throw new GameError("that is not the right door", 409);
+  if (!within(at, s, REACH_M)) throw new GameError("that is not the right door", 409);
   s.done = true;
   db.transaction(() => {
     saveTask(db, jobId, t);
@@ -211,7 +212,7 @@ export function sendTelegram(db: DB, jobId: number, at: { x: number; z: number }
   if (!t.picked) throw new GameError("fetch the words first", 409);
   if (!postOpen(db)) throw new GameError("the telegraph counter is shut", 409);
   const c = postCounter(db)!;
-  if (d2(at, c) > REACH_M + 1) throw new GameError("go to the counter", 409);
+  if (!within(at, c, REACH_M + 1)) throw new GameError("go to the counter", 409);
   if (player(db).money_c < t.fee_c) throw new GameError(`the wire costs ${t.fee_c} centimes and you have ${player(db).money_c}`, 409);
   t.stops[i].done = true;
   db.transaction(() => {
@@ -597,6 +598,7 @@ export async function maybeLetter(db: DB, opts: { runner?: Runner; timeoutMs?: n
   );
   let text: LetterText = fallbackLetter(plan);
   let source = "engine";
+  const gen = gameGeneration();
   if (canCallPress(db)) {
     const res = await callClaude(db, { hook: "letter", system: LETTER_SYSTEM, prompt: letterPrompt(db, plan), schema: LetterSchema, timeoutMs: opts.timeoutMs }, opts.runner);
     if (res.ok && res.data) {
@@ -605,15 +607,17 @@ export async function maybeLetter(db: DB, opts: { runner?: Runner; timeoutMs?: n
       source = c.ok ? "claude" : "engine";
     }
   }
-  // the errand, with the telegram's words the letter settled on
-  const job = errandJob(db, plan);
-  if (job && text.telegram) {
-    const row = db.prepare("SELECT task_json FROM job WHERE id = ?").get(job) as { task_json: string };
-    db.prepare("UPDATE job SET task_json = ? WHERE id = ?").run(JSON.stringify({ ...(JSON.parse(row.task_json) as LettersTask), words: text.telegram }), job);
-  }
-  const n = (db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n;
-  const status = n < POCKET_SLOTS ? "given" : "waiting";
+  // a new game began while the model wrote: the letter was for the old week
+  if (gameGeneration() !== gen) return null;
   db.transaction(() => {
+    // the errand, with the telegram's words the letter settled on
+    const job = errandJob(db, plan);
+    if (job && text.telegram) {
+      const row = db.prepare("SELECT task_json FROM job WHERE id = ?").get(job) as { task_json: string };
+      db.prepare("UPDATE job SET task_json = ? WHERE id = ?").run(JSON.stringify({ ...(JSON.parse(row.task_json) as LettersTask), words: text.telegram }), job);
+    }
+    const n = (db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n;
+    const status = n < POCKET_SLOTS ? "given" : "waiting";
     db.prepare("UPDATE letter SET text_json = ?, source = ?, status = ?, job_id = ? WHERE id = ?").run(JSON.stringify(text), source, status, job, id);
     if (status === "given") db.prepare("INSERT INTO item (kind, job_id, ref) VALUES ('letter', NULL, ?)").run(id);
     log(db, "letter_came", plan.why === "stranger" ? null : plan.sender, `A letter came for Jef from ${plan.sender_name}.`, "world");
@@ -650,13 +654,15 @@ export function collectWaiting(db: DB): { text: string; n: number } {
   if (!postOpen(db)) throw new GameError("the post office is shut", 409);
   const waiting = db.prepare("SELECT id, sender_name FROM letter WHERE status = 'waiting' ORDER BY id").all() as Array<{ id: number; sender_name: string }>;
   let n = 0;
-  for (const w of waiting) {
-    const used = (db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n;
-    if (used >= POCKET_SLOTS) break;
-    db.prepare("INSERT INTO item (kind, job_id, ref) VALUES ('letter', NULL, ?)").run(w.id);
-    db.prepare("UPDATE letter SET status = 'given' WHERE id = ?").run(w.id);
-    n++;
-  }
+  db.transaction(() => {
+    for (const w of waiting) {
+      const used = (db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n;
+      if (used >= POCKET_SLOTS) break;
+      db.prepare("INSERT INTO item (kind, job_id, ref) VALUES ('letter', NULL, ?)").run(w.id);
+      db.prepare("UPDATE letter SET status = 'given' WHERE id = ?").run(w.id);
+      n++;
+    }
+  })();
   if (!waiting.length) return { text: `"Nothing for you today."`, n: 0 };
   if (!n) throw new GameError("your pockets are full", 409);
   return { text: `The clerk hands you ${n === 1 ? "a letter" : `${n} letters`} from the pigeonholes.`, n };

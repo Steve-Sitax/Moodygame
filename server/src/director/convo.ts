@@ -10,6 +10,7 @@ import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { TRADES } from "../town/places.ts";
 import { personaLine, resident, town } from "../town/store.ts";
 import type { Resident } from "../town/population.ts";
+import { crimeOpen } from "./actions.ts";
 import { notify } from "./bus.ts";
 import { writeEvent } from "./eventlog.ts";
 import { CONVO_FALLBACK, TALK_TO_MAX_LINES } from "./vocab.ts";
@@ -67,7 +68,7 @@ export interface ConvoOpts {
    * A questioning: the engine's verdict, fixed before the call. `victim` (M4b): a robbery in
    * the street Jef saw; the purse goes back to the victim, never to Jef.
    */
-  fixed?: { guilty: boolean; amount_c: number; victim?: string; crime_event?: number };
+  fixed?: { guilty: boolean; amount_c: number; victim?: string; crime_event?: number; log_id?: number };
   event_id?: number;
 }
 
@@ -174,11 +175,18 @@ function engineLines(o: ConvoOpts, a: Resident, b: Resident): ConvoLine[] {
   });
 }
 
-/** The talk of the town: the thief's purse comes back through the engine, never through words. */
-function payBack(db: DB, thief: Resident, amount: number): void {
-  db.transaction(() => {
+/**
+ * The talk of the town: the thief's purse comes back through the engine, never through words.
+ * Checked again inside the transaction: the robbery read before the model call must still be
+ * open (same log row, same thief), else the purse came back meanwhile and nothing moves.
+ */
+function payBack(db: DB, thief: Resident, amount: number, logId?: number): boolean {
+  return db.transaction(() => {
+    const c = crimeOpen(db);
+    if (!c || c.thief !== thief.id || (logId !== undefined && c.logId !== logId)) return false;
     db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = 1").run(amount);
     log(db, "restitution", thief.id, `The police made ${thief.name} give Jef back his ${amount} centimes.`, "world");
+    return true;
   })();
 }
 
@@ -220,8 +228,10 @@ export async function runConvo(db: DB, o: ConvoOpts, runner?: Runner): Promise<C
       outcome = "innocent";
     }
   } else if (o.purpose === "question" && o.fixed) {
-    if (o.fixed.guilty) {
-      payBack(db, b, o.fixed.amount_c);
+    if (o.fixed.guilty && !payBack(db, b, o.fixed.amount_c, o.fixed.log_id)) {
+      // the purse came back while the words were written (a second agent, the thief asked straight)
+      outcome = "settled";
+    } else if (o.fixed.guilty) {
       remember(db, a.id, `I made ${b.name} give Jef back the ${o.fixed.amount_c} centimes he lifted.`, 7, "seen", null, { gist: "Jef got his money back through the police", tone: 1 });
       remember(db, b.id, `The police made me give Jef his ${o.fixed.amount_c} centimes back. He set them on me.`, 8, "seen", null, { gist: `Jef set the police on ${b.name} and got his money back`, tone: 0 });
       applyTrust(db, b.id, -1, 0);
