@@ -383,7 +383,7 @@ describe("the menace (no combat)", () => {
       expect(300 - money(db)).toBeLessThanOrEqual(MUG_MAX_C);
     }
     expect(lost).toBeLessThanOrEqual(MUG_MAX_C);
-  });
+  }, 30_000); // 30 fresh test saves: a bigger town (M6 population) takes longer than the 5 s default
 });
 
 // ------------------------------------------------------------------ 4. hostile model output

@@ -11,6 +11,7 @@ import { ensureLamplighters } from "./town/lamplighters.ts";
 import { ensureHomesTown, HOMES_SCHEMA, HOMES_TABLES } from "./homes/town.ts";
 import { ensureVisitors } from "./town/visitors.ts";
 import { ensureEmigrants } from "./town/emigrants.ts";
+import { ensureLandmarksTown } from "./landmarks/town.ts";
 
 // SQLite schema from docs/04-data-model.md. Only the server writes.
 // Delete data/game.sqlite to start over.
@@ -146,6 +147,8 @@ export function openDb(file: string): DB {
   ensureVisitors(db);
   // M6 emigrants: the Logement, its keeper, the runner and the families waiting for the liner (town/emigrants.ts); in place, once
   ensureEmigrants(db);
+  // M6 landmark interiors: the curate, the organist, clerks, cellarmen, the museum's attendant ... (landmarks/town.ts); in place, once
+  ensureLandmarksTown(db);
   return db;
 }
 
@@ -195,6 +198,7 @@ export function resetDb(db: DB): void {
   ensureLamplighters(db);
   ensureVisitors(db);
   ensureEmigrants(db);
+  ensureLandmarksTown(db);
 }
 
 function seed(db: DB): void {

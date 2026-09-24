@@ -23,6 +23,7 @@ import {
 } from "./places.ts";
 import type { Schedule, Seg } from "./schedule.ts";
 import { generateGarrison } from "./garrison.ts";
+import { TOWN_SIZES, type TownSize } from "../config.ts";
 import SPOTS from "../../../shared/spots.json" with { type: "json" };
 import CITY from "../../../shared/city.json" with { type: "json" };
 
@@ -128,6 +129,8 @@ export interface ShopFront {
 
 export interface Town {
   seed: number;
+  /** M6 population: the size it was made at (Settings, for a new game); older towns have none (normal). */
+  size?: TownSize;
   places: Record<string, TownPlace>;
   stalls: Stall[];
   shops: ShopFront[];
@@ -174,15 +177,49 @@ const DOG_LOOKS = ["dog_brown", "dog_black", "dog_spotted", "dog_grey"];
 // ------------------------------------------------------------------ the generator
 
 export const POPULATION_TARGET = 190;
+/**
+ * M6 population: house doors the generator leaves free in a big town, for the people other
+ * parts add in place (the post, rooms to let, the visitors' lodging, the Logement...). Once
+ * only this many are left, a new household shares a house with one near it (a tenement:
+ * families on each floor, as in the working streets of 1873).
+ */
+export const DOORS_KEPT_FREE = 90;
 
 interface Job {
   trade: TradeId;
   place: string;
 }
 
-/** Adult jobs the town needs, with where they are done. Order is the order of housing. */
-function jobList(): Job[] {
-  const n = (trade: TradeId, place: string, k: number): Job[] => Array.from({ length: k }, () => ({ trade, place }));
+/**
+ * Adult jobs the town needs, with where they are done. Order is the order of housing.
+ * M6 population: `scale` grows or shrinks the town's work with its size (1 = the town as it
+ * was, to the job). The one priest and the lamplighter stay one; the police never fall below
+ * the four the quays need.
+ */
+function jobList(scale = 1): Job[] {
+  const k2 = (k: number, min = 1) => (scale === 1 ? k : Math.max(min, Math.round(k * scale)));
+  const n = (trade: TradeId, place: string, k: number, fixed = false): Job[] => Array.from({ length: fixed ? k : k2(k) }, () => ({ trade, place }));
+  if (scale !== 1) {
+    // police: at least the four of today, more for a bigger town
+    const police = Math.max(4, Math.round(4 * scale));
+    const beat = ["quays", "town", "quays", "werf"];
+    return [
+      ...n("docker", "rijnkaai", 7), ...n("docker", "werf", 4), ...n("docker", "bassin", 4), ...n("docker", "bassin_south", 2),
+      ...n("natie", "hessenatie", 5), ...n("natie", "entrepot", 6),
+      ...n("porter", "rijnkaai", 2), ...n("porter", "werf", 1),
+      ...n("carter", "rijnkaai", 1), ...n("carter", "grote_markt", 1), ...n("carter", "canal", 1),
+      ...n("boatman", "werf", 2), ...n("boatman", "vismarkt", 2), ...n("boatman", "canal", 2),
+      ...n("sailor", "rijnkaai", 3), ...n("sailor", "bassin", 2), ...n("sailor", "werf", 2),
+      ...Array.from({ length: police }, (_, i) => ({ trade: "police" as TradeId, place: beat[i % beat.length] })),
+      ...n("priest", "cathedral", 1, true), ...n("lamplighter", "lamps", 1, true),
+      ...n("beggar", "cathedral", 1), ...n("beggar", "steenplein", 1), ...n("beggar", "canal", 1),
+      ...n("thief", "night", 5),
+      ...n("clerk", "entrepot", 1), ...n("clerk", "town_hall", 2), ...n("merchant", "grote_markt", 2),
+      ...n("retired", "home", 4),
+      ...n("fishwife", "vismarkt", 6), ...n("market_woman", "grote_markt", 6),
+      ...n("maid", "grote_markt", 4), ...n("laundress", "canal", 3), ...n("seamstress", "home", 2),
+    ];
+  }
   return [
     ...n("docker", "rijnkaai", 7), ...n("docker", "werf", 4), ...n("docker", "bassin", 4), ...n("docker", "bassin_south", 2),
     ...n("natie", "hessenatie", 5), ...n("natie", "entrepot", 6),
@@ -269,8 +306,10 @@ function kindFor(trade: TradeId, sex: "m" | "f", age: number, rng: () => number)
   }
 }
 
-export function generateTown(seed: number): Town {
-  const rng = rngFrom(seed);
+export function generateTown(seed: number, size: TownSize = "normal"): Town {
+  let rng = rngFrom(seed);
+  const target = TOWN_SIZES[size]?.target ?? POPULATION_TARGET;
+  const scale = size === "normal" ? 1 : target / POPULATION_TARGET;
   const rnd = (a: number, b: number) => a + rng() * (b - a);
   const int = (a: number, b: number) => Math.floor(rnd(a, b + 1));
   const pick = <T>(xs: readonly T[]) => xs[Math.floor(rng() * xs.length)];
@@ -292,6 +331,8 @@ export function generateTown(seed: number): Town {
   const free: HouseDoor[] = houseDoors().slice();
   const used = new Set<number>();
   const takeDoorNear = (x: number, z: number, maxD: number, spread = 1): HouseDoor | null => {
+    // a big town keeps doors free for what is added later; the town as it was never gets near this
+    if (scale > 1 && free.length - used.size <= DOORS_KEPT_FREE) return null;
     const near = free
       .filter((d) => !used.has(d.house))
       .map((d) => ({ d, k: Math.hypot(d.sx - x, d.sz - z) }))
@@ -305,10 +346,13 @@ export function generateTown(seed: number): Town {
   };
   const shops: ShopFront[] = [];
   const shopDoor: Record<string, HouseDoor> = {};
+  /** Shops and taverns: nobody else moves in above them. */
+  const shopHouses = new Set<number>();
   for (const s of SHOPS) {
     const d = takeDoorNear(s.x, s.z, 35);
     if (!d) continue;
     shopDoor[s.id] = d;
+    shopHouses.add(d.house);
     places[s.id] = { label: s.label, x: d.sx, z: d.sz, r: 3, district: "town", door: [d.sx, d.sz], out: d.out };
   }
   for (const t of TAVERNS) {
@@ -367,6 +411,27 @@ export function generateTown(seed: number): Town {
   };
 
   const makeHome = (d: HouseDoor): Home => ({ house: d.house, x: d.x, z: d.z, sx: d.sx, sz: d.sz });
+  /** A big town with few doors left: a household moves into a house near here that already has one (at most three a house). */
+  const shareHouse = (x: number, z: number): Home | null => {
+    const per = new Map<number, { home: Home; hh: Set<number> }>();
+    for (const r of residents) {
+      if (r.home.house < 0 || shopHouses.has(r.home.house)) continue;
+      const e = per.get(r.home.house) ?? { home: r.home, hh: new Set<number>() };
+      e.hh.add(r.household);
+      per.set(r.home.house, e);
+    }
+    let best: Home | null = null;
+    let bestD = Infinity;
+    for (const e of per.values()) {
+      if (e.hh.size >= 3) continue;
+      const d = Math.hypot(e.home.sx - x, e.home.sz - z) + e.hh.size * 25;
+      if (d < bestD) {
+        bestD = d;
+        best = e.home;
+      }
+    }
+    return best ? { ...best } : null;
+  };
 
   const add = (
     p: { id?: string; sex: "m" | "f"; age: number; trade: TradeId; role: string; surname: string; home: Home; work: WorkSpec; hh: number },
@@ -484,7 +549,21 @@ export function generateTown(seed: number): Town {
   };
 
   // quotas: take the nearest open job of a kind for a spouse or lodger
-  const pending: Job[] = shuffleJobs(jobList(), rng);
+  const pending: Job[] = shuffleJobs(jobList(scale), rng);
+  /** Jobs a town of another size must fill even past its target (one of every trade, the police). */
+  const must = new Set<Job>();
+  if (scale !== 1) {
+    // another size: one of every trade and all the police first, so a small town still has them all
+    const firsts: Job[] = [];
+    const seen = new Set<TradeId>();
+    for (const j of pending) {
+      if (j.trade === "police" || !seen.has(j.trade)) firsts.push(j);
+      seen.add(j.trade);
+    }
+    const rest = pending.filter((j) => !firsts.includes(j));
+    pending.splice(0, pending.length, ...firsts, ...rest);
+    for (const j of firsts) must.add(j);
+  }
   const pendingPlace = new Map<TradeId, string>();
   const takeJob = (pred: (j: Job) => boolean, home: Home): Job | null => {
     let best = -1;
@@ -567,12 +646,14 @@ export function generateTown(seed: number): Town {
     }
     return null;
   };
-  while (pending.length && residents.length < POPULATION_TARGET) {
+  while (pending.length && (residents.length < target || pending.some((j) => must.has(j)))) {
     const j = pending.shift()!;
+    if (residents.length >= target && !must.has(j)) continue;
+    const full = residents.length >= target;
     const anchor = places[j.place] ?? (j.place === "night" ? places.vismarkt : j.place === "lamps" ? places.steenplein : places.rijnkaai);
     const d = takeDoorNear(anchor.x, anchor.z, 160, 6) ?? takeDoorNear(anchor.x, anchor.z, 1e9, 3);
-    if (!d) break;
-    const home = makeHome(d);
+    const home = d ? makeHome(d) : scale > 1 ? shareHouse(anchor.x, anchor.z) : null;
+    if (!home) break;
     const hh = ++household;
     const female = FEMALE_TRADES.has(j.trade) || (j.trade === "beggar" && chance(0.3)) || (j.trade === "thief" && chance(0.2));
     const sex: "m" | "f" = female ? "f" : "m";
@@ -596,19 +677,24 @@ export function generateTown(seed: number): Town {
       continue;
     }
     if (j.trade === "maid" || j.trade === "thief" || j.trade === "beggar") continue; // live alone
+    if (full) continue; // a small town past its number: the last trades it must have live alone
     family(head);
   }
 
-  // 5. a few street children with nobody, in a cellar by the Vismarkt
-  {
-    const d = takeDoorNear(places.vismarkt.x, places.vismarkt.z, 200, 4);
-    if (d) {
+  // 5. a few street children with nobody, in a cellar by the Vismarkt (a bigger town: a second
+  // band in a cellar by the Werf, a third by the Bassin)
+  const bands = scale > 1.3 ? (scale > 2 ? 3 : 2) : 1;
+  for (const [k, where] of (["vismarkt", "werf", "bassin"] as const).slice(0, bands).entries()) {
+    const pl = places[where] ?? places.vismarkt;
+    const play = places[`play:${where}`] ? `play:${where}` : "play:vismarkt";
+    const d = takeDoorNear(pl.x, pl.z, 200, 4);
+    const home = d ? makeHome(d) : k > 0 ? shareHouse(pl.x, pl.z) : null;
+    if (home) {
       const hh = ++household;
       const surname = surnameFree();
-      const home = makeHome(d);
       for (let i = 0; i < 3; i++) {
         const sex = i === 2 ? "f" : "m";
-        add({ sex, age: int(8, 13), trade: "street_child", role: sex === "m" ? "son" : "daughter", surname, home, hh, work: { place: "play:vismarkt", kind: "roam" } });
+        add({ sex, age: int(8, 13), trade: "street_child", role: sex === "m" ? "son" : "daughter", surname, home, hh, work: { place: play, kind: "roam" } });
       }
     }
   }
@@ -633,16 +719,51 @@ export function generateTown(seed: number): Town {
     const s = stalls[i];
     if (s.keeper) continue;
     const trade: TradeId = s.goods === "fish" ? "fishwife" : "market_woman";
-    const wife = residents
+    let wife = residents
       .filter((r) => r.trade === "housewife" && r.age >= 20 && r.age < 62)
       .sort((a, b) => Math.hypot(a.home.sx - s.x, a.home.sz - s.z) - Math.hypot(b.home.sx - s.x, b.home.sz - s.z))[0];
-    if (!wife) break;
+    if (!wife) {
+      // (M6 population) a small town short of wives: a widow living near the market keeps it
+      const d = takeDoorNear(s.x, s.z, 200, 4) ?? takeDoorNear(s.x, s.z, 1e9, 1);
+      const home = d ? makeHome(d) : shareHouse(s.x, s.z);
+      if (!home) break;
+      wife = add({ sex: "f", age: int(34, 60), trade, role: "widow", surname: surnameFree(), home, hh: ++household, work: { place: s.place, kind: "stall" } });
+    }
     wife.trade = trade;
     wife.faction = TRADES[trade].faction;
     wife.kind = kindFor(trade, "f", wife.age, rng);
     s.keeper = wife.id;
     const at = snap(s.x - s.face[0] * 1.0, s.z - s.face[1] * 1.0);
     wife.work = { place: s.place, kind: "stall", stall: i, at: [at[0], at[1], Math.atan2(s.face[0], s.face[1])] };
+  }
+
+  // 6. (M6 population) whatever the seed and the size, the town has its priest and at least four
+  // police agents. Some seeds used up the job list before them. Any that are missing come now,
+  // from a random stream of their own, so a town that has them all stays exactly as it was.
+  {
+    const police = residents.filter((r) => r.trade === "police").length;
+    const needPriest = !residents.some((r) => r.trade === "priest");
+    if (needPriest || police < 4) {
+      rng = rngFrom((seed ^ 0x2f6e1873) >>> 0);
+      const beats = ["quays", "town", "werf", "quays"];
+      for (let i = police; i < 4; i++) {
+        const pl = places[beats[i]] ?? places.rijnkaai;
+        const d = takeDoorNear(pl.x, pl.z, 200, 4) ?? takeDoorNear(pl.x, pl.z, 1e9, 1);
+        const home = d ? makeHome(d) : shareHouse(pl.x, pl.z);
+        if (!home) break;
+        const head = add({ sex: "m", age: int(24, 50), trade: "police", role: "head", surname: surnameFree(), home, hh: ++household, work: workSpec("police", beats[i], home) });
+        family(head, { noKids: residents.length >= target });
+      }
+      if (needPriest) {
+        const c = spots.cathedral_door;
+        const d = takeDoorNear(c.x, c.z, 200, 3) ?? takeDoorNear(c.x, c.z, 1e9, 1);
+        const home = d ? makeHome(d) : shareHouse(c.x, c.z);
+        if (home) {
+          const at = snap(c.x + 1.5, c.z - 0.6);
+          add({ sex: "m", age: int(38, 64), trade: "priest", role: "single", surname: surnameFree(), home, hh: ++household, work: { place: "cathedral", kind: "post", at: [at[0], at[1], Math.PI] } });
+        }
+      }
+    }
   }
 
   // --- schedules, dogs
@@ -658,7 +779,7 @@ export function generateTown(seed: number): Town {
   const g = generateGarrison(seed, places, residents);
   Object.assign(places, g.places);
   residents.push(...g.residents);
-  return { seed, places, stalls, shops, residents };
+  return { seed, ...(size !== "normal" ? { size } : {}), places, stalls, shops, residents };
 
   function shuffleJobs(xs: Job[], r: () => number): Job[] {
     for (let i = xs.length - 1; i > 0; i--) {

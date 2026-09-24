@@ -172,6 +172,10 @@ export interface TalkLine {
   choices?: string[];
   end?: boolean;
   gated?: string | null;
+  /** M6: how a haggle or a story to the police went down, in words ("She seems to believe you"). Never a number. */
+  note?: string;
+  /** M6: the seller's prices after a haggle (a price agreed today shows here). */
+  wares?: Ware[];
 }
 
 // ---- the town (M3e). The server made it; the client walks it by the game clock.
@@ -379,7 +383,9 @@ export const api = {
   jobs: () => call<JobsPayload>("GET", "/api/jobs"),
   take: (id: number) => call<{ job: Job }>("POST", `/api/jobs/${id}/take`),
   npcs: () => call<Array<{ id: string; name: string; role: string; wares: Ware[] }>>("GET", "/api/npcs"),
-  buy: (npc: string, kind: string) => call<JobsPayload & { line: string }>("POST", "/api/buy", { npc, kind }),
+  buy: (npc: string, kind: string) => call<JobsPayload & { line: string; price_c: number }>("POST", "/api/buy", { npc, kind }),
+  /** M6: argue the price of a ware in your own words; the seller's line, a note, and the prices now. */
+  haggle: (npc: string, kind: string, text: string) => call<TalkLine>("POST", `/api/npc/${npc}/haggle`, { kind, text }, 30_000),
   use: (id: number) => call<JobsPayload & { text: string }>("POST", "/api/use", { id }),
   handover: (jobId: number) => call<JobsPayload>("POST", `/api/jobs/${jobId}/handover`),
   near: (npc: string) => call<{ ok: boolean }>("POST", `/api/npc/${npc}/near`),

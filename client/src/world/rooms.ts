@@ -33,7 +33,7 @@ export interface Stage {
 }
 
 export interface Room {
-  kind: "tavern" | "cellar" | "home";
+  kind: "tavern" | "cellar" | "home" | "landmark";
   scene: THREE.Scene;
   group: THREE.Group;
   /** Keep a walker of radius 0.3 inside and off the furniture (room frame). */
@@ -50,6 +50,15 @@ export interface Room {
   stage?: Stage;
   /** M6 homes: the rented room's grid, its pieces and the ghost of the one Jef moves (world/homeRooms.ts). */
   home?: HomeRoom;
+  /**
+   * M6 landmark interiors (world/landmarkRooms.ts): the floor's height (stairs, a raised choir),
+   * the walking pace and eye height in a tall hall, the steps' sound, and the room's sound.
+   */
+  floor?(x: number, z: number): number;
+  pace?: number;
+  eye?: number;
+  surface?: "stone" | "wood";
+  sound?: string;
   /** Lamp and fire points (world) and their brightness now, for the psx glow in the smoke. */
   lamps: Array<{ p: THREE.Vector3; w: number }>;
   /** Room frame -> world. */

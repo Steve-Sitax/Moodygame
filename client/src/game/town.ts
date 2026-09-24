@@ -34,7 +34,8 @@ import CITY from "../../../shared/city.json";
 
 const SPAWN_R = 55;
 const DESPAWN_R = 68;
-const MAX_PUPPETS = 34;
+/** How many townspeople walk in the street round Jef at once: Settings, "People in the street" (settings.ts). */
+const MAX_PUPPETS = 50;
 /** Unseen, people cross town at this pace (m/s): the clock runs 180 times faster than life. */
 const HIDDEN_SPEED = 6;
 const SPOTS = SPOT_TABLE as unknown as Record<string, { x: number; z: number; label: string }>;
@@ -115,6 +116,8 @@ const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax -
 
 export class Town {
   data: TownData | null = null;
+  /** M6 population: the street cap (Settings); event people are drawn on top of it. */
+  maxPuppets = MAX_PUPPETS;
   private sims: Sim[] = [];
   private byId = new Map<string, Sim>();
   private employers = new Map<string, Npc>();
@@ -383,14 +386,25 @@ export class Town {
   private spawn(anywhere: boolean): void {
     let alive = 0;
     for (const s of this.sims) if (s.p) alive++;
-    if (alive >= MAX_PUPPETS) return;
+    if (alive > this.maxPuppets) {
+      // the setting went down: the farthest go back to their schedule, out of sight
+      const px = this.player.x;
+      const pz = this.player.z;
+      const out = this.sims
+        .filter((s) => s.p && !s.held && this.crowd.isHidden(s.x, s.z))
+        .sort((a, b) => dist(b.x, b.z, px, pz) - dist(a.x, a.z, px, pz))
+        .slice(0, Math.min(4, alive - this.maxPuppets));
+      for (const s of out) this.lose(s, true);
+      return;
+    }
+    if (alive >= this.maxPuppets) return;
     const px = this.player.x;
     const pz = this.player.z;
     const want = this.sims
       .filter((s) => !s.p && !s.inside && dist(s.x, s.z, px, pz) < SPAWN_R)
       .sort((a, b) => dist(a.x, a.z, px, pz) - dist(b.x, b.z, px, pz));
     for (const s of want) {
-      if (alive >= MAX_PUPPETS) break;
+      if (alive >= this.maxPuppets) break;
       const d = dist(s.x, s.z, px, pz);
       const fresh = performance.now() - s.outAt < 4000;
       // people appear out of sight, or step out of their own door

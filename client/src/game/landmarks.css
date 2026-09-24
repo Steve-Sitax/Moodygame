@@ -1,0 +1,7 @@
+/* ---- M6 landmark interiors (game/landmarks.ts): the confessional's panel ---- */
+.talk.confession {
+  background: #c8bea4;
+  border-top: 6px double rgba(42, 30, 20, 0.55);
+  z-index: 7;
+}
+.talk.confession .keys .secret { font-size: 11px; opacity: 0.8; font-style: italic; }

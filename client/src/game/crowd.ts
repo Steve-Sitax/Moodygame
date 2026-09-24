@@ -180,6 +180,9 @@ const PACE: Partial<Record<HumanKind, [number, number]>> = {
 };
 const WOMEN = new Set<HumanKind>(["fishwife_a", "fishwife_b", "maid", "girl"]);
 const CHILDREN = new Set<HumanKind>(["boy", "girl"]);
+/** Animation every frame within this (m); 15 fps out to ANIM_FAR, 8 fps beyond (M6 population). */
+const ANIM_NEAR = 25;
+const ANIM_FAR = 45;
 const HAND_CARRIERS = new Set<HumanKind>(["docker_a", "docker_b", "docker_c"]);
 const LOADED = new Set<HumanKind>(["porter", "docker_sack", "carter"]);
 /** Pushing something that goes before them: how far ahead it reaches, and how wide. */
@@ -661,9 +664,10 @@ export class Crowd {
       let y = 0;
       if (inView) {
         drawn++;
-        // near ones every frame, far ones at 15 fps: nobody counts frames in the fog
+        // near ones every frame, far ones at 15 fps, the farthest at 8 (M6 population: up to a
+        // hundred in view; a figure 45 m off is a few pixels high at 270 lines)
         p.animAcc += dt;
-        if (d < 30 || p.animAcc >= 1 / 15) {
+        if (d < ANIM_NEAR || p.animAcc >= (d < ANIM_FAR ? 1 / 15 : 1 / 8)) {
           p.human.update(p.animAcc);
           p.animAcc = 0;
           animated++;

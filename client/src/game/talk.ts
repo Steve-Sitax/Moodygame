@@ -20,7 +20,13 @@ export class Talk {
   private busy = false;
   private ended = false;
   private choices: string[] = [];
-  private lines: Array<{ who: string; text: string }> = [];
+  /** note: M6, how a haggle or a story went down ("He looks doubtful"), shown small under the line. */
+  private lines: Array<{ who: string; text: string; note?: string }> = [];
+  /** M6 haggle: picking which ware to argue about (several on sale), then the ware being argued. */
+  private picking = false;
+  private haggleKind: string | null = null;
+  /** M6 haggle: the list prices before a price was agreed, to put back after the purchase. */
+  private listBefore = new Map<string, Ware[]>();
   private mood = "";
   private readonly el: HTMLDivElement;
   private readonly input: HTMLInputElement;
@@ -80,6 +86,8 @@ export class Talk {
     this.ended = shopOnly;
     this.shopping = shopOnly;
     this.working = false;
+    this.picking = false;
+    this.haggleKind = null;
     this.mood = "";
     this.player.frozen = true;
     this.el.style.display = "block";
@@ -118,11 +126,48 @@ export class Talk {
       this.render();
       return;
     }
-    this.lines.push({ who: npc.def.name, text: r.npc_line });
+    this.lines.push({ who: npc.def.name, text: r.npc_line, note: r.note });
+    if (r.wares) this.newPrices(npc.id, r.wares);
     this.mood = r.mood ?? "";
     this.choices = r.end ? [] : (r.choices ?? []);
     this.lastChoices = this.choices;
     this.ended = !!r.end;
+    this.render();
+  }
+
+  /** M6: the seller's prices after a haggle; the list prices are kept to put back after buying. */
+  private newPrices(id: string, wares: Ware[]): void {
+    if (!this.listBefore.has(id)) this.listBefore.set(id, this.wares.get(id) ?? wares);
+    this.wares.set(id, wares);
+  }
+
+  /** M6: argue the price of a ware in his own words (the server's gate, the model's reading, the engine's price). */
+  private async haggle(kind: string, text: string): Promise<void> {
+    const npc = this.npc;
+    if (!npc || this.busy) return;
+    this.busy = true;
+    const ware = this.stock.find((w) => w.kind === kind);
+    this.lines.push({ who: "You", text });
+    this.render();
+    let r: TalkLine;
+    try {
+      r = await api.haggle(npc.id, kind, text);
+    } catch (e) {
+      r = { npc_line: `${npc.def.name} shrugs. (${(e as Error).message})` };
+    }
+    this.busy = false;
+    if (this.npc !== npc) return;
+    if (!r.npc_line) {
+      this.lines.pop();
+      this.flash(r.gated === "too fast" ? "Catch your breath first." : r.gated === "too long" ? "Too many words at once." : "");
+      this.render();
+      return;
+    }
+    this.lines.push({ who: npc.def.name, text: r.npc_line, note: r.note });
+    if (r.wares) this.newPrices(npc.id, r.wares);
+    this.mood = r.mood ?? this.mood;
+    const now = r.wares?.find((w) => w.kind === kind);
+    if (ware && now && now.price_c < ware.price_c) this.flash(`${ware.name}: ${now.price_c} c for you.`);
     this.render();
   }
 
@@ -133,10 +178,23 @@ export class Talk {
       const r = await api.buy(npc.id, w.kind);
       this.money = r.player.money_c;
       this.onBought(r, r.line);
-      this.flash(`Paid ${w.price_c} c.`);
+      this.flash(`Paid ${r.price_c ?? w.price_c} c.`);
+      // a price agreed in a haggle is spent: show the list price again
+      const list = this.listBefore.get(npc.id);
+      if (list && (r.price_c ?? w.price_c) < (list.find((x) => x.kind === w.kind)?.price_c ?? 0)) {
+        this.wares.set(npc.id, (this.wares.get(npc.id) ?? list).map((x) => (x.kind === w.kind ? (list.find((l) => l.kind === x.kind) ?? x) : x)));
+      }
     } catch (e) {
       this.flash((e as Error).message);
     }
+    this.render();
+  }
+
+  /** M6 haggle: open the input for his argument about this ware. */
+  private startHaggle(w: Ware): void {
+    this.haggleKind = w.kind;
+    this.input.placeholder = `Argue the price of ${w.name} (${w.price_c} c), then Enter`;
+    this.typing = true;
     this.render();
   }
 
@@ -155,14 +213,22 @@ export class Talk {
     if (!npc) return;
     const shown = this.lines.slice(-4);
     const body = shown
-      .map((l) => `<p class="${l.who === "You" ? "you" : "them"}"><b>${esc(l.who)}:</b> ${esc(l.text)}</p>`)
+      .map(
+        (l) =>
+          `<p class="${l.who === "You" ? "you" : "them"}"><b>${esc(l.who)}:</b> ${esc(l.text)}</p>` +
+          (l.note ? `<p class="them" style="opacity:0.7;font-style:italic;font-size:0.88em;margin-top:-0.2em">${esc(l.note)}</p>` : ""),
+      )
       .join("");
     const wait = this.busy ? `<p class="them wait">${esc(npc.def.name)} …</p>` : "";
     const opts = this.choices.map((c, i) => `<li><span class="n">${i + 1}</span> ${esc(c)}</li>`).join("");
     const jobs = this.work(npc.id);
     const shop = (this.stock.length ? " &middot; B  buy" : "") + (jobs.length ? " &middot; W  take work" : "");
-    const keys = this.shopping
-      ? `1-${this.stock.length}  pay &middot; B  back to talk &middot; you have ${this.money} c`
+    const keys = this.picking
+      ? `1-${this.stock.length}  which one to argue about &middot; Esc  back`
+      : this.typing && this.haggleKind
+        ? `Argue the price in your own words, then Enter &middot; Esc  back`
+        : this.shopping
+      ? `1-${this.stock.length}  pay &middot; H  argue a price &middot; B  back to talk &middot; you have ${this.money} c`
       : this.working
         ? `1-${jobs.length}  take it &middot; W  back to talk`
         : this.ended
@@ -198,11 +264,17 @@ export class Talk {
         const t = this.input.value.trim();
         this.input.value = "";
         this.typing = false;
-        if (t) void this.send("free", t);
+        const kind = this.haggleKind;
+        this.haggleKind = null;
+        this.input.placeholder = "Say it in your own words, then Enter";
+        if (t && kind) void this.haggle(kind, t);
+        else if (t) void this.send("free", t);
         else this.render();
         e.preventDefault();
       } else if (e.code === "Escape") {
         this.typing = false;
+        this.haggleKind = null;
+        this.input.placeholder = "Say it in your own words, then Enter";
         this.render();
       }
       e.stopPropagation(); // letters go to the input, not to the game
@@ -210,7 +282,30 @@ export class Talk {
     }
     e.stopPropagation();
     if (e.repeat) return;
+    // M6 haggle: which ware to argue about
+    if (this.picking) {
+      if (e.code === "Escape" || e.code === "KeyH") {
+        this.picking = false;
+        return this.render();
+      }
+      const k = Number(e.key);
+      if (k >= 1 && k <= this.stock.length) {
+        e.preventDefault(); // the digit must not land in the input that opens now
+        this.picking = false;
+        this.startHaggle(this.stock[k - 1]);
+      }
+      return;
+    }
     if (e.code === "KeyE" || e.code === "Escape") return this.close();
+    if (e.code === "KeyH" && this.shopping && this.stock.length && !this.busy) {
+      e.preventDefault();
+      if (this.stock.length === 1) this.startHaggle(this.stock[0]);
+      else {
+        this.picking = true;
+        this.render();
+      }
+      return;
+    }
     if (e.code === "KeyB" && this.stock.length) {
       this.shopping = !this.shopping;
       this.working = false;

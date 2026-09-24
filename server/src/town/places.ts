@@ -187,7 +187,9 @@ export type TradeId =
   // M6 homes (homes/town.ts): the second-hand dealer who sells furniture at his door
   | "dealer"
   // M6 emigrants (emigrants.ts): families waiting for the liner, the lodging-house keeper, the ticket runner
-  | "emigrant" | "lodging_keeper" | "runner";
+  | "emigrant" | "lodging_keeper" | "runner"
+  // M6 landmark interiors (landmarks/town.ts): who works inside the cathedral, the town hall, the Vleeshuis, the Steen and the Oostershuis
+  | "organist" | "beadle" | "chair_woman" | "registrar" | "alderman" | "concierge" | "cellar_master" | "cellarman" | "painter" | "attendant" | "storekeeper";
 
 export interface TradeDef {
   label: string;
@@ -254,6 +256,17 @@ export const TRADES: Record<TradeId, TradeDef> = {
   lodging_keeper: { label: "keeper of the emigrants' lodging house", work: "post", faction: null, wealth: [3, 5], bias: { greed: 2, gossip: 2 } },
   // he calls himself an agent's man; the talk title shows only that
   runner: { label: "agent's man", work: "roam", faction: "smokkelaars", wealth: [1, 3], bias: { honesty: -6, greed: 3, warmth: 2 } },
+  organist: { label: "organist of the cathedral", work: "inside", faction: "kerk", wealth: [2, 4], bias: { piety: 2 } },
+  beadle: { label: "beadle of the cathedral (the suisse, who keeps order at mass)", work: "inside", faction: "kerk", wealth: [1, 3], bias: { piety: 2, temper: 1 } },
+  chair_woman: { label: "chair woman of the cathedral (she lets the chairs at mass)", work: "inside", faction: "kerk", wealth: [0, 2], bias: { piety: 2, gossip: 2 } },
+  registrar: { label: "clerk of the civil registry at the town hall", work: "inside", faction: "burgerij", wealth: [3, 5], bias: { honesty: 2 } },
+  alderman: { label: "alderman of the civil registry, who marries couples at the town hall", work: "inside", faction: "burgerij", wealth: [7, 9], bias: { greed: 1 } },
+  concierge: { label: "porter of the town hall", work: "inside", faction: "burgerij", wealth: [1, 3], bias: { gossip: 2 } },
+  cellar_master: { label: "cellar master of Peyrot's wine warehouse in the Vleeshuis", work: "inside", faction: null, wealth: [3, 5], bias: { greed: 1 } },
+  cellarman: { label: "cellarman at Peyrot's wine warehouse in the Vleeshuis", work: "inside", faction: null, wealth: [0, 2], bias: { courage: 1 } },
+  painter: { label: "painter with a studio in the Vleeshuis", work: "inside", faction: null, wealth: [1, 4], bias: { piety: -1, warmth: 1 } },
+  attendant: { label: "attendant of the Museum of Antiquities in the Steen", work: "inside", faction: "burgerij", wealth: [1, 3], bias: { honesty: 1, gossip: 1 } },
+  storekeeper: { label: "storekeeper of the State warehouse in the Oostershuis", work: "inside", faction: null, wealth: [3, 5], bias: { honesty: 1, temper: 1 } },
 };
 
 /** The board's employers who live in the town: fixed ids, so the job board can name them. */

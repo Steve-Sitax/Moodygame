@@ -94,7 +94,8 @@ export interface DeedRow {
   owner_saw: number;
   witnesses: string;
   item_id: number | null;
-  status: "open" | "returned" | "warned" | "fined" | "arrested";
+  /** M6: "let_off": the police believed his story; the thing went back all the same. */
+  status: "open" | "returned" | "warned" | "fined" | "arrested" | "let_off";
   rumour_at: number | null;
 }
 

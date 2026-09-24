@@ -511,5 +511,5 @@ describe("hostile lines at the police talk", () => {
     }
     expect(gated + fenced).toBe(HOSTILE_LINES.length);
     expect(gated).toBeGreaterThan(5);
-  });
+  }, 30_000); // 30 fresh test saves: a bigger town (M6 population) takes longer than the 5 s default
 });

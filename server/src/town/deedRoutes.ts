@@ -105,7 +105,8 @@ export function mountDeeds(app: Hono, deps: DeedDeps): void {
         push();
       }
       if (!r.npc_line) return c.json({ gated: r.gated });
-      return c.json({ npc_line: plainEnglish(r.npc_line), mood: r.mood, choices: r.choices, end: r.end, gated: r.gated, police: r.verdict ?? null });
+      // M6: note: how his story went down, in words (story.ts); never a number
+      return c.json({ npc_line: plainEnglish(r.npc_line), mood: r.mood, choices: r.choices, end: r.end, gated: r.gated, police: r.verdict ?? null, ...(r.note ? { note: r.note } : {}) });
     }
     const l = policeOpen(db, id);
     return c.json(l);

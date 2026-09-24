@@ -31,6 +31,10 @@ export interface RideWalk {
   z: number;
   walk(fx: number, fz: number, x: number, z: number): [number, number];
   floor(x: number, z: number): number;
+  /** M6 landmark interiors: a tall hall's pace (m/s), eye height and footstep sound (default: a low saloon, 1 m/s, stooping, wood). */
+  pace?: number;
+  eye?: number;
+  surface?: Surface;
 }
 
 /** A ladder you climb (M3g: a portal crane's): where you hang, face, step off at the top and at the foot. */
@@ -545,7 +549,7 @@ export class FirstPerson {
       let lx = w.x;
       let lz = w.z;
       let ly = w.floor(w.x, w.z);
-      eye = 1.52; // a low saloon: you stoop a little
+      eye = w.eye ?? 1.52; // a low saloon: you stoop a little
       if (this.rideSeat) {
         lx = this.rideSeat.x;
         ly = this.rideSeat.y;
@@ -563,8 +567,9 @@ export class FirstPerson {
         if (len > 0) {
           const sy = Math.sin(this.yaw);
           const cy = Math.cos(this.yaw);
-          const wx = ((fx * cy + fz * sy) / len) * 1.0 * dt;
-          const wz = ((-fx * sy + fz * cy) / len) * 1.0 * dt;
+          const pace = (w.pace ?? 1.0) * (w.pace && (k("ShiftLeft") || k("ShiftRight")) ? 1.6 : 1);
+          const wx = ((fx * cy + fz * sy) / len) * pace * dt;
+          const wz = ((-fx * sy + fz * cy) / len) * pace * dt;
           // world to the carriage's frame
           const co = Math.cos(a.yaw);
           const si = Math.sin(a.yaw);
@@ -575,7 +580,7 @@ export class FirstPerson {
           ly = w.floor(nx, nz);
           if (this.rideStepDist > STEP_LEN) {
             this.rideStepDist = 0;
-            this.onStep("wood", false);
+            this.onStep(w.surface ?? "wood", false);
           }
         }
       }

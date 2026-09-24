@@ -2,7 +2,7 @@ import * as THREE from "three";
 import "./style.css";
 import { RetroPass } from "./retro/retroPass";
 import { psxUniforms } from "./retro/psx";
-import { mountSettings, type GameSettings } from "./game/settings";
+import { mountSettings, STREET_LEVELS, type GameSettings } from "./game/settings";
 import { mountDevMenu } from "./game/devmenu";
 import { setAmbientViewHeight } from "./world/ambient";
 import { setFireViewHeight } from "./world/fire";
@@ -36,6 +36,7 @@ import { api } from "./net/api";
 import { Interiors } from "./game/interiors";
 import { Families } from "./game/families";
 import { Homes } from "./game/homes";
+import { Landmarks } from "./game/landmarks";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const startEl = document.getElementById("start") as HTMLDivElement;
@@ -162,6 +163,13 @@ interiors.roomSound = (k) => sound?.setInterior(k);
 const homes = new Homes(world, player, jobs, interiors);
 jobs.extraActions.unshift((x, z) => homes.keys(x, z));
 homes.say = (t) => jobs.say(t);
+// M6 landmark interiors: the cathedral, the town hall, the Vleeshuis, the Steen, the Oostershuis (game/landmarks.ts)
+const landmarks = new Landmarks(player, jobs, interiors);
+jobs.extraActions.unshift((x, z) => landmarks.keys(x, z));
+landmarks.say = (t) => jobs.say(t);
+landmarks.sfx = (n) => sound?.indoors(() => sound?.play(n));
+landmarks.organ = (on) => sound?.organ(on);
+landmarks.altarBell = () => sound?.altarBell();
 {
   const onPush = jobs.onPush;
   jobs.onPush = (m) => {
@@ -237,11 +245,12 @@ function resize(): void {
 }
 window.addEventListener("resize", resize);
 // the settings (Esc: the pause paper has a Settings button); applying them resizes
-let settings: GameSettings = { height: 270, psxColour: true, wobble: true };
+let settings: GameSettings = { height: 270, psxColour: true, wobble: true, street: "normal" };
 settings = mountSettings(startEl.querySelector(".paper") as HTMLElement, (s) => {
   settings = s;
   retro.renderHeight = s.height;
   retro.setPsxColour(s.psxColour);
+  town.maxPuppets = STREET_LEVELS[s.street].cap; // M6 population: people in the street
   resize();
 });
 // dev builds: a Dev button next to Settings (time, weather, events, jump to places)
@@ -354,6 +363,7 @@ function frame(): void {
   player.update(dt);
   interiors.update(dt);
   homes.update(dt);
+  landmarks.update(dt);
   interiors.sway(dt);
   jobs.update(dt);
   craneClimb.update(dt);
@@ -496,6 +506,7 @@ if (import.meta.env.DEV) {
     interiors,
     families,
     homes,
+    landmarks,
     /** M6: a picture inside the room Jef is in, camera at `from` looking at `to` (room frame: x across, y up, z into the house). */
     async shotIn(name: string, from: [number, number, number], to: [number, number, number]) {
       const cam = player.camera;
@@ -562,6 +573,8 @@ if (import.meta.env.DEV) {
       for (const q of emigrants.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M6 homes: every home's door and the second-hand dealer
       for (const q of homes.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      // M6 landmark interiors: every landmark door
+      for (const q of landmarks.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       if (!can(DOSS_POS.x, DOSS_POS.z, 2.0)) bad.push("the doss house gate");
       if (!can(RAMP.x - 0.6, RAMP.zHigh - 1.0, 2.4)) bad.push("the mate on deck");
       return bad;
@@ -630,6 +643,7 @@ if (import.meta.env.DEV) {
         player.update(dt);
         interiors.update(dt);
         homes.update(dt);
+        landmarks.update(dt);
         jobs.update(dt);
         crowd.update(dt, player, player.camera);
         town.update(dt, player);

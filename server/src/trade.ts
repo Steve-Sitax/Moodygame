@@ -173,10 +173,30 @@ function freeSlots(db: DB): number {
   return POCKET_SLOTS - (db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n;
 }
 
+/**
+ * M6 haggling (town/haggle.ts): a price talked down never goes below this share of the list price
+ * (the seller's cost) and never above the list price. The engine's floor, whatever was said.
+ */
+export const HAGGLE_FLOOR = 0.6;
+export function priceFloor(list: number): number {
+  return Math.max(1, Math.ceil(list * HAGGLE_FLOOR - 1e-9));
+}
+/** M6: set by town/haggle.ts. A seller who will not sell to Jef for now; a price agreed in a haggle; a deal used. */
+export const haggleHooks = {
+  refuse: (_db: DB, _npc: string): string | null => null,
+  price: (_db: DB, _npc: string, _kind: string, list: number): number => list,
+  bought: (_db: DB, _npc: string, _kind: string): void => {},
+};
+
 export function buy(db: DB, npc: string, kind: string): { line: string; bought: string; price_c: number } {
-  const ware = waresOf(db, npc).find((w) => w.kind === kind);
-  if (!ware) throw new GameError("they do not sell that", 404);
+  const listed = waresOf(db, npc).find((w) => w.kind === kind);
+  if (!listed) throw new GameError("they do not sell that", 404);
   if (!atWork(db, npc)) throw new GameError("the shop is shut; come back in working hours", 409);
+  const refusal = haggleHooks.refuse(db, npc);
+  if (refusal) throw new GameError(refusal, 409);
+  // a haggled price, kept between the floor and the list price by the engine
+  const price_c = Math.min(listed.price_c, Math.max(priceFloor(listed.price_c), Math.round(haggleHooks.price(db, npc, kind, listed.price_c))));
+  const ware = { kind, price_c };
   const p = player(db);
   if (p.money_c < ware.price_c) throw new GameError(`not enough money: ${ware.price_c} c needed`, 409);
   const drinkNow = ITEMS[kind].use === "drink" || !!ITEMS[kind].atCounter;
@@ -191,6 +211,7 @@ export function buy(db: DB, npc: string, kind: string): { line: string; bought: 
     log(db, "bought", kind, `Jef bought ${ITEMS[kind].name} for ${ware.price_c} centimes.`);
   })();
   remember(db, npc, `Jef bought ${ITEMS[kind].name} from me for ${ware.price_c} centimes.`, drinkNow ? 3 : 2);
+  if (price_c < listed.price_c) haggleHooks.bought(db, npc, kind);
   const r = resident(db, npc);
   const line = HAND_OVER[npc] ?? (r ? `${r.first} takes your coins and hands it over${r.stats.warmth >= 7 ? " with a nod" : r.stats.greed >= 7 ? ", counting twice" : ""}.` : "Coins change hands.");
   return { line, bought: kind, price_c: ware.price_c };

@@ -63,7 +63,7 @@ export class Interiors {
   info: InteriorsInfo | null = null;
   /** The room Jef is in, or null in the street. */
   room: Room | null = null;
-  private here: { kind: "tavern" | "cellar" | "home"; place: string; label: string; step: Pt; out: Pt; origin: { x: number; z: number }; yaw: number } | null = null;
+  private here: { kind: "tavern" | "cellar" | "home" | "landmark"; place: string; label: string; step: Pt; out: Pt; origin: { x: number; z: number }; yaw: number } | null = null;
   private rooms = new Map<string, Room>();
   private occ = new Map<string, Occ>();
   private seatTaken = new Map<Seat, string>();
@@ -89,10 +89,15 @@ export class Interiors {
   say: (t: string) => void = () => {};
   sfx: (name: Sfx) => void = () => {};
   speak: (at: { x: number; z: number }, voice: { sex: "m" | "f"; age: number }, seconds: number) => void = () => {};
-  /** The room's sound: "tavern", "cellar", or null back in the street. */
-  roomSound: (kind: "tavern" | "cellar" | "home" | null) => void = () => {};
+  /** The room's sound: "tavern", "cellar", "home", a landmark's hall ("church", "hall" ...), or null back in the street. */
+  roomSound: (kind: string | null) => void = () => {};
   /** M6 homes (game/homes.ts): the keys inside a rented room, besides the door and the people. */
   homeKeys: ((x: number, z: number) => { options: Array<[number, Action]>; extra: Action[] }) | null = null;
+  /** M6 landmark interiors (game/landmarks.ts): the keys inside a landmark, and which seats its people hold. */
+  landmarkKeys: ((x: number, z: number) => { options: Array<[number, Action]>; extra: Action[] }) | null = null;
+  seatBusy: ((s: Seat) => boolean) | null = null;
+  /** Jef sat down or stood up (the landmarks: the chair money at mass). */
+  onSeat: (s: Seat | null) => void = () => {};
 
   constructor(
     private readonly player: FirstPerson,
@@ -224,7 +229,7 @@ export class Interiors {
     const near = (s: Spot | undefined, r: number) => (s ? Math.hypot(s.x - w.x, s.z - w.z) < r : false);
     const opts: Array<[number, Action]> = [];
     const extra: Action[] = [];
-    if (near(room.exit, 1.0)) opts.push([Math.hypot(room.exit.x - w.x, room.exit.z - w.z), { key: "KeyE", text: room.kind === "cellar" ? "go up the steps into the street" : "go out into the street", run: () => this.leave() }]);
+    if (near(room.exit, 1.0) && room.kind !== "landmark") opts.push([Math.hypot(room.exit.x - w.x, room.exit.z - w.z), { key: "KeyE", text: room.kind === "cellar" ? "go up the steps into the street" : "go out into the street", run: () => this.leave() }]);
     const keeper = [...this.occ.values()].find((o) => o.keeper && !o.gone);
     if (keeper && near(room.counter, 1.2)) {
       opts.push([0.2, { key: "KeyE", text: `talk to ${keeper.p.first}, the keeper`, run: () => this.talkTo(keeper) }]);
@@ -241,16 +246,21 @@ export class Interiors {
       opts.push(...hk.options);
       extra.push(...hk.extra);
     }
+    if (room.kind === "landmark" && this.landmarkKeys) {
+      const lk = this.landmarkKeys(w.x, w.z);
+      opts.push(...lk.options);
+      extra.push(...lk.extra);
+    }
     let best: Seat | null = null;
     let bd = 0.85;
     for (const s of room.seats) {
-      if (this.seatTaken.has(s)) continue;
+      if (this.seatTaken.has(s) || this.seatBusy?.(s)) continue;
       const d = Math.hypot(s.x - w.x, s.z - w.z);
       if (d < bd) [best, bd] = [s, d];
     }
     if (best) {
       const s = best;
-      opts.push([bd + 0.1, { key: "KeyE", text: room.kind === "cellar" ? "sit down on the bench" : s.table === 9 ? "sit at the counter" : "sit down at the table", run: () => this.sitDown(s) }]);
+      opts.push([bd + 0.1, { key: "KeyE", text: room.kind === "cellar" ? "sit down on the bench" : room.kind === "landmark" ? "sit down" : s.table === 9 ? "sit at the counter" : "sit down at the table", run: () => this.sitDown(s) }]);
     }
     opts.sort((a, b) => a[0] - b[0]);
     return [...(opts.length ? [opts[0][1]] : []), ...extra];
@@ -283,13 +293,13 @@ export class Interiors {
    * M6 homes: go into a room made elsewhere (a rented home, world/homeRooms.ts), at its door,
    * with the same fade, walk and sound as the taverns. `then` runs inside the fade.
    */
-  async enterOwn(room: Room, d: { place: string; label: string; step: Pt; out: Pt; wall?: Pt }, then?: () => void, quiet = false): Promise<boolean> {
+  async enterOwn(room: Room, d: { place: string; label: string; step: Pt; out: Pt; wall?: Pt }, then?: () => void, quiet = false, kind: "home" | "landmark" = "home"): Promise<boolean> {
     if (this.busy || this.room) return false;
     this.busy = true;
     try {
       const f = this.frame(d.step, d.out, d.wall);
       const go = () => {
-        this.enterRoom(room, { kind: "home", place: d.place, label: d.label, step: d.step, out: d.out, ...f });
+        this.enterRoom(room, { kind, place: d.place, label: d.label, step: d.step, out: d.out, ...f });
         then?.();
       };
       if (quiet) go();
@@ -324,7 +334,7 @@ export class Interiors {
 
   private enterRoom(room: Room, here: NonNullable<Interiors["here"]>): void {
     const anchor: RideAnchor = { x: here.origin.x, y: 0, z: here.origin.z, yaw: here.yaw, speed: 0 };
-    const walk: RideWalk = { x: room.entry.x, z: room.entry.z, walk: room.walk, floor: () => 0 };
+    const walk: RideWalk = { x: room.entry.x, z: room.entry.z, walk: room.walk, floor: room.floor ? (x, z) => room.floor!(x, z) : () => 0, pace: room.pace, eye: room.eye, surface: room.surface };
     // look into the room: its +z is the world's -out
     this.player.rideStart(() => anchor, Math.atan2(here.out[0], here.out[1]), walk);
     this.player.pitch = -0.05;
@@ -332,7 +342,7 @@ export class Interiors {
     this.here = here;
     this.jefSeat = null;
     this.seatTaken.clear();
-    this.roomSound(room.kind);
+    this.roomSound(room.sound ?? room.kind);
   }
 
   async enterTavern(place: string): Promise<void> {
@@ -414,9 +424,9 @@ export class Interiors {
     }
   }
 
-  leave(quiet = false): void {
+  leave(quiet = false, by?: { step: Pt; out: Pt }): void {
     if (!this.room || !this.here) return;
-    const h = this.here;
+    const h = by ? { ...this.here, step: by.step, out: by.out } : this.here;
     const out = () => {
       this.dice.close();
       this.endScript();
@@ -426,6 +436,7 @@ export class Interiors {
       this.seatTaken.clear();
       this.jefSeat = null;
       this.player.rideSeat = null;
+      this.onSeat(null);
       this.player.rideEnd(h.step[0] + h.out[0] * 0.3, h.step[1] + h.out[1] * 0.3);
       this.player.yaw = Math.atan2(-h.out[0], -h.out[1]);
       this.room = null;
@@ -575,13 +586,14 @@ export class Interiors {
     if (!w || this.seatTaken.has(s)) return;
     this.seatTaken.set(s, "jef");
     this.jefSeat = s;
-    this.player.rideSeat = { x: s.x, y: 0, z: s.z, eye: s.h + 0.72 };
+    this.player.rideSeat = { x: s.x, y: this.room?.floor?.(s.x, s.z) ?? 0, z: s.z, eye: s.h + 0.72 };
     // face the table (or the stage): the seat's own facing, turned into the player's yaw
     const room = this.room!;
     const f = room.toWorld(s.x + Math.sin(s.yaw), s.z + Math.cos(s.yaw));
     const p = room.toWorld(s.x, s.z);
     this.player.yaw = Math.atan2(-(f.x - p.x), -(f.z - p.z));
-    this.player.pitch = room.kind === "cellar" ? 0.02 : -0.12;
+    this.player.pitch = room.kind === "cellar" ? 0.02 : room.kind === "landmark" ? 0.05 : -0.12;
+    this.onSeat(s);
     if (room.kind === "tavern" && s.table !== 9) void this.overhear();
   }
 
@@ -591,6 +603,7 @@ export class Interiors {
     this.seatTaken.delete(s);
     this.jefSeat = null;
     this.player.rideSeat = null;
+    this.onSeat(null);
     const w = this.player.rideWalk;
     if (w) {
       // step back from the table into the room
@@ -941,7 +954,7 @@ export class Interiors {
       if (l) slots[i].set(l.p.x, l.p.y, l.p.z, l.w);
       else slots[i].set(0, -999, 0, 0);
     }
-    psxUniforms.uScatter.value = room.kind === "cellar" ? 0.5 : 0.4;
+    psxUniforms.uScatter.value = room.kind === "cellar" ? 0.5 : room.kind === "landmark" ? 0.3 : 0.4;
     return room.scene;
   }
 

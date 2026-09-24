@@ -3,6 +3,8 @@ import { generateTown, tidy, type Resident, type Town } from "./population.ts";
 import { walkMap } from "./walkmap.ts";
 import { HAULS, STALLS, TRADES, TOWN_EMPLOYERS } from "./places.ts";
 import { GARRISON_TRADES, generateGarrison } from "./garrison.ts";
+import { townSize } from "./popsettings.ts";
+import type { TownSize } from "../config.ts";
 
 // The town in SQLite (M3e). Each resident is also a row in `npc` (id r001...,
 // or the fixed ids of the board's employers), so relationships, memories and
@@ -27,21 +29,24 @@ function newSeed(): number {
   return Math.floor(Math.random() * 2 ** 31);
 }
 
-const memo = new Map<number, Town>();
-function townFor(seed: number): Town {
-  let t = memo.get(seed);
-  if (!t) memo.set(seed, (t = generateTown(seed)));
+const memo = new Map<string, Town>();
+function townFor(seed: number, size: TownSize): Town {
+  const key = `${seed}:${size}`;
+  let t = memo.get(key);
+  if (!t) memo.set(key, (t = generateTown(seed, size)));
   return t;
 }
 
 /**
  * Make the town if this save has none (a new game, or a save from before M3e).
  * Adds rows only; never touches the player, jobs or the named people.
+ * M6 population: at the size chosen in Settings (popsettings.ts), unless one is given. A town
+ * that exists keeps its size until a new game.
  */
-export function ensureTown(db: DB, seed?: number): { made: boolean; residents: number } {
+export function ensureTown(db: DB, seed?: number, size?: TownSize): { made: boolean; residents: number } {
   const has = db.prepare("SELECT COUNT(*) AS n FROM resident").get() as { n: number };
   if (has.n > 0) return { made: false, residents: has.n };
-  const town = townFor(seed ?? newSeed());
+  const town = townFor(seed ?? newSeed(), size ?? townSize(db));
   const insNpc = db.prepare("INSERT OR REPLACE INTO npc (id, name, role, district, faction, persona_json, spot_id, active) VALUES (?, ?, ?, ?, ?, '{}', NULL, 1)");
   const insRel = db.prepare("INSERT OR IGNORE INTO npc_relationship (npc_id) VALUES (?)");
   const insRes = db.prepare("INSERT INTO resident (id, household, trade, data_json) VALUES (?, ?, ?, ?)");

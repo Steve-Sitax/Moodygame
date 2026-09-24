@@ -1,3 +1,4 @@
+import { eventPeopleMax } from "../town/popsettings.ts";
 import type { DB } from "../db.ts";
 import { clock, setWeather, type Weather } from "../day.ts";
 import { ALL_EMPLOYERS, SPOTS, clampBoard, maxTier, taskFor, type Board } from "../hooks/jobBoard.ts";
@@ -29,7 +30,6 @@ import {
   EVENT_NEAR_M,
   EVENTS_AT_ONCE,
   EVENTS_PER_DAY,
-  EVENT_PEOPLE_MAX,
   GATHER_MAX,
   GATHER_MIN,
   PRICE_MAX,
@@ -686,8 +686,9 @@ export function gather(db: DB, ev: EventRow, role: GatherRole, count: number, at
     pool = pool.filter((r) => r.household === hh);
   }
   // M4b: one event never takes more than EVENT_PEOPLE_MAX of the town, leads included
-  const room = Math.max(0, EVENT_PEOPLE_MAX - have.length);
-  const picked = pool.slice(0, Math.min(room, Math.max(GATHER_MIN, Math.min(GATHER_MAX, count))));
+  const cap = eventPeopleMax(db); // Settings: the biggest event (20, 50 or 100), never over EVENT_PEOPLE_MAX
+  const room = Math.max(0, cap - have.length);
+  const picked = pool.slice(0, Math.min(room, Math.max(GATHER_MIN, Math.min(GATHER_MAX, cap, count))));
   const n = picked.length;
   const now = gameMinute(db);
   // M4b: up to a hundred round the leads, in rows: the first ring a few metres out, then ring

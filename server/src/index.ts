@@ -30,9 +30,14 @@ import { mountIdeas } from "./ideas/routes.ts";
 import { mountHomes } from "./homes/routes.ts";
 import { mountTownLife } from "./director/townlife-routes.ts";
 import { mountEmigrants } from "./town/emigrantRoutes.ts";
+import { mountLandmarks } from "./landmarks/routes.ts";
+import { mountPopulation } from "./town/popsettings.ts";
+import { mountHaggle } from "./town/haggleRoutes.ts";
 
 const db = openDb(DB_FILE);
 const app = new Hono();
+// M6 population: the event size and the town size for a new game (Settings)
+mountPopulation(app, db);
 // M6: emigrant families come and go with the clock (town/emigrants.ts); first, so its after-tick step wraps every tick route
 mountEmigrants(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 // M4: townspeople who act, conversations in the street, the director and its events; first, so its
@@ -55,6 +60,10 @@ mountIdeas(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(
 mountHomes(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m), afterNight: (e) => afterNight(e) });
 // M6 town life: the lamplighters' rounds, the soot of a fire, Jef in a bucket chain or at the natie gate
 mountTownLife(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
+// M6: inside the landmarks (the cathedral, the town hall, the Vleeshuis, the Steen, the Oostershuis) and the confessional (landmarks/)
+mountLandmarks(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
+// M6: haggling in your own words, and talking your way out with the police over a complaint (town/haggle.ts, storyWord.ts)
+mountHaggle(app, { db, payload: () => jobsPayload() });
 
 // Board status the client can show while Claude writes.
 let board: { state: "writing" | "ready"; source?: string; error?: string } = { state: "ready" };
@@ -149,13 +158,16 @@ function placed(id: string): string {
   return id;
 }
 
-function publicLine(l: Line & { gated?: string }) {
+function publicLine(l: Line & { gated?: string; note?: string; wares?: unknown }) {
   return {
     npc_line: l.npc_line ? plainEnglish(l.npc_line) : l.npc_line,
     mood: l.mood,
     choices: l.choices?.map(plainEnglish),
     end: l.end_conversation,
     gated: l.gated ?? null,
+    // M6 haggle and police story: how it went down, in words, and the seller's prices after a haggle
+    ...(l.note ? { note: l.note } : {}),
+    ...(l.wares ? { wares: l.wares } : {}),
   };
 }
 

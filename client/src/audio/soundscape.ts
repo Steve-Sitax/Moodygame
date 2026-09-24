@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { Organ } from "./organ";
 import type { Surface } from "../world/rijnkaai";
 import { water } from "../world/tide";
 import { cartRoutes, cityEmitters, nearestQuay, overWater, type Emitter, type EmitterKind } from "./emitters";
@@ -172,7 +173,12 @@ export class Soundscape {
   private street: GainNode;
   private streetLp: BiquadFilterNode;
   private room: GainNode;
-  private roomKind: "tavern" | "cellar" | "home" | null = null;
+  private roomKind: string | null = null;
+  /** M6 landmark interiors: a long hall's echo (the cathedral, the town hall, the vaults), and the organ. */
+  private hallVerb: ConvolverNode;
+  private hallSend: GainNode;
+  private hallBufs = new Map<string, AudioBuffer>();
+  private organSynth: Organ | null = null;
   private roomBeds: AudioScheduledSourceNode[] = [];
   private reverbIn: GainNode;
   /** Far bus: everything far off goes through the fog here. */
@@ -256,6 +262,10 @@ export class Soundscape {
     const roomSend = this.ctx.createGain();
     roomSend.gain.value = 0.22;
     this.room.connect(roomSend).connect(roomVerb).connect(comp);
+    this.hallVerb = this.ctx.createConvolver();
+    this.hallSend = this.ctx.createGain();
+    this.hallSend.gain.value = 0;
+    this.room.connect(this.hallSend).connect(this.hallVerb).connect(comp);
 
     // foggy outdoor space: long soft tail
     const verb = this.ctx.createConvolver();
@@ -342,15 +352,33 @@ export class Soundscape {
    * the tavern's crowd and song (the same CC0 loops the street hears muffled at the door),
    * the cellar's audience murmuring. null: back out in the street.
    */
-  setInterior(kind: "tavern" | "cellar" | "home" | null): void {
+  setInterior(kind: string | null): void {
     if (kind === this.roomKind) return;
     this.roomKind = kind;
     const t = this.ctx.currentTime;
     for (const b of this.roomBeds) b.stop(t + 0.3);
     this.roomBeds = [];
-    this.streetLp.frequency.setTargetAtTime(kind ? 420 : 20000, t, 0.12);
-    this.street.gain.setTargetAtTime(kind ? 0.4 : 0.9, t, 0.12);
-    const beds: Array<[SampleName, number]> = kind === "tavern" ? [["tavernCrowd", 0.55], ["tavernSong", 0.32]] : kind === "cellar" ? [["murmur", 0.3]] : [];
+    // M6 landmarks: a hall of its own size (seconds of echo, how much of it); the cathedral lets the bells through
+    const HALLS: Record<string, [number, number, number, number, number]> = {
+      // echo s, decay, send, street lowpass Hz, street gain
+      church: [4.8, 2.2, 0.62, 900, 0.5],
+      hall: [1.9, 3, 0.34, 480, 0.35],
+      vault: [1.6, 3, 0.36, 380, 0.3],
+      museum: [2.2, 2.8, 0.4, 420, 0.32],
+      store: [1.7, 3, 0.3, 460, 0.35],
+    };
+    const hall = kind ? HALLS[kind] : undefined;
+    if (hall) {
+      let b = this.hallBufs.get(kind!);
+      if (!b) this.hallBufs.set(kind!, (b = this.impulse(hall[0], hall[1])));
+      this.hallVerb.buffer = b;
+    }
+    this.hallSend.gain.setTargetAtTime(hall ? hall[2] : 0, t, 0.2);
+    if (kind !== "church") this.organ(false);
+    this.streetLp.frequency.setTargetAtTime(hall ? hall[3] : kind ? 420 : 20000, t, 0.12);
+    this.street.gain.setTargetAtTime(hall ? hall[4] : kind ? 0.4 : 0.9, t, 0.12);
+    const beds: Array<[SampleName, number]> =
+      kind === "tavern" ? [["tavernCrowd", 0.55], ["tavernSong", 0.32]] : kind === "cellar" ? [["murmur", 0.3]] : kind === "church" ? [["murmur", 0.05]] : kind === "hall" ? [["murmur", 0.08]] : [];
     for (const [name, gain] of beds) {
       const b = this.buf.get(name);
       if (!b) continue;
@@ -364,6 +392,24 @@ export class Soundscape {
       src.start(t, Math.random() * b.duration);
       this.roomBeds.push(src);
     }
+  }
+
+  /** M6 landmarks: the organ in the cathedral (a chord bed made in code), on or off. */
+  organ(on: boolean, level = 1): void {
+    if (!on && !this.organSynth) return;
+    this.organSynth ??= new Organ(this.ctx, [this.room, this.hallSend]);
+    this.organSynth.set(on, level);
+  }
+
+  /** M6 landmarks: the small bell at the altar (the elevation). */
+  altarBell(): void {
+    this.organSynth ??= new Organ(this.ctx, [this.room, this.hallSend]);
+    this.organSynth.bell([this.room, this.hallSend]);
+  }
+
+  /** Dev: is the organ playing? */
+  get organOn(): boolean {
+    return this.organSynth?.on ?? false;
   }
 
   /** Run `fn` with its one-shot sounds (steps, voices) in the room, not out in the street. */
