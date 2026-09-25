@@ -12,28 +12,47 @@ import { makeHuman, type Human } from "../game/humans";
 // (rijnkaai.ts baseAt), as steenramp.ts does for the Steen's courtyard. People in the crowd walk up too:
 // the ramparts were the town's promenade.
 
+type Ring = number[][];
+
+interface Frame {
+  /** Start of the segment on the field face, along it, out to the field. */
+  o: [number, number];
+  t: [number, number];
+  n: [number, number];
+}
+
 interface Stair {
-  side: string;
+  seg: string;
   /** The foot (y 0) and the head (y h), on the flight's middle line. */
   a: [number, number];
   b: [number, number];
   half: number;
-  flight: [number, number, number, number];
-  landing: [number, number, number, number];
+  /** Four corners each (the wall is bent: any angle). */
+  flight: Ring;
+  landing: Ring;
 }
 
 interface Gate {
   id: string;
   name: string;
-  house: [number, number, number, number];
-  passage: [number, number, number, number];
-  bridge: [number, number, number, number];
+  seg: string;
+  s: number;
+  frame: Frame;
+  house: Ring;
+  passage: Ring;
+  bridge: Ring;
+  out: [number, number];
+  posts: [number, number][];
 }
 
 interface RampartData {
   h: number;
+  t: number;
   inner: { west: number; north: number; east: number };
-  tops: number[][][];
+  /** Inside this ring (2.6 m clear of the town face) nothing of the wall stands. */
+  clear: Ring;
+  segments: Array<Frame & { name: string; len: number }>;
+  tops: Ring[];
   stairs: Stair[];
   gates: Gate[];
 }
@@ -57,18 +76,41 @@ const inRing = (ring: number[][], x: number, z: number) => {
   return inside;
 };
 
-const inBox = (b: number[], x: number, z: number, m = 0) => x >= b[0] - m && x <= b[2] + m && z >= b[1] - m && z <= b[3] + m;
+const boxOf = (ring: Ring) => ({
+  minX: Math.min(...ring.map((p) => p[0])),
+  maxX: Math.max(...ring.map((p) => p[0])),
+  minZ: Math.min(...ring.map((p) => p[1])),
+  maxZ: Math.max(...ring.map((p) => p[1])),
+});
+const STAIRS = (R?.stairs ?? []).map((s) => ({ s, flight: boxOf(s.flight), landing: boxOf(s.landing) }));
+const inPoly = (ring: Ring, box: Rect, x: number, z: number) => x >= box.minX && x <= box.maxX && z >= box.minZ && z <= box.maxZ && inRing(ring, x, z);
+/** The clear ring, and a box well inside it (most questions end there). */
+const CLEAR = R?.clear ?? null;
+// (the wall only ever bends outward from the straight line between its two ends at the river, so the box
+// between those ends, below the lowest corner of the town face, is inside)
+const CLEAR_IN: Rect | null = (() => {
+  const L = (R as unknown as { inner_line?: Ring } | null)?.inner_line;
+  if (!L || L.length < 3) return null;
+  const a = L[0];
+  const b = L[L.length - 1];
+  return { minX: Math.min(a[0], b[0]) + 3, maxX: Math.max(a[0], b[0]) - 3, minZ: 1, maxZ: Math.min(...L.slice(1, -1).map((p) => p[1])) - 3 };
+})();
 
 /** Inside the town's wall street, clear of the wall: nothing to ask. */
-const clear = (x: number, z: number) => !R || (x > R.inner.west + 0.05 + 2.4 && x < R.inner.east - 0.05 - 2.4 && z < R.inner.north - 0.05 - 2.4 && z > 0.5);
+const clear = (x: number, z: number) => {
+  if (!R || !CLEAR) return true;
+  if (z <= 0.5) return false;
+  if (CLEAR_IN && x > CLEAR_IN.minX && x < CLEAR_IN.maxX && z > CLEAR_IN.minZ && z < CLEAR_IN.maxZ) return true;
+  return inRing(CLEAR, x, z);
+};
 
 /** Height of the wall's walk, a bastion top or a stair at (x, z), or null where the wall is not. */
 export function rampartHeightAt(x: number, z: number): number | null {
   if (clear(x, z)) return null;
   const H = R!.h;
-  for (const s of R!.stairs) {
-    if (inBox(s.landing, x, z, 0.02)) return H;
-    if (inBox(s.flight, x, z, 0.02)) {
+  for (const { s, flight, landing } of STAIRS) {
+    if (inPoly(s.landing, landing, x, z)) return H;
+    if (inPoly(s.flight, flight, x, z)) {
       const [ax, az] = s.a;
       const [bx, bz] = s.b;
       const dx = bx - ax;
@@ -88,7 +130,10 @@ export function rampartHeightAt(x: number, z: number): number | null {
 export function rampartKeepOut(): Rect[] {
   if (!R) return [];
   const out: Rect[] = [];
-  const rect = (b: number[], m: number) => ({ minX: b[0] - m, maxX: b[2] + m, minZ: b[1] - m, maxZ: b[3] + m });
+  const rect = (ring: Ring, m: number) => {
+    const b = boxOf(ring);
+    return { minX: b.minX - m, maxX: b.maxX + m, minZ: b.minZ - m, maxZ: b.maxZ + m };
+  };
   for (const s of R.stairs) {
     out.push(rect(s.flight, 0.8), rect(s.landing, 0.8));
     // the foot: room to step on
@@ -101,7 +146,7 @@ export function rampartKeepOut(): Rect[] {
 
 /** The gates, for the map and the places: name and the middle of the passage. */
 export function rampartGates(): Array<{ id: string; name: string; x: number; z: number }> {
-  return (R?.gates ?? []).map((g) => ({ id: g.id, name: g.name, x: (g.passage[0] + g.passage[2]) / 2, z: (g.passage[1] + g.passage[3]) / 2 }));
+  return (R?.gates ?? []).map((g) => ({ id: g.id, name: g.name, x: g.passage.reduce((a, p) => a + p[0], 0) / 4, z: g.passage.reduce((a, p) => a + p[1], 0) / 4 }));
 }
 
 export interface WallModel {
@@ -121,6 +166,9 @@ export function loadWall(scene: THREE.Scene): WallModel {
   scene.add(group);
   const mats = new Map<string, THREE.Material>();
   const chunks: THREE.Mesh[] = [];
+  let millSails: THREE.Object3D | null = null;
+  /** The mill's axle (build_wall.py MILL_HUB): out to the field, tilted up. */
+  const AXLE = new THREE.Vector3(0.00074, 0.13917, 0.99027).normalize();
   const matFor = (src: THREE.MeshStandardMaterial): THREE.Material => {
     const have = mats.get(src.name);
     if (have) return have;
@@ -136,6 +184,12 @@ export function loadWall(scene: THREE.Scene): WallModel {
     let m: THREE.Material;
     if (src.name.endsWith("_glow")) {
       m = psx(new THREE.MeshBasicMaterial({ map: map ?? null, color: map ? 0xffffff : 0xffd890, vertexColors: false }), { affine: 0 });
+    } else if (src.name.endsWith("_decal")) {
+      // moss laid 2 cm off the wall (build_wall.py): cut out by its alpha, pulled toward the eye, no depth written
+      m = psx(
+        new THREE.MeshLambertMaterial({ map: map ?? null, vertexColors: true, alphaTest: 0.5, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6, depthWrite: false, side: THREE.DoubleSide }),
+        { fogReach: 2.2, affine: 0 },
+      );
     } else {
       m = psx(new THREE.MeshLambertMaterial({ map: map ?? null, color: map ? 0xffffff : src.color, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 });
     }
@@ -149,6 +203,31 @@ export function loadWall(scene: THREE.Scene): WallModel {
     .loadAsync("/models/wall.glb")
     .then((gltf) => {
       const meshes: THREE.Mesh[] = [];
+      // the mill's sails turn about their hub (build_wall.py: node "mill_sails", origin on the hub, the axle its local +z tilted up)
+      const sails = gltf.scene.getObjectByName("mill_sails");
+      if (sails) {
+        sails.updateWorldMatrix(true, true);
+        const hub = new THREE.Vector3().setFromMatrixPosition(sails.matrixWorld);
+        const pivot = new THREE.Group();
+        pivot.name = "mill_sails_pivot";
+        pivot.position.copy(hub);
+        group.add(pivot);
+        sails.removeFromParent();
+        sails.traverse((o) => {
+          const m = o as THREE.Mesh;
+          if (!m.isMesh) return;
+          if (!m.geometry.getAttribute("color")) {
+            const n = m.geometry.getAttribute("position").count;
+            m.geometry.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(n * 3).fill(1), 3));
+          }
+          const src = Array.isArray(m.material) ? m.material : [m.material];
+          const out = src.map((q) => matFor(q as THREE.MeshStandardMaterial));
+          m.material = Array.isArray(m.material) ? out : out[0];
+        });
+        sails.position.set(0, 0, 0);
+        pivot.add(sails);
+        millSails = sails;
+      }
       gltf.scene.traverse((o) => {
         const m = o as THREE.Mesh;
         if (!m.isMesh) return;
@@ -178,6 +257,8 @@ export function loadWall(scene: THREE.Scene): WallModel {
     ready: ready.then(() => {}),
     update(camera, far) {
       const cp = camera.position;
+      // the sails turn slowly, the wind of an autumn day (a turn in about 9 s)
+      if (millSails) millSails.quaternion.setFromAxisAngle(AXLE, (performance.now() / 1000) * 0.7);
       for (const m of chunks) {
         const s = m.geometry.boundingSphere!;
         tmp.copy(s.center).applyMatrix4(m.matrixWorld);
@@ -211,15 +292,20 @@ export function wallGuards(scene: THREE.Scene, heightAt: (x: number, z: number) 
   scene.add(group);
   const guards: Guard[] = [];
   const yawOf = (dx: number, dz: number) => Math.atan2(dx, dz);
-  for (const g of (R?.gates ?? []) as Array<Gate & { posts: [number, number][]; out: [number, number] }>) {
+  for (const g of R?.gates ?? []) {
     for (const [x, z] of g.posts) guards.push({ kind: "post", human: null, x, z, yaw: yawOf(-g.out[0], -g.out[1]) });
   }
   if (R) {
-    const mid = (side: "west" | "north" | "east") => (R.inner[side] + (side === "west" ? -1 : 1) * 3.5);
+    // a round along the middle of the walk on three segments of the bent wall: s from .. to (m)
+    const onWalk = (name: string, s: number): [number, number] => {
+      const g = R.segments.find((q) => q.name === name)!;
+      const off = R.t / 2 - R.t; // the middle of the walk, from the field face inward
+      return [g.o[0] + g.t[0] * s + g.n[0] * off, g.o[1] + g.t[1] * s + g.n[1] * off];
+    };
     const rounds: Array<[[number, number], [number, number]]> = [
-      [[mid("west"), 20], [mid("west"), 128]],
-      [[-128, mid("north")], [66, mid("north")]],
-      [[mid("east"), 140], [mid("east"), 280]],
+      [onWalk("seg1", 45), onWalk("seg1", 95)],
+      [onWalk("seg5", 100), onWalk("seg5", 170)],
+      [onWalk("seg8", 20), onWalk("seg8", 50)],
     ];
     for (const [a, b] of rounds) guards.push({ kind: "round", human: null, x: a[0], z: a[1], yaw: yawOf(b[0] - a[0], b[1] - a[1]), a, b, toB: true, wait: 0 });
   }

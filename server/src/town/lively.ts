@@ -1,5 +1,6 @@
 import type { DB } from "../db.ts";
 import { houseDoors, walkMap, type HouseDoor } from "./walkmap.ts";
+import INWORLD from "../../../shared/inworld_houses.json" with { type: "json" };
 import { shownTrade, STATS, TAVERNS, TRADES, type Stat, type TradeId } from "./places.ts";
 import { rngFrom, tidy, type Home, type Pt, type Resident, type Stats, type Town, type TownPlace } from "./population.ts";
 import type { Seg } from "./schedule.ts";
@@ -105,7 +106,8 @@ interface RoundSpec {
 const ROUNDS: RoundSpec[] = [
   { key: "milk_east", label: "the back streets behind the Rijnkaai", trade: "milk_woman", kind: "milk_woman", sex: "f", age: [28, 52], at: [-10, 80], reach: 75, stops: 12, district: "rijnkaai" },
   { key: "milk_west", label: "the lanes round the cathedral", trade: "milk_woman", kind: "milk_woman", sex: "f", age: [30, 58], at: [-230, 190], reach: 90, stops: 12, district: "grote-markt" },
-  { key: "bread_rijn", label: "the back streets behind the Rijnkaai", trade: "baker_boy", kind: "baker_boy", sex: "m", age: [12, 15], at: [10, 80], reach: 60, stops: 10, district: "rijnkaai" },
+  // (the angled streets, 2026-09-25: the milk woman has the lanes behind the Rijnkaai; the boy the lanes by the Keizerspoort)
+  { key: "bread_rijn", label: "the lanes toward the Keizerspoort", trade: "baker_boy", kind: "baker_boy", sex: "m", age: [12, 15], at: [20, 215], reach: 70, stops: 10, district: "canal" },
   { key: "bread_steen", label: "the lanes behind the Steenplein", trade: "baker_boy", kind: "baker_boy", sex: "m", age: [12, 15], at: [-190, 90], reach: 75, stops: 10, district: "steenplein" },
   { key: "grind", label: "the lanes round the cathedral", trade: "grinder", kind: "grinder", sex: "m", age: [40, 66], at: [-240, 180], reach: 100, stops: 10, district: "grote-markt" },
   { key: "rags", label: "the back streets by the Vleeshuis", trade: "ragman", kind: "ragman", sex: "m", age: [45, 70], at: [-110, 120], reach: 100, stops: 11, district: "vismarkt" },
@@ -199,6 +201,15 @@ export function buildRound(at: Pt, reach: number, n: number, start: Pt, rng: () 
     if (picked.length >= n) break;
     const s = stopBy(d, rng() < 0.5 ? 1 : -1, room) ?? stopBy(d, 1, room) ?? stopBy(d, -1, room);
     if (!s || picked.some((p) => Math.hypot(p.at[0] - s.at[0], p.at[1] - s.at[1]) < 9)) continue;
+    // a cart's way is found cell by cell (lamplighters.ts walkPath): the stop's own cell must have the room too,
+    // or every leg from it fails (2026-09-25: the baker's boy's round of one stop on the angled streets)
+    if (room > 0.6) {
+      const wm = walkMap();
+      const { x0, z0, res } = wm.info;
+      const cx = x0 + (Math.floor((s.at[0] - x0) / res) + 0.5) * res;
+      const cz = z0 + (Math.floor((s.at[1] - z0) / res) + 0.5) * res;
+      if (!wm.open(cx, cz, room)) continue;
+    }
     if (usedStops.some(([ux, uz]) => Math.hypot(ux - s.at[0], uz - s.at[1]) < 2.5)) continue;
     // not in front of another house's door (a stop never closes a door)
     if (houseDoors().some((o) => o.house !== d.house && Math.hypot(o.sx - s.at[0], o.sz - s.at[1]) < 1.1)) continue;
@@ -285,6 +296,9 @@ function makeLively(seed: number, places: Record<string, TownPlace>, residents: 
   const out: Resident[] = [];
   const usedNames = new Set(residents.map((r) => r.name));
   const usedHouses = new Set(residents.map((r) => r.home.house).filter((h) => h >= 0));
+  // the houses whose insides stand in the world (taverns, the rooms to rent) are not for the street sellers
+  // (2026-09-25: on the angled streets a seller moved into the empty alley home)
+  for (const e of (INWORLD as { houses: Array<{ house: number }> }).houses) usedHouses.add(e.house);
   // doors people already step out of or work at: nobody new moves in on top of them
   const takenPts: Pt[] = [];
   for (const r of residents) {

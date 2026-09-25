@@ -1,29 +1,39 @@
-"""The town wall of Antwerp, 1873, modelled and painted by this script: the curtain walls, the
-bastions, the small guard towers with their guard houses, the four gates with their stone bridges
-over the moat, and the stairs up to the walk.
+"""The town wall of Antwerp, 1873, modelled and painted by this script: the curtain walls along
+the bent line, the bastions, the small guard towers with their guard houses, the four gates with
+their stone bridges over the moat, the stairs up to the walk, and the tower mill on the middle
+bastion.
 
     blender -b --factory-startup -P tools/blender/build_wall.py
-    blender -b --factory-startup -P tools/blender/build_wall.py -- --preview
+    blender -b --factory-startup -P tools/blender/build_wall.py -- --preview [name,name]
 
 Reads decor.rampart and decor.rampart_solids of shared/city.json (tools/city/rampart.py makes them;
 its docstring says what each field means) and writes client/public/models/wall.glb (Draco). No
-layout number lives here: the rings, bands, towers, huts, gates, bridges and stairs all come from
-the JSON. The numbers below are the look (heights of parapets, the plinth, the gate towers).
+layout number lives here: the trace, the segments and their frames, the tops, bastions, towers,
+huts, gates, bridges, stairs and the mill all come from the JSON. The numbers below are the look
+(heights of parapets, the plinth, the gate towers, the mill's shape).
 
 Frame: a game point (x, y, z) sits at Blender (x, -z, y). The glTF export turns Blender Z-up into
-Y-up, so the glb loads in game coordinates; every object has its origin at the world origin and
-the game adds the scene as it is.
+Y-up, so the glb loads in game coordinates. Every object but the sails has its origin at the world
+origin; the game adds the scene as it is.
 
 Objects:
   wall_chunk_<n>   the static wall cut into 100 m cells (walls, walk, parapets, towers, huts,
-                   bastions, turrets, stairs), so the game can cull them
+                   bastions, turrets, stairs, the mill's tower and cap), so the game can cull them
   gate_<id>        one gate house with its bridge over the moat
+  mill_sails       the mill's four sails, the hub and the windshaft. Its origin is the hub, with
+                   no rotation: the game turns it about the axle (MILL_AXLE, printed by the build)
+                   with rotateOnAxis(axle, angle); a positive angle turns the sails anticlockwise
+                   seen from the front, the way the mills here turn.
 Materials (a small texture each, painted below, nearest filter; vertex colour "Col" carries the
 shade, darker at the foot, under water and inside the arch):
   wall_brick, wall_quoin (brick with the pale corner stones), wall_plinth (grey stone), wall_stone
   (pale dressed stone: coping, voussoirs, treads), wall_cobble (the walk), wall_slate, wall_wood,
   wall_iron, wall_window, wall_grass, wall_arms (the lion shield), wall_lamp_glow (lantern glass:
-  the game draws it bright).
+  the game draws it bright), wall_canvas (the sail cloths).
+
+Along the wall every part is placed in its segment's frame (o, t, n of decor.rampart.segments):
+a = metres along t, o = metres out from the town face (o = T is the field face). The ring of the
+walk (decor.rampart.tops) is swept edge by edge with mitred corners, whatever their angle.
 
 What the game walks on and bumps into: the walk top is at h, the stair treads follow the line from
 a (y 0) to b (y h), the landings are at h, the gate passage floor and the bridge decks are 2 cm over
@@ -55,14 +65,20 @@ OUT = os.path.join(ROOT, "client", "public", "models", "wall.glb")
 SHOTS = os.path.join(ROOT, "data", "shots")
 
 MATS = ["wall_brick", "wall_quoin", "wall_plinth", "wall_stone", "wall_cobble", "wall_slate", "wall_wood",
-        "wall_iron", "wall_window", "wall_grass", "wall_arms", "wall_lamp_glow"]
-BRICK, QUOIN, PLINTH, STONE, COBBLE, SLATE, WOOD, IRON, WINDOW, GRASS, ARMS, GLOW = range(len(MATS))
+        "wall_iron", "wall_window", "wall_grass", "wall_arms", "wall_lamp_glow", "wall_canvas", "wall_moss_decal"]
+BRICK, QUOIN, PLINTH, STONE, COBBLE, SLATE, WOOD, IRON, WINDOW, GRASS, ARMS, GLOW, CANVAS, DECAL = range(len(MATS))
 # metres per texture repeat (u, v). Brick and quoin share one pixel size (53 px to the metre), so
 # the courses run on from the brick into the corner stones
 TILE = {BRICK: (2.4, 1.8), QUOIN: (1.2, 1.8), PLINTH: (2.4, 2.4), STONE: (1.2, 1.2), COBBLE: (1.6, 1.6),
         SLATE: (1.2, 1.2), WOOD: (1.2, 1.2), IRON: (1.0, 1.0), WINDOW: (1.0, 1.0), GRASS: (3.0, 3.0),
-        ARMS: (1.0, 1.0), GLOW: (1.0, 1.0)}
+        ARMS: (1.0, 1.0), GLOW: (1.0, 1.0), CANVAS: (1.8, 1.8), DECAL: (1.0, 1.0)}
 QW = 1.2  # the quoin strip at a corner (the width of its texture)
+COURSE = TILE[BRICK][1] / 24  # one brick course (7.5 cm)
+PARK = os.path.join(ROOT, "client", "public", "models", "park.json")  # the Stadspark's pond, where it meets the wall
+MOSS_TOUCH, MOSS_NEAR, MOSS_PAD = 0.3, 4.0, 2.0  # the pond touches the face within this (or, not yet built, comes this near); moss runs on this far
+MOSS_OFF, MOSS_Y0, MOSS_Y1 = 0.02, -0.45, 1.8  # the moss decal: off the town face, from under the water to the plinth's top
+MOSS_PX = 0.02  # metres per texel of the decal
+QUOIN_TURN = math.radians(25.0)  # quoins only where the line turns more than this (not at the small bends)
 
 # ---- the look (not the layout)
 BATTER = 0.15  # the field face leans back this much from the foot to the walk
@@ -82,6 +98,22 @@ SPR = 3.3  # the gate arch springs here
 TOWER_UP, ROOF_RISE = 6.0, 4.6  # gate towers rise this far over the walk; their roofs
 MID_UP, FR_UP = 1.0, 1.9  # the middle over the passage (town side); the frontispiece's cornice
 STEP_RISE = 0.18  # about: the stairs have round(h / 0.18) steps (36)
+# the tower mill on the middle bastion (its foot is decor.rampart.mill r; heights over the walk)
+MILL_SIDES = 20
+MILL_PL = 0.75  # the stone plinth
+MILL_BODY = 10.6  # the brick tower's top
+MILL_TOP_R = 2.42  # its radius there
+MILL_STAGE = 5.25  # a stone string course half way up
+MILL_DOOR = 2.475  # the door case's top (a course line)
+CAP_X = [-2.9, -2.5, -1.6, -0.4, 0.8, 1.8, 2.5, 2.8]  # the boat-shaped cap: stations along the axle
+CAP_B = [0.55, 1.6, 2.35, 2.6, 2.55, 2.1, 1.3, 0.6]  # half widths
+CAP_H = [1.1, 1.9, 2.45, 2.65, 2.6, 2.3, 1.8, 1.3]  # heights over the cap's foot
+CAP_SEC = [(1.0, 0.0), (0.97, 0.28), (0.86, 0.55), (0.66, 0.78), (0.38, 0.93), (0.0, 1.0)]
+HUB_OUT, HUB_UP = 3.55, 0.95  # the hub: out from the tower's axis, up from the cap's foot
+TILT = math.radians(8.0)  # the windshaft rises this much toward the sails
+SAIL_R, SAIL_IN = 9.3, 1.9  # the sails reach from SAIL_IN to SAIL_R off the hub
+SAIL_W, SAIL_LEAD = 1.9, 0.35  # the lattice's width on the trailing side, the leading board
+SAIL_STEP = 0.55  # between the sail bars
 
 
 # ------------------------------------------------------------------ small helpers
@@ -371,7 +403,63 @@ def paint_glow(rng, n=16):
     return img
 
 
-def make_materials():
+def paint_canvas(rng, w=32, h=64):
+    """Sail cloth: off-white linen in cloths sewn along the sail (u across, v along), weathered, with
+    the reef points in rows."""
+    img = np.ones((h, w, 3)) * C(0.76, 0.72, 0.62)
+    img *= (0.9 + 0.14 * noise2(rng, h, w, 8, 4))[..., None]
+    img *= (0.94 + 0.08 * rng.random((h, w, 1)))
+    for u in (0, 8, 16, 24):
+        img[:, u] *= 0.8  # the seams between the cloths
+    for v in range(4, h, 16):
+        img[v, 2::4] = C(0.40, 0.36, 0.30)  # reef points
+    img[:, -1] *= 0.7
+    return img
+
+
+def bayer4():
+    m = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]], dtype=np.float64)
+    return (m + 0.5) / 16.0
+
+
+def paint_moss_decal(rng, stretch):
+    """The moss over the town face where the park's pond lies against it, as one picture over the
+    whole decal: u across the stretch (c0 - MOSS_PAD .. c1 + MOSS_PAD), v up from MOSS_Y0 to MOSS_Y1.
+    RGBA with alpha 0 or 1 per texel: thick moss low down along the pond, thinning out toward both
+    ends and toward the top in ever sparser patches (a dither), dark algae streaks running down."""
+    c0, c1 = stretch
+    s0, s1 = c0 - MOSS_PAD, c1 + MOSS_PAD
+    W = int(min(2048, max(64, round((s1 - s0) / MOSS_PX / 4) * 4)))
+    H = int(round((MOSS_Y1 - MOSS_Y0) / MOSS_PX / 4) * 4)
+    sx = s0 + (np.arange(W) + 0.5) / W * (s1 - s0)
+    y = MOSS_Y0 + (np.arange(H) + 0.5) / H * (MOSS_Y1 - MOSS_Y0)
+    end = np.clip(np.minimum(sx - s0, s1 - sx) / MOSS_PAD, 0, 1)[None, :]  # 0 at the decal's ends, 1 along the pond
+    wander = 1.0 + 0.8 * noise2(rng, 1, W, 1, max(2, W // 40))  # the moss's top: 1.0 .. 1.8 m
+    top = 0.35 + (wander - 0.35) * end
+    ht = np.clip(1.0 - (y[:, None] - 0.25) / np.maximum(0.15, top - 0.25), 0, 1) ** 1.3
+    val = (end ** 0.8) * ht * 1.25
+    blob = noise2(rng, H, W, max(2, H // 10), max(2, W // 10))
+    fine = rng.random((H, W))
+    thr = 0.2 + 0.6 * (0.5 * np.tile(bayer4(), (H // 4 + 1, W // 4 + 1))[:H, :W] + 0.5 * rng.random((H, W)))
+    alpha = (val * (0.3 + 0.9 * blob) - 0.12 * fine) > thr
+    img = np.empty((H, W, 3))
+    img[:] = C(0.19, 0.27, 0.08)
+    img *= rng.uniform(0.75, 1.25, (H, W, 1))
+    img[fine < 0.1] = C(0.33, 0.42, 0.14)  # a few bright tips
+    img *= (0.72 + 0.35 * np.clip((y[:, None] + 0.3) / 1.8, 0, 1))[..., None]
+    for _ in range(int(W / 70)):  # dark algae streaks running down, inside the thick moss only
+        u = int(rng.integers(0, W))
+        if end[0, u] < 0.9:
+            continue
+        ys = rng.uniform(0.4, 1.1)
+        rows = (y < ys) & (y > ys - rng.uniform(0.3, 0.7))
+        keep = rows & (rng.random(H) < 0.6)
+        img[keep, u] = C(0.10, 0.13, 0.06) * rng.uniform(0.8, 1.2)
+        alpha[keep, u] = True
+    return np.concatenate([np.clip(img, 0, 1), alpha[..., None].astype(np.float64)], axis=2)
+
+
+def make_materials(ctx=None):
     rng = np.random.default_rng(1873)
     paint = {
         "wall_brick": lambda: paint_brick(rng),
@@ -386,13 +474,17 @@ def make_materials():
         "wall_grass": lambda: paint_grass(rng),
         "wall_arms": lambda: paint_arms(rng),
         "wall_lamp_glow": lambda: paint_glow(rng),
+        "wall_canvas": lambda: paint_canvas(rng),
     }
+    arrs = {name: np.clip(paint[name](), 0, 1) for name in MATS if name in paint}
+    moss = getattr(ctx, "moss", None)
+    arrs["wall_moss_decal"] = paint_moss_decal(np.random.default_rng(1874), (moss[2], moss[3]) if moss else (0.0, 4.0))
     for name in MATS:
-        arr = np.clip(paint[name](), 0, 1)
-        h, w, _ = arr.shape
-        img = bpy.data.images.new(name + "_tex", w, h, alpha=False)
+        arr = arrs[name]
+        h, w, nch = arr.shape
+        img = bpy.data.images.new(name + "_tex", w, h, alpha=nch == 4)
         rgba = np.ones((h, w, 4), dtype=np.float32)
-        rgba[..., :3] = arr
+        rgba[..., :nch] = arr
         img.pixels.foreach_set(rgba.ravel())
         img.pack()
         m = bpy.data.materials.new(name)
@@ -406,7 +498,19 @@ def make_materials():
         if name.endswith("_glow"):
             nt.links.new(t.outputs["Color"], bsdf.inputs["Emission Color"])
             bsdf.inputs["Emission Strength"].default_value = 1.0
-        m.use_backface_culling = True
+        m.use_backface_culling = name not in ("wall_canvas", "wall_moss_decal")  # a sail cloth is seen from both sides
+        if name.endswith("_decal"):
+            # alpha 0 or 1 per texel: exported as a mask (cutoff 0.5); the game draws "*_decal" with
+            # alphaTest 0.5, polygon offset toward the eye, no depth write
+            rnd = nt.nodes.new("ShaderNodeMath")
+            rnd.operation = "ROUND"
+            nt.links.new(t.outputs["Alpha"], rnd.inputs[0])
+            nt.links.new(rnd.outputs[0], bsdf.inputs["Alpha"])
+            for attr, val in (("blend_method", "CLIP"), ("surface_render_method", "DITHERED")):
+                try:
+                    setattr(m, attr, val)
+                except (AttributeError, TypeError):
+                    pass
 
 
 # ------------------------------------------------------------------ geometry store
@@ -451,13 +555,16 @@ class Geo:
         for k in self.groups:
             if k[0] == "gate":
                 names[k] = f"gate_{k[1]}"
+            elif k[0] == "sails":
+                names[k] = "mill_sails"
         for k, faces in self.groups.items():
             name = names[k]
+            origin = Vector(k[1]) if k[0] == "sails" else Vector((0.0, 0.0, 0.0))  # the sails turn about their hub
             bm = bmesh.new()
             uvl = bm.loops.layers.uv.new("UVMap")
             col = bm.loops.layers.float_color.new("Col")
             for pts, uvs, cols, mat in faces:
-                vs = [bm.verts.new(B(p)) for p in pts]
+                vs = [bm.verts.new(B(p - origin)) for p in pts]
                 try:
                     f = bm.faces.new(vs)
                 except ValueError:
@@ -479,6 +586,7 @@ class Geo:
             except (KeyError, AttributeError):
                 pass
             ob = bpy.data.objects.new(name, me)
+            ob.location = B(origin)
             bpy.context.scene.collection.objects.link(ob)
             objs[name] = ob
         return objs
@@ -583,7 +691,7 @@ def lantern(g, x, ytop, z, w=0.24, hh=0.36):
             shade=0.8)
     q = w / 2
     solid8(g, [(x + (q if i & 1 else -q), y0 if not i & 4 else y1, z + (q if i & 2 else -q)) for i in range(8)], GLOW,
-           skip=("+z",), shade=1.0, uvs=None)
+           skip=("+z", "-z"), shade=1.0, uvs=None)
     q = w / 2 + 0.03
     solid8(g, [(x + (q if i & 1 else -q), y0 - 0.06 if not i & 4 else y0, z + (q if i & 2 else -q)) for i in range(8)], IRON,
            shade=0.8)
@@ -595,7 +703,7 @@ def wall_lantern(g, p, out, arm=0.5):
     o = Vector((out[0], 0.0, out[1]))
     tip = p + o * arm
     bar(g, p, tip, 0.05, IRON, shade=0.8)
-    bar(g, p - Vector((0, 0.35, 0)), p + o * (arm * 0.6), 0.04, IRON, shade=0.8)
+    bar(g, p - Vector((0, 0.35, 0)), p + o * (arm * 0.6), 0.03, IRON, shade=0.8)  # the strut, thinner than the arm
     bar(g, tip, tip - Vector((0, 0.1, 0)), 0.03, IRON, shade=0.8)
     lantern(g, tip.x, p.y - 0.1, tip.z)
 
@@ -730,6 +838,60 @@ class Panel:
 # ------------------------------------------------------------------ the layout
 
 
+def V2(p):
+    return Vector((float(p[0]), float(p[1])))
+
+
+def centroid(P):
+    return sum((V2(p) for p in P), Vector((0.0, 0.0))) / len(P)
+
+
+def on_line(A, B, P, Q, e=0.03):
+    """Whether the segment A-B lies on the segment P-Q (within e)."""
+    d = Q - P
+    L = d.length
+    if L < 1e-9:
+        return False
+    t = d / L
+    n = Vector((-t.y, t.x))
+    for X in (A, B):
+        r = X - P
+        if abs(r.dot(n)) > e or not (-e <= r.dot(t) <= L + e):
+            return False
+    return True
+
+
+def cross2(a, b):
+    return a.x * b.y - a.y * b.x
+
+
+class Hut:
+    """A guard house's footprint (4 corners in any turn): its middle, its two axes, half sizes."""
+
+    def __init__(self, corners):
+        P = [V2(p) for p in corners]
+        self.c = centroid(P)
+        e1, e2 = P[1] - P[0], P[3] - P[0]
+        self.axes = [(e1.normalized(), e1.length / 2), (e2.normalized(), e2.length / 2)]
+
+    def facing(self, d):
+        """The frame whose `o` looks along the hut's axis nearest the direction d: (ua, uo, W2, D2),
+        W2 and D2 the half sizes along ua and uo."""
+        best = None
+        for k, (ax, half) in enumerate(self.axes):
+            for sg in (1.0, -1.0):
+                v = ax * sg
+                if best is None or v.dot(d) > best[0]:
+                    best = (v.dot(d), v, half, self.axes[1 - k][1])
+        _, uo, D2, W2 = best
+        ua = Vector((-uo.y, uo.x))
+        return ua, uo, W2, D2
+
+    def poly(self, inset=0.0):
+        (a1, h1), (a2, h2) = self.axes
+        return [self.c + a1 * (s1 * (h1 - inset)) + a2 * (s2 * (h2 - inset)) for s1, s2 in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+
+
 class Ctx:
     def __init__(self, D, solids):
         self.D = D
@@ -738,44 +900,73 @@ class Ctx:
         self.band = D["parapet"]
         self.rail = D.get("rail", D["parapet"])
         self.solids = [[(float(x), float(z)) for x, z in s] for s in solids]
-        self.sides = {}
-        for side, (x0, z0, x1, z1) in D["bands"].items():
-            along_z = (z1 - z0) > (x1 - x0)
-            face = D["inner"][side]
-            sgn = 1.0 if D["outer"][side] > face else -1.0
-            self.sides[side] = (along_z, face, sgn)
-        self.gate_rects = [g["house"] for g in D["gates"]]
-        self.huts = [tuple(h) for h in D["huts"]]
-        self.tower_huts = {tuple(t["hut"]): t for t in D["towers"]}
-        self.land_bastions = []
-        self.river_bastions = []
+        self.trace = [V2(p) for p in D["trace"]]
+        self.inner = [V2(p) for p in D["inner_line"]]
+        self.segs = D["segments"]
+        il = self.inner
+        # the town face: the inner line, and on down the river half-bastions' town sides
+        self.town_lines = [(Vector((il[0].x, -60.0)), il[0])] + list(zip(il, il[1:])) + [(il[-1], Vector((il[-1].x, -60.0)))]
+        self.gate_polys = [[V2(p) for p in g["house"]] for g in D["gates"]]
+        self.huts = [Hut(h) for h in D["huts"]]
+        self.land_bastions, self.river_bastions = [], []
         for k, poly in D["bastions"].items():
-            P = [Vector((x, z)) for x, z in poly]
+            P = [V2(p) for p in poly]
             (self.land_bastions if min(p.y for p in P) >= -1e-6 else self.river_bastions).append((k, P))
-        xs = [D["inner"][s] for s in D["inner"] if self.sides[s][0]]
-        self.centre = Vector(((min(xs) + max(xs)) / 2, max(D["inner"][s] for s in D["inner"] if not self.sides[s][0]) / 2))
+        self.blist = {b["name"]: b for b in D["bastion_list"]}
+        self.town_poly = [Vector((il[0].x, 0.0))] + il + [Vector((il[-1].x, 0.0))]
+        self.centre = centroid(self.town_poly)
+        m = D["mill"]
+        self.mill = (Vector((m["x"], m["z"])), m["r"])
+        self.moss = pond_stretch(self)
+        # the walk's paving follows its piece of the wall: the lines where one piece meets the next
+        self.region_cuts = []
+        for i in range(1, len(self.trace) - 1):
+            a, b = self.trace[i], self.inner[i]
+            d = (b - a).normalized()
+            self.region_cuts.append((a - d * 1.0, b + d * 1.0))
+        for _, P in self.land_bastions + self.river_bastions:
+            self.region_cuts += [(P[j], P[(j + 1) % len(P)]) for j in range(len(P))]
 
-    def frame(self, side, at):
-        along_z, face, sgn = self.sides[side]
-        if along_z:
-            return Frame(face, at, (0.0, 1.0), (sgn, 0.0))
-        return Frame(at, face, (1.0, 0.0), (0.0, sgn))
+    def sframe(self, fr, s):
+        """The frame of a part at s along its segment: origin on the town face, a along t, o out along n."""
+        o, t, n = fr["o"], fr["t"], fr["n"]
+        return Frame(o[0] + t[0] * s - n[0] * self.t, o[1] + t[1] * s - n[1] * self.t, (t[0], t[1]), (n[0], n[1]))
 
     def kind(self, A, B):
-        e = 1e-3
-        for x0, z0, x1, z1 in self.gate_rects:
-            for xl in (x0, x1):
-                if abs(A.x - xl) < e and abs(B.x - xl) < e and z0 - e <= A.y <= z1 + e and z0 - e <= B.y <= z1 + e:
+        for poly in self.gate_polys:
+            for j in range(len(poly)):
+                if on_line(A, B, poly[j], poly[(j + 1) % len(poly)]):
                     return "gate"
-            for zl in (z0, z1):
-                if abs(A.y - zl) < e and abs(B.y - zl) < e and x0 - e <= A.x <= x1 + e and x0 - e <= B.x <= x1 + e:
-                    return "gate"
-        for along_z, face, sgn in self.sides.values():
-            if along_z and abs(A.x - face) < e and abs(B.x - face) < e:
-                return "town"
-            if not along_z and abs(A.y - face) < e and abs(B.y - face) < e:
+        for P, Q in self.town_lines:
+            if on_line(A, B, P, Q):
                 return "town"
         return "field"
+
+    def walk_axes(self, c):
+        """The paving's (along, across) at a point of the walk: its segment's frame, a bastion's own."""
+        if c.y < 0.0:
+            return Vector((1.0, 0.0)), Vector((0.0, 1.0))
+        for name, P in self.land_bastions:
+            if inside((c.x, c.y), [(p.x, p.y) for p in P]):
+                b = self.blist[name]
+                u = (V2(b["salient"]) - V2(b["vertex"])).normalized()
+                return Vector((-u.y, u.x)), u
+        best = None
+        for i, sg in enumerate(self.segs):
+            t = V2(sg["t"])
+            ok = True
+            for k, ref in ((i, self.trace[i] + t), (i + 1, self.trace[i + 1] - t)):
+                if 0 < k < len(self.trace) - 1:
+                    a, b = self.trace[k], self.inner[k]
+                    if (cross2(b - a, c - a) > 0) != (cross2(b - a, ref - a) > 0):
+                        ok = False
+            r = c - V2(sg["o"])
+            dist = abs(r.dot(V2(sg["n"])) + self.t / 2)
+            if ok and (best is None or dist < best[0]):
+                best = (dist, t, V2(sg["n"]))
+        if best is None:
+            return Vector((1.0, 0.0)), Vector((0.0, 1.0))
+        return best[1], best[2]
 
     def in_solid(self, p):
         return any(inside(p, s) for s in self.solids)
@@ -828,8 +1019,8 @@ class Ring:
             self.E.append(e)
         for i in range(n):
             e0, e1 = self.E[i - 1], self.E[i]
-            cr = e0.t.x * e1.t.y - e0.t.y * e1.t.x
-            cvx = cr > 1e-6 if self.ccw else cr < -1e-6
+            turn = math.atan2(e0.t.x * e1.t.y - e0.t.y * e1.t.x, e0.t.dot(e1.t))
+            cvx = turn > QUOIN_TURN if self.ccw else turn < -QUOIN_TURN  # a salient corner, not a small bend
             cvx = cvx and e0.kind == "field" and e1.kind == "field"  # no quoins where the wall meets a gate tower
             e1.cvx_a = cvx
             e0.cvx_b = cvx
@@ -865,7 +1056,7 @@ class Ring:
             q = e.A + e.n * d + e.t * ss
         return (q.x, y, q.y)
 
-    def sweep(self, g, i, prof, mats, ranges=None, floor=0.0, k=1.0, quoin=False):
+    def sweep(self, g, i, prof, mats, ranges=None, floor=0.0, k=1.0, quoin=False, shade=None):
         """Faces along edge i between profile points (d, y); mats per profile segment (None = none)."""
         e = self.E[i]
         L = e.L
@@ -918,7 +1109,7 @@ class Ring:
                     else:
                         v0, v1 = y0 / tv, y1 / tv
                     uvs = [((e.u0 + sa) / tu, v0), ((e.u0 + sb) / tu, v0), ((e.u0 + sb) / tu, v1), ((e.u0 + sa) / tu, v1)]
-                g.face(q, mm, out=out, uvs=uvs, floor=floor, k=k)
+                g.face(q, mm, out=out, uvs=uvs, floor=floor, k=k, shade=shade)
 
     def cap(self, g, i, s, poly, sgn, mat, floor=0.0):
         """The cut end of a sweep at s: its cross-section, looking along the edge (sgn +1) or back."""
@@ -977,8 +1168,29 @@ def build_ring(g, R, ctx):
             prof = [(0.0, foot), (0.0, 0.0), (bat(PL, h), PL), (bat(PL, h) + 0.05, PL + 0.06), (bat(yc, h) + 0.05, yc),
                     (bat(yc, h) - 0.08, yc), (bat(yc, h) - 0.08, h), (BATTER, h)]
         else:
+            spans = stair_spans(R, i, ctx)
+            moss = moss_spans(R, i, ctx)
+            if moss:
+                foot = MOSS_FOOT  # down past the pond's bed
             prof = [(0.0, foot), (0.0, 0.0), (0.0, PL), (0.04, PL + 0.05), (0.04, h - 0.25), (-0.05, h - 0.25), (-0.05, h),
                     (0.0, h)]
+            if spans or moss:
+                # along a stair the coping steps back flush with the face, so nothing hangs over the flight;
+                # where the park's pond lies against the face the plinth is mossy and damp
+                flush = prof[:5] + [(0.0, h - 0.25), (0.0, h)]
+                cuts = sorted({0.0, e.L} | {v for a, b in spans for v in (a, b)} | {v for a, b, _ in moss for v in (a, b)})
+                for a, b in zip(cuts, cuts[1:]):
+                    if b - a < 1e-4:
+                        continue
+                    m = (a + b) / 2
+                    st = any(s0 <= m <= s1 for s0, s1 in spans)
+                    mats = [PLINTH, PLINTH, STONE, BRICK, STONE, STONE] + ([] if st else [STONE])
+                    R.sweep(g, i, flush if st else prof, mats, [(a, b)], floor=0.0, shade=(lambda p: wet(p, ctx)) if moss else None)
+                lip = [(-0.05, h - 0.25), (-0.05, h), (0.0, h), (0.0, h - 0.25)]
+                for s0, s1, sf in stair_spans(R, i, ctx, feet=True):
+                    if 1e-3 < sf < e.L - 1e-3:  # the lip's end over the stair's foot (at its head the top riser covers it)
+                        R.cap(g, i, sf, lip, 1 if abs(sf - s0) < 1e-6 else -1, STONE, floor=0.0)
+                continue
         R.sweep(g, i, prof, [PLINTH, PLINTH, STONE, BRICK, STONE, STONE, STONE], floor=0.0, quoin=True)
 
     # the walk: the outline, pulled in by the batter on the field side, cut on a grid
@@ -986,10 +1198,15 @@ def build_ring(g, R, ctx):
         return BATTER if e.kind == "field" else 0.0
 
     ring = [R.meet(i - 1, i, dw(R.E[i - 1]), dw(R.E[i])) for i in range(n)]
-    for tri in fill_poly(ring, ctx.grass_cuts):
+    for tri in fill_poly(ring, ctx.grass_cuts + ctx.region_cuts):
         c = sum(tri, Vector((0.0, 0.0))) / len(tri)
         mat = GRASS if grass_at(c, ctx) else COBBLE
-        g.face([(p.x, h, p.y) for p in tri], mat, out=(0, 1, 0), floor=h - 1.0, k=0.95 if mat == COBBLE else 1.0)
+        uvs = None
+        if mat == COBBLE:
+            ua, uo = ctx.walk_axes(c)
+            tu, tv = TILE[COBBLE]
+            uvs = [(p.dot(ua) / tu, p.dot(uo) / tv) for p in tri]
+        g.face([(p.x, h, p.y) for p in tri], mat, out=(0, 1, 0), uvs=uvs, floor=h - 1.0, k=0.95 if mat == COBBLE else 1.0)
 
     # the parapets: low on the town side, the breastwork with embrasures on the field side
     for i, e in enumerate(R.E):
@@ -1010,15 +1227,10 @@ def build_ring(g, R, ctx):
                     keep.append((a0, b0))
             pb_ = h + TOWN_H - 0.15
             R.sweep(g, i, [(0.0, h), (0.0, pb_), (TOWN_T, pb_), (TOWN_T, h)], [BRICK, None, BRICK], keep, floor=h)
-            cop = [(0.0, pb_), (-0.04, pb_), (-0.04, h + TOWN_H), (TOWN_T + 0.04, h + TOWN_H), (TOWN_T + 0.04, pb_), (TOWN_T, pb_)]
-            R.sweep(g, i, cop, [STONE] * 5, keep, floor=h - 1.0)
-            sec = [(0.0, h), (0.0, pb_), (-0.04, pb_), (-0.04, h + TOWN_H), (TOWN_T + 0.04, h + TOWN_H), (TOWN_T + 0.04, pb_),
-                   (TOWN_T, pb_), (TOWN_T, h)]
-            for a0, b0 in keep:
-                if a0 > 1e-3:
-                    R.cap(g, i, a0, sec, -1, STONE, floor=h)
-                if b0 < e.L - 1e-3:
-                    R.cap(g, i, b0, sec, 1, STONE, floor=h)
+            cop = [(0.0, pb_), (0.0, h + TOWN_H), (TOWN_T + 0.04, h + TOWN_H), (TOWN_T + 0.04, pb_), (TOWN_T, pb_)]
+            R.sweep(g, i, cop, [STONE] * 4, keep, floor=h - 1.0)
+            sec = [(0.0, h), (0.0, h + TOWN_H), (TOWN_T + 0.04, h + TOWN_H), (TOWN_T + 0.04, pb_), (TOWN_T, pb_), (TOWN_T, h)]
+            # (where a run stops inside the edge a post stands against its end: no cap there)
             if keep and keep[0][0] < 1e-3 and prv.kind == "field":
                 R.cap(g, i, 0.0, sec, -1, BRICK, floor=h)
             if keep and keep[-1][1] > e.L - 1e-3 and nxt.kind == "field":
@@ -1057,6 +1269,118 @@ def build_ring(g, R, ctx):
                 R.cap(g, i, e.L, sec, 1, BRICK, floor=h)
 
 
+def stair_spans(R, i, ctx, feet=False):
+    """Where stair flights run along edge i of a ring (a town face): (s0, s1) from each foot to its
+    head; with feet, (s0, s1, s of the foot)."""
+    e = R.E[i]
+    out = []
+    for st in ctx.D["stairs"]:
+        F, RUN, LAND, W = stair_frame(st, ctx)
+        foot = Vector((F.ox, F.oz))
+        ua = Vector(F.ua)
+        if abs(ua.dot(e.t)) < 0.999 or abs((foot - e.A).dot(e.n)) > 0.05:
+            continue
+        sf = (foot - e.A).dot(e.t)
+        a, b = sorted((sf, (foot + ua * RUN - e.A).dot(e.t)))
+        a, b = max(0.0, a), min(e.L, b)
+        if b - a > 1e-3:
+            out.append((a, b, sf) if feet else (a, b))
+    return sorted(out)
+
+
+MOSS_FOOT = -1.6  # the town face goes this deep where the pond lies against it
+
+
+def pond_stretch(ctx):
+    """Where the Stadspark's pond (park.json "pond") lies against the town face: (P, t, c0, c1, out),
+    the stretch c0..c1 along the inner line's piece from P along t, out toward the town. The ring's
+    points within MOSS_TOUCH of the face; if the pond does not reach it yet, within MOSS_NEAR."""
+    try:
+        with open(PARK) as f:
+            pond = [V2(p) for p in json.load(f)["pond"]]
+    except (OSError, KeyError, ValueError, TypeError):
+        return None
+    for lim in (MOSS_TOUCH, MOSS_NEAR):
+        for P, Q in ctx.town_lines[1:-1]:
+            d = Q - P
+            L = d.length
+            t = d / L
+            nn = Vector((-t.y, t.x))
+            ss = [(p - P).dot(t) for p in pond if abs((p - P).dot(nn)) < lim and -0.5 <= (p - P).dot(t) <= L + 0.5]
+            if ss:
+                out = nn if (ctx.centre - P).dot(nn) > 0 else -nn
+                print(f"[build_wall] the pond lies against the town face for {max(ss) - min(ss):.1f} m (within {lim} m)")
+                return P, t, min(ss), max(ss), out
+    return None
+
+
+def moss_spans(R, i, ctx):
+    """The stretch of edge i of a ring that the moss decal covers: [(s0, s1, None)] or []."""
+    if ctx.moss is None:
+        return []
+    P, t, c0, c1, _ = ctx.moss
+    e = R.E[i]
+    if abs(t.dot(e.t)) < 0.999 or abs((e.A - P).dot(Vector((-t.y, t.x)))) > 0.05:
+        return []
+    sa, sb = sorted(((P + t * (c0 - MOSS_PAD) - e.A).dot(e.t), (P + t * (c1 + MOSS_PAD) - e.A).dot(e.t)))
+    sa, sb = max(0.0, sa), min(e.L, sb)
+    return [(sa, sb, None)] if sb - sa > 1e-3 else []
+
+
+def build_moss(g, ctx):
+    """The moss decal: its own faces MOSS_OFF off the town face (toward the town, over the pond),
+    one picture (wall_moss_decal) over the whole stretch, cut into pieces at most 3 m long."""
+    if ctx.moss is None:
+        return
+    P, t, c0, c1, out = ctx.moss
+    s0, s1 = c0 - MOSS_PAD, c1 + MOSS_PAD
+    ys = splits(MOSS_Y0, MOSS_Y1, 1.2)
+    ss = splits(s0, s1, 3.0)
+    o = out * MOSS_OFF
+    for sa, sb in zip(ss, ss[1:]):
+        for ya, yb in zip(ys, ys[1:]):
+            q = [(P.x + t.x * sv + o.x, yv, P.y + t.y * sv + o.y) for sv, yv in ((sa, ya), (sb, ya), (sb, yb), (sa, yb))]
+            uvs = [((sv - s0) / (s1 - s0), (yv - MOSS_Y0) / (MOSS_Y1 - MOSS_Y0)) for sv, yv in ((sa, ya), (sb, ya), (sb, yb), (sa, yb))]
+            g.face(q, DECAL, out=(out.x, 0.0, out.y), uvs=uvs, shade=lambda p: wet(p, ctx))
+
+
+def wet(p, ctx):
+    """The vertex shade by the pond: amb, and darker low down, fading out along MOSS_PAD past the pond."""
+    base = amb(p, 0.0)
+    if ctx.moss is None:
+        return base
+    P, t, c0, c1, _ = ctx.moss
+    s = (Vector((p[0], p[2])) - P).dot(t)
+    f = 1.0 if c0 <= s <= c1 else max(0.0, 1.0 - min(abs(s - c0), abs(s - c1)) / MOSS_PAD)
+    return base * (1.0 - 0.3 * f * (1.0 - sm((p[1] + 0.35) / 2.0)))
+
+
+def build_ferns(g, ctx):
+    """A few ferns in the plinth's joints over the pond, fronds fanning out of the wall."""
+    if ctx.moss is None:
+        return
+    P, t, c0, c1, out = ctx.moss
+    rng = np.random.default_rng(1875)
+    up = Vector((0.0, 1.0, 0.0))
+    o3, t3 = Vector((out.x, 0.0, out.y)), Vector((t.x, 0.0, t.y))
+    s = c0 + 0.8
+    while s < c1 - 0.8:
+        y = float(rng.choice([0.0, 0.0, 0.6, 0.6, 1.2]))
+        root = Vector((P.x + t.x * s, y, P.y + t.y * s)) - o3 * 0.02
+        for _ in range(int(rng.integers(5, 8))):
+            ph = math.radians(rng.uniform(-65, 65))
+            th = math.radians(rng.uniform(-25, 40))
+            d = (o3 * math.cos(ph) + t3 * math.sin(ph)) * math.cos(th) + up * math.sin(th)
+            L = rng.uniform(0.35, 0.55)
+            side = d.cross(up).normalized() * 0.065
+            mid = root + d * (L * 0.45)
+            tip = root + d * L - up * (0.12 * L)
+            for tri in ((root, mid + side, tip), (root, tip, mid - side)):
+                g.face(list(tri), GRASS, out=(d.cross(side)).normalized() if d.cross(side).y >= 0 else -(d.cross(side)).normalized(),
+                       shade=0.9)
+        s += float(rng.uniform(1.8, 3.2))
+
+
 def intersect(A, Bs):
     out = []
     for a0, a1 in A:
@@ -1072,11 +1396,10 @@ def hut_spans(R, i, ctx):
     inside the house's walls."""
     e = R.E[i]
     out = []
-    for x0, z0, x1, z1 in ctx.huts:
-        x0, z0, x1, z1 = x0 + HIN, z0 + HIN, x1 - HIN, z1 - HIN
+    for hut in ctx.huts:
         ss, dd = [], []
-        for x, z in ((x0, z0), (x1, z0), (x1, z1), (x0, z1)):
-            r = Vector((x, z)) - e.A
+        for p in hut.poly(HIN):
+            r = p - e.A
             ss.append(r.dot(e.t))
             dd.append(r.dot(e.n))
         if min(dd) < ctx.band + 0.05 and max(dd) > 0.0 and min(ss) < e.L and max(ss) > 0:
@@ -1088,10 +1411,10 @@ def post(g, R, i, s0, s1, h):
     """A stone post on the town parapet's line where it stops for a stair."""
     e = R.E[i]
     F = Frame(e.A.x, e.A.y, (e.t.x, e.t.y), (-e.n.x, -e.n.y))
-    F.box(g, s0, s1, -0.5, 0.0, h, h + 1.2, STONE, skip=("-y",), floor=h)
+    F.box(g, s0, s1, -0.5, 0.0, h, h + 1.2, STONE, skip=("-y", "+y"), floor=h)
     c = (s0 + s1) / 2
-    pyramid(g, [F.p(s0 - 0.03, 0.03, h + 1.2), F.p(s1 + 0.03, 0.03, h + 1.2), F.p(s1 + 0.03, -0.53, h + 1.2),
-                F.p(s0 - 0.03, -0.53, h + 1.2)], F.p(c, -0.25, h + 1.42), STONE, floor=h)
+    pyramid(g, [F.p(s0, 0.0, h + 1.2), F.p(s1, 0.0, h + 1.2), F.p(s1, -0.5, h + 1.2),
+                F.p(s0, -0.5, h + 1.2)], F.p(c, -0.25, h + 1.42), STONE, bottom=False, floor=h)
 
 
 def fill_poly(ring, cuts=()):
@@ -1142,27 +1465,54 @@ def inset(P, d):
     return [line_x(E[i - 1][0], E[i - 1][1], E[i][0], E[i][1]) or E[i][0] for i in range(n)]
 
 
+def rect_poly(c, ua, uo, a0, a1, o0, o1):
+    return [c + ua * a + uo * o for a, o in ((a0, o0), (a1, o0), (a1, o1), (a0, o1))]
+
+
+def bastion_outer(ctx, P, V):
+    """A land bastion's own part, out from the curtain's field face: its ring less the corners on
+    the town face, with the line's corner V put back in their place."""
+    out, put = [], False
+    n = len(P)
+    on_town = [any(on_line(p, p, a, b) for a, b in ctx.town_lines) for p in P]
+    # start just after a town-face run, so the run stays in one piece
+    k0 = next((j for j in range(n) if on_town[j - 1] and not on_town[j]), 0)
+    for j in range(n):
+        p = P[(k0 + j) % n]
+        if on_town[(k0 + j) % n]:
+            if not put:
+                out.append(V)
+                put = True
+        else:
+            out.append(p)
+    return out
+
+
 def grass_areas(ctx):
-    """The grass on each land bastion's top (an inset outline) and the paved squares round its
-    guard house (with a path toward its door); the cut lines that make their edges clean."""
+    """The grass on each land bastion's own top (an inset outline), the paved squares round its
+    guard house or its mill and a path from their doors to the walk; the cut lines that make their
+    edges clean."""
     areas, cuts = [], []
-    for _, P in ctx.land_bastions:
-        Pi = inset(P, GRASS_IN)
+    for name, P in ctx.land_bastions:
+        b = ctx.blist[name]
+        V = V2(b["vertex"])
+        Pi = inset(bastion_outer(ctx, P, V), GRASS_IN)
         paved = []
         ring = [(p.x, p.y) for p in P]
-        for x0, z0, x1, z1 in ctx.huts:
-            c = Vector(((x0 + x1) / 2, (z0 + z1) / 2))
-            if not inside((c.x, c.y), ring):
-                continue
-            q = [x0 - 1.5, z0 - 1.5, x1 + 1.5, z1 + 1.5]
-            d = ctx.centre - c
-            if abs(d.x) > abs(d.y):
-                q[0 if d.x < 0 else 2] += -3.0 if d.x < 0 else 3.0
-            else:
-                q[1 if d.y < 0 else 3] += -3.0 if d.y < 0 else 3.0
-            paved.append(q)
-            R4 = [Vector((q[0], q[1])), Vector((q[2], q[1])), Vector((q[2], q[3])), Vector((q[0], q[3]))]
-            cuts += [(R4[j], R4[(j + 1) % 4]) for j in range(4)]
+        spots = []
+        for hut in ctx.huts:
+            if inside((hut.c.x, hut.c.y), ring):
+                ua, uo, W2, D2 = hut.facing(V - hut.c)
+                spots.append((hut.c, ua, uo, W2 + 1.5, D2 + 1.5, 1.0))
+        mc, mr = ctx.mill
+        if inside((mc.x, mc.y), ring):
+            uo = (V - mc).normalized()
+            spots.append((mc, Vector((-uo.y, uo.x)), uo, mr + 1.5, mr + 1.5, 1.2))
+        for c, ua, uo, W, Dd, pw in spots:
+            reach = (V - c).dot(uo)
+            for q in (rect_poly(c, ua, uo, -W, W, -Dd, Dd), rect_poly(c, ua, uo, -pw, pw, 0.0, reach)):
+                paved.append([(p.x, p.y) for p in q])
+                cuts += [(q[j], q[(j + 1) % 4]) for j in range(4)]
         cuts += [(Pi[j], Pi[(j + 1) % len(Pi)]) for j in range(len(Pi))]
         areas.append(([(p.x, p.y) for p in Pi], paved))
     return areas, cuts
@@ -1170,7 +1520,7 @@ def grass_areas(ctx):
 
 def grass_at(c, ctx):
     for ring, paved in ctx.grass:
-        if inside((c.x, c.y), ring) and not any(q[0] <= c.x <= q[2] and q[1] <= c.y <= q[3] for q in paved):
+        if inside((c.x, c.y), ring) and not any(inside((c.x, c.y), q) for q in paved):
             return True
     return False
 
@@ -1178,15 +1528,14 @@ def grass_at(c, ctx):
 # ------------------------------------------------------------------ guard houses and turrets
 
 
-def build_hut(g, rect, uo, dc, h):
-    """A 4 x 4 m guard house on the walk: brick on a stone base, quoins, a slate pyramid roof, an
-    open door (a room inside, the leaf swung in, a bench), a window, a lantern by the door."""
-    x0, z0, x1, z1 = rect
-    cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
-    ua = (-uo[1], uo[0])
-    W2 = abs(ua[0]) * (x1 - x0) / 2 + abs(ua[1]) * (z1 - z0) / 2 - HIN
-    D2 = abs(uo[0]) * (x1 - x0) / 2 + abs(uo[1]) * (z1 - z0) / 2 - HIN
-    F = Frame(cx, cz, ua, uo)
+def build_hut(g, hut, d, dc, h):
+    """A 4 x 4 m guard house on the walk, turned with its footprint, the door on the side facing
+    d: brick on a stone base, quoins, a slate pyramid roof, an open door (a room inside, the leaf
+    swung in, a bench), a window, a lantern by the door."""
+    ua, uo, W2, D2 = hut.facing(d)
+    W2, D2 = W2 - HIN, D2 - HIN
+    cx, cz = hut.c.x, hut.c.y
+    F = Frame(cx, cz, (ua.x, ua.y), (uo.x, uo.y))
     yw = h + HUT_WALL
     dc = max(-W2 + 0.9, min(W2 - 0.9, dc))
     y_d = h + 2.1
@@ -1201,8 +1550,8 @@ def build_hut(g, rect, uo, dc, h):
             u0, u1 = dc + W2 - 0.5, dc + W2 + 0.5
             pn.reveal(u0, u1, h, y_d, HUT_WT, STONE, sill=False, floor=h)
             # the stone surround, a hand proud of the wall
-            F.box(g, dc - 0.72, dc - 0.5, D2, D2 + 0.05, h, y_d, STONE, skip=("-o", "-y"), floor=h)
-            F.box(g, dc + 0.5, dc + 0.72, D2, D2 + 0.05, h, y_d, STONE, skip=("-o", "-y"), floor=h)
+            F.box(g, dc - 0.72, dc - 0.5, D2, D2 + 0.05, h, y_d, STONE, skip=("-o", "-y", "+y"), floor=h)
+            F.box(g, dc + 0.5, dc + 0.72, D2, D2 + 0.05, h, y_d, STONE, skip=("-o", "-y", "+y"), floor=h)
             F.box(g, dc - 0.72, dc + 0.72, D2, D2 + 0.05, y_d, y_d + 0.3, STONE, skip=("-o",), floor=h)
             # the threshold, above the walk (the room's floor)
             F.box(g, dc - 0.5, dc + 0.5, D2 - HUT_WT, D2 + 0.04, h, h + 0.12, STONE, skip=("-y", "-a", "+a", "-o"), floor=h)
@@ -1231,7 +1580,7 @@ def build_hut(g, rect, uo, dc, h):
     F.box(g, -iw, -iw + 0.38, -idp + 0.15, idp - 1.1, yf, yf + 0.42, WOOD, skip=("-y", "-a"), floor=yf, k=0.8)
     # the lantern by the door, the roof and its finial
     la = dc + 0.95 if dc + 1.25 < W2 else dc - 0.95
-    wall_lantern(g, F.p(la, D2, h + 2.35), F.v(0, 1)[::2], 0.35)
+    wall_lantern(g, F.p(la, D2, h + 2.6), F.v(0, 1)[::2], 0.35)  # its foot 1.98 m over the walk
     ov = 0.25
     roof = [F.p(-W2 - ov, D2 + ov, yw), F.p(W2 + ov, D2 + ov, yw), F.p(W2 + ov, -D2 - ov, yw), F.p(-W2 - ov, -D2 - ov, yw)]
     pyramid(g, roof, F.p(0, 0, yw + HUT_RISE), SLATE, floor=h)
@@ -1276,12 +1625,12 @@ def build_turret(g, S, u, h):
 
 def build_gate(g, gt, ctx):
     h, T = ctx.h, ctx.t
-    F = ctx.frame(gt["side"], gt["at"])
+    F = ctx.sframe(gt["frame"], gt["s"])
 
     def rect_loc(r):
-        pts = [F.loc(r[0], r[1]), F.loc(r[2], r[3])]
-        a = sorted(p[0] for p in pts)
-        o = sorted(p[1] for p in pts)
+        pts = [F.loc(x, z) for x, z in r]
+        a = [min(p[0] for p in pts), max(p[0] for p in pts)]
+        o = [min(p[1] for p in pts), max(p[1] for p in pts)]
         return a, o
 
     (ha0, ha1), (o_in, o_out) = rect_loc(gt["house"])
@@ -1328,13 +1677,9 @@ def build_gate(g, gt, ctx):
                   (True, True), plinth=PL, bands=((h - 0.3, h),))
         side.reveal(uc - 0.5, uc + 0.5, h, h + 2.1, 0.18, STONE, back=WOOD, sill=False, floor=h, back_k=0.8)
         side.sheet(uc - 0.3, uc + 0.3, h + 3.0, h + 3.8, WINDOW, floor=h)
-        # the passage wall, with the niche the open leaf folds into
-        hinge = o_fr - 0.8
+        # the passage wall (the leaves are shut across the passage, see gate_leaves)
         pw = Panel(g, F, (ai, o_in), (ai, o_f), (-s, 0))
-        n0, n1 = hinge - o_in - 2.55, hinge - o_in + 0.05
-        pw.wall(0.0, SPR, BRICK, [(n0, n1, 0.0, SPR - 0.05)], plinth=1.0, shade=dark)
-        pw.reveal(n0, n1, 0.0, SPR - 0.05, 0.16, BRICK, back=BRICK, sill=False, shade=dark, back_k=0.8)
-        F.box(g, s * (PW + 0.02), s * (PW + 0.14), hinge - 2.5, hinge, 0.04, SPR - 0.12, WOOD, skip=("-y",), shade=dark)
+        pw.wall(0.0, SPR, BRICK, plinth=1.0, shade=dark)
         # above the middle: the tower's face toward the other tower
         up = Panel(g, F, (ai, o_in), (ai, o_f), (-s, 0))
         up.wall(MID, TOP - 0.35, BRICK, quoin=(True, False), floor=MID)
@@ -1371,6 +1716,7 @@ def build_gate(g, gt, ctx):
     lx, _, lz = F.p(0, oc, 0)
     bar(g, (lx, crown, lz), (lx, crown - 0.7, lz), 0.03, IRON, shade=0.5)
     lantern(g, lx, crown - 0.7, lz, 0.26, 0.4)
+    gate_leaves(g, F, gt, PW, SPR, o_out, dark)
 
     # the middle over the passage, town side: the arch in brick with a stone ring, a coping
     arch_face(g, F, o_in, -1, PW + 0.7, PW, PW + 0.55, SPR, MID, BRICK, STONE)
@@ -1417,6 +1763,86 @@ def build_gate(g, gt, ctx):
     return F
 
 
+def gate_leaves(g, F, gt, PW, SPR, o_out, dark):
+    """The gate's two timber leaves, shut across the passage at its field end (decor.rampart gates
+    "doors": the band they stand in), a wicket door in the right one, shut. Planked and strapped
+    on the field side, framed with rails and a brace on the town side; their heads follow the
+    vault's chords."""
+    if gt.get("doors"):
+        os_ = [F.loc(x, z)[1] for x, z in gt["doors"]]
+        d0, d1 = min(os_), max(os_)
+    else:
+        d0, d1 = o_out - 1.0, o_out - 0.5
+    of, ob = d1 - 0.1, d1 - 0.26  # the planked field face, the town face
+    orl = ob - 0.1  # the rails' town face
+    gap, cl = 0.006, 0.015  # between the leaves, round the edge
+    kk = (PW - cl) / PW
+    nseg = 9
+    chords = [(PW * kk * math.cos(math.pi * k / nseg), SPR + PW * kk * math.sin(math.pi * k / nseg)) for k in range(nseg // 2 + 1)]
+
+    def outline(s):
+        """One leaf's outline (a, y): along the floor from the middle, up the side, over the chords
+        (the last one level, as the vault's 80 to 100 degree chord), back to the middle."""
+        pts = [(s * gap, LIFT + cl), (s * (PW - cl), LIFT + cl)] + [(s * a, y) for a, y in chords]
+        pts.append((s * gap, chords[-1][1]))
+        return pts
+
+    def uv(a, y):
+        return abs(a) / TILE[WOOD][0], y / TILE[WOOD][1]
+
+    for s in (-1, 1):
+        P = outline(s)
+        wick = (0.55, 1.45, 0.2, 1.95) if s > 0 else None  # (a0, a1, y0, y1) of the wicket
+        for o, sg, k in ((of, 1, 0.95), (ob, -1, 0.8)):
+            pn = Panel(g, F, (s * gap, o), (s * (PW - cl), o), (0, sg), uoff=gap)
+            holes = [(wick[0] - gap, wick[1] - gap, wick[2], wick[3])] if wick else []
+            pn.wall(LIFT + cl, SPR, WOOD, holes, k=k, shade=dark, seg=1.3)
+            if wick:
+                pn.reveal(wick[0] - gap, wick[1] - gap, wick[2], wick[3], 0.03, WOOD, shade=dark, k=0.55)
+                w0, w1, y0, y1 = s * wick[0], s * wick[1], wick[2], wick[3]
+                ow = o - sg * 0.03
+                F.quad(g, [(w0, ow, y0), (w1, ow, y0), (w1, ow, y1), (w0, ow, y1)], WOOD, (0, sg, 0),
+                       uvs=[uv(w0, y0), uv(w1, y0), uv(w1, y1), uv(w0, y1)], shade=dark, k=k * 0.8)
+            head = P[2:]
+            for (a0, y0), (a1, y1) in zip(head, head[1:]):
+                if abs(a1 - a0) < 1e-6:
+                    continue
+                q = [(a0, SPR), (a1, SPR), (a1, y1), (a0, y0)]
+                if abs(y0 - SPR) < 1e-6:
+                    q = q[1:]
+                F.quad(g, [(a, o, y) for a, y in q], WOOD, (0, sg, 0), uvs=[uv(a, y) for a, y in q], shade=dark, k=k)
+        # the edges round the leaf
+        ca = sum(p[0] for p in P) / len(P)
+        cy = sum(p[1] for p in P) / len(P)
+        for (a0, y0), (a1, y1) in zip(P, P[1:] + P[:1]):
+            na, ny = y1 - y0, -(a1 - a0)
+            if na * ((a0 + a1) / 2 - ca) + ny * ((y0 + y1) / 2 - cy) < 0:
+                na, ny = -na, -ny
+            F.quad(g, [(a0, ob, y0), (a1, ob, y1), (a1, of, y1), (a0, of, y0)], WOOD, (na, 0, ny), shade=dark, k=0.6)
+        # the town side: two rails across the leaf and a brace between them
+        a_in, a_out = s * (gap + 0.05), s * (PW - cl - 0.05)
+        for y in (2.15, 3.05):
+            F.box(g, a_in, a_out, orl, ob, y, y + 0.2, WOOD, skip=("+o",), shade=dark, k=1.15)
+        om = ob - 0.04  # the brace: 1 cm into the leaf, its face 1 cm behind the rails'
+        bar(g, F.p(s * (PW - 0.35), om, 2.35), F.p(s * 0.3, om, 3.05), 0.1, WOOD, h=0.16, shade=0.8)
+        if wick:
+            w0, w1, y0, y1 = wick
+            # the wicket's frame on the town side
+            for a0, a1, b0, b1 in ((w0 - 0.1, w0, y0, y1 + 0.1), (w1, w1 + 0.1, y0, y1 + 0.1), (w0, w1, y1, y1 + 0.1)):
+                F.box(g, s * a0, s * a1, orl + 0.04, ob, b0, b1, WOOD, skip=("+o",), shade=dark, k=1.15)
+                # and a batten frame round it on the field side, so the little door reads from the bridge
+                F.box(g, s * a0, s * a1, of, of + 0.03, b0, b1, WOOD, skip=("-o",), shade=dark, k=1.2)
+            # its hinges and its ring on the field side (on the wicket's face, 3 cm in)
+            for y in (y0 + 0.3, y1 - 0.3):
+                bar(g, F.p(s * (w0 + 0.03), of - 0.015, y), F.p(s * (w0 + 0.45), of - 0.015, y), 0.05, IRON, h=0.06, shade=0.7)
+            bar(g, F.p(s * (w1 - 0.12), of - 0.015, 1.0), F.p(s * (w1 - 0.12), of - 0.015, 1.14), 0.05, IRON, h=0.05, shade=0.7)
+        # the leaf's big hinge straps on the field side
+        for y in (0.6, 2.9):
+            bar(g, F.p(s * (PW - cl - 0.02), of + 0.02, y), F.p(s * (PW - 1.0), of + 0.02, y), 0.06, IRON, h=0.09, shade=0.7)
+    # the stop in the floor where the leaves meet
+    F.box(g, -0.08, 0.08, ob - 0.05, of + 0.05, LIFT - 0.01, LIFT + 0.03, IRON, skip=("-y",), shade=dark)
+
+
 def sentry_box(g, F, town, rec, o_in):
     """The sentry box built into the tower's town face beside the arch: planked inside, posts and a
     little gabled roof in front."""
@@ -1426,7 +1852,7 @@ def sentry_box(g, F, town, rec, o_in):
     a0, a1 = sorted((a_of(u0), a_of(u1)))
     F.box(g, a0, a1, o_in + 0.1, o_in + 1.25, 0.0, 0.12, WOOD, skip=("-y", "-a", "+a", "+o"), k=0.7)
     for aa in (a0, a1 - 0.12):
-        F.box(g, aa, aa + 0.12, o_in - 0.02, o_in + 0.1, 0.0, 2.45, WOOD, skip=("-y", "+y"))
+        F.box(g, aa, aa + 0.12, o_in, o_in + 0.12, 0.0, 2.45, WOOD, skip=("-y", "+y"))
     F.box(g, a0, a1, o_in - 0.02, o_in + 0.1, 2.45, 2.75, WOOD, skip=("-y",))
     ac = (a0 + a1) / 2
     ye, yr = 2.78, 3.45
@@ -1497,11 +1923,10 @@ def arch_face(g, F, o, osgn, A, r, r2, ys, yt, fill, ring, nseg=9, ring_k=(1.05,
 def build_bridge(g, gt, F, ctx):
     """The stone bridge over the moat: a cobbled deck at LIFT on three brick arches, brick parapets
     with a stone coping, stone posts at the ends, a lamp post at the field end."""
-    pts = [F.loc(gt["bridge"][0], gt["bridge"][1]), F.loc(gt["bridge"][2], gt["bridge"][3])]
-    a0, a1 = sorted(p[0] for p in pts)
-    o0, o1 = sorted(p[1] for p in pts)
-    rp = [F.loc(gt["road"][0], gt["road"][1]), F.loc(gt["road"][2], gt["road"][3])]
-    road_end = max(p[1] for p in rp)
+    pts = [F.loc(x, z) for x, z in gt["bridge"]]
+    a0, a1 = min(p[0] for p in pts), max(p[0] for p in pts)
+    o0, o1 = min(p[1] for p in pts), max(p[1] for p in pts)
+    road_end = max(F.loc(x, z)[1] for x, z in gt["road"])
     bank0 = (road_end + o0) / 2  # the road and the bridge overlap on the berm's edge
     bank1 = o1 - (bank0 - o0)
     BA = (a1 - a0) / 2
@@ -1601,20 +2026,18 @@ def arch_side(g, F, s, BA, c, r, rr, sp, top):
 
 
 def stair_frame(st, ctx):
-    """A stair's frame: a = up the flight from its foot, o = outward from the inner face (the flight
+    """A stair's frame: a = up the flight from its foot, o = outward from the town face (the flight
     is at o < 0, in the street). Returns the frame, the run, the landing's length, the width."""
-    along_z, face, sgn = ctx.sides[st["side"]]
-    ax = 1 if along_z else 0
-    foot, head = st["a"][ax], st["b"][ax]
-    dirn = 1.0 if head > foot else -1.0
-    fl, ld = st["flight"], st["landing"]
-    W = abs(fl[2 + (1 - ax)] - fl[1 - ax])
-    LAND = abs(ld[2 + ax] - ld[ax])
-    if along_z:
-        F = Frame(face, foot, (0.0, dirn), (sgn, 0.0))
-    else:
-        F = Frame(foot, face, (dirn, 0.0), (0.0, sgn))
-    return F, abs(head - foot), LAND, W
+    fr = st["frame"]
+    t, n = V2(fr["t"]), V2(fr["n"])
+    d = 1.0 if st["dir"] > 0 else -1.0
+    foot = V2(fr["o"]) + t * st["s"] - n * ctx.t
+    F = Frame(foot.x, foot.y, (t.x * d, t.y * d), (n.x, n.y))
+    RUN = (V2(st["b"]) - V2(st["a"])).length
+    ld = [V2(p) for p in st["landing"]]
+    LAND = (ld[1] - ld[0]).length
+    W = 2.0 * st["half"]
+    return F, RUN, LAND, W
 
 
 def build_stair(g, st, ctx):
@@ -1633,7 +2056,7 @@ def build_stair(g, st, ctx):
         F.quad(g, [(i * run, -W, yb), (i * run, 0.06, yb), (i * run, 0.06, y), (i * run, -W, y)], STONE, (-1, 0, 0), floor=0.0, k=0.8)
     F.quad(g, [(RUN, -W, (N - 0.5) * rise), (RUN, 0.06, (N - 0.5) * rise), (RUN, 0.06, h), (RUN, -W, h)], STONE, (-1, 0, 0), k=0.8)
     for aa, ab in zip(splits(RUN, END, 2.0), splits(RUN, END, 2.0)[1:]):
-        F.quad(g, [(aa, -W, h), (ab, -W, h), (ab, -0.05, h), (aa, -0.05, h)], STONE, (0, 0, 1), floor=h - 1)
+        F.quad(g, [(aa, -W, h), (ab, -W, h), (ab, -0.06, h), (aa, -0.06, h)], STONE, (0, 0, 1), floor=h - 1)  # a joint short of the coping
     UP = 0.3  # the string wall's top over the step line
 
     def yt(a):
@@ -1672,19 +2095,201 @@ def build_stair(g, st, ctx):
     end.wall(h + UP - 0.15, h + UP, STONE)
     end.reveal(u0, u1, 0.0, 1.95, 0.2, STONE, back=WOOD, sill=False, back_k=0.85)
     # the newel at the foot
-    F.box(g, -0.05, 0.45, o_out, o_in, -0.1, yt(0.45) + 0.4, STONE, skip=("-y",))
+    F.box(g, 0.0, 0.45, o_out, o_in, -0.1, yt(0.45) + 0.4, STONE, skip=("-y",))
     # the railing
     om = (o_out + o_in) / 2
     ps = splits(0.25, RUN, 1.3) + splits(RUN, END + RW / 2, 1.2)[1:]
     for a in ps:
         y = yt(a)
-        bar(g, F.p(a, om, y), F.p(a, om, y + 1.0), 0.055, IRON, shade=0.7)
+        bar(g, F.p(a, om, y - 0.02), F.p(a, om, y + 1.0), 0.055, IRON, shade=0.7)
     for dy in (0.95, 0.45):
         bar(g, F.p(0.25, om, yt(0.25) + dy), F.p(RUN, om, yt(RUN) + dy), 0.035, IRON, shade=0.7)
         bar(g, F.p(RUN, om, h + UP + dy), F.p(END + RW / 2, om, h + UP + dy), 0.035, IRON, shade=0.7)
         bar(g, F.p(END + RW / 2, om, h + UP + dy - 0.012), F.p(END + RW / 2, -0.15, h + UP + dy - 0.012), 0.035, IRON, shade=0.7)
     for o in (-W / 2, -0.15):
-        bar(g, F.p(END + RW / 2, o, h + UP), F.p(END + RW / 2, o, h + UP + 1.0), 0.055, IRON, shade=0.7)
+        bar(g, F.p(END + RW / 2, o, h + UP - 0.02), F.p(END + RW / 2, o, h + UP + 1.0), 0.055, IRON, shade=0.7)
+
+
+# ------------------------------------------------------------------ the tower mill
+
+
+def snap(y):
+    """To the nearest brick course, so the mill's bands break on a joint."""
+    return round(y / COURSE) * COURSE
+
+
+def beam(g, p0, p1, sdir, w, d, mat, **kw):
+    """A square timber from p0 to p1, w wide along sdir (made square to the timber), d deep."""
+    p0, p1 = Vector(p0), Vector(p1)
+    t = (p1 - p0).normalized()
+    s = Vector(sdir)
+    s = (s - t * s.dot(t)).normalized()
+    k = t.cross(s)
+    P = [(p1 if i & 2 else p0) + s * (w / 2 if i & 1 else -w / 2) + k * (d / 2 if i & 4 else -d / 2) for i in range(8)]
+    solid8(g, P, mat, **kw)
+
+
+def mill_band(g, c, N, rot, r0, y0, r1, y1, mat, skip=(), floor=0.0, k=1.0):
+    """One band of a round tower, N sides, from radius r0 at y0 to r1 at y1. Upright bands get
+    their texture wrapped round a whole number of times (no seam) with the courses level."""
+    cx, cz = c
+    tu, tv = TILE[mat]
+    reps = max(1, round(2 * math.pi * (r0 + r1) / 2 / tu))
+    upright = abs(y1 - y0) > abs(r1 - r0)
+    nr, ny = (y1 - y0), -(r1 - r0)
+    ln = math.hypot(nr, ny) or 1.0
+    nr, ny = nr / ln, ny / ln
+    for i in range(N):
+        if i in skip:
+            continue
+        a0 = rot + 2 * math.pi * i / N
+        a1 = rot + 2 * math.pi * (i + 1) / N
+        am = (a0 + a1) / 2
+        p = [(cx + r0 * math.cos(a0), y0, cz + r0 * math.sin(a0)), (cx + r0 * math.cos(a1), y0, cz + r0 * math.sin(a1)),
+             (cx + r1 * math.cos(a1), y1, cz + r1 * math.sin(a1)), (cx + r1 * math.cos(a0), y1, cz + r1 * math.sin(a0))]
+        uvs = None
+        if upright:
+            u0, u1 = reps * i / N, reps * (i + 1) / N
+            uvs = [(u0, y0 / tv), (u1, y0 / tv), (u1, y1 / tv), (u0, y1 / tv)]
+        g.face(p, mat, out=(math.cos(am) * nr, ny, math.sin(am) * nr), uvs=uvs, floor=floor, k=k)
+
+
+def build_mill(g, ctx):
+    """The tower mill on the middle bastion: a round brick tower on a stone plinth, tapering, with a
+    stone string course, small windows, a door case toward the walk, a stone cornice, a boat-shaped
+    cap in slate facing the field, and the four sails on their own object (mill_sails)."""
+    h = ctx.h
+    mc, mr = ctx.mill
+    home = next((nm for nm, P in ctx.land_bastions if inside((mc.x, mc.y), [(p.x, p.y) for p in P])), None)
+    if home is None:
+        print("[build_wall] the mill stands on no bastion: left out")
+        return
+    b = ctx.blist[home]
+    u = (V2(b["salient"]) - V2(b["vertex"])).normalized()  # toward the field: the sails' side
+    w = Vector((-u.y, u.x))
+    du = -u  # the door looks back to the walk
+    N = MILL_SIDES
+    rot = math.atan2(du.y, du.x) - math.pi / N  # face 0 is centred on the door
+    rin = mr * math.cos(math.pi / 32)  # the walk map's disc is a 32-gon: stay inside it
+    R0 = mr * 0.97  # the plinth
+    Rb = R0 - 0.08  # the brick at the plinth's top
+    y0, ypl, ydoor = h - 0.3, snap(h + MILL_PL), snap(h + MILL_DOOR)
+    ys, ytop = snap(h + MILL_STAGE), snap(h + MILL_BODY)
+    ys1 = ys + 2 * COURSE
+
+    def r(y):
+        return Rb + (MILL_TOP_R - Rb) * (y - ypl) / (ytop - ypl)
+
+    c = (mc.x, mc.y)
+    door = (0,)
+    mill_band(g, c, N, rot, R0, y0, R0, ypl - 0.06, PLINTH, skip=door, floor=h)
+    mill_band(g, c, N, rot, R0, ypl - 0.06, Rb, ypl, STONE, skip=door, floor=h)
+    cuts = sorted({ypl, ydoor, ys, ys1, ytop})
+    for ya, yb in zip(cuts, cuts[1:]):
+        if abs(ya - ys) < 1e-6:
+            continue  # the string course
+        for yy0, yy1 in zip(splits(ya, yb, 1.8), splits(ya, yb, 1.8)[1:]):
+            mill_band(g, c, N, rot, r(yy0), yy0, r(yy1), yy1, BRICK, skip=door if yy1 <= ydoor + 1e-6 else (), floor=h)
+    # the string course, 6 cm proud
+    mill_band(g, c, N, rot, r(ys), ys, r(ys) + 0.06, ys, STONE, floor=h)
+    mill_band(g, c, N, rot, r(ys) + 0.06, ys, r(ys1) + 0.06, ys1, STONE, floor=h)
+    mill_band(g, c, N, rot, r(ys1) + 0.06, ys1, r(ys1), ys1, STONE, floor=h)
+    # the cornice, the curb the cap turns on
+    yc1, ycap = ytop + 0.22, ytop + 0.4
+    rc = MILL_TOP_R + 0.14
+    mill_band(g, c, N, rot, MILL_TOP_R, ytop, rc, ytop, STONE, floor=h)
+    mill_band(g, c, N, rot, rc, ytop, rc, yc1, STONE, floor=h)
+    mill_band(g, c, N, rot, rc, yc1, 2.5, yc1, STONE, floor=h)
+    mill_band(g, c, N, rot, 2.5, yc1, 2.5, ycap, WOOD, floor=h, k=0.6)
+
+    # the door case: a stone block proud of the plinth, the door set in it
+    Fd = Frame(mc.x, mc.y, (-du.y, du.x), (du.x, du.y))
+    hw = 0.62
+    A_out = math.sqrt((rin - 0.01) ** 2 - hw * hw)
+    Fd.box(g, -hw, hw, R0 * math.cos(math.pi / N) - 0.5, A_out, y0, ydoor, STONE, skip=("-o", "+o", "-y"), floor=h)
+    front = Panel(g, Fd, (-hw, A_out), (hw, A_out), (0, 1))
+    hole = (hw - 0.44, hw + 0.44, h, h + 2.0)
+    front.wall(y0, ydoor, STONE, [hole], floor=h)
+    front.reveal(*hole, 0.22, STONE, back=WOOD, sill=False, floor=h, back_k=0.8)
+    Fd.box(g, -0.44, 0.44, A_out - 0.22, A_out - 0.02, h, h + 0.1, STONE, skip=("-y", "-o", "-a", "+a"), floor=h)
+
+    # windows: (face, height over the walk)
+    for i, yw in ((5, 3.9), (15, 3.9), (10, 7.3), (3, 8.4), (17, 6.2)):
+        yw0, yw1 = h + yw, h + yw + 0.75
+        th = rot + 2 * math.pi * (i + 0.5) / N
+        dr = Vector((math.cos(th), math.sin(th)))
+        Fw = Frame(mc.x, mc.y, (-dr.y, dr.x), (dr.x, dr.y))
+        ap0, ap1 = r(yw0) * math.cos(math.pi / N), r(yw1) * math.cos(math.pi / N)
+        q = [Fw.p(-0.25, ap0 + 0.025, yw0), Fw.p(0.25, ap0 + 0.025, yw0), Fw.p(0.25, ap1 + 0.025, yw1), Fw.p(-0.25, ap1 + 0.025, yw1)]
+        g.face(q, WINDOW, out=Fw.v(0, 1, 0.08), uvs=fit_uvs(4), floor=h)
+        Fw.box(g, -0.34, 0.34, ap0 - 0.1, ap0 + 0.08, yw0 - 0.08, yw0, STONE, skip=("-o",), floor=h)
+
+    # the cap: a boat, its keel along the axle, slate over a timber frame
+    def cp(x, ww, yy):
+        p = mc + u * x + w * ww
+        return (p.x, ycap + yy, p.y)
+
+    for kx in range(len(CAP_X) - 1):
+        for sg in (-1.0, 1.0):
+            for j in range(len(CAP_SEC) - 1):
+                (w0, v0), (w1, v1) = CAP_SEC[j], CAP_SEC[j + 1]
+                q = [cp(CAP_X[kx], sg * w0 * CAP_B[kx], v0 * CAP_H[kx]), cp(CAP_X[kx + 1], sg * w0 * CAP_B[kx + 1], v0 * CAP_H[kx + 1]),
+                     cp(CAP_X[kx + 1], sg * w1 * CAP_B[kx + 1], v1 * CAP_H[kx + 1]), cp(CAP_X[kx], sg * w1 * CAP_B[kx], v1 * CAP_H[kx])]
+                xm = (CAP_X[kx] + CAP_X[kx + 1]) / 2
+                inner = Vector(cp(xm, 0.0, (CAP_H[kx] + CAP_H[kx + 1]) * 0.17))
+                fc = sum((Vector(p) for p in q), Vector()) / 4
+                g.face(q, SLATE, out=fc - inner, floor=ycap - 3.0)
+            # the underside, dark boards
+            q = [cp(CAP_X[kx], 0.0, 0.0), cp(CAP_X[kx + 1], 0.0, 0.0), cp(CAP_X[kx + 1], sg * CAP_B[kx + 1], 0.0), cp(CAP_X[kx], sg * CAP_B[kx], 0.0)]
+            g.face(q, WOOD, out=(0, -1, 0), shade=0.45)
+    for kx, sg in ((0, -1.0), (len(CAP_X) - 1, 1.0)):
+        sec = [(wv * sgn, v) for sgn in (1.0, -1.0) for wv, v in (CAP_SEC if sgn < 0 else CAP_SEC[::-1])]
+        pts = [cp(CAP_X[kx], wv * CAP_B[kx], v * CAP_H[kx]) for wv, v in sec]
+        uniq = []
+        for p in pts:
+            if not uniq or (Vector(p) - Vector(uniq[-1])).length > 1e-6:
+                uniq.append(p)
+        if (Vector(uniq[0]) - Vector(uniq[-1])).length < 1e-6:
+            uniq.pop()
+        g.face(uniq, WOOD, out=(u.x * sg, 0.0, u.y * sg), shade=0.55)
+    kt = max(range(len(CAP_X)), key=lambda j: CAP_H[j])
+    tx, ty, tz = cp(CAP_X[kt], 0.0, CAP_H[kt])
+    finial(g, tx, ty - 0.05, tz, 1.0)
+
+    # the sails, the hub and the windshaft: their own object, turning about the axle
+    hub2 = mc + u * HUB_OUT
+    hub = Vector((hub2.x, ycap + HUB_UP, hub2.y))
+    a = Vector((u.x * math.cos(TILT), math.sin(TILT), u.y * math.cos(TILT)))
+    ctx.mill_hub, ctx.mill_axle = hub, a
+    g.grp = ("sails", (round(hub.x, 4), round(hub.y, 4), round(hub.z, 4)))
+    hub = Vector(g.grp[1])
+    up = Vector((0.0, 1.0, 0.0))
+    e1 = (up - a * a.dot(up)).normalized()
+    e2 = a.cross(e1)
+    beam(g, hub - a * 1.9, hub - a * 0.1, e1, 0.4, 0.4, WOOD, shade=0.6)  # the windshaft, into the canister
+    beam(g, hub - a * 0.3, hub + a * 0.42, e1, 0.72, 0.72, IRON, shade=0.75)  # the canister the stocks pass through
+    n_bars = int((SAIL_R - 0.1 - SAIL_IN) / SAIL_STEP) + 1
+    r_last = SAIL_IN + (n_bars - 1) * SAIL_STEP
+    for k in range(4):
+        ph = math.pi / 4 + k * math.pi / 2
+        rr = e1 * math.cos(ph) + e2 * math.sin(ph)
+        m = rr.cross(a)  # the trailing side: the lattice and the cloth
+        beam(g, hub + a * 0.1 + rr * 0.3, hub + a * 0.1 + rr * (r_last + 0.3), m, 0.26, 0.24, WOOD, shade=0.7)  # the stock
+        for j in range(n_bars):
+            rj = SAIL_IN + j * SAIL_STEP
+            beam(g, hub + rr * rj - m * SAIL_LEAD, hub + rr * rj + m * SAIL_W, rr, 0.07, 0.07, WOOD, shade=0.75)
+        for off in (SAIL_W, SAIL_W * 0.5, -SAIL_LEAD):
+            beam(g, hub + rr * (SAIL_IN - 0.08) + m * off, hub + rr * (r_last + 0.08) + m * off, m, 0.07, 0.09, WOOD, shade=0.75)
+        # the cloth, spread on the trailing side, and the leading board, just behind the lattice
+        back = hub - a * 0.06
+        rs = splits(SAIL_IN + 0.05, r_last - 0.05, 3.0)
+        for ra, rb in zip(rs, rs[1:]):
+            q = [back + rr * ra + m * 0.12, back + rr * rb + m * 0.12, back + rr * rb + m * (SAIL_W - 0.06), back + rr * ra + m * (SAIL_W - 0.06)]
+            uvs = [(0.12 / 1.8, ra / 1.8), (0.12 / 1.8, rb / 1.8), ((SAIL_W - 0.06) / 1.8, rb / 1.8), ((SAIL_W - 0.06) / 1.8, ra / 1.8)]
+            g.face(q, CANVAS, out=a, uvs=uvs, shade=0.95)
+            q = [back + rr * ra - m * 0.15, back + rr * rb - m * 0.15, back + rr * rb - m * (SAIL_LEAD - 0.04), back + rr * ra - m * (SAIL_LEAD - 0.04)]
+            g.face(q, WOOD, out=a, shade=0.7)
+    g.grp = None
 
 
 # ------------------------------------------------------------------ build
@@ -1697,24 +2302,35 @@ def build(ctx):
     rings = [Ring(r, ctx) for r in D["tops"]]
     for R in rings:
         build_ring(g, R, ctx)
-    # guard houses: on the towers (door toward the walk), on the bastions (door toward the town)
+    # guard houses: on the towers (door toward the walk, at decor's door), on the land bastions
+    # (door toward the line's corner, where the walk is), on the river bastions (toward the town)
+    towers = [(centroid(t["hut"]), t) for t in D["towers"]]
+    bastions = [(centroid(b["hut"]), b) for b in D["bastion_list"] if b.get("hut")]
     for hut in ctx.huts:
-        x0, z0, x1, z1 = hut
-        c = Vector(((x0 + x1) / 2, (z0 + z1) / 2))
-        t = ctx.tower_huts.get(tuple(hut))
-        d = (Vector(t["door"]) - c) if t else (ctx.centre - c)
-        uo = (1.0 if d.x > 0 else -1.0, 0.0) if abs(d.x) > abs(d.y) else (0.0, 1.0 if d.y > 0 else -1.0)
+        t = next((t for c, t in towers if (c - hut.c).length < 0.05), None)
+        b = next((b for c, b in bastions if (c - hut.c).length < 0.05), None)
         dc = 0.0
         if t:
-            ua = (-uo[1], uo[0])
-            dc = (Vector(t["door"]) - c).dot(Vector(ua))
-        build_hut(g, hut, uo, dc, h)
+            d = V2(t["door"]) - hut.c
+            ua, uo, _, _ = hut.facing(d)
+            dc = d.dot(ua)
+        elif b:
+            d = V2(b["vertex"]) - hut.c
+        else:
+            d = ctx.centre - hut.c
+        build_hut(g, hut, d, dc, h)
     # the sentry turrets at the land bastions' salients
-    for _, P in ctx.land_bastions:
-        k = max(range(len(P)), key=lambda j: (P[j] - ctx.centre).length)
+    for name, P in ctx.land_bastions:
+        S = V2(ctx.blist[name]["salient"])
+        k = min(range(len(P)), key=lambda j: (P[j] - S).length)
         a, b, c = P[k - 1], P[k], P[(k + 1) % len(P)]
         u = ((b - a).normalized() - (c - b).normalized()).normalized()
+        if u.dot(S - V2(ctx.blist[name]["vertex"])) < 0:
+            u = -u
         build_turret(g, b, u, h)
+    build_mill(g, ctx)
+    build_moss(g, ctx)
+    build_ferns(g, ctx)
     for st in D["stairs"]:
         build_stair(g, st, ctx)
     for gt in D["gates"]:
@@ -1776,18 +2392,17 @@ def preview_ground(ctx):
     """Preview only: the town's ground, the berm, the moat, the far bank, the river."""
     D = ctx.D
     polys = [[(x, z) for x, z in r] for r in D["tops"]]
-    polys += [[(x0, z0), (x1, z0), (x1, z1), (x0, z1)] for x0, z0, x1, z1 in D["bands"].values()]
-    ins = D["inner"]
-    town = [(ins["west"], 0.0), (ins["east"], 0.0), (ins["east"], ins["north"]), (ins["west"], ins["north"])]
+    polys += [[(x, z) for x, z in g["house"]] for g in D["gates"]]
+    town = [(p.x, p.y) for p in ctx.town_poly]
     polys.append(town)
     segs = []
     for p in polys:
         for j in range(len(p)):
             segs.append((p[j], p[(j + 1) % len(p)]))
     S = np.array([[a[0], a[1], b[0], b[1]] for a, b in segs])
-    cell = 3.0
-    xs = np.arange(-460, 320, cell)
-    zs = np.arange(-60, 430, cell)
+    cell = 1.5
+    xs = np.arange(-480, 340, cell)
+    zs = np.arange(-60, 500, cell)
     X, Z = np.meshgrid(xs + cell / 2, zs + cell / 2)
     P = np.stack([X.ravel(), Z.ravel()], 1)
     ax, az, bx, bz = S[:, 0], S[:, 1], S[:, 2], S[:, 3]
@@ -1805,18 +2420,36 @@ def preview_ground(ctx):
             m = ((z1 > P[:, 1]) != (z2 > P[:, 1])) & (P[:, 0] < x1 + (P[:, 1] - z1) * (x2 - x1) / ((z2 - z1) if z2 != z1 else 1e-9))
             c ^= m
         inn |= c
-    intown = (P[:, 0] > ins["west"]) & (P[:, 0] < ins["east"]) & (P[:, 1] > 0) & (P[:, 1] < ins["north"])
+    q = np.array(town)
+    intown = np.zeros(len(P), bool)
+    for j in range(len(q)):
+        x1, z1 = q[j]
+        x2, z2 = q[(j + 1) % len(q)]
+        intown ^= ((z1 > P[:, 1]) != (z2 > P[:, 1])) & (P[:, 0] < x1 + (P[:, 1] - z1) * (x2 - x1) / ((z2 - z1) if z2 != z1 else 1e-9))
     kinds = np.full(len(P), -1)
     land = P[:, 1] > 0
     kinds[land & intown] = 0
     kinds[land & ~intown & (inn | (dist < 14))] = 1
+    kinds[land & ~intown & inn] = 0  # under the wall: the street's colour where a cell peeps out on the town side
     kinds[land & ~inn & ~intown & (dist >= 14) & (dist < 34)] = -1
     kinds[land & ~inn & ~intown & (dist >= 34)] = 2
     mats = [flat_mat("prev_street", (0.30, 0.29, 0.27)), flat_mat("prev_grass", (0.20, 0.25, 0.10)),
             flat_mat("prev_field", (0.24, 0.27, 0.12))]
     bm = bmesh.new()
-    for (px, pz), kd in zip(P, kinds):
-        if kd < 0:
+    pond = []
+    try:
+        with open(PARK) as f:
+            pond = [tuple(p) for p in json.load(f)["pond"]]
+    except (OSError, KeyError, ValueError, TypeError):
+        pass
+    near_pond = np.zeros(len(P), bool)
+    if pond:
+        pa = np.array(pond)
+        for k0 in range(0, len(P), 20000):
+            q = P[k0:k0 + 20000]
+            near_pond[k0:k0 + 20000] = (np.hypot(q[:, 0:1] - pa[None, :, 0], q[:, 1:2] - pa[None, :, 1]).min(1) < 3.0)
+    for (px, pz), kd, inw, npd in zip(P, kinds, inn, near_pond):
+        if kd < 0 or (pond and inside((px, pz), pond)) or (inw and npd):
             continue
         x0, x1, z0, z1 = px - cell / 2, px + cell / 2, pz - cell / 2, pz + cell / 2
         vs = [bm.verts.new(B((x, 0.0, z))) for x, z in ((x0, z0), (x1, z0), (x1, z1), (x0, z1))]
@@ -1832,6 +2465,18 @@ def preview_ground(ctx):
         me.materials.append(m)
     ob = bpy.data.objects.new("prev_ground", me)
     bpy.context.scene.collection.objects.link(ob)
+    if pond:
+        me = bpy.data.meshes.new("prev_pond")
+        bm = bmesh.new()
+        f = bm.faces.new([bm.verts.new(B((x, -0.35, z))) for x, z in pond])
+        f.normal_update()
+        if f.normal.z < 0:
+            f.normal_flip()
+        bm.to_mesh(me)
+        bm.free()
+        me.materials.append(flat_mat("prev_pond_m", (0.09, 0.12, 0.10)))
+        o = bpy.data.objects.new("prev_pond", me)
+        bpy.context.scene.collection.objects.link(o)
     for name, y, rgb in (("prev_water", -2.2, (0.10, 0.14, 0.15)), ("prev_bed", -4.5, (0.12, 0.11, 0.09))):
         me = bpy.data.meshes.new(name)
         bm = bmesh.new()
@@ -1891,55 +2536,92 @@ def preview(ctx, only=None):
     preview_ground(ctx)
     cam = stage()
     D = ctx.D
-    h = ctx.h
-    views = []
+    h, T = ctx.h, ctx.t
+    segs = {s["name"]: s for s in D["segments"]}
     gates = {g["id"]: g for g in D["gates"]}
-    # 1. a gate from the field, like the reference picture of the gate
+    views = []
+
+    def at(p2, y):
+        return (p2.x, y, p2.y)
+
+    # a gate from the field, from the town, its shut leaves from the bridge and from the passage
     gt = gates["rode_poort"]
-    F = ctx.frame(gt["side"], gt["at"])
+    F = ctx.sframe(gt["frame"], gt["s"])
     views.append(("wall_preview_gate.png", F.p(-9.0, 50.0, 5.0), F.p(0.0, 12.0, 5.5), 30))
-    # 2. along the walk, a guard house on the side
-    t = D["towers"][3]
-    Ft = ctx.frame(t["side"], t["at"])
-    views.append(("wall_preview_walk.png", Ft.p(-16.0, 2.5, h + 1.7), Ft.p(10.0, 4.5, h + 1.2), 28))
-    # 3. a stair from the street
-    st = D["stairs"][1]
-    Fs, RUN, LAND, W = stair_frame(st, ctx)
-    views.append(("wall_preview_stair.png", Fs.p(-7.0, -16.0, 9.0), Fs.p(RUN * 0.55, -1.0, 3.0), 30))
-    # 4. a land bastion from above
-    _, P = ctx.land_bastions[0]
-    cx = sum(p.x for p in P) / len(P)
-    cz = sum(p.y for p in P) / len(P)
-    views.append(("wall_preview_bastion.png", (cx - 55, 55, cz - 70), (cx, 3, cz), 32))
-    # 5. the whole ring from high up
-    xs = list(D["inner"].values())
-    views.append(("wall_preview_ring.png", (-70, 560, -320), (-70, 0, 170), 32))
-    # 6. a gate from the town (the sentry box, the arch, a stair)
     views.append(("wall_preview_gate_town.png", F.p(14.0, -24.0, 8.0), F.p(0.0, 2.0, 4.0), 30))
-    # close-ups of joins and corners
+    views.append(("wall_close_leaves_field.png", F.p(2.2, 18.0, 2.0), F.p(0.0, 10.4, 2.8), 32))
+    views.append(("wall_close_leaves_town.png", F.p(1.0, 1.0, 1.7), F.p(0.0, 10.2, 2.6), 30))
     views.append(("wall_close_gatejoin.png", F.p(-16.0, 16.0, 7.0), F.p(-9.0, 7.0, 5.0), 35))
     views.append(("wall_close_gatewalk.png", F.p(-22.0, 3.5, h + 1.7), F.p(-9.0, 3.5, h + 1.5), 35))
+    views.append(("wall_close_bridgeend.png", F.p(7.0, 47.0, 2.2), F.p(2.0, 40.0, 1.2), 32))
+    views.append(("wall_close_arch.png", F.p(3.0, 20.0, 2.5), F.p(0.0, 10.0, 4.2), 30))
+    # the walk along the most slanted segment, a tower's guard house on its side
+    tw = max(D["towers"], key=lambda t: abs(t["frame"]["t"][0] * t["frame"]["t"][1]))
+    Ft = ctx.sframe(tw["frame"], tw["s"])
+    views.append(("wall_preview_walk.png", Ft.p(-16.0, 2.5, h + 1.7), Ft.p(10.0, 4.5, h + 1.2), 28))
     views.append(("wall_close_tower.png", Ft.p(-9.0, 13.0, 4.0), Ft.p(0.0, 8.0, h), 32))
-    b = max(P, key=lambda p: (p - ctx.centre).length)
-    u = (b - Vector((cx, cz))).normalized()
-    views.append(("wall_close_salient.png", (b.x + u.x * 14 + u.y * 5, 5.0, b.y + u.y * 14 - u.x * 5), (b.x, 4.0, b.y), 35))
-    views.append(("wall_close_turret.png", (b.x - u.x * 9 + u.y * 2.0, h + 1.8, b.y - u.y * 9 - u.x * 2.0), (b.x, h + 1.4, b.y), 35))
+    views.append(("wall_close_hutdoor.png", Ft.p(2.5, 2.2, h + 1.6), Ft.p(0.0, T + 1.0, h + 1.2), 32))
+    # a corner between two segments (the sharpest plain bend), from the walk and from the field
+    plain = [i for i in range(1, len(ctx.trace) - 1) if not any(b["vertex"] == D["trace"][i] for b in D["bastion_list"])]
+    turn = {i: math.acos(max(-1.0, min(1.0, V2(D["segments"][i - 1]["t"]).dot(V2(D["segments"][i]["t"]))))) for i in plain}
+    ic = max(plain, key=lambda i: turn[i])
+    sa, sb = D["segments"][ic - 1], D["segments"][ic]
+    Fa, Fb = ctx.sframe(sa, sa["len"]), ctx.sframe(sb, 0.0)
+    views.append(("wall_preview_corner_walk.png", Fa.p(-24.0, 3.2, h + 1.7), Fb.p(14.0, 3.6, h + 0.5), 30))
+    Vc = ctx.trace[ic]
+    bis = (V2(sa["n"]) + V2(sb["n"])).normalized()
+    views.append(("wall_preview_corner_field.png", at(Vc + bis * 30.0 + V2(sa["t"]) * 4.0, 4.0), at(Vc, 3.2), 30))
+    views.append(("wall_close_corner_top.png", at(Vc - bis * 2.0 + V2(sa["t"]) * -6.0, h + 1.7), at(Vc - bis * 0.4, h + 0.9), 30))
+    # a stair on a slanted segment
+    st = max(D["stairs"], key=lambda s: abs(s["frame"]["t"][0] * s["frame"]["t"][1]))
+    Fs, RUN, LAND, W = stair_frame(st, ctx)
+    views.append(("wall_preview_stair.png", Fs.p(-7.0, -16.0, 9.0), Fs.p(RUN * 0.55, -1.0, 3.0), 30))
     views.append(("wall_close_stairhead.png", Fs.p(RUN + LAND + 5.0, 2.2, h + 1.7), Fs.p(RUN - 3.0, -0.9, h - 1.2), 32))
     views.append(("wall_close_stairfoot.png", Fs.p(-4.0, -6.0, 2.2), Fs.p(2.0, -1.2, 1.0), 32))
-    views.append(("wall_close_hutdoor.png", Ft.p(2.5, 2.2, h + 1.6), Ft.p(0.0, ctx.t + 1.0, h + 1.2), 32))
-    views.append(("wall_close_bridgeend.png", F.p(7.0, 47.0, 2.2), F.p(2.0, 40.0, 1.2), 32))
-    Rb = [bb_ for bb_ in ctx.river_bastions][0][1]
-    rc = Vector((sum(p.x for p in Rb) / len(Rb), sum(p.y for p in Rb) / len(Rb)))
-    views.append(("wall_close_river.png", (rc.x - 30, 9.0, rc.y - 40), (rc.x, 0.0, rc.y), 32))
-    views.append(("wall_close_arch.png", F.p(3.0, 20.0, 2.5), F.p(0.0, 10.0, 4.2), 30))
-    # where a land bastion's flank meets the curtain (a concave corner), from the berm
+    # the middle bastion with its mill: from the walk, from the field, from above, the door, the cap
+    mc = ctx.mill[0]
+    home = next((nm for nm, P in ctx.land_bastions if inside((mc.x, mc.y), [(p.x, p.y) for p in P])), None)
+    if home:
+        b = ctx.blist[home]
+        Vb, Sb = V2(b["vertex"]), V2(b["salient"])
+        ub = (Sb - Vb).normalized()
+        wb = Vector((-ub.y, ub.x))
+        hub = ctx.mill_hub
+        views.append(("wall_preview_mill_walk.png", at(Vb - ub * 3.5 + wb * 14.0, h + 1.7), at(mc, h + 6.5), 30))
+        views.append(("wall_preview_mill_field.png", at(Sb + ub * 34.0 + wb * 16.0, 5.0), at(mc, h + 5.0), 30))
+        views.append(("wall_preview_mill_above.png", at(mc + ub * 38.0 - wb * 30.0, 42.0), at(mc - ub * 4.0, h), 30))
+        views.append(("wall_close_mill_door.png", at(mc - ub * 9.0 + wb * 2.5, h + 1.7), at(mc - ub * 3.0, h + 1.4), 32))
+        views.append(("wall_close_mill_cap.png", at(mc + ub * 13.0 + wb * 9.0, h + 13.0), (hub.x - ub.x * 1.5, hub.y - 0.5, hub.z - ub.y * 1.5), 32))
+        views.append(("wall_close_mill_side.png", at(mc + wb * 16.0 + ub * 2.0, h + 6.0), at(mc, h + 8.0), 30))
+    # a land bastion's salient and its turret, the flank's root, a river half-bastion
+    name, P = max(ctx.land_bastions, key=lambda nb: (V2(ctx.blist[nb[0]]["salient"]) - V2(ctx.blist[nb[0]]["vertex"])).length)
+    b = ctx.blist[name]
+    Sb, Vb = V2(b["salient"]), V2(b["vertex"])
+    u = (Sb - Vb).normalized()
+    pu = Vector((-u.y, u.x))
+    views.append(("wall_preview_bastion.png", at(Sb + u * 50.0 + pu * 40.0, 55.0), at((Sb + Vb) / 2, 3.0), 32))
+    views.append(("wall_close_salient.png", at(Sb + u * 14.0 + pu * 5.0, 5.0), at(Sb, 4.0), 35))
+    views.append(("wall_close_turret.png", at(Sb - u * 9.0 + pu * 2.0, h + 1.8), at(Sb, h + 1.4), 35))
     sh = P[0]  # the flank's root on the curtain (rampart.py lists it first)
-    views.append(("wall_close_flank.png", (sh.x + 16.0 * (1 if sh.x > 0 else -1), 3.0, sh.y - 16.0), (sh.x, 3.5, sh.y + 2.0), 35))
-    # the river half-bastion's corner where the low town parapet meets the breastwork, from the walk
-    q = min(Rb, key=lambda p: abs(p.y + 10.0) + abs(p.x - (ctx.D["inner"]["east"] if p.x > 0 else ctx.D["inner"]["west"])))
+    iv = next(i for i, p in enumerate(ctx.trace) if (p - Vb).length < 0.01)
+    sg = D["segments"][iv - 1]
+    views.append(("wall_close_flank.png", at(sh - V2(sg["t"]) * 22.0 + V2(sg["n"]) * 11.0, 3.0), at(sh + V2(sg["n"]) * 3.0, 3.5), 35))
+    Rb = ctx.river_bastions[0][1]
+    rc = centroid(Rb)
+    views.append(("wall_close_river.png", (rc.x - 30, 9.0, rc.y - 40), (rc.x, 0.0, rc.y), 32))
+    q = min(Rb, key=lambda p: abs(p.y + 10.0) + min(abs(p.x - ctx.inner[0].x), abs(p.x - ctx.inner[-1].x)))
     views.append(("wall_close_parapetjoin.png", (q.x + (3.5 if q.x > 0 else -3.5), h + 1.7, q.y + 6.0), (q.x, h + 0.7, q.y), 35))
+    # the mossy town face where the park's pond lies against it
+    if ctx.moss:
+        P, t, c0, c1, out = ctx.moss
+        cm = P + t * ((c0 + c1) / 2)
+        views.append(("wall_close_moss.png", at(cm + out * 7.0 - t * 3.0, 1.7), at(cm + out * 0.2 + t * 1.0, 0.6), 30))
+        views.append(("wall_close_moss_end.png", at(P + t * (c1 + 4.0) + out * 4.5, 1.5), at(P + t * (c1 - 0.5), 0.5), 32))
+        views.append(("wall_preview_moss.png", at(cm + out * 22.0 + t * 6.0, 4.0), at(cm, 2.5), 30))
+    # the whole ring from high up
+    views.append(("wall_preview_ring.png", (-70, 620, -330), (-70, 0, 190), 30))
     for gid, gg in gates.items():
-        Fg = ctx.frame(gg["side"], gg["at"])
+        Fg = ctx.sframe(gg["frame"], gg["s"])
         views.append((f"wall_check_{gid}_field.png", Fg.p(-14.0, 48.0, 16.0), Fg.p(0.0, 8.0, 4.0), 30))
         views.append((f"wall_check_{gid}_town.png", Fg.p(12.0, -30.0, 14.0), Fg.p(0.0, 0.0, 4.0), 30))
     for name, eye, look, lens in views:
@@ -1956,7 +2638,7 @@ def main():
     D = city["decor"]["rampart"]
     ctx = Ctx(D, city["decor"].get("rampart_solids", []))
     ctx.grass, ctx.grass_cuts = grass_areas(ctx)
-    make_materials()
+    make_materials(ctx)
     g = build(ctx)
     objs = g.to_objects([gt["id"] for gt in D["gates"]])
     export()
@@ -1966,6 +2648,9 @@ def main():
         total += c
         print(f"[build_wall] {n:22s} {c:6d} tris")
     print(f"[build_wall] {len(objs)} objects, {total} tris -> {OUT} ({os.path.getsize(OUT) // 1024} KB)")
+    if getattr(ctx, "mill_hub", None) is not None:
+        hb, ax = ctx.mill_hub, ctx.mill_axle
+        print(f"[build_wall] MILL_HUB ({hb.x:.3f}, {hb.y:.3f}, {hb.z:.3f})  MILL_AXLE ({ax.x:.5f}, {ax.y:.5f}, {ax.z:.5f})")
     if "--preview" in argv:
         i = argv.index("--preview")
         only = argv[i + 1].split(",") if len(argv) > i + 1 and not argv[i + 1].startswith("--") else None

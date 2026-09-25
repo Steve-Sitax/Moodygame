@@ -481,7 +481,10 @@ function buildWindows(houses: House[]): Map<string, ChunkBuf> {
   let hi = -1;
   for (const h of houses) {
     hi++;
+    // the alleys' cottages have their own small windows (tools/blender/build_city.py): no panes painted on them yet
+    if ((h as House & { alley?: boolean }).alley) continue;
     const own = OWN_LIGHT.get(hi);
+    const poort = (h as House & { poort?: { s: [number, number] } }).poort;
     const r = mulberry(h.seed);
     const store = !!h.store;
     const H = h.h;
@@ -518,7 +521,8 @@ function buildWindows(houses: House[]): Map<string, ChunkBuf> {
       const bw = L / bays;
       const at = (d: number): [number, number] => [ax + ux * d, az + uz * d];
       // ground storey: shop windows 36/64 of a bay wide, 0.83 to 2.85 m (cityTextures col 0)
-      if (H >= 2.95 && !own?.ground) {
+      // (a house with a covered passage: its ground storey is the passage and plain wall, build_city.py)
+      if (H >= 2.95 && !own?.ground && !poort) {
         const l = litOf(-1, false);
         if (l[0] < 99 || l[2] < 99) {
           for (let k = 0; k < bays; k++) {

@@ -1835,6 +1835,28 @@ def house_doors():
         bays = max(1, round(math.hypot(b[0] - a[0], b[1] - a[1]) / 3.0))
         f = (bays // 2 + 0.5) / bays
         out += [round(a[0] + (b[0] - a[0]) * f, 1), round(a[1] + (b[1] - a[1]) * f, 1)]
+    return out + poort_points()
+
+
+def poort_points():
+    """The covered passages through the ground storey of some front houses (city_build.json "poort",
+    tools/city/alleys.py; build_city.py builds them): a point at each mouth and every 2 m through the
+    passage, kept clear like a door, so nothing stands in the way in or in the passage."""
+    src = os.path.join(ROOT, "shared", "city_build.json")
+    if not os.path.exists(src):
+        return []
+    out = []
+    for h in json.load(open(src))["houses"]:
+        pt = h.get("poort")
+        if not pt or not h["rect"]:
+            continue
+        (ox, oz), (ux, uz), (nx, nz) = h["o"], h["u"], h["n"]
+        sm = (pt["s"][0] + pt["s"][1]) / 2
+        t0, t1 = h["t"]
+        n = max(1, round((t1 - t0) / 2.0))
+        for k in range(n + 1):
+            t = t0 + (t1 - t0) * k / n
+            out += [round(ox + ux * sm + nx * t, 1), round(oz + uz * sm + nz * t, 1)]
     return out
 
 

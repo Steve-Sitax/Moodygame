@@ -1489,7 +1489,19 @@ def city_slots():
             dl = math.hypot(dx, dz) or 1
             corners.append([r2(v[0]), r2(v[1]), r2(dx / dl), r2(dz / dl), r2(o1[0]), r2(o1[1]), r2(-e1[0] / L1), r2(-e1[1] / L1),
                             r2(o2[0]), r2(o2[1]), r2(e2[0] / L2), r2(e2[1] / L2), r2(H), st, store])
-    return {"walls": walls, "corners": corners, "ground_h": data.get("ground_h", GROUND_H), "storey_h": data.get("storey_h", 3.0)}
+    # the covered passages (city_build.json "poort", build_city.py): each mouth on the street, a to b across it,
+    # (ox, oz) out of the house, h its clear height, depth through the house; nothing may stand or hang there
+    poorts = []
+    for h in houses:
+        pt = h.get("poort")
+        if not pt or not h["rect"]:
+            continue
+        (ox, oz), (ux, uz), (nx, nz) = h["o"], h["u"], h["n"]
+        (p0, p1), (t0, t1) = pt["s"], h["t"]
+        a = (ox + ux * p0 + nx * t0, oz + uz * p0 + nz * t0)
+        b = (ox + ux * p1 + nx * t0, oz + uz * p1 + nz * t0)
+        poorts.append([r2(a[0]), r2(a[1]), r2(b[0]), r2(b[1]), r2(-nx), r2(-nz), pt["h"], r2(t1 - t0)])
+    return {"walls": walls, "corners": corners, "poorts": poorts, "ground_h": data.get("ground_h", GROUND_H), "storey_h": data.get("storey_h", 3.0)}
 
 
 # ------------------------------------------------------------------ build

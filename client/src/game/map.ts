@@ -119,7 +119,7 @@ export class CityMap {
     }
     // the grass round the town wall (tools/city/rampart.py)
     const extra = CITY as unknown as {
-      decor?: { grass?: Array<{ outer: number[][] }>; rampart?: { tops: number[][][]; gates: Array<{ house: number[]; passage: number[]; bridge: number[] }> } };
+      decor?: { grass?: Array<{ outer: number[][] }>; rampart?: { tops: number[][][]; gates: Array<{ house: number[][]; passage: number[][]; bridge: number[][] }> } };
       alleys?: { lanes: number[][][]; yards: number[][][]; gardens: number[][][] };
     };
     g.fillStyle = "#b9c294";
@@ -162,13 +162,12 @@ export class CityMap {
       g.stroke();
     }
     for (const gt of extra.decor?.rampart?.gates ?? []) {
-      const [x0, z0, x1, z1] = gt.house;
       g.fillStyle = "#5a3024";
-      path([[x0, z0], [x1, z0], [x1, z1], [x0, z1]]);
+      path(gt.house);
       g.fill();
-      for (const [a0, b0, a1, b1] of [gt.passage, gt.bridge]) {
+      for (const r of [gt.passage, gt.bridge]) {
         g.fillStyle = "#e0d4b8";
-        path([[a0, b0], [a1, b0], [a1, b1], [a0, b1]]);
+        path(r);
         g.fill();
       }
     }

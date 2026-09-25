@@ -167,6 +167,8 @@ describe("who owns what (the migration)", () => {
       const plain = (j: string, lamps: boolean) => {
         const o = JSON.parse(j) as Record<string, unknown>;
         if (lamps) for (const k of ["trade", "faction", "work", "sched"]) delete o[k];
+        // (a map change moves a round's point off new walls: repairTown owns work.route; 2026-09-25 angled streets)
+        if (o.work && typeof o.work === "object") delete (o.work as Record<string, unknown>).route;
         return JSON.stringify(o);
       };
       for (const r of after) if (before.has(r.id)) expect(plain(r.data_json, lit(r.data_json)), r.id).toBe(plain(before.get(r.id)!, lit(r.data_json)));

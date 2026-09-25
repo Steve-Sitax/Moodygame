@@ -23,7 +23,7 @@
  "hessenatie_door": {
   "label": "the Hessenatie door",
   "desc": "big door of the Hessenatie warehouse",
-  "x": 11.2,
+  "x": 15.13,
   "z": 43.5,
   "dir": [
    1.0,
@@ -43,7 +43,7 @@
  "peeters_dock": {
   "label": "the widow's shop door",
   "desc": "door of the Peeters chandlery, facing the quay",
-  "x": -30.21,
+  "x": -31.13,
   "z": 43.5,
   "dir": [
    1.0,

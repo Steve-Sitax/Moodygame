@@ -1,16 +1,109 @@
 {
-  "note": "M7 taverns and homes in the world: the city houses whose insides stand in the world (shared/housePlan.ts). The doors are the town's (server walkmap.ts houseDoors); a new town prefers these doors (server homes/town.ts, interiors/poesje.ts). tools/city/inworld.mts writes shared/inworld_build.json from this for tools/blender/build_city.py. After tools/city/plan.py, check the house numbers: node tools/city/inworld.mts --check.",
-  "houses": [
-    { "id": "tavern:ankere", "kind": "tavern", "house": 75, "door": [-60, 47.7] },
-    { "id": "tavern:schipke", "kind": "tavern", "house": 480, "door": [-237.7, 14] },
-    { "id": "tavern:vliet", "kind": "tavern", "house": 319, "door": [-117.7, 50] },
-    { "id": "tavern:engel", "kind": "tavern", "house": 465, "door": [-222, 72.5] },
-    { "id": "tavern:bassin", "kind": "tavern", "house": 10, "door": [78.5, 126] },
-    { "id": "poesje", "kind": "cellar", "house": 329, "door": [-120.2, 80] },
-    { "id": "home:cellar", "kind": "home", "cls": "cellar", "house": 343, "door": [-92, 132.9] },
-    { "id": "home:garret", "kind": "home", "cls": "garret", "house": 337, "door": [-123.3, 118] },
-    { "id": "home:widow", "kind": "home", "cls": "widow", "house": 432, "door": [-174.6, 74] },
-    { "id": "home:alley", "kind": "home", "cls": "alley", "house": 676, "door": [-306, 284.1] },
-    { "id": "home:merchant", "kind": "home", "cls": "merchant", "house": 106, "door": [-18.9, 73] }
-  ]
+ "note": "M7 taverns and homes in the world: the city houses whose insides stand in the world (shared/housePlan.ts). The doors are the town's (server walkmap.ts houseDoors); a new town prefers these doors (server homes/town.ts, interiors/poesje.ts). tools/city/inworld.mts writes shared/inworld_build.json from this for tools/blender/build_city.py. After tools/city/plan.py, check the house numbers: node tools/city/inworld.mts --check.",
+ "houses": [
+  {
+   "id": "tavern:ankere",
+   "kind": "tavern",
+   "house": 834,
+   "door": [
+    -54.8,
+    46
+   ]
+  },
+  {
+   "id": "tavern:schipke",
+   "kind": "tavern",
+   "house": 38,
+   "door": [
+    -238.2,
+    14
+   ]
+  },
+  {
+   "id": "tavern:vliet",
+   "kind": "tavern",
+   "house": 945,
+   "door": [
+    -112.2,
+    50
+   ]
+  },
+  {
+   "id": "tavern:engel",
+   "kind": "tavern",
+   "house": 24,
+   "door": [
+    -222,
+    72.6
+   ]
+  },
+  {
+   "id": "tavern:bassin",
+   "kind": "tavern",
+   "house": 10,
+   "door": [
+    78.5,
+    126
+   ]
+  },
+  {
+   "id": "poesje",
+   "kind": "cellar",
+   "house": 955,
+   "door": [
+    -119.8,
+    80
+   ]
+  },
+  {
+   "id": "home:cellar",
+   "kind": "home",
+   "cls": "cellar",
+   "house": 874,
+   "door": [
+    -106.5,
+    146.8
+   ]
+  },
+  {
+   "id": "home:garret",
+   "kind": "home",
+   "cls": "garret",
+   "house": 888,
+   "door": [
+    -114.6,
+    118
+   ]
+  },
+  {
+   "id": "home:widow",
+   "kind": "home",
+   "cls": "widow",
+   "house": 905,
+   "door": [
+    -172.7,
+    73.8
+   ]
+  },
+  {
+   "id": "home:alley",
+   "kind": "home",
+   "cls": "alley",
+   "house": 535,
+   "door": [
+    -213.3,
+    304.4
+   ]
+  },
+  {
+   "id": "home:merchant",
+   "kind": "home",
+   "cls": "merchant",
+   "house": 808,
+   "door": [
+    -36.8,
+    113.6
+   ]
+  }
+ ]
 }

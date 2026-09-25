@@ -32,8 +32,8 @@ const ROADS: P[][] = [
 
 const X0 = TOWN.x0;
 const Z0 = TOWN.z0;
-const W = TOWN.w;
-const H = TOWN.h;
+const W = Math.round(TOWN.w);
+const H = Math.round(TOWN.h);
 
 function rutTexture(): THREE.CanvasTexture {
   const S = 64;

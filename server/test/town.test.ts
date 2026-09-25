@@ -51,11 +51,12 @@ describe("population generator", () => {
     expect(generateTown(42).residents.map((r) => r.name)).not.toEqual(T.residents.map((r) => r.name));
   });
 
-  it("has 150-200 people in families, with unique names", () => {
-    // the garrison and the customs come on top (garrison.ts; test/garrison.test.ts)
+  it("has 150-210 people in families, with unique names", () => {
+    // the garrison and the customs come on top (garrison.ts; test/garrison.test.ts). (210: the angled streets and
+    // the alleys of 2026-09-25 give more houses, so a few more households)
     const folk = T.residents.filter((r) => !isGarrison(r.trade));
     expect(folk.length).toBeGreaterThanOrEqual(150);
-    expect(folk.length).toBeLessThanOrEqual(200);
+    expect(folk.length).toBeLessThanOrEqual(210);
     const names = T.residents.map((r) => r.name);
     expect(new Set(names).size).toBe(names.length);
     const hh = new Map<number, Resident[]>();

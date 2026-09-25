@@ -13,8 +13,22 @@ grime (darker near the ground), a cheap stand-in for baked shadow.
 
 Blender is Z-up; glTF export turns it to Y-up. A world point (x, y, z) of the
 game is placed at Blender (x, -z, y).
+
+M7 back alleys (2026-09-25): a house with h["poort"] gets a covered passage through its ground storey
+(poort_*: the mouths under an arch or a stone or timber lintel, a tunnel with a beamed ceiling, a lantern at
+the street end); the alley cottages (h["alley"]) get cottage_wall: small windows, a low door, a cornice that
+runs on along the row, no kerb. An empty node "city_openings" carries (extras, JSON) the openings the plan
+does not say: the passages, the ground bays built as plain wall beside them, each cottage's windows.
+
+    blender -b --factory-startup -P tools/blender/build_city.py -- --preview [name,name*]   pictures too
+    ... -- --no-export --preview "poort*"                                              pictures only
+
+--preview renders close views (passages from the street, the mouth, inside, the back; the gangs; the
+courts; rows of cottages) to data/shots/city_<view>.png with the game's own atlases, saved once from its
+canvases to data/shots/city_atlas_*.jpg (cityTextures.ts).
 """
 
+import fnmatch
 import json
 import math
 import os
@@ -67,9 +81,13 @@ class Builder:
         self.sh = storey_h
         self.tint = (1, 1, 1)
         self.holes = []
+        self.rec = None  # a list to note the plain ground bays in (poort houses), or None
+        self.rec_wall = 0
+        self.rec_win = None  # a list to note a cottage's windows in, or None
 
-    def face(self, pts, mat, uvs, cell, outward, shade=None):
-        """pts: world points (x, y, z); outward: world vector the face must look along."""
+    def face(self, pts, mat, uvs, cell, outward, shade=None, vshade=None):
+        """pts: world points (x, y, z); outward: world vector the face must look along.
+        vshade: a shade per point (overrides shade), for the dark inside of a passage."""
         verts = [self.bm.verts.new(B(*p)) for p in pts]
         try:
             f = self.bm.faces.new(verts)
@@ -89,13 +107,13 @@ class Builder:
             loop[self.uv].uv = uvs[i]
             loop[self.cell].uv = cell
             y = pts[i][1]
-            g = shade if shade is not None else 0.66 + 0.34 * min(1.0, y / 9.0)
+            g = vshade[i] if vshade is not None else shade if shade is not None else 0.66 + 0.34 * min(1.0, y / 9.0)
             loop[self.col] = (self.tint[0] * g, self.tint[1] * g, self.tint[2] * g, 1.0)
         return f
 
     # ---------------------------------------------------------------- walls
 
-    def wall(self, a, b, y0, y1, style, street, facing, door=None, holes=None):
+    def wall(self, a, b, y0, y1, style, street, facing, door=None, holes=None, kerb=True):
         """A vertical wall from world (ax, az) to (bx, bz), y0..y1. Street walls get windows.
         door: openings in the ground storey (door_spec / gate_spec), s in metres from a.
         holes: M7, window openings cut through (s0, s1, y0, y1; s from a), with a stone reveal."""
@@ -116,7 +134,7 @@ class Builder:
                       [(0, y0 / self.sh), (L / BAY, y0 / self.sh), (L / BAY, y1 / self.sh), (0, y1 / self.sh)], cell, facing)
             return
         # a kerb of stone slabs along the street wall, and the gutter outside it
-        if y0 == 0:
+        if y0 == 0 and kerb:  # (no kerb on a back wall in a yard or a gang: kerb=False)
             ox, oz = facing[0], facing[2]
             ux, uz = (b[0] - a[0]) / L, (b[1] - a[1]) / L
             mx, mz = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
@@ -140,6 +158,8 @@ class Builder:
                 while k1 < bays and covered[k1] == covered[k0]:
                     k1 += 1
                 if covered[k0]:
+                    if self.rec is not None:
+                        self.rec.append([self.rec_wall, round(k0 * bw, 2), round(k1 * bw, 2)])
                     self.door_run(a, b, L, facing, k0 * bw, k1 * bw, gy, [o for o in ops if k0 * bw <= o["s"] < k1 * bw], row, bw)
                 else:
                     pa = (a[0] + (b[0] - a[0]) * k0 / bays, a[1] + (b[1] - a[1]) * k0 / bays)
@@ -162,9 +182,10 @@ class Builder:
                           [(0, v0), (bays, v0), (bays, v1), (0, v1)], (PART_COL["upper"], row), facing)
         self.holes = []
 
-    def box(self, cx, cy, cz, sx, sy, sz, ux, uz, mat=MAT_STONE, cell=(0, 0), shade=0.9, skip=None):
+    def box(self, cx, cy, cz, sx, sy, sz, ux, uz, mat=MAT_STONE, cell=(0, 0), shade=0.9, skip=None, bottom=False, uv01=False):
         """An oriented box: centre, size along u (sx), up (sy), along n (sz); u = (ux, uz) on the ground.
-        skip: leave out the side facing this way (it lies against a wall)."""
+        skip: leave out the side facing this way (it lies against a wall). bottom: with a bottom face
+        (a thing seen from below). uv01: each face's uv 0..1 (an atlas cell over each face)."""
         nx, nz = -uz, ux
         hx, hy, hz = sx / 2, sy / 2, sz / 2
         def P(i, j, k):
@@ -176,10 +197,13 @@ class Builder:
             ([P(1, -1, -1), P(1, -1, 1), P(1, 1, 1), P(1, 1, -1)], (ux, 0, uz)),
             ([P(-1, 1, -1), P(1, 1, -1), P(1, 1, 1), P(-1, 1, 1)], (0, 1, 0)),
         ]
+        if bottom:
+            faces.append(([P(-1, -1, -1), P(1, -1, -1), P(1, -1, 1), P(-1, -1, 1)], (0, -1, 0)))
+        uv = [(0, 0), (1, 0), (1, 1), (0, 1)] if uv01 else [(0, 0), (sx / BAY, 0), (sx / BAY, sy / BAY), (0, sy / BAY)]
         for pts, out in faces:
             if skip is not None and out[0] * skip[0] + out[1] * skip[1] + out[2] * skip[2] > 0.9:
                 continue
-            self.face(pts, mat, [(0, 0), (sx / BAY, 0), (sx / BAY, sy / BAY), (0, sy / BAY)], cell, out, shade)
+            self.face(pts, mat, uv, cell, out, shade)
 
     def holed(self, a, b, L, sa, sb, ya, yb, uvf, cell, f, holes):
         """M7: the wall face sa..sb (s from a) x ya..yb with the holes left out, in a grid of rectangles
@@ -317,7 +341,10 @@ class Builder:
             arc = self.arc_pts(o)
             for (s1, y1), (s2, y2) in zip(arc, arc[1:]):
                 piece([(s1, y1), (s2, y2), (s2, gy), (s1, gy)])
-            self.doorway(W, o, arc, ux, uz, f, stone)
+            if o["kind"] == "poort":
+                self.poort_mouth(W, o, arc, ux, uz, f, stone)
+            else:
+                self.doorway(W, o, arc, ux, uz, f, stone)
             cur = right
         if sb - cur > 0.01:
             piece([(cur, 0), (sb, 0), (sb, gy), (cur, gy)])
@@ -395,20 +422,187 @@ class Builder:
             # 8 cm proud of the ring: at 3 cm its face lay over the ring's and the wobble made them fight (z-fight check)
             self.slab(W, ux, uz, f, sc - kw, sc + kw, apex - 0.02, apex + J + 0.04, 0, P + 0.08, stone * 1.05)
 
-    def slab(self, W, ux, uz, f, s0, s1, y0, y1, d0, d1, shade, blocks=1):
+    def slab(self, W, ux, uz, f, s0, s1, y0, y1, d0, d1, shade, blocks=1, mat=MAT_STONE, under=False):
         """A block of stone lying on the wall, s0..s1 along it, y0..y1 up, d0..d1 out. No back and no
-        bottom (they lie on the wall and the ground); the front split into `blocks` stones of alternate shade."""
+        bottom (they lie on the wall and the ground); the front split into `blocks` stones of alternate shade.
+        under: with a bottom face too (a lintel over an opening, seen from below)."""
         for i in range(blocks):
             ya, yb = y0 + (y1 - y0) * i / blocks, y0 + (y1 - y0) * (i + 1) / blocks
-            self.face([W(s0, ya, d1), W(s1, ya, d1), W(s1, yb, d1), W(s0, yb, d1)], MAT_STONE,
+            self.face([W(s0, ya, d1), W(s1, ya, d1), W(s1, yb, d1), W(s0, yb, d1)], mat,
                       [(s0 / BAY, ya / BAY), (s1 / BAY, ya / BAY), (s1 / BAY, yb / BAY), (s0 / BAY, yb / BAY)], (0, 0), f,
                       shade * (1.0 if i % 2 == 0 else 0.9))
         dd = (d1 - d0) / BAY
-        self.face([W(s0, y1, d0), W(s1, y1, d0), W(s1, y1, d1), W(s0, y1, d1)], MAT_STONE,
+        self.face([W(s0, y1, d0), W(s1, y1, d0), W(s1, y1, d1), W(s0, y1, d1)], mat,
                   [(s0 / BAY, 0), (s1 / BAY, 0), (s1 / BAY, dd), (s0 / BAY, dd)], (0, 0), (0, 1, 0), shade * 1.05)
+        if under:
+            self.face([W(s0, y0, d0), W(s1, y0, d0), W(s1, y0, d1), W(s0, y0, d1)], mat,
+                      [(s0 / BAY, 0), (s1 / BAY, 0), (s1 / BAY, dd), (s0 / BAY, dd)], (0, 0), (0, -1, 0), shade * 0.6)
         for se, sgn in ((s0, -1), (s1, 1)):
-            self.face([W(se, y0, d0), W(se, y0, d1), W(se, y1, d1), W(se, y1, d0)], MAT_STONE,
+            self.face([W(se, y0, d0), W(se, y0, d1), W(se, y1, d1), W(se, y1, d0)], mat,
                       [(0, y0 / BAY), (dd, y0 / BAY), (dd, y1 / BAY), (0, y1 / BAY)], (0, 0), (ux * sgn, 0, uz * sgn), shade * 0.8)
+
+    # ---------------------------------------------------------------- covered passages (poort)
+    # alleys.py gives some front houses a passage 1.8 m wide straight through the ground storey into the
+    # gang behind (h["poort"] = {"s": [s0, s1], "h": clear height}), like the Vlaeykensgang: a low opening
+    # in an ordinary front under a segmental arch or a stone or timber lintel, the same opening in the back
+    # wall, a tunnel of plain wall under a planked and beamed ceiling, a lantern on an iron arm at the street.
+
+    @staticmethod
+    def poort_spec(s, w, hgt, kind, J):
+        """One mouth of a passage centred s metres along its wall, w wide, the ceiling hgt high."""
+        if kind == "arch":
+            hr = 0.42
+            return {"kind": "poort", "s": s, "w": w, "J": J, "top": "segment", "hr": hr, "ys": hgt - hr, "yd": hgt - hr,
+                    "yt": hgt, "h": hgt, "lintel": None}
+        return {"kind": "poort", "s": s, "w": w, "J": J, "top": "flat", "ys": hgt, "yd": hgt, "yt": hgt, "h": hgt, "lintel": kind}
+
+    def poort_mouth(self, W, o, arc, ux, uz, f, stone):
+        """The surround and the reveal of a passage mouth; W(s, y, d) on its wall, d out of the house."""
+        R, J = REVEAL, o["J"]
+        P = 0.08
+        w, sc = o["w"], o["s"]
+        left, right = sc - w / 2, sc + w / 2
+        ys, hgt = o["ys"], o["h"]
+        fx, fz = f[0], f[2]
+        timber = o["lintel"] == "timber"
+        if o["top"] == "segment":
+            # the arch's soffit through the wall, then the wall's inside face between the arch and the ceiling
+            for (s1, y1), (s2, y2) in zip(arc, arc[1:]):
+                sm, ym = (s1 + s2) / 2, (y1 + y2) / 2
+                self.face([W(s1, y1, 0), W(s2, y2, 0), W(s2, y2, -R), W(s1, y1, -R)], MAT_STONE,
+                          [(s1 / BAY, 0), (s2 / BAY, 0), (s2 / BAY, R / BAY), (s1 / BAY, R / BAY)], (0, 0),
+                          (ux * (sc - sm), (ys - 1.0) - ym, uz * (sc - sm)), stone * 0.5)
+                if hgt - max(y1, y2) > 0.005 or hgt - min(y1, y2) > 0.005:
+                    self.face([W(s1, y1, -R), W(s2, y2, -R), W(s2, hgt, -R), W(s1, hgt, -R)], MAT_STONE,
+                              [(s1 / BAY, y1 / BAY), (s2 / BAY, y2 / BAY), (s2 / BAY, hgt / BAY), (s1 / BAY, hgt / BAY)], (0, 0),
+                              (-fx, 0, -fz), stone * 0.4)
+        # the jambs: dressed stones, or two timber posts under a timber lintel
+        for j0, j1 in ((left - J, left), (right, right + J)):
+            if timber:
+                self.slab(W, ux, uz, f, j0, j1, 0, ys, 0, P, 0.5, 1, MAT_WOOD)
+            else:
+                self.slab(W, ux, uz, f, j0, j1, 0, ys, 0, P, stone, 3)
+        # guard stones at the foot of the jambs, against the cart wheels
+        for jm in (left - J / 2, right + J / 2):
+            cx, cy, cz = W(jm, 0.3, P + 0.12)
+            self.box(cx, cy, cz, J - 0.06, 0.6, 0.24, ux, uz, MAT_STONE, (0, 0), stone * 0.75, skip=(-fx, 0, -fz))
+        if o["top"] == "flat":
+            lw = w + 2 * J + (0.3 if timber else 0.08)
+            if timber:
+                self.slab(W, ux, uz, f, sc - lw / 2, sc + lw / 2, ys, ys + 0.28, 0, P + 0.04, 0.5, 1, MAT_WOOD, under=True)
+            else:
+                self.slab(W, ux, uz, f, sc - lw / 2, sc + lw / 2, ys, ys + 0.32, 0, P + 0.01, stone, 3, under=True)
+            return
+        outer = self.arc_pts(o, J)
+        for i, ((s1, y1), (s2, y2)) in enumerate(zip(arc, arc[1:])):
+            (t1, z1), (t2, z2) = outer[i], outer[i + 1]
+            g = stone * (1.0 if i % 2 == 0 else 0.9)
+            self.face([W(s1, y1, P), W(s2, y2, P), W(t2, z2, P), W(t1, z1, P)], MAT_STONE,
+                      [(s1 / BAY, y1 / BAY), (s2 / BAY, y2 / BAY), (t2 / BAY, z2 / BAY), (t1 / BAY, z1 / BAY)], (0, 0), f, g)
+            om, oy = (t1 + t2) / 2 - sc, (z1 + z2) / 2 - ys
+            self.face([W(t1, z1, 0), W(t2, z2, 0), W(t2, z2, P), W(t1, z1, P)], MAT_STONE,
+                      [(0, 0), (0.1, 0), (0.1, P / BAY), (0, P / BAY)], (0, 0), (ux * om, oy, uz * om), g * 0.9)
+            self.face([W(s1, y1, 0), W(s2, y2, 0), W(s2, y2, P), W(s1, y1, P)], MAT_STONE,
+                      [(0, 0), (0.1, 0), (0.1, P / BAY), (0, P / BAY)], (0, 0), (-ux * om, -oy, -uz * om), g * 0.75)
+        apex = max(y for _, y in arc)
+        self.slab(W, ux, uz, f, sc - 0.15, sc + 0.15, apex - 0.02, apex + J + 0.04, 0, P + 0.08, stone * 1.05, under=True)
+
+    def poort_tunnel(self, P, pt, t0, t1, o, style, back_open):
+        """The passage through the house: two side walls and a planked, beamed ceiling, darker away from
+        the mouths. P(s, t) -> (x, z) in the house's frame."""
+        p0, p1 = pt["s"]
+        hgt, ys = o["h"], o["ys"]
+        R = REVEAL
+        arch = o["top"] == "segment"
+        ta, tb = (t0 + R, t1 - R) if arch else (t0, t1)
+        n = max(1, round((tb - ta) / 1.3))
+        cuts = sorted({t0, t1, ta, tb, *[ta + (tb - ta) * k / n for k in range(1, n)]})
+        cell = (PART_COL["door"], STYLE_ROW[style])
+
+        def light(t, y):
+            d = min(t - t0, (t1 - t) if back_open else 99.0)
+            return (0.3 + 0.42 * math.exp(-d / 1.4)) * (0.8 + 0.2 * min(1.0, y / 2.5))
+
+        for se, out in ((p0, (1, 0)), (p1, (-1, 0))):
+            ox_, oz_ = P(out[0], 0)[0] - P(0, 0)[0], P(out[0], 0)[1] - P(0, 0)[1]
+            for ta_, tb_ in zip(cuts, cuts[1:]):
+                bands = [(0.0, ys)] + ([(ys, hgt)] if hgt - ys > 0.01 and ta - 1e-6 <= ta_ and tb_ <= tb + 1e-6 else [])
+                for y0, y1 in bands:
+                    pts = [(se, ta_, y0), (se, tb_, y0), (se, tb_, y1), (se, ta_, y1)]
+                    world = [(P(s, t)[0], y, P(s, t)[1]) for s, t, y in pts]
+                    self.face(world, MAT_FACADE, [((t - t0) / BAY, y / self.gh) for _, t, y in pts], cell, (ox_, 0, oz_),
+                              vshade=[light(t, y) for _, t, y in pts])
+        wx, wz = P(0, 1)[0] - P(0, 0)[0], P(0, 1)[1] - P(0, 0)[1]
+        for ta_, tb_ in zip(cuts, cuts[1:]):
+            if ta_ < ta - 1e-6 or tb_ > tb + 1e-6:
+                continue
+            pts = [(p0, ta_), (p1, ta_), (p1, tb_), (p0, tb_)]
+            world = [(P(s, t)[0], hgt, P(s, t)[1]) for s, t in pts]
+            self.face(world, MAT_WOOD, [((s - p0) / 1.2, (t - t0) / 1.2) for s, t in pts], (0, 0), (0, -1, 0),
+                      vshade=[light(t, hgt) * 0.95 for _, t in pts])
+        # beams across, every 1.2 m: a bottom and two sides (their ends lie on the walls, their tops on the
+        # planks), the grain along the beam
+        bw, bh = 0.2, 0.18
+        k = ta + 0.6
+        while k < tb - 0.4:
+            g = light(k, hgt) * 0.8
+            ya = hgt - bh
+            L_ = (p1 - p0) / 1.2
+            for pts, out, dv in (([(p0, k - bw / 2, ya), (p1, k - bw / 2, ya), (p1, k + bw / 2, ya), (p0, k + bw / 2, ya)], (0, -1, 0), bw),
+                                 ([(p0, k - bw / 2, ya), (p1, k - bw / 2, ya), (p1, k - bw / 2, hgt), (p0, k - bw / 2, hgt)], (-wx, 0, -wz), bh),
+                                 ([(p0, k + bw / 2, ya), (p1, k + bw / 2, ya), (p1, k + bw / 2, hgt), (p0, k + bw / 2, hgt)], (wx, 0, wz), bh)):
+                world = [(P(s, t)[0], y, P(s, t)[1]) for s, t, y in pts]
+                self.face(world, MAT_WOOD, [(0.1, 0), (0.1, L_), (0.1 + dv, L_), (0.1 + dv, 0)], (0, 0), out, g)
+            k += 1.2
+
+    def poort_lantern(self, W, sc, y, ux, uz, f):
+        """An iron arm over the street end of a passage with a lantern hanging from it."""
+        fx, fz = f[0], f[2]
+        iron = 0.2
+        self.slab(W, ux, uz, f, sc - 0.07, sc + 0.07, y, y + 0.36, 0, 0.07, iron)  # (7 cm: a thinner plate fights the wall)
+        ay = y + 0.24
+        cx, cy, cz = W(sc, ay, 0.07 + 0.3)
+        self.box(cx, cy, cz, 0.04, 0.04, 0.6, ux, uz, MAT_STONE, (0, 0), iron, skip=(-fx, 0, -fz), bottom=True)
+        # (the stay's two sides stand 2.4 cm apart, the arm is 4 cm wide: no face of one in the other's plane)
+        # a stay from the plate's foot up to the arm
+        for dsg in (-1, 1):
+            q = [W(sc + dsg * 0.012, y + 0.02, 0.07), W(sc + dsg * 0.012, ay - 0.02, 0.42), W(sc + dsg * 0.012, ay - 0.05, 0.42), W(sc + dsg * 0.012, y - 0.01, 0.07)]
+            self.face(q, MAT_STONE, [(0, 0), (0.1, 0), (0.1, 0.02), (0, 0.02)], (0, 0), (ux * dsg, 0, uz * dsg), iron)
+        lx, lz = W(sc, 0, 0.56)[0], W(sc, 0, 0.56)[2]
+        self.box(lx, ay - 0.06, lz, 0.02, 0.1, 0.02, ux, uz, MAT_STONE, (0, 0), iron)  # the hook
+        self.box(lx, ay - 0.14, lz, 0.28, 0.07, 0.28, ux, uz, MAT_STONE, (0, 0), iron, bottom=True)  # the cap
+        keep = self.tint
+        self.tint = (1.0, 0.86, 0.6)
+        self.box(lx, ay - 0.34, lz, 0.2, 0.33, 0.2, ux, uz, MAT_FACADE, TRANSOM, 0.95, uv01=True, skip=(0, 1, 0))  # the glass (its top is the cap's)
+        self.tint = keep
+        self.box(lx, ay - 0.535, lz, 0.16, 0.06, 0.16, ux, uz, MAT_STONE, (0, 0), iron, bottom=True)  # the foot
+
+    def blind_way(self, a, b, H, style, f, op):
+        """A blind back wall with a passage mouth in it."""
+        L = math.hypot(b[0] - a[0], b[1] - a[1])
+        ux, uz = (b[0] - a[0]) / L, (b[1] - a[1]) / L
+        fx, fz = f[0], f[2]
+
+        def W(s, y, d=0.0):
+            return (a[0] + ux * s + fx * d, y, a[1] + uz * s + fz * d)
+        GROUND_WALLS.append((a, b))
+        cell = (PART_COL["blind"], STYLE_ROW[style])
+        gy = min(H, self.gh)
+        self.fit(op, gy)
+        left, right = op["s"] - op["w"] / 2, op["s"] + op["w"] / 2
+        arc = self.arc_pts(op)
+
+        def piece(pts):
+            self.face([W(s, y) for s, y in pts], MAT_FACADE, [(s / BAY, y / self.sh) for s, y in pts], cell, f)
+        xs = [0.0, left] + [s for s, _ in arc[1:-1]] + [right, L]
+        piece([(0, 0), (left, 0), (left, gy), (0, gy)])
+        for (s1, y1), (s2, y2) in zip(arc, arc[1:]):
+            piece([(s1, y1), (s2, y2), (s2, gy), (s1, gy)])
+        piece([(right, 0), (L, 0), (L, gy), (right, gy)])
+        if H > gy:
+            for s1, s2 in zip(xs, xs[1:]):
+                piece([(s1, gy), (s2, gy), (s2, H), (s1, H)])
+        self.poort_mouth(W, op, arc, ux, uz, f, 0.95 if STYLE_ROW[style] in (1, 2) else 0.8)
 
     def loading_door(self, W, s, y, ux, uz, out):
         """A loading door in an upper storey of a storehouse: planked leaves in a stone frame on the wall."""
@@ -498,15 +692,88 @@ class Builder:
             else:
                 ops = [self.door_spec(sc, W, bw, drng)]
         yard = h.get("yard") or [0, 0, 0, 0]
+        # the small houses of the back alleys (alleys.py): workers' cottages, their own walls (cottage_wall)
+        cottage = bool(h.get("alley")) and h["roof"] == "side" and not iw
+        pt = h.get("poort") if street[0] else None
+        if pt:
+            # a covered passage through the ground storey (alleys.py): its own dice, the house's stay as they were
+            prng = random.Random(h["seed"] * 7 + 1566)
+            kind = prng.choice(["arch", "arch", "stone", "timber"])
+            p0, p1 = pt["s"]
+            pw, pm = p1 - p0, (p0 + p1) / 2
+            front_op = self.poort_spec(pm - s0, pw, pt["h"], kind, 0.25)
+            back_op = self.poort_spec(s1 - pm, pw, pt["h"], kind, 0.25)
+            for o in ops or []:
+                # the door keeps clear of the passage's surround: a narrower door, narrower jambs
+                gap = abs(o["s"] - front_op["s"]) - pw / 2 - front_op["J"] - 0.12
+                if o["w"] / 2 + o["J"] + 0.1 > gap:
+                    o["J"] = 0.14
+                    o["w"] = max(0.8, min(o["w"], 2 * (gap - o["J"] - 0.1)))
+                    o["double"] = o["double"] and o["w"] >= 1.3
+                if o["w"] / 2 + o["J"] + 0.1 > gap:
+                    front_op["J"] = back_op["J"] = 0.16
+                    print(f"[build_city] house {h.get('_i')}: a narrow door beside the passage")
+            ops = (ops or []) + [front_op]
+        if cottage:
+            # the plan's rows meet a centimetre apart or over each other (rounding): each end of a cottage's
+            # front and back meets its neighbour's at one point, so walls, cornices and roofs neither
+            # overlap in one plane (z-fight check) nor leave a crack
+            adj = {}
+            for e, se in ((0, s0), (1, s1)):
+                for ln, tl, f in (("f", t0, outs[0]), ("b", t1, outs[2])):
+                    adj[(e, ln)] = row_meet(self.hid, P(se, tl), f, (ux, uz))
+                # a back on no lane has no corner to meet (only street walls are indexed): as its front
+                if adj[(e, "b")] is None:
+                    adj[(e, "b")] = adj[(e, "f")]
+                if adj[(e, "f")] is None:
+                    adj[(e, "f")] = adj[(e, "b")]
+                adj[(e, "f")], adj[(e, "b")] = adj[(e, "f")] or 0.0, adj[(e, "b")] or 0.0
+            cc = [P(s0 + adj[(0, "f")], t0), P(s1 + adj[(1, "f")], t0), P(s1 + adj[(1, "b")], t1), P(s0 + adj[(0, "b")], t1)]
         for i in range(4):
+            if cottage and (street[i] or yard[i]):
+                door = None
+                if i == 0 and ops:
+                    door = {"kind": "house", "s": ops[0]["s"], "w": 0.9, "J": 0.12, "top": "flat", "double": False, "hs": 0.12,
+                            "yd": 2.07, "ys": 2.37, "yt": 2.37, "cell": ops[0]["cell"], "shade": ops[0]["shade"], "hood": False, "key": False}
+                self.rec_win = OPENINGS["cottages"].setdefault(str(h.get("_i")), [])
+                self.rec_wall = i
+                self.cottage_wall(cc[i], cc[(i + 1) % 4], H, style, outs[i], door)
+                self.rec_win = None
+                continue
             if street[i]:
                 hl = [q for q in iw["holes"] if q["wall"] == i] if iw else None
-                self.wall(c[i], c[(i + 1) % 4], 0, H, style, True, outs[i], door=(ops if i == 0 else None), holes=hl)
+                dops = ops if i == 0 else ([back_op] if pt and i == 2 else None)
+                if pt and i in (0, 2):
+                    self.rec, self.rec_wall = OPENINGS["plain_ground"].setdefault(str(h.get("_i")), []), i
+                self.wall(c[i], c[(i + 1) % 4], 0, H, style, True, outs[i], door=dops, holes=hl)
+                self.rec = None
             elif yard[i]:
                 # the back alleys (tools/city/alleys.py): a back wall on a yard has windows, no door
-                self.wall(c[i], c[(i + 1) % 4], 0, H, style, True, outs[i])
+                if pt and i == 2:
+                    self.rec, self.rec_wall = OPENINGS["plain_ground"].setdefault(str(h.get("_i")), []), i
+                self.wall(c[i], c[(i + 1) % 4], 0, H, style, True, outs[i], door=([back_op] if pt and i == 2 else None), kerb=False)
+                self.rec = None
+            elif pt and i == 2:
+                self.blind_way(c[2], c[3], H, style, outs[2], back_op)
             else:
                 self.side_wall(c, street, outs, i, 0, H, style, H)
+        if pt:
+            back_open = True
+            self.poort_tunnel(P, pt, t0, t1, front_op, style, back_open)
+            # the kerb's back, across each mouth where a kerb runs along the wall (it has no back face)
+            for t, sgn, on in ((t0, 1, True), (t1, -1, bool(street[2] or yard[2]))):
+                if not on:
+                    continue
+                a, b = P(p0, t), P(p1, t)
+                self.face([(a[0], 0, a[1]), (b[0], 0, b[1]), (b[0], KERB_H, b[1]), (a[0], KERB_H, a[1])], MAT_STONE,
+                          [(0, 0), (pw / BAY, 0), (pw / BAY, KERB_H / BAY), (0, KERB_H / BAY)], (0, 0), (nx * sgn, 0, nz * sgn), 0.35)
+
+            def Wp(s, y, d=0.0):
+                x, z = P(s0 + s, t0 - d)
+                return (x, y, z)
+            self.poort_lantern(Wp, front_op["s"], 3.32, ux, uz, outs[0])
+            OPENINGS["poorts"][str(h.get("_i"))] = {"s": [round(p0 - s0, 3), round(p1 - s0, 3)], "h": pt["h"], "kind": kind}
+            PASSAGES.append([P(p0 - 0.15, t0 + 0.02), P(p1 + 0.15, t0 + 0.02), P(p1 + 0.15, t1 - 0.02), P(p0 - 0.15, t1 - 0.02)])  # (and 15 cm into its walls: a kerb just behind one shows through)
         if store and street[0]:
             # above each loading gate a column of loading doors, one a storey, under a hoist beam at the eaves
             def Wf(s, y, d=0.0):
@@ -522,7 +789,8 @@ class Builder:
                 self.box(bx, H + 0.35, bz, 0.3, 0.3, 1.6, ux, uz, MAT_WOOD, (0, 0), 0.6)
                 k += 9.0
         roof_cell = ROOF_CELL[h["roofMat"]]
-        pitch = math.radians(h["pitch"])
+        # a row of cottages under one roof line: one pitch for all of them (their plan draws each its own)
+        pitch = math.radians(45.0 if cottage else h["pitch"])
         if h["roof"] == "front":
             # ridge runs into the block; gable on the street front (and a plain one at the back)
             rise = min(W / 2 * math.tan(pitch), 9.0)
@@ -546,24 +814,37 @@ class Builder:
             # ridge along the street; plain side gables are party walls
             rise = min(D / 2 * math.tan(pitch), 6.5)
             tm = (t0 + t1) / 2
-            over = 0.4
+            over = 0.25 if cottage else 0.4  # (a cottage's eaves over a lane 1.8 m wide: less)
             for side in (-1, 1):
                 te = t0 - over if side < 0 else t1 + over
                 a, b = P(s0, te), P(s1, te)
                 r0, r1 = P(s0, tm), P(s1, tm)
+                if cottage:
+                    ln = "f" if side < 0 else "b"
+                    a, b = P(s0 + adj[(0, ln)], te), P(s1 + adj[(1, ln)], te)
+                    r0 = P(s0 + (adj[(0, "f")] + adj[(0, "b")]) / 2, tm)
+                    r1 = P(s1 + (adj[(1, "f")] + adj[(1, "b")]) / 2, tm)
                 run = abs(te - tm)
                 drop = over * math.tan(pitch)
                 self.face([(a[0], H - drop, a[1]), (b[0], H - drop, b[1]), (r1[0], H + rise, r1[1]), (r0[0], H + rise, r0[1])], MAT_ROOF,
                           [(0, 0), (W / BAY, 0), (W / BAY, run / math.cos(pitch) / BAY), (0, run / math.cos(pitch) / BAY)],
                           roof_cell, (nx * side, 1.2, nz * side), shade=1.0)
-            for se, out, flag in ((s0, (-ux, 0, -uz), street[3]), (s1, (ux, 0, uz), street[1])):
+            for e, se, out, flag in ((0, s0, (-ux, 0, -uz), street[3]), (1, s1, (ux, 0, uz), street[1])):
                 a, b, r = P(se, t0), P(se, t1), P(se, tm)
+                if cottage:
+                    a, b = P(se + adj[(e, "f")], t0), P(se + adj[(e, "b")], t1)
+                    r = P(se + (adj[(e, "f")] + adj[(e, "b")]) / 2, tm)
                 self.face([(a[0], H, a[1]), (b[0], H, b[1]), (r[0], H + rise, r[1])], MAT_FACADE,
                           [(0, 0), (D / BAY, 0), (D / 2 / BAY, rise / self.sh)], (PART_COL["blind"], STYLE_ROW[style]), out)
             # cornice along the street front, and dormers now and then
+            if cottage:
+                for i in (0, 2):
+                    if street[i] or yard[i]:
+                        self.cottage_cornice(cc[i], cc[(i + 1) % 4], H, outs[i])
             if street[0]:
-                cx, cz = P((s0 + s1) / 2, t0 - 0.15)
-                self.box(cx, H - 0.2, cz, W, 0.35, 0.35, ux, uz, MAT_STONE, (0, 0), 0.85)
+                if not cottage:
+                    cx, cz = P((s0 + s1) / 2, t0 - 0.15)
+                    self.box(cx, H - 0.2, cz, W, 0.35, 0.35, ux, uz, MAT_STONE, (0, 0), 0.85)
                 if W > 5 and rng.random() < 0.55:
                     ds = rng.uniform(s0 + 1.4, s1 - 1.4)
                     dx_, dz_ = P(ds, t0 + 1.2)
@@ -677,6 +958,118 @@ class Builder:
             else:  # the parapet's sides stop short of a seam too (side_wall)
                 self.side_wall(ring, street, outs, i, H, H + 0.6, style, H + 0.6)
 
+    # ---------------------------------------------------------------- cottages (the back alleys)
+    # The beluiken of the poor behind the street fronts: rows of one- and two-storey houses on lanes 1.8 to
+    # 2.4 m wide. Plain whitewashed or brick walls, small sash windows (the painted glass of the facade atlas's
+    # upper-storey cell, with its shutters on plaster), a low door under a small transom, a stone sill under
+    # each window, a cornice under the eaves that runs on from house to house, no kerb.
+
+    WIN_H = 1.3  # a cottage window with its painted lintel and sill
+    WIN_PX = {True: (12, 52), False: (18, 46)}  # the window's columns in the upper cell: with shutters, without
+
+    def cottage_wall(self, a, b, H, style, f, door):
+        """A cottage wall a -> b (world x, z), 0..H, looking along f; door: a flat-topped door spec, or None."""
+        L = math.hypot(b[0] - a[0], b[1] - a[1])
+        if L < 0.05:
+            return
+        GROUND_WALLS.append((a, b))
+        ux, uz = (b[0] - a[0]) / L, (b[1] - a[1]) / L
+        fx, fz = f[0], f[2]
+
+        def W(s, y, d=0.0):
+            return (a[0] + ux * s + fx * d, y, a[1] + uz * s + fz * d)
+        row = STYLE_ROW[style]
+        shut = row in (1, 2)
+
+        def pxs(sh):
+            return self.WIN_PX[sh] if sh or not shut else (19, 45)  # (a row with shutters, a window without: no shutter edge)
+
+        def wwid(sh):
+            px0, px1 = pxs(sh)
+            return self.WIN_H * (px1 - px0) / 47.0
+        gh = min(H, self.gh)
+        st = max(1, round((H - self.gh) / self.sh) + 1)
+        # the window columns: in the spans the door leaves free, evenly, at least 0.45 m of wall between
+        spans = [(0.22, L - 0.22)]
+        if door:
+            dl, dr = door["s"] - door["w"] / 2 - door["J"] - 0.15, door["s"] + door["w"] / 2 + door["J"] + 0.15
+            spans = [(0.22, dl), (dr, L - 0.22)]
+        cols = []  # (s, with shutters)
+        for sa, sb in spans:
+            for sh in ((True, False) if shut else (False,)):
+                ww = wwid(sh)
+                n = int((sb - sa + 0.45) / (ww + 0.45)) if sb - sa >= ww else 0
+                if n:
+                    n = min(n, max(1, round((sb - sa) / 2.0)))
+                    cols += [(sa + (sb - sa) * (k + 0.5) / n, sh) for k in range(n)]
+                    break
+        rows = [(1.0, 1.0 + self.WIN_H)]
+        if st >= 2:
+            top = H - 0.75 - self.WIN_H
+            for k in range(1, st):
+                y0 = 1.0 + self.WIN_H + 0.3 + (top - 1.3 - self.WIN_H) * k / (st - 1)
+                rows.append((y0, y0 + self.WIN_H))
+        wins = []
+        for r, (y0, y1) in enumerate(rows):
+            for cs, sh in cols + ([(door["s"], shut)] if door and r > 0 else []):
+                ww = wwid(sh)
+                wins.append({"s0": cs - ww / 2, "s1": cs + ww / 2, "y0": y0, "y1": y1, "sh": sh})
+        holes = list(wins)
+        if door:
+            holes.append({"s0": door["s"] - door["w"] / 2, "s1": door["s"] + door["w"] / 2, "y0": 0.0, "y1": door["ys"]})
+        # the wall: columns split at the holes' sides, each column split only at its own holes' tops and
+        # bottoms; the plain ground wall with its plinth below the first floor, plain wall above
+        xs = sorted({0.0, L, *[v for hl in holes for v in (hl["s0"], hl["s1"])]})
+        for sa, sb in zip(xs, xs[1:]):
+            here = [hl for hl in holes if hl["s0"] < (sa + sb) / 2 < hl["s1"]]
+            ys = sorted({0.0, H, *([gh] if gh < H else []), *[v for hl in here for v in (hl["y0"], hl["y1"])]})
+            for ya, yb in zip(ys, ys[1:]):
+                sm, ym = (sa + sb) / 2, (ya + yb) / 2
+                if any(hl["s0"] < sm < hl["s1"] and hl["y0"] < ym < hl["y1"] for hl in holes):
+                    continue
+                if ym < gh:
+                    cell, uvs = (PART_COL["door"], row), [(s / BAY, y / self.gh) for s, y in ((sa, ya), (sb, ya), (sb, yb), (sa, yb))]
+                else:
+                    cell, uvs = (PART_COL["blind"], row), [(s / BAY, (y - self.gh) / self.sh) for s, y in ((sa, ya), (sb, ya), (sb, yb), (sa, yb))]
+                self.face([W(sa, ya), W(sb, ya), W(sb, yb), W(sa, yb)], MAT_FACADE, uvs, cell, f)
+        # the windows: the painted sash (and shutters) of the upper-storey cell, in the wall's plane
+        v0, v1 = 1 - 55 / 64.0, 1 - 8 / 64.0
+        stone = 0.95 if shut else 0.8
+        if self.rec_win is not None:
+            for wn in wins:
+                self.rec_win.append([self.rec_wall, round((wn["s0"] + wn["s1"]) / 2, 3), round(wn["s1"] - wn["s0"], 3), round(wn["y0"], 3), round(wn["y1"], 3)])
+        for wn in wins:
+            px0, px1 = pxs(wn["sh"])
+            u0, u1 = px0 / 64.0, px1 / 64.0
+            glass = ((wn["s1"] - wn["s0"]) * 28 / (px1 - px0)) / 2  # half the window without its shutters
+            self.face([W(wn["s0"], wn["y0"]), W(wn["s1"], wn["y0"]), W(wn["s1"], wn["y1"]), W(wn["s0"], wn["y1"])], MAT_FACADE,
+                      [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], (PART_COL["upper"], row), f)
+            sm = (wn["s0"] + wn["s1"]) / 2
+            self.slab(W, ux, uz, f, sm - glass - 0.04, sm + glass + 0.04, wn["y0"] - 0.05, wn["y0"] + 0.03, 0, 0.07, stone * 0.9, under=wn["y0"] > 1.7)
+        if door:
+            self.doorway(W, door, self.arc_pts(door), ux, uz, f, stone)
+
+    def cottage_cornice(self, a, b, H, f):
+        """A cornice under the eaves: front, top, bottom; no end face where the next cottage's runs on."""
+        L = math.hypot(b[0] - a[0], b[1] - a[1])
+        if L < 0.05:
+            return
+        ux, uz = (b[0] - a[0]) / L, (b[1] - a[1]) / L
+        fx, fz = f[0], f[2]
+        y0, y1, d = H - 0.44, H - 0.22, 0.13
+
+        def Wc(s, y, e):
+            return (a[0] + ux * s + fx * e, y, a[1] + uz * s + fz * e)
+        g = 0.8
+        uv = [(0, 0), (L / BAY, 0), (L / BAY, 0.07), (0, 0.07)]
+        self.face([Wc(0, y0, d), Wc(L, y0, d), Wc(L, y1, d), Wc(0, y1, d)], MAT_STONE, uv, (0, 0), f, g)
+        self.face([Wc(0, y1, 0), Wc(L, y1, 0), Wc(L, y1, d), Wc(0, y1, d)], MAT_STONE, uv, (0, 0), (0, 1, 0), g * 1.05)
+        self.face([Wc(0, y0, 0), Wc(L, y0, 0), Wc(L, y0, d), Wc(0, y0, d)], MAT_STONE, uv, (0, 0), (0, -1, 0), g * 0.6)
+        for s, p, sgn in ((0.0, a, -1), (L, b, 1)):
+            if cornice_runs_on(self.hid, p, f, H):
+                continue
+            self.face([Wc(s, y0, 0), Wc(s, y0, d), Wc(s, y1, d), Wc(s, y1, 0)], MAT_STONE, uv, (0, 0), (ux * sgn, 0, uz * sgn), g * 0.8)
+
     def poly_house(self, h, rng):
         fp = h["fp"]
         H = h["h"]
@@ -699,7 +1092,7 @@ class Builder:
             L = math.hypot(b[0] - a[0], b[1] - a[1]) or 1
             if not h["street"][i]:
                 if yard[i]:
-                    self.wall(a, b, 0, H, h["style"], True, outs[i])  # on a back yard (alleys.py): windows, no door
+                    self.wall(a, b, 0, H, h["style"], True, outs[i], kerb=False)  # on a back yard (alleys.py): windows, no door
                 else:
                     self.side_wall(fp, h["street"], outs, i, 0, H, h["style"], H)
                 continue
@@ -960,6 +1353,44 @@ def seam_cover(hid, p, f, H):
     return best
 
 
+def cornice_runs_on(hid, p, f, H):
+    """Does another cottage's front of the same height run on from the corner p, on the same line?"""
+    kx, kz = round(p[0] * 2), round(p[1] * 2)
+    for i in (-1, 0, 1):
+        for j in (-1, 0, 1):
+            for x, z, g, hh, oid in FRONT_ENDS.get((kx + i, kz + j), ()):
+                if oid == hid or g[0] * f[0] + g[2] * f[2] < 0.999 or abs(hh - H) > 0.01:
+                    continue
+                if math.hypot(x - p[0], z - p[1]) < 0.02 and ID_ALLEY.get(oid):
+                    return True
+    return False
+
+
+def row_meet(hid, p, f, u):
+    """How far (along u) the corner p of a cottage's front or back (outward f) moves to meet the next house's
+    corner on the same line: halfway to a cottage's (it moves the other half), all the way to another house's."""
+    kx, kz = round(p[0] * 2), round(p[1] * 2)
+    best = None
+    for i in (-1, 0, 1):
+        for j in (-1, 0, 1):
+            for x, z, g, hh, oid in FRONT_ENDS.get((kx + i, kz + j), ()):
+                if oid == hid or g[0] * f[0] + g[2] * f[2] < 0.999:
+                    continue
+                dx, dz = x - p[0], z - p[1]
+                along = dx * u[0] + dz * u[1]
+                if abs(dx * f[0] + dz * f[2]) < 0.012 and abs(along) < 0.03 and (best is None or abs(along) < abs(best[0])):
+                    best = (along, ID_ALLEY.get(oid))
+    if best is None:
+        return None
+    return best[0] / 2 if best[1] else best[0]
+
+
+ID_ALLEY = {}  # id(house) -> a cottage of the back alleys
+# M7 back alleys: where this builder put openings the plan does not say, for the game's lit windows and street
+# life (carried in city.glb, node "city_openings"): by house index; walls numbered as the rect ring (0 front,
+# 1 right side, 2 back, 3 left side), s in metres from the wall's first corner
+OPENINGS = {"poorts": {}, "plain_ground": {}, "cottages": {}}
+PASSAGES = []  # the covered passages' insides, as world rectangles (4 corners): no kerb runs in there
 KERBS = []  # the kerb along every street wall: {a, b, f (outward), tint, bld}
 RAIL_POSTS = set()  # railing posts already standing
 GROUND_WALLS = []  # every wall standing on the ground: (a, b), for the kerbs' ends
@@ -982,6 +1413,32 @@ def build_kerbs(kerbs):
         s_a = ax * ux + az * uz
         s_b = bx * ux + bz * uz
         ks.append(dict(k, ux=ux, uz=uz, d=ax * fx + az * fz, s0=min(s_a, s_b), s1=max(s_a, s_b), open0=True, open1=True))
+    # 0. no kerb inside a covered passage (a house's kerb on a yard can run along the next house's side, inside
+    # it, where that house now has its passage): cut out of it the stretch that runs through the passage
+    def corners(k):
+        (fx, fz), ux, uz = k["f"], k["ux"], k["uz"]
+        return [(ux * s + fx * (k["d"] + e), uz * s + fz * (k["d"] + e)) for s, e in ((k["s0"], 0), (k["s1"], 0), (k["s1"], KERB_D), (k["s0"], KERB_D))]
+
+    def apart(pa, pb):
+        for poly in (pa, pb):
+            for i in range(4):
+                (x0, z0), (x1, z1) = poly[i], poly[(i + 1) % 4]
+                nx, nz = z1 - z0, x0 - x1
+                da = [x * nx + z * nz for x, z in pa]
+                db = [x * nx + z * nz for x, z in pb]
+                if max(da) <= min(db) + 1e-6 or max(db) <= min(da) + 1e-6:
+                    return True
+        return False
+    for pa in PASSAGES:
+        for k in list(ks):
+            if k["s1"] - k["s0"] < 0.05 or apart(corners(k), pa):
+                continue
+            along = [x * k["ux"] + z * k["uz"] for x, z in pa]
+            a, b = max(k["s0"], min(along)), min(k["s1"], max(along))
+            if b > a:
+                if b < k["s1"] - 0.05:
+                    ks.append(dict(k, s0=b, open0=False))
+                k["s1"], k["open1"] = a, False
     # 1. neighbours on one line: meet exactly, no end faces between them
     lines = {}
     for k in ks:
@@ -1084,7 +1541,201 @@ def material(name, rgb):
     return m
 
 
+SHOTS = os.path.join(ROOT, "data", "shots")
+
+
+def preview_materials():
+    """Preview only: the game's own textures on the materials, as client/src/world/city.ts and
+    retro/psx.ts draw them: an atlas cell per face (uv repeats inside it), times the vertex colour.
+    The atlases are the game's canvases saved once to data/shots/city_atlas_*.jpg (cityTextures.ts)."""
+    spec = {"facade": ("city_atlas_facade.jpg", 8), "roof": ("city_atlas_roof.jpg", 2), "stone": ("city_atlas_stone.jpg", 0),
+            "wood": ("city_atlas_planks.jpg", 0), "leaves": ("city_atlas_stone.jpg", 0)}
+    for name, (fn, n) in spec.items():
+        m = bpy.data.materials.get(name)
+        path = os.path.join(SHOTS, fn)
+        if m is None or not os.path.exists(path):
+            continue
+        nt = m.node_tree
+        nt.nodes.clear()
+        out = nt.nodes.new("ShaderNodeOutputMaterial")
+        bsdf = nt.nodes.new("ShaderNodeBsdfDiffuse")
+        uv = nt.nodes.new("ShaderNodeUVMap")
+        uv.uv_map = "UVMap"
+        fr = nt.nodes.new("ShaderNodeVectorMath")
+        fr.operation = "FRACTION"
+        nt.links.new(uv.outputs[0], fr.inputs[0])
+        vec = fr.outputs[0]
+        if n:
+            cell = nt.nodes.new("ShaderNodeUVMap")
+            cell.uv_map = "Cell"
+            rd = nt.nodes.new("ShaderNodeVectorMath")
+            rd.operation = "ROUND"
+            nt.links.new(cell.outputs[0], rd.inputs[0])
+            add = nt.nodes.new("ShaderNodeVectorMath")
+            add.operation = "ADD"
+            nt.links.new(fr.outputs[0], add.inputs[0])
+            nt.links.new(rd.outputs[0], add.inputs[1])
+            sc_ = nt.nodes.new("ShaderNodeVectorMath")
+            sc_.operation = "SCALE"
+            sc_.inputs["Scale"].default_value = 1.0 / n
+            nt.links.new(add.outputs[0], sc_.inputs[0])
+            vec = sc_.outputs[0]
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = bpy.data.images.load(path, check_existing=True)
+        tex.interpolation = "Closest"
+        nt.links.new(vec, tex.inputs[0])
+        vc = nt.nodes.new("ShaderNodeVertexColor")
+        vc.layer_name = "Col"
+        mix = nt.nodes.new("ShaderNodeMix")
+        mix.data_type = "RGBA"
+        mix.blend_type = "MULTIPLY"
+        mix.inputs[0].default_value = 1.0
+        nt.links.new(tex.outputs["Color"], mix.inputs[6])
+        nt.links.new(vc.outputs["Color"], mix.inputs[7])
+        nt.links.new(mix.outputs[2], bsdf.inputs["Color"])
+        nt.links.new(bsdf.outputs[0], out.inputs[0])
+
+
+def preview_stage():
+    sc = bpy.context.scene
+    sc.render.engine = "BLENDER_EEVEE"
+    try:
+        sc.eevee.taa_render_samples = 16
+    except AttributeError:
+        pass
+    sc.view_settings.view_transform = "Standard"
+    world = bpy.data.worlds.new("sky")
+    sc.world = world
+    world.use_nodes = True
+    bg = world.node_tree.nodes.get("Background")
+    bg.inputs[0].default_value = (0.62, 0.66, 0.7, 1)
+    bg.inputs[1].default_value = 1.0
+    sun = bpy.data.objects.new("sun", bpy.data.lights.new("sun", "SUN"))
+    sun.data.energy = 2.6
+    sun.data.angle = math.radians(3)
+    sun.rotation_euler = (math.radians(38), math.radians(8), math.radians(-35))
+    sc.collection.objects.link(sun)
+    # the ground: one cobble-grey plane (the game draws its own paving)
+    me = bpy.data.meshes.new("prev_ground")
+    bm = bmesh.new()
+    vs = [bm.verts.new(B(x, -0.002, z)) for x, z in ((-700, -300), (600, -300), (600, 800), (-700, 800))]
+    f = bm.faces.new(vs)
+    f.normal_update()
+    if f.normal.z < 0:
+        f.normal_flip()
+    bm.to_mesh(me)
+    bm.free()
+    gm = bpy.data.materials.new("prev_ground_m")
+    gm.use_nodes = True
+    gm.node_tree.nodes.get("Principled BSDF").inputs["Base Color"].default_value = (0.21, 0.2, 0.19, 1)
+    me.materials.append(gm)
+    sc.collection.objects.link(bpy.data.objects.new("prev_ground", me))
+    cam = bpy.data.objects.new("cam", bpy.data.cameras.new("cam"))
+    cam.data.clip_start = 0.05
+    cam.data.clip_end = 600
+    sc.collection.objects.link(cam)
+    sc.camera = cam
+    return cam
+
+
+def preview_views(data):
+    """Close views of the passages, the gangs, the courts and the alley houses: (name, eye, look, lens)."""
+    views = []
+    city = json.load(open(os.path.join(ROOT, "shared", "city.json")))
+    hs = data["houses"]
+    wk = city["walk"]
+    img = bpy.data.images.load(os.path.join(ROOT, "client", "public", wk["file"].lstrip("/")))
+    px = [0.0] * (img.size[0] * img.size[1] * 4)
+    img.pixels.foreach_get(px)
+    iw, ih = img.size
+
+    def open_at(x, z):
+        """The walk map: open ground here (not a wall)? (Blender's pixel rows run from the bottom.)"""
+        c, r = int((z - wk["z0"]) / wk["res"]), int((x - wk["x0"]) / wk["res"])
+        if not (0 <= c < iw and 0 <= r < ih):
+            return False
+        return px[((ih - 1 - r) * iw + c) * 4] < 0.5
+    poorts = [h for h in hs if h.get("poort") and h["rect"]]
+    for k, h in enumerate(poorts):
+        (ox, oz), (ux, uz), (nx, nz) = h["o"], h["u"], h["n"]
+        pm = sum(h["poort"]["s"]) / 2
+        t0, t1 = h["t"]
+
+        def P(s, t, y):
+            return (ox + ux * s + nx * t, y, oz + uz * s + nz * t)
+        i = h["_i"]
+        out = 1.0
+        while out < 6.5 and open_at(*(lambda q: (q[0], q[2]))(P(pm - 0.3 * out, t0 - out - 0.6, 0))):
+            out += 0.25
+        views.append((f"poort{i}_street", P(pm - 0.3 * out, t0 - out, 1.65), P(pm, t0 + 1.0, 2.0), 26 if out > 5 else 18))
+        views.append((f"poort{i}_mouth", P(pm - 0.3, t0 - 1.6, 1.6), P(pm + 0.1, t1, 1.7), 22))
+        views.append((f"poort{i}_inside", P(pm + 0.3, (t0 + t1) / 2, 1.6), P(pm, t0 - 3, 1.5), 22))
+        back = 1.0
+        while back < 6.0 and all(open_at(*(lambda q: (q[0], q[2]))(P(pm + ds, t1 + back + 0.5, 0))) for ds in (-0.3, 0.3)):
+            back += 0.5
+        views.append((f"poort{i}_back", P(pm + 0.25, t1 + back, 1.65), P(pm, t1 - 1.0, 1.9), 18))
+        views.append((f"poort{i}_high", P(pm - 4, t0 - 9, 5.0), P(pm, t0, 3.2), 30))
+    def along(g, d):
+        """The point d metres along the polyline g, and the direction there."""
+        for a, b in zip(g, g[1:]):
+            L = math.hypot(b[0] - a[0], b[1] - a[1]) or 1e-9
+            if d <= L:
+                return (a[0] + (b[0] - a[0]) * d / L, a[1] + (b[1] - a[1]) * d / L), ((b[0] - a[0]) / L, (b[1] - a[1]) / L)
+            d -= L
+        a, b = g[-2], g[-1]
+        L = math.hypot(b[0] - a[0], b[1] - a[1]) or 1e-9
+        return (b[0], b[1]), ((b[0] - a[0]) / L, (b[1] - a[1]) / L)
+
+    for k, g in enumerate(city.get("alleys", {}).get("gangs", [])):
+        total = sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(g, g[1:]))
+        for tag, d0 in (("", 3.0), ("_mid", total * 0.45)):
+            d = d0
+            while d < total - 4 and not all(open_at(*along(g, d + e)[0]) for e in (0.0, 1.0, 2.0)):
+                d += 0.5
+            (ex, ez), _ = along(g, d)
+            (lx, lz), _ = along(g, d + 14)
+            views.append((f"gang{k}{tag}", (ex, 1.6, ez), (lx, 1.9, lz), 20))
+    for k, c in enumerate(city.get("alleys", {}).get("courts", [])):
+        cx = sum(p[0] for p in c) / len(c)
+        cz = sum(p[1] for p in c) / len(c)
+        far = max(c, key=lambda p: math.hypot(p[0] - cx, p[1] - cz))
+        views.append((f"court{k}", (cx - (far[0] - cx) * 0.4, 1.65, cz - (far[1] - cz) * 0.4), (far[0], 2.2, far[1]), 22))
+    rows = [h for h in hs if h.get("alley")]
+    for k, h in enumerate(rows[:: max(1, len(rows) // 6)]):
+        (ox, oz), (ux, uz), (nx, nz) = h["o"], h["u"], h["n"]
+        s1 = h["s"][1]
+        views.append((f"alley{h['_i']}", (ox - nx * 1.0 - ux * 3.0, 1.65, oz - nz * 1.0 - uz * 3.0),
+                      (ox + ux * (s1 + 6) + nx * 0.5, 2.6, oz + uz * (s1 + 6) + nz * 0.5), 22))
+        d = 0.5
+        while d < 7.0 and open_at(ox - nx * (d + 0.4) + ux * s1 / 2, oz - nz * (d + 0.4) + uz * s1 / 2):
+            d += 0.25
+        views.append((f"alley{h['_i']}_front", (ox - nx * d + ux * s1 / 2, 1.5, oz - nz * d + uz * s1 / 2),
+                      (ox + ux * s1 / 2, 2.4, oz + uz * s1 / 2), 14 if d < 2 else 20))
+        views.append((f"alley{h['_i']}_above", (ox - nx * 1.0 - ux * 12, 26.0, oz - nz * 1.0 - uz * 12),
+                      (ox + ux * (s1 + 2), 2.0, oz + uz * (s1 + 2)), 26))
+    return views
+
+
+def preview(data, only):
+    preview_materials()
+    cam = preview_stage()
+    sc = bpy.context.scene
+    os.makedirs(SHOTS, exist_ok=True)
+    for name, eye, look, lens in preview_views(data):
+        if only and not any(fnmatch.fnmatch(name, o) for o in only):
+            continue
+        cam.location = B(*eye)
+        cam.rotation_euler = (B(*look) - B(*eye)).to_track_quat("-Z", "Y").to_euler()
+        cam.data.lens = lens
+        sc.render.resolution_x, sc.render.resolution_y = 1280, 800
+        sc.render.image_settings.file_format = "PNG"
+        sc.render.filepath = os.path.join(SHOTS, f"city_{name}.png")
+        bpy.ops.render.render(write_still=True)
+        print(f"[build_city] preview -> data/shots/city_{name}.png")
+
+
 def main():
+    argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     data = json.load(open(SRC))
     bpy.ops.wm.read_factory_settings(use_empty=True)
     mats = [material("facade", (0.55, 0.35, 0.28)), material("roof", (0.35, 0.22, 0.18)), material("stone", (0.6, 0.58, 0.52)),
@@ -1100,6 +1751,8 @@ def main():
         return chunks[key]
 
     index_fronts(data["houses"])
+    for h in data["houses"]:
+        ID_ALLEY[id(h)] = bool(h.get("alley"))
     for i, h in enumerate(data["houses"]):
         h["_i"] = i
     for h in data["houses"]:
@@ -1121,18 +1774,33 @@ def main():
     for (i, j), bld in sorted(chunks.items()):
         bld.to_object(f"city_{i}_{j}", mats)
         count += 1
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    kwargs = dict(filepath=OUT, export_format="GLB", export_yup=True, export_texcoords=True, export_normals=True,
-                  export_materials="EXPORT", export_apply=False, use_selection=False,
-                  export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=7,
-                  export_draco_position_quantization=16, export_draco_texcoord_quantization=12,
-                  export_draco_color_quantization=8, export_draco_normal_quantization=8)
-    try:
-        bpy.ops.export_scene.gltf(**kwargs, export_vertex_color="ACTIVE", export_all_vertex_colors=True)
-    except TypeError:
-        bpy.ops.export_scene.gltf(**kwargs, export_colors=True)
-    faces = sum(len(o.data.polygons) for o in bpy.context.scene.objects)
-    print(f"[build_city] {len(data['houses'])} houses, {len(data['backs'])} backs, {count} chunks, {faces} faces -> {OUT} ({os.path.getsize(OUT)//1024} KB)")
+    node = bpy.data.objects.new("city_openings", None)
+    node["openings"] = json.dumps(dict(OPENINGS, about="by house index: poorts {s: [s0, s1] along the front from its first corner, h, kind}; "
+                                       "plain_ground [[wall, s0, s1]]: ground bays built as plain wall (no shop window); "
+                                       "cottages [[wall, s_mid, width, y0, y1]]: the only windows of an alley cottage's walls "
+                                       "(walls: 0 front, 1 right, 2 back, 3 left, s from the wall's first corner)"), separators=(",", ":"))
+    bpy.context.scene.collection.objects.link(node)
+    meshes = [o for o in bpy.context.scene.objects if o.type == "MESH"]
+    faces = sum(len(o.data.polygons) for o in meshes)
+    tris = sum(len(p.vertices) - 2 for o in meshes for p in o.data.polygons)
+    if "--no-export" not in argv:
+        os.makedirs(os.path.dirname(OUT), exist_ok=True)
+        kwargs = dict(filepath=OUT, export_format="GLB", export_yup=True, export_texcoords=True, export_normals=True,
+                      export_materials="EXPORT", export_apply=False, use_selection=False, export_extras=True,
+                      export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=7,
+                      export_draco_position_quantization=16, export_draco_texcoord_quantization=12,
+                      export_draco_color_quantization=8, export_draco_normal_quantization=8)
+        try:
+            bpy.ops.export_scene.gltf(**kwargs, export_vertex_color="ACTIVE", export_all_vertex_colors=True)
+        except TypeError:
+            bpy.ops.export_scene.gltf(**kwargs, export_colors=True)
+        print(f"[build_city] {len(data['houses'])} houses, {len(data['backs'])} backs, {count} chunks, {faces} faces, {tris} triangles -> {OUT} ({os.path.getsize(OUT)//1024} KB)")
+    else:
+        print(f"[build_city] {len(data['houses'])} houses, {count} chunks, {faces} faces, {tris} triangles (not exported)")
+    if "--preview" in argv:
+        i = argv.index("--preview")
+        only = argv[i + 1].split(",") if i + 1 < len(argv) and not argv[i + 1].startswith("--") else None
+        preview(data, only)
 
 
 if __name__ == "__main__":

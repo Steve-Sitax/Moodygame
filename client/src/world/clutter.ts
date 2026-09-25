@@ -11,6 +11,7 @@ import type { Rect } from "./geom";
 import { omnibusKeepOut } from "./omnibus";
 import { TOWN_CLEAR } from "./quayfurniture";
 import { steenKeepOut } from "./steenramp";
+import { poortKeepOut, pumpColliders } from "./churches";
 import { trackKeepOut, type TrackData } from "./tracks";
 import { tradeKeepOut } from "./trades";
 import { trafficLanes } from "./traffic";
@@ -595,7 +596,7 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
   const lanes = omnibusKeepOut();
   for (const l of trafficLanes()) for (let i = 0; i < l.x.length; i += 8) lanes.push({ minX: l.x[i] - l.half, maxX: l.x[i] + l.half, minZ: l.z[i] - l.half, maxZ: l.z[i] + l.half });
   const markets = marketKeepOut();
-  const works = [...tradeKeepOut(), ...steenKeepOut()];
+  const works = [...tradeKeepOut(), ...steenKeepOut(), ...poortKeepOut(), ...pumpColliders()];
   const runways: Rect[] = (decor.crane_rails ?? []).map(([x0, z0, x1, z1]) => ({ minX: Math.min(x0, x1) - 0.9, maxX: Math.max(x0, x1) + 0.9, minZ: Math.min(z0, z1) - 0.9, maxZ: Math.max(z0, z1) + 0.9 }));
   const bridges = bridgeRects(1.5);
   const avoid = [...(opts.avoid ?? []), ...(opts.keepOut ?? [])];

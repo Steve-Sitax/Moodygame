@@ -1,4 +1,4 @@
-# M7 the town wall and the back alleys, 2026-09-25
+# M7 the town wall, the back alleys and the angled streets, 2026-09-25
 
 Steve sent a painted map of the town and four pictures (a gate with its bridge, the stair up the inside
 of the wall, the walk with a guard house, a bastion): "Map changes. This is the reference image for a map
@@ -82,3 +82,50 @@ draws the lanes, yards and gardens, the wall, the gates and the grass.
 ## Open
 - Alleys: rows of one style; a pump, washing lines and sheds would give them life (asked Steve).
 - Garrison: the gate sentries are drawn, not residents; wall rounds do not change guard.
+
+
+## Part 2: angled streets, the bent wall, the countryside (same day)
+Steve: "Too bad the streets all are in sort of a grid with 90 degree angles. Antwerp has more streets on angles."
+Then, on plans drawn for him (proposals 1-5, map pictures): the save may go ("save can be removed, so no
+issue"); the wall "less blocked", bent out on the inland side with a bastion in the middle, "the less straight
+the better"; houses up to the wall, a park as the town had; no impossibly small houses; a straight road to every
+gate; the vliet's quays wide enough for wagons; inner courts and alleys "like the Vlaeykensgang"; more
+important buildings of the era; the gates shut ("we cannot leave the city") and the countryside finished,
+since the walls can be climbed; moss on the wall where the park's pond meets it.
+
+| Part | What | Where |
+|---|---|---|
+| Streets | Zones of the old rectangles and the new ground inside the wall, cut again by 23 angled and winding streets (letters A-Y as on the plans); no block narrower than 8 m; a lane from any landmark that would sit inside a block | `tools/city/streets.py`, `design.py` |
+| Wall | One bent line (TRACE, ten pieces) round the three land sides; arrow-head bastions at five corners, the middle one with a tower mill (sails turn, `rampart.ts`); 9 towers, 4 gates (shut: the leaves across the arch are wall), 12 stairs, all in each piece's own frame | `tools/city/rampart.py`, `build_wall.py`, `world/rampart.ts` |
+| Outside | Nobody walks beyond the wall (walk map: outside); the berm, moat and far bank are scenery; no ladders in the moat. Beyond the map: fields in strips, hedges, poplar-lined roads from the gates, farms, two windmills, the villages of Borgerhout, Berchem and Kiel with their spires | `world/countryside.ts` |
+| Alleys | Rows of cottages in the big back masses; courts (small houses round a court, a pump) and gangs (a 1.8 m winding lane in under a front house by a covered passage, small courts with a pump at the bends) in the rest; a gang is one cobbled way wall to wall; no edge stones inside the alleys; back walls on yards have windows and no kerb | `tools/city/alleys.py`, `build_city.py` (passages: `poort`) |
+| Churches | Sint-Carolus Borromeus (on the Conscienceplein), Sint-Pauluskerk, Sint-Jacobskerk, on OSM outlines scaled to fit | `design.py` LANDMARKS, `build_churches.py` -> `churches.glb`, `world/churches.ts` |
+| Stadspark | Laid out 1867-69 on the old ramparts: grass, gravel paths, the pond (it reaches the wall, the wall mossy there: a decal), a footbridge (walkable, its deck's height), benches, lanterns, railing | `streets.py` PARK, `build_churches.py` -> `park.json`, `build_wall.py` moss |
+| Pumps | A town pump in every court | `churches.glb` "pump", `world/churches.ts` |
+| Vliet | 8-10 m quays both sides | `streets.py` zones |
+
+Also: the in-world taverns and homes moved to houses of the new plan (`node tools/city/inworld.mts --repick`);
+shut-in yards are wall in the walk map (nothing placed where nobody can go); the dray loop behind the Rijnkaai
+follows the bent streets (client and server copy); cart rounds keep out of the alleys and stop only where a cart
+fits; street sellers never take a house whose inside stands in the world; parked carts and dressed props keep
+off the heads of the boat steps; the street grids (`world/townBox.ts`) in whole metres (a fractional size made
+the ruts' search run for ever and froze the page).
+
+Rebuild after a map change:
+
+    python tools/city/design.py && python tools/city/plan.py
+    node tools/city/inworld.mts --repick && node tools/city/inworld.mts
+    blender ... build_city.py, build_props.py, build_streetlife.py, build_quayfurniture.py, build_wall.py, build_churches.py
+    (build_churches.py writes park.json, which plan.py reads: run plan.py again after it if the park moved)
+
+Checks (2026-09-25, test copy, a new game): `npm run build`, `npm test` 836 of 836, `__scheldemist.paths()` empty;
+the 12 stairs climbed by script; the four gates stop a walker before their leaves; pictures of the gates, the
+walk, the mill, stairs, gangs, courts, the passages, the churches, the park, the countryside.
+
+Open:
+- House facades show ring patterns (moire) at steep angles: their atlas has no smaller copies; for the planned
+  graphics pass.
+- The z-fight tool counts some party walls on the angled blocks as visible (neighbours 1-5 mm apart where a
+  corner plot meets a straight one); the close pictures show nothing.
+- The alley cottages have no lit windows at night yet (their windows differ from the painted panes'
+  layout; `city_openings` in city.glb has the real ones).

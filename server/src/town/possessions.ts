@@ -113,7 +113,7 @@ const LANES: Array<{ s: Seg2; half: number }> = (() => {
   poly([[-305, 29.5], [-305, 8.3], [-158, 8.3], [-152, 7.6], [-140, 7.6], [-134, 8.3], [-90, 8.3], [-84, 7.8], [-68, 7.8], [-62, 8.3], [66, 8.3], [76, 15], [76, 37], [-54, 37], [-58, 33], [-58, 12], [-62, 8.3], [-204, 8.3], [-204, 29.5]], 2.4, true);
   poly([[-84.5, 20], [-96, 20], [-96, 38], [-89.5, 45], [-89.5, 114], [-149, 114], [-149, 126.2], [-238, 126.2], [-238, 70], [-280, 70], [-280, 129.8], [-145, 129.8], [-145, 208.5], [-84.5, 208.5]], 2.4, true);
   // the drays' and handcarts' rounds (world/traffic.ts TRAFFIC_ROUTES)
-  poly([[33, 69.5], [33, 108.5], [-4.75, 108.5], [-4.75, 69.5]], 2.2, true);
+  poly([[-4.2, 66.4], [0, 66], [30.9, 63.1], [29.2, 80], [28, 100], [28.6, 108.7], [14, 106.8], [-0.5, 105.4], [-3, 88], [-4.2, 66.4]], 2.2, true);
   poly([[120, 11], [158.6, 11], [158.6, 43], [120, 43]], 2.2, true); // (M6 handcart: moved off the farrier's forge)
   poly([[-305, 8.3], [-216, 8.3], [-216, 30], [-305, 30]], 2.2, true);
   poly([[74, 119.5], [168, 119.5], [176, 122], [196, 122]], 1.8, false);
@@ -143,7 +143,11 @@ let keepOff: Array<[number, number, number]> = [];
  * as the client's world/doorKeep.ts): nothing parks there, `m` metres for the thing's own size.
  */
 const DOOR_KEEP: Rect[] = [...[TOWNHALL, VLEESHUIS, OOSTERSHUIS, STEEN].flatMap((p) => doorKeepOut(p)), ...cathedralKeep()];
-export const onDoorway = (x: number, z: number, m = 0.6) => DOOR_KEEP.some((r) => x > r.minX - m && x < r.maxX + m && z > r.minZ - m && z < r.maxZ + m);
+export const onDoorway = (x: number, z: number, m = 0.6) =>
+  DOOR_KEEP.some((r) => x > r.minX - m && x < r.maxX + m && z > r.minZ - m && z < r.maxZ + m) ||
+  // the heads of the stone flights down to the water: the boats are reached there (2026-09-25: a dray parked
+  // on the canal steps' head and the path check found the punt shut off)
+  FLIGHTS.some((f) => Math.hypot(x - f.top[0], z - f.top[1]) < 4.5 + m);
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
 const r3 = (n: number) => Math.round(n * 1000) / 1000;
@@ -389,7 +393,7 @@ export function makeTransport(db: DB): TransportRecord {
     const carters = R.filter((r) => r.trade === "carter" && r.age >= 20).sort(order);
     const merchants = R.filter((r) => r.trade === "merchant").sort(order);
     const owners: Array<[string, Resident | undefined, Spot]> = [
-      ["rijnkaai_back", carters[0], [14, 108.5, Math.PI / 2]],
+      ["rijnkaai_back", carters[0], [14, 106.8, Math.PI / 2]],
       ["eilandje", merchants[0] ?? carters[2], [137.5, 43, Math.PI / 2]],
       ["werf", carters[1] ?? merchants[1], [-249, 8.3, Math.PI / 2]],
     ];

@@ -447,7 +447,7 @@ def walk_map(city, houses, backs, landmarks):
     # outline touches, which made a 0.6 m parapet 1.5 m thick and the stairs too narrow to climb)
     import numpy as np
 
-    def paint(img, polys):
+    def paint(img, polys, value=255):
         a = np.array(img)
         for ring in polys:
             poly = Polygon(ring)
@@ -456,17 +456,63 @@ def walk_map(city, houses, backs, landmarks):
             c0, c1 = max(0, int((bz0 - z0) / WALK_RES) - 1), min(W, int((bz1 - z0) / WALK_RES) + 2)
             rr, cc = np.meshgrid(np.arange(r0, r1), np.arange(c0, c1), indexing="ij")
             inside = shapely.contains_xy(poly, x0 + (rr + 0.5) * WALK_RES, z0 + (cc + 0.5) * WALK_RES)
-            a[r0:r1, c0:c1][inside] = 255
+            a[r0:r1, c0:c1][inside] = value
         return Image.fromarray(a)
 
     solid = paint(solid, city.get("decor", {}).get("rampart_solids", []))
+    # the covered passages under front houses into the gangs (alleys.py "poort"): open the whole depth, cell by
+    # cell (ImageDraw's erase opened half a metre into the neighbours' walls)
+    ways = []
+    for h in houses:
+        pt = h.get("poort")
+        if not pt:
+            continue
+        (ox, oz), (ux, uz), (nx, nz) = h["o"], h["u"], h["n"]
+        s0, s1 = pt["s"]
+        t0, t1 = h["t"][0] - 0.3, h["t"][1] + 0.3
+        ways.append([(ox + ux * s + nx * t, oz + uz * s + nz * t) for s, t in ((s0 + 0.1, t0), (s1 - 0.1, t0), (s1 - 0.1, t1), (s0 + 0.1, t1))])
+    solid = paint(solid, ways, 0)
+    # the Stadspark (tools/blender/build_churches.py -> client/public/models/park.json): the pond (its rim's outer
+    # edge) is wall but for the footbridge's deck; the railing's kerb, the gate piers, benches and lanterns too
+    park = park_data()
+    if park:
+        pond = Polygon(park["pond"]).buffer(0)
+        b = park["bridge"]
+        (fx, fz), (tx, tz) = b["from"], b["to"]
+        L = math.hypot(tx - fx, tz - fz) or 1.0
+        ux, uz = (tx - fx) / L, (tz - fz) / L
+        hw = b["width"] / 2 - 0.1
+        deck = Polygon([(fx - uz * hw, fz + ux * hw), (tx - uz * hw, tz + ux * hw), (tx + uz * hw, tz - ux * hw), (fx + uz * hw, fz - ux * hw)])
+        solid = paint(solid, [ring_of(p) for p in pieces(pond.difference(deck))] + park["solids"])
     # beyond the far bank: the fields in the fog, not walked on
     outside = paint(outside, city.get("decor", {}).get("offlimits", []))
+    # open ground nobody can reach (a yard shut in by houses, a garden behind the alleys' cottages): wall, so that
+    # no Madonna, stall, prop or walker is ever put there (2026-09-25: the path check found Madonnas in shut yards).
+    # One piece of open ground joined 4 ways; the river's water is not open ground, the bridges are.
+    import scipy.ndimage as ndi
+    sa, wa, oa = np.array(solid), np.array(water), np.array(outside)
+    free = (sa < 128) & (wa < 128) & (oa < 128)
+    lab, n = ndi.label(free)
+    seed = lab[int((20 - x0) / WALK_RES), int((20 - z0) / WALK_RES)]  # the Rijnkaai, where Jef starts
+    shut = free & (lab != seed)
+    sa[shut] = 255
+    solid = Image.fromarray(sa)
+    print(f"walk map: {int(shut.sum() * WALK_RES * WALK_RES)} m2 of shut-in ground made wall ({n - 1} pieces)")
     img = Image.merge("RGB", (solid, water, outside))
     out = os.path.join(ROOT, "client", "public", "city", "walk.png")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     img.save(out, optimize=True)
     return {"x0": x0, "z0": z0, "res": WALK_RES, "w": W, "h": H, "file": "/city/walk.png", "about": "pixel (col, row) = ((z - z0) / res, (x - x0) / res); R wall, G water, B outside"}
+
+
+def park_data():
+    """The Stadspark's furniture as built (client/public/models/park.json), or None before the first build."""
+    path = os.path.join(ROOT, "client", "public", "models", "park.json")
+    return json.load(open(path)) if os.path.exists(path) else None
+
+
+def ring_of(p):
+    return [[round(x, 2), round(z, 2)] for x, z in list(p.exterior.coords)[:-1]]
 
 
 def quay_edge(city):
@@ -591,8 +637,12 @@ def ground_zones(city, houses, landmarks):
     # the grass round the town wall: the berm, the far bank (rampart.py, design.py DECOR grass)
     grass = unary_union([Polygon(g["outer"], g["holes"]).buffer(0) for g in city.get("decor", {}).get("grass", [])]
                         + [Polygon(g).buffer(0) for g in city.get("alleys", {}).get("gardens", [])])
-    # the alleys' yards: packed earth (alleys.py)
-    yards = unary_union([Polygon(g).buffer(0) for g in city.get("alleys", {}).get("yards", [])])
+    # the alleys' yards and the Stadspark's paths: packed earth (alleys.py, streets.py)
+    yards = unary_union([Polygon(g).buffer(0) for g in city.get("alleys", {}).get("yards", [])]
+                        + [Polygon(g).buffer(0) for g in city.get("decor", {}).get("park", {}).get("paths", [])]
+                        # the gate roads across the berm and the far bank (rampart.py): packed earth
+                        + [Polygon(g[k]).buffer(0) for g in city.get("decor", {}).get("rampart", {}).get("gates", []) for k in ("road", "far_road") if k in g])
+    grass = grass.difference(yards)
     if not yards.is_empty:
         yards = yards.intersection(land).simplify(0.2).intersection(land)
         flags = flags.difference(yards)
@@ -600,6 +650,13 @@ def ground_zones(city, houses, landmarks):
     if not grass.is_empty:
         grass = grass.intersection(land).simplify(0.2).intersection(land)
         earth, flags = earth.difference(grass), flags.difference(grass)
+    # the Stadspark's pond: no ground over it (the water lies 0.35 m down in the park model)
+    park = park_data()
+    if park:
+        # (a hair wider: on the wall's side the water stops 5 cm short of the face, no grass in that strip)
+        pond = Polygon(park["pond"]).buffer(0.1, join_style=2)
+        land = land.difference(pond)
+        earth, flags, grass = earth.difference(pond), flags.difference(pond), grass.difference(pond)
     cobble = land.difference(earth).difference(flags).difference(grass)
     out = {}
     # where one paving meets another: a row of long edge stones along the join (Steve: the
@@ -620,6 +677,13 @@ def ground_zones(city, houses, landmarks):
             if g.length < 0.8:
                 continue
             edges.append([[round(x, 2), round(z, 2)] for x, z in g.coords])
+    # no edge stones inside the back alleys: their lanes, yards and courts are one worn ground (Steve: "inside a
+    # gang the ground is weird")
+    al = city.get("alleys", {})
+    alley_area = unary_union([Polygon(r).buffer(0) for k in ("lanes", "yards", "gardens") for r in al.get(k, [])])
+    if not alley_area.is_empty:
+        alley_area = alley_area.buffer(0.6)
+        edges = [e for e in edges if not alley_area.contains(Point(e[len(e) // 2]))]
     out["edges"] = edges
     for name, g in (("earth", earth), ("flags", flags), ("cobble", cobble), ("grass", grass)):
         tris = []
@@ -703,6 +767,10 @@ def main():
     n_old = len(houses)
     inworld = json.load(open(os.path.join(ROOT, "shared", "inworld_houses.json")))["houses"]
     al = alleys.plan_alleys(houses, planned, {e["house"] for e in inworld}) if designed else None
+    if al:
+        alleys.plan_courts_gangs(houses, planned, al)
+        # a back mass that became only a court and yards is gone (the save may go, 2026-09-25: numbers may move)
+        houses[:] = [h for h in houses if not h.get("gone")]
     solids = unary_union(planned + [Polygon(l["fp"]).buffer(0) for l in landmarks.values()])
     street_faces(houses, solids)
     if al:
@@ -725,6 +793,10 @@ def main():
             "passages": [[round(v, 2) for v in p.bounds] for p in al["passages"]],
             "yards": [rnd(list(p.exterior.coords)[:-1]) for g in al["yards"] for p in pieces(g.simplify(0.2))],
             "gardens": [rnd(list(p.exterior.coords)[:-1]) for g in al["gardens"] for p in pieces(g.simplify(0.2))],
+            # (alleys.py plan_courts_gangs) the gangs' middle lines, the courts, the pumps
+            "gangs": al.get("gangs", []),
+            "courts": al.get("courts", []),
+            "pumps": al.get("pumps", []),
         }
         city.setdefault("decor", {})["trees_wild"] = city["decor"].get("trees_wild", []) + al["trees"]
     landmark_frames(city, landmarks, unary_union([Polygon(house_solid(h)).buffer(0) for h in houses] + [Polygon(b["fp"]).buffer(0) for b in backs]))
@@ -738,6 +810,16 @@ def main():
         city["bridgeKinds"] = {k: v["kind"] for k, v in city["designedBridges"].items()}
     city["doors"] = find_doors(houses)
     door_spots(city["doors"])
+    # the covered passages into the gangs (alleys.py "poort"), 1.5 m past each mouth: street things keep out
+    city["poorts"] = []
+    for h in houses:
+        pt = h.get("poort")
+        if not pt:
+            continue
+        (ox, oz), (ux, uz), (nx, nz) = h["o"], h["u"], h["n"]
+        s0, s1 = pt["s"]
+        t0, t1 = h["t"][0] - 1.5, h["t"][1] + 1.5
+        city["poorts"].append([[round(ox + ux * s + nx * t, 2), round(oz + uz * s + nz * t, 2)] for s, t in ((s0, t0), (s1, t0), (s1, t1), (s0, t1))])
     city["walk"] = walk_map(city, houses, backs, landmarks)
     city["rijnkaaiEdge"] = quay_edge(city)
     json.dump(city, open(CITY, "w"), separators=(",", ":"))

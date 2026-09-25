@@ -5,6 +5,8 @@ import { makeTextures, signTexture, glowTexture, type Textures } from "./texture
 import { box, cyl, rod, rectAround, inRect, type Rect } from "./geom";
 import SPOT_TABLE from "../../../shared/spots.json";
 import { steenHeightAt, steenKeepOut } from "./steenramp";
+import { buildCountryside } from "./countryside";
+import { loadChurches, parkBridgeHeight, poortKeepOut, pumpColliders } from "./churches";
 import { loadWall, rampartHeightAt, rampartKeepOut, wallGuards } from "./rampart";
 import CITY_DATA from "../../../shared/city.json";
 import { buildCity, doorSpot, edgeZ, WALL, WATER, OUTSIDE, type CityWorld } from "./city";
@@ -371,7 +373,7 @@ export function buildRijnkaai(): World {
   }));
   // M3i: the market squares and the trades' workshops (game/market.ts, world/trades.ts): nothing else put there
   // M7 doors: and the landmarks' doorways, their porch steps and the street before them (world/doorKeep.ts)
-  const workplaces = [...marketKeepOut(), ...tradeKeepOut(), ...steenKeepOut(), ...rampartKeepOut(), ...landmarkDoorKeepOut()];
+  const workplaces = [...marketKeepOut(), ...tradeKeepOut(), ...steenKeepOut(), ...rampartKeepOut(), ...poortKeepOut(), ...landmarkDoorKeepOut()];
   // the railway gate of the Werf store (world/railgate.ts): built now, so its collider is there
   // before the train looks along its line
   const railGate = createRailGate(scene, {
@@ -387,6 +389,9 @@ export function buildRijnkaai(): World {
     ...trackKeepOut(trackData),
     ...omnibusLane,
     ...workplaces,
+    // the heads of the stone flights down to the water, where the boats are reached (2026-09-25: a dray stood
+    // on the canal steps' head and the path check found the punt shut off)
+    ...FLIGHTS.map(([x, z]) => ({ minX: x - 4.5, maxX: x + 4.5, minZ: z - 4.5, maxZ: z + 4.5 })),
   ];
   // shop signs, awnings, corner Madonnas, pumps, washing lines, grime (world/streetlife.ts),
   // set after the carts and crates so the pumps keep off them
@@ -421,7 +426,7 @@ export function buildRijnkaai(): World {
         qf.sites.filter((q) => q.kind.startsWith("tar_fire")).map((q) => ({ x: q.x, y: 0.12 + 0.6, z: q.z, size: 0.9 })),
       );
       return createLitter(scene, city.flags, {
-        avoid: [...colliders, ...craneRunways, ...steenKeepOut(), ...rampartKeepOut(), ...landmarkDoorKeepOut()],
+        avoid: [...colliders, ...craneRunways, ...steenKeepOut(), ...rampartKeepOut(), ...poortKeepOut(), ...landmarkDoorKeepOut()],
         quaySites: qf.sites,
         quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
         swimFree,
@@ -456,6 +461,9 @@ export function buildRijnkaai(): World {
   // the town wall (world/rampart.ts, wall.glb) and the trees round it and in the alleys' gardens (no pits)
   const wall = loadWall(scene);
   const guards = wallGuards(scene, (x, z) => rampartHeightAt(x, z) ?? 0);
+  // the churches of the angled streets, the Stadspark, the pumps of the alleys' courts (world/churches.ts)
+  const churches = loadChurches(scene);
+  colliders.push(...pumpColliders());
   const wildTrees = (CITY_DATA as unknown as { decor?: { trees_wild?: Array<[number, number]> } }).decor?.trees_wild ?? [];
   // the trees of the Steenplein and the Werf (world/trees3d.ts, tools/blender/build_trees.py)
   city.ready
@@ -466,12 +474,14 @@ export function buildRijnkaai(): World {
     .then(() =>
       buildVegetation(scene, city.flags, {
         trees: (CITY_DATA as unknown as { decor?: { trees?: Array<[number, number]> } }).decor?.trees ?? [],
-        avoid: [...trackKeepOut(trackData), ...omnibusLane, ...steenKeepOut(), ...rampartKeepOut()],
+        avoid: [...trackKeepOut(trackData), ...omnibusLane, ...steenKeepOut(), ...rampartKeepOut(), ...poortKeepOut()],
       }),
     )
     .catch((e) => console.warn("vegetation did not load", e));
   // the far bank of the Schelde, seen on clear days (world/farbank.ts)
   buildFarBank(scene, WATER_Y);
+  // the land beyond the town wall, seen from the walk (world/countryside.ts)
+  buildCountryside(scene, WATER_Y);
   // wheel ruts down the cart roads (world/ruts.ts)
   city.ready.then(() => buildRuts(scene, city.flags)).catch(() => {});
   // tree trunks on the squares and quays (tools/city/design.py decor)
@@ -944,6 +954,8 @@ export function buildRijnkaai(): World {
     if (sh !== null) return sh;
     const rh = rampartHeightAt(x, z); // the town wall's walk and stairs (world/rampart.ts)
     if (rh !== null) return rh;
+    const ph = parkBridgeHeight(x, z); // the Stadspark's footbridge (world/churches.ts)
+    if (ph !== null) return ph;
     return 0;
   };
   const onPier = (x: number, z: number) => x > PIER.minX && x < PIER.maxX && z > PIER.minZ && z < PIER.maxZ;
@@ -1418,6 +1430,10 @@ export function buildRijnkaai(): World {
     for (const [ax, az, bx, bz] of quays) {
       const L = Math.hypot(bx - ax, bz - az);
       if (L < 12) continue;
+      // no ladders out of the town moat: the gates are shut and the land beyond the wall is not walked on
+      const mx = (ax + bx) / 2;
+      const mz = (az + bz) / 2;
+      if (mx < TOWN.x0 || mx > TOWN.x0 + TOWN.w || mz > TOWN.z0 + TOWN.h) continue;
       const tx = (bx - ax) / L;
       const tz = (bz - az) / L;
       const [nx, nz] = inWater((ax + bx) / 2 - tz, (az + bz) / 2 + tx) ? [-tz, tx] : [tz, -tx];
@@ -1678,6 +1694,7 @@ export function buildRijnkaai(): World {
       city.update(camera, fog.far);
       wall.update(camera, fog.far);
       guards.update(dt, camera);
+      churches.update(camera, fog.far);
     }
     if (camera && !devView) ambient.update(t, dt, camera, dayNow, weatherNow);
     street?.update(t, dt, lampsLit, camera ?? undefined);

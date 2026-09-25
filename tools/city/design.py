@@ -20,10 +20,12 @@ import json
 import math
 import os
 
-from shapely.geometry import Polygon, box
+from shapely.geometry import LineString, Point, Polygon, box
+import shapely.ops
 from shapely.ops import unary_union
 
 import rampart
+import streets
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 OUT = os.path.join(ROOT, "shared", "city.json")
@@ -31,7 +33,7 @@ OSM = os.path.join(ROOT, "data", "osm", "antwerp.json")
 
 # x0, x1, z0, z1. The houses stand in x -340..200, z 0..300; round them the town wall, its moat and
 # the far bank (rampart.py, 2026-09-25) take the map out to here
-AREA = (-460.0, 320.0, -80.0, 420.0)
+AREA = (-480.0, 340.0, -80.0, 480.0)
 WALL = rampart.layout()
 
 # ------------------------------------------------------------------ water
@@ -125,6 +127,11 @@ LANDMARKS = {
     # (STEEN below); a designed rect, not the OSM outline (that holds the 1950s and 2021 wings)
     "steen": {"rect": (34, 16.5), "c": (-177.0, -31.25), "axis": (1, 0)},
     "hanzehuis": {"rect": (64, 38), "c": (120, 143), "axis": (1, 0)},
+    # churches of 1873 on the new streets (streets.py, Steve: "if you know of more important buildings from the
+    # era, put it in"), their OSM outlines a little smaller to fit the compact map
+    "carolus": {"osm": 39886923, "c": (-116, 186), "axis": (1, 0), "scale": 0.8},  # Sint-Carolus Borromeus, the Jesuit church, its front on the Conscienceplein (-z)
+    "stpaul": {"osm": 116149697, "c": (103, 266), "axis": (1, 0), "scale": 0.8},  # Sint-Pauluskerk, the Dominicans' church by the docks
+    "stjacob": {"osm": 40092556, "c": (-95, 305), "axis": (1, 0), "scale": 0.75},  # Sint-Jacobskerk, Rubens's burial church
 }
 
 # street furniture after the period photos (the Steenplein, the Werf, the quays):
@@ -262,7 +269,14 @@ DECOR["rampart"] = WALL["decor"]
 DECOR["rampart_solids"] = [rampart.ring(p) for p in rampart.pieces(WALL["solids"])]
 DECOR["offlimits"] = [rampart.ring(p) for p in rampart.pieces(box(AREA[0], 0, AREA[1], AREA[3]).difference(WALL["walk_out"]))]
 DECOR["grass"] = [{"outer": rampart.ring(p), "holes": [[[round(x, 2), round(z, 2)] for x, z in list(h.coords)[:-1]] for h in p.interiors]}
-                  for p in rampart.pieces(box(AREA[0], 0, AREA[1], AREA[3]).difference(WALL["fort"]).difference(unary_union([box(*g["road"]) for g in WALL["decor"]["gates"]])))]
+                  for p in rampart.pieces(box(AREA[0], 0, AREA[1], AREA[3]).difference(WALL["fort"]).difference(unary_union(WALL["roads"])))]
+# the Stadspark (streets.py): grass, its pond, trees along its paths
+_park = Polygon(streets.PARK)
+DECOR["grass"] += [{"outer": rampart.ring(_park), "holes": []}]
+_pond = unary_union([Point(c).buffer(r) for c, r in streets.POND])
+_paths = unary_union([LineString(p).buffer(w / 2, join_style=2) for p, w in streets.PARK_PATHS]).intersection(_park).difference(_pond.buffer(0.6))
+DECOR["park"] = {"outline": rampart.ring(_park), "ponds": [[c[0], c[1], r] for c, r in streets.POND],
+                 "paths": [rampart.ring(p) for p in rampart.pieces(_paths.simplify(0.1))]}
 DECOR["trees_wild"] = WALL["trees"]
 DECOR["steen_ramp"] = _ramp
 DECOR["solids"] = [[round(v, 2) for v in r] for r in _solids]
@@ -292,8 +306,13 @@ PLACES = {
     "Cathedral": (-262, 208, "building"),
     "Werf": (-270, 6, "quay"),
     # the town wall (rampart.py): the gates, the walk on the wall
-    **{g["name"]: (round(sum(g["passage"][0::2]) / 2, 1), round(sum(g["passage"][1::2]) / 2, 1), "gate") for g in WALL["decor"]["gates"]},
-    "Ramparts": (-100, 311.5, "rampart"),
+    **{g["name"]: (round(sum(p[0] for p in g["passage"]) / 4, 1), round(sum(p[1] for p in g["passage"]) / 4, 1), "gate") for g in WALL["decor"]["gates"]},
+    "Ramparts": (-60, 356, "rampart"),
+    "Stadspark": (-300, 318, "square"),
+    "Conscienceplein": (-116, 160, "square"),
+    "Sint-Carolus Borromeus": (-116, 186, "building"),
+    "Sint-Pauluskerk": (103, 266, "building"),
+    "Sint-Jacobskerk": (-95, 305, "building"),
 }
 
 
@@ -344,8 +363,25 @@ def main():
     # blocks give way to landmarks, water and bridges
     cut = unary_union([Polygon(l["fp"]).buffer(4) for l in landmarks.values()] + [water, moat])
     blocks, kinds = [], []
-    for kind, b in BLOCKS:
+    # the angled streets (streets.py): zones of the old blocks and the new ground inside the bent wall, cut again
+    town_ok = WALL["town"].buffer(-rampart.STREET, join_style=2)
+    recut = streets.recut([b for _, b in BLOCKS], [k for k, _ in BLOCKS], town_ok, Polygon())
+    for kind, b in recut:
         p = b.difference(cut)
+        # a landmark inside a block leaves a hole the plan cannot keep (a block is its outer ring): a lane
+        # 6 m wide from the hole to the block's nearest edge opens it (the church's door on a lane)
+        opened = []
+        for part in getattr(p, "geoms", [p]):
+            for h in list(part.interiors):
+                hp = Polygon(h)
+                c = hp.centroid
+                q = shapely.ops.nearest_points(part.exterior, c)[0]
+                d = math.hypot(q.x - c.x, q.y - c.y) or 1.0
+                far = (q.x + (q.x - c.x) / d * 3.0, q.y + (q.y - c.y) / d * 3.0)  # a little past the edge
+                lane = shapely.geometry.LineString([(c.x, c.y), far]).buffer(3.0, cap_style=2)
+                part = part.difference(lane).buffer(0)
+            opened.extend(rampart.pieces(part))
+        p = unary_union(opened)
         for part in getattr(p, "geoms", [p]):
             if part.is_empty or part.area < 30:
                 continue

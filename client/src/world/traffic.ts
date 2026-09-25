@@ -42,11 +42,12 @@ export interface TrafficRoute {
 /** The routes. Loops round blocks on the map (shared/city.json, M3d); lanes are 3.8 m (drays) or 2.8 m wide. */
 export const TRAFFIC_ROUTES: TrafficRoute[] = [
   {
-    // round the block behind the Rijnkaai (the streets south of the Hessenatie)
+    // round the block behind the Rijnkaai: since the angled streets (tools/city/streets.py, 2026-09-25) along F,
+    // up I, back along G and down H
     name: "rijnkaai_back",
-    pts: [[33, 69.5], [33, 108.5], [-4.75, 108.5], [-4.75, 69.5]],
+    pts: [[-4.2, 66.4], [0, 66], [30.9, 63.1], [29.2, 80], [28, 100], [28.6, 108.7], [14, 106.8], [-0.5, 105.4], [-3, 88], [-4.2, 66.4]],
     loop: true,
-    stops: [{ at: [14, 108.5], secs: 18, chance: 0.5 }],
+    stops: [{ at: [14, 106.8], secs: 18, chance: 0.5 }],
     vehicles: [{ kind: "dray", at: 0.1, load: "casks" }],
   },
   {
