@@ -11,7 +11,7 @@ import type { Rect } from "./geom";
 import { omnibusKeepOut } from "./omnibus";
 import { TOWN_CLEAR } from "./quayfurniture";
 import { steenKeepOut } from "./steenramp";
-import { poortKeepOut, pumpColliders } from "./churches";
+import { inGang, poortKeepOut, pumpColliders } from "./churches";
 import { trackKeepOut, type TrackData } from "./tracks";
 import { tradeKeepOut } from "./trades";
 import { trafficLanes } from "./traffic";
@@ -987,8 +987,11 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
     const x = sx / cells.length;
     const z = sz / cells.length;
     const area = cells.length * RES * RES;
-    // a strip by the water is a quay's edge, not an alley; the game's own quay and the markets are theirs
-    const keep = !wet && area >= 4 && !inR(START, x, z, 2) && !markets.some((q) => inR(q, x, z, 2)) && !inR(LOCK, x, z, 2);
+    // a strip by the water is a quay's edge, not an alley; the game's own quay and the markets are theirs.
+    // A gang (alleys.py) is not one either: its bends read as dead ends here, and a closure or a handcart
+    // there shut the way into its courts (2026-09-25: a corner Madonna the path check could not reach)
+    const gang = cells.filter((c) => inGang(cx(c), cz(c))).length * 2 > cells.length;
+    const keep = !wet && !gang && area >= 4 && !inR(START, x, z, 2) && !markets.some((q) => inR(q, x, z, 2)) && !inR(LOCK, x, z, 2);
     alleys.push({ id, cells, through: false, keep, length: 0, width: ws / cells.length, x, z, props: 0, closure: "" });
   }
   // mouths: the wide open ground each alley opens onto; one mouth is a dead end

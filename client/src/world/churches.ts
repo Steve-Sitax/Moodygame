@@ -50,6 +50,27 @@ export function poortKeepOut(): Rect[] {
   return P.map((r) => ({ minX: Math.min(...r.map((p) => p[0])), maxX: Math.max(...r.map((p) => p[0])), minZ: Math.min(...r.map((p) => p[1])), maxZ: Math.max(...r.map((p) => p[1])) }));
 }
 
+type Ring = number[][];
+const ALLEYS = ((CITY as unknown as { alleys?: { lanes?: Ring[]; gangs?: Ring[] } }).alleys ?? {}) as { lanes?: Ring[]; gangs?: Ring[] };
+function inRing(r: Ring, x: number, z: number): boolean {
+  let inside = false;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+    const [xi, zi] = r[i];
+    const [xj, zj] = r[j];
+    if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
+  }
+  return inside;
+}
+/** The gangs' lanes with their small courts: the plan's lane rings (city.json alleys.lanes) a gang's middle line starts in. */
+const GANGS = (ALLEYS.lanes ?? [])
+  .filter((r) => (ALLEYS.gangs ?? []).some((g) => g.length > 0 && inRing(r, g[0][0], g[0][1])))
+  .map((r) => ({ r, minX: Math.min(...r.map((p) => p[0])), maxX: Math.max(...r.map((p) => p[0])), minZ: Math.min(...r.map((p) => p[1])), maxZ: Math.max(...r.map((p) => p[1])) }));
+
+/** Is (x, z) in a gang (its winding lane or one of its small courts)? */
+export function inGang(x: number, z: number): boolean {
+  return GANGS.some((g) => x >= g.minX && x <= g.maxX && z >= g.minZ && z <= g.maxZ && inRing(g.r, x, z));
+}
+
 const PUMPS = ((CITY as unknown as { alleys?: { pumps?: Array<[number, number]> } }).alleys?.pumps ?? []) as Array<[number, number]>;
 
 /** The pumps' posts: solid (the crowd and the props keep off them). */

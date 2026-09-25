@@ -460,6 +460,25 @@ def walk_map(city, houses, backs, landmarks):
         return Image.fromarray(a)
 
     solid = paint(solid, city.get("decor", {}).get("rampart_solids", []))
+    # the back alleys' lanes, gangs and courts (alleys.py): open cell by cell, then wall again only where a
+    # cell's middle is inside something built. ImageDraw fills every cell an outline touches, so the cottages
+    # took up to half a metre off each side of a 1.8 m gang, and at its bends and poort mouths no walker got
+    # through (2026-09-25: three corner Madonnas in the gangs' courts the path check could not reach)
+    lanes = city.get("alleys", {}).get("lanes", [])
+    if lanes:
+        dec = city.get("decor", {})
+        built = [house_solid(h) for h in houses] + [b["fp"] for b in backs]
+        for name, l in landmarks.items():
+            built.append(l["fp"])
+            if name not in OUTLINE_BUILT:
+                built.append(list(Polygon(l["fp"]).minimum_rotated_rectangle.exterior.coords))
+        built += [((a, b), (c, b), (c, d), (a, d)) for a, b, c, d in dec.get("solids", [])]
+        built += dec.get("solid_polys", []) + dec.get("rampart_solids", [])
+        lane = np.array(paint(Image.new("L", (W, H), 0), lanes)) > 127
+        wall = np.array(paint(Image.new("L", (W, H), 0), built)) > 127
+        sa = np.array(solid)
+        sa[lane & ~wall] = 0
+        solid = Image.fromarray(sa)
     # the covered passages under front houses into the gangs (alleys.py "poort"): open the whole depth, cell by
     # cell (ImageDraw's erase opened half a metre into the neighbours' walls)
     ways = []
