@@ -1,7 +1,7 @@
 import { eventPeopleMax } from "../town/popsettings.ts";
 import type { DB } from "../db.ts";
 import { clock, setWeather, TICK_MINUTES, type Weather } from "../day.ts";
-import { ALL_EMPLOYERS, SPOTS, clampBoard, maxTier, taskFor, type Board } from "../hooks/jobBoard.ts";
+import { ALL_EMPLOYERS, GOODS, SPOTS, clampBoard, maxTier, taskFor, type Board } from "../hooks/jobBoard.ts";
 import { remember } from "../npcs.ts";
 import { plainEnglish } from "../text.ts";
 import { ITEMS } from "../trade.ts";
@@ -1281,20 +1281,25 @@ function stageTick(db: DB, ev: EventRow, now: number): number {
 }
 
 /** A piece of work for Jef on the board, through the board's own rules (engine pay). */
-function postJob(db: DB, ev: EventRow, s: StoredStage): void {
+export function postJob(db: DB, ev: EventRow, s: StoredStage): void {
   const at = { x: s.x ?? ev.x, z: s.z ?? ev.z };
   const doorOf = (id: string) => SPOTS[ALL_EMPLOYERS[id].door];
   const emp = TOWN_EMPLOYERS.map((e) => ({ e, d: Math.hypot(doorOf(e.id).x - at.x, doorOf(e.id).z - at.z) })).sort((a, b) => a.d - b.d)[0]?.e;
   const employer = emp && Math.hypot(doorOf(emp.id).x - at.x, doorOf(emp.id).z - at.z) < 160 ? emp.id : "sooi";
   const def = ALL_EMPLOYERS[employer];
   const from = def.area.find((a) => a !== def.door) ?? def.door;
+  // M7 quest tests: the stage's words were the title ("...barrels carried from the Vismarkt to their
+  // carts") while the engine's work was sacks from the Vliet landing to the fish stalls. The title is the
+  // engine's now; the goods follow the words when they name some; the words go into the pitch.
+  const said = s.text ? plainEnglish(s.text).trim().replace(/[.!]+$/, "") : "";
+  const named = (GOODS as readonly string[]).find((g) => new RegExp(`\\b${g.replace(/s$/, "")}s?\\b`, "i").test(said)) as Board["jobs"][number]["goods"] | undefined;
   const board: Board = {
     jobs: [
       {
-        title: s.text ? plainEnglish(s.text).slice(0, 70) : `Hands wanted: ${ev.title.toLowerCase()}`,
+        title: `Hands wanted: ${ev.title.toLowerCase()}`.slice(0, 70),
         employer,
         task_type: "carry",
-        goods: "sacks",
+        goods: named && named !== "parcel" ? named : "sacks",
         from,
         to: def.door,
         twist: "none",
@@ -1302,7 +1307,7 @@ function postJob(db: DB, ev: EventRow, s: StoredStage): void {
         recipient: "",
         pay_c: 70,
         risk: "low",
-        pitch: `Extra hands wanted for ${ev.title.toLowerCase()}. Paid by the load, today only.`,
+        pitch: `${said ? `${said.slice(0, 200)}. ` : ""}Extra hands wanted for ${ev.title.toLowerCase()}. Paid by the load, today only.`,
       },
     ],
   };

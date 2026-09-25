@@ -84,6 +84,27 @@ function quad(list: THREE.BufferGeometry[], p: Array<[number, number, number]>, 
   list.push(g);
 }
 
+/**
+ * A flat face [u0, u1] x [y0, y1] with rectangular holes ([ua, ub, ya, yb] each) left open, as quads into a list;
+ * `pt(u, y)` gives the local point of face coordinates u (along) and y (up).
+ */
+function holedFace(list: THREE.BufferGeometry[], u0: number, u1: number, y0: number, y1: number, holes: Array<[number, number, number, number]>, pt: (u: number, y: number) => [number, number, number]): void {
+  const us = [u0, u1, ...holes.flatMap((h) => [h[0], h[1]])].filter((u) => u >= u0 && u <= u1).sort((a, b) => a - b);
+  for (let i = 0; i + 1 < us.length; i++) {
+    const a = us[i];
+    const b = us[i + 1];
+    if (b - a < 1e-3) continue;
+    const m = (a + b) / 2;
+    const gaps = holes.filter((h) => h[0] < m && h[1] > m).map((h) => [h[2], h[3]] as [number, number]).sort((p, q) => p[0] - q[0]);
+    let y = y0;
+    for (const [c0, c1] of gaps) {
+      if (c0 > y) quad(list, [pt(a, y), pt(b, y), pt(b, Math.min(c0, y1)), pt(a, Math.min(c0, y1))]);
+      y = Math.max(y, c1);
+    }
+    if (y1 > y) quad(list, [pt(a, y), pt(b, y), pt(b, y1), pt(a, y1)]);
+  }
+}
+
 /** The door's leaf with its panels, knob and straps, hinged at the group's origin, reaching toward `dir` (+1/-1 along x). */
 function makeLeaf(w: number, h: number, dir: number): THREE.Group {
   const oak = lambert("house_leaf", { map: tex().planks, color: 0x5a4030 }, 0);
@@ -192,9 +213,18 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
     const top = Math.max(3.6, plan.room.y + 3.4, plan.well ? plan.well.y1 : 0);
     const bot = 0.08;
     const geos: THREE.BufferGeometry[] = [];
-    quad(geos, [[x0, bot, z1], [x1, bot, z1], [x1, top, z1], [x0, top, z1]]);
-    quad(geos, [[x0, bot, 0.1], [x0, bot, z1], [x0, top, z1], [x0, top, 0.1]]);
-    quad(geos, [[x1, bot, z1], [x1, bot, 0.1], [x1, top, 0.1], [x1, top, z1]]);
+    // East walkthrough 2026-09-25: the side and back faces are left open where a cut window is (a corner
+    // tavern's side windows: Het Bassin, In de Ankere). The lining stood 0.1 m inside them, so from the street
+    // the lit room showed as grey slats (the lining fighting the pane) and from inside the street was not seen.
+    const cut = (onFace: (w: HouseWindow) => boolean, u: (p: [number, number]) => number): Array<[number, number, number, number]> =>
+      plan.windows
+        .filter((w) => w.kind === "hole" && onFace(w))
+        .map((w) => [Math.min(u(w.a), u(w.b)) - 0.02, Math.max(u(w.a), u(w.b)) + 0.02, w.y0 - 0.02, w.y1 + 0.02]);
+    const side = (w: HouseWindow) => Math.abs(w.out[0]) > 0.7;
+    const nearX0 = (w: HouseWindow) => Math.abs(w.a[0] - f.x0) < Math.abs(w.a[0] - f.x1);
+    holedFace(geos, x0, x1, bot, top, cut((w) => Math.abs(w.out[1]) > 0.7 && w.a[1] > f.depth / 2, (p) => p[0]), (u, y) => [u, y, z1]);
+    holedFace(geos, 0.1, z1, bot, top, cut((w) => side(w) && nearX0(w), (p) => p[1]), (u, y) => [x0, y, u]);
+    holedFace(geos, 0.1, z1, bot, top, cut((w) => side(w) && !nearX0(w), (p) => p[1]), (u, y) => [x1, y, u]);
     quad(geos, [[x0, bot, 0.1], [x1, bot, 0.1], [x1, bot, z1], [x0, bot, z1]]);
     quad(geos, [[x0, top, z1], [x1, top, z1], [x1, top, 0.1], [x0, top, 0.1]]);
     const lining = new THREE.Mesh(mergeGeometries(geos, false)!, new THREE.MeshBasicMaterial({ color: 0x0e0b08, side: THREE.DoubleSide }));

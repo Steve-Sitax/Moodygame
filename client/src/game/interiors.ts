@@ -239,9 +239,14 @@ export class Interiors {
       const text = d.kind === "cellar" ? "POESJE" : d.label.toUpperCase();
       if (d.kind === "tavern") {
         // a tavern hangs its name out on an iron bracket, across the pavement, read from either way
-        const board = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.42), new THREE.MeshBasicMaterial({ map: signTexture(text), color: 0x9a8a70, side: THREE.DoubleSide }));
+        // (east walkthrough 2026-09-25: two faces back to back, each read the right way round; one
+        // double-sided face showed the name in mirror writing from one side of the street)
+        const board = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.42), new THREE.MeshBasicMaterial({ map: signTexture(text), color: 0x9a8a70 }));
         board.position.set(d.wall[0] + d.out[0] * 1.05, 2.95, d.wall[1] + d.out[1] * 1.05);
         board.rotation.y = Math.atan2(d.out[0], d.out[1]) + Math.PI / 2;
+        const back = new THREE.Mesh(board.geometry, board.material);
+        back.rotation.y = Math.PI;
+        board.add(back);
         const arm = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 1.9), new THREE.MeshBasicMaterial({ color: 0x1a1816 }));
         arm.position.set(d.wall[0] + d.out[0] * 0.95, 3.2, d.wall[1] + d.out[1] * 0.95);
         arm.rotation.y = Math.atan2(d.out[0], d.out[1]);
@@ -267,6 +272,12 @@ export class Interiors {
         this.lampOut.push({ sprite, light });
       }
     }
+  }
+
+  /** M7 quest tests: the street step of this place's door (a treat's guest walks to it), or null. */
+  doorStep(place: string): { x: number; z: number } | null {
+    const d = this.doors().find((x) => x.place === place);
+    return d ? { x: d.step[0], z: d.step[1] } : null;
   }
 
   /** For the path check: every door must be reachable on foot (the world's grid). */

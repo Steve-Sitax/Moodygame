@@ -37,8 +37,12 @@ import { PLAN as STEEN } from "../../../shared/steenPlan.ts";
 // stands now follows his day (transport.ts vehicleAt): the server says it for theft
 // (deeds.ts veloHooks), the client parks it there.
 
-/** 4: nothing parks before a landmark's doorway or on its steps, and further from a tavern door (M7 doors, 2026-09-25). */
-export const TRANSPORT_V = 4;
+/**
+ * 4: nothing parks before a landmark's doorway or on its steps, and further from a tavern door (M7 doors, 2026-09-25).
+ * 5: a velocipede of a home without a house door (a publican at his tavern) no longer stands in the doorway,
+ * and the keep-off circles hold for velocipedes by a door too (east walkthrough, 2026-09-25).
+ */
+export const TRANSPORT_V = 5;
 
 export type Spot = [number, number, number];
 
@@ -176,13 +180,18 @@ function besideDoor(r: Resident, side: 1 | -1, room: number, taken: Spot[], cart
   const z0 = d ? d.z : r.home.z;
   const along: Pt = [-out[1] * side, out[0] * side];
   const wm = walkMap();
-  for (const o of cart ? [1.4, 1.8, 2.2] : [1.0, 1.25]) {
+  // East walkthrough 2026-09-25: a publican who lives at his tavern (or the Oostershuis's storekeeper) has
+  // no house door (house -1, the home point on the step): no way out, so every try was the door itself, and
+  // his velocipede stood in Het Bassin's doorway. Such a home goes straight to spotNear (keepOff, doors).
+  const noWay = Math.hypot(out[0], out[1]) < 0.5;
+  for (const o of noWay ? [] : cart ? [1.4, 1.8, 2.2] : [1.0, 1.25]) {
     for (const s of [2.0, 2.8, 3.6, 4.4]) {
       const x = x0 + out[0] * o + along[0] * s;
       const z = z0 + out[1] * o + along[1] * s;
       if (!wm.open(x, z, room) || !wm.reachable(x, z) || !offLanes(x, z)) continue;
       if (taken.some((t) => Math.hypot(t[0] - x, t[1] - z) < 2.4)) continue;
-      if ((cart && keepOff.some(([kx, kz, kr]) => Math.hypot(kx - x, kz - z) < kr)) || onDoorway(x, z)) continue;
+      // (velocipedes too: a neighbour's machine never leans in a tavern's doorway)
+      if (keepOff.some(([kx, kz, kr]) => Math.hypot(kx - x, kz - z) < kr) || onDoorway(x, z)) continue;
       // a velocipede along the wall; a cart's shafts out to the street (it points into the house)
       const yaw = cart ? Math.atan2(-out[0], -out[1]) : Math.atan2(along[0], along[1]);
       return [r1(x), r1(z), r3(yaw)];

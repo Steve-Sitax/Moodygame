@@ -3,8 +3,9 @@ import type { DB } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
 import { CALLS_PER_DAY, CALLS_RESERVE, NIGHT_BOARD_CALLS_PER_DAY } from "../config.ts";
 import { clock, WEATHER_TEXT } from "../day.ts";
-import { log, settleExtras, type Settlement } from "../game.ts";
-import { ALL_EMPLOYERS, GOODS, maxTier, PLAYABLE, SPOT_IDS, SPOTS, SYSTEM, TIER_PAY, TWISTS, employerName, taskFor, type Board, type JobRow } from "../hooks/jobBoard.ts";
+import { GameError, log, settleExtras, takeChecks, type Settlement } from "../game.ts";
+import { ALL_EMPLOYERS, GOODS, maxTier, PLAYABLE, SPOT_IDS, SPOTS, SYSTEM, TIER_PAY, TWISTS, employerName, taskFor, type Board, type JobRow, type Task } from "../hooks/jobBoard.ts";
+import { gameMin } from "../../../shared/clock.ts";
 import { remember } from "../npcs.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { NIGHT_GIVERS } from "../town/places.ts";
@@ -75,12 +76,14 @@ export const FALLBACK_NIGHT: NightBoard = {
       giver: "smuggler",
       task_type: "carry",
       goods: "crates",
-      from: "werf_quay",
+      // from the pontoon (M7 quest tests: from the Werf quay the Steen gate is 113 m off, over a night
+      // carry's 70 m, so the engine moved the goal to the pontoon and the pitch named the wrong place)
+      from: "werf_pontoon",
       to: "steen_gate",
       twist: "none",
       recipient: "",
       pay_c: 200,
-      pitch: "Crates off my lighter at the Werf, up to the Steen gate before the water police wake. Quick and quiet.",
+      pitch: "Crates off my lighter at the ferry pontoon, up to the Steen gate before the water police wake. Quick and quiet.",
     },
     {
       title: "Barrels, no names",
@@ -274,6 +277,42 @@ export function insertNightJobs(db: DB, jobs: NightJob[], tier: number, source: 
   return ids;
 }
 
+// ---------------------------------------------------------------- time enough before five
+
+/** Jef's pace when he hurries (client firstPerson.ts HURRY), and with goods in his arms (about 0.6 of it). */
+const RUN_MS = 3.4;
+const RUN_LADEN_MS = 2;
+
+/**
+ * M7 quest tests: the fewest game minutes the work can take on foot, running every step (a game hour
+ * is two real minutes, so five sacks over 70 m are two hours at a run and five at a walk). Work that
+ * cannot be done by five even so is not offered, and cannot be taken.
+ */
+export function leastMinutes(task: Task, door?: string): number {
+  const at = (id: string) => (SPOTS as Record<string, { x: number; z: number } | undefined>)[id];
+  const d = (a?: string, b?: string) => {
+    const p = a ? at(a) : undefined;
+    const q = b ? at(b) : undefined;
+    return p && q ? Math.hypot(p.x - q.x, p.z - q.z) : 0;
+  };
+  let realS = 0;
+  if (task.kind === "carry") realS = d(door, task.from) / RUN_MS + task.count * (d(task.from, task.to) / RUN_LADEN_MS + d(task.to, task.from) / RUN_MS) - d(task.to, task.from) / RUN_MS;
+  else if (task.kind === "deliver") realS = d(task.from, task.to) / RUN_LADEN_MS;
+  else if (task.kind === "watch") realS = d(door, task.post) / RUN_MS + task.duration_s;
+  return Math.ceil(gameMin(realS));
+}
+
+/** Can the work still be done by its deadline, starting now? */
+function inTime(db: DB, task: Task & { until_min?: number }, giver: string): boolean {
+  const until = task.until_min ?? 0;
+  return gameMinute(db) + leastMinutes(task, ALL_EMPLOYERS[giver]?.door) <= until;
+}
+
+takeChecks.push((db, j) => {
+  if (j.source !== "night" || !j.task) return;
+  if (!inTime(db, j.task as Task & { until_min?: number }, j.employer_npc)) throw new GameError(`too late for that one: ${employerName(db, j.employer_npc)} is gone at five, and it would not be done by then`, 409);
+});
+
 /**
  * 5:00: the givers are gone. Their work still open is gone with them; a job in hand is failed (its
  * goods leave the pocket). Also a night job whose deadline passed while Jef slept.
@@ -283,8 +322,11 @@ export function expireNightWork(db: DB): number {
   const rows = db.prepare("SELECT id, status, title, employer_npc, task_json FROM job WHERE source = 'night' AND status IN ('offered', 'taken')").all() as Array<{ id: number; status: string; title: string; employer_npc: string; task_json: string }>;
   let n = 0;
   for (const r of rows) {
-    const until = (JSON.parse(r.task_json) as { until_min?: number }).until_min ?? 0;
-    if (now < until) continue;
+    const task = JSON.parse(r.task_json) as Task & { until_min?: number };
+    const until = task.until_min ?? 0;
+    // M7 quest tests: work still offered that can no longer be done by five is taken off too
+    const late = r.status === "offered" && task.kind && !inTime(db, task, r.employer_npc);
+    if (now < until && !late) continue;
     n++;
     if (r.status === "offered") {
       db.prepare("UPDATE job SET status = 'expired' WHERE id = ?").run(r.id);

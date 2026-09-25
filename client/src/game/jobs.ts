@@ -149,6 +149,7 @@ export class Jobs {
     this.pockets.onChange = (p) => this.apply(p);
     this.talk.work = (id) =>
       this.active ? [] : (this.payload?.jobs ?? []).filter((j) => j.employer_npc === id && j.status === "offered" && j.playable);
+    this.talk.workLater = (id) => !!this.active && (this.payload?.jobs ?? []).some((j) => j.employer_npc === id && j.status === "offered" && j.playable);
     this.talk.onTakeWork = (j) => {
       this.talk.close();
       void this.takeJob(j);
@@ -218,7 +219,13 @@ export class Jobs {
       else this.start(taken);
     }
     // the job ended on the server without us (its deadline, a gang, the cell): drop it here too
-    if (this.active && !this.finishing && taken?.id !== this.active.id) this.dropRun();
+    if (this.active && !this.finishing && taken?.id !== this.active.id) {
+      // M7 quest tests: the night's work gone at five vanished from the corner without a word
+      const a = this.active;
+      const h = p.clock?.hour ?? this.day.hour;
+      if (a.source === "night" && h >= 5 && h < 21) this.toastMsg(`Five o'clock: ${a.employer_name} is gone, and "${a.title}" with him. Not done, not paid.`);
+      this.dropRun();
+    }
     if (this.boardOpen) this.renderBoard();
   }
 
@@ -301,9 +308,11 @@ export class Jobs {
     // M7 night: the work is done; the proof goes in the employer's box, or into his hand if he is back
     const held = this.held;
     if (held && !this.finishing) {
-      const box = this.boxes?.near(x, z, held.employer_npc);
-      if (box) add({ key: "KeyE", text: `drop the proof in ${box.name}'s box and take your pay`, run: () => void this.finish(held, { box: true }), at: this.boxes!.target(box) });
       const boss = this.people.get(held.employer_npc);
+      // M7 quest tests: back at his post in the morning he takes the proof in his hand (the box stands
+      // a step from him, and "drop it in the box" was all that was offered); the box while he is away
+      const box = this.heldBox() ? this.boxes!.near(x, z, held.employer_npc) : null;
+      if (box) add({ key: "KeyE", text: `drop the proof in ${box.name}'s box and take your pay`, run: () => void this.finish(held, { box: true }), at: this.boxes!.target(box) });
       const bossNear = boss && boss.present && boss.distTo(x, z) < 2.6;
       if (bossNear && !box) add({ key: "KeyE", text: `give the proof to ${boss.def.name}`, run: () => void this.finish(held, {}), at: { x: boss.pos.x, y: 1.3, z: boss.pos.z } });
     }
@@ -438,10 +447,20 @@ export class Jobs {
 
   // ------------------------------------------------------------- pointer
 
+  /** M7 night: the box for the proof in hand while its man is away; null once he is back at his post (the proof goes into his hand). */
+  private heldBox() {
+    const h = this.held;
+    if (!h) return null;
+    const boss = this.people.get(h.employer_npc);
+    if (boss && boss.present && !this.boxes?.away(h.employer_npc)) return null;
+    return this.boxes?.get(h.employer_npc) ?? null;
+  }
+
   private pulse = 0;
   private updatePointer(dt: number): void {
-    const hb = this.held ? this.boxes?.get(this.held.employer_npc) : null;
-    const goal = hb ? new THREE.Vector3(hb.x, 0.6, hb.z) : (this.run?.goal() ?? null);
+    const hb = this.heldBox();
+    const boss = this.held && !hb ? this.people.get(this.held.employer_npc) : null;
+    const goal = hb ? new THREE.Vector3(hb.x, 0.6, hb.z) : boss ? boss.pos.clone() : (this.run?.goal() ?? null);
     const cam = this.player.camera;
     const tick = this.el.tick;
     if (!goal) {
@@ -577,7 +596,9 @@ export class Jobs {
       this.closeBoard();
       this.start(job);
     } catch (e) {
-      this.toastMsg(String((e as Error).message));
+      // the server's words, as a sentence ("Too late for that one: ...")
+      const m = String((e as Error).message);
+      this.toastMsg(`${m.charAt(0).toUpperCase()}${m.slice(1)}${/[.!?]$/.test(m) ? "" : "."}`);
     } finally {
       this.taking = false;
     }
@@ -601,13 +622,15 @@ export class Jobs {
       progress: (p) => this.saveProgress(job.id, p),
       finish: (r) => void this.finish(job, r),
       box: this.boxes,
+      hour: () => this.day.hour,
     };
     // the job line first; a twist may say something right after (the run toasts in its constructor)
     const t = job.task;
     const who = this.people.get(job.employer_npc)?.def.name ?? job.employer_name;
     if (t.kind === "carry") {
       const from = t.from === "ship_gangway" ? "the Anna Maria (call up at the gangway)" : SPOTS[t.from].label;
-      this.toastMsg(`${who}: ${t.count} ${t.goods} from ${from} to ${SPOTS[t.to].label}.`);
+      // (M7 quest tests: "1 chests" for an emigrant's lost chest)
+      this.toastMsg(`${who}: ${t.count === 1 ? `a ${GOODS[t.goods].one}` : `${t.count} ${t.goods}`} from ${from} to ${SPOTS[t.to].label}.`);
     }
     if (t.kind === "deliver") this.toastMsg(`${who} has a ${GOODS[t.goods].one} for ${t.recipient}. Get it from ${who}.`);
     this.run = makeRun(job, ctx);
@@ -696,7 +719,8 @@ export class Jobs {
       const parts = report.box
         ? [s.pay_c ? `From ${job.employer_name}'s box: ${s.pay_c} c` : `${job.employer_name}'s box holds nothing for you`]
         : [s.pay_c ? `${job.employer_name} pays ${s.pay_c} c` : `${job.employer_name} pays nothing`];
-      if (s.extra_c) parts.push(`${s.extra_c} c from other hands`);
+      // (a sale, a bribe, a tip, or the pockets filled from a broken load: not all "from other hands")
+      if (s.extra_c) parts.push(`and ${s.extra_c} c on the side`);
       this.toastMsg(parts.join(", ") + ".");
       this.el.hud.textContent = `${r.money_c} c`;
       this.el.note.classList.add("waiting");
@@ -725,7 +749,7 @@ export class Jobs {
 
   private lastTask = "";
   private renderTask(): void {
-    const hb = this.held ? this.boxes?.get(this.held.employer_npc) : null;
+    const hb = this.heldBox();
     const html = this.held
       ? `<b>${esc(this.held.title)}</b><br>The work is done.<br>${hb ? `Drop the proof in ${esc(hb.name)}'s box ${esc(hb.label)}` : `Take the proof to ${esc(this.held.employer_name)}`}`
       : this.nightNote(this.run?.hud() ?? "");

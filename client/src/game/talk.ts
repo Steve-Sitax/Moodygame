@@ -37,6 +37,8 @@ export class Talk {
   private working = false;
   /** Set by Jobs: open work this person offers, and how to take it. */
   work: (npcId: string) => Job[] = () => [];
+  /** M7 quest tests: this person has work open, but Jef has a job in hand (the offer led nowhere, unsaid). */
+  workLater: (npcId: string) => boolean = () => false;
   onTakeWork: (job: Job) => void = () => {};
   private wares = new Map<string, Ware[]>();
   /** After a purchase: new money and pockets, and what the seller does. */
@@ -259,7 +261,7 @@ export class Talk {
     const wait = this.busy ? `<p class="them wait">${esc(npc.def.name)} …</p>` : "";
     const opts = this.choices.map((c, i) => `<li><span class="n">${i + 1}</span> ${esc(c)}</li>`).join("");
     const jobs = this.work(npc.id);
-    const shop = (this.stock.length ? " &middot; B  buy" : "") + (jobs.length ? " &middot; W  take work" : "");
+    const shop = (this.stock.length ? " &middot; B  buy" : "") + (jobs.length ? " &middot; W  take work" : this.workLater(npc.id) ? " &middot; work: finish yours first" : "");
     const keys = this.picking
       ? `1-${this.stock.length}  which one to argue about &middot; Esc  back`
       : this.typing && this.haggleKind
@@ -267,7 +269,7 @@ export class Talk {
         : this.shopping
       ? `1-${this.stock.length}  pay &middot; H  argue a price &middot; B  back to talk &middot; you have ${this.money} c`
       : this.working
-        ? `1-${jobs.length}  take it &middot; W  back to talk`
+        ? `${jobs.length > 1 ? `1-${jobs.length}` : "1"}  take it &middot; W  back to talk`
         : this.ended
           ? `E  step away${shop}`
           : this.busy

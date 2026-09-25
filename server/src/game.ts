@@ -50,9 +50,15 @@ export class GameError extends Error {
  */
 export function job(db: DB, id: number): JobRow {
   const j = jobById(db, id);
+  // M7 quest tests: night work taken off at the tick (too late to be done by five) was "no such job on
+  // today's board" for a man who had just offered it
+  if (j && j.status === "expired") throw new GameError(j.source === "night" ? "too late for that one: it could not be done before five" : "that work is gone from the board", 409);
   if (!j || !["offered", "taken", "done", "failed"].includes(j.status)) throw new GameError("no such job on today's board", 404);
   return j;
 }
+
+/** Checks before a job is taken (M7 quest tests: night/nightwork.ts refuses work that cannot be done by 5:00); throw a GameError to refuse. */
+export const takeChecks: Array<(db: DB, j: JobRow) => void> = [];
 
 export function takeJob(db: DB, id: number): JobRow {
   const j = job(db, id);
@@ -60,6 +66,7 @@ export function takeJob(db: DB, id: number): JobRow {
   if (!j.playable) throw new GameError("that kind of work is not in the game yet", 409);
   const busy = db.prepare("SELECT 1 FROM job WHERE status = 'taken'").get();
   if (busy) throw new GameError("finish the job you have first", 409);
+  for (const check of takeChecks) check(db, j);
   db.prepare("UPDATE job SET status = 'taken' WHERE id = ?").run(id);
   log(db, "took_job", String(id), `Jef took a job from ${j.employer_name}: ${j.title}.`);
   return job(db, id);
@@ -131,6 +138,10 @@ const CHASE_TIP_C = 15;
 /** Chance a misdeed is noticed when nobody is watching on purpose. */
 const CAUGHT_CHANCE = 0.35;
 
+/** One of the goods, for a sentence (the client's props.ts `one`). */
+const ONE: Record<string, string> = { crates: "crate", sacks: "sack", barrels: "barrel", hides: "bundle of hides", rope: "coil of rope", parcel: "parcel", chests: "chest" };
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
 /** The rules, as a pure function so tests can pin them down. */
 export function settle(j: JobRow, r: Report, rng: () => number = Math.random): Settlement {
   const task = j.task;
@@ -165,7 +176,9 @@ export function settle(j: JobRow, r: Report, rng: () => number = Math.random): S
     }
     if (r.thief === "stole") {
       pay *= 0.5;
-      facts.push("A thief came out of the fog and got away with some of the goods.");
+      // M7 quest tests: the client reports "stole" for a bribe too (the briber takes one); with no thief
+      // in the job that is the bribe's own loss, told once below, not a thief out of the fog as well
+      if (!(r.bribe_taken && task.twist !== "thief")) facts.push("A thief came out of the fog and got away with some of the goods.");
     }
     if (r.thief === "chased") {
       extra += CHASE_TIP_C;
@@ -189,13 +202,14 @@ export function settle(j: JobRow, r: Report, rng: () => number = Math.random): S
   if (r.delivered + r.lost + r.sold !== count) {
     throw new GameError(`goods not all accounted for: ${r.delivered + r.lost + r.sold} of ${count}`, 409);
   }
-  const noun = task.kind === "carry" ? task.goods : task.goods === "parcel" ? "the parcel" : `the ${task.goods}`;
+  // one thing to deliver: "the sack", not "the sacks" (M7 quest tests)
+  const noun = task.kind === "carry" ? task.goods : `the ${ONE[task.goods] ?? task.goods}`;
   let pay = (j.pay_c * r.delivered) / count;
   if (r.late) pay *= 0.75;
   const extra = r.sold * SELL_PRICE[task.kind] + (r.pocketed ? POCKET_C : 0);
 
   if (task.kind === "carry") facts.push(`Jef brought ${r.delivered} of ${count} ${noun} for ${who}.`);
-  else facts.push(r.delivered ? `Jef handed ${noun} to ${task.recipient}.` : `${noun} never reached ${task.recipient}.`);
+  else facts.push(r.delivered ? `Jef handed ${noun} to ${task.recipient}.` : `${cap(noun)} never reached ${task.recipient}.`);
   if (r.late) facts.push("He was late.");
   if (r.lost) facts.push(`${r.lost} went into the Schelde.`);
   if (r.sold) facts.push(`He sold ${r.sold} to a stranger in the fog.`);

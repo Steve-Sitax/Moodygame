@@ -488,7 +488,7 @@ class LettersRun implements Run {
   ) {
     this.picked = !!task.picked;
     this.done = task.stops.map((s) => !!s.done);
-    if (!this.picked) ctx.toast(this.tele ? `Fetch the words for the wire at ${task.from.label}.` : `Fetch the letters at ${task.from.label}.`);
+    if (!this.picked) ctx.toast(this.tele ? `Fetch the words for the wire at ${task.from.label}.` : `Fetch the ${task.stops.length === 1 ? "letter" : "letters"} at ${task.from.label}.`);
     if (this.picked && this.done.every(Boolean)) this.finish();
   }
 

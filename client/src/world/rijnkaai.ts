@@ -1234,8 +1234,38 @@ export function buildRijnkaai(): World {
     if (!walkFree(x, z, nx, z, r, feet, laden)) nx = x;
     let nz = z + dz;
     if (!walkFree(nx, z, nx, nz, r, feet, laden)) nz = z;
-    if (nx === x && nz === z && (dx || dz)) return moveOut(x, z, dx, dz, r, feet, laden);
+    if (nx === x && nz === z && (dx || dz)) {
+      const out = moveOut(x, z, dx, dz, r, feet, laden);
+      if (out[0] !== x || out[1] !== z) return out;
+      return moveUnwedge(x, z, dx, dz, r, feet);
+    }
     return [nx, nz];
+  }
+
+  /** How many of the 8 points on a ring of m round (x, z) are wall (wallNear's points). */
+  function wallCount(x: number, z: number, m: number, feet: number): number {
+    let n = 0;
+    for (let i = 0; i < 8; i++) if (wallNear(x + RING_COS[i] * m, z + RING_SIN[i] * m, 0, feet)) n++;
+    return n;
+  }
+
+  /**
+   * Walkthrough west 2026-09-25 (wedged on the Steen's stair): climbing a flight close to its side, the floor
+   * beside it sank past a drop and the ring round the body found a wall there only from mid-flight. Where he
+   * stood was then refused itself, and so was every step. When the spot itself is refused, a step is let
+   * through that keeps a floor within a step, touches no solid and has no more wall round it than here.
+   */
+  function moveUnwedge(x: number, z: number, dx: number, dz: number, r: number, feet: number): [number, number] {
+    if (walkFree(x, z, x, z, r, feet, false) || raisedAt(x, z, feet)) return [x, z];
+    const here = wallCount(x, z, r + 0.15, feet);
+    const ok = (px: number, pz: number) => {
+      const f = floorAt(px, pz, feet);
+      return f !== null && f <= feet + STEP && f >= feet - STEP && !hits(px, pz, r, feet) && wallCount(px, pz, r + 0.15, feet) <= here;
+    };
+    if (ok(x + dx, z + dz)) return [x + dx, z + dz];
+    if (dx && ok(x + dx, z)) return [x + dx, z];
+    if (dz && ok(x, z + dz)) return [x, z + dz];
+    return [x, z];
   }
 
   /**

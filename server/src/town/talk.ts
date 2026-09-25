@@ -288,7 +288,21 @@ const firstOf = <T>(fs: Array<() => T | null>): T | null => {
   return null;
 };
 
-function topicChoice(t: Topic, r: Resident): string {
+/**
+ * M7 quest tests: the engine's greetings said "Morning." at one in the afternoon, "Evening!" at noon
+ * and "Good day to you." at midnight. A line that names the time of day is kept to its hours; with
+ * none left, the list as it was.
+ */
+export function fitHour(xs: string[], h: number): string[] {
+  const night = h >= 20 || h < 5;
+  const ok = xs.filter((l) =>
+    /\bMorning\b/.test(l) ? h >= 5 && h < 12 : /\bEvening\b/.test(l) ? h >= 17 || h < 3 : /\bGood day\b/.test(l) ? !night : /\blate to be|\btonight\b|\bnight for a walk\b/.test(l) ? h >= 18 || h < 5 : true,
+  );
+  return ok.length ? ok : xs;
+}
+const leave = (h: number) => (h >= 20 || h < 5 ? "Good night to you." : "Good day to you.");
+
+function topicChoice(t: Topic, r: Resident, h = 12): string {
   const own = firstOf(talkExtras.choice.map((f) => () => f(r, t)));
   if (own) return own;
   switch (t) {
@@ -312,7 +326,7 @@ function topicChoice(t: Topic, r: Resident): string {
     case "theft":
       return "I've been robbed. Will you help me?";
     default:
-      return "Good day to you.";
+      return leave(h);
   }
 }
 
@@ -325,7 +339,8 @@ function openingText(db: DB, r: Resident, mood: string, met: number): string {
   const own = firstOf(talkExtras.greet.map((f) => () => f(db, r, mood, met)));
   if (own) return own;
   if (r.age < 13) return pickBy(seed, CHILD_GREET);
-  let line = pickBy(seed, GREET[mood] ?? GREET.neutral);
+  const h = clockOf(db).hour;
+  let line = pickBy(seed, fitHour(GREET[mood] ?? GREET.neutral, h));
   const heard = youHeard(rumoursOf(db, r.id, 3).filter((h) => stillTrue(db, h.fact)));
   if (heard && r.stats.gossip >= 5 && met <= 1) {
     const mine = ownVoice(heard.gist, [r.name, r.first]);
@@ -336,7 +351,7 @@ function openingText(db: DB, r: Resident, mood: string, met: number): string {
     line += pickBy(seed + "m", [" You again.", " Back again, are you?", ""]);
   } else {
     const w = TRADE_WORD[r.trade];
-    if (w) line += " " + pickBy(seed + "t", w);
+    if (w) line += " " + pickBy(seed + "t", fitHour(w, h));
   }
   return line;
 }
@@ -443,7 +458,7 @@ export function engineReply(db: DB, r: Resident, topic: Topic | null, seed: stri
       if (isSoldier(r.trade)) return "We don't lay hands on thieves; that's the police. Their post is on the Grote Markt, by the town hall. Go and tell them.";
       return `Go to ${POLICE_POST}.`;
     case "bye":
-      return pickBy(seed, ["Good day, then.", "Go on, then.", "God keep you.", "Mind how you go."]);
+      return pickBy(seed, fitHour(["Good day, then.", "Go on, then.", "God keep you.", "Mind how you go."], clockOf(db).hour));
     default:
       return s.temper >= 7
         ? pickBy(seed, ["Maybe. I've no time for it now.", "If you say so. I've work to do."])
@@ -500,7 +515,7 @@ function nextChoices(db: DB, r: Resident, sess: Session): string[] {
   // M6: an engine topic (warn the emigrants, report the runner) takes the first place
   const extra = extraTopics(db, r, sess).slice(0, 2); // M6 families: a visit may offer two (sorry / defy)
   const pickT = [...left.slice(0, 2 - extra.length), "bye" as Topic];
-  sess.offered = new Map<string, Topic | ExtraTopic | null>([...extra.map((t) => [t.choice, t] as [string, ExtraTopic]), ...pickT.map((t) => [topicChoice(t, r), t] as [string, Topic])]);
+  sess.offered = new Map<string, Topic | ExtraTopic | null>([...extra.map((t) => [t.choice, t] as [string, ExtraTopic]), ...pickT.map((t) => [topicChoice(t, r, clockOf(db).hour), t] as [string, Topic])]);
   return [...sess.offered.keys()];
 }
 
@@ -615,7 +630,7 @@ function engineLine(db: DB, r: Resident, sess: Session, text: string, end = fals
   return {
     npc_line: text,
     mood: moodOf(db, r),
-    choices: end ? ["Good day.", "Good day.", "Good day."] : nextChoices(db, r, sess),
+    choices: end ? Array(3).fill(leave(clockOf(db).hour)) : nextChoices(db, r, sess),
     trust_delta: 0,
     memory_note: "",
     memory_weight: 1,
@@ -723,7 +738,7 @@ Answer him in character.`;
 function modelLine(db: DB, r: Resident, sess: Session, raw: ResidentLine) {
   // M4: the proposed action goes through the engine first; a refusal replaces the line
   const out = talkHooks.proposal(db, r, raw);
-  const bye = topicChoice("bye", r);
+  const bye = topicChoice("bye", r, clockOf(db).hour);
   // M6: an engine topic (warn the emigrants, report the runner) keeps its place after a model line
   const extra = extraTopics(db, r, sess).slice(0, 2); // M6 families: a visit may offer two (sorry / defy)
   const mine = out.choices.filter((c) => c !== bye && !extra.some((t) => t.choice === c)).slice(0, 2 - extra.length);

@@ -3,6 +3,8 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import CITY from "../../../shared/city.json";
 import SPOT_TABLE from "../../../shared/spots.json";
+import INWORLD from "../../../shared/inworld_houses.json";
+import { TRAFFIC_ROUTES } from "./traffic";
 import { psx } from "../retro/psx";
 import type { Rect } from "./geom";
 import { facadeOpenings } from "./cityTextures";
@@ -94,6 +96,8 @@ interface CityData {
 const OPEN = 0;
 const WALL = 1;
 const CHUNK = 64;
+/** M7: the street doors of the taverns, the Poesje and the homes whose insides stand in the world. */
+const INWORLD_DOORS = (INWORLD as { houses: Array<{ door: number[] }> }).houses.map((e) => [e.door[0], e.door[1]] as [number, number]);
 /** M6 lively: the Matsijs well on the Handschoenmarkt (world metres). */
 export const WELL_AT: [number, number] = [-248, 137.5];
 /** M6 lively: how many corner Madonnas at most, and how far apart (Antwerp kept some 150-200 in its old centre; the game's map is compact). */
@@ -330,8 +334,11 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
     addItem(wallBox(ws.kind, ws.name, ws.flat, [bb.min.x, bb.min.y, Math.min(bb.min.z, -0.005), bb.max.x, bb.max.y, Math.max(bb.max.z, 0.005)], p.x, p.y, p.z, Math.atan2(n.x, n.z)));
   });
 
+  /** East walkthrough 2026-09-25: while set, put() draws nothing (a shop chosen for an in-world house's front). */
+  let muted = false;
   /** A copy of a model at (x, y, z), turned by yaw (0: its front looks along +z), stretched sx along its x (and sy up). */
   function put(name: string, x: number, y: number, z: number, yaw: number, sx = 1, kind = name, sy = 1): void {
+    if (muted) return;
     const p = protos.get(name);
     if (!p) return;
     if (kind in WALL_KINDS) addItem(wallBox(kind, name, WALL_KINDS[kind], p.box, x, y, z, yaw, sx, sy));
@@ -674,6 +681,10 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
     const [dx, dz] = hasDoor ? along(w, doorS) : mid;
     const gameDoor = hasDoor && nameGameDoorNear(dx, dz, 1.5);
     if (w.store || gameDoor) continue;
+    // East walkthrough 2026-09-25: a tavern or a home whose inside stands in the world (M7) is no shop: no
+    // "COAL AND PEAT" over Het Bassin, no chemist's board and goods at the garret's door. The shop is still
+    // chosen (the same random draws, so every other front stays as it was), only not drawn nor stocked.
+    const ownDoor = hasDoor && INWORLD_DOORS.some(([x, z]) => Math.hypot(x - dx, z - dz) < 1.5);
     if (!faceOpen(w, w.L / 2, 1.2)) continue; // a front on the water or against a wall: leave it
 
     // --- a shop
@@ -702,9 +713,12 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
       if (trade && boardBox) {
         shop = true;
         shopsNear.push({ x: mid[0], z: mid[1], key: trade.key });
-        shopFronts.push({ key: trade.key, ax: w.ax, az: w.az, tx: w.tx, tz: w.tz, ox: w.ox, oz: w.oz, len: w.L, door: doorS });
-        count("shop");
-        sites.push({ kind: `shop ${trade.key}`, x: +mid[0].toFixed(1), z: +mid[1].toFixed(1), yaw: +w.yaw.toFixed(2) });
+        muted = ownDoor;
+        if (!ownDoor) {
+          shopFronts.push({ key: trade.key, ax: w.ax, az: w.az, tx: w.tx, tz: w.tz, ox: w.ox, oz: w.oz, len: w.L, door: doorS });
+          count("shop");
+          sites.push({ kind: `shop ${trade.key}`, x: +mid[0].toFixed(1), z: +mid[1].toFixed(1), yaw: +w.yaw.toFixed(2) });
+        }
         put(trade.sign, sx, band.y, sz, w.yaw, 1, kindOf(trade), band.sy);
         // a bracket sign at one end of the front, first-floor height, beside the board
         const hang = trade.hang ?? (r() < 0.08 ? "tankard" : null);
@@ -743,6 +757,7 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
             }
           }
         }
+        muted = false;
       }
     }
 
@@ -875,13 +890,30 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
   // the old town, never two within MADONNA_GAP metres, in three kinds; each with a spot before her
   // in the street where the pious stop.
   const madonnas: StreetLife["madonnas"] = [];
+  const drayLanes = TRAFFIC_ROUTES.flatMap((rt) => rt.pts.slice(0, rt.loop ? rt.pts.length : -1).map((a, i) => [a, rt.pts[(i + 1) % rt.pts.length]] as const));
+  const inDrayLane = (x: number, z: number) =>
+    drayLanes.some(([[ax, az], [bx, bz]]) => {
+      const dx = bx - ax;
+      const dz = bz - az;
+      const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1)));
+      return Math.hypot(x - (ax + dx * t), z - (az + dz * t)) < 2.3;
+    });
   {
     const cands: Array<{ x: number; z: number; yaw: number; sx: number; sz: number; k: number }> = [];
-    for (const [cx, cz, ddx, ddz, , , , , , , , , H, , store] of meta.corners) {
+    for (const [cx, cz, ddx, ddz, o1x, o1z, t1x, t1z, o2x, o2z, t2x, t2z, H, , store] of meta.corners) {
       if (H < 6.5 || store || !openOut(cx, cz, ddx, ddz, 0.4, 2.2) || nameGameDoorNear(cx, cz, 2) || inStart(cx, cz)) continue;
-      const sx = cx + ddx * 1.9;
-      const sz = cz + ddz * 1.9;
+      let sx = cx + ddx * 1.9;
+      let sz = cz + ddz * 1.9;
       if (!isClear(sx, sz, 0.3)) continue;
+      // East walkthrough 2026-09-25: the spot before her is off the drays' rounds (world/traffic.ts). At the
+      // corner behind the Rijnkaai (31.4, 71.7) it lay in the dray's lane: the dray stood there, waiting for
+      // whoever stopped at her, and the path check found her spot shut. Then a spot before one of her two faces.
+      if (inDrayLane(sx, sz)) {
+        const alt = [[o1x, o1z, t1x, t1z], [o2x, o2z, t2x, t2z]]
+          .flatMap(([ox, oz, tx, tz]) => [1.2, 1.6, 2.0].flatMap((s) => [1.7, 1.3, 1.0].map((d) => [cx + tx * s + ox * d, cz + tz * s + oz * d])))
+          .find(([x, z]) => at(x, z) === OPEN && isClear(x, z, 0.3) && !inDrayLane(x, z));
+        if (alt) [sx, sz] = alt;
+      }
       // the old town first: the lanes round the cathedral and the markets, then the rest
       const kk = rng(hash(cx, cz, 7))();
       const old = Math.hypot(cx + 250, cz - 150) < 130 ? 0 : 0.35;

@@ -655,6 +655,9 @@ export function validateProposal(db: DB, r: Resident, raw: unknown): Accepted | 
           action: { npc_id: r.id, kind: "talk_to", target: who.id, target_x: open.x, target_z: open.z, reason: p.reason, source: "talk", minutes: TALK_TO_MIN, data: { purpose, about: p.reason } },
         };
       }
+      // M7 quest tests: a look about the street for someone at home at his dinner found "not a sign" after
+      // half an hour; say so at once, as a talk_to does
+      if (at.indoors) return refuse("indoors");
       const centre = jef ?? mine;
       return {
         ok: true,

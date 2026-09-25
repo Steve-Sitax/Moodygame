@@ -906,8 +906,11 @@ export function proposeRoutine(db: DB, r: Resident, p: ActionProposal, at: { jef
   const s = c.state!;
   const money = [c.price_c ? `Give me the coins for it: ${c.price_c} centimes.` : "", first ? `${first} now for my trouble, the rest when it's done.` : s.favour ? "No need to pay me." : s.wage_c ? "Pay me when it's done." : ""].filter(Boolean).join(" ");
   const line = [money, ...c.limits].filter(Boolean).join(" ") || "I'll be back.";
-  const left = c.dropped.length ? ` (Left out: ${[...new Set(c.dropped.map((d) => d.line))].join(" ")})` : "";
-  return { ok: true, action: null, instant: true, keep: true, line, patch: { end_conversation: true }, extra: { note: `${r.first} is off on your errand: ${s.goal}.${left}` } };
+  // M7 quest tests: the note is to the player ("your errand: bring it to you", not "to Jef"), and a step
+  // left out is said as the runner said it ("(Left out: I don't know where that is.)" read as the game's own voice)
+  const left = c.dropped.length ? ` ${r.first} left a step out: "${[...new Set(c.dropped.map((d) => d.line))].join(" ")}"` : "";
+  const goal = s.goal.replace(/\bJef's\b/g, "your").replace(/\bJef\b/g, "you");
+  return { ok: true, action: null, instant: true, keep: true, line, patch: { end_conversation: true }, extra: { note: `${r.first} is off on your errand: ${goal}.${left}` } };
 }
 
 function logRefusal(db: DB, r: Resident, kind: ErrandRefusal, line: string, words: string): Refused {
@@ -1569,9 +1572,9 @@ function reportLine(db: DB, _row: ActionRow, e: ErrandState, done: boolean, outc
   }
   switch (e.success) {
     case "delivered":
-      return `It's done. ${to ? `${to.first} has it.` : "They have it."}${e.reply ? ` ${she} said: "${e.reply}"` : ""}`;
+      return `It's done. ${to ? `${to.first} has it.` : "They have it."}${e.reply ? ` ${she} said: '${e.reply}'` : ""}`;
     case "told":
-      return `I told ${to?.first ?? "them"}.${e.reply ? ` ${she} said: "${e.reply}"` : ""}`;
+      return `I told ${to?.first ?? "them"}.${e.reply ? ` ${she} said: '${e.reply}'` : ""}`;
     case "brought":
       return "Here you are, as you asked.";
     case "cart_back":

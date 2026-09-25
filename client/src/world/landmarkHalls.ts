@@ -1045,7 +1045,7 @@ export function buildSteen(): LandmarkRoom {
   }
   // the stair down to the cell: worn steps, an iron rail round the well
   stairSteps(k, STAIR, M.stoneDark);
-  box(STAIR.rect.minX - 0.1, STAIR.head - 0.3, 0, 1.0, STAIR.rect.minZ - 0.2, STAIR.rect.minZ - 0.12, M.iron, 1);
+  box(STAIR.rect.minX - 0.1, ST.RAIL_END, 0, 1.0, STAIR.rect.minZ - 0.2, STAIR.rect.minZ - 0.12, M.iron, 1);
   box(STAIR.rect.minX - 0.1, STAIR.rect.minX - 0.02, 0, 1.0, STAIR.rect.minZ - 0.2, IN.back, M.iron, 1);
 
   // ---- the gatehouse: arms and armour, for looking at only
@@ -1074,8 +1074,10 @@ export function buildSteen(): LandmarkRoom {
   for (let i = 0; i < 4; i++) k.box(1.8, 0.02, 0.06, SW.x, 0.82, SW.z - 0.3 + i * 0.2, H.steel, { ry: (r() - 0.5) * 0.1 });
   const GN = ST.GUN;
   k.box(0.9, 0.35, 1.6, GN.x, 0.35, GN.z, H.timber);
-  k.cyl(0.16, 0.2, 1.7, GN.x, 0.6, GN.z - 0.8, H.bronze, { seg: 8, rx: Math.PI / 2 - 0.1 });
-  for (const s of [-1, 1]) k.cyl(0.35, 0.35, 0.08, GN.x + s * 0.5, 0.35, GN.z + 0.2, H.timber, { seg: 10, rz: Math.PI / 2 });
+  // cyl stands on y (its centre at y + h/2), so a lying barrel's y is its centre less h/2: the barrel lies
+  // on the carriage (centre 0.72), the muzzle toward the door (-z), over the wheels (walkthrough west 2026-09-25)
+  k.cyl(0.16, 0.2, 1.7, GN.x, 0.72 - 0.85, GN.z - 0.1, H.bronze, { seg: 8, rx: -(Math.PI / 2 - 0.1) });
+  for (const s of [-1, 1]) k.cyl(0.35, 0.35, 0.08, GN.x + s * 0.5, 0.31, GN.z - 0.35, H.timber, { seg: 10, rz: Math.PI / 2 });
 
   // ---- the cell: rings and chains in the walls, a bench, straw, a slit of grey light high in the end wall
   for (const [x, z] of [[-13.75, 2.2], [-13.75, 5.2], [-8.05, 3.0]] as Array<[number, number]>) {

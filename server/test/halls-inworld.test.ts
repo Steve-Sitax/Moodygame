@@ -398,6 +398,31 @@ describe("walking into the Steen", () => {
     expect(miss).toEqual([]);
   });
 
+  it("Jef's own body (0.32 m, as firstPerson walks) goes down to the cell and climbs back out to the door", () => {
+    // walkthrough west 2026-09-25: the back case and the stairwell's rail left no way onto the stair head at
+    // 0.32 (the 0.3 flood slipped through a gap of width 0), and from the cell the hall's floor ahead of the
+    // top steps was a wall for the body's ring: Jef was shut in the cell
+    const down = HP.flood(P, [step.x, step.z], 0.1, 0.32);
+    expect(down(-12.5, 3.0, 1, 0.5)).toBe(true);
+    // up the flight from its foot as the world walks it: the feet on the step under them, the ring 0.47 round
+    // the body all on floor within a step (or a flight's drop), no solid within 0.32
+    let feet = ST.DOWN;
+    const stuck: string[] = [];
+    for (let x = ST.STAIR.foot + 0.1; x <= ST.STAIR.head + 0.25; x += 0.05) {
+      const z = 6.65;
+      const f = HP.footing(P, x, z, feet);
+      if (!f) {
+        stuck.push(`no footing at ${x.toFixed(2)}`);
+        break;
+      }
+      feet = f.y;
+      const ringOk = [...Array(8).keys()].every((i) => HP.walkable(P, x + Math.cos((i * Math.PI) / 4) * 0.47, z + Math.sin((i * Math.PI) / 4) * 0.47, feet));
+      if (!ringOk || HP.hits(P, x, z, 0.32, feet)) stuck.push(`${x.toFixed(2)} at ${feet.toFixed(2)}`);
+    }
+    expect(stuck).toEqual([]);
+    expect(feet).toBe(0);
+  });
+
   it("the people's walking graph stands on free floor; the door shut keeps him out; never into the stairwell", () => {
     expect(P.nodes.filter(([x, z]) => !HP.freeAt(P, x, z, 0.25, false))).toEqual([]);
     const shut = HP.flood(P, [step.x, step.z], 0.25, 0.3, () => false);

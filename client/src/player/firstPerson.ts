@@ -554,7 +554,7 @@ export class FirstPerson {
     this.rideSeat = null;
     this.x = x;
     this.z = z;
-    this.y = this.world.groundAt(x, z, RADIUS, 0);
+    this.y = this.world.groundAt(x, z, RADIUS, this.world.baseAt(x, z));
     this.vy = 0;
     this.grounded = true;
     this.eye = EYE;
@@ -671,7 +671,7 @@ export class FirstPerson {
     this.bikeFallT = 0;
     this.x = x;
     this.z = z;
-    this.y = this.world.groundAt(x, z, RADIUS, 0);
+    this.y = this.world.groundAt(x, z, RADIUS, this.world.baseAt(x, z));
     this.yaw = this.lookYaw = heading;
     this.crouching = false;
     this.swimming = false;
@@ -1121,7 +1121,9 @@ export class FirstPerson {
     this.rowing = false;
     this.x = x;
     this.z = z;
-    this.y = 0;
+    // the ground floor there, not 0: on a raised floor (the Steen's courtyard and museum at 2.2 m) feet at 0
+    // found no floor and Jef fell into the void, at the museum's closing too (walkthrough west, 2026-09-25)
+    this.y = this.world.baseAt(x, z);
     this.vy = 0;
     this.grounded = true;
     this.swimming = false;

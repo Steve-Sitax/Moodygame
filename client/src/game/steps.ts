@@ -76,6 +76,8 @@ interface Walk {
   goalT?: number;
   /** M6 routines: seconds stood where nobody can stand (then they squeeze out). */
   wedgedT?: number;
+  /** M7 quest tests: new ways tried round something in the way (a wagon on the quay rails) before "blocked". */
+  detours?: number;
 }
 
 async function call<T>(method: string, url: string, body?: unknown): Promise<T> {
@@ -93,6 +95,8 @@ export class Steps {
   dirty = true;
   /** Set by main: is Jef inside a room (a follower then waits at the door). */
   inside: () => boolean = () => false;
+  /** M7 quest tests: the street door of the room Jef is in (a guest coming after him walks to it). */
+  doorOf: () => { x: number; z: number } | null = () => null;
   say: (t: string) => void = () => {};
   /** Dev: what was reported. */
   readonly reports: string[] = [];
@@ -296,7 +300,9 @@ export class Steps {
     }
     // M6 routines: someone wedged where nobody can stand (a stall set down on them, pressed to a wall
     // after an unseen walk) cannot take a step; after a moment they squeeze out to the open ground beside
-    if (w.r.purpose === "errand" && !this.crowd.canStand(p.x, p.z)) {
+    // (M7 quest tests: a hired hand too; one wedged in a leg of the crane with a crate on his shoulder
+    // said "I can't get it through" twice, and the crate lay there)
+    if ((w.r.purpose === "errand" || w.r.purpose === "hire") && !this.crowd.canStand(p.x, p.z)) {
       w.wedgedT = (w.wedgedT ?? 0) + dt;
       if (w.wedgedT > 1.5) {
         w.wedgedT = 0;
@@ -311,6 +317,14 @@ export class Steps {
     const d = Math.hypot(p.x - tx, p.z - tz);
     // there: at the open point, or up against a solid goal itself (Jef's cart, a pile); a person: where they are now
     const dRaw = s.x !== null && s.z !== null && !s.who ? Math.hypot(p.x - s.x, p.z - s.z) : d;
+    // M7 quest tests: a hand walking to the job's goods is there once he stands by one of them (the pile
+    // is solid; the open point next to its middle lay behind it, and a hand 2.8 m off the crates at the
+    // crane's foot was "blocked", quit, and kept the half paid up front). The pick-up walks the last step.
+    const pileJob = !carrying && w.r.purpose === "hire" && s.kind === "walk_to" ? (this.jobs.running?.job.id ?? null) : null;
+    if (pileJob !== null && dRaw < 6 && this.freeGoods(w, pileJob).some((it) => Math.hypot(it.obj.position.x - p.x, it.obj.position.z - p.z) < 2.4)) {
+      this.arrive(w, s, carrying);
+      return;
+    }
     // pushing a cart they stop with the cart's length between them and the goal
     if (d > REACH && dRaw > (w.r.cart ? 4.6 : 2.6)) {
       const pace = carrying ? (w.r.strong ? 1.1 : 0.85) : d > 12 ? 1.5 : 1.3;
@@ -318,6 +332,20 @@ export class Steps {
       if (this.stuck(w, d, dt)) {
         // a cart held up in the crowd of a market near the goal: he leaves it and carries the last few metres by hand
         if (carrying && w.r.cart && dRaw < 16) return void this.arrive(w, s, carrying);
+        // M7 quest tests: a wagon standing on the quay rails (a solid the walk grid does not know) stopped a
+        // hired hand with the last crate; a way round to either side first, three tries, then "blocked"
+        if ((w.detours ?? 0) < 3) {
+          w.detours = (w.detours ?? 0) + 1;
+          const side = w.detours % 2 ? 1 : -1;
+          const L = d || 1;
+          const off = 3 + w.detours;
+          const q = this.crowd.openNear(p.x + (-(tz - p.z) / L) * off * side, p.z + ((tx - p.x) / L) * off * side);
+          if (q) this.crowd.puppetGo(p, q.x, q.z, pace);
+          w.goT = 3;
+          w.stuckT = 0;
+          w.bestD = Infinity;
+          return;
+        }
         void this.report(w, false, "blocked");
       }
       return;
@@ -357,6 +385,17 @@ export class Steps {
   private follow(w: Walk, dt: number): void {
     // Jef went in somewhere: they wait at the door (the server takes them in with him, or not)
     if (this.inside()) {
+      // M7 quest tests: one a way behind stood still where he was, 30 m off the tavern, for good; now he
+      // comes on to the door (game/hands.ts asks the server again, and in he comes once he is there)
+      const door = this.doorOf();
+      if (door) {
+        const p = this.ensure(w, door, dt);
+        if (p && Math.hypot(p.x - door.x, p.z - door.z) > 2.5) {
+          const q = this.crowd.openNear(door.x, door.z) ?? door;
+          this.go(w, p, q.x, q.z, 1.5, 0.6, dt);
+          return;
+        }
+      }
       if (w.p && this.crowd.alive(w.p) && (this.crowd.puppetBusy(w.p) || (w.wait -= dt) <= 0)) {
         this.crowd.puppetStand(w.p, "idle", null);
         w.wait = 3;

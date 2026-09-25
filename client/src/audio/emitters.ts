@@ -1,6 +1,7 @@
 import CITY from "../../../shared/city.json";
 import { ORIGIN as CATHEDRAL, SHELL as CATHEDRAL_SHELL, TOWER_E } from "../../../shared/cathedralPlan";
 import { TRADE_SOUNDS } from "../world/trades";
+import INWORLD from "../../../shared/inworld_houses.json";
 
 // Where the city's sounds come from. World frame: x along the river (north),
 // z inland, the Scheldt at z < 0. Most points come from shared/city.json
@@ -104,12 +105,11 @@ export function cityEmitters(): Emitter[] {
   out.push({ kind: "smithy", x: 50, z: 46.5, y: 1.2, name: "smithy, Rijnkaai" });
   for (const t of TRADE_SOUNDS) out.push({ kind: t.kind, x: t.x, z: t.z, y: 1.2, gain: t.gain, name: t.name });
 
-  // taverns: street doors near the quays and the squares (singing at night)
-  const doss = city.doors.doss;
-  out.push({ kind: "tavern", x: -45, z: 46.5, y: 1.4, name: "tavern, Rijnkaai row" });
-  if (doss) out.push({ kind: "tavern", x: doss.x - 16, z: doss.z + 0.5, y: 1.4, name: "tavern by the doss house" });
-  if (vis) out.push({ kind: "tavern", x: vis.x, z: 49.5, y: 1.4, name: "tavern, Vismarkt" });
-  if (gm) out.push({ kind: "tavern", x: -222.5, z: gm.z - 4, y: 1.4, name: "tavern, Grote Markt" });
+  // taverns: singing at night from the five taverns' street doors (M7: the taverns in the world,
+  // shared/inworld_houses.json). Walkthrough west 2026-09-25: the four old points were guesses, one on the
+  // Steenplein side "by the doss house" where no tavern is, the Grote Markt's 17 m from Den Engel's door,
+  // the Rijnkaai row's 16 m from In de Ankere's; Het Schipke on the Werf and Het Bassin had none.
+  for (const h of INWORLD.houses) if (h.kind === "tavern") out.push({ kind: "tavern", x: h.door[0], z: h.door[1], y: 1.4, name: h.id.replace("tavern:", "tavern ") });
 
   // cranes on the quays
   for (const [x, z] of CRANES) out.push({ kind: "crane", x, z, y: 6, name: `crane ${x},${z}` });

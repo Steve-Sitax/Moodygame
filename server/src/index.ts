@@ -432,6 +432,8 @@ app.post("/api/npc/:id/talk", async (c) => {
   if (isResident(db, id)) {
     if ((body.kind === "choice" || body.kind === "free") && typeof body.text === "string") {
       const r = body.kind === "choice" ? await residentChoice(db, id, body.text) : await residentFree(db, id, body.text);
+      // M7 quest tests: a gift taken (or an errand's coins) left the pockets on screen until the next tick
+      broadcast({ type: "jobs", ...jobsPayload() });
       if ("npc_line" in r) return c.json(publicLine(r));
       return c.json({ gated: r.gated });
     }

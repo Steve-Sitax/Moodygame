@@ -2,7 +2,7 @@ import { z } from "zod";
 import { plainEnglish } from "../text.ts";
 import type { DB } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
-import { ALL_EMPLOYERS, SYSTEM, type JobRow } from "./jobBoard.ts";
+import { ALL_EMPLOYERS, SPOTS, SYSTEM, type JobRow } from "./jobBoard.ts";
 import type { Settlement } from "../game.ts";
 
 // job_outcome hook, docs/03. The engine has already paid and moved trust.
@@ -25,6 +25,7 @@ ${e ? `${e.name}: ${e.note}.` : job.employer_name}
 
 THE JOB
 "${job.title}": ${job.pitch}
+${workLine(job)}
 
 WHAT HAPPENED (engine facts, all true, do not change them)
 ${s.facts.map((f) => "- " + f).join("\n")}
@@ -36,6 +37,28 @@ WRITE
   If the employer does not know about a misdeed, they must not mention it.
 - memory: one sentence, how ${e?.name ?? "the employer"} will remember Jef after this. Their point of view, plain.
 - weight: 1 to 10, how much this sticks with them. Plain work 3-4, a theft or a rescue 7-9.`;
+}
+
+const place = (id: string) => (SPOTS as Record<string, { label: string } | undefined>)[id]?.label ?? id;
+
+/**
+ * The work as the engine set it (M7 quest tests: the outcome named "the Hessenatie door" for a brewer's
+ * barrels and "barrels" for sacks, because the pitch was all it had and the engine may move a place).
+ */
+export function workLine(job: JobRow): string {
+  const t = job.task;
+  if (!t) return "";
+  const w =
+    t.kind === "carry"
+      ? `${t.count} ${t.goods} from ${place(t.from)} to ${place(t.to)}`
+      : t.kind === "deliver"
+        ? `${t.goods === "parcel" ? "a parcel" : `one of the ${t.goods}`} from ${place(t.from)} to ${t.recipient} at ${place(t.to)}`
+        : t.kind === "watch"
+          ? `a watch over the ${t.goods} at ${place(t.post)}`
+          : t.stops.some((s) => s.what === "telegraph")
+            ? "a telegram to send"
+            : `${t.stops.length} letters to doors`;
+  return `The work, as it really was (these goods and places, whatever the pitch says): ${w}.`;
 }
 
 /** Hand-written line when the model is late or wrong. */

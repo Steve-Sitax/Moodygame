@@ -48,12 +48,23 @@ export const CELL = R(IN.east, -8.0, IN.front, IN.back);
 
 /** The stair down to the cell along the back wall, from the hall (its head) to the cell (its foot). */
 export const STAIR: Stair = { rect: R(-12.4, -9.0, 5.9, IN.back), along: "x", foot: -12.4, head: -9.0, lo: 1, hi: 0, y0: DOWN, y1: 0, rise: -DOWN / 12 };
+/**
+ * The flight for walking: as STAIR, reaching 0.5 m onto the hall's floor past its head (its height held there,
+ * as the homes' flights do). Without it the steep flight (0.2 on 0.28) had the hall's floor ahead count as a wall
+ * for the body's ring from the second-last step, and Jef could not climb out of the cell (walkthrough west,
+ * 2026-09-25). STAIR itself is what is drawn.
+ */
+/** Where the iron rail along the stairwell ends at the hall's side: 0.6 short of the head, so the way onto the flight between it and the back case is 0.56 m wide for Jef's body (walkthrough west, 2026-09-25). */
+export const RAIL_END = STAIR.head - 0.6;
+export const WALK_STAIR: Stair = { ...STAIR, rect: R(STAIR.rect.minX, STAIR.head + 0.5, STAIR.rect.minZ, STAIR.rect.maxZ) };
 
 // ---- the hall of antiquities: glass cases, cabinets, carved stones
 /** Cases on tables: [x, z, along x] (2.2 by 0.9). */
 export const CASES: Array<[number, number, boolean]> = [
   [-4.6, 1.55, true], [-7.8, 1.55, true], [-11.0, 1.55, true],
-  [-5.0, 6.85, true], [-7.6, 6.85, true],
+  // the back case at x -7.3, not -7.6 (walkthrough west, 2026-09-25): at -7.6 its end and the stairwell's
+  // rail left no way onto the stair head for Jef's body (0.32 m), so the cell could not be walked to
+  [-5.0, 6.85, true], [-7.3, 6.85, true],
   [-13.25, 3.6, false],
 ];
 export const CABINETS: Array<[number, number]> = [[-6.3, 4.3], [-10.0, 4.3]];
@@ -90,7 +101,7 @@ const level0: Level = {
     R(GUN.x - 0.5, GUN.x + 0.5, GUN.z - 0.9, GUN.z + 0.9),
     R(SWORDS.x - 1.2, SWORDS.x + 1.2, SWORDS.z - 0.45, SWORDS.z + 0.45),
     // the rail round the stairwell
-    R(STAIR.rect.minX - 0.1, STAIR.head - 0.3, STAIR.rect.minZ - 0.2, STAIR.rect.minZ - 0.05),
+    R(STAIR.rect.minX - 0.1, RAIL_END, STAIR.rect.minZ - 0.2, STAIR.rect.minZ - 0.05),
     // the door's leaves standing open along the doorway
     R(-DOOR.hw - 0.05, -DOOR.hw + 0.14, 0, 1.3),
     R(DOOR.hw - 0.14, DOOR.hw + 0.05, 0, 1.3),
@@ -117,7 +128,7 @@ const sets: Record<string, Mark[]> = {
     { x: -7.8, z: 2.55, yaw: Math.PI },
     { x: -11.0, z: 2.55, yaw: Math.PI },
     { x: -5.0, z: 5.85, yaw: 0 },
-    { x: -7.6, z: 5.85, yaw: 0 },
+    { x: -7.3, z: 5.85, yaw: 0 },
     { x: -12.2, z: 3.6, yaw: -Math.PI / 2 },
     { x: -6.3, z: 3.35, yaw: 0 },
     { x: -10.0, z: 5.25, yaw: Math.PI },
@@ -138,7 +149,7 @@ export const PLAN: HallPlan = {
   yaw: Math.PI,
   floorY: FLOOR_Y,
   levels: [level0, level1],
-  stairs: [STAIR],
+  stairs: [WALK_STAIR],
   doors: [{ id: "steen_museum", x: 0, z: 0, dir: 1, hw: DOOR.hw, h: DOOR.spring, inner: IN.front, y: 0, leaves: 2, open: (80 * Math.PI) / 180, step: marks.door, archTop: ARCH }],
   area: [R(-2.0, 2.0, -2.4, 0.2), R(-14.4, 2.8, 0, 8.1)],
   steps: [],

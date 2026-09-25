@@ -403,7 +403,17 @@ async function call<T>(method: string, url: string, body?: unknown, timeoutMs = 
     body: body ? JSON.stringify(body) : undefined,
     signal: AbortSignal.timeout(timeoutMs),
   });
-  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
+  // M7 quest tests: a reply cut off (the time limit ran out while the body was read) was taken as {}
+  // and passed on as a good reply (the events' list became undefined and every E key stopped). A body
+  // that cannot be read now throws; an empty body is still {}.
+  const text = await res.text();
+  let data: T & { error?: string };
+  try {
+    data = (text ? JSON.parse(text) : {}) as T & { error?: string };
+  } catch {
+    if (res.ok) throw new Error(`bad reply from ${url}`);
+    data = {} as T & { error?: string };
+  }
   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
   return data;
 }

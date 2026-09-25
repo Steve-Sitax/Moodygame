@@ -1,4 +1,5 @@
 import { talkExtras } from "../town/talk.ts";
+import { clock } from "../day.ts";
 import { NIGHT_GIVER_IDS } from "../../../shared/night.ts";
 
 // M7 night: how the givers of night work talk (the ordinary resident talk, town/talk.ts, with their own
@@ -21,10 +22,13 @@ const SELF: Record<string, string> = {
   cracksman: "I see to doors. Some want seeing to at night. A man needs somebody watching the street.",
 };
 
-talkExtras.greet.push((_db, r, _mood, met) => {
+talkExtras.greet.push((db, r, _mood, met) => {
   if (!IDS.has(r.id)) return null;
   const lines = GREET[r.id] ?? GREET.fence;
-  return lines[met % lines.length];
+  const line = lines[met % lines.length];
+  // M7 quest tests: "Evening." at a quarter to four in the morning; the rest of the line only then
+  const h = clock(db).hour;
+  return h >= 3 && h < 17 ? line.replace(/^Evening\.\s*/, "") : line;
 });
 
 talkExtras.reply.push((_db, r, topic) => (IDS.has(r.id) && topic === "self" ? (SELF[r.id] ?? null) : null));

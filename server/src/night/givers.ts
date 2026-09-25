@@ -18,7 +18,10 @@ const POST_OFFSET: Record<string, [number, number]> = {
   fence: [3, 3],
   smuggler: [-3, 2.5],
   nightcarter: [-3, -2],
-  cracksman: [-3, 3],
+  // east walkthrough 2026-09-25: was [-3, 3], which the walk map put at (116.9, 123.3), inside the pier of
+  // the Oostershuis gate's portal (a wall in the game): he could not be seen or spoken to. Now between the
+  // warehouse doors west of the gate, off the drays' lane along the quay.
+  cracksman: [-10.5, 1.1],
 };
 
 const FIRST = ["Rik", "Door", "Lowie", "Nand", "Staf", "Miel", "Pier", "Warre"];
@@ -44,8 +47,19 @@ export function ensureNightTown(db: DB): number {
   if (has === 0) return 0;
   const t = town(db).town;
   const missing = NIGHT_GIVERS.filter((g) => !t.residents.some((r) => r.id === g.id));
-  if (!missing.length) return 0;
   const wm = walkMap();
+  // a giver added before his post moved (POST_OFFSET) goes to the post the table gives now
+  let moved = 0;
+  for (const g of NIGHT_GIVERS) {
+    const r = t.residents.find((q) => q.id === g.id);
+    const post = r ? postOf(g, wm) : null;
+    if (!r || !post || !r.work.at || Math.hypot(r.work.at[0] - post[0], r.work.at[1] - post[1]) < 0.3) continue;
+    r.work.at = post;
+    db.prepare("UPDATE resident SET data_json = ? WHERE id = ?").run(JSON.stringify(r), r.id);
+    moved++;
+  }
+  if (moved) dropTownCache(db);
+  if (!missing.length) return 0;
   const doors = houseDoors();
   const rng = rngFrom((t.seed ^ 0x0007_4e17) >>> 0);
   const used = new Set(t.residents.map((r) => r.surname));
@@ -66,6 +80,15 @@ export function ensureNightTown(db: DB): number {
   return missing.length;
 }
 
+/** Where a giver stands (x, z, yaw facing his spot), from his spot and POST_OFFSET on the walk map. */
+function postOf(g: TownEmployer, wm: ReturnType<typeof walkMap>): [number, number, number] | null {
+  const sp = SPOTS[g.spot];
+  if (!sp) return null;
+  const [dx, dz] = POST_OFFSET[g.id] ?? [2, 2];
+  const q = wm.nearestOpen(sp.x + dx, sp.z + dz, 8) ?? wm.nearestOpen(sp.x, sp.z, 12) ?? { x: sp.x, z: sp.z };
+  return [q.x, q.z, Math.atan2(sp.x - q.x, sp.z - q.z)];
+}
+
 function makeGiver(
   g: TownEmployer,
   rng: () => number,
@@ -74,11 +97,9 @@ function makeGiver(
   wm: ReturnType<typeof walkMap>,
   doors: ReturnType<typeof houseDoors>,
 ): Resident | null {
-  const sp = SPOTS[g.spot];
-  if (!sp) return null;
-  const [dx, dz] = POST_OFFSET[g.id] ?? [2, 2];
-  const q = wm.nearestOpen(sp.x + dx, sp.z + dz, 8) ?? wm.nearestOpen(sp.x, sp.z, 12) ?? { x: sp.x, z: sp.z };
-  const yaw = Math.atan2(sp.x - q.x, sp.z - q.z);
+  const post = postOf(g, wm);
+  if (!post) return null;
+  const q = { x: post[0], z: post[1] };
   const door = doors.slice().sort((a, b) => Math.hypot(a.sx - q.x, a.sz - q.z) - Math.hypot(b.sx - q.x, b.sz - q.z))[0];
   if (!door) return null;
   const first = FIRST[(hash(g.id) + Math.floor(rng() * FIRST.length)) % FIRST.length];
@@ -99,7 +120,7 @@ function makeGiver(
     faction: tr.faction,
     kind: KIND[g.id] ?? "stranger",
     home: { house: door.house, x: door.x, z: door.z, sx: door.sx, sz: door.sz },
-    work: { place: g.spot, kind: "post", at: [q.x, q.z, yaw] },
+    work: { place: g.spot, kind: "post", at: post },
     sched: { day: [night], sunday: [night] },
     stats: { honesty: 2, temper: 5, piety: 1, warmth: 4, greed: 7, courage: 6, gossip: 3, wealth: 3 },
     dog: null,

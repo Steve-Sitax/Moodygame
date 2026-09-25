@@ -10,6 +10,7 @@ import type { Pockets } from "./pockets";
 import { api, type JobsPayload } from "../net/api";
 import { chest, type Target } from "./facing";
 import type { QuestBoxes } from "./questboxes";
+import { gameMin } from "../../../shared/clock";
 
 // How each kind of job plays in 3D (M2b, M3). Goods live in the shared
 // GoodsWorld; a run tags its own goods with the job id and watches what
@@ -43,6 +44,8 @@ export interface RunCtx {
   finish(r: Report): void;
   /** M7 night: the employers' quest boxes (a parcel waits in the box while its man is home asleep). */
   box?: QuestBoxes | null;
+  /** The game's hour now (a stranger's greeting fits the time of day). */
+  hour?: () => number;
 }
 
 export interface Run {
@@ -68,7 +71,18 @@ const REACH_PERSON = 2.6;
 const SELL_PRICE = { carry: 35, deliver: 60 } as const;
 
 const dist2 = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
-const clock = (s: number) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, "0")}`;
+/**
+ * The time left to the bell in game minutes (M7 quest tests: "The bell in 1:47", real minutes and
+ * seconds, read as an hour and 47 beside the game's clock; 107 real seconds are 54 game minutes).
+ */
+const bellIn = (realSecs: number) => {
+  const m = Math.max(1, Math.ceil(gameMin(Math.max(0, realSecs))));
+  return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")} min`;
+};
+/** A sentence starts with a capital ("the mate of the Anna Maria takes it"). */
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+/** A stranger's hello by the hour. */
+const hello = (h: number) => (h >= 5 && h < 12 ? "Morning" : h >= 12 && h < 18 ? "Afternoon" : "Evening");
 export const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
@@ -79,6 +93,11 @@ export function slot(spot: string, i: number, gap = 0.95): [number, number] {
   const side = (i % 2 ? 1 : -1) * 0.5;
   const along = Math.floor(i / 2) * gap;
   return [s.x + dx * along - dz * side, s.z + dz * along + dx * side];
+}
+
+/** No goods lying within half a metre of (x, z)? */
+function freeSlot(goods: GoodsWorld, x: number, z: number): boolean {
+  return !goods.items.some((it) => Math.hypot(it.obj.position.x - x, it.obj.position.z - z) < 0.55);
 }
 
 /** A point near the middle of a->b, about d metres to the side, on free ground. */
@@ -159,8 +178,13 @@ export class HaulRun implements Run {
       left > 0 && ((task.kind === "deliver" && !!employer && !(this.pocketed_ && ctx.pockets.hasJobParcel(job.id))) || fromShip);
     if (fromShip) this.toLower = flags;
     else if (!this.waitingHandover) {
-      flags.forEach((f, i) => {
-        const [x, z] = slot(task.from, i);
+      // M7 quest tests: the goods of an earlier job delivered here lie on the same slots (an emigrant's
+      // lost chest came up inside Tuur's crates at the cart stand, and E lifted a crate): the next free slots
+      let k = 0;
+      flags.forEach((f) => {
+        let [x, z] = slot(task.from, k);
+        while (k < 40 && freeSlot(goods, x, z) === false) [x, z] = slot(task.from, ++k);
+        k++;
         goods.spawn(this.goods, x, z, { jobId: job.id, owner: job.employer_npc, ...f });
       });
     }
@@ -286,7 +310,7 @@ export class HaulRun implements Run {
 
   private giveParcel(): void {
     this.recipient?.face(this.ctx.player.x, this.ctx.player.z);
-    this.ctx.toast(`${(this.task as DeliverTask).recipient} takes the parcel, weighs it in one hand, and turns away.`);
+    this.ctx.toast(`${cap((this.task as DeliverTask).recipient)} takes the parcel, weighs it in one hand, and turns away.`);
     this.delivered++;
     this.changed();
   }
@@ -360,7 +384,7 @@ export class HaulRun implements Run {
     this.ctx.goods.release();
     item.obj.removeFromParent();
     this.recipient?.face(this.ctx.player.x, this.ctx.player.z);
-    this.ctx.toast(`${(this.task as DeliverTask).recipient} takes it without a word and turns away.`);
+    this.ctx.toast(`${cap((this.task as DeliverTask).recipient)} takes it without a word and turns away.`);
     this.delivered++;
     this.changed();
   }
@@ -510,7 +534,7 @@ export class HaulRun implements Run {
       this.kind === "carry"
         ? `<br>${this.delivered} / ${this.count} delivered${this.onCart ? `, ${this.onCart} on the cart` : ""}${this.lost ? `, ${this.lost} lost` : ""}${this.sold ? `, ${this.sold} sold` : ""}`
         : "";
-    const time = this.task.limit_s ? `<br>${this.late ? "Late" : `The bell in ${clock(this.task.limit_s - this.t)}`}` : "";
+    const time = this.task.limit_s ? `<br>${this.late ? "Late" : `The bell in ${bellIn(this.task.limit_s - this.t)}`}` : "";
     return `<b>${esc(this.job.title)}</b><br>${step}${count}${time}`;
   }
 
@@ -687,7 +711,7 @@ export class WatchRun implements Run {
           b.stop();
           b.face(x, z);
           this.briberState = "waiting";
-          this.ctx.toast(`"Evening, lad. Cold work. What if you looked at the river a while?"`);
+          this.ctx.toast(`"${hello(this.ctx.hour?.() ?? 20)}, lad. Cold work. What if you looked at the river a while?"`);
         } else b.walkTo(x, z, 1.1);
       } else if (this.briberState === "waiting") {
         b.face(x, z);
@@ -746,7 +770,7 @@ export class WatchRun implements Run {
   }
 
   hud(): string {
-    const status = this.near() ? `The bell in ${clock(this.task.duration_s - this.t)}` : "Back to your post!";
+    const status = this.near() ? `The bell in ${bellIn(this.task.duration_s - this.t)}` : "Back to your post!";
     return `<b>${esc(this.job.title)}</b><br>Stand watch at ${esc(this.post.label)}<br>${status}`;
   }
 

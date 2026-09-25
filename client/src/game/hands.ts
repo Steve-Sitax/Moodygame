@@ -145,6 +145,11 @@ export class Hands {
     };
     interiors.seatedKeys = () => this.seatedKeys();
     steps.inside = () => interiors.inside;
+    // M7 quest tests: a guest who was a way behind comes on to the tavern's door (steps.ts), and in
+    steps.doorOf = () => {
+      const place = interiors.placeId;
+      return place && place.startsWith("tavern:") ? interiors.doorStep(place) : null;
+    };
   }
 
   // ------------------------------------------------------------------ gifts
@@ -302,6 +307,10 @@ export class Hands {
     if (this.treatT <= 0) {
       this.treatT = this.treats.length || this.interiors.inside ? 3 : 12;
       if (hasRoutines || this.treats.length) void this.loadTreats();
+      // M7 quest tests: Jef is in the tavern and a guest is still coming (was more than 30 m off the door
+      // when he went in): ask again, the server takes them in once they are at the door
+      const place = this.interiors.placeId;
+      if (place && place === this.wasInside && this.treats.some((t) => t.step === "follow")) this.roomChanged("tavern");
     }
   }
 

@@ -218,7 +218,9 @@ describe("the plan: the engine checks it whole", { timeout: 30_000 }, () => {
     expect(String(bad.npc_line)).toBe("I don't know where that is.");
     expect(errandOf(db, runner.id)).toBeNull();
     const part = await say(db, runner.id, `Go to Atlantis, then tell ${other.name} the Kempenland is in.`, asks(plan([P("walk_to", { target: "Atlantis" }), P("talk_to", { target: other.name, message: "The Kempenland is in." }), P("come_back")], "told")));
-    expect(String(part.note)).toMatch(/Left out: I don't know where that is\./);
+    // M7 quest tests: said as the runner said it, and the goal to the player ("you", not "Jef")
+    expect(String(part.note)).toMatch(/left a step out: "I don't know where that is\."/);
+    expect(String(part.note)).not.toMatch(/\bJef\b/);
     const g = errandOf(db, runner.id)!;
     expect(kinds(db, g.row.id)).toEqual(["talk_to", "walk_to"]);
     expect(money(db)).toBe(200);

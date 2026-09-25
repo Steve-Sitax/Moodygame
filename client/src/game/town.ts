@@ -93,6 +93,8 @@ export interface Sim {
   held: boolean;
   /** Fixes 2026-09-24: gone on unseen for an action (hideAway): the town does not bring them back into the street. */
   away?: boolean;
+  /** East walkthrough 2026-09-25: whether their tavern was open ("in") or not ("out") when the goal was set. */
+  tav?: string;
   outAt: number;
   lamp: boolean;
   /** A thief's night: walking the haunts, stalking Jef, or running off. */
@@ -298,10 +300,16 @@ export class Town {
     if (err || s.errand) return this.errandStep(s, err, day, hour);
     const now = activityAt(s.r.sched, day, hour);
     const key = `${now.act}:${now.place}${this.lively?.key(s, now, day, hour) ?? ""}`;
-    if (key === s.key) {
+    // East walkthrough 2026-09-25: a publican (or a drinker) whose goal was set while his tavern's house
+    // was not open yet (at load, before the in-world rooms are attached) stood 1.7 m before the door and
+    // blocked it. The tavern opening or shutting sets the goal again, the key unchanged.
+    const tavPlace = now.act === "tavern" ? now.place : now.act === "work" && s.r.work.kind === "tavern" ? s.r.work.place : "";
+    const tav = tavPlace ? (this.tavernInside(tavPlace) ? "in" : "out") : "";
+    if (key === s.key && tav === (s.tav ?? "")) {
       this.lanterns(s, hour);
       return;
     }
+    s.tav = tav;
     const prevKey = s.key;
     const prevPt: Pt | null = s.p ? [s.p.x, s.p.z] : s.inside ? null : [s.x, s.z];
     s.key = key;
