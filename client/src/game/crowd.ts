@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { psx } from "../retro/psx";
-import { addLantern, removeLantern, type LanternSource } from "../world/lanternLights";
+import { addLantern, lanternDarkAt, removeLantern, type LanternSource } from "../world/lanternLights";
+import { lampFog } from "../world/lampFog";
 import type { Rect } from "../world/geom";
 import { makeHuman, whenHumans, RIDE_BACK, type Human, type HumanKind, type Motion } from "./humans";
 import { loadProps, type Props } from "../world/props3d";
@@ -606,9 +607,11 @@ export class Crowd {
     this.crateGeo = new THREE.BoxGeometry(0.5, 0.45, 0.4).translate(0, 0.225, 0);
     this.lanternGeo = new THREE.CylinderGeometry(0.06, 0.05, 0.16, 4).translate(0, -0.08, 0);
     this.lanternCapGeo = new THREE.ConeGeometry(0.075, 0.07, 4).translate(0, 0.035, 0);
-    this.lanternMat = new THREE.MeshBasicMaterial({ color: 0xffc070, fog: false });
+    // M7 fog lamps: the glass fogs with its carrier (world/lampFog.ts; a lit one a little further)
+    this.lanternMat = new THREE.MeshBasicMaterial({ color: 0xffc070 });
+    lampFog(this.lanternMat, 1.2);
     this.lanternIron = psx(new THREE.MeshLambertMaterial({ color: 0x1a1a1a }));
-    this.haloMat = new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffb060, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.45, fog: false });
+    this.haloMat = new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffb060, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.45 });
     whenHumans(() => (this.ready = true));
     // the carters' handcarts, and a proper packing crate to sit on (props.glb)
     loadProps()
@@ -2067,7 +2070,9 @@ export class Crowd {
     // a light carries further in the fog than the one who carries it; it lights the ground round
     // the carrier also while he is out of the view (behind you, round a corner)
     const near = d < this.fogFar * 1.8;
-    const on = near && this.inFrustum(p.x, p.z, 1.5);
+    // M7 fog lamps: the lantern itself is drawn with its carrier only (it hung in the fog on its own
+    // where he was out of the view: past the fog, or culled); its light on the ground still carries
+    const on = p.shown && p.group.visible;
     l.g.visible = on;
     l.src.on = near ? 1 : 0;
     if (!near) return;
@@ -2081,7 +2086,11 @@ export class Crowd {
     l.src.ground = base;
     if (!on) return;
     const flick = 0.4 + 0.06 * Math.sin(performance.now() * 0.013 + p.x);
-    l.halo.material.opacity = flick; // shared material: all lanterns breathe together, gently
+    // shared material: all lanterns breathe together, gently; lit after dark (a horn pane by day)
+    const dark = lanternDarkAt(this.hour);
+    l.halo.material.opacity = flick * dark;
+    l.halo.visible = dark > 0.02;
+    (this.lanternMat as THREE.MeshBasicMaterial).color.setRGB(0.42 + 0.58 * dark, 0.35 + 0.4 * dark, 0.27 + 0.17 * dark);
   }
 
   // ---------------------------------------------------------------- away

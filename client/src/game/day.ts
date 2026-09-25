@@ -99,6 +99,11 @@ export class Day {
   }
   private shownAt = performance.now();
 
+  /** M7 fog lamps: today's fog as the lamplighters see it (null before the server has said). */
+  get lampsFog(): JobsPayload["lamps_fog"] | null {
+    return this.payload?.lamps_fog ?? null;
+  }
+
   get rentPaid(): boolean {
     return this.payload?.rent.paid ?? false;
   }

@@ -1,4 +1,4 @@
-import { inGrace, lampLit, roundState, roundWindow, seenPace, SEEN_STOP_S, type LampRound } from "../../../server/src/town/lampround";
+import { inGrace, lampLit, roundState, roundWindow, seenPace, SEEN_STOP_S, type FogDay, type LampRound, type LampWindow } from "../../../server/src/town/lampround";
 import type { GasLamps } from "../world/gaslamps";
 import type { Crowd, Puppet } from "./crowd";
 import type { Town } from "./town";
@@ -13,6 +13,9 @@ import { makeWear, setPole, type Wear } from "./wardrobe";
 // with the plan. M7 lamps (2026-09-25): seen, his pace is the one that ends his round before its
 // window closes (lampround.ts seenPace): Jef's walk, or a brisk walk when he is behind. Held up
 // (an opening bridge, a crowd), he goes on past his window until full dark (full day at dawn).
+// M7 fog lamps (2026-09-25): on a day of thick fog the lamps burn by day too. With the day's fog
+// (the engine's FogDay, lampround.ts windowsOf) the dawn round is not walked, a fog that comes by day
+// is lit by a fog round, and one that lifts early enough is put out by one; each is walked like the others.
 
 const CLAIM_M = 50;
 const DROP_M = 64;
@@ -28,6 +31,8 @@ interface Run {
   t: number;
   goT: number;
   kind: "dusk" | "dawn" | null;
+  /** The window he walks (its kind and start: a fog round is a window of its own). */
+  win: LampWindow | null;
   held: boolean;
   /** Seen: the pace he walks now (m/s). */
   pace: number;
@@ -36,6 +41,8 @@ interface Run {
 export class Lamplighters {
   private runs: Run[] = [];
   private clock = 0;
+  /** Today's fog as the engine keeps it (null: none known yet, the plain dusk and dawn rounds). */
+  fog: FogDay | null = null;
 
   constructor(
     private readonly town: Town,
@@ -45,7 +52,7 @@ export class Lamplighters {
 
   setRounds(rounds: LampRound[]): void {
     for (const r of this.runs) this.drop(r, true);
-    this.runs = rounds.map((round) => ({ round, p: null, wear: null, idx: 0, done: 0, phase: "walk", t: 0, goT: 0, kind: null, held: false, pace: 0 }));
+    this.runs = rounds.map((round) => ({ round, p: null, wear: null, idx: 0, done: 0, phase: "walk", t: 0, goT: 0, kind: null, win: null, held: false, pace: 0 }));
   }
 
   update(dt: number, player: { x: number; z: number }, hour: number): void {
@@ -55,20 +62,23 @@ export class Lamplighters {
 
   private run(r: Run, dt: number, player: { x: number; z: number }, hour: number): void {
     const round = r.round;
-    let w = roundWindow(round, hour);
+    const fog = this.fog;
+    let w = roundWindow(round, hour, fog);
     // followed and held up past his window: he finishes his round, until full dark (full day at dawn)
-    if (!w.kind && r.p && r.kind && r.idx < round.lamps.length && inGrace(round, r.kind, hour)) w = { kind: r.kind, u: 1 };
-    const plan = roundState(round, hour);
-    if (w.kind !== r.kind) {
+    if (!w.kind && r.p && r.win && r.idx < round.lamps.length && inGrace(round, r.win, hour)) w = { kind: r.win.kind, u: 1, w: r.win };
+    const plan = roundState(round, hour, fog);
+    if (w.kind !== r.kind || w.w?.start !== r.win?.start) {
       // a new window (or its end): the walker starts from the plan
       if (r.p) this.drop(r, false);
       r.kind = w.kind;
+      r.win = w.w;
       r.done = plan.done;
     }
-    // the lamps: the plan's, unless he is walking them in front of Jef
+    // the lamps: the plan's, unless he is walking them in front of Jef (the ones he has not reached
+    // yet are as they were when his window began)
     round.lamps.forEach((l, k) => {
-      let on = lampLit(round, k, hour);
-      if (r.p && w.kind) on = w.kind === "dusk" ? k < r.done : k >= r.done;
+      let on = lampLit(round, k, hour, fog);
+      if (r.p && w.kind && w.w) on = k < r.done ? w.kind === "dusk" : lampLit(round, k, w.w.start - 1e-6, fog);
       this.lamps.set(l.id, on);
     });
     if (!w.kind) {
@@ -118,7 +128,7 @@ export class Lamplighters {
       r.goT -= dt;
       if (r.goT <= 0 || !this.crowd.puppetBusy(p)) {
         // the way through the streets runs a little longer than the straight line
-        r.pace = seenPace(round, r.idx, dl * 1.15, hour, w.kind);
+        r.pace = seenPace(round, r.idx, dl * 1.15, hour, w.w ?? w.kind);
         this.crowd.puppetGo(p, lamp.sx, lamp.sz, r.pace);
         r.goT = 3;
       }
@@ -153,6 +163,7 @@ export class Lamplighters {
       who: this.town.info(r.round.lamplighter)?.name ?? r.round.lamplighter,
       lamps: r.round.lamps.length,
       window: r.kind,
+      fog: !!r.win?.fog,
       seen: !!r.p,
       at: r.p ? [+r.p.x.toFixed(1), +r.p.z.toFixed(1)] : null,
       idx: r.idx,
@@ -165,6 +176,6 @@ export class Lamplighters {
   /** Dev and shots: the planned position of a round's walker now. */
   planned(i: number, hour: number) {
     const r = this.runs[i];
-    return r ? roundState(r.round, hour) : null;
+    return r ? roundState(r.round, hour, this.fog) : null;
   }
 }

@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { doorSpot } from "../world/city";
 import { psx } from "../retro/psx";
 import { addLantern, removeLantern, type LanternSource } from "../world/lanternLights";
+import { lampFog } from "../world/lampFog";
 import { box, cyl, rectAround } from "../world/geom";
 import { DECK, type World } from "../world/rijnkaai";
 import type { FirstPerson } from "../player/firstPerson";
@@ -326,10 +327,12 @@ function handLantern(): THREE.Group {
     lanternParts = {
       glass: new THREE.CylinderGeometry(0.06, 0.05, 0.16, 4).translate(0, -0.08, 0),
       cap: new THREE.ConeGeometry(0.075, 0.07, 4).translate(0, 0.035, 0),
-      lit: new THREE.MeshBasicMaterial({ color: 0xffc070, fog: false }),
+      // M7 fog lamps: the glass fogs with the one who holds it (world/lampFog.ts)
+      lit: new THREE.MeshBasicMaterial({ color: 0xffc070 }),
       iron: psx(new THREE.MeshLambertMaterial({ color: 0x1a1a1a })),
-      halo: new THREE.SpriteMaterial({ map: tex, color: 0xffb060, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.45, fog: false }),
+      halo: new THREE.SpriteMaterial({ map: tex, color: 0xffb060, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.45 }),
     };
+    lampFog(lanternParts.lit, 1.2);
   }
   const L = lanternParts;
   const grp = new THREE.Group();

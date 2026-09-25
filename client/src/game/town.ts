@@ -190,6 +190,8 @@ export class Town {
     behave(s: Sim, dt: number, hour: number): boolean;
     spawned(s: Sim): void;
     lost(s: Sim): void;
+    /** At a game of its own (the rope, hoops, marbles...) or only watching: not in the town's tag. */
+    playing?(s: Sim): boolean;
   } | null = null;
   private player = { x: 0, z: 0, yaw: 0 };
   private busyNet = false;
@@ -571,6 +573,8 @@ export class Town {
     if (s.p && remove) this.crowd.removePuppet(s.p);
     s.p = null;
     s.held = false;
+    // (the lantern went with the puppet: drawn again, he takes it up again; M7 fog lamps, 2026-09-25)
+    s.lamp = false;
     if (s.r.dog) this.animals.removeDog(s.r.id);
   }
 
@@ -941,11 +945,15 @@ export class Town {
     if (!game) this.games.set(key, (game = { it: null, frozen: 0, last: null }));
     if ((s.wait -= dt) > 0) return;
     s.wait = 0.5;
-    const kids = this.sims.filter((o) => o.p && o.goal.mode === "play" && o.goal.place === key && dist(o.x, o.z, p.x, p.z) < 30);
-    if (kids.length < 2) {
+    // Fix 2026-09-25 (the games checked in close pictures): everyone at tag on this square, not only those
+    // within 30 m of this child (each far child picked a new "it" twice a second); not the children at
+    // the rope, hoops or marbles (lively.ts), nor a girl or boy of fifteen dressed as grown (only watches)
+    const kids = this.sims.filter((o) => o.p && o.p.human.scale < 0.9 && o.goal.mode === "play" && o.goal.place === key && !o.inside && !this.lively?.playing?.(o));
+    const near = kids.filter((o) => dist(o.x, o.z, p.x, p.z) < 30);
+    if (near.length < 2) {
       // alone: go and find the others (the nearest child out playing anywhere near)
       const other = this.sims
-        .filter((o) => o !== s && o.goal.mode === "play" && !o.inside)
+        .filter((o) => o !== s && o.goal.mode === "play" && !o.inside && (!o.p || o.p.human.scale < 0.9) && !this.lively?.playing?.(o))
         .sort((a, b) => dist(a.x, a.z, p.x, p.z) - dist(b.x, b.z, p.x, p.z))[0];
       if (other && dist(other.x, other.z, p.x, p.z) < 45 && dist(other.x, other.z, p.x, p.z) > 2) this.crowd.puppetGo(p, other.x, other.z, 1.4);
       else if (!this.crowd.puppetBusy(p)) {
@@ -963,12 +971,12 @@ export class Town {
       // no tagging back the one who just caught you (unless there is nobody else)
       const others = kids.filter((o) => o !== s && (o !== game.last || kids.length === 2));
       const prey = others.sort((a, b) => dist(a.x, a.z, p.x, p.z) - dist(b.x, b.z, p.x, p.z))[0];
-      if (dist(prey.x, prey.z, p.x, p.z) < 1.35) {
-        // tag! the other one is it now, and counts to three
+      if (dist(prey.x, prey.z, p.x, p.z) < 0.95) {
+        // tag! within arm's reach, a hand out to the other one, who is it now and counts to three
         game.last = s;
         game.it = prey;
         game.frozen = 1.5;
-        this.crowd.puppetStand(p, "talk", null);
+        this.crowd.puppetStand(p, "talk", Math.atan2(prey.x - p.x, prey.z - p.z));
         s.wait = 1.2;
         return;
       }
@@ -976,14 +984,24 @@ export class Town {
     } else {
       const it = game.it;
       const d = dist(it.x, it.z, p.x, p.z);
+      // (2026-09-25: they ran on off the square, up to 80 m away; now they keep to the play place)
+      const R = Math.max(6, Math.min(14, s.goal.r ?? 10));
+      const inside = (x: number, z: number): [number, number] => {
+        const dx = x - s.goal.x;
+        const dz = z - s.goal.z;
+        const k = Math.hypot(dx, dz);
+        return k > R ? [s.goal.x + (dx / k) * R, s.goal.z + (dz / k) * R] : [x, z];
+      };
       if (d < 6) {
         const L = d || 1;
-        this.crowd.puppetGo(p, p.x + ((p.x - it.x) / L) * 4 + rnd(-1.5, 1.5), p.z + ((p.z - it.z) / L) * 4 + rnd(-1.5, 1.5), 2.2);
+        const [fx, fz] = inside(p.x + ((p.x - it.x) / L) * 4 + rnd(-1.5, 1.5), p.z + ((p.z - it.z) / L) * 4 + rnd(-1.5, 1.5));
+        this.crowd.puppetGo(p, fx, fz, 2.2);
       } else if (!this.crowd.puppetBusy(p)) {
         if (Math.random() < 0.5) {
           // skip about near where they are, keeping an eye on it
           const a = Math.random() * Math.PI * 2;
-          this.crowd.puppetGo(p, p.x + Math.cos(a) * rnd(2, 4), p.z + Math.sin(a) * rnd(2, 4), rnd(1.3, 2));
+          const [fx, fz] = inside(p.x + Math.cos(a) * rnd(2, 4), p.z + Math.sin(a) * rnd(2, 4));
+          this.crowd.puppetGo(p, fx, fz, rnd(1.3, 2));
         } else this.crowd.puppetStand(p, Math.random() < 0.5 ? "talk" : "idle", Math.atan2(it.x - p.x, it.z - p.z));
         s.wait = rnd(0.8, 2);
       }

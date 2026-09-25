@@ -170,3 +170,61 @@ west round now crossing the canal mouth first.
 - Townspeople who move to the nearest lamp at night with open work now find one in more places. The
   sexton stands under the portal lamp at (-280, 141.5), 18 m from his door.
 - Not checked in a picture: Jef's lantern halo in the fog with 5 lamps near. The slot is kept free for it.
+
+## Fog lamps and lamps in the fog (2026-09-25)
+
+Steve, with a picture of a foggy day (a street, a gas lamp, trees): "Street lamps are dark in the fog when
+off. Maybe when all also, test it." And small lantern shapes hung in the air in the middle of the street.
+
+### Why
+- **No fog lamps.** A lamp's light was `level x dark` (the clock's dark, 0 from 9:00 to 15:00), and the
+  rounds knew only dusk and dawn. In thick fog by day every lamp was out.
+- **Shapes in the air.** The lamp glass was drawn without fog (`fog: false`) so a flame would show through
+  it. The post, the box and the carrier behind it fogged away; the glass did not, and the culler
+  (`world/cull.ts`) never hid a material without fog. So an unlit gas lamp hung in the grey as a dark box
+  (its glass texture has a dark frame, so colouring it with the fog did not help), a quest box's unlit
+  lamp (0x3a3228) hung at 1.44 m, and after dark a carried lantern and its halo showed to 1.8 fog-fars
+  with no one under it. The same held for the omnibus lamps, the Madonna and step lanterns, the tar fires
+  and the forge glow.
+
+### What is in
+
+| Part | What | Where |
+|---|---|---|
+| The day's fog | The engine keeps `fog_day` (world_state): did the day begin in fog, and the hours the fog came or lifted since. The midnight roll and the dev menu set the day's weather from midnight; the director's weather change turns it at the hour (`setWeather(db, w, at)`). Only `fog` counts (mist, rain, a storm do not). Sent with every payload (`lamps_fog`) and with `/api/townlife` (`fog`). | `server/src/day.ts` `setWeather`, `fogDay`; `director/scheduler.ts changeWeather`; `index.ts` |
+| The rounds with fog | `windowsOf(round, fog)`: fog at 5:00, no dawn round (the lamps burn on all day); fog that comes by day, a fog round lights them from that hour in the round's order; fog that lifts by day with time before dusk (3.7 h), a round puts them out, later than that they burn on into the evening; the dusk round only after a round has put them out. Every lamp's state is still the clock's function (`lampLit(r, k, h, fog)`); without fog it is the same as before. A fog round is walked like the others (seen: `seenPace`, grace half an hour). | `server/src/town/lampround.ts`, `client/src/game/lamplighter.ts` |
+| By day in the fog | A lamp lit by day glows at 0.8 of its night glow in fog (glass, halo, the glow in the air: in proportion to how thick the air is), and lights the ground at 0.3. | `gaslamps.ts` `FOG_DAY_GLOW`, `FOG_DAY_GROUND`; `rijnkaai.ts` (the quay lamps) |
+| Glass that fogs | `lampFog(mat, reach, maxReach)`: the material fogs like its post, a lit one a little further (a gas lamp 1.6 fog-fars, a lantern 1.2); `userData.fogReach` tells the culler where to hide it. On the gas lamps (city and quay), the doss house lantern, every carried lantern (crowd, employers, the gang, Jef's), the quest boxes, the omnibus lamps, the street and quay lanterns, the tar fires, the forge glow, and props' glass. The halos of the gas lamps sit 0.45 m in front of the glass, so the fogged glass never cuts a dark lamp shape out of its glow. | `client/src/world/lampFog.ts` and those files |
+| Lanterns with their carrier | A crowd lantern is drawn only while its carrier is (it hung in the fog on its own where he was past the fog or culled); its light on the ground still carries. By day its horn is dull and its halo out (`lanternDarkAt`). | `game/crowd.ts` `placeLantern` |
+| Found on the way | A resident drawn again (lost and redrawn as Jef walked) never took up his lantern again (`s.lamp` stayed true); the test kit's `step()` never set the crowd's hour (a hidden tab's crowd stayed at 9:00: few people, no lanterns). | `game/town.ts lose`, `main.ts step` |
+
+Dev: `POST /api/dev/set {"weather": "fog", "weather_turn": true}` turns the weather at the present hour
+(the director's way); without `weather_turn` it is the day's weather from midnight.
+
+### Checks
+- `npm run build` passes. Server tests 821 of 821 (new in `townlife.test.ts`: the rounds with fog, and the
+  engine's record of the day's fog).
+- `paths()` lists nothing. No console errors. `perf(60)` fog day 13:00, street west of the Vleeshuis
+  quarter: 9.8 ms, 569 calls.
+- Browser, test stack `foglamps` (8980 / 5380), a copy of Steve's save, silent. The "before" pictures from
+  the old client (HEAD, served from a temporary copy against the same test server).
+  - Fog 13:00: before 0 of 72 lamps lit, after 72. Opaque meshes drawn without fog: before 83 to 123,
+    after 0.
+  - Fog 22:00, the Rijnkaai: before one crowd lantern drawn with its carrier not drawn (warm dots hanging
+    over the quay), after none. A police lantern seen from 10, 20, 31 and 51 m (fog far 19 m): drawn with
+    him at 10 and 20 m, hidden with him at 31 and 51 m.
+  - Fog comes at 10:00 (turn): the fog round lit 0 -> 12 -> 25 -> 38 -> 72 lamps by 14:20 (the market
+    lamplighter was seen and walked it). Fog lifts at 11:00: 72 -> 59 -> 46 -> 34 -> 0 by 15:20; by 17:25 the
+    dusk round had lit 13 again.
+  - Unlit glass: a pale grey glass by day (clear), amber at dusk; never black. (`foglamps_glass_day_fog_unlit`
+    was taken 3 s after the fog came: the air had hardly thickened yet.)
+
+Pictures in `data/shots`: `foglamps_{before,after}_{fogday,fognight,clearnight}_{street,crowdA,crowdB,box}`,
+`foglamps_after_lantern_fognight_{10,20,30,50}m`, `foglamps_glass_{day_clear_unlit,day_fog_unlit,day_fog_lit,dusk_clear_unlit,night_fog_lit,night_clear_lit}`.
+
+### Left
+- Lit house windows still show through the night fog on their own (the wall behind them is as dark as
+  the fog). They are light, and a lit window does show through fog; not changed.
+- The lamplighter's schedule (server) still has him at work at dawn on a fog day, when no dawn round is
+  walked; he walks his route as a patrol then. His talk line does not mention fog.
+- Mist (and rain) days leave the lamps to the clock; only `fog` lights them by day.

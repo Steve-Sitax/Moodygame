@@ -256,8 +256,9 @@ export class Human {
       case "lace":
         return this.sitDrop(0.45);
       case "hop": {
+        // a real hop: the feet some 14 cm off the stones for a child (2026-09-25, the skipping rope passes under them)
         const a = this.current!;
-        return 0.13 * this.scale * Math.max(0, Math.sin((a.time / a.getClip().duration) * Math.PI * 2));
+        return 0.2 * this.scale * Math.max(0, Math.sin((a.time / a.getClip().duration) * Math.PI * 2));
       }
       default:
         return 0;

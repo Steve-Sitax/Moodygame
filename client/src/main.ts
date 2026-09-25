@@ -294,6 +294,7 @@ events.say = (t) => jobs.say(t);
 // M6 town life: the lamplighters, the house fire and its bucket chain, the naties' hiring at dawn (game/townlife.ts)
 const townLife = new TownLife(world, town, crowd, events);
 townLife.say = (t) => jobs.say(t);
+townLife.fogDay = () => jobs.day.lampsFog;
 townLife.refresh = (p) => jobs.refresh(p);
 townLife.showLines = (c) => bubbles.show(c);
 townLife.actions = () => actions.active;
@@ -955,6 +956,7 @@ if (import.meta.env.DEV) {
         jobs.update(dt);
         boxes.update(elapsed);
         night.update(dt);
+        crowd.setHour(jobs.day.hour); // (as the frame does: the crowd's hour, its lanterns after dark)
         crowd.update(dt, player, player.camera);
         town.update(dt, player);
         journeys.update(dt, player);

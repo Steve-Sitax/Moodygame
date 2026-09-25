@@ -8,7 +8,7 @@ import { allowedHost, allowedOrigin, DB_FILE, DEV, HOST, PORT } from "./config.t
 import { openDb, resetDb } from "./db.ts";
 import { closeStaleCalls } from "./ai/claude.ts";
 import { plainEnglish } from "./text.ts";
-import { BEDTIME, clock, DAWN, ending, markDayStart, newDayOf, passTime, payRent, RENT_C, rentPaid, resetTickLimit, setEnding, setWeather, sleep, swim, tick, type Ending } from "./day.ts";
+import { BEDTIME, clock, DAWN, ending, fogDay, markDayStart, newDayOf, passTime, payRent, RENT_C, rentPaid, resetTickLimit, setEnding, setWeather, sleep, swim, tick, type Ending } from "./day.ts";
 import { writeEpilogue } from "./hooks/epilogue.ts";
 import { resetTalks } from "./hooks/dialogue.ts";
 import { devJob, jobById, listJobs, makeBoard } from "./hooks/jobBoard.ts";
@@ -139,6 +139,8 @@ function jobsPayload() {
     rent: { paid: rentPaid(db), price_c: RENT_C, bedtime: BEDTIME },
     ending: ending(db),
     ride: { on: ride(db), fare_c: RIDE_FARE_C, change: rideChange(db) },
+    // M7 fog lamps: today's fog as the lamplighters see it (town/lampround.ts)
+    lamps_fog: fogDay(db),
   };
 }
 
@@ -488,7 +490,12 @@ if (DEV) {
     }
     // the dev menu may set the weather (only the five known kinds)
     const w = (b as unknown as { weather?: unknown }).weather;
-    if (w === "fog" || w === "mist" || w === "clear" || w === "rain" || w === "storm") setWeather(db, w);
+    // (weather_turn: the weather turns now, as the director's event does, not for the whole day)
+    const turnNow = (b as unknown as { weather_turn?: unknown }).weather_turn === true;
+    if (w === "fog" || w === "mist" || w === "clear" || w === "rain" || w === "storm") {
+      const c = clock(db);
+      setWeather(db, w, turnNow ? c.hour + c.minute / 60 : undefined);
+    }
     resetTickLimit();
     broadcast({ type: "jobs", ...jobsPayload() });
     return c.json(jobsPayload());

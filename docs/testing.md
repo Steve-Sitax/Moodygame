@@ -6,6 +6,11 @@ routine for that run. The tools: `tools/teststack.mjs` (a copy of the save with 
 and the test kit in the tab, `__scheldemist.t` (`client/src/dev/testkit.ts`).
 
 ## The rules
+0. **Steve plays from his own copy** (2026-09-25): `D:\Code\MoodyGame-play`, a detached git worktree, on 5173 and 8787,
+   with `SCHELDEMIST_DB` pointing at `D:\Code\MoodyGame\data\game.sqlite`. Work happens in `D:\Code\MoodyGame`;
+   his game does not see it until a finished, committed batch is checked out there
+   (`git -C D:/Code/MoodyGame-play checkout --detach <commit>`, and `npm run setup` there if a package.json changed).
+   Tell him before a refresh. Never edit files in the play folder.
 1. **Never on Steve's game.** His game runs on 5173 (vite) and 8787 (server) with `data/game.sqlite`. Tests run
    on a copy, on 5341 and 8941. The kit refuses to write to the save on 5173.
 2. **A good view.** Midday, clear weather, needs full, the camera close to the thing under test and
@@ -16,7 +21,11 @@ and the test kit in the tab, `__scheldemist.t` (`client/src/dev/testkit.ts`).
 4. **Silent, and closed when not needed.** Test copies play to no speaker (the soundscape's `speaker` gain is 0 on
    any port but 5173); never unmute it. Keep one test tab, and close it as soon as the check is done: tabs in the
    Claude app's browser pane keep running (and once kept playing) after Steve closes his own browser.
-5. **Clean up.** `t.done()` in the tab (it closes the audio), then `node tools/teststack.mjs stop`. The
+5. **Look closely, fix, look again** (Steve, 2026-09-25). Every new or changed event, action, animation or held
+   prop is checked in close shots (front and side, 1-3 m) and adjusted until it looks and behaves right: hands
+   hold what they hold (use `holdInHands` in `game/wardrobe.ts` for a prop, `reachArm` in `game/reach.ts` to bring a
+   hand to a thing: a crank, a fiddle's neck), feet on the ground, timing that reads. A passing test is not enough.
+6. **Clean up.** `t.done()` in the tab (it closes the audio), then `node tools/teststack.mjs stop`. The
    copy, its logs and its vite config go; no stray servers stay on the ports.
 
 ## Start and stop
@@ -108,6 +117,7 @@ seconds; `shared/clock.ts`, M7). Jump the clock with `t.skip(min)` rather than w
 | Funeral | a house, the procession to the cathedral, the requiem inside, the hearse out along the Kiel road | weekdays 8:00 to 12:00 (2 h 50 in all: 30, 40, 60, 40 game minutes) | `event("funeral")`; `hearses.info()`, `landmarks.debug().funeral` |
 | Ballad singer | Grote Markt, Vismarkt, Handschoenmarkt or Steenplein | 9:30 to 12:30 and 14:00 to 17:00; in a tavern 19:30 to 21:30 | `POST /api/dev/ballad {"corner":"steenplein"}`, then `go("steenplein")` |
 | Street musicians | Steenplein | 11:00 to 19:00 | `event("musicians")` |
+| Children's games (rope, hopscotch, hoops, tops, marbles; tag) | the pitches on the Steenplein, Grote Markt, Handschoenmarkt | 8:30 to 12:00, 13:30 to 17:30 | `lively.devGames("play:steenplein", { boys: "marbles", girls: "rope" }, 5)` sends five girls there; `meet()` them if they are not drawn; `lively.games()` for the pitches, the rope's lane and who plays |
 | Quarrel, scuffle, purse snatched | Grote Markt, Vismarkt | late morning to evening | `event("quarrel")`, `event("scuffle")`, `event("street_robbery")` |
 | Emigrant ship | Rijnkaai | ship days (days 2, 4, 6, 8, 10, 12) 8:00 to 16:00 | `event("emigrant_ship")` |
 | House fire | a house in town | 9:00 to 20:00, at most once in three days | `event("house_fire")` |

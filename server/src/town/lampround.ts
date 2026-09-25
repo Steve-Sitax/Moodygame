@@ -95,29 +95,118 @@ export function stopAt(r: LampRound, k: number): number {
   return r.at[k] + k * STOP_M;
 }
 
-/** The hour lamp k lights at dusk, and the hour it goes out at dawn. */
-export function lampTimes(r: LampRound, k: number): { on: number; off: number } {
+/** How far through a window lamp k's stop ends (0..1): it lights or goes out then. */
+function doneFrac(r: LampRound, k: number): number {
   const eff = roundEff(r) || 1;
-  const done = (stopAt(r, k) + STOP_M * 0.6) / eff;
+  return (stopAt(r, k) + STOP_M * 0.6) / eff;
+}
+
+/** The hour lamp k lights at dusk, and the hour it goes out at dawn (a day without fog). */
+export function lampTimes(r: LampRound, k: number): { on: number; off: number } {
+  const done = doneFrac(r, k);
   return { on: r.dusk + done * DUSK_SPAN_H, off: DAWN_START + done * DAWN_SPAN_H };
 }
 
-/** Is lamp k of the round burning at this hour (0-24, fractions)? */
-export function lampLit(r: LampRound, k: number, hour: number): boolean {
-  const h = ((hour % 24) + 24) % 24;
-  const t = lampTimes(r, k);
-  return h >= t.on || h < t.off;
+// ---- M7 fog lamps (2026-09-25). In 1873 the lamplighters lit the lamps in thick fog by day too. The
+// day's weather is rolled at midnight (server day.ts); the director may turn it once a day and the dev
+// menu may set it. The engine keeps the day's fog as the lamps see it (FogDay): whether the day began
+// in fog, and the hours it came or lifted since. From that and the clock alone every lamp's state
+// follows, as before:
+// - fog at 5:00: the dawn round is not walked; the lamps burn on through the day;
+// - fog comes by day: a fog round lights them, from that hour, in the round's order;
+// - the fog lifts by day with time to spare before dusk (FOG_SPAN_H): a round puts them out; later
+//   than that they burn on into the evening;
+// - the dusk round is walked only when a round has put the lamps out since midnight (every day ends lit).
+
+/** The day's fog as the lamps see it (the engine's; server day.ts fogDay). */
+export interface FogDay {
+  /** The game day it is for. */
+  day?: number;
+  /** The day began in fog (the midnight roll, or the dev menu's weather for the day). */
+  start: boolean;
+  /** The hours (0-24, fractions) the fog came (true) or lifted (false) since midnight, in order. */
+  turns: Array<{ h: number; fog: boolean }>;
 }
 
-/** The hour a round's window closes (dusk: its own start + DUSK_SPAN_H; dawn: DAWN_START + DAWN_SPAN_H). */
-export function windowEnd(r: LampRound, kind: "dusk" | "dawn"): number {
-  return kind === "dusk" ? r.dusk + DUSK_SPAN_H : DAWN_START + DAWN_SPAN_H;
+/** A fog round (lighting or putting out) takes as long as the dawn round. */
+export const FOG_SPAN_H = DAWN_SPAN_H;
+/** A fog round's grace (a followed lamplighter held up finishes it): half an hour. */
+export const FOG_GRACE_H = 0.5;
+
+/** A round's walk: lighting ("dusk") or putting out ("dawn"), from `start` for `span` hours. */
+export interface LampWindow {
+  kind: "dusk" | "dawn";
+  start: number;
+  span: number;
+  /** The walk ends here: its planned end, or where the next window begins. */
+  end: number;
+  /** A followed lamplighter held up may finish until here (full dark, full day, or the next window). */
+  last: number;
+  /** A fog round (not the clock's). */
+  fog: boolean;
+}
+
+/** Is it foggy at this hour of the day (0-24)? */
+export function fogAt(fog: FogDay | null | undefined, hour: number): boolean {
+  if (!fog) return false;
+  let on = fog.start;
+  for (const t of fog.turns) if (t.h <= hour) on = t.fog;
+  return on;
+}
+
+/** The day's windows for this round, in order (without fog: the dawn round and the dusk round). */
+export function windowsOf(r: LampRound, fog?: FogDay | null): LampWindow[] {
+  const ws: Array<Omit<LampWindow, "end" | "last"> & { last: number }> = [];
+  if (!fogAt(fog, DAWN_START)) ws.push({ kind: "dawn", start: DAWN_START, span: DAWN_SPAN_H, last: DAWN_LAST, fog: false });
+  for (const t of fog?.turns ?? []) {
+    if (t.h <= DAWN_START || t.h >= r.dusk) continue; // at night the lamps burn anyway
+    if (t.fog) ws.push({ kind: "dusk", start: t.h, span: FOG_SPAN_H, last: t.h + FOG_SPAN_H + FOG_GRACE_H, fog: true });
+    else if (t.h + FOG_SPAN_H <= r.dusk) ws.push({ kind: "dawn", start: t.h, span: FOG_SPAN_H, last: t.h + FOG_SPAN_H + FOG_GRACE_H, fog: true });
+  }
+  ws.sort((a, b) => a.start - b.start);
+  // a turn that changes nothing (lighting lamps already lit, or out ones) walks no round
+  const kept: typeof ws = [];
+  for (const w of ws) if ((kept.length ? kept[kept.length - 1].kind : "dusk") !== w.kind) kept.push(w);
+  // the dusk round, when a round has put the lamps out since midnight
+  if (kept.length && kept[kept.length - 1].kind === "dawn") kept.push({ kind: "dusk", start: r.dusk, span: DUSK_SPAN_H, last: DUSK_LAST, fog: false });
+  return kept.map((w, i) => {
+    const next = kept[i + 1]?.start ?? 24;
+    return { ...w, end: Math.min(w.start + w.span, next), last: Math.min(w.last, next) };
+  });
+}
+
+/** Is lamp k of the round burning at this hour (0-24, fractions), with the day's fog? */
+export function lampLit(r: LampRound, k: number, hour: number, fog?: FogDay | null): boolean {
+  const h = ((hour % 24) + 24) % 24;
+  const done = doneFrac(r, k);
+  // every day begins lit (the dusk round, or the fog, lit them all before midnight)
+  let on = true;
+  for (const w of windowsOf(r, fog)) {
+    const at = w.start + done * w.span;
+    if (at > h || at >= w.end + 1e-9) continue;
+    on = w.kind === "dusk";
+  }
+  return on;
+}
+
+/** The dusk and dawn windows of a day without fog. */
+function plainWindow(r: LampRound, kind: "dusk" | "dawn"): LampWindow {
+  return kind === "dusk"
+    ? { kind, start: r.dusk, span: DUSK_SPAN_H, end: r.dusk + DUSK_SPAN_H, last: DUSK_LAST, fog: false }
+    : { kind, start: DAWN_START, span: DAWN_SPAN_H, end: DAWN_START + DAWN_SPAN_H, last: DAWN_LAST, fog: false };
+}
+const winOf = (r: LampRound, w: LampWindow | "dusk" | "dawn"): LampWindow => (typeof w === "string" ? plainWindow(r, w) : w);
+
+/** The hour a round's window closes (dusk: its own start + DUSK_SPAN_H; dawn: DAWN_START + DAWN_SPAN_H; a fog round its own). */
+export function windowEnd(r: LampRound, kind: "dusk" | "dawn" | LampWindow): number {
+  return winOf(r, kind).end;
 }
 
 /** Past the window but before full dark (dusk) or full day (dawn): a followed lamplighter held up may finish. */
-export function inGrace(r: LampRound, kind: "dusk" | "dawn", hour: number): boolean {
+export function inGrace(r: LampRound, kind: "dusk" | "dawn" | LampWindow, hour: number): boolean {
   const h = ((hour % 24) + 24) % 24;
-  return h >= windowEnd(r, kind) && h < (kind === "dusk" ? DUSK_LAST : DAWN_LAST);
+  const w = winOf(r, kind);
+  return h >= w.end && h < w.last;
 }
 
 /**
@@ -126,7 +215,7 @@ export function inGrace(r: LampRound, kind: "dusk" | "dawn", hour: number): bool
  * stop at each lamp left. Never below SEEN_PACE (Jef's walk); above SEEN_PACE_MAX (a brisk walk) only
  * when something held him up, and never above SEEN_HURRY.
  */
-export function seenPace(r: LampRound, idx: number, legM: number, hour: number, kind: "dusk" | "dawn"): number {
+export function seenPace(r: LampRound, idx: number, legM: number, hour: number, kind: "dusk" | "dawn" | LampWindow): number {
   const n = r.lamps.length;
   if (idx >= n) return SEEN_PACE;
   const h = ((hour % 24) + 24) % 24;
@@ -141,8 +230,8 @@ export function seenPace(r: LampRound, idx: number, legM: number, hour: number, 
  * put out (dawn), walking the round's path at seenPace with SEEN_STOP_S at each lamp; and the fastest
  * pace he walked. (The client walks him the same way; its paths through the crowd run a little longer.)
  */
-export function followedFinish(r: LampRound, kind: "dusk" | "dawn"): { done: number; maxPace: number; realS: number } {
-  const start = kind === "dusk" ? r.dusk : DAWN_START;
+export function followedFinish(r: LampRound, kind: "dusk" | "dawn" | LampWindow): { done: number; maxPace: number; realS: number } {
+  const start = winOf(r, kind).start;
   let h = start;
   let maxPace = 0;
   for (let k = 0; k < r.lamps.length; k++) {
@@ -158,20 +247,22 @@ export function followedFinish(r: LampRound, kind: "dusk" | "dawn"): { done: num
   return { done: h, maxPace, realS: (h - start) * REAL_S_PER_GAME_HOUR };
 }
 
-/** Which round window runs at this hour: dusk (lighting), dawn (putting out), or none. u: 0..1 through it. */
-export function roundWindow(r: LampRound, hour: number): { kind: "dusk" | "dawn" | null; u: number } {
+/**
+ * Which round window runs at this hour: dusk (lighting), dawn (putting out), or none; u: 0..1 through it
+ * (by its planned span); `w` the window (a fog round too, with the day's fog).
+ */
+export function roundWindow(r: LampRound, hour: number, fog?: FogDay | null): { kind: "dusk" | "dawn" | null; u: number; w: LampWindow | null } {
   const h = ((hour % 24) + 24) % 24;
-  if (h >= r.dusk && h < r.dusk + DUSK_SPAN_H) return { kind: "dusk", u: (h - r.dusk) / DUSK_SPAN_H };
-  if (h >= DAWN_START && h < DAWN_START + DAWN_SPAN_H) return { kind: "dawn", u: (h - DAWN_START) / DAWN_SPAN_H };
-  return { kind: null, u: 0 };
+  for (const w of windowsOf(r, fog)) if (h >= w.start && h < w.end) return { kind: w.kind, u: (h - w.start) / w.span, w };
+  return { kind: null, u: 0, w: null };
 }
 
 /**
  * The planned state of the round at this hour: how many lamps he has done in this window
  * (lit at dusk, put out at dawn), where he is, and whether he stands at a lamp now.
  */
-export function roundState(r: LampRound, hour: number): { kind: "dusk" | "dawn" | null; done: number; x: number; z: number; atLamp: number } {
-  const w = roundWindow(r, hour);
+export function roundState(r: LampRound, hour: number, fog?: FogDay | null): { kind: "dusk" | "dawn" | null; done: number; x: number; z: number; atLamp: number } {
+  const w = roundWindow(r, hour, fog);
   if (!w.kind) return { kind: null, done: 0, x: r.lamps[0]?.sx ?? 0, z: r.lamps[0]?.sz ?? 0, atLamp: -1 };
   const e = clamp01(w.u) * roundEff(r);
   let done = 0;

@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import type { DB } from "../db.ts";
-import { clock } from "../day.ts";
+import { clock, fogDay } from "../day.ts";
 import { GameError } from "../game.ts";
 import { lampRounds } from "../town/lamplighters.ts";
 import { joinChain, leaveChain, sootList } from "./fire.ts";
@@ -24,7 +24,7 @@ const num = (v: unknown): number => {
 export function mountTownLife(app: Hono, deps: TownLifeDeps): void {
   const { db, payload } = deps;
 
-  app.get("/api/townlife", (c) => c.json({ day: clock(db).day, rounds: lampRounds(db)?.rounds ?? [], soot: sootList(db) }));
+  app.get("/api/townlife", (c) => c.json({ day: clock(db).day, rounds: lampRounds(db)?.rounds ?? [], fog: fogDay(db), soot: sootList(db) }));
 
   app.post("/api/fire/join", async (c) => {
     const b = (await c.req.json().catch(() => ({}))) as { x?: unknown; z?: unknown };

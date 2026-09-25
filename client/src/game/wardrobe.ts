@@ -126,6 +126,14 @@ export function holdInHands(w: Wear, body: THREE.Object3D): void {
     hand.attach(part);
     w.held.push(part);
   }
+  // the showman's monkey rides on the spine bone: it goes with his shoulders as he talks (not with the arm)
+  const monkey = w.parts.monkey;
+  const spine = body.getObjectByName("spine");
+  if (monkey && spine && monkey.parent === w.root) {
+    spine.attach(monkey);
+    monkey.userData.y = monkey.position.y;
+    w.held.push(monkey);
+  }
 }
 
 /** Takes the wear off the figure, with the parts held in the hands. */
@@ -345,8 +353,9 @@ export function makeWear(role: WardrobeRole, bodyScale = 1): Wear {
       root.add(topHat(k, top));
       // a monkey in a red cap on his right shoulder, its tail down his back
       const monkey = new THREE.Group();
-      monkey.position.set(-0.2, 1.46 * s, -0.02);
-      monkey.userData.y = 1.46 * s;
+      // (2026-09-25: it sat 0.1 m over the shoulder, beside his head; now down on the coat, the tail behind)
+      monkey.position.set(-0.16 * s, 1.4 * s, -0.01);
+      monkey.userData.y = 1.4 * s;
       monkey.add(box(0.11, 0.15, 0.1, k.fur, 0, 0.08, 0));
       const head = new THREE.Group();
       head.position.set(0, 0.2, 0.02);

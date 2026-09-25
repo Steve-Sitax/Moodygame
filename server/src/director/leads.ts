@@ -81,7 +81,8 @@ export function fitsLead(r: Resident, role: LeadRole, keeperAtWork: boolean): bo
     case "organ_grinder":
     case "fiddler":
     case "accordionist":
-      return r.sex === "m" && r.age >= 16 && MUSICIAN_TRADES.includes(r.trade) && !keeperAtWork;
+      // (2026-09-25: not a model with a sack on its shoulder: his hands are on the crank, the bow, the bellows)
+      return r.sex === "m" && r.age >= 16 && MUSICIAN_TRADES.includes(r.trade) && !LADEN_KINDS.has(r.kind) && !keeperAtWork;
     case "auctioneer":
       // a man who sells for his living: at work is fine, the sale is his work
       return r.sex === "m" && r.age >= 28 && ["fish_merchant", "merchant", "foreman", "clerk", "grocer", "chandler"].includes(r.trade);
@@ -102,7 +103,8 @@ export function fitsLead(r: Resident, role: LeadRole, keeperAtWork: boolean): bo
     case "hawker":
       return r.age >= 12 && ["market_woman", "street_child", "errand_boy", "beggar", "fishwife"].includes(r.trade);
     case "showman":
-      return r.sex === "m" && r.age >= 20 && ["sailor", "retired", "beggar", "boatman"].includes(r.trade) && !keeperAtWork;
+      // (the monkey sits on his right shoulder: not on a sack)
+      return r.sex === "m" && r.age >= 20 && ["sailor", "retired", "beggar", "boatman"].includes(r.trade) && !LADEN_KINDS.has(r.kind) && !keeperAtWork;
     case "quarreller":
       return r.age >= 18 && !["police", "priest", "water_bailiff", "soldier", "sentry", "corporal", "customs"].includes(r.trade) && !keeperAtWork;
     case "smuggler":

@@ -3,6 +3,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { psx } from "../retro/psx";
 import { makeHuman, type Human, type HumanKind } from "../game/humans";
 import { glowTexture } from "./textures";
+import { lampFog } from "./lampFog";
 import type { Rect } from "./geom";
 import type { HorsePool } from "./horses";
 import { Kit, type RGB } from "./kit";
@@ -859,7 +860,9 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
   group.add(boards);
 
   // the carriage lamps: glass that glows after dusk, and a soft glow in the air round it
-  const glassMat = new THREE.MeshBasicMaterial({ color: 0x222222, fog: false });
+  const glassMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
+  // M7 fog lamps: the lamps fog with the carriage (dark by day, they hung in the fog on their own)
+  const glassFog = lampFog(glassMat, 1, 1.3);
   const glass = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 0.14, 0.03), glassMat, n * LAMPS.length);
   glass.name = "omnibus_lamps";
   glass.frustumCulled = false;
@@ -1356,6 +1359,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     haloPos.needsUpdate = true;
     // the lamps: dark glass by day, a warm flame after dusk
     glassMat.color.setRGB(0.13 + 0.87 * lit, 0.13 + 0.6 * lit, 0.12 + 0.28 * lit);
+    glassFog.value = 1 + 0.3 * lit;
     haloMat.opacity = 0.7 * lit;
     halos.visible = lit > 0.02 && anyNear;
     opts.horses.show("omnibus", anyNear);

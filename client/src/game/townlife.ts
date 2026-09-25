@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { api, type Convo, type JobsPayload, type PublicAction, type PushMsg, type TownEvent } from "../net/api";
-import type { LampRound } from "../../../server/src/town/lampround";
+import type { FogDay, LampRound } from "../../../server/src/town/lampround";
 import { psx } from "../retro/psx";
 import { createFires, type Fires, type FireSpot } from "../world/fire";
 import { loadProps, type Props } from "../world/props3d";
@@ -31,6 +31,8 @@ import { REAL_S_PER_GAME_MIN } from "../../../shared/clock"; // M7 clock: 1/3 ->
 export interface TownLifeData {
   day: number;
   rounds: LampRound[];
+  /** M7 fog lamps: today's fog as the lamplighters see it. */
+  fog?: FogDay;
   soot: Array<{ house: number; door: [number, number]; out: [number, number]; storeys: number; day: number; event: number }>;
 }
 
@@ -204,8 +206,12 @@ export class TownLife {
   /** Dev: how many stand in the chain now. */
   private chainHands = 0;
 
+  /** M7 fog lamps: today's fog from the latest clock payload (main.ts: jobs.day); else the last poll's. */
+  fogDay: () => FogDay | null | undefined = () => null;
+
   update(dt: number, player: { x: number; z: number }, hour: number): void {
     this.clock += dt;
+    this.lamplighters.fog = this.fogDay() ?? this.data?.fog ?? null;
     this.lamplighters.update(dt, player, hour);
     this.pollT -= dt;
     if (this.pollT <= 0) {

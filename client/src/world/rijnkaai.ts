@@ -19,7 +19,8 @@ import { buildVegetation } from "./vegetation";
 import { buildTrees3D } from "./trees3d";
 import { applyDirt } from "./dirt";
 import { createFires, type Fires } from "./fire";
-import { createGasLamps, type GasLamps } from "./gaslamps";
+import { createGasLamps, FOG_DAY_GLOW, glassColor, LIT_REACH, type GasLamps } from "./gaslamps";
+import { lampFog, type LampFog } from "./lampFog";
 import { createLitter, type Litter } from "./litter";
 import { createClutter } from "./clutter";
 import { createStreetLife, type StreetLife } from "./streetlife";
@@ -1511,7 +1512,6 @@ export function buildRijnkaai(): World {
     return "stone";
   }
 
-  const litGlass = new THREE.Color();
 
   // time of day: eases toward the target so a jump (after sleep) fades in
   let dayTarget = 8;
@@ -1599,6 +1599,7 @@ export function buildRijnkaai(): World {
 
   let camera: THREE.Camera | null = null;
   let devView = false;
+  const haloDir = new THREE.Vector3();
   function update(t: number, dt: number, cam?: THREE.Camera): void {
     updateTide(dt);
     // the sea: a storm raises the waves, the boats roll (psx water, waveAt, boats.ts)
@@ -1676,20 +1677,27 @@ export function buildRijnkaai(): World {
     waterTex.offset.y = t * 0.011;
 
 
+    // M7 fog lamps: how thick the air is (fog 1, a storm or rain less, mist half, clear none): a lamp
+    // the lamplighters left burning on a fog day glows by day too
+    const air = THREE.MathUtils.clamp((wNow[2] - 0.2) / 0.8, 0, 1);
+    const lampGlow = Math.max(lampsLit, FOG_DAY_GLOW * air);
     for (let i = 0; i < lamps.length; i++) {
       const l = lamps[i];
-      const target = flicker(t, l.seed, l.broken) * lampsLit * gasLamps.quay(i);
+      const target = flicker(t, l.seed, l.broken) * lampGlow * gasLamps.quay(i);
       l.level += (target - l.level) * Math.min(1, dt * 18);
-      // unlit glass takes the colour of the air around it, so it never shows as a black box
-      (l.glass.material as THREE.MeshBasicMaterial).color
-        .copy(fog.color)
-        .multiplyScalar(0.8 * (1 - Math.min(1, l.level)))
-        .add(litGlass.setRGB(1.0 * l.level, 0.72 * l.level, 0.38 * l.level));
-      l.halo.material.opacity = 0.55 * l.level;
+      // unlit glass takes the colour of the air around it, so it never shows as a black box; the fog
+      // takes it with the post (world/lampFog.ts)
+      glassColor((l.glass.material as THREE.MeshBasicMaterial).color, fog.color, l.level);
+      (l.glass.userData.fog as LampFog).value = 1 + LIT_REACH * Math.min(1, l.level);
+      // the halo fades in the fog as the city lamps' do (gaslamps.ts): a glow, not a lamp on its own
+      const hd = camera ? camera.position.distanceTo(l.pos) : 0;
+      // in front of the glass (toward the eye), so the fogged glass never cuts a dark shape out of it
+      if (camera && hd > 0.5) l.halo.position.copy(l.pos).addScaledVector(haloDir.subVectors(camera.position, l.pos), 0.45 / hd);
+      l.halo.material.opacity = 0.55 * l.level * (1 - 0.8 * THREE.MathUtils.smoothstep(hd, fog.near, fog.far * 1.4));
       // M7 lamps: its light and its psx slot are the gas lamps' now (the nearest lit lamps have them)
       gasLamps.quayFlame(i, l.level);
     }
-    gasLamps.update(dt, lampsLit, fog.color, camera);
+    gasLamps.update(dt, lampsLit, fog.color, camera, air);
   }
 
   noticeBoard(scene, m, colliders, BOARD_POS.x, BOARD_POS.z);
@@ -1866,6 +1874,8 @@ function gasLamp(
   g.add(box(0.5, 0.05, 0.08, m.iron, 0, 3.2, 0, 1)); // ladder bar
   const glassMat = m.lampGlass.clone();
   const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.16, 0.5, 4), glassMat);
+  // M7 fog lamps: the glass fogs like the post (a lit one shows a little further; world/lampFog.ts)
+  glass.userData.fog = lampFog(glassMat, 1, 1 + LIT_REACH);
   glass.position.set(0, 3.65, 0);
   glass.rotation.y = Math.PI / 4;
   g.add(glass);
@@ -1902,7 +1912,9 @@ function gasLamp(
 /** A lantern on a bracket over the doss house door (M5). Returns its light. */
 function dossLantern(scene: THREE.Scene, m: Mats, glow: THREE.Texture): THREE.PointLight {
   const d = doorSpot("doss", 0.5);
-  const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.26, 4), m.lampGlass);
+  const glassMat = m.lampGlass.clone();
+  lampFog(glassMat, 1.3); // always lit: it shows a little further than the front it hangs on
+  const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.26, 4), glassMat);
   glass.position.set(d.x, 3.1, d.z);
   scene.add(glass);
   const halo = new THREE.Sprite(

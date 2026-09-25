@@ -6,6 +6,7 @@ import SPOT_TABLE from "../../../shared/spots.json";
 import INWORLD from "../../../shared/inworld_houses.json";
 import { TRAFFIC_ROUTES } from "./traffic";
 import { psx } from "../retro/psx";
+import { lampFog } from "./lampFog";
 import type { Rect } from "./geom";
 import { facadeOpenings } from "./cityTextures";
 import { boxesOverlap, SIGN_MARGIN, signOnWall, wallBox, type WallBox, type WallProbe } from "./wallprobe";
@@ -392,7 +393,9 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
   mats[GROUND_DECAL] = psx(new THREE.MeshLambertMaterial({ ...decalOpts }), { affine: 0, noSnap: true });
   const puddleMat = new THREE.MeshBasicMaterial({ map: decalMap, color: 0x556068, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 });
   mats[PUDDLE] = psx(puddleMat, { affine: 0, noSnap: true });
-  const glowMat = new THREE.MeshBasicMaterial({ map: solidMap, color: 0xffc070, fog: false });
+  const glowMat = new THREE.MeshBasicMaterial({ map: solidMap, color: 0xffc070 });
+  // M7 fog lamps: the lanterns fog with the fronts they hang on (a lit one a little further)
+  const glowFog = lampFog(glowMat, 1, 1.3);
   mats[GLOW] = glowMat;
   // the house number plates: blue enamel, white digits, painted here into a canvas atlas of 32 x 16 px cells
   // (cell 0: plain enamel for the plates' edges)
@@ -1341,6 +1344,7 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
     // the Madonnas' lanterns: an oil flame, a slow waver
     const k = Math.max(0, Math.min(1, lit)) * (0.9 + Math.sin(t * 3.1) * 0.05 + Math.sin(t * 7.7 + 1.3) * 0.04);
     glowMat.color.copy(air).multiplyScalar(0.8 * (1 - Math.min(1, k))).add(flame.copy(warm).multiplyScalar(k));
+    glowFog.value = 1 + 0.3 * Math.min(1, k);
     // puddles mirror the sky: the fog's colour, a little brighter
     puddleMat.color.copy(air).multiplyScalar(0.9);
   }

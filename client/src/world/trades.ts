@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { psx } from "../retro/psx";
+import { lampFog } from "./lampFog";
 import type { Rect } from "./geom";
 import { makeHuman, whenHumans, type Human, type HumanKind, type Motion } from "../game/humans";
 
@@ -114,7 +115,8 @@ export function loadTradeModels(): Promise<TradeModels | null> {
         { affine: 0 },
       );
       decal.name = "trades_decal";
-      const glow = new THREE.MeshBasicMaterial({ map: solidMap, color: 0xffffff, fog: false, side: DS });
+      const glow = new THREE.MeshBasicMaterial({ map: solidMap, color: 0xffffff, side: DS });
+      lampFog(glow, 1.3); // M7 fog lamps: a forge's glow fogs with its shop, a little further
       glow.name = "trades_glow";
       const byName: Record<string, THREE.Material> = { tr_solid: solid, tr_decal: decal, tr_glow: glow };
       const parts = new Map<string, Part[]>();

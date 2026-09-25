@@ -5,6 +5,7 @@ import { endRide, ridePlace } from "./ride.ts";
 import { endRowNight, rowChillEvery, rowFood } from "./rowing.ts";
 import { TICK_MINUTES, TICK_EVERY_MS } from "../../shared/clock.ts";
 import { COLLAPSE_AT, sleepMinutes } from "../../shared/night.ts";
+import { fogAt, type FogDay } from "./town/lampround.ts";
 
 // The day and the week (M5). The engine owns time and needs (docs/01, docs/03).
 // A client says "time passed while I played" with a tick; the server decides how
@@ -46,12 +47,43 @@ export function rollWeather(db: DB, roll = Math.random()): Weather {
   return setWeather(db, w);
 }
 
-/** Set the day's weather (the morning roll, or the dev menu). */
-export function setWeather(db: DB, w: Weather): Weather {
+/**
+ * Set the day's weather (the morning roll, or the dev menu): the weather of the whole day, from
+ * midnight. `at` (an hour, 0-24): the weather turns at that hour of the day instead (the director's
+ * event); the lamps see the fog come or lift then (M7 fog lamps, fogDay).
+ */
+export function setWeather(db: DB, w: Weather, at?: number): Weather {
+  const fog = fogDay(db);
+  const day = fog.day ?? 1;
+  let next: FogDay;
+  if (at === undefined) next = { day, start: w === "fog", turns: [] };
+  else {
+    next = fog;
+    if (fogAt(fog, 24) !== (w === "fog")) next.turns.push({ h: Math.max(0, Math.min(24, at)), fog: w === "fog" });
+  }
+  db.prepare("INSERT INTO world_state (key, value_json) VALUES ('fog_day', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(JSON.stringify(next));
   db.prepare("INSERT INTO world_state (key, value_json) VALUES ('weather', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(
     JSON.stringify(w),
   );
   return w;
+}
+
+/**
+ * M7 fog lamps: today's fog as the lamplighters see it (town/lampround.ts FogDay): whether the day
+ * began in fog, and the hours it came or lifted since. A record of an older day (or none: an older
+ * save) means the weather has not turned since: the day began in today's weather.
+ */
+export function fogDay(db: DB): FogDay {
+  const day = (db.prepare("SELECT day FROM player WHERE id = 1").get() as { day: number } | undefined)?.day ?? 1;
+  const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'fog_day'").get() as { value_json: string } | undefined;
+  try {
+    const f = row ? (JSON.parse(row.value_json) as FogDay) : null;
+    if (f && f.day === day && typeof f.start === "boolean" && Array.isArray(f.turns))
+      return { day, start: f.start, turns: f.turns.filter((t) => typeof t?.h === "number" && typeof t?.fog === "boolean").slice(-8) };
+  } catch {
+    /* a broken record: start again from the weather */
+  }
+  return { day, start: weather(db) === "fog", turns: [] };
 }
 
 export type Ending = { kind: "week" | "health"; day: number; epilogue?: { title: string; paragraphs: string[] } };

@@ -181,6 +181,8 @@ export interface JobsPayload {
   ending: Ending | null;
   /** The omnibuses (M3g): the ride you are on (null: none, or the ticket ran out), the fare, a free change you could make. */
   ride?: { on: { line: string; from: string; minutes: number; left: number } | null; fare_c: number; change: { from_line: string } | null };
+  /** M7 fog lamps: today's fog as the lamplighters see it (server day.ts fogDay). */
+  lamps_fog?: { day?: number; start: boolean; turns: Array<{ h: number; fog: boolean }> };
 }
 
 /** What an NPC says. Trust stays on the server (docs/08: hidden). */

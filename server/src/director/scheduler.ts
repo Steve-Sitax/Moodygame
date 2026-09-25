@@ -1330,7 +1330,8 @@ function changeWeather(db: DB, ev: EventRow, kind: string): void {
   if (state<number>(db, "m4_weather_day", 0) === c.day) return;
   const w = kind.trim().toLowerCase() as Weather;
   if (!["fog", "mist", "clear", "rain", "storm"].includes(w)) return;
-  setWeather(db, w);
+  // M7 fog lamps: the weather turns now, not from midnight (the lamplighters light or put out the lamps)
+  setWeather(db, w, c.hour + c.minute / 60);
   setState(db, "m4_weather_day", c.day);
   writeEvent(db, { kind: "event", verb: "weather", text: `The weather turned to ${w} (${ev.title}).`, ref_type: "town_event", ref_id: ev.id, weight: 4 });
   notify("events", { jobs: true });

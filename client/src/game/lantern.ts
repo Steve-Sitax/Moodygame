@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { psx, psxUniforms } from "../retro/psx";
 import type { FirstPerson } from "../player/firstPerson";
 import { addLantern, removeLantern, type LanternSource } from "../world/lanternLights";
+import { lampFog } from "../world/lampFog";
 import { pick, type Target } from "./facing";
 
 // A lantern to carry (M3h). A tin hand lantern with horn panes and a tallow
@@ -40,9 +41,9 @@ function lanternParts() {
   tex.colorSpace = THREE.SRGBColorSpace;
   parts = {
     tin: psx(new THREE.MeshLambertMaterial({ color: 0x3a3632 })),
-    horn: new THREE.MeshBasicMaterial({ color: 0xffc27a, fog: false }),
+    horn: new THREE.MeshBasicMaterial({ color: 0xffc27a }),
     hornDark: new THREE.MeshBasicMaterial({ color: 0x6a5a44 }),
-    halo: new THREE.SpriteMaterial({ map: tex, color: WARM, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.5, fog: false }),
+    halo: new THREE.SpriteMaterial({ map: tex, color: WARM, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.5 }),
     geo: {
       base: new THREE.CylinderGeometry(0.068, 0.072, 0.03, 8).translate(0, 0.015, 0),
       body: new THREE.CylinderGeometry(0.058, 0.062, 0.15, 8, 1, true).translate(0, 0.105, 0),
@@ -52,6 +53,8 @@ function lanternParts() {
       bar: new THREE.BoxGeometry(0.008, 0.16, 0.008).translate(0, 0.105, 0),
     },
   };
+  // M7 fog lamps: the lit horn fogs with the lantern (a little further; world/lampFog.ts)
+  lampFog(parts.horn, 1.2);
   return parts;
 }
 

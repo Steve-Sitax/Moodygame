@@ -201,7 +201,8 @@ async function load(): Promise<Props> {
     }
     const mat =
       name === "glass"
-        ? new THREE.MeshBasicMaterial({ map, color: 0xffc070, fog: false })
+        ? // M7 fog lamps: glass fogs like the rest of the prop (a gas lamp's own: world/gaslamps.ts, lampFog.ts)
+          new THREE.MeshBasicMaterial({ map, color: 0xffc070 })
         : name === "goods"
           ? psx(new THREE.MeshLambertMaterial({ map, vertexColors: true }), { affine: 0.6, atlas: 4 })
           : psx(new THREE.MeshLambertMaterial({ map, vertexColors: true }), { affine: 0.6 });

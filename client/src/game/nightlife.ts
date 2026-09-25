@@ -3,6 +3,7 @@ import type { JobsPayload, PushMsg } from "../net/api";
 import type { FirstPerson } from "../player/firstPerson";
 import type { World } from "../world/rijnkaai";
 import { addLantern, removeLantern, type LanternSource } from "../world/lanternLights";
+import { lampFog } from "../world/lampFog";
 import { TICK_EVERY_MS } from "../../../shared/clock";
 import { GANG_HOURS, inSpan } from "../../../shared/night";
 import { Figure } from "./figures";
@@ -177,7 +178,9 @@ export class Nightlife {
     }
     // the first carries a shaded lantern (you see them come)
     const lead = this.figs[0];
-    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.14, 4), new THREE.MeshBasicMaterial({ color: 0xffb060, fog: false }));
+    const glass = new THREE.MeshBasicMaterial({ color: 0xffb060 });
+    lampFog(glass, 1.2); // M7 fog lamps: it fogs with the man who carries it
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.14, 4), glass);
     mesh.position.set(0.28, 0.72, 0.12);
     lead.group.add(mesh);
     this.lanternMesh = mesh;

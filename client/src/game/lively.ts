@@ -55,6 +55,29 @@ const GROUND_H = 3.8;
 const SILL_GROUND = 0.72;
 const SILL_UPPER = 0.57;
 
+/** Bodies smaller than this (over a 1.74 m man) are children: people.glb's children are about 0.7, the baker's boy 0.83. */
+const CHILD_BODY = 0.9;
+/** The hoop (build_lively.py hoop: a ring of radius 0.3 m standing on its lowest point) and the stick (0.55 m up its length). */
+const HOOP_R = 0.3;
+const STICK_L = 0.55;
+const UP = new THREE.Vector3(0, 1, 0);
+/** Hopscotch: the chalk squares' length (chalk_hop, 8 squares), a hop (the hop clip's loop), the walk up to the first square. */
+const HOP_LEN = 3.0;
+const HOP_S = 0.6;
+const HOP_STEP_UP = 1.2;
+/**
+ * The skipping rope: half the length between the hands; where the right hand is in the rope clip, over a
+ * 1.74 m body (the middle of its circle: ahead, to the right, up; measured on the figures); one turn of
+ * the rope (the clip's loop); segments and thickness of the drawn rope.
+ */
+const ROPE_HALF = 1.5;
+const HAND_FWD = 0.39;
+const HAND_RIGHT = 0.375;
+const HAND_UP = 1.19;
+const ROPE_TURN = 0.8;
+const ROPE_SEG = 24;
+const ROPE_R = 0.018;
+
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
 const angDiff = (a: number, b: number) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
@@ -108,7 +131,14 @@ interface Kit {
   motion: Motion | null;
   crossT: number;
   lastMadonna: number;
-  game: { kind: ChildGame; role: number; hoop?: THREE.Object3D; stick?: THREE.Object3D; top?: THREE.Object3D; t: number; roll: number } | null;
+  /**
+   * A child at a game: `want` is the engine's game for the square, `kind` what is played now (a skipping
+   * rope needs three: with fewer they play hopscotch). The hoop rolls on its own pivot, the stick rides
+   * in the right hand.
+   */
+  game: { kind: ChildGame; want: ChildGame; place: string; hoop?: THREE.Object3D; spin?: THREE.Object3D; stick?: THREE.Object3D; top?: THREE.Object3D; t: number; roll: number; ang?: number } | null;
+  /** A grown-looking girl or boy of fifteen at the children's square: stands by and watches. */
+  watch: { x: number; z: number } | null;
   /** At the Matsijs well: going there, drawing water or leaning on it, then on with their day. */
   well: { phase: "go" | "at"; t: number; x: number; z: number; pull: boolean; tried: number } | null;
   wellDone: number;
@@ -121,16 +151,49 @@ interface Wet {
   life: number;
 }
 
-/** A game of the children on a square: the spot, the chalk, the rope. */
+/**
+ * A game of the children on a square: the spot (hopscotch drawn at the middle along `yaw`, the marbles
+ * ring 3.2 m to its right, the skipping rope's lane 3 m to its left), and the rope.
+ */
 interface Pitch {
   place: string;
   x: number;
   z: number;
   yaw: number;
-  kind: ChildGame | null;
-  chalk: THREE.Object3D | null;
-  rope: THREE.Line | null;
-  ropeT: number;
+  /** Seconds of play on this pitch (the turns at hopscotch go by it). */
+  clock: number;
+  rope: Rope | null;
+  /** The marbles in the ring while someone plays marbles. */
+  marbles: THREE.Object3D | null;
+  marblesSeen: number;
+  /** Who is at each game here, in the order of the turns (lineOf). */
+  order: Map<ChildGame, string[]>;
+  /** The frame each child last played here (lineOf: one held up elsewhere drops out of the line). */
+  seenAt: Map<string, number>;
+  /** Hopscotch: the clock of this turn, whether the one whose turn it is stands at the first square, when last played. */
+  hop: { t: number; ready: boolean; seen: number };
+}
+
+/** The skipping rope of a pitch: its ends in the two turners' right hands. */
+interface Rope {
+  mesh: THREE.Mesh;
+  /** Turns of the rope so far (0.5: at the bottom); the turners' arms and the jumper's hop are set from it. */
+  t: number;
+  /** Who turns and who jumps this frame (set by play(), read by update()). */
+  a: Puppet | null;
+  b: Puppet | null;
+  j: Puppet | null;
+  /** The frame each was last in place. */
+  aAt: number;
+  bAt: number;
+  jAt: number;
+  /** A miss: the rope stops at the bottom a moment before the next one's turn. */
+  pause: number;
+  seen: number;
+  /** Misses so far (the roles go round by one at each), turns left before the next, turning this frame. */
+  slot: number;
+  left: number;
+  turning: boolean;
 }
 
 export interface LivelySfx {
@@ -152,6 +215,13 @@ export class Lively {
   private kits = new Map<string, Kit>();
   private rounds = new Map<string, RoundState>();
   private pitches = new Map<string, Pitch>();
+  /** Frames counted (the children's rosters are counted once a frame). */
+  private frame = 0;
+  private rosterAt = -1;
+  private rosters = new Map<string, string[]>();
+  private ropeMat: THREE.Material | null = null;
+  /** Dev: games set by hand on a pitch (devGames). */
+  private forced = new Map<string, { boys: ChildGame; girls: ChildGame }>();
   private wets: Wet[] = [];
   private windows = new Map<string, { h: Human; g: THREE.Group }>();
   private cats: Array<{ a: Animal; x: number; z: number; y: number; yaw: number; house: number; shown: boolean }> = [];
@@ -553,7 +623,7 @@ export class Lively {
         let ok = isClear(x, z, 3.5);
         // open ground and nothing standing on it (the well, a pump, a stall): 8 x 8 m round the pitch
         for (let dx = -4; ok && dx <= 4; dx += 1) for (let dz = -4; ok && dz <= 4; dz += 1) if (!open(x + dx, z + dz) || !this.world.isFree(x + dx, z + dz, 0.4)) ok = false;
-        if (ok) return { place: id, x, z, yaw, kind: null, chalk: null, rope: null, ropeT: 0 };
+        if (ok) return { place: id, x, z, yaw, clock: 0, rope: null, marbles: null, marblesSeen: 0, order: new Map(), seenAt: new Map(), hop: { t: 0, ready: false, seen: -9 } };
       }
     return null;
   }
@@ -602,6 +672,10 @@ export class Lively {
       behave: (s, dt, hour) => this.behave(s, dt, hour),
       spawned: (s) => this.spawned(s),
       lost: (s) => this.lost(s),
+      playing: (s) => {
+        const k = this.kits.get(s.r.id);
+        return !!k && (!!k.game || !!k.watch);
+      },
     };
   }
 
@@ -713,7 +787,7 @@ export class Lively {
 
   private kit(s: Sim): Kit {
     let k = this.kits.get(s.r.id);
-    if (!k) this.kits.set(s.r.id, (k = { hand: null, back: null, dogcart: null, barrow: null, cart: false, placed: [], wet: null, motion: null, crossT: 0, lastMadonna: -1, game: null, well: null, wellDone: 0 }));
+    if (!k) this.kits.set(s.r.id, (k = { hand: null, back: null, dogcart: null, barrow: null, cart: false, placed: [], wet: null, motion: null, crossT: 0, lastMadonna: -1, game: null, watch: null, well: null, wellDone: 0 }));
     return k;
   }
 
@@ -837,6 +911,11 @@ export class Lively {
     }
     // the children's games (tag stays the town's)
     if (g.mode === "play" && s.r.age < 16) return this.play(s, k, dt, hour);
+    // play time over: the hoop, the stick and the top go home with them (not left standing on the square)
+    if (k.game || k.watch) {
+      this.dropGame(k, p);
+      k.watch = null;
+    }
     // at the well on the Handschoenmarkt: water drawn, or a lean on it and a look about
     if (this.atWell(s, k, dt)) return true;
     // the pious passing a corner Madonna
@@ -1198,25 +1277,67 @@ export class Lively {
   }
 
   // ---- the children's games
+  //
+  // Fixes 2026-09-25 (Steve: "Rope skipping: not ropes in hands"): who plays is counted per pitch
+  // (roster), so the turns and the roles never clash; the skipping rope's ends ride in the two turners'
+  // right hands every frame, it turns in step with their arms, and the jumper's hop is set from it
+  // (in the air when the rope is under her); the hoop rolls on its own middle with the stick from the
+  // hand to its rim; a grown-looking girl of fifteen stands by and watches instead of joining in.
+
+  /** Who plays on this pitch now, in the order of their turns: by the game played (`k:`) or the engine's (`w:`). Counted once a frame. */
+  private roster(place: string, kind: ChildGame, by: "k" | "w" = "k"): string[] {
+    if (this.rosterAt !== this.frame) {
+      this.rosterAt = this.frame;
+      this.rosters.clear();
+      for (const [id, k] of this.kits) {
+        if (!k.game) continue;
+        for (const key of [`k:${k.game.place}|${k.game.kind}`, `w:${k.game.place}|${k.game.want}`]) {
+          let l = this.rosters.get(key);
+          if (!l) this.rosters.set(key, (l = []));
+          l.push(id);
+        }
+      }
+      for (const l of this.rosters.values()) l.sort();
+    }
+    return this.rosters.get(`${by}:${place}|${kind}`) ?? [];
+  }
 
   private play(s: Sim, k: Kit, dt: number, hour: number): boolean {
     const p = s.p!;
     const place = s.goal.place ?? "";
     const pitch = this.pitches.get(place);
     if (!pitch) return false;
+    // population.ts dresses a girl or boy of fifteen as grown: they stand by and watch the little ones
+    if (p.human.scale > CHILD_BODY) {
+      this.dropGame(k, p);
+      return this.watchGame(s, k, pitch, dt);
+    }
+    k.watch = null;
     const { day } = this.clock();
-    const games = gamesAt(place, day, hour);
-    const kind = s.r.sex === "m" && s.r.trade !== "baker_boy" ? games.boys : s.r.sex === "m" ? games.boys : games.girls;
-    if (kind === "tag") {
-      this.dropGame(k);
+    const games = this.forced.get(place) ?? gamesAt(place, day, hour);
+    const want = s.r.sex === "m" ? games.boys : games.girls;
+    if (want === "tag") {
+      this.dropGame(k, p);
       return false;
     }
-    if (!k.game || k.game.kind !== kind) {
-      this.dropGame(k);
-      k.game = { kind, role: Math.floor(h01(`${s.r.id}:${day}:${Math.floor(hour / 2)}`) * 3), t: 0, roll: 0 };
+    // a skipping rope needs two to turn and one to jump: with fewer they play hopscotch till the third comes
+    const kind: ChildGame = want === "rope" && this.roster(place, "rope", "w").length < 3 ? "hopscotch" : want;
+    if (!k.game || k.game.kind !== kind || k.game.want !== want || k.game.place !== place) {
+      this.dropGame(k, p);
+      k.game = { kind, want, place, t: 0, roll: 0 };
       if (kind === "hoops") {
-        k.game.hoop = this.mesh("hoop");
-        this.world.scene.add(k.game.hoop);
+        // the ring turns about its own middle (the model's ring stands on its lowest point)
+        const ring = this.mesh("hoop");
+        ring.position.y = -HOOP_R;
+        const spin = new THREE.Group();
+        spin.add(ring);
+        const hoop = new THREE.Group();
+        hoop.add(spin);
+        hoop.position.set(p.x + Math.sin(p.yaw) * 0.75, HOOP_R, p.z + Math.cos(p.yaw) * 0.75);
+        hoop.rotation.y = p.yaw;
+        this.world.scene.add(hoop);
+        k.game.hoop = hoop;
+        k.game.spin = spin;
         k.game.stick = this.mesh("stick");
         this.world.scene.add(k.game.stick);
       }
@@ -1228,139 +1349,458 @@ export class Lively {
     }
     const gm = k.game;
     gm.t += dt;
-    const fx = Math.sin(pitch.yaw);
-    const fz = Math.cos(pitch.yaw);
     const rx = Math.cos(pitch.yaw);
     const rz = -Math.sin(pitch.yaw);
-    const hx = h01(s.r.id) - 0.5;
     switch (kind) {
-      case "hoops": {
-        // bowling the hoop round the square with a stick, quick
-        if (!this.crowd.puppetBusy(p) && (s.wait -= dt) <= 0) {
-          const a = Math.random() * Math.PI * 2;
-          const d = rnd(3, 7);
-          const q = this.crowd.openNear(pitch.x + Math.cos(a) * d, pitch.z + Math.sin(a) * d);
-          if (q) this.crowd.puppetGo(p, q.x, q.z, rnd(1.8, 2.4));
-          s.wait = rnd(0.5, 1.5);
-        }
-        const hx2 = p.x + Math.sin(p.yaw) * 0.7 + Math.cos(p.yaw) * 0.25;
-        const hz2 = p.z + Math.cos(p.yaw) * 0.7 - Math.sin(p.yaw) * 0.25;
-        if (this.crowd.puppetBusy(p)) gm.roll += dt * 7;
-        gm.hoop!.position.set(hx2, 0, hz2);
-        gm.hoop!.rotation.set(0, p.yaw + Math.PI / 2, 0);
-        gm.hoop!.children[0].rotation.set(0, 0, 0);
-        (gm.hoop!.children[0] as THREE.Object3D).position.set(0, 0, 0);
-        gm.hoop!.rotation.x = 0;
-        gm.hoop!.rotateX(gm.roll);
-        gm.hoop!.position.y = 0.3 - 0.3 * Math.cos(0);
-        gm.stick!.position.set(p.x + Math.sin(p.yaw) * 0.25 + Math.cos(p.yaw) * 0.2, 0.2, p.z + Math.cos(p.yaw) * 0.25 - Math.sin(p.yaw) * 0.2);
-        gm.stick!.lookAt(hx2, 0.35, hz2);
-        gm.stick!.rotateX(Math.PI / 2);
-        return true;
-      }
+      case "hoops":
+        return this.playHoop(s, gm, pitch, dt);
       case "tops":
       case "marbles": {
-        // down on one knee at the ring, taking turns
+        // down on one knee round the ring, each at his own place (not two on one spot)
+        const R = this.roster(place, kind);
+        const n = Math.max(1, R.length);
+        const i = Math.max(0, R.indexOf(s.r.id));
         const ringX = pitch.x + rx * 3.2;
         const ringZ = pitch.z + rz * 3.2;
-        const a = h01(`${s.r.id}:seat`) * Math.PI * 2;
-        const sx = ringX + Math.cos(a) * 0.95;
-        const sz = ringZ + Math.sin(a) * 0.95;
-        if (this.crowd.puppetBusy(p)) return true;
-        if (dist(p.x, p.z, sx, sz) > 0.9 && gm.t < 30) {
-          if ((s.wait -= dt) <= 0) {
-            this.crowd.puppetGo(p, sx, sz, 1.5);
-            s.wait = 2;
+        const a = pitch.yaw + ((i + 0.5) / n) * Math.PI * 2;
+        const sx = ringX + Math.sin(a) * 0.95;
+        const sz = ringZ + Math.cos(a) * 0.95;
+        const yaw = Math.atan2(ringX - sx, ringZ - sz);
+        if (kind === "marbles") {
+          pitch.marblesSeen = this.frame;
+          if (!pitch.marbles) {
+            pitch.marbles = this.mesh("marbles");
+            pitch.marbles.position.set(ringX, 0.005, ringZ);
+            this.world.scene.add(pitch.marbles);
           }
+          pitch.marbles.visible = true;
+        }
+        if (!this.reach(p, sx, sz, dt)) {
+          if (gm.top) gm.top.visible = false;
           return true;
         }
-        const yaw = Math.atan2(ringX - p.x, ringZ - p.z);
-        if (p.human.motion !== "crouch" && p.human.motion !== "idle") this.crowd.puppetStand(p, "crouch", yaw);
-        if ((s.wait -= dt) <= 0) {
-          this.crowd.puppetStand(p, Math.random() < 0.6 ? "crouch" : "talk", yaw);
-          s.wait = rnd(2, 5);
+        // the one whose go it is stays down at the ring; the others kneel or stand up for a word, now and then
+        const mine = Math.floor(pitch.clock / 4) % n === i;
+        if ((s.wait -= dt) <= 0 || (mine && p.human.motion !== "crouch")) {
+          this.crowd.puppetStand(p, mine || Math.random() < 0.7 ? "crouch" : "talk", yaw);
+          s.wait = rnd(3, 6);
         }
+        p.yaw = yaw;
         if (gm.top) {
-          gm.top.position.set(p.x + Math.sin(yaw) * 0.45, 0, p.z + Math.cos(yaw) * 0.45);
-          gm.top.rotation.y += dt * 30;
+          // his top spins on the stones in the ring before him, wandering a little
+          gm.top.visible = true;
+          const w = gm.t * 0.7 + i;
+          gm.top.position.set(ringX + Math.sin(a) * 0.3 + Math.sin(w) * 0.08, 0, ringZ + Math.cos(a) * 0.3 + Math.cos(w * 1.3) * 0.08);
+          gm.top.rotation.set(Math.sin(gm.t * 3) * 0.12, gm.top.rotation.y + dt * 30, 0);
         }
         return true;
       }
-      case "hopscotch": {
-        // up the chalk squares one hop at a time, the others waiting their turn
-        const turn = Math.floor(gm.t / 6) % 3 === gm.role;
-        const len = 3.0;
-        if (turn) {
-          const u = (gm.t % 6) / 6;
-          const along = (u < 0.5 ? u * 2 : 2 - u * 2) * len - len / 2;
-          p.x = pitch.x + fx * along;
-          p.z = pitch.z + fz * along;
-          if (p.human.motion !== "hop") this.crowd.puppetStand(p, "hop", u < 0.5 ? pitch.yaw : pitch.yaw + Math.PI);
-          p.yaw = u < 0.5 ? pitch.yaw : pitch.yaw + Math.PI;
-        } else {
-          const wx = pitch.x - fx * (len / 2 + 1) + rx * (gm.role - 1) * 0.8;
-          const wz = pitch.z - fz * (len / 2 + 1) + rz * (gm.role - 1) * 0.8;
-          if (dist(p.x, p.z, wx, wz) > 0.8) {
-            if (!this.crowd.puppetBusy(p)) this.crowd.puppetGo(p, wx, wz, 1.3);
-          } else if (p.human.motion !== "talk" && p.human.motion !== "idle") this.crowd.puppetStand(p, "idle", pitch.yaw);
-        }
-        return true;
-      }
-      case "rope": {
-        // two turn the rope, one skips in the middle (by turns)
-        const ends = [pitch.x - fx * 1.6 + rx * 2.6, pitch.z - fz * 1.6 + rz * 2.6, pitch.x + fx * 1.6 + rx * 2.6, pitch.z + fz * 1.6 + rz * 2.6];
-        const midX = pitch.x + rx * 2.6;
-        const midZ = pitch.z + rz * 2.6;
-        const role = (gm.role + Math.floor(gm.t / 12)) % 3;
-        const tx = role === 0 ? ends[0] : role === 1 ? ends[2] : midX;
-        const tz = role === 0 ? ends[1] : role === 1 ? ends[3] : midZ;
-        if (dist(p.x, p.z, tx, tz) > 0.7) {
-          if (!this.crowd.puppetBusy(p)) this.crowd.puppetGo(p, tx, tz, 1.4);
-          return true;
-        }
-        const want: Motion = role === 2 ? "hop" : "rope";
-        const yaw = role === 2 ? pitch.yaw + Math.PI / 2 : Math.atan2(midX - p.x, midZ - p.z);
-        if (p.human.motion !== want) this.crowd.puppetStand(p, want, yaw);
-        if (role === 0) this.drawRope(pitch, ends, dt);
-        return true;
-      }
+      case "hopscotch":
+        return this.playHopscotch(s, pitch, dt);
+      case "rope":
+        return this.playRope(s, pitch, dt);
       default:
-        void hx;
         return false;
     }
   }
 
-  private drawRope(pitch: Pitch, ends: number[], dt: number): void {
-    if (!pitch.rope) {
-      const g = new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(13 * 3), 3));
-      pitch.rope = new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0x8a7a5a }));
-      pitch.rope.frustumCulled = false;
-      this.world.scene.add(pitch.rope);
+  /**
+   * Walk to a spot of a game: on the walk grid while far, the last metre straight onto it (the grid's
+   * cells are coarser). True once there (the body put exactly on the spot).
+   */
+  private reach(p: Puppet, tx: number, tz: number, dt: number): boolean {
+    const d = dist(p.x, p.z, tx, tz);
+    if (d > 1) {
+      if (!this.crowd.puppetBusy(p)) this.crowd.puppetGo(p, tx, tz, 1.4);
+      return false;
     }
-    pitch.ropeT += dt * (Math.PI * 2) / 0.6;
-    const pos = pitch.rope.geometry.getAttribute("position") as THREE.BufferAttribute;
-    const [ax, az, bx, bz] = ends;
-    const L = Math.hypot(bx - ax, bz - az) || 1;
-    const nx = -(bz - az) / L;
-    const nz = (bx - ax) / L;
-    for (let i = 0; i <= 12; i++) {
-      const u = i / 12;
-      const sag = Math.sin(Math.PI * u);
-      const y = 0.85 + Math.cos(pitch.ropeT) * sag * 0.8;
-      const side = Math.sin(pitch.ropeT) * sag * 0.5;
-      pos.setXYZ(i, ax + (bx - ax) * u + nx * side, Math.max(0.02, y), az + (bz - az) * u + nz * side);
+    if (d > 0.3) {
+      if (p.human.motion !== "walk" || this.crowd.puppetBusy(p)) this.crowd.puppetStand(p, "walk", null);
+      const k = Math.min(1, (1.1 * dt) / d);
+      p.x += (tx - p.x) * k;
+      p.z += (tz - p.z) * k;
+      p.yaw = Math.atan2(tx - p.x, tz - p.z);
+      return false;
     }
-    pos.needsUpdate = true;
-    pitch.rope.visible = true;
-    pitch.rope.userData.seen = performance.now();
+    if (this.crowd.puppetBusy(p)) this.crowd.puppetStand(p, "idle", null);
+    p.x = tx;
+    p.z = tz;
+    return true;
   }
 
-  private dropGame(k: Kit): void {
+  /** A grown-looking fifteen-year-old at the children's square: a place at the side, watching, a word now and then. */
+  private watchGame(s: Sim, k: Kit, pitch: Pitch, dt: number): boolean {
+    const p = s.p!;
+    if (!k.watch) {
+      // at one end of the pitch, clear of the rope's lane and the marbles ring at its sides
+      const end = h01(`${s.r.id}:watch`) < 0.5 ? -1 : 1;
+      const side = (h01(`${s.r.id}:side`) - 0.5) * 4;
+      const fx = Math.sin(pitch.yaw);
+      const fz = Math.cos(pitch.yaw);
+      const q = this.crowd.openNear(pitch.x + fx * 5.2 * end + fz * side, pitch.z + fz * 5.2 * end - fx * side);
+      k.watch = q ? { x: q.x, z: q.z } : { x: p.x, z: p.z };
+    }
+    if (this.crowd.puppetBusy(p)) return true;
+    if (dist(p.x, p.z, k.watch.x, k.watch.z) > 0.8) {
+      if ((s.wait -= dt) <= 0) {
+        this.crowd.puppetGo(p, k.watch.x, k.watch.z, 1.2);
+        s.wait = 2;
+      }
+      return true;
+    }
+    if ((s.wait -= dt) <= 0) {
+      this.crowd.puppetStand(p, Math.random() < 0.3 ? "talk" : "idle", Math.atan2(pitch.x - p.x, pitch.z - p.z));
+      s.wait = rnd(4, 9);
+    }
+    return true;
+  }
+
+  /** Bowling the hoop round the square: the hoop rolls ahead on his right, the stick from his right hand to its rim. */
+  private playHoop(s: Sim, gm: NonNullable<Kit["game"]>, pitch: Pitch, dt: number): boolean {
+    const p = s.p!;
+    const moving = this.crowd.puppetBusy(p);
+    if (!moving && (s.wait -= dt) <= 0) {
+      // round the square, outside the other games (the rope's lane, the chalk, the ring): on a ring 6 to 9 m
+      // out, a step of it at a time the same way round
+      gm.ang = (gm.ang ?? Math.atan2(p.x - pitch.x, p.z - pitch.z)) + rnd(0.5, 1.0) * (h01(s.r.id) < 0.5 ? 1 : -1);
+      const d = rnd(6, 9);
+      const q = this.crowd.openNear(pitch.x + Math.sin(gm.ang) * d, pitch.z + Math.cos(gm.ang) * d);
+      if (q) this.crowd.puppetGo(p, q.x, q.z, rnd(1.8, 2.4));
+      s.wait = rnd(0.3, 1.0);
+    }
+    const hoop = gm.hoop!;
+    const F = [Math.sin(p.yaw), Math.cos(p.yaw)];
+    const Rt = [-Math.cos(p.yaw), Math.sin(p.yaw)];
+    const s0 = p.human.scale * p.size;
+    // ahead of him and a little to his right, where the stick in the right hand reaches
+    const tx = p.x + F[0] * 0.85 * s0 / 0.72 + Rt[0] * 0.18;
+    const tz = p.z + F[1] * 0.85 * s0 / 0.72 + Rt[1] * 0.18;
+    const k = Math.min(1, dt * 10);
+    const ox = hoop.position.x;
+    const oz = hoop.position.z;
+    hoop.position.x += (tx - ox) * k;
+    hoop.position.z += (tz - oz) * k;
+    hoop.position.y = HOOP_R + this.world.baseAt(hoop.position.x, hoop.position.z);
+    hoop.rotation.y += angDiff(p.yaw, hoop.rotation.y) * k;
+    // it rolls as far as it goes (radius 0.3 m), and leans a little into the turns
+    const moved = Math.hypot(hoop.position.x - ox, hoop.position.z - oz);
+    gm.roll += moved / HOOP_R;
+    gm.spin!.rotation.x = gm.roll;
+    hoop.rotation.z = moving ? Math.sin(gm.t * 2.3) * 0.05 : 0;
+    // the stick: from the right hand to the back of the rim, a little above the middle
+    const hand = p.human.root.getObjectByName("handR");
+    if (hand && p.shown) {
+      hand.updateWorldMatrix(true, false);
+      const h = new THREE.Vector3().setFromMatrixPosition(hand.matrixWorld);
+      const bx = Math.sin(hoop.rotation.y);
+      const bz = Math.cos(hoop.rotation.y);
+      const c = new THREE.Vector3(hoop.position.x - bx * HOOP_R * 0.8, hoop.position.y + HOOP_R * 0.6, hoop.position.z - bz * HOOP_R * 0.8);
+      const d = c.clone().sub(h);
+      const L = d.length();
+      const st = gm.stick!;
+      st.position.copy(h);
+      st.quaternion.setFromUnitVectors(UP, d.normalize());
+      st.scale.set(1, Math.max(0.2, L / STICK_L), 1);
+      st.visible = true;
+    } else gm.stick!.visible = false;
+    return true;
+  }
+
+  /**
+   * Who is at this game on the pitch, in the order the turns go (the order they came; the game turns
+   * it round: the hopscotch clock in update, updateRope at a miss). Those gone off (home, another game)
+   * drop out; `here`: this child is at the pitch now and joins at the end.
+   */
+  private lineOf(pitch: Pitch, kind: ChildGame, id: string, here: boolean): string[] {
+    let o = pitch.order.get(kind);
+    if (!o) pitch.order.set(kind, (o = []));
+    const R = this.roster(pitch.place, kind);
+    pitch.seenAt.set(id, this.frame);
+    // gone off, or taken up by something else a while (a word in the street, a talk with Jef): out of the line
+    const gone = (x: string) => !R.includes(x) || this.frame - (pitch.seenAt.get(x) ?? -1e9) > 45;
+    if (o.some(gone)) {
+      const keep = o.filter((x) => !gone(x));
+      o.length = 0;
+      o.push(...keep);
+    }
+    if (here && !o.includes(id)) o.push(id);
+    return o;
+  }
+
+  /**
+   * Hopscotch: one at a time up the eight chalk squares a hop a square (the feet leave the stones on
+   * each), round at the top and back; the others wait their turn in a row by the first square.
+   */
+  private playHopscotch(s: Sim, pitch: Pitch, dt: number): boolean {
+    const p = s.p!;
+    const fx = Math.sin(pitch.yaw);
+    const fz = Math.cos(pitch.yaw);
+    const rx = Math.cos(pitch.yaw);
+    const rz = -Math.sin(pitch.yaw);
+    const at = (along: number) => [pitch.x + fx * along, pitch.z + fz * along] as const;
+    const line = this.lineOf(pitch, "hopscotch", s.r.id, dist(p.x, p.z, pitch.x, pitch.z) < 6);
+    const i = line.indexOf(s.r.id);
+    const n = line.length;
+    const sq = HOP_LEN / 8;
+    // where the feet land: before the first square, then the middle of squares 1 to 8
+    const spot = (j: number) => (j === 0 ? -HOP_LEN / 2 - 0.35 : -HOP_LEN / 2 + (j - 0.5) * sq);
+    pitch.hop.seen = this.frame;
+    if (i === 0) {
+      const [x0, z0] = at(spot(0));
+      const u = pitch.hop.t;
+      if (u < HOP_STEP_UP) {
+        // up to the first square; her turn's clock waits till she stands there
+        const there = this.reach(p, x0, z0, dt);
+        pitch.hop.ready = there;
+        if (there && p.human.motion !== "idle") this.crowd.puppetStand(p, "idle", pitch.yaw);
+        return true;
+      }
+      const v = u - HOP_STEP_UP;
+      const hop = Math.min(16, Math.floor(v / HOP_S));
+      const frac = Math.min(1, (v - hop * HOP_S) / HOP_S);
+      // off the ground in the first half of each hop (humans.ts motionLift), the move made in the air
+      const air = Math.min(1, frac * 2);
+      const e = air * air * (3 - 2 * air);
+      let from: number;
+      let to: number;
+      let yaw = pitch.yaw;
+      if (hop < 8) {
+        from = spot(hop);
+        to = spot(hop + 1);
+      } else if (hop === 8) {
+        from = to = spot(8);
+        yaw = pitch.yaw + Math.PI * e;
+      } else {
+        from = spot(17 - hop);
+        to = spot(16 - hop);
+        yaw = pitch.yaw + Math.PI;
+      }
+      const [x, z] = at(from + (to - from) * e);
+      p.x = x;
+      p.z = z;
+      if (p.human.motion !== "hop") this.crowd.puppetStand(p, "hop", yaw);
+      p.yaw = yaw;
+      p.human.setPhase("hop", frac);
+      return true;
+    }
+    // waiting: in a row beside the first square, in the order of the turns to come (not yet in the line: coming)
+    const q = i < 0 ? n : i - 1;
+    const wx = pitch.x - fx * (HOP_LEN / 2 + 1.1) + rx * (q - (n - 2) / 2) * 0.7;
+    const wz = pitch.z - fz * (HOP_LEN / 2 + 1.1) + rz * (q - (n - 2) / 2) * 0.7;
+    if (this.reach(p, wx, wz, dt) && (p.human.motion === "hop" || p.human.motion === "walk" || (s.wait -= dt) <= 0)) {
+      this.crowd.puppetStand(p, Math.random() < 0.3 ? "talk" : "idle", pitch.yaw);
+      s.wait = rnd(3, 7);
+    }
+    return true;
+  }
+
+  /** The skipping rope's lane: 3 m to the left of the hopscotch, along the pitch. */
+  private ropeLane(pitch: Pitch) {
+    const fx = Math.sin(pitch.yaw);
+    const fz = Math.cos(pitch.yaw);
+    const rx = Math.cos(pitch.yaw);
+    const rz = -Math.sin(pitch.yaw);
+    return { cx: pitch.x - rx * 3, cz: pitch.z - rz * 3, fx, fz, rx, rz };
+  }
+
+  /**
+   * The skipping rope: two turn it, facing each other with their right hands on the one line 3 m
+   * apart, one skips in the middle. After some turns she misses, the rope stops, and she takes an end
+   * (the one whose turner goes to the back of the line); the next in the line jumps. Fewer than three
+   * there yet: they wait at the side for the others.
+   */
+  private playRope(s: Sim, pitch: Pitch, dt: number): boolean {
+    const p = s.p!;
+    const rope = this.ropeOf(pitch);
+    const L = this.ropeLane(pitch);
+    const line = this.lineOf(pitch, "rope", s.r.id, dist(p.x, p.z, L.cx, L.cz) < 6);
+    const n = line.length;
+    const i = line.indexOf(s.r.id);
+    // 0, 1: the turners at the two ends; 2: the jumper; 3...: waiting (all of them while fewer than three are there)
+    const role = i < 0 ? 3 + n : n < 3 ? 3 + i : i;
+    const sc = p.human.scale * p.size;
+    let tx: number;
+    let tz: number;
+    let yaw: number;
+    if (role <= 1) {
+      // the right hand over the end of the lane: the body back and to the left of it (the rope clip's hand, measured)
+      const e = role === 0 ? -1 : 1;
+      const F = [-e * L.fx, -e * L.fz]; // facing the other end
+      yaw = Math.atan2(F[0], F[1]);
+      const rightX = -Math.cos(yaw);
+      const rightZ = Math.sin(yaw);
+      const hx = L.cx + e * L.fx * ROPE_HALF;
+      const hz = L.cz + e * L.fz * ROPE_HALF;
+      tx = hx - F[0] * HAND_FWD * sc - rightX * HAND_RIGHT * sc;
+      tz = hz - F[1] * HAND_FWD * sc - rightZ * HAND_RIGHT * sc;
+    } else if (role === 2) {
+      tx = L.cx;
+      tz = L.cz;
+      yaw = Math.atan2(L.rx, L.rz);
+    } else {
+      // waiting their turn beside the lane, clear of the rope's sweep
+      const q = role - 3;
+      const m = Math.max(1, n - 3);
+      tx = L.cx + L.rx * 1.5 + L.fx * (q - (m - 1) / 2) * 0.7;
+      tz = L.cz + L.rz * 1.5 + L.fz * (q - (m - 1) / 2) * 0.7;
+      yaw = Math.atan2(-L.rx, -L.rz);
+    }
+    if (!this.reach(p, tx, tz, dt)) return true;
+    p.yaw = yaw;
+    if (role <= 1) {
+      if (p.human.motion !== "rope") this.crowd.puppetStand(p, "rope", yaw);
+      if (role === 0) {
+        rope.a = p;
+        rope.aAt = this.frame;
+      } else {
+        rope.b = p;
+        rope.bAt = this.frame;
+      }
+    } else if (role === 2) {
+      const want: Motion = rope.turning ? "hop" : "idle";
+      if (p.human.motion !== want) this.crowd.puppetStand(p, want, yaw);
+      rope.j = p;
+      rope.jAt = this.frame;
+    } else if (!this.crowd.puppetBusy(p) && (p.human.motion === "hop" || p.human.motion === "rope" || p.human.motion === "walk" || (s.wait -= dt) <= 0)) {
+      this.crowd.puppetStand(p, Math.random() < 0.3 ? "talk" : "idle", yaw);
+      s.wait = rnd(3, 7);
+    }
+    return true;
+  }
+
+  private ropeOf(pitch: Pitch): Rope {
+    if (!pitch.rope) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array((ROPE_SEG + 1) * 3 * 3), 3));
+      const idx: number[] = [];
+      for (let i = 0; i < ROPE_SEG; i++)
+        for (let k = 0; k < 3; k++) {
+          const a = i * 3 + k;
+          const b = i * 3 + ((k + 1) % 3);
+          idx.push(a, b, a + 3, b, b + 3, a + 3);
+        }
+      g.setIndex(idx);
+      this.ropeMat ??= psx(new THREE.MeshLambertMaterial({ color: 0xc2ae84, side: THREE.DoubleSide }));
+      const mesh = new THREE.Mesh(g, this.ropeMat);
+      mesh.name = "lively_skipping_rope";
+      mesh.frustumCulled = false;
+      mesh.visible = false;
+      this.world.scene.add(mesh);
+      pitch.rope = { mesh, t: 0.5, a: null, b: null, j: null, aAt: -9, bAt: -9, jAt: -9, pause: 0, seen: 0, slot: 0, left: 12, turning: false };
+    }
+    return pitch.rope;
+  }
+
+  /** Once a frame, after the figures moved: the rope turns (or waits), the arms and the hop follow it, its ends in the hands. */
+  private updateRope(pitch: Pitch, dt: number): void {
+    const rp = pitch.rope!;
+    const fresh = (at: number) => this.frame - at <= 3;
+    const a = rp.a;
+    const b = rp.b;
+    const ok = !!a && !!b && fresh(rp.aAt) && fresh(rp.bAt) && a.human.motion === "rope" && b.human.motion === "rope";
+    rp.turning = false;
+    if (!ok) {
+      rp.mesh.visible = false;
+      return;
+    }
+    const jumper = rp.j && fresh(rp.jAt) ? rp.j : null;
+    if (rp.pause > 0) rp.pause -= dt;
+    else if (jumper) {
+      const before = rp.t;
+      rp.t += dt / ROPE_TURN;
+      // under her feet once a turn; after so many she misses: the rope stops at the bottom, the turns go round
+      if (Math.floor(rp.t - 0.5) > Math.floor(before - 0.5) && --rp.left <= 0) {
+        rp.t = Math.floor(rp.t - 0.5) + 0.5;
+        rp.pause = 1.6;
+        // she missed: she takes an end (the near one and the far one by turns), its turner goes to the back of the line
+        const line = pitch.order.get("rope");
+        if (line && line.length >= 3) {
+          const k = rp.slot % 2;
+          const turner = line[k];
+          line[k] = line[2];
+          line.splice(2, 1);
+          line.push(turner);
+        }
+        rp.slot++;
+        rp.left = 12 + Math.floor(h01(`${pitch.place}:${rp.slot}`) * 14);
+      } else rp.turning = true;
+    } else {
+      // nobody in the middle: it comes round to the bottom and lies there
+      const bottom = Math.ceil(rp.t - 0.5) + 0.5;
+      rp.t = Math.min(bottom, rp.t + dt / ROPE_TURN);
+      rp.turning = rp.t < bottom;
+    }
+    const ph = rp.t - Math.floor(rp.t);
+    // the turners' arms go round with the rope (the far one's clip runs backwards: the same way round)
+    a.human.setPhase("rope", ph);
+    b.human.setPhase("rope", 1 - ph);
+    if (jumper && jumper.human.motion === "hop") jumper.human.setPhase("hop", ph - 0.25);
+    // drawn when one of them is in view (an unseen figure's arms do not move)
+    if (!a.shown && !b.shown) {
+      rp.mesh.visible = false;
+      return;
+    }
+    // the rope: from hand to hand, bowed out round the line between them
+    const ha = a.human.root.getObjectByName("handR");
+    const hb = b.human.root.getObjectByName("handR");
+    if (!ha || !hb) return;
+    ha.updateWorldMatrix(true, false);
+    hb.updateWorldMatrix(true, false);
+    const A = new THREE.Vector3().setFromMatrixPosition(ha.matrixWorld);
+    const B = new THREE.Vector3().setFromMatrixPosition(hb.matrixWorld);
+    // the palm, a little below the wrist bone
+    A.y -= 0.03;
+    B.y -= 0.03;
+    const ground = this.world.baseAt((A.x + B.x) / 2, (A.z + B.z) / 2);
+    // bowed out as far as the hands are high: it brushes the stones at the bottom, over the head at the top
+    const rad = (HAND_UP * (a.human.scale * a.size + b.human.scale * b.size)) / 2;
+    const th = ph * Math.PI * 2;
+    // the first turner's right: the side the rope swings out to first
+    const ay = a.yaw;
+    const sx = -Math.cos(ay);
+    const sz = Math.sin(ay);
+    const c = Math.cos(th);
+    const sn = Math.sin(th);
+    const pts: THREE.Vector3[] = [];
+    for (let i = 0; i <= ROPE_SEG; i++) {
+      const u = i / ROPE_SEG;
+      const bow = Math.sin(Math.PI * u) * rad;
+      const x = A.x + (B.x - A.x) * u + sx * sn * bow;
+      const y = A.y + (B.y - A.y) * u + c * bow;
+      const z = A.z + (B.z - A.z) * u + sz * sn * bow;
+      pts.push(new THREE.Vector3(x, Math.max(ground + ROPE_R, y), z));
+    }
+    const pos = rp.mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
+    const t = new THREE.Vector3();
+    const n1 = new THREE.Vector3();
+    const n2 = new THREE.Vector3();
+    for (let i = 0; i <= ROPE_SEG; i++) {
+      t.subVectors(pts[Math.min(ROPE_SEG, i + 1)], pts[Math.max(0, i - 1)]).normalize();
+      n1.crossVectors(t, UP);
+      if (n1.lengthSq() < 1e-6) n1.set(1, 0, 0);
+      n1.normalize();
+      n2.crossVectors(t, n1);
+      for (let k = 0; k < 3; k++) {
+        const w = (k / 3) * Math.PI * 2;
+        const q = pts[i];
+        pos.setXYZ(i * 3 + k, q.x + (n1.x * Math.cos(w) + n2.x * Math.sin(w)) * ROPE_R, q.y + (n1.y * Math.cos(w) + n2.y * Math.sin(w)) * ROPE_R, q.z + (n1.z * Math.cos(w) + n2.z * Math.sin(w)) * ROPE_R);
+      }
+    }
+    pos.needsUpdate = true;
+    rp.mesh.geometry.computeVertexNormals();
+    rp.mesh.visible = true;
+    rp.seen = this.frame;
+  }
+
+  private dropGame(k: Kit, p?: Puppet | null): void {
     if (!k.game) return;
     k.game.hoop?.removeFromParent();
     k.game.stick?.removeFromParent();
     k.game.top?.removeFromParent();
     k.game = null;
+    // the clips the rope and the hops held still run on their own again
+    p?.human.clipSpeed("rope", 1);
+    p?.human.clipSpeed("hop", 1);
   }
 
   // ------------------------------------------------------------------ once a frame
@@ -1401,8 +1841,23 @@ export class Lively {
       (w.mesh.material as THREE.MeshLambertMaterial).opacity = Math.min(1, k * 1.5);
       return true;
     });
-    // ropes nobody turns any more
-    for (const pt of this.pitches.values()) if (pt.rope && now * 1000 - (pt.rope.userData.seen ?? 0) > 500) pt.rope.visible = false;
+    // the children's pitches: the clock of the turns, the skipping rope in the turners' hands, the marbles
+    for (const pt of this.pitches.values()) {
+      pt.clock += dt;
+      // hopscotch: the turn's clock runs once she stands at the first square; at its end the next one's go
+      if (this.frame - pt.hop.seen <= 3) {
+        if (pt.hop.ready || pt.hop.t >= HOP_STEP_UP) pt.hop.t += dt;
+        if (pt.hop.t >= HOP_STEP_UP + 17 * HOP_S) {
+          pt.hop.t = 0;
+          pt.hop.ready = false;
+          const line = pt.order.get("hopscotch");
+          if (line && line.length > 1) line.push(line.shift()!);
+        }
+      }
+      if (pt.rope) this.updateRope(pt, dt);
+      if (pt.marbles) pt.marbles.visible = this.frame - pt.marblesSeen <= 3;
+    }
+    this.frame++;
     this.updateWindows(dt, player);
     this.updateCats(dt, player, fogFar);
     this.updateHens(dt, player);
@@ -1617,6 +2072,42 @@ export class Lively {
       out.push({ id, who: this.town.info(id)?.name, trade: this.town.info(id)?.trade, at: p ? [+p.x.toFixed(1), +p.z.toFixed(1)] : null, motion: p?.human.motion, phase: st?.phase, dogcart: !!k.dogcart, barrow: !!k.barrow, cart: k.cart, game: k.game?.kind });
     }
     return out;
+  }
+
+  /**
+   * Dev (the pictures, docs/testing.md rule 5): the games on this pitch now, whatever the engine's hour
+   * says (null gives it back); with `kids`, that many children of the town (girls first for a girls'
+   * game) are sent there to play, till their day moves them on. Returns who was sent.
+   */
+  devGames(place: string, games: { boys: ChildGame; girls: ChildGame } | null, kids = 0, girls = true): string[] {
+    const pitch = this.pitches.get(place);
+    if (!pitch) return [];
+    if (games) this.forced.set(place, games);
+    else this.forced.delete(place);
+    const host = this.town.journeyHost();
+    const sent: string[] = [];
+    const all = (host.sims() as Sim[]).filter((q) => q.r.age >= 6 && q.r.age < 15 && (q.r.trade === "child" || q.r.trade === "street_child") && !q.inside);
+    all.sort((a, b) => (a.r.sex === b.r.sex ? 0 : (a.r.sex === "f") === girls ? -1 : 1) || dist(a.x, a.z, pitch.x, pitch.z) - dist(b.x, b.z, pitch.x, pitch.z));
+    for (const q of all.slice(0, kids)) {
+      q.goal = { mode: "play", x: pitch.x, z: pitch.z, r: 6, place } as Goal;
+      q.wait = 0;
+      q.arrived = false;
+      sent.push(`${q.r.id} ${q.r.name} (${q.r.sex}, ${q.r.age})`);
+    }
+    return sent;
+  }
+
+  /** Dev: the children's pitches, what is played there and by whom. */
+  games() {
+    return [...this.pitches.values()].map((pt) => ({
+      place: pt.place,
+      at: [+pt.x.toFixed(1), +pt.z.toFixed(1)],
+      yaw: +pt.yaw.toFixed(2),
+      rope: this.ropeLane(pt),
+      players: [...this.kits.entries()].filter(([, k]) => k.game?.place === pt.place).map(([id, k]) => `${id}:${k.game!.kind}`),
+      turning: pt.rope?.turning ?? false,
+      slot: pt.rope?.slot ?? 0,
+    }));
   }
 
   /** Dev: send a townsperson in the street to the well now (the pictures). */

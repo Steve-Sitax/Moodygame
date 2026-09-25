@@ -4,6 +4,7 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import CITY from "../../../shared/city.json";
 import SPOT_TABLE from "../../../shared/spots.json";
 import { psx } from "../retro/psx";
+import { lampFog } from "./lampFog";
 import type { Rect } from "./geom";
 import { trackKeepOut, type TrackData } from "./tracks";
 import { trafficLanes } from "./traffic";
@@ -367,9 +368,12 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
   mats[SOLID] = psx(new THREE.MeshLambertMaterial({ map: solidMap, vertexColors: true, side: DS, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), { affine: 0 });
   mats[FLAT_DECAL] = psx(new THREE.MeshLambertMaterial({ ...decalOpts }), { affine: 0, noSnap: true });
   mats[SNAP_DECAL] = psx(new THREE.MeshLambertMaterial({ ...decalOpts, alphaTest: 0.3 }), { affine: 0 });
-  const glowMat = new THREE.MeshBasicMaterial({ map: solidMap, color: 0xffc070, fog: false });
+  const glowMat = new THREE.MeshBasicMaterial({ map: solidMap, color: 0xffc070 });
+  // M7 fog lamps: the lanterns and the tar fires fog with what they stand on (a flame a little further)
+  const glowFog = lampFog(glowMat, 1, 1.3);
   mats[GLOW] = glowMat;
-  const fireMat = new THREE.MeshBasicMaterial({ map: solidMap, color: 0xffffff, fog: false, side: DS });
+  const fireMat = new THREE.MeshBasicMaterial({ map: solidMap, color: 0xffffff, side: DS });
+  lampFog(fireMat, 1.3);
   mats[FIRE] = fireMat;
   mats.forEach((m, i) => (m.name = SLOT_NAMES[i]));
 
@@ -1091,6 +1095,7 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
     // the lanterns at the steps: lit with the gas lamps, an oil flame's slow waver
     const k = Math.max(0, Math.min(1, lit)) * (0.9 + Math.sin(t * 2.7) * 0.05 + Math.sin(t * 8.1 + 0.7) * 0.04);
     glowMat.color.copy(air).multiplyScalar(0.8 * (1 - Math.min(1, k))).add(flame.copy(warm).multiplyScalar(k));
+    glowFog.value = 1 + 0.3 * Math.min(1, k);
     // the tar fires burn day and night, and flicker
     const f = 0.8 + Math.sin(t * 11.3) * 0.08 + Math.sin(t * 17.9 + 1.1) * 0.07 + Math.sin(t * 5.3) * 0.05;
     fireMat.color.setRGB(f, f * 0.95, f * 0.9);

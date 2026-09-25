@@ -62,6 +62,30 @@ Test save, Wednesday 10:00, clear weather (the longest view), `perf(60)` (render
 
 The static things are merged per 64 m chunk and material (two materials: at most two draw calls a chunk) and hidden beyond the fog; animals, window figures and carts exist only within 45 m of Jef. `lively.update` costs 0.004 ms a frame. Most of the logic's increase is the extra people now in the streets (door life, the rounds).
 
+## Fixes 2026-09-25: the games and the street players, checked close up
+Steve's picture: the skipping rope's ends in the air far outside the girls, the arc floating over their heads, the
+girls holding their arms out to nothing, a grown woman in an apron standing still in the middle, a chalk ring beside
+them. His rule since: every scene like this is looked at close up, front and side, and fixed until it looks and
+behaves right (docs/testing.md rule 5). What was wrong and what changed:
+
+| Scene | Was | Now |
+|---|---|---|
+| Skipping rope | Fixed end points in the air, 3.2 m apart, a 1-pixel line; roles from each child's own hash (two turners at one end, nobody in the middle); a girl of fifteen in a grown woman's clothes (population.ts gives a child's figure only up to 14) played; the lane lay on the marbles ring | The rope's ends are the two turners' right-hand bones every frame; it bows round the line between the hands (as far out as the hands are high: on the stones at the bottom, 1.7-1.8 m at the top) in step with their arms (the far turner's clip runs the other way round, `setPhase`); the jumper's hop is set from it, 13-14 cm up as it passes under her feet. The turners face each other 3.6 m apart; the lane is 3 m on the other side of the hopscotch from the ring. A line in the order they came: at a miss (12-25 turns) the rope stops at the bottom, she takes an end, that turner goes to the back; more than three wait at the side; fewer than three play hopscotch till the third comes |
+| The chalk ring | beside the rope | kept: it is the marbles and tops ring |
+| Hopscotch | Everyone's own clock: two hopped at once or none; a slide along the squares | One at a time in the order they came, a hop per square (the move in the air), round at the top and back; the others in a row by the first square |
+| Hoops | The hoop turned round its lowest point, broadside on; the stick floated | The hoop rolls on its middle in the line of travel, as far as it goes; the stick from the right hand to the back of the rim; bowled round the square 6-9 m out, clear of the other games |
+| Tops, marbles | Seats from a hash (two on one spot); no marbles | Places spaced round the ring; the marbles in it; the one whose go it is stays down |
+| Tag (town.ts) | "It" was picked again twice a second by every child more than 30 m off; tagged at 1.35 m; they ran up to 80 m off; rope and hoop players were chased | One "it" per square, a tag at arm's reach (under 0.95 m), facing; the fleeing keep to the play place; only the children at tag |
+| Grown-looking fifteen-year-olds | Played with the little ones | Stand at an end of the pitch and watch |
+| Street musicians (actions.ts, instruments.ts) | The talk clip's arms; the fiddle on the right shoulder; the organ's crank out of reach; the three stood in one another (arrival within 1.6 m); a model with a sack on its shoulder could be cast | The hands on the instrument every frame (`game/reach.ts` reachArm, a two-bone reach): the right hand on the turning crank, the left on the lid; the fiddle under the chin on the left, the left hand on the neck, the bow in the right hand across the strings; the accordion's ends go out and in with the bellows, a hand on each. They step onto their own place of the ring. No sack-laden models as musicians or showman (leads.ts) |
+| The showman's monkey | Beside his head, 0.1 m over the shoulder | On the coat of his right shoulder, riding the spine bone (it goes with his shoulders) |
+
+Pictures (test save, 14:00, clear): before `data/shots/games_rope_before_{side,end}.jpg`,
+`games_{hoops,hopscotch,marbles}_before_*.jpg`, `street_{organ,fiddle,accordion,showman}_before_*.jpg`; after
+`games_rope_after_{jump,over,end,hand,wide}.jpg`, `games_{hoops,hopscotch,marbles,tops,tag}_after_*.jpg`,
+`street_{organ,fiddle,accordion}_after_{front,side}.jpg`, `street_musicians_after_ring.jpg`,
+`street_showman_after_*.jpg`. There is no leapfrog and there are no dancers in the game.
+
 ## Not yet
 - The cathedral model still has the two houses flanking the west front on the Handschoenmarkt, which were being pulled down between 1865 and 1875 (the landmark model, `build_landmarks.py`; the walk map also has them).
 - The stalls stand at the edge of the church's ground (the map's apron between the lane and the church walls), with their roofs sloping back toward it, not against the house fronts themselves.

@@ -9,7 +9,8 @@ import { eventRow, eventsTick, eventsToday, leadsOf, liveEvents, planEvent, stag
 import { planFromTemplate, templateById } from "../src/director/templates.ts";
 import { allLamps, ensureLamplighters, lampRounds, roundOf, walkPath } from "../src/town/lamplighters.ts";
 import { REAL_S_PER_GAME_HOUR as CLOCK_S_PER_HOUR } from "../../shared/clock.ts";
-import { DAWN_LAST, DAWN_START, DUSK_LAST, DUSK_SPAN_H, followedFinish, inGrace, REAL_S_PER_GAME_HOUR, lampLit, lampTimes, roundState, SEEN_HURRY, SEEN_PACE, SEEN_PACE_MAX, SEEN_STOP_S, seenPace, windowEnd } from "../src/town/lampround.ts";
+import { DAWN_LAST, DAWN_START, DUSK_LAST, DUSK_SPAN_H, FOG_SPAN_H, followedFinish, inGrace, REAL_S_PER_GAME_HOUR, lampLit, lampTimes, roundState, roundWindow, SEEN_HURRY, SEEN_PACE, SEEN_PACE_MAX, SEEN_STOP_S, seenPace, windowEnd, windowsOf, type FogDay } from "../src/town/lampround.ts";
+import { fogDay, rollWeather, setWeather, turnDay } from "../src/day.ts";
 import { dropTownCache, town } from "../src/town/store.ts";
 import { walkMap } from "../src/town/walkmap.ts";
 
@@ -148,6 +149,94 @@ describe("M6 lamplighters", () => {
       expect(seenPace(r, 0, 0, windowEnd(r, "dusk") - 0.5, "dusk")).toBe(SEEN_HURRY);
       expect(seenPace(r, 0, 0, DAWN_START, "dawn")).toBeGreaterThan(SEEN_PACE);
     }
+  });
+
+  it("M7 fog lamps: in thick fog the lamps burn by day; a fog round lights them, a lift puts them out", () => {
+    const db = fresh();
+    const rounds = lampRounds(db)!.rounds;
+    const litAt = (r: (typeof rounds)[number], h: number, fog: FogDay | null) => r.lamps.map((_l, k) => lampLit(r, k, h, fog));
+    const all = (v: boolean[]) => v.every(Boolean);
+    const none = (v: boolean[]) => v.every((x) => !x);
+    for (const r of rounds) {
+      // no fog: as before (the dawn round, the dusk round)
+      expect(windowsOf(r, null).map((w) => w.kind)).toEqual(["dawn", "dusk"]);
+      expect(none(litAt(r, 13, null))).toBe(true);
+      expect(none(litAt(r, 13, { start: false, turns: [] }))).toBe(true);
+      // a fog day from midnight: no round walked, every lamp burns all day and night
+      const fogDay: FogDay = { start: true, turns: [] };
+      expect(windowsOf(r, fogDay)).toEqual([]);
+      for (const h of [0, 5.5, 8, 13, 16.9, 19, 23.9]) expect(all(litAt(r, h, fogDay)), `${r.id} ${h}`).toBe(true);
+      expect(roundWindow(r, 6, fogDay).kind).toBeNull();
+      // the fog comes at 10:00: a fog round lights them in his order; lit by 10:00 + FOG_SPAN_H; no dusk round
+      const comes: FogDay = { start: false, turns: [{ h: 10, fog: true }] };
+      expect(windowsOf(r, comes).map((w) => [w.kind, w.start, w.fog])).toEqual([
+        ["dawn", DAWN_START, false],
+        ["dusk", 10, true],
+      ]);
+      expect(none(litAt(r, 9.99, comes))).toBe(true);
+      const mid = litAt(r, 10 + FOG_SPAN_H / 2, comes);
+      const n = mid.filter(Boolean).length;
+      expect(n).toBeGreaterThan(0);
+      expect(n).toBeLessThan(r.lamps.length);
+      expect(mid.slice(0, n).every(Boolean)).toBe(true);
+      expect(all(litAt(r, 10 + FOG_SPAN_H, comes))).toBe(true);
+      expect(all(litAt(r, 18, comes))).toBe(true);
+      expect(roundWindow(r, 11, comes).w?.fog).toBe(true);
+      // a fog day that lifts at 11:00: a round puts them out; the dusk round lights them again
+      const lifts: FogDay = { start: true, turns: [{ h: 11, fog: false }] };
+      expect(windowsOf(r, lifts).map((w) => w.kind)).toEqual(["dawn", "dusk"]);
+      expect(all(litAt(r, 10.9, lifts))).toBe(true);
+      expect(none(litAt(r, 11 + FOG_SPAN_H, lifts))).toBe(true);
+      expect(all(litAt(r, 22, lifts))).toBe(true);
+      // it lifts too late to put them out before dusk: they burn on into the night
+      const late: FogDay = { start: true, turns: [{ h: 15, fog: false }] };
+      expect(windowsOf(r, late)).toEqual([]);
+      expect(all(litAt(r, 16, late))).toBe(true);
+      // the fog comes at 6:00 while the dawn round is under way: that round stops, the fog round lights the rest
+      const early: FogDay = { start: false, turns: [{ h: 6, fog: true }] };
+      const ws = windowsOf(r, early);
+      expect(ws[0].end).toBe(6);
+      expect(all(litAt(r, 6 + FOG_SPAN_H, early))).toBe(true);
+      // fog before dawn keeps the dawn round home; a lift before dawn does not
+      expect(windowsOf(r, { start: false, turns: [{ h: 3, fog: true }] })).toEqual([]);
+      expect(windowsOf(r, { start: true, turns: [{ h: 3, fog: false }] }).map((w) => w.kind)).toEqual(["dawn", "dusk"]);
+      // a fog round is walked at a walk like the others (followed from its first lamp: done in its window)
+      const fw = windowsOf(r, comes)[1];
+      const f = followedFinish(r, fw);
+      expect(f.done).toBeLessThan(windowEnd(r, fw));
+      expect(f.maxPace).toBeLessThanOrEqual(SEEN_PACE_MAX);
+      expect(inGrace(r, fw, fw.end + 0.1)).toBe(true);
+      // the planned walker is on his fog round
+      expect(roundState(r, 11, comes).kind).toBe("dusk");
+    }
+  });
+
+  it("M7 fog lamps: the engine keeps the day's fog: the morning roll, a turn by day, the dev menu", () => {
+    const db = fresh(2, 10);
+    setWeather(db, "clear");
+    expect(fogDay(db)).toEqual({ day: 2, start: false, turns: [] });
+    // the director's event turns the weather at 10:30; turning to the same kind again changes nothing
+    setWeather(db, "fog", 10.5);
+    setWeather(db, "fog", 11);
+    expect(fogDay(db)).toEqual({ day: 2, start: false, turns: [{ h: 10.5, fog: true }] });
+    // mist is not thick fog: the lamps go out
+    setWeather(db, "mist", 12);
+    expect(fogDay(db).turns).toEqual([
+      { h: 10.5, fog: true },
+      { h: 12, fog: false },
+    ]);
+    // midnight: the date turns, the roll sets the new day's weather from its start
+    setClock(db, 2, 23, 59);
+    turnDay(db);
+    const f = fogDay(db);
+    expect(f.day).toBe(3);
+    expect(f.turns).toEqual([]);
+    expect(f.start).toBe(db.prepare("SELECT value_json FROM world_state WHERE key = 'weather'").get() ? JSON.parse((db.prepare("SELECT value_json FROM world_state WHERE key = 'weather'").get() as { value_json: string }).value_json) === "fog" : false);
+    rollWeather(db, 0.1); // fog
+    expect(fogDay(db)).toEqual({ day: 3, start: true, turns: [] });
+    // an older record (another day) and no turn since: the day began in today's weather
+    setClock(db, 4, 9);
+    expect(fogDay(db)).toEqual({ day: 4, start: true, turns: [] });
   });
 
   it("M7 lamps: a cart's way keeps clear of the lamp posts, a walker's may pass them", () => {

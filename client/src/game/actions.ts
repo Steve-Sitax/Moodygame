@@ -6,7 +6,7 @@ import { STOPS as OMNIBUS_STOPS, type OmnibusStop } from "../world/omnibus";
 import type { Crowd, Puppet } from "./crowd";
 import type { Events } from "./events";
 import type { Town } from "./town";
-import { INSTRUMENTS, makeInstrument, playInstrument, type Instrument, type InstrumentKind } from "./instruments";
+import { gripInstrument, INSTRUMENTS, makeInstrument, playInstrument, type Instrument, type InstrumentKind } from "./instruments";
 import { dropWear, holdInHands, makeBoard, makeCoffin, makeWear, playWear, WARDROBE_ROLES, type Wear, type WardrobeRole } from "./wardrobe";
 import type { Hearses } from "./hearses";
 
@@ -861,10 +861,24 @@ export class Actions {
     const c = group ?? this.events.centreOf(a.event_id);
     // a street musician: in the middle, facing out to the crowd, playing (Steve: "no musicians visible")
     if (a.role === "musicians" || (a.lead && PLAYS[a.lead])) {
+      // (2026-09-25) the last steps onto his own spot of the ring (leads.ts leadSpot): "there" is 1.6 m,
+      // and the organ grinder and the fiddler stood in one another
+      const dd = Math.hypot(p.x - gx, p.z - gz);
+      if (dd > 0.2 && this.world.isFree(gx, gz, 0.3)) {
+        r.playing = false;
+        if (p.human.motion !== "walk" || this.crowd.puppetBusy(p)) this.crowd.puppetStand(p, "walk", null);
+        const k = Math.min(1, dt / dd);
+        p.x += (gx - p.x) * k;
+        p.z += (gz - p.z) * k;
+        p.yaw = Math.atan2(gx - p.x, gz - p.z);
+        r.wait = 0;
+        return;
+      }
       r.playing = true;
       if (this.crowd.puppetBusy(p) || (r.wait -= dt) <= 0) {
         const yaw = c ? Math.atan2(p.x - c.x, p.z - c.z) : null;
-        this.crowd.puppetStand(p, "talk", yaw);
+        // standing still to play (the arms are the instrument's: instruments.ts gripInstrument)
+        this.crowd.puppetStand(p, "idle", yaw);
         r.wait = 6 + Math.random() * 4;
       }
       return;
@@ -907,11 +921,15 @@ export class Actions {
     }
     for (const [id, w] of want) {
       if (this.instruments.has(id)) continue;
-      const i = makeInstrument((w.r.a.lead && PLAYS[w.r.a.lead]) || INSTRUMENTS[w.r.a.order % INSTRUMENTS.length]);
+      const i = makeInstrument((w.r.a.lead && PLAYS[w.r.a.lead]) || INSTRUMENTS[w.r.a.order % INSTRUMENTS.length], w.p.human.scale);
       w.p.group.add(i.root);
       this.instruments.set(id, { i, p: w.p });
     }
-    for (const e of this.instruments.values()) playInstrument(e.i, this.clock);
+    for (const e of this.instruments.values()) {
+      playInstrument(e.i, this.clock);
+      // the hands on the crank, the neck and the bow, the accordion's ends (2026-09-25), when he is in view
+      if (e.p.shown && !this.crowd.puppetBusy(e.p)) gripInstrument(e.i, e.p.human.root);
+    }
   }
 
   // ------------------------------------------------------------------ M4b: leads

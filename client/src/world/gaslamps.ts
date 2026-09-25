@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { MAX_LAMPS, psxUniforms } from "../retro/psx";
 import { fireViewHeight } from "./fire";
+import { lampFog, type LampFog } from "./lampFog";
 
 // The gas lamps one by one (M6 town life): each lamp of the town has its own lit state, set
 // by the lamplighter's progress (game/lamplighter.ts, server town/lampround.ts). The six lamps of
@@ -16,6 +17,10 @@ import { fireViewHeight } from "./fire";
 // lantern (game/lantern.ts takes a free one first). Every other lit lamp throws a cheap pool of
 // light on the cobbles (one instanced decal, as world/lanternLights.ts does for the lanterns): the
 // light the point light would give flat stone, stopped where the ground drops away (a quay edge).
+//
+// M7 fog lamps (2026-09-25): on a day of thick fog the lamplighters leave the lamps lit (lampround.ts
+// FogDay); by day such a lamp glows in the grey (FOG_DAY_GLOW) and lights the ground a little. Its
+// glass now fogs like the post (lampFog.ts): no dark box, no lit square hanging in the fog on its own.
 
 export interface GasLamps {
   /** A city lamp as placed (props.glb gas_lamp), index i of city.json decor.lamps: id "d<i>". */
@@ -26,8 +31,12 @@ export interface GasLamps {
   quay(i: number): number;
   /** A quay lamp's flame as rijnkaai.ts works it out (lit, the clock's dark and its flicker), 0..1. */
   quayFlame(i: number, level: number): void;
-  /** Once a frame: `dark` how dark it is (the clock's 0..1), the fog colour for unlit glass, the eye. */
-  update(dt: number, dark: number, fog: THREE.Color, camera?: THREE.Camera | null): void;
+  /**
+   * Once a frame: `dark` how dark it is (the clock's 0..1), the fog colour for unlit glass, the eye.
+   * `air` (M7 fog lamps): how thick the air is by day (0 clear .. 1 fog): a lamp lit by day in the
+   * fog glows in it (the glass, the halo, the glow in the air), and lights the ground a little.
+   */
+  update(dt: number, dark: number, fog: THREE.Color, camera?: THREE.Camera | null, air?: number): void;
   /** Where each lamp is (the post, the glass at 3.65 m). */
   lamps(): Array<{ id: string; x: number; z: number }>;
   info(): { lamps: number; on: number; set: number };
@@ -47,6 +56,23 @@ const POOL_FAR = 110;
 const MAX_POOLS = 96;
 /** psx slots for the gas lamps; the last one is left for Jef's lantern (game/lantern.ts). */
 const GAS_SLOTS = MAX_LAMPS - 1;
+/**
+ * M7 fog lamps: a lamp lit by day in thick fog shows this much of its night glow (glass, halo, the glow
+ * in the air), and lights the ground this much of its night light (the day is bright round it).
+ */
+export const FOG_DAY_GLOW = 0.8;
+export const FOG_DAY_GROUND = 0.3;
+/** Lit glass shows this much further through the fog than the post (in fog-fars); unlit as the post. */
+export const LIT_REACH = 0.6;
+
+/**
+ * The colour of a lamp's glass: `v` 0 unlit (the colour of the air round it, a little darker, so it
+ * never shows as a black box) to 1 burning. The fog does the distance (lampFog.ts).
+ */
+export function glassColor(out: THREE.Color, fog: THREE.Color, v: number): THREE.Color {
+  const k = Math.max(0, Math.min(1, v));
+  return out.setRGB(fog.r * 0.8 * (1 - k) + 1.0 * k, fog.g * 0.8 * (1 - k) + 0.72 * k, fog.b * 0.8 * (1 - k) + 0.38 * k);
+}
 
 function haloTexture(): THREE.Texture {
   const c = document.createElement("canvas");
@@ -85,18 +111,21 @@ export function createGasLamps(
     level: number;
     set: boolean;
     glass: THREE.MeshBasicMaterial[];
+    /** how far each glass shows through the fog (lampFog.ts) */
+    reach: LampFog[];
     slot: number;
     seed: number;
     /** quay lamps: the flame rijnkaai.ts works out; -1 for a city lamp */
     flame: number;
-    /** this frame's light, 0..1 */
+    /** this frame's light, 0..1: in the glass and the air (b), on the ground (g) */
     b: number;
+    g: number;
     /** the ground pool: foot height, centre, radius (worked out once) */
     pool: { g: number; cx: number; cz: number; r: number } | null;
   }
   const all = new Map<string, L>();
   quay.forEach((q, i) =>
-    all.set(`q${i}`, { id: `q${i}`, x: q.x, z: q.z, want: 1, level: 1, set: false, glass: [], slot: -1, seed: i * 1.37 + 0.5, flame: 0, b: 0, pool: null }),
+    all.set(`q${i}`, { id: `q${i}`, x: q.x, z: q.z, want: 1, level: 1, set: false, glass: [], reach: [], slot: -1, seed: i * 1.37 + 0.5, flame: 0, b: 0, g: 0, pool: null }),
   );
 
   // the city lamps' halos: one Points object, a slot per lamp, the lit level as an attribute
@@ -118,6 +147,9 @@ export function createGasLamps(
       void main() {
         vLit = aLit;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        // M7 fog lamps: the halo sits a little in front of the glass, so the glass (fogged with its
+        // post, lampFog.ts) never cuts a dark lamp shape out of its own glow far off in the fog
+        mv.xyz += normalize(-mv.xyz) * 0.45;
         vFogDepth = -mv.z;
         gl_Position = projectionMatrix * mv;
         // a halo about 1.8 m across, in screen pixels
@@ -148,8 +180,6 @@ export function createGasLamps(
   halos.name = "gas_lamp_halos";
   scene.add(halos);
   let used = 0;
-  const litGlass = new THREE.Color();
-  const tmp = new THREE.Color();
 
   // ---- M7 lamps: the lights and the psx slots go to the nearest lit lamps
   interface Slot {
@@ -310,7 +340,9 @@ export function createGasLamps(
         geo.attributes.position.needsUpdate = true;
         geo.setDrawRange(0, used);
       }
-      all.set(`d${i}`, { id: `d${i}`, x, z, want: 1, level: 1, set: false, glass, slot, seed: i * 2.31 + 7.1, flame: -1, b: 0, pool: null });
+      // M7 fog lamps: the glass fogs like its post (a lit one shows a little further)
+      const reach = glass.map((m) => lampFog(m, 1, 1 + LIT_REACH));
+      all.set(`d${i}`, { id: `d${i}`, x, z, want: 1, level: 1, set: false, glass, reach, slot, seed: i * 2.31 + 7.1, flame: -1, b: 0, g: 0, pool: null });
     },
     set(id, on) {
       const l = all.get(id);
@@ -325,20 +357,22 @@ export function createGasLamps(
       const l = all.get(`q${i}`);
       if (l) l.flame = level;
     },
-    update(dt, dark, fog, camera) {
+    update(dt, dark, fog, camera, air = 0) {
       t += dt;
       uniforms.uViewH.value = fireViewHeight();
       const k = Math.min(1, dt * 2.5); // the gas catches in about half a second
+      // M7 fog lamps: by day a lit lamp shows in thick air (its glow), and lights the ground a little
+      const glow = Math.max(dark, FOG_DAY_GLOW * air);
+      const ground = glow > 0 ? Math.max(dark, FOG_DAY_GROUND * air) / glow : 0;
       let dirty = false;
       for (const l of all.values()) {
         l.level += (l.want - l.level) * k;
-        const v = Math.max(0, Math.min(1, l.level * dark));
+        const v = Math.max(0, Math.min(1, l.level * glow));
         l.b = l.flame >= 0 ? l.flame : v * flicker(t, l.seed);
+        l.g = l.b * ground;
         if (l.slot < 0 && !l.glass.length) continue;
-        for (const g of l.glass) {
-          // unlit glass takes the colour of the air round it (as the quay lamps do)
-          g.color.copy(tmp.copy(fog).multiplyScalar(0.8 * (1 - v))).add(litGlass.setRGB(1.0 * v, 0.72 * v, 0.38 * v));
-        }
+        for (const g of l.glass) glassColor(g.color, fog, v);
+        for (const r of l.reach) r.value = 1 + LIT_REACH * v;
         if (l.slot >= 0 && Math.abs(lit[l.slot] - v) > 0.002) {
           lit[l.slot] = v;
           dirty = true;
@@ -377,13 +411,13 @@ export function createGasLamps(
       lightSlots.forEach((s, i) => {
         const light = lights[i];
         const l = s.lamp;
-        if (!l || s.w <= 0 || l.b <= 0) {
+        if (!l || s.w <= 0 || l.g <= 0) {
           light.intensity = 0;
           return;
         }
         light.position.set(l.x, GLASS_Y, l.z);
         light.updateMatrixWorld();
-        light.intensity = POWER * l.b * s.w;
+        light.intensity = POWER * l.g * s.w;
       });
       const uL = psxUniforms.uLamps.value;
       psxSlots.forEach((s, i) => {
@@ -401,7 +435,7 @@ export function createGasLamps(
         const l = r.l;
         let rest = 1;
         for (const s of lightSlots) if (s.lamp === l) rest -= s.w;
-        const pw = l.b * Math.max(0, rest);
+        const pw = l.g * Math.max(0, rest);
         if (pw < 0.02) continue;
         if (Math.hypot(l.x - eye.x, l.z - eye.z) > POOL_FAR) continue;
         const pl = poolOf(l);

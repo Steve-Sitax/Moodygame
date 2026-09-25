@@ -33,6 +33,15 @@ export interface LanternSource {
   level: number;
 }
 
+/**
+ * How dark it is for a lantern (0 by day, 1 at night) at this hour: the clock's curve that Jef's own
+ * lantern and the pool use (main.ts lanternDark, deeds.ts). M7 fog lamps: the crowd's lanterns too.
+ */
+export function lanternDarkAt(h: number): number {
+  const d = h >= 19.5 || h < 5.5 ? 1 : h >= 18 ? (h - 18) / 1.5 : h < 7 ? (7 - h) / 1.5 : 0;
+  return Math.max(0, Math.min(1, d));
+}
+
 const sources = new Set<LanternSource>();
 let seedN = 0;
 

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { psx } from "../retro/psx";
 import { addLantern, type LanternSource } from "../world/lanternLights";
+import { lampFog, type LampFog } from "../world/lampFog";
 import type { World } from "../world/rijnkaai";
 import { activityAt } from "../../../server/src/town/schedule";
 import { atPost, POST_HOURS } from "../../../shared/night";
@@ -187,10 +188,13 @@ export class QuestBoxes {
     const arm = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.26), iron);
     arm.position.set(0.18, 1.52, 0.1);
     g.add(arm);
-    const flame = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.12, 4), new THREE.MeshBasicMaterial({ color: 0x3a3228, fog: false }));
+    // M7 fog lamps: the lamp fogs with the box (unlit it hung in the fog as a dark shape; world/lampFog.ts)
+    const flameMat = new THREE.MeshBasicMaterial({ color: 0x3a3228 });
+    const flame = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.12, 4), flameMat);
+    flame.userData.fog = lampFog(flameMat, 1, 1.2);
     flame.position.set(0.18, 1.44, 0.22);
     g.add(flame);
-    const hs = new THREE.Sprite(new THREE.SpriteMaterial({ map: halo(), color: 0xffb060, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0, fog: false }));
+    const hs = new THREE.Sprite(new THREE.SpriteMaterial({ map: halo(), color: 0xffb060, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 }));
     hs.scale.set(0.8, 0.8, 1);
     hs.position.copy(flame.position);
     g.add(hs);
@@ -247,6 +251,7 @@ export class QuestBoxes {
       const lit = dark && this.away(b.employer) ? 1 : 0;
       b.lamp.on = lit;
       (b.flame.material as THREE.MeshBasicMaterial).color.setHex(lit ? 0xffc070 : 0x3a3228);
+      (b.flame.userData.fog as LampFog).value = lit ? 1.2 : 1;
       b.halo.material.opacity = lit * (0.4 + Math.sin(t * 6 + b.x) * 0.04);
     }
   }
