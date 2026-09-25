@@ -596,6 +596,94 @@ function stepAt(d: HouseDoor): { house: number; x: number; z: number; sx: number
   return { house: d.house, x: d.x, z: d.z, sx: d.sx, sz: d.sz };
 }
 
+/** The Logement: a free house facing the Rijnkaai near the berth, 3 storeys or more; else rooms in a house others live in too. */
+function pickLogement(free: HouseDoor[]): { door: HouseDoor; shared: boolean } {
+  const score = (d: HouseDoor) => Math.hypot(d.sx - LOGEMENT_ANCHOR[0], d.sz - LOGEMENT_ANCHOR[1]) + (d.out[1] < -0.7 ? 0 : 25) + (d.storeys >= 3 ? 0 : 10);
+  const door = free.filter((d) => Math.hypot(d.sx - LOGEMENT_ANCHOR[0], d.sz - LOGEMENT_ANCHOR[1]) < 90).sort((a, b) => score(a) - score(b))[0];
+  if (door) return { door, shared: false };
+  return { door: [...houseDoors()].sort((a, b) => score(a) - score(b))[0], shared: true };
+}
+
+/** The runner's lodging: the free house nearest the back lanes behind the Rijnkaai. */
+function pickRunnerHome(free: HouseDoor[], logement: HouseDoor): HouseDoor {
+  const d = (x: HouseDoor) => Math.hypot(x.sx - RUNNER_ANCHOR[0], x.sz - RUNNER_ANCHOR[1]);
+  return free.filter((x) => x.house !== logement.house).sort((a, b) => d(a) - d(b))[0] ?? logement;
+}
+
+/** Where the keeper stands: just out from her door, facing the street. */
+function keeperPost(door: HouseDoor): [number, number, number] {
+  const x = door.sx + door.out[0] * 0.6;
+  const z = door.sz + door.out[1] * 0.6;
+  const q = walkMap().nearestOpen(x, z, 6) ?? { x, z };
+  return [q.x, q.z, Math.atan2(door.out[0], door.out[1])];
+}
+
+function logementOf(door: HouseDoor, shared: boolean): EmigrantTown["logement"] {
+  return { house: door.house, step: [door.sx, door.sz], wall: [door.x, door.z], out: door.out, label: LOGEMENT_LABEL, shared };
+}
+
+function logementPlace(door: HouseDoor) {
+  return { label: LOGEMENT_LABEL, x: door.sx, z: door.sz, r: 3, district: "rijnkaai", door: [door.sx, door.sz], out: door.out };
+}
+
+/** The house `house` of the current city still has its door step at `step` (within a metre). */
+function doorStands(house: number, step: Pt): boolean {
+  const d = houseDoors().find((h) => h.house === house);
+  return !!d && Math.hypot(d.sx - step[0], d.sz - step[1]) < 1;
+}
+
+/**
+ * A save made on an older city map (commit 169942f re-cut the streets) holds the Logement's
+ * house number and door step of that map: the number now points at another house, and the step
+ * can lie inside a block. On load the Logement and the runner's lodging are checked against the
+ * current city; a stale one is picked again by the same rule, and everyone who lives or works
+ * at its old door (the keeper, the lodgers) moves with it. Returns whether anything moved.
+ */
+export function rehouseEmigrants(db: DB, e: EmigrantTown): boolean {
+  const runner = town(db).byId.get(e.runner);
+  const runnerStale = !!runner && runner.home.house >= 0 && !doorStands(runner.home.house, [runner.home.sx, runner.home.sz]);
+  const lgStale = !doorStands(e.logement.house, e.logement.step);
+  if (!lgStale && !runnerStale) return false;
+  const free = freeDoors(db);
+  const old = e.logement.step;
+  let door = houseDoors().find((h) => h.house === e.logement.house)!;
+  if (lgStale) {
+    const p = pickLogement(free);
+    door = p.door;
+    e.logement = logementOf(door, p.shared);
+  }
+  const rdoor = runnerStale ? pickRunnerHome(free, door) : null;
+  const atOld = (p: Pt | undefined) => !!p && Math.hypot(p[0] - old[0], p[1] - old[1]) < 0.5;
+  const rows = db.prepare("SELECT id, data_json FROM resident").all() as Array<{ id: string; data_json: string }>;
+  const upd = db.prepare("UPDATE resident SET data_json = ? WHERE id = ?");
+  db.transaction(() => {
+    for (const row of rows) {
+      const r = JSON.parse(row.data_json) as Resident;
+      const before = row.data_json;
+      if (lgStale && atOld([r.home.sx, r.home.sz])) r.home = stepAt(door);
+      if (lgStale && atOld(r.work.door)) r.work.door = [door.sx, door.sz];
+      if (lgStale && r.id === e.keeper) r.work.at = keeperPost(door);
+      if (rdoor && r.id === e.runner) {
+        r.home = stepAt(rdoor);
+        e.runner_home = [rdoor.sx, rdoor.sz];
+      }
+      const after = JSON.stringify(r);
+      if (after !== before) upd.run(after, row.id);
+    }
+    if (lgStale) {
+      const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'town'").get() as { value_json: string } | undefined;
+      if (row) {
+        const rest = JSON.parse(row.value_json) as { places: Record<string, unknown> };
+        rest.places.logement = logementPlace(door);
+        db.prepare("UPDATE world_state SET value_json = ? WHERE key = 'town'").run(JSON.stringify(rest));
+      }
+    }
+    save(db, e);
+  })();
+  dropTownCache(db);
+  return true;
+}
+
 /**
  * Give this save its emigrants, in place and once: the Logement (a free house near the Rijnkaai),
  * its keeper and the runner (two new residents), the families' places on the quay (town places),
@@ -605,7 +693,9 @@ function stepAt(d: HouseDoor): { house: number; x: number; z: number; sx: number
 export function ensureEmigrants(db: DB): { made: boolean; keeper: boolean; runner: boolean } {
   const has = (db.prepare("SELECT COUNT(*) AS n FROM resident").get() as { n: number }).n;
   if (has === 0) return { made: false, keeper: false, runner: false };
-  if (emigrantTown(db)?.v === 1) {
+  const had = emigrantTown(db);
+  if (had?.v === 1) {
+    rehouseEmigrants(db, had);
     emigrantsTick(db, Math.random, true);
     return { made: false, keeper: false, runner: false };
   }
@@ -616,23 +706,15 @@ export function ensureEmigrants(db: DB): { made: boolean; keeper: boolean; runne
     return [q.x, q.z];
   };
   const free = freeDoors(db);
-  const score = (d: HouseDoor) => Math.hypot(d.sx - LOGEMENT_ANCHOR[0], d.sz - LOGEMENT_ANCHOR[1]) + (d.out[1] < -0.7 ? 0 : 25) + (d.storeys >= 3 ? 0 : 10);
-  let door = free.filter((d) => Math.hypot(d.sx - LOGEMENT_ANCHOR[0], d.sz - LOGEMENT_ANCHOR[1]) < 90).sort((a, b) => score(a) - score(b))[0];
-  let shared = false;
-  if (!door) {
-    // no free house near the quay: the keeper lets rooms in a house others live in too
-    door = houseDoors().sort((a, b) => score(a) - score(b))[0];
-    shared = true;
-  }
+  const { door, shared } = pickLogement(free);
   const home = stepAt(door);
-  const rdoor = free.filter((d) => d.house !== door.house).sort((a, b) => Math.hypot(a.sx - RUNNER_ANCHOR[0], a.sz - RUNNER_ANCHOR[1]) - Math.hypot(b.sx - RUNNER_ANCHOR[0], b.sz - RUNNER_ANCHOR[1]))[0] ?? door;
+  const rdoor = pickRunnerHome(free, door);
   const rng = rngFrom((t.seed ^ 0x1873e) >>> 0);
   const pick = <T>(xs: readonly T[]) => xs[Math.floor(rng() * xs.length)];
   let hh = Math.max(0, ...t.residents.filter((r) => r.household < HH_BASE).map((r) => r.household)) + 1;
   const tavern = (TAVERNS.map((x) => `tavern:${x.id}`).filter((k) => t.places[k]) as string[]).sort(
     (a, b) => Math.hypot(t.places[a].x - rdoor.sx, t.places[a].z - rdoor.sz) - Math.hypot(t.places[b].x - rdoor.sx, t.places[b].z - rdoor.sz),
   )[0];
-  const at = snap(door.sx + door.out[0] * 0.6, door.sz + door.out[1] * 0.6);
   const keeperFirst = pick(["Wilhelmina", "Gertrud", "Dorothea", "Henriette"]);
   const keeper: Resident = {
     id: KEEPER_ID,
@@ -647,7 +729,7 @@ export function ensureEmigrants(db: DB): { made: boolean; keeper: boolean; runne
     faction: null,
     kind: "wife_b",
     home: { ...home },
-    work: { place: "logement", kind: "post", at: [at[0], at[1], Math.atan2(door.out[0], door.out[1])] },
+    work: { place: "logement", kind: "post", at: keeperPost(door) },
     sched: { day: [[6.5, 12.5, "work"], [13.25, 21.5, "work"]], sunday: [[6.5, 8.5, "work"], [8.75, 11, "church", "church"], [11.5, 21.5, "work"]] },
     stats: { honesty: 6, temper: 5, piety: 6, warmth: 5, greed: 6, courage: 6, gossip: 8, wealth: 4 },
     dog: null,
@@ -679,7 +761,7 @@ export function ensureEmigrants(db: DB): { made: boolean; keeper: boolean; runne
   const e: EmigrantTown = {
     v: 1,
     seed: t.seed,
-    logement: { house: door.house, step: [door.sx, door.sz], wall: [door.x, door.z], out: door.out, label: LOGEMENT_LABEL, shared },
+    logement: logementOf(door, shared),
     keeper: KEEPER_ID,
     runner: RUNNER_ID,
     runner_home: [rdoor.sx, rdoor.sz],
@@ -702,7 +784,7 @@ export function ensureEmigrants(db: DB): { made: boolean; keeper: boolean; runne
     const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'town'").get() as { value_json: string } | undefined;
     if (row) {
       const rest = JSON.parse(row.value_json) as { places: Record<string, unknown> };
-      rest.places.logement = { label: LOGEMENT_LABEL, x: door.sx, z: door.sz, r: 3, district: "rijnkaai", door: [door.sx, door.sz], out: door.out };
+      rest.places.logement = logementPlace(door);
       CAMPS.forEach(([x, z], i) => {
         rest.places[campPlace(i)] = { label: "the emigrants' place on the Rijnkaai", x, z, r: 5, district: "rijnkaai" };
       });

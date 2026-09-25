@@ -38,6 +38,7 @@ From the repo root:
 The name and ports can change, so that two checks can run at once:
 `node tools/teststack.mjs start lock --server 8942 --vite 5342`, then stop it with the same name and ports.
 The test vite has no hot reload: after a client edit, reload the tab. After a server edit, stop and start.
+In a fresh git worktree, run `node client/scripts/copy-draco.mjs` once before the first start: the test vite does not run `predev`, and without `client/public/draco/` the city model does not load (no houses, `Unexpected token '<'` in the console).
 
 Open `http://127.0.0.1:5341/` (the preview tab), then in the page:
 

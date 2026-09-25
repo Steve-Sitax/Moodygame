@@ -1,6 +1,6 @@
 import type { DB } from "../db.ts";
 import { generateTown, tidy, type Resident, type Town } from "./population.ts";
-import { walkMap } from "./walkmap.ts";
+import { houseDoors, walkMap, type HouseDoor } from "./walkmap.ts";
 import { HAULS, NIGHT_GIVERS, shownTrade, STALLS, TOWN_EMPLOYERS } from "./places.ts";
 import { GARRISON_TRADES, generateGarrison } from "./garrison.ts";
 import { townSize } from "./popsettings.ts";
@@ -130,6 +130,66 @@ export function repairTown(db: DB): number {
   })();
   if (fixed) cache.delete(db);
   return fixed;
+}
+
+/**
+ * A save made on an older city map (commit 169942f re-cut the streets) keeps each home's house
+ * number and door step of that map. Most old steps still fall in a street; some now lie inside a
+ * block, and nobody can walk to them. Run on load, after the in-place additions (db.ts; the
+ * emigrants' Logement has its own repair, emigrants.ts rehouseEmigrants): a home whose house has
+ * no door at its step any more and whose step cannot be walked to gets the nearest free house
+ * door of the current city. Everyone who lived at that old step moves together, and a door they
+ * worked at at home moves with them. Every other record stays as it was. Returns how many moved.
+ */
+export function rehomeLost(db: DB): number {
+  const wm = walkMap();
+  const doors = houseDoors();
+  const byHouse = new Map(doors.map((d) => [d.house, d]));
+  const rows = db.prepare("SELECT id, data_json FROM resident").all() as Array<{ id: string; data_json: string }>;
+  const all = rows.map((row) => ({ id: row.id, before: row.data_json, r: JSON.parse(row.data_json) as Resident }));
+  const stands = (r: Resident) => {
+    const d = byHouse.get(r.home.house);
+    return !!d && Math.hypot(d.sx - r.home.sx, d.sz - r.home.sz) < 1;
+  };
+  // lost: a real house number (not -1, the police post or a place) with no door there now, and no path to the step
+  const lost = all.filter(({ r }) => r.home.house >= 0 && !stands(r) && !wm.nearestOpen(r.home.sx, r.home.sz, 1.5));
+  if (!lost.length) return 0;
+  const lostIds = new Set(lost.map((x) => x.id));
+  const houses = new Set(all.filter((x) => !lostIds.has(x.id) && stands(x.r)).map((x) => x.r.home.house));
+  const taken: Array<[number, number]> = [];
+  for (const { id, r } of all) {
+    if (!lostIds.has(id)) taken.push([r.home.sx, r.home.sz]);
+    if (r.work.door) taken.push(r.work.door);
+  }
+  const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'town'").get() as { value_json: string } | undefined;
+  if (row) {
+    const rest = JSON.parse(row.value_json) as Omit<Town, "residents">;
+    for (const p of Object.values(rest.places)) if (p.door) taken.push(p.door);
+    for (const s of rest.shops) taken.push(s.door);
+  }
+  const free = doors.filter((d) => !houses.has(d.house) && !taken.some(([x, z]) => Math.hypot(x - d.sx, z - d.sz) < 4));
+  const moved = new Map<string, HouseDoor>(); // old step -> the new door
+  const upd = db.prepare("UPDATE resident SET data_json = ? WHERE id = ?");
+  db.transaction(() => {
+    for (const { id, r, before } of lost) {
+      const key = `${r.home.sx},${r.home.sz}`;
+      let d = moved.get(key);
+      if (!d) {
+        const [ox, oz] = [r.home.sx, r.home.sz];
+        const i = free.reduce((b, q, k) => (b < 0 || Math.hypot(q.sx - ox, q.sz - oz) < Math.hypot(free[b].sx - ox, free[b].sz - oz) ? k : b), -1);
+        if (i < 0) continue;
+        d = free.splice(i, 1)[0];
+        moved.set(key, d);
+      }
+      const old = [r.home.sx, r.home.sz];
+      if (r.work.door && Math.hypot(r.work.door[0] - old[0], r.work.door[1] - old[1]) < 0.5) r.work.door = [d.sx, d.sz];
+      r.home = { house: d.house, x: d.x, z: d.z, sx: d.sx, sz: d.sz };
+      const after = JSON.stringify(r);
+      if (after !== before) upd.run(after, id);
+    }
+  })();
+  cache.delete(db);
+  return lost.length;
 }
 
 /**

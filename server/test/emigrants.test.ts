@@ -6,7 +6,7 @@ import { listJobs } from "../src/hooks/jobBoard.ts";
 import { finishJob, takeJob } from "../src/game.ts";
 import { remember, topMemories } from "../src/npcs.ts";
 import { activityAt } from "../src/town/schedule.ts";
-import { dropTownCache, town } from "../src/town/store.ts";
+import { dropTownCache, rehomeLost, town } from "../src/town/store.ts";
 import { walkMap } from "../src/town/walkmap.ts";
 import { residentChoice, residentFree, residentOpen, residentPrompt, type ResidentLine } from "../src/town/talk.ts";
 import {
@@ -137,6 +137,70 @@ describe("the migration", () => {
         const r = town(db).byId.get(id)!;
         if (r.work.at) expect(wm.nearestOpen(r.work.at[0], r.work.at[1], 1.5)).not.toBeNull();
       }
+  });
+
+  it("a save from an older city map: a stale Logement is picked again on load, and the keeper and lodgers move with it", () => {
+    const db = openDb(":memory:");
+    const e = emigrantTown(db)!;
+    const good = e.logement;
+    // as a save of the map before 169942f held it: house 122's old door, now inside a block
+    const old = { house: 122, x: 15.7, z: 73, sx: 15.7, sz: 72.1 };
+    const wm = walkMap();
+    expect(wm.nearestOpen(old.sx, old.sz, 1.5)).toBeNull();
+    const ids = [KEEPER_ID, ...here(db).flatMap((f) => f.members)];
+    for (const id of ids) {
+      const r = town(db).byId.get(id)!;
+      r.home = { ...old };
+      if (r.work.door) r.work.door = [old.sx, old.sz];
+      if (id === KEEPER_ID) r.work.at = [old.sx, old.sz - 0.6, Math.PI];
+      db.prepare("UPDATE resident SET data_json = ? WHERE id = ?").run(JSON.stringify(r), id);
+    }
+    e.logement = { ...good, house: old.house, step: [old.sx, old.sz], wall: [old.x, old.z] };
+    db.prepare("UPDATE world_state SET value_json = ? WHERE key = 'emigrants'").run(JSON.stringify(e));
+    const t = JSON.parse((db.prepare("SELECT value_json FROM world_state WHERE key = 'town'").get() as { value_json: string }).value_json);
+    t.places.logement = { ...t.places.logement, x: old.sx, z: old.sz, door: [old.sx, old.sz] };
+    db.prepare("UPDATE world_state SET value_json = ? WHERE key = 'town'").run(JSON.stringify(t));
+    dropTownCache(db);
+    ensureEmigrants(db); // as on load
+    const lg = emigrantTown(db)!.logement;
+    expect(lg).toEqual(good); // the same rule picks the same house on this map
+    expect(wm.reachable(lg.step[0], lg.step[1])).toBe(true);
+    expect(town(db).town.places.logement).toMatchObject({ x: lg.step[0], z: lg.step[1], door: lg.step });
+    for (const id of ids) {
+      const r = town(db).byId.get(id)!;
+      expect(r.home).toMatchObject({ house: lg.house, sx: lg.step[0], sz: lg.step[1] });
+      if (r.work.door) expect(r.work.door).toEqual(lg.step);
+    }
+    const k = town(db).byId.get(KEEPER_ID)!;
+    expect(Math.hypot(k.work.at![0] - lg.step[0], k.work.at![1] - lg.step[1])).toBeLessThan(1.5);
+    // a Logement that stands is left alone
+    const json = (db.prepare("SELECT value_json FROM world_state WHERE key = 'emigrants'").get() as { value_json: string }).value_json;
+    ensureEmigrants(db);
+    expect(JSON.parse((db.prepare("SELECT value_json FROM world_state WHERE key = 'emigrants'").get() as { value_json: string }).value_json).logement).toEqual(JSON.parse(json).logement);
+  });
+
+  it("a save from an older city map: a home whose step lies off every path moves to a free house, the household together", () => {
+    const db = openDb(":memory:");
+    expect(rehomeLost(db)).toBe(0); // a town of this map: nobody moves
+    const hh = town(db).town.residents.find((r) => r.household < 9000 && r.work.place === "home" && r.home.house >= 0)!.household;
+    const members = town(db).town.residents.filter((r) => r.household === hh).map((r) => r.id);
+    const old = { house: 123, x: 22.1, z: 73, sx: 22.1, sz: 72.1 };
+    for (const id of members) {
+      const r = town(db).byId.get(id)!;
+      r.home = { ...old };
+      if (r.work.place === "home") r.work.door = [old.sx, old.sz];
+      db.prepare("UPDATE resident SET data_json = ? WHERE id = ?").run(JSON.stringify(r), id);
+    }
+    dropTownCache(db);
+    expect(rehomeLost(db)).toBe(members.length);
+    const homes = members.map((id) => town(db).byId.get(id)!);
+    expect(new Set(homes.map((r) => r.home.house)).size).toBe(1);
+    const h = homes[0].home;
+    expect(walkMap().reachable(h.sx, h.sz)).toBe(true);
+    const others = town(db).town.residents.filter((r) => r.household !== hh);
+    expect(others.some((r) => r.home.house === h.house)).toBe(false);
+    for (const r of homes) if (r.work.place === "home") expect(r.work.door).toEqual([h.sx, h.sz]);
+    expect(rehomeLost(db)).toBe(0);
   });
 
   it("keeps the families' things off the rails, the omnibus lane, the berth and the jetty", () => {

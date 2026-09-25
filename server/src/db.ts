@@ -2,7 +2,7 @@ import { FACTIONS, type Faction } from "./factions.ts";
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
-import { RESIDENT_SCHEMA, dropTownCache, ensureGarrison, ensureTown, repairTown } from "./town/store.ts";
+import { RESIDENT_SCHEMA, dropTownCache, ensureGarrison, ensureTown, rehomeLost, repairTown } from "./town/store.ts";
 import { ensureTransport, dropTransport } from "./town/possessions.ts";
 import { ensureBikeShop } from "./town/bikeshop.ts";
 import { ensureCartwright } from "./town/handcart.ts";
@@ -170,6 +170,9 @@ export function openDb(file: string): DB {
   ensureNightTown(db);
   // M7 short jobs: open goods work of an older save to the new sizes (at most two by hand); in place, once
   shortenOffered(db);
+  // a save from an older city map: homes whose door step lies off every path now get a house of this map
+  const lost = rehomeLost(db);
+  if (lost) console.log(`[town] ${lost} resident(s) of an older city map moved to houses of this one`);
   return db;
 }
 
