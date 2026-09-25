@@ -1,6 +1,7 @@
 import type { DB } from "../db.ts";
 import { dropTownCache, town } from "../town/store.ts";
 import { houseDoors, walkMap, type HouseDoor } from "../town/walkmap.ts";
+import { INWORLD_HOUSES } from "../town/kept.ts";
 import { PLAY, TRADES } from "../town/places.ts";
 import { rngFrom, type Resident } from "../town/population.ts";
 import type { Seg } from "../town/schedule.ts";
@@ -238,7 +239,8 @@ function freeDoor(residents: Resident[], places: Record<string, { x: number; z: 
     if (r.work.door) taken.push(r.work.door);
   }
   for (const p of Object.values(places)) if (p.door) taken.push(p.door);
-  const free = houseDoors().filter((d) => !houses.has(d.house) && !taken.some(([x, z]) => Math.hypot(x - d.sx, z - d.sz) < 4));
+  // not an in-world house (kept.ts): those are kept for their tavern, the Poesje, the homes to let
+  const free = houseDoors().filter((d) => !houses.has(d.house) && !INWORLD_HOUSES.has(d.house) && !taken.some(([x, z]) => Math.hypot(x - d.sx, z - d.sz) < 4));
   free.sort((a, b) => Math.hypot(a.sx - anchor[0], a.sz - anchor[1]) - Math.hypot(b.sx - anchor[0], b.sz - anchor[1]));
   return free[0] ?? null;
 }

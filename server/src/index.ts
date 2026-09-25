@@ -49,6 +49,7 @@ import { mountSaves } from "./save/routes.ts";
 import { setPaused, sweepHolders, withGate } from "./save/gate.ts";
 import { dropStealables } from "./town/deeds.ts";
 import { dropGameWords } from "./ballads/guard.ts";
+import { auditCounts, auditSave } from "./town/audit.ts";
 
 const db = openDb(DB_FILE);
 const stale = closeStaleCalls(db);
@@ -521,6 +522,11 @@ if (DEV) {
     resetTickLimit();
     broadcast({ type: "jobs", ...jobsPayload() });
     return c.json(jobsPayload());
+  });
+  // dev only (2026-09-26): the save audit (town/audit.ts): every stored spot that does not fit the current map; [] when clean
+  app.get("/api/dev/audit", (c) => {
+    const findings = auditSave(db);
+    return c.json({ count: findings.length, kinds: Object.fromEntries(auditCounts(findings)), findings });
   });
   // dev only (M7 night): move the clock on by game minutes the way the game does, the date turning
   // at midnight on the way (dev/set only sets the hands). The kit's skip() uses it.

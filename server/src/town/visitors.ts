@@ -4,6 +4,7 @@ import { houseDoors, walkMap, type HouseDoor } from "./walkmap.ts";
 import type { Resident, Stats } from "./population.ts";
 import type { Schedule } from "./schedule.ts";
 import type { TradeId } from "./places.ts";
+import { INWORLD_HOUSES } from "./kept.ts";
 
 // People who are not of the town (M6 surprises): Madame Zelie, the fortune teller with her
 // little table and cards on the Grote Markt by day, and five places kept for strangers off
@@ -108,7 +109,10 @@ export function ensureVisitors(db: DB): number {
   const insRel = db.prepare("INSERT OR IGNORE INTO npc_relationship (npc_id) VALUES (?)");
   const insRes = db.prepare("INSERT OR IGNORE INTO resident (id, household, trade, data_json) VALUES (?, ?, ?, ?)");
   let hh = Math.max(0, ...t.residents.map((r) => r.household)) + 1;
-  const usedHouses = new Set<number>();
+  // the in-world houses (kept.ts) and the homes to let are kept for their own use (2026-09-26 audit)
+  const usedHouses = new Set<number>(INWORLD_HOUSES);
+  const homesRow = db.prepare("SELECT value_json FROM world_state WHERE key = 'homes'").get() as { value_json: string } | undefined;
+  for (const h of homesRow ? ((JSON.parse(homesRow.value_json) as { homes?: Array<{ house: number }> }).homes ?? []) : []) usedHouses.add(h.house);
   let added = 0;
   const add = (r: VisitorResident, district: string) => {
     if (have.has(r.id) || hasNpc.get(r.id)) return;

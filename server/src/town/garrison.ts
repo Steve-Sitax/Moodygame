@@ -21,6 +21,7 @@
 // (store.ts ensureGarrison).
 
 import { houseDoors, walkMap, WATER, type HouseDoor } from "./walkmap.ts";
+import { INWORLD_HOUSES } from "./kept.ts";
 import { STATS, TAVERNS, TRADES, type Stat, type TradeId } from "./places.ts";
 import { rngFrom, scheduleFor, tidy, type Home, type Pt, type Resident, type Stats, type TownPlace } from "./population.ts";
 import type { Seg } from "./schedule.ts";
@@ -141,7 +142,8 @@ export function generateGarrison(seed: number, places: Record<string, TownPlace>
   const all = (id: string) => outPlaces[id] ?? places[id];
   const out: Resident[] = [];
   const usedNames = new Set(residents.map((r) => r.name));
-  const usedHouses = new Set(residents.map((r) => r.home.house).filter((h) => h >= 0));
+  // (the in-world houses, kept.ts, are kept for their tavern, the Poesje, the homes to let)
+  const usedHouses = new Set([...residents.map((r) => r.home.house).filter((h) => h >= 0), ...INWORLD_HOUSES]);
   let nextId = residents.reduce((m, r) => Math.max(m, /^r\d+$/.test(r.id) ? Number(r.id.slice(1)) : 0), 0) + 1;
   let household = residents.reduce((m, r) => Math.max(m, r.household), 0);
   const doors = houseDoors();

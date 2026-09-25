@@ -23,6 +23,7 @@ import {
 } from "./places.ts";
 import type { Schedule, Seg } from "./schedule.ts";
 import { generateGarrison } from "./garrison.ts";
+import { INWORLD_HOUSES, inworldHouse } from "./kept.ts";
 import { TOWN_SIZES, type TownSize } from "../config.ts";
 import SPOTS from "../../../shared/spots.json" with { type: "json" };
 import CITY from "../../../shared/city.json" with { type: "json" };
@@ -329,10 +330,12 @@ export function generateTown(seed: number, size: TownSize = "normal"): Town {
   }
   const spots = SPOTS as unknown as Record<string, { x: number; z: number; label: string }>;
   const free: HouseDoor[] = houseDoors().slice();
-  const used = new Set<number>();
+  // the houses whose insides stand in the world (kept.ts) are kept for their own tavern, the Poesje and the
+  // homes to let: no shop or household moves in first (2026-09-26 audit: a big town filled the merchant's floor)
+  const used = new Set<number>(INWORLD_HOUSES);
   const takeDoorNear = (x: number, z: number, maxD: number, spread = 1): HouseDoor | null => {
     // a big town keeps doors free for what is added later; the town as it was never gets near this
-    if (scale > 1 && free.length - used.size <= DOORS_KEPT_FREE) return null;
+    if (scale > 1 && free.length - used.size + INWORLD_HOUSES.size <= DOORS_KEPT_FREE) return null;
     const near = free
       .filter((d) => !used.has(d.house))
       .map((d) => ({ d, k: Math.hypot(d.sx - x, d.sz - z) }))
@@ -356,7 +359,10 @@ export function generateTown(seed: number, size: TownSize = "normal"): Town {
     places[s.id] = { label: s.label, x: d.sx, z: d.sz, r: 3, district: "town", door: [d.sx, d.sz], out: d.out };
   }
   for (const t of TAVERNS) {
-    const d = takeDoorNear(t.x, t.z, 35);
+    // a tavern stands in the house whose rooms the world draws for it (De Vliet stood a house off, 6 m from its room)
+    const own = free.find((q) => q.house === inworldHouse(`tavern:${t.id}`) && Math.hypot(q.sx - t.x, q.sz - t.z) <= 35);
+    if (own) rng(); // the draw takeDoorNear would have made: the rest of a seed's town stays as it was
+    const d = own ?? takeDoorNear(t.x, t.z, 35);
     if (!d) continue;
     places[`tavern:${t.id}`] = { label: t.label, x: d.sx, z: d.sz, r: 4, district: "town", door: [d.sx, d.sz], out: d.out };
   }

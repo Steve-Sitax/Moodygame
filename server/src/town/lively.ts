@@ -268,18 +268,19 @@ export function buildRound(at: Pt, reach: number, n: number, start: Pt, rng: () 
  * same people. `residents` is the town as it is (their ids are their own, "lv001"..., names
  * stay unique, homes are free house doors).
  */
-export function generateLively(seed: number, places: Record<string, TownPlace>, residents: Resident[]): Lively {
+export function generateLively(seed: number, places: Record<string, TownPlace>, residents: Resident[], kept: number[] = []): Lively {
   // the rounds' paths take half a second to find: the same town gives the same people, so keep them
-  const key = `${seed}:${residents.length}:${residents.map((r) => r.id).join(",")}`;
+  const key = `${seed}:${residents.length}:${residents.map((r) => r.id).join(",")}:${kept.join(",")}`;
   const had = memo.get(key);
   if (had) return structuredClone(had);
-  const made = makeLively(seed, places, residents);
+  const made = makeLively(seed, places, residents, kept);
   memo.set(key, made);
   return structuredClone(made);
 }
 const memo = new Map<string, Lively>();
+const INWORLD_SET = new Set((INWORLD as { houses: Array<{ house: number }> }).houses.map((e) => e.house));
 
-function makeLively(seed: number, places: Record<string, TownPlace>, residents: Resident[]): Lively {
+function makeLively(seed: number, places: Record<string, TownPlace>, residents: Resident[], kept: number[]): Lively {
   const rng = rngFrom((seed ^ LIVELY_SALT) >>> 0);
   const rnd = (a: number, b: number) => a + rng() * (b - a);
   const int = (a: number, b: number) => Math.floor(rnd(a, b + 1));
@@ -299,6 +300,8 @@ function makeLively(seed: number, places: Record<string, TownPlace>, residents: 
   // the houses whose insides stand in the world (taverns, the rooms to rent) are not for the street sellers
   // (2026-09-25: on the angled streets a seller moved into the empty alley home)
   for (const e of (INWORLD as { houses: Array<{ house: number }> }).houses) usedHouses.add(e.house);
+  // and the houses kept empty for other uses: the homes to let (2026-09-26 audit: a milk woman moved into the merchant's floor)
+  for (const h of kept) usedHouses.add(h);
   // doors people already step out of or work at: nobody new moves in on top of them
   const takenPts: Pt[] = [];
   for (const r of residents) {
@@ -317,7 +320,9 @@ function makeLively(seed: number, places: Record<string, TownPlace>, residents: 
       .filter((d) => !usedHouses.has(d.house) && !takenPts.some(([tx, tz]) => Math.hypot(tx - d.sx, tz - d.sz) < 4))
       .map((d) => ({ d, k: Math.hypot(d.sx - x, d.sz - z) }))
       .sort((a, b) => a.k - b.k);
-    const d = (byD[0] ?? { d: doors.map((q) => ({ q, k: Math.hypot(q.sx - x, q.sz - z) })).sort((a, b) => a.k - b.k)[0].q }).d;
+    // none free: share the nearest house, never one kept for its own use (an in-world house, a home to let)
+    const near = (qs: HouseDoor[]) => qs.map((q) => ({ q, k: Math.hypot(q.sx - x, q.sz - z) })).sort((a, b) => a.k - b.k)[0]?.q;
+    const d = byD[0]?.d ?? near(doors.filter((q) => !kept.includes(q.house) && !INWORLD_SET.has(q.house))) ?? near(doors)!;
     usedHouses.add(d.house);
     takenPts.push([d.sx, d.sz]);
     return d;
@@ -588,7 +593,9 @@ export function ensureLively(db: DB): number {
   if (!row) return 0;
   const rest = JSON.parse(row.value_json) as Omit<Town, "residents">;
   const residents = town(db).town.residents;
-  const g = generateLively(rest.seed, rest.places, residents);
+  const homes = db.prepare("SELECT value_json FROM world_state WHERE key = 'homes'").get() as { value_json: string } | undefined;
+  const kept = homes ? (JSON.parse(homes.value_json) as { homes?: Array<{ house: number }> }).homes?.map((h) => h.house) ?? [] : [];
+  const g = generateLively(rest.seed, rest.places, residents, kept);
   const insNpc = db.prepare("INSERT OR IGNORE INTO npc (id, name, role, district, faction, persona_json, spot_id, active) VALUES (?, ?, ?, ?, ?, '{}', NULL, 1)");
   const insRel = db.prepare("INSERT OR IGNORE INTO npc_relationship (npc_id) VALUES (?)");
   const insRes = db.prepare("INSERT OR IGNORE INTO resident (id, household, trade, data_json) VALUES (?, ?, ?, ?)");
