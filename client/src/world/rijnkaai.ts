@@ -7,6 +7,7 @@ import SPOT_TABLE from "../../../shared/spots.json";
 import { steenHeightAt, steenKeepOut } from "./steenramp";
 import { buildCountryside } from "./countryside";
 import { loadChurches, parkBridgeHeight, poortKeepOut, pumpColliders } from "./churches";
+import { frontFloor as carolusFloor, frontSolids as carolusSolids } from "../../../shared/carolusPlan";
 import { loadWall, rampartHeightAt, rampartKeepOut, wallColliders, wallGuards, wallLamps } from "./rampart";
 import CITY_DATA from "../../../shared/city.json";
 import { buildCity, doorSpot, edgeZ, WALL, WATER, OUTSIDE, type CityWorld } from "./city";
@@ -499,6 +500,7 @@ export function buildRijnkaai(): World {
   // the churches of the angled streets, the Stadspark, the pumps of the alleys' courts (world/churches.ts)
   const churches = loadChurches(scene);
   colliders.push(...pumpColliders());
+  colliders.push(...carolusSolids()); // the Carolus's terrace railing (shared/carolusPlan.ts)
   const wildTrees = (CITY_DATA as unknown as { decor?: { trees_wild?: Array<[number, number]> } }).decor?.trees_wild ?? [];
   // the trees of the Steenplein and the Werf (world/trees3d.ts, tools/blender/build_trees.py)
   city.ready
@@ -995,6 +997,8 @@ export function buildRijnkaai(): World {
     if (rh !== null) return rh;
     const ph = parkBridgeHeight(x, z); // the Stadspark's footbridge (world/churches.ts)
     if (ph !== null) return ph;
+    const ch = carolusFloor(x, z); // the Carolus's terrace and its steps (shared/carolusPlan.ts)
+    if (ch !== null) return ch;
     return 0;
   };
   const onPier = (x: number, z: number) => x > PIER.minX && x < PIER.maxX && z > PIER.minZ && z < PIER.maxZ;

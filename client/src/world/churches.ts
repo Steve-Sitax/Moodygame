@@ -4,6 +4,18 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import CITY from "../../../shared/city.json";
 import { psx } from "../retro/psx";
 import type { Rect } from "./geom";
+import { withPicture } from "./quayStone";
+
+const CAROLUS_PICTURES: Record<string, string> = {
+  carolus_sand: "/textures/carolus_sandstone.jpg",
+  carolus_blue: "/textures/carolus_bluestone.jpg",
+};
+const CAROLUS_TINT: Record<string, THREE.Color> = {
+  carolus_sand: new THREE.Color(1.38, 1.27, 1.06),
+  carolus_blue: new THREE.Color(1.16, 1.13, 1.04),
+  carolus_pale: new THREE.Color(1.3, 1.28, 1.22),
+  carolus_art: new THREE.Color(1.25, 1.22, 1.15),
+};
 
 // The churches of the angled streets (Sint-Carolus Borromeus, Sint-Pauluskerk, Sint-Jacobskerk), the Stadspark's
 // pond, bridge, benches, lanterns and railing, and the town pump that stands in every court of the back alleys
@@ -100,8 +112,29 @@ export function loadChurches(scene: THREE.Scene): ChurchesModel {
       map.wrapS = map.wrapT = THREE.RepeatWrapping;
       map.needsUpdate = true;
     }
+    // the Carolus front's stone: pictures made with Codex (assets/ATTRIBUTION.md), one repeat per 3.6 m and 3 m
+    // (build_churches.py TILE); the painted texture in the glb until they load
+    const picture = CAROLUS_PICTURES[src.name];
+    if (map && picture) {
+      map.minFilter = THREE.LinearMipmapLinearFilter;
+      map.anisotropy = 4;
+      withPicture(map, picture);
+    }
     let m: THREE.Material;
     if (src.name.endsWith("_glow")) m = psx(new THREE.MeshBasicMaterial({ map: map ?? null, color: map ? 0xffffff : 0xffd890 }), { affine: 0 });
+    // gilding (the Carolus's cross, pots, rays, pineapples): a little light of its own, so it reads as gold in the grey
+    else if (src.name === "church_gilt")
+      m = psx(new THREE.MeshLambertMaterial({ map: map ?? null, color: new THREE.Color(1.5, 1.45, 1.3), vertexColors: true, emissive: 0x2a1d08 }), {
+        fogReach: 2.2,
+        affine: 0,
+      });
+    // the Carolus's stone: kept up in 1873 (restored 1865), so the pale honey front is the lightest thing on the
+    // square in the mist (a tint over 1 lifts it under the grey light; at night the light is gone and so is the lift)
+    else if (CAROLUS_TINT[src.name])
+      m = psx(new THREE.MeshLambertMaterial({ map: map ?? null, color: CAROLUS_TINT[src.name], vertexColors: true, side: THREE.DoubleSide }), {
+        fogReach: 2.2,
+        affine: 0,
+      });
     else if (src.name === "park_water")
       m = psx(new THREE.MeshLambertMaterial({ map: map ?? null, color: map ? 0xffffff : 0x3a4a4c, vertexColors: true, transparent: true, opacity: 0.88 }), { affine: 0, wet: true });
     // (the railing's pickets are single faces: both sides)

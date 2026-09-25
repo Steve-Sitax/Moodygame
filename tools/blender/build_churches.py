@@ -67,11 +67,15 @@ PARK_JSON = os.path.join(ROOT, "client", "public", "models", "park.json")
 SHOTS = os.path.join(ROOT, "data", "shots")
 
 MATS = ["church_stone", "church_greystone", "church_brick", "church_slate", "church_lead", "church_atlas",
-        "park_stone", "park_water", "park_iron", "park_wood", "park_lamp_glow"]
-STONE, GREY, BRICK, SLATE, LEAD, ATLAS, PSTONE, WATER, IRON, WOOD, GLOW = range(len(MATS))
-# metres per texture repeat (u, v)
+        "park_stone", "park_water", "park_iron", "park_wood", "park_lamp_glow",
+        "carolus_sand", "carolus_blue", "carolus_art", "church_gilt", "carolus_pale"]
+STONE, GREY, BRICK, SLATE, LEAD, ATLAS, PSTONE, WATER, IRON, WOOD, GLOW, SAND, BLUE, ART, GILT, PALE = range(len(MATS))
+# metres per texture repeat (u, v); carolus_sand and carolus_blue take pictures in the game (world/churches.ts:
+# client/public/textures/carolus_sandstone.jpg, carolus_bluestone.jpg), one repeat each
 TILE = {STONE: (2.4, 2.4), GREY: (2.4, 2.4), BRICK: (2.4, 1.8), SLATE: (1.6, 1.6), LEAD: (0.8, 0.8), ATLAS: (1.0, 1.0),
-        PSTONE: (1.2, 1.2), WATER: (2.0, 2.0), IRON: (1.0, 1.0), WOOD: (1.2, 1.2), GLOW: (1.0, 1.0)}
+        PSTONE: (1.2, 1.2), WATER: (2.0, 2.0), IRON: (1.0, 1.0), WOOD: (1.2, 1.2), GLOW: (1.0, 1.0),
+        SAND: (3.6, 3.6), BLUE: (3.0, 3.0), ART: (1.0, 1.0), GILT: (0.6, 0.6), PALE: (1.2, 1.2)}
+ART_DIR = os.path.join(ROOT, "tools", "blender", "art")
 
 SEG = 4.0  # longest face edge on walls and roofs (the game's textures swim on big faces)
 FOOT = -0.3  # walls start under the ground
@@ -359,7 +363,9 @@ CELL = {  # name: (x0, y0, w, h, head shape) in pixels, y from the bottom
 
 
 def cell_uv(name, fu, fv, part="all"):
-    x0, y0, w, h, shape = CELL[name]
+    """uv of a point in an atlas cell: the churches' atlas (CELL) or the Carolus front's (ART_CELL)."""
+    x0, y0, w, h, shape = CELL[name] if name in CELL else ART_CELL[name]
+    size = AT if name in CELL else AT2
     hh = head_h(shape, w)
     u = x0 + 0.5 + fu * (w - 1)
     if part == "body":
@@ -368,7 +374,11 @@ def cell_uv(name, fu, fv, part="all"):
         v = y0 + (h - hh) + fv * (hh - 0.5)
     else:
         v = y0 + 0.5 + fv * (h - 1)
-    return (u / AT, v / AT)
+    return (u / size, v / size)
+
+
+def cell_mat(name):
+    return ART if name in ART_CELL else ATLAS
 
 
 def arch_mask(W, H, x0, ww, hb, shape):
@@ -713,6 +723,169 @@ def paint_atlas(rng):
     return A
 
 
+# ---- the Carolus front's atlas: the pediment's relief and the IHS medallion (pictures made with Codex,
+# tools/blender/art, assets/ATTRIBUTION.md), the carved doors, niches, windows
+
+AT2 = 512
+ART_CELL = {
+    "relief": (0, 320, 512, 192, "rect"),
+    "c_ihs": (0, 64, 256, 256, "rect"),
+    "door_main": (256, 0, 96, 160, "round"),
+    "door_side": (352, 0, 64, 128, "rect"),
+    "niche_back": (416, 0, 48, 112, "round"),
+    "win_rect": (464, 0, 48, 96, "rect"),
+    "a_gilt": (256, 160, 16, 16, "rect"),
+    "a_dark": (272, 160, 16, 16, "rect"),
+}
+
+
+def load_picture(name, w, h):
+    """A picture from tools/blender/art as an array (rows from the bottom), w x h."""
+    path = os.path.join(ART_DIR, name)
+    img = bpy.data.images.load(path)
+    img.scale(w, h)
+    a = np.array(img.pixels[:], dtype=np.float64).reshape(h, w, 4)[..., :3]
+    bpy.data.images.remove(img)
+    return a
+
+
+def paint_door_main(rng, w=96, h=160):
+    """The great west door: two oak leaves with raised panels and nail heads; over the transom the
+    carved radiant sun of the door's soffit (a fan of wooden rays), all dark with age."""
+    hh = w / 2
+    hb = int(round(h - hh))
+    img = np.ones((h, w, 3)) * C(0.30, 0.29, 0.28)
+    yy, xx = np.mgrid[0:h, 0:w]
+    wood = C(0.22, 0.13, 0.075)
+    grain = noise2(rng, h, w, 16, 5)
+    leaf = np.ones((h, w, 3)) * wood * (0.78 + 0.4 * grain)[..., None]
+    for lx0 in (3, w // 2 + 1):
+        lw = w // 2 - 4
+        for p0, p1 in ((5, hb * 0.26), (hb * 0.3, hb * 0.62), (hb * 0.66, hb - 6)):
+            p0, p1 = int(p0), int(p1)
+            leaf[p0:p1, lx0 + 3:lx0 + lw - 3] *= 1.14
+            leaf[p1 - 1:p1, lx0 + 3:lx0 + lw - 3] = wood * 1.6
+            leaf[p0:p1, lx0 + 3] = wood * 1.45
+            leaf[p0:p0 + 1, lx0 + 3:lx0 + lw - 3] = wood * 0.45
+            leaf[p0:p1, lx0 + lw - 4] = wood * 0.5
+            # a lozenge on each panel
+            cy, cx = (p0 + p1) / 2, lx0 + lw / 2
+            d = np.abs(xx + 0.5 - cx) / (lw * 0.3) + np.abs(yy + 0.5 - cy) / ((p1 - p0) * 0.32)
+            leaf[(d < 1.0) & (d > 0.78)] = wood * 0.55
+        for y in range(8, hb - 4, 10):
+            for x in (lx0 + 1, lx0 + lw - 1):
+                leaf[y, x] = C(0.10, 0.10, 0.10)
+    leaf[:, w // 2 - 1:w // 2 + 1] = C(0.05, 0.035, 0.025)
+    for cx in (w // 2 - 6, w // 2 + 5):
+        dd = np.hypot(xx + 0.5 - cx, yy + 0.5 - hb * 0.47)
+        leaf[(dd > 2.0) & (dd < 3.4)] = C(0.07, 0.07, 0.07)
+    body = yy < hb
+    img[body] = leaf[body]
+    # the transom and the carved sun above it
+    img[(yy >= hb) & (yy < hb + 4)] = C(0.16, 0.10, 0.06)
+    head = (yy >= hb + 4) & (np.hypot(xx + 0.5 - w / 2, yy + 0.5 - hb) <= hh)
+    ang = np.arctan2(yy + 0.5 - hb - 4, xx + 0.5 - w / 2)
+    r = np.hypot(xx + 0.5 - w / 2, yy + 0.5 - hb - 4)
+    rays = ((ang / math.pi * 18) % 1.0) < 0.5
+    sun = np.ones((h, w, 3)) * C(0.12, 0.075, 0.045)
+    sun[rays] = C(0.25, 0.16, 0.09)
+    sun[r < 11] = C(0.36, 0.26, 0.12)
+    sun[np.abs(r - 11) < 1.0] = C(0.10, 0.06, 0.04)
+    sun[np.abs(r - hh + 3) < 1.2] = C(0.18, 0.11, 0.07)
+    img[head] = sun[head]
+    return img
+
+
+def paint_door_side(rng, w=64, h=128):
+    wood = C(0.23, 0.14, 0.08)
+    grain = noise2(rng, h, w, 14, 4)
+    img = np.ones((h, w, 3)) * wood * (0.8 + 0.38 * grain)[..., None]
+    tb = int(h * 0.78)
+    for lx0 in (2, w // 2 + 1):
+        lw = w // 2 - 3
+        for p0, p1 in ((4, tb * 0.45), (tb * 0.5, tb - 4)):
+            p0, p1 = int(p0), int(p1)
+            img[p0:p1, lx0 + 2:lx0 + lw - 2] *= 1.15
+            img[p1 - 1, lx0 + 2:lx0 + lw - 2] = wood * 1.6
+            img[p0, lx0 + 2:lx0 + lw - 2] = wood * 0.45
+            img[p0:p1, lx0 + 2] = wood * 1.4
+            img[p0:p1, lx0 + lw - 3] = wood * 0.5
+    img[:tb, w // 2 - 1:w // 2 + 1] = C(0.05, 0.035, 0.025)
+    img[tb:tb + 3] = C(0.14, 0.09, 0.05)
+    gl = leaded(rng, h - tb - 3, w - 6, C(0.10, 0.12, 0.14), C(0.04, 0.04, 0.045), 5, rect=True)
+    img[tb + 3:h, 3:w - 3] = gl
+    img[tb + 3:h, w // 2 - 1:w // 2 + 1] = C(0.14, 0.09, 0.05)
+    return img
+
+
+def paint_niche_back(rng, w=48, h=112):
+    """The back of a statue's niche: dark stone, the shell in its head."""
+    hh = w / 2
+    hb = h - hh
+    img = np.ones((h, w, 3)) * C(0.40, 0.38, 0.34)
+    yy, xx = np.mgrid[0:h, 0:w]
+    img *= (0.55 + 0.35 * (1 - np.abs(xx + 0.5 - w / 2) / (w / 2)))[..., None]
+    img *= (1.0 - 0.25 * (yy / h))[..., None]
+    ang = np.arctan2(yy + 0.5 - hb, xx + 0.5 - w / 2)
+    r = np.hypot(yy + 0.5 - hb, xx + 0.5 - w / 2)
+    rib = (yy >= hb) & (((ang / math.pi * 11) % 1.0) < 0.42)
+    img[rib] *= 1.45
+    img[(yy >= hb) & (r < 5)] = C(0.30, 0.28, 0.25)
+    img[(yy >= hb - 2) & (yy < hb)] = C(0.52, 0.50, 0.45)
+    return img * (0.92 + 0.1 * rng.random((h, w, 1)))
+
+
+def paint_win_rect(rng, w=48, h=96):
+    """A window with a stone cross (mullion and transom) and four leaded lights."""
+    stone = C(0.50, 0.52, 0.54)
+    img = np.ones((h, w, 3)) * stone
+    gl = leaded(rng, h, w, C(0.12, 0.15, 0.17), C(0.04, 0.04, 0.045), 4)
+    gl *= (0.7 + 0.6 * (np.arange(h) / h))[:, None, None]
+    m = np.zeros((h, w), bool)
+    m[2:h - 2, 2:w - 2] = True
+    ty = int(h * 0.66)
+    m[ty - 2:ty + 2, :] = False
+    m[:, w // 2 - 2:w // 2 + 2] = False
+    img[m] = gl[m]
+    img[np.roll(~m, 1, 1) & m] *= 0.55
+    return img
+
+
+def paint_art(rng):
+    A = np.ones((AT2, AT2, 3)) * C(0.3, 0.29, 0.27)
+
+    def put(name, img):
+        x0, y0, w, h, _ = ART_CELL[name]
+        A[y0:y0 + h, x0:x0 + w] = np.clip(img, 0, 1)
+
+    rel = load_picture("carolus_relief.jpg", 512, 192)
+    put("relief", np.clip((rel - rel.mean()) * 1.4 + rel.mean() * 1.15, 0, 1))
+    put("c_ihs", load_picture("carolus_ihs.jpg", 256, 256))
+    put("door_main", paint_door_main(rng))
+    put("door_side", paint_door_side(rng))
+    put("niche_back", paint_niche_back(rng))
+    put("win_rect", paint_win_rect(rng))
+    for name, col in (("a_gilt", C(0.74, 0.57, 0.24)), ("a_dark", C(0.03, 0.03, 0.035))):
+        x0, y0, w, h, _ = ART_CELL[name]
+        A[y0:y0 + h, x0:x0 + w] = col
+    return A
+
+
+def paint_pale(rng, n=64):
+    """The statues' stone: pale, smooth, no joints; a little grey in the hollows."""
+    img = np.ones((n, n, 3)) * C(0.86, 0.82, 0.74)
+    img *= (0.88 + 0.16 * noise2(rng, n, n, 6, 6))[..., None]
+    img *= (0.95 + 0.06 * noise2(rng, n, n, 16, 16))[..., None]
+    return speckle(img, rng, 0.04, 0.8, 0.95)
+
+
+def paint_gilt(rng, n=32):
+    img = np.ones((n, n, 3)) * C(0.70, 0.53, 0.21)
+    img *= (0.72 + 0.5 * noise2(rng, n, n, 4, 4))[..., None]
+    img *= (1.0 - 0.3 * noise2(rng, n, n, 2, 9))[..., None]  # soot running down
+    return speckle(img, rng, 0.08, 0.55, 0.8)
+
+
 def make_materials():
     rng = np.random.default_rng(1621)
     paint = {
@@ -727,6 +900,11 @@ def make_materials():
         "park_iron": lambda: paint_iron(rng),
         "park_wood": lambda: paint_wood(rng),
         "park_lamp_glow": lambda: paint_glow(rng),
+        "carolus_sand": lambda: paint_ashlar(rng, 128, C(0.74, 0.68, 0.55), C(0.60, 0.56, 0.48), 13, 22, 44),
+        "carolus_blue": lambda: paint_ashlar(rng, 128, C(0.44, 0.47, 0.50), C(0.58, 0.58, 0.57), 16, 30, 60, streaks=0.1),
+        "carolus_art": lambda: paint_art(rng),
+        "church_gilt": lambda: paint_gilt(rng),
+        "carolus_pale": lambda: paint_pale(rng),
     }
     for name in MATS:
         arr = np.clip(paint[name](), 0, 1)
@@ -769,6 +947,7 @@ class Geo:
     def __init__(self):
         self.groups = {}
         self.grp = None
+        self.grime = None  # (p) -> a shade factor for walls shaded by height (the Carolus: soot, damp)
 
     def face(self, pts, mat, out=None, uvs=None, shade=None, floor=0.0, k=1.0, cell=None):
         pts = [Vector(p) for p in pts]
@@ -784,10 +963,12 @@ class Geo:
         if uvs is None:
             if mat == ATLAS:
                 uvs = [cell_uv(cell or "dark", 0.5, 0.5)] * len(pts)
+            elif mat == ART:
+                uvs = [cell_uv(cell or "a_dark", 0.5, 0.5)] * len(pts)
             else:
                 uvs = planar(pts, n, mat)
         if shade is None:
-            cols = [amb(p, floor) * k for p in pts]
+            cols = [amb(p, floor) * k * (self.grime(p) if self.grime else 1.0) for p in pts]
         else:
             cols = [shade * k * tint(p.x, p.z) for p in pts]
         self.groups.setdefault(self.grp, []).append((pts, uvs, cols, mat))
@@ -971,10 +1152,10 @@ class Wall:
         if ys - h.yb > 1e-4:
             body = [(h.u0, h.yb), (h.u1, h.yb), (h.u1, ys), (h.u0, ys)]
             uvs = [cell_uv(cell, self.fu(u, h.u0, w), (y - h.yb) / (ys - h.yb), part_b) for u, y in body]
-            g.face([self.pt(u, y, h.depth) for u, y in body], ATLAS, out=self.out(), uvs=uvs, k=self.k * h.k)
+            g.face([self.pt(u, y, h.depth) for u, y in body], cell_mat(cell), out=self.out(), uvs=uvs, k=self.k * h.k)
         if arc:
             uvs = [cell_uv(cell, self.fu(u, h.u0, w), (y - ys) / hh, "head") for u, y in arc]
-            g.face([self.pt(u, y, h.depth) for u, y in arc], ATLAS, out=self.out(), uvs=uvs, k=self.k * h.k)
+            g.face([self.pt(u, y, h.depth) for u, y in arc], cell_mat(cell), out=self.out(), uvs=uvs, k=self.k * h.k)
 
 
 def extrude(g, W, poly, d_front, d_back, mat, side_mat=None, back=False, k=1.0, front_uv=None, cell=None, skip_edges=()):
@@ -998,10 +1179,12 @@ def extrude(g, W, poly, d_front, d_back, mat, side_mat=None, back=False, k=1.0, 
                out=W.inplane(nu, ny), k=k * (0.7 if ny < -0.5 else 0.9), cell=cell)
 
 
-def disc(g, W, uc, yc, r, cell, d_front=-0.2, d_back=0.05, sides=16, side_mat=STONE, k=1.0):
+def disc(g, W, uc, yc, r, cell, d_front=-0.2, d_back=0.05, sides=16, side_mat=STONE, k=1.0, crop=1.0):
+    """A round medallion proud of a wall; `crop` < 1 maps only the middle of the cell (its inner circle)."""
     poly = [(uc + r * math.cos(2 * math.pi * i / sides), yc + r * math.sin(2 * math.pi * i / sides)) for i in range(sides)]
-    extrude(g, W, poly, d_front, d_back, ATLAS, side_mat=side_mat, k=k,
-            front_uv=lambda u, y: cell_uv(cell, W.fu(u, uc - r, 2 * r), (y - yc + r) / (2 * r)))
+    extrude(g, W, poly, d_front, d_back, cell_mat(cell), side_mat=side_mat, k=k,
+            front_uv=lambda u, y: cell_uv(cell, 0.5 + (W.fu(u, uc - r, 2 * r) - 0.5) * crop,
+                                          0.5 + ((y - yc + r) / (2 * r) - 0.5) * crop))
 
 
 # ------------------------------------------------------------------ solids
@@ -1404,101 +1587,582 @@ def frame_west_end(fr):
     return Frame(o, (-ax[0], -ax[1]), (-n[0], -n[1])), fr["L"], fr["W"] / 2
 
 
+# The Carolus front's numbers, in the frame of frame_front_open (a from the rectangle's front edge inward,
+# s along the front, + to the east; the Conscienceplein at a < 0). shared/carolusPlan.ts has the same
+# numbers for walking (the terrace, the flights, the railing).
+#   FA, FB   the front's face and back (a slab 1 m thick); FT, TB the stair towers' face and back
+#   NV, AW, TW  the nave's walls, the aisles' outer walls, the stair towers' outer sides (s)
+#   Y0       the terrace and the doors' sills; G0..G2 the ground storey (pedestals, columns, entablature)
+#   B1       the band of pedestals and balustrades over it; M1, M2 the middle storey; B2 the second band
+#   C1, C2   the crown over the nave; PK the pediment's apex (the front is about 33 m high and 30.6 wide)
+CF = dict(FA=0.9, FB=1.9, NV=6.5, AW=12.8, TW=15.3, FT=1.4, TB=4.4, Y0=0.6,
+          G0=1.9, G1=10.0, G2=11.7, B1=12.9, M1=19.3, M2=20.8, B2=21.9, C1=27.4, C2=28.7, PK=33.0,
+          NE=20.8, RID=25.2, AE=15.4, AH=18.6, LK=10.6,
+          TA=-2.2, TS=10.9, RISE=0.15, TREAD=0.3, FLIGHTS=((-2.6, 2.6), (-10.9, -8.4), (8.4, 10.9)),
+          DOOR=(3.4, 7.2), SIDE=9.35, END=0.15)
+
+
+def carolus_grime(p):
+    """Soot washed down under each cornice, damp at the foot (a shade factor for the Carolus's walls)."""
+    y = p[1]
+    f = 1.0
+    for yc in (CF["G1"], CF["M1"], CF["C1"]):
+        d = yc - y
+        if 0.0 <= d < 2.4:
+            f *= 0.88 + 0.12 * d / 2.4
+    if y < 1.8:
+        f *= 0.9 + 0.1 * max(0.0, y) / 1.8
+    return f
+
+
+def entab(y0, y1, big=0.72):
+    """An entablature's layers: architrave and frieze (sandstone), the cornice's bed (bluestone), its crown."""
+    h = y1 - y0
+    return [(y0, y0 + 0.3 * h, 0.30, SAND), (y0 + 0.3 * h, y0 + 0.62 * h, 0.24, SAND), (y0 + 0.62 * h, y0 + 0.76 * h, 0.46, BLUE),
+            (y0 + 0.76 * h, y1, big, SAND)]
+
+
+def stack(g, F, a_wall, s0, s1, layers, ress=(), caps=(True, True)):
+    """A cornice, entablature or band along the wall a = a_wall (the square in -a), from s0 to s1:
+    layers (y0, y1, proj, mat) from the bottom up; ress = (sa, sb, extra): where it breaks forward
+    over columns and pilasters. Only the faces one can see: each layer's top and bottom where the
+    next layer leaves it."""
+    cuts = {s0, s1}
+    for sa, sb, _ in ress:
+        for v in (sa, sb):
+            if s0 < v < s1:
+                cuts.add(v)
+    cuts = refine(sorted(cuts), SEG)
+    segs = []
+    for sa, sb in zip(cuts, cuts[1:]):
+        if sb - sa < 1e-6:
+            continue
+        m = (sa + sb) / 2
+        segs.append((sa, sb, max([e for ra, rb, e in ress if ra <= m <= rb] + [0.0])))
+    n = len(layers)
+    for li, (y0, y1, p, mat) in enumerate(layers):
+        P = [p + e for _, _, e in segs]
+        Pb = [layers[li - 1][2] + e for _, _, e in segs] if li > 0 else [0.0] * len(segs)
+        Pa = [layers[li + 1][2] + e for _, _, e in segs] if li < n - 1 else [0.0] * len(segs)
+        for j, (sa, sb, e) in enumerate(segs):
+            A = a_wall - P[j]
+            g.face([F.p(A, sa, y0), F.p(A, sb, y0), F.p(A, sb, y1), F.p(A, sa, y1)], mat, out=F.v(-1, 0))
+            if P[j] > Pa[j] + 1e-6:
+                Aa = a_wall - Pa[j]
+                g.face([F.p(A, sa, y1), F.p(A, sb, y1), F.p(Aa, sb, y1), F.p(Aa, sa, y1)], mat, out=(0, 1, 0))
+            if P[j] > Pb[j] + 1e-6:
+                Ab = a_wall - Pb[j]
+                g.face([F.p(A, sa, y0), F.p(A, sb, y0), F.p(Ab, sb, y0), F.p(Ab, sa, y0)], mat, out=(0, -1, 0), k=0.7)
+            if j + 1 < len(segs) and abs(P[j + 1] - P[j]) > 1e-6:
+                lo, hi = min(P[j], P[j + 1]), max(P[j], P[j + 1])
+                sg = 1 if P[j] > P[j + 1] else -1
+                g.face([F.p(a_wall - lo, sb, y0), F.p(a_wall - hi, sb, y0), F.p(a_wall - hi, sb, y1), F.p(a_wall - lo, sb, y1)], mat,
+                       out=F.v(0, sg), k=0.85)
+        for j, sg, on in ((0, -1, caps[0]), (len(segs) - 1, 1, caps[1])):
+            if on:
+                s_ = segs[j][0] if sg < 0 else segs[j][1]
+                g.face([F.p(a_wall, s_, y0), F.p(a_wall - P[j], s_, y0), F.p(a_wall - P[j], s_, y1), F.p(a_wall, s_, y1)], mat,
+                       out=F.v(0, sg), k=0.85)
+
+
+def pedestal(g, F, a_wall, s, half, dep, y0, y1, mat=BLUE):
+    """A pedestal against the wall: base, die, cap."""
+    box(g, F, a_wall - dep - 0.07, a_wall, s - half - 0.07, s + half + 0.07, y0, y0 + 0.18, mat, skip=("+a", "-y"))
+    box(g, F, a_wall - dep, a_wall, s - half, s + half, y0 + 0.18, y1 - 0.2, mat, skip=("+a", "-y", "+y"))
+    box(g, F, a_wall - dep - 0.09, a_wall, s - half - 0.09, s + half + 0.09, y1 - 0.2, y1, mat, skip=("+a",))
+
+
+def pilaster(g, F, a_wall, s, half, dep, y0, y1, mat=SAND):
+    box(g, F, a_wall - dep - 0.06, a_wall, s - half - 0.06, s + half + 0.06, y0, y0 + 0.3, mat, skip=("+a", "-y"))
+    box(g, F, a_wall - dep, a_wall, s - half, s + half, y0 + 0.3, y1 - 0.4, mat, skip=("+a", "-y", "+y"))
+    box(g, F, a_wall - dep - 0.08, a_wall, s - half - 0.1, s + half + 0.1, y1 - 0.4, y1, mat, skip=("+a", "+y"))
+
+
+def column(g, F, a_c, s, y0, y1, r, order):
+    """A free column of bluestone: square plinth, base, a shaft with entasis, its order's capital; the
+    abacus's top is left to the architrave over it."""
+    x, _, z = F.p(a_c, s, 0)
+    q = r * 1.3
+    box(g, F, a_c - q, a_c + q, s - q, s + q, y0, y0 + 0.14, BLUE, skip=("-y",))
+    H = y1 - y0
+    ch = {"doric": 0.5, "ionic": 0.56, "corinth": 1.05}[order]
+    st = H - ch
+    L = st - 0.42
+    prof = [(r * 1.22, 0.14), (r * 1.16, 0.2), (r * 1.03, 0.27), (r * 1.08, 0.33), (r, 0.42),
+            (r, 0.42 + L * 0.33), (r * 0.94, 0.42 + L * 0.72), (r * 0.86, st), (r * 0.94, st + 0.03), (r * 0.94, st + 0.1),
+            (r * 0.86, st + 0.13)]
+    ab = 1.28
+    if order == "doric":
+        prof += [(r * 0.9, st + 0.24), (r * 1.18, H - 0.14)]
+    elif order == "ionic":
+        prof += [(r * 1.02, st + 0.2)]
+        ab = 1.36
+    else:
+        prof += [(r * 0.98, st + 0.45), (r * 1.12, st + 0.78), (r * 1.3, H - 0.14)]
+        ab = 1.42
+    lathe(g, (x, y0, z), prof, 12, BLUE, rot=math.pi / 12)
+    if order == "ionic":
+        yb = y0 + st + 0.2
+        box(g, F, a_c - 1.12 * r, a_c + 1.12 * r, s - 1.5 * r, s + 1.5 * r, yb, y1 - 0.1, BLUE, skip=("+y",))
+        W = Wall(g, F.P(a_c - 1.12 * r, 0.0), F.P(a_c - 1.12 * r, 1.0), F.V(-1, 0), 0, 0, BLUE)
+        for sg in (-1, 1):
+            cu, cy, rr = s + sg * 1.2 * r, yb + 0.12, 0.3 * r
+            poly = [(cu + rr * math.cos(2 * math.pi * i / 8), cy + rr * math.sin(2 * math.pi * i / 8)) for i in range(8)]
+            extrude(g, W, poly, -0.07, 0.0, BLUE)
+        box(g, F, a_c - ab * r, a_c + ab * r, s - ab * r, s + ab * r, y1 - 0.1, y1, BLUE, skip=("+y",))
+    else:
+        box(g, F, a_c - ab * r, a_c + ab * r, s - ab * r, s + ab * r, y1 - 0.14, y1, BLUE, skip=("+y",))
+    if order == "corinth":
+        for i in range(8):
+            ang = math.pi / 8 + 2 * math.pi * i / 8
+            c_, s_ = math.cos(ang), math.sin(ang)
+            bar(g, (x + c_ * r * 0.9, y0 + st + 0.16, z + s_ * r * 0.9), (x + c_ * r * 1.3, y0 + st + 0.62, z + s_ * r * 1.3), 0.16, BLUE,
+                h=0.04, k=0.95)
+
+
+def balustrade(g, F, a_wall, s0, s1, y0, y1, dep=0.42, rail=None):
+    """A stone balustrade against the wall: plinth, turned balusters, rail (no end faces: it runs between pedestals)."""
+    rail = SAND if rail is None else rail
+    box(g, F, a_wall - dep, a_wall, s0, s1, y0, y0 + 0.18, rail, skip=("+a", "-y", "-s", "+s"))
+    box(g, F, a_wall - dep - 0.05, a_wall, s0, s1, y1 - 0.16, y1, rail, skip=("+a", "-s", "+s"))
+    n = max(1, int((s1 - s0) / 0.34))
+    h = (y1 - 0.16) - (y0 + 0.18)
+    prof = [(0.1, 0.0), (0.1, 0.1 * h), (0.065, 0.2 * h), (0.14, 0.55 * h), (0.07, 0.86 * h), (0.1, 0.92 * h), (0.1, h)]
+    for i in range(n):
+        s = s0 + (s1 - s0) * (i + 0.5) / n
+        x, _, z = F.p(a_wall - dep / 2, s, 0)
+        lathe(g, (x, y0 + 0.18, z), prof, 6, SAND, rot=0.0)
+
+
+FIG = [(0.17, 0.0), (0.175, 0.04), (0.16, 0.08), (0.14, 0.35), (0.125, 0.58), (0.14, 0.72), (0.155, 0.78), (0.1, 0.815),
+       (0.06, 0.83), (0.058, 0.86), (0.075, 0.9), (0.07, 0.955), (0.04, 0.99), (0.0, 1.0)]
+
+
+def statue(g, F, a, s, y0, h, arm=1, staff=False, k=1.08):
+    """A saint in a robe (turned), one arm bent to hold a book or a key, perhaps a staff."""
+    x, _, z = F.p(a, s, 0)
+    lathe(g, (x, y0, z), [(r * h, y * h) for r, y in FIG], 8, PALE, rot=math.pi / 8, k=k)
+    sh = F.p(a - 0.02 * h, s + arm * 0.13 * h, y0 + 0.76 * h)
+    el = F.p(a - 0.1 * h, s + arm * 0.12 * h, y0 + 0.6 * h)
+    hand = F.p(a - 0.17 * h, s + arm * 0.03 * h, y0 + 0.65 * h)
+    bar(g, sh, el, 0.05 * h, PALE, k=k)
+    bar(g, el, hand, 0.045 * h, PALE, k=k)
+    bar(g, F.p(a - 0.18 * h, s, y0 + 0.6 * h), F.p(a - 0.18 * h, s, y0 + 0.71 * h), 0.08 * h, PALE, h=0.03 * h, k=k * 0.92)
+    if staff:
+        bar(g, F.p(a - 0.1 * h, s - arm * 0.17 * h, y0), F.p(a - 0.1 * h, s - arm * 0.17 * h, y0 + 1.04 * h), 0.022 * h, PALE, k=k)
+
+
+def niche_statue(g, F, W, s, yb, depth, h, arm=1, staff=False):
+    """A statue on its plinth in a niche (the Hole at s, from yb, `depth` deep)."""
+    a = CF["FA"] + depth * 0.45
+    box(g, F, CF["FA"], CF["FA"] + depth - 0.05, s - 0.34, s + 0.34, yb, yb + 0.22, SAND, skip=("-y", "+a"), k=0.95)
+    statue(g, F, a, s, yb + 0.22, h, arm, staff)
+
+
+def urn(g, c, sc, mat=SAND, fire=False, **kw):
+    """A vase on a pedestal's top (stone), or a gilded fire-pot."""
+    prof = [(0.2, 0.0), (0.22, 0.05), (0.12, 0.15), (0.1, 0.24), (0.3, 0.45), (0.34, 0.6), (0.28, 0.78), (0.14, 0.86), (0.17, 0.94)]
+    if fire:
+        prof += [(0.12, 1.0), (0.2, 1.12), (0.15, 1.3), (0.06, 1.5), (0.0, 1.62)]
+    else:
+        prof += [(0.08, 1.02), (0.1, 1.1), (0.0, 1.2)]
+    lathe(g, c, [(r * sc, y * sc) for r, y in prof], 8, mat, rot=math.pi / 8, **kw)
+
+
+def pineapple(g, c, sc=1.0):
+    prof = [(0.1, 0.0), (0.16, 0.06), (0.24, 0.2), (0.28, 0.42), (0.25, 0.62), (0.16, 0.8), (0.06, 0.88), (0.13, 0.95), (0.05, 1.08),
+            (0.0, 1.22)]
+    lathe(g, c, [(r * sc, y * sc) for r, y in prof], 8, GILT, rot=0.0)
+
+
+def gilt_cross(g, x, y, z, h):
+    bar(g, (x, y, z), (x, y + h, z), 0.13, GILT, k=1.0, skip=("-y",))
+    bar(g, (x - 0.3 * h, y + h * 0.7, z), (x + 0.3 * h, y + h * 0.7, z), 0.24, GILT, h=0.13, k=1.0)
+
+
+def arch_band(g, W, uc, yb, ys, w, band, d_front, mat=SAND, k=1.0, n=8, jambs=True):
+    """The moulded frame round a round-headed opening (w wide, springing at ys): two jambs and the arch."""
+    r0, r1 = w / 2, w / 2 + band
+    if jambs:
+        for sg in (-1, 1):
+            u0, u1 = sorted((uc + sg * r0, uc + sg * r1))
+            extrude(g, W, [(u0, yb), (u1, yb), (u1, ys), (u0, ys)], d_front, 0.0, mat, k=k, skip_edges=(0, 2))
+    for i in range(n):
+        t0, t1 = math.pi * i / n, math.pi * (i + 1) / n
+        poly = [(uc + r0 * math.cos(t0), ys + r0 * math.sin(t0)), (uc + r1 * math.cos(t0), ys + r1 * math.sin(t0)),
+                (uc + r1 * math.cos(t1), ys + r1 * math.sin(t1)), (uc + r0 * math.cos(t1), ys + r0 * math.sin(t1))]
+        sk = tuple(e for e, on in ((0, jambs or i > 0), (2, jambs or i < n - 1)) if on)
+        extrude(g, W, poly, d_front, 0.0, mat, k=k, skip_edges=sk)
+
+
+def rect_frame(g, W, uc, w, yb, yt, band, d_front, mat=SAND, ears=0.12):
+    """An eared architrave round a rectangular opening."""
+    u0, u1 = uc - w / 2, uc + w / 2
+    for a_, b_ in ((u0 - band, u0), (u1, u1 + band)):
+        extrude(g, W, [(a_, yb), (b_, yb), (b_, yt), (a_, yt)], d_front, 0.0, mat, skip_edges=(0, 2))
+    extrude(g, W, [(u0 - band - ears, yt), (u1 + band + ears, yt), (u1 + band + ears, yt + band), (u0 - band - ears, yt + band)],
+            d_front * 1.2, 0.0, mat)
+
+
+def tri_pediment(g, W, uc, hw, yb, h, d_front, mat=SAND, fill=SAND):
+    """A small triangular pediment: its tympanum (in shade) and a raking cornice."""
+    extrude(g, W, [(uc - hw + 0.15, yb), (uc + hw - 0.15, yb), (uc, yb + h - 0.12)], d_front * 0.5, 0.0, fill, skip_edges=(0,), k=0.82)
+    t = 0.2
+    chev = [(uc - hw, yb), (uc, yb + h + t * 0.4), (uc + hw, yb), (uc + hw - 0.3, yb), (uc, yb + h - 0.12), (uc - hw + 0.3, yb)]
+    extrude(g, W, chev, d_front, 0.0, mat, skip_edges=(2, 5))
+    extrude(g, W, [(uc - hw - 0.1, yb - 0.18), (uc + hw + 0.1, yb - 0.18), (uc + hw + 0.1, yb), (uc - hw - 0.1, yb)], d_front, 0.0, mat)
+
+
+def volute(g, F, sg, c):
+    """The great scroll from the crown's side down over the aisle's bay (a plate from the band up,
+    its front flush with the front's face), a rolled rim along its top, the two eyes."""
+    FA, FB, B2 = c["FA"], c["FB"], c["B2"]
+    s_in, s_top, s_eye, r_b, s_out = 6.5, 7.0, 11.25, 0.72, 11.97
+    y_hi, y_eye = 26.8, 22.75
+
+    def ytop(s):
+        if s <= s_top:
+            return y_hi
+        if s <= s_eye:
+            t = (s - s_top) / (s_eye - s_top)
+            return (y_eye + r_b) + (y_hi - y_eye - r_b) * (1 - t) ** 2
+        return y_eye + math.sqrt(max(0.0, r_b * r_b - (s - s_eye) ** 2))
+
+    ss = [s_in, s_top] + [s_top + (s_eye - s_top) * i / 8 for i in range(1, 9)] + [s_eye + (s_out - s_eye) * i / 4 for i in range(1, 5)]
+    for s0, s1 in zip(ss, ss[1:]):
+        y0, y1 = ytop(s0), ytop(s1)
+        A, Bq = sg * s0, sg * s1
+        g.face([F.p(FA, A, B2), F.p(FA, Bq, B2), F.p(FA, Bq, y1), F.p(FA, A, y0)], SAND, out=F.v(-1, 0), k=0.8)
+        g.face([F.p(FB, A, B2), F.p(FB, Bq, B2), F.p(FB, Bq, y1), F.p(FB, A, y0)], SAND, out=F.v(1, 0), k=0.85)
+        nrm = F.v(0, sg * (y0 - y1), abs(s1 - s0))
+        g.face([F.p(FA, A, y0), F.p(FA, Bq, y1), F.p(FB, Bq, y1), F.p(FB, A, y0)], SAND, out=nrm)
+    g.face([F.p(FA, sg * s_out, B2), F.p(FB, sg * s_out, B2), F.p(FB, sg * s_out, y_eye), F.p(FA, sg * s_out, y_eye)], SAND,
+           out=F.v(0, sg), k=0.85)
+    # the rim: a rolled edge well proud of the plate along its top; an inner line under it; the eyes turned
+    # in three steps like a spiral; a row of leaves on the plate. The plate itself stays in shade.
+    W = Wall(g, F.P(FA, 0.0), F.P(FA, 1.0), F.V(-1, 0), 0, 0, SAND)
+    rim = [s for s in ss if s <= s_eye]
+    for i, (s0, s1) in enumerate(zip(rim, rim[1:])):
+        y0, y1 = ytop(s0), ytop(s1)
+        poly = [(sg * s0, y0 - 0.46), (sg * s1, y1 - 0.46), (sg * s1, y1), (sg * s0, y0)]
+        sk = tuple(e for e, on in ((1, i < len(rim) - 2), (3, i > 0)) if on)
+        extrude(g, W, poly, -0.52, 0.0, SAND, k=1.12, skip_edges=sk)
+    inner = [s for s in ss if s_top + 0.3 <= s <= s_eye - r_b - 0.15]
+    for i, (s0, s1) in enumerate(zip(inner, inner[1:])):
+        y0, y1 = ytop(s0) - 1.15, ytop(s1) - 1.15
+        poly = [(sg * s0, y0 - 0.16), (sg * s1, y1 - 0.16), (sg * s1, y1), (sg * s0, y0)]
+        sk = tuple(e for e, on in ((1, i < len(inner) - 2), (3, i > 0)) if on)
+        extrude(g, W, poly, -0.24, 0.0, SAND, k=1.08, skip_edges=sk)
+    for (cs, cy, rr, dd) in ((s_eye, y_eye, r_b, -0.66), (s_eye, y_eye, r_b * 0.68, -0.82), (s_eye, y_eye, r_b * 0.36, -0.98),
+                             (s_top - 0.1, y_hi - 0.62, 0.44, -0.64), (s_top - 0.1, y_hi - 0.62, 0.26, -0.8)):
+        poly = [(sg * cs + rr * math.cos(2 * math.pi * i / 14), cy + rr * math.sin(2 * math.pi * i / 14)) for i in range(14)]
+        extrude(g, W, poly, dd, 0.0, SAND, k=1.14)
+    for j in range(5):
+        sc_ = s_top + 0.8 + j * (s_eye - r_b - 1.2 - s_top) / 4
+        yc_ = ytop(sc_) - 0.8
+        leaf = [(sg * sc_ + 0.26 * math.cos(2 * math.pi * i / 8) * (1.0 if i % 2 else 0.7), yc_ + 0.34 * math.sin(2 * math.pi * i / 8))
+                for i in range(8)]
+        extrude(g, W, leaf, -0.18, 0.0, SAND, k=1.06)
+
+
+def angel(g, W, uc, y0, sg, d=-0.5):
+    """A kneeling angel in relief beside the medallion (sg: the side), a wing behind, an arm reaching in."""
+    def P(pts):
+        return [(uc + sg * x, y0 + y) for x, y in pts]
+    body = [(0.05, 0.0), (0.45, -0.05), (0.8, 0.2), (0.9, 0.6), (0.72, 1.05), (0.5, 1.35), (0.3, 1.3), (0.15, 0.95), (0.0, 0.5)]
+    wing = [(0.55, 1.15), (1.05, 1.95), (1.22, 1.5), (1.08, 0.98), (0.82, 0.82)]
+    extrude(g, W, P(wing), d + 0.18, 0.0, PALE, k=1.02)
+    extrude(g, W, P(body), d, 0.0, PALE, k=1.08)
+    hx, hy = uc + sg * 0.42, y0 + 1.55
+    extrude(g, W, [(hx + 0.16 * math.cos(2 * math.pi * i / 10), hy + 0.16 * math.sin(2 * math.pi * i / 10)) for i in range(10)], d - 0.02,
+            -0.1, PALE, k=1.1)
+    extrude(g, W, P([(0.32, 1.08), (0.4, 1.22), (-0.12, 1.42), (-0.16, 1.3)]), d - 0.06, d + 0.2, PALE, back=True, k=1.08)
+
+
+def carolus_terrace(g, F, c):
+    """The terrace before the front (bluestone slabs at Y0), three flights of steps to the doors, the
+    iron railing on a stone kerb with piers between them. The game walks it (shared/carolusPlan.ts)."""
+    TA, Y0, TS, R, T = c["TA"], c["Y0"], c["TS"], c["RISE"], c["TREAD"]
+    FA = c["FA"]
+    nR = round(Y0 / R)
+    a_ft = TA - (nR - 1) * T
+    ss = refine([-TS, TS], SEG)
+    aa = refine([TA, FA], SEG)
+    for s0, s1 in zip(ss, ss[1:]):
+        for a0, a1 in zip(aa, aa[1:]):
+            g.face([F.p(a0, s0, Y0), F.p(a1, s0, Y0), F.p(a1, s1, Y0), F.p(a0, s1, Y0)], BLUE, out=(0, 1, 0))
+    fl = sorted(c["FLIGHTS"])
+    # the terrace's front: the plinth between the flights, the top riser in them
+    edges = [-TS] + [v for f in fl for v in f] + [TS]
+    for i, (s0, s1) in enumerate(zip(edges, edges[1:])):
+        if s1 - s0 < 1e-6:
+            continue
+        in_flight = any(f[0] - 1e-6 <= (s0 + s1) / 2 <= f[1] + 1e-6 for f in fl)
+        y0 = Y0 - R if in_flight else FOOT
+        for a_, b_ in zip(refine([s0, s1], SEG), refine([s0, s1], SEG)[1:]):
+            g.face([F.p(TA, a_, y0), F.p(TA, b_, y0), F.p(TA, b_, Y0), F.p(TA, a_, Y0)], BLUE, out=F.v(-1, 0))
+    for sg in (-1, 1):
+        g.face([F.p(TA, sg * TS, FOOT), F.p(FA, sg * TS, FOOT), F.p(FA, sg * TS, Y0), F.p(TA, sg * TS, Y0)], BLUE, out=F.v(0, sg))
+    for s0, s1 in fl:
+        for kk in range(nR - 1):
+            a0 = a_ft + kk * T
+            y0 = FOOT if kk == 0 else kk * R
+            g.face([F.p(a0, s0, y0), F.p(a0, s1, y0), F.p(a0, s1, (kk + 1) * R), F.p(a0, s0, (kk + 1) * R)], BLUE, out=F.v(-1, 0), k=0.85)
+            g.face([F.p(a0, s0, (kk + 1) * R), F.p(a0, s1, (kk + 1) * R), F.p(a0 + T, s1, (kk + 1) * R), F.p(a0 + T, s0, (kk + 1) * R)],
+                   BLUE, out=(0, 1, 0))
+        side = [(a_ft, FOOT)]
+        for kk in range(nR - 1):
+            side += [(a_ft + kk * T, (kk + 1) * R), (a_ft + (kk + 1) * T, (kk + 1) * R)]
+        side += [(TA, FOOT)]
+        for sg, s_ in ((-1, s0), (1, s1)):
+            g.face([F.p(a_, s_, y_) for a_, y_ in side], BLUE, out=F.v(0, sg), k=0.85)
+    # the railing: kerb, piers, iron
+    ar = TA + 0.15
+    e = TS - c["END"]
+    runs = [((ar, -8.4), (ar, -2.6)), ((ar, 2.6), (ar, 8.4)), ((ar, -e), (FA - 0.06, -e)), ((ar, e), (FA - 0.06, e))]
+    piers = [(ar, -8.4), (ar, -2.6), (ar, 2.6), (ar, 8.4), (ar, -e), (ar, e)]
+    for (a0, s0), (a1, s1) in runs:
+        if abs(a1 - a0) < 1e-6:
+            box(g, F, a0 - 0.13, a0 + 0.13, s0, s1, Y0, Y0 + 0.14, BLUE, skip=("-y",))
+        else:
+            box(g, F, a0, a1, s0 - 0.13, s0 + 0.13, Y0, Y0 + 0.14, BLUE, skip=("-y",))
+        L = math.hypot(a1 - a0, s1 - s0)
+        n = max(2, int(L / 0.13))
+        for yr in (Y0 + 0.24, Y0 + 0.86):
+            bar(g, F.p(a0, s0, yr), F.p(a1, s1, yr), 0.035, IRON, shade=0.9)
+        for i in range(1, n):
+            t = i / n
+            aa_, s_ = a0 + (a1 - a0) * t, s0 + (s1 - s0) * t
+            dx, dz = F.V((a1 - a0) / L * 0.011, (s1 - s0) / L * 0.011)
+            x, _, z = F.p(aa_, s_, 0)
+            yt = Y0 + 0.98
+            g.face([(x - dx, Y0 + 0.14, z - dz), (x + dx, Y0 + 0.14, z + dz), (x + dx, yt, z + dz), (x - dx, yt, z - dz)], IRON,
+                   out=F.v(-1, 0) if abs(a1 - a0) < 1e-6 else F.v(0, -1), shade=0.9)
+            g.face([(x - 3 * dx, yt, z - 3 * dz), (x + 3 * dx, yt, z + 3 * dz), (x, yt + 0.1, z)], IRON,
+                   out=F.v(-1, 0) if abs(a1 - a0) < 1e-6 else F.v(0, -1), shade=0.9)
+    for a_, s_ in piers:
+        box(g, F, a_ - 0.2, a_ + 0.2, s_ - 0.2, s_ + 0.2, Y0, Y0 + 1.0, BLUE, skip=("-y", "+y"))
+        box(g, F, a_ - 0.26, a_ + 0.26, s_ - 0.26, s_ + 0.26, Y0 + 1.0, Y0 + 1.12, BLUE)
+        x, _, z = F.p(a_, s_, 0)
+        lathe(g, (x, Y0 + 1.12, z), [(0.16, 0.0), (0.18, 0.08), (0.1, 0.16), (0.14, 0.28), (0.0, 0.36)], 8, BLUE, rot=math.pi / 8)
+
+
 def carolus(g, fr):
     g.grp = "church_carolus"
     F, D, S = frame_front_open(fr)
-    FA = 0.9  # the front's face
-    FB = FA + 0.8  # its back
-    NV, AW = 5.5, 12.0  # nave half width, aisle outer wall
-    E1, E2 = 10.5, 19.6  # tops of the two lower storeys' entablatures
-    P3, PK = 26.6, 30.0  # the third storey's cornice top, the pediment's apex
-    NE, RID = 25.6, 29.6
-    AE, AH = 17.0, 19.2
-    AC = D - 5.8  # the apse's centre
-    TA0 = AC - 0.7  # the tower's front
+    c = CF
+    FA, FB, NV, AW, TW, FT, TB, Y0 = (c[k] for k in ("FA", "FB", "NV", "AW", "TW", "FT", "TB", "Y0"))
+    G0, G1, G2, B1, M1, M2, B2, C1, C2, PK = (c[k] for k in ("G0", "G1", "G2", "B1", "M1", "M2", "B2", "C1", "C2", "PK"))
+    NE, RID, AE, AH, LK = (c[k] for k in ("NE", "RID", "AE", "AH", "LK"))
+    AC = D - M - NV - 0.2  # the apse's centre
+    TA0 = AC - 0.7  # the tower behind the choir: its front
     HE, HR = 13.0, 17.8  # the Jesuit house: eave, ridge
     CE, CR = 11.0, 15.4  # the Lady Chapel
     SE = 9.8  # the sacristy's high side
     ST = STONE
-    # ---- the front: a slab with three storeys, the top one over the nave only
+    g.grime = carolus_grime
+    soot = [(y, y, SAND) for y in (G1 - 2.4, M1 - 2.4, C1 - 2.4, 1.8)]
     u = lambda s: s + AW  # noqa: E731
-    top = [(0, E2), (u(-6.2), E2), (u(-6.2), P3), (u(0), PK), (u(6.2), P3), (u(6.2), E2), (u(AW), E2)]
-    holes = [Hc(u(0), 3.4, 0.15, 6.6, "round", "door_r", depth=0.55),
-             Hc(u(-4.2), 1.2, 1.9, 5.6, "round", "niche", depth=0.35),
-             Hc(u(4.2), 1.2, 1.9, 5.6, "round", "niche", depth=0.35),
-             Hc(u(0), 3.6, 11.4, 17.8, "round", "round", depth=0.45),
-             Hc(u(-4.2), 1.2, 12.3, 16.4, "round", "niche", depth=0.35),
-             Hc(u(4.2), 1.2, 12.3, 16.4, "round", "niche", depth=0.35),
-             Hc(u(-4.3), 1.0, 20.7, 24.2, "round", "niche", depth=0.3),
-             Hc(u(4.3), 1.0, 20.7, 24.2, "round", "niche", depth=0.3)]
+    # ---- the front: a slab 1 m thick, the ground and middle storeys full width, the crown over the nave
+    top = [(0, B2), (u(-6.5), B2), (u(-6.5), C2), (u(6.5), C2), (u(6.5), B2), (u(AW), B2)]
+    DW, DH = c["DOOR"]
+    holes = [Hc(u(0), DW, Y0, Y0 + DH, "round", "door_main", depth=FB - FA, rmat=BLUE),
+             Hc(u(0), 1.8, 22.6, 26.9, "round", "niche_back", depth=0.7, rmat=SAND, k=0.8)]
     for sg in (-1, 1):
-        holes += [Hc(u(sg * 8.4), 2.2, 0.15, 4.6, "round", "door_r", depth=0.45),
-                  Hc(u(sg * 8.4), 1.3, 5.7, 8.9, "round", "niche", depth=0.35),
-                  Hc(u(sg * 8.4), 1.8, 11.8, 17.0, "round", "round", depth=0.4)]
-    Wf = wall(g, F, (FA, -AW), (FA, AW), (-1, 0), FOOT, E2, ST, top=top, holes=holes)
-    wall(g, F, (FB, -AW), (FB, AW), (1, 0), 15.5, E2, ST, top=top)
+        holes += [Hc(u(sg * 4.45), 1.4, 3.0, 7.9, "round", "niche_back", depth=0.75, rmat=SAND, k=0.8),
+                  Hc(u(sg * 9.35), 1.9, Y0, Y0 + 4.1, "rect", "door_side", depth=0.5, rmat=BLUE),
+                  Hc(u(sg * 9.35), 1.1, 6.7, 8.7, "round", "round", depth=0.4, rmat=SAND),
+                  Hc(u(sg * 4.45), 1.3, 13.6, 18.3, "round", "niche_back", depth=0.7, rmat=SAND, k=0.8),
+                  Hc(u(sg * 9.35), 2.0, 13.6, 17.6, "rect", "win_rect", depth=0.45, rmat=SAND),
+                  Hc(u(sg * 4.1), 1.1, 22.9, 26.4, "round", "niche_back", depth=0.6, rmat=SAND, k=0.8)]
+    Wf = wall(g, F, (FA, -AW), (FA, AW), (-1, 0), FOOT, B2, SAND, top=top, holes=holes, bands=soot)
+    wall(g, F, (FB, -AW), (FB, AW), (1, 0), AE - 0.6, B2, SAND, top=top, k=0.85)
     for (ua, ya), (ub, yb) in zip(top, top[1:]):
         sa, sb = ua - AW, ub - AW
         if abs(ua - ub) < 1e-6:
-            sg = -1 if ya < yb else 1
-            if sa > 0:
-                sg = -sg
-            g.face([F.p(FA, sa, ya), F.p(FB, sa, ya), F.p(FB, sa, yb), F.p(FA, sa, yb)], ST, out=F.v(0, -1 if sa < 0 else 1))
+            g.face([F.p(FA, sa, ya), F.p(FB, sa, ya), F.p(FB, sa, yb), F.p(FA, sa, yb)], SAND, out=F.v(0, -1 if sa < 0 else 1), k=0.85)
         else:
-            g.face([F.p(FA, sa, ya), F.p(FA, sb, yb), F.p(FB, sb, yb), F.p(FB, sa, ya)], ST, out=(0, 1, 0))
-    for sg in (-1, 1):  # the front's ends above the houses' roofs
-        wall(g, F, (FA, sg * AW), (FB, sg * AW), (0, sg), HE - 1.0 if sg < 0 else CE - 1.0, E2, ST)
-    # entablatures, plinth
-    front = lambda s0, s1: [F.P(FA, s0), F.P(FA, s1)]  # noqa: E731
-    # the outside of the front lies to the right of travel from -s to +s? find it
-    d = Vector(F.V(0, 1))
-    right = Vector((d.y, -d.x))
-    sd = 1 if right.dot(Vector(F.V(-1, 0))) > 0 else -1
-    ring_band(g, front(-AW, AW), FOOT, 0.9, 0.14, ST, closed=False, side=sd, caps=(False, False), bottom=False)
-    ring_band(g, front(-AW, AW), 9.7, E1, 0.8, ST, closed=False, side=sd, caps=(False, False))
-    ring_band(g, front(-AW, AW), 18.8, E2, 0.6, ST, closed=False, side=sd)
-    ring_band(g, front(-6.8, 6.8), 26.0, P3, 0.45, ST, closed=False, side=sd)
-    # the pediment's raking cornice
-    chev = [(u(-6.8), 26.3), (u(0), PK + 0.42), (u(6.8), 26.3), (u(6.15), 26.3), (u(0), PK - 0.05), (u(-6.15), 26.3)]
-    extrude(g, Wf, chev, -0.3, 0.05, ST, back=True)
-    # columns below, pilasters above
-    for s in (-11.2, -5.6, -2.8, 2.8, 5.6, 11.2):
-        box(g, F, FA - 0.85, FA + 0.05, s - 0.55, s + 0.55, FOOT, 1.5, ST, skip=("+a", "-y"))
-        prof = [(0.5, 0.0), (0.5, 0.18), (0.42, 0.34), (0.4, 0.5), (0.36, 7.4), (0.44, 7.55), (0.52, 7.8), (0.52, 8.3)]
-        x, y, z = F.p(FA - 0.42, s, 1.5)
-        lathe(g, (x, y, z), prof, 8, ST, rot=0.0)
-        box(g, F, FA - 0.72, FA + 0.05, s - 0.5, s + 0.5, E1 - 0.05, E1 + 0.05 + 0.02, ST, skip=("+a", "-y", "+y"))
-        box(g, F, FA - 0.3, FA + 0.05, s - 0.42, s + 0.42, E1 - 0.02, 18.85, ST, skip=("+a", "-y", "+y"))
-    for s in (-5.72, -2.6, 2.6, 5.72):
-        box(g, F, FA - 0.25, FA + 0.05, s - 0.35, s + 0.35, E2 - 0.02, 26.05, ST, skip=("+a", "-y", "+y"))
-    # the IHS medallion, the volutes, urns, the cross
-    disc(g, Wf, u(0), 22.9, 1.75, "ihs", d_front=-0.28, d_back=0.05, sides=16)
+            g.face([F.p(FA, sa, ya), F.p(FA, sb, yb), F.p(FB, sb, yb), F.p(FB, sa, ya)], SAND, out=(0, 1, 0))
+    for sg in (-1, 1):  # the slab's ends in the stair towers' setback
+        wall(g, F, (FA, sg * AW), (FT, sg * AW), (0, sg), FOOT, B2, SAND, k=0.85)
+    # ---- the orders: pedestals, columns and pilasters, entablatures, the bands between
+    CS = (2.9, 6.0, 12.05)  # free columns (and mirrored)
+    PS = 7.35  # pilasters
+    cols = [sg * s for s in CS for sg in (-1, 1)]
+    pils = [sg * PS for sg in (-1, 1)]
+    storeys = [  # (column base, top, entablature top, radius, order, pedestal half, pedestal depth, extra)
+        (G0, G1, G2, 0.42, "doric", 0.62, 1.25, 0.95),
+        (B1, M1, M2, 0.38, "ionic", 0.58, 1.2, 0.9),
+    ]
+    ped_y = [(Y0, G0), (G2, B1)]
+    for (yb, yt, ye, r, order, ph, pd, ex), (py0, py1) in zip(storeys, ped_y):
+        for s in cols:
+            pedestal(g, F, FA, s, ph, pd, FOOT if (py0 == Y0 and abs(s) > c["TS"]) else py0, py1)
+            column(g, F, FA - pd / 2, s, yb, yt, r, order)
+        for s in pils:
+            pedestal(g, F, FA, s, 0.5, 0.35, py0, py1)
+            pilaster(g, F, FA, s, 0.45, 0.25, yb, yt)
+        ress = [(s - ph, s + ph, ex) for s in cols] + [(s - 0.55, s + 0.55, 0.25) for s in pils]
+        stack(g, F, FA, -AW, AW, entab(yt, ye), ress)
+    # band 1: balustrades between the middle storey's pedestals
+    peds = sorted([(s, 0.58 + 0.09) for s in cols] + [(s, 0.5 + 0.09) for s in pils])
+    edges = [(-AW, -AW)] + [(s - h, s + h) for s, h in peds] + [(AW, AW)]
+    for (_, e0), (e1, _) in zip(edges, edges[1:]):
+        if e1 - e0 > 0.6:
+            balustrade(g, F, FA, e0, e1, G2, B1)
+    # band 2: pedestals for the crown's columns and the vases; balustrades before the volutes
+    CC = (2.3, 5.9)
+    ccols = [sg * s for s in CC for sg in (-1, 1)]
+    vases = [-12.1, 12.1]
+    for s in ccols:
+        pedestal(g, F, FA, s, 0.52, 1.1, M2, B2)
+    for s in vases:
+        pedestal(g, F, FA, s, 0.55, 1.1, M2, B2)
+        x, _, z = F.p(FA - 0.55, s, 0)
+        urn(g, (x, B2, z), 1.5)
+    peds2 = sorted([(s, 0.61) for s in ccols] + [(s, 0.64) for s in vases])
+    edges = [(-AW, -AW)] + [(s - h, s + h) for s, h in peds2] + [(AW, AW)]
+    for (_, e0), (e1, _) in zip(edges, edges[1:]):
+        if e1 - e0 > 0.6:
+            balustrade(g, F, FA, e0, e1, M2, B2)
+    for s in ccols:
+        column(g, F, FA - 0.55, s, B2, C1, 0.34, "corinth")
+    stack(g, F, FA, -6.5, 6.5, entab(C1, C2), [(s - 0.52, s + 0.52, 0.85) for s in ccols])
+    # the plinth of the front's ends, where the terrace does not reach
     for sg in (-1, 1):
-        pts = [(6.15, E2 - 0.05), (11.0, E2 - 0.05)]
-        for i in range(7):
-            tt = i / 6
-            pts.append((11.0 - 4.85 * tt, 20.5 + 5.3 * tt ** 2.2))
-        poly = [(u(sg * s_), y) for s_, y in pts]
-        extrude(g, Wf, poly, -0.38, 0.05, ST, back=True)
-        disc(g, Wf, u(sg * 10.35), 20.4, 0.72, "rose", d_front=-0.55, d_back=-0.35, sides=10)
-        x, y, z = F.p(FA - 0.1, sg * 11.3, E2 - 0.02)
-        lathe(g, (x, y, z), [(0.42, 0.0), (0.42, 0.7), (0.3, 0.78), (0.2, 0.9), (0.42, 1.3), (0.3, 1.65), (0.1, 1.8), (0.18, 2.0),
-                             (0.0, 2.6)], 8, ST, rot=math.pi / 8)
-    x, y, z = F.p(FA + 0.4, 0, PK - 0.1)
-    lathe(g, (x, y, z), [(0.28, 0.0), (0.28, 0.5), (0.2, 0.6), (0.2, 0.75)], 8, ST, rot=math.pi / 8)
-    cross(g, x, y + 0.7, z, 1.9)
+        s0_, s1_ = sorted((sg * c["TS"], sg * AW))
+        stack(g, F, FA, s0_, s1_, [(FOOT, Y0, 0.12, BLUE)], caps=(sg < 0, sg > 0))
+    # ---- the doors
+    ysp = Y0 + DH - DW / 2
+    arch_band(g, Wf, u(0), Y0, ysp, DW, 0.38, -0.2, SAND)
+    extrude(g, Wf, [(u(-0.26), Y0 + DH - 0.05), (u(0.26), Y0 + DH - 0.05), (u(0.36), Y0 + DH + 0.62), (u(-0.36), Y0 + DH + 0.62)],
+            -0.34, 0.0, SAND, k=1.05)
+    # the segmental pediment over the main door, on two consoles
+    Rp, yc_, n_ = 3.56, 8.6 + 0.8 - 3.56, 10
+    t0 = math.asin(2.25 / Rp)
+    for i in range(n_):
+        a0_, a1_ = -t0 + 2 * t0 * i / n_, -t0 + 2 * t0 * (i + 1) / n_
+        poly = [(u(Rp * math.sin(a0_)), yc_ + Rp * math.cos(a0_)), (u(Rp * math.sin(a1_)), yc_ + Rp * math.cos(a1_)),
+                (u((Rp + 0.3) * math.sin(a1_)), yc_ + (Rp + 0.3) * math.cos(a1_)), (u((Rp + 0.3) * math.sin(a0_)), yc_ + (Rp + 0.3) * math.cos(a0_))]
+        extrude(g, Wf, poly, -0.46, 0.0, SAND, skip_edges=tuple(e for e, on in ((3, i > 0), (1, i < n_ - 1)) if on))
+    for sg in (-1, 1):
+        extrude(g, Wf, [(u(sg * 2.05), 8.62), (u(sg * 2.35), 8.62), (u(sg * 2.3), 7.6), (u(sg * 2.12), 7.6)], -0.4, 0.0, SAND)
+    for sg in (-1, 1):
+        uc = u(sg * 9.35)
+        rect_frame(g, Wf, uc, 1.9, Y0, Y0 + 4.1, 0.3, -0.18)
+        disc(g, Wf, uc, 5.3, 0.32, "a_dark", d_front=-0.24, d_back=0.0, sides=12, side_mat=SAND)
+        tri_pediment(g, Wf, uc, 1.38, 5.75, 0.72, -0.36)
+        arch_band(g, Wf, uc, 6.7, 8.15, 1.1, 0.2, -0.14)
+        # the middle storey's windows: frame and pediment
+        rect_frame(g, Wf, uc, 2.0, 13.6, 17.6, 0.28, -0.18)
+        tri_pediment(g, Wf, uc, 1.5, 17.98, 0.78, -0.38)
+        # niches: frames and statues
+        for (s_, yb, yt, w, dep, h, ar, stf) in ((4.45, 3.0, 7.9, 1.4, 0.75, 2.75, 1, sg < 0), (4.45, 13.6, 18.3, 1.3, 0.7, 2.55, -1, False),
+                                                 (4.1, 22.9, 26.4, 1.1, 0.6, 2.2, 1, False)):
+            s_ *= sg
+            arch_band(g, Wf, u(s_), yb, yt - w / 2, w, 0.18, -0.12)
+            niche_statue(g, F, Wf, s_, yb, dep, h, arm=ar * sg, staff=stf)
+    arch_band(g, Wf, u(0), 22.6, 26.9 - 0.9, 1.8, 0.22, -0.14)
+    # St Ignatius's bust in the crown's niche, on a pedestal; the wreath over it
+    box(g, F, FA, FA + 0.62, -0.42, 0.42, 22.6, 23.9, SAND, skip=("-y", "+a"), k=0.95)
+    x, _, z = F.p(FA + 0.3, 0.0, 0)
+    lathe(g, (x, 23.9, z), [(0.46, 0.0), (0.5, 0.08), (0.46, 0.42), (0.2, 0.55), (0.15, 0.62), (0.2, 0.78), (0.19, 0.96), (0.1, 1.06),
+                            (0.0, 1.1)], 8, PALE, rot=math.pi / 8, k=1.1)
+    wr = [(u(0) + 0.62 * math.cos(2 * math.pi * i / 12), 27.0 + 0.3 * math.sin(2 * math.pi * i / 12)) for i in range(12)]
+    extrude(g, Wf, wr, -0.3, 0.0, GILT)
+    # ---- the IHS medallion with its rays, the angels, the winged crown
+    ym = (B1 + M1) / 2
+    for i in range(24):
+        ang = math.pi / 2 + 2 * math.pi * i / 24
+        R = 2.4 if i % 2 == 0 else 1.95
+        cs_, sn_ = math.cos(ang), math.sin(ang)
+        poly = [(u(0) + 1.3 * cs_ + 0.17 * sn_, ym + 1.3 * sn_ - 0.17 * cs_), (u(0) + R * cs_, ym + R * sn_),
+                (u(0) + 1.3 * cs_ - 0.17 * sn_, ym + 1.3 * sn_ + 0.17 * cs_)]
+        extrude(g, Wf, poly, -0.26, 0.0, GILT)
+    disc(g, Wf, u(0), ym, 1.45, "c_ihs", d_front=-0.45, d_back=0.0, sides=20, side_mat=GILT, crop=0.64)
+    for sg in (-1, 1):
+        angel(g, Wf, u(0) + sg * 1.25, ym - 1.3, sg)
+    x, _, z = F.p(FA - 0.4, 0.0, 0)
+    lathe(g, (x, ym + 2.05, z), [(0.3, 0.0), (0.34, 0.1), (0.28, 0.18), (0.36, 0.4), (0.2, 0.44), (0.07, 0.52), (0.1, 0.6), (0.0, 0.68)], 8,
+          GILT, rot=math.pi / 8)
+    for sg in (-1, 1):
+        wing = [(0.22, 0.12), (0.55, -0.12), (1.0, -0.08), (1.3, 0.2), (1.48, 0.62), (1.05, 0.46), (0.5, 0.4)]
+        extrude(g, Wf, [(u(0) + sg * x_, ym + 2.0 + y_) for x_, y_ in wing], -0.34, -0.12, GILT, back=True)
+    # ---- the crown: the volutes, the pediment with its relief, fire-pots and the cross
+    for sg in (-1, 1):
+        volute(g, F, sg, c)
+    half = 6.5
+
+    def ruv(uu, y):
+        return cell_uv("relief", 0.015 + 0.97 * Wf.fu(uu, u(-half), 2 * half), 0.02 + 0.96 * (y - C2) / (PK - C2))
+
+    ptri = [(u(-half), C2), (u(half), C2), (u(0), PK)]
+    extrude(g, Wf, ptri, 0.0, FB - FA, ART, side_mat=SAND, front_uv=ruv, skip_edges=(0,))
+    g.face([Wf.pt(uu, y, FB - FA) for uu, y in ptri], SAND, out=Wf.out(-1), k=0.8)
+    # the relief's masses stand out of the tympanum, each with the picture on its face: the clouds low, the
+    # two angels, the sun proudest
+    cloud = [(5.4, 0.0), (5.1, 0.5), (3.6, 0.75), (2.0, 0.7), (0.9, 0.95), (0.0, 0.7), (-0.9, 0.95), (-2.0, 0.7), (-3.6, 0.75), (-5.1, 0.5),
+             (-5.4, 0.0)]
+    extrude(g, Wf, [(u(x_), C2 + y_) for x_, y_ in cloud], -0.14, 0.0, ART, side_mat=PALE, front_uv=ruv, skip_edges=(len(cloud) - 1,), k=0.95)
+    body = [(4.45, 0.45), (1.0, 0.5), (0.6, 1.3), (0.9, 2.2), (1.6, 2.85), (2.4, 2.55), (3.3, 1.85), (4.15, 1.15)]
+    for sg in (-1, 1):
+        extrude(g, Wf, [(u(sg * x_), C2 + y_) for x_, y_ in body], -0.3, 0.0, ART, side_mat=PALE, front_uv=ruv, k=1.0)
+    sun = [(u(0) + 0.58 * math.cos(2 * math.pi * i / 12), C2 + 2.45 + 0.58 * math.sin(2 * math.pi * i / 12)) for i in range(12)]
+    extrude(g, Wf, sun, -0.4, 0.0, ART, side_mat=GILT, front_uv=ruv, k=1.05)
+    chev = [(u(-7.0), C2), (u(0), PK + 0.55), (u(7.0), C2), (u(6.35), C2), (u(0), PK - 0.1), (u(-6.35), C2)]
+    extrude(g, Wf, chev, -0.5, FB - FA + 0.12, SAND, back=True, skip_edges=(2, 5))
+    for sg in (-1, 1):  # under the raking cornice's feet, past the crown's cornice
+        g.face([F.p(FA - 0.5, sg * 6.5, C2), F.p(FA - 0.5, sg * 7.0, C2), F.p(FB + 0.12, sg * 7.0, C2), F.p(FB + 0.12, sg * 6.5, C2)], SAND,
+               out=(0, -1, 0), k=0.7)
+        x, _, z = F.p(FA - 1.0, sg * 6.0, 0)
+        urn(g, (x, C2, z), 1.05, GILT, fire=True)
+    box(g, F, FA + 0.1, FA + 0.9, -0.38, 0.38, PK + 0.2, PK + 0.85, SAND, skip=("-y",))
+    x, _, z = F.p(FA + 0.5, 0.0, 0)
+    gilt_cross(g, x, PK + 0.85, z, 2.5)
+    # ---- the stair towers (bays 1 and 7), set back; small domed lanterns with gilded pineapples
+    for sg in (-1, 1):
+        s_in, s_out = sg * AW, sg * TW
+        s0_, s1_ = min(s_in, s_out), max(s_in, s_out)
+        th = [Hc(1.25, 0.8, 2.6, 4.8, "round", "round", depth=0.35, rmat=SAND), Hc(1.25, 0.8, 6.3, 8.5, "round", "round", depth=0.35, rmat=SAND),
+              Hc(1.25, 0.9, 14.0, 17.0, "round", "round", depth=0.35, rmat=SAND)]
+        wall(g, F, (FT, s0_), (FT, s1_), (-1, 0), FOOT, B2, SAND, holes=th, bands=soot)
+        wall(g, F, (FB, s_in), (TB, s_in), (0, -sg), FOOT, B2, SAND, k=0.9)
+        wall(g, F, (FT, s_out), (TB, s_out), (0, sg), (HE if sg < 0 else CE) - 1.0, B2, SAND, k=0.9)
+        wall(g, F, (TB, s0_), (TB, s1_), (1, 0), LK - 0.4, B2, SAND, k=0.85)
+        g.face([F.p(FT, s0_, B2), F.p(TB, s0_, B2), F.p(TB, s1_, B2), F.p(FT, s1_, B2)], LEAD, out=(0, 1, 0))
+        e0, e1 = (s0_ + 0.03, s1_) if sg < 0 else (s0_, s1_ - 0.03)
+        cp = (True, False) if sg < 0 else (False, True)
+        stack(g, F, FT, e0, e1, [(FOOT, Y0, 0.12, BLUE)], caps=cp)
+        stack(g, F, FT, e0, e1, entab(G1, G2), caps=cp)
+        stack(g, F, FT, e0, e1, entab(M1, M2), caps=cp)
+        for y0_, y1_ in ((G2, B1), (M2, B2)):
+            box(g, F, FT - 0.16, FT, e0, e1, y0_, y1_, SAND, skip=("+a", "-y", "-s" if sg > 0 else "+s"))
+        for sq in (sg * 13.25, sg * 14.85):
+            for (y0_, y1_) in ((Y0, G1), (B1, M1)):
+                pilaster(g, F, FT, sq, 0.3, 0.2, y0_, y1_)
+        # the lantern
+        tc = F.P((FT + TB) / 2, sg * (AW + TW) / 2)
+        box(g, F, (FT + TB) / 2 - 1.2, (FT + TB) / 2 + 1.2, sg * (AW + TW) / 2 - 1.2, sg * (AW + TW) / 2 + 1.2, B2, B2 + 0.4, BLUE,
+            skip=("-y",))
+        R8 = 1.05
+        oc = poly_walls(g, tc, R8, 8, math.pi / 8, B2 + 0.4, B2 + 3.2, SAND,
+                        holes=lambda i, L: [Hc(L / 2, 0.42, B2 + 0.9, B2 + 2.5, "round", "louv_r", depth=0.2)] if i % 2 == 0 else [])
+        ring_band(g, oc, B2 + 2.95, B2 + 3.25, 0.16, BLUE)
+        lathe(g, (tc[0], B2 + 3.25, tc[1]), [(1.18, 0.0), (1.1, 0.4), (0.9, 0.85), (0.58, 1.2), (0.25, 1.38), (0.2, 1.52)], 8, SAND,
+              rot=math.pi / 8, k=0.95)
+        pineapple(g, (tc[0], B2 + 3.25 + 1.5, tc[1]), 1.1)
     # ---- nave, aisles, apse
-    clere = lambda L_: [Hc(a - FB, 1.8, 20.3, 24.5, "round", "round", depth=0.4) for a in (5.2, 10.4, 15.6, 20.8, 26.0) if a < FB + L_ - 1.2]  # noqa: E731
-    wall(g, F, (FB, -NV), (AC, -NV), (0, -1), 18.0, NE, ST, holes=clere(AC - FB))
-    wall(g, F, (FB, NV), (TA0, NV), (0, 1), 18.0, NE, ST, holes=clere(TA0 - FB))
+    wall(g, F, (FB, -NV), (AC, -NV), (0, -1), AH - 0.6, NE, SAND)
+    wall(g, F, (FB, NV), (TA0, NV), (0, 1), AH - 0.6, NE, SAND)
     gable_roof(g, F, FB, AC, -NV, NV, NE, RID, oe=(0.4, 0.4), og=(0, 0), caps=(True, True, False, False))
-    gal = lambda L_: [Hc(a - FB, 1.5, 13.8, 16.4, "round", "round", depth=0.35) for a in (5.2, 10.4, 15.6, 20.8, 26.0) if a < FB + L_ - 1.0]  # noqa: E731
-    wall(g, F, (FB, -AW), (AC, -AW), (0, -1), FOOT, AE, ST, holes=gal(AC - FB))
-    wall(g, F, (FB, AW), (TA0, AW), (0, 1), FOOT, AE, ST, holes=gal(TA0 - FB))
+    gal = lambda a0, a1: [Hc(a - a0, 1.7, 11.4, 15.0, "round", "round", depth=0.35) for a in (6.4, 10.2, 14.0, 17.8, 21.6, 25.4)  # noqa: E731
+                          if a0 + 1.2 < a < a1 - 1.2]
+    wall(g, F, (TB, -AW), (AC, -AW), (0, -1), FOOT, AE, SAND, holes=gal(TB, AC))
+    wall(g, F, (TB, AW), (TA0, AW), (0, 1), FOOT, AE, SAND, holes=gal(TB, TA0))
     lean_to(g, F, FB, AC, -AW, -NV, AE, AH, oe=0.4, og=(0, 0.3), caps=(True, False, True))
     lean_to(g, F, FB, TA0, AW, NV, AE, AH, oe=0.4, og=(0, 0), caps=(True, False, False))
-    wall(g, F, (AC, -AW), (AC, -NV), (1, 0), FOOT, AE, ST, top=[(0, AE), (AW - NV, AH)])
-    apse_walls(g, F, AC, NV, FOOT, NE, ST, holes=lambda i, L: [Hc(L / 2, 1.5, 12.2, 20.5, "round", "round", depth=0.4)] if 1 <= i <= 3 else [])
+    wall(g, F, (AC, -AW), (AC, -NV), (1, 0), FOOT, AE, SAND, top=[(0, AE), (AW - NV, AH)])
+    apse_walls(g, F, AC, NV, FOOT, NE, SAND, holes=lambda i, L: [Hc(L / 2, 1.5, 11.0, 18.5, "round", "round", depth=0.4)] if 1 <= i <= 3 else [])
     apse_roof(g, F, AC, NV, NE, RID, oe=0.4)
     # ---- the tower behind the choir
     a0, a1, s0, s1 = TA0, D - M, NV, AW
@@ -1520,7 +2184,6 @@ def carolus(g, fr):
     sq2 = rect_pts(F, a0 + q, a1 - q, s0 + q, s1 - q)
     ring_between(g, tc, sq, sq2, T1, ST)
     T2 = 36.0
-    lw = (s1 - s0) - 2 * q
     for (A, Bq, out) in (((a0 + q, s0 + q), (a0 + q, s1 - q), (-1, 0)), ((a1 - q, s1 - q), (a1 - q, s0 + q), (1, 0)),
                          ((a1 - q, s0 + q), (a0 + q, s0 + q), (0, -1)), ((a0 + q, s1 - q), (a1 - q, s1 - q), (0, 1))):
         L_ = math.hypot(*(Vector(F.P(*Bq)) - Vector(F.P(*A))))
@@ -1537,23 +2200,21 @@ def carolus(g, fr):
     dome = [(R8 * 0.97, 0.0), (2.35, 0.55), (2.05, 1.25), (1.5, 1.95), (0.85, 2.45), (0.62, 2.6), (0.62, 4.1), (0.82, 4.15),
             (0.82, 4.3), (0.62, 4.35), (0.35, 5.0), (0.12, 5.35), (0.2, 5.55), (0.0, 5.8)]
     lathe(g, (tc[0], T3 - 0.05, tc[1]), dome, 8, LEAD, rot=rot8)
-    cross(g, tc[0], T3 + 5.7, tc[1], 1.6)
-    # ---- the Jesuit house (left) and the Lady Chapel (right)
-    hs0, hs1 = -S + M, -AW
+    gilt_cross(g, tc[0], T3 + 5.7, tc[1], 1.8)
+    # ---- the Jesuit house (left) and the Lady Chapel (right), and the low ranges behind the stair towers
+    g.grime = None
+    hs0, hs1 = -S + M, -TW
     hw_ = hs1 - hs0
-    hu = lambda s: s - hs0  # noqa: E731
     wins = []
     for yb in (1.4, 5.4, 9.4):
-        for uc in (hw_ * 0.2, hw_ * 0.5, hw_ * 0.8):
-            if yb < 2 and abs(uc - hw_ / 2) < 1:
-                continue
+        for uc in (hw_ * 0.25, hw_ * 0.75):
             wins.append(Hc(uc, 1.1, yb, yb + 1.75, "rect", "hwin", depth=0.22))
     hb_ = [(FOOT, 0.8, ST), (4.5, 4.75, ST), (8.5, 8.75, ST), (HE - 0.35, HE, ST)]
     wall(g, F, (M, hs1), (M, hs0), (-1, 0), FOOT, HE, BRICK, top=[(0, HE), (hw_ / 2, HR), (hw_, HE)],
-         holes=[Hc(hw_ - uc_.u0 - 0.55, 1.1, uc_.yb, uc_.yt, "rect", "hwin", depth=0.22) for uc_ in wins]
-         + [Hc(hw_ / 2, 1.7, 0.15, 3.4, "round", "door_r", depth=0.35), Hc(hw_ / 2, 0.9, HE + 0.6, HE + 2.0, "rect", "hwin", depth=0.2)],
+         holes=[Hc(hw_ - w_.u0 - 0.55, 1.1, w_.yb, w_.yt, "rect", "hwin", depth=0.22) for w_ in wins]
+         + [Hc(hw_ / 2, 0.9, HE + 0.6, HE + 2.0, "rect", "hwin", depth=0.2)],
          bands=hb_)
-    wall(g, F, (0.0 + M, hs1), (FA, hs1), (0, 1), FOOT, HE, BRICK, bands=hb_)
+    wall(g, F, (M, hs1), (FT, hs1), (0, 1), FOOT, HE, BRICK, bands=hb_)
     sw = [Hc(a, 1.1, yb, yb + 1.75, "rect", "hwin", depth=0.22) for yb in (1.4, 5.4, 9.4) for a in np.arange(2.2, D - 1.5, 3.3)
           if not (yb < 2 and abs(a - D / 2) < 1.8)]
     wall(g, F, (M, hs0), (D - M, hs0), (0, -1), FOOT, HE, BRICK, holes=sw + [Hc(D / 2 - M, 1.5, 0.15, 3.2, "round", "door_r", depth=0.3)],
@@ -1561,33 +2222,46 @@ def carolus(g, fr):
     wall(g, F, (D - M, hs0), (D - M, hs1), (1, 0), FOOT, HE, BRICK, top=[(0, HE), (hw_ / 2, HR), (hw_, HE)],
          holes=[Hc(uc, 1.1, yb, yb + 1.75, "rect", "hwin", depth=0.22) for yb in (5.4, 9.4) for uc in (hw_ * 0.3, hw_ * 0.7)],
          bands=hb_)
-    wall(g, F, (AC, hs1), (D - M, hs1), (0, 1), FOOT, HE, BRICK, bands=hb_,
-         holes=[Hc((D - M - AC) / 2, 1.0, 10.6, 12.2, "rect", "hwin", depth=0.2)])
-    gable_roof(g, F, M, D - M, hs0, hs1, HE, HR, oe=(0.4, 0.0), og=(0.3, 0.3), caps=(True, False, True, True))
+    wall(g, F, (TB, hs1), (D - M, hs1), (0, 1), FOOT, HE, BRICK, bands=hb_,
+         holes=[Hc(a - TB, 1.0, 11.0, 12.4, "rect", "hwin", depth=0.2) for a in np.arange(7.0, D - 2.0, 4.4)])
+    gable_roof(g, F, M, D - M, hs0, hs1, HE, HR, oe=(0.4, 0.3), og=(0.3, 0.3), caps=(True, True, True, True))
     for a in (D * 0.3, D * 0.72):
         box(g, F, a - 0.5, a + 0.5, hs0 + hw_ * 0.5 - 0.6, hs0 + hw_ * 0.5 + 0.6, HR - 1.0, HR + 1.3, BRICK, skip=("-y",), top_mat=ST)
-    cs0, cs1 = AW, S - M - 0.3
+    cs0, cs1 = TW, S - M - 0.3
     cw_ = cs1 - cs0
     wall(g, F, (M, cs0), (M, cs1), (-1, 0), FOOT, CE, ST, top=[(0, CE), (cw_ / 2, CR), (cw_, CE)],
          holes=[Hc(cw_ / 2, 2.0, 0.15, 4.4, "round", "door_r", depth=0.4), Hc(cw_ / 2, 1.6, 5.6, 9.6, "round", "round", depth=0.35)])
     Wc = plane(g, F, (M, cs0), (M, cs1), (-1, 0))
     disc(g, Wc, cw_ / 2, 12.7, 0.75, "rose", d_front=-0.15, d_back=0.05, sides=12)
-    wall(g, F, (M, cs0), (FA, cs0), (0, -1), FOOT, CE, ST)
+    wall(g, F, (M, cs0), (FT, cs0), (0, -1), FOOT, CE, ST)
+    wall(g, F, (TB, cs0), (D - M, cs0), (0, -1), FOOT, CE, ST)
     wall(g, F, (M, cs1), (D - M, cs1), (0, 1), FOOT, CE, ST,
          holes=[Hc(a - M, 1.6, 4.4, 9.2, "round", "round", depth=0.35) for a in (4.2, 9.4, 14.6, 19.8, 25.0, 30.2) if a < D - 2])
     for a in (1.6, 6.8, 12.0, 17.2, 22.4, 27.6, 32.8):
         if a < D - M - 0.5:
             box(g, F, a - 0.4, a + 0.4, cs1 - 0.05, S - M + 0.05, FOOT, CE - 0.6, ST, skip=("-s", "-y"))
     wall(g, F, (D - M, cs1), (D - M, cs0), (1, 0), FOOT, CE, ST, top=[(0, CE), (cw_ / 2, CR), (cw_, CE)])
-    ring_band(g, [F.P(M, cs0), F.P(M, cs1)], CE - 0.5, CE, 0.25, ST, closed=False, side=sd, caps=(False, True))
-    gable_roof(g, F, M, D - M, cs0, cs1, CE, CR, oe=(0.0, 0.4), og=(0.3, 0.3), caps=(False, True, True, True))
+    d_ = Vector(F.V(0, 1))
+    right = Vector((d_.y, -d_.x))
+    sd = 1 if right.dot(Vector(F.V(-1, 0))) > 0 else -1
+    ring_band(g, [F.P(M, cs0), F.P(M, cs1)], CE - 0.5, CE, 0.25, ST, closed=False, side=sd, caps=(True, True))
+    gable_roof(g, F, M, D - M, cs0, cs1, CE, CR, oe=(0.3, 0.4), og=(0.3, 0.3), caps=(True, True, True, True))
+    for sg in (-1, 1):  # the low ranges between the house or chapel and the aisle, behind the stair towers
+        s0_, s1_ = sorted((sg * AW, sg * TW))
+        g.face([F.p(TB, s0_, LK), F.p(D - M, s0_, LK), F.p(D - M, s1_, LK), F.p(TB, s1_, LK)], LEAD, out=(0, 1, 0))
+        wall(g, F, (D - M, s0_), (D - M, s1_), (1, 0), FOOT, LK, BRICK)
     # ---- the sacristy behind the left aisle
     wall(g, F, (AC, -NV), (D - M, -NV), (0, 1), FOOT, 8.0, ST,
          holes=[Hc((D - M - AC) / 2, 1.2, 3.0, 6.0, "round", "round", depth=0.3)])
     wall(g, F, (D - M, -AW), (D - M, -NV), (1, 0), FOOT, SE, ST, top=[(0, SE), (AW - NV, 8.0)])
     lean_to(g, F, AC, D - M, -NV, -AW, 8.0, SE, oe=0.35, og=(0, 0.3), caps=(True, False, True))
-    # a garden wall behind the apse, from the sacristy to the tower
     garden_wall(g, [F.P(D - M - 0.2, -NV), F.P(D - M - 0.2, NV)], 3.4, ST)
+    # ---- the terrace, the flights, the railing (colliders and heights: shared/carolusPlan.ts)
+    g.grime = carolus_grime
+    carolus_terrace(g, F, c)
+    g.grime = None
+    print(f"[build_churches] carolus: frame o {F.o}, a along {F.ua}, s along {F.us}; front at a {FA}, door {DW} x {DH} "
+          f"(sill {Y0}), apse centre a {AC:.2f}, stair towers a {FT}..{TB}")
 
 
 # ------------------------------------------------------------------ Sint-Pauluskerk
@@ -2492,7 +3166,7 @@ def export():
                               export_materials="EXPORT", export_apply=False, use_selection=False, export_extras=True,
                               export_vertex_color="ACTIVE", export_all_vertex_colors=True,
                               export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=7,
-                              export_draco_position_quantization=20, export_draco_texcoord_quantization=12,
+                              export_draco_position_quantization=20, export_draco_texcoord_quantization=16,
                               export_draco_color_quantization=8, export_draco_normal_quantization=8)
 
 
@@ -2604,6 +3278,8 @@ def plane_check(path):
         cnt = Counter((it[3], it[4], it[5], it[6]) for it in lst)
         for k_, v_ in cnt.most_common(12):
             print(f"   {lab} by part: {v_} x {k_}")
+            ys_ = Counter(round(x[2][1], 1) for x in lst if (x[3], x[4], x[5], x[6]) == k_)
+            print(f"        at y: {ys_.most_common(8)}")
             for it in [x for x in lst if (x[3], x[4], x[5], x[6]) == k_][:3]:
                 print(f"        e.g. {it[:3]}")
     for it in sorted(fights, key=lambda x: -x[0])[:25]:
