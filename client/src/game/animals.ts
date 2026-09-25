@@ -17,9 +17,14 @@ const DOGS: AnimalKind[] = ["dog_brown", "dog_black", "dog_spotted", "dog_grey"]
 const CATS: AnimalKind[] = ["cat_tabby", "cat_black", "cat_ginger", "cat_white"];
 
 /** How far to lower the root so the body rests on the ground (build_animals.py report). */
-const DROP: Record<string, { sit: number; lie: number }> = { dog: { sit: 0.261, lie: 0.23 }, dog_grey: { sit: 0.288, lie: 0.253 }, cat: { sit: 0.131, lie: 0.139 } };
-/** Metres per loop of walk and run. */
+const DROP: Record<string, { sit: number; lie: number }> = { dog: { sit: 0.276, lie: 0.23 }, dog_grey: { sit: 0.304, lie: 0.253 }, cat: { sit: 0.131, lie: 0.139 } };
+/** Metres per loop of walk and run (build_animals.py report: the paws stay planted at this). */
 const STRIDE: Record<string, { walk: number; run: number }> = { dog: { walk: 0.452, run: 1.125 }, dog_grey: { walk: 0.497, run: 1.24 }, cat: { walk: 0.21, run: 0.531 } };
+/** Above this ground speed (m/s) the run clip reads better than a hurried walk. */
+const RUN_FROM: Record<string, number> = { dog: 1.3, dog_grey: 1.4, cat: 0.8 };
+/** The walk cycle shows from this measured speed (m/s) and stops below the lower one. */
+const MOVE_ON = 0.2;
+const MOVE_OFF = 0.15;
 
 interface Template {
   roots: Map<string, THREE.Object3D>;
@@ -95,7 +100,14 @@ export class Animal {
   private readonly mixer: THREE.AnimationMixer;
   private readonly actions = new Map<AnimalMotion, THREE.AnimationAction>();
   private current: THREE.AnimationAction | null = null;
+  /** The clip that shows now (walk or run only while the animal really goes). */
   motion: AnimalMotion | null = null;
+  /** Asked to go (walk or run): the clip follows the measured ground speed. Null = a still pose. */
+  private gait: "walk" | "run" | null = null;
+  /** Ground speed in m/s, measured from where the group really went (smoothed). */
+  speed = 0;
+  private readonly last = new THREE.Vector3();
+  private hasLast = false;
   private drop = 0;
   private readonly key: string;
 
@@ -113,7 +125,20 @@ export class Animal {
     if (this.current) this.current.time = Math.random() * this.current.getClip().duration;
   }
 
+  /**
+   * Walk and run are a wish: the legs move only while the animal really goes, at the pace of
+   * the ground it covers (update()). Held against a wall it stands. Any other motion shows now.
+   */
   play(m: AnimalMotion, fade = 0.25): void {
+    if (m === "walk" || m === "run") {
+      this.gait = m;
+      return;
+    }
+    this.gait = null;
+    this.show(m, fade);
+  }
+
+  private show(m: AnimalMotion, fade = 0.25): void {
     if (this.motion === m) return;
     const next = this.actions.get(m) ?? this.actions.get("idle");
     if (!next) return;
@@ -124,15 +149,31 @@ export class Animal {
     this.current = next;
   }
 
-  /** Match the feet to the ground speed. */
-  setPace(speed: number): void {
-    const s = STRIDE[this.key];
-    const loop = (m: AnimalMotion, stride: number) => this.actions.get(m)?.setEffectiveTimeScale(Math.max(0.3, speed / stride));
-    if (this.motion === "run") loop("run", s.run);
-    else loop("walk", s.walk);
-  }
+  /** Kept for callers from before 2026-09-24: the pace now follows the measured ground speed. */
+  setPace(_speed: number): void {}
 
   update(dt: number): void {
+    // how fast it really goes (a jump of more than 2 m is a placement, not a step)
+    const p = this.group.getWorldPosition(tmp);
+    if (this.hasLast && dt > 0.004) {
+      const d = Math.hypot(p.x - this.last.x, p.z - this.last.z);
+      const inst = d > 2 ? 0 : d / dt;
+      this.speed += (inst - this.speed) * Math.min(1, dt * 10);
+    }
+    this.last.copy(p);
+    this.hasLast = true;
+    if (this.gait) {
+      const going = this.motion === "walk" || this.motion === "run";
+      if (this.speed > (going ? MOVE_OFF : MOVE_ON)) {
+        const runFrom = RUN_FROM[this.key];
+        const run = this.speed > (this.motion === "run" ? runFrom - 0.2 : runFrom);
+        const m: AnimalMotion = run ? "run" : "walk";
+        this.show(m, 0.2);
+        // one loop of the clip is one stride: loops per second = speed / stride
+        const act = this.actions.get(m);
+        if (act) act.setEffectiveTimeScale((this.speed * act.getClip().duration) / STRIDE[this.key][m === "run" ? "run" : "walk"]);
+      } else if (going || this.motion === null) this.show("idle", 0.2);
+    }
     this.mixer.update(dt);
     const want = this.motion === "sit" ? -DROP[this.key].sit : this.motion === "lie" ? -DROP[this.key].lie : 0;
     this.drop += (want - this.drop) * Math.min(1, dt * 5);
@@ -145,6 +186,7 @@ export class Animal {
     this.group.removeFromParent();
   }
 }
+const tmp = new THREE.Vector3();
 
 export function makeAnimal(kind: AnimalKind): Animal | null {
   if (!template) {
@@ -157,8 +199,16 @@ export function makeAnimal(kind: AnimalKind): Animal | null {
 
 // ------------------------------------------------------------------ the animals of the town
 
+type V = { x: number; z: number };
+
 export interface AnimalGround {
   isFree(x: number, z: number, r: number): boolean;
+  /** Open ground on the people's walk grid round Jef (crowd.ts) and free of colliders. */
+  canStand?(x: number, z: number): boolean;
+  /** The nearest open point of that grid, or null. */
+  openNear?(x: number, z: number): V | null;
+  /** A walk on that grid from a to b (corner points, the last one b), or null when there is no way. */
+  path?(ax: number, az: number, bx: number, bz: number): V[] | null;
 }
 
 interface Beast {
@@ -169,17 +219,42 @@ interface Beast {
   /** A person to follow (their dog), by a getter; null = a stray or a cat. */
   owner: (() => { x: number; z: number; yaw: number; walking: boolean } | null) | null;
   ownerId: string | null;
-  goal: { x: number; z: number } | null;
+  goal: V | null;
+  /** The corners still to pass on the way to the goal (the last one is the goal). */
+  route: V[];
   speed: number;
   timer: number;
   /** Cats: running from something until this runs out. */
   scared: number;
+  /** Seconds on end that its steps got (almost) nowhere. */
   stuck: number;
+  /** An owner's dog: how long it could not get to heel; when to look for the way again; a short wait after a dead end. */
+  lost: number;
+  repath: number;
+  hold: number;
 }
 
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const pick = <T>(xs: T[]): T => xs[Math.floor(Math.random() * xs.length)];
 const angDiff = (a: number, b: number) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
+const beast = (a: Animal, x: number, z: number, yaw: number, extra: Partial<Beast> = {}): Beast => ({
+  a,
+  x,
+  z,
+  yaw,
+  owner: null,
+  ownerId: null,
+  goal: null,
+  route: [],
+  speed: 1,
+  timer: 0,
+  scared: 0,
+  stuck: 0,
+  lost: 0,
+  repath: 0,
+  hold: 0,
+  ...extra,
+});
 
 export class Animals {
   private beasts: Beast[] = [];
@@ -213,7 +288,9 @@ export class Animals {
     const a = makeAnimal(kind);
     if (!a) return;
     this.scene.add(a.group);
-    this.beasts.push({ a, x: at.x + 0.8, z: at.z + 0.8, yaw: 0, owner, ownerId, goal: null, speed: 0, timer: 0, scared: 0, stuck: 0 });
+    // at her side if there is room, else where she stands (it steps out from there)
+    const side = this.ground.isFree(at.x + 0.8, at.z + 0.8, 0.22) ? { x: at.x + 0.8, z: at.z + 0.8 } : { x: at.x, z: at.z };
+    this.beasts.push(beast(a, side.x, side.z, 0, { owner, ownerId, speed: 0 }));
   }
 
   removeDog(ownerId: string): void {
@@ -260,65 +337,171 @@ export class Animals {
       else this.cat(b, dt, dogs, player);
       const show = d < fogFar + 5;
       b.a.group.visible = show;
-      if (show) b.a.update(dt);
+      // placed first: the animal measures the ground it really covers and sets its legs by that
       b.a.group.position.set(b.x, 0, b.z);
       b.a.group.rotation.y = b.yaw;
+      if (show) b.a.update(dt);
     }
   }
 
   // ---- moving
 
-  /** One step toward (tx, tz) at speed; false if the way is shut. */
-  private step(b: Beast, tx: number, tz: number, speed: number, dt: number): boolean {
+  /** One step toward (tx, tz) at speed, sliding along what is in the way. */
+  private step(b: Beast, tx: number, tz: number, speed: number, dt: number): void {
     const dx = tx - b.x;
     const dz = tz - b.z;
     const L = Math.hypot(dx, dz);
-    if (L < 0.05) return true;
+    if (L < 0.02) return;
     const s = Math.min(L, speed * dt);
     const r = b.a.species === "dog" ? 0.22 : 0.12;
     let nx = b.x + (dx / L) * s;
     let nz = b.z + (dz / L) * s;
     if (!this.ground.isFree(nx, nz, r)) {
-      // slide along what is in the way
       if (this.ground.isFree(nx, b.z, r)) nz = b.z;
       else if (this.ground.isFree(b.x, nz, r)) nx = b.x;
-      else {
-        b.stuck += dt;
-        return false;
-      }
+      else return;
     }
-    b.stuck = 0;
-    b.yaw += angDiff(Math.atan2(nx - b.x, nz - b.z), b.yaw) * Math.min(1, dt * 8);
+    if (Math.hypot(nx - b.x, nz - b.z) > 1e-4) b.yaw += angDiff(Math.atan2(nx - b.x, nz - b.z), b.yaw) * Math.min(1, dt * 8);
     b.x = nx;
     b.z = nz;
+  }
+
+  /**
+   * Along the route to the goal: "there", "going", or "stuck" (0.4 s on end of getting almost
+   * nowhere: a wall, a cart, a person in the way). The legs move only while it really goes (Animal).
+   */
+  private go(b: Beast, speed: number, dt: number): "there" | "going" | "stuck" {
+    const next = b.route[0] ?? b.goal;
+    if (!next) return "there";
+    b.a.play(speed > 1.6 ? "run" : "walk");
+    const L = Math.hypot(next.x - b.x, next.z - b.z);
+    const x0 = b.x;
+    const z0 = b.z;
+    if (L > 0.25) this.step(b, next.x, next.z, speed, dt);
+    if (Math.hypot(next.x - b.x, next.z - b.z) <= 0.25) {
+      b.stuck = 0;
+      if (b.route.length > 1) {
+        b.route.shift();
+        return "going";
+      }
+      b.route = [];
+      return "there";
+    }
+    const moved = Math.hypot(b.x - x0, b.z - z0);
+    if (moved < Math.min(L, speed * dt) * 0.35) b.stuck += dt;
+    else b.stuck = Math.max(0, b.stuck - dt * 2);
+    return b.stuck > 0.4 ? "stuck" : "going";
+  }
+
+  /** Is the straight way from a to b free for a body of radius r? */
+  private lineFree(ax: number, az: number, bx: number, bz: number, r: number): boolean {
+    const L = Math.hypot(bx - ax, bz - az);
+    const n = Math.max(1, Math.ceil(L / 0.25));
+    for (let i = 1; i <= n; i++) if (!this.ground.isFree(ax + ((bx - ax) * i) / n, az + ((bz - az) * i) / n, r)) return false;
     return true;
   }
 
-  private moveTo(b: Beast, tx: number, tz: number, speed: number, dt: number): void {
-    b.a.play(speed > 1.6 ? "run" : "walk");
-    b.a.setPace(speed);
-    this.step(b, tx, tz, speed, dt);
+  /**
+   * Aim for (x, z) only if it can get there: straight when the way is free, else on the people's
+   * walk grid (round the houses, at most maxLen long). False = no way; it stays where it is.
+   */
+  private aim(b: Beast, x: number, z: number, maxLen = 35): boolean {
+    const g = this.ground;
+    const r = b.a.species === "dog" ? 0.25 : 0.14;
+    if (g.isFree(x, z, r) && this.lineFree(b.x, b.z, x, z, r)) {
+      b.goal = { x, z };
+      b.route = [b.goal];
+      b.stuck = 0;
+      return true;
+    }
+    if (!g.path || !g.openNear || !g.canStand) return false;
+    const q = g.openNear(x, z);
+    if (!q || !g.canStand(q.x, q.z)) return false;
+    const way = g.path(b.x, b.z, q.x, q.z);
+    if (!way?.length) return false;
+    // the grid keeps half a metre off the walls: from a doorstep, first out onto it
+    if (!g.canStand(b.x, b.z)) {
+      const s = g.openNear(b.x, b.z);
+      if (!s || !this.lineFree(b.x, b.z, s.x, s.z, r)) return false;
+      way.unshift(s);
+    }
+    let len = 0;
+    let px = b.x;
+    let pz = b.z;
+    for (const p of way) {
+      len += Math.hypot(p.x - px, p.z - pz);
+      px = p.x;
+      pz = p.z;
+    }
+    if (len > maxLen) return false;
+    b.goal = q;
+    b.route = way;
+    b.stuck = 0;
+    return true;
   }
 
   private follow(b: Beast, dt: number, hidden: (x: number, z: number) => boolean): void {
     const o = b.owner!();
     if (!o) return;
-    // at heel: a little behind and to the left
-    const tx = o.x - Math.sin(o.yaw) * 1.1 + Math.cos(o.yaw) * 0.6;
-    const tz = o.z - Math.cos(o.yaw) * 1.1 - Math.sin(o.yaw) * 0.6;
-    const d = Math.hypot(tx - b.x, tz - b.z);
-    if (d > 12 || b.stuck > 2) {
-      // lost the way round a corner: catch up where nobody sees it
-      if (hidden(b.x, b.z) && hidden(tx, tz)) {
-        b.x = tx;
-        b.z = tz;
-        b.stuck = 0;
+    // at heel: a little behind and to the left; along a house front that spot is in the wall,
+    // so then right behind, or the nearest open ground
+    let tx = o.x - Math.sin(o.yaw) * 1.1 + Math.cos(o.yaw) * 0.6;
+    let tz = o.z - Math.cos(o.yaw) * 1.1 - Math.sin(o.yaw) * 0.6;
+    if (!this.ground.isFree(tx, tz, 0.25)) {
+      const bx = o.x - Math.sin(o.yaw) * 0.9;
+      const bz = o.z - Math.cos(o.yaw) * 0.9;
+      const q = this.ground.isFree(bx, bz, 0.25) ? { x: bx, z: bz } : this.ground.openNear?.(tx, tz);
+      if (q) {
+        tx = q.x;
+        tz = q.z;
       }
     }
-    if (d > 0.5) {
-      this.moveTo(b, tx, tz, d > 3 ? 2.6 : Math.max(0.8, Math.min(1.6, d)), dt);
+    const d = Math.hypot(tx - b.x, tz - b.z);
+    if ((d > 12 || b.lost > 2) && hidden(b.x, b.z) && hidden(tx, tz)) {
+      // lost the way round a corner: catch up where nobody sees it
+      b.x = tx;
+      b.z = tz;
+      b.lost = 0;
+      b.route = [];
+      b.stuck = 0;
+      return;
+    }
+    if (b.hold > 0) {
+      // a dead end: it stands and looks at her a moment, then tries again
+      b.hold -= dt;
+      b.yaw += angDiff(Math.atan2(o.x - b.x, o.z - b.z), b.yaw) * Math.min(1, dt * 3);
+      return;
+    }
+    // off it goes when she is a metre off, and it stops within half a metre (no dithering at heel)
+    if (d > (b.route.length ? 0.5 : 1.0)) {
+      b.repath -= dt;
+      if (b.repath <= 0 || !b.route.length) {
+        b.repath = 0.7;
+        if (!this.aim(b, tx, tz, 60)) {
+          b.goal = { x: tx, z: tz };
+          b.route = [b.goal];
+        }
+      } else if (b.route.length === 1) {
+        // straight at her: keep up with where she is now
+        b.goal = { x: tx, z: tz };
+        b.route[0] = b.goal;
+      }
+      const r = this.go(b, d > 3 ? 2.6 : Math.max(0.8, Math.min(1.6, d)), dt);
+      if (r === "there") b.route = [];
+      else if (r === "stuck") {
+        // as near as the wall lets it (that is heel), or a dead end: it waits a moment, then tries again
+        const near = d < 1.6;
+        if (!near) b.lost += 0.6;
+        b.route = [];
+        b.stuck = 0;
+        b.hold = near ? 1.5 : 0.6;
+        b.a.play(near ? pick(["sit", "idle"]) : "idle");
+      } else b.lost = Math.max(0, b.lost - dt);
       b.timer = rnd(2, 6);
     } else {
+      b.lost = 0;
+      b.route = [];
+      if (b.a.motion !== "sit" && b.a.motion !== "lie" && b.a.motion !== "sniff") b.a.play("idle");
       b.yaw += angDiff(o.yaw, b.yaw) * Math.min(1, dt * 3);
       if ((b.timer -= dt) <= 0) {
         b.a.play(o.walking ? "idle" : pick(["sit", "sit", "sniff", "lie", "idle"]));
@@ -329,23 +512,40 @@ export class Animals {
 
   private stray(b: Beast, dt: number, player: { x: number; z: number }): void {
     if (b.goal) {
-      this.moveTo(b, b.goal.x, b.goal.z, b.speed, dt);
-      if (Math.hypot(b.goal.x - b.x, b.goal.z - b.z) < 0.4 || b.stuck > 0.6) {
+      const r = this.go(b, b.speed, dt);
+      if (r !== "going") {
         b.goal = null;
-        b.a.play(pick(["sniff", "sniff", "idle", "sit", "lie"]));
-        b.timer = rnd(2, 9);
+        b.route = [];
+        b.a.play(r === "there" ? pick(["sniff", "sniff", "idle", "sit", "lie"]) : pick(["sniff", "idle"]));
+        b.timer = r === "there" ? rnd(2, 9) : rnd(0.5, 2);
       }
       return;
     }
     if ((b.timer -= dt) > 0) return;
-    // trot off somewhere, now and then over to Jef for a sniff
+    // trot off somewhere it can get to, now and then over to Jef for a sniff
     const toJef = Math.random() < 0.15 && Math.hypot(player.x - b.x, player.z - b.z) < 20;
-    const a = Math.random() * Math.PI * 2;
-    const r = rnd(4, 14);
     // fish scraps nearby: over there, nose down (the stop plays sniff)
     const scrap = !toJef && Math.random() < 0.5 ? this.scraps.find((q) => Math.hypot(q.x - b.x, q.z - b.z) < 30 && Math.hypot(q.x - b.x, q.z - b.z) > 1) : undefined;
-    b.goal = toJef ? { x: player.x + rnd(-1, 1), z: player.z + rnd(-1, 1) } : scrap ? { x: scrap.x + rnd(-0.4, 0.4), z: scrap.z + rnd(-0.4, 0.4) } : { x: b.x + Math.cos(a) * r, z: b.z + Math.sin(a) * r };
     b.speed = Math.random() < 0.25 ? rnd(2.2, 3.2) : rnd(0.8, 1.3);
+    let ok = toJef ? this.aim(b, player.x + rnd(-1, 1), player.z + rnd(-1, 1)) : scrap ? this.aim(b, scrap.x + rnd(-0.4, 0.4), scrap.z + rnd(-0.4, 0.4)) : false;
+    for (let i = 0; !ok && i < 6; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = rnd(4, 14);
+      ok = this.aim(b, b.x + Math.cos(a) * r, b.z + Math.sin(a) * r);
+    }
+    if (!ok) b.timer = rnd(1, 3);
+  }
+
+  /** A way out for a frightened cat: away from the fright, or as near that as the walls allow. */
+  private flee(b: Beast, ux: number, uz: number): boolean {
+    for (const turn of [0, 0.6, -0.6, 1.2, -1.2, 1.9, -1.9]) {
+      const c = Math.cos(turn);
+      const s = Math.sin(turn);
+      const dx = ux * c - uz * s;
+      const dz = ux * s + uz * c;
+      for (const dist of [7, 4]) if (this.aim(b, b.x + dx * dist, b.z + dz * dist, dist * 2.5)) return true;
+    }
+    return false;
   }
 
   private cat(b: Beast, dt: number, dogs: Beast[], player: { x: number; z: number }): void {
@@ -355,51 +555,65 @@ export class Animals {
     let fear = 0;
     for (const d of dogs) {
       const dd = Math.hypot(d.x - b.x, d.z - b.z);
-      if (dd < 5) {
+      if (dd < 5 && dd > 1e-3) {
         tx += (b.x - d.x) / dd;
         tz += (b.z - d.z) / dd;
         fear++;
       }
     }
     const pd = Math.hypot(player.x - b.x, player.z - b.z);
-    if (pd < 1.6) {
+    if (pd < 1.6 && pd > 1e-3) {
       tx += (b.x - player.x) / pd;
       tz += (b.z - player.z) / pd;
       fear++;
     }
     if (fear) {
-      const L = Math.hypot(tx, tz) || 1;
-      b.goal = { x: b.x + (tx / L) * 8, z: b.z + (tz / L) * 8 };
-      b.scared = rnd(2, 3.5);
+      if (b.scared <= 0) {
+        b.goal = null;
+        b.route = [];
+        b.timer = 0;
+      }
+      b.scared = Math.max(b.scared, rnd(2, 3.5));
     }
     if (b.scared > 0) {
       b.scared -= dt;
-      if (b.goal) this.moveTo(b, b.goal.x, b.goal.z, 3.2, dt);
-      if (b.stuck > 0.4 && b.goal) {
-        // cornered: try another way
-        const a = Math.random() * Math.PI * 2;
-        b.goal = { x: b.x + Math.cos(a) * 6, z: b.z + Math.sin(a) * 6 };
-        b.stuck = 0;
+      b.timer -= dt;
+      if (!b.goal && fear && b.timer <= 0) {
+        const L = Math.hypot(tx, tz) || 1;
+        // cornered: it crouches where it is and looks again in a moment
+        if (!this.flee(b, tx / L, tz / L)) b.timer = 0.8;
       }
+      if (b.goal) {
+        const r = this.go(b, 3.2, dt);
+        if (r !== "going") {
+          b.goal = null;
+          b.route = [];
+          b.timer = r === "stuck" ? 0.3 : 0;
+        }
+      }
+      if (!b.goal) b.a.play("idle");
       if (b.scared <= 0) {
         b.goal = null;
+        b.route = [];
         b.a.play("sit");
         b.timer = rnd(5, 20);
       }
       return;
     }
     if (b.goal) {
-      this.moveTo(b, b.goal.x, b.goal.z, 0.45, dt);
-      if (Math.hypot(b.goal.x - b.x, b.goal.z - b.z) < 0.3 || b.stuck > 1) {
+      const r = this.go(b, 0.45, dt);
+      if (r !== "going") {
         b.goal = null;
+        b.route = [];
         b.a.play(pick(["sit", "lie", "sit"]));
-        b.timer = rnd(8, 25);
+        b.timer = r === "there" ? rnd(8, 25) : rnd(2, 6);
       }
       return;
     }
     if ((b.timer -= dt) <= 0) {
       const a = Math.random() * Math.PI * 2;
-      b.goal = { x: b.x + Math.cos(a) * rnd(2, 5), z: b.z + Math.sin(a) * rnd(2, 5) };
+      const r = rnd(2, 5);
+      if (!this.aim(b, b.x + Math.cos(a) * r, b.z + Math.sin(a) * r, 10)) b.timer = rnd(2, 6);
     }
   }
 
@@ -415,11 +629,12 @@ export class Animals {
       const d = rnd(18, 55);
       const x = player.x + Math.cos(a) * d;
       const z = player.z + Math.sin(a) * d;
-      if (!hidden(x, z) || !this.free(x, z, 0.4)) continue;
+      // on the walk grid, so that it has somewhere to go from there
+      if (!hidden(x, z) || !this.free(x, z, 0.4) || (this.ground.canStand && !this.ground.canStand(x, z))) continue;
       const an = makeAnimal(pick(DOGS));
       if (!an) return;
       this.scene.add(an.group);
-      this.beasts.push({ a: an, x, z, yaw: Math.random() * 6.28, owner: null, ownerId: null, goal: null, speed: 1, timer: rnd(0, 3), scared: 0, stuck: 0 });
+      this.beasts.push(beast(an, x, z, Math.random() * 6.28, { timer: rnd(0, 3) }));
       return;
     }
   }
@@ -438,7 +653,7 @@ export class Animals {
       if (!an) return;
       this.scene.add(an.group);
       an.play(pick(["sit", "lie", "sit"]), 0);
-      this.beasts.push({ a: an, x, z, yaw: Math.random() * 6.28, owner: null, ownerId: null, goal: null, speed: 0, timer: rnd(5, 20), scared: 0, stuck: 0 });
+      this.beasts.push(beast(an, x, z, Math.random() * 6.28, { speed: 0, timer: rnd(5, 20) }));
       return;
     }
   }

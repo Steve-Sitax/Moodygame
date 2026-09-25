@@ -14,6 +14,8 @@ import { OUTSIDE, WATER } from "./world/city";
 import { water as tideWater } from "./world/tide";
 import { BOARD_POS, DOSS_POS, RAMP, SPOTS, buildRijnkaai } from "./world/rijnkaai";
 import { InWorld } from "./world/inworld";
+import { loadHousePlans } from "./world/houses";
+import { LanternLights } from "./world/lanternLights";
 import { FirstPerson } from "./player/firstPerson";
 import { Soundscape, type VehicleSound } from "./audio/soundscape";
 import { Jobs } from "./game/jobs";
@@ -29,9 +31,11 @@ import { Rowing } from "./game/rowing";
 import { Journeys } from "./game/journeys";
 import { Market } from "./game/market";
 import { setLitterClock } from "./world/litter";
+import { clutterInfo, streetEndCheck } from "./world/clutter";
 import { createTrades } from "./world/trades";
 import { createSteenLife } from "./world/steenlife";
 import { Actions } from "./game/actions";
+import { Hearses } from "./game/hearses";
 import { Bubbles } from "./game/bubbles";
 import { Events } from "./game/events";
 import { TownLife } from "./game/townlife";
@@ -46,11 +50,15 @@ import { Landmarks } from "./game/landmarks";
 import { Ballads } from "./game/ballads";
 import { Handcarts } from "./game/handcart";
 import { routeClips } from "./dev/routeClips";
+import { checkSigns } from "./dev/signcheck";
 import { Lively } from "./game/lively";
 import { Steps } from "./game/steps";
 import { Hands } from "./game/hands";
 import { figureNav } from "./game/figures";
+import { FerryArrival } from "./game/ferryArrival";
 import { JUMPS, makeTestKit } from "./dev/testkit";
+import { QuestBoxes } from "./game/questboxes";
+import { Nightlife } from "./game/nightlife";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const startEl = document.getElementById("start") as HTMLDivElement;
@@ -59,6 +67,15 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPrefer
 renderer.setPixelRatio(1);
 
 const world = buildRijnkaai();
+// carried lanterns light the world: a pool of real lights (the nearest throws shadows), ground pools
+// for the rest (world/lanternLights.ts). Made before any shader is built: it switches shadows on.
+const lanternLights = new LanternLights(world.scene, renderer, (x, z, feet) => world.groundAt(x, z, 0, feet));
+/** How dark it is by the clock, 0..1 (deeds.ts reckons Jef's lantern the same way). */
+function lanternDark(): number {
+  const h = jobs.day.hourF;
+  const dark = h >= 19.5 || h < 5.5 ? 1 : h >= 18 ? (h - 18) / 1.5 : h < 7 ? (7 - h) / 1.5 : 0;
+  return Math.max(0, Math.min(1, dark));
+}
 const player = new FirstPerson(world, canvas);
 const retro = new RetroPass(renderer);
 // M7 rendering: what cannot be seen is not drawn: beyond the fog, behind the houses, the mirrors'
@@ -67,6 +84,8 @@ const cull = new Culler(world.scene, {
   heights: world.city.ready.then(() => buildHeightfield(world.city.flags, WATER, OUTSIDE)),
   waterTop: () => Math.max(tideWater.river, tideWater.dock, tideWater.chamberA, tideWater.chamberB),
   paused: () => player.fly,
+  // M7 taverns and homes: inside a city house its own walls would hide the street out of its windows
+  noOcclusion: () => !!inWorld.here?.budgeted,
 });
 retro.cull = cull;
 // M7: interiors in the world, drawn through their doors (world/inworld.ts): the cathedral first
@@ -106,7 +125,13 @@ const crowd = new Crowd(
 );
 // the town's residents (M3e): homes, families, trades and days, from the server;
 // their dogs and the cats; the market stalls and shop fronts (game/town.ts)
-const animals = new Animals(world.scene, { isFree: (x, z, r) => world.isFree(x, z, r) });
+// the animals walk where the people walk: goals they can reach, on the crowd's walk grid
+const animals = new Animals(world.scene, {
+  isFree: (x, z, r) => world.isFree(x, z, r),
+  canStand: (x, z) => crowd.canStand(x, z),
+  openNear: (x, z) => crowd.openNear(x, z),
+  path: (ax, az, bx, bz) => crowd.pathOn(ax, az, bx, bz),
+});
 const stalls = new Stalls({ scene: world.scene, addCollider: world.addCollider });
 const town = new Town(world, crowd, jobs.people, animals, stalls);
 // M3i: market days on the Vismarkt and the Grote Markt (game/market.ts), and the working
@@ -145,6 +170,9 @@ journeys.onJefVelos = () => void deeds.load();
 const events = new Events(world, town, stalls);
 const bubbles = new Bubbles(town);
 const actions = new Actions(world, player, town, crowd, events);
+// M7 funeral: the hearse of a funeral's departure (game/hearses.ts); the column walks after it
+const hearses = new Hearses(world, town);
+actions.hearses = hearses;
 actions.say = (t) => jobs.say(t);
 actions.onPayload = (p) => {
   events.set(p);
@@ -189,12 +217,16 @@ interiors.say = (t) => jobs.say(t);
 interiors.sfx = (n) => sound?.indoors(() => sound?.play(n));
 interiors.speak = (at, v, s) => sound?.indoors(() => sound?.speech(at, v, s));
 interiors.roomSound = (k) => sound?.setInterior(k);
+// M7: while a tavern is open its keeper and drinkers are inside, at the counter and the tables
+town.tavernInside = (pl) => interiors.tavernOpen(pl);
 // M6 homes: rooms to rent, the night at home, furniture from the second-hand dealer (game/homes.ts); its door keys before the interiors' street keys
 const homes = new Homes(world, player, jobs, interiors);
 jobs.extraActions.unshift((x, z) => homes.keys(x, z));
 homes.say = (t) => jobs.say(t);
 // M6 landmark interiors: the cathedral, the town hall, the Vleeshuis, the Steen, the Oostershuis (game/landmarks.ts)
 const landmarks = new Landmarks(player, jobs, interiors);
+// M7 funeral: an event's people come out of the cathedral once their figure inside has walked to the door
+actions.insideFig = (id) => landmarks.hasFig(id);
 jobs.extraActions.unshift((x, z) => landmarks.keys(x, z));
 landmarks.say = (t) => jobs.say(t);
 landmarks.sfx = (n) => sound?.indoors(() => sound?.play(n));
@@ -204,6 +236,20 @@ landmarks.speak = (at, v, s) => sound?.indoors(() => sound?.speech(at, v, s));
 // M7: the cathedral's hall stands in the world; Jef walks in through the west door (world/cathedralInWorld.ts)
 landmarks.attachWorld(world, inWorld);
 landmarks.roomSound = (k) => sound?.setInterior(k);
+// M7 taverns and homes: the taverns, the Poesje and the homes stand inside their own city houses; walked into
+// through their doors, seen through their windows (world/houseInWorld.ts, shared/housePlan.ts)
+void loadHousePlans().then((plans) => {
+  interiors.attachWorld(world, inWorld, plans);
+  homes.attachWorld(inWorld, plans);
+});
+{
+  const dayK = () => {
+    const h = jobs.day.hourF;
+    return Math.max(0, Math.min(1, h < 12 ? (h - 6.5) / 3 : (18.5 - h) / 3));
+  };
+  interiors.daylight = dayK;
+  homes.daylight = dayK;
+}
 landmarks.daylight = () => {
   const h = jobs.day.hourF;
   const day = Math.max(0, Math.min(1, h < 12 ? (h - 6.5) / 3 : (18.5 - h) / 3));
@@ -240,6 +286,8 @@ events.eventSound = (k, at, s) => sound?.eventSound(k, at, s) ?? null;
 // fixes 2026-09-24: the job figures (a thief, a stranger, a foreman) walk the crowd's grid, never over the water
 figureNav.path = (ax, az, bx, bz) => crowd.pathOn(ax, az, bx, bz);
 figureNav.water = (x, z) => world.isWater(x, z);
+// M7 ferry arrival: a new game begins on the ferry's deck at the Werf pontoon (game/ferryArrival.ts)
+const ferry = new FerryArrival({ world, player, say: (t) => jobs.say(t), path: (ax, az, bx, bz) => crowd.pathOn(ax, az, bx, bz) });
 events.eventCues = (cues, at, s) => sound?.eventCues(cues, at, s) ?? null;
 events.say = (t) => jobs.say(t);
 // M6 town life: the lamplighters, the house fire and its bucket chain, the naties' hiring at dawn (game/townlife.ts)
@@ -302,9 +350,24 @@ lively.sfx = {
   bell: (at) => void sound?.eventSound("handbell", at, 3),
 };
 lively.load().catch((e) => console.warn("the lively streets did not load", e));
+// M7 night: the employers' quest boxes by their doors (game/questboxes.ts), and the gangs (game/nightlife.ts)
+const boxes = new QuestBoxes(world, jobs.people, town);
+boxes.clock = () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF });
+jobs.boxes = boxes;
+const night = new Nightlife(world, player, jobs, town);
+night.indoors = () => interiors.inside || landmarks.indoors;
+{
+  const onPush = jobs.onPush;
+  jobs.onPush = (m) => {
+    onPush(m);
+    night.handlePush(m);
+  };
+}
+void night.load();
 town
   .load()
   .then(() => {
+    boxes.build();
     for (const r of town.data!.residents) if (r.wares.length) jobs.talk.setWares(r.id, r.wares);
     void families.load();
     return market.build();
@@ -389,7 +452,7 @@ if (import.meta.env.DEV) {
             )
             .catch((e) => String(e)),
       },
-      ...["wedding", "funeral", "musicians", "emigrant_ship", "fish_auction", "quarrel", "scuffle", "street_robbery", "house_fire", "hiring"].map((t) => ({
+      ...["wedding", "funeral", "musicians", "emigrant_ship", "fish_auction", "quarrel", "scuffle", "street_robbery", "house_fire", "hiring", "tavern_brawl", "burglary", "smuggling", "night_watch"].map((t) => ({
         label: `Event: ${t.replace("_", " ")}`,
         run: () =>
           api
@@ -410,8 +473,8 @@ function start(): void {
     // in a puddle the step splashes (world/puddlemask.ts: the same puddles the ground shows)
     player.onStep = (surface, hurry) => {
       // M6: inside a room the steps are the room's, not the street's
-      // M7: and in the cathedral's nave in the world
-      const indoors = interiors.inside || landmarks.inCathedral;
+      // M7: and in the cathedral's nave in the world (M7 halls: and in any hall in the world)
+      const indoors = interiors.inside || landmarks.indoors;
       const step = () => sound?.footstep(surface, hurry, surface === "stone" && !indoors ? puddleAt(player.x, player.z, 1.1) : 0);
       if (indoors) sound?.indoors(step);
       else step();
@@ -515,6 +578,7 @@ function frame(): void {
   elapsed += dt;
   safe("refreshFolk", refreshFolk);
   safe("world.update", () => world.update(elapsed, dt, player.camera));
+  safe("ferry.update", () => ferry.update(dt));
   safe("player.update", () => player.update(dt));
   safe("handcarts.update", () => handcarts.update(dt));
   safe("interiors.update", () => interiors.update(dt));
@@ -522,6 +586,8 @@ function frame(): void {
   safe("landmarks.update", () => landmarks.update(dt));
   safe("interiors.sway", () => interiors.sway(dt));
   safe("jobs.update", () => jobs.update(dt));
+  safe("boxes.update", () => boxes.update(elapsed));
+  safe("night.update", () => night.update(dt));
   safe("craneClimb.update", () => craneClimb.update(dt));
   safe("crowd.setHour", () => crowd.setHour(jobs.day.hour));
   safe("crowd.update", () => crowd.update(dt, player, player.camera));
@@ -538,6 +604,7 @@ function frame(): void {
   safe("hands.update", () => hands.update(dt, routinesRun()));
   safe("families.update", () => families.update(dt));
   safe("events.update", () => events.update(dt, player));
+  safe("hearses.update", () => hearses.update(dt, player, events.list));
   safe("townLife.update", () => townLife.update(dt, player, jobs.day.hourF));
   safe("bubbles.update", () => bubbles.update(dt, player.camera));
   safe("ballads.update", () => ballads.update(dt, player.camera));
@@ -546,7 +613,8 @@ function frame(): void {
   safe("emigrants.update", () => emigrants.update(dt));
   safe("lively.update", () => lively.update(dt, player, player.camera, crowd.fogDistance));
   safe("animals.update", () => animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7));
-  safe("sound.setCrowd", () => sound?.setCrowd(crowd.stats.drawn));
+  // the murmur follows the people near Jef, not everyone in view (audio/soundscape.ts setCrowdAround)
+  safe("sound.setCrowd", () => sound?.setCrowdAround(crowd.positions()));
   safe("sound.setRain", () => sound?.setRain(psxUniforms.uRain.value));
   safe("sound.update", () => sound?.update(player.camera));
   safe("vehicles and people wiring", () => {
@@ -597,8 +665,11 @@ function frame(): void {
     if (bus && !bus.onResidentOff) bus.onResidentOff = (_b, id, at) => journeys.offBus(id, at);
   }
   });
-  // M6: inside a room, its own scene instead of the street
-  retro.render(interiors.prepareRender(player.camera) ?? world.scene, player.camera, elapsed);
+  safe("lanternLights.update", () => {
+    lanternLights.update(dt, player.camera, lanternDark());
+  });
+  // M7: every room stands in the world now (world/inworld.ts draws it through its openings)
+  retro.render(world.scene, player.camera, elapsed);
   }
 requestAnimationFrame(frame);
 
@@ -683,6 +754,7 @@ if (import.meta.env.DEV) {
     actions,
     events,
     townLife,
+    hearses,
     bubbles,
     interiors,
     families,
@@ -695,14 +767,42 @@ if (import.meta.env.DEV) {
     steps,
     hands,
     lively,
+    /** M7 ferry arrival: info(true) shows the deck, devIdle(s) skips the ferryman's patience. */
+    ferry,
+    /** M7 night: the quest boxes (info()), the gangs (info(), answer(how)). */
+    boxes,
+    night,
     /** M6 handcart: where a dray, a handcart or an omnibus round touches a wall or a fixed thing (should be []). */
     routeClips: () => routeClips(world, []),
-    /** M6: a picture inside the room Jef is in, camera at `from` looking at `to` (room frame: x across, y up, z into the house). */
+    /** Clutter: the street ends at the water or the map edge still open (should be []); `all` lists every end and how it is closed. */
+    streetEnds: (all = false) => streetEndCheck(all),
+    /** Clutter: what was placed, and the alleys found (through or dead end, props, closure). */
+    clutter: () => clutterInfo(),
+    /** Every sign, plate, number and bill on the house walls: off its wall, past a corner, over a window or door, or overlapping another (should list nothing). */
+    signs: () => {
+      const sl = world.streetLife();
+      return sl ? checkSigns(world.scene, world.city.group, sl) : "street life not loaded yet";
+    },
+    /** Z-fight check (dev/zfight.ts): faces of the static world in one plane that overlap, and layers too close to their surface, by cause (M3c pass 5). */
+    zfight: async (opts = {}) => (await import("./dev/zfight")).checkZFight(world.scene, world.city.flags, opts),
+    /** M7 halls: the checks of the halls in the world (dev/hallcheck.ts): pictures, the walk through a door (pops), holes in a hall. */
+    halls: async () => {
+      const d = (window as unknown as { __scheldemist: { step(s: number): void; shot(n: string): Promise<string> } }).__scheldemist;
+      return (await import("./dev/hallcheck")).makeHallCheck({ halls: () => landmarks.inWorldHalls, player, world, inWorld, renderer, render: (cam, t) => retro.render(world.scene, cam, t), update: (dt) => d.step(dt), shot: (n) => d.shot(n) });
+    },
+    /** M7 taverns and homes: the halls' checks (walk, gaps, shot) for the in-world houses, by id ("tavern:ankere", "home:garret"). */
+    houses: async () => {
+      const d = (window as unknown as { __scheldemist: { step(s: number): void; shot(n: string): Promise<string> } }).__scheldemist;
+      // a house in the world has what the checks read of a hall: its id, its plan (a HallPlan) and its frame
+      const all = () => [...interiors.inWorldHouses, ...homes.inWorldHouses] as unknown as typeof landmarks.inWorldHalls;
+      return (await import("./dev/hallcheck")).makeHallCheck({ halls: all, player, world, inWorld, renderer, render: (cam, t) => retro.render(world.scene, cam, t), update: (dt) => d.step(dt), shot: (n) => d.shot(n) });
+    },
+    /** M6: a picture inside the room of the tavern or home near Jef, camera at `from` looking at `to` (room frame: x across, y up, z into the house). */
     async shotIn(name: string, from: [number, number, number], to: [number, number, number]) {
       const cam = player.camera;
       const keep = { p: cam.position.clone(), q: cam.quaternion.clone() };
       if (!interiors.devCamera(cam, from, to)) return "not inside";
-      retro.render(interiors.prepareRender(cam)!, cam, elapsed);
+      retro.render(world.scene, cam, elapsed);
       const url = canvas.toDataURL("image/jpeg", 0.85);
       cam.position.copy(keep.p);
       cam.quaternion.copy(keep.q);
@@ -714,7 +814,7 @@ if (import.meta.env.DEV) {
     /** M6 ideas: the page on screen over the game picture, to data/shots/<name>.jpg. */
     pageShot: (name: string) => {
       crowd.update(0.0001, player, player.camera);
-      retro.render(interiors.prepareRender(player.camera) ?? world.scene, player.camera, elapsed);
+      retro.render(world.scene, player.camera, elapsed);
       return ideas.pageShot(name, canvas);
     },
     emigrants,
@@ -765,6 +865,8 @@ if (import.meta.env.DEV) {
       for (const q of emigrants.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M6 homes: every home's door and the second-hand dealer
       for (const q of homes.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      // M7 taverns and homes: inside the houses by their own plans (world/houseInWorld.ts)
+      bad.push(...interiors.insidePathProblems(), ...homes.insidePathProblems());
       // M6 landmark interiors: every landmark door
       for (const q of landmarks.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M6 ballads: the ballad singer's corners
@@ -773,6 +875,10 @@ if (import.meta.env.DEV) {
       for (const q of handcarts.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M6 lively: the stalls against the cathedral, the Madonnas' stands, the beggars' places, every stop of a round
       for (const q of lively.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      // M7 ferry arrival: while the ferry lies at the pontoon, Jef's place on her deck
+      for (const q of ferry.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      // M7 night: every employer's quest box by his door
+      for (const q of boxes.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       if (!can(DOSS_POS.x, DOSS_POS.z, 2.0)) bad.push("the doss house gate");
       if (!can(RAMP.x - 0.6, RAMP.zHigh - 1.0, 2.4)) bad.push("the mate on deck");
       return bad;
@@ -823,7 +929,8 @@ if (import.meta.env.DEV) {
       for (let i = 0; i < n; i++) {
         renderer.info.reset();
         world.update(elapsed, 1 / 60, player.camera);
-        retro.render(interiors.prepareRender(player.camera) ?? world.scene, player.camera, elapsed);
+        lanternLights.redraw();
+        retro.render(world.scene, player.camera, elapsed);
         gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
         calls = renderer.info.render.calls;
         tris = renderer.info.render.triangles;
@@ -838,12 +945,15 @@ if (import.meta.env.DEV) {
       for (let t = 0; t < seconds; t += dt) {
         elapsed += dt;
         world.update(elapsed, dt);
+        ferry.update(dt);
         player.update(dt);
         handcarts.update(dt);
         interiors.update(dt);
         homes.update(dt);
         landmarks.update(dt);
         jobs.update(dt);
+        boxes.update(elapsed);
+        night.update(dt);
         crowd.update(dt, player, player.camera);
         town.update(dt, player);
         journeys.update(dt, player);
@@ -858,6 +968,7 @@ if (import.meta.env.DEV) {
         hands.update(dt, routinesRun());
         families.update(dt);
         events.update(dt, player);
+        hearses.update(dt, player, events.list);
         townLife.update(dt, player, jobs.day.hourF);
         bubbles.update(dt, player.camera);
         ballads.update(dt, player.camera);
@@ -866,6 +977,7 @@ if (import.meta.env.DEV) {
         emigrants.update(dt);
         lively.update(dt, player, player.camera, crowd.fogDistance);
         animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
+        lanternLights.update(dt, player.camera, lanternDark());
       }
     },
     info() {
@@ -887,6 +999,8 @@ if (import.meta.env.DEV) {
     town,
     jobs,
     events,
+    boxes,
+    night,
     step: (s) => dev.step(s),
     shotFrom: (n, f, t, fog) => dev.shotFrom(n, f, t, fog),
     audio: () => sound as unknown as { ctx: BaseAudioContext } | null,
@@ -895,6 +1009,6 @@ if (import.meta.env.DEV) {
 
 // M7 rendering, dev: the culler and the renderer for checks (__scheldemist.cull), and the view's numbers
 if (import.meta.env.DEV) {
-  Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, { cull, renderer, retro });
+  Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, { cull, renderer, retro, lanternLights });
   mountCullHud(cull);
 }

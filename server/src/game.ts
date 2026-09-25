@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { DB } from "./db.ts";
-import { ALL_EMPLOYERS, listJobs, type JobRow, type Progress } from "./hooks/jobBoard.ts";
+import { ALL_EMPLOYERS, jobById, type JobRow, type Progress } from "./hooks/jobBoard.ts";
 import { remember } from "./npcs.ts";
 
 // Engine rules. Numbers change here and nowhere else (docs/03 rule one).
@@ -44,9 +44,13 @@ export class GameError extends Error {
   }
 }
 
+/**
+ * A job by its id. M7 night: whatever its day (a job taken before midnight and settled after it, the
+ * night's work taken after midnight); what may be done with it is its status's business.
+ */
 export function job(db: DB, id: number): JobRow {
-  const j = listJobs(db, player(db).day).find((r) => r.id === id);
-  if (!j) throw new GameError("no such job on today's board", 404);
+  const j = jobById(db, id);
+  if (!j || !["offered", "taken", "done", "failed"].includes(j.status)) throw new GameError("no such job on today's board", 404);
   return j;
 }
 
@@ -84,8 +88,30 @@ export const ReportSchema = z.object({
   thief: z.enum(["none", "chased", "stole"]).default("none"),
   bribe_taken: z.boolean().default(false),
   seen_away: z.boolean().default(false),
+  /**
+   * M7 night: settled at the employer's quest box (he is at home asleep). The facts are the ones
+   * held when the work was done (holdJob); the box pays at once, as the employer would.
+   */
+  box: z.boolean().optional(),
 });
 export type Report = z.infer<typeof ReportSchema>;
+
+/** The report held for the box, on the job's task (holdJob). */
+type Held = { held?: Report; held_min?: number };
+
+/**
+ * M7 night: the work is done but the employer has gone home. The facts wait on the job until Jef
+ * drops the proof in the box at the employer's door (finishJob with box). Nothing is paid yet.
+ */
+export function holdJob(db: DB, id: number, report: Report, gameMin: number): JobRow {
+  const j = job(db, id);
+  if (j.status !== "taken" || !j.task) throw new GameError("that job is not in hand", 409);
+  if (j.source === "night") throw new GameError("night work is paid by the man who gave it", 409);
+  const held: Report = { ...report, box: false };
+  db.prepare("UPDATE job SET task_json = ? WHERE id = ?").run(JSON.stringify({ ...j.task, held, held_min: gameMin }), id);
+  log(db, "job_held", String(id), `Jef finished the work of "${j.title}" after ${j.employer_name} had gone home; the proof is for the box at the door.`);
+  return job(db, id);
+}
 
 export interface Settlement {
   pay_c: number;
@@ -201,7 +227,11 @@ export const settleExtras: Array<(db: DB, j: JobRow, s: Settlement) => void> = [
 export function finishJob(db: DB, id: number, report: Report, rng?: () => number) {
   const j = job(db, id);
   if (j.status !== "taken") throw new GameError("that job is not in hand", 409);
+  // M7 night: the facts held when the work was done (the client sends only where it is paid: the box, or his hand)
+  const held = (j.task as unknown as Held | null)?.held;
+  if (held) report = { ...held, box: report.box === true };
   const s = settle(j, report, rng);
+  if (report.box) s.facts.push(`${j.employer_name} was abed; Jef dropped the proof in the box at the door and took his pay from it.`);
   // M6 ideas: a job that went wrong (ideas/trouble.ts) adds its engine-set pay change and facts
   for (const f of settleExtras) f(db, j, s);
   const faction = ALL_EMPLOYERS[j.employer_npc]?.faction;
@@ -216,6 +246,13 @@ export function finishJob(db: DB, id: number, report: Report, rng?: () => number
     // a parcel for this job leaves your pocket, whatever happened to it
     db.prepare("DELETE FROM item WHERE job_id = ?").run(id);
   })();
+  // M7 night: the employer finds it in the box in the morning, and remembers (may say so next day)
+  if (report.box) {
+    remember(db, j.employer_npc, `Jef finished my job "${j.title}" at night while I was abed, left the proof in my box at the door and took his ${s.pay_c} centimes from it.`, 4, "seen", null, {
+      gist: `Jef did a job for ${j.employer_name} at night and was paid from the box`,
+      tone: s.trust_delta > 0 ? 1 : 0,
+    });
+  }
   const p = player(db);
   return { job: job(db, id), settlement: s, money_c: p.money_c };
 }

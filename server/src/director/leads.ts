@@ -65,6 +65,9 @@ const NOT_FOR_WEDDING = new Set(["police", "priest", "thief", "beggar", "soldier
 const MUSICIAN_TRADES = ["sailor", "retired", "beggar", "docker", "boatman", "carter"];
 const STRONG = ["docker", "natie", "porter", "carter", "boatman", "sailor", "brewer"];
 
+/** Townspeople's models with a load of their own (client/src/game/crowd.ts: the carter pushes his cart). */
+const LADEN_KINDS = new Set(["carter", "porter", "docker_sack"]);
+
 /** Does this resident fit this role (before the pairing and the distance)? */
 export function fitsLead(r: Resident, role: LeadRole, keeperAtWork: boolean): boolean {
   if (r.trade === "infant" || r.work.kind === "guard") return false;
@@ -93,13 +96,18 @@ export function fitsLead(r: Resident, role: LeadRole, keeperAtWork: boolean): bo
     case "widow":
       return r.sex === "f" && r.age >= 38 && (r.family_role === "widow" || r.age >= 50) && !keeperAtWork;
     case "bearers":
-      return r.sex === "m" && r.age >= 20 && r.age <= 55 && STRONG.includes(r.trade) && !keeperAtWork;
+      // M7 funeral: not a man whose model carries its own load (a carter's handcart, a sack, a porter's
+      // pack): the coffin is the only thing a bearer carries
+      return r.sex === "m" && r.age >= 20 && r.age <= 55 && STRONG.includes(r.trade) && !LADEN_KINDS.has(r.kind) && !keeperAtWork;
     case "hawker":
       return r.age >= 12 && ["market_woman", "street_child", "errand_boy", "beggar", "fishwife"].includes(r.trade);
     case "showman":
       return r.sex === "m" && r.age >= 20 && ["sailor", "retired", "beggar", "boatman"].includes(r.trade) && !keeperAtWork;
     case "quarreller":
       return r.age >= 18 && !["police", "priest", "water_bailiff", "soldier", "sentry", "corporal", "customs"].includes(r.trade) && !keeperAtWork;
+    case "smuggler":
+      // M7 night: men of the river and the quays
+      return r.sex === "m" && r.age >= 18 && r.age <= 60 && ["boatman", "sailor", "docker", "natie"].includes(r.trade) && !LADEN_KINDS.has(r.kind) && !keeperAtWork;
     case "agent":
       return r.trade === "police";
     default:

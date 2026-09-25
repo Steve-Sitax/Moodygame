@@ -640,7 +640,7 @@ export function schemeTick(db: DB): number {
       db.prepare("UPDATE town_scheme SET tries = tries + 1 WHERE id = ?").run(s.id);
       continue;
     }
-    startAction(db, { npc_id: a.id, kind: "talk_to", target: b.id, target_x: pb.x, target_z: pb.z, source: "engine", minutes: 300, reason: s.kind.replace("_", " "), data: { purpose: "scheme", scheme: s.id } });
+    startAction(db, { npc_id: a.id, kind: "talk_to", target: b.id, target_x: pb.x, target_z: pb.z, source: "engine", minutes: 50, reason: s.kind.replace("_", " "), data: { purpose: "scheme", scheme: s.id } });
     db.prepare("UPDATE town_scheme SET status = 'running' WHERE id = ?").run(s.id);
     started++;
   }

@@ -1,14 +1,18 @@
-import { api, type Ending, type JobsPayload, type Night } from "../net/api";
+import { api, type DayTurn, type Ending, type JobsPayload, type Night } from "../net/api";
 import type { FirstPerson } from "../player/firstPerson";
 import { DOSS_POS, type World } from "../world/rijnkaai";
 import { esc } from "./runs";
 import { topLeft } from "./corner";
+import { GAME_MIN_PER_REAL_S, TICK_EVERY_MS, TICK_MINUTES } from "../../../shared/clock";
+import { TIRED_AT } from "../../../shared/night";
 
 // The day and the week (M5). The server owns the clock; this side asks for a
-// tick every 5 s while you play, shows the time, turns the light, and shows
-// the night and the end of the week. docs/01: 6:00 to midnight, seven days.
+// tick every 10 s while you play (shared/clock.ts: 5 game minutes; a game hour is 2 real minutes), shows the time, turns the light, and shows
+// the night and the end of the week. docs/01: seven days. M7 night (Steve 2026-09-25): the clock runs
+// on through the night, the date turns at midnight; Jef sleeps when he chooses (or drops, dead tired)
+// and wakes seven or eight hours later where he lay. Very tired, he is slower and his sight swims.
 
-const TICK_MS = 5000;
+const TICK_MS = TICK_EVERY_MS;
 
 export class Day {
   private payload: JobsPayload | null = null;
@@ -39,6 +43,30 @@ export class Day {
     window.setInterval(() => {
       if (this.playing) void this.tick();
     }, TICK_MS);
+    // M7 clock: the shown time runs on a minute every two real seconds between the server's ticks
+    window.setInterval(() => this.renderClock(), 1000);
+    // M7 night: dead tired, the legs drag and the sight swims
+    window.setInterval(() => this.tiredness(), 200);
+  }
+
+  private tiredT = 0;
+  /** Sleep need 2 or less: slower, the view blurred, the lids heavy now and then (client show only). */
+  private tiredness(): void {
+    const s = this.payload?.player.sleep ?? 10;
+    const on = s <= TIRED_AT && !this.payload?.ending && this.shown === "none";
+    this.player.fatigue = on ? (s <= 1 ? 0.6 : 0.75) : 1;
+    const canvas = document.getElementById("game") as HTMLCanvasElement | null;
+    if (!canvas) return;
+    if (!on) {
+      if (canvas.style.filter) canvas.style.filter = "";
+      return;
+    }
+    this.tiredT += 0.2;
+    // a slow swim of the sight, and every few seconds the lids come down
+    const blur = (s <= 1 ? 1.4 : 0.8) + Math.sin(this.tiredT * 0.9) * 0.4;
+    const lid = Math.max(0, Math.sin(this.tiredT * (s <= 1 ? 0.55 : 0.35)));
+    const dim = 1 - Math.pow(lid, 8) * (s <= 1 ? 0.6 : 0.4);
+    canvas.style.filter = `blur(${Math.max(0, blur).toFixed(2)}px) brightness(${dim.toFixed(2)})`;
   }
 
   /** Time runs while you are in the game: pointer locked (or dev input), no night sheet up. */
@@ -61,12 +89,13 @@ export class Day {
     return this.payload?.clock.day ?? 1;
   }
 
-  /** The hour with its fraction, run on smoothly between the server's ticks (15 game minutes per 5 s). */
+  /** The hour with its fraction, run on smoothly between the server's ticks (shared/clock.ts: half a game minute a real second). */
   get hourF(): number {
     const c = this.payload?.clock;
     if (!c) return 6;
-    const ahead = this.playing ? Math.min(0.25, ((performance.now() - this.shownAt) / 1000) * (15 / 5 / 60)) : 0;
-    return c.hour + c.minute / 60 + ahead;
+    const ahead = this.playing ? Math.min(TICK_MINUTES / 60, ((performance.now() - this.shownAt) / 1000) * (GAME_MIN_PER_REAL_S / 60)) : 0;
+    // M7 night: never 24 or past it (the server turns the date at midnight)
+    return Math.min(24 - 1e-6, c.hour + c.minute / 60 + ahead);
   }
   private shownAt = performance.now();
 
@@ -74,10 +103,10 @@ export class Day {
     return this.payload?.rent.paid ?? false;
   }
 
-  /** May Jef go to bed now? After 18:00, or earlier when he is dead tired. */
+  /** May Jef go to bed now? From 18:00 until dawn (6:00), or at any hour when he is dead tired. */
   get bedOpen(): boolean {
     const p = this.payload;
-    return !!p && (p.clock.hour >= p.rent.bedtime || p.player.sleep <= 2);
+    return !!p && (p.clock.hour >= p.rent.bedtime || p.clock.hour < 6 || p.player.sleep <= 2);
   }
 
   /** New state from the server (push or reply). */
@@ -87,13 +116,24 @@ export class Day {
     this.payload = p;
     const c = p.clock;
     if (!c) return;
-    const time = `${c.hour}:${String(c.minute).padStart(2, "0")}`;
-    const rent = p.rent.paid ? "" : `<span class="rent">rent ${p.rent.price_c} c due by Sunday</span>`;
-    const html = `<b>${esc(c.weekday)}</b> ${time}${rent}`;
-    if (this.clockEl.innerHTML !== html) this.clockEl.innerHTML = html;
+    this.renderClock();
     this.world.setTimeOfDay(c.hour + c.minute / 60);
     this.world.setWeather(c.weather);
     if (p.ending && this.shown !== "night") this.showEnd(p.ending);
+  }
+
+  /** The clock in the corner: the server's time, run on between its ticks (never past the next tick). */
+  private renderClock(): void {
+    const p = this.payload;
+    const c = p?.clock;
+    if (!p || !c) return;
+    const at = Math.floor(this.hourF * 60 + 1e-6);
+    const hour = Math.floor(at / 60) % 24;
+    const minute = at % 60;
+    const time = `${hour}:${String(minute).padStart(2, "0")}`;
+    const rent = p.rent.paid ? "" : `<span class="rent">rent ${p.rent.price_c} c due by Sunday</span>`;
+    const html = `<b>${esc(c.weekday)}</b> ${time}${rent}`;
+    if (this.clockEl.innerHTML !== html) this.clockEl.innerHTML = html;
   }
 
   /** Say it when a need runs low, once each time it crosses the line. */
@@ -104,7 +144,7 @@ export class Day {
     const lines: Array<[number, number, string, string]> = [
       [before.food, now.food, "Your belly aches. Eat something soon: Fientje sells herring, the widow sells biscuit.", "You are starving. Your strength is going. Eat."],
       [before.warmth, now.warmth, "You are cold to the bone. A bed or a nip of jenever warms you.", "You are freezing. Get under a roof or you will fall ill."],
-      [before.sleep, now.sleep, "Your eyes close by themselves. The doss house takes you early when you are this tired.", "You are dead on your feet. Sleep, or your health goes."],
+      [before.sleep, now.sleep, "Your eyes close by themselves and your legs drag. Lie down soon (the doss house takes you early when you are this tired), or you will drop where you stand.", "You drop where you stand."],
       [before.health, now.health, "You feel ill. Eat, get warm and sleep.", "You can hardly stand."],
     ];
     for (const [was, is, low, zero] of lines) {
@@ -138,6 +178,7 @@ export class Day {
       if (!this.fresh(seq)) return;
       this.apply(r);
       if (r.night) this.showNight(r.night);
+      else if (r.turned && !r.turned.ended) this.midnight(r.turned);
     } catch {
       // server away: time simply does not pass
     } finally {
@@ -184,13 +225,22 @@ export class Day {
     this.sheet.classList.toggle("end", kind === "end");
   }
 
+  /** M7 night: midnight while Jef is up: the date turns, a word from the night's other work (no sheet). */
+  onMidnight: (t: DayTurn) => void = () => {};
+  private midnight(t: DayTurn): void {
+    const c = this.payload?.clock;
+    this.toast([`Midnight. ${c?.weekday ?? "A new day"} begins. New work goes up on the board.`, ...t.lines].join(" "));
+    this.onMidnight(t);
+  }
+
   private showNight(n: Night): void {
     this.night = n;
     this.open("night");
-    const where = n.where === "home" ? `Your own room: ${n.place ?? "home"}` : n.where === "bed" ? "The doss house, Sint-Andries" : "The quay, under a tarpaulin";
-    this.sheet.innerHTML = `<h2>Night</h2><p class="sub">${esc(where)}</p>
+    const where = n.where === "home" ? `Your own room: ${n.place ?? "home"}` : n.where === "bed" ? "The doss house, Sint-Andries" : n.collapsed ? "Where you dropped, on the stones" : "Rough, under a tarpaulin";
+    const title = n.collapsed ? "Dropped asleep" : "Asleep";
+    this.sheet.innerHTML = `<h2>${title}</h2><p class="sub">${esc(where)}</p>
       ${n.summary.map((l) => `<p>${esc(l)}</p>`).join("")}
-      <p class="keys">${n.ended ? "E  go on" : "E  wake at dawn"}</p>`;
+      <p class="keys">${n.ended ? "E  go on" : "E  get up"}</p>`;
   }
 
   private showEnd(e: Ending): void {
@@ -212,12 +262,14 @@ export class Day {
     this.shown = "none";
     this.sheet.style.display = "none";
     this.player.frozen = false;
-    // from the doss house you step out of the alley gate at dawn, facing the river
+    // from the doss house you step out of the alley gate, facing the river; rough, he gets up where he lay
     if (n?.where === "bed") this.player.place(DOSS_POS.x, DOSS_POS.z - 0.4, 0);
     if (n?.where === "home" && n.home) this.onWakeHome(n.home);
     const sky = { fog: "The fog is thick on the Schelde.", mist: "A thin mist lies on the river.", clear: "The air is clear and cold. You can see the far bank.", rain: "Rain is coming in off the Schelde.", storm: "A gale off the sea. The river runs high and grey. Keep off the quay edge." };
     const c = this.payload?.clock;
-    this.toast(`${c?.weekday ?? "A new day"}. ${sky[c?.weather ?? "fog"]} New work is on the board.`);
+    const at = c ? ` ${c.hour}:${String(c.minute).padStart(2, "0")}` : "";
+    const dark = c ? c.hour < 6 || c.hour >= 20 : false;
+    this.toast(`${c?.weekday ?? "A new day"}${at}. ${dark ? "Still dark." : sky[c?.weather ?? "fog"]}${n?.turned ? " New work is on the board." : ""}`);
   }
 
   private async newWeek(): Promise<void> {

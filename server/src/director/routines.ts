@@ -26,6 +26,7 @@ import { publishConvo } from "./convo.ts";
 import { writeEvent } from "./eventlog.ts";
 import { activeRoutines, endRoutine, reportStep, routineFor, routineOf, saveRoutine, startRoutine, stepHooks, stepPay, type Routine, type Step, type StepResult } from "./steps.ts";
 import { FOLLOW_DEFAULT_MIN, FOLLOW_MAX_MIN, FOLLOW_MIN_MIN, REFUSE_LINE, STORY_MINUTE_FACTOR, VIOLENCE_RE, type ActionProposal } from "./vocab.ts";
+import { gameMin } from "../../../shared/clock.ts";
 import {
   BUY_MAX,
   CHECKIN_STALE_MIN,
@@ -554,7 +555,7 @@ export function mapStep(ctx: MapCtx, ps: PlanStep): Mapped {
         const now = c.hour * 60 + c.minute;
         minutes = ps.until_hour * 60 - now;
         if (minutes <= 0) return { ...none, drop: { reason: "past", line: LINES.past } };
-      } else minutes = Math.max(30, (ps.minutes || 30) * STORY_MINUTE_FACTOR);
+      } else minutes = Math.max(15, (ps.minutes || 30) * STORY_MINUTE_FACTOR);
       if (minutes > WAIT_ROUTINE_MAX_MIN) {
         minutes = WAIT_ROUTINE_MAX_MIN;
         const until = (c.hour * 60 + c.minute + minutes) / 60;
@@ -621,11 +622,11 @@ function besideCart(c: { x: number; z: number }, toward: { x: number; z: number 
 
 /**
  * Game minutes a walk of this many straight-line metres takes: streets wind (about half as far
- * again), and in Jef's sight they walk (a game minute is a third of a real second); unseen they go
- * faster, so this is the long case.
+ * again), and in Jef's sight they walk (1.2 real seconds a metre; a game minute is two real
+ * seconds since M7, it was a third of one); unseen they go faster, so this is the long case.
  */
 export function walkMinutes(metres: number): number {
-  return Math.round(metres * 1.5 * 2.4);
+  return Math.round(gameMin(metres * 1.5 * 1.2));
 }
 
 /** A changed way gets its own time, never past the routine's cap from its start. */
@@ -780,7 +781,7 @@ export function checkPlan(db: DB, r: Resident, plan: RoutinePlan, words: string,
     ...(first > 0 ? [{ kind: "pay" as const, who: r.id, amount_c: first, why: pay === "now" ? "an errand's wage" : "half an errand's wage", tag: tag("e", "wage") }] : []),
   ];
   const all = [...head, ...steps];
-  const minutes = Math.max(ROUTINE_MIN_MIN, Math.min(ROUTINE_MAX_MIN, walkMinutes(metres) + waits + 120));
+  const minutes = Math.max(ROUTINE_MIN_MIN, Math.min(ROUTINE_MAX_MIN, walkMinutes(metres) + waits + 20));
   const c = clock(db);
   const state: ErrandState = {
     goal: cleanGoal(plan.goal),
@@ -1528,7 +1529,7 @@ export function applyDecision(db: DB, row: ActionRow, r: Routine, from: number, 
       for (let j = from; j < r.steps.length; j++) if (sameKind(r.steps[j]) && tagK(r.steps[j]) !== "e") superseded.add(tagK(r.steps[j]));
       for (const kk of superseded) removeAt(r, groupOf(r, from, kk));
       r.steps.splice(from, 0, ...m.steps);
-      extendTime(db, row.id, walkMinutes(m.metres) + 30);
+      extendTime(db, row.id, walkMinutes(m.metres) + 10);
       void trig;
       return true;
     }
@@ -1548,7 +1549,7 @@ export function engineSteer(db: DB, r: Routine, from: number, trig: Trigger, id?
     if (trig.why === "closed" || trig.why === "not_about") again.push({ kind: "wait", minutes: RETRY_WAIT_MIN, x: e.at?.x, z: e.at?.z, label: "waiting a while", tag: tag("e", "retrywait") });
     again.push({ ...trig.step });
     r.steps.splice(from, 0, ...again);
-    if (id !== undefined) extendTime(db, id, again.length > 1 ? RETRY_WAIT_MIN + 30 : 30);
+    if (id !== undefined) extendTime(db, id, again.length > 1 ? RETRY_WAIT_MIN + 10 : 10);
     return;
   }
   onlyReport(db, r, from);

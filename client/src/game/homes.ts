@@ -2,31 +2,43 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type { FirstPerson } from "../player/firstPerson";
 import type { World } from "../world/rijnkaai";
+import type { InWorld } from "../world/inworld";
 import type { JobsPayload } from "../net/api";
 import { homesApi, type HomeItem, type HomesInfo } from "../net/homesApi";
 import { buildHome } from "../world/homeRooms";
 import { makePiece } from "../world/furniture";
 import type { Room } from "../world/rooms";
+import { createHouseInWorld, type HouseInWorld } from "../world/houseInWorld";
+import type { HousePlan } from "../../../shared/housePlan";
+import * as HP from "../../../shared/hallPlan";
 import { canPlace, CELL, CLASSES, FURNITURE, footprint, grid, type HomeClass, type Placed } from "../../../shared/homes";
 import type { Interiors } from "./interiors";
 import type { Jobs } from "./jobs";
 import type { Action } from "./runs";
+import { best } from "./facing";
 
 // Homes to rent (M6 homes). Five doors in the town that nobody lives behind (and the widow's
 // own door) carry a notice: read it, take the key for a night or to Sunday, pay the rent.
-// Inside (the interiors' way in: game/interiors.ts enterOwn) the room of its class, and the
-// pieces Jef bought at the second-hand dealer's: a small piece comes out of a pocket, a big
-// one is carried there in both arms. Pick a piece up, move it over the grid, R turns it, E
-// sets it down: the server checks the place and keeps the layout. Bed, stove and hearth by
-// the server's numbers. Now and then the landlady or a neighbour looks in and says a line.
+// M7: each home stands inside its own house in the world (shared/housePlan.ts, world/homeRooms.ts,
+// world/houseInWorld.ts): your door opens as you come to it with the key, and you walk in (up the
+// stair to the garret or the merchant's floor, down to the cellar). Inside, the room of its class
+// and the pieces Jef bought at the second-hand dealer's: a small piece comes out of a pocket, a big
+// one is carried in in both arms. Pick a piece up, move it over the grid, R turns it, E sets it
+// down: the server checks the place and keeps the layout. Bed, stove and hearth by the server's
+// numbers. Now and then the landlady or a neighbour looks in and says a line. At night the windows
+// of a home glow where someone is home.
 
 const REACH_DOOR = 1.8;
 const AHEAD = 1.1;
 const HOLD: [number, number, number] = [0.05, -0.62, -1.05];
+/** Your door opens as you come this near with the key (m from its step). */
+const OPEN_M = 4.5;
 
 export class Homes {
   info: HomesInfo | null = null;
-  private rooms = new Map<string, Room>();
+  /** The five homes in their houses, by home id (world/houseInWorld.ts). */
+  private houses = new Map<string, HouseInWorld>();
+  private world: { inWorld: InWorld; plans: Map<string, HousePlan> } | null = null;
   private infoT = 0;
   private busy = false;
   /** The piece in both arms (shown before the camera), if any. */
@@ -36,10 +48,15 @@ export class Homes {
   private dealerShow: THREE.Group | null = null;
   private remarkAsked = "";
   private visitT = 0;
+  private t = 0;
+  /** Jef is in his room now (by the threshold of its house and the room's own walls). */
+  private inRoom = false;
   say: (t: string) => void = () => {};
+  /** The day's light (0 night .. 1 noon), set by main. */
+  daylight: () => number = () => 1;
 
   constructor(
-    private readonly world: World,
+    private readonly worldRef: World,
     private readonly player: FirstPerson,
     private readonly jobs: Jobs,
     private readonly interiors: Interiors,
@@ -59,6 +76,27 @@ export class Homes {
     return this.info?.lease ?? null;
   }
 
+  /** M7: stand the homes in their houses (main, once, after the world is built). */
+  attachWorld(inWorld: InWorld, plans: Map<string, HousePlan>): void {
+    this.world = { inWorld, plans };
+    this.build();
+  }
+
+  private build(): void {
+    const w = this.world;
+    if (!w || !this.info || this.houses.size) return;
+    for (const h of this.info.homes) {
+      const plan = w.plans.get(`home:${h.id}`);
+      if (!plan) continue;
+      const room = buildHome({ plan, cls: h.cls, seed: h.step[0] * 7 + h.step[1] * 13 });
+      const house = createHouseInWorld(this.worldRef, w.inWorld, plan, room, { color: 0x16120e, near: 6, far: 24 }, 0.35);
+      this.houses.set(h.id, house);
+    }
+    const room = this.room();
+    if (room && !this.moving) room.home!.setPlaced(this.placed());
+    for (const [id, house] of this.houses) if (id === this.lease?.home) house.room.home!.setPlaced(this.placed());
+  }
+
   async load(): Promise<void> {
     try {
       this.apply(await homesApi.info());
@@ -72,8 +110,10 @@ export class Homes {
     this.info = { ...info, homes: info.homes ?? [], items: info.items ?? [], dealer: info.dealer ?? null, lease: info.lease ?? null, widow: info.widow ?? null };
     this.showCarried();
     if (!this.dealerShow && info.dealer) this.buildDealerShow();
-    const room = this.room();
-    if (room && !this.moving) room.home!.setPlaced(this.placed());
+    this.build();
+    // the pieces stand in Jef's home whether he is in it or not (seen through its door and windows)
+    const mine = this.lease ? this.houses.get(this.lease.home) : null;
+    if (mine && !this.moving) mine.room.home!.setPlaced(this.placed());
   }
 
   private refresh(r: JobsPayload & { homes: HomesInfo }): void {
@@ -131,22 +171,25 @@ export class Homes {
       const d = Math.hypot(h.step[0] - x, h.step[1] - z);
       if (d > REACH_DOOR) continue;
       const mine = this.lease?.home === h.id;
+      // the door itself (its notice), at chest height: Jef must look at it (game/facing.ts)
+      const at = { x: h.wall[0], y: this.player.y + 1.2, z: h.wall[1] };
       if (mine) {
-        options.push([d, { key: "KeyE", text: arms ? `carry ${FURNITURE[arms.kind].name} into your room` : `go into your room`, run: () => void this.enter(h.id) }]);
+        // M7: your door opens as you come; you walk in (with a piece in your arms too)
         const l = this.lease!;
-        if (!arms && l.owed_c > 0) extra.push({ key: "KeyF", text: `pay the rent you owe (${l.owed_c} c)`, run: () => void this.pay("day") });
-        else if (!arms && l.to_sunday_c > 0) extra.push({ key: "KeyF", text: `pay the rent to Sunday (${l.to_sunday_c} c)`, run: () => void this.pay("week") });
+        if (!arms && l.owed_c > 0) extra.push({ key: "KeyF", text: `pay the rent you owe (${l.owed_c} c)`, run: () => void this.pay("day"), at });
+        else if (!arms && l.to_sunday_c > 0) extra.push({ key: "KeyF", text: `pay the rent to Sunday (${l.to_sunday_c} c)`, run: () => void this.pay("week"), at });
       } else if (!arms) {
         const lord = h.landlord ? `, ${h.cls === "widow" ? "the widow" : "landlord"} ${h.landlord.name}` : "";
-        options.push([d, { key: "KeyE", text: `read the notice: ${CLASSES[h.cls].label} to let`, run: () => this.say(`"${h.notice}" ${h.week_c} c a week, ${h.day_c} c a night${lord}.`) }]);
+        options.push([d, { key: "KeyE", text: `read the notice: ${CLASSES[h.cls].label} to let`, run: () => this.say(`"${h.notice}" ${h.week_c} c a week, ${h.day_c} c a night${lord}.`), at }]);
         const moving = this.lease ? " (and give up your room)" : "";
-        extra.push({ key: "KeyF", text: `take the key to Sunday (${h.to_sunday_c} c)${moving}`, run: () => void this.take(h.id, "week") });
-        extra.push({ key: "KeyG", text: `take it for tonight (${h.day_c} c)`, run: () => void this.take(h.id, "day") });
+        extra.push({ key: "KeyF", text: `take the key to Sunday (${h.to_sunday_c} c)${moving}`, run: () => void this.take(h.id, "week"), at });
+        extra.push({ key: "KeyG", text: `take it for tonight (${h.day_c} c)`, run: () => void this.take(h.id, "day"), at });
       }
     }
     if (arms) {
-      const only: Action[] = options.length ? [options.sort((a, b) => a[0] - b[0])[0][1]] : [];
-      only.push({ key: "KeyG", text: `leave ${FURNITURE[arms.kind].name} here`, run: () => void this.abandon() });
+      const door = best(options);
+      const only: Action[] = door ? [door] : [];
+      only.push({ key: "KeyG", text: `leave ${FURNITURE[arms.kind].name} here`, run: () => void this.abandon(), self: true });
       return { only };
     }
     return { options, extra };
@@ -156,6 +199,30 @@ export class Homes {
     const out = (this.info?.homes ?? []).map((h) => ({ label: `door of ${h.label}`, x: h.step[0], z: h.step[1], reach: 1.6 }));
     const d = this.info?.dealer;
     if (d) out.push({ label: d.label, x: d.at[0], z: d.at[1], reach: 2.0 });
+    return out;
+  }
+
+  /**
+   * M7: into Jef's own room (up or down its stair too), by the house's own plan with its furniture and his pieces
+   * (a finer grid than the city's). What cannot be reached, by name.
+   */
+  insidePathProblems(): string[] {
+    const mine = this.lease ? this.houses.get(this.lease.home) : null;
+    if (!mine || !mine.doorOpen) return [];
+    const plan = mine.plan;
+    const reach = HP.flood(plan, [0, -0.45], 0.15, 0.3, () => true);
+    const bed = mine.room.home!.bed;
+    const c = CLASSES[plan.entry.cls as HomeClass];
+    const inDoor = (c.doorWall ?? 2) === 0 ? c.D - 0.5 : 0.5;
+    const out: string[] = [];
+    // a point of the room's frame in the house's
+    const at = (x: number, z: number): [number, number] => {
+      const p = mine.room.toWorld(x, z);
+      return HP.toLocal(plan, p.x, p.z);
+    };
+    const level = plan.levels.length - 1;
+    if (!reach(...at(0, inDoor), level, 0.6)) out.push(`in your room: inside its door`);
+    if (!reach(...at(bed.x, bed.z), level, bed.r + 0.2)) out.push(`in your room: by the bed`);
     return out;
   }
 
@@ -214,31 +281,54 @@ export class Homes {
     put("birdcage", -2.5, 0.4, 0);
     put("stove", 2.8, 0.5, 0);
     put("plant", -1.3, 0.35, 0);
-    this.world.scene.add(mergeByMaterial(g));
+    this.worldRef.scene.add(mergeByMaterial(g));
     this.dealerShow = g;
   }
 
   // ------------------------------------------------------------------ in and out
 
+  /** Jef's room frame position in his home's room, and whether he is in the room itself (its walls, its storey). */
+  private inRoomNow(house: HouseInWorld): boolean {
+    const plan = house.plan;
+    const rf = plan.roomFrame!;
+    const c = CLASSES[plan.entry.cls as HomeClass];
+    const [x, z] = house.room.toLocal!(this.player.x, this.player.z);
+    const feet = this.player.y - plan.floorY;
+    return x > -c.W / 2 - 0.05 && x < c.W / 2 + 0.05 && z > -0.1 && z < c.D + 0.05 && Math.abs(feet - rf.y) < 0.6;
+  }
+
+  /**
+   * Into the room: waking at home (M5 night) puts Jef by his bed; the dev and an old key put him just inside
+   * the door. M7: otherwise Jef walks in by himself.
+   */
   async enter(home: string, quiet = false): Promise<void> {
     await this.load();
     const h = this.info?.homes.find((q) => q.id === home);
-    if (!h || this.lease?.home !== home) return;
-    let room = this.rooms.get(home);
-    if (!room) {
-      const f = this.interiors.frameOf(h.step, h.out, h.wall);
-      room = buildHome({ origin: f.origin, yaw: f.yaw, cls: h.cls, seed: h.step[0] * 7 + h.step[1] * 13 });
-      this.rooms.set(home, room);
-    }
-    const r = room;
-    r.home!.setPlaced(this.placed());
-    const ok = await this.interiors.enterOwn(r, { place: home, label: h.label, step: h.step, out: h.out, wall: h.wall }, undefined, false);
-    if (!ok) return;
+    const house = this.houses.get(home);
+    if (!h || !house || this.lease?.home !== home) return;
+    const room = house.room;
+    const hr = room.home!;
+    const c = CLASSES[h.cls];
+    // beside the bed, toward the room's middle, facing into the room
+    const toward = (c.doorWall ?? 2) === 0 ? -1 : 1;
+    const lx = THREE.MathUtils.clamp(hr.bed.x + (hr.bed.x < 0 ? 1 : -1) * (hr.bed.r + 0.1), -c.W / 2 + 0.4, c.W / 2 - 0.4);
+    const lz = THREE.MathUtils.clamp(hr.bed.z, 0.5, c.D - 0.5);
+    const at = room.toWorld(lx, lz);
+    const look = room.toWorld(0, c.D / 2 + toward * 0.01);
+    if (this.player.riding) this.player.rideEnd(at.x, at.z);
+    this.player.place(at.x, at.z, Math.atan2(-(look.x - at.x), -(look.z - at.z)) || this.player.yaw, 0);
+    this.player.y = house.plan.floorY + house.plan.roomFrame!.y;
+    house.doorOpen = true;
     if (quiet) this.say(`Morning, in ${h.label}.`);
-    else {
-      const l = this.lease!;
-      this.say(`${h.label[0].toUpperCase()}${h.label.slice(1)}. It feels ${l.words.join(", ")}.${this.carrying ? " Set the piece down where you want it: E." : ""}`);
-    }
+  }
+
+  /** Jef came into his room: the words for it, a piece in his arms to put up, and now and then a visitor. */
+  private cameIn(house: HouseInWorld): void {
+    const h = this.info?.homes.find((q) => q.id === this.lease?.home);
+    if (!h) return;
+    this.interiors.setHome({ place: h.id, label: h.label, room: house.room, house });
+    const l = this.lease!;
+    this.say(`${h.label[0].toUpperCase()}${h.label.slice(1)}. It feels ${l.words.join(", ")}.${this.carrying ? " Set the piece down where you want it: E." : ""}`);
     // what Jef brought in his arms: straight to placing it
     const arms = this.carrying;
     if (arms) this.startMove(arms);
@@ -274,46 +364,57 @@ export class Homes {
       options.push([
         -1,
         mv.ok
-          ? { key: "KeyE", text: `set ${name} down here (R turns it)`, run: () => void this.putDown() }
-          : { key: "KeyE", text: `${mv.why ?? "it will not go there"} (R turns it)`, run: () => this.say(`It will not go there: ${mv.why ?? "no room"}.`) },
+          ? { key: "KeyE", text: `set ${name} down here (R turns it)`, run: () => void this.putDown(), self: true }
+          : { key: "KeyE", text: `${mv.why ?? "it will not go there"} (R turns it)`, run: () => this.say(`It will not go there: ${mv.why ?? "no room"}.`), self: true },
       ]);
-      if (mv.item.state === "placed") extra.push({ key: "KeyG", text: "leave it where it was", run: () => this.cancelMove() });
+      if (mv.item.state === "placed") extra.push({ key: "KeyG", text: "leave it where it was", run: () => this.cancelMove(), self: true });
       return { options, extra };
     }
     const bd = Math.hypot(hr.bed.x - x, hr.bed.z - z);
+    const bed = this.interiors.roomPoint(hr.bed.x, hr.bed.z, 0.5);
     if (bd < hr.bed.r)
       options.push([
         bd - 0.5,
         this.jobs.day.bedOpen
-          ? { key: "KeyE", text: "go to bed", run: () => void this.jobs.day.sleep(() => homesApi.sleep()) }
-          : { key: "KeyE", text: "lie down on the bed", run: () => this.say("Too early for bed. From six in the evening, or when you are dead tired.") },
+          ? { key: "KeyE", text: "go to bed", run: () => void this.jobs.day.sleep(() => homesApi.sleep()), at: bed }
+          : { key: "KeyE", text: "lie down on the bed", run: () => this.say("Too early for bed. From six in the evening, or when you are dead tired."), at: bed },
       ]);
     for (const f of hr.fires()) {
       const d = Math.hypot(f.x - x, f.z - z);
-      if (d < 1.3) options.push([d - 0.2, { key: "KeyE", text: "warm yourself at the fire", run: () => void this.warm() }]);
+      if (d < 1.3) options.push([d - 0.2, { key: "KeyE", text: "warm yourself at the fire", run: () => void this.warm(), at: this.interiors.roomPoint(f.x, f.z, 0.5) }]);
     }
     // the next thing to put up: from the pocket, the pile by the door
     const next = (this.info?.items ?? []).find((i) => i.state === "pocket" || i.state === "stored" || i.state === "arms");
-    if (next) extra.push({ key: "KeyF", text: `put up ${next.name}`, run: () => this.startMove(next) });
+    // (from his own pocket or the pile: about Jef, no looking needed)
+    if (next) extra.push({ key: "KeyF", text: `put up ${next.name}`, run: () => this.startMove(next), self: true });
     // a piece in front of Jef to move
     const piece = this.pieceAhead(room, x, z);
     if (piece) {
       const it = this.info!.items.find((i) => i.id === piece.id);
-      if (it) extra.push({ key: "KeyG", text: `move ${it.name}`, run: () => this.startMove(it) });
+      if (it) extra.push({ key: "KeyG", text: `move ${it.name}`, run: () => this.startMove(it), at: this.interiors.roomPoint(piece.x, piece.z, 0.5) });
     }
     return { options, extra };
   }
 
   /** Jef's facing in the room's frame. */
   private facing(room: Room): [number, number] {
-    const v = new THREE.Vector3(-Math.sin(this.player.yaw), 0, -Math.cos(this.player.yaw));
-    v.applyAxisAngle(new THREE.Vector3(0, 1, 0), -room.group.rotation.y);
-    return [v.x, v.z];
+    const px = this.player.x;
+    const pz = this.player.z;
+    const [ax, az] = room.toLocal!(px, pz);
+    const [bx, bz] = room.toLocal!(px - Math.sin(this.player.yaw), pz - Math.cos(this.player.yaw));
+    const l = Math.hypot(bx - ax, bz - az) || 1;
+    return [(bx - ax) / l, (bz - az) / l];
   }
 
-  private pieceAhead(room: Room, x: number, z: number): { id: number } | null {
+  /** Where Jef stands in the room's frame. */
+  private jefLocal(room: Room): { x: number; z: number } {
+    const [x, z] = room.toLocal!(this.player.x, this.player.z);
+    return { x, z };
+  }
+
+  private pieceAhead(room: Room, x: number, z: number): { id: number; x: number; z: number } | null {
     const [fx, fz] = this.facing(room);
-    let best: { id: number } | null = null;
+    let best: { id: number; x: number; z: number } | null = null;
     let bs = -Infinity;
     for (const p of room.home!.pieces()) {
       const dx = p.x - x;
@@ -323,7 +424,7 @@ export class Homes {
       const along = (dx * fx + dz * fz) / d;
       if (along < 0.5) continue;
       const s = along - d * 0.3;
-      if (s > bs) [best, bs] = [{ id: p.id }, s];
+      if (s > bs) [best, bs] = [{ id: p.id, x: p.x, z: p.z }, s];
     }
     return best;
   }
@@ -338,7 +439,7 @@ export class Homes {
   }
 
   private cancelMove(): void {
-    const room = this.room();
+    const room = this.room() ?? (this.lease ? this.houses.get(this.lease.home)?.room : null) ?? null;
     this.moving = null;
     room?.home!.ghost(null);
     room?.home!.setPlaced(this.placed());
@@ -378,8 +479,8 @@ export class Homes {
   private updateMove(): void {
     const mv = this.moving;
     const room = this.room();
-    const w = this.player.rideWalk;
-    if (!mv || !room || !w) return;
+    if (!mv || !room) return;
+    const w = this.jefLocal(room);
     const cls = room.home!.cls as HomeClass;
     const c = CLASSES[cls];
     const def = FURNITURE[mv.item.kind];
@@ -440,17 +541,38 @@ export class Homes {
   // ------------------------------------------------------------------ per frame
 
   update(dt: number): void {
+    this.t += dt;
     this.infoT -= dt;
     if (this.infoT <= 0) {
       this.infoT = 15;
       void this.load();
     }
-    if (this.dealerShow) {
-      const h = this.jobs.day.hourF;
-      this.dealerShow.visible = h >= 8 && h < 18 && this.jobs.day.dayNum % 7 !== 0;
+    const hour = this.jobs.day.hourF;
+    if (this.dealerShow) this.dealerShow.visible = hour >= 8 && hour < 18 && this.jobs.day.dayNum % 7 !== 0;
+    // the houses: your door opens as you come with the key (and stays open while you are inside); the
+    // windows glow at night where someone is home: you in your room, the widow in her house
+    const day = this.daylight();
+    const mineId = this.lease?.home ?? null;
+    let inMine: HouseInWorld | null = null;
+    for (const [id, house] of this.houses) {
+      const mine = id === mineId;
+      const inside = house.insideness(this.player.x, this.player.z) > 0.3;
+      house.doorOpen = mine && (inside || house.near(this.player.x, this.player.z) < OPEN_M);
+      if (mine && house.insideness(this.player.x, this.player.z) > 0.5) inMine = house;
+      const widowHome = id === "widow" && !!this.info?.widow?.home;
+      house.glow = (mine && this.inRoom) || widowHome ? 1 : 0;
+      house.update(this.t, dt, day);
+      if (house.drawn() && !(mine && this.inRoom)) house.room.update(this.t, dt);
+    }
+    // in the room itself (not the stair or the corridor): its keys, the visitor, the pieces
+    const nowIn = !!inMine && this.inRoomNow(inMine);
+    if (nowIn !== this.inRoom) {
+      this.inRoom = nowIn;
+      if (nowIn) this.cameIn(inMine!);
+      else this.interiors.setHome(null);
     }
     if (!this.room()) {
-      if (this.moving) this.moving = null;
+      if (this.moving) this.cancelMove();
       if (this.carried) this.carried.obj.visible = true;
       return;
     }
@@ -469,11 +591,17 @@ export class Homes {
     return {
       lease: this.lease,
       inside: room ? room.home!.cls : null,
+      inRoom: this.inRoom,
       moving: this.moving ? { kind: this.moving.item.kind, gx: this.moving.gx, gz: this.moving.gz, rot: this.moving.rot, ok: this.moving.ok, why: this.moving.why } : null,
       items: this.info?.items.map((i) => `${i.id} ${i.kind} ${i.state}${i.state === "placed" ? ` ${i.gx},${i.gz} r${i.rot}` : ""}`) ?? [],
       carrying: this.carrying?.kind ?? null,
-      doors: this.info?.homes.map((h) => ({ id: h.id, label: h.label, step: h.step })) ?? [],
+      doors: this.info?.homes.map((h) => ({ id: h.id, label: h.label, step: h.step, open: this.houses.get(h.id)?.doorOpen ?? null, leaf: this.houses.get(h.id)?.leaf ?? null })) ?? [],
     };
+  }
+
+  /** M7: the homes' houses in the world (dev checks). */
+  get inWorldHouses(): HouseInWorld[] {
+    return [...this.houses.values()];
   }
 
   /** Dev: stand at a home's door (or the dealer's). */
@@ -486,15 +614,18 @@ export class Homes {
   }
 
   devTake = (home: string, plan: "day" | "week" = "week") => this.take(home, plan);
-  /** Dev: look round any home's room (bare, as it is let), without the key: for pictures. */
-  async devView(id: string): Promise<string> {
-    const h = this.info?.homes.find((q) => q.id === id);
-    if (!h) return `no home ${id}`;
-    if (this.interiors.inside) this.interiors.leave(true);
-    const f = this.interiors.frameOf(h.step, h.out, h.wall);
-    const room = buildHome({ origin: f.origin, yaw: f.yaw, cls: h.cls, seed: h.step[0] * 7 + h.step[1] * 13 });
-    const ok = await this.interiors.enterOwn(room, { place: `view:${id}`, label: h.label, step: h.step, out: h.out, wall: h.wall }, undefined, true);
-    return ok ? `viewing ${h.label}` : "busy";
+  /** Dev: look round any home's room (as it is let, without the key): Jef in the middle of it, for pictures. */
+  devView(id: string): string {
+    const house = this.houses.get(id);
+    if (!house) return `no home ${id}`;
+    const c = CLASSES[house.plan.entry.cls as HomeClass];
+    const room = house.room;
+    const at = room.toWorld(0, c.D * 0.35);
+    const look = room.toWorld(0, c.D);
+    if (this.player.riding) this.player.rideEnd(at.x, at.z);
+    this.player.place(at.x, at.z, Math.atan2(-(look.x - at.x), -(look.z - at.z)), 0);
+    this.player.y = house.plan.floorY + house.plan.roomFrame!.y;
+    return `viewing ${id}`;
   }
   devEnter = (home?: string) => this.enter(home ?? this.lease?.home ?? "");
   /** Dev: put up a piece at a cell and a turn, straight through the server. */

@@ -98,8 +98,9 @@ export class Ride {
     }
     if (!best) return {};
     const { bus, stop, d } = best;
+    const step = bus.stepDown();
     const cost = this.change && this.change !== bus.line.id ? "a free change" : `${this.fare} c`;
-    return { options: [[d - 0.5, { key: "KeyE", text: `get on the ${bus.line.board} omnibus (${cost})`, run: () => void this.getOn(bus, stop) }]] };
+    return { options: [[d - 0.5, { key: "KeyE", text: `get on the ${bus.line.board} omnibus (${cost})`, run: () => void this.getOn(bus, stop), at: { x: step.x, z: step.z } }]] };
   }
 
   private async getOn(bus: Omnibus, stop: OmnibusStop): Promise<void> {
@@ -187,20 +188,21 @@ export class Ride {
     const stop = bus.atStop();
     if (this.seat !== null) {
       const roof = SEATS[this.seat].roof;
-      return [{ key: "KeyE", text: roof ? "climb down from the roof" : "stand up", run: () => this.standUp() }];
+      return [{ key: "KeyE", text: roof ? "climb down from the roof" : "stand up", run: () => this.standUp(), self: true }];
     }
     const out: Action[] = [];
     const w = this.player.rideWalk;
     const onPlatform = !!w && Math.hypot(w.x - PLATFORM_SPOT[0], w.z - PLATFORM_SPOT[1]) < 0.9;
-    if (stop) out.push({ key: "KeyE", text: `get off at ${stop.name}`, run: () => this.getOff(stop) });
-    else if (onPlatform && this.jumpSpot(bus)) out.push({ key: "KeyE", text: "jump off", run: () => this.getOff(null) });
+    if (stop) out.push({ key: "KeyE", text: `get off at ${stop.name}`, run: () => this.getOff(stop), self: true });
+    else if (onPlatform && this.jumpSpot(bus)) out.push({ key: "KeyE", text: "jump off", run: () => this.getOff(null), self: true });
     else {
       const s = this.lookedAtSeat(bus);
-      if (s !== null) out.push({ key: "KeyE", text: "sit down here", run: () => this.sitDown(s) });
+      // lookedAtSeat already asks the look (the seat under the crosshair)
+      if (s !== null) out.push({ key: "KeyE", text: "sit down here", run: () => this.sitDown(s), self: true });
     }
     if (w && Math.hypot(w.x - LADDER_SPOT[0], w.z - LADDER_SPOT[1]) < 0.85 && !this.player.laden) {
       const free = SEATS.map((q, i) => ({ q, i })).filter(({ q, i }) => q.roof && !bus.seatTaken(i));
-      if (free.length) out.push({ key: "KeyF", text: "climb up to the roof seat", run: () => this.sitDown(free[0].i) });
+      if (free.length) out.push({ key: "KeyF", text: "climb up to the roof seat", run: () => this.sitDown(free[0].i), self: true });
     }
     return out;
   }

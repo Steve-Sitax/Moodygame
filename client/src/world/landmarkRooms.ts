@@ -42,6 +42,8 @@ export interface Lookable {
   r: number;
   label: string;
   text: string;
+  /** M7 halls: its storey's floor (local y); only there (a hall in the world has floors over each other). */
+  y?: number;
 }
 
 export interface LandmarkRoom extends Room {
@@ -63,6 +65,8 @@ export interface LandmarkRoom extends Room {
   setDaylight(k: number, sky?: number): void;
   /** M7 in the world: the hall's own ambient light scaled (the eye coming in from the bright square). */
   setAmbient?(k: number): void;
+  /** M7 halls: how brightly its windows glow to the street at night (0 dark .. 1: the theatre plays). */
+  nightGlow?(): number;
   /** A candle lit at the Lady altar (the cathedral). */
   addCandle?(): void;
   /** Per-room moving things (the Vleeshuis's rolling barrels, the Oostershuis's hoist). */

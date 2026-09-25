@@ -12,6 +12,8 @@ import SPOT_TABLE from "../../../shared/spots.json";
 import CITY from "../../../shared/city.json";
 import { omnibusKeepOut } from "../world/omnibus";
 import { trafficLanes } from "../world/traffic";
+import { chest, pick, type Target } from "./facing";
+import { atPost, NIGHT_GIVER_IDS } from "../../../shared/night";
 
 // The town (M3e): the residents the server made (homes, families, trades,
 // schedules) living by the game clock. Everyone is simulated cheaply by
@@ -39,7 +41,7 @@ const SPAWN_R = 55;
 const DESPAWN_R = 68;
 /** How many townspeople walk in the street round Jef at once: Settings, "People in the street" (settings.ts). */
 const MAX_PUPPETS = 50;
-/** Unseen, people cross town at this pace (m/s): the clock runs 180 times faster than life. */
+/** Unseen, people cross town at this pace (m/s): the clock runs 30 times faster than life (M7: a game hour is two real minutes; kept at 6, a 600 m walk is 50 game minutes). */
 const HIDDEN_SPEED = 6;
 const SPOTS = SPOT_TABLE as unknown as Record<string, { x: number; z: number; label: string }>;
 const LAMPS = ((CITY as unknown as { decor?: { lamps?: Pt[] } }).decor?.lamps ?? []) as Pt[];
@@ -151,7 +153,10 @@ export class Town {
   private games = new Map<string, { it: Sim | null; frozen: number; last: Sim | null }>();
   /** Employers (and the Rijnkaai three) with open work: they show a light after dark. */
   openWork = new Set<string>();
-  /** Employers whose work Jef has in hand: they wait for him, whatever the hour. */
+  /**
+   * Employers whose work Jef has in hand. M7 night: they no longer wait for him at night; they go home
+   * at their hour, and Jef finishes at the quest box by their door (game/questboxes.ts).
+   */
   takenWork = new Set<string>();
   /**
    * M3i (game/market.ts): the market days. Residents out on market errands browse its stalls
@@ -162,6 +167,12 @@ export class Town {
   clock: () => { day: number; hour: number } = () => ({ day: 1, hour: 9 });
   /** Set by main: may a thief try Jef now (not in a window, not asleep)? */
   canRob: () => boolean = () => true;
+  /**
+   * M7 taverns in the world: is this tavern open (its door stands open and its taproom is drawn with its
+   * drinkers, game/interiors.ts)? Then its keeper and its drinkers go in at the door instead of standing
+   * before it. Set by main.
+   */
+  tavernInside: (place: string) => boolean = () => false;
   toast: (t: string) => void = () => {};
   onPayload: (p: JobsPayload) => void = () => {};
   /** M6 transport: how the residents get about (game/journeys.ts); set by main. */
@@ -387,6 +398,8 @@ export class Town {
       case "tavern": {
         const t = P(now.place);
         if (!t) return { mode: "home", x: r.home.sx, z: r.home.sz };
+        // M7: in at the open door: inside they drink at the tables (game/interiors.ts), seen through the windows
+        if (this.tavernInside(now.place)) return { mode: "inside", x: t.x, z: t.z };
         const [ox, oz] = t.out ?? [0, -1];
         // a half ring before the door, facing it
         const a = (s.h - 0.5) * 2.4;
@@ -432,6 +445,12 @@ export class Town {
       case "inside":
         if (w.door) return { mode: "inside", x: w.door[0], z: w.door[1] };
         return { mode: "home", x: r.home.sx, z: r.home.sz };
+      case "tavern": {
+        // M7: the publican stands behind his counter while the tavern is open (game/interiors.ts)
+        const t = P(w.place);
+        if (t && this.tavernInside(w.place)) return { mode: "inside", x: t.x, z: t.z };
+        break;
+      }
       case "guard":
         // a sentry at his post, rifle at the shoulder; the corporal in front, watching his men
         if (w.at) return { mode: "guard", x: w.at[0], z: w.at[1], yaw: w.at[2], motion: r.trade === "corporal" ? "fold" : "idle" };
@@ -1060,11 +1079,11 @@ export class Town {
   private robbed = new Map<string, number>();
 
   /** A thief who just robbed Jef, within reach: grab him (E). */
-  thiefInReach(x: number, z: number, reach = 3.2): Speaker | null {
+  thiefInReach(x: number, z: number, reach = 3.2): { who: Speaker; at: Target } | null {
     for (const [id, at] of this.robbed) {
       const s = this.byId.get(id);
       if (!s?.p || performance.now() - at > 25_000) continue;
-      if (dist(s.p.x, s.p.z, x, z) < reach) return this.speaker(s);
+      if (dist(s.p.x, s.p.z, x, z) < reach) return { who: this.speaker(s), at: chest(s.p.group, 1.3 * s.p.size) };
     }
     return null;
   }
@@ -1110,10 +1129,17 @@ export class Town {
     const dark = isNight(hour);
     for (const [id, n] of this.employers) {
       const r = this.data!.residents.find((x) => x.id === id)!;
-      const work = activityAt(r.sched, day, hour).act === "work" || this.takenWork.has(id);
+      // M7 night: at the post in working hours only; a job in hand is finished at the box by the door
+      const work = activityAt(r.sched, day, hour).act === "work";
       n.setPresent(work);
       const quest = this.openWork.has(id) || this.takenWork.has(id);
       if (!work) continue;
+      // M7 night: a giver of night work keeps to his dark corner, a shaded lantern in his hand
+      if ((NIGHT_GIVER_IDS as readonly string[]).includes(id)) {
+        n.nightPost(null);
+        n.setLantern(true);
+        continue;
+      }
       if (dark && quest) {
         // under the nearest lamp within 25 m of the post; else a lantern in hand
         let best: Pt | null = null;
@@ -1140,8 +1166,15 @@ export class Town {
         n.setLantern(false);
       }
     }
-    // the Rijnkaai three: a lantern after dark while their work is open
-    for (const id of ["sooi", "peeters", "tuur", "fientje"]) this.people.get(id)?.setLantern(dark && this.openWork.has(id));
+    // the Rijnkaai three: at the post in their hours (shared/night.ts POST_HOURS; M7 night: home asleep
+    // outside them), with a lantern after dark while their work is open
+    for (const id of ["sooi", "peeters", "tuur", "fientje"]) {
+      const n = this.people.get(id);
+      if (!n) continue;
+      const here = atPost(id, hour);
+      if (n.present !== here) n.setPresent(here);
+      n.setLantern(here && dark && this.openWork.has(id));
+    }
   }
 
   /**
@@ -1165,19 +1198,14 @@ export class Town {
     };
   }
 
-  /** The nearest townsperson in the street within reach (E: talk to them). */
-  nearestTalker(x: number, z: number, reach = 2.4): { who: Speaker; d: number } | null {
-    let best: Sim | null = null;
-    let bd = reach;
-    for (const s of this.sims) {
-      if (!s.p || !s.p.shown) continue;
+  /** The townsperson in the street within reach that Jef looks at, nearest the crosshair (E: talk to them; game/facing.ts). */
+  nearestTalker(x: number, z: number, reach = 2.4, skip?: string): { who: Speaker; d: number; at: Target } | null {
+    const r = pick(this.sims, (s) => {
+      if (!s.p || !s.p.shown || s.r.id === skip) return null;
       const d = dist(s.p.x, s.p.z, x, z);
-      if (d < bd) {
-        bd = d;
-        best = s;
-      }
-    }
-    return best ? { who: this.speaker(best), d: bd } : null;
+      return d < reach ? { d, at: chest(s.p.group, 1.3 * s.p.size) } : null;
+    });
+    return r ? { who: this.speaker(r.it), d: r.d, at: r.at } : null;
   }
 
   // ---- M3h (game/deeds.ts): who is about to see a theft; owners who give chase; police who come for Jef

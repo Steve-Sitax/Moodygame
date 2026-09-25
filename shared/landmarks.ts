@@ -81,10 +81,11 @@ export const CLOSED_TEXT: Record<LandmarkId, string> = {
 
 // ------------------------------------------------------------------ the cathedral
 
-export type Service = { kind: "low" | "high" | "vespers" | "wedding"; from: number; to: number; celebrant: "confessor" | "parish"; organ: boolean };
+/** M7 funeral: "funeral", the requiem of a town funeral (an M4 event gone into the cathedral, landmarks/life.ts). */
+export type Service = { kind: "low" | "high" | "vespers" | "wedding" | "funeral"; from: number; to: number; celebrant: "confessor" | "parish"; organ: boolean };
 
 /**
- * Mass at set hours (a game hour is twenty seconds of play, so a mass is short).
+ * Mass at set hours (M7 clock: a game hour is two real minutes, so a low mass is two minutes of play).
  * Weekdays: low masses at seven, nine and eleven, said by the curate. Sundays: an early low
  * mass at seven, the high mass from nine to eleven with the organ (the pious of the town
  * come then: their schedules say "church" from a quarter to nine), vespers at three.

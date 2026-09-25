@@ -5,6 +5,7 @@ import type { FirstPerson } from "../player/firstPerson";
 import type { World } from "../world/rijnkaai";
 import { psx } from "../retro/psx";
 import { esc, type Action } from "./runs";
+import { chest } from "./facing";
 import type { Jobs } from "./jobs";
 import type { Town } from "./town";
 import type { Press } from "./press";
@@ -385,45 +386,47 @@ export class Ideas {
     const extra: Action[] = [];
     for (const p of v.posters) {
       const d = dist(x, z, p.spot.at[0], p.spot.at[1]);
-      if (d < REACH_READ) options.push([d + 0.1, { key: "KeyE", text: `read the bill: ${p.text.heading.toLowerCase()}`, run: () => this.showBill(p) }]);
+      if (d < REACH_READ) options.push([d + 0.1, { key: "KeyE", text: `read the bill: ${p.text.heading.toLowerCase()}`, run: () => this.showBill(p), at: { x: p.spot.x, y: 1.62, z: p.spot.z } }]);
     }
     for (const l of v.lost) {
       if (l.state === "lying") {
         const d = dist(x, z, l.x, l.z);
-        if (d < REACH_THING) options.push([d, { key: "KeyE", text: l.dog ? `take ${l.dog.name} by the collar` : `pick up ${l.what}`, run: () => void this.post(`/api/posters/${l.poster}/pick`) }]);
+        if (d < REACH_THING) options.push([d, { key: "KeyE", text: l.dog ? `take ${l.dog.name} by the collar` : `pick up ${l.what}`, run: () => void this.post(`/api/posters/${l.poster}/pick`), at: { x: l.x, y: l.dog ? 0.4 : 0.15, z: l.z } }]);
       } else if (l.door && dist(x, z, l.door[0], l.door[1]) < REACH_DOOR) {
-        options.push([0.05, { key: "KeyE", text: `bring ${l.dog ? l.dog.name : l.what} back to ${l.owner_name}`, run: () => void this.post(`/api/posters/${l.poster}/return`) }]);
+        options.push([0.05, { key: "KeyE", text: `bring ${l.dog ? l.dog.name : l.what} back to ${l.owner_name}`, run: () => void this.post(`/api/posters/${l.poster}/return`), at: { x: l.door[0], y: this.player.y + 1.2, z: l.door[1] } }]);
       }
     }
     const berg = this.press.info?.berg;
     for (const d of v.diaries) {
       if (d.status === "lying") {
         const dd = dist(x, z, d.x, d.z);
-        if (dd < REACH_THING) options.push([dd, { key: "KeyE", text: "pick up the notebook", run: () => void this.post(`/api/diary/${d.id}/pick`) }]);
+        if (dd < REACH_THING) options.push([dd, { key: "KeyE", text: "pick up the notebook", run: () => void this.post(`/api/diary/${d.id}/pick`), at: { x: d.x, y: 0.1, z: d.z } }]);
         continue;
       }
       if (d.door && dist(x, z, d.door[0], d.door[1]) < REACH_DOOR) {
-        options.push([0.05, { key: "KeyE", text: `give the notebook back to ${d.owner_name}`, run: () => void this.post(`/api/diary/${d.id}/return`) }]);
-        extra.push({ key: "KeyG", text: "hint at what you read in it (squeeze them)", run: () => void this.post(`/api/diary/${d.id}/squeeze`) });
+        const at = { x: d.door[0], y: this.player.y + 1.2, z: d.door[1] };
+        options.push([0.05, { key: "KeyE", text: `give the notebook back to ${d.owner_name}`, run: () => void this.post(`/api/diary/${d.id}/return`), at }]);
+        extra.push({ key: "KeyG", text: "hint at what you read in it (squeeze them)", run: () => void this.post(`/api/diary/${d.id}/squeeze`), at });
       } else if (berg && dist(x, z, berg.door[0], berg.door[1]) < 6) {
-        extra.push({ key: "KeyG", text: "sell the notebook to the Berg's clerk", run: () => void this.post(`/api/diary/${d.id}/sell`) });
+        extra.push({ key: "KeyG", text: "sell the notebook to the Berg's clerk", run: () => void this.post(`/api/diary/${d.id}/sell`), at: { x: berg.door[0], z: berg.door[1] } });
       }
     }
     const h = this.jobs.day.hourF;
     for (const m of v.meetings) {
       if (h < m.from_h || h >= m.to_h) continue;
       const d = dist(x, z, m.x, m.z);
-      if (d < REACH_DOOR) options.push([d, { key: "KeyE", text: `knock: ${m.name.split(" ")[0]} asked you to come by`, run: () => void this.post(`/api/meet/${m.id}`) }]);
+      if (d < REACH_DOOR) options.push([d, { key: "KeyE", text: `knock: ${m.name.split(" ")[0]} asked you to come by`, run: () => void this.post(`/api/meet/${m.id}`), at: { x: m.x, y: this.player.y + 1.2, z: m.z } }]);
     }
     const tr = v.trouble;
     if (tr?.step && dist(x, z, tr.step.x, tr.step.z) < REACH_DOOR + 0.8) {
-      options.push([0, { key: "KeyE", text: `see to it at ${tr.step.label}`, run: () => void this.post(`/api/trouble/${tr.id}/step`) }]);
+      options.push([0, { key: "KeyE", text: `see to it at ${tr.step.label}`, run: () => void this.post(`/api/trouble/${tr.id}/step`), at: { x: tr.step.x, z: tr.step.z } }]);
     }
     // the post counter: a letter of your own
     const post = this.press.info?.post;
     if (post) {
       const at = this.town.position(post.clerk);
-      if (at && dist(at.x, at.z, x, z) < REACH_COUNTER) extra.push({ key: "KeyG", text: "write a letter (a stamp, 10 c)", run: () => void this.openWriting() });
+      const pup = this.town.puppet(post.clerk);
+      if (at && dist(at.x, at.z, x, z) < REACH_COUNTER) extra.push({ key: "KeyG", text: "write a letter (a stamp, 10 c)", run: () => void this.openWriting(), at: pup ? chest(pup.group, 1.3 * pup.size) : { x: at.x, z: at.z } });
     }
     return { options, extra };
   }

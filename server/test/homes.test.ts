@@ -319,16 +319,19 @@ describe("placing furniture", () => {
     expect(canPlace("cellar", [], "chair", 6, 3, 0)).toBeNull();
     expect(canPlace("cellar", [], "chair", 9, 3, 0)).toMatch(/fit/);
     expect(canPlace("cellar", [], "chair", 0, 5, 0)).toMatch(/own furniture/); // the straw bed
-    expect(canPlace("cellar", [], "chair", 3, 0, 0)).toMatch(/door/);
+    // M7: the cellar's door is in its back wall, onto the landing of the house's stair (shared/homes.ts doorWall)
+    expect(canPlace("cellar", [], "chair", 3, 7, 0)).toMatch(/door/);
+    expect(canPlace("cellar", [], "chair", 3, 0, 0)).toBeNull();
+    expect(canPlace("widow", [], "chair", 3, 0, 0)).toMatch(/door/);
     expect(canPlace("cellar", [{ id: 1, kind: "chair", gx: 6, gz: 3, rot: 0 }], "plant", 6, 3, 0)).toMatch(/already/);
     expect(canPlace("cellar", [], "chair", 2.5, 3, 0)).toMatch(/grid/);
-    // a wall of tables across the cellar shuts off the bed
+    // a wall of tables across the widow's room shuts off the bed
     const wall: Placed[] = [
       { id: 1, kind: "table", gx: 0, gz: 2, rot: 0 },
       { id: 2, kind: "table", gx: 2, gz: 2, rot: 0 },
       { id: 3, kind: "table", gx: 4, gz: 2, rot: 0 },
     ];
-    expect(canPlace("cellar", wall, "chair", 6, 2, 0)).toMatch(/shuts off the bed/);
+    expect(canPlace("widow", wall, "chair", 6, 2, 0)).toMatch(/shuts off the bed/);
     // a rug may lie under a chair; not two rugs on one spot
     expect(canPlace("cellar", [{ id: 1, kind: "rug", gx: 3, gz: 3, rot: 0 }], "chair", 4, 3, 0)).toBeNull();
     expect(canPlace("cellar", [{ id: 1, kind: "rug", gx: 3, gz: 3, rot: 0 }], "rug", 4, 3, 0)).toMatch(/rug/);
@@ -336,7 +339,9 @@ describe("placing furniture", () => {
 
   it("wall pieces hang on a wall; curtains only at a window; nothing over the door; lamps under the ridge", () => {
     const back = CLASSES.garret.D / 0.5 - 1;
-    expect(canPlace("garret", [], "picture", 3, back, 0)).toBeNull();
+    expect(canPlace("garret", [], "picture", 5, back, 0)).toBeNull();
+    // M7: the garret's door is in its back wall (up the house's stair)
+    expect(canPlace("garret", [], "picture", 3, back, 0)).toMatch(/door/);
     expect(canPlace("garret", [], "picture", 3, 3, 0)).toMatch(/wall/);
     expect(canPlace("garret", [], "picture", 0, 4, 3)).toMatch(/nothing hangs/); // the eaves
     expect(canPlace("garret", [], "curtains", 5, 0, 2)).toMatch(/window/); // the gable window is too small
@@ -344,10 +349,11 @@ describe("placing furniture", () => {
     expect(canPlace("merchant", [], "curtains", 1, 0, 2)).toMatch(/already/); // the drapes of the dearest room
     expect(canPlace("garret", [], "curtains", 0, back, 0)).toMatch(/window/);
     expect(canPlace("garret", [], "picture", 5, 0, 2)).toMatch(/window/);
-    expect(canPlace("garret", [], "clock", 3, 0, 2)).toMatch(/door/);
+    expect(canPlace("garret", [], "clock", 3, 0, 2)).toBeNull();
+    expect(canPlace("widow", [], "clock", 3, 0, 2)).toMatch(/door/);
     expect(canPlace("garret", [], "lamp", 3, 4, 0)).toBeNull();
     expect(canPlace("garret", [], "lamp", 0, 4, 0)).toMatch(/too low/);
-    expect(canPlace("garret", [{ id: 1, kind: "picture", gx: 3, gz: back, rot: 0 }], "clock", 3, back, 0)).toMatch(/already/);
+    expect(canPlace("garret", [{ id: 1, kind: "picture", gx: 5, gz: back, rot: 0 }], "clock", 5, back, 0)).toMatch(/already/);
   });
 
   it("place, move, turn: saved on the server; a pocket piece leaves the pocket when it is put up", () => {

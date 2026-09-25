@@ -14,6 +14,8 @@ import { CityMap, type MapMark } from "./map";
 import { esc, HaulRun, makeRun, type Action, type Run, type RunCtx, type Sfx } from "./runs";
 import type { Town } from "./town";
 import { topLeft } from "./corner";
+import { auditShown, best, bindView, inView, type Target } from "./facing";
+import type { QuestBoxes } from "./questboxes";
 
 // The hands and the job (M2, M2b, M3). Everything you do with E and F goes
 // through here: lift, set down, stack, drop in the Schelde, talk, read the
@@ -23,6 +25,11 @@ const REACH_BOARD = 2.6;
 const REACH_DOSS = 2.4;
 const REACH_ITEM = 1.8;
 const OWNER_SEES = 12;
+/** The doss house door itself (DOSS_POS is the step 1.2 m out in the street), for looking at it. */
+const DOSS_DOOR: Target = (() => {
+  const p = doorSpot("doss", 0.1);
+  return { x: p.x, z: p.z };
+})();
 
 /** A point by a door of the city, as [x, z]. */
 function ds(door: string, out: number, side: number): [number, number] {
@@ -89,6 +96,13 @@ export class Jobs {
   private sinking: Array<{ obj: THREE.Object3D; t: number; splashed: boolean }> = [];
   /** The townspeople (M3e), set by main. */
   town: Town | null = null;
+  /**
+   * M7 night: the employers' quest boxes (game/questboxes.ts), set by main. A job whose work is done
+   * while its employer is at home asleep is held here until Jef drops the proof in the box by his door.
+   */
+  boxes: QuestBoxes | null = null;
+  /** The job whose work is done, its proof for the box (the facts wait on the server: api.hold). */
+  private held: Job | null = null;
   /** M3h (game/deeds.ts): more things the keys can do: only these (on a velocipede), or options by distance, or extra keys. */
   extraActions: Array<(x: number, z: number) => { only?: Action[]; options?: Array<[number, Action]>; extra?: Action[] }> = [];
   /** M6 handcart (game/handcart.ts): keys for the goods in Jef's hands (put it on the cart). */
@@ -125,6 +139,7 @@ export class Jobs {
     this.el.tick.textContent = "▾";
     // carried goods hang in front of the camera, so the camera joins the scene
     world.scene.add(player.camera);
+    bindView(player);
 
     this.goods = new GoodsWorld(world, player);
     this.people = new People(world);
@@ -196,10 +211,13 @@ export class Jobs {
       this.town.openWork = new Set(p.jobs.filter((j) => j.status === "offered" && j.playable).map((j) => j.employer_npc));
       this.town.takenWork = new Set(p.jobs.filter((j) => j.status === "taken").map((j) => j.employer_npc));
     }
-    // pick up a job that is already taken (reload in the middle of a job)
+    // pick up a job that is already taken (reload in the middle of a job; M7 night: or its proof waiting for the box)
     const taken = p.jobs.find((j) => j.status === "taken") ?? null;
-    if (taken && !this.active) this.start(taken);
-    // the job ended on the server without us (night fell on it): drop it here too
+    if (taken && !this.active) {
+      if ((taken.task as { held?: unknown } | null)?.held) this.holdFor(taken);
+      else this.start(taken);
+    }
+    // the job ended on the server without us (its deadline, a gang, the cell): drop it here too
     if (this.active && !this.finishing && taken?.id !== this.active.id) this.dropRun();
     if (this.boardOpen) this.renderBoard();
   }
@@ -237,76 +255,106 @@ export class Jobs {
   private actsShut = false;
   private actsRun: Run | null = null;
 
-  /** Everything E and F can do right now, most specific first. */
+  /**
+   * Everything E and F can do right now, most specific first. A key about a thing or a person
+   * (`at`) is offered only while Jef looks at it; of several, the one nearest the crosshair wins
+   * (game/facing.ts). Keys about Jef himself or the spot ahead (`self`) need no looking.
+   */
   private findActions(): Action[] {
+    const list = this.findAll();
+    if (import.meta.env.DEV) auditShown(list);
+    return list;
+  }
+
+  private findAll(): Action[] {
     if (this.boardOpen || this.talk.isOpen || this.pockets.open || this.day.sheetOpen || this.map.open) return [];
     const { x, z } = this.player;
     const out: Action[] = [];
     const add = (a: Action) => {
-      if (!out.some((o) => o.key === a.key)) out.push(a);
+      if (!out.some((o) => o.key === a.key) && inView(a)) out.push(a);
     };
     const carried = this.goods.carried;
     const more = carried ? [] : this.extraActions.map((f) => f(x, z));
     const only = more.find((m) => m.only)?.only;
-    if (only) return only;
+    if (only) {
+      for (const a of only) add(a);
+      return out;
+    }
 
     if (carried) {
       for (const a of this.run?.carryActions(carried) ?? []) add(a);
       // M6 handcart: put it on the cart
       for (const f of this.carryExtra) for (const a of f(carried, x, z)) add(a);
       const [px, pz] = ahead(this.player, 0.95);
-      if (this.world.isWater(px, pz)) add({ key: "KeyE", text: "let it fall into the Schelde", run: () => this.drown(px, pz) });
+      if (this.world.isWater(px, pz)) add({ key: "KeyE", text: "let it fall into the Schelde", run: () => this.drown(px, pz), self: true });
       else {
         const where = this.goods.canPlace(px, pz);
         if (where) {
           const label = this.run?.placeLabel(carried, px, pz) ?? (where === "stack" ? "stack it" : "set it down");
-          add({ key: "KeyE", text: label, run: () => this.putDown(px, pz) });
+          add({ key: "KeyE", text: label, run: () => this.putDown(px, pz), self: true });
         }
       }
       return out;
     }
 
     for (const a of this.run?.actions() ?? []) add(a);
+    // M7 night: the work is done; the proof goes in the employer's box, or into his hand if he is back
+    const held = this.held;
+    if (held && !this.finishing) {
+      const box = this.boxes?.near(x, z, held.employer_npc);
+      if (box) add({ key: "KeyE", text: `drop the proof in ${box.name}'s box and take your pay`, run: () => void this.finish(held, { box: true }), at: this.boxes!.target(box) });
+      const boss = this.people.get(held.employer_npc);
+      const bossNear = boss && boss.present && boss.distTo(x, z) < 2.6;
+      if (bossNear && !box) add({ key: "KeyE", text: `give the proof to ${boss.def.name}`, run: () => void this.finish(held, {}), at: { x: boss.pos.x, y: 1.3, z: boss.pos.z } });
+    }
     const item = this.goods.nearest(REACH_ITEM);
-    const npc = this.people.nearestTalker(x, z);
+    const near = this.people.nearestTalker(x, z);
+    const npc = near?.npc ?? null;
     const board = Math.hypot(BOARD_POS.x - x, BOARD_POS.z - z);
-    // E goes to what is closest: goods, a person, or the board
+    // E goes to what Jef looks at, nearest the crosshair: goods, a person, the board, a door
     const options: Array<[number, Action]> = [];
     if (item) {
       const d = Math.hypot(item.obj.position.x - x, item.obj.position.z - z);
-      options.push([d, { key: "KeyE", text: `lift the ${GOODS[item.kind].one}`, run: () => this.lift(item) }]);
+      options.push([d, { key: "KeyE", text: `lift the ${GOODS[item.kind].one}`, run: () => this.lift(item), at: this.goods.middle(item) }]);
     }
-    if (npc) options.push([npc.distTo(x, z), { key: "KeyE", text: `talk to ${npc.def.name}`, run: () => this.talk.open(npc) }]);
-    // M3e: anyone in the street; a thief who just robbed you can be grabbed
+    if (near) options.push([near.d, { key: "KeyE", text: `talk to ${near.npc.def.name}`, run: () => this.talk.open(near.npc), at: near.at }]);
+    // M3e: anyone in the street; a thief who just robbed you can be grabbed (a wide cone: 70 degrees, so it stays playable)
     const thief = this.town?.thiefInReach(x, z);
-    if (thief) options.push([0, { key: "KeyE", text: `grab ${thief.def.name.split(" ")[0]}!`, run: () => void this.town!.grab(thief.id) }]);
-    const res = this.town?.nearestTalker(x, z);
-    if (res && res.who.id !== thief?.id) {
+    if (thief) options.push([-20, { key: "KeyE", text: `grab ${thief.who.def.name.split(" ")[0]}!`, run: () => void this.town!.grab(thief.who.id), at: thief.at, cone: 70 }]);
+    const res = this.town?.nearestTalker(x, z, undefined, thief?.who.id);
+    if (res) {
       const who = res.who;
-      options.push([res.d + 0.05, { key: "KeyE", text: `talk to ${who.def.name}`, run: () => this.talk.open(who) }]);
-      if (this.talk.sells(who.id) && !(npc && this.talk.sells(npc.id))) add({ key: "KeyF", text: `buy from ${who.def.name}`, run: () => this.talk.open(who, true) });
+      options.push([res.d + 0.05, { key: "KeyE", text: `talk to ${who.def.name}`, run: () => this.talk.open(who), at: res.at }]);
+      if (this.talk.sells(who.id) && !(npc && this.talk.sells(npc.id))) add({ key: "KeyF", text: `buy from ${who.def.name}`, run: () => this.talk.open(who, true), at: res.at });
     }
-    if (board < REACH_BOARD) options.push([board, { key: "KeyE", text: "read the hiring board", run: () => this.openBoard() }]);
+    if (board < REACH_BOARD) options.push([board, { key: "KeyE", text: "read the hiring board", run: () => this.openBoard(), at: { x: BOARD_POS.x, y: 1.55, z: BOARD_POS.z } }]);
     const doss = Math.hypot(DOSS_POS.x - x, DOSS_POS.z - z);
     if (doss < REACH_DOSS) {
       const bed: Action = this.day.bedOpen
-        ? { key: "KeyE", text: "go to bed in the doss house", run: () => void this.day.sleep() }
+        ? { key: "KeyE", text: "go to bed in the doss house", run: () => void this.day.sleep(), at: DOSS_DOOR }
         : {
             key: "KeyE",
             text: "knock at the doss house",
             run: () => this.toastMsg(`The landlady opens a crack. "Beds from six in the evening. Not before." It is ${this.day.hour}:00.`),
+            at: DOSS_DOOR,
           };
       options.push([doss, bed]);
     }
     for (const m of more) options.push(...(m.options ?? []));
-    options.sort((a, b) => a[0] - b[0]);
-    if (options.length) add(options[0][1]);
+    const top = best(options);
+    if (top) add(top);
     for (const m of more) for (const a of m.extra ?? []) add(a);
     // next to a seller, F opens the wares straight away
-    if (npc && this.talk.sells(npc.id)) add({ key: "KeyF", text: `buy from ${npc.def.name}`, run: () => this.talk.open(npc, true) });
+    if (near && this.talk.sells(near.npc.id)) add({ key: "KeyF", text: `buy from ${near.npc.def.name}`, run: () => this.talk.open(near.npc, true), at: near.at });
     if (doss < REACH_DOSS && !this.day.rentPaid) {
       const price = this.payload?.rent.price_c ?? 150;
-      add({ key: "KeyF", text: `pay the week's rent (${price} c)`, run: () => void this.day.rent() });
+      add({ key: "KeyF", text: `pay the week's rent (${price} c)`, run: () => void this.day.rent(), at: DOSS_DOOR });
+    }
+    // M7 night: lie down where he stands, late at night or dead tired (last: any other G key wins)
+    const h = this.day.hour;
+    const sleepNeed = this.payload?.player.sleep ?? 10;
+    if ((h >= 22 || h < 5 || sleepNeed <= 3) && doss >= REACH_DOSS) {
+      add({ key: "KeyG", text: "lie down here and sleep rough", run: () => void this.day.sleep(api.sleepRough), self: true });
     }
     return out;
   }
@@ -346,6 +394,23 @@ export class Jobs {
     }
   }
 
+  /** M7 night (game/nightlife.ts): Jef ran and let go of what he held, or a gang took it from him. */
+  dropCarried(taken: boolean): void {
+    const item = this.goods.carried;
+    if (!item) return;
+    if (taken) {
+      this.goods.release();
+      item.obj.removeFromParent();
+      const jobItem = item.jobId !== null && item.jobId === this.active?.id;
+      this.run?.onLost(item, `The gang takes the ${GOODS[item.kind].one} too.`);
+      if (!jobItem) this.toastMsg(`The gang takes the ${GOODS[item.kind].one} too.`);
+      return;
+    }
+    const [px, pz] = ahead(this.player, 0.7);
+    const at = this.goods.canPlace(px, pz) && !this.world.isWater(px, pz) ? [px, pz] : [this.player.x, this.player.z];
+    this.putDown(at[0], at[1]);
+  }
+
   private drown(x: number, z: number): void {
     const item = this.goods.release();
     if (!item) return;
@@ -375,7 +440,8 @@ export class Jobs {
 
   private pulse = 0;
   private updatePointer(dt: number): void {
-    const goal = this.run?.goal() ?? null;
+    const hb = this.held ? this.boxes?.get(this.held.employer_npc) : null;
+    const goal = hb ? new THREE.Vector3(hb.x, 0.6, hb.z) : (this.run?.goal() ?? null);
     const cam = this.player.camera;
     const tick = this.el.tick;
     if (!goal) {
@@ -439,7 +505,8 @@ export class Jobs {
   /** Open work and your job, plus the last two finished ones. Number keys index this list. */
   private visibleJobs(): Job[] {
     // M6: an emigrant family's errand is asked in talk, not chalked on the hiring board (unless Jef has it in hand)
-    const all = (this.payload?.jobs ?? []).filter((j) => j.source !== "emigrant" || j.status === "taken");
+    // M7 night: nor is the night's work; the men who give it offer it in a low voice
+    const all = (this.payload?.jobs ?? []).filter((j) => (j.source !== "emigrant" && j.source !== "night") || j.status === "taken");
     const finished = all.filter((j) => j.status === "done" || j.status === "failed").slice(-2);
     return all.filter((j) => j.status === "offered" || j.status === "taken" || finished.includes(j));
   }
@@ -456,7 +523,7 @@ export class Jobs {
       b.innerHTML = `<h2>Work</h2><p class="note-text">A clerk is chalking up new work. Wait a moment.</p>`;
       return;
     }
-    const noMore = open.length === 0 ? `<p class="note-text">No more work today. Come back at dawn.</p>` : "";
+    const noMore = open.filter((j) => j.source !== "night").length === 0 ? `<p class="note-text">No more work today. New work goes up at midnight.</p>` : "";
     const rows = this.visibleJobs()
       .map((j, i) => {
         const cls = j.status !== "offered" ? "gone" : j.playable ? "" : "later";
@@ -533,6 +600,7 @@ export class Jobs {
       toast: (t) => this.toastMsg(t),
       progress: (p) => this.saveProgress(job.id, p),
       finish: (r) => void this.finish(job, r),
+      box: this.boxes,
     };
     // the job line first; a twist may say something right after (the run toasts in its constructor)
     const t = job.task;
@@ -558,6 +626,8 @@ export class Jobs {
       if (n) out.push({ x: n.pos.x, z: n.pos.z, label: `work: ${n.def.name}`, kind: "work" });
     }
     out.push({ x: BOARD_POS.x, z: BOARD_POS.z, label: "hiring board", kind: "place" });
+    // M7 night: the employers' boxes; the one for the proof in hand is the goal
+    for (const b of this.boxes?.list ?? []) out.push({ x: b.x, z: b.z, label: `${b.name}'s box`, kind: this.held?.employer_npc === b.employer ? "goal" : "place" });
     out.push({ x: DOSS_POS.x, z: DOSS_POS.z, label: "doss house", kind: "bed" });
     const shops: Array<[string, string]> = [["fientje", "Fientje's fish"], ["peeters", "the chandlery"], ["tuur", "Tuur's jenever"]];
     for (const [id, label] of shops) {
@@ -579,6 +649,7 @@ export class Jobs {
     this.run?.dispose();
     this.run = null;
     this.active = null;
+    this.held = null;
     if (id !== undefined) this.goods.clearJob(id);
     if (!this.goods.carried) this.player.speedFactor = 1;
   }
@@ -587,13 +658,44 @@ export class Jobs {
     api.progress(id, p).catch(() => {});
   }
 
+  /** M7 night: may this job's pay wait for the employer's box (a day employer with a box, now at home)? */
+  private boxFor(job: Job): boolean {
+    const b = this.boxes;
+    return !!b && job.source !== "night" && b.has(job.employer_npc) && b.away(job.employer_npc);
+  }
+
+  /** M7 night: the job's proof waits for the box (after a reload too): no run, the pointer on the box. */
+  private holdFor(job: Job): void {
+    this.run?.dispose();
+    this.run = null;
+    this.active = job;
+    this.held = job;
+  }
+
   private async finish(job: Job, report: Report): Promise<void> {
     if (this.finishing) return;
+    // M7 night: the work is done but the employer has gone home: the proof for his box, the pay from it
+    if (!this.held && !report.box && this.boxFor(job)) {
+      this.finishing = true;
+      try {
+        await api.hold(job.id, report);
+        this.holdFor(job);
+        const b = this.boxes!.get(job.employer_npc)!;
+        this.toastMsg(`The work is done. ${b.name} has gone home for the night: drop the proof in the box ${b.label}, and take your pay from it.`);
+      } catch (e) {
+        this.toastMsg(`Not settled: ${(e as Error).message}`);
+      } finally {
+        this.finishing = false;
+      }
+      return;
+    }
     this.finishing = true;
     try {
       const r = await api.done(job.id, report);
       const s = r.settlement;
-      const parts = [s.pay_c ? `${job.employer_name} pays ${s.pay_c} c` : `${job.employer_name} pays nothing`];
+      const parts = report.box
+        ? [s.pay_c ? `From ${job.employer_name}'s box: ${s.pay_c} c` : `${job.employer_name}'s box holds nothing for you`]
+        : [s.pay_c ? `${job.employer_name} pays ${s.pay_c} c` : `${job.employer_name} pays nothing`];
       if (s.extra_c) parts.push(`${s.extra_c} c from other hands`);
       this.toastMsg(parts.join(", ") + ".");
       this.el.hud.textContent = `${r.money_c} c`;
@@ -605,6 +707,7 @@ export class Jobs {
       this.run?.dispose();
       this.run = null;
       this.active = null;
+      this.held = null;
     }
   }
 
@@ -622,11 +725,20 @@ export class Jobs {
 
   private lastTask = "";
   private renderTask(): void {
-    const html = this.run?.hud() ?? "";
+    const hb = this.held ? this.boxes?.get(this.held.employer_npc) : null;
+    const html = this.held
+      ? `<b>${esc(this.held.title)}</b><br>The work is done.<br>${hb ? `Drop the proof in ${esc(hb.name)}'s box ${esc(hb.label)}` : `Take the proof to ${esc(this.held.employer_name)}`}`
+      : this.nightNote(this.run?.hud() ?? "");
     if (html === this.lastTask) return;
     this.lastTask = html;
     this.el.task.innerHTML = html;
     this.el.task.style.display = html ? "block" : "none";
+  }
+
+  /** M7 night: the night's work says when it must be done (the man who gave it is gone at 5:00). */
+  private nightNote(html: string): string {
+    if (!html || this.active?.source !== "night") return html;
+    return `${html}<br>Done before five, or not at all`;
   }
 
   private toastTimer = 0;
@@ -653,6 +765,7 @@ export class Jobs {
       board: this.payload?.board,
       jobs: this.payload?.jobs.map((j) => ({ id: j.id, title: j.title, type: j.task_type, employer: j.employer_npc, status: j.status, playable: j.playable, task: j.task })),
       active: this.active?.id ?? null,
+      held: this.held?.id ?? null,
       actions: this.acts.map((a) => `${a.key}:${a.text}`),
       goal: this.run?.goal()?.toArray().map((v) => +v.toFixed(2)) ?? null,
       hud: this.el.task.innerText,

@@ -92,6 +92,8 @@ export class FirstPerson {
   freeInput = false;
   /** Slower when carrying. Set by the job code. */
   speedFactor = 1;
+  /** M7 night: slower when dead tired (game/day.ts sets it from the sleep need); apart from the load. */
+  fatigue = 1;
   /** No walking while a paper is up in front of your face. */
   frozen = false;
   /** Carrying goods: no jumping. Set by the job code. */
@@ -215,7 +217,7 @@ export class FirstPerson {
     this.crouching = k("KeyC") || k("ControlLeft");
     const hurry = (k("ShiftLeft") || k("ShiftRight")) && !this.crouching;
     const len = Math.hypot(fx, fz);
-    const speed = (hurry ? HURRY : WALK) * this.speedFactor * (this.crouching ? 0.5 : 1);
+    const speed = (hurry ? HURRY : WALK) * this.speedFactor * this.fatigue * (this.crouching ? 0.5 : 1);
 
     // jump and fall
     if (k("Space") && this.grounded && !this.laden && !this.crouching) {

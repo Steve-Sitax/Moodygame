@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { DB } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
-import { DAWN, DAY_NAMES, NIGHT_HOOKS, WEATHER_TEXT, WEEK_DAYS, clock, consolidate, endGame, markDayStart, rollWeather, weather, type Ending } from "../day.ts";
+import { DAWN, DAY_NAMES, WEATHER_TEXT, clock, countNight, passTime, weather, type Ending } from "../day.ts";
 import { GameError, log, player } from "../game.ts";
 import { MOODS, gateText, markFreeLine } from "../hooks/dialogue.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
@@ -11,7 +11,6 @@ import { activityAt } from "./schedule.ts";
 import { resident, town } from "./store.ts";
 import { houseDoors } from "./walkmap.ts";
 import { canCall } from "./talk.ts";
-import { spreadRumours } from "./rumours.ts";
 import { FOOD_NAME, THINGS, cartHooks, gameMinute, hasDeeds, npcName, openDeeds, stealables, veloHome, type DeedRow } from "./deeds.ts";
 import { rowBoatHome, rowBoatStates, rowBoats } from "../rowing.ts";
 import { STORY_RULES, StorySchema, evidenceOf, judgeStory, statementWords, storyNote, supportedClaims, type Statement, type StoryClaim, type StoryJudgement, type StoryRating } from "./story.ts";
@@ -26,10 +25,10 @@ import { STORY_RULES, StorySchema, evidenceOf, judgeStory, statementWords, story
 // talk with the townspeople (town/talk.ts). Running from the agent is possible
 // and makes it worse. Nobody fights: the demo has no combat.
 
-/** How long after a seen deed the agent sets out (game minutes). */
-export const VISIT_DELAY_MIN = 45;
-/** After Jef ran: the next try (game minutes). */
-export const RETRY_MIN = 60;
+/** How long after a seen deed the agent sets out (game minutes; M7 clock: 45 -> 20, 40 real seconds). */
+export const VISIT_DELAY_MIN = 20;
+/** After Jef ran: the next try (game minutes; M7 clock: 60 -> 30). */
+export const RETRY_MIN = 30;
 /** This many townspeople talking about his thieving brings the police, seen or not. */
 export const RUMOUR_HOLDERS = 10;
 export const FINE_MIN_C = 10;
@@ -85,6 +84,8 @@ export interface CellNight {
   day: number;
   ended?: Ending;
   post: PolicePost;
+  /** M7 night: the date turned while he was held (a new board is due). */
+  turned?: boolean;
 }
 
 interface PoliceState {
@@ -880,9 +881,9 @@ function applyVerdict(db: DB, agent: string, visit: number, dec: Decision, stanc
 }
 
 /**
- * A night in the cell at the police post: whatever the hour, the day is over.
- * The job in hand is lost, the needs as on a plank bed, the town talks through
- * the night, and the morning starts at the post. Sunday night ends the week.
+ * A night in the cell at the police post: held until the next dawn, whatever the hour (M7 night:
+ * the date turns at midnight on the way, with the night's other work). The job in hand is lost, the
+ * needs as on a plank bed, and the morning starts at the post. The week may end in the cell.
  */
 export function cellNight(db: DB, paid: number): CellNight {
   const c = clock(db);
@@ -903,18 +904,19 @@ export function cellNight(db: DB, paid: number): CellNight {
     db.prepare("UPDATE player SET sleep = MAX(sleep, 6), food = MAX(0, food - 2), warmth = MAX(0, warmth - 2) WHERE id = 1").run();
     summary.push("A plank bed, a bucket, a barred window onto the square. A drunk sings in the next cell until the bells ring three.");
     log(db, "cell", null, "Jef spent the night in the cell at the police post.");
-    // the night's other work goes on without him (QA 2026-09-24: rent owed on his room, and no note came)
-    for (const h of NIGHT_HOOKS) summary.push(...h(db, c.day));
-    consolidate(db);
-    for (let i = 0; i < 3; i++) spreadRumours(db);
+    countNight(db);
   })();
+  // held until the next 6:00; the night's other work goes on without him at midnight (the rent owed on
+  // his room, a note; QA 2026-09-24)
+  const now = c.hour * 60 + c.minute;
+  const until = (now < DAWN * 60 ? DAWN * 60 : DAWN * 60 + 24 * 60) - now;
+  const passed = passTime(db, until);
+  summary.push(...passed.lines);
   const post = policePost();
-  if (c.day >= WEEK_DAYS) return { summary, day: c.day, ended: endGame(db, "week"), post };
-  db.prepare("UPDATE player SET day = day + 1, hour = ?, minute = 0 WHERE id = 1").run(DAWN);
-  markDayStart(db);
-  rollWeather(db);
+  const w = clock(db);
+  if (passed.ended) return { summary, day: w.day, ended: passed.ended, post };
   summary.push("At dawn the door is unlocked. \"Out. And keep your hands to yourself.\"");
-  return { summary, day: c.day + 1, post };
+  return { summary, day: w.day, post, turned: passed.turned };
 }
 
 /** The night in the cell, for the sheet (kept until the client says Jef is out: a reload shows it again). */

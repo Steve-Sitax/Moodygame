@@ -1,10 +1,12 @@
 import * as THREE from "three";
 
 // Texture atlases for the city houses (tools/blender/build_city.py).
-// Facade atlas: 4 x 4 cells of 64 px. One row per style (brick, plaster,
-// grey plaster, dark brick); columns: ground storey with a window, upper
-// storey, blind party wall, ground storey with the door. One cell = one bay
-// (3 m) by one storey. Row r sits r cells up from the bottom (uv v goes up).
+// Facade atlas: 8 x 8 cells of 64 px. Rows 0-3, one per style (brick, plaster,
+// grey plaster, dark brick); columns 0-3: ground storey with a window, upper
+// storey, blind party wall, plain ground storey (a doorway is cut into it).
+// One cell = one bay (3 m) by one storey. Columns 4-7 hold the door parts
+// (front door leaves, transom, fanlight, loading door, carriage gates), one
+// part per cell. Row r sits r cells up from the bottom (uv v goes up).
 // Roof atlas: 2 x 2 cells: pantiles, slate, flat lead, dark lead.
 
 const C = 64;
@@ -106,11 +108,245 @@ function shutters(g: CanvasRenderingContext2D, x: number, y: number, w: number, 
   }
 }
 
+/** A window, a door or a shutter on a house front: along the wall (metres from its start) and up. */
+export interface Opening {
+  what: "window" | "door" | "upper window";
+  s0: number;
+  s1: number;
+  y0: number;
+  y1: number;
+}
+
+/**
+ * Where facadeAtlas() paints the windows and the door on a street wall of length L and height H
+ * (tools/blender/build_city.py wall(): 3 m bays, the ground storey gh high with the door in the
+ * middle bay, then storeys of sh). Keep in step with the drawing below: lintels, sills, frames
+ * and shutters count as part of the opening. For signs (world/streetlife.ts, dev/signcheck.ts).
+ */
+export function facadeOpenings(L: number, H: number, door: boolean, style: number, gh = 3.8, sh = 3.0): Opening[] {
+  const out: Opening[] = [];
+  const bays = Math.max(1, Math.round(L / 3));
+  const bw = L / bays;
+  const px = (p: number) => p / C;
+  const doorBay = door ? Math.floor(bays / 2) : -1;
+  const ghH = Math.min(gh, H);
+  for (let k = 0; k < bays; k++) {
+    const b = k * bw;
+    if (k === doorBay) {
+      // the doorway in the middle of the bay with its stone surround (build_city.py door_spec: up to
+      // 1.5 m wide between jambs of 0.2 m, its top under 3.45 m; a carriage gate is wider and taller,
+      // the sign check finds it in the geometry)
+      const half = Math.min(bw / 2, Math.max(1.0, px(14) * bw));
+      out.push({ what: "door", s0: b + bw / 2 - half, s1: b + bw / 2 + half, y0: 0, y1: Math.min(ghH, 3.45) });
+    } else {
+      // the shop window: lintel 4 px over its top (14) and 3 px wider, the sill 3 px under its foot (52)
+      out.push({ what: "window", s0: b + px(9) * bw, s1: b + px(55) * bw, y0: gh * (1 - px(55)), y1: Math.min(ghH, gh * (1 - px(10))) });
+    }
+  }
+  // upper storeys: the window 22 px wide with its lintel (18..46), shutters beside it on the plastered styles
+  const shut = style === 1 || style === 2;
+  for (let y = gh; y < H - 0.05; y += sh) {
+    const y0 = y + sh * px(64 - 55);
+    const y1 = Math.min(H, y + sh * (1 - px(8)));
+    if (y1 <= y0) break;
+    for (let k = 0; k < bays; k++) {
+      const b = k * bw;
+      out.push({ what: "upper window", s0: b + px(shut ? 12 : 18) * bw, s1: b + px(shut ? 52 : 46) * bw, y0, y1 });
+    }
+  }
+  return out;
+}
+
+/** A pixel of paint colour, lighter or darker. */
+function shadeHex(hex: string, k: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const f = (v: number) => Math.max(0, Math.min(255, Math.round(v * k)));
+  return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`;
+}
+
+/** A raised (fielded) panel: a dark groove, the bevel lit on top and left and in shadow bottom and
+ * right, the field a little lighter than the paint. */
+function panel(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, paint: string): void {
+  g.fillStyle = shadeHex(paint, 0.45);
+  g.fillRect(x, y, w, h);
+  g.fillStyle = shadeHex(paint, 1.45);
+  g.fillRect(x + 1, y + 1, w - 2, h - 2);
+  g.fillStyle = shadeHex(paint, 0.62);
+  g.fillRect(x + 3, y + 3, w - 4, h - 4);
+  g.fillStyle = shadeHex(paint, 1.12);
+  g.fillRect(x + 3, y + 3, w - 6, h - 6);
+}
+
+/** Front door leaf, 64 x 64 px over about 1.1 x 2.2 m (so a pixel row is twice as tall as a column):
+ * stiles and rails, two tall raised panels over two short ones, a brass knob on the middle rail. */
+function doorLeaf(g: CanvasRenderingContext2D, x: number, y: number, paint: string, r: () => number): void {
+  g.fillStyle = paint;
+  g.fillRect(x, y, C, C);
+  noise(g, x, y, C, C, 0.1, r);
+  for (const [px, py, pw, ph] of [
+    [8, 5, 20, 27],
+    [36, 5, 20, 27],
+    [8, 39, 20, 18],
+    [36, 39, 20, 18],
+  ])
+    panel(g, x + px, y + py, pw, ph, paint);
+  // the edges of the leaf in shadow, the kick rail worn and dirty
+  g.fillStyle = "rgba(0,0,0,0.45)";
+  g.fillRect(x, y, 1, C);
+  g.fillRect(x + C - 1, y, 1, C);
+  g.fillRect(x, y, C, 1);
+  g.fillStyle = "rgba(20,16,12,0.35)";
+  g.fillRect(x, y + C - 5, C, 5);
+  // brass: a knob in the middle of the lock rail and a keyhole plate on the stile
+  g.fillStyle = "#6e5420";
+  g.fillRect(x + 29, y + 34, 6, 3);
+  g.fillStyle = "#c9a042";
+  g.fillRect(x + 30, y + 34, 4, 2);
+  g.fillStyle = "#f0d68a";
+  g.fillRect(x + 30, y + 34, 1, 1);
+  g.fillStyle = "#b08c3a";
+  g.fillRect(x + 58, y + 33, 2, 5);
+  g.fillStyle = "#1a1612";
+  g.fillRect(x + 58, y + 35, 1, 2);
+}
+
+/** Carriage gate, 64 x 64 px over about 2.5 x 3.3 m: two leaves of raised panels, a wicket door in the
+ * left leaf, black strap hinges with bolts on the outer edges. The arch cuts off the top corners. */
+function gateLeaves(g: CanvasRenderingContext2D, x: number, y: number, paint: string, r: () => number): void {
+  g.fillStyle = paint;
+  g.fillRect(x, y, C, C);
+  noise(g, x, y, C, C, 0.1, r);
+  for (const lx of [0, 32]) {
+    for (const [py, ph] of [
+      [6, 14],
+      [23, 17],
+      [43, 16],
+    ]) {
+      panel(g, x + lx + 4, y + py, 11, ph, paint);
+      panel(g, x + lx + 17, y + py, 11, ph, paint);
+    }
+  }
+  // the meeting stiles and the edge shadow
+  g.fillStyle = "rgba(0,0,0,0.6)";
+  g.fillRect(x + 31, y, 2, C);
+  g.fillStyle = "rgba(0,0,0,0.45)";
+  g.fillRect(x, y, 1, C);
+  g.fillRect(x + C - 1, y, 1, C);
+  // the wicket door in the left leaf: its own frame, a knob, two small hinges
+  g.fillStyle = "rgba(0,0,0,0.65)";
+  g.fillRect(x + 5, y + 26, 22, 1);
+  g.fillRect(x + 5, y + 26, 1, C - 27);
+  g.fillRect(x + 26, y + 26, 1, C - 27);
+  g.fillStyle = "#c9a042";
+  g.fillRect(x + 23, y + 45, 2, 2);
+  g.fillStyle = "#1b1b1d";
+  g.fillRect(x + 6, y + 30, 6, 2);
+  g.fillRect(x + 6, y + 56, 6, 2);
+  // strap hinges: iron bands from the outer edges, tapering, with bolt heads
+  const strap = (sx: number, sy: number, dir: number) => {
+    g.fillStyle = "#1b1b1d";
+    g.fillRect(dir > 0 ? sx : sx - 17, sy, 17, 3);
+    g.fillRect(dir > 0 ? sx + 17 : sx - 19, sy + 1, 2, 1);
+    g.fillStyle = "#4a4a4c";
+    for (const k of [3, 9, 14]) g.fillRect(sx + dir * k, sy + 1, 1, 1);
+  };
+  strap(x + 1, y + 10, 1);
+  strap(x + 1, y + 20, 1);
+  strap(x + C - 1, y + 10, -1);
+  strap(x + C - 1, y + 52, -1);
+  g.fillStyle = "rgba(20,16,12,0.4)";
+  g.fillRect(x, y + C - 4, C, 4);
+}
+
+/** Glazed transom over a door: a painted frame, three panes, sky in the glass. */
+function transom(g: CanvasRenderingContext2D, x: number, y: number): void {
+  g.fillStyle = "#e0d8c4";
+  g.fillRect(x, y, C, C);
+  g.fillStyle = "#161b20";
+  g.fillRect(x + 4, y + 8, C - 8, C - 18);
+  g.fillStyle = "rgba(120,130,140,0.3)";
+  g.fillRect(x + 4, y + 8, C - 8, 14);
+  g.fillStyle = "#e0d8c4";
+  g.fillRect(x + 22, y + 8, 3, C - 18);
+  g.fillRect(x + 39, y + 8, 3, C - 18);
+  // the transom bar under the glass, and shadow at the edges
+  g.fillStyle = "#3a332c";
+  g.fillRect(x, y + C - 10, C, 10);
+  g.fillStyle = "rgba(0,0,0,0.4)";
+  g.fillRect(x, y, C, 2);
+  g.fillRect(x, y, 1, C);
+  g.fillRect(x + C - 1, y, 1, C);
+}
+
+/** Round fanlight: a half disc (u across, v from the springing line up to the crown) of glass
+ * with a sunburst of glazing bars round a small hub, in a painted frame. */
+function fanlight(g: CanvasRenderingContext2D, x: number, y: number): void {
+  for (let py = 0; py < C; py++) {
+    for (let px = 0; px < C; px++) {
+      const X = ((px + 0.5) / C - 0.5) * 2;
+      const Y = 1 - (py + 0.5) / C;
+      const rho = Math.hypot(X, Y);
+      const phi = Math.atan2(Y, X);
+      let col = "#161b20";
+      if (Y > 0.35 && rho < 0.84) col = "#1d242b";
+      if (rho > 0.86 || Y < 0.08) col = "#3a332c";
+      else if (rho < 0.22) col = "#e0d8c4";
+      else if (rho > 0.24) {
+        for (let k = 1; k < 6; k++) if (Math.abs(phi - (k * Math.PI) / 6) * rho < 0.035) col = "#e0d8c4";
+        if (Math.abs(rho - 0.6) < 0.03) col = "#e0d8c4";
+      }
+      g.fillStyle = col;
+      g.fillRect(x + px, y + py, 1, 1);
+    }
+  }
+}
+
+/** Loading door of a storehouse: two leaves of vertical tarred planks, a Z brace, strap hinges. */
+function loadingDoor(g: CanvasRenderingContext2D, x: number, y: number, r: () => number): void {
+  g.fillStyle = "#3b3526";
+  g.fillRect(x, y, C, C);
+  for (let px = 0; px < C; px += 5) {
+    g.fillStyle = `rgba(0,0,0,${0.25 + r() * 0.2})`;
+    g.fillRect(x + px, y, 1, C);
+    g.fillStyle = `rgba(255,255,255,${r() * 0.06})`;
+    g.fillRect(x + px + 1, y, 3, C);
+  }
+  noise(g, x, y, C, C, 0.14, r);
+  g.fillStyle = "rgba(0,0,0,0.6)";
+  g.fillRect(x + 31, y, 2, C);
+  g.fillStyle = "rgba(255,255,255,0.08)";
+  for (const lx of [2, 34]) {
+    for (let k = 0; k < 28; k++) g.fillRect(x + lx + k, y + 50 - Math.round(k * 1.4), 2, 2);
+    g.fillRect(x + lx, y + 10, 28, 3);
+    g.fillRect(x + lx, y + 50, 28, 3);
+  }
+  g.fillStyle = "#18181a";
+  for (const sy of [11, 51]) {
+    g.fillRect(x, y + sy, 18, 2);
+    g.fillRect(x + C - 18, y + sy, 18, 2);
+  }
+  g.fillStyle = "rgba(0,0,0,0.45)";
+  g.fillRect(x, y, C, 1);
+  g.fillRect(x, y, 1, C);
+  g.fillRect(x + C - 1, y, 1, C);
+}
+
+/** Paint for front doors (dark green, oxblood, brown, deep blue) and for gates (brown, green, grey-blue). */
+const DOOR_PAINT = ["#2c4632", "#5a2220", "#4a3222", "#22364f"];
+const GATE_PAINT = ["#4a3524", "#2f4331", "#3a4450"];
+
 export function facadeAtlas(): THREE.CanvasTexture {
-  const [c, g] = canvas(4);
+  // 8 x 8 cells: the house styles in cols 0-3, rows 0-3; the door parts in cols 4-7 (build_city.py)
+  const [c, g] = canvas(8);
   const r = rand(1873);
+  const at = (col: number, row: number): [number, number] => [col * C, (7 - row) * C]; // row 0 at the bottom
+  DOOR_PAINT.forEach((p, i) => doorLeaf(g, ...at(4 + i, 4), p, r));
+  transom(g, ...at(4, 5));
+  fanlight(g, ...at(5, 5));
+  loadingDoor(g, ...at(6, 5), r);
+  GATE_PAINT.forEach((p, i) => gateLeaves(g, ...at(4 + i, 6), p, r));
   STYLES.forEach((s, row) => {
-    const y = (3 - row) * C; // row 0 at the bottom of the image
+    const y = (7 - row) * C; // row 0 at the bottom of the image
     // col 0: ground storey with a low shop window on a stone plinth
     wallFill(g, 0, y, s, r);
     g.fillStyle = s.trim;
@@ -126,22 +362,10 @@ export function facadeAtlas(): THREE.CanvasTexture {
     g.fillRect(C, y + C - 2, C, 2);
     // col 2: blind party wall
     wallFill(g, C * 2, y, s, r);
-    // col 3: ground storey with the door: panelled wood under a fanlight, stone step
+    // col 3: plain ground storey on its plinth; build_city.py cuts the doorway into it
     wallFill(g, C * 3, y, s, r);
     g.fillStyle = s.trim;
     g.fillRect(C * 3, y + C - 8, C, 8);
-    g.fillRect(C * 3 + 18, y + 6, 28, C - 12);
-    g.fillStyle = ["#3a2a1e", "#2e3a30", "#4a2c22", "#2a2622"][row];
-    g.fillRect(C * 3 + 21, y + 16, 22, C - 22);
-    g.fillStyle = "rgba(0,0,0,0.35)";
-    g.fillRect(C * 3 + 23, y + 20, 8, 14);
-    g.fillRect(C * 3 + 33, y + 20, 8, 14);
-    g.fillRect(C * 3 + 23, y + 38, 8, 16);
-    g.fillRect(C * 3 + 33, y + 38, 8, 16);
-    g.fillStyle = "#161b20";
-    g.fillRect(C * 3 + 21, y + 8, 22, 7); // fanlight
-    g.fillStyle = "#8a8478";
-    g.fillRect(C * 3 + 16, y + C - 4, 32, 4); // step
   });
   return tex(c);
 }

@@ -230,7 +230,9 @@ describe("the save: in place, once", () => {
       expect(had).toBe(0);
       const db = openDb(file);
       const after = db.prepare("SELECT id, data_json FROM resident").all() as Array<{ id: string; data_json: string }>;
-      for (const r of after) if (before.has(r.id)) expect(r.data_json, r.id).toBe(before.get(r.id));
+// a lamplighter's round follows the lamps (town/lamplighters.ts, versioned): a moved lamp may change it
+      const plain = (j: string) => { const o = JSON.parse(j) as { trade?: string; work?: { route?: unknown } }; if (o.trade === "lamplighter" && o.work) delete o.work.route; return JSON.stringify(o); };
+      for (const r of after) if (before.has(r.id)) expect(plain(r.data_json), r.id).toBe(plain(before.get(r.id)!));
       expect(after.length - before.size).toBeGreaterThanOrEqual(24);
       expect((db.prepare("SELECT COUNT(*) n FROM npc_memory").get() as { n: number }).n).toBe(mem);
       expect(db.prepare("SELECT * FROM player WHERE id = 1").get()).toEqual(jef);
@@ -241,7 +243,12 @@ describe("the save: in place, once", () => {
       }
       db.close();
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      // Windows may still hold the save a moment after close: retry, and a leftover temp folder is harmless
+      try {
+        rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      } catch {
+        // left for the OS to clear
+      }
     }
   });
 });

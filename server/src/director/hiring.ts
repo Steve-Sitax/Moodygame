@@ -65,7 +65,7 @@ export interface HiringScene {
 
 /** The gates (spots.json: hessenatie_door, katoen_door): the foreman a few steps out from the door. */
 const SPOTS: Array<{ id: string; label: string; door: [number, number]; dir: [number, number]; employer: string; tavern: string; ships: string[] }> = [
-  { id: "hessenatie", label: "the Hessenatie gate on the Rijnkaai", door: [10.79, 43.5], dir: [1, 0], employer: "sooi", tavern: "ankere", ships: ["the Anna Maria", "a Rhine barge", "the Kempenland's lighters"] },
+  { id: "hessenatie", label: "the Hessenatie gate on the Rijnkaai", door: [11.2, 43.5], dir: [1, 0], employer: "sooi", tavern: "ankere", ships: ["the Anna Maria", "a Rhine barge", "the Kempenland's lighters"] },
   { id: "katoen", label: "the Entrepot gate by the Petit Bassin", door: [173, 83], dir: [0, -1], employer: "katoen", tavern: "bassin", ships: ["a cotton ship from New Orleans", "a Baltic timber ship", "a coaster with coffee"] },
 ];
 const TAVERN_AT: Record<string, [number, number]> = { ankere: [-52, 46], bassin: [100, 124], schipke: [-236, 14], vliet: [-120, 50] };

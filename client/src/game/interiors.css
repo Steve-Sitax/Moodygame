@@ -1,14 +1,4 @@
-/* ---- M6: interiors (game/interiors.ts): the fade at a door, the dice, the Poesje's caption ---- */
-.room-fade {
-  position: fixed;
-  inset: 0;
-  background: #000;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.35s;
-  z-index: 8;
-}
-.room-fade.on { opacity: 1; }
+/* ---- M6: interiors (game/interiors.ts): the dice, the Poesje's caption (M7: no fade at a door, the rooms stand in the world) ---- */
 
 .dice-panel {
   position: fixed;

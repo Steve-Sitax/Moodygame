@@ -336,7 +336,8 @@ describe("Jef's own letters, with replies", () => {
       db.prepare("UPDATE npc_relationship SET times_met = 1 WHERE npc_id = ?").run(seller.id);
       const g = planEffect(db, { ...l, to_id: seller.id, text: "Thank you kindly." }, () => 0.05);
       expect(g.kind).toBe("gift");
-      if (g.kind === "gift") expect(g.item).toBe("bread");
+      // one of their own wares (a baker's boy has rolls and bread; which seller comes first follows the city plan)
+      if (g.kind === "gift") expect(waresOf(db, seller.id).map((w) => w.kind)).toContain(g.item);
     }
   });
 });

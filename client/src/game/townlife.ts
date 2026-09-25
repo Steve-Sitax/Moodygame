@@ -12,6 +12,7 @@ import type { Crowd } from "./crowd";
 import type { Events } from "./events";
 import { Lamplighters } from "./lamplighter";
 import type { Town } from "./town";
+import { REAL_S_PER_GAME_MIN } from "../../../shared/clock"; // M7 clock: 1/3 -> 2 real s a game minute
 
 // Town life on the client (M6): the lamplighters (game/lamplighter.ts), the house fire and the
 // naties' hiring at dawn. The server plans and settles everything (director/fire.ts,
@@ -89,8 +90,6 @@ const CHAIN_STEP_IN = 4;
 /** One still walking this far off, out of sight, is put in place. */
 const CHAIN_SNAP = 6;
 const HIRE_REACH = 11;
-/** A game minute is a third of a real second. */
-const REAL_S_PER_GAME_MIN = 1 / 3;
 
 interface FireLive {
   id: number;
@@ -535,7 +534,7 @@ export class TownLife {
       const act = ev.acts?.[ev.stage] ?? null;
       if (ev.fire && act === "fire_chain") {
         if (this.inChain?.ev === ev.id) {
-          options.push([0.5, { key: "KeyE", text: "step out of the bucket chain", run: () => this.leaveChain() }]);
+          options.push([0.5, { key: "KeyE", text: "step out of the bucket chain", run: () => this.leaveChain(), self: true }]);
           continue;
         }
         let best = -1;
@@ -547,11 +546,14 @@ export class TownLife {
             best = k;
           }
         });
-        if (best >= 0) options.push([bd, { key: "KeyE", text: "take a place in the bucket chain", run: () => this.joinChain(ev.id, x, z) }]);
+        if (best >= 0) {
+          const [cx, cz] = ev.fire.chain[best];
+          options.push([bd, { key: "KeyE", text: "take a place in the bucket chain", run: () => this.joinChain(ev.id, x, z), at: { x: cx, z: cz } }]);
+        }
       }
       if (ev.hiring && act === "hire_gather" && !ev.hiring.spots.some((s) => s.jef)) {
         const sp = ev.hiring.spots.find((s) => dist(s.x, s.z, x, z) < HIRE_REACH);
-        if (sp) options.push([dist(sp.x, sp.z, x, z), { key: "KeyE", text: "stand with the men to be hired", run: () => this.stand(x, z) }]);
+        if (sp) options.push([dist(sp.x, sp.z, x, z), { key: "KeyE", text: "stand with the men to be hired", run: () => this.stand(x, z), self: true }]);
       }
     }
     return options.length ? { options } : {};

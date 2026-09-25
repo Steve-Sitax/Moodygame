@@ -220,6 +220,8 @@ describe("a lost boat", () => {
     expect(() => loseHired(db, "ship")).toThrow(/no hired boat/);
     // the same day: no police yet
     expect(rowDebtToPolice(db)).toBeNull();
+    // M7 night: the date turns at midnight, not at any sleep: he lies down in the evening
+    setClock(db, 1, 22);
     sleep(db, "rough");
     const id = rowDebtToPolice(db)!;
     expect(id).toBeGreaterThan(0);

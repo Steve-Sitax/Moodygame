@@ -14,7 +14,7 @@ import { walkMap } from "../town/walkmap.ts";
 import { setState, state } from "./state.ts";
 import { actionOf, activeActions, endAction, endEventActions, isReserved, reserveSnap, startAction } from "./actions.ts";
 import { notify } from "./bus.ts";
-import { runConvo } from "./convo.ts";
+import { canCallConvo, publishConvo, runConvo } from "./convo.ts";
 import { writeEvent } from "./eventlog.ts";
 import { cleanLeads, fillNames, keptAtWork, leadLine, leadSpot, namesIn, pickLeads, type Lead, type LeadAsk } from "./leads.ts";
 export { keptAtWork };
@@ -23,9 +23,11 @@ import { fireEnd, fireForClient, fireGapWhy, pickFireHouse, runFireAct, type Fir
 import { hiringEnd, hiringForClient, hiringTick, runHiringAct, type HiringScene } from "./hiring.ts";
 import { runBalladAct } from "../ballads/ballad.ts";
 import { ROUTINE_TEMPLATES, scriptFor } from "./templates.ts";
+import { inSpan, NIGHT_EVENTS } from "../../../shared/night.ts";
 import { emigrantShip, isEmigrant } from "../town/emigrants.ts";
 import { visitorOf } from "../town/visitors.ts";
 import { errandsFor } from "../town/possessions.ts";
+import { walkPath } from "../town/lamplighters.ts";
 import type { AnyLeadRole } from "./leads.ts";
 import {
   EVENT_MARGIN_MIN,
@@ -75,7 +77,63 @@ export type StoredStage = Stage & {
   hiring?: HiringScene;
   /** A funeral (on the first stage): the widow the engine chose, the real widow of the one buried (null: none). */
   widow?: string | null;
+  /** M7 funeral, "depart": the road out of town, the way there (door to the edge, and on out of the drawn town). */
+  exit?: { id: string; label: string; x: number; z: number };
+  route?: Array<[number, number]>;
+  /** "enter": the hall's door (HALL_DOORS). */
+  hall?: string;
+  /** "depart": the coffin goes on a hearse (the bearers leave with it). */
+  hearse?: boolean;
+  /** "depart": the rest stand about in small groups and go home, a group at a time; two of them talk. */
+  groups?: Array<{ ids: string[]; x: number; z: number; leave_m: number; gone?: boolean; talk?: boolean }>;
+  talk_m?: number;
+  talked?: boolean;
 };
+
+// ------------------------------------------------------------------ M7 funeral: halls and roads out
+
+/**
+ * The doors of the halls that stand in the world and can be walked into (M7: the cathedral). An
+ * "enter" stage anywhere else is played as a plain sound stage (they stay where they are). `step`:
+ * where a townsperson steps in from the street (just before the client's walk-in mark, on open ground).
+ */
+export const HALL_DOORS: Record<string, { label: string; step: { x: number; z: number } }> = {
+  cathedral_west: { label: "the cathedral", step: { x: -260.6, z: 144.4 } },
+};
+
+/**
+ * The roads out of the old town (the walk map's edge where a street leaves the drawn town), for
+ * "depart". `out`: the way the road goes on beyond the edge (a hearse drives on out of sight).
+ * The Kiel cemetery (Kielkerkhof), the town's burial ground in 1873, lay south of the old town:
+ * the road there leaves by the south-east corner of the map.
+ */
+export const TOWN_EXITS: Array<{ id: string; label: string; x: number; z: number; out: [number, number] }> = [
+  { id: "kiel_road", label: "the road out to the Kiel cemetery", x: -307, z: 296, out: [0, 1] },
+  { id: "east_road", label: "the road east out of the old town", x: -144, z: 296, out: [0, 1] },
+  { id: "north_road", label: "the road north past the docks", x: 197, z: 123, out: [1, 0] },
+];
+
+/** The road out for a "depart": the one named, a cemetery word means the Kiel road, a funeral goes there, else the nearest. */
+export function exitFor(name: string, from: { x: number; z: number }, funeral: boolean): (typeof TOWN_EXITS)[number] {
+  const n = (name ?? "").trim().toLowerCase();
+  const kiel = TOWN_EXITS[0];
+  const named = TOWN_EXITS.find((e) => e.id === n);
+  if (named) return named;
+  if (funeral || /\b(cemetery|kiel|burial|grave|graveyard|churchyard)\b/.test(n.replace(/_/g, " "))) return kiel;
+  return [...TOWN_EXITS].sort((a, b) => Math.hypot(a.x - from.x, a.z - from.z) - Math.hypot(b.x - from.x, b.z - from.z))[0];
+}
+
+/** The way from a place to a road out, on the walk map (room for a horse and cart where there is), and 30 m on beyond the edge. */
+export function departRoute(from: { x: number; z: number }, exit: (typeof TOWN_EXITS)[number]): Array<[number, number]> {
+  const wm = walkMap();
+  const st = wm.nearestOpen(from.x, from.z, 8) ?? from;
+  const to = wm.nearestOpen(exit.x, exit.z, 8) ?? exit;
+  const path = walkPath(st.x, st.z, to.x, to.z, 800_000, 1.1) ?? walkPath(st.x, st.z, to.x, to.z, 800_000, 0.6) ?? walkPath(st.x, st.z, to.x, to.z) ?? [[st.x, st.z], [to.x, to.z]];
+  const r = (v: number) => Math.round(v * 10) / 10;
+  const out: Array<[number, number]> = path.map(([x, z]) => [r(x), r(z)]);
+  out.push([r(to.x + exit.out[0] * 30), r(to.z + exit.out[1] * 30)]);
+  return out;
+}
 
 export interface EventRow {
   id: number;
@@ -120,8 +178,8 @@ export interface PlaceSpot {
   r: number;
 }
 
-/** A routine event may start this many game minutes before its hour (half a 15-minute tick). */
-export const ROUTINE_EARLY_MIN = 7;
+/** A routine event may start this many game minutes before its hour (about half a tick; M7 clock: 7 -> 2, the tick is 5 minutes now). */
+export const ROUTINE_EARLY_MIN = Math.floor(TICK_MINUTES / 2);
 
 const stagesOf = (ev: EventRow): StoredStage[] => JSON.parse(ev.stages_json) as StoredStage[];
 const peopleOf = (ev: EventRow): string[] => JSON.parse(ev.people_json) as string[];
@@ -164,6 +222,12 @@ export function resolvePlace(db: DB, name: string): PlaceSpot | null {
     const id = n.slice(6);
     const r = id ? resident(db, id) : null;
     return r ? { id: `house:${r.id}`, label: `the house of ${r.name}`, x: r.home.sx, z: r.home.sz, r: 5 } : houseOfTheDay(db);
+  }
+  // M7 funeral: a road out of town (a "depart" stage's place)
+  const exit = TOWN_EXITS.find((e) => e.id === n);
+  if (exit) {
+    const q = walkMap().nearestOpen(exit.x, exit.z, 8);
+    return q ? { id: exit.id, label: exit.label, x: q.x, z: q.z, r: 6 } : null;
   }
   const all = eventPlaces(db);
   const hit = all.find((p) => p.id === n) ?? all.find((p) => p.label.toLowerCase() === n) ?? all.find((p) => p.label.toLowerCase().includes(n) && n.length >= 4);
@@ -212,9 +276,9 @@ export function cleanStages(raw: unknown[]): Stage[] {
     if (st.op === "price" && !(st.item in ITEMS)) continue;
     out.push(st);
   }
-  // a scene first thing: its two walk there before it plays
+  // a scene first thing: its two walk there before it plays (M7 clock: 60 -> 15 game minutes, 30 real seconds)
   if (out[0] && (out[0].op === "scuffle" || out[0].op === "robbery")) {
-    out.unshift(stage({ op: "gather", minutes: 60, count: 0, place: out[0].place, leads: [...out[0].leads], mood: out[0].op === "robbery" ? "calm" : "tense" }));
+    out.unshift(stage({ op: "gather", minutes: 15, count: 0, place: out[0].place, leads: [...out[0].leads], mood: out[0].op === "robbery" ? "calm" : "tense" }));
     if (out.length > EVENT_MAX_STAGES) out.pop();
   }
   let total = 0;
@@ -326,15 +390,19 @@ export function fitTitle(db: DB, title: string, leads: Array<{ role: string; id:
 /** Every lead the stages name, with where they first stand. */
 function leadAsks(db: DB, stages: Stage[], place: PlaceSpot): LeadAsk[] {
   const out: LeadAsk[] = [];
+  // M7 funeral: a stage without a place is where the event stands then (after a procession, its end)
+  let cur: PlaceSpot = place;
   stages.forEach((s, i) => {
-    if (s.op === "procession" || !s.leads.length) return;
-    const p = s.place ? resolvePlace(db, s.place) : null;
-    const at = p ?? place;
-    for (const role of s.leads) out.push({ role, stage: i, at: { x: at.x, z: at.z } });
+    const p = s.place && s.op !== "depart" ? resolvePlace(db, s.place) : null;
+    if (s.op === "procession" && p) cur = p;
+    if (s.op === "procession" || s.op === "depart" || !s.leads.length) return;
+    const at = p ?? cur;
+    // an "enter" names who goes in first: only someone not cast before waits there (the priest at the church door)
+    for (const role of s.leads) if (s.op !== "enter" || !out.some((a) => a.role === role)) out.push({ role, stage: i, at: { x: at.x, z: at.z } });
   });
-  // leads named only in a procession start at the event's place
+  // leads named only in a procession (or a departure) start at the event's place
   stages.forEach((s) => {
-    if (s.op !== "procession") return;
+    if (s.op !== "procession" && s.op !== "depart") return;
     for (const role of s.leads) if (!out.some((a) => a.role === role)) out.push({ role, stage: 0, at: { x: place.x, z: place.z } });
   });
   return out;
@@ -383,8 +451,16 @@ export function planEvent(db: DB, plan: EventPlan, opts: { dev?: boolean } = {})
   }
   const place = resolvePlace(db, plan.place);
   if (!place) return { ok: false, why: `no such place: ${plan.place}` };
-  const stages = cleanStages(plan.stages);
+  let stages = cleanStages(plan.stages);
   if (!stages.length) return { ok: false, why: "no stages the engine can play" };
+  // M7 night: an event that starts at night (22:00 to 5:00) is a night event: of a night kind, small,
+  // over by 5:00. The town's routine and the scripted fire keep their own numbers.
+  const startsAt = gameMinute(db) + Math.max(0, Math.min(180, Math.round(plan.start_in_min)));
+  const nightEvent = inSpan((startsAt % 1440) / 60, NIGHT_EVENTS);
+  if (nightEvent && !ROUTINE_TEMPLATES.has(plan.template)) {
+    if (!opts.dev && !NIGHT_KIND_RE.test(`${plan.template} ${plan.title}`)) return { ok: false, why: "the town is abed: at night only a night event (a burglary, smugglers, a scuffle at a tavern, the watch, a fire)" };
+    if (!script) stages = stages.map((s) => (s.op === "gather" && s.role !== "police" ? { ...s, count: Math.min(s.count, NIGHT_GATHER_MAX) } : s));
+  }
   // the leads a scene or a wedding cannot do without: is there anyone free to play them now?
   const asks = leadAsks(db, stages, place);
   if (asks.length) {
@@ -402,8 +478,12 @@ export function planEvent(db: DB, plan: EventPlan, opts: { dev?: boolean } = {})
   // M6: the town's routine (the dawn hiring) is not one of the day's events and does not take a slot
   const routine = ROUTINE_TEMPLATES.has(plan.template);
   if (!opts.dev && !routine && eventsToday(db).length >= EVENTS_PER_DAY) return { ok: false, why: `${EVENTS_PER_DAY} events today already` };
-  // the town is abed by ten: an event that would still run then is not planned (the night would carry it into the morning)
-  if (!opts.dev && !routine && end > Math.floor(start / 1440) * 1440 + EVENT_LAST_HOUR * 60) return { ok: false, why: `it would run past ${EVENT_LAST_HOUR}:00` };
+  // the town is abed by ten: a day's event that would still run then is not planned (M7 night: a night
+  // event instead must be over by 5:00, when the town wakes)
+  if (!opts.dev && !routine && nightEvent) {
+    const fiveAm = (Math.floor((start - 5 * 60) / 1440) + 1) * 1440 + 5 * 60;
+    if (end > fiveAm) return { ok: false, why: "a night event must be over by 5:00" };
+  } else if (!opts.dev && !routine && end > Math.floor(start / 1440) * 1440 + EVENT_LAST_HOUR * 60) return { ok: false, why: `it would run past ${EVENT_LAST_HOUR}:00` };
   const live = liveEvents(db);
   const overlapping = live.filter((o) => o.start_m - EVENT_MARGIN_MIN < end && o.end_m + EVENT_MARGIN_MIN > start);
   for (const o of overlapping) {
@@ -412,11 +492,23 @@ export function planEvent(db: DB, plan: EventPlan, opts: { dev?: boolean } = {})
   }
   if (!opts.dev && !routine && overlapping.filter((o) => !ROUTINE_TEMPLATES.has(o.template)).length >= EVENTS_AT_ONCE) return { ok: false, why: `${EVENTS_AT_ONCE} events run at once already` };
   // the engine puts every stage's place on the map now
+  // M7 funeral: a stage without a place is where the event stands then (after a procession, at its end: the
+  // music after a wedding's walk to Den Engel plays at Den Engel); "enter" only at a hall's door (else a
+  // plain sound stage: they stay), "depart" keeps the event where it is and carries the road out
+  const funeral = isFuneral(plan);
+  let cur: PlaceSpot = place;
   const stored: StoredStage[] = stages.map((s, i) => {
-    const p = s.place ? resolvePlace(db, s.place) : null;
+    const p = s.place && s.op !== "depart" ? resolvePlace(db, s.place) : null;
     const act = acts[i] ? { act: acts[i]! } : {};
     const widow = i === 0 && widowId !== undefined ? { widow: widowId } : {};
-    return p ? { ...s, x: p.x, z: p.z, label: p.label, ...act, ...widow } : { ...s, x: place.x, z: place.z, label: place.label, ...act, ...widow };
+    const at = p ?? cur;
+    if (s.op === "enter" && !HALL_DOORS[at.id]) return { ...s, op: "sound" as const, x: at.x, z: at.z, label: at.label, ...act, ...widow };
+    if (s.op === "depart") {
+      const exit = exitFor(s.place, cur, funeral);
+      return { ...s, place: exit.id, x: cur.x, z: cur.z, label: cur.label, exit: { id: exit.id, label: exit.label, x: exit.x, z: exit.z }, route: departRoute(cur, exit), ...act, ...widow };
+    }
+    if (s.op === "procession" && p) cur = p;
+    return { ...s, x: at.x, z: at.z, label: at.label, ...(s.op === "enter" ? { hall: at.id } : {}), ...act, ...widow };
   });
   const res = db
     .prepare(
@@ -440,8 +532,12 @@ export function cancelEvent(db: DB, id: number): void {
 
 const stageEnd = (ev: EventRow, stages: StoredStage[], i: number) => ev.start_m + stages.slice(0, i + 1).reduce((a, s) => a + s.minutes, 0);
 
-/** No event of the day's own (the routine aside) runs past this hour. */
+/** No event of the day's own (the routine aside) runs past this hour. M7 night: the night's own run from it to 5:00. */
 export const EVENT_LAST_HOUR = 22;
+/** M7 night: what a night event may be (its kind or its title). */
+export const NIGHT_KIND_RE = /burgl|break.?in|housebreak|smuggl|contraband|lighter|brawl|scuffle|quarrel|drunk|tavern|closing|watch|patrol|round|fire|blaze|thie|robber|night/i;
+/** M7 night: the most one gathering calls at night (the honest town is abed); the police and the fire aside. */
+export const NIGHT_GATHER_MAX = 8;
 
 /** Every tick: start what is due, advance stages, end what is over. Returns how many changed. */
 export function eventsTick(db: DB): number {
@@ -473,7 +569,7 @@ function eventStep(db: DB, ev: EventRow, now: number): number {
   const stages = stagesOf(ev);
   if (ev.status === "planned") {
     // the town's routine (the ballad singer, the dawn hiring) starts at the tick nearest its
-    // hour, not up to a tick late (fixes 2026-09-24: the clock moves 15 minutes a tick)
+    // hour, not up to a tick late (fixes 2026-09-24; the clock moves TICK_MINUTES a tick, 5 since M7)
     if (now < ev.start_m - (ROUTINE_TEMPLATES.has(ev.template) ? ROUTINE_EARLY_MIN : 0)) return 0;
     if (now > ev.end_m) {
       // the clock jumped past it (a night, a dev jump): it never happened
@@ -512,6 +608,12 @@ function eventStep(db: DB, ev: EventRow, now: number): number {
     })();
     changed++;
     if (step === "done") break;
+  }
+  // M7 funeral: what a stage does while it runs (who is in the church by now, the groups going home)
+  cur = eventRow(db, ev.id) ?? cur;
+  if (cur.status === "running") {
+    const run = cur;
+    changed += db.transaction(() => stageTick(db, run, now))();
   }
   return changed;
 }
@@ -556,11 +658,11 @@ function startEvent(db: DB, ev: EventRow): void {
 function castLeads(db: DB, ev: EventRow, stages: StoredStage[]): Lead[] | null {
   const asks: LeadAsk[] = [];
   stages.forEach((s, i) => {
-    if (s.op === "procession") return;
-    for (const role of cleanLeads(s.leads)) asks.push({ role, stage: i, at: { x: s.x ?? ev.x, z: s.z ?? ev.z } });
+    if (s.op === "procession" || s.op === "depart") return;
+    for (const role of cleanLeads(s.leads)) if (s.op !== "enter" || !asks.some((a) => a.role === role)) asks.push({ role, stage: i, at: { x: s.x ?? ev.x, z: s.z ?? ev.z } });
   });
   stages.forEach((s) => {
-    if (s.op !== "procession") return;
+    if (s.op !== "procession" && s.op !== "depart") return;
     for (const role of cleanLeads(s.leads)) if (!asks.some((a) => a.role === role)) asks.push({ role, stage: 0, at: { x: stages[0]?.x ?? ev.x, z: stages[0]?.z ?? ev.z } });
   });
   if (!asks.length) return [];
@@ -703,12 +805,21 @@ function applyStage(db: DB, ev: EventRow, s: StoredStage, i: number): void {
     writeEvent(db, { kind: "event", verb: `stage_${s.act}`, text: `${ev.title}: ${s.act.replace(/_/g, " ")}${s.label ? ` at ${s.label}` : ""}.`, place: ev.place, x: at.x, z: at.z, ref_type: "town_event", ref_id: ev.id, weight: i === 0 ? 3 : 2 });
     return;
   }
+  // M7 funeral: the stage after an "enter": they come out of the hall (a procession or a departure sends them on itself)
+  const prev = i > 0 ? stagesOf(ev)[i - 1] : null;
+  if (prev?.op === "enter" && s.op !== "enter" && s.op !== "procession" && s.op !== "depart") comeOut(db, ev);
   switch (s.op) {
     case "gather":
       if (!s.pre && s.count > 0) gather(db, ev, s.role, s.count, at, s.label ?? ev.place);
       break;
     case "procession":
       procession(db, ev, at, cleanLeads(s.leads));
+      break;
+    case "enter":
+      enterHall(db, ev, s, i);
+      break;
+    case "depart":
+      depart(db, ev, s, i);
       break;
     case "talk": {
       // the stage's two leads if it names two (the quarrellers), else two of the gathered who are not leads
@@ -907,6 +1018,268 @@ function procession(db: DB, ev: EventRow, to: { x: number; z: number }, first: L
   db.prepare("UPDATE town_event SET x = ?, z = ? WHERE id = ?").run(to.x, to.z, ev.id);
 }
 
+// ------------------------------------------------------------------ M7 funeral: into a hall, out of town
+
+/** Game minutes into an "enter" after which everyone still on the way in counts as in (the engine's word: an unseen walker). M7 clock: 60 -> 15 (30 real seconds; it was 20). */
+export const ENTER_ALL_IN_MIN = 15;
+
+/** This person's attend action in this event, if it still runs. */
+function eventAction(db: DB, ev: EventRow, id: string) {
+  const a = actionOf(db, id);
+  return a && a.event_id === ev.id ? a : null;
+}
+const dataOf = (a: { data_json: string }) => JSON.parse(a.data_json || "{}") as Record<string, unknown>;
+
+/** The event's leads in walking order: those the stage names first (the bearers by their number), then the others as they stand. */
+function leadOrder(ev: EventRow, first: LeadRole[]): string[] {
+  const leads = leadsOf(ev).filter((l) => l.role !== "agent");
+  const out: string[] = [];
+  for (const role of first) for (const l of leads.filter((x) => x.role === role).sort((a, b) => (a.n ?? 0) - (b.n ?? 0))) if (!out.includes(l.id)) out.push(l.id);
+  for (const id of peopleOf(ev)) if (leads.some((l) => l.id === id) && !out.includes(id)) out.push(id);
+  for (const l of leads) if (!out.includes(l.id)) out.push(l.id);
+  return out;
+}
+
+/**
+ * "enter": everyone of the event but the onlookers goes into the hall, the stage's leads first (the
+ * priest before the coffin, then the bearers two by two, the widow, the rest). Each walks to the step
+ * ("inside"); the client takes them off the street there and says so, and they are "in" (the hall's
+ * life, landmarks/life.ts, seats them). Where they stood is kept: they come back to it after.
+ */
+function enterHall(db: DB, ev: EventRow, s: StoredStage, i: number): void {
+  const door = HALL_DOORS[s.hall ?? ""] ?? HALL_DOORS.cathedral_west;
+  const step = walkMap().nearestOpen(door.step.x, door.step.z, 3) ?? door.step;
+  const leadIds = new Set(leadsOf(ev).map((l) => l.id));
+  const goesIn = (id: string) => {
+    const a = eventAction(db, ev, id);
+    if (!a) return false;
+    const d = dataOf(a);
+    return d.role !== "crowd" && d.lead !== "agent";
+  };
+  const order = [...leadOrder(ev, cleanLeads(s.leads)), ...peopleOf(ev).filter((id) => !leadIds.has(id))].filter(goesIn);
+  const rest = peopleOf(ev).filter((id) => !order.includes(id));
+  db.prepare("UPDATE town_event SET people_json = ? WHERE id = ?").run(JSON.stringify([...order, ...rest]), ev.id);
+  const keep = db.prepare("UPDATE npc_action SET data_json = json_set(json_set(data_json, '$.ring_x', ?), '$.ring_z', ?) WHERE id = ?");
+  const go = db.prepare("UPDATE npc_action SET phase = 'inside', target_x = ?, target_z = ?, data_json = json_set(json_set(data_json, '$.order', ?), '$.hall', 1) WHERE id = ?");
+  order.forEach((id, k) => {
+    const a = eventAction(db, ev, id)!;
+    if (a.phase !== "inside" && a.phase !== "in") keep.run(a.target_x, a.target_z, a.id);
+    go.run(step.x, step.z, k, a.id);
+  });
+  const funeral = isFuneral({ template: ev.template, title: ev.title });
+  writeEvent(db, {
+    kind: "event",
+    verb: "went_in",
+    text: `${ev.title}: ${funeral ? "the priest met the coffin at the door and led it into" : "they went into"} ${door.label}${funeral ? "; a requiem was sung over the coffin" : ""}.`,
+    place: ev.place,
+    x: step.x,
+    z: step.z,
+    ref_type: "town_event",
+    ref_id: ev.id,
+    weight: 4,
+    who: order.slice(0, 12),
+  });
+  void i;
+  notify("actions");
+}
+
+/** After an "enter": out again, each to where they stood before (the onlookers never went in). */
+function comeOut(db: DB, ev: EventRow): void {
+  for (const a of activeActions(db).filter((x) => x.event_id === ev.id && (x.phase === "inside" || x.phase === "in"))) {
+    const d = dataOf(a);
+    const x = typeof d.ring_x === "number" ? d.ring_x : a.target_x;
+    const z = typeof d.ring_z === "number" ? d.ring_z : a.target_z;
+    db.prepare("UPDATE npc_action SET phase = 'going', target_x = ?, target_z = ? WHERE id = ?").run(x, z, a.id);
+  }
+  notify("actions");
+}
+
+/**
+ * "depart": the stage's leads (the bearers with the coffin, then the widow; a priest stays at his
+ * church) and their own household leave town along the road out, in a column behind the hearse when
+ * the bearers go. Everyone else stands about in small groups near the door (clear of the hearse's
+ * way) and goes home a group at a time (stageTick); two groups talk low first. The event ends with
+ * the stage: every action ends there.
+ */
+function depart(db: DB, ev: EventRow, s: StoredStage, i: number): void {
+  const leads = leadsOf(ev).filter((l) => l.role !== "agent");
+  const roles = cleanLeads(s.leads).filter((r) => r !== "priest");
+  for (const l of leads.filter((x) => x.role === "priest")) {
+    const a = eventAction(db, ev, l.id);
+    if (a) endAction(db, a.id, "done", "back to his church");
+  }
+  const going: string[] = [];
+  for (const role of roles) for (const l of leads.filter((x) => x.role === role).sort((a, b) => (a.n ?? 0) - (b.n ?? 0))) if (!going.includes(l.id) && eventAction(db, ev, l.id)) going.push(l.id);
+  // their own family walks with them (the widow's children), not the bearers' households
+  const bearers = new Set(leads.filter((l) => l.role === "bearers").map((l) => l.id));
+  const homes = new Set(going.filter((id) => !bearers.has(id)).map((id) => resident(db, id)?.household).filter((h) => h !== undefined));
+  for (const id of peopleOf(ev)) {
+    const r = resident(db, id);
+    if (r && homes.has(r.household) && !going.includes(id) && !leads.some((l) => l.id === id) && eventAction(db, ev, id)) going.push(id);
+  }
+  const route = s.route ?? [];
+  const exit = s.exit ?? { id: "", label: "the road out of town", x: ev.x, z: ev.z };
+  const end = route.length >= 2 ? route[route.length - 2] : [exit.x, exit.z];
+  going.forEach((id, k) => {
+    const a = eventAction(db, ev, id)!;
+    db.prepare("UPDATE npc_action SET phase = 'leave', target_x = ?, target_z = ?, data_json = json_set(data_json, '$.order', ?) WHERE id = ?").run(end[0], end[1], k, a.id);
+  });
+  const others = peopleOf(ev).filter((id) => !going.includes(id) && eventAction(db, ev, id));
+  db.prepare("UPDATE town_event SET people_json = ? WHERE id = ?").run(JSON.stringify([...going, ...others, ...peopleOf(ev).filter((id) => !going.includes(id) && !others.includes(id))]), ev.id);
+  const now = gameMinute(db);
+  const groups = mournerGroups(db, ev, s, others, now);
+  const stages = stagesOf(eventRow(db, ev.id)!);
+  stages[i] = { ...stages[i], hearse: going.some((id) => bearers.has(id)), groups, talk_m: now + Math.round(s.minutes * 0.45), talked: false };
+  db.prepare("UPDATE town_event SET stages_json = ? WHERE id = ?").run(JSON.stringify(stages), ev.id);
+  const funeral = isFuneral({ template: ev.template, title: ev.title });
+  const widow = leads.find((l) => l.role === "widow");
+  const who = going.map((id) => resident(db, id)?.name).filter(Boolean) as string[];
+  writeEvent(db, {
+    kind: "event",
+    verb: "departed",
+    text: funeral
+      ? `${ev.title}: the coffin went on the hearse along ${exit.label}${widow ? `, ${widow.name} and the family walking behind it` : ""}; the mourners went home.`
+      : `${ev.title}: ${who.slice(0, 4).join(", ") || "they"} left along ${exit.label}; the rest went home.`,
+    place: ev.place,
+    x: s.x ?? ev.x,
+    z: s.z ?? ev.z,
+    ref_type: "town_event",
+    ref_id: ev.id,
+    weight: 4,
+    who: going.slice(0, 12),
+  });
+  notify("actions");
+}
+
+/** Small groups of 2 to 4 near the door, clear of the hearse's first 35 m; they go home one group after another. */
+function mournerGroups(db: DB, ev: EventRow, s: StoredStage, ids: string[], now: number): NonNullable<StoredStage["groups"]> {
+  if (!ids.length) return [];
+  const wm = walkMap();
+  const c = { x: s.x ?? ev.x, z: s.z ?? ev.z };
+  const route = s.route ?? [];
+  const head: Array<[number, number]> = [];
+  let acc = 0;
+  for (let k = 0; k < route.length && acc < 35; k++) {
+    head.push(route[k]);
+    if (k) acc += Math.hypot(route[k][0] - route[k - 1][0], route[k][1] - route[k - 1][1]);
+  }
+  const segD = (x: number, z: number, a: [number, number], b: [number, number]) => {
+    const dx = b[0] - a[0];
+    const dz = b[1] - a[1];
+    const L2 = dx * dx + dz * dz || 1;
+    const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / L2));
+    return Math.hypot(x - (a[0] + dx * t), z - (a[1] + dz * t));
+  };
+  const nearWay = (x: number, z: number) => head.some((p, k) => (k ? segD(x, z, head[k - 1], p) : Math.hypot(x - p[0], z - p[1])) < 4.5);
+  const spots: Array<{ x: number; z: number }> = [];
+  for (const rr of [7, 10, 13, 16, 19, 22])
+    for (let k = 0; k < 16; k++) {
+      const a = (k / 16) * Math.PI * 2 + rr * 0.31;
+      const x = c.x + Math.cos(a) * rr;
+      const z = c.z + Math.sin(a) * rr;
+      if (!wm.reachable(x, z) || !wm.open(x, z, 1.3) || nearWay(x, z) || spots.some((q) => Math.hypot(q.x - x, q.z - z) < 4)) continue;
+      spots.push({ x: Math.round(x * 10) / 10, z: Math.round(z * 10) / 10 });
+    }
+  if (!spots.length) spots.push(c);
+  const sizes = [3, 2, 4, 3, 2, 3, 4, 2];
+  const out: NonNullable<StoredStage["groups"]> = [];
+  for (let k = 0, g = 0; k < ids.length; g++) {
+    let size = sizes[(g + ev.id) % sizes.length];
+    if (ids.length - k - size === 1) size++; // nobody left standing alone
+    out.push({ ids: ids.slice(k, k + size), ...spots[g % spots.length], leave_m: 0 });
+    k += size;
+  }
+  // the first groups go soon after the coffin has gone; the last two talk a while and go last
+  const G = out.length;
+  out.forEach((g, k) => {
+    g.leave_m = now + Math.round(s.minutes * (0.35 + (0.5 * k) / Math.max(1, G - 1)));
+    g.talk = k >= G - 2 && g.ids.length >= 2;
+  });
+  out.forEach((g, k) => {
+    const n = g.ids.length;
+    const slots = g.ids.map((_, j) => {
+      const a = (j / n) * Math.PI * 2 + k;
+      return wm.nearestOpen(g.x + Math.cos(a) * 0.85, g.z + Math.sin(a) * 0.85, 2) ?? { x: g.x, z: g.z };
+    });
+    placeAt(db, ev, g.ids, slots, "mourners", () => ({ group: k }));
+  });
+  return out;
+}
+
+/** What the mourners say, standing about after (the engine's words; the model's for the first pair when there is budget). */
+const MOURN_LINES: string[][] = [
+  ["He was a good man. Never a hard word from him.", "Never. The street won't be the same."],
+  ["{widow} held up well, poor soul.", "She did. It's the winter I worry about, for her.", "We'll see she's not alone in it."],
+  ["A fine requiem, for a working man.", "It was. I always go to pieces at the organ."],
+  ["Did you see the little ones behind the hearse?", "I did. I'll take a pot of soup round tomorrow."],
+  ["That's the last of the old ones in our street.", "It comes to us all. Come, I'll walk you home."],
+];
+
+function mournersTalk(db: DB, ev: EventRow, s: StoredStage): void {
+  const widow = leadsOf(ev).find((l) => l.role === "widow");
+  const wr = widow ? resident(db, widow.id) : null;
+  const funeral = isFuneral({ template: ev.template, title: ev.title });
+  const talkers = (s.groups ?? []).filter((g) => g.talk && !g.gone && g.ids.filter((id) => eventAction(db, ev, id)).length >= 2);
+  talkers.forEach((g, k) => {
+    const [a, b] = g.ids.filter((id) => eventAction(db, ev, id));
+    const ra = resident(db, a);
+    const rb = resident(db, b);
+    if (!ra || !rb) return;
+    if (k === 0 && canCallConvo(db)) {
+      const about = funeral
+        ? `the funeral just now: ${wr ? `${wr.name} has buried her husband` : "a neighbour was buried"}, the requiem at the cathedral, the coffin gone on the hearse to the Kiel cemetery; they speak low and kindly of the dead man and of how the widow will manage`
+        : `${ev.title}, just over`;
+      void runConvo(db, { a, b, purpose: "chat", about, event_id: ev.id }).catch((e) => console.warn("[events] mourners' talk", e));
+      return;
+    }
+    const set = funeral ? MOURN_LINES[(ev.id * 3 + k) % MOURN_LINES.length] : ["Well. That's that, then.", "It is. Come, I'll walk a way with you."];
+    const who = (j: number) => (j % 2 ? rb : ra);
+    const widowName = wr?.first ?? "The widow";
+    const lines = set.map((t, j) => ({ who: who(j).id, name: who(j).first, text: plainEnglish(t.replace("{widow}", widowName)) }));
+    publishConvo({ a, b, a_name: ra.name, b_name: rb.name, purpose: "chat", lines, source: "engine", outcome: "none", event_id: ev.id });
+    writeEvent(db, { kind: "talk", verb: "convo", actor: a, target: b, text: `${ra.name} spoke with ${rb.name} after ${ev.title.toLowerCase()}`, outcome: "none", weight: 2, data: { purpose: "chat", lines: lines.map((l) => `${l.name}: ${l.text}`), source: "engine" }, who: [a, b], ref_type: "town_event", ref_id: ev.id });
+  });
+}
+
+/**
+ * M7 funeral: what a running stage does between its start and its end, every tick. "enter": after a
+ * while everyone still on the way in counts as in. "depart": the groups go home at their times; two talk.
+ */
+function stageTick(db: DB, ev: EventRow, now: number): number {
+  const stages = stagesOf(ev);
+  const s = stages[ev.stage];
+  if (!s) return 0;
+  const start = stageEnd(ev, stages, ev.stage - 1);
+  let changed = 0;
+  if (s.op === "enter" && now - start >= ENTER_ALL_IN_MIN) {
+    const r = db.prepare("UPDATE npc_action SET phase = 'in' WHERE event_id = ? AND status = 'active' AND phase = 'inside'").run(ev.id);
+    if (r.changes) {
+      changed++;
+      notify("actions");
+    }
+  }
+  if (s.op === "depart" && s.groups?.length) {
+    let dirty = false;
+    for (const g of s.groups) {
+      if (g.gone || now < g.leave_m) continue;
+      for (const id of g.ids) releaseFromEvent(db, ev, id, "went home");
+      g.gone = true;
+      dirty = true;
+    }
+    if (!s.talked && s.talk_m !== undefined && now >= s.talk_m) {
+      s.talked = true;
+      dirty = true;
+      mournersTalk(db, ev, s);
+    }
+    if (dirty) {
+      db.prepare("UPDATE town_event SET stages_json = ? WHERE id = ?").run(JSON.stringify(stages), ev.id);
+      notify("actions");
+      changed++;
+    }
+  }
+  return changed;
+}
+
 /** A piece of work for Jef on the board, through the board's own rules (engine pay). */
 function postJob(db: DB, ev: EventRow, s: StoredStage): void {
   const at = { x: s.x ?? ev.x, z: s.z ?? ev.z };
@@ -973,7 +1346,9 @@ export function publicEvent(db: DB, ev: EventRow) {
     r: ev.r,
     status: ev.status,
     stage: ev.stage,
-    stages: stages.map((s) => ({ op: s.op, minutes: s.minutes, sound: s.sound, mood: s.mood, props: s.props, x: s.x ?? ev.x, z: s.z ?? ev.z, label: s.label ?? ev.place, text: s.text, count: s.count, leads: s.leads ?? [], cues: s.cues ?? [] })),
+    stages: stages.map((s) => ({ op: s.op, minutes: s.minutes, sound: s.sound, mood: s.mood, props: s.props, x: s.x ?? ev.x, z: s.z ?? ev.z, label: s.label ?? ev.place, text: s.text, count: s.count, leads: s.leads ?? [], cues: s.cues ?? [],
+      // M7 funeral: a departure's road out (the hearse drives it), whether a hearse goes, the groups going home
+      ...(s.op === "depart" ? { exit: s.exit ?? null, route: s.route ?? [], hearse: !!s.hearse, groups: (s.groups ?? []).map((g) => ({ ids: g.ids, x: g.x, z: g.z, gone: !!g.gone })) } : {}) })),
     people: peopleOf(ev),
     /** M4b: the leads with their parts, and the scene now playing (a scuffle, a robbery). */
     leads: leadsOf(ev).map((l) => ({ role: l.role, id: l.id, name: l.name, n: l.n ?? 0 })),

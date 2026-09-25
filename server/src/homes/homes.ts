@@ -1,5 +1,5 @@
 import type { DB } from "../db.ts";
-import { BEDTIME, clock, ending, NIGHT_HOOKS, sleep, WEEK_DAYS, type HomeNight, type SleepResult } from "../day.ts";
+import { BEDTIME, clock, DAWN, ending, NIGHT_HOOKS, sleep, WEEK_DAYS, type HomeNight, type SleepResult } from "../day.ts";
 import { GameError, log, player } from "../game.ts";
 import { remember } from "../npcs.ts";
 import { resident } from "../town/store.ts";
@@ -195,7 +195,8 @@ export function sleepHome(db: DB): SleepResult {
   if (!l) throw new GameError("you rent no room", 409);
   const h = homeDef(db, l.home)!;
   const c = clock(db);
-  if (c.hour < BEDTIME && player(db).sleep > 2) throw new GameError(`too early for bed; lie down from ${BEDTIME}:00, or when you are dead tired`, 409);
+  // M7 night: bed from 18:00 until dawn, or at any hour when dead tired
+  if (c.hour >= DAWN && c.hour < BEDTIME && player(db).sleep > 2) throw new GameError(`too early for bed; lie down from ${BEDTIME}:00, or when you are dead tired`, 409);
   if (lockedOut(db, l)) {
     const r = sleep(db, "rough");
     return { ...r, turnedAway: true, summary: [`The key does not turn: ${landlordName(db, h)} has changed the lock. You owe him rent.`, ...r.summary] };

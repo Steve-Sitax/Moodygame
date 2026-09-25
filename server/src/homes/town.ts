@@ -4,6 +4,15 @@ import { houseDoors, walkMap, type HouseDoor } from "../town/walkmap.ts";
 import { TRADES } from "../town/places.ts";
 import { rngFrom, type Resident } from "../town/population.ts";
 import { CLASSES, HOME_CLASSES, type HomeClass } from "../../../shared/homes.ts";
+import INWORLD from "../../../shared/inworld_houses.json" with { type: "json" };
+
+/**
+ * M7: the houses whose insides stand in the world (shared/inworld_houses.json: their doors cut open, their
+ * windows cut through by tools/blender/build_city.py). A home prefers its own there, when it is free and fits.
+ */
+const INWORLD_HOUSE: Partial<Record<HomeClass, number>> = Object.fromEntries(
+  (INWORLD as { houses: Array<{ kind: string; cls?: string; house: number }> }).houses.filter((e) => e.kind === "home" && e.cls).map((e) => [e.cls, e.house]),
+);
 
 // Homes to rent in the town (M6 homes). Runs on every start and after a new game. For an
 // older save it works in place, once: five house doors that nobody lives or works behind
@@ -229,7 +238,8 @@ export function ensureHomesTown(db: DB): { homes: number; widow: boolean; dealer
     for (const cls of HOME_CLASSES) {
       if (rec.homes.some((h) => h.cls === cls)) continue;
       const want = WANT[cls];
-      const d = nearest(freeDoors(db, taken), want.anchor, (q) => want.ok(q, laneWidth(q)));
+      const free = freeDoors(db, taken);
+      const d = free.find((q) => q.house === INWORLD_HOUSE[cls] && want.ok(q, laneWidth(q))) ?? nearest(free, want.anchor, (q) => want.ok(q, laneWidth(q)));
       if (!d) continue;
       taken.push([d.sx, d.sz]);
       let landlord = owners.length ? owners[ownerAt++ % owners.length].id : "";

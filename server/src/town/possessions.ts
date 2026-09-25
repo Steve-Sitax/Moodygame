@@ -9,6 +9,12 @@ import { berthOf, rowBoats } from "../rowing.ts";
 import { activityAt } from "./schedule.ts";
 import { dayKeys, placeKey, scheduleLoad, vehicleAt, WALK_MAX_M, type Act, type Load, type Pt } from "./transport.ts";
 import CITY from "../../../shared/city.json" with { type: "json" };
+import { doorKeepOut, type Rect } from "../../../shared/hallPlan.ts";
+import { doorKeepOut as cathedralKeep } from "../../../shared/cathedralPlan.ts";
+import { PLAN as TOWNHALL } from "../../../shared/townhallPlan.ts";
+import { PLAN as VLEESHUIS } from "../../../shared/vleeshuisPlan.ts";
+import { PLAN as OOSTERSHUIS } from "../../../shared/oostershuisPlan.ts";
+import { PLAN as STEEN } from "../../../shared/steenPlan.ts";
 
 // Who owns what (M6 transport, Steve 2026-09-24). The ENGINE gives the households their
 // velocipedes, handcarts, drays and rowing boats, by trade and wealth, once, from the town's
@@ -31,7 +37,8 @@ import CITY from "../../../shared/city.json" with { type: "json" };
 // stands now follows his day (transport.ts vehicleAt): the server says it for theft
 // (deeds.ts veloHooks), the client parks it there.
 
-export const TRANSPORT_V = 3;
+/** 4: nothing parks before a landmark's doorway or on its steps, and further from a tavern door (M7 doors, 2026-09-25). */
+export const TRANSPORT_V = 4;
 
 export type Spot = [number, number, number];
 
@@ -127,6 +134,12 @@ export function offLanes(x: number, z: number, margin = 0.9): boolean {
 
 /** Stalls, shop tables and doors: nothing parks on them (set while a record is made). */
 let keepOff: Array<[number, number, number]> = [];
+/**
+ * The landmarks' doorways, their porch steps and the street before them (shared/hallPlan.ts doorKeepOut,
+ * as the client's world/doorKeep.ts): nothing parks there, `m` metres for the thing's own size.
+ */
+const DOOR_KEEP: Rect[] = [...[TOWNHALL, VLEESHUIS, OOSTERSHUIS, STEEN].flatMap((p) => doorKeepOut(p)), ...cathedralKeep()];
+export const onDoorway = (x: number, z: number, m = 0.6) => DOOR_KEEP.some((r) => x > r.minX - m && x < r.maxX + m && z > r.minZ - m && z < r.maxZ + m);
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
 const r3 = (n: number) => Math.round(n * 1000) / 1000;
@@ -145,7 +158,7 @@ function spotNear(x: number, z: number, room: number, taken: Spot[], maxR = 9, y
       const pz = z + Math.sin(a) * r;
       if (!wm.open(px, pz, room) || !wm.reachable(px, pz) || !offLanes(px, pz)) continue;
       if (taken.some((t) => Math.hypot(t[0] - px, t[1] - pz) < 2.4)) continue;
-      if (keepOff.some(([kx, kz, kr]) => Math.hypot(kx - px, kz - pz) < kr)) continue;
+      if (keepOff.some(([kx, kz, kr]) => Math.hypot(kx - px, kz - pz) < kr) || onDoorway(px, pz)) continue;
       return [r1(px), r1(pz), r3(yaw ?? 0)];
     }
   }
@@ -169,7 +182,7 @@ function besideDoor(r: Resident, side: 1 | -1, room: number, taken: Spot[], cart
       const z = z0 + out[1] * o + along[1] * s;
       if (!wm.open(x, z, room) || !wm.reachable(x, z) || !offLanes(x, z)) continue;
       if (taken.some((t) => Math.hypot(t[0] - x, t[1] - z) < 2.4)) continue;
-      if (cart && keepOff.some(([kx, kz, kr]) => Math.hypot(kx - x, kz - z) < kr)) continue;
+      if ((cart && keepOff.some(([kx, kz, kr]) => Math.hypot(kx - x, kz - z) < kr)) || onDoorway(x, z)) continue;
       // a velocipede along the wall; a cart's shafts out to the street (it points into the house)
       const yaw = cart ? Math.atan2(-out[0], -out[1]) : Math.atan2(along[0], along[1]);
       return [r1(x), r1(z), r3(yaw)];
@@ -265,6 +278,10 @@ export function makeTransport(db: DB): TransportRecord {
     ...t.stalls.map((q) => [q.x, q.z, 3.2] as [number, number, number]),
     ...t.shops.map((q) => [q.wall[0], q.wall[1], 3.2] as [number, number, number]),
     ...Object.values(places).filter((p) => p.door).map((p) => [p.door![0], p.door![1], 1.8] as [number, number, number]),
+    // a tavern's door and its step (M7 doors: walked into): more room than a house door
+    ...Object.entries(places).filter(([k, p]) => k.startsWith("tavern:") && p.door).map(([, p]) => [p.door![0], p.door![1], 3.0] as [number, number, number]),
+    // the gas lamps' posts
+    ...(((CITY as unknown as { decor?: { lamps?: Pt[] } }).decor?.lamps ?? []) as Pt[]).map(([x, z]) => [x, z, 1.2] as [number, number, number]),
     // every house door of the town and its workplaces: nothing stands in front of a door
     ...R.map((r) => [r.home.sx, r.home.sz, 1.7] as [number, number, number]),
     ...R.filter((r) => r.work.door).map((r) => [r.work.door![0], r.work.door![1], 1.7] as [number, number, number]),

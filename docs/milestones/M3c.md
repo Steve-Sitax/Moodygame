@@ -29,6 +29,7 @@ The map shows the city of 1853, copied in 1873. For our area (the quays, the Ste
 ## Rebuild the city
     python tools/city/extract.py      # needs data/refs/vuillaume_1873.jpg
     python tools/city/plan.py         # needs data/osm/antwerp.json (Overpass export, see plan.py)
+    node tools/city/inworld.mts       # M7: doors and window holes of the taverns and homes in the world (M7-taverns-homes-inworld.md)
     blender -b --factory-startup -P tools/blender/build_city.py
     blender -b --factory-startup -P tools/blender/build_landmarks.py
 Python tools: numpy, opencv-python-headless, shapely, Pillow (dev only, not shipped).
@@ -76,3 +77,67 @@ Steve: many issues with the buildings (pictures: blank walls, a paper-thin house
 | Correct with the map? | | Checked: `data/refs/overlay_markt.jpg` lays the planned houses over the 1873 map at the Grote Markt; blocks, streets, town hall and cathedral line up. |
 | Dev fly mode | | F9 (dev builds): fly with WASD and the mouse, Space up, C down, Shift fast; no fog, noon light; a readout of x, y, z; F9 again lands you. |
 | In-game map | Existed, key M | Named on the start screen now too. |
+
+## Pass 4, 2026-09-24: house doors
+Steve (screenshot of a street): the doors were flat dark plank rectangles, some as big as barn doors on ordinary houses; the stone surround was loose square blocks that floated and stuck up above the door like teeth.
+
+| Before | Now (`build_city.py` `door_spec`, `gate_spec`, `door_run`, `doorway`, `loading_door`; cells in `cityTextures.ts` `facadeAtlas`) |
+|---|---|
+| The door was painted into a whole 3 m bay of the facade texture | A real doorway cut into the plain ground-storey wall, the door 20 cm back in a stone reveal |
+| One door picture for every house | Panelled front door (four raised panels, a brass knob and keyhole plate), painted dark green, oxblood, brown or deep blue per house; 0.95 m on narrow fronts, 1.05-1.15 m, a double door (1.5 m) on some fronts of 7.5 m and more |
+| No light over the door | A glazed transom under a flat stone lintel (half with a drip moulding), or a round fanlight with a sunburst of glazing bars under a stone arch (some with a keystone) |
+| Carriage gate: a 2.7 x 3.5 m plank slab, an arch of seven loose blocks | Poortdeur: two panelled leaves with strap hinges and a wicket door, under a segmental arch; one flush ring of voussoirs from jamb to jamb; sized to the front (at most 2.5 m, less on narrow ones) |
+| Storehouses: a plank slab up the whole front, another over the loading gate | Loading gates like the poortdeur (2.7 m) every 9 m; above each a loading door a storey (planks, Z brace, strap hinges) in a stone frame; the hoist beam stays |
+| | A stone sill across every front door; the jambs are two or three dressed stones, flush, lying on the wall (no back faces) |
+
+The door stays in the middle of the middle bay, so `build_props.py` (doorways kept clear) and `build_streetlife.py` (doorsteps, numbers) need no rebuild. The doors have their own dice (`seed * 31 + 1873`); the carriage-gate draw is the same as before, so every other house detail (gables, chimneys, dormers) is unchanged. The facade atlas is now 8 x 8 cells (512 px); city.ts `atlas: 8`.
+
+Rebuild (Blender 5.2 on PCX):
+
+    "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --factory-startup -P tools/blender/build_city.py
+
+Numbers: `city.glb` 805 KB -> 1,410 KB; 31,519 -> 55,327 faces (118,500 triangles for the whole city); no new material, so no new draw calls. `perf(60)` on the test stack after: Rijnkaai 12.0 ms, 258 calls, 371k triangles; the street at (56, 150) 14.4 ms, 259 calls, 439k; Grote Markt 10.9 ms, 385 calls, 448k (before, same spots, with the other sessions' code of that hour: 15.0 ms / 274 / 385k, 14.1 ms / 261 / 427k, 21.6 ms / 438 / 481k; the frame times move with the rest of the tree, the city's share is small). Path check lists nothing.
+
+Pictures: `data/shots/doors_before_house.jpg`, `doors_before_gate.jpg`, `doors_before_street.jpg`; after: `doors_after_house.jpg` (two arched doors, one double), `doors_close_153.jpg`, `doors_close_147.jpg`, `doors_close_140.jpg` (flat lintel and transom), `doors_close_134.jpg`, `doors_after_gate.jpg` (carriage gate), `doors_after_warehouse.jpg`, `doors_after_warehouse_gate.jpg`, `doors_after_hessenatie.jpg`, `doors_after_street.jpg`, `doors_after_row.jpg`.
+
+## Pass 5, 2026-09-25: z-fighting
+Steve (screenshot on the Rijnkaai, by the HESSENATIE sign): where a brick house meets a white plaster one, a strip of the white front lies in the plane of the brick front and the two flicker in a stair-step edge. "Do a check for it."
+
+The check: `await __scheldemist.zfight()` in the dev game (`client/src/dev/zfight.ts`). It reads the scene as placed (houses, landmarks, ground, quay walls, street life, quay furniture, clutter, bridges, the lock, stalls, props; instances too; people, boats, carts, cranes, traffic and water left out) and lists every pair of faces with normals within 1 degree that overlap by 0.01 m2 or more: `fights` one plane (within 5 mm, flicker at any distance, must be 0), `thin` a layer within 2 cm of a surface facing the same way, `close` within 5 cm. A pair settled by a polygonOffset, or two see-through decals that write no depth, does not count. Hidden pairs (inside the houses on the walk map, or closed in by what stands in front) are counted apart. Grouped by cause in `byCause`, with x, y, z, area, both objects and the plan's houses. Why thin layers matter: with the PS1 wobble a face's depth moves by up to half a pixel of its slope, about 7 cm at 30 m seen askew; the 24-bit depth itself is good to 0.7 mm there. Options: `list`, `hidden`, `noOffset` / `writeDepth` (see what a material fix settles), `debugAt`. It counts what is switched on at that moment (market stalls only on market days). About 7 s.
+
+| Cause (visible fights, hidden) | Before | After | Fix |
+|---|---|---|---|
+| House fronts in one plane | 123, 523 | 1, 1 | `plan.py` `trim_rects`: a rect house was built as its plot's rectangle, up to a fifth bigger than the plot where a corner plot took a bite; it ran into the neighbour (the Hessenatie's #90 into the white #89). Now cut back to clear every other house, keeping the street front (192 houses cut, 3 too small became footprint houses with a hipped roof). Spiky footprints repaired (6). |
+| Ground storey in one plane | 158, 78 | 0, 7 | same, and the kerbs below |
+| Flat tops, copings | 176, 22 | 3, 5 | `build_city.py`: kerbs built in one pass (`build_kerbs`): no back on the wall, neighbours meet without end faces, a kerb that runs into another stops at its front; a side roof no longer puts two chimneys in one place; gable copings stay inside the house |
+| Walls back to back | 62, 8,417 | 0, 3,718 | kerb backs gone; railing posts where two runs meet built once |
+| Houses + street life (plates, boards, steps) | 61, 1,908; thin 1,181 | 0 | `streetlife.ts` solid material polygonOffset -1/-2 |
+| Quay walls + quay furniture | 678 back to back; thin 396 | 0 | `quayfurniture.ts` solid material polygonOffset -1/-2 |
+| Quay walls + quay steps | 148, 18 | 0 | `quaysteps.ts` stone polygonOffset -1/-2 |
+| Paving zones and edge stones | 113 | 3 | `plan.py` `ground_zones` simplified before the zones are cut from each other; edge stones (`city.ts`) write no depth |
+| Rail setts crossing | 88 | 11 | `tracks.ts` band writes no depth |
+| All, whole world | 3,314 fights, 4,981 thin, 7,293 close | 1,764, 2,316, 5,940 | |
+
+Left: the houses have 4 small visible pairs (three cornice tops where two cornices of a corner house meet, 0.03 m2 each; a 0.012 m2 sliver at the eaves between #197 and #198). The rest are faces inside other models (quay furniture 379, quay steps 120, the Steen 74, opening bridges and their quay walls 103, trades 112, clutter 127 and clutter items standing on kerbs 74, pontoon 42, cathedral 34, omnibus posts 24, lock 65, stalls 26); their fixes belong in their own build scripts. Close (2-5 cm): keystones 3 cm over their arch ring (523), loading doors 3 cm over the storehouse walls (130). Seen in the pictures: where a front now meets its neighbour exactly, the wobble can open a crack of single pixels on the seam that shows the party wall behind (a dotted light line at the Hessenatie corner, where the wall behind is white plaster); it is the same at every seam between neighbours of different height.
+
+Side effects: the Hessenatie door moved 0.41 m east (`spots.json` hessenatie_door x 10.79 -> 11.2; `server/src/director/hiring.ts` and `server/src/town/places.ts` still say 10.79 / 10.8). The walk map, the ground zones and `city_build.json` changed with the plan; `lively.ts` rounds keep their stops 2.5 m from another round's (two neighbours' doors came that close); `ideas.test.ts` takes any of the seller's wares as the gift.
+
+Rebuild:
+
+    python tools/city/plan.py
+    "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --factory-startup -P tools/blender/build_city.py
+    (then build_streetlife.py, build_props.py, build_quayfurniture.py the same way: they read the house doors)
+
+Checks: `zfight()` as above; `paths()`, `signs()`, `streetEnds()` list nothing; server tests 732 of 732. Pictures (13:00, clear): `data/shots/zfight_before_hessenatie.jpg`, `zfight_before_hessenatie_close.jpg`, `zfight_before_370.jpg`, `zfight_before_101.jpg` and the same names with `after`.
+
+## Pass 6, 2026-09-25: seams and the other models' z-fights
+**Seams.** The dotted light line on the seam between two fronts (the Hessenatie corner) was not a crack: the depth render has no hole there. It was the party wall. A house's side wall started exactly on the seam, in the fronts' plane, at the fronts' depth; where the PS1 snap stair-steps the seam's edge, its pixels won the depth test, and the lit plaster side (`facade` is two-sided) showed through, one pixel a step. Fix in `build_city.py` (`side_wall`, `seam_cover`, `FRONT_ENDS`): where a neighbour's front meets a house's front on one line (or a bend under 60 degrees, the neighbour not set back), the side wall (and a flat roof's parapet side) starts 15 cm behind the front, up to the lower of the two houses; above that it runs to the corner as before, since it is seen there. No new geometry, no layers. Measured with a normal-and-depth render (party-wall pixels on the seam line, within 25 cm of its depth) over 30 seams (white next to brick, 6.8 to 15.8 m, 4 to 16 m off, looking up, moving 3 cm a frame): 21,410 of 444,034 seam pixels before, 678 of 440,827 after (97 % fewer); what is left are gate jambs, lamp brackets and flag poles standing by a seam. Pictures: `data/shots/seam_before_*.jpg`, `seam_after_*.jpg` (Hessenatie close and moving, 78,172 mid, 155,172 far, -340,117 close), crops side by side in `seam_before_after_crops.jpg`.
+
+Also in `build_city.py`: keystones 8 cm proud of the arch ring (were 3 cm: 523 close), loading doors 7 cm off the wall, just behind their jambs (were 3 cm: 130 close).
+
+**Other models** (visible fights before, after): quay furniture 505, 8 (`build_quayfurniture.py`: the timber post's bands, the notice board between its posts, the customs booth's walls and roof boards, the harbour hut's floor and roof boards, the cable drum's flanges, the upturned boat's inside); clutter 280, 13 (`build_clutter.py`: no bottoms on things that stand on the stones, a kerb or a wall; the edge kerb's pale top is its top; the city gate's piers stop under the lintel; the barrier's rails without their own post, `barrier_post` stands at every joint); quay steps 120, 0 (`quaysteps.ts`: the parapet's pier stands on the landing, the edge stone starts past it); trades 136, 3 (`build_trades.py`: inside faces of two-sided hulls, roofs and staves 2 to 4 cm in; the basket's floor 1.5 cm up; the punt's sides inside its bottom); opening bridges 193, 0 (`build_bridges.py`: the leaf starts 6 cm off the hinge and a single leaf stops 6 cm short of the far quay, the nose beam carries the deck's end, the fixed deck lies on the quay, no balance tie over the pivot, the ballast in from the beams' ends); the lock 65, 0 (`build_lock.py`: the heel post 5 cm deeper, the balance heel narrower than the post, the mitre posts' tops slope). Whole world: 1,831 visible fights before, 550 after (left: the Steen 100, the Vismarkt stalls 106 and their frames 24, pontoon 52, streetlife 71, omnibus posts 24, the railway gate 27, landmarks, tracks 20, quay walls 30).
+
+Rebuild (any order; city first if the plan changed):
+
+    "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --factory-startup -P tools/blender/build_city.py
+    (and build_quayfurniture.py, build_clutter.py, build_trades.py, build_bridges.py, build_lock.py the same way)

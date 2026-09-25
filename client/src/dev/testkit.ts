@@ -5,6 +5,9 @@ import type { Town } from "../game/town";
 import type { Jobs } from "../game/jobs";
 import type { Events } from "../game/events";
 import { Figure, type FigureKind } from "../game/figures";
+import { GAME_MIN_PER_REAL_S, REAL_S_PER_GAME_MIN } from "../../../shared/clock";
+import type { QuestBoxes } from "../game/questboxes";
+import type { Nightlife } from "../game/nightlife";
 
 // The test kit (Steve, 2026-09-24: "write good testing routines: where to go, what time and how;
 // searching or spawning figures for quick tests instead of waiting"). Dev builds only, in the tab
@@ -35,6 +38,9 @@ export interface TestKitDeps {
   town: Town;
   jobs: Jobs;
   events: Events;
+  /** M7 night: the quest boxes and the gangs. */
+  boxes: QuestBoxes;
+  night: Nightlife;
   /** Run the game n seconds now (main.ts step: works with the tab hidden). */
   step(seconds: number): void;
   shotFrom(name: string, from: [number, number, number], to: [number, number, number], fogFar?: number): Promise<string>;
@@ -82,7 +88,11 @@ export function makeTestKit(d: TestKitDeps) {
         "spawn('thief', {walkTo:[x,z]})   a job figure 5 m ahead on land (thief, stranger, foreman, recipient)",
         "job({type:'watch', twist:'thief'}) a job of that kind on the board, taken, Jef at its start (test save only)",
         "event('fish_auction' | 'invent') start an event now and go there (test save only)",
-        "run(s) / until(() => cond, maxS) run the game now (the tab may be hidden), at most 30 s a call",
+        "run(s) / until(() => cond, maxS) run the game now (the tab may be hidden), at most 30 s a call (15 game minutes)",
+        "skip(min)                        the clock on by min game minutes (through midnight: the date turns), then one tick (test save only)",
+        "gang(answer?)                    M7 night: a gang now where Jef stands; answer 'run' | 'fight' | 'shout' | 'pay' at once, or leave it to the keys (test save only)",
+        "nightWork(fallback?)             M7 night: the night's work now (the model's, or the hand-written jobs); givers() where the givers stand",
+        "boxes()                          M7 night: the quest boxes, and whose man is away now",
         "shot('name', target?)            a picture of the target from 4 m, lit, fog pushed back",
         "state()                          clock, place, people near, events, the job",
         "clear()                          remove spawned figures, let summoned people go",
@@ -99,6 +109,24 @@ export function makeTestKit(d: TestKitDeps) {
       await post("/api/dev/set", { hour, minute: 0, weather, food: 10, warmth: 10, sleep: 10, health: 10 });
       d.step(1);
       return `${hour}:00, ${weather}, needs full`;
+    },
+
+    /** The clock's rate (shared/clock.ts): a game minute is this many real seconds. */
+    rate: { realSPerGameMin: REAL_S_PER_GAME_MIN, gameMinPerRealS: GAME_MIN_PER_REAL_S },
+
+    /**
+     * M7 clock: jump the server's clock on by this many game minutes, then one tick, so the events'
+     * stages, the actions and the director move on (a jump within the day plays the stages it passes).
+     * M7 night: through midnight too; the date turns on the way as in play (a new board, the rent).
+     * A game hour is two real minutes: skip() instead of waiting.
+     */
+    async skip(minutes: number): Promise<string> {
+      kit.guard("skip()");
+      await post("/api/dev/advance", { minutes: Math.max(0, Math.round(minutes)) });
+      await d.jobs.day.tick();
+      d.step(1);
+      const c = d.jobs.day;
+      return `now day ${c.dayNum}, ${Math.floor(c.hourF)}:${String(Math.floor((c.hourF % 1) * 60)).padStart(2, "0")}`;
     },
 
     async time(hour: number, minute = 0): Promise<string> {
@@ -309,6 +337,37 @@ export function makeTestKit(d: TestKitDeps) {
       const dist = opts.dist ?? 4;
       const from: [number, number, number] = [p.x + dx * dist, opts.height ?? 1.7, p.z + dz * dist];
       return d.shotFrom(name, from, [p.x, opts.lookY ?? 1.1, p.z], opts.fog ?? 120);
+    },
+
+    /** M7 night: a gang now, where Jef stands (the engine's roll skipped); `answer` answers at once. */
+    async gang(answer?: "run" | "fight" | "shout" | "pay" | "stand"): Promise<string> {
+      kit.guard("gang()");
+      const r = await post<{ gang: { id: number; demand_c: number } | null }>("/api/dev/gang", d.night.facts());
+      if (!r.gang) return "no gang";
+      d.night.show(r.gang as Parameters<Nightlife["show"]>[0]);
+      d.step(3);
+      if (!answer) return `gang ${r.gang.id} asks ${r.gang.demand_c} c: R run, F fight, H shout, P pay (or t.gang again)`;
+      return d.night.answer(answer);
+    },
+
+    /** M7 night: the night's work now; `fallback` puts up the hand-written jobs (no model call). */
+    async nightWork(fallback = false): Promise<string> {
+      kit.guard("nightWork()");
+      const r = await post<Record<string, unknown>>("/api/dev/night-work", { fallback }, 40_000);
+      await d.jobs.refresh(await (await fetch("/api/jobs")).json());
+      return JSON.stringify(r);
+    },
+
+    /** M7 night: the givers of night work, where they stand and whether they are out. */
+    givers(): Array<{ id: string; name: string; x: number | null; z: number | null; shown: boolean }> {
+      return ["fence", "smuggler", "nightcarter", "cracksman"].map((id) => {
+        const n = d.jobs.people.get(id);
+        return { id, name: n?.def.name ?? id, x: n ? round(n.pos.x) : null, z: n ? round(n.pos.z) : null, shown: !!n?.present };
+      });
+    },
+
+    boxes() {
+      return d.boxes.info();
     },
 
     state() {

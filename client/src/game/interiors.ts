@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import "./interiors.css";
-import { psxUniforms, MAX_LAMPS } from "../retro/psx";
 import { buildCellar, buildTavern, type Room, type Seat, type Spot } from "../world/rooms";
 import { signTexture, glowTexture } from "../world/textures";
 import type { FirstPerson, RideAnchor, RideWalk } from "../player/firstPerson";
@@ -9,18 +8,24 @@ import { interiorApi, type InteriorsInfo, type Person, type PlayInfo, type PlayL
 import { isHumanKind, makeHuman, type Human, type HumanKind } from "./humans";
 import { makePuppet, type Puppet } from "./puppets";
 import type { Action, Sfx } from "./runs";
+import { best, pick, type Target } from "./facing";
 import type { Jobs } from "./jobs";
+import type { World } from "../world/rijnkaai";
+import type { InWorld } from "../world/inworld";
+import { createHouseInWorld, type HouseInWorld } from "../world/houseInWorld";
+import type { HousePlan } from "../../../shared/housePlan";
+import * as HP from "../../../shared/hallPlan";
 
-// Inside (M6): E at a tavern's door takes Jef into its taproom; E at the cellar door by the
-// Vleeshuis (in the evening, 5 c) down into the Poesje. Each room is a small scene of its own
-// (world/rooms.ts), rendered instead of the street while Jef is in it, put at the door it
-// belongs to so the sounds and the town's clock stay where they are. Jef walks it in the
-// player's carriage mode (the room frame), sits on a bench, stands at the counter.
-// The keeper and the drinkers are the town's residents the schedule puts there (the server
-// says who); they sit at the tables, talk in bubbles, and can be talked to as ever. Buying
-// goes through the keeper's own wares (trade.ts). Pitjesbak at a table, gossip overheard,
-// the fire, tipsy: the server's numbers, the client's show. In the cellar the audience fills
-// the benches and three rod puppets play tonight's play, line by line.
+// Inside (M6, M7 in the world): the taverns and the Poesje stand inside their own city houses
+// (shared/housePlan.ts, world/houseInWorld.ts): their doors stand open in opening hours and you walk in;
+// from the street you see the lit taproom, the keeper and the drinkers through the windows, and from inside
+// the street. The Poesje's door opens in the evening onto a flight down into the cellar; you pay at the door
+// as you go in. The keeper and the drinkers are the town's residents the schedule puts there (the server
+// says who); they sit at the tables, talk in bubbles, and can be talked to as ever. Buying goes through the
+// keeper's own wares (trade.ts). Pitjesbak at a table, gossip overheard, the fire, tipsy: the server's
+// numbers, the client's show. In the cellar the audience fills the benches and three rod puppets play
+// tonight's play, line by line. The life runs for the building nearest Jef (within 70 m) or the home he is
+// in (game/homes.ts: setHome); sitting uses the player's carriage mode in the house's frame.
 
 type Occ = {
   p: Person;
@@ -45,10 +50,21 @@ interface Line {
   secs?: number;
 }
 
+/** A building whose life can run: a tavern, the Poesje, or Jef's home (world/houseInWorld.ts). */
+interface Here {
+  kind: "tavern" | "cellar" | "home";
+  place: string;
+  label: string;
+  room: Room;
+  house: HouseInWorld | null;
+}
+
 const HEAD_STAND = 1.78;
 const HEAD_SIT = 1.32;
 const WALK_IN = 1.1;
 const REACH_DOOR = 1.8;
+/** The life of a tavern or the Poesje runs this near its door (m); another takes over when nearer by 10 m. */
+const LIFE_M = 70;
 
 /** Human kinds that stand (skirts, aprons, loads); the rest may sit. */
 const STANDERS = new Set(["peeters", "fientje", "fishwife_a", "fishwife_b", "maid", "girl", "wife_a", "wife_b", "shopwife", "old_woman", "girl_b", "baker", "shopkeeper", "publican", "docker_sack", "porter", "carter", "sentry"]);
@@ -63,16 +79,23 @@ function hash(s: string): number {
 
 export class Interiors {
   info: InteriorsInfo | null = null;
-  /** The room Jef is in, or null in the street. */
-  room: Room | null = null;
-  private here: { kind: "tavern" | "cellar" | "home" | "landmark"; place: string; label: string; step: Pt; out: Pt; origin: { x: number; z: number }; yaw: number } | null = null;
-  private rooms = new Map<string, Room>();
+  /** The building whose life runs now (null: none near). */
+  private here: Here | null = null;
+  /** Jef is inside it (past the threshold). */
+  private jefIn = false;
+  /** The taverns and the Poesje in the world, by place ("tavern:ankere", "poesje"). */
+  private houses = new Map<string, { kind: "tavern" | "cellar"; house: HouseInWorld }>();
+  private world: { world: World; inWorld: InWorld; plans: Map<string, HousePlan> } | null = null;
+  /** Jef's home while he is in it (game/homes.ts). */
+  private home: Here | null = null;
   private occ = new Map<string, Occ>();
   private seatTaken = new Map<Seat, string>();
   private jefSeat: Seat | null = null;
   private busy = false;
   private t = 0;
   private syncT = 0;
+  private syncing = false;
+  private firstSync = true;
   private chatT = 20;
   private infoT = 0;
   private tipsyNow = 0;
@@ -80,28 +103,25 @@ export class Interiors {
   private tipsyT = 0;
   private swayT = 0;
   private script: { lines: Line[]; i: number; t: number; tag: HTMLDivElement | null; onLine?: (l: Line) => void; onEnd?: () => void; sung?: boolean } | null = null;
-  private readonly fadeEl = document.createElement("div");
   private readonly caption = document.createElement("div");
   private readonly dice = new DicePanel();
   private decorated = false;
   private show: { play: PlayInfo | null; stage: "wait" | "opening" | "title" | "lines" | "closing" | "rest" | "over"; t: number; puppets: Puppet[]; writing: boolean } | null = null;
   private lampOut: Array<{ sprite: THREE.Sprite; light: THREE.Mesh }> = [];
+  private paidAt = -1;
 
   /** Set by main. */
   say: (t: string) => void = () => {};
   sfx: (name: Sfx) => void = () => {};
   speak: (at: { x: number; z: number }, voice: { sex: "m" | "f"; age: number }, seconds: number) => void = () => {};
-  /** The room's sound: "tavern", "cellar", "home", a landmark's hall ("church", "hall" ...), or null back in the street. */
+  /** The room's sound: "tavern", "cellar", "home", or null back in the street. */
   roomSound: (kind: string | null) => void = () => {};
+  /** The day's light (0 night .. 1 noon), set by main. */
+  daylight: () => number = () => 1;
   /** M6 homes (game/homes.ts): the keys inside a rented room, besides the door and the people. */
   homeKeys: ((x: number, z: number) => { options: Array<[number, Action]>; extra: Action[] }) | null = null;
-  /** M6 landmark interiors (game/landmarks.ts): the keys inside a landmark, and which seats its people hold. */
-  landmarkKeys: ((x: number, z: number) => { options: Array<[number, Action]>; extra: Action[] }) | null = null;
-  seatBusy: ((s: Seat) => boolean) | null = null;
   /** M6 ballads (game/ballads.ts): keys in a tavern besides the counter, the fire and the people (buy a ballad sheet). */
   tavernKeys: ((x: number, z: number) => { options: Array<[number, Action]>; extra: Action[] }) | null = null;
-  /** Jef sat down or stood up (the landmarks: the chair money at mass). */
-  onSeat: (s: Seat | null) => void = () => {};
   /** M6 treat (game/hands.ts): keys while Jef sits at a table (talk to the one he stood a drink). */
   seatedKeys: (() => Action[]) | null = null;
 
@@ -110,9 +130,8 @@ export class Interiors {
     private readonly jobs: Jobs,
     private readonly worldScene: THREE.Scene,
   ) {
-    this.fadeEl.className = "room-fade";
     this.caption.className = "poesje-caption";
-    document.body.append(this.fadeEl, this.caption);
+    document.body.append(this.caption);
     this.dice.onPayload = (p) => this.jobs.refresh(p);
     this.dice.sfx = (n) => this.sfx(n);
     this.dice.player = player;
@@ -122,17 +141,60 @@ export class Interiors {
       bought(p, line);
       this.refreshTipsy();
     };
-    // the night sheet (midnight, or bed) takes Jef out of any room, quietly
+    // the night sheet: up from the bench, the dice put away (Jef stays where he is: M7 night)
     const sheet = jobs.day.onSheet;
     jobs.day.onSheet = () => {
       sheet();
-      if (this.room) this.leave(true);
+      if (this.jefSeat) this.standUp();
+      this.dice.close();
     };
     void this.load();
   }
 
+  /** Jef is inside a tavern, the Poesje or his home. */
   get inside(): boolean {
-    return this.room !== null;
+    return this.jefIn && this.here !== null;
+  }
+
+  /** M7: is this tavern open with its taproom standing in the world (its keeper and drinkers go in: game/town.ts)? */
+  tavernOpen(place: string): boolean {
+    const h = this.houses.get(place);
+    return !!h && h.kind === "tavern" && h.house.doorOpen;
+  }
+
+  /** The room Jef is in, or null in the street. */
+  get room(): Room | null {
+    return this.inside ? this.here!.room : null;
+  }
+
+  /**
+   * M7: stand the taverns and the Poesje in their houses (main, once, after the world is built). `plans`: the
+   * in-world houses' plans by id (shared/inworld_houses.json). The rooms are built once the server has said
+   * which taverns there are (their names for the boards).
+   */
+  attachWorld(world: World, inWorld: InWorld, plans: Map<string, HousePlan>): void {
+    this.world = { world, inWorld, plans };
+    this.build();
+  }
+
+  private build(): void {
+    const w = this.world;
+    if (!w || !this.info || this.houses.size) return;
+    for (const t of this.info.taverns) {
+      const plan = w.plans.get(t.place);
+      if (!plan) continue;
+      const room = buildTavern({ plan, label: t.label, seed: hash(t.place) % 9973 });
+      const house = createHouseInWorld(w.world, w.inWorld, plan, room, { color: 0x1a130d, near: 3.5, far: 20 }, 0.4);
+      house.doorOpen = t.open;
+      this.houses.set(t.place, { kind: "tavern", house });
+    }
+    const pl = w.plans.get("poesje");
+    if (pl && this.info.poesje) {
+      const room = buildCellar({ plan: pl });
+      const house = createHouseInWorld(w.world, w.inWorld, pl, room, { color: 0x1a130e, near: 3.5, far: 18 }, 0.5);
+      house.doorOpen = this.info.poesje.open;
+      this.houses.set("poesje", { kind: "cellar", house });
+    }
   }
 
   async load(): Promise<void> {
@@ -140,6 +202,13 @@ export class Interiors {
       this.info = await interiorApi.info();
       this.tipsyTarget = this.info.tipsy;
       if (!this.decorated) this.decorate();
+      this.build();
+      for (const t of this.info.taverns) {
+        const h = this.houses.get(t.place);
+        if (h) h.house.doorOpen = t.open;
+      }
+      const p = this.houses.get("poesje");
+      if (p && this.info.poesje) p.house.doorOpen = this.info.poesje.open;
     } catch {
       /* the server is not up yet: try again at the next refresh */
     }
@@ -176,11 +245,13 @@ export class Interiors {
         const arm = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 1.9), new THREE.MeshBasicMaterial({ color: 0x1a1816 }));
         arm.position.set(d.wall[0] + d.out[0] * 0.95, 3.2, d.wall[1] + d.out[1] * 0.95);
         arm.rotation.y = Math.atan2(d.out[0], d.out[1]);
+        board.userData.wallSign = { kind: "tavern sign", name: text, flat: false }; // dev/signcheck.ts
         this.worldScene.add(board, arm);
       } else {
         const board = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.34), new THREE.MeshBasicMaterial({ map: signTexture(text), color: 0x9a8a70 }));
-        board.position.set(d.wall[0] + d.out[0] * 0.2, 3.1, d.wall[1] + d.out[1] * 0.2);
+        board.position.set(d.wall[0] + d.out[0] * 0.012, 3.83, d.wall[1] + d.out[1] * 0.012); // flat on the wall, over the doorway (dev/signcheck.ts)
         board.rotation.y = Math.atan2(d.out[0], d.out[1]);
+        board.userData.wallSign = { kind: "door sign", name: text, flat: true }; // dev/signcheck.ts
         this.worldScene.add(board);
       }
       if (d.kind === "cellar") {
@@ -198,233 +269,267 @@ export class Interiors {
     }
   }
 
-  /** For the path check: every door must be reachable on foot. */
+  /** For the path check: every door must be reachable on foot (the world's grid). */
   pathPoints(): Array<{ label: string; x: number; z: number; reach: number }> {
     return this.doors().map((d) => ({ label: `door of ${d.label}`, x: d.step[0], z: d.step[1], reach: 1.6 }));
+  }
+
+  /**
+   * M7: inside, through each open door, by the house's own plan (a finer grid than the city's: a 1.2 m door
+   * is too narrow for its 0.5 m cells): the counter, the fire and a table in each tavern, the benches and the
+   * booth's front in the Poesje. What cannot be reached, by name.
+   */
+  insidePathProblems(): string[] {
+    const bad: string[] = [];
+    for (const [place, h] of this.houses) {
+      if (!h.house.doorOpen) continue;
+      const room = h.house.room;
+      const label = this.doors().find((d) => d.place === place)?.label ?? place;
+      const reach = HP.flood(h.house.plan, [0, -0.45], 0.15, 0.3, () => true);
+      const L = h.kind === "cellar" ? 1 : 0;
+      const pts: Array<[string, number, number, number]> = [];
+      if (room.counter) pts.push(["the counter", room.counter.x, room.counter.z, 0.6]);
+      if (room.fire) pts.push(["the fire", room.fire.x, room.fire.z, 0.8]);
+      const seat = room.seats.find((q) => q.table === 0);
+      if (seat) pts.push([h.kind === "cellar" ? "the back bench" : "a table", ...(seat.via[seat.via.length - 1] as [number, number]), 0.6]);
+      const front = room.seats.reduce<Seat | null>((a, q) => (!a || q.z > a.z ? q : a), null);
+      if (h.kind === "cellar" && front) pts.push(["the front bench", ...(front.via[front.via.length - 1] as [number, number]), 0.6]);
+      for (const [what, x, z, r] of pts) if (!reach(x, z, L, r)) bad.push(`in ${label}: ${what}`);
+    }
+    return bad;
   }
 
   // ------------------------------------------------------------------ keys (Jobs.extraActions)
 
   keys(x: number, z: number): { only?: Action[]; options?: Array<[number, Action]> } {
     if (this.busy) return { only: [] };
-    if (this.room) return { only: this.dice.open ? [] : this.insideKeys() };
+    if (this.inside) return { only: this.dice.open ? [] : this.insideKeys() };
     if (this.player.riding || this.player.swimming || this.player.climbing || this.player.bikeRiding) return {};
     const options: Array<[number, Action]> = [];
     for (const d of this.doors()) {
+      if (d.open) continue; // an open door: walk in
       const dist = Math.hypot(d.step[0] - x, d.step[1] - z);
       if (dist > REACH_DOOR) continue;
-      if (d.kind === "tavern") options.push([dist - 0.2, { key: "KeyE", text: `go into ${d.label}`, run: () => void this.enterTavern(d.place) }]);
-      else {
+      // the door itself, at chest height: Jef must look at it (game/facing.ts)
+      const at = { x: d.wall[0], y: this.player.y + 1.1, z: d.wall[1] };
+      if (d.kind === "tavern") {
+        const keeper = this.info?.taverns.find((t) => t.place === d.place)?.keeper;
+        options.push([dist - 0.2, { key: "KeyE", text: `try the door of ${d.label}`, run: () => this.say(`The door of ${d.label} is barred. ${keeper ? `${keeper.first} opens again later.` : "Nobody answers."}`), at }]);
+      } else {
         const p = this.info!.poesje!;
-        options.push([dist - 0.2, d.open ? { key: "KeyE", text: `go down to the Poesje (${p.price_c} c)`, run: () => void this.enterCellar() } : { key: "KeyE", text: "read the board by the cellar door", run: () => this.say(`A painted board: "POESJE. Every evening from seven. ${p.price_c} centimes." The door is shut.`) }]);
+        options.push([dist - 0.2, { key: "KeyE", text: "read the board by the cellar door", run: () => this.say(`A painted board: "POESJE. Every evening from seven. ${p.price_c} centimes." The door is shut.`), at }]);
       }
     }
     return { options };
   }
 
+  /** Where Jef stands in the room's frame (seated: the seat). */
+  private jefAt(): { x: number; z: number } | null {
+    const room = this.room;
+    if (!room) return null;
+    const w = this.player.rideWalk;
+    if (this.player.riding && w) return { x: w.x, z: w.z };
+    const [x, z] = room.toLocal!(this.player.x, this.player.z);
+    return { x, z };
+  }
+
   private insideKeys(): Action[] {
     const room = this.room!;
-    const w = this.player.rideWalk;
+    const w = this.jefAt();
     if (!w) return [];
     if (this.jefSeat) {
-      const out: Action[] = [{ key: "KeyE", text: "stand up", run: () => this.standUp() }];
+      const out: Action[] = [{ key: "KeyE", text: "stand up", run: () => this.standUp(), self: true }];
       const mate = this.dicePartner();
-      if (mate) out.push({ key: "KeyG", text: `play pitjesbak with ${mate.p.first}`, run: () => void this.openDice(mate) });
+      if (mate) out.push({ key: "KeyG", text: `play pitjesbak with ${mate.p.first}`, run: () => void this.openDice(mate), at: this.occAt(mate) });
       if (this.seatedKeys) out.push(...this.seatedKeys());
       return out;
     }
     const near = (s: Spot | undefined, r: number) => (s ? Math.hypot(s.x - w.x, s.z - w.z) < r : false);
     const opts: Array<[number, Action]> = [];
     const extra: Action[] = [];
-    if (near(room.exit, 1.0) && room.kind !== "landmark") opts.push([Math.hypot(room.exit.x - w.x, room.exit.z - w.z), { key: "KeyE", text: room.kind === "cellar" ? "go up the steps into the street" : "go out into the street", run: () => this.leave() }]);
     const keeper = [...this.occ.values()].find((o) => o.keeper && !o.gone);
     if (keeper && near(room.counter, 1.2)) {
-      opts.push([0.2, { key: "KeyE", text: `talk to ${keeper.p.first}, the keeper`, run: () => this.talkTo(keeper) }]);
-      extra.push({ key: "KeyF", text: `buy at the counter`, run: () => this.jobs.talk.open({ id: keeper.p.id, def: { name: keeper.p.name, title: "the keeper" } }, true) });
+      const at = this.occAt(keeper);
+      opts.push([0.2, { key: "KeyE", text: `talk to ${keeper.p.first}, the keeper`, run: () => this.talkTo(keeper), at }]);
+      extra.push({ key: "KeyF", text: `buy at the counter`, run: () => this.jobs.talk.open({ id: keeper.p.id, def: { name: keeper.p.name, title: "the keeper" } }, true), at });
     }
-    if (near(room.fire, 1.4)) opts.push([0.3, { key: "KeyE", text: "warm yourself at the fire", run: () => void this.warm() }]);
+    if (near(room.fire, 1.4)) opts.push([0.3, { key: "KeyE", text: "warm yourself at the fire", run: () => void this.warm(), at: this.roomPoint(room.fire!.x, room.fire!.z, 0.5) }]);
     for (const o of this.occ.values()) {
       if (o.gone || o.leaving || o.keeper) continue;
       const d = Math.hypot(o.x - w.x, o.z - w.z);
-      if (d < 1.5) opts.push([d, { key: "KeyE", text: `talk to ${o.p.name}`, run: () => this.talkTo(o) }]);
+      if (d < 1.5) opts.push([d, { key: "KeyE", text: `talk to ${o.p.name}`, run: () => this.talkTo(o), at: this.occAt(o) }]);
     }
     if (room.kind === "home" && this.homeKeys) {
       const hk = this.homeKeys(w.x, w.z);
       opts.push(...hk.options);
       extra.push(...hk.extra);
     }
-    if (room.kind === "landmark" && this.landmarkKeys) {
-      const lk = this.landmarkKeys(w.x, w.z);
-      opts.push(...lk.options);
-      extra.push(...lk.extra);
-    }
     if (room.kind === "tavern" && this.tavernKeys) {
       const tk = this.tavernKeys(w.x, w.z);
       opts.push(...tk.options);
       extra.push(...tk.extra);
     }
-    let best: Seat | null = null;
-    let bd = 0.85;
-    for (const s of room.seats) {
-      if (this.seatTaken.has(s) || this.seatBusy?.(s)) continue;
+    // the free seat Jef looks at (game/facing.ts)
+    const seat = pick(room.seats, (s) => {
+      if (this.seatTaken.has(s)) return null;
       const d = Math.hypot(s.x - w.x, s.z - w.z);
-      if (d < bd) [best, bd] = [s, d];
+      return d < 1.05 ? { d, at: this.roomPoint(s.x, s.z, 0.45) } : null;
+    });
+    if (seat) {
+      const s = seat.it;
+      opts.push([seat.d + 0.1, { key: "KeyE", text: room.kind === "cellar" ? "sit down on the bench" : s.table === 9 ? "sit at the counter" : "sit down at the table", run: () => this.sitDown(s), at: seat.at }]);
     }
-    if (best) {
-      const s = best;
-      opts.push([bd + 0.1, { key: "KeyE", text: room.kind === "cellar" ? "sit down on the bench" : room.kind === "landmark" ? "sit down" : s.table === 9 ? "sit at the counter" : "sit down at the table", run: () => this.sitDown(s) }]);
-    }
-    opts.sort((a, b) => a[0] - b[0]);
-    return [...(opts.length ? [opts[0][1]] : []), ...extra];
+    const top = best(opts);
+    return [...(top ? [top] : []), ...extra];
   }
 
   private talkTo(o: Occ): void {
     this.jobs.talk.open({ id: o.p.id, def: { name: o.p.name, title: o.keeper ? "the keeper" : undefined } });
     // they turn to Jef
-    const w = this.player.rideWalk;
+    const w = this.jefAt();
     if (w && !o.seat) o.yaw = Math.atan2(w.x - o.x, w.z - o.z);
   }
 
-  // ------------------------------------------------------------------ in and out
-
-  private fade(then: () => void | Promise<void>): Promise<void> {
-    this.fadeEl.classList.add("on");
-    return new Promise((res) =>
-      setTimeout(async () => {
-        try {
-          await then();
-        } finally {
-          setTimeout(() => this.fadeEl.classList.remove("on"), 60);
-          res();
-        }
-      }, 360),
-    );
-  }
-
-  /**
-   * M6 homes: go into a room made elsewhere (a rented home, world/homeRooms.ts), at its door,
-   * with the same fade, walk and sound as the taverns. `then` runs inside the fade.
-   */
-  async enterOwn(room: Room, d: { place: string; label: string; step: Pt; out: Pt; wall?: Pt }, then?: () => void, quiet = false, kind: "home" | "landmark" = "home"): Promise<boolean> {
-    if (this.busy || this.room) return false;
-    this.busy = true;
-    try {
-      const f = this.frame(d.step, d.out, d.wall);
-      const go = () => {
-        this.enterRoom(room, { kind, place: d.place, label: d.label, step: d.step, out: d.out, ...f });
-        then?.();
-      };
-      if (quiet) go();
-      else await this.fade(go);
-      return true;
-    } finally {
-      this.busy = false;
-    }
-  }
-
-  /** M6 homes: where a room made elsewhere must stand for its door (origin and turn of its frame). */
-  frameOf(step: Pt, out: Pt, wall?: Pt): { origin: { x: number; z: number }; yaw: number } {
-    return this.frame(step, out, wall);
-  }
+  // ------------------------------------------------------------------ whose life runs, in and out
 
   /** The place of the room Jef is in ("tavern:ankere", "poesje", a home's id), or null. */
   get placeId(): string | null {
-    return this.here?.place ?? null;
+    return this.inside ? this.here!.place : null;
+  }
+
+  /** M7 homes: Jef is in his home (game/homes.ts): its life here (a visitor at the door); null: out again. */
+  setHome(h: { place: string; label: string; room: Room; house: HouseInWorld | null } | null): void {
+    if (h && this.home?.place === h.place) return;
+    if (!h && !this.home) return;
+    this.home = h ? { kind: "home", ...h } : null;
+    if (h) this.switchTo(this.home, true);
+    else if (this.here?.kind === "home") {
+      this.crossed(false);
+      this.switchTo(null, false);
+    }
   }
 
   /** M6 homes: someone at the door of the room (the widow, a neighbour) says a line; null sends them off. */
   visit(p: Person | null, line?: string): void {
-    if (!this.room) return;
+    if (!this.inside) return;
     this.syncPeople(p ? [p] : [], null, false);
     if (p && line) this.play([{ who: p.id, name: p.first, text: line }]);
   }
 
-  private frame(step: Pt, out: Pt, wall?: Pt): { origin: { x: number; z: number }; yaw: number } {
-    const w = wall ?? [step[0] - out[0] * 1.2, step[1] - out[1] * 1.2];
-    return { origin: { x: w[0], z: w[1] }, yaw: Math.atan2(-out[0], -out[1]) };
+  private switchTo(h: Here | null, jefIn: boolean): void {
+    if (this.here === h) return;
+    if (this.jefIn && this.here) this.crossed(false);
+    this.clearPeople();
+    this.here = h;
+    this.firstSync = true;
+    this.syncT = 0;
+    if (h?.kind === "cellar") this.show = { play: null, stage: "wait", t: 4, puppets: [], writing: false };
+    if (jefIn && h) this.crossed(true);
   }
 
-  private enterRoom(room: Room, here: NonNullable<Interiors["here"]>): void {
-    const anchor: RideAnchor = { x: here.origin.x, y: 0, z: here.origin.z, yaw: here.yaw, speed: 0 };
-    const walk: RideWalk = { x: room.entry.x, z: room.entry.z, walk: room.walk, floor: room.floor ? (x, z) => room.floor!(x, z) : () => 0, pace: room.pace, eye: room.eye, surface: room.surface };
-    // look into the room: its +z is the world's -out
-    this.player.rideStart(() => anchor, Math.atan2(here.out[0], here.out[1]), walk);
-    this.player.pitch = -0.05;
-    this.room = room;
-    this.here = here;
-    this.jefSeat = null;
+  private clearPeople(): void {
+    this.dice.close();
+    this.endScript();
+    this.clearShow();
+    for (const o of this.occ.values()) o.human?.dispose();
+    this.occ.clear();
     this.seatTaken.clear();
-    this.roomSound(room.sound ?? room.kind);
+    if (this.jefSeat) this.standUp();
   }
 
-  async enterTavern(place: string): Promise<void> {
-    if (this.busy || this.room) return;
-    if (this.jobs.goods.carried) {
-      this.say("Not with that in your arms. Set it down first.");
+  /** Which building's life should run: Jef's home when he is in it, else the tavern or the Poesje nearest him. */
+  private choose(): void {
+    if (this.home) {
+      if (this.here !== this.home) this.switchTo(this.home, true);
       return;
     }
-    const d = this.doors().find((q) => q.place === place);
-    if (!d) return;
-    this.busy = true;
-    try {
-      const st = await interiorApi.tavern(place);
-      if (!st.open) {
-        this.say(`The door of ${d.label} is barred. ${st.keeper ? `${st.keeper.first} opens again later.` : "Nobody answers."}`);
-        return;
-      }
-      const f = this.frame(d.step, d.out);
-      let room = this.rooms.get(place);
-      if (!room) this.rooms.set(place, (room = buildTavern({ origin: f.origin, yaw: f.yaw, label: d.label, seed: hash(place) % 9973 })));
-      const r = room;
-      await this.fade(() => {
-        this.enterRoom(r, { kind: "tavern", place, label: d.label, step: d.step, out: d.out, ...f });
-        this.syncPeople([...(st.keeper ? [{ ...st.keeper, sex: "m" as const, age: 45 }] : []), ...st.patrons], st.keeper?.id ?? null, true);
-        this.tipsyTarget = st.tipsy;
-        this.chatT = 6 + Math.random() * 6;
-      });
+    const px = this.player.x;
+    const pz = this.player.z;
+    let best: { place: string; d: number } | null = null;
+    for (const [place, h] of this.houses) {
+      const d = h.house.near(px, pz);
+      if (d < LIFE_M && (!best || d < best.d)) best = { place, d };
+    }
+    const cur = this.here && this.here.kind !== "home" ? this.here.place : null;
+    if (cur && best && cur !== best.place) {
+      const dc = this.houses.get(cur)!.house.near(px, pz);
+      if (this.jefIn || dc < best.d + 10) best = { place: cur, d: dc };
+    }
+    if (!best) {
+      if (this.here) this.switchTo(null, false);
+      return;
+    }
+    if (best.place === cur) return;
+    const h = this.houses.get(best.place)!;
+    const label = this.doors().find((d) => d.place === best!.place)?.label ?? best.place;
+    this.switchTo({ kind: h.kind, place: best.place, label, room: h.house.room, house: h.house }, false);
+  }
+
+  /** Jef crossed the threshold of the building whose life runs (in or out). */
+  private crossed(inNow: boolean): void {
+    const h = this.here;
+    this.jefIn = inNow;
+    if (!h) return;
+    if (!inNow) {
+      if (this.jefSeat) this.standUp();
+      this.dice.close();
+      this.caption.classList.remove("on");
+      this.roomSound(null);
+      return;
+    }
+    this.roomSound(h.room.sound ?? h.kind);
+    if (h.kind === "home") return;
+    if (this.jobs.goods.carried) return this.putOut("Not with that in your arms. Set it down first.");
+    if (h.kind === "tavern") {
+      const n = [...this.occ.values()].filter((o) => !o.keeper && !o.gone && !o.leaving).length;
       // words for the hour (QA 2026-09-24: "Quiet tonight" at one in the afternoon)
-      const h = this.jobs.day.hourF;
-      const quiet = h >= 18 || h < 4 ? "Quiet tonight." : h < 12 ? "Quiet this morning." : "Quiet this afternoon.";
-      this.say(`${d.label}. Smoke, beer and wet wool. ${st.patrons.length ? `${st.patrons.length} at the tables.` : quiet}`);
-    } catch (e) {
-      this.say(String((e as Error).message ?? e));
-    } finally {
-      this.busy = false;
-    }
-  }
-
-  async enterCellar(): Promise<void> {
-    if (this.busy || this.room) return;
-    const d = this.doors().find((q) => q.kind === "cellar");
-    const p = this.info?.poesje;
-    if (!d || !p) return;
-    if (this.jobs.goods.carried) {
-      this.say("Not with that in your arms. Set it down first.");
+      const hr = this.jobs.day.hourF;
+      const quiet = hr >= 18 || hr < 4 ? "Quiet tonight." : hr < 12 ? "Quiet this morning." : "Quiet this afternoon.";
+      this.say(`${h.label}. Smoke, beer and wet wool. ${n ? `${n} at the tables.` : quiet}`);
+      this.chatT = 6 + Math.random() * 6;
       return;
     }
+    void this.payAtCellar();
+  }
+
+  /** Down the Poesje's steps: the woman at the door takes the money (once an evening), or turns Jef back. */
+  private async payAtCellar(): Promise<void> {
+    const p = this.info?.poesje;
+    if (!p || this.busy) return;
+    const day = this.jobs.day.dayNum;
     this.busy = true;
     try {
-      // what is on first (free), then pay: a failed look no longer costs Jef his entry money
       const info = await interiorApi.poesje();
       const paid = await interiorApi.enter();
       this.jobs.refresh(paid);
-      const f = this.frame(d.step, d.out, p.wall);
-      let room = this.rooms.get("poesje");
-      if (!room) this.rooms.set("poesje", (room = buildCellar({ origin: f.origin, yaw: f.yaw })));
-      const r = room;
-      await this.fade(() => {
-        this.enterRoom(r, { kind: "cellar", place: "poesje", label: "the Poesje", step: d.step, out: d.out, ...f });
-        this.syncPeople(info.audience, null, true);
-        this.show = { play: info.play.state === "ready" ? info.play : null, stage: "wait", t: 4, puppets: [], writing: false };
-        if (!this.show.play) void this.fetchPlay();
-      });
+      this.paidAt = day;
+      if (this.here?.kind === "cellar") {
+        this.syncPeople(info.audience, null, this.firstSync);
+        this.firstSync = false;
+        if (this.show && !this.show.play && info.play.state === "ready") this.show.play = info.play;
+        if (this.show && !this.show.play) void this.fetchPlay();
+      }
       this.say(paid.line);
     } catch (e) {
       const m = String((e as Error).message ?? e);
-      this.say(/money/.test(m) ? `The woman at the door holds out her hand: ${p.price_c} centimes. You have not got it.` : /shut/.test(m) ? "The cellar door is shut. The Poesje plays from seven in the evening." : m);
+      this.putOut(/money/.test(m) ? `The woman at the door holds out her hand: ${p.price_c} centimes. You have not got it.` : /shut/.test(m) ? "The cellar door is shut. The Poesje plays from seven in the evening." : m);
     } finally {
       this.busy = false;
     }
+  }
+
+  /** Out onto the step before the door, facing the street, with a line. */
+  private putOut(text: string): void {
+    const h = this.here;
+    if (text) this.say(text);
+    if (this.jefSeat) this.standUp();
+    this.dice.close();
+    if (h?.house) {
+      const [x, z] = h.house.world(0, -1.2);
+      const [ox, oz] = h.house.world(0, -2.2);
+      this.player.place(x, z, Math.atan2(-(ox - x), -(oz - z)), 0);
+    }
+    if (this.jefIn) this.crossed(false);
   }
 
   private async fetchPlay(): Promise<void> {
@@ -442,40 +547,29 @@ export class Interiors {
     }
   }
 
+  /** Dev and the landmarks' old way out: put Jef out on the step of the building he is in. */
   leave(quiet = false, by?: { step: Pt; out: Pt }): void {
-    if (!this.room || !this.here) return;
-    const h = by ? { ...this.here, step: by.step, out: by.out } : this.here;
-    const out = () => {
-      this.dice.close();
-      this.endScript();
-      this.clearShow();
-      for (const o of this.occ.values()) o.human?.dispose();
-      this.occ.clear();
-      this.seatTaken.clear();
-      this.jefSeat = null;
-      this.player.rideSeat = null;
-      this.onSeat(null);
-      this.player.rideEnd(h.step[0] + h.out[0] * 0.3, h.step[1] + h.out[1] * 0.3);
-      this.player.yaw = Math.atan2(-h.out[0], -h.out[1]);
-      this.room = null;
-      this.here = null;
-      this.roomSound(null);
-    };
-    if (quiet) out();
-    else void this.fade(out);
+    if (!this.inside) return;
+    if (by) {
+      this.player.place(by.step[0] + by.out[0] * 0.3, by.step[1] + by.out[1] * 0.3, Math.atan2(-by.out[0], -by.out[1]), 0);
+      this.crossed(false);
+      return;
+    }
+    this.putOut(quiet ? "" : "");
   }
 
   // ------------------------------------------------------------------ people in the room
 
   private syncPeople(list: Person[], keeperId: string | null, first: boolean): void {
-    const room = this.room!;
+    const room = this.here?.room;
+    if (!room) return;
     const want = new Set(list.map((p) => p.id));
     for (const o of this.occ.values()) {
       if (!want.has(o.p.id) && !o.leaving && !o.gone) {
         o.leaving = true;
         const via = o.seat ? [...o.seat.via].reverse() : [];
         this.free(o);
-        o.path = [...via, [room.entry.x - 0.3, room.entry.z + 1.2], [room.exit.x, room.exit.z - 0.3]];
+        o.path = [...via, [room.entry.x, room.entry.z], [room.exit.x, room.exit.z]];
       }
     }
     for (const p of list) {
@@ -495,7 +589,7 @@ export class Interiors {
       const spot = o.seat ?? o.stand;
       if (first || keeper) {
         if (spot) [o.x, o.z, o.yaw] = [spot.x, spot.z, spot.yaw];
-      } else if (spot) o.path = [[room.entry.x, room.entry.z + 1.3], ...(o.seat?.via ?? []), [spot.x, spot.z]];
+      } else if (spot) o.path = [[room.entry.x, room.entry.z], ...(o.seat?.via ?? []), [spot.x, spot.z]];
       this.occ.set(p.id, o);
       this.dress(o);
     }
@@ -503,7 +597,7 @@ export class Interiors {
 
   /** A seat for those who can sit (by id, so the same man takes the same place), else a place to stand. */
   private place(o: Occ): void {
-    const room = this.room!;
+    const room = this.here!.room;
     // M6 ballads: a guest who stands to sing (the ballad singer) takes no seat
     const sitter = !o.p.stand && !STANDERS.has(o.kind) && (room.kind === "cellar" || o.p.age >= 16);
     const h = hash(o.p.id);
@@ -531,7 +625,7 @@ export class Interiors {
   }
 
   private standFor(o: Occ): void {
-    const room = this.room!;
+    const room = this.here!.room;
     const used = new Set([...this.occ.values()].map((q) => q.stand));
     const free = room.stands.filter((s) => !used.has(s));
     const h = hash(o.p.id);
@@ -545,11 +639,12 @@ export class Interiors {
   }
 
   private dress(o: Occ): void {
-    if (o.human || !this.room) return;
+    const room = this.here?.room;
+    if (o.human || !room) return;
     const h = makeHuman(o.kind);
     if (!h) return;
     o.human = h;
-    this.room.group.add(h.root);
+    room.group.add(h.root);
     // a seat of a kind that cannot sit after all (the model says): stand beside it instead
     if (o.seat && !h.canSit) {
       const was = o.seat;
@@ -558,17 +653,21 @@ export class Interiors {
       this.standFor(o);
       const spot = o.stand!;
       if (!o.path.length || o.path[o.path.length - 1][0] === was.x) {
-        if (o.path.length) o.path = [[this.room.entry.x, this.room.entry.z + 1.3], [spot.x, spot.z]];
+        if (o.path.length) o.path = [[room.entry.x, room.entry.z], [spot.x, spot.z]];
         else [o.x, o.z, o.yaw] = [spot.x, spot.z, spot.yaw];
       }
     }
   }
 
   private updatePeople(dt: number): void {
+    const room = this.here?.room;
+    if (!room) return;
     const talkingTo = this.jobs.talk.isOpen;
     const speaking = this.script?.lines[this.script.i]?.who;
+    // drawn only when the room is seen (M7: through its door or windows, or from inside)
+    const seen = this.jefIn || !this.here?.house || this.here.house.drawn();
     for (const [id, o] of this.occ) {
-      if (!o.human) this.dress(o);
+      if (!o.human && seen) this.dress(o);
       const h = o.human;
       if (o.path.length) {
         const [tx, tz] = o.path[0];
@@ -597,6 +696,8 @@ export class Interiors {
         }
       }
       if (!h) continue;
+      h.root.visible = seen;
+      if (!seen) continue;
       const walking = o.path.length > 0;
       const sitting = !walking && !!o.seat;
       if (walking) {
@@ -604,7 +705,8 @@ export class Interiors {
         h.setPace(WALK_IN);
       } else if (sitting) h.play("sit");
       else h.play(speaking === id || (talkingTo && o.keeper) ? "talk" : o.keeper ? "idle" : "fold");
-      h.root.position.set(o.x, (sitting ? h.sitDrop(o.seat!.h) : 0) + h.bob(), o.z);
+      const fy = room.floor?.(o.x, o.z) ?? 0;
+      h.root.position.set(o.x, fy + (sitting ? h.sitDrop(o.seat!.h) : 0) + h.bob(), o.z);
       h.root.rotation.y = o.yaw;
       // M6 treat: a guest merry on Jef's rounds sways a little in the seat
       h.root.rotation.z = o.p.role === "guest_tipsy" ? Math.sin(this.t * 1.3 + (hash(id) % 7)) * 0.06 : 0;
@@ -614,37 +716,53 @@ export class Interiors {
 
   // ------------------------------------------------------------------ Jef sits
 
+  /** Carried in the house's frame on a seat (the player's carriage mode, standing still). */
   private sitDown(s: Seat): void {
-    const w = this.player.rideWalk;
-    if (!w || this.seatTaken.has(s)) return;
+    const room = this.room;
+    const house = this.here?.house;
+    if (!room || !house || this.seatTaken.has(s)) return;
     this.seatTaken.set(s, "jef");
     this.jefSeat = s;
-    this.player.rideSeat = { x: s.x, y: this.room?.floor?.(s.x, s.z) ?? 0, z: s.z, eye: s.h + 0.72 };
+    const plan = house.plan;
+    const anchor: RideAnchor = { x: plan.origin.x, y: plan.floorY, z: plan.origin.z, yaw: plan.yaw, speed: 0 };
+    const y = room.floor?.(s.x, s.z) ?? 0;
+    const walk: RideWalk = { x: s.x, z: s.z, walk: (fx, fz) => [fx, fz], floor: () => y, surface: "wood" };
+    this.player.rideStart(() => anchor, undefined, walk);
+    this.player.rideSeat = { x: s.x, y, z: s.z, eye: s.h + 0.72 };
     // face the table (or the stage): the seat's own facing, turned into the player's yaw
-    const room = this.room!;
     const f = room.toWorld(s.x + Math.sin(s.yaw), s.z + Math.cos(s.yaw));
     const p = room.toWorld(s.x, s.z);
     this.player.yaw = Math.atan2(-(f.x - p.x), -(f.z - p.z));
-    this.player.pitch = room.kind === "cellar" ? 0.02 : room.kind === "landmark" ? 0.05 : -0.12;
-    this.onSeat(s);
+    this.player.pitch = room.kind === "cellar" ? 0.02 : -0.12;
     if (room.kind === "tavern" && s.table !== 9) void this.overhear();
   }
 
   private standUp(): void {
     const s = this.jefSeat;
+    this.jefSeat = null;
     if (!s) return;
     this.seatTaken.delete(s);
-    this.jefSeat = null;
-    this.player.rideSeat = null;
-    this.onSeat(null);
-    const w = this.player.rideWalk;
-    if (w) {
-      // step back from the table into the room
-      const [x, z] = this.room!.walk(w.x, w.z, s.x - Math.sin(s.yaw) * 0.45, s.z - Math.cos(s.yaw) * 0.45);
-      w.x = x;
-      w.z = z;
-    }
     this.dice.close();
+    const room = this.here?.room;
+    const house = this.here?.house;
+    if (!this.player.riding) return;
+    const yaw = this.player.yaw;
+    // step back from the table into the room: behind the seat, else beside it
+    let at = room ? room.toWorld(s.x, s.z) : new THREE.Vector3(this.player.x, 0, this.player.z);
+    if (room && house) {
+      const fy = room.floor?.(s.x, s.z) ?? 0;
+      for (const [f, side] of [[-0.55, 0], [0, 0.6], [0, -0.6], [-0.7, 0.5], [-0.7, -0.5], [0.6, 0]]) {
+        const cx = s.x + Math.sin(s.yaw) * f + Math.cos(s.yaw) * side;
+        const cz = s.z + Math.cos(s.yaw) * f - Math.sin(s.yaw) * side;
+        const w = room.toWorld(cx, cz);
+        if (house.free(w.x, w.z, house.plan.floorY + fy, 0.3)) {
+          at = w;
+          break;
+        }
+      }
+    }
+    this.player.rideEnd(at.x, at.z);
+    this.player.yaw = yaw;
   }
 
   /** A drinker at Jef's table (or seated close by) to play dice with. */
@@ -662,19 +780,21 @@ export class Interiors {
   }
 
   private async openDice(o: Occ): Promise<void> {
-    if (!this.here) return;
+    const place = this.placeId;
+    if (!place) return;
     try {
-      const r = await interiorApi.sit(this.here.place, o.p.id);
-      this.dice.show(this.here.place, o.p, r.line, r.stakes, r.left, this.jobs.talk.money);
+      const r = await interiorApi.sit(place, o.p.id);
+      this.dice.show(place, o.p, r.line, r.stakes, r.left, this.jobs.talk.money);
     } catch (e) {
       this.say(String((e as Error).message ?? e));
     }
   }
 
   private async warm(): Promise<void> {
-    if (!this.here) return;
+    const place = this.placeId;
+    if (!place) return;
     try {
-      const r = await interiorApi.fire(this.here.place);
+      const r = await interiorApi.fire(place);
       this.jobs.refresh(r);
       this.say(r.text);
     } catch (e) {
@@ -685,11 +805,11 @@ export class Interiors {
   /** Jef sits near two drinkers: he overhears them (the server picks the facts; once a game hour). */
   private async overhear(): Promise<void> {
     const pair = this.pairNear();
-    if (!pair || !this.here || this.script) return;
-    const place = this.here.place;
+    const place = this.placeId;
+    if (!pair || !place || this.script) return;
     try {
       const g = await interiorApi.gossip(place, pair[0].p.id, pair[1].p.id);
-      if (this.here?.place === place) this.play(g.lines);
+      if (this.placeId === place) this.play(g.lines);
     } catch {
       // nothing new to say this hour: they only chat
       this.chatT = Math.min(this.chatT, 2);
@@ -698,7 +818,7 @@ export class Interiors {
 
   /** The two drinkers nearest Jef (at his table first). */
   private pairNear(): [Occ, Occ] | null {
-    const w = this.player.rideWalk;
+    const w = this.jefAt();
     if (!w) return null;
     const s = this.jefSeat;
     const list = [...this.occ.values()]
@@ -710,25 +830,25 @@ export class Interiors {
 
   /** Two at one table talk (the M4 conversation now and then, the engine's small talk between). */
   private async chat(): Promise<void> {
-    if (!this.here || this.script || this.room?.kind !== "tavern") return;
+    const place = this.placeId;
+    if (!place || this.script || this.room?.kind !== "tavern") return;
     const seated = [...this.occ.values()].filter((o) => !o.keeper && !o.leaving && !o.path.length);
     const byTable = new Map<number, Occ[]>();
     for (const o of seated) if (o.seat) byTable.set(o.seat.table, [...(byTable.get(o.seat.table) ?? []), o]);
     const tables = [...byTable.values()].filter((l) => l.length >= 2);
     const pair = tables.length ? tables[Math.floor(Math.random() * tables.length)].slice(0, 2) : seated.length >= 2 ? seated.slice(0, 2) : null;
     if (!pair) return;
-    const place = this.here.place;
     try {
       const r: TalkLines = await interiorApi.chat(place, pair[0].p.id, pair[1].p.id);
-      if (this.here?.place === place && !this.script) this.play(r.lines);
+      if (this.placeId === place && !this.script) this.play(r.lines);
     } catch {
       /* they drink in silence */
     }
   }
 
-  /** A conversation the server pushed (M4): shown here if both are in this room. */
+  /** A conversation the server pushed (M4): shown here if both are in this room and Jef with them. */
   convo(c: { lines: Line[]; a: string; b: string }): void {
-    if (this.room && this.occ.has(c.a) && this.occ.has(c.b) && !this.script) this.play(c.lines);
+    if (this.inside && this.occ.has(c.a) && this.occ.has(c.b) && !this.script) this.play(c.lines);
   }
 
   // ------------------------------------------------------------------ lines over heads
@@ -743,7 +863,7 @@ export class Interiors {
    * its own time; the tune is played by `onLine`, so no murmur of speech. False if they are not here.
    */
   sing(who: string, lines: Line[], onLine: (l: Line) => void, onEnd?: () => void): boolean {
-    if (!this.room || !this.occ.has(who) || this.script) return false;
+    if (!this.inside || !this.occ.has(who) || this.script) return false;
     this.play(lines, onLine, onEnd);
     this.script!.sung = true;
     return true;
@@ -755,13 +875,26 @@ export class Interiors {
   }
 
   /** M6 ballads: where someone in the room stands (world metres) and their voice; null if not here. */
-  personAt(who: string): { x: number; z: number; voice: { sex: "m" | "f"; age: number }; dist: number } | null {
+  personAt(who: string): { x: number; z: number; voice: { sex: "m" | "f"; age: number }; dist: number; at: Target } | null {
     const o = this.occ.get(who);
     const room = this.room;
     if (!o || !room || o.gone || o.leaving) return null;
     const at = room.toWorld(o.x, o.z);
-    const w = this.player.rideWalk;
-    return { x: at.x, z: at.z, voice: { sex: o.p.sex, age: o.p.age }, dist: w ? Math.hypot(o.x - w.x, o.z - w.z) : 99 };
+    const w = this.jefAt();
+    return { x: at.x, z: at.z, voice: { sex: o.p.sex, age: o.p.age }, dist: w ? Math.hypot(o.x - w.x, o.z - w.z) : 99, at: this.occAt(o) };
+  }
+
+  /** A point in the room (room frame, y over its floor) in the world, for looking at it (game/facing.ts). */
+  roomPoint(x: number, z: number, y: number): Target {
+    const room = this.room ?? this.here?.room;
+    if (!room) return { x, z };
+    const p = room.toWorld(x, z, (room.floor?.(x, z) ?? 0) + y);
+    return { x: p.x, y: p.y, z: p.z };
+  }
+
+  /** Someone in the room: their chest, lower when they sit. */
+  private occAt(o: Occ): Target {
+    return this.roomPoint(o.x, o.z, o.seat ? 1.0 : 1.3);
   }
 
   private endScript(): void {
@@ -781,12 +914,14 @@ export class Interiors {
     const o = this.occ.get(who);
     if (!o) return null;
     const sitting = !!o.seat && !o.path.length;
-    return { local: new THREE.Vector3(o.x, sitting ? HEAD_SIT : o.p.age < 13 ? 1.3 : HEAD_STAND, o.z), voice: { sex: o.p.sex, age: o.p.age } };
+    const fy = this.here?.room.floor?.(o.x, o.z) ?? 0;
+    return { local: new THREE.Vector3(o.x, fy + (sitting ? HEAD_SIT : o.p.age < 13 ? 1.3 : HEAD_STAND), o.z), voice: { sex: o.p.sex, age: o.p.age } };
   }
 
   private updateScript(dt: number): void {
     const s = this.script;
-    if (!s || !this.room) return;
+    const room = this.here?.room;
+    if (!s || !room) return;
     s.t -= dt;
     if (s.t <= 0) {
       s.i++;
@@ -807,7 +942,7 @@ export class Interiors {
       s.onLine?.(l);
       const h = this.headOf(l.who);
       if (h && !s.sung) {
-        const at = this.room.toWorld(h.local.x, h.local.z);
+        const at = room.toWorld(h.local.x, h.local.z);
         this.speak({ x: at.x, z: at.z }, h.voice, Math.min(s.t - 0.4, 4));
       }
     }
@@ -815,7 +950,7 @@ export class Interiors {
       const h = this.headOf(s.lines[s.i].who);
       const cam = this.player.camera;
       cam.updateMatrixWorld();
-      const v = h ? this.room.toWorld(h.local.x, h.local.z, h.local.y + 0.15).project(cam) : null;
+      const v = h && this.jefIn ? room.toWorld(h.local.x, h.local.z, h.local.y + 0.15).project(cam) : null;
       if (!v || v.z > 1 || Math.abs(v.x) > 1.1 || Math.abs(v.y) > 1.1) s.tag.classList.remove("on");
       else {
         s.tag.style.left = `${(((v.x + 1) / 2) * window.innerWidth).toFixed(0)}px`;
@@ -842,9 +977,11 @@ export class Interiors {
 
   private updateShow(dt: number): void {
     const sh = this.show;
-    const room = this.room;
+    const room = this.here?.room;
     if (!sh || !room?.stage) return;
     for (const p of sh.puppets) p.update(dt);
+    // the show plays while Jef is down in the cellar
+    if (!this.jefIn) return;
     sh.t -= dt;
     const stage = room.stage;
     switch (sh.stage) {
@@ -922,7 +1059,7 @@ export class Interiors {
 
   private makePuppets(play: PlayInfo): void {
     const sh = this.show;
-    const room = this.room;
+    const room = this.here?.room;
     if (!sh || !room?.stage || sh.puppets.length) return;
     const [a, b, c] = room.stage.spots;
     const y = room.stage.feetY;
@@ -943,7 +1080,7 @@ export class Interiors {
     this.tipsyT -= dt;
     if (this.tipsyT <= 0) {
       this.tipsyT = this.tipsyTarget > 0 ? 8 : 30;
-      if (this.tipsyTarget > 0 || this.room) this.refreshTipsy();
+      if (this.tipsyTarget > 0 || this.inside) this.refreshTipsy();
     }
     this.tipsyNow += (this.tipsyTarget - this.tipsyNow) * Math.min(1, dt * 0.25);
     // the Poesje's lantern is lit from half past six
@@ -953,39 +1090,78 @@ export class Interiors {
       l.sprite.material.opacity = 0.8 * lit * (0.92 + Math.sin(this.t * 6) * 0.05);
       (l.light.material as THREE.MeshBasicMaterial).color.setHex(lit ? 0xffc070 : 0x3a3228);
     }
-    const room = this.room;
-    if (!room || !this.here) return;
-    room.update(this.t, dt);
-    room.setDaylight(Math.max(0, Math.min(1, h < 12 ? (h - 6.5) / 3 : (18.5 - h) / 3)));
+    // the houses: their leaves; the rooms' fires and lamps run while they are seen; warm transoms at night when open
+    const day = this.daylight();
+    for (const [, hw] of this.houses) {
+      hw.house.glow = hw.house.doorOpen ? 1 : 0;
+      // a tavern shut for the night: its lamps out, the fire down to embers (the Poesje's candles only in the evening)
+      hw.house.room.setLamps?.(hw.house.doorOpen ? 1 : 0);
+      hw.house.update(this.t, dt, day);
+      if (hw.house.drawn() || this.here?.house === hw.house) hw.house.room.update(this.t, dt);
+    }
+    // whose life runs, and Jef in or out (a little either way so it never flickers at the threshold)
+    this.choose();
+    const here = this.here;
+    if (!here) return;
+    if (here.house && here.kind !== "home") {
+      const k = here.house.insideness(this.player.x, this.player.z);
+      const inNow = this.jefIn ? k > 0.35 : k > 0.55;
+      if (inNow !== this.jefIn) this.crossed(inNow);
+    }
+    if (here.kind === "home") here.room.update(this.t, dt);
+    here.room.setDaylight(Math.max(0, Math.min(1, h < 12 ? (h - 6.5) / 3 : (18.5 - h) / 3)));
     this.updatePeople(dt);
     this.updateScript(dt);
     this.updateShow(dt);
     this.dice.update(dt);
     // who is here changes with the clock: ask the server every few seconds
-    if (room.kind === "tavern") {
-      this.syncT -= dt;
-      if (this.syncT <= 0) {
-        this.syncT = 4;
-        const place = this.here.place;
-        interiorApi
-          .tavern(place)
-          .then((st) => {
-            if (this.here?.place !== place) return;
-            this.tipsyTarget = st.tipsy;
-            if (!st.open) {
-              this.say(`${st.keeper?.first ?? "The keeper"} puts the chairs on the tables. "Closing time. Out you go."`);
-              this.leave();
-              return;
-            }
-            this.syncPeople([...(st.keeper ? [{ ...st.keeper, sex: "m" as const, age: 45 }] : []), ...st.patrons], st.keeper?.id ?? null, false);
-          })
-          .catch(() => {});
-      }
+    this.syncT -= dt;
+    if (this.syncT <= 0 && !this.syncing) {
+      this.syncT = here.kind === "tavern" ? 4 : 10;
+      void this.sync(here);
+    }
+    if (here.kind === "tavern" && this.jefIn) {
       this.chatT -= dt;
       if (this.chatT <= 0) {
         this.chatT = 28 + Math.random() * 22;
         if (!this.dice.open && !this.jobs.talk.isOpen) void this.chat();
       }
+    }
+  }
+
+  private async sync(here: Here): Promise<void> {
+    if (here.kind === "home") return;
+    this.syncing = true;
+    try {
+      if (here.kind === "tavern") {
+        const st = await interiorApi.tavern(here.place);
+        if (this.here !== here) return;
+        this.tipsyTarget = st.tipsy;
+        const hw = this.houses.get(here.place);
+        if (hw) hw.house.doorOpen = st.open;
+        if (!st.open) {
+          if (this.jefIn) this.putOut(`${st.keeper?.first ?? "The keeper"} puts the chairs on the tables. "Closing time. Out you go."`);
+          this.syncPeople([], null, false);
+          return;
+        }
+        this.syncPeople([...(st.keeper ? [{ ...st.keeper, sex: "m" as const, age: 45 }] : []), ...st.patrons], st.keeper?.id ?? null, this.firstSync);
+        this.firstSync = false;
+      } else {
+        const p = this.info?.poesje;
+        if (!p?.open && !this.jefIn) {
+          this.syncPeople([], null, false);
+          return;
+        }
+        const info = await interiorApi.poesje();
+        if (this.here !== here) return;
+        this.syncPeople(info.audience, null, this.firstSync);
+        this.firstSync = false;
+        if (this.show && !this.show.play && info.play.state === "ready") this.show.play = info.play;
+      }
+    } catch {
+      /* the server is busy: again at the next sync */
+    } finally {
+      this.syncing = false;
     }
   }
 
@@ -1002,64 +1178,60 @@ export class Interiors {
     cam.position.y += Math.sin(t * 0.9) * 0.02 * k;
   }
 
-  /** Before the frame is drawn inside: the room's lamps and fire glow in its smoke. */
-  prepareRender(camera: THREE.Camera): THREE.Scene | null {
-    const room = this.room;
-    if (!room) return null;
-    camera.updateMatrixWorld();
-    const slots = psxUniforms.uLamps.value;
-    for (let i = 0; i < MAX_LAMPS; i++) {
-      const l = room.lamps[i];
-      if (l) slots[i].set(l.p.x, l.p.y, l.p.z, l.w);
-      else slots[i].set(0, -999, 0, 0);
-    }
-    psxUniforms.uScatter.value = room.kind === "cellar" ? 0.5 : room.kind === "landmark" ? 0.3 : 0.4;
-    return room.scene;
-  }
-
-  /** Dev: go straight in (a tavern id, or "poesje"), without walking to the door. */
+  /** Dev: go straight in (a tavern id, or "poesje"): Jef just inside the door. */
   async devEnter(place: string): Promise<string> {
-    if (this.room) this.leave(true);
     await this.load();
-    const d = this.doors().find((q) => q.place === place || q.place === `tavern:${place}`);
-    if (!d) return `no such door: ${place}`;
-    this.player.rideEnd(d.step[0], d.step[1]);
-    if (d.kind === "tavern") await this.enterTavern(d.place);
-    else await this.enterCellar();
-    return this.room ? `inside ${d.label}` : "not let in";
+    const key = this.houses.has(place) ? place : `tavern:${place}`;
+    const h = this.houses.get(key);
+    if (!h) return `no such door: ${place}`;
+    if (this.player.riding) this.player.rideEnd(this.player.x, this.player.z);
+    const p = h.house.plan;
+    const [x, z] = h.house.world(0, p.kind === "cellar" ? 0.7 : 1.4);
+    const [fx, fz] = h.house.world(0, 3);
+    this.player.place(x, z, Math.atan2(-(fx - x), -(fz - z)), 0);
+    this.player.y = h.house.floor(x, z, 0.2);
+    return h.house.doorOpen ? `inside ${this.doors().find((d) => d.place === key)?.label ?? key}` : "the door is shut";
   }
 
-  /** Dev: walk Jef to a point of the room frame (and sit if a seat is there). */
+  /** Dev: walk Jef to a point of the room's frame (and stand up first). */
   devGo(x: number, z: number): void {
-    const w = this.player.rideWalk;
-    if (!w) return;
+    const room = this.here?.room;
+    if (!room) return;
     if (this.jefSeat) this.standUp();
-    w.x = x;
-    w.z = z;
+    const w = room.toWorld(x, z);
+    this.player.place(w.x, w.z, this.player.yaw, this.player.pitch);
+    this.player.y = (this.here?.house?.plan.floorY ?? 0) + (room.floor?.(x, z) ?? 0);
   }
 
   /** Dev: the state for scripted checks. */
   debug() {
-    const w = this.player.rideWalk;
+    const w = this.jefAt();
     return {
-      inside: this.here?.label ?? null,
+      here: this.here ? { kind: this.here.kind, place: this.here.place, drawn: this.here.house?.drawn() ?? null, leaf: this.here.house?.leaf ?? null } : null,
+      inside: this.inside ? this.here!.label : null,
       kind: this.room?.kind ?? null,
       jef: w ? [+w.x.toFixed(2), +w.z.toFixed(2)] : null,
       seated: !!this.jefSeat,
       people: [...this.occ.values()].map((o) => ({ id: o.p.id, name: o.p.name, kind: o.kind, keeper: o.keeper, seat: o.seat ? o.seat.table : null, walking: o.path.length > 0, model: !!o.human })),
-      keys: this.room ? this.insideKeys().map((a) => `${a.key.slice(3)}: ${a.text}`) : [],
+      keys: this.inside ? this.insideKeys().map((a) => `${a.key.slice(3)}: ${a.text}`) : [],
       script: this.script ? { at: this.script.i, of: this.script.lines.length, line: this.script.lines[this.script.i]?.text ?? null } : null,
       show: this.show ? { stage: this.show.stage, title: this.show.play?.title ?? null, third: this.show.play?.third ?? null, lines: this.show.play?.lines?.length ?? 0, puppets: this.show.puppets.length } : null,
       dice: this.dice.open,
       tipsy: +this.tipsyNow.toFixed(2),
       tipsyTarget: this.tipsyTarget,
-      doors: this.doors().map((d) => ({ label: d.label, open: d.open, step: d.step })),
+      paidTonight: this.paidAt,
+      doors: this.doors().map((d) => ({ label: d.label, open: d.open, step: d.step, leaf: this.houses.get(d.place)?.house.leaf ?? null })),
     };
   }
 
-  /** Dev: a camera in the room frame looking at a point of it (for pictures). */
+  /** M7: the in-world houses of the taverns and the Poesje (dev checks). */
+  get inWorldHouses(): HouseInWorld[] {
+    return [...this.houses.values()].map((h) => h.house);
+  }
+
+  /** Dev: a camera in the room's frame looking at a point of it (for pictures). */
   devCamera(cam: THREE.PerspectiveCamera, from: [number, number, number], to: [number, number, number]): boolean {
-    const room = this.room;
+    const room = this.here?.room;
     if (!room) return false;
     cam.position.copy(room.toWorld(from[0], from[2], from[1]));
     cam.lookAt(room.toWorld(to[0], to[2], to[1]));

@@ -130,8 +130,11 @@ def gate_leaf():
     m.shadefn = lambda p: 0.5 + 0.5 * bb.sm((p.z + 2.5) / 2.9)
     m.box((L / 2, 0, -2.85), (L, T, 6.4), TAR, tile=2.0)
     m.shadefn = None
-    for x in (0.0, L):
-        m.box((x, 0, -2.6 if x else -2.45), (0.5, 0.55, 6.9 if not x else 6.3), DARK)
+    # the heel post goes 5 cm lower than the leaf: their bottoms lay in one plane (z-fight check)
+    m.box((0.0, 0, -2.625), (0.5, 0.55, 6.95), DARK)
+    # the mitre post: its top slopes 4 cm, so the two leaves' posts meeting in the middle do not
+    # lay their tops in one plane (z-fight check)
+    m.hexa([(L + (0.25 if i & 1 else -0.25), 0.275 if i & 2 else -0.275, (0.7 + (0.02 if i & 1 else -0.02)) if i & 4 else -5.6) for i in range(8)], DARK)
     for z in (-1.5, -0.7, 0.1):
         for sy in (1, -1):
             m.beam((0.2, sy * (T / 2 + 0.06), z), (L - 0.2, sy * (T / 2 + 0.06), z), 0.12, 0.2, DARK, side=(0, 1, 0))
@@ -143,7 +146,7 @@ def gate_leaf():
         m.box((x, -0.3, 0.9), (0.06, 0.06, 1.0), IRON)
     rig(m, (0.3, -0.3, 1.38), (L - 0.3, -0.3, 1.38), 0.04, IRON)
     # balance beam back over the quay, on the heel post
-    m.box((0, 0, 0.75), (0.5, 0.5, 0.8), DARK)
+    m.box((0, 0, 0.75), (0.46, 0.5, 0.8), DARK)  # narrower than the heel post under it (z-fight check)
     m.beam((0.3, 0, 1.0), (-5.6, 0, 0.9), 0.4, 0.35, DARK, w2=0.3, h2=0.28, side=(0, 1, 0))
     m.box((-5.3, 0, 0.9), (0.45, 0.45, 0.45), IRON)  # iron shoe at the end
     # the chain from the leaf to its capstan

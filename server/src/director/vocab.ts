@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { EVENT_GATHER_MAX, EVENT_PEOPLE_MAX as PEOPLE_MAX } from "../config.ts";
 import { ROUTINE_RULES_FOR_MODEL, RoutinePlanSchema } from "./routineVocab.ts";
+import { gameMin } from "../../../shared/clock.ts";
 
 // The vocabulary of M4: what a townsperson may be asked to do (an action), what
 // the engine says when it refuses or sets a limit, the primitives an event is
@@ -37,25 +38,50 @@ export const NO_ACTION: ActionProposal = { kind: "none", target: "", minutes: 0,
 export type EngineKind = ActionKind | "attend" | "seek" | "routine";
 
 /**
- * Time limits in GAME minutes. The clock runs fast (a game hour is 20 real seconds; a walk
- * across town is several game hours), so these are large: the police follow up to 720 game
- * minutes (4 real minutes), others 480 (160 s), children 240 (80 s); never under 240 (80 s).
- * The model's own "minutes" are story minutes: the engine takes them times twelve, then clamps.
+ * Time limits in GAME minutes (M7 clock, shared/clock.ts: a game hour is two real minutes).
+ * The police follow up to two game hours (4 real minutes), others an hour and a half (3 real
+ * minutes), children 45 minutes; never under 40 (80 real seconds). Before M7 (a game hour was
+ * 20 real seconds) these were 720, 480, 240 and 240: about the same real time.
+ * The model's own "minutes" are game minutes now (the story factor is 1), then clamped.
  */
-export const FOLLOW_MAX_MIN: Record<string, number> = { police: 720, water_bailiff: 720, child: 240, street_child: 240, errand_boy: 240 };
-export const FOLLOW_DEFAULT_MIN = 480;
-export const FOLLOW_MIN_MIN = 240;
-/** A story minute (what the model asks for) is this many game minutes: "half an hour" walks two real minutes. */
-export const STORY_MINUTE_FACTOR = 12;
+export const FOLLOW_MAX_MIN: Record<string, number> = { police: 120, water_bailiff: 120, child: 45, street_child: 45, errand_boy: 45 };
+export const FOLLOW_DEFAULT_MIN = 90;
+export const FOLLOW_MIN_MIN = 40;
+/** A story minute (what the model asks for) is this many game minutes (M7 clock: 12 -> 1; "half an hour" is half a game hour, one real minute). */
+export const STORY_MINUTE_FACTOR = 1;
 /** Jef further off than this for this long: the follower gives up. */
 export const FOLLOW_LOST_M = 40;
 export const FOLLOW_LOST_S = 5;
-export const WAIT_MAX_MIN = 180;
-export const LOOK_FOR_MIN = 240;
+/** M7 clock (old -> new): wait 180 -> 60 (and at least 60 -> 15), look_for 240 -> 40, talk_to 240 -> 40 game minutes. */
+export const WAIT_MAX_MIN = 60;
+export const WAIT_MIN_MIN = 15;
+export const LOOK_FOR_MIN = 40;
 export const LOOK_FOR_RADIUS_M = 40;
-export const TALK_TO_MIN = 240;
+export const TALK_TO_MIN = 40;
 export const TALK_TO_MAX_LINES = 6;
 export const GO_TO_MAX_M = 400;
+
+/**
+ * Fixes 2026-09-24 (Steve sent an agent from the Rijnkaai to the cathedral; he turned back
+ * half way): the game minutes a walk of `d` m (straight line) may take. Streets wind (about
+ * 1.4 times the straight line), a walk in view is 1.5 m/s, and a real second is half a game
+ * minute (M7 clock; it was 3), so 300 m is some 140 game minutes. Out of Jef's sight they go
+ * quicker; this is the deadline only. Plus `stand` minutes at the end (M7: 30 -> 10).
+ */
+/**
+ * Steve (2026-09-24): "make people complete their task unless they are stuck, or something really
+ * bad happens". An errand's time running out while they are still on it is no reason to stop:
+ * the clock is a safety net only. Being stuck ends it (the client reports "blocked"); so does
+ * this hard cap from the start (M7 clock: 1800 -> 360 game minutes, six game hours, 12 real
+ * minutes), for a walker the client lost track of.
+ */
+export const ERRAND_HARD_MIN = 360;
+/** The kinds that are an errand to finish (follow, wait and look_for are time by nature). */
+export const ERRAND_KINDS: ReadonlySet<string> = new Set(["go_to", "talk_to", "fetch_police", "seek", "routine"]);
+
+export function walkMinutes(d: number, stand = 10): number {
+  return Math.round(gameMin((d * 1.4) / 1.5)) + stand;
+}
 export const TALK_TO_MAX_M = 150;
 /** Actions asked in talk running at once in the whole town. */
 export const MAX_TALK_ACTIONS = 3;
@@ -123,7 +149,7 @@ export const REFUSE_LINE: Record<RefuseReason, string> = {
   routine: "Not that errand, no.",
 };
 
-/** What the person adds when the engine sets a limit (in story time: four game minutes to one). */
+/** What the person adds when the engine sets a limit (story time is game time since M7). */
 export function limitLine(kind: ActionKind, minutes: number, police: boolean): string {
   const h = minutes / STORY_MINUTE_FACTOR / 60;
   const span = h >= 2.5 ? "three hours" : h >= 1.75 ? "two hours" : h >= 0.9 ? "an hour" : "half an hour";
@@ -151,7 +177,7 @@ export const END_LINE: Record<string, string> = {
   follow_lost: "Where's he gone? Well. That's that.",
   follow_water: "I'm not going in there.",
   follow_blocked: "I can't get through there. You go on.",
-  go_to_time: "I've stood here long enough.",
+  go_to_time: "Too far for me today. I've turned back.",
   go_to_arrived: "Here I am, as you asked.",
   wait_time: "That's long enough. I'm off.",
   look_for_time: "Not a sign. I've looked enough.",
@@ -219,7 +245,8 @@ export const CONVO_FALLBACK: Record<string, Array<(a: string, b: string) => stri
 
 // ------------------------------------------------------------------ events
 
-export const STAGE_OPS = ["gather", "procession", "sound", "props", "talk", "notice", "rumour", "price", "close", "open", "job", "weather", "scuffle", "robbery"] as const;
+/** M7 funeral: "enter" (the gathered go into a hall that stands in the world: the cathedral) and "depart" (the leads leave town, the rest go home). */
+export const STAGE_OPS = ["gather", "procession", "sound", "props", "talk", "notice", "rumour", "price", "close", "open", "job", "weather", "scuffle", "robbery", "enter", "depart"] as const;
 export type StageOp = (typeof STAGE_OPS)[number];
 export const EVENT_SOUNDS = ["none", "bells", "music", "murmur", "handbell"] as const;
 export type EventSound = (typeof EVENT_SOUNDS)[number];
@@ -324,6 +351,8 @@ export const LEAD_ROLES = [
   "hawker",
   "showman",
   "quarreller",
+  // M7 night: a man who lands goods by night (a boatman, a sailor, a docker)
+  "smuggler",
 ] as const;
 export type LeadRole = (typeof LEAD_ROLES)[number] | "agent";
 export const LEADS_PER_STAGE = 4;
@@ -346,6 +375,7 @@ export const LEAD_LABEL: Record<LeadRole, string> = {
   hawker: "the hawker",
   showman: "the showman",
   quarreller: "one of the quarrellers",
+  smuggler: "a smuggler",
   agent: "the police agent",
 };
 
@@ -371,9 +401,11 @@ export const StageSchema = z.object({
 export type Stage = z.infer<typeof StageSchema>;
 
 export const STAGE_MIN_MIN = 5;
+/** A stage up to three game hours (the ballad singer's slot); M7 clock: kept at 180. */
 export const STAGE_MAX_MIN = 180;
 export const EVENT_MAX_STAGES = 6;
-export const EVENT_MAX_MIN = 600;
+/** An event in all (game minutes; M7 clock: 600 -> 240, four game hours, eight real minutes). */
+export const EVENT_MAX_MIN = 240;
 export const GATHER_MIN = 2;
 /** Steve, 2026-09-24: "should there not be hordes of people come for a wedding?" (the number lives in config.ts) */
 export const GATHER_MAX = EVENT_GATHER_MAX;
@@ -435,9 +467,10 @@ export const MONEY_TO_JEF_RE =
   /[^.!?]*\b(jef|the player)\b[^.!?]*\b(gets?|receives?|is given|given|finds?|wins?|earns?|paid|rewarded|rewards?)\b[^.!?]*\b(centimes?|francs?|coins?|money|purse|reward|gold)\b[^.!?]*[.!?]?/gi;
 
 export const PRIMITIVES_FOR_MODEL = `
-STAGES. An event is 1-6 stages, played one after the other, each for "minutes" game minutes (5-180, 600 in all).
-The clock runs fast (a game hour is 20 real seconds): a stage under 60 minutes is over in a blink. Give a gathering
-120-180 minutes so people can walk there, a talk 90, a procession 150-180, a sound 60-120, a scuffle or a robbery 120-150.
+STAGES. An event is 1-6 stages, played one after the other, each for "minutes" game minutes (5-180, ${EVENT_MAX_MIN} in all).
+A game hour is two real minutes; give each stage the time it would really take: a gathering 15-30 minutes so people
+can walk there, a talk 15-20, a procession 30-45, a mass or a requiem inside 45-60, a sound 15-30, a scuffle or a
+robbery 20-30, street music an hour or two. A whole event is usually one to three game hours.
 Every stage has every field; fill the ones the op uses and put "" / 0 / "none" / [] in the rest.
 - gather: role (guests, mourners, crowd, sellers, musicians, police, children, family), count 0-${EVENT_GATHER_MAX}, place, leads.
   People walk to a ring round the place; the leads stand in the middle. One event takes ${PEOPLE_MAX} people at most in all.
@@ -459,10 +492,18 @@ Every stage has every field; fill the ones the op uses and put "" / 0 / "none" /
   Nobody is hurt, nobody has a weapon.
 - robbery: leads pickpocket and victim. The pickpocket lifts the victim's purse in the street, the victim shouts, the thief
   runs, the police may give chase. The engine decides the sum and whether he is caught. Never Jef's purse.
+- enter: everyone of the event but the onlookers (role crowd) goes in through the door where the event stands now, the
+  stage's leads first, and takes part inside; they come out again at the next stage. Only cathedral_west has a hall to go
+  into: a wedding's vows at the altar rail, a funeral's requiem with the coffin before the choir. Give it 150-180 minutes.
+- depart: the stage's leads (bearers: the coffin goes on a black hearse; the widow; a groom and bride) and their own family
+  leave town along the road to "place": kiel_road (south, to the Kiel cemetery), east_road or north_road. Everyone else
+  stands about in small groups for a while, talking low, and goes home. The event ends when the stage does. 150-180 minutes.
+A funeral: gather mourners at house with leads [widow, bearers]; procession to cathedral_west with leads [bearers, widow]
+and a tolling bell; enter with leads [priest]; depart to kiel_road with leads [bearers, widow].
 LEADS (1-4 a stage; the engine picks who): bride, groom, priest (a wedding: all three; the couple walk first), organ_grinder,
 fiddler, accordionist (street music), auctioneer (a sale: a handbell and a board), speaker (a preacher or a man with a
 paper), drunkard (a bottle), pickpocket, victim, widow (a funeral), bearers (four men with a coffin), hawker (a tray of
-wares), showman (a monkey on his shoulder), quarreller. Name a lead in the notice or the rumour as {bride}, {groom},
+wares), showman (a monkey on his shoulder), quarreller, smuggler (a man landing goods by night). Name a lead in the notice or the rumour as {bride}, {groom},
 {victim} and so on; the engine puts in the real name. Never write a person's name yourself.
 Any stage may also carry a sound and a mood while it runs.
 CUES: every stage also has "cues", the sound of it as the town hears it: 0-4 cues from this palette, each
@@ -472,4 +513,5 @@ bell (the big bell, one stroke), ship_bell, chain, anvil, pump, steam_whistle, h
 every_s: seconds between repeats (2-45), or 0 for once at the start of the stage. pitch: 0.6-1.5 (1 is natural).
 level: 0.15-1. Compose what the scene would really sound like: a wedding crowd cheers now and then and a fiddle plays;
 at an auction a man shouts and a bell rings; at a fire the flames crackle, the pump works and a horse frets; at a
-funeral, nothing but the handbell. Use [] for a stage that makes no sound of its own.`;
+funeral, the handbell and the big bell tolling slowly and low (bell, every_s 8, pitch 0.7), the death knell. Use [] for a
+stage that makes no sound of its own.`;

@@ -3,7 +3,7 @@ import type { DB } from "../db.ts";
 import { DEV } from "../config.ts";
 import { GameError } from "../game.ts";
 import { isResident, resident } from "../town/store.ts";
-import { actionsTick, clearActions, installTalkHooks, listActions, reportAction, syncFromClient } from "./actions.ts";
+import { actionsTick, applyProposal, clearActions, installTalkHooks, listActions, reportAction, syncFromClient } from "./actions.ts";
 import { bus } from "./bus.ts";
 import { recentConvos } from "./convo.ts";
 import { clearDirector, directorTick, think } from "./director.ts";
@@ -95,6 +95,15 @@ export function mountDirector(app: Hono, deps: DirectorDeps): void {
   app.get("/api/events", (c) => c.json({ events: listEvents(db), closed: closedPlaces(db) }));
 
   if (DEV) {
+    // test kit: ask a townsperson for an errand as if in talk (the engine's checks all hold; no model)
+    app.post("/api/dev/action", async (c) => {
+      const b = (await c.req.json().catch(() => ({}))) as { npc?: string; kind?: string; target?: string; reason?: string; minutes?: number };
+      const r = typeof b.npc === "string" ? resident(db, b.npc) : undefined;
+      if (!r) throw new GameError("no such resident", 404);
+      const action = { kind: b.kind ?? "none", target: String(b.target ?? "").slice(0, 60), minutes: Number(b.minutes) || 0, item: "", amount_c: 0, reason: String(b.reason ?? "").slice(0, 120) };
+      const out = applyProposal(db, r, { npc_line: "", action } as never);
+      return c.json({ line: out.npc_line, action_id: out.action_id, refused: out.refused });
+    });
     app.post("/api/dev/director", async (c) => {
       const body = (await c.req.json().catch(() => ({}))) as { think?: boolean; invent?: boolean; template?: string };
       // M4b: "Director: invent an event now": the model must make a custom event; the engine's checks hold

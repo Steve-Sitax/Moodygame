@@ -1,4 +1,5 @@
 import { copyFileSync, existsSync, mkdtempSync, rmSync } from "node:fs";
+import { NIGHT_GIVER_IDS } from "../../shared/night.ts";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -159,13 +160,21 @@ describe("who owns what (the migration)", () => {
       expect(transportRecord(db)!.vehicles.length).toBeGreaterThan(20);
       expect(veloShop(db)).toBeTruthy();
       const after = db.prepare("SELECT id, data_json FROM resident").all() as Array<{ id: string; data_json: string }>;
-      for (const r of after) if (before.has(r.id)) expect(r.data_json, r.id).toBe(before.get(r.id));
-      // the velocipede maker, and the wheelwright (M6 handcart, town/handcart.ts); M6 lively adds its own people after them
-      expect(after.filter((r) => !isLivelyId(r.id)).length).toBe(before.size + 2);
+// a lamplighter's round follows the lamps (town/lamplighters.ts, versioned): a moved lamp may change it
+      const plain = (j: string) => { const o = JSON.parse(j) as { trade?: string; work?: { route?: unknown } }; if (o.trade === "lamplighter" && o.work) delete o.work.route; return JSON.stringify(o); };
+      for (const r of after) if (before.has(r.id)) expect(plain(r.data_json), r.id).toBe(plain(before.get(r.id)!));
+      // the velocipede maker, and the wheelwright (M6 handcart, town/handcart.ts); M6 lively adds its own people after them,
+      // and M7 night the four givers of night work (night/givers.ts)
+      expect(after.filter((r) => !isLivelyId(r.id) && !(NIGHT_GIVER_IDS as readonly string[]).includes(r.id)).length).toBe(before.size + 2);
       expect((db.prepare("SELECT COUNT(*) n FROM npc_memory").get() as { n: number }).n).toBe(mem);
       db.close();
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      // Windows may still hold the save a moment after close: retry, and a leftover temp folder is harmless
+      try {
+        rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      } catch {
+        // left for the OS to clear
+      }
     }
   });
 });
@@ -465,7 +474,12 @@ describe("the velocipede maker: buy, hire, own", () => {
       expect(veloStates(db)[id]).toMatchObject({ x: left.x, z: left.z, own: true, ridden: false });
       db.close();
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      // Windows may still hold the save a moment after close: retry, and a leftover temp folder is harmless
+      try {
+        rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      } catch {
+        // left for the OS to clear
+      }
     }
   });
 

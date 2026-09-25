@@ -109,7 +109,7 @@ export function doorPlan(r: DoorPerson): DoorSeg[] {
       add(day, a, a + 0.5 + rnd("wib") * 0.75, "window", "home");
     }
     if (k.flowers && (rnd("fl") < 0.18 || (day === 6 && r.stats.piety >= 9))) {
-      // an hour and a half: the walk to the corner and back is part of it (a game hour is 20 real seconds)
+      // an hour and a half: the walk to the corner and back is part of it (a game hour is two real minutes)
       const a = 11 + rnd("fla") * 0.75;
       add(day, a, a + 1.5, near(r) ? "flowers_church" : "flowers", "home");
     }
@@ -138,7 +138,7 @@ export function doorAt(plan: readonly DoorSeg[] | undefined, day: number, hour: 
 // ------------------------------------------------------------------ the children's games
 
 export type ChildGame = "tag" | "hoops" | "tops" | "marbles" | "hopscotch" | "rope";
-/** What the boys and the girls of a square play now; the game changes every two game hours (40 real seconds). */
+/** What the boys and the girls of a square play now; the game changes every two game hours (four real minutes since M7). */
 export function gamesAt(place: string, day: number, hour: number): { boys: ChildGame; girls: ChildGame } {
   const slot = Math.floor(hour / 2);
   const u = h01(`${place}:${day}:${slot}`);

@@ -177,6 +177,11 @@ function book(db: DB, day: number, hour: number, hook: string, route: Route): nu
   return Number(r.lastInsertRowid);
 }
 
+/** At server start no call can still run: a row left 'running' was cut off by a restart. It keeps its place in the day's budget. */
+export function closeStaleCalls(db: DB): number {
+  return db.prepare("UPDATE ai_call SET error = 'stopped by server restart' WHERE error = 'running'").run().changes;
+}
+
 function logCall(
   db: DB,
   id: number,

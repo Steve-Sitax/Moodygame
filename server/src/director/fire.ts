@@ -75,7 +75,8 @@ export const WATER_PATH_MAX_M = 40;
 export const FIREMEN = 4;
 /** Jef in the chain: at least this long counts; the household pays if it can (wealth), else it owes him. */
 export const CHAIN_COUNTS_MIN = 20;
-export const CHAIN_PAY_PER_30_MIN_C = 5;
+/** M7 clock: 5 -> 10 a half hour; the chain stage is an hour now (was 150 game minutes), so a whole chain still pays 20 c. */
+export const CHAIN_PAY_PER_30_MIN_C = 10;
 export const CHAIN_PAY_MAX_C = 30;
 export const CHAIN_PAY_MIN_C = 5;
 export const FIRE_PAY_WEALTH = 5;
@@ -551,7 +552,7 @@ export function leaveChain(db: DB): ChainResult {
 
 /**
  * The engine settles Jef's time in the chain: at least CHAIN_COUNTS_MIN game minutes count.
- * A household with means pays 5 centimes a half hour (5 to 30); a poor one cannot, and owes
+ * A household with means pays 10 centimes a half hour (5 to 30); a poor one cannot, and owes
  * him instead: trust from every one of them, and the street talks well of him.
  */
 export function settleJef(db: DB, ev: EventRow, f: FireScene): FireScene["settled"] {

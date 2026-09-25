@@ -396,3 +396,14 @@ export function wallCorners(): Array<[number, number]> {
   }
   return pts;
 }
+
+/**
+ * Where nothing may be parked or set down before the west door (M7 doors, 2026-09-25): the portal's
+ * mouth and `side` metres more each way, from the door's plane out over the porch's steps and `street`
+ * metres of the square beyond (more than a hall's: the town streams in here for mass). A world box (as
+ * hallPlan.ts doorKeepOut for the halls).
+ */
+export function doorKeepOut(street = 4.0, side = 1.0): PlanRect[] {
+  const hw = SHELL.portal.hw0 + side;
+  return [{ minX: ORIGIN.x - hw, maxX: ORIGIN.x + hw, minZ: ORIGIN.z + PORCH_Z0 - street, maxZ: ORIGIN.z + SHELL.door.z }];
+}

@@ -855,7 +855,9 @@ def crate(m, c, size=(0.6, 0.4, 0.3), a=0.0, top="wood_grey", open_=False):
 
 def basket(m, c, r=0.32, h=0.2, fill="fish", cell="wicker", a=0.0):
     with m.at(move(*c) @ rot("Z", a)):
-        m.lathe([(r * 0.75, 0.0), (r, h), (r * 1.02, h + 0.02)], 8, cell, cap0=True)
+        m.lathe([(r * 0.75, 0.0), (r, h), (r * 1.02, h + 0.02)], 8, cell)
+        # the floor 1.5 cm up: on the ground it lay in the ground's plane (the material is two-sided; z-fight check)
+        m.face([(r * 0.76 * math.cos(2 * math.pi * i / 8), r * 0.76 * math.sin(2 * math.pi * i / 8), 0.015) for i in range(8)], cell, shade=0.8, out=(0, 0, 1))
         if fill:
             m.lathe([(r * 0.98, h - 0.02), (r * 0.6, h + 0.05), (0.0, h + 0.07)], 8, fill)
 
@@ -1131,7 +1133,11 @@ def boat_upright(m, L, B, D):
                      (xa, side * sa[j + 1][0], sa[j + 1][1])]
                 outc = "hull_side" if j < 2 else "hull_tar"
                 m.face(q, outc, out=(0, side, -0.4))
-                m.face(q[::-1], "hull_in", shade=0.7)
+                # the inside 2.5 cm in (the planking): in the same plane the two-sided faces fought (z-fight check)
+                qn = newell([Vector(p) for p in q]).normalized()
+                if qn.dot(Vector((0, side, -0.4))) < 0:
+                    qn = -qn
+                m.face([Vector(p) - qn * 0.025 for p in q[::-1]], "hull_in", shade=0.7)
     m.beam((-L / 2 - 0.05, 0, 0.03), (L / 2 + 0.05, 0, 0.03), 0.07, 0.08, "wood_dark")
     for x in (-L * 0.3, 0.0, L * 0.3):
         m.box((x, 0, D - 0.2), (0.22, B * 0.85, 0.04), "wood")  # thwarts
@@ -1150,7 +1156,7 @@ def tr_boatyard():
         trestle(m, x, 2.4, 0.7)
     m.box((0, 2.4, 0.86), (4.2, 1.2, 0.14), "hull_tar")
     for sy in (-1, 1):
-        m.box((0, 2.4 + sy * 0.58, 0.72), (4.2, 0.06, 0.3), "hull_side")
+        m.box((0, 2.4 + sy * 0.58, 0.72), (4.16, 0.06, 0.3), "hull_side")  # ends inside the bottom's (z-fight check)
     # sawhorses with a plank; the plank stack
     for x in (3.2, 4.2):
         trestle(m, x, 0.3, 0.6, 0.9, "wood")
@@ -1200,7 +1206,8 @@ def tr_farrier():
         m.beam((x, -0.2, hf - 0.03), (x, D, hb), 0.07, 0.09, "oak")
     roof = [(-W / 2 - 0.2, -0.3, hf + 0.04), (W / 2 + 0.2, -0.3, hf + 0.04), (W / 2 + 0.2, D, hb + 0.08), (-W / 2 - 0.2, D, hb + 0.08)]
     m.face(roof, "roof_planks", uvs=[(0, 0), (1, 0), (1, 1), (0, 1)], out=(0, -0.3, 1))
-    m.face(roof[::-1], "roof_planks", shade=0.45)
+    # the underside 4 cm down (the boards' thickness): in one plane the two-sided faces fought (z-fight check)
+    m.face([(x, y, z - 0.04) for x, y, z in roof[::-1]], "roof_planks", shade=0.45)
     # it stands free: back posts and a plank back wall
     for x in (-W / 2, 0.0, W / 2):
         m.beam((x, D, 0.0), (x, D, hb), 0.12, 0.12, "oak")
@@ -1208,7 +1215,7 @@ def tr_farrier():
     m.face([(-W / 2, D, 0.0), (W / 2, D, 0.0), (W / 2, D, hb), (-W / 2, D, hb)], "roof_planks", shade=0.5, out=(0, -1, 0))
     # a plank side wall on the left
     m.face([(-W / 2, 0.0, 0.0), (-W / 2, D, 0.0), (-W / 2, D, hb), (-W / 2, 0.0, hf)], "roof_planks", out=(-1, 0, 0))
-    m.face([(-W / 2, D, 0.0), (-W / 2, 0.0, 0.0), (-W / 2, 0.0, hf), (-W / 2, D, hb)], "roof_planks", shade=0.5, out=(1, 0, 0))
+    m.face([(-W / 2 + 0.025, D, 0.0), (-W / 2 + 0.025, 0.0, 0.0), (-W / 2 + 0.025, 0.0, hf), (-W / 2 + 0.025, D, hb)], "roof_planks", shade=0.5, out=(1, 0, 0))
     # the forge: a brick hearth against the wall, glowing coals, a hood and chimney
     m.box((-1.4, D - 0.5, 0.4), (1.3, 0.95, 0.8), "brick")
     m.quad([(-1.95, D - 0.9, 0.81), (-0.85, D - 0.9, 0.81), (-0.85, D - 0.2, 0.81), (-1.95, D - 0.2, 0.81)], "coal_glow", mat=GLOW, out=(0, 0, 1))
@@ -1373,8 +1380,10 @@ def tr_cooper():
             ca, sa = math.cos(a), math.sin(a)
             m.face([(0.42 * ca - 0.1 * sa, 0.42 * sa + 0.1 * ca, 0.0), (0.42 * ca + 0.1 * sa, 0.42 * sa - 0.1 * ca, 0.0),
                     (0.28 * ca + 0.08 * sa, 0.28 * sa - 0.08 * ca, 0.85), (0.28 * ca - 0.08 * sa, 0.28 * sa + 0.08 * ca, 0.85)], "new_wood", out=(ca, sa, 0.2))
-            m.face([(0.28 * ca - 0.08 * sa, 0.28 * sa + 0.08 * ca, 0.85), (0.28 * ca + 0.08 * sa, 0.28 * sa - 0.08 * ca, 0.85),
-                    (0.42 * ca + 0.1 * sa, 0.42 * sa - 0.1 * ca, 0.0), (0.42 * ca - 0.1 * sa, 0.42 * sa + 0.1 * ca, 0.0)], "wood_dark", shade=0.5)
+            # the stave's inside 2 cm in: in one plane the two-sided faces fought (z-fight check)
+            ix, iy = -0.02 * ca, -0.02 * sa
+            m.face([(0.28 * ca - 0.08 * sa + ix, 0.28 * sa + 0.08 * ca + iy, 0.85), (0.28 * ca + 0.08 * sa + ix, 0.28 * sa - 0.08 * ca + iy, 0.85),
+                    (0.42 * ca + 0.1 * sa + ix, 0.42 * sa - 0.1 * ca + iy, 0.0), (0.42 * ca - 0.1 * sa + ix, 0.42 * sa + 0.1 * ca + iy, 0.0)], "wood_dark", shade=0.5)
         m.lathe([(0.3, 0.72), (0.3, 0.78)], 8, "iron")
         m.lathe([(0.2, 0.0), (0.22, 0.25), (0.0, 0.26)], 6, "iron_rust", cap0=False)
         disc(m, (0, 0, 0.25), 0.2, "coal_glow")

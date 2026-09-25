@@ -14,8 +14,9 @@ import { eventSlice, writeEvent } from "./eventlog.ts";
 import { streetCrimeOpen } from "./scenes.ts";
 import { eventPlaces, eventsToday, liveEvents, planEvent, type EventPlan, type PlanResult } from "./scheduler.ts";
 import { enginePick, planFromTemplate, ROUTINE_TEMPLATES } from "./templates.ts";
-import { EVENTS_AT_ONCE, EVENTS_PER_DAY, LOOK_FOR_MIN, LOOK_FOR_RADIUS_M, PRIMITIVES_FOR_MODEL, StageSchema } from "./vocab.ts";
+import { EVENTS_AT_ONCE, EVENTS_PER_DAY, LOOK_FOR_MIN, LOOK_FOR_RADIUS_M, PRIMITIVES_FOR_MODEL, StageSchema, walkMinutes } from "./vocab.ts";
 import { keepPromise, promiseThread, strangersHere } from "./surprises.ts";
+import { inSpan, NIGHT_EVENTS } from "../../../shared/night.ts";
 
 // The director (M4): once a game hour at most (pulled forward by a notable
 // fact: a robbery, an arrest, a job's end, a heavy event, nightfall), it looks
@@ -60,15 +61,20 @@ YOU ARE THE DIRECTOR OF THE TOWN: you invent what happens in the streets next, l
   plays the alarm bell, the horse pump, the firemen and the bucket chain.
 - When nothing runs and the day has room: decision "event". "nothing" only when the town already has enough going on.
 - decision "follow_up": the open thread should move (the engine plays it). Use it when Jef's robbery is unsolved.
-- Never repeat what was held today. Never overlap what runs. Nothing at night after 22:00 or before 6:00.
+- Never repeat what was held today. Never overlap what runs.
+- At night (22:00 to 5:00) the honest town is abed: only a night event, and small (a handful of people, never a
+  crowd of more than eight): a burglary (lead pickpocket, then the police), smugglers landing goods on a quay (leads
+  smuggler, props crates), a scuffle outside a tavern at closing time (leads drunkard and quarreller), the night watch
+  going its round (gather police, a procession), or a house fire. It must be over by 5:00. Nothing from 5:00 to 6:00.
 - kind: one short word for what it is. place: one of the place ids below. notice: a line the townspeople will mention,
   or "". rumour: what the town will say afterwards, or "". Name the leads only as {bride}, {groom}, {victim} and so on.
 - The game has NO COMBAT. Nobody is hurt or killed, nobody has a weapon; a scuffle is pushing and shoving and the police
   part them. Jef never fights. Never give Jef money or goods: only jobs and shops pay.
 - Engine facts only: never invent money sums, names of people, or things Jef did. Plain English; Dutch only in names.
 - why: one short line for the log.
-EXAMPLE of a stage list (a wedding): gather guests 20 at cathedral_west with leads [groom, bride, priest]; gather crowd 14
-with bells; talk about the couple; procession to engel with leads [groom, bride] and music; sound music.`;
+EXAMPLE of a stage list (a wedding): gather guests 20 at cathedral_west with leads [groom, bride, priest]; enter with leads
+[priest, groom, bride] (the vows inside); gather crowd 14 with bells (they come out); talk about the couple; procession to
+engel with leads [groom, bride] and music; sound music.`;
 
 interface DirectorState {
   lastThinkMin: number;
@@ -100,7 +106,8 @@ export const ENGINE_EVENT_CHANCE = 0.35;
  */
 export function roomForEvent(db: DB): boolean {
   const h = clock(db).hour;
-  if (h < 6 || h >= 22) return false;
+  // M7 night: the night's events from 22:00 to 5:00 (scheduler.ts keeps them to night kinds); none from 5 to 6
+  if (!inSpan(h, NIGHT_EVENTS) && (h < 6 || h >= 22)) return false;
   if (eventsToday(db).length >= EVENTS_PER_DAY) return false;
   return liveEvents(db).filter((e) => !ROUTINE_TEMPLATES.has(e.template)).length < EVENTS_AT_ONCE;
 }
@@ -271,7 +278,9 @@ export function planFromModel(out: DirectorOut): EventPlan {
 /** Daylight, a roll, a template that fits: the engine's own event. */
 export function enginePickNow(db: DB, rng: () => number = Math.random, always = false): PlanResult | null {
   const c = clock(db);
-  if (!always && (c.hour < 8 || c.hour >= 21 || rng() >= ENGINE_EVENT_CHANCE)) return null;
+  // daylight, or (M7 night) the night from 22:00 to 4:00, when only the night's templates fit
+  const hours = (c.hour >= 8 && c.hour < 21) || inSpan(c.hour, [22, 28]);
+  if (!always && (!hours || rng() >= ENGINE_EVENT_CHANCE)) return null;
   const t = enginePick(db, rng);
   if (!t) return null;
   const planned = planEvent(db, planFromTemplate(t, "engine", { why: "the engine's pick" }));
@@ -307,7 +316,7 @@ export function followUp(db: DB): string | null {
     target_x: spot.x,
     target_z: spot.z,
     source: "director",
-    minutes: Math.min(120, Math.round((d / 1.2) * 3) + 20),
+    minutes: walkMinutes(d, 5),
     reason: "a robbery reported",
     data: { then: { kind: "look_for", target: crime.thief, minutes: LOOK_FOR_MIN, data: { purpose: "question", about: "the robbery" } } },
   });

@@ -228,7 +228,7 @@ describe("M6 house fire", () => {
     expect(chainNow(db)).not.toBeNull();
     ev = toStage(db, id, 3);
     const settled = stagesOf(ev)[0].fire!.settled!;
-    expect(settled.minutes).toBeGreaterThanOrEqual(100);
+    expect(settled.minutes).toBeGreaterThanOrEqual(50); // M7 clock: the chain stage is 60 game minutes (was 150)
     const fam = f.family.map((x) => town(db).byId.get(x)!);
     const wealth = Math.max(...fam.map((r) => r.stats.wealth));
     if (wealth >= FIRE_PAY_WEALTH) {

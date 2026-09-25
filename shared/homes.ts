@@ -38,6 +38,12 @@ export interface ClassDef {
   H: number;
   /** The door's cells in the front row (the room's own frame has the door at x = 0). */
   door: [number, number];
+  /**
+   * M7 homes in the world: which wall the door is in. 2 (the default): the front, on the street, with
+   * the windows. 0: the back, onto the landing of the house's stair (a room up or down a flight: the
+   * garret, the merchant's floor, the cellar); its windows stay in the front wall, on the street.
+   */
+  doorWall?: 0 | 2;
   /** Fixed furniture that comes with the room. */
   fixed: Fixed[];
   /** Window spans on the front wall (cells along x, inclusive). */
@@ -72,6 +78,7 @@ export const CLASSES: Record<HomeClass, ClassDef> = {
     D: 4,
     H: 2.1,
     door: [2, 4],
+    doorWall: 0,
     fixed: [
       { kind: "bed_straw", gx: 0, gz: 4, w: 2, d: 4, rot: 2 },
       { kind: "crate", gx: 6, gz: 7, w: 1, d: 1, rot: 2 },
@@ -91,6 +98,7 @@ export const CLASSES: Record<HomeClass, ClassDef> = {
     D: 4.5,
     H: 2.4,
     door: [2, 4],
+    doorWall: 0,
     fixed: [
       { kind: "bed_plank", gx: 0, gz: 5, w: 2, d: 4, rot: 2 },
       { kind: "crate", gx: 6, gz: 8, w: 1, d: 1, rot: 2 },
@@ -158,13 +166,16 @@ export const CLASSES: Record<HomeClass, ClassDef> = {
     D: 6,
     H: 3.1,
     door: [4, 7],
+    // M7: up the house's stair, the door in the back wall onto the landing; the desk under the
+    // windows between them, the bookcase beside the wardrobe
+    doorWall: 0,
     fixed: [
       // the bed in an alcove behind a panelled partition
       { kind: "bed_fine", gx: 0, gz: 8, w: 3, d: 4, rot: 2 },
       { kind: "alcove", gx: 0, gz: 7, w: 4, d: 1, rot: 2 },
       { kind: "wardrobe", gx: 10, gz: 11, w: 2, d: 1, rot: 2 },
-      { kind: "bookcase", gx: 4, gz: 11, w: 2, d: 1, rot: 2 },
-      { kind: "desk", gx: 6, gz: 10, w: 2, d: 2, rot: 2 },
+      { kind: "bookcase", gx: 8, gz: 11, w: 2, d: 1, rot: 2 },
+      { kind: "desk", gx: 5, gz: 0, w: 2, d: 2, rot: 0 },
       // a marble mantel with its fire, the mirror and the clock over it; two armchairs at the fire
       { kind: "mantel", gx: 11, gz: 5, w: 1, d: 3, rot: 3 },
       { kind: "armchair", gx: 9, gz: 4, w: 1, d: 1, rot: 1 },
@@ -177,8 +188,7 @@ export const CLASSES: Record<HomeClass, ClassDef> = {
     ],
     drapes: true,
     noHang: [
-      [0, 4, 5],
-      [0, 10, 11],
+      [0, 8, 11],
       [1, 5, 7],
       [3, 2, 5],
     ],
@@ -306,7 +316,7 @@ export function canPlace(cls: HomeClass, placed: Placed[], kind: string, gx: num
       if (!(wall === 2 && c.windows.some(([w0, w1]) => a >= w0 && b <= w1))) return "curtains go at a window";
       if (c.drapes) return "heavy curtains hang there already";
     } else if (overWindow) return "that is the window";
-    if (wall === 2 && a <= c.door[1] && b >= c.door[0]) return "that is the door";
+    if (wall === (c.doorWall ?? 2) && a <= c.door[1] && b >= c.door[0]) return "that is the door";
     if (c.noHang.some(([w, f, t]) => w === wall && a <= t && b >= f)) return "nothing hangs there";
     for (const p of others) {
       const pd = FURNITURE[p.kind];
@@ -345,10 +355,16 @@ export function canPlace(cls: HomeClass, placed: Placed[], kind: string, gx: num
   // floor
   const floor = layerCells("floor");
   if (cells.some(([x, z]) => floor.has(key(x, z)))) return "something stands there already";
-  if (cells.some(([x, z]) => z <= 1 && x >= c.door[0] && x <= c.door[1])) return "that blocks the door";
+  if (cells.some(([x, z]) => doorRow(cls, z) && x >= c.door[0] && x <= c.door[1])) return "that blocks the door";
   for (const [x, z] of cells) floor.add(key(x, z));
   if (!bedReachable(cls, (x, z) => fixedCells.has(key(x, z)) || floor.has(key(x, z)))) return "that shuts off the bed";
   return null;
+}
+
+/** The two rows inside the door, which floor pieces keep clear (the front two, or the back two when the door is in the back wall). */
+function doorRow(cls: HomeClass, z: number): boolean {
+  const c = CLASSES[cls];
+  return (c.doorWall ?? 2) === 0 ? z >= grid(cls).nz - 2 : z <= 1;
 }
 
 /** From the doorway, over free floor cells, can Jef still reach a cell beside the bed? */
@@ -362,7 +378,8 @@ function bedReachable(cls: HomeClass, blocked: (x: number, z: number) => boolean
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) beside.add(key(x + dx, z + dz));
   const seen = new Set<string>();
   const q: Array<[number, number]> = [];
-  for (let x = c.door[0]; x <= c.door[1]; x++) if (!blocked(x, 0)) q.push([x, 0]);
+  const z0 = (c.doorWall ?? 2) === 0 ? nz - 1 : 0;
+  for (let x = c.door[0]; x <= c.door[1]; x++) if (!blocked(x, z0)) q.push([x, z0]);
   while (q.length) {
     const [x, z] = q.shift()!;
     const k = key(x, z);

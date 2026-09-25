@@ -5,7 +5,7 @@ import { workSound, type StreetWork } from "./cries";
 import { playCue, type CueSpec } from "./eventcues";
 import type { Surface } from "../world/rijnkaai";
 import { water } from "../world/tide";
-import { cartRoutes, cityEmitters, nearestQuay, overWater, type Emitter, type EmitterKind } from "./emitters";
+import { blockedMetres, cartRoutes, cityEmitters, nearestQuay, overWater, type Emitter, type EmitterKind } from "./emitters";
 import { CARILLON_SHORT, DOG_SPANS, PUDDLE_SPANS, SAMPLES, TOOT_SPANS, type SampleName } from "./samples";
 
 // Web Audio soundscape. Recorded CC0 sounds wherever we have them (footsteps:
@@ -31,16 +31,19 @@ const GULL_SPANS: Array<[number, number]> = [
 ];
 
 export type Weather = "fog" | "mist" | "clear" | "rain" | "storm";
-/** How far sounds carry: fog dulls and softens everything far off. The foghorn only in fog (Steve). */
-const WEATHER_FAR: Record<Weather, { lp: number; gain: number; horn: number }> = {
-  fog: { lp: 1300, gain: 0.6, horn: 1 },
-  mist: { lp: 2300, gain: 0.8, horn: 0 },
-  clear: { lp: 6000, gain: 1, horn: 0 },
-  rain: { lp: 2000, gain: 0.75, horn: 0 },
-  storm: { lp: 1600, gain: 0.7, horn: 0 },
+/**
+ * How far sounds carry: fog dulls and softens everything far off. The foghorn only in fog (Steve).
+ * `seen`: metres you can see a cart in the street in this weather; the unseen carts keep beyond it.
+ */
+const WEATHER_FAR: Record<Weather, { lp: number; gain: number; horn: number; seen: number }> = {
+  fog: { lp: 1300, gain: 0.6, horn: 1, seen: 30 },
+  mist: { lp: 2300, gain: 0.8, horn: 0, seen: 55 },
+  clear: { lp: 6000, gain: 1, horn: 0, seen: 90 },
+  rain: { lp: 2000, gain: 0.75, horn: 0, seen: 60 },
+  storm: { lp: 1600, gain: 0.7, horn: 0, seen: 45 },
 };
 /** Before the first setWeather: a soft far bus and no foghorn (start silent, not "fog"). */
-const WEATHER_UNKNOWN = { lp: 2300, gain: 0.8, horn: 0 };
+const WEATHER_UNKNOWN = { lp: 2300, gain: 0.8, horn: 0, seen: 55 };
 /**
  * Every positioned sound runs source -> fog gain -> air lowpass -> panner -> master
  * (plus a reverb send after the panner that grows with distance). The panner
@@ -59,6 +62,12 @@ interface Spot {
   cap: number;
   /** Past `reach` the cutoff falls as (reach / d) to this power (default 0.5; the bells go dull fast). */
   dull?: number;
+  /** Audible radius: fades out from 0.6 of it and is silent beyond (Infinity: the bells). */
+  max: number;
+  /** How much the house blocks in the way muffle it: 1 at street level, less for the tower bells, 0 in the air. */
+  occl: number;
+  /** The last occlusion and where the listener and the sound were for it (recomputed after 1.5 m of movement). */
+  occ?: { gain: number; lp: number; lx: number; lz: number; sx: number; sz: number };
   wetBase: number;
   fog: GainNode;
   lp: BiquadFilterNode;
@@ -70,7 +79,19 @@ interface Spot {
  * loud over the entire map; faint and dull from far"): they fall off fast past the cathedral square, go
  * dull past 100 m, and the echo does not make up for the distance any more.
  */
-const BELL = { ref: 60, rolloff: 2.5, reach: 100, dull: 1.5, wet: 0.5 };
+/**
+ * Fixes 2026-09-24 again (Steve: "loud bells I do not see nearby"): measured -22 dBFS at 78 m in the back
+ * streets, the loudest sound in town. Now ref 20 m, rolloff 1.5: 9 dB softer at 80 m, 7 dB at 165 m, and
+ * the house blocks between you and the tower take up to 4 dB more (occl 0.4; the bells hang above the roofs).
+ */
+const BELL = { ref: 20, rolloff: 1.5, reach: 100, dull: 1.5, wet: 0.5, occl: 0.4 };
+/** At most this many positioned sounds at once; past it, new far one-shots are skipped (nearest first). */
+const SPOT_CAP = 28;
+/** At most this many emitter loops, and this many vehicles, play at once: the nearest. */
+const LOOP_CAP = 12;
+const VEHICLE_CAP = 6;
+/** A steam whistle or a liner's blast is not heard past this (metres). */
+const WHISTLE_MAX = 380;
 /**
  * Fixes 2026-09-24 (Steve: "only at appropriate hours"): the tune and the strokes on the hour from 7:00
  * to 21:00, the short phrase on the half hour from 7:30 to 20:30. The night is quiet.
@@ -91,20 +112,24 @@ interface LoopDef {
   wet?: number;
   /** Metres at which it is as dull as the weather makes things (default 150). */
   reach?: number;
+  /** How much the house blocks in the way muffle it (default 1). */
+  occl?: number;
 }
 const LOOPS: Partial<Record<EmitterKind, LoopDef>> = {
-  bridge: { layers: [["waterBridge", 0.9]], radius: 40, ref: 3, rolloff: 1.3, wet: 0.3 },
-  pontoon: { layers: [["waterPontoon", 1.3]], radius: 40, ref: 3, rolloff: 1.3, wet: 0.2 },
-  smithy: { layers: [["anvil", 0.6]], radius: 90, ref: 5, rolloff: 1.1, wet: 0.35 },
+  // Steve 2026-09-25 ("water sound is still everywhere; it needs to fade fast further from the
+  // water"): the water under a bridge or a pontoon is heard on it and beside it, not a street away
+  bridge: { layers: [["waterBridge", 0.7]], radius: 7, ref: 2, rolloff: 2, wet: 0.3 },
+  pontoon: { layers: [["waterPontoon", 1.1]], radius: 8, ref: 2, rolloff: 2, wet: 0.2 },
+  smithy: { layers: [["anvil", 0.6]], radius: 80, ref: 4, rolloff: 1.1, wet: 0.35 },
   ship: { layers: [["shipCreak", 0.3]], radius: 30, ref: 3, rolloff: 1.4, wet: 0.2 },
   tavern: { layers: [["tavernCrowd", 0.5], ["tavernSong", 0.55]], radius: 45, ref: 3, rolloff: 1.2, lowpass: 750, wet: 0.15 },
-  market: { layers: [["market", 0.6]], radius: 100, ref: 10, rolloff: 1, wet: 0.2 },
-  lamp: { layers: [["hiss", 0.012]], radius: 12, ref: 0.6, rolloff: 2.2 },
+  market: { layers: [["market", 0.6]], radius: 90, ref: 6, rolloff: 1, wet: 0.2 },
+  lamp: { layers: [["hiss", 0.012]], radius: 12, ref: 0.6, rolloff: 2.2, occl: 0 },
 };
-/** A horse and cart: hooves on the setts and iron-shod wheels, on one panner. */
-const CART: LoopDef = { layers: [["hooves", 0.9], ["wheels", 0.55]], radius: 120, ref: 5, rolloff: 1, wet: 0.25 };
-/** A handcart: just the wheels, smaller. */
-const HANDCART: LoopDef = { layers: [["wheels", 0.4]], radius: 50, ref: 3, rolloff: 1.2, wet: 0.2 };
+/** A horse and cart: hooves on the setts and iron-shod wheels, on one panner; gone by 60 m. */
+const CART: LoopDef = { layers: [["hooves", 0.9], ["wheels", 0.55]], radius: 60, ref: 4, rolloff: 1.2, wet: 0.25 };
+/** A handcart: just the wheels, smaller; gone by 40 m. */
+const HANDCART: LoopDef = { layers: [["wheels", 0.4]], radius: 40, ref: 2.5, rolloff: 1.2, wet: 0.2 };
 
 /** A vehicle the world shows (world/traffic.ts info()): its sound follows it. */
 export interface VehicleSound {
@@ -132,8 +157,8 @@ export interface MovingShip {
   anchored?: boolean;
 }
 /** Engine and wheels of a steam ship: paddle kinds churn, screw kinds thump and wash. */
-const PADDLE_LOOP: LoopDef = { layers: [["paddleWheels", 0.8], ["shipEngine", 0.3]], radius: 120, ref: 8, rolloff: 1, lowpass: 6000, wet: 0.3 };
-const SCREW_LOOP: LoopDef = { layers: [["shipEngine", 0.6], ["waterBridge", 0.35]], radius: 120, ref: 8, rolloff: 1, lowpass: 6000, wet: 0.3 };
+const PADDLE_LOOP: LoopDef = { layers: [["paddleWheels", 0.8], ["shipEngine", 0.3]], radius: 120, ref: 6, rolloff: 1, lowpass: 6000, wet: 0.3 };
+const SCREW_LOOP: LoopDef = { layers: [["shipEngine", 0.6], ["waterBridge", 0.35]], radius: 120, ref: 6, rolloff: 1, lowpass: 6000, wet: 0.3 };
 const isTug = (k: string) => k.includes("tug");
 const isPaddle = (k: string) => k.includes("paddle");
 
@@ -204,6 +229,8 @@ export class Soundscape {
   private brown: AudioBuffer;
   private waterPanner: PannerNode;
   private waterGain: GainNode;
+  /** The last node before the speakers: silent on test copies (see the constructor). */
+  readonly speaker: GainNode;
   private windGain: GainNode;
   private windRec: GainNode;
   private murmurGain: GainNode;
@@ -268,7 +295,14 @@ export class Soundscape {
     this.streetLp = this.ctx.createBiquadFilter();
     this.streetLp.type = "lowpass";
     this.streetLp.frequency.value = 20000;
-    this.master.connect(this.streetLp).connect(comp).connect(this.ctx.destination);
+    // Steve 2026-09-25 ("something in the background makes sounds; I closed my browser and the
+    // sounds stayed"): test copies (tools/teststack.mjs, any port but his game's 5173) play to no
+    // speaker. Everything before this node still runs, so a check can measure it; a check that
+    // must be heard sets `__scheldemist.sound.speaker.gain.value = 1`.
+    this.speaker = this.ctx.createGain();
+    this.speaker.gain.value = typeof location !== "undefined" && location.port && location.port !== "5173" ? 0 : 1;
+    comp.connect(this.speaker).connect(this.ctx.destination);
+    this.master.connect(this.streetLp).connect(comp);
     this.street = this.master;
     this.room = this.ctx.createGain();
     this.room.connect(comp);
@@ -491,6 +525,24 @@ export class Soundscape {
     this.crowdN = Math.max(0, n);
   }
 
+  /**
+   * The people walking about (crowd.positions()): the murmur follows how many are near you, each
+   * counting in full within 8 m and not at all past 30 m. (crowd.stats.drawn counted everyone in view
+   * up to the fog, 300 m on a clear day: a crowd's murmur with nobody near.)
+   */
+  setCrowdAround(people: ReadonlyArray<{ x: number; z: number }>): void {
+    const px = this.listenerPos.x;
+    const pz = this.listenerPos.z;
+    let n = 0;
+    for (const p of people) {
+      const dx = p.x - px;
+      const dz = p.z - pz;
+      if (dx > 30 || dx < -30 || dz > 30 || dz < -30) continue;
+      n += 1 - ramp(Math.hypot(dx, dz), 8, 30);
+    }
+    this.crowdN = n;
+  }
+
   /** Rain 0-1: on roofs and cobbles; dampens gulls, market and dogs. */
   setRain(a: number): void {
     this.rain = clamp01(a);
@@ -510,6 +562,14 @@ export class Soundscape {
     const px = this.listenerPos.x;
     const pz = this.listenerPos.z;
     while (this.vehicles.length > list.length) this.stopVoice(this.vehicles.pop()!.voice);
+    // only the nearest few rolling ones get a voice (VEHICLE_CAP)
+    const near: number[] = [];
+    for (const v of list) {
+      const d = Math.hypot(v.x - px, v.z - pz);
+      if (v.state === "go" && d < (v.kind === "dray" ? CART : HANDCART).radius) near.push(d);
+    }
+    near.sort((a, b) => a - b);
+    const within = near.length > VEHICLE_CAP ? near[VEHICLE_CAP - 1] : Infinity;
     list.forEach((v, i) => {
       let slot = this.vehicles[i];
       if (!slot || slot.v.kind !== v.kind) {
@@ -519,10 +579,11 @@ export class Soundscape {
       slot.v = v;
       const def = v.kind === "dray" ? CART : HANDCART;
       const d = Math.hypot(v.x - px, v.z - pz);
-      const on = d < def.radius;
+      const capped = d > within;
+      const on = d < def.radius && !capped;
       if (on && !slot.voice) slot.voice = this.startVoice({ x: v.x, z: v.z, y: 1 }, def);
       if (!slot.voice) return;
-      if (!on && d > def.radius + 10) {
+      if ((!on && d > def.radius + 10) || capped) {
         this.stopVoice(slot.voice);
         slot.voice = null;
         return;
@@ -683,11 +744,24 @@ export class Soundscape {
   private slowTick(now: number): void {
     const night = 1 - this.dayness;
     const tau = 0.8;
-    this.waterGain.gain.setTargetAtTime(0.5 * (1 + 0.4 * night), now, tau);
-    this.windGain.gain.setTargetAtTime(1 + 0.5 * night, now, tau);
-    // wind in the rigging: by the water, gone a street or two inland
+    // the water bed: its panner falls off from the quay edge; past 40 m it fades out (silent by 110 m),
+    // and a row of houses between you and the edge muffles it (you hear the water you can see)
+    const wx = this.waterPanner.positionX.value;
+    const wz = this.waterPanner.positionZ.value;
+    const wOcc = this.quayDist > 0 ? this.occlusion(wx, wz, 1).gain : 1;
+    // Steve 2026-09-25: "110 is far. 5 metres at best": full at the edge, gone 6 m from it
+    const wFar = 1 - ramp(this.quayDist, 1, 6);
+    this.waterGain.gain.setTargetAtTime(0.5 * (1 + 0.4 * night) * wOcc * wFar, now, tau);
+    // Steve 2026-09-24 ("water sounds are always very loud"): the loudest steady sound in town was
+    // this low wind rumble (about -30 dB, above everything near him), and low noise reads as
+    // rushing water. Now about 10 dB down in the streets, a little more by open water.
     const byWater = 1 - ramp(this.quayDist, 15, 120);
-    this.windRec.gain.setTargetAtTime((0.05 + 0.09 * night + 0.05 * this.rain) * byWater, now, tau);
+    this.windGain.gain.setTargetAtTime((0.3 + 0.15 * night) * (0.65 + 0.35 * byWater), now, tau);
+    // wind in the rigging: by the ships (the canals have no masts), gone a street or two inland
+    let dShip = Infinity;
+    for (const sp of this.shipPositions) dShip = Math.min(dShip, Math.hypot(sp.x - this.listenerPos.x, sp.z - this.listenerPos.z));
+    const byShips = 1 - ramp(dShip, 25, 100);
+    this.windRec.gain.setTargetAtTime((0.04 + 0.06 * night + 0.04 * this.rain) * byShips, now, tau);
     for (const sp of this.spots) this.tuneSpot(sp, now, false);
     const crowd = Math.min(1, Math.sqrt(this.crowdN / 20));
     this.murmurGain.gain.setTargetAtTime(0.22 * crowd * (1 - 0.3 * this.rain), now, 1.5);
@@ -701,15 +775,27 @@ export class Soundscape {
 
     const px = this.listenerPos.x;
     const pz = this.listenerPos.z;
+    // the loops within their radius, nearest first: only LOOP_CAP of them sound at once
+    const cands: Array<{ l: Live; def: LoopDef; d: number; level: number }> = [];
     for (const l of this.live) {
       const def = LOOPS[l.e.kind];
       if (!def) continue;
       const d = Math.hypot(l.e.x - px, l.e.z - pz);
       const edge = 1 - ramp(d, def.radius * 0.7, def.radius);
       const level = d < def.radius ? this.kindLevel(l.e.kind) * (l.e.gain ?? 1) * edge : 0;
-      if (level > 0.001 && !l.voice) l.voice = this.startVoice(l.e, def);
+      if (level > 0.001 || l.voice) cands.push({ l, def, d, level });
+      else l.level = 0;
+    }
+    cands.sort((a, b) => a.d - b.d);
+    let playing = 0;
+    for (const { l, def, d, level: want } of cands) {
+      const room = want > 0.001 && playing < LOOP_CAP;
+      if (room) playing++;
+      const level = room ? want : 0;
+      if (room && !l.voice) l.voice = this.startVoice(l.e, def);
       if (l.voice) {
-        if (level <= 0.001 && d > def.radius + 10) {
+        if (level <= 0.001 && (d > def.radius + 10 || want > 0.001)) {
+          // out of reach, or pushed out by nearer loops
           this.stopVoice(l.voice);
           l.voice = null;
         } else if (Math.abs(level - l.level) > 0.002 || l.level === 0) {
@@ -726,7 +812,7 @@ export class Soundscape {
     const ctx = this.ctx;
     const layers = def.layers.filter(([n]) => n === "hiss" || this.buf.has(n));
     if (!layers.length) return null;
-    const spot = this.spot(e, def.ref, def.rolloff, def.reach ?? 150, def.wet ?? 0, def.lowpass, this.street);
+    const spot = this.spot(e, def.ref, def.rolloff, def.reach ?? 150, def.wet ?? 0, def.lowpass, this.street, def.radius, def.occl ?? 1);
     const panner = spot.pan;
     const gain = ctx.createGain();
     gain.gain.value = 0;
@@ -795,9 +881,10 @@ export class Soundscape {
   }
 
   /**
-   * Horses and carts walk their streets, heard but never seen: within 18 m
-   * they fall silent (the fog hides them past 20-30 m; a cart you could see
-   * but not find would be wrong). Day only, a stray one at night.
+   * Horses and carts walk their streets, heard but never seen: nearer than you can
+   * see in this weather (WEATHER_FAR seen: 30 m in fog, 90 m on a clear day) they
+   * fall silent (a cart you could see but not find would be wrong). Day only, a stray
+   * one at night.
    */
   private moveCarts(now: number, slow: boolean): void {
     const dt = Math.min(0.1, Math.max(0, now - this.lastMove));
@@ -822,10 +909,13 @@ export class Soundscape {
       if (!slow) continue; // gains four times a second
       const d = Math.hypot(c.x - px, c.z - pz);
       const real = this.vehicles.some((s) => Math.hypot(s.v.x - c.x, s.v.z - c.z) < 40);
-      const level = d < 120 && !real ? (0.1 + 0.9 * this.dayness) * ramp(d, 18, 30) * (1 - 0.3 * this.rain) : 0;
+      // only beyond what you can see in this weather (fixes 2026-09-24: on a clear day they rolled 37 m
+      // off in an empty street); on a clear day that is past the cart's own radius, so they are silent
+      const seen = this.weatherFar().seen;
+      const level = d < CART.radius && !real ? (0.1 + 0.9 * this.dayness) * ramp(d, seen, seen + 12) * (1 - 0.3 * this.rain) : 0;
       if (level > 0.001 && !c.voice) c.voice = this.startVoice({ x: c.x, z: c.z, y: 1 }, CART);
       if (c.voice) {
-        if (level <= 0.001 && d > 130) {
+        if (level <= 0.001 && (d > CART.radius + 10 || d < seen)) {
           this.stopVoice(c.voice);
           c.voice = null;
         } else c.voice.gain.gain.setTargetAtTime(level, now, 0.5);
@@ -875,7 +965,7 @@ export class Soundscape {
       if (ship.anchored) {
         // a ship at anchor (world/anchorage.ts): no engine, a deep blast every few minutes,
         // heard far across the river (the whistle's own reach and the fog do the rest)
-        if (s.d < 600 && now > s.nextCall && this.hornFree()) {
+        if (s.d < WHISTLE_MAX && now > s.nextCall && this.hornFree()) {
           this.whistle(ship, "pass");
           s.nextCall = now + rand(150, 360);
         }
@@ -946,7 +1036,7 @@ export class Soundscape {
     const bell = this.buf.get("handbell");
     if (!keeper || !bell) return;
     const len = rand(2.2, 4.4);
-    this.slice(bell, { x: keeper.x, z: keeper.z, y: 3 }, 0, len, 0.7, rand(0.95, 1.05), 300, 8, dur + rand(1.5, 3));
+    this.slice(bell, { x: keeper.x, z: keeper.z, y: 3 }, 0, len, 0.7, rand(0.95, 1.05), 300, 4, dur + rand(1.5, 3), 150);
     this.log("bridge-keeper's bell");
   }
 
@@ -964,24 +1054,26 @@ export class Soundscape {
     const rate = tug ? rand(1.0, 1.08) : rand(0.7, 0.78);
     const out = 450; // how far a whistle stays bright (reach)
     const at = { x: ship.x, z: ship.z, y: 8 };
+    // fixes 2026-09-24 (Steve: loud things far off): ref 25-40 m made a blast 480 m off, behind the old
+    // town, as loud as the wind; now ref 7-10 m, silent past WHISTLE_MAX, muffled half by the houses
     let dur: number;
     if (why === "signal") {
       const l = 2.2 / rate;
-      this.slice(long, at, 0, 2.2, 0.8, rate, out, 30, delay);
-      this.slice(long, at, 0, 0.6, 0.8, rate, out, 30, delay + l + 0.7);
+      this.slice(long, at, 0, 2.2, 0.8, rate, out, 9, delay, WHISTLE_MAX, 0.5);
+      this.slice(long, at, 0, 0.6, 0.8, rate, out, 9, delay + l + 0.7, WHISTLE_MAX, 0.5);
       dur = l + 0.7 + 0.6 / rate;
     } else if (tug && toots) {
       const n = why === "greet" ? 1 : Math.random() < 0.5 ? 2 : 3;
       let t = delay;
       for (let i = 0; i < n; i++) {
         const [a, b] = TOOT_SPANS[i % TOOT_SPANS.length];
-        this.slice(toots, at, a, b, 0.75, rate, out, 25, t);
+        this.slice(toots, at, a, b, 0.75, rate, out, 7, t, WHISTLE_MAX, 0.5);
         t += (b - a) / rate + 0.35;
       }
       dur = t - delay;
     } else {
       const len = why === "greet" ? rand(1.6, 2.4) : rand(3.2, 4.6);
-      this.slice(long, at, 0, len, 0.85, rate, out, 40, delay);
+      this.slice(long, at, 0, len, 0.85, rate, out, 10, delay, WHISTLE_MAX, 0.5);
       dur = len / rate;
     }
     this.hornCount++;
@@ -998,7 +1090,7 @@ export class Soundscape {
     let t = 0;
     for (let i = 0; i < n; i++) {
       const first = i === 0 && hold > 0;
-      this.slice(b, { x: ship.x, z: ship.z, y: 4 }, 0, first ? b.duration : 1.6, 0.5, 0.9, out, 6, t);
+      this.slice(b, { x: ship.x, z: ship.z, y: 4 }, 0, first ? b.duration : 1.6, 0.5, 0.9, out, 4, t, 150);
       t += first ? hold : 0.45;
     }
     this.log(`ship's bell ${ship.kind}`);
@@ -1008,7 +1100,7 @@ export class Soundscape {
   private shoutAt(ship: MovingShip): void {
     const b = this.buf.get("heaveShout");
     if (!b) return;
-    this.slice(b, { x: ship.x, z: ship.z, y: 3 }, 0, b.duration, 0.6, rand(0.88, 1.0), 200, 6);
+    this.slice(b, { x: ship.x, z: ship.z, y: 3 }, 0, b.duration, 0.6, rand(0.88, 1.0), 200, 3, 0, 80);
     this.log(`shout ${ship.kind}`);
   }
 
@@ -1089,7 +1181,7 @@ export class Soundscape {
     const ship = this.nearest("ship", 160);
     if (!b || !ship) return;
     this.log(`watch ${n}`);
-    const spot = this.spot({ x: ship.x + rand(-4, 4), z: ship.z + rand(-4, 4), y: 4 }, 6, 1, 300, 0.6);
+    const spot = this.spot({ x: ship.x + rand(-4, 4), z: ship.z + rand(-4, 4), y: 4 }, 4, 1, 300, 0.6, 14000, this.master, 180);
     let t = this.ctx.currentTime + rand(1, 4);
     for (let i = 0; i < n; i++) {
       const src = this.ctx.createBufferSource();
@@ -1116,7 +1208,8 @@ export class Soundscape {
     const ctx = this.ctx;
     const dur = Math.max(0.5, Math.min(6, seconds));
     const t0 = ctx.currentTime + 0.02;
-    const spot = this.spot({ x: at.x, z: at.z, y: 1.6 }, 2, 1.2, 40, 0.25);
+    if (this.distTo(at.x, 1.6, at.z) > 35) return;
+    const spot = this.spot({ x: at.x, z: at.z, y: 1.6 }, 2, 1.2, 40, 0.25, 14000, this.master, 35);
     const out = ctx.createGain();
     out.gain.value = 0.16;
     out.connect(spot.fog);
@@ -1184,7 +1277,9 @@ export class Soundscape {
    * grinder's stone, the mussel seller's rattle, the milk cans, a brush scrubbing the step.
    */
   streetWork(kind: StreetWork, at: { x: number; z: number }, seconds: number): void {
-    const spot = this.spot({ x: at.x, z: at.z, y: 1.0 }, 2, 1.3, kind === "rattle" ? 45 : 30, 0.25);
+    const max = kind === "rattle" ? 50 : 40;
+    if (this.distTo(at.x, 1, at.z) > max) return;
+    const spot = this.spot({ x: at.x, z: at.z, y: 1.0 }, 2, 1.3, kind === "rattle" ? 45 : 30, 0.25, 14000, this.master, max);
     const out = this.ctx.createGain();
     out.gain.value = kind === "scrub" ? 0.12 : 0.22;
     out.connect(spot.fog);
@@ -1193,7 +1288,7 @@ export class Soundscape {
 
   sing(at: { x: number; z: number }, voice: { sex: "m" | "f"; age: number }, notes: Note[], beat: number): number {
     const ctx = this.ctx;
-    const spot = this.spot({ x: at.x, z: at.z, y: 1.6 }, 3, 1.1, 55, 0.3);
+    const spot = this.spot({ x: at.x, z: at.z, y: 1.6 }, 3, 1.1, 55, 0.3, 14000, this.master, 60);
     const out = ctx.createGain();
     out.gain.value = 0.2;
     out.connect(spot.fog);
@@ -1270,7 +1365,7 @@ export class Soundscape {
     }
     if (kind === "handbell") {
       const bell = this.buf.get("handbell");
-      const spot = this.spot({ x: at.x, z: at.z, y: 1.8 }, 3, 1.2, 120, 0.5);
+      const spot = this.spot({ x: at.x, z: at.z, y: 1.8 }, 3, 1.2, 120, 0.5, 14000, this.master, 90);
       let on = true;
       let n = 0;
       const ring = () => {
@@ -1289,7 +1384,7 @@ export class Soundscape {
     }
     const b = this.buf.get(kind === "music" ? "tavernSong" : "murmur");
     if (!b) return { move: () => {}, stop: () => {} };
-    const spot = this.spot({ x: at.x, z: at.z, y: 1.5 }, 3, 1.2, 70, 0.3);
+    const spot = this.spot({ x: at.x, z: at.z, y: 1.5 }, 3, 1.2, 70, 0.3, 14000, this.master, 90);
     const src = ctx.createBufferSource();
     src.buffer = b;
     src.loop = true;
@@ -1327,7 +1422,7 @@ export class Soundscape {
   eventCues(cues: CueSpec[], at: { x: number; z: number }, seconds: number): { move(x: number, z: number): void; stop(): void } {
     const ctx = this.ctx;
     const secs = Math.max(4, Math.min(180, seconds));
-    const spot = this.spot({ x: at.x, z: at.z, y: 1.5 }, 3, 1.15, 75, 0.3);
+    const spot = this.spot({ x: at.x, z: at.z, y: 1.5 }, 3, 1.15, 75, 0.3, 14000, this.master, 100);
     const out = ctx.createGain();
     out.gain.value = 0.9;
     out.connect(spot.fog);
@@ -1338,7 +1433,7 @@ export class Soundscape {
       const fire = () => {
         if (!on) return;
         // Jef far off: this hit is skipped (nobody hears it), the next one still comes
-        const far = this.distTo(spot.x, spot.y, spot.z) > spot.reach * 1.5;
+        const far = this.distTo(spot.x, spot.y, spot.z) > spot.max;
         const len = far ? 0 : playCue(ctx, out, this.noise, this.buf, c, ctx.currentTime + 0.03);
         if (!far) this.log(`cue ${c.source}`);
         if (c.every_s <= 0) return;
@@ -1364,17 +1459,24 @@ export class Soundscape {
   dog(): void {
     const b = this.buf.get("dogFar");
     if (!b) return;
-    let x = 0;
-    let z = 0;
-    for (let i = 0; i < 8; i++) {
-      const a = rand(0, Math.PI * 2);
-      const d = rand(60, 150);
-      x = this.listenerPos.x + Math.cos(a) * d;
-      z = Math.abs(this.listenerPos.z + Math.sin(a) * d) + 10;
-      if (!overWater(x, z)) break;
-    }
+    // fixes 2026-09-24: the old z = |z + ...| + 10 folded a far point back next to you (a bark 27 m
+    // off, the loudest sound in the street); now a point on land 50-100 m off, or no bark
+    const at = this.farOnLand(50, 100);
+    if (!at) return;
     const [a, e] = pick(DOG_SPANS);
-    this.slice(b, { x, z, y: 2 }, a, e, 1, rand(0.95, 1.05), 300, 10);
+    this.slice(b, { ...at, y: 2 }, a, e, 1, rand(0.95, 1.05), 300, 3, 0, 110);
+  }
+
+  /** A point on land (inside the map, not over the water) some metres from the listener, or null. */
+  private farOnLand(near: number, far: number): { x: number; z: number } | null {
+    for (let i = 0; i < 10; i++) {
+      const a = rand(0, Math.PI * 2);
+      const d = rand(near, far);
+      const x = this.listenerPos.x + Math.cos(a) * d;
+      const z = this.listenerPos.z + Math.sin(a) * d;
+      if (z > 2 && z < 300 && x > -340 && x < 200 && !overWater(x, z)) return { x, z };
+    }
+    return null;
   }
 
   /** A steam whistle from a boat on the river. */
@@ -1383,7 +1485,8 @@ export class Soundscape {
     const b = this.buf.get(name);
     if (!b) return;
     const pos = { x: this.listenerPos.x + rand(-250, 250), z: rand(-250, -120), y: 8 };
-    this.slice(b, pos, 0, b.duration, name === "steamboatWhistle" ? 0.7 : 0.9, rand(0.9, 1.0), 450, 60);
+    // (ref 60 m made this unseen whistle louder than a crane beside you; inland past WHISTLE_MAX: nothing)
+    this.slice(b, pos, 0, b.duration, name === "steamboatWhistle" ? 0.7 : 0.9, rand(0.9, 1.0), 450, 10, 0, WHISTLE_MAX, 0.5);
     this.hornCount++;
     this.hornUsed();
     this.log("whistle far");
@@ -1392,15 +1495,15 @@ export class Soundscape {
   /** The railway gate at the Werf store opens (M3g, world/railgate.ts): the keeper rings his hand bell. */
   gateBell(x: number, z: number): void {
     const bell = this.buf.get("handbell");
-    if (!bell || Math.hypot(x - this.listenerPos.x, z - this.listenerPos.z) > 150) return;
-    this.slice(bell, { x, z, y: 3 }, 0, rand(1.8, 2.8), 0.6, rand(0.95, 1.05), 150, 6);
+    if (!bell || Math.hypot(x - this.listenerPos.x, z - this.listenerPos.z) > 110) return;
+    this.slice(bell, { x, z, y: 3 }, 0, rand(1.8, 2.8), 0.6, rand(0.95, 1.05), 150, 3, 0, 110);
     this.log("railway gate bell");
   }
 
   /** An iron wheel over a rail joint (M3g, world/railway.ts): a knock and a short ring, made in code. */
   railClack(x: number, z: number): void {
     if (Math.hypot(x - this.listenerPos.x, z - this.listenerPos.z) > 70) return;
-    const spot = this.spot({ x, z, y: 0.4 }, 4, 1.2, 70, 0.25);
+    const spot = this.spot({ x, z, y: 0.4 }, 4, 1.2, 70, 0.25, 14000, this.master, 70);
     const t = this.ctx.currentTime + 0.01;
     this.burst(t, 0.07, "bandpass", rand(1700, 2300), 3, 0.45, spot.fog, 0.001);
     this.burst(t + 0.1, 0.06, "bandpass", rand(1500, 2100), 3, 0.3, spot.fog, 0.001);
@@ -1414,9 +1517,9 @@ export class Soundscape {
     if (!r) return;
     const dur = rand(2.5, 4.5);
     const start = rand(0, r.duration - dur);
-    this.slice(r, c, start, start + dur, 0.7, rand(0.85, 1.0), 150, 6);
+    this.slice(r, c, start, start + dur, 0.7, rand(0.85, 1.0), 150, 4, 0, 130);
     const ch = this.buf.get("chain");
-    if (ch && Math.random() < 0.7) this.slice(ch, c, 0, ch.duration, 0.6, rand(0.8, 0.95), 150, 6, dur - 0.2);
+    if (ch && Math.random() < 0.7) this.slice(ch, c, 0, ch.duration, 0.6, rand(0.8, 0.95), 150, 4, dur - 0.2, 130);
   }
 
   /** A cooper driving hoops on a cask: a run of mallet blows (Kenney wood impacts). */
@@ -1430,7 +1533,7 @@ export class Soundscape {
     for (let i = 0; i < n; i++) {
       const hoop = i % 3 === 2;
       const b = pick(hoop ? plank : wood);
-      this.slice(b, c, 0, b.duration, hoop ? 0.35 : 0.55, hoop ? rate * 1.9 : rate, 150, 5, i * gap + rand(-0.02, 0.02));
+      this.slice(b, c, 0, b.duration, hoop ? 0.35 : 0.55, hoop ? rate * 1.9 : rate, 150, 3, i * gap + rand(-0.02, 0.02), 80);
     }
   }
 
@@ -1440,22 +1543,25 @@ export class Soundscape {
     if (!b) return;
     const dur = rand(3, 7);
     const start = rand(0, b.duration - dur);
-    this.slice(b, p, start, start + dur, 0.6, rand(0.95, 1.05), 150, 4);
+    this.slice(b, p, start, start + dur, 0.6, rand(0.95, 1.05), 150, 3, 0, 60);
   }
 
   /** A carriage passing somewhere off in the fog. */
   carriageFar(): void {
     const b = this.buf.get(Math.random() < 0.5 ? "carriageFar" : "carriageArch");
     if (!b) return;
-    const a = rand(0, Math.PI * 2);
-    const d = rand(50, 90);
-    const pos = { x: this.listenerPos.x + Math.cos(a) * d, z: Math.abs(this.listenerPos.z + Math.sin(a) * d) + 20, y: 1 };
-    this.slice(b, pos, 0, b.duration, 0.8, 1, 250, 12);
+    // beyond what you can see in this weather, and soft (it was ref 12 m: at 70 m as loud as a crane at 6 m)
+    const seen = this.weatherFar().seen;
+    const at = this.farOnLand(Math.max(55, seen + 10), Math.max(95, seen + 30));
+    if (!at) return;
+    this.slice(b, { ...at, y: 1 }, 0, b.duration, 0.8, 1, 250, 4, 0, 140);
   }
 
   /**
    * Play part of a buffer at a place, with short fades, through a spot:
-   * inverse fall-off from `ref` metres, duller towards `reach` metres.
+   * inverse fall-off from `ref` metres, duller towards `reach` metres, silent past
+   * `max` metres (not started at all there). With SPOT_CAP sounds playing, only a
+   * near one (within 25 m) still starts.
    */
   private slice(
     b: AudioBuffer,
@@ -1467,9 +1573,13 @@ export class Soundscape {
     reach: number,
     ref: number,
     delay = 0,
+    max = 150,
+    occl = 1,
   ): void {
     const ctx = this.ctx;
-    const spot = this.spot(at, ref, 1, reach, 0.35);
+    const d = this.distTo(at.x, at.y ?? 1, at.z);
+    if (d > max || (this.spots.size >= SPOT_CAP && d > 25)) return;
+    const spot = this.spot(at, ref, 1, reach, 0.35, 14000, this.master, max, occl);
     const src = ctx.createBufferSource();
     src.buffer = b;
     src.playbackRate.value = rate;
@@ -1514,7 +1624,17 @@ export class Soundscape {
    * reverb send after the panner. Connect the source to `fog`. Tuned now and
    * four times a second after (tuneSpot); drop it when the sound ends.
    */
-  private spot(at: { x: number; z: number; y?: number }, ref: number, rolloff: number, reach: number, wet: number, cap = 14000, out: AudioNode = this.master): Spot {
+  private spot(
+    at: { x: number; z: number; y?: number },
+    ref: number,
+    rolloff: number,
+    reach: number,
+    wet: number,
+    cap = 14000,
+    out: AudioNode = this.master,
+    max = 150,
+    occl = 1,
+  ): Spot {
     const ctx = this.ctx;
     const pan = this.panner(ref, rolloff);
     const lp = ctx.createBiquadFilter();
@@ -1524,7 +1644,7 @@ export class Soundscape {
     const w = ctx.createGain();
     fog.connect(lp).connect(pan).connect(out);
     pan.connect(w).connect(this.reverbIn);
-    const sp: Spot = { x: at.x, y: at.y ?? 1, z: at.z, reach, cap, wetBase: wet, fog, lp, pan, wet: w };
+    const sp: Spot = { x: at.x, y: at.y ?? 1, z: at.z, reach, cap, max, occl, wetBase: wet, fog, lp, pan, wet: w };
     pan.positionX.value = sp.x;
     pan.positionY.value = sp.y;
     pan.positionZ.value = sp.z;
@@ -1535,7 +1655,7 @@ export class Soundscape {
 
   /** The cathedral tower's bells: their own fall-off and dullness (BELL). */
   private bellSpot(cat: Emitter): Spot {
-    const sp = this.spot(cat, BELL.ref, BELL.rolloff, BELL.reach, BELL.wet);
+    const sp = this.spot(cat, BELL.ref, BELL.rolloff, BELL.reach, BELL.wet, 14000, this.master, Infinity, BELL.occl);
     sp.dull = BELL.dull;
     this.tuneSpot(sp, this.ctx.currentTime, true);
     return sp;
@@ -1560,10 +1680,34 @@ export class Soundscape {
     return Math.hypot(x - l.x, y - l.y, z - l.z);
   }
 
+  /**
+   * What the house blocks between the listener and (x, z) do to a sound: its gain and a factor on its
+   * lowpass. `occl` 1 (street level): 12 m of houses halve it (-6 dB), at most -10 dB; 0: nothing.
+   */
+  private occlusion(x: number, z: number, occl: number): { gain: number; lp: number } {
+    if (occl <= 0 || this.indoorsNow) return { gain: 1, lp: 1 };
+    const m = blockedMetres(this.listenerPos.x, this.listenerPos.z, x, z);
+    if (m <= 0) return { gain: 1, lp: 1 };
+    const g = Math.max(0.32, 1 / (1 + m / 12));
+    return { gain: 1 - occl * (1 - g), lp: 1 - 0.6 * occl * ramp(m, 0, 30) };
+  }
+
+  /** Inside a room the street is already muffled (setInterior); no second muffling there. */
+  private get indoorsNow(): boolean {
+    return this.roomKind !== null;
+  }
+
   private tuneSpot(sp: Spot, now: number, first: boolean): void {
     const d = this.distTo(sp.x, sp.y, sp.z);
-    const lp = Math.min(sp.cap, this.airLp(d, sp.reach, sp.dull));
-    const fog = this.fogLoss(d);
+    const l = this.listenerPos;
+    let occ = sp.occ;
+    if (!occ || Math.abs(occ.lx - l.x) + Math.abs(occ.lz - l.z) > 1.5 || Math.abs(occ.sx - sp.x) + Math.abs(occ.sz - sp.z) > 1.5) {
+      occ = sp.occ = { ...this.occlusion(sp.x, sp.z, sp.occl), lx: l.x, lz: l.z, sx: sp.x, sz: sp.z };
+    }
+    const lp = Math.max(200, Math.min(sp.cap, this.airLp(d, sp.reach, sp.dull)) * occ.lp);
+    // the audible radius: fades out from 0.6 of it, silent beyond; and what stands in the way
+    const edge = Number.isFinite(sp.max) ? 1 - ramp(d, sp.max * 0.6, sp.max) : 1;
+    const fog = this.fogLoss(d) * edge * occ.gain;
     // far off, more of what you hear is the echo off the fog and the walls
     const wet = sp.wetBase * (0.6 + 1.4 * ramp(d, 20, 400));
     if (first) {
@@ -1577,7 +1721,7 @@ export class Soundscape {
     }
   }
 
-  private weatherFar(): { lp: number; gain: number; horn: number } {
+  private weatherFar(): { lp: number; gain: number; horn: number; seen: number } {
     return this.weather ? WEATHER_FAR[this.weather] : WEATHER_UNKNOWN;
   }
 
@@ -1754,7 +1898,9 @@ export class Soundscape {
     this.hornUsed();
     this.log("foghorn");
     // out on the river, 180-260 m off the quays; it carries (low rolloff), a long wet tail
-    const spot = this.spot({ x: this.listenerPos.x + rand(-160, 160), z: rand(-260, -180), y: 5 }, 40, 0.6, 900, 1.6);
+    // fixes 2026-09-24: ref 40 m, rolloff 0.6 made it one of the loudest things in the old town; now it is
+    // clearly far off inland, and the house rows muffle it half
+    const spot = this.spot({ x: this.listenerPos.x + rand(-160, 160), z: rand(-260, -180), y: 5 }, 15, 0.8, 900, 1.6, 14000, this.master, Infinity, 0.5);
     const lp = ctx.createBiquadFilter();
     lp.type = "lowpass";
     lp.frequency.value = 520;
@@ -1795,9 +1941,11 @@ export class Soundscape {
 
   gulls(): void {
     if (!this.gullBuf) return;
+    // they keep over the water: a street or two inland they are gone, not heard over the roofs
+    if (this.quayDist > 130) return;
     const ctx = this.ctx;
     // over the water near you (they follow the river, not you inland)
-    const spot = this.spot({ x: this.listenerPos.x + rand(-40, 40), z: rand(-45, -8), y: rand(8, 18) }, 8, 0.8, 200, 0.9, 3200);
+    const spot = this.spot({ x: this.listenerPos.x + rand(-40, 40), z: rand(-45, -8), y: rand(8, 18) }, 6, 1, 200, 0.9, 3200, this.master, 160, 0);
 
     // a slice of the harbour recording: a few calls, faded in and out
     const [a, b] = GULL_SPANS[Math.floor(Math.random() * GULL_SPANS.length)];
@@ -1824,7 +1972,7 @@ export class Soundscape {
     if (rec && ship) {
       const dur = rand(1.8, 4);
       const start = rand(0, rec.duration - dur);
-      this.slice(rec, { x: ship.x + rand(-6, 6), z: ship.z, y: ship.y ?? 1 }, start, start + dur, 0.45, rand(0.8, 1.0), 120, 5);
+      this.slice(rec, { x: ship.x + rand(-6, 6), z: ship.z, y: ship.y ?? 1 }, start, start + dur, 0.45, rand(0.8, 1.0), 120, 4, 0, 70);
       return;
     }
     if (rec || !this.shipPositions.length) return; // no ship near: no creak
@@ -1907,7 +2055,7 @@ export class Soundscape {
     const g = ctx.createGain();
     g.gain.value = name === "bell" ? 0.5 : vol;
     if (at) {
-      const spot = this.spot(at, 2, 1.1, 150, name === "bell" ? 1.2 : 0.3);
+      const spot = this.spot(at, 2, 1.1, 150, name === "bell" ? 1.2 : 0.3, 14000, this.master, name === "bell" ? 120 : 60);
       src.connect(g).connect(spot.fog);
       src.onended = () => this.dropSpot(spot);
     } else {

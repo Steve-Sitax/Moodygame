@@ -26,9 +26,20 @@ Not committed yet: the main session checks it in the browser and commits it.
 - **The lock** (`world/lock.ts`): now really works. The two pairs of gates open on their own.
   A rowing boat is locked through: the keeper shuts the far pair, lets the water in or out through
   the sluices (0.25 m/s) till the chamber is at the boat's level, opens the near pair; once the boat
-  is in, the other way round. A tow does not fit the 35 m chamber: it waits off the lock till river
-  and dock stand within 0.6 m (round high water) and goes through with both pairs open; the chamber
-  water then slopes gently between the two levels. The lifting bridge only goes up when the tow can go.
+  is in, the other way round. The lock's own traffic is locked through the same way at any tide.
+  Fix 2026-09-25 (Steve: "Do not send bigger boats or combinations through a lock, so they never need
+  to wait until high tide"): the old tows (a tug with a lighter or a Rhine barge on a 9 m line, 48 to
+  66 m) did not fit the chamber and waited off the gates for high water, sometimes for minutes. Now
+  only a vessel or tow that fits the chamber with room to spare is sent (`shared/lockfit.ts`: 1 m free
+  at each end, clear of the river gates' swing, 0.6 m each side of the open leaves; about 27 to 28 m
+  for the beams we have): a tug running light, a paddle tug, a sailing hengst or sloop. No tow fits.
+  A boat asks for the lock 100 m before it gets there (an out-bound one at its berth, and it leaves
+  when the gates start to open), so the gates stand open on arrival. Within 0.3 m of the dock level
+  (round spring high water) both pairs open and it goes straight through. One that no longer
+  qualifies (too big, or kept 45 s off the gates, e.g. the bridge held down) turns away and goes back.
+  The lifting bridge goes up only once a boat has asked. Check: `server/test/lock.test.ts` (the table
+  of every vessel and tow against the chamber, and an hour of traffic from three starts), in the game
+  `__scheldemist.world.lock().fitTable()` and `.traffic()` (the log of passages and their waits).
 - **The canal and the Sint-Pietersvliet**: open to the river, so tidal. Their beds of mud lie at
   -5.05; at low spring water they run dry and the boats in them sit on the mud with a small list.
   A rowing boat there takes the ground when less than 0.35 m of water is left.
@@ -41,7 +52,7 @@ Not committed yet: the main session checks it in the browser and commits it.
 - New water sheets for the dock and the lock chamber. A second stencil bit keeps the river sheet out
   from under them (`boats.ts` dockWaterStencil; hull caps now write only bit 1).
 - Every boat: moored rows, single boats, the pontoon and its barges, river traffic, the liner and its
-  lighters, the lock tows, canal and vliet passages, rowing boats lying at berths or drifting, tow
+  lighters, the lock's boats, canal and vliet passages, rowing boats lying at berths or drifting, tow
   hawsers and lashings.
 - The brig's deck (`DECK.y` is live), her gangway (hangs from her rail, its foot rolls on the quay,
   `RAMP.zLow` is live) and mooring lines; the sailor and the job's recipient on deck ride with it.
@@ -92,5 +103,4 @@ Per frame the tide costs a few dozen comparisons: sheet heights, the brig kit on
 ## Open points
 - The quay walls read very dark at low water on the north-facing river walls (wet slime in shade).
 - A swimmer right against a river wall at low spring water can dip under the mud bank's edge.
-- Tows may wait off the lock for some minutes of play at low water; that is the tide, not a bug.
 - The whole-week tide repeats each week (the clock's day runs 1..7).

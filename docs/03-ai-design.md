@@ -8,7 +8,8 @@ The model proposes. A schema and a clamp check every proposal.
 ## Where a model is called (the hooks)
 | Hook | When | Input | Output (JSON) | Effort |
 |---|---|---|---|---|
-| job_board | Each night, for the next morning | Player state, trust per faction, recent memory, weather, day | 3-5 jobs: title, employer, district, pay, risk, tier, pitch, task type | medium |
+| job_board | At midnight, for the new day (M7 night) | Player state, trust per faction, recent memory, weather, day | 3-5 jobs: title, employer, district, pay, risk, tier, pitch, task type | medium |
+| night_board | Once a night at 21:00, when the shady givers come out (M7 night) | The four givers, their places, weather, recent log | 2-4 night jobs: title, giver, task type, goods, places, twist, pay, pitch; the engine clamps pay to the night band and drops violent words | medium |
 | dialogue | Player talks to an NPC | NPC persona, relationship row, that NPC's memories, scene | NPC line, mood, 3 choices, trust delta, memory note | medium |
 | free_reply | Player types their own line | Same plus the typed text | Same as dialogue | medium |
 | job_outcome | Job ends | Job, what the player did (engine facts), memory | Narration, pay adjustment, trust deltas, memory note, optional event seed | medium |

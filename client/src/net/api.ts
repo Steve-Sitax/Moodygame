@@ -73,6 +73,8 @@ export interface Report {
   thief?: "none" | "chased" | "stole";
   bribe_taken?: boolean;
   seen_away?: boolean;
+  /** M7 night: settled at the employer's quest box (the facts held when the work was done). */
+  box?: boolean;
 }
 
 export interface Settlement {
@@ -150,6 +152,20 @@ export interface Night {
   turnedAway: boolean;
   summary: string[];
   day: number;
+  ended?: Ending;
+  /** M7 night: how long he slept (game minutes), when he woke, whether the date turned meanwhile. */
+  slept_min?: number;
+  wake?: { day: number; hour: number; minute: number; weekday: string };
+  turned?: boolean;
+  /** He dropped where he stood (sleep 0). */
+  collapsed?: boolean;
+  robbed?: { money_c: number; things: string[] };
+}
+
+/** M7 night: the date turned at midnight (the night's other work may have a word: a note about the rent). */
+export interface DayTurn {
+  day: number;
+  lines: string[];
   ended?: Ending;
 }
 
@@ -316,6 +332,11 @@ export interface EventStage {
   leads: string[];
   /** The sound of the stage as the director composed it from the engine's palette (audio/eventcues.ts). */
   cues?: EventCue[];
+  /** M7 funeral, a "depart": the road out of town (the hearse drives it), whether a hearse goes, the groups going home. */
+  exit?: { id: string; label: string; x: number; z: number } | null;
+  route?: Array<[number, number]>;
+  hearse?: boolean;
+  groups?: Array<{ ids: string[]; x: number; z: number; gone: boolean }>;
 }
 export interface EventCue {
   source: string;
@@ -401,8 +422,14 @@ export const api = {
     call<TalkLine>("POST", `/api/npc/${npc}/talk`, { kind, text }, 30_000),
   witness: (npc: string, event: "took" | "returned") => call<{ ok: boolean }>("POST", `/api/npc/${npc}/witness`, { event }),
   progress: (id: number, p: Progress) => call<{ job: Job }>("POST", `/api/jobs/${id}/progress`, p),
-  tick: () => call<JobsPayload & { advanced: boolean; night?: Night; ended?: Ending }>("POST", "/api/tick"),
+  tick: () => call<JobsPayload & { advanced: boolean; night?: Night; ended?: Ending; turned?: DayTurn }>("POST", "/api/tick"),
+  /** M7 night: the work is done, the employer is at home asleep; the facts wait for the box at his door. */
+  hold: (id: number, report: Report) => call<JobsPayload & { job: Job }>("POST", `/api/jobs/${id}/hold`, report),
+  /** Dev (M7 night): the clock on by game minutes the way the game moves it (the date turns at midnight). */
+  devAdvance: (minutes: number) => call<JobsPayload & { lines: string[]; turned: boolean }>("POST", "/api/dev/advance", { minutes }),
   sleep: () => call<JobsPayload & { night: Night }>("POST", "/api/sleep"),
+  /** M7 night: lie down where he stands (at night, or dead tired) and sleep rough. */
+  sleepRough: () => call<JobsPayload & { night: Night }>("POST", "/api/night/sleep-rough"),
   rent: () => call<JobsPayload & { paid: boolean; text: string }>("POST", "/api/rent"),
   /** Fell into the Schelde: the server takes the cold off your warmth (once per swim). */
   swim: () => call<JobsPayload & { cold: boolean }>("POST", "/api/swim"),

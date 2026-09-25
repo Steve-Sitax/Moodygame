@@ -172,8 +172,9 @@ describe("the step executor", { timeout: 30_000 }, () => {
     const rt = routineOf(actionRow(db, row.id))!;
     expect(rt.results[0]).toMatchObject({ kind: "pay", ok: false, why: "no_money" });
     expect(money(db)).toBe(0);
-    setClock(db, 1, 12);
-    // the actions' tick ends it (the routine's own time-up)
+    // the actions' tick ends it (the routine's own time-up) past the hard cap (Steve 2026-09-24:
+    // an errand under way is not stopped by its clock alone)
+    setClock(db, 3, 12);
     return import("../src/director/actions.ts").then(({ actionsTick }) => {
       actionsTick(db);
       expect(actionRow(db, row.id)!.status).toBe("failed");

@@ -101,7 +101,8 @@ export function mountDeeds(app: Hono, deps: DeedDeps): void {
     if ((body.kind === "choice" || body.kind === "free") && typeof body.text === "string") {
       const r = await policeAnswer(db, id, body.kind, body.text);
       if (r.verdict) {
-        if (r.night) afterNight(r.night.ended);
+        // M7 night: held till dawn; a new board if the date turned (or the week ended) in the cell
+        if (r.night && (r.night.turned || r.night.ended)) afterNight(r.night.ended);
         push();
       }
       if (!r.npc_line) return c.json({ gated: r.gated });

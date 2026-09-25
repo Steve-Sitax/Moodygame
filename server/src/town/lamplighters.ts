@@ -29,7 +29,8 @@ export const QUAY_LAMPS: RPt[] = [
   [24, 2.2],
   [44, 19.8],
 ];
-export const LAMPS_VERSION = 3;
+/** 4: the Oostershuis lamp moved off the gate to the pier beside it (M7 doors, 2026-09-25): its stand with it. */
+export const LAMPS_VERSION = 4;
 const STATE_KEY = "townlife_lamps";
 
 export interface LampRounds {

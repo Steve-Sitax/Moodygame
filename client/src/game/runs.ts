@@ -8,6 +8,8 @@ import type { GoodsWorld, Item } from "./goods";
 import type { People } from "./people";
 import type { Pockets } from "./pockets";
 import { api, type JobsPayload } from "../net/api";
+import { chest, type Target } from "./facing";
+import type { QuestBoxes } from "./questboxes";
 
 // How each kind of job plays in 3D (M2b, M3). Goods live in the shared
 // GoodsWorld; a run tags its own goods with the job id and watches what
@@ -17,6 +19,12 @@ export interface Action {
   key: "KeyE" | "KeyF" | "KeyG";
   text: string;
   run: () => void;
+  /** What it is about (world x, z; y when known): offered only when Jef looks at it (game/facing.ts). */
+  at?: Target;
+  /** About Jef himself or the spot ahead: no looking needed (the list is in game/facing.ts). */
+  self?: true;
+  /** A wider cone than the usual (degrees): the thief who just robbed you. */
+  cone?: number;
 }
 
 export type Sfx = "lift" | "thud_wood" | "thud_soft" | "thud_plank" | "splash" | "bell" | "coins";
@@ -33,6 +41,8 @@ export interface RunCtx {
   toast(text: string): void;
   progress(p: Progress): void;
   finish(r: Report): void;
+  /** M7 night: the employers' quest boxes (a parcel waits in the box while its man is home asleep). */
+  box?: QuestBoxes | null;
 }
 
 export interface Run {
@@ -219,28 +229,37 @@ export class HaulRun implements Run {
     if (this.parcelInPocket) {
       const out: Action[] = [];
       if (this.recipient && this.recipient.distTo(x, z) < REACH_PERSON) {
-        out.push({ key: "KeyE", text: `give the parcel to ${(this.task as DeliverTask).recipient}`, run: () => this.giveParcel() });
+        out.push({ key: "KeyE", text: `give the parcel to ${(this.task as DeliverTask).recipient}`, run: () => this.giveParcel(), at: chest(this.recipient.group) });
       }
       if (this.stranger && !this.strangerDone && this.stranger.distTo(x, z) < 3) {
-        out.push({ key: "KeyF", text: `sell the parcel to the stranger (${SELL_PRICE.deliver} c)`, run: () => this.sellParcel() });
+        out.push({ key: "KeyF", text: `sell the parcel to the stranger (${SELL_PRICE.deliver} c)`, run: () => this.sellParcel(), at: chest(this.stranger.group) });
       }
       return out;
     }
     if (!this.waitingHandover) return [];
     if (this.kind === "deliver") {
       const e = this.ctx.people.get(this.job.employer_npc);
-      if (e && e.distTo(x, z) < REACH_PERSON) {
-        return [{ key: "KeyF", text: `take the ${this.noun} from ${e.def.name}`, run: () => this.takeParcel() }];
+      // M7 night: he is at home asleep; the parcel waits in his box by the door
+      const box = this.boxWaiting ? this.ctx.box!.near(x, z, this.job.employer_npc) : null;
+      if (box) return [{ key: "KeyF", text: `take the ${this.noun} from ${box.name}'s box`, run: () => this.takeParcel(true), at: this.ctx.box!.target(box) }];
+      if (e && e.present && e.distTo(x, z) < REACH_PERSON) {
+        return [{ key: "KeyF", text: `take the ${this.noun} from ${e.def.name}`, run: () => this.takeParcel(), at: chest(e.group) }];
       }
     } else if (this.toLower.length && !this.lowering.length && dist2(x, z, SPOTS.ship_gangway.x, SPOTS.ship_gangway.z) < 5) {
-      return [{ key: "KeyF", text: "call up to the ship for the cargo", run: () => this.callShip() }];
+      return [{ key: "KeyF", text: "call up to the ship for the cargo", run: () => this.callShip(), at: { x: SPOTS.ship_gangway.x, z: SPOTS.ship_gangway.z } }];
     }
     return [];
   }
 
-  private takeParcel(): void {
+  /** M7 night: the deliver's employer is away and has a box: the parcel waits in it. */
+  private get boxWaiting(): boolean {
+    const b = this.ctx.box;
+    return this.kind === "deliver" && this.waitingHandover && !!b && b.has(this.job.employer_npc) && b.away(this.job.employer_npc);
+  }
+
+  private takeParcel(fromBox = false): void {
     const e = this.ctx.people.get(this.job.employer_npc)!;
-    e.lookAt(this.ctx.player.x, this.ctx.player.z);
+    if (!fromBox) e.lookAt(this.ctx.player.x, this.ctx.player.z);
     if (this.pocketed_) {
       // the parcel goes into your pocket; the server keeps it (pockets are engine state)
       api
@@ -258,7 +277,11 @@ export class HaulRun implements Run {
       peeters: `The widow counts it out to you. "Signed for. It is on your head now, young man."`,
       sooi: `Sooi shoves it at you. "For ${(this.task as DeliverTask).recipient}. Go."`,
     };
-    this.ctx.toast(line[this.job.employer_npc] ?? `You take the ${this.noun}.`);
+    this.ctx.toast(
+      fromBox
+        ? `You lift the lid of ${e.def.name}'s box. The ${this.noun} is there, a chalk mark on it for ${(this.task as DeliverTask).recipient}.`
+        : (line[this.job.employer_npc] ?? `You take the ${this.noun}.`),
+    );
   }
 
   private giveParcel(): void {
@@ -293,12 +316,12 @@ export class HaulRun implements Run {
     const { x, z } = this.ctx.player;
     const out: Action[] = [];
     if (this.recipient && this.recipient.distTo(x, z) < REACH_PERSON) {
-      out.push({ key: "KeyE", text: `hand it to ${(this.task as DeliverTask).recipient}`, run: () => this.handIn(item) });
+      out.push({ key: "KeyE", text: `hand it to ${(this.task as DeliverTask).recipient}`, run: () => this.handIn(item), at: chest(this.recipient.group) });
     }
     if (this.stranger && !this.strangerDone && this.stranger.distTo(x, z) < 3) {
-      out.push({ key: "KeyF", text: `sell it to the stranger (${SELL_PRICE[this.kind]} c)`, run: () => this.sell(item) });
+      out.push({ key: "KeyF", text: `sell it to the stranger (${SELL_PRICE[this.kind]} c)`, run: () => this.sell(item), at: chest(this.stranger.group) });
     } else if (item.broken && !this.pocketed) {
-      out.push({ key: "KeyF", text: "fill your pockets", run: () => this.pocket() });
+      out.push({ key: "KeyF", text: "fill your pockets", run: () => this.pocket(), self: true });
     }
     return out;
   }
@@ -447,6 +470,8 @@ export class HaulRun implements Run {
     if ((carried && this.isMine(carried)) || this.parcelInPocket || (this.onCart > 0 && !lying))
       return this.recipient ? this.recipient.pos.clone() : new THREE.Vector3(to.x, 0, to.z);
     if (this.waitingHandover) {
+      const box = this.boxWaiting ? this.ctx.box!.get(this.job.employer_npc) : null;
+      if (box) return new THREE.Vector3(box.x, 0.6, box.z);
       if (this.kind === "deliver") return this.ctx.people.get(this.job.employer_npc)?.pos.clone() ?? null;
       return new THREE.Vector3(SPOTS.ship_gangway.x, 0, SPOTS.ship_gangway.z);
     }
@@ -476,7 +501,9 @@ export class HaulRun implements Run {
         : `Bring it to ${esc(to.label)}`
       : this.waitingHandover
         ? this.kind === "deliver"
-          ? `Get the ${esc(this.noun)} from ${esc(employer)}`
+          ? this.boxWaiting
+            ? `Get the ${esc(this.noun)} from ${esc(employer)}'s box`
+            : `Get the ${esc(this.noun)} from ${esc(employer)}`
           : "Ask the ship for the cargo at the gangway"
         : `Fetch the ${esc(this.noun)} at ${esc(from.label)}`;
     const count =
@@ -561,11 +588,11 @@ export class WatchRun implements Run {
     const { x, z } = this.ctx.player;
     const out: Action[] = [];
     if (this.thief && this.thiefState === "coming" && this.thief.distTo(x, z) < 10) {
-      out.push({ key: "KeyE", text: "shout at him", run: () => this.chase() });
+      out.push({ key: "KeyE", text: "shout at him", run: () => this.chase(), at: chest(this.thief.group), cone: 50 });
     }
     if (this.briber && this.briberState === "waiting" && this.briber.distTo(x, z) < 3) {
-      out.push({ key: "KeyF", text: "take his coin and look away (50 c)", run: () => this.takeBribe() });
-      out.push({ key: "KeyE", text: "send him off", run: () => this.sendOff() });
+      out.push({ key: "KeyF", text: "take his coin and look away (50 c)", run: () => this.takeBribe(), at: chest(this.briber.group) });
+      out.push({ key: "KeyE", text: "send him off", run: () => this.sendOff(), at: chest(this.briber.group) });
     }
     return out;
   }

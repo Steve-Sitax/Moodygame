@@ -10,12 +10,14 @@ import { ACTION_SCHEMA, EVENT_SCHEMA, EVENTLOG_SCHEMA, FAMILY_TABLES, familyMigr
 import { PRESS_SCHEMA, PRESS_TABLES } from "./paper/schema.ts";
 import { IDEAS_SCHEMA, IDEAS_TABLES } from "./ideas/schema.ts";
 import { ensurePressTown } from "./paper/town.ts";
+import { ensureNightTown } from "./night/givers.ts";
 import { ensureLamplighters } from "./town/lamplighters.ts";
 import { ensureHomesTown, HOMES_SCHEMA, HOMES_TABLES } from "./homes/town.ts";
 import { ensureVisitors } from "./town/visitors.ts";
 import { ensureEmigrants } from "./town/emigrants.ts";
 import { ensureLandmarksTown } from "./landmarks/town.ts";
 import { ensureLively } from "./town/lively.ts";
+import { ARRIVAL_KEY, ARRIVAL_TEXT } from "./arrival.ts";
 
 // SQLite schema from docs/04-data-model.md. Only the server writes.
 // Delete data/game.sqlite to start over.
@@ -162,6 +164,8 @@ export function openDb(file: string): DB {
   ensureTransport(db);
   // M6 lively: dog carts, street sellers, the stalls against the cathedral, nuns, beguines, travellers (town/lively.ts); in place, once
   ensureLively(db);
+  // M7 night: the four givers of night work (night/givers.ts); in place, once
+  ensureNightTown(db);
   return db;
 }
 
@@ -242,6 +246,7 @@ export function resetDb(db: DB): void {
   ensureCartwright(db);
   ensureTransport(db);
   ensureLively(db);
+  ensureNightTown(db);
 }
 
 function seed(db: DB): void {
@@ -262,10 +267,12 @@ function seed(db: DB): void {
       rel.run(n[0]);
     }
     db.prepare("INSERT INTO world_state (key, value_json) VALUES ('weather', '\"fog\"')").run();
+    // M7 ferry arrival (arrival.ts): the week opens with Jef on the ferry's deck at the Werf pontoon
+    db.prepare("INSERT INTO world_state (key, value_json) VALUES (?, ?)").run(ARRIVAL_KEY, JSON.stringify({ stage: "ferry" }));
     db.prepare(
       `INSERT INTO log (day, hour, place, actor, verb, object, text)
-       VALUES (1, 6, 'rijnkaai', 'player', 'arrived', NULL, 'Jef came to the Rijnkaai at dawn with 50 centimes and no name.')`,
-    ).run();
+       VALUES (1, 6, 'rijnkaai', 'player', 'arrived', NULL, ?)`,
+    ).run(ARRIVAL_TEXT);
   });
   tx();
 }

@@ -13,6 +13,7 @@ import type { Deeds } from "./deeds";
 import type { Journeys } from "./journeys";
 import type { Homes } from "./homes";
 import { HaulRun, slot, type Action, type Sfx } from "./runs";
+import { nearestAim, pick, type Target } from "./facing";
 import { canLoad, LOAD, loadOf, pushSpeed, unloadAllAllowed, UNLOAD_NEAR_M, type CartThing } from "../../../shared/handcart";
 import { cartPoints, footprint, stepCart, GRIP_AHEAD, REACH, type CartPose, type CartWorld } from "./cartPhysics";
 
@@ -393,7 +394,7 @@ export class Handcarts {
     if (this.away() || this.player.riding || this.player.swimming || this.player.climbing || this.player.bikeRiding || this.player.rowing) return {};
     const held = this.held ? this.drawn.get(this.held) : null;
     if (held) {
-      const only: Action[] = [{ key: "KeyE", text: "let go of the handcart", run: () => void this.letGo() }];
+      const only: Action[] = [{ key: "KeyE", text: "let go of the handcart", run: () => void this.letGo(), self: true }];
       const all = this.unloadAllAction(held);
       if (all) only.push(all);
       return { only };
@@ -406,28 +407,27 @@ export class Handcarts {
       const why = canLoad(near.info.load, { kind: arms.kind });
       const h = this.homes.keys(x, z).only ?? [];
       const put: Action = why
-        ? { key: "KeyE", text: `${why}`, run: () => this.say(`${cap(why)}.`) }
-        : { key: "KeyE", text: `put ${LOAD[arms.kind]?.name ? `the ${LOAD[arms.kind].name}` : "it"} on the cart`, run: () => void this.loadPiece(near, arms.id, arms.kind) };
+        ? { key: "KeyE", text: `${why}`, run: () => this.say(`${cap(why)}.`), at: near.at }
+        : { key: "KeyE", text: `put ${LOAD[arms.kind]?.name ? `the ${LOAD[arms.kind].name}` : "it"} on the cart`, run: () => void this.loadPiece(near, arms.id, arms.kind), at: near.at };
       return { only: [put, ...h.filter((a) => a.key !== "KeyE")] };
     }
     const options: Array<[number, Action]> = [];
     const extra: Action[] = [];
     if (near) {
-      options.push([near.d, { key: "KeyE", text: near.info.kind === "hire" ? "take the hired handcart" : near.info.kind === "taken" ? "take the handcart" : "take your handcart", run: () => void this.takeHold(near) }]);
+      options.push([near.d, { key: "KeyE", text: near.info.kind === "hire" ? "take the hired handcart" : near.info.kind === "taken" ? "take the handcart" : "take your handcart", run: () => void this.takeHold(near), at: near.at }]);
       const top = near.info.load[near.info.load.length - 1];
-      if (top) extra.push({ key: "KeyG", text: `lift the ${LOAD[top.kind]?.name ?? top.kind} off the cart`, run: () => void this.unloadOne(near) });
+      if (top) extra.push({ key: "KeyG", text: `lift the ${LOAD[top.kind]?.name ?? top.kind} off the cart`, run: () => void this.unloadOne(near), at: near.at });
       const all = this.unloadAllAction(near);
       if (all) extra.push(all);
     }
     // a household's cart standing by their door or their stall: taking it is theft (M3h)
-    let best: { id: string; label: string; d: number } | null = null;
-    for (const c of this.journeys.standingCarts()) {
+    const best = pick(this.journeys.standingCarts(), (c) => {
       const d = this.distTo(c.x, c.z, c.yaw, x, z);
-      if (d < REACH_CART && (!best || d < best.d)) best = { id: c.id, label: c.label, d };
-    }
+      return d < REACH_CART ? { d, at: this.cartAt(c.x, c.z, c.yaw) } : null;
+    });
     if (best) {
-      const b = best;
-      options.push([b.d + 0.05, { key: "KeyE", text: `take ${b.label}`, run: () => void this.deeds.takeCart(b.id) }]);
+      const b = best.it;
+      options.push([best.d + 0.05, { key: "KeyE", text: `take ${b.label}`, run: () => void this.deeds.takeCart(b.id), at: best.at }]);
     }
     return { options, extra };
   }
@@ -438,8 +438,8 @@ export class Handcarts {
     const near = this.nearest(x, z);
     if (!near || !LOAD[item.kind]) return [];
     const why = canLoad(near.info.load, { kind: item.kind, heavy: item.heavy });
-    if (why) return [{ key: "KeyE", text: why, run: () => this.say(`${cap(why)}.`) }];
-    return [{ key: "KeyE", text: `put the ${GOODS[item.kind].one} on the cart`, run: () => void this.loadGoods(near, item) }];
+    if (why) return [{ key: "KeyE", text: why, run: () => this.say(`${cap(why)}.`), at: near.at }];
+    return [{ key: "KeyE", text: `put the ${GOODS[item.kind].one} on the cart`, run: () => void this.loadGoods(near, item), at: near.at }];
   }
 
   /** F at a carry job's goal: all the job's goods off at once, where the job allows it. */
@@ -452,18 +452,26 @@ export class Handcarts {
     const to = SPOTS[t.to];
     if (!to || Math.hypot(this.player.x - to.x, this.player.z - to.z) > UNLOAD_NEAR_M) return null;
     const noun = n === 1 ? GOODS[t.goods].one : t.goods;
-    return { key: "KeyF", text: `unload the ${n === 1 ? "" : `${n} `}${noun} here`, run: () => void this.unloadAll(d) };
+    return { key: "KeyF", text: `unload the ${n === 1 ? "" : `${n} `}${noun} here`, run: () => void this.unloadAll(d), self: true };
   }
 
-  /** The nearest of Jef's carts standing (not held), within reach of any part of it. */
-  private nearest(x: number, z: number): (Drawn & { d: number }) | null {
-    let best: (Drawn & { d: number }) | null = null;
-    for (const d of this.drawn.values()) {
-      if (this.held === d.info.id || !d.cart) continue;
+  /** Of Jef's carts standing (not held) within reach of any part of it, the one he looks at (game/facing.ts). */
+  private nearest(x: number, z: number): (Drawn & { d: number; at: Target }) | null {
+    const r = pick(this.drawn.values(), (d) => {
+      if (this.held === d.info.id || !d.cart) return null;
       const dist = this.distTo(d.info.x, d.info.z, d.info.yaw, x, z);
-      if (dist < REACH_CART && (!best || dist < best.d)) best = Object.assign(d, { d: dist });
-    }
-    return best;
+      return dist < REACH_CART ? { d: dist, at: this.cartAt(d.info.x, d.info.z, d.info.yaw) } : null;
+    });
+    return r ? Object.assign(r.it, { d: r.d, at: r.at }) : null;
+  }
+
+  /** The point of a cart (axle at ax, az, pointing yaw) nearest the crosshair: bed front, bed, axle, grips. */
+  private cartAt(ax: number, az: number, yaw: number): Target {
+    const fx = Math.sin(yaw);
+    const fz = Math.cos(yaw);
+    const y = this.player.y + 0.7;
+    const back = -(GRIP_AHEAD + REACH - 0.45);
+    return nearestAim([0.95, 0.45, 0, back / 2, back].map((t) => ({ x: ax + fx * t, y, z: az + fz * t })));
   }
 
   /** From (x, z) to the nearest part of a cart standing at axle (ax, az) pointing yaw: the bed or the grips. */

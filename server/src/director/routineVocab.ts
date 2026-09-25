@@ -72,23 +72,24 @@ export const ROUTINES_PER_RESIDENT = 2;
 export const ROUTINES_IN_TOWN = 4;
 /**
  * A routine's time, in GAME minutes: its own estimate by the way it walks, never under the
- * first nor over the second. A game hour is 20 real seconds and a walk of 100 m in Jef's sight
- * takes about four game hours, so "two game hours" would end every errand on its first street;
- * 900 is five real minutes.
+ * first nor over the second. M7 clock: a game hour is two real minutes and a walk of 100 m in
+ * Jef's sight takes about an hour and a half of game time (it was four game hours at 20 real
+ * seconds an hour). 240 -> 40 (80 real seconds) and 900 -> 180 (three game hours, six real
+ * minutes); an errand still under way is given more up to ERRAND_HARD_MIN (vocab.ts).
  */
-export const ROUTINE_MIN_MIN = 240;
-export const ROUTINE_MAX_MIN = 900;
+export const ROUTINE_MIN_MIN = 40;
+export const ROUTINE_MAX_MIN = 180;
 /** One leg of the way (the M4 go_to limit) and the whole way. */
 export const LEG_MAX_M = 400;
 export const ROUTE_MAX_M = 900;
-/** A watch or a wait in a routine, game minutes. */
-export const WAIT_ROUTINE_MAX_MIN = 480;
+/** A watch or a wait in a routine, game minutes (M7 clock: 480 -> 120, two game hours). */
+export const WAIT_ROUTINE_MAX_MIN = 120;
 /** At most this many of one thing bought on an errand. */
 export const BUY_MAX = 4;
-/** A shut shop: the engine's retry waits this long first (game minutes). */
-export const RETRY_WAIT_MIN = 45;
-/** A check-in that got no answer (a restart) is steered by the engine after this long (game minutes). */
-export const CHECKIN_STALE_MIN = 90;
+/** A shut shop: the engine's retry waits this long first (game minutes; M7 clock: 45 -> 10). */
+export const RETRY_WAIT_MIN = 10;
+/** A check-in that got no answer (a restart) is steered by the engine after this long (game minutes; M7 clock: 90 -> 15). */
+export const CHECKIN_STALE_MIN = 15;
 
 // ------------------------------------------------------------------ what the talk model is told
 

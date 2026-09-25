@@ -8,6 +8,7 @@ import type { Events } from "./events";
 import type { Town } from "./town";
 import { INSTRUMENTS, makeInstrument, playInstrument, type Instrument, type InstrumentKind } from "./instruments";
 import { makeBoard, makeCoffin, makeWear, playWear, WARDROBE_ROLES, type Wear, type WardrobeRole } from "./wardrobe";
+import type { Hearses } from "./hearses";
 
 // Townspeople who act (M4), on the client. The server keeps every action as a
 // row (director/actions.ts) and decides what it means; this side walks the
@@ -34,16 +35,17 @@ const TRAM_STOP_M = 70;
 /** Give up waiting for an omnibus after this long (real seconds) and walk. */
 const TRAM_WAIT_S = 70;
 /**
- * Fixes 2026-09-24 (a game hour is 20 s of play, so a crowd that walked the whole way came when
+ * Fixes 2026-09-24 (a game hour was 20 s of play, so a crowd that walked the whole way came when
  * the event was half over; the ballad listeners and the dawn hiring's men): coming to an event,
- * unseen, they cross town in about this many seconds of play (a few game minutes); an omnibus
+ * unseen, they cross town in about this many seconds of play (M7 clock: 6 s is three game minutes,
+ * kept: event stages are 15 to 60 game minutes now, 30 s to 2 real minutes); an omnibus
  * is waited for this long at most; and near the event, out of Jef's sight, they step into the
  * street at the first place that is out of view (or, far from Jef, right at their own place).
  */
 const ATTEND_HIDDEN_S = 6;
 const TRAM_EVENT_WAIT_S = 15;
 const CLAIM_RETRY_S = 0.4;
-/** On the way to an event and no nearer for this long (real seconds; was 20, a quarter of a game hour): another way. */
+/** On the way to an event and no nearer for this long (real seconds; was 20; five game minutes since M7): another way. */
 const ATTEND_STUCK_S = 10;
 /** In the street out of Jef's sight and further than this from the place: they go on unseen. */
 const HIDE_AWAY_M = 22;
@@ -58,6 +60,8 @@ const hash01 = (s: string) => {
   return (h >>> 0) / 4294967296;
 };
 const STUCK_S = 12;
+/** Walked this far from where the stuck clock started: not stuck. */
+const STUCK_MOVE_M = 2;
 /** M4b: the lead roles that play an instrument. */
 const PLAYS: Record<string, InstrumentKind> = { organ_grinder: "organ", fiddler: "fiddle", accordionist: "accordion" };
 /** Leads who walk at another's side in a procession: the bride on the groom's arm; bearers two by two. */
@@ -100,7 +104,15 @@ interface Run {
   /** Attend: the next try to step into the street near the event, and where (fixes 2026-09-24). */
   claimT?: number;
   out?: { x: number; z: number };
+  /** Where they stood when the stuck clock last started: walking on from here is progress too. */
+  anchor?: { x: number; z: number };
+  /** M7 funeral: gone into a hall at its door (off the street; the hall's life shows them), and where they stepped in. */
+  indoors?: boolean;
+  stepAt?: { x: number; z: number };
 }
+
+/** M7 funeral: after the event ends, one leaving town in Jef's sight walks on this long before going home (real seconds). */
+const WALK_ON_S = 30;
 
 export class Actions {
   private runs = new Map<number, Run>();
@@ -132,6 +144,12 @@ export class Actions {
   private meetAt = new Map<number, { x: number; z: number; ux: number; uz: number; since: number }>();
   /** Set by main: show a line (a scene's shout) as a bubble. */
   showLines: (c: Convo) => void = () => {};
+  /** M7 funeral: set by main: is this person's figure still inside the hall (landmarks.ts)? They come out when it has walked out. */
+  insideFig: (id: string) => boolean = () => false;
+  /** M7 funeral: set by main: the hearses on the road out (game/hearses.ts). */
+  hearses: Hearses | null = null;
+  /** M7 funeral: those leaving town who walk on out of Jef's sight after the event has ended. */
+  private walkOn = new Map<string, { p: Puppet; x: number; z: number; until: number; goT: number }>();
 
   constructor(
     private readonly world: World,
@@ -183,6 +201,7 @@ export class Actions {
     this.dress();
     this.carryCoffins();
     this.releaseBuses();
+    this.walkOnUpdate(dt);
     for (const [id, t] of this.afterglow) {
       if (t < performance.now()) {
         this.afterglow.delete(id);
@@ -220,6 +239,8 @@ export class Actions {
   }
 
   private apply(p: ActionsPayload): void {
+    // a payload without the list (a clock jump's reply): keep the one we have
+    if (!Array.isArray(p?.actions)) return;
     this.list = p.actions;
     const seen = new Set<number>();
     for (const a of p.actions) {
@@ -248,11 +269,80 @@ export class Actions {
       if (r.other) this.afterglow.set(r.other, until);
       return;
     }
+    // M7 funeral: still in the hall when it ended (the priest back to his church): off the aboard hold, at the door
+    if (r.indoors) this.leaveHall(r, !this.insideFig(r.a.npc));
+    // M7 funeral: one leaving town with the hearse, in Jef's sight, walks on out of it before going home
+    if (r.a.phase === "leave" && r.p && this.crowd.alive(r.p) && r.p.shown && r.a.target_x !== null && r.a.target_z !== null && !stillHeld(r.a.npc)) {
+      this.walkOn.set(r.a.npc, { p: r.p, x: r.a.target_x, z: r.a.target_z, until: performance.now() + WALK_ON_S * 1000, goT: 0 });
+      return;
+    }
     if (!stillHeld(r.a.npc)) this.town.release(r.a.npc);
     if (r.other && !stillHeld(r.other)) this.town.release(r.other);
     // M6 transport: a velocipede taken for the action is home again
     this.town.journeys?.actionDone(r.a.npc);
     if (r.tramOn) this.town.setAboard(r.a.npc, false);
+  }
+
+  /** M7 funeral: those who walk on after the event ended: out of Jef's sight, there, or after a while, they go home. */
+  private walkOnUpdate(dt: number): void {
+    const now = performance.now();
+    for (const [id, w] of this.walkOn) {
+      const done = !this.crowd.alive(w.p) || !w.p.shown || now > w.until || Math.hypot(w.p.x - w.x, w.p.z - w.z) < 2 || this.list.some((a) => a.npc === id);
+      if (done) {
+        this.walkOn.delete(id);
+        if (!this.list.some((a) => a.npc === id)) this.town.release(id);
+        continue;
+      }
+      w.goT -= dt;
+      if (w.goT <= 0) {
+        w.goT = 1;
+        this.crowd.puppetGo(w.p, w.x, w.z, 1.1);
+      }
+    }
+  }
+
+  /** M7 funeral: off the street at a hall's door (the hall's life shows them inside now). */
+  private stepIn(r: Run): void {
+    const p = r.p ?? this.town.puppet(r.a.npc);
+    r.stepAt = r.a.target_x !== null && r.a.target_z !== null ? { x: r.a.target_x, z: r.a.target_z } : p ? { x: p.x, z: p.z } : undefined;
+    if (p && this.crowd.puppetFollowing(p)) this.crowd.puppetFollow(p, null);
+    this.town.setAboard(r.a.npc, true);
+    r.p = null;
+    r.indoors = true;
+  }
+
+  /** M7 funeral: out of the hall at its door: in the street there if Jef is near, else on unseen from the door. */
+  private leaveHall(r: Run, show = true): Puppet | null {
+    const id = r.a.npc;
+    this.town.setAboard(id, false);
+    r.indoors = false;
+    const at = r.stepAt;
+    if (!at) return null;
+    if (show && this.jefD(at.x, at.z) < ATTEND_CLAIM_M) {
+      const p = this.town.claim(id, at);
+      if (p) return (r.p = p);
+    }
+    this.town.placeHidden(id, at.x, at.z);
+    return null;
+  }
+
+  /**
+   * M7 funeral: an event gone into a hall ("inside" on the way, "in" there). True while they are
+   * off the street: in, or waiting for their figure inside to walk out to the door at the next stage.
+   */
+  private inHall(r: Run): boolean {
+    const a = r.a;
+    if (a.phase === "in") {
+      // the engine counts them in (an unseen walker, or the report): off the street now
+      if (!r.indoors) this.stepIn(r);
+      return true;
+    }
+    if (!r.indoors) return false;
+    if (a.phase === "inside") return true;
+    // the next stage: out once their figure inside has walked to the door (at once if the hall is not drawn)
+    if (this.insideFig(a.npc)) return true;
+    this.leaveHall(r);
+    return false;
   }
 
   private async report(r: Run, phase: "arrived" | "lost" | "blocked" | "done", extra: { found?: boolean; why?: string } = {}): Promise<void> {
@@ -278,7 +368,9 @@ export class Actions {
   private ensure(r: Run, toward: { x: number; z: number } | null, dt: number, range: number): Puppet | null {
     const pos = this.town.position(r.a.npc);
     const d = pos ? this.jefD(pos.x, pos.z) : Infinity;
-    if (r.a.kind === "attend" && toward) return this.ensureAttend(r, toward, pos, d, dt, range);
+    // M7 funeral: leaving town behind the hearse is walked in Jef's sight from the church door, not
+    // jumped unseen to the edge of town the way people come to an event
+    if (r.a.kind === "attend" && toward && r.a.phase !== "leave") return this.ensureAttend(r, toward, pos, d, dt, range);
     // a guest on the way to a gathering Jef can see: they step out of sight close to it, not across town
     if (d > range) {
       r.p = null;
@@ -423,6 +515,20 @@ export class Actions {
   }
 
   private stuck(r: Run, d: number, dt: number, limit = STUCK_S): boolean {
+    // Steve 2026-09-24: "make people complete their task unless they are stuck". Round a block the
+    // straight line to the goal grows for a while; one who walks on is not stuck (only one who
+    // stays within a couple of metres, pushing at a wall, is)
+    const p = r.p;
+    if (p) {
+      if (!r.anchor || Math.hypot(p.x - r.anchor.x, p.z - r.anchor.z) > STUCK_MOVE_M) {
+        const moved = !!r.anchor;
+        r.anchor = { x: p.x, z: p.z };
+        if (moved) {
+          r.stuckT = 0;
+          return false;
+        }
+      }
+    }
     if (d < r.bestD - 0.3) {
       r.bestD = d;
       r.stuckT = 0;
@@ -634,9 +740,13 @@ export class Actions {
       if (p) this.playScene(r, p, scene, dt);
       return;
     }
+    // M7 funeral: gone into a hall, or waiting there to come out: off the street
+    if (attend && this.inHall(r)) return;
     const tx = a.target_x ?? this.player.x;
     const tz = a.target_z ?? this.player.z;
-    const how = attend && a.phase !== "procession" ? this.how(r, tx, tz) : "walk";
+    // M7 funeral: into a hall ("inside") and out of town ("leave") are walked in a column, like a procession
+    const column = attend && (a.phase === "procession" || a.phase === "inside" || a.phase === "leave");
+    const how = attend && !column ? this.how(r, tx, tz) : "walk";
     if (how === "tram" && !r.p) {
       const p = this.byTram(r, dt);
       if (!p) return;
@@ -650,7 +760,7 @@ export class Actions {
       return;
     }
     // M4b: the bride on the groom's arm, the bearers two by two (crowd.puppetFollow keeps them at the side)
-    const partner = attend && a.phase === "procession" ? this.partnerOf(a) : null;
+    const partner = column ? this.partnerOf(a) : null;
     if (partner) {
       const pp = this.town.puppet(partner);
       if (pp && this.crowd.alive(pp) && Math.hypot(pp.x - p.x, pp.z - p.z) < SIDE_BY_SIDE) {
@@ -663,19 +773,42 @@ export class Actions {
     // a procession: everyone but the leader keeps behind the one ahead
     let gx = tx;
     let gz = tz;
-    if (attend && a.phase === "procession" && a.order > 0) {
+    if (attend && (a.phase === "procession" || a.phase === "leave" || (a.phase === "inside" && a.lead)) && a.order > 0) {
       const ahead = this.events.participant(a.event_id, a.order - 1);
       const ap = ahead ? this.town.position(ahead) : null;
-      if (ap && Math.hypot(ap.x - tx, ap.z - tz) > 2.5) {
+      // M7 funeral: into the church and out of town, one far behind (stuck, or unseen elsewhere) is not waited for
+      if (ap && Math.hypot(ap.x - tx, ap.z - tz) > 2.5 && (a.phase === "procession" || Math.hypot(ap.x - p.x, ap.z - p.z) < 15)) {
         const L = Math.hypot(ap.x - p.x, ap.z - p.z) || 1;
         gx = ap.x + ((p.x - ap.x) / L) * 1.4;
         gz = ap.z + ((p.z - ap.z) / L) * 1.4;
       }
     }
+    // M7 funeral: the head of the column out of town walks at the hearse's back (the coffin goes on there)
+    if (attend && a.phase === "leave" && a.order === 0) {
+      const b = this.hearses?.backOf(a.event_id);
+      if (b) {
+        gx = b.x;
+        gz = b.z;
+      }
+    }
+    // M7 funeral: the others go in after the leads, a few at a time: each waits till the one three
+    // ahead of them is at the door
+    if (attend && a.phase === "inside" && !a.lead && a.order >= 3) {
+      const ahead = this.events.participant(a.event_id, a.order - 3);
+      const ar = ahead ? [...this.runs.values()].find((o) => o.a.npc === ahead && o.a.event_id === a.event_id) : null;
+      const ap = ar && !ar.indoors && ar.a.phase === "inside" && ar.p && this.crowd.alive(ar.p) ? ar.p : null;
+      if (ap && Math.hypot(ap.x - tx, ap.z - tz) > 6) {
+        if (this.crowd.puppetBusy(p) || (r.wait -= dt) <= 0) {
+          this.crowd.puppetStand(p, "fold", Math.atan2(tx - p.x, tz - p.z));
+          r.wait = 1;
+        }
+        return;
+      }
+    }
     const d = Math.hypot(p.x - gx, p.z - gz);
     if (d > 1.6) {
       r.playing = false;
-      const pace = !attend ? 1.5 : a.phase === "procession" ? 0.95 : d <= 6 ? 1.1 : r.how === "run" ? 2.5 : d > 15 ? 1.75 : 1.45;
+      const pace = !attend ? 1.5 : a.phase === "procession" ? 0.95 : a.phase === "leave" ? 1.1 : a.phase === "inside" ? 1.05 : d <= 6 ? 1.1 : r.how === "run" ? 2.5 : d > 15 ? 1.75 : 1.45;
       // gave up on the way after several tries: they stand where they are (once), and look on from
       // there, until the event moves on (a procession starts: a new way)
       if (r.gaveUp && (r as Run & { gavePhase?: string }).gavePhase !== a.phase) {
@@ -685,8 +818,10 @@ export class Actions {
       if (attend && r.gaveUp) return;
       this.go(r, p, gx, gz, pace, attend ? 0.9 : 0.6);
       if (this.stuck(r, d, dt, attend ? ATTEND_STUCK_S : STUCK_S)) {
-        if (!attend) void this.report(r, "blocked", { why: "wall" });
-        else if (this.unwedge(p)) {
+        // an errand for Jef: a step out and new ways first, like the event goers; only then "blocked"
+        const wedged = this.unwedge(p);
+        if (!attend && !wedged && (r.replans ?? 0) >= 4) void this.report(r, "blocked", { why: "wall" });
+        else if (wedged) {
           // stood in something (a doorstep, a cart put down beside them): a step out, and on again
           r.stuckT = 0;
           r.bestD = Infinity;
@@ -712,9 +847,18 @@ export class Actions {
       return;
     }
     if (!attend) return void this.report(r, "arrived");
+    // M7 funeral: at the hall's door: in, off the street (the hall's life shows them inside now), and the server told
+    if (a.phase === "inside" && Math.hypot(p.x - tx, p.z - tz) < 1.8) {
+      this.stepIn(r);
+      r.reported = false;
+      void this.report(r, "arrived");
+      return;
+    }
     // at their place: "there" on the server (it no longer says "going" all through the event)
     if (a.phase === "going" && !r.reported) void this.report(r, "arrived");
-    const c = this.events.centreOf(a.event_id);
+    // M7 funeral: after a departure, the small groups going home face each other and talk low
+    const group = this.events.groupOf(a.event_id, a.npc);
+    const c = group ?? this.events.centreOf(a.event_id);
     // a street musician: in the middle, facing out to the crowd, playing (Steve: "no musicians visible")
     if (a.role === "musicians" || (a.lead && PLAYS[a.lead])) {
       r.playing = true;
@@ -744,7 +888,7 @@ export class Actions {
     if (this.crowd.puppetBusy(p) || (r.wait -= dt) <= 0) {
       const yaw = c ? Math.atan2(c.x - p.x, c.z - p.z) : null;
       const mood = this.events.moodOf(a.event_id);
-      const talk = Math.random() < (mood === "solemn" ? 0.1 : 0.35);
+      const talk = Math.random() < (group ? 0.4 : mood === "solemn" ? 0.1 : 0.35);
       this.crowd.puppetStand(p, talk ? "talk" : mood === "solemn" ? "fold" : "idle", yaw);
       r.wait = talk ? 2.5 + Math.random() * 2 : 4 + Math.random() * 6;
     }
@@ -837,8 +981,11 @@ export class Actions {
   /** The coffin rides on the bearers' shoulders: between them, along the way they face. */
   private carryCoffins(): void {
     const byEvent = new Map<number, Puppet[]>();
+    // M7 funeral: no coffin in the street while a bearer is in the church with it, or once it is on the hearse
+    const off = new Set<number>();
+    for (const r of this.runs.values()) if (r.a.lead === "bearers" && r.a.event_id !== null && (r.indoors || this.hearses?.hasCoffin(r.a.event_id))) off.add(r.a.event_id);
     for (const r of this.runs.values()) {
-      if (r.a.lead !== "bearers" || !r.p || r.a.event_id === null || !this.crowd.alive(r.p)) continue;
+      if (r.a.lead !== "bearers" || !r.p || r.a.event_id === null || !this.crowd.alive(r.p) || off.has(r.a.event_id)) continue;
       const list = byEvent.get(r.a.event_id) ?? [];
       list[r.a.n] = r.p;
       byEvent.set(r.a.event_id, list);
@@ -1244,7 +1391,7 @@ export class Actions {
   info() {
     return [...this.runs.values()].map((r) => {
       const pos = this.town.position(r.a.npc);
-      return { id: r.a.id, npc: r.a.npc, name: r.a.name, kind: r.a.kind, lead: r.a.lead, phase: r.a.phase, target: r.a.target_name ?? r.a.target, puppet: !!r.p, d: pos ? +this.jefD(pos.x, pos.z).toFixed(1) : null, at: pos ? [+pos.x.toFixed(1), +pos.z.toFixed(1)] : null, left: r.a.minutes_left, reported: r.reported, wears: this.wear.has(r.a.npc) || this.instruments.has(r.a.npc), side: r.p ? this.crowd.puppetFollowing(r.p) : false };
+      return { id: r.a.id, npc: r.a.npc, name: r.a.name, kind: r.a.kind, lead: r.a.lead, phase: r.a.phase, target: r.a.target_name ?? r.a.target, puppet: !!r.p, d: pos ? +this.jefD(pos.x, pos.z).toFixed(1) : null, at: pos ? [+pos.x.toFixed(1), +pos.z.toFixed(1)] : null, left: r.a.minutes_left, reported: r.reported, wears: this.wear.has(r.a.npc) || this.instruments.has(r.a.npc), side: r.p ? this.crowd.puppetFollowing(r.p) : false, indoors: !!r.indoors };
     });
   }
 }

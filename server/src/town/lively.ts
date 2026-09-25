@@ -181,11 +181,12 @@ const plen = (p: Pt[]) => p.reduce((a, q, i) => (i ? a + Math.hypot(q[0] - p[i -
 /**
  * A round of `n` doors near `at` (within `reach`), from the seller's own door: back-street
  * doors only, never two stops within 9 m, never a door someone else's round already uses
- * (`used`), in walking order (nearest first, then 2-opt), each leg a real path on the walk
+ * (`used`) nor a stop within 2.5 m of another round's (`usedStops`: two neighbours' doors can be
+ * that close), in walking order (nearest first, then 2-opt), each leg a real path on the walk
  * map (`room` metres of clearance for a cart). Returns the stops, the way to face at each,
  * the houses and the walked length of the loop.
  */
-export function buildRound(at: Pt, reach: number, n: number, start: Pt, rng: () => number, used: Set<number>, room: number): { route: Pt[]; faces: number[]; houses: number[]; len: number } {
+export function buildRound(at: Pt, reach: number, n: number, start: Pt, rng: () => number, used: Set<number>, room: number, usedStops: Pt[] = []): { route: Pt[]; faces: number[]; houses: number[]; len: number } {
   const cands = houseDoors()
     .filter((d) => !used.has(d.house) && Math.hypot(d.sx - at[0], d.sz - at[1]) < reach && backStreet(d))
     .map((d) => ({ d, k: rng() }))
@@ -196,6 +197,7 @@ export function buildRound(at: Pt, reach: number, n: number, start: Pt, rng: () 
     if (picked.length >= n) break;
     const s = stopBy(d, rng() < 0.5 ? 1 : -1, room) ?? stopBy(d, 1, room) ?? stopBy(d, -1, room);
     if (!s || picked.some((p) => Math.hypot(p.at[0] - s.at[0], p.at[1] - s.at[1]) < 9)) continue;
+    if (usedStops.some(([ux, uz]) => Math.hypot(ux - s.at[0], uz - s.at[1]) < 2.5)) continue;
     // not in front of another house's door (a stop never closes a door)
     if (houseDoors().some((o) => o.house !== d.house && Math.hypot(o.sx - s.at[0], o.sz - s.at[1]) < 1.1)) continue;
     picked.push({ house: d.house, ...s });
@@ -365,6 +367,7 @@ function makeLively(seed: number, places: Record<string, TownPlace>, residents: 
 
   // --- the rounds: dog carts, street sellers, the Black Sisters
   const roundHouses = new Set<number>();
+  const roundStops: Pt[] = [];
   const bakeries = ["bakery_rijn", "bakery_steen"];
   const bakerHome = (shop: string): Resident | undefined => residents.find((r) => r.work.shop === shop && r.trade === "baker") ?? residents.find((r) => r.work.shop === shop);
   let sweepMaster: Resident | null = null;
@@ -391,8 +394,9 @@ function makeLively(seed: number, places: Record<string, TownPlace>, residents: 
       role = spec.sex === "f" ? pick(["head", "widow"]) : "head";
     }
     const placeId = `round:${spec.key}`;
-    const round = buildRound(spec.at, spec.reach, spec.stops, [home.sx, home.sz], rng, roundHouses, cart ? 1.1 : 0.5);
+    const round = buildRound(spec.at, spec.reach, spec.stops, [home.sx, home.sz], rng, roundHouses, cart ? 1.1 : 0.5, roundStops);
     for (const h of round.houses) roundHouses.add(h);
+    roundStops.push(...round.route);
     const [px, pz] = round.route[0] ?? [home.sx, home.sz];
     outPlaces[placeId] = { label: spec.label, x: px, z: pz, r: spec.reach, district: spec.district };
     const work: Resident["work"] = { place: placeId, kind: "round", route: round.route, faces: round.faces };

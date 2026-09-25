@@ -2,6 +2,19 @@ import * as THREE from "three";
 import { psx, psxUniforms } from "../retro/psx";
 import { TARGET_HEIGHT } from "../retro/retroPass";
 import { edgeZ, type CityWorld } from "./city";
+import INWORLD from "../../../shared/inworld_houses.json";
+
+/**
+ * M7 taverns and homes: the houses whose insides stand in the world light their own windows (the room itself
+ * through its cut windows, world/houseInWorld.ts); no painted pane is lit over them. By house index: the
+ * ground storey, the upper storeys (index from the first), the gable.
+ */
+const OWN_LIGHT = new Map<number, { ground: boolean; storeys: number[]; gable: boolean }>(
+  (INWORLD as { houses: Array<{ kind: string; cls?: string; house: number }> }).houses.map((e) => [
+    e.house,
+    { ground: true, storeys: e.cls === "merchant" ? [0] : [], gable: e.cls === "garret" },
+  ]),
+);
 
 
 // Atmosphere over the city (docs/05): smoke from the chimneys, gulls over the
@@ -465,7 +478,10 @@ function buildWindows(houses: House[]): Map<string, ChunkBuf> {
     }
   };
 
+  let hi = -1;
   for (const h of houses) {
+    hi++;
+    const own = OWN_LIGHT.get(hi);
     const r = mulberry(h.seed);
     const store = !!h.store;
     const H = h.h;
@@ -502,7 +518,7 @@ function buildWindows(houses: House[]): Map<string, ChunkBuf> {
       const bw = L / bays;
       const at = (d: number): [number, number] => [ax + ux * d, az + uz * d];
       // ground storey: shop windows 36/64 of a bay wide, 0.83 to 2.85 m (cityTextures col 0)
-      if (H >= 2.95) {
+      if (H >= 2.95 && !own?.ground) {
         const l = litOf(-1, false);
         if (l[0] < 99 || l[2] < 99) {
           for (let k = 0; k < bays; k++) {
@@ -520,6 +536,7 @@ function buildWindows(houses: House[]): Map<string, ChunkBuf> {
         if (yb >= maxUp) break;
         const inGable = yt > H;
         if (inGable && !gable) break;
+        if (own && (own.storeys.includes(k) || (inGable && own.gable))) continue;
         const l = litOf(k, inGable);
         if (l[0] >= 99 && l[2] >= 99) continue;
         if (!inGable) {

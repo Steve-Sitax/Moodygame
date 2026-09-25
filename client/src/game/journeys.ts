@@ -700,7 +700,7 @@ export class Journeys {
         }
         {
           // unseen to his boat in a few seconds of play (fixes 2026-09-24: the errand is two and a
-          // half game hours, 50 s, and a family's steps may be 360 m off)
+          // half game hours, five real minutes since M7, and a family's steps may be 360 m off)
           const d = Math.hypot(t.fetchAt![0] - s.x, t.fetchAt![1] - s.z);
           if (d > 0.6) {
             const step = Math.min(d, Math.max(SPEED.walk * k, d / BERTH_UNSEEN_S) * dt);

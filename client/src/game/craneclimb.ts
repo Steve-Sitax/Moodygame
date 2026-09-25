@@ -40,13 +40,13 @@ export class CraneClimb {
       const l = this.ladders()[this.on];
       if (!l) return {};
       const d = Math.hypot(x - l.head.x, z - l.head.z);
-      return { only: d < REACH_HEAD ? [{ key: "KeyE", text: "climb down the ladder", run: () => this.down(l) }] : [] };
+      return { only: d < REACH_HEAD ? [{ key: "KeyE", text: "climb down the ladder", run: () => this.down(l), self: true }] : [] };
     }
     const l = this.nearFoot(x, z);
     if (!l) return {};
     rail.summon(l.crane);
     if (!l.ready) return {};
-    return { options: [[Math.hypot(x - l.foot.x, z - l.foot.z), { key: "KeyE", text: "climb the crane's ladder", run: () => this.up(l) }]] };
+    return { options: [[Math.hypot(x - l.foot.x, z - l.foot.z), { key: "KeyE", text: "climb the crane's ladder", run: () => this.up(l), at: { x: l.hang.x - Math.sin(l.face) * 0.3, y: 1.4, z: l.hang.z - Math.cos(l.face) * 0.3 } }]] };
   }
 
   private nearFoot(x: number, z: number): CraneLadder | null {

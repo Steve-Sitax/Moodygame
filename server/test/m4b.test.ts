@@ -55,6 +55,9 @@ function startTemplate(db: Db, id: string): EventRow {
   return eventRow(db, (p as { event: EventRow }).event.id)!;
 }
 
+/** The index of an event's first stage of this op (M7: the wedding goes in before it walks to Den Engel). */
+const opIndex = (ev: EventRow, op: string) => (JSON.parse(ev.stages_json) as Array<{ op: string }>).findIndex((s) => s.op === op);
+
 /** Advance the event to the given stage (the clock runs to that stage's start). */
 function toStage(db: Db, ev: EventRow, i: number): EventRow {
   const stages = JSON.parse(ev.stages_json) as Array<{ minutes: number }>;
@@ -115,7 +118,8 @@ describe("M4b leads", () => {
   it("a big wedding pulls in most of what it asks (Steve: 50 to 100), never more than the cap", () => {
     const db = fresh(10);
     let ev = startTemplate(db, "wedding");
-    ev = toStage(db, ev, 1);
+    // M7: the stage after the vows inside (the crowd's peal): everyone back at their places on the square
+    ev = toStage(db, ev, opIndex(ev, "enter") + 1);
     const n = (JSON.parse(ev.people_json) as string[]).length;
     expect(n).toBeGreaterThanOrEqual(70);
     expect(n).toBeLessThanOrEqual(EVENT_PEOPLE_MAX);
@@ -131,8 +135,9 @@ describe("M4b leads", () => {
     const groom = leads.find((l) => l.role === "groom")!.id;
     const bride = leads.find((l) => l.role === "bride")!.id;
     const priest = leads.find((l) => l.role === "priest")!.id;
-    ev = toStage(db, ev, 3);
-    expect(ev.stage).toBe(3);
+    const walk = opIndex(ev, "procession");
+    ev = toStage(db, ev, walk);
+    expect(ev.stage).toBe(walk);
     const people = JSON.parse(ev.people_json) as string[];
     expect(people[0]).toBe(groom);
     expect(people[1]).toBe(bride);
@@ -267,7 +272,8 @@ describe("M4b clamps on a custom event with leads", () => {
 
 describe("M4b scenes: no combat, the engine decides", () => {
   it("a scuffle: the two argue, the engine decides who was in the wrong, the police part them, all on the record", () => {
-    const db = fresh(13);
+    // M7 clock: the walk-up stage is 15 minutes now (was 60), so start at 14:00 to play the scuffle after the agents' midday
+    const db = fresh(14);
     const before = money(db);
     let ev = startTemplate(db, "scuffle");
     const leads = leadsOf(ev);
@@ -284,7 +290,7 @@ describe("M4b scenes: no combat, the engine decides", () => {
     expect(eventsOf(db, "convo").length).toBeGreaterThan(0);
     // the client gets the scene
     expect(publicEvent(db, ev).scene?.kind).toBe("scuffle");
-    expect(sc.agent, "an agent near the Vismarkt at 13:00").toBeTruthy();
+    expect(sc.agent, "an agent near the Vismarkt at 14:25").toBeTruthy();
     if (sc.agent) expect(res(db, sc.agent).trade).toBe("police");
     // the stage ends: parted, memories, the rumour, released
     ev = toStage(db, ev, 2);
@@ -431,8 +437,8 @@ describe("M4b director: AI first, hostile output refused or cleaned", () => {
     expect(directorPrompt(db2, true)).toMatch(/Invent an event now/);
   });
 
-  it("no call is spent when no event could be planned (night)", async () => {
-    const db = fresh(23);
+  it("no call is spent when no event could be planned (5:00 to 6:00: M7 night has its own events from 22:00 to 5:00)", async () => {
+    const db = fresh(5);
     expect(roomForEvent(db)).toBe(false);
     let called = 0;
     const r = await think(db, async () => (called++, { output: base() }));

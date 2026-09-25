@@ -55,7 +55,7 @@ export function fallbackEpilogue(e: Ending): { title: string; paragraphs: string
     ? {
         title: "The fog keeps what it takes",
         paragraphs: [
-          "Jef came to the Rijnkaai with fifty centimes and no name, and for a few days he carried what he was told to carry. The cold and the hunger were patient with him, and then they were not.",
+          "Jef came off the ferry with fifty centimes and no name, and for a few days he carried what he was told to carry. The cold and the hunger were patient with him, and then they were not.",
           "They found him one morning under a tarpaulin by the bollards. The Hessenatie paid for nothing, and the priest said a few words that the wind took away. Nobody on the kaai remembered his surname.",
         ],
       }

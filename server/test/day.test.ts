@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { openDb, resetDb } from "../src/db.ts";
 import { applyHour, clock, consolidate, ending, payRent, RENT_C, rentPaid, resetTickLimit, sleep, tick } from "../src/day.ts";
 import { player } from "../src/game.ts";
+import { listJobs } from "../src/hooks/jobBoard.ts";
 import { remember, topMemories } from "../src/npcs.ts";
 import { fallbackEpilogue, writeEpilogue } from "../src/hooks/epilogue.ts";
 
@@ -11,19 +12,19 @@ const set = (db: DB, sql: string) => db.prepare(`UPDATE player SET ${sql} WHERE 
 beforeEach(() => resetTickLimit());
 
 describe("the clock", () => {
-  it("a tick moves 15 minutes, and at most one tick per 4 s counts", () => {
+  it("a tick moves 5 minutes, and at most one tick per 9 s counts (M7 clock: a game hour is 2 real minutes)", () => {
     const db = openDb(":memory:");
     expect(tick(db, 10_000).advanced).toBe(true);
-    expect(clock(db)).toMatchObject({ day: 1, hour: 6, minute: 15, weekday: "Monday" });
-    expect(tick(db, 11_000).advanced).toBe(false); // too soon: a fast client gains nothing
-    expect(clock(db).minute).toBe(15);
-    tick(db, 15_000);
-    expect(clock(db).minute).toBe(30);
+    expect(clock(db)).toMatchObject({ day: 1, hour: 6, minute: 5, weekday: "Monday" });
+    expect(tick(db, 15_000).advanced).toBe(false); // too soon: a fast client gains nothing
+    expect(clock(db).minute).toBe(5);
+    tick(db, 20_000);
+    expect(clock(db).minute).toBe(10);
   });
 
   it("the hour turns over and needs fall", () => {
     const db = openDb(":memory:");
-    set(db, "hour = 11, minute = 45, food = 6, sleep = 7, warmth = 5");
+    set(db, "hour = 11, minute = 55, food = 6, sleep = 7, warmth = 5");
     tick(db, 10_000); // 12:00: food -1 (12 % 6), sleep -1 (12 % 3), warmth stays (day, 12 % 5)
     expect(clock(db)).toMatchObject({ hour: 12, minute: 0 });
     expect(player(db)).toMatchObject({ food: 5, sleep: 6, warmth: 5 });
@@ -43,43 +44,83 @@ describe("the clock", () => {
 
   it("health 0 ends the week early", () => {
     const db = openDb(":memory:");
-    set(db, "hour = 8, minute = 45, food = 0, health = 1");
+    set(db, "hour = 8, minute = 55, food = 0, health = 1");
     const r = tick(db, 10_000);
     expect(r.ended?.kind).toBe("health");
     expect(ending(db)?.kind).toBe("health");
     expect(tick(db, 20_000).advanced).toBe(false); // the clock stops
   });
 
-  it("not home by midnight: Jef sleeps rough, and the next day starts at 6:00", () => {
+  it("M7 night: midnight turns the date while Jef is up; nobody is sent to bed", () => {
     const db = openDb(":memory:");
-    set(db, "hour = 23, minute = 45, food = 6, warmth = 6, health = 8, sleep = 3");
+    set(db, "hour = 23, minute = 55, food = 6, warmth = 6, health = 8, sleep = 3");
     const r = tick(db, 10_000);
+    expect(r.night).toBeUndefined();
+    expect(r.turned?.day).toBe(2);
+    expect(clock(db)).toMatchObject({ day: 2, hour: 0, minute: 0, weekday: "Tuesday" });
+    expect(player(db)).toMatchObject({ sleep: 2, health: 8 }); // 0:00: sleep -1 (0 % 3), no night's rest
+    // the clock runs on through the night
+    tick(db, 20_000);
+    expect(clock(db)).toMatchObject({ day: 2, hour: 0, minute: 5 });
+  });
+
+  it("M7 night: dead tired (sleep 0), Jef drops where he stands and sleeps 8 hours", () => {
+    const db = openDb(":memory:");
+    set(db, "hour = 2, minute = 55, food = 6, warmth = 6, health = 8, sleep = 1");
+    const r = tick(db, 10_000); // 3:00: sleep -1 (3 % 3) -> 0
     expect(r.night?.where).toBe("rough");
-    expect(clock(db)).toMatchObject({ day: 2, hour: 6, minute: 0, weekday: "Tuesday" });
-    expect(player(db).health).toBeLessThan(8);
+    expect(r.night?.collapsed).toBe(true);
+    expect(r.night?.slept_min).toBe(480);
+    expect(clock(db)).toMatchObject({ day: 1, hour: 11, minute: 0 });
     expect(player(db).sleep).toBe(6);
+  });
+
+  it("M7 night: the week ends when day 8 would begin, at Sunday's midnight", () => {
+    const db = openDb(":memory:");
+    set(db, "day = 7, hour = 23, minute = 55, sleep = 8");
+    const r = tick(db, 10_000);
+    expect(r.ended?.kind).toBe("week");
+    expect(ending(db)?.kind).toBe("week");
+    expect(clock(db).day).toBe(7);
   });
 });
 
 describe("the night", () => {
-  it("a bed restores sleep and warmth", () => {
+  it("a bed restores sleep and warmth; M7 night: seven to eight hours from when he lies down, the date turning on the way", () => {
     const db = openDb(":memory:");
     set(db, "hour = 20, food = 6, warmth = 4, sleep = 2, health = 7");
     const r = sleep(db, "bed");
     expect(r.where).toBe("bed");
     expect(player(db)).toMatchObject({ sleep: 10, warmth: 7, food: 4, health: 8 });
-    expect(r.summary.join(" ")).toMatch(/Monday ends/);
+    expect(r.slept_min).toBe(470); // sleep 2: 7 h 48, in fives
+    expect(r.turned).toBe(true);
+    expect(r.wake).toMatchObject({ day: 2, hour: 3, minute: 50, weekday: "Tuesday" });
+    expect(clock(db)).toMatchObject({ day: 2, hour: 3, minute: 50 });
+    expect(r.summary.join(" ")).toMatch(/You lie down at 20:00.*You wake at 3:50, Tuesday/);
   });
 
-  it("a job still in hand at night is failed and its parcel leaves the pocket", () => {
+  it("M7 night: a sleep by day does not turn the date", () => {
     const db = openDb(":memory:");
+    set(db, "hour = 9, sleep = 10");
+    const r = sleep(db, "bed");
+    expect(r).toMatchObject({ slept_min: 420, turned: false, day: 1 });
+    expect(clock(db)).toMatchObject({ day: 1, hour: 16, minute: 0 });
+  });
+
+  it("M7 night: a job in hand stays in hand through the nights (only its own deadline counts)", () => {
+    const db = openDb(":memory:");
+    set(db, "hour = 20");
     db.prepare("INSERT INTO job (day, title, employer_npc, district, task_type, pay_c, risk, tier, pitch, task_json, source, status) VALUES (1, 'A parcel', 'peeters', 'rijnkaai', 'deliver', 40, 1, 1, 'x', '{}', 'test', 'taken')").run();
     const id = (db.prepare("SELECT id FROM job").get() as { id: number }).id;
     db.prepare("INSERT INTO item (kind, job_id) VALUES ('parcel', ?)").run(id);
-    const r = sleep(db, "bed");
-    expect((db.prepare("SELECT status FROM job WHERE id = ?").get(id) as { status: string }).status).toBe("failed");
-    expect(db.prepare("SELECT COUNT(*) n FROM item").get()).toEqual({ n: 0 });
-    expect(r.summary.join(" ")).toMatch(/undone/);
+    const first = sleep(db, "bed");
+    set(db, "hour = 21, minute = 0");
+    sleep(db, "bed");
+    expect(clock(db).day).toBe(3);
+    expect((db.prepare("SELECT status FROM job WHERE id = ?").get(id) as { status: string }).status).toBe("taken");
+    expect(db.prepare("SELECT COUNT(*) n FROM item").get()).toEqual({ n: 1 });
+    expect(first.summary.join(" ")).not.toMatch(/undone|waits for you/);
+    expect(listJobs(db, player(db).day).some((j) => j.id === id && j.status === "taken")).toBe(true);
   });
 
   it("Sunday: no rent, no bed", () => {

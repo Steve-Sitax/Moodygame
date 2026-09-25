@@ -1708,9 +1708,21 @@ def stadhuis(fr):
     NB = 9  # bays in each wing
     bw = (u1 - FW - 0.0) / NB
     body = [(u0, vb), (u1, vb), (u1, vf), (u0, vf)]
-    m.prism(body, 0, S2, STONE, top=True, top_mat=LEAD, shade=0.95)
-    # the stair block at the back, in the outline's notch
-    m.box(-8.1, 8.1, -W / 2, vb, 0, S2 + 3.0, STONE, top=False, shade=0.9)
+    # M7 halls (the town hall in the world, docs/milestones/M7-halls-inworld.md): the body's walls one by one,
+    # so that the front has a real doorway behind the main portal (the hall stands inside, client/src/world/
+    # landmarkHalls.ts buildTownhall, shared/townhallPlan.ts) and the back is open into the stair block,
+    # whose landing the hall's great stair comes up to (no face of the shell stands inside the hall)
+    SB = 8.1  # the stair block's half width
+    for pa, pb, out in (((u0, vb), (-SB, vb), (0, -1)), ((SB, vb), (u1, vb), (0, -1)), ((u1, vb), (u1, vf), (1, 0)), ((u0, vf), (u0, vb), (-1, 0))):
+        f = m.poly([(pa[0], pa[1], 0), (pb[0], pb[1], 0), (pb[0], pb[1], S2), (pa[0], pa[1], S2)], STONE, 0.95)
+        m.orient(f, (out[0], out[1], 0))
+    _holed_wall(m, (0, vf), (1, 0), (0, 1), u0, u1, 0, S2, [(0.0, 1.4, 5.8, 0.6, True)], shade=0.95 / 0.88)
+    f = m.poly([(p[0], p[1], S2) for p in body], LEAD, 0.95)
+    m.orient(f, (0, 0, 1))
+    # the stair block at the back, in the outline's notch (open to the body: its landing is the hall's)
+    for pa, pb, out in (((-SB, -W / 2), (SB, -W / 2), (0, -1)), ((SB, -W / 2), (SB, vb), (1, 0)), ((-SB, vb), (-SB, -W / 2), (-1, 0))):
+        f = m.poly([(pa[0], pa[1], 0), (pb[0], pb[1], 0), (pb[0], pb[1], S2 + 3.0), (pa[0], pa[1], S2 + 3.0)], STONE, 0.9)
+        m.orient(f, (out[0], out[1], 0))
     m.hip_roof(-8.4, 8.4, -W / 2 - 0.3, vb + 0.3, S2 + 3.0, 3.5, SLATE)
 
     walls = [((0, vf), (1, 0), (0, 1), u0, u1), ((0, vb), (1, 0), (0, -1), u0, u1),
@@ -1771,7 +1783,8 @@ def stadhuis(fr):
     Pf, Df, Of = (0, FV), (1, 0), (0, 1)
     # three round-arched doors in the ground floor; the middle one is the entrance
     _holed_wall(m, Pf, Df, Of, -FW, FW, 0, G, [(-3.6, 1.2, 5.2, 0.6, True), (0.0, 1.7, 6.2, 0.6, True), (3.6, 1.2, 5.2, 0.6, True)])
-    _portal(m, Pf, Df, Of, 0.0, 1.7, 1.4, 1.2, 6.2, 5.8, 0.6, 4.2, bands=3, rnd=True, door="town hall, main door", tymp="fanlight")
+    # M7 halls: no leaves in the main portal: a real opening under the lintel; the game hangs its own (world/hallInWorld.ts)
+    _portal(m, Pf, Df, Of, 0.0, 1.7, 1.4, 1.2, 6.2, 5.8, 0.6, 4.2, bands=3, rnd=True, door="town hall, main door", tymp="fanlight", leaves=False)
     for sc in (-3.6, 3.6):
         _portal(m, Pf, Df, Of, sc, 1.2, 1.0, 0.7, 5.2, 4.9, 0.6, 3.6, bands=2, rnd=True, steps=False,
                 door=f"town hall, {'left' if sc < 0 else 'right'} side door (seen from the Grote Markt)", tymp="fanlight")
@@ -1913,6 +1926,7 @@ VAT = 256
 VATLAS = 7
 VLEES_MATS = CATH_MATS + ["vleeshuis_atlas"]
 VP = 0.48  # one band: 0.36 m of brick (three courses), 0.12 m of white Balegem sandstone; 25 px to the metre
+VLEES_OPEN_DOORS = {"Vleeshuis, main door", "Vleeshuis, north door"}  # M7 halls: no leaves, walked through
 VTW, VTH = 5.12, 3.84  # the wall cell in metres (128 x 96 px, eight bands): big, so the PS1 vertex snap bends the stripes seldom
 VCELL = {
     "vh_wall": (128, 144, 128, 96),  # the bacon bands
@@ -2344,7 +2358,10 @@ def vleeshuis2(fr):
             f = m.poly([W(fr_, sc + sa, 0.05, ya), W(fr_, sc + sb, 0.05, yb), W(fr_, sc + sc_, 0.05, yc), W(fr_, sc + sd, 0.05, yd)], STONE, 0.95)
             m.orient(f, (o[0], o[1], 0))
         st()
-        m.tex([W(fr_, sc + (x - 0.5) * 2 * hw, -depth, t * h) for x, t in DOOR4], "vh_door", DOOR4, 0.85, (o[0], o[1], 0))
+        # M7 halls (the Vleeshuis in the world): the two doors of the long sides are real openings (the hall stands
+        # inside, client/src/world/landmarkHalls.ts buildVleeshuis, shared/vleeshuisPlan.ts; the game hangs its own leaves)
+        if name not in VLEES_OPEN_DOORS:
+            m.tex([W(fr_, sc + (x - 0.5) * 2 * hw, -depth, t * h) for x, t in DOOR4], "vh_door", DOOR4, 0.85, (o[0], o[1], 0))
         box(fr_, sc - hw - 0.4, sc + hw + 0.4, 0.0, 0.2, h + 0.22, h + 0.4, BLUE, 1.0)  # the hood
         box(fr_, sc - hw - 0.3, sc + hw + 0.3, -depth, 0.35, 0.0, 0.16, BLUE, 0.8)  # the step
         m.door(name, W(fr_, sc, -depth, 0))
@@ -2730,8 +2747,17 @@ def hanzehuis(fr):
     d = 10.0  # wing depth
     RISE = 5.2
     wings = [(u0, u1, v0, v0 + d), (u0, u1, v1 - d, v1), (u0, u0 + d, v0 + d, v1 - d), (u1 - d, u1, v0 + d, v1 - d)]
-    for a0, a1, b0, b1 in wings:
-        m.box(a0, a1, b0, b1, 0, H, STONE, top=False, shade=0.95)
+    for wi, (a0, a1, b0, b1) in enumerate(wings):
+        if wi == 0:
+            # M7 halls (the Oostershuis in the world, docs/milestones/M7-halls-inworld.md): the dock wing's walls one
+            # by one, its front with a real gateway behind the gate's portal (the warehouse stands inside,
+            # client/src/world/landmarkHalls.ts buildOostershuis, shared/oostershuisPlan.ts)
+            for pa, pb, out in (((a0, b1), (a1, b1), (0, 1)), ((a1, b0), (a1, b1), (1, 0)), ((a0, b0), (a0, b1), (-1, 0))):
+                f = m.poly([(pa[0], pa[1], 0), (pb[0], pb[1], 0), (pb[0], pb[1], H), (pa[0], pa[1], H)], STONE, 0.95)
+                m.orient(f, (out[0], out[1], 0))
+            _holed_wall(m, (0, b0), (1, 0), (0, -1), a0, a1, 0, H, [(0.0, 1.3, 5.3, 0.6, True)], shade=0.95 / 0.88)
+        else:
+            m.box(a0, a1, b0, b1, 0, H, STONE, top=False, shade=0.95)
         m.hip_roof(a0 - 0.35, a1 + 0.35, b0 - 0.35, b1 + 0.35, H + 0.6, RISE, SLATE)
     m.prism([(u0 - 0.35, v0 - 0.35), (u1 + 0.35, v0 - 0.35), (u1 + 0.35, v1 + 0.35), (u0 - 0.35, v1 + 0.35)], H, H + 0.6, STONE, top=False, shade=1.05)
     GATE = 0.0
@@ -2769,7 +2795,8 @@ def hanzehuis(fr):
             ring = m.ngon(sc, v0 - 1.55, 0.26, 8)
             m.prism(ring, 0.6, 6.4, STONE, top=False, shade=1.15)
             m.box(sc - 0.36, sc + 0.36, v0 - 1.9, v0 - 1.2, 0, 0.6, STONE, shade=1.05)
-    _portal(m, PF, D, O, GATE, 1.6, 1.3, 1.1, 5.6, 5.3, 0.6, 3.9, bands=2, rnd=True, tymp="fanlight", door="Hanseatic House, gate")
+    # M7 halls: no leaves in the gate: a real opening under the lintel; the game hangs its own (world/hallInWorld.ts)
+    _portal(m, PF, D, O, GATE, 1.6, 1.3, 1.1, 5.6, 5.3, 0.6, 3.9, bands=2, rnd=True, tymp="fanlight", door="Hanseatic House, gate", leaves=False)
     _wbox(m, PF, D, O, GATE - 3.6, GATE + 3.6, 0, 0.75, 6.4, 7.3, STONE, 1.1)  # entablature
     f = m.poly([(GATE - 3.7, v0 - 1.95, 7.3), (GATE + 3.7, v0 - 1.95, 7.3), (GATE, v0 - 1.95, 9.6)], STONE, 1.1)
     m.orient(f, (0, -1, 0))
@@ -4177,7 +4204,34 @@ def steen5(fr):
 
     # ---- Charles V's gatehouse on the lane: the oriel over the door, a tall stepped gable to the lane
     g0, g1 = -9.4, -3.6
-    mass(g0, g1, -0.2, b1, 12.6 + TY)
+    e0, e1 = -3.6, NW0
+    EY = 10.4 + TY
+    gc = -6.5
+    # M7 halls (the Steen's museum in the world, docs/milestones/M7-halls-inworld.md): the gatehouse and the
+    # prison range face by face. The museum door is a real opening in the gatehouse's lane face (a basket arch;
+    # the game hangs its own leaves), and where the two meet their walls are left out (under the prison range's
+    # eaves): the hall of antiquities opens from the gatehouse there (client/src/world/landmarkHalls.ts
+    # buildSteen, shared/steenPlan.ts)
+    def band_faces(u0, u1, v0, v1, ya, yb, shade, faces):
+        for key, pa, pb, out in (("s", (u0, v0), (u1, v0), (0, -1)), ("e", (u1, v0), (u1, v1), (1, 0)),
+                                 ("n", (u0, v1), (u1, v1), (0, 1)), ("w", (u0, v0), (u0, v1), (-1, 0))):
+            if key in faces:
+                f = m.poly([(pa[0], pa[1], ya), (pb[0], pb[1], ya), (pb[0], pb[1], yb), (pa[0], pa[1], yb)], STONE, shade)
+                m.orient(f, (out[0], out[1], 0))
+    DHW, DH = 1.25, 3.6
+    dspring = TY + DOOR4[2][1] * DH
+    arch = [(gc + (x - 0.5) * 2 * DHW, TY + t * DH) for x, t in reversed(DOOR4[2:])]  # the left springing over the crown to the right
+    GY1 = 12.6 + TY
+    st(TOUR)
+    band_faces(g0, g1, -0.2, b1, -1.0, BASE, 0.8, "sw")
+    for pts in ([(g0, -1.0), (gc - DHW, -1.0), (gc - DHW, BASE), (g0, BASE)], [(gc + DHW, -1.0), (g1, -1.0), (g1, BASE), (gc + DHW, BASE)],
+                [(gc - DHW, -1.0), (gc + DHW, -1.0), (gc + DHW, TY), (gc - DHW, TY)]):
+        m.orient(m.poly([(u, b1, y) for u, y in pts], STONE, 0.8), (0, 1, 0))
+    st(SAND)
+    band_faces(g0, g1, -0.2, b1, BASE, GY1, 0.95, "sw")
+    band_faces(g0, g1, -0.2, b1, EY, GY1, 0.95, "e")  # over the prison range's eaves the gatehouse's side shows
+    loop = [(g0, BASE), (gc - DHW, BASE)] + arch + [(gc + DHW, BASE), (g1, BASE), (g1, GY1), (g0, GY1)]
+    m.orient(m.poly([(u, b1, y) for u, y in loop], STONE, 0.95), (0, 1, 0))
     m.gable_roof(g0, g1, -0.2, b1 - 0.4, 12.6 + TY, 5.6, along="v", gable_mat=STONE, over=0.25)
     sgable((0, b1), (1, 0), (0, 1), g0, g1, 12.6 + TY, 8.0, steps=5, crown=1.0, wins=((-6.5, 14.4 + TY, 16.4 + TY, 0.9, "st_twolight"),))
     gc = -6.5
@@ -4188,7 +4242,7 @@ def steen5(fr):
         m.prism(m.ngon(cu, b1 + 0.3, 0.3, 8), TY, TY + 2.7, STONE, top=False, shade=1.0)
         m.prism(m.ngon(cu, b1 + 0.3, 0.42, 8), TY + 2.7, TY + 3.3, STONE, top=True, shade=1.08)
         m.prism(m.ngon(cu, b1 + 0.3, 0.38, 8), TY - 0.2, TY + 0.35, STONE, top=True, shade=0.9)
-    m.decal(*LN, gc - 1.25, gc + 1.25, TY, TY + 3.6, "st_door", DOOR4, off=0.05)
+    # (M7 halls: no painted door: the opening is real, cut in the face above)
     m.door("Steen, museum door (Charles V's gate, on the courtyard)", (gc, V1, 0))
     _wbox(m, *LN, gc - 2.0, gc + 2.0, 0.0, 0.32, TY + 3.3, TY + 3.6, STONE, 1.05, top=True)  # the string course over the capitals
     for s in (gc - 1.6, gc + 1.6):
@@ -4218,9 +4272,11 @@ def steen5(fr):
         m.decal(*LN, s - 0.4, s + 0.4, TY + 8.6, TY + 10.6, "st_bars")
 
     # ---- the prison range on the lane: two storeys of barred windows, the museum's painted name, dormers
-    e0, e1 = -3.6, NW0
-    EY = 10.4 + TY
-    mass(e0, e1, -0.2, b1, EY)
+    # (M7 halls: face by face, without its west wall where it meets the gatehouse: the hall of antiquities opens there)
+    st(TOUR)
+    band_faces(e0, e1, -0.2, b1, -1.0, BASE, 0.8, "sne")
+    st(SAND)
+    band_faces(e0, e1, -0.2, b1, BASE, EY, 0.95, "sne")
     m.gable_roof(e0, e1, -0.2, b1, EY, 6.0, along="u", gable_mat=STONE, over=0.3)
     for k, uu in enumerate((-1.9, 1.3, 4.5)):
         m.decal(*LN, uu - 0.7, uu + 0.7, TY + 1.2, TY + 3.9, "st_crossbar" if k == 2 else "st_bars")

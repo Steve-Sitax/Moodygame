@@ -25,7 +25,9 @@ export interface LandmarkNow {
   service: Service | null;
   organ: boolean;
   confession: { open: boolean; priest: string | null };
-  wedding: { event: number; title: string; groom: string; bride: string; stage: "vows" | "leaving" } | null;
+  wedding: { event: number; title: string; groom: string; bride: string; stage: "vows" | "leaving" | "coming" } | null;
+  /** M7 funeral: a town funeral in the cathedral: "in" the requiem, "out" the coffin and the family going out. */
+  funeral?: { event: number; title: string; widow: string | null; part: "in" | "out" } | null;
   civil: { groom: string; bride: string } | null;
   register: string[];
   posters: Array<{ kind: string; heading: string; body: string; footer: string }>;

@@ -7,6 +7,7 @@ import type { Rect } from "../world/geom";
 import type { World } from "../world/rijnkaai";
 import type { BikeGround, FirstPerson } from "../player/firstPerson";
 import CITY from "../../../shared/city.json";
+import { pick, type Target } from "./facing";
 
 // The velocipedes of 1873 (M3h): a handful of "boneshakers" by the doors of the
 // well-off, a café and the Entrepot office, each with an owner (the server's
@@ -251,18 +252,14 @@ export class Velocipedes {
   }
 
   /** The nearest machine nobody rides, within reach. */
-  nearest(x: number, z: number, reach = 1.7): Bike | null {
-    let best: Bike | null = null;
-    let bd = reach;
-    for (const b of this.bikes.values()) {
-      if (b === this.ridden || b.info.ridden || this.inUse.has(b.info.id)) continue;
+  /** The free velocipede within reach that Jef looks at (game/facing.ts), and its middle. */
+  nearest(x: number, z: number, reach = 1.7): { bike: Bike; at: Target } | null {
+    const r = pick(this.bikes.values(), (b) => {
+      if (b === this.ridden || b.info.ridden || this.inUse.has(b.info.id)) return null;
       const d = Math.hypot(b.info.x - x, b.info.z - z);
-      if (d < bd) {
-        bd = d;
-        best = b;
-      }
-    }
-    return best;
+      return d < reach ? { d, at: { x: b.info.x, y: b.root.position.y + 0.7, z: b.info.z } } : null;
+    });
+    return r ? { bike: r.it, at: r.at } : null;
   }
 
   get(id: string): Bike | undefined {

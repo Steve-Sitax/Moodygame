@@ -54,6 +54,12 @@ export interface InWorldRoom {
   lamps(): Array<{ p: THREE.Vector3; w: number }>;
   /** The psx in-scatter inside (the street's weather value outside). */
   scatter: number;
+  /**
+   * M7 taverns and homes: one of many small rooms (a city house). From outside it is drawn only within its
+   * `reach` (not out to the fog's end, as a hall is) and only among the nearest `InWorld.budget` of them;
+   * past that its openings show the house's dark lining (world/houseInWorld.ts).
+   */
+  budgeted?: boolean;
 }
 
 export interface RoomPass {
@@ -130,6 +136,10 @@ export class InWorld {
   private keepScatter = 0;
   /** Off: nothing of this is drawn (dev comparisons). */
   enabled = true;
+  /** M7 taverns and homes: at most this many small rooms drawn from outside at once, the nearest first. */
+  budget = 4;
+  /** The last frame's small rooms seen from outside and how many were left out over the budget (dev). */
+  lastBudget = { seen: 0, drawn: 0 };
 
   constructor(
     /** The street's scene: the plan applies when it is drawn. */
@@ -165,17 +175,22 @@ export class InWorld {
     const street = this.scene.fog as THREE.Fog;
     const vis: InWorldVisibility = { outdoors: true, outdoorsRect: null, inside: inside?.id ?? null, rooms: {} };
     const plan: InWorldPlan = { world: { draw: true, rect: null }, rooms: [] };
+    const small: Array<{ r: InWorldRoom; rect: ViewRect | null; d: number }> = [];
     for (const r of this.rooms) {
       let rect: ViewRect | null | undefined = undefined;
+      let near = Infinity;
       for (const o of r.openings) {
         const box = r === inside ? (o.inBox ?? o.box) : o.box;
         if (!o.open() || !frustum.intersectsBox(box)) continue;
         if (r !== inside) {
           // outside: on the opening's outer side (or in it), and not beyond the street's fog (M7 fix:
-          // no reach of its own, so nothing of the room loads in at a distance; the fog fades it)
-          if (o.box.distanceToPoint(eye) > Math.max(r.reach, street.far * 1.05)) continue;
+          // no reach of its own, so nothing of the room loads in at a distance; the fog fades it).
+          // M7 taverns and homes: a small room within its own reach too
+          const dist = o.box.distanceToPoint(eye);
+          if (dist > (r.budgeted ? Math.min(r.reach, street.far * 1.05) : Math.max(r.reach, street.far * 1.05))) continue;
           tmp.copy(eye).sub(o.centre);
           if (tmp.dot(o.out) < -1.5 && !o.box.containsPoint(eye)) continue;
+          near = Math.min(near, dist);
         }
         const s = screenRect(box, camera);
         if (s === "none") continue;
@@ -190,11 +205,21 @@ export class InWorld {
         vis.outdoorsRect = rect ?? null;
         plan.rooms.push(this.pass(r, null, k, street));
         vis.rooms[r.id] = true;
+      } else if (rect !== undefined && r.budgeted) {
+        small.push({ r, rect, d: near });
       } else if (rect !== undefined) {
         plan.rooms.push(this.pass(r, rect, at === r ? k : 0, street));
         vis.rooms[r.id] = true;
       } else vis.rooms[r.id] = false;
     }
+    // the small rooms seen from outside: the nearest within the budget
+    small.sort((a, b) => a.d - b.d);
+    small.forEach((q, i) => {
+      const draw = i < this.budget;
+      vis.rooms[q.r.id] = draw;
+      if (draw) plan.rooms.push(this.pass(q.r, q.rect, at === q.r ? k : 0, street));
+    });
+    this.lastBudget = { seen: small.length, drawn: Math.min(small.length, this.budget) };
     this.last = vis;
     return plan;
   }

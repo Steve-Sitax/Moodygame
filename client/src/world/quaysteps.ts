@@ -258,7 +258,9 @@ export function quaySteps(waterY: number, tex: { stone: THREE.Texture; iron: THR
   const flightLen = steps * TREAD;
   const cuts = tideCuts();
 
-  const stoneMat = psx(new THREE.MeshLambertMaterial({ map: tex.stone, vertexColors: true }), { affine: 0.3 });
+  // the flights lie in the plane of the quay wall where they meet it: a pixel's depth toward the eye
+  // so the steps win there instead of flickering with the wall (z-fight check)
+  const stoneMat = psx(new THREE.MeshLambertMaterial({ map: tex.stone, vertexColors: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), { affine: 0.3 });
   const ironMat = psx(new THREE.MeshLambertMaterial({ map: tex.iron, vertexColors: true }), { affine: 0.3 });
   let stone = new Geo(tideShade(), 2, cuts);
   let iron = new Geo(tideShade([0.9, 0.86, 0.82]), 1, cuts);
@@ -316,7 +318,8 @@ export function quaySteps(waterY: number, tex: { stone: THREE.Texture; iron: THR
       stone.box(f, a + 0.01, b - 0.01, u0, W - 0.2, landY - 0.06, landY, [tone, tone * 0.98, tone * 0.95], false);
     }
     // the edge stones round the open side and the end: a low kerb you can still climb over
-    stone.box(f, flightLen, end, W - 0.2, W, landY - 0.06, landY + 0.12, [1.08, 1.06, 1.0], false);
+    // (the open side's starts past the parapet's pier: under the pier its faces lay in the pier's, z-fight check)
+    stone.box(f, flightLen + 0.7, end, W - 0.2, W, landY - 0.06, landY + 0.12, [1.08, 1.06, 1.0], false);
     stone.box(f, end - 0.2, end, u0, W - 0.2, landY - 0.06, landY + 0.12, [1.08, 1.06, 1.0], false);
     // the parapet on the open side: follows the steps, never higher than a kerb at the top
     for (let i = 0; i < steps; i++) {
@@ -339,7 +342,8 @@ export function quaySteps(waterY: number, tex: { stone: THREE.Texture; iron: THR
     {
       const top = landY + 0.85;
       const s1 = flightLen + 0.7;
-      stone.box(f, flightLen, s1, WIDTH, W, bedY, top, undefined, false);
+      // on the landing, not down to the bed through it: the two lay their sides in one plane (z-fight check)
+      stone.box(f, flightLen, s1, WIDTH, W, landY - 0.06, top, undefined, false);
       stone.box(f, flightLen, s1 + 0.04, WIDTH - 0.04, W + 0.04, top, top + 0.07, [0.9, 0.88, 0.84], false);
     }
     // an iron rail along the quay edge over the flight, open at the top where you step down

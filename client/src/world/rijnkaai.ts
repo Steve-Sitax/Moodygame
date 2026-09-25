@@ -21,7 +21,9 @@ import { applyDirt } from "./dirt";
 import { createFires, type Fires } from "./fire";
 import { createGasLamps, type GasLamps } from "./gaslamps";
 import { createLitter, type Litter } from "./litter";
+import { createClutter } from "./clutter";
 import { createStreetLife, type StreetLife } from "./streetlife";
+import { buildWallProbe } from "./wallprobe";
 import { tradeKeepOut } from "./trades";
 import { marketKeepOut } from "../game/market";
 import { createQuayFurniture, type QuayFurniture } from "./quayfurniture";
@@ -35,6 +37,7 @@ import { waveAt } from "../retro/psx";
 import { createMirror } from "./mirror";
 import { BRIG_FLOOR, CHAMBER, DOCK, HW_MAX, LW_MIN, MID_Y, gateLine, levelAt, tideAt, tideDev, tideInfo, water as tideWater } from "./tide";
 import { buildTideMud } from "./tidemud";
+import { landmarkDoorKeepOut } from "./doorKeep";
 
 // The Rijnkaai in the real 1873 city (world/city.ts). Water is at z < 0, the
 // quay edge runs along x (the world is turned 19 deg so it does). Quay top is
@@ -131,12 +134,17 @@ export interface WalkArea {
   box: Rect;
   /** Is (x, z) the building's to answer (its porch, doorway and halls with their walls)? */
   has(x: number, z: number): boolean;
-  /** Floor there (not a wall)? */
-  walkable(x: number, z: number): boolean;
+  /**
+   * Floor there (not a wall)? M7 halls: `feet` (world) picks the storey in a building of more than one
+   * (the floor within a step of the feet; shared/hallPlan.ts); without it, the ground floor.
+   */
+  walkable(x: number, z: number, feet?: number): boolean;
   /** The floor's height (world). */
-  floor(x: number, z: number): number;
+  floor(x: number, z: number, feet?: number): number;
   /** A body of radius r at (x, z) touches one of its solids (piers, chairs, altars)? */
-  hits(x: number, z: number, r: number): boolean;
+  hits(x: number, z: number, r: number, feet?: number): boolean;
+  /** M7 ferry arrival: a timber floor (a ship's deck, a gangway): the footsteps are wood. */
+  wood?: boolean;
 }
 
 export interface World {
@@ -357,7 +365,8 @@ export function buildRijnkaai(): World {
     maxZ: Math.max(z0, z1) + 0.9,
   }));
   // M3i: the market squares and the trades' workshops (game/market.ts, world/trades.ts): nothing else put there
-  const workplaces = [...marketKeepOut(), ...tradeKeepOut(), ...steenKeepOut()];
+  // M7 doors: and the landmarks' doorways, their porch steps and the street before them (world/doorKeep.ts)
+  const workplaces = [...marketKeepOut(), ...tradeKeepOut(), ...steenKeepOut(), ...landmarkDoorKeepOut()];
   // the railway gate of the Werf store (world/railgate.ts): built now, so its collider is there
   // before the train looks along its line
   const railGate = createRailGate(scene, {
@@ -387,7 +396,8 @@ export function buildRijnkaai(): World {
     .then(() => dressCity(scene, city.flags, { keepOut: propsKeepOut }))
     .then((d) => {
       colliders.push(...d.colliders);
-      return createStreetLife(scene, city.flags, { avoid: [...d.colliders, ...omnibusLane, ...workplaces] });
+      // (the probe: signs go only where the houses as built have a clear wall)
+      return createStreetLife(scene, city.flags, { avoid: [...d.colliders, ...omnibusLane, ...workplaces], probe: buildWallProbe(city.group) });
     })
     .then((sl) => {
       street = sl;
@@ -405,7 +415,7 @@ export function buildRijnkaai(): World {
         qf.sites.filter((q) => q.kind.startsWith("tar_fire")).map((q) => ({ x: q.x, y: 0.12 + 0.6, z: q.z, size: 0.9 })),
       );
       return createLitter(scene, city.flags, {
-        avoid: [...colliders, ...craneRunways, ...steenKeepOut()],
+        avoid: [...colliders, ...craneRunways, ...steenKeepOut(), ...landmarkDoorKeepOut()],
         quaySites: qf.sites,
         quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
         swimFree,
@@ -413,6 +423,16 @@ export function buildRijnkaai(): World {
       }).then((l) => {
         litter = l;
         colliders.push(...l.colliders);
+        // alleys filled and closed, street furniture, proper ends where streets meet the water (world/clutter.ts)
+        return createClutter(scene, city.flags, {
+          avoid: [...colliders, ...dynamic],
+          keepOut: [...omnibusLane, ...workplaces], // (it keeps off the crane runways itself; a quay kerb may run under them)
+          quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
+          sites: street?.sites,
+          shops: street?.shops,
+        }).then((c) => {
+          colliders.push(...c.colliders);
+        });
       });
     })
     .catch((e) => console.warn("props, streetlife or quay furniture did not load", e));
@@ -461,6 +481,10 @@ export function buildRijnkaai(): World {
   const wuv = water.geometry.getAttribute("uv");
   for (let i = 0; i < wuv.count; i++) wuv.setXY(i, wuv.getX(i) * (WATER_SIZE / WATER_TILE), wuv.getY(i) * (WATER_SIZE / WATER_TILE));
   scene.add(water);
+  // Steve 2026-09-24 ("with F9 there is water right below the ground; we only need water where
+  // appropriate"): the sheet keeps only its cells on or near the water (the river, the canals, the
+  // dock); the rest, under the houses and streets, is cut out each time the sheet moves on.
+  const trimWater = waterTrimmer(water, WATER_SIZE, 240);
   const waterTex = tex.water;
   // M6 tides: the Petit Bassin and the lock chamber have water of their own at their own levels
   // (world/tide.ts); drawn before the river sheet, which the stencil keeps out from under them
@@ -888,27 +912,27 @@ export function buildRijnkaai(): World {
     for (const a of walkAreas) if (x > a.box.minX && x < a.box.maxX && z > a.box.minZ && z < a.box.maxZ && a.has(x, z)) return a;
     return null;
   };
-  const areaHits = (x: number, z: number, r: number) => {
-    for (const a of walkAreas) if (x > a.box.minX - r && x < a.box.maxX + r && z > a.box.minZ - r && z < a.box.maxZ + r && a.hits(x, z, r)) return true;
+  const areaHits = (x: number, z: number, r: number, feet?: number) => {
+    for (const a of walkAreas) if (x > a.box.minX - r && x < a.box.maxX + r && z > a.box.minZ - r && z < a.box.maxZ + r && a.hits(x, z, r, feet)) return true;
     return false;
   };
-  const baseAt = (x: number, z: number) => {
+  const baseAt = (x: number, z: number, feet?: number) => {
     if (onDeck(x, z)) return DECK.y;
     if (onRamp(x, z)) return THREE.MathUtils.clamp((RAMP.zLow - z) / (RAMP.zLow - RAMP.zHigh), 0, 1) * DECK.y;
     if (onPontoon(x, z)) return pontoonY * THREE.MathUtils.clamp(-z / pontoonReach, 0, 1);
     const st = steps.heightAt(x, z);
     if (st) return st.y;
     const wa = areaAt(x, z); // M7: a building's inside in the world
-    if (wa) return wa.floor(x, z);
+    if (wa) return wa.floor(x, z, feet);
     const sh = steenHeightAt(x, z); // Het Steen's courtyard and ramp (M3i)
     if (sh !== null) return sh;
     return 0;
   };
   const onPier = (x: number, z: number) => x > PIER.minX && x < PIER.maxX && z > PIER.minZ && z < PIER.maxZ;
-  const isWalkable = (x: number, z: number) => {
+  const isWalkable = (x: number, z: number, feet?: number) => {
     {
       const wa = areaAt(x, z);
-      if (wa) return wa.walkable(x, z);
+      if (wa) return wa.walkable(x, z, feet);
     }
     {
       const ob = onOpening(x, z);
@@ -988,14 +1012,14 @@ export function buildRijnkaai(): World {
   const RING_COS = Array.from({ length: 8 }, (_, i) => Math.cos((i * Math.PI) / 4));
   const RING_SIN = Array.from({ length: 8 }, (_, i) => Math.sin((i * Math.PI) / 4));
   /** A house or landmark wall within m metres (8 points on a ring): keeps the eye out of walls. */
-  const wallNear = (x: number, z: number, m: number) => {
+  const wallNear = (x: number, z: number, m: number, feet?: number) => {
     for (let i = 0; i < 8; i++) {
       const px = x + RING_COS[i] * m;
       const pz = z + RING_SIN[i] * m;
       // M7: inside a building in the world, its own walls
       const wa = areaAt(px, pz);
       if (wa) {
-        if (!wa.walkable(px, pz)) return true;
+        if (!wa.walkable(px, pz, feet)) return true;
         continue;
       }
       const f = city.flags(px, pz);
@@ -1004,9 +1028,9 @@ export function buildRijnkaai(): World {
     return false;
   };
   const isFree = (x: number, z: number, r: number, feet = 0) => {
-    if (!isWalkable(x, z)) return false;
-    if (wallNear(x, z, r + 0.15)) return false;
-    if (areaHits(x, z, r)) return false;
+    if (!isWalkable(x, z, feet)) return false;
+    if (wallNear(x, z, r + 0.15, feet)) return false;
+    if (areaHits(x, z, r, feet)) return false;
     if (staticHit(x, z, r, feet)) return false;
     for (const c of dynamic) if (inRect(c, x, z, r) && blocks(c, feet)) return false;
     return true;
@@ -1023,8 +1047,8 @@ export function buildRijnkaai(): World {
   // --- the player's own rules: stone steps, falling in, swimming (the crowd and the path
   // check keep to isWalkable/isFree above: water and steps are never a path)
   /** What the player may stand on here: a height, or null for open water or a wall. */
-  const floorAt = (x: number, z: number): number | null => {
-    if (steps.heightAt(x, z) || isWalkable(x, z)) return baseAt(x, z);
+  const floorAt = (x: number, z: number, feet?: number): number | null => {
+    if (steps.heightAt(x, z) || isWalkable(x, z, feet)) return baseAt(x, z, feet);
     // the last half metre of stone that the coarse walk map counts as water: you fall at the true edge
     const f = city.flags(x, z);
     if (f !== undefined && (f & WATER) !== 0 && (f & (WALL | OUTSIDE)) === 0 && !inWater(x, z)) return baseAt(x, z);
@@ -1035,7 +1059,7 @@ export function buildRijnkaai(): World {
         const a = (i * Math.PI) / 4;
         const px = x + Math.cos(a) * EDGE_LIP;
         const pz = z + Math.sin(a) * EDGE_LIP;
-        if (!inWater(px, pz) && isWalkable(px, pz)) return baseAt(px, pz);
+        if (!inWater(px, pz) && isWalkable(px, pz, feet)) return baseAt(px, pz, feet);
       }
     }
     return null;
@@ -1152,7 +1176,7 @@ export function buildRijnkaai(): World {
     return false;
   };
   const hits = (x: number, z: number, r: number, feet: number) => {
-    if (areaHits(x, z, r)) return true;
+    if (areaHits(x, z, r, feet)) return true;
     const hit = (c: Rect) => inRect(c, x, z, r) && !inside?.has(c);
     // the grid cannot leave out the colliders Jef stands inside: then the plain loop
     if (inside?.size) {
@@ -1166,7 +1190,7 @@ export function buildRijnkaai(): World {
   function walkFree(fx: number, fz: number, x: number, z: number, r: number, feet: number, laden: boolean): boolean {
     // up on a raised deck (a crane's gallery and cabin): railed and walled all round, nothing else counts
     if (raisedAt(fx, fz, feet)) return raisedFree(x, z, r, feet);
-    const f = floorAt(x, z);
+    const f = floorAt(x, z, feet);
     if (f === null) {
       // off the edge, into the Schelde: never with goods in your arms, never over a rail
       if (laden || railedFrom(fx, fz) || !swimmable(x, z)) return false;
@@ -1177,7 +1201,7 @@ export function buildRijnkaai(): World {
     // only its centre, keeps off the wall face. The centre could reach the wall line, the eye came within
     // the camera's near plane (8 cm) of the wall sheet, and the wall was cut away round it.
     if (steps.heightAt(x, z) && faceNear(x, z, r + 0.1, feet)) return false;
-    if (wallNear(x, z, r + 0.15)) return false;
+    if (wallNear(x, z, r + 0.15, feet)) return false;
     return !hits(x, z, r, feet);
   }
 
@@ -1185,7 +1209,7 @@ export function buildRijnkaai(): World {
   function faceNear(x: number, z: number, m: number, feet: number): boolean {
     for (let i = 0; i < 8; i++) {
       const a = (i * Math.PI) / 4;
-      const g = floorAt(x + Math.cos(a) * m, z + Math.sin(a) * m);
+      const g = floorAt(x + Math.cos(a) * m, z + Math.sin(a) * m, feet);
       if (g !== null && g > feet + STEP) return true;
     }
     return false;
@@ -1195,7 +1219,7 @@ export function buildRijnkaai(): World {
   function groundAt(x: number, z: number, r: number, feet: number): number {
     const up = raisedAt(x, z, feet);
     if (up) return up.y;
-    const f = floorAt(x, z);
+    const f = floorAt(x, z, feet);
     let g = f ?? LW_MIN - 3;
     const consider = (c: Rect) => {
       if (c.top !== undefined && c.top <= feet + STEP && inRect(c, x, z, r * 0.6)) g = Math.max(g, c.top);
@@ -1239,7 +1263,7 @@ export function buildRijnkaai(): World {
 
   /** May the player stand at (x, z) with his feet at `feet`? (Climbing out of the water: a free spot at the top.) */
   const standFree = (x: number, z: number, r: number, feet: number) => {
-    const f = raisedAt(x, z, feet)?.y ?? floorAt(x, z);
+    const f = raisedAt(x, z, feet)?.y ?? floorAt(x, z, feet);
     return f !== null && Math.abs(f - feet) <= STEP && walkFree(x, z, x, z, r, feet, false);
   };
 
@@ -1406,6 +1430,7 @@ export function buildRijnkaai(): World {
   function surfaceAt(x: number, z: number): Surface {
     if (x > PIER.minX && x < PIER.maxX && z < -1) return "wood";
     if (onPontoon(x, z) || onRamp(x, z) || onDeck(x, z)) return "wood";
+    if (areaAt(x, z)?.wood) return "wood"; // M7 ferry arrival: the ferry's deck and gangway
     return "stone";
   }
 
@@ -1519,6 +1544,7 @@ export function buildRijnkaai(): World {
       sky.position.set(camera.position.x, 0, camera.position.z);
       water.position.x = Math.round(camera.position.x / WATER_TILE) * WATER_TILE;
       water.position.z = Math.round(camera.position.z / WATER_TILE) * WATER_TILE;
+      trimWater();
       // the mirror lies in the water nearest the eye (the river, the dock or the lock)
       const cx = camera.position.x;
       const cz = camera.position.z;
@@ -1814,12 +1840,15 @@ function dossLantern(scene: THREE.Scene, m: Mats, glow: THREE.Texture): THREE.Po
 
 /** A painted board over a door of the city, flat on the wall. */
 function doorSign(scene: THREE.Scene, door: string, text: string): void {
-  const d = doorSpot(door, 0.08);
+  // flat on the wall (the door point lies a centimetre out of it), over the doorway and under the
+  // first floor's sills (dev/signcheck.ts)
+  const d = doorSpot(door, 0.02);
   const signMat = psx(new THREE.MeshLambertMaterial({ map: signTexture(text), ...DECAL }), { affine: 0.5 });
   const plate = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.36, 3, 1), signMat);
-  plate.position.set(d.x, 4.15, d.z);
+  plate.position.set(d.x, 3.9, d.z);
   // the plane's front (+z local) looks out of the wall, away from the house
-  plate.lookAt(d.x - d.face[0], 4.15, d.z - d.face[1]);
+  plate.lookAt(d.x - d.face[0], 3.9, d.z - d.face[1]);
+  plate.userData.wallSign = { kind: "door sign", name: text, flat: true }; // for street life's signs and dev/signcheck.ts
   scene.add(plate);
 }
 
@@ -1971,3 +2000,99 @@ function ropeCoil(scene: THREE.Scene, m: Mats, x: number, z: number): void {
   }
 }
 
+
+/** Metres from the water's edge still covered by the sheet (quay walls, low tide, a swimmer's view). */
+const WATER_MARGIN_M = 6;
+
+/**
+ * The river sheet's cells over land are dropped (the index is rebuilt when the sheet has moved).
+ * A 2 m raster of the city's water polygon, grown by WATER_MARGIN_M; outside the map, the river
+ * side (z < 0) is water and the land side is not.
+ */
+function waterTrimmer(mesh: THREE.Mesh, size: number, segs: number): () => void {
+  const rings = (CITY_DATA as unknown as { water: Array<{ outer: Array<[number, number]>; holes: Array<Array<[number, number]>> }> }).water;
+  const inRing = (r: Array<[number, number]>, x: number, z: number): boolean => {
+    let inside = false;
+    for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+      const [xi, zi] = r[i];
+      const [xj, zj] = r[j];
+      if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
+    }
+    return inside;
+  };
+  const edges: Array<[number, number, number, number]> = [];
+  let x0 = Infinity;
+  let x1 = -Infinity;
+  let z0 = Infinity;
+  let z1 = -Infinity;
+  for (const w of rings)
+    for (const r of [w.outer, ...w.holes])
+      for (let i = 0; i < r.length; i++) {
+        const [ax, az] = r[i];
+        const [bx, bz] = r[(i + 1) % r.length];
+        edges.push([ax, az, bx, bz]);
+        x0 = Math.min(x0, ax);
+        x1 = Math.max(x1, ax);
+        z0 = Math.min(z0, az);
+        z1 = Math.max(z1, az);
+      }
+  const RES = 2;
+  const gx0 = x0 - WATER_MARGIN_M - RES;
+  const gz0 = z0 - WATER_MARGIN_M - RES;
+  const W = Math.ceil((x1 - x0 + 2 * (WATER_MARGIN_M + RES)) / RES);
+  const H = Math.ceil((z1 - z0 + 2 * (WATER_MARGIN_M + RES)) / RES);
+  const wet = new Uint8Array(W * H);
+  for (let i = 0; i < W; i++)
+    for (let k = 0; k < H; k++) {
+      const x = gx0 + (i + 0.5) * RES;
+      const z = gz0 + (k + 0.5) * RES;
+      let on = rings.some((w) => inRing(w.outer, x, z) && !w.holes.some((h) => inRing(h, x, z)));
+      if (!on)
+        for (const [ax, az, bx, bz] of edges) {
+          const dx = bx - ax;
+          const dz = bz - az;
+          const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1)));
+          if (Math.hypot(x - ax - dx * t, z - az - dz * t) < WATER_MARGIN_M + RES) {
+            on = true;
+            break;
+          }
+        }
+      wet[i * H + k] = on ? 1 : 0;
+    }
+  const wetAt = (x: number, z: number): boolean => {
+    const i = Math.floor((x - gx0) / RES);
+    const k = Math.floor((z - gz0) / RES);
+    if (i < 0 || k < 0 || i >= W || k >= H) return z < 0;
+    return wet[i * H + k] === 1;
+  };
+  const geo = mesh.geometry;
+  const full = Array.from(geo.getIndex()!.array as ArrayLike<number>);
+  const pos = geo.getAttribute("position");
+  const kept = new THREE.BufferAttribute(new (pos.count > 65535 ? Uint32Array : Uint16Array)(full.length), 1);
+  kept.setUsage(THREE.DynamicDrawUsage);
+  geo.setIndex(kept);
+  let lastX = NaN;
+  let lastZ = NaN;
+  const step = size / segs;
+  return () => {
+    const px = mesh.position.x;
+    const pz = mesh.position.z;
+    if (px === lastX && pz === lastZ) return;
+    lastX = px;
+    lastZ = pz;
+    let n = 0;
+    // six indices per cell, in row order (PlaneGeometry); a cell stays if its middle or a corner is wet
+    for (let c = 0; c < full.length; c += 6) {
+      const a = full[c];
+      // plane x is world x, plane y is minus world z (the sheet lies rotated -90 degrees about x)
+      const cx = px + pos.getX(a) + step / 2;
+      const cz = pz - pos.getY(a) + step / 2;
+      const h = step / 2;
+      if (wetAt(cx, cz) || wetAt(cx - h, cz - h) || wetAt(cx + h, cz - h) || wetAt(cx - h, cz + h) || wetAt(cx + h, cz + h)) {
+        for (let j = 0; j < 6; j++) kept.array[n++] = full[c + j];
+      }
+    }
+    kept.needsUpdate = true;
+    geo.setDrawRange(0, n);
+  };
+}

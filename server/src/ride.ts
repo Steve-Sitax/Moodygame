@@ -12,8 +12,8 @@ import { GameError, log, player } from "./game.ts";
 
 /** The fare, in centimes (a herring, a beer). */
 export const RIDE_FARE_C = 5;
-/** A ticket is good for this many game hours: once round the longest line (about 20 at the game's clock). */
-export const RIDE_MAX_HOURS = 20;
+/** A ticket is good for this many game hours: once round the longest line (M7 clock: 20 -> 4; the round is some 400 real seconds, about 3.3 game hours now). */
+export const RIDE_MAX_HOURS = 4;
 /** Free changes on one ticket. */
 export const RIDE_CHANGES = 1;
 

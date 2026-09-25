@@ -1,7 +1,8 @@
 import type { Hono } from "hono";
 import type { DB } from "../db.ts";
 import { DEV } from "../config.ts";
-import { GameError, player } from "../game.ts";
+import { GameError } from "../game.ts";
+import { nightsSlept } from "../day.ts";
 import { remember } from "../npcs.ts";
 import { resident, town } from "../town/store.ts";
 import { STRANGER_KINDS, type StrangerKind } from "../town/visitors.ts";
@@ -55,13 +56,13 @@ export function mountFamilies(app: Hono, deps: FamilyDeps): void {
     }
   });
 
-  // a night passed (the doss house, a home, the cell, a tick past midnight): the dream, async
+  // a night slept (the doss house, a home, the cell, dropping in the street): the dream, async.
+  // M7 night: counted by the sleeps, not by the date (the date turns at midnight while he is up)
   app.use("/api/*", async (c, next) => {
     if (c.req.method !== "POST") return next();
-    const before = player(db).day;
+    const before = nightsSlept(db);
     await next();
-    const after = player(db).day;
-    if (after > before) void dreamOf(db).catch((e) => console.error("[dream]", e));
+    if (nightsSlept(db) > before) void dreamOf(db).catch((e) => console.error("[dream]", e));
   });
 
   app.get("/api/families/state", (c) => c.json({ ...surprisesState(db), menace: menaceNow(db), visit: visitNow(db) }));

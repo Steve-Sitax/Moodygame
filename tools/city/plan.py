@@ -193,6 +193,87 @@ def rnd(pts):
     return [[round(x, 2), round(z, 2)] for x, z in pts]
 
 
+def clean_ring(pts):
+    """A footprint ring without spikes or self-touches (simplify can fold an edge back on itself,
+    which built two walls back to back in one plane): the largest piece of the repaired polygon."""
+    n = len(pts)
+    folds = False
+    for i in range(n):
+        a, b, c = pts[i - 1], pts[i], pts[(i + 1) % n]
+        e1, e2 = (b[0] - a[0], b[1] - a[1]), (c[0] - b[0], c[1] - b[1])
+        l1, l2 = math.hypot(*e1), math.hypot(*e2)
+        if l1 > 1e-6 and l2 > 1e-6 and (e1[0] * e2[0] + e1[1] * e2[1]) < -0.999 * l1 * l2:
+            folds = True  # the ring turns straight back on itself: a spike
+    if Polygon(pts).is_valid and not folds:
+        return pts  # most rings: as they are, so the plan stays the same
+    p = Polygon(pts).buffer(0)
+    ps = sorted(pieces(p), key=lambda q: -q.area)
+    if not ps:
+        return pts
+    q = shapely.geometry.polygon.orient(ps[0].simplify(0.02), 1.0)
+    return rnd(list(q.exterior.coords)[:-1])
+
+
+def rect_poly(h):
+    (ox, oz), (ux, uz), (nx, nz) = h["o"], h["u"], h["n"]
+    return Polygon([(ox + ux * s + nx * t, oz + uz * s + nz * t) for s, t in ((h["s"][0], h["t"][0]), (h["s"][1], h["t"][0]), (h["s"][1], h["t"][1]), (h["s"][0], h["t"][1]))])
+
+
+def trim_rects(houses):
+    """A rectangular house is built as the rectangle of its plot (o, u, n, s, t), up to a fifth bigger
+    than the plot itself where an earlier plot took a corner out. That rectangle ran into the
+    neighbour: two fronts in one plane that flicker (z-fight, Steve 2026-09-24). Cut each rectangle
+    back to clear every other house, keeping its street front: narrower from the side the neighbour
+    is on, or shallower at the back, whichever keeps the most. A house that cannot keep 3 m of front
+    and 3.2 m of depth is built from its footprint instead (a hipped roof). No dice: the plan's
+    random draws stay as they were."""
+    solids = [Polygon(h["fp"]).buffer(0) for h in houses]
+    tree = shapely.STRtree(solids)
+    changed = 0
+    for i, h in enumerate(houses):
+        if not h["rect"]:
+            continue
+        for _ in range(8):
+            rp = rect_poly(h)
+            (ox, oz), (ux, uz), (nx, nz) = h["o"], h["u"], h["n"]
+            s0, s1 = h["s"]
+            t0, t1 = h["t"]
+            worst = None
+            others = [j for j in tree.query(rp) if j != i]
+            # the other rectangles already cut (earlier houses) count as solid too
+            others_polys = [solids[j] for j in others] + [rect_poly(houses[j]) for j in range(i) if houses[j]["rect"] and rect_poly(houses[j]).intersects(rp)]
+            for op in others_polys:
+                inter = rp.intersection(op)
+                if inter.area < 0.02:
+                    continue
+                loc = [((x - ox) * ux + (z - oz) * uz, (x - ox) * nx + (z - oz) * nz) for g in pieces(inter) for x, z in g.exterior.coords]
+                if not loc:
+                    continue
+                if worst is None or inter.area > worst[0]:
+                    worst = (inter.area, min(p[0] for p in loc), max(p[0] for p in loc), min(p[1] for p in loc))
+            if worst is None:
+                break
+            _, is0, is1, it0 = worst
+            # round away from the neighbour: a gap of a centimetre at most, never an overlap
+            cands = []
+            ns0 = math.ceil(is1 * 100 - 1e-6) / 100
+            if s1 - ns0 >= 3.0:
+                cands.append(((s1 - ns0) * (t1 - t0), "s", [ns0, s1]))
+            ns1 = math.floor(is0 * 100 + 1e-6) / 100
+            if ns1 - s0 >= 3.0:
+                cands.append(((ns1 - s0) * (t1 - t0), "s", [s0, ns1]))
+            nt1 = math.floor(it0 * 100 + 1e-6) / 100
+            if nt1 - t0 >= 3.2:
+                cands.append(((s1 - s0) * (nt1 - t0), "t", [t0, nt1]))
+            if not cands:
+                h["rect"], h["roof"], h["gable"] = False, "flat", "none"
+                break
+            _, key, val = max(cands)
+            h[key] = val
+            changed += 1
+    return changed
+
+
 def street_faces(houses, blocks_union):
     """Which walls face the street (windows) and which are blind party walls.
     Rectangular houses: [front, right, back, left] of the plot rectangle. Others: per footprint edge."""
@@ -265,6 +346,8 @@ DOORS = {
 }
 
 WALK_RES = 0.5  # metres per cell of the walk map
+# landmarks whose Blender shell follows the outline (buttresses, towers) instead of filling its rectangle
+OUTLINE_BUILT = {"vleeshuis"}
 
 
 def bridge_polys():
@@ -340,9 +423,13 @@ def walk_map(city, houses, backs, landmarks):
         ds.polygon([P(p) for p in house_solid(h)], fill=255)
     for b in backs:
         ds.polygon([P(p) for p in b["fp"]], fill=255)
-    for l in landmarks.values():
+    for name, l in landmarks.items():
         ds.polygon([P(p) for p in l["fp"]], fill=255)
-        ds.polygon([P(p) for p in Polygon(l["fp"]).minimum_rotated_rectangle.exterior.coords], fill=255)
+        # the Blender model fills the outline's rectangle, so the rectangle is wall too; not the Vleeshuis
+        # (vleeshuis2 is built on its outline: the rectangle reached out to its south stair tower and made
+        # a 3 m strip of wall along the whole south front, M7 doors 2026-09-25)
+        if name not in OUTLINE_BUILT:
+            ds.polygon([P(p) for p in Polygon(l["fp"]).minimum_rotated_rectangle.exterior.coords], fill=255)
     for x0_, z0_, x1_, z1_ in city.get("decor", {}).get("solids", []):  # design.py DECOR solids (M3i)
         ds.polygon([P(p) for p in ((x0_, z0_), (x1_, z0_), (x1_, z1_), (x0_, z1_))], fill=255)
     for poly in city.get("decor", {}).get("solid_polys", []):  # the Steen's ramp balustrades (M3i)
@@ -422,7 +509,7 @@ def door_spots(doors):
         o = doors[door]
         ox, oz = o["out"]
         spots[sid].update({"x": round(o["x"] + ox * d, 2), "z": round(o["z"] + oz * d, 2), "dir": [round(-oz, 3), round(ox, 3)]})
-    json.dump(spots, open(path, "w"), indent=1)
+    json.dump(spots, open(path, "w", newline=""), indent=1)
 
 
 def make_storehouse(bi, poly, kind, water, rng):
@@ -468,8 +555,10 @@ def ground_zones(city, houses, landmarks):
     land = area.difference(water).buffer(0)
     solids = unary_union([Polygon(house_solid(h)).buffer(0) for h in houses] + [Polygon(l["fp"]).buffer(0) for l in landmarks.values()])
     open_water = water.buffer(-7).buffer(7)  # the river and the dock; the narrow canals drop out
-    earth = land.intersection(open_water.buffer(24)).difference(solids.buffer(3.0))
-    flags = land.difference(solids.buffer(9.0)).buffer(-1.0).buffer(1.0).difference(earth)
+    # simplified here, before the zones are cut from each other, so neighbours share one outline:
+    # each piece simplified on its own left slivers of two pavings in one plane (z-fight check)
+    earth = land.intersection(open_water.buffer(24)).difference(solids.buffer(3.0)).simplify(0.2).intersection(land)
+    flags = land.difference(solids.buffer(9.0)).buffer(-1.0).buffer(1.0).simplify(0.2).intersection(land).difference(earth)
     cobble = land.difference(earth).difference(flags)
     out = {}
     # where one paving meets another: a row of long edge stones along the join (Steve: the
@@ -496,7 +585,7 @@ def ground_zones(city, houses, landmarks):
         for p in pieces(g.buffer(0)):
             if p.area < 1:
                 continue
-            for t in shapely.constrained_delaunay_triangles(p.simplify(0.2)).geoms:
+            for t in shapely.constrained_delaunay_triangles(p).geoms:
                 c = list(t.exterior.coords)[:3]
                 tris.append([round(v, 2) for xy in c for v in xy])
         out[name] = tris
@@ -565,6 +654,9 @@ def main():
                                   "style": rng.choice(["plaster", "plaster", "brick", "plaster_grey"]), "tint": round(rng.uniform(0.95, 1.1), 3)})
     # a wall faces the street when the ground just outside it is not inside any
     # planned block (the same outlines the plots come from) nor a landmark
+    for h in houses:
+        h["fp"] = clean_ring(h["fp"])
+    print("rects cut back from their neighbours:", trim_rects(houses))
     solids = unary_union(planned + [Polygon(l["fp"]).buffer(0) for l in landmarks.values()])
     street_faces(houses, solids)
     landmark_frames(city, landmarks, unary_union([Polygon(house_solid(h)).buffer(0) for h in houses] + [Polygon(b["fp"]).buffer(0) for b in backs]))

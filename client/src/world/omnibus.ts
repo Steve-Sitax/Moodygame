@@ -113,7 +113,8 @@ export const STOPS: OmnibusStop[] = [
   { id: "rijnkaai_back", name: "the Rijnkaai", line: "kaaien", x: 0, z: 37, post: [0, 39.3] },
   { id: "vismarkt", name: "the Vismarkt", line: "markt", x: -96, z: 31, post: [-98.3, 31] },
   { id: "vleeshuis", name: "the Vleeshuis", line: "markt", x: -118, z: 114, post: [-118, 111.6] },
-  { id: "grote_markt", name: "the Grote Markt", line: "markt", x: -257, z: 70, post: [-257, 67.6] },
+  // the post beside the town hall door's line, not on it (fixes 2026-09-25: Jef walking in bumped into it)
+  { id: "grote_markt", name: "the Grote Markt", line: "markt", x: -257, z: 70, post: [-252, 67.6] },
   { id: "cathedral", name: "the Cathedral", line: "markt", x: -248, z: 129.8, post: [-248, 132.3] },
   { id: "meir", name: "the road to the Meir", line: "markt", x: -145, z: 198, post: [-141.6, 198] },
   { id: "brouwersvliet", name: "the Brouwersvliet", line: "markt", x: -84.5, z: 180, post: [-87, 176] },

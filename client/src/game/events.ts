@@ -5,6 +5,7 @@ import { psx } from "../retro/psx";
 import { makeGoods } from "./props";
 import type { Stalls } from "./stalls";
 import type { Town } from "./town";
+import { GAME_MIN_PER_REAL_S, gameMin, realS } from "../../../shared/clock";
 
 // Town events on the client (M4). The server plans and runs them
 // (director/scheduler.ts): stages by game time, people reserved with attend
@@ -15,8 +16,10 @@ import type { Town } from "./town";
 // event closed. Everything is taken away when the event ends.
 
 const HEAR_M = 90;
-/** Game minutes a real second (a game hour is 20 s): the stage clock runs on between polls. */
-const GAME_MIN_PER_S = 3;
+/** Game minutes a real second (shared/clock.ts; M7: 3 -> 0.5): the stage clock runs on between polls. */
+const GAME_MIN_PER_S = GAME_MIN_PER_REAL_S;
+/** A stage's sound or cues play at most this long (real seconds; the soundscape's cap), then start again for the rest. */
+const SOUND_MAX_S = 180;
 /** An event starting within this of Jef is named in a line at the bottom of the screen. */
 const TELL_M = 90;
 /** Beyond this the stage's composed cues are stopped (started again at HEAR_M: a gap so they do not flicker). */
@@ -41,9 +44,12 @@ interface Live {
   soundKey: string;
   sound: EventSoundHandle | null;
   soundStarted: boolean;
+  /** M7 clock: the stage's minutes left when the sound runs out (a long stage starts it again then). */
+  soundUntil: number;
   /** The stage's composed cues (the director's sound design), started like the sound. */
   cueKey: string;
   cues: EventSoundHandle | null;
+  cuesUntil: number;
   props: THREE.Object3D[];
   propsKey: string;
 }
@@ -77,7 +83,7 @@ export class Events {
       seen.add(ev.id);
       const l = this.live.get(ev.id);
       if (l) l.ev = ev;
-      else this.live.set(ev.id, { ev, soundKey: "", sound: null, soundStarted: false, cueKey: "", cues: null, props: [], propsKey: "" });
+      else this.live.set(ev.id, { ev, soundKey: "", sound: null, soundStarted: false, soundUntil: 0, cueKey: "", cues: null, cuesUntil: 0, props: [], propsKey: "" });
     }
     for (const [id, l] of this.live) {
       if (seen.has(id)) continue;
@@ -121,6 +127,14 @@ export class Events {
     if (!ev) return null;
     const s = ev.stages[ev.stage];
     return s ? { x: s.x, z: s.z } : { x: ev.x, z: ev.z };
+  }
+
+  /** M7 funeral: the middle of this person's small group going home after a departure (they face it and talk), if any. */
+  groupOf(id: number | null, npc: string): { x: number; z: number } | null {
+    if (id === null) return null;
+    const ev = this.live.get(id)?.ev;
+    const g = ev?.stages[ev.stage]?.groups?.find((x) => x.ids.includes(npc));
+    return g ? { x: g.x, z: g.z } : null;
   }
 
   /** M4b: the scene now playing in an event (a scuffle, a robbery), if any. */
@@ -182,10 +196,16 @@ export class Events {
         l.soundKey = key;
         l.soundStarted = false;
       }
+      // a long stage outlasts one sound (M7 clock: a game minute is two real seconds): start it again
+      if (l.soundStarted && l.sound && ev.stage_left < l.soundUntil) {
+        l.sound.stop();
+        l.sound = null;
+        l.soundStarted = false;
+      }
       if (!l.soundStarted && st.sound !== "none" && near && ev.stage_left > 2) {
         l.soundStarted = true;
-        // a game minute is a third of a real second
-        const secs = Math.max(6, Math.min(120, ev.stage_left / 3));
+        const secs = Math.max(6, Math.min(SOUND_MAX_S, realS(ev.stage_left)));
+        l.soundUntil = ev.stage_left - gameMin(secs);
         l.sound = this.eventSound(st.sound, { x: st.x, z: st.z }, secs);
       } else if (l.sound) l.sound.move(st.x, st.z);
       // the composed cues: once per stage, when Jef is near enough to hear them
@@ -195,8 +215,13 @@ export class Events {
         l.cues = null;
         l.cueKey = ck;
       }
+      if (l.cues && ev.stage_left < l.cuesUntil) {
+        l.cues.stop();
+        l.cues = null;
+      }
       if (!l.cues && st.cues?.length && near && ev.stage_left > 2) {
-        const secs = Math.max(6, Math.min(120, ev.stage_left / 3));
+        const secs = Math.max(6, Math.min(SOUND_MAX_S, realS(ev.stage_left)));
+        l.cuesUntil = ev.stage_left - gameMin(secs);
         l.cues = this.eventCues(st.cues, { x: st.x, z: st.z }, secs);
       } else if (l.cues && dj > CUES_OFF_M) {
         // Jef walked off: no hits played for nobody (they start again when he comes back)

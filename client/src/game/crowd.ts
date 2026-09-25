@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { psx } from "../retro/psx";
+import { addLantern, removeLantern, type LanternSource } from "../world/lanternLights";
 import type { Rect } from "../world/geom";
 import { makeHuman, whenHumans, RIDE_BACK, type Human, type HumanKind, type Motion } from "./humans";
 import { loadProps, type Props } from "../world/props3d";
@@ -82,6 +83,8 @@ type State = "walk" | "pause" | "chat" | "stand" | "sit" | "wait" | "blocked";
 interface Lantern {
   g: THREE.Group;
   halo: THREE.Sprite;
+  /** Its light on the world (world/lanternLights.ts). */
+  src: LanternSource;
 }
 
 interface Cluster {
@@ -676,10 +679,7 @@ export class Crowd {
       } else {
         for (const p of this.people) if (!p.shown) p.lanternRoll = false;
         const lit = this.people.find((p) => p.lantern && !p.shown && p.role !== "puppet");
-        if (lit) {
-          this.scene.remove(lit.lantern!.g);
-          lit.lantern = null;
-        }
+        if (lit) this.dropLantern(lit);
       }
     }
 
@@ -830,8 +830,7 @@ export class Crowd {
   puppetLantern(p: Puppet, on: boolean): void {
     if (on && !p.lantern) this.giveLantern(p);
     else if (!on && p.lantern) {
-      this.scene.remove(p.lantern.g);
-      p.lantern = null;
+      this.dropLantern(p);
     }
   }
 
@@ -2017,19 +2016,34 @@ export class Crowd {
     halo.position.y = -0.08;
     g.add(glass, cap, halo);
     this.scene.add(g);
-    p.lantern = { g, halo };
+    p.lantern = { g, halo, src: addLantern() };
+  }
+
+  private dropLantern(p: Person): void {
+    if (!p.lantern) return;
+    this.scene.remove(p.lantern.g);
+    removeLantern(p.lantern.src);
+    p.lantern = null;
   }
 
   private placeLantern(p: Person, d: number): void {
     const l = p.lantern!;
-    // a light carries further in the fog than the one who carries it
-    const on = d < this.fogFar * 1.8 && this.inFrustum(p.x, p.z, 1.5);
+    // a light carries further in the fog than the one who carries it; it lights the ground round
+    // the carrier also while he is out of the view (behind you, round a corner)
+    const near = d < this.fogFar * 1.8;
+    const on = near && this.inFrustum(p.x, p.z, 1.5);
     l.g.visible = on;
-    if (!on) return;
+    l.src.on = near ? 1 : 0;
+    if (!near) return;
+    const base = this.ground.baseAt?.(p.x, p.z) ?? 0;
     if (p.hand && p.shown) {
       p.hand.getWorldPosition(this.tmp);
       l.g.position.set(this.tmp.x, this.tmp.y - 0.1 * p.size, this.tmp.z);
-    } else l.g.position.set(p.x + Math.cos(p.yaw) * -0.25, 0.75 * p.size, p.z - Math.sin(p.yaw) * -0.25);
+    } else l.g.position.set(p.x + Math.cos(p.yaw) * -0.25, base + 0.75 * p.size, p.z - Math.sin(p.yaw) * -0.25);
+    // the flame, in the middle of the glass
+    l.src.pos.set(l.g.position.x, l.g.position.y - 0.08, l.g.position.z);
+    l.src.ground = base;
+    if (!on) return;
     const flick = 0.4 + 0.06 * Math.sin(performance.now() * 0.013 + p.x);
     l.halo.material.opacity = flick; // shared material: all lanterns breathe together, gently
   }
@@ -2088,7 +2102,7 @@ export class Crowd {
       p.bought.removeFromParent();
       p.bought = null;
     }
-    if (p.lantern) this.scene.remove(p.lantern.g);
+    if (p.lantern) this.dropLantern(p);
     if (p.veh) this.dropVehicle(p);
     for (const r of this.carts.get(p)?.rects ?? []) this.ground.removeMover?.(r);
     this.carts.get(p)?.dispose();

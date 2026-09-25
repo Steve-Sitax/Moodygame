@@ -21,9 +21,9 @@ import { town } from "./town/store.ts";
 
 /** The hire, in centimes. */
 export const ROW_HIRE_C = 10;
-/** Game hours the hire covers. The game's clock runs fast (an hour is 20 real seconds): six hours
- * is about two minutes, enough to row from the Werf to the head of the canal. */
-export const ROW_HIRE_HOURS = 6;
+/** Game hours the hire covers (M7 clock: 6 -> 2; a game hour is two real minutes now): two hours
+ * are four real minutes, enough to row from the Werf to the head of the canal and back. */
+export const ROW_HIRE_HOURS = 2;
 /** Each game hour, or part of one, over the hire. */
 export const ROW_LATE_C = 2;
 /** The most he asks for being late. */

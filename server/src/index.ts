@@ -6,19 +6,21 @@ import { bodyLimit } from "hono/body-limit";
 import { WebSocketServer, WebSocket } from "ws";
 import { allowedHost, allowedOrigin, DB_FILE, DEV, HOST, PORT } from "./config.ts";
 import { openDb, resetDb } from "./db.ts";
+import { closeStaleCalls } from "./ai/claude.ts";
 import { plainEnglish } from "./text.ts";
-import { BEDTIME, clock, ending, markDayStart, payRent, RENT_C, rentPaid, resetTickLimit, setEnding, setWeather, sleep, swim, tick, type Ending } from "./day.ts";
+import { BEDTIME, clock, DAWN, ending, markDayStart, newDayOf, passTime, payRent, RENT_C, rentPaid, resetTickLimit, setEnding, setWeather, sleep, swim, tick, type Ending } from "./day.ts";
 import { writeEpilogue } from "./hooks/epilogue.ts";
 import { resetTalks } from "./hooks/dialogue.ts";
-import { devJob, listJobs, makeBoard } from "./hooks/jobBoard.ts";
+import { devJob, jobById, listJobs, makeBoard } from "./hooks/jobBoard.ts";
 import { writeOutcome } from "./hooks/jobOutcome.ts";
-import { finishJob, GameError, jobRumour, player, ReportSchema, saveOutcome, saveProgress, takeJob } from "./game.ts";
+import { finishJob, GameError, holdJob, jobRumour, player, ReportSchema, saveOutcome, saveProgress, takeJob } from "./game.ts";
+import { gameMinute } from "./town/deeds.ts";
 import { ensurePersonas, PLACED, npcRow } from "./npcs.ts";
 import { buy, handOverParcel, ITEMS, pockets, useItem, WARES, waresOf } from "./trade.ts";
 import { isResident, town } from "./town/store.ts";
 import { residentChoice, residentFree, residentOpen } from "./town/talk.ts";
 import { catchThief, pickPocket } from "./town/thieves.ts";
-import { shownTrade, TOWN_EMPLOYERS } from "./town/places.ts";
+import { NIGHT_GIVERS, shownTrade, TOWN_EMPLOYERS } from "./town/places.ts";
 import { alight, board as boardRide, change as rideChange, isLine, isStop, ride, RIDE_FARE_C, seat as rideSeat } from "./ride.ts";
 import { freeReply, openTalk, pickChoice, prefetchOpening, witness, type Line } from "./hooks/dialogue.ts";
 import { mountDeeds } from "./town/deedRoutes.ts";
@@ -41,8 +43,12 @@ import { mountHandcart } from "./town/handcartRoutes.ts";
 import { mountLively } from "./town/livelyRoutes.ts";
 import { mountErrands } from "./town/handsRoutes.ts";
 import { mountRoutines } from "./director/routineRoutes.ts";
+import { mountArrival } from "./arrival.ts";
+import { mountNight } from "./night/routes.ts";
 
 const db = openDb(DB_FILE);
+const stale = closeStaleCalls(db);
+if (stale > 0) console.log(`closed ${stale} model call(s) cut off by the last restart`);
 const app = new Hono();
 // Only the game's own pages talk to the server (config.ts allowedHost/allowedOrigin): another site
 // in the browser, or a name that points at this machine (DNS rebinding), gets a 403. A body is
@@ -114,6 +120,10 @@ mountLively(app, { db });
 mountErrands(app, { db, payload: () => jobsPayload() });
 // M6 AI-composed routines: errands the model plans from Jef's words and steers in check-ins (director/routines.ts)
 mountRoutines(app, { db, payload: () => jobsPayload() });
+// M7 ferry arrival: a new week begins with Jef on the ferry's deck at the Werf pontoon (arrival.ts)
+mountArrival(app, { db });
+// M7 night: the night's work from the shady givers, the gangs, the quest boxes' settling (night/)
+mountNight(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m), afterNight: (e) => afterNight(e) });
 
 // Board status the client can show while Claude writes.
 let board: { state: "writing" | "ready"; source?: string; error?: string } = { state: "ready" };
@@ -184,8 +194,18 @@ app.post("/api/jobs/:id/done", async (c) => {
   return c.json(res);
 });
 
+// M7 night: the work is done but the employer is at home asleep; the facts wait for the box at his door
+app.post("/api/jobs/:id/hold", async (c) => {
+  const parsed = ReportSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) throw new GameError("bad report", 400);
+  const job = holdJob(db, Number(c.req.param("id")), parsed.data, gameMinute(db));
+  broadcast({ type: "jobs", ...jobsPayload() });
+  return c.json({ job, ...jobsPayload() });
+});
+
 async function narrate(id: number, settlement: import("./game.ts").Settlement): Promise<void> {
-  const job = listJobs(db, player(db).day).find((j) => j.id === id);
+  // M7 night: by id (a job taken before midnight and settled after it is not on the new day's board)
+  const job = jobById(db, id);
   if (!job) return;
   const r = await writeOutcome(db, job, settlement);
   saveOutcome(db, id, r.outcome.narration, r.outcome.memory, r.outcome.weight, jobRumour(job, settlement));
@@ -251,8 +271,9 @@ async function epilogue(e: Ending): Promise<void> {
 
 app.post("/api/tick", (c) => {
   const r = tick(db);
-  if (r.night) afterNight(r.night.ended);
-  if (r.ended && !r.night) void epilogue(r.ended);
+  // M7 night: the date turned at midnight (a new board), or the week ended; a night only if he dropped
+  const day = newDayOf(r);
+  if (day.due) afterNight(day.ended);
   if (r.advanced) broadcast({ type: "jobs", ...jobsPayload() });
   return c.json({ ...r, ...jobsPayload() });
 });
@@ -261,9 +282,11 @@ app.post("/api/sleep", (c) => {
   if (ending(db)) throw new GameError("the week is over", 409);
   const h = clock(db).hour;
   const tired = player(db).sleep <= 2;
-  if (h < BEDTIME && !tired) throw new GameError(`the doss house opens its beds at ${BEDTIME}:00`, 409);
+  // M7 night: the beds are let from 18:00 until dawn; earlier only to a man dead on his feet
+  if (h >= DAWN && h < BEDTIME && !tired) throw new GameError(`the doss house opens its beds at ${BEDTIME}:00`, 409);
   const night = sleep(db, "bed");
-  afterNight(night.ended);
+  const day = newDayOf({ night });
+  if (day.due) afterNight(day.ended);
   broadcast({ type: "jobs", ...jobsPayload() });
   return c.json({ night, ...jobsPayload() });
 });
@@ -357,7 +380,8 @@ app.get("/api/town", (c) => {
     places: t.places,
     stalls: t.stalls,
     shops: t.shops,
-    employers: TOWN_EMPLOYERS.map((e) => ({ id: e.id, spot: e.spot })),
+    // M7 night: the givers of night work stand at their post like the board's employers (their hours: the schedule)
+    employers: [...TOWN_EMPLOYERS, ...NIGHT_GIVERS].map((e) => ({ id: e.id, spot: e.spot })),
     residents: t.residents.map((r) => ({
       id: r.id,
       name: r.name,
@@ -466,6 +490,18 @@ if (DEV) {
     resetTickLimit();
     broadcast({ type: "jobs", ...jobsPayload() });
     return c.json(jobsPayload());
+  });
+  // dev only (M7 night): move the clock on by game minutes the way the game does, the date turning
+  // at midnight on the way (dev/set only sets the hands). The kit's skip() uses it.
+  app.post("/api/dev/advance", async (c) => {
+    const b = (await c.req.json().catch(() => ({}))) as { minutes?: unknown };
+    const m = Math.max(0, Math.min(24 * 60, Math.round(Number(b.minutes) || 0)));
+    if (ending(db)) throw new GameError("the week is over", 409);
+    const r = passTime(db, m);
+    if (r.turned || r.ended) afterNight(r.ended);
+    resetTickLimit();
+    broadcast({ type: "jobs", ...jobsPayload() });
+    return c.json({ lines: r.lines, turned: r.turned, ...jobsPayload() });
   });
 }
 

@@ -7,6 +7,7 @@ import { town } from "../src/town/store.ts";
 import { residentFree, residentOpen, type ResidentLine } from "../src/town/talk.ts";
 import { resetThieves } from "../src/town/thieves.ts";
 import { actionRow, actionsTick, installTalkHooks, resetSync, syncFromClient, whereIs } from "../src/director/actions.ts";
+import { ERRAND_HARD_MIN } from "../src/director/vocab.ts";
 import { activeRoutines, reportStep, routineOf, stepsTick, type Step } from "../src/director/steps.ts";
 import { installErrands } from "../src/town/handsRoutes.ts";
 import {
@@ -323,7 +324,7 @@ describe("the check-ins: the model steers, the engine checks", { timeout: 30_000
     setCheckinRunner(decide({ decision: "change_next", step: P("buy", { item: "bread", target: "the bakery on the Steenplein", count: 1 }), line: "Shut! I'll try the Steenplein.", why: "the other baker" }));
     const { other, id } = await shutAfterStart(db);
     // a short time of its own first, so the extension shows
-    db.prepare("UPDATE npc_action SET until = started + 300 WHERE id = ?").run(id);
+    db.prepare("UPDATE npc_action SET until = started + 60 WHERE id = ?").run(id); // M7 clock: under ROUTINE_MAX_MIN (180)
     const until0 = actionRow(db, id)!.until;
     const row = await drive(db, id);
     expect(row.status).toBe("done");
@@ -492,13 +493,17 @@ describe("the caps and the budget", { timeout: 30_000 }, () => {
     clearErrands(db);
   });
 
-  it("a time limit of its own, never over the cap; time up ends it and the coins come back", async () => {
+  it("a time limit of its own, never over the cap; past the hard cap it ends and the coins come back", async () => {
     const db = fresh();
     const { runner, other } = scene(db);
     await say(db, runner.id, `Buy bread and take it to ${other.name}.`, asks(breadErrand(other)));
     const g = errandOf(db, runner.id)!;
     expect(g.row.until - g.row.started).toBeLessThanOrEqual(ROUTINE_MAX_MIN);
+    // Steve 2026-09-24: time running out while still under way gives more time, not the end
     addMinutes(db, g.row.until - g.row.started + 1);
+    actionsTick(db);
+    expect(actionRow(db, g.row.id)!.status).toBe("active");
+    addMinutes(db, ERRAND_HARD_MIN);
     actionsTick(db);
     const row = actionRow(db, g.row.id)!;
     expect(row.status).toBe("failed");

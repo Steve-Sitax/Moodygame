@@ -19,6 +19,7 @@ All answered by Steve on 2026-09-23.
 | 10 | Combat (asked again 2026-09-23 after M2b) | No combat in the demo. Thieves and gangs may appear, but danger is narrated, chased off, or costs money and trust. |
 | 11 | Trust range (2026-09-24) | Trust (personal and per faction) runs from -5 to 10. Below 0 people turn cold; at -3 a seller refuses. "We can later implement hate and fights then" (docs/09-backlog.md); until then #10 stands. |
 | 12 | AI budget (2026-09-24) | 120 model calls a game day, 15 in reserve; each feature has a share in `server/src/config.ts` and falls back to engine words when it is used up. |
+| 13 | The night (2026-09-25) | No forced sleep at midnight: the clock runs through the night, the date turns at midnight, the week ends at Sunday's midnight. Sleep is Jef's choice (7 to 8 game hours). Day employers go home and leave a quest box; shady givers have night work from 21:00 to 5:00; gangs rob in dark streets (engine rolls; #10 stands: narrated, no combat). A game day's AI budget is its date, midnight to midnight. See milestones/M7-night.md. |
 
 ## Family rules that follow from 5 and 5b
 - Start screen: pick wife yes/no, kids 0-4 with names and ages 2-14. More mouths, harder game. Rent and food scale.

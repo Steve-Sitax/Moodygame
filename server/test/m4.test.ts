@@ -32,7 +32,7 @@ import { cleanStages, eventsTick, eventRow, gather, liveEvents, planEvent, stage
 import { priceFactor } from "../src/director/state.ts";
 import { enginePick, planFromTemplate, templateById, TEMPLATES } from "../src/director/templates.ts";
 import { GATHER_MAX } from "../src/director/vocab.ts";
-import { ACTION_KINDS, FOLLOW_MAX_MIN, FOLLOW_DEFAULT_MIN, MAX_TALK_ACTIONS, REFUSE_LINE, WAIT_MAX_MIN, type ActionProposal } from "../src/director/vocab.ts";
+import { ACTION_KINDS, FOLLOW_MAX_MIN, FOLLOW_DEFAULT_MIN, FOLLOW_MIN_MIN, MAX_TALK_ACTIONS, REFUSE_LINE, WAIT_MAX_MIN, type ActionProposal } from "../src/director/vocab.ts";
 
 // M4: actions, conversations, the scheduler, the director, the event log, the budget.
 // Every number here is the engine's; the model is a stub (a Runner) that proposes.
@@ -190,7 +190,7 @@ describe("action validation and clamps", () => {
       expect(v.line).toMatch(/spare you/);
     }
     const short = validateProposal(db, r, prop({ kind: "follow", minutes: 5 }));
-    expect(short.ok && short.action?.minutes).toBe(240);
+    expect(short.ok && short.action?.minutes).toBe(FOLLOW_MIN_MIN);
   });
 
   it("a stranger with no trust and little warmth will not follow", () => {
@@ -258,8 +258,11 @@ describe("action validation and clamps", () => {
     expect(g.ok).toBe(true);
     if (g.ok && g.action) {
       expect(g.action.target_x).toBeTypeOf("number");
-      expect(g.action.minutes).toBeGreaterThanOrEqual(30);
-      expect(g.action.minutes).toBeLessThanOrEqual(120);
+      expect(g.action.minutes).toBeGreaterThanOrEqual(10);
+      // fixes 2026-09-24: the time from the walk, never a fixed cap; M7 clock: a walk in view at 1.5 m/s
+      // on streets 1.4 times the straight line, half a game minute a real second
+      const d = Math.hypot(g.action.target_x! - whereIs(db, r).x, g.action.target_z! - whereIs(db, r).z);
+      expect(g.action.minutes).toBeGreaterThanOrEqual(Math.round(((d * 1.4) / 1.5) * 0.5));
     }
     const w = validateProposal(db, r, prop({ kind: "wait", minutes: 300 }));
     expect(w.ok && w.action?.minutes).toBe(WAIT_MAX_MIN);
@@ -566,7 +569,7 @@ describe("scheduler", () => {
     expect(out[1].factor).toBe(3);
     expect(out.every((s) => (s.op as string) !== "explode" && s.item !== "gold")).toBe(true);
     expect(out.length).toBeLessThanOrEqual(6);
-    expect(out.reduce((a, s) => a + s.minutes, 0)).toBeLessThanOrEqual(600);
+    expect(out.reduce((a, s) => a + s.minutes, 0)).toBeLessThanOrEqual(240); // M7 clock: EVENT_MAX_MIN 600 -> 240
   });
 
   it("stages advance by game time; people are reserved by attend actions; the end cleans up", () => {
@@ -657,7 +660,10 @@ describe("scheduler", () => {
     }
     const db = fresh(7);
     expect(enginePick(db, () => 0.5)?.id).toBe("fish_auction");
+    // M7 night: at 3:00 only the night's own templates fit; from 5:00 to 6:00 none (the hiring is the routine's)
     setClock(db, 1, 3);
+    expect(["burglary", "smuggling", "night_watch"]).toContain(enginePick(db, () => 0.5)?.id);
+    setClock(db, 1, 5);
     expect(enginePick(db, () => 0.5)).toBeNull();
   });
 });

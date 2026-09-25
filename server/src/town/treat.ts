@@ -34,9 +34,9 @@ export const TREAT_COMPANY_C = 8;
 export const TREAT_MAX_M = 350;
 /** The guest must be this near the door when Jef goes in. */
 export const TREAT_DOOR_M = 30;
-/** The walk to the tavern (game minutes); inside, until Jef leaves (or closing, or this long). */
-export const TREAT_WALK_MIN = 480;
-export const TREAT_STAY_MIN = 720;
+/** The walk to the tavern (game minutes); inside, until Jef leaves (or closing, or this long). M7 clock: 480 -> 90, 720 -> 180. */
+export const TREAT_WALK_MIN = 90;
+export const TREAT_STAY_MIN = 180;
 
 interface TreatState {
   place: string;

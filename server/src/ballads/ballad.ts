@@ -297,7 +297,7 @@ export function planBallad(db: DB, corner?: string, startIn = 0, dev = false) {
     const r = planEvent(db, planFromTemplate(t, "engine", { place, start_in_min: startIn, why: "the ballad singer's round" }), { dev });
     if (r.ok) {
       // fixes 2026-09-24: the singer and his crowd set off now, so they stand at the corner when
-      // it starts (a game hour is 20 s of play: gathered at the start, they came in late)
+      // it starts (a game hour was 20 s of play then: gathered at the start, they came in late)
       callSinging(db, r.event);
       return { ok: true as const, event: eventRow(db, r.event.id) ?? r.event };
     }

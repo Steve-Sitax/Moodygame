@@ -35,6 +35,11 @@ import { getState, setState } from "../interiors/state.ts";
 //   museum, the theatre society's members in the evening. On Sunday the whole "church" crowd.
 // - The M4 wedding: while a wedding at the cathedral's west door is gathering, the couple, the
 //   priest and the guests stand inside at the altar (read-only: town_event).
+// - M7 funeral: an event's "enter" stage (director/scheduler.ts) brings its people in through the west
+//   door; those the client saw step in (action phase "in") are here: a funeral's requiem (the priest
+//   at the coffin's head, the bearers by the bier, the widow and the mourners in the chairs, the
+//   organ), a wedding's vows at the rail. At a funeral's departure the coffin and the family go out
+//   first; the rest keep their places a little longer (DEPART_SEATED_MIN).
 
 export interface InPerson {
   id: string;
@@ -54,8 +59,17 @@ export interface WeddingInside {
   title: string;
   groom: string;
   bride: string;
-  /** "vows" while the party gathers at the church; "leaving" when the procession has begun. */
-  stage: "vows" | "leaving";
+  /** "vows" while the party gathers at the church; "leaving" when the procession has begun. M7: "coming" before an "enter" stage. */
+  stage: "vows" | "leaving" | "coming";
+}
+
+/** M7 funeral: a town funeral inside (the bier and the coffin before the choir, the requiem). */
+export interface FuneralInside {
+  event: number;
+  title: string;
+  widow: string | null;
+  /** "in": the requiem; "out": the coffin and the family are going out, the rest still in the chairs. */
+  part: "in" | "out";
 }
 
 export interface LandmarkNow {
@@ -70,6 +84,8 @@ export interface LandmarkNow {
   organ: boolean;
   confession: { open: boolean; priest: string | null };
   wedding: WeddingInside | null;
+  /** M7: a town funeral in the cathedral now. */
+  funeral: FuneralInside | null;
   /** The town hall: a civil wedding in the wedding hall now, today's register, the bills on the board. */
   civil: { groom: string; bride: string } | null;
   register: string[];
@@ -159,13 +175,14 @@ interface LeadRow {
   role: string;
   id: string;
   name: string;
+  n?: number;
 }
 
 /**
  * A wedding at the cathedral that runs now, with its couple cast (M4b leads). "vows" while the
  * party gathers at the west door (the stages before the procession); "leaving" once it walks.
  */
-export function weddingNow(db: DB): { row: WeddingRow; leads: LeadRow[]; stage: "vows" | "leaving" } | null {
+export function weddingNow(db: DB): { row: WeddingRow; leads: LeadRow[]; stage: "vows" | "leaving" | "coming"; enters?: boolean } | null {
   let rows: WeddingRow[] = [];
   try {
     rows = db.prepare("SELECT id, title, template, place, stage, stages_json, people_json, leads_json, status, day FROM town_event WHERE status = 'running' ORDER BY id DESC").all() as WeddingRow[];
@@ -179,8 +196,87 @@ export function weddingNow(db: DB): { row: WeddingRow; leads: LeadRow[]; stage: 
     const atChurch = row.place === "cathedral_west" || stages.some((s) => s.place === "cathedral_west");
     if (!atChurch) continue;
     const firstWalk = stages.findIndex((s) => s.op === "procession");
-    const stage = firstWalk >= 0 && row.stage >= firstWalk ? "leaving" : "vows";
-    return { row, leads, stage };
+    // M7: a wedding that goes in ("enter") is inside only then; before, they gather on the square
+    const enterAt = stages.findIndex((s) => s.op === "enter");
+    const stage = enterAt >= 0 ? (row.stage < enterAt ? "coming" : row.stage === enterAt ? "vows" : "leaving") : firstWalk >= 0 && row.stage >= firstWalk ? "leaving" : "vows";
+    return { row, leads, stage, enters: enterAt >= 0 };
+  }
+  return null;
+}
+
+// ------------------------------------------------------------------ M7 funeral: an event gone in (read only)
+
+/** A funeral's departure: those who stay keep their chairs this long (game minutes) while the coffin and the family go out first (M7 clock: 40 -> 8, of a 40-minute stage). */
+export const DEPART_SEATED_MIN = 8;
+
+interface HallRow extends WeddingRow {
+  start_m: number;
+}
+
+export interface HallNow {
+  row: HallRow;
+  leads: LeadRow[];
+  /** The "enter" stage's start and end (game minutes). */
+  from_m: number;
+  to_m: number;
+  /** Who is inside now, in the event's order (the leads first). */
+  inside: string[];
+  kind: "funeral" | "wedding" | "other";
+  part: "in" | "out";
+}
+
+/**
+ * An event that went into the cathedral (its "enter" stage runs, or a funeral's departure has just
+ * begun): who of it is inside. Those whose action is "in" (the client saw them step in, or the
+ * engine counted them in); at a departure, those who went in and are not leaving with the coffin.
+ */
+export function hallNow(db: DB): HallNow | null {
+  let rows: HallRow[] = [];
+  try {
+    rows = db.prepare("SELECT id, title, template, place, stage, stages_json, people_json, leads_json, status, day, start_m FROM town_event WHERE status = 'running' ORDER BY id DESC").all() as HallRow[];
+  } catch {
+    return null;
+  }
+  const p = db.prepare("SELECT day, hour, minute FROM player WHERE id = 1").get() as { day: number; hour: number; minute: number };
+  const now = (p.day - 1) * 1440 + p.hour * 60 + p.minute;
+  for (const row of rows) {
+    const stages = JSON.parse(row.stages_json || "[]") as Array<{ op: string; minutes: number; hall?: string }>;
+    const cur = stages[row.stage];
+    if (!cur) continue;
+    let k = -1;
+    for (let i = row.stage; i >= 0; i--)
+      if (stages[i].op === "enter" && (stages[i].hall ?? "cathedral_west") === "cathedral_west") {
+        k = i;
+        break;
+      }
+    if (k < 0 || row.stage > k + 1) continue;
+    const startOf = (i: number) => row.start_m + stages.slice(0, i).reduce((a, s) => a + (s.minutes || 0), 0);
+    const from_m = startOf(k);
+    const to_m = startOf(k + 1);
+    let acts: Array<{ npc_id: string; phase: string; data_json: string }> = [];
+    try {
+      acts = db.prepare("SELECT npc_id, phase, data_json FROM npc_action WHERE event_id = ? AND status = 'active'").all(row.id) as typeof acts;
+    } catch {
+      return null;
+    }
+    let part: "in" | "out";
+    let inside: string[];
+    if (row.stage === k) {
+      part = "in";
+      inside = acts.filter((a) => a.phase === "in").map((a) => a.npc_id);
+    } else if (cur.op === "depart" && now - to_m < DEPART_SEATED_MIN) {
+      part = "out";
+      inside = acts.filter((a) => a.phase !== "leave" && !!(JSON.parse(a.data_json || "{}") as { hall?: number }).hall).map((a) => a.npc_id);
+    } else continue;
+    const order = JSON.parse(row.people_json || "[]") as string[];
+    const at = (id: string) => {
+      const i = order.indexOf(id);
+      return i < 0 ? 9999 : i;
+    };
+    inside.sort((a, b) => at(a) - at(b));
+    const leads = JSON.parse(row.leads_json || "[]") as LeadRow[];
+    const kind = leads.some((l) => l.role === "bride") && leads.some((l) => l.role === "groom") ? "wedding" : row.template === "funeral" || leads.some((l) => l.role === "widow" || l.role === "bearers") ? "funeral" : "other";
+    return { row, leads, from_m, to_m, inside, kind, part };
   }
   return null;
 }
@@ -205,7 +301,7 @@ function eventCouplesToday(db: DB, day: number): Array<{ groom: string; bride: s
 
 // ------------------------------------------------------------------ the cathedral
 
-function cathedralPeople(db: DB, day: number, hour: number, busy: Set<string>): Pick<LandmarkNow, "people" | "service" | "organ" | "confession" | "wedding"> {
+function cathedralPeople(db: DB, day: number, hour: number, busy: Set<string>): Pick<LandmarkNow, "people" | "service" | "organ" | "confession" | "wedding" | "funeral"> {
   const t = town(db).town;
   const people: InPerson[] = [];
   const seen = new Set<string>();
@@ -226,8 +322,32 @@ function cathedralPeople(db: DB, day: number, hour: number, busy: Set<string>): 
     ? { event: wed.row.id, title: wed.row.title, groom: wed.leads.find((l) => l.role === "groom")!.name, bride: wed.leads.find((l) => l.role === "bride")!.name, stage: wed.stage }
     : null;
 
+  // M7 funeral: an event gone in (a funeral's requiem, a wedding that walked in, the director's own)
+  const hall = hallNow(db);
+  const funeral: LandmarkNow["funeral"] =
+    hall && hall.kind === "funeral" ? { event: hall.row.id, title: hall.row.title, widow: hall.leads.find((l) => l.role === "widow")?.name ?? null, part: hall.part } : null;
+  const inEvent = !!hall && hall.kind !== "wedding";
+  if (hall && (hall.kind !== "wedding" || (wed && wed.enters))) {
+    // the church's own first: the organist plays (even if the event took him in as a mourner), the sexton serves
+    if (hall.part === "in") {
+      if (organist && at(organist, day, hour).act !== "church") add(organist, "organist");
+      add(sexton, "sexton", "the sexton");
+    }
+    let n = 0;
+    for (const id of hall.inside) {
+      const r = resident(db, id);
+      if (!r) continue;
+      const l = hall.leads.find((x) => x.id === id);
+      if (l?.role === "priest") add(r, hall.kind === "funeral" ? "requiem_priest" : "wedding_priest", "the priest");
+      else if (l?.role === "groom" || l?.role === "bride") add(r, l.role);
+      else if (l?.role === "bearers") add(r, `bearer${Math.max(0, Math.min(3, l.n ?? 0))}`, "a bearer");
+      else if (l?.role === "widow") add(r, "widow", "the widow");
+      else if (r.age >= 6 && n++ < CAP.guests) add(r, hall.kind === "funeral" ? "mourner" : "guest");
+    }
+  }
+
   // the wedding (M4): the couple before the altar, the priest facing them, the guests in the chairs
-  if (wed && wed.stage === "vows") {
+  if (wed && wed.stage === "vows" && !wed.enters) {
     const leadPriest = wed.leads.find((l) => l.role === "priest");
     add(resident(db, wed.leads.find((l) => l.role === "groom")!.id), "groom");
     add(resident(db, wed.leads.find((l) => l.role === "bride")!.id), "bride");
@@ -244,7 +364,8 @@ function cathedralPeople(db: DB, day: number, hour: number, busy: Set<string>): 
   }
 
   // the service: the celebrant at the altar, the sexton serving, the beadle, the chair woman, the organist
-  if (service && !(wed && wed.stage === "vows")) {
+  const taken = (wed && wed.stage === "vows") || inEvent;
+  if (service && !taken) {
     const celebrant = service.celebrant === "parish" && atWork(parish, day, hour) ? parish : atWork(curate, day, hour) ? curate : parish;
     add(celebrant, "celebrant", "the priest");
     // M6 sermon: at Sunday high mass the other priest waits by the pulpit to preach (ballads/sermon.ts)
@@ -262,7 +383,7 @@ function cathedralPeople(db: DB, day: number, hour: number, busy: Set<string>): 
           `mass:${day}:${service.from}`,
         );
     for (const r of flock) add(r, "worshipper");
-  } else if (!(wed && wed.stage === "vows")) {
+  } else if (!taken) {
     // between services: the curate in the confessional, the beadle about the aisles, the chair woman by her chairs
     if (atWork(curate, day, hour)) add(curate, confessionOpen(day, hour) ? "confessor" : "sacristy");
     if (atWork(beadle, day, hour)) add(beadle, "beadle");
@@ -280,7 +401,16 @@ function cathedralPeople(db: DB, day: number, hour: number, busy: Set<string>): 
   }
   const organ = people.some((p) => p.role === "organist");
   const inBox = people.find((p) => p.role === "confessor");
-  return { people, service: wed && wed.stage === "vows" ? { kind: "wedding", from: hour, to: hour + 1, celebrant: "parish", organ } : service, organ, confession: { open: !!inBox, priest: inBox?.id ?? null }, wedding };
+  const hourOf = (m: number) => (((m % 1440) + 1440) % 1440) / 60;
+  const requiem = hall && hall.kind === "funeral" && hall.part === "in" ? { kind: "funeral" as const, from: hourOf(hall.from_m), to: hourOf(hall.to_m) || 24, celebrant: "parish" as const, organ } : null;
+  return {
+    people,
+    service: requiem ?? (wed && wed.stage === "vows" ? { kind: "wedding", from: hour, to: hour + 1, celebrant: "parish", organ } : inEvent ? null : service),
+    organ,
+    confession: { open: !!inBox, priest: inBox?.id ?? null },
+    wedding,
+    funeral,
+  };
 }
 
 // ------------------------------------------------------------------ the town hall
@@ -481,6 +611,7 @@ function nowOf(db: DB, id: LandmarkId, day: number, hour: number, busy: Set<stri
     organ: false,
     confession: { open: false, priest: null },
     wedding: null,
+    funeral: null,
     civil: null,
     register: [],
     posters: [],
@@ -489,8 +620,9 @@ function nowOf(db: DB, id: LandmarkId, day: number, hour: number, busy: Set<stri
   switch (id) {
     case "cathedral": {
       const r = cathedralPeople(db, c.day, hour, busy);
-      // the wedding keeps the church open whatever the hour
-      return { ...base, ...r, open: open || !!r.wedding, people: open || r.wedding ? r.people : [] };
+      // the wedding (M7: and a funeral) keeps the church open whatever the hour
+      const kept = !!r.wedding || !!r.funeral;
+      return { ...base, ...r, open: open || kept, people: open || kept ? r.people : [] };
     }
     case "townhall":
       return open ? { ...base, ...townhallPeople(db, c.day, hour, busy) } : { ...base, register: registerToday(db, c.day, hour) };
@@ -508,7 +640,8 @@ export function landmarkDoors(db: DB) {
   const c = clock(db);
   const hour = c.hour + c.minute / 60;
   const wed = weddingNow(db);
-  return LANDMARK_DOORS.map((d) => ({ ...d, open: landmarkOpen(d.landmark, c.day, hour) || (d.landmark === "cathedral" && !!wed) }));
+  const inside = !wed && !!hallNow(db);
+  return LANDMARK_DOORS.map((d) => ({ ...d, open: landmarkOpen(d.landmark, c.day, hour) || (d.landmark === "cathedral" && (!!wed || inside)) }));
 }
 
 // ------------------------------------------------------------------ talk: where they are (talkExtras.context)
@@ -541,6 +674,13 @@ const ROLE_WORDS: Record<string, string> = {
   bride: "at the altar rail, being married",
   wedding_priest: "marrying a couple at the high altar",
   guest: "a guest at a wedding in the nave",
+  requiem_priest: "saying the requiem at the coffin's head, before the choir",
+  bearer0: "a bearer, standing by the coffin on its bier",
+  bearer1: "a bearer, standing by the coffin on its bier",
+  bearer2: "a bearer, standing by the coffin on its bier",
+  bearer3: "a bearer, standing by the coffin on its bier",
+  widow: "in the front row in black, at your husband's requiem",
+  mourner: "a mourner in the chairs at a requiem",
   clerk: "at your desk in the clerks' office, with the ledgers",
   registrar: "at the counter of the civil registry, writing in the registers",
   alderman: "in your office upstairs",

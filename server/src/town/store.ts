@@ -1,7 +1,7 @@
 import type { DB } from "../db.ts";
 import { generateTown, tidy, type Resident, type Town } from "./population.ts";
 import { walkMap } from "./walkmap.ts";
-import { HAULS, shownTrade, STALLS, TOWN_EMPLOYERS } from "./places.ts";
+import { HAULS, NIGHT_GIVERS, shownTrade, STALLS, TOWN_EMPLOYERS } from "./places.ts";
 import { GARRISON_TRADES, generateGarrison } from "./garrison.ts";
 import { townSize } from "./popsettings.ts";
 import type { TownSize } from "../config.ts";
@@ -244,5 +244,5 @@ export function family(db: DB, r: Resident): Resident[] {
   return town(db).town.residents.filter((o) => o.household === r.household && o.id !== r.id);
 }
 
-/** Employer residents of the job board (fixed ids). */
-export const TOWN_EMPLOYER_IDS = TOWN_EMPLOYERS.map((e) => e.id);
+/** Employer residents of the job board (fixed ids); M7 night: and the givers of night work (they keep to their post too). */
+export const TOWN_EMPLOYER_IDS = [...TOWN_EMPLOYERS, ...NIGHT_GIVERS].map((e) => e.id);

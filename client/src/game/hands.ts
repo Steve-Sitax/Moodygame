@@ -247,7 +247,7 @@ export class Hands {
     const w = this.player.rideWalk;
     if (!g || !room?.counter || !w || Math.hypot(room.counter.x - w.x, room.counter.z - w.z) > 1.6) return [];
     if (g.rounds >= 3) return [];
-    return [{ key: "KeyG", text: g.rounds ? `another round for you and ${g.first} (beer)` : `stand ${g.first} a beer (a round for two)`, run: () => void this.round("beer") }];
+    return [{ key: "KeyG", text: g.rounds ? `another round for you and ${g.first} (beer)` : `stand ${g.first} a beer (a round for two)`, run: () => void this.round("beer"), at: this.interiors.roomPoint(room.counter.x, room.counter.z, 1.0) }];
   }
 
   private seatedKeys(): Action[] {
@@ -255,7 +255,7 @@ export class Hands {
     if (!g) return [];
     const at = this.interiors.personAt(g.npc);
     if (!at || at.dist > 2.2) return [];
-    return [{ key: "KeyF", text: `talk to ${g.first}`, run: () => this.jobs.talk.open({ id: g.npc, def: { name: g.name } }) }];
+    return [{ key: "KeyF", text: `talk to ${g.first}`, run: () => this.jobs.talk.open({ id: g.npc, def: { name: g.name } }), at: at.at }];
   }
 
   private pouring = false;

@@ -1,4 +1,5 @@
 import CITY from "../../../shared/city.json";
+import { ORIGIN as CATHEDRAL, SHELL as CATHEDRAL_SHELL, TOWER_E } from "../../../shared/cathedralPlan";
 import { TRADE_SOUNDS } from "../world/trades";
 
 // Where the city's sounds come from. World frame: x along the river (north),
@@ -72,9 +73,13 @@ const place = (name: string): { x: number; z: number } | null => city.places[nam
 export function cityEmitters(): Emitter[] {
   const out: Emitter[] = [];
 
-  // the cathedral tower: the west front, bells some 65 m up
-  const cat = place("Cathedral") ?? { x: -262, z: 208 };
-  out.push({ kind: "cathedral", x: cat.x, z: cat.z, y: 65, name: "Cathedral of Our Lady" });
+  // the cathedral's tall north tower on the west front, bells some 65 m up. Fixes 2026-09-24: the bells
+  // hung at the city file's "Cathedral" point (-262, 208), the middle of the church roof 55 m east of the
+  // tower. The plan (shared/cathedralPlan.ts): u east from the west front, v north (+x) from the axis; the
+  // north tower stands between the nave wall and its outer side, from its west face to its east face.
+  const v = (CATHEDRAL_SHELL.halfNave + CATHEDRAL_SHELL.towerSide) / 2;
+  const u = (CATHEDRAL_SHELL.towerFace + TOWER_E) / 2;
+  out.push({ kind: "cathedral", x: CATHEDRAL.x + v, z: CATHEDRAL.z + u, y: 65, name: "Cathedral of Our Lady (north tower)" });
 
   // bridges: water under the arch; the ferry pontoon ripples instead
   for (const [id, [x0, z0, x1, z1]] of Object.entries(city.bridges)) {
@@ -179,6 +184,54 @@ export function nearestQuay(x: number, z: number): { x: number; z: number; d: nu
     if (d < best.d) best = { x: px, z: pz, d };
   }
   return best;
+}
+
+// ------------------------------------------------------------------ what stands in the way
+
+/** House blocks and the landmarks' footprints: what a sound has to pass through or round. */
+interface Solid {
+  ring: Pt[];
+  x0: number;
+  x1: number;
+  z0: number;
+  z1: number;
+}
+const SOLIDS: Solid[] = [];
+{
+  const rings: Pt[][] = [
+    ...((city as unknown as { blocks?: Array<{ outer: Pt[] }> }).blocks ?? []).map((b) => b.outer),
+    ...Object.values(city.landmarks ?? {}).flatMap((l) => (l.fp && l.fp.length > 2 ? [l.fp] : [])),
+  ];
+  for (const ring of rings) {
+    const xs = ring.map((p) => p[0]);
+    const zs = ring.map((p) => p[1]);
+    SOLIDS.push({ ring, x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) });
+  }
+}
+
+function inSolid(x: number, z: number): boolean {
+  for (const s of SOLIDS) if (x > s.x0 && x < s.x1 && z > s.z0 && z < s.z1 && inRing(s.ring, x, z)) return true;
+  return false;
+}
+
+/**
+ * Metres of house blocks (and landmark walls) on the straight line from a to b, sampled every
+ * few metres; the first and last 2.5 m do not count (a door, a quay wall). Cheap enough for a
+ * few dozen sounds four times a second.
+ */
+export function blockedMetres(ax: number, az: number, bx: number, bz: number): number {
+  const len = Math.hypot(bx - ax, bz - az);
+  if (len < 6) return 0;
+  const n = Math.min(36, Math.ceil(len / 3));
+  const step = len / n;
+  let m = 0;
+  for (let i = 1; i < n; i++) {
+    const s = i * step;
+    if (s < 2.5 || len - s < 2.5) continue;
+    const t = s / len;
+    if (inSolid(ax + (bx - ax) * t, az + (bz - az) * t)) m += step;
+  }
+  return m;
 }
 
 // ------------------------------------------------------------------ cart routes

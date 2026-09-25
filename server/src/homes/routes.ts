@@ -42,7 +42,8 @@ export function mountHomes(app: Hono, deps: HomeDeps): void {
 
   app.post("/api/homes/sleep", (c) => {
     const night = sleepHome(db);
-    afterNight(night.ended);
+    // M7 night: a new board only if the date turned in his sleep (or the week ended)
+    if (night.turned || night.ended) afterNight(night.ended);
     moved();
     return c.json({ night, ...both() });
   });

@@ -10,6 +10,10 @@ import { LANGUAGE_RULE } from "../text.ts";
 import { activityAt } from "../town/schedule.ts";
 import { town } from "../town/store.ts";
 import { houseDoors } from "../town/walkmap.ts";
+import INWORLD from "../../../shared/inworld_houses.json" with { type: "json" };
+
+/** M7: the house whose cellar stands in the world (shared/inworld_houses.json); preferred when it is free. */
+const INWORLD_CELLAR = (INWORLD as { houses: Array<{ kind: string; house: number }> }).houses.find((e) => e.kind === "cellar")?.house ?? -1;
 import { writeEvent, type WorldEvent } from "../director/eventlog.ts";
 import { callTimeout, canCallShare, getState, hourNow, setState } from "./state.ts";
 import { cleanLine } from "./tavern.ts";
@@ -57,10 +61,10 @@ export function poesjeDoor(db: DB): PoesjeDoor | null {
   const taken = Object.values(town(db).town.places)
     .filter((p) => p.door)
     .map((p) => p.door!);
-  const d = houseDoors()
-    .filter((h) => !taken.some(([x, z]) => Math.hypot(x - h.sx, z - h.sz) < 3))
-    .map((h) => ({ h, k: Math.hypot(h.sx - POESJE.anchor.x, h.sz - POESJE.anchor.z) }))
-    .sort((a, b) => a.k - b.k)[0]?.h;
+  const free = houseDoors().filter((h) => !taken.some(([x, z]) => Math.hypot(x - h.sx, z - h.sz) < 3));
+  const d =
+    free.find((h) => h.house === INWORLD_CELLAR) ??
+    free.map((h) => ({ h, k: Math.hypot(h.sx - POESJE.anchor.x, h.sz - POESJE.anchor.z) })).sort((a, b) => a.k - b.k)[0]?.h;
   if (!d) return null;
   const door: PoesjeDoor = { house: d.house, x: d.x, z: d.z, out: d.out, sx: d.sx, sz: d.sz };
   setState(db, "poesje:door", door);

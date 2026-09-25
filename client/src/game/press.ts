@@ -5,6 +5,7 @@ import type { FirstPerson } from "../player/firstPerson";
 import type { World } from "../world/rijnkaai";
 import { psx } from "../retro/psx";
 import { esc, RUN_MAKERS, type Action, type Run, type RunCtx } from "./runs";
+import { chest, type Target } from "./facing";
 import type { Bubbles } from "./bubbles";
 import type { Jobs } from "./jobs";
 import type { Town } from "./town";
@@ -214,18 +215,23 @@ export class Press {
 
   // ------------------------------------------------------------------ counters
 
-  private clerkNear(id: string | undefined, x: number, z: number): boolean {
-    if (!id) return false;
+  /** The clerk in reach: where to look (their chest; game/facing.ts), or null. */
+  private clerkNear(id: string | undefined, x: number, z: number): Target | null {
+    if (!id) return null;
     const at = this.town.position(id);
-    return !!at && dist(at.x, at.z, x, z) < REACH_COUNTER;
+    if (!at || dist(at.x, at.z, x, z) >= REACH_COUNTER) return null;
+    const pup = this.town.puppet(id);
+    return pup ? chest(pup.group, 1.3 * pup.size) : { x: at.x, z: at.z };
   }
 
   private counterActions(x: number, z: number): Action[] {
     const out: Action[] = [];
     const inf = this.info;
     if (!inf || this.jobs.talk.isOpen) return out;
-    if (this.clerkNear(inf.berg?.clerk, x, z)) out.push({ key: "KeyF", text: "the Berg's counter: pawn or redeem", run: () => void this.openBerg() });
-    else if (this.clerkNear(inf.post?.clerk, x, z)) out.push({ key: "KeyF", text: "the post office counter", run: () => void this.openPost() });
+    const berg = this.clerkNear(inf.berg?.clerk, x, z);
+    const post = berg ? null : this.clerkNear(inf.post?.clerk, x, z);
+    if (berg) out.push({ key: "KeyF", text: "the Berg's counter: pawn or redeem", run: () => void this.openBerg(), at: berg });
+    else if (post) out.push({ key: "KeyF", text: "the post office counter", run: () => void this.openPost(), at: post });
     return out;
   }
 
@@ -501,7 +507,7 @@ class LettersRun implements Run {
     const { x, z } = this.ctx.player;
     if (!this.picked) {
       if (dist(x, z, this.task.from.x, this.task.from.z) < REACH_DOOR + 0.8)
-        return [{ key: "KeyE", text: this.tele ? "take the words for the telegram" : this.task.stops.length === 1 ? "take the letter" : "take the letters", run: () => void this.call("/api/post/pickup") }];
+        return [{ key: "KeyE", text: this.tele ? "take the words for the telegram" : this.task.stops.length === 1 ? "take the letter" : "take the letters", run: () => void this.call("/api/post/pickup"), at: { x: this.task.from.x, z: this.task.from.z } }];
       return [];
     }
     const out: Action[] = [];
@@ -509,8 +515,8 @@ class LettersRun implements Run {
       if (this.done[i] || out.length) return;
       const reach = s.what === "telegraph" ? REACH_COUNTER : REACH_DOOR;
       if (dist(x, z, s.x, s.z) > reach) return;
-      if (s.what === "door") out.push({ key: "KeyE", text: `put the letter under the door of ${s.name}`, run: () => void this.call("/api/post/deliver", i) });
-      else out.push({ key: "KeyE", text: `send the telegram (${this.task.fee_c} c)`, run: () => void this.call("/api/post/telegram") });
+      if (s.what === "door") out.push({ key: "KeyE", text: `put the letter under the door of ${s.name}`, run: () => void this.call("/api/post/deliver", i), at: { x: s.x, z: s.z } });
+      else out.push({ key: "KeyE", text: `send the telegram (${this.task.fee_c} c)`, run: () => void this.call("/api/post/telegram"), at: { x: s.x, z: s.z } });
     });
     return out;
   }

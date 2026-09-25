@@ -1,14 +1,16 @@
 import * as THREE from "three";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { psx } from "../retro/psx";
-import { Builder, canvasTex, flicker, frameRoom, lambert, mat, plaster, rand, tex, type Room, type Spot } from "./rooms";
+import { Builder, canvasTex, flicker, frameRoom, lambert, mat, mergeStatic, plaster, rand, tex, wallFace, type FaceHole, type Room, type Spot } from "./rooms";
+import type { Rect } from "../../../shared/hallPlan";
+import { homeWindowY, ROOM_DOOR, roomToLocal, SILL, type HousePlan } from "../../../shared/housePlan";
 import { makePiece, type Piece } from "./furniture";
 import { createFires, type Fires } from "./fire";
 import { CELL, CLASSES, footprint, FURNITURE, wallOf, type HomeClass, type Placed } from "../../../shared/homes";
 
 // The rented rooms (M6 homes): one per class, sized and furnished by shared/homes.ts (the
-// server's numbers), built in code like the taproom (world/rooms.ts). The room frame has the
-// door at the origin, x across, z into the house. The room keeps its pieces on the engine's
+// server's numbers), built in code like the taproom (world/rooms.ts). M7: each inside its own
+// house in the world (shared/housePlan.ts), up or down the house's stair where it is not on the
+// ground floor. The room frame has its front wall (the street's side) at z 0, x across, z into the house. The room keeps its pieces on the engine's
 // grid: `setPlaced` redraws what the server says stands where, `ghost` shows the piece Jef
 // is moving, green where it may go and red where not.
 
@@ -200,19 +202,41 @@ function looks(cls: HomeClass, seed: number): Look {
 }
 
 /**
- * A rented room of its class: walls, floor, ceiling (a garret's roof slopes down to knee
- * walls), the front wall with the door and its windows onto the street, the room's own
- * furniture (shared/homes.ts), its light (daylight at the windows, a candle, the hearth or
- * stove, a lamp Jef hangs), and the pieces Jef owns.
+ * M7: a rented room of its class inside its own house (shared/housePlan.ts; world/houseInWorld.ts puts it in the
+ * world). On the ground floor (the widow's front room, the alley house) the room's door is the house's street
+ * door and its window is cut through the front (mirrored across when the window would fall outside the house);
+ * up or down the house's stair (the garret, the merchant's floor, the cellar) its door is in the back wall onto
+ * the landing, the windows stay on the street: the merchant's cut through the painted ones, the garret's and
+ * the cellar's painted (they glow to the street at night). Walls, floor, ceiling (a garret's roof slopes down to
+ * knee walls), the room's own furniture (shared/homes.ts), its light, and the pieces Jef owns. The room's frame
+ * (x across from its middle, z in from its front wall) is the grid's; the stair, the landings and the corridor
+ * from the street door are built in the house's frame.
  */
-export function buildHome(opts: { origin: { x: number; z: number }; yaw: number; cls: HomeClass; seed: number }): Room {
+export function buildHome(opts: { plan: HousePlan; cls: HomeClass; seed: number }): Room {
+  const plan = opts.plan;
+  const rf = plan.roomFrame!;
   const cls = opts.cls;
   const c = CLASSES[cls];
-  const { W, D, H } = c;
+  const { W, D } = c;
+  const doorWall = c.doorWall ?? 2;
+  // a ground-floor room is at least as high as the street door with its transom
+  const H = doorWall === 2 ? Math.max(c.H, plan.door.yt - SILL + 0.12) : c.H;
   const L = looks(cls, opts.seed % 997);
-  const { scene, group, toWorld } = frameRoom(opts.origin, opts.yaw, L.fog);
+  const { scene, group: house } = frameRoom(plan.origin, plan.yaw, L.fog);
+  scene.background = null;
   (scene.fog as THREE.Fog).near = 6;
   (scene.fog as THREE.Fog).far = 24;
+  // the room's own frame inside the house's
+  const group = new THREE.Group();
+  group.position.set(rf.x, rf.y, rf.z);
+  group.scale.x = rf.mirror;
+  house.add(group);
+  house.updateMatrixWorld(true);
+  const toWorld = (x: number, z: number, y = 0) => group.localToWorld(new THREE.Vector3(x, y, z));
+  const toLocal = (wx: number, wz: number): [number, number] => {
+    const v = group.worldToLocal(new THREE.Vector3(wx, 0, wz));
+    return [v.x, v.z];
+  };
   // everything that never moves is built into `stat` and drawn merged by material at the end
   const stat = new THREE.Group();
   group.add(stat);
@@ -220,8 +244,25 @@ export function buildHome(opts: { origin: { x: number; z: number }; yaw: number;
   const garret = cls === "garret";
   const knee = 1.0;
 
+  // the windows: cut through the house (the plan's holes, in the room's frame), else painted on the front wall
+  const holes = plan.windows.filter((w) => w.kind === "hole");
+  const cut = holes.length > 0;
+  const [wyA, wyB] = homeWindowY(cls, H);
+  const win = cut
+    ? holes.map((w) => {
+        const xa = (w.a[0] - rf.x) * rf.mirror;
+        const xb = (w.b[0] - rf.x) * rf.mirror;
+        return { x0: Math.min(xa, xb), x1: Math.max(xa, xb), y0: w.y0 - rf.y, y1: w.y1 - rf.y };
+      })
+    : c.windows.map(([a, z]) => ({ x0: -W / 2 + a * CELL + 0.05, x1: -W / 2 + (z + 1) * CELL - 0.05, y0: wyA, y1: wyB }));
+  const wy0 = win[0]?.y0 ?? wyA;
+  const wy1 = win[0]?.y1 ?? wyB;
+
   // floor and ceiling
   b.box(W, 0.1, D, 0, -0.05, D / 2, L.floor, { tile: cls === "alley" ? 0.8 : 1.4 });
+  const doorHole: FaceHole = { s0: W / 2 - plan.door.w / 2, s1: W / 2 + plan.door.w / 2, y0: -1, y1: plan.door.yt - SILL };
+  const backDoor: FaceHole = { s0: W / 2 - ROOM_DOOR / 2, s1: W / 2 + ROOM_DOOR / 2, y0: -1, y1: 2.1 };
+  const frontHoles: FaceHole[] = [...(doorWall === 2 ? [doorHole] : []), ...(cut ? win.map((w) => ({ s0: w.x0 + W / 2, s1: w.x1 + W / 2, y0: w.y0, y1: w.y1 })) : [])];
   if (garret) {
     // the roof slopes from the knee walls up to the ridge
     const run = W / 2;
@@ -231,7 +272,7 @@ export function buildHome(opts: { origin: { x: number; z: number }; yaw: number;
     for (const s of [-1, 1]) {
       const m = b.box(len, 0.06, D, (s * run) / 2, knee + rise / 2, D / 2, L.ceil, { tile: 1.2 });
       m.rotation.z = -s * ang;
-      b.box(0.1, knee, D, s * (W / 2 + 0.05), knee / 2, D / 2, L.wall, { tile: 2.2 });
+      wallFace(stat, s < 0 ? [-W / 2, D] : [W / 2, 0], s < 0 ? [-W / 2, 0] : [W / 2, D], 0, knee, [-s, 0], [], L.wall, 2.2);
       for (let z = 0.6; z < D; z += 1.1) {
         const raf = b.box(len, 0.1, 0.08, (s * run) / 2, knee + rise / 2 - 0.06, z, L.beam);
         raf.rotation.z = -s * ang;
@@ -240,46 +281,39 @@ export function buildHome(opts: { origin: { x: number; z: number }; yaw: number;
     b.box(0.14, 0.14, D, 0, H - 0.08, D / 2, L.beam);
   } else {
     b.box(W, 0.1, D, 0, H + 0.05, D / 2, L.ceil, { tile: 1.6 });
-    for (const s of [-1, 1]) b.box(0.2, H, D, s * (W / 2 + 0.1), H / 2, D / 2, L.wall, { tile: L.tile });
+    wallFace(stat, [-W / 2, D], [-W / 2, 0], 0, H, [1, 0], [], L.wall, L.tile);
+    wallFace(stat, [W / 2, 0], [W / 2, D], 0, H, [-1, 0], [], L.wall, L.tile);
     if (cls !== "merchant") for (let z = 1.0; z < D; z += 1.4) b.box(W, 0.18, 0.16, 0, H - 0.09, z, L.beam, { tile: 1.2 });
     else for (const s of [-1, 1]) b.box(0.12, 0.12, D, s * (W / 2 - 0.06), H - 0.06, D / 2, L.beam);
   }
-  // back wall (a gable in the garret: the wall runs up to the ridge; the slopes hide its corners)
-  b.box(W, H, 0.2, 0, H / 2, D + 0.1, L.wall, { tile: L.tile });
+  // the front wall (the street's side) and the back wall (a gable in the garret: up to the ridge; the slopes hide its corners)
+  wallFace(stat, [-W / 2, 0], [W / 2, 0], 0, H, [0, 1], frontHoles, L.wall, L.tile);
+  wallFace(stat, [W / 2, D], [-W / 2, D], 0, H, [0, -1], doorWall === 0 ? [backDoor] : [], L.wall, L.tile);
+  if (doorWall === 0) {
+    // the doorway through the back wall onto the landing: its reveal, a threshold board
+    const dm = lambert("h_doorframe", { map: tex().planks, color: 0x4a3626 });
+    for (const s of [-1, 1]) b.box(0.06, 2.1, 0.24, s * (ROOM_DOOR / 2 + 0.03), 1.05, D + 0.1, dm);
+    b.box(ROOM_DOOR + 0.12, 0.08, 0.24, 0, 2.14, D + 0.1, dm);
+    b.box(ROOM_DOOR, 0.1, 0.3, 0, -0.05, D + 0.1, dm);
+  }
   if (cls === "merchant") {
     // panelling below the dado rail on three walls
     const panel = lambert("h_panel", { map: tex().planks, color: 0x4a3222 });
-    b.box(W, 0.9, 0.04, 0, 0.45, D - 0.02, panel);
+    b.box(W / 2 - 0.5, 0.9, 0.04, -W / 4 - 0.25, 0.45, D - 0.02, panel);
+    b.box(W / 2 - 0.5, 0.9, 0.04, W / 4 + 0.25, 0.45, D - 0.02, panel);
     for (const s of [-1, 1]) b.box(0.04, 0.9, D, s * (W / 2 - 0.02), 0.45, D / 2, panel);
   }
-
-  // the front wall: the door in the middle, the windows in their spans
-  const doorW = 0.9;
-  const doorH = Math.min(2.0, H - 0.15);
-  const win = c.windows.map(([a, z]) => ({ x0: -W / 2 + a * CELL + 0.05, x1: -W / 2 + (z + 1) * CELL - 0.05 }));
-  const [wy0, wy1] = cls === "cellar" ? [1.35, 1.85] : garret ? [0.95, 1.4] : cls === "merchant" ? [0.7, 2.6] : [0.95, Math.min(2.05, H - 0.4)];
-  const cuts = [{ x0: -doorW / 2, x1: doorW / 2, y0: 0, y1: doorH }, ...win.map((w) => ({ ...w, y0: wy0, y1: wy1 }))].sort((p, q) => p.x0 - q.x0);
-  const frontH = H;
-  let x = -W / 2;
-  const front = (x0: number, x1: number, y0: number, y1: number) => {
-    if (x1 - x0 > 0.01 && y1 - y0 > 0.01) b.box(x1 - x0, y1 - y0, 0.2, (x0 + x1) / 2, (y0 + y1) / 2, -0.1, L.wall, { tile: L.tile });
-  };
-  for (const cut of cuts) {
-    front(x, cut.x0, 0, frontH);
-    front(cut.x0, cut.x1, 0, cut.y0);
-    front(cut.x0, cut.x1, cut.y1, frontH);
-    x = cut.x1;
-  }
-  front(x, W / 2, 0, frontH);
-  const doorMat = lambert("h_door", { map: tex().planks, color: 0x3a2a1c });
-  b.box(doorW, doorH, 0.06, 0, doorH / 2, -0.03, doorMat);
-  b.box(0.05, 0.05, 0.04, 0.33, 1.0, 0.02, lambert("f_iron", { color: 0x26221e }));
+  // the windows: a painted view of the street where none is cut; sills and bars on the painted ones
   const view = new THREE.MeshBasicMaterial({ map: streetView(cls), color: 0x404040 });
   for (const w of win) {
-    b.plane(w.x1 - w.x0, wy1 - wy0, (w.x0 + w.x1) / 2, (wy0 + wy1) / 2, -0.12, 0, view);
-    b.box(w.x1 - w.x0 + 0.08, 0.05, 0.14, (w.x0 + w.x1) / 2, wy0 - 0.02, -0.03, L.beam);
-    b.box(0.04, wy1 - wy0, 0.05, (w.x0 + w.x1) / 2, (wy0 + wy1) / 2, -0.06, L.beam);
-    b.box(w.x1 - w.x0, 0.04, 0.05, (w.x0 + w.x1) / 2, (wy0 + wy1) / 2, -0.06, L.beam);
+    if (cut) {
+      b.box(w.x1 - w.x0 + 0.08, 0.05, 0.14, (w.x0 + w.x1) / 2, w.y0 - 0.02, 0.05, L.beam);
+      continue;
+    }
+    b.plane(w.x1 - w.x0, w.y1 - w.y0, (w.x0 + w.x1) / 2, (w.y0 + w.y1) / 2, 0.02, 0, view);
+    b.box(w.x1 - w.x0 + 0.08, 0.05, 0.14, (w.x0 + w.x1) / 2, w.y0 - 0.02, 0.07, L.beam);
+    b.box(0.04, w.y1 - w.y0, 0.05, (w.x0 + w.x1) / 2, (w.y0 + w.y1) / 2, 0.04, L.beam);
+    b.box(w.x1 - w.x0, 0.04, 0.05, (w.x0 + w.x1) / 2, (w.y0 + w.y1) / 2, 0.04, L.beam);
   }
   if (cls === "merchant") merchantDress(b, W, D, H, win, wy0, wy1);
   if (cls === "widow") {
@@ -291,8 +325,9 @@ export function buildHome(opts: { origin: { x: number; z: number }; yaw: number;
 
   // light: daylight at the windows, a low fill, and the pieces' own lights
   const hemi = new THREE.HemisphereLight(0xa0a4a8, 0x6a5a48, 0.4);
-  scene.add(hemi);
-  scene.add(new THREE.AmbientLight(0x6a543c, 1.25));
+  const amb = new THREE.AmbientLight(0x6a543c, 1.25);
+  scene.add(hemi, amb);
+  let ambK = 1;
   const winLight = new THREE.PointLight(0xb8c0c8, 0, 6, 1.4);
   winLight.position.set(win.length ? (win[0].x0 + win[0].x1) / 2 : 0, (wy0 + wy1) / 2, 0.6);
   group.add(winLight);
@@ -340,6 +375,17 @@ export function buildHome(opts: { origin: { x: number; z: number }; yaw: number;
     addLight(pc, pc.group, lit);
   }
   mergeStatic(stat, group);
+  // the stair, the landings and the corridor from the street door (the house's frame)
+  if (doorWall === 0) {
+    const sw = new THREE.Group();
+    house.add(sw);
+    buildStairwell(new Builder(sw), plan, L);
+    mergeStatic(sw, house);
+    // a candle on the landing at the room's door, so the last flight is seen
+    const land = new THREE.PointLight(0xffa860, 1.6, 7, 1.5);
+    land.position.set(rf.x, rf.y + 1.9, rf.z + D + 0.8);
+    house.add(land);
+  }
 
   // the pieces Jef owns
   const own = new THREE.Group();
@@ -360,6 +406,20 @@ export function buildHome(opts: { origin: { x: number; z: number }; yaw: number;
 
   const blocked = (px: number, pz: number, r: number) =>
     [...fixedBlocks, ...ownBlocks].some((q) => px > q.minX - r && px < q.maxX + r && pz > q.minZ - r && pz < q.maxZ + r);
+
+  // the furniture as solids for walking, in the house's frame (World.addWalkArea by the plan)
+  const solids: Rect[] = [];
+  const toPlan = (q: { minX: number; maxX: number; minZ: number; maxZ: number }): Rect => {
+    const [xa, za] = roomToLocal(rf, q.minX, q.minZ);
+    const [xb, zb] = roomToLocal(rf, q.maxX, q.maxZ);
+    return { minX: Math.min(xa, xb), maxX: Math.max(xa, xb), minZ: Math.min(za, zb), maxZ: Math.max(za, zb) };
+  };
+  const setSolids = () => {
+    solids.length = 0;
+    // the bed and the big pieces stop Jef; the rest he steps round as ever
+    for (const q of [...fixedBlocks, ...ownBlocks]) solids.push(toPlan({ minX: q.minX + 0.05, maxX: q.maxX - 0.05, minZ: q.minZ + 0.05, maxZ: q.maxZ - 0.05 }));
+  };
+  setSolids();
 
   const home: HomeRoom = {
     cls,
@@ -384,6 +444,7 @@ export function buildHome(opts: { origin: { x: number; z: number }; yaw: number;
           ownBlocks.push({ minX: -W / 2 + p.gx * CELL + 0.05, maxX: -W / 2 + (p.gx + fp.w) * CELL - 0.05, minZ: p.gz * CELL + 0.05, maxZ: (p.gz + fp.d) * CELL - 0.05 });
         }
       }
+      setSolids();
     },
     ghost(gh) {
       if (!gh) {
@@ -425,19 +486,11 @@ export function buildHome(opts: { origin: { x: number; z: number }; yaw: number;
     blocked,
   };
 
-  const R = 0.28;
-  const walk: Room["walk"] = (fx, fz, px, pz) => {
-    const half = garret ? W / 2 - 0.55 : W / 2 - R;
-    const free = (a: number, z: number) => a > -half && a < half && z > 0.35 && z < D - R && !blocked(a, z, R);
-    if (free(px, pz)) return [px, pz];
-    if (free(px, fz)) return [px, fz];
-    if (free(fx, pz)) return [fx, pz];
-    return [fx, fz];
-  };
-
+  const inDoor = doorWall === 0 ? D : 0;
+  const inward = doorWall === 0 ? -1 : 1;
   const stands: Spot[] = [
-    { x: 0.55, z: 0.75, yaw: 0 },
-    { x: -0.55, z: 0.8, yaw: 0.2 },
+    { x: 0.55, z: inDoor + inward * 0.75, yaw: inward > 0 ? 0 : Math.PI },
+    { x: -0.55, z: inDoor + inward * 0.8, yaw: inward > 0 ? 0.2 : Math.PI - 0.2 },
   ];
   const winPt = new THREE.Vector3();
   let day = 0;
@@ -445,18 +498,27 @@ export function buildHome(opts: { origin: { x: number; z: number }; yaw: number;
     kind: "home",
     scene,
     group,
-    walk,
+    walk: (fx, fz) => [fx, fz],
     seats: [],
     stands,
-    exit: { x: 0, z: 0.65, yaw: Math.PI },
-    entry: { x: 0, z: 0.95, yaw: 0 },
+    exit: { x: 0, z: inDoor + inward * 0.35, yaw: inward > 0 ? Math.PI : 0 },
+    entry: { x: 0, z: inDoor + inward * 0.95, yaw: inward > 0 ? 0 : Math.PI },
     lamps: [],
     toWorld,
+    toLocal,
+    floor: () => 0,
     home,
+    solids,
+    level: plan.levels.length - 1,
+    setAmbient(k) {
+      ambK = k;
+      room.setDaylight(day);
+    },
     setDaylight(k) {
       day = k;
       view.color.setScalar(0.12 + 0.88 * k);
-      hemi.intensity = L.fill[1] + L.fill[0] * k;
+      hemi.intensity = (L.fill[1] + L.fill[0] * k) * ambK;
+      amb.intensity = 1.25 * ambK;
       winLight.intensity = 2.5 * k * win.length;
     },
     update(t) {
@@ -476,32 +538,69 @@ export function buildHome(opts: { origin: { x: number; z: number }; yaw: number;
   return room;
 }
 
-/** Draw a group of still things as one mesh per material; its lights and glows move to `into`. */
-function mergeStatic(stat: THREE.Group, into: THREE.Group): void {
-  stat.updateMatrixWorld(true);
-  const inv = new THREE.Matrix4().copy(stat.matrixWorld).invert();
-  const by = new Map<THREE.Material, THREE.BufferGeometry[]>();
-  const move: THREE.Object3D[] = [];
-  const rel = new THREE.Matrix4();
-  stat.traverse((o) => {
-    if (o === stat) return;
-    const m = o as THREE.Mesh;
-    if (m.isMesh && !Array.isArray(m.material)) {
-      rel.multiplyMatrices(inv, m.matrixWorld);
-      let geo = m.geometry.clone().applyMatrix4(rel);
-      if (geo.index) geo = geo.toNonIndexed();
-      for (const k of Object.keys(geo.attributes)) if (!["position", "normal", "uv"].includes(k)) geo.deleteAttribute(k);
-      const list = by.get(m.material) ?? [];
-      list.push(geo);
-      by.set(m.material, list);
-    } else if ((o as THREE.Sprite).isSprite || (o as THREE.Light).isLight) move.push(o);
-  });
-  for (const o of move) into.attach(o);
-  for (const ch of [...stat.children]) stat.remove(ch);
-  for (const [m, geos] of by) {
-    const merged = mergeGeometries(geos, false);
-    if (merged) stat.add(new THREE.Mesh(merged, m));
+/**
+ * M7: the way up (or down) to a room with its door in the back wall, in the house's frame: the corridor from
+ * the street door under the room, the stairwell behind it with its switchback flights in two lanes, the
+ * landings, the rails, walls round it all and a ceiling. Solid enough to be seen from the street through
+ * the door and walked in the dark.
+ */
+function buildStairwell(b: Builder, plan: HousePlan, L: Look): void {
+  const well = plan.well!;
+  const wr = well.rect;
+  const rf = plan.roomFrame!;
+  const D = CLASSES[plan.entry.cls as HomeClass].D;
+  const cor = plan.landings[0].rect;
+  const g = b.group;
+  const plaster2 = L.wall;
+  const boards = lambert("h_stairboards", { map: tex().planks, color: 0x6a5240 });
+  const dark = lambert("h_stairdark", { map: tex().planks, color: 0x3a2a1e });
+  const flags = lambert("h_hallflags", { map: tex().slate, color: 0x8a847a });
+  const box = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, m: THREE.Material, tile = 1) =>
+    b.box(Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0), (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, m, { tile });
+  // the corridor from the street door: its floor, walls, ceiling (under the room when the room is upstairs)
+  const corTop = plan.room.y > SILL ? plan.room.y - 0.12 : SILL + 2.9;
+  box(cor.minX, cor.maxX, SILL - 0.1, SILL, cor.minZ, cor.maxZ, flags, 1.2);
+  box(cor.minX, cor.maxX, corTop, corTop + 0.1, cor.minZ, cor.maxZ, boards, 1.2);
+  wallFace(g, [cor.minX, cor.maxZ], [cor.minX, cor.minZ], SILL, corTop, [1, 0], [], plaster2, 2.4);
+  wallFace(g, [cor.maxX, cor.minZ], [cor.maxX, cor.maxZ], SILL, corTop, [-1, 0], [], plaster2, 2.4);
+  wallFace(g, [cor.minX, cor.minZ], [cor.maxX, cor.minZ], SILL, corTop, [0, 1], [{ s0: -plan.door.w / 2 - cor.minX, s1: plan.door.w / 2 - cor.minX, y0: -1, y1: plan.door.yt }], plaster2, 2.4);
+  // the well's walls, from its floor to its ceiling: in front the corridor's way in and the room's door
+  const y0 = well.y0 - 0.1;
+  const y1 = well.y1;
+  const front: FaceHole[] = [
+    { s0: cor.minX - wr.minX, s1: cor.maxX - wr.minX, y0: SILL - 0.1, y1: Math.min(corTop, SILL + 2.4) },
+    { s0: rf.x - ROOM_DOOR / 2 - wr.minX, s1: rf.x + ROOM_DOOR / 2 - wr.minX, y0: rf.y - 0.05, y1: rf.y + 2.1 },
+  ];
+  wallFace(g, [wr.minX, wr.minZ], [wr.maxX, wr.minZ], y0, y1, [0, 1], front, plaster2, 2.4);
+  wallFace(g, [wr.maxX, wr.maxZ], [wr.minX, wr.maxZ], y0, y1, [0, -1], [], plaster2, 2.4);
+  wallFace(g, [wr.minX, wr.maxZ], [wr.minX, wr.minZ], y0, y1, [1, 0], [], plaster2, 2.4);
+  wallFace(g, [wr.maxX, wr.minZ], [wr.maxX, wr.maxZ], y0, y1, [-1, 0], [], plaster2, 2.4);
+  box(wr.minX, wr.maxX, y1, y1 + 0.1, wr.minZ, wr.maxZ, boards, 1.2);
+  // the landings and the floor at the well's foot
+  box(wr.minX, wr.maxX, well.y0 - 0.1, well.y0, wr.minZ, wr.maxZ, well.y0 < 0 ? flags : boards, 1.2);
+  for (const l of plan.landings.slice(1)) if (l.y > well.y0 + 0.01) box(l.rect.minX, l.rect.maxX, l.y - 0.15, l.y, l.rect.minZ, l.rect.maxZ, boards, 1.2);
+  // the flights: thick treads, a soffit under, a rail on the lanes' middle line
+  const mid = (Math.min(...plan.flights.map((f) => f.rect.maxX)) + Math.max(...plan.flights.map((f) => f.rect.minX))) / 2;
+  for (const f of plan.flights) {
+    const n = f.steps;
+    for (let i = 0; i < n; i++) {
+      const za = f.foot + ((f.head - f.foot) * i) / n;
+      const zb = f.foot + ((f.head - f.foot) * (i + 1)) / n;
+      const top = f.y0 + ((f.y1 - f.y0) * (i + 1)) / n;
+      box(f.rect.minX, f.rect.maxX, top - 0.3, top, Math.min(za, zb), Math.max(za, zb), boards, 0.6);
+    }
+    const run = Math.abs(f.head - f.foot);
+    const sof = new THREE.Mesh(new THREE.PlaneGeometry(f.rect.maxX - f.rect.minX, Math.hypot(run, f.y1 - f.y0)), dark);
+    sof.position.set((f.rect.minX + f.rect.maxX) / 2, (f.y0 + f.y1) / 2 - 0.3, (f.foot + f.head) / 2);
+    sof.rotation.x = Math.PI / 2 - Math.sign(f.head - f.foot) * Math.atan2(f.y1 - f.y0, run);
+    (sof.material as THREE.Material).side = THREE.DoubleSide;
+    g.add(sof);
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.06, Math.hypot(run, f.y1 - f.y0)), dark);
+    rail.position.set(mid, (f.y0 + f.y1) / 2 + 0.95, (f.foot + f.head) / 2);
+    rail.rotation.x = -Math.sign(f.head - f.foot) * Math.atan2(f.y1 - f.y0, run);
+    g.add(rail);
   }
+  void D;
 }
 
 /** A dark red damask paper with a gold figure, for the merchant's walls. */

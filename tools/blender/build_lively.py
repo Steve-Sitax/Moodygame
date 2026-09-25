@@ -127,17 +127,47 @@ def paint_sign(text, seed):
     return img
 
 
+# Holy pictures, 7 x 10 px inside a 1 px frame: our own pixel paintings after the coloured devotional
+# prints sold at the cathedral (Our Lady of Antwerp in her blue mantle and crown, the Sacred Heart,
+# the crucifix, Saint Anthony with the Child, Saint Joseph with his lily staff).
+HOLY_PAINT = {
+    "g": (0.72, 0.56, 0.22), "y": (0.92, 0.78, 0.30), "s": (0.86, 0.68, 0.54), "w": (0.92, 0.90, 0.84),
+    "b": (0.16, 0.26, 0.58), "r": (0.62, 0.14, 0.12), "p": (0.88, 0.84, 0.72), "h": (0.74, 0.10, 0.10),
+    "f": (0.95, 0.60, 0.15), "d": (0.22, 0.10, 0.08), "l": (0.62, 0.72, 0.84), "k": (0.28, 0.17, 0.10),
+    "n": (0.42, 0.32, 0.18), "o": (0.44, 0.29, 0.16), "e": (0.22, 0.42, 0.26), "c": (0.92, 0.76, 0.62),
+}
+HOLY = {
+    "madonna": ["ggyyygg", "gwsssw" + "g", "gwsssw" + "g", "gbwwwbg", "gbscrbg", "gbbrrbg", "bbrrrbb", "bbbrbbb", "bbbbbbb", "gbbbbbg"],
+    "madonna_red": ["llyyyll", "lwsssw" + "l", "lwsssw" + "l", "lrwwwrl", "lrscbrl", "lrbbbrl", "rrbbbrr", "rrrbrrr", "rrrrrrr", "lrrrrrl"],
+    "heart": ["pppfppp", "ppfyfpp", "pphdhpp", "phhhhhp", "hhhhhhh", "hhhhhhh", "phhhhhp", "pphhhpp", "ppphppp", "ppppppp"],
+    "cross": ["lllklll", "lllslll", "kkssskk", "lllslll", "lllslll", "lllklll", "lllklll", "lllklll", "lnnknnl", "nnnnnnn"],
+    "anthony": ["llyyyll", "lysssyl", "llsssll", "loooool", "oooowwl", "oooowsl", "ooooowl", "looooll", "loooool", "lnoooll"],
+    "joseph": ["llyyyll", "lysssyl", "llsssll", "leeeenw", "eeeeenw", "eeeeenl", "leeeenl", "leeeenl", "leeeenl", "lnnnnnl"],
+}
+
+
 def paint_prints(seed):
-    """Holy pictures pinned in rows: little coloured prints, a blue-mantled Virgin on most."""
+    """Holy pictures pinned in rows on the stall's boards: 8 across, 4 rows, each a little painted
+    saint or Madonna in a gilt or black frame (the counter shows the lower two rows)."""
     rng = np.random.default_rng(seed)
-    w, h = 32, 24
+    w, h = 96, 52
     img = np.ones((h, w, 4))
-    img[..., :3] = (0.3, 0.24, 0.17)
-    for y0 in (1, 13):
-        for x0 in (1, 9, 17, 25):
-            img[y0:y0 + 10, x0:x0 + 6, :3] = (0.86, 0.82, 0.7)
-            img[y0 + 2:y0 + 8, x0 + 1:x0 + 5, :3] = rng.choice([(0.2, 0.3, 0.6), (0.6, 0.15, 0.12), (0.7, 0.55, 0.2)])
-            img[y0 + 2, x0 + 2:x0 + 4, :3] = (0.9, 0.75, 0.6)
+    img[..., :3] = (0.30, 0.24, 0.17)
+    img[..., :3] *= (0.85 + 0.3 * rng.random((h, w)))[..., None] * 0.9 + 0.1
+    kinds = list(HOLY)
+    weights = np.array([0.34, 0.12, 0.16, 0.14, 0.12, 0.12])
+    for row in range(4):
+        for col in range(8):
+            x0 = col * 12 + 1 + int(rng.integers(0, 2))
+            y0 = row * 13 + 1
+            k = kinds[int(rng.choice(len(kinds), p=weights / weights.sum()))]
+            frame = (0.70, 0.55, 0.22) if rng.random() < 0.6 else (0.12, 0.10, 0.08)
+            img[y0:y0 + 12, x0:x0 + 9, :3] = frame
+            for r, line in enumerate(HOLY[k]):
+                for c, ch in enumerate(line):
+                    img[y0 + 1 + r, x0 + 1 + c, :3] = HOLY_PAINT[ch]
+            # the paper is old: a little faded, now and then a speck
+            img[y0 + 1:y0 + 11, x0 + 1:x0 + 8, :3] = img[y0 + 1:y0 + 11, x0 + 1:x0 + 8, :3] * 0.92 + 0.04
     return img
 
 
@@ -250,11 +280,15 @@ def stall(goods):
     m.face([(-W / 2 - 0.15, yf - 0.4, 2.1), (W / 2 + 0.15, yf - 0.4, 2.1), (W / 2 + 0.15, yb + 0.1, 2.78), (-W / 2 - 0.15, yb + 0.1, 2.78)], "planks", shade=0.5, out=(0, 0.6, -1))
     # the back wall of planks
     m.face([(-W / 2, yb, 0), (W / 2, yb, 0), (W / 2, yb, 2.75), (-W / 2, yb, 2.75)], "planks", shade=0.75, out=(0, -1, 0))
-    # the board on the header
+    # the name board on the front of the counter: never wider than the counter between the posts
     x, y, w, h = sl.SOLID_ATLAS.cells[f"sign_{goods}"]
-    L = w * 0.036
-    m.face([(-L / 2, yf - 0.025, 0.36), (L / 2, yf - 0.025, 0.36), (L / 2, yf - 0.025, 0.36 + h * 0.036), (-L / 2, yf - 0.025, 0.36 + h * 0.036)],
+    px = min(0.036, (W - 0.3) / w)
+    L, Hb = w * px, h * px
+    zb = 0.56 - Hb / 2
+    m.face([(-L / 2, yf - 0.025, zb), (L / 2, yf - 0.025, zb), (L / 2, yf - 0.025, zb + Hb), (-L / 2, yf - 0.025, zb + Hb)],
            f"sign_{goods}", uvs=[(0, 0), (1, 0), (1, 1), (0, 1)], out=(0, -1, 0))
+    print(f"[build_lively] stall_{goods}: name board {L:.2f} m wide on a counter of {W - 0.1:.2f} m between posts {W:.2f} m apart")
+    assert L <= W - 0.3 + 1e-6, f"stall_{goods}: the name board is wider than the stall"
     top = 0.925
     if goods == "candles":
         # bundles of tallow candles on the counter, tall votive candles, bundles hanging from the beam

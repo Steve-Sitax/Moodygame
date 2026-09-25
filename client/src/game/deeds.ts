@@ -11,6 +11,7 @@ import type { Stalls } from "./stalls";
 import { Velocipedes, type VeloInfo } from "./velocipedes";
 import { HandLantern } from "./lantern";
 import { esc } from "./runs";
+import { chest, pick } from "./facing";
 
 // Theft, velocipedes, a lantern to carry, and the police (M3h), on the client.
 // The server decides everything that counts (server/src/town/deeds.ts and
@@ -196,7 +197,7 @@ export class Deeds {
     if (this.cell) return { only: [] };
     if (this.velos.ridden) {
       if (!this.player.bikeRiding) return { only: [] };
-      return { only: [{ key: "KeyE", text: "get off the velocipede", run: () => void this.getOff() }] };
+      return { only: [{ key: "KeyE", text: "get off the velocipede", run: () => void this.getOff(), self: true }] };
     }
     if (this.player.riding || this.player.swimming || this.player.climbing || this.player.bikeFallT > 0) return {};
     const options: Array<[number, Action]> = [];
@@ -204,26 +205,25 @@ export class Deeds {
     // someone asks for their thing back
     for (const pu of this.pursuers.values()) {
       if (pu.kind !== "ask" || pu.deed === null) continue;
-      if (Math.hypot(pu.p.x - x, pu.p.z - z) < 3.5) options.push([0, { key: "KeyE", text: `give it back to ${pu.name.split(" ")[0]}`, run: () => void this.giveBack(pu) }]);
+      if (Math.hypot(pu.p.x - x, pu.p.z - z) < 3.5) options.push([0, { key: "KeyE", text: `give it back to ${pu.name.split(" ")[0]}`, run: () => void this.giveBack(pu), at: chest(pu.p.group, 1.3 * pu.p.size) }]);
     }
-    const b = this.velos.nearest(x, z);
-    if (b) options.push([Math.hypot(b.info.x - x, b.info.z - z), { key: "KeyE", text: b.info.mine ? "get on the velocipede" : "take the velocipede", run: () => void this.take(b.info.id) }]);
+    const nb = this.velos.nearest(x, z);
+    if (nb) {
+      const b = nb.bike;
+      options.push([Math.hypot(b.info.x - x, b.info.z - z), { key: "KeyE", text: b.info.mine ? "get on the velocipede" : "take the velocipede", run: () => void this.take(b.info.id), at: nb.at }]);
+    }
     const l = this.lantern.nearestStanding(x, z, 1.9);
-    if (l) options.push([l.d, { key: "KeyE", text: "take the lantern", run: () => void this.take(l.id) }]);
+    if (l) options.push([l.d, { key: "KeyE", text: "take the lantern", run: () => void this.take(l.id), at: l.at }]);
     // food off an open table (G: E stays for talking to the keeper)
     const open = new Set(this.stalls.states.filter((s) => s.open && s.keeper).map((s) => s.keeper));
-    let best: Food | null = null;
-    let bd = 2.3;
-    for (const f of this.food) {
+    // the one Jef looks at (game/facing.ts), on the table top
+    const food = pick(this.food, (f) => {
       const d = Math.hypot(f.x - x, f.z - z);
-      if (d < bd && open.has(f.keeper)) {
-        bd = d;
-        best = f;
-      }
-    }
-    if (best) {
-      const f = best;
-      extra.push({ key: "KeyG", text: `take ${f.name}`, run: () => void this.take(f.id) });
+      return d < 2.3 && open.has(f.keeper) ? { d, at: { x: f.x, y: this.world.groundAt(f.x, f.z, 0.1, this.player.y) + 0.9, z: f.z } } : null;
+    });
+    if (food) {
+      const f = food.it;
+      extra.push({ key: "KeyG", text: `take ${f.name}`, run: () => void this.take(f.id), at: food.at });
     }
     return { options, extra };
   }

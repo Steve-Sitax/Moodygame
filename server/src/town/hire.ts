@@ -69,8 +69,8 @@ export const MAX_WAGE_C = 300;
 /** Crew: 3 at first; one more with money (200 c), one more each with trust among the naties or anyone (3, 5); at most 6. */
 export const CREW_BASE = 3;
 export const CREW_MAX = 6;
-/** How long a hand who asked for more waits for Jef's answer (game minutes), then quits. */
-export const ASK_WAIT_MIN = 120;
+/** How long a hand who asked for more waits for Jef's answer (game minutes; M7 clock: 120 -> 20, 40 real seconds), then quits. */
+export const ASK_WAIT_MIN = 20;
 /** A hand works until 20:00 at the latest, and at least this long. */
 export const HIRE_MIN_MIN = 240;
 /** Jef's cart must stand this near the goods to be lent to a hand. */

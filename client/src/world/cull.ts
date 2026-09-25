@@ -108,6 +108,11 @@ export interface CullerOptions {
   waterTop(): number;
   /** Culling off (the dev fly mode looks at everything). */
   paused?(): boolean;
+  /**
+   * M7 taverns and homes: no occlusion by the houses now (the eye is inside a city house: the house's own
+   * cells would hide the street seen out of its door and windows).
+   */
+  noOcclusion?(): boolean;
 }
 
 export class Culler {
@@ -214,12 +219,12 @@ export class Culler {
       Math.abs(fogFar - L.fog) > Math.max(0.5, L.fog * 0.02) ||
       passKey !== L.passes ||
       Math.abs(lamps - L.lamps) > 0.01 ||
-      this.occlusion !== L.occ ||
+      (this.occlusion && !this.opts.noOcclusion?.()) !== L.occ ||
       this.frameNo - L.frame >= EVERY ||
       rectKey !== L.rect;
     if (fresh) {
       this.evaluate(camera, eye, az, pitch, fogFar, passes, t0, rect);
-      this.lastEval = { x: eye.x, y: eye.y, z: eye.z, az, pitch, fog: fogFar, passes: passKey, lamps, frame: this.frameNo, occ: this.occlusion, rect: rectKey };
+      this.lastEval = { x: eye.x, y: eye.y, z: eye.z, az, pitch, fog: fogFar, passes: passKey, lamps, frame: this.frameNo, occ: this.occlusion && !this.opts.noOcclusion?.(), rect: rectKey };
     } else this.refresh();
     this.active = true;
     this.chainHook();
@@ -249,7 +254,7 @@ export class Culler {
     st.mirrors = {};
 
     // --- the occlusion horizons (main eye; the puddle mirror's eye below the ground)
-    const hf = this.occlusion ? this.hf : null;
+    const hf = this.occlusion && !this.opts.noOcclusion?.() ? this.hf : null;
     const wTop = this.opts.waterTop() + 0.6;
     let waterSeen = true;
     const occMain = !!hf;

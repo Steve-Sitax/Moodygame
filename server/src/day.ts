@@ -1,19 +1,24 @@
 import type { DB } from "./db.ts";
 import { log, player } from "./game.ts";
-import { remember } from "./npcs.ts";
 import { spreadRumours } from "./town/rumours.ts";
 import { endRide, ridePlace } from "./ride.ts";
 import { endRowNight, rowChillEvery, rowFood } from "./rowing.ts";
+import { TICK_MINUTES, TICK_EVERY_MS } from "../../shared/clock.ts";
+import { COLLAPSE_AT, sleepMinutes } from "../../shared/night.ts";
 
 // The day and the week (M5). The engine owns time and needs (docs/01, docs/03).
 // A client says "time passed while I played" with a tick; the server decides how
-// much, applies needs hour by hour, and ends the day at midnight at the latest.
+// much and applies needs hour by hour. M7 night (Steve 2026-09-25): the clock runs on
+// through the night; the date turns at midnight (turnDay); sleep is Jef's own choice and
+// lasts seven to eight game hours (sleep); dead tired, he drops where he stands.
 
-/** One tick = 5 real seconds = 15 game minutes. 6:00 to midnight = 6 real minutes. */
-export const TICK_MINUTES = 15;
-export const TICK_EVERY_MS = 5000;
+/**
+ * The tick (M7 clock, shared/clock.ts): 5 game minutes every 10 real seconds; a game hour is two
+ * real minutes, 6:00 to midnight 36 real minutes. (Before M7: 15 game minutes every 5 s.)
+ */
+export { TICK_MINUTES, TICK_EVERY_MS } from "../../shared/clock.ts";
 export const DAWN = 6;
-export const BEDTIME = 18; // from this hour on you may go to bed
+export const BEDTIME = 18; // the doss house lets its beds from this hour until dawn (DAWN)
 export const WEEK_DAYS = 7;
 export const RENT_C = 150; // a week's bed in the doss house, due by Sunday (day 7)
 
@@ -138,9 +143,74 @@ export function swim(db: DB, now = Date.now()): { cold: boolean } {
   return { cold: true };
 }
 
-export type TickResult = { advanced: boolean; night?: SleepResult; ended?: Ending };
+/**
+ * M7 night (Steve 2026-09-25): the date turns at midnight while Jef is up; nobody is sent to bed.
+ * `lines`: what the night's other work says (a note under the door about the rent of a room).
+ */
+export interface DayTurn {
+  /** The new day (or the last one, when the week ended). */
+  day: number;
+  lines: string[];
+  ended?: Ending;
+}
 
-/** Time passes while Jef plays. At most one tick per 4 s, whatever the client sends. */
+export type TickResult = {
+  advanced: boolean;
+  /** Jef dropped where he stood (sleep 0): the night he slept there. */
+  night?: SleepResult;
+  ended?: Ending;
+  /** The date turned at midnight on this tick. */
+  turned?: DayTurn;
+};
+
+/**
+ * Midnight: the date turns. The week's end, the rent of a room, the memories fading, a night of
+ * talk in the taverns, the day's money mark and the weather; the new board is the caller's
+ * (index.ts afterNight). After Sunday (day 7) there is no day 8: the week is over.
+ */
+export function turnDay(db: DB): DayTurn {
+  const c = clock(db);
+  const lines: string[] = [];
+  db.transaction(() => {
+    for (const h of NIGHT_HOOKS) lines.push(...h(db, c.day));
+    consolidate(db);
+    // a night of talk in the taverns and over the back walls (M3e)
+    for (let i = 0; i < 3; i++) spreadRumours(db);
+  })();
+  if (c.day >= WEEK_DAYS) return { day: c.day, lines, ended: endGame(db, "week") };
+  db.prepare("UPDATE player SET day = day + 1, hour = 0, minute = 0 WHERE id = 1").run();
+  markDayStart(db);
+  rollWeather(db);
+  return { day: c.day + 1, lines };
+}
+
+/**
+ * Let game time pass without the hourly needs (asleep, in the cell): the clock moves on by whole
+ * minutes, the date turns at each midnight on the way. Stops when the week ends.
+ */
+export function passTime(db: DB, minutes: number): { lines: string[]; turned: boolean; ended?: Ending } {
+  let left = Math.max(0, Math.round(minutes));
+  const lines: string[] = [];
+  let turned = false;
+  while (left > 0) {
+    const c = clock(db);
+    const toMidnight = (24 - c.hour) * 60 - c.minute;
+    if (left < toMidnight) {
+      const t = c.hour * 60 + c.minute + left;
+      db.prepare("UPDATE player SET hour = ?, minute = ? WHERE id = 1").run(Math.floor(t / 60), t % 60);
+      left = 0;
+    } else {
+      left -= toMidnight;
+      const t = turnDay(db);
+      turned = true;
+      lines.push(...t.lines);
+      if (t.ended) return { lines, turned, ended: t.ended };
+    }
+  }
+  return { lines, turned };
+}
+
+/** Time passes while Jef plays. At most one tick per TICK_EVERY_MS less a second (9 s), whatever the client sends. */
 export function tick(db: DB, now = Date.now()): TickResult {
   if (ending(db)) return { advanced: false };
   if (now - lastTickAt < TICK_EVERY_MS - 1000) return { advanced: false };
@@ -148,28 +218,54 @@ export function tick(db: DB, now = Date.now()): TickResult {
   const c = clock(db);
   let minute = c.minute + TICK_MINUTES;
   let hour = c.hour;
-  if (minute >= 60) {
-    minute -= 60;
-    hour++;
-    db.prepare("UPDATE player SET hour = ?, minute = ? WHERE id = 1").run(hour, minute);
-    const { healthZero } = applyHour(db, hour % 24);
-    // M3e: an hour of talk in the town; rumours about Jef pass on
-    spreadRumours(db);
-    if (healthZero) return { advanced: true, ended: endGame(db, "health") };
-    if (hour >= 24) return { advanced: true, night: sleep(db, "rough") };
-  } else db.prepare("UPDATE player SET minute = ? WHERE id = 1").run(minute);
-  return { advanced: true };
+  if (minute < 60) {
+    db.prepare("UPDATE player SET minute = ? WHERE id = 1").run(minute);
+    return { advanced: true };
+  }
+  minute -= 60;
+  hour++;
+  let turned: DayTurn | undefined;
+  if (hour >= 24) {
+    // M7 night: midnight turns the date; the clock runs on through the night
+    turned = turnDay(db);
+    if (turned.ended) return { advanced: true, ended: turned.ended, turned };
+    hour -= 24;
+  }
+  db.prepare("UPDATE player SET hour = ?, minute = ? WHERE id = 1").run(hour, minute);
+  const { healthZero } = applyHour(db, hour);
+  // M3e: an hour of talk in the town; rumours about Jef pass on
+  spreadRumours(db);
+  if (healthZero) return { advanced: true, ended: endGame(db, "health"), ...(turned ? { turned } : {}) };
+  // M7 night: dead on his feet, Jef drops where he stands and sleeps there (a gang may find him)
+  if (player(db).sleep <= COLLAPSE_AT) return { advanced: true, night: sleep(db, "rough", undefined, { collapsed: true }), ...(turned ? { turned } : {}) };
+  return { advanced: true, ...(turned ? { turned } : {}) };
+}
+
+/** Did this tick or night turn the date (a new board is due), or end the week? */
+export function newDayOf(r: { turned?: DayTurn | boolean; ended?: Ending; night?: SleepResult }): { due: boolean; ended?: Ending } {
+  const ended = r.ended ?? r.night?.ended ?? (typeof r.turned === "object" ? r.turned.ended : undefined);
+  const due = !!r.turned || !!r.night?.turned || !!ended;
+  return { due, ...(ended ? { ended } : {}) };
 }
 
 export interface SleepResult {
   where: "bed" | "rough" | "home";
   turnedAway: boolean;
   summary: string[];
+  /** The day he wakes on (or the last day, when the week ended in his sleep). */
   day: number;
   ended?: Ending;
   /** M6 homes: which home Jef slept in ("the garret in the Schipperskwartier"). */
   place?: string;
   home?: string;
+  /** M7 night: how long he slept (game minutes), when he woke, and whether the date turned meanwhile. */
+  slept_min: number;
+  wake: { day: number; hour: number; minute: number; weekday: string };
+  turned: boolean;
+  /** He dropped where he stood (sleep 0). */
+  collapsed?: boolean;
+  /** A gang went through his coat while he slept (night/gangs.ts): what it cost. */
+  robbed?: { money_c: number; things: string[] };
 }
 
 /**
@@ -187,10 +283,21 @@ export interface HomeNight {
 }
 
 /**
- * M6: other modules' night work (the rent of a home), run inside the night's transaction
- * before the memories fade. Each may add lines to the night sheet.
+ * M6: other modules' work at midnight (the rent of a home), run inside the date's turn before
+ * the memories fade. Each may add lines (shown at midnight, or on the night sheet if he sleeps).
  */
 export const NIGHT_HOOKS: Array<(db: DB, day: number) => string[]> = [];
+
+/**
+ * M7 night: other modules' say while Jef lies down (night/gangs.ts: a gang may go through the coat
+ * of a man asleep in the street). Run before the time passes; may add lines and a loss.
+ */
+export interface SleepInfo {
+  where: "bed" | "rough" | "home";
+  collapsed: boolean;
+  hour: number;
+}
+export const SLEEP_HOOKS: Array<(db: DB, s: SleepInfo) => { lines: string[]; robbed?: { money_c: number; things: string[] } } | null> = [];
 
 function startOfDayMoney(db: DB): number {
   const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'day_start_money'").get() as { value_json: string } | undefined;
@@ -203,30 +310,53 @@ export function markDayStart(db: DB): void {
   );
 }
 
+/** M7 night: how many times Jef has slept (the dream comes after a sleep, not at midnight). */
+export function nightsSlept(db: DB): number {
+  const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'nights_slept'").get() as { value_json: string } | undefined;
+  return row ? Number(JSON.parse(row.value_json)) || 0 : 0;
+}
+
+export function countNight(db: DB): void {
+  db.prepare("INSERT INTO world_state (key, value_json) VALUES ('nights_slept', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(JSON.stringify(nightsSlept(db) + 1));
+}
+
+const hhmm = (h: number, m: number) => `${h}:${String(m).padStart(2, "0")}`;
+
 /**
- * The night. In the doss house bed (after 18:00, rent paid or not yet due) or
- * rough on the quay. Needs change, memories fade, the day counter moves on.
+ * Jef lies down: in the doss house bed (from 18:00, rent paid or not yet due), in his own room, or
+ * rough wherever he is. He sleeps seven to eight game hours (shared/night.ts sleepMinutes: longer the
+ * more tired) and wakes on his own; the date turns at midnight on the way (turnDay). The needs are
+ * the night's, as before (M5). A job in hand stays in hand (M7 night: no job is lost to the night;
+ * only its own deadline counts).
  */
-export function sleep(db: DB, want: "bed" | "rough" | "home", home?: HomeNight): SleepResult {
+export function sleep(db: DB, want: "bed" | "rough" | "home", home?: HomeNight, opts: { collapsed?: boolean } = {}): SleepResult {
   const p = player(db);
   const c = clock(db);
   // Sunday night: no rent, no bed (docs/01)
   const turnedAway = want === "bed" && c.day >= WEEK_DAYS && !rentPaid(db);
   const where = turnedAway ? "rough" : want === "home" && !home ? "rough" : want;
+  const collapsed = !!opts.collapsed;
+  const minutes = sleepMinutes(p.sleep);
 
-  const jobsDone = (db.prepare("SELECT COUNT(*) n FROM log WHERE day = ? AND verb = 'finished_job'").get(c.day) as { n: number }).n;
-  // every meal: from the pocket, at a counter (ate), at a family's table (supper)
-  const meals = (db.prepare("SELECT COUNT(*) n FROM log WHERE day = ? AND verb IN ('ate', 'supper')").get(c.day) as { n: number }).n;
-  const earned = p.money_c - startOfDayMoney(db);
-  const summary = [
-    `${DAY_NAMES[(c.day - 1) % 7]} ends.`,
-    jobsDone ? `You worked ${jobsDone} job${jobsDone > 1 ? "s" : ""}.` : "You found no work today.",
-    earned > 0 ? `You are ${earned} centimes richer than this morning.` : earned < 0 ? `You spent ${-earned} centimes more than you earned.` : "You have what you had this morning.",
-    meals ? `You ate ${meals} time${meals > 1 ? "s" : ""}.` : "You ate nothing.",
-  ];
+  const summary: string[] = [];
+  if (collapsed) summary.push(`At ${hhmm(c.hour, c.minute)} your legs give way. You sleep where you drop.`);
+  else summary.push(`You lie down at ${hhmm(c.hour, c.minute)}.`);
+  // the day behind him, when he lies down in the evening (after midnight the new date has barely begun)
+  if (c.hour >= 12) {
+    const jobsDone = (db.prepare("SELECT COUNT(*) n FROM log WHERE day = ? AND verb = 'finished_job'").get(c.day) as { n: number }).n;
+    // every meal: from the pocket, at a counter (ate), at a family's table (supper)
+    const meals = (db.prepare("SELECT COUNT(*) n FROM log WHERE day = ? AND verb IN ('ate', 'supper')").get(c.day) as { n: number }).n;
+    const earned = p.money_c - startOfDayMoney(db);
+    summary.push(
+      jobsDone ? `You worked ${jobsDone} job${jobsDone > 1 ? "s" : ""} today.` : "You found no work today.",
+      earned > 0 ? `You are ${earned} centimes richer than this morning.` : earned < 0 ? `You spent ${-earned} centimes more than you earned.` : "You have what you had this morning.",
+      meals ? `You ate ${meals} time${meals > 1 ? "s" : ""}.` : "You ate nothing.",
+    );
+  }
 
+  let robbed: SleepResult["robbed"];
   db.transaction(() => {
-    endRide(db); // nobody rides the omnibus through the night
+    endRide(db); // nobody rides the omnibus in his sleep
     endRowNight(db); // nor rows: the waterman takes his boat back (M3j)
     if (where === "home" && home) {
       // M6 homes: your own room; the old food value decides the health, as in the doss house
@@ -236,42 +366,41 @@ export function sleep(db: DB, want: "bed" | "rough" | "home", home?: HomeNight):
       summary.push(home.text);
     } else if (where === "bed") {
       db.prepare("UPDATE player SET sleep = 10, food = MAX(0, food - 2), warmth = MIN(10, warmth + 3), health = MIN(10, health + CASE WHEN food >= 3 THEN 1 ELSE 0 END) WHERE id = 1").run();
-      summary.push(turnedAway ? "" : "You sleep in a bed of straw in the doss house, six men to the room. It is warm enough.");
+      summary.push("You sleep in a bed of straw in the doss house, six men to the room. It is warm enough.");
     } else {
       db.prepare("UPDATE player SET sleep = 6, food = MAX(0, food - 2), warmth = MAX(0, warmth - 3), health = MAX(0, health - 2) WHERE id = 1").run();
       summary.push(
         turnedAway
           ? "The landlady will not open the door. No rent, no bed. You sleep on the quay under a tarpaulin, and the fog gets into your bones."
-          : "You never made it home. You sleep on the quay under a tarpaulin, and the fog gets into your bones.",
+          : collapsed
+            ? "You sleep on the cold stones in your coat, and the damp gets into your bones."
+            : "You sleep rough under a tarpaulin, and the fog gets into your bones.",
       );
     }
-    // a job still in hand at night is a job not done: the employer marks it failed
-    const open = db.prepare("SELECT id, title, employer_npc FROM job WHERE status = 'taken'").all() as Array<{ id: number; title: string; employer_npc: string }>;
-    for (const j of open) {
-      db.prepare("UPDATE job SET status = 'failed' WHERE id = ?").run(j.id);
-      db.prepare("DELETE FROM item WHERE job_id = ?").run(j.id);
-      log(db, "abandoned_job", String(j.id), `Jef left the job "${j.title}" undone when night fell.`);
-      const boss = (db.prepare("SELECT name FROM npc WHERE id = ?").get(j.employer_npc) as { name: string } | undefined)?.name ?? "his employer";
-      remember(db, j.employer_npc, `Jef took my job "${j.title}" and left it undone when night fell.`, 5, "seen", null, { gist: `Jef left a job for ${boss} undone`, tone: -1 });
+    for (const h of SLEEP_HOOKS) {
+      const r = h(db, { where, collapsed, hour: c.hour });
+      if (!r) continue;
+      summary.push(...r.lines);
+      if (r.robbed) robbed = r.robbed;
     }
-    if (open.length) summary.push(`You left ${open.length === 1 ? "a job" : open.length + " jobs"} undone. Nobody pays for that.`);
     if (where === "home" && home) log(db, "slept_home", home.id, `Jef slept in his own room, ${home.label}.`);
-    else log(db, where === "bed" ? "slept" : "slept_rough", null, where === "bed" ? "Jef slept in the doss house." : "Jef slept rough on the quay.");
-    for (const h of NIGHT_HOOKS) summary.push(...h(db, c.day));
-    consolidate(db);
-    // a night of talk in the taverns and over the back walls (M3e)
-    for (let i = 0; i < 3; i++) spreadRumours(db);
+    else if (collapsed) log(db, "collapsed_asleep", null, "Jef dropped from tiredness in the street and slept where he fell.");
+    else log(db, where === "bed" ? "slept" : "slept_rough", null, where === "bed" ? "Jef slept in the doss house." : "Jef slept rough.");
+    countNight(db);
   })();
 
-  const after = player(db);
+  // the time passes; the date turns at midnight on the way
+  const passed = passTime(db, minutes);
+  summary.push(...passed.lines);
+  const w = clock(db);
+  const wake = { day: w.day, hour: w.hour, minute: w.minute, weekday: w.weekday };
   const at = where === "home" && home ? { place: home.label, home: home.id } : {};
-  if (after.health === 0) return { where, turnedAway, summary: summary.filter(Boolean), day: c.day, ended: endGame(db, "health"), ...at };
-  if (c.day >= WEEK_DAYS) return { where, turnedAway, summary: summary.filter(Boolean), day: c.day, ended: endGame(db, "week"), ...at };
-
-  db.prepare("UPDATE player SET day = day + 1, hour = ?, minute = 0 WHERE id = 1").run(DAWN);
-  markDayStart(db);
-  rollWeather(db);
-  return { where, turnedAway, summary: summary.filter(Boolean), day: c.day + 1, ...at };
+  const base = { where, turnedAway, day: w.day, slept_min: minutes, wake, turned: passed.turned, ...(collapsed ? { collapsed } : {}), ...(robbed ? { robbed } : {}), ...at } as const;
+  const after = player(db);
+  if (after.health === 0) return { ...base, summary: summary.filter(Boolean), ended: ending(db) ?? endGame(db, "health") };
+  if (passed.ended) return { ...base, summary: summary.filter(Boolean), ended: passed.ended };
+  summary.push(`You wake at ${hhmm(w.hour, w.minute)}, ${w.weekday}, after ${Math.floor(minutes / 60)} hours${minutes % 60 ? ` and ${minutes % 60} minutes` : ""}.`);
+  return { ...base, summary: summary.filter(Boolean) };
 }
 
 /**

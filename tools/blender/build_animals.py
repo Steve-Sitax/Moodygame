@@ -153,7 +153,7 @@ CAT_J = mirror({
 CAT_TOE = {"front": (0.075, 0.0), "hind": (-0.125, 0.0)}
 
 SPECIES = {
-    "dog": dict(J=DOG_J, toe=DOG_TOE, tail=["tail1", "tail2"], tail_dir=DOG_TAIL_DIR, tail_len=0.30),
+    "dog": dict(J=DOG_J, toe=DOG_TOE, tail=["tail1", "tail2"], tail_dir=DOG_TAIL_DIR, tail_len=0.27),
     "cat": dict(J=CAT_J, toe=CAT_TOE, tail=["tail1", "tail2", "tail3"], tail_dir=CAT_TAIL_DIR, tail_len=0.27),
 }
 for _sp in SPECIES.values():
@@ -163,9 +163,12 @@ for _sp in SPECIES.values():
 # ---------------------------------------------------------------- variants
 
 VARIANTS = [
-    dict(name="dog_brown", sp="dog", k=1.0, girth=1.0, legw=1.0, snout=1.0, ears="flop",
-         base=0x7a5232, back=0x4a301c, belly=0xb08c60, muzzle=0x3a2818, ear_col=0x3e2818,
-         eye=0x24160c, nose=0x141010),
+    # a farm mongrel (2026-09-24: it read as an otter): a white chest and toes, a shorter
+    # muzzle and a lighter tan over the plain brown (with all dogs: a bigger head, broad drop
+    # ears, a fuller tail carried up, a shorter rump)
+    dict(name="dog_brown", sp="dog", k=1.0, girth=1.0, legw=1.0, snout=0.88, ears="flop",
+         base=0x8a5c34, back=0x4e321c, belly=0xc8a476, muzzle=0x3a2818, ear_col=0x3e2818,
+         blaze=0xdcd2bc, eye=0x24160c, nose=0x141010),
     dict(name="dog_black", sp="dog", k=1.0, girth=0.97, legw=1.0, snout=0.95, ears="prick",
          base=0x201e1c, back=0x141312, belly=0x34302c, muzzle=0x4a4640, blaze=0xb4ac9e,
          eye=0x5a3a18, nose=0x0c0c0c),
@@ -337,8 +340,8 @@ def trunk_rings(v):
     g = v["girth"]
     if sp == "dog":
         rows = [  # z, y, ra, rb (back), rbb (belly)
-            (-0.385, 0.405, 0.035, 0.03, 0.035),
-            (-0.35, 0.405, 0.085, 0.06, 0.09),
+            (-0.35, 0.412, 0.04, 0.035, 0.04),
+            (-0.325, 0.41, 0.088, 0.064, 0.092),
             (-0.24, 0.40, 0.098, 0.075, 0.10),
             (-0.09, 0.39, 0.092, 0.08, 0.085),
             (0.05, 0.395, 0.112, 0.095, 0.155),
@@ -397,10 +400,13 @@ def head_rings(v):
         ]
         cap = (0, 0.0, 0.008)
     rs = []
+    # dogs: a broader, higher skull than the muzzle (a dog's head reads by its stop)
+    skull = 1.12 if sp == "dog" else 1.0
     for z, y, ra, rb, rbb in rows:
+        big = skull if z <= stop else 1.0
         if z > stop:
             z = stop + (z - stop) * s
-        rs.append(ring(0, y, z, ra * (0.94 if s > 1.1 else 1.0), rb, rbb, w="head"))
+        rs.append(ring(0, y, z, ra * big * (0.94 if s > 1.1 else 1.0), rb * big, rbb, w="head"))
     return rs, (cap[0], cap[1], cap[2] * s)
 
 
@@ -413,8 +419,9 @@ def tail_rings(v):
     names = spd["tail"]
     seg = [J[n] for n in names]
     if v["sp"] == "dog":
-        pts = [(0.0, 0.032, "tail1"), (0.065, 0.03, "tail1"), (0.13, 0.026, blend("tail1", "tail2", 0.5)),
-               (0.21, 0.02, "tail2"), (L, 0.008, "tail2")]
+        # a brush, not a thin whip
+        pts = [(0.0, 0.04, "tail1"), (0.065, 0.04, "tail1"), (0.13, 0.036, blend("tail1", "tail2", 0.5)),
+               (0.21, 0.028, "tail2"), (L, 0.012, "tail2")]
     else:
         pts = [(0.0, 0.017, "tail1"), (0.09, 0.0155, blend("tail1", "tail2", 0.5)),
                (0.18, 0.0145, blend("tail2", "tail3", 0.5)), (0.235, 0.0135, "tail3"), (L, 0.009, "tail3")]
@@ -465,6 +472,10 @@ def ear_parts(v, S):
     if kind == "cat":
         wdt, dep = 0.016, 0.012
         tip = (bx + sg * 0.01, by + 0.034, bz - 0.004)
+    elif kind == "flop":
+        # broad drop ears that frame the head (thin ones vanished into it)
+        wdt, dep = 0.05, 0.034
+        tip = (bx + sg * 0.078, by - 0.085, bz + 0.024)
     else:
         wdt, dep = 0.036, 0.024
         tip = {"prick": (bx + sg * 0.018, by + 0.085, bz - 0.006),
@@ -998,7 +1009,7 @@ def dog_idle(ps, t):
     look = 16 * math.sin(p) * math.sin(0.5 * p) ** 2 - 6 * math.sin(2 * p) * math.cos(p) ** 2
     ps.q["head"] = RZ(look) @ ps.q["head"]
     wag = 26 * math.sin(6 * p)
-    ps.tail([28, 12], [wag * 0.6, wag])
+    ps.tail([50, 22], [wag * 0.6, wag])
     flick = max(0.0, math.sin(2 * p + 2.0)) ** 8
     ps.q["earL"] = RX(-14 * flick)
     ps.q["earR"] = RY(10 * flick)
@@ -1013,7 +1024,7 @@ def dog_walk(ps, t):
     ps.q["hips"] = RY(2.5 * math.sin(p)) @ ps.q["hips"]
     ps.q["head"] = RZ(3 * math.sin(p)) @ ps.q["head"]
     wag = 20 * math.sin(2 * p)
-    ps.tail([35, 15], [wag * 0.6, wag])
+    ps.tail([62, 28], [wag * 0.6, wag])
 
 
 def dog_run(ps, t):
@@ -1021,7 +1032,7 @@ def dog_run(ps, t):
     f = math.cos(2 * math.pi * (t - 0.08))  # +1 gathered (spine arched), -1 stretched
     ps.body(hips=-7 * f, spine=6 * f, chest=5 * f, neck=-12 - 5 * f, head=10)
     legs_gait(ps, t, G, flick=90.0, zshift=dict(front=0.04, hind=0.02))
-    ps.tail([50 + 8 * f, 5 - 10 * f])
+    ps.tail([58 + 8 * f, 12 - 10 * f])
 
 
 def dog_sniff(ps, t):
@@ -1034,7 +1045,7 @@ def dog_sniff(ps, t):
     ps.stand()
     ps.q["neck"] = RZ(14 * math.sin(p)) @ ps.q["neck"]
     ps.q["head"] = RZ(-6 * math.sin(p)) @ ps.q["head"]
-    ps.tail([20, 10], [12 * math.sin(p + 0.7), 18 * math.sin(p)])
+    ps.tail([55, 25], [12 * math.sin(p + 0.7), 18 * math.sin(p)])
 
 
 DROP = {}  # (species, clip) -> how far the game lowers the root (m, for k = 1)

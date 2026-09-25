@@ -186,12 +186,12 @@ describe("riding and the needs (engine numbers)", () => {
     expect(player(db).warmth).toBe(0);
   });
 
-  it("riding does not touch the clock: a tick is 15 minutes, on board or not", () => {
+  it("riding does not touch the clock: a tick is 5 minutes, on board or not", () => {
     const db = openDb(":memory:");
     set(db, "money_c = 50, hour = 9, minute = 0");
     board(db, "werf", "kaaien");
     tick(db, 10_000);
     const p = db.prepare("SELECT hour, minute FROM player WHERE id = 1").get() as { hour: number; minute: number };
-    expect(p).toEqual({ hour: 9, minute: 15 });
+    expect(p).toEqual({ hour: 9, minute: 5 });
   });
 });

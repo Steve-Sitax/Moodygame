@@ -3,6 +3,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { psx } from "../retro/psx";
+import { addCaster, removeCaster } from "../world/lanternLights";
 
 // The people of 1873 as rigged, textured low-poly models (tools/blender/build_people.py,
 // client/public/models/people.glb). Loaded once; each person is a clone with its own
@@ -175,6 +176,8 @@ export class Human {
     readonly scale = 1,
   ) {
     this.root = cloneSkinned(src);
+    // a lantern near them throws their shadow (world/lanternLights.ts picks the ones near a light)
+    addCaster(this.root);
     this.mixer = new THREE.AnimationMixer(this.root);
     const woman = WOMEN.has(kind);
     const own = OWN_CLIPS[kind] ?? (woman ? WOMEN_CLIPS : {});
@@ -281,6 +284,7 @@ export class Human {
   dispose(): void {
     this.mixer.stopAllAction();
     this.mixer.uncacheRoot(this.root);
+    removeCaster(this.root);
     this.root.removeFromParent();
   }
 }

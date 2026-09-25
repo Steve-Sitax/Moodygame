@@ -1,15 +1,18 @@
 import * as THREE from "three";
 import { psx, psxUniforms } from "../retro/psx";
 import type { FirstPerson } from "../player/firstPerson";
+import { addLantern, removeLantern, type LanternSource } from "../world/lanternLights";
+import { pick, type Target } from "./facing";
 
 // A lantern to carry (M3h). A tin hand lantern with horn panes and a tallow
 // candle: bought from a chandler, or taken from where people work (a dock gang's
 // lantern by the door, a stall's lamp, the lock men's lantern; town/deeds.ts). In
 // the pockets it is an item; held up (L) it shows in your right hand at the lower
-// right of the view and throws a warm light round you: a real point light (always
-// in the scene, so the light count never changes and no shader is rebuilt), and
-// the fog glow of one of the six psx lamp slots, borrowed from the gas lamp
-// farthest away. People see you coming (the theft rules count it).
+// right of the view and throws a warm light round you: first in the pool of real
+// lights for carried lanterns (world/lanternLights.ts), shadows and all, and the
+// fog glow of one of the six psx lamp slots, borrowed from the gas lamp farthest
+// away. People see you coming (the theft rules count it). The lanterns standing
+// about light the world the same way once it is dark.
 
 const WARM = 0xffb468;
 
@@ -78,6 +81,7 @@ interface Standing {
   halo: THREE.Sprite;
   x: number;
   z: number;
+  src: LanternSource;
 }
 
 export class HandLantern {
@@ -87,7 +91,8 @@ export class HandLantern {
   held = false;
   /** Hands full (goods, climbing): it goes down for now. */
   busy = false;
-  readonly light: THREE.PointLight;
+  /** Its light on the world: the pool's first (world/lanternLights.ts). */
+  readonly light: LanternSource;
   private readonly view: THREE.Group;
   private readonly viewGlass: THREE.Mesh;
   private readonly standing = new Map<string, Standing>();
@@ -102,8 +107,7 @@ export class HandLantern {
     private readonly scene: THREE.Scene,
     private readonly player: FirstPerson,
   ) {
-    this.light = new THREE.PointLight(WARM, 0, 10, 1.6);
-    scene.add(this.light);
+    this.light = addLantern({ own: true, power: 0 });
     const l = makeLantern();
     l.halo.visible = false; // your own lantern does not glare in your eyes
     this.view = l.group;
@@ -142,6 +146,7 @@ export class HandLantern {
     for (const [id, s] of this.standing) {
       if (!keep.has(id)) {
         this.scene.remove(s.group);
+        removeLantern(s.src);
         this.standing.delete(id);
       }
     }
@@ -152,17 +157,20 @@ export class HandLantern {
       m.group.rotation.y = (l.x * 7.1 + l.z * 3.3) % Math.PI;
       m.group.scale.setScalar(1.15);
       this.scene.add(m.group);
-      this.standing.set(l.id, { id: l.id, group: m.group, glass: m.glass, halo: m.halo, x: l.x, z: l.z });
+      const src = addLantern({ power: 0.9 });
+      src.pos.set(m.group.position.x, m.group.position.y + 0.11 * 1.15, m.group.position.z);
+      src.ground = m.group.position.y - 0.001;
+      this.standing.set(l.id, { id: l.id, group: m.group, glass: m.glass, halo: m.halo, x: l.x, z: l.z, src });
     }
   }
 
-  nearestStanding(x: number, z: number, reach = 1.6): { id: string; d: number } | null {
-    let best: { id: string; d: number } | null = null;
-    for (const s of this.standing.values()) {
+  /** The standing lantern within reach that Jef looks at (game/facing.ts). */
+  nearestStanding(x: number, z: number, reach = 1.6): { id: string; d: number; at: Target } | null {
+    const r = pick(this.standing.values(), (s) => {
       const d = Math.hypot(s.x - x, s.z - z);
-      if (d < reach && (!best || d < best.d)) best = { id: s.id, d };
-    }
-    return best;
+      return d < reach ? { d, at: { x: s.x, y: s.group.position.y + 0.2, z: s.z } } : null;
+    });
+    return r ? { id: r.it.id, d: r.d, at: r.at } : null;
   }
 
   standingList(): Array<{ id: string; x: number; z: number; y: number }> {
@@ -173,6 +181,7 @@ export class HandLantern {
     const s = this.standing.get(id);
     if (!s) return;
     this.scene.remove(s.group);
+    removeLantern(s.src);
     this.standing.delete(id);
   }
 
@@ -187,12 +196,14 @@ export class HandLantern {
       s.glass.material = this.dark > 0.3 ? P.horn : P.hornDark;
       s.halo.visible = this.dark > 0.3;
       s.halo.material.opacity = 0.5 * flick;
+      // (the pool scales it by the dark itself; a standing one is only lit after dark)
+      s.src.on = this.dark > 0.3 ? 1 : 0;
     }
     const on = this.lit;
     this.view.visible = on;
     this.viewGlass.material = this.dark > 0.2 || on ? P.horn : P.hornDark;
     if (!on) {
-      this.light.intensity = 0;
+      this.light.on = 0;
       return;
     }
     // it swings as you walk
@@ -207,8 +218,11 @@ export class HandLantern {
     const cam = p.camera;
     this.slotPos.set(0.3, -0.25, -0.5);
     cam.localToWorld(this.slotPos);
-    this.light.position.copy(this.slotPos);
-    this.light.intensity = (0.8 + 3.4 * this.dark) * flick;
+    this.light.pos.copy(this.slotPos);
+    this.light.ground = p.y;
+    this.light.on = 1;
+    // (the pool flickers it; 1 = a townsman's lantern at night)
+    this.light.power = (0.8 + 3.4 * this.dark) / 3.6;
     // borrow the psx lamp slot farthest from here for the glow in the fog
     const slots = psxUniforms.uLamps.value;
     let far = -1;
@@ -230,6 +244,6 @@ export class HandLantern {
 
   /** Dev: the state. */
   info() {
-    return { owned: this.owned, held: this.held, lit: this.lit, intensity: +this.light.intensity.toFixed(2), standing: this.standing.size };
+    return { owned: this.owned, held: this.held, lit: this.lit, power: +(this.light.power * this.light.level).toFixed(2), standing: this.standing.size };
   }
 }

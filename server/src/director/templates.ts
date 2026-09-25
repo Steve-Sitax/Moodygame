@@ -43,13 +43,16 @@ export const TEMPLATES: Template[] = [
     place: "cathedral_west",
     stages: [
       // M4b: the couple and the priest stand in the middle (Steve: "no groom, no bride")
-      stage({ op: "gather", minutes: 150, role: "guests", count: 35, place: "cathedral_west", mood: "joy", props: "flowers", leads: ["groom", "bride", "priest"] }),
-      // the bells bring the neighbourhood out to look (Steve: a wedding pulls 50 to 100)
-      stage({ op: "gather", minutes: 60, role: "crowd", count: 50, place: "cathedral_west", sound: "bells", mood: "joy", cues: [cue("cheer", 9, 1, 0.8), cue("applause", 14, 1, 0.6)] }),
-      stage({ op: "talk", minutes: 90, text: "the bride and the groom, and who paid for the dinner", mood: "joy", cues: [cue("laughter", 12, 1, 0.5)] }),
+      stage({ op: "gather", minutes: 30, role: "guests", count: 35, place: "cathedral_west", mood: "joy", props: "flowers", leads: ["groom", "bride", "priest"] }),
+      // M7 funeral fixes (the wedding "just stood there" at the door too): the priest leads the couple and the
+      // guests in; the vows at the altar rail with the organ; the onlookers wait outside on the square
+      stage({ op: "enter", minutes: 45, mood: "solemn", leads: ["priest", "groom", "bride"] }),
+      // out they come to the peal, and the neighbourhood cheers (Steve: a wedding pulls 50 to 100)
+      stage({ op: "gather", minutes: 15, role: "crowd", count: 50, place: "cathedral_west", sound: "bells", mood: "joy", cues: [cue("cheer", 9, 1, 0.8), cue("applause", 14, 1, 0.6)] }),
+      stage({ op: "talk", minutes: 15, text: "the bride and the groom, and who paid for the dinner", mood: "joy", cues: [cue("laughter", 12, 1, 0.5)] }),
       // the groom and the bride walk first, arm in arm; the priest stays at his church
-      stage({ op: "procession", minutes: 150, place: "engel", sound: "music", mood: "joy", leads: ["groom", "bride"], cues: [cue("cheer", 12, 1, 0.7), cue("fiddle", 10, 1, 0.6)] }),
-      stage({ op: "sound", minutes: 120, sound: "music", mood: "lively", cues: [cue("laughter", 15, 1, 0.5), cue("glass", 0, 1, 0.5)] }),
+      stage({ op: "procession", minutes: 40, place: "engel", sound: "music", mood: "joy", leads: ["groom", "bride"], cues: [cue("cheer", 12, 1, 0.7), cue("fiddle", 10, 1, 0.6)] }),
+      stage({ op: "sound", minutes: 30, sound: "music", mood: "lively", cues: [cue("laughter", 15, 1, 0.5), cue("glass", 0, 1, 0.5)] }),
     ],
     notice: "Banns read: {groom} and {bride} marry at the cathedral this morning; the wedding party dines at Den Engel.",
     rumour: "{groom} and {bride} were married at the cathedral, and the party drank Den Engel dry.",
@@ -61,14 +64,26 @@ export const TEMPLATES: Template[] = [
     id: "funeral",
     title: "A funeral",
     place: "house",
+    // M7 (Steve: "funeral is outside the church but nothing really happens further, it just stays there"):
+    // an Antwerp Catholic funeral of 1873 that plays out. The mourners gather at the widow's door (black
+    // cloth on a trestle); the coffin goes to the cathedral on the bearers' shoulders behind the priest
+    // (planEvent puts him at the head), the handbell before it and the big bell tolling the death knell;
+    // the priest (waiting at the west door) leads the coffin in; the requiem inside, the coffin on a bier
+    // before the choir, the organ, the mourners in the chairs (landmarks/life.ts); out again, the coffin
+    // on a black hearse to the Kiel cemetery with the widow and the family behind it, the rest standing
+    // about in small groups, talking low, and going home. M7 clock: 170 game minutes (was 600), under three
+    // game hours, about six real minutes (a game hour is two real minutes).
     stages: [
-      stage({ op: "gather", minutes: 150, role: "mourners", count: 30, place: "house", mood: "solemn", props: "black_cloth", leads: ["widow", "bearers"] }),
-      // the bearers with the coffin go first, the widow behind them
-      stage({ op: "procession", minutes: 180, place: "cathedral_west", sound: "handbell", mood: "solemn", leads: ["bearers", "widow"] }),
-      stage({ op: "gather", minutes: 120, role: "mourners", count: 8, place: "cathedral_west", sound: "murmur", mood: "solemn", leads: ["priest"] }),
+      stage({ op: "gather", minutes: 30, role: "mourners", count: 30, place: "house", mood: "solemn", props: "black_cloth", leads: ["widow", "bearers"] }),
+      // the bearers with the coffin go first, the widow behind them; the knell from the tower
+      stage({ op: "procession", minutes: 40, place: "cathedral_west", sound: "handbell", mood: "solemn", leads: ["bearers", "widow"], cues: [cue("bell", 8, 0.7, 0.75)] }),
+      // the priest meets the coffin at the door and leads it in: the requiem
+      stage({ op: "enter", minutes: 60, mood: "solemn", leads: ["priest"] }),
+      // the hearse to the Kiel cemetery, the widow and the family behind it; the rest go home
+      stage({ op: "depart", minutes: 40, place: "kiel_road", sound: "murmur", mood: "solemn", leads: ["bearers", "widow"] }),
     ],
-    notice: "A death in the parish: the funeral goes to the cathedral this morning; {widow} walks behind the coffin.",
-    rumour: "They buried a neighbour from the cathedral; {bearers} carried the coffin, {widow} walked behind it, and half the street after her.",
+    notice: "A death in the parish: the funeral goes to the cathedral this morning, where {priest} says the requiem, then to the Kiel cemetery; {widow} walks behind the coffin.",
+    rumour: "A requiem at the cathedral, said by {priest}; then the hearse to the Kiel cemetery, {widow} walking behind her husband's coffin.",
     fits: (d, h) => weekday(d) !== 7 && h >= 8 && h < 12,
     weight: 1,
     oncePerDay: true,
@@ -78,8 +93,8 @@ export const TEMPLATES: Template[] = [
     title: "Street musicians",
     place: "steenplein",
     stages: [
-      stage({ op: "gather", minutes: 60, count: 0, place: "steenplein", mood: "lively", leads: ["organ_grinder", "fiddler", "accordionist"] }),
-      stage({ op: "gather", minutes: 180, role: "crowd", count: 30, place: "steenplein", sound: "music", mood: "lively", cues: [cue("fiddle", 9, 1, 0.7), cue("applause", 22, 1, 0.5), cue("laughter", 18, 1, 0.4)] }),
+      stage({ op: "gather", minutes: 15, count: 0, place: "steenplein", mood: "lively", leads: ["organ_grinder", "fiddler", "accordionist"] }),
+      stage({ op: "gather", minutes: 90, role: "crowd", count: 30, place: "steenplein", sound: "music", mood: "lively", cues: [cue("fiddle", 9, 1, 0.7), cue("applause", 22, 1, 0.5), cue("laughter", 18, 1, 0.4)] }),
     ],
     notice: "Street music on the Steenplein: {organ_grinder} with his barrel organ, {fiddler} with a fiddle and {accordionist} with his accordion.",
     rumour: "{organ_grinder}, {fiddler} and {accordionist} played on the Steenplein and a crowd stood round them till the police moved them on.",
@@ -93,9 +108,9 @@ export const TEMPLATES: Template[] = [
     place: "rijnkaai",
     stages: [
       stage({ op: "notice", minutes: 5, text: "Red Star Line: passage to America. The Kempenland lies at anchor in the stream; lighters take her emigrants out from the Rijnkaai today." }),
-      stage({ op: "gather", minutes: 150, role: "crowd", count: 20, place: "rijnkaai", sound: "murmur", mood: "curious", props: "crates", cues: [cue("clatter", 8, 0.8, 0.6), cue("ship_bell", 30, 1, 0.5)] }),
+      stage({ op: "gather", minutes: 90, role: "crowd", count: 20, place: "rijnkaai", sound: "murmur", mood: "curious", props: "crates", cues: [cue("clatter", 8, 0.8, 0.6), cue("ship_bell", 30, 1, 0.5)] }),
       stage({ op: "job", minutes: 5, text: "Carry the emigrants' chests down to the lighter" }),
-      stage({ op: "gather", minutes: 150, role: "family", count: 6, place: "rijnkaai", sound: "murmur", mood: "solemn", cues: [cue("cry", 20, 1, 0.5), cue("steam_whistle", 40, 1, 0.6)] }),
+      stage({ op: "gather", minutes: 60, role: "family", count: 6, place: "rijnkaai", sound: "murmur", mood: "solemn", cues: [cue("cry", 20, 1, 0.5), cue("steam_whistle", 40, 1, 0.6)] }),
     ],
     notice: "Red Star Line: passage to America. The Kempenland lies at anchor in the stream; lighters take her emigrants out from the Rijnkaai today.",
     rumour: "The lighters took a shipload of emigrants out to the Kempenland at anchor, bound for America; whole families with their chests.",
@@ -110,8 +125,8 @@ export const TEMPLATES: Template[] = [
     stages: [
       stage({ op: "price", minutes: 5, item: "herring", factor: 0.8 }),
       // the auctioneer in the middle with his handbell and his board
-      stage({ op: "gather", minutes: 120, role: "sellers", count: 4, place: "vismarkt", sound: "handbell", mood: "lively", leads: ["auctioneer"], cues: [cue("shout", 6, 0.9, 0.8), cue("clatter", 14, 1, 0.5)] }),
-      stage({ op: "gather", minutes: 150, role: "crowd", count: 16, place: "vismarkt", sound: "murmur", mood: "lively", props: "barrels", cues: [cue("shout", 7, 1, 0.7), cue("laughter", 20, 1, 0.4)] }),
+      stage({ op: "gather", minutes: 45, role: "sellers", count: 4, place: "vismarkt", sound: "handbell", mood: "lively", leads: ["auctioneer"], cues: [cue("shout", 6, 0.9, 0.8), cue("clatter", 14, 1, 0.5)] }),
+      stage({ op: "gather", minutes: 60, role: "crowd", count: 16, place: "vismarkt", sound: "murmur", mood: "lively", props: "barrels", cues: [cue("shout", 7, 1, 0.7), cue("laughter", 20, 1, 0.4)] }),
     ],
     notice: "Fish auction at the Vismarkt this morning: {auctioneer} rings the bell.",
     rumour: "The herring went cheap at the auction of {auctioneer} this morning; the boats came in full.",
@@ -124,10 +139,10 @@ export const TEMPLATES: Template[] = [
     title: "A quarrel at the market",
     place: "grote_markt",
     stages: [
-      stage({ op: "gather", minutes: 60, count: 0, place: "grote_markt", mood: "tense", leads: ["quarreller", "quarreller"] }),
-      stage({ op: "talk", minutes: 90, text: "whose pitch it is and who owes whom", mood: "tense", leads: ["quarreller", "quarreller"], cues: [cue("shout", 8, 1, 0.7)] }),
-      stage({ op: "gather", minutes: 90, role: "crowd", count: 14, place: "grote_markt", sound: "murmur", mood: "tense", cues: [cue("shout", 9, 1.1, 0.6), cue("dog", 25, 1, 0.4)] }),
-      stage({ op: "gather", minutes: 90, role: "police", count: 2, place: "grote_markt", mood: "tense" }),
+      stage({ op: "gather", minutes: 15, count: 0, place: "grote_markt", mood: "tense", leads: ["quarreller", "quarreller"] }),
+      stage({ op: "talk", minutes: 20, text: "whose pitch it is and who owes whom", mood: "tense", leads: ["quarreller", "quarreller"], cues: [cue("shout", 8, 1, 0.7)] }),
+      stage({ op: "gather", minutes: 20, role: "crowd", count: 14, place: "grote_markt", sound: "murmur", mood: "tense", cues: [cue("shout", 9, 1.1, 0.6), cue("dog", 25, 1, 0.4)] }),
+      stage({ op: "gather", minutes: 20, role: "police", count: 2, place: "grote_markt", mood: "tense" }),
     ],
     notice: "",
     rumour: "{quarreller} came to words on the Grote Markt and the police had to step in.",
@@ -141,9 +156,9 @@ export const TEMPLATES: Template[] = [
     title: "A scuffle on the Vismarkt",
     place: "vismarkt",
     stages: [
-      stage({ op: "gather", minutes: 60, count: 0, place: "vismarkt", mood: "tense", leads: ["drunkard", "quarreller"] }),
-      stage({ op: "scuffle", minutes: 150, text: "a spilled jug of beer", mood: "tense", sound: "murmur", leads: ["drunkard", "quarreller"], cues: [cue("glass", 0, 1, 0.7), cue("shout", 7, 0.9, 0.8)] }),
-      stage({ op: "gather", minutes: 90, role: "crowd", count: 12, place: "vismarkt", sound: "murmur", mood: "tense" }),
+      stage({ op: "gather", minutes: 15, count: 0, place: "vismarkt", mood: "tense", leads: ["drunkard", "quarreller"] }),
+      stage({ op: "scuffle", minutes: 30, text: "a spilled jug of beer", mood: "tense", sound: "murmur", leads: ["drunkard", "quarreller"], cues: [cue("glass", 0, 1, 0.7), cue("shout", 7, 0.9, 0.8)] }),
+      stage({ op: "gather", minutes: 20, role: "crowd", count: 12, place: "vismarkt", sound: "murmur", mood: "tense" }),
     ],
     notice: "",
     rumour: "",
@@ -156,9 +171,9 @@ export const TEMPLATES: Template[] = [
     title: "A purse snatched on the Grote Markt",
     place: "grote_markt",
     stages: [
-      stage({ op: "gather", minutes: 60, count: 0, place: "grote_markt", mood: "calm", leads: ["victim", "pickpocket"] }),
-      stage({ op: "robbery", minutes: 150, mood: "tense", leads: ["pickpocket", "victim"] }),
-      stage({ op: "gather", minutes: 90, role: "crowd", count: 10, place: "grote_markt", sound: "murmur", mood: "tense" }),
+      stage({ op: "gather", minutes: 15, count: 0, place: "grote_markt", mood: "calm", leads: ["victim", "pickpocket"] }),
+      stage({ op: "robbery", minutes: 30, mood: "tense", leads: ["pickpocket", "victim"] }),
+      stage({ op: "gather", minutes: 20, role: "crowd", count: 10, place: "grote_markt", sound: "murmur", mood: "tense" }),
     ],
     notice: "",
     rumour: "",
@@ -175,18 +190,81 @@ export const TEMPLATES: Template[] = [
     place: "fire_house",
     stages: [
       // the alarm bell: the client rings it from the cathedral tower (game/townlife.ts), heard across the town
-      stage({ op: "sound", minutes: 45, sound: "none", mood: "tense" }),
-      stage({ op: "gather", minutes: 60, role: "crowd", count: 40, sound: "murmur", mood: "tense", cues: [cue("crackle", 4, 1, 0.8), cue("shout", 9, 1, 0.7)] }),
-      stage({ op: "gather", minutes: 150, role: "family", count: 45, sound: "murmur", mood: "tense", cues: [cue("crackle", 4, 1, 0.8), cue("pump", 8, 1, 0.7), cue("horse", 24, 1, 0.5), cue("shout", 10, 1, 0.6)] }),
-      stage({ op: "sound", minutes: 120, sound: "murmur", mood: "solemn", cues: [cue("crackle", 8, 0.8, 0.4), cue("cry", 30, 1, 0.4)] }),
+      stage({ op: "sound", minutes: 15, sound: "none", mood: "tense" }),
+      stage({ op: "gather", minutes: 20, role: "crowd", count: 40, sound: "murmur", mood: "tense", cues: [cue("crackle", 4, 1, 0.8), cue("shout", 9, 1, 0.7)] }),
+      stage({ op: "gather", minutes: 60, role: "family", count: 45, sound: "murmur", mood: "tense", cues: [cue("crackle", 4, 1, 0.8), cue("pump", 8, 1, 0.7), cue("horse", 24, 1, 0.5), cue("shout", 10, 1, 0.6)] }),
+      stage({ op: "sound", minutes: 40, sound: "murmur", mood: "solemn", cues: [cue("crackle", 8, 0.8, 0.4), cue("cry", 30, 1, 0.4)] }),
     ],
     acts: ["fire_start", "fire_brigade", "fire_chain", "fire_down"],
     notice: "",
     rumour: "",
-    fits: (_d, h) => h >= 9 && h < 20,
+    // M7 night: a fire in the night too, when the street wakes to the bell (never within an hour of 5:00)
+    fits: (_d, h) => (h >= 9 && h < 20) || h >= 22 || h < 3,
     weight: 0.4,
     oncePerDay: true,
     gapDays: 3,
+  },
+  // M7 night (Steve 2026-09-25: "Nights are good for robbers and other shady events"): the night's own
+  // events, small (the honest town is abed; scheduler.ts NIGHT_GATHER_MAX), from 22:00, over by 5:00
+  {
+    id: "tavern_brawl",
+    title: "A scuffle at closing time",
+    place: "tavern:vliet",
+    stages: [
+      stage({ op: "gather", minutes: 15, count: 0, place: "tavern:vliet", mood: "tense", leads: ["drunkard", "quarreller"], cues: [cue("laughter", 14, 0.9, 0.4)] }),
+      stage({ op: "scuffle", minutes: 25, text: "a spilled jug and a debt from last week", mood: "tense", sound: "murmur", leads: ["drunkard", "quarreller"], cues: [cue("glass", 0, 1, 0.8), cue("shout", 7, 0.9, 0.8)] }),
+      stage({ op: "gather", minutes: 20, role: "crowd", count: 6, place: "tavern:vliet", sound: "murmur", mood: "tense", cues: [cue("dog", 20, 1, 0.4)] }),
+    ],
+    notice: "",
+    rumour: "{drunkard} and {quarreller} came to shoving outside De Vliet at closing time, and the police had to part them.",
+    fits: (_d, h) => h >= 22 || h < 2,
+    weight: 2,
+    oncePerDay: true,
+  },
+  {
+    id: "burglary",
+    title: "A break-in in the back lane",
+    place: "back_lane",
+    stages: [
+      stage({ op: "gather", minutes: 20, count: 0, place: "back_lane", mood: "tense", leads: ["pickpocket"], cues: [cue("glass", 0, 1.1, 0.6), cue("dog", 12, 1, 0.5)] }),
+      stage({ op: "gather", minutes: 25, role: "police", count: 2, place: "back_lane", mood: "tense", cues: [cue("whistle", 9, 1, 0.8), cue("shout", 15, 1, 0.5)] }),
+      stage({ op: "gather", minutes: 20, role: "crowd", count: 5, place: "back_lane", sound: "murmur", mood: "curious" }),
+    ],
+    notice: "",
+    rumour: "Somebody forced a back window in the back lane in the night; the police came with their lanterns, and {pickpocket} was seen in the lane.",
+    fits: (_d, h) => h >= 23 || h < 4,
+    weight: 2,
+    oncePerDay: true,
+  },
+  {
+    id: "smuggling",
+    title: "Goods landed on the Werf by night",
+    place: "werf",
+    stages: [
+      stage({ op: "gather", minutes: 20, count: 0, place: "werf", mood: "tense", props: "crates", leads: ["smuggler", "smuggler"], cues: [cue("chain", 18, 0.8, 0.4), cue("clatter", 11, 0.9, 0.5)] }),
+      stage({ op: "talk", minutes: 15, text: "the tide, the water police, and who takes the crates up to the Steen", mood: "tense", leads: ["smuggler", "smuggler"] }),
+      stage({ op: "sound", minutes: 25, sound: "murmur", mood: "tense", cues: [cue("clatter", 9, 0.9, 0.5), cue("ship_bell", 35, 0.8, 0.3)] }),
+    ],
+    notice: "",
+    rumour: "Crates came ashore on the Werf in the middle of the night, and nobody paid the customs a centime for them.",
+    fits: (_d, h) => h >= 23 || h < 4,
+    weight: 1.5,
+    oncePerDay: true,
+  },
+  {
+    id: "night_watch",
+    title: "The night watch goes its round",
+    place: "vismarkt",
+    stages: [
+      stage({ op: "gather", minutes: 15, role: "police", count: 2, place: "vismarkt", mood: "calm", cues: [cue("whistle", 30, 1, 0.5)] }),
+      stage({ op: "procession", minutes: 35, place: "steenplein", mood: "calm", cues: [cue("handbell", 25, 0.9, 0.4)] }),
+      stage({ op: "gather", minutes: 20, role: "police", count: 2, place: "steenplein", mood: "calm" }),
+    ],
+    notice: "",
+    rumour: "",
+    fits: (_d, h) => h >= 22 || h < 4,
+    weight: 2,
+    oncePerDay: false,
   },
   // M6 town life: the naties hire day men at dawn (director/hiring.ts); planned by the engine every
   // working morning, never picked at random, not one of the day's four events
@@ -195,8 +273,8 @@ export const TEMPLATES: Template[] = [
     title: "The naties hire at dawn",
     place: "rijnkaai",
     stages: [
-      // fixes 2026-09-24: the men gather from 5:00, the call stays at about 6:20 (80 minutes: a game hour is
-      // 20 s of play, and 50 minutes was too short for the men to walk to the gates in time)
+      // fixes 2026-09-24: the men gather from 5:00, the call stays at about 6:20 (80 minutes; M7 clock: kept,
+      // it is the naties' own hour, and the men have 160 real seconds to walk to the gates now)
       stage({ op: "gather", minutes: 80, role: "family", count: 30, sound: "murmur", mood: "calm", cues: [cue("clatter", 15, 0.9, 0.4)] }),
       stage({ op: "sound", minutes: 60, sound: "murmur", mood: "lively", cues: [cue("shout", 8, 0.9, 0.7)] }),
     ],

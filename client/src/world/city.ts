@@ -175,7 +175,8 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
       g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
       g.computeVertexNormals();
       const mat = psx(
-        new THREE.MeshLambertMaterial({ map: edgeStoneTexture(), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8 }),
+        // no depth written: where two runs of edge stones cross they would fight each other (z-fight check)
+        new THREE.MeshLambertMaterial({ map: edgeStoneTexture(), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8, depthWrite: false }),
         { noSnap: true, affine: 0, wet: true },
       );
       const seam = new THREE.Mesh(g, mat);
@@ -300,7 +301,7 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
   // --- houses from Blender
   // both sides drawn: a wall seen from behind (a party wall, a gable back) is never a hole
   const DS = THREE.DoubleSide;
-  const facade = psx(new THREE.MeshLambertMaterial({ map: facadeAtlas(), vertexColors: true, side: DS }), { atlas: 4, affine: 0 });
+  const facade = psx(new THREE.MeshLambertMaterial({ map: facadeAtlas(), vertexColors: true, side: DS }), { atlas: 8, affine: 0 });
   const roof = psx(new THREE.MeshLambertMaterial({ map: roofAtlas(), vertexColors: true, side: DS }), { atlas: 2, affine: 0 });
   const wood = psx(new THREE.MeshLambertMaterial({ map: makeTextures().planks, vertexColors: true, side: DS }), { affine: 0.2 });
   const leaves = psx(new THREE.MeshLambertMaterial({ map: leafTexture(), vertexColors: true, side: DS }), { affine: 0 });

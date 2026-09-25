@@ -11,6 +11,7 @@ import type { JobsPayload } from "../net/api";
 import type { Jobs } from "./jobs";
 import type { Deeds } from "./deeds";
 import type { Action } from "./runs";
+import { nearestAim, type Target } from "./facing";
 import type { MapMark } from "./map";
 import { makeHuman, type Human, type HumanKind } from "./humans";
 
@@ -394,7 +395,7 @@ export class Rowing {
         const mine = l.key === "mine" || w.boats.some((b) => b.id === l.key && b.mine);
         if (!mine) continue;
         const d = this.distToHull(l, x, z);
-        if (d < 1.4) options.push([d, { key: "KeyE", text: "climb into the boat", run: () => void this.board(l) }]);
+        if (d < 1.4) options.push([d, { key: "KeyE", text: "climb into the boat", run: () => void this.board(l), at: this.hullAt(l) }]);
       }
       return { options };
     }
@@ -409,20 +410,28 @@ export class Rowing {
       if (!l || d > (flooded ? 4.8 : 2.4)) continue;
       const what = L.kind === "punt" ? "a punt" : "a rowing boat";
       const debt = w.debt_c ? `, and the ${w.debt_c} c you owe` : "";
-      options.push([d, { key: "KeyE", text: w.hire ? `hire ${what} (you have one out already)` : `hire ${what} from ${L.waterman} (${w.fees.hire_c} c${debt})`, run: () => void this.hire(L) }]);
+      options.push([d, { key: "KeyE", text: w.hire ? `hire ${what} (you have one out already)` : `hire ${what} from ${L.waterman} (${w.fees.hire_c} c${debt})`, run: () => void this.hire(L), at: this.hullAt(l) }]);
     }
     for (const l of this.lying.values()) {
       if (l.key.startsWith("berth:")) continue;
       const d = this.distToHull(l, x, z);
       if (d > 2.0) continue;
-      if (l.key === "mine") options.push([d, { key: "KeyE", text: "get back into your boat", run: () => void this.board(l) }]);
+      if (l.key === "mine") options.push([d, { key: "KeyE", text: "get back into your boat", run: () => void this.board(l), at: this.hullAt(l) }]);
       else {
         const b = w.boats.find((q) => q.id === l.key);
         if (!b) continue;
-        options.push([d, { key: "KeyE", text: b.mine ? "get into the boat" : `take the ${b.kind === "punt" ? "punt" : "rowing boat"}`, run: () => void this.board(l) }]);
+        options.push([d, { key: "KeyE", text: b.mine ? "get into the boat" : `take the ${b.kind === "punt" ? "punt" : "rowing boat"}`, run: () => void this.board(l), at: this.hullAt(l) }]);
       }
     }
     return { options };
+  }
+
+  /** The point along a lying boat nearest the crosshair (bow, middle, stern), for looking at it (game/facing.ts). */
+  private hullAt(l: Lying): Target {
+    const fx = Math.sin(l.yaw);
+    const fz = Math.cos(l.yaw);
+    const h = HULL[l.kind].half * 0.8;
+    return nearestAim([-h, -h / 2, 0, h / 2, h].map((t) => ({ x: l.x + fx * t, z: l.z + fz * t })));
   }
 
   private distToHull(l: Lying, x: number, z: number): number {
@@ -477,7 +486,7 @@ export class Rowing {
 
   private outAction(): Action {
     const { exit, text } = this.exitHere();
-    return { key: "KeyE", text, run: () => void this.getOut(exit) };
+    return { key: "KeyE", text, run: () => void this.getOut(exit), self: true };
   }
 
   // ------------------------------------------------------------------ in and out

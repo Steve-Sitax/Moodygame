@@ -12,7 +12,7 @@ import { jefInside } from "./life.ts";
 // leave. Nobody fights: the beadle walks him to the door. No model call.
 
 export const HUSH = {
-  /** Game minutes between two offences that count (a game hour is twenty seconds of play). */
+  /** Game minutes between two offences that count (30 real seconds; a game hour is two real minutes since M7). */
   COOLDOWN_MIN: 15,
   /** The kerk's trust lost for one offence, and at most in a day. */
   TRUST_STEP: 1,

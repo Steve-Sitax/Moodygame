@@ -1,11 +1,13 @@
 import * as THREE from "three";
 import { doorSpot } from "../world/city";
 import { psx } from "../retro/psx";
+import { addLantern, removeLantern, type LanternSource } from "../world/lanternLights";
 import { box, cyl, rectAround } from "../world/geom";
 import { DECK, type World } from "../world/rijnkaai";
 import type { FirstPerson } from "../player/firstPerson";
 import { api } from "../net/api";
 import { Human, makeHuman, whenHumans, type HumanKind } from "./humans";
+import { chest, pick, type Target } from "./facing";
 
 // The people of the Rijnkaai (M3), standing where their work is. They turn to
 // face you when you come near and move their hands when you stand close.
@@ -137,6 +139,8 @@ export class Npc {
   /** Out at their post (M3e: townspeople go home at night). */
   present = true;
   private lantern: THREE.Group | null = null;
+  /** Its light on the world (world/lanternLights.ts). */
+  private lanternSrc: LanternSource | null = null;
   private home: { x: number; z: number; yaw: number };
   private facing: number;
   private lastNear = -Infinity;
@@ -191,7 +195,12 @@ export class Npc {
       this.lantern.removeFromParent();
       if (!on) this.lantern = null;
     }
-    if (!on) return;
+    if (!on) {
+      removeLantern(this.lanternSrc);
+      this.lanternSrc = null;
+      return;
+    }
+    this.lanternSrc ??= addLantern();
     if (!this.lantern) this.lantern = handLantern();
     const hand = this.human?.root.getObjectByName("handR");
     if (hand) {
@@ -227,6 +236,13 @@ export class Npc {
     const diff = Math.atan2(Math.sin(this.facing - cur), Math.cos(this.facing - cur));
     this.group.rotation.y = cur + diff * Math.min(1, dt * 3);
     if (this.human) this.animate(dt, d);
+    if (this.lanternSrc && this.lantern) {
+      // the flame, in the middle of the glass
+      this.lantern.getWorldPosition(this.lanternSrc.pos);
+      this.lanternSrc.pos.y -= 0.08;
+      this.lanternSrc.ground = this.pos.y;
+      this.lanternSrc.on = this.present && this.group.visible ? 1 : 0;
+    }
     // prefetch the opening line while Jef walks up (docs/03 pacing)
     if (this.def.talks && d < 10 && now - this.lastNear > 60_000) {
       this.lastNear = now;
@@ -275,19 +291,15 @@ export class People {
     return n;
   }
 
-  /** Nearest person you could talk to, within reach. */
-  nearestTalker(x: number, z: number, reach = 2.6): Npc | null {
-    let best: Npc | null = null;
-    let bestD = reach;
-    for (const n of this.list) {
-      if (!n.def.talks || !n.present) continue;
+  /** The person you could talk to within reach that Jef looks at (nearest the crosshair). */
+  nearestTalker(x: number, z: number, reach = 2.6): { npc: Npc; d: number; at: Target } | null {
+    // the one Jef looks at, nearest the crosshair (game/facing.ts)
+    const r = pick(this.list, (n) => {
+      if (!n.def.talks || !n.present) return null;
       const d = n.distTo(x, z);
-      if (d < bestD) {
-        best = n;
-        bestD = d;
-      }
-    }
-    return best;
+      return d < reach ? { d, at: chest(n.group) } : null;
+    });
+    return r ? { npc: r.it, d: r.d, at: r.at } : null;
   }
 
   update(dt: number, player: FirstPerson): void {

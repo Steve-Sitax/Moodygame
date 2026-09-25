@@ -34,7 +34,7 @@ export interface Place {
 /** Workplaces with a fixed anchor. Shops and taverns are house doors found near an anchor. */
 export const PLACES: Place[] = [
   { id: "rijnkaai", label: "the Rijnkaai", x: 0, z: 18, r: 22, district: "rijnkaai" },
-  { id: "hessenatie", label: "the Hessenatie", x: 10.8, z: 43.5, r: 8, district: "rijnkaai" },
+  { id: "hessenatie", label: "the Hessenatie", x: 11.2, z: 43.5, r: 8, district: "rijnkaai" },
   { id: "entrepot", label: "the Entrepot", x: 173, z: 83, r: 12, district: "eilandje" },
   { id: "bassin", label: "the Petit Bassin", x: 120, z: 18, r: 20, district: "eilandje" },
   { id: "bassin_south", label: "the south quay of the Petit Bassin", x: 118, z: 117, r: 14, district: "eilandje" },
@@ -126,8 +126,8 @@ export const HAULS: Record<string, Array<{ a: [number, number]; b: [number, numb
     { a: [45, 5], b: [56, 40] },
   ],
   hessenatie: [
-    { a: [12, 5], b: [10.8, 43.5] },
-    { a: [2, 5], b: [10.8, 43.5] },
+    { a: [12, 5], b: [11.2, 43.5] },
+    { a: [2, 5], b: [11.2, 43.5] },
   ],
   entrepot: [
     { a: [173, 55], b: [173, 83] },
@@ -198,7 +198,9 @@ export type TradeId =
   // M6 lively (lively.ts): the back streets and the cathedral quarter. Dog carts, street sellers
   // with their cries, the stalls against the cathedral, nuns, beguines, English travellers
   | "milk_woman" | "baker_boy" | "grinder" | "ragman" | "coalman" | "sweep" | "mussel_seller" | "broom_seller"
-  | "devotion_seller" | "nun" | "beguine" | "tourist";
+  | "devotion_seller" | "nun" | "beguine" | "tourist"
+  // M7 night (night/givers.ts): the shady givers of night work, out from 21:00 to 5:00
+  | "fence" | "smuggler" | "nightcarter" | "cracksman";
 
 export interface TradeDef {
   label: string;
@@ -291,6 +293,11 @@ export const TRADES: Record<TradeId, TradeDef> = {
   nun: { label: "Black Sister, who nurses the sick at home", work: "round", faction: "kerk", wealth: [0, 0], bias: { piety: 5, warmth: 2, honesty: 2 } },
   beguine: { label: "beguine", work: "inside", faction: "kerk", wealth: [1, 3], bias: { piety: 5, gossip: 1 } },
   tourist: { label: "English traveller come to see the Rubens paintings", work: "round", faction: null, wealth: [7, 9], bias: { courage: -1, warmth: 1, gossip: 1 } },
+  // M7 night (night/givers.ts): they hire by night and are gone by dawn; what they pay is the engine's
+  fence: { label: "dealer in odds and ends, after dark", work: "post", faction: "smokkelaars", wealth: [3, 5], bias: { honesty: -4, greed: 3, gossip: 1 }, night: true },
+  smuggler: { label: "night lighterman", work: "post", faction: "smokkelaars", wealth: [2, 4], bias: { honesty: -3, courage: 2 }, night: true },
+  nightcarter: { label: "carter who works by night and asks no questions", work: "post", faction: "smokkelaars", wealth: [1, 3], bias: { honesty: -2, temper: 1 }, night: true },
+  cracksman: { label: "a man in a dark coat who needs a lookout", work: "post", faction: "smokkelaars", wealth: [2, 4], bias: { honesty: -6, courage: 3, warmth: -1 }, night: true },
 };
 
 /** The board's employers who live in the town: fixed ids, so the job board can name them. */
@@ -350,6 +357,52 @@ export const TOWN_EMPLOYERS: TownEmployer[] = [
     spot: "cathedral_door",
     area: ["cathedral_door", "markt_stalls", "handschoen_well"],
     note: "sexton of the cathedral, errands for the chapter and the poor box, trusts the sober and the pious",
+  },
+];
+
+/**
+ * M7 night (Steve 2026-09-25: "Other quest givers come out at night: shady ones with night jobs"):
+ * four givers of night work, each at a dark place of their own from 21:00 to 5:00 (shared/night.ts
+ * NIGHT_WORK). Not on the day board; their work comes from the night board (night/nightwork.ts), the
+ * model proposing and the engine clamping, paid better and riskier. Added in place to every town
+ * (night/givers.ts ensureNightTown), so an older save gets them too.
+ */
+export const NIGHT_GIVERS: TownEmployer[] = [
+  {
+    id: "fence",
+    trade: "fence",
+    sex: "m",
+    faction: "smokkelaars",
+    spot: "vliet_steps",
+    area: ["vliet_steps", "west_sheds", "vleeshuis_door"],
+    note: "a fence who waits behind De Vliet at the Vliet landing after dark, buys what fell off a cart, pays for quick errands and no questions",
+  },
+  {
+    id: "smuggler",
+    trade: "smuggler",
+    sex: "m",
+    faction: "smokkelaars",
+    spot: "werf_quay",
+    area: ["werf_quay", "werf_pontoon", "steen_gate"],
+    note: "a night lighterman who lands untaxed goods on the Werf when the water police are abed, pays for strong backs and closed mouths",
+  },
+  {
+    id: "nightcarter",
+    trade: "nightcarter",
+    sex: "m",
+    faction: "smokkelaars",
+    spot: "canal_west",
+    area: ["canal_west", "canal_quay", "brewery_yard"],
+    note: "a carter on the west canal quay who moves barrels by night for men who do not give their names, and asks no questions",
+  },
+  {
+    id: "cracksman",
+    trade: "cracksman",
+    sex: "m",
+    faction: "smokkelaars",
+    spot: "bassin_south",
+    area: ["bassin_south", "bassin_quay", "entrepot_quay"],
+    note: "a man in a dark coat by the Petit Bassin who wants a lookout kept while he sees to a warehouse door",
   },
 ];
 

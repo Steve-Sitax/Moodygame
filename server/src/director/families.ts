@@ -104,9 +104,13 @@ export const NEWS_TTL_MIN = 24 * 60;
 export const PENDING_TTL_MIN = 10 * 60;
 export const MENACE_PER_DAY = 1;
 export const VISITS_AT_ONCE = 2;
-/** The standoff (game minutes; a game hour is 20 real seconds): the server's own limit if the client says nothing. */
-export const MENACE_MIN = 150;
-export const AT_JEF_MIN = 120;
+/** The standoff (game minutes; M7 clock: 150 -> 25, 50 real seconds): the server's own limit if the client says nothing. */
+export const MENACE_MIN = 25;
+/** A visitor at Jef's side (game minutes; M7 clock: 120 -> 20, 40 real seconds). */
+export const AT_JEF_MIN = 20;
+/** A visitor's walk to find Jef, and a teller's walk to a listener (game minutes; M7 clock: 300 -> 50 and 240 -> 40). */
+export const SEEK_MIN = 50;
+export const SHARE_MIN = 40;
 
 const ROUGH_TRADES = new Set(["docker", "natie", "porter", "carter", "boatman", "sailor", "thief"]);
 
@@ -559,7 +563,7 @@ export function startReaction(db: DB, id: number): number | null {
       target_x: open.x,
       target_z: open.z,
       source: "engine",
-      minutes: 240,
+      minutes: SHARE_MIN,
       reason: "a complaint about Jef",
       data: { about: `complaint: ${n.gist}.`, complaint: n.id, ...(jef ? { jef } : {}) },
     });
@@ -583,7 +587,7 @@ export function startReaction(db: DB, id: number): number | null {
 
 /** Someone sets out to find Jef (a family visit, the police's word, the fortune's meeting). */
 export function startSeek(db: DB, npc: string, reaction: VisitKind, opts: { news?: number; reason?: string; minutes?: number } = {}): ActionRow {
-  return startAction(db, { npc_id: npc, kind: "seek", target: "Jef", source: "engine", minutes: opts.minutes ?? 300, max_m: 60, reason: opts.reason ?? "", data: { reaction, ...(opts.news ? { news: opts.news } : {}) } });
+  return startAction(db, { npc_id: npc, kind: "seek", target: "Jef", source: "engine", minutes: opts.minutes ?? SEEK_MIN, max_m: 60, reason: opts.reason ?? "", data: { reaction, ...(opts.news ? { news: opts.news } : {}) } });
 }
 
 // ------------------------------------------------------------------ 4. at Jef: a visit or a menace
@@ -1113,7 +1117,7 @@ export async function familyTick(db: DB, opts: { runner?: Runner; rng?: () => nu
       // Jef is near: the teller walks up to the listener and it plays in bubbles (an M4 talk_to)
       if (actionOf(db, a.id) || isReserved(db, a.id) || actionOf(db, b.id)) continue;
       const pb = posOf(db, b.id)!;
-      startAction(db, { npc_id: a.id, kind: "talk_to", target: b.id, target_x: pb.x, target_z: pb.z, source: "engine", minutes: 240, reason: "family news", data: { purpose: "share", news: n.id } });
+      startAction(db, { npc_id: a.id, kind: "talk_to", target: b.id, target_x: pb.x, target_z: pb.z, source: "engine", minutes: SHARE_MIN, reason: "family news", data: { purpose: "share", news: n.id } });
       setNews(db, n.id, { action_id: -1 });
       continue;
     }

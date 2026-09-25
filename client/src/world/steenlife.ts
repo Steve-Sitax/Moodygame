@@ -232,7 +232,23 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
     psx(new THREE.MeshLambertMaterial({ color: 0x0d0b09 })),
   );
   doorway.position.set(STEEN_DOOR.x, TY + 0.02, STEEN_DOOR.z - 0.17);
-  group.add(doorway);
+  // M7 halls: the museum door is a real opening now, the museum inside it in the world (world/hallInWorld.ts,
+  // landmarkHalls.ts buildSteen): no dark shape over it any more (the mesh stays, unadded, for doorOpen in info())
+
+  // --- M7 doors: the courtyard (design.py, from z -23.0) stopped 0.25 m short of the lane face (z -23.25),
+  // a slit down to the street all along the gatehouse and the prison range (the hall's sill closed it only
+  // at the door). A bluestone kerb at the wall's foot fills it, 2 cm proud of the paving so the two never
+  // share a plane.
+  {
+    const x0 = -190.6;
+    const x1 = -168.9;
+    const z0 = -23.4;
+    const z1 = -23.0;
+    const kerb = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, TY + 0.02, z1 - z0), psx(new THREE.MeshLambertMaterial({ color: 0x57544e })));
+    kerb.position.set((x0 + x1) / 2, (TY + 0.02) / 2, (z0 + z1) / 2);
+    kerb.name = "steen_wall_kerb";
+    group.add(kerb);
+  }
 
   // --- the lantern on the Steenpoort: a warm glow after dusk
   const glowMat = new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffc47a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });

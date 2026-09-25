@@ -969,15 +969,17 @@ def post_timber():
     """An oak mooring post: squared, chamfered top, an iron band, worn pale where the ropes run."""
     m = Mesh()
     s = 0.15
-    m.box((0, 0, 0.5), (0.3, 0.3, 1.0), "oak", skip=("+z", "-z"))
+    # the post in lengths, the worn band flush with the oak and the iron band standing proud with its
+    # own top and bottom: a band laid over the whole post put two faces in one plane (z-fight check)
+    for z0, z1, cell in ((0.0, 0.59, "oak"), (0.59, 0.71, "wood_grey"), (0.71, 0.845, "oak"), (0.915, 1.0, "oak")):
+        m.box((0, 0, (z0 + z1) / 2), (0.3, 0.3, z1 - z0), cell, skip=("+z", "-z"))
+    m.box((0, 0, 0.88), (0.32, 0.32, 0.07), "iron_rust")
     top = [(-s, -s, 1.0), (s, -s, 1.0), (s, s, 1.0), (-s, s, 1.0)]
     apex = (0, 0, 1.12)
     for i in range(4):
         a, b = top[i], top[(i + 1) % 4]
         mid = Vector(((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, 1.05))
         m.face([a, b, apex], "endgrain", out=mid)
-    m.box((0, 0, 0.88), (0.32, 0.32, 0.07), "iron_rust", skip=("+z", "-z"))
-    m.box((0, 0, 0.65), (0.305, 0.305, 0.12), "wood_grey", skip=("+z", "-z"))
     return m
 
 
@@ -1119,9 +1121,9 @@ def cable_reel():
     M = move(0, 0, R) @ rot("X", math.pi / 2)
     for zz in (-W / 2, W / 2 - 0.06):
         m.lathe([(R, zz), (R, zz + 0.06)], 10, "wood", M=M)
-        m.lathe([(R, zz + (0.06 if zz > 0 else 0)), (0.0, zz + (0.06 if zz > 0 else 0))], 10, "wood_grey", M=M)
-        if zz < 0:
-            m.lathe([(0.0, zz), (R, zz)], 10, "wood_grey", M=M)
+        # each flange a disc on both faces, 6 cm apart (the inner one lay on the outer one: z-fight check)
+        m.lathe([(R, zz), (0.0, zz)], 10, "wood_grey", M=M)
+        m.lathe([(0.0, zz + 0.06), (R, zz + 0.06)], 10, "wood_grey", M=M)
     m.lathe([(0.42, -W / 2 + 0.06), (0.44, -0.2), (0.44, 0.2), (0.42, W / 2 - 0.06)], 10, "hawser", M=M)
     m.lathe([(0.07, -W / 2 - 0.08), (0.07, W / 2 + 0.08)], 6, "iron", M=M, cap0=True, cap1=True)
     for sx in (-1, 1):
@@ -1163,10 +1165,11 @@ def customs_booth():
     for sx in (-1, 1):
         m.box((sx * (h - 0.03), 0, 0.12 + H / 2), (0.06, S, H), "shed_planks", cells={"+x" if sx > 0 else "-x": "shed_planks"})
         m.box((sx * (h + 0.005), 0.0, 1.55), (0.02, 0.5, 0.55), "window", skip=("+x",) if sx < 0 else ("-x",))
-    m.box((0, h - 0.03, 0.12 + H / 2), (S, 0.06, H), "shed_planks")
+    # the back and front walls run between the side walls, not over their ends (z-fight check)
+    m.box((0, h - 0.03, 0.12 + H / 2), (S - 0.12, 0.06, H), "shed_planks")
     m.box((0, h + 0.005, 1.55), (0.6, 0.02, 0.55), "window")
     for sx in (-1, 1):
-        m.box((sx * 0.52, -h + 0.03, 0.12 + H / 2), (0.36, 0.06, H), "shed_planks")
+        m.box((sx * 0.495, -h + 0.03, 0.12 + H / 2), (0.31, 0.06, H), "shed_planks")
     m.box((0, -h + 0.03, 0.12 + H - 0.25), (0.7, 0.06, 0.5), "shed_planks")
     m.box((0, -h + 0.2, 0.13), (0.68, 0.4, 0.02), "wood_dark")  # the floor boards seen through the door
     m.box((0, 0, 0.12 + 0.02), (S - 0.1, S - 0.1, 0.02), "wood_dark")
@@ -1181,7 +1184,8 @@ def customs_booth():
         a, b = c[i], c[(i + 1) % 4]
         mid = Vector(((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, top + 0.2))
         m.face([a, b, apex], "zinc", out=mid)
-        m.face([a, apex, b], "wood_dark", out=-mid, shade=0.6)
+        # the boards under the zinc 3 cm down: in one plane with it they fought (z-fight check)
+        m.face([(a[0], a[1], a[2] - 0.03), (0, 0, apex[2] - 0.03), (b[0], b[1], b[2] - 0.03)], "wood_dark", out=-mid, shade=0.6)
     m.lathe([(0.05, top + 0.52), (0.07, top + 0.6), (0.0, top + 0.66)], 6, "zinc")
     m.lathe([(0.05, top + 0.1), (0.05, top + 0.9), (0.08, top + 0.95), (0.0, top + 0.97)], 5, "iron", M=move(0.35, 0.35, 0))
     # the board over the door
@@ -1196,7 +1200,7 @@ def harbour_hut():
     m = Mesh(ao=2.6)
     W, D, H = 3.2, 2.4, 2.5
     m.box((0, 0, 0.2), (W + 0.06, D + 0.06, 0.4), "brick")
-    m.box((0, 0, 0.4 + H / 2), (W, D, H), "hut_planks", cells={"+z": "wood_dark", "-z": "wood_dark"})
+    m.box((0, 0, 0.4 + H / 2), (W, D, H), "hut_planks", cells={"+z": "wood_dark"}, skip=("-z",))  # on the plinth's top (z-fight check)
     fy = -D / 2 - 0.01
     m.quad([(-1.2, fy, 0.4), (-0.4, fy, 0.4), (-0.4, fy, 2.3), (-1.2, fy, 2.3)], "door_green", out=(0, -1, 0))
     for x in (0.25, 1.05):
@@ -1214,8 +1218,8 @@ def harbour_hut():
     for sy in (-1, 1):
         m.face([(-W / 2 - o, sy * (D / 2 + o), top - 0.12), (W / 2 + o, sy * (D / 2 + o), top - 0.12), (W / 2 + o, 0, rz), (-W / 2 - o, 0, rz)],
                "slate", out=(0, sy, 1))
-        m.face([(-W / 2 - o, sy * (D / 2 + o), top - 0.12), (-W / 2 - o, 0, rz), (W / 2 + o, 0, rz), (W / 2 + o, sy * (D / 2 + o), top - 0.12)],
-               "wood_dark", out=(0, -sy, -1), shade=0.5)
+        m.face([(-W / 2 - o, sy * (D / 2 + o), top - 0.15), (-W / 2 - o, 0, rz - 0.03), (W / 2 + o, 0, rz - 0.03), (W / 2 + o, sy * (D / 2 + o), top - 0.15)],
+               "wood_dark", out=(0, -sy, -1), shade=0.5)  # 3 cm under the slates (z-fight check)
     for sx in (-1, 1):
         m.face([(sx * W / 2, -D / 2, top), (sx * W / 2, D / 2, top), (sx * W / 2, 0, rz - 0.05)], "hut_planks", out=(sx, 0, 0))
     m.lathe([(0.07, rz - 0.5), (0.07, rz + 0.7), (0.1, rz + 0.75), (0.0, rz + 0.8)], 6, "iron", M=move(1.0, 0.5, 0))
@@ -1261,13 +1265,15 @@ def notice_board():
     m = Mesh()
     for sx in (-1, 1):
         m.box((sx * 0.75, 0, 1.15), (0.1, 0.1, 2.3), "wood_dark")
-    m.box((0, 0, 1.5), (1.6, 0.06, 1.0), "wood_dark", cells={"-y": "wood"})
-    m.box((0, -0.03, 2.0), (1.66, 0.08, 0.06), "wood_dark")
-    m.box((0, -0.03, 1.0), (1.66, 0.08, 0.06), "wood_dark")
+    # the board and its rails between the posts, not through them: their ends and fronts lay in the
+    # posts' faces (z-fight check)
+    m.box((0, 0, 1.5), (1.4, 0.06, 1.0), "wood_dark", cells={"-y": "wood"})
+    m.box((0, -0.03, 2.0), (1.4, 0.08, 0.06), "wood_dark")
+    m.box((0, -0.03, 1.0), (1.4, 0.08, 0.06), "wood_dark")
     for sy in (-1, 1):
         m.face([(-0.95, sy * 0.3, 2.3), (0.95, sy * 0.3, 2.3), (0.95, 0, 2.45), (-0.95, 0, 2.45)], "zinc", out=(0, sy, 1))
     W, H = sign_board("notices")
-    m.box((0, -0.035, 2.13), (W, 0.03, H), "wood_dark", cells={"-y": "sign_notices"})
+    m.box((0, -0.1, 2.13), (W, 0.03, H), "wood_dark", cells={"-y": "sign_notices"})  # clear of the posts' fronts
     for i, (x, z, k) in enumerate(((-0.45, 1.5, "rules"), (0.05, 1.55, "tides"), (0.5, 1.45, "notice"))):
         m.quad([(x - 0.18, -0.035, z - 0.24), (x + 0.18, -0.035, z - 0.24), (x + 0.18, -0.035, z + 0.24), (x - 0.18, -0.035, z + 0.24)], f"bill_{k}",
                mat=DECAL, out=(0, -1, 0))
@@ -1573,7 +1579,11 @@ def boat_hull(m, L, B, D):
                 cell = "hull_side" if j == 0 else "hull_bottom"
                 m.face(q, cell, uvs=[(j / (half - 1), i / stations), (j / (half - 1), (i + 1) / stations), ((j + 1) / (half - 1), (i + 1) / stations),
                                      ((j + 1) / (half - 1), i / stations)], out=(0, side * 0.3, 1))
-                m.face(q[::-1], "wood_dark", shade=0.5)
+                # the inside 2.5 cm in (the planking): in one plane the two faces fought (z-fight check)
+                qn = newell([Vector(p) for p in q]).normalized()
+                if qn.dot(Vector((0, side * 0.3, 1))) < 0:
+                    qn = -qn
+                m.face([Vector(p) - qn * 0.025 for p in q[::-1]], "wood_dark", shade=0.5)
     # keel on top
     m.beam((-L / 2 - 0.05, 0, D + 0.03), (L / 2 + 0.05, 0, D + 0.03), 0.07, 0.08, "wood_dark")
 

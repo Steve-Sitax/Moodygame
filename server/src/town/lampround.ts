@@ -7,7 +7,7 @@
 // in the same order. The ENGINE owns the times: a round starts at a fixed hour and is walked
 // in a fixed span of game time, so any lamp's state is a function of the clock alone.
 //
-// The game clock runs 180 times faster than life (a game hour is 20 real seconds): unseen,
+// The game clock runs 30 times faster than life (M7: a game hour is two real minutes): unseen,
 // the lamplighter keeps the round's pace (like everyone unseen in the town); seen, the client
 // walks him at a brisk real pace and holds back the lamps ahead of him until he reaches them.
 

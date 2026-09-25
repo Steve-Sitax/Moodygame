@@ -63,12 +63,18 @@ def draw_leaf(L, half=None, rail_y=None):
     rail_y: carry the quay railway, centred at this Blender y (game z = hinge z - y at yaw 0)."""
     HALF = half or globals()["HALF"]
     m = Mesh(ao=0.0)
-    m.box((L / 2, 0, -0.02), (L, 2 * HALF, 0.14), DECK, tile=1.6, shade=0.95)
+    # z-fight check: the deck starts 6 cm out from the hinge (at the hinge its end lay in the quay
+    # wall's face) and stops at the nose beam, which carries the deck's top to the end (the deck's
+    # top and ends lay over the nose beam's)
+    # a single leaf (8 m) rests its nose on the far quay: it stops 6 cm short of the wall's face too
+    H0, NOSE = 0.06, 0.24
+    T = L - 0.06 if L >= 8 else L
+    m.box(((H0 + T - NOSE) / 2, 0, -0.02), (T - NOSE - H0, 2 * HALF, 0.14), DECK, tile=1.6, shade=0.95)
     for sy in (1, -1):
-        m.beam((0.05, sy * 2.6, -0.26), (L - 0.05, sy * 2.6, -0.26), 0.25, 0.32, DARK, side=(0, 1, 0), shade=0.7)
+        m.beam((0.1, sy * 2.6, -0.26), (T - 0.05, sy * 2.6, -0.26), 0.25, 0.32, DARK, side=(0, 1, 0), shade=0.7)
     for x in [L * f for f in (0.08, 0.35, 0.65, 0.92)]:
         m.beam((x, -3.3, -0.22), (x, 3.3, -0.22), 0.18, 0.22, DARK, side=(1, 0, 0), shade=0.65)
-    m.box((L - 0.12, 0, -0.1), (0.24, 2 * HALF, 0.3), DARK)  # the heavier nose beam
+    m.box((T - NOSE / 2, 0, -0.1), (NOSE, 2 * HALF, 0.3), DARK)  # the heavier nose beam, its top flush with the deck
     for sy in (1, -1):
         y = sy * (HALF - 0.1)
         n = max(2, int(L / 1.5))
@@ -76,11 +82,11 @@ def draw_leaf(L, half=None, rail_y=None):
             m.box((0.15 + (L - 0.3) * i / n, y, 0.55), (0.1, 0.1, 1.0), WHITE)
         m.beam((0.1, y, 1.05), (L - 0.1, y, 1.05), 0.1, 0.08, WHITE, side=(0, 1, 0))
         m.beam((0.1, y, 0.55), (L - 0.1, y, 0.55), 0.06, 0.06, WHITE, side=(0, 1, 0))
-        m.box((L / 2, y, 0.12), (L, 0.14, 0.18), DARK, shade=0.85)
+        m.box(((T + H0) / 2, y, 0.12), (T - H0, 0.14, 0.18), DARK, shade=0.85)
         # an iron strap where the chain takes hold
         m.box((L - 0.3, sy * (HALF + 0.02), 0.0), (0.3, 0.05, 0.35), IRON)
     if rail_y is not None:
-        rails(m, 0.0, L, rail_y)
+        rails(m, H0, T, rail_y)
     return m
 
 
@@ -93,10 +99,11 @@ def draw_beam(L, half=None):
         y = sy * (HALF + 0.05)
         m.beam((-rear, y, 0), (L, y, 0), 0.26, 0.3, WHITE, side=(0, 1, 0), w2=0.16, h2=0.2)
         m.box((L - 0.05, y, -0.15), (0.12, 0.12, 0.3), IRON)  # chain eye
-    for x in (-rear + 0.3, 0.0, L * 0.4, L * 0.8):
+    # no tie over the pivot: there it lay in the gallows' crossbeam, top in top (z-fight check)
+    for x in (-rear + 0.3, L * 0.4, L * 0.8):
         m.beam((x, -(HALF + 0.05), 0), (x, HALF + 0.05, 0), 0.18, 0.2, WHITE, side=(1, 0, 0))
-    # the ballast: a timber box full of stone and scrap across the land end
-    m.box((-rear + 0.55, 0, -0.35), (1.1, 2 * HALF + 0.4, 0.7), DARK)
+    # the ballast: a timber box full of stone and scrap across the land end (5 cm in from the beams' ends)
+    m.box((-rear + 0.6, 0, -0.35), (1.1, 2 * HALF + 0.4, 0.7), DARK)
     return m
 
 
@@ -116,7 +123,8 @@ def draw_frame(half=None, rail_y=None, gallows=True):
     if gallows:
         m.beam((px, -(HALF + 0.75), pz - 0.05), (px, HALF + 0.75, pz - 0.05), 0.34, 0.3, WHITE, side=(1, 0, 0))
     # the fixed deck on the quay, 2 m, and short railings along it
-    m.box((-1.0, 0, -0.02), (2.0, 2 * HALF, 0.14), DECK, tile=1.6, shade=0.95)
+    # it lies on the quay (no bottom): down into the stone its end at the hinge lay in the quay wall's face (z-fight check)
+    m.box((-1.0, 0, 0.025), (2.0, 2 * HALF, 0.05), DECK, tile=1.6, shade=0.95, skip=("-z",))
     for sy in (1, -1):
         y = sy * (HALF - 0.1)
         m.box((-1.0, y, 0.12), (2.0, 0.14, 0.18), DARK, shade=0.85)

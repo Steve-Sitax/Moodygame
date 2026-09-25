@@ -4,7 +4,7 @@ import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import type { DB, Faction } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
 import SPOT_TABLE from "../../../shared/spots.json" with { type: "json" };
-import { TOWN_EMPLOYERS } from "../town/places.ts";
+import { NIGHT_GIVERS, TOWN_EMPLOYERS } from "../town/places.ts";
 
 // job_board hook, docs/03. Claude writes the words and picks from engine
 // lists (goods, places, twist). The engine owns pay, counts, time limits,
@@ -77,6 +77,8 @@ export interface EmployerDef {
   town: boolean;
   /** Fixed name (the Rijnkaai three). */
   name?: string;
+  /** M7 night: a giver of night work (night/nightwork.ts); never on the day board. */
+  night?: boolean;
 }
 
 /**
@@ -86,8 +88,11 @@ export interface EmployerDef {
 export const ALL_EMPLOYERS: Record<string, EmployerDef> = {
   ...Object.fromEntries(Object.entries(EMPLOYERS).map(([id, e]) => [id, { ...e, area: RIJNKAAI_SPOTS, town: false }])),
   ...Object.fromEntries(TOWN_EMPLOYERS.map((e) => [e.id, { faction: e.faction, door: e.spot as SpotId, note: e.note, area: e.area as SpotId[], town: true }])),
+  // M7 night: the givers of night work (town/places.ts NIGHT_GIVERS); their work is the night board's
+  ...Object.fromEntries(NIGHT_GIVERS.map((e) => [e.id, { faction: e.faction, door: e.spot as SpotId, note: e.note, area: e.area as SpotId[], town: true, night: true }])),
 };
-export const EMPLOYER_IDS = Object.keys(ALL_EMPLOYERS) as [string, ...string[]];
+/** Who may hire on the day board (the model's list): everyone but the night's givers. */
+export const EMPLOYER_IDS = Object.keys(ALL_EMPLOYERS).filter((id) => !ALL_EMPLOYERS[id].night) as [string, ...string[]];
 export type EmployerId = string;
 
 /** An employer's name: fixed for the Rijnkaai three, from the town for the others. */
@@ -258,6 +263,7 @@ Only tier ${tier} work is open to him.
 
 EMPLOYERS WHO HIRE (id: name, what they are. Their own places: only these ids for their "from" and "to")
 ${Object.entries(ALL_EMPLOYERS)
+  .filter(([, e]) => !e.night)
   .map(([id, e]) => `- ${id}: ${employerName(db, id)}, ${e.note}. Their door: ${e.door}. Their places: ${e.area.join(", ")}.`)
   .join("\n")}
 
@@ -481,7 +487,8 @@ export async function makeBoard(
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'offered')`,
   );
   db.transaction(() => {
-    db.prepare("UPDATE job SET status = 'expired' WHERE status = 'offered'").run();
+    // M7 night: the night's work stays open until dawn (night/nightwork.ts expires it at 5:00)
+    db.prepare("UPDATE job SET status = 'expired' WHERE status = 'offered' AND source <> 'night'").run();
     for (const j of board.jobs) {
       const task = PLAYABLE.has(j.task_type) ? taskFor(j) : null;
       const e = ALL_EMPLOYERS[j.employer];
@@ -547,15 +554,25 @@ function ensurePlayable(board: Board): Board {
 
 export function listJobs(db: DB, day: number): JobRow[] {
   const rows = db
-    .prepare("SELECT * FROM job WHERE day = ? AND status IN ('offered','taken','done','failed') ORDER BY id")
+    // the day's board, a job still in hand from an earlier day (M7 night: it stays in hand; only its own
+    // deadline counts), and the night's work still open after midnight (night/nightwork.ts)
+    .prepare("SELECT * FROM job WHERE (day = ? AND status IN ('offered','taken','done','failed')) OR status = 'taken' OR (source = 'night' AND status = 'offered') ORDER BY id")
     .all(day) as Array<Omit<JobRow, "task" | "employer_name" | "playable"> & { task_json: string }>;
-  return rows.map(({ task_json, ...r }) => {
-    const parsed = JSON.parse(task_json) as Partial<Task>;
-    return {
-      ...r,
-      employer_name: employerName(db, r.employer_npc),
-      task: parsed.kind ? (parsed as Task) : null,
-      playable: PLAYABLE.has(r.task_type) && !!parsed.kind,
-    };
-  });
+  return rows.map((r) => jobRow(db, r));
+}
+
+/** One job by its id, whatever its day (a job taken yesterday and settled today). */
+export function jobById(db: DB, id: number): JobRow | null {
+  const r = db.prepare("SELECT * FROM job WHERE id = ?").get(id) as (Omit<JobRow, "task" | "employer_name" | "playable"> & { task_json: string }) | undefined;
+  return r ? jobRow(db, r) : null;
+}
+
+function jobRow(db: DB, { task_json, ...r }: Omit<JobRow, "task" | "employer_name" | "playable"> & { task_json: string }): JobRow {
+  const parsed = JSON.parse(task_json) as Partial<Task>;
+  return {
+    ...r,
+    employer_name: employerName(db, r.employer_npc),
+    task: parsed.kind ? (parsed as Task) : null,
+    playable: PLAYABLE.has(r.task_type) && !!parsed.kind,
+  };
 }

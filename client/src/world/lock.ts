@@ -3,9 +3,10 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { psx } from "../retro/psx";
 import { levelAt, water } from "./tide";
-import { addMovingSource, isSteam, loadBoats, loadModelSet, newShipId, ropeMaterial, signal, type BoatName, type Boats, type MovingShip } from "./boats";
+import { addMovingSource, isSteam, loadBoats, loadModelSet, newShipId, ropeMaterial, signal, VESSELS, type BoatName, type Boats, type MovingShip } from "./boats";
 import { createDrawBridge, type DrawBridge } from "./bridges";
 import type { Rect } from "./geom";
+import { chamberSpan, lockFit, trainOffsets, TOW_LINE, type LockFit } from "../../../shared/lockfit";
 
 // The lock of the Petit Bassin (Bonapartedok), as in 1873: a lifting bridge over the lock
 // (it was a swing bridge; a lifting bridge clears the quays and carries the railway), and two pairs of wooden mitre gates ("puntdeuren") that
@@ -17,11 +18,17 @@ import type { Rect } from "./geom";
 // to open while opts.occupied() says someone stands on it; the tow waits.
 //
 // M6 tides (world/tide.ts): the river rises and falls some 4.3 m; the dock stays near high water.
-// The chamber between the gates now matters. A tow does not fit the chamber: it waits off the lock
-// till river and dock stand within LEVEL_WINDOW of each other (round high water) and goes through
-// with both pairs open (the water in the chamber then slopes gently from one level to the other). A rowing boat is locked through: the
-// keeper shuts the far pair, lets the water in or out through the sluices till the chamber stands at
-// the boat's level, opens the near pair; once the boat is in, the other way round.
+// The chamber between the gates now matters. A boat is locked through: the keeper shuts the far
+// pair, lets the water in or out through the sluices till the chamber stands at the boat's level,
+// opens the near pair; once the boat is in, the other way round. When river and dock stand level
+// (round high water) he opens both pairs and it goes straight through.
+//
+// Steve 2026-09-24 ("Do not send bigger boats or combinations through a lock, so they never need to
+// wait until high tide"): the traffic sends only a vessel or tow that fits the chamber with room to
+// spare (shared/lockfit.ts): a tug running light, a sailing hengst or sloop. The old tows (a tug with
+// a lighter or a Rhine barge on its line, 45 m and more) never fit the 35 m chamber and waited off the
+// gates for high water; they no longer come. A boat asks for the lock early enough that the gates
+// stand open when it gets there, and one that no longer qualifies (too big, or kept waiting) turns away.
 
 export interface LockRect {
   minX: number;
@@ -52,7 +59,52 @@ export interface LockOptions {
   /** The route of a tow, river end first (x, z): out of the fog, through the lock, to a berth in the dock. */
   route?: Array<[number, number]>;
   seed?: number;
+  /** Load the bridge and gate models (default true; the tests run without them). */
+  models?: boolean;
 }
+
+/** One passage of the lock's traffic (Lock.traffic(): the log the check reads). */
+export interface LockTrip {
+  names: string[];
+  dir: "in" | "out";
+  /** "locked": gates shut behind it and the chamber levelled; "level": both pairs open at high water. */
+  mode: "locked" | "level" | "none";
+  /** Seconds the boat stood (or crept, under 0.2 m/s) off the gates it came to. */
+  waitOutside: number;
+  /** Seconds it stood in the chamber while the keeper levelled it (the lock's own cycle). */
+  waitInside: number;
+  turnedAway: boolean;
+  /** Why it turned away. */
+  why: string;
+  /** Seconds of play when it set off, and the river then. */
+  at: number;
+  river: number;
+}
+
+/** A row of Lock.fitTable(): a vessel or tow against the chamber. */
+export interface LockFitRow extends LockFit {
+  /** It is one of the lock's own traffic and fits: it gets lock trips. */
+  lockTrips: boolean;
+}
+
+/**
+ * What the lock's traffic may send, if it fits (shared/lockfit.ts, with the models' own sizes):
+ * the old tows stay listed so the check shows they do not fit. A lone lighter or barge has no way
+ * of its own and is not listed.
+ */
+export const LOCK_CANDIDATES: BoatName[][] = [
+  ["tug", "lighter_loaded"],
+  ["tug", "lighter"],
+  ["tug", "hengst"],
+  ["tug", "rhine_barge"],
+  ["paddle_tug", "lighter_loaded"],
+  ["paddle_tug", "rhine_barge"],
+  ["tug"],
+  ["paddle_tug"],
+  ["hengst_sail"],
+  ["sloop_sail"],
+  ["schooner"],
+];
 
 export interface Lock {
   /** Every frame. With the camera, the tug turns round in the dock only when nobody is near to see it. */
@@ -64,8 +116,15 @@ export interface Lock {
   gatesOpen(): number;
   /** M6 tides: one pair, 0 = the river gates (z 7), 1 = the dock gates (z 42): 0 shut .. 1 open. */
   gateOpen?(which: 0 | 1): number;
-  /** Send a tow through now (dev): "in" from the river, "out" from the dock. */
-  passNow(dir?: "in" | "out"): void;
+  /**
+   * Send a boat through now (dev): "in" from the river, "out" from the dock. `names` forces that
+   * vessel or tow (one that does not fit turns away when it asks for the lock).
+   */
+  passNow(dir?: "in" | "out", names?: BoatName[]): void;
+  /** The traffic now and the log of its passages (the lock check reads it). */
+  traffic?(): { state: string; names: string[]; mode: string; inside: boolean; log: LockTrip[] };
+  /** Every vessel and the lock's candidates against the chamber, with the models' sizes (dev). */
+  fitTable?(): LockFitRow[];
   /**
    * M3j: a rowing boat asks for the lock (bridge up, gates open) or lets it go. It stays open while
    * asked. M6 tides: `where` tells the keeper where the boat is, so he can level the chamber for it.
@@ -239,20 +298,20 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
   };
   let bridgeAngle = 0; // current
   const gateOpen: [number, number] = [0, 0]; // river pair, dock pair: 0..1
-  let want = false; // the traffic wants the lock open
+  let want = false; // the traffic has asked for the lock
   let boatWant = false; // M3j: a rowing boat wants it open
   let boatWhere: (() => { x: number; z: number }) | null = null;
   /** M6 tides: the side the boat came from, once it is in the chamber (it goes out the other side). */
   let boatFrom: 0 | 1 | null = null;
   /** The chamber's water when both pairs are shut (and the level it is making for). */
   let flat = water.dock;
-  /** River and dock may differ this much for a tow to set out (it goes through with both pairs open). */
-  const LEVEL_WINDOW = 0.6;
+  /** River and dock differ less than this when a boat asks: the keeper opens both pairs (high water). */
+  const LEVEL_WINDOW = 0.3;
   /** The sluices fill or empty the chamber this fast (m/s). */
   const SLUICE = 0.25;
   const sideLevel = (i: 0 | 1) => (i === 0 ? water.river : water.dock);
 
-  loadModelSet("/models/bridges.glb")
+  if (opts.models !== false) loadModelSet("/models/bridges.glb")
     .then((set) => {
       const L = (channel.maxX - channel.minX) / 2;
       bridge = createDrawBridge(
@@ -268,7 +327,7 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
     })
     .catch((e) => console.warn("bridges.glb did not load", e));
 
-  loadLockModels()
+  if (opts.models !== false) loadLockModels()
     .then((models) => {
       const leaf = models.get("gate_leaf");
       const cap = models.get("gate_capstan");
@@ -296,7 +355,7 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
     })
     .catch((e) => console.warn("lock.glb did not load", e));
 
-  // --- the tow: a tug and a lighter or barge on a line
+  // --- the traffic: a vessel (or a tow that fits) from the river into the dock, or back out
   const route = opts.route ?? DEFAULT_ROUTE;
   const curve = new THREE.CatmullRomCurve3(
     route.map(([x, z]) => new THREE.Vector3(x, 0, z)),
@@ -304,164 +363,246 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
     "centripetal",
   );
   const LEN = curve.getLength();
-  // where the lock zone starts and ends along the route (the tug's bow must wait before it)
-  let sIn = 0;
-  let sOut = LEN;
+  // the route through the chamber runs along the channel (x 110): where along it lies each z there
+  const zAlong: Array<[number, number]> = []; // [s, z] inside the channel
   {
-    const N = 400;
+    const N = 800;
     const p = new THREE.Vector3();
-    let found = false;
     for (let i = 0; i <= N; i++) {
       curve.getPointAt(i / N, p);
-      const inside = p.x > channel.minX - 2 && p.x < channel.maxX + 2 && p.z > channel.minZ - 3 && p.z < channel.maxZ + 3;
-      if (inside && !found) {
-        sIn = (i / N) * LEN;
-        found = true;
-      }
-      if (inside) sOut = (i / N) * LEN;
+      if (p.x > channel.minX && p.x < channel.maxX && p.z > channel.minZ - 8 && p.z < channel.maxZ + 8) zAlong.push([(i / N) * LEN, p.z]);
     }
   }
-  const TOWS: BoatName[] = ["lighter_loaded", "rhine_barge", "lighter", "hengst"];
-  interface Tow {
-    tug: THREE.Object3D;
-    tugLen: number;
-    tows: Array<{ o: THREE.Object3D; len: number }>;
-    line: THREE.Line;
+  /** Route position where the route crosses z in the channel. */
+  const sAtZ = (z: number): number => {
+    for (let i = 1; i < zAlong.length; i++) {
+      const [s0, z0] = zAlong[i - 1];
+      const [s1, z1] = zAlong[i];
+      if ((z0 - z) * (z1 - z) <= 0 && z1 !== z0) return s0 + ((z - z0) / (z1 - z0)) * (s1 - s0);
+    }
+    return z <= (zAlong[0]?.[1] ?? 0) ? (zAlong[0]?.[0] ?? 0) : (zAlong[zAlong.length - 1]?.[0] ?? LEN);
+  };
+  const sG0 = sAtZ(gz0);
+  const sG1 = sAtZ(gz1);
+  /** The bow waits this far off the gates it comes to (clear of the leaves that open toward it). */
+  const HOLD = 8;
+  /** A boat asks for the lock this far (m) before it gets there: bridge up, chamber levelled, gates open as it comes. */
+  const ASK_M = 100;
+  /** Kept waiting off the gates this long (s), a boat turns away and tries again later. */
+  const HOLD_MAX = 45;
+  const SPEED = 1.6;
+
+  interface Train {
+    names: BoatName[];
+    objs: THREE.Object3D[];
+    lens: number[];
+    /** Centre of each part behind the lead (shared/lockfit.ts trainOffsets). */
+    offs: number[];
+    /** Lead's centre to the train's stern. */
+    rear: number;
+    beam: number;
+    fit: LockFit;
+    lines: THREE.Line[];
   }
-  let tow: Tow | null = null;
-  // the tow as a boat under way (Boats.moving), and whether it has sounded for the lock yet
+  let boatsReady: Boats | null = null;
+  const trains = new Map<string, Train>();
+  const partsOf = (b: Boats, names: BoatName[]) => names.map((n) => ({ name: n, length: b.dims(n).length, beam: b.dims(n).beam }));
+  /** The models for a vessel or tow, placed once and kept hidden till it sails. */
+  function trainFor(names: BoatName[]): Train | null {
+    const b = boatsReady;
+    if (!b) return null;
+    const key = names.join("+");
+    let t = trains.get(key);
+    if (t) return t;
+    const parts = partsOf(b, names);
+    const offs = trainOffsets(parts, TOW_LINE);
+    const objs = names.map((n) => {
+      const o = b.place(n, route[0][0], route[0][1], 0, group);
+      o.visible = false;
+      return o;
+    });
+    const lines = names.slice(1).map(() => {
+      const lg = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()]);
+      const line = new THREE.Line(lg, ropeMaterial(0x2a2218));
+      line.frustumCulled = false;
+      line.visible = false;
+      group.add(line);
+      return line;
+    });
+    t = {
+      names,
+      objs,
+      lens: parts.map((p) => p.length),
+      offs,
+      rear: offs[offs.length - 1] + parts[parts.length - 1].length / 2,
+      beam: parts.reduce((m, p) => Math.max(m, p.beam), 0),
+      fit: lockFit(parts, TOW_LINE),
+      lines,
+    };
+    trains.set(key, t);
+    return t;
+  }
+  /** The candidates that fit the chamber (with the models' own sizes). */
+  let fitting: BoatName[][] = [];
+  let cur: Train | null = null;
+  // the boat under way (Boats.moving), and whether it has asked for the lock yet
   const ship: MovingShip = { id: newShipId(), kind: "tug", x: 0, z: 0, heading: 0, speed: 0, steam: true };
-  let signalled = false;
   let lastV = 0;
   const pending = boats ?? loadBoats();
   Promise.resolve(pending)
     .then((b) => {
-      const tugKind: BoatName = r() < 0.5 ? "tug" : "paddle_tug";
-      ship.kind = tugKind;
-      ship.steam = isSteam(tugKind);
-      const tug = b.place(tugKind, route[0][0], route[0][1], 0, group);
-      const tows = TOWS.map((n) => {
-        const o = b.place(n, route[0][0], route[0][1], 0, group);
-        o.visible = false;
-        return { o, len: b.dims(n).length };
-      });
-      const lg = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()]);
-      const line = new THREE.Line(lg, ropeMaterial(0x2a2218));
-      line.frustumCulled = false;
-      group.add(line);
-      tow = { tug, tugLen: b.dims("tug").length, tows, line };
-      tows[towIdx].o.visible = true;
-      place(gapOf(), 1, 0);
+      boatsReady = b;
+      fitting = LOCK_CANDIDATES.filter((names) => lockFit(partsOf(b, names), TOW_LINE).fits);
+      if (!fitting.length) return;
+      const first = trainFor(fitting[Math.floor(r() * fitting.length)]);
+      if (!first) return;
+      cur = first;
+      show(first);
+      place(first.offs[first.offs.length - 1], 1);
     })
     .catch((e) => console.warn("no boats for the lock", e));
 
-  // traffic state: "river" (parked out in the fog), "in" (going in), "dock" (moored in the dock), "out"
-  let state: "river" | "in" | "dock" | "out" = "river";
-  let s = 0; // tug position along the route, from the river end
+  function show(t: Train | null): void {
+    for (const tr of trains.values()) {
+      const on = tr === t;
+      tr.objs.forEach((o) => (o.visible = on));
+      tr.lines.forEach((l) => (l.visible = on));
+    }
+    if (t) {
+      ship.kind = t.names[0];
+      ship.steam = isSteam(t.names[0]);
+    }
+  }
+
+  // traffic state: "river" (lying out in the fog), "in" (going in), "dock" (moored in the dock), "out",
+  // "turn" (turning away from the lock), "back" (going back where it came from)
+  let state: "river" | "in" | "dock" | "out" | "turn" | "back" = "river";
+  let s = 0; // the lead's position along the route, from the river end
+  let dir = 1; // +1 toward the dock, -1 toward the river (the trip's way)
   let wait = interval[0] * 0.3 + r() * interval[0] * 0.4;
-  let towIdx = 0;
-  const SPEED = 1.6;
+  let mode: "locked" | "level" | null = null; // latched when the boat asks
+  let inside = false; // locked through: the whole boat lies in the chamber (the keeper turns to the far pair)
+  let held = 0; // seconds kept waiting off the gates
+  let turnT = 0; // seconds into turning round
+  let backFace = 1; // "back": the way the hulls face
+  let clock = 0;
+  let trip: LockTrip | null = null;
+  const log: LockTrip[] = [];
 
   const pt = new THREE.Vector3();
   const tg = new THREE.Vector3();
-  /** Put the tug at route position s, facing dir (+1 toward the dock, -1 toward the river). */
-  function place(sTug: number, dir: number, _dt: number): void {
-    if (!tow) return;
-    const tw = tow.tows[towIdx];
-    const gap = tow.tugLen / 2 + 9 + tw.len / 2;
-    const sTow = sTug - dir * gap;
+  /** Put the lead at route position sLead, the others behind it, all facing `face` (+1 dock, -1 river); `yaw` turns a lone boat. */
+  function place(sLead: number, face: number, yaw = 0): void {
+    const t = cur;
+    if (!t) return;
     const set = (o: THREE.Object3D, sp: number) => {
       const u = THREE.MathUtils.clamp(sp / LEN, 0, 1);
       curve.getPointAt(u, pt);
       curve.getTangentAt(u, tg);
       o.position.set(pt.x, levelAt(pt.x, pt.z), pt.z);
-      o.rotation.y = Math.atan2(tg.x * dir, tg.z * dir);
+      o.rotation.y = Math.atan2(tg.x * face, tg.z * face) + yaw;
     };
-    set(tow.tug, sTug);
-    set(tw.o, sTow);
-    // the towing hawser from the tug's stern to the tow's bow, sagging a little
-    const ta = tow.tug.rotation.y;
-    const wa = tw.o.rotation.y;
-    const a = new THREE.Vector3(
-      tow.tug.position.x - Math.sin(ta) * (tow.tugLen / 2 - 1.5),
-      tow.tug.position.y + 1.3,
-      tow.tug.position.z - Math.cos(ta) * (tow.tugLen / 2 - 1.5),
-    );
-    const c = new THREE.Vector3(
-      tw.o.position.x + Math.sin(wa) * (tw.len / 2 - 0.5),
-      tw.o.position.y + 1.1,
-      tw.o.position.z + Math.cos(wa) * (tw.len / 2 - 0.5),
-    );
-    const m = a.clone().lerp(c, 0.5);
-    m.y = Math.min(a.y, c.y) - 0.7;
-    const pos = tow.line.geometry.getAttribute("position") as THREE.BufferAttribute;
-    pos.setXYZ(0, a.x, a.y, a.z);
-    pos.setXYZ(1, m.x, m.y, m.z);
-    pos.setXYZ(2, c.x, c.y, c.z);
-    pos.needsUpdate = true;
+    t.objs.forEach((o, i) => set(o, sLead - face * t.offs[i]));
+    // the towing hawsers from each stern to the next bow, sagging a little
+    t.lines.forEach((line, i) => {
+      const a0 = t.objs[i];
+      const b0 = t.objs[i + 1];
+      const ta = a0.rotation.y;
+      const wa = b0.rotation.y;
+      const a = new THREE.Vector3(a0.position.x - Math.sin(ta) * (t.lens[i] / 2 - 1.5), a0.position.y + 1.3, a0.position.z - Math.cos(ta) * (t.lens[i] / 2 - 1.5));
+      const c = new THREE.Vector3(b0.position.x + Math.sin(wa) * (t.lens[i + 1] / 2 - 0.5), b0.position.y + 1.1, b0.position.z + Math.cos(wa) * (t.lens[i + 1] / 2 - 0.5));
+      const m = a.clone().lerp(c, 0.5);
+      m.y = Math.min(a.y, c.y) - 0.7;
+      const pos = line.geometry.getAttribute("position") as THREE.BufferAttribute;
+      pos.setXYZ(0, a.x, a.y, a.z);
+      pos.setXYZ(1, m.x, m.y, m.z);
+      pos.setXYZ(2, c.x, c.y, c.z);
+      pos.needsUpdate = true;
+    });
   }
+  const tailOff = () => (cur ? cur.offs[cur.offs.length - 1] : 0);
 
-  function lockOpen(): boolean {
-    return bridgeAngle <= OPEN_BRIDGE + 0.02 && gateOpen[0] >= 0.98 && gateOpen[1] >= 0.98;
-  }
-
-  const gapOf = () => (tow ? tow.tugLen / 2 + 9 + tow.tows[towIdx].len / 2 : 30);
-
-  function start(dir: "in" | "out"): void {
-    if (!tow || state === "in" || state === "out") return;
-    if (dir === "in") {
-      tow.tows.forEach((t) => (t.o.visible = false));
-      towIdx = Math.floor(r() * tow.tows.length);
-      tow.tows[towIdx].o.visible = true;
-      s = gapOf(); // tow at the river end of the route, tug ahead of it
-    } else {
-      s = LEN - gapOf(); // the tug has gone round to the lock side of its tow
+  /** Set off: "in" from the river with a new boat, "out" from the dock with the one lying there. */
+  function start(d: "in" | "out", names?: BoatName[]): void {
+    if (state === "in" || state === "out" || state === "turn" || state === "back") return;
+    // (one forced from the dev menu that turned away is not sent again: a boat that fits goes instead)
+    if (d === "in" || names || (cur && !cur.fit.fits)) {
+      const pick = names ?? (fitting.length ? fitting[Math.floor(r() * fitting.length)] : null);
+      const t = pick ? trainFor(pick) : null;
+      if (!t) return;
+      cur = t;
+      show(cur);
     }
-    state = dir;
-    want = true;
+    if (!cur) return;
+    dir = d === "in" ? 1 : -1;
+    // in: the lead at the river end, the rest behind it; out: the lead goes round to the lock side of the rest
+    s = d === "in" ? tailOff() : LEN - tailOff();
+    state = d;
+    want = false;
+    mode = null;
+    inside = false;
+    held = 0;
     ship.id = newShipId();
-    signalled = false;
+    trip = { names: [...cur.names], dir: d, mode: "none", waitOutside: 0, waitInside: 0, turnedAway: false, why: "", at: +clock.toFixed(1), river: +water.river.toFixed(2) };
+    log.push(trip);
+    if (log.length > 60) log.shift();
+  }
+
+  /** The boat gives up the lock and goes back where it came from. */
+  function turnAway(why: string): void {
+    if (trip) {
+      trip.turnedAway = true;
+      trip.why = why;
+    }
+    want = false;
+    mode = null;
+    // a lone boat turns round where it is; a tow cannot, it goes astern
+    state = cur && cur.objs.length === 1 ? "turn" : "back";
+    backFace = dir;
+    turnT = 0;
   }
 
   const berth = new THREE.Vector3(route[route.length - 1][0], 0, route[route.length - 1][1]);
   function update(_t: number, dt: number, camera?: THREE.Camera): void {
+    clock += dt;
     // --- bridge and gates follow the wish, one after the other: open = bridge first, then gates
     const occupied = opts.occupied?.() ?? false;
     const bridgeSpeed = 0.07; // rad/s: some men at a capstan
     const gateSpeed = 0.05; // of the full swing, per second
     // slow at both ends of the swing, as when men start and stop a capstan
     const ease = 0.25 + 0.75 * Math.sin(Math.PI * THREE.MathUtils.clamp(bridgeAngle / OPEN_BRIDGE, 0, 1));
-    // M6 tides: which pairs should stand open. A tow: both, on the level (round high water).
-    // A rowing boat: the pair on its side; in the chamber, the pair it did not come in by.
+    // M6 tides: which pairs should stand open. The traffic's boat: the pair on its side; once it lies
+    // in the chamber, the far pair (on the level: both at once). A rowing boat the same by its place.
     const wantGate: [boolean, boolean] = [false, false];
     let target: 0 | 1 | null = null;
-    // a tow goes through only on the level (it does not fit the chamber); once both pairs are open
-    // they stay open till it is clear. Until then it waits at the lock for the tide.
-    const atLevel = Math.abs(water.river - water.dock) < LEVEL_WINDOW;
-    const towGo = want && (atLevel || (gateOpen[0] > 0.5 && gateOpen[1] > 0.5));
-    if (towGo) wantGate[0] = wantGate[1] = true;
-    else if (boatWant) {
+    const near: 0 | 1 = dir > 0 ? 0 : 1;
+    const levelGo = want && mode === "level";
+    if (levelGo) wantGate[0] = wantGate[1] = true;
+    else if (want) {
+      target = inside ? (near === 0 ? 1 : 0) : near;
+      wantGate[target] = true;
+    } else if (boatWant) {
       const b = boatWhere?.();
       if (b) {
-        const inside = b.z > gz0 + 1.5 && b.z < gz1 - 1.5;
-        if (!inside) boatFrom = null;
+        const inCh = b.z > gz0 + 1.5 && b.z < gz1 - 1.5;
+        if (!inCh) boatFrom = null;
         else if (boatFrom === null) boatFrom = gateOpen[0] >= gateOpen[1] ? 0 : 1;
-        target = inside ? (boatFrom === 0 ? 1 : 0) : b.z <= gz0 + 1.5 ? 0 : 1;
+        target = inCh ? (boatFrom === 0 ? 1 : 0) : b.z <= gz0 + 1.5 ? 0 : 1;
       } else target = Math.abs(flat - water.river) < Math.abs(flat - water.dock) ? 0 : 1;
       wantGate[target] = true;
     }
-    // the bridge goes up for a boat, or for a tow once the water is on the level (it does not stand
-    // open for hours while a tow waits for the tide: the railway and the people cross here)
-    if (towGo || boatWant) {
+    // the bridge goes up when a boat has asked (it asks only as it comes near: the railway and the
+    // people cross here)
+    if (want || boatWant) {
       if (bridgeAngle > OPEN_BRIDGE && (bridgeAngle < -0.001 || !occupied)) bridgeAngle = Math.max(OPEN_BRIDGE, bridgeAngle - bridgeSpeed * ease * dt);
     } else if (gateOpen[0] < 0.3 && gateOpen[1] < 0.3) bridgeAngle = Math.min(0, bridgeAngle + bridgeSpeed * ease * dt);
     const bridgeUp = bridgeAngle < -0.3;
     for (const i of [0, 1] as const) {
       const other = i === 0 ? 1 : 0;
-      // a pair opens only with the bridge up, the other pair shut (unless a tow wants both), and
-      // the chamber at this side's level (a tow: near enough; the water then runs through)
-      const level = towGo || Math.abs(flat - sideLevel(i)) < 0.04;
-      const mayOpen = wantGate[i] && bridgeUp && (towGo || gateOpen[other] < 0.01) && level;
+      // a pair opens only with the bridge up, the other pair shut (unless both are wanted on the
+      // level), and the chamber at this side's level (on the level: near enough, the water runs through)
+      const level = levelGo || Math.abs(flat - sideLevel(i)) < 0.04;
+      const mayOpen = wantGate[i] && bridgeUp && (levelGo || gateOpen[other] < 0.01) && level;
       // the keeper does not swing a balance beam into Jef or a cart standing in its way
       const moving = (mayOpen && gateOpen[i] < 1) || (!wantGate[i] && gateOpen[i] > 0);
       if (moving && opts.sweepBusy?.((x, z, r) => inSweep(x, z, r, i))) continue;
@@ -473,7 +614,7 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
     if (gateOpen[0] > 0.02 && gateOpen[1] > 0.02) flat = (water.river + water.dock) / 2;
     else if (gateOpen[0] > 0.02) flat = water.river;
     else if (gateOpen[1] > 0.02) flat = water.dock;
-    else if (target !== null || towGo) {
+    else if (target !== null || levelGo) {
       const to = sideLevel(target ?? 0);
       flat += THREE.MathUtils.clamp(to - flat, -SLUICE * dt, SLUICE * dt);
     }
@@ -490,56 +631,125 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
     }
 
     // --- traffic
-    if (!tow) return;
+    if (!cur) return;
+    const t = cur;
     if (state === "river" || state === "dock") {
       wait -= dt;
-      // in the dock the tug turns round to lead out: only while nobody is near enough to see it
+      // in the dock the boat turns round to lead out: only while nobody is near enough to see it.
+      // It sets off only while the lock is free (no rowing boat in it), so it is never kept waiting.
       const seen = state === "dock" && camera && camera.position.distanceTo(berth) < 45;
-      if (wait <= 0 && !seen) start(state === "river" ? "in" : "out");
-      else if (state === "dock") place(LEN, 1, dt);
-      else place(gapOf(), 1, dt);
+      if (wait <= 0 && !seen && !boatWant) start(state === "river" ? "in" : "out");
+      else if (state === "dock") place(LEN, 1);
+      else place(tailOff(), 1);
       if (state === "river" || state === "dock") return;
     }
-    const dir = state === "in" ? 1 : -1;
-    const tw = tow.tows[towIdx];
-    const gap = gapOf();
-    const bow = s + dir * (tow.tugLen / 2);
-    const stern = s - dir * (gap + tw.len / 2);
-    // hold short of the lock until the bridge and gates are open
-    const holdAt = dir > 0 ? sIn - 14 : sOut + 14;
-    const beforeLock = dir > 0 ? bow < sIn : bow > sOut;
+    // turning away: a lone boat turns round on the spot, then goes back
+    if (state === "turn") {
+      turnT += dt;
+      const TURN_S = 14;
+      place(s, backFace, Math.PI * smooth(turnT / TURN_S));
+      lastV = 0.3;
+      if (turnT >= TURN_S) {
+        state = "back";
+        backFace = -dir;
+      }
+      return;
+    }
+    if (state === "back") {
+      // toward where it came from: the river end (it came in) or its berth in the dock (it came out)
+      const v = backFace === dir ? 0.8 : SPEED; // a tow goes astern, slowly
+      s -= dir * v * dt;
+      lastV = v;
+      place(s, backFace);
+      if ((dir > 0 && s <= tailOff()) || (dir < 0 && s >= LEN - tailOff())) {
+        state = dir > 0 ? "river" : "dock";
+        s = dir > 0 ? tailOff() : LEN;
+        wait = interval[0] + r() * (interval[1] - interval[0]);
+        place(s, 1);
+      }
+      return;
+    }
+
+    const bow = s + dir * (t.lens[0] / 2);
+    const stern = s - dir * t.rear;
+    const nearGate = dir > 0 ? sG0 : sG1;
+    const farGate = dir > 0 ? sG1 : sG0;
+    const span = chamberSpan(t.beam);
+    const spanFrom = sAtZ(span.from);
+    const spanTo = sAtZ(span.to);
+    const holdAt = nearGate - dir * HOLD; // the bow waits here till the gates stand open
+    const stopAt = dir > 0 ? spanTo : spanFrom; // locked through: the bow stops here till the far pair opens
+    const toHold = dir > 0 ? holdAt - bow : bow - holdAt;
+    const pastNear = toHold < -0.5;
+    // ask for the lock early enough that it stands open on arrival (the out-bound boat asks at its berth)
+    if (!want && !pastNear && toHold < ASK_M) {
+      if (!t.fit.fits) {
+        turnAway(`does not fit the lock: ${t.fit.why}`);
+        return;
+      }
+      want = true;
+      mode = Math.abs(water.river - water.dock) < LEVEL_WINDOW ? "level" : "locked";
+      if (trip) trip.mode = mode;
+      signal(ship, "lock");
+    }
+    const nearOpen = bridgeAngle <= OPEN_BRIDGE + 0.02 && (mode === "level" ? gateOpen[0] >= 0.98 && gateOpen[1] >= 0.98 : gateOpen[near] >= 0.98);
+    const farOpen = gateOpen[near === 0 ? 1 : 0] >= 0.98;
     let v = SPEED;
-    if (!lockOpen() && beforeLock) {
-      const room = dir > 0 ? holdAt - bow : bow - holdAt;
-      v = THREE.MathUtils.clamp(room * 0.3, 0, SPEED);
+    // off the lock: hold short of the gates till they stand open (an out-bound boat does not leave its
+    // berth before the gates start to open: it waits there, not off the gates)
+    if (!pastNear && !nearOpen) {
+      if (dir < 0 && gateOpen[near] < 0.05 && Math.abs(s - (LEN - tailOff())) < 0.5) v = 0;
+      else v = THREE.MathUtils.clamp(Math.max(0, toHold) * 0.3, 0, SPEED);
+    }
+    // locked through: stop in the chamber till the keeper has levelled it and the far pair is open
+    if (pastNear && mode === "locked" && !farOpen) {
+      const room = dir > 0 ? stopAt - bow : bow - stopAt;
+      v = Math.min(v, THREE.MathUtils.clamp(room * 0.3, 0, SPEED));
     }
     // ease at both ends of the route
     const fromEnd = Math.min(s, LEN - s);
     v *= THREE.MathUtils.clamp(0.25 + fromEnd / 20, 0.25, 1);
-    s = THREE.MathUtils.clamp(s + dir * v * dt, dir > 0 ? gap : 0, dir > 0 ? LEN : LEN - gap);
+    const lo = dir > 0 ? tailOff() : 0;
+    const hi = dir > 0 ? LEN : LEN - tailOff();
+    s = THREE.MathUtils.clamp(s + dir * v * dt, lo, hi);
     lastV = v;
-    // the tug sounds its whistle to ask for the lock as it comes up
-    const toLock = dir > 0 ? sIn - bow : bow - sOut;
-    if (!signalled && toLock < 70) {
-      signalled = true;
-      signal(ship, "lock");
+    // the waits: off the gates, and in the chamber while it is levelled
+    const atBerth = dir < 0 && Math.abs(s - hi) < 0.5;
+    if (v < 0.2 && trip && !atBerth) {
+      if (!pastNear) trip.waitOutside += dt;
+      else if (mode === "locked") trip.waitInside += dt;
     }
-    // once the tow's stern is clear of the lock, let it close
-    const clear = dir > 0 ? stern > sOut + 4 : stern < sIn - 4;
-    if (clear) want = false;
-    place(s, dir, dt);
+    // kept waiting off the gates (a rowing boat in the lock, the bridge held down): turn away
+    if (!pastNear && v < 0.2 && !atBerth) {
+      held += dt;
+      if (held > HOLD_MAX) {
+        turnAway(`kept waiting ${HOLD_MAX} s off the gates`);
+        return;
+      }
+    } else held = 0;
+    // locked through: once the whole boat lies in the chamber the keeper shuts the gates behind it
+    if (want && mode === "locked" && !inside && (dir > 0 ? stern >= spanFrom : stern <= spanTo)) inside = true;
+    // once the stern is clear of the lock, let it close
+    const clear = dir > 0 ? stern > farGate + HOLD : stern < farGate - 3;
+    if (clear && want) {
+      want = false;
+      mode = null;
+    }
+    place(s, dir);
     if ((dir > 0 && s >= LEN) || (dir < 0 && s <= 0)) {
       state = dir > 0 ? "dock" : "river";
       wait = interval[0] + r() * (interval[1] - interval[0]);
       want = false;
+      mode = null;
+      trip = null;
     }
   }
 
   addMovingSource((out) => {
-    if (!tow || (state !== "in" && state !== "out")) return;
-    ship.x = tow.tug.position.x;
-    ship.z = tow.tug.position.z;
-    ship.heading = tow.tug.rotation.y;
+    if (!cur || state === "river" || state === "dock") return;
+    ship.x = cur.objs[0].position.x;
+    ship.z = cur.objs[0].position.z;
+    ship.heading = cur.objs[0].rotation.y;
     ship.speed = lastV;
     out.push(ship);
   });
@@ -560,8 +770,18 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
     },
     lift: () => smooth(bridgeAngle / OPEN_BRIDGE),
     inSweep: (x, z, r) => inSweep(x, z, r),
-    passNow(dir = "in") {
-      start(dir);
+    passNow(d = "in", names) {
+      start(d, names);
+    },
+    traffic: () => ({ state, names: cur ? [...cur.names] : [], mode: mode ?? "", inside, log: [...log] }),
+    fitTable: () => {
+      const b = boatsReady;
+      if (!b) return [];
+      const rows: BoatName[][] = [...VESSELS.filter((n) => n !== "pontoon_section").map((n) => [n]), ...LOCK_CANDIDATES.filter((c) => c.length > 1)];
+      return rows.map((names) => {
+        const f = lockFit(partsOf(b, names), TOW_LINE);
+        return { ...f, lockTrips: f.fits && LOCK_CANDIDATES.some((c) => c.join("+") === names.join("+")) };
+      });
     },
     group,
   };

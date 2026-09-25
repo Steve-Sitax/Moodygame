@@ -5,6 +5,8 @@ import CITY from "../../../shared/city.json";
 import SPOT_TABLE from "../../../shared/spots.json";
 import { psx } from "../retro/psx";
 import type { Rect } from "./geom";
+import { facadeOpenings } from "./cityTextures";
+import { boxesOverlap, SIGN_MARGIN, signOnWall, wallBox, type WallBox, type WallProbe } from "./wallprobe";
 
 // Street life (tools/blender/build_streetlife.py -> /models/streetlife.glb): the small
 // things of an 1873 street, after period photos. Shop signboards and lettering, iron
@@ -26,6 +28,8 @@ export interface StreetLifeOptions {
   seed?: number;
   /** Boxes that already hold something (props, cranes): pumps and troughs keep off them. */
   avoid?: Rect[];
+  /** The houses as built (world/wallprobe.ts): signs go only where the wall is really there and clear. */
+  probe?: WallProbe;
 }
 
 export interface StreetLife {
@@ -51,6 +55,14 @@ export interface StreetLife {
   shops: Array<{ key: string; ax: number; az: number; tx: number; tz: number; ox: number; oz: number; len: number; door: number }>;
   /** M6 lively: every house front with a door (its bays are 3 m wide, the door in the middle one): where its windows are. */
   fronts: Array<{ ax: number; az: number; tx: number; tz: number; ox: number; oz: number; len: number; door: number; bays: number; storeys: number }>;
+  /** Everything put on a house wall (signs, plates, numbers, bills, brackets, awnings, Madonnas), as boxes: for dev/signcheck.ts. */
+  wallItems: WallBox[];
+  /** The house walls: [ax, az, bx, bz, ox, oz, H, st, kind, style, door, seed, store] (kind 0 a street front). */
+  walls: number[][];
+  ground_h: number;
+  storey_h: number;
+  /** The names on the plates (plate_i). */
+  streetNames: string[];
 }
 
 interface Meta {
@@ -111,6 +123,8 @@ interface Proto {
   minZ: number;
   maxZ: number;
   height: number;
+  /** All of it: [x0, y0, z0, x1, y1, z1]. */
+  box: number[];
 }
 
 function rng(seed: number): () => number {
@@ -153,7 +167,7 @@ async function loadModels(): Promise<{ protos: Map<string, Proto>; meta: Meta; s
       meta = JSON.parse(node.userData.meta as string) as Meta;
       continue;
     }
-    const proto: Proto = { parts: [], minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity, height: 0 };
+    const proto: Proto = { parts: [], minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity, height: 0, box: [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity] };
     // the node's own placement is dropped: models sit at their origin
     const inv = new THREE.Matrix4().copy(node.matrixWorld).invert();
     node.traverse((o) => {
@@ -177,6 +191,13 @@ async function loadModels(): Promise<{ protos: Map<string, Proto>; meta: Meta; s
         v.fromBufferAttribute(P, i).applyMatrix4(M);
         part.pos.set([v.x, v.y, v.z], i * 3);
         proto.height = Math.max(proto.height, v.y);
+        const bb = proto.box;
+        bb[0] = Math.min(bb[0], v.x);
+        bb[1] = Math.min(bb[1], v.y);
+        bb[2] = Math.min(bb[2], v.z);
+        bb[3] = Math.max(bb[3], v.x);
+        bb[4] = Math.max(bb[4], v.y);
+        bb[5] = Math.max(bb[5], v.z);
         if (v.y < 1.5) {
           proto.minX = Math.min(proto.minX, v.x);
           proto.maxX = Math.max(proto.maxX, v.x);
@@ -234,7 +255,9 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
   const DS = THREE.DoubleSide;
   const decalOpts = { map: decalMap, vertexColors: true, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 };
   const mats: THREE.Material[] = [];
-  mats[SOLID] = psx(new THREE.MeshLambertMaterial({ map: solidMap, vertexColors: true, side: DS }), { affine: 0 });
+  // pulled a pixel's depth toward the eye: plates, boards and steps lie a centimetre or two off the
+  // walls and kerbs, and with the PS1 wobble that near they flickered through (z-fight check)
+  mats[SOLID] = psx(new THREE.MeshLambertMaterial({ map: solidMap, vertexColors: true, side: DS, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), { affine: 0 });
   // on the walls the decals wobble with the (snapped) houses; on the ground they sit still with it
   mats[WALL_DECAL] = psx(new THREE.MeshLambertMaterial({ ...decalOpts, side: DS }), { affine: 0 });
   mats[GROUND_DECAL] = psx(new THREE.MeshLambertMaterial({ ...decalOpts }), { affine: 0, noSnap: true });
@@ -263,11 +286,56 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
     return b;
   }
 
-  /** A copy of a model at (x, y, z), turned by yaw (0: its front looks along +z), stretched sx along its x. */
-  function put(name: string, x: number, y: number, z: number, yaw: number, sx = 1, kind = name): void {
+  // --- things on the house walls, as boxes: nothing may overlap another, a window or a door
+  const WALL_KINDS: Record<string, boolean> = { "name plate": true, "house number": true, board: true, lettering: true, poster: true, "bracket sign": false, awning: false, madonna: false };
+  const wallItems: WallBox[] = [];
+  const itemGrid = new Map<string, WallBox[]>();
+  const IG = 8;
+  const cellsOf = (b: WallBox, f: (k: string) => void) => {
+    const r = b.hu + b.hn + 0.5;
+    for (let gx = Math.floor((b.cx - r) / IG); gx <= Math.floor((b.cx + r) / IG); gx++) for (let gz = Math.floor((b.cz - r) / IG); gz <= Math.floor((b.cz + r) / IG); gz++) f(`${gx},${gz}`);
+  };
+  const addItem = (b: WallBox) => {
+    wallItems.push(b);
+    cellsOf(b, (k) => {
+      let l = itemGrid.get(k);
+      if (!l) itemGrid.set(k, (l = []));
+      l.push(b);
+    });
+  };
+  /** The first wall thing this box would overlap, with `gap` metres kept clear round it. */
+  const clashWith = (b: WallBox, gap = 0.04): WallBox | null => {
+    let hit: WallBox | null = null;
+    cellsOf(b, (k) => {
+      if (hit) return;
+      for (const o of itemGrid.get(k) ?? []) if (o !== b && boxesOverlap(b, o, -gap)) return void (hit = o);
+    });
+    return hit;
+  };
+  /** The box a model would take there (null: no such model). */
+  const boxFor = (name: string, kind: string, x: number, y: number, z: number, yaw: number, sx = 1, sy = 1): WallBox | null => {
+    const p = protos.get(name);
+    return p ? wallBox(kind, name, WALL_KINDS[kind] ?? false, p.box, x, y, z, yaw, sx, sy) : null;
+  };
+  // the signs the game hangs over its own doors (world/rijnkaai.ts, game/interiors.ts) are there first
+  scene.traverse((o) => {
+    const ws = o.userData.wallSign as { kind: string; name: string; flat: boolean } | undefined;
+    const g = (o as THREE.Mesh).geometry;
+    if (!ws || !g) return;
+    o.updateWorldMatrix(true, false);
+    g.computeBoundingBox();
+    const bb = g.boundingBox!;
+    const n = new THREE.Vector3(0, 0, 1).transformDirection(o.matrixWorld);
+    const p = new THREE.Vector3().setFromMatrixPosition(o.matrixWorld);
+    addItem(wallBox(ws.kind, ws.name, ws.flat, [bb.min.x, bb.min.y, Math.min(bb.min.z, -0.005), bb.max.x, bb.max.y, Math.max(bb.max.z, 0.005)], p.x, p.y, p.z, Math.atan2(n.x, n.z)));
+  });
+
+  /** A copy of a model at (x, y, z), turned by yaw (0: its front looks along +z), stretched sx along its x (and sy up). */
+  function put(name: string, x: number, y: number, z: number, yaw: number, sx = 1, kind = name, sy = 1): void {
     const p = protos.get(name);
     if (!p) return;
-    M.compose(Pv.set(x, y, z), Q.setFromAxisAngle(up, yaw), S.set(sx, 1, 1));
+    if (kind in WALL_KINDS) addItem(wallBox(kind, name, WALL_KINDS[kind], p.box, x, y, z, yaw, sx, sy));
+    M.compose(Pv.set(x, y, z), Q.setFromAxisAngle(up, yaw), S.set(sx, sy, 1));
     nm.getNormalMatrix(M);
     const e = M.elements;
     const n = nm.elements;
@@ -387,6 +455,87 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
     const [x, z] = along(w, s);
     return openOut(x, z, w.ox, w.oz, 0.3, d);
   };
+
+  // --- signs on the walls: where they may go
+  /** The band over the ground storey's windows and doors, under the first floor's sills: shop boards and lettering. */
+  const BOARD_BAND: [number, number] = [3.47, 4.19];
+  /** The street name plates: just over the ground storey (their middle), clear of the shop boards' tops. */
+  const PLATE_Y = GH + 0.2;
+  /** Awnings hang from just over the ground-floor lintels (the model's top is at 3.05 m). */
+  const AWNING_Y = 0.2;
+  const openingsOf = new Map<Wall, ReturnType<typeof facadeOpenings>>();
+  const sAlong = (w: Wall, b: WallBox) => (b.cx - w.ax) * w.tx + (b.cz - w.az) * w.tz;
+  /**
+   * May this thing go on wall w: inside the wall with a margin at its ends, clear of the other
+   * things on the walls, and, for a flat sign, clear of the windows and the door and flat on the
+   * wall as built (the probe: no corner, gateway or door surround in the way).
+   */
+  const fitsOn = (w: Wall, b: WallBox): boolean => {
+    const s = sAlong(w, b);
+    if (s - b.hu < SIGN_MARGIN || s + b.hu > w.L - SIGN_MARGIN) return false;
+    if (clashWith(b)) return false;
+    if (!b.flat) return true;
+    // the windows and doors of this wall and of any other front in the same place (the plan has
+    // a few houses whose fronts run into each other)
+    for (const v of frontsNear(b)) {
+      let open = openingsOf.get(v);
+      if (!open) openingsOf.set(v, (open = facadeOpenings(v.L, v.H, v.door >= 0, v.style, GH, SH)));
+      const sv = sAlong(v, b);
+      if (open.some((o) => sv - b.hu < o.s1 && o.s0 < sv + b.hu && b.y0 < o.y1 && o.y0 < b.y1)) return false;
+    }
+    return !opts.probe || !signOnWall(b, opts.probe);
+  };
+  /** The street fronts in the plane of a flat thing's back, along its length. */
+  const frontGrid = new Map<string, Wall[]>();
+  for (const w of walls) {
+    if (w.kind !== 0) continue;
+    const seen = new Set<string>();
+    for (let d = 0; d <= w.L + 4; d += 4) {
+      const [x, z] = along(w, Math.min(d, w.L));
+      const k = `${Math.floor(x / 8)},${Math.floor(z / 8)}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      let l = frontGrid.get(k);
+      if (!l) frontGrid.set(k, (l = []));
+      l.push(w);
+    }
+  }
+  const frontsNear = (b: WallBox): Wall[] => {
+    const bx = b.cx - b.nx * b.hn, bz = b.cz - b.nz * b.hn;
+    const out: Wall[] = [];
+    for (let i = -1; i <= 1; i++) {
+      for (let j = -1; j <= 1; j++) {
+        for (const v of frontGrid.get(`${Math.floor(bx / 8) + i},${Math.floor(bz / 8) + j}`) ?? []) {
+          if (out.includes(v) || v.ox * b.nx + v.oz * b.nz < 0.98) continue;
+          if (Math.abs((bx - v.ax) * v.ox + (bz - v.az) * v.oz) > 0.08) continue;
+          const sv = (bx - v.ax) * v.tx + (bz - v.az) * v.tz;
+          if (sv + b.hu > 0 && sv - b.hu < v.L) out.push(v);
+        }
+      }
+    }
+    return out;
+  };
+  /** Up and stretch for a model to sit in a band of the wall (squeezed a little if it is taller). */
+  const inBand = (name: string, [b0, b1]: [number, number]): { y: number; sy: number } => {
+    const p = protos.get(name);
+    if (!p) return { y: 0, sy: 1 };
+    const h = p.box[4] - p.box[1];
+    const sy = h > b1 - b0 ? (b1 - b0) / h : 1;
+    return { y: (b0 + b1) / 2 - ((p.box[1] + p.box[4]) / 2) * sy, sy };
+  };
+  /** The street wall that ends at corner (x, z) with outward normal (ox, oz). */
+  const wallEnds = new Map<string, Wall[]>();
+  const endKey = (x: number, z: number) => `${Math.round(x * 20)},${Math.round(z * 20)}`;
+  for (const w of walls) {
+    for (const [x, z] of [[w.ax, w.az], along(w, w.L)]) {
+      const k = endKey(x, z);
+      let l = wallEnds.get(k);
+      if (!l) wallEnds.set(k, (l = []));
+      l.push(w);
+    }
+  }
+  const wallAtCorner = (x: number, z: number, ox: number, oz: number): Wall | null =>
+    (wallEnds.get(endKey(x, z)) ?? []).find((w) => w.kind === 0 && w.ox * ox + w.oz * oz > 0.98) ?? null;
 
   const colliders: Rect[] = [];
   function collide(name: string, x: number, z: number, yaw: number, pad = 0): void {
@@ -543,23 +692,33 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
       let sum = 0;
       for (const [, wt] of table) sum += wt;
       let pick = r() * sum;
-      const trade = table.find(([, wt]) => (pick -= wt) <= 0)?.[0];
-      if (trade) {
+      let trade = table.find(([, wt]) => (pick -= wt) <= 0)?.[0];
+      // the board over the middle of the front, in the band over the ground storey's openings
+      const kindOf = (t: Meta["trades"][number]) => (t.sign.startsWith("letters_") ? "lettering" : "board");
+      const band = trade ? inBand(trade.sign, BOARD_BAND) : { y: 0, sy: 1 };
+      const [sx, sz] = along(w, w.L / 2);
+      const boardBox = trade ? boxFor(trade.sign, kindOf(trade), sx, band.y, sz, w.yaw, 1, band.sy) : null;
+      if (trade && (!boardBox || !fitsOn(w, boardBox))) trade = undefined; // a gateway or a door surround in the way: no shop here
+      if (trade && boardBox) {
         shop = true;
         shopsNear.push({ x: mid[0], z: mid[1], key: trade.key });
         shopFronts.push({ key: trade.key, ax: w.ax, az: w.az, tx: w.tx, tz: w.tz, ox: w.ox, oz: w.oz, len: w.L, door: doorS });
         count("shop");
         sites.push({ kind: `shop ${trade.key}`, x: +mid[0].toFixed(1), z: +mid[1].toFixed(1), yaw: +w.yaw.toFixed(2) });
-        // the board over the middle of the front
-        const [sx, sz] = along(w, w.L / 2);
-        put(trade.sign, sx, 0, sz, w.yaw, 1, trade.sign.startsWith("letters_") ? "lettering" : "board");
-        // a bracket sign at one end of the front, first-floor height
+        put(trade.sign, sx, band.y, sz, w.yaw, 1, kindOf(trade), band.sy);
+        // a bracket sign at one end of the front, first-floor height, beside the board
         const hang = trade.hang ?? (r() < 0.08 ? "tankard" : null);
         if (hang && r() < 0.85) {
-          for (const end of r() < 0.5 ? [0.5, w.L - 0.5] : [w.L - 0.5, 0.5]) {
+          const free = w.L / 2 - boardBox.hu; // the wall either side of the board
+          const off = Math.min(0.5, free / 2);
+          for (const end of r() < 0.5 ? [off, w.L - off] : [w.L - off, off]) {
             const [hx, hz] = along(w, end);
             if (brackets.some(([bx, bz]) => Math.hypot(bx - hx, bz - hz) < 2.5)) continue;
             if (!openOut(hx, hz, w.ox, w.oz, 0.3, 1.3)) continue;
+            const arm = boxFor(`hang_${hang}`, "bracket sign", hx, 0, hz, w.yaw);
+            // its iron plate must be on the wall too
+            const plate = wallBox("bracket sign", "", true, [-0.06, 3.67, 0, 0.06, 4.13, 0.03], hx, 0, hz, w.yaw);
+            if (!arm || !fitsOn(w, arm) || (opts.probe && signOnWall(plate, opts.probe))) continue;
             put(`hang_${hang}`, hx, 0, hz, w.yaw, 1, "bracket sign");
             brackets.push([hx, hz]);
             break;
@@ -578,7 +737,7 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
               const sxScale = Math.min(1.25, Math.max(0.8, bw / 3));
               const half = (nb * 3 - 0.4) * sxScale * 0.5;
               if (openOut(ax, az, w.ox, w.oz, 0.3, 1.6) && faceOpen(w, Math.max(0.1, s - half), 1.5) && faceOpen(w, Math.min(w.L - 0.1, s + half), 1.5)) {
-                put(`awning_${nb}_${colour}`, ax, 0, az, w.yaw, sxScale, "awning");
+                put(`awning_${nb}_${colour}`, ax, AWNING_Y, az, w.yaw, sxScale, "awning");
               }
               k += nb;
             }
@@ -604,10 +763,19 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
         }
       }
       if (r() < 0.6) {
+        // beside the doorway, a hand's width off its stone surround (cityTextures.facadeOpenings), clear of the windows
         const side = r() < 0.5 ? -1 : 1;
-        const s = doorS + side * Math.min(0.85, bw * 0.3);
-        const [nx, nz] = along(w, s);
-        put(`number_${hash(w.seed) % meta.numbers}`, nx, 0, nz, w.yaw, 1, "house number");
+        const name = `number_${hash(w.seed) % meta.numbers}`;
+        const p = protos.get(name);
+        const hw = p ? (p.box[3] - p.box[0]) / 2 : 0.15;
+        const doorHalf = Math.min(bw / 2, Math.max(1.0, (bw * 14) / 64));
+        for (const sd of [side, -side]) {
+          const [nx, nz] = along(w, doorS + sd * (doorHalf + 0.1 + hw));
+          const b = boxFor(name, "house number", nx, 0, nz, w.yaw);
+          if (!b || !fitsOn(w, b)) continue;
+          put(name, nx, 0, nz, w.yaw, 1, "house number");
+          break;
+        }
       }
     }
 
@@ -724,6 +892,8 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
       if (madonnas.length >= MADONNAS_MAX) break;
       if (madonnas.some((m) => Math.hypot(m.x - c.x, m.z - c.z) < MADONNA_GAP)) continue;
       const kind = ["madonna", "madonna_b", "madonna_c"][hash(c.x, c.z, 3) % 3];
+      const mb = boxFor(kind, "madonna", c.x, 0, c.z, c.yaw);
+      if (mb && clashWith(mb, 0.1)) continue; // a shop board or a bracket sign by the corner
       put(kind, c.x, 0, c.z, c.yaw, 1, "madonna");
       madonnas.push({ x: c.x, z: c.z, yaw: +c.yaw.toFixed(3), sx: c.sx, sz: c.sz });
     }
@@ -738,7 +908,24 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
       const pz = cz + tz * 0.75;
       if (!openOut(px, pz, ox, oz, 0.3, 1.0)) continue;
       const i = streetName(px, pz, ox, oz);
-      put(`plate_${i}`, px, 0, pz, Math.atan2(ox, oz), 1, "name plate");
+      // flat on this wall, just over the ground storey, as near the corner as it goes: its whole
+      // length on the wall (a margin from the corner), clear of the Madonna, the other face's plate,
+      // shop boards, brackets and the storey's windows; slid along the wall if something is there
+      const w = wallAtCorner(cx, cz, ox, oz);
+      const name = `plate_${i}`;
+      const p = protos.get(name);
+      if (!w || !p) continue;
+      const hw = (p.box[3] - p.box[0]) / 2;
+      const y = PLATE_Y - (p.box[1] + p.box[4]) / 2;
+      const yaw = Math.atan2(ox, oz);
+      for (let d = SIGN_MARGIN + 0.05; d <= 1.8; d += 0.1) {
+        const qx = cx + tx * (d + hw);
+        const qz = cz + tz * (d + hw);
+        const b = boxFor(name, "name plate", qx, y, qz, yaw);
+        if (!b || !fitsOn(w, b)) continue;
+        put(name, qx, y, qz, yaw, 1, "name plate");
+        break;
+      }
     }
   }
 
@@ -752,9 +939,12 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
     const first = Math.floor(r() * meta.posters.length); // side by side, never the same bill twice
     for (let i = 0; i < n && s < w.L - 0.6; i++) {
       const [px, pz] = along(w, s);
-      if (faceOpen(w, s, 3) && isClear(px, pz, 0.5)) {
+      const py = (r() - 0.3) * 0.25;
+      const name = meta.posters[(first + i) % meta.posters.length];
+      const b = boxFor(name, "poster", px + w.ox * 0.012, py, pz + w.oz * 0.012, w.yaw);
+      if (faceOpen(w, s, 3) && isClear(px, pz, 0.5) && b && fitsOn(w, b)) {
         // posters sit a hair further out than the damp band, so the two never fight
-        put(meta.posters[(first + i) % meta.posters.length], px + w.ox * 0.012, (r() - 0.3) * 0.25, pz + w.oz * 0.012, w.yaw, 1, "poster");
+        put(name, px + w.ox * 0.012, py, pz + w.oz * 0.012, w.yaw, 1, "poster");
       }
       s += 0.95 + r() * 0.4;
     }
@@ -889,5 +1079,5 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
   const fronts: StreetLife["fronts"] = walls
     .filter((w) => w.kind === 0 && w.door >= 0)
     .map((w) => ({ ax: w.ax, az: w.az, tx: w.tx, tz: w.tz, ox: w.ox, oz: w.oz, len: w.L, door: w.door * w.L, bays: Math.max(1, Math.round(w.L / 3)), storeys: w.st }));
-  return { group, colliders, update, stats: { counts, meshes: chunks.length, triangles }, sites, madonnas, shops: shopFronts, fronts };
+  return { group, colliders, update, stats: { counts, meshes: chunks.length, triangles }, sites, madonnas, shops: shopFronts, fronts, wallItems, walls: meta.walls, ground_h: GH, storey_h: SH, streetNames: meta.streetNames };
 }

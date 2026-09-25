@@ -72,8 +72,9 @@ export const HAGGLE = {
   cutPerPoint: 0.1,
   /** Tries per seller and ware in a game day; then "my price is my price", no call. */
   triesPerDay: 3,
-  /** A rude try that ends in a refusal: this many game minutes, plus temper x 20. */
-  refuseMin: 180,
+  /** A rude try that ends in a refusal: this many game minutes, plus temper x refusePerTemper (M7 clock: 180 + 20 x temper -> 60 + 10 x temper). */
+  refuseMin: 60,
+  refusePerTemper: 10,
   /** Lies found out: the chance a seller sees through each kind of false claim. */
   foundOut: { stale_goods: 0.85, regular_customer: 0.9, cheaper_elsewhere: 0.7, buy_several: 0.4, hard_up: 0.35 } as Record<string, number>,
 } as const;
@@ -430,7 +431,7 @@ export function decideHaggle(rating: Pick<HaggleRating, "claims" | "reasonable" 
     const chance = rating.manner === "threatening" ? 0.6 + t * 0.06 : 0.2 + t * 0.08 + (caught.length ? 0.15 : 0);
     if (rng() < chance) {
       refuse = true;
-      refuseMin = rating.manner === "threatening" ? 24 * 60 : HAGGLE.refuseMin + st.temper * 20;
+      refuseMin = rating.manner === "threatening" ? 24 * 60 : HAGGLE.refuseMin + st.temper * HAGGLE.refusePerTemper;
       why.push(`${rating.manner}: refused`);
     }
   }

@@ -130,6 +130,9 @@ export const CODEX = {
  * ("120 calls is ok"): the M6 features had taken nearly all of the 80, leaving the board, the
  * outcomes and the named people almost nothing. The extra 40: townspeople +10, director +3,
  * conversations +3, and the rest (now about 23) for the board, outcomes, named people, epilogue.
+ * M7 clock (2026-09-24): still per GAME day, though a game day (6:00 to midnight) is now 36 real
+ * minutes, not 6: the same calls are spread over six times the play, so the rate per real minute
+ * falls to a sixth (about 3 a real minute at most).
  */
 export const CALLS_PER_DAY = 120;
 
@@ -219,6 +222,15 @@ export const HANDS_CALLS_PER_DAY = 2;
  * board, the outcomes, the named people and the epilogue (the last 15 of them the reserve).
  */
 export const ROUTINE_CALLS_PER_DAY = 6;
+/**
+ * M7 night (night/nightwork.ts): the night's work, written once a night when the givers come out
+ * (a second row only if the first fails its schema). Out of what was left of the 120, never the
+ * reserve; when the share is gone the engine's hand-written night work goes up. The shares now come
+ * to 98 of 120, leaving 22 for the board, the outcomes, the named people and the epilogue (the last
+ * 15 of them the reserve). The day's other budgets hold through the night: a game day is its date,
+ * midnight to midnight.
+ */
+export const NIGHT_BOARD_CALLS_PER_DAY = 2;
 /**
  * M4b (Steve, 2026-09-24: "events should gather up to 100 people"): the most townspeople one
  * event may take, leads included, and the most one gathering stage may call. The director may

@@ -4,6 +4,7 @@ import type { JobsPayload, PocketItem, PushMsg } from "../net/api";
 import type { FirstPerson } from "../player/firstPerson";
 import type { Note } from "../audio/ballad";
 import { esc, type Action } from "./runs";
+import { chest } from "./facing";
 import type { Jobs } from "./jobs";
 import type { Town } from "./town";
 import type { Interiors } from "./interiors";
@@ -212,7 +213,8 @@ export class Ballads {
     const at = this.town.position(this.singer.id);
     if (!at || Math.hypot(at.x - x, at.z - z) > 2.6) return {};
     if (!this.canBuy()) return {};
-    return { extra: [{ key: "KeyG", text: `buy a ballad sheet from ${this.singer.first} (${s.price_c} c)`, run: () => void this.buy() }] };
+    const pup = this.town.puppet(this.singer.id);
+    return { extra: [{ key: "KeyG", text: `buy a ballad sheet from ${this.singer.first} (${s.price_c} c)`, run: () => void this.buy(), at: pup ? chest(pup.group, 1.3 * pup.size) : { x: at.x, z: at.z } }] };
   }
 
   private tavernKeys(): { options: Array<[number, Action]>; extra: Action[] } {
@@ -221,7 +223,7 @@ export class Ballads {
     if (!s?.singing || s.singing.kind !== "tavern" || !this.singer || this.interiors.placeId !== s.singing.place) return none;
     const p = this.interiors.personAt(this.singer.id);
     if (!p || p.dist > 2.2 || !this.canBuy()) return none;
-    return { options: [], extra: [{ key: "KeyG", text: `buy a ballad sheet from ${this.singer.first} (${s.price_c} c)`, run: () => void this.buy() }] };
+    return { options: [], extra: [{ key: "KeyG", text: `buy a ballad sheet from ${this.singer.first} (${s.price_c} c)`, run: () => void this.buy(), at: { x: p.x, z: p.z } }] };
   }
 
   private async buy(): Promise<void> {

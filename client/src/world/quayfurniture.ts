@@ -313,7 +313,7 @@ const MOORED: number[][] = [
 const moored = (x: number, z: number) => MOORED.some(([x0, z0, x1, z1]) => distSeg(x, z, x0, z0, x1, z1) < 1.5);
 
 /** Where the town's people haul and sell (server town/places.ts HAULS quay ends and STALLS): keep open. */
-const TOWN_CLEAR: Array<[number, number, number]> = [
+export const TOWN_CLEAR: Array<[number, number, number]> = [
   [-12, 4, 2], [26, 5, 2], [-40, 5, 2], [45, 5, 2], [12, 5, 2], [2, 5, 2], [173, 55, 2.5], [173, 108, 2.5], [160, 40, 2.5],
   [90, 44, 2.5], [130, 44, 2.5], [66, 60, 2.5], [90, 113, 2.5], [140, 113, 2.5], [-300, 3, 2], [-262, 3, 2], [-230, 3, 2],
   [-139, 22, 2.5], [-139, 34, 2.5], [-65, 90, 2.5], [-87, 120, 2.5],
@@ -342,7 +342,9 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
   const DS = THREE.DoubleSide;
   const decalOpts = { map: decalMap, vertexColors: true, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4, side: DS };
   const mats: THREE.Material[] = [];
-  mats[SOLID] = psx(new THREE.MeshLambertMaterial({ map: solidMap, vertexColors: true, side: DS }), { affine: 0 });
+  // a pixel's depth toward the eye: fenders, ladders and plates lie a centimetre or two off the quay
+  // walls, and with the PS1 wobble that near they flickered through (z-fight check)
+  mats[SOLID] = psx(new THREE.MeshLambertMaterial({ map: solidMap, vertexColors: true, side: DS, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), { affine: 0 });
   mats[FLAT_DECAL] = psx(new THREE.MeshLambertMaterial({ ...decalOpts }), { affine: 0, noSnap: true });
   mats[SNAP_DECAL] = psx(new THREE.MeshLambertMaterial({ ...decalOpts, alphaTest: 0.3 }), { affine: 0 });
   const glowMat = new THREE.MeshBasicMaterial({ map: solidMap, color: 0xffc070, fog: false });

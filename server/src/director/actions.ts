@@ -19,6 +19,8 @@ import { streetCrimeOpen } from "./scenes.ts";
 import {
   ActionProposalSchema,
   END_LINE,
+  ERRAND_HARD_MIN,
+  ERRAND_KINDS,
   FOLLOW_DEFAULT_MIN,
   FOLLOW_LOST_M,
   FOLLOW_MAX_MIN,
@@ -33,7 +35,9 @@ import {
   TALK_TO_MAX_M,
   TALK_TO_MIN,
   WAIT_MAX_MIN,
+  WAIT_MIN_MIN,
   limitLine,
+  walkMinutes,
   type ActionKind,
   type ActionProposal,
   type EngineKind,
@@ -94,7 +98,14 @@ interface ActionData {
   scheme?: number;
   reaction?: string;
   complaint?: number;
+  /** go_to and the look about after it: the place's name, for the person's memory. */
+  place?: string;
 }
+
+/** An agent sent to a place looks about it this long (game minutes; M7 clock: 120 -> 30, one real minute). */
+const POLICE_LOOK_MIN = 30;
+/** An errand still under way gets this much more time at once (game minutes; M7 clock: 60 -> 10, 20 real seconds). */
+const ERRAND_MORE_MIN = 10;
 
 // ------------------------------------------------------------------ what the client tells us
 
@@ -401,6 +412,7 @@ export function endAction(db: DB, id: number, status: "done" | "failed" | "stopp
   db.prepare("UPDATE npc_action SET status = ?, outcome = ?, data_json = ? WHERE id = ?").run(status, outcome, JSON.stringify({ ...parseData(row), line }), id);
   const r = resident(db, row.npc_id);
   const name = r?.name ?? row.npc_id;
+  rememberErrand(db, row, status, outcome);
   if (row.kind !== "attend") {
     writeEvent(db, {
       kind: "action",
@@ -417,6 +429,40 @@ export function endAction(db: DB, id: number, status: "done" | "failed" | "stopp
   }
   notify("actions", { ended: { id, npc: row.npc_id, name, kind: row.kind, status, outcome, line } });
   return actionRow(db, id);
+}
+
+/**
+ * Fixes 2026-09-24: what they did for Jef stays in their memory, in the engine's words. Steve sent
+ * an agent to the cathedral; the walk timed out and, asked why, the agent made up "a funeral,
+ * no thieves": the talk knew only the running action, so the model filled the gap. Errands for
+ * Jef only (asked in talk, or the engine's links after them); follow and wait need no story.
+ */
+function rememberErrand(db: DB, row: ActionRow, status: string, outcome: string): void {
+  if (row.source !== "talk" && row.source !== "engine") return;
+  if (status === "stopped" || outcome === "event over") return;
+  const data = parseData(row);
+  const why = row.reason ? ` (${row.reason.slice(0, 60)})` : "";
+  const who = row.target ? (resident(db, row.target)?.name ?? null) : null;
+  const place = data.place ?? row.target;
+  let text = "";
+  switch (row.kind) {
+    case "go_to":
+      if (outcome === "arrived") text = data.then ? "" : `I went to ${place} for Jef${why}.`;
+      else if (outcome === "blocked") text = `Jef sent me to ${place}${why}. I could not get through and turned back.`;
+      else text = `Jef sent me to ${place}${why}. It was too far; I gave up on the way and turned back.`;
+      break;
+    case "look_for":
+      if (outcome === "found" && who) text = `For Jef${why} I looked about and found ${who}.`;
+      else text = `For Jef${why} I looked about ${data.place ?? "the place"}${who ? ` for ${who}` : ""} and found nothing.`;
+      break;
+    case "talk_to":
+      if (status === "failed") text = `Jef asked me to speak to ${who ?? "someone"}${why}. I could not find them.`;
+      break;
+    case "fetch_police":
+      text = status === "done" ? `I fetched an agent for Jef${why}.` : `Jef asked me to fetch the police${why}. I found no agent.`;
+      break;
+  }
+  if (text) remember(db, row.npc_id, text, 4);
 }
 
 /** Every active action of one event ends (the event is over). */
@@ -567,7 +613,7 @@ export function validateProposal(db: DB, r: Resident, raw: unknown): Accepted | 
       };
     }
     case "wait": {
-      const minutes = Math.max(60, Math.min(WAIT_MAX_MIN, p.minutes ? p.minutes * STORY_MINUTE_FACTOR : WAIT_MAX_MIN));
+      const minutes = Math.max(WAIT_MIN_MIN, Math.min(WAIT_MAX_MIN, p.minutes ? p.minutes * STORY_MINUTE_FACTOR : WAIT_MAX_MIN));
       return { ok: true, instant: false, line: limitLine("wait", minutes, police), action: { npc_id: r.id, kind: "wait", target: "here", reason: p.reason, source: "talk", minutes, target_x: mine.x, target_z: mine.z } };
     }
     case "go_to": {
@@ -577,9 +623,19 @@ export function validateProposal(db: DB, r: Resident, raw: unknown): Accepted | 
       if (!open) return refuse("no_way");
       const d = Math.hypot(open.x - mine.x, open.z - mine.z);
       if (d > GO_TO_MAX_M) return refuse("too_far");
-      // the walk at 1.2 m/s in real seconds is 3 game minutes a second, plus a stand of half an hour
-      const minutes = Math.min(120, Math.round((d / 1.2) * 3) + 30);
-      return { ok: true, instant: false, line: limitLine("go_to", minutes, police), action: { npc_id: r.id, kind: "go_to", target: place.label, target_x: open.x, target_z: open.z, reason: p.reason, source: "talk", minutes } };
+      const minutes = walkMinutes(d);
+      // an agent sent to a place looks about it when he gets there (for the thief the log knows
+      // of, else for anyone about), and says what he found; he does not just turn round
+      const thief = police ? (crimeOpen(db)?.thief ?? (streetCrimeOpen(db)?.witnessed ? streetCrimeOpen(db)!.thief : null)) : null;
+      const then: ActionData["then"] | undefined = police
+        ? { kind: "look_for", target: thief ?? "", minutes: POLICE_LOOK_MIN, data: { purpose: "question", about: p.reason, place: place.label } }
+        : undefined;
+      return {
+        ok: true,
+        instant: false,
+        line: limitLine("go_to", minutes, police),
+        action: { npc_id: r.id, kind: "go_to", target: place.label, target_x: open.x, target_z: open.z, reason: p.reason, source: "talk", minutes, data: then ? { then, place: place.label } : { place: place.label } },
+      };
     }
     case "talk_to":
     case "look_for": {
@@ -615,7 +671,7 @@ export function validateProposal(db: DB, r: Resident, raw: unknown): Accepted | 
       const open = walkMap().nearestOpen(at.x, at.z, 3) ?? { x: at.x, z: at.z };
       const d = Math.hypot(open.x - mine.x, open.z - mine.z);
       if (d > GO_TO_MAX_M) return refuse("too_far");
-      const minutes = Math.min(120, Math.round((d / 1.2) * 3) + 30);
+      const minutes = walkMinutes(d);
       return {
         ok: true,
         instant: false,
@@ -719,6 +775,11 @@ export async function reportAction(db: DB, id: number, rep: Report, runner?: Run
         db.prepare("UPDATE npc_action SET phase = 'there' WHERE id = ?").run(id);
         return actionRow(db, id);
       }
+      // M7 funeral: at a hall's door on the way in (an "enter" stage): in; the hall's life seats them
+      if (rep.phase === "arrived" && a.phase === "inside") {
+        db.prepare("UPDATE npc_action SET phase = 'in' WHERE id = ?").run(id);
+        return actionRow(db, id);
+      }
       return a;
     case "look_for":
       if (rep.phase === "done" || rep.phase === "arrived") {
@@ -792,7 +853,7 @@ export async function reportAction(db: DB, id: number, rep: Report, runner?: Run
       endAction(db, id, "done", "fetched", "");
       // M6 families: a complaint about Jef: the agent goes to find Jef for a word (director/families.ts)
       if (data.complaint) {
-        startAction(db, { npc_id: agent.id, kind: "seek", target: "Jef", source: "engine", minutes: 360, reason: "a complaint about Jef", data: { reaction: "police_word", news: data.complaint } });
+        startAction(db, { npc_id: agent.id, kind: "seek", target: "Jef", source: "engine", minutes: 60, reason: "a complaint about Jef", data: { reaction: "police_word", news: data.complaint } });
         return actionRow(db, id);
       }
       // the agent comes to where Jef was, then looks for the thief the log knows of, else waits for Jef there
@@ -804,7 +865,7 @@ export async function reportAction(db: DB, id: number, rep: Report, runner?: Run
       const then: ActionData["then"] = thief
         ? { kind: "look_for", target: thief, minutes: LOOK_FOR_MIN, data: { purpose: "question", about: "a robbery" } }
         : { kind: "wait", target: "Jef", minutes: WAIT_MAX_MIN };
-      startAction(db, { npc_id: agent.id, kind: "go_to", target: "where Jef was robbed", target_x: spot.x, target_z: spot.z, source: "engine", minutes: Math.min(120, Math.round((d / 1.2) * 3) + 20), reason: "fetched for Jef", data: { then } });
+      startAction(db, { npc_id: agent.id, kind: "go_to", target: "where Jef was robbed", target_x: spot.x, target_z: spot.z, source: "engine", minutes: walkMinutes(d, 5), reason: "fetched for Jef", data: { then } });
       return actionRow(db, id);
     }
     default:
@@ -841,6 +902,11 @@ export function actionsTick(db: DB): number {
   for (const a of activeActions(db)) {
     if (a.kind === "attend" || a.phase === "talking") continue;
     if (now < a.until) continue;
+    // an errand still under way gets more time (only stuck, stopped or the hard cap ends it)
+    if (ERRAND_KINDS.has(a.kind) && a.source !== "event" && now - a.started < ERRAND_HARD_MIN) {
+      db.prepare("UPDATE npc_action SET until = ? WHERE id = ?").run(Math.min(a.started + ERRAND_HARD_MIN, now + ERRAND_MORE_MIN), a.id);
+      continue;
+    }
     const purpose = (parseData(a).purpose ?? "") as string;
     const hook = actionHooks.timeUp[a.kind] ?? actionHooks.timeUp[`talk_to:${purpose}`];
     if (hook && hook(db, a)) {
@@ -907,7 +973,7 @@ function taskLine(db: DB, r: Resident): string {
     case "talk_to":
       return `going to speak with ${t ?? a.target} for Jef`;
     case "look_for":
-      return `looking for ${t ?? a.target} for Jef`;
+      return t ? `looking for ${t} for Jef` : `looking about ${parseData(a).place ?? "the place"} for Jef`;
     case "fetch_police":
       return "fetching the police for Jef";
     case "attend":
@@ -959,6 +1025,8 @@ export function eventDoing(db: DB, r: Resident): string | null {
   const part = (lead && LEAD_DOING[lead]) ?? "you stand in the crowd, watching, among your neighbours";
   const title = ev.title.replace(/^(a|an|the)\s+/i, "");
   if (a.phase === "going") return `on your way to ${where}, where the town's ${title} is on (${part}). You are not at your shop, stall or work`;
+  // M7 funeral: gone into the cathedral with the event (an "enter" stage)
+  if (a.phase === "in" || a.phase === "inside") return `inside the cathedral for the town's ${title}: ${part}. You are NOT at your shop, your stall or your work. Speak low: it is a church, and the service is on`;
   return `on ${where}, out in the open, in the middle of the town's ${title}: ${part}. You are NOT at your shop, your stall or your work; you left it for this. Speak from where you stand: the square, the crowd, the weather`;
 }
 

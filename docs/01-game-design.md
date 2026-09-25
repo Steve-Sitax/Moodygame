@@ -23,17 +23,53 @@ You have no money and no name. Work. Eat. Keep warm. Get known.
 | Food | 0-10 | 1 per 4 hours | Soup kitchen (free, costs trust with naties), bread, herring, cafe meal |
 | Warmth | 0-10 | Weather and clothing | Coat, boots, a warm bed, jenever (short boost, later penalty) |
 | Health | 0-10 | Cold, bad food, injury, sleeping outside | Pharmacy, doctor, rest |
-| Sleep | 0-10 | 1 per 2 hours awake | Bed, or a bad sleep on the quay |
+| Sleep | 0-10 | 1 per 3 hours awake | Bed, or a bad sleep on the quay. At 2 or less Jef is slow and his sight swims; at 0 he drops where he stands and sleeps there (M7 night) |
 
 Money is in centimes. 100 centimes = 1 franc. A day of dock work pays 2 to 3 francs.
 
 ## The day loop
-1. Dawn. Go to the hiring spot. The job board shows 3 to 5 jobs. Claude wrote them last night.
+1. Dawn. Go to the hiring spot. The job board shows 3 to 7 jobs. Claude wrote them at midnight.
 2. Take a job. Do it. Jobs are short 3D tasks (carry, watch, deliver, row, find, talk).
 3. Claude narrates the outcome and updates memory. Money and trust change.
 4. Evening. Spend money: food, clothing, medicine, rent. Or a drink and a rumour.
-5. Night. A random event may fire (engine rolls, Claude writes it and picks world changes).
-6. Sleep. Memory is consolidated. The next job board is generated.
+5. Night. The town goes home; the shady men come out with night work; gangs work the dark streets.
+6. Sleep when Jef chooses. Memory is consolidated at midnight, when the date turns and the next board goes up.
+
+## The day and the night (M7 night, Steve 2026-09-25)
+Steve: "Do not do the wake-at-dawn forcing. We must be able to work through the night." The clock
+runs on through the night; nobody is sent to bed. Details and numbers: `milestones/M7-night.md`.
+- **Midnight** turns the date: the day counter and the weekday, the new job board, the rent of a
+  room, the memories fading, a night of talk in the taverns, the weather. After Sunday there is no
+  day 8: the week ends at Sunday's midnight (asleep or awake), and the epilogue is written.
+- **Sleep** is Jef's choice: the doss house bed (18:00 until dawn, rent due by Sunday), his own room,
+  or rough anywhere (G, late at night or dead tired). He sleeps seven to eight game hours from when
+  he lies down (longer the more tired) and wakes on his own, where he lay. Dead tired (sleep 0) he
+  drops where he stands. Asleep rough at night, a gang may go through his coat.
+- **The day's employers go home.** Sooi 5:00 to 20:00, the widow 7:00 to 19:00, Fientje 6:00 to
+  18:00, Tuur 7:00 to 2:00, the town's employers by their schedule (6:00 to 22:00). Each has a
+  **quest box** on a post by his door, with a lamp he leaves burning: a job finished while he is
+  abed is paid from the box at once when Jef drops the proof in it; a parcel to deliver waits in
+  it. By day it goes to the person as before. The employer remembers it.
+- **A job in hand stays in hand** through the night; only its own deadline counts.
+- **Night work.** From 21:00 to 5:00 four shady men stand in dark corners (a fence behind De Vliet,
+  a night lighterman on the Werf, a carter on the west canal quay, a man by the Petit Bassin who
+  wants a lookout). They offer the night's work in talk: the model proposes it, the engine checks
+  and clamps it; it pays half again to twice the day's, must be done by 5:00, and at the settling
+  the engine rolls the watch (the pay is lost) and rivals (half of it).
+- **Gangs.** At night in dark streets and on the quays three men may step out and rob Jef: more
+  likely alone, carrying goods, drunk, with a full purse; much less by a lit lamp, with the police
+  near or people about. He can run, fight them off, shout for the watch, or pay; the engine rolls
+  each. Robbed, he loses most of his purse (500 c at most), a thing from his pockets, and a job's
+  parcel. No combat system: it is narrated (docs/08 #10).
+- **The director's night**: from 22:00 to 5:00 only night events, small (the honest town is
+  abed): a burglary, smugglers landing goods, a scuffle at a tavern at closing time, the night
+  watch's round, a fire. The townspeople sleep at home by their schedules; about are the night
+  police, the lamplighters at dawn, the publicans till two, sailors and the tavern crowd.
+
+The clock (M7, Steve 2026-09-24): one game hour is two real minutes, a game minute two real seconds.
+A day from 6:00 to midnight is 36 minutes of play, a whole day and night 48; the week of seven days
+about four hours awake and more if Jef keeps the nights. The rate lives in one place,
+`shared/clock.ts`; see `milestones/M7-clock.md`. The night's hours live in `shared/night.ts`.
 
 ## Trust and reputation
 Trust is not one number. It is one number per faction, 0 to 10.

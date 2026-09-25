@@ -3,6 +3,7 @@ import type { World } from "../world/rijnkaai";
 import { rectAround, type Rect } from "../world/geom";
 import type { FirstPerson } from "../player/firstPerson";
 import { GOODS, makeGoods, type Goods } from "./props";
+import { pick, type Target } from "./facing";
 
 // Every liftable thing on the quay (M3): job goods and goods that belong to
 // someone. Goods rest on the ground or on top of other goods; you can lift
@@ -111,21 +112,20 @@ export class GoodsWorld {
     return this.world.isFree(x, z, FOOT + 0.03, -1) ? "ground" : null;
   }
 
-  /** Nearest item you could lift: nothing on top of it, within reach. */
+  /** The item you could lift (nothing on top of it, within reach) that Jef looks at, nearest the crosshair. */
   nearest(reach: number, filter: (it: Item) => boolean = () => true): Item | null {
     const { x, z } = this.player;
-    let best: Item | null = null;
-    let bestD = reach;
-    for (const it of this.items) {
-      if (this.above(it) || !filter(it)) continue;
+    return pick(this.items, (it) => {
+      if (this.above(it) || !filter(it)) return null;
       // reach is shorter for things high up or low down
       const d = Math.hypot(it.obj.position.x - x, it.obj.position.z - z) + Math.abs(it.y + 0.4 - (this.player.y + 0.9)) * 0.4;
-      if (d < bestD) {
-        best = it;
-        bestD = d;
-      }
-    }
-    return best;
+      return d < reach ? { d, at: this.middle(it) } : null;
+    })?.it ?? null;
+  }
+
+  /** The middle of a piece of goods, for looking at it (game/facing.ts). */
+  middle(it: Item): Target {
+    return { x: it.obj.position.x, y: it.y + 0.3, z: it.obj.position.z };
   }
 
   lift(it: Item, hold: [number, number, number]): void {
