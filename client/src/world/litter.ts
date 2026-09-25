@@ -398,10 +398,13 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
     protos.has(name) ? solidAt(name, x, z, rules, extra) : flatAt(name, x, z, 0.8 + R() * 0.4, undefined, extra);
 
   // the swept squares: the town hall's and the cathedral's (the city's sweepers kept them)
+  // the grime pass (Steve, 2026-09-26: "rust, soot, clutter, dirt"): about 1.8 times the dung, straw, muck, ash and
+  // rubbish of M3j everywhere; the swept squares a little more too
+  const FILTH = 1.8;
   const swept = (x: number, z: number) => {
     const g = city.places["Grote Markt"];
     const h = city.places["Handschoenmarkt"];
-    return (g && Math.hypot(x - g.x, z - g.z) < 30) || (h && Math.hypot(x - h.x, z - h.z) < 22) || (x > -300 && x < -225 && z > 138 && z < 185) ? 0.35 : 1;
+    return (g && Math.hypot(x - g.x, z - g.z) < 30) || (h && Math.hypot(x - h.x, z - h.z) < 22) || (x > -300 && x < -225 && z > 138 && z < 185) ? 0.35 * FILTH : FILTH;
   };
 
   // ================================================================ 1. the cart roads: dung, straw, muck
@@ -1006,7 +1009,8 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
   const solidMat = psx(new THREE.MeshLambertMaterial({ map: solidMap, vertexColors: true, side: THREE.DoubleSide }), { affine: 0, noSnap: true });
   solidMat.name = "litter_solid";
   const flatMat = psx(
-    new THREE.MeshLambertMaterial({ map: decalMap, vertexColors: true, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -5 }),
+    // the grime pass (2026-09-26): the marks dimmed and dirtied a shade; bright straw stood out in the mist
+    new THREE.MeshLambertMaterial({ map: decalMap, color: 0x9c9484, vertexColors: true, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -5 }),
     { affine: 0, noSnap: true, wet: true },
   );
   flatMat.name = "litter_flat";

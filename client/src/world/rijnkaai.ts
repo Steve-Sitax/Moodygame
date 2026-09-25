@@ -116,8 +116,10 @@ const DAYLIGHT: Array<[number, number, number, number, number]> = [
   [0, 0x171b21, 0.38, 19, 1],
   [5.5, 0x1a1e25, 0.42, 19, 1],
   [7, 0x343a42, 1.0, 22, 0.7],
-  [9, 0x5e6870, 2.1, 30, 0],
-  [15, 0x5e6870, 2.1, 30, 0],
+  // the grime pass (Steve, 2026-09-26: "a misty, darker, grimy atmosphere, a bit dangerous at all times"): the
+  // day's air a smoky grey with a little brown in it, and less light (was 0x5e6870, 2.1)
+  [9, 0x51585a, 1.8, 28, 0],
+  [15, 0x51585a, 1.8, 28, 0],
   [17, 0x4b4540, 1.3, 25, 0.4],
   [18.5, 0x2c2e34, 0.65, 21, 1],
   [21, 0x1a1e25, 0.42, 19, 1],
@@ -1583,9 +1585,11 @@ export function buildRijnkaai(): World {
   // [fog near x, fog far x, lamp glow in the air]; far x 14 on a clear day is about 420 m
   // (Steve: "even clear weather has too much fog, we should be able to look far")
   // [fog near x, fog far x, lamp glow in the air, clear sky]; far x 14 on a clear day is about 420 m
-  const WEATHER = { fog: [1, 1, 1, 0], mist: [2.5, 3.5, 0.6, 0.25], clear: [40, 16, 0.2, 1], rain: [1.8, 2.5, 0.8, 0], storm: [1.3, 1.6, 0.9, 0] } as const;
-  /** The air of a clear autumn noon: lighter and bluer than the grey of a fog day. */
-  const CLEAR_SKY = new THREE.Color(0x9db0c2);
+  // the grime pass (2026-09-26): even a clear day keeps the town's coal-smoke haze (fog far x7, about 200 m;
+  // was x16, 480 m) and only a little of the clear sky's colour
+  const WEATHER = { fog: [1, 1, 1, 0], mist: [2.5, 3.5, 0.6, 0.25], clear: [12, 7, 0.35, 0.6], rain: [1.8, 2.5, 0.8, 0], storm: [1.3, 1.6, 0.9, 0] } as const;
+  /** The air of a clear autumn noon: lighter than the grey of a fog day, but smoky (was 0x9db0c2, a blue sky). */
+  const CLEAR_SKY = new THREE.Color(0x8b9398);
   /**
    * Fixes 2026-09-24 (shot 4: a clear 16:40-17:00 stayed grey): the golden hour of a clear day.
    * The low sun goes warm and the air gold toward evening, a little at sunrise too; fog, mist and
@@ -1705,7 +1709,7 @@ export function buildRijnkaai(): World {
     fog.color.copy(baseFog).lerp(CLEAR_SKY, wNow[3] * sunDay * 0.6);
     // the golden hour of a clear day: warm air, a low warm sun from the west (fog days stay grey)
     const gold = goldenAt(dayNow) * wNow[3];
-    fog.color.lerp(GOLD_AIR, gold * 0.55);
+    fog.color.lerp(GOLD_AIR, gold * 0.3); // (the grime pass: less gold through the smoke; was 0.55)
     (scene.background as THREE.Color).copy(fog.color);
     sun.color.copy(SUN_WHITE).lerp(SUN_GOLD, gold);
     skyLight.color.copy(SKY_COLD).lerp(SKY_WARM, gold * 0.55);

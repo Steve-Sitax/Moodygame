@@ -164,7 +164,13 @@ def bar(seed, w, h, rgb, along_u=True, strap=0.12):
     img = boards(seed, w, h, rgb, 1, vertical=not along_u, nails=False, weather=0.3, dirt=0.0)
     L = w if along_u else h
     k = max(2, int(L * strap))
-    iron = np.array((0.13, 0.12, 0.11))
+    iron = np.array((0.10, 0.09, 0.08))
+    if not along_u:
+        # rust runs from the corner caps down the post
+        for x in range(w):
+            if rng.random() < 0.5:
+                L2 = int(rng.integers(k, min(h, k * 4) + 1))
+                img[k:L2, x, :3] = img[k:L2, x, :3] * 0.55 + RUST * 0.45
     for sl_ in (slice(0, k), slice(L - k, L)):
         if along_u:
             seg = img[:, sl_, :3]
@@ -172,8 +178,8 @@ def bar(seed, w, h, rgb, along_u=True, strap=0.12):
             seg = img[sl_, :, :3]
         n = rng.uniform(0.8, 1.2, seg.shape[:2])[..., None]
         seg[...] = iron * n
-        rust = rng.random(seg.shape[:2]) < 0.2
-        seg[rust] = (0.30, 0.16, 0.08)
+        rust = rng.random(seg.shape[:2]) < 0.55
+        seg[rust] = RUST * rng.uniform(0.75, 1.1, (rust.sum(), 1))
     # rivets
     if along_u:
         for x in (k // 2, L - 1 - k // 2):
@@ -207,12 +213,16 @@ def chalk(img, seed, marks=("12", "X", "7")):
     h, w = img.shape[:2]
     for t in marks:
         cx, cy = rng.uniform(0.15, 0.85) * w, rng.uniform(0.3, 0.7) * h
-        stencil(img, t, cx, cy, (0.86, 0.84, 0.78), 1, alpha=0.7, seed=seed + len(t), drop=0.3)
-    return img
+        stencil(img, t, cx, cy, (0.70, 0.68, 0.62), 1, alpha=0.45, seed=seed + len(t), drop=0.35)
+    # smeared by hands and rain: each row dragged a pixel or two sideways
+    sm = img.copy()
+    for dx in (1, 2):
+        sm[:, dx:, :3] = sm[:, dx:, :3] * 0.6 + img[:, :-dx, :3] * 0.4
+    return sm
 
 
 def strap_iron(seed, w, h):
-    img = iron(seed, w, h, (0.13, 0.12, 0.11), 0.2)
+    img = iron(seed, w, h, (0.10, 0.09, 0.08), 0.55)
     for y in range(2, h, 5):
         for x in range(2, w, 5):
             img[y, x, :3] = (0.30, 0.28, 0.26)
@@ -237,6 +247,8 @@ def jute(seed, w, h, rgb, text=None, ink=INK, star=False, coarse=1):
     """Jute weave (over-under threads), a seam down one side, a stencilled mark on the top."""
     rng = rng_(seed)
     img = base(seed, w, h, rgb, 0.14, 5)
+    # (flat() darkens a few single pixels at random: on cloth they read as holes; smooth them back)
+    img[..., :3] = np.maximum(img[..., :3], np.array(rgb)[None, None, :] * 0.84)
     yy, xx = np.mgrid[0:h, 0:w]
     weave = ((xx // coarse + yy // coarse) % 2).astype(float)
     img[..., :3] *= (0.9 + 0.12 * weave)[..., None]
@@ -270,15 +282,13 @@ def burlap_bale(seed, w, h):
     """A cotton bale: coarse grey burlap, cotton bursting at the seams, a shipper's mark."""
     rng = rng_(seed)
     img = jute(seed, w, h, (0.60, 0.50, 0.35), coarse=1)
-    n2 = vnoise(rng, w, h, 7, 5)
-    tuft = (n2 > 0.8) & (rng.random((h, w)) < 0.3)
-    img[tuft, :3] = np.array((0.86, 0.84, 0.78)) * rng.uniform(0.9, 1.05, (tuft.sum(), 1))
     # the ends: cotton pressed out between the canvas flaps, a sewn seam across
     k = max(3, h // 7)
     for band in (slice(0, k), slice(h - k, h)):
         seg = img[band, :, :3]
-        c = np.array((0.80, 0.77, 0.70)) * (0.85 + 0.2 * vnoise(rng, w, k, 8, 2))[..., None]
-        seg[...] = np.where((rng.random(seg.shape[:2]) < 0.55)[..., None], c, seg)
+        c = np.array((0.62, 0.59, 0.53)) * (0.85 + 0.2 * vnoise(rng, w, k, 8, 2))[..., None]
+        mix = smooth01((vnoise(rng, w, k, 6, 2) - 0.35) * 2.5)[..., None]
+        seg[...] = seg * (1 - mix) + c * mix
     for x in range(0, w, 3):
         img[k, x, :3] *= 0.6
         img[h - k - 1, x, :3] *= 0.6
@@ -391,11 +401,22 @@ def timber(seed, w, h, rgb):
     return img
 
 
-def iron(seed, w, h, rgb=(0.12, 0.12, 0.12), rust=0.15):
+RUST = np.array((0.21, 0.11, 0.055))  # (a dark brown: nothing bright in the fog)
+
+
+def iron(seed, w, h, rgb=(0.10, 0.09, 0.08), rust=0.5):
+    """Wrought or cast iron after years on the quay: black gone brown, rust in scabs and runs (pass 3)."""
     rng = rng_(seed)
     img = base(seed, w, h, rgb, 0.25, 4)
-    r = rng.random((h, w)) < rust
-    img[r, :3] = np.array((0.34, 0.18, 0.09)) * rng.uniform(0.7, 1.2, (r.sum(), 1))
+    n = vnoise(rng, w, h, 4, 4) * 0.6 + vnoise(rng, w, h, 12, 12) * 0.4
+    scab = n > 1 - rust
+    img[scab, :3] = RUST * rng.uniform(0.7, 1.25, (scab.sum(), 1))
+    speck = rng.random((h, w)) < rust * 0.4
+    img[speck, :3] = RUST * rng.uniform(0.8, 1.2, (speck.sum(), 1))
+    for _ in range(max(1, w // 4)):
+        c = int(rng.integers(0, w))
+        L = int(rng.integers(max(1, h // 3), h + 1))
+        img[:L, c, :3] = img[:L, c, :3] * 0.4 + RUST * 0.6
     return img
 
 
@@ -428,11 +449,47 @@ def brass(seed, w, h):
 # decals (RGBA)
 
 
+def fish_cell(seed, w, h):
+    """Herring and whiting packed head to tail in a fish crate: grey-silver bodies on dark, a red gill."""
+    rng = rng_(seed)
+    img = np.ones((h, w, 4))
+    img[..., :3] = (0.06, 0.06, 0.05)
+    for row in range(0, h - 4, 5):
+        x = -int(rng.integers(0, 6))
+        while x < w:
+            L = int(rng.integers(8, 13))
+            c = np.array((0.46, 0.48, 0.47)) * rng.uniform(0.7, 1.05)
+            img[row + 1:row + 4, max(0, x):max(0, min(w, x + L)), :3] = c
+            img[row + 1, max(0, x):max(0, min(w, x + L)), :3] = c * 0.7
+            if 0 <= x + 1 < w:
+                img[row + 2, x + 1, :3] = (0.34, 0.08, 0.06)
+            x += L + 1
+    return grime(img, seed, fade=0.1, dark=0.85, wet=0.2, mould=0.1, mud=0.0)
+
+
+def muck_decal(seed, w, h):
+    """A puddle of muck: black-green water with brown sludge round it."""
+    rng = rng_(seed)
+    yy, xx = np.mgrid[0:h, 0:w]
+    n = vnoise(rng, w, h, 5, 5)
+    d = np.hypot((xx - w / 2) / (w / 2), (yy - h / 2) / (h / 2)) + (n - 0.5) * 0.8
+    img = np.zeros((h, w, 4))
+    img[..., :3] = np.where((d < 0.55)[..., None], np.array((0.04, 0.05, 0.04)), np.array((0.14, 0.11, 0.07)))
+    img[..., 3] = np.clip((0.95 - d) * 2.2, 0, 0.9)
+    return img
+
+
+def rotten_straw(seed, w, h):
+    img = straw_decal(seed, w, h, 1.3)
+    img[..., :3] = img[..., :3].mean(axis=2, keepdims=True) * np.array((0.8, 0.72, 0.55))
+    return img
+
+
 def straw_decal(seed, w, h, amount=1.0):
     """Loose straw and rope ends trodden into the setts: stalks, a few dark bits, soft edges."""
     rng = rng_(seed)
     img = np.zeros((h, w, 4))
-    cols = [(0.66, 0.56, 0.30), (0.54, 0.44, 0.22), (0.72, 0.63, 0.38), (0.42, 0.33, 0.18)]
+    cols = [(0.50, 0.43, 0.25), (0.42, 0.34, 0.19), (0.55, 0.48, 0.30), (0.32, 0.26, 0.15)]
     n = int(w * h * 0.07 * amount)
     for _ in range(n):
         x, y = rng.normal(w / 2, w / 4.5), rng.normal(h / 2, h / 4.5)
@@ -484,20 +541,161 @@ def stain_decal(seed, w, h, rgb=(0.05, 0.05, 0.04), alpha=0.55):
 
 # crate kinds: size (W, D, H), wood, marks on the long sides (front -Y, back +Y)
 CRATES = {
-    "a": dict(size=(1.0, 0.7, 0.62), wood=(0.56, 0.45, 0.30),
+    "a": dict(size=(1.0, 0.7, 0.62), wood=(0.46, 0.38, 0.27),
               front=[("text", "ANTWERPEN", 0.5, 0.42, 1, INK), ("text", "NO 17", 0.5, 0.7, 1, INK)],
               back=[("diamond", 0.5, 0.45, 10, INK), ("text", "HV", 0.5, 0.45, 1, INK)]),
-    "b": dict(size=(0.82, 0.6, 0.56), wood=(0.52, 0.38, 0.25),
+    "b": dict(size=(0.82, 0.6, 0.56), wood=(0.42, 0.32, 0.23),
               front=[("text", "LIVERPOOL", 0.5, 0.4, 1, INK_BLUE), ("text", "23", 0.5, 0.7, 1, INK_BLUE)],
               back=[("ring", 0.5, 0.45, 9, INK), ("text", "K", 0.5, 0.45, 1, INK)]),
-    "c": dict(size=(1.36, 0.62, 0.5), wood=(0.48, 0.45, 0.38),
+    "c": dict(size=(1.36, 0.62, 0.5), wood=(0.40, 0.37, 0.32),
               front=[("text", "H&V", 0.28, 0.48, 2, INK), ("text", "RIO", 0.75, 0.48, 2, INK_RED)],
               back=[("text", "MACHINES", 0.5, 0.45, 1, INK)]),
-    "s": dict(size=(0.56, 0.46, 0.42), wood=(0.58, 0.48, 0.33),
+    "s": dict(size=(0.56, 0.46, 0.42), wood=(0.47, 0.39, 0.28),
               front=[("text", "NO 7", 0.5, 0.5, 1, INK)],
               back=[("diamond", 0.5, 0.5, 7, INK_RED)]),
 }
 PX_M = 80  # texels per metre on the crate boards
+
+
+def grime(img, seed, fade=0.4, dark=0.78, wet=0.5, mould=0.3, mud=0.25, tears=0.0, patches=0.0):
+    """Weather a cell: fade toward the grey-brown of old wood and wet jute, darker overall, the lower
+    rows wet and near black-green, mould in blotches, mud splashed up from the setts; for cloth: tears
+    (dark holes with frayed rims) and sewn-on patches. v up in the cell: the last rows are the foot."""
+    rng = rng_(seed)
+    h, w = img.shape[:2]
+    out = img.copy()
+    grey = out[..., :3].mean(axis=2, keepdims=True) * np.array((1.02, 0.97, 0.88))
+    out[..., :3] = out[..., :3] * (1 - fade) + grey * fade
+    out[..., :3] *= dark
+    # the wet foot: the last quarter, darkening and going green-black toward the bottom
+    k = max(2, h // 4)
+    t = np.linspace(0, 1, k)[:, None, None]
+    foot = out[h - k:, :, :3]
+    out[h - k:, :, :3] = foot * (1 - wet * t) + np.array((0.05, 0.07, 0.04)) * wet * t
+    # mould and green stains
+    n = vnoise(rng, w, h, 6, 6) * 0.7 + vnoise(rng, w, h, 17, 17) * 0.3
+    m = n > 1 - mould * 0.6
+    out[m, :3] = out[m, :3] * 0.55 + np.array((0.10, 0.14, 0.07)) * 0.45
+    # mud splashed up: dark specks, thicker low down
+    yy = np.arange(h)[:, None] / max(1, h - 1)
+    sp = rng.random((h, w)) < mud * 0.35 * yy ** 2
+    out[sp, :3] = np.array((0.12, 0.09, 0.06)) * rng.uniform(0.8, 1.3, (sp.sum(), 1))
+    for _ in range(int(tears * 6)):
+        cx, cy = rng.uniform(0.1, 0.9) * w, rng.uniform(0.2, 0.9) * h
+        rx, ry = rng.uniform(1.5, 4.0), rng.uniform(1.0, 3.0)
+        d = np.hypot((np.arange(w)[None, :] - cx) / rx, (np.arange(h)[:, None] - cy) / ry)
+        out[d < 1.0, :3] = np.array((0.03, 0.03, 0.02))
+        rim = (d >= 1.0) & (d < 1.5)
+        out[rim, :3] = out[rim, :3] * 1.15
+    for _ in range(int(patches * 3)):
+        x0, y0 = int(rng.uniform(0.05, 0.75) * w), int(rng.uniform(0.1, 0.75) * h)
+        pw, ph = int(rng.integers(6, 14)), int(rng.integers(5, 10))
+        tone = rng.uniform(0.75, 1.2)
+        out[y0:y0 + ph, x0:x0 + pw, :3] = out[y0:y0 + ph, x0:x0 + pw, :3] * 0.3 + np.array((0.32, 0.27, 0.19)) * tone * 0.7
+        out[y0:y0 + ph:2, x0, :3] *= 0.5
+        out[y0:y0 + ph:2, min(w - 1, x0 + pw - 1), :3] *= 0.5
+        out[y0, x0:x0 + pw:2, :3] *= 0.5
+    return out
+
+
+def smooth01(x):
+    x = np.clip(x, 0.0, 1.0)
+    return x * x * (3 - 2 * x)
+
+
+def cloth_grime(img, seed, tears=(0, 2), patch=0.5, fade=0.3, dark=0.76, damp=0.55):
+    """Weather sackcloth or burlap as cloth wears (the lead, 2026-09-26: "it looks like cheese or leopard
+    skin"): soft uneven stains in a few big blotches, damp soaked up from where it lies (u 0 and 1 are the
+    underside of a sack or a bale: the section starts at the bottom), 0 to 2 tears as slits with a dark
+    inside and pale frayed threads, now and then a square patch of another cloth sewn on. No dots."""
+    rng = rng_(seed)
+    h, w = img.shape[:2]
+    out = img.copy()
+    grey = out[..., :3].mean(axis=2, keepdims=True) * np.array((1.02, 0.97, 0.88))
+    out[..., :3] = out[..., :3] * (1 - fade) + grey * fade
+    out[..., :3] *= dark
+    # stains: two octaves of low noise, eased, as a soft brown darkening
+    n = vnoise(rng, w, h, 3, 3) * 0.65 + vnoise(rng, w, h, 6, 5) * 0.35
+    st = smooth01((n - 0.5) * 2.5)[..., None] * 0.45
+    out[..., :3] = out[..., :3] * (1 - st) + np.array((0.16, 0.12, 0.08)) * st
+    # damp from the underside: toward u 0 and u 1, ragged by a little noise
+    u = np.linspace(0, 1, w)[None, :]
+    dist = np.minimum(u, 1 - u) + (vnoise(rng, w, h, 8, 4) - 0.5) * 0.08
+    dm = (1 - smooth01(dist / 0.2))[..., None] * damp
+    out[..., :3] = out[..., :3] * (1 - dm) + np.array((0.05, 0.06, 0.04)) * dm
+    # a patch sewn on: another cloth, a darker or paler weave, stitched round
+    if rng.random() < patch:
+        pw, ph = int(rng.integers(7, 11)), int(rng.integers(6, 10))
+        x0 = int(rng.uniform(0.3, 0.7) * w - pw / 2)
+        y0 = int(rng.uniform(0.2, 0.8) * h - ph / 2)
+        col = np.array((0.30, 0.28, 0.23)) if rng.random() < 0.5 else np.array((0.44, 0.38, 0.28))
+        yy, xx = np.mgrid[0:ph, 0:pw]
+        weave_ = (0.88 + 0.14 * ((xx + yy) % 2))[..., None]
+        out[y0:y0 + ph, x0:x0 + pw, :3] = col * weave_ * rng.uniform(0.85, 1.0)
+        thread = np.array((0.55, 0.50, 0.40))
+        out[y0, x0:x0 + pw:2, :3] = thread
+        out[y0 + ph - 1, x0:x0 + pw:2, :3] = thread
+        out[y0:y0 + ph:2, x0, :3] = thread
+        out[y0:y0 + ph:2, x0 + pw - 1, :3] = thread
+    # tears: slits, mostly along the sack, a dark inside and pale frayed threads either side
+    for _ in range(int(rng.integers(tears[0], tears[1] + 1))):
+        cx, cy = rng.uniform(0.3, 0.7) * w, rng.uniform(0.2, 0.8) * h
+        ang = math.pi / 2 + rng.uniform(-0.5, 0.5)
+        L = rng.uniform(5, 10)
+        for t in np.linspace(-L / 2, L / 2, int(L * 2) + 1):
+            x = int(round(cx + math.cos(ang) * t))
+            y = int(round(cy + math.sin(ang) * t))
+            if 0 <= x < w and 0 <= y < h:
+                out[y, x, :3] = (0.03, 0.025, 0.02)
+                for side in (-1, 1):
+                    if rng.random() < 0.55:
+                        fx = int(round(x - math.sin(ang) * side))
+                        fy = int(round(y + math.cos(ang) * side))
+                        if 0 <= fx < w and 0 <= fy < h:
+                            out[fy, fx, :3] = np.array((0.60, 0.53, 0.38)) * rng.uniform(0.8, 1.0)
+    return out
+
+
+def weather_all(A):
+    """Pass 3: nothing clean or new on the quay. Each cell weathered by what it is."""
+    items = []
+    for i, (name, arr) in enumerate(A.items):
+        sd = 9000 + i
+        if name.startswith("crate_") and (name.endswith("_front") or name.endswith("_back") or name.endswith("_end") or name.endswith("_top")):
+            arr = grime(arr, sd, fade=0.45, dark=0.72, wet=0.6, mould=0.35, mud=0.35)
+        elif name.startswith("crate_") and ("_bar" in name):
+            arr = grime(arr, sd, fade=0.35, dark=0.75, wet=0.4, mould=0.2, mud=0.2)
+        elif name.startswith("stave") or name.startswith("head"):
+            arr = grime(arr, sd, fade=0.3, dark=0.72, wet=0.45, mould=0.3, mud=0.2)
+        elif name.startswith("sack"):
+            arr = cloth_grime(arr, sd, tears=(0, 2), patch=0.5)
+        elif name == "bale":
+            arr = cloth_grime(arr, sd, tears=(1, 2), patch=0.7, fade=0.25)
+        elif name.startswith("tarp"):
+            # stained and sagging: soft blotches, no mould dots; water standing in two of the folds,
+            # darker, its edge left by the noise (no ring)
+            arr = cloth_grime(arr, sd, tears=(0, 1), patch=0.6, fade=0.15, dark=0.8, damp=0.35)
+            rng = rng_(sd)
+            h, w = arr.shape[:2]
+            for _ in range(2):
+                cx, cy = rng.uniform(0.25, 0.75) * w, rng.uniform(0.3, 0.7) * h
+                rx, ry = rng.uniform(10, 18), rng.uniform(6, 10)
+                n = vnoise(rng, w, h, 6, 6)
+                d = np.hypot((np.arange(w)[None, :] - cx) / rx, (np.arange(h)[:, None] - cy) / ry) + (n - 0.5) * 0.6
+                wet_ = (1 - smooth01((d - 0.6) / 0.5))[..., None] * 0.45
+                arr[..., :3] = arr[..., :3] * (1 - wet_) + np.array((0.04, 0.05, 0.05)) * wet_
+        elif name in ("planks", "planks_grey", "wood", "wood_grey", "pallet", "cart_bed", "baulk", "end_pine", "end_oak"):
+            arr = grime(arr, sd, fade=0.5, dark=0.72, wet=0.5, mould=0.3, mud=0.3)
+        elif name in ("wood_dark", "cart_red", "cart_green"):
+            arr = grime(arr, sd, fade=0.3, dark=0.8, wet=0.4, mould=0.25, mud=0.3)
+        elif name in ("rope", "rope_tar", "coil", "coil_tar"):
+            arr = grime(arr, sd, fade=0.4, dark=0.7, wet=0.35, mould=0.15, mud=0.15)
+        elif name in ("wicker", "wicker_dark", "straw"):
+            arr = grime(arr, sd, fade=0.5, dark=0.68, wet=0.4, mould=0.35, mud=0.2)
+        elif name in ("scale_plate", "brass"):
+            arr = grime(arr, sd, fade=0.3, dark=0.7, wet=0.2, mould=0.1, mud=0.2)
+        items.append((name, arr))
+    A.items = items
 
 
 def build_atlases():
@@ -521,7 +719,7 @@ def build_atlases():
     A.add("head_oak", head(2010, 32, 32, (0.44, 0.32, 0.20), "A"))
     A.add("head_dark", head(2011, 32, 32, (0.34, 0.25, 0.16), "M"))
     A.add("head_blue", head(2012, 32, 32, (0.26, 0.32, 0.40), "P", (0.46, 0.46, 0.42)))
-    A.add("hoop", iron(2020, 16, 8, (0.13, 0.12, 0.11), 0.25))
+    A.add("hoop", iron(2020, 16, 8, (0.10, 0.09, 0.08), 0.6))
     A.add("stave_chalk", chalk(staves(2003, 128, 64, (0.42, 0.30, 0.18), n=18), 2004))
     A.add("stave_chalk2", chalk(staves(2005, 128, 64, (0.36, 0.26, 0.16), n=18), 2006, ("40", "II")))
     A.add("strap", strap_iron(2021, 16, 16))
@@ -530,7 +728,7 @@ def build_atlases():
     A.add("sack_plain", jute(2102, 112, 64, (0.50, 0.42, 0.29)))
     A.add("sack_red", jute(2103, 112, 64, (0.60, 0.52, 0.37), "BRAZIL", INK_RED))
     A.add("bale", burlap_bale(2110, 160, 96))
-    A.add("band", iron(2111, 8, 8, (0.14, 0.13, 0.12), 0.3))
+    A.add("band", iron(2111, 8, 8, (0.10, 0.09, 0.08), 0.6))
     A.add("tarp_green", tarp(2200, 192, 128, (0.19, 0.22, 0.17)))
     A.add("tarp_brown", tarp(2201, 192, 128, (0.34, 0.29, 0.22)))
     A.add("rope", rope_tex(2300, 8, 16, (0.56, 0.47, 0.32)))
@@ -553,17 +751,26 @@ def build_atlases():
     A.add("cart_green", painted_wood(2601, 32, 32, (0.14, 0.24, 0.17)))
     A.add("cart_bed", boards(2602, 64, 48, (0.44, 0.38, 0.28), 5, weather=0.5, dirt=0.0))
     A.add("iron", iron(2700, 16, 16))
-    A.add("rust", iron(2701, 16, 16, (0.30, 0.17, 0.10), 0.3))
+    A.add("rust", iron(2701, 16, 16, (0.24, 0.12, 0.06), 0.7))
     A.add("scale_plate", scale_plate(2702, 32, 24))
     A.add("brass", brass(2703, 32, 8))
     A.add("stone", base(2704, 16, 16, (0.34, 0.35, 0.36), 0.25, 3))
     A.add("dark", base(2705, 8, 8, (0.06, 0.05, 0.05), 0.1, 2))
     D.add("straw_a", straw_decal(3000, 64, 48))
     D.add("straw_b", straw_decal(3001, 48, 32, 0.8))
-    D.add("grain", spill_decal(3002, 32, 32, (0.70, 0.58, 0.32)))
+    D.add("grain", spill_decal(3002, 32, 32, (0.55, 0.46, 0.27)))
     D.add("coffee", spill_decal(3003, 32, 32, (0.30, 0.20, 0.12)))
     D.add("oil", stain_decal(3004, 48, 48))
     D.add("dirt", stain_decal(3005, 48, 32, (0.16, 0.13, 0.09), 0.5))
+    # pass 3: the debris round the heaps
+    A.add("fish", fish_cell(2800, 32, 32))
+    A.add("rat", base(2801, 16, 8, (0.20, 0.17, 0.14), 0.3, 3))
+    A.add("rat_belly", base(2802, 8, 8, (0.36, 0.30, 0.26), 0.2, 2))
+    D.add("muck", muck_decal(3006, 48, 40))
+    D.add("tar", stain_decal(3007, 40, 40, (0.02, 0.02, 0.02), 0.8))
+    D.add("straw_rot", rotten_straw(3008, 48, 40))
+    D.add("rust_stain", stain_decal(3009, 32, 32, (0.26, 0.12, 0.05), 0.55))
+    weather_all(A)
     A.pack()
     D.pack()
 
@@ -1500,6 +1707,98 @@ def ground_decal(cell, w, d):
 # ------------------------------------------------------------------ build
 
 
+# ------------------------------------------------------------------ debris (pass 3: rust, soot, clutter, dirt)
+
+
+def slats_broken():
+    """Slats torn off a crate lying about: none flat on the setts (each propped on the next, askew),
+    one snapped in two, the nails still in them."""
+    m = Mesh(ao=0.3)
+    rng = rng_(801)
+    specs = [(-0.2, 0.0, 0.3, 0.9, 0.0), (0.15, 0.25, -0.5, 0.75, 0.045), (0.3, -0.2, 1.2, 0.45, 0.0), (0.62, -0.05, 1.9, 0.38, 0.03)]
+    for x, y, yaw, L, z0 in specs:
+        pitch = rng.uniform(0.08, 0.16)
+        roll = rng.uniform(0.12, 0.25)
+        with m.at(move(x, y, z0 + math.sin(pitch) * L / 2 + 0.012) @ rot("Z", yaw) @ rot("Y", pitch) @ rot("X", roll)):
+            box(m, -L / 2, L / 2, -0.05, 0.05, -0.009, 0.009, "crate_a_top")
+            for nx in (-L / 2 + 0.04, L / 2 - 0.04):
+                box(m, nx - 0.004, nx + 0.004, -0.004, 0.004, 0.009, 0.03, "rust")
+    return m
+
+
+def bucket_rusty():
+    """A tin bucket rusted through at the foot, its handle down, left standing."""
+    m = Mesh(ao=0.3)
+    prof = [(0.12, 0.0), (0.135, 0.15), (0.15, 0.3)]
+    lathe(m, prof, 10, "rust")
+    lathe(m, [(0.11, 0.02), (0.125, 0.15), (0.14, 0.295)], 10, "iron", inward=True, shade=0.6)
+    lathe(m, [(0.0, 0.02), (0.11, 0.02)], 10, "dark")
+    tube(m, [(0.15 * math.cos(a), 0.15 * math.sin(a), 0.3) for a in np.linspace(0, 2 * math.pi, 10, endpoint=False)], 0.008, "rust", closed=True)
+    tube(m, [(-0.15, 0, 0.27), (-0.1, -0.12, 0.2), (0.0, -0.17, 0.17), (0.1, -0.12, 0.2), (0.15, 0, 0.27)], 0.006, "iron")
+    return m
+
+
+def barrel_broken():
+    """A cask stove in: the lower half standing open, staves sprung off lying round it, a hoop on the
+    ground."""
+    m = Mesh(ao=0.5)
+    r0, r1, h = 0.27, 0.31, 0.42
+    lathe(m, [(r0, 0.0), (r0 + 0.02, 0.12), (r1, h)], 12, "stave_dark")
+    lathe(m, [(r0 - 0.025, 0.03), (r0 - 0.005, 0.12), (r1 - 0.025, h - 0.003)], 12, "stave_dark", inward=True, shade=0.55)
+    lathe(m, [(r1, h), (r1 - 0.025, h)], 12, "stave_dark", shade=0.8)
+    lathe(m, [(0.0, 0.03), (r0 - 0.025, 0.03)], 12, "dark")
+    lathe(m, [(r0 + 0.012, 0.06), (r0 + 0.02, 0.1)], 12, "hoop")
+    rng = rng_(802)
+    for k in range(4):
+        a = rng.uniform(0, 2 * math.pi)
+        d = rng.uniform(0.45, 0.8)
+        pitch = rng.uniform(0.1, 0.25)
+        with m.at(move(d * math.cos(a), d * math.sin(a), 0.03 + math.sin(pitch) * 0.4) @ rot("Z", a + rng.uniform(-0.6, 0.6)) @ rot("Y", pitch) @ rot("X", 0.3)):
+            box(m, -0.42, 0.42, -0.045, 0.045, -0.012, 0.012, "stave_dark")
+    tube(m, [(0.62 + 0.3 * math.cos(a), -0.35 + 0.3 * math.sin(a), 0.012) for a in np.linspace(0, 2 * math.pi, 10, endpoint=False)], 0.012, "hoop", closed=True)
+    return m
+
+
+def fish_crate(m, x, y, z, yaw, shade=1.0, full=True):
+    """A shallow slatted fish crate, 0.7 x 0.45 x 0.22, herring in it."""
+    with m.at(move(x, y, z) @ rot("Z", yaw)):
+        W, D, H = 0.7, 0.45, 0.22
+        for sy in (-1, 1):
+            box(m, -W / 2, W / 2, sy * D / 2 - 0.012, sy * D / 2 + 0.012, 0.0, H, "wood_grey", skip=("-z",), shade=shade)
+        for sx in (-1, 1):
+            box(m, sx * W / 2 - 0.012, sx * W / 2 + 0.012, -D / 2 + 0.012, D / 2 - 0.012, 0.0, H, "wood_grey", skip=("-z",), shade=shade)
+        # the inside seen from above: the far walls from inside, the fish at 3/4 height
+        quad(m, "fish" if full else "dark", (-W / 2 + 0.012, -D / 2 + 0.012, H * 0.7), (W / 2 - 0.012, -D / 2 + 0.012, H * 0.7),
+             (W / 2 - 0.012, D / 2 - 0.012, H * 0.7), (-W / 2 + 0.012, D / 2 - 0.012, H * 0.7), (0, 0, 1), shade=shade)
+
+
+def fish_crates():
+    """Fish crates stacked by the fish market: two stacks of two and one on the setts, a crate knocked askew."""
+    m = Mesh(ao=0.6)
+    H = 0.22
+    fish_crate(m, 0, 0, 0, 0.03)
+    fish_crate(m, 0.02, 0.01, H, -0.05, full=True, shade=1.05)
+    fish_crate(m, 0.78, 0.05, 0, -0.08)
+    fish_crate(m, 0.4, 0.62, 0, 0.35, full=False, shade=0.9)
+    return m
+
+
+def rat_dead():
+    """A dead rat on its side in the gutter, the tail out behind."""
+    m = Mesh()
+    blob(m, 0.2, 0.08, 0.07, "rat", 803, e1=0.7, e2=0.8, nu=6, nv=5, slump=0.1, noise=0.005, M=rot("Z", 0.4))
+    tube(m, [(-0.09, -0.04, 0.01), (-0.2, -0.1, 0.008), (-0.28, -0.07, 0.008), (-0.34, -0.12, 0.008)], 0.006, "rat_belly")
+    return m
+
+
+def rope_end():
+    """A frayed rope end dropped on the setts."""
+    m = Mesh()
+    pts = [(-0.35 + 0.09 * k, 0.12 * math.sin(k * 1.1), 0.014) for k in range(9)]
+    tube(m, pts, 0.014, "rope_tar")
+    return m
+
+
 # ------------------------------------------------------------------ the big blocks (pass 2: the heaps of pictures 1-5)
 
 
@@ -1610,6 +1909,10 @@ def build_models():
         ("sacks_mountain", sacks_mountain()), ("sacks_mountain_grain", sacks_mountain(("sack_grain", "sack_plain", "sack_grain"))),
         ("bales_wall", bales_wall(1)), ("bales_block", bales_wall(2)), ("crates_block", crates_block()),
         ("tarp_big", tarp_big()), ("tarp_big_brown", tarp_big_brown()),
+        ("slats_broken", slats_broken()), ("bucket_rusty", bucket_rusty()), ("barrel_broken", barrel_broken()),
+        ("fish_crates", fish_crates()), ("rat_dead", rat_dead()), ("rope_end", rope_end()),
+        ("d_muck", ground_decal("muck", 1.4, 1.1)), ("d_tar", ground_decal("tar", 0.9, 0.9)),
+        ("d_straw_rot", ground_decal("straw_rot", 1.5, 1.2)), ("d_rust", ground_decal("rust_stain", 0.8, 0.8)),
         ("keg", cask("stave_dark", "head_dark", 0.18, 0.22, 0.55)),
         ("cask_lying", cask_lying()), ("casks_pyramid", casks_pyramid()), ("casks_pyramid_blue", casks_pyramid("stave_blue", "head_blue")),
         ("casks_group", casks_group()),

@@ -190,6 +190,47 @@ def rusty(seed, w, h, base, rust=(0.36, 0.18, 0.08), amt=0.35):
     return img
 
 
+def peel(img, seed, wood=(0.30, 0.28, 0.24), amt=0.35):
+    """Paint peeling off in flakes to the grey wood, soot and damp streaked down it (pass 3, Steve
+    2026-09-26: "misty, darker, grimy")."""
+    rng = np.random.default_rng(seed)
+    h, w = img.shape[:2]
+    out = img.copy()
+    n = vnoise(rng, w, h, 6, 6) * 0.6 + vnoise(rng, w, h, 18, 18) * 0.4
+    bare = n > 1 - amt
+    out[bare, :3] = np.array(wood) * (0.8 + 0.4 * rng.random((bare.sum(), 1)))
+    edge = (n > 1 - amt - 0.05) & ~bare
+    out[edge, :3] *= 1.15
+    return grime_qf(out, seed + 1)
+
+
+def grime_qf(img, seed, dark=0.78, wet=0.45):
+    """Darker, dirt and damp from the foot up, streaks down from the top."""
+    rng = np.random.default_rng(seed)
+    h, w = img.shape[:2]
+    out = img.copy()
+    out[..., :3] *= dark
+    k = max(2, h // 4)
+    t = np.linspace(0, 1, k)[:, None, None]
+    out[h - k:, :, :3] = out[h - k:, :, :3] * (1 - wet * t) + np.array((0.05, 0.06, 0.04)) * wet * t
+    for _ in range(max(1, w // 6)):
+        c = int(rng.integers(0, w))
+        L = int(rng.integers(h // 4, h))
+        out[:L, c, :3] *= 0.7
+    return out
+
+
+def paint_rust_stain(seed):
+    """Rust bled into the stone round an iron foot: a brown blotch, strongest at the middle."""
+    w = h = 32
+    rng = np.random.default_rng(seed)
+    img = np.zeros((h, w, 4))
+    img[..., :3] = (0.28, 0.13, 0.06)
+    a = alpha_blob(rng, w, h, soft=0.6)
+    img[..., 3] = np.clip(a * 0.7 * (0.7 + 0.5 * rng.random((h, w))), 0, 0.7)
+    return img
+
+
 def rope_tex(seed, w, h, rgb, tar=0.0):
     """Laid rope: the strands as diagonal bands."""
     rng = np.random.default_rng(seed)
@@ -561,15 +602,24 @@ PLAIN = {
 
 
 def build_atlases():
+    # pass 3: the iron is rusty and dark, the paint peels (Steve 2026-09-26: "rust, soot, dirt")
+    PAINTED = ("paint_green", "paint_red", "paint_white")
     for i, (name, (rgb, amt)) in enumerate(PLAIN.items()):
         size = 32 if name in ("bluestone", "whitestone", "zinc", "slate", "canvas", "sail") else 16
-        SOLID_ATLAS.add(name, flat(100 + i, size, size, rgb, amt))
-    SOLID_ATLAS.add("iron_rust", rusty(150, 32, 32, (0.09, 0.09, 0.10)))
-    SOLID_ATLAS.add("iron_green", rusty(151, 32, 32, (0.10, 0.17, 0.13), amt=0.25))
-    SOLID_ATLAS.add("wood", grain(160, 32, 32, (0.40, 0.31, 0.21)))
-    SOLID_ATLAS.add("wood_dark", grain(161, 32, 32, (0.20, 0.15, 0.10)))
-    SOLID_ATLAS.add("wood_grey", grain(162, 32, 32, (0.42, 0.40, 0.36)))
-    SOLID_ATLAS.add("oak", grain(163, 32, 32, (0.30, 0.24, 0.17)))
+        if name == "iron":
+            SOLID_ATLAS.add(name, rusty(100 + i, 32, 32, (0.07, 0.07, 0.07), rust=(0.21, 0.11, 0.055), amt=0.4))
+        elif name == "iron_light":
+            SOLID_ATLAS.add(name, rusty(100 + i, 16, 16, (0.15, 0.14, 0.13), rust=(0.22, 0.12, 0.06), amt=0.35))
+        elif name in PAINTED:
+            SOLID_ATLAS.add(name, peel(flat(100 + i, 32, 32, rgb, amt), 700 + i))
+        else:
+            SOLID_ATLAS.add(name, flat(100 + i, size, size, rgb, amt))
+    SOLID_ATLAS.add("iron_rust", rusty(150, 32, 32, (0.07, 0.07, 0.07), rust=(0.21, 0.11, 0.055), amt=0.6))
+    SOLID_ATLAS.add("iron_green", rusty(151, 32, 32, (0.08, 0.13, 0.10), rust=(0.21, 0.11, 0.055), amt=0.45))
+    SOLID_ATLAS.add("wood", grime_qf(grain(160, 32, 32, (0.34, 0.28, 0.20)), 760))
+    SOLID_ATLAS.add("wood_dark", grime_qf(grain(161, 32, 32, (0.18, 0.14, 0.10)), 761))
+    SOLID_ATLAS.add("wood_grey", grime_qf(grain(162, 32, 32, (0.36, 0.34, 0.30)), 762))
+    SOLID_ATLAS.add("oak", grime_qf(grain(163, 32, 32, (0.26, 0.21, 0.15)), 763))
     SOLID_ATLAS.add("endgrain", flat(164, 16, 16, (0.46, 0.36, 0.24), 0.3))
     SOLID_ATLAS.add("rope", rope_tex(170, 16, 16, (0.50, 0.42, 0.30)))
     SOLID_ATLAS.add("hawser", rope_tex(171, 16, 16, (0.34, 0.28, 0.20), tar=0.35))
@@ -579,12 +629,12 @@ def build_atlases():
     SOLID_ATLAS.add("coal", coal_tex(200, 32, 32))
     SOLID_ATLAS.add("hull_bottom", planks(210, 32, 64, (0.24, 0.18, 0.12), 8, tar_lo=0.0))
     SOLID_ATLAS.add("hull_side", planks(211, 32, 32, (0.30, 0.24, 0.16), 5, band=(0.0, 0.2, (0.14, 0.26, 0.20))))
-    SOLID_ATLAS.add("shed_planks", planks(212, 32, 64, (0.16, 0.24, 0.18), 1))
-    SOLID_ATLAS.add("hut_planks", planks(213, 32, 64, (0.30, 0.28, 0.24), 1))
+    SOLID_ATLAS.add("shed_planks", peel(planks(212, 32, 64, (0.16, 0.24, 0.18), 1), 764))
+    SOLID_ATLAS.add("hut_planks", peel(planks(213, 32, 64, (0.30, 0.28, 0.24), 1), 765, wood=(0.26, 0.24, 0.21), amt=0.25))
     SOLID_ATLAS.add("brick", brick(220, 32, 32))
-    SOLID_ATLAS.add("window", window_tex(230, 16, 16))
-    SOLID_ATLAS.add("door_green", door_tex(231, 16, 32, (0.14, 0.22, 0.16)))
-    SOLID_ATLAS.add("door_brown", door_tex(232, 32, 32, (0.28, 0.18, 0.10)))
+    SOLID_ATLAS.add("window", grime_qf(window_tex(230, 16, 16), 768, dark=0.7))
+    SOLID_ATLAS.add("door_green", peel(door_tex(231, 16, 32, (0.14, 0.22, 0.16)), 766))
+    SOLID_ATLAS.add("door_brown", peel(door_tex(232, 32, 32, (0.28, 0.18, 0.10)), 767))
     SOLID_ATLAS.add("fish", fish_tex(240, 32, 32))
     SOLID_ATLAS.add("glass", glass_tex(8, 16))
     SOLID_ATLAS.add("fire", fire_tex(8, 16))
@@ -597,6 +647,7 @@ def build_atlases():
     for i, (k, lines) in enumerate(WALL_NOTICES.items()):
         DECAL_ATLAS.add(k, paint_wall_notice(lines, 480 + i))
     DECAL_ATLAS.add("rust_run", paint_rust_run(500))
+    DECAL_ATLAS.add("rust_stain", paint_rust_stain(505))
     DECAL_ATLAS.add("drain", paint_drain(501))
     DECAL_ATLAS.add("worn", paint_worn(502))
     DECAL_ATLAS.add("soot", paint_soot(503))
@@ -938,6 +989,7 @@ def bollard_cannon():
     m.lathe([(0.2, 0.0), (0.2, 0.08), (0.185, 0.1), (0.17, 0.55), (0.18, 0.6), (0.2, 0.68), (0.2, 0.74), (0.17, 0.78), (0.12, 0.79)], 9, "iron_rust")
     m.lathe([(0.12, 0.79), (0.12, 0.8), (0.0, 0.84)], 9, "iron")
     m.lathe([(0.187, 0.3), (0.195, 0.33), (0.187, 0.36)], 9, "iron")
+    m.quad([(0.0 - 0.5, 0.0 - 0.5, 0.0), (0.0 + 0.5, 0.0 - 0.5, 0.0), (0.0 + 0.5, 0.0 + 0.5, 0.0), (0.0 - 0.5, 0.0 + 0.5, 0.0)], "rust_stain", mat=DECAL, out=(0, 0, 1))  # pass 3: rust bled into the stone
     return m
 
 
@@ -948,6 +1000,7 @@ def bollard_mushroom():
     m.lathe([(0.3, 0.05), (0.3, 0.1), (0.24, 0.13), (0.2, 0.2), (0.17, 0.42), (0.19, 0.52), (0.29, 0.6), (0.3, 0.66), (0.26, 0.7), (0.0, 0.73)], 10,
             "iron_green", cap0=False)
     m.lathe([(0.3, 0.05), (0.0, 0.05)], 10, "iron")
+    m.quad([(0.0 - 0.55, 0.0 - 0.55, 0.0), (0.0 + 0.55, 0.0 - 0.55, 0.0), (0.0 + 0.55, 0.0 + 0.55, 0.0), (0.0 - 0.55, 0.0 + 0.55, 0.0)], "rust_stain", mat=DECAL, out=(0, 0, 1))  # pass 3: rust bled into the stone
     return m
 
 
@@ -962,6 +1015,7 @@ def bitt_double():
     for sx in (-1, 1):
         for sy in (-1, 1):
             m.box((sx * 0.56, sy * 0.19, 0.07), (0.06, 0.06, 0.03), "iron_light")
+    m.quad([(0.0 - 0.85, 0.0 - 0.45, 0.0), (0.0 + 0.85, 0.0 - 0.45, 0.0), (0.0 + 0.85, 0.0 + 0.45, 0.0), (0.0 - 0.85, 0.0 + 0.45, 0.0)], "rust_stain", mat=DECAL, out=(0, 0, 1))  # pass 3: rust bled into the stone
     return m
 
 
@@ -1009,6 +1063,7 @@ def capstan():
                "black", out=(c, s, 0))
     for k, (x, a) in enumerate(((0.9, 0.12), (1.05, -0.08))):
         m.beam((x, -0.9 + k * 0.25, 0.04 + k * 0.05), (x + 0.2, 0.9 + k * 0.25, 0.04), 0.07, 0.07, "wood")
+    m.quad([(0.0 - 0.75, 0.0 - 0.75, 0.0), (0.0 + 0.75, 0.0 - 0.75, 0.0), (0.0 + 0.75, 0.0 + 0.75, 0.0), (0.0 - 0.75, 0.0 + 0.75, 0.0)], "rust_stain", mat=DECAL, out=(0, 0, 1))  # pass 3: rust bled into the stone
     return m
 
 
@@ -1111,6 +1166,7 @@ def anchor():
     for z in (0.35, 1.0):
         m.box((0.7, 0, z), (0.16, 0.16, 0.05), "iron_rust")
     m.tube(ring_path(0.18, 7, 1.08, 0.0, 0.2, plane="xz"), 0.03, 3, "iron_rust", closed=True)
+    m.quad([(-0.1 - 1.2, 0.0 - 0.6, 0.0), (-0.1 + 1.2, 0.0 - 0.6, 0.0), (-0.1 + 1.2, 0.0 + 0.6, 0.0), (-0.1 - 1.2, 0.0 + 0.6, 0.0)], "rust_stain", mat=DECAL, out=(0, 0, 1))  # pass 3: rust bled into the stone
     return m
 
 

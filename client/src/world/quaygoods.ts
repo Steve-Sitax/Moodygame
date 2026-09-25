@@ -62,6 +62,8 @@ export interface QuayGoods {
     triangles: number;
     /** Why a heap was not put where it was tried. */
     rej: Record<string, number>;
+    /** Pass 3: the things dropped round the heaps and along the quays, and the stains on the setts. */
+    debris: { objects: number; decals: number };
   };
   placed: Array<{ kind: string; quay: string; x: number; z: number; yaw: number; w: number; d: number; wall: boolean }>;
 }
@@ -1103,6 +1105,8 @@ interface Live {
   group: THREE.Group;
   chunks: THREE.Mesh[];
   puts: Put[];
+  /** Where the debris starts in `puts` (it is kept when a heap is taken away). */
+  debrisStart: number;
 }
 let live: Live | null = null;
 
@@ -1687,6 +1691,97 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
     byQuay[area.id] ??= 0;
   }
 
+  // ---------------------------------------------------------------- debris (pass 3)
+  // Steve 2026-09-26: "a misty, darker, grimy atmosphere, a bit dangerous at all times. So rust, soot,
+  // clutter, dirt". Round every heap: torn slats, a rope end, rotten straw, spilt grain or coffee, oil
+  // and tar, now and then a rusty bucket, a stove-in cask, a dead rat. Along the quays: muck, tar and
+  // straw on the setts. By the fish market: fish crates. Things you could trip over keep off the lanes,
+  // the rails and every place kept clear; only a bucket and a broken cask are solid, and those stand
+  // close by a heap (never out in its passage).
+  phase = "debris: ";
+  const debrisStart = puts.length;
+  const debris = { objects: 0, decals: 0 };
+  const onGround = (x: number, z: number, solid: boolean, pad: number) => {
+    if (at(x, z) !== OPEN) return false;
+    if (keepIdx.at(x, z, pad) || inClear(x, z)) return false;
+    if (avoidIdx.at(x, z, pad)) return false;
+    const o = occ.get(key(Math.floor(x / 0.5), Math.floor(z / 0.5)));
+    if (o === 1) return false;
+    if (solid && o === 2) return false; // (not in the walk in front of a row)
+    return true;
+  };
+  const drop = (name: string, x: number, z: number, yaw: number, solid: boolean) => {
+    const isDecal = name.startsWith("d_");
+    put(name, x, z, yaw, 0.8 + r() * 0.25, isDecal ? 0.012 : 0);
+    if (solid) collide(name, x, z, yaw);
+    if (isDecal) debris.decals++;
+    else debris.objects++;
+  };
+  const NEAR: Array<[string, number]> = [
+    ["d_straw_rot", 3], ["d_muck", 2], ["d_tar", 1], ["d_oil", 1.2], ["d_dirt", 1.5], ["slats_broken", 2], ["rope_end", 1.6],
+    ["rat_dead", 0.35], ["bucket_rusty", 0.7], ["barrel_broken", 0.45],
+  ];
+  const SOLID_DEBRIS = new Set(["bucket_rusty", "barrel_broken"]);
+  for (const h of heaps) {
+    const n = 2 + Math.floor(r() * 3);
+    const c = Math.cos(h.yaw);
+    const s = Math.sin(h.yaw);
+    for (let k = 0; k < n; k++) {
+      const name = pick(r, NEAR);
+      const solid = SOLID_DEBRIS.has(name);
+      // round the heap: mostly in front (+z of its frame), sometimes at its ends
+      for (let t = 0; t < 4; t++) {
+        const front = r() < 0.7;
+        const out = (solid ? 0.35 : 0.3) + r() * (solid ? 0.45 : 1.3);
+        const a = front ? (r() - 0.5) * 2 * h.hl : (r() < 0.5 ? -1 : 1) * (h.hl + out);
+        const b = front ? h.hs + out : (r() - 0.5) * 2 * h.hs;
+        const x = h.x + a * c + b * s;
+        const z = h.z - a * s + b * c;
+        const isDecal = name.startsWith("d_");
+        if (isDecal ? at(x, z) !== OPEN || occ.get(key(Math.floor(x / 0.5), Math.floor(z / 0.5))) === 1 : !onGround(x, z, solid, solid ? 0.5 : 0.2)) continue;
+        drop(name, x, z, r() * Math.PI * 2, solid);
+        break;
+      }
+    }
+  }
+  // along the working quays: dirt on the setts, and bits dropped
+  const ALONG_DECALS: Array<[string, number]> = [["d_muck", 2], ["d_tar", 1.2], ["d_oil", 1.5], ["d_straw_rot", 2], ["d_dirt", 2.5], ["d_grain", 0.5]];
+  const ALONG_BITS: Array<[string, number]> = [["slats_broken", 2], ["rope_end", 2], ["rat_dead", 0.5]];
+  for (const area of AREAS) {
+    for (let x = area.rect.minX + 1; x < area.rect.maxX; x += 3.5)
+      for (let z = area.rect.minZ + 1; z < area.rect.maxZ; z += 3.5) {
+        const px = x + (r() - 0.5) * 3;
+        const pz = z + (r() - 0.5) * 3;
+        if (!onQuay(px, pz) || at(px, pz) !== OPEN) continue;
+        const u = r();
+        if (u < 0.22) {
+          if (occ.get(key(Math.floor(px / 0.5), Math.floor(pz / 0.5))) === 1) continue;
+          drop(pick(r, ALONG_DECALS), px, pz, r() * Math.PI * 2, false);
+        } else if (u < 0.27 && onGround(px, pz, false, 0.3)) {
+          drop(pick(r, ALONG_BITS), px, pz, r() * Math.PI * 2, false);
+        }
+      }
+  }
+  // fish crates by the fish market, along its quay, off the stalls and the steps
+  {
+    let n = 0;
+    const spots: Array<[number, number]> = [];
+    for (let x = -136; x < -96 && n < 6; x += 1.5) {
+      const z = 2.2 + r() * 1.5;
+      if (spots.some(([sx, sz]) => Math.hypot(sx - x, sz - z) < 5)) continue;
+      let ok = true;
+      for (const [dx, dz] of [[-0.6, -0.4], [0.6, -0.4], [-0.6, 0.9], [1.2, 0.4], [0, 0]]) if (!onGround(x + dx, z + dz, true, 0.4)) ok = false;
+      if (!ok) continue;
+      const yaw = (r() - 0.5) * 0.4;
+      drop("fish_crates", x, z, yaw, true);
+      drop("d_muck", x + 0.5, z + 0.9, r() * 6, false);
+      spots.push([x, z]);
+      n++;
+    }
+    byQuay.vismarkt = n;
+  }
+  phase = "";
+
   // ---------------------------------------------------------------- into the scene
   const group = new THREE.Group();
   group.name = "quaygoods";
@@ -1695,12 +1790,12 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
   const chunks = [...meshes];
   hideBeyondFog(scene, chunks);
   scene.add(group);
-  live = { scene, protos, mats: m, group, chunks, puts };
+  live = { scene, protos, mats: m, group, chunks, puts, debrisStart };
 
   const result: QuayGoods = {
     group,
     colliders,
-    stats: { byQuay, byKind, models, meshes: meshes.length, triangles: Math.round(triangles), rej },
+    stats: { byQuay, byKind, models, meshes: meshes.length, triangles: Math.round(triangles), rej, debris },
     placed,
   };
   const why = (kind: string, x: number, z: number, yaw: number, mode: "open" | "wall" | "edge") => {
@@ -1760,6 +1855,7 @@ export function pruneQuayGoods(points: Array<{ x: number; z: number; reach?: num
   // merge the heaps that stay again
   const keep: Put[] = [];
   for (const hp of heaps) if (!hp.gone) for (let i = hp.p0; i < hp.p1; i++) keep.push(live.puts[i]);
+  for (let i = live.debrisStart; i < live.puts.length; i++) keep.push(live.puts[i]);
   for (const m of live.chunks) {
     live.group.remove(m);
     m.geometry.dispose();

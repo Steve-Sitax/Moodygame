@@ -43,6 +43,16 @@ Steve, with picture 8 (a dirty back street at night): "make sure it is not too c
 - The town wall's walk and bastion grass have no puddles: the puddles show the street mirror, whose plane is the
   street (y 0), so on the walk at 6.5 m they showed the wall upside down (`rampart.ts`).
 
+## The air, darker and smokier (the lead, 2026-09-26)
+Steve: "The pictures were wrong: it is a misty, darker, grimy atmosphere, a bit dangerous at all times. So rust, soot,
+clutter, dirt."
+- The day's air (`rijnkaai.ts DAYLIGHT`): a smoky grey with a little brown (0x51585a, was 0x5e6870) and less sky
+  light (1.8, was 2.1). A clear day keeps the coal-smoke haze: fog far x7, about 200 m (was x16, 480 m), only 60 %
+  of the clear sky's colour (0x8b9398, was a blue 0x9db0c2), and less gold in the golden hour (0.3, was 0.55).
+- The streets' filth (`litter.ts FILTH`): 1.8 times the dung, straw, muck, ash and rubbish of M3j, the swept squares
+  too; the flat marks dimmed a shade (the bright straw stood out in the mist). paths() gained nothing from it.
+- Pictures: `data/shots/atm_clear_13.jpg`, `atm_mist_13.jpg`, `atm_mist16_street.jpg`, `atm3_street.jpg`.
+
 ## Checks
 - `npm run build` passes.
 - Z-fight check (`__scheldemist.zfight({ list: 300000 })`): no new pairs from the coping's front and underside. The
@@ -149,6 +159,41 @@ heaps found casks and a handcart touching their neighbours and rows against a ra
 Pictures (t.light(13, "clear")): `data/shots/qg2_before_*` and `qg2_after_*`, same cameras: A_store,
 B_north, C_lock, D_werf, E_start, F_ropewalk, and along the quays at eye height W1_rijnkaai (picture 1),
 W2_lock_quay (picture 5), W5_bassin_south (picture 2). `qg2_sr_*`: the new big models close.
+
+### Pass 3: rust, soot, dirt (2026-09-26)
+Steve: "The pictures were wrong (the sunny ones): it is a misty, darker, grimy atmosphere, a bit dangerous at
+all times. So rust, soot, clutter, dirt, goods that fit the style."
+- The goods weathered (`build_quaygoods.py grime`, `weather_all`): every cell faded to the grey-brown of old wood
+  and wet jute, darker (0.7 to 0.8), a wet green-black foot, mould blotches, mud splashed up; sacks and bales
+  torn and patched; tarpaulins stained with puddles and tide rings in their folds; chalk half wiped and smeared.
+  All iron (hoops, bands, straps, corner caps, nails) is rusted in scabs and runs, rust running down the posts
+  from the caps. The rust is a dark brown on purpose: a first try in orange stood out in the fog.
+- The quay iron (`build_quayfurniture.py`): bollards, bitts, capstans, anchors, rings and chains rusty and dark;
+  a rust stain bled into the stone under the bollards, bitts, capstans and anchors (a flat decal); the huts,
+  sheds, doors and window frames with the paint peeling to grey wood, soot streaks, damp at the foot.
+- Debris (quaygoods.ts, the last pass; every keep-out as before): round each heap 2 to 4 things (torn slats,
+  a rope end, rotten straw, muck, tar, oil, trodden dirt; now and then a rusty bucket, a stove-in cask, a dead
+  rat); along the working quays muck, tar and straw on the setts and bits dropped; fish crates by the fish
+  market. Only the bucket and the broken cask are solid, and they stand close by a heap, never in the walk in
+  front of a row. New models: slats_broken, bucket_rusty, barrel_broken, fish_crates, rat_dead, rope_end;
+  decals muck, tar, straw_rot, rust_stain. Same atlas: no new draw calls.
+- Placed (seed 1873): the same 113 heaps; debris 124 things and 388 stains.
+
+Checks (stack 8943/5343): z-fight (every goods chunk shown): no pair with the goods; the quay furniture pairs it lists (the harbour hut's windows, 1 cm layers) are in geometry this pass did not touch (its new faces are only the flat rust stains, on the decal material with its polygon offset). `paths()` lists 28 homes and the Logement (the
+Hartmann, Baumgartner, Becker, Mols ... families): the same list with the goods switched off, so not the goods
+(it came with the house changes of the same day). routeClips(): the omnibus at x -90 z 98, as before. Frame
+time, one load, goods shown against hidden: 44.2, 43.8, 43.9 ms against 43.9, 43.9, 43.5 ms (the whole scene
+was near 44 ms on this machine that hour), +3 to 7 draw calls. `npm run build` passes.
+Pictures: `data/shots/qg3_*` (the cameras of `qg2_after_*`, t.light(13, "clear")), `qg3_fog16_*` and
+`qg3_fog21_*` (the default fog at 16:00 and 21:00), `qg3_sr_*` (the goods and the debris close),
+`qg3_qf_capstan`, `qg3_qf_harbour_hut` (the quay iron and a hut).
+- Cloth fix (the lead's review: the sacks and bales "look like cheese or leopard skin close up"): the round
+  dots came from mud specks, round tears, mould thresholds and single dark pixels in the weave. Sacks, bales
+  and tarpaulins now weather as cloth (`cloth_grime`): soft uneven stains in a few blotches, damp soaked up
+  from the underside, 0 to 2 tears as slits with a dark inside and pale frayed threads (a bale 1 to 2), now and
+  then a square patch of another cloth stitched on; the tarpaulins keep two soft wet patches in their folds, no
+  rings. The bale's cotton shows only at its ends, as soft bands. Pictures, 1 to 2 m, front and side:
+  `qg4_before_*` and `qg4_after_*` (sacks_pallet, bale, tarp_crates, sacks_heap).
 
 ## Buildings on the quays
 Why: Steve, 2026-09-25, after the first quay pictures: "also more detail in models, complexity of buildings". His
