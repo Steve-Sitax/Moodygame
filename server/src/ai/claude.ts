@@ -6,6 +6,7 @@ import { AI_CWD, CALLS_PER_DAY, CLAUDE, MODELS, ROUTE_DEFAULT, type Provider } f
 import type { DB } from "../db.ts";
 import { codexRunner, killTree } from "./codex.ts";
 import { routeFor, type Route } from "./router.ts";
+import { callBegan, callEnded, holdResult, waitToStart } from "../save/gate.ts";
 
 // One way to call a model: no tools, our own system prompt, JSON schema output. docs/02 and docs/03.
 // The router (router.ts, MODEL_ROUTE in config.ts) picks the model per hook: Claude through the
@@ -51,6 +52,21 @@ export async function callClaude<S extends z.ZodType>(
   req: CallRequest<S>,
   runner?: Runner,
 ): Promise<CallResult<z.infer<S>>> {
+  // M7 save and pause (save/gate.ts): no call starts while the game is paused, saving or loading;
+  // it waits, and its limit only begins once it may start. A call in flight counts until its caller
+  // has the answer; while paused the answer waits here, and the caller applies it after the unpause.
+  await waitToStart();
+  callBegan();
+  try {
+    const r = await callModel(db, req, runner);
+    await holdResult();
+    return r;
+  } finally {
+    callEnded();
+  }
+}
+
+async function callModel<S extends z.ZodType>(db: DB, req: CallRequest<S>, runner?: Runner): Promise<CallResult<z.infer<S>>> {
   // The limit is hard (CLAUDE.md, QA 2026-09-24): it counts from the moment the caller asks,
   // waiting for the hook's last call included, and no caller may set it higher than 20 s.
   const started = Date.now();

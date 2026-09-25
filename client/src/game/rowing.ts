@@ -14,6 +14,7 @@ import type { Action } from "./runs";
 import { nearestAim, type Target } from "./facing";
 import type { MapMark } from "./map";
 import { makeHuman, type Human, type HumanKind } from "./humans";
+import { bootRestore } from "./restoreData";
 
 // Rowing boats (M3j), on the client. Steve, 2026-09-23: "We should be able to take a boat and
 // row to other places. Bridge goes up if we don't fit underneath. Only rowing boats, no big
@@ -202,6 +203,14 @@ export class Rowing {
     return this.boat !== null && this.player.rowing;
   }
 
+  /** M7 save and pause: the boat Jef sits in, for a save (put back by apply after a load). */
+  snapshot(): { what: string; kind: Kind; x: number; z: number; yaw: number } | null {
+    if (!this.boat || !this.player.rowing) return null;
+    return { what: this.boat.what, kind: this.boat.kind, x: +this.player.x.toFixed(3), z: +this.player.z.toFixed(3), yaw: +this.player.rowHeading.toFixed(4) };
+  }
+  private rowBack = false;
+  private rowTries = 0;
+
   // ------------------------------------------------------------------ the water
 
   /** Open water for the hull: the walk map's water, not the walls, piles, hulls, lying boats; the lock while its gates stand open; not under a bridge you do not fit under unless it is up. */
@@ -273,6 +282,15 @@ export class Rowing {
       if (!first && this.notice >= 0) this.jobs.say(w.notice.text);
       this.notice = w.notice.n;
     } else if (first) this.notice = w.notice?.n ?? 0;
+    // M7 save and pause: a loaded save had Jef in this boat: he sits in it again where he was
+    const back = bootRestore()?.row;
+    if (w.on && !this.boat && !this.busy && back && !this.rowBack && (back.kind === "rowboat" || back.kind === "punt")) {
+      this.sitIn(null, w.on === "hire" ? "hire" : w.on, back.kind, back.x, back.z, back.yaw);
+      if (this.boat) this.rowBack = true;
+      else if (this.rowTries++ < 20) window.setTimeout(() => void this.load(), 1000); // the boats are not in yet
+      this.syncLying();
+      return;
+    }
     // a reload while the server has us in a boat: we are not in it here, so out we got where it lies
     if (w.on && !this.boat && !this.busy) {
       // a hired boat goes back to its berth (we do not know where it was); a taken one stays where the server has it

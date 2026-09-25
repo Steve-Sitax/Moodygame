@@ -1132,6 +1132,26 @@ export class FirstPerson {
     this.pitch = this.lookPitch = pitch;
   }
 
+  /**
+   * M7 save and pause: put Jef back as a save had him: the spot, the height he stood at (a deck, a
+   * stair: kept when there is something under him there, else the ground), the facing, in the water.
+   */
+  restorePose(s: { x: number; z: number; y: number; yaw: number; pitch: number; swimming?: boolean; crouching?: boolean }): void {
+    this.place(s.x, s.z, s.yaw, s.pitch);
+    if (s.swimming) {
+      this.swimming = true;
+      this.grounded = false;
+      this.y = s.y;
+      this.strokeDist = 0;
+    } else if (Math.abs(s.y - this.y) < 3.5) {
+      const floor = this.world.baseAt(s.x, s.z);
+      this.y = Math.max(floor, s.y);
+    }
+    this.crouching = !!s.crouching;
+    this.camera.position.set(this.x, this.y + this.eye, this.z);
+    this.camera.rotation.set(this.pitch, this.yaw, 0);
+  }
+
   setKey(code: string, down: boolean): void {
     if (down) this.keys.add(code);
     else this.keys.delete(code);

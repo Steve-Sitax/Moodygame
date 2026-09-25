@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { playNow } from "../save/gate.ts";
 import type { DB } from "../db.ts";
 import { CALLS_PER_DAY, CALLS_RESERVE, RESIDENT_CALLS_PER_DAY, RESIDENT_CALLS_PER_MEETING } from "../config.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
@@ -497,8 +498,8 @@ onResetTalks(() => sessions.clear());
 
 function sessionFor(id: string): Session {
   let s = sessions.get(id);
-  if (!s || Date.now() - s.lastAt > TTL_MS) {
-    s = { turns: [], trust: 0, calls: 0, lastAt: Date.now(), used: new Set(), offered: new Map(), typed: false };
+  if (!s || playNow() - s.lastAt > TTL_MS) {
+    s = { turns: [], trust: 0, calls: 0, lastAt: playNow(), used: new Set(), offered: new Map(), typed: false };
     sessions.set(id, s);
   }
   return s;
@@ -537,7 +538,7 @@ function apply(db: DB, r: Resident, sess: Session, line: ResidentLine): Line & {
     remember(db, r.id, note || rumour, Math.min(line.memory_weight, 7), "seen", null, gist ? { gist, tone: line.rumour_tone } : null);
   }
   sess.turns.push(`- ${r.first}: ${line.npc_line}`);
-  sess.lastAt = Date.now();
+  sess.lastAt = playNow();
   return {
     // in her own voice: "my stall", not "Rosalie's stall" (engine lines and model lines alike)
     npc_line: ownVoice(plainEnglish(line.npc_line), [r.name, r.first]),
@@ -752,7 +753,7 @@ function modelLine(db: DB, r: Resident, sess: Session, raw: ResidentLine) {
 /** M6 gifts, the treat, hired hands: what Jef last said in this meeting (his own words or a line he picked). */
 export function jefSaid(id: string): string {
   const s = sessions.get(id);
-  if (!s || Date.now() - s.lastAt > TTL_MS * 2) return "";
+  if (!s || playNow() - s.lastAt > TTL_MS * 2) return "";
   for (let i = s.turns.length - 1; i >= 0; i--) {
     const m = /^- Jef(?: \(in his own words\))?: (.*)$/.exec(s.turns[i]);
     if (m) return m[1];

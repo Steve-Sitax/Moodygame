@@ -74,6 +74,7 @@ async function start() {
   const Database = require("better-sqlite3");
   const live = new Database(path.join(data, "game.sqlite"), { readonly: true });
   for (const f of [db, `${db}-shm`, `${db}-wal`]) rmSync(f, { force: true });
+  rmSync(path.join(data, "saves", `test-${name}`), { recursive: true, force: true }); // a stack left unstopped: its old saves
   await live.backup(db);
   live.close();
   writeFileSync(
@@ -126,6 +127,8 @@ function stop() {
   for (const p of [SERVER, VITE]) for (const pid of listeners(p)) kill(pid);
   const left = [SERVER, VITE].filter((p) => listeners(p).length);
   for (const f of [db, `${db}-shm`, `${db}-wal`, logS, logV, cfg]) rmSync(f, { force: true });
+  // M7 save and pause: the copy's own saves (server save/saves.ts: data/saves/<the copy's name>)
+  rmSync(path.join(data, "saves", `test-${name}`), { recursive: true, force: true });
   console.log(left.length ? `still listening: ${left.join(", ")}` : `test stack "${name}" stopped; copy, logs and config deleted`);
 }
 

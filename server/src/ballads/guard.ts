@@ -39,6 +39,10 @@ const COMMON = new Set(
 );
 
 const townWords = new WeakMap<DB, Set<string>>();
+/** M7 save and pause: a loaded save (or a new week) may be another town: its names are gathered again. */
+export function dropGameWords(db: DB): void {
+  townWords.delete(db);
+}
 
 /** Every name the game owns: the townspeople, the named people, the places. */
 function gameWords(db: DB): Set<string> {

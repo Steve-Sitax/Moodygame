@@ -73,6 +73,8 @@ jumps the server's clock on and ticks once, and the stages it passes are played.
 | `shot("name", target)` | A picture from Jef's side of the target, 4 m off, eye height, fog pushed back to 120 m. Saved as `data/shots/name.jpg`. The target can be a person's id or name, a place, `[x, z]` or a spawned figure. |
 | `state()` | The clock, where Jef is, the people near, the events, the job, spawned figures. |
 | `clear()`, `done()` | Remove spawned figures and let summoned people go; `done()` also closes the audio and parks the tab. |
+| `pause(on = true)`, `paused()` | M7: P's pause (the card, the server's pause, the sound suspended); the pause now: its reasons, the ms paused, the card, the audio. While paused `run`, `until` and `step` do nothing. |
+| `save("slot1", name?)`, `load("slot1")`, `saves()`, `capture()` | M7: save into a slot (`slot1`..`slot5`, or `"auto"`): the game pauses while the server waits for the model calls on their way; load one (the page reloads: wait, then `free(true)` and `const t = __scheldemist.t` again); the list; the browser's part of a save as it would be written now. Test save only. |
 
 Also still there: `__scheldemist.paths()` (must be `[]` before a milestone ends), `await __scheldemist.zfight()`
 (faces in one plane that flicker, by cause; the houses list 4 small ones, see M3c pass 5), `perf(n)`,
@@ -81,6 +83,24 @@ Server dev routes: `POST /api/dev/set {day, hour, minute, weather, food ...}` (s
 turns), `/api/dev/advance {minutes}` (M7 night: as the game moves the clock, midnight included), `/api/dev/job`,
 `/api/dev/director {template | invent | think}`, `/api/dev/ballad {corner}`, `/api/dev/new-board`,
 `/api/dev/gang`, `/api/dev/gang-chance`, `/api/dev/night-work {fallback}`.
+
+## Pause and saves (M7 save and pause)
+`docs/milestones/M7-save-pause.md`. What a check must know:
+
+- **Paused, nothing runs**: not the frames, not `t.run`, and not the page's own `setTimeout` (it waits for
+  the unpause) or `performance.now()` (it stands still). To wait through a pause in a script use the
+  untouched timers: `await new Promise(r => __scheldemist.real.setTimeout(r, 2000))`, `__scheldemist.real.now()`.
+- **The menu pauses** once the game has been entered (also with `free(true)`); `free(true)` again goes on.
+  Keys sent by script while paused go only to the menu (`Escape`, `P`, `W`).
+- **A talk reply during a pause**: type a line (`T`, then the talk input's value and an `Enter` keydown on it),
+  `t.pause()`, wait with `real.setTimeout`; `GET /api/pause` shows `in_flight: 1`; `t.pause(false)` and the
+  reply shows. Choices are picked with `key: "3"` (the talk reads `e.key`).
+- **A save that waits**: `fetch("/api/dev/director", {method: "POST", ..., body: '{"think":true}'})` while
+  playing, then `t.save("slot2")`: the server log says `[save] slot2 ... in 14471 ms`.
+- **Load**: `t.load("slot1")` reloads the page; the kit's variables are gone. A test stack's saves live in
+  `data/saves/test-<name>/` and go with `teststack.mjs stop`. Never load or save on Steve's game (5173).
+- **Pictures of the cards**: the "Paused" card, the menu and the save list are HTML, not in `shot()`: give
+  the tab a size (`resize_window` 960 x 540) and take the browser's own screenshot.
 
 ## The night (M7 night)
 There is no night sheet at midnight any more: the clock runs through the night and the date turns

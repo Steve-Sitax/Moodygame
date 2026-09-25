@@ -1,3 +1,5 @@
+// M7 save and pause: first of all, so the pause clock is in place before any other part runs (game/pause.ts)
+import { onPausedKey, pause, real } from "./game/pause";
 import * as THREE from "three";
 import "./style.css";
 import { RetroPass } from "./retro/retroPass";
@@ -59,6 +61,9 @@ import { FerryArrival } from "./game/ferryArrival";
 import { JUMPS, makeTestKit } from "./dev/testkit";
 import { QuestBoxes } from "./game/questboxes";
 import { Nightlife } from "./game/nightlife";
+import { Saves } from "./game/saves";
+import { bootRestore, type ClientState } from "./game/restoreData";
+import type { JobSnap } from "./game/jobs";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const startEl = document.getElementById("start") as HTMLDivElement;
@@ -493,57 +498,219 @@ startEl.addEventListener("click", start);
 // (Esc cannot: browsers do not let the Esc key take the mouse back.)
 // Steve: going to another app (a snipping tool) must not open the menu; Esc opens it, Esc again closes it.
 // Away (the window lost focus): only a small hint in the corner. Back: click or a walking key goes on.
+// M7 save and pause: once the game has been entered, the game is paused whenever it does not have
+// the mouse (the menu, another window, another tab) and while P holds it (the "Paused" card); the
+// first screen of a page is not a pause (the town may run behind it, the clock does not).
 const resumeEl = document.createElement("div");
-resumeEl.className = "resume-hint hidden";
+resumeEl.className = "resume-hint hidden pause-ui";
 resumeEl.textContent = "Click or press W to go on · Esc: menu";
 document.body.appendChild(resumeEl);
+const pauseCard = document.createElement("div");
+pauseCard.className = "pause-card pause-ui";
+pauseCard.style.display = "none";
+pauseCard.innerHTML = `<div class="paper"><h1>Paused</h1><p class="sub">Nothing moves in the town until you go on.</p><p class="keys">P, W or a click to go on &middot; Esc: the menu</p></div>`;
+document.body.appendChild(pauseCard);
+const stamp = document.createElement("p");
+stamp.className = "paused-stamp";
+stamp.textContent = "Paused";
+stamp.style.display = "none";
+startEl.querySelector(".paper")?.prepend(stamp);
 /** Paused without the menu: after the window lost focus, or the menu was closed with Esc. */
 let quietPause = false;
+/** The game has been entered in this page (the first screen is not a pause). */
+let started = false;
+const hintEl = startEl.querySelector(".hint");
+const hintText = hintEl?.textContent ?? "";
 function showMenu(on: boolean): void {
+  // once in the game, the paper says how to go on (a loaded save's line was for the first screen)
+  if (on && started && hintEl) hintEl.textContent = hintText.replace("to walk", "to go on");
   startEl.classList.toggle("hidden", !on);
-  resumeEl.classList.toggle("hidden", on || player.locked || player.freeInput || !quietPause);
+  resumeEl.classList.toggle("hidden", on || player.locked || player.freeInput || !quietPause || pause.has("key"));
+  stamp.style.display = started && on ? "" : "none";
+  if (on) saves.showMenu(started);
+  else saves.closePanel();
+  syncPause();
 }
-window.addEventListener("keydown", (e) => {
-  if (player.locked || player.freeInput || e.repeat) return;
-  const menuOpen = !startEl.classList.contains("hidden");
-  if (!menuOpen && !quietPause) return;
-  const t = document.activeElement as HTMLElement | null;
-  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
-  if (document.querySelector(".settings:not([style*='none'])")) return; // a panel is open: its keys first
+/** The menu reason: entered once, and the menu is up or the game does not have the mouse (the dev's free input has it). */
+function syncPause(): void {
+  pause.set("menu", started && (!startEl.classList.contains("hidden") || !(player.locked || player.freeInput)));
+}
+/** P: the "Paused" card; P, W or a click again goes on. */
+function keyPause(on: boolean): void {
+  if (on === pause.has("key")) return;
+  pauseCard.style.display = on ? "flex" : "none";
+  pause.set("key", on);
+  if (on) {
+    if (player.locked) document.exitPointerLock();
+    resumeEl.classList.add("hidden");
+  } else start();
+}
+pause.onChange((p) => {
+  // the sound stops with the picture and comes back with it
+  const ctx = (sound as unknown as { ctx?: BaseAudioContext } | null)?.ctx;
+  if (ctx instanceof AudioContext) {
+    if (p && ctx.state === "running") void ctx.suspend().catch(() => {});
+    else if (!p) sound?.resume();
+  }
+});
+const RESUME_KEYS = ["KeyW", "KeyA", "KeyS", "KeyD", "Space", "Enter", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+const panelsOpen = () => [...document.querySelectorAll<HTMLElement>(".settings")].filter((p) => p.style.display !== "none");
+/** Keys on the menu, the card, a panel: before the game is entered, and (game/pause.ts) while paused. */
+function menuKey(e: KeyboardEvent, typing: boolean): void {
+  if (e.repeat) return;
+  if (pause.has("saving") || pause.has("loading")) return; // wait for it
   if (e.code === "Escape") {
-    // Esc toggles the menu while the game waits (the browser keeps Esc from taking the mouse back)
     e.preventDefault();
+    // a panel open (Settings, Save, Load, Dev): Esc closes it
+    const open = panelsOpen();
+    if (open.length) {
+      for (const p of open) p.style.display = "none";
+      return;
+    }
+    if (pause.has("key")) {
+      // from the card to the menu (the menu's pause first: no moment of play between them)
+      pauseCard.style.display = "none";
+      quietPause = false;
+      showMenu(true);
+      pause.set("key", false);
+      return;
+    }
+    const menuOpen = !startEl.classList.contains("hidden");
     quietPause = menuOpen;
     showMenu(!menuOpen);
     return;
   }
-  if (["KeyW", "KeyA", "KeyS", "KeyD", "Space", "Enter", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) {
-    e.preventDefault();
-    start();
+  if (typing) {
+    // Enter in a save's name: save there
+    if (e.code === "Enter") (e.target as HTMLElement).closest("li")?.querySelector<HTMLButtonElement>("button[name=go]")?.click();
+    return;
   }
+  if (panelsOpen().length) return;
+  if (e.code === "KeyP" && pause.has("key")) {
+    e.preventDefault();
+    keyPause(false);
+    return;
+  }
+  if (RESUME_KEYS.includes(e.code)) {
+    e.preventDefault();
+    if (pause.has("key")) keyPause(false);
+    else start();
+  }
+}
+onPausedKey(menuKey);
+window.addEventListener("keydown", (e) => {
+  // P in the game: the pause (the gang's and the menace's own P go first: they stop the key)
+  if (e.code === "KeyP" && !e.repeat && (player.locked || player.freeInput) && !pause.paused && !jobs.day.sheetOpen) {
+    const t = document.activeElement as HTMLElement | null;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
+    e.preventDefault();
+    keyPause(true);
+    return;
+  }
+  if (player.locked || player.freeInput) return;
+  const menuOpen = !startEl.classList.contains("hidden");
+  if (!menuOpen && !quietPause) return;
+  const t = document.activeElement as HTMLElement | null;
+  menuKey(e, !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT"));
 });
 canvas.addEventListener("click", () => {
-  if (!player.locked) start();
+  if (pause.has("key")) keyPause(false);
+  else if (!player.locked) start();
 });
+pauseCard.addEventListener("click", () => keyPause(false));
 let lostFocusAt = -1e9;
-window.addEventListener("blur", () => (lostFocusAt = performance.now()));
+window.addEventListener("blur", () => (lostFocusAt = real.now()));
 document.addEventListener("pointerlockchange", () => {
   const locked = document.pointerLockElement === canvas;
   if (locked || player.freeInput) {
+    started = true;
     quietPause = false;
     startEl.classList.add("hidden");
     resumeEl.classList.add("hidden");
+    saves.closePanel();
+    syncPause();
     return;
   }
+  // at once: nothing moves from the moment the mouse is let go
+  syncPause();
+  // P: the card is up, not the menu
+  if (pause.has("key")) return;
   // the mouse was let go: by Esc (the window still has focus) or by going to another app (it has not).
-  // The focus change can come a moment after the lock change, so look again shortly.
-  window.setTimeout(() => {
-    if (player.locked || player.freeInput) return;
-    const away = !document.hasFocus() || performance.now() - lostFocusAt < 600;
+  // The focus change can come a moment after the lock change, so look again shortly (a real timer:
+  // the game's own timers wait for the unpause).
+  real.setTimeout(() => {
+    if (player.locked || player.freeInput || pause.has("key")) return;
+    const away = !document.hasFocus() || real.now() - lostFocusAt < 600;
     quietPause = away;
     showMenu(!away);
   }, 150);
 });
+
+// M7 save and pause: Save, Load and Continue on the paper; the autosaves; Jef put back after a load (game/saves.ts)
+function placeName(): string {
+  if (landmarks.inside) return landmarks.inside.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+  if (interiors.inside) return (interiors as unknown as { here?: { label?: string } | null }).here?.label ?? "indoors";
+  let best = "Antwerp";
+  let bestD = Infinity;
+  for (const p of JUMPS) {
+    const d = Math.hypot(p.x - player.x, p.z - player.z);
+    if (d < bestD) (best = p.name), (bestD = d);
+  }
+  const places = (town.data?.places ?? {}) as Record<string, { x: number; z: number; label?: string }>;
+  for (const [id, p] of Object.entries(places)) {
+    if (!p.label || id.startsWith("home") || id.startsWith("work")) continue;
+    const d = Math.hypot(p.x - player.x, p.z - player.z);
+    if (d < bestD) (best = p.label), (bestD = d);
+  }
+  return bestD < 120 ? best : `near ${best}`;
+}
+function captureClient(): ClientState {
+  const shown = Math.floor(jobs.day.hourF * 60 + 1e-6);
+  return {
+    v: 1,
+    clock: { day: jobs.day.dayNum, hour: Math.floor(shown / 60) % 24, minute: shown % 60 },
+    place: placeName(),
+    pose: { x: +player.x.toFixed(3), z: +player.z.toFixed(3), y: +player.y.toFixed(3), yaw: +player.yaw.toFixed(4), pitch: +player.pitch.toFixed(4), swimming: player.swimming, crouching: player.crouching },
+    row: rowing.snapshot(),
+    jobs: jobs.snapshot(),
+  };
+}
+/** Wait (real time) until `ok`, at most `ms`. */
+async function until(ok: () => boolean, ms: number): Promise<boolean> {
+  const end = real.now() + ms;
+  while (!ok()) {
+    if (real.now() > end) return false;
+    await new Promise((r) => real.setTimeout(r, 100));
+  }
+  return true;
+}
+async function restoreClient(c: ClientState): Promise<void> {
+  await world.city.ready.catch(() => {});
+  // the boat puts Jef in it itself (game/rowing.ts); else he stands where he stood
+  if (!c.row) player.restorePose(c.pose);
+  const snap = c.jobs as JobSnap | undefined;
+  if (snap && (await until(() => jobs.snapshotReady(snap), 20_000))) {
+    // the handcart's own reload fix of laid-out goods first (game/handcart.ts), then ours
+    await new Promise((r) => real.setTimeout(r, 600));
+    jobs.restoreSnapshot(snap);
+  }
+  // again: a part that placed him while it loaded (the ferry, a home) does not win
+  if (!c.row) player.restorePose(c.pose);
+}
+const saves = new Saves(startEl.querySelector(".paper") as HTMLElement, {
+  capture: captureClient,
+  restore: restoreClient,
+  played: () => started,
+  hour: () => (jobs.day.sheetOpen ? null : { day: jobs.day.dayNum, hour: jobs.day.hour }),
+  playing: () => jobs.day.playing,
+  say: (t) => jobs.say(t),
+});
+saves.showMenu(false);
+{
+  const c = bootRestore();
+  const hint = startEl.querySelector(".hint");
+  if (c && hint) hint.textContent = `Loaded${c.clock ? `: ${c.clock.hour}:${String(c.clock.minute).padStart(2, "0")}` : ""}${c.place ? `, ${c.place}` : ""}. Click, or press W, to go on.`;
+}
 
 /** Run one part of the frame; an error is logged once (by its message) and the rest of the frame goes on. */
 const frameErrors = new Set<string>();
@@ -572,11 +739,21 @@ const vehicleSounds: VehicleSound[] = [];
 const timer = new THREE.Timer();
 timer.connect(document);
 let elapsed = 0;
+let pausedDraw = 0;
 function frame(): void {
   // the next frame first: an error below never stops the game (QA 2026-09-24: one throw froze it for good)
   requestAnimationFrame(frame);
   timer.update();
   const dt = Math.min(timer.getDelta(), 0.1);
+  // M7 save and pause: paused, nothing moves; the picture stands (drawn again now and then: a resize)
+  if (pause.paused) {
+    if (pausedDraw-- <= 0) {
+      pausedDraw = 30;
+      retro.render(world.scene, player.camera, elapsed);
+    }
+    return;
+  }
+  pausedDraw = 0;
   elapsed += dt;
   safe("refreshFolk", refreshFolk);
   safe("world.update", () => world.update(elapsed, dt, player.camera));
@@ -826,8 +1003,14 @@ if (import.meta.env.DEV) {
     free(on = true) {
       player.freeInput = on;
       startEl.classList.toggle("hidden", on);
+      if (on) started = true;
       if (on && !sound) start();
+      syncPause();
     },
+    /** M7 save and pause: the pause (game/pause.ts; `real`: its untouched timers, for waiting through a pause) and the saves (game/saves.ts). */
+    pause,
+    real,
+    saves,
     key(code: string, down: boolean) {
       player.setKey(code, down);
     },
@@ -943,6 +1126,8 @@ if (import.meta.env.DEV) {
     },
     /** Run the game logic for some seconds at 60 Hz, without waiting for frames. */
     step(seconds: number) {
+      // M7 save and pause: a paused game does not move for the kit either
+      if (pause.paused) return;
       const dt = 1 / 60;
       for (let t = 0; t < seconds; t += dt) {
         elapsed += dt;
@@ -1007,6 +1192,11 @@ if (import.meta.env.DEV) {
     step: (s) => dev.step(s),
     shotFrom: (n, f, t, fog) => dev.shotFrom(n, f, t, fog),
     audio: () => sound as unknown as { ctx: BaseAudioContext } | null,
+    // M7 save and pause
+    pauseGame: (on) => keyPause(on),
+    pauseState: () => ({ paused: pause.paused, reasons: pause.reasons, pausedMs: Math.round(pause.pausedMs), card: pauseCard.style.display !== "none", audio: sound?.state ?? "none" }),
+    saves,
+    capture: captureClient,
   });
 }
 

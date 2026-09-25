@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { playNow } from "../save/gate.ts";
 import { weather, WEATHER_TEXT } from "../day.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import type { DB } from "../db.ts";
@@ -60,8 +61,8 @@ const TALK_TTL_MS = 90_000;
 
 function talkFor(id: string): Talk {
   let t = talks.get(id);
-  if (!t || Date.now() - t.lastAt > TALK_TTL_MS) {
-    t = { turns: [], trust: 0, lastAt: Date.now(), opening: null, offered: new Set(), last: null };
+  if (!t || playNow() - t.lastAt > TALK_TTL_MS) {
+    t = { turns: [], trust: 0, lastAt: playNow(), opening: null, offered: new Set(), last: null };
     talks.set(id, t);
   }
   return t;
@@ -161,7 +162,7 @@ function apply(db: DB, id: string, talk: Talk, line: Line): Line & { trust_appli
     remember(db, id, line.memory_note, w, "seen", null, rumour);
   }
   talk.turns.push(`- ${npcRow(db, id)!.name}: ${line.npc_line}`);
-  talk.lastAt = Date.now();
+  talk.lastAt = playNow();
   // the client gets the choices through plainEnglish (index.ts): both forms count as offered
   talk.offered = new Set(line.choices.flatMap((c) => [c.slice(0, 160), plainEnglish(c).slice(0, 160)]));
   talk.last = line;

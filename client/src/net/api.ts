@@ -2,6 +2,7 @@
 // the client shows them and reports what happened in 3D.
 
 import type { Goods } from "../game/props";
+import { clientId, pause, resendPause } from "../game/pause";
 
 export type Twist = "none" | "broken_goods" | "stranger_offer" | "foreman_watches" | "thick_fog" | "heavy_load" | "thief" | "bribe";
 
@@ -472,6 +473,15 @@ export const api = {
 };
 export type TownLifeResult = { ok: true; text: string } | { ok: false; why: string };
 
+/**
+ * M7 save and pause: the pause and save messages ("gate": the server paused, saving or loading;
+ * "loaded": a save was loaded) go here at once, never held by the pause (game/saves.ts).
+ */
+const systemListeners: Array<(m: PushMsg) => void> = [];
+export function onSystemPush(f: (m: PushMsg) => void): void {
+  systemListeners.push(f);
+}
+
 /** Push channel. Reconnects on its own; the game never waits on it. */
 export interface OutcomeMsg {
   job_id: number;
@@ -482,10 +492,28 @@ export interface OutcomeMsg {
 export function connectPush(onJobs: (p: JobsPayload) => void, onOutcome: (o: OutcomeMsg) => void = () => {}, onOther: (m: PushMsg) => void = () => {}): void {
   let delay = 1000;
   let dropped = false;
+  // M7 save and pause: what the server says while the game is paused is played after the unpause, in order
+  const held: Array<{ type: string } & JobsPayload & OutcomeMsg> = [];
+  const deliver = (msg: { type: string } & JobsPayload & OutcomeMsg) => {
+    try {
+      if (msg.type === "jobs") onJobs(msg);
+      else if (msg.type === "outcome") onOutcome(msg);
+      else onOther(msg as unknown as PushMsg);
+    } catch (err) {
+      console.warn(`push "${msg.type}" failed`, err);
+    }
+  };
+  pause.onChange((paused) => {
+    if (paused) return;
+    for (const m of held.splice(0)) deliver(m);
+  });
   const open = () => {
-    const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
+    // this tab's name: the server lets go of its pause when the channel closes
+    const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws?client=${encodeURIComponent(clientId)}`);
     ws.onopen = () => {
       delay = 1000;
+      // the server let go of our pause when the channel dropped: say it again
+      if (pause.paused) resendPause();
       // back after a drop: what was pushed meanwhile is lost, so the state is asked for once
       if (dropped) {
         dropped = false;
@@ -503,13 +531,21 @@ export function connectPush(onJobs: (p: JobsPayload) => void, onOutcome: (o: Out
       } catch {
         return;
       }
-      try {
-        if (msg.type === "jobs") onJobs(msg);
-        else if (msg.type === "outcome") onOutcome(msg);
-        else onOther(msg as unknown as PushMsg);
-      } catch (err) {
-        console.warn(`push "${msg.type}" failed`, err);
+      if (msg.type === "gate" || msg.type === "loaded") {
+        for (const f of systemListeners) {
+          try {
+            f(msg as unknown as PushMsg);
+          } catch (err) {
+            console.warn(`push "${msg.type}" failed`, err);
+          }
+        }
+        return;
       }
+      if (pause.paused) {
+        held.push(msg);
+        return;
+      }
+      deliver(msg);
     };
     ws.onclose = () => {
       dropped = true;

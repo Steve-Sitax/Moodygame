@@ -5,6 +5,7 @@ import { esc } from "./runs";
 import { topLeft } from "./corner";
 import { GAME_MIN_PER_REAL_S, TICK_EVERY_MS, TICK_MINUTES } from "../../../shared/clock";
 import { TIRED_AT } from "../../../shared/night";
+import { pause } from "./pause";
 
 // The day and the week (M5). The server owns the clock; this side asks for a
 // tick every 10 s while you play (shared/clock.ts: 5 game minutes; a game hour is 2 real minutes), shows the time, turns the light, and shows
@@ -93,11 +94,18 @@ export class Day {
   get hourF(): number {
     const c = this.payload?.clock;
     if (!c) return 6;
-    const ahead = this.playing ? Math.min(TICK_MINUTES / 60, ((performance.now() - this.shownAt) / 1000) * (GAME_MIN_PER_REAL_S / 60)) : 0;
+    // M7 save and pause: paused, the clock stands where it was on screen (performance.now stands still: game/pause.ts).
+    // Back in play after a time out of it (the first screen, a loaded save, a sheet): the run on starts again from here,
+    // not from when the server's time came in (a loaded 13:40 showed 13:45 at once).
+    const on = this.playing || pause.paused;
+    if (on && !this.wasOn) this.shownAt = Math.max(this.shownAt, performance.now());
+    this.wasOn = on;
+    const ahead = on ? Math.min(TICK_MINUTES / 60, ((performance.now() - this.shownAt) / 1000) * (GAME_MIN_PER_REAL_S / 60)) : 0;
     // M7 night: never 24 or past it (the server turns the date at midnight)
     return Math.min(24 - 1e-6, c.hour + c.minute / 60 + ahead);
   }
   private shownAt = performance.now();
+  private wasOn = false;
 
   /** M7 fog lamps: today's fog as the lamplighters see it (null before the server has said). */
   get lampsFog(): JobsPayload["lamps_fog"] | null {

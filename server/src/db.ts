@@ -19,6 +19,7 @@ import { ensureLandmarksTown } from "./landmarks/town.ts";
 import { ensureLively } from "./town/lively.ts";
 import { ARRIVAL_KEY, ARRIVAL_TEXT } from "./arrival.ts";
 import { shortenOffered } from "./hooks/jobBoard.ts";
+import { CLIENT_STATE_SQL } from "./save/schema.ts";
 
 // SQLite schema from docs/04-data-model.md. Only the server writes.
 // Delete data/game.sqlite to start over.
@@ -214,6 +215,8 @@ function migrate(db: DB): void {
   if (!cols("item").includes("ref")) db.exec("ALTER TABLE item ADD COLUMN ref INTEGER");
   // M4b: the leads of an event (bride, groom, musicians ...), picked by the engine at its start
   if (!cols("town_event").includes("leads_json")) db.exec("ALTER TABLE town_event ADD COLUMN leads_json TEXT NOT NULL DEFAULT '[]'");
+  // M7 save and pause: the browser's side of a save, per player (save/schema.ts)
+  db.exec(CLIENT_STATE_SQL);
 }
 
 /**
@@ -224,12 +227,16 @@ let generation = 0;
 export function gameGeneration(): number {
   return generation;
 }
+/** M7 save and pause: a save loaded is a new game for the calls begun before it (save/saves.ts). */
+export function bumpGeneration(): void {
+  generation++;
+}
 
 /** Start a new week: wipe the save and seed it again (the "new game" button). */
 export function resetDb(db: DB): void {
   generation++;
   db.transaction(() => {
-    for (const t of [...FAMILY_TABLES, ...IDEAS_TABLES, ...HOMES_TABLES, ...PRESS_TABLES, "world_event_who", "world_event", "npc_action", "town_event", "ai_call", "item", "event", "world_state", "job", "log", "world_fact", "npc_memory", "npc_relationship", "resident", "npc", "faction_trust", "player"]) {
+    for (const t of ["client_state", ...FAMILY_TABLES, ...IDEAS_TABLES, ...HOMES_TABLES, ...PRESS_TABLES, "world_event_who", "world_event", "npc_action", "town_event", "ai_call", "item", "event", "world_state", "job", "log", "world_fact", "npc_memory", "npc_relationship", "resident", "npc", "faction_trust", "player"]) {
       db.prepare(`DELETE FROM ${t}`).run();
     }
   })();

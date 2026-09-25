@@ -46,6 +46,11 @@ export interface TestKitDeps {
   shotFrom(name: string, from: [number, number, number], to: [number, number, number], fogFar?: number): Promise<string>;
   /** The sound, to close it at the end. */
   audio(): { ctx: BaseAudioContext } | null;
+  /** M7 save and pause: P's pause on or off; the pause now; the saves; the browser's part of a save now. */
+  pauseGame(on: boolean): void;
+  pauseState(): { paused: boolean; reasons: string[]; pausedMs: number; card: boolean; audio: string };
+  saves: { save(slot: string, label?: string): Promise<string>; load(slot: string): Promise<string>; autosave(quiet: boolean): Promise<string>; info(): Promise<unknown[]> };
+  capture(): unknown;
 }
 
 async function post<T>(url: string, body: unknown, timeoutMs = 60_000): Promise<T> {
@@ -94,6 +99,8 @@ export function makeTestKit(d: TestKitDeps) {
         "nightWork(fallback?)             M7 night: the night's work now (the model's, or the hand-written jobs); givers() where the givers stand",
         "boxes()                          M7 night: the quest boxes, and whose man is away now",
         "shot('name', target?)            a picture of the target from 4 m, lit, fog pushed back",
+        "pause(on=true) / paused()        M7: P's pause (nothing moves: run() does nothing either); the pause now",
+        "save('slot1', name?) / load('slot1') / saves()  M7: save into a slot (the game waits for the model), load one (the page reloads: free(true) again), the list",
         "state()                          clock, place, people near, events, the job",
         "clear()                          remove spawned figures, let summoned people go",
         "done()                           clear(), close the audio, park the tab",
@@ -369,6 +376,32 @@ export function makeTestKit(d: TestKitDeps) {
 
     boxes() {
       return d.boxes.info();
+    },
+
+    /** M7 save and pause: P's pause, as the key does it (the card, the server's pause, the sound). */
+    pause(on = true) {
+      d.pauseGame(on);
+      return d.pauseState();
+    },
+    paused() {
+      return d.pauseState();
+    },
+    /** M7: save into a slot (slot1..slot5, or "auto"); the game waits while the server waits for the model calls on their way. */
+    async save(slot = "slot1", name = ""): Promise<string> {
+      kit.guard("save()");
+      return slot === "auto" ? d.saves.autosave(false) : d.saves.save(slot, name);
+    },
+    /** M7: load a save: the server swaps the game, the page reloads (then free(true) and the kit again). */
+    async load(slot = "slot1"): Promise<string> {
+      kit.guard("load()");
+      return d.saves.load(slot);
+    },
+    saves() {
+      return d.saves.info();
+    },
+    /** M7: the browser's part of a save, as it would be written now. */
+    capture() {
+      return d.capture();
     },
 
     state() {

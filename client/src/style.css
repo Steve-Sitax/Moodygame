@@ -432,3 +432,62 @@ body:has(.night[style*="block"]) #game { filter: brightness(0.35); }
   border-top-color: #d8cfb8;
   border-bottom: 0;
 }
+
+/* ---- M7 save and pause: the "Paused" card (P), "Saving..." and "Loading...", the save list ---- */
+.pause-card, .save-card {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 9, 10, 0.38);
+  font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  z-index: 40;
+  cursor: pointer;
+}
+.save-card { cursor: wait; background: rgba(8, 9, 10, 0.5); z-index: 60; }
+.pause-card .paper, .save-card .paper { zoom: var(--ui); min-width: 260px; }
+.pause-card h1, .save-card h1 { margin: 0 0 8px; font-size: 40px; letter-spacing: 3px; }
+.pause-card .sub, .save-card .sub { margin: 0 0 12px; font-size: 16px; font-family: Georgia, "Palatino Linotype", serif; }
+.save-card .sub { margin: 0; }
+.paused-stamp {
+  display: inline-block;
+  margin: 0 0 10px;
+  padding: 1px 12px;
+  border: 2px solid #6b2a1e;
+  color: #6b2a1e;
+  font-size: 18px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  transform: rotate(-3deg);
+  opacity: 0.85;
+}
+/* the menu over the corner papers (the clock, the needs): it is what you look at while paused */
+#start { z-index: 20; }
+.settings { z-index: 35; }
+.save-row { margin: 14px 0 4px; }
+.save-row .settings-btn { margin-top: 0; }
+.saves { width: min(640px, 94vw); }
+.saves ol.slots { list-style: none; margin: 0 0 10px; padding: 0; }
+.saves ol.slots li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 0; border-bottom: 1px dashed rgba(42, 36, 32, 0.35); font-size: 15px; }
+.saves ol.slots li b { min-width: 92px; font-family: "Segoe Print", "Bradley Hand", cursive; }
+.saves ol.slots .when { font-weight: bold; }
+.saves ol.slots .what { opacity: 0.85; flex: 1; }
+.saves ol.slots input.name { font: inherit; width: 120px; background: #e8e0cc; border: 1px solid #8a7d66; padding: 1px 4px; }
+.saves ol.slots button { margin-left: auto; font-size: 14px; }
+.saves .msg { font-weight: bold; margin: 6px 0; }
+.autosave-note {
+  position: fixed;
+  right: 18px;
+  bottom: 16px;
+  font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  font-size: 15px;
+  color: #e6dcc2;
+  text-shadow: 0 0 6px #000, 0 0 2px #000;
+  opacity: 0;
+  transition: opacity 0.8s;
+  pointer-events: none;
+  zoom: var(--ui);
+  z-index: 30;
+}
+.autosave-note.on { opacity: 0.9; }

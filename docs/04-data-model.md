@@ -1,6 +1,6 @@
 # 04 - Data model (SQLite)
 
-One file: `data/game.sqlite`. One save slot for the demo. Delete the file to start over.
+One file: `data/game.sqlite`, the game being played. Saves are copies of it (M7: five slots and two autosaves). Delete the file to start over.
 
 ## player
 | column | type | note |
@@ -79,6 +79,16 @@ One file: `data/game.sqlite`. One save slot for the demo. Delete the file to sta
 ## world_state
 | key | text | weather, closed_areas, price_factors, lamps, flags |
 | value_json | text | |
+
+## client_state (M7 save and pause)
+| column | type | note |
+|---|---|---|
+| player_id | int | 1 today; one row a player later |
+| state_json | text | the browser's part of a save: the minute on screen, the place, Jef's pose, the boat, what he carries, the job run's clock. Shape and bounds checked; never money, needs or pay |
+| saved_at | text | ISO time |
+
+Saves: the whole database copied (online backup) to `data/saves/<database name>/<slot>.sqlite`, with a
+`save_meta` table (slot, label, day, time, place, money, saved_at) for the list. See milestones/M7-save-pause.md.
 
 ## ai_call
 | id | int | |

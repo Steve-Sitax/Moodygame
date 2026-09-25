@@ -21,6 +21,17 @@ import type { QuestBoxes } from "./questboxes";
 // through here: lift, set down, stack, drop in the Schelde, talk, read the
 // board, and the job's own actions. The server decides pay, task and trust.
 
+/** M7 save and pause: the browser's part of the work in hand (Jobs.snapshot), kept in a save's client_state. */
+export interface JobSnap {
+  carried: { kind: string; jobId: number | null; owner: string | null; broken: boolean; heavy: boolean } | null;
+  speed: number;
+  job: {
+    id: number;
+    run: Record<string, unknown> | null;
+    lying: Array<{ kind: string; x: number; z: number; y: number; rot: number; broken: boolean; heavy: boolean }> | null;
+  } | null;
+}
+
 const REACH_BOARD = 2.6;
 const REACH_DOSS = 2.4;
 const REACH_ITEM = 1.8;
@@ -781,6 +792,70 @@ export class Jobs {
   /** New server state from elsewhere (M3e: a pocket picked, a thief caught). */
   refresh(p: JobsPayload): void {
     this.apply(p);
+  }
+
+  // ------------------------------------------------------------- M7 save and pause
+
+  /** What the browser alone knows of the work in hand: what is in Jef's hands, the job's goods where they lie, the run's clock. */
+  snapshot(): JobSnap {
+    const g = this.goods;
+    const c = g.carried;
+    const active = this.active && this.run ? this.active.id : null;
+    return {
+      carried: c ? { kind: c.kind, jobId: c.jobId, owner: c.owner, broken: !!c.broken, heavy: !!c.heavy } : null,
+      speed: this.player.speedFactor,
+      job:
+        active !== null
+          ? {
+              id: active,
+              run: this.run?.snapshot?.() ?? null,
+              lying: this.run instanceof HaulRun
+                ? g.items.filter((it) => it.jobId === active).map((it) => ({ kind: it.kind, x: +it.obj.position.x.toFixed(3), z: +it.obj.position.z.toFixed(3), y: +it.y.toFixed(3), rot: +it.obj.rotation.y.toFixed(3), broken: !!it.broken, heavy: !!it.heavy }))
+                : null,
+            }
+          : null,
+    };
+  }
+
+  /** The job in hand is on screen again (after a load, the run made from the server's job): ready for restoreSnapshot. */
+  snapshotReady(s: JobSnap): boolean {
+    if (!s.job) return this.payload !== null;
+    return this.active?.id === s.job.id && this.run !== null;
+  }
+
+  /** Back to a snapshot: the goods where they lay, the one in his hands, the run's clock. */
+  restoreSnapshot(s: JobSnap): void {
+    const g = this.goods;
+    const j = s.job;
+    if (j && this.active?.id === j.id && this.run) {
+      if (j.lying && this.run instanceof HaulRun) {
+        // the run laid its goods out as a fresh start: put them where they were instead
+        for (let guard = 0; guard < 50; guard++) {
+          const top = g.items.find((it) => it.jobId === j.id && !g.above(it));
+          if (!top) break;
+          g.remove(top);
+        }
+        for (const it of [...j.lying].sort((a, b) => a.y - b.y)) {
+          if (!(it.kind in GOODS)) continue;
+          g.spawn(it.kind as Goods, it.x, it.z, { jobId: j.id, owner: this.active.employer_npc, broken: it.broken, heavy: it.heavy, rot: it.rot });
+        }
+      }
+      if (j.run) this.run.restore?.(j.run);
+    }
+    const c = s.carried;
+    if (c && !g.carried && c.kind in GOODS) {
+      const kind = c.kind as Goods;
+      if (c.jobId !== null && c.jobId !== this.active?.id) return; // that job is over now
+      if (c.jobId === null) {
+        // someone's own goods: lifted from where they lie, not made twice
+        const mine = g.items.find((it) => it.kind === kind && it.jobId === null && it.owner === c.owner && !g.above(it));
+        if (mine) g.remove(mine);
+      }
+      const it = g.receive(kind, GOODS[kind].hold, { jobId: c.jobId, owner: c.owner });
+      it.broken = c.broken || undefined;
+      it.heavy = c.heavy || undefined;
+      this.player.speedFactor = Math.max(0.2, Math.min(1, s.speed || 1));
+    }
   }
 
   /** Dev hook: state for scripted checks. */

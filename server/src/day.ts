@@ -6,6 +6,7 @@ import { endRowNight, rowChillEvery, rowFood } from "./rowing.ts";
 import { TICK_MINUTES, TICK_EVERY_MS } from "../../shared/clock.ts";
 import { COLLAPSE_AT, sleepMinutes } from "../../shared/night.ts";
 import { fogAt, type FogDay } from "./town/lampround.ts";
+import { gateMode, isPaused } from "./save/gate.ts";
 
 // The day and the week (M5). The engine owns time and needs (docs/01, docs/03).
 // A client says "time passed while I played" with a tick; the server decides how
@@ -245,6 +246,8 @@ export function passTime(db: DB, minutes: number): { lines: string[]; turned: bo
 /** Time passes while Jef plays. At most one tick per TICK_EVERY_MS less a second (9 s), whatever the client sends. */
 export function tick(db: DB, now = Date.now()): TickResult {
   if (ending(db)) return { advanced: false };
+  // M7 save and pause: nothing moves while the game is paused, saving or loading (save/gate.ts)
+  if (isPaused() || gateMode() !== "open") return { advanced: false };
   if (now - lastTickAt < TICK_EVERY_MS - 1000) return { advanced: false };
   lastTickAt = now;
   const c = clock(db);

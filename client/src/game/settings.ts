@@ -127,7 +127,7 @@ export function mountSettings(pausePaper: HTMLElement, apply: (s: GameSettings) 
     if (restart.disabled) return;
     if (!armed) {
       armed = true;
-      restart.textContent = "Start a new week? Click again";
+      restart.textContent = "Start a new week? Your saves are kept. Click again";
       disarm = window.setTimeout(() => {
         armed = false;
         restart.textContent = "Restart";

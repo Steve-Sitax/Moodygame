@@ -45,6 +45,10 @@ import { mountErrands } from "./town/handsRoutes.ts";
 import { mountRoutines } from "./director/routineRoutes.ts";
 import { mountArrival } from "./arrival.ts";
 import { mountNight } from "./night/routes.ts";
+import { mountSaves } from "./save/routes.ts";
+import { setPaused, sweepHolders, withGate } from "./save/gate.ts";
+import { dropStealables } from "./town/deeds.ts";
+import { dropGameWords } from "./ballads/guard.ts";
 
 const db = openDb(DB_FILE);
 const stale = closeStaleCalls(db);
@@ -80,6 +84,19 @@ function moneyNow(): number | null {
     return null;
   }
 }
+// M7 save and pause: saves, loads and the pause; first, so its gate sees every request (save/routes.ts)
+mountSaves(app, {
+  db,
+  payload: () => jobsPayload(),
+  broadcast: (m) => broadcast(m),
+  afterLoad: () => {
+    board = { state: "ready" };
+    boardAgain = false;
+    if (listJobs(db, player(db).day).length === 0) void writeBoard();
+    const e = ending(db);
+    if (e && !e.epilogue) void epilogue(e);
+  },
+});
 // M6 population: the event size and the town size for a new game (Settings)
 mountPopulation(app, db);
 // M6: emigrant families come and go with the clock (town/emigrants.ts); first, so its after-tick step wraps every tick route
@@ -307,7 +324,12 @@ app.post("/api/new-game", async (c) => {
     const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
     await db.backup(join(dir, `week-${stamp}.sqlite`)).catch((e: unknown) => console.warn("[new-game] backup failed", e));
   }
-  resetDb(db); // a new week: a new town as well (db.ts)
+  // M7 save and pause: no model call runs into the new week; the saves stay as they are
+  await withGate("loading", () => {
+    resetDb(db); // a new week: a new town as well (db.ts)
+    dropStealables(db);
+    dropGameWords(db);
+  });
   resetTalks();
   markDayStart(db);
   void ensurePersonas(db).then((r) => console.log(`[persona] ${r.join(", ")}`));
@@ -531,7 +553,17 @@ const wss = new WebSocketServer({
   // the same rule as /api: the game's own pages only (a browser always sends an Origin here)
   verifyClient: (info: { origin: string; req: import("node:http").IncomingMessage }) => allowedHost(info.req.headers.host) && (!info.req.headers.origin || allowedOrigin(info.origin)),
 });
-wss.on("connection", (ws) => ws.send(JSON.stringify({ type: "jobs", ...jobsPayload() })));
+// M7 save and pause: a tab says who it is (?client=): its pause ends when it goes away
+const clientOf = new WeakMap<WebSocket, string>();
+wss.on("connection", (ws, req) => {
+  const id = new URL(req.url ?? "/ws", "http://x").searchParams.get("client")?.slice(0, 40);
+  if (id) clientOf.set(ws, id);
+  ws.on("close", () => {
+    if (id && ![...wss.clients].some((o) => o !== ws && clientOf.get(o) === id)) setPaused(id, false);
+  });
+  ws.send(JSON.stringify({ type: "jobs", ...jobsPayload() }));
+});
+setInterval(() => sweepHolders(new Set([...wss.clients].map((o) => clientOf.get(o)).filter((x): x is string => !!x))), 30_000).unref();
 
 function broadcast(msg: unknown): void {
   const s = JSON.stringify(msg);

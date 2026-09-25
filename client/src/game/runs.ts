@@ -64,6 +64,10 @@ export interface Run {
   goal(): THREE.Vector3 | null;
   hud(): string;
   dispose(): void;
+  /** M7 save and pause: how far the run has come that the server does not keep (its clock, what happened). */
+  snapshot?(): Record<string, unknown>;
+  /** M7 save and pause: back to a snapshot, on a run just made for the same job (after a load). */
+  restore?(s: Record<string, unknown>): void;
 }
 
 const REACH_DROP = 2.2;
@@ -540,6 +544,26 @@ export class HaulRun implements Run {
     return `<b>${esc(this.job.title)}</b><br>${step}${count}${time}`;
   }
 
+  snapshot(): Record<string, unknown> {
+    return { t: this.t, late: this.late, pocketed: this.pocketed, brokenSeen: this.brokenSeen, strangerDone: this.strangerDone, waitingHandover: this.waitingHandover, toLower: this.toLower.length };
+  }
+
+  restore(s: Record<string, unknown>): void {
+    const n = (v: unknown, d: number) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+    this.t = Math.max(0, n(s.t, this.t));
+    this.late = s.late === true;
+    this.pocketed = s.pocketed === true;
+    this.brokenSeen = s.brokenSeen === true;
+    if (s.strangerDone === true && !this.strangerDone) {
+      this.strangerDone = true;
+      if (this.stranger && !this.stranger.gone) this.stranger.remove();
+    }
+    // the cargo already swung down from the ship (or the parcel taken) stays that way
+    if (s.waitingHandover === false) this.waitingHandover = false;
+    const lower = Math.max(0, Math.floor(n(s.toLower, this.toLower.length)));
+    if (lower < this.toLower.length) this.toLower = this.toLower.slice(this.toLower.length - lower);
+  }
+
   dispose(): void {
     const { world, goods } = this.ctx;
     goods.clearJob(this.job.id);
@@ -774,6 +798,38 @@ export class WatchRun implements Run {
   hud(): string {
     const status = this.near() ? `The bell in ${bellIn(this.task.duration_s - this.t)}` : "Back to your post!";
     return `<b>${esc(this.job.title)}</b><br>Stand watch at ${esc(this.post.label)}<br>${status}`;
+  }
+
+  snapshot(): Record<string, unknown> {
+    const done = <T extends string>(st: T, over: readonly T[]) => (over.includes(st) ? st : "none");
+    return {
+      t: this.t,
+      away: this.away,
+      pile: this.pile.length,
+      thiefState: done(this.thiefState, ["chased", "stole"] as const),
+      briberState: done(this.briberState, ["paid", "sent"] as const),
+      bribeTaken: this.bribeTaken,
+      foremanState: done(this.foremanState, ["looking", "leaving"] as const),
+      seenAway: this.seenAway,
+    };
+  }
+
+  restore(s: Record<string, unknown>): void {
+    const n = (v: unknown, d: number) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+    this.t = Math.max(0, n(s.t, this.t));
+    this.away = Math.max(0, n(s.away, this.away));
+    this.bribeTaken = s.bribeTaken === true;
+    this.seenAway = s.seenAway === true;
+    // what already happened happened: no second thief, briber or foreman (their figures are gone)
+    if (s.thiefState === "chased" || s.thiefState === "stole") this.thiefState = s.thiefState;
+    if (s.briberState === "paid" || s.briberState === "sent") this.briberState = "sent";
+    if (s.foremanState === "looking" || s.foremanState === "leaving") this.foremanState = "leaving";
+    // goods taken from the pile stay taken
+    const left = Math.max(0, Math.floor(n(s.pile, this.pile.length)));
+    while (this.pile.length > left) {
+      const it = this.pile.pop()!;
+      this.ctx.goods.remove(it);
+    }
   }
 
   dispose(): void {
