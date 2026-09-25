@@ -209,9 +209,13 @@ export interface AnimalGround {
   openNear?(x: number, z: number): V | null;
   /** A walk on that grid from a to b (corner points, the last one b), or null when there is no way. */
   path?(ax: number, az: number, bx: number, bz: number): V[] | null;
+  /** The height of what an animal with its feet at `feet` stands on (the world's groundAt); far below over open water. */
+  heightAt?(x: number, z: number, feet: number): number;
 }
 
 interface Beast {
+  /** Height of the ground under it (the pontoon, steps, a raised courtyard), last frame. */
+  y?: number;
   a: Animal;
   x: number;
   z: number;
@@ -338,7 +342,15 @@ export class Animals {
       const show = d < fogFar + 5;
       b.a.group.visible = show;
       // placed first: the animal measures the ground it really covers and sets its legs by that
-      b.a.group.position.set(b.x, 0, b.z);
+      // fixes 2026-09-25 (Steve: "dog walking in the air"): every animal stood at height 0, so on
+      // the pontoon at low water (or any floor off 0) it hung in the air; it stands on the ground now
+      let y = b.y ?? 0;
+      if (this.ground.heightAt) {
+        const h = this.ground.heightAt(b.x, b.z, y);
+        if (h > -20) y = h;
+      }
+      b.y = y;
+      b.a.group.position.set(b.x, y, b.z);
       b.a.group.rotation.y = b.yaw;
       if (show) b.a.update(dt);
     }

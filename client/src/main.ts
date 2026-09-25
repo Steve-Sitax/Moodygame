@@ -131,6 +131,7 @@ const animals = new Animals(world.scene, {
   canStand: (x, z) => crowd.canStand(x, z),
   openNear: (x, z) => crowd.openNear(x, z),
   path: (ax, az, bx, bz) => crowd.pathOn(ax, az, bx, bz),
+  heightAt: (x, z, feet) => world.groundAt(x, z, 0.2, feet),
 });
 const stalls = new Stalls({ scene: world.scene, addCollider: world.addCollider });
 const town = new Town(world, crowd, jobs.people, animals, stalls);
