@@ -249,7 +249,7 @@ export function buildTracks(scene: THREE.Scene, data: TrackData, bridges: Rect[]
     // no depth written: where two tracks cross or join their bands overlap and would fight (z-fight check)
     new THREE.MeshLambertMaterial({ map: setts.map, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4, depthWrite: false }),
     // relief light from the height map (no parallax: the band's uv runs along the line, not north)
-    { noSnap: true, affine: 0, vary: 0.8, relief: { height: setts.height, id: setts.id, holes: 0.3, depth: 0, tile: 2, bump: 3.4 } },
+    { noSnap: true, affine: 0, vary: 0.8, relief: { height: setts.height, id: setts.id, holes: 0.3, depth: 0, tile: 2.5, bump: 3.4 } },
   );
   const railMat = psx(
     new THREE.MeshPhongMaterial({ color: 0x8a8680, vertexColors: true, specular: 0x6a6a6a, shininess: 40, side: THREE.DoubleSide }),

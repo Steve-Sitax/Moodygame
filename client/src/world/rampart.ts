@@ -5,8 +5,7 @@ import CITY from "../../../shared/city.json";
 import { psx } from "../retro/psx";
 import type { Rect } from "./geom";
 import { makeHuman, type Human } from "../game/humans";
-import { grassPaving, quayPaving } from "./paving";
-import { withPicture } from "./quayStone";
+import { grassPaving, quayPaving, withPictures } from "./paving";
 import type { GasLamps } from "./gaslamps";
 import type { Props } from "./props3d";
 import { buildRampartNature, type RampartNature } from "./rampartNature";
@@ -220,9 +219,8 @@ export function loadWall(scene: THREE.Scene): WallModel {
       // the walk and the gate passages: granite setts as on the quays, wet in the rain, each stone its own
       // tone. No parallax: the uvs run along each piece of the wall, not the world's axes (psx relief assumes those)
       const pave = quayPaving();
-      withPicture(pave.map, "/textures/quay_setts.jpg");
-      withPicture(pave.height, "/textures/quay_setts_h.png");
-      if (pave.id) withPicture(pave.id, "/textures/quay_setts_id.png");
+      // colour, height and stone map in together, or the painted ones stay (bump maps checked, 2026-09-26)
+      withPictures(pave, { map: "/textures/quay_setts.jpg", height: "/textures/quay_setts_h.png", id: "/textures/quay_setts_id.png" });
       m = psx(new THREE.MeshPhongMaterial({ map: pave.map, color: 0xf0f0f0, specular: 0x363636, shininess: 22, vertexColors: true }), {
         noSnap: true,
         affine: 0,

@@ -562,6 +562,35 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 }
 
 /**
+ * A painted paving swapped for its pictures (client/public/textures) all at once (bump maps checked, 2026-09-26):
+ * the colour, the height and the stone map go in together, or none of them does, so a painted height never lies
+ * under a picture's stones (or the other way round) while one is still loading or if one fails. `id: null` blanks
+ * the painted stone map when the pictures are in (a picture without a stone map: no per-stone dice).
+ */
+export function withPictures(p: Paving, urls: { map: string; height: string; id?: string | null }): Paving {
+  const list = [urls.map, urls.height, ...(typeof urls.id === "string" ? [urls.id] : [])];
+  Promise.all(list.map(loadImage))
+    .then(([col, hgt, ids]) => {
+      // (a CanvasTexture is typed to hold a canvas; a picture serves it the same)
+      (p.map as THREE.Texture).image = col;
+      (p.height as THREE.Texture).image = hgt;
+      if (p.id && ids) (p.id as THREE.Texture).image = ids;
+      else if (p.id && urls.id === null) {
+        const blank = document.createElement("canvas");
+        blank.width = blank.height = 4;
+        const g = blank.getContext("2d")!;
+        g.fillStyle = "rgb(0,0,0)";
+        g.fillRect(0, 0, 4, 4);
+        p.id.image = blank;
+      }
+      p.map.needsUpdate = p.height.needsUpdate = true;
+      if (p.id) p.id.needsUpdate = true;
+    })
+    .catch((e) => console.warn("paving pictures did not load: the painted paving stays", e));
+  return p;
+}
+
+/**
  * Quays pass 2: the rail band in the same setts as the quays (the Codex pictures, client/public/textures), with
  * the edge stones and the flange grooves drawn over them again. 512 px for the band's 2 x 2.2 m. The painted band
  * stays if a picture does not load.

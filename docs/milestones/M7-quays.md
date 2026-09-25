@@ -43,6 +43,49 @@ Steve, with picture 8 (a dirty back street at night): "make sure it is not too c
 - The town wall's walk and bastion grass have no puddles: the puddles show the street mirror, whose plane is the
   street (y 0), so on the walk at 6.5 m they showed the wall upside down (`rampart.ts`).
 
+## Bump maps checked (2026-09-26)
+Steve: "you created new ground textures but the bump mapping of the old cobbles is still on there. Check everywhere
+and fix." Every ground that uses the relief (`psx.ts relief`): the quays, the streets, the flags, the earth, the
+grass (streets and town wall), the rail band and crane runways (`tracks.ts`), the town wall's walk and gate passages
+(`rampart.ts`). Close shots at eye height, at 0.6 m and looking down from 1.2 m, 13:00 clear; then 16:00 mist, 22:00
+under a gas lamp, and once with the default PS1 settings. What was wrong, and the fix:
+
+- **The quay's height and stone maps missed stones.** `setts_maps.py` took the brown and mud-smeared stones for mud
+  (a redness test) or cut them into rags: about 20 of the tile's stones lay sunk as joints under the picture, dark
+  pits with the colour of a stone. Now a black-hat as wide as a joint (19 px) without the redness test, specks inside
+  a stone are no joint, a ragged stone is its hull when that hull is no bigger than a big stone, and two stones that
+  ran together are cut apart by a watershed. `quay_setts_h.png` and `quay_setts_id.png` made again (112 stones);
+  the rail band and the walk use them too.
+- **The quay's anti-repeat blend laid a second grid of setts.** `detile` mixed a copy turned 37 degrees into the
+  colour on about half the quay, while the relief and the stone map stayed unturned: two grids of stones, one lit,
+  one not. The quay has no `detile` now (setts are laid in rows; the per-stone tones, the patches and the dirt keep
+  the tile from showing). On the earth and the grass, which keep `detile`, the relief light and the stone tones now
+  follow the turned sample where it shows (`psxReliefLight`, `psxStoneTone` in psx.ts).
+- **The relief's step was 4 texels on the pictures.** `e = 1/128` assumed 128 px maps; on the 512 px pictures it
+  drew the lit edge and the dark joint 2 cm wider than the stones. Now 2 texels of a 512 px map (1 cm), one of a
+  128 px map (the painted flags, cobbles and stand-ins look as before), from `textureSize`.
+- **Stair steps along the joints at a slant.** The parallax now ends between its last two steps (the usual
+  interpolation), so the stones' near sides no longer show bands.
+- **The street's height map** came from the picture's light and dark alone: every wet speck on a stone was a pit and
+  the mud joints half high. Now the stones the finder does find (mud colour weighed in, `setts_maps.py ... 50 0.6
+  0.5`) are domes, with the picture's smoothed light and dark laid under them for the rest (`street_cobble_h.png`).
+  Still no stone map on the streets: the finder gets about 60 % of the stones.
+- **Pictures and painted maps mixed while loading.** Colour, height and stone map loaded one by one: a failed or late
+  height left the painted stand-in's stones under the picture. `paving.ts withPictures` swaps all of a paving's maps
+  at once or none (city.ts streets and quays, rampart.ts walk).
+- Tiles: the zones' tiles and `relief.tile` agree (cobble 3, quay 2.5, flags, earth, grass 4); the band's relief tile
+  said 2 for a 2.5 m band (no effect with no parallax; set right). The walk keeps its 2 m tile on purpose (smaller setts).
+- Checked and right: the flags, the earth and the grass (painted colour and height from one layout), the rail band's
+  composite. No relief (painted, no height map to disagree): the edge stones along the seams, the quay coping,
+  the kerbs and steps of clutter.ts.
+
+Frame time: the ground alone rendered 100 times from the Rijnkaai, the quay low and a street (the preview pane was
+hidden and three other game tabs ran, so perf(60) was 50-58 ms before and 10-11 ms after, meaningless): 1.4-1.7 ms
+a frame before, 1.0-1.6 ms after (the quay no longer blends two samples).
+Pictures: `data/shots/bm0_*` (before), `bm1_*` (the new shader, old maps), `bm3_*` (after): quay_dt (a detile patch,
+x -31 z 21), quay_plain, cobble, flags, earth, grassdt, band, each `_eye`, `_low`, `_down`; `bm3_mist16_*`,
+`bm3_night_quay_lamp`, `bm3_night_street_lamp`, `bm3_ps1_*` (default settings), `bm3_walk_down`. `npm run build` passes.
+
 ## The air, darker and smokier (the lead, 2026-09-26)
 Steve: "The pictures were wrong: it is a misty, darker, grimy atmosphere, a bit dangerous at all times. So rust, soot,
 clutter, dirt."

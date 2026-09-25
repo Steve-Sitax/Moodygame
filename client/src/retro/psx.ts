@@ -424,6 +424,40 @@ float psxRelH(vec2 uv, float wear) {
           : opts.relief
             ? "float psxRelH(vec2 uv, float wear) { return texture2D(uHeight, uv).r; }\n"
             : "") +
+        (opts.relief
+          ? /* glsl */ `
+// the relief light at uv (lit tops from the sky, dark joints; worn by the wheels: smoother, the tops polished a
+// little lighter). The step is two texels of a picture's 512 px map (1 cm) and one of the painted 128 px maps:
+// a step of 4 texels on the pictures drew the lit edge and the dark joint 2 cm wider than the stones in the colour.
+float psxReliefLight(vec2 uv, float wear, out float hC) {
+  float e = 2.0 / max(float(textureSize(uHeight, 0).x), 256.0);
+  hC = psxRelH(uv, wear);
+  float hX = psxRelH(uv + vec2(e, 0.0), wear) - psxRelH(uv - vec2(e, 0.0), wear);
+  float hZ = psxRelH(uv + vec2(0.0, e), wear) - psxRelH(uv - vec2(0.0, e), wear);
+  vec3 rn = normalize(vec3(-hX * uReliefBump, 1.0, -hZ * uReliefBump));
+  float lit = clamp(dot(rn, normalize(vec3(-0.45, 0.8, -0.35))), 0.0, 1.0);
+  // a stone that stands high catches the light; a sunk one lies in its own shade
+  float relief = mix(0.6, 1.12, lit) * (0.55 + 0.45 * hC);
+  return mix(relief, 1.0 + 0.12 * hC, wear * 0.45);
+}
+`
+          : "") +
+        (opts.relief?.id
+          ? /* glsl */ `
+// each stone its own tone: lighter, darker, warmer, bluer (the tile's tones never line up); a stone gone is a
+// hole of mud and muck; further off (farS) only a dark patch (no flicker)
+vec3 psxStoneTone(vec2 uv, float wear, float farS) {
+  vec3 sid = texture2D(uStoneId, uv).rgb;
+  if (sid.g <= 0.5) return vec3(1.0);
+  float r = psxStoneR(uv, sid);
+  vec2 ms = psxStoneMS(r, wear);
+  vec3 st = vec3(0.8 + 0.36 * fract(r * 91.3)) * mix(vec3(1.06, 1.0, 0.9), vec3(0.94, 0.98, 1.06), fract(r * 17.9));
+  st = mix(st, vec3(0.2, 0.15, 0.1) * (0.7 + 0.6 * fract(r * 7.7)), ms.x);
+  st = mix(st, st * 0.85, ms.y * (1.0 - ms.x));
+  return mix(st, vec3(mix(1.0, 0.6, ms.x)), farS);
+}
+`
+          : "") +
         (opts.water
           ? "uniform sampler2D uShore;\nuniform vec4 uShoreBox;\nvarying float vWaveH;\nuniform sampler2D uWaterMirror;\nuniform mat4 uWaterMirrorMat;\nuniform float uWaterMirrorOn;\nuniform sampler2D uFoul;\nuniform vec4 uFoulBox;\n" + foulGlsl
           : ""),
@@ -455,24 +489,35 @@ float psxRelH(vec2 uv, float wear) {
           vec2 ruv = psxUv;
           float depth = 0.0;
           float hDepth = 1.0 - psxRelH(ruv, psxWear);
+          int steps = 0;
           for (int i = 0; i < 14; i++) {
             if (depth >= hDepth) break;
             ruv += duv;
             hDepth = 1.0 - psxRelH(ruv, psxWear);
             depth += dl;
+            steps++;
+          }
+          if (steps > 0) {
+            // between the last two steps where the ray met the stone: no stair steps along the joints at a slant
+            float after = hDepth - depth;
+            float before = (1.0 - psxRelH(ruv - duv, psxWear)) - (depth - dl);
+            ruv -= duv * clamp(after / min(after - before, -1e-4), 0.0, 1.0);
           }
           psxUv = ruv;
         }`
             : ""
         }
         vec4 sampledDiffuseColor = texture2D(map, psxUv);
+        // the turned second sample of detile, and how much of it shows here (the relief below follows it)
+        vec2 psxUv2 = psxUv;
+        float psxDm = 0.0;
         ${
           opts.detile
             ? `{
           // no tile repeats in a grid: where a slow noise says so, the same texture turned 37 deg and scaled
-          vec2 uv2 = mat2(0.8, -0.6, 0.6, 0.8) * psxUv * 0.77 + vec2(0.31, 0.57);
-          float dm = smoothstep(0.35, 0.65, pudVal(vPsxWorld.xz / 7.0));
-          sampledDiffuseColor = mix(sampledDiffuseColor, texture2D(map, uv2), dm);
+          psxUv2 = mat2(0.8, -0.6, 0.6, 0.8) * psxUv * 0.77 + vec2(0.31, 0.57);
+          psxDm = smoothstep(0.35, 0.65, pudVal(vPsxWorld.xz / 7.0));
+          sampledDiffuseColor = mix(sampledDiffuseColor, texture2D(map, psxUv2), psxDm);
         }`
             : ""
         }
@@ -503,34 +548,29 @@ float psxRelH(vec2 uv, float wear) {
             ? `{
           // relief light from the height map: the tops lit from the sky, the joints dark;
           // it melts into an even tone further off (no shimmer)
-          float e = 1.0 / 128.0;
-          float hC = psxRelH(psxUv, psxWear);
+          float hC;
+          float relief = psxReliefLight(psxUv, psxWear, hC);
+          ${
+            opts.detile
+              ? `if (psxDm > 0.001) {
+            // where the colour is the turned sample, so is the relief: the lit tops and dark joints on its stones
+            float hC2;
+            float relief2 = psxReliefLight(psxUv2, psxWear, hC2);
+            relief = mix(relief, relief2, psxDm);
+            hC = mix(hC, hC2, psxDm);
+          }`
+              : ""
+          }
           psxH = hC;
-          float hX = psxRelH(psxUv + vec2(e, 0.0), psxWear) - psxRelH(psxUv - vec2(e, 0.0), psxWear);
-          float hZ = psxRelH(psxUv + vec2(0.0, e), psxWear) - psxRelH(psxUv - vec2(0.0, e), psxWear);
-          vec3 rn = normalize(vec3(-hX * uReliefBump, 1.0, -hZ * uReliefBump));
-          float lit = clamp(dot(rn, normalize(vec3(-0.45, 0.8, -0.35))), 0.0, 1.0);
-          // a stone that stands high catches the light; a sunk one lies in its own shade
-          float relief = mix(0.6, 1.12, lit) * (0.55 + 0.45 * hC);
-          // worn by the wheels: smoother, the tops polished a little lighter
-          relief = mix(relief, 1.0 + 0.12 * hC, psxWear * 0.45);
           float far = smoothstep(8.0, 22.0, length(vPsxWorld - cameraPosition));
           diffuseColor.rgb *= mix(relief, 0.86, far);
           ${
             opts.relief.id
               ? `{
-            vec3 sid = texture2D(uStoneId, psxUv).rgb;
-            if (sid.g > 0.5) {
-              float r = psxStoneR(psxUv, sid);
-              vec2 ms = psxStoneMS(r, psxWear);
-              // each stone its own tone: lighter, darker, warmer, bluer (the tile's tones never line up)
-              vec3 st = vec3(0.8 + 0.36 * fract(r * 91.3)) * mix(vec3(1.06, 1.0, 0.9), vec3(0.94, 0.98, 1.06), fract(r * 17.9));
-              // a stone gone: a hole of mud and muck; further off only a dark patch (no flicker)
-              st = mix(st, vec3(0.2, 0.15, 0.1) * (0.7 + 0.6 * fract(r * 7.7)), ms.x);
-              st = mix(st, st * 0.85, ms.y * (1.0 - ms.x));
-              float farS = smoothstep(14.0, 30.0, length(vPsxWorld - cameraPosition));
-              diffuseColor.rgb *= mix(st, vec3(mix(1.0, 0.6, ms.x)), farS);
-            }
+            float farS = smoothstep(14.0, 30.0, length(vPsxWorld - cameraPosition));
+            vec3 st = psxStoneTone(psxUv, psxWear, farS);
+            ${opts.detile ? "if (psxDm > 0.001) st = mix(st, psxStoneTone(psxUv2, psxWear, farS), psxDm);" : ""}
+            diffuseColor.rgb *= st;
           }`
               : ""
           }
