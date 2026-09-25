@@ -32,6 +32,17 @@ granite setts. Now:
   the coping's outer edge and its underside back to the wall (it was a flat band with nothing under its edge),
   15 mm behind quayfurniture's iron edge.
 
+## The streets, not too clean (the lead, later the same day)
+Steve, with picture 8 (a dirty back street at night): "make sure it is not too clean, more like it was back then".
+- The street cobbles are a Codex picture of small worn cobbles with mud, dung and straw
+  (`client/public/textures/street_cobble.jpg`, 3 m a tile, brightened and sharpened so the stones read). Its
+  height map comes from its own light and dark (`street_cobble_h.png`): the joints are too muddy for the stone
+  finder, so the streets have no stone map (no per-stone dice) once the picture is in. No anti-repeat blend and a
+  shallow parallax on the streets: both turned the small stones into mush.
+- `tools/textures/setts_maps.py` takes a name and a joint percentile now.
+- The town wall's walk and bastion grass have no puddles: the puddles show the street mirror, whose plane is the
+  street (y 0), so on the walk at 6.5 m they showed the wall upside down (`rampart.ts`).
+
 ## Checks
 - `npm run build` passes.
 - Z-fight check (`__scheldemist.zfight({ list: 300000 })`): no new pairs from the coping's front and underside. The
@@ -242,3 +253,4 @@ Checks:
 
 Not done: a Codex brick or plaster picture (the painted atlas holds up next to the 3D at the game's resolution);
 door steps (street life lays them); the kit is baked per chunk, not instanced (the file stays under 12 MB).
+

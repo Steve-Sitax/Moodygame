@@ -7,7 +7,7 @@ import SPOT_TABLE from "../../../shared/spots.json";
 import { steenHeightAt, steenKeepOut } from "./steenramp";
 import { buildCountryside } from "./countryside";
 import { loadChurches, parkBridgeHeight, poortKeepOut, pumpColliders } from "./churches";
-import { loadWall, rampartHeightAt, rampartKeepOut, wallGuards } from "./rampart";
+import { loadWall, rampartHeightAt, rampartKeepOut, wallColliders, wallGuards, wallLamps } from "./rampart";
 import CITY_DATA from "../../../shared/city.json";
 import { buildCity, doorSpot, edgeZ, WALL, WATER, OUTSIDE, type CityWorld } from "./city";
 import { dressCity, loadProps } from "./props3d";
@@ -491,6 +491,8 @@ export function buildRijnkaai(): World {
   city.ready.then(() => applyDirt(city.flags)).catch((e) => console.warn("dirt did not load", e));
   // the town wall (world/rampart.ts, wall.glb) and the trees round it and in the alleys' gardens (no pits)
   const wall = loadWall(scene);
+  // the town wall pass 2: the second mill, the capstan and the benches on the walk (world/rampart.ts)
+  wall.dressing.then((d) => colliders.push(...wallColliders(d))).catch(() => {});
   const guards = wallGuards(scene, (x, z) => rampartHeightAt(x, z) ?? 0);
   // the churches of the angled streets, the Stadspark, the pumps of the alleys' courts (world/churches.ts)
   const churches = loadChurches(scene);
@@ -954,6 +956,10 @@ export function buildRijnkaai(): World {
     lamps.map((l) => l.light),
     (x, z) => groundAt(x, z, 0, 0),
   );
+  // the town wall pass 2: gas lamps along the walk, the guard houses' and gates' lanterns lit as the town's lamps
+  wall.dressing
+    .then((d) => loadProps().then((p) => colliders.push(...wallLamps(scene, gasLamps, p, d))))
+    .catch((e) => console.warn("wall lamps did not load", e));
 
   // --- movement rules
   const onRamp = (x: number, z: number) => Math.abs(x - RAMP.x) < RAMP.halfW && z < RAMP.zLow && z > RAMP.zHigh - 0.2;
@@ -1723,7 +1729,7 @@ export function buildRijnkaai(): World {
     }
     if (camera) {
       city.update(camera, fog.far);
-      wall.update(camera, fog.far);
+      wall.update(camera, fog.far, lampsLit);
       guards.update(dt, camera);
       churches.update(camera, fog.far);
     }

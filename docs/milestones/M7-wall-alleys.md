@@ -129,3 +129,55 @@ Open:
   corner plot meets a straight one); the close pictures show nothing.
 - The alley cottages have no lit windows at night yet (their windows differ from the painted panes'
   layout; `city_openings` in city.glb has the real ones).
+
+
+## The town wall, pass 2 (2026-09-25)
+Steve's picture 7: the rampart at night, a brick tower mill on a bastion, a wet cobbled walk with a stone-coped
+parapet, a bench, gas lamps, a guard house with a lit door, autumn trees and fallen leaves, reeds and water
+plants along the moat. Steve: "use returning assets and mix up".
+
+| Part | What | Where |
+|---|---|---|
+| Mills | Two now. The first (middle bastion) got pale linen sails, two of them reefed (the lattice shows, the rest of the cloth rolled), a tail pole with two braces down to a capstan wheel on the grass, and two windows lit at night. The second, a stage mill on the north-east bastion: taller and slimmer, a timber gallery with a railing and struts at 2.9 m, the tail pole to the gallery, shorter sails. Each mill's sails are their own node (`mill_sails`, `mill2_sails`) with the axle in the node's extras; both turn, at their own pace | `build_wall.py MILLS, build_mill`; `rampart.ts loadWall` |
+| Walk | The quays' setts (the Codex picture `quay_setts.jpg` and its height and stone maps, 2 m a tile), wet in the rain, puddles, each stone its own tone. No parallax: the walk's uvs follow each piece of the wall. The bastion tops in the town's grass (`paving.ts grassPaving`) | `rampart.ts matFor` |
+| Benches | 31, three kinds mixed by seed: a park bench with iron ends and a back, a plank bench on trestles, a stone slab on two blocks. Against the breastwork looking into the town, now and then one by a lamp on the town side, two by each mill | `build_wall.py build_dressing` |
+| Gas lamps | 34 of the town's own lamp (`props.glb gas_lamp`) on the walk, about every 27 m, on the town side; never at a gate or a stair's head. They are the town's gas lamps (`gaslamps.ts`): lit at dusk, halo, a pool of light on the stones, the nearest get the point lights and the wet streaks | `rampart.ts wallLamps`; `gaslamps.ts addDecor` takes a height now |
+| Guard houses | The room inside is lit by an oil lamp: warm walls, bright at night, dark by day (`wall_room_glow`). The lanterns by the doors and at the gates (31) are gas lamps too, so they light the stones round them. All lantern glass is dull by day | `build_wall.py build_hut`; `rampart.ts update(camera, far, dark)` |
+| Moat | Reed beds in stretches along the moat's walls: a bank of mud against the wall (covered at high water, bare at low) with reeds, bulrushes and sedge. Water lilies in patches, riding the tide. Sedge, long grass, a reed or a bush on the bank's edge. Never under a bridge or on a gate road | `world/rampartNature.ts` |
+| Berm | Bushes and tufts in clumps at the foot of the wall; fallen leaves under every tree outside the wall | `rampartNature.ts` |
+| Walk leaves | Leaves blown against the feet of both parapets, a few out on the walk, round the mills | `rampartNature.ts` |
+
+How it hangs together: `build_wall.py` places the benches, lamps and mills and writes them into wall.glb as the
+node `wall_dressing` (a JSON string in its extras: mills, benches, lamps, lanterns). `rampart.ts` reads it:
+`wallColliders` (the second mill's tower, the capstan, the benches: Jef bumps into them; the walk map has only
+the first mill), `wallLamps` (the lamps and lanterns into the town's gas lamps). `rijnkaai.ts` has three small
+hooks for these and passes the clock's dark to `wall.update`. The plants and leaves are one small kit of painted
+cards (4 plants, leaves, lily pads), mixed by seeded dice, merged per 60 m chunk and kind, and hidden past the fog
+or past their own reach (leaves 55 m, reeds 150 m). The reeds sway in the wind. Nothing outside the wall is solid:
+nobody walks there.
+
+The walk map was not touched (no `plan.py`): the second mill stands on a bastion top the crowd does not use
+(the Ramparts place is by the middle bastion); only Jef has its colliders.
+
+Rebuild: `blender -b --factory-startup -P tools/blender/build_wall.py` (wall.glb, 61k triangles, 2 MB).
+
+Checks (2026-09-25, test copy `wall`, 13:00 clear and 22:00):
+- Pictures, same camera before and after: `data/shots/w2_before_*.jpg` and `w2_after_*.jpg` (mill, walk, moat,
+  bastion, bank, bank2, night_walk, night_mill, night_tower); close shots `w2_close_*.jpg` (the iron bench, the
+  capstan, the stage mill, reeds, lilies, low tide), `w2_after_mill2_*.jpg`, `w2_sails1_front.jpg`.
+- `npm run build` passes. `paths()` lists only the three "before a corner Madonna" (known, another session).
+- Colliders: the second mill, the capstan, a bench and a lamp post block Jef; the walk beside them is free.
+- perf(60), same place and view, with and without: on the walk +0.5 ms for the plants and lamps and +0.5 ms for
+  the setts shader on the walk (about 11 ms in all); at the Kipdorppoort +0.2 ms.
+- z-fight check: no fights from the wall, its lamps or the plants and leaves. (The first run found the stage's
+  underside in one plane with the string course, and leaf patches overlapping: the stage now starts past the
+  course, and the leaves and lilies write no depth, so two that overlap blend. They are drawn after the ground,
+  the lilies after the water.) The "thin" list still has the gate passages' floors 2 cm over the street (as
+  built) and the sails' cloth close behind their lattice.
+- Low water (16:00): the reed banks show as mud at the foot of the moat's walls, the lilies ride down with the water.
+
+Open:
+- Once in the test tab `landmarks.doors` went missing after its 12 s refresh, and the cathedral's update threw
+  (`game/landmarks.ts updateCathedral`, not the wall); a reload fixed it.
+- The walk map knows only the first mill: a crowd walker could cross the second mill's disc (the crowd does not
+  go there now). A later `plan.py` run could paint it in (`rampart.py` mill disc).

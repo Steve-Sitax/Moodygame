@@ -65,13 +65,14 @@ OUT = os.path.join(ROOT, "client", "public", "models", "wall.glb")
 SHOTS = os.path.join(ROOT, "data", "shots")
 
 MATS = ["wall_brick", "wall_quoin", "wall_plinth", "wall_stone", "wall_cobble", "wall_slate", "wall_wood",
-        "wall_iron", "wall_window", "wall_grass", "wall_arms", "wall_lamp_glow", "wall_canvas", "wall_moss_decal"]
-BRICK, QUOIN, PLINTH, STONE, COBBLE, SLATE, WOOD, IRON, WINDOW, GRASS, ARMS, GLOW, CANVAS, DECAL = range(len(MATS))
+        "wall_iron", "wall_window", "wall_grass", "wall_arms", "wall_lamp_glow", "wall_canvas", "wall_moss_decal",
+        "wall_room_glow"]
+BRICK, QUOIN, PLINTH, STONE, COBBLE, SLATE, WOOD, IRON, WINDOW, GRASS, ARMS, GLOW, CANVAS, DECAL, ROOM = range(len(MATS))
 # metres per texture repeat (u, v). Brick and quoin share one pixel size (53 px to the metre), so
 # the courses run on from the brick into the corner stones
 TILE = {BRICK: (2.4, 1.8), QUOIN: (1.2, 1.8), PLINTH: (2.4, 2.4), STONE: (1.2, 1.2), COBBLE: (1.6, 1.6),
         SLATE: (1.2, 1.2), WOOD: (1.2, 1.2), IRON: (1.0, 1.0), WINDOW: (1.0, 1.0), GRASS: (3.0, 3.0),
-        ARMS: (1.0, 1.0), GLOW: (1.0, 1.0), CANVAS: (1.8, 1.8), DECAL: (1.0, 1.0)}
+        ARMS: (1.0, 1.0), GLOW: (1.0, 1.0), CANVAS: (1.8, 1.8), DECAL: (1.0, 1.0), ROOM: (3.3, 2.5)}
 QW = 1.2  # the quoin strip at a corner (the width of its texture)
 COURSE = TILE[BRICK][1] / 24  # one brick course (7.5 cm)
 PARK = os.path.join(ROOT, "client", "public", "models", "park.json")  # the Stadspark's pond, where it meets the wall
@@ -404,16 +405,28 @@ def paint_glow(rng, n=16):
 
 
 def paint_canvas(rng, w=32, h=64):
-    """Sail cloth: off-white linen in cloths sewn along the sail (u across, v along), weathered, with
-    the reef points in rows."""
-    img = np.ones((h, w, 3)) * C(0.76, 0.72, 0.62)
-    img *= (0.9 + 0.14 * noise2(rng, h, w, 8, 4))[..., None]
-    img *= (0.94 + 0.08 * rng.random((h, w, 1)))
+    """Sail cloth: pale linen in cloths sewn along the sail (u across, v along), weathered to cream
+    and grey in patches, with the reef points in rows (pass 2: paler, as in Steve's picture 7)."""
+    img = np.ones((h, w, 3)) * C(0.90, 0.86, 0.76)
+    img *= (0.88 + 0.16 * noise2(rng, h, w, 8, 4))[..., None]
+    img *= (0.95 + 0.06 * rng.random((h, w, 1)))
+    stain = noise2(rng, h, w, 4, 2)
+    img = img * (1.0 - 0.18 * np.clip(stain - 0.55, 0, 1)[..., None] * 2)  # weather stains
     for u in (0, 8, 16, 24):
-        img[:, u] *= 0.8  # the seams between the cloths
+        img[:, u] *= 0.84  # the seams between the cloths
     for v in range(4, h, 16):
-        img[v, 2::4] = C(0.40, 0.36, 0.30)  # reef points
-    img[:, -1] *= 0.7
+        img[v, 2::4] = C(0.46, 0.41, 0.33)  # reef points
+    img[:, -1] *= 0.78
+    return img
+
+
+def paint_room(rng, n=16):
+    """The inside of a guard house lit by its oil lamp: warm plaster, brighter high and in the middle
+    (drawn unlit and bright at night, dark by day: world/rampart.ts)."""
+    yy, xx = np.mgrid[0:n, 0:n]
+    k = np.clip(1.05 - 0.55 * np.hypot((xx - 7.5) / 8.0, (yy - 11.0) / 12.0), 0.35, 1.0)
+    img = np.ones((n, n, 3)) * C(0.95, 0.66, 0.34)
+    img *= (k * (0.92 + 0.08 * rng.random((n, n))))[..., None]
     return img
 
 
@@ -475,6 +488,7 @@ def make_materials(ctx=None):
         "wall_arms": lambda: paint_arms(rng),
         "wall_lamp_glow": lambda: paint_glow(rng),
         "wall_canvas": lambda: paint_canvas(rng),
+        "wall_room_glow": lambda: paint_room(rng),
     }
     arrs = {name: np.clip(paint[name](), 0, 1) for name in MATS if name in paint}
     moss = getattr(ctx, "moss", None)
@@ -556,7 +570,7 @@ class Geo:
             if k[0] == "gate":
                 names[k] = f"gate_{k[1]}"
             elif k[0] == "sails":
-                names[k] = "mill_sails"
+                names[k] = k[2]
         for k, faces in self.groups.items():
             name = names[k]
             origin = Vector(k[1]) if k[0] == "sails" else Vector((0.0, 0.0, 0.0))  # the sails turn about their hub
@@ -682,10 +696,15 @@ def finial(g, x, y, z, s=1.0, mat=IRON):
     lathe(g, (x, y, z), [(r * s, dy * s) for r, dy in prof], 6, mat, shade=0.9)
 
 
-def lantern(g, x, ytop, z, w=0.24, hh=0.36):
+LAMPS = []  # every lantern's glass (x, y, z), for the game's gas-lamp lights (pass 2: world/rampart.ts)
+
+
+def lantern(g, x, ytop, z, w=0.24, hh=0.36, record=True):
     """A square lantern hanging from (x, ytop, z): iron cap, glowing glass, iron base."""
     y1 = ytop - 0.1
     y0 = y1 - hh
+    if record:
+        LAMPS.append((x, (y0 + y1) / 2, z))
     q = w / 2 + 0.04
     pyramid(g, [(x - q, y1, z - q), (x + q, y1, z - q), (x + q, y1, z + q), (x - q, y1, z + q)], (x, ytop + 0.06, z), IRON,
             shade=0.8)
@@ -917,6 +936,10 @@ class Ctx:
         self.centre = centroid(self.town_poly)
         m = D["mill"]
         self.mill = (Vector((m["x"], m["z"])), m["r"])
+        # pass 2: every mill (the second on the north-east bastion), what the game places and bumps into
+        self.mill_axles = {}
+        self.dress = {"mills": [], "benches": [], "lamps": [], "lanterns": []}
+        self.mills = mill_spots(self)
         self.moss = pond_stretch(self)
         # the walk's paving follows its piece of the wall: the lines where one piece meets the next
         self.region_cuts = []
@@ -1504,10 +1527,11 @@ def grass_areas(ctx):
             if inside((hut.c.x, hut.c.y), ring):
                 ua, uo, W2, D2 = hut.facing(V - hut.c)
                 spots.append((hut.c, ua, uo, W2 + 1.5, D2 + 1.5, 1.0))
-        mc, mr = ctx.mill
-        if inside((mc.x, mc.y), ring):
-            uo = (V - mc).normalized()
-            spots.append((mc, Vector((-uo.y, uo.x)), uo, mr + 1.5, mr + 1.5, 1.2))
+        for mc, mr, _, M in ctx.mills:
+            if inside((mc.x, mc.y), ring):
+                uo = (V - mc).normalized()
+                ext = 1.5 if M["stage"] is None else 1.8  # (a stage mill: the paving reaches past its gallery)
+                spots.append((mc, Vector((-uo.y, uo.x)), uo, mr + ext, mr + ext, 1.2))
         for c, ua, uo, W, Dd, pw in spots:
             reach = (V - c).dot(uo)
             for q in (rect_poly(c, ua, uo, -W, W, -Dd, Dd), rect_poly(c, ua, uo, -pw, pw, 0.0, reach)):
@@ -1571,10 +1595,13 @@ def build_hut(g, hut, d, dc, h):
     dk = 0.55
     F.quad(g, [(-iw, -idp, yf), (iw, -idp, yf), (iw, idp, yf), (-iw, idp, yf)], WOOD, (0, 0, 1), floor=h, k=0.7)
     F.quad(g, [(-iw, -idp, yc), (iw, -idp, yc), (iw, idp, yc), (-iw, idp, yc)], WOOD, (0, 0, -1), floor=h, k=0.45)
+    # (pass 2: the room is lit by its oil lamp: warm walls, bright at night, dark by day: world/rampart.ts)
     for pa, pb, o in (((iw, idp), (iw, -idp), (-1, 0)), ((iw, -idp), (-iw, -idp), (0, 1)), ((-iw, -idp), (-iw, idp), (1, 0))):
-        Panel(g, F, pa, pb, o).wall(yf, yc, STONE, floor=yf, k=dk)
+        Panel(g, F, pa, pb, o).wall(yf, yc, ROOM, floor=yf, k=dk, seg=8.0)
     fr = Panel(g, F, (iw, idp), (-iw, idp), (0, -1))
-    fr.wall(yf, yc, STONE, [(iw - dc - 0.5, iw - dc + 0.5, yf, y_d)], floor=yf, k=dk)
+    fr.wall(yf, yc, ROOM, [(iw - dc - 0.5, iw - dc + 0.5, yf, y_d)], floor=yf, k=dk, seg=8.0)
+    lx, _, lz = F.p(-iw + 0.45, -idp + 0.45, yc)
+    lantern(g, lx, yc, lz, w=0.18, hh=0.26, record=False)  # the oil lamp hanging in the far corner
     # the leaf, swung in against its jamb; a bench along the far wall
     F.box(g, dc + 0.44, dc + 0.5, idp - 1.0, idp - 0.02, yf + 0.02, y_d - 0.04, WOOD, floor=yf, k=0.8)
     F.box(g, -iw, -iw + 0.38, -idp + 0.15, idp - 1.1, yf, yf + 0.42, WOOD, skip=("-y", "-a"), floor=yf, k=0.8)
@@ -2154,16 +2181,44 @@ def mill_band(g, c, N, rot, r0, y0, r1, y1, mat, skip=(), floor=0.0, k=1.0):
         g.face(p, mat, out=(math.cos(am) * nr, ny, math.sin(am) * nr), uvs=uvs, floor=floor, k=k)
 
 
-def build_mill(g, ctx):
-    """The tower mill on the middle bastion: a round brick tower on a stone plinth, tapering, with a
-    stone string course, small windows, a door case toward the walk, a stone cornice, a boat-shaped
-    cap in slate facing the field, and the four sails on their own object (mill_sails)."""
+# the two mills (pass 2, 2026-09-25): the look of each; the first stands on decor.rampart.mill (the walk map has
+# its disc), the second on the north-east bastion (rampart.ts gives Jef its colliders: the crowd never goes there)
+MILLS = [
+    {"name": "mill_sails", "body": MILL_BODY, "top_r": MILL_TOP_R, "stage": None, "course": MILL_STAGE, "sail_r": SAIL_R,
+     "hub_out": HUB_OUT, "tail": 8.2, "reef": (1.0, 0.55, 1.0, 0.55),
+     "windows": ((5, 3.9), (15, 3.9), (10, 7.3), (3, 8.4), (17, 6.2))},
+    {"name": "mill2_sails", "bastion": "ne", "k": 0.55, "r": 3.0, "body": 11.4, "top_r": 2.15, "stage": 2.9, "course": 2.9,
+     "sail_r": 8.2, "hub_out": 3.9, "tail": None, "reef": (0.7, 1.0, 0.7, 1.0),
+     "windows": ((6, 4.6), (14, 4.6), (9, 7.9), (2, 9.3), (17, 6.6))},
+]
+
+
+def mill_spots(ctx):
+    """Where each mill stands: (centre, radius, home bastion, look)."""
+    out = []
+    for M in MILLS:
+        if "bastion" in M:
+            b = ctx.blist.get(M["bastion"])
+            if b is None:
+                continue
+            V, S = V2(b["vertex"]), V2(b["salient"])
+            out.append((V + (S - V) * M["k"], M["r"], M["bastion"], M))
+        else:
+            mc, mr = ctx.mill
+            home = next((nm for nm, P in ctx.land_bastions if inside((mc.x, mc.y), [(p.x, p.y) for p in P])), None)
+            if home is None:
+                print("[build_wall] the mill stands on no bastion: left out")
+                continue
+            out.append((mc, mr, home, M))
+    return out
+
+
+def build_mill(g, ctx, mc, mr, home, M):
+    """A tower mill on a land bastion: a round brick tower on a stone plinth, tapering, with a stone
+    string course, small windows, a door case toward the walk, a stone cornice, a boat-shaped cap in
+    slate facing the field, the four sails on their own object (M["name"]); a tail pole down to a
+    capstan on the grass, or a timber stage round the tower (a stage mill) with the tail pole to it."""
     h = ctx.h
-    mc, mr = ctx.mill
-    home = next((nm for nm, P in ctx.land_bastions if inside((mc.x, mc.y), [(p.x, p.y) for p in P])), None)
-    if home is None:
-        print("[build_wall] the mill stands on no bastion: left out")
-        return
     b = ctx.blist[home]
     u = (V2(b["salient"]) - V2(b["vertex"])).normalized()  # toward the field: the sails' side
     w = Vector((-u.y, u.x))
@@ -2173,12 +2228,13 @@ def build_mill(g, ctx):
     rin = mr * math.cos(math.pi / 32)  # the walk map's disc is a 32-gon: stay inside it
     R0 = mr * 0.97  # the plinth
     Rb = R0 - 0.08  # the brick at the plinth's top
+    top_r = M["top_r"]
     y0, ypl, ydoor = h - 0.3, snap(h + MILL_PL), snap(h + MILL_DOOR)
-    ys, ytop = snap(h + MILL_STAGE), snap(h + MILL_BODY)
+    ys, ytop = snap(h + M["course"]), snap(h + M["body"])
     ys1 = ys + 2 * COURSE
 
     def r(y):
-        return Rb + (MILL_TOP_R - Rb) * (y - ypl) / (ytop - ypl)
+        return Rb + (top_r - Rb) * (y - ypl) / (ytop - ypl)
 
     c = (mc.x, mc.y)
     door = (0,)
@@ -2196,11 +2252,11 @@ def build_mill(g, ctx):
     mill_band(g, c, N, rot, r(ys1) + 0.06, ys1, r(ys1), ys1, STONE, floor=h)
     # the cornice, the curb the cap turns on
     yc1, ycap = ytop + 0.22, ytop + 0.4
-    rc = MILL_TOP_R + 0.14
-    mill_band(g, c, N, rot, MILL_TOP_R, ytop, rc, ytop, STONE, floor=h)
+    rc = top_r + 0.14
+    mill_band(g, c, N, rot, top_r, ytop, rc, ytop, STONE, floor=h)
     mill_band(g, c, N, rot, rc, ytop, rc, yc1, STONE, floor=h)
-    mill_band(g, c, N, rot, rc, yc1, 2.5, yc1, STONE, floor=h)
-    mill_band(g, c, N, rot, 2.5, yc1, 2.5, ycap, WOOD, floor=h, k=0.6)
+    mill_band(g, c, N, rot, rc, yc1, top_r + 0.08, yc1, STONE, floor=h)
+    mill_band(g, c, N, rot, top_r + 0.08, yc1, top_r + 0.08, ycap, WOOD, floor=h, k=0.6)
 
     # the door case: a stone block proud of the plinth, the door set in it
     Fd = Frame(mc.x, mc.y, (-du.y, du.x), (du.x, du.y))
@@ -2214,20 +2270,23 @@ def build_mill(g, ctx):
     Fd.box(g, -0.44, 0.44, A_out - 0.22, A_out - 0.02, h, h + 0.1, STONE, skip=("-y", "-o", "-a", "+a"), floor=h)
 
     # windows: (face, height over the walk)
-    for i, yw in ((5, 3.9), (15, 3.9), (10, 7.3), (3, 8.4), (17, 6.2)):
+    for wi, (i, yw) in enumerate(M["windows"]):
         yw0, yw1 = h + yw, h + yw + 0.75
         th = rot + 2 * math.pi * (i + 0.5) / N
         dr = Vector((math.cos(th), math.sin(th)))
         Fw = Frame(mc.x, mc.y, (-dr.y, dr.x), (dr.x, dr.y))
         ap0, ap1 = r(yw0) * math.cos(math.pi / N), r(yw1) * math.cos(math.pi / N)
         q = [Fw.p(-0.25, ap0 + 0.025, yw0), Fw.p(0.25, ap0 + 0.025, yw0), Fw.p(0.25, ap1 + 0.025, yw1), Fw.p(-0.25, ap1 + 0.025, yw1)]
-        g.face(q, WINDOW, out=Fw.v(0, 1, 0.08), uvs=fit_uvs(4), floor=h)
+        # (the miller's lamp behind two of them: lit at night, world/rampart.ts)
+        g.face(q, ROOM if wi in (1, 3) else WINDOW, out=Fw.v(0, 1, 0.08), uvs=fit_uvs(4), floor=h)
         Fw.box(g, -0.34, 0.34, ap0 - 0.1, ap0 + 0.08, yw0 - 0.08, yw0, STONE, skip=("-o",), floor=h)
 
-    # the cap: a boat, its keel along the axle, slate over a timber frame
+    # the cap: a boat, its keel along the axle, slate over a timber frame (a little smaller on a slimmer tower)
+    ks = top_r / MILL_TOP_R
+
     def cp(x, ww, yy):
-        p = mc + u * x + w * ww
-        return (p.x, ycap + yy, p.y)
+        p = mc + u * (x * ks) + w * (ww * ks)
+        return (p.x, ycap + yy * ks, p.y)
 
     for kx in range(len(CAP_X) - 1):
         for sg in (-1.0, 1.0):
@@ -2255,20 +2314,76 @@ def build_mill(g, ctx):
     kt = max(range(len(CAP_X)), key=lambda j: CAP_H[j])
     tx, ty, tz = cp(CAP_X[kt], 0.0, CAP_H[kt])
     finial(g, tx, ty - 0.05, tz, 1.0)
+    back = Vector(cp(CAP_X[0] + 0.15, 0.0, 0.5))  # where the tail pole leaves the cap's back
+
+    info = {"x": round(mc.x, 3), "z": round(mc.y, 3), "r": round(R0 + 0.05, 3)}
+
+    # the stage: a timber gallery round the tower on its string course, railing, struts to the tower
+    if M["stage"] is not None:
+        yst = ys
+        ri = r(yst) + 0.065  # (clear of the string course, 6 cm proud: no two faces in one plane)
+        ro = ri + 1.45
+        yt = yst + 0.12
+        mill_band(g, c, N, rot, ro, yt, ri, yt, WOOD, floor=h, k=0.85)  # the deck, up
+        mill_band(g, c, N, rot, ri, yst, ro, yst, WOOD, floor=h, k=0.4)  # its underside
+        mill_band(g, c, N, rot, ro, yst, ro, yt, WOOD, floor=h, k=0.7)  # its edge
+        posts = []
+        for i in range(N):
+            th = rot + 2 * math.pi * i / N
+            d2 = Vector((math.cos(th), math.sin(th)))
+            p = mc + d2 * (ro - 0.07)
+            posts.append(p)
+            bar(g, (p.x, yt, p.y), (p.x, yt + 1.0, p.y), 0.07, WOOD, shade=0.7)
+            if i % 2 == 0:  # a strut down to the tower
+                q = mc + d2 * (r(yst - 0.9) + 0.02)
+                s0 = mc + d2 * (ro - 0.2)
+                bar(g, (s0.x, yst, s0.y), (q.x, yst - 0.9, q.y), 0.09, WOOD, shade=0.55)
+        for i in range(N):
+            p, q = posts[i], posts[(i + 1) % N]
+            for yy in (yt + 1.0, yt + 0.5):
+                bar(g, (p.x, yy, p.y), (q.x, yy, q.y), 0.06, WOOD, shade=0.7)
+        foot = mc - u * (ro + 0.25)
+        tail_foot = Vector((foot.x, yt + 1.05, foot.y))
+        info["stage"] = round(ro, 3)
+    elif M["tail"]:
+        foot = mc - u * M["tail"]
+        tail_foot = Vector((foot.x, h + 0.95, foot.y))
+        # the capstan: a post in the grass and a spoked wheel square to the pole, to turn the cap to the wind
+        bar(g, (foot.x, h - 0.1, foot.y), (foot.x, h + 0.85, foot.y), 0.2, WOOD, shade=0.65)
+        wc = Vector((foot.x, h + 0.95, foot.y)) - Vector((u.x, 0.0, u.y)) * 0.28
+        e_w, e_y = Vector((w.x, 0.0, w.y)), Vector((0.0, 1.0, 0.0))
+        rim = [wc + (e_w * math.cos(2 * math.pi * j / 8) + e_y * math.sin(2 * math.pi * j / 8)) * 0.62 for j in range(8)]
+        for j in range(8):
+            bar(g, rim[j], rim[(j + 1) % 8], 0.07, WOOD, shade=0.7)
+        for j in range(0, 8, 2):
+            bar(g, wc, rim[j], 0.05, WOOD, shade=0.7)
+        bar(g, wc - Vector((u.x, 0.0, u.y)) * 0.12, wc + Vector((u.x, 0.0, u.y)) * 0.3, 0.1, IRON, shade=0.7)
+        info["tail"] = [round(foot.x, 3), round(foot.y, 3)]
+    else:
+        tail_foot = None
+    if tail_foot is not None:
+        beam(g, back, tail_foot, Vector((w.x, 0.0, w.y)), 0.26, 0.26, WOOD, shade=0.6)  # the tail pole
+        mid = back + (tail_foot - back) * 0.3
+        for sg in (-1.0, 1.0):  # the two braces from the cap's sides
+            side = Vector(cp(-1.2, sg * 2.0, 0.3))
+            bar(g, side, mid, 0.12, WOOD, shade=0.55)
 
     # the sails, the hub and the windshaft: their own object, turning about the axle
-    hub2 = mc + u * HUB_OUT
-    hub = Vector((hub2.x, ycap + HUB_UP, hub2.y))
+    sail_r, hub_out = M["sail_r"], M["hub_out"]
+    hub2 = mc + u * hub_out
+    hub = Vector((hub2.x, ycap + HUB_UP * ks, hub2.y))
     a = Vector((u.x * math.cos(TILT), math.sin(TILT), u.y * math.cos(TILT)))
-    ctx.mill_hub, ctx.mill_axle = hub, a
-    g.grp = ("sails", (round(hub.x, 4), round(hub.y, 4), round(hub.z, 4)))
+    ctx.mill_axles[M["name"]] = a
+    if M["name"] == "mill_sails":
+        ctx.mill_hub, ctx.mill_axle = hub, a
+    g.grp = ("sails", (round(hub.x, 4), round(hub.y, 4), round(hub.z, 4)), M["name"])
     hub = Vector(g.grp[1])
     up = Vector((0.0, 1.0, 0.0))
     e1 = (up - a * a.dot(up)).normalized()
     e2 = a.cross(e1)
-    beam(g, hub - a * 1.9, hub - a * 0.1, e1, 0.4, 0.4, WOOD, shade=0.6)  # the windshaft, into the canister
+    beam(g, hub - a * (hub_out - 1.65), hub - a * 0.1, e1, 0.4, 0.4, WOOD, shade=0.6)  # the windshaft, into the canister
     beam(g, hub - a * 0.3, hub + a * 0.42, e1, 0.72, 0.72, IRON, shade=0.75)  # the canister the stocks pass through
-    n_bars = int((SAIL_R - 0.1 - SAIL_IN) / SAIL_STEP) + 1
+    n_bars = int((sail_r - 0.1 - SAIL_IN) / SAIL_STEP) + 1
     r_last = SAIL_IN + (n_bars - 1) * SAIL_STEP
     for k in range(4):
         ph = math.pi / 4 + k * math.pi / 2
@@ -2277,19 +2392,172 @@ def build_mill(g, ctx):
         beam(g, hub + a * 0.1 + rr * 0.3, hub + a * 0.1 + rr * (r_last + 0.3), m, 0.26, 0.24, WOOD, shade=0.7)  # the stock
         for j in range(n_bars):
             rj = SAIL_IN + j * SAIL_STEP
-            beam(g, hub + rr * rj - m * SAIL_LEAD, hub + rr * rj + m * SAIL_W, rr, 0.07, 0.07, WOOD, shade=0.75)
+            beam(g, hub + rr * rj - m * SAIL_LEAD, hub + rr * rj + m * SAIL_W, rr, 0.085, 0.08, WOOD, shade=0.75)
         for off in (SAIL_W, SAIL_W * 0.5, -SAIL_LEAD):
-            beam(g, hub + rr * (SAIL_IN - 0.08) + m * off, hub + rr * (r_last + 0.08) + m * off, m, 0.07, 0.09, WOOD, shade=0.75)
-        # the cloth, spread on the trailing side, and the leading board, just behind the lattice
-        back = hub - a * 0.06
+            beam(g, hub + rr * (SAIL_IN - 0.08) + m * off, hub + rr * (r_last + 0.08) + m * off, m, 0.085, 0.09, WOOD, shade=0.75)
+        # the cloth, spread on the trailing side (reefed short on some sails: the lattice shows), and the
+        # leading board, just behind the lattice
+        back_ = hub - a * 0.06
+        r_cloth = SAIL_IN + (r_last - SAIL_IN) * M["reef"][k]
+        rs = splits(SAIL_IN + 0.05, r_cloth - 0.05, 3.0)
+        for ra, rb in zip(rs, rs[1:]):
+            q = [back_ + rr * ra + m * 0.12, back_ + rr * rb + m * 0.12, back_ + rr * rb + m * (SAIL_W - 0.06), back_ + rr * ra + m * (SAIL_W - 0.06)]
+            uvs = [(0.12 / 1.8, ra / 1.8), (0.12 / 1.8, rb / 1.8), ((SAIL_W - 0.06) / 1.8, rb / 1.8), ((SAIL_W - 0.06) / 1.8, ra / 1.8)]
+            g.face(q, CANVAS, out=a, uvs=uvs, shade=1.0)
+        if M["reef"][k] < 0.99:
+            # the rest of the cloth furled along the lattice's inner edge: a thin roll
+            p0 = back_ + rr * (r_cloth + 0.05) + m * 0.25
+            p1 = back_ + rr * (r_last - 0.1) + m * 0.25
+            beam(g, p0, p1, m, 0.2, 0.16, CANVAS, shade=0.85)
         rs = splits(SAIL_IN + 0.05, r_last - 0.05, 3.0)
         for ra, rb in zip(rs, rs[1:]):
-            q = [back + rr * ra + m * 0.12, back + rr * rb + m * 0.12, back + rr * rb + m * (SAIL_W - 0.06), back + rr * ra + m * (SAIL_W - 0.06)]
-            uvs = [(0.12 / 1.8, ra / 1.8), (0.12 / 1.8, rb / 1.8), ((SAIL_W - 0.06) / 1.8, rb / 1.8), ((SAIL_W - 0.06) / 1.8, ra / 1.8)]
-            g.face(q, CANVAS, out=a, uvs=uvs, shade=0.95)
-            q = [back + rr * ra - m * 0.15, back + rr * rb - m * 0.15, back + rr * rb - m * (SAIL_LEAD - 0.04), back + rr * ra - m * (SAIL_LEAD - 0.04)]
+            q = [back_ + rr * ra - m * 0.15, back_ + rr * rb - m * 0.15, back_ + rr * rb - m * (SAIL_LEAD - 0.04), back_ + rr * ra - m * (SAIL_LEAD - 0.04)]
             g.face(q, WOOD, out=a, shade=0.7)
     g.grp = None
+    info["sails"] = M["name"]
+    info["axle"] = [round(a.x, 5), round(a.y, 5), round(a.z, 5)]
+    ctx.dress["mills"].append(info)
+
+
+# ------------------------------------------------------------------ the walk's furniture (pass 2)
+# Steve's picture 7 (2026-09-25): benches along the walk, gas lamps, the mills. The benches are modelled here
+# in three kinds (seeded), the gas lamps are the town's own (props.glb gas_lamp, lit by world/gaslamps.ts):
+# this only picks their spots. Both go to the game in the node "wall_dressing" (world/rampart.ts).
+
+LAMP_STEP, BENCH_STEP = 27.0, 40.0
+LAMP_O = 0.7  # a lamp's post this far in from the town face (the town parapet is TOWN_T thick)
+
+
+def bench_iron(g, F, L):
+    """A park bench: three slats on cast-iron ends with arms, a back of two slats, leaning back."""
+    for sa in (-1.0, 1.0):
+        a = sa * (L / 2 - 0.1)
+        bar(g, F.p(a, 0.2, 0.0), F.p(a, 0.18, 0.43), 0.05, IRON, shade=0.7)  # the front leg
+        bar(g, F.p(a, -0.2, 0.0), F.p(a, -0.26, 0.86), 0.05, IRON, shade=0.7)  # the back leg, up into the back
+        bar(g, F.p(a, -0.22, 0.4), F.p(a, 0.22, 0.4), 0.045, IRON, shade=0.7)  # under the seat
+        bar(g, F.p(a, 0.18, 0.43), F.p(a, 0.18, 0.64), 0.04, IRON, shade=0.7)  # the arm's post
+        bar(g, F.p(a, -0.24, 0.64), F.p(a, 0.21, 0.64), 0.05, IRON, shade=0.7)  # the arm
+    for o0, o1 in ((-0.2, -0.07), (-0.05, 0.08), (0.1, 0.22)):
+        F.box(g, -L / 2, L / 2, o0, o1, 0.42, 0.46, WOOD, floor=0.0, k=0.9)
+    for y0, y1 in ((0.56, 0.66), (0.72, 0.82)):
+        oo = -0.21 - (y0 - 0.5) * 0.12
+        F.box(g, -L / 2 + 0.04, L / 2 - 0.04, oo - 0.03, oo, y0, y1, WOOD, floor=0.0, k=0.85)
+
+
+def bench_plank(g, F, L):
+    """A plain bench: one thick plank on two timber trestles, a stretcher between them."""
+    for sa in (-1.0, 1.0):
+        a = sa * (L / 2 - 0.2)
+        F.box(g, a - 0.05, a + 0.05, -0.16, 0.16, 0.0, 0.4, WOOD, skip=("-y",), floor=0.0, k=0.7)
+    F.box(g, -L / 2 + 0.25, L / 2 - 0.25, -0.03, 0.03, 0.12, 0.2, WOOD, skip=("-y",), floor=0.0, k=0.6)
+    F.box(g, -L / 2, L / 2, -0.17, 0.17, 0.4, 0.46, WOOD, floor=0.0, k=0.95)
+
+
+def bench_stone(g, F, L):
+    """A stone bench: a slab on two blocks."""
+    for sa in (-1.0, 1.0):
+        a = sa * (L / 2 - 0.22)
+        F.box(g, a - 0.13, a + 0.13, -0.16, 0.16, -0.02, 0.36, PLINTH, skip=("-y",), floor=0.0, k=0.85)
+    F.box(g, -L / 2, L / 2, -0.21, 0.21, 0.36, 0.45, STONE, floor=0.0, k=0.95)
+
+
+BENCHES = [(bench_iron, 1.8, 0.5, 3.0), (bench_plank, 1.7, 0.36, 1.5), (bench_stone, 1.5, 0.44, 1.2)]  # (make, length, depth, weight)
+
+
+def place_bench(g, ctx, rng, c, ua, uo, y, kind=None):
+    """A bench centred on c (x, z) at height y, its length along ua, its front looking along uo."""
+    if kind is None:
+        wts = np.array([b[3] for b in BENCHES])
+        kind = int(rng.choice(len(BENCHES), p=wts / wts.sum()))
+    make, L, dep, _ = BENCHES[kind]
+    F = Frame(c.x, c.y, (ua.x, ua.y), (uo.x, uo.y))
+
+    class Lift:  # the bench's own frame, lifted to y
+        def p(self, a, o, yy):
+            return F.p(a, o, yy + y)
+
+        def v(self, *q):
+            return F.v(*q)
+
+        def box(self, g_, a0, a1, o0, o1, y0, y1, mat, skip=(), floor=0.0, **kw):
+            F.box(g_, a0, a1, o0, o1, y0 + y, y1 + y, mat, skip=skip, floor=floor + y, **kw)
+
+    make(g, Lift(), L)
+    ctx.dress["benches"].append({"x": round(c.x, 3), "z": round(c.y, 3), "y": round(y, 3), "a": [round(ua.x, 5), round(ua.y, 5)],
+                                 "len": L, "dep": dep, "kind": kind})
+    return L, dep
+
+
+def build_dressing(g, ctx):
+    """The gas lamps' spots on the town side of the walk, benches against the breastwork (a few on the
+    town side by a lamp), two benches by each mill; the lanterns of the huts and gates as lights."""
+    D, h, T = ctx.D, ctx.h, ctx.t
+    n_seg = len(D["segments"])
+    in_d = T - (BW_O + BW_T)  # the breastwork's inner face, from the town face
+    for i, sg in enumerate(D["segments"]):
+        L = sg["len"]
+        rng = np.random.default_rng(18730 + i)
+        # the walk's ends: at the river keep off the half-bastions, at a bend off the corner
+        s0 = 16.0 if i == 0 else 7.0
+        s1 = L - (16.0 if i == n_seg - 1 else 7.0)
+        gates = [gt["s"] for gt in D["gates"] if gt["seg"] == sg["name"]]
+        towers = [t["s"] for t in D["towers"] if t["seg"] == sg["name"]]
+        stairs = []
+        for st in D["stairs"]:
+            if st["seg"] != sg["name"]:
+                continue
+            end = st["s"] + st["dir"] * (11.7 + 2.4)
+            stairs.append((min(st["s"], end), max(st["s"], end)))
+
+        def free(s, town):
+            if any(abs(s - q) < 13.5 for q in gates):
+                return False
+            if town and any(a - 2.5 < s < b + 2.5 for a, b in stairs):
+                return False
+            if not town and any(abs(s - q) < 7.0 for q in towers):
+                return False
+            return s0 <= s <= s1
+
+        # the lamps, every 27 m or so on the town side
+        s = s0 + rng.uniform(3.0, 10.0)
+        lamps_here = []
+        while s <= s1:
+            ok = next((s + d for d in (0.0, 3.0, -3.0, 6.0) if free(s + d, True)), None)
+            if ok is not None:
+                F = ctx.sframe(sg, ok)
+                x, _, z = F.p(0.0, LAMP_O, h)
+                ctx.dress["lamps"].append([round(x, 3), round(z, 3), round(h, 3)])
+                lamps_here.append(ok)
+            s += LAMP_STEP + rng.uniform(-3.0, 4.0)
+        # the benches against the breastwork, looking into the town; now and then one by a lamp on the town side
+        s = s0 + rng.uniform(8.0, 22.0)
+        t2, n2 = V2(sg["t"]), V2(sg["n"])
+        while s <= s1:
+            if free(s, False):
+                kind = int(rng.choice(3, p=np.array([b[3] for b in BENCHES]) / sum(b[3] for b in BENCHES)))
+                dep = BENCHES[kind][2]
+                F = ctx.sframe(sg, s)
+                x, _, z = F.p(0.0, in_d - dep / 2 - 0.03, h)
+                place_bench(g, ctx, rng, Vector((x, z)), t2, -n2, h, kind)
+            s += BENCH_STEP + rng.uniform(-8.0, 14.0)
+        for ls in lamps_here:
+            if rng.random() < 0.3:
+                sb = ls + (2.4 if rng.random() < 0.5 else -2.4)
+                if free(sb - 1.0, True) and free(sb + 1.0, True):
+                    kind = int(rng.choice(3, p=np.array([b[3] for b in BENCHES]) / sum(b[3] for b in BENCHES)))
+                    dep = BENCHES[kind][2]
+                    F = ctx.sframe(sg, sb)
+                    x, _, z = F.p(0.0, TOWN_T + dep / 2 + 0.03, h)
+                    place_bench(g, ctx, rng, Vector((x, z)), -t2, n2, h, kind)
+    # by each mill, on its paved square: two benches looking away from the tower to either side
+    rng = np.random.default_rng(1881)
+    for mc, mr, home, M in ctx.mills:
+        b = ctx.blist[home]
+        u = (V2(b["salient"]) - V2(b["vertex"])).normalized()
+        w = Vector((-u.y, u.x))
+        for sg_ in (-1.0, 1.0):
+            c = mc + w * (sg_ * (mr + 1.1)) - u * 1.2
+            place_bench(g, ctx, rng, c, u * sg_, w * sg_, h)
 
 
 # ------------------------------------------------------------------ build
@@ -2328,7 +2596,9 @@ def build(ctx):
         if u.dot(S - V2(ctx.blist[name]["vertex"])) < 0:
             u = -u
         build_turret(g, b, u, h)
-    build_mill(g, ctx)
+    for mc, mr, home, M in ctx.mills:
+        build_mill(g, ctx, mc, mr, home, M)
+    build_dressing(g, ctx)
     build_moss(g, ctx)
     build_ferns(g, ctx)
     for st in D["stairs"]:
@@ -2641,7 +2911,17 @@ def main():
     make_materials(ctx)
     g = build(ctx)
     objs = g.to_objects([gt["id"] for gt in D["gates"]])
+    # pass 2: each mill's axle on its sails, and what the game places and bumps into (world/rampart.ts)
+    for nm, a in ctx.mill_axles.items():
+        if nm in objs:
+            objs[nm]["axle"] = [round(a.x, 5), round(a.y, 5), round(a.z, 5)]
+    ctx.dress["lanterns"] = [[round(x, 3), round(y, 3), round(z, 3)] for x, y, z in LAMPS]
+    dress = bpy.data.objects.new("wall_dressing", None)
+    dress["dressing"] = json.dumps(ctx.dress, separators=(",", ":"))
+    bpy.context.scene.collection.objects.link(dress)
     export()
+    print(f"[build_wall] dressing: {len(ctx.dress['mills'])} mills, {len(ctx.dress['benches'])} benches, "
+          f"{len(ctx.dress['lamps'])} lamps, {len(ctx.dress['lanterns'])} lanterns")
     total = 0
     for n in sorted(objs):
         c = tris(objs[n])

@@ -23,8 +23,12 @@ import { lampFog, type LampFog } from "./lampFog";
 // glass now fogs like the post (lampFog.ts): no dark box, no lit square hanging in the fog on its own.
 
 export interface GasLamps {
-  /** A city lamp as placed (props.glb gas_lamp), index i of city.json decor.lamps: id "d<i>". */
-  addDecor(i: number, obj: THREE.Object3D, x: number, z: number): void;
+  /**
+   * A city lamp as placed (props.glb gas_lamp), index i of city.json decor.lamps: id "d<i>". `at` (the town
+   * wall, pass 2): a lamp that does not stand on the street, its glass's height and the ground's under it
+   * (the walk on the wall; a lantern on a guard house or a gate: world/rampart.ts wallLamps).
+   */
+  addDecor(i: number, obj: THREE.Object3D, x: number, z: number, at?: { glass: number; ground: number }): void;
   /** The lamplighter's word: this lamp burns (true) or not. */
   set(id: string, on: boolean): void;
   /** The eased level (0..1) of a quay lamp, "q<i>", for rijnkaai.ts's glass and halo. */
@@ -107,6 +111,9 @@ export function createGasLamps(
     id: string;
     x: number;
     z: number;
+    /** the glass's height (GLASS_Y for a lamp on the street), and the ground's under it if not the street's */
+    gy: number;
+    foot: number | null;
     want: number;
     level: number;
     set: boolean;
@@ -125,7 +132,7 @@ export function createGasLamps(
   }
   const all = new Map<string, L>();
   quay.forEach((q, i) =>
-    all.set(`q${i}`, { id: `q${i}`, x: q.x, z: q.z, want: 1, level: 1, set: false, glass: [], reach: [], slot: -1, seed: i * 1.37 + 0.5, flame: 0, b: 0, g: 0, pool: null }),
+    all.set(`q${i}`, { id: `q${i}`, x: q.x, z: q.z, gy: GLASS_Y, foot: null, want: 1, level: 1, set: false, glass: [], reach: [], slot: -1, seed: i * 1.37 + 0.5, flame: 0, b: 0, g: 0, pool: null }),
   );
 
   // the city lamps' halos: one Points object, a slot per lamp, the lit level as an attribute
@@ -263,7 +270,7 @@ export function createGasLamps(
   /** Where a lamp's pool may lie: the ground within a step of its foot's (worked out once: lamps stand still). */
   function poolOf(l: L): NonNullable<L["pool"]> {
     if (l.pool) return l.pool;
-    const g = groundAt(l.x, l.z);
+    const g = l.foot ?? groundAt(l.x, l.z);
     const flat = (x: number, z: number) => Math.abs(groundAt(x, z) - g) <= 0.25;
     const N = 16;
     const reach: number[] = [];
@@ -328,7 +335,7 @@ export function createGasLamps(
   }
 
   return {
-    addDecor(i, obj, x, z) {
+    addDecor(i, obj, x, z, at) {
       const glass: THREE.MeshBasicMaterial[] = [];
       obj.traverse((c) => {
         const m = c as THREE.Mesh;
@@ -336,13 +343,13 @@ export function createGasLamps(
       });
       const slot = used < MAX ? used++ : -1;
       if (slot >= 0) {
-        pos.set([x, GLASS_Y, z], slot * 3);
+        pos.set([x, at?.glass ?? GLASS_Y, z], slot * 3);
         geo.attributes.position.needsUpdate = true;
         geo.setDrawRange(0, used);
       }
       // M7 fog lamps: the glass fogs like its post (a lit one shows a little further)
       const reach = glass.map((m) => lampFog(m, 1, 1 + LIT_REACH));
-      all.set(`d${i}`, { id: `d${i}`, x, z, want: 1, level: 1, set: false, glass, reach, slot, seed: i * 2.31 + 7.1, flame: -1, b: 0, g: 0, pool: null });
+      all.set(`d${i}`, { id: `d${i}`, x, z, gy: at?.glass ?? GLASS_Y, foot: at?.ground ?? null, want: 1, level: 1, set: false, glass, reach, slot, seed: i * 2.31 + 7.1, flame: -1, b: 0, g: 0, pool: null });
     },
     set(id, on) {
       const l = all.get(id);
@@ -392,7 +399,7 @@ export function createGasLamps(
         litCount++;
         const dx = l.x - eye.x;
         const dz = l.z - eye.z;
-        const d = Math.hypot(dx, GLASS_Y - eye.y, dz);
+        const d = Math.hypot(dx, l.gy - eye.y, dz);
         const ahead = (dx * look.x + dz * look.z) / Math.max(Math.hypot(dx, dz), 0.01);
         let score = d * (ahead > -0.3 ? 1 : 1.4);
         // a lamp already lit keeps its light unless another is clearly nearer
@@ -415,7 +422,7 @@ export function createGasLamps(
           light.intensity = 0;
           return;
         }
-        light.position.set(l.x, GLASS_Y, l.z);
+        light.position.set(l.x, l.gy, l.z);
         light.updateMatrixWorld();
         light.intensity = POWER * l.g * s.w;
       });
@@ -423,7 +430,7 @@ export function createGasLamps(
       psxSlots.forEach((s, i) => {
         const l = s.lamp;
         if (!l || s.w <= 0) uL[i].set(0, -999, 0, 0);
-        else uL[i].set(l.x, GLASS_Y, l.z, l.b * s.w);
+        else uL[i].set(l.x, l.gy, l.z, l.b * s.w);
       });
       // the slots past the gas lamps' (the lantern's): empty unless the lantern takes one after this
       for (let i = psxSlots.length; i < uL.length; i++) uL[i].set(0, -999, 0, 0);
@@ -440,7 +447,7 @@ export function createGasLamps(
         if (Math.hypot(l.x - eye.x, l.z - eye.z) > POOL_FAR) continue;
         const pl = poolOf(l);
         if (pl.r < 0.8) continue;
-        const h = Math.max(0.5, GLASS_Y);
+        const h = Math.max(0.5, l.foot === null ? GLASS_Y : l.gy - pl.g);
         pm.compose(pp.set(pl.cx, pl.g + 0.05, pl.cz), pq, ps.set(pl.r * 2, 1, pl.r * 2));
         pools.setMatrixAt(n, pm);
         poolPow.setXYZ(n, (POWER * pw) / Math.pow(h, DECAY), h, pl.r);

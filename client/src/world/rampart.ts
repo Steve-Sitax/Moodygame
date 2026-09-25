@@ -5,6 +5,11 @@ import CITY from "../../../shared/city.json";
 import { psx } from "../retro/psx";
 import type { Rect } from "./geom";
 import { makeHuman, type Human } from "../game/humans";
+import { grassPaving, quayPaving } from "./paving";
+import { withPicture } from "./quayStone";
+import type { GasLamps } from "./gaslamps";
+import type { Props } from "./props3d";
+import { buildRampartNature, type RampartNature } from "./rampartNature";
 
 // The town wall (Steve, 2026-09-25; tools/city/rampart.py, tools/blender/build_wall.py -> wall.glb).
 // The walk map has the walk on the wall, the bastion tops and the stairs as open ground and the parapets,
@@ -149,16 +154,43 @@ export function rampartGates(): Array<{ id: string; name: string; x: number; z: 
   return (R?.gates ?? []).map((g) => ({ id: g.id, name: g.name, x: g.passage.reduce((a, p) => a + p[0], 0) / 4, z: g.passage.reduce((a, p) => a + p[1], 0) / 4 }));
 }
 
+/** What build_wall.py placed on the wall (pass 2: the node "wall_dressing" in wall.glb). */
+export interface WallDressing {
+  /** The mills: the tower's foot (r), the tail pole's capstan, a stage's reach; the sails' node and axle. */
+  mills: Array<{ x: number; z: number; r: number; tail?: [number, number]; stage?: number; sails: string; axle: [number, number, number] }>;
+  /** Benches: centre, height, along (a), length and depth. */
+  benches: Array<{ x: number; z: number; y: number; a: [number, number]; len: number; dep: number; kind: number }>;
+  /** The gas lamps on the walk: x, z, the walk's height (props.glb gas_lamp stands there). */
+  lamps: Array<[number, number, number]>;
+  /** The lanterns of the guard houses and gates: their glass. */
+  lanterns: Array<[number, number, number]>;
+}
+
 export interface WallModel {
   group: THREE.Group;
   ready: Promise<void>;
-  /** Hide the chunks beyond the fog. */
-  update(camera: THREE.Camera, far: number): void;
+  /** The walk's furniture, once wall.glb has loaded. */
+  dressing: Promise<WallDressing>;
+  /** Hide the chunks beyond the fog; `dark` (0 day .. 1 night) lights the lanterns and the guard rooms. */
+  update(camera: THREE.Camera, far: number, dark?: number): void;
 }
+
+/** The gas lamps on the walk (wallLamps): hidden past the fog or this far (their halos still show). */
+const lampNodes: THREE.Object3D[] = [];
+const LAMP_REACH = 160;
+
+/** The walk's paving (pass 2): the quays' granite setts (the Codex picture and its maps), a little smaller. */
+const WALK_TILE = 2.0;
+/** build_wall.py TILE: metres per repeat of the painted cobble and grass in the glb's uvs. */
+const GLB_COBBLE = 1.6;
+const GLB_GRASS = 3.0;
+const GRASS_TILE = 4.0;
 
 /**
  * The wall's model (wall.glb): each material keeps the little texture the Blender script painted into
  * it, drawn the game's way (psx, vertex colours); lantern glass ("*_glow") is drawn unlit and bright.
+ * Pass 2 (2026-09-25): the walk in the city's setts and the bastions in its grass (world/paving.ts, wet,
+ * with relief, wet in the rain), two mills with turning sails, the lanterns and guard rooms lit by night.
  */
 export function loadWall(scene: THREE.Scene): WallModel {
   const group = new THREE.Group();
@@ -166,9 +198,11 @@ export function loadWall(scene: THREE.Scene): WallModel {
   scene.add(group);
   const mats = new Map<string, THREE.Material>();
   const chunks: THREE.Mesh[] = [];
-  let millSails: THREE.Object3D | null = null;
-  /** The mill's axle (build_wall.py MILL_HUB): out to the field, tilted up. */
-  const AXLE = new THREE.Vector3(0.00074, 0.13917, 0.99027).normalize();
+  const sails: Array<{ node: THREE.Object3D; axle: THREE.Vector3; speed: number; phase: number }> = [];
+  const glows: Array<{ m: THREE.MeshBasicMaterial; day: number }> = [];
+  let nature: RampartNature | null = null;
+  let walkMat: THREE.Material | null = null;
+  let grassMat: THREE.Material | null = null;
   const matFor = (src: THREE.MeshStandardMaterial): THREE.Material => {
     const have = mats.get(src.name);
     if (have) return have;
@@ -182,8 +216,47 @@ export function loadWall(scene: THREE.Scene): WallModel {
       map.wrapS = map.wrapT = THREE.RepeatWrapping;
     }
     let m: THREE.Material;
-    if (src.name.endsWith("_glow")) {
-      m = psx(new THREE.MeshBasicMaterial({ map: map ?? null, color: map ? 0xffffff : 0xffd890, vertexColors: false }), { affine: 0 });
+    if (src.name === "wall_cobble") {
+      // the walk and the gate passages: granite setts as on the quays, wet in the rain, each stone its own
+      // tone. No parallax: the uvs run along each piece of the wall, not the world's axes (psx relief assumes those)
+      const pave = quayPaving();
+      withPicture(pave.map, "/textures/quay_setts.jpg");
+      withPicture(pave.height, "/textures/quay_setts_h.png");
+      if (pave.id) withPicture(pave.id, "/textures/quay_setts_id.png");
+      m = psx(new THREE.MeshPhongMaterial({ map: pave.map, color: 0xf0f0f0, specular: 0x363636, shininess: 22, vertexColors: true }), {
+        noSnap: true,
+        affine: 0,
+        fogReach: 2.2,
+        // wet in the rain, but no puddles: the puddles show the street mirror, whose plane is the street (y 0),
+        // so up here at 6.5 m they showed the wall upside down in the walk (the lead's check, 2026-09-25)
+        wet: true,
+        vary: 1,
+        relief: { height: pave.height, id: pave.id, holes: 0.05, depth: 0, tile: WALK_TILE, bump: 3.2 },
+      });
+      walkMat = m;
+    } else if (src.name === "wall_grass") {
+      const gp = grassPaving();
+      m = psx(new THREE.MeshLambertMaterial({ map: gp.map, vertexColors: true }), {
+        noSnap: true,
+        affine: 0,
+        fogReach: 2.2,
+        wet: true,
+        detile: true,
+        vary: 0.6,
+        relief: { height: gp.height, depth: 0.03, tile: GRASS_TILE, bump: 2.4 },
+      });
+      grassMat = m;
+    } else if (src.name.endsWith("_glow")) {
+      const b = new THREE.MeshBasicMaterial({ map: map ?? null, color: map ? 0xffffff : 0xffd890, vertexColors: false });
+      // lantern glass and the lit guard rooms: bright by night, dull by day (update's `dark`)
+      glows.push({ m: b, day: src.name === "wall_room_glow" ? 0.2 : 0.42 });
+      m = psx(b, { affine: 0 });
+    } else if (src.name === "wall_canvas") {
+      // the sail cloth: pale linen that stays pale seen against the sky (a little of its own light)
+      m = psx(
+        new THREE.MeshLambertMaterial({ map: map ?? null, vertexColors: true, side: THREE.DoubleSide, emissive: 0x3c3934, emissiveMap: map ?? null }),
+        { fogReach: 2.2, affine: 0 },
+      );
     } else if (src.name.endsWith("_decal")) {
       // moss laid 2 cm off the wall (build_wall.py): cut out by its alpha, pulled toward the eye, no depth written
       m = psx(
@@ -197,48 +270,69 @@ export function loadWall(scene: THREE.Scene): WallModel {
     mats.set(src.name, m);
     return m;
   };
+  /** A mesh's colours (white if it has none) and the game's material; the walk's and the grass's uvs to their new tiles. */
+  const dress = (m: THREE.Mesh) => {
+    if (!m.geometry.getAttribute("color")) {
+      // no vertex colours in this part: white, so the Lambert material's vertexColors reads 1
+      const n = m.geometry.getAttribute("position").count;
+      m.geometry.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(n * 3).fill(1), 3));
+    }
+    const src = Array.isArray(m.material) ? m.material : [m.material];
+    const out = src.map((q) => matFor(q as THREE.MeshStandardMaterial));
+    m.material = Array.isArray(m.material) ? out : out[0];
+    const one = Array.isArray(m.material) ? null : m.material;
+    const k = one && one === walkMat ? GLB_COBBLE / WALK_TILE : one && one === grassMat ? GLB_GRASS / GRASS_TILE : 1;
+    const uv = m.geometry.getAttribute("uv") as THREE.BufferAttribute | undefined;
+    if (k !== 1 && uv) {
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * k, uv.getY(i) * k);
+      uv.needsUpdate = true;
+    }
+  };
+  let dressingOk: (d: WallDressing) => void = () => {};
+  let dressingNo: (e: unknown) => void = () => {};
+  const dressing = new Promise<WallDressing>((ok, no) => {
+    dressingOk = ok;
+    dressingNo = no;
+  });
+  dressing.catch(() => {});
   const draco = new DRACOLoader().setDecoderPath("/draco/");
   const ready = new GLTFLoader()
     .setDRACOLoader(draco)
     .loadAsync("/models/wall.glb")
     .then((gltf) => {
       const meshes: THREE.Mesh[] = [];
-      // the mill's sails turn about their hub (build_wall.py: node "mill_sails", origin on the hub, the axle its local +z tilted up)
-      const sails = gltf.scene.getObjectByName("mill_sails");
-      if (sails) {
-        sails.updateWorldMatrix(true, true);
-        const hub = new THREE.Vector3().setFromMatrixPosition(sails.matrixWorld);
-        const pivot = new THREE.Group();
-        pivot.name = "mill_sails_pivot";
-        pivot.position.copy(hub);
-        group.add(pivot);
-        sails.removeFromParent();
-        sails.traverse((o) => {
-          const m = o as THREE.Mesh;
-          if (!m.isMesh) return;
-          if (!m.geometry.getAttribute("color")) {
-            const n = m.geometry.getAttribute("position").count;
-            m.geometry.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(n * 3).fill(1), 3));
-          }
-          const src = Array.isArray(m.material) ? m.material : [m.material];
-          const out = src.map((q) => matFor(q as THREE.MeshStandardMaterial));
-          m.material = Array.isArray(m.material) ? out : out[0];
-        });
-        sails.position.set(0, 0, 0);
-        pivot.add(sails);
-        millSails = sails;
+      const node = gltf.scene.getObjectByName("wall_dressing");
+      let d: WallDressing = { mills: [], benches: [], lamps: [], lanterns: [] };
+      try {
+        if (node?.userData.dressing) d = JSON.parse(node.userData.dressing as string) as WallDressing;
+      } catch (e) {
+        console.warn("wall.glb: no dressing", e);
       }
+      node?.removeFromParent();
+      // each mill's sails turn about their hub (build_wall.py: node "<mill>_sails", origin on the hub, the axle
+      // in its extras, tilted up toward the field)
+      d.mills.forEach((mill, i) => {
+        const sn = gltf.scene.getObjectByName(mill.sails);
+        if (!sn) return;
+        sn.updateWorldMatrix(true, true);
+        const pivot = new THREE.Group();
+        pivot.name = `${mill.sails}_pivot`;
+        pivot.position.setFromMatrixPosition(sn.matrixWorld);
+        group.add(pivot);
+        sn.removeFromParent();
+        sn.traverse((o) => {
+          const m = o as THREE.Mesh;
+          if (m.isMesh) dress(m);
+        });
+        sn.position.set(0, 0, 0);
+        pivot.add(sn);
+        const ax = (sn.userData.axle as number[] | undefined) ?? mill.axle;
+        sails.push({ node: sn, axle: new THREE.Vector3(ax[0], ax[1], ax[2]).normalize(), speed: i === 0 ? 0.7 : 0.55, phase: i * 1.3 });
+      });
       gltf.scene.traverse((o) => {
         const m = o as THREE.Mesh;
         if (!m.isMesh) return;
-        if (!m.geometry.getAttribute("color")) {
-          // no vertex colours in this part: white, so the Lambert material's vertexColors reads 1
-          const n = m.geometry.getAttribute("position").count;
-          m.geometry.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(n * 3).fill(1), 3));
-        }
-        const src = Array.isArray(m.material) ? m.material : [m.material];
-        const out = src.map((s) => matFor(s as THREE.MeshStandardMaterial));
-        m.material = Array.isArray(m.material) ? out : out[0];
+        dress(m);
         meshes.push(m);
       });
       for (const m of meshes) {
@@ -249,23 +343,97 @@ export function loadWall(scene: THREE.Scene): WallModel {
         chunks.push(m);
       }
       draco.dispose();
+      nature = buildRampartNature(scene, d);
+      dressingOk(d);
     })
-    .catch((e) => console.warn("wall.glb did not load", e));
+    .catch((e) => {
+      console.warn("wall.glb did not load", e);
+      dressingNo(e);
+    });
   const tmp = new THREE.Vector3();
+  let darkNow = -1;
   return {
     group,
     ready: ready.then(() => {}),
-    update(camera, far) {
+    dressing,
+    update(camera, far, dark) {
       const cp = camera.position;
-      // the sails turn slowly, the wind of an autumn day (a turn in about 9 s)
-      if (millSails) millSails.quaternion.setFromAxisAngle(AXLE, (performance.now() / 1000) * 0.7);
+      // the sails turn slowly, the wind of an autumn day (a turn in about 9 s; the second mill a little slower)
+      const t = performance.now() / 1000;
+      for (const s of sails) s.node.quaternion.setFromAxisAngle(s.axle, t * s.speed + s.phase);
       for (const m of chunks) {
         const s = m.geometry.boundingSphere!;
         tmp.copy(s.center).applyMatrix4(m.matrixWorld);
         m.visible = tmp.distanceTo(cp) - s.radius < far + 20;
       }
+      if (dark !== undefined && Math.abs(dark - darkNow) > 0.004) {
+        darkNow = dark;
+        for (const g of glows) g.m.color.setScalar(g.day + (1 - g.day) * Math.min(1, dark));
+      }
+      nature?.update(camera, far);
+      const lr = Math.min(far + 20, LAMP_REACH);
+      for (const o of lampNodes) o.visible = Math.hypot(o.position.x - cp.x, o.position.z - cp.z) < lr;
     },
   };
+}
+
+/**
+ * What Jef bumps into on the wall (pass 2): the mills' towers (the second one is not in the walk map), the
+ * first mill's capstan, the benches. Colliders are boxes on the world's axes: a turned bench is three small
+ * boxes along its length.
+ */
+export function wallColliders(d: WallDressing): Rect[] {
+  const out: Rect[] = [];
+  for (const m of d.mills) {
+    // a disc as a cross of three boxes
+    const r = m.r;
+    const k = r * 0.72;
+    out.push({ minX: m.x - r, maxX: m.x + r, minZ: m.z - k, maxZ: m.z + k });
+    out.push({ minX: m.x - k, maxX: m.x + k, minZ: m.z - r, maxZ: m.z + r });
+    out.push({ minX: m.x - r * 0.9, maxX: m.x + r * 0.9, minZ: m.z - r * 0.9, maxZ: m.z + r * 0.9 });
+    if (m.tail) out.push({ minX: m.tail[0] - 0.75, maxX: m.tail[0] + 0.75, minZ: m.tail[1] - 0.75, maxZ: m.tail[1] + 0.75 });
+  }
+  for (const b of d.benches) {
+    const [ax, az] = b.a;
+    const ox = -az;
+    const oz = ax;
+    for (const f of [-1 / 3, 0, 1 / 3]) {
+      const cx = b.x + ax * b.len * f;
+      const cz = b.z + az * b.len * f;
+      const hl = b.len / 6;
+      const hd = b.dep / 2;
+      const ex = Math.abs(ax) * hl + Math.abs(ox) * hd;
+      const ez = Math.abs(az) * hl + Math.abs(oz) * hd;
+      out.push({ minX: cx - ex, maxX: cx + ex, minZ: cz - ez, maxZ: cz + ez, top: b.y + 0.5 });
+    }
+  }
+  return out;
+}
+
+/**
+ * The gas lamps on the walk (the town's own model, props.glb gas_lamp) and the lanterns of the guard houses
+ * and gates, each one of the town's gas lamps (world/gaslamps.ts): lit at dusk, a halo, a pool of light on
+ * the stones, the point lights and the wet streaks when near. Nobody sets them, so they follow the clock.
+ * Returns the lamp posts' colliders.
+ */
+export function wallLamps(scene: THREE.Scene, gasLamps: GasLamps, props: Props, d: WallDressing): Rect[] {
+  const group = new THREE.Group();
+  group.name = "wall_lamps";
+  scene.add(group);
+  const out: Rect[] = [];
+  let id = 1000; // (the city's lamps are d0.., decor.lamps: these come after, far past them)
+  for (const [x, z, y] of d.lamps) {
+    const obj = props.place("gas_lamp", x, z, 0, group);
+    obj.position.y = y;
+    obj.updateMatrixWorld(true);
+    lampNodes.push(obj);
+    gasLamps.addDecor(id++, obj, x, z, { glass: y + 3.65, ground: y });
+    out.push({ minX: x - 0.2, maxX: x + 0.2, minZ: z - 0.2, maxZ: z + 0.2 });
+  }
+  for (const [x, y, z] of d.lanterns) {
+    gasLamps.addDecor(id++, new THREE.Object3D(), x, z, { glass: y, ground: rampartHeightAt(x, z) ?? 0 });
+  }
+  return out;
 }
 
 interface Guard {

@@ -7,9 +7,10 @@ g = 255 on a stone, b = 255 where a stone runs on from the tile to the left: wor
 the stones in the picture: the joints are the thin dark lines (a black-hat filter) and the brown mud; each
 stone is its convex hull unless two ran together. The picture tiles, so the work is done on 3 x 3 copies.
 
-    python tools/textures/setts_maps.py <picture.png> <out folder>
+    python tools/textures/setts_maps.py <picture.png> <out folder> [name] [joint percentile, 62]
 
-writes quay_setts_h.png and quay_setts_id.png (512 px) and setts_seg.jpg (the stones in green, to look at).
+writes <name>_h.png and <name>_id.png (512 px; name defaults to quay_setts) and <name>_seg.jpg (the stones
+in green, to look at). The street cobbles (street_cobble.jpg) use the same tool with a joint percentile of 45 (their joints are thinner).
 """
 import sys
 
@@ -20,7 +21,8 @@ from scipy import ndimage as ndi
 N = 512
 
 
-def main(src, out):
+def main(src, out, name="quay_setts", joint_pct="62"):
+    joint_pct = float(joint_pct)
     im = cv2.imread(src)[:, :, ::-1]
     im = cv2.resize(im, (N, N), interpolation=cv2.INTER_AREA).astype(np.float32)
     lum = im.mean(axis=2)
@@ -28,7 +30,7 @@ def main(src, out):
     sm = cv2.GaussianBlur(big, (0, 0), 1.6)
     bh = cv2.morphologyEx(sm, cv2.MORPH_BLACKHAT, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11)))[N:2 * N, N:2 * N]
     redness = im[:, :, 0] - im[:, :, 2]
-    joint = (bh > np.percentile(bh, 62)) | (redness > np.percentile(redness, 90)) & (lum < np.percentile(lum, 40))
+    joint = (bh > np.percentile(bh, joint_pct)) | (redness > np.percentile(redness, 90)) & (lum < np.percentile(lum, 40))
     k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     mb = np.tile((~joint).astype(np.uint8), (3, 3))
     mb = cv2.morphologyEx(mb, cv2.MORPH_OPEN, k, iterations=2)
@@ -59,7 +61,7 @@ def main(src, out):
     e = np.clip(dist / 4.0, 0, 1)
     h = np.where(on, np.sqrt(1 - (1 - e) ** 2), 0.08).astype(np.float32)
     h = cv2.GaussianBlur(np.tile(h, (3, 3)), (0, 0), 0.8)[N:2 * N, N:2 * N]
-    cv2.imwrite(f"{out}/quay_setts_h.png", np.clip(h * 255, 0, 255).astype(np.uint8))
+    cv2.imwrite(f"{out}/{name}_h.png", np.clip(h * 255, 0, 255).astype(np.uint8))
     ids = np.zeros((N, N, 3), np.uint8)
     for i in np.unique(center[on]):
         ys, xs = np.nonzero(stones == i)
@@ -70,12 +72,12 @@ def main(src, out):
             ids[center == i, 2] = 255  # it started in the tile to the left
         if ys.min() < N or ys.max() >= 2 * N:
             ids[center == i, 1] = 0  # cut by the top or bottom edge: no dice of its own
-    cv2.imwrite(f"{out}/quay_setts_id.png", ids[:, :, ::-1])
+    cv2.imwrite(f"{out}/{name}_id.png", ids[:, :, ::-1])
     vis = (im * 0.5).astype(np.uint8)
     vis[on] = (vis[on] * 0.5 + np.array([0, 120, 0])).astype(np.uint8)
-    cv2.imwrite(f"{out}/setts_seg.jpg", vis[:, :, ::-1])
+    cv2.imwrite(f"{out}/{name}_seg.jpg", vis[:, :, ::-1])
     print("stones", len(np.unique(center[on])))
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2])
+    main(*sys.argv[1:5])

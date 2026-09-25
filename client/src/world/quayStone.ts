@@ -35,6 +35,7 @@ export function withPicture(tex: THREE.Texture, url: string): THREE.Texture {
   img.onload = () => {
     tex.image = img;
     tex.needsUpdate = true;
+    (tex.userData.onPicture as (() => void) | undefined)?.();
   };
   img.onerror = () => console.warn("texture picture did not load", url);
   img.src = url;

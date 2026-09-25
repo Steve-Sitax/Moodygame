@@ -113,6 +113,21 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
     const earthPave = earthPaving();
     // cobbles and flagstones with height maps (world/paving.ts): they stand up (psx relief)
     const cobPave = cobblePaving();
+    // "not too clean, as it was then" (Steve, 2026-09-25): the street cobbles a Codex picture of muddy setts with
+    // dung and straw (3 m a tile: stones of about 15 cm), its height from its own light and dark (the joints are too muddy to find the
+    // stones in): so no stone map, every stone rolls no dice of its own; the painted one shows until it loads
+    withPicture(cobPave.height, "/textures/street_cobble_h.png");
+    withPicture(cobPave.map, "/textures/street_cobble.jpg").userData.onPicture = () => {
+      const blank = document.createElement("canvas");
+      blank.width = blank.height = 4;
+      const g = blank.getContext("2d")!;
+      g.fillStyle = "rgb(0,0,0)";
+      g.fillRect(0, 0, 4, 4);
+      if (cobPave.id) {
+        cobPave.id.image = blank;
+        cobPave.id.needsUpdate = true;
+      }
+    };
     const flagPave = flagPaving();
     const grassPave = grassPaving();
     const quayPave = quayPaving();
@@ -123,7 +138,7 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
     const zoneMat: Record<string, [THREE.Material, number]> = {
       // bump maps from the texture itself: light stone stands up, dark joints sink, so the
       // sun and the gas lamps pick out every sett (Steve: "bump mapping?")
-      cobble: [psx(new THREE.MeshPhongMaterial({ map: cobPave.map, color: 0xffffff, specular: cob.specular, shininess: cob.shininess }), { noSnap: true, affine: 0, wet: true, puddles: 1, vary: 1, relief: { height: cobPave.height, id: cobPave.id, holes: 1, depth: 0.075, tile: 2, bump: 4.0 } }), 2],
+      cobble: [psx(new THREE.MeshPhongMaterial({ map: cobPave.map, color: 0xffffff, specular: cob.specular, shininess: cob.shininess }), { noSnap: true, affine: 0, wet: true, puddles: 1, vary: 1, relief: { height: cobPave.height, id: cobPave.id, holes: 1, depth: 0.025, tile: 3, bump: 2.6 } }), 3],
       // packed earth with its own height map: lumps, pebbles, hollows (world/paving.ts)
       earth: [psx(new THREE.MeshLambertMaterial({ map: earthPave.map }), { noSnap: true, affine: 0, wet: true, puddles: 1.3, vary: 1, detile: true, relief: { height: earthPave.height, depth: 0.045, tile: 4, bump: 3.2 } }), 4],
       flags: [psx(new THREE.MeshPhongMaterial({ map: flagPave.map, specular: 0x1a1a1a, shininess: 12 }), { noSnap: true, affine: 0, wet: true, puddles: 0.75, vary: 0.8, relief: { height: flagPave.height, id: flagPave.id, holes: 0, depth: 0.025, tile: 4, bump: 1.6 } }), 4],
