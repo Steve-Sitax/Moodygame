@@ -8,6 +8,7 @@ import type { Rect } from "./geom";
 import { trackKeepOut, type TrackData } from "./tracks";
 import { trafficLanes } from "./traffic";
 import { loadProps } from "./props3d";
+import { wallBox, type WallBox } from "./wallprobe";
 
 // Quay furniture (tools/blender/build_quayfurniture.py -> /models/quayfurniture.glb): the
 // iron, rope and timber along the water, after the 1870s photos of the Antwerp quays.
@@ -46,6 +47,12 @@ export interface QuayFurnitureOptions {
   keepClear?: Array<{ x: number; z: number; r: number }>;
   /** Dev: list every copy in `sites`, not only the bigger things. */
   allSites?: boolean;
+  /**
+   * Fixes 2026-09-25 (a notice painted across an Entrepot window): the house walls' painted windows,
+   * doors and signs (world/streetlife.ts clearOnWall, addWallItem). The notices and quay names on the
+   * storehouse walls keep off them, and go on the list the sign check reads.
+   */
+  houseWalls?: { clear(b: WallBox): string | null; add(b: WallBox): void };
 }
 
 export interface QuayFurniture {
@@ -60,6 +67,10 @@ export interface QuayFurniture {
   stats: { counts: Record<string, number>; meshes: number; triangles: number };
   /** Where the bigger things stand (huts, booths, boards, lanterns, heaps), for maps and checks. */
   sites: Array<{ kind: string; x: number; z: number; yaw: number }>;
+  /** The notices and quay names painted on the storehouse walls, as boxes (dev/signcheck.ts). */
+  wallItems: WallBox[];
+  /** Those moved off a painted window, a door or a sign (where the old rule put them, and why), or left out. */
+  moved: Array<{ model: string; from: [number, number, number]; to: [number, number, number] | null; why: string }>;
 }
 
 interface Meta {
@@ -107,6 +118,8 @@ interface Proto {
   minZ: number;
   maxZ: number;
   height: number;
+  /** Bounds of every vertex [x0, y0, z0, x1, y1, z1] in its own frame (for wall things' boxes). */
+  box: number[];
 }
 
 function rng(seed: number): () => number {
@@ -140,7 +153,7 @@ async function loadModels(): Promise<{ protos: Map<string, Proto>; meta: Meta; s
       meta = JSON.parse(node.userData.meta as string) as Meta;
       continue;
     }
-    const proto: Proto = { parts: [], minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity, height: 0 };
+    const proto: Proto = { parts: [], minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity, height: 0, box: [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity] };
     const inv = new THREE.Matrix4().copy(node.matrixWorld).invert();
     node.traverse((o) => {
       const m = o as THREE.Mesh;
@@ -163,6 +176,13 @@ async function loadModels(): Promise<{ protos: Map<string, Proto>; meta: Meta; s
       for (let i = 0; i < n; i++) {
         v.fromBufferAttribute(P, i).applyMatrix4(M);
         part.pos.set([v.x, v.y, v.z], i * 3);
+        const bb = proto.box;
+        bb[0] = Math.min(bb[0], v.x);
+        bb[1] = Math.min(bb[1], v.y);
+        bb[2] = Math.min(bb[2], v.z);
+        bb[3] = Math.max(bb[3], v.x);
+        bb[4] = Math.max(bb[4], v.y);
+        bb[5] = Math.max(bb[5], v.z);
         if (slot === SOLID || slot === FIRE) {
           proto.height = Math.max(proto.height, v.y);
           if (v.y < 1.5 && v.y > -0.05) {
@@ -539,6 +559,9 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
   const colliders: Rect[] = [];
   /** Ground taken by what we put down (solid or not): nothing of ours overlaps. */
   const taken: Rect[] = [];
+  /** The painted notices and quay names on the storehouse walls (and the weigh doors), for the sign check. */
+  const wallItems: WallBox[] = [];
+  const moved: QuayFurniture["moved"] = [];
 
   /** The footprint of a model at (x, z, yaw) as a box on the ground. */
   function box(p: Proto, x: number, z: number, yaw: number, pad = 0): Rect {
@@ -928,6 +951,45 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
       fronts.push({ ax, az, tx: (bx - ax) / L, tz: (bz - az) / L, ox, oz, L, gates: [] });
     }
     const nearWater = (x: number, z: number) => segs.some((g) => distSeg(x, z, g.ax, g.az, g.ax + g.tx * g.L, g.az + g.tz * g.L) < 30);
+    /**
+     * Paint `model` on the storehouse wall f, `s` along it at height y, where the old rule put it; if a
+     * painted window or door of the house wall, or a sign, is there (streetlife clearOnWall), the nearest
+     * clear place: along the wall up to 3 m, up or down up to 1.5 m (`down`), least moved first. None: left out.
+     */
+    const onHouseWall = (kind: string, model: string, f: (typeof fronts)[number], s: number, y: number, yaw: number, gateNear: ((s: number, half: number) => boolean) | null, inset = 0, down = 1.5): boolean => {
+      const p = protos.get(model);
+      if (!p) return false;
+      const hw = (p.box[3] - p.box[0]) / 2;
+      // (the paint only: a decal's clear margin above and below its letters may lie over a window's frame)
+      const pb = [p.box[0], p.box[1] + inset, p.box[2], p.box[3], p.box[4] - inset, p.box[5]];
+      const at3 = (ss: number, yy: number): [number, number, number] => [+(f.ax + f.tx * ss).toFixed(2), +yy.toFixed(2), +(f.az + f.tz * ss).toFixed(2)];
+      const tries: Array<[number, number]> = [[0, 0]];
+      if (opts.houseWalls) {
+        for (let dy = -Math.round(down * 10); dy <= 15; dy++) for (let ds = -12; ds <= 12; ds++) if (dy || ds) tries.push([ds * 0.25, dy * 0.1]);
+        tries.sort((a, b) => Math.abs(a[0]) + Math.abs(a[1]) - (Math.abs(b[0]) + Math.abs(b[1])));
+      }
+      let why = "";
+      for (const [ds, dy] of tries) {
+        const ss = s + ds;
+        const yy = y + dy;
+        if (ss - hw < 0.5 || ss + hw > f.L - 0.5 || (gateNear && f.gates.length && gateNear(ss, hw)) || yy + p.box[1] < 1.8) continue;
+        const x = f.ax + f.tx * ss + f.ox * 0.02;
+        const z = f.az + f.tz * ss + f.oz * 0.02;
+        const b = wallBox(kind, model, true, pb, x, yy, z, yaw);
+        const bad = opts.houseWalls?.clear(b) ?? null;
+        if (bad) {
+          why ||= bad;
+          continue;
+        }
+        put(model, x, yy, z, yaw, true);
+        wallItems.push(b);
+        opts.houseWalls?.add(b);
+        if (ds || dy) moved.push({ model, from: at3(s, y), to: at3(ss, yy), why });
+        return true;
+      }
+      moved.push({ model, from: at3(s, y), to: null, why: why || "no room" });
+      return false;
+    };
     let weigh = 0;
     let notice = Math.floor(R() * meta.wallNotices.length);
     const named = new Set<string>();
@@ -946,9 +1008,8 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
       const wn = quayName ? meta.wallNames.find((w) => w.name === quayName) : null;
       const byDoor = Object.values(city.doors).some((d) => Math.hypot(d.x - mx, d.z - mz) < 8);
       if (wn && !byDoor && !named.has(`${quayName}${Math.round(mx / 40)}`) && f.L > wn.len + 2) {
-        const [x, z] = onWall(f.L / 2);
-        put(wn.model, x, 6.2, z, yaw, true);
-        named.add(`${quayName}${Math.round(mx / 40)}`);
+        // (high over the gates: they do not count; the letters 0.7 m of the decal's 0.9)
+        if (onHouseWall("quay name", wn.model, f, f.L / 2, 6.2, yaw, null, 0.1, 2.1)) named.add(`${quayName}${Math.round(mx / 40)}`);
       }
       // a public weigh house door, on the busy basin (one or two)
       if (weigh < 2 && (dist === "bassin" || dist === "north")) {
@@ -962,6 +1023,10 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
           if (!isClear(x + f.ox, z + f.oz, 0.5)) continue;
           put("weigh_door", x, 0, z, yaw, true);
           taken.push(r);
+          // (a door, not flat paint: the notices keep off it)
+          const wb = wallBox("weigh door", "weigh_door", false, p.box, x, 0, z, yaw);
+          wallItems.push(wb);
+          opts.houseWalls?.add(wb);
           weigh++;
           break;
         }
@@ -970,8 +1035,7 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
       for (let s = 3; s < f.L - 3; s += 9 + R() * 6) {
         const wn2 = meta.wallNotices[notice % meta.wallNotices.length];
         if (gateNear(s, wn2.len / 2)) continue;
-        const [x, z] = onWall(s);
-        put(wn2.model, x, 3.1 + R() * 0.3, z, yaw, true);
+        onHouseWall("quay notice", wn2.model, f, s, 3.1 + R() * 0.3, yaw, gateNear);
         notice++;
       }
     }
@@ -1033,5 +1097,5 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
   }
   update(0, 0, 0);
 
-  return { group, colliders, update, stats: { counts, meshes: chunks.length, triangles: Math.round(triangles) }, sites };
+  return { group, colliders, update, stats: { counts, meshes: chunks.length, triangles: Math.round(triangles) }, sites, wallItems, moved };
 }

@@ -249,14 +249,16 @@ describe("errands (engine-built jobs)", () => {
     emigrantsTick(db);
     const f = here(db).find((x) => x.household === 9000)!;
     const j = listJobs(db, 2).find((x) => x.employer_npc === f.head && x.status === "offered")!;
-    expect(j.title).toContain("chests to the lighter");
-    expect(j.pay_c).toBe(PAY.luggage_base + PAY.per_chest * f.chests);
-    expect(j.task).toMatchObject({ kind: "carry", goods: "chests", count: f.chests, from: "emigrant_quay", to: "lighter_berth" });
+    expect(j.title).toMatch(/chests? to the lighter/);
+    // M7 short jobs: by hand at most two chests; a family with three carries the small one itself
+    const n = Math.min(f.chests, 2);
+    expect(j.pay_c).toBe(PAY.luggage_base + PAY.per_chest * n);
+    expect(j.task).toMatchObject({ kind: "carry", goods: "chests", count: n, from: "emigrant_quay", to: "lighter_berth" });
     // while Jef has their chests, the family waits for him
     takeJob(db, j.id);
     expect(emigrantsView(db)!.families.find((x) => x.household === 9000)!.waiting_for_jef).toBe(true);
     const m0 = money(db);
-    finishJob(db, j.id, { delivered: f.chests, lost: 0, sold: 0, pocketed: false, late: false, left_post_s: 0, thief: "none", bribe_taken: false, seen_away: false }, () => 0.99);
+    finishJob(db, j.id, { delivered: n, lost: 0, sold: 0, pocketed: false, late: false, left_post_s: 0, thief: "none", bribe_taken: false, seen_away: false }, () => 0.99);
     expect(money(db)).toBe(m0 + j.pay_c);
     emigrantsTick(db);
     expect(listJobs(db, 2).filter((x) => x.employer_npc === f.head && x.status === "offered").length).toBe(0); // never twice

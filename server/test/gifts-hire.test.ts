@@ -13,7 +13,7 @@ import { actionRow } from "../src/director/actions.ts";
 import { installErrands } from "../src/town/handsRoutes.ts";
 import { feltWorth, GIFT_TRUST_CEILING, GIFT_TRUST_WEEK, GIFTS_PER_DAY, giveInTalk, giftTrust, kindsIn, offersGift, pickGift } from "../src/town/gifts.ts";
 import { guestsIn, jefEnters, jefLeaves, secretOf, standRound, taverns, treatContext, treatOf, TREAT_ROUNDS_MAX } from "../src/town/treat.ts";
-import { answerAsk, askFor, crewCap, CREW_MAX, dishonestPlan, hireTick, MAX_WAGE_C, offerFrom, perTrip, planFrom, proposeHire, sumsIn, writeHandLines } from "../src/town/hire.ts";
+import { answerAsk, askFor, crewCap, CREW_MAX, dishonestPlan, hireTick, keptFor, MAX_WAGE_C, offerFrom, perTrip, planFrom, proposeHire, sumsIn, writeHandLines } from "../src/town/hire.ts";
 import { jefCarts } from "../src/town/handcart.ts";
 import { SPOTS } from "../src/hooks/jobBoard.ts";
 import { keeperAtWork, keeperOf } from "../src/interiors/state.ts";
@@ -707,6 +707,69 @@ describe("hired hands", { timeout: 30_000 }, () => {
     const paid = 200 - money(db);
     expect(paid).toBeGreaterThan(0);
     expect(paid).toBeLessThan(ask);
+  });
+
+  it("a rehire after a failed hire: the half he kept counts, so words and money agree (Steve 2026-09-25)", () => {
+    const db = fresh();
+    const job = carryJob(db, 4, 100);
+    setMoney(db, 200);
+    const r = poorDocker(db);
+    const at = { jef: { x: 20, z: 20 }, mine: { x: 20, z: 20, indoors: false } };
+    const ask = askFor(db, r, 4);
+    const half = Math.floor(ask / 2);
+    const words = `I'll pay you ${ask} centimes to carry my crates.`;
+    // the first hire: half up front; he cannot get through and stops before the first load, keeping the half
+    expect(proposeHire(db, r, prop({ kind: "work_for_pay", amount_c: ask }), words, at, () => 0.99).ok).toBe(true);
+    expect(money(db)).toBe(200 - half);
+    const g1 = routineFor(db, r.id, "hire")!;
+    reportStep(db, g1.row.id, 0, false, "blocked");
+    expect(actionRow(db, g1.row.id)!.status).toBe("failed");
+    expect(money(db)).toBe(200 - half);
+    expect(keptFor(db, r.id, "carry")).toBe(half);
+    expect(keptFor(db, r.id, "watch")).toBe(0);
+    // the talk prompt tells the model the real sum it may promise
+    expect(residentPrompt(db, town(db).byId.get(r.id)!, "street", [])).toContain(`still have ${half} centimes`);
+    // the rehire, same work, same day: the kept half counts, no new coin now; the line says so
+    const before = money(db);
+    const v = proposeHire(db, r, prop({ kind: "work_for_pay", amount_c: ask }), words, at, () => 0.99);
+    expect(v.ok).toBe(true);
+    expect(money(db)).toBe(before);
+    expect(v.line).toContain(`The ${half} I kept from last time counts.`);
+    expect(v.line).toContain(`${ask - half} when it's done`);
+    expect(keptFor(db, r.id, "carry")).toBe(0);
+    // all four carried: in the end Jef paid the wage once, never the half twice
+    const g2 = routineFor(db, r.id, "hire")!;
+    let delivered = 0;
+    for (let guard = 0; guard < 40 && actionRow(db, g2.row.id)!.status === "active"; guard++) {
+      const rt = routineOf(actionRow(db, g2.row.id))!;
+      if (rt.steps[rt.i].kind === "carry") progress(db, job, ++delivered);
+      reportStep(db, g2.row.id, rt.i, true, "done");
+    }
+    expect(actionRow(db, g2.row.id)!.status).toBe("done");
+    expect(money(db)).toBe(200 - ask);
+  });
+
+  it("the kept half counts only for the same kind of work, and only that day or the next", () => {
+    const db = fresh();
+    carryJob(db, 4, 100);
+    setMoney(db, 200);
+    const r = poorDocker(db);
+    const at = { jef: { x: 20, z: 20 }, mine: { x: 20, z: 20, indoors: false } };
+    const ask = askFor(db, r, 4);
+    const half = Math.floor(ask / 2);
+    proposeHire(db, r, prop({ kind: "work_for_pay", amount_c: ask }), `I'll pay you ${ask} centimes to carry my crates.`, at, () => 0.99);
+    reportStep(db, routineFor(db, r.id, "hire")!.row.id, 0, false, "blocked");
+    expect(keptFor(db, r.id, "carry")).toBe(half);
+    setClock(db, 2, 10);
+    expect(keptFor(db, r.id, "carry")).toBe(half);
+    setClock(db, 3, 10);
+    expect(keptFor(db, r.id, "carry")).toBe(0);
+    // two days on he asks the full half again
+    carryJob(db, 4, 100);
+    const ask3 = askFor(db, r, 4);
+    const before = money(db);
+    expect(proposeHire(db, r, prop({ kind: "work_for_pay", amount_c: ask3 }), `I'll pay you ${ask3} centimes to carry my crates.`, at, () => 0.99).ok).toBe(true);
+    expect(money(db)).toBe(before - Math.floor(ask3 / 2));
   });
 
   it("words: the sums Jef names, the payment plan", () => {

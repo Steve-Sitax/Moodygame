@@ -18,6 +18,7 @@ import { ensureEmigrants } from "./town/emigrants.ts";
 import { ensureLandmarksTown } from "./landmarks/town.ts";
 import { ensureLively } from "./town/lively.ts";
 import { ARRIVAL_KEY, ARRIVAL_TEXT } from "./arrival.ts";
+import { shortenOffered } from "./hooks/jobBoard.ts";
 
 // SQLite schema from docs/04-data-model.md. Only the server writes.
 // Delete data/game.sqlite to start over.
@@ -166,6 +167,8 @@ export function openDb(file: string): DB {
   ensureLively(db);
   // M7 night: the four givers of night work (night/givers.ts); in place, once
   ensureNightTown(db);
+  // M7 short jobs: open goods work of an older save to the new sizes (at most two by hand); in place, once
+  shortenOffered(db);
   return db;
 }
 

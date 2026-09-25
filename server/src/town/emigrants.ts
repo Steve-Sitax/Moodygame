@@ -10,6 +10,7 @@ import { rngFrom, type Pt, type Resident, type Stats } from "./population.ts";
 import type { Seg } from "./schedule.ts";
 import { policePost } from "./police.ts";
 import { talkExtras, type ExtraTopic } from "./talk.ts";
+import { HAND_MAX } from "../hooks/loads.ts";
 
 // Emigrants on the Rijnkaai (M6, Steve 2026-09-24: "Families with bundles wait on the quay and in
 // cheap lodging houses for the new Red Star Line ship"). Research and sources:
@@ -971,13 +972,15 @@ function wanted(e: EmigrantTown, f: Family, day: number, hour: number): ErrandKi
 function errandJob(f: Family, kind: ErrandKind): { title: string; type: string; pay: number; pitch: string; task: unknown } {
   const S = f.surname;
   if (kind === "luggage") {
-    const pay = PAY.luggage_base + PAY.per_chest * f.chests;
+    // M7 short jobs (Steve 2026-09-25): by hand at most two things; a family with three carries the small one itself
+    const n = Math.min(f.chests, HAND_MAX);
+    const pay = PAY.luggage_base + PAY.per_chest * n;
     return {
-      title: `The ${S} family's chests to the lighter`,
+      title: n === 1 ? `The ${S} family's chest to the lighter` : `The ${S} family's chests to the lighter`,
       type: "carry",
       pay,
-      pitch: `${f.chests === 1 ? "Our chest" : `Our ${f.chests} chests`}, from our place on the quay across the rails to the lighter berth. The lighter takes us out to the ship today.`,
-      task: { kind: "carry", goods: "chests", count: f.chests, from: "emigrant_quay", to: "lighter_berth", twist: "none", limit_s: null },
+      pitch: `${n === 1 ? "Our chest" : "Our two big chests"}, from our place on the quay across the rails to the lighter berth${f.chests > n ? "; we carry the small one ourselves" : ""}. The lighter takes us out to the ship today.`,
+      task: { kind: "carry", goods: "chests", count: n, from: "emigrant_quay", to: "lighter_berth", twist: "none", limit_s: null },
     };
   }
   if (kind === "watch") {

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { psx, psxUniforms, MAX_LAMPS } from "../retro/psx";
+import { psx, psxUniforms } from "../retro/psx";
 import { makeTextures, signTexture, glowTexture, type Textures } from "./textures";
 import { box, cyl, rod, rectAround, inRect, type Rect } from "./geom";
 import SPOT_TABLE from "../../../shared/spots.json";
@@ -230,6 +230,8 @@ export interface World {
   ambient: Ambient;
   /** M6 lively: street life once it is placed (the corner Madonnas, the shop fronts); null until then. */
   streetLife(): StreetLife | null;
+  /** The quay furniture (dev: its wall notices, and those it moved off a window). */
+  quayFurniture(): QuayFurniture | null;
   /** The boats (moving ships for the sound, signals at bridges); null until loaded. */
   boats(): Boats | null;
   /** The drays and handcarts (for the sound); null until loaded. */
@@ -405,6 +407,7 @@ export function buildRijnkaai(): World {
       return createQuayFurniture(scene, city.flags, {
         avoid: [...colliders, ...dynamic, ...omnibusLane, ...craneRunways, ...workplaces], // M3g: nothing on the omnibus lanes or crane runways; M3i: markets, trades
         quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
+        houseWalls: { clear: sl.clearOnWall, add: sl.addWallItem }, // fixes 2026-09-25: notices off the painted windows
       });
     })
     .then((qf) => {
@@ -896,7 +899,13 @@ export function buildRijnkaai(): World {
   // lamps on the quay stand a step back from the edge
   const lamps: Lamp[] = lampSpots.map(([x, z, broken], i) => gasLamp(scene, m, colliders, glow, x, z < 6 ? Math.max(z, edgeZ(x) + 1.6) : z, i, broken));
   const lantern = dossLantern(scene, m, glow);
-  const gasLamps = createGasLamps(scene, lamps.map((l) => ({ x: l.pos.x, z: l.pos.z })));
+  // M7 lamps: the quay lamps' point lights go to the lit lamps nearest the eye, city lamps too (world/gaslamps.ts)
+  const gasLamps = createGasLamps(
+    scene,
+    lamps.map((l) => ({ x: l.pos.x, z: l.pos.z })),
+    lamps.map((l) => l.light),
+    (x, z) => groundAt(x, z, 0, 0),
+  );
 
   // --- movement rules
   const onRamp = (x: number, z: number) => Math.abs(x - RAMP.x) < RAMP.halfW && z < RAMP.zLow && z > RAMP.zHigh - 0.2;
@@ -945,6 +954,44 @@ export function buildRijnkaai(): World {
   };
   /** Counts every real add and delete of the colliders that come and go (World.solidsVersion). */
   let dynamicVersion = 0;
+  /**
+   * Fixes 2026-09-25 (a hired hand stuck at a standing goods wagon; townspeople walking into it): the
+   * colliders that move in place (the train's wagons and horses, the travelling cranes' feet, the drays,
+   * the omnibuses, market stalls and carts set out) change no version, so the crowd's walk grid kept them
+   * where it last saw them. Now a change counts when one of them has stood still for REST_S at a new place
+   * (the grid closes it there) or starts off again from where the grid has it (the grid opens that ground).
+   * While they move, the walkers' own steps keep off them (World.isFree).
+   */
+  const REST_S = 1.2;
+  const inPlace = new WeakMap<Rect, { k: number[]; still: number; baked: boolean }>();
+  let restVersion = 0;
+  let restT = -1;
+  const checkRests = () => {
+    const now = performance.now() / 1000;
+    const dt = restT < 0 ? 0 : now - restT;
+    if (restT >= 0 && dt < 0.25) return;
+    restT = now;
+    for (const r of dynamic) {
+      const e = inPlace.get(r);
+      // first seen: it came in by add(), which the version counted; the grid has it where it is
+      if (!e) {
+        inPlace.set(r, { k: [r.minX, r.maxX, r.minZ, r.maxZ], still: 0, baked: true });
+        continue;
+      }
+      if (!(Math.abs(r.minX - e.k[0]) < 0.25 && Math.abs(r.maxX - e.k[1]) < 0.25 && Math.abs(r.minZ - e.k[2]) < 0.25 && Math.abs(r.maxZ - e.k[3]) < 0.25)) {
+        // moved: from now on it counts as on its way
+        e.k = [r.minX, r.maxX, r.minZ, r.maxZ];
+        e.still = 0;
+        if (e.baked) {
+          e.baked = false;
+          restVersion++;
+        }
+      } else if (!e.baked && (e.still += dt) >= REST_S) {
+        e.baked = true;
+        if (r.minX < 1e5) restVersion++; // (parked out of the world: nothing to close)
+      }
+    }
+  };
   const dynamic = new (class extends Set<Rect> {
     add(r: Rect): this {
       if (!this.has(r)) dynamicVersion++;
@@ -1464,7 +1511,6 @@ export function buildRijnkaai(): World {
     return "stone";
   }
 
-  const lampUniforms = psxUniforms.uLamps.value;
   const litGlass = new THREE.Color();
 
   // time of day: eases toward the target so a jump (after sleep) fades in
@@ -1630,20 +1676,20 @@ export function buildRijnkaai(): World {
     waterTex.offset.y = t * 0.011;
 
 
-    gasLamps.update(dt, lampsLit, fog.color);
     for (let i = 0; i < lamps.length; i++) {
       const l = lamps[i];
       const target = flicker(t, l.seed, l.broken) * lampsLit * gasLamps.quay(i);
       l.level += (target - l.level) * Math.min(1, dt * 18);
-      l.light.intensity = 26 * l.level;
       // unlit glass takes the colour of the air around it, so it never shows as a black box
       (l.glass.material as THREE.MeshBasicMaterial).color
         .copy(fog.color)
         .multiplyScalar(0.8 * (1 - Math.min(1, l.level)))
         .add(litGlass.setRGB(1.0 * l.level, 0.72 * l.level, 0.38 * l.level));
       l.halo.material.opacity = 0.55 * l.level;
-      if (i < MAX_LAMPS) lampUniforms[i].set(l.pos.x, l.pos.y, l.pos.z, l.level);
+      // M7 lamps: its light and its psx slot are the gas lamps' now (the nearest lit lamps have them)
+      gasLamps.quayFlame(i, l.level);
     }
+    gasLamps.update(dt, lampsLit, fog.color, camera);
   }
 
   noticeBoard(scene, m, colliders, BOARD_POS.x, BOARD_POS.z);
@@ -1662,7 +1708,10 @@ export function buildRijnkaai(): World {
     isFree,
     solids: () => [...colliders, ...dynamic].filter((c) => blocks(c, 0)),
     // (the fixed list only grows: its length and the count of changes to the others)
-    solidsVersion: () => colliders.length + dynamicVersion,
+    solidsVersion: () => {
+      checkRests();
+      return colliders.length + dynamicVersion + restVersion;
+    },
     isWater,
     baseAt,
     reachFrom,
@@ -1675,6 +1724,7 @@ export function buildRijnkaai(): World {
     },
     ambient,
     streetLife: () => street,
+    quayFurniture: () => quayKit,
     setPeople: (fn) => (peopleFn = fn),
     setCarts: (fn) => (cartsFn = fn),
     lockSweep: (x, z, r) => !!lock?.inSweep?.(x, z, r),

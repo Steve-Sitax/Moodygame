@@ -20,6 +20,8 @@ export interface CarryTask {
   twist: Twist;
   limit_s: number | null;
   progress?: Progress;
+  /** M7 short jobs: cart work (3 to 8 things): the employer's handcart is lent at the start (server town/handcart.ts). */
+  cart?: boolean;
 }
 export interface WatchTask {
   kind: "watch";

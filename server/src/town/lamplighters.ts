@@ -29,8 +29,12 @@ export const QUAY_LAMPS: RPt[] = [
   [24, 2.2],
   [44, 19.8],
 ];
-/** 4: the Oostershuis lamp moved off the gate to the pier beside it (M7 doors, 2026-09-25): its stand with it. */
-export const LAMPS_VERSION = 4;
+/**
+ * 4: the Oostershuis lamp moved off the gate to the pier beside it (M7 doors, 2026-09-25): its stand with it.
+ * 5: M7 lamps (2026-09-25): 34 new lamps (the Grote Markt, the Handschoenmarkt, the cathedral quarter, the
+ * lock bridge, main streets); d22 and d23 out of the town hall's walls, d26 and d27 out of the canal.
+ */
+export const LAMPS_VERSION = 5;
 const STATE_KEY = "townlife_lamps";
 
 export interface LampRounds {
@@ -46,9 +50,33 @@ export function allLamps(): Array<{ id: string; x: number; z: number }> {
 
 // ------------------------------------------------------------------ paths on the walk map
 
+/** The lamp posts' cells a cart keeps off (M7 lamps): every cell within `clear` + 0.3 m of a post, per clear. */
+const postCells = new Map<number, Set<number>>();
+function lampPostCells(clear: number): Set<number> {
+  let s = postCells.get(clear);
+  if (s) return s;
+  s = new Set<number>();
+  const { x0, z0, res, w, h } = walkMap().info;
+  const R = clear + 0.3;
+  for (const l of allLamps()) {
+    const r0 = Math.floor((l.x - R - x0) / res);
+    const r1 = Math.floor((l.x + R - x0) / res);
+    const c0 = Math.floor((l.z - R - z0) / res);
+    const c1 = Math.floor((l.z + R - z0) / res);
+    for (let r = Math.max(0, r0); r <= Math.min(h - 1, r1); r++)
+      for (let c = Math.max(0, c0); c <= Math.min(w - 1, c1); c++) {
+        if (Math.hypot(x0 + (r + 0.5) * res - l.x, z0 + (c + 0.5) * res - l.z) <= R) s.add(r * w + c);
+      }
+  }
+  postCells.set(clear, s);
+  return s;
+}
+
 /**
  * A* over the walk map's reachable cells (8 ways, no cutting corners), simplified to a few points.
- * `clear`: more room round each cell (a horse and cart need about a metre each side).
+ * `clear`: more room round each cell (a horse and cart need about a metre each side); with room asked
+ * for, the way keeps that room from the gas lamps' posts too (M7 lamps: a hearse or the fire pump never
+ * drives through a lamp standing on a square). A walker (`clear` 0) passes them by a hand's breadth.
  */
 export function walkPath(ax: number, az: number, bx: number, bz: number, maxExpand = 400_000, clear = 0): RPt[] | null {
   const wm = walkMap();
@@ -57,6 +85,7 @@ export function walkPath(ax: number, az: number, bx: number, bz: number, maxExpa
   const cellOf = (x: number, z: number) => [Math.floor((x - x0) / res), Math.floor((z - z0) / res)] as const;
   const centre = (r: number, c: number): RPt => [x0 + (r + 0.5) * res, z0 + (c + 0.5) * res];
   const roomy = new Map<number, boolean>();
+  const posts = clear ? lampPostCells(clear) : null;
   const ok = (r: number, c: number) => {
     if (r < 0 || c < 0 || r >= h || c >= w || !wm.reachable(...centre(r, c))) return false;
     if (!clear) return true;
@@ -69,6 +98,8 @@ export function walkPath(ax: number, az: number, bx: number, bz: number, maxExpa
   const [tr, tc] = cellOf(bx, bz);
   if (!ok(sr, sc) || !ok(tr, tc)) return null;
   const key = (r: number, c: number) => r * w + c;
+  // (the start and the end may lie by a post: the way to and from them does not)
+  const byPost = (k: number) => !!posts && posts.has(k) && k !== key(sr, sc) && k !== key(tr, tc);
   const g = new Map<number, number>();
   const from = new Map<number, number>();
   const heap: Array<[number, number]> = [];
@@ -124,6 +155,7 @@ export function walkPath(ax: number, az: number, bx: number, bz: number, maxExpa
         if (!ok(rr, cc)) continue;
         if (dr && dc && (!ok(r + dr, c) || !ok(r, c + dc))) continue;
         const nk = key(rr, cc);
+        if (byPost(nk)) continue;
         const ng = gk + (dr && dc ? Math.SQRT2 : 1);
         if (ng < (g.get(nk) ?? Infinity)) {
           g.set(nk, ng);
@@ -145,6 +177,9 @@ export function walkPath(ax: number, az: number, bx: number, bz: number, maxExpa
 function simplify(pts: RPt[], room = 0): RPt[] {
   if (pts.length <= 2) return pts;
   const wm = walkMap();
+  const { x0, z0, res, w } = wm.info;
+  const posts = room ? lampPostCells(room) : null;
+  const byPost = (x: number, z: number) => !!posts && posts.has(Math.floor((x - x0) / res) * w + Math.floor((z - z0) / res));
   const clear = (a: RPt, b: RPt) => {
     const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
     const n = Math.ceil(L / 0.25);
@@ -152,7 +187,7 @@ function simplify(pts: RPt[], room = 0): RPt[] {
       const k = i / n;
       const x = a[0] + (b[0] - a[0]) * k;
       const z = a[1] + (b[1] - a[1]) * k;
-      if (!wm.reachable(x, z) || (room && !wm.open(x, z, room))) return false;
+      if (!wm.reachable(x, z) || (room && (!wm.open(x, z, room) || byPost(x, z)))) return false;
     }
     return true;
   };

@@ -65,6 +65,16 @@ export interface StreetLife {
   storey_h: number;
   /** The names on the plates (plate_i). */
   streetNames: string[];
+  /**
+   * Fixes 2026-09-25 (Steve: two neighbours both 52): every house door's number, per street: odd on the
+   * left and even on the right walking from the end nearer the river, rising along the street, unique in
+   * it. From the plan's walls, so the same every load. `plate`: a number plate is drawn by this door.
+   */
+  houseNumbers: Array<{ x: number; z: number; n: number; street: number; plate: boolean }>;
+  /** Why this flat thing may not go on the house wall there (a window, a door, another sign, no wall), or null: for quayfurniture.ts. */
+  clearOnWall(b: WallBox): string | null;
+  /** Put a thing another module painted on a house wall on the list (signs check, and nothing else goes over it). */
+  addWallItem(b: WallBox): void;
 }
 
 interface Meta {
@@ -110,6 +120,121 @@ const WALL_DECAL = 1;
 const GROUND_DECAL = 2;
 const PUDDLE = 3;
 const GLOW = 4;
+/** The house number plates, drawn here (a canvas atlas: any number, not only the glb's fourteen). */
+const NUMBER = 5;
+
+// ------------------------------------------------------------------ house numbers (fixes 2026-09-25)
+
+/** The digits of tools/blender/build_streetlife.py GLYPHS (5 x 7), so a plate looks as the glb's did. */
+const DIGITS: Record<string, string[]> = {
+  "0": [".###.", "#...#", "#..##", "#.#.#", "##..#", "#...#", ".###."],
+  "1": ["..#..", ".##..", "..#..", "..#..", "..#..", "..#..", ".###."],
+  "2": [".###.", "#...#", "....#", "...#.", "..#..", ".#...", "#####"],
+  "3": ["####.", "....#", "....#", ".###.", "....#", "....#", "####."],
+  "4": ["...#.", "..##.", ".#.#.", "#..#.", "#####", "...#.", "...#."],
+  "5": ["#####", "#....", "####.", "....#", "....#", "#...#", ".###."],
+  "6": ["..##.", ".#...", "#....", "####.", "#...#", "#...#", ".###."],
+  "7": ["#####", "....#", "...#.", "..#..", ".#...", ".#...", ".#..."],
+  "8": [".###.", "#...#", "#...#", ".###.", "#...#", "#...#", ".###."],
+  "9": [".###.", "#...#", "#...#", ".####", "....#", "...#.", ".##.."],
+};
+/** A plate's pixels (as paint_number: 3 px round the digits, 11 px high) and its size on the wall (0.016 m a pixel). */
+const PLATE_PX = 0.016;
+const plateW = (n: number) => String(n).length * 6 - 1 + 6;
+const PLATE_H = 11;
+
+/**
+ * The house numbers of a town, per street. A street is a chain of door walls along one line: the same
+ * side (parallel, in one plane, less than 30 m apart along it) or the two sides facing each other across
+ * open ground. The numbers start at the end nearer the river: odd on the left, even on the right.
+ */
+export function numberHouses(
+  doors: Array<{ x: number; z: number; tx: number; tz: number; ox: number; oz: number }>,
+  open: (x: number, z: number) => boolean,
+  river: Array<[number, number]>,
+): Array<{ n: number; street: number }> {
+  const N = doors.length;
+  const up = Array.from({ length: N }, (_, i) => i);
+  const find = (i: number): number => (up[i] === i ? i : (up[i] = find(up[i])));
+  const join = (a: number, b: number) => {
+    const ra = find(a), rb = find(b);
+    if (ra !== rb) up[Math.max(ra, rb)] = Math.min(ra, rb);
+  };
+  const G = 32;
+  const grid = new Map<string, number[]>();
+  doors.forEach((d, i) => {
+    const k = `${Math.floor(d.x / G)},${Math.floor(d.z / G)}`;
+    const l = grid.get(k);
+    if (l) l.push(i);
+    else grid.set(k, [i]);
+  });
+  for (let i = 0; i < N; i++) {
+    const a = doors[i];
+    const gx = Math.floor(a.x / G), gz = Math.floor(a.z / G);
+    for (let u = -1; u <= 1; u++) {
+      for (let v = -1; v <= 1; v++) {
+        for (const j of grid.get(`${gx + u},${gz + v}`) ?? []) {
+          if (j <= i) continue;
+          const b = doors[j];
+          if (Math.abs(a.tx * b.tx + a.tz * b.tz) < 0.96) continue;
+          const dx = b.x - a.x, dz = b.z - a.z;
+          const across = dx * a.ox + dz * a.oz;
+          const along = Math.abs(dx * a.tx + dz * a.tz);
+          const facing = a.ox * b.ox + a.oz * b.oz;
+          if (facing > 0.9) {
+            if (Math.abs(across) < 1.5 && along < 30) join(i, j);
+          } else if (facing < -0.9 && across > 2.5 && across < 16 && along < 12) {
+            // across the street: open ground all the way from one door to the other's wall
+            let clear = true;
+            for (let k = 0.8; clear && k < across - 0.8; k += 0.7) clear = open(a.x + a.ox * k, a.z + a.oz * k);
+            if (clear) join(i, j);
+          }
+        }
+      }
+    }
+  }
+  const streets = new Map<number, number[]>();
+  for (let i = 0; i < N; i++) {
+    const r = find(i);
+    const l = streets.get(r);
+    if (l) l.push(i);
+    else streets.set(r, [i]);
+  }
+  const out = doors.map(() => ({ n: 0, street: -1 }));
+  let sid = 0;
+  for (const [root, list] of [...streets].sort((p, q) => p[0] - q[0])) {
+    void root;
+    // the street's direction: the first door's, the others turned to agree
+    const d0 = doors[list[0]];
+    let tx = 0, tz = 0;
+    for (const i of list) {
+      const s = doors[i].tx * d0.tx + doors[i].tz * d0.tz < 0 ? -1 : 1;
+      tx += doors[i].tx * s;
+      tz += doors[i].tz * s;
+    }
+    const L = Math.hypot(tx, tz) || 1;
+    tx /= L;
+    tz /= L;
+    // start at the end nearer the river
+    const proj = list.map((i) => doors[i].x * tx + doors[i].z * tz);
+    const lo = list[proj.indexOf(Math.min(...proj))], hi = list[proj.indexOf(Math.max(...proj))];
+    const toRiver = (d: { x: number; z: number }) => Math.min(...river.map(([x, z]) => Math.hypot(x - d.x, z - d.z)));
+    if (toRiver(doors[hi]) < toRiver(doors[lo]) - 1e-6) {
+      tx = -tx;
+      tz = -tz;
+    }
+    // left of the way along: (tz, -tx) turned to the ground (x, z); a house whose front looks right stands on the left
+    const lx = tz, lz = -tx;
+    const sides: [number[], number[]] = [[], []];
+    for (const i of list) sides[doors[i].ox * lx + doors[i].oz * lz < 0 ? 0 : 1].push(i);
+    sides.forEach((side, k) => {
+      side.sort((a, b) => doors[a].x * tx + doors[a].z * tz - (doors[b].x * tx + doors[b].z * tz) || a - b);
+      side.forEach((i, m) => (out[i] = { n: k === 0 ? 1 + 2 * m : 2 + 2 * m, street: sid }));
+    });
+    sid++;
+  }
+  return out;
+}
 
 /** A prototype: flat arrays per material slot (non-indexed triangles). */
 interface Part {
@@ -269,7 +394,53 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
   mats[PUDDLE] = psx(puddleMat, { affine: 0, noSnap: true });
   const glowMat = new THREE.MeshBasicMaterial({ map: solidMap, color: 0xffc070, fog: false });
   mats[GLOW] = glowMat;
-  mats.forEach((m, i) => (m.name = ["streetlife_solid", "streetlife_walldecal", "streetlife_grounddecal", "streetlife_puddle", "streetlife_glow"][i]));
+  // the house number plates: blue enamel, white digits, painted here into a canvas atlas of 32 x 16 px cells
+  // (cell 0: plain enamel for the plates' edges)
+  const plateCanvas = document.createElement("canvas");
+  plateCanvas.width = 512;
+  plateCanvas.height = 512;
+  const plateCtx = plateCanvas.getContext("2d")!;
+  const plateTex = new THREE.CanvasTexture(plateCanvas);
+  plateTex.magFilter = THREE.NearestFilter;
+  plateTex.minFilter = THREE.NearestFilter;
+  plateTex.generateMipmaps = false;
+  plateTex.colorSpace = THREE.SRGBColorSpace;
+  plateTex.flipY = false;
+  mats[NUMBER] = psx(new THREE.MeshLambertMaterial({ map: plateTex, vertexColors: true, side: DS, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), { affine: 0 });
+  const plateCells = new Map<number, number>();
+  const paintPlate = (cell: number, n: number | null) => {
+    const x0 = (cell % 16) * 32, y0 = Math.floor(cell / 16) * 16;
+    const w = n === null ? 32 : plateW(n);
+    const r = rng(500 + (n ?? 0));
+    const enamel = [0.1, 0.14, 0.3];
+    for (let y = 0; y < (n === null ? 16 : PLATE_H); y++) {
+      for (let x = 0; x < w; x++) {
+        let k = 0.92 + r() * 0.16;
+        if (r() < 0.06) k *= 0.8;
+        plateCtx.fillStyle = `rgb(${enamel.map((c) => Math.round(255 * Math.min(1, c * k))).join(",")})`;
+        plateCtx.fillRect(x0 + x, y0 + y, 1, 1);
+      }
+    }
+    if (n === null) return;
+    plateCtx.fillStyle = "rgb(230,230,219)";
+    let cx = x0 + 3;
+    for (const ch of String(n)) {
+      DIGITS[ch].forEach((row, ry) => [...row].forEach((c, rx) => c === "#" && plateCtx.fillRect(cx + rx, y0 + 2 + ry, 1, 1)));
+      cx += 6;
+    }
+  };
+  paintPlate(0, null);
+  const plateCell = (n: number): number => {
+    let c = plateCells.get(n);
+    if (c === undefined) {
+      c = plateCells.size + 1;
+      if (c >= 16 * 32) return -1;
+      plateCells.set(n, c);
+      paintPlate(c, n);
+    }
+    return c;
+  };
+  mats.forEach((m, i) => (m.name = ["streetlife_solid", "streetlife_walldecal", "streetlife_grounddecal", "streetlife_puddle", "streetlife_glow", "streetlife_numbers"][i]));
 
   const buckets = new Map<string, Bucket>();
   const counts: Record<string, number> = {};
@@ -365,6 +536,50 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
     }
     count(kind);
     if (SITE.test(kind)) sites.push({ kind, x: +x.toFixed(1), z: +z.toFixed(1), yaw: +yaw.toFixed(2) });
+  }
+
+  /** The box of a house number plate with this many digits, as the glb's (0.016 m a pixel, its height and depth from number_0). */
+  const plateBox = (n: number): number[] => {
+    const b = protos.get("number_0")?.box ?? [0, 2.212, 0, 0, 2.388, 0.012];
+    const L = plateW(n) * PLATE_PX;
+    return [-L / 2, b[1], b[2], L / 2, b[4], b[5]];
+  };
+  /** A house number plate at (x, z) on the wall, turned by yaw: an enamel box, the digits on its front. */
+  function putPlate(n: number, x: number, z: number, yaw: number): void {
+    if (muted) return;
+    const cell = plateCell(n);
+    if (cell < 0) return;
+    const bx = plateBox(n);
+    addItem(wallBox("house number", `number_${n}`, true, bx, x, 0, z, yaw));
+    const [x0, y0, z0, x1, y1, z1] = bx;
+    const c = Math.cos(yaw), s = Math.sin(yaw);
+    const W = (lx: number, ly: number, lz: number) => [x + lx * c + lz * s, ly, z - lx * s + lz * c];
+    const b = bucket(x, z, NUMBER);
+    const cu = (cell % 16) * 32, cv = Math.floor(cell / 16) * 16;
+    const edge = [4 / 512, 4 / 512];
+    const face = (pts: number[][], nrm: number[], uvs: number[][] | null) => {
+      const [nx, ny, nz] = nrm;
+      const wn = [nx * c + nz * s, ny, -nx * s + nz * c];
+      for (const i of [0, 1, 2, 0, 2, 3]) {
+        b.pos.push(...W(pts[i][0], pts[i][1], pts[i][2]));
+        b.nor.push(wn[0], wn[1], wn[2]);
+        b.uv.push(...(uvs ? uvs[i] : edge));
+        b.col.push(1, 1, 1);
+      }
+    };
+    const w = plateW(n);
+    face([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], [0, 0, 1], [
+      [(cu + 0.02) / 512, (cv + PLATE_H - 0.02) / 512],
+      [(cu + w - 0.02) / 512, (cv + PLATE_H - 0.02) / 512],
+      [(cu + w - 0.02) / 512, (cv + 0.02) / 512],
+      [(cu + 0.02) / 512, (cv + 0.02) / 512],
+    ]);
+    face([[x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0]], [0, 0, -1], null);
+    face([[x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0]], [0, 1, 0], null);
+    face([[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]], [0, -1, 0], null);
+    face([[x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1]], [1, 0, 0], null);
+    face([[x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0]], [-1, 0, 0], null);
+    count("house number");
   }
 
   /** UV of a point in an atlas cell (u, v in 0..1, v up), as the glb does it. */
@@ -661,6 +876,25 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
     }
   }
 
+  // ================================================================ house numbers, per street (fixes 2026-09-25)
+  // (numbered from the plan's walls alone, before anything is drawn: the same numbers every load)
+  const doorWalls = walls.filter((w) => w.kind === 0 && w.door >= 0);
+  const RIVER: Array<[number, number]> = Array.from({ length: 23 }, (_, i) => [-340 + i * 20, -5] as [number, number]);
+  const numbered = numberHouses(
+    doorWalls.map((w) => {
+      const [x, z] = along(w, w.door * w.L);
+      return { x, z, tx: w.tx, tz: w.tz, ox: w.ox, oz: w.oz };
+    }),
+    (x, z) => at(x, z) === OPEN,
+    RIVER,
+  );
+  const numberOf = new Map<Wall, number>(doorWalls.map((w, i) => [w, numbered[i].n]));
+  const houseNumbers: StreetLife["houseNumbers"] = doorWalls.map((w, i) => {
+    const [x, z] = along(w, w.door * w.L);
+    return { x: +x.toFixed(2), z: +z.toFixed(2), n: numbered[i].n, street: numbered[i].street, plate: false };
+  });
+  const plateAt = new Map<Wall, (typeof houseNumbers)[number]>(doorWalls.map((w, i) => [w, houseNumbers[i]]));
+
   // ================================================================ house fronts
   const tradeByWhere = (where: string) => meta.trades.map((t) => [t, t.where === where ? 3 : t.where === "any" ? 2 : 0.6] as const);
   const brackets: Array<[number, number]> = [];
@@ -779,16 +1013,19 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
       }
       if (r() < 0.6) {
         // beside the doorway, a hand's width off its stone surround (cityTextures.facadeOpenings), clear of the windows
+        // (fixes 2026-09-25: the street's number for this door, not one of the glb's fourteen at random)
         const side = r() < 0.5 ? -1 : 1;
-        const name = `number_${hash(w.seed) % meta.numbers}`;
-        const p = protos.get(name);
-        const hw = p ? (p.box[3] - p.box[0]) / 2 : 0.15;
+        const no = numberOf.get(w) ?? 1;
+        const pb = plateBox(no);
+        const hw = (pb[3] - pb[0]) / 2;
         const doorHalf = Math.min(bw / 2, Math.max(1.0, (bw * 14) / 64));
         for (const sd of [side, -side]) {
           const [nx, nz] = along(w, doorS + sd * (doorHalf + 0.1 + hw));
-          const b = boxFor(name, "house number", nx, 0, nz, w.yaw);
-          if (!b || !fitsOn(w, b)) continue;
-          put(name, nx, 0, nz, w.yaw, 1, "house number");
+          const b = wallBox("house number", `number_${no}`, true, pb, nx, 0, nz, w.yaw);
+          if (!fitsOn(w, b)) continue;
+          putPlate(no, nx, nz, w.yaw);
+          const hn = plateAt.get(w);
+          if (hn && !muted) hn.plate = true;
           break;
         }
       }
@@ -1069,12 +1306,13 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
     const mesh = new THREE.Mesh(g, mats[slot]);
     mesh.name = `streetlife_${k}`;
     // decals draw after the walls and ground they lie on
-    mesh.renderOrder = slot === SOLID || slot === GLOW ? 0 : 1;
+    mesh.renderOrder = slot === SOLID || slot === GLOW || slot === NUMBER ? 0 : 1;
     triangles += b.pos.length / 9;
     group.add(mesh);
     chunks.push(mesh);
   }
   buckets.clear();
+  plateTex.needsUpdate = true;
   // an empty mesh that is always drawn: before each render it hides the chunks beyond the fog
   const sentinel = new THREE.Mesh(
     new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(9), 3)),
@@ -1111,5 +1349,25 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
   const fronts: StreetLife["fronts"] = walls
     .filter((w) => w.kind === 0 && w.door >= 0)
     .map((w) => ({ ax: w.ax, az: w.az, tx: w.tx, tz: w.tz, ox: w.ox, oz: w.oz, len: w.L, door: w.door * w.L, bays: Math.max(1, Math.round(w.L / 3)), storeys: w.st }));
-  return { group, colliders, update, stats: { counts, meshes: chunks.length, triangles }, sites, madonnas, shops: shopFronts, fronts, wallItems, walls: meta.walls, ground_h: GH, storey_h: SH, streetNames: meta.streetNames };
+  /** For things other modules paint on the house walls (quayfurniture.ts notices): as fitsOn, without a host wall's ends. */
+  const clearOnWall = (b: WallBox): string | null => {
+    const hit = clashWith(b);
+    if (hit) return `overlaps ${hit.kind}`;
+    if (!b.flat) return null;
+    // (a wall that is no house front, a props building: nothing more is known of it here)
+    const hosts = frontsNear(b);
+    if (!hosts.length) return null;
+    for (const v of hosts) {
+      let open = openingsOf.get(v);
+      if (!open) openingsOf.set(v, (open = facadeOpenings(v.L, v.H, v.door >= 0, v.style, GH, SH)));
+      const sv = sAlong(v, b);
+      const o = open.find((q) => sv - b.hu < q.s1 && q.s0 < sv + b.hu && b.y0 < q.y1 && q.y0 < b.y1);
+      if (o) return `over a ${o.what}`;
+    }
+    return opts.probe ? signOnWall(b, opts.probe) : null;
+  };
+  return {
+    group, colliders, update, stats: { counts, meshes: chunks.length, triangles }, sites, madonnas, shops: shopFronts, fronts, wallItems, walls: meta.walls, ground_h: GH, storey_h: SH, streetNames: meta.streetNames,
+    houseNumbers, clearOnWall, addWallItem: addItem,
+  };
 }

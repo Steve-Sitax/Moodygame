@@ -529,7 +529,9 @@ export class HaulRun implements Run {
             ? `Get the ${esc(this.noun)} from ${esc(employer)}'s box`
             : `Get the ${esc(this.noun)} from ${esc(employer)}`
           : "Ask the ship for the cargo at the gangway"
-        : `Fetch the ${esc(this.noun)} at ${esc(from.label)}`;
+        : (this.task as CarryTask).cart
+          ? `Load the ${esc(this.noun)} on the handcart at ${esc(from.label)}`
+          : `Fetch the ${esc(this.noun)} at ${esc(from.label)}`;
     const count =
       this.kind === "carry"
         ? `<br>${this.delivered} / ${this.count} delivered${this.onCart ? `, ${this.onCart} on the cart` : ""}${this.lost ? `, ${this.lost} lost` : ""}${this.sold ? `, ${this.sold} sold` : ""}`

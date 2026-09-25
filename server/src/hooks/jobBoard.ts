@@ -5,6 +5,24 @@ import type { DB, Faction } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
 import SPOT_TABLE from "../../../shared/spots.json" with { type: "json" };
 import { NIGHT_GIVERS, TOWN_EMPLOYERS } from "../town/places.ts";
+import { realS } from "../../../shared/clock.ts";
+import {
+  CART_JOBS_PER_BOARD,
+  CART_MAX,
+  CART_MAX_MIN,
+  CART_MIN,
+  carryBand,
+  cartCap,
+  cartMinutes,
+  cartWorkOpen,
+  HAND_MAX,
+  HAND_MAX_MIN,
+  handMinutes,
+  NO_CART_FROM,
+  NO_CART_SPOTS,
+  sayCount,
+  walkDist,
+} from "./loads.ts";
 
 // job_board hook, docs/03. Claude writes the words and picks from engine
 // lists (goods, places, twist). The engine owns pay, counts, time limits,
@@ -131,6 +149,10 @@ export const BoardSchema = z.object({
         pay_c: z.number().int(),
         risk: z.enum(["low", "medium", "high"]),
         pitch: z.string().min(10).max(360),
+        // M7 short jobs: carry only. How many things (by hand 1 or 2; with a cart 3 to 8), and cart work
+        // (the employer lends his handcart). Proposals: the engine clamps both (hooks/loads.ts).
+        items: z.number().int().optional(),
+        cart: z.boolean().optional(),
       }),
     )
     .min(3)
@@ -154,6 +176,8 @@ export interface CarryTask {
   twist: Twist;
   limit_s: number | null;
   progress?: Progress;
+  /** M7 short jobs: cart work (3 to 8 things, one load): the employer's handcart is lent at the start (town/handcart.ts). */
+  cart?: boolean;
 }
 export interface WatchTask {
   kind: "watch";
@@ -253,6 +277,9 @@ export function buildPrompt(db: DB): string {
   const log = db.prepare("SELECT text FROM log ORDER BY id DESC LIMIT 6").all() as Array<{ text: string }>;
   const tier = maxTier(db);
   const [lo, hi] = TIER_PAY[tier];
+  const [hlo, hhi] = carryBand([lo, hi], false);
+  const [clo, chi] = carryBand([lo, hi], true);
+  const carts = cartWorkOpen(db);
 
   return `Write the job board for the hiring spot on the Rijnkaai. It carries work from all the quays of the town.
 
@@ -275,9 +302,16 @@ ${log.map((l) => "- " + l.text).join("\n")}
 
 KINDS OF WORK
 - carry: move goods from "from" to "to". Twists: none, broken_goods, stranger_offer, foreman_watches, thick_fog, heavy_load.
+  By hand it is short work: "items" 1 or 2, never more, and places close together (well under an hour's work). Pay ${hlo} to ${hhi}.
+${
+  carts
+    ? `  Cart work (at most ${CART_JOBS_PER_BOARD} on the board, and not every day): "cart": true, "items" ${CART_MIN} to ${CART_MAX}; the employer lends his handcart at the start and wants it back where it stood. Never from or to ${NO_CART_SPOTS.join(", ")}; never from ${NO_CART_FROM.filter((x) => !NO_CART_SPOTS.includes(x)).join(", ")}. Pay ${clo} to ${chi}.`
+    : `  No cart work yet: "cart": false on every job.`
+}
 - watch: stand guard over goods at "to" until the bell. "from" is ignored. Twists: none, thief, bribe, foreman_watches, thick_fog.
 - deliver: take one item from the employer's door to a person at "to". Name that person in "recipient" (short, e.g. "the mate of the Anna Maria"). Twists: none, stranger_offer, thick_fog.
 - goods is one of: ${GOODS.join(", ")}. Pick what fits the pitch.
+- items and cart matter only for carry; give items 1 and cart false for the other kinds. A carry pitch names exactly "items" things ("two sacks" only with items 2). The engine may make it fewer when the places lie far apart, and rewrites the number.
 - twist is a hidden turn in the job. The pitch may hint at it but must not give it away. Use "none" for about a third of the jobs.
 - urgent: true if the pitch sets a deadline ("before the bell", "before the tide").
 - recipient: empty string unless the job is deliver.
@@ -299,18 +333,61 @@ export function maxTier(db: DB): number {
   return tier;
 }
 
-/** Engine clamp: pay into the tier band, trimmed text. */
+/** Engine clamp: pay into the tier band, trimmed text; goods work to its load and pay (M7 short jobs: fitCarry). */
 export function clampBoard(board: Board, tier: number): Board {
   const [lo, hi] = TIER_PAY[tier];
   return {
-    jobs: board.jobs.map((j) => ({
-      ...j,
-      title: plainEnglish(j.title),
-      pitch: plainEnglish(j.pitch),
-      recipient: j.recipient.trim(),
-      pay_c: Math.max(lo, Math.min(hi, Math.round(j.pay_c / 5) * 5)),
-    })),
+    jobs: board.jobs.map((j) =>
+      fitCarry(
+        {
+          ...j,
+          title: plainEnglish(j.title),
+          pitch: plainEnglish(j.pitch),
+          recipient: j.recipient.trim(),
+          pay_c: Math.max(lo, Math.min(hi, Math.round(j.pay_c / 5) * 5)),
+        },
+        [lo, hi],
+      ),
+    ),
   };
+}
+
+/**
+ * M7 short jobs, the gate (hooks/loads.ts cartWorkOpen): cart work only when it is open, and at most
+ * CART_JOBS_PER_BOARD on a board; every other job is by hand.
+ */
+export function gateCarts(board: Board, open: boolean): Board {
+  let n = 0;
+  return {
+    jobs: board.jobs.map((j) => {
+      const cart = open && j.task_type === "carry" && j.cart === true && n < CART_JOBS_PER_BOARD;
+      if (cart) n++;
+      return { ...j, cart };
+    }),
+  };
+}
+
+const clampTo = (n: number, [lo, hi]: [number, number]) => Math.max(lo, Math.min(hi, Math.round(n / 5) * 5));
+
+/**
+ * M7 short jobs: a carry job's load and pay, from the model's proposal (items, cart, pay) and the
+ * engine's rules (taskFor: at most 2 by hand, 3 to 8 on a cart, the time the work takes). The pay
+ * goes into the load's band inside `band` (the tier's, or the night's): by hand the lower part of
+ * it, one thing lower still, cart work the upper half (loads.ts carryBand). Other kinds unchanged.
+ */
+export function fitCarry(j: BoardJob, band: [number, number]): BoardJob {
+  if (j.task_type !== "carry") return j;
+  const want = j.cart === true;
+  const b = carryBand(band, want);
+  const pay = clampTo(j.pay_c, b);
+  const pos = (pay - b[0]) / Math.max(1, b[1] - b[0]);
+  // the model's number of things, else from where its pay lies in the band
+  const items = typeof j.items === "number" && Number.isFinite(j.items) ? Math.round(j.items) : want ? CART_MIN + Math.round(pos * (CART_MAX - CART_MIN)) : pos >= 0.5 ? HAND_MAX : 1;
+  const t = taskFor({ ...j, cart: want, items, pay_c: pay });
+  if (!t || t.kind !== "carry") return { ...j, cart: false, pay_c: pay };
+  const cart = t.cart === true;
+  // the words name the engine's count ("Two sacks" for one sack: the model's count, or too far for two)
+  return { ...j, title: sayCount(j.title, t.count), pitch: sayCount(j.pitch, t.count), cart, items: t.count, pay_c: clampTo(j.pay_c, carryBand(band, cart, !cart && t.count === 1)) };
 }
 
 const dist = (a: SpotId, b: SpotId) => Math.hypot(SPOTS[a].x - SPOTS[b].x, SPOTS[a].z - SPOTS[b].z);
@@ -320,7 +397,7 @@ const dist = (a: SpotId, b: SpotId) => Math.hypot(SPOTS[a].x - SPOTS[b].x, SPOTS
  * places and a twist; the engine fixes what does not fit and sets all numbers.
  */
 export function taskFor(j: BoardJob): Task | null {
-  const twist: Twist = (TWISTS_FOR[j.task_type] ?? ["none"]).includes(j.twist) ? j.twist : "none";
+  let twist: Twist = (TWISTS_FOR[j.task_type] ?? ["none"]).includes(j.twist) ? j.twist : "none";
   const employer = ALL_EMPLOYERS[j.employer];
   // M3e: a townsperson's work stays on their own ground (walking range); the engine moves strays back.
   // Every employer's (review 2026-09-24): the board prompt gives the quay's employers the quay's places only.
@@ -336,13 +413,41 @@ export function taskFor(j: BoardJob): Task | null {
     }
   }
   if (j.task_type === "carry") {
-    const from = j.from;
+    let from = j.from;
     let to = j.to;
     if (from === to) to = from === employer.door ? "hessenatie_door" : employer.door;
     if (from === to) to = "crane_foot";
-    const count = j.pay_c >= 130 ? 5 : j.pay_c >= 90 ? 4 : 3;
     const goods: Goods = j.goods === "parcel" ? "crates" : j.goods;
-    return { kind: "carry", goods, count, from, to, twist, limit_s: j.urgent ? carryLimit(from, to, count) : null };
+    let heavy = twist === "heavy_load";
+    // M7 short jobs (Steve 2026-09-25: "Fetching is boring, so no more than 2 items"). The engine sets
+    // the count from the model's proposal (fitCarry), and the time the work takes at a walk decides.
+    const nearest = (fits: (s: SpotId) => boolean, ok: (s: SpotId) => boolean = () => true) =>
+      area.filter((a) => a !== from && ok(a)).sort((a, b) => Number(fits(b)) - Number(fits(a)) || dist(from, a) - dist(from, b))[0];
+    let cart = j.cart === true;
+    let count = 0;
+    if (cart) {
+      // a cart does not go on the pier or up to the gangway: another of the employer's places, else by hand
+      const cartOk = (s: SpotId) => !NO_CART_SPOTS.includes(s);
+      const startOk = (s: SpotId) => !NO_CART_FROM.includes(s);
+      if (!startOk(from)) from = area.find((a) => startOk(a) && a !== to) ?? from;
+      if (!cartOk(to) || to === from) to = area.find((a) => cartOk(a) && a !== from) ?? to;
+      // the heavy one would leave no room for three: the cart work stands, the twist goes (the pitch asked for a cart)
+      if (heavy && cartCap(goods, true) < CART_MIN && cartCap(goods) >= CART_MIN) [twist, heavy] = ["none", false];
+      const cap = Math.min(CART_MAX, cartCap(goods, heavy));
+      if (!startOk(from) || !cartOk(to) || from === to || cap < CART_MIN) cart = false;
+      else {
+        count = Math.max(CART_MIN, Math.min(cap, Math.round(j.items ?? CART_MIN + 1)));
+        while (count > CART_MIN && cartMinutes(goods, count, walkDist(from, to), heavy) > CART_MAX_MIN) count--;
+        if (cartMinutes(goods, count, walkDist(from, to), heavy) > CART_MAX_MIN) to = nearest((s) => cartMinutes(goods, count, walkDist(from, s), heavy) <= CART_MAX_MIN, cartOk) ?? to;
+      }
+    }
+    if (!cart) {
+      count = Math.max(1, Math.min(HAND_MAX, Math.round(j.items ?? HAND_MAX)));
+      if (handMinutes(goods, count, walkDist(from, to), heavy) > HAND_MAX_MIN) count = 1;
+      if (handMinutes(goods, 1, walkDist(from, to), heavy) > HAND_MAX_MIN) to = nearest((s) => handMinutes(goods, 1, walkDist(from, s), heavy) <= HAND_MAX_MIN) ?? to;
+    }
+    const limit_s = !j.urgent ? null : cart ? Math.round(realS(cartMinutes(goods, count, walkDist(from, to), heavy)) * 1.5 + 20) : carryLimit(from, to, count);
+    return { kind: "carry", goods, count, from, to, twist, limit_s, ...(cart ? { cart: true } : {}) };
   }
   if (j.task_type === "watch") {
     const goods: Goods = j.goods === "parcel" ? "barrels" : j.goods;
@@ -372,18 +477,21 @@ export function carryLimit(from: SpotId, to: SpotId, count: number): number {
 export const FALLBACK_BOARD: Board = {
   jobs: [
     {
-      title: "Crates off the pier",
+      title: "Two crates off the pier",
       employer: "sooi",
       task_type: "carry",
       goods: "crates",
+      // M7 short jobs: two crates by hand, a short way (to the Hessenatie door, 55 m, two took 86 game minutes)
       from: "pier_head",
-      to: "hessenatie_door",
+      to: "crane_foot",
       twist: "none",
       urgent: false,
       recipient: "",
       pay_c: 90,
       risk: "low",
-      pitch: "Coffee from the lighter at the pier head. Up to the Hessenatie door, and mind the wet planks.",
+      pitch: "Two crates of coffee from the lighter at the pier head, to the foot of the crane. Mind the wet planks.",
+      items: 2,
+      cart: false,
     },
     {
       title: "Stores for the widow",
@@ -395,9 +503,11 @@ export const FALLBACK_BOARD: Board = {
       twist: "broken_goods",
       urgent: false,
       recipient: "",
-      pay_c: 110,
+      pay_c: 90,
       risk: "low",
-      pitch: "Tarred rope from under the crane to my loading door. Count them twice.",
+      pitch: "Two coils of tarred rope from under the crane to my loading door. Count them twice.",
+      items: 2,
+      cart: false,
     },
     {
       title: "Watch the west sheds",
@@ -437,9 +547,11 @@ export const FALLBACK_BOARD: Board = {
       twist: "none",
       urgent: false,
       recipient: "",
-      pay_c: 100,
+      pay_c: 80,
       risk: "low",
-      pitch: "Bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+      pitch: "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+      items: 2,
+      cart: false,
     },
     {
       title: "A letter for the pump",
@@ -456,6 +568,27 @@ export const FALLBACK_BOARD: Board = {
       pitch: "The chapter's letter, to the messenger who waits by the pump on the Handschoenmarkt. Straight there.",
     },
   ],
+};
+
+/**
+ * M7 short jobs: the hand-written cart job, put on a fallback board only when cart work is open
+ * (hooks/loads.ts cartWorkOpen). Sooi lends his handcart at the foot of the crane.
+ */
+export const FALLBACK_CART_JOB: BoardJob = {
+  title: "A cartload for the natie",
+  employer: "sooi",
+  task_type: "carry",
+  goods: "crates",
+  from: "crane_foot",
+  to: "hessenatie_door",
+  twist: "none",
+  urgent: false,
+  recipient: "",
+  pay_c: 140,
+  risk: "low",
+  pitch: "Five crates off the crane, in at the Hessenatie door. Take my handcart, it stands by the crates, and bring it back where it stood.",
+  items: 5,
+  cart: true,
 };
 
 /** M6: run after every new board (paper/routes.ts adds the post round and the morning paper). */
@@ -476,8 +609,11 @@ export async function makeBoard(
     { hook: "job_board", system: SYSTEM, prompt: buildPrompt(db), schema: BoardSchema, timeoutMs },
     runner,
   );
-  let board = res.ok && res.data ? res.data : FALLBACK_BOARD;
+  // M7 short jobs: cart work only once it is open (the gate), one on a board at most
+  const carts = cartWorkOpen(db);
+  let board = res.ok && res.data ? res.data : carts ? { jobs: [...FALLBACK_BOARD.jobs, FALLBACK_CART_JOB].slice(0, 7) } : FALLBACK_BOARD;
   const source: "claude" | "fallback" = res.ok ? "claude" : "fallback";
+  board = gateCarts(board, carts);
   board = clampBoard(board, tier);
   board = ensurePlayable(board);
 
@@ -517,14 +653,15 @@ export async function makeBoard(
  */
 export function devJob(
   db: DB,
-  spec: { type?: string; twist?: string; goods?: string; from?: string; to?: string; employer?: string; urgent?: boolean },
+  spec: { type?: string; twist?: string; goods?: string; from?: string; to?: string; employer?: string; urgent?: boolean; items?: number; cart?: boolean; pay?: number },
 ): { id: number; title: string; task: Task | null } {
   const type = spec.type === "watch" || spec.type === "deliver" ? spec.type : "carry";
-  const base = FALLBACK_BOARD.jobs.find((j) => j.task_type === type)!;
+  // M7 short jobs: `cart: true` starts from the hand-written cart job (the gate is not asked: a test)
+  const base = type === "carry" && spec.cart === true ? FALLBACK_CART_JOB : FALLBACK_BOARD.jobs.find((j) => j.task_type === type)!;
   // own keys only: "toString" or "__proto__" are not employers or spots, nor is "_note" in the spot table
   const pick = <T extends string>(v: string | undefined, ok: readonly T[] | Record<string, unknown>, dflt: T): T =>
     typeof v === "string" && (Array.isArray(ok) ? (ok as readonly string[]).includes(v) : !v.startsWith("_") && Object.hasOwn(ok, v)) ? (v as T) : dflt;
-  const j: BoardJob = {
+  let j: BoardJob = {
     ...base,
     twist: pick(spec.twist, TWISTS, base.twist),
     employer: pick(spec.employer, ALL_EMPLOYERS, base.employer) as BoardJob["employer"],
@@ -532,8 +669,12 @@ export function devJob(
     to: pick(spec.to, SPOTS, base.to) as BoardJob["to"],
     goods: pick(spec.goods, GOODS, base.goods),
     urgent: spec.urgent ?? base.urgent,
-    title: `Test: ${type}${spec.twist && spec.twist !== "none" ? `, ${spec.twist}` : ""}`,
+    title: `Test: ${type}${spec.cart ? " by cart" : ""}${spec.twist && spec.twist !== "none" ? `, ${spec.twist}` : ""}`,
+    ...(typeof spec.items === "number" && Number.isFinite(spec.items) ? { items: spec.items } : {}),
+    ...(typeof spec.pay === "number" && Number.isFinite(spec.pay) ? { pay_c: spec.pay } : {}),
   };
+  // the engine's load and pay (M7 short jobs), in the tier 0 band (the hand-written jobs' pay)
+  if (j.task_type === "carry") j = fitCarry(j, TIER_PAY[0]);
   const task = taskFor(j);
   const e = ALL_EMPLOYERS[j.employer];
   const { day } = db.prepare("SELECT day FROM player WHERE id = 1").get() as { day: number };
@@ -544,6 +685,32 @@ export function devJob(
     )
     .run(day, j.title, j.employer, j.task_type, j.pay_c, j.risk, e.faction, j.pitch, JSON.stringify(task ?? {}));
   return { id: Number(r.lastInsertRowid), title: j.title, task };
+}
+
+/**
+ * M7 short jobs: an older save's open goods work written before the rule (3 to 5 by hand): each job
+ * still offered goes to the new sizes, once, in place: at most two by hand and the hour's work
+ * (taskFor), the pay by the share carried (never under the tier's floor of 50), the words to the count.
+ */
+export function shortenOffered(db: DB): number {
+  const rows = db.prepare("SELECT id, title, pitch, pay_c, employer_npc, task_json FROM job WHERE status = 'offered' AND task_type = 'carry'").all() as Array<{ id: number; title: string; pitch: string; pay_c: number; employer_npc: string; task_json: string }>;
+  let n = 0;
+  for (const r of rows) {
+    let t: CarryTask;
+    try {
+      t = JSON.parse(r.task_json) as CarryTask;
+    } catch {
+      continue;
+    }
+    if (t.kind !== "carry" || t.cart || t.count <= HAND_MAX || !ALL_EMPLOYERS[r.employer_npc]) continue;
+    const line: BoardJob = { title: r.title, employer: r.employer_npc, task_type: "carry", goods: t.goods === "chests" ? "crates" : t.goods, from: t.from, to: t.to, twist: t.twist, urgent: t.limit_s !== null, recipient: "", pay_c: r.pay_c, risk: "low", pitch: r.pitch, items: HAND_MAX, cart: false };
+    const nt = taskFor(line) as CarryTask;
+    const task = { ...nt, goods: t.goods };
+    const pay = Math.max(50, Math.round((r.pay_c * task.count) / t.count / 5) * 5);
+    db.prepare("UPDATE job SET task_json = ?, pay_c = ?, title = ?, pitch = ? WHERE id = ?").run(JSON.stringify(task), pay, sayCount(r.title, task.count), sayCount(r.pitch, task.count), r.id);
+    n++;
+  }
+  return n;
 }
 
 /** The game needs at least one playable job; add a hand-written one if not. */

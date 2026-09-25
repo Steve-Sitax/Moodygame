@@ -1,5 +1,7 @@
 import type { DB } from "../db.ts";
-import { GameError, job as jobRow, log, player } from "../game.ts";
+import { GameError, job as jobRow, log, player, takeHooks } from "../game.ts";
+import { ALL_EMPLOYERS, employerName, type JobRow } from "../hooks/jobBoard.ts";
+import { CART_LEFT_FEE_C, CART_LOST_C, CART_RETURN_MIN, OWN_CART_NEAR_M } from "../hooks/loads.ts";
 import { remember } from "../npcs.ts";
 import { ITEM_BUY, ITEM_REF, ITEMS } from "../trade.ts";
 import { dropTownCache, town } from "./store.ts";
@@ -8,7 +10,7 @@ import { TRADES } from "./places.ts";
 import { rngFrom, type Resident } from "./population.ts";
 import { cartHooks, dropStealables, type DeedRow } from "./deeds.ts";
 import { busyAt, freeDoors } from "./bikeshop.ts";
-import { clockNow, vehicleNow, vehicleOf } from "./possessions.ts";
+import { clockNow, offLanes, onDoorway, vehicleNow, vehicleOf } from "./possessions.ts";
 import { lease } from "../homes/homes.ts";
 import {
   canLoad,
@@ -24,6 +26,7 @@ import {
   unloadAllAllowed,
 } from "../../../shared/handcart.ts";
 import SPOTS from "../../../shared/spots.json" with { type: "json" };
+import CITY from "../../../shared/city.json" with { type: "json" };
 
 // Jef's handcart (M6 transport, Steve 2026-09-24): "I should be able to push a handcart and put
 // multiple items on it, so I can deliver all crates at once, or other items."
@@ -74,7 +77,8 @@ export interface CartItem {
 
 export interface JefCart {
   id: string;
-  kind: "new" | "used" | "hire" | "taken";
+  /** M7 short jobs: "lent": an employer's handcart lent for a cart job (lendForJob), back where it stood after. */
+  kind: "new" | "used" | "hire" | "taken" | "lent";
   since: number;
   until?: number;
   paid_c: number;
@@ -82,6 +86,12 @@ export interface JefCart {
   owner?: string;
   deed?: number | null;
   label: string;
+  /** M7 short jobs, a lent cart: the job, whose it is (an employer id), and where it goes back to. */
+  job?: number;
+  lender?: string;
+  home?: Pt;
+  /** The client has checked (and maybe moved) where the lent cart stands, against its own things on the quay (placeLent). */
+  placed?: boolean;
   /** The axle on the ground, and the way the cart points (a yaw: (sin, cos)). */
   x: number;
   z: number;
@@ -362,6 +372,8 @@ export function cartAt(db: DB, id: string, x: number, z: number, yaw: number, he
   c.z = r1(q.z);
   c.yaw = r3(yaw);
   c.held = held;
+  // M7 short jobs: a lent cart let go where it stood, its job over: the employer's man takes it in
+  if (!held && c.kind === "lent") lentBack(db, s, c);
   save(db, s);
   return c;
 }
@@ -543,8 +555,13 @@ function cartHourNow(db: DB, rng: () => number, now: number): string[] {
   const s = jefCarts(db);
   if (!s.list.length) return [];
   const minute = minuteNow(db);
+  // M7 short jobs: a lent cart after its job (every tick, not once an hour)
+  const lent = lentTick(db, s, minute);
   const hourNo = Math.floor(minute / 60);
-  if (hourNo === s.rolled) return [];
+  if (hourNo === s.rolled) {
+    if (lent.length) save(db, s);
+    return lent;
+  }
   s.rolled = hourNo;
   const out: string[] = [];
   const p = player(db);
@@ -577,7 +594,7 @@ function cartHourNow(db: DB, rng: () => number, now: number): string[] {
     out.push("stolen");
   }
   save(db, s);
-  return out;
+  return [...lent, ...out];
 }
 
 /** Someone wheels off Jef's cart and what is on it: gone, a robbery on the record, the town talks. */
@@ -591,9 +608,14 @@ function stealFromJef(db: DB, s: CartsState, c: JefCart, rng: () => number): voi
   c.load = [];
   s.list = s.list.filter((q) => q.id !== c.id);
   const text =
-    (c.kind === "hire" ? "The handcart you hired is gone from where you left it. The wheelwright will want it paid for." : "Your handcart is gone from where you left it. Somebody wheeled it off.") +
-    (jobGoods ? " What was on it went with it." : "");
+    (c.kind === "hire"
+      ? "The handcart you hired is gone from where you left it. The wheelwright will want it paid for."
+      : c.kind === "lent"
+        ? `${capital(c.label)} is gone from where you left it. Somebody wheeled it off, and you will pay for it.`
+        : "Your handcart is gone from where you left it. Somebody wheeled it off.") + (jobGoods ? " What was on it went with it." : "");
   notice(s, text);
+  // M7 short jobs: the lender's cart lost: Jef pays for it, and the employer does not forget
+  if (c.kind === "lent") lentLost(db, c);
   if (thief) log(db, "robbed", thief.id, `Someone wheeled off Jef's handcart ${where}, worth ${c.paid_c} centimes.`, "world");
   const nearBy = t.residents
     .filter((r) => r.work.at && r.trade !== "thief")
@@ -611,6 +633,203 @@ function nearestPlaceLabel(db: DB, x: number, z: number): string {
   for (const p of Object.values(town(db).town.places)) {
     const d = Math.hypot(p.x - x, p.z - z);
     if (d < bd && p.label) [bd, best] = [d, `by ${p.label}`];
+  }
+  return best;
+}
+
+// ------------------------------------------------------------------ M7 short jobs: the employer's handcart, lent for a cart job
+
+/**
+ * Where the lent cart stands by the goods: near the pile (the goods stack along the spot's `dir`,
+ * half a metre to each side) but clear of it, pointing along it, on open reachable ground, off the
+ * quay railway, the crane runways and the omnibus and dray lanes (possessions.ts offLanes: the train
+ * would wait for it), and off the landmarks' doorways. Null if there is no room within 12 m.
+ */
+export function lentSpot(spotId: string): [number, number, number] | null {
+  const sp = (SPOTS as unknown as Record<string, { x: number; z: number; dir?: [number, number] }>)[spotId];
+  if (!sp) return null;
+  const [dx, dz] = sp.dir ?? [1, 0];
+  const wm = walkMap();
+  const yaw = r3(Math.atan2(dx, dz));
+  // the pile: up to eight things, two by two along dir from the spot
+  const pile = (x: number, z: number) => {
+    const along = (x - sp.x) * dx + (z - sp.z) * dz;
+    const across = Math.abs(-(x - sp.x) * dz + (z - sp.z) * dx);
+    return along > -1.6 && along < 4.6 && across < 1.9;
+  };
+  // first off every lane; where the goods themselves lie in a street's lane (a narrow quay), off the rails
+  // at least: the drays and the omnibus go round a cart (M6 handcart), the goods train cannot
+  for (const lanes of [true, false]) {
+    const clear = (x: number, z: number, r: number) => wm.open(x, z, r) && (lanes ? offLanes(x, z, 0.9) : offRails(x, z, 0.9)) && !onDoorway(x, z, 0.9) && !pile(x, z);
+    for (let r = 2.6; r <= 12; r += 0.6) {
+      const n = Math.max(12, Math.round(r * 5));
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * Math.PI * 2;
+        const x = sp.x + Math.cos(a) * r;
+        const z = sp.z + Math.sin(a) * r;
+        // the axle, the grips 1.8 m behind it, the front of the bed 1 m ahead
+        if (clear(x, z, 1.0) && clear(x - dx * 1.8, z - dz * 1.8, 0.6) && clear(x + dx, z + dz, 0.6) && wm.reachable(x, z)) return [r1(x), r1(z), yaw];
+      }
+    }
+  }
+  return null;
+}
+
+/** The quay railway and the crane runways (city.json decor, as the client's world/tracks.ts trackKeepOut): a cart never stands there. */
+const RAILS: Array<{ s: [number, number, number, number]; half: number }> = (() => {
+  const decor = (CITY as unknown as { decor?: { tracks?: Array<{ pts: Pt[] }>; crane_rails?: Array<[number, number, number, number]> } }).decor ?? {};
+  const out: Array<{ s: [number, number, number, number]; half: number }> = [];
+  for (const t of decor.tracks ?? []) for (let i = 0; i < t.pts.length - 1; i++) out.push({ s: [t.pts[i][0], t.pts[i][1], t.pts[i + 1][0], t.pts[i + 1][1]], half: 1.5 });
+  for (const c of decor.crane_rails ?? []) out.push({ s: c, half: 0.6 });
+  return out;
+})();
+export function offRails(x: number, z: number, margin = 0.9): boolean {
+  for (const { s: [ax, az, bx, bz], half } of RAILS) {
+    const dx = bx - ax;
+    const dz = bz - az;
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1)));
+    if (Math.hypot(x - (ax + dx * t), z - (az + dz * t)) < half + margin) return false;
+  }
+  return true;
+}
+
+/**
+ * The client knows the quay's own things (stacked crates, barrels, the railway's standing wagon) that
+ * the walk map does not: once, before anyone has touched it, it may move the lent cart a few metres to
+ * where the whole cart fits with room to swing. Where it then stands is where it goes back to.
+ */
+export function placeLent(db: DB, id: string, x: number, z: number, yaw: number): JefCart {
+  const s = jefCarts(db);
+  const c = cartOf(s, id);
+  if (!finite(x, z, yaw)) throw new GameError("bad place", 400);
+  if (c.kind !== "lent" || c.placed || c.held || c.load.length) throw new GameError("that cart stays where it is", 409);
+  if (Math.hypot(c.x - x, c.z - z) > 12) throw new GameError("too far from where it stood", 409);
+  const wm = walkMap();
+  if (!wm.open(x, z, 0.3) || !offRails(x, z, 0.3)) throw new GameError("it cannot stand there", 409);
+  c.x = r1(x);
+  c.z = r1(z);
+  c.yaw = r3(yaw);
+  c.home = [c.x, c.z];
+  c.placed = true;
+  save(db, s);
+  return c;
+}
+
+/** Where a lent cart goes back: within this many metres of where it stood. */
+export const LENT_HOME_M = 8;
+
+/**
+ * A cart job taken (game.ts takeHooks): the employer's handcart stands by the goods, lent to Jef. Not
+ * when a cart of his own (bought or hired) stands within OWN_CART_NEAR_M of the goods: he uses his.
+ */
+export function lendForJob(db: DB, j: JobRow): JefCart | null {
+  const t = j.task;
+  if (!t || t.kind !== "carry" || !t.cart) return null;
+  const s = jefCarts(db);
+  if (s.list.some((c) => c.kind === "lent" && c.job === j.id)) return null;
+  const from = (SPOTS as unknown as Record<string, { x: number; z: number; label: string }>)[t.from];
+  const own = s.list.find((c) => (c.kind === "new" || c.kind === "used" || c.kind === "hire") && !!from && Math.hypot(c.x - from.x, c.z - from.z) <= OWN_CART_NEAR_M);
+  if (own) {
+    log(db, "own_cart", String(j.id), `Jef took "${j.title}" with his own handcart standing by the goods.`);
+    return null;
+  }
+  const at = lentSpot(t.from);
+  if (!at) return null;
+  const name = employerName(db, j.employer_npc);
+  const c: JefCart = {
+    id: `cart:lent${++s.n}`,
+    kind: "lent",
+    since: minuteNow(db),
+    paid_c: 0,
+    label: `${name}'s handcart`,
+    job: j.id,
+    lender: j.employer_npc,
+    home: [at[0], at[1]],
+    x: at[0],
+    z: at[1],
+    yaw: at[2],
+    held: false,
+    load: [],
+  };
+  s.list.push(c);
+  notice(s, `${name}'s handcart stands by the goods at ${from?.label ?? "the place"}. Load it, push it, and bring it back there when the work is done.`);
+  save(db, s);
+  log(db, "lent_cart", String(j.id), `${name} lent Jef a handcart for "${j.title}".`);
+  return c;
+}
+takeHooks.push((db, j) => void lendForJob(db, j));
+
+const jobOver = (db: DB, id: number | undefined): boolean => {
+  if (id === undefined) return true;
+  const r = db.prepare("SELECT status FROM job WHERE id = ?").get(id) as { status: string } | undefined;
+  return !r || r.status !== "taken";
+};
+const atHome = (c: JefCart) => !!c.home && Math.hypot(c.home[0] - c.x, c.home[1] - c.z) <= LENT_HOME_M;
+const capital = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
+/** Its job over and let go where it stood: the employer's man takes it in. True when it went. */
+function lentBack(db: DB, s: CartsState, c: JefCart): boolean {
+  if (c.kind !== "lent" || c.held || !atHome(c) || !jobOver(db, c.job)) return false;
+  if (c.load.length) dropLoad(db, s, c, "home");
+  s.list = s.list.filter((q) => q.id !== c.id);
+  notice(s, `You leave ${c.label} where it stood. ${employerName(db, c.lender ?? "")}'s man wheels it in.`);
+  log(db, "returned_cart", c.id, `Jef brought ${c.label} back where it stood.`);
+  return true;
+}
+
+/**
+ * Every tick: a lent cart whose job is over. Back where it stood: taken in. Else the hour to bring it
+ * back starts (a notice); past it, the employer's man fetches it: CART_LEFT_FEE_C and trust -1.
+ */
+function lentTick(db: DB, s: CartsState, minute: number): string[] {
+  const out: string[] = [];
+  for (const c of [...s.list]) {
+    if (c.kind !== "lent" || !jobOver(db, c.job)) continue;
+    if (lentBack(db, s, c)) {
+      out.push("returned");
+      continue;
+    }
+    if (c.until === undefined) {
+      c.until = minute + CART_RETURN_MIN;
+      notice(s, `The work is done. ${capital(c.label)} goes back ${c.home ? nearestSpotLabel(c.home[0], c.home[1]) : "where it stood"} within the hour, or his man fetches it and it costs you.`);
+      out.push("due");
+      continue;
+    }
+    // still in his hands: on its way back (the hour runs on; he is fetched from where he lets go)
+    if (minute < c.until || c.held) continue;
+    const fee = Math.min(player(db).money_c, CART_LEFT_FEE_C);
+    if (fee) db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(fee);
+    const faction = ALL_EMPLOYERS[c.lender ?? ""]?.faction;
+    if (faction) db.prepare("UPDATE faction_trust SET trust = MAX(-5, MIN(10, trust - 1)) WHERE faction = ?").run(faction);
+    dropLoad(db, s, c, "home");
+    s.list = s.list.filter((q) => q.id !== c.id);
+    const name = employerName(db, c.lender ?? "");
+    notice(s, `${name}'s man had to go and fetch his handcart from where you left it${fee ? `; ${fee} centimes come off your purse for his trouble` : ""}.`);
+    log(db, "cart_left", c.id, `Jef left ${c.label} lying after the work; ${name}'s man fetched it${fee ? ` and ${fee} centimes were taken for it` : ""}.`);
+    if (c.lender) remember(db, c.lender, "I lent Jef my handcart for a job and had to send my man to fetch it from where he left it.", 4, "seen", null, { gist: `Jef left ${name}'s handcart lying in the street`, tone: -1 });
+    out.push("fetched");
+  }
+  return out;
+}
+
+/** The lent cart wheeled off by a thief: Jef pays for it (CART_LOST_C, or what he has), trust -2 with the lender. */
+function lentLost(db: DB, c: JefCart): void {
+  const cost = Math.min(player(db).money_c, CART_LOST_C);
+  if (cost) db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(cost);
+  const faction = ALL_EMPLOYERS[c.lender ?? ""]?.faction;
+  if (faction) db.prepare("UPDATE faction_trust SET trust = MAX(-5, MIN(10, trust - 2)) WHERE faction = ?").run(faction);
+  const name = employerName(db, c.lender ?? "");
+  log(db, "lost_lent_cart", c.id, `${capital(c.label)} was stolen while Jef had it; he paid ${cost} centimes for it.`);
+  if (c.lender) remember(db, c.lender, `I lent Jef my handcart and he let a thief wheel it off. He paid ${cost} centimes of what it was worth.`, 6, "seen", null, { gist: `Jef lost ${name}'s handcart to a thief`, tone: -2 });
+}
+
+function nearestSpotLabel(x: number, z: number): string {
+  let best = "where it stood";
+  let bd = LENT_HOME_M + 4;
+  for (const [k, sp] of Object.entries(SPOTS as unknown as Record<string, { x: number; z: number; label?: string }>)) {
+    if (k.startsWith("_") || !sp.label) continue;
+    const d = Math.hypot(sp.x - x, sp.z - z);
+    if (d < bd) [bd, best] = [d, `to ${sp.label}`];
   }
   return best;
 }

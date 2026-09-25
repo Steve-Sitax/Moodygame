@@ -69,8 +69,13 @@ export function takeJob(db: DB, id: number): JobRow {
   for (const check of takeChecks) check(db, j);
   db.prepare("UPDATE job SET status = 'taken' WHERE id = ?").run(id);
   log(db, "took_job", String(id), `Jef took a job from ${j.employer_name}: ${j.title}.`);
+  // M7 short jobs: what comes with a job once it is taken (town/handcart.ts: the employer's handcart lent for cart work)
+  for (const f of takeHooks) f(db, job(db, id));
   return job(db, id);
 }
+
+/** Run when a job has been taken (after its status is 'taken'). */
+export const takeHooks: Array<(db: DB, j: JobRow) => void> = [];
 
 /** Save carry/deliver progress so a reload does not make Jef carry twice. */
 export function saveProgress(db: DB, id: number, p: Progress): JobRow {

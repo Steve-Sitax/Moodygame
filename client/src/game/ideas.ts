@@ -209,7 +209,11 @@ export class Ideas {
     }
     this.loading = true;
     try {
-      this.view = await call<IdeasView>("GET", "/api/ideas");
+      const v = await call<IdeasView>("GET", "/api/ideas");
+      // a reply without the lists (the server restarting, a cut-off body) keeps the last good view
+      // (fixes 2026-09-25: "v.posters is not iterable" in actions())
+      if (!Array.isArray(v?.posters) || !Array.isArray(v?.lost) || !Array.isArray(v?.diaries) || !Array.isArray(v?.meetings)) return;
+      this.view = v;
       this.build();
     } catch {
       /* the server may be starting; the next push or interval tries again */

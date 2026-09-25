@@ -106,7 +106,7 @@ ${scene}`;
 function workFacts(j: JobRow): string {
   const t = j.task;
   if (!t) return `${j.task_type} work.`;
-  if (t.kind === "carry") return `carry ${t.count} ${t.goods} from ${SPOTS[t.from].label} to ${SPOTS[t.to].label}.`;
+  if (t.kind === "carry") return `carry ${t.count} ${t.goods} from ${SPOTS[t.from].label} to ${SPOTS[t.to].label}${t.cart ? ", on your own handcart, which you lend him (back where it stood after)" : ", by hand"}.`;
   if (t.kind === "deliver") return `deliver one ${t.goods === "parcel" ? "parcel" : t.goods} from your door to ${t.recipient} at ${SPOTS[t.to].label}.`;
   if (t.kind === "letters") return `take ${t.stops.length === 1 ? "a letter" : `${t.stops.length} letters`} round the town.`;
   return `watch the ${t.goods} at ${SPOTS[t.post].label} for ${Math.round(t.duration_s / 60)} minutes, until the bell.`;

@@ -36,6 +36,8 @@ Same as M2: `npm run dev` in the repo root, then http://localhost:5173. Delete `
 - Fixed during checks: the job's start message covered the twist message; finished jobs piled up on the board (now the last two only).
 - `npm run build` passes.
 
+Later (M7 short jobs, 2026-09-25): the counts here (3 to 5 crates a carry job, set from the pay) are gone. By hand a job is one or two things within an hour's walk; three to eight only as cart work with the employer's handcart. See `M7-short-jobs.md`.
+
 ## Open
 - Row, find and talk jobs; cart and transport upgrades; letters, eavesdropping (docs/09-backlog).
 - Figures are silhouettes and walk through props. M3 brings real NPCs.

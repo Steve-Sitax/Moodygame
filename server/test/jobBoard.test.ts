@@ -12,7 +12,7 @@ const always = () => 0.0; // misdeeds always noticed
 
 const good: Board = {
   jobs: [
-    { title: "Hides to the natie", employer: "sooi", task_type: "carry", goods: "hides", from: "pier_head", to: "hessenatie_door", twist: "none", urgent: false, recipient: "", pay_c: 120, risk: "low", pitch: "Wet hides off the pier. Up to our door, baas says." },
+    { title: "Hides to the crane", employer: "sooi", task_type: "carry", goods: "hides", from: "pier_head", to: "crane_foot", twist: "none", urgent: false, recipient: "", pay_c: 120, risk: "low", pitch: "Wet hides off the pier. Over to the crane, baas says." },
     { title: "Watch the tar", employer: "peeters", task_type: "watch", goods: "barrels", from: "west_sheds", to: "west_sheds", twist: "thief", urgent: false, recipient: "", pay_c: 80, risk: "medium", pitch: "Stand by my tar till the bell." },
     { title: "A letter for the mate", employer: "tuur", task_type: "deliver", goods: "parcel", from: "pier_head", to: "ship_gangway", twist: "stranger_offer", urgent: true, recipient: "the mate", pay_c: 100, risk: "medium", pitch: "Don't open it." },
     { title: "Row the pastoor across", employer: "tuur", task_type: "row", goods: "parcel", from: "pier_head", to: "pier_head", twist: "none", urgent: false, recipient: "", pay_c: 90, risk: "low", pitch: "Row the pastoor to Sint-Anna." },
@@ -29,7 +29,9 @@ describe("job_board hook", () => {
   it("turns model picks into playable tasks", async () => {
     const db = await boardDb();
     const [carry, watch, deliver, row] = listJobs(db, 1);
-    expect(carry.task).toEqual({ kind: "carry", goods: "hides", count: 4, from: "pier_head", to: "hessenatie_door", twist: "none", limit_s: null });
+    // M7 short jobs: by hand at most two (the pay 120 clamped to the top of the hand band, 90)
+    expect(carry.task).toEqual({ kind: "carry", goods: "hides", count: 2, from: "pier_head", to: "crane_foot", twist: "none", limit_s: null });
+    expect(carry.pay_c).toBe(90);
     expect(watch.task).toEqual({ kind: "watch", goods: "barrels", post: "west_sheds", duration_s: 90, twist: "thief" });
     expect(deliver.task).toMatchObject({ kind: "deliver", from: "pier_head", to: "ship_gangway", recipient: "the mate", twist: "stranger_offer" });
     expect((deliver.task as { limit_s: number }).limit_s).toBeGreaterThan(20);
@@ -45,12 +47,12 @@ describe("job_board hook", () => {
     expect(listJobs(db, 1)[0].task).toMatchObject({ twist: "none", from: "pier_head", to: "hessenatie_door", goods: "crates" });
   });
 
-  it("clamps pay into the tier 0 band", async () => {
+  it("clamps pay into the tier 0 band (goods work by hand: its lower part, 50-90)", async () => {
     const greedy = structuredClone(good);
     greedy.jobs[0].pay_c = 99999;
     greedy.jobs[1].pay_c = -40;
     const pays = listJobs(await boardDb(greedy), 1).map((j) => j.pay_c);
-    expect(pays[0]).toBe(150);
+    expect(pays[0]).toBe(90);
     expect(pays[1]).toBe(50);
   });
 
@@ -91,48 +93,48 @@ describe("engine rules: carry", () => {
 
   it("pays the job's pay for a clean job and adds trust", async () => {
     const { db, j } = await carryJob();
-    const res = finishJob(db, j.id, report({ delivered: 4 }), never);
-    expect(res.settlement).toMatchObject({ pay_c: 120, extra_c: 0, trust_delta: 1, caught: false, status: "done" });
-    expect(res.money_c).toBe(170);
+    const res = finishJob(db, j.id, report({ delivered: 2 }), never);
+    expect(res.settlement).toMatchObject({ pay_c: 90, extra_c: 0, trust_delta: 1, caught: false, status: "done" });
+    expect(res.money_c).toBe(140);
     expect((db.prepare("SELECT trust FROM faction_trust WHERE faction = 'naties'").get() as { trust: number }).trust).toBe(1);
-    expect(() => finishJob(db, j.id, report({ delivered: 4 }))).toThrow(/not in hand/);
+    expect(() => finishJob(db, j.id, report({ delivered: 2 }))).toThrow(/not in hand/);
   });
 
   it("needs every item accounted for", async () => {
     const { db, j } = await carryJob();
-    expect(() => finishJob(db, j.id, report({ delivered: 2 }))).toThrow(/accounted/);
-    expect(() => finishJob(db, j.id, report({ delivered: 4, lost: 1 }))).toThrow(/accounted/);
+    expect(() => finishJob(db, j.id, report({ delivered: 1 }))).toThrow(/accounted/);
+    expect(() => finishJob(db, j.id, report({ delivered: 2, lost: 1 }))).toThrow(/accounted/);
   });
 
   it("pays a share, and a crate in the Schelde costs trust", async () => {
     const { j } = await carryJob();
-    const s = settle(j, report({ delivered: 3, lost: 1 }), never);
-    expect(s).toMatchObject({ pay_c: 90, trust_delta: -1, caught: false });
+    const s = settle(j, report({ delivered: 1, lost: 1 }), never);
+    expect(s).toMatchObject({ pay_c: 45, trust_delta: -1, caught: false });
     expect(s.facts.join(" ")).toMatch(/Schelde/);
   });
 
   it("late costs a quarter", async () => {
     const { j } = await carryJob();
-    expect(settle(j, report({ delivered: 4, late: true }), never).pay_c).toBe(90);
+    expect(settle(j, report({ delivered: 2, late: true }), never).pay_c).toBe(70);
   });
 
   it("selling to the stranger pays coin; if caught, the employer pays nothing", async () => {
     const { j } = await carryJob();
-    expect(settle(j, report({ delivered: 3, sold: 1 }), never)).toMatchObject({ pay_c: 90, extra_c: 35, trust_delta: 0, caught: false });
-    expect(settle(j, report({ delivered: 3, sold: 1 }), always)).toMatchObject({ pay_c: 0, extra_c: 35, trust_delta: -2, caught: true });
+    expect(settle(j, report({ delivered: 1, sold: 1 }), never)).toMatchObject({ pay_c: 45, extra_c: 35, trust_delta: 0, caught: false });
+    expect(settle(j, report({ delivered: 1, sold: 1 }), always)).toMatchObject({ pay_c: 0, extra_c: 35, trust_delta: -2, caught: true });
   });
 
   it("the watching foreman always sees", async () => {
     const { j } = await carryJob();
     j.task = { ...j.task!, twist: "foreman_watches" } as typeof j.task;
-    expect(settle(j, report({ delivered: 4, pocketed: true }), never)).toMatchObject({ caught: true, pay_c: 0 });
+    expect(settle(j, report({ delivered: 2, pocketed: true }), never)).toMatchObject({ caught: true, pay_c: 0 });
   });
 
   it("saves progress and refuses more goods than the job has", async () => {
     const { db, j } = await carryJob();
-    saveProgress(db, j.id, { delivered: 2, lost: 1, sold: 0 });
-    expect((listJobs(db, 1)[0].task as { progress: unknown }).progress).toEqual({ delivered: 2, lost: 1, sold: 0 });
-    expect(() => saveProgress(db, j.id, { delivered: 4, lost: 1, sold: 0 })).toThrow(/more goods/);
+    saveProgress(db, j.id, { delivered: 1, lost: 1, sold: 0 });
+    expect((listJobs(db, 1)[0].task as { progress: unknown }).progress).toEqual({ delivered: 1, lost: 1, sold: 0 });
+    expect(() => saveProgress(db, j.id, { delivered: 2, lost: 1, sold: 0 })).toThrow(/more goods/);
   });
 });
 
@@ -164,7 +166,7 @@ describe("job_outcome hook", () => {
     const db = await boardDb();
     const j = listJobs(db, 1)[0];
     takeJob(db, j.id);
-    const res = finishJob(db, j.id, report({ delivered: 4 }), never);
+    const res = finishJob(db, j.id, report({ delivered: 2 }), never);
     const out = await writeOutcome(db, res.job, res.settlement, reply({ narration: "Sooi grunts and pays. \"Again tomorrow.\"", memory: "The Kempen boy carries without talk.", weight: 10 }));
     expect(out.source).toBe("claude");
     saveOutcome(db, j.id, out.outcome.narration, out.outcome.memory, out.outcome.weight);
@@ -175,7 +177,7 @@ describe("job_outcome hook", () => {
   it("falls back to a plain line", async () => {
     const db = await boardDb();
     const j = listJobs(db, 1)[0];
-    const s = settle(j, report({ delivered: 3, sold: 1 }), always);
+    const s = settle(j, report({ delivered: 1, sold: 1 }), always);
     expect(fallbackOutcome(j, s).narration).toMatch(/Not a centime/);
   });
 });

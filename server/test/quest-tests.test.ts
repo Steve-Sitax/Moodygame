@@ -51,12 +51,12 @@ describe("M7 quest tests: the settling's facts", () => {
 describe("M7 quest tests: the outcome writer knows the real work", () => {
   it("the goods and places the engine set, not only the pitch (a brewer's barrels were 'counted by the Hessenatie door')", () => {
     const db = openDb(":memory:");
-    // the dev job keeps the hand-written pitch (pier head to the Hessenatie door); the work is the brewer's
+    // the dev job keeps the hand-written pitch (pier head to the foot of the crane); the work is the brewer's
     const j = jobOf(db, { type: "carry", twist: "none", employer: "brouwer", from: "brewery_yard", to: "canal_quay", goods: "barrels" });
-    expect(j.pitch).toMatch(/Hessenatie/);
-    expect(workLine(j)).toBe("The work, as it really was (these goods and places, whatever the pitch says): 4 barrels from the brewery door to the canal quay.");
-    const p = outcomePrompt(j, { pay_c: 90, extra_c: 0, trust_delta: 1, caught: false, status: "done", facts: ["Jef brought 4 of 4 barrels for Ferdinand Maes."] });
-    expect(p).toContain("4 barrels from the brewery door to the canal quay");
+    expect(j.pitch).toMatch(/crane/);
+    expect(workLine(j)).toBe("The work, as it really was (these goods and places, whatever the pitch says): 2 barrels from the brewery door to the canal quay.");
+    const p = outcomePrompt(j, { pay_c: 90, extra_c: 0, trust_delta: 1, caught: false, status: "done", facts: ["Jef brought 2 of 2 barrels for Ferdinand Maes."] });
+    expect(p).toContain("2 barrels from the brewery door to the canal quay");
     const w = jobOf(db, { type: "watch", twist: "thief", employer: "katoen", to: "entrepot_quay", goods: "sacks" });
     expect(workLine(w)).toMatch(/a watch over the sacks at the Entrepot quay/);
     const d = jobOf(db, { type: "deliver", twist: "none", employer: "vishandel", to: "vleeshuis_door" });
@@ -65,22 +65,24 @@ describe("M7 quest tests: the outcome writer knows the real work", () => {
 });
 
 describe("M7 quest tests: night work that cannot be done by five", () => {
-  it("the least time: five sacks over 68 m at a run take a little over two game hours (five at a walk); a watch its bell", () => {
-    const [carry] = clampNight({ jobs: [{ ...FALLBACK_NIGHT.jobs[1], goods: "sacks", pay_c: 230 }] }, 0);
-    const t = taskFor({ title: carry.title, employer: carry.giver, task_type: carry.task_type, goods: carry.goods, from: carry.from, to: carry.to, twist: carry.twist, urgent: false, recipient: carry.recipient, pay_c: carry.pay_c, risk: "high", pitch: carry.pitch })!;
-    expect(t).toMatchObject({ kind: "carry", count: 5, from: "werf_pontoon", to: "steen_gate" });
+  it("the least time: one sack over 68 m at a run, from the giver's door, is about 24 game minutes; a watch its bell", () => {
+    // M7 short jobs: five sacks were two hours at a run; night carry is by hand now, and two sacks over
+    // 68 m would take 107 game minutes at a walk (over the hour), so the engine makes it one
+    const [carry] = clampNight({ jobs: [{ ...FALLBACK_NIGHT.jobs[1], goods: "sacks", pay_c: 230, items: 5 }] }, 0);
+    const t = taskFor({ title: carry.title, employer: carry.giver, task_type: carry.task_type, goods: carry.goods, from: carry.from, to: carry.to, twist: carry.twist, urgent: false, recipient: carry.recipient, pay_c: carry.pay_c, risk: "high", pitch: carry.pitch, items: carry.items })!;
+    expect(t).toMatchObject({ kind: "carry", count: 1, from: "werf_pontoon", to: "steen_gate" });
     const m = leastMinutes(t, "werf_quay");
-    expect(m).toBeGreaterThan(110);
-    expect(m).toBeLessThan(150);
+    expect(m).toBeGreaterThan(20);
+    expect(m).toBeLessThan(30);
     expect(leastMinutes({ kind: "watch", goods: "crates", post: "bassin_quay", duration_s: 120, twist: "none" })).toBe(60);
   });
 
-  it("at 4:30 the long carry is off the offer and cannot be taken; the short deliver still can", () => {
+  it("at 4:40 the carry (24 min at a run) is off the offer and cannot be taken; the short deliver (12 min) still can", () => {
     const db = openDb(":memory:");
     setClock(db, 1, 22);
     const ids = insertNightJobs(db, clampNight(FALLBACK_NIGHT, 0), 0, "fallback");
     const [fence, smuggler] = ids;
-    setClock(db, 2, 4, 30);
+    setClock(db, 2, 4, 40);
     // taking it is refused by the engine, in words
     expect(() => takeJob(db, smuggler)).toThrow(GameError);
     expect(() => takeJob(db, smuggler)).toThrow(/gone at five/);
@@ -190,7 +192,7 @@ describe("M7 quest tests: taking work that went off the offer says why", () => {
     const db = openDb(":memory:");
     setClock(db, 1, 22);
     const [, smuggler] = insertNightJobs(db, clampNight(FALLBACK_NIGHT, 0), 0, "fallback");
-    setClock(db, 2, 4, 30);
+    setClock(db, 2, 4, 40);
     expireNightWork(db);
     expect(() => takeJob(db, smuggler)).toThrow(/too late for that one/);
   });

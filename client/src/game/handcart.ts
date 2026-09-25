@@ -15,7 +15,7 @@ import type { Homes } from "./homes";
 import { HaulRun, slot, type Action, type Sfx } from "./runs";
 import { nearestAim, pick, type Target } from "./facing";
 import { canLoad, LOAD, loadOf, pushSpeed, unloadAllAllowed, UNLOAD_NEAR_M, type CartThing } from "../../../shared/handcart";
-import { cartPoints, footprint, stepCart, GRIP_AHEAD, REACH, type CartPose, type CartWorld } from "./cartPhysics";
+import { cartFits, cartPoints, footprint, stepCart, GRIP_AHEAD, REACH, type CartPose, type CartWorld } from "./cartPhysics";
 
 // Jef's handcart (M6 handcart, Steve 2026-09-24): "I should be able to push a handcart and put
 // multiple items on it, so I can deliver all crates at once, or other items."
@@ -41,9 +41,12 @@ interface CartItem {
 }
 interface JefCart {
   id: string;
-  kind: "new" | "used" | "hire" | "taken";
+  /** M7 short jobs: "lent": the employer's handcart for a cart job (back where it stood after). */
+  kind: "new" | "used" | "hire" | "taken" | "lent";
   label: string;
   owner?: string;
+  /** M7 short jobs: a lent cart whose place this side has checked (settleLent). */
+  placed?: boolean;
   x: number;
   z: number;
   yaw: number;
@@ -199,6 +202,7 @@ export class Handcarts {
         this.park(d);
       }
       this.showLoad(d);
+      if (info.kind === "lent" && !info.placed && !info.held) void this.settleLent(d);
     }
     for (const [id, d] of this.drawn) {
       if (seen.has(id)) continue;
@@ -414,7 +418,7 @@ export class Handcarts {
     const options: Array<[number, Action]> = [];
     const extra: Action[] = [];
     if (near) {
-      options.push([near.d, { key: "KeyE", text: near.info.kind === "hire" ? "take the hired handcart" : near.info.kind === "taken" ? "take the handcart" : "take your handcart", run: () => void this.takeHold(near), at: near.at }]);
+      options.push([near.d, { key: "KeyE", text: near.info.kind === "hire" ? "take the hired handcart" : near.info.kind === "taken" ? "take the handcart" : near.info.kind === "lent" ? `take ${near.info.label}` : "take your handcart", run: () => void this.takeHold(near), at: near.at }]);
       const top = near.info.load[near.info.load.length - 1];
       if (top) extra.push({ key: "KeyG", text: `lift the ${LOAD[top.kind]?.name ?? top.kind} off the cart`, run: () => void this.unloadOne(near), at: near.at });
       const all = this.unloadAllAction(near);
@@ -577,6 +581,59 @@ export class Handcarts {
       this.apply(v.carts);
     } catch (e) {
       console.warn("[handcart] let go", e);
+    }
+  }
+
+  private placing = new Set<string>();
+
+  /**
+   * M7 short jobs: the employer's lent cart stands where the server's walk map has room, but the quay's
+   * own things (stacked crates, the railway's standing wagon) are known only here. Once, before it is
+   * touched: the whole cart must fit, off the rails, with room to swing it a quarter round and for Jef
+   * at the grips; else the nearest place within 8 m that does. The server keeps it (it goes back there).
+   */
+  private async settleLent(d: Drawn): Promise<void> {
+    const info = d.info;
+    if (this.placing.has(info.id) || info.load.length) return;
+    this.placing.add(info.id);
+    const was = d.solid;
+    this.solid(d, false);
+    const w: CartWorld = {
+      free: (px, pz, r) => this.world.isFree(px, pz, r) && !this.world.moverAt(px, pz, r),
+      base: (px, pz) => this.world.baseAt(px, pz),
+      people: () => [],
+      water: (px, pz) => this.world.isWater(px, pz),
+    };
+    const back = GRIP_AHEAD + REACH;
+    const pose = (ax: number, az: number, dir: number): CartPose => ({ px: ax - Math.sin(dir) * back, pz: az - Math.cos(dir) * back, dir });
+    const ok = (ax: number, az: number, dir: number): boolean => {
+      const p = pose(ax, az, dir);
+      if (!cartFits(p, w) || !this.world.isFree(p.px, p.pz, 0.35)) return false;
+      if (footprint(p).some(([x, z, r]) => this.world.onRails(x, z, r))) return false;
+      // room to swing it round a quarter either way, standing
+      return [0.8, -0.8, 1.57, -1.57].some((t) => cartFits(pose(ax, az, dir + t), w));
+    };
+    let best: [number, number, number] | null = null;
+    const dirs = [info.yaw, info.yaw + Math.PI, info.yaw + Math.PI / 2, info.yaw - Math.PI / 2];
+    for (let r = 0; r <= 8 && !best; r += 0.5) {
+      const n = r === 0 ? 1 : Math.max(8, Math.round(r * 4));
+      for (let k = 0; k < n && !best; k++) {
+        const a = (k / n) * Math.PI * 2;
+        const x = info.x + Math.cos(a) * r;
+        const z = info.z + Math.sin(a) * r;
+        for (const dir of dirs) if (ok(x, z, dir)) {
+          best = [x, z, Math.atan2(Math.sin(dir), Math.cos(dir))];
+          break;
+        }
+      }
+    }
+    if (was) this.solid(d, true);
+    const [x, z, yaw] = best ?? [info.x, info.z, info.yaw];
+    try {
+      const v = await net<JobsPayload & { carts: CartView }>("POST", `/api/cart/${info.id.split(":")[1]}/place`, { x: +x.toFixed(2), z: +z.toFixed(2), yaw: +yaw.toFixed(3) });
+      this.apply(v.carts);
+    } catch (e) {
+      console.warn("[handcart] place the lent cart", e);
     }
   }
 
@@ -751,11 +808,18 @@ export class Handcarts {
       void net("POST", "/api/cart/seen", { x: +p.x.toFixed(1), z: +p.z.toFixed(1) }).catch(() => {});
     }
     this.pollT -= dt;
+    // M7 short jobs: a job taken or ended (a cart job's lent cart comes and goes): ask again soon
+    const jobNow = this.jobs.running?.job.id ?? null;
+    if (jobNow !== this.jobSeen) {
+      this.jobSeen = jobNow;
+      this.pollT = Math.min(this.pollT, 1);
+    }
     if (this.pollT <= 0) {
       this.pollT = 12;
       void this.load();
     }
   }
+  private jobSeen: number | null = null;
 
   /** The pushed cart for the vehicles' eyes (world/traffic.ts, omnibus, train: they stop for it). */
   /** Fixes 2026-09-24: every cart's middle (parked, and the pushed one's wheels), for the lock gates. */

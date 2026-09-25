@@ -75,6 +75,25 @@ export const ASK_WAIT_MIN = 20;
 export const HIRE_MIN_MIN = 240;
 /** Jef's cart must stand this near the goods to be lent to a hand. */
 export const CART_NEAR_M = 40;
+/** A hire that fell through leaves the hand the part of the first half he did not earn. Hired again for the
+ *  same kind of work on that day or the next, it counts as paid (Steve 2026-09-25: words and money agree). */
+export const KEPT_DAYS = 1;
+
+/** What a hand kept of Jef's wage from a hire that fell through: centimes, the kind of work, the day. */
+export interface Kept { c: number; task: "carry" | "watch"; day: number }
+const keptKey = (npc: string) => `hands:kept:${npc}`;
+/** The kept part that still counts for a new hire of this kind (0 when none, another kind, or too old). */
+export function keptFor(db: DB, npc: string, task: "carry" | "watch"): number {
+  const k = getState<Kept | null>(db, keptKey(npc), null);
+  if (!k || !(k.c > 0) || k.task !== task || clock(db).day - k.day > KEPT_DAYS) return 0;
+  return k.c;
+}
+function keepPart(db: DB, npc: string, task: "carry" | "watch", c: number): void {
+  const k = getState<Kept | null>(db, keptKey(npc), null);
+  const day = clock(db).day;
+  const before = k && k.task === task && day - k.day <= KEPT_DAYS ? k.c : 0;
+  setState(db, keptKey(npc), c + before > 0 ? { c: c + before, task, day } : null);
+}
 
 /** How many of these goods go on one handcart a trip (by size and weight), at most 5. */
 export function perTrip(goods: string): number {
@@ -286,7 +305,11 @@ export function proposeHire(db: DB, r: Resident, p: ActionProposal, words: strin
   const plan = planFrom(text);
   if (plan === "end" && trust < 2) return said(r, "Half now, or find another man. I don't know you.");
   const first = plan === "now" ? offer : plan === "half" ? Math.floor(offer / 2) : 0;
-  if (player(db).money_c < first) return said(r, `Show me the coin first: ${first} centimes now.`);
+  // what he kept from a hire of the same kind that fell through counts as paid: first against the money
+  // due now, the rest against the end
+  const kept = Math.min(offer, keptFor(db, r.id, task));
+  const cash = Math.max(0, first - kept);
+  if (player(db).money_c < cash) return said(r, `Show me the coin first: ${cash} centimes now.`);
 
   const roll = task === "carry" ? dishonestPlan(r, trust, plan, expected, rng) : { walk_off_at: null, ask_more_at: null };
   const state: HireState = {
@@ -307,8 +330,12 @@ export function proposeHire(db: DB, r: Resident, p: ActionProposal, words: strin
     cart,
   };
   // the first half (or all) up front: the engine's money
-  if (first) stepPay(db, r.id, first, plan === "now" ? "a wage, all up front" : "half a wage up front");
-  state.paid_c = first;
+  if (cash) stepPay(db, r.id, cash, plan === "now" ? "a wage, all up front" : "half a wage up front");
+  state.paid_c = cash + kept;
+  if (kept) {
+    keepPart(db, r.id, task, -kept);
+    state.kept_c = kept;
+  }
   const steps: Step[] =
     task === "carry"
       ? [...(cart ? [{ kind: "walk_to" as const, ...besideCart(cart, from!), label: "Jef's handcart" }] : []), ...loadSteps(state)]
@@ -318,11 +345,14 @@ export function proposeHire(db: DB, r: Resident, p: ActionProposal, words: strin
         ];
   const minutes = Math.max(HIRE_MIN_MIN, Math.min(720, (20 - h) * 60 - clock(db).minute));
   startRoutine(db, { npc: r.id, purpose: "hire", reason: task === "carry" ? "carrying for Jef" : "watching for Jef", minutes, target: task, target_x: from?.x ?? null, target_z: from?.z ?? null, state, steps });
-  log(db, "hired", r.id, `Jef hired ${r.name} to ${task === "carry" ? "carry the goods of his job" : "watch his things"} for ${offer} centimes${first ? `, ${first} paid up front` : ", all at the end"}.`);
+  log(db, "hired", r.id, `Jef hired ${r.name} to ${task === "carry" ? "carry the goods of his job" : "watch his things"} for ${offer} centimes${cash ? `, ${cash} paid up front` : kept ? "" : ", all at the end"}${kept ? `, ${kept} kept from the last time counted as paid` : ""}.`);
   remember(db, r.id, `Jef hired me to ${task === "carry" ? "carry his goods" : "watch his things"} for ${offer} centimes.`, 4);
   void writeHandLines(db, r).catch(() => {});
   const over = task === "carry" && job && promised(db, job.id) > job.pay_c;
-  const plainPlan = plan === "now" ? `${offer} centimes, paid now.` : plan === "half" ? `${first} now, the rest when it's done.` : "All of it when it's done, mind.";
+  const rest = offer - cash - kept;
+  const plainPlan = kept
+    ? `The ${kept} I kept from last time counts. ${cash ? `${cash} more now, ` : ""}${rest ? `${rest} when it's done.` : "Nothing more to pay, then."}`
+    : plan === "now" ? `${offer} centimes, paid now.` : plan === "half" ? `${first} now, the rest when it's done.` : "All of it when it's done, mind.";
   return {
     ok: true,
     action: null,
@@ -548,6 +578,9 @@ function settleWage(db: DB, npc: string, s: HireState, finished: boolean): { pai
   if (s.stole) return { paid: 0, owed: 0 };
   const due = finished || s.task === "watch" ? s.wage_c : round5((s.wage_c * s.loads) / Math.max(1, s.expected));
   const owed = Math.max(0, Math.min(s.wage_c, due) - s.paid_c);
+  // paid more than he earned (the first half, no load carried): he keeps it, and it counts on a rehire
+  const over = s.paid_c - Math.min(s.wage_c, due);
+  if (over > 0) keepPart(db, npc, s.task, over);
   if (!owed) return { paid: 0, owed: 0 };
   const have = player(db).money_c;
   const pay = Math.min(have, owed);
@@ -648,7 +681,14 @@ export function installHire(): void {
   cartGuards.push((db, x, z) => watchedBy(db, x, z));
   talkExtras.context.push((db, r) => {
     const g = routineFor(db, r.id, "hire");
-    if (!g) return "";
+    if (!g) {
+      // a hire that fell through: say only what the engine will really do with the coin he kept
+      const kc = keptFor(db, r.id, "carry");
+      const kw = keptFor(db, r.id, "watch");
+      if (!kc && !kw) return "";
+      const k = kc || kw;
+      return `KEPT FROM JEF: you still have ${k} centimes Jef paid you up front for ${kc ? "carrying" : "watching his things"} when the work fell through. If he hires you again for the same work today or tomorrow, the game counts those ${k} centimes as paid, so he pays that much less. Name no other sum.`;
+    }
     const s = st(g.r);
     return `WORKING FOR JEF: he hired you to ${s.task === "carry" ? "carry the goods of his job" : "watch his things"} for ${s.wage_c} centimes; ${s.paid_c} paid so far. ${s.loads} loads carried.${s.asking ? ` You have stopped and asked him for ${s.asking} more.` : ""}`;
   });

@@ -7,7 +7,7 @@ import { chainNow, joinChain, sootList, CHAIN_MAX, CHAIN_MIN, CHAIN_PAY_MAX_C, C
 import { hiringIdle, jefHireChance, setHiringRoll, setHiringRunner, standForHire, type HiringOut } from "../src/director/hiring.ts";
 import { eventRow, eventsTick, eventsToday, leadsOf, liveEvents, planEvent, stage, type EventRow, type StoredStage } from "../src/director/scheduler.ts";
 import { planFromTemplate, templateById } from "../src/director/templates.ts";
-import { allLamps, ensureLamplighters, lampRounds } from "../src/town/lamplighters.ts";
+import { allLamps, ensureLamplighters, lampRounds, walkPath } from "../src/town/lamplighters.ts";
 import { DUSK_SPAN_H, lampLit, lampTimes, roundState } from "../src/town/lampround.ts";
 import { dropTownCache, town } from "../src/town/store.ts";
 import { walkMap } from "../src/town/walkmap.ts";
@@ -114,6 +114,26 @@ describe("M6 lamplighters", () => {
     expect(dawn.slice(0, out).every((v) => !v)).toBe(true);
     // every lamp lights inside the dusk round and before 19:30
     for (let k = 0; k < n; k++) expect(lampTimes(round, k).on).toBeLessThanOrEqual(round.dusk + DUSK_SPAN_H);
+  });
+
+  it("M7 lamps: a cart's way keeps clear of the lamp posts, a walker's may pass them", () => {
+    // along the Grote Markt's north side: two lamps (d34, d35) stand on the straight line
+    const lamps = allLamps();
+    const near = (p: [number, number][], m: number) => {
+      let min = Infinity;
+      for (let i = 1; i < p.length; i++)
+        for (let k = 0; k <= 20; k++) {
+          const x = p[i - 1][0] + ((p[i][0] - p[i - 1][0]) * k) / 20;
+          const z = p[i - 1][1] + ((p[i][1] - p[i - 1][1]) * k) / 20;
+          for (const l of lamps) min = Math.min(min, Math.hypot(l.x - x, l.z - z));
+        }
+      return min >= m;
+    };
+    const cart = walkPath(-226.5, 80, -226.5, 112, 400_000, 1.1)!;
+    expect(cart).toBeTruthy();
+    expect(near(cart, 1.1)).toBe(true);
+    const walker = walkPath(-226.5, 80, -226.5, 112)!;
+    expect(walker.length).toBe(2);
   });
 
   it("an older save gets its lamplighters in place and keeps everything else", () => {

@@ -4,7 +4,8 @@ import { callClaude, type Runner } from "../ai/claude.ts";
 import { CALLS_PER_DAY, CALLS_RESERVE, NIGHT_BOARD_CALLS_PER_DAY } from "../config.ts";
 import { clock, WEATHER_TEXT } from "../day.ts";
 import { GameError, log, settleExtras, takeChecks, type Settlement } from "../game.ts";
-import { ALL_EMPLOYERS, GOODS, maxTier, PLAYABLE, SPOT_IDS, SPOTS, SYSTEM, TIER_PAY, TWISTS, employerName, taskFor, type Board, type JobRow, type Task } from "../hooks/jobBoard.ts";
+import { ALL_EMPLOYERS, GOODS, maxTier, PLAYABLE, SPOT_IDS, SPOTS, SYSTEM, TIER_PAY, TWISTS, employerName, fitCarry, taskFor, type JobRow, type Task } from "../hooks/jobBoard.ts";
+import { carryBand, HAND_MAX } from "../hooks/loads.ts";
 import { gameMin } from "../../../shared/clock.ts";
 import { remember } from "../npcs.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
@@ -48,6 +49,8 @@ export const NightBoardSchema = z.object({
         recipient: z.string().max(60),
         pay_c: z.number().int(),
         pitch: z.string().min(10).max(300),
+        // M7 short jobs: carry only, by hand: 1 or 2 things (the engine clamps; no cart work at night)
+        items: z.number().int().optional(),
       }),
     )
     .min(2)
@@ -72,7 +75,7 @@ export const FALLBACK_NIGHT: NightBoard = {
       pitch: "A bundle for a friend who waits under the Vleeshuis arch. Don't look inside, and don't be seen with it.",
     },
     {
-      title: "Crates off the lighter",
+      title: "A crate off the lighter",
       giver: "smuggler",
       task_type: "carry",
       goods: "crates",
@@ -82,8 +85,10 @@ export const FALLBACK_NIGHT: NightBoard = {
       to: "steen_gate",
       twist: "none",
       recipient: "",
-      pay_c: 200,
-      pitch: "Crates off my lighter at the ferry pontoon, up to the Steen gate before the water police wake. Quick and quiet.",
+      pay_c: 150,
+      // M7 short jobs: one crate (68 m: two by hand would take 105 game minutes at a walk)
+      pitch: "A crate off my lighter at the ferry pontoon, up to the Steen gate before the water police wake. Quick and quiet.",
+      items: 1,
     },
     {
       title: "Barrels, no names",
@@ -95,7 +100,8 @@ export const FALLBACK_NIGHT: NightBoard = {
       twist: "thick_fog",
       recipient: "",
       pay_c: 160,
-      pitch: "Barrels from the west canal quay to the brewery door. No names, no questions, and mind the edge.",
+      pitch: "Two barrels from the west canal quay to the brewery door. No names, no questions, and mind the edge.",
+      items: 2,
     },
     {
       title: "Keep a lookout",
@@ -168,7 +174,7 @@ RECENT LOG (newest first)
 ${logRows.map((l) => "- " + l.text).join("\n")}
 
 KINDS OF WORK
-- carry: move goods from "from" to "to". Twists: none, broken_goods, stranger_offer, foreman_watches, thick_fog, heavy_load.
+- carry: move goods from "from" to "to" by hand: "items" 1 or 2, never more, a short way. Pay ${carryBand([lo, hi], false)[0]} to ${carryBand([lo, hi], false)[1]}. Twists: none, broken_goods, stranger_offer, foreman_watches, thick_fog, heavy_load.
 - watch: keep a lookout over goods at "to" until the bell. Twists: none, thief, bribe, foreman_watches, thick_fog.
 - deliver: take one item from the man's own place to a person at "to"; name that person in "recipient" (short). Twists: none, stranger_offer, thick_fog.
 - goods: one of ${GOODS.join(", ")}.
@@ -261,10 +267,14 @@ export function insertNightJobs(db: DB, jobs: NightJob[], tier: number, source: 
     for (const j of jobs) {
       const e = ALL_EMPLOYERS[j.giver];
       if (!e?.night || !PLAYABLE.has(j.task_type)) continue;
-      const line: Board["jobs"][number] = { title: j.title, employer: j.giver, task_type: j.task_type, goods: j.goods, from: j.from, to: j.to, twist: j.twist, urgent: false, recipient: j.recipient, pay_c: j.pay_c, risk: "high", pitch: j.pitch };
+      // M7 short jobs: night carry by hand, at most two things, its pay in the lower part of the night's band
+      const line = fitCarry(
+        { title: j.title, employer: j.giver, task_type: j.task_type, goods: j.goods, from: j.from, to: j.to, twist: j.twist, urgent: false, recipient: j.recipient, pay_c: j.pay_c, risk: "high", pitch: j.pitch, items: j.items ?? HAND_MAX, cart: false },
+        nightBand(tier),
+      );
       const task = taskFor(line);
       if (!task) continue;
-      const r = ins.run(c.day, j.title, j.giver, j.task_type, j.pay_c, tier, e.faction, j.pitch, JSON.stringify({ ...task, until_min: until }));
+      const r = ins.run(c.day, j.title, j.giver, j.task_type, line.pay_c, tier, e.faction, j.pitch, JSON.stringify({ ...task, until_min: until }));
       ids.push(Number(r.lastInsertRowid));
     }
     db.prepare("INSERT INTO log (day, hour, place, actor, verb, object, text) VALUES (?, ?, 'night', 'world', 'night_board', ?, ?)").run(

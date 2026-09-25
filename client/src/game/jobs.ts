@@ -630,7 +630,7 @@ export class Jobs {
     if (t.kind === "carry") {
       const from = t.from === "ship_gangway" ? "the Anna Maria (call up at the gangway)" : SPOTS[t.from].label;
       // (M7 quest tests: "1 chests" for an emigrant's lost chest)
-      this.toastMsg(`${who}: ${t.count === 1 ? `a ${GOODS[t.goods].one}` : `${t.count} ${t.goods}`} from ${from} to ${SPOTS[t.to].label}.`);
+      this.toastMsg(`${who}: ${t.count === 1 ? `a ${GOODS[t.goods].one}` : `${t.count} ${t.goods}`} from ${from} to ${SPOTS[t.to].label}.${t.cart ? ` ${who}'s handcart stands by the goods: load it, push it there, and bring it back after.` : ""}`);
     }
     if (t.kind === "deliver") this.toastMsg(`${who} has a ${GOODS[t.goods].one} for ${t.recipient}. Get it from ${who}.`);
     this.run = makeRun(job, ctx);
@@ -807,7 +807,8 @@ function summary(j: Job): string {
   const t = j.task;
   if (!t) return j.task_type;
   const urgent = "limit_s" in t && t.limit_s ? ", before the bell" : "";
-  if (t.kind === "carry") return `carry ${t.count} ${t.goods}, ${SPOTS[t.from].label} to ${SPOTS[t.to].label}${urgent}`;
+  // M7 short jobs: by hand (one or two), or a cartload on the employer's handcart
+  if (t.kind === "carry") return `carry ${t.count === 1 ? `a ${GOODS[t.goods].one}` : `${t.count} ${t.goods}`}${t.cart ? ` on ${j.employer_name}'s handcart` : " by hand"}, ${SPOTS[t.from].label} to ${SPOTS[t.to].label}${urgent}`;
   if (t.kind === "deliver") return `deliver a ${GOODS[t.goods].one} to ${t.recipient}${urgent}`;
   if (t.kind === "letters") return t.stops.some((s) => s.what === "telegraph") ? `send a telegram${t.city ? ` to ${t.city}` : ""}` : `${t.stops.length === 1 ? "a letter" : `${t.stops.length} letters`} to doors about the town`;
   return `watch the ${t.goods} at ${SPOTS[t.post].label}`;

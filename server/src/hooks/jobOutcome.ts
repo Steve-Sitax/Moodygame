@@ -50,7 +50,7 @@ export function workLine(job: JobRow): string {
   if (!t) return "";
   const w =
     t.kind === "carry"
-      ? `${t.count} ${t.goods} from ${place(t.from)} to ${place(t.to)}`
+      ? `${t.count} ${t.goods} from ${place(t.from)} to ${place(t.to)}${t.cart ? ", on the employer's handcart" : ""}`
       : t.kind === "deliver"
         ? `${t.goods === "parcel" ? "a parcel" : `one of the ${t.goods}`} from ${place(t.from)} to ${t.recipient} at ${place(t.to)}`
         : t.kind === "watch"

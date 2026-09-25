@@ -10,6 +10,9 @@ import { boxesOverlap, buildWallProbe, signOnWall, wallBox, type WallBox, type W
 //     standing out of the wall there: a gateway, a door surround, the next house);
 //   - clear of the windows and the door of its wall (the facade atlas, cityTextures.facadeOpenings);
 //   - clear of every other thing on the walls: signs, plates, brackets, awnings, Madonnas.
+// Fixes 2026-09-25: also the notices and quay names painted on the storehouse walls
+// (world/quayfurniture.ts, on streetlife's list); on a wall that is no house front (a props
+// building) only their overlaps are checked.
 // It must list nothing.
 
 export interface SignProblem {
@@ -84,11 +87,12 @@ export function checkSigns(scene: THREE.Scene, city: THREE.Object3D, sl: StreetL
   const seenPair = new Set<string>();
   const index = new Map<WallBox, number>(items.map((b, i) => [b, i]));
   for (const b of flat) {
+    const hosts = hostsOf(b);
+    const quay = b.kind === "quay notice" || b.kind === "quay name";
     // on the wall, and the wall there
-    const wrong = signOnWall(b, probe);
+    const wrong = quay && !hosts.length ? null : signOnWall(b, probe);
     if (wrong) say(b, wrong);
     // clear of the windows and the door of its wall
-    const hosts = hostsOf(b);
     let whole = false;
     let over = "";
     for (const w of hosts) {
@@ -103,7 +107,7 @@ export function checkSigns(scene: THREE.Scene, city: THREE.Object3D, sl: StreetL
     }
     if (over) say(b, over);
     if (!hosts.length) {
-      if (b.kind !== "door sign") say(b, "on no house wall");
+      if (b.kind !== "door sign" && !quay) say(b, "on no house wall");
     } else if (!whole) say(b, "not wholly on one house's wall");
     // clear of every other thing on the walls
     const gx = Math.floor(b.cx / 8), gz = Math.floor(b.cz / 8);

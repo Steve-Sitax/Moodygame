@@ -8,7 +8,7 @@ The model proposes. A schema and a clamp check every proposal.
 ## Where a model is called (the hooks)
 | Hook | When | Input | Output (JSON) | Effort |
 |---|---|---|---|---|
-| job_board | At midnight, for the new day (M7 night) | Player state, trust per faction, recent memory, weather, day | 3-5 jobs: title, employer, district, pay, risk, tier, pitch, task type | medium |
+| job_board | At midnight, for the new day (M7 night) | Player state, trust per faction, recent memory, weather, day | 3-5 jobs: title, employer, district, pay, risk, tier, pitch, task type; for carry the number of things and cart work (M7 short jobs: the engine clamps to 1-2 by hand or 3-8 by cart, behind a gate, and rewrites the pitch's number) | medium |
 | night_board | Once a night at 21:00, when the shady givers come out (M7 night) | The four givers, their places, weather, recent log | 2-4 night jobs: title, giver, task type, goods, places, twist, pay, pitch; the engine clamps pay to the night band and drops violent words | medium |
 | dialogue | Player talks to an NPC | NPC persona, relationship row, that NPC's memories, scene | NPC line, mood, 3 choices, trust delta, memory note | medium |
 | free_reply | Player types their own line | Same plus the typed text | Same as dialogue | medium |
@@ -133,7 +133,7 @@ GPT at run time (with approval): random events and object ideas can also come fr
 
 ## Guardrails
 - JSON schema on every call. Reject and retry once on failure.
-- Clamp: trust delta in [-2, +2], pay in tier range, prices in [0.5, 3], trait drift 1 per day.
+- Clamp: trust delta in [-2, +2], pay in tier range, prices in [0.5, 3], trait drift 1 per day. Goods work (M7 short jobs): 1-2 things by hand within an hour's walk, 3-8 only as cart work once the gate is open, pay in the load's part of the band.
 - NPCs never hand out money or items. Only jobs and shops do.
 - The model never sees the player's real name or any system data. Only the game name.
 - Every call is logged with provider, tokens and time. A per-day call budget stops runaway loops.

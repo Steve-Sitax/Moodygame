@@ -143,8 +143,39 @@ DECOR = {
               (-138.6, 11.2), (-126.6, 11.2), (-114.6, 11.2), (-102.6, 11.2), (-90.6, 11.2),
               (-140.4, 23.4), (-140.4, 35.6),
               (-132.6, 47.6), (-120.6, 47.6), (-108.6, 47.6), (-96.6, 47.6),
-              (-230, 60.0), (-280, 60.0), (-230, 128.0), (-290, 128.0), (-74, 60.0), (-74, 160.0), (69.4, 77.0), (69.4, 106.5), (124.3, 121.5), (170.8, 83.0)],
+              # d22, d23: the town hall's front (M7 lamps: they stood inside its walls at z 60); d24 between the
+              # omnibus lanes into the Handschoenmarkt, d25; d26, d27 on the canal's east quay by the middle and
+              # high bridges (M7 lamps: they stood in the canal at x -74)
+              (-231, 65.0), (-283, 65.0), (-230, 128.0), (-290, 128.0), (-68.4, 62.0), (-68.4, 161.0), (69.4, 77.0), (69.4, 106.5), (124.3, 121.5), (170.8, 83.0)]
+    # M7 lamps (2026-09-25, Steve: "The Grote Markt, the Handschoenmarkt, the cathedral quarter and the lock
+    # bridge have no street lamps"): d32 on. Each spot checked against the walk map (0.8 m from any wall),
+    # the solids as placed, the doors and their steps, the omnibus lanes (the two between the Handschoenmarkt
+    # street's lanes stand as d24 does, 0.6 m clear of each body), the drays' lanes, the markets, trades and
+    # landmark doorways, the path check's points and the other lamps (docs/milestones/M7-lamps.md)
+    + [
+        # the Grote Markt: the town hall's front (either side of its porch), the guild fronts north (4.5 m
+        # out, clear of the omnibus) and south (2.4 m out, between two doors)
+        (-244, 65.0), (-270, 65.0), (-226.5, 87.6), (-226.5, 105.2), (-283.6, 84.6), (-283.6, 108.2),
+        # the Handschoenmarkt: either side of the cathedral's west portal, the two far corners; the street
+        # in from the east between the omnibus lanes
+        (-243, 141.5), (-280, 141.5), (-212, 137.0), (-300, 137.0), (-186, 128.0), (-162, 128.0),
+        # the cathedral quarter: the wide street north of the cathedral, the lane along its south side
+        # (2 m off the church wall, at the Werf's 24 m)
+        (-218.5, 162.0), (-218.5, 186.0), (-212, 208.0),
+        (-302.5, 162.0), (-302.5, 186.0), (-302.5, 210.0), (-302.5, 234.0), (-302.5, 258.0),
+        # the street from the Steenplein up to the Handschoenmarkt (1.6 m before the house fronts, between
+        # the doors) and the cross street between the two Steenplein blocks
+        (-201.6, 57.5), (-201.6, 80.5), (-201.6, 107.0), (-178, 78.0),
+        # the lock bridge of the Petit Bassin: one at each end, on the quay beside the deck
+        (102.4, 23.2), (117.6, 23.2),
+        # the canal's west quay (the omnibus street) and the street west of the Vleeshuis quarter
+        (-90.4, 141.0), (-90.4, 162.5), (-90.4, 186.5), (-153.8, 142.0), (-153.8, 167.0), (-153.8, 194.0),
+        # the street behind the Rijnkaai (before the house fronts, between the doors)
+        (-12, 43.4), (36, 43.4),
+    ],
     # (the Oostershuis lamp stands on the pier beside the gate's frontispiece, not before the gate: M7 doors)
+    # Left dark on purpose (M7 night: the gangs' ground): the lane behind the town hall, the narrow lanes
+    # along the cathedral's north side and behind its choir, the back streets behind the Rijnkaai, the Eilandje.
 }
 
 # ------------------------------------------------------------------ Het Steen, restored (1887-90)

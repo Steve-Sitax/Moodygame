@@ -4,6 +4,7 @@ import { callClaude, type Runner } from "../ai/claude.ts";
 import { CALLS_PER_DAY, CALLS_RESERVE, HIRING_CALLS_PER_DAY } from "../config.ts";
 import { clock, WEATHER_TEXT } from "../day.ts";
 import { ALL_EMPLOYERS, SYSTEM, clampBoard, maxTier, taskFor, type Board } from "../hooks/jobBoard.ts";
+import { cartWorkOpen } from "../hooks/loads.ts";
 import { remember } from "../npcs.ts";
 import { plainEnglish } from "../text.ts";
 import { gameMinute } from "../town/deeds.ts";
@@ -287,6 +288,8 @@ function postHireJob(db: DB, ev: EventRow, sp: HiringSpot): { id: number; title:
   const def = ALL_EMPLOYERS[sp.employer];
   if (!def) return null;
   const from = def.area.find((a) => a !== def.door) ?? def.door;
+  // M7 short jobs: by hand at most two sacks; a cartload with the natie's handcart once cart work is open
+  const cart = cartWorkOpen(db);
   const board: Board = {
     jobs: [
       {
@@ -301,13 +304,19 @@ function postHireJob(db: DB, ev: EventRow, sp: HiringSpot): { id: number; title:
         recipient: "",
         pay_c: HIRE_PAY_C,
         risk: "low",
-        pitch: `The foreman took you on at the gate this morning. Unload ${sp.ship} into the natie's store; paid at the day's end.`,
+        pitch: cart
+          ? `The foreman took you on at the gate this morning. A cartload off ${sp.ship} into the natie's store, with the natie's handcart; bring it back where it stood.`
+          : `The foreman took you on at the gate this morning. Sacks off ${sp.ship} into the natie's store; the natie's own men do the rest.`,
+        items: cart ? 5 : 2,
+        cart,
       },
     ],
   };
   const clamped = clampBoard(board, maxTier(db)).jobs[0];
   const task = taskFor(clamped);
   if (!task) return null;
+  // the pitch names the engine's count (M7 short jobs)
+  if (task.kind === "carry" && !task.cart) clamped.pitch = clamped.pitch.replace("Sacks off", task.count === 1 ? "A sack off" : "Two sacks off");
   const c = clock(db);
   const district = def.town ? ((db.prepare("SELECT district FROM npc WHERE id = ?").get(sp.employer) as { district: string } | undefined)?.district ?? "town") : "rijnkaai";
   const res = db

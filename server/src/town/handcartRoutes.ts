@@ -1,7 +1,7 @@
 import type { Hono } from "hono";
 import type { DB } from "../db.ts";
 import { GameError } from "../game.ts";
-import { ackDropped, cartAt, cartHour, cartSeen, cartView, holdCart, loadCart, unloadJob, unloadOne, type CartItem } from "./handcart.ts";
+import { ackDropped, cartAt, cartHour, cartSeen, cartView, holdCart, loadCart, placeLent, unloadJob, unloadOne, type CartItem } from "./handcart.ts";
 
 // The HTTP side of Jef's handcart (M6): what carts he has and what is on them, taking hold and
 // letting go, loading and unloading, and the hour's work (a hire run out, a cart wheeled off).
@@ -52,6 +52,13 @@ export function mountHandcart(app: Hono, deps: CartDeps): void {
     const b = await body(c);
     cartAt(db, id(c.req.param("id")), Number(b.x), Number(b.z), Number(b.yaw), b.held === true);
     return c.json(b.held === true ? { ok: true } : view());
+  });
+
+  /** M7 short jobs: the lent cart moved once to where the client sees it fits (placeLent). */
+  app.post("/api/cart/:id/place", async (c) => {
+    const b = await body(c);
+    placeLent(db, id(c.req.param("id")), Number(b.x), Number(b.z), Number(b.yaw));
+    return c.json(view());
   });
 
   app.post("/api/cart/:id/load", async (c) => {

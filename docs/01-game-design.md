@@ -35,6 +35,23 @@ Money is in centimes. 100 centimes = 1 franc. A day of dock work pays 2 to 3 fra
 5. Night. The town goes home; the shady men come out with night work; gangs work the dark streets.
 6. Sleep when Jef chooses. Memory is consolidated at midnight, when the date turns and the next board goes up.
 
+## How big a job is (M7 short jobs, Steve 2026-09-25)
+Steve: "Shorter jobs if it is fetching stuff. Fetching is boring, so no more than 2 items. Maybe
+sometimes a job with more, further in the game, if we own a cart or if we can use the owner's cart."
+The engine sets it, whatever the model proposes (numbers: `milestones/M7-short-jobs.md`, `server/src/hooks/loads.ts`):
+- **By hand: one or two things**, and the work must fit in about an hour at a walk (the way on foot
+  over the walk map, not the straight line). Two that would take longer become one; one that would
+  take longer gets a nearer goal. Pay: the lower part of the tier's band (tier 0: 50-90 c, one thing 50-70 c).
+  So it is for every kind of goods work: the board, the night's work, an event's hands, the dawn
+  hiring, the emigrants' chests.
+- **Cart work: three to eight things**, one cart load (five crates or sacks, three barrels, eight
+  coils of rope), about one to two game hours, the upper half of the band (tier 0: 100-150 c). The
+  employer lends his handcart: it stands by the goods; load it, push it, tip the load off at the goal,
+  bring it back where it stood within the hour (left lying: 20 c and trust -1; stolen: 100 c and trust -2).
+  With his own cart standing by the goods, Jef uses his own.
+- **The gate:** cart work is on the board once Jef has finished three jobs, or at once when he owns a
+  handcart; at most one cart job on a board. Never on the pier, at the gangway or among market stalls.
+
 ## The day and the night (M7 night, Steve 2026-09-25)
 Steve: "Do not do the wake-at-dawn forcing. We must be able to work through the night." The clock
 runs on through the night; nobody is sent to bed. Details and numbers: `milestones/M7-night.md`.

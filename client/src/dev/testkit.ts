@@ -86,7 +86,7 @@ export function makeTestKit(d: TestKitDeps) {
         "meet('Ward Cuypers')             stand 2.2 m in front of them, facing them (drawn if they were not)",
         "summon('fishwife')               bring that townsperson to 3 m in front of Jef, waiting there (not one busy in an event)",
         "spawn('thief', {walkTo:[x,z]})   a job figure 5 m ahead on land (thief, stranger, foreman, recipient)",
-        "job({type:'watch', twist:'thief'}) a job of that kind on the board, taken, Jef at its start (test save only)",
+        "job({type:'watch', twist:'thief'}) a job of that kind on the board, taken, Jef at its start (test save only); job({type:'carry', cart:true}) a cart job",
         "event('fish_auction' | 'invent') start an event now and go there (test save only)",
         "run(s) / until(() => cond, maxS) run the game now (the tab may be hidden), at most 30 s a call (15 game minutes)",
         "skip(min)                        the clock on by min game minutes (through midnight: the date turns), then one tick (test save only)",
@@ -279,7 +279,8 @@ export function makeTestKit(d: TestKitDeps) {
       return n;
     },
 
-    async job(spec: { type: "carry" | "watch" | "deliver"; twist?: string; goods?: string; from?: string; to?: string; employer?: string; urgent?: boolean }): Promise<string> {
+    // M7 short jobs: `items` (by hand 1-2, a cart 3-8, the engine clamps) and `cart: true` (the employer's handcart lent at the start)
+    async job(spec: { type: "carry" | "watch" | "deliver"; twist?: string; goods?: string; from?: string; to?: string; employer?: string; urgent?: boolean; items?: number; cart?: boolean }): Promise<string> {
       kit.guard("job()");
       const r = await post<{ id: number; title: string; task: { kind: string; from?: string; to?: string; post?: string } | null }>("/api/dev/job", spec);
       const took = await d.jobs.devTake(r.id);

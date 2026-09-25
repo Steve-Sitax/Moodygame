@@ -246,6 +246,9 @@ const angDiff = (a: number, b: number) => Math.atan2(Math.sin(a - b), Math.cos(a
 
 // ------------------------------------------------------------------ walk grid
 
+/** A straightened way keeps this far off the solids (a body 0.25 m, and the 0.35 m between the samples of a line). */
+const NEAR_M = 0.4;
+
 /** A square window of 1 m cells round a point: open (1) or not (0), plus A*. */
 class NavGrid {
   readonly n: number;
@@ -255,6 +258,13 @@ class NavGrid {
   cz = 0;
   built = false;
   readonly open: Uint8Array;
+  /**
+   * Fixes 2026-09-25: the cells within NEAR_M of a solid, and those solids. A straightened way is
+   * tested against them exactly: a cell is open when its middle keeps clear of a crate stack, but a
+   * line through its corner could cut the stack (a hired hand with a crate stuck there, twice).
+   */
+  private readonly near: Uint8Array;
+  private readonly nearList = new Map<number, Rect[]>();
   /** Found on the grid: open ground by the water, wide open ground, other open ground. */
   quay: V[] = [];
   square: V[] = [];
@@ -271,6 +281,7 @@ class NavGrid {
     this.n = Math.ceil(half * 2);
     const N = this.n * this.n;
     this.open = new Uint8Array(N);
+    this.near = new Uint8Array(N);
     this.g = new Float32Array(N);
     this.f = new Float32Array(N);
     this.from = new Int32Array(N);
@@ -310,7 +321,25 @@ class NavGrid {
     // crates, carts, crane legs, lamps and trees: close every cell within a body's
     // width of them, so paths go round them instead of into them
     const B = 0.45;
+    this.near.fill(0);
+    this.nearList.clear();
     for (const c of solids) {
+      // the cells a line through could come within NEAR_M of it
+      {
+        const i0 = Math.max(0, Math.floor(c.minX - NEAR_M - this.x0));
+        const i1 = Math.min(n - 1, Math.floor(c.maxX + NEAR_M - this.x0));
+        const j0 = Math.max(0, Math.floor(c.minZ - NEAR_M - this.z0));
+        const j1 = Math.min(n - 1, Math.floor(c.maxZ + NEAR_M - this.z0));
+        for (let iz = j0; iz <= j1; iz++) {
+          for (let ix = i0; ix <= i1; ix++) {
+            const k = iz * n + ix;
+            this.near[k] = 1;
+            const l = this.nearList.get(k);
+            if (l) l.push(c);
+            else this.nearList.set(k, [c]);
+          }
+        }
+      }
       const i0 = Math.max(0, Math.floor(c.minX - B - this.x0));
       const i1 = Math.min(n - 1, Math.floor(c.maxX + B - this.x0));
       const j0 = Math.max(0, Math.floor(c.minZ - B - this.z0));
@@ -402,7 +431,14 @@ class NavGrid {
     const steps = Math.max(1, Math.ceil(L / 0.35));
     for (let i = 1; i <= steps; i++) {
       const t = i / steps;
-      if (!this.isOpen(ax + (bx - ax) * t, az + (bz - az) * t)) return false;
+      const x = ax + (bx - ax) * t;
+      const z = az + (bz - az) * t;
+      if (!this.isOpen(x, z)) return false;
+      // near a solid: clear of it by a body's width (the cell may be open while its corner is not)
+      const k = this.cell(x, z);
+      if (k >= 0 && this.near[k]) {
+        for (const r of this.nearList.get(k)!) if (x > r.minX - NEAR_M && x < r.maxX + NEAR_M && z > r.minZ - NEAR_M && z < r.maxZ + NEAR_M) return false;
+      }
     }
     return true;
   }
