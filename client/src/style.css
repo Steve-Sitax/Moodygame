@@ -62,6 +62,12 @@ html, body {
   left: 50%;
   bottom: 22%;
   transform: translateX(-50%);
+  /* fixes 2026-09-25 (Steve's picture: "G buy a ballad sheet fron" cut off at the right edge):
+     one key per line, never wider than the screen */
+  width: max-content;
+  max-width: calc(90vw / var(--ui, 1));
+  text-align: center;
+  white-space: pre-line;
   color: #d8cfb8;
   font-size: 18px;
   text-shadow: 0 0 6px #000, 0 0 2px #000;

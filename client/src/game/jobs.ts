@@ -249,7 +249,7 @@ export class Jobs {
       this.actsRun = this.run;
       this.acts = this.findActions();
     }
-    const text = this.boardOpen || this.talk.isOpen || this.pockets.open || this.day.sheetOpen || this.map.open ? "" : this.acts.map((a) => `${a.key.slice(3)}  ${a.text}`).join("     ");
+    const text = this.boardOpen || this.talk.isOpen || this.pockets.open || this.day.sheetOpen || this.map.open ? "" : this.acts.map((a) => `${a.key.slice(3)}  ${a.text}`).join("\n");
     if (this.el.prompt.textContent !== text) this.el.prompt.textContent = text;
     this.el.prompt.style.display = text ? "block" : "none";
     this.renderTask();

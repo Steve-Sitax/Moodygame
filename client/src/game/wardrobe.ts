@@ -92,6 +92,47 @@ export interface Wear {
   /** What moves (the handbell, the monkey, the purse that appears). */
   parts: Record<string, THREE.Object3D>;
   phase: number;
+  /** Parts moved onto a hand bone by holdInHands (removed with the wear by dropWear). */
+  held?: THREE.Object3D[];
+}
+
+/** Parts held in a hand (not the shoulder's ladder, the monkey, or the pole that setPole swings). */
+const HELD_PARTS = ["bell", "paper", "bottle", "purse", "book", "sheet", "sheaf"];
+
+/**
+ * Fixes 2026-09-25 (Steve: "his paper floats in front", the ballad singer's sheets): the held
+ * things were set on the body where a hanging hand would be, so any arm movement left them in
+ * the air. Each now rides on the nearer hand bone (handL for +x, the body's left; handR for -x):
+ * placed at the hand, keeping its turn, then carried by the bone. Call after the wear's root is
+ * on the figure; `body` is the skinned figure (human.root).
+ */
+export function holdInHands(w: Wear, body: THREE.Object3D): void {
+  const handL = body.getObjectByName("handL");
+  const handR = body.getObjectByName("handR");
+  if (!handL || !handR) return;
+  body.updateWorldMatrix(true, true);
+  w.root.updateWorldMatrix(true, true);
+  const at = new THREE.Vector3();
+  w.held = [];
+  for (const key of HELD_PARTS) {
+    const part = w.parts[key];
+    if (!part || part.parent !== w.root) continue;
+    const hand = part.position.x >= 0 ? handL : handR;
+    hand.getWorldPosition(at);
+    // move it to the hand (a little below the palm), keeping its turn; the bone carries it from then on
+    const local = at.clone();
+    w.root.worldToLocal(local);
+    part.position.set(local.x, local.y - 0.04, local.z);
+    hand.attach(part);
+    w.held.push(part);
+  }
+}
+
+/** Takes the wear off the figure, with the parts held in the hands. */
+export function dropWear(w: Wear): void {
+  w.root.removeFromParent();
+  for (const p of w.held ?? []) p.removeFromParent();
+  w.held = [];
 }
 
 /** The top of the head for a body of this height factor (1: a 1.74 m man). */
@@ -289,6 +330,7 @@ export function makeWear(role: WardrobeRole, bodyScale = 1): Wear {
         sheaf.add(p);
       }
       root.add(sheaf);
+      parts.sheaf = sheaf;
       const held = new THREE.Group();
       held.position.set(-0.22, 1.32 * s, 0.26);
       const sheet = new THREE.Mesh(new THREE.PlaneGeometry(0.19, 0.27), k.sheet);

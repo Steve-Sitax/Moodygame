@@ -7,7 +7,7 @@ import type { Crowd, Puppet } from "./crowd";
 import type { Events } from "./events";
 import type { Town } from "./town";
 import { INSTRUMENTS, makeInstrument, playInstrument, type Instrument, type InstrumentKind } from "./instruments";
-import { makeBoard, makeCoffin, makeWear, playWear, WARDROBE_ROLES, type Wear, type WardrobeRole } from "./wardrobe";
+import { dropWear, holdInHands, makeBoard, makeCoffin, makeWear, playWear, WARDROBE_ROLES, type Wear, type WardrobeRole } from "./wardrobe";
 import type { Hearses } from "./hearses";
 
 // Townspeople who act (M4), on the client. The server keeps every action as a
@@ -936,7 +936,7 @@ export class Actions {
     for (const [id, e] of this.wear) {
       const w = want.get(id);
       if (w && w.p === e.p) continue;
-      e.w.root.removeFromParent();
+      dropWear(e.w);
       e.p.human.root.rotation.set(0, 0, 0);
       this.wear.delete(id);
       this.boards.get(id)?.removeFromParent();
@@ -960,6 +960,7 @@ export class Actions {
       if (this.wear.has(id)) continue;
       const wear = makeWear(w.role, w.p.human.scale);
       w.p.group.add(wear.root);
+      holdInHands(wear, w.p.human.root);
       this.wear.set(id, { w: wear, p: w.p });
     }
     for (const [id, e] of this.wear) {
