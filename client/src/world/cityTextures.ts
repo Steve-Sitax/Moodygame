@@ -494,6 +494,16 @@ function shutterLeaf(g: CanvasRenderingContext2D, x: number, y: number, louvred:
   noise(g, x, y, C, C, 0.08, r);
 }
 
+/** The texels of a cell still as wallFill left them (nothing painted over them since): alpha 0.5. */
+function maskFill(g: CanvasRenderingContext2D, x: number, y: number, snap: ImageData): void {
+  const now = g.getImageData(x, y, C, C);
+  const a = now.data, b = snap.data;
+  for (let i = 0; i < a.length; i += 4) {
+    if (a[i] === b[i] && a[i + 1] === b[i + 1] && a[i + 2] === b[i + 2]) a[i + 3] = 128;
+  }
+  g.putImageData(now, x, y);
+}
+
 /** Paint for front doors (dark green, oxblood, brown, deep blue) and for gates (brown, green, grey-blue). */
 const DOOR_PAINT = ["#2c4632", "#5a2220", "#4a3222", "#22364f"];
 const GATE_PAINT = ["#4a3524", "#2f4331", "#3a4450"];
@@ -524,9 +534,16 @@ export function facadeAtlas(): THREE.CanvasTexture {
   // row 7, one cell per style (build_city.py FARPIER_ROW): the upper-storey wall round a window cut into it,
   // its lintel and sill painted where the upper cell paints them, no shutters: what a front shows far off,
   // where the game does not draw its 3D sills, heads and shutters
+  // M7 the grime pass: the plain wall's texels get alpha 0.5 (maskFill): world/houseGrime.ts draws them from
+  // the wall pictures; the painted lintels, sills, plinths and windows stay as they are
+  const fills: Array<[number, number, ImageData]> = [];
+  const fill = (x: number, y: number, s: Style, rr: () => number) => {
+    wallFill(g, x, y, s, rr);
+    fills.push([x, y, g.getImageData(x, y, C, C)]);
+  };
   STYLES.forEach((s, col) => {
     const [x, y] = at(col, 7);
-    wallFill(g, x, y, s, r2);
+    fill(x, y, s, r2);
     const wx = x + (C - 22) / 2;
     g.fillStyle = s.trim;
     g.fillRect(wx - 3, y + 12 - 4, 22 + 6, 4); // lintel (windowAt)
@@ -537,12 +554,12 @@ export function facadeAtlas(): THREE.CanvasTexture {
   STYLES.forEach((s, row) => {
     const y = (7 - row) * C; // row 0 at the bottom of the image
     // col 0: ground storey with a low shop window on a stone plinth
-    wallFill(g, 0, y, s, r);
+    fill(0, y, s, r);
     g.fillStyle = s.trim;
     g.fillRect(0, y + C - 8, C, 8);
     windowAt(g, 0, y, 40, 14, C - 12, s, r);
     // col 1: upper storey, tall window, shutters on some styles
-    wallFill(g, C, y, s, r);
+    fill(C, y, s, r);
     windowAt(g, C, y, 22, 12, C - 12, s, r);
     if (row === 1) shutters(g, C, y, 22, 12, C - 12, "#3d5a45");
     if (row === 2) shutters(g, C, y, 22, 12, C - 12, "#5a3a2a");
@@ -550,12 +567,13 @@ export function facadeAtlas(): THREE.CanvasTexture {
     g.fillStyle = "rgba(0,0,0,0.18)";
     g.fillRect(C, y + C - 2, C, 2);
     // col 2: blind party wall
-    wallFill(g, C * 2, y, s, r);
+    fill(C * 2, y, s, r);
     // col 3: plain ground storey on its plinth; build_city.py cuts the doorway into it
-    wallFill(g, C * 3, y, s, r);
+    fill(C * 3, y, s, r);
     g.fillStyle = s.trim;
     g.fillRect(C * 3, y + C - 8, C, 8);
   });
+  for (const [x, y, snap] of fills) maskFill(g, x, y, snap);
   return tex(c);
 }
 

@@ -254,3 +254,29 @@ Checks:
 Not done: a Codex brick or plaster picture (the painted atlas holds up next to the 3D at the game's resolution);
 door steps (street life lays them); the kit is baked per chunk, not instanced (the file stays under 12 MB).
 
+### Third pass: the grime (2026-09-25)
+Steve, with a picture of a back street at night: "make sure it is not too clean, more like it was back then".
+
+- The plain wall is drawn from pictures now: weathered dark brick, stained ochre lime plaster flaking to the brick,
+  grey render over stone (Codex, `client/public/textures/wall_brick.jpg`, `wall_plaster.jpg`, `wall_render.jpg`,
+  rows in `assets/ATTRIBUTION.md`), laid along each wall in metres (brick 1.9 m a tile, plaster 3 m). The facade
+  atlas marks its plain-wall texels (alpha 0.5, `cityTextures.ts maskFill`); only those take the picture, so the
+  painted lintels, sills, plinths and windows stay where they were and the window cells still line up. Until the
+  pictures have loaded the painted wall shows.
+- Over it, in the house material (`client/src/world/houseGrime.ts`, hooked in `city.ts`): dark runs under every
+  window sill and soot over every window head, big blotches, streaks down the wall, green-black damp rising
+  0.4 to 1.1 m at the foot with a ragged edge, a brown-black film of coal smoke (never grey), and on the doors,
+  gates, loading doors and shutters the paint worn off in flakes, most at the edges and low down. The stone
+  (sills, heads, cornices, quoins, kerbs) darker and streaked too.
+- How worn, per house (`build_city.py wear_of`, in the alpha of the vertex colour): the alley cottages worst
+  (0.85 to 1), a house on a back street 0.5 to 0.95, one on a quay, a square or the water 0.35 to 0.75, one in
+  eight kept well (0.12 to 0.27).
+- The palette stays: brown-red brick, ochre and grey plaster, dark green shutters; darker and dirtier.
+- Not changed: the ground, the streets and the town wall; the geometry (city.glb only carries the wear now).
+
+Checks: `signs()` no problems, every kind as before; `paths()` only "before a corner Madonna" (the quay goods);
+`npm run build` passes; `zfight()`: the houses' visible fights 265 (260 after the second pass: the geometry
+is the same, the count moves with the other models in the scene; four touch the near-only parts, as before). Pictures, the same cameras: `data/shots/b11_*.jpg` (before) and `b12_*.jpg`
+(now), at night `b11_row6_night.jpg` / `b12_row6_night.jpg`, `b11_back_night.jpg` / `b12_back_night.jpg` (22:00).
+Not done: rust runs under the anchors and soot over the chimneys (no place for them in the atlas; a job for
+decals); the frame time was not measured (the preview pane was hidden: it holds every frame at about 45 ms).

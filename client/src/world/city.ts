@@ -6,6 +6,7 @@ import { psx, psxUniforms } from "../retro/psx";
 import { createMirror } from "./mirror";
 import { cobblePaving, earthPaving, edgeStoneTexture, flagPaving, grassPaving, quayPaving } from "./paving";
 import { copingTexture, quayWallTexture, withPicture } from "./quayStone";
+import { houseGrime } from "./houseGrime";
 import { brickBandTexture, facadeAtlas, glassTexture, leafTexture, roofAtlas, slateTexture, stoneTexture } from "./cityTextures";
 import { makeTextures } from "./textures";
 import { slimeCuts, slimeShade, tideCuts, tideShade } from "./quaysteps";
@@ -396,6 +397,8 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
   const wood = psx(new THREE.MeshLambertMaterial({ map: makeTextures().planks, vertexColors: true, side: DS }), { affine: 0.2 });
   const leaves = psx(new THREE.MeshLambertMaterial({ map: leafTexture(), vertexColors: true, side: DS }), { affine: 0 });
   const trim = psx(new THREE.MeshLambertMaterial({ map: stoneTexture(), vertexColors: true, side: DS }), { affine: 0.2 });
+  // M7 the grime pass: the fronts old and dirty (world/houseGrime.ts: wall pictures, streaks, damp, soot, worn paint)
+  houseGrime(facade, trim);
   const chunks: THREE.Mesh[] = [];
   const draco = new DRACOLoader().setDecoderPath("/draco/");
   const loader = new GLTFLoader().setDRACOLoader(draco);

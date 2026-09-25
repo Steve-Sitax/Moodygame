@@ -118,6 +118,9 @@ class Builder:
         self.dcol = self.dbm.loops.layers.float_color.new("Col")
         self.base = (self.bm, self.uv, self.cell, self.col)
         self.ds = None  # the house's front dress (dress_of), None: as before (backs, cottages)
+        # M7 the grime pass: how worn the house is, 0 kept well .. 1 black with dirt; in the vertex colour's alpha,
+        # which the game's house materials read (world/houseGrime.ts)
+        self.wear = 0.6
         self.cur_load = None  # a storehouse front: the loading doors' columns (s along the wall), or None
         self.pipe = None  # the wall that gets the downpipe: {"top": y of the hopper's top}, or None
         self.quoins = None  # the wall being built: (its start, its end) are outer corners of the house
@@ -153,7 +156,7 @@ class Builder:
             loop[self.cell].uv = cell
             y = pts[i][1]
             g = vshade[i] if vshade is not None else shade if shade is not None else 0.66 + 0.34 * min(1.0, y / 9.0)
-            loop[self.col] = (self.tint[0] * g, self.tint[1] * g, self.tint[2] * g, 1.0)
+            loop[self.col] = (self.tint[0] * g, self.tint[1] * g, self.tint[2] * g, self.wear)
         return f
 
     # ---------------------------------------------------------------- walls
@@ -1473,6 +1476,7 @@ class Builder:
         t = h["tint"]
         self.tint = (t, t * rng.uniform(0.97, 1.02), t * rng.uniform(0.95, 1.02))
         self.ds = self.dress_of(h)  # M7 quays pass 2: its own dice
+        self.wear = wear_of(h)
         # (a house whose rooms stand in the world has no backing wall in them: its fronts get the full grid)
         self.backing = None if h.get("_i") in INWORLD else -0.4
         self.lim = h["h"] - 0.39  # no window head over this (the cornice; front gables: their eaves band, rect_house)
@@ -1832,7 +1836,7 @@ class Builder:
             loop[self.uv].uv = uvs[i]
             loop[self.cell].uv = cell
             g = 0.66 + 0.34 * min(1.0, world[i][1] / 9.0)
-            loop[self.col] = (self.tint[0] * g, self.tint[1] * g, self.tint[2] * g, 1.0)
+            loop[self.col] = (self.tint[0] * g, self.tint[1] * g, self.tint[2] * g, self.wear)
 
     def flat_top(self, ring, H, street, outs, style):
         """Flat roof behind a low parapet: walls already built; a lip and a top."""
@@ -2042,6 +2046,7 @@ class Builder:
         fp = b["fp"]
         H = b["h"]
         self.tint = (0.8, 0.78, 0.76)
+        self.wear = 0.7
         self.ds = None
         self.pipe = None
         n = len(fp)
@@ -2065,7 +2070,7 @@ class Builder:
                 i = verts.index(loop.vert)
                 loop[self.uv].uv = (fp[i][0] / BAY, fp[i][1] / BAY)
                 loop[self.cell].uv = ROOF_CELL["tile"]
-                loop[self.col] = (0.7, 0.66, 0.64, 1)
+                loop[self.col] = (0.7, 0.66, 0.64, 0.6)
         except ValueError:
             pass
 
@@ -2074,6 +2079,7 @@ class Builder:
     def bridge(self, br):
         """A bridge over a canal or the lock: its long side spans the water.
         stone: an arch with parapets; swing: a timber deck with iron railings."""
+        self.wear = 0.6
         x0, z0, x1, z1 = br["rect"]
         along_x = (x1 - x0) >= (z1 - z0)
         # local frame: s spans the water, w across the deck
@@ -2146,7 +2152,7 @@ class Builder:
             i = verts.index(loop.vert)
             loop[self.uv].uv = uvs[i]
             loop[self.cell].uv = cell
-            loop[self.col] = (shade, shade, shade, 1.0)
+            loop[self.col] = (shade, shade, shade, 0.6)
 
     # ------------------------------------------------------------ street furniture
 
@@ -2355,6 +2361,21 @@ def row_meet(hid, p, f, u):
 # in main() from city.json (its ground zones "quay" and "flags", its water outlines).
 PRIME = {"tris": [], "walk": None, "doors": []}
 PRIME_N = {}  # street walls with the whole dress (True) and without
+
+
+def wear_of(h):
+    """M7 the grime pass (Steve: "make sure it is not too clean, more like it was back then"): how worn a house
+    is, by its own dice: the alley cottages worst; a house on a back street more than one on a quay or square;
+    one in eight kept well."""
+    r = random.Random(h["seed"] * 29 + 11)
+    if h.get("alley"):
+        return 0.85 + 0.15 * r.random()
+    if r.random() < 0.12:
+        return 0.12 + 0.15 * r.random()
+    ring, outs = house_ring(h)
+    n = len(ring)
+    on_open = any(h["street"][i] and prime_front(ring[i], ring[(i + 1) % n], outs[i]) for i in range(n))
+    return (0.35 + 0.4 * r.random()) if on_open else (0.5 + 0.45 * r.random())
 
 
 def prime_front(a, b, f):
