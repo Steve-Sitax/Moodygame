@@ -794,6 +794,12 @@ function frame(): void {
   safe("animals.update", () => animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7));
   // the murmur follows the people near Jef, not everyone in view (audio/soundscape.ts setCrowdAround)
   safe("sound.setCrowd", () => sound?.setCrowdAround(crowd.positions()));
+  // talk in a tavern, the cellar or a hall follows the people in it: none alone, more with more (Steve 2026-09-25)
+  safe("sound.people", () => {
+    const p = interiors.people;
+    sound?.setPlacePeople(p?.place ?? null, p?.n ?? 0);
+    sound?.setRoomPeople(interiors.inside ? (p?.n ?? 0) : landmarks.indoors ? landmarks.peopleInside : null);
+  });
   safe("sound.setRain", () => sound?.setRain(psxUniforms.uRain.value));
   safe("sound.update", () => sound?.update(player.camera));
   safe("vehicles and people wiring", () => {

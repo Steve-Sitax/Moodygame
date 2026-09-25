@@ -115,6 +115,19 @@ interface LoopDef {
   /** How much the house blocks in the way muffle it (default 1). */
   occl?: number;
 }
+/**
+ * Talk follows the people (Steve 2026-09-25: "chatter is heard from too far; cafes chatter with nobody
+ * there. One person no chatter, two when they are close, more chatter with more people"): 0 for one
+ * person, a little for two, full by about sixteen.
+ */
+const chatter = (n: number): number => (n <= 1 ? 0 : Math.min(1, Math.sqrt((n - 1) / 15)));
+/** A song wants a room: none below four people, full by ten. */
+const singing = (n: number): number => ramp(n, 3, 10);
+/** Two people this close (metres) can be talking to each other. */
+const TALK_M = 3;
+/** Crowd cues of an event that need people (a crowd's voices); a shout or a cry needs one. */
+const GROUP_CUES = new Set(["cheer", "laughter", "applause", "hymn", "murmur"]);
+const VOICE_CUES = new Set(["shout", "cry"]);
 const LOOPS: Partial<Record<EmitterKind, LoopDef>> = {
   // Steve 2026-09-25 ("water sound is still everywhere; it needs to fade fast further from the
   // water"): the water under a bridge or a pontoon is heard on it and beside it, not a street away
@@ -122,8 +135,9 @@ const LOOPS: Partial<Record<EmitterKind, LoopDef>> = {
   pontoon: { layers: [["waterPontoon", 1.1]], radius: 8, ref: 2, rolloff: 2, wet: 0.2 },
   smithy: { layers: [["anvil", 0.6]], radius: 80, ref: 4, rolloff: 1.1, wet: 0.35 },
   ship: { layers: [["shipCreak", 0.3]], radius: 30, ref: 3, rolloff: 1.4, wet: 0.2 },
-  tavern: { layers: [["tavernCrowd", 0.5], ["tavernSong", 0.55]], radius: 45, ref: 3, rolloff: 1.2, lowpass: 750, wet: 0.15 },
-  market: { layers: [["market", 0.6]], radius: 90, ref: 6, rolloff: 1, wet: 0.2 },
+  // Steve 2026-09-25: a tavern's talk through its door is heard in front of it, not a street away (was 45 m)
+  tavern: { layers: [["tavernCrowd", 0.5], ["tavernSong", 0.55]], radius: 20, ref: 3, rolloff: 1.4, lowpass: 750, wet: 0.15 },
+  market: { layers: [["market", 0.6]], radius: 50, ref: 6, rolloff: 1.1, wet: 0.2 },
   lamp: { layers: [["hiss", 0.012]], radius: 12, ref: 0.6, rolloff: 2.2, occl: 0 },
 };
 /** A horse and cart: hooves on the setts and iron-shod wheels, on one panner; gone by 60 m. */
@@ -176,6 +190,8 @@ interface ShipSound {
 /** A running positioned loop. */
 interface Voice {
   srcs: AudioScheduledSourceNode[];
+  /** Each layer's own gain (a tavern's song follows its people apart from the talk). */
+  layers: Array<{ name: SampleName | "hiss"; base: number; g: GainNode }>;
   gain: GainNode;
   panner: PannerNode;
   spot: Spot;
@@ -219,6 +235,16 @@ export class Soundscape {
   private hallBufs = new Map<string, AudioBuffer>();
   private organSynth: Organ | null = null;
   private roomBeds: AudioScheduledSourceNode[] = [];
+  /** The room's talk and song beds: their gains follow how many people are in the room (setRoomPeople). */
+  private roomBedGains: Array<{ name: SampleName; base: number; g: GainNode }> = [];
+  /** People in the room Jef is in (null: nobody counted them, e.g. a hall with no people list). */
+  private roomPeople: number | null = null;
+  /** People in each building whose life the game runs now (a tavern by its house id): its door's talk follows. */
+  private placePeople = new Map<string, number>();
+  /** Everyone walking about, as setCrowdAround last had them (the market and event voices count them). */
+  private people: ReadonlyArray<{ x: number; z: number }> = [];
+  /** Event murmurs: their people gain follows who stands near them. */
+  private crowdSpots = new Set<{ spot: Spot; g: GainNode }>();
   private reverbIn: GainNode;
   /** Far bus: everything far off goes through the fog here. */
   /** Positioned sounds now playing; their air lowpass and fog gain follow the listener. */
@@ -407,6 +433,9 @@ export class Soundscape {
     const t = this.ctx.currentTime;
     for (const b of this.roomBeds) b.stop(t + 0.3);
     this.roomBeds = [];
+    this.roomBedGains = [];
+    // a new room starts quiet: its talk comes up as its people are counted (not the last room's)
+    this.roomPeople = null;
     // M6 landmarks: a hall of its own size (seconds of echo, how much of it); the cathedral lets the bells through
     const HALLS: Record<string, [number, number, number, number, number]> = {
       // echo s, decay, send, street lowpass Hz, street gain
@@ -436,11 +465,42 @@ export class Soundscape {
       src.loop = true;
       const g = this.ctx.createGain();
       g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(gain, t + 0.6);
+      g.gain.linearRampToValueAtTime(gain * this.roomLevel(name), t + 0.6);
       src.connect(g).connect(this.room);
       src.start(t, Math.random() * b.duration);
       this.roomBeds.push(src);
+      this.roomBedGains.push({ name, base: gain, g });
     }
+  }
+
+  /** How loud a room bed is for the people in the room now: talk from two, a song from four and in the evening. */
+  private roomLevel(name: SampleName): number {
+    const n = this.roomPeople ?? 0;
+    return name === "tavernSong" ? singing(n) * this.songHours() : chatter(n);
+  }
+
+  /** Taverns sing from six in the evening to two at night. */
+  private songHours(): number {
+    const h = this.hourNow;
+    return h >= 18 ? ramp(h, 18, 20) : h < 2 ? 1 - ramp(h, 0.5, 2) : 0;
+  }
+
+  /** How many people are in the room Jef is in (main.ts, from interiors and landmarks); null: none counted. */
+  setRoomPeople(n: number | null): void {
+    this.roomPeople = n === null ? null : Math.max(0, n);
+  }
+
+  /**
+   * How many people are in the building whose life runs now (a tavern's house id; null: none runs):
+   * the talk at its door follows. Only one runs at a time, so the others count as empty.
+   */
+  setPlacePeople(id: string | null, n: number): void {
+    if (id === null) {
+      this.placePeople.clear();
+      return;
+    }
+    if (this.placePeople.size > 1 || (this.placePeople.size === 1 && !this.placePeople.has(id))) this.placePeople.clear();
+    this.placePeople.set(id, Math.max(0, n));
   }
 
   /** M6 landmarks: the organ in the cathedral (a chord bed made in code), on or off. */
@@ -526,21 +586,48 @@ export class Soundscape {
   }
 
   /**
-   * The people walking about (crowd.positions()): the murmur follows how many are near you, each
-   * counting in full within 8 m and not at all past 30 m. (crowd.stats.drawn counted everyone in view
-   * up to the fog, 300 m on a clear day: a crowd's murmur with nobody near.)
+   * The people walking about (crowd.positions()): the murmur follows how many near you are talking,
+   * that is, stand within TALK_M of someone else. Each counts in full within 5 m and not at all past
+   * 18 m. One person alone makes no murmur (Steve 2026-09-25; before, everyone within 30 m counted).
+   * The list is kept for the market and the events' voices (read in the same frame).
    */
   setCrowdAround(people: ReadonlyArray<{ x: number; z: number }>): void {
-    const px = this.listenerPos.x;
-    const pz = this.listenerPos.z;
-    let n = 0;
-    for (const p of people) {
-      const dx = p.x - px;
-      const dz = p.z - pz;
-      if (dx > 30 || dx < -30 || dz > 30 || dz < -30) continue;
-      n += 1 - ramp(Math.hypot(dx, dz), 8, 30);
+    this.people = people;
+    this.crowdN = this.talkers(this.listenerPos.x, this.listenerPos.z, 5, 18);
+  }
+
+  /** People near (x, z) with someone to talk to: full within `near` m, none past `far` m. */
+  private talkers(x: number, z: number, near: number, far: number): number {
+    const box = far + TALK_M;
+    const close: Array<{ x: number; z: number }> = [];
+    for (const p of this.people) {
+      const dx = p.x - x;
+      const dz = p.z - z;
+      if (dx <= box && dx >= -box && dz <= box && dz >= -box) close.push(p);
     }
-    this.crowdN = n;
+    let n = 0;
+    for (let i = 0; i < close.length; i++) {
+      const a = close[i];
+      const d = Math.hypot(a.x - x, a.z - z);
+      if (d >= far) continue;
+      let partner = false;
+      for (let j = 0; j < close.length && !partner; j++) {
+        if (j !== i && Math.abs(close[j].x - a.x) < TALK_M && Math.abs(close[j].z - a.z) < TALK_M && Math.hypot(close[j].x - a.x, close[j].z - a.z) < TALK_M) partner = true;
+      }
+      if (partner) n += 1 - ramp(d, near, far);
+    }
+    return n;
+  }
+
+  /** People within `r` m of (x, z), each in full. */
+  private peopleNear(x: number, z: number, r: number): number {
+    let n = 0;
+    for (const p of this.people) {
+      const dx = p.x - x;
+      const dz = p.z - z;
+      if (dx * dx + dz * dz < r * r) n++;
+    }
+    return n;
   }
 
   /** Rain 0-1: on roofs and cobbles; dampens gulls, market and dogs. */
@@ -636,7 +723,8 @@ export class Soundscape {
       case "smithy":
         return this.smithyOn ? ramp(h, 7, 7.5) * (1 - ramp(h, 18.5, 19)) : 0;
       case "tavern":
-        return h >= 18 ? ramp(h, 18, 20) : h < 2 ? 1 - ramp(h, 0.5, 2) : 0;
+        // the talk follows the people inside (setPlacePeople), at any hour it is open; the song keeps its hours
+        return 1;
       case "market":
         // the fish market is a morning market
         return ramp(h, 6, 7) * (1 - ramp(h, 13, 15)) * (1 - 0.5 * this.rain);
@@ -763,8 +851,11 @@ export class Soundscape {
     const byShips = 1 - ramp(dShip, 25, 100);
     this.windRec.gain.setTargetAtTime((0.04 + 0.06 * night + 0.04 * this.rain) * byShips, now, tau);
     for (const sp of this.spots) this.tuneSpot(sp, now, false);
-    const crowd = Math.min(1, Math.sqrt(this.crowdN / 20));
-    this.murmurGain.gain.setTargetAtTime(0.22 * crowd * (1 - 0.3 * this.rain), now, 1.5);
+    this.murmurGain.gain.setTargetAtTime(0.22 * chatter(this.crowdN) * (1 - 0.3 * this.rain), now, 1.5);
+    // the room's talk and song follow the people in it
+    for (const b of this.roomBedGains) b.g.gain.setTargetAtTime(b.base * this.roomLevel(b.name), now, 1.2);
+    // an event's murmur follows the people standing near it
+    for (const c of this.crowdSpots) c.g.gain.setTargetAtTime(chatter(this.peopleNear(c.spot.x, c.spot.z, 15)), now, 1.2);
     this.rainRoofGain.gain.setTargetAtTime(0.4 * this.rain, now, 1.5);
     this.rainCobbleGain.gain.setTargetAtTime(1.1 * this.rain, now, 1.5);
 
@@ -782,7 +873,10 @@ export class Soundscape {
       if (!def) continue;
       const d = Math.hypot(l.e.x - px, l.e.z - pz);
       const edge = 1 - ramp(d, def.radius * 0.7, def.radius);
-      const level = d < def.radius ? this.kindLevel(l.e.kind) * (l.e.gain ?? 1) * edge : 0;
+      let level = d < def.radius ? this.kindLevel(l.e.kind) * (l.e.gain ?? 1) * edge : 0;
+      // talk needs people: a tavern's by who is inside (unknown: nobody), the market's by who stands there
+      if (level > 0 && l.e.kind === "tavern") level *= chatter(l.e.id ? (this.placePeople.get(l.e.id) ?? 0) : 0);
+      else if (level > 0 && l.e.kind === "market") level *= chatter(this.peopleNear(l.e.x, l.e.z, 25));
       if (level > 0.001 || l.voice) cands.push({ l, def, d, level });
       else l.level = 0;
     }
@@ -800,6 +894,11 @@ export class Soundscape {
           l.voice = null;
         } else if (Math.abs(level - l.level) > 0.002 || l.level === 0) {
           l.voice.gain.gain.setTargetAtTime(level, now, 0.6);
+        }
+        // a tavern sings only with a room full enough, in the evening
+        if (l.voice && l.e.kind === "tavern") {
+          const song = singing(l.e.id ? (this.placePeople.get(l.e.id) ?? 0) : 0) * this.songHours();
+          for (const ly of l.voice.layers) if (ly.name === "tavernSong") ly.g.gain.setTargetAtTime(ly.base * song, now, 0.8);
         }
       }
       l.level = level;
@@ -819,11 +918,13 @@ export class Soundscape {
     gain.connect(spot.fog);
     const head: AudioNode = gain;
     const srcs: AudioScheduledSourceNode[] = [];
+    const lgs: Voice["layers"] = [];
     for (const [name, g] of layers) {
       const src = ctx.createBufferSource();
       src.loop = true;
       const lg = ctx.createGain();
       lg.gain.value = g;
+      lgs.push({ name, base: g, g: lg });
       if (name === "hiss") {
         src.buffer = this.noise;
         const hp = ctx.createBiquadFilter();
@@ -841,7 +942,7 @@ export class Soundscape {
       src.start(ctx.currentTime, Math.random() * (src.buffer!.duration - 0.1));
       srcs.push(src);
     }
-    return { srcs, gain, panner, spot };
+    return { srcs, layers: lgs, gain, panner, spot };
   }
 
   private stopVoice(v: Voice | null): void {
@@ -1384,7 +1485,9 @@ export class Soundscape {
     }
     const b = this.buf.get(kind === "music" ? "tavernSong" : "murmur");
     if (!b) return { move: () => {}, stop: () => {} };
-    const spot = this.spot({ x: at.x, z: at.z, y: 1.5 }, 3, 1.2, 70, 0.3, 14000, this.master, 90);
+    // a murmur is talk: heard near the gathering (35 m, was 90), and only as loud as the people there make it
+    const murmur = kind === "murmur";
+    const spot = murmur ? this.spot({ x: at.x, z: at.z, y: 1.5 }, 3, 1.4, 30, 0.3, 14000, this.master, 35) : this.spot({ x: at.x, z: at.z, y: 1.5 }, 3, 1.2, 70, 0.3, 14000, this.master, 90);
     const src = ctx.createBufferSource();
     src.buffer = b;
     src.loop = true;
@@ -1395,10 +1498,20 @@ export class Soundscape {
     g.gain.linearRampToValueAtTime(level, t + 2);
     g.gain.setValueAtTime(level, t + secs - 2);
     g.gain.linearRampToValueAtTime(0, t + secs);
-    src.connect(g).connect(spot.fog);
+    let crowd: { spot: Spot; g: GainNode } | null = null;
+    if (murmur) {
+      const pg = ctx.createGain();
+      pg.gain.value = chatter(this.peopleNear(at.x, at.z, 15));
+      g.connect(pg).connect(spot.fog);
+      this.crowdSpots.add((crowd = { spot, g: pg }));
+    } else g.connect(spot.fog);
+    src.connect(g);
     src.start(t);
     src.stop(t + secs + 0.05);
-    src.onended = () => this.dropSpot(spot);
+    src.onended = () => {
+      if (crowd) this.crowdSpots.delete(crowd);
+      this.dropSpot(spot);
+    };
     this.log(`event ${kind}`);
     return {
       move: (x, z) => this.moveSpot(spot, x, z),
@@ -1433,9 +1546,21 @@ export class Soundscape {
       const fire = () => {
         if (!on) return;
         // Jef far off: this hit is skipped (nobody hears it), the next one still comes
-        const far = this.distTo(spot.x, spot.y, spot.z) > spot.max;
-        const len = far ? 0 : playCue(ctx, out, this.noise, this.buf, c, ctx.currentTime + 0.03);
-        if (!far) this.log(`cue ${c.source}`);
+        const d = this.distTo(spot.x, spot.y, spot.z);
+        // a crowd's voices need a crowd there and are heard near it; a shout or a cry needs someone (Steve 2026-09-25)
+        const group = GROUP_CUES.has(c.source);
+        const one = VOICE_CUES.has(c.source);
+        const people = group || one ? this.peopleNear(spot.x, spot.z, 15) : 0;
+        const level = group ? chatter(people) : one ? (people >= 1 ? 1 : 0) : 1;
+        const far = d > (group ? 35 : one ? 60 : spot.max) || level <= 0;
+        let len = 0;
+        if (!far) {
+          const hit = ctx.createGain();
+          hit.gain.value = level;
+          hit.connect(out);
+          len = playCue(ctx, hit, this.noise, this.buf, c, ctx.currentTime + 0.03);
+          this.log(`cue ${c.source}`);
+        }
         if (c.every_s <= 0) return;
         const wait = Math.max(c.every_s * rand(0.75, 1.3), len + 0.6);
         if (performance.now() + wait * 1000 < endAt) timers.push(window.setTimeout(fire, wait * 1000));
@@ -1769,6 +1894,9 @@ export class Soundscape {
       hornOkIn: +Math.max(0, this.hornOkAt - this.ctx.currentTime).toFixed(1),
       ships: this.shipSounds.map((s) => ({ id: s.ship.id, kind: s.ship.kind, steam: s.ship.steam, d: Math.round(s.d), loop: !!s.voice, level: +s.level.toFixed(3) })),
       crowd: this.crowdN,
+      roomPeople: this.roomPeople,
+      roomBeds: this.roomBedGains.map((b) => ({ name: b.name, gain: +b.g.gain.value.toFixed(3) })),
+      placePeople: Object.fromEntries(this.placePeople),
       rain: this.rain,
       rung: [...this.rung],
     };

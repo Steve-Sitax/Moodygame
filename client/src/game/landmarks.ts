@@ -344,6 +344,13 @@ export class Landmarks {
     return this.jefIn;
   }
 
+  /** How many people are in the hall Jef is in (not those walking out): the room's murmur follows. */
+  get peopleInside(): number {
+    let n = 0;
+    for (const f of this.figs.values()) if (!f.leaving) n++;
+    return n;
+  }
+
   /** M7 halls: the halls in the world, for the dev checks. */
   get inWorldHalls(): HallInWorld[] {
     return this.halls;

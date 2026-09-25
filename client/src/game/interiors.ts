@@ -162,6 +162,18 @@ export class Interiors {
     return !!h && h.kind === "tavern" && h.house.doorOpen;
   }
 
+  /**
+   * The building whose life runs now and how many people are in it (the keeper counts, Jef does not;
+   * those walking out do not): the soundscape's talk follows it. Null: none runs, or Jef's home.
+   */
+  get people(): { place: string; n: number } | null {
+    const h = this.here;
+    if (!h || h.kind === "home") return null;
+    let n = 0;
+    for (const o of this.occ.values()) if (!o.gone && !o.leaving) n++;
+    return { place: h.place, n };
+  }
+
   /** The room Jef is in, or null in the street. */
   get room(): Room | null {
     return this.inside ? this.here!.room : null;

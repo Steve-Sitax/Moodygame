@@ -31,6 +31,8 @@ export interface Emitter {
   gain?: number;
   /** Human name for logs. */
   name?: string;
+  /** The building it belongs to (a tavern's house id, as game/interiors.ts knows it): its people drive it. */
+  id?: string;
 }
 
 type Pt = [number, number];
@@ -109,7 +111,7 @@ export function cityEmitters(): Emitter[] {
   // shared/inworld_houses.json). Walkthrough west 2026-09-25: the four old points were guesses, one on the
   // Steenplein side "by the doss house" where no tavern is, the Grote Markt's 17 m from Den Engel's door,
   // the Rijnkaai row's 16 m from In de Ankere's; Het Schipke on the Werf and Het Bassin had none.
-  for (const h of INWORLD.houses) if (h.kind === "tavern") out.push({ kind: "tavern", x: h.door[0], z: h.door[1], y: 1.4, name: h.id.replace("tavern:", "tavern ") });
+  for (const h of INWORLD.houses) if (h.kind === "tavern") out.push({ kind: "tavern", x: h.door[0], z: h.door[1], y: 1.4, name: h.id.replace("tavern:", "tavern "), id: h.id });
 
   // cranes on the quays
   for (const [x, z] of CRANES) out.push({ kind: "crane", x, z, y: 6, name: `crane ${x},${z}` });
