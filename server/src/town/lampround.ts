@@ -9,7 +9,15 @@
 //
 // The game clock runs 30 times faster than life (M7: a game hour is two real minutes): unseen,
 // the lamplighter keeps the round's pace (like everyone unseen in the town); seen, the client
-// walks him at a brisk real pace and holds back the lamps ahead of him until he reaches them.
+// walks him at a real walking pace and holds back the lamps ahead of him until he reaches them.
+// M7 lamps (2026-09-25): three rounds, and windows long enough that a lamplighter Jef follows
+// from his first lamp finishes his round inside it at a walk (seenPace, followedFinish).
+
+/**
+ * Real seconds a game hour takes: shared/clock.ts REAL_S_PER_GAME_HOUR, written out here because the
+ * client imports this file and cannot import a path ending in .ts (townlife.test.ts checks the two agree).
+ */
+export const REAL_S_PER_GAME_HOUR = 120;
 
 export type RPt = [number, number];
 
@@ -39,16 +47,41 @@ export interface LampRound {
   dusk: number;
 }
 
-/** When the rounds run (game hours) and how long they take. Sunday is the same: lamps burn every night. */
-export const DUSK_START = 17.6;
-export const DUSK_SPAN_H = 2.2;
-export const DAWN_START = 5.5;
-export const DAWN_SPAN_H = 1.4;
+/**
+ * When the rounds run (game hours) and how long they take. Sunday is the same: lamps burn every night.
+ * M7 lamps (2026-09-25): a game hour is two real minutes, and a lamplighter Jef follows walks in real
+ * time. So the dusk round starts as the light goes (16:45; the sky dims from 17:00 to 18:30), the three
+ * rounds 3 minutes apart, and each window closes by 20:33. The dawn round puts them out from 5:00 to
+ * 8:42. Was 17:36 + 2.2 h and 5:30 + 1.4 h: followed, at a walk, a round took three times that.
+ */
+export const DUSK_START = 16.75;
+export const DUSK_SPAN_H = 3.7;
+/** The rounds' dusk starts, one after another (round i starts at DUSK_START + i * DUSK_STAGGER_H). */
+export const DUSK_STAGGER_H = 0.05;
+export const DAWN_START = 5;
+export const DAWN_SPAN_H = 3.7;
+/**
+ * Full dark (the sky's night, 21:00) and full day (9:00). A lamplighter Jef follows who is held up past
+ * his window (an opening bridge, a crowd) goes on until then, and the lamps ahead wait for him; at these
+ * hours the plan takes over. Unseen, every lamp keeps the plan (inside the window).
+ */
+export const DUSK_LAST = 21;
+export const DAWN_LAST = 9;
 /** A lamp's stop, counted as this many metres of the round (setting the ladder, the pole up, the flame). */
 export const STOP_M = 14;
-/** Seen, he walks at this pace (m/s) and stops this long (real seconds) at each lamp. */
+/**
+ * Seen, he walks at Jef's walking pace (m/s) or, when that would not finish his round in the window, a
+ * little faster (seenPace): at most a brisk walk (SEEN_PACE_MAX) on a round nothing holds up (the tests
+ * check every round). Held up (a boat through an opening bridge keeps him at its end a minute or two of
+ * real time), he hurries to make it up, at most SEEN_HURRY: Jef keeps up with his own hurry (3.4 m/s).
+ * He stops this long (real seconds) at each lamp: the pole up into the lantern, the flame, the pole down.
+ */
 export const SEEN_PACE = 1.55;
-export const SEEN_STOP_S = 3.2;
+export const SEEN_PACE_MAX = 1.9;
+export const SEEN_HURRY = 2.5;
+export const SEEN_STOP_S = 2.4;
+/** Seen, he means to be done this long (real seconds) before his window closes. */
+export const SEEN_SPARE_S = 12;
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
@@ -74,6 +107,55 @@ export function lampLit(r: LampRound, k: number, hour: number): boolean {
   const h = ((hour % 24) + 24) % 24;
   const t = lampTimes(r, k);
   return h >= t.on || h < t.off;
+}
+
+/** The hour a round's window closes (dusk: its own start + DUSK_SPAN_H; dawn: DAWN_START + DAWN_SPAN_H). */
+export function windowEnd(r: LampRound, kind: "dusk" | "dawn"): number {
+  return kind === "dusk" ? r.dusk + DUSK_SPAN_H : DAWN_START + DAWN_SPAN_H;
+}
+
+/** Past the window but before full dark (dusk) or full day (dawn): a followed lamplighter held up may finish. */
+export function inGrace(r: LampRound, kind: "dusk" | "dawn", hour: number): boolean {
+  const h = ((hour % 24) + 24) % 24;
+  return h >= windowEnd(r, kind) && h < (kind === "dusk" ? DUSK_LAST : DAWN_LAST);
+}
+
+/**
+ * Seen: the pace (m/s) he walks to lamp `idx` so as to be done with the round before its window closes.
+ * `legM` is how far he still has to that lamp's foot; after it, the round's path to the last lamp and a
+ * stop at each lamp left. Never below SEEN_PACE (Jef's walk); above SEEN_PACE_MAX (a brisk walk) only
+ * when something held him up, and never above SEEN_HURRY.
+ */
+export function seenPace(r: LampRound, idx: number, legM: number, hour: number, kind: "dusk" | "dawn"): number {
+  const n = r.lamps.length;
+  if (idx >= n) return SEEN_PACE;
+  const h = ((hour % 24) + 24) % 24;
+  const left = (windowEnd(r, kind) - h) * REAL_S_PER_GAME_HOUR - SEEN_SPARE_S - (n - idx) * SEEN_STOP_S;
+  const rest = Math.max(0, legM) + (r.at[n - 1] - r.at[idx]);
+  const want = left > 0 ? rest / left : SEEN_HURRY;
+  return Math.min(SEEN_HURRY, Math.max(SEEN_PACE, want));
+}
+
+/**
+ * Jef follows him from the first lamp at the window's start: the hour the last lamp is lit (dusk) or
+ * put out (dawn), walking the round's path at seenPace with SEEN_STOP_S at each lamp; and the fastest
+ * pace he walked. (The client walks him the same way; its paths through the crowd run a little longer.)
+ */
+export function followedFinish(r: LampRound, kind: "dusk" | "dawn"): { done: number; maxPace: number; realS: number } {
+  const start = kind === "dusk" ? r.dusk : DAWN_START;
+  let h = start;
+  let maxPace = 0;
+  for (let k = 0; k < r.lamps.length; k++) {
+    const leg = k ? r.at[k] - r.at[k - 1] : 0;
+    if (leg > 0) {
+      const pace = seenPace(r, k, leg, h, kind);
+      maxPace = Math.max(maxPace, pace);
+      h += leg / pace / REAL_S_PER_GAME_HOUR;
+    }
+    // the lamp lights (or goes out) halfway through the stop
+    h += (SEEN_STOP_S * (k === r.lamps.length - 1 ? 0.5 : 1)) / REAL_S_PER_GAME_HOUR;
+  }
+  return { done: h, maxPace, realS: (h - start) * REAL_S_PER_GAME_HOUR };
 }
 
 /** Which round window runs at this hour: dusk (lighting), dawn (putting out), or none. u: 0..1 through it. */

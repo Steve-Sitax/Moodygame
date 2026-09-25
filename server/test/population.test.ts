@@ -115,7 +115,7 @@ describe("town size: a new game", () => {
       expect(has("widow_landlady")).toBe(true);
       expect(has("dealer")).toBe(true);
       expect(n("lodging_keeper")).toBe(1);
-      expect(n("lamplighter")).toBeGreaterThanOrEqual(2);
+      expect(n("lamplighter")).toBeGreaterThanOrEqual(3);
       expect(n("police")).toBeGreaterThanOrEqual(4);
       // the named quay four
       for (const id of ["sooi", "peeters", "tuur", "fientje"]) expect(db.prepare("SELECT 1 FROM npc WHERE id = ?").get(id)).toBeTruthy();

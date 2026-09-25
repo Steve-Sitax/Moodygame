@@ -160,9 +160,20 @@ describe("who owns what (the migration)", () => {
       expect(transportRecord(db)!.vehicles.length).toBeGreaterThan(20);
       expect(veloShop(db)).toBeTruthy();
       const after = db.prepare("SELECT id, data_json FROM resident").all() as Array<{ id: string; data_json: string }>;
-// a lamplighter's round follows the lamps (town/lamplighters.ts, versioned): a moved lamp may change it
-      const plain = (j: string) => { const o = JSON.parse(j) as { trade?: string; work?: { route?: unknown } }; if (o.trade === "lamplighter" && o.work) delete o.work.route; return JSON.stringify(o); };
-      for (const r of after) if (before.has(r.id)) expect(plain(r.data_json), r.id).toBe(plain(before.get(r.id)!));
+      // a lamplighter's round follows the lamps (town/lamplighters.ts, versioned): a moved lamp may change it, and
+      // M7 lamps (LAMPS_VERSION 6 to 9) gives the market quarter a third lamplighter: a docker or a porter takes the
+      // trade. The lamp migration owns a lamplighter's trade, work and day; the rest of him stays.
+      const lit = (j: string) => (JSON.parse(j) as { trade?: string }).trade === "lamplighter";
+      const plain = (j: string, lamps: boolean) => {
+        const o = JSON.parse(j) as Record<string, unknown>;
+        if (lamps) for (const k of ["trade", "faction", "work", "sched"]) delete o[k];
+        return JSON.stringify(o);
+      };
+      for (const r of after) if (before.has(r.id)) expect(plain(r.data_json, lit(r.data_json)), r.id).toBe(plain(before.get(r.id)!, lit(r.data_json)));
+      expect(after.filter((r) => lit(r.data_json)).length).toBe(3);
+      const newLighters = after.filter((r) => before.has(r.id) && lit(r.data_json) && !lit(before.get(r.id)!));
+      expect(newLighters.length).toBeLessThanOrEqual(1);
+      for (const r of newLighters) expect(["docker", "porter"]).toContain((JSON.parse(before.get(r.id)!) as { trade: string }).trade);
       // the velocipede maker, and the wheelwright (M6 handcart, town/handcart.ts); M6 lively adds its own people after them,
       // and M7 night the four givers of night work (night/givers.ts)
       expect(after.filter((r) => !isLivelyId(r.id) && !(NIGHT_GIVER_IDS as readonly string[]).includes(r.id)).length).toBe(before.size + 2);

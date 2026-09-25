@@ -223,7 +223,7 @@ const TRADE_WORD: Partial<Record<string, string[]>> = {
   sailor: ["Solid ground. I can't stand still on it.", "Where's a man get a drink round here?"],
   carter: ["Mind the wheel.", "The horse is in a worse mood than me."],
   laundress: ["My hands are raw with the cold water.", "Other people's shirts, all day long."],
-  lamplighter: ["Every lamp from the Werf to the basin, twice a day.", "Mind the ladder."],
+  lamplighter: ["My round of lamps: lit at dusk, out again at dawn.", "Mind the ladder."],
   soldier: ["We're out till the tattoo, then it's the barracks.", "Sixteen centimes a day, when they've taken theirs. It buys tobacco."],
   sentry: ["Keep moving, friend. I'm on duty.", "Stand back from the gate, if you please."],
   corporal: ["Stand clear of my men.", "The relief goes out on the hour."],

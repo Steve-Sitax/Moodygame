@@ -1,4 +1,4 @@
-import { lampLit, roundState, roundWindow, SEEN_PACE, SEEN_STOP_S, type LampRound } from "../../../server/src/town/lampround";
+import { inGrace, lampLit, roundState, roundWindow, seenPace, SEEN_STOP_S, type LampRound } from "../../../server/src/town/lampround";
 import type { GasLamps } from "../world/gaslamps";
 import type { Crowd, Puppet } from "./crowd";
 import type { Town } from "./town";
@@ -7,10 +7,12 @@ import { makeWear, setPole, type Wear } from "./wardrobe";
 // The lamplighters on their rounds (M6 town life). The server made the rounds and owns the
 // times (server/src/town/lampround.ts): unseen, each lamplighter keeps the planned pace and
 // his lamps light by the clock, one after the other along his path. Seen (within about 50 m of
-// Jef), he walks at a brisk real pace from lamp to lamp with his ladder and his pole, stops,
+// Jef), he walks at a real walking pace from lamp to lamp with his ladder and his pole, stops,
 // raises the pole into the lantern, and only then does that lamp light (at dusk) or go out (at
 // dawn); the lamps ahead of him wait for him. Out of sight again, he and his lamps catch up
-// with the plan.
+// with the plan. M7 lamps (2026-09-25): seen, his pace is the one that ends his round before its
+// window closes (lampround.ts seenPace): Jef's walk, or a brisk walk when he is behind. Held up
+// (an opening bridge, a crowd), he goes on past his window until full dark (full day at dawn).
 
 const CLAIM_M = 50;
 const DROP_M = 64;
@@ -27,6 +29,8 @@ interface Run {
   goT: number;
   kind: "dusk" | "dawn" | null;
   held: boolean;
+  /** Seen: the pace he walks now (m/s). */
+  pace: number;
 }
 
 export class Lamplighters {
@@ -41,7 +45,7 @@ export class Lamplighters {
 
   setRounds(rounds: LampRound[]): void {
     for (const r of this.runs) this.drop(r, true);
-    this.runs = rounds.map((round) => ({ round, p: null, wear: null, idx: 0, done: 0, phase: "walk", t: 0, goT: 0, kind: null, held: false }));
+    this.runs = rounds.map((round) => ({ round, p: null, wear: null, idx: 0, done: 0, phase: "walk", t: 0, goT: 0, kind: null, held: false, pace: 0 }));
   }
 
   update(dt: number, player: { x: number; z: number }, hour: number): void {
@@ -51,7 +55,9 @@ export class Lamplighters {
 
   private run(r: Run, dt: number, player: { x: number; z: number }, hour: number): void {
     const round = r.round;
-    const w = roundWindow(round, hour);
+    let w = roundWindow(round, hour);
+    // followed and held up past his window: he finishes his round, until full dark (full day at dawn)
+    if (!w.kind && r.p && r.kind && r.idx < round.lamps.length && inGrace(round, r.kind, hour)) w = { kind: r.kind, u: 1 };
     const plan = roundState(round, hour);
     if (w.kind !== r.kind) {
       // a new window (or its end): the walker starts from the plan
@@ -111,7 +117,9 @@ export class Lamplighters {
       }
       r.goT -= dt;
       if (r.goT <= 0 || !this.crowd.puppetBusy(p)) {
-        this.crowd.puppetGo(p, lamp.sx, lamp.sz, SEEN_PACE);
+        // the way through the streets runs a little longer than the straight line
+        r.pace = seenPace(round, r.idx, dl * 1.15, hour, w.kind);
+        this.crowd.puppetGo(p, lamp.sx, lamp.sz, r.pace);
         r.goT = 3;
       }
       return;
@@ -150,6 +158,7 @@ export class Lamplighters {
       idx: r.idx,
       done: r.done,
       phase: r.phase,
+      pace: r.p ? +r.pace.toFixed(2) : null,
     }));
   }
 

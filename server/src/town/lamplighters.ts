@@ -2,23 +2,26 @@ import type { DB } from "../db.ts";
 import CITY from "../../../shared/city.json" with { type: "json" };
 import { TRADES } from "./places.ts";
 import { tidy, type Resident } from "./population.ts";
-import { DAWN_SPAN_H, DAWN_START, DUSK_SPAN_H, DUSK_START, type LampRound, type RoundLamp, type RPt } from "./lampround.ts";
+import { DAWN_LAST, DAWN_START, DUSK_LAST, DUSK_STAGGER_H, DUSK_START, type LampRound, type RoundLamp, type RPt } from "./lampround.ts";
 import type { Seg } from "./schedule.ts";
 import { dropTownCache, town } from "./store.ts";
 import { walkMap } from "./walkmap.ts";
 
 // The lamplighters (M6 town life, Steve 2026-09-24: "the lamplighter"). Antwerp's gas lamps
 // were lit by hand: at dusk a lamplighter walked his round with a long pole and a ladder over
-// his shoulder, lamp to lamp, and at dawn he walked it again to put them out. Here two
-// lamplighters share the town's 38 gas lamps (the six of the Rijnkaai quay and the 32 of the
-// city), west and east, each on a real path over the walk map. The rounds, the times and the
-// order are the ENGINE's (lampround.ts); the client lights each lamp when he reaches it.
+// his shoulder, lamp to lamp, and at dawn he walked it again to put them out. Here three
+// lamplighters share the town's 72 gas lamps (the six of the Rijnkaai quay and the 66 of the
+// city; M7 lamps, 2026-09-25: a third round for the market quarter), each on a real path over
+// the walk map: the west old town by the river, the Grote Markt with the Handschoenmarkt and the
+// cathedral quarter, and the east quays. The rounds, the times and the order are the ENGINE's
+// (lampround.ts); the client lights each lamp when he reaches it.
 //
 // Save migration (ensureLamplighters): an older save keeps every resident, memory and
-// relationship. The town's lamplighter (if it has one) takes a round; the second is a man of
-// the town who changes his trade (a docker or a porter, living nearest the round's start):
-// his name, family, home, stats and memories stay. No new house is taken (the homes helper
-// rents houses out). Runs once per version (world_state 'townlife_lamps').
+// relationship. Whoever walked a round before keeps it; the town's other lamplighters take the
+// rounds left; a round with nobody yet goes to a man of the town who changes his trade (a docker
+// or a porter, living nearest the round's start): his name, family, home, stats and memories
+// stay. No new house is taken (the homes helper rents houses out). Runs once per version
+// (world_state 'townlife_lamps').
 
 /** The six gas lamps of the Rijnkaai quay (world/rijnkaai.ts lampSpots, where they stand as built). */
 export const QUAY_LAMPS: RPt[] = [
@@ -33,8 +36,12 @@ export const QUAY_LAMPS: RPt[] = [
  * 4: the Oostershuis lamp moved off the gate to the pier beside it (M7 doors, 2026-09-25): its stand with it.
  * 5: M7 lamps (2026-09-25): 34 new lamps (the Grote Markt, the Handschoenmarkt, the cathedral quarter, the
  * lock bridge, main streets); d22 and d23 out of the town hall's walls, d26 and d27 out of the canal.
+ * 6 to 9: M7 lamps, a third lamplighter (2026-09-25, tuned the same day; each step rebuilt a save's rounds):
+ * three rounds (west, market, east) that a lamplighter Jef follows can finish in the dusk window at a walk;
+ * the windows longer (lampround.ts); each tour tightened with the walked lengths and walked the way that
+ * crosses its opening bridges earlier; the lamplighter's day until full dark and full day.
  */
-export const LAMPS_VERSION = 5;
+export const LAMPS_VERSION = 9;
 const STATE_KEY = "townlife_lamps";
 
 export interface LampRounds {
@@ -46,6 +53,28 @@ export interface LampRounds {
 export function allLamps(): Array<{ id: string; x: number; z: number }> {
   const decor = ((CITY as unknown as { decor?: { lamps?: RPt[] } }).decor?.lamps ?? []) as RPt[];
   return [...QUAY_LAMPS.map(([x, z], i) => ({ id: `q${i}`, x, z })), ...decor.map(([x, z], i) => ({ id: `d${i}`, x, z }))];
+}
+
+/**
+ * The three rounds (M7 lamps, 2026-09-25), in this order in the save. `start`: where the round's
+ * lamplighter is sought when the town has none to spare (the man living nearest changes his trade).
+ */
+export const ROUNDS: ReadonlyArray<{ id: "west" | "market" | "east"; label: string; start: RPt }> = [
+  { id: "west", label: "the west old town: the Werf, the Steenplein, the quay road to the Rijnkaai", start: [-300, 12] },
+  { id: "market", label: "the Grote Markt, the Handschoenmarkt and the cathedral quarter", start: [-250, 100] },
+  { id: "east", label: "the east quays: the Rijnkaai, the canal, the lock and the basins", start: [-20, 40] },
+];
+
+/**
+ * Which round a lamp is on. The market quarter: west of the Steenplein's houses (x < -205) north of
+ * the town hall's front, or anything west of the canal quarter north of the Handschoenmarkt street
+ * (z > 120). The west old town: the rest west of x -145, and the quay road south of z 50 as far as the
+ * Rijnkaai's first two lamps (x < -25). The east quays: everything else.
+ */
+export function roundOf(l: { x: number; z: number }): "west" | "market" | "east" {
+  if (l.x < -145 && ((l.x < -205 && l.z > 55) || l.z > 120)) return "market";
+  if (l.x < -145 || (l.z < 50 && l.x < -25)) return "west";
+  return "east";
 }
 
 // ------------------------------------------------------------------ paths on the walk map
@@ -259,27 +288,140 @@ function order(pts: Array<{ x: number; z: number }>, start: RPt): number[] {
   return tour;
 }
 
-/** One round over these lamps, starting near `start` (the lamplighter's door). */
-export function buildRound(id: string, lamplighter: string, lamps: Array<{ id: string; x: number; z: number }>, start: RPt, dusk: number): LampRound {
+/**
+ * The opening bridges (city.json designedBridges, kind "draw": the canal's three, the vliet's two, the lock
+ * bridge). A boat passing holds walkers at the ends for a minute or two of real time.
+ */
+const DRAW_BRIDGES: Array<[number, number, number, number]> = Object.values(
+  ((CITY as unknown as { designedBridges?: Record<string, { kind: string; rect: [number, number, number, number] }> }).designedBridges ?? {}),
+)
+  .filter((b) => b.kind === "draw")
+  .map((b) => b.rect);
+
+/** How far along a path (0..1) its last step on an opening bridge lies, walked forward and walked back; -1: none. */
+export function bridgeEnds(path: RPt[]): { fwd: number; back: number } {
+  const len = plen(path) || 1;
+  let first = -1;
+  let last = -1;
+  let acc = 0;
+  for (let i = 1; i < path.length; i++) {
+    const [ax, az] = path[i - 1];
+    const [bx, bz] = path[i];
+    const L = Math.hypot(bx - ax, bz - az);
+    const n = Math.max(1, Math.ceil(L / 0.5));
+    for (let k = 0; k <= n; k++) {
+      const x = ax + ((bx - ax) * k) / n;
+      const z = az + ((bz - az) * k) / n;
+      if (DRAW_BRIDGES.some(([x0, z0, x1, z1]) => x > x0 && x < x1 && z > z0 && z < z1)) {
+        const d = acc + (L * k) / n;
+        if (first < 0) first = d;
+        last = d;
+      }
+    }
+    acc += L;
+  }
+  return first < 0 ? { fwd: -1, back: -1 } : { fwd: last / len, back: (len - first) / len };
+}
+
+/** Walked lengths between two feet (the walk map does not change while the server runs). */
+const legCache = new Map<string, number>();
+function legLen(a: { x: number; z: number }, b: { x: number; z: number }): number {
+  const k = a.x < b.x || (a.x === b.x && a.z <= b.z) ? `${a.x},${a.z},${b.x},${b.z}` : `${b.x},${b.z},${a.x},${a.z}`;
+  let v = legCache.get(k);
+  if (v === undefined) {
+    const p = walkPath(a.x, a.z, b.x, b.z);
+    v = p ? plen(p) : Infinity;
+    legCache.set(k, v);
+  }
+  return v;
+}
+
+/**
+ * 2-opt again with the walked lengths (the first lamp stays first): the straight lines do not see the
+ * water or the blocks (the west round came out 20 m shorter). A swap is walked out only where the
+ * straight lines (never longer than the walk) leave room for a gain.
+ */
+function walked2opt(pts: Array<{ x: number; z: number }>, tour: number[]): number[] {
+  const t = [...tour];
+  const n = t.length;
+  const straight = (i: number, j: number) => Math.hypot(pts[i].x - pts[j].x, pts[i].z - pts[j].z);
+  const real = (i: number, j: number) => legLen(pts[i], pts[j]);
+  for (let pass = 0; pass < 6; pass++) {
+    let better = false;
+    for (let i = 1; i < n - 1; i++)
+      for (let j = i + 1; j < n; j++) {
+        const a = t[i - 1];
+        const b = t[i];
+        const c = t[j];
+        const e = j + 1 < n ? t[j + 1] : -1;
+        const before = real(a, b) + (e >= 0 ? real(c, e) : 0);
+        if (straight(a, c) + (e >= 0 ? straight(b, e) : 0) >= before - 0.5) continue;
+        const after = real(a, c) + (e >= 0 ? real(b, e) : 0);
+        if (after < before - 0.5) {
+          t.splice(i, j - i + 1, ...t.slice(i, j + 1).reverse());
+          better = true;
+        }
+      }
+    if (!better) break;
+  }
+  return t;
+}
+
+/** A tour's straight-line length. */
+const tourLen = (pts: Array<{ x: number; z: number }>, t: number[]) => t.reduce((a, j, i) => (i ? a + Math.hypot(pts[j].x - pts[t[i - 1]].x, pts[j].z - pts[t[i - 1]].z) : 0), 0);
+
+/**
+ * One round over these lamps. M7 lamps: the shortest open tour with every lamp tried as the first
+ * (straight lines). It is walked the way that crosses its opening bridges earlier, so that a wait for a
+ * boat comes while there is still time to make it up; with no bridge (or as good both ways), from the end
+ * nearer `home` (the lamplighter's door). Before, the tour began at the lamp nearest his door, which could
+ * lie in the middle of his lamps and cost a long walk back.
+ */
+export function buildRound(id: string, lamplighter: string, lamps: Array<{ id: string; x: number; z: number }>, home: RPt, dusk: number): LampRound {
   const withFoot: RoundLamp[] = [];
   for (const l of lamps) {
     const f = footOf(l.x, l.z);
     if (f) withFoot.push({ id: l.id, x: l.x, z: l.z, sx: f[0], sz: f[1] });
   }
-  const tour = order(withFoot.map((l) => ({ x: l.sx, z: l.sz })), start).map((i) => withFoot[i]);
-  const path: RPt[] = tour.length ? [[tour[0].sx, tour[0].sz]] : [];
-  const at: number[] = [0];
-  const kept: RoundLamp[] = tour.length ? [tour[0]] : [];
-  for (let i = 1; i < tour.length; i++) {
-    const a = kept[kept.length - 1];
-    const b = tour[i];
-    const leg = walkPath(a.sx, a.sz, b.sx, b.sz);
-    if (!leg) continue; // no way on foot: that lamp is left out of the round (it keeps to the clock)
-    path.push(...leg.slice(1));
-    at.push(plen(path));
-    kept.push(b);
+  const pts = withFoot.map((l) => ({ x: l.sx, z: l.sz }));
+  let best: number[] = [];
+  let bestLen = Infinity;
+  for (const p of pts) {
+    const t = order(pts, [p.x, p.z]);
+    const L = tourLen(pts, t);
+    if (L < bestLen - 0.01) {
+      bestLen = L;
+      best = t;
+    }
   }
-  return { id, lamplighter, lamps: kept, path, at: at.slice(0, kept.length), len: plen(path), dusk };
+  best = walked2opt(pts, best);
+  const walk = (order: number[]): LampRound => {
+    const tour = order.map((i) => withFoot[i]);
+    const path: RPt[] = tour.length ? [[tour[0].sx, tour[0].sz]] : [];
+    const at: number[] = [0];
+    const kept: RoundLamp[] = tour.length ? [tour[0]] : [];
+    for (let i = 1; i < tour.length; i++) {
+      const a = kept[kept.length - 1];
+      const b = tour[i];
+      const leg = walkPath(a.sx, a.sz, b.sx, b.sz);
+      if (!leg) continue; // no way on foot: that lamp is left out of the round (it keeps to the clock)
+      path.push(...leg.slice(1));
+      at.push(plen(path));
+      kept.push(b);
+    }
+    return { id, lamplighter, lamps: kept, path, at: at.slice(0, kept.length), len: plen(path), dusk };
+  };
+  if (best.length < 2) return walk(best);
+  const round = walk(best);
+  const br = bridgeEnds(round.path);
+  let back: boolean;
+  if (br.fwd >= 0 && Math.abs(br.fwd - br.back) > 0.05) back = br.back < br.fwd;
+  else {
+    const a = pts[best[0]];
+    const b = pts[best[best.length - 1]];
+    back = Math.hypot(b.x - home[0], b.z - home[1]) < Math.hypot(a.x - home[0], a.z - home[1]);
+  }
+  return back ? walk([...best].reverse()) : round;
 }
 
 // ------------------------------------------------------------------ the save
@@ -289,18 +431,18 @@ export function lampRounds(db: DB): LampRounds | null {
   return row ? (JSON.parse(row.value_json) as LampRounds) : null;
 }
 
-/** The lamplighter's day: the dawn round and the dusk round (the rest of his day stays as it was). */
+/** The lamplighter's day: the dawn round and the dusk round, each until full day or full dark (the rest of his day stays as it was). */
 function lamplighterSched(r: Resident, dusk: number): Resident["sched"] {
-  const keep = (segs: Seg[]) => segs.filter((s) => s[2] !== "work" && s[1] <= dusk - 0.25 && !(s[0] < DAWN_START + DAWN_SPAN_H + 0.1 && s[1] > DAWN_START - 0.1));
+  const keep = (segs: Seg[]) => segs.filter((s) => s[2] !== "work" && s[1] <= dusk - 0.25 && !(s[0] < DAWN_LAST && s[1] > DAWN_START - 0.1));
   const work: Seg[] = [
-    [DAWN_START - 0.1, DAWN_START + DAWN_SPAN_H + 0.1, "work"],
-    [dusk - 0.1, dusk + DUSK_SPAN_H + 0.1, "work"],
+    [DAWN_START - 0.1, DAWN_LAST, "work"],
+    [dusk - 0.1, DUSK_LAST, "work"],
   ];
   return { day: tidy([...keep(r.sched.day), ...work]), sunday: tidy([...keep(r.sched.sunday), ...work]) };
 }
 
 /**
- * Give the save its two lamplighters and their rounds (once per LAMPS_VERSION). Only the two
+ * Give the save its three lamplighters and their rounds (once per LAMPS_VERSION). Only the
  * lamplighters' records change (trade, work, schedule); every other resident, memory and
  * relationship stays. Returns the rounds, or null when the town has no residents yet.
  */
@@ -311,41 +453,46 @@ export function ensureLamplighters(db: DB): LampRounds | null {
   if (before?.v === LAMPS_VERSION && before.rounds.length) return before;
   const t = town(db).town;
   const lamps = allLamps();
-  // west: the Werf, the Steenplein and the Grote Markt; east: the Vismarkt, the Rijnkaai, the canal and the basins
-  const west = lamps.filter((l) => l.x < -145);
-  const east = lamps.filter((l) => l.x >= -145);
-  const WEST_START: RPt = [-300, 12];
-  const EAST_START: RPt = [-140, 30];
   const lighters = t.residents.filter((r) => r.trade === "lamplighter").sort((a, b) => a.id.localeCompare(b.id));
   const byStart = (st: RPt) => (a: Resident, b: Resident) => Math.hypot(a.home.sx - st[0], a.home.sz - st[1]) - Math.hypot(b.home.sx - st[0], b.home.sz - st[1]);
-  const picks: Resident[] = [];
-  if (lighters.length) picks.push(lighters.sort(byStart(WEST_START))[0]);
-  // the second (and first, if none): a man of the town who changes his trade
-  const used = new Set(picks.map((r) => r.id));
-  const others = lighters.filter((r) => !used.has(r.id));
-  while (picks.length < 2) {
-    const want = picks.length === 0 ? WEST_START : EAST_START;
-    const other = others.shift();
-    if (other) {
-      picks.push(other);
-      continue;
-    }
-    const man = t.residents
-      .filter((r) => !picks.includes(r) && r.sex === "m" && r.age >= 24 && r.age <= 58 && (r.trade === "docker" || r.trade === "porter") && ["head", "single", "lodger", "widower", "son"].includes(r.family_role))
-      .sort(byStart(want))[0];
-    if (!man) break;
-    picks.push(man);
+  const who = new Map<string, Resident>();
+  const taken = (r: Resident) => [...who.values()].includes(r);
+  // 1. whoever walked a round before keeps it (an older save: the west and the east round)
+  for (const spec of ROUNDS) {
+    const id = before?.rounds.find((x) => x.id === spec.id)?.lamplighter;
+    const r = id ? lighters.find((x) => x.id === id) : undefined;
+    if (r && !taken(r)) who.set(spec.id, r);
   }
+  // 2. the town's other lamplighters take the rounds left, the one living nearest its start
+  for (const spec of ROUNDS) {
+    if (who.has(spec.id)) continue;
+    const r = lighters.filter((x) => !taken(x)).sort(byStart(spec.start))[0];
+    if (r) who.set(spec.id, r);
+  }
+  // 3. a round with nobody: a man of the town changes his trade
+  for (const spec of ROUNDS) {
+    if (who.has(spec.id)) continue;
+    const man = t.residents
+      .filter((r) => !taken(r) && r.sex === "m" && r.age >= 24 && r.age <= 58 && (r.trade === "docker" || r.trade === "porter") && ["head", "single", "lodger", "widower", "son"].includes(r.family_role))
+      .sort(byStart(spec.start))[0];
+    if (man) who.set(spec.id, man);
+  }
+  const picks = ROUNDS.filter((spec) => who.has(spec.id)).map((spec) => ({ spec, r: who.get(spec.id)! }));
   if (!picks.length) return null;
   const rounds: LampRound[] = [];
   const upd = db.prepare("UPDATE resident SET trade = ?, data_json = ? WHERE id = ?");
   const role = db.prepare("UPDATE npc SET role = ? WHERE id = ?");
+  // every lamp is on a round: a round nobody walks hands its lamps to the nearest round that has a man
+  const sets = new Map<string, typeof lamps>(picks.map((p) => [p.spec.id, []]));
+  const near = (l: { x: number; z: number }) => (a: (typeof picks)[number], b: (typeof picks)[number]) => Math.hypot(a.spec.start[0] - l.x, a.spec.start[1] - l.z) - Math.hypot(b.spec.start[0] - l.x, b.spec.start[1] - l.z);
+  for (const l of lamps) {
+    const own = roundOf(l);
+    sets.get(sets.has(own) ? own : [...picks].sort(near(l))[0].spec.id)!.push(l);
+  }
   db.transaction(() => {
-    picks.forEach((r, i) => {
-      // with one lamplighter only, he walks every lamp
-      const set = picks.length === 1 ? lamps : i === 0 ? west : east;
-      const dusk = DUSK_START + i * 0.1;
-      const round = buildRound(i === 0 ? "west" : "east", r.id, set, [r.home.sx, r.home.sz], dusk);
+    picks.forEach(({ spec, r }, i) => {
+      const dusk = DUSK_START + i * DUSK_STAGGER_H;
+      const round = buildRound(spec.id, r.id, sets.get(spec.id)!, [r.home.sx, r.home.sz], dusk);
       rounds.push(round);
       const rec: Resident = JSON.parse(JSON.stringify(r)) as Resident;
       rec.trade = "lamplighter";

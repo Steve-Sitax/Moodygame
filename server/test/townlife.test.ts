@@ -7,8 +7,9 @@ import { chainNow, joinChain, sootList, CHAIN_MAX, CHAIN_MIN, CHAIN_PAY_MAX_C, C
 import { hiringIdle, jefHireChance, setHiringRoll, setHiringRunner, standForHire, type HiringOut } from "../src/director/hiring.ts";
 import { eventRow, eventsTick, eventsToday, leadsOf, liveEvents, planEvent, stage, type EventRow, type StoredStage } from "../src/director/scheduler.ts";
 import { planFromTemplate, templateById } from "../src/director/templates.ts";
-import { allLamps, ensureLamplighters, lampRounds, walkPath } from "../src/town/lamplighters.ts";
-import { DUSK_SPAN_H, lampLit, lampTimes, roundState } from "../src/town/lampround.ts";
+import { allLamps, ensureLamplighters, lampRounds, roundOf, walkPath } from "../src/town/lamplighters.ts";
+import { REAL_S_PER_GAME_HOUR as CLOCK_S_PER_HOUR } from "../../shared/clock.ts";
+import { DAWN_LAST, DAWN_START, DUSK_LAST, DUSK_SPAN_H, followedFinish, inGrace, REAL_S_PER_GAME_HOUR, lampLit, lampTimes, roundState, SEEN_HURRY, SEEN_PACE, SEEN_PACE_MAX, SEEN_STOP_S, seenPace, windowEnd } from "../src/town/lampround.ts";
 import { dropTownCache, town } from "../src/town/store.ts";
 import { walkMap } from "../src/town/walkmap.ts";
 
@@ -64,10 +65,13 @@ afterEach(() => {
 // ------------------------------------------------------------------ the lamplighters
 
 describe("M6 lamplighters", () => {
-  it("two lamplighters walk real rounds over every gas lamp", () => {
+  it("three lamplighters walk real rounds over every gas lamp", () => {
     const db = fresh();
     const r = lampRounds(db)!;
-    expect(r.rounds.length).toBe(2);
+    // M7 lamps: west old town, the market quarter, the east quays; three different men
+    expect(r.rounds.map((x) => x.id)).toEqual(["west", "market", "east"]);
+    expect(new Set(r.rounds.map((x) => x.lamplighter)).size).toBe(3);
+    for (const round of r.rounds) for (const l of round.lamps) expect(roundOf(l), l.id).toBe(round.id);
     const ids = r.rounds.flatMap((x) => x.lamps.map((l) => l.id));
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids.length).toBe(allLamps().length);
@@ -112,8 +116,38 @@ describe("M6 lamplighters", () => {
     expect(out).toBeGreaterThan(0);
     expect(out).toBeLessThan(n);
     expect(dawn.slice(0, out).every((v) => !v)).toBe(true);
-    // every lamp lights inside the dusk round and before 19:30
+    // every lamp lights inside the dusk round, before full dark (the sky's night at 21:00)
     for (let k = 0; k < n; k++) expect(lampTimes(round, k).on).toBeLessThanOrEqual(round.dusk + DUSK_SPAN_H);
+    expect(round.dusk + DUSK_SPAN_H).toBeLessThanOrEqual(21);
+  });
+
+  it("M7 lamps: followed from his first lamp, each lamplighter ends his round in the window at a walk", () => {
+    const db = fresh();
+    const rounds = lampRounds(db)!.rounds;
+    expect(REAL_S_PER_GAME_HOUR).toBe(CLOCK_S_PER_HOUR);
+    const secs = rounds.map((r) => r.len / SEEN_PACE + r.lamps.length * SEEN_STOP_S);
+    // balanced: at Jef's walk no round takes more than a fifth longer than another
+    expect(Math.max(...secs) / Math.min(...secs)).toBeLessThan(1.2);
+    for (const r of rounds) {
+      for (const kind of ["dusk", "dawn"] as const) {
+        const f = followedFinish(r, kind);
+        expect(f.done, `${r.id} ${kind}`).toBeLessThan(windowEnd(r, kind));
+        // a brisk walk at most, never a run (Jef walks 1.55 m/s, hurries 3.4)
+        expect(f.maxPace, `${r.id} ${kind}`).toBeLessThanOrEqual(SEEN_PACE_MAX);
+      }
+      expect(followedFinish(r, "dusk").done).toBeLessThan(21);
+      expect(followedFinish(r, "dawn").done).toBeLessThan(9);
+      // held up (an opening bridge: a minute or so of real time), he still has time until full dark and full day
+      expect((DUSK_LAST - windowEnd(r, "dusk")) * REAL_S_PER_GAME_HOUR).toBeGreaterThanOrEqual(50);
+      expect((DAWN_LAST - windowEnd(r, "dawn")) * REAL_S_PER_GAME_HOUR).toBeGreaterThanOrEqual(30);
+      expect(inGrace(r, "dusk", windowEnd(r, "dusk") + 0.1)).toBe(true);
+      expect(inGrace(r, "dusk", DUSK_LAST)).toBe(false);
+      expect(inGrace(r, "dawn", windowEnd(r, "dawn") - 0.1)).toBe(false);
+      // the pace: Jef's walk when there is time; brisk from the start; a hurry at most when held up
+      expect(seenPace(r, r.lamps.length - 1, 20, r.dusk + 0.5, "dusk")).toBe(SEEN_PACE);
+      expect(seenPace(r, 0, 0, windowEnd(r, "dusk") - 0.5, "dusk")).toBe(SEEN_HURRY);
+      expect(seenPace(r, 0, 0, DAWN_START, "dawn")).toBeGreaterThan(SEEN_PACE);
+    }
   });
 
   it("M7 lamps: a cart's way keeps clear of the lamp posts, a walker's may pass them", () => {
@@ -149,7 +183,7 @@ describe("M6 lamplighters", () => {
     db.prepare("DELETE FROM world_state WHERE key = 'townlife_lamps'").run();
     dropTownCache(db);
     const again = ensureLamplighters(db)!;
-    expect(again.rounds.length).toBe(2);
+    expect(again.rounds.length).toBe(3);
     expect((db.prepare("SELECT COUNT(*) AS n FROM resident").get() as { n: number }).n).toBe(before.residents);
     expect((db.prepare("SELECT COUNT(*) AS n FROM npc_memory").get() as { n: number }).n).toBe(before.memories);
     expect(db.prepare("SELECT npc_id, trust FROM npc_relationship ORDER BY npc_id").all()).toEqual(before.rel);
@@ -158,6 +192,36 @@ describe("M6 lamplighters", () => {
     // and it runs once
     const same = ensureLamplighters(db)!;
     expect(same.rounds.map((x) => x.lamplighter)).toEqual(again.rounds.map((x) => x.lamplighter));
+  });
+
+  it("M7 lamps: a save with two rounds keeps its two lamplighters on them and gives the market round a third man", () => {
+    const db = fresh();
+    const three = lampRounds(db)!;
+    const [west, market, east] = three.rounds;
+    // as a LAMPS_VERSION 5 save: two rounds, west and east; the market's man still a docker
+    const docker = town(db).byId.get(market.lamplighter)!;
+    const was = { ...JSON.parse(JSON.stringify(docker)), trade: "docker", faction: "naties", work: { place: "quay", kind: "haul" } };
+    db.prepare("UPDATE resident SET trade = 'docker', data_json = ? WHERE id = ?").run(JSON.stringify(was), docker.id);
+    db.prepare("UPDATE world_state SET value_json = ? WHERE key = 'townlife_lamps'").run(JSON.stringify({ v: 5, rounds: [west, { ...east, dusk: 17.7 }] }));
+    dropTownCache(db);
+    const others = db.prepare("SELECT id, data_json FROM resident WHERE trade <> 'lamplighter' ORDER BY id").all() as Array<{ id: string; data_json: string }>;
+    const mem = (db.prepare("SELECT COUNT(*) AS n FROM npc_memory").get() as { n: number }).n;
+    const again = ensureLamplighters(db)!;
+    expect(again.v).toBe(9);
+    expect(again.rounds.map((x) => x.id)).toEqual(["west", "market", "east"]);
+    expect(again.rounds[0].lamplighter).toBe(west.lamplighter);
+    expect(again.rounds[2].lamplighter).toBe(east.lamplighter);
+    // the third: one man of the town changed his trade, nobody else changed
+    const third = town(db).byId.get(again.rounds[1].lamplighter)!;
+    expect(third.trade).toBe("lamplighter");
+    expect(third.id).toBe(docker.id);
+    const now = new Map((db.prepare("SELECT id, data_json FROM resident").all() as Array<{ id: string; data_json: string }>).map((r) => [r.id, r.data_json]));
+    const changed = others.filter((r) => now.get(r.id) !== r.data_json);
+    expect(changed.map((r) => r.id)).toEqual([third.id]);
+    const b = JSON.parse(changed[0].data_json) as Record<string, unknown>;
+    const a = JSON.parse(now.get(third.id)!) as Record<string, unknown>;
+    for (const k of ["name", "home", "household", "family_role", "age", "sex", "stats", "dog"]) expect(a[k], k).toEqual(b[k]);
+    expect((db.prepare("SELECT COUNT(*) AS n FROM npc_memory").get() as { n: number }).n).toBe(mem);
   });
 });
 
