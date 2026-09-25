@@ -1599,7 +1599,10 @@ CF = dict(FA=0.9, FB=1.9, NV=6.5, AW=12.8, TW=15.3, FT=1.4, TB=4.4, Y0=0.6,
           G0=1.9, G1=10.0, G2=11.7, B1=12.9, M1=19.3, M2=20.8, B2=21.9, C1=27.4, C2=28.7, PK=33.0,
           NE=20.8, RID=25.2, AE=15.4, AH=18.6, LK=10.6,
           TA=-2.2, TS=10.9, RISE=0.15, TREAD=0.3, FLIGHTS=((-2.6, 2.6), (-10.9, -8.4), (8.4, 10.9)),
-          DOOR=(3.4, 7.2), SIDE=9.35, END=0.15)
+          DOOR=(3.4, 7.2), SIDE=9.35, END=0.15,
+          OPEN=False, CHAPEL=(12.4, 25.4, 10.2))
+# OPEN: the main door a real opening and the Lady Chapel's room cut out of the shell (the interior in the game:
+# client/src/world/carolusHall.ts); CHAPEL: that room's a0, a1 and its ceiling
 
 
 def carolus_grime(p):
@@ -1947,6 +1950,369 @@ def carolus_terrace(g, F, c):
         lathe(g, (x, Y0 + 1.12, z), [(0.16, 0.0), (0.18, 0.08), (0.1, 0.16), (0.14, 0.28), (0.0, 0.36)], 8, BLUE, rot=math.pi / 8)
 
 
+def grime_under(ys, foot=True):
+    """A shade factor by height: soot washed down under each cornice in `ys`, damp at the foot (modest)."""
+    def f(p):
+        y = p[1]
+        v = 1.0
+        for yc in ys:
+            d = yc - y
+            if 0.0 <= d < 2.0:
+                v *= 0.88 + 0.12 * d / 2.0
+        if foot and y < 1.8:
+            v *= 0.9 + 0.1 * max(0.0, y) / 1.8
+        return v
+    return f
+
+
+def pil(g, W, u, w, y0, y1, dep=0.18, mat=SAND, k=1.0, bottom=True):
+    """A pilaster strip proud of a wall W (u across, y up)."""
+    extrude(g, W, [(u - w / 2, y0), (u + w / 2, y0), (u + w / 2, y1), (u - w / 2, y1)], -dep, 0.03, mat, k=k,
+            skip_edges=() if bottom else (0,))
+
+
+def open_side(P0, P1, outv):
+    """For ring_band / ring_stack along an open line P0 -> P1: +1 when `outv` (x, z) is on the right of travel."""
+    d = Vector((P1[0] - P0[0], P1[1] - P0[1])).normalized()
+    return 1 if d.y * outv[0] - d.x * outv[1] > 0 else -1
+
+
+def ring_stack(g, pts, layers, closed=True, side=None, caps=(True, True), k=1.0):
+    """A cornice or band of several layers round a polygon or along a line (world x, z), mitred at the corners:
+    layers (y0, y1, proj, mat) from the bottom up; a ledge only where a layer stands out beyond the next."""
+    P = [Vector((p[0], p[1])) for p in pts]
+    if closed:
+        side = 1 if area2([(p.x, p.y) for p in P]) > 0 else -1
+    N, off = offsets(P, closed, side)
+    n = len(P)
+    ne = n if closed else n - 1
+    projs = [l_[2] for l_ in layers]
+    for li, (y0, y1, pr, mat) in enumerate(layers):
+        below = projs[li - 1] if li > 0 else 0.0
+        above = projs[li + 1] if li < len(layers) - 1 else 0.0
+        O = [P[j] + off[j] * pr for j in range(n)]
+        A = [P[j] + off[j] * above for j in range(n)]
+        Bl = [P[j] + off[j] * below for j in range(n)]
+        for i in range(ne):
+            j, j2 = i, (i + 1) % n
+            nv = (N[i].x, 0.0, N[i].y)
+            g.face([(O[j].x, y0, O[j].y), (O[j2].x, y0, O[j2].y), (O[j2].x, y1, O[j2].y), (O[j].x, y1, O[j].y)], mat, out=nv, k=k)
+            if pr > above + 1e-6:
+                g.face([(A[j].x, y1, A[j].y), (A[j2].x, y1, A[j2].y), (O[j2].x, y1, O[j2].y), (O[j].x, y1, O[j].y)], mat, out=(0, 1, 0), k=k)
+            if pr > below + 1e-6:
+                g.face([(Bl[j].x, y0, Bl[j].y), (Bl[j2].x, y0, Bl[j2].y), (O[j2].x, y0, O[j2].y), (O[j].x, y0, O[j].y)], mat, out=(0, -1, 0),
+                       k=k * 0.7)
+        if not closed:
+            for j, sgn, on in ((0, -1, caps[0]), (n - 1, 1, caps[1])):
+                if not on:
+                    continue
+                d = (P[1] - P[0]).normalized() if j == 0 else (P[-1] - P[-2]).normalized()
+                g.face([(P[j].x, y0, P[j].y), (O[j].x, y0, O[j].y), (O[j].x, y1, O[j].y), (P[j].x, y1, P[j].y)], mat,
+                       out=(d.x * sgn, 0, d.y * sgn), k=k * 0.85)
+
+
+def cornice(yt, proj, h=0.62, bed=BLUE):
+    """A small cornice ending at yt: a fascia, a bluestone bed moulding, the crown standing out `proj`."""
+    return [(yt - h, yt - h * 0.62, proj * 0.55, SAND), (yt - h * 0.62, yt - h * 0.42, proj * 0.3, SAND),
+            (yt - h * 0.42, yt - h * 0.26, proj * 0.8, bed), (yt - h * 0.26, yt, proj, SAND)]
+
+
+def gutter(g, p0, p1, y, outv, off):
+    """A lead box gutter under an eave, `off` out from the wall line p0 -> p1 (world x, z)."""
+    ox, oz = outv[0] * off, outv[1] * off
+    bar(g, (p0[0] + ox, y, p0[1] + oz), (p1[0] + ox, y, p1[1] + oz), 0.2, LEAD, h=0.16, shade=0.8)
+
+
+def downpipe(g, p, y_top, outv, off=0.16):
+    """An iron downpipe from a gutter to a shoe at the foot of the wall."""
+    x, z = p[0] + outv[0] * off, p[1] + outv[1] * off
+    bar(g, (x, 0.12, z), (x, y_top - 0.3, z), 0.11, IRON, shade=0.85)
+    bar(g, (x, y_top - 0.32, z), (x, y_top, z), 0.24, IRON, shade=0.8)
+    bar(g, (x, 0.02, z), (x + outv[0] * 0.25, 0.14, z + outv[1] * 0.25), 0.13, IRON, shade=0.8)
+
+
+def dormer(g, F, a, s_face, sg, y0, w=1.0, h=1.5, back=1.6, mat=SAND, cell="louv_r", shape="round"):
+    """A small dormer on a roof slope that rises away from s_face in the -sg direction (sg = the way out):
+    its front at s_face, its cheeks going back into the roof, a little gabled lead roof."""
+    s_back = s_face - sg * back
+    s0_, s1_ = sorted((s_face, s_back))
+    W = wall(g, F, (a - w / 2 - 0.12, s_face), (a + w / 2 + 0.12, s_face), (0, sg), y0, y0 + h, mat,
+             holes=[Hc(w / 2 + 0.12, w * 0.62, y0 + 0.25, y0 + h - 0.15, shape, cell, depth=0.12, rmat=mat)])
+    for sa in (-1, 1):
+        wall(g, F, (a + sa * (w / 2 + 0.12), s_face), (a + sa * (w / 2 + 0.12), s_back), (sa, 0), y0 - 0.9, y0 + h, mat, k=0.85)
+    gable_roof(g, F.rot(), s0_, s1_, a - w / 2 - 0.12, a + w / 2 + 0.12, y0 + h, y0 + h + 0.55, mat=LEAD, t=0.08, oe=(0.12, 0.12),
+               og=(0.1, 0.0) if sg < 0 else (0.0, 0.1), caps=(True, True, sg < 0, sg > 0))
+    return W
+
+
+def ihs_medallion(g, W, uc, yc, R=1.45, rays=True):
+    """The IHS medallion (the Codex picture) in gilded rays, proud of a wall."""
+    if rays:
+        for i in range(24):
+            ang = math.pi / 2 + 2 * math.pi * i / 24
+            Rr = R * (1.66 if i % 2 == 0 else 1.35)
+            cs_, sn_ = math.cos(ang), math.sin(ang)
+            poly = [(uc + R * 0.9 * cs_ + 0.12 * R * sn_, yc + R * 0.9 * sn_ - 0.12 * R * cs_), (uc + Rr * cs_, yc + Rr * sn_),
+                    (uc + R * 0.9 * cs_ - 0.12 * R * sn_, yc + R * 0.9 * sn_ + 0.12 * R * cs_)]
+            extrude(g, W, poly, -0.2, 0.0, GILT)
+    disc(g, W, uc, yc, R, "c_ihs", d_front=-0.36, d_back=0.0, sides=20, side_mat=GILT, crop=0.64)
+
+
+def carolus_sides(g, F, c, D, S, AC, TA0, HE, HR, CE, CR, SE):
+    """Every side of the Carolus one sees from the streets round it and from the roofs: the aisles' upper walls
+    and the nave's clerestory with pilasters, window surrounds, cornices and gutters; the roofs with their ridges
+    and dormers; the apse; the tower behind the choir storey by storey (after the real one: a base with the IHS,
+    Doric, Ionic with the sound openings, the lantern with its Serlian openings and angels, the dome with its
+    dormers, the small lantern, the cross); the Jesuit house and the Lady Chapel with their fronts, frames,
+    cornices, gutters and downpipes; the sacristy and the garden wall."""
+    FB, NV, AW, TW, TB, LK, NE, RID, AE, AH, FT = (c[k] for k in ("FB", "NV", "AW", "TW", "TB", "LK", "NE", "RID", "AE", "AH", "FT"))
+    OPEN = c.get("OPEN", False)
+    # ---- the aisles: the walls, their upper part (seen over the low ranges) with windows, pilasters, a cornice
+    g.grime = grime_under((15.1, 20.4))
+    win_a = [a for a in (6.4, 10.2, 14.0, 17.8, 21.6, 25.4)]
+    gal = lambda a0, a1: [Hc(a - a0, 1.7, 11.0, 14.2, "round", "round", depth=0.35) for a in win_a if a0 + 1.2 < a < a1 - 1.2]  # noqa: E731
+    CH = c.get("CHAPEL")  # the Lady Chapel's room (a0, a1, y1): cut out of the walls it stands in
+    for sg in (-1, 1):
+        a_end = AC if sg < 0 else TA0
+        cuts = [(CH[0] - TB, CH[1] - TB, FOOT - 0.1, CH[2])] if (OPEN and CH and sg > 0) else []
+        W = wall(g, F, (TB, sg * AW), (a_end, sg * AW), (0, sg), FOOT, AE, SAND, holes=gal(TB, a_end), cuts=cuts)
+        for a in win_a:
+            if TB + 1.2 < a < a_end - 1.2:
+                arch_band(g, W, a - TB, 11.0, 14.2 - 0.85, 1.7, 0.2, -0.14)
+                extrude(g, W, [(a - TB - 1.05, 10.85), (a - TB + 1.05, 10.85), (a - TB + 1.05, 11.0), (a - TB - 1.05, 11.0)], -0.16, 0.0, SAND)
+        for a in [TB + 0.55] + [(p + q) / 2 for p, q in zip(win_a, win_a[1:])] + [a_end - 0.55]:
+            if TB + 0.3 < a < a_end - 0.3:
+                pil(g, W, a - TB, 0.7, LK + 0.03, 14.33, bottom=False)
+        p0, p1 = F.P(TB, sg * AW), F.P(a_end, sg * AW)
+        outv = F.V(0, sg)
+        ring_stack(g, [p0, p1], [(14.35, 14.6, 0.26, SAND), (14.6, 14.8, 0.14, SAND), (14.8, 14.92, 0.3, BLUE), (14.92, 15.1, 0.36, SAND)],
+                   closed=False, side=open_side(p0, p1, outv), caps=(False, True))
+        # the nave's clerestory over the aisle roof: pilasters on the bays, a cornice under the eave
+        a_ne = AC if sg < 0 else TA0
+        Wn = wall(g, F, (FB, sg * NV), (a_ne, sg * NV), (0, sg), AH - 0.6, NE, SAND)
+        for a in [TB + 0.55] + [(p + q) / 2 for p, q in zip(win_a, win_a[1:])]:
+            if a < a_ne - 0.6:
+                pil(g, Wn, a - FB, 0.6, AH + 0.03, 19.78, dep=0.16, bottom=False)
+        q0, q1 = F.P(FB, sg * NV), F.P(a_ne, sg * NV)
+        ring_stack(g, [q0, q1], [(19.8, 20.0, 0.2, SAND), (20.0, 20.12, 0.28, BLUE), (20.12, 20.4, 0.34, SAND)], closed=False,
+                   side=open_side(q0, q1, F.V(0, sg)), caps=(False, False))
+        gutter(g, F.P(FB + 0.06, sg * (NV + 0.45)), F.P(a_ne - 0.06, sg * (NV + 0.45)), 20.38, (0, 0), 0.0)
+        gutter(g, F.P(TB + 0.06, sg * (AW + 0.48)), F.P(a_end - 0.06, sg * (AW + 0.48)), 15.06, (0, 0), 0.0)
+    gable_roof(g, F, FB, AC, -NV, NV, NE, RID, oe=(0.4, 0.4), og=(0, 0), caps=(True, True, False, False))
+    bar(g, F.p(FB + 0.06, 0, RID + 0.26), F.p(AC, 0, RID + 0.26), 0.26, LEAD, h=0.16, shade=0.85)  # the ridge's lead
+    for a in (9.0, 21.0):  # two small dormers each side of the nave roof
+        for sg in (-1, 1):
+            dormer(g, F, a, sg * 4.35, sg, 22.05, w=0.9, h=1.25, back=1.6)
+    lean_to(g, F, FB, AC, -AW, -NV, AE, AH, oe=0.4, og=(0, 0.3), caps=(True, False, True))
+    lean_to(g, F, FB, TA0, AW, NV, AE, AH, oe=0.4, og=(0, 0), caps=(True, False, False))
+    wall(g, F, (AC, -AW), (AC, -NV), (1, 0), FOOT, AE, SAND, top=[(0, AE), (AW - NV, AH)])
+    # ---- the apse: pilasters at its corners, framed windows, the cornice round it
+    P = apse_pts(AC, NV)
+    for i in range(5):
+        a, b = P[i], P[i + 1]
+        mid = ((a[0] + b[0]) / 2 - AC, (a[1] + b[1]) / 2)
+        L = math.hypot(b[0] - a[0], b[1] - a[1])
+        W = wall(g, F, a, b, mid, FOOT, NE, SAND, holes=[Hc(L / 2, 1.5, 11.0, 18.5, "round", "round", depth=0.4)] if 1 <= i <= 3 else [])
+        if 1 <= i <= 3:
+            arch_band(g, W, L / 2, 11.0, 18.5 - 0.75, 1.5, 0.22, -0.14)
+        for u, on in ((0.3, i > 0), (L - 0.3, i < 4)):
+            if on:
+                pil(g, W, u, 0.5, 3.6, 19.78, dep=0.2)
+    AP = [F.P(a, s) for a, s in P]
+    ring_stack(g, AP, [(19.8, 20.0, 0.24, SAND), (20.0, 20.12, 0.3, BLUE), (20.12, 20.4, 0.34, SAND)], closed=False,
+               side=open_side(AP[1], AP[2], F.V(1, 0)), caps=(False, False))
+    apse_roof(g, F, AC, NV, NE, RID, oe=0.4)
+    # ---- the tower behind the choir, storey by storey
+    a0, a1, s0, s1 = TA0, D - M, NV, AW
+    tc = F.P((a0 + a1) / 2, (s0 + s1) / 2)
+    T1, T2, T3 = 12.4, 21.4, 30.4  # the tops of the base, the Doric and the Ionic storeys (their entablatures above)
+    g.grime = grime_under((T1, T2, T3), foot=True)
+    faces = [((a1, s0), (a1, s1), (1, 0)), ((a0, s1), (a0, s0), (-1, 0)), ((a0, s0), (a1, s0), (0, -1)), ((a1, s1), (a0, s1), (0, 1))]
+    top_y = T3 + 1.0
+    for fi, (A, Bq, out) in enumerate(faces):
+        L_ = math.hypot(*(Vector(F.P(*Bq)) - Vector(F.P(*A))))
+        holes = [Hc(L_ / 2, 1.6, T2 + 1.9, T2 + 6.6, "round", "louv_r", depth=0.5),
+                 Hc(L_ / 2, 1.0, T1 + 2.4, T1 + 5.8, "round", "round", depth=0.4)]
+        if fi == 0:
+            holes.append(Hc(L_ / 2, 1.0, 3.0, 6.0, "round", "round", depth=0.35))
+        W = wall(g, F, A, Bq, out, FOOT, top_y, SAND, holes=holes)
+        for (y0, y1, dep) in ((0.9, T1 + 1.0, 0.2), (T1 + 1.02, T2 + 1.0, 0.22), (T2 + 1.02, T3 + 1.0, 0.2)):
+            for u in (0.45, L_ - 0.45):
+                pil(g, W, u, 0.7, y0, y1 - 1.02, dep=dep)
+        arch_band(g, W, L_ / 2, T2 + 1.9, T2 + 6.6 - 0.8, 1.6, 0.22, -0.16)
+        arch_band(g, W, L_ / 2, T1 + 2.4, T1 + 5.8 - 0.5, 1.0, 0.18, -0.14)
+        disc(g, W, L_ / 2, T3 - 1.3, 0.62, "clock", d_front=-0.14, d_back=0.0, sides=12, side_mat=SAND)
+        if fi == 0:
+            arch_band(g, W, L_ / 2, 3.0, 6.0 - 0.5, 1.0, 0.18, -0.14)
+            ihs_medallion(g, W, L_ / 2, 9.2, R=1.05)
+    sq = rect_pts(F, a0, a1, s0, s1)
+    for yt in (T1 + 1.0, T2 + 1.0, T3 + 1.0):
+        ring_stack(g, sq, entab(yt - 1.0, yt, big=0.62))
+    g.face([F.p(a0, s0, top_y), F.p(a1, s0, top_y), F.p(a1, s1, top_y), F.p(a0, s1, top_y)], LEAD, out=(0, 1, 0))
+    # the platform's balustrade and the four angels blowing their horns at its corners
+    q = 0.35
+    for (A, Bq) in (((a0 + q, s0 + q), (a1 - q, s0 + q)), ((a1 - q, s0 + q), (a1 - q, s1 - q)), ((a1 - q, s1 - q), (a0 + q, s1 - q)),
+                    ((a0 + q, s1 - q), (a0 + q, s0 + q))):
+        pa, pb = F.p(A[0], A[1], top_y), F.p(Bq[0], Bq[1], top_y)
+        L_ = math.hypot(pb[0] - pa[0], pb[2] - pa[2])
+        n_ = int((L_ - 1.4) / 0.34)
+        for i in range(n_):
+            t = (0.7 + (i + 0.5) * (L_ - 1.4) / n_) / L_
+            x_, z_ = pa[0] + (pb[0] - pa[0]) * t, pa[2] + (pb[2] - pa[2]) * t
+            lathe(g, (x_, top_y, z_), [(0.09, 0.0), (0.06, 0.12), (0.12, 0.4), (0.06, 0.66), (0.09, 0.72)], 6, SAND)
+        ta, tb_ = 0.32 / L_, 1 - 0.32 / L_
+        bar(g, (pa[0] + (pb[0] - pa[0]) * ta, top_y + 0.8, pa[2] + (pb[2] - pa[2]) * ta),
+            (pa[0] + (pb[0] - pa[0]) * tb_, top_y + 0.8, pa[2] + (pb[2] - pa[2]) * tb_), 0.24, SAND, h=0.14)
+    for (a_, s_) in ((a0 + q, s0 + q), (a1 - q, s0 + q), (a1 - q, s1 - q), (a0 + q, s1 - q)):
+        box(g, F, a_ - 0.3, a_ + 0.3, s_ - 0.3, s_ + 0.3, top_y, top_y + 0.95, SAND, skip=("-y",))
+        statue(g, F, a_, s_, top_y + 0.95, 1.7, arm=1 if s_ < (s0 + s1) / 2 else -1)
+    # the lantern: an octagon with a Serlian opening on each side (an arch between two narrow lights), pilasters between
+    R8 = 2.55
+    rot8 = math.pi / 8
+    L0, L1 = top_y, top_y + 6.4
+    oct_ = poly_walls(g, tc, R8, 8, rot8, L0 - 0.05, L1, SAND,
+                      holes=lambda i, L: ([Hc(L / 2, 0.8, L0 + 1.0, L0 + 4.2, "round", "louv_r", depth=0.3),
+                                          Hc(L / 2 - 0.62, 0.22, L0 + 1.0, L0 + 3.0, "rect", "louv_r", depth=0.25),
+                                          Hc(L / 2 + 0.62, 0.22, L0 + 1.0, L0 + 3.0, "rect", "louv_r", depth=0.25)] if i % 2 == 0 else []))
+    for i in range(8):
+        am = rot8 + 2 * math.pi * (i + 0.5) / 8
+        a_, b_ = oct_[i], oct_[(i + 1) % 8]
+        Wl = Wall(g, a_, b_, (math.cos(am), math.sin(am)), 0, 0, SAND)
+        if i % 2 == 1:
+            pil(g, Wl, Wl.L / 2, 0.5, L0 + 0.1, L1 - 0.92, dep=0.2, mat=BLUE)
+        else:
+            arch_band(g, Wl, Wl.L / 2, L0 + 1.0, L0 + 4.2 - 0.4, 0.8, 0.09, -0.1)
+    ring_stack(g, oct_, entab(L1 - 0.9, L1, big=0.48))
+    # the dome with four small dormers, the small lantern, the gilded ball and the cross
+    dome = [(R8 * 0.99, 0.0), (2.5, 0.7), (2.2, 1.55), (1.7, 2.3), (1.05, 2.8), (0.72, 2.95)]
+    lathe(g, (tc[0], L1 - 0.02, tc[1]), dome, 16, LEAD, rot=rot8 / 2)
+    for i in range(4):
+        am = 2 * math.pi * i / 4
+        cx, cz = tc[0] + math.cos(am) * 2.55, tc[1] + math.sin(am) * 2.55
+        Fd = Frame((cx, cz), (-math.cos(am), -math.sin(am)), (-math.sin(am), math.cos(am)))
+        box(g, Fd, -0.25, 0.5, -0.32, 0.32, L1 + 0.6, L1 + 1.45, SAND, skip=("-y",), top_mat=LEAD)
+        Wd = plane(g, Fd, (-0.25, -0.32), (-0.25, 0.32), (-1, 0))
+        disc(g, Wd, 0.32, L1 + 1.02, 0.2, "dark", d_front=-0.09, d_back=0.0, sides=8, side_mat=SAND)
+    SL0 = L1 + 2.9
+    oct2 = poly_walls(g, tc, 0.72, 8, rot8, SL0 - 0.05, SL0 + 1.9, SAND,
+                      holes=lambda i, L: [Hc(L / 2, 0.3, SL0 + 0.4, SL0 + 1.4, "round", "louv_r", depth=0.12)] if i % 2 == 0 else [])
+    ring_band(g, oct2, SL0 + 1.7, SL0 + 1.95, 0.12, SAND)
+    lathe(g, (tc[0], SL0 + 1.93, tc[1]), [(0.84, 0.0), (0.72, 0.35), (0.45, 0.62), (0.2, 0.75), (0.1, 0.8)], 8, LEAD, rot=rot8)
+    lathe(g, (tc[0], SL0 + 2.7, tc[1]), [(0.0, 0.0), (0.2, 0.06), (0.28, 0.25), (0.2, 0.45), (0.0, 0.52)], 8, GILT, rot=rot8)
+    gilt_cross(g, tc[0], SL0 + 3.2, tc[1], 1.7)
+    # ---- the Jesuit house (left): brick with sandstone bands, framed windows, a cornice, a gutter, downpipes, dormers
+    g.grime = grime_under((HE - 0.6,))
+    hs0, hs1 = -S + M, -TW
+    hw_ = hs1 - hs0
+    hb_ = [(FOOT, 0.8, SAND), (4.5, 4.75, SAND), (8.5, 8.75, SAND)]
+    rows = (1.4, 5.4, 9.4)
+
+    def framed(W, specs):
+        for (uc, w, yb, yt) in specs:
+            rect_frame(g, W, uc, w, yb, yt, 0.14, -0.1, ears=0.06)
+            extrude(g, W, [(uc - w / 2 - 0.2, yb - 0.14), (uc + w / 2 + 0.2, yb - 0.14), (uc + w / 2 + 0.2, yb), (uc - w / 2 - 0.2, yb)], -0.14, 0.0,
+                    SAND)
+
+    fw = [(hw_ - uc - 0.55, yb) for yb in rows for uc in (hw_ * 0.25, hw_ * 0.75)]
+    W = wall(g, F, (M, hs1), (M, hs0), (-1, 0), FOOT, HE, BRICK, top=[(0, HE), (hw_ / 2, HR), (hw_, HE)],
+             holes=[Hc(uc, 1.1, yb, yb + 1.75, "rect", "hwin", depth=0.22) for uc, yb in fw]
+             + [Hc(hw_ / 2, 0.9, HE + 0.6, HE + 2.0, "rect", "hwin", depth=0.2)], bands=hb_)
+    framed(W, [(uc, 1.1, yb, yb + 1.75) for uc, yb in fw] + [(hw_ / 2, 0.9, HE + 0.6, HE + 2.0)])
+    # the gable's coping
+    extrude(g, W, [(-0.25, HE - 0.25), (hw_ / 2, HR + 0.45), (hw_ + 0.25, HE - 0.25), (hw_, HE - 0.25), (hw_ / 2, HR - 0.25), (0.0, HE - 0.25)],
+            -0.22, 0.05, SAND, back=True, skip_edges=(2, 5))
+    wall(g, F, (M, hs1), (FT, hs1), (0, 1), FOOT, HE, BRICK, bands=hb_)
+    sa_ = [a for a in np.arange(2.2, D - 1.5, 3.3)]
+    sw = [(a, yb) for yb in rows for a in sa_ if not (yb < 2 and abs(a - D / 2) < 1.8)]
+    W = wall(g, F, (M, hs0), (D - M, hs0), (0, -1), FOOT, HE, BRICK,
+             holes=[Hc(a, 1.1, yb, yb + 1.75, "rect", "hwin", depth=0.22) for a, yb in sw] + [Hc(D / 2 - M, 1.5, 0.15, 3.2, "round", "door_r", depth=0.3)],
+             bands=hb_)
+    framed(W, [(a, 1.1, yb, yb + 1.75) for a, yb in sw])
+    arch_band(g, W, D / 2 - M, 0.15, 3.2 - 0.75, 1.5, 0.22, -0.14)
+    tri_pediment(g, W, D / 2 - M, 1.25, 3.55, 0.7, -0.3)
+    p0, p1 = F.P(M, hs0), F.P(D - M, hs0)
+    ring_stack(g, [p0, p1], cornice(HE - 0.62, 0.3, h=0.5), closed=False, side=open_side(p0, p1, F.V(0, -1)))
+    gutter(g, p0, p1, HE - 0.72, F.V(0, -1), 0.45)
+    for a in (0.6, D / 2 + 2.4, D - 0.6):
+        downpipe(g, F.P(a, hs0), HE - 0.82, F.V(0, -1), 0.45)
+    for a in (5.0, 11.6, 18.2 + 3.0, 27.8):
+        dormer(g, F, a, hs0 + 1.0, -1, 14.3, w=0.9, h=1.4, back=1.4, mat=BRICK, cell="hwin", shape="rect")
+    W = wall(g, F, (D - M, hs0), (D - M, hs1), (1, 0), FOOT, HE, BRICK, top=[(0, HE), (hw_ / 2, HR), (hw_, HE)],
+             holes=[Hc(uc, 1.1, yb, yb + 1.75, "rect", "hwin", depth=0.22) for yb in (5.4, 9.4) for uc in (hw_ * 0.3, hw_ * 0.7)],
+             bands=hb_)
+    framed(W, [(uc, 1.1, yb, yb + 1.75) for yb in (5.4, 9.4) for uc in (hw_ * 0.3, hw_ * 0.7)])
+    extrude(g, W, [(-0.25, HE - 0.25), (hw_ / 2, HR + 0.45), (hw_ + 0.25, HE - 0.25), (hw_, HE - 0.25), (hw_ / 2, HR - 0.25), (0.0, HE - 0.25)],
+            -0.22, 0.05, SAND, back=True, skip_edges=(2, 5))
+    W = wall(g, F, (TB, hs1), (D - M, hs1), (0, 1), FOOT, HE, BRICK, bands=hb_,
+             holes=[Hc(a - TB, 1.0, 11.0, 12.4, "rect", "hwin", depth=0.2) for a in np.arange(7.0, D - 2.0, 4.4)])
+    framed(W, [(a - TB, 1.0, 11.0, 12.4) for a in np.arange(7.0, D - 2.0, 4.4)])
+    gable_roof(g, F, M, D - M, hs0, hs1, HE, HR, oe=(0.4, 0.3), og=(0.12, 0.12), caps=(True, True, True, True))
+    bar(g, F.p(M + 0.04, (hs0 + hs1) / 2, HR + 0.26), F.p(D - M - 0.04, (hs0 + hs1) / 2, HR + 0.26), 0.22, LEAD, h=0.14, shade=0.85)
+    for a in (D * 0.3, D * 0.72):
+        box(g, F, a - 0.5, a + 0.5, hs0 + hw_ * 0.5 - 0.6, hs0 + hw_ * 0.5 + 0.6, HR - 1.0, HR + 1.3, BRICK, skip=("-y",), top_mat=SAND)
+    # ---- the Lady Chapel (right): sandstone on a bluestone plinth, framed windows, buttresses, the front to the square
+    g.grime = grime_under((CE - 0.7,))
+    cs0, cs1 = TW, S - M - 0.3
+    cw_ = cs1 - cs0
+    cp_ = [(FOOT, 0.7, BLUE)]
+    W = wall(g, F, (M, cs0), (M, cs1), (-1, 0), FOOT, CE, SAND, top=[(0, CE), (cw_ / 2, CR), (cw_, CE)], bands=cp_,
+             holes=[Hc(cw_ / 2, 2.0, 0.15, 4.4, "round", "door_r", depth=0.4), Hc(cw_ / 2, 1.6, 5.6, 9.6, "round", "round", depth=0.35)])
+    arch_band(g, W, cw_ / 2, 0.15, 4.4 - 1.0, 2.0, 0.26, -0.16)
+    arch_band(g, W, cw_ / 2, 5.6, 9.6 - 0.8, 1.6, 0.2, -0.14)
+    tri_pediment(g, W, cw_ / 2, 1.55, 4.75, 0.8, -0.34)
+    for u in (0.45, cw_ - 0.45):
+        pil(g, W, u, 0.7, 0.7, CE - 0.32, dep=0.22)
+    disc(g, W, cw_ / 2, 12.7, 0.75, "rose", d_front=-0.15, d_back=0.05, sides=12, side_mat=SAND)
+    extrude(g, W, [(-0.3, CE - 0.3), (cw_ / 2, CR + 0.45), (cw_ + 0.3, CE - 0.3), (cw_, CE - 0.3), (cw_ / 2, CR - 0.25), (0.0, CE - 0.3)],
+            -0.26, 0.05, SAND, back=True, skip_edges=(2, 5))
+    x_, _, z_ = F.p(M + 0.55, (cs0 + cs1) / 2, 0)
+    urn(g, (x_, CR + 0.3, z_), 0.8, GILT, fire=True)
+    wall(g, F, (M, cs0), (FT, cs0), (0, -1), FOOT, CE, SAND, bands=cp_)
+    ccuts = [(CH[0] - TB, CH[1] - TB, FOOT - 0.1, CH[2])] if (OPEN and CH) else []
+    wall(g, F, (TB, cs0), (D - M, cs0), (0, -1), FOOT, CE, SAND, cuts=ccuts)
+    ca_ = [a for a in (4.2, 9.4, 14.6, 19.8, 25.0, 30.2) if a < D - 2]
+    W = wall(g, F, (M, cs1), (D - M, cs1), (0, 1), FOOT, CE, SAND, bands=cp_,
+             holes=[Hc(a - M, 1.6, 4.4, 9.2, "round", "round", depth=0.35) for a in ca_])
+    for a in ca_:
+        arch_band(g, W, a - M, 4.4, 9.2 - 0.8, 1.6, 0.2, -0.14)
+    for a in (1.6, 6.8, 12.0, 17.2, 22.4, 27.6, 32.8):
+        if a < D - M - 0.5:
+            box(g, F, a - 0.4, a + 0.4, cs1 - 0.05, S - M + 0.05, FOOT, 0.7, BLUE, skip=("-s", "-y"))
+            box(g, F, a - 0.36, a + 0.36, cs1 - 0.05, S - M, 0.7, CE - 1.5, SAND, skip=("-s", "-y"))
+            buttress_cap = [F.p(a - 0.36, S - M, CE - 1.5), F.p(a + 0.36, S - M, CE - 1.5), F.p(a + 0.36, cs1 - 0.05, CE - 1.05),
+                            F.p(a - 0.36, cs1 - 0.05, CE - 1.05)]
+            g.face(buttress_cap, BLUE, out=F.v(0, 0.9, 1.0))
+            for sa in (-1, 1):
+                g.face([F.p(a + sa * 0.36, S - M, CE - 1.5), F.p(a + sa * 0.36, cs1 - 0.05, CE - 1.5), F.p(a + sa * 0.36, cs1 - 0.05, CE - 1.05)],
+                       BLUE, out=F.v(sa, 0))
+    p0, p1 = F.P(M, cs1), F.P(D - M, cs1)
+    ring_stack(g, [p0, p1], cornice(CE - 0.62, 0.3, h=0.5), closed=False, side=open_side(p0, p1, F.V(0, 1)))
+    gutter(g, p0, p1, CE - 0.72, F.V(0, 1), 0.45)
+    for a in (0.6, 14.9, D - 0.6):
+        downpipe(g, F.P(a, cs1), CE - 0.82, F.V(0, 1), 0.45)
+    W = wall(g, F, (D - M, cs1), (D - M, cs0), (1, 0), FOOT, CE, SAND, top=[(0, CE), (cw_ / 2, CR), (cw_, CE)], bands=cp_,
+             holes=[Hc(cw_ / 2, 1.4, 5.2, 9.2, "round", "round", depth=0.35)])
+    arch_band(g, W, cw_ / 2, 5.2, 9.2 - 0.7, 1.4, 0.2, -0.14)
+    extrude(g, W, [(-0.3, CE - 0.3), (cw_ / 2, CR + 0.45), (cw_ + 0.3, CE - 0.3), (cw_, CE - 0.3), (cw_ / 2, CR - 0.25), (0.0, CE - 0.3)],
+            -0.26, 0.05, SAND, back=True, skip_edges=(2, 5))
+    gable_roof(g, F, M, D - M, cs0, cs1, CE, CR, oe=(0.3, 0.4), og=(0.12, 0.12), caps=(True, True, True, True))
+    bar(g, F.p(M + 0.04, (cs0 + cs1) / 2, CR + 0.26), F.p(D - M - 0.04, (cs0 + cs1) / 2, CR + 0.26), 0.22, LEAD, h=0.14, shade=0.85)
+    for sg in (-1, 1):  # the low ranges between the house or chapel and the aisle, behind the stair towers
+        s0_, s1_ = sorted((sg * AW, sg * TW))
+        g.face([F.p(TB, s0_, LK), F.p(D - M, s0_, LK), F.p(D - M, s1_, LK), F.p(TB, s1_, LK)], LEAD, out=(0, 1, 0))
+        wall(g, F, (D - M, s0_), (D - M, s1_), (1, 0), FOOT, LK, BRICK if sg < 0 else SAND)
+    # ---- the sacristy behind the left aisle, the garden wall behind the apse
+    g.grime = grime_under((7.6,))
+    W = wall(g, F, (AC, -NV), (D - M, -NV), (0, 1), FOOT, 8.0, SAND, holes=[Hc((D - M - AC) / 2, 1.2, 3.0, 6.0, "round", "round", depth=0.3)])
+    arch_band(g, W, (D - M - AC) / 2, 3.0, 6.0 - 0.6, 1.2, 0.18, -0.12)
+    W = wall(g, F, (D - M, -AW), (D - M, -NV), (1, 0), FOOT, SE, SAND, top=[(0, SE), (AW - NV, 8.0)],
+             holes=[Hc((AW - NV) / 2, 1.1, 2.6, 5.2, "round", "round", depth=0.3)])
+    arch_band(g, W, (AW - NV) / 2, 2.6, 5.2 - 0.55, 1.1, 0.16, -0.12)
+    lean_to(g, F, AC, D - M, -NV, -AW, 8.0, SE, oe=0.35, og=(0, 0.3), caps=(True, False, True))
+    garden_wall(g, [F.P(D - M - 0.2, -NV), F.P(D - M - 0.2, NV)], 3.4, SAND, coping=BLUE)
+    g.grime = None
+
+
 def carolus(g, fr):
     g.grp = "church_carolus"
     F, D, S = frame_front_open(fr)
@@ -2151,111 +2517,7 @@ def carolus(g, fr):
         lathe(g, (tc[0], B2 + 3.25, tc[1]), [(1.18, 0.0), (1.1, 0.4), (0.9, 0.85), (0.58, 1.2), (0.25, 1.38), (0.2, 1.52)], 8, SAND,
               rot=math.pi / 8, k=0.95)
         pineapple(g, (tc[0], B2 + 3.25 + 1.5, tc[1]), 1.1)
-    # ---- nave, aisles, apse
-    wall(g, F, (FB, -NV), (AC, -NV), (0, -1), AH - 0.6, NE, SAND)
-    wall(g, F, (FB, NV), (TA0, NV), (0, 1), AH - 0.6, NE, SAND)
-    gable_roof(g, F, FB, AC, -NV, NV, NE, RID, oe=(0.4, 0.4), og=(0, 0), caps=(True, True, False, False))
-    gal = lambda a0, a1: [Hc(a - a0, 1.7, 11.4, 15.0, "round", "round", depth=0.35) for a in (6.4, 10.2, 14.0, 17.8, 21.6, 25.4)  # noqa: E731
-                          if a0 + 1.2 < a < a1 - 1.2]
-    wall(g, F, (TB, -AW), (AC, -AW), (0, -1), FOOT, AE, SAND, holes=gal(TB, AC))
-    wall(g, F, (TB, AW), (TA0, AW), (0, 1), FOOT, AE, SAND, holes=gal(TB, TA0))
-    lean_to(g, F, FB, AC, -AW, -NV, AE, AH, oe=0.4, og=(0, 0.3), caps=(True, False, True))
-    lean_to(g, F, FB, TA0, AW, NV, AE, AH, oe=0.4, og=(0, 0), caps=(True, False, False))
-    wall(g, F, (AC, -AW), (AC, -NV), (1, 0), FOOT, AE, SAND, top=[(0, AE), (AW - NV, AH)])
-    apse_walls(g, F, AC, NV, FOOT, NE, SAND, holes=lambda i, L: [Hc(L / 2, 1.5, 11.0, 18.5, "round", "round", depth=0.4)] if 1 <= i <= 3 else [])
-    apse_roof(g, F, AC, NV, NE, RID, oe=0.4)
-    # ---- the tower behind the choir
-    a0, a1, s0, s1 = TA0, D - M, NV, AW
-    T1 = 29.9
-    tc = F.P((a0 + a1) / 2, (s0 + s1) / 2)
-    wall(g, F, (a0, s0), (a0, s1), (-1, 0), FOOT, T1, ST, holes=[Hc((s1 - s0) / 2, 1.0, 21.0, 23.6, "round", "round")])
-    wall(g, F, (a1, s0), (a1, s1), (1, 0), FOOT, T1, ST,
-         holes=[Hc((s1 - s0) / 2, 1.0, h0, h0 + 2.4, "round", "round") for h0 in (7.0, 14.0, 21.0)])
-    wall(g, F, (a0, s0), (a1, s0), (0, -1), FOOT, T1, ST, holes=[Hc((a1 - a0) / 2, 1.0, 27.0, 29.0, "round", "round")])
-    wall(g, F, (a0, s1), (a1, s1), (0, 1), FOOT, T1, ST,
-         holes=[Hc((a1 - a0) / 2, 1.0, h0, h0 + 2.4, "round", "round") for h0 in (14.0, 21.0)])
-    Wt = plane(g, F, (a0, s0), (a0, s1), (-1, 0))
-    disc(g, Wt, (s1 - s0) / 2, 26.6, 1.1, "clock", d_front=-0.12, d_back=0.05, sides=12)
-    Wt = plane(g, F, (a1, s1), (a1, s0), (1, 0))
-    disc(g, Wt, (s1 - s0) / 2, 26.6, 1.1, "clock", d_front=-0.12, d_back=0.05, sides=12)
-    sq = rect_pts(F, a0, a1, s0, s1)
-    ring_band(g, sq, T1 - 0.5, T1, 0.3, ST)
-    q = 0.4
-    sq2 = rect_pts(F, a0 + q, a1 - q, s0 + q, s1 - q)
-    ring_between(g, tc, sq, sq2, T1, ST)
-    T2 = 36.0
-    for (A, Bq, out) in (((a0 + q, s0 + q), (a0 + q, s1 - q), (-1, 0)), ((a1 - q, s1 - q), (a1 - q, s0 + q), (1, 0)),
-                         ((a1 - q, s0 + q), (a0 + q, s0 + q), (0, -1)), ((a0 + q, s1 - q), (a1 - q, s1 - q), (0, 1))):
-        L_ = math.hypot(*(Vector(F.P(*Bq)) - Vector(F.P(*A))))
-        wall(g, F, A, Bq, out, T1 - 0.05, T2, ST, holes=[Hc(L_ / 2, 1.5, T1 + 1.1, T1 + 5.1, "round", "louv_r", depth=0.5)])
-    ring_band(g, sq2, T2 - 0.45, T2, 0.3, ST)
-    R8 = 2.55
-    rot8 = math.pi / 8
-    oct_ = [(tc[0] + R8 * math.cos(rot8 + 2 * math.pi * i / 8), tc[1] + R8 * math.sin(rot8 + 2 * math.pi * i / 8)) for i in range(8)]
-    ring_between(g, tc, sq2, oct_, T2, LEAD)
-    T3 = 40.6
-    poly_walls(g, tc, R8, 8, rot8, T2 - 0.05, T3, ST,
-               holes=lambda i, L: [Hc(L / 2, 0.95, T2 + 0.8, T2 + 3.7, "round", "louv_r", depth=0.35)] if i % 2 == 0 else [])
-    ring_band(g, oct_, T3 - 0.4, T3, 0.25, ST)
-    dome = [(R8 * 0.97, 0.0), (2.35, 0.55), (2.05, 1.25), (1.5, 1.95), (0.85, 2.45), (0.62, 2.6), (0.62, 4.1), (0.82, 4.15),
-            (0.82, 4.3), (0.62, 4.35), (0.35, 5.0), (0.12, 5.35), (0.2, 5.55), (0.0, 5.8)]
-    lathe(g, (tc[0], T3 - 0.05, tc[1]), dome, 8, LEAD, rot=rot8)
-    gilt_cross(g, tc[0], T3 + 5.7, tc[1], 1.8)
-    # ---- the Jesuit house (left) and the Lady Chapel (right), and the low ranges behind the stair towers
-    g.grime = None
-    hs0, hs1 = -S + M, -TW
-    hw_ = hs1 - hs0
-    wins = []
-    for yb in (1.4, 5.4, 9.4):
-        for uc in (hw_ * 0.25, hw_ * 0.75):
-            wins.append(Hc(uc, 1.1, yb, yb + 1.75, "rect", "hwin", depth=0.22))
-    hb_ = [(FOOT, 0.8, ST), (4.5, 4.75, ST), (8.5, 8.75, ST), (HE - 0.35, HE, ST)]
-    wall(g, F, (M, hs1), (M, hs0), (-1, 0), FOOT, HE, BRICK, top=[(0, HE), (hw_ / 2, HR), (hw_, HE)],
-         holes=[Hc(hw_ - w_.u0 - 0.55, 1.1, w_.yb, w_.yt, "rect", "hwin", depth=0.22) for w_ in wins]
-         + [Hc(hw_ / 2, 0.9, HE + 0.6, HE + 2.0, "rect", "hwin", depth=0.2)],
-         bands=hb_)
-    wall(g, F, (M, hs1), (FT, hs1), (0, 1), FOOT, HE, BRICK, bands=hb_)
-    sw = [Hc(a, 1.1, yb, yb + 1.75, "rect", "hwin", depth=0.22) for yb in (1.4, 5.4, 9.4) for a in np.arange(2.2, D - 1.5, 3.3)
-          if not (yb < 2 and abs(a - D / 2) < 1.8)]
-    wall(g, F, (M, hs0), (D - M, hs0), (0, -1), FOOT, HE, BRICK, holes=sw + [Hc(D / 2 - M, 1.5, 0.15, 3.2, "round", "door_r", depth=0.3)],
-         bands=hb_)
-    wall(g, F, (D - M, hs0), (D - M, hs1), (1, 0), FOOT, HE, BRICK, top=[(0, HE), (hw_ / 2, HR), (hw_, HE)],
-         holes=[Hc(uc, 1.1, yb, yb + 1.75, "rect", "hwin", depth=0.22) for yb in (5.4, 9.4) for uc in (hw_ * 0.3, hw_ * 0.7)],
-         bands=hb_)
-    wall(g, F, (TB, hs1), (D - M, hs1), (0, 1), FOOT, HE, BRICK, bands=hb_,
-         holes=[Hc(a - TB, 1.0, 11.0, 12.4, "rect", "hwin", depth=0.2) for a in np.arange(7.0, D - 2.0, 4.4)])
-    gable_roof(g, F, M, D - M, hs0, hs1, HE, HR, oe=(0.4, 0.3), og=(0.3, 0.3), caps=(True, True, True, True))
-    for a in (D * 0.3, D * 0.72):
-        box(g, F, a - 0.5, a + 0.5, hs0 + hw_ * 0.5 - 0.6, hs0 + hw_ * 0.5 + 0.6, HR - 1.0, HR + 1.3, BRICK, skip=("-y",), top_mat=ST)
-    cs0, cs1 = TW, S - M - 0.3
-    cw_ = cs1 - cs0
-    wall(g, F, (M, cs0), (M, cs1), (-1, 0), FOOT, CE, ST, top=[(0, CE), (cw_ / 2, CR), (cw_, CE)],
-         holes=[Hc(cw_ / 2, 2.0, 0.15, 4.4, "round", "door_r", depth=0.4), Hc(cw_ / 2, 1.6, 5.6, 9.6, "round", "round", depth=0.35)])
-    Wc = plane(g, F, (M, cs0), (M, cs1), (-1, 0))
-    disc(g, Wc, cw_ / 2, 12.7, 0.75, "rose", d_front=-0.15, d_back=0.05, sides=12)
-    wall(g, F, (M, cs0), (FT, cs0), (0, -1), FOOT, CE, ST)
-    wall(g, F, (TB, cs0), (D - M, cs0), (0, -1), FOOT, CE, ST)
-    wall(g, F, (M, cs1), (D - M, cs1), (0, 1), FOOT, CE, ST,
-         holes=[Hc(a - M, 1.6, 4.4, 9.2, "round", "round", depth=0.35) for a in (4.2, 9.4, 14.6, 19.8, 25.0, 30.2) if a < D - 2])
-    for a in (1.6, 6.8, 12.0, 17.2, 22.4, 27.6, 32.8):
-        if a < D - M - 0.5:
-            box(g, F, a - 0.4, a + 0.4, cs1 - 0.05, S - M + 0.05, FOOT, CE - 0.6, ST, skip=("-s", "-y"))
-    wall(g, F, (D - M, cs1), (D - M, cs0), (1, 0), FOOT, CE, ST, top=[(0, CE), (cw_ / 2, CR), (cw_, CE)])
-    d_ = Vector(F.V(0, 1))
-    right = Vector((d_.y, -d_.x))
-    sd = 1 if right.dot(Vector(F.V(-1, 0))) > 0 else -1
-    ring_band(g, [F.P(M, cs0), F.P(M, cs1)], CE - 0.5, CE, 0.25, ST, closed=False, side=sd, caps=(True, True))
-    gable_roof(g, F, M, D - M, cs0, cs1, CE, CR, oe=(0.3, 0.4), og=(0.3, 0.3), caps=(True, True, True, True))
-    for sg in (-1, 1):  # the low ranges between the house or chapel and the aisle, behind the stair towers
-        s0_, s1_ = sorted((sg * AW, sg * TW))
-        g.face([F.p(TB, s0_, LK), F.p(D - M, s0_, LK), F.p(D - M, s1_, LK), F.p(TB, s1_, LK)], LEAD, out=(0, 1, 0))
-        wall(g, F, (D - M, s0_), (D - M, s1_), (1, 0), FOOT, LK, BRICK)
-    # ---- the sacristy behind the left aisle
-    wall(g, F, (AC, -NV), (D - M, -NV), (0, 1), FOOT, 8.0, ST,
-         holes=[Hc((D - M - AC) / 2, 1.2, 3.0, 6.0, "round", "round", depth=0.3)])
-    wall(g, F, (D - M, -AW), (D - M, -NV), (1, 0), FOOT, SE, ST, top=[(0, SE), (AW - NV, 8.0)])
-    lean_to(g, F, AC, D - M, -NV, -AW, 8.0, SE, oe=0.35, og=(0, 0.3), caps=(True, False, True))
-    garden_wall(g, [F.P(D - M - 0.2, -NV), F.P(D - M - 0.2, NV)], 3.4, ST)
+    carolus_sides(g, F, c, D, S, AC, TA0, HE, HR, CE, CR, SE)
     # ---- the terrace, the flights, the railing (colliders and heights: shared/carolusPlan.ts)
     g.grime = carolus_grime
     carolus_terrace(g, F, c)
@@ -3268,7 +3530,8 @@ def plane_check(path):
                     if ov < 0.002:
                         continue
                     c = sum(p, Vector()) / 3
-                    item = (round(ov, 3), round(gap, 4), (round(c.x, 2), round(c.y, 2), round(c.z, 2)), T[i][3], T[i][4], T[j][3], T[j][4])
+                    item = (round(ov, 3), round(gap, 4), (round(c.x, 2), round(c.y, 2), round(c.z, 2)), T[i][3], T[i][4], T[j][3], T[j][4],
+                            tuple(round(v, 2) for v in T[i][6]), [tuple(round(c_, 2) for c_ in v) for v in p], [tuple(round(c_, 2) for c_ in v) for v in q])
                     (fights if gap < 0.005 else close).append(item)
     flat0 = [t for t in T if abs(t[1].y) > 0.999 and abs(t[0][0].y) < 0.03]
     print(f"[build_churches] plane check: {len(T)} triangles, {len(fights)} pairs in one plane, {len(close)} pairs within 5 cm, "
@@ -3281,7 +3544,7 @@ def plane_check(path):
             ys_ = Counter(round(x[2][1], 1) for x in lst if (x[3], x[4], x[5], x[6]) == k_)
             print(f"        at y: {ys_.most_common(8)}")
             for it in [x for x in lst if (x[3], x[4], x[5], x[6]) == k_][:3]:
-                print(f"        e.g. {it[:3]}")
+                print(f"        e.g. {it[:3]} n {it[7] if len(it) > 7 else ''} tri {it[8] if len(it) > 8 else ''} / {it[9] if len(it) > 9 else ''}")
     for it in sorted(fights, key=lambda x: -x[0])[:25]:
         print("   one plane:", it)
     for it in sorted(close, key=lambda x: -x[0])[:25]:

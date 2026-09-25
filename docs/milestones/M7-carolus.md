@@ -71,6 +71,31 @@ deeper rim, an inner line, leaves and stepped eyes; the pediment's clouds, angel
 tympanum with the relief on their faces. Pair: `carolus_colour_pair.jpg` (mist above, clear below, before
 left); best single shot `carolus_colour_after_high.jpg`.
 
+Sides pass (Steve: "not only the front of the church, but all visible sides"), `carolus_sides()`:
+- Aisles: the upper walls seen over the low ranges have tall round gallery windows (11.0 to 14.2 m, for the
+  interior's galleries), sandstone surrounds and sills, pilaster strips between them, a cornice with a bluestone
+  bed and a lead gutter under the eave.
+- Nave clerestory: pilasters on the bays and a cornice with a gutter. On the roof: a lead ridge and two small
+  dormers each side.
+- Apse: pilasters at its corners, framed windows, and the cornice carried round.
+- Tower behind the choir, storey by storey after the research:
+  - a base with the IHS medallion in gilded rays toward the street;
+  - a Doric storey with round windows;
+  - an Ionic storey with arched sound openings and clocks;
+  - a platform with a balustrade and four angels at the corners;
+  - an octagonal lantern with a Serlian opening on four sides and bluestone pilasters between;
+  - a lead dome with four dormers, a small lantern, a gilded ball and the cross (about 47 m).
+- Jesuit house: sandstone window frames and sills, a door with a pediment, the gables' copings, a cornice, a
+  gutter with three downpipes, four dormers and a lead ridge.
+- Lady Chapel: sandstone on a bluestone plinth. Its front to the square has a framed door under a pediment,
+  pilasters, a framed window, the rose and a gilded fire-pot on the gable. The east side has framed windows,
+  buttresses with bluestone caps, a cornice, a gutter and downpipes.
+- The sacristy's windows are framed, and the garden wall has a bluestone coping.
+
+church_carolus is now 40.2k triangles; the plane check still finds nothing.
+Pairs: `carolus_sides_pair_streets.jpg` (west, north, east; before left), `carolus_sides_pair_roofs.jpg`,
+`carolus_sides_pair_mist.jpg`; extra `carolus_sides_after_towerclose.jpg`, `carolus_sides_after_roofW.jpg`.
+
 The walk: the terrace and its steps have their heights (`frontFloor`, used by `world/rijnkaai.ts baseAt`), the
 railing and its piers are colliders (`frontSolids`), and nothing the town sets down stands on the terrace or 2.5 m
 before it (`frontKeepOut`, in `world/doorKeep.ts`). Everything else stays inside the landmark's rectangle: the
