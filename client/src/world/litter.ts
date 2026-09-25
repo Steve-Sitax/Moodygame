@@ -1,3 +1,4 @@
+import { TOWN } from "./townBox";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
@@ -93,10 +94,10 @@ interface SLMeta {
 const OPEN = 0;
 const WATER = 2;
 const CH = 32;
-const X0 = -340;
-const Z0 = -80;
-const MW = 540;
-const MH = 380;
+const X0 = TOWN.x0;
+const Z0 = TOWN.z0;
+const MW = Math.round(TOWN.w);
+const MH = Math.round(TOWN.h);
 const KERB = 0.7;
 const KERB_Y = 0.12;
 

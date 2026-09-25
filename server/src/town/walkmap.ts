@@ -189,6 +189,8 @@ export interface HouseDoor {
   sx: number;
   sz: number;
   storeys: number;
+  /** A cottage in a back alley (tools/city/alleys.py): its lane is 2.4 m, no cart gets there. */
+  alley?: boolean;
 }
 
 interface House {
@@ -202,6 +204,7 @@ interface House {
   t: number[];
   st: number;
   street: number[];
+  alley?: boolean;
 }
 
 let doorsCache: HouseDoor[] | null = null;
@@ -259,7 +262,7 @@ export function houseDoors(): HouseDoor[] {
       const sx = x + o[0] * d;
       const sz = z + o[1] * d;
       if (wm.reachable(sx, sz)) {
-        out.push({ house: i, x: round1(x), z: round1(z), out: [round2(o[0]), round2(o[1])], sx: round1(sx), sz: round1(sz), storeys: h.st });
+        out.push({ house: i, x: round1(x), z: round1(z), out: [round2(o[0]), round2(o[1])], sx: round1(sx), sz: round1(sz), storeys: h.st, ...(h.alley ? { alley: true } : {}) });
         return;
       }
     }

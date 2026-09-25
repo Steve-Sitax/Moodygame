@@ -1,3 +1,4 @@
+import { TOWN } from "./townBox";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
@@ -545,6 +546,10 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
   for (const [ax, az, bx, bz] of city.quays) {
     const L = Math.hypot(bx - ax, bz - az);
     if (L < 2) continue;
+    // the moat's banks outside the town wall (world/townBox.ts) are grass, not working quays
+    const mx = (ax + bx) / 2;
+    const mz = (az + bz) / 2;
+    if (mx < TOWN.x0 || mx > TOWN.x0 + TOWN.w || mz > TOWN.z0 + TOWN.h) continue;
     const tx = (bx - ax) / L;
     const tz = (bz - az) / L;
     const [nx, nz] = inWater((ax + bx) / 2 - tz, (az + bz) / 2 + tx) ? [-tz, tx] : [tz, -tx];

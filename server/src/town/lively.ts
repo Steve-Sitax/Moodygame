@@ -188,7 +188,9 @@ const plen = (p: Pt[]) => p.reduce((a, q, i) => (i ? a + Math.hypot(q[0] - p[i -
  */
 export function buildRound(at: Pt, reach: number, n: number, start: Pt, rng: () => number, used: Set<number>, room: number, usedStops: Pt[] = []): { route: Pt[]; faces: number[]; houses: number[]; len: number } {
   const cands = houseDoors()
-    .filter((d) => !used.has(d.house) && Math.hypot(d.sx - at[0], d.sz - at[1]) < reach && backStreet(d))
+    // (a round with a cart keeps out of the back alleys: their lanes are too narrow, and asking the
+    // walk map for a cart's way in searches the whole town before it says no)
+    .filter((d) => !used.has(d.house) && Math.hypot(d.sx - at[0], d.sz - at[1]) < reach && !(room > 0.6 && d.alley) && backStreet(d))
     .map((d) => ({ d, k: rng() }))
     .sort((a, b) => a.k - b.k)
     .map((o) => o.d);

@@ -1,3 +1,4 @@
+import { TOWN } from "./townBox";
 import * as THREE from "three";
 import { psx } from "../retro/psx";
 import { earthTexture } from "./cityTextures";
@@ -212,8 +213,8 @@ export function buildVegetation(scene: THREE.Scene, flags: Flags, opts: Vegetati
     }
     return n;
   };
-  for (let z = -60; z < 300; z += 0.8) {
-    for (let x = -340; x < 200; x += 0.8) {
+  for (let z = -60; z < TOWN.z0 + TOWN.h; z += 0.8) {
+    for (let x = TOWN.x0; x < TOWN.x0 + TOWN.w; x += 0.8) {
       const px = x + (r() - 0.5) * 0.7;
       const pz = z + (r() - 0.5) * 0.7;
       if (!open(px, pz)) continue;

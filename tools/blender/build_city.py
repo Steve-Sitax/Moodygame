@@ -497,10 +497,14 @@ class Builder:
                 ops = [self.gate_spec(sc, W, bw, drng)]
             else:
                 ops = [self.door_spec(sc, W, bw, drng)]
+        yard = h.get("yard") or [0, 0, 0, 0]
         for i in range(4):
             if street[i]:
                 hl = [q for q in iw["holes"] if q["wall"] == i] if iw else None
                 self.wall(c[i], c[(i + 1) % 4], 0, H, style, True, outs[i], door=(ops if i == 0 else None), holes=hl)
+            elif yard[i]:
+                # the back alleys (tools/city/alleys.py): a back wall on a yard has windows, no door
+                self.wall(c[i], c[(i + 1) % 4], 0, H, style, True, outs[i])
             else:
                 self.side_wall(c, street, outs, i, 0, H, style, H)
         if store and street[0]:
@@ -532,7 +536,7 @@ class Builder:
                           [(0, 0), (D / BAY, 0), (D / BAY, (W / 2) / math.cos(pitch) / BAY), (0, (W / 2) / math.cos(pitch) / BAY)],
                           roof_cell, (ux * side, 1.2, uz * side), shade=1.0)
             self.gable(h, P, s0, s1, t0, H, rise, front=True, street=street[0], style=style, rng=rng)
-            self.gable(h, P, s0, s1, t1, H, rise, front=False, street=street[2], style=style, rng=rng)
+            self.gable(h, P, s0, s1, t1, H, rise, front=False, street=street[2] or yard[2], style=style, rng=rng)
             if rng.random() < 0.6:
                 cs, ct = rng.uniform(s0 + 0.8, s1 - 0.8), rng.uniform(t0 + D * 0.5, t1 - 0.6)
                 cx, cz = P(cs, ct)
@@ -689,11 +693,15 @@ class Builder:
             if area < 0:
                 ox, oz = -ox, -oz
             outs.append((ox, 0, oz))
+        yard = h.get("yard") or [0] * n
         for i in range(n):
             a, b = fp[i], fp[(i + 1) % n]
             L = math.hypot(b[0] - a[0], b[1] - a[1]) or 1
             if not h["street"][i]:
-                self.side_wall(fp, h["street"], outs, i, 0, H, h["style"], H)
+                if yard[i]:
+                    self.wall(a, b, 0, H, h["style"], True, outs[i])  # on a back yard (alleys.py): windows, no door
+                else:
+                    self.side_wall(fp, h["street"], outs, i, 0, H, h["style"], H)
                 continue
             ops = None
             iw = INWORLD.get(h.get("_i"))

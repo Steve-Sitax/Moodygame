@@ -1,3 +1,4 @@
+import { TOWN } from "./townBox";
 import * as THREE from "three";
 import { psx } from "../retro/psx";
 import { dirtAlong } from "./dirt";
@@ -29,10 +30,10 @@ const ROADS: P[][] = [
   [[40, 22], [74, 118], [120, 119], [172, 118], [173, 60]],
 ];
 
-const X0 = -340;
-const Z0 = -80;
-const W = 540;
-const H = 380;
+const X0 = TOWN.x0;
+const Z0 = TOWN.z0;
+const W = TOWN.w;
+const H = TOWN.h;
 
 function rutTexture(): THREE.CanvasTexture {
   const S = 64;

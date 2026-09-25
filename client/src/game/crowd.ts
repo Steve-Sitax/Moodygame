@@ -2189,6 +2189,9 @@ export function placesFromCity(places: Record<string, { x: number; z: number; ki
     else if (p.kind === "square") out.push({ x: p.x, z: p.z, kind: "square", r: 14 });
     else if (p.kind === "building") out.push({ x: p.x, z: p.z, kind: "street", r: 14 });
     else if (p.kind === "water") out.push({ x: p.x, z: p.z, kind: "quay", r: 24 });
+    // the town wall (tools/city/rampart.py): the gates, and the walk on the wall, the town's promenade
+    else if (p.kind === "gate") out.push({ x: p.x, z: p.z, kind: "street", r: 10 });
+    else if (p.kind === "rampart") out.push({ x: p.x, z: p.z, kind: "street", r: 6 });
   }
   return out;
 }

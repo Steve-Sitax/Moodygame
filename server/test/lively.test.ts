@@ -107,8 +107,9 @@ describe("the lively streets' people", () => {
       // they face the door they stop at
       const [x0, z0] = route[0];
       const yaw = r.work.faces![0];
-      const d = doors.find((q) => Math.hypot(q.x - x0, q.z - z0) < 3.6)!;
-      expect(Math.abs(Math.atan2(Math.sin(Math.atan2(d.x - x0, d.z - z0) - yaw), Math.cos(Math.atan2(d.x - x0, d.z - z0) - yaw)))).toBeLessThan(0.05);
+      // (one of the doors within reach: since the back alleys (2026-09-25) a stop may have two)
+      const off = (d: { x: number; z: number }) => Math.abs(Math.atan2(Math.sin(Math.atan2(d.x - x0, d.z - z0) - yaw), Math.cos(Math.atan2(d.x - x0, d.z - z0) - yaw)));
+      expect(Math.min(...doors.filter((q) => Math.hypot(q.x - x0, q.z - z0) < 3.6).map(off))).toBeLessThan(0.05);
     }
     // two rounds never stop at the same spot (each has its own doors)
     const firsts = rounds.filter((r) => !r.mate || r.mate > r.id);

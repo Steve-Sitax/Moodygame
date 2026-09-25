@@ -1,3 +1,4 @@
+import { TOWN } from "../world/townBox";
 import * as THREE from "three";
 import { Organ } from "./organ";
 import { singPhrase, type Note } from "./ballad";
@@ -1599,7 +1600,7 @@ export class Soundscape {
       const d = rand(near, far);
       const x = this.listenerPos.x + Math.cos(a) * d;
       const z = this.listenerPos.z + Math.sin(a) * d;
-      if (z > 2 && z < 300 && x > -340 && x < 200 && !overWater(x, z)) return { x, z };
+      if (z > 2 && z < TOWN.z0 + TOWN.h && x > TOWN.x0 && x < TOWN.x0 + TOWN.w && !overWater(x, z)) return { x, z };
     }
     return null;
   }

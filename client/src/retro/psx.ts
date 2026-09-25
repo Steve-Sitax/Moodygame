@@ -30,7 +30,7 @@ export const psxUniforms = {
   uWaterMirrorOn: { value: 0 },
   /** Grime and mud on the paving, 1 px per metre (world/dirt.ts), and where it lies: x0, z0, w, h. */
   uDirt: { value: null as THREE.Texture | null },
-  uDirtBox: { value: new THREE.Vector4(-340, -80, 540, 380) },
+  uDirtBox: { value: new THREE.Vector4(-348, -80, 556, 388) }, // world/dirt.ts sets it from world/townBox.ts
   /** Sea state: 1 = the river's usual chop, about 3.5 = a storm (world/rijnkaai.ts eases it by weather). */
   uSea: { value: 1 },
   /** Puddles on the ground, 0..1 (world/ambient.ts: rain fills them, a sunny day dries them). */

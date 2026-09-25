@@ -4,7 +4,7 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import CITY from "../../../shared/city.json";
 import { psx, psxUniforms } from "../retro/psx";
 import { createMirror } from "./mirror";
-import { cobblePaving, earthPaving, edgeStoneTexture, flagPaving } from "./paving";
+import { cobblePaving, earthPaving, edgeStoneTexture, flagPaving, grassPaving } from "./paving";
 import { brickBandTexture, facadeAtlas, glassTexture, leafTexture, roofAtlas, slateTexture, stoneTexture } from "./cityTextures";
 import { makeTextures } from "./textures";
 import { slimeCuts, slimeShade, tideCuts, tideShade } from "./quaysteps";
@@ -99,6 +99,7 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
     // cobbles and flagstones with height maps (world/paving.ts): they stand up (psx relief)
     const cobPave = cobblePaving();
     const flagPave = flagPaving();
+    const grassPave = grassPaving();
     const zoneMat: Record<string, [THREE.Material, number]> = {
       // bump maps from the texture itself: light stone stands up, dark joints sink, so the
       // sun and the gas lamps pick out every sett (Steve: "bump mapping?")
@@ -106,6 +107,8 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
       // packed earth with its own height map: lumps, pebbles, hollows (world/paving.ts)
       earth: [psx(new THREE.MeshLambertMaterial({ map: earthPave.map }), { noSnap: true, affine: 0, wet: true, puddles: 1.3, vary: 1, detile: true, relief: { height: earthPave.height, depth: 0.045, tile: 4, bump: 3.2 } }), 4],
       flags: [psx(new THREE.MeshPhongMaterial({ map: flagPave.map, specular: 0x1a1a1a, shininess: 12 }), { noSnap: true, affine: 0, wet: true, puddles: 0.75, vary: 0.8, relief: { height: flagPave.height, id: flagPave.id, holes: 0, depth: 0.025, tile: 4, bump: 1.6 } }), 4],
+      // grass round the town wall and in the back alleys' gardens (tools/city/rampart.py, alleys.py)
+      grass: [psx(new THREE.MeshLambertMaterial({ map: grassPave.map }), { noSnap: true, affine: 0, wet: true, puddles: 0.4, detile: true, relief: { height: grassPave.height, depth: 0.03, tile: 4, bump: 2.4 } }), 4],
     };
     for (const [zone, tris] of Object.entries(zones)) {
       if (zone === "edges") continue;
@@ -205,6 +208,26 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
     const dockShade = slimeShade(DOCK_Y);
     const dockBands = [y0, ...slimeCuts(DOCK_Y).filter((y) => y > y0 && y < 0), 0];
     void waterY;
+    // the edge stones meet their neighbours on the bisector (mitred), so two bands never lie over each
+    // other at a corner (z-fight check, 2026-09-25: every corner of the quays and the town moat flickered)
+    const keyOf = (x: number, z: number) => `${Math.round(x * 100)},${Math.round(z * 100)}`;
+    const starts = new Map<string, number[]>();
+    const ends = new Map<string, number[]>();
+    for (const q of data.quays) {
+      starts.set(keyOf(q[0], q[1]), q);
+      ends.set(keyOf(q[2], q[3]), q);
+    }
+    const unitN = (q: number[]): [number, number] => {
+      const L = Math.hypot(q[2] - q[0], q[3] - q[1]) || 1;
+      return [-(q[3] - q[1]) / L, (q[2] - q[0]) / L];
+    };
+    /** The corner of the band at point (px, pz) on side `side` (+1 / -1), between normals n and m. */
+    const mitre = (px: number, pz: number, n: [number, number], m: [number, number] | null, w: number): [number, number] => {
+      if (!m) return [px + n[0] * w, pz + n[1] * w];
+      const d = 1 + n[0] * m[0] + n[1] * m[1];
+      if (d < 0.5) return [px + n[0] * w, pz + n[1] * w]; // a sharp turn: square ends
+      return [px + ((n[0] + m[0]) / d) * w, pz + ((n[1] + m[1]) / d) * w];
+    };
     for (const [ax, az, bx, bz] of data.quays) {
       const L = Math.hypot(bx - ax, bz - az);
       if (L < 0.01) continue;
@@ -219,10 +242,17 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
         for (const y of [ya, ya, yb, ya, yb, yb]) wallCol.push(...shade(y));
       }
       // edge stones: a flat band on top, 0.5 m wide, slightly raised
-      const nx = -(bz - az) / L;
-      const nz = (bx - ax) / L;
       const w = 0.25;
-      quad(cope, copeUv, [ax - nx * w, 0.06, az - nz * w], [bx - nx * w, 0.06, bz - nz * w], [bx + nx * w, 0.06, bz + nz * w], [ax + nx * w, 0.06, az + nz * w], L, 0.5);
+      const n = unitN([ax, az, bx, bz]);
+      const prev = ends.get(keyOf(ax, az));
+      const next = starts.get(keyOf(bx, bz));
+      const mp = prev ? unitN(prev) : null;
+      const mn = next ? unitN(next) : null;
+      const A0 = mitre(ax, az, n, mp, -w);
+      const A1 = mitre(ax, az, n, mp, w);
+      const B0 = mitre(bx, bz, n, mn, -w);
+      const B1 = mitre(bx, bz, n, mn, w);
+      quad(cope, copeUv, [A0[0], 0.06, A0[1]], [B0[0], 0.06, B0[1]], [B1[0], 0.06, B1[1]], [A1[0], 0.06, A1[1]], L, 0.5);
     }
     const mk = (pos: number[], uv: number[], mat: THREE.Material) => {
       const g = new THREE.BufferGeometry();

@@ -1,3 +1,4 @@
+import { TOWN } from "./townBox";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
@@ -137,12 +138,12 @@ const OUTSIDE = 4;
 const CHUNK = 96;
 const KERB = 0.7;
 const KERB_Y = 0.12;
-// the walk grid (shared/city.json walk): 0.5 m cells over x -340..200, z -80..300
-const X0 = -340;
-const Z0 = -80;
+// a grid of 0.5 m cells over the town inside its wall (world/townBox.ts)
+const X0 = TOWN.x0;
+const Z0 = TOWN.z0;
 const RES = 0.5;
-const NX = 1080;
-const NZ = 760;
+const NX = Math.round(TOWN.w / RES);
+const NZ = Math.round(TOWN.h / RES);
 /** An alley: open ground at most this wide (m). */
 const ALLEY_MAX = 4.6;
 const ALLEY_MIN = 0.9;
@@ -339,35 +340,8 @@ function findEnds(flags: Flags): EndSpan[] {
     }
     flush();
   }
-  // off the map: open runs along the map's edge (the walk map's last cells)
-  const edges: Array<[number, number, number, number, number, number]> = [
-    [X0 + 0.25, Z0, X0 + 0.25, Z0 + NZ * RES, 1, 0],
-    [X0 + NX * RES - 0.25, Z0, X0 + NX * RES - 0.25, Z0 + NZ * RES, -1, 0],
-    [X0, Z0 + 0.25, X0 + NX * RES, Z0 + 0.25, 0, 1],
-    [X0, Z0 + NZ * RES - 0.25, X0 + NX * RES, Z0 + NZ * RES - 0.25, 0, -1],
-  ];
-  for (const [ax, az, bx, bz, nx, nz] of edges) {
-    const L = Math.hypot(bx - ax, bz - az);
-    const tx = (bx - ax) / L;
-    const tz = (bz - az) / L;
-    let run: [number, number] | null = null;
-    const flush = () => {
-      if (run && run[1] - run[0] >= 1.5 && run[1] - run[0] <= 30) {
-        const s0 = run[0] - 0.25;
-        const s1 = run[1] + 0.25;
-        const i = 0.6; // just inside the edge
-        out.push({ kind: "map edge", ax: ax + tx * s0 + nx * i, az: az + tz * s0 + nz * i, bx: ax + tx * s1 + nx * i, bz: az + tz * s1 + nz * i, nx, nz });
-      }
-      run = null;
-    };
-    for (let s = 0.25; s < L; s += 0.5) {
-      if (f(ax + tx * s, az + tz * s) === OPEN) {
-        if (!run) run = [s, s];
-        run[1] = s;
-      } else flush();
-    }
-    flush();
-  }
+  // (the map's edge: none since the town wall, 2026-09-25. The grid ends at the wall's inner faces,
+  // where the only open runs are the gate passages and the stairs, and those stay open)
   return out;
 }
 

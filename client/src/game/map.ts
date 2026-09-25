@@ -47,7 +47,7 @@ const LANDMARK_NAMES: Record<string, string> = {
 const PLACES = ((CITY as unknown as { places?: Record<string, { x: number; z: number; kind: string }> }).places ?? {}) as Record<string, { x: number; z: number; kind: string }>;
 const PLACE_NAMES: Array<[string, number, number, number]> = Object.entries(PLACES)
   .filter(([, p]) => p.kind !== "building")
-  .map(([name, p]) => [p.kind === "water" || p.kind === "quay" ? name : name.toUpperCase(), p.x, p.z, 0]);
+  .map(([name, p]) => [p.kind === "water" || p.kind === "quay" || p.kind === "gate" || p.kind === "rampart" ? name : name.toUpperCase(), p.x, p.z, 0]);
 
 const SCALE = 2; // px per metre on the stored map
 
@@ -117,6 +117,22 @@ export class CityMap {
       path(w.outer);
       g.fill();
     }
+    // the grass round the town wall (tools/city/rampart.py)
+    const extra = CITY as unknown as {
+      decor?: { grass?: Array<{ outer: number[][] }>; rampart?: { tops: number[][][]; gates: Array<{ house: number[]; passage: number[]; bridge: number[] }> } };
+      alleys?: { lanes: number[][][]; yards: number[][][]; gardens: number[][][] };
+    };
+    g.fillStyle = "#b9c294";
+    for (const gr of extra.decor?.grass ?? []) {
+      path(gr.outer);
+      g.fill();
+    }
+    g.fillStyle = "#e0d4b8";
+    for (const w of data.water) {
+      g.fillStyle = "#9fb4b2";
+      path(w.outer);
+      g.fill();
+    }
     g.fillStyle = "#b8604a";
     g.strokeStyle = "#7a3a2c";
     g.lineWidth = 1;
@@ -125,6 +141,36 @@ export class CityMap {
       path(b.outer);
       g.fill();
       g.stroke();
+    }
+    // the back alleys (tools/city/alleys.py): lanes and yards in the paper's colour, gardens green
+    g.fillStyle = "#e0d4b8";
+    for (const r of [...(extra.alleys?.lanes ?? []), ...(extra.alleys?.yards ?? [])]) {
+      path(r);
+      g.fill();
+    }
+    g.fillStyle = "#b9c294";
+    for (const r of extra.alleys?.gardens ?? []) {
+      path(r);
+      g.fill();
+    }
+    // the town wall: the walk and the bastions, the gate houses, the bridges over the moat
+    g.fillStyle = "#8a4a3a";
+    g.strokeStyle = "#4a2418";
+    for (const r of extra.decor?.rampart?.tops ?? []) {
+      path(r);
+      g.fill();
+      g.stroke();
+    }
+    for (const gt of extra.decor?.rampart?.gates ?? []) {
+      const [x0, z0, x1, z1] = gt.house;
+      g.fillStyle = "#5a3024";
+      path([[x0, z0], [x1, z0], [x1, z1], [x0, z1]]);
+      g.fill();
+      for (const [a0, b0, a1, b1] of [gt.passage, gt.bridge]) {
+        g.fillStyle = "#e0d4b8";
+        path([[a0, b0], [a1, b0], [a1, b1], [a0, b1]]);
+        g.fill();
+      }
     }
     g.fillStyle = "#d8a45a";
     g.strokeStyle = "#5a3a1a";

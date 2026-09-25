@@ -229,7 +229,11 @@ describe("action validation and clamps", () => {
     expect(k.ok).toBe(false);
     if (!k.ok) expect(k.reason).toBe("child");
     setClock(db, 1, 22);
-    const r = docker(db);
+    // (a docker out at night, or any grown man who is: since the back alleys (2026-09-25) the town's
+    // draws differ and every docker may be home by 22:00)
+    const r = byTrade(db, "docker").some((x) => !whereIs(db, x).indoors)
+      ? docker(db)
+      : people(db).find((x) => x.age >= 20 && x.sex === "m" && x.work.kind !== "guard" && !whereIs(db, x).indoors && validateProposal(db, x, prop({ kind: "follow" })).ok)!;
     town(db).byId.get(r.id)!.stats.courage = 2;
     const n = validateProposal(db, r, prop({ kind: "follow" }));
     expect(n.ok).toBe(false);

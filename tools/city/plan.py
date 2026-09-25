@@ -27,6 +27,8 @@ import shapely
 from shapely.geometry import LineString, MultiPolygon, Point, Polygon, box
 from shapely.ops import unary_union
 
+import alleys
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 CITY = os.path.join(ROOT, "shared", "city.json")
 BUILD = os.path.join(ROOT, "shared", "city_build.json")
@@ -318,11 +320,16 @@ def land_and_quays(city):
             c = list(t.exterior.coords)[:3]
             tris.append([round(v, 2) for xy in c for v in xy])
     quays = []
+    # the river half-bastions of the town wall (rampart.py) have their own faces down to the river bed
+    # (tools/blender/build_wall.py): no quay wall drawn in the same plane
+    rb = unary_union([Polygon(v) for k, v in city.get("decor", {}).get("rampart", {}).get("bastions", {}).items() if k in ("se", "sw")])
     for p in pieces(water):
         for ring in [p.exterior, *p.interiors]:
             cs = list(ring.coords)
             for i in range(len(cs) - 1):
                 a, b = cs[i], cs[i + 1]
+                if not rb.is_empty and rb.boundary.distance(Point((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) < 0.05:
+                    continue
                 if area.buffer(-2).contains(Point((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)):
                     quays.append([round(a[0], 2), round(a[1], 2), round(b[0], 2), round(b[1], 2)])
     return tris, quays
@@ -434,6 +441,27 @@ def walk_map(city, houses, backs, landmarks):
         ds.polygon([P(p) for p in ((x0_, z0_), (x1_, z0_), (x1_, z1_), (x0_, z1_))], fill=255)
     for poly in city.get("decor", {}).get("solid_polys", []):  # the Steen's ramp balustrades (M3i)
         ds.polygon([P(p) for p in poly], fill=255)
+    # the town wall (rampart.py): parapets, stair railings, guard houses, gate towers, the bridges' parapets.
+    # The walk, the bastion tops and the stairs stay open: the game gives them their height (world/rampart.ts)
+    # Painted cell by cell: a cell is wall when its middle is inside (ImageDraw also fills every cell the
+    # outline touches, which made a 0.6 m parapet 1.5 m thick and the stairs too narrow to climb)
+    import numpy as np
+
+    def paint(img, polys):
+        a = np.array(img)
+        for ring in polys:
+            poly = Polygon(ring)
+            bx0, bz0, bx1, bz1 = poly.bounds
+            r0, r1 = max(0, int((bx0 - x0) / WALK_RES) - 1), min(H, int((bx1 - x0) / WALK_RES) + 2)
+            c0, c1 = max(0, int((bz0 - z0) / WALK_RES) - 1), min(W, int((bz1 - z0) / WALK_RES) + 2)
+            rr, cc = np.meshgrid(np.arange(r0, r1), np.arange(c0, c1), indexing="ij")
+            inside = shapely.contains_xy(poly, x0 + (rr + 0.5) * WALK_RES, z0 + (cc + 0.5) * WALK_RES)
+            a[r0:r1, c0:c1][inside] = 255
+        return Image.fromarray(a)
+
+    solid = paint(solid, city.get("decor", {}).get("rampart_solids", []))
+    # beyond the far bank: the fields in the fog, not walked on
+    outside = paint(outside, city.get("decor", {}).get("offlimits", []))
     img = Image.merge("RGB", (solid, water, outside))
     out = os.path.join(ROOT, "client", "public", "city", "walk.png")
     os.makedirs(os.path.dirname(out), exist_ok=True)
@@ -528,7 +556,8 @@ def make_storehouse(bi, poly, kind, water, rng):
         if (cx - a[0]) * nx + (cz - a[1]) * nz < 0:
             nx, nz = -nx, -nz
         mid = Point((a[0] + b[0]) / 2 - nx * 4, (a[1] + b[1]) / 2 - nz * 4)
-        score = (L, -mid.distance(water))
+        # (L to the centimetre: a square block's sides differ by a hair; then the water decides)
+        score = (round(L, 2), -mid.distance(water))
         if best is None or score > best[0]:
             W = max(math.hypot(cs[(i + 2) % 4][0] - b[0], cs[(i + 2) % 4][1] - b[1]), 1)
             best = (score, a, (ux, uz), (nx, nz), L, W)
@@ -559,13 +588,25 @@ def ground_zones(city, houses, landmarks):
     # each piece simplified on its own left slivers of two pavings in one plane (z-fight check)
     earth = land.intersection(open_water.buffer(24)).difference(solids.buffer(3.0)).simplify(0.2).intersection(land)
     flags = land.difference(solids.buffer(9.0)).buffer(-1.0).buffer(1.0).simplify(0.2).intersection(land).difference(earth)
-    cobble = land.difference(earth).difference(flags)
+    # the grass round the town wall: the berm, the far bank (rampart.py, design.py DECOR grass)
+    grass = unary_union([Polygon(g["outer"], g["holes"]).buffer(0) for g in city.get("decor", {}).get("grass", [])]
+                        + [Polygon(g).buffer(0) for g in city.get("alleys", {}).get("gardens", [])])
+    # the alleys' yards: packed earth (alleys.py)
+    yards = unary_union([Polygon(g).buffer(0) for g in city.get("alleys", {}).get("yards", [])])
+    if not yards.is_empty:
+        yards = yards.intersection(land).simplify(0.2).intersection(land)
+        flags = flags.difference(yards)
+        earth = earth.union(yards)
+    if not grass.is_empty:
+        grass = grass.intersection(land).simplify(0.2).intersection(land)
+        earth, flags = earth.difference(grass), flags.difference(grass)
+    cobble = land.difference(earth).difference(flags).difference(grass)
     out = {}
     # where one paving meets another: a row of long edge stones along the join (Steve: the
     # change from one texture to the next cut through half stones). Lines, not areas.
     edges = []
     zones = {"earth": earth.buffer(0), "flags": flags.buffer(0), "cobble": cobble.buffer(0)}
-    for za, zb in (("flags", "cobble"), ("earth", "cobble"), ("earth", "flags")):
+    for za, zb in (("flags", "cobble"), ("earth", "cobble"), ("earth", "flags")):  # (grass meets the rest with no kerb)
         seam = zones[za].buffer(0.05).intersection(zones[zb].buffer(0.05))
         line = seam.boundary if not seam.is_empty else None
         if line is None:
@@ -580,7 +621,7 @@ def ground_zones(city, houses, landmarks):
                 continue
             edges.append([[round(x, 2), round(z, 2)] for x, z in g.coords])
     out["edges"] = edges
-    for name, g in (("earth", earth), ("flags", flags), ("cobble", cobble)):
+    for name, g in (("earth", earth), ("flags", flags), ("cobble", cobble), ("grass", grass)):
         tris = []
         for p in pieces(g.buffer(0)):
             if p.area < 1:
@@ -628,7 +669,8 @@ def main():
     houses, backs = [], []
     blocks = [poly_of(b) for b in city["blocks"]]
     planned = []  # the block outlines the plots were cut from
-    water_all = unary_union([poly_of(w) for w in city["water"]])
+    # the storehouses face the water they stood by before the town moat (2026-09-25): the moat is not a quay
+    water_all = unary_union([poly_of(w) for w in city["water"]]).intersection(box(-340, -80, 200, 300))
     for bi, b in enumerate(blocks):
         kind = city["blocks"][bi].get("kind", "houses")
         for part in pieces(b.difference(cut)):
@@ -657,8 +699,34 @@ def main():
     for h in houses:
         h["fp"] = clean_ring(h["fp"])
     print("rects cut back from their neighbours:", trim_rects(houses))
+    # the back alleys (alleys.py): the big back masses become lanes, cottages, yards and gardens
+    n_old = len(houses)
+    inworld = json.load(open(os.path.join(ROOT, "shared", "inworld_houses.json")))["houses"]
+    al = alleys.plan_alleys(houses, planned, {e["house"] for e in inworld}) if designed else None
     solids = unary_union(planned + [Polygon(l["fp"]).buffer(0) for l in landmarks.values()])
     street_faces(houses, solids)
+    if al:
+        # the alleys' ground is open: the cottages face their lane (windows, a door) and their yard
+        # (windows); a front house's back wall on a yard gets windows too ("yard"), never its door
+        open_ground = unary_union(al["lanes"] + al["yards"] + al["gardens"])
+        solids2 = solids.difference(open_ground.buffer(0.02))
+        cots = [h for h in houses if h.get("alley")]
+        street_faces(cots, solids2)
+        tmp = [dict(h) for h in houses if not h.get("alley")]
+        street_faces(tmp, solids2)
+        for h, t in zip([h for h in houses if not h.get("alley")], tmp):
+            yard = [1 if (b and not a) else 0 for a, b in zip(h["street"], t["street"])]
+            if any(yard):
+                h["yard"] = yard
+        print(f"alleys: {al['cottages']} cottages ({len(houses) - n_old} new houses), {len(al['passages'])} passages, "
+              f"front houses trimmed {sorted(al['trimmed'])}, yards {len(al['yards'])}, gardens {len(al['gardens'])}, trees {len(al['trees'])}")
+        city["alleys"] = {
+            "lanes": [rnd(list(p.exterior.coords)[:-1]) for g in al["lanes"] for p in pieces(g.simplify(0.2))],
+            "passages": [[round(v, 2) for v in p.bounds] for p in al["passages"]],
+            "yards": [rnd(list(p.exterior.coords)[:-1]) for g in al["yards"] for p in pieces(g.simplify(0.2))],
+            "gardens": [rnd(list(p.exterior.coords)[:-1]) for g in al["gardens"] for p in pieces(g.simplify(0.2))],
+        }
+        city.setdefault("decor", {})["trees_wild"] = city["decor"].get("trees_wild", []) + al["trees"]
     landmark_frames(city, landmarks, unary_union([Polygon(house_solid(h)).buffer(0) for h in houses] + [Polygon(b["fp"]).buffer(0) for b in backs]))
     tris, quays = land_and_quays(city)
     city["landmarks"] = landmarks

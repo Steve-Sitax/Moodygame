@@ -23,20 +23,28 @@ import os
 from shapely.geometry import Polygon, box
 from shapely.ops import unary_union
 
+import rampart
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 OUT = os.path.join(ROOT, "shared", "city.json")
 OSM = os.path.join(ROOT, "data", "osm", "antwerp.json")
 
-AREA = (-340.0, 200.0, -80.0, 300.0)  # x0, x1, z0, z1
+# x0, x1, z0, z1. The houses stand in x -340..200, z 0..300; round them the town wall, its moat and
+# the far bank (rampart.py, 2026-09-25) take the map out to here
+AREA = (-460.0, 320.0, -80.0, 420.0)
+WALL = rampart.layout()
 
 # ------------------------------------------------------------------ water
 WATER = {
-    "river": box(-340, -80, 200, 0),
+    "river": box(-460, -80, 320, 0),
     "lock": box(104, 0, 116, 46),  # the lock of the Petit Bassin
     "dock": box(70, 46, 170, 110),  # Petit Bassin (Bonapartedok)
     "canal": box(-82, 0, -70, 205),  # Canal des Brasseurs (Brouwersvliet)
     "vliet": box(-150, 0, -142, 72),  # Sint-Pietersvliet
 }
+# the town moat round the wall (rampart.py), open to the river at both ends: a polygon of its own (on
+# land, z >= 0), beside the river's, so no water polygon has a hole (the game reads outer rings only)
+MOAT = WALL["moat"].intersection(box(AREA[0], 0, AREA[1], AREA[3]))
 # the quay promontory north of the Steen (the 1873 map has it in front of the Place du Bourg;
 # M3i: the Steen itself stood on the quay line, not on it)
 BASTION = Polygon([(-214, 0), (-214, -30), (-204, -42), (-160, -42), (-150, -30), (-150, 0)])
@@ -54,6 +62,8 @@ BRIDGES = {
     "vliet_mouth": {"kind": "draw", "rect": [-152, 2, -140, 9]},
     "vliet_mid": {"kind": "draw", "rect": [-152, 40, -140, 47]},
     "ferry_pontoon": {"kind": "pontoon", "rect": [-251, -58, -247, 0]},
+    # the stone bridges over the moat before the four gates (rampart.py; kind gate: built with the wall)
+    **WALL["bridges"],
 }
 
 
@@ -95,7 +105,9 @@ BLOCKS = [
     ("guild", R(-304, 66, -286, 124)),  # guild houses on the south side of the Grote Markt
     ("houses", R(-200, 132, -156, 205)),
     ("houses", R(-340, 14, -310, 300)),  # the west edge of the map
-    ("warehouse", R(-340, 0, -318, 14)),  # the Werf ends in a store
+    # the Werf ends in a store; since the town wall (2026-09-25) it reaches back to the wall, so the
+    # quay railway runs from the wall's arch through the store unseen (the same draws: one storehouse)
+    ("warehouse", R(-348, 0, -318, 14)),
     ("houses", R(-222, 212, -156, 300)),
     ("houses", R(-306, 272, -222, 300)),
     ("houses", R(-156, 212, -150, 300)),
@@ -243,6 +255,15 @@ def steen_layout():
 
 
 _ramp, _solids, _polys = steen_layout()
+# the town wall (rampart.py): its numbers for the game and the Blender model, the walls of the walk map
+# (parapets, railings, guard houses, gate towers, the bridges' parapets), the ground beyond the far bank
+# that nobody walks on, the grass round the wall, and its trees (no tree pits: they stand in the grass)
+DECOR["rampart"] = WALL["decor"]
+DECOR["rampart_solids"] = [rampart.ring(p) for p in rampart.pieces(WALL["solids"])]
+DECOR["offlimits"] = [rampart.ring(p) for p in rampart.pieces(box(AREA[0], 0, AREA[1], AREA[3]).difference(WALL["walk_out"]))]
+DECOR["grass"] = [{"outer": rampart.ring(p), "holes": [[[round(x, 2), round(z, 2)] for x, z in list(h.coords)[:-1]] for h in p.interiors]}
+                  for p in rampart.pieces(box(AREA[0], 0, AREA[1], AREA[3]).difference(WALL["fort"]).difference(unary_union([box(*g["road"]) for g in WALL["decor"]["gates"]])))]
+DECOR["trees_wild"] = WALL["trees"]
 DECOR["steen_ramp"] = _ramp
 DECOR["solids"] = [[round(v, 2) for v in r] for r in _solids]
 DECOR["solid_polys"] = _polys
@@ -270,6 +291,9 @@ PLACES = {
     "Handschoenmarkt": (-262, 132, "square"),
     "Cathedral": (-262, 208, "building"),
     "Werf": (-270, 6, "quay"),
+    # the town wall (rampart.py): the gates, the walk on the wall
+    **{g["name"]: (round(sum(g["passage"][0::2]) / 2, 1), round(sum(g["passage"][1::2]) / 2, 1), "gate") for g in WALL["decor"]["gates"]},
+    "Ramparts": (-100, 311.5, "rampart"),
 }
 
 
@@ -307,7 +331,8 @@ def ring(p):
 
 def main():
     x0, x1, z0, z1 = AREA
-    water = unary_union(list(WATER.values())).difference(BASTION)
+    water = unary_union(list(WATER.values())).difference(BASTION).difference(WALL["river_bastions"])
+    moat = MOAT.difference(WALL["river_bastions"])
     landmarks = {}
     for name, d in LANDMARKS.items():
         if "osm" in d:
@@ -317,7 +342,7 @@ def main():
             fp = ring(box(d["c"][0] - w / 2, d["c"][1] - h / 2, d["c"][0] + w / 2, d["c"][1] + h / 2))
         landmarks[name] = {"fp": fp, "osm": d.get("osm")}
     # blocks give way to landmarks, water and bridges
-    cut = unary_union([Polygon(l["fp"]).buffer(4) for l in landmarks.values()] + [water])
+    cut = unary_union([Polygon(l["fp"]).buffer(4) for l in landmarks.values()] + [water, moat])
     blocks, kinds = [], []
     for kind, b in BLOCKS:
         p = b.difference(cut)
@@ -334,13 +359,14 @@ def main():
         "area": [[x0, z0], [x1, z0], [x1, z1], [x0, z1]],
         "blocks": blocks,
         "public": [],
-        "water": [{"outer": ring(p), "holes": [ring(Polygon(h)) for h in []]} for p in getattr(water, "geoms", [water])],
+        "water": [{"outer": ring(p), "holes": []} for p in rampart.pieces(water) + rampart.pieces(moat)],
         "designedLandmarks": landmarks,
         "designedBridges": BRIDGES,
         "designedDoors": DOORS,
         "places": {k: {"x": v[0], "z": v[1], "kind": v[2]} for k, v in PLACES.items()},
         "decor": DECOR,
     }
+    assert all(not p.interiors for p in rampart.pieces(water) + rampart.pieces(moat)), "a water polygon with a hole"
     json.dump(city, open(OUT, "w"), separators=(",", ":"))
     print(f"blocks {len(blocks)} ({', '.join(f'{k} {kinds.count(k)}' for k in sorted(set(kinds)))}), water parts {len(city['water'])}, landmarks {len(landmarks)}")
 

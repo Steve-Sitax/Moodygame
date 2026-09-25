@@ -1,3 +1,4 @@
+import { TOWN } from "./townBox";
 import * as THREE from "three";
 import { psxUniforms } from "../retro/psx";
 
@@ -11,11 +12,11 @@ import { psxUniforms } from "../retro/psx";
 type Flags = (x: number, z: number) => number | undefined;
 type P = [number, number];
 
-const X0 = -340;
-const Z0 = -80;
+const X0 = TOWN.x0;
+const Z0 = TOWN.z0;
 const RES = 0.5; // metres per pixel
-const W = 1080;
-const H = 760;
+const W = Math.round(TOWN.w / RES);
+const H = Math.round(TOWN.h / RES);
 const WALL = 1;
 
 let field: Float32Array | null = null;

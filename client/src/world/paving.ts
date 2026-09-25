@@ -380,3 +380,70 @@ export function flagPaving(): Paving {
     return [v + 4, v + 1, v - 5];
   });
 }
+
+/**
+ * Grass (the town wall, 2026-09-25): the berm outside the wall, the far bank, the gardens in the back
+ * alleys. Autumn grass, 256 px per 4 m tile: tufts in olive and yellow-green, bare trodden patches,
+ * a few fallen leaves; the height map gives the tufts a little relief.
+ */
+export function grassPaving(): Paving {
+  const n = 256;
+  const [mc, mg, hc, hg] = canvasPair(n);
+  const r = rand(1877);
+  const octave = (cells: number, seed: number) => {
+    const rr = rand(seed);
+    const g = Array.from({ length: cells * cells }, rr);
+    return (x: number, y: number) => {
+      const fx = (x / n) * cells;
+      const fy = (y / n) * cells;
+      const x0 = Math.floor(fx);
+      const y0 = Math.floor(fy);
+      const u = fx - x0;
+      const v = fy - y0;
+      const su = u * u * (3 - 2 * u);
+      const sv = v * v * (3 - 2 * v);
+      const at = (i: number, j: number) => g[(((j % cells) + cells) % cells) * cells + (((i % cells) + cells) % cells)];
+      const a = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * su;
+      const b = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * su;
+      return a + (b - a) * sv;
+    };
+  };
+  const big = octave(4, 21);
+  const mid = octave(16, 22);
+  const blade = octave(64, 23);
+  const hImg = hg.createImageData(n, n);
+  const mImg = mg.createImageData(n, n);
+  for (let y = 0; y < n; y++)
+    for (let x = 0; x < n; x++) {
+      const k = (y * n + x) * 4;
+      const b = big(x, y);
+      const m = mid(x, y);
+      const t = blade(x, y);
+      const bare = Math.max(0, 0.3 - b) / 0.3; // trodden patches
+      const h = Math.min(1, t * 0.6 + m * 0.4) * (1 - bare * 0.6);
+      hImg.data[k] = hImg.data[k + 1] = hImg.data[k + 2] = Math.round(h * 255);
+      hImg.data[k + 3] = 255;
+      const lit = 0.75 + h * 0.4;
+      let cr = (62 + m * 30 + b * 12) * lit;
+      let cg = (76 + m * 26 + t * 18) * lit;
+      let cb = (38 + m * 10) * lit;
+      cr = cr * (1 - bare) + (86 + t * 14) * bare;
+      cg = cg * (1 - bare) + (74 + t * 12) * bare;
+      cb = cb * (1 - bare) + (56 + t * 8) * bare;
+      const grain = (r() - 0.5) * 12;
+      mImg.data[k] = Math.max(0, Math.min(255, cr + grain));
+      mImg.data[k + 1] = Math.max(0, Math.min(255, cg + grain));
+      mImg.data[k + 2] = Math.max(0, Math.min(255, cb + grain));
+      mImg.data[k + 3] = 255;
+    }
+  mg.putImageData(mImg, 0, 0);
+  hg.putImageData(hImg, 0, 0);
+  // fallen leaves and a few dry stalks
+  for (let i = 0; i < 70; i++) {
+    const x = r() * n;
+    const y = r() * n;
+    mg.fillStyle = r() < 0.5 ? `rgb(${140 + r() * 40},${90 + r() * 30},${30 + r() * 20})` : `rgb(${150 + r() * 30},${140 + r() * 30},${80 + r() * 20})`;
+    mg.fillRect(Math.floor(x), Math.floor(y), 2, r() < 0.5 ? 1 : 2);
+  }
+  return finish(mc, hc);
+}
