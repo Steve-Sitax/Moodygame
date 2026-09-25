@@ -27,6 +27,7 @@ import { createGasLamps, FOG_DAY_GLOW, glassColor, LIT_REACH, type GasLamps } fr
 import { lampFog, type LampFog } from "./lampFog";
 import { createLitter, type Litter } from "./litter";
 import { createClutter } from "./clutter";
+import { createQuayGoods, quayGoodsAreas } from "./quaygoods";
 import { createStreetLife, type StreetLife } from "./streetlife";
 import { buildWallProbe } from "./wallprobe";
 import { tradeKeepOut } from "./trades";
@@ -393,6 +394,13 @@ export function buildRijnkaai(): World {
     // on the canal steps' head and the path check found the punt shut off)
     ...FLIGHTS.map(([x, z]) => ({ minX: x - 4.5, maxX: x + 4.5, minZ: z - 4.5, maxZ: z + 4.5 })),
   ];
+  const quayGoodsOn = (() => {
+    try {
+      return localStorage.getItem("scheldemist.quaygoods") !== "off";
+    } catch {
+      return true;
+    }
+  })();
   // shop signs, awnings, corner Madonnas, pumps, washing lines, grime (world/streetlife.ts),
   // set after the carts and crates so the pumps keep off them
   let street: StreetLife | null = null;
@@ -403,7 +411,10 @@ export function buildRijnkaai(): World {
   // the filth of 1873: dung, straw, gutters, ash, fish waste, heaps, rats (world/litter.ts)
   let litter: Litter | null = null;
   city.ready
-    .then(() => dressCity(scene, city.flags, { keepOut: propsKeepOut }))
+    // (M7 quays: the port goods of the naties are world/quaygoods.ts's composed heaps now; dressCity
+    // keeps its carts, drays and casks by the water and on the squares. Dev: localStorage
+    // "scheldemist.quaygoods" = "off" brings the old goods back, to compare)
+    .then(() => dressCity(scene, city.flags, { keepOut: quayGoodsOn ? [...propsKeepOut, ...quayGoodsAreas()] : propsKeepOut, goods: !quayGoodsOn }))
     .then((d) => {
       colliders.push(...d.colliders);
       // (the probe: signs go only where the houses as built have a clear wall)
@@ -443,6 +454,26 @@ export function buildRijnkaai(): World {
           shops: street?.shops,
         }).then((c) => {
           colliders.push(...c.colliders);
+          if (!quayGoodsOn) return;
+          // M7 quays: the goods of the working quays in composed heaps (world/quaygoods.ts), last, so
+          // they keep off everything above; by the start only against the storehouses (its open
+          // ground is the game's: jobs, emigrants, the brig)
+          return createQuayGoods(scene, city.flags, {
+            avoid: [...colliders, ...dynamic],
+            keepOut: [
+              ...railGate.colliders.map((r) => ({ minX: r.minX - 1, maxX: r.maxX + 4, minZ: r.minZ - 1, maxZ: r.maxZ + 1 })),
+              ...omnibusLane,
+              ...craneRunways,
+              ...workplaces,
+              ...FLIGHTS.map(([x, z]) => ({ minX: x - 4.5, maxX: x + 4.5, minZ: z - 4.5, maxZ: z + 4.5 })),
+            ],
+            quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
+            // the corner Madonnas' stands (lively.ts: reached from 1.8 m), 2 m more
+            keepClear: (street?.madonnas ?? []).map((m) => ({ x: m.sx, z: m.sz, r: 3.8 })),
+            shops: street?.shops,
+          }).then((g) => {
+            colliders.push(...g.colliders);
+          });
         });
       });
     })

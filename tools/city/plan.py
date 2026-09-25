@@ -634,6 +634,11 @@ def ground_zones(city, houses, landmarks):
     # each piece simplified on its own left slivers of two pavings in one plane (z-fight check)
     earth = land.intersection(open_water.buffer(24)).difference(solids.buffer(3.0)).simplify(0.2).intersection(land)
     flags = land.difference(solids.buffer(9.0)).buffer(-1.0).buffer(1.0).simplify(0.2).intersection(land).difference(earth)
+    # quays pass 2 (Steve, 2026-09-25: the reference pictures show the working quays in granite setts, not mud):
+    # the part along the river and the dock (the first water, not the moat) is its own paving, "quay"
+    river = poly_of(city["water"][0]).buffer(-7).buffer(7)
+    quay = earth.intersection(river.buffer(24.5)).buffer(0)
+    earth = earth.difference(quay).buffer(0)
     # the grass round the town wall: the berm, the far bank (rampart.py, design.py DECOR grass)
     grass = unary_union([Polygon(g["outer"], g["holes"]).buffer(0) for g in city.get("decor", {}).get("grass", [])]
                         + [Polygon(g).buffer(0) for g in city.get("alleys", {}).get("gardens", [])])
@@ -646,24 +651,27 @@ def ground_zones(city, houses, landmarks):
     if not yards.is_empty:
         yards = yards.intersection(land).simplify(0.2).intersection(land)
         flags = flags.difference(yards)
+        quay = quay.difference(yards)
         earth = earth.union(yards)
     if not grass.is_empty:
         grass = grass.intersection(land).simplify(0.2).intersection(land)
-        earth, flags = earth.difference(grass), flags.difference(grass)
+        earth, flags, quay = earth.difference(grass), flags.difference(grass), quay.difference(grass)
     # the Stadspark's pond: no ground over it (the water lies 0.35 m down in the park model)
     park = park_data()
     if park:
         # (a hair wider: on the wall's side the water stops 5 cm short of the face, no grass in that strip)
         pond = Polygon(park["pond"]).buffer(0.1, join_style=2)
         land = land.difference(pond)
-        earth, flags, grass = earth.difference(pond), flags.difference(pond), grass.difference(pond)
-    cobble = land.difference(earth).difference(flags).difference(grass)
+        earth, flags, grass, quay = earth.difference(pond), flags.difference(pond), grass.difference(pond), quay.difference(pond)
+    # (the quay cut from the others once more: the float work above left slivers of it over the flags and the grass)
+    quay = quay.difference(flags).difference(grass).buffer(0)
+    cobble = land.difference(earth).difference(flags).difference(grass).difference(quay)
     out = {}
     # where one paving meets another: a row of long edge stones along the join (Steve: the
     # change from one texture to the next cut through half stones). Lines, not areas.
     edges = []
-    zones = {"earth": earth.buffer(0), "flags": flags.buffer(0), "cobble": cobble.buffer(0)}
-    for za, zb in (("flags", "cobble"), ("earth", "cobble"), ("earth", "flags")):  # (grass meets the rest with no kerb)
+    zones = {"earth": earth.buffer(0), "flags": flags.buffer(0), "cobble": cobble.buffer(0), "quay": quay.buffer(0)}
+    for za, zb in (("flags", "cobble"), ("earth", "cobble"), ("earth", "flags"), ("quay", "cobble"), ("quay", "flags"), ("quay", "earth")):  # (grass meets the rest with no kerb)
         seam = zones[za].buffer(0.05).intersection(zones[zb].buffer(0.05))
         line = seam.boundary if not seam.is_empty else None
         if line is None:
@@ -685,7 +693,7 @@ def ground_zones(city, houses, landmarks):
         alley_area = alley_area.buffer(0.6)
         edges = [e for e in edges if not alley_area.contains(Point(e[len(e) // 2]))]
     out["edges"] = edges
-    for name, g in (("earth", earth), ("flags", flags), ("cobble", cobble), ("grass", grass)):
+    for name, g in (("earth", earth), ("flags", flags), ("cobble", cobble), ("grass", grass), ("quay", quay)):
         tris = []
         for p in pieces(g.buffer(0)):
             if p.area < 1:
@@ -834,5 +842,20 @@ def main():
     print(f"city.json {os.path.getsize(CITY)//1024} KB, city_build.json {os.path.getsize(BUILD)//1024} KB")
 
 
+def ground_only():
+    """Only the ground zones again, on the planned city.json and city_build.json (quays pass 2, 2026-09-25):
+    a whole plan.py run on its own does not give back the committed city (design.py first, and the trees
+    come out a little different), so a paving change touches only city.json's "ground"."""
+    city = json.load(open(CITY))
+    build = json.load(open(BUILD))
+    city["ground"] = ground_zones(city, build["houses"], city["landmarks"])
+    json.dump(city, open(CITY, "w"), separators=(",", ":"))
+    print({k: len(v) for k, v in city["ground"].items()})
+
+
 if __name__ == "__main__":
-    main()
+    import sys
+    if "--ground" in sys.argv:
+        ground_only()
+    else:
+        main()

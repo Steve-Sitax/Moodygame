@@ -759,13 +759,9 @@ export async function dressCity(scene: THREE.Scene, flags: Flags, opts: DressOpt
     return true;
   }
 
-  // --- the port goods
-  let goods = 0;
-  if (opts.goods !== false) goods = dressGoods();
-
-  function dressGoods(): number {
-    const n0 = placed.length;
-    // reserved ground: the traffic lanes stay open (2); lamps and trees are in the way (1); crane feet
+  // reserved ground: the traffic lanes stay open (2); lamps and trees are in the way (1); crane feet.
+  // (M7 quays: marked whether or not the port goods are placed here, so the carts keep off the lanes too)
+  {
     const decor = (CITY as unknown as { decor?: { lamps?: Array<[number, number]>; trees?: Array<[number, number]> } }).decor ?? {};
     const mark = (cx: number, cz: number, rad: number, v: 1 | 2) =>
       cells(cx, cz, 1, 0, rad, rad, (x, z, i, j) => {
@@ -776,6 +772,25 @@ export async function dressCity(scene: THREE.Scene, flags: Flags, opts: DressOpt
     for (const [x, z] of decor.trees ?? []) mark(x, z, 0.8, 1);
     for (const [x, z] of opts.cranes ?? CRANES) mark(x, z, 3.8, 2);
     for (const lane of trafficLanes()) for (let i = 0; i < lane.x.length; i += 2) mark(lane.x[i], lane.z[i], lane.half, 2);
+  }
+
+  // --- the port goods
+  let goods = 0;
+  if (opts.goods !== false) goods = dressGoods();
+  else {
+    // M7 quays (world/quaygoods.ts has the goods now): laid out as before and taken away again, so the
+    // seeded layout of the carts and the squares after them stays as it was (checked with paths())
+    const a0 = all.length;
+    const c0 = colliders.length;
+    const p0 = placed.length;
+    dressGoods();
+    all.length = a0;
+    colliders.length = c0;
+    placed.length = p0;
+  }
+
+  function dressGoods(): number {
+    const n0 = placed.length;
 
     // rows along the water on the busy quays
     for (const [ax, az, bx, bz] of city.quays) {

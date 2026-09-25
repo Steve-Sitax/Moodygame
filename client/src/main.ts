@@ -34,6 +34,7 @@ import { Journeys } from "./game/journeys";
 import { Market } from "./game/market";
 import { setLitterClock } from "./world/litter";
 import { clutterInfo, streetEndCheck } from "./world/clutter";
+import { pruneQuayGoods, quayGoodsInfo, quayGoodsMap, quayGoodsShowroom, quayGoodsWhy, quayGoodsKeepAt } from "./world/quaygoods";
 import { createTrades } from "./world/trades";
 import { createSteenLife } from "./world/steenlife";
 import { Actions } from "./game/actions";
@@ -740,6 +741,44 @@ const timer = new THREE.Timer();
 timer.connect(document);
 let elapsed = 0;
 let pausedDraw = 0;
+/**
+ * M7 quays: the goods heaps (world/quaygoods.ts) keep 2 m off every place of the paths() check. Those
+ * places come in with the town (from the server) after the heaps may stand, so every few seconds, when
+ * their number changed, any heap too near one is taken away. (Things that choose their place later,
+ * the AI's ideas, a ferry's deck, choose it clear of the heaps themselves.)
+ */
+let goodsCheckAt = 0;
+let goodsPoints = -1;
+function quayGoodsKeepClear(): void {
+  if (elapsed < goodsCheckAt || !quayGoodsInfo()) return;
+  goodsCheckAt = elapsed + 4;
+  const pts: Array<{ x: number; z: number; reach?: number }> = [
+    ...Object.values(SPOTS),
+    BOARD_POS,
+    DOSS_POS,
+    ...town.pathPoints(),
+    ...deeds.pathPoints(),
+    ...rowing.pathPoints(),
+    ...trades.pathPoints(),
+    ...steenLife.pathPoints(),
+    ...interiors.pathPoints(),
+    ...press.pathPoints(),
+    ...townLife.pathPoints(),
+    ...journeys.pathPoints(),
+    ...emigrants.pathPoints(),
+    ...homes.pathPoints(),
+    ...landmarks.pathPoints(),
+    ...ballads.pathPoints(),
+    ...handcarts.pathPoints(),
+    ...lively.pathPoints(),
+    ...boxes.pathPoints(),
+  ];
+  if (pts.length === goodsPoints) return;
+  goodsPoints = pts.length;
+  const gone = pruneQuayGoods(pts, 2);
+  if (gone) console.info(`[quaygoods] ${gone} heap(s) taken away: too near a place people need`);
+}
+
 function frame(): void {
   // the next frame first: an error below never stops the game (QA 2026-09-24: one throw froze it for good)
   requestAnimationFrame(frame);
@@ -791,6 +830,7 @@ function frame(): void {
   safe("ideas.update", () => ideas.update(dt));
   safe("emigrants.update", () => emigrants.update(dt));
   safe("lively.update", () => lively.update(dt, player, player.camera, crowd.fogDistance));
+  safe("quayGoods.keepClear", quayGoodsKeepClear);
   safe("animals.update", () => animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7));
   // the murmur follows the people near Jef, not everyone in view (audio/soundscape.ts setCrowdAround)
   safe("sound.setCrowd", () => sound?.setCrowdAround(crowd.positions()));
@@ -963,6 +1003,19 @@ if (import.meta.env.DEV) {
     streetEnds: (all = false) => streetEndCheck(all),
     /** Clutter: what was placed, and the alleys found (through or dead end, props, closure). */
     clutter: () => clutterInfo(),
+    /** M7 quays: the goods heaps (info()), every model in a row for close pictures (showroom(x, z)), a map of them (map(...) saved as a shot). */
+    quayGoods: {
+      info: () => quayGoodsInfo(),
+      why: quayGoodsWhy,
+      keepAt: quayGoodsKeepAt,
+      showroom: (x: number, z: number, names?: string[]) => quayGoodsShowroom(world.scene, x, z, names),
+      map: async (name: string, x0: number, z0: number, x1: number, z1: number, px = 4) => {
+        const url = quayGoodsMap(x0, z0, x1, z1, px);
+        if (!url) return "not built yet";
+        const r = await fetch("/api/dev/shot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, url }) });
+        return r.ok ? `data/shots/${name}.jpg` : `shot failed ${r.status}`;
+      },
+    },
     /** Every sign, plate, number and bill on the house walls: off its wall, past a corner, over a window or door, or overlapping another (should list nothing). */
     signs: () => {
       const sl = world.streetLife();

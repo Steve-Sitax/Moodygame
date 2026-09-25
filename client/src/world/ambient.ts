@@ -443,7 +443,71 @@ interface ChunkBuf {
   spillTone: number[];
 }
 
-function buildWindows(houses: House[]): Map<string, ChunkBuf> {
+/** The wall rings of the plan's houses as build_city.py makes them (house_ring). */
+function houseRing(h: House): number[][] {
+  if (!h.rect) return h.fp;
+  const [ox, oz] = h.o, [ux, uz] = h.u, [nx, nz] = h.n, [s0, s1] = h.s, [t0, t1] = h.t;
+  return [[s0, t0], [s1, t0], [s1, t1], [s0, t1]].map(([s, t]) => [ox + ux * s + nx * t, oz + uz * s + nz * t]);
+}
+
+/**
+ * M7 quays pass 2: the street walls build_city.py leaves flat (its overlapped()): another house's wall lies
+ * along them, 0.1 m or more of it. Every other street wall has its windows set back in the wall now.
+ * By `${house index}:${wall index}`.
+ */
+function flatWalls(houses: House[]): Set<string> {
+  const rings = houses.map(houseRing);
+  const grid = new Map<string, Array<[number, number, number, number, number]>>();
+  const cell = (x: number, z: number) => `${Math.floor(x / 2)},${Math.floor(z / 2)}`;
+  rings.forEach((r, hi) => {
+    for (let i = 0; i < r.length; i++) {
+      const [ax, az] = r[i], [bx, bz] = r[(i + 1) % r.length];
+      const L = Math.hypot(bx - ax, bz - az);
+      const cs = new Set<string>();
+      for (const q of [0, 0.25, 0.5, 0.75, 1]) cs.add(cell(ax + (bx - ax) * q, az + (bz - az) * q));
+      for (let k = 0; L && k <= L / 1.5; k++) cs.add(cell(ax + ((bx - ax) * k * 1.5) / L, az + ((bz - az) * k * 1.5) / L));
+      for (const c of cs) {
+        let l = grid.get(c);
+        if (!l) grid.set(c, (l = []));
+        l.push([ax, az, bx, bz, hi]);
+      }
+    }
+  });
+  const out = new Set<string>();
+  rings.forEach((r, hi) => {
+    for (let i = 0; i < r.length; i++) {
+      if (!houses[hi].street[i]) continue;
+      const [ax, az] = r[i], [bx, bz] = r[(i + 1) % r.length];
+      const L = Math.hypot(bx - ax, bz - az);
+      if (L < 0.1) continue;
+      const ux = (bx - ax) / L, uz = (bz - az) / L;
+      let hit = false;
+      for (let k = 0; !hit && k <= L / 1.5 + 1; k++) {
+        const q = Math.min(1, (k * 1.5) / L);
+        const cx = Math.floor((ax + (bx - ax) * q) / 2), cz = Math.floor((az + (bz - az) * q) / 2);
+        for (const [dx, dz] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          for (const [px, pz, rx, rz, oh] of grid.get(`${cx + dx},${cz + dz}`) ?? []) {
+            if (oh === hi) continue;
+            // (the other wall along this one where their lengths overlap, within 5 cm of its line)
+            const sp = (px - ax) * ux + (pz - az) * uz, sr = (rx - ax) * ux + (rz - az) * uz;
+            const dp = (px - ax) * uz - (pz - az) * ux, dr = (rx - ax) * uz - (rz - az) * ux;
+            const lo = Math.max(Math.min(sp, sr), 0), hi2 = Math.min(Math.max(sp, sr), L);
+            if (hi2 - lo <= 0.1 || Math.abs(sr - sp) < 1e-9) continue;
+            if ([lo, hi2].every((s) => Math.abs(dp + ((dr - dp) * (s - sp)) / (sr - sp)) <= 0.05)) hit = true;
+          }
+        }
+      }
+      if (hit) out.add(`${hi}:${i}`);
+    }
+  });
+  return out;
+}
+
+/** M7 quays pass 2: the windows build_city.py cut into the front gables (gable_front), by house index:
+ * [s_mid from the front's first corner, y0, y1, width, small]. */
+type GableWin = [number, number, number, number, boolean];
+
+function buildWindows(houses: House[], gables: Record<string, GableWin[]> = {}, lamps: number[][] = []): Map<string, ChunkBuf> {
   const chunks = new Map<string, ChunkBuf>();
   let buf: ChunkBuf;
   const quad = (pos: number[], uv: number[], lit: number[], tone: number[], p: number[][], l: Lit, t: number[], uvs: number[][]) => {
@@ -478,6 +542,9 @@ function buildWindows(houses: House[]): Map<string, ChunkBuf> {
     }
   };
 
+  const flat = flatWalls(houses);
+  /** Is the wall being lit set back (build_city.py upper_front / shop_run) or left flat? */
+  let setIn = true;
   let hi = -1;
   for (const h of houses) {
     hi++;
@@ -512,6 +579,10 @@ function buildWindows(houses: House[]): Map<string, ChunkBuf> {
     buf = b;
 
     /** Windows on one street wall from a to b. gable: height of the gable outline over the eaves at a point along the wall. */
+    /** M7 quays pass 2: a storehouse front's columns of loading doors and gates (build_city.py rect_house), along the wall. */
+    let loads: number[] = [];
+    /** The gable's cut windows (a front gable with the whole dress), or null: the painted ones as before. */
+    let cutGable: GableWin[] | null = null;
     const wall = (ax: number, az: number, bx: number, bz: number, ox: number, oz: number, door: boolean, gable?: (d: number) => number, gableStep?: number) => {
       const L = Math.hypot(bx - ax, bz - az);
       if (L < 0.05) return;
@@ -527,8 +598,11 @@ function buildWindows(houses: House[]): Map<string, ChunkBuf> {
         if (l[0] < 99 || l[2] < 99) {
           for (let k = 0; k < bays; k++) {
             if (door && k === Math.floor(bays / 2)) continue;
+            // (a storehouse's gate covers the bays it stands in: build_city.py door_run)
+            if (loads.some((g) => k * bw < g + 1.7 && (k + 1) * bw > g - 1.7)) continue;
             const [x, z] = at((k + 0.5) * bw);
-            addWindow(x, z, ox, oz, ux, uz, (bw * 36) / 64, 0.83, 2.85, l, tone, true);
+            // M7 quays pass 2: the shop window's glass stands SHOP_R (0.12 m) back in the wall now (build_city.py)
+            addWindow(x, z, ox, oz, ux, uz, (bw * 36) / 64, 0.83, 2.85, l, tone, true, setIn ? -0.095 : 0.04);
           }
         }
       }
@@ -545,9 +619,24 @@ function buildWindows(houses: House[]): Map<string, ChunkBuf> {
         if (l[0] >= 99 && l[2] >= 99) continue;
         if (!inGable) {
           const pw = (bw * 18) / 64;
+          // (a storey with loading doors: none where a door stands, build_city.py upper_front)
+          const lds = GROUND_H + k * STOREY_H + 2.6 < H - 0.3 ? loads : [];
           for (let j = 0; j < bays; j++) {
-            const [x, z] = at((j + 0.5) * bw);
-            addWindow(x, z, ox, oz, ux, uz, pw, yb, yt, l, tone, false);
+            const c = (j + 0.5) * bw;
+            if (lds.some((g) => Math.abs(c - g) < 1.05 + (bw * 11) / 64)) continue;
+            const [x, z] = at(c);
+            // M7 quays pass 2: the sash stands WIN_R (0.16 m) back in the wall now (build_city.py)
+            addWindow(x, z, ox, oz, ux, uz, pw, yb, yt, l, tone, false, setIn ? -0.135 : 0.04);
+          }
+          continue;
+        }
+        if (cutGable) {
+          // M7 quays pass 2: the windows cut into this gable, their sash WIN_R back (the gable stands 2 cm proud)
+          for (const [s, y0, y1, w, small] of cutGable) {
+            if (Math.abs(y0 - (GROUND_H + k * STOREY_H + (small ? 0.6 : 0.5625))) > 0.01) continue;
+            const [x, z] = at(s);
+            const inset = small ? 0.11 : 0.0975;
+            addWindow(x, z, ox, oz, ux, uz, small ? w * 0.78 : (w * 18) / 22, y0 + inset, y1 - inset, l, tone, false, -0.115);
           }
           continue;
         }
@@ -588,7 +677,13 @@ function buildWindows(houses: House[]): Map<string, ChunkBuf> {
         if (h.roof === "front" && i === 0) g = outline(h.gable);
         // the back gable is plain; along wall 2 the distance runs from s1, the gable is symmetric
         if (h.roof === "front" && i === 2) g = outline("plain");
+        loads = [];
+        if (store && i === 0) for (let g = 4.5; g < W - 3; g += 9) loads.push(g);
+        setIn = !flat.has(`${hi}:${i}`);
+        cutGable = i === 0 ? (gables[String(hi)] ?? null) : null;
         wall(ax, az, bx, bz, outs[i][0], outs[i][1], i === 0, g);
+        cutGable = null;
+        loads = [];
       }
     } else {
       const fp = h.fp;
@@ -609,9 +704,19 @@ function buildWindows(houses: House[]): Map<string, ChunkBuf> {
           ox = -ox;
           oz = -oz;
         }
+        setIn = !flat.has(`${hi}:${i}`);
         wall(ax, az, bx, bz, ox, oz, i === doorI && lens[i] > 2);
       }
     }
+  }
+  // M7 quays pass 2: the lanterns build_city.py hangs by some doors, lit from dusk to dawn: a pane on the
+  // front of the glass (x, y, z of the glass's middle, 8.5 cm to its front, outward ox, oz)
+  for (const [x, y, z, ox, oz] of lamps) {
+    const key = `${Math.floor(x / 100)},${Math.floor(z / 100)}`;
+    let b = chunks.get(key);
+    if (!b) chunks.set(key, (b = { win: [], winUv: [], winLit: [], winTone: [], spill: [], spillUv: [], spillLit: [], spillTone: [] }));
+    buf = b;
+    addWindow(x, z, ox, oz, oz, -ox, 0.15, y - 0.13, y + 0.12, [17.2, 30.5, 99, 99], 0.95, false, 0.09);
   }
   return chunks;
 }
@@ -664,6 +769,11 @@ function windowMaterials(): { win: THREE.ShaderMaterial; spill: THREE.ShaderMate
         // brighter low in the pane (the lamp on the table), a curtain edge up top
         warm *= 0.75 + 0.45 * (1.0 - vUv.y);
         warm *= 1.0 - 0.35 * smoothstep(0.78, 0.9, vUv.y) * step(0.5, fract(vTone.x * 3.1));
+        // M7 quays pass 2: curtains drawn to the sides in most rooms (not the shops), their folds in the light
+        float cw = 0.16 + 0.1 * fract(vTone.x * 11.3);
+        float side = max(step(vUv.x, cw), step(1.0 - cw, vUv.x));
+        float folds = 0.55 + 0.25 * sin(vUv.x * 60.0 + vTone.x * 9.0);
+        warm *= mix(1.0, folds * 0.8, side * step(0.35, fract(vTone.x * 5.7)) * (1.0 - vTone.y));
         // glazing bars: a mullion and two transoms (the shop window: two mullions)
         float bars = step(abs(vUv.x - 0.5), 0.04);
         bars = max(bars, step(abs(vUv.y - 0.333), 0.025) + step(abs(vUv.y - 0.667), 0.025));
@@ -968,7 +1078,8 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
 
       // lit windows, from the plan the houses were built from
       const data = (await import("../../../shared/city_build.json")).default as unknown as { houses: House[] };
-      const chunks = buildWindows(data.houses);
+      const gables = (await import("../../../shared/city_gable_windows.json")).default as unknown as { houses: Record<string, GableWin[]> };
+      const chunks = buildWindows(data.houses, gables.houses, (gables as unknown as { lamps?: number[][] }).lamps ?? []);
       const mats = windowMaterials();
       for (const c of chunks.values()) {
         if (!c.win.length) continue;

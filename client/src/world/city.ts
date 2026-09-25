@@ -4,7 +4,8 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import CITY from "../../../shared/city.json";
 import { psx, psxUniforms } from "../retro/psx";
 import { createMirror } from "./mirror";
-import { cobblePaving, earthPaving, edgeStoneTexture, flagPaving, grassPaving } from "./paving";
+import { cobblePaving, earthPaving, edgeStoneTexture, flagPaving, grassPaving, quayPaving } from "./paving";
+import { copingTexture, quayWallTexture, withPicture } from "./quayStone";
 import { brickBandTexture, facadeAtlas, glassTexture, leafTexture, roofAtlas, slateTexture, stoneTexture } from "./cityTextures";
 import { makeTextures } from "./textures";
 import { slimeCuts, slimeShade, tideCuts, tideShade } from "./quaysteps";
@@ -32,6 +33,19 @@ interface CityJson {
 }
 
 const data = CITY as unknown as CityJson;
+
+const WATER_RINGS = (CITY as unknown as { water: Array<{ outer: number[][] }> }).water.map((w) => w.outer);
+/** Is (x, z) on the water (the river, the dock, the canals, the moat)? Even-odd over the water outlines. */
+function inWaterPoly(x: number, z: number): boolean {
+  let inside = false;
+  for (const ring of WATER_RINGS)
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, zi] = ring[i];
+      const [xj, zj] = ring[j];
+      if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
+    }
+  return inside;
+}
 
 export const DOORS = data.doors;
 
@@ -88,8 +102,9 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
   psxUniforms.uMirror.value = groundMirror.texture;
   psxUniforms.uMirrorMat.value = groundMirror.matrix;
 
-  // --- ground: three kinds of paving (tools/city/plan.py ground_zones): earth on the
-  // working quays, flagstones on the squares, cobbles in the streets. The land is a
+  // --- ground: the kinds of paving (tools/city/plan.py ground_zones): granite setts on the
+  // working quays (quays pass 2; was earth), earth in the yards and on the gate roads, flagstones
+  // on the squares, cobbles in the streets, grass by the town wall. The land is a
   // few large triangles: no vertex snap and no affine warp on it, or it swirls (the
   // texture uses world coordinates, so it stays straight).
   {
@@ -100,6 +115,11 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
     const cobPave = cobblePaving();
     const flagPave = flagPaving();
     const grassPave = grassPaving();
+    const quayPave = quayPaving();
+    // the pictures (Codex, 2026-09-25) with a height and stone map worked out from them (tools/textures/setts_maps.py)
+    withPicture(quayPave.map, "/textures/quay_setts.jpg");
+    withPicture(quayPave.height, "/textures/quay_setts_h.png");
+    if (quayPave.id) withPicture(quayPave.id, "/textures/quay_setts_id.png");
     const zoneMat: Record<string, [THREE.Material, number]> = {
       // bump maps from the texture itself: light stone stands up, dark joints sink, so the
       // sun and the gas lamps pick out every sett (Steve: "bump mapping?")
@@ -107,6 +127,9 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
       // packed earth with its own height map: lumps, pebbles, hollows (world/paving.ts)
       earth: [psx(new THREE.MeshLambertMaterial({ map: earthPave.map }), { noSnap: true, affine: 0, wet: true, puddles: 1.3, vary: 1, detile: true, relief: { height: earthPave.height, depth: 0.045, tile: 4, bump: 3.2 } }), 4],
       flags: [psx(new THREE.MeshPhongMaterial({ map: flagPave.map, specular: 0x1a1a1a, shininess: 12 }), { noSnap: true, affine: 0, wet: true, puddles: 0.75, vary: 0.8, relief: { height: flagPave.height, id: flagPave.id, holes: 0, depth: 0.025, tile: 4, bump: 1.6 } }), 4],
+      // quays pass 2 (2026-09-25): the working quays along the river and the dock in big granite setts with mud
+      // in the joints (world/paving.ts quayPaving); more puddles than the streets, the stones rolled per stone
+      quay: [psx(new THREE.MeshPhongMaterial({ map: quayPave.map, color: 0xffffff, specular: 0x363636, shininess: 22 }), { noSnap: true, affine: 0, wet: true, puddles: 1.15, vary: 1, detile: true, relief: { height: quayPave.height, id: quayPave.id, holes: 0.07, depth: 0.06, tile: 2.5, bump: 3.2 } }), 2.5],
       // grass round the town wall and in the back alleys' gardens (tools/city/rampart.py, alleys.py)
       grass: [psx(new THREE.MeshLambertMaterial({ map: grassPave.map }), { noSnap: true, affine: 0, wet: true, puddles: 0.4, detile: true, relief: { height: grassPave.height, depth: 0.03, tile: 4, bump: 2.4 } }), 4],
     };
@@ -195,10 +218,9 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
     const wallCol: number[] = [];
     const cope: number[] = [];
     const copeUv: number[] = [];
-    const quad = (arr: number[], uvs: number[], a: number[], b: number[], c: number[], d: number[], L: number, H: number) => {
-      arr.push(...a, ...b, ...c, ...a, ...c, ...d);
-      uvs.push(0, 0, L, 0, L, H, 0, 0, L, H, 0, H);
-    };
+    const face: number[] = [];
+    const faceUv: number[] = [];
+    let copeRun = 0;
     // the wall in bands, coloured by height: green slime at the waterline, a dark wet band above it.
     // M6 tides: on the river the whole tide range is slimy up to the high-water mark and the wall
     // goes down below the lowest spring tide; the Petit Bassin keeps one level (world/tide.ts)
@@ -252,7 +274,24 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
       const A1 = mitre(ax, az, n, mp, w);
       const B0 = mitre(bx, bz, n, mn, -w);
       const B1 = mitre(bx, bz, n, mn, w);
-      quad(cope, copeUv, [A0[0], 0.06, A0[1]], [B0[0], 0.06, B0[1]], [B1[0], 0.06, B1[1]], [A1[0], 0.06, A1[1]], L, 0.5);
+      // quays pass 2: v runs from the land side (0) to the water's edge (1), u 3 m a tile along the quay
+      const mx = (ax + bx) / 2;
+      const mz = (az + bz) / 2;
+      const waterOnPlus = inWaterPoly(mx + n[0] * 0.8, mz + n[1] * 0.8) && !inWaterPoly(mx - n[0] * 0.8, mz - n[1] * 0.8);
+      const u0 = copeRun;
+      const u1 = copeRun + L / 3;
+      copeRun = u1 % 64;
+      const [vA0, vA1] = waterOnPlus ? [0, 1] : [1, 0];
+      cope.push(A0[0], 0.06, A0[1], B0[0], 0.06, B0[1], B1[0], 0.06, B1[1], A0[0], 0.06, A0[1], B1[0], 0.06, B1[1], A1[0], 0.06, A1[1]);
+      copeUv.push(u0, vA0, u1, vA0, u1, vA1, u0, vA0, u1, vA1, u0, vA1);
+      // quays pass 2: the coping's front over the water, 34 cm deep (was a flat band with nothing under
+      // its outer edge), and its underside back to the wall. 15 mm behind quayfurniture's iron edge (0.25).
+      const [Fa, Fb] = waterOnPlus ? [mitre(ax, az, n, mp, w - 0.015), mitre(bx, bz, n, mn, w - 0.015)] : [mitre(ax, az, n, mp, -w + 0.015), mitre(bx, bz, n, mn, -w + 0.015)];
+      const yb = -0.28;
+      face.push(Fa[0], yb, Fa[1], Fb[0], yb, Fb[1], Fb[0], 0.06, Fb[1], Fa[0], yb, Fa[1], Fb[0], 0.06, Fb[1], Fa[0], 0.06, Fa[1]);
+      faceUv.push(u0, 0.2, u1, 0.2, u1, 0.62, u0, 0.2, u1, 0.62, u0, 0.62);
+      face.push(ax, yb, az, bx, yb, bz, Fb[0], yb, Fb[1], ax, yb, az, Fb[0], yb, Fb[1], Fa[0], yb, Fa[1]);
+      faceUv.push(u0, 0.1, u1, 0.1, u1, 0.2, u0, 0.1, u1, 0.2, u0, 0.2);
     }
     const mk = (pos: number[], uv: number[], mat: THREE.Material) => {
       const g = new THREE.BufferGeometry();
@@ -264,15 +303,21 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
       return m;
     };
     const wallMat = (mats.quayWall as THREE.MeshLambertMaterial).clone();
+    // quays pass 2: dressed bluestone, a picture at 256 px a metre (world/quayStone.ts; was the 64 px placeholder for 4 m)
+    wallMat.map = withPicture(quayWallTexture(), "/textures/quay_wall.jpg");
     wallMat.side = THREE.DoubleSide;
     wallMat.vertexColors = true;
     // the river walls face away from the sun: a little light off the water, or at low tide they fill the view nearly black
-    wallMat.emissive = new THREE.Color(0x5a5c50);
+    wallMat.emissive = new THREE.Color(0x62645a);
     wallMat.emissiveMap = wallMat.map; // the glow carries the stones, so the face keeps its courses
     const copeMat = (mats.wallDecal as THREE.MeshLambertMaterial).clone();
+    copeMat.map = withPicture(copingTexture(), "/textures/quay_coping.jpg");
+    copeMat.color = new THREE.Color(0xb4b0a8);
     copeMat.side = THREE.DoubleSide;
     mk(wall, wallUv, psx(wallMat, { noSnap: true, affine: 0 })).geometry.setAttribute("color", new THREE.Float32BufferAttribute(wallCol, 3));
     mk(cope, copeUv, psx(copeMat, { noSnap: true, affine: 0, wet: true }));
+    const faceMat = new THREE.MeshLambertMaterial({ map: copeMat.map, color: 0x9a968c, side: THREE.DoubleSide });
+    mk(face, faceUv, psx(faceMat, { noSnap: true, affine: 0 })).name = "quay_coping_face";
   }
 
   // --- landmarks: stand-in blocks until their Blender models are in
@@ -357,6 +402,8 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
       m.material = name === "facade" ? facade : name === "roof" ? roof : name === "wood" ? wood : name === "leaves" ? leaves : trim;
       g.computeBoundingSphere();
       chunks.push(m);
+      // M7 quays pass 2: a chunk's near-only mesh (build_city.py "_d": sills, heads, shutters, pipes, pots)
+      if (/_d(_\d+)?$/.test(m.name) || /_d$/.test(m.parent?.name ?? "")) m.userData.near = true;
     });
     // the whole scene graph is Y-up already; move the meshes under our group
     for (const m of chunks) {
@@ -398,12 +445,14 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
   }
 
   const tmp = new THREE.Vector3();
+  const DETAIL_NEAR = 60;
   function update(camera: THREE.Camera, far: number): void {
     const cp = camera.position;
     for (const m of chunks) {
       const s = m.geometry.boundingSphere!;
       tmp.copy(s.center);
-      m.visible = tmp.distanceTo(cp) - s.radius < far + 10;
+      // (the small things on the fronts only near: past 60 m they are a pixel or two)
+      m.visible = tmp.distanceTo(cp) - s.radius < (m.userData.near ? Math.min(far + 10, DETAIL_NEAR) : far + 10);
     }
   }
 

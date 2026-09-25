@@ -321,7 +321,7 @@ export function cobblePaving(): Paving {
 }
 
 /**
- * The setts along the quay railway (world/tracks.ts): u along the line (2 m a tile), v across
+ * The setts along the quay railway (world/tracks.ts): u along the line (2.5 m a tile since quays pass 2), v across
  * the band (0..1 = 2.2 m); the same uneven stones as the streets, a dark groove inside each
  * rail (v 0.174 and 0.826) and long edge stones along both sides.
  */
@@ -367,6 +367,7 @@ export function settsPaving(): Paving {
   p.map.needsUpdate = true;
   p.height.needsUpdate = true;
   p.id!.needsUpdate = true;
+  railSettsPictures(p);
   p.map.wrapT = THREE.ClampToEdgeWrapping;
   p.height.wrapT = THREE.ClampToEdgeWrapping;
   p.id!.wrapT = THREE.ClampToEdgeWrapping;
@@ -446,4 +447,174 @@ export function grassPaving(): Paving {
     mg.fillRect(Math.floor(x), Math.floor(y), 2, r() < 0.5 ? 1 : 2);
   }
   return finish(mc, hc);
+}
+
+/**
+ * Quays pass 2 (Steve, 2026-09-25, with reference pictures: "make the kaaien with better graphics"): the working
+ * quays along the river and the dock in big granite setts, grey with a blue or a warm cast, 256 px per 2.5 m tile
+ * (rows of about 16 cm, stones 18 to 27 cm). Mud and dung fill the joints (a little higher than a bare joint, so
+ * the stones do not stand up like teeth), wet silt spreads over some stones' edges, straw and a few dark tar
+ * stains lie about. Which stones sink or have gone is rolled per stone in the shader, as on the streets.
+ */
+export function quayPaving(): Paving {
+  const n = 256;
+  const p = stones(
+    1878,
+    n,
+    16,
+    18,
+    28,
+    2,
+    2,
+    (r) => {
+      const v = 92 + r() * 44;
+      const k = r();
+      // granite: most grey-brown, some warmer or bluer, a few dark
+      if (k < 0.5) return [v + 5, v + 1, v - 5];
+      if (k < 0.78) return [v + 12, v + 5, v - 9];
+      if (k < 0.9) return [v - 3, v, v + 4];
+      return [v * 0.72, v * 0.7, v * 0.68];
+    },
+    { topMin: 0.88, tilt: 0.45, sunk: 0, missing: 0 },
+  );
+  const mg = (p.map.image as HTMLCanvasElement).getContext("2d")!;
+  const hg = (p.height.image as HTMLCanvasElement).getContext("2d")!;
+  const mImg = mg.getImageData(0, 0, n, n);
+  const hImg = hg.getImageData(0, 0, n, n);
+  const r = rand(1879);
+  // tiling value noise for the mud
+  const octave = (cells: number, seed: number) => {
+    const rr = rand(seed);
+    const g = Array.from({ length: cells * cells }, rr);
+    return (x: number, y: number) => {
+      const fx = (x / n) * cells;
+      const fy = (y / n) * cells;
+      const x0 = Math.floor(fx);
+      const y0 = Math.floor(fy);
+      const u = fx - x0;
+      const v = fy - y0;
+      const su = u * u * (3 - 2 * u);
+      const sv = v * v * (3 - 2 * v);
+      const at = (i: number, j: number) => g[(((j % cells) + cells) % cells) * cells + (((i % cells) + cells) % cells)];
+      const a = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * su;
+      const b = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * su;
+      return a + (b - a) * sv;
+    };
+  };
+  const big = octave(5, 31);
+  const small = octave(32, 32);
+  for (let y = 0; y < n; y++)
+    for (let x = 0; x < n; x++) {
+      const i = (y * n + x) * 4;
+      const h = hImg.data[i] / 255;
+      const m = big(x, y) * 0.7 + small(x, y) * 0.3;
+      // silt over the stones where the noise is high; always in the joints
+      const silt = Math.max(0, Math.min(1, (m - 0.56) * 4)) * (1 - h * 0.6);
+      const joint = h < 0.06 ? 1 : 0;
+      const mud = Math.max(joint * (0.75 + 0.25 * small(x, y)), silt);
+      if (mud <= 0) continue;
+      const g = (r() - 0.5) * 10;
+      const mr = 58 + m * 22 + g;
+      const mgc = 49 + m * 17 + g;
+      const mb = 38 + m * 11 + g;
+      mImg.data[i] = mImg.data[i] * (1 - mud) + mr * mud;
+      mImg.data[i + 1] = mImg.data[i + 1] * (1 - mud) + mgc * mud;
+      mImg.data[i + 2] = mImg.data[i + 2] * (1 - mud) + mb * mud;
+      // the joints filled a little with mud: they stay low, but not black holes
+      if (joint) hImg.data[i] = hImg.data[i + 1] = hImg.data[i + 2] = Math.round(255 * 0.1 * (0.6 + 0.4 * small(x, y)));
+    }
+  mg.putImageData(mImg, 0, 0);
+  hg.putImageData(hImg, 0, 0);
+  // straw and hay blown about, a few dark stains of tar and oil
+  for (let i = 0; i < 70; i++) {
+    const x = 12 + r() * (n - 24);
+    const y = 12 + r() * (n - 24);
+    const a = r() * Math.PI;
+    const l = 4 + r() * 8;
+    mg.strokeStyle = `rgba(${160 + r() * 40},${136 + r() * 30},${72 + r() * 24},0.85)`;
+    mg.lineWidth = 1;
+    mg.beginPath();
+    mg.moveTo(x, y);
+    mg.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l);
+    mg.stroke();
+  }
+  for (let i = 0; i < 5; i++) {
+    const x = 20 + r() * (n - 40);
+    const y = 20 + r() * (n - 40);
+    const gr = mg.createRadialGradient(x, y, 0, x, y, 6 + r() * 12);
+    gr.addColorStop(0, "rgba(14,12,10,0.55)");
+    gr.addColorStop(1, "rgba(14,12,10,0)");
+    mg.fillStyle = gr;
+    mg.fillRect(x - 18, y - 18, 36, 36);
+  }
+  p.map.needsUpdate = true;
+  p.height.needsUpdate = true;
+  return p;
+}
+
+function loadImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((ok, fail) => {
+    const img = new Image();
+    img.onload = () => ok(img);
+    img.onerror = () => fail(new Error(url));
+    img.src = url;
+  });
+}
+
+/**
+ * Quays pass 2: the rail band in the same setts as the quays (the Codex pictures, client/public/textures), with
+ * the edge stones and the flange grooves drawn over them again. 512 px for the band's 2 x 2.2 m. The painted band
+ * stays if a picture does not load.
+ */
+function railSettsPictures(p: Paving): void {
+  Promise.all([loadImage("/textures/quay_setts.jpg"), loadImage("/textures/quay_setts_h.png"), loadImage("/textures/quay_setts_id.png")])
+    .then(([col, hgt, ids]) => {
+      const n = 512;
+      // the band is 2.5 m a tile along (tracks.ts band) and 2.2 m across; the picture 2.5 m square: all of it
+      // along (it tiles), 2.2 m of it across
+      const sw = col.width;
+      const sh = (2.2 / 2.5) * col.height;
+      const make = (img: HTMLImageElement, smooth: boolean) => {
+        const c = document.createElement("canvas");
+        c.width = c.height = n;
+        const g = c.getContext("2d")!;
+        g.imageSmoothingEnabled = smooth;
+        g.drawImage(img, 0, 0, (sw / col.width) * img.width, (sh / col.height) * img.height, 0, 0, n, n);
+        return [c, g] as const;
+      };
+      const [mc, mg] = make(col, true);
+      const [hc, hg] = make(hgt, true);
+      const [ic, ig] = make(ids, false);
+      // stones cut by the band's crop are no whole stones: the ones touching the right edge lose their dice
+      ig.fillStyle = "rgb(0,0,0)";
+      const k = n / 128;
+      const r = rand(1882);
+      for (const y of [0, n - 7 * k]) {
+        for (let x = 0; x < n; x += 22 * k) {
+          const v = 88 + Math.floor(r() * 20);
+          mg.fillStyle = `rgb(${v},${v - 2},${v - 8})`;
+          mg.fillRect(x + k, y + k, 21 * k, 5 * k);
+          mg.fillStyle = "rgba(0,0,0,0.25)";
+          mg.fillRect(x + k, y + 5 * k, 21 * k, k);
+          hg.fillStyle = "rgb(200,200,200)";
+          hg.fillRect(x + k, y + k, 21 * k, 5 * k);
+          hg.fillStyle = "rgb(0,0,0)";
+          hg.fillRect(x, y, k, 7 * k);
+          ig.fillRect(x, y, 22 * k, 7 * k);
+        }
+      }
+      for (const v of [0.174, 0.826]) {
+        const y = Math.round(v * n) + (v < 0.5 ? k : -3 * k);
+        mg.fillStyle = "#141210";
+        mg.fillRect(0, y, n, 2 * k);
+        hg.fillStyle = "rgb(0,0,0)";
+        hg.fillRect(0, y, n, 2 * k);
+        ig.fillRect(0, y, n, 2 * k);
+      }
+      p.map.image = mc;
+      p.height.image = hc;
+      p.id!.image = ic;
+      p.map.needsUpdate = p.height.needsUpdate = p.id!.needsUpdate = true;
+    })
+    .catch((e) => console.warn("rail setts pictures did not load", e));
 }

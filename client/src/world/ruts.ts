@@ -57,8 +57,9 @@ function rutTexture(): THREE.CanvasTexture {
   for (const y of [S * 0.19, S * 0.81]) {
     line(y - 4, 2, 0.2, "120,104,80"); // the mud pushed up beside the rut
     line(y + 4, 2, 0.2, "120,104,80");
-    line(y, 6, 0.5, "28,22,15");
-    line(y, 3, 0.6, "12,10,8");
+    // quays pass 2 (2026-09-25): softer and browner: on setts a rut is mud in the joints, not a black line
+    line(y, 7, 0.36, "40,31,20");
+    line(y, 3, 0.36, "26,20,13");
   }
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;

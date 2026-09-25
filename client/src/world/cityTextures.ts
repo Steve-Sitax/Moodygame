@@ -331,6 +331,169 @@ function loadingDoor(g: CanvasRenderingContext2D, x: number, y: number, r: () =>
   g.fillRect(x + C - 1, y, 1, C);
 }
 
+// ------------------------------------------------------------------ M7 quays pass 2: the windows set in
+// build_city.py now cuts the windows into the fronts; the sash at the back of the opening takes a whole
+// cell (columns 4-7, rows 0-2). Glass, bars and frame match where ambient.ts puts its lit pane: the upper
+// sash's glass 6 px in from each side, 3 px from the top, 4 from the bottom, a mullion and two transoms;
+// the shop window's glass 3 px in from each side.
+
+/** Glass: dark, the sky caught in its upper part, a streak of light across. */
+function glass(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: () => number): void {
+  const grd = g.createLinearGradient(0, y, 0, y + h);
+  grd.addColorStop(0, "#56626c");
+  grd.addColorStop(0.38, "#27303a");
+  grd.addColorStop(1, "#11151a");
+  g.fillStyle = grd;
+  g.fillRect(x, y, w, h);
+  g.fillStyle = "rgba(200,215,225,0.10)";
+  for (let k = 0; k < h; k++) g.fillRect(x + Math.floor(((k * 0.55 + r() * 2) % w)), y + k, 3, 1);
+}
+
+/** Lighter and darker edges on a painted bar or frame, so it reads as wood with depth. */
+function bevel(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
+  g.fillStyle = "rgba(255,255,255,0.18)";
+  g.fillRect(x, y, w, 1);
+  g.fillRect(x, y, 1, h);
+  g.fillStyle = "rgba(0,0,0,0.28)";
+  g.fillRect(x, y + h - 1, w, 1);
+  g.fillRect(x + w - 1, y, 1, h);
+}
+
+/** An upper-storey sash, 64 x 64 px over the opening (about 1.03 x 1.88 m): a painted frame, six panes
+ * (a mullion, two transoms), glass; lace up top, or curtains drawn to the sides. */
+function sash(g: CanvasRenderingContext2D, x: number, y: number, frame: string, curtain: "lace" | "drawn" | "none", curtainCol: string, r: () => number): void {
+  g.fillStyle = frame;
+  g.fillRect(x, y, C, C);
+  const gx = x + 6, gy = y + 3, gw = C - 12, gh = C - 7;
+  glass(g, gx, gy, gw, gh, r);
+  if (curtain === "lace") {
+    // lace across the upper panes, with a scalloped edge and a pattern of holes
+    for (let py = 0; py < 20; py++)
+      for (let px = 0; px < gw; px++) {
+        const edge = 16 + Math.round(2 * Math.sin((px / gw) * Math.PI * 6));
+        if (py > edge) continue;
+        const hole = (px + py * 3) % 5 === 0 || (px * 7 + py) % 11 === 0;
+        g.fillStyle = hole ? "rgba(40,44,50,0.4)" : "rgba(226,222,208,0.62)";
+        g.fillRect(gx + px, gy + py, 1, 1);
+      }
+  } else if (curtain === "drawn") {
+    for (const [cx, dir] of [[gx, 1], [gx + gw, -1]] as const) {
+      for (let px = 0; px < 9; px++) {
+        const fold = px % 3 === 1 ? 0.75 : 1;
+        g.fillStyle = curtainCol;
+        g.globalAlpha = 0.82 * fold;
+        g.fillRect(dir > 0 ? cx + px : cx - px - 1, gy, 1, gh - 2 - Math.round(px * 0.6));
+      }
+      g.globalAlpha = 1;
+    }
+  }
+  // the glazing bars (frame colour): a mullion, two transoms
+  g.fillStyle = frame;
+  g.fillRect(x + 31, gy, 2, gh);
+  for (const k of [1, 2]) g.fillRect(gx, Math.round(gy + (gh * k) / 3) - 1, gw, 2);
+  bevel(g, x + 31, gy, 2, gh);
+  // the frame's own edges: lit on top and left, in shadow under the head
+  g.fillStyle = "rgba(0,0,0,0.35)";
+  g.fillRect(gx, gy, gw, 1);
+  g.fillRect(gx, gy, 1, gh);
+  g.fillStyle = "rgba(255,255,255,0.15)";
+  g.fillRect(x, y + C - 3, C, 1);
+  g.fillStyle = "rgba(0,0,0,0.4)";
+  g.fillRect(x, y, C, 1);
+  g.fillRect(x, y, 1, C);
+  g.fillRect(x + C - 1, y, 1, C);
+  noise(g, x, y, C, C, 0.06, r);
+}
+
+/** A shop window, 64 x 64 px over about 1.9 x 2.26 m: a slim frame, a transom light up top, a mullion;
+ * wares on a shelf behind the glass in the brown one. */
+function shopWindow(g: CanvasRenderingContext2D, x: number, y: number, frame: string, wares: boolean, r: () => number): void {
+  g.fillStyle = frame;
+  g.fillRect(x, y, C, C);
+  const gx = x + 3, gy = y + 3, gw = C - 6, gh = C - 7;
+  glass(g, gx, gy, gw, gh, r);
+  if (wares) {
+    // a shelf low in the window with jars and bottles on it, a hanging row up top
+    g.fillStyle = "#3a2c1e";
+    g.fillRect(gx, gy + gh - 12, gw, 2);
+    for (let px = 2; px < gw - 3; px += 4 + Math.floor(r() * 3)) {
+      const hh = 4 + Math.floor(r() * 6);
+      g.fillStyle = ["#7a5a2a", "#4a6a4a", "#8a7a5a", "#6a3a2a", "#a89060"][Math.floor(r() * 5)];
+      g.fillRect(gx + px, gy + gh - 12 - hh, 3, hh);
+      g.fillStyle = "rgba(255,255,255,0.25)";
+      g.fillRect(gx + px, gy + gh - 12 - hh, 1, hh);
+    }
+    for (let px = 4; px < gw - 4; px += 6) {
+      g.fillStyle = r() < 0.5 ? "#6a5030" : "#8a6a3a";
+      g.fillRect(gx + px, gy + 17, 2, 4 + Math.floor(r() * 3));
+    }
+  }
+  // the transom bar, the mullion and the small panes of the top light
+  g.fillStyle = frame;
+  g.fillRect(gx, gy + 13, gw, 3);
+  g.fillRect(x + 31, gy, 2, gh);
+  for (const k of [1, 3]) g.fillRect(gx + Math.round((gw * k) / 4), gy, 2, 13);
+  bevel(g, gx, gy + 13, gw, 3);
+  bevel(g, x + 31, gy + 16, 2, gh - 16);
+  // a stall board of the frame colour at the foot, and the frame's shadows
+  g.fillStyle = "rgba(0,0,0,0.35)";
+  g.fillRect(gx, gy, gw, 1);
+  g.fillRect(gx, gy, 1, gh);
+  g.fillStyle = "rgba(0,0,0,0.4)";
+  g.fillRect(x, y, C, 1);
+  g.fillRect(x, y, 1, C);
+  g.fillRect(x + C - 1, y, 1, C);
+  noise(g, x, y, C, C, 0.06, r);
+}
+
+/** A small dormer window: four panes in a white frame. */
+function dormerWindow(g: CanvasRenderingContext2D, x: number, y: number, r: () => number): void {
+  g.fillStyle = "#e2dccb";
+  g.fillRect(x, y, C, C);
+  glass(g, x + 7, y + 6, C - 14, C - 12, r);
+  g.fillStyle = "#e2dccb";
+  g.fillRect(x + 31, y + 6, 3, C - 12);
+  g.fillRect(x + 7, y + 30, C - 14, 3);
+  g.fillStyle = "rgba(0,0,0,0.4)";
+  g.fillRect(x + 7, y + 6, C - 14, 1);
+  g.fillRect(x, y, C, 1);
+  noise(g, x, y, C, C, 0.06, r);
+}
+
+/** A shutter leaf, 64 x 64 px over about 0.39 x 1.8 m, in grey (the vertex colour paints it): a frame of
+ * stiles and rails with louvres, or two raised panels; its hinges. */
+function shutterLeaf(g: CanvasRenderingContext2D, x: number, y: number, louvred: boolean, r: () => number): void {
+  g.fillStyle = "#d6d4cc";
+  g.fillRect(x, y, C, C);
+  if (louvred) {
+    for (let py = 5; py < C - 5; py += 3) {
+      g.fillStyle = "rgba(255,255,255,0.35)";
+      g.fillRect(x + 9, y + py, C - 18, 1);
+      g.fillStyle = "rgba(0,0,0,0.38)";
+      g.fillRect(x + 9, y + py + 1, C - 18, 2);
+    }
+    g.fillStyle = "#d6d4cc";
+    g.fillRect(x + 9, y + 30, C - 18, 4); // the middle rail
+    bevel(g, x + 9, y + 30, C - 18, 4);
+  } else {
+    for (const [py, ph] of [[5, 23], [35, 24]]) {
+      g.fillStyle = "rgba(0,0,0,0.3)";
+      g.fillRect(x + 10, y + py, C - 20, ph);
+      g.fillStyle = "#e0ded6";
+      g.fillRect(x + 12, y + py + 1, C - 24, ph - 3);
+      bevel(g, x + 12, y + py + 1, C - 24, ph - 3);
+    }
+  }
+  bevel(g, x, y, C, C);
+  g.fillStyle = "rgba(0,0,0,0.3)";
+  g.fillRect(x + 8, y + 4, 1, C - 8);
+  g.fillRect(x + C - 9, y + 4, 1, C - 8);
+  // iron hinges at the outer stile
+  g.fillStyle = "#26262a";
+  for (const hy of [8, C - 11]) g.fillRect(x, y + hy, 14, 3);
+  noise(g, x, y, C, C, 0.08, r);
+}
+
 /** Paint for front doors (dark green, oxblood, brown, deep blue) and for gates (brown, green, grey-blue). */
 const DOOR_PAINT = ["#2c4632", "#5a2220", "#4a3222", "#22364f"];
 const GATE_PAINT = ["#4a3524", "#2f4331", "#3a4450"];
@@ -345,6 +508,32 @@ export function facadeAtlas(): THREE.CanvasTexture {
   fanlight(g, ...at(5, 5));
   loadingDoor(g, ...at(6, 5), r);
   GATE_PAINT.forEach((p, i) => gateLeaves(g, ...at(4 + i, 6), p, r));
+  // M7 quays pass 2: the sashes of the windows set in the walls, the shop windows, a dormer window,
+  // the shutter leaves (build_city.py SASH, SHOPWIN, DORMWIN, SHUTTER); their own dice, so the walls' stay
+  const r2 = rand(1877);
+  sash(g, ...at(4, 0), "#e6e0d0", "lace", "", r2);
+  sash(g, ...at(5, 0), "#d8ceb4", "drawn", "#6e2a24", r2);
+  sash(g, ...at(6, 0), "#2e4a38", "lace", "", r2);
+  sash(g, ...at(7, 0), "#4e3826", "drawn", "#3e4a38", r2);
+  shopWindow(g, ...at(4, 1), "#d6ccb0", false, r2);
+  shopWindow(g, ...at(5, 1), "#2a4232", false, r2);
+  shopWindow(g, ...at(6, 1), "#4a3322", true, r2);
+  dormerWindow(g, ...at(7, 1), r2);
+  shutterLeaf(g, ...at(4, 2), true, r2);
+  shutterLeaf(g, ...at(5, 2), false, r2);
+  // row 7, one cell per style (build_city.py FARPIER_ROW): the upper-storey wall round a window cut into it,
+  // its lintel and sill painted where the upper cell paints them, no shutters: what a front shows far off,
+  // where the game does not draw its 3D sills, heads and shutters
+  STYLES.forEach((s, col) => {
+    const [x, y] = at(col, 7);
+    wallFill(g, x, y, s, r2);
+    const wx = x + (C - 22) / 2;
+    g.fillStyle = s.trim;
+    g.fillRect(wx - 3, y + 12 - 4, 22 + 6, 4); // lintel (windowAt)
+    g.fillRect(wx - 2, y + C - 12, 22 + 4, 3); // sill
+    g.fillStyle = "rgba(0,0,0,0.18)";
+    g.fillRect(x, y + C - 2, C, 2); // the string course line of the upper cell
+  });
   STYLES.forEach((s, row) => {
     const y = (7 - row) * C; // row 0 at the bottom of the image
     // col 0: ground storey with a low shop window on a stone plinth

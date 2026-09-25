@@ -136,8 +136,9 @@ function band(s: Strip, line: P[], nrm: P[], o0: number, o1: number, v0: number,
     const [nax, naz] = nrm[i];
     const [nbx, nbz] = nrm[i + 1];
     const L = Math.hypot(bx - ax, bz - az);
-    const u0 = dist / 2;
-    const u1 = (dist + L) / 2;
+    // quays pass 2: 2.5 m a tile along, as the quay setts' picture (paving.ts railSettsPictures; was 2 m)
+    const u0 = dist / 2.5;
+    const u1 = (dist + L) / 2.5;
     dist += L;
     s.quad(
       [ax + nax * o0, 0, az + naz * o0],
