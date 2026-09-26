@@ -45,6 +45,8 @@ export interface CityHouse {
   style?: string;
   roof?: string;
   pitch?: number;
+  /** Pulled down (the churches freed, 2026-09-26): not built, no inside; the entry stays so indexes hold. */
+  gone?: boolean;
 }
 
 /** What a home's room is (shared/homes.ts ClassDef, the part the plan needs). */

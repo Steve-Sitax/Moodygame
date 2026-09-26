@@ -32,6 +32,8 @@ const WINDOWS = [0, 1, 2, 4, 8, 16, 32];
 interface House {
   fp: number[][];
   h: number;
+  /** Pulled down (the churches freed, 2026-09-26): not built. */
+  gone?: boolean;
 }
 
 /**
@@ -40,7 +42,7 @@ interface House {
  */
 export async function buildHeightfield(flags: (x: number, z: number) => number | undefined, waterBits: number, outsideBits: number): Promise<Heightfield> {
   const plan = (await import("../../../shared/city_build.json")).default as unknown as { houses: House[] };
-  const houses = plan.houses.filter((h) => h.fp?.length >= 3 && h.h > 0);
+  const houses = plan.houses.filter((h) => h.fp?.length >= 3 && h.h > 0 && !h.gone);
   let x0 = Infinity;
   let z0 = Infinity;
   let x1 = -Infinity;

@@ -91,10 +91,11 @@ interface Wall {
 let wallCache: Wall[] | null = null;
 async function houseWalls(): Promise<Wall[]> {
   if (wallCache) return wallCache;
-  type H = { rect: boolean; fp: number[][]; o?: number[]; u?: number[]; n?: number[]; s?: number[]; t?: number[]; h: number; style: string };
+  type H = { rect: boolean; fp: number[][]; o?: number[]; u?: number[]; n?: number[]; s?: number[]; t?: number[]; h: number; style: string; gone?: boolean };
   const plan = (await import("../../../shared/city_build.json")).default as unknown as { houses: H[] };
   const out: Wall[] = [];
   plan.houses.forEach((h, hi) => {
+    if (h.gone) return; // (pulled down: not built)
     let ring: number[][];
     if (h.rect && h.o && h.u && h.n && h.s && h.t) {
       const [ox, oz] = h.o, [ux, uz] = h.u, [nx, nz] = h.n;

@@ -1,6 +1,6 @@
 import type { DB } from "../db.ts";
 import { generateTown, tidy, type Resident, type Town } from "./population.ts";
-import { houseDoors, walkMap, type HouseDoor } from "./walkmap.ts";
+import { goneHouses, houseDoors, walkMap, type HouseDoor } from "./walkmap.ts";
 import { HAULS, NIGHT_GIVERS, shownTrade, STALLS, TOWN_EMPLOYERS } from "./places.ts";
 import { GARRISON_TRADES, generateGarrison } from "./garrison.ts";
 import { townSize } from "./popsettings.ts";
@@ -140,19 +140,29 @@ export function repairTown(db: DB): number {
  * no door at its step any more and whose step cannot be walked to gets the nearest free house
  * door of the current city. Everyone who lived at that old step moves together, and a door they
  * worked at at home moves with them. Every other record stays as it was. Returns how many moved.
+ * A home in a house pulled down (city_build.json "gone": the churches freed, 2026-09-26) is lost too,
+ * though its old step now lies on open ground.
  */
+/** The home's house still has its door at the home's step (within a metre) in the current city. */
+export function homeStands(home: Resident["home"]): boolean {
+  const d = houseDoors().find((q) => q.house === home.house);
+  return !!d && Math.hypot(d.sx - home.sx, d.sz - home.sz) < 1;
+}
+
+/**
+ * A home rehomeLost moves: a real house number (not -1, the police post or a place) with no door at its step
+ * now, and either no path to the step or its house pulled down. (Exported for the old-save tests.)
+ */
+export function homeLost(home: Resident["home"]): boolean {
+  return home.house >= 0 && !homeStands(home) && (goneHouses().has(home.house) || !walkMap().nearestOpen(home.sx, home.sz, 1.5));
+}
+
 export function rehomeLost(db: DB): number {
-  const wm = walkMap();
   const doors = houseDoors();
-  const byHouse = new Map(doors.map((d) => [d.house, d]));
   const rows = db.prepare("SELECT id, data_json FROM resident").all() as Array<{ id: string; data_json: string }>;
   const all = rows.map((row) => ({ id: row.id, before: row.data_json, r: JSON.parse(row.data_json) as Resident }));
-  const stands = (r: Resident) => {
-    const d = byHouse.get(r.home.house);
-    return !!d && Math.hypot(d.sx - r.home.sx, d.sz - r.home.sz) < 1;
-  };
-  // lost: a real house number (not -1, the police post or a place) with no door there now, and no path to the step
-  const lost = all.filter(({ r }) => r.home.house >= 0 && !stands(r) && !wm.nearestOpen(r.home.sx, r.home.sz, 1.5));
+  const stands = (r: Resident) => homeStands(r.home);
+  const lost = all.filter(({ r }) => homeLost(r.home));
   if (!lost.length) return 0;
   const lostIds = new Set(lost.map((x) => x.id));
   const houses = new Set(all.filter((x) => !lostIds.has(x.id) && stands(x.r)).map((x) => x.r.home.house));

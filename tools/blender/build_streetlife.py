@@ -1400,7 +1400,7 @@ def city_slots():
 
     def covered(x, z, own):
         for i in grid.get((math.floor(x / 10), math.floor(z / 10)), []):
-            if i == own:
+            if i == own or (i < len(houses) and houses[i].get("gone")):
                 continue
             b = boxes[i]
             if b[0] <= x <= b[2] and b[1] <= z <= b[3] and point_in(polys[i], x, z):
@@ -1411,6 +1411,8 @@ def city_slots():
     walls, corners = [], []
     r2 = lambda v: round(v, 2)  # noqa: E731
     for hi, h in enumerate(houses):
+        if h.get("gone"):
+            continue  # (pulled down: the churches freed, 2026-09-26; build_city.py does not build it)
         H, st = h["h"], h["st"]
         style = STY.get(h["style"], 0)
         store = 1 if h.get("store") else 0
@@ -1494,7 +1496,7 @@ def city_slots():
     poorts = []
     for h in houses:
         pt = h.get("poort")
-        if not pt or not h["rect"]:
+        if not pt or not h["rect"] or h.get("gone"):
             continue
         (ox, oz), (ux, uz), (nx, nz) = h["o"], h["u"], h["n"]
         (p0, p1), (t0, t1) = pt["s"], h["t"]

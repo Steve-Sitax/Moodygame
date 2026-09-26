@@ -405,6 +405,8 @@ interface House {
   style: string;
   seed: number;
   street: number[];
+  /** Pulled down (city_build.json, the churches freed): not built. */
+  gone?: boolean;
 }
 
 /** on, off, morning on, morning off; hours from noon (so 25 = 1:00 at night). 99 = never. */
@@ -460,6 +462,7 @@ function flatWalls(houses: House[]): Set<string> {
   const grid = new Map<string, Array<[number, number, number, number, number]>>();
   const cell = (x: number, z: number) => `${Math.floor(x / 2)},${Math.floor(z / 2)}`;
   rings.forEach((r, hi) => {
+    if (houses[hi].gone) return; // (pulled down: not built, build_city.py)
     for (let i = 0; i < r.length; i++) {
       const [ax, az] = r[i], [bx, bz] = r[(i + 1) % r.length];
       const L = Math.hypot(bx - ax, bz - az);
@@ -475,6 +478,7 @@ function flatWalls(houses: House[]): Set<string> {
   });
   const out = new Set<string>();
   rings.forEach((r, hi) => {
+    if (houses[hi].gone) return;
     for (let i = 0; i < r.length; i++) {
       if (!houses[hi].street[i]) continue;
       const [ax, az] = r[i], [bx, bz] = r[(i + 1) % r.length];
@@ -548,6 +552,8 @@ function buildWindows(houses: House[], gables: Record<string, GableWin[]> = {}, 
   let hi = -1;
   for (const h of houses) {
     hi++;
+    // a house pulled down (the churches freed, 2026-09-26: city_build.json "gone") has no windows
+    if (h.gone) continue;
     // the alleys' cottages have their own small windows (tools/blender/build_city.py): no panes painted on them yet
     if ((h as House & { alley?: boolean }).alley) continue;
     const own = OWN_LIGHT.get(hi);

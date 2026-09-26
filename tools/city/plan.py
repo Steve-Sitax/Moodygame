@@ -407,6 +407,8 @@ def walk_map(city, houses, backs, landmarks):
     """A picture of what you can walk on: R = wall, G = water, B = outside the traced map."""
     from PIL import Image, ImageDraw
 
+    houses = [h for h in houses if not h.get("gone")]  # (the churches freed, 2026-09-26: a house marked gone is not built)
+
     xs = [p[0] for p in city["area"]]
     zs = [p[1] for p in city["area"]]
     x0, x1, z0, z1 = math.floor(min(xs)), math.ceil(max(xs)), math.floor(min(zs)), math.ceil(max(zs))
@@ -644,6 +646,7 @@ def ground_zones(city, houses, landmarks):
     """Split the land into three paving kinds, as in the period photos:
     earth: the working quays along the river and the dock (packed earth, setts, straw);
     flags: the open squares (big flagstones); cobble: the streets and the canal quays."""
+    houses = [h for h in houses if not h.get("gone")]  # (a house marked gone is not built)
     area = Polygon(city["area"])
     water = unary_union([poly_of(w) for w in city["water"]])
     land = area.difference(water).buffer(0)

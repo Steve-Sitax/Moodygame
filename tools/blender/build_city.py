@@ -70,7 +70,8 @@ REVEAL = 0.2  # a door sits this far back in the wall
 WIN_R, SHOP_R = 0.16, 0.12  # how far back in the wall the sash stands (ambient.ts puts the lit pane there)
 UP_U, UP_V = (21 / 64, 43 / 64), (12 / 64, 52 / 64)
 SHOP_U, SHOP_V = (12 / 64, 52 / 64), (12 / 64, 50 / 64)
-SASH = [(4, 0), (5, 0), (6, 0), (7, 0)]  # white frame with lace, cream with curtains, dark green, brown
+SASH = [(4, 0), (5, 0), (6, 0), (7, 0)]
+SASH_CRACKED = (6, 2)  # grime pass 2: a sash with a broken pane and a crack (cityTextures.ts)  # white frame with lace, cream with curtains, dark green, brown
 SHOPWIN = [(4, 1), (5, 1), (6, 1)]  # cream, dark green, brown with wares on a shelf
 DORMWIN = (7, 1)  # a small dormer window
 SHUTTER = [(4, 2), (5, 2)]  # louvred, panelled: grey, the vertex colour paints them
@@ -89,7 +90,17 @@ if os.path.exists(INWORLD_SRC):
         INWORLD[_e["house"]] = _e
 ROOF_CELL = {"tile": (0, 0), "slate": (1, 0), "flat": (0, 1), "lead": (1, 1)}
 
-MAT_FACADE, MAT_ROOF, MAT_STONE, MAT_WOOD, MAT_LEAF = 0, 1, 2, 3, 4
+MAT_FACADE, MAT_ROOF, MAT_STONE, MAT_WOOD, MAT_LEAF, MAT_GRIME = 0, 1, 2, 3, 4, 5
+# M7 grime pass 2 (Steve: "misty, darker, grimy ... rust, soot, clutter, dirt"): decals of the "grime" material, a
+# see-through, depth-less layer 6 mm off the wall (city.ts: polygon offset), cells of cityTextures.ts grimeDecals
+RUST, SOOT, DAMP, CORNER, BLOB = (0, 0), (1, 0), (2, 0), (3, 0), (0, 1)
+# (the decal's colour, laid over the wall as much as the cell's alpha and the house's wear say; linear light)
+GRIME_TINT = {RUST: (0.2, 0.065, 0.018), SOOT: (0.012, 0.011, 0.01), DAMP: (0.025, 0.03, 0.016), CORNER: (0.02, 0.018, 0.016), BLOB: (0.01, 0.009, 0.008)}
+# the churches freed (2026-09-26): the ghost of a house pulled down on its neighbour's bared party wall (ghost_marks):
+# the old rooms' plaster left on the brick (GHOST, tiling), the floor and joist lines (LINE), wallpaper scraps (SCRAP)
+GHOST, LINE, SCRAP = (1, 1), (2, 1), (3, 1)
+GRIME_TINT.update({GHOST: (0.21, 0.18, 0.145), LINE: (0.03, 0.027, 0.024), SCRAP: (0.3, 0.2, 0.17)})
+WALLPAPER = [(0.32, 0.2, 0.18), (0.2, 0.26, 0.19), (0.19, 0.22, 0.28), (0.33, 0.3, 0.2), (0.28, 0.22, 0.25)]
 
 
 def B(x, y, z):
@@ -103,6 +114,7 @@ class Builder:
         self.uv = self.bm.loops.layers.uv.new("UVMap")
         self.cell = self.bm.loops.layers.uv.new("Cell")
         self.col = self.bm.loops.layers.float_color.new("Col")
+        self.mcol = self.bm.loops.layers.uv.new("Mat")
         self.gh = ground_h
         self.sh = storey_h
         self.tint = (1, 1, 1)
@@ -116,7 +128,10 @@ class Builder:
         self.duv = self.dbm.loops.layers.uv.new("UVMap")
         self.dcell = self.dbm.loops.layers.uv.new("Cell")
         self.dcol = self.dbm.loops.layers.float_color.new("Col")
-        self.base = (self.bm, self.uv, self.cell, self.col)
+        self.dmcol = self.dbm.loops.layers.uv.new("Mat")
+        self.base = (self.bm, self.uv, self.cell, self.col, self.mcol)
+        # the districts pass: the house's wall picture (a layer of houseGrime.ts's picture array) and its paint
+        self.wallmat = (1, 0)
         self.ds = None  # the house's front dress (dress_of), None: as before (backs, cottages)
         # M7 the grime pass: how worn the house is, 0 kept well .. 1 black with dirt; in the vertex colour's alpha,
         # which the game's house materials read (world/houseGrime.ts)
@@ -126,12 +141,18 @@ class Builder:
         self.quoins = None  # the wall being built: (its start, its end) are outer corners of the house
         self.qends = (False, False)
 
+    def matcol(self):
+        """The "Mat" uv (TEXCOORD_2 in the glTF; a colour layer would upset the order of the exported colour sets):
+        u the wall picture's layer, v its paint (an index of houseGrime.ts PAINT)."""
+        layer, paint = self.wallmat
+        return (float(layer), float(paint))
+
     def detail(self, on=True):
         """Build into the near-only detail mesh (on) or the chunk's own mesh (off)."""
         if on:
-            self.bm, self.uv, self.cell, self.col = self.dbm, self.duv, self.dcell, self.dcol
+            self.bm, self.uv, self.cell, self.col, self.mcol = self.dbm, self.duv, self.dcell, self.dcol, self.dmcol
         else:
-            self.bm, self.uv, self.cell, self.col = self.base
+            self.bm, self.uv, self.cell, self.col, self.mcol = self.base
 
     def face(self, pts, mat, uvs, cell, outward, shade=None, vshade=None):
         """pts: world points (x, y, z); outward: world vector the face must look along.
@@ -157,6 +178,7 @@ class Builder:
             y = pts[i][1]
             g = vshade[i] if vshade is not None else shade if shade is not None else 0.66 + 0.34 * min(1.0, y / 9.0)
             loop[self.col] = (self.tint[0] * g, self.tint[1] * g, self.tint[2] * g, self.wear)
+            loop[self.mcol].uv = self.matcol()
         return f
 
     # ---------------------------------------------------------------- walls
@@ -195,7 +217,8 @@ class Builder:
         qs = self.quoins or (False, False)
         self.qends = (False, False)
         # (not on a short front: a street's name plate, 2 m and more, must still find room by the corner)
-        if self.ds is not None and self.prime and self.ds["plaster"] and not self.ds["store"] and y0 == 0 and y1 > 3 and L >= 4.0:
+        fine_ = self.ds is not None and self.ds.get("klass") in ("fine", "good")
+        if self.ds is not None and self.prime and (self.ds["plaster"] or fine_) and not self.ds["store"] and y0 == 0 and y1 > 3 and L >= 4.0:
             near = [o["s"] + sg * (o["w"] / 2 + o.get("J", 0.2)) for o in (door or []) for sg in (-1, 1)]
             self.qends = (qs[0] and not any(e < 0.5 for e in near), qs[1] and not any(e > L - 0.5 for e in near))
         row = STYLE_ROW[style]
@@ -268,6 +291,16 @@ class Builder:
                     self.quoins_at(Wq, ux, uz, facing, L, end, y1)
             if self.ds["store"]:
                 self.plinth(Wq, ux, uz, facing, L, door or [])
+            elif self.ds.get("klass") in ("fine", "good") and y1 > 3:
+                # the districts pass: a stone plinth under the fine fronts, on the piers between the openings
+                bays_ = max(1, round(L / BAY))
+                bw_ = L / bays_
+                cuts = list(door or [])
+                for k in range(bays_):
+                    s_ = (k + 0.5) * bw_
+                    if not any(abs(o["s"] - s_) < bw_ / 2 for o in cuts):
+                        cuts.append({"s": s_, "w": bw_ * 40 / 64 + 0.4, "J": 0.0})
+                self.plinth(Wq, ux, uz, facing, L, cuts, top=0.5)
             # a lantern by the front door of some houses (not by a door the game hangs: the taverns' signs are there)
             if self.ds["lantern"] and not holes:
                 for o in door or []:
@@ -280,6 +313,27 @@ class Builder:
                                 break
                         break
             self.detail(False)
+        if street and y0 == 0 and self.ds is not None and L > 1.5:
+            # (grime pass 2) grime down the corners of every front; soot up the fronts of the ovens and forges
+            ux, uz = (b[0] - a[0]) / L, (b[1] - a[1]) / L
+            fx, fz = facing[0], facing[2]
+
+            def Wc(s_, y, d=0.0):
+                return (a[0] + ux * s_ + fx * d, y, a[1] + uz * s_ + fz * d)
+            top = y1 - 0.42
+            near = [o["s"] + sg * (o["w"] / 2 + o.get("J", 0.2)) for o in (door or []) for sg in (-1, 1)]
+            if not any(e < 0.6 for e in near):
+                self.decal(Wc, 0.0, 0.5, 0.0, top, CORNER, facing)
+            if not any(e > L - 0.6 for e in near):
+                self.decal(Wc, L - 0.5, L, 0.0, top, CORNER, facing, flip=True)
+            mx, mz = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
+            if y1 > 5 and any(math.hypot(mx - sx_, mz - sz_) < L / 2 + 2.5 and abs((sx_ - a[0]) * fx + (sz_ - a[1]) * fz) < 4 for sx_, sz_ in SOOTY):
+                bays_ = max(1, round(L / BAY))
+                bw_ = L / bays_
+                for k in range(1, bays_):
+                    self.decal(Wc, k * bw_ - 0.5, k * bw_ + 0.5, 3.3, y1 - 0.3, SOOT, facing)
+                if bays_ == 1:
+                    self.decal(Wc, 0.15, L - 0.15, 3.3, y1 - 0.3, SOOT, facing)
         if self.pipe and y0 == 0 and self.ds is not None and self.prime and not all(self.qends):
             # the downpipe near the wall's far end, where no doorway or passage is near (the other end if the
             # far one has quoins)
@@ -292,7 +346,7 @@ class Builder:
                     and not any(math.hypot(px - dd["x"], pz - dd["z"]) < dd.get("width", 2) / 2 + 1.0 for dd in PRIME["doors"])):
                 fx, fz = facing[0], facing[2]
                 self.downpipe(lambda s_, y, d=0.0: (a[0] + ux * s_ + fx * d, y, a[1] + uz * s_ + fz * d), ux, uz, facing, s,
-                              self.pipe["top"], KERB_H if kerb else 0.0)
+                              self.pipe["top"], KERB_H if kerb else 0.0, L)
         self.holes = []
         self.ds = keep_ds
 
@@ -510,13 +564,16 @@ class Builder:
                     self.face([W(sc, ys, d), W(s1, y1, d), W(s2, y2, d)], MAT_FACADE,
                               [(0.5, 0), ((s1 - left) / w, (y1 - ys) / r), ((s2 - left) / w, (y2 - ys) / r)], FANLIGHT, f, 0.95)
         # the surround: jambs of two or three dressed stones on each side
+        fine_door = o["kind"] == "house" and not o.get("open") and self.ds is not None and self.ds.get("klass") == "fine"
+        if o["kind"] == "house" and not o.get("open") and self.ds is not None and self.ds.get("klass") in ("fine", "good"):
+            self.door_steps(W, ux, uz, f, o, stone)
         nb = 3 if ys > 2.4 else 2
         for j0, j1 in ((left - J, left), (right, right + J)):
             self.slab(W, ux, uz, f, j0, j1, 0, ys, 0, P, stone, nb)
         if o["top"] == "flat":
             lw = w + 2 * J + 0.08
             self.slab(W, ux, uz, f, sc - lw / 2, sc + lw / 2, ys, ys + 0.3, 0, P + 0.01, stone)
-            if o["hood"]:  # a drip moulding along the top of the lintel
+            if o["hood"] or fine_door:  # a drip moulding along the top of the lintel
                 self.slab(W, ux, uz, f, sc - lw / 2 - 0.06, sc + lw / 2 + 0.06, ys + 0.3, ys + 0.38, 0, P + 0.1, stone * 1.05)
             return
         # the arch ring: one flush band of voussoirs from jamb to jamb
@@ -531,7 +588,7 @@ class Builder:
                       [(0, 0), (0.1, 0), (0.1, P / BAY), (0, P / BAY)], (0, 0), (ux * om, oy, uz * om), g * 0.9)
             self.face([W(s1, y1, 0), W(s2, y2, 0), W(s2, y2, P), W(s1, y1, P)], MAT_STONE,
                       [(0, 0), (0.1, 0), (0.1, P / BAY), (0, P / BAY)], (0, 0), (-ux * om, -oy, -uz * om), g * 0.75)
-        if o["key"]:
+        if o["key"] or fine_door:
             kw = 0.17 if o["kind"] == "gate" else 0.12
             # 8 cm proud of the ring: at 3 cm its face lay over the ring's and the wobble made them fight (z-fight check)
             self.slab(W, ux, uz, f, sc - kw, sc + kw, apex - 0.02, apex + J + 0.04, 0, P + 0.08, stone * 1.05)
@@ -828,7 +885,8 @@ class Builder:
             # (no end faces on the sill and the flat lintel: 10 cm of stone seen edge on). Over the painted sill
             # of the far-off wall: 2/64 of a bay past the window, 0.14 m down
             ex = bw * 2 / 64 + 0.01
-            self.slab(W, ux, uz, f, s0 - ex, s1 + ex, y0 - 0.145, y0, 0, 0.1, st * 0.9, under=True, ends=False)
+            if not o.get("balcony"):  # (a balcony's floor is its sill)
+                self.slab(W, ux, uz, f, s0 - ex, s1 + ex, y0 - 0.145, y0, 0, 0.1, st * 0.9, under=True, ends=False)
             keep = ds["head"]
             if o.get("j") == 0:
                 ds["head"] = ds["head1"]  # (the first floor's windows may wear another head)
@@ -837,8 +895,12 @@ class Builder:
             r = ds["rng"]
             if ds["shutters"] and not o.get("small"):
                 mode = ds["shutmode"] if r.random() > 0.12 else "closed"
+                if o.get("boards"):
+                    mode = "open"
                 self.shutters(W, ux, uz, f, s0, s1, y0, y1, bw, mode)
-            if ds["boxes"] and o.get("j", 9) <= 1 and r.random() < 0.6:
+            if o.get("balcony"):
+                self.balcony(W, ux, uz, f, s0, s1, y0)
+            elif ds["boxes"] and o.get("j", 9) <= 1 and r.random() < 0.6:
                 self.window_box(W, ux, uz, f, s0, s1, y0)
         self.detail(False)
 
@@ -902,13 +964,70 @@ class Builder:
             leaves = [(s0 - 0.03 - w, s0 - 0.03, 0.0, 1.0), (s1 + 0.03, s1 + 0.03 + w, 1.0, 0.0)]
         elif mode == "half":
             leaves = [(s1 + 0.03, s1 + 0.03 + w, 1.0, 0.0)]
-        for l0, l1, u0, u1 in leaves:
-            self.face([W(l0, ya, d1), W(l1, ya, d1), W(l1, yb, d1), W(l0, yb, d1)], MAT_FACADE,
+        # (grime pass 2) on a worn house a leaf gone, or hanging from its top hinge, tipped out of true
+        r = ds["rng"]
+        tip = [0.0] * len(leaves)
+        if self.wear > 0.7 and leaves and r.random() < 0.14:
+            if r.random() < 0.5 and len(leaves) > 1:
+                leaves = leaves[:1]
+            else:
+                tip[0] = r.choice([-1, 1]) * r.uniform(0.07, 0.14)
+        for (l0, l1, u0, u1), a in zip(leaves, tip):
+            # the hinge side (next to the window) stays; a tipped leaf turns round its top hinge in the wall's plane
+            hs_ = l1 if u0 == 0.0 else l0
+            def rot(s_, y_, a=a, hs_=hs_):
+                ds_, dy = s_ - hs_, y_ - yb
+                return hs_ + ds_ * math.cos(a) - dy * math.sin(a), yb + ds_ * math.sin(a) + dy * math.cos(a)
+            c = [rot(l0, ya), rot(l1, ya), rot(l1, yb), rot(l0, yb)]
+            self.face([W(sv, yv, d1) for sv, yv in c], MAT_FACADE,
                       [(u0, 0), (u1, 0), (u1, 1), (u0, 1)], ds["shutter"], f, 0.95)
-            for se, sgn in ((l0, -1), (l1, 1)):
-                self.face([W(se, ya, d0), W(se, ya, d1), W(se, yb, d1), W(se, yb, d0)], MAT_FACADE,
+            for (pa, pb), sgn in (((c[0], c[3]), -1), ((c[1], c[2]), 1)):
+                self.face([W(pa[0], pa[1], d0), W(pa[0], pa[1], d1), W(pb[0], pb[1], d1), W(pb[0], pb[1], d0)], MAT_FACADE,
                           [(0.02, 0.02), (0.04, 0.02), (0.04, 0.98), (0.02, 0.98)], ds["shutter"], (ux * sgn, 0, uz * sgn), 0.7)
+            # rust runs from the two hinges (on the wall beside the window)
+            if self.wear > 0.45:
+                for hy in (ya + 0.25, yb - 0.12):
+                    e0, e1 = (hs_ - 0.06, hs_ + 0.02) if u0 == 0.0 else (hs_ - 0.02, hs_ + 0.06)  # (off the window)
+                    self.decal(W, e0, e1, hy - 0.4, hy + 0.02, RUST, f)
         self.tint = keep
+
+    def boards(self, W, ux, uz, f, o):
+        """Planks nailed over a window, in its opening: three across and one aslant."""
+        s0, s1, y0, y1 = o["s0"], o["s1"], o["y0"], o["y1"]
+        keep = self.tint
+        self.tint = (0.55, 0.48, 0.4)
+        h = y1 - y0
+        for k, (a, b_) in enumerate(((0.12, 0.3), (0.42, 0.6), (0.72, 0.9))):
+            ya, yb = y0 + h * a, y0 + h * b_
+            # (the planks across 7.5 cm back, the one aslant 2 cm back: 5.5 cm apart, never in one plane)
+            self.face([W(s0 + 0.004, ya, -0.075), W(s1 - 0.004, ya, -0.075), W(s1 - 0.004, yb, -0.075), W(s0 + 0.004, yb, -0.075)], MAT_WOOD,
+                      [(0, 0), (1.2, 0), (1.2, 0.12), (0, 0.12)], (0, 0), f, 0.75 + 0.1 * k)
+        dy = 0.1
+        self.face([W(s0 + 0.004, y0 + 0.1, -0.02), W(s0 + 0.004, y0 + 0.1 + dy * 2, -0.02), W(s1 - 0.004, y1 - 0.1, -0.02), W(s1 - 0.004, y1 - 0.1 - dy * 2, -0.02)],
+                  MAT_WOOD, [(0, 0), (0, 0.12), (1.5, 0.12), (1.5, 0)], (0, 0), f, 0.6)
+        self.tint = keep
+
+    def balcony(self, W, ux, uz, f, s0, s1, y0):
+        """A stone balcony before a first-floor window: a stone slab, an iron railing. Its underside at 4.21 m, over
+        the signs' band (no consoles under it: they would reach into the band where the shop boards go)."""
+        st = self.ds["stone"]
+        a, b_, d = s0 - 0.35, s1 + 0.35, 0.65
+        ya, yb = max(4.21, y0 - 0.14), y0 - 0.01
+        self.slab(W, ux, uz, f, a, b_, ya, yb, 0, d, st, under=True)
+        iron = 0.16
+        y2 = yb + 0.9
+        self.rod(W(a + 0.04, y2, d - 0.05), W(b_ - 0.04, y2, d - 0.05), 0.04, iron)
+        self.rod(W(a + 0.04, yb + 0.12, d - 0.05), W(b_ - 0.04, yb + 0.12, d - 0.05), 0.025, iron)
+        for sd in (a + 0.04, b_ - 0.04):
+            self.rod(W(sd, y2, 0.05), W(sd, y2, d - 0.05), 0.03, iron)
+            self.rod(W(sd, yb + 0.12, 0.05), W(sd, yb + 0.12, d - 0.05), 0.02, iron)
+        s = a + 0.04
+        while s <= b_ - 0.04 + 1e-6:
+            self.rod(W(s, yb, d - 0.05), W(s, y2, d - 0.05), 0.02, iron)
+            s += 0.12
+        for dd in (0.2, 0.4):
+            for sd in (a + 0.04, b_ - 0.04):
+                self.rod(W(sd, yb, dd), W(sd, y2, dd), 0.02, iron)
 
     def window_box(self, W, ux, uz, f, s0, s1, y0):
         """A flower box on a sill: a painted wooden box standing on it and out over its edge, flowers in it."""
@@ -932,15 +1051,15 @@ class Builder:
                       [(0, 0), (0.1, 0), (0.1, 0.2), (0, 0.2)], (0, 0), (ux * sg, 0, uz * sg), 0.8)
         self.tint = keep
 
-    def lantern(self, W, ux, uz, f, s):
+    def lantern(self, W, ux, uz, f, s, dy=0.0):
         """An iron lantern on an arm by a door: a wall plate, the arm, the lamp with its glass; (x, y, z) of
-        its glass for ambient.ts, which lights it at night."""
+        its glass for ambient.ts, which lights it at night. dy: that much higher (a church door)."""
         iron = 0.18
-        self.slab(W, ux, uz, f, s - 0.06, s + 0.06, 2.55, 2.95, 0, 0.07, iron)
+        self.slab(W, ux, uz, f, s - 0.06, s + 0.06, 2.55 + dy, 2.95 + dy, 0, 0.07, iron)
         fx, fz = f[0], f[2]
-        self.rod(W(s, 2.85, 0.07), W(s, 2.85, 0.42), 0.035, iron)
-        self.rod(W(s, 2.6, 0.07), W(s, 2.83, 0.4), 0.025, iron)
-        cx, cy, cz = W(s, 2.66, 0.42)
+        self.rod(W(s, 2.85 + dy, 0.07), W(s, 2.85 + dy, 0.42), 0.035, iron)
+        self.rod(W(s, 2.6 + dy, 0.07), W(s, 2.83 + dy, 0.4), 0.025, iron)
+        cx, cy, cz = W(s, 2.66 + dy, 0.42)
         self.box(cx, cy + 0.13, cz, 0.24, 0.06, 0.24, ux, uz, MAT_STONE, (0, 0), iron, bottom=True)  # the cap
         keep = self.tint
         self.tint = (1.0, 0.86, 0.6)
@@ -975,18 +1094,49 @@ class Builder:
         """Quoins up one outer corner of a front (end 0: its start, 1: its end), 7 cm proud: long and short
         stones in turn; a long one runs on past the corner over the other face's short one."""
         st = self.ds["stone"]
-        y, k = 0.5, 0
+        if self.ds.get("pilaster"):
+            self.pilaster_at(W, ux, uz, f, L, end, top)
+            return
+        fine_ = self.ds.get("klass") in ("fine", "good")
+        y, k = (0.52 if fine_ else 0.5), 0  # (over the fine fronts' plinth, 0.5 m)
         ytop = top - 0.42
-        while y + 0.28 <= ytop:
+        hk = 0.36 if fine_ else 0.28  # (the fine fronts: taller, rusticated stones, 9 cm proud)
+        pr = 0.09 if fine_ else 0.07
+        while y + hk <= ytop:
             long_ = (k + end) % 2 == 0
             ln = 0.3 if long_ else 0.2  # (0.3: a bracket sign's plate 0.5 m from the corner stays clear)
-            ext = 0.07 if long_ else 0.0
+            ext = pr if long_ else 0.0
             sa, sb = (-ext, ln) if end == 0 else (L - ln, L + ext)
-            self.slab(W, ux, uz, f, sa, sb, y, y + 0.28, 0, 0.07, st * (1.0 if long_ else 0.93), under=True)
-            y += 0.3
+            self.slab(W, ux, uz, f, sa, sb, y, y + hk, 0, pr, st * (1.0 if long_ else 0.93), under=True)
+            y += hk + 0.02
             k += 1
 
-    def plinth(self, W, ux, uz, f, L, ops):
+    def pilaster_at(self, W, ux, uz, f, L, end, top):
+        """The districts pass: a flat stone pilaster up one outer corner of a fine front, a base and a capital. At
+        a corner the start's pilaster runs on past it over the end of the other face's (like a long quoin)."""
+        st = self.ds["stone"]
+        y0, yt = 0.52, top - 0.42
+        if yt - y0 < 2.0:
+            return
+        for (ya, yb, wd, pr, g) in ((y0, y0 + 0.4, 0.4, 0.13, 0.95), (y0 + 0.4, yt - 0.34, 0.34, 0.08, 1.0),
+                                    (yt - 0.34, yt - 0.22, 0.4, 0.12, 1.05), (yt - 0.22, yt, 0.44, 0.16, 1.1)):
+            ext = pr if end == 0 else 0.0
+            sa, sb = (-ext, wd) if end == 0 else (L - wd, L)
+            self.slab(W, ux, uz, f, sa, sb, ya, yb, 0, pr, st * g, under=True)
+
+    def door_steps(self, W, ux, uz, f, o, stone):
+        """The districts pass: a bluestone step before the door of a fine or a good house (from the pavement up to
+        the door's sill), and on a fine front consoles under the lintel's hood."""
+        lw = o["w"] + 2 * o["J"] + 0.12
+        sc = o["s"]
+        self.slab(W, ux, uz, f, sc - lw / 2, sc + lw / 2, KERB_H, o["hs"], 0.1, 0.42, 0.6)
+        if self.ds.get("klass") == "fine" and o["top"] == "flat":
+            ys = o["ys"]
+            for sg in (-1, 1):
+                c = sc + sg * (o["w"] / 2 + o["J"] / 2)
+                self.slab(W, ux, uz, f, c - 0.07, c + 0.07, ys - 0.26, ys, 0, 0.16, stone * 1.08, under=True)
+
+    def plinth(self, W, ux, uz, f, L, ops, top=0.55):
         """A plinth of blue stone at the foot of a storehouse front, broken at its gates and doors."""
         cuts = sorted((o["s"] - o["w"] / 2 - o.get("J", 0.2) - 0.02, o["s"] + o["w"] / 2 + o.get("J", 0.2) + 0.02) for o in ops)
         s, runs = 0.05, []
@@ -997,7 +1147,7 @@ class Builder:
         if L - 0.05 > s + 0.2:
             runs.append((s, L - 0.05))
         for r0, r1 in runs:
-            self.slab(W, ux, uz, f, r0, r1, KERB_H, 0.55, 0, 0.06, 0.62, blocks=1)
+            self.slab(W, ux, uz, f, r0, r1, KERB_H, top, 0, 0.06, 0.62, blocks=1)
 
     def gable_front(self, h, P, s0, s1, tt, H, pts, style, out):
         """M7 quays pass 2 (second pass): the front of a stepped or spout gable with its windows cut in (a sash,
@@ -1124,7 +1274,10 @@ class Builder:
                 s0, s1 = i * bw + bw * UP_U[0], i * bw + bw * UP_U[1]
                 if any(s0 < k + 1.05 and k - 1.05 < s1 for k in lds):
                     continue  # (ambient.ts lights no pane there either)
-                ops.append({"s0": s0, "s1": s1, "y0": wy0, "y1": wy1, "kind": "win", "j": j})
+                ops.append({"s0": s0, "s1": s1, "y0": wy0, "y1": wy1, "kind": "win", "j": j,
+                            # (the districts pass: a balcony before the first floor's middle window of some fine fronts)
+                            "balcony": j == 0 and i == bays // 2 and bays >= 3 and self.ds.get("klass") == "fine"
+                            and self.ds["rng"].random() < 0.5 and not self.ds["store"]})
             ycut = min(yb, base + sh)
             j += 1
         if ycut > ya + 0.01:
@@ -1141,7 +1294,15 @@ class Builder:
             if o["kind"] == "load":
                 self.dress_open(W, ux, uz, f, o, 0.14, LOADING)
             else:
-                self.dress_open(W, ux, uz, f, o, WIN_R, self.ds["sash"])
+                # (grime pass 2) the poorest houses: now and then a cracked pane, or boards over a window
+                bad = None
+                if self.wear > 0.86 and not self.ds["store"]:
+                    x = self.ds["rng"].random()
+                    bad = "boards" if x < 0.06 else "cracked" if x < 0.16 else None
+                self.dress_open(W, ux, uz, f, o, WIN_R, SASH_CRACKED if bad == "cracked" else self.ds["sash"])
+                if bad == "boards":
+                    self.boards(W, ux, uz, f, o)
+                    o["boards"] = True  # (its shutters stand open: shut, they would lie on the planks)
                 # (the head stops under the next storey's band and sill)
                 if self.prime:
                     self.dress_detail(W, ux, uz, f, o, min(self.lim, o["y0"] + sh - 0.52), bw)
@@ -1190,6 +1351,22 @@ class Builder:
             j += 1
         self.detail(False)
 
+    def decal(self, W, s0, s1, y0, y1, cell, f, flip=False, d=0.006):
+        """A grime decal on a wall (W(s, y, d)): cell's picture over s0..s1 x y0..y1, 6 mm out, tinted."""
+        keep = self.tint
+        self.tint = GRIME_TINT[cell]
+        u0, u1 = (0.99, 0.01) if flip else (0.01, 0.99)
+        self.face([W(s0, y0, d), W(s1, y0, d), W(s1, y1, d), W(s0, y1, d)], MAT_GRIME,
+                  [(u0, 0.01), (u1, 0.01), (u1, 0.99), (u0, 0.99)], cell, f, 1.0)
+        self.tint = keep
+
+    def roof_soot(self, pts, out):
+        """A soot blob on a roof round a chimney: four world points (x, y, z) on the roof, 1.2 cm over it."""
+        keep = self.tint
+        self.tint = GRIME_TINT[BLOB]
+        self.face([(p[0], p[1] + 0.012, p[2]) for p in pts], MAT_GRIME, [(0.01, 0.01), (0.99, 0.01), (0.99, 0.99), (0.01, 0.99)], BLOB, out, 1.0)
+        self.tint = keep
+
     def anchor(self, W, ux, uz, f, s, y, cross):
         """A wall anchor, the end of an iron tie to a floor beam: an upright bar, or a cross (storehouses)."""
         iron = 0.2
@@ -1199,6 +1376,8 @@ class Builder:
         else:
             self.slab(W, ux, uz, f, s - 0.025, s + 0.025, y - 0.3, y + 0.3, 0, 0.045, iron, top=False)
         self.slab(W, ux, uz, f, s - 0.045, s + 0.045, y - 0.045, y + 0.045, 0, 0.075, iron * 1.3)
+        # (grime pass 2) the rust run down from it
+        self.decal(W, s - 0.09, s + 0.09, y - (1.0 if cross else 0.95), y + 0.02, RUST, f)
 
     def strip(self, W, ux, uz, f, p0, p1, w, t, shade, mat=MAT_STONE):
         """A bar lying on the wall from p0 to p1 ((s, y) on it), w wide, its face t out: the face and its long edges."""
@@ -1211,7 +1390,7 @@ class Builder:
             self.face([W(qa[0], qa[1], 0), W(qb[0], qb[1], 0), W(qb[0], qb[1], t), W(qa[0], qa[1], t)], mat,
                       [(0, 0), (0.1, 0), (0.1, 0.02), (0, 0.02)], (0, 0), (ux * ns * sg, ny * sg, uz * ns * sg), shade * 0.8)
 
-    def downpipe(self, W, ux, uz, f, s, top, bottom):
+    def downpipe(self, W, ux, uz, f, s, top, bottom, L=99.0):
         """A rainwater pipe from the hopper under the cornice down to the kerb, on brackets (near-only)."""
         self.detail(True)
         zinc = 0.3
@@ -1221,7 +1400,11 @@ class Builder:
         y = 1.1
         while y < top - 0.8:
             self.slab(W, ux, uz, f, s - 0.07, s + 0.07, y, y + 0.035, 0, 0.08, zinc * 0.8, under=True, top=False, ends=False)
+            self.decal(W, s - 0.08, s + 0.08, y - 0.5, y + 0.02, RUST, f)  # (grime pass 2)
             y += 2.4
+        # (grime pass 2) damp round its foot, where it overflows, and under the hopper
+        self.decal(W, max(0.02, s - 0.25), min(L - 0.02, s + 0.25), bottom, bottom + 1.5, DAMP, f)
+        self.decal(W, max(0.02, s - 0.3), min(L - 0.02, s + 0.3), top - 1.5, top - 0.2, DAMP, f)
         self.detail(False)
 
     def ledge(self, ring, outs, flags, layers, inner=0.0, shade=0.85, mat=MAT_STONE, back=False, under_from=None, cell=(0, 0)):
@@ -1290,14 +1473,15 @@ class Builder:
         finds a chimney: stone, cell (1, 0), 0.8 to 1.3 m across), and pots on it."""
         r = self.ds["rng"] if self.ds else random.Random(round(cx * 977 + cz * 131))
         row = r.choice([0, 0, 3])
-        self.box(cx, (y0 + top) / 2, cz, sx, top - y0, sz, ux, uz, MAT_FACADE, (PART_COL["blind"], row), 0.85, skip=(0, 1, 0))
-        self.box(cx, top + 0.06, cz, sx + 0.12, 0.12, sz + 0.12, ux, uz, MAT_STONE, (1, 0), 0.8, bottom=True)
+        # (grime pass 2: stack and cap black with soot, the pots too)
+        self.box(cx, (y0 + top) / 2, cz, sx, top - y0, sz, ux, uz, MAT_FACADE, (PART_COL["blind"], row), 0.5, skip=(0, 1, 0))
+        self.box(cx, top + 0.06, cz, sx + 0.12, 0.12, sz + 0.12, ux, uz, MAT_STONE, (1, 0), 0.32, bottom=True)
         n = r.choice([1, 2, 2, 3])
         nx, nz = -uz, ux
         long_u = sx >= sz
         span = (sx if long_u else sz) - 0.3
         keep = self.tint
-        self.tint = r.choice([(0.95, 0.56, 0.4), (0.85, 0.5, 0.38), (0.7, 0.66, 0.62)])
+        self.tint = r.choice([(0.55, 0.3, 0.2), (0.45, 0.26, 0.2), (0.35, 0.33, 0.31)])
         self.detail(True)  # (the pots are for near: far off the cap is the chimney's top)
         for i in range(n):
             off = 0 if n == 1 else -span / 2 + span * i / (n - 1)
@@ -1448,12 +1632,105 @@ class Builder:
 
     # ---------------------------------------------------------------- houses
 
+    def ghost_marks(self, a, b, out, ghosts, top):
+        """The churches freed (2026-09-26): on a party wall bared by a house pulled down, the ghost of that house:
+        its rooms' old plaster left on the brick up to its eaves (and its gable, where its roof ran across the
+        wall), dark lines where its roof, floors and joists sat, the soot of its fireplaces and flue, scraps of its
+        wallpaper, and the iron anchors of its beams. Decals (no depth, pulled forward), as the grime."""
+        L = math.hypot(b[0] - a[0], b[1] - a[1])
+        ux, uz = (b[0] - a[0]) / L, (b[1] - a[1]) / L
+        fx, fz = out[0], out[2]
+
+        def W(s_, y, d=0.0):
+            return (a[0] + ux * s_ + fx * d, y, a[1] + uz * s_ + fz * d)
+        keep_t, keep_w = self.tint, self.wear
+        cap = top - 0.35
+        for s0, s1, g, rise in ghosts:
+            r = random.Random(g["seed"] * 7 + 3)
+            Hg = min(g["h"], cap)
+            if Hg < 2.5:
+                continue
+            # the outline: up to its eaves, and its gable over them (cut off under this house's own top)
+            pts = [(s0, 0.2), (s1, 0.2), (s1, Hg)]
+            mid = (s0 + s1) / 2
+            if rise > 0.3:
+                apex = Hg + rise
+                if apex <= cap:
+                    pts.append((mid, apex))
+                else:
+                    k = (cap - Hg) / rise
+                    pts += [(s1 - (s1 - mid) * k, cap), (s0 + (mid - s0) * k, cap)]
+            pts.append((s0, Hg))
+            self.wear = 0.8
+            self.tint = GRIME_TINT[GHOST]
+            self.face([W(s_, y, 0.006) for s_, y in pts], MAT_GRIME, [(s_ / 2.3, y / 2.3) for s_, y in pts], GHOST, out, 1.0)
+            # the roof's line: a dark band along the outline's top (the old flashing and the rafters' ends)
+            self.tint = GRIME_TINT[LINE]
+            top_pts = pts[2:]
+            for (p0, q0), (p1, q1) in zip(top_pts, top_pts[1:]):
+                ln = max(0.1, math.hypot(p1 - p0, q1 - q0)) / 1.5
+                self.face([W(p0, q0 - 0.18, 0.008), W(p1, q1 - 0.18, 0.008), W(p1, q1 + 0.06, 0.008), W(p0, q0 + 0.06, 0.008)], MAT_GRIME,
+                          [(0, 0.01), (ln, 0.01), (ln, 0.99), (0, 0.99)], LINE, out, 1.0)
+            # its floors: a dark line where each floor's joists sat in the wall
+            floors = [self.gh + k * self.sh for k in range(max(1, g["st"]) - 1)]
+            floors = [y for y in floors if y < Hg - 0.5]
+            for y in floors:
+                self.face([W(s0 + 0.1, y - 0.16, 0.008), W(s1 - 0.1, y - 0.16, 0.008), W(s1 - 0.1, y + 0.1, 0.008), W(s0 + 0.1, y + 0.1, 0.008)],
+                          MAT_GRIME, [(0, 0.01), ((s1 - s0) / 1.5, 0.01), ((s1 - s0) / 1.5, 0.99), (0, 0.99)], LINE, out, 1.0)
+            self.detail(True)
+            # its chimney breast: the flue's soot up the wall, a fireplace's soot on every floor
+            fs = s0 + (s1 - s0) * r.uniform(0.35, 0.65)
+            fl_top = Hg
+            if rise > 0.3:
+                fl_top = min(cap, Hg + rise * max(0.0, 1 - abs(fs - mid) / max(0.1, (s1 - s0) / 2)))
+            self.tint = GRIME_TINT[SOOT]
+            self.face([W(fs - 0.28, 0.9, 0.009), W(fs + 0.28, 0.9, 0.009), W(fs + 0.28, fl_top, 0.009), W(fs - 0.28, fl_top, 0.009)], MAT_GRIME,
+                      [(0.2, 0.3), (0.8, 0.3), (0.8, 0.7), (0.2, 0.7)], SOOT, out, 1.0)
+            for y in [0.0] + floors:
+                self.decal(W, fs - 0.6, fs + 0.6, y + 0.1, y + 1.5, SOOT, out, d=0.010)
+            # scraps of wallpaper, a few to a room, each room its own paper
+            for y in [0.0] + floors:
+                paper = r.choice(WALLPAPER)
+                for _ in range(r.randint(1, 3)):
+                    w_ = r.uniform(0.4, 1.3)
+                    h_ = r.uniform(0.5, 1.4)
+                    c = r.uniform(s0 + 0.4 + w_ / 2, max(s0 + 0.5 + w_ / 2, s1 - 0.4 - w_ / 2))
+                    y_ = y + r.uniform(0.6, max(0.7, min(self.sh, Hg - y) - h_ - 0.3))
+                    if y_ + h_ > Hg - 0.2 or abs(c - fs) < 0.3 + w_ / 2:
+                        continue
+                    self.tint = paper
+                    self.face([W(c - w_ / 2, y_, 0.011), W(c + w_ / 2, y_, 0.011), W(c + w_ / 2, y_ + h_, 0.011), W(c - w_ / 2, y_ + h_, 0.011)],
+                              MAT_GRIME, [(0.01, 0.01), (0.99, 0.01), (0.99, 0.99), (0.01, 0.99)], SCRAP, out, 1.0)
+            # the iron anchors of its beams, left in the wall
+            self.tint = keep_t
+            self.wear = keep_w
+            for y in floors:
+                for s_ in (s0 + 0.7, s1 - 0.7):
+                    self.anchor(W, ux, uz, out, s_, y, False)
+            self.detail(False)
+        self.tint, self.wear = keep_t, keep_w
+
     def side_wall(self, ring, street, outs, i, y0, y1, style, H):
         """Wall i of a house's ring (a -> b) that is not a street front. Where it meets the house's
         own front at a seam with a neighbour's front, it stops SEAM_SET metres behind the front up to
         the lower of the two houses: standing right on the seam, its edge lay in the fronts' plane
         and the PS1 wobble showed it through, a dotted line of lit party wall along the seam (Steve,
         2026-09-25, the Hessenatie corner). Above the neighbour it is seen, so it runs to the corner."""
+        n = len(ring)
+        a, b = ring[i], ring[(i + 1) % n]
+        # (the churches freed) a party wall bared by a house pulled down: old brick, and the ghost of the house
+        ghosts = gone_along(a, b)
+        if ghosts:
+            keep = self.wallmat
+            self.wallmat = (1, 0)  # the old brick picture, unpainted (houseGrime.ts WALL_PICS)
+            self.side_wall_(ring, street, outs, i, y0, y1, style, H)
+            if y0 == 0:
+                self.ghost_marks(a, b, outs[i], ghosts, y1)
+            self.wallmat = keep
+            return
+        self.side_wall_(ring, street, outs, i, y0, y1, style, H)
+
+    def side_wall_(self, ring, street, outs, i, y0, y1, style, H):
         n = len(ring)
         a, b = ring[i], ring[(i + 1) % n]
         ha = seam_cover(self.hid, a, outs[(i - 1) % n], H) if street[(i - 1) % n] else 0.0
@@ -1476,7 +1753,17 @@ class Builder:
         t = h["tint"]
         self.tint = (t, t * rng.uniform(0.97, 1.02), t * rng.uniform(0.95, 1.02))
         self.ds = self.dress_of(h)  # M7 quays pass 2: its own dice
-        self.wear = wear_of(h)
+        self.klass = class_of(h)
+        CLASS_N[self.klass] = CLASS_N.get(self.klass, 0) + 1
+        if self.klass == "fine":
+            ring_ = house_ring(h)[0]
+            FINE_N.append((h.get("_i"), round(sum(p[0] for p in ring_) / len(ring_)), round(sum(p[1] for p in ring_) / len(ring_)),
+                           h["seed"] % 5 < 2))
+        self.wear = wear_of(h, self.klass)
+        self.wallmat = wall_material(h, self.klass)
+        self.ds["klass"] = self.klass
+        # (the districts pass) some fine fronts take corner pilasters in place of quoins; by the seed, the dice untouched
+        self.ds["pilaster"] = self.klass == "fine" and h["seed"] % 5 < 2
         # (a house whose rooms stand in the world has no backing wall in them: its fronts get the full grid)
         self.backing = None if h.get("_i") in INWORLD else -0.4
         self.lim = h["h"] - 0.39  # no window head over this (the cornice; front gables: their eaves band, rect_house)
@@ -1665,6 +1952,14 @@ class Builder:
                 cx, cz = P(cs, ct)
                 top = H + rise * (1 - abs(cs - sm) / (W / 2)) + 1.1
                 self.chimney(cx, cz, H, top, 0.6, 0.9, ux, uz)  # (M7 quays pass 2: brick, a cap, pots)
+                # (grime pass 2) soot on the slope round it
+                ry = lambda s_: H + rise * (1 - abs(s_ - sm) / (W / 2))  # noqa: E731
+                sa_, sb_ = max(s0 + 0.05, cs - 0.9), min(s1 - 0.05, cs + 0.9)
+                if (sa_ - sm) * (sb_ - sm) > 0:
+                    ta_, tb_ = ct - 0.9, min(ct + 0.9, t1 + 0.3)
+                    pts = [(P(sa_, ta_)[0], ry(sa_), P(sa_, ta_)[1]), (P(sb_, ta_)[0], ry(sb_), P(sb_, ta_)[1]),
+                           (P(sb_, tb_)[0], ry(sb_), P(sb_, tb_)[1]), (P(sa_, tb_)[0], ry(sa_), P(sa_, tb_)[1])]
+                    self.roof_soot(pts, (0, 1, 0))
             if street[0] and not cottage and not overlapped(self.hid, c[0], c[1]):
                 # M7 quays pass 2: a stone band across the front at the gable's foot
                 def Wg(s, y, d=0.0):
@@ -1744,6 +2039,13 @@ class Builder:
                 built.add(cs)
                 cx, cz = P(cs, tm)
                 self.chimney(cx, cz, H + rise * 0.5 + 0.6 - (rise + 1.2) / 2, H + rise + 1.2, 0.7, 0.7, ux, uz)
+                # (grime pass 2) soot down both slopes from the ridge round it
+                sa_, sb_ = max(s0 + 0.02, cs - 0.8), min(s1 - 0.02, cs + 0.8)
+                for sg in (-1, 1):
+                    te_ = tm + sg * min(1.6, abs(tm - t0) - 0.2)
+                    yr_ = H + rise - (rise + over * math.tan(pitch)) * abs(te_ - tm) / (abs(tm - t0) + over)
+                    self.roof_soot([(P(sa_, tm)[0], H + rise, P(sa_, tm)[1]), (P(sb_, tm)[0], H + rise, P(sb_, tm)[1]),
+                                    (P(sb_, te_)[0], yr_, P(sb_, te_)[1]), (P(sa_, te_)[0], yr_, P(sa_, te_)[1])], (0, 1, 0))
         else:
             self.flat_top([c[0], c[1], c[2], c[3]], H, street, outs, style)
             self.cornice_top([c[0], c[1], c[2], c[3]], outs, street, H, parapet=True)
@@ -1810,6 +2112,18 @@ class Builder:
         # the back of the gable, so the steps do not vanish when seen from the roof side
         back = [(p[0] + h["n"][0] * 0.25 * (1 if front else -1), p[1], p[2] + h["n"][1] * 0.25 * (1 if front else -1)) for p in world]
         self.ngon(back, uvs, (PART_COL["blind"], STYLE_ROW[style]), (-out[0], 0, -out[2]))
+        if kind == "step" and front and self.ds is not None and self.ds.get("klass") == "fine":
+            # (the districts pass) a gilded finial on the top step of a fine house's gable
+            fx_, fz_ = P(sm, tt + 0.12)
+            ytop = H + rise + 1.0 + 0.16
+            keep = self.tint
+            self.tint = (1.0, 0.72, 0.22)
+            self.detail(True)
+            self.box(fx_, ytop + 0.12, fz_, 0.16, 0.24, 0.16, h["u"][0], h["u"][1], MAT_STONE, (0, 0), 1.25, bottom=True)
+            self.rod((fx_, ytop + 0.24, fz_), (fx_, ytop + 0.8, fz_), 0.035, 1.3)
+            self.box(fx_, ytop + 0.56, fz_, 0.12, 0.12, 0.12, h["u"][0], h["u"][1], MAT_STONE, (0, 0), 1.3, bottom=True)
+            self.detail(False)
+            self.tint = keep
         if kind == "step":
             # coping stones on each step
             for i in range(1, len(pts) - 1, 2):
@@ -1837,6 +2151,7 @@ class Builder:
             loop[self.cell].uv = cell
             g = 0.66 + 0.34 * min(1.0, world[i][1] / 9.0)
             loop[self.col] = (self.tint[0] * g, self.tint[1] * g, self.tint[2] * g, self.wear)
+            loop[self.mcol].uv = self.matcol()
 
     def flat_top(self, ring, H, street, outs, style):
         """Flat roof behind a low parapet: walls already built; a lip and a top."""
@@ -2071,6 +2386,7 @@ class Builder:
                 loop[self.uv].uv = (fp[i][0] / BAY, fp[i][1] / BAY)
                 loop[self.cell].uv = ROOF_CELL["tile"]
                 loop[self.col] = (0.7, 0.66, 0.64, 0.6)
+                loop[self.mcol].uv = (1.0, 0.0)
         except ValueError:
             pass
 
@@ -2153,6 +2469,7 @@ class Builder:
             loop[self.uv].uv = uvs[i]
             loop[self.cell].uv = cell
             loop[self.col] = (shade, shade, shade, 0.6)
+            loop[self.mcol].uv = (1.0, 0.0)
 
     # ------------------------------------------------------------ street furniture
 
@@ -2270,6 +2587,56 @@ def index_walls(houses):
                 WALLS.setdefault(c, []).append((tuple(a), tuple(b), id(h)))
 
 
+# the churches freed: where the lanterns by the church doors hang, on the wall's face: (x, z) of the plate, along the
+# wall, out of it. St Paul's west door (face x 140.02, the door z 266) and north transept door (face z 247.14, x 94.97);
+# St James' tower door (face x -56.27, z 305) and south transept door (face z 332.22, x -106.47)
+CHURCH_LANTERNS = [((140.02, 268.3), (0.0, 1.0), (1.0, 0.0)), ((97.27, 247.14), (1.0, 0.0), (0.0, -1.0)),
+                   ((-56.27, 307.5), (0.0, 1.0), (1.0, 0.0)), ((-104.0, 332.22), (1.0, 0.0), (0.0, 1.0))]
+GONE_EDGES = []  # the churches freed: the walls of the houses pulled down, [(a, b, house, rise)]
+
+
+def index_gone(houses):
+    """The walls of the houses marked gone, each with the rise of its roof over its eaves where the roof runs
+    across that wall (a gable end), else 0."""
+    for h in houses:
+        if not h.get("gone"):
+            continue
+        ring, _ = house_ring(h)
+        ridge = None
+        if h["rect"] and h.get("roof") in ("side", "front"):
+            ridge = h["u"] if h["roof"] == "side" else h["n"]
+        for i in range(len(ring)):
+            a, b = ring[i], ring[(i + 1) % len(ring)]
+            L = math.hypot(b[0] - a[0], b[1] - a[1])
+            rise = 0.0
+            if ridge is not None and L > 0.5:
+                ex, ez = (b[0] - a[0]) / L, (b[1] - a[1]) / L
+                if abs(ex * ridge[0] + ez * ridge[1]) < 0.3:  # the ridge crosses this wall: a gable end
+                    rise = math.tan(math.radians(h.get("pitch", 45.0))) * L / 2
+            GONE_EDGES.append((tuple(a), tuple(b), h, rise))
+
+
+def gone_along(a, b):
+    """Stretches of the wall a -> b that a house pulled down stood against: [(s0, s1, house, rise)], s along a -> b."""
+    L = math.hypot(b[0] - a[0], b[1] - a[1])
+    if L < 1.0 or not GONE_EDGES:
+        return []
+    ux, uz = (b[0] - a[0]) / L, (b[1] - a[1]) / L
+    out = []
+    for p, q, h, rise in GONE_EDGES:
+        dp = (p[0] - a[0]) * uz - (p[1] - a[1]) * ux
+        dq = (q[0] - a[0]) * uz - (q[1] - a[1]) * ux
+        if abs(dp) > 0.15 or abs(dq) > 0.15:
+            continue
+        sp = (p[0] - a[0]) * ux + (p[1] - a[1]) * uz
+        sq = (q[0] - a[0]) * ux + (q[1] - a[1]) * uz
+        s0, s1 = max(0.0, min(sp, sq)), min(L, max(sp, sq))
+        if s1 - s0 > 1.0:
+            # (the gable's rise, scaled to the part of the wall they share)
+            out.append((s0 + 0.05, s1 - 0.05, h, rise * (s1 - s0) / max(0.1, abs(sq - sp))))
+    return out
+
+
 def overlapped(hid, a, b):
     """M7 quays pass 2: does another house's wall lie along this one (the same line, 0.1 m or more of it)?"""
     L = math.hypot(b[0] - a[0], b[1] - a[1])
@@ -2363,19 +2730,125 @@ PRIME = {"tris": [], "walk": None, "doors": []}
 PRIME_N = {}  # street walls with the whole dress (True) and without
 
 
-def wear_of(h):
+# The districts pass (Steve, 2026-09-26: "more varied textures and especially different in different parts. The
+# higher class houses at Grote Markt are too grungy; they were nice in the time"; "not only one red brick
+# texture but more kinds"). Each house a class, from where it stands (class_of), its wear and its wall picture
+# from the class (wear_of, wall_material). The pictures, a layer each of houseGrime.ts's picture array:
+CLASS_N = {}  # houses by class, printed
+FINE_N = []  # the fine fronts (index in city_build.json, x, z, pilasters), printed
+# (client/public/textures/wall_<name>.jpg; houseGrime.ts WALL_PICS in this order)
+WALL_LAYERS = ["brick_fine", "brick", "brick_clinker", "speklagen", "brick_yellow", "brick_yellow_old", "brick_white",
+               "plaster_smooth", "plaster_rough", "plaster", "render", "ashlar_sand", "ashlar_blue"]
+PAINTED = {6, 7, 8}  # the pictures the house's paint colours (the others: a small tint only)
+# the fine squares and their reach (city.json places): the Grote Markt with the town hall and the guild houses, the
+# Handschoenmarkt and the cathedral's square, the Conscienceplein, the Stadspark's fronts
+FINE_PLACES = [(-254, 94, 48), (-262, 132, 32), (-262, 175, 50), (-116, 160, 30), (-300, 318, 45)]
+BY_CLASS = {
+    # brick fronts / plastered fronts: the pictures to pick from (a few twice: more of them)
+    "fine": ([0, 0, 3, 3, 11, 12, 4], [7, 7, 7, 11, 12, 8]),
+    "good": ([0, 3, 4, 2, 0], [7, 7, 8, 11]),
+    "merchant": ([0, 1, 3, 4, 2], [7, 8, 7]),
+    "middle": ([1, 0, 2, 4, 5, 1], [7, 8, 9, 6]),
+    "poor": ([1, 5, 6, 2, 1], [9, 10, 6, 8]),
+    "alley": ([1, 5, 6], [9, 10, 6]),
+    "store": ([1, 2, 0, 4], [10, 9]),
+}
+# the paints, by index (houseGrime.ts PAINT in the same order): 0 none; 1-6 fresh cream, ochre, pale grey, pale green,
+# pale pink, white; 7-9 greys; 10-13 old paint; 14-19 a slight tint for the unpainted pictures, so no two match
+PAINTS = {"fine": [1, 2, 3, 4, 5, 6], "grey": [7, 8, 9], "worn": [10, 11, 12, 13], "tint": [0, 14, 15, 16, 17, 18, 19]}
+WEAR = {"fine": (0.05, 0.25), "good": (0.2, 0.4), "merchant": (0.3, 0.5), "middle": (0.45, 0.72), "poor": (0.75, 1.0),
+        "alley": (0.9, 1.0), "store": (0.55, 0.8)}
+
+
+def street_width(h):
+    """How wide the street or square before the house's widest-looking front is: rays over the walk map from
+    its street walls to the next house (40 m at most)."""
+    wk = PRIME["walk"]
+    if wk is None:
+        return 10.0
+    ring, outs = house_ring(h)
+    n = len(ring)
+
+    def walk(x, z):
+        c, r = int((z - wk["z0"]) / wk["res"]), int((x - wk["x0"]) / wk["res"])
+        if not (0 <= c < wk["iw"] and 0 <= r < wk["ih"]):
+            return None
+        return wk["px"][((wk["ih"] - 1 - r) * wk["iw"] + c) * 4] > 0.5
+    best = 0.0
+    for i in range(n):
+        if not h["street"][i]:
+            continue
+        a, b = ring[i], ring[(i + 1) % n]
+        ds = []
+        for q in (0.3, 0.5, 0.7):
+            mx, mz = a[0] + (b[0] - a[0]) * q, a[1] + (b[1] - a[1]) * q
+            d, run = 1.0, 0.0
+            while d < 40.0:
+                w = walk(mx + outs[i][0] * d, mz + outs[i][2] * d)
+                if w is None:
+                    break
+                run = run + 0.5 if w else 0.0
+                if run > 1.6:
+                    d -= run
+                    break
+                d += 0.5
+            ds.append(d)
+        best = max(best, sorted(ds)[1])
+    return best
+
+
+def class_of(h):
+    """fine, good, merchant, middle, poor, alley or store: from where the house stands and what it looks onto."""
+    if h.get("alley"):
+        return "alley"
+    if h.get("store"):
+        return "store"
+    ring, outs = house_ring(h)
+    n = len(ring)
+    cx, cz = sum(p[0] for p in ring) / n, sum(p[1] for p in ring) / n
+    wide = street_width(h)
+    near_fine = any(math.hypot(cx - x, cz - z) < r for x, z, r in FINE_PLACES)
+    on_open = any(h["street"][i] and prime_front(ring[i], ring[(i + 1) % n], outs[i]) for i in range(n))
+    if near_fine and (on_open or wide >= 12):
+        return "fine"
+    if (near_fine and wide >= 8) or wide >= 22:
+        return "good"
+    if on_open:
+        return "merchant"
+    if wide < 6 and not near_fine:
+        return "poor"
+    return "middle"
+
+
+def wall_material(h, klass):
+    """The house's wall picture and paint, by its own dice from its class's set."""
+    r = random.Random(h["seed"] * 41 + 7)
+    row = STYLE_ROW[h["style"]]
+    bricks, plasters = BY_CLASS[klass]
+    if row in (1, 2):
+        layer = r.choice(plasters)
+    else:
+        layer = r.choice(bricks)
+        if row == 3 and layer in (0, 4) and r.random() < 0.6:
+            layer = 2  # (the dark brick style: the dark clinker more often)
+    if layer in PAINTED:
+        pal = PAINTS["grey"] if row == 2 else PAINTS["fine"] if klass in ("fine", "good", "merchant") else PAINTS["worn"]
+    else:
+        pal = PAINTS["tint"]
+    return layer, r.choice(pal)
+
+
+def wear_of(h, klass=None):
     """M7 the grime pass (Steve: "make sure it is not too clean, more like it was back then"): how worn a house
     is, by its own dice: the alley cottages worst; a house on a back street more than one on a quay or square;
     one in eight kept well."""
     r = random.Random(h["seed"] * 29 + 11)
-    if h.get("alley"):
-        return 0.85 + 0.15 * r.random()
-    if r.random() < 0.12:
-        return 0.12 + 0.15 * r.random()
-    ring, outs = house_ring(h)
-    n = len(ring)
-    on_open = any(h["street"][i] and prime_front(ring[i], ring[(i + 1) % n], outs[i]) for i in range(n))
-    return (0.35 + 0.4 * r.random()) if on_open else (0.5 + 0.45 * r.random())
+    # (the districts pass: by the house's class; grime pass 2's rule, one in fifteen decent, still inside a class)
+    lo, hi = WEAR[klass or class_of(h)]
+    w = lo + (hi - lo) * r.random()
+    if r.random() < 1 / 15 and klass in ("middle", "poor"):
+        w = max(0.3, w - 0.3)
+    return w
 
 
 def prime_front(a, b, f):
@@ -2417,6 +2890,9 @@ def prime_front(a, b, f):
     return False
 
 
+# grime pass 2: where soot goes up the fronts: the bakers, the smiths' and wheelwright's forges (server/src/town/places.ts),
+# the taverns in the world (inworld_build.json, their doors)
+SOOTY = [(10, 72), (-200, 40), (-160.8, 98.7), (-27.7, 66.1)]
 LAMPS = []  # the lanterns by the doors: [x, y, z of the glass, outward x, z], for ambient.ts
 GABLE_WINDOWS = {}  # M7 quays pass 2: by house index, the windows cut into its front gable (shared/city_gable_windows.json)
 ID_ALLEY = {}  # id(house) -> a cottage of the back alleys
@@ -2780,7 +3256,7 @@ def main():
     data = json.load(open(SRC))
     bpy.ops.wm.read_factory_settings(use_empty=True)
     mats = [material("facade", (0.55, 0.35, 0.28)), material("roof", (0.35, 0.22, 0.18)), material("stone", (0.6, 0.58, 0.52)),
-            material("wood", (0.35, 0.28, 0.2)), material("leaves", (0.6, 0.45, 0.2))]
+            material("wood", (0.35, 0.28, 0.2)), material("leaves", (0.6, 0.45, 0.2)), material("grime", (0.1, 0.09, 0.08))]
     chunks = {}
 
     def chunk_of(pts):
@@ -2801,17 +3277,36 @@ def main():
     img.pixels.foreach_get(px)
     wk["px"] = px
     PRIME["walk"] = wk
-    index_fronts(data["houses"])
-    index_walls(data["houses"])
+    # the churches freed (2026-09-26): a house marked "gone" in city_build.json is not built (its entry stays, so
+    # every index in the other files still points at the same house)
+    live = [h for h in data["houses"] if not h.get("gone")]
+    index_fronts(live)
+    index_walls(live)
+    index_gone(data["houses"])
+    for e in INWORLD.values():
+        if e.get("kind") == "tavern":
+            ring, _ = house_ring(data["houses"][e["house"]])
+            SOOTY.append(((ring[0][0] + ring[1][0]) / 2, (ring[0][1] + ring[1][1]) / 2))  # (the middle of its front)
     for h in data["houses"]:
         ID_ALLEY[id(h)] = bool(h.get("alley"))
     for i, h in enumerate(data["houses"]):
         h["_i"] = i
-    for h in data["houses"]:
+    for h in live:
         rng = random.Random(h["seed"])
         chunk_of(h["fp"]).house(h, rng)
     for b in data["backs"]:
         chunk_of(b["fp"]).back(b)
+    # the churches freed (2026-09-26): a lantern on a bracket beside the doors of St Paul's and St James' on their
+    # new squares (build_churches.py: the wall's face and the door's middle), lit from dusk as the door lanterns are
+    for (px, pz), (ux, uz), (fx, fz) in CHURCH_LANTERNS:
+        bld = chunk_of([(px, pz)])
+        bld.tint, bld.wear, bld.wallmat = (1.0, 1.0, 1.0), 0.5, (1, 0)
+
+        def Wc(s_, y, d=0.0, px=px, pz=pz, ux=ux, uz=uz, fx=fx, fz=fz):
+            return (px + ux * s_ + fx * d, y, pz + uz * s_ + fz * d)
+        bld.detail(True)
+        bld.lantern(Wc, ux, uz, (fx, 0, fz), 0.0, dy=0.9)
+        bld.detail(False)
     build_kerbs(KERBS)
     decor = data.get("decor", {})
     # the decor trees are no longer part of the city mesh: tools/blender/build_trees.py makes
@@ -2842,6 +3337,8 @@ def main():
     faces = sum(len(o.data.polygons) for o in meshes)
     tris = sum(len(p.vertices) - 2 for o in meshes for p in o.data.polygons)
     dtris = sum(len(p.vertices) - 2 for o in meshes if o.name.endswith("_d") for p in o.data.polygons)
+    print(f"[build_city] houses by class: {dict(sorted(CLASS_N.items()))}")
+    print(f"[build_city] fine fronts: {FINE_N}")
     print(f"[build_city] near-only detail: {dtris} triangles of {tris}; street walls with the whole dress: {PRIME_N.get(True, 0)} of {PRIME_N.get(True, 0) + PRIME_N.get(False, 0)}, left flat where plan houses overlap: {PRIME_N.get("overlapped", 0)}")
     if "--no-export" not in argv:
         os.makedirs(os.path.dirname(OUT), exist_ok=True)

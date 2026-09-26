@@ -1816,6 +1816,8 @@ def house_doors():
         return []
     out = []
     for h in json.load(open(src))["houses"]:
+        if h.get("gone"):
+            continue  # (pulled down: the churches freed, 2026-09-26)
         if h["rect"]:
             if not h["street"][0]:
                 continue
@@ -1848,7 +1850,7 @@ def poort_points():
     out = []
     for h in json.load(open(src))["houses"]:
         pt = h.get("poort")
-        if not pt or not h["rect"]:
+        if not pt or not h["rect"] or h.get("gone"):
             continue
         (ox, oz), (ux, uz), (nx, nz) = h["o"], h["u"], h["n"]
         sm = (pt["s"][0] + pt["s"][1]) / 2
@@ -1870,7 +1872,7 @@ def store_fronts():
         return []
     out = []
     for h in json.load(open(src))["houses"]:
-        if not h.get("store") or not h["rect"]:
+        if not h.get("store") or not h["rect"] or h.get("gone"):
             continue
         (ox, oz), (ux, uz), (nx, nz) = h["o"], h["u"], h["n"]
         s0, s1 = h["s"]

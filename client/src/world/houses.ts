@@ -12,6 +12,10 @@ export async function loadHousePlans(): Promise<Map<string, HousePlan>> {
   for (const e of (LIST as unknown as { houses: InworldEntry[] }).houses) {
     const h = build.houses[e.house];
     if (!h) continue;
+    if (h.gone) {
+      console.warn(`in-world house ${e.id}: house ${e.house} is pulled down (city_build.json "gone")`);
+      continue;
+    }
     try {
       out.set(e.id, housePlan(e, h, build.ground_h, build.storey_h, e.cls ? CLASSES[e.cls as HomeClass] : undefined));
     } catch (err) {

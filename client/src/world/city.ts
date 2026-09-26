@@ -6,8 +6,8 @@ import { psx, psxUniforms } from "../retro/psx";
 import { createMirror } from "./mirror";
 import { cobblePaving, earthPaving, edgeStoneTexture, flagPaving, grassPaving, quayPaving, withPictures } from "./paving";
 import { copingTexture, quayWallTexture, withPicture } from "./quayStone";
-import { houseGrime } from "./houseGrime";
-import { brickBandTexture, facadeAtlas, glassTexture, leafTexture, roofAtlas, slateTexture, stoneTexture } from "./cityTextures";
+import { grimeDecalMaterial, houseGrime } from "./houseGrime";
+import { brickBandTexture, facadeAtlas, grimeDecals, glassTexture, leafTexture, roofAtlas, slateTexture, stoneTexture } from "./cityTextures";
 import { makeTextures } from "./textures";
 import { slimeCuts, slimeShade, tideCuts, tideShade } from "./quaysteps";
 import { DOCK_Y, LW_MIN, regionAt } from "./tide";
@@ -389,6 +389,9 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
   const trim = psx(new THREE.MeshLambertMaterial({ map: stoneTexture(), vertexColors: true, side: DS }), { affine: 0.2 });
   // M7 the grime pass: the fronts old and dirty (world/houseGrime.ts: wall pictures, streaks, damp, soot, worn paint)
   houseGrime(facade, trim);
+  // grime pass 2: rust runs, soot, damp and corner grime as decals (build_city.py MAT_GRIME): see-through, no
+  // depth written, pulled forward so they never fight the wall
+  const grimeDecal = grimeDecalMaterial(grimeDecals());
   const chunks: THREE.Mesh[] = [];
   const draco = new DRACOLoader().setDecoderPath("/draco/");
   const loader = new GLTFLoader().setDRACOLoader(draco);
@@ -400,6 +403,20 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
       // glTF flips v; turn it back so storeys count up the wall
       const uv = g.getAttribute("uv") as THREE.BufferAttribute | undefined;
       if (uv) for (let i = 0; i < uv.count; i++) uv.setY(i, 1 - uv.getY(i));
+      // (grime pass 2: the exporter writes a blank white COLOR_0 and build_city.py's own "Col" layer as COLOR_1; the
+      // tints, the shading of the reveals and the grime by height, and the house's wear in its alpha, were never used:
+      // take COLOR_1 as the vertex colour)
+      const col1 = g.getAttribute("color_1");
+      if (col1) {
+        g.setAttribute("color", col1);
+        g.deleteAttribute("color_1");
+      }
+      // (the districts pass: the "Mat" uv, TEXCOORD_2: the house's wall picture and paint, houseGrime.ts)
+      const mat2 = g.getAttribute("uv2");
+      if (mat2) {
+        g.setAttribute("gmat", mat2);
+        g.deleteAttribute("uv2");
+      }
       const cell = g.getAttribute("uv1") as THREE.BufferAttribute | undefined;
       if (cell) {
         for (let i = 0; i < cell.count; i++) cell.setXY(i, Math.round(cell.getX(i)), Math.round(1 - cell.getY(i)));
@@ -407,7 +424,7 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
         g.deleteAttribute("uv1");
       }
       const name = (m.material as THREE.Material).name;
-      m.material = name === "facade" ? facade : name === "roof" ? roof : name === "wood" ? wood : name === "leaves" ? leaves : trim;
+      m.material = name === "facade" ? facade : name === "roof" ? roof : name === "wood" ? wood : name === "leaves" ? leaves : name === "grime" ? grimeDecal : trim;
       g.computeBoundingSphere();
       chunks.push(m);
       // M7 quays pass 2: a chunk's near-only mesh (build_city.py "_d": sills, heads, shutters, pipes, pots)

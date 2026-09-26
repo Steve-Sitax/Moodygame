@@ -1672,7 +1672,7 @@ def store_fronts():
         data = json.load(f)
     out = []
     for h in data.get("houses", []):
-        if not h.get("store"):
+        if not h.get("store") or h.get("gone"):
             continue
         fp = h["fp"]
         n = len(fp)

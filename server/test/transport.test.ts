@@ -3,6 +3,7 @@ import { NIGHT_GIVER_IDS } from "../../shared/night.ts";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { checkRehomed, plainHome, staleIds } from "./oldSave.ts";
 import Database from "better-sqlite3";
 import { openDb } from "../src/db.ts";
 import { buy } from "../src/trade.ts";
@@ -164,14 +165,19 @@ describe("who owns what (the migration)", () => {
       // M7 lamps (LAMPS_VERSION 6 to 9) gives the market quarter a third lamplighter: a docker or a porter takes the
       // trade. The lamp migration owns a lamplighter's trade, work and day; the rest of him stays.
       const lit = (j: string) => (JSON.parse(j) as { trade?: string }).trade === "lamplighter";
-      const plain = (j: string, lamps: boolean) => {
+      // a home of the older map whose house has no door at its step now: the load repairs (store.ts rehomeLost,
+      // emigrants.ts rehouseEmigrants) own its home and a work door there; checked on their own (test/oldSave.ts)
+      const moved = staleIds(before);
+      const plain = (j: string, lamps: boolean, id: string) => {
         const o = JSON.parse(j) as Record<string, unknown>;
         if (lamps) for (const k of ["trade", "faction", "work", "sched"]) delete o[k];
         // (a map change moves a round's point off new walls: repairTown owns work.route; 2026-09-25 angled streets)
         if (o.work && typeof o.work === "object") delete (o.work as Record<string, unknown>).route;
+        if (moved.has(id)) plainHome(o, before.get(id)!);
         return JSON.stringify(o);
       };
-      for (const r of after) if (before.has(r.id)) expect(plain(r.data_json, lit(r.data_json)), r.id).toBe(plain(before.get(r.id)!, lit(r.data_json)));
+      for (const r of after) if (before.has(r.id)) expect(plain(r.data_json, lit(r.data_json), r.id), r.id).toBe(plain(before.get(r.id)!, lit(r.data_json), r.id));
+      checkRehomed(before, after, moved);
       expect(after.filter((r) => lit(r.data_json)).length).toBe(3);
       const newLighters = after.filter((r) => before.has(r.id) && lit(r.data_json) && !lit(before.get(r.id)!));
       expect(newLighters.length).toBeLessThanOrEqual(1);

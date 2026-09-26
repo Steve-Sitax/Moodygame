@@ -56,42 +56,74 @@ function grimeNoise(): THREE.DataTexture {
   return t;
 }
 
-/** A picture of a wall, loaded as world/quayStone.ts withPicture does; until all three are in, the atlas's own
- * paint shows (uWallPics). */
-function wallPicture(url: string, ready: () => void): THREE.Texture {
-  const c = document.createElement("canvas");
-  c.width = c.height = 2;
-  const t = new THREE.Texture(c as unknown as HTMLImageElement);
+/**
+ * The districts pass: the wall pictures, one layer each of a texture array (build_city.py WALL_LAYERS, the same
+ * order), and how many metres one tile of each covers. 13 layers of 512 x 512: 13.6 MB on the GPU, 18 MB with its
+ * mipmaps. Loaded as world/quayStone.ts withPicture does: until all are in, the atlas's own paint shows (uWallPics).
+ */
+const WALL_PICS: Array<[string, number]> = [
+  ["brick_fine", 1.9], ["brick", 1.9], ["brick_clinker", 2.2], ["speklagen", 2.5], ["brick_yellow", 1.9], ["brick_yellow_old", 1.9],
+  ["brick_white", 1.9], ["plaster_smooth", 3.0], ["plaster_rough", 2.5], ["plaster", 3.0], ["render", 3.0], ["ashlar_sand", 2.4], ["ashlar_blue", 2.4],
+];
+const PIC = 512;
+
+function wallPictures(ready: () => void): THREE.DataArrayTexture {
+  const n = WALL_PICS.length;
+  const data = new Uint8Array(PIC * PIC * 4 * n);
+  const t = new THREE.DataArrayTexture(data, PIC, PIC, n);
   t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.anisotropy = 4;
-  t.needsUpdate = true;
-  const img = new Image();
-  img.onload = () => {
-    t.image = img;
-    t.needsUpdate = true;
-    ready();
-  };
-  img.onerror = () => console.warn("texture picture did not load", url);
-  img.src = url;
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.generateMipmaps = true;
+  const c = document.createElement("canvas");
+  c.width = c.height = PIC;
+  const g = c.getContext("2d", { willReadFrequently: true })!;
+  let left = n;
+  WALL_PICS.forEach(([name], i) => {
+    const img = new Image();
+    img.onload = () => {
+      g.drawImage(img, 0, 0, PIC, PIC);
+      data.set(g.getImageData(0, 0, PIC, PIC).data, i * PIC * PIC * 4);
+      if (--left === 0) {
+        t.needsUpdate = true;
+        ready();
+      }
+    };
+    img.onerror = () => console.warn("wall picture did not load", name);
+    img.src = `/textures/wall_${name}.jpg`;
+  });
   return t;
 }
 
 const U = {
   uGrimeNoise: { value: null as THREE.Texture | null },
-  uBrickPic: { value: null as THREE.Texture | null },
-  uPlasterPic: { value: null as THREE.Texture | null },
-  uRenderPic: { value: null as THREE.Texture | null },
+  uWallArr: { value: null as THREE.DataArrayTexture | null },
+  uWallTile: { value: WALL_PICS.map(([, m]) => m) },
   uWallPics: { value: 0 },
+  // the paints (build_city.py PAINTS): none; fresh cream, ochre, pale grey, pale green, pale pink, white; greys; old
+  // paint; slight tints for the unpainted pictures
+  uPaint: {
+    value: [
+      [1, 1, 1], [0.97, 0.92, 0.8], [0.93, 0.8, 0.56], [0.88, 0.88, 0.84], [0.82, 0.88, 0.78], [0.96, 0.84, 0.8], [0.97, 0.96, 0.92],
+      [0.8, 0.8, 0.77], [0.72, 0.73, 0.72], [0.86, 0.85, 0.8], [0.86, 0.8, 0.66], [0.8, 0.7, 0.5], [0.76, 0.76, 0.72], [0.84, 0.78, 0.74],
+      [1.04, 0.99, 0.95], [0.94, 0.94, 0.96], [1.0, 0.96, 0.92], [0.9, 0.88, 0.86], [1.06, 1.02, 0.98], [0.97, 1.0, 1.0],
+    ].map(([r, g, b]) => new THREE.Vector3(r, g, b)),
+  },
 };
 
 /** Where the plain wall is (the atlas's alpha), what it is (the cell's style), how worn (the vertex alpha). */
 const COMMON = /* glsl */ `
 uniform sampler2D uGrimeNoise;
-uniform sampler2D uBrickPic;
-uniform sampler2D uPlasterPic;
-uniform sampler2D uRenderPic;
+uniform highp sampler2DArray uWallArr;
+uniform float uWallTile[${WALL_PICS.length}];
 uniform float uWallPics;
+varying vec2 vGMat;
+uniform vec3 uPaint[20];
+vec3 gPic(float layer, vec2 w) {
+  int i = int(layer);
+  return texture(uWallArr, vec3(w / uWallTile[i], layer)).rgb;
+}
 float gWearOf() {
   #ifdef USE_COLOR_ALPHA
     return vColor.a;
@@ -113,6 +145,8 @@ function install(mat: THREE.Material, kind: "facade" | "stone"): void {
   mat.onBeforeCompile = (shader, renderer) => {
     prev.call(mat, shader, renderer);
     Object.assign(shader.uniforms, U);
+    // the house's wall picture and paint (build_city.py "Mat": r = layer / 16, g b a the paint)
+    shader.vertexShader = shader.vertexShader.replace("void main() {", "attribute vec2 gmat;\nvarying vec2 vGMat;\nvoid main() {\n  vGMat = gmat;");
     let fs = shader.fragmentShader;
     // (just before main: the varyings it reads, vColor and vPsxWorld, are declared by then)
     fs = fs.replace("void main() {", COMMON + "\nvoid main() {");
@@ -136,17 +170,35 @@ function install(mat: THREE.Material, kind: "facade" | "stone"): void {
       float gStyle = gCell.y > 6.5 ? gCell.x : gCell.y;
       float gFill = gWallCell ? 1.0 - step(0.75, diffuseColor.a) : 0.0;
       if (gFill > 0.5 && uWallPics > 0.5) {
-        // the plain wall from the pictures: brick (the dark brick darker), lime plaster, grey render
-        vec3 brick = texture2D(uBrickPic, gW / 1.9).rgb;
-        vec3 pic = gStyle < 0.5 ? brick * vec3(1.02, 0.98, 0.95)
-                 : gStyle < 1.5 ? texture2D(uPlasterPic, gW / 3.0).rgb
-                 : gStyle < 2.5 ? texture2D(uRenderPic, gW / 3.0).rgb
-                 : brick * vec3(0.66, 0.6, 0.58);
-        // plaster come off in patches, the brick behind it showing
-        if (gStyle > 0.5 && gStyle < 2.5) {
-          // (the plaster picture has its own; a worn house more)
-          float off = smoothstep(0.84 - 0.1 * gWear, 0.87 - 0.1 * gWear, gNz.r * 0.8 + gNf.g * 0.2);
-          pic = mix(pic, brick * 0.9, off);
+        // the plain wall from the house's own picture, in its paint (the painted ones) or a slight tint
+        float layer = floor(vGMat.x + 0.5);
+        // (glTF stores v flipped: the paint's index is 1 - v)
+        vec3 gPaint = uPaint[int(clamp(floor(1.5 - vGMat.y), 0.0, 19.0))];
+        vec3 pic = gPic(layer, gW) * gPaint;
+        if (layer > 5.5 && layer < 10.5) {
+          // plaster and limewash (Steve's review, 2026-09-26: "leopard blotches"): the picture's own patches and
+          // stains flattened, so the skin reads as one; the weathering is drawn here, the way water and damp make it
+          int gi = int(layer);
+          vec3 gFlat = textureLod(uWallArr, vec3(gW / uWallTile[gi], layer), 6.0).rgb * gPaint;
+          pic = mix(gFlat, pic, 0.4);
+          // soft stains, long and ragged, running down (never round): brown where the water ran and dried
+          float gSt = texture2D(uGrimeNoise, vec2(gW.x / 3.4 + 0.37, gW.y / 12.0)).r * 0.7 + texture2D(uGrimeNoise, vec2(gW.x / 1.1, gW.y / 4.0)).g * 0.3;
+          pic *= mix(vec3(1.0), vec3(0.8, 0.75, 0.66), smoothstep(0.45, 0.8, gSt) * (0.2 + 0.8 * gWear));
+          // plaster fallen off a worn house: few, ragged, hard-edged holes to the brick, most near the foot where
+          // the damp works; a light rim where the plaster breaks, a shadow under its lower edge
+          if (gWear > 0.55) {
+            vec2 gWp = gW + (vec2(gNf.g, texture2D(uGrimeNoise, gW / 0.8 + 0.5).g) - 0.5) * 0.7;
+            float gM = texture2D(uGrimeNoise, vec2(gWp.x / 4.5, gWp.y / 2.6) + 0.21).r * 0.8 + texture2D(uGrimeNoise, gWp / 0.9).g * 0.2;
+            float gMu = texture2D(uGrimeNoise, vec2(gWp.x / 4.5, (gWp.y + 0.05) / 2.6) + 0.21).r * 0.8 + texture2D(uGrimeNoise, vec2(gWp.x, gWp.y + 0.05) / 0.9).g * 0.2;
+            float gLow = 1.0 - smoothstep(0.4, 3.0, vPsxWorld.y);
+            float gThr = 0.74 - 0.08 * (gWear - 0.55) / 0.45 - 0.1 * gLow;
+            float gOff = step(gThr, gM);
+            float gRim = step(gThr - 0.02, gM) - gOff;
+            vec3 gBrick = gPic(1.0, gW) * mix(vec3(1.0), vec3(0.75, 0.72, 0.66), gLow);
+            pic = mix(pic, gBrick, gOff);
+            pic = mix(pic, pic * 1.1 + 0.02, gRim * 0.7);
+            pic *= 1.0 - 0.35 * gOff * (1.0 - step(gThr, gMu));
+          }
         }
         diffuseColor.rgb = diffuse * pic * 1.08;
       }
@@ -170,6 +222,8 @@ function install(mat: THREE.Material, kind: "facade" | "stone"): void {
       // stone (sills, heads, cornices, quoins, kerbs): darker with the years, streaked
       diffuseColor.rgb *= (1.0 - 0.28 * gWear) * (1.0 - gStreak * 0.3 * gWear * gVert) * (1.0 - (gNz.r - 0.45) * 0.3 * gWear);`
       }
+      // grime pass 2: more soot the higher up (the smoke of the town's chimneys), and on the cornices
+      diffuseColor.rgb *= 1.0 - smoothstep(4.5, 14.0, vPsxWorld.y) * 0.32 * gWear;
       // green-black damp rising from the street: higher on a worn house, a ragged top edge
       float gTop = 0.4 + 0.7 * gWear + 0.35 * (gNf.g - 0.5) + 0.25 * (gNz.r - 0.5);
       float gDamp = (1.0 - smoothstep(gTop - 0.3, gTop, vPsxWorld.y)) * gVert;
@@ -216,16 +270,60 @@ function install(mat: THREE.Material, kind: "facade" | "stone"): void {
  */
 export function houseGrime(facade: THREE.Material, trim: THREE.Material): void {
   U.uGrimeNoise.value ??= grimeNoise();
-  if (!U.uBrickPic.value) {
-    let n = 0;
-    const one = () => {
-      n++;
-      if (n === 3) U.uWallPics.value = 1;
-    };
-    U.uBrickPic.value = wallPicture("/textures/wall_brick.jpg", one);
-    U.uPlasterPic.value = wallPicture("/textures/wall_plaster.jpg", one);
-    U.uRenderPic.value = wallPicture("/textures/wall_render.jpg", one);
-  }
+  U.uWallArr.value ??= wallPictures(() => (U.uWallPics.value = 1));
   install(facade, "facade");
   install(trim, "stone");
+}
+
+/**
+ * Grime pass 2: the material of the decals (build_city.py MAT_GRIME: rust runs, soot, damp, corner grime): its
+ * dark tint laid over the wall, as much as the cell's alpha times the house's wear; the fog washes it out far off;
+ * it writes no depth and is pulled forward, so it never fights the wall.
+ */
+export function grimeDecalMaterial(map: THREE.Texture, cells = 4): THREE.ShaderMaterial {
+  const m = new THREE.ShaderMaterial({
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { map: { value: null } }]),
+    vertexShader: /* glsl */ `
+      attribute vec2 cell;
+      attribute vec4 color;
+      varying vec2 vUv;
+      varying vec2 vCell;
+      varying vec4 vCol;
+      #include <fog_pars_vertex>
+      void main() {
+        vUv = uv;
+        vCell = cell;
+        vCol = color;
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        gl_Position = projectionMatrix * mvPosition;
+        #include <fog_vertex>
+      }`,
+    fragmentShader: /* glsl */ `
+      uniform sampler2D map;
+      varying vec2 vUv;
+      varying vec2 vCell;
+      varying vec4 vCol;
+      #include <fog_pars_fragment>
+      void main() {
+        float a = texture2D(map, (floor(vCell + 0.5) + fract(vUv)) / ${cells.toFixed(1)}).a * vCol.a;
+        // (unlit: the day's light from the fog's colour, so a light decal, the ghost of a pulled-down house's plaster
+        // and its wallpaper, darkens at dusk with the wall under it; 0.125 its brightness by day)
+        float light = 1.0;
+        #ifdef USE_FOG
+          a *= 1.0 - smoothstep(fogNear, fogFar, vFogDepth);
+          light = clamp(dot(fogColor, vec3(0.3, 0.59, 0.11)) / 0.125, 0.06, 1.0);
+        #endif
+        gl_FragColor = vec4(vCol.rgb * light, a);
+        #include <colorspace_fragment>
+      }`,
+    fog: true,
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -4,
+  });
+  m.uniforms.map.value = map;
+  return m;
 }

@@ -64,8 +64,8 @@ let bad = 0;
 const out: Array<Record<string, unknown>> = [];
 for (const e of list.houses) {
   const h = build.houses[e.house];
-  if (!h) {
-    console.error(`${e.id}: no house ${e.house}`);
+  if (!h || h.gone) {
+    console.error(`${e.id}: no house ${e.house}${h ? " (pulled down: city_build.json gone)" : ""}`);
     bad++;
     continue;
   }

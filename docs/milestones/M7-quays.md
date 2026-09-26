@@ -368,3 +368,159 @@ is the same, the count moves with the other models in the scene; four touch the 
 (now), at night `b11_row6_night.jpg` / `b12_row6_night.jpg`, `b11_back_night.jpg` / `b12_back_night.jpg` (22:00).
 Not done: rust runs under the anchors and soot over the chimneys (no place for them in the atlas; a job for
 decals); the frame time was not measured (the preview pane was hidden: it holds every frame at about 45 ms).
+
+### Fourth pass: rust, soot, darker (2026-09-26)
+Steve, after the grime pass: "The pictures were wrong (the sunny ones): it is a misty, darker, grimy atmosphere, a
+bit dangerous at all times. So rust, soot, clutter, dirt."
+
+- A fault found on the way: `city.glb` carries two vertex colour sets, a blank white one first (the exporter's)
+  and `build_city.py`'s own (tints, the shading of reveals and soffits, darker near the ground, the house's wear)
+  second. The game read the white one, so none of that ever showed. `city.ts` now takes the second. The fronts are
+  darker for it, and the wear per house works (the grime pass read 1 everywhere).
+- Decals (`build_city.py` MAT_GRIME, material `grime`; `houseGrime.ts grimeDecalMaterial`, cells in
+  `cityTextures.ts grimeDecals`): see-through, no depth written, polygon offset, 6 mm off the wall, washed out by
+  the fog far off, as strong as the house's wear. Rust runs under every wall anchor, under the downpipes' brackets
+  and the shutters' hinges; damp round the foot of every downpipe and under its hopper; grime down both corners
+  of every front (not where a doorway is near); soot rising up the piers of the bakers', smiths' and
+  wheelwright's fronts and the taverns in the world; soot on the roofs round every chimney. The corner and
+  roof decals are in the chunk's own mesh (seen far), the rest near-only.
+- Chimneys: stacks, caps and pots black with soot.
+- Darker: the wear raised (the alley cottages 0.9 to 1, back streets 0.7 to 1, quays and squares 0.55 to 0.9, one
+  house in fifteen decent at 0.3 to 0.45); more soot the higher up the front (from 4.5 m to 14 m).
+- The poorest houses (wear over 0.86): now and then a window boarded up (three planks and one aslant in the
+  opening) or a sash with a pane gone and a crack (atlas cell 6, 2). Worn houses: now and then a shutter leaf
+  gone, or one hanging from its top hinge, tipped.
+- Not changed: the geometry of the fronts, the openings, the sign band, the ground, the town wall.
+
+Numbers: `city.glb` 9.7 MB to 9.9 MB; 794,902 to 829,207 triangles (the decals, 34,305).
+Checks: `npm run build` (client) passes; `paths()` 29 entries, the same 29 as the committed city on the same test
+stack; `signs()` the same as that baseline; the z-fight check 259 visible house fights against 264 before.
+Pictures: the same cameras as the grime pass, `data/shots/b12_*.jpg` (before) and `b13_*.jpg` (now, 13:00 clear, and
+`b13_row6_night`, `b13_back_night` at 22:00); in the mist as the game has it: `b13_mist16_*` (16:00) and
+`b13_mist21_*` (21:00): the row of gables, the back street, the Hessenatie, the Grote Markt, the Werf gables, the
+storehouse.
+Not done: rust under the hoist beams (the loft's door is under them, no wall to run down).
+
+### Fifth pass: the districts (2026-09-26)
+The lead, after the fourth pass: not every street equally dirty. The fine squares kept, the back streets worst.
+
+**The rule** (`build_city.py class_of`, from where the house stands and what it looks onto). The fine places, from
+`city.json`, each with a reach: the Grote Markt with the town hall and the guild houses (-254, 94; 48 m), the square
+north of it (-262, 132; 32 m), the Handschoenmarkt and the cathedral's square (-262, 175; 50 m and -116, 160; 30 m),
+the Stadspark's fronts (-300, 318; 45 m). The street's width is measured from each house's front.
+- alley: a cottage in a court or gang. store: a storehouse.
+- fine: near a fine place and on the open square, or on a street 12 m wide or more there.
+- good: near a fine place on a street 8 m wide or more; or anywhere on a street 22 m wide or more.
+- merchant: on a quay or an open square. poor: a street under 6 m, away from the fine places. middle: the rest.
+
+Wear (0 clean to 1 black): fine 0.05 to 0.25, good 0.2 to 0.4, merchant 0.3 to 0.5, middle 0.45 to 0.72, store
+0.55 to 0.8, poor 0.75 to 1, alley 0.9 to 1. The grungy wall pictures (old brick, flaking whitewash, rough and
+stained plaster) only in the poor streets and the courts. Houses by class: alley 154, fine 38, good 260, merchant
+22, middle 406, poor 215, store 7.
+
+**The fine fronts** (index in `city_build.json`, where): the Grote Markt east row #17 to #25 and #27 (x -218 to
+-210, z 68 to 118); its west row #49 to #55 (x -289, z 72 to 121); by the Stadspark #613 to #615 and #699 to #702
+(z 274 to 283); the Handschoenmarkt and the cathedral's square #872, #876 to #878, #880 to #882, #895, #896, #898
+to #902 (x -138 to -94, z 137 to 166). Pilasters on 24 of them (#18, 20, 25, 27, 49, 51 to 54, 613 to 615, 699 to
+701, 876, 877, 880 to 882, 895, 899, 900, 902).
+
+**Wall pictures** (`client/public/textures/wall_*.jpg`, one texture array in `houseGrime.ts`, 13 layers of 512 px):
+red brick four ways (fine machine brick, old brick, dark clinker, speklagen), yellow brick two (clean, old),
+whitewashed brick, plaster three (smooth, roughcast, old stained) and grey render, ashlar two (sandstone,
+bluestone). Each class has its own set to pick from, each house picks by its own seed, and a painted wall picks a
+colour from a palette (fine: cream, ochre, pale grey, pale green, pale pink, white; worn: dingier). The
+picture's index and the paint ride in a UV layer (`Mat`, in the game `gmat`), as a second colour layer broke the
+export. GPU memory: 13 x 512 x 512 x 4 bytes = 13.6 MB, about 18 MB with mipmaps.
+Codex made the clinker, the roughcast and the speklagen; for the rest it answered 401 (its login), twice, so
+`tools/textures/wall_variants.py` made them from the Codex pictures (see `assets/ATTRIBUTION.md`). They should be
+redone with Codex once its login works.
+
+**More in 3D** (near-only):
+- fine and good fronts: taller rusticated quoins (9 cm proud), a stone plinth on the piers, a bluestone step before
+  each front door (from the pavement to the sill; the door itself as it was);
+- fine fronts: a drip hood and a keystone on every door, stone consoles under a flat door's lintel, a gilded finial
+  on the top step of a stepped gable, a stone balcony with an iron railing before the middle window of the first
+  floor on some, and on some flat stone pilasters with a base and a capital at the corners in place of quoins.
+- Not done: chamfered corners (they would change the footprints) and corner niches (the Madonnas in `streetlife`
+  are there already).
+
+Numbers: `city.glb` 9.9 MB to 10.1 MB; 829,207 to 849,301 triangles.
+Checks: `signs()` 1,557 things, 1,315 checked, 0 problems; `paths()` 29 (as before); the z-fight check 273 visible
+house fights (259 before): the new ones where two fine houses' plots overlap and both draw their door dress in one
+plane (#896 and #900 on the Handschoenmarkt). `npm run build` passes.
+Pictures (before `b13_*`, now `b14_*`, 13:00 clear; `b14_mist16_*` in the mist at 16:00), side by side in
+`data/shots/pair_*.jpg`: the Grote Markt (`pair_markt`: the guild fronts clean, cream and ochre, where they were as
+dirty as a back street), a middling street (`pair_row6`), a poor back street (`pair_back`: still dark, the corner
+house's plaster now old and stained), a corner close up (`pair_quoin_b`); the fine fronts close: `d4_*.jpg`.
+
+## The churches freed (2026-09-26)
+Steve: two of the new churches stood shut in by houses, no way to their doors. St Paul's west door (x 140, facing
+east) had houses 1 m before it; St James' tower door (x -56, facing east) the same. Carolus was fine.
+
+**The rule.** A house is never deleted from `shared/city_build.json` and the order never changes (homes, taverns,
+shops and saves hold house numbers). A house pulled down gets `"gone": true`, and every reader skips it:
+`build_city.py` (not built; not counted for the neighbours' walls and fronts), `plan.py` `walk_map` and
+`ground_zones`, `server/src/town/walkmap.ts` (no door; `goneHouses()`), `client/src/world/ambient.ts` (no lit
+windows, not in the flat-wall test), `occlusion.ts`, `houses.ts` and `tools/city/inworld.mts` (an in-world house
+there is an error), `shared/housePlan.ts` (the field), `dev/zfight.ts`, `build_props.py`, `build_streetlife.py`,
+`build_quayfurniture.py`. On load (`store.ts rehomeLost`), anyone whose home is in a house pulled down moves to the
+nearest free house with the rest of the household, though the old step now lies on open ground. Steve's save had
+nobody there.
+
+**Pulled down** (14 of 1,102):
+- St Paul's: #194 to #199 (the row before the west door: a square about 9 m deep to the street, 13 m to the
+  houses across it, across the whole front); #184 and #185 (a small square before the north transept door, open
+  to the street north of the church).
+- St James': #465, #493, #464 (the row before the tower: a square 12 m deep and 27 m across the tower and the
+  aisles), #449 behind it (the square's mouth onto the street at x -30, 9 m wide, in line with the door); #484
+  and #485 (the south transept door onto the street south of the church).
+- Kept: the lanes along the other sides. St James' north side and most of St Paul's south side have houses built
+  against the church, as they had in 1873; nothing there needs a door.
+
+**What changed with them.** The walk map (`walk_only.py`: only round the two churches; 9 cells near the Stadspark
+differ too, from its own newer data, not this). `city.glb` and `streetlife.glb` rebuilt: 38 walls of the pulled-down
+houses gone from the street life, 10 blind walls of their neighbours now open to the air (posters, bills; no
+windows: their flags as they were). The ground under them was the cobbles already (the ground covers the land
+under the houses). The neighbours' street widths changed their class (17 poor fronts now middle or good:
+alley 154, fine 38, good 259, merchant 22, middle 410, poor 198, store 7).
+
+**Lamps.** Four gas lamps on the two squares made the lamplighters' east round 1.86 times the shortest (the test
+allows 1.2); taken out again. Instead an iron lantern on a bracket beside each of the four church doors, 3.5 m up
+(`build_city.py CHURCH_LANTERNS`, the door lantern raised), lit from dusk by `ambient.ts` like the house door
+lanterns (`city_gable_windows.json` lamps). The rounds and their tests are as they were. No bench or tree added
+(the clutter puts its own by the walls). The church models have no steps before their doors.
+
+Checks: `paths()` lists nothing (0); the church doors reached from the start on the client's map (`reachFrom`);
+`signs()` 1,554 things, 1,314 checked, 0 problems (1,557 and 1,315 before: the signs of the pulled-down fronts,
+some of them offset by bills on the new blind walls); server tests: `test/churches-freed.test.ts` (no door in a
+gone house, the four church doors and the squares reachable, a home in a gone house moves); the whole server suite
+passes (845 of 845; the two old-save tests, `lively` and `transport`, now leave the homes the load repair owns
+to the repair and check them on their own, `server/test/oldSave.ts`: a home of an older map whose house has no
+door at its step; one with no path must move, and a moved one is at a door of this city, reachable, the
+household together; everything else must stay as it was); `npm run
+build` passes.
+Pictures: from above, before and after, `data/shots/pair_ch_paul_top.jpg`, `pair_ch_jacob_top.jpg`; at eye level
+`ch3_mist16_*` (16:00, mist: St Paul's west door and square, the square seen from the street, the north transept
+door, the north lane; St James' tower door through the square's mouth, the square, the south transept door) and
+`ch3_mist21_*` (21:00: dark; the squares have no lamp).
+
+### Review fixes (2026-09-26)
+- The old-save tests (`lively`, `transport`, on `data/test-*-old.sqlite`): they failed on the committed code too
+  once the copy is there (the load repair of c362aa5 moves a home of an older map; the committed tree without
+  the copies skips them). `store.ts` gives `homeLost` and `homeStands` to them; `server/test/oldSave.ts` checks the
+  repaired homes on their own. 845 of 845 pass.
+- Plaster (Steve's review: "leopard blotches"): on the plaster and limewash pictures the picture's own patches
+  are flattened (60 % of it a far mip), and `houseGrime.ts` draws the weathering: soft stains, long and ragged,
+  running down; the existing runs under the sills and streaks, the damp rising at the foot; and on a worn house
+  (wear over 0.55) plaster fallen off in a few ragged holes with a hard edge, a light broken rim and a shadow under
+  the lip, most of them low on the wall. The limewash picture (`wall_variants.py`) keeps its wash but for a few
+  small places. Before `b14_back`, `ch3_mist16_j_in`; now `f2_back`, `f2_back_close`, `f4_mist16_back`.
+- The bared party walls: old brick (the brick picture, unpainted) and the ghost of the house pulled down
+  (`build_city.py ghost_marks`, `gone_along`): a thin film of its rooms' plaster up to its eaves and gable, a dark
+  line along its roof and each floor, the soot of its flue and a fireplace's on every floor, scraps of wallpaper
+  (a colour to a room), the iron anchors of its beams; bills from the street life as before. New cells in
+  `cityTextures.ts grimeDecals` (GHOST, LINE, SCRAP). The decal material now takes the day's light from the fog's
+  colour, so a light decal darkens at dusk. Before `ch3_mist16_*`; now `f4_*` (13:00), `f5_n21_*` (21:00).
+- Church lanterns: above. Night shots `f4_n21_*`.
+Checks: `signs()` 1,554 things, 0 problems; `paths()` lists only 10 places inside the Carolus (its interior,
+another part's work in progress, not these squares); z-fight 272 visible house fights (269 before), none by the ghosts or lanterns (round the churches only the old plot overlaps); `npm run build` passes.

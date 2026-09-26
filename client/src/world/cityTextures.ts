@@ -531,6 +531,18 @@ export function facadeAtlas(): THREE.CanvasTexture {
   dormerWindow(g, ...at(7, 1), r2);
   shutterLeaf(g, ...at(4, 2), true, r2);
   shutterLeaf(g, ...at(5, 2), false, r2);
+  // grime pass 2: a sash with one pane gone (black) and a crack across another (build_city.py SASH_CRACKED)
+  {
+    const [x, y] = at(6, 2);
+    sash(g, x, y, "#bdb4a0", "none", "", r2);
+    g.fillStyle = "#050505";
+    g.fillRect(x + 33, y + 22, 25, 18);
+    g.fillStyle = "rgba(230,235,240,0.7)";
+    for (let k = 0; k < 18; k++) g.fillRect(x + 8 + k, y + 44 + Math.round(Math.sin(k * 0.9) * 2 + k * 0.4), 1, 1);
+    for (let k = 0; k < 10; k++) g.fillRect(x + 16 + Math.round(k * 0.3), y + 45 + k, 1, 1);
+    g.fillStyle = "rgba(40,30,20,0.35)";
+    g.fillRect(x, y, C, C);
+  }
   // row 7, one cell per style (build_city.py FARPIER_ROW): the upper-storey wall round a window cut into it,
   // its lintel and sill painted where the upper cell paints them, no shutters: what a front shows far off,
   // where the game does not draw its 3D sills, heads and shutters
@@ -575,6 +587,94 @@ export function facadeAtlas(): THREE.CanvasTexture {
   });
   for (const [x, y, snap] of fills) maskFill(g, x, y, snap);
   return tex(c);
+}
+
+/**
+ * Grime pass 2: the decals' cells (build_city.py RUST, SOOT, DAMP, CORNER, BLOB), 4 x 4 cells of 64 px, grey
+ * shapes in the alpha (the vertex colour tints them): a rust run from an iron fitting down; a plume of soot rising
+ * from its foot; a damp stain; grime darkest at a corner (u = 0) fading out; a round soot blob. v = 0 at the bottom.
+ */
+export function grimeDecals(): THREE.CanvasTexture {
+  const n = 4;
+  const [c, g] = canvas(n);
+  const r = rand(1899);
+  const img = g.createImageData(C * n, C * n);
+  const cell = (col: number, row: number, fn: (u: number, v: number) => number) => {
+    const x0 = col * C, y0 = (n - 1 - row) * C;
+    for (let y = 0; y < C; y++)
+      for (let x = 0; x < C; x++) {
+        const u = (x + 0.5) / C, v = 1 - (y + 0.5) / C;
+        const a = Math.max(0, Math.min(1, fn(u, v)));
+        const i = ((y0 + y) * C * n + x0 + x) * 4;
+        img.data[i] = img.data[i + 1] = img.data[i + 2] = 255;
+        img.data[i + 3] = Math.round(a * 255);
+      }
+  };
+  // a few random columns for streaky edges
+  const streaks = Array.from({ length: C }, () => r());
+  const sm = (a: number, b: number, x: number) => {
+    const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+    return t * t * (3 - 2 * t);
+  };
+  cell(0, 0, (u, v) => {
+    // rust: strong at the top under the iron, narrowing and fading as it runs down, in streaks
+    const w = 0.12 + 0.3 * v;
+    const x = Math.abs(u - 0.5);
+    return (1 - sm(w * 0.6, w, x)) * sm(0.0, 0.7, v) * (0.6 + 0.4 * streaks[Math.floor(u * C)]);
+  });
+  cell(1, 0, (u, v) => {
+    // soot: dark at the foot, rising and spreading, fading up
+    const w = 0.18 + 0.3 * v;
+    const x = Math.abs(u - 0.5);
+    return (1 - sm(w * 0.5, w, x)) * (1 - sm(0.2, 1.0, v)) * (0.7 + 0.3 * streaks[Math.floor(u * C)]) * 0.85;
+  });
+  cell(2, 0, (u, v) => {
+    // damp: a stain with a ragged edge, darkest low
+    const x = Math.abs(u - 0.5) * 2;
+    const edge = 0.75 + 0.2 * Math.sin(u * 23 + v * 7) * Math.sin(u * 9 - v * 13);
+    return (1 - sm(edge * 0.7, edge, x)) * (1 - sm(0.3, 1.0, v)) * 0.8 * (0.7 + 0.3 * streaks[Math.floor(u * C)]);
+  });
+  cell(3, 0, (u, v) => Math.pow(1 - sm(0.0, 1.0, u), 0.7) * (0.75 + 0.25 * streaks[Math.floor(u * C)]) * (0.85 + 0.15 * (1 - v)));
+  cell(0, 1, (u, v) => {
+    const d = Math.hypot(u - 0.5, v - 0.5) * 2;
+    return (1 - sm(0.2, 1.0, d)) * 0.9;
+  });
+  // the churches freed (build_city.py ghost_marks): the ghost of a house pulled down on its neighbour's party wall
+  // a periodic value noise (tiles: the ghost's cell repeats over its outline)
+  const tileNoise = (cells: number, seed: number) => {
+    const rr = rand(seed);
+    const v = Array.from({ length: cells * cells }, () => rr());
+    return (u: number, w: number) => {
+      const fx = u * cells, fy = w * cells;
+      const x0 = Math.floor(fx), y0 = Math.floor(fy);
+      const tx = fx - x0, ty = fy - y0;
+      const at = (i: number, j: number) => v[(((j % cells) + cells) % cells) * cells + (((i % cells) + cells) % cells)];
+      const sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+      return (at(x0, y0) * (1 - sx) + at(x0 + 1, y0) * sx) * (1 - sy) + (at(x0, y0 + 1) * (1 - sx) + at(x0 + 1, y0 + 1) * sx) * sy;
+    };
+  };
+  const gA = tileNoise(4, 31), gB = tileNoise(11, 32), gC = tileNoise(29, 33);
+  cell(1, 1, (u, v) => {
+    // the old rooms' plaster left on the brick: patchy, broken off in hard-edged holes, streaked down
+    // (a thin film over the brick, the brick's courses still showing through; holes where it fell, hard-edged)
+    const n = gA(u, v) * 0.55 + gB(u, v) * 0.3 + gC(u, v) * 0.15;
+    const kept = n > 0.47 ? 1 : 0.3;
+    return kept * (0.2 + 0.14 * gB((u * 2) % 1, v)) * (0.85 + 0.15 * streaks[Math.floor(u * C)]);
+  });
+  // a dark line along its length (a floor's joists, the roof's flashing): hard below, soft above, a little ragged
+  cell(2, 1, (u, v) => (sm(0.1, 0.25, v) * (1 - sm(0.55, 0.95, v))) * (0.7 + 0.3 * gB(u, 0.5)) * 0.85);
+  cell(3, 1, (u, v) => {
+    // a scrap of wallpaper: ragged torn edges, a faded stripe and a small figure
+    const e = 0.32 + 0.12 * (gB(u, v) - 0.5) + 0.08 * (gC(u, v) - 0.5);
+    const inside = Math.abs(u - 0.5) < e && Math.abs(v - 0.5) < e + 0.08 ? 1 : 0;
+    const stripe = Math.sin(u * 40) > 0.6 ? 0.85 : 1;
+    const figure = (Math.floor(u * 8) + Math.floor(v * 8)) % 3 === 0 && Math.hypot(((u * 8) % 1) - 0.5, ((v * 8) % 1) - 0.5) < 0.2 ? 0.8 : 1;
+    return inside * 0.75 * stripe * figure;
+  });
+  g.putImageData(img, 0, 0);
+  const t = tex(c);
+  t.magFilter = THREE.LinearFilter;
+  return t;
 }
 
 export function roofAtlas(): THREE.CanvasTexture {

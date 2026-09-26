@@ -205,6 +205,8 @@ interface House {
   st: number;
   street: number[];
   alley?: boolean;
+  /** Pulled down (the churches freed, 2026-09-26): not built, no door. The entry stays so indexes hold. */
+  gone?: boolean;
 }
 
 let doorsCache: HouseDoor[] | null = null;
@@ -220,7 +222,7 @@ export function houseDoors(): HouseDoor[] {
   const build = JSON.parse(fs.readFileSync(path.join(ROOT, "shared", "city_build.json"), "utf8")) as { houses: House[] };
   const out: HouseDoor[] = [];
   build.houses.forEach((h, i) => {
-    if (h.store) return;
+    if (h.store || h.gone) return;
     let a: [number, number];
     let b: [number, number];
     if (h.rect) {
@@ -269,6 +271,16 @@ export function houseDoors(): HouseDoor[] {
   });
   doorsCache = out;
   return out;
+}
+
+let goneCache: Set<number> | null = null;
+
+/** The houses of shared/city_build.json marked gone (pulled down, not built; the churches freed, 2026-09-26). */
+export function goneHouses(): Set<number> {
+  if (goneCache) return goneCache;
+  const build = JSON.parse(fs.readFileSync(path.join(ROOT, "shared", "city_build.json"), "utf8")) as { houses: House[] };
+  goneCache = new Set(build.houses.flatMap((h, i) => (h.gone ? [i] : [])));
+  return goneCache;
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
