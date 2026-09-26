@@ -7,10 +7,7 @@ Git history has the detail of each commit.
 
 ## Waiting for Steve
 
-- Multiplayer plan (`docs/multiplayer-plan.md`), six open questions, each with a recommendation:
-  trust guests' own movement; night passes only when all are in bed; a player who dies starts a
-  new man off the ferry; plain http on the home network; show guests' typed lines as bubbles;
-  AI calls: host pays, 120 a day + 60 per extra player. Then: go for M8a (walk together)?
+- Multiplayer: the plan's questions are answered (see the plan's last part). Go for M8a (walk together) when the menus, character creator and loading screen are in?
 - The clockmaker's pocket watches and the junk-stall clocks: live hands too? (Steve did not pick it: no for now.)
 
 Decided 2026-09-26: licence AGPL-3.0 (being added, with a public-release check); picture-round
@@ -21,7 +18,7 @@ and foot-of-wall dirt.
 
 | Work | Scope and files | Started |
 |---|---|---|
-| Codex: low-poly props and tight collisions | IN PROGRESS. Generated reference `assets/concepts/quay-props.png`; research and shared mesh-surface collision helper, `geom.ts`, `rijnkaai.ts`, prop loader collision functions. Overlaps with Props in walls: preserve its placements/registry/checks, compare current files before integrating. Own test stack tight-assets on 5357/8957; do not stop others. No play checkout until verified. | 2026-09-26 |
+| Codex: low-poly props and tight collisions | IN PROGRESS. Reference `assets/concepts/quay-props.png`; `modelCollision.ts` + `geom.ts`, only collision sections of `rijnkaai.ts`, props3d/quaygoods/quayfurniture/clutter/streetlife/litter/trades/townplaces loaders. Preserve Props in walls + Picture round placement/registry/sky edits. Six geometry tests pass. Cargo text + matching bump/wet atlas in `build_quaygoods.py`, `quaygoods.glb`, `quaygoods_surface.png`, `propSurface.ts`. Blender review shots `data/shots/tight-assets-*`. Own test stack tight-assets now 5349/8959; T3 preview renderer failing, browser verification pending. No play checkout until verified. | 2026-09-26 |
 | Licence and public check | AGPL-3.0 LICENSE, package.json fields, README licence part, Source link in the game, `docs/public-release-check.md` (secrets in history, third-party files, dependencies) | 2026-09-26 |
 | Picture round 1, 4, 5 + tuning | autumn ground (leaves, dung, straw), clouds, smoke and works chimneys; stronger gutter streams and foot-of-wall dirt; litter.ts, leaves, sky in rijnkaai.ts, ambient.ts, eaves.ts, footDirt constants | 2026-09-26 |
 | Yard windows 3D | the 348 yard-side walls get real windows; build_city.py, city.glb; posters/props/gutters checks stay clean | 2026-09-26 |

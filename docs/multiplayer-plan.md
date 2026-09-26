@@ -611,3 +611,12 @@ Player ids everywhere on the server; per-player saves; drop out and in.
 [mdn-secure]: https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Secure_Contexts/features_restricted_to_secure_contexts
 [aoi]: https://www.dynetisgames.com/2017/04/05/interest-management-mog/index.html
 [mantella]: https://www.pcgamer.com/games/the-elder-scrolls/this-skyrim-mod-that-makes-npcs-ai-chatterboxes-just-got-a-massive-overhaul/
+
+## Steve's decisions (2026-09-26)
+
+- Movement: each player's own PC moves them; the server only checks that a move is possible. Revisit for strangers or fights.
+- Sleep: the night passes only when every player online is in bed; a lone sleeper rests while the world goes on.
+- Death: the player gets his ending, then may start a new character arriving on the ferry; the world goes on.
+- AI calls: the host pays; no daily limit by default, with a limit available in the settings.
+- Server settings (AI setup, limits, world settings, open to the house, join code): only a session on the host PC or a player marked admin can change them.
+- Taken as recommended (not asked): plain http on the home network with files kept in IndexedDB; guests' typed lines shown as speech bubbles after the filter.
