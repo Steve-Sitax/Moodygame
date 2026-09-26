@@ -1345,7 +1345,6 @@ if (import.meta.env.DEV) {
 
 // M7 rendering, dev: the culler and the renderer for checks (__scheldemist.cull), and the view's numbers
 if (import.meta.env.DEV) {
-  Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, { cull, renderer, retro, lanternLights });
   Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, { cull, renderer, retro, lanternLights, alive });
   // M7 back of town (hook): __scheldemist.back.info(), .at(place)
   Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, { back: backLife });
