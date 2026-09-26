@@ -19,7 +19,7 @@ and foot-of-wall dirt.
 
 At most 3-4 helpers at once, so tests and browser checks do not time out.
 
-1. Wave 1, running: loading screen, character creator, prison made real, empty shop fronts.
+1. Wave 1: loading screen, character creator, empty shop fronts are live; prison made real still running.
    Why first: they are nearly done; multiplayer needs the loading screen and the character creator;
    the prison writes the interior check and template the shop fronts use; the shop fronts change the
    houses before the yard windows do.
@@ -37,16 +37,17 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 | Codex: low-poly props and tight collisions | SAFE BATCH MERGED + PUSHED `abb6a21` (already live through `9aa9cd4`; reconciled main `98bdebe`): collision core, tree trunks and static stop benches; tree/vegetation design, matching bark bump/wet map. Seven collision tests, clean build, Chrome contact + dry/rain, paths/shaders empty. Test Chrome and isolated 5469/9069 stack cleaned up. HOLD barrels/crates/sacks and other prepared prop-loader changes until Props in walls/Picture round finishes; defer other active assets per Steve. Queue/scope and validation: `docs/milestones/M7-small-assets.md`; original cargo evidence `M7-tight-props.md`. Extra router check: 19 passed, two timeouts (first Codex stub and process-kill test); report to Flaky talk-down/AI owner, no edits to their files. | 2026-09-26 |
 | Picture round 1, 4, 5 + tuning | PAUSED. autumn ground (leaves, dung, straw), clouds, smoke and works chimneys; stronger gutter streams and foot-of-wall dirt; litter.ts, leaves, sky in rijnkaai.ts, ambient.ts, eaves.ts, footDirt constants | 2026-09-26 |
 | Yard windows 3D | PAUSED. the 348 yard-side walls get real windows; build_city.py, city.glb; posters/props/gutters checks stay clean | 2026-09-26 |
-| Character creator | name, sex, age, looks, clothes; profile per player id; prompts and lines follow it; `client/src/menu/character.ts`, server profile | 2026-09-26 |
-| Loading screen | a boot module, `client/index.html`: progress bar, shaders and textures warmed up front | 2026-09-26 |
-| Empty shop fronts | every cut shop house opening onto a void gets a real use and a real room (Steve's spot next to the bakery) | 2026-09-26 |
 | Prison made real | every room the outside shows built inside, seen through every window; a general `interiorcheck`; `docs/building-with-interior.md` | 2026-09-26 |
-| All boats | PAUSED. detail on every boat and barge, 6+ kinds of small boats, take any boat ("take X's boat"), owner angry if he sees it | 2026-09-26 |
+| All boats | Done; the patch is being rebuilt on the newest version, then live. detail on every boat and barge, 6+ kinds of small boats, take any boat ("take X's boat"), owner angry if he sees it | 2026-09-26 |
 
 ## Live (2026-09-26, after the away batch)
 
 | Commit | What |
 |---|---|
+| 5daf31c | Loading screen; every shader, texture and room ready before the menu |
+| 8033055 | Empty shop fronts get their shops (barber by the bakery), shutters at night, a guard |
+| 6726659 | Your character: name, sex, age, looks and clothes before a new week |
+| b92eb5a | Props out of the walls: one town-wide prop check |
 | abb6a21, ed6e6e2 | (other session) Small vegetation, model-shaped tree and bench collisions |
 | e60ca44 | (other session) Tests: hostile-line loops copy one save; timed-out calls no longer wait |
 | 9aa9cd4 | Light from windows, doors and lamps falls on the street the same way everywhere |
