@@ -12,7 +12,8 @@ import { mulberry, openAt, type Ctx, type Frame, type Part } from "./common";
 // too far, or out of sight behind Jef, is laid down again ahead of him. Their scrape (made in
 // code) is heard within 8 m. One instanced mesh, one draw call.
 
-const N_LEAF = 96;
+// (picture round 2026-09-26, package 1: more of them and bigger, plane leaves as big as a hand; was 96, 14-24 cm)
+const N_LEAF = 150;
 const N_PAPER = 8;
 const N = N_LEAF + N_PAPER;
 const R = 26;
@@ -61,8 +62,13 @@ function texture(): THREE.Texture {
     for (let x = 0; x < 16; x++) {
       const u = (x + 0.5) / 16 - 0.5;
       const v = (y + 0.5) / H;
-      const half = 0.42 * Math.sin(Math.PI * Math.pow(v, 0.8));
-      if (Math.abs(u) > half) continue;
+      // (package 1: a plane leaf, five-lobed, not an oval: its points read at a few metres)
+      const lu = u * 2;
+      const lv = (v - 0.55) * 2;
+      const r = Math.hypot(lu, lv);
+      const t = Math.atan2(lv, lu);
+      const edge = (0.62 + 0.3 * Math.abs(Math.cos(t * 2.5 + 1.57))) * (v > 0.9 ? 0.5 : 1);
+      if (r > edge) continue;
       const rib = Math.abs(u) < 0.05;
       const shade = 0.85 + 0.15 * Math.sin(y * 1.7 + x);
       g.fillStyle = rib ? "rgba(90,60,30,1)" : `rgba(${Math.round(200 * shade)},${Math.round(150 * shade)},${Math.round(70 * shade)},1)`;
@@ -100,7 +106,8 @@ export function createLeaves(ctx: Ctx): Part {
   const r = mulberry(1873_10);
   for (let i = 0; i < N; i++) {
     const paper = i >= N_LEAF;
-    const c = paper ? new THREE.Color(0.8, 0.78, 0.72) : new THREE.Color().setHSL(0.06 + r() * 0.07, 0.55 + r() * 0.3, 0.32 + r() * 0.2);
+    // (package 1: ochre, rust and brown, a little brighter than the drifts: the loose ones lie on top, dry)
+    const c = paper ? new THREE.Color(0.8, 0.78, 0.72) : new THREE.Color().setHSL(0.05 + r() * 0.07, 0.6 + r() * 0.3, 0.34 + r() * 0.2);
     tints.push(c);
     mesh.setColorAt(i, c);
   }
@@ -159,7 +166,7 @@ export function createLeaves(ctx: Ctx): Part {
       l.yaw = Math.random() * Math.PI * 2;
       l.tilt = 0;
       l.air = 0;
-      l.s = l.paper ? 0.28 + Math.random() * 0.12 : 0.14 + Math.random() * 0.1;
+      l.s = l.paper ? 0.28 + Math.random() * 0.12 : 0.17 + Math.random() * 0.13;
       return true;
     }
     l.p.set(1e5, 0, 0);

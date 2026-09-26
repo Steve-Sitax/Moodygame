@@ -371,10 +371,12 @@ vec3 psxFootDirt(vec3 c, float amount) {
   // the fine squares kept cleaner
   float fine = 0.0;
   ${FOOT_FINE.map(([x, z, r]) => `fine = max(fine, 1.0 - smoothstep(${(r * 0.65).toFixed(1)}, ${r.toFixed(1)}, length(vPsxWorld.xz - vec2(${x.toFixed(1)}, ${z.toFixed(1)}))));`).join("\n  ")}
-  float a = clamp(amount * (0.65 + 0.7 * street) * mix(1.0, 0.35, fine), 0.0, 1.2);
+  // (tuning 2026-09-26, Steve: "stronger foot-of-wall dirt": clear at 5-15 m in the back lanes and on the quays, the
+  // fine squares still light; was 0.65 + 0.7 street, 0.35 fine, 1.2)
+  float a = clamp(amount * (0.85 + 0.85 * street) * mix(1.0, 0.3, fine), 0.0, 1.35);
   // the damp's top: 0.5 m on a kept wall, 1.2 m on a foul one, ragged along the wall (metres and hand spans)
-  float top = mix(0.45, 1.15, clamp(a, 0.0, 1.0)) + 0.22 * (pudVal(vec2(s / 1.6, 3.1)) - 0.5) + 0.1 * (pudVal(vec2(s / 0.37, 7.7)) - 0.5);
-  float damp = 1.0 - smoothstep(top - 0.28, top, y);
+  float top = mix(0.55, 1.4, clamp(a, 0.0, 1.0)) + 0.22 * (pudVal(vec2(s / 1.6, 3.1)) - 0.5) + 0.1 * (pudVal(vec2(s / 0.37, 7.7)) - 0.5);
+  float damp = 1.0 - smoothstep(top - 0.2, top, y);
   // the tide line: salts left where the damp stops, a darker thin run just under its top
   float tide = smoothstep(top - 0.16, top - 0.05, y) * (1.0 - smoothstep(top - 0.05, top, y));
   // splashed mud from the wheels and the feet: specks and blots, thicker and more of them near the street
@@ -387,10 +389,12 @@ vec3 psxFootDirt(vec3 c, float amount) {
   float muck = 1.0 - smoothstep(0.02, 0.2 + 0.18 * a + 0.12 * pudVal(vec2(s / 0.5, 1.3)), y);
   vec3 d = c;
   // the damp: darker and a little green-brown, most at the bottom
-  d *= mix(vec3(1.0), vec3(0.6, 0.58, 0.5), damp * (0.4 + 0.45 * a) * (0.75 + 0.25 * (1.0 - y / max(top, 0.1))));
-  d *= mix(vec3(1.0), vec3(0.72, 0.7, 0.64), tide * 0.7 * a);
-  d = mix(d, d * vec3(0.46, 0.4, 0.32), clamp(splash * (0.4 + 0.45 * a), 0.0, 1.0));
-  d = mix(d, d * vec3(0.32, 0.28, 0.22), muck * (0.4 + 0.45 * a));
+  d *= mix(vec3(1.0), vec3(0.42, 0.4, 0.33), damp * (0.55 + 0.5 * a) * (0.75 + 0.25 * (1.0 - y / max(top, 0.1))));
+  d *= mix(vec3(1.0), vec3(0.6, 0.58, 0.52), tide * a);
+  // (and just over it the salts it leaves, a pale ragged bloom: the damp's edge reads at 10 m)
+  d *= 1.0 + 0.22 * a * smoothstep(top - 0.02, top + 0.03, y) * (1.0 - smoothstep(top + 0.05, top + 0.16, y)) * step(0.45, pudVal(vec2(s / 0.6, 5.3)));
+  d = mix(d, d * vec3(0.42, 0.36, 0.28), clamp(splash * (0.5 + 0.5 * a), 0.0, 1.0));
+  d = mix(d, d * vec3(0.27, 0.23, 0.17), muck * (0.5 + 0.5 * a));
   return mix(c, d, vert);
 }
 vec3 psxMottle(vec3 c, float k) {

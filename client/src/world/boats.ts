@@ -844,8 +844,9 @@ async function load(): Promise<Boats> {
   const placedAll: Placement[] = [];
 
   // ---- smoke from the funnels: one Points object, a few puffs per funnel
-  const PUFFS = 9;
-  const LIFE = 8;
+  // (picture round 2026-09-26, package 5: a longer, fuller plume off every funnel, bent by the wind; was 9 puffs, 8 s)
+  const PUFFS = 14;
+  const LIFE = 12;
   const emitters: Array<{ at: (out: THREE.Vector3) => void; strength: number; phase: number; root: () => THREE.Object3D | null }> = [];
   let smoke: THREE.Points | null = null;
   const smokeMat = new THREE.ShaderMaterial({
@@ -928,10 +929,13 @@ async function load(): Promise<Boats> {
         const f = (t / LIFE + k / PUFFS + em.phase) % 1;
         const age = f * LIFE;
         const i = e * PUFFS + k;
-        const wob = Math.sin(age * 1.7 + k * 2.1 + em.phase * 9) * 0.25;
-        pos.setXYZ(i, ep.x + wind.x * age + wob, ep.y + age * 0.9 - age * age * 0.03, ep.z + wind.z * age - wob);
-        size.setX(i, 1.0 + age * 0.75);
-        alpha.setX(i, em.strength * Math.pow(1 - f, 1.4) * Math.min(1, age * 2.5));
+        const wob = Math.sin(age * 1.7 + k * 2.1 + em.phase * 9) * 0.25 * (1 + age * 0.15);
+        // (package 5: it rises fast out of the funnel, then lies over and drifts; a funnel's plume, not a stove's, darker and fuller)
+        const funnel = em.strength >= 0.5;
+        const rise = funnel ? 1.6 * (1 - Math.exp(-age * 0.45)) / 0.45 : age * 0.9 - age * age * 0.03;
+        pos.setXYZ(i, ep.x + wind.x * age * (funnel ? 1.25 : 1) + wob, ep.y + rise, ep.z + wind.z * age * (funnel ? 1.25 : 1) - wob);
+        size.setX(i, funnel ? 1.3 + age * 1.05 : 1.0 + age * 0.75);
+        alpha.setX(i, Math.min(1, em.strength * (funnel ? 1.5 : 1)) * Math.pow(1 - f, funnel ? 1.1 : 1.4) * Math.min(1, age * 2.5));
       }
     }
     pos.needsUpdate = size.needsUpdate = alpha.needsUpdate = true;

@@ -23,6 +23,8 @@ import { createRiver, type River } from "./river";
 import { buildTracks, trackKeepOut, type TrackData } from "./tracks";
 import { buildRuts } from "./ruts";
 import { buildFarBank } from "./farbank";
+import { createCloudSky } from "./sky"; // package 4: the clouds
+import { createWorks } from "./works"; // package 5: works chimneys
 import { buildVegetation } from "./vegetation";
 import { buildTrees3D } from "./trees3d";
 import { applyDirt } from "./dirt";
@@ -369,9 +371,12 @@ export function buildRijnkaai(): World {
   scene.add(sun.target);
   let sunDay = 0;
 
-  // --- sky dome: takes the fog colour and the lamp glow in the air
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(560, 16, 8), m.sky);
+  // --- sky dome (picture round 2026-09-26, package 4: clouds; world/sky.ts): a cloudy sky round the air's colour
+  const cloudSky = createCloudSky(560);
+  const sky = cloudSky.mesh;
   scene.add(sky);
+  const skySunXZ = new THREE.Vector2();
+  // --- end sky
 
   // --- the city: ground, quay walls, houses (world/city.ts)
   const city = buildCity(scene, m, WATER_Y);
@@ -585,6 +590,8 @@ export function buildRijnkaai(): World {
     .catch((e) => console.warn("vegetation did not load", e));
   // the far bank of the Schelde, seen on clear days (world/farbank.ts)
   buildFarBank(scene, WATER_Y);
+  // package 5 (picture round 2026-09-26): works chimneys on the skyline, smoking (world/works.ts)
+  const works = createWorks(scene, city.flags, city.ready);
   // the land beyond the town wall, seen from the walk (world/countryside.ts)
   buildCountryside(scene, WATER_Y);
   // wheel ruts down the cart roads (world/ruts.ts)
@@ -1796,6 +1803,9 @@ export function buildRijnkaai(): World {
     sun.color.copy(SUN_WHITE).lerp(SUN_GOLD, gold);
     skyLight.color.copy(SKY_COLD).lerp(SKY_WARM, gold * 0.55);
     sun.position.copy(sunDir.copy(SUN_HIGH).lerp(SUN_LOW, gold));
+    // (package 4: the clouds, round the air's colour now; the warm band where the evening sun goes down)
+    cloudSky.update(dt, t, fog.color, dayNow, weatherNow, wNow[3], skySunXZ.set(SUN_LOW.x, SUN_LOW.z));
+    works.update(t, dt, dayNow, weatherNow, fog.color);
     // the sun: nothing at night, a glow through fog, real light on a clear day (warmer and a
     // little stronger in the golden hour: the low light is what shows)
     sun.intensity = sunDay * (1.35 - wNow[2]) * 2.6 * (1 + 0.8 * gold);

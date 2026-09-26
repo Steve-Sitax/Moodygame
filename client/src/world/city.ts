@@ -400,14 +400,15 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
   // both sides drawn: a wall seen from behind (a party wall, a gable back) is never a hole
   const DS = THREE.DoubleSide;
   // (the foot of the walls, 2026-09-26: mud, damp and its tide line, by the house's wear: retro/psx.ts foot)
-  const facade = psx(new THREE.MeshLambertMaterial({ map: facadeAtlas(), vertexColors: true, side: DS }), { atlas: 8, affine: 0, foot: { amount: 1, vertexWear: true } });
+  // (tuning 2026-09-26: the foot's dirt stronger, was 1 on the fronts and 0.8 on the trim)
+  const facade = psx(new THREE.MeshLambertMaterial({ map: facadeAtlas(), vertexColors: true, side: DS }), { atlas: 8, affine: 0, foot: { amount: 1.25, vertexWear: true } });
   const roof = psx(new THREE.MeshLambertMaterial({ map: roofAtlas(), vertexColors: true, side: DS }), { atlas: 2, affine: 0 });
   const wood = psx(new THREE.MeshLambertMaterial({ map: makeTextures().planks, vertexColors: true, side: DS }), { affine: 0.2 });
   const leaves = psx(new THREE.MeshLambertMaterial({ map: leafTexture(), vertexColors: true, side: DS }), { affine: 0 });
   // --- bump maps on every floor (2026-09-26): the pavements, kerbs and door steps (flat, below 0.8 m) as bluestone slabs in
   // world metres with their own relief (retro/psx.ts slabs); their own uv there stretched the stone texture flat
   const slabPave = flagPaving();
-  const trim = psx(new THREE.MeshLambertMaterial({ map: stoneTexture(), vertexColors: true, side: DS }), { affine: 0.2, slabs: { map: slabPave.map, height: slabPave.height, tile: 2.6, yMax: 0.8 }, foot: { amount: 0.8, vertexWear: true } });
+  const trim = psx(new THREE.MeshLambertMaterial({ map: stoneTexture(), vertexColors: true, side: DS }), { affine: 0.2, slabs: { map: slabPave.map, height: slabPave.height, tile: 2.6, yMax: 0.8 }, foot: { amount: 1.0, vertexWear: true } });
   // M7 the grime pass: the fronts old and dirty (world/houseGrime.ts: wall pictures, streaks, damp, soot, worn paint)
   houseGrime(facade, trim);
   // grime pass 2: rust runs, soot, damp and corner grime as decals (build_city.py MAT_GRIME): see-through, no

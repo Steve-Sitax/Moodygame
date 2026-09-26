@@ -32,7 +32,8 @@ const DROPS = 110;
 const FLECKS = 90;
 /** Streams drawn at once (the nearest), and what each is made of. */
 const NEAR_STREAMS = 14;
-const STREAKS = 9;
+// (tuning 2026-09-26, Steve: "stronger gutter streams": fuller, wider near, seen to 12-20 m; was 9)
+const STREAKS = 13;
 const CORE = 8;
 const SPLASH = 8;
 const SEGS = DROPS + FLECKS + NEAR_STREAMS * (STREAKS * 3 + CORE * 3 + SPLASH);
@@ -347,9 +348,11 @@ const LINE_V = /* glsl */ `
     // (the whole part of |aK| brightens: a stream's glassy thread catches more of the sky than a lone drop)
     float k = abs(aK);
     float lift = floor(k);
-    vCol = aK < 0.0 ? col * 0.25 : col * (1.0 + 0.4 * lift);
+    vCol = aK < 0.0 ? col * 0.22 : col * (1.0 + 0.6 * lift);
     // near only: far off it is the weather's own grey
-    vA = fract(k) * smoothstep(0.4, 1.0, vFogDepth) * (1.0 - smoothstep(7.0, 18.0, vFogDepth));
+    // (a stream's threads, lit or shadow, carry on further than a lone drop: easy to see at 4-10 m, gone by 24 m)
+    bool stream = aK < 0.0 || lift > 0.5;
+    vA = fract(k) * smoothstep(0.4, 1.0, vFogDepth) * (1.0 - (stream ? smoothstep(12.0, 24.0, vFogDepth) : smoothstep(7.0, 18.0, vFogDepth)));
     if (vA < 0.003) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
   }`;
 
@@ -468,8 +471,8 @@ export function createDrips(ctx: Ctx): Part & { streams(): Stream[]; nearStreams
   let planWait = 0;
   const w2 = new THREE.Vector2();
   const right = new THREE.Vector3();
-  const WIDE = [-0.01, 0.01];
-  const WIDE3 = [-0.018, 0, 0.018];
+  const WIDE = [-0.016, 0.016];
+  const WIDE3 = [-0.028, 0, 0.028];
   /** Which thread is the lit side (1) and which the shadow side (-1, drawn darker). */
   const TONE = (w: number) => (w > 0.001 ? -0.8 : 1);
   /** A stream's weight: `k` (0..0.95) its alpha, lit threads one step brighter (LINE_V's whole part), shadow ones negative. */
@@ -702,7 +705,7 @@ export function createDrips(ctx: Ctx): Part & { streams(): Stream[]; nearStreams
         const strong = Math.min(1, sflow * 1.25);
         const n = Math.max(1, Math.round(STREAKS * strong));
         const dEye = Math.hypot(s.x - f.eye.x, s.z - f.eye.z);
-        const wide = strong < 0.3 || dEye > 12 ? ONE : dEye < 6 ? WIDE3 : WIDE;
+        const wide = strong < 0.25 || dEye > 18 ? ONE : dEye < 10 ? WIDE3 : WIDE;
         for (let j = 0; j < n; j++) {
           const ph = t / tf + j / n + s.seed * 3.7;
           const cyc = Math.floor(ph);
@@ -715,7 +718,7 @@ export function createDrips(ctx: Ctx): Part & { streams(): Stream[]; nearStreams
           const jx = (hash(cyc, j + s.seed) - 0.5) * 0.05 * (0.4 + d / Hf);
           const [x0, z0] = at(d);
           const [x1, z1] = at(d - len);
-          const k = (strong > 0.4 ? 0.85 : 0.55) * (0.5 + 0.5 * hash(cyc + 11, j));
+          const k = (strong > 0.4 ? 0.95 : 0.7) * (0.6 + 0.4 * hash(cyc + 11, j));
           // (two threads a hand's breadth of a finger apart across the view: near, the stream is two pixels wide)
           for (const w of wide) {
             // (the threads a little out of step: water, not a rod)
@@ -727,7 +730,7 @@ export function createDrips(ctx: Ctx): Part & { streams(): Stream[]; nearStreams
         }
         // the core: an unbroken thread when it pours
         if (strong > 0.45) {
-          const kc = 0.08 * strong;
+          const kc = 0.16 * strong;
           for (const w of wide) {
             let [px, pz] = at(0);
             let py = s.top;

@@ -277,9 +277,10 @@ function install(mat: THREE.Material, kind: "facade" | "stone"): void {
       // grime pass 2: more soot the higher up (the smoke of the town's chimneys), and on the cornices
       diffuseColor.rgb *= 1.0 - smoothstep(4.5, 14.0, vPsxWorld.y) * 0.32 * gWear;
       // green-black damp rising from the street: higher on a worn house, a ragged top edge
-      float gTop = 0.4 + 0.7 * gWear + 0.35 * (gNf.g - 0.5) + 0.25 * (gNz.r - 0.5);
+      // (tuning 2026-09-26, "stronger foot-of-wall dirt": higher and darker on a worn house; was 0.4 + 0.7 wear, 0.8)
+      float gTop = 0.45 + 0.85 * gWear + 0.35 * (gNf.g - 0.5) + 0.25 * (gNz.r - 0.5);
       float gDamp = (1.0 - smoothstep(gTop - 0.3, gTop, vPsxWorld.y)) * gVert;
-      diffuseColor.rgb *= mix(vec3(1.0), vec3(0.4, 0.46, 0.34), gDamp * 0.8);
+      diffuseColor.rgb *= mix(vec3(1.0), vec3(0.34, 0.39, 0.28), gDamp * (0.75 + 0.25 * gWear));
       diffuseColor.rgb *= 1.0 - (1.0 - smoothstep(0.0, 0.18, vPsxWorld.y)) * 0.3 * gVert;
     }
     #include <color_fragment>

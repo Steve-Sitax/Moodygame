@@ -4,6 +4,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import CITY from "../../../shared/city.json";
 import SPOT_TABLE from "../../../shared/spots.json";
+import TOWN_PLACES from "../../../shared/townplaces.json"; // package 1: the trees of the squares and greens
 import { MARKET_DAYS, marketShare } from "../../../server/src/town/market";
 import { marketKeepOut } from "../game/market";
 import { psx, psxUniforms, waveAt } from "../retro/psx";
@@ -423,6 +424,26 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
     count(name);
     return true;
   };
+  /**
+   * Picture round 2026-09-26 (package 1): a mark of w x dd turned by yaw lies whole on open ground at height y: every
+   * corner and edge of it on the walk map's open ground (no wall, no water) and on the ground as built at y (not
+   * half over a kerb or a step, so nothing floats and nothing sinks).
+   */
+  const levelOk = (fx: number, fz: number, y: number, w: number, dd: number, yaw: number): boolean => {
+    const c = Math.cos(yaw);
+    const sn = Math.sin(yaw);
+    for (const [u, v] of [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5], [0, -0.5], [0, 0.5], [-0.5, 0], [0.5, 0]]) {
+      // (local x along the mark's width, z along its depth, turned by yaw as the batch turns it)
+      const px = fx + u * w * c + v * dd * sn;
+      const pz = fz - u * w * sn + v * dd * c;
+      if (at(px, pz) !== OPEN) return false;
+      const g = opts.ground?.(px, pz, y + 0.3);
+      if (g !== undefined && g !== null && Math.abs(g - y) > 0.035) return false;
+    }
+    return true;
+  };
+  /** The kinds of this package held to levelOk wherever they are put (the older marks keep their rule). */
+  const LEVELLED = /^(straw|dungflat|leafmush|leaf)/;
   /** A flat mark (a cell of the decal atlas), scaled by s, turned by yaw (random if undefined). */
   const flatAt = (name: string, x: number, z: number, s = 1, yaw?: number, extra: Partial<Put> = {}): boolean => {
     const d = meta.decals[name];
@@ -430,7 +451,9 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
     const r = Math.max(d.w, d.d) * s * 0.4;
     const [fx, y, fz] = settle(x, z, r);
     if (!flatOk(fx, fz, r)) return false;
-    puts.push({ layer: "flat", name, x: fx, y: y + 0.006, z: fz, yaw: yaw ?? R() * Math.PI * 2, sx: d.w * s, sz: d.d * s, shade: 0.85 + R() * 0.25, ...extra });
+    yaw ??= R() * Math.PI * 2;
+    if (LEVELLED.test(name) && !levelOk(fx, fz, y, d.w * s, d.d * s, yaw)) return false;
+    puts.push({ layer: "flat", name, x: fx, y: y + 0.006, z: fz, yaw, sx: d.w * s, sz: d.d * s, shade: 0.85 + R() * 0.25, ...extra });
     count(name);
     return true;
   };
@@ -1056,6 +1079,219 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
     psxUniforms.uFoulBox.value.set(X0, Z0, MW, MH);
   }
 
+  await sleep(0);
+  // ================================================================ 12. autumn (picture round 2026-09-26, package 1)
+  // Fallen plane and lime leaves blown into drifts: against the kerbs and the wall feet, into the inside corners, round
+  // every tree pit and in a carpet under the trees of the squares (world/alive/leaves.ts has the loose ones that blow
+  // about); more under the trees and in the back lanes and on the quays, a few on the swept squares. Horse dung where
+  // the drays go and stand and at the gates; straw round the markets. Flat marks lie on the ground as built (every
+  // corner of one on the same level: never half over a kerb, a step or the water), the low leaf piles are solid bits
+  // with the other litter's rules (off doors, lanes and walls). The Stadspark has its own planting: left alone.
+  R = rng(seed + 12 * 7919);
+  {
+    const decorT = city.decor as unknown as { trees?: number[][]; trees_wild?: number[][]; rampart?: { gates?: Array<{ passage: number[][]; frame: { t: number[]; n: number[] } }> } };
+    // (the quays' and streets' trees, and those of the Sint-Jansplein and the greens: townplaces.json)
+    const tp = TOWN_PLACES as unknown as { rond?: { trees?: number[][] }; greens?: Array<{ trees?: number[][] }> };
+    // (the planted squares' plane trees and limes shed a carpet: marked with a third value 1)
+    const planted = [...(tp.rond?.trees ?? []), ...(tp.greens ?? []).flatMap((g) => g.trees ?? [])].map((t) => [t[0], t[1], 1]);
+    const trees = [...(decorT.trees ?? []), ...(decorT.trees_wild ?? []), ...planted];
+    const treeGrid = new Map<string, number[][]>();
+    for (const t of trees) {
+      const key = `${Math.floor(t[0] / 16)},${Math.floor(t[1] / 16)}`;
+      let l = treeGrid.get(key);
+      if (!l) treeGrid.set(key, (l = []));
+      l.push(t);
+    }
+    /** How near the trees (1 under one, about 0.3 at 25 m, a floor of 0.18 anywhere: leaves blow a long way). */
+    const treeNear = (x: number, z: number) => {
+      let d = 1e9;
+      const gi = Math.floor(x / 16);
+      const gj = Math.floor(z / 16);
+      for (let di = -2; di <= 2; di++) for (let dj = -2; dj <= 2; dj++) for (const t of treeGrid.get(`${gi + di},${gj + dj}`) ?? []) d = Math.min(d, Math.hypot(t[0] - x, t[1] - z));
+      return 0.18 + 0.82 * Math.exp(-d / 20);
+    };
+    const park = city.places["Stadspark"];
+    const inPark = (x: number, z: number) => !!park && Math.hypot(x - park.x, z - park.z) < 52;
+    const nearWater = (x: number, z: number, r: number) => {
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2;
+        if (at(x + Math.cos(a) * r, z + Math.sin(a) * r) & WATER) return true;
+      }
+      return false;
+    };
+    /** A leaf mark (or straw, dung: any flat mark of this pass): every corner and edge of it on open ground at the same level as its middle. */
+    const leafAt = (name: string, x: number, z: number, s: number, yaw: number): boolean => {
+      const d = meta.decals[name];
+      if (!d || inPark(x, z)) return false;
+      const w = d.w * s;
+      const dd = d.d * s;
+      const [fx, y, fz] = settle(x, z, Math.max(w, dd) * 0.4);
+      if (!flatOk(fx, fz, Math.max(w, dd) * 0.4) || !levelOk(fx, fz, y, w, dd, yaw)) return false;
+      // (leaves a good deal lighter than the grime under them: the flat marks' dirty tint would sink them into the setts)
+      puts.push({ layer: "flat", name, x: fx, y: y + 0.007, z: fz, yaw, sx: w, sz: dd, shade: name.startsWith("leaf") ? 1.45 + R() * 0.35 : 0.85 + R() * 0.3 });
+      count(name);
+      return true;
+    };
+    const drift = () => (R() < 0.55 ? "leafdrift_0" : "leafdrift_1");
+    const patch = () => (R() < 0.6 ? "leafpatch_0" : "leafpatch_1");
+    const scatter = () => (R() < 0.5 ? "leafscatter_0" : "leafscatter_1");
+
+    // (a) along the wall feet and the kerbs: the wind rolls them to the kerb's face and the foot of the houses
+    for (const w of walls) {
+      const r = rng(w.seed * 7 + 101);
+      for (let s = 0.6 + r() * 1.5; s < w.L - 0.6; s += 1.9 + r() * 1.2) {
+        const bx = w.ax + w.tx * s;
+        const bz = w.az + w.tz * s;
+        if (at(bx + w.ox * 1.2, bz + w.oz * 1.2) !== OPEN) continue;
+        // a back lane (the house opposite within 6 m) or a quay: more; a swept square: fewer
+        let W = 14;
+        for (let dd = 1.5; dd < 14; dd += 0.75)
+          if (at(bx + w.ox * dd, bz + w.oz * dd) !== OPEN) {
+            W = dd;
+            break;
+          }
+        const lane = W < 6.5 ? 1.5 : 1;
+        const quay = nearWater(bx + w.ox * 4, bz + w.oz * 4, 9) ? 1.35 : 1;
+        const k = (swept(bx, bz) / FILTH) * lane * quay;
+        if (r() > 0.55 * k * (0.6 + treeNear(bx, bz))) continue;
+        const name = r() < 0.8 ? drift() : patch();
+        const dm = meta.decals[name];
+        const sc = 0.75 + r() * 0.45;
+        const half = (dm.d * sc) / 2;
+        const kd = w.kind === 0 ? (opts.probe ? kerbFront(opts.probe, bx, bz, w.ox, w.oz) : KERB) : null;
+        // against the kerb's face on the street (most), or on the kerb against the wall
+        let out = kd !== null && r() < 0.72 ? kd + half + 0.04 : half + 0.08;
+        const along = (r() - 0.5) * 0.4;
+        const yaw = Math.atan2(-w.ox, -w.oz) + (r() - 0.5) * 0.15;
+        counts["leaf wall tries"] = (counts["leaf wall tries"] ?? 0) + 1;
+        // (where the walk map keeps a hand off the wall, a little further out)
+        let ok = false;
+        for (let k2 = 0; k2 < 3 && !ok; k2++, out += 0.22) ok = leafAt(name, bx + w.ox * out + w.tx * along, bz + w.oz * out + w.tz * along, sc, yaw);
+        if (ok) counts["leaf wall drifts"] = (counts["leaf wall drifts"] ?? 0) + 1;
+        // now and then a low pile of them in the lanes and on the quays (a solid bit: off the doors and lanes)
+        if (ok && (lane > 1 || quay > 1) && r() < 0.07 * k) solidAt(r() < 0.5 ? "leafpile_0" : "leafpile_1", bx + w.ox * (out + 0.35), bz + w.oz * (out + 0.35), {}, { yaw: Math.atan2(-w.ox, -w.oz) });
+      }
+    }
+    await sleep(0);
+
+    // (b) the inside corners: walls on two sides at right angles, open behind: the wind leaves them there
+    let corners = 0;
+    for (let x = X0 + 1; x < X0 + MW - 1; x += 1)
+      for (let z = Z0 + 1; z < Z0 + MH - 1; z += 1) {
+        if (at(x, z) !== OPEN) continue;
+        for (let q = 0; q < 4; q++) {
+          const a = (q * Math.PI) / 2;
+          const ax = Math.cos(a), az = Math.sin(a);
+          const bx2 = -az, bz2 = ax;
+          if (at(x + ax * 0.9, z + az * 0.9) === 1 && at(x + bx2 * 0.9, z + bz2 * 0.9) === 1 && at(x - ax * 2, z - az * 2) === OPEN && at(x - bx2 * 2, z - bz2 * 2) === OPEN && at(x - (ax + bx2) * 1.6, z - (az + bz2) * 1.6) === OPEN) {
+            const k = swept(x, z) / FILTH;
+            if (R() > 0.28 * k * (0.6 + treeNear(x, z))) continue;
+            // into the corner: its dense side (+z of the mark) toward the corner's diagonal
+            const dx = ax + bx2, dz = az + bz2;
+            const yaw = Math.atan2(dx, dz);
+            const cx = x + dx * 0.25;
+            const cz = z + dz * 0.25;
+            if (R() < 0.45 && solidAt(R() < 0.5 ? "leafpile_0" : "leafpile_1", cx, cz, {}, { yaw })) corners++;
+            else if (leafAt(patch(), cx, cz, 0.7 + R() * 0.3, yaw)) corners++;
+          }
+        }
+      }
+    counts["leaf corners"] = corners;
+    await sleep(0);
+
+    // (c) the trees: a ring of leaves round each pit, a carpet out to 8 m under the crowns
+    for (const t of trees) {
+      const [tx, tz] = t;
+      if (inPark(tx, tz) || tx < X0 || tx > X0 + MW || tz < Z0 || tz > Z0 + MH) continue;
+      const k = Math.max(0.45, swept(tx, tz) / FILTH);
+      const nRing = Math.round((2 + R() * 3) * k);
+      for (let i = 0; i < nRing; i++) {
+        const a = R() * Math.PI * 2;
+        const d = 0.9 + R() * 1.6;
+        leafAt(patch(), tx + Math.cos(a) * d, tz + Math.sin(a) * d, 0.8 + R() * 0.4, R() * 6.28);
+      }
+      const sq = t[2] === 1;
+      const nCarpet = Math.round((sq ? 18 + R() * 10 : 8 + R() * 8) * k);
+      for (let i = 0; i < nCarpet; i++) {
+        const a = R() * Math.PI * 2;
+        const d = 1.5 + Math.sqrt(R()) * (sq ? 12 : 9);
+        leafAt(scatter(), tx + Math.cos(a) * d, tz + Math.sin(a) * d, 0.8 + R() * 0.5, R() * 6.28);
+      }
+    }
+    await sleep(0);
+
+    // (d) dung where the drays go round and stand: their lanes on the quays and round the blocks
+    for (const route of TRAFFIC_ROUTES) {
+      if (!route.vehicles.some((v) => v.kind === "dray")) continue;
+      const pts = route.loop ? [...route.pts, route.pts[0]] : route.pts;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const [ax, az] = pts[i];
+        const [bx, bz] = pts[i + 1];
+        const L = Math.hypot(bx - ax, bz - az);
+        if (L < 0.5) continue;
+        const tx = (bx - ax) / L;
+        const tz = (bz - az) / L;
+        for (let s = R(); s < L; s += 1) {
+          const off = (R() * 2 - 1) * 0.6;
+          const x = ax + tx * s - tz * off;
+          const z = az + tz * s + tx * off;
+          if (R() < 0.05) solidAt(pick([[2, "dung_0"], [2, "dung_1"], [2, "dung_2"]]), x, z, { lane: true, market: true, start: true });
+          if (R() < 0.1) leafAt(R() < 0.5 ? "dungflat_0" : "dungflat_1", x, z, 0.8 + R() * 0.5, R() * 6.28);
+          if (R() < 0.035) leafAt(R() < 0.5 ? "straw_0" : "straw_1", x - tz * (R() - 0.5) * 2, z + tx * (R() - 0.5) * 2, 0.6 + R() * 0.4, R() * 6.28);
+        }
+      }
+    }
+    // the quays at large: the carts and their horses stood everywhere there
+    for (const [ax, az, bx, bz] of city.quays) {
+      const L = Math.hypot(bx - ax, bz - az);
+      if (L < 2) continue;
+      const nx = -(bz - az) / L;
+      const nz = (bx - ax) / L;
+      for (let t = R() * 4; t < L; t += 4) {
+        const qx = ax + ((bx - ax) * t) / L;
+        const qz = az + ((bz - az) * t) / L;
+        const side = at(qx + nx * 3, qz + nz * 3) === OPEN ? 1 : at(qx - nx * 3, qz - nz * 3) === OPEN ? -1 : 0;
+        if (!side) continue;
+        const d = 3 + R() * 9;
+        const x = qx + nx * side * d;
+        const z = qz + nz * side * d;
+        if (R() < 0.35) solidAt(pick([[2, "dung_0"], [2, "dung_1"], [3, "dung_2"]]), x, z, { lane: true });
+        else if (R() < 0.5) leafAt(R() < 0.5 ? "dungflat_0" : "dungflat_1", x, z, 0.8 + R() * 0.5, R() * 6.28);
+        if (R() < 0.3) leafAt(R() < 0.5 ? "straw_0" : "straw_1", x + (R() - 0.5) * 3, z + (R() - 0.5) * 3, 0.7 + R() * 0.4, R() * 6.28);
+      }
+    }
+    // the gates: the carts waited there for the toll; dung and straw on the road just inside
+    for (const g of decorT.rampart?.gates ?? []) {
+      const p = g.passage;
+      if (!p?.length) continue;
+      const cx = p.reduce((a, q) => a + q[0], 0) / p.length;
+      const cz = p.reduce((a, q) => a + q[1], 0) / p.length;
+      // inside: the side of the passage nearer the town's middle
+      const inx = -g.frame.n[0];
+      const inz = -g.frame.n[1];
+      const along = Math.hypot(p[0][0] - p[2][0], p[0][1] - p[2][1]) / 2 + 7;
+      stand(cx + inx * along, cz + inz * along, inx, inz, 5, "gate stand");
+    }
+    // (e) straw round the markets' edges (the carts that brought the goods, the packing)
+    for (const rect of markets) {
+      const per = 2 * (rect.maxX - rect.minX + rect.maxZ - rect.minZ);
+      for (let k = 0; k < per / 3; k++) {
+        const f = R() * per;
+        const w = rect.maxX - rect.minX;
+        const h = rect.maxZ - rect.minZ;
+        let x: number, z: number;
+        if (f < w) (x = rect.minX + f), (z = rect.minZ - 0.8 - R() * 1.5);
+        else if (f < w + h) (x = rect.maxX + 0.8 + R() * 1.5), (z = rect.minZ + f - w);
+        else if (f < 2 * w + h) (x = rect.maxX - (f - w - h)), (z = rect.maxZ + 0.8 + R() * 1.5);
+        else (x = rect.minX - 0.8 - R() * 1.5), (z = rect.maxZ - (f - 2 * w - h));
+        const k2 = swept(x, z) / FILTH;
+        if (R() > 0.45 * k2) continue;
+        if (R() < 0.75) leafAt(R() < 0.5 ? "straw_0" : "straw_1", x, z, 0.6 + R() * 0.5, R() * 6.28);
+        else solidAt("straw_wisp", x, z, { lane: true });
+      }
+    }
+  }
+
   // the dirt map: the stands, the gutters, the heaps, the coal, the markets
   dirtStamp(stamps);
 
@@ -1389,6 +1625,33 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
   for (const p of puts) triangles += p.layer === "flat" ? 2 : (protos.get(p.name)?.tris ?? 0);
   for (const g of gutterGeos) triangles += g.g.getAttribute("position").count / 3;
   counts["road metres"] = roadMetres;
+  // picture round 2026-09-26 (package 1): the flat marks' check, from the dev tools:
+  // scene.getObjectByName("litter").userData.check({ only: "leaf" }) -> { marks, problems, list }. Every corner and edge
+  // of a mark on open ground (not in a wall, not over the water) and on the ground as built at the mark's own height
+  // (not floating over a street off a kerb, not under a step); the solid bits are propcheck()'s.
+  group.userData.stats = () => ({ counts, solid: solidPuts.length, flat: flatPuts.length, triangles });
+  group.userData.check = (o: { only?: string } = {}) => {
+    const list: Array<{ name: string; at: [number, number]; why: string }> = [];
+    let marks = 0;
+    for (const p of flatPuts) {
+      if (p.name === "urine_wall" || (o.only && !p.name.includes(o.only))) continue;
+      marks++;
+      const c = Math.cos(p.yaw);
+      const sn = Math.sin(p.yaw);
+      let why = "";
+      for (const [u, v] of [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5], [0, 0]]) {
+        const px = p.x + u * p.sx * c + v * p.sz * sn;
+        const pz = p.z - u * p.sx * sn + v * p.sz * c;
+        const f = at(px, pz);
+        if (f & WATER) why ||= "over the water";
+        else if (f !== OPEN) why ||= "in a wall";
+        const g = opts.ground?.(px, pz, p.y + 0.3);
+        if (g !== undefined && g !== null && Math.abs(g - (p.y - 0.007)) > 0.045) why ||= g < p.y ? `floating ${(p.y - g).toFixed(2)} m` : `under the ground ${(g - p.y).toFixed(2)} m`;
+      }
+      if (why) list.push({ name: p.name, at: [+p.x.toFixed(1), +p.z.toFixed(1)], why });
+    }
+    return { marks, problems: list.length, list: list.slice(0, 40) };
+  };
   return {
     group,
     colliders,

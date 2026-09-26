@@ -374,6 +374,74 @@ def paint_soot(seed, s=32):
     return decal(seed, s, s, (0.04, 0.04, 0.04), 0.6, amt=0.3, edge=0.6, cells=3)
 
 
+# ---- autumn leaves (picture round 2026-09-26, package 1): the plane and lime leaves of the quays and squares,
+# fallen and blown into drifts against the kerbs and the wall feet, round the tree pits and into the corners.
+# Each leaf is painted as a little pixel shape: a plane leaf a five-pointed star (palmate), a lime leaf a heart;
+# ochre, rust, brown and a dull yellow, some darker where they lie wet under the others.
+
+LEAF_COLS = [(0.62, 0.42, 0.13), (0.56, 0.26, 0.09), (0.4, 0.25, 0.11), (0.68, 0.54, 0.2), (0.48, 0.33, 0.12), (0.3, 0.19, 0.09)]
+
+
+def leaf_sprite(rng, size, kind):
+    """A leaf as an alpha mask (size x size) and its midrib; kind 0 plane (five lobes), 1 lime (heart)."""
+    yy, xx = np.mgrid[0:size, 0:size]
+    u = (xx + 0.5) / size * 2 - 1
+    v = (yy + 0.5) / size * 2 - 1
+    a = rng.random() * 2 * math.pi
+    ca, sa = math.cos(a), math.sin(a)
+    x = u * ca - v * sa
+    y = u * sa + v * ca
+    r = np.sqrt(x * x + y * y)
+    t = np.arctan2(y, x)
+    if kind == 0:
+        edge = 0.62 + 0.3 * np.abs(np.cos(t * 2.5))
+    else:
+        edge = 0.55 + 0.35 * np.abs(np.sin(t * 0.5 + 0.8)) ** 0.7
+    m = r < edge
+    rib = (np.abs(x) < 0.12) & m & (y > -0.4)
+    return m, rib
+
+
+def paint_leaves(seed, w, h, n, spread="drift", big=1.0):
+    """Leaves strewn over a transparent cell. spread: "drift" (thick along the bottom edge: the side that lies
+    against the kerb or the wall, thinning to a ragged top), "patch" (a clump, thick in the middle) or "scatter"
+    (a few big ones apart: a carpet under the plane trees)."""
+    rng = np.random.default_rng(seed)
+    img = np.zeros((h, w, 4))
+    for _ in range(n):
+        if spread == "drift":
+            fy = 1 - rng.random() ** 2.2
+            fx = rng.random()
+            # (the drift's top edge is ragged: lumps and gaps along it)
+            if fy < 0.55 and math.sin(fx * 9 + seed) * 0.5 + 0.5 < rng.random() * 0.8:
+                continue
+        elif spread == "patch":
+            rr = math.sqrt(rng.random()) * 0.5 * (0.6 + 0.4 * rng.random())
+            aa = rng.random() * 2 * math.pi
+            fx, fy = 0.5 + math.cos(aa) * rr, 0.5 + math.sin(aa) * rr
+        else:
+            fx, fy = 0.1 + rng.random() * 0.8, 0.1 + rng.random() * 0.8
+        size = int(max(4, round((4 + rng.random() * 4) * big)))
+        kind = 0 if rng.random() < 0.65 else 1
+        m, rib = leaf_sprite(rng, size, kind)
+        x0 = int(fx * (w - size))
+        y0 = int(fy * (h - size))
+        col = np.array(LEAF_COLS[rng.integers(len(LEAF_COLS))]) * (0.8 + 0.35 * rng.random())
+        # (the ones under the others darker: they lie wet and rot)
+        if spread != "scatter" and rng.random() < 0.3:
+            col = col * 0.6
+        sub = img[y0:y0 + size, x0:x0 + size]
+        mm = m[:sub.shape[0], :sub.shape[1]]
+        rb = rib[:sub.shape[0], :sub.shape[1]]
+        sub[mm, :3] = col
+        sub[rb, :3] = col * 0.62
+        sub[mm, 3] = 1.0
+        # a speck of shading on each, a lighter or darker side
+        sh = rng.random((sub.shape[0], sub.shape[1])) < 0.18
+        sub[mm & sh, :3] *= 0.8
+    return img
+
+
 # ------------------------------------------------------------------ atlases
 
 
@@ -449,6 +517,13 @@ DECALS = {
     "shells_0": (lambda: paint_shellgrit(585), 0.8, 0.7),
     "drain": (lambda: paint_drain(586), 0.5, 0.5),
     "gutter": (lambda: paint_gutter(590), 1.6, 0.5),
+    # package 1: autumn leaves (drawn at 2.5-3 cm a pixel: a plane leaf is 6 to 8 pixels)
+    "leafdrift_0": (lambda: paint_leaves(601, 64, 24, 150, "drift"), 1.75, 0.6),
+    "leafdrift_1": (lambda: paint_leaves(602, 48, 24, 115, "drift"), 1.3, 0.62),
+    "leafpatch_0": (lambda: paint_leaves(603, 40, 40, 90, "patch"), 1.1, 1.1),
+    "leafpatch_1": (lambda: paint_leaves(604, 32, 32, 60, "patch"), 0.85, 0.85),
+    "leafscatter_0": (lambda: paint_leaves(605, 48, 48, 26, "scatter", big=1.45), 1.6, 1.6),
+    "leafscatter_1": (lambda: paint_leaves(606, 48, 48, 18, "scatter", big=1.5), 1.6, 1.6),
 }
 
 
@@ -516,6 +591,11 @@ def build_atlases():
     A.add("manure", man)
     A.add("earth", flat(34, 16, 16, (0.24, 0.2, 0.15), 0.3))
     A.add("wicker", grain(35, 16, 16, (0.46, 0.36, 0.2)))
+    lv = paint_leaves(37, 32, 32, 70, "scatter")
+    under = flat(38, 32, 32, (0.3, 0.2, 0.09), 0.3, speck=0.2)
+    lv[..., :3] = np.where(lv[..., 3:4] > 0.5, lv[..., :3], under[..., :3])
+    lv[..., 3] = 1
+    A.add("leaves", lv)
     for name, (fn, _w, _d) in DECALS.items():
         DECAL_ATLAS.add(name, fn())
     SOLID_ATLAS.pack()
@@ -1156,6 +1236,19 @@ def dung_barrow():
     return m
 
 
+def leaf_pile(seed, rx, ry, h):
+    """A low pile of leaves blown into a corner or against a wall foot: a flat mound covered in leaves, loose
+    leaves round its foot (package 1). Low enough to walk through (the game gives it no collider)."""
+    m = Mesh(ao=0.3)
+    rng = np.random.default_rng(seed)
+    m.mound(rx, ry, h, "leaves", seed, rings=3, sides=9, jit=0.35, peak=(0.0, -ry * 0.25))
+    for k in range(10):
+        a = rng.random() * 2 * math.pi
+        d = 0.75 + rng.random() * 0.35
+        m.leaf((math.cos(a) * rx * d, math.sin(a) * ry * d, 0.004 + 0.002 * k), 0.13 + rng.random() * 0.06, 0.12, rng.random() * 6.28, 0.012, "leaves")
+    return m
+
+
 def build_models():
     B = []
     B.append(("dung_0", dung(1, 6, 0.12)))
@@ -1194,6 +1287,8 @@ def build_models():
     B.append(("refuse_heap", refuse_heap()))
     B.append(("manure_heap", manure_heap()))
     B.append(("dung_barrow", dung_barrow()))
+    B.append(("leafpile_0", leaf_pile(80, 0.42, 0.3, 0.07)))
+    B.append(("leafpile_1", leaf_pile(81, 0.6, 0.34, 0.09)))
     # one quad that carries the flat marks' atlas into the glb (the game builds those quads itself)
     carrier = Mesh(ao=0)
     carrier.face([(0, 0, 0), (0.1, 0, 0), (0.1, 0.1, 0), (0, 0.1, 0)], "muck_0", uvs=[(0, 0), (1, 0), (1, 1), (0, 1)], mat=DECAL)

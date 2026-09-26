@@ -68,9 +68,11 @@ function curve(table: ReadonlyArray<readonly [number, number]>, h: number): numb
 }
 
 /** How many chimneys smoke: fires lit in the morning, cooking at noon, the evening fire. */
+// (picture round 2026-09-26, package 5: coal smoke over every roof; about half the chimneys smoke at midday, most
+// of them when the fires are lit in the morning and the evening; was 0.28-0.62)
 const SMOKE_BY_HOUR = [
-  [0, 0.16], [5, 0.18], [6.5, 0.62], [9, 0.55], [10.5, 0.3], [12, 0.42], [13.5, 0.28],
-  [16, 0.34], [17.5, 0.6], [21, 0.58], [23, 0.25], [24, 0.16],
+  [0, 0.26], [5, 0.3], [6.5, 0.86], [9, 0.8], [10.5, 0.5], [12, 0.6], [13.5, 0.46],
+  [16, 0.54], [17.5, 0.86], [21, 0.82], [23, 0.42], [24, 0.26],
 ] as const;
 /** Dark outside: 0 by day, 1 at night (lit windows fade with it). */
 const NIGHT_BY_HOUR = [
@@ -228,7 +230,7 @@ function findChimneys(group: THREE.Object3D): Chimney[] {
 }
 
 function buildSmoke(chimneys: Chimney[]): THREE.Points {
-  const PER = 10;
+  const PER = 14; // (package 5: a longer, fuller plume; was 10)
   const pos = new Float32Array(chimneys.length * PER * 3);
   const seed = new Float32Array(chimneys.length * PER * 4);
   const r = mulberry(51);
@@ -257,20 +259,23 @@ function buildSmoke(chimneys: Chimney[]): THREE.Points {
       void main() {
         float act = smoothstep(aSeed.x - 0.03, aSeed.x + 0.03, uSmoke);
         // Steve: the smoke read as standing still; a quicker rise and more curl, so it is seen to move
-        float life = 6.0 + aSeed.z * 2.5;
+        // (package 5: a longer plume that rises over the ridges, is bent over by the wind and spreads: 9-13 s, 6-8 m up, 4 m wide at the end)
+        float life = 9.0 + aSeed.z * 4.0;
         float age = fract(uTime / life + aSeed.y);
         vec3 p = position;
-        // buoyant at first, then it levels off and goes with the wind
-        p.y += 3.0 * (1.0 - exp(-age * 2.6)) + age * 1.3;
+        // buoyant at first, then it levels off and goes with the wind (a stronger wind bends it over sooner)
+        float lift = 1.0 / (1.0 + 0.45 * length(uWind));
+        p.y += (5.2 * (1.0 - exp(-age * 2.8)) + age * 2.6) * lift;
         float along = age * life;
-        p.xz += uWind * along * (0.35 + age * 0.9);
-        p.xz += vec2(sin(uTime * 1.1 + aSeed.w * 6.28 + age * 6.0), cos(uTime * 0.9 + aSeed.z * 6.28 + age * 5.0)) * 0.45 * age;
+        p.xz += uWind * along * (0.45 + age * 1.1);
+        p.xz += vec2(sin(uTime * 1.1 + aSeed.w * 6.28 + age * 6.0), cos(uTime * 0.9 + aSeed.z * 6.28 + age * 5.0)) * 0.6 * age;
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         vFogDepth = -mv.z;
         gl_Position = psxSnap(projectionMatrix * mv);
-        float size = 0.45 + age * 2.1;
-        gl_PointSize = min(size * projectionMatrix[1][1] * uViewH * 0.5 / max(gl_Position.w, 0.1), 96.0);
-        vAlpha = act * smoothstep(0.0, 0.1, age) * (1.0 - age);
+        float size = 0.6 + age * 3.6;
+        gl_PointSize = min(size * projectionMatrix[1][1] * uViewH * 0.5 / max(gl_Position.w, 0.1), 128.0);
+        // (thicker when many fires burn: the morning and the evening)
+        vAlpha = act * smoothstep(0.0, 0.08, age) * (1.0 - age) * (0.75 + 0.5 * uSmoke);
         vSeed = aSeed.w;
         if (vAlpha < 0.005 || vFogDepth > fogFar * 1.15) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
       }`,
