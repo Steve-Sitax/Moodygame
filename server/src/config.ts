@@ -253,13 +253,13 @@ export const EVENT_SIZE_DEFAULT = 100;
  * The town's size for a NEW game (Restart). `target` is how many townspeople the generator makes
  * (population.ts, without the garrison and the people other parts add in place: the press, the
  * homes, the lamplighters, the visitors, the emigrants, about 50 more; M6 lively: the dog carts, the
- * street sellers, the stalls' keepers, nuns, beguines, beggars and travellers, 25 more). Normal is the town as it was.
+ * street sellers, the stalls' keepers, nuns, beguines, beggars and travellers, 25 more; M7 shops: the nine new shopkeepers, shops/town.ts). Normal is the town as it was.
  */
 export type TownSize = "small" | "normal" | "large" | "very_large";
 export const TOWN_SIZES: Record<TownSize, { label: string; target: number; about: number }> = {
-  small: { label: "Small", target: 100, about: 175 },
-  normal: { label: "Normal", target: 190, about: 265 },
-  large: { label: "Large", target: 300, about: 375 },
-  very_large: { label: "Very large", target: 450, about: 525 },
+  small: { label: "Small", target: 100, about: 175 + 9 },
+  normal: { label: "Normal", target: 190, about: 265 + 9 },
+  large: { label: "Large", target: 300, about: 375 + 9 },
+  very_large: { label: "Very large", target: 450, about: 525 + 9 },
 };
 export const TOWN_SIZE_DEFAULT: TownSize = "normal";

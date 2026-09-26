@@ -200,7 +200,9 @@ export type TradeId =
   | "milk_woman" | "baker_boy" | "grinder" | "ragman" | "coalman" | "sweep" | "mussel_seller" | "broom_seller"
   | "devotion_seller" | "nun" | "beguine" | "tourist"
   // M7 night (night/givers.ts): the shady givers of night work, out from 21:00 to 5:00
-  | "fence" | "smuggler" | "nightcarter" | "cracksman";
+  | "fence" | "smuggler" | "nightcarter" | "cracksman"
+  // M7 shops (shops/town.ts, shared/shops.ts NEW_SHOPS): the shops added in place to every town
+  | "butcher" | "colonial" | "apothecary" | "barber" | "hatter" | "roaster" | "printer" | "bookseller" | "clockmaker";
 
 export interface TradeDef {
   label: string;
@@ -298,6 +300,16 @@ export const TRADES: Record<TradeId, TradeDef> = {
   smuggler: { label: "night lighterman", work: "post", faction: "smokkelaars", wealth: [2, 4], bias: { honesty: -3, courage: 2 }, night: true },
   nightcarter: { label: "carter who works by night and asks no questions", work: "post", faction: "smokkelaars", wealth: [1, 3], bias: { honesty: -2, temper: 1 }, night: true },
   cracksman: { label: "a man in a dark coat who needs a lookout", work: "post", faction: "smokkelaars", wealth: [2, 4], bias: { honesty: -6, courage: 3, warmth: -1 }, night: true },
+  // M7 shops (shops/town.ts): each behind the counter of his own shop, its inside in the world
+  butcher: { label: "butcher", work: "shop", faction: "burgerij", wealth: [4, 6], bias: { temper: 1, courage: 1 } },
+  colonial: { label: "grocer in colonial goods (coffee, tea, sugar, spices)", work: "shop", faction: "burgerij", wealth: [4, 6], bias: { greed: 1, gossip: 1 } },
+  apothecary: { label: "apothecary", work: "shop", faction: "burgerij", wealth: [5, 7], bias: { honesty: 1, piety: 1, gossip: -1 } },
+  barber: { label: "barber", work: "shop", faction: null, wealth: [2, 4], bias: { gossip: 4, warmth: 1 } },
+  hatter: { label: "hatter", work: "shop", faction: "burgerij", wealth: [4, 6], bias: { greed: 1 } },
+  roaster: { label: "coffee roaster", work: "shop", faction: "burgerij", wealth: [4, 6], bias: { warmth: 1 } },
+  printer: { label: "printer and bookbinder", work: "shop", faction: "burgerij", wealth: [3, 5], bias: { gossip: 2, piety: -1 } },
+  bookseller: { label: "bookseller", work: "shop", faction: "burgerij", wealth: [3, 5], bias: { piety: 1, courage: -1 } },
+  clockmaker: { label: "clockmaker", work: "shop", faction: "burgerij", wealth: [4, 6], bias: { honesty: 2, temper: -1 } },
 };
 
 /** The board's employers who live in the town: fixed ids, so the job board can name them. */

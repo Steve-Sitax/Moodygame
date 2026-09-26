@@ -228,3 +228,22 @@ Blender 5.2 (GPL-3.0), Python packages numpy (BSD-3), opencv-python-headless (Ap
 | Package | Version | Licence |
 |---|---|---|
 | concurrently | 10.0.5 | MIT |
+
+## Codex pictures: the shops and the cafes (M7 shops, 2026-09-26)
+
+Pictures made with Codex image generation from our own prompts (Steve's standing OK for Codex, `.claude/rule-overrides.md`),
+one run at a time through `tools/codexImage.mjs`; no example picture, no third-party images. Resized to the sizes below
+by script (PIL, Lanczos), nothing else. The concept paintings of 1873 cafes and shops that the rooms were built from
+stayed in the helper's scratch folder and are not in the repo (docs/milestones/M7-shops.md).
+
+| Picture | Where in repo | Prompt, in short | Made | Original PNG SHA-256 |
+|---|---|---|---|---|
+| Patterned cement tiles (encaustic), four-petal flowers, faded brown, cream and slate, seamless | `client/public/textures/cafe_tiles_encaustic.jpg` (512 px, 0.9 x 0.9 m) | "seamless tileable texture, straight top-down view ... old patterned cement tiles (encaustic tiles) from an 1870s Belgian cafe ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `e5562a71d7bf66f221e0b00ac98e815471061c1dd50798117883ae3cb5e0dcba` |
+| Red and black terracotta checker tiles with sawdust, seamless | `client/public/textures/cafe_tiles_checker.jpg` (512 px, 1.8 x 1.8 m) | "seamless tileable texture ... an old cafe floor of square terracotta tiles in a checkerboard of dull red and near-black ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `a99f23c12e72557f9269b305b5bea0a65cba77c9075cdc69e1e18a1ceae371ff` |
+| Dark oak wainscot, three raised panels, seamless left to right | `client/public/textures/cafe_wainscot.jpg` (768 x 384) | "seamless tileable texture, straight front view, wide: dark oak wall panelling (wainscot) of an old brown cafe ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `aed0bd0d686676dfd0910b3f8d7f6815efdf52270fe60a256bc02b926ccc172f` |
+| A wall of small shop drawers with white label plates and brass knobs, seamless | `client/public/textures/shop_drawers.jpg` (512 px) | "seamless tileable texture ... a wall of small wooden shop drawers in an 1870s grocer's shop ... no readable text" | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `ff567d21861098aa1841a3c96690bdc4f15738cf61e86432d4a47fe2c4d164bb` |
+| A shelf row of white and blue porcelain apothecary jars, seamless left to right | `client/public/textures/shop_jars.jpg` (768 x 256) | "seamless tileable texture ... one shelf row of white and blue porcelain apothecary jars ... no readable text" | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `db723ec734b7138da245b797e4cf5e14cb26139d1e28d8e149d5ad646eb2a750` |
+| A shelf row of old leather and cloth bound books, seamless left to right | `client/public/textures/shop_books.jpg` (768 x 256) | "seamless tileable texture ... one full shelf row of old leather- and cloth-bound books standing upright ... no readable text" | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `c06453c9c85cd08f36166be3d4cb9d20f3add421ff4a17f9df5c479376d3158a` |
+| An old hand-coloured sea chart of an estuary, no words (the sailors' tavern) | `client/public/textures/cafe_sea_chart.jpg` (512 x 341) | "an old hand-coloured nautical sea chart of a winding river estuary with sandbanks ... no readable words" | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `69de9a8676954761b1625ae993ceb36f53d6f8343448bcd01da78d2999c12c81` |
+| A small oil painting of a three-master at anchor (the coffee house) | `client/public/textures/cafe_ship_painting.jpg` (512 x 429) | "a small dark oil painting of a three-masted sailing ship at anchor on a grey estuary ... no frame" | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `2a98806ffe2f891cef1ef784eb724c9bee869e886f202db9a13dcba26b347349` |
+| Oxblood red flock damask wallpaper, seamless (the better cafe) | `client/public/textures/cafe_wallpaper_red.jpg` (512 px, 1.4 x 1.4 m) | "seamless tileable texture ... an 1870s wallpaper of deep oxblood red flock damask ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `78ea13a07f025173b0ee29e7bddac7bdef6c36e5cd372b53a694fcffcaac9787` |

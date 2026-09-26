@@ -47,6 +47,7 @@ import { Ideas } from "./game/ideas";
 import { Emigrants } from "./game/emigrants";
 import { api } from "./net/api";
 import { Interiors } from "./game/interiors";
+import { shopCaller } from "./game/shopCalls";
 import { Families } from "./game/families";
 import { Homes } from "./game/homes";
 import { Landmarks } from "./game/landmarks";
@@ -231,8 +232,12 @@ interiors.say = (t) => jobs.say(t);
 interiors.sfx = (n) => sound?.indoors(() => sound?.play(n));
 interiors.speak = (at, v, s) => sound?.indoors(() => sound?.speech(at, v, s));
 interiors.roomSound = (k) => sound?.setInterior(k);
+// M7 shops: E at the Berg's counter inside the pawn office opens the Berg's page (game/press.ts)
+interiors.bergCounter = () => press.openBergCounter();
 // M7: while a tavern is open its keeper and drinkers are inside, at the counter and the tables
 town.tavernInside = (pl) => interiors.tavernOpen(pl);
+// M7 shops: a shop's keeper, his wife and the customers the engine's roll sends in go in at its door (game/town.ts)
+town.shopCall = shopCaller(() => town.data);
 // M6 homes: rooms to rent, the night at home, furniture from the second-hand dealer (game/homes.ts); its door keys before the interiors' street keys
 const homes = new Homes(world, player, jobs, interiors);
 jobs.extraActions.unshift((x, z) => homes.keys(x, z));

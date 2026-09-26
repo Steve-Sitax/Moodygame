@@ -87,6 +87,31 @@ export interface PlayInfo {
   source?: string;
 }
 
+/** M7 shops (server shops/routes.ts): a shop's door, its trade and whether it is open now. */
+export interface ShopInfo {
+  place: string;
+  label: string;
+  trade: import("../../../shared/shops").ShopTrade | null;
+  door: Pt;
+  wall: Pt;
+  out: Pt;
+  goods: string | null;
+  open: boolean;
+  keeper: { id: string; name: string; first: string; kind: string; sex: "m" | "f" } | null;
+  wares: Array<{ kind: string; price_c: number }>;
+}
+
+/** M7 shops: who is in a shop now (the keeper, a helper, the customers the engine's roll sent in). */
+export interface ShopState {
+  place: string;
+  label: string;
+  open: boolean;
+  keeper: Person | null;
+  helpers: Person[];
+  customers: Person[];
+  smell: string;
+}
+
 export class ApiError extends Error {}
 
 async function call<T>(method: string, url: string, body?: unknown, timeoutMs = 8000): Promise<T> {
@@ -121,4 +146,7 @@ export const interiorApi = {
   poesje: () => call<{ open: boolean; price_c: number; play: PlayInfo; audience: Person[] }>("GET", "/api/poesje"),
   enter: () => call<JobsPayload & { paid_c: number; line: string }>("POST", "/api/poesje/enter"),
   play: () => call<PlayInfo>("POST", "/api/poesje/play", undefined, 25_000),
+  // M7 shops
+  shops: () => call<{ shops: ShopInfo[] }>("GET", "/api/shops"),
+  shop: (place: string) => call<ShopState>("GET", `/api/shop/${encodeURIComponent(place)}`),
 };

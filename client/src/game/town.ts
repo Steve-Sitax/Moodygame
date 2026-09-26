@@ -175,6 +175,8 @@ export class Town {
    * before it. Set by main.
    */
   tavernInside: (place: string) => boolean = () => false;
+  /** M7 shops (game/shopCalls.ts): the door step of the shop this person calls at this game hour (they go in), or null. */
+  shopCall: (r: TownResident, day: number, hour: number) => Pt | null = () => null;
   toast: (t: string) => void = () => {};
   onPayload: (p: JobsPayload) => void = () => {};
   /** M6 transport: how the residents get about (game/journeys.ts); set by main. */
@@ -301,11 +303,14 @@ export class Town {
     const err = !first ? (this.journeys?.errandFor(s.r.id, day, hour) ?? null) : null;
     if (err || s.errand) return this.errandStep(s, err, day, hour);
     const now = activityAt(s.r.sched, day, hour);
-    const key = `${now.act}:${now.place}${this.lively?.key(s, now, day, hour) ?? ""}`;
+    // M7 shops: a call at a shop this hour (the engine's roll, shared/shops.ts): in at its door, out at the hour's end
+    const call = this.shopCall(s.r, day, hour);
+    const key = `${now.act}:${now.place}${call ? `|shop@${call[0]},${call[1]}` : ""}${this.lively?.key(s, now, day, hour) ?? ""}`;
     // East walkthrough 2026-09-25: a publican (or a drinker) whose goal was set while his tavern's house
     // was not open yet (at load, before the in-world rooms are attached) stood 1.7 m before the door and
     // blocked it. The tavern opening or shutting sets the goal again, the key unchanged.
-    const tavPlace = now.act === "tavern" ? now.place : now.act === "work" && s.r.work.kind === "tavern" ? s.r.work.place : "";
+    const tavPlace =
+      now.act === "tavern" ? now.place : now.act === "work" && s.r.work.kind === "tavern" ? s.r.work.place : now.act === "work" && s.r.work.kind === "shop" && s.r.work.shop ? `shop:${s.r.work.shop}` : "";
     const tav = tavPlace ? (this.tavernInside(tavPlace) ? "in" : "out") : "";
     if (key === s.key && tav === (s.tav ?? "")) {
       this.lanterns(s, hour);
@@ -316,7 +321,7 @@ export class Town {
     const prevPt: Pt | null = s.p ? [s.p.x, s.p.z] : s.inside ? null : [s.x, s.z];
     s.key = key;
     if (s.p) this.market?.forget(s.p);
-    s.goal = this.goalFor(s, now);
+    s.goal = call ? { mode: "inside", x: call[0], z: call[1] } : this.goalFor(s, now);
     s.step = 0;
     s.tries = 0;
     s.wait = 0;
@@ -433,6 +438,9 @@ export class Town {
     switch (w.kind) {
       case "stall":
       case "shop": {
+        // M7 shops: the keeper and his wife serve inside while the shop's room stands open in the world
+        const sp = w.kind === "shop" && w.shop ? P(w.shop) : null;
+        if (sp && this.tavernInside(`shop:${w.shop}`)) return { mode: "inside", x: sp.door?.[0] ?? sp.x, z: sp.door?.[1] ?? sp.z };
         const at = this.stalls.sellerSpots.get(r.id);
         if (at) return { mode: "stand", x: at.x, z: at.z, yaw: at.yaw, motion: "idle" };
         break;

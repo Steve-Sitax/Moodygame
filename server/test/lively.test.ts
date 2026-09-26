@@ -244,6 +244,9 @@ describe("the save: in place, once", () => {
         if (lamps) for (const k of ["trade", "faction", "work", "sched"]) delete o[k];
         // (a map change moves a round's point off new walls: repairTown owns work.route; 2026-09-25 angled streets)
         if (o.work && typeof o.work === "object") delete (o.work as Record<string, unknown>).route;
+        // (M7 shops: an old shop whose house holds no inside moves its front to its own house next door; shops/town.ts
+        // owns where its keeper and his wife stand, work.at)
+        if (o.work && typeof o.work === "object" && (o.work as Record<string, unknown>).kind === "shop") delete (o.work as Record<string, unknown>).at;
         if (moved.has(id)) plainHome(o, before.get(id)!);
         return JSON.stringify(o);
       };

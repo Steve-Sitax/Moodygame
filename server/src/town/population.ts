@@ -352,7 +352,12 @@ export function generateTown(seed: number, size: TownSize = "normal"): Town {
   /** Shops and taverns: nobody else moves in above them. */
   const shopHouses = new Set<number>();
   for (const s of SHOPS) {
-    const d = takeDoorNear(s.x, s.z, 35);
+    // M7 shops: a shop stands in the house whose inside the world draws for it (shared/inworld_houses.json
+    // "shop:<id>"), as the taverns do; the draw takeDoorNear would have made is made, so the rest stays
+    const ownH = inworldHouse(`shop:${s.id}`);
+    const own = ownH === undefined ? undefined : free.find((q) => q.house === ownH && Math.hypot(q.sx - s.x, q.sz - s.z) <= 35);
+    if (own) rng();
+    const d = own ?? takeDoorNear(s.x, s.z, 35);
     if (!d) continue;
     shopDoor[s.id] = d;
     shopHouses.add(d.house);

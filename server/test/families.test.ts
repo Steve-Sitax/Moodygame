@@ -26,6 +26,7 @@ import {
   newsRow,
   resolveMenace,
   scanNews,
+  SEEK_MAX_M,
   shareNews,
   startReaction,
   startSeek,
@@ -62,6 +63,10 @@ function couple(db: Db): { wife: Resident; husband: Resident } {
   for (const h of people(db)) {
     if (h.sex !== "m" || h.family_role !== "head" || h.age < 20 || h.age > 60) continue;
     if (!["docker", "natie", "porter", "carter", "boatman", "sailor"].includes(h.trade)) continue;
+    // (he must be within reach of his own door at the test's hour, where Jef waits: a man at work across the
+    // town does not come; M7 back of town: the back's dockers live far from their quays)
+    const at = whereIs(db, h);
+    if (Math.hypot(at.x - h.home.sx, at.z - h.home.sz) > SEEK_MAX_M - 60) continue;
     const w = people(db).find((o) => o.household === h.household && o.family_role === "wife");
     if (w) return { wife: w, husband: h };
   }
@@ -243,7 +248,8 @@ describe("reactions", () => {
     syncFromClient({ x: baker.home.sx, z: baker.home.sz });
     const row = startSeek(db, baker.id, "gift");
     await reportAction(db, row.id, { phase: "arrived" });
-    expect((db.prepare("SELECT COUNT(*) n FROM item WHERE kind = 'bread'").get() as { n: number }).n).toBe(1);
+    // (the cheapest thing to eat on the baker's list: M7 shops put a slice of peperkoek beside the loaf)
+    expect((db.prepare("SELECT COUNT(*) n FROM item WHERE kind IN ('bread', 'peperkoek')").get() as { n: number }).n).toBe(1);
   });
 
   it("warn others: the neighbours hear it at once", async () => {

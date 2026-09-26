@@ -53,7 +53,8 @@ export function checkSigns(scene: THREE.Scene, city: THREE.Object3D, sl: StreetL
     if (m) return `${b.kind} ${sl.streetNames[+m[1]] ?? b.name}`;
     return `${b.kind} ${b.name.replace(/^(board|letters|hang|number)_/, "")}`;
   };
-  const items = [...sl.wallItems.filter((b) => b.kind !== "door sign" && b.kind !== "tavern sign"), ...taggedSigns(scene)];
+  // (the tagged ones are on streetlife's list too: counted once, from the scene; M7 shops: the shop boards and brackets)
+  const items = [...sl.wallItems.filter((b) => !["door sign", "tavern sign", "shop board", "shop bracket"].includes(b.kind)), ...taggedSigns(scene)];
 
   // the house walls and their openings
   interface W { ax: number; az: number; tx: number; tz: number; ox: number; oz: number; L: number; kind: number; open: Opening[] }

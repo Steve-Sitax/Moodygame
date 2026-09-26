@@ -173,6 +173,9 @@ describe("who owns what (the migration)", () => {
         if (lamps) for (const k of ["trade", "faction", "work", "sched"]) delete o[k];
         // (a map change moves a round's point off new walls: repairTown owns work.route; 2026-09-25 angled streets)
         if (o.work && typeof o.work === "object") delete (o.work as Record<string, unknown>).route;
+        // (M7 shops: an old shop whose house holds no inside moves its front to its own house next door; shops/town.ts
+        // owns where its keeper and his wife stand, work.at)
+        if (o.work && typeof o.work === "object" && (o.work as Record<string, unknown>).kind === "shop") delete (o.work as Record<string, unknown>).at;
         if (moved.has(id)) plainHome(o, before.get(id)!);
         return JSON.stringify(o);
       };
@@ -184,7 +187,8 @@ describe("who owns what (the migration)", () => {
       for (const r of newLighters) expect(["docker", "porter"]).toContain((JSON.parse(before.get(r.id)!) as { trade: string }).trade);
       // the velocipede maker, and the wheelwright (M6 handcart, town/handcart.ts); M6 lively adds its own people after them,
       // and M7 night the four givers of night work (night/givers.ts)
-      expect(after.filter((r) => !isLivelyId(r.id) && !(NIGHT_GIVER_IDS as readonly string[]).includes(r.id)).length).toBe(before.size + 2);
+      // (M7 shops: and the new shops' keepers, ids "sk_...", shops/town.ts)
+      expect(after.filter((r) => !isLivelyId(r.id) && !(NIGHT_GIVER_IDS as readonly string[]).includes(r.id) && !r.id.startsWith("bk") && !r.id.startsWith("sk_")).length).toBe(before.size + 2);
       expect((db.prepare("SELECT COUNT(*) n FROM npc_memory").get() as { n: number }).n).toBe(mem);
       db.close();
     } finally {

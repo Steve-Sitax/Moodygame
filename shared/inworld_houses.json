@@ -104,6 +104,159 @@
     -36.8,
     113.6
    ]
+  },
+  {
+   "id": "shop:bakery_rijn",
+   "kind": "shop",
+   "house": 779,
+   "door": [
+    -0.7,
+    77.3
+   ]
+  },
+  {
+   "id": "shop:bakery_steen",
+   "kind": "shop",
+   "house": 913,
+   "door": [
+    -200,
+    41.8
+   ]
+  },
+  {
+   "id": "shop:grocer_canal",
+   "kind": "shop",
+   "house": 827,
+   "door": [
+    -60,
+    76.9
+   ]
+  },
+  {
+   "id": "shop:chandler_werf",
+   "kind": "shop",
+   "house": 32,
+   "door": [
+    -280.5,
+    14
+   ]
+  },
+  {
+   "id": "shop:tobacco_markt",
+   "kind": "shop",
+   "house": 25,
+   "door": [
+    -222,
+    67.1
+   ]
+  },
+  {
+   "id": "shop:pawn_vis",
+   "kind": "shop",
+   "house": 940,
+   "door": [
+    -133,
+    74.7
+   ]
+  },
+  {
+   "id": "shop:cobbler_lane",
+   "kind": "shop",
+   "house": 831,
+   "door": [
+    -32.3,
+    72.6
+   ]
+  },
+  {
+   "id": "shop:draper_markt",
+   "kind": "shop",
+   "house": 17,
+   "door": [
+    -220.2,
+    124
+   ]
+  },
+  {
+   "id": "shop:butcher_vlees",
+   "kind": "shop",
+   "house": 950,
+   "door": [
+    -92,
+    69
+   ]
+  },
+  {
+   "id": "shop:colonial_steen",
+   "kind": "shop",
+   "house": 912,
+   "door": [
+    -200,
+    48.8
+   ]
+  },
+  {
+   "id": "shop:apothecary_markt",
+   "kind": "shop",
+   "house": 16,
+   "door": [
+    -213,
+    124
+   ]
+  },
+  {
+   "id": "shop:barber_lane",
+   "kind": "shop",
+   "house": 778,
+   "door": [
+    -0.3,
+    82.7
+   ]
+  },
+  {
+   "id": "shop:hatter_markt",
+   "kind": "shop",
+   "house": 45,
+   "door": [
+    -304,
+    93.1
+   ]
+  },
+  {
+   "id": "shop:roaster_canal",
+   "kind": "shop",
+   "house": 820,
+   "door": [
+    -32,
+    105.7
+   ]
+  },
+  {
+   "id": "shop:printer_jezuiet",
+   "kind": "shop",
+   "house": 875,
+   "door": [
+    -111.9,
+    148.3
+   ]
+  },
+  {
+   "id": "shop:books_kathedraal",
+   "kind": "shop",
+   "house": 602,
+   "door": [
+    -200,
+    164.2
+   ]
+  },
+  {
+   "id": "shop:clock_markt",
+   "kind": "shop",
+   "house": 920,
+   "door": [
+    -195.3,
+    87.7
+   ]
   }
  ]
 }

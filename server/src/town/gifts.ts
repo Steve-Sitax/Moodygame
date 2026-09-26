@@ -3,6 +3,7 @@ import { log } from "../game.ts";
 import { relationship, remember, TRUST_MAX, TRUST_MIN } from "../npcs.ts";
 import { ITEMS } from "../trade.ts";
 import { FURNITURE } from "../../../shared/homes.ts";
+import { shopPrice } from "../shops/wares.ts";
 import { LIVELY_WARES } from "./livelyWares.ts";
 import { clock } from "../day.ts";
 import { deedRow, hasDeeds, returnThing, type DeedRow } from "./deeds.ts";
@@ -88,7 +89,8 @@ function livelyPrice(kind: string): number | undefined {
 
 /** What a thing is worth, or undefined when it is nothing anyone would count as a gift. */
 export function giftValue(kind: string): number | undefined {
-  return GIFT_VALUE_C[kind] ?? livelyPrice(kind) ?? FURNITURE[kind]?.price_c;
+  // M7 shops: what the new shops sell is worth its price too (shops/wares.ts)
+  return GIFT_VALUE_C[kind] ?? livelyPrice(kind) ?? shopPrice(kind) ?? FURNITURE[kind]?.price_c;
 }
 
 // ------------------------------------------------------------------ words

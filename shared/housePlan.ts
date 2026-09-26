@@ -16,7 +16,8 @@
 
 import type { HallDoor, HallPlan, Level, Rect, Stair } from "./hallPlan.js";
 
-export type HouseKind = "tavern" | "cellar" | "home";
+/** M7 shops: "shop", a shop's ground floor, planned as a taproom is (docs/milestones/M7-shops.md). */
+export type HouseKind = "tavern" | "cellar" | "home" | "shop";
 
 /** One house of shared/inworld_houses.json. */
 export interface InworldEntry {
@@ -311,6 +312,8 @@ export function housePlan(entry: InworldEntry, h: CityHouse, gh: number, sh: num
   const f = houseFrame(h);
   const inner = f.inner;
   const tavern = entry.kind === "tavern";
+  // M7 shops: a shop is its house's ground floor behind the street door, like a taproom
+  const ground = tavern || entry.kind === "shop";
   const door: DoorSpec = { s: f.sd, w: tavern ? 1.2 : 1.1, J: 0.2, hs: SILL, yd: 2.35, yt: 2.85 };
   const hw = door.w / 2;
   const holes: Hole[] = [];
@@ -329,8 +332,8 @@ export function housePlan(entry: InworldEntry, h: CityHouse, gh: number, sh: num
   let roomY = SILL;
   let roomFrame: RoomFrame | undefined;
 
-  if (tavern) {
-    // the taproom: the whole ground floor. Windows: every bay of the front but the door's, and the side
+  if (ground) {
+    // the taproom (a shop alike): the whole ground floor. Windows: every bay of the front but the door's, and the side
     // walls on a street (the back is left painted: the fireplace and the barrels stand there)
     roomRect = { ...inner };
     const doorBay = Math.floor(Math.max(1, Math.round(f.L / 3)) / 2);

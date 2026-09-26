@@ -235,6 +235,11 @@ export class Press {
     return out;
   }
 
+  /** M7 shops: the Berg's counter from inside the pawn office (game/interiors.ts, E at the counter). */
+  openBergCounter(): void {
+    void this.openBerg();
+  }
+
   private async openBerg(msg = ""): Promise<void> {
     let v: BergView;
     try {

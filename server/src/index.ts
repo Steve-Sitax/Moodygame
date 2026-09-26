@@ -29,6 +29,8 @@ import { mountDirector } from "./director/routes.ts";
 import { mountFamilies } from "./director/familyRoutes.ts";
 import { mountInteriors } from "./interiors/routes.ts";
 import { mountPress } from "./paper/routes.ts";
+// M7 shops: where the shops are, who is inside (shops/)
+import { mountShops } from "./shops/routes.ts";
 import { mountIdeas } from "./ideas/routes.ts";
 import { mountHomes } from "./homes/routes.ts";
 import { mountTownLife } from "./director/townlife-routes.ts";
@@ -116,6 +118,8 @@ mountRowing(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast
 mountInteriors(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 // M6: the morning paper and the newsboys, the post and the telegraph, the Berg van Barmhartigheid (paper/)
 mountPress(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
+// M7 shops: the shops' doors, hours and who is inside them (shops/)
+mountShops(app, { db });
 // M6 AI ideas: wall posters, Jef's own letters, jobs that go wrong, news from abroad, lost diaries (ideas/)
 mountIdeas(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 // M6: homes to rent, the night at home, furniture from the second-hand dealer (homes/)

@@ -9,6 +9,9 @@ import { FURNITURE, FURNITURE_KINDS } from "../../shared/homes.ts";
 import { VELO_PRICE } from "./town/transport.ts";
 import { CART_PRICE } from "../../shared/handcart.ts";
 import { LIVELY_ITEMS, LIVELY_USE_TEXT, LIVELY_WARES } from "./town/livelyWares.ts";
+// M7 shops: the new shops' wares, and more for the old ones (shops/wares.ts)
+import { SHOP_ITEMS, SHOP_SERVICE_LINE, SHOP_USE_TEXT, SHOP_WARES, SHOP_WARES_MORE } from "./shops/wares.ts";
+import { shopTrade } from "../../shared/shops.ts";
 
 // Buying, pockets and eating (M3b). Prices and effects are engine numbers
 // (docs/03: shop prices are engine code). Pockets hold small things only;
@@ -22,8 +25,8 @@ export interface ItemDef {
   food?: number;
   warmth?: number;
   health?: number;
-  /** Verb for using it; none = cannot be used (a job parcel). */
-  use?: "eat" | "drink" | "read";
+  /** Verb for using it; none = cannot be used (a job parcel). M7 shops: wear (put it on), smoke. */
+  use?: "eat" | "drink" | "read" | "wear" | "smoke";
   note?: string;
   /** M6 interiors: eaten at the counter like a drink, never pocketed (a bowl of soup). */
   atCounter?: boolean;
@@ -57,6 +60,8 @@ export const ITEMS: Record<string, ItemDef> = {
   velocipede_hire: { name: "a velocipede for the day", note: "Back at his door before the day is out, or his boy fetches it." },
   // M6 lively: the street sellers' wares, the stalls against the cathedral (town/livelyWares.ts)
   ...LIVELY_ITEMS,
+  // M7 shops: the butcher, the colonial goods, the apothecary, the barber, the hatter ... (shops/wares.ts)
+  ...SHOP_ITEMS,
 };
 
 /**
@@ -94,11 +99,13 @@ const STALL_WARES: Record<string, Array<{ kind: string; price_c: number }>> = {
   veg: [{ kind: "apple", price_c: 2 }],
 };
 const TRADE_WARES: Record<string, Array<{ kind: string; price_c: number }>> = {
-  baker: STALL_WARES.bread,
-  grocer: STALL_WARES.veg,
+  // M7 shops: more on the old shops' lists (a new array: the stalls keep theirs)
+  baker: [...STALL_WARES.bread, ...SHOP_WARES_MORE.baker],
+  grocer: [...STALL_WARES.veg, ...SHOP_WARES_MORE.grocer],
   chandler: [
     { kind: "biscuit", price_c: 4 },
     { kind: "lantern", price_c: 40 },
+    ...SHOP_WARES_MORE.chandler,
   ],
   publican: [
     { kind: "beer", price_c: 5 },
@@ -124,6 +131,8 @@ const TRADE_WARES: Record<string, Array<{ kind: string; price_c: number }>> = {
   ],
   // M6 lively: the dog carts, the street sellers, the stalls against the cathedral (town/livelyWares.ts)
   ...LIVELY_WARES,
+  // M7 shops: the tobacconist, the draper, the cobbler (none sold before) and the new trades (shops/wares.ts)
+  ...SHOP_WARES,
 };
 
 /** The market's factor per item (an event's price and the news from abroad), each read once. */
@@ -159,6 +168,9 @@ function baseWaresOf(db: DB, id: string): Array<{ kind: string; price_c: number 
   if (!r) return [];
   if (r.work.stall !== undefined) return STALL_WARES[town(db).town.stalls[r.work.stall]?.goods ?? ""] ?? [];
   if (r.work.shop) {
+    // M7 shops: by the shop's own trade (a draper's shop kept by a widow sells cloth, not a "shopwife"'s nothing)
+    const own = shopTrade(r.work.shop);
+    if (own && TRADE_WARES[own]) return TRADE_WARES[own];
     const keeper = town(db).town.shops.find((s) => s.id === r.work.shop);
     const head = keeper ? resident(db, keeper.keeper) : r;
     return TRADE_WARES[head?.trade ?? r.trade] ?? [];
@@ -263,7 +275,7 @@ export function buy(db: DB, npc: string, kind: string): { line: string; bought: 
   remember(db, npc, `Jef bought ${ITEMS[kind].name} from me for ${ware.price_c} centimes.`, drinkNow ? 3 : 2);
   if (price_c < listed.price_c) haggleHooks.bought(db, npc, kind);
   const r = resident(db, npc);
-  const line = HAND_OVER[npc] ?? (r ? `${r.first} takes your coins and hands it over${r.stats.warmth >= 7 ? " with a nod" : r.stats.greed >= 7 ? ", counting twice" : ""}.` : "Coins change hands.");
+  const line = HAND_OVER[npc] ?? SHOP_SERVICE_LINE[kind] ?? (r ? `${r.first} takes your coins and hands it over${r.stats.warmth >= 7 ? " with a nod" : r.stats.greed >= 7 ? ", counting twice" : ""}.` : "Coins change hands.");
   return { line, bought: kind, price_c: ware.price_c };
 }
 
@@ -287,7 +299,9 @@ export function useItem(db: DB, id: number): { text: string } {
   db.transaction(() => {
     db.prepare("DELETE FROM item WHERE id = ?").run(id);
     applyNeeds(db, def);
-    log(db, def.use === "eat" ? "ate" : "drank", row.kind, `Jef ${def.use === "eat" ? "ate" : "drank"} ${def.name}.`);
+    // M7 shops: worn (put on) and smoked too
+    const verb = def.use === "eat" ? "ate" : def.use === "wear" ? "put on" : def.use === "smoke" ? "smoked" : "drank";
+    log(db, def.use === "eat" ? "ate" : def.use === "wear" ? "wore" : def.use === "smoke" ? "smoked" : "drank", row.kind, `Jef ${verb} ${def.name}.`);
   })();
   const text: Record<string, string> = {
     herring: "Salt and oil. It sits in your belly like a stone, a good stone.",
@@ -298,6 +312,7 @@ export function useItem(db: DB, id: number): { text: string } {
     apple: "Sour and crisp. Not much, but something.",
     beer: "Thin brown beer. It warms you a little and fills a corner of your belly.",
     ...LIVELY_USE_TEXT,
+    ...SHOP_USE_TEXT,
   };
   return { text: text[row.kind] ?? "Done." };
 }

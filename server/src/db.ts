@@ -11,6 +11,8 @@ import { PRESS_SCHEMA, PRESS_TABLES } from "./paper/schema.ts";
 import { IDEAS_SCHEMA, IDEAS_TABLES } from "./ideas/schema.ts";
 import { ensurePressTown } from "./paper/town.ts";
 import { ensureNightTown } from "./night/givers.ts";
+// M7 shops: the new shops and their keepers, the old shops into their own houses (shops/town.ts)
+import { ensureShopsTown } from "./shops/town.ts";
 import { ensureLamplighters } from "./town/lamplighters.ts";
 import { ensureHomesTown, HOMES_SCHEMA, HOMES_TABLES } from "./homes/town.ts";
 import { ensureVisitors } from "./town/visitors.ts";
@@ -168,6 +170,8 @@ export function openDb(file: string): DB {
   ensureLively(db);
   // M7 night: the four givers of night work (night/givers.ts); in place, once
   ensureNightTown(db);
+  // M7 shops: the butcher, the colonial goods, the apothecary, the barber ... and their keepers (shops/town.ts); in place, once
+  ensureShopsTown(db);
   // M7 short jobs: open goods work of an older save to the new sizes (at most two by hand); in place, once
   shortenOffered(db);
   // a save from an older city map: homes whose door step lies off every path now get a house of this map
@@ -260,6 +264,7 @@ export function resetDb(db: DB): void {
   ensureTransport(db);
   ensureLively(db);
   ensureNightTown(db);
+  ensureShopsTown(db);
 }
 
 function seed(db: DB): void {

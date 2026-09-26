@@ -1,6 +1,7 @@
 import { api, type JobsPayload, type PocketItem } from "../net/api";
 import type { FirstPerson } from "../player/firstPerson";
 import { esc } from "./runs";
+import { SHOP_ICONS } from "./shopIcons";
 
 // Pockets and needs on screen (M3b). Paper and ink, docs/05: needs as small
 // drawings, not bars. Six slots always in view; I opens them to eat or look.
@@ -107,6 +108,8 @@ const ICON: Record<string, Draw> = {
     g.fillRect(11, 7, 10, 5);
     for (const y of [15, 18, 21, 24]) g.fillRect(11, y, y === 21 ? 7 : 10, 0.9);
   },
+  // M7 shops: what the new shops sell (game/shopIcons.ts)
+  ...SHOP_ICONS,
   parcel: (g) => {
     g.strokeRect(6, 9, 20, 15);
     g.beginPath();

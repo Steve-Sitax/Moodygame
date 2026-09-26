@@ -1,10 +1,16 @@
 import * as THREE from "three";
 import "./interiors.css";
 import { buildCellar, buildTavern, type Room, type Seat, type Spot } from "../world/rooms";
+// M7 shops: every shop's ground floor in its own house (world/shopRooms.ts), its keeper and customers
+import { buildShop } from "../world/shopRooms";
+import { buildCafe, CAFE_STYLE } from "../world/cafeRooms";
+import { hangShopSigns, type FrontSpan } from "../world/shopSigns";
+import { holdProp, shopProp } from "./shopProps";
+import { SHOP_LOOK } from "../../../shared/shops";
 import { signTexture, glowTexture } from "../world/textures";
 import type { FirstPerson, RideAnchor, RideWalk } from "../player/firstPerson";
 import type { JobsPayload, Pt } from "../net/api";
-import { interiorApi, type InteriorsInfo, type Person, type PlayInfo, type PlayLine, type TalkLines } from "../net/interiorApi";
+import { interiorApi, type InteriorsInfo, type Person, type PlayInfo, type PlayLine, type ShopInfo, type TalkLines } from "../net/interiorApi";
 import { isHumanKind, makeHuman, type Human, type HumanKind } from "./humans";
 import { makePuppet, type Puppet } from "./puppets";
 import type { Action, Sfx } from "./runs";
@@ -52,7 +58,7 @@ interface Line {
 
 /** A building whose life can run: a tavern, the Poesje, or Jef's home (world/houseInWorld.ts). */
 interface Here {
-  kind: "tavern" | "cellar" | "home";
+  kind: "tavern" | "cellar" | "home" | "shop";
   place: string;
   label: string;
   room: Room;
@@ -84,7 +90,12 @@ export class Interiors {
   /** Jef is inside it (past the threshold). */
   private jefIn = false;
   /** The taverns and the Poesje in the world, by place ("tavern:ankere", "poesje"). */
-  private houses = new Map<string, { kind: "tavern" | "cellar"; house: HouseInWorld }>();
+  private houses = new Map<string, { kind: "tavern" | "cellar" | "shop"; house: HouseInWorld }>();
+  /** M7 shops: the town's shops (server shops/routes.ts), by place; their rooms are keyed "shop:<id>" in houses. */
+  private shops: ShopInfo[] = [];
+  private shopsDecorated = false;
+  /** M7 shops: who serves beside the keeper in the shop whose life runs (his wife, a helper). */
+  private helperIds = new Set<string>();
   private world: { world: World; inWorld: InWorld; plans: Map<string, HousePlan> } | null = null;
   /** Jef's home while he is in it (game/homes.ts). */
   private home: Here | null = null;
@@ -124,6 +135,8 @@ export class Interiors {
   tavernKeys: ((x: number, z: number) => { options: Array<[number, Action]>; extra: Action[] }) | null = null;
   /** M6 treat (game/hands.ts): keys while Jef sits at a table (talk to the one he stood a drink). */
   seatedKeys: (() => Action[]) | null = null;
+  /** M7 shops: the Berg's counter inside the pawn office (game/press.ts), set by main. */
+  bergCounter: (() => void) | null = null;
 
   constructor(
     private readonly player: FirstPerson,
@@ -159,7 +172,8 @@ export class Interiors {
   /** M7: is this tavern open with its taproom standing in the world (its keeper and drinkers go in: game/town.ts)? */
   tavernOpen(place: string): boolean {
     const h = this.houses.get(place);
-    return !!h && h.kind === "tavern" && h.house.doorOpen;
+    // M7 shops: "shop:<id>" is open with its room in the world: the keeper and his wife serve inside
+    return !!h && (h.kind === "tavern" || h.kind === "shop") && h.house.doorOpen;
   }
 
   /**
@@ -191,15 +205,19 @@ export class Interiors {
 
   private build(): void {
     const w = this.world;
-    if (!w || !this.info || this.houses.size) return;
+    // (the shops may stand before the taverns: they are built as soon as their own list is in, buildShops)
+    if (!w || !this.info || [...this.houses.values()].some((h) => h.kind !== "shop")) return;
     for (const t of this.info.taverns) {
       const plan = w.plans.get(t.place);
       if (!plan) continue;
-      const room = buildTavern({ plan, label: t.label, seed: hash(t.place) % 9973 });
+      // M7 shops: the taverns made over as cafes of their kind (world/cafeRooms.ts); the old taproom otherwise
+      const style = CAFE_STYLE[t.place];
+      const room = style ? buildCafe({ plan, label: t.label, seed: hash(t.place) % 9973, style }) : buildTavern({ plan, label: t.label, seed: hash(t.place) % 9973 });
       const house = createHouseInWorld(w.world, w.inWorld, plan, room, { color: 0x1a130d, near: 3.5, far: 20 }, 0.4);
       house.doorOpen = t.open;
       this.houses.set(t.place, { kind: "tavern", house });
     }
+    this.buildShops();
     const pl = w.plans.get("poesje");
     if (pl && this.info.poesje) {
       const room = buildCellar({ plan: pl });
@@ -209,8 +227,60 @@ export class Interiors {
     }
   }
 
+  /** M7 shops: how far each shop's front runs either side of its door (its house plan), for the boards. */
+  private shopFronts(): Map<string, FrontSpan> {
+    const out = new Map<string, FrontSpan>();
+    for (const s of this.shops) {
+      const plan = this.world?.plans.get(`shop:${s.place}`);
+      if (!plan || Math.hypot(plan.origin.x - s.wall[0], plan.origin.z - s.wall[1]) > 0.8) continue;
+      const f = plan.frame;
+      // which way local +x runs along the front, seen from the street (to the right or the left)
+      const [bx, bz] = HP.toWorld(plan, 0, -1);
+      const o: [number, number] = [bx - plan.origin.x, bz - plan.origin.z];
+      const [rx, rz] = [o[1], -o[0]];
+      const [ax, az] = HP.toWorld(plan, 1, 0);
+      const sgn = Math.sign((ax - plan.origin.x) * rx + (az - plan.origin.z) * rz) || 1;
+      const at = { wall: [plan.origin.x, plan.origin.z] as [number, number], out: o };
+      out.set(s.place, sgn > 0 ? { right: f.x1, left: -f.x0, ...at } : { right: -f.x0, left: f.x1, ...at });
+    }
+    return out;
+  }
+
+  /** M7 shops: a room in its house for every shop whose door is its listed house's door (shared/inworld_houses.json). */
+  private buildShops(): void {
+    const w = this.world;
+    if (!w) return;
+    for (const s of this.shops) {
+      const key = `shop:${s.place}`;
+      if (this.houses.has(key) || !s.trade) continue;
+      const plan = w.plans.get(key);
+      // the town's door must be the listed house's (another save may have its shop elsewhere: then no room)
+      if (!plan || Math.hypot(plan.origin.x - s.wall[0], plan.origin.z - s.wall[1]) > 0.8) continue;
+      const room = buildShop({ plan, trade: s.trade, label: s.label, seed: hash(s.place) % 9973 });
+      const house = createHouseInWorld(w.world, w.inWorld, plan, room, { color: 0x1c1610, near: 3.5, far: 16 }, 0.35);
+      house.doorOpen = s.open;
+      this.houses.set(key, { kind: "shop", house });
+    }
+    // the boards and bracket signs over the doors, once (they want the fronts from the house plans)
+    if (!this.shopsDecorated && this.shops.length) {
+      this.shopsDecorated = true;
+      hangShopSigns(this.worldScene, this.shops, this.shopFronts());
+    }
+  }
+
   async load(): Promise<void> {
     try {
+      // M7 shops: the shops' doors and hours (their own route; a failure leaves the taverns be)
+      try {
+        this.shops = (await interiorApi.shops()).shops;
+        this.buildShops();
+        for (const s of this.shops) {
+          const h = this.houses.get(`shop:${s.place}`);
+          if (h) h.house.doorOpen = s.open;
+        }
+      } catch {
+        /* the server has no shops yet: again at the next refresh */
+      }
       this.info = await interiorApi.info();
       this.tipsyTarget = this.info.tipsy;
       if (!this.decorated) this.decorate();
@@ -236,8 +306,10 @@ export class Interiors {
   // ------------------------------------------------------------------ the doors in the street
 
   /** Where a door's step is and the wall behind it (1.2 m in, the town's door step). */
-  private doors(): Array<{ kind: "tavern" | "cellar"; place: string; label: string; step: Pt; out: Pt; wall: Pt; open: boolean }> {
+  private doors(): Array<{ kind: "tavern" | "cellar" | "shop"; place: string; label: string; step: Pt; out: Pt; wall: Pt; open: boolean }> {
     const out: ReturnType<Interiors["doors"]> = [];
+    // M7 shops: the shops whose room stands in the world (keyed "shop:<id>")
+    for (const s of this.shops) if (this.houses.has(`shop:${s.place}`)) out.push({ kind: "shop", place: `shop:${s.place}`, label: s.label, step: s.door, out: s.out, wall: s.wall, open: s.open });
     for (const t of this.info?.taverns ?? []) out.push({ kind: "tavern", place: t.place, label: t.label, step: t.door, out: t.out, wall: [t.door[0] - t.out[0] * 1.2, t.door[1] - t.out[1] * 1.2], open: t.open });
     const p = this.info?.poesje;
     if (p) out.push({ kind: "cellar", place: "poesje", label: "the Poesje", step: p.door, out: p.out, wall: p.wall, open: p.open });
@@ -248,6 +320,7 @@ export class Interiors {
   private decorate(): void {
     this.decorated = true;
     for (const d of this.doors()) {
+      if (d.kind === "shop") continue; // M7 shops: their boards and bracket signs are world/shopSigns.ts
       const text = d.kind === "cellar" ? "POESJE" : d.label.toUpperCase();
       if (d.kind === "tavern") {
         // a tavern hangs its name out on an iron bracket, across the pavement, read from either way
@@ -312,6 +385,8 @@ export class Interiors {
       const L = h.kind === "cellar" ? 1 : 0;
       const pts: Array<[string, number, number, number]> = [];
       if (room.counter) pts.push(["the counter", room.counter.x, room.counter.z, 0.6]);
+      // M7 shops: where a customer stands at the shelves, and a bench where there is one
+      if (h.kind === "shop" && room.stands[3]) pts.push(["the shelves", room.stands[3].x, room.stands[3].z, 0.6]);
       if (room.fire) pts.push(["the fire", room.fire.x, room.fire.z, 0.8]);
       const seat = room.seats.find((q) => q.table === 0);
       if (seat) pts.push([h.kind === "cellar" ? "the back bench" : "a table", ...(seat.via[seat.via.length - 1] as [number, number]), 0.6]);
@@ -335,7 +410,10 @@ export class Interiors {
       if (dist > REACH_DOOR) continue;
       // the door itself, at chest height: Jef must look at it (game/facing.ts)
       const at = { x: d.wall[0], y: this.player.y + 1.1, z: d.wall[1] };
-      if (d.kind === "tavern") {
+      if (d.kind === "shop") {
+        const s = this.shops.find((q) => `shop:${q.place}` === d.place);
+        options.push([dist - 0.2, { key: "KeyE", text: `try the door of ${d.label}`, run: () => this.say(`The shutters are up at ${d.label}. ${s?.keeper ? `${s.keeper.first} opens again in the morning.` : "Nobody answers."}`), at }]);
+      } else if (d.kind === "tavern") {
         const keeper = this.info?.taverns.find((t) => t.place === d.place)?.keeper;
         options.push([dist - 0.2, { key: "KeyE", text: `try the door of ${d.label}`, run: () => this.say(`The door of ${d.label} is barred. ${keeper ? `${keeper.first} opens again later.` : "Nobody answers."}`), at }]);
       } else {
@@ -371,7 +449,14 @@ export class Interiors {
     const opts: Array<[number, Action]> = [];
     const extra: Action[] = [];
     const keeper = [...this.occ.values()].find((o) => o.keeper && !o.gone);
-    if (keeper && near(room.counter, 1.2)) {
+    if (keeper && room.kind === "shop" && near(room.counter, 1.4)) {
+      // M7 shops: E buys at the counter (the talk window's ware list, the keeper's own prices), F talks
+      const at = this.occAt(keeper);
+      const berg = this.here?.place === "shop:pawn_vis" && this.bergCounter;
+      if (berg) opts.push([0.2, { key: "KeyE", text: "the Berg's counter: pawn or redeem", run: () => this.bergCounter?.(), at }]);
+      else opts.push([0.2, { key: "KeyE", text: `buy from ${keeper.p.first}`, run: () => this.jobs.talk.open({ id: keeper.p.id, def: { name: keeper.p.name, title: this.here?.label } }, true), at }]);
+      extra.push({ key: "KeyF", text: `talk to ${keeper.p.first}`, run: () => this.talkTo(keeper), at });
+    } else if (keeper && near(room.counter, 1.2)) {
       const at = this.occAt(keeper);
       opts.push([0.2, { key: "KeyE", text: `talk to ${keeper.p.first}, the keeper`, run: () => this.talkTo(keeper), at }]);
       extra.push({ key: "KeyF", text: `buy at the counter`, run: () => this.jobs.talk.open({ id: keeper.p.id, def: { name: keeper.p.name, title: "the keeper" } }, true), at });
@@ -400,14 +485,14 @@ export class Interiors {
     });
     if (seat) {
       const s = seat.it;
-      opts.push([seat.d + 0.1, { key: "KeyE", text: room.kind === "cellar" ? "sit down on the bench" : s.table === 9 ? "sit at the counter" : "sit down at the table", run: () => this.sitDown(s), at: seat.at }]);
+      opts.push([seat.d + 0.1, { key: "KeyE", text: room.kind === "cellar" || room.kind === "shop" ? "sit down on the bench" : s.table === 9 ? "sit at the counter" : "sit down at the table", run: () => this.sitDown(s), at: seat.at }]);
     }
     const top = best(opts);
     return [...(top ? [top] : []), ...extra];
   }
 
   private talkTo(o: Occ): void {
-    this.jobs.talk.open({ id: o.p.id, def: { name: o.p.name, title: o.keeper ? "the keeper" : undefined } });
+    this.jobs.talk.open({ id: o.p.id, def: { name: o.p.name, title: o.keeper ? (this.here?.kind === "shop" ? this.here.label : "the keeper") : undefined } });
     // they turn to Jef
     const w = this.jefAt();
     if (w && !o.seat) o.yaw = Math.atan2(w.x - o.x, w.z - o.z);
@@ -476,7 +561,9 @@ export class Interiors {
     const cur = this.here && this.here.kind !== "home" ? this.here.place : null;
     if (cur && best && cur !== best.place) {
       const dc = this.houses.get(cur)!.house.near(px, pz);
-      if (this.jefIn || dc < best.d + 10) best = { place: cur, d: dc };
+      // (inside it still: it stays; put somewhere else by a jump, the new one takes over)
+      const stillIn = this.jefIn && this.houses.get(cur)!.house.insideness(px, pz) > 0.3;
+      if (stillIn || (!this.jefIn && dc < best.d + 10)) best = { place: cur, d: dc };
     }
     if (!best) {
       if (this.here) this.switchTo(null, false);
@@ -503,6 +590,15 @@ export class Interiors {
     this.roomSound(h.room.sound ?? h.kind);
     if (h.kind === "home") return;
     if (this.jobs.goods.carried) return this.putOut("Not with that in your arms. Set it down first.");
+    if (h.kind === "shop") {
+      // M7 shops: the smell of the trade, and who is there
+      const s = this.shops.find((q) => `shop:${q.place}` === h.place);
+      const k = [...this.occ.values()].find((o) => o.keeper && !o.gone);
+      const n = [...this.occ.values()].filter((o) => !o.keeper && !o.gone && !o.leaving && !this.helperIds.has(o.p.id)).length;
+      const smell = s?.trade ? SHOP_LOOK[s.trade].smell : "";
+      this.say(`${h.label[0].toUpperCase()}${h.label.slice(1)}. ${smell}${k ? ` ${k.p.first} looks up from the counter.` : ""}${n ? ` ${n === 1 ? "One customer waits" : `${n} customers wait`}.` : ""}`);
+      return;
+    }
     if (h.kind === "tavern") {
       const n = [...this.occ.values()].filter((o) => !o.keeper && !o.gone && !o.leaving).length;
       // words for the hour (QA 2026-09-24: "Quiet tonight" at one in the afternoon)
@@ -621,6 +717,23 @@ export class Interiors {
   /** A seat for those who can sit (by id, so the same man takes the same place), else a place to stand. */
   private place(o: Occ): void {
     const room = this.here!.room;
+    // M7 shops: the keeper's wife or helper behind the counter's front end; customers stand (or wait on a bench)
+    if (room.kind === "shop") {
+      if (this.helperIds.has(o.p.id) && room.serve?.length) {
+        const used = new Set([...this.occ.values()].map((q) => q.stand));
+        o.stand = room.serve.find((sp) => !used.has(sp)) ?? room.serve[0];
+        return;
+      }
+      const free = room.seats.filter((q) => !this.seatTaken.has(q));
+      if (free.length && !STANDERS.has(o.kind) && hash(o.p.id) % 3 !== 0) {
+        const s = free[hash(o.p.id) % free.length];
+        this.seatTaken.set(s, o.p.id);
+        o.seat = s;
+        return;
+      }
+      this.standFor(o);
+      return;
+    }
     // M6 ballads: a guest who stands to sing (the ballad singer) takes no seat
     const sitter = !o.p.stand && !STANDERS.has(o.kind) && (room.kind === "cellar" || o.p.age >= 16);
     const h = hash(o.p.id);
@@ -668,6 +781,12 @@ export class Interiors {
     if (!h) return;
     o.human = h;
     room.group.add(h.root);
+    // M7 shops: the keeper holds his trade's thing (game/shopProps.ts), on his hand's bone
+    if (room.kind === "shop" && o.keeper) {
+      const trade = this.shops.find((q) => `shop:${q.place}` === this.here?.place)?.trade;
+      const prop = trade ? shopProp(trade) : null;
+      if (prop) holdProp(h.root, prop);
+    }
     // a seat of a kind that cannot sit after all (the model says): stand beside it instead
     if (o.seat && !h.canSit) {
       const was = o.seat;
@@ -1140,7 +1259,7 @@ export class Interiors {
     // who is here changes with the clock: ask the server every few seconds
     this.syncT -= dt;
     if (this.syncT <= 0 && !this.syncing) {
-      this.syncT = here.kind === "tavern" ? 4 : 10;
+      this.syncT = here.kind === "tavern" || here.kind === "shop" ? 4 : 10;
       void this.sync(here);
     }
     if (here.kind === "tavern" && this.jefIn) {
@@ -1156,6 +1275,25 @@ export class Interiors {
     if (here.kind === "home") return;
     this.syncing = true;
     try {
+      if (here.kind === "shop") {
+        // M7 shops: the keeper and his wife while the shop is open, the customers the engine's roll sent in
+        const place = here.place.slice(5);
+        const st = await interiorApi.shop(place);
+        if (this.here !== here) return;
+        const hw = this.houses.get(here.place);
+        if (hw) hw.house.doorOpen = st.open;
+        const info = this.shops.find((q) => q.place === place);
+        if (info) info.open = st.open;
+        if (!st.open) {
+          if (this.jefIn) this.putOut(`${st.keeper?.first ?? "The shopkeeper"} is putting up the shutters. "We are closed. Come back in the morning."`);
+          this.syncPeople([], null, false);
+          return;
+        }
+        this.helperIds = new Set(st.helpers.map((q) => q.id));
+        this.syncPeople([...(st.keeper ? [st.keeper] : []), ...st.helpers, ...st.customers], st.keeper?.id ?? null, this.firstSync);
+        this.firstSync = false;
+        return;
+      }
       if (here.kind === "tavern") {
         const st = await interiorApi.tavern(here.place);
         if (this.here !== here) return;
@@ -1204,7 +1342,7 @@ export class Interiors {
   /** Dev: go straight in (a tavern id, or "poesje"): Jef just inside the door. */
   async devEnter(place: string): Promise<string> {
     await this.load();
-    const key = this.houses.has(place) ? place : `tavern:${place}`;
+    const key = this.houses.has(place) ? place : this.houses.has(`shop:${place}`) ? `shop:${place}` : `tavern:${place}`;
     const h = this.houses.get(key);
     if (!h) return `no such door: ${place}`;
     if (this.player.riding) this.player.rideEnd(this.player.x, this.player.z);

@@ -37,7 +37,8 @@ export interface Stage {
 }
 
 export interface Room {
-  kind: "tavern" | "cellar" | "home" | "landmark";
+  /** M7 shops: "shop", a shop's ground floor (world/shopRooms.ts). */
+  kind: "tavern" | "cellar" | "home" | "landmark" | "shop";
   scene: THREE.Scene;
   group: THREE.Group;
   /** Keep a walker of radius 0.3 inside and off the furniture (room frame). */
@@ -45,6 +46,8 @@ export interface Room {
   seats: Seat[];
   /** For those who stand (women in skirts, the aproned, the overflow). */
   stands: Spot[];
+  /** M7 shops: where the keeper's wife or helper stands behind the counter (the keeper at `keeper`). */
+  serve?: Spot[];
   keeper?: Spot;
   counter?: Spot;
   fire?: Spot;
@@ -118,9 +121,11 @@ export function plaster(seed: number, base: [number, number, number]): THREE.Can
       g.fillStyle = `rgba(20,14,8,${Math.max(0, 0.35 - y / 64) * 0.9})`;
       g.fillRect(0, y, 64, 1);
     }
-    for (let i = 0; i < 12; i++) {
-      g.fillStyle = "rgba(40,30,20,0.25)";
-      g.fillRect(r() * 64, 0, 1, 10 + r() * 30);
+    // M7 shops (the lead, 2026-09-26): thin water stains lower down, not dark bars hanging from the top edge (nearest
+    // filtered and of every length, those read as a staircase along the ceiling in every room)
+    for (let i = 0; i < 10; i++) {
+      g.fillStyle = "rgba(40,30,20,0.12)";
+      g.fillRect(r() * 64, 18 + r() * 30, 1, 6 + r() * 12);
     }
   });
 }
@@ -387,7 +392,7 @@ export function wallFace(group: THREE.Group, a: [number, number], c: [number, nu
 }
 
 /** The holes of a house's windows on one face of a room (local x or z along it from `from`), with the door's. */
-function holesOn(plan: HousePlan, face: "front" | "minX" | "maxX", from: number, door: boolean): FaceHole[] {
+export function holesOn(plan: HousePlan, face: "front" | "minX" | "maxX", from: number, door: boolean): FaceHole[] {
   const out: FaceHole[] = [];
   for (const w of plan.windows) {
     if (w.kind !== "hole") continue;
@@ -451,7 +456,7 @@ export function mergeStatic(stat: THREE.Group, into: THREE.Group): void {
 }
 
 /** Builder boxes as plan rects. */
-function rectsOf(boxes: Builder["boxes"]): Rect[] {
+export function rectsOf(boxes: Builder["boxes"]): Rect[] {
   return boxes.map((q) => ({ minX: q.minX, maxX: q.maxX, minZ: q.minZ, maxZ: q.maxZ }));
 }
 
@@ -460,7 +465,7 @@ export function flicker(t: number, seed: number): number {
 }
 
 /** A room's lights that dim from the bright street by day (the eye comes in from outside). */
-function ambientOf(hemi: THREE.HemisphereLight, amb: THREE.AmbientLight): (k: number) => void {
+export function ambientOf(hemi: THREE.HemisphereLight, amb: THREE.AmbientLight): (k: number) => void {
   const h0 = hemi.intensity;
   const a0 = amb.intensity;
   return (k) => {
