@@ -30,6 +30,7 @@ import { createGasLamps, FOG_DAY_GLOW, glassColor, LIT_REACH, type GasLamps } fr
 import { lampFog, type LampFog } from "./lampFog";
 import { createLitter, type Litter } from "./litter";
 import { createClutter } from "./clutter";
+import { createPosters, type Posters } from "./posters";
 import { createQuayGoods, quayGoodsAreas } from "./quaygoods";
 import { createStreetLife, type StreetLife } from "./streetlife";
 import { buildWallProbe } from "./wallprobe";
@@ -241,6 +242,8 @@ export interface World {
   ambient: Ambient;
   /** M6 lively: street life once it is placed (the corner Madonnas, the shop fronts); null until then. */
   streetLife(): StreetLife | null;
+  /** M7 posters: the town's bills on the walls (dev: the poster check); null until placed. */
+  posters(): Posters | null;
   /** The quay furniture (dev: its wall notices, and those it moved off a window). */
   quayFurniture(): QuayFurniture | null;
   /** The boats (moving ships for the sound, signals at bridges); null until loaded. */
@@ -413,6 +416,8 @@ export function buildRijnkaai(): World {
   let quayKit: QuayFurniture | null = null;
   // the fires in the tar barrels on the quays (world/fire.ts)
   let fires: Fires | null = null;
+  // M7 posters: the printed bills on the house walls (world/posters.ts)
+  let posters: Posters | null = null;
   // the filth of 1873: dung, straw, gutters, ash, fish waste, heaps, rats (world/litter.ts)
   let litter: Litter | null = null;
   city.ready
@@ -479,7 +484,12 @@ export function buildRijnkaai(): World {
           }).then((g) => {
             colliders.push(...g.colliders);
           });
-        });
+        })
+          // M7 posters: the town's bills (world/posters.ts), last, so they keep off the signs, the goods and the barrels
+          .then(() => (street ? createPosters(scene, city.flags, { streetLife: street, city: city.group, avoid: [...colliders, ...dynamic] }) : null))
+          .then((p) => {
+            posters = p;
+          });
       });
     })
     .catch((e) => console.warn("props, streetlife or quay furniture did not load", e));
@@ -1817,6 +1827,7 @@ export function buildRijnkaai(): World {
     },
     ambient,
     streetLife: () => street,
+    posters: () => posters,
     quayFurniture: () => quayKit,
     setPeople: (fn) => (peopleFn = fn),
     setCarts: (fn) => (cartsFn = fn),

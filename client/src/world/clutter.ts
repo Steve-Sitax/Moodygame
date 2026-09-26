@@ -1471,11 +1471,11 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
       }
       const extra = s >= extraAt;
       if (extra) extraAt = s + gap;
-      // a bill on a blank wall
+      // (a bill on a blank wall: world/posters.ts puts up the town's bills now, M7 posters 2026-09-26; the dice
+      // are still thrown, so everything after stays where it was)
       if (extra && w.kind === 1 && W > 3 && R() < 0.4 && at(bx + w.ox * 0.8, bz + w.oz * 0.8) === OPEN && !atDoor(bx, bz, 0.5)) {
-        const key = ["poster_auction", "poster_theatre", "poster_reward"][Math.floor(R() * 3)];
-        const ps = s + 1.4;
-        if (ps < w.L - 0.6) put(key, w.ax + w.tx * ps + w.ox * 0.016, (R() - 0.3) * 0.25, w.az + w.tz * ps + w.oz * 0.016, w.yaw);
+        R();
+        if (s + 1.4 < w.L - 0.6) R();
       }
       // a pump and a trough on a square that has none
       if (extra && W >= 14 && !market && myPumps.length < 6 && ![...pumpsAt, ...myPumps].some(([x, z]) => Math.hypot(x - bx, z - bz) < 45) && s > 2.5 && s < w.L - 2.5) {

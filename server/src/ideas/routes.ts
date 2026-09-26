@@ -6,7 +6,7 @@ import { talkHooks } from "../town/talk.ts";
 import { paperOf } from "../paper/newspaper.ts";
 import { flag, now, setFlag } from "./common.ts";
 import { newsRow, newsTalkLine, rollNews, NEWS_TABLE } from "./abroad.ts";
-import { morningPlans, pickLost, posterView, putUp, returnLost, takeDown, wantedPlans, lostPlan, POSTERS_UP_MAX } from "./posters.ts";
+import { morningPlans, pickLost, posterSpots, posterView, putUp, returnLost, takeDown, wantedPlans, lostPlan, POSTERS_UP_MAX } from "./posters.ts";
 import { answerLetters, meet, meetingsOpen, missMeetings, postLetter, STAMP_C, LETTER_MAX_CHARS, writeTo } from "./letters.ts";
 import { chooseTrouble, maybeTrouble, troubleStep, troubleView, TROUBLE_KINDS, type TroubleKind } from "./trouble.ts";
 import { diaryWorld, maybeDiary, pickDiary, readDiary, returnDiary, sellDiary, squeeze, unstickDiaries } from "./diaries.ts";
@@ -123,6 +123,9 @@ export function mountIdeas(app: Hono, deps: IdeasDeps): void {
     const j = takenJob();
     return c.json({ ...posterView(db), diaries: diaryWorld(db), meetings: meetingsOpen(db), trouble: j ? troubleView(db, j) : null, news: newsRow(db, now(db).day) });
   });
+
+  // M7 posters: every place a bill of the engine's may go (the client keeps its own bills off them; its check tests them)
+  app.get("/api/posters/spots", (c) => c.json({ spots: posterSpots(db) }));
 
   // ---- lost things on the bills
   app.post("/api/posters/:id/pick", async (c) => {

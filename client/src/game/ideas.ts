@@ -4,6 +4,7 @@ import type { JobsPayload, PocketItem, PushMsg } from "../net/api";
 import type { FirstPerson } from "../player/firstPerson";
 import type { World } from "../world/rijnkaai";
 import { psx } from "../retro/psx";
+import { AI_BILL } from "../../../shared/posterWalls";
 import { esc, type Action } from "./runs";
 import { chest } from "./facing";
 import type { Jobs } from "./jobs";
@@ -112,13 +113,20 @@ const REACH_THING = 1.9;
 const REACH_DOOR = 2.6;
 const REACH_COUNTER = 3.2;
 
+/** M7 posters: the printer's woodcuts (world/posterArt.ts, public/textures/poster_cuts.png): a picture under the heading. */
+const CUTS = typeof Image !== "undefined" ? new Image() : null;
+if (CUTS) CUTS.src = "/textures/poster_cuts.png";
+/** The cut on each kind of bill (the sheet's 4 x 4 cells, by row). */
+const CUT_OF: Record<string, number> = { wanted: 13, sailing: 0, auction: 3, order: 7, lost: 3 };
+
 /** A bill as a texture: a heading in big type, the body in small, the foot line. */
 function billTexture(p: PosterV): THREE.CanvasTexture {
   const c = document.createElement("canvas");
   c.width = 128;
   c.height = 176;
   const g = c.getContext("2d")!;
-  const paper = p.kind === "wanted" ? "#e9dfc2" : p.kind === "lost" ? "#e3e0cf" : p.kind === "sailing" ? "#d9d3b8" : p.kind === "auction" ? "#e6d3a8" : "#ddd6c0";
+  // (M7 posters: the coloured papers of the town's bills, world/posterArt.ts: a wanted bill on yellow, a sailing on blue, a sale on pink)
+  const paper = p.kind === "wanted" ? "#e6cf78" : p.kind === "lost" ? "#e9e4d3" : p.kind === "sailing" ? "#b9c9d6" : p.kind === "auction" ? "#e7b4ae" : "#e9e4d3";
   g.fillStyle = paper;
   g.fillRect(0, 0, 128, 176);
   g.fillStyle = "rgba(90,70,40,0.18)";
@@ -131,7 +139,7 @@ function billTexture(p: PosterV): THREE.CanvasTexture {
   const words = p.text.heading.split(/\s+/);
   const lines: string[] = [];
   let cur = "";
-  g.font = "bold 17px Georgia, serif";
+  g.font = '900 19px Impact, "Arial Black", sans-serif';
   for (const w of words) {
     const t = cur ? `${cur} ${w}` : w;
     if (g.measureText(t).width > 112 && cur) {
@@ -144,6 +152,16 @@ function billTexture(p: PosterV): THREE.CanvasTexture {
   for (const l of lines.slice(0, 3)) {
     g.fillText(l, 64, y);
     y += 19;
+  }
+  // the woodcut (a steamer on a sailing bill, a face on a wanted bill), when the sheet is loaded
+  const cut = CUT_OF[p.kind];
+  if (CUTS?.complete && CUTS.naturalWidth && cut !== undefined && y < 110) {
+    const cs = CUTS.naturalWidth / 4;
+    g.save();
+    g.globalCompositeOperation = "multiply";
+    g.drawImage(CUTS, (cut % 4) * cs, Math.floor(cut / 4) * cs, cs, cs, 64 - 22, y - 8, 44, 44);
+    g.restore();
+    y += 40;
   }
   // the body as rows of grey print: unreadable from afar, as a bill is
   g.fillStyle = "rgba(30,26,22,0.55)";
@@ -198,6 +216,15 @@ export class Ideas {
     jobs.extraActions.push((x, z) => this.actions(x, z));
     void this.load();
     setInterval(() => void this.load(), 15000);
+    // (M7 posters: the woodcuts came after the first bills were drawn: draw those again with them)
+    CUTS?.addEventListener("load", () => {
+      for (const m of this.bills.values()) {
+        m.removeFromParent();
+        this.free(m);
+      }
+      this.bills.clear();
+      this.build();
+    });
   }
 
   // ------------------------------------------------------------------ server data
@@ -256,10 +283,14 @@ export class Ideas {
     }
     for (const p of v.posters) {
       if (this.bills.has(p.id)) continue;
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.85), psx(new THREE.MeshLambertMaterial({ map: billTexture(p) }), { affine: 0.5 }));
-      m.position.set(p.spot.x + p.spot.out[0] * 0.03, 1.62, p.spot.z + p.spot.out[1] * 0.03);
+      // (M7 posters: the size and place the server's spots keep clear, shared/posterWalls.ts AI_BILL; flat on the wall)
+      const m = new THREE.Mesh(
+        new THREE.PlaneGeometry(AI_BILL.w, AI_BILL.h),
+        psx(new THREE.MeshLambertMaterial({ map: billTexture(p), polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), { affine: 0.5 }),
+      );
+      m.position.set(p.spot.x + p.spot.out[0] * 0.012, AI_BILL.y, p.spot.z + p.spot.out[1] * 0.012);
       m.rotation.y = Math.atan2(p.spot.out[0], p.spot.out[1]);
-      m.rotation.z = (((p.id * 37) % 7) - 3) * 0.012; // pasted by hand
+      m.rotation.z = (((p.id * 37) % 7) - 3) * 0.006; // pasted by hand
       this.world.scene.add(m);
       this.bills.set(p.id, m);
     }

@@ -9,7 +9,11 @@ import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { ITEMS, POCKET_SLOTS } from "../trade.ts";
 import { rngFrom, type Resident } from "../town/population.ts";
 import { resident, town } from "../town/store.ts";
+import fs from "node:fs";
+import path from "node:path";
+import { ROOT } from "../config.ts";
 import { houseDoors, walkMap, WALL } from "../town/walkmap.ts";
+import { AI_BILL, blankRuns, houseWalls, type BuildData, type PosterWall } from "../../../shared/posterWalls.ts";
 import { hasDeeds, THINGS, type DeedRow } from "../town/deeds.ts";
 import { policePost } from "../town/police.ts";
 import { pressTown } from "../paper/town.ts";
@@ -103,43 +107,73 @@ export function nearLabel(x: number, z: number): string {
 
 /** Kept per town (its seed and its post office): a new game may put the post office elsewhere. */
 let spotCache: { key: string; spots: PosterSpot[] } | null = null;
+let wallCache: { walls: PosterWall[]; lamps: number[][] } | null = null;
+function wallsAndLamps(): { walls: PosterWall[]; lamps: number[][] } {
+  if (wallCache) return wallCache;
+  const build = JSON.parse(fs.readFileSync(path.join(ROOT, "shared", "city_build.json"), "utf8")) as BuildData;
+  const gables = JSON.parse(fs.readFileSync(path.join(ROOT, "shared", "city_gable_windows.json"), "utf8")) as { lamps?: number[][] };
+  const inWorld = JSON.parse(fs.readFileSync(path.join(ROOT, "shared", "inworld_houses.json"), "utf8")) as { houses: Array<{ house: number }> };
+  wallCache = { walls: houseWalls(build, inWorld.houses.map((h) => h.house)), lamps: gables.lamps ?? [] };
+  return wallCache;
+}
+
 /**
- * Two places on a house front near each busy spot (and by the police post and the post
- * office): a stretch of wall beside a door, and a reachable place to stand and read.
+ * Two places on a house wall near each busy spot (and by the police post and the post office): plain
+ * wall only (M7 posters, Steve 2026-09-26: "posters are also over windows and even ... over a passage"):
+ * a blind wall, or the pier between a front's door and its shop window, clear of every window, doorway,
+ * passage mouth and door lantern (shared/posterWalls.ts), the house there and the street open before it,
+ * and a reachable place to stand and read. The client's poster check (__scheldemist.posters()) tests
+ * every one of them against the houses as built.
  */
 export function posterSpots(db: DB): PosterSpot[] {
   const post = pressTown(db)?.post;
   const key = `${town(db).town.seed}:${post ? post.step.join(",") : "-"}`;
   if (spotCache?.key === key) return spotCache.spots;
   const wm = walkMap();
-  const doors = houseDoors();
+  const { walls, lamps } = wallsAndLamps();
   const anchors = ANCHORS.slice();
   const pp = policePost();
   anchors.push({ id: "police", label: pp.label, x: pp.x, z: pp.z });
   if (post) anchors.push({ id: "post", label: "the post office", x: post.step[0], z: post.step[1] });
+  const hu = AI_BILL.w / 2;
+  const y0 = AI_BILL.y - AI_BILL.h / 2;
+  const y1 = AI_BILL.y + AI_BILL.h / 2;
+  // every place on a plain stretch of wall, a bill's width apart
+  interface Cand { x: number; z: number; out: [number, number]; at: [number, number] }
+  const cands: Cand[] = [];
+  for (const w of walls) {
+    // (a tavern or a home with its inside in the world: its own signs and doors)
+    if (w.inWorld) continue;
+    for (const [r0, r1] of blankRuns(w, hu, y0, y1, 0.14, 0.6)) {
+      const n = Math.max(1, Math.floor((r1 - r0) / 0.9) + 1);
+      for (let k = 0; k < n; k++) {
+        const s = n === 1 ? (r0 + r1) / 2 : r0 + ((r1 - r0) * k) / (n - 1);
+        const x = w.ax + w.tx * s;
+        const z = w.az + w.tz * s;
+        // the house behind it, and the street before it (at both edges), dry and open
+        if (!(wm.flags(x - w.ox * 0.3, z - w.oz * 0.3) & WALL)) continue;
+        let open = true;
+        for (const e of [-hu, 0, hu]) for (const d of [0.45, 0.9]) if (wm.flags(x + w.tx * e + w.ox * d, z + w.tz * e + w.oz * d) !== 0) open = false;
+        if (!open) continue;
+        // a door lantern hangs on the wall there
+        if (lamps.some(([lx, , lz]) => Math.hypot(lx - x, lz - z) < 0.75)) continue;
+        const stand = wm.nearestOpen(x + w.ox * 1.3, z + w.oz * 1.3, 2.5);
+        if (!stand || Math.hypot(stand.x - x, stand.z - z) > 3) continue;
+        cands.push({ x, z, out: [w.ox, w.oz], at: [+stand.x.toFixed(2), +stand.z.toFixed(2)] });
+      }
+    }
+  }
   const out: PosterSpot[] = [];
   const used: Array<[number, number]> = [];
   for (const a of anchors) {
-    const near = doors
-      .filter((d) => Math.hypot(d.sx - a.x, d.sz - a.z) < 45)
-      .sort((p, q) => Math.hypot(p.sx - a.x, p.sz - a.z) - Math.hypot(q.sx - a.x, q.sz - a.z));
+    const near = cands.filter((c) => Math.hypot(c.x - a.x, c.z - a.z) < 45).sort((p, q) => Math.hypot(p.x - a.x, p.z - a.z) - Math.hypot(q.x - a.x, q.z - a.z));
     let n = 0;
-    for (const d of near) {
+    for (const c of near) {
       if (n >= 2) break;
-      const tan: [number, number] = [d.out[1], -d.out[0]];
-      for (const side of [1.7, -1.7]) {
-        if (n >= 2) break;
-        const x = d.x + tan[0] * side;
-        const z = d.z + tan[1] * side;
-        // a real wall behind it, and not on top of another bill
-        if (!(wm.flags(x - d.out[0] * 0.35, z - d.out[1] * 0.35) & WALL)) continue;
-        if (used.some(([ux, uz]) => Math.hypot(ux - x, uz - z) < 2.5)) continue;
-        const stand = wm.nearestOpen(x + d.out[0] * 1.3, z + d.out[1] * 1.3, 2.5);
-        if (!stand || Math.hypot(stand.x - x, stand.z - z) > 3) continue;
-        used.push([x, z]);
-        out.push({ id: `${a.id}:${n}`, label: a.label, x: +(x + d.out[0] * 0.04).toFixed(2), z: +(z + d.out[1] * 0.04).toFixed(2), out: d.out, at: [+stand.x.toFixed(2), +stand.z.toFixed(2)] });
-        n++;
-      }
+      if (used.some(([ux, uz]) => Math.hypot(ux - c.x, uz - c.z) < 2.5)) continue;
+      used.push([c.x, c.z]);
+      out.push({ id: `${a.id}:${n}`, label: a.label, x: +c.x.toFixed(3), z: +c.z.toFixed(3), out: [+c.out[0].toFixed(4), +c.out[1].toFixed(4)], at: c.at });
+      n++;
     }
   }
   spotCache = { key, spots: out };

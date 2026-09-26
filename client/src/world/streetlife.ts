@@ -1201,26 +1201,8 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
     }
   }
 
-  // ================================================================ blind walls: posters
-  for (const w of walls) {
-    if (w.kind !== 1) continue; // blind walls only: a street front has windows
-    const r = rng(w.seed * 3 + 5);
-    if (r() > 0.65) continue;
-    const n = 1 + Math.floor(r() * Math.min(4, w.L / 1.2));
-    let s = 0.6 + r() * Math.max(0, w.L - n * 1.05 - 1.2);
-    const first = Math.floor(r() * meta.posters.length); // side by side, never the same bill twice
-    for (let i = 0; i < n && s < w.L - 0.6; i++) {
-      const [px, pz] = along(w, s);
-      const py = (r() - 0.3) * 0.25;
-      const name = meta.posters[(first + i) % meta.posters.length];
-      const b = boxFor(name, "poster", px + w.ox * 0.012, py, pz + w.oz * 0.012, w.yaw);
-      if (faceOpen(w, s, 3) && isClear(px, pz, 0.5) && b && fitsOn(w, b)) {
-        // posters sit a hair further out than the damp band, so the two never fight
-        put(name, px + w.ox * 0.012, py, pz + w.oz * 0.012, w.yaw, 1, "poster");
-      }
-      s += 0.95 + r() * 0.4;
-    }
-  }
+  // (the bills on the blind walls: world/posters.ts puts up every bill of the town now, M7 posters 2026-09-26;
+  // a back wall on a yard was taken for blind here and got bills over its painted windows)
 
   // ================================================================ grime: the damp band at the foot of the walls
   for (const w of walls) {

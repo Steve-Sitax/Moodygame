@@ -1087,6 +1087,12 @@ if (import.meta.env.DEV) {
       const sl = world.streetLife();
       return sl ? checkSigns(world.scene, world.city.group, sl) : "street life not loaded yet";
     },
+    /** M7 posters: every bill on the walls and every place for the engine's bills, against the houses as built (dev/postercheck.ts; should list nothing). */
+    posters: async () => {
+      const sl = world.streetLife();
+      const p = world.posters();
+      return sl && p ? (await import("./dev/postercheck")).checkPosters(world.city.group, world.city.flags, sl, p, undefined, world.scene) : "the bills are not up yet";
+    },
     /** Z-fight check (dev/zfight.ts): faces of the static world in one plane that overlap, and layers too close to their surface, by cause (M3c pass 5). */
     zfight: async (opts = {}) => (await import("./dev/zfight")).checkZFight(world.scene, world.city.flags, opts),
     /** M7 halls: the checks of the halls in the world (dev/hallcheck.ts): pictures, the walk through a door (pops), holes in a hall. */
