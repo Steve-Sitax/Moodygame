@@ -19,10 +19,18 @@ export type Shape = "tall" | "big" | "wide" | "small";
 export type State = "fresh" | "faded" | "ragged";
 export type Pool = "quay" | "fine" | "poor" | "church" | "police";
 
-/** Metres of wall a bill of each shape covers (width, height). */
-export const SHAPE_M: Record<Shape, [number, number]> = { tall: [0.56, 0.8], big: [0.76, 1.06], wide: [0.84, 0.58], small: [0.36, 0.5] };
-/** Texels a metre. */
+/**
+ * Metres of wall a bill of each shape covers (width, height). Steve, 2026-09-26: "make the posters bigger": the
+ * bills of 1873 were big, a theatre or sale bill 0.6 to 1 m wide and 0.9 to 1.4 m tall; a note stays small.
+ * (world/posters.ts pastes the big sheets larger still on a blind wall, up to about 1 x 1.4 m.)
+ */
+export const SHAPE_M: Record<Shape, [number, number]> = { tall: [0.7, 1.0], big: [0.9, 1.26], wide: [1.05, 0.72], small: [0.38, 0.53] };
+/** The texels each shape is painted with (the heading type is sized to these: big enough to read at 5 to 10 m). */
+const SHAPE_PX: Record<Shape, [number, number]> = { tall: [84, 120], big: [114, 159], wide: [126, 87], small: [54, 75] };
+/** Texels a metre when painting; the stacks, scraps and glue marks go on the wall at WALL_PPM. */
 const PPM = 150;
+const WALL_PPM = 118;
+const STACK_PPM = 100;
 
 type Line =
   | { t: string; f: "h1" | "h2" | "b" | "s"; c?: string }
@@ -368,8 +376,7 @@ export async function buildPosterAtlas(seed = 1873): Promise<Atlas> {
   const states: State[] = ["fresh", "faded", "ragged"];
   const at = new Map<string, [number, number, number, number]>();
   for (const d of DESIGNS) {
-    const [mw, mh] = SHAPE_M[d.shape];
-    const w = px(mw), h = px(mh);
+    const [w, h] = SHAPE_PX[d.shape];
     for (const s of states) {
       const [x, y] = place(w, h);
       if (x < 0) continue; // (no room left in the atlas)
@@ -383,17 +390,23 @@ export async function buildPosterAtlas(seed = 1873): Promise<Atlas> {
   }
   // stacks: old bills pasted over each other, the newest on top and most whole
   const stacks: Atlas["stacks"] = [];
-  const pools: Pool[] = ["poor", "poor", "poor", "poor", "poor", "poor", "poor", "poor", "poor", "poor", "quay", "quay", "quay", "quay", "police", "police", "church"];
+  // (Steve 2026-09-26: "more of them on big blank walls": wide hoardings of bills pasted over each other for the
+  // blind walls of the lanes and the quays, narrow ones for a pier)
+  const pools: Pool[] = [...Array(14).fill("poor"), ...Array(8).fill("quay"), "police", "police", "police", "church", "church"];
   pools.forEach((pool, i) => {
     const rs = rng(seed * 7 + i * 101);
-    // (narrow ones too: most blank wall in the lanes is a pier between two windows)
-    const mw = i % 3 === 0 ? 0.55 + rs() * 0.15 : 0.75 + rs() * 0.45;
-    const mh = 0.75 + rs() * 0.4;
-    const w = px(mw), h = px(mh);
+    const mw = i % 4 === 0 ? 0.7 + rs() * 0.2 : i % 4 === 1 ? 1.5 + rs() * 0.4 : 1.0 + rs() * 0.45;
+    const mh = 1.0 + rs() * 0.4;
+    // (at 100 texels a metre: under the top bill the old print is past reading anyway)
+    const w = Math.round(mw * STACK_PPM), h = Math.round(mh * STACK_PPM);
     const [x, y] = place(w, h);
-    if (x < 0 || dryRun) return;
+    if (x < 0 || dryRun) {
+      if (dryRun) stacks.push({ key: `stack_${i}`, w: mw, h: mh, pool });
+      return;
+    }
     const pick = DESIGNS.filter((d) => ((d.pools[pool] ?? 0) > 0 || (pool !== "poor" && (d.pools.poor ?? 0) > 1)) && at.has(`${d.key}:ragged`) && at.has(`${d.key}:faded`) && at.has(`${d.key}:fresh`));
-    const n = 3 + Math.floor(rs() * 3);
+    // enough bills to cover it, the older ones under, torn, the last whole
+    const n = 3 + Math.round((w * h) / 6500) + Math.floor(rs() * 3);
     g.save();
     g.beginPath();
     g.rect(x, y, w, h);
@@ -402,7 +415,9 @@ export async function buildPosterAtlas(seed = 1873): Promise<Atlas> {
       const d = pick[Math.floor(rs() * pick.length)];
       const st: State = k === n - 1 ? (rs() < 0.5 ? "faded" : "fresh") : "ragged";
       const [cx, cy, cw, ch] = at.get(`${d.key}:${st}`)!;
-      const ox = x + Math.floor(rs() * Math.max(1, w - cw * 0.7)) - cw * 0.15;
+      // (in columns across the stack, each a little off the last: pasted up in a row, then over again)
+      const col = k % Math.max(1, Math.round(w / (cw * 0.8)));
+      const ox = x + col * cw * 0.8 + (rs() - 0.5) * cw * 0.35 - cw * 0.1;
       const oy = y + Math.floor(rs() * Math.max(1, h - ch * 0.75)) - ch * 0.1;
       g.drawImage(canvas, cx, cy, cw, ch, ox, oy, cw, ch);
     }
@@ -410,7 +425,7 @@ export async function buildPosterAtlas(seed = 1873): Promise<Atlas> {
     age(g, x, y, w, h, "faded", rng(seed * 5 + i * 37));
     const key = `stack_${i}`;
     cells.set(key, cellOf(x, y, w, h));
-    stacks.push({ key, w: w / PPM, h: h / PPM, pool });
+    stacks.push({ key, w: w / STACK_PPM, h: h / STACK_PPM, pool });
   });
   // scraps: what is left of a bill torn off
   const scraps: Atlas["scraps"] = [];
@@ -427,7 +442,7 @@ export async function buildPosterAtlas(seed = 1873): Promise<Atlas> {
     if (!dryRun) age(g, x, y, w, h, "ragged", rng(seed * 13 + i));
     const key = `scrap_${i}`;
     cells.set(key, cellOf(x, y, w, h));
-    scraps.push({ key, w: w / PPM, h: h / PPM });
+    scraps.push({ key, w: w / WALL_PPM, h: h / WALL_PPM });
   }
   // glue marks: the pale ghost of a bill torn away, bits of paper still stuck at its edges
   const glue: Atlas["glue"] = [];
@@ -437,7 +452,7 @@ export async function buildPosterAtlas(seed = 1873): Promise<Atlas> {
     const [x, y] = place(w, h);
     if (x < 0) continue;
     if (dryRun) {
-      glue.push({ key: `glue_${i}`, w: w / PPM, h: h / PPM });
+      glue.push({ key: `glue_${i}`, w: w / WALL_PPM, h: h / WALL_PPM });
       continue;
     }
     const im = g.getImageData(x, y, w, h);
@@ -463,7 +478,7 @@ export async function buildPosterAtlas(seed = 1873): Promise<Atlas> {
     g.putImageData(im, x, y);
     const key = `glue_${i}`;
     cells.set(key, cellOf(x, y, w, h));
-    glue.push({ key, w: w / PPM, h: h / PPM });
+    glue.push({ key, w: w / WALL_PPM, h: h / WALL_PPM });
   }
   return { cells, stacks, scraps, glue };
   }

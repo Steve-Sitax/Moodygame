@@ -132,16 +132,35 @@ export async function fetchAiSpots(): Promise<AiSpot[] | null> {
   return null;
 }
 
-/** What and how much, by the part of town. */
-const PLAN: Record<District, { p: number; max: number; pools: Array<[Pool, number]>; states: [number, number, number]; stack: number; scraps: number; tilt: number }> = {
-  //            a wall's chance, bills at most, what, [fresh, faded, ragged], a stack's chance, scraps and glue, how crooked
-  fine: { p: 0.8, max: 1, pools: [["fine", 1]], states: [0.85, 0.15, 0], stack: 0, scraps: 0, tilt: 0.004 },
-  quay: { p: 0.5, max: 3, pools: [["quay", 0.85], ["poor", 0.15]], states: [0.45, 0.4, 0.15], stack: 0.12, scraps: 0.15, tilt: 0.015 },
-  middle: { p: 0.3, max: 2, pools: [["poor", 0.4], ["quay", 0.2], ["fine", 0.25], ["church", 0.15]], states: [0.35, 0.45, 0.2], stack: 0.1, scraps: 0.15, tilt: 0.015 },
-  poor: { p: 0.75, max: 5, pools: [["poor", 0.85], ["police", 0.15]], states: [0.12, 0.38, 0.5], stack: 0.45, scraps: 0.6, tilt: 0.03 },
-  church: { p: 0.75, max: 3, pools: [["church", 0.8], ["fine", 0.2]], states: [0.6, 0.35, 0.05], stack: 0, scraps: 0.05, tilt: 0.008 },
-  police: { p: 0.65, max: 3, pools: [["police", 0.85], ["poor", 0.15]], states: [0.5, 0.35, 0.15], stack: 0.2, scraps: 0.2, tilt: 0.01 },
+/**
+ * What and how much, by the part of town. `p`: a front's chance of bills on its piers, `max` how many there;
+ * `blank`: a blank wall's (a blind side wall, a long plain stretch) chance of being pasted up, `fill` how much of
+ * its length, `gap` the space between two bills there, `stack` a layered stack's share of them.
+ */
+interface Plan {
+  p: number;
+  max: number;
+  blank: number;
+  fill: number;
+  gap: [number, number];
+  pools: Array<[Pool, number]>;
+  states: [number, number, number];
+  stack: number;
+  scraps: number;
+  tilt: number;
+}
+const PLAN: Record<District, Plan> = {
+  // the fine squares: few, full-size, fresh, level, well apart
+  fine: { p: 0.8, max: 1, blank: 0.7, fill: 0.3, gap: [0.8, 1.6], pools: [["fine", 1]], states: [0.85, 0.15, 0], stack: 0, scraps: 0, tilt: 0.003 },
+  // the quays and the poor lanes: dense, side by side and over each other, torn
+  quay: { p: 0.5, max: 3, blank: 0.9, fill: 0.8, gap: [0.06, 0.16], pools: [["quay", 0.85], ["poor", 0.15]], states: [0.4, 0.4, 0.2], stack: 0.3, scraps: 0.4, tilt: 0.015 },
+  poor: { p: 0.75, max: 5, blank: 0.95, fill: 0.9, gap: [0.06, 0.12], pools: [["poor", 0.85], ["police", 0.15]], states: [0.12, 0.38, 0.5], stack: 0.4, scraps: 0.7, tilt: 0.03 },
+  middle: { p: 0.3, max: 2, blank: 0.65, fill: 0.5, gap: [0.08, 0.35], pools: [["poor", 0.4], ["quay", 0.2], ["fine", 0.25], ["church", 0.15]], states: [0.35, 0.45, 0.2], stack: 0.2, scraps: 0.3, tilt: 0.015 },
+  church: { p: 0.75, max: 3, blank: 0.7, fill: 0.35, gap: [0.3, 0.8], pools: [["church", 0.8], ["fine", 0.2]], states: [0.6, 0.35, 0.05], stack: 0.05, scraps: 0.05, tilt: 0.006 },
+  police: { p: 0.65, max: 3, blank: 0.85, fill: 0.6, gap: [0.08, 0.3], pools: [["police", 0.85], ["poor", 0.15]], states: [0.5, 0.35, 0.15], stack: 0.2, scraps: 0.2, tilt: 0.01 },
 };
+/** A blank stretch this long or longer is pasted up as a hoarding; a shorter one (a pier) takes a bill or two. */
+const HOARDING_M = 1.6;
 
 const pickW = <T,>(r: () => number, xs: Array<[T, number]>): T => {
   const sum = xs.reduce((s, [, w]) => s + w, 0);
@@ -182,7 +201,9 @@ export async function createPosters(scene: THREE.Scene, flags: Flags, opts: Post
         l.push(a);
       }
   }
-  const blocked = (x: number, z: number) => (avoidGrid.get(`${Math.floor(x / AG)},${Math.floor(z / AG)}`) ?? []).some((a) => x > a.minX - 0.05 && x < a.maxX + 0.05 && z > a.minZ - 0.05 && z < a.maxZ + 0.05);
+  // (a low thing, a crate or a bench under the bill, may stand there: its top under the bill's foot)
+  const blocked = (x: number, z: number, y0: number) =>
+    (avoidGrid.get(`${Math.floor(x / AG)},${Math.floor(z / AG)}`) ?? []).some((a) => (a.top ?? 99) > y0 - 0.05 && x > a.minX - 0.05 && x < a.maxX + 0.05 && z > a.minZ - 0.05 && z < a.maxZ + 0.05);
 
   /** Why not here (null: fine): the walk map, lanterns, passages, things in front, then street life's test. */
   const why = (w: PosterWall, b: WallBox): string | null => {
@@ -193,7 +214,7 @@ export async function createPosters(scene: THREE.Scene, flags: Flags, opts: Post
       const z = w.az + w.tz * (s + e);
       if (!(at(x - w.ox * 0.3, z - w.oz * 0.3) & WALL)) return "no house behind";
       for (const d of [0.45, 0.9]) if (at(x + w.ox * d, z + w.oz * d) !== 0) return "no open street before it";
-      for (const d of [0.3, 0.65]) if (blocked(x + w.ox * d, z + w.oz * d)) return "something stands before it";
+      for (const d of [0.3, 0.65]) if (blocked(x + w.ox * d, z + w.oz * d, b.y0)) return "something stands before it";
     }
     const mx = w.ax + w.tx * s, mz = w.az + w.tz * s;
     if (poorts.some((p) => mx > p.minX && mx < p.maxX && mz > p.minZ && mz < p.maxZ)) return "by a passage";
@@ -299,46 +320,125 @@ export async function createPosters(scene: THREE.Scene, flags: Flags, opts: Post
     const district = districtOf(mx, mz, { wall: w, width, water: wetOut(mx, mz, w.ox, w.oz), quay: quayDist(mx, mz) });
     const plan = PLAN[district];
     stats.walls[district] = (stats.walls[district] ?? 0) + 1;
-    if (r() > plan.p) continue;
-    // a stack of old bills over each other, on a long blank stretch
-    if (r() < plan.stack) {
-      const cands = atlas.stacks.filter((st) => st.pool === (district === "middle" ? "poor" : district === "fine" ? "poor" : district));
-      const st = cands.length ? cands[Math.floor(r() * cands.length)] : null;
-      if (st) {
-        const y0 = 0.75 + r() * 0.35;
-        for (const [r0, r1] of blankRuns(w, st.w / 2, y0, y0 + st.h, 0.12, 0.3)) {
-          if (r1 - r0 < 0.05) continue;
-          const s = r0 + (r1 - r0) * r();
-          if (put(w, district, "stack", st.key, "ragged", atlas.cells.get(st.key), s, y0, st.w, st.h, (r() - 0.5) * plan.tilt, 0.85 + r() * 0.15)) break;
+    const stackPool = district === "middle" || district === "fine" ? "poor" : district;
+    const stacksHere = atlas.stacks.filter((st) => st.pool === stackPool);
+    const pickState = () => pickW<State>(r, [["fresh", plan.states[0]], ["faded", plan.states[1]], ["ragged", plan.states[2]]]);
+    /** Scraps and glue marks by a bill at s (what is left of the bills pasted there before). */
+    const scrapsBy = (s: number, hw: number, n: number) => {
+      for (let k = 0, done = 0; k < n * 3 && done < n; k++) {
+        const glue = r() < 0.4;
+        const c = glue ? atlas.glue[Math.floor(r() * atlas.glue.length)] : atlas.scraps[Math.floor(r() * atlas.scraps.length)];
+        const y0 = 0.6 + r() * 1.3;
+        const ns = s + (r() < 0.5 ? -1 : 1) * (hw + 0.04 + r() * 0.3 + c.w / 2);
+        if (!blankRuns(w, c.w / 2, y0, y0 + c.h, 0.1, 0.25).some(([a, b]) => ns >= a && ns <= b)) continue;
+        if (put(w, district, glue ? "glue" : "scrap", c.key, "", atlas.cells.get(c.key), ns, y0, c.w, c.h, (r() - 0.5) * 0.2, 0.8 + r() * 0.2, glue ? OFF * 0.6 : OFF)) done++;
+      }
+    };
+
+    // ---- the blank stretches: a blind side wall, a bared party wall, a long plain part of a front
+    // (Steve, 2026-09-26: "make the posters bigger, and put more of them on big blank walls")
+    const hoardings = blankRuns(w, 0, 0.7, 2.75, 0.12, 0.3).filter(([a, b]) => b - a >= HOARDING_M);
+    let pasted = 0;
+    if (hoardings.length && r() < plan.blank) {
+      // (a blind wall takes the big sheets larger still: up to a quad crown, about 1 x 1.4 m)
+      const blind = w.windows === "none";
+      const neat = district === "fine" || district === "church";
+      // the rows: one at eye height; on a blind wall in the lanes and on the quays a second above it
+      // (a bill sticker's ladder: the old hoardings were pasted two sheets high)
+      const rows: Array<{ foot: number; top: number; fill: number }> = [{ foot: neat ? 1.0 + r() * 0.1 : 0.75 + r() * 0.2, top: 2.75, fill: plan.fill }];
+      if (blind && !neat && r() < (district === "middle" ? 0.6 : 0.9)) rows.push({ foot: 0, top: 3.35, fill: plan.fill * 0.75 });
+      let rowTop = 0;
+      for (const [ri, rw] of rows.entries()) {
+        if (ri > 0) {
+          if (rowTop <= 0 || rowTop + 0.12 + 0.6 > rw.top) break;
+          rw.foot = rowTop + 0.1;
+        }
+        const band = ri === 0 ? hoardings : blankRuns(w, 0, rw.foot, rw.top, 0.12, 0.3).filter(([a, b]) => b - a >= HOARDING_M);
+        for (const [h0, h1] of band) {
+          // how much of it is pasted over: a stretch or two, the rest bare wall
+          const len = h1 - h0;
+          let want = len * rw.fill * (0.75 + r() * 0.5);
+          let s = h0 + (district === "fine" ? len * (0.15 + r() * 0.3) : r() * Math.max(0, len - want));
+          let fails = 0;
+          let lastS = -1, lastHw = 0;
+          while (s < h1 - 0.3 && want > 0.25 && fails < 6 && pasted < 22) {
+            // a stack of old bills over each other, or one sheet
+            let key: string, state: State, bw: number, bh: number, what: string;
+            const st = ri === 0 && stacksHere.length && r() < plan.stack ? stacksHere[Math.floor(r() * stacksHere.length)] : null;
+            if (st) {
+              what = "stack";
+              key = st.key;
+              state = "ragged";
+              bw = st.w;
+              bh = st.h;
+            } else {
+              const pool = pickW(r, plan.pools);
+              const cand = byPool(pool).map(([d, wt]) => [d, wt * (d.shape === "small" ? (neat ? 0 : 0.08) : d.shape === "big" ? 3 : 1)] as [(typeof DESIGNS)[number], number]);
+              if (!cand.length) break;
+              const d = pickW(r, cand);
+              const k = blind ? 1.04 + r() * 0.08 : 1;
+              bw = SHAPE_M[d.shape][0] * k;
+              bh = SHAPE_M[d.shape][1] * k;
+              what = "bill";
+              key = d.key;
+              state = pickState();
+            }
+            const foot = Math.max(0.65, Math.min(rw.foot + (neat ? 0 : (r() - 0.3) * 0.12), rw.top - bh));
+            if (foot + bh > rw.top + 0.001) {
+              fails++;
+              continue;
+            }
+            const tilt = (r() - 0.5) * 2 * plan.tilt;
+            const reach = bw + Math.abs(tilt) * bh;
+            if (s + reach > h1 + 0.001) {
+              fails++;
+              s += 0.2;
+              continue;
+            }
+            const mid = s + reach / 2;
+            if (put(w, district, what, key, state, atlas.cells.get(what === "stack" ? key : `${key}:${state}`), mid, foot, bw, bh, tilt, 0.82 + r() * 0.18)) {
+              pasted++;
+              want -= bw;
+              lastS = mid;
+              lastHw = reach / 2;
+              rowTop = Math.max(rowTop, foot + bh + Math.abs(tilt) * bw);
+              s += reach + plan.gap[0] + r() * (plan.gap[1] - plan.gap[0]);
+            } else {
+              fails++;
+              s += 0.25;
+            }
+          }
+          if (ri === 0 && lastS >= 0 && r() < plan.scraps) scrapsBy(lastS, lastHw, 1 + Math.floor(r() * (district === "poor" ? 4 : 2)));
         }
       }
     }
-    // the bills: side by side along a blank stretch, a hand's width apart or touching
+    if (pasted || r() > plan.p) continue;
+
+    // ---- a front's piers: a bill or two where they fit, side by side
     const count = 1 + Math.floor(r() * plan.max);
     let placed = 0;
     let last: { s: number; hw: number } | null = null;
-    const tries = count * 5;
     // the widest plain stretch at a bill's height: only bills that fit there (a pier between two windows takes a small one)
-    const free = Math.max(0, ...blankRuns(w, 0, 0.9, 2.0, 0.12, 0.3).map(([a, b]) => b - a));
-    for (let k = 0; k < tries && placed < count; k++) {
+    const free = Math.max(0, ...blankRuns(w, 0, 0.8, 2.1, 0.12, 0.3).map(([a, b]) => b - a));
+    for (let k = 0; k < count * 5 && placed < count; k++) {
       const pool = pickW(r, plan.pools);
-      // (on a blind wall the big sheets: a double crown, a quad crown for the theatre)
-      const big = w.windows === "none" ? 1.2 + r() * 0.25 : 1;
-      const cand = byPool(pool).filter(([d]) => SHAPE_M[d.shape][0] * big <= free);
+      // (a sheet a little narrower than its shape to fit a pier: the printer's half sheets; never under 0.75 of it)
+      const fit = (d: (typeof DESIGNS)[number]) => Math.min(1, (free - 0.01) / SHAPE_M[d.shape][0]);
+      const cand = byPool(pool).filter(([d]) => fit(d) >= 0.75);
       if (!cand.length) continue;
       const d = pickW(r, cand);
-      const [bw, bh] = SHAPE_M[d.shape].map((v) => v * big);
-      const state = pickW<State>(r, [["fresh", plan.states[0]], ["faded", plan.states[1]], ["ragged", plan.states[2]]]);
-      // pasted at a hand's reach: the foot 0.8 to 1.3 m up (a small bill higher), the fine squares level
-      const y0 = district === "fine" ? 1.15 : (d.shape === "small" ? 1.15 : d.shape === "big" ? 0.7 : 0.9) + r() * 0.35;
+      const kf = fit(d);
+      const bw = SHAPE_M[d.shape][0] * kf, bh = SHAPE_M[d.shape][1] * kf;
+      const state = pickState();
+      // pasted at a hand's reach: the foot 0.8 to 1.1 m up (a small bill higher), the fine squares level
+      const y0 = district === "fine" ? (d.shape === "small" ? 1.3 : 1.05) : (d.shape === "small" ? 1.25 : d.shape === "big" ? 0.75 : 0.85) + r() * 0.25;
       const runs = blankRuns(w, bw / 2, y0, y0 + bh, 0.12, 0.3).filter(([a, b]) => b >= a);
       if (!runs.length) continue;
       const [r0, r1] = runs[Math.floor(r() * runs.length)];
       let s = r0 + (r1 - r0) * r();
       // (a bill sticker pastes his bills side by side: next to the last one, if that stretch has room)
       if (last && district !== "fine" && district !== "church") {
-        const side = r() < 0.5 ? -1 : 1;
-        const ns = last.s + side * (last.hw + 0.06 + r() * 0.1 + bw / 2);
+        const ns = last.s + (r() < 0.5 ? -1 : 1) * (last.hw + 0.06 + r() * 0.08 + bw / 2);
         if (runs.some(([a, b]) => ns >= a && ns <= b)) s = ns;
       }
       const tilt = (r() - 0.5) * 2 * plan.tilt;
@@ -347,26 +447,7 @@ export async function createPosters(scene: THREE.Scene, flags: Flags, opts: Post
         last = { s, hw: bw / 2 + Math.abs(tilt) * bh };
       }
     }
-    // scraps of old bills and the marks of those torn off
-    if (r() < plan.scraps) {
-      const nS = 1 + Math.floor(r() * (district === "poor" ? 4 : 2));
-      let done = 0;
-      for (let k = 0; k < nS * 3 && done < nS; k++) {
-        const glue = r() < 0.4;
-        const c = glue ? atlas.glue[Math.floor(r() * atlas.glue.length)] : atlas.scraps[Math.floor(r() * atlas.scraps.length)];
-        const y0 = 0.6 + r() * 1.3;
-        const runs = blankRuns(w, c.w / 2, y0, y0 + c.h, 0.1, 0.25).filter(([a, b]) => b >= a);
-        if (!runs.length) continue;
-        const [r0, r1] = runs[Math.floor(r() * runs.length)];
-        let s = r0 + (r1 - r0) * r();
-        // (most by the bills: what is left of the ones pasted there before)
-        if (last && r() < 0.7) {
-          const ns = last.s + (r() < 0.5 ? -1 : 1) * (last.hw + 0.06 + r() * 0.25 + c.w / 2);
-          if (runs.some(([a, b]) => ns >= a && ns <= b)) s = ns;
-        }
-        if (put(w, district, glue ? "glue" : "scrap", c.key, "", atlas.cells.get(c.key), s, y0, c.w, c.h, (r() - 0.5) * 0.2, 0.8 + r() * 0.2, glue ? OFF * 0.6 : OFF)) done++;
-      }
-    }
+    if (last && r() < plan.scraps) scrapsBy(last.s, last.hw, 1 + Math.floor(r() * (district === "poor" ? 3 : 1)));
   }
 
   // ---- the mesh: one material, merged per chunk
