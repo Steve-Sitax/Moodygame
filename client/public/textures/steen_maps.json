@@ -1,0 +1,32 @@
+{
+ "blue": {
+  "sha256": "c34b82c4a9aba3df887fc31bcd6a97b14ec897543be6930c28f59e81edb49109",
+  "kind": "courses",
+  "bump": 0.8
+ },
+ "brick": {
+  "sha256": "c1dd94b29904ed17677f816c1faf2a4485ba03d33f39d0f1da2e562b60ec5f74",
+  "kind": "masonry",
+  "bump": 1.0
+ },
+ "carve": {
+  "sha256": "b5b5261924660195933259d954bb799561f38c43df9f6c64397151c60cf9a373",
+  "kind": "relief",
+  "bump": 1.3
+ },
+ "sand": {
+  "sha256": "a088e0d32db8037905e73a42e26b7026dc7ad4a04789a7ddfa13fe321f573ca2",
+  "kind": "courses",
+  "bump": 1.6
+ },
+ "slate": {
+  "sha256": "f2df06edfcd76eef1cbf6e7dcabbebbaa74729bd547a7ee3e1993584f7c2df5a",
+  "kind": "slates",
+  "bump": 0.9
+ },
+ "tournai": {
+  "sha256": "e3ab068d4b87b985810b68ebd53871c40dbee969c26644c49ee7e4c8b2eafb36",
+  "kind": "masonry",
+  "bump": 2.0
+ }
+}

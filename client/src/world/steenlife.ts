@@ -5,6 +5,7 @@ import type { Crowd, Puppet } from "../game/crowd";
 import { glowTexture } from "./textures";
 import type { Rect } from "./geom";
 import { water } from "./tide";
+import { loadSteenModel, type SteenModel } from "./steenModel";
 
 // Life round Het Steen (M3i, docs/milestones/M3i-steen.md). In 1873 the Steen was the city's
 // Museum of Antiquities (decided 1862, open from 1864), in the old castle gate and prison.
@@ -116,12 +117,16 @@ export interface SteenLife {
   pathPoints(): Array<{ label: string; x: number; z: number; reach: number }>;
   /** Dev: who is where. */
   info(): Record<string, unknown>;
+  /** The Steen's model (world/steenModel.ts). */
+  model: SteenModel;
 }
 
 export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenLife {
   const group = new THREE.Group();
   group.name = "steenlife";
   scene.add(group);
+  // the Steen itself in detail (2026-09-26, world/steenModel.ts, tools/blender/build_steen.py): it hides the old one of landmarks.glb
+  const model = loadSteenModel(scene);
   let humansReady = false;
   whenHumans(() => (humansReady = true));
 
@@ -427,6 +432,7 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
 
   function update(dt: number, hour: number, cam: THREE.Camera): void {
     t += dt;
+    model.update();
     const cx = cam.position.x;
     const cz = cam.position.z;
     const d = Math.hypot(cx - -185, cz - -12);
@@ -459,12 +465,14 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
     group,
     colliders,
     update,
+    model,
     pathPoints: () => [
       { label: "the Steen, museum door (up the ramp)", x: STEEN_DOOR.x, z: STEEN_DOOR.z + 1.1, reach: 1.6 },
       { label: "the Steen, the ramp's foot", x: -202.2, z: -1.5, reach: 1.6 },
       { label: "the Steen, the painter", x: PAINTER[0] + 1.2, z: PAINTER[1] - 0.8, reach: 2.0 },
     ],
     info: () => ({
+      model: model.info(),
       figures: figs.filter((f) => f.h).map((f) => f.kind),
       visitors: visitors.map((v) => ({ kind: v.kind, state: v.state, x: v.p ? +v.p.x.toFixed(1) : null, z: v.p ? +v.p.z.toFixed(1) : null, t: +v.t.toFixed(1) })),
       doorOpen: doorway.visible,
