@@ -33,7 +33,7 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 
 | Work | Scope and files | Started |
 |---|---|---|
-| Night fog outlines | far objects lighter than the sky at night (ghost silhouettes): sky at the horizon = fog colour, lamp in-scatter local; `fogcheck()` | 2026-09-26 |
+| Night fog outlines + light audit | far objects lighter than the sky at night; a picture audit across weathers and times for things visible that should not be; every lamp and lantern visible from far (the start pier lamps were not); `fogcheck()` | 2026-09-26 |
 | Multiplayer M8a: walk together | LAN host, join code, assets cached by hash, shared clock and weather, others drawn smoothly, own movement never pulled back, no pause; `docs/milestones/M8a.md` | 2026-09-26 |
 | Sleep: beds any time, benches | no more "G lie down" at night; E at a rented bed: sleep 1/2/4/8 h or until morning, any time; benches: less sleep, warmth to 1; per player id | 2026-09-26 |
 | Codex: low-poly props and tight collisions | SAFE BATCH MERGED + PUSHED `abb6a21` (already live through `9aa9cd4`; reconciled main `98bdebe`): collision core, tree trunks and static stop benches; tree/vegetation design, matching bark bump/wet map. Seven collision tests, clean build, Chrome contact + dry/rain, paths/shaders empty. Test Chrome and isolated 5469/9069 stack cleaned up. HOLD barrels/crates/sacks and other prepared prop-loader changes until Props in walls/Picture round finishes; defer other active assets per Steve. Queue/scope and validation: `docs/milestones/M7-small-assets.md`; original cargo evidence `M7-tight-props.md`. Extra router check: 19 passed, two timeouts (first Codex stub and process-kill test); report to Flaky talk-down/AI owner, no edits to their files. | 2026-09-26 |
