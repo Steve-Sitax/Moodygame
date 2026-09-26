@@ -8,7 +8,6 @@ Git history has the detail of each commit.
 ## Waiting for Steve
 
 - Day fog, rain and storm: the skyline is still a little lighter than the cloud deck (18-35% at 13:00). A one-line sky.ts change would use the night rule by day too, at the cost of flatter fog-day skies. Steve's call.
-- Multiplayer: try M8a on the laptop (steps in docs/milestones/M8a.md); then M8b?
 - Going public: the audit says safe. Steve flips the repo to public himself. Optional: an AGPL section 7 permission for the proprietary Claude Agent SDK (draft in `docs/public-release-check.md`). The commit email steve@sitax.be becomes public with the history.
 - The clockmaker's pocket watches and the junk-stall clocks: live hands too? (Steve did not pick it: no for now.)
 
@@ -27,7 +26,8 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 2. Wave 2: done and live (yard windows 3D, picture round 1/4/5 + tuning).
    Why: both touch houses, walls and the ground; yard windows after the shop fronts (both rebuild
    city.glb). (Props in walls finished early and goes live first: others build on its checks.)
-3. Wave 3: multiplayer M8a is live. Next: M8b (one street for all) when Steve says go.
+3. Wave 3: multiplayer M8a is live and tried on the laptop (2026-09-27: they see each other). M8b (one street for all) started 2026-09-27.
+   Note: Edge 154 (auto-update 2026-09-26 23:27) makes the game a slideshow on PCX; Chrome is fast. The desktop icon opens Chrome.
    together), which builds on the menus, the loading screen and the character creator.
 4. Later: picture round 2 (wall lanterns, after the light spill) and 3 (goods along walls, after props).
 
@@ -35,6 +35,7 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 
 | Work | Scope and files | Started |
 |---|---|---|
+| Multiplayer M8b: one street for all | the same townspeople (owner per 64 m cell, remote puppets, handover), omnibus, river traffic, bridges, lock, cranes and drays (the world PC), platforms in their frame, shared doors; branch `m8b` in the worktree `D:\Code\MoodyGame-m8b`, merged when done | 2026-09-27 |
 | Quay cobbles look like shiny plastic | the rail setts band reads smooth and lighter in some directions: find the sheen (puddle mirror on clear days? wet shading? lost relief?) and fix; all ground kinds | 2026-09-27 |
 | People walking against walls | townspeople walking in place against walls in the alleys: a `stuck()` detector, root cause, fix | 2026-09-27 |
 | Codex: low-poly props and tight collisions | SAFE BATCH MERGED + PUSHED `abb6a21` (already live through `9aa9cd4`; reconciled main `98bdebe`): collision core, tree trunks and static stop benches; tree/vegetation design, matching bark bump/wet map. Seven collision tests, clean build, Chrome contact + dry/rain, paths/shaders empty. Test Chrome and isolated 5469/9069 stack cleaned up. HOLD barrels/crates/sacks and other prepared prop-loader changes until Props in walls/Picture round finishes; defer other active assets per Steve. Queue/scope and validation: `docs/milestones/M7-small-assets.md`; original cargo evidence `M7-tight-props.md`. Extra router check: 19 passed, two timeouts (first Codex stub and process-kill test); report to Flaky talk-down/AI owner, no edits to their files. | 2026-09-26 |
