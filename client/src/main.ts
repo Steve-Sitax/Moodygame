@@ -1302,6 +1302,13 @@ if (import.meta.env.DEV) {
     clocks: () => clockReport(world.scene, jobs.day.hourF),
     /** Z-fight check (dev/zfight.ts): faces of the static world in one plane that overlap, and layers too close to their surface, by cause (M3c pass 5). */
     zfight: async (opts = {}) => (await import("./dev/zfight")).checkZFight(world.scene, world.city.flags, opts),
+    /** M7 prison real: every building with an inside against its shell (dev/interiorcheck.ts, docs/building-with-interior.md): must list nothing wrong. */
+    interiorcheck: async (only?: string) => {
+      const m = await import("./dev/interiorcheck");
+      const halls = [...landmarks.inWorldHalls, carolus.hall, ...gothic.halls, ...prison.halls()];
+      const houses = [...interiors.inWorldHouses, ...homes.inWorldHouses] as unknown as Parameters<typeof m.targetsFrom>[2];
+      return m.checkInteriors(world.scene, inWorld, m.targetsFrom(inWorld, halls, houses, ["prison_governor"]), only);
+    },
     /** M7 halls: the checks of the halls in the world (dev/hallcheck.ts): pictures, the walk through a door (pops), holes in a hall. */
     halls: async () => {
       const d = (window as unknown as { __scheldemist: { step(s: number): void; shot(n: string): Promise<string> } }).__scheldemist;

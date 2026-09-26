@@ -176,6 +176,8 @@ the anchors stay. `city.glb` and `streetlife.glb` were rebuilt (the prison's gon
   - the bared walls: `pl_gh2_james_l`, `pl_gh2_james_r`, `pl_gh2_paul_s`, `pl_gh2_paul_n`, `pl_gh_james_far`.
 
 ## Open
+- (2026-09-26, M7-prison-real.md: the first point below is done. Every part is built and every window is real;
+  wing B, the galleries, the offices, the chapel and the governor's house are inside now. The other two still stand.)
 - Wing B is only seen through its grille, and the galleries and the upper cells are not walked.
 - The warders and the men in the ring are the prison's own figures, not townspeople; only the men held for the
   talk are residents.

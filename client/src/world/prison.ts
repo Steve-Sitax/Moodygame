@@ -107,7 +107,17 @@ export function loadPrison(scene: THREE.Scene): PrisonModel {
     .loadAsync("/models/prison.glb")
     .then((gltf) => {
       const meshes: THREE.Mesh[] = [];
+      // (M7 prison real: the shell's opening_* markers are kept, in place, for the interior check: dev/interiorcheck.ts)
+      gltf.scene.updateMatrixWorld(true);
+      const marks: THREE.Object3D[] = [];
       gltf.scene.traverse((o) => {
+        if (/^opening_/.test(o.name)) {
+          const e = new THREE.Object3D();
+          e.name = o.name;
+          e.userData = { ...o.userData };
+          e.position.setFromMatrixPosition(o.matrixWorld);
+          marks.push(e);
+        }
         const m = o as THREE.Mesh;
         if (!m.isMesh) return;
         if (!m.geometry.getAttribute("color")) {
@@ -127,6 +137,7 @@ export function loadPrison(scene: THREE.Scene): PrisonModel {
         group.add(m);
         parts.push(m);
       }
+      for (const e of marks) group.add(e);
       draco.dispose();
     })
     .catch((e) => console.warn("prison.glb did not load", e));

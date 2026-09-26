@@ -57,14 +57,62 @@ describe("the prison: its place", () => {
     const reach = HP.flood(P, [0, -1.4], 0.25, 0.3);
     for (const [x, z] of [[0, 1.6], [6.8, 3.0], [-5, 6.4], [3.2, 19], [16.5, 19.5], [10.2, 20.6], [18.6, 18.4], [13, 16], [13, 13.6]] as Array<[number, number]>)
       expect(reach(x, z, 0, 0.8), `${x}, ${z}`).toBe(true);
-    // not past the grille, not into the shut wing, not into a cell
-    for (const [x, z] of [[6.8, 5.5], [-10, 19.5], [10.2, 22.8], [18.6, 16.2]] as Array<[number, number]>) expect(reach(x, z, 0, 0.4), `${x}, ${z}`).toBe(false);
+    // not past the grille, not into a cell (M7 prison real: wing B is open now, walked as wing A)
+    for (const [x, z] of [[6.8, 5.5], [10.2, 22.8], [18.6, 16.2], [-15.8, 22.8]] as Array<[number, number]>) expect(reach(x, z, 0, 0.4), `${x}, ${z}`).toBe(false);
     // the walls of the rooms stand inside the compound
     for (const r of P.area) {
       expect(r.minX).toBeGreaterThanOrEqual(PP.COMPOUND.x0);
       expect(r.maxX).toBeLessThanOrEqual(PP.COMPOUND.x1);
       expect(r.maxZ).toBeLessThanOrEqual(PP.COMPOUND.z1);
     }
+    // M7 prison real: every part walked where a warder, a visitor or a prisoner walks: both wings and their galleries up
+    // their scissor stairs, the pavilion's galleries, the landing over the link, the records room, the four offices
+    const L = PP.LV;
+    for (const [what, x, z, lv] of [
+      ["wing B's corridor", -16.5, 19.5, 0], ["wing B's yard door", -13, 16, 0], ["the landing over the link", -1.2, 11.5, 1],
+      ["the pavilion's first gallery", 0, 23.6, 1], ["the pavilion's second gallery", -4.6, 19, 2],
+      ["wing A's first gallery", 15, 18.3, 1], ["wing A's second gallery", 15, 20.7, 2], ["wing B's first gallery", -15, 20.7, 1], ["wing B's second gallery", -27, 18.3, 2],
+      ["the director's room", -6.2, 3.0, 3], ["the clerk's room", -10.0, 6.5, 3], ["the registry", 6.2, 2.0, 3], ["the doctor's room", 10.0, 3.0, 3], ["the records room", 0, 2.0, 4],
+    ] as Array<[string, number, number, number]>)
+      expect(reach(x, z, lv, 0.8), `${what} (${x}, ${z}, storey ${lv})`).toBe(true);
+    expect(P.levels.map((q) => q.y)).toEqual([L.ground, L.g1, L.g2, L.office, L.tower]);
+    // never over the pavilion's void or a wing's
+    for (const [x, z, lv] of [[0, 19, 1], [0, 19, 2], [16, 19.5, 1], [-16, 19.5, 2]] as Array<[number, number, number]>) expect(reach(x, z, lv, 0.3), `void ${x}, ${z}`).toBe(false);
+  });
+
+  it("the chapel: walked in by its side door from the west court, not into the sanctuary; the governor's house shut", () => {
+    const C = PP.CHAPEL_PLAN;
+    const d = C.doors[0];
+    const reach = HP.flood(C, [d.x, d.inner + 0.8], 0.25, 0.3);
+    expect(reach(PP.CHAPEL.side.z, 13.0, 0, 0.6), "the court before the side door").toBe(true);
+    expect(reach(3.0, -PP.CHAPEL.xm, 0, 0.8), "the aisle by the gable").toBe(true);
+    expect(reach(12.8, -PP.CHAPEL.xm, 0, 0.3), "the altar").toBe(false);
+    // the court before the side door is the west court's
+    const [cx, cz] = [-12.8, PP.CHAPEL.side.z];
+    expect(PP.COURT_W.some((r) => cx > r.minX && cx < r.maxX && cz > r.minZ && cz < r.maxZ)).toBe(true);
+    // the governor's doors lead into his house (they stay shut in the game)
+    const g = HP.flood(PP.GOV_PLAN, [PP.GOV.door.x, PP.GOV.z0 + 0.8], 0.25, 0.3);
+    expect(g(-24, 6, 0, 0.8)).toBe(true);
+  });
+
+  it("every real opening of the shell has a part of the building behind it, and that part sees it", async () => {
+    const { SHELL_OPENINGS } = await import("../../shared/prisonShell.ts");
+    expect(SHELL_OPENINGS.length).toBeGreaterThan(190);
+    for (const o of SHELL_OPENINGS) {
+      const z = PP.zoneOf(o);
+      expect(z, o.label).toBeTruthy();
+      expect(PP.sees(z!.id, z!.id)).toBe(true);
+    }
+    // the cells' windows: one real cell behind each, every cell of both wings on its three storeys
+    const cells = new Set(SHELL_OPENINGS.map((o) => PP.zoneOf(o)!.id).filter((id) => id.startsWith("cell_")));
+    expect(cells.size).toBe(2 * 2 * 3 * 8 - 2);
+    // the lights by the routine: the cells' gas out at eight, the guard room's always
+    expect(PP.prisonLights(1, 19.5).cells).toBe(1);
+    expect(PP.prisonLights(1, 21).cells).toBe(0);
+    expect(PP.prisonLights(1, 3).guard).toBe(1);
+  });
+
+  it("the yard and the west court (the courts are walk areas of their own)", () => {
     // the yard: inside the compound's wall, off the wings
     for (const q of PP.YARD) {
       expect(q.maxX).toBeLessThanOrEqual(PP.COMPOUND.x1 - PP.WALL.t + 1e-9);

@@ -604,10 +604,15 @@ def gable_roof(g, x0, x1, z0, z1, ye, along, pitch=35.0, oe=0.45, og=0.35, t=0.2
 
 
 class Hole:
-    def __init__(self, u0, u1, yb, yt, arch=False, cell="bars", depth=0.3, rmat=BLUE, sill=True, frame=0.0, keystone=False, open_=False):
+    """An opening in a wall. `glaze` (M7 prison real, 2026-09-26: interiors are real, never instanced): a real window,
+    cut through, its sill kept, its bars / sash bars / lead cames in iron or wood here and its glass in the game's room
+    behind it ("bars", "sash", "lead", or "" for a bare slit); no painted pane. `label` names it for the markers."""
+
+    def __init__(self, u0, u1, yb, yt, arch=False, cell="bars", depth=0.3, rmat=BLUE, sill=True, frame=0.0, keystone=False, open_=False, glaze=None, label=None, kind=None):
         self.u0, self.u1, self.yb, self.yt = u0, u1, yb, yt
         self.arch, self.cell, self.depth, self.rmat, self.sill = arch, cell, depth, rmat, sill
         self.frame, self.keystone, self.open = frame, keystone, open_
+        self.glaze, self.label, self.kind = glaze, label, kind
 
 
 def Hc(uc, w, yb, yt, **kw):
@@ -743,6 +748,13 @@ class Wall:
         if h.sill and h.cell not in ("door_gov", "door_side") and not h.open:
             extrude(g, self, [(h.u0 - 0.1, h.yb - 0.14), (h.u1 + 0.1, h.yb - 0.14), (h.u1 + 0.1, h.yb), (h.u0 - 0.1, h.yb)], -0.09, 0.0, BLUE)
         if h.open:
+            if h.label:
+                opening_record(self, h, h.kind or "door")
+            return
+        if h.glaze is not None:
+            # a real window: its bars or sash bars at the reveal's back, the glass is the room's (the game)
+            glazing(g, self, h, ys if h.arch else None)
+            opening_record(self, h, h.kind or "window")
             return
         # the pane (atlas), at the reveal's back
         cell = h.cell
@@ -869,6 +881,190 @@ def bar(g, a, b, w, mat=IRON):
         g.face([P[i], P[j], Q[j], Q[i]], mat, out=tuple(mid))
 
 
+# ------------------------------------------------------------------ real openings (M7 prison real, 2026-09-26)
+#
+# Steve, 2026-09-26: "Never do instanced, always go real." Every window of the shell is cut through: no painted pane.
+# Its bars (iron), sash bars (wood) or lead cames stand at the reveal's back; its glass and the room behind it are the
+# game's (client/src/world/prisonHall.ts). Every window and door is recorded here: an empty "opening_<id>" in the glb
+# (the check reads them: dev/interiorcheck.ts) and one row in shared/prisonShell.ts (the plan and the room read it:
+# the room's walls are cut where the shell's holes are, so the two never disagree).
+
+OPENINGS = []
+
+
+def opening_record(W, h, kind, shape="rect", extra=None):
+    um = (h.u0 + h.u1) / 2
+    c = W.pt(um, 0, 0)
+    row = dict(kind=kind, part=W.g.grp, label=h.label or f"{W.g.grp} {kind}", glaze=h.glaze or "", shape=shape,
+               x=c[0], z=c[2], tx=W.t.x, tz=W.t.y, nx=W.n.x, nz=W.n.y, hw=(h.u1 - h.u0) / 2, yb=h.yb, yt=h.yt,
+               arch=bool(h.arch), depth=h.depth)
+    if extra:
+        row.update(extra)
+    OPENINGS.append(row)
+
+
+def glazing(g, W, h, ys):
+    """Bars, sash bars or lead cames across a real window, at the reveal's back (the glass goes just behind them)."""
+    d = h.depth - 0.05
+    um = (h.u0 + h.u1) / 2
+    w = h.u1 - h.u0
+    r = w / 2
+    body_top = ys if ys is not None else h.yt
+
+    def top_at(u):
+        if ys is None:
+            return h.yt
+        return ys + math.sqrt(max(0.0, r * r - (u - um) ** 2))
+
+    def vert(u, wd, mat):
+        bar(g, W.pt(u, h.yb + 0.005, d), W.pt(u, top_at(u) - 0.01, d), wd, mat)
+
+    def horiz(y, wd, mat, inset=0.005):
+        # (just behind the upright bars: never in one plane with them where they cross)
+        dh = d + 0.03
+        bar(g, W.pt(h.u0 + inset, y, dh), W.pt(h.u1 - inset, y, dh), wd, mat)
+
+    if h.glaze == "bars":
+        for f in (0.25, 0.5, 0.75):
+            vert(h.u0 + w * f, 0.03, IRON)
+        hh = body_top - h.yb
+        for f in (0.36, 0.72):
+            horiz(h.yb + hh * f, 0.025, IRON)
+    elif h.glaze == "sash":
+        ym = (h.yb + h.yt) / 2
+        for u in (h.u0 + 0.03, h.u1 - 0.03):
+            vert(u, 0.06, WOOD)
+        for f in (1 / 3, 2 / 3):
+            vert(h.u0 + w * f, 0.035, WOOD)
+        horiz(ym, 0.06, WOOD)
+        for y in ((h.yb + ym) / 2, (ym + h.yt) / 2):
+            horiz(y, 0.035, WOOD)
+        horiz(h.yb + 0.03, 0.06, WOOD)
+        horiz(h.yt - 0.03, 0.06, WOOD)
+    elif h.glaze == "lead":
+        n = max(2, round(w / 0.2))
+        for i in range(1, n):
+            vert(h.u0 + w * i / n, 0.015, IRON)
+        y = h.yb + 0.25
+        while y < body_top - 0.05:
+            horiz(y, 0.015, IRON)
+            y += 0.25
+        for f in (0.33, 0.66):
+            horiz(h.yb + (body_top - h.yb) * f, 0.03, IRON)
+
+
+def ring_pts(cu, cy, r, n=16):
+    return [(cu + r * math.cos(2 * math.pi * i / n), cy + r * math.sin(2 * math.pi * i / n)) for i in range(n)]
+
+
+def annulus(g, W, cu, cy, ri, ro, d, mat=BLUE, n=16):
+    """A stone ring round a round opening, `d` proud (negative), its outer edge and its inner reveal to the face."""
+    a_ = ring_pts(cu, cy, ri, n)
+    b_ = ring_pts(cu, cy, ro, n)
+    for i in range(n):
+        j = (i + 1) % n
+        g.face([W.pt(*a_[i], d), W.pt(*a_[j], d), W.pt(*b_[j], d), W.pt(*b_[i], d)], mat, out=W.out())
+        am = 2 * math.pi * (i + 0.5) / n
+        o = (W.t.x * math.cos(am), math.sin(am), W.t.y * math.cos(am))
+        g.face([W.pt(*b_[i], d), W.pt(*b_[j], d), W.pt(*b_[j], 0.02), W.pt(*b_[i], 0.02)], mat, out=o, k=0.8)
+        g.face([W.pt(*a_[i], d), W.pt(*a_[j], d), W.pt(*a_[j], 0.0), W.pt(*a_[i], 0.0)], mat, out=(-o[0], -o[1], -o[2]), k=0.6)
+
+
+def holed_triangle(g, W, tri, cu, cy, r, mat=BRICK, n=16):
+    """A gable's triangle (three (u, y) points in the wall W's plane) with a round hole (a real oculus or rose)."""
+    angs = [2 * math.pi * i / n for i in range(n)]
+    for (pu, py) in tri:
+        angs.append(math.atan2(py - cy, pu - cu) % (2 * math.pi))
+    angs = sorted(set(round(a, 9) for a in angs))
+
+    def hit(a):
+        dx, dy = math.cos(a), math.sin(a)
+        best = None
+        for i in range(3):
+            (px, py), (qx, qy) = tri[i], tri[(i + 1) % 3]
+            ex, ey = qx - px, qy - py
+            den = dx * ey - dy * ex
+            if abs(den) < 1e-12:
+                continue
+            t = ((px - cu) * ey - (py - cy) * ex) / den
+            s = ((px - cu) * dy - (py - cy) * dx) / den
+            if t > 0 and -1e-9 <= s <= 1 + 1e-9 and (best is None or t < best):
+                best = t
+        return (cu + dx * best, cy + dy * best)
+
+    for i in range(len(angs)):
+        a0, a1 = angs[i], angs[(i + 1) % len(angs)]
+        c0 = (cu + r * math.cos(a0), cy + r * math.sin(a0))
+        c1 = (cu + r * math.cos(a1), cy + r * math.sin(a1))
+        b0, b1 = hit(a0), hit(a1)
+        g.face([W.pt(*c0), W.pt(*c1), W.pt(*b1), W.pt(*b0)], mat, out=W.out())
+
+
+def round_opening(g, W, cu, cy, ri, label, glaze="bars"):
+    """The iron cross (or lead cames) of a real round window, and its record."""
+    d = 0.1
+    if glaze == "lead":
+        for f in (-0.5, 0.0, 0.5):
+            hh = math.sqrt(max(0.0, ri * ri - (f * ri) ** 2))
+            bar(g, W.pt(cu + f * ri, cy - hh + 0.01, d), W.pt(cu + f * ri, cy + hh - 0.01, d), 0.02)
+            bar(g, W.pt(cu - hh + 0.01, cy + f * ri, d + 0.03), W.pt(cu + hh - 0.01, cy + f * ri, d + 0.03), 0.02)
+    else:
+        bar(g, W.pt(cu, cy - ri + 0.01, d), W.pt(cu, cy + ri - 0.01, d), 0.035)
+        bar(g, W.pt(cu - ri + 0.01, cy, d + 0.04), W.pt(cu + ri - 0.01, cy, d + 0.04), 0.035)
+    h = Hole(cu - ri, cu + ri, cy - ri, cy + ri, depth=0.15, glaze=glaze, label=label)
+    opening_record(W, h, "window", shape="round", extra={"r": ri, "cy": cy})
+
+
+def opening_markers():
+    """Every real opening as an empty in the glb (dev/interiorcheck.ts reads them) and shared/prisonShell.ts."""
+    for i, o in enumerate(OPENINGS):
+        o["id"] = f"pr_{i:03d}"
+        ob = bpy.data.objects.new("opening_" + o["id"], None)
+        ob.empty_display_size = max(0.2, o["hw"])
+        cy = o.get("cy", (o["yb"] + o["yt"]) / 2)
+        ob.location = B((o["x"], cy, o["z"]))
+        for k in ("kind", "label", "glaze", "shape", "part"):
+            ob[k] = str(o[k])
+        for k in ("hw", "yb", "yt", "nx", "nz", "tx", "tz", "depth"):
+            ob[k] = float(o[k])
+        ob["arch"] = 1 if o.get("arch") else 0
+        if "r" in o:
+            ob["r"] = float(o["r"])
+        if "ny" in o:
+            ob["ny"] = float(o["ny"])
+        bpy.context.scene.collection.objects.link(ob)
+    path = os.path.join(ROOT, "shared", "prisonShell.ts")
+    f3 = lambda v: f"{v:.3f}".rstrip("0").rstrip(".") if isinstance(v, float) else json.dumps(v)  # noqa: E731
+    lines = [
+        "// GENERATED by tools/blender/build_prison.py (M7 prison real): do not edit. Every real opening of the prison's shell",
+        "// (client/public/models/prison.glb, whose empties opening_<id> are the same): windows, doors, slits and roof lights,",
+        "// in the prison's frame (shared/prisonPlan.ts: local x along the front, z into the compound; y world metres).",
+        "// x, z: the opening's middle on the wall's outer face; (tx, tz) along it, (nx, nz) out of it; hw its half width;",
+        "// yb..yt its bottom and top (an arch's crown); depth the reveal's depth into the wall. Round ones: r round (x, cy, z).",
+        "// Roof lights: pts, the four corners on the slope's underside, and (nx, ny, nz) up and out of it.",
+        "",
+        'import type { ShellOpening } from "./shellOpening.js";',
+        "",
+        "export type { ShellOpening };",
+        "",
+        "export const SHELL_OPENINGS: ShellOpening[] = [",
+    ]
+    for o in OPENINGS:
+        parts_ = []
+        for k in ("id", "kind", "part", "label", "glaze", "shape", "x", "z", "tx", "tz", "nx", "nz", "ny", "hw", "yb", "yt", "arch", "depth", "r", "cy"):
+            if k not in o:
+                continue
+            v = o[k]
+            parts_.append(f"{k}: {json.dumps(v) if isinstance(v, (str, bool)) else f3(float(v))}")
+        if "pts" in o:
+            parts_.append("pts: [" + ", ".join("[" + ", ".join(f3(float(c)) for c in p) + "]" for p in o["pts"]) + "]")
+        lines.append("  { " + ", ".join(parts_) + " },")
+    lines += ["];", ""]
+    with open(path, "w", newline="\n") as f:
+        f.write("\n".join(lines))
+    return len(OPENINGS)
+
+
 # ================================================================== the parts
 
 
@@ -957,10 +1153,12 @@ def front_building(g):
         W = Wall(g, (a, z0), (b, z0), (0, -1), FOOT, H) if sgn > 0 else Wall(g, (a, z0), (b, z0), (0, -1), FOOT, H)
         holes = []
         Lw = W.L
-        for uc in (Lw * 0.3, Lw * 0.7):
-            for du in (-0.6, 0.6):
-                holes.append(Hc(uc + du, 0.8, y_first + 0.9, y_first + 2.9, arch=True, cell="bars", depth=0.35, frame=0.16))
-            holes.append(Hc(uc, 0.7, 2.0, 3.2, arch=True, cell="bars", depth=0.35, frame=0.14))
+        side = "east" if sgn > 0 else "west"
+        for i, uc in enumerate((Lw * 0.3, Lw * 0.7)):
+            for j, du in enumerate((-0.6, 0.6)):
+                holes.append(Hc(uc + du, 0.8, y_first + 0.9, y_first + 2.9, arch=True, cell="bars", depth=0.35, frame=0.16, glaze="bars",
+                                label=f"front building, street face, {side}, upper floor, window {2 * i + j + 1}"))
+            holes.append(Hc(uc, 0.7, 2.0, 3.2, arch=True, cell="bars", depth=0.35, frame=0.14, glaze="bars", label=f"front building, street face, {side}, ground floor, window {i + 1}"))
         W.build(holes, bands=[(FOOT, 0.6, BLUE), (y_first - 0.15, y_first + 0.1, BLUE)])
         course(g, W, 0.55, 0.62, 0.06)
         course(g, W, y_first - 0.15, y_first + 0.1, 0.1)
@@ -969,7 +1167,9 @@ def front_building(g):
     # the back (facing +z) and the ends, plainer
     for (xa, xb) in ((x1, tw["x1"]), (tw["x0"], x0)):
         Wb = Wall(g, (xa, z1), (xb, z1), (0, 1), FOOT, H)
-        holes = [Hc(u, 0.7, y_first + 1.0, y_first + 2.7, arch=True, cell="bars", depth=0.3, frame=0.12) for u in (2.0, 5.0)]
+        side = "east" if xa > 0 else "west"
+        holes = [Hc(u, 0.7, y_first + 1.0, y_first + 2.7, arch=True, cell="bars", depth=0.3, frame=0.12, glaze="bars", label=f"front building, back, {side}, upper floor, window {i + 1}")
+                 for i, u in enumerate((2.0, 5.0))]
         Wb.build(holes, bands=[(FOOT, 0.5, BLUE)])
         course(g, Wb, H - 0.35, H - 0.1, 0.12)
         crenellate(g, Wb, H - 0.1, 1.0, mat=BRICK)
@@ -977,10 +1177,31 @@ def front_building(g):
     for sgn in (-1, 1):
         tx0, tx1 = (x1 - cw, x1 + 0.3) if sgn > 0 else (x0 - 0.3, x0 + cw)
         tz0, tz1 = z0 - 0.3, z0 + cw + 0.3
-        box(g, tx0, tx1, FOOT, ch, tz0, tz1, BRICK, skip=("-y", "+y"))
-        box(g, tx0 - 0.06, tx1 + 0.06, FOOT, 0.6, tz0 - 0.06, tz1 + 0.06, BLUE, skip=("-y",))
-        # quoins at the tower's corners, every other course proud
-        for (qx, qz) in ((tx0, tz0), (tx1, tz0), (tx0, tz1), (tx1, tz1)):
+        # (M7 prison real: the tower's faces, not a box: its inner side and back stand inside the front building's rooms
+        # below the roof, and are drawn only above it; its two windows on the front are real)
+        xin, xout = (tx0, tx1) if sgn > 0 else (tx1, tx0)
+        side = "east" if sgn > 0 else "west"
+        Wtf = Wall(g, (tx0, tz0), (tx1, tz0), (0, -1), FOOT, ch)
+        Wtf.build([Hc(Wtf.L / 2, 0.6, yb, yb + 0.9, depth=0.3, frame=0.1, glaze="bars", label=f"front building, {side} corner tower, {'ground' if yb < 4 else 'upper'} floor")
+                   for yb in (2.2, 6.0)], bands=[(FOOT, 0.6, BLUE)])
+        Wte = Wall(g, (xout, tz0), (xout, tz1), (sgn, 0), FOOT, ch) if sgn < 0 else Wall(g, (xout, tz1), (xout, tz0), (sgn, 0), FOOT, ch)
+        Wte.build(bands=[(FOOT, 0.6, BLUE)])
+        # the inner side: the 0.3 m standing out before the front, then only over the roof
+        Wti = Wall(g, (xin, tz0), (xin, z0), (-sgn, 0), FOOT, ch) if sgn < 0 else Wall(g, (xin, z0), (xin, tz0), (-sgn, 0), FOOT, ch)
+        Wti.build(bands=[(FOOT, 0.6, BLUE)])
+        Wti2 = Wall(g, (xin, z0), (xin, tz1), (-sgn, 0), H - 0.3, ch) if sgn < 0 else Wall(g, (xin, tz1), (xin, z0), (-sgn, 0), H - 0.3, ch)
+        Wti2.build()
+        # the back: over the roof, and full height where it stands beyond the front building's end
+        xe_ = x0 if sgn < 0 else x1
+        Wtb = Wall(g, (tx1, tz1), (tx0, tz1), (0, 1), H - 0.3, ch)
+        Wtb.build()
+        Wtb2 = Wall(g, (xe_, tz1), (xout, tz1), (0, 1), FOOT, H - 0.3) if sgn > 0 else Wall(g, (xout, tz1), (xe_, tz1), (0, 1), FOOT, H - 0.3)
+        Wtb2.build(bands=[(FOOT, 0.6, BLUE)])
+        # the plinth's stone band, proud, on the faces to the street and the court
+        for Wq in (Wtf, Wte):
+            extrude(g, Wq, [(-0.06, FOOT), (Wq.L + 0.06, FOOT), (Wq.L + 0.06, 0.6), (-0.06, 0.6)], -0.06, 0.0, BLUE)
+        # quoins at the tower's outer corners (the inner back corner stands in the front building), every other course proud
+        for (qx, qz) in ((tx0, tz0), (tx1, tz0), (xout, tz1)):
             for i in range(int((ch - 0.8) / 0.55)):
                 y_ = 0.8 + i * 0.55
                 ww = 0.42 if i % 2 == 0 else 0.26
@@ -988,13 +1209,6 @@ def front_building(g):
                 sz = 1 if qz == tz0 else -1
                 box(g, min(qx, qx + sx * ww) - (0.03 if sx > 0 else -0.0), max(qx, qx + sx * ww) + (0.0 if sx > 0 else 0.03),
                     y_, y_ + 0.26, min(qz, qz + sz * 0.26) - (0.03 if sz > 0 else 0.0), max(qz, qz + sz * 0.26) + (0.0 if sz > 0 else 0.03), BLUE, skip=("-y",))
-        # a small barred window each storey on the front and the end
-        Wf = Wall(g, (tx0, tz0 - 0.001), (tx1, tz0 - 0.001), (0, -1), 0, 0)
-        Wf.L = tx1 - tx0
-        for yb in (2.2, 6.0):
-            for Wx in (Wf,):
-                q = [(Wx.L / 2 - 0.3, yb), (Wx.L / 2 + 0.3, yb), (Wx.L / 2 + 0.3, yb + 0.9), (Wx.L / 2 - 0.3, yb + 0.9)]
-                extrude(g, Wx, q, -0.02, 0.0, BLUE, cell="bars_sq")
         # the tower's top: corbels and battlements on its four sides
         for k_, (A, Bq, n) in enumerate((((tx0, tz0), (tx1, tz0), (0, -1)), ((tx1, tz0), (tx1, tz1), (1, 0)), ((tx1, tz1), (tx0, tz1), (0, 1)), ((tx0, tz1), (tx0, tz0), (-1, 0)))):
             W = Wall(g, A, Bq, n, 0, ch)
@@ -1004,7 +1218,8 @@ def front_building(g):
         # the end wall of the front building beyond the tower (facing +-x)
         xe = x1 if sgn > 0 else x0
         We = Wall(g, (xe, tz1), (xe, z1), (sgn, 0), FOOT, H) if sgn > 0 else Wall(g, (xe, z1), (xe, tz1), (sgn, 0), FOOT, H)
-        We.build([Hc(We.L / 2, 0.7, y_first + 1.0, y_first + 2.6, arch=True, cell="bars", depth=0.3, frame=0.12)], bands=[(FOOT, 0.55, BLUE)])
+        We.build([Hc(We.L / 2, 0.7, y_first + 1.0, y_first + 2.6, arch=True, cell="bars", depth=0.3, frame=0.12, glaze="bars", label=f"front building, {side} end, upper floor")],
+                 bands=[(FOOT, 0.55, BLUE)])
         crenellate(g, We, H - 0.1, 1.2, trim=0.56)
     # the flat lead roof behind the battlements
     g.face([(x0 + 0.3, H - 0.25, z0 + 0.3), (x1 - 0.3, H - 0.25, z0 + 0.3), (x1 - 0.3, H - 0.25, z1 - 0.3), (x0 + 0.3, H - 0.25, z1 - 0.3)], LEAD, out=(0, 1, 0))
@@ -1026,8 +1241,9 @@ def gate_tower(g):
     W = Wall(g, (x1, z0), (x0, z0), (0, -1), FOOT, H)
     Lw = W.L
     um = Lw / 2
-    gate = Hc(um, 2 * gt["hw"], 0.0, gt["h"], arch=True, depth=1.0, open_=True, sill=False, frame=0.0)
-    wins = [Hc(um + du, 0.7, 7.2, 9.4, arch=True, cell="bars", depth=0.35, frame=0.12) for du in (-1.0, 0.0, 1.0)]
+    gate = Hc(um, 2 * gt["hw"], 0.0, gt["h"], arch=True, depth=1.0, open_=True, sill=False, frame=0.0, label="the gate", kind="door")
+    wins = [Hc(um + du, 0.7, 7.2, 9.4, arch=True, cell="bars", depth=0.35, frame=0.12, glaze="bars", label=f"gate tower, the triple window, {['east', 'middle', 'west'][i]} light")
+            for i, du in enumerate((-1.0, 0.0, 1.0))]
     W.build([gate] + wins, bands=[(FOOT, 0.7, BLUE)])
     # the gate's surround: a deep arch of bluestone voussoirs in two orders, with a hood
     r = gt["hw"]
@@ -1070,9 +1286,13 @@ def gate_tower(g):
         Ws2 = Wall(g, A, (A[0], fr["z0"]), n, FOOT, fr_h - 0.3) if Bq[1] > A[1] else Wall(g, (Bq[0], fr["z0"]), Bq, n, FOOT, fr_h - 0.3)
         Ws2.build(bands=[(FOOT, 0.7, BLUE)])
         Wu = Wall(g, A, Bq, n, fr_h - 0.3, H)
-        Wu.build([Hc(Wu.L / 2, 0.7, fr_h + 1.6, fr_h + 3.2, arch=True, cell="bars", depth=0.3, frame=0.12)])
-    Wbk = Wall(g, (x0, z1), (x1, z1), (0, 1), FOOT, H)
-    Wbk.build([Hc(Wbk.L / 2, 0.8, fr_h + 1.6, fr_h + 3.3, arch=True, cell="bars", depth=0.3, frame=0.12)])
+        Wu.build([Hc(Wu.L / 2, 0.7, fr_h + 1.6, fr_h + 3.2, arch=True, cell="bars", depth=0.3, frame=0.12, glaze="bars", label=f"gate tower, {'west' if n[0] < 0 else 'east'} side, the clock room")])
+    # the back: over the link's roof in its width (below it the back is inside the link), full height either side
+    lk = L("link")
+    Wbk = Wall(g, (x0, z1), (x1, z1), (0, 1), lk["h"] - 0.3, H)
+    Wbk.build([Hc(Wbk.L / 2, 0.8, fr_h + 1.6, fr_h + 3.3, arch=True, cell="bars", depth=0.3, frame=0.12, glaze="bars", label="gate tower, back, the clock room")])
+    for (xa, xb) in ((x0, lk["x0"]), (lk["x1"], x1)):
+        Wall(g, (xa, z1), (xb, z1), (0, 1), FOOT, lk["h"] - 0.3).build()
     # the parapet: corbels, battlements, and a round bartizan on each front corner
     for k_, (A, Bq, n) in enumerate((((x1, z0), (x0, z0), (0, -1)), ((x0, z0), (x0, z1), (-1, 0)), ((x0, z1), (x1, z1), (0, 1)), ((x1, z1), (x1, z0), (1, 0)))):
         Wp = Wall(g, A, Bq, n, 0, H)
@@ -1084,16 +1304,19 @@ def gate_tower(g):
         ring = ngon(c, 0.75, 10)
         # corbelled out: a cone under it
         pyramid(g, ngon(c, 0.75, 10), 9.6, 8.6, BLUE, apex=c)
-        prism(g, ring, 9.6, H + 1.0, BRICK, top=False)
+        # the bartizan's sides: three real arrow slits in the faces to the street (M7 prison real: the little turret's
+        # inside is the game's, off the clock room)
+        side = "west" if sx < 0 else "east"
+        for i in range(10):
+            a_, b_ = ring[i], ring[(i + 1) % 10]
+            am = 2 * math.pi * (i + 0.5) / 10
+            Wt = Wall(g, a_, b_, (math.cos(am), math.sin(am)), 9.6, H + 1.0)
+            if i in (6, 7, 8):
+                Wt.build([Hc(Wt.L / 2, 0.12, 11.2, 12.2, depth=0.25, sill=False, glaze="", kind="slit", label=f"gate tower, {side} bartizan, slit {i - 5}")])
+            else:
+                Wt.build()
         prism(g, ngon(c, 0.8, 10), H + 1.0, H + 1.12, BLUE, top=False, bottom=True)
         pyramid(g, ngon(c, 0.86, 10), H + 1.12, H + 2.6, SLATE)
-        # arrow slits on the bartizan
-        for a in (math.pi * 1.25, math.pi * 1.5, math.pi * 1.75):
-            p = (c[0] + 0.76 * math.cos(a), c[1] + 0.76 * math.sin(a))
-            tdir = (-math.sin(a), math.cos(a))
-            g.face([(p[0] - tdir[0] * 0.06, 11.2, p[1] - tdir[1] * 0.06), (p[0] + tdir[0] * 0.06, 11.2, p[1] + tdir[1] * 0.06),
-                    (p[0] + tdir[0] * 0.06, 12.2, p[1] + tdir[1] * 0.06), (p[0] - tdir[0] * 0.06, 12.2, p[1] - tdir[1] * 0.06)], ATLAS,
-                   out=(math.cos(a), 0, math.sin(a)), cell="dark")
     SOOT_LINES.append((H, 2.2))
     # the lanterns either side of the gate
     for du in (-2.45, 2.45):
@@ -1112,13 +1335,15 @@ def governor_house(g):
     Lw = W.L
     bays = [Lw * (i + 0.5) / 5 for i in range(5)]
     holes = []
+    fl = ["ground floor", "first floor", "second floor"]
     for i, uc in enumerate(bays):
         if i == 2:
-            holes.append(Hc(uc, 1.3, 0.62, 3.4, cell="door_gov", depth=0.3, sill=False, frame=0.18))
+            # (M7 prison real: a real doorway; its leaves hang in the game, shut: the governor's own house)
+            holes.append(Hc(uc, 1.3, 0.62, 3.4, cell="door_gov", depth=0.22, sill=False, frame=0.18, open_=True, label="governor's house, the front door", kind="door"))
         else:
-            holes.append(Hc(uc, 1.05, 1.1, 3.0, cell="sash", depth=0.22, frame=0.14))
-        for (yb, yt) in ((4.9, 6.9), (8.3, 10.0)):
-            holes.append(Hc(uc, 1.05, yb, yt, cell="sash", depth=0.22, frame=0.14))
+            holes.append(Hc(uc, 1.05, 1.1, 3.0, cell="sash", depth=0.22, frame=0.14, glaze="sash", label=f"governor's house, street front, ground floor, bay {i + 1}"))
+        for s_, (yb, yt) in enumerate(((4.9, 6.9), (8.3, 10.0))):
+            holes.append(Hc(uc, 1.05, yb, yt, cell="sash", depth=0.22, frame=0.14, glaze="sash", label=f"governor's house, street front, {fl[s_ + 1]}, bay {i + 1}"))
     W.build(holes, bands=[(FOOT, 0.62, BLUE)])
     course(g, W, 0.55, 0.62, 0.08)
     course(g, W, 3.95, 4.15, 0.1)
@@ -1135,18 +1360,20 @@ def governor_house(g):
     # the east end (facing -x) and the back (facing +z) with windows; the west side meets the front wall
     We = Wall(g, (x0, z0), (x0, z1), (-1, 0), FOOT, H)
     holes = []
-    for uc in (We.L * 0.3, We.L * 0.7):
-        for (yb, yt) in ((1.1, 3.0), (4.9, 6.9), (8.3, 10.0)):
-            holes.append(Hc(uc, 1.0, yb, yt, cell="sash", depth=0.22, frame=0.12))
+    for j, uc in enumerate((We.L * 0.3, We.L * 0.7)):
+        for s_, (yb, yt) in enumerate(((1.1, 3.0), (4.9, 6.9), (8.3, 10.0))):
+            holes.append(Hc(uc, 1.0, yb, yt, cell="sash", depth=0.22, frame=0.12, glaze="sash", label=f"governor's house, east end, {fl[s_]}, {['front', 'back'][j]} window"))
     We.build(holes, bands=[(FOOT, 0.62, BLUE)])
     course(g, We, H - 0.35, H, 0.3)
     course(g, We, 3.95, 4.15, 0.1)
     Wb = Wall(g, (x0, z1), (x1, z1), (0, 1), FOOT, H)
-    Wb.build([Hc(uc, 1.0, yb, yt, cell="sash", depth=0.22, frame=0.12) for uc in (2.0, 5.2, 8.4) for (yb, yt) in ((4.9, 6.9), (8.3, 10.0))]
-             + [Hc(5.2, 1.0, 0.62, 2.9, cell="door_side", depth=0.2, sill=False, frame=0.12)], bands=[(FOOT, 0.62, BLUE)])
+    Wb.build([Hc(uc, 1.0, yb, yt, cell="sash", depth=0.22, frame=0.12, glaze="sash", label=f"governor's house, garden side, {fl[s_ + 1]}, window {j + 1}")
+              for j, uc in enumerate((2.0, 5.2, 8.4)) for s_, (yb, yt) in enumerate(((4.9, 6.9), (8.3, 10.0)))]
+             + [Hc(5.2, 1.0, 0.62, 2.9, cell="door_side", depth=0.22, sill=False, frame=0.12, open_=True, label="governor's house, the garden door", kind="door")], bands=[(FOOT, 0.62, BLUE)])
     course(g, Wb, H - 0.35, H, 0.3)
-    Ww = Wall(g, (x1, z1), (x1, z0), (1, 0), WALL_H + 0.2, H)
-    Ww.build([Hc(Ww.L / 2, 1.0, 8.3, 10.0, cell="sash", depth=0.22, frame=0.12)])
+    # (M7 prison real: the west side down to the ground: it stands on the west court now walked round the chapel)
+    Ww = Wall(g, (x1, z1), (x1, z0), (1, 0), FOOT, H)
+    Ww.build([Hc(Ww.L / 2, 1.0, 8.3, 10.0, cell="sash", depth=0.22, frame=0.12, glaze="sash", label="governor's house, west side, second floor")], bands=[(FOOT, 0.62, BLUE)])
     course(g, Ww, H - 0.35, H, 0.3)
     # quoins at the two street corners
     for u0 in (0.0, Lw - 0.5):
@@ -1161,7 +1388,30 @@ def governor_house(g):
     ridge_x0, ridge_x1 = x0 + 3.6, x1 - 3.6
     yb_ = H - 0.3
     yr = H + rise
-    g.face([(rx0, yb_, rz0), (rx1, yb_, rz0), (ridge_x1, yr, ridge_z0), (ridge_x0, yr, ridge_z0)], SLATE, out=(0, 1, -1))
+    # the street slope, cut open under the two dormers (M7 prison real: their garrets are the game's, and no slate
+    # stands inside a dormer's window)
+    dxs = sorted(W.pt(uc, 0, 0)[0] for uc in (bays[1], bays[3]))
+    zf_, zb_ = z0 + 0.4, z0 + 1.6
+    slope_front = [(rx0, rz0), (rx1, rz0), (ridge_x1, ridge_z0), (ridge_x0, ridge_z0)]
+
+    def y_on(zz):
+        return yb_ + (zz - rz0) * (yr - yb_) / (ridge_z0 - rz0)
+
+    def band(poly, za, zb):
+        q = clip_half(poly, lambda p, za=za: p[1] - za)
+        return clip_half(q, lambda p, zb=zb: zb - p[1]) if len(q) >= 3 else q
+
+    pieces = [band(slope_front, rz0 - 1, zf_), band(slope_front, zb_, ridge_z0 + 1)]
+    mid = band(slope_front, zf_, zb_)
+    edges = [rx0 - 1] + [v for d_ in dxs for v in (d_ - 0.6, d_ + 0.6)] + [rx1 + 1]
+    for i in range(0, len(edges), 2):
+        xa, xb = edges[i], edges[i + 1]
+        q = clip_half(mid, lambda p, xa=xa: p[0] - xa)
+        q = clip_half(q, lambda p, xb=xb: xb - p[0]) if len(q) >= 3 else q
+        pieces.append(q)
+    for q in pieces:
+        if len(q) >= 3:
+            g.face([(x_, y_on(z_), z_) for x_, z_ in q], SLATE, out=(0, 1, -1))
     g.face([(rx1, yb_, rz1), (rx0, yb_, rz1), (ridge_x0, yr, ridge_z1), (ridge_x1, yr, ridge_z1)], SLATE, out=(0, 1, 1))
     g.face([(rx0, yb_, rz1), (rx0, yb_, rz0), (ridge_x0, yr, ridge_z0)], SLATE, out=(-1, 1, 0))
     g.face([(rx1, yb_, rz0), (rx1, yb_, rz1), (ridge_x1, yr, ridge_z1)], SLATE, out=(1, 1, 0))
@@ -1172,9 +1422,10 @@ def governor_house(g):
         p = W.pt(uc, 0, 0)
         dx = p[0]
         dz0 = z0 + 0.4
-        box(g, dx - 0.6, dx + 0.6, yb_ + 0.6, yb_ + 2.0, dz0, dz0 + 1.2, WOOD, skip=("-y", "+y"))
-        Wd = Wall(g, (dx + 0.6, dz0 - 0.001), (dx - 0.6, dz0 - 0.001), (0, -1), 0, 0)
-        extrude(g, Wd, [(0.25, yb_ + 0.75), (0.95, yb_ + 0.75), (0.95, yb_ + 1.8), (0.25, yb_ + 1.8)], -0.01, 0.0, WOOD, cell="sash")
+        # (M7 prison real: the dormer's cheeks and its front with a real window; no back face: the garret is the game's)
+        box(g, dx - 0.6, dx + 0.6, yb_ + 0.45, yb_ + 2.0, dz0, dz0 + 1.2, WOOD, skip=("-y", "+y", "-z", "+z"))
+        Wd = Wall(g, (dx + 0.6, dz0), (dx - 0.6, dz0), (0, -1), yb_ + 0.45, yb_ + 2.0, mat=WOOD)
+        Wd.build([Hole(0.25, 0.95, yb_ + 0.75, yb_ + 1.8, cell="sash", depth=0.12, rmat=WOOD, sill=False, glaze="sash", label=f"governor's house, dormer {1 if uc == bays[1] else 2}")])
         gable_roof(g, dx - 0.6, dx + 0.6, dz0, dz0 + 1.6, yb_ + 2.0, "z", pitch=45, oe=0.12, og=0.15, t=0.08, caps=(True, False), gable_mat=WOOD)
     for cx_ in (x0 + 1.6, x1 - 1.6):
         box(g, cx_ - 0.45, cx_ + 0.45, H, yr + 1.3, (z0 + z1) / 2 - 0.35, (z0 + z1) / 2 + 0.35, BRICK, skip=("-y",))
@@ -1189,9 +1440,17 @@ def link_block(g):
     g.grp = "prison_pavilion"
     lk = L("link")
     x0, x1, z0, z1, H = lk["x0"], lk["x1"], lk["z0"], lk["z1"], lk["h"]
+    # (M7 prison real: the link ends at the pavilion's face, never inside the pavilion's hall; its windows stay where
+    # they were, at the middle of the old length)
+    pv = L("pavilion")
+    zmid = (z0 + z1) / 2
+    z1 = pv["z"] - pv["r"] * math.cos(math.pi / 8)
     for (A, Bq, n) in (((x0, z0), (x0, z1), (-1, 0)), ((x1, z1), (x1, z0), (1, 0))):
         W = Wall(g, A, Bq, n, FOOT, H)
-        W.build([Hc(W.L / 2, 0.7, 4.8, 6.4, arch=True, cell="bars", depth=0.3, frame=0.12), Hc(W.L / 2, 0.6, 1.9, 2.9, cell="bars_sq", depth=0.25, frame=0.1)],
+        um = zmid - z0 if n[0] < 0 else z1 - zmid
+        side = "west" if n[0] < 0 else "east"
+        W.build([Hc(um, 0.7, 4.8, 6.4, arch=True, cell="bars", depth=0.3, frame=0.12, glaze="bars", label=f"the link, {side} side, upper floor"),
+                 Hc(um, 0.6, 1.9, 2.9, cell="bars_sq", depth=0.3, frame=0.1, glaze="bars", label=f"the link, {side} side, ground floor")],
                 bands=[(FOOT, 0.5, BLUE)])
         course(g, W, H - 0.3, H, 0.14)
         crenellate(g, W, H, 0.9, merlon=0.7, gap=0.5)
@@ -1220,20 +1479,34 @@ def pavilion(g):
         facing_wing = abs(n[0]) > 0.9
         facing_link = n[1] < -0.9
         y_from = FOOT
+        # (M7 prison real: a wing's roof meets its face along the roof's own line; below that line the face would stand
+        # inside the wing's corridor, which is open to its roof lights)
+        slope = math.tan(math.radians(33))
+        wz0, wz1 = wa["z0"], wa["z1"]
+        yr_w = wa["h"] + slope * (wz1 - wz0) / 2
         if facing_wing:
-            y_from = wa["h"] - 0.5
+            y_from = yr_w + 0.1
+            zc_w = (wz0 + wz1) / 2
+            pr = (a[0], zc_w)
+            for pe in (a, b):
+                yt_ = yr_w - abs(pe[1] - zc_w) * slope
+                g.face([(pe[0], yt_, pe[1]), (pr[0], yr_w, pr[1]), (pr[0], y_from, pr[1]), (pe[0], y_from, pe[1])], BRICK, out=(n[0], 0, n[1]))
         elif facing_link:
             y_from = lk["h"] - 0.3
         W = Wall(g, a, b, n, y_from, H)
-        holes = [Hc(W.L / 2, 0.9, 15.0, 16.9, arch=True, cell="bars", depth=0.4, frame=0.16)]
+        compass = {(1, 0): "wing A side", (-1, 0): "wing B side", (0, 1): "back", (0, -1): "link side", (1, 1): "back, wing A side",
+                   (-1, 1): "back, wing B side", (1, -1): "front, wing A side", (-1, -1): "front, wing B side"}[(round(n[0] * 1.4), round(n[1] * 1.4))]
+        holes = [Hc(W.L / 2, 0.9, 15.2, 17.1, arch=True, cell="bars", depth=0.4, frame=0.16, glaze="bars", label=f"the watch pavilion, high window, {compass}")]
         if n[1] > 0.9:  # the back face, the only one free to the ground
-            holes += [Hc(W.L / 2, 0.7, 2.2, 3.6, arch=True, cell="bars", depth=0.35, frame=0.12), Hc(W.L / 2, 0.7, 6.4, 7.9, arch=True, cell="bars", depth=0.35, frame=0.12),
-                      Hc(W.L / 2, 0.7, 10.2, 11.7, arch=True, cell="bars", depth=0.35, frame=0.12)]
+            # (M7 prison real: over the galleries' floors inside, 1.8 above each, never across a gallery)
+            holes += [Hc(W.L / 2, 0.7, yb, yb + 1.4, arch=True, cell="bars", depth=0.4, frame=0.12, glaze="bars", label=f"the watch pavilion, back, {fl}")
+                      for yb, fl in ((1.9, "ground floor"), (5.6, "first gallery"), (9.2, "second gallery"))]
         W.build(holes, bands=[(FOOT, 0.55, BLUE)] if y_from < 0 else [])
         if y_from < 0:
             course(g, W, 0.5, 0.58, 0.06)
         course(g, W, H - 0.5, H, 0.35)
-        course(g, W, 14.3, 14.5, 0.1)
+        if not facing_wing:
+            course(g, W, 14.3, 14.5, 0.1)
         # stone pilasters at the corners
         extrude(g, W, [(0.0, max(0.55, y_from)), (0.4, max(0.55, y_from)), (0.4, H - 0.5), (0.0, H - 0.5)], -0.08, 0.0, BLUE)
     # the roof: an octagonal pyramid, cut off for the lantern
@@ -1287,31 +1560,127 @@ def cell_xs(name):
     return out
 
 
+def pavilion_edge(sgn, z):
+    """Where a wing meets the pavilion's octagon (its outer faces), at z: the wing's x there (M7 prison real: the wing's
+    walls and roof stop at the pavilion's faces, never standing inside its hall)."""
+    pv = L("pavilion")
+    apo = pv["r"] * math.cos(math.pi / 8)
+    half = apo * math.tan(math.pi / 8)
+    dz = abs(z - pv["z"])
+    return sgn * (apo if dz <= half else apo * math.sqrt(2) - dz)
+
+
+def wing_roof(g, name, x0, x1, z0, z1, ye, pitch=33.0, oe=0.5, og=0.3, t=0.2, light=None):
+    """A wing's pitched roof along x (as gable_roof), its inner end cut along the pavilion's faces, and with real roof
+    lights (`light` (x_lo, x_hi, d0, d1): a strip each side of the ridge, d0..d1 from it, open to the corridor below)."""
+    sgn = 1 if name == "wingA" else -1
+    pv = L("pavilion")
+    apo = pv["r"] * math.cos(math.pi / 8)
+    half = apo * math.tan(math.pi / 8)
+    pz = pv["z"]
+    tanp = math.tan(math.radians(pitch))
+    w = z1 - z0
+    zm = (z0 + z1) / 2
+    yr = ye + tanp * w / 2
+    xo = x1 + og if sgn > 0 else x0 - og
+    xa, xb = (0.0, xo) if sgn > 0 else (xo, 0.0)
+
+    def ytop(z):
+        return yr - abs(z - zm) * tanp
+
+    def keep(poly):
+        """The part of a plan polygon (x, z) outside the pavilion (split at the octagon's corners first)."""
+        out = []
+        cuts = sorted({pz - half, pz + half})
+        zs_ = [p[1] for p in poly]
+        lo, hi = min(zs_), max(zs_)
+        bands = [lo] + [c for c in cuts if lo < c < hi] + [hi]
+        for za, zb in zip(bands, bands[1:]):
+            q = clip_half(poly, lambda p, za=za: p[1] - za)
+            q = clip_half(q, lambda p, zb=zb: zb - p[1]) if len(q) >= 3 else q
+            if len(q) < 3:
+                continue
+            zmid_ = (za + zb) / 2
+            if abs(zmid_ - pz) <= half:
+                q = clip_half(q, lambda p: sgn * p[0] - apo)
+            else:
+                s_ = 1 if zmid_ > pz else -1
+                q = clip_half(q, lambda p, s_=s_: sgn * p[0] + s_ * (p[1] - pz) - apo * math.sqrt(2))
+            if len(q) >= 3:
+                out.append(q)
+        return out
+
+    for s in (-1, 1):
+        ze = zm + s * (w / 2 + oe)
+        edges = [ze, zm + s * light[3], zm + s * light[2], zm] if light else [ze, zm]
+        for za, zb in zip(edges, edges[1:]):
+            lo_, hi_ = min(za, zb), max(za, zb)
+            dm = abs((za + zb) / 2 - zm)
+            in_light = bool(light) and light[2] < dm < light[3]
+            xs_ = [(xa, min(light[0], light[1])), (max(light[0], light[1]), xb)] if in_light else [(xa, xb)]
+            for (xl, xh) in xs_:
+                xl, xh = min(xl, xh), max(xl, xh)
+                for q in keep([(xl, lo_), (xh, lo_), (xh, hi_), (xl, hi_)]):
+                    g.face([(x_, ytop(z_), z_) for x_, z_ in q], SLATE, out=(0, 1, s))
+                    g.face([(x_, ytop(z_) - t, z_) for x_, z_ in q], SLATE, out=(0, -1, -s * 0.3), k=0.45)
+        # the eave's edge, from the pavilion's face out to the verge
+        xe_ = pavilion_edge(sgn, ze)
+        xl, xh = (xe_, xo) if sgn > 0 else (xo, xe_)
+        g.face([(xl, ytop(ze), ze), (xh, ytop(ze), ze), (xh, ytop(ze) - t, ze), (xl, ytop(ze) - t, ze)], SLATE, out=(0, 0, s), k=0.7)
+        # the verge board at the gable end
+        g.face([(xo, ytop(ze), ze), (xo, yr, zm), (xo, yr - t, zm), (xo, ytop(ze) - t, ze)], SLATE, out=(sgn, 0, 0), k=0.6)
+        if light:
+            lx0, lx1 = min(light[0], light[1]), max(light[0], light[1])
+            # the roof light's hole: its four edges through the slate
+            za, zb = zm + s * light[2], zm + s * light[3]
+            for zz, o in ((za, s), (zb, -s)):
+                g.face([(lx0, ytop(zz), zz), (lx1, ytop(zz), zz), (lx1, ytop(zz) - t, zz), (lx0, ytop(zz) - t, zz)], SLATE, out=(0, 0, o), k=0.6)
+            for xx, o in ((lx0, 1), (lx1, -1)):
+                g.face([(xx, ytop(za), za), (xx, ytop(zb), zb), (xx, ytop(zb) - t, zb), (xx, ytop(za) - t, za)], SLATE, out=(o, 0, 0), k=0.6)
+            # its record: the four corners on the underside, up and out of the slope
+            nrm = Vector((0.0, 1.0, s * tanp)).normalized()
+            corners = [(lx0, ytop(za) - t, za), (lx1, ytop(za) - t, za), (lx1, ytop(zb) - t, zb), (lx0, ytop(zb) - t, zb)]
+            wn = "A" if sgn > 0 else "B"
+            OPENINGS.append(dict(kind="roof", part=g.grp, label=f"wing {wn}, the roof light, {'south' if s < 0 else 'north'} slope", glaze="bars", shape="quad",
+                                 x=(lx0 + lx1) / 2, z=(za + zb) / 2, tx=1.0, tz=0.0, nx=0.0, nz=nrm.z, ny=nrm.y,
+                                 hw=(lx1 - lx0) / 2, yb=ytop(zb) - t, yt=ytop(za) - t, arch=False, depth=t, pts=corners))
+    # the lead ridge
+    xr0, xr1 = (sgn * apo, xo) if sgn > 0 else (xo, sgn * apo)
+    box(g, xr0, xr1, yr - 0.02, yr + 0.1, zm - 0.14, zm + 0.14, LEAD, skip=("-y",))
+    return yr
+
+
 def wing(g, name):
     """A cell wing: three storeys of cells either side of the galleried corridor, one small barred window high in
     each cell (2.8 m apart), stone pilaster strips, a slate roof with the corridor's roof light along the ridge and
-    ventilation stacks, the end gable with a barred oculus. Wing A has the yard door in its south face."""
+    ventilation stacks, the end gable with a barred oculus. Each wing has a yard door in its south face (wing B's,
+    M7 prison real: to the west court and the chapel). Every window is real (the cells behind are the game's)."""
     g.grp = "prison_wings"
     w = L(name)
     x0, x1, z0, z1, H = w["x0"], w["x1"], w["z0"], w["z1"], w["h"]
     sgn = 1 if name == "wingA" else -1
+    wn = "A" if sgn > 0 else "B"
     outer = x1 if sgn > 0 else x0
     yd = L("yard_door")
+    ydx = sgn * yd["x"]
     xs = cell_xs(name)
     for (za, n) in ((z0, (0, -1)), (z1, (0, 1))):
-        # u runs from A: A at the smaller x on the south face, the larger on the north
-        A, Bq = ((x0, za), (x1, za)) if n[1] < 0 else ((x1, za), (x0, za))
+        # the face runs from the pavilion's face (not from inside the pavilion) to the gable end
+        xin = pavilion_edge(sgn, za)
+        A, Bq = ((min(xin, outer), za), (max(xin, outer), za)) if n[1] < 0 else ((max(xin, outer), za), (min(xin, outer), za))
         W = Wall(g, A, Bq, n, FOOT, H)
-        U = (lambda x: x - x0) if n[1] < 0 else (lambda x: x1 - x)
+        U = (lambda x, A=A: x - A[0]) if n[1] < 0 else (lambda x, A=A: A[0] - x)
         holes = []
-        door_here = name == "wingA" and n[1] < 0
-        for xc in xs:
+        door_here = n[1] < 0
+        face = "south" if n[1] < 0 else "north"
+        for k_, xc in enumerate(xs):
             for s, yb in enumerate((2.3, 5.9, 9.5)):
-                if door_here and s == 0 and abs(xc - yd["x"]) < 1.3:
+                if door_here and s == 0 and abs(xc - ydx) < 1.3:
                     continue
-                holes.append(Hc(U(xc), 0.62, yb, yb + 1.05, arch=True, cell="bars", depth=0.28, frame=0.1))
+                holes.append(Hc(U(xc), 0.62, yb, yb + 1.05, arch=True, cell="bars", depth=0.28, frame=0.1, glaze="bars",
+                                label=f"wing {wn}, {face} face, storey {s + 1}, cell {k_ + 1}"))
         if door_here:
-            holes.append(Hc(U(yd["x"]), 2 * yd["hw"], 0.0, yd["h"], arch=True, depth=0.5, open_=True, sill=False, frame=0.16))
+            holes.append(Hc(U(ydx), 2 * yd["hw"], 0.0, yd["h"], arch=True, depth=0.5, open_=True, sill=False, frame=0.16, label=f"wing {wn}, the yard door", kind="door"))
         W.build(holes, bands=[(FOOT, 0.55, BLUE), (3.55, 3.7, BLUE), (7.15, 7.3, BLUE)])
         course(g, W, 0.5, 0.58, 0.06)
         course(g, W, H - 0.4, H, 0.3)
@@ -1319,43 +1688,45 @@ def wing(g, name):
         for k in range(0, len(xs) + 1, 2):
             xp = sgn * (CELL_X0 - 1.4 + k * CELL_PITCH)
             u = U(xp)
-            if 0.3 < u < W.L - 0.3 and not (door_here and abs(xp - yd["x"]) < 1.3):
+            if 0.3 < u < W.L - 0.3 and not (door_here and abs(xp - ydx) < 1.3):
                 extrude(g, W, [(u - 0.22, 0.58), (u + 0.22, 0.58), (u + 0.22, H - 0.4), (u - 0.22, H - 0.4)], -0.07, 0.0, BRICK, k=0.97)
         if door_here:
-            p = W.pt(U(yd["x"] + 1.3), 2.6, -0.05)
+            p = W.pt(U(ydx + sgn * 1.3), 2.6, -0.05)
             lantern(g, p[0], p[1], p[2], 0.0, -1.0, 0.45)
-    # the end gable
+    # the end gable: two real windows at the corridor's end, the oculus over them
     Wn = Wall(g, (outer, z1 if sgn > 0 else z0), (outer, z0 if sgn > 0 else z1), (sgn, 0), FOOT, H)
-    Wn.build([Hc(Wn.L / 2, 0.62, yb, yb + 1.05, arch=True, cell="bars", depth=0.28, frame=0.1) for yb in (2.3, 5.9)], bands=[(FOOT, 0.55, BLUE)])
+    Wn.build([Hc(Wn.L / 2, 0.62, yb, yb + 1.05, arch=True, cell="bars", depth=0.28, frame=0.1, glaze="bars", label=f"wing {wn}, the end, {fl}")
+              for yb, fl in ((2.3, "ground floor"), (5.9, "first gallery"))], bands=[(FOOT, 0.55, BLUE)])
     course(g, Wn, H - 0.4, H, 0.3)
-    yr = gable_roof(g, x0, x1, z0, z1, H, "x", pitch=33, oe=0.5, og=0.3, caps=(sgn < 0, sgn > 0))
-    # the oculus in the gable
     zc = (z0 + z1) / 2
+    rl0, rl1 = (6.4, x1 - 1.2) if sgn > 0 else (x0 + 1.2, -6.4)
+    yr = wing_roof(g, name, x0, x1, z0, z1, H, pitch=33, oe=0.5, og=0.3, light=(rl0, rl1, 0.2, 1.4))
+    # the gable's triangle with the oculus cut through it
     Wg = Wall(g, (outer, z1 if sgn > 0 else z0), (outer, z0 if sgn > 0 else z1), (sgn, 0), 0, 0)
-    ring_o = [(Wg.L / 2 + 0.75 * math.cos(2 * math.pi * i / 16), H + 1.2 + 0.75 * math.sin(2 * math.pi * i / 16)) for i in range(16)]
-    ring_i = [(Wg.L / 2 + 0.55 * math.cos(2 * math.pi * i / 16), H + 1.2 + 0.55 * math.sin(2 * math.pi * i / 16)) for i in range(16)]
-    extrude(g, Wg, ring_o, -0.08, 0.0, BLUE)
-    g.face([Wg.pt(u, y, -0.1) for u, y in ring_i], ATLAS, out=Wg.out(),
-           uvs=[cell_uv("oculus", Wg.fu(u, Wg.L / 2 - 0.55, 1.1), (y - (H + 0.65)) / 1.1) for u, y in ring_i])
+    holed_triangle(g, Wg, [(0.0, H), (Wg.L, H), (Wg.L / 2, yr)], Wg.L / 2, H + 1.2, 0.55)
+    annulus(g, Wg, Wg.L / 2, H + 1.2, 0.55, 0.75, -0.08)
+    round_opening(g, Wg, Wg.L / 2, H + 1.2, 0.55, f"wing {wn}, the oculus in the gable")
     # the gable's stone coping (along both rakes)
     for zz in (z0, z1):
         bar(g, (outer + sgn * 0.08, H, zz), (outer + sgn * 0.08, yr, zc), 0.28, BLUE)
-    # the roof light over the corridor: a glazed strip each side of the ridge (dark glass, iron glazing bars)
-    rl0, rl1 = (6.4, x1 - 1.2) if sgn > 0 else (x0 + 1.2, -6.4)
+    # the roof light's iron glazing bars across its holes (the glass is the room's)
     slope = math.tan(math.radians(33))
     for s_ in (-1, 1):
         za, zb = zc + s_ * 0.2, zc + s_ * 1.4
-        ya = yr - 0.2 * slope + 0.1
-        yb = yr - 1.4 * slope + 0.1
-        g.face([(rl0, ya, za), (rl1, ya, za), (rl1, yb, zb), (rl0, yb, zb)], ATLAS, out=(0, 1, s_), cell="dark")
-        for xg in np.arange(rl0, rl1 + 0.01, 1.4):
-            bar(g, (xg, ya + 0.04, za), (xg, yb + 0.04, zb), 0.05)
+        ya = yr - 0.2 * slope + 0.02
+        yb = yr - 1.4 * slope + 0.02
+        for xg in np.arange(min(rl0, rl1), max(rl0, rl1) + 0.01, 1.4):
+            bar(g, (xg, ya, za), (xg, yb, zb), 0.05)
     # the ventilation stacks on the back slope
     for xs_ in np.arange(8.0, abs(outer) - 2.0, 7.0):
         xc = sgn * xs_
-        box(g, xc - 0.35, xc + 0.35, yr - 2.2, yr + 1.3, zc + 1.8, zc + 2.5, BRICK, skip=("-y",))
+        yfoot = yr - 1.8 * slope - 0.25
+        box(g, xc - 0.35, xc + 0.35, yfoot, yr + 1.3, zc + 1.8, zc + 2.5, BRICK, skip=("-y",))
         box(g, xc - 0.42, xc + 0.42, yr + 1.3, yr + 1.44, zc + 1.73, zc + 2.57, BLUE, skip=("-y",))
     SOOT_LINES.append((H - 0.4, 1.8))
+
+
+CHAPEL_SIDE_DOOR = 9.55  # the chapel's side door's middle (the frame's z), on its east side (shared/prisonPlan.ts CHAPEL.sideZ)
 
 
 def chapel(g):
@@ -1369,24 +1740,31 @@ def chapel(g):
     # the long sides
     for (xx, n, A, Bq) in ((x0, (-1, 0), (x0, z1), (x0, z0)), (x1, (1, 0), (x1, z0), (x1, z1))):
         W = Wall(g, A, Bq, n, FOOT, H)
-        W.build([Hc(u, 1.0, 3.2, 6.8, arch=True, cell="chapel", depth=0.3, frame=0.16) for u in (W.L * 0.22, W.L * 0.5, W.L * 0.78)],
-                bands=[(FOOT, 0.6, BLUE)])
+        side = "west" if n[0] < 0 else "east"
+        holes = [Hc(u, 1.0, 3.2, 6.8, arch=True, cell="chapel", depth=0.3, frame=0.16, glaze="lead", label=f"the chapel, {side} side, window {i + 1}")
+                 for i, u in enumerate((W.L * 0.22, W.L * 0.5, W.L * 0.78))]
+        if n[0] > 0:
+            # (M7 prison real: the door the prisoners come in by, from the court behind the front building; the gable's
+            # door opens on a strip a metre wide and stays shut)
+            holes.append(Hc(CHAPEL_SIDE_DOOR - z0, 1.4, 0.2, 2.9, arch=True, cell="door_side", depth=0.3, sill=False, frame=0.16, open_=True,
+                            label="the chapel, the side door to the court", kind="door"))
+        W.build(holes, bands=[(FOOT, 0.6, BLUE)])
         course(g, W, H - 0.3, H, 0.25)
-        for u in (0.0, W.L / 3, 2 * W.L / 3, W.L):
+        for u in ((0.0, W.L / 3, 2 * W.L / 3) if n[0] > 0 else (0.0, W.L / 3, 2 * W.L / 3, W.L)):
             ua, ub = max(0.0, u - 0.3), min(W.L, u + 0.3)
             extrude(g, W, [(ua, FOOT), (ub, FOOT), (ub, 3.0), (ua, 3.0)], -0.35, 0.02, BRICK)
             g.face([W.pt(ua, 3.0, -0.35), W.pt(ub, 3.0, -0.35), W.pt(ub, 3.6, 0.0), W.pt(ua, 3.6, 0.0)], BLUE, out=(n[0], 1, n[1]))
     # the front gable (facing -z): a door, the rose, the bell-cote
     Wf = Wall(g, (x1, z0), (x0, z0), (0, -1), FOOT, H)
-    Wf.build([Hc(w / 2, 1.3, 0.2, 3.1, arch=True, cell="door_side", depth=0.3, sill=False, frame=0.18)], bands=[(FOOT, 0.6, BLUE)])
+    # (M7 prison real: a real doorway, its leaves hung in the game; the rose a real round window of leaded glass)
+    Wf.build([Hc(w / 2, 1.3, 0.2, 3.1, arch=True, cell="door_side", depth=0.3, sill=False, frame=0.18, open_=True, label="the chapel, the door", kind="door")],
+             bands=[(FOOT, 0.6, BLUE)])
     course(g, Wf, H - 0.3, H, 0.25)
-    yr = gable_roof(g, x0, x1, z0, z1, H, "z", pitch=42, oe=0.4, og=0.35, caps=(True, False))
+    yr = gable_roof(g, x0, x1, z0, z1, H, "z", pitch=42, oe=0.4, og=0.35, caps=(False, False))
     Wg = Wall(g, (x1, z0), (x0, z0), (0, -1), 0, 0)
-    ring_o = [(w / 2 + 1.05 * math.cos(2 * math.pi * i / 20), H + 1.3 + 1.05 * math.sin(2 * math.pi * i / 20)) for i in range(20)]
-    ring_i = [(w / 2 + 0.85 * math.cos(2 * math.pi * i / 20), H + 1.3 + 0.85 * math.sin(2 * math.pi * i / 20)) for i in range(20)]
-    extrude(g, Wg, ring_o, -0.1, 0.0, BLUE)
-    g.face([Wg.pt(u, y, -0.12) for u, y in ring_i], ATLAS, out=Wg.out(),
-           uvs=[cell_uv("rose", Wg.fu(u, w / 2 - 0.85, 1.7), (y - (H + 0.45)) / 1.7) for u, y in ring_i])
+    holed_triangle(g, Wg, [(0.0, H), (w, H), (w / 2, yr)], w / 2, H + 1.3, 0.85, n=20)
+    annulus(g, Wg, w / 2, H + 1.3, 0.85, 1.05, -0.1, n=20)
+    round_opening(g, Wg, w / 2, H + 1.3, 0.85, "the chapel, the rose window", glaze="lead")
     for s_ in (-1, 1):
         bar(g, (xm + s_ * (w / 2 + 0.05), H, z0 - 0.08), (xm, yr + 0.05, z0 - 0.08), 0.3, BLUE)
     # the bell-cote on the apex: two piers, an arch, a small gable, the bell
@@ -1409,7 +1787,8 @@ def chapel(g):
         a, b = pts[i], pts[i + 1]
         mx, mz = (a[0] + b[0]) / 2 - ac[0], (a[1] + b[1]) / 2 - ac[1]
         W = Wall(g, a, b, (mx, mz), FOOT, Ha)
-        W.build([Hc(W.L / 2, 0.6, 3.4, 5.6, arch=True, cell="chapel", depth=0.25, frame=0.12)] if i in (1, 2) else [], bands=[(FOOT, 0.6, BLUE)])
+        W.build([Hc(W.L / 2, 0.6, 3.4, 5.6, arch=True, cell="chapel", depth=0.25, frame=0.12, glaze="lead", label=f"the chapel, the apse, window {i}")] if i in (1, 2) else [],
+                bands=[(FOOT, 0.6, BLUE)])
         course(g, W, Ha - 0.25, Ha, 0.2)
     rr = [(ac[0] - (ar + 0.35) * math.cos(math.pi * i / 4), ac[1] + (ar + 0.35) * math.sin(math.pi * i / 4)) for i in range(5)]
     for i in range(4):
@@ -1638,6 +2017,7 @@ def main():
     exterior_lanterns(g)
     objs = g.to_objects()
     print(f"[build_prison] {clock_markers()} clock faces for live hands")
+    print(f"[build_prison] {opening_markers()} real openings -> opening_* empties and shared/prisonShell.ts")
     export()
     total = 0
     for nme in sorted(objs):

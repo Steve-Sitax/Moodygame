@@ -21,6 +21,7 @@ Status: documentation phase. No game code yet. Written 2026-09-23.
 | [ai-setup.md](ai-setup.md) | The AI setup: an AI per kind of work (Claude login or key, Codex, OpenAI-compatible, Ollama), the test button, walk-around mode with no AI; the API the menu uses |
 | [multiplayer-plan.md](multiplayer-plan.md) | Plan (not built): the town for the whole house. LAN hosting, join code, assets cached by hash, own movement local and never pulled back, others interpolated, no pause, per-player saves, phases M8a-M8e |
 | [rendering.md](rendering.md) | No stutter: the shader warm-up, fixed light counts, the rules for anything that draws |
+| [building-with-interior.md](building-with-interior.md) | A building with an inside: the real shell, the plan, the rooms at true size, every window an opening, the checks; the template in `tools/templates/interior/` |
 | [milestones/](milestones/) | One note per finished milestone; [milestones/M6.md](milestones/M6.md) is the index of the M6 parts |
 
 Reference game: Foghorns Drown (Studio Laaya, 2026). First person, PS1-style, foggy lake town, a ferryman.

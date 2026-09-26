@@ -78,7 +78,7 @@ export interface GlowPane {
   w: number;
 }
 
-export function createHallInWorld(world: World, inWorld: InWorld, plan: HallPlan, room: LandmarkRoom, air: HallAir, points: HallInWorld["points"], glow: GlowPane[] = [], scatter = 0.3): HallInWorld {
+export function createHallInWorld(world: World, inWorld: InWorld, plan: HallPlan, room: LandmarkRoom, air: HallAir, points: HallInWorld["points"], glow: GlowPane[] = [], scatter = 0.3, windows: Opening[] = []): HallInWorld {
   const AIR = { color: new THREE.Color(air.color), near: air.near, far: air.far };
   const open = new Map<string, number>(plan.doors.map((d) => [d.id, d.open]));
   let doorOpen = true;
@@ -208,7 +208,8 @@ export function createHallInWorld(world: World, inWorld: InWorld, plan: HallPlan
   const iw: InWorldRoom = {
     id: plan.id,
     scene: room.scene,
-    openings,
+    // M7 prison real: the shell's real windows (world/realOpenings.ts) are openings too, not only the doors
+    openings: [...openings, ...windows],
     insideness: (eye) => HP.insideness(plan, ...local(eye.x, eye.z)),
     reach: 95,
     air(k, street) {

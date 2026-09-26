@@ -271,6 +271,9 @@ export function insideness(p: HallPlan, x: number, z: number): number {
   for (const d of p.doors) {
     if (Math.abs(x - d.x) > d.hw + 6) continue;
     const e = (z - d.z) * d.dir; // how far in past the door's plane
+    // (M7 prison real: a door more than 6 m behind the point, on its street side, is another part's door: a
+    // building with doors on several sides, the point inside by another door; no porch reaches 6 m out)
+    if (e < -6) continue;
     const depth = Math.abs(d.inner - d.z);
     const e0 = -1.2;
     const e1 = 2 * (depth * 0.6) - e0;

@@ -37,6 +37,11 @@ export interface Opening {
   out: THREE.Vector3;
   /** Shut doors show nothing through. */
   open(): boolean;
+  /**
+   * M7 prison real: for an eye inside the room, can this opening be seen from there at all (a cell's window is not
+   * seen from the corridor)? Only those that can count for drawing the street from inside. Unset: always.
+   */
+  seen?(eye: THREE.Vector3): boolean;
 }
 
 export interface InWorldRoom {
@@ -60,6 +65,11 @@ export interface InWorldRoom {
    * past that its openings show the house's dark lining (world/houseInWorld.ts).
    */
   budgeted?: boolean;
+  /**
+   * M7 prison real: from inside, windows farther than this (m) from the eye do not bring the street in (a high
+   * window far up a hall shows the room's clear colour, near enough the sky's, not the whole town behind it). Unset: all.
+   */
+  insideReach?: number;
 }
 
 export interface RoomPass {
@@ -247,6 +257,8 @@ export class InWorld {
       for (const o of r.openings) {
         const box = r === inside ? (o.inBox ?? o.box) : o.box;
         if (!o.open() || !frustum.intersectsBox(box)) continue;
+        if (r === inside && o.seen && !o.seen(eye)) continue;
+        if (r === inside && r.insideReach !== undefined && o.kind === "window" && o.box.distanceToPoint(eye) > r.insideReach) continue;
         if (r !== inside) {
           // outside: on the opening's outer side (or in it), and not beyond the street's fog (M7 fix:
           // no reach of its own, so nothing of the room loads in at a distance; the fog fades it).
