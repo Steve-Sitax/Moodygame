@@ -2774,8 +2774,8 @@ def gwall(g, F, A, Bp, out, y0, y1, mat, wins=(), top=None, bands=(), cuts=(), k
 
 # St Paul's numbers (frame_west_end: a east from the west front, s: + north (world -z), - south (world +z))
 PF = dict(BD=0.7, NV=5.5, AO=15.0, AE=10.5, AR=14.5, NE=20.5, RID=27.0, CL=6.8, CH=8.6, TX0=40.0, TX1=51.5, CHE=69.5,
-          OPEN=False, DOOR_W=(2.6, 5.2), DOOR_N=(2.8, 5.6))
-# OPEN: the west door and the north transept door real openings (the interior in the game: client/src/world/paulHall.ts)
+          OPEN=True, DOOR_W=(2.6, 5.2), DOOR_N=(2.8, 5.6))
+# OPEN: the west door a real opening (the interior in the game: client/src/world/gothicHall.ts); the north transept door stays painted
 
 
 def rock(g, c, sx, sy, sz, rng, mat=BLUE, k=0.62):
@@ -2975,7 +2975,7 @@ def stpaul(g, fr):
         extra = []
         if sg > 0:
             DNW, DNH = c["DOOR_N"]
-            extra = [Hc((TX1 - TX0) / 2, DNW, 0.15, DNH, "pointed", "open" if c["OPEN"] else "door_g", depth=0.9, rmat=Wt_)]
+            extra = [Hc((TX1 - TX0) / 2, DNW, 0.15, DNH, "pointed", "door_g", depth=0.9, rmat=Wt_)]
         Wt = gwall(g, F, (TX0, sg * TE), (TX1, sg * TE), (0, sg), FOOT, NE, B_, top=[(0, NE), ((TX1 - TX0) / 2, RID), (TX1 - TX0, NE)],
                    frame=Wt_, extra=extra, bands=plinth + wb(7.0, NE),
                    wins=[((TX1 - TX0) / 2, 4.8, 8.2 if sg > 0 else 4.6, 18.4, 4, "goth4")])
@@ -3114,8 +3114,8 @@ def stpaul(g, fr):
 
 # St James's numbers (build_churches.py frame_west_end: a east from the west front, s: + north (world -z), - south)
 JF = dict(BD=0.8, NV=6.0, AO=14.0, CO=20.5, CL=8.2, CH=10.2, AE=15.0, AH=19.5, NE=26.5, RID=34.0, TW=13.0, TX0=45.0, TX1=57.0,
-          CHE=64.0, CR=6.0, AMB=13.2, AMBE=12.0, OPEN=False, DOOR_W=(3.6, 6.2), DOOR_S=(3.0, 6.0))
-# OPEN: the tower door and the south transept door real openings (the interior in the game: client/src/world/jamesHall.ts)
+          CHE=64.0, CR=6.0, AMB=13.2, AMBE=12.0, OPEN=True, DOOR_W=(3.6, 6.2), DOOR_S=(3.0, 6.0))
+# OPEN: the tower door a real opening (the interior in the game: client/src/world/gothicHall.ts); the south transept door stays painted
 
 
 def stjacob(g, fr):
@@ -3271,7 +3271,7 @@ def stjacob(g, fr):
         extra = []
         if sg < 0:
             DSW, DSH = c["DOOR_S"]
-            extra = [Hc((TX1 - TX0) / 2, DSW, 0.15, DSH, "pointed", "open" if c["OPEN"] else "door_g", depth=1.0, rmat=G)]
+            extra = [Hc((TX1 - TX0) / 2, DSW, 0.15, DSH, "pointed", "door_g", depth=1.0, rmat=G)]
         Wt = gwall(g, F, (TX0, sg * TE), (TX1, sg * TE), (0, sg), FOOT, NE, G, top=[(0, NE), ((TX1 - TX0) / 2, RID), (TX1 - TX0, NE)],
                    bands=plinth, extra=extra, wins=[((TX1 - TX0) / 2, 5.6, 10.2 if sg < 0 else 5.4, 23.6, 6, "goth4")])
         if sg < 0:

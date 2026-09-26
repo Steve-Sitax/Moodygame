@@ -64,6 +64,7 @@ import { QuestBoxes } from "./game/questboxes";
 import { Nightlife } from "./game/nightlife";
 import { Saves } from "./game/saves";
 import { carolusInWorld } from "./world/carolusHall";
+import { gothicInWorld } from "./world/gothicHall";
 // M7 alive (docs/milestones/M7-alive.md): the town's small life that is not people (hook)
 import { createAlive } from "./world/alive";
 import { setAliveViewHeight } from "./world/alive/common";
@@ -251,6 +252,8 @@ landmarks.attachWorld(world, inWorld);
 landmarks.roomSound = (k) => sound?.setInterior(k);
 // M7 Carolus: Sint-Carolus Borromeus stands in the world too, walked into through its main door (world/carolusHall.ts)
 const carolus = carolusInWorld(world, inWorld, { roomSound: (k) => sound?.setInterior(k), say: (t) => jobs.say(t), jef: () => player });
+// M7 Paul and James: St Paul's and St James's in the world too, walked into through their west doors (world/gothicHall.ts)
+const gothic = gothicInWorld(world, inWorld, { roomSound: (k) => sound?.setInterior(k), say: (t) => jobs.say(t), jef: () => player });
 // M7 taverns and homes: the taverns, the Poesje and the homes stand inside their own city houses; walked into
 // through their doors, seen through their windows (world/houseInWorld.ts, shared/housePlan.ts)
 void loadHousePlans().then((plans) => {
@@ -371,7 +374,7 @@ const boxes = new QuestBoxes(world, jobs.people, town);
 boxes.clock = () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF });
 jobs.boxes = boxes;
 const night = new Nightlife(world, player, jobs, town);
-night.indoors = () => interiors.inside || landmarks.indoors || carolus.indoors;
+night.indoors = () => interiors.inside || landmarks.indoors || carolus.indoors || gothic.indoors;
 {
   const onPush = jobs.onPush;
   jobs.onPush = (m) => {
@@ -491,7 +494,7 @@ function start(): void {
     player.onStep = (surface, hurry) => {
       // M6: inside a room the steps are the room's, not the street's
       // M7: and in the cathedral's nave in the world (M7 halls: and in any hall in the world)
-      const indoors = interiors.inside || landmarks.indoors || carolus.indoors;
+      const indoors = interiors.inside || landmarks.indoors || carolus.indoors || gothic.indoors;
       const step = () => sound?.footstep(surface, hurry, surface === "stone" && !indoors ? puddleAt(player.x, player.z, 1.1) : 0);
       if (indoors) sound?.indoors(step);
       else step();
@@ -778,6 +781,7 @@ function quayGoodsKeepClear(): void {
     ...homes.pathPoints(),
     ...landmarks.pathPoints(),
     ...carolus.pathPoints(),
+    ...gothic.pathPoints(),
     ...ballads.pathPoints(),
     ...handcarts.pathPoints(),
     ...lively.pathPoints(),
@@ -815,6 +819,7 @@ function frame(): void {
   safe("carolus.update", () => {
     const d = landmarks.daylight();
     carolus.update(elapsed, dt, jobs.day.hourF, d.day, d.sky);
+    gothic.update(elapsed, dt, jobs.day.hourF, d.day, d.sky);
   });
   safe("interiors.sway", () => interiors.sway(dt));
   safe("jobs.update", () => jobs.update(dt));
@@ -1004,6 +1009,8 @@ if (import.meta.env.DEV) {
     inWorld,
     /** M7 Carolus: the church in the world (world/carolusHall.ts). */
     carolus,
+    /** M7 Paul and James: St Paul's and St James's in the world (world/gothicHall.ts). */
+    gothic,
     ballads,
     handcarts,
     steps,
@@ -1132,6 +1139,8 @@ if (import.meta.env.DEV) {
       for (const q of landmarks.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M7 Carolus: inside the church, while its door stands open
       for (const q of carolus.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      // M7 Paul and James: inside St Paul's and St James's, while their doors stand open
+      for (const q of gothic.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M6 ballads: the ballad singer's corners
       for (const q of ballads.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M6 handcart: the wheelwright's door and his carts
@@ -1219,6 +1228,7 @@ if (import.meta.env.DEV) {
         {
           const d = landmarks.daylight();
           carolus.update(elapsed, dt, jobs.day.hourF, d.day, d.sky);
+          gothic.update(elapsed, dt, jobs.day.hourF, d.day, d.sky);
         }
         jobs.update(dt);
         boxes.update(elapsed);

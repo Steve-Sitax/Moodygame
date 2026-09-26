@@ -1,5 +1,6 @@
 import { doorKeepOut as cathedralKeep } from "../../../shared/cathedralPlan";
 import { frontKeepOut as carolusKeep } from "../../../shared/carolusPlan";
+import { gothicKeepOut } from "../../../shared/gothicPlan";
 import { doorKeepOut, type Rect } from "../../../shared/hallPlan";
 import { PLAN as OOSTERSHUIS } from "../../../shared/oostershuisPlan";
 import { PLAN as STEEN } from "../../../shared/steenPlan";
@@ -13,5 +14,5 @@ import { PLAN as VLEESHUIS } from "../../../shared/vleeshuisPlan";
 
 /** Every landmark door's keep-out, in world boxes: the doorway's width and a metre each side, out over the steps and the street before them. */
 export function landmarkDoorKeepOut(): Rect[] {
-  return [...[TOWNHALL, VLEESHUIS, OOSTERSHUIS, STEEN].flatMap((p) => doorKeepOut(p)), ...cathedralKeep(), ...carolusKeep()];
+  return [...[TOWNHALL, VLEESHUIS, OOSTERSHUIS, STEEN].flatMap((p) => doorKeepOut(p)), ...cathedralKeep(), ...carolusKeep(), ...gothicKeepOut()];
 }

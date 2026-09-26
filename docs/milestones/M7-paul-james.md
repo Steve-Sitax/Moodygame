@@ -3,7 +3,7 @@
 Steve, 2026-09-26, after the Carolus: "Now also do the 2 remaining churches in high detail inside and outside.
 Look up pictures, create impressions with Codex."
 
-Part 1 (this section): the outsides. Part 2 (walking in and out, the insides) follows.
+Part 1: the outsides. Part 2: walking in and out, the insides.
 
 ## What they were like in 1873 (reference only, nothing copied)
 **Sint-Pauluskerk** (the Dominicans' church, Veemarkt):
@@ -129,3 +129,88 @@ The lanterns by the doors (`build_city.py CHURCH_LANTERNS`) stand where they did
 Pairs (before left, after right, 13:00 clear): `data/shots/pj_pair_paul.jpg`, `pj_pair_james.jpg`; mist:
 `pj_pair_mist.jpg`; close: `pj_after_close.jpg` (the portals, the tower tops, the flyers, the Calvary through its
 railing).
+
+## The insides (part 2)
+Both churches are walked into through their west doors, as the Carolus is: the plan in `shared/gothicPlan.ts`
+(`PAUL`, `JAMES`: floors, walls and furniture as solids, the door, marks, the path check's places, the windows),
+the hall built from it in `client/src/world/gothicHall.ts`, and set in the world by `createHallInWorld`
+(`gothicInWorld`, hooked in `main.ts` next to the Carolus). The shells' west doors are real openings now
+(`OPEN=True` in `build_churches.py`); the transept doors stay painted.
+
+What is inside (numbers are the shells', so the walls stand inside them):
+- **Walls and vaults.** Walls are extruded with their real openings: pointed arcades on round columns with
+  leafy capitals, the clerestory windows in their lunettes, an openwork triforium parapet. The rib vaults are
+  groins: two pointed barrels crossing, with ribs on the creases and along each bay. The crossing has clustered
+  piers. The apse is five-sided under a ribbed half dome. Every window has its glass, mullions and a second pane
+  in the reveal.
+- **St Paul.**
+  - The nave of six bays and the aisles; the low north chapels with flat panelled ceilings, oak beams and small
+    altars; the fifteen Rosary paintings along the north aisle.
+  - The oak confessionals in a row on the south aisle, with carved figures between them; the pulpit.
+  - The organ on its west gallery; the Rosary and Holy Cross altars in the transept.
+  - The communion rail, the friars' choir stalls, and the high altar of black and white marble with the
+    conversion of St Paul.
+- **St James.**
+  - The tower hall under its own vault; the font; the nave of five bays with statues on the columns.
+  - Chapels on both sides between the buttresses. The south's first bay is walled off: the baptistery stands there.
+  - The pulpit; the transept altars.
+  - The marble choir screen with the organ on it and two altars. The choir with stalls and the high altar
+    (St James in glory, under the great shell).
+  - The choir aisles and the ambulatory with confessionals. Rubens's chapel behind the high altar, with the
+    Virgin and Child with saints.
+- **Everywhere:** chairs in blocks with an aisle, brass chandeliers, candle stands, and candles on the altars.
+  The floor is bluestone with grave slabs and a matching relief (the height map `pj_slabs_h.png`); the walls
+  are limewashed (`pj_wash`); the stone is `pj_white` (St Paul) or `pj_brabant` (St James). The paintings are
+  new Codex pictures (listed in `assets/ATTRIBUTION.md`).
+- **Life:**
+  - The doors stand open 6:00-19:00. At 19:00 the sexton puts Jef out on the step, facing the square, and shuts
+    the door.
+  - Inside, the church's own echo plays (`roomSound("church")`). The windows glow with the hour.
+  - The path check knows ten places in each church (`gothic.pathPoints()`).
+  - Carts, stalls and crates keep off the doors (`gothicKeepOut` in `doorKeep.ts`).
+- St James's stone outside is a little lighter (`CAROLUS_TINT.pj_brabant` 1.62, 1.54, 1.4).
+
+Checks (own stack, 2026-09-26):
+- **Holes.** `hallcheck.gaps()` over points 3.5 m apart, four ways each, level and looking up: St Paul
+  1074 views, St James 1549 views, none shows the background. Fixed on the way:
+  - panes too small at a slant (now larger, with a back pane in the reveal);
+  - `pointedAt` bulging for low arches;
+  - the choir floor; the vault edge beside the tower;
+  - the tower's east wall now reaches the vault;
+  - the chapel walls at their corners.
+- **Walking through the door.** `hallcheck.walk()` in and out, straight and turned, through both doors: no
+  spike. The one jump is St James's opened door leaf passing out of view.
+- **Z-fighting.** `zfight()` on the street near both churches lists nothing of the churches. The halls' own
+  scenes: 102 small pairs each, all under 0.5 m2 (the tops of the confessionals, faces inside floors). Fixed
+  on the way:
+  - windows of the next wall taken into a wall (broken triangulation);
+  - ribs drawn twice;
+  - wall ends in one plane with the tower walls, the transept walls and the chapel arches;
+  - the paintings' canvas on its frame.
+  In dev, a wall now warns when a window or an opening runs past it.
+- **Paths.** `paths()` lists nothing. One fix: the plan's areas overlap at the choir, where the flood had
+  stopped at a seam.
+- **Frame time** (1024x768, looking at the open door from 14 m, hall shown vs hidden):
+  - St Paul: +0.1 to 0.7 ms, +27 draw calls, +55k triangles;
+  - St James: +0.3 ms;
+  - inside: 1.4 to 2.6 ms, 27 to 29 draw calls, 55 to 63k triangles.
+- **Tests.** `server/test/gothic-inworld.test.ts` (16) checks that:
+  - the floors lie inside the landmark;
+  - there is one door;
+  - every mark, place, confessional and the pulpit can be reached;
+  - nobody passes the rail or the screen, but the ambulatory can be reached round the choir;
+  - the baptistery bay is closed;
+  - the shut door holds;
+  - the threshold works.
+  It passes with the other in-world tests (76).
+
+Pictures (`data/shots`):
+- inside by day: `pj_in_sheet_p.jpg`, `pj_in_sheet_j.jpg`;
+- looking out through the door, mist inside, dusk with candles: `pj_mood_sheet.jpg` (rows 1, 3, 4);
+- mist and night before the doors (open by day, shut and lanterns lit at night): `pj_out_sheet.jpg`.
+
+Open points:
+- The transept doors are painted, not opened.
+- No people inside yet (no mass, no sexton figure).
+- St Paul's Calvary is mostly hidden by the houses built against it.
+- `possessions.ts` does not know the porches.

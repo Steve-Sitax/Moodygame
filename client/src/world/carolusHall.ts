@@ -21,7 +21,7 @@ import type { InWorld } from "./inworld";
 // oak, the stucco and the marble panels (assets/ATTRIBUTION.md); the paintings and the floor are painted in code
 // until their pictures can be made.
 
-const PIC = (url: string, fallback: THREE.Texture): THREE.Texture => {
+export const PIC = (url: string, fallback: THREE.Texture): THREE.Texture => {
   fallback.minFilter = THREE.LinearMipmapLinearFilter;
   fallback.magFilter = THREE.NearestFilter;
   fallback.generateMipmaps = true;
@@ -72,7 +72,8 @@ function floorTex(): THREE.CanvasTexture {
   return t;
 }
 
-const C = {
+/** The Carolus hall's materials (St Paul and St James use some of them: world/gothicHall.ts). */
+export const C = {
   floor: lmMat("cb_floor", { map: PIC("/textures/carolus_floor.jpg", floorTex()), color: 0xd8d4cc }, 0.05),
   stone: lmMat("cb_stone", { map: PIC("/textures/carolus_bluestone.jpg", flat("#8a8c8e")), color: 0xc4c4c2 }, 0.05),
   plaster: lmMat("cb_plaster", { map: PIC("/textures/carolus_plaster.jpg", flat("#d8d2c4")), color: 0xe8e2d4 }, 0.05),
@@ -109,7 +110,7 @@ const P_LADY = picture("cb_paint_lady", "/textures/carolus_paint_lady.jpg", "ass
 const P_SIDE = picture("cb_paint_side", "/textures/carolus_paint_side.jpg", "saint", 22);
 const P_SIDE2 = picture("cb_paint_side2", "/textures/carolus_paint_side.jpg", "saint", 23, true);
 
-type Hole = { u0: number; u1: number; y0: number; spring: number; round?: boolean };
+export type Hole = { u0: number; u1: number; y0: number; spring: number; round?: boolean };
 
 /** Round or square heads as points from the left springing over the top to the right one (u, y). */
 function head(h: Hole, n = 10): Array<[number, number]> {
@@ -123,7 +124,7 @@ function head(h: Hole, n = 10): Array<[number, number]> {
 }
 
 /** Planar texture co-ordinates in metres by each face's normal (world frame of the room). */
-function planarUV(g: THREE.BufferGeometry, tile: number): void {
+export function planarUV(g: THREE.BufferGeometry, tile: number): void {
   const pos = g.getAttribute("position") as THREE.BufferAttribute;
   const nrm = g.getAttribute("normal") as THREE.BufferAttribute;
   const uv = new Float32Array(pos.count * 2);
@@ -145,7 +146,7 @@ function planarUV(g: THREE.BufferGeometry, tile: number): void {
  * floor (doorways, arches: they cut the bottom edge) and its windows (holes), round or square headed.
  * `scallop`: arches between piers cut from the bottom edge (an arcade: the wall stands on the columns).
  */
-function panel(k: Kit, def: MatDef, a: [number, number], c: [number, number], y0: number, y1: number, t: number, openings: Hole[], windows: Hole[], tile = 2.4, tint?: number): void {
+export function panel(k: Kit, def: MatDef, a: [number, number], c: [number, number], y0: number, y1: number, t: number, openings: Hole[], windows: Hole[], tile = 2.4, tint?: number): void {
   const L = Math.hypot(c[0] - a[0], c[1] - a[1]);
   const s = new THREE.Shape();
   s.moveTo(0, y0);
@@ -229,7 +230,7 @@ function column(k: Kit, def: MatDef, x: number, z: number, y0: number, y1: numbe
 }
 
 /** A carved figure (a saint, an angel herm): robe, arms, head; oak or white stone. */
-function figure(k: Kit, def: MatDef, x: number, y: number, z: number, h: number, yaw = 0, wings = false): void {
+export function figure(k: Kit, def: MatDef, x: number, y: number, z: number, h: number, yaw = 0, wings = false): void {
   k.cyl(0.13 * h, 0.2 * h, 0.72 * h, x, y, z, def, { seg: 8 });
   k.cyl(0.1 * h, 0.13 * h, 0.12 * h, x, y + 0.72 * h, z, def, { seg: 8 });
   k.cyl(0.075 * h, 0.075 * h, 0.12 * h, x, y + 0.85 * h, z, def, { seg: 6 });
@@ -260,7 +261,7 @@ function confessional(k: Kit, sg: number, z: number): void {
 }
 
 /** A retable against a wall facing -z (or turned by ry): a marble base and table, black columns, the painting, the pediment, statues; candles on the table. */
-function altar(k: Kit, flames: Flames, x: number, z: number, w: number, h: number, pic: MatDef, ry = 0, statues = true, yb = 0): void {
+export function altar(k: Kit, flames: Flames, x: number, z: number, w: number, h: number, pic: MatDef, ry = 0, statues = true, yb = 0): void {
   const c = Math.cos(ry);
   const s = Math.sin(ry);
   const at = (dx: number, dz: number): [number, number] => [x + dx * c + dz * s, z - dx * s + dz * c];
@@ -303,7 +304,7 @@ function altar(k: Kit, flames: Flames, x: number, z: number, w: number, h: numbe
 }
 
 /** A brass chandelier on its chain: a ring of candle arms. */
-function chandelier(k: Kit, flames: Flames, x: number, y: number, z: number, top: number): void {
+export function chandelier(k: Kit, flames: Flames, x: number, y: number, z: number, top: number): void {
   k.cyl(0.02, 0.02, top - y, x, y, z, C.iron, { seg: 4 });
   k.cyl(0.14, 0.2, 0.5, x, y - 0.25, z, C.brass, { seg: 8 });
   k.cyl(0.8, 0.8, 0.05, x, y - 0.35, z, C.brass, { seg: 12, open: true });

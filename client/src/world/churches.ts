@@ -21,7 +21,7 @@ const CAROLUS_TINT: Record<string, THREE.Color> = {
   carolus_art: new THREE.Color(1.25, 1.22, 1.15),
   pj_brick: new THREE.Color(1.12, 1.08, 1.04),
   pj_white: new THREE.Color(1.3, 1.28, 1.22),
-  pj_brabant: new THREE.Color(1.5, 1.42, 1.28),
+  pj_brabant: new THREE.Color(1.62, 1.54, 1.4),
 };
 
 // The churches of the angled streets (Sint-Carolus Borromeus, Sint-Pauluskerk, Sint-Jacobskerk), the Stadspark's
