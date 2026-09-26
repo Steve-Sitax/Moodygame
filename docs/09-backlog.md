@@ -2,6 +2,9 @@
 
 Newest on top. Each item says who raised it and when.
 
+## Multiplayer on the home network (Steve, 2026-09-26)
+- **Planned, not built:** `docs/multiplayer-plan.md`. 2-6 players on the LAN, assets cached by SHA-256, own movement local and never pulled back, no pause, per-player saves, drop in and out. Phases M8a (walk together) to M8d (shared work); six open questions for Steve at the end.
+
 ## Engine (Steve, 2026-09-26)
 - **Fight spike before any fight milestone.** Steve chose to stay in the browser (docs/08 #14). Before "hate and fights" is planned: build one street fight (two people, blended moves, hit checks, a server-owned outcome) in three.js and the same in Godot, 1 to 2 weeks. Compare feel, work and frame time, then decide on a port.
 
