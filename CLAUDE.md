@@ -15,6 +15,7 @@ Read `docs/README.md` first. Every design decision is in `docs/`. Do not re-ask 
 - Third-party assets and packages enter only with a clear licence, noted in `assets/ATTRIBUTION.md`.
 - No stutter (Steve, 2026-09-26): anything that draws follows `docs/rendering.md`. Light counts never change at run time (dim with intensity 0), rooms keep at most `ROOM_POINT_LIGHTS` lamps, nothing is drawn straight to the screen, no new shader kinds without need. After a change to materials, lights or rooms, run `__scheldemist.shaders()` in the test tab; `problems` must be empty.
 - Always make sure there is a path (Steve, 2026-09-23): every place, person and goal a job or the player needs must be reachable on foot. Run the path check (`__scheldemist.paths()` in dev) in the browser before a milestone ends; it must list nothing.
+- Every clock in the game shows the game's own time (Steve, 2026-09-26): tower, church, town-hall, station and shop clocks, clocks in rooms and in the clockmaker's window. Hands move with the game clock; never paint fixed hands. A new clock uses the shared live-hands code, and the check lists every clock face and whether it runs.
 - Commit when a milestone is done, and after each batch of fixes Steve has checked in the browser. Steve gave standing approval (2026-09-23): no need to ask first. Commit only work that builds (`npm run build`). Never commit secrets or `.claude/`. Push to `origin` (github.com/Steve-Sitax/Moodygame, private) after each commit: Steve's standing OK, 2026-09-23.
 
 ## Status
