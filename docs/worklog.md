@@ -33,6 +33,7 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 
 | Work | Scope and files | Started |
 |---|---|---|
+| Bump audit of every texture | `bumpaudit()` of every material in the street and rooms; raking-light shots where flat; height maps that follow the pictures; the town wall first | 2026-09-26 |
 | Night fog outlines + light audit | far objects lighter than the sky at night; a picture audit across weathers and times for things visible that should not be; every lamp and lantern visible from far (the start pier lamps were not); `fogcheck()` | 2026-09-26 |
 | Multiplayer M8a: walk together | LAN host, join code, assets cached by hash, shared clock and weather, others drawn smoothly, own movement never pulled back, no pause; `docs/milestones/M8a.md` | 2026-09-26 |
 | Sleep: beds any time, benches | no more "G lie down" at night; E at a rented bed: sleep 1/2/4/8 h or until morning, any time; benches: less sleep, warmth to 1; per player id | 2026-09-26 |
