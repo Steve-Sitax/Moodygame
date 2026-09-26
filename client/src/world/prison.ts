@@ -70,7 +70,7 @@ export function loadPrison(scene: THREE.Scene): PrisonModel {
             const lm = mats.get(src.name) as THREE.MeshLambertMaterial | undefined;
             if (!lm) return;
             lm.bumpMap = h;
-            lm.bumpScale = 0.03;
+            lm.bumpScale = 1.0;
             lm.needsUpdate = true;
           });
           h.flipY = map.flipY;

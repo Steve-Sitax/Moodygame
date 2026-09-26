@@ -155,7 +155,7 @@ export function loadChurches(scene: THREE.Scene): ChurchesModel {
     // (the railing's pickets are single faces: both sides)
     else m = psx(new THREE.MeshLambertMaterial({ map: map ?? null, color: map ? 0xffffff : src.color, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0, ...wallLook(src.name) });
     // (the churches' walls: bumps from their own picture; not the atlas's painted windows)
-    if (map && CHURCH_WALLS.test(src.name) && src.name !== "church_atlas") bumpFromMap(m, 0.05);
+    if (map && CHURCH_WALLS.test(src.name) && src.name !== "church_atlas") bumpFromMap(m, 1.0);
     m.name = src.name;
     mats.set(src.name, m);
     return m;

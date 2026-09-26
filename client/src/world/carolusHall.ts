@@ -74,9 +74,9 @@ function floorTex(): THREE.CanvasTexture {
 
 /** The Carolus hall's materials (St Paul and St James use some of them: world/gothicHall.ts). */
 export const C = {
-  floor: lmMat("cb_floor", { map: PIC("/textures/carolus_floor.jpg", floorTex()), color: 0xd8d4cc }, 0.05, 0.008),
+  floor: lmMat("cb_floor", { map: PIC("/textures/carolus_floor.jpg", floorTex()), color: 0xd8d4cc }, 0.05, 1.0),
   // (bumps from its own picture, 2026-09-26: "churches do not forget bump mapping")
-  stone: lmMat("cb_stone", { map: PIC("/textures/carolus_bluestone.jpg", flat("#8a8c8e")), color: 0xc4c4c2 }, 0.05, 0.02),
+  stone: lmMat("cb_stone", { map: PIC("/textures/carolus_bluestone.jpg", flat("#8a8c8e")), color: 0xc4c4c2 }, 0.05, 1.2),
   plaster: lmMat("cb_plaster", { map: PIC("/textures/carolus_plaster.jpg", flat("#d8d2c4")), color: 0xe8e2d4 }, 0.05),
   vault: lmMat("cb_vault", { map: PIC("/textures/carolus_plaster.jpg", flat("#d8d2c4")), color: 0xece6d8, side: THREE.DoubleSide }, 0.03),
   wash: lmMat("cb_wash", { map: flat("#dcd6c8"), color: 0xe0dacb }, 0),
