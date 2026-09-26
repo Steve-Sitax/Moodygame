@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { psx } from "../retro/psx";
 import { loadModelSet, type ModelSet } from "./boats";
 import { glassColor } from "./gaslamps";
+import { lampFog } from "./lampFog";
 import { rectAround, type Rect } from "./geom";
 import { addLantern, removeLantern, type LanternSource } from "./lanternLights";
 import { Geo, WORLD, tideCuts, tideShade } from "./quaysteps";
@@ -80,6 +81,9 @@ export class LampGlow {
   constructor(parent: THREE.Object3D, local: THREE.Vector3, tint: number, size = GLOW, halo = 1.3) {
     this.tint = new THREE.Color(tint);
     this.mat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    // night fog (2026-09-26): the glass fogs as the gas lamps' does, a little past its post, with the lamps' glow in
+    // the air (world/lampFog.ts); far off the far glow (world/farGlow.ts) carries its light
+    lampFog(this.mat, 1.3);
     this.glass = new THREE.Mesh(new THREE.BoxGeometry(size.w, size.h, size.w), this.mat);
     this.glass.position.copy(local);
     this.glass.name = "lamp_glow";

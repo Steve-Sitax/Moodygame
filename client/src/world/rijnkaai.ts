@@ -1823,6 +1823,8 @@ export function buildRijnkaai(): World {
       fog.color.setHex(0x8a98a4);
       (scene.background as THREE.Color).copy(fog.color);
     }
+    // night fog (world/sky.ts): the sky's night horizon and the lamps' glow in front of it follow the fog
+    cloudSky.fog(fog.near, fog.far);
     if (camera) {
       city.update(camera, fog.far);
       wall.update(camera, fog.far, lampsLit);

@@ -1326,6 +1326,8 @@ if (import.meta.env.DEV) {
     clocks: () => clockReport(world.scene, jobs.day.hourF),
     /** Z-fight check (dev/zfight.ts): faces of the static world in one plane that overlap, and layers too close to their surface, by cause (M3c pass 5). */
     zfight: async (opts = {}) => (await import("./dev/zfight")).checkZFight(world.scene, world.city.flags, opts),
+    /** Night fog (dev/fogcheck.ts): far fogged things lighter than the sky just above them (`problems` must be empty). */
+    fogcheck: async (opts = {}) => (await import("./dev/fogcheck")).fogCheck({ renderer, retro, scene: world.scene, camera: player.camera, canvas, update: (cam) => world.update(elapsed, 0.016, cam), lights: (cam) => spill.lights(cam) }, opts),
     /** M7 prison real: every building with an inside against its shell (dev/interiorcheck.ts, docs/building-with-interior.md): must list nothing wrong. */
     interiorcheck: async (only?: string) => {
       const m = await import("./dev/interiorcheck");

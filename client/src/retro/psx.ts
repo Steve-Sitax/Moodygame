@@ -424,17 +424,26 @@ varying vec3 vAffineUv;
 #endif
 `;
 
-const commonFragment = /* glsl */ `
-#define MAX_LAMPS ${MAX_LAMPS}
-uniform vec4 uLamps[MAX_LAMPS];
-uniform vec3 uLampColor;
-uniform float uScatter;
-uniform float uAffine;
-varying vec3 vPsxWorld;
-#ifdef USE_MAP
-varying vec3 vAffineUv;
-#endif
-
+/**
+ * The lamps' light scattered toward the eye by the air (psx fog, and the sky dome: world/sky.ts, so the far fog
+ * and the sky behind it glow alike; night fog 2026-09-26). `lampScatter(ro, rd, len, p)`: along the ray from `ro`
+ * in `rd` for `len` metres, from a point light at `p`. SCATTER_REACH: the air past this many fog-fars adds no more
+ * (it is lost in the fog): the far houses and the sky over them take the same glow, so neither shows against
+ * the other.
+ */
+export const SCATTER_REACH = 1.5;
+/**
+ * The lamps light the low air: a ray that climbs leaves it about this many metres over the eye (it gathers no more
+ * glow past there). The sky over the roofs is then not lit as the fog down in the street is, and a roof lower than
+ * this gathers no more along its ray than the sky just over it (world/sky.ts FOG_DECK is the same height).
+ */
+export const AIR_DECK = 16;
+export const LAMP_SCATTER_GLSL = /* glsl */ `
+// How far along a ray (len metres to its surface, rd its way) the lamps' glow is gathered: to the surface, never past
+// SCATTER_REACH fog-fars (lost in the fog), nor out of the low air the lamps light (AIR_DECK m over the eye).
+float glowReach(float len, float far, vec3 rd) {
+  return min(min(len, far * ${SCATTER_REACH.toFixed(2)}), ${AIR_DECK.toFixed(1)} / max(rd.y, 0.01));
+}
 // Light scattered toward the eye along the view ray, from one point light.
 // Closed form of integral 1/(h^2 + t^2)^2 dt over the ray segment: a tight
 // halo that stays near the lamp, so the fog is only warm under the lamps.
@@ -451,8 +460,30 @@ float lampScatter(vec3 ro, vec3 rd, float len, vec3 p) {
   // soft wide term, integral of 1/(h^2 + t^2), faded out past ~12 m
   float hw = d + 2.5;
   float wide = (atan((len - t0) / hw) - atan(-t0 / hw)) / hw;
-  return tight + wide * 0.22 * smoothstep(14.0, 4.0, d);
+  // fog throws light on forward (night fog, 2026-09-26): a lamp ahead glows as before, a lamp beside the eye
+  // lights the air in front of it about a third as much, one behind an eighth; so the air round a lamp glows
+  // and a lamp at your shoulder does not lift the whole view (the sky takes the same glow now: world/sky.ts).
+  // The angle is taken a little before the ray's nearest point to the lamp (on the eye's side), where most of
+  // its light is turned toward the eye.
+  vec3 x = rd * clamp(t0 - hw, 0.0, len) - q;
+  float phase = 0.12 + 0.88 * smoothstep(-0.5, 1.0, dot(normalize(x + vec3(0.0, 1e-4, 0.0)), -rd));
+  // (the wide wash 0.22 -> 0.165 with it: the sky under the lamps glows too now, and the night stays as dark)
+  return (tight + wide * 0.165 * smoothstep(14.0, 4.0, d)) * phase;
 }
+`;
+
+const commonFragment = /* glsl */ `
+#define MAX_LAMPS ${MAX_LAMPS}
+uniform vec4 uLamps[MAX_LAMPS];
+uniform vec3 uLampColor;
+uniform float uScatter;
+uniform float uAffine;
+varying vec3 vPsxWorld;
+#ifdef USE_MAP
+varying vec3 vAffineUv;
+#endif
+
+${LAMP_SCATTER_GLSL}
 // Mirror image of a lamp on the water: only the sharp core, no wide wash.
 float lampReflect(vec3 ro, vec3 rd, vec3 p) {
   vec3 q = p - ro;
@@ -896,8 +927,10 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
         float len = length(toFrag);
         vec3 rd = toFrag / max(len, 1e-4);
         float glow = 0.0;
+        // (the sky dome gathers its glow the same way: world/sky.ts)
+        float glowLen = glowReach(len, fogFar, rd);
         for (int i = 0; i < MAX_LAMPS; i++) {
-          glow += uLamps[i].w * lampScatter(ro, rd, len, uLamps[i].xyz);
+          glow += uLamps[i].w * lampScatter(ro, rd, glowLen, uLamps[i].xyz);
         }
         float fogFactor = smoothstep(fogNear, fogFar * ${(opts.fogReach ?? 1).toFixed(2)}, vFogDepth);
         ${

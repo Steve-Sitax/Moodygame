@@ -8,6 +8,7 @@ import { boxGeo, lambert, mergeStatic, tex, type Room } from "./rooms";
 import type { World } from "./rijnkaai";
 import type { InWorld, InWorldRoom, Opening } from "./inworld";
 import { addSpill, type SpillKind, type SpillSource } from "./spill";
+import { lampFog } from "./lampFog";
 
 // The taverns, the Poesje and the homes in the world (M7, docs/milestones/M7-taverns-homes-inworld.md): the
 // halls' way (world/hallInWorld.ts) for a city house. The room (world/rooms.ts, homeRooms.ts) is built from the
@@ -212,6 +213,8 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
   const LINING = new THREE.Color(0x0e0b08);
   const LINING_LIT = new THREE.Color(0x8a5428);
   const liningMat = new THREE.MeshBasicMaterial({ color: LINING, side: THREE.DoubleSide });
+  // night fog (2026-09-26): far off it fogs with the lamps' glow in the air, as the walls round it (world/lampFog.ts)
+  lampFog(liningMat, 1);
   {
     const f = plan.frame;
     const x0 = f.x0 + 0.1;

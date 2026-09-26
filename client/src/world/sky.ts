@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { AIR_DECK, LAMP_SCATTER_GLSL, MAX_LAMPS, psxUniforms } from "../retro/psx";
 
 // The sky (picture round 2026-09-26, package 4: "the game's sky is flat fog colour"). A dome over the town that is
 // not the flat colour of the air: a low grey autumn overcast, darker cloud masses and a few lighter breaks, drifting
@@ -12,6 +13,20 @@ import * as THREE from "three";
 //   the gaps.
 // Made in the shader (value noise, no picture): one draw call, a 16 x 8 sphere. Pixelated in direction steps, as the
 // PS1 drew its skies: blocky cloud edges, no smooth gradients. Fog false: it does its own horizon.
+//
+// Night fog (2026-09-26, Steve: "at night I see shadow outlines ... objects are dark and should not be visible"):
+// the far houses and trees showed as lighter flat shapes against a darker sky. Two causes, both fixed here:
+// - The lamps' glow in the air (psx in-scatter, retro/psx.ts) lifted every fogged thing, and the sky behind them
+//   had none. The sky now takes the same glow along its ray (the same lamps, the same reach), so the fog in
+//   front of a far roof and the fog in front of the sky over it glow alike.
+// - The cloud deck came down to about 17 degrees over the horizon, and a thing fogged all the way (the fog's own
+//   colour) stood lighter than a dark cloud mass over it. At night the air's colour now reaches as high as a
+//   thing FOG_DECK metres over the eye would be fogged: the sky is fogged as a roof at that height would be.
+//   A thick night is all fog; a clear night shows its clouds and stars from about 7 degrees up. Above that the
+//   night's clouds are never darker than the air (lit from under by the town's gas; a tower fogged away far off is
+//   the air's colour and must not stand out lighter). It follows how dark the air is (night, dusk and dawn); by
+//   day the deck stays as it was (package 4).
+// Check: `await __scheldemist.fogcheck()` (dev/fogcheck.ts).
 
 const V = /* glsl */ `
 varying vec3 vDir;
@@ -36,7 +51,16 @@ uniform vec3 uWarmCol;
 uniform vec3 uColdCol;
 uniform vec2 uSunXZ;
 uniform float uTime;
+uniform float uFogNear;
+uniform float uFogFar;
+uniform float uFogSky;
+uniform float uDeck;
+#define MAX_LAMPS ${MAX_LAMPS}
+uniform vec4 uLamps[MAX_LAMPS];
+uniform vec3 uLampColor;
+uniform float uScatter;
 varying vec3 vDir;
+${LAMP_SCATTER_GLSL}
 float h21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) {
   vec2 i = floor(p), f = fract(p);
@@ -50,6 +74,7 @@ float fbm(vec2 p) {
 }
 void main() {
   vec3 d = normalize(vDir);
+  vec3 rd = d;
   // the PS1 sky: the direction in coarse steps (about a third of a degree), so the cloud edges are blocky
   d = normalize(floor(d * 180.0 + 0.5) / 180.0);
   float e = d.y;
@@ -84,9 +109,19 @@ void main() {
   // into the air at the horizon: the far fog and the sky meet without a seam (the dusk's band goes on down to it,
   // the air under it takes a little of its warmth)
   float hor = smoothstep(0.015, 0.3, e);
+  // night: as high as a roof uDeck metres over the eye would be lost in the fog, the sky is the fog
+  float deckFog = smoothstep(uFogNear, uFogFar, uDeck / max(e, 0.001));
+  hor = mix(hor, min(hor, 1.0 - deckFog), uFogSky);
+  // and over it the night's clouds are never darker than the air: the town's gas lights their undersides, and a
+  // tower lost in the fog far off (its own colour then) stands no lighter than the sky over it
+  col = mix(col, max(col, uAir), uFogSky);
   vec3 air = uAir + uWarmCol * uWarm * pow(toSun, 2.5) * 0.35;
   air = mix(air, air * 0.8 + uColdCol * 0.5, uCold * away * 0.6);
-  gl_FragColor = vec4(mix(air, col, hor), 1.0);
+  // the lamps' glow in the air in front of the sky, as in front of the far houses (retro/psx.ts)
+  float glow = 0.0;
+  float glowLen = glowReach(1e4, uFogFar, rd);
+  for (int i = 0; i < MAX_LAMPS; i++) glow += uLamps[i].w * lampScatter(cameraPosition, rd, glowLen, uLamps[i].xyz);
+  gl_FragColor = vec4(mix(air, col, hor) + uLampColor * glow * uScatter, 1.0);
   #include <colorspace_fragment>
 }`;
 
@@ -97,6 +132,8 @@ export interface CloudSky {
    * `clear` 0..1 the clear-sky weight (eased), `sunXZ` the low sun's direction on the ground plan.
    */
   update(dt: number, t: number, air: THREE.Color, hour: number, weather: string, clear: number, sunXZ: THREE.Vector2): void;
+  /** Once a frame, after the fog's near and far are set: the sky's night horizon and the lamps' glow follow them. */
+  fog(near: number, far: number): void;
   info(): Record<string, number>;
 }
 
@@ -108,6 +145,9 @@ const DECK: Record<string, [number, number, number]> = {
   rain: [0.9, 0.7, 1.5],
   storm: [0.97, 1.0, 3.2],
 };
+
+/** Night fog: the height (m over the eye) of the roofs and tree tops the sky must stand behind in the fog. */
+const FOG_DECK = AIR_DECK;
 
 const bump = (h: number, a: number, p0: number, p1: number, b: number) =>
   h <= a || h >= b ? 0 : h < p0 ? THREE.MathUtils.smoothstep(h, a, p0) : h <= p1 ? 1 : 1 - THREE.MathUtils.smoothstep(h, p1, b);
@@ -126,6 +166,13 @@ export function createCloudSky(radius = 560): CloudSky {
     uColdCol: { value: new THREE.Color(0.05, 0.07, 0.1) },
     uSunXZ: { value: new THREE.Vector2(-1, 0) },
     uTime: { value: 0 },
+    uFogNear: { value: 3 },
+    uFogFar: { value: 19 },
+    uFogSky: { value: 0 },
+    uDeck: { value: FOG_DECK },
+    uLamps: psxUniforms.uLamps,
+    uLampColor: psxUniforms.uLampColor,
+    uScatter: psxUniforms.uScatter,
   };
   const mat = new THREE.ShaderMaterial({ uniforms: U, vertexShader: V, fragmentShader: F, side: THREE.BackSide, depthWrite: false, fog: false });
   mat.name = "cloud_sky";
@@ -154,6 +201,9 @@ export function createCloudSky(radius = 560): CloudSky {
     const night = 1 - THREE.MathUtils.smoothstep(hour, 5.2, 7.2) + THREE.MathUtils.smoothstep(hour, 18.2, 20.0);
     U.uNight.value = THREE.MathUtils.clamp(night, 0, 1);
     U.uStars.value = THREE.MathUtils.clamp(night, 0, 1) * clear * (1 - cur.dark);
+    // (by how dark the air is, not the clock: the dusk and the dawn are dark enough, a fog day stays as it was)
+    const airL = 0.2126 * air.r + 0.7152 * air.g + 0.0722 * air.b;
+    U.uFogSky.value = 1 - THREE.MathUtils.smoothstep(airL, 0.035, 0.08);
     // a clear or a misty evening: the warm band (fog and rain close it off)
     const open = Math.max(clear, weather === "mist" ? 0.45 : weather === "fog" ? 0.15 : 0);
     U.uWarm.value = bump(hour, 16.2, 17.3, 18.3, 19.1) * open * (1 - cur.dark * 0.8);
@@ -163,6 +213,10 @@ export function createCloudSky(radius = 560): CloudSky {
   return {
     mesh,
     update,
+    fog(near: number, far: number) {
+      U.uFogNear.value = near;
+      U.uFogFar.value = far;
+    },
     info: () => ({ cover: +cur.cover.toFixed(2), dark: +cur.dark.toFixed(2), warm: +U.uWarm.value.toFixed(2), cold: +U.uCold.value.toFixed(2), stars: +U.uStars.value.toFixed(2), night: +U.uNight.value.toFixed(2) }),
   };
 }

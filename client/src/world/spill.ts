@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { MAX_SPILL, psxUniforms, spillGlsl } from "../retro/psx";
+import { createFarGlow } from "./farGlow";
 
 // Light that spills out of lit openings and flames onto the street (Steve, 2026-09-26: "light from some windows
 // starts on the street only after the small sidewalk. It is very abrupt and not realistic"; "make it look better
@@ -270,6 +271,11 @@ export interface Spill {
   check(camera: THREE.Camera, all?: boolean): { view: number; lit: number; rows: SpillRow[]; problems: string[] };
   /** The glow scan: meshes drawn with a glow material become sources (runs itself every 2 s). */
   scan(): number;
+  /**
+   * Dev (fogcheck): every lit light within sight of the camera (to the far glow's reach) and how it reads from there:
+   * its own glass (near), the gas lamps' halo, a painted window's glow, the far glow, or nothing (a problem).
+   */
+  lights(camera: THREE.Camera, list?: number): { reach: number; lit: number; by: Record<string, number>; rows: string[]; problems: string[] };
 }
 
 /** How many ground pools at most (the sources past the per-pixel ones). */
@@ -388,6 +394,9 @@ export function createSpill(scene: THREE.Scene, walkGround: (x: number, z: numbe
   const up = new THREE.Vector3(0, 1, 0);
   const pv = new THREE.Vector3();
   const sv = new THREE.Vector3();
+
+  // lights seen from far (night fog, 2026-09-26): a halo for every lantern, glow and lit room, as the gas lamps have
+  const far = createFarGlow(scene);
 
   const eye = new THREE.Vector3();
   const look = new THREE.Vector3();
@@ -656,6 +665,8 @@ export function createSpill(scene: THREE.Scene, walkGround: (x: number, z: numbe
       for (const s of list) s.dup = lamps.some((l) => Math.abs(l.x - s.x) < 0.8 && Math.abs(l.z - s.z) < 0.8 && Math.abs(l.y - s.y) < 1.2);
     return added;
   }
+  /** what a source's glass or pane shows now (0..1): its glow, else its level (the far glow follows it) */
+  const glowOf = (s: SpillSource) => (s.kind === "glow" ? (s.dup ? 0 : (s.glow?.() ?? 0) * dark) : s.glow ? s.glow() : levelOf(s));
   let scanT = 1;
   let scanAge = 0;
   /** the dark as the glow sources see it (they glow by day too; they spill only at night) */
@@ -721,6 +732,10 @@ export function createSpill(scene: THREE.Scene, walkGround: (x: number, z: numbe
         litN = lit;
       } else for (const s of active) nowOf(s);
       assign(want, dt, snap);
+      {
+        const fog = scene.fog as THREE.Fog | null;
+        far.update(sources, glowOf, eye, fog?.far ?? 150, ranking);
+      }
 
       // the per-pixel list: the active slots first, then an empty one ends it
       const A = psxUniforms.uSpillA.value;
@@ -795,6 +810,40 @@ export function createSpill(scene: THREE.Scene, walkGround: (x: number, z: numbe
       return { sources: sources.size, ...stats, kinds };
     },
     scan,
+    lights(camera, list = 30) {
+      camera.getWorldPosition(eye);
+      const fog = scene.fog as THREE.Fog | null;
+      const near = fog?.near ?? 1;
+      const farE = fog?.far ?? 150;
+      const reach = Math.min(260, farE * 3);
+      const by: Record<string, number> = {};
+      const rows: Array<[number, string]> = [];
+      const problems: string[] = [];
+      let lit = 0;
+      for (const s of sources) {
+        if (s.dup) continue;
+        const g = glowOf(s);
+        if (g < 0.05) continue;
+        const d = Math.hypot(s.x - eye.x, s.y - eye.y, s.z - eye.z);
+        if (d > reach) continue;
+        lit++;
+        // its own glass or pane: lanterns and glows show through the fog a little past the post (world/lampFog.ts)
+        const own = s.kind === "lantern" ? 1.2 : s.kind === "glow" ? 1.3 : s.kind === "lamp" ? 1.6 : 1;
+        const w = far.weight(s, eye, near, farE);
+        let how: string;
+        if (s.kind === "lamp") how = "gas halo";
+        else if (w === null) how = s.sched ? "window glow" : "none";
+        else if (d < farE * 0.6) how = "own glass";
+        else how = w > 0.02 ? (d < farE * own ? "glass + far glow" : "far glow") : d < farE * own ? "own glass" : "none";
+        by[how] = (by[how] ?? 0) + 1;
+        const row = `${s.label} (${s.kind}) ${d.toFixed(0)} m: ${how}${w !== null ? ` ${w.toFixed(2)}` : ""}, glow ${g.toFixed(2)}`;
+        rows.push([d, row]);
+        // (past three quarters of the reach it fades out on purpose)
+        if (how === "none" && d > farE * 0.6 && d < reach * 0.75) problems.push(row);
+      }
+      rows.sort((a, b) => a[0] - b[0]);
+      return { reach: +reach.toFixed(0), lit, by, rows: rows.slice(0, list).map((r) => r[1]), problems: problems.slice(0, list) };
+    },
     check(camera, all = false) {
       // (as things stand now: every owner's level of the last frame, every pool worked out)
       this.update(0, camera, true);
