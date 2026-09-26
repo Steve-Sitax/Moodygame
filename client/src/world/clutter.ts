@@ -596,7 +596,10 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
   const lanes = omnibusKeepOut();
   for (const l of trafficLanes()) for (let i = 0; i < l.x.length; i += 8) lanes.push({ minX: l.x[i] - l.half, maxX: l.x[i] + l.half, minZ: l.z[i] - l.half, maxZ: l.z[i] + l.half });
   const markets = marketKeepOut();
-  const works = [...tradeKeepOut(), ...steenKeepOut(), ...poortKeepOut(), ...pumpColliders()];
+  // (M7 back of town: and the open passages from the streets into the alleys, 2.2 m between two front houses:
+  // a crate in one shut the alley's court off from the town, for the path check and for the people who live there)
+  const passages = ((CITYD as unknown as { alleys?: { passages?: number[][] } }).alleys?.passages ?? []).map(([x0, z0, x1, z1]) => ({ minX: Math.min(x0, x1) - 0.3, maxX: Math.max(x0, x1) + 0.3, minZ: Math.min(z0, z1) - 0.3, maxZ: Math.max(z0, z1) + 0.3 }));
+  const works = [...tradeKeepOut(), ...steenKeepOut(), ...poortKeepOut(), ...pumpColliders(), ...passages];
   const runways: Rect[] = (decor.crane_rails ?? []).map(([x0, z0, x1, z1]) => ({ minX: Math.min(x0, x1) - 0.9, maxX: Math.max(x0, x1) + 0.9, minZ: Math.min(z0, z1) - 0.9, maxZ: Math.max(z0, z1) + 0.9 }));
   const bridges = bridgeRects(1.5);
   const avoid = [...(opts.avoid ?? []), ...(opts.keepOut ?? [])];
@@ -868,6 +871,9 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
       const lx = bx + w.ox * (off + dep + 0.5);
       const lz = bz + w.oz * (off + dep + 0.5);
       if (at(lx, lz) !== OPEN && at(lx + w.ox * 0.1, lz + w.oz * 0.1) !== OPEN) return no("line");
+      // (M7 back of town: a body must still pass it, as the path check walks: half a metre off the far wall
+      // and 0.3 m off the thing; 1.5 m of open ground before it, or a court behind a narrow lane is shut off)
+      for (const d of [1.0, 1.5]) if (at(bx + w.ox * (off + dep + d), bz + w.oz * (off + dep + d)) !== OPEN) return no("line");
       for (const e of [-half, 0, half]) {
         const qx = lx + w.tx * e;
         const qz = lz + w.tz * e;

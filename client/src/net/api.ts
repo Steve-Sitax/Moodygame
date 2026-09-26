@@ -250,6 +250,8 @@ export interface TownPlace {
   district: string;
   door?: Pt;
   out?: Pt;
+  /** M7 back of town (server town/backtown.ts): a way to walk about the place (the park's paths, the walk on the wall). */
+  route?: Pt[];
 }
 
 export interface TownStall {

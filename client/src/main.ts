@@ -70,6 +70,8 @@ import { townPlacePoints } from "./world/townplaces"; // M7 prison and squares
 import { gothicInWorld } from "./world/gothicHall";
 // M7 alive (docs/milestones/M7-alive.md): the town's small life that is not people (hook)
 import { createAlive } from "./world/alive";
+// M7 back of town (docs/milestones/M7-back-of-town.md): the pump, the corner gangs, cards, doorsteps, the park, the watch (hook)
+import { BackLife } from "./game/backlife";
 import { setAliveViewHeight } from "./world/alive/common";
 import { bootRestore, type ClientState } from "./game/restoreData";
 import type { JobSnap } from "./game/jobs";
@@ -133,7 +135,12 @@ jobs.extraActions.push((x, z) => craneClimb.keys(x, z));
 // townspeople on the quays and squares (game/crowd.ts)
 const crowd = new Crowd(
   world.scene,
-  { flags: world.city.flags, isFree: world.isFree, solids: world.solids, solidsVersion: world.solidsVersion, gate: world.bridgeWait, addCollider: world.addCollider, removeCollider: world.removeCollider, addMover: world.addMover, removeMover: world.removeMover },
+  {
+    flags: world.city.flags, isFree: world.isFree, solids: world.solids, solidsVersion: world.solidsVersion, gate: world.bridgeWait, addCollider: world.addCollider, removeCollider: world.removeCollider, addMover: world.addMover, removeMover: world.removeMover,
+    // M7 back of town (hook): people stand on the ground where it is raised (the walk on the ramparts, stairs, bridges);
+    // without it the Sunday strollers on the wall walked inside it at street level
+    baseAt: (x: number, z: number) => world.baseAt(x, z),
+  },
   placesFromCity((CITY as unknown as { places: Record<string, { x: number; z: number; kind: string }> }).places),
   { mats: { sack: world.mats.sack, crate: world.mats.crate } },
 );
@@ -387,6 +394,12 @@ lively.sfx = {
   bell: (at) => void sound?.eventSound("handbell", at, 3),
 };
 lively.load().catch((e) => console.warn("the lively streets did not load", e));
+// M7 back of town (hook): what the back's people do at the places of their day (game/backlife.ts)
+const backLife = new BackLife(world, town, crowd);
+town.back = backLife.hook();
+backLife.clock = () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF });
+backLife.weather = () => weatherNow ?? "clear";
+backLife.say = (c) => bubbles.show(c);
 // M7 night: the employers' quest boxes by their doors (game/questboxes.ts), and the gangs (game/nightlife.ts)
 const boxes = new QuestBoxes(world, jobs.people, town);
 boxes.clock = () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF });
@@ -873,6 +886,7 @@ function frame(): void {
   safe("ideas.update", () => ideas.update(dt));
   safe("emigrants.update", () => emigrants.update(dt));
   safe("lively.update", () => lively.update(dt, player, player.camera, crowd.fogDistance));
+  safe("backLife.update", () => backLife.update(dt, player)); // M7 back of town (hook)
   safe("quayGoods.keepClear", quayGoodsKeepClear);
   safe("animals.update", () => animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7));
   safe("alive.update", () => alive.update(elapsed, dt, player.camera, { day: jobs.day.dayNum, hour: jobs.day.hourF }, weatherNow)); // M7 alive (hook)
@@ -1291,6 +1305,7 @@ if (import.meta.env.DEV) {
         ideas.update(dt);
         emigrants.update(dt);
         lively.update(dt, player, player.camera, crowd.fogDistance);
+        backLife.update(dt, player); // M7 back of town (hook)
         animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
         alive.update(elapsed, dt, player.camera, { day: jobs.day.dayNum, hour: jobs.day.hourF }, weatherNow); // M7 alive (hook)
         lanternLights.update(dt, player.camera, lanternDark());
@@ -1332,5 +1347,7 @@ if (import.meta.env.DEV) {
 if (import.meta.env.DEV) {
   Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, { cull, renderer, retro, lanternLights });
   Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, { cull, renderer, retro, lanternLights, alive });
+  // M7 back of town (hook): __scheldemist.back.info(), .at(place)
+  Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, { back: backLife });
   mountCullHud(cull);
 }

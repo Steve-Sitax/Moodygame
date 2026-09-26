@@ -620,7 +620,8 @@ export function ensureLively(db: DB): number {
   if (n === 0) return 0;
   fixSights(db); // M7 omnibus routes
 
-  const q = `SELECT COUNT(*) AS n FROM resident WHERE trade IN (${LIVELY_TRADES.map(() => "?").join(", ")})`;
+  // (M7 back of town's own grinder and rag man, ids "bk...", do not count: town/backtown.ts)
+  const q = `SELECT COUNT(*) AS n FROM resident WHERE id NOT LIKE 'bk%' AND trade IN (${LIVELY_TRADES.map(() => "?").join(", ")})`;
   if ((db.prepare(q).get(...LIVELY_TRADES) as { n: number }).n > 0) return 0;
   const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'town'").get() as { value_json: string } | undefined;
   if (!row) return 0;

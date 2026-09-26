@@ -1146,7 +1146,8 @@ export class Lively {
         st.phase = "wait";
         st.t = 0;
         // to the door: the milk and the bread are carried in, the Sister goes to knock
-        if (["milk_woman", "baker_boy", "nun"].includes(r.trade)) {
+        // (M7 back of town: the parish priest and the doctor knock at the doors of the sick too)
+        if (["milk_woman", "baker_boy", "nun", "parish_priest", "doctor"].includes(r.trade)) {
           const [dx, dz] = this.doorBy(qx, qz, face);
           if (r.trade === "milk_woman") this.setHand(p, k, "milkcan");
           if (r.trade === "baker_boy") this.setHand(p, k, "bread_basket");
@@ -1168,7 +1169,7 @@ export class Lively {
         st.t = 0;
         return true;
       case "at_door":
-        if (st.t < (r.trade === "nun" ? 5 : 2.5)) return true;
+        if (st.t < (r.trade === "nun" || r.trade === "parish_priest" ? 5 : r.trade === "doctor" ? 7 : 2.5)) return true;
         this.setHand(p, k, null);
         this.crowd.puppetGo(p, qx, qz);
         st.phase = "back";

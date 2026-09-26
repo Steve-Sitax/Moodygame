@@ -19,6 +19,8 @@ import { ensureVisitors } from "./town/visitors.ts";
 import { ensureEmigrants } from "./town/emigrants.ts";
 import { ensureLandmarksTown } from "./landmarks/town.ts";
 import { ensureLively } from "./town/lively.ts";
+// M7 back of town: the households, groups and gangs of the back streets (town/backtown.ts)
+import { ensureBackTown } from "./town/backtown.ts";
 import { ARRIVAL_KEY, ARRIVAL_TEXT } from "./arrival.ts";
 import { shortenOffered } from "./hooks/jobBoard.ts";
 import { CLIENT_STATE_SQL } from "./save/schema.ts";
@@ -172,6 +174,8 @@ export function openDb(file: string): DB {
   ensureNightTown(db);
   // M7 shops: the butcher, the colonial goods, the apothecary, the barber ... and their keepers (shops/town.ts); in place, once
   ensureShopsTown(db);
+  // M7 back of town: the poor quarter round the court pumps and corners, the better streets, the watch (town/backtown.ts); in place, once
+  ensureBackTown(db);
   // M7 short jobs: open goods work of an older save to the new sizes (at most two by hand); in place, once
   shortenOffered(db);
   // a save from an older city map: homes whose door step lies off every path now get a house of this map
@@ -265,6 +269,7 @@ export function resetDb(db: DB): void {
   ensureLively(db);
   ensureNightTown(db);
   ensureShopsTown(db);
+  ensureBackTown(db);
 }
 
 function seed(db: DB): void {

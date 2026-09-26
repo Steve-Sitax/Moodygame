@@ -107,6 +107,8 @@ export interface TownPlace {
   /** A door (shops and taverns): the step to stand on. */
   door?: Pt;
   out?: Pt;
+  /** M7 back of town (backtown.ts): a way to walk about the place (the park's paths, the walk on the wall). */
+  route?: Pt[];
 }
 
 export interface Stall {

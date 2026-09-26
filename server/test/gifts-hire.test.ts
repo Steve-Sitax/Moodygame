@@ -66,7 +66,10 @@ function fresh(hour = 10): Db {
 const people = (db: Db) => town(db).town.residents;
 /** A poor grown docker out in the street now, even-tempered and honest (the gift's plain case). */
 function poorDocker(db: Db) {
-  const r = people(db).find((x) => x.trade === "docker" && x.age >= 20 && x.age <= 50 && !whereIs(db, x).indoors)!;
+  // (at his work when there is one: M7 back of town's dockers are often not taken on and stand idle, free to follow
+  // anyone to a tavern; the fixture is the working docker the tests were written for)
+  const ok = (x: ReturnType<typeof people>[number]) => x.trade === "docker" && x.age >= 20 && x.age <= 50 && !whereIs(db, x).indoors;
+  const r = people(db).find((x) => ok(x) && nowOf(db, x).act === "work") ?? people(db).find(ok)!;
   setStats(db, r.id, { wealth: 1, temper: 4, honesty: 6, warmth: 6, greed: 4, courage: 6, piety: 4 });
   return r;
 }

@@ -482,7 +482,8 @@ export function ensureLamplighters(db: DB): LampRounds | null {
   for (const spec of ROUNDS) {
     if (who.has(spec.id)) continue;
     const man = t.residents
-      .filter((r) => !taken(r) && r.sex === "m" && r.age >= 24 && r.age <= 58 && (r.trade === "docker" || r.trade === "porter") && ["head", "single", "lodger", "widower", "son"].includes(r.family_role))
+      // (M7 back of town: the back's own dockers keep their trade: bk ids, town/backtown.ts)
+      .filter((r) => !taken(r) && !/^bk[0-9]+$/.test(r.id) && r.sex === "m" && r.age >= 24 && r.age <= 58 && (r.trade === "docker" || r.trade === "porter") && ["head", "single", "lodger", "widower", "son"].includes(r.family_role))
       .sort(byStart(spec.start))[0];
     if (man) who.set(spec.id, man);
   }

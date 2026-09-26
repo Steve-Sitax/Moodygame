@@ -2332,6 +2332,83 @@ def pose_pull(t):
     return pose
 
 
+def pose_wash(t):
+    """M7 back of town: a washerwoman stood bent over her tub on its stool, rubbing the linen up and down
+    the washboard with both hands (the rim about 0.75 m high, 0.45 m before her)."""
+    p = 2 * math.pi * t
+    sw = math.sin(p)
+    pose = {}
+    pose["hips"] = RX(4)
+    pose["spine"] = RX(34 + 3 * sw)
+    pose["neck"] = RX(-16)
+    pose["head"] = RX(-6)
+    for S in "LR":
+        pose["legUp" + S] = limb(S, fwd=6, out=3)
+        pose["legLow" + S] = RX(10)
+        pose["foot" + S] = RX(-4)
+    y = 0.8 + 0.07 * sw
+    z = 0.42 + 0.03 * sw
+    arm_reach(pose, "L", (0.1, y, z), twist=20)
+    arm_reach(pose, "R", (-0.1, y, z), twist=20)
+    for S in "LR":
+        pose["hand" + S] = RX(-30)
+    return pose
+
+
+def pose_wall(t):
+    """M7 back of town: a lad leaning back against a house wall, arms folded, the right foot up flat
+    against the wall behind him."""
+    p = 2 * math.pi * t
+    pose = pose_fold(t)
+    pose["hips"] = RX(-3) @ RY(1.0 * math.sin(p))
+    pose["spine"] = RX(-7 + 0.6 * math.sin(2 * p))
+    pose["neck"] = RX(4)
+    pose["head"] = RZ(8 * math.sin(p) * math.sin(p * 0.5) ** 2) @ RX(2)
+    pose["legUpR"] = limb("R", fwd=34, out=6)
+    pose["legLowR"] = RX(92)
+    pose["footR"] = RX(-20)
+    pose["legUpL"] = limb("L", fwd=-4, out=5)
+    pose["legLowL"] = RX(2)
+    return pose
+
+
+def pose_pockets(t):
+    """M7 back of town: hands deep in the trouser pockets, the weight on one leg, the shoulders up a little."""
+    p = 2 * math.pi * t
+    pose = pose_idle(t)
+    pose["hips"] = RY(3 + 1.0 * math.sin(p)) @ RZ(3)
+    pose["spine"] = RX(-2 + 0.6 * math.sin(2 * p)) @ RZ(-2)
+    # the hands into the front of the pockets: the elbows stand out, the shoulders hunched a little
+    arm_reach(pose, "L", (0.15, 0.9, 0.1), twist=-25, start=(10.0, 30.0, 40.0))
+    arm_reach(pose, "R", (-0.15, 0.9, 0.1), twist=-25, start=(10.0, 30.0, 40.0))
+    for S in "LR":
+        pose["hand" + S] = RX(-8)
+    pose["neck"] = RX(4)
+    pose["legUpL"] = limb("L", fwd=-2, out=6)
+    pose["legUpR"] = limb("R", fwd=6, out=2)
+    pose["legLowR"] = RX(8)
+    return pose
+
+
+def pose_smoke(t):
+    """M7 back of town: the left hand in the pocket, the pipe in the right: up to the mouth for a pull,
+    down to the chest again (a pull in each loop)."""
+    p = 2 * math.pi * t
+    pose = pose_idle(t)
+    arm_reach(pose, "L", (0.2, 0.92, 0.06), twist=10)
+    pose["handL"] = RX(-8)
+    u = t % 1.0
+    # up by 0.15, at the mouth to 0.4, down by 0.55
+    k = 0.0 if u < 0.05 or u > 0.55 else 1.0 if 0.15 <= u <= 0.4 else ((u - 0.05) / 0.1 if u < 0.15 else (0.55 - u) / 0.15)
+    k = k * k * (3 - 2 * k)
+    low = (-0.12, 1.04, 0.2)
+    mouth = (-0.04, 1.52, 0.14)
+    arm_reach(pose, "R", tuple(low[i] + (mouth[i] - low[i]) * k for i in range(3)), twist=40)
+    pose["handR"] = RX(-20 - 20 * k)
+    pose["head"] = RX(-3 * k)
+    return pose
+
+
 CLIPS = [
     ("idle", pose_idle, 4.0, dict()),
     ("walk", pose_walk, 1.0, dict()),
@@ -2367,6 +2444,11 @@ CLIPS = [
     ("rope", pose_rope, 0.8, dict()),
     ("grind", pose_grind, 0.8, dict()),
     ("pull", pose_pull, 1.6, dict()),
+    # M7 back of town (appended: the clips above stay as they were)
+    ("wash", pose_wash, 1.2, dict()),
+    ("wall", pose_wall, 6.0, dict()),
+    ("pockets", pose_pockets, 5.0, dict()),
+    ("smoke", pose_smoke, 6.0, dict()),
 ]
 
 

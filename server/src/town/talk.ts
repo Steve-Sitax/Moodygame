@@ -17,6 +17,7 @@ import { ownVoice, reputationWith, rumoursOf, stillTrue, toYou, whoYou, type Rum
 import type { Resident } from "./population.ts";
 import { GUARD_POSTS, isGarrison, isSoldier } from "./garrison.ts";
 import { roundDoing } from "./lively.ts";
+import { backDoing } from "./backtown.ts";
 import { ActionProposalSchema } from "../director/vocab.ts";
 import { GameError } from "../game.ts";
 
@@ -112,6 +113,9 @@ function placeLabel(db: DB, id: string): string {
 
 /** What they are doing now, in words, for the prompt and for the engine lines. */
 export function doing(db: DB, r: Resident, now = nowOf(db, r)): string {
+  // M7 back of town: the pump, the corner, the cards, the doorstep, the park, the night round (backtown.ts)
+  const back = backDoing(r, now.place === "work" ? r.work.place : now.place);
+  if (back && now.act !== "home" && now.act !== "church" && now.act !== "tavern") return back;
   const where = placeLabel(db, now.place === "work" ? r.work.place : now.place);
   switch (now.act) {
     case "work":
@@ -153,6 +157,8 @@ export function doing(db: DB, r: Resident, now = nowOf(db, r)): string {
     case "market":
       return `doing the day's errands on ${where}`;
     case "church":
+      // M7 back of town: the parish churches of the back (backtown.ts church:*)
+      if (now.place.startsWith("church:")) return r.trade === "parish_priest" ? `saying mass in your church, ${where.replace(/^the door of /, "")}` : `on your way to mass at ${where.replace(/^the door of /, "")}`;
       return "on your way to mass at the cathedral";
     case "stroll": {
       const mate = r.mate ? resident(db, r.mate) : undefined;

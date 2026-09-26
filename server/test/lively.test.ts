@@ -185,10 +185,11 @@ describe("the lively streets' people", () => {
 describe("the save: in place, once", () => {
   it("a new game has them; an older save gets the same people in place and nothing else changes", () => {
     const db = openDb(":memory:");
-    const inGame = town(db).town.residents.filter((r) => isLively(r.trade) || (r.trade === "beggar" && r.work.place === "cathedral"));
+    // (M7 back of town adds a second grinder and rag man of its own, ids "bk...": not the lively streets')
+    const inGame = town(db).town.residents.filter((r) => !r.id.startsWith("bk") && (isLively(r.trade) || (r.trade === "beggar" && r.work.place === "cathedral")));
     expect(inGame.filter((r) => isLively(r.trade)).length).toBe(L.residents.filter((r) => isLively(r.trade)).length);
     // make it an older save: take them out
-    const ids = town(db).town.residents.filter((r) => isLively(r.trade) || L.residents.some((l) => l.id === r.id)).map((r) => r.id);
+    const ids = town(db).town.residents.filter((r) => !r.id.startsWith("bk") && (isLively(r.trade) || L.residents.some((l) => l.id === r.id))).map((r) => r.id);
     for (const t of ["npc_relationship WHERE npc_id", "resident WHERE id", "npc WHERE id"]) for (const id of ids) db.prepare(`DELETE FROM ${t} = ?`).run(id);
     const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'town'").get() as { value_json: string };
     const tw = JSON.parse(row.value_json);

@@ -195,6 +195,16 @@ export class Town {
     /** At a game of its own (the rope, hoops, marbles...) or only watching: not in the town's tag. */
     playing?(s: Sim): boolean;
   } | null = null;
+  /**
+   * M7 back of town (game/backlife.ts): the pump, the corner, the cards, the doorstep, the park, the walk
+   * on the wall, the night watch, the drunks. Its goal comes before lively's, and its behave too.
+   */
+  back: {
+    goal(s: Sim, now: Now): Goal | null;
+    behave(s: Sim, dt: number, hour: number): boolean;
+    spawned(s: Sim): void;
+    lost(s: Sim): void;
+  } | null = null;
   private player = { x: 0, z: 0, yaw: 0 };
   private busyNet = false;
   private lastDay = 0;
@@ -398,6 +408,8 @@ export class Town {
   }
 
   private goalFor(s: Sim, now: Now): Goal {
+    const back = this.back?.goal(s, now); // M7 back of town
+    if (back) return back;
     const lively = this.lively?.goal(s, now);
     if (lively) return lively;
     const r = s.r;
@@ -565,6 +577,7 @@ export class Town {
       this.direct(s);
       this.lanterns(s, this.clock().hour);
       this.lively?.spawned(s);
+      this.back?.spawned(s); // M7 back of town
       if (s.r.dog) {
         const sim = s;
         this.animals.addDog(s.r.id, s.r.dog.look, at, () =>
@@ -578,6 +591,7 @@ export class Town {
   /** Back to the schedule only (out of range, or in at the door). */
   private lose(s: Sim, remove = false): void {
     if (s.p) this.lively?.lost(s);
+    if (s.p) this.back?.lost(s); // M7 back of town
     if (s.p && remove) this.crowd.removePuppet(s.p);
     s.p = null;
     s.held = false;
@@ -638,6 +652,7 @@ export class Town {
   private behave(s: Sim, dt: number, hour: number): void {
     // M6 transport: riding, pushing the cart, waiting for the omnibus, going to the boat
     if (s.trip && this.journeys?.behave(s, dt)) return;
+    if (this.back?.behave(s, dt, hour)) return; // M7 back of town
     if (this.lively?.behave(s, dt, hour)) return;
     const p = s.p!;
     const g = s.goal;
@@ -1544,6 +1559,11 @@ export class Town {
       }
     }
     return { sims: this.sims.length, out, puppets, byMode };
+  }
+
+  /** M7 back of town (game/backlife.ts): a resident's walk through the day. */
+  simOf(id: string): Sim | undefined {
+    return this.byId.get(id);
   }
 
   /** Dev: one resident's state. */

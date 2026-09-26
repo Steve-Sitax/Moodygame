@@ -215,7 +215,9 @@ describe("rumours", () => {
     remember(db, d.id, "Jef carried for me when my back gave out.", 8, "seen", null, { gist: "Jef carried a sack for a docker whose back gave out", tone: 2 });
     for (let i = 0; i < 4; i++) spreadRumours(db, () => 0);
     const knowers = (db.prepare("SELECT npc_id FROM npc_memory WHERE gist LIKE 'Jef carried%'").all() as Array<{ npc_id: string }>).map((r) => r.npc_id);
-    const mine = new Set(T.residents.filter((o) => o.household === d.household || o.work.place === d.work.place).map((o) => o.id));
+    // his household and his workmates in the town as the save has it (M7 back of town: the back's own dockers
+    // work the same quays and are his workmates too, whatever the number of households)
+    const mine = new Set(town(db).town.residents.filter((o) => o.household === d.household || o.work.place === d.work.place).map((o) => o.id));
     expect(knowers.filter((k) => k !== d.id).some((k) => mine.has(k))).toBe(true);
   });
 

@@ -31,12 +31,15 @@ export type Motion = "idle" | "walk" | "talk" | "fold" | "carry" | "sit" | "behi
   // M6 lively (game/lively.ts): kneeling to scrub the step, at the lace pillow, the sign of the cross, pointing
   // up at a spire, begging, a street cry, a child crouched at marbles, a hop, turning a rope, at the grinding
   // wheel, drawing water. Some lower or lift the body (motionLift).
-  | "scrub" | "lace" | "cross" | "point" | "beg" | "call" | "crouch" | "hop" | "rope" | "grind" | "pull";
+  | "scrub" | "lace" | "cross" | "point" | "beg" | "call" | "crouch" | "hop" | "rope" | "grind" | "pull"
+  // M7 back of town (game/backlife.ts): bent over the wash tub at the board, leaning back on a wall with a
+  // foot up, hands in the pockets, a pull on the pipe
+  | "wash" | "wall" | "pockets" | "smoke";
 /**
  * M6 transport: ride (pedalling a velocipede: the body is raised by rideLift, the loop set from the
  * front wheel by setPhase), row (on a thwart facing the stern), push (behind a handcart, anyone).
  */
-const MOTIONS: Motion[] = ["idle", "walk", "talk", "fold", "carry", "sit", "behind", "lean", "write", "ride", "row", "push", "scrub", "lace", "cross", "point", "beg", "call", "crouch", "hop", "rope", "grind", "pull"];
+const MOTIONS: Motion[] = ["idle", "walk", "talk", "fold", "carry", "sit", "behind", "lean", "write", "ride", "row", "push", "scrub", "lace", "cross", "point", "beg", "call", "crouch", "hop", "rope", "grind", "pull", "wash", "wall", "pockets", "smoke"];
 /** M6 lively: how far the hips come down (a 1.74 m body) kneeling or crouched (build_people.py KNEEL_DROP, CROUCH_DROP). */
 const KNEEL_DROP = 0.44;
 const CROUCH_DROP = 0.4;

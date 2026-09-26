@@ -202,7 +202,10 @@ export type TradeId =
   // M7 night (night/givers.ts): the shady givers of night work, out from 21:00 to 5:00
   | "fence" | "smuggler" | "nightcarter" | "cracksman"
   // M7 shops (shops/town.ts, shared/shops.ts NEW_SHOPS): the shops added in place to every town
-  | "butcher" | "colonial" | "apothecary" | "barber" | "hatter" | "roaster" | "printer" | "bookseller" | "clockmaker";
+  | "butcher" | "colonial" | "apothecary" | "barber" | "hatter" | "roaster" | "printer" | "bookseller" | "clockmaker"
+  // M7 back of town (backtown.ts): the washerwomen at the court pumps, the lads of the corner gangs, the night
+  // watch, the parish priests of the back, a doctor, men too fond of drink
+  | "washerwoman" | "loafer" | "watchman" | "parish_priest" | "doctor" | "drunkard";
 
 export interface TradeDef {
   label: string;
@@ -310,6 +313,13 @@ export const TRADES: Record<TradeId, TradeDef> = {
   printer: { label: "printer and bookbinder", work: "shop", faction: "burgerij", wealth: [3, 5], bias: { gossip: 2, piety: -1 } },
   bookseller: { label: "bookseller", work: "shop", faction: "burgerij", wealth: [3, 5], bias: { piety: 1, courage: -1 } },
   clockmaker: { label: "clockmaker", work: "shop", faction: "burgerij", wealth: [4, 6], bias: { honesty: 2, temper: -1 } },
+  // M7 back of town (backtown.ts)
+  washerwoman: { label: "washerwoman, who washes for the better houses at the court pump", work: "post", faction: null, wealth: [0, 1], bias: { gossip: 3, warmth: 1, temper: 1 } },
+  loafer: { label: "lad out of work who hangs about a street corner with his mates", work: "roam", faction: "smokkelaars", wealth: [0, 1], bias: { honesty: -3, courage: 2, temper: 2, piety: -2, warmth: -1 } },
+  watchman: { label: "night watchman of the back streets", work: "patrol", faction: "politie", wealth: [1, 2], bias: { honesty: 1, courage: 1, gossip: 1 }, night: true },
+  parish_priest: { label: "parish priest", work: "round", faction: "kerk", wealth: [2, 4], bias: { piety: 5, warmth: 2 } },
+  doctor: { label: "physician, on his rounds of the back streets", work: "round", faction: "burgerij", wealth: [5, 7], bias: { honesty: 1, courage: 1 } },
+  drunkard: { label: "docker out of work, too fond of the jenever", work: "roam", faction: null, wealth: [0, 1], bias: { temper: 2, piety: -2, honesty: -1 } },
 };
 
 /** The board's employers who live in the town: fixed ids, so the job board can name them. */
