@@ -55,7 +55,9 @@ export function workLine(job: JobRow): string {
         ? `${t.goods === "parcel" ? "a parcel" : `one of the ${t.goods}`} from ${place(t.from)} to ${t.recipient} at ${place(t.to)}`
         : t.kind === "watch"
           ? `a watch over the ${t.goods} at ${place(t.post)}`
-          : t.stops.some((s) => s.what === "telegraph")
+          : t.kind === "mill"
+            ? `an hour's help at ${t.post.label}, turning the cap into the wind when the miller called`
+            : t.stops.some((s) => s.what === "telegraph")
             ? "a telegram to send"
             : `${t.stops.length} letters to doors`;
   return `The work, as it really was (these goods and places, whatever the pitch says): ${w}.`;

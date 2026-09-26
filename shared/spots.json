@@ -249,5 +249,45 @@
    1.0,
    0.0
   ]
+ },
+ "mill_yard": {
+  "label": "the Kipdorp mill's sack store",
+  "desc": "the foot of the wall stair by the Kipdorp gate, where the miller's man stacks the flour and the grain",
+  "x": -138.5,
+  "z": 345.0,
+  "dir": [
+   -1.0,
+   0.0
+  ]
+ },
+ "mill_ne_yard": {
+  "label": "the north mill's sack store",
+  "desc": "the foot of the wall stair on the east side, below the north-east bastion, where the stage mill's sacks are stacked",
+  "x": 220.0,
+  "z": 236.0,
+  "dir": [
+   0.0,
+   -1.0
+  ]
+ },
+ "bakery_rijn_door": {
+  "label": "the bakery behind the Rijnkaai",
+  "desc": "the baker's door in the lane behind the Rijnkaai",
+  "x": -3.2,
+  "z": 77.5,
+  "dir": [
+   0.0,
+   1.0
+  ]
+ },
+ "bakery_steen_door": {
+  "label": "the bakery on the Steenplein",
+  "desc": "the baker's door on the Steenplein",
+  "x": -202.5,
+  "z": 41.8,
+  "dir": [
+   0.0,
+   1.0
+  ]
  }
 }

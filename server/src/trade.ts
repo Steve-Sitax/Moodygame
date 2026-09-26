@@ -155,12 +155,22 @@ export function waresOf(db: DB, id: string, market?: Market): Array<{ kind: stri
   if (!base.length) return base;
   const m = market ?? marketOf(db);
   // M4: an event may move a price (0.5x to 3x) until it ends; rounded to the centime, never below 1
-  return base.map((w) => {
+  const out = base.map((w) => {
     // M6 ideas: news from abroad moves a price 10 to 30 in the hundred for 1 to 3 days (ideas/abroad.ts)
     const f = m(w.kind);
     return f === 1 ? w : { kind: w.kind, price_c: Math.max(1, Math.round(w.price_c * f)) };
   });
+  // M7 mills: a seller's own reason (a bakery short of flour: town/mills.ts), a few centimes on, clamped there
+  if (!sellerPrice.length) return out;
+  return out.map((w) => {
+    let p = w.price_c;
+    for (const f of sellerPrice) p = f(db, id, w.kind, p);
+    return p === w.price_c ? w : { kind: w.kind, price_c: Math.max(1, Math.round(p)) };
+  });
 }
+
+/** M7 mills: per seller and ware, a price moved by the engine's own stock (town/mills.ts: the bakeries' flour). */
+export const sellerPrice: Array<(db: DB, seller: string, kind: string, price_c: number) => number> = [];
 
 function baseWaresOf(db: DB, id: string): Array<{ kind: string; price_c: number }> {
   if (WARES[id]) return WARES[id];

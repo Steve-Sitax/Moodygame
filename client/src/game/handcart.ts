@@ -722,7 +722,7 @@ export class Handcarts {
   private async unloadAll(d: Drawn): Promise<void> {
     const r = this.jobs.running;
     const t = r?.job.task;
-    if (this.busy || !r || !t || t.kind === "watch" || t.kind === "letters") return;
+    if (this.busy || !r || !t || t.kind === "watch" || t.kind === "letters" || t.kind === "mill") return;
     this.busy = true;
     try {
       // (he keeps hold of the shafts: the goods come off the back of the cart)

@@ -878,6 +878,7 @@ function summary(j: Job): string {
   if (t.kind === "carry") return `carry ${t.count === 1 ? `a ${GOODS[t.goods].one}` : `${t.count} ${t.goods}`}${t.cart ? ` on ${j.employer_name}'s handcart` : " by hand"}, ${SPOTS[t.from].label} to ${SPOTS[t.to].label}${urgent}`;
   if (t.kind === "deliver") return `deliver a ${GOODS[t.goods].one} to ${t.recipient}${urgent}`;
   if (t.kind === "letters") return t.stops.some((s) => s.what === "telegraph") ? `send a telegram${t.city ? ` to ${t.city}` : ""}` : `${t.stops.length === 1 ? "a letter" : `${t.stops.length} letters`} to doors about the town`;
+  if (t.kind === "mill") return `an hour's help at ${t.post.label} on the wall, turning the cap into the wind`; // M7 mills
   return `watch the ${t.goods} at ${SPOTS[t.post].label}`;
 }
 

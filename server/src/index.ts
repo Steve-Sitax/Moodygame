@@ -51,6 +51,7 @@ import { mountHandcart } from "./town/handcartRoutes.ts";
 import { mountLively } from "./town/livelyRoutes.ts";
 import { mountErrands } from "./town/handsRoutes.ts";
 import { mountWalkup } from "./town/walkupRoutes.ts";
+import { mountMills } from "./town/mills.ts";
 import { mountRoutines } from "./director/routineRoutes.ts";
 import { mountArrival } from "./arrival.ts";
 import { mountNight } from "./night/routes.ts";
@@ -169,6 +170,8 @@ mountLively(app, { db });
 mountErrands(app, { db, payload: () => jobsPayload() });
 // M7 walk-up: job and quest people come from the living town (town/walkup.ts)
 mountWalkup(app, { db });
+// M7 mills: the stocks move on with the clock, the mills' work goes up (town/mills.ts)
+mountMills(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 // M6 AI-composed routines: errands the model plans from Jef's words and steers in check-ins (director/routines.ts)
 mountRoutines(app, { db, payload: () => jobsPayload() });
 // M7 ferry arrival: a new week begins with Jef on the ferry's deck at the Werf pontoon (arrival.ts)

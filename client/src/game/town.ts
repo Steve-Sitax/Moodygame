@@ -205,6 +205,19 @@ export class Town {
     spawned(s: Sim): void;
     lost(s: Sim): void;
   } | null = null;
+  /**
+   * M7 mills (game/mills.ts): the millers at their mills on the wall, and the mill's man with the cart (flour to
+   * the bakery at dawn, grain from the dock after dinner). Its key, goal and behave come before the back's.
+   */
+  mills: {
+    key(s: Sim, now: Now, day: number, hour: number): string;
+    goal(s: Sim, now: Now): Goal | null;
+    behave(s: Sim, dt: number, hour: number): boolean;
+    spawned(s: Sim): void;
+    lost(s: Sim): void;
+    /** One of the mill's people: no velocipede, handcart or omnibus of the town's for them. */
+    own(s: Sim): boolean;
+  } | null = null;
   private player = { x: 0, z: 0, yaw: 0 };
   private busyNet = false;
   private lastDay = 0;
@@ -315,7 +328,7 @@ export class Town {
     const now = activityAt(s.r.sched, day, hour);
     // M7 shops: a call at a shop this hour (the engine's roll, shared/shops.ts): in at its door, out at the hour's end
     const call = this.shopCall(s.r, day, hour);
-    const key = `${now.act}:${now.place}${call ? `|shop@${call[0]},${call[1]}` : ""}${this.lively?.key(s, now, day, hour) ?? ""}`;
+    const key = `${now.act}:${now.place}${call ? `|shop@${call[0]},${call[1]}` : ""}${this.lively?.key(s, now, day, hour) ?? ""}${this.mills?.key(s, now, day, hour) ?? ""}`;
     // East walkthrough 2026-09-25: a publican (or a drinker) whose goal was set while his tavern's house
     // was not open yet (at load, before the in-world rooms are attached) stood 1.7 m before the door and
     // blocked it. The tavern opening or shutting sets the goal again, the key unchanged.
@@ -356,7 +369,8 @@ export class Town {
       s.outAt = performance.now();
     }
     // M6 transport: how they go (a velocipede, the cart with the goods, the omnibus): journeys.ts
-    if (!first && !s.held && prevKey) this.journeys?.begin(s, plainKey(prevKey), prevPt);
+    // (M7 mills: the mill's people walk, and the man goes with the mill's own cart: game/mills.ts)
+    if (!first && !s.held && prevKey && !this.mills?.own(s)) this.journeys?.begin(s, plainKey(prevKey), prevPt);
     if (s.p) this.direct(s);
     this.lanterns(s, hour);
   }
@@ -408,6 +422,8 @@ export class Town {
   }
 
   private goalFor(s: Sim, now: Now): Goal {
+    const mill = this.mills?.goal(s, now); // M7 mills: the millers, the cart out at dawn and after dinner
+    if (mill) return mill;
     const back = this.back?.goal(s, now); // M7 back of town
     if (back) return back;
     const lively = this.lively?.goal(s, now);
@@ -578,6 +594,7 @@ export class Town {
       this.lanterns(s, this.clock().hour);
       this.lively?.spawned(s);
       this.back?.spawned(s); // M7 back of town
+      this.mills?.spawned(s); // M7 mills
       if (s.r.dog) {
         const sim = s;
         this.animals.addDog(s.r.id, s.r.dog.look, at, () =>
@@ -592,6 +609,7 @@ export class Town {
   private lose(s: Sim, remove = false): void {
     if (s.p) this.lively?.lost(s);
     if (s.p) this.back?.lost(s); // M7 back of town
+    if (s.p) this.mills?.lost(s); // M7 mills
     if (s.p && remove) this.crowd.removePuppet(s.p);
     s.p = null;
     s.held = false;
@@ -652,6 +670,7 @@ export class Town {
   private behave(s: Sim, dt: number, hour: number): void {
     // M6 transport: riding, pushing the cart, waiting for the omnibus, going to the boat
     if (s.trip && this.journeys?.behave(s, dt)) return;
+    if (this.mills?.behave(s, dt, hour)) return; // M7 mills
     if (this.back?.behave(s, dt, hour)) return; // M7 back of town
     if (this.lively?.behave(s, dt, hour)) return;
     const p = s.p!;

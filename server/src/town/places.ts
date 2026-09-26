@@ -205,7 +205,9 @@ export type TradeId =
   | "butcher" | "colonial" | "apothecary" | "barber" | "hatter" | "roaster" | "printer" | "bookseller" | "clockmaker"
   // M7 back of town (backtown.ts): the washerwomen at the court pumps, the lads of the corner gangs, the night
   // watch, the parish priests of the back, a doctor, men too fond of drink
-  | "washerwoman" | "loafer" | "watchman" | "parish_priest" | "doctor" | "drunkard";
+  | "washerwoman" | "loafer" | "watchman" | "parish_priest" | "doctor" | "drunkard"
+  // M7 mills (town/mills.ts): the miller at each of the two mills on the wall, and his man with the cart
+  | "miller" | "miller_man";
 
 export interface TradeDef {
   label: string;
@@ -320,6 +322,9 @@ export const TRADES: Record<TradeId, TradeDef> = {
   parish_priest: { label: "parish priest", work: "round", faction: "kerk", wealth: [2, 4], bias: { piety: 5, warmth: 2 } },
   doctor: { label: "physician, on his rounds of the back streets", work: "round", faction: "burgerij", wealth: [5, 7], bias: { honesty: 1, courage: 1 } },
   drunkard: { label: "docker out of work, too fond of the jenever", work: "roam", faction: null, wealth: [0, 1], bias: { temper: 2, piety: -2, honesty: -1 } },
+  // M7 mills (town/mills.ts): the miller at his mill by day; his man hauls the sacks down the wall stair and takes the cart out
+  miller: { label: "miller of a mill on the town wall", work: "post", faction: "burgerij", wealth: [3, 5], bias: { honesty: 1, temper: 1, piety: 1 } },
+  miller_man: { label: "miller's man, who carries the sacks and drives the mill's cart", work: "haul", faction: null, wealth: [0, 2], bias: { courage: 1, gossip: 1 } },
 };
 
 /** The board's employers who live in the town: fixed ids, so the job board can name them. */

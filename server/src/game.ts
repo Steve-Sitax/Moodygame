@@ -80,7 +80,7 @@ export const takeHooks: Array<(db: DB, j: JobRow) => void> = [];
 /** Save carry/deliver progress so a reload does not make Jef carry twice. */
 export function saveProgress(db: DB, id: number, p: Progress): JobRow {
   const j = job(db, id);
-  if (j.status !== "taken" || !j.task || j.task.kind === "watch") throw new GameError("no progress to save", 409);
+  if (j.status !== "taken" || !j.task || j.task.kind === "watch" || j.task.kind === "mill") throw new GameError("no progress to save", 409);
   const count = j.task.kind === "carry" ? j.task.count : j.task.kind === "letters" ? j.task.stops.length : 1;
   const clean = (n: unknown) => Math.max(0, Math.min(count, Math.floor(Number(n) || 0)));
   const progress = { delivered: clean(p.delivered), lost: clean(p.lost), sold: clean(p.sold) };
@@ -100,6 +100,8 @@ export const ReportSchema = z.object({
   thief: z.enum(["none", "chased", "stole"]).default("none"),
   bribe_taken: z.boolean().default(false),
   seen_away: z.boolean().default(false),
+  /** M7 mills: how many times Jef turned the cap into the wind when the miller called (town/mills.ts). */
+  turns: z.number().int().min(0).max(10).optional(),
   /**
    * M7 night: settled at the employer's quest box (he is at home asleep). The facts are the ones
    * held when the work was done (holdJob); the box pays at once, as the employer would.
@@ -169,6 +171,27 @@ export function settle(j: JobRow, r: Report, rng: () => number = Math.random): S
         : `Jef put ${done} of ${count} letters under the right doors for ${who}.`,
     );
     return { pay_c: round5(pay), extra_c: 0, trust_delta: done === count ? 1 : 0, caught: false, status: done === 0 ? "failed" : "done", facts };
+  }
+
+  // M7 mills: an hour's help at the mill: half the pay for being there, the rest by the turns of the cap
+  if (task.kind === "mill") {
+    const asked = Math.max(0, task.turns);
+    const done = Math.min(asked, r.turns ?? 0);
+    let pay = j.pay_c * (asked ? 0.5 + (0.5 * done) / asked : 1);
+    const away = r.left_post_s > 20;
+    if (away) {
+      pay *= 0.5;
+      facts.push(`Jef left the mill for ${r.left_post_s} seconds.`);
+    }
+    facts.push(
+      done === asked
+        ? `Jef gave ${who} an hour at the mill and put his shoulder to the capstan every time the wind backed.`
+        : done
+          ? `Jef turned the cap for ${who} ${done === 1 ? "once" : `${done} times`} of the ${asked} he was called.`
+          : `${who} called for the cap to be turned and Jef never came.`,
+    );
+    const trust = done === asked && !away ? 1 : done === 0 ? -1 : 0;
+    return { pay_c: round5(pay), extra_c: 0, trust_delta: trust, caught: false, status: done === 0 && away ? "failed" : "done", facts };
   }
 
   if (task.kind === "watch") {
@@ -253,7 +276,8 @@ export function finishJob(db: DB, id: number, report: Report, rng?: () => number
   if (report.box) s.facts.push(`${j.employer_name} was abed; Jef dropped the proof in the box at the door and took his pay from it.`);
   // M6 ideas: a job that went wrong (ideas/trouble.ts) adds its engine-set pay change and facts
   for (const f of settleExtras) f(db, j, s);
-  const faction = ALL_EMPLOYERS[j.employer_npc]?.faction;
+  // (M7 mills: the engine's mill work is for a townsperson, the miller or the baker: trust goes to their own faction)
+  const faction = ALL_EMPLOYERS[j.employer_npc]?.faction ?? (j.source === "mill" ? ((db.prepare("SELECT faction FROM npc WHERE id = ?").get(j.employer_npc) as { faction: string | null } | undefined)?.faction ?? undefined) : undefined);
   db.transaction(() => {
     db.prepare("UPDATE job SET status = ? WHERE id = ?").run(s.status, id);
     // time passes while the job is played (M5 clock), so no extra hour here

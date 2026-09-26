@@ -63,7 +63,19 @@ export interface LettersTask {
   limit_s: null;
   progress?: Progress;
 }
-export type Task = CarryTask | WatchTask | DeliverTask | LettersTask;
+/** M7 mills (server town/mills.ts): an hour's help at a mill on the wall; the cap turned into the wind when the miller calls. */
+export interface MillTask {
+  kind: "mill";
+  goods: "sacks";
+  mill: string;
+  post: { x: number; z: number; label: string };
+  capstan: { x: number; z: number };
+  duration_s: number;
+  turns: number;
+  twist: "none";
+  limit_s: null;
+}
+export type Task = CarryTask | WatchTask | DeliverTask | LettersTask | MillTask;
 
 /** What happened in 3D, sent when a job ends. The server turns it into money. */
 export interface Report {
@@ -76,6 +88,8 @@ export interface Report {
   thief?: "none" | "chased" | "stole";
   bribe_taken?: boolean;
   seen_away?: boolean;
+  /** M7 mills: times the cap was turned into the wind when the miller called. */
+  turns?: number;
   /** M7 night: settled at the employer's quest box (the facts held when the work was done). */
   box?: boolean;
 }

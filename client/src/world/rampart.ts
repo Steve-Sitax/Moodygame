@@ -157,6 +157,12 @@ export function rampartGates(): Array<{ id: string; name: string; x: number; z: 
 /** M7 sleep: the wall walk's benches once wall.glb is in (the server reads the same list: server/src/rest.ts). */
 export let wallBenchSpots: Array<{ x: number; z: number; y: number }> = [];
 
+/**
+ * M7 mills (game/mills.ts, shared/mills.ts millTurning): how fast each mill's sails turn now, by its sails' node
+ * name (0 still: fog, a gale, night, Sunday; 1 an ordinary breeze). Unset: 1, as before.
+ */
+export const millSails: Record<string, number> = {};
+
 /** What build_wall.py placed on the wall (pass 2: the node "wall_dressing" in wall.glb). */
 export interface WallDressing {
   /** The mills: the tower's foot (r), the tail pole's capstan, a stage's reach; the sails' node and axle. */
@@ -201,7 +207,8 @@ export function loadWall(scene: THREE.Scene): WallModel {
   scene.add(group);
   const mats = new Map<string, THREE.Material>();
   const chunks: THREE.Mesh[] = [];
-  const sails: Array<{ node: THREE.Object3D; axle: THREE.Vector3; speed: number; phase: number }> = [];
+  const sails: Array<{ node: THREE.Object3D; axle: THREE.Vector3; speed: number; phase: number; name: string; angle: number; cur: number }> = [];
+  let sailT = performance.now() / 1000; // (M7 mills)
   const glows: Array<{ m: THREE.MeshBasicMaterial; day: number }> = [];
   let nature: RampartNature | null = null;
   let walkMat: THREE.Material | null = null;
@@ -339,7 +346,7 @@ export function loadWall(scene: THREE.Scene): WallModel {
         sn.position.set(0, 0, 0);
         pivot.add(sn);
         const ax = (sn.userData.axle as number[] | undefined) ?? mill.axle;
-        sails.push({ node: sn, axle: new THREE.Vector3(ax[0], ax[1], ax[2]).normalize(), speed: i === 0 ? 0.7 : 0.55, phase: i * 1.3 });
+        sails.push({ node: sn, axle: new THREE.Vector3(ax[0], ax[1], ax[2]).normalize(), speed: i === 0 ? 0.7 : 0.55, phase: i * 1.3, name: mill.sails, angle: i * 1.3, cur: millSails[mill.sails] ?? 1 }); // (M7 mills: name, angle, cur)
       });
       gltf.scene.traverse((o) => {
         const m = o as THREE.Mesh;
@@ -371,8 +378,16 @@ export function loadWall(scene: THREE.Scene): WallModel {
     update(camera, far, dark) {
       const cp = camera.position;
       // the sails turn slowly, the wind of an autumn day (a turn in about 9 s; the second mill a little slower)
+      // (M7 mills: only with wind, by day, on a working day: game/mills.ts sets millSails; they come up to speed and run down)
       const t = performance.now() / 1000;
-      for (const s of sails) s.node.quaternion.setFromAxisAngle(s.axle, t * s.speed + s.phase);
+      const dt = Math.min(0.25, Math.max(0, t - sailT));
+      sailT = t;
+      for (const s of sails) {
+        const want = millSails[s.name] ?? 1;
+        s.cur += (want - s.cur) * Math.min(1, dt * 0.15);
+        s.angle += dt * s.speed * s.cur;
+        s.node.quaternion.setFromAxisAngle(s.axle, s.angle);
+      }
       for (const m of chunks) {
         const s = m.geometry.boundingSphere!;
         tmp.copy(s.center).applyMatrix4(m.matrixWorld);

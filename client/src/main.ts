@@ -91,6 +91,8 @@ import { gothicInWorld } from "./world/gothicHall";
 import { createAlive } from "./world/alive";
 // M7 back of town (docs/milestones/M7-back-of-town.md): the pump, the corner gangs, cards, doorsteps, the park, the watch (hook)
 import { BackLife } from "./game/backlife";
+// M7 mills (docs/milestones/M7-mills.md): the millers, the sails in the wind, the flour and grain carts, the mill work (hook)
+import { Mills } from "./game/mills";
 import { setAliveViewHeight } from "./world/alive/common";
 import { bootRestore, type ClientState } from "./game/restoreData";
 import { Together } from "./net/mp/together"; // M8a multiplayer: the others in the town, no pause together
@@ -439,6 +441,13 @@ town.back = backLife.hook();
 backLife.clock = () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF });
 backLife.weather = () => weatherNow ?? "clear";
 backLife.say = (c) => bubbles.show(c);
+// M7 mills (hook): the millers on the wall, the sails in the wind, the flour cart at dawn and the grain after dinner (game/mills.ts)
+const mills = new Mills(world, town, crowd);
+town.mills = mills.hook();
+mills.clock = () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF });
+mills.weather = () => weatherNow ?? "clear";
+mills.say = (t) => jobs.say(t);
+mills.load().catch((e) => console.warn("the mills did not load", e));
 // M7 night: the employers' quest boxes by their doors (game/questboxes.ts), and the gangs (game/nightlife.ts)
 const boxes = new QuestBoxes(world, jobs.people, town);
 boxes.clock = () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF });
@@ -1009,6 +1018,7 @@ function frame(): void {
   safe("emigrants.update", () => emigrants.update(dt));
   safe("lively.update", () => lively.update(dt, player, player.camera, crowd.fogDistance));
   safe("backLife.update", () => backLife.update(dt, player)); // M7 back of town (hook)
+  safe("mills.update", () => mills.update(dt, player)); // M7 mills (hook)
   safe("quayGoods.keepClear", quayGoodsKeepClear);
   safe("animals.update", () => animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7));
   safe("alive.update", () => alive.update(elapsed, dt, player.camera, { day: jobs.day.dayNum, hour: jobs.day.hourF }, weatherNow)); // M7 alive (hook)
@@ -1443,6 +1453,8 @@ if (import.meta.env.DEV) {
       for (const q of ballads.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M6 handcart: the wheelwright's door and his carts
       for (const q of handcarts.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      // M7 mills: the mills' doors on the wall, where the cap is turned, the carts' stand and stops
+      for (const q of mills.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M6 lively: the stalls against the cathedral, the Madonnas' stands, the beggars' places, every stop of a round
       for (const q of lively.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M7 ferry arrival: while the ferry lies at the pontoon, Jef's place on her deck
@@ -1591,6 +1603,7 @@ if (import.meta.env.DEV) {
         safe("step: emigrants.update", () => emigrants.update(dt));
         safe("step: lively.update", () => lively.update(dt, player, player.camera, crowd.fogDistance));
         safe("step: backLife.update", () => backLife.update(dt, player)); // M7 back of town (hook)
+        safe("step: mills.update", () => mills.update(dt, player)); // M7 mills (hook)
         safe("step: animals.update", () => animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7));
         safe("step: alive.update", () => alive.update(elapsed, dt, player.camera, { day: jobs.day.dayNum, hour: jobs.day.hourF }, weatherNow)); // M7 alive (hook)
         safe("step: lanternLights.update", () => lanternLights.update(dt, player.camera, lanternDark()));
@@ -1644,6 +1657,8 @@ if (import.meta.env.DEV) {
   });
   // M7 back of town (hook): __scheldemist.back.info(), .at(place)
   Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, { back: backLife });
+  // M7 mills (hook): __scheldemist.mills.info(), the carts, the men, the sails
+  Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, { mills });
   // the ink cursor and the dialogs up (game/cursor.ts, game/dialogs.ts): t.focusTest(), t.mouseTest()
   Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, { ink, dialogs });
   mountCullHud(cull);

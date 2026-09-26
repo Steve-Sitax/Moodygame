@@ -31,7 +31,8 @@ import {
 export const TASK_TYPES = ["carry", "watch", "deliver", "row", "find", "talk"] as const;
 // M6: "letters" (a round of doors and counters: the post office's letters, a letter's errand) is
 // never on the model's list; the engine builds those jobs itself (paper/post.ts)
-export const PLAYABLE = new Set<string>(["carry", "watch", "deliver", "letters"]);
+// M7 mills: "mill" (an hour's help at a mill on the wall) is the engine's own too (town/mills.ts)
+export const PLAYABLE = new Set<string>(["carry", "watch", "deliver", "letters", "mill"]);
 
 export const GOODS = ["crates", "sacks", "barrels", "hides", "rope", "parcel"] as const;
 // M6 emigrants (town/emigrants.ts): "chests" is never on the model's list; the engine builds those errands itself
@@ -224,7 +225,24 @@ export interface LettersTask {
   limit_s: null;
   progress?: Progress;
 }
-export type Task = CarryTask | WatchTask | DeliverTask | LettersTask;
+/**
+ * M7 mills (town/mills.ts): an hour's help at a mill on the wall. Stay by the mill; when the miller calls,
+ * turn the cap into the wind at the capstan (or up on the gallery). Engine-built; the engine pays by the turns done.
+ */
+export interface MillTask {
+  kind: "mill";
+  goods: "sacks";
+  mill: string;
+  /** The mill's door (the post) and where the cap is turned, on the walk on top of the wall. */
+  post: { x: number; z: number; label: string };
+  capstan: { x: number; z: number };
+  duration_s: number;
+  /** How many times the miller will call for the cap to be turned. */
+  turns: number;
+  twist: "none";
+  limit_s: null;
+}
+export type Task = CarryTask | WatchTask | DeliverTask | LettersTask | MillTask;
 
 export interface JobRow {
   id: number;
@@ -396,7 +414,7 @@ const dist = (a: SpotId, b: SpotId) => Math.hypot(SPOTS[a].x - SPOTS[b].x, SPOTS
  * Engine turns a board line into a playable task. The model picked goods,
  * places and a twist; the engine fixes what does not fit and sets all numbers.
  */
-export function taskFor(j: BoardJob): Task | null {
+export function taskFor(j: BoardJob): Exclude<Task, MillTask> | null {
   let twist: Twist = (TWISTS_FOR[j.task_type] ?? ["none"]).includes(j.twist) ? j.twist : "none";
   const employer = ALL_EMPLOYERS[j.employer];
   // M3e: a townsperson's work stays on their own ground (walking range); the engine moves strays back.

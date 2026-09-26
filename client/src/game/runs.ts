@@ -976,6 +976,7 @@ export function makeRun(job: Job, ctx: RunCtx): Run | null {
   const maker = RUN_MAKERS[t.kind];
   if (maker) return maker(job, ctx);
   if (t.kind === "letters") return null;
+  if (t.kind === "mill") return null; // (M7 mills: game/mills.ts registers its own)
   if (t.kind === "watch") return new WatchRun(job, t, ctx);
   return new HaulRun(job, t, ctx);
 }

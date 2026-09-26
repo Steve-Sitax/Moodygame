@@ -21,7 +21,7 @@ const db0 = openDb(":memory:");
 const all0 = town(db0).town.residents;
 const B = all0.filter((r) => isBackId(r.id));
 // (M7 walk-up: the standing roles, ids "wu..", come after the back of town: not in what it was made from)
-const rest0 = all0.filter((r) => !isBackId(r.id) && !/^wu\d+$/.test(r.id));
+const rest0 = all0.filter((r) => !isBackId(r.id) && !/^(wu|ml)\d+$/.test(r.id)); // (M7 mills: the millers, ids "ml..", come after it too)
 const places0 = town(db0).town.places;
 const of = (t: string) => B.filter((r) => r.trade === t);
 
@@ -183,7 +183,7 @@ describe("the save: in place, once", () => {
     expect(bk.length).toBe(B.length);
     // make it an older save: take them out, and their places
     // (M7 walk-up: an older save has not the standing roles either, ids "wu..": they come after the back of town)
-    const wu = town(db).town.residents.filter((r) => /^wu\d+$/.test(r.id));
+    const wu = town(db).town.residents.filter((r) => /^(wu|ml)\d+$/.test(r.id)); // (M7 mills: and the millers, "ml..")
     for (const t of ["npc_relationship WHERE npc_id", "resident WHERE id", "npc WHERE id"]) for (const r of [...bk, ...wu]) db.prepare(`DELETE FROM ${t} = ?`).run(r.id);
     const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'town'").get() as { value_json: string };
     const tw = JSON.parse(row.value_json);
