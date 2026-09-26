@@ -50,3 +50,23 @@ Build: `npm run build`. Model review: Blender `build_trees.py -- --preview` writ
 `data/shots/trees_preview.png`. Browser checks run in Chrome against a copied save in the isolated
 integration checkout on 5469/9069. Final path, shader, contact and dry/rain evidence is recorded
 in `docs/worklog.md` before this batch is marked merged.
+
+### Completed verification and integration
+
+- Feature commit `abb6a21` is on main, pushed, and included in the playable checkout's `9aa9cd4`.
+  Concurrent lighting and remote test fixes were reconciled in main `98bdebe`. Its tree exactly
+  matched the isolated integration tree used for the final build and Chrome contact check.
+- Seven analytic collision tests passed; `npm run build` passed (client and server).
+- Final Chrome check found 548 mesh colliders (529 trees, 19 benches). Walking into a trunk
+  stopped 0.455 m from its centre; walking alongside at a 0.54 m offset crossed it freely.
+  `paths()` and shader problems were both empty. Clear, wet, actual rain and close bark views
+  were inspected; the rain check also reported no shader problems.
+- Images remain in `D:/Code/MoodyGame-tight-merge/data/shots/`: `trees_preview.png`,
+  `small-assets-tree-dry.jpg`, `small-assets-tree-wet.jpg`, `small-assets-tree-crown.jpg`,
+  `small-assets-tree-rain.jpg`, and `small-assets-bark-close.jpg`.
+- An additional check of the concurrently merged AI router test file returned 19 passed and
+  two timeouts (first Codex stub case and process-kill case). This is not a clean router suite;
+  its owning session should investigate. No AI/test fixes were added by this asset batch.
+  Output: isolated checkout `data/tight-router.log`.
+- The private Chrome test instance and copied-save stack on 5469/9069 were closed and stopped.
+  Other sessions' test stacks and the playable save were not used for testing.

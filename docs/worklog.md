@@ -19,7 +19,7 @@ and foot-of-wall dirt.
 
 | Work | Scope and files | Started |
 |---|---|---|
-| Codex: low-poly props and tight collisions | IMPLEMENTED + VERIFIED; awaiting coordinated integration with Props in walls/Picture round. See `docs/milestones/M7-tight-props.md`. Generated mood reference, cargo lettering, matching bump/wet atlas; model-triangle collision across shared prop loaders, lively props, stop benches, initial stacks and lamps; navigation uses exact surfaces. Final Chrome jump crossed pyramid (feet max 2.30 m); 398 quay props / 0 placement issues; paths `[]`, shaders `[]`; build and 8 tests pass. Preserve inherited placement/registry and new sky edits; scoped deltas in `data/tight-assets-baseline/` exclude cloud changes. No commit or play checkout by this session: whole shared files contain other helpers' uncommitted work. Test stack 5349/8959 cleaned up. | 2026-09-26 |
+| Codex: low-poly props and tight collisions | SAFE BATCH MERGED + PUSHED `abb6a21` (already live through `9aa9cd4`; reconciled main `98bdebe`): collision core, tree trunks and static stop benches; tree/vegetation design, matching bark bump/wet map. Seven collision tests, clean build, Chrome contact + dry/rain, paths/shaders empty. Test Chrome and isolated 5469/9069 stack cleaned up. HOLD barrels/crates/sacks and other prepared prop-loader changes until Props in walls/Picture round finishes; defer other active assets per Steve. Queue/scope and validation: `docs/milestones/M7-small-assets.md`; original cargo evidence `M7-tight-props.md`. Extra router check: 19 passed, two timeouts (first Codex stub and process-kill test); report to Flaky talk-down/AI owner, no edits to their files. | 2026-09-26 |
 | Picture round 1, 4, 5 + tuning | autumn ground (leaves, dung, straw), clouds, smoke and works chimneys; stronger gutter streams and foot-of-wall dirt; litter.ts, leaves, sky in rijnkaai.ts, ambient.ts, eaves.ts, footDirt constants | 2026-09-26 |
 | Yard windows 3D | the 348 yard-side walls get real windows; build_city.py, city.glb; posters/props/gutters checks stay clean | 2026-09-26 |
 | AI setup, round 2 | a setting: typed lines to any chosen AI (default) or only to Claude; server AI code, `docs/ai-setup.md` | 2026-09-26 |
@@ -38,6 +38,7 @@ and foot-of-wall dirt.
 
 | Commit | What |
 |---|---|
+| abb6a21 | Small trees/vegetation design pass, matching bark bump and rain response; model-shaped street/quay tree and static stop-bench collision. Active-session assets deferred. |
 | 7d8a3ea | Menus: handbill title, settings (graphics presets, sound, controls rebinding, game, accessibility), AI setup screen, bundled OFL fonts |
 | f1670b1 | Licence AGPL-3.0-or-later, README, `docs/public-release-check.md` (safe to go public) |
 | 26ef905 | The multiplayer plan (design only): `docs/multiplayer-plan.md` |
