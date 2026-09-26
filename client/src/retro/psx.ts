@@ -912,6 +912,21 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
       }`,
       );
     }
+    if (opts.wet && fs.includes("#include <lights_phong_fragment>")) {
+      // Dry stone is matte (the quay sheen, 2026-09-27; Steve: "a shine over it and it looks like flat plastic"): the
+      // sun's Phong highlight lies on the flat face of the ground, not on the stones (the relief is in the colour
+      // only), so a dry quay turned into one smooth sheen looking toward the sun, the Fresnel brightest at a slant.
+      // The highlight now comes with the wet, in the rain's patches as the wet shading below (a film of water is
+      // smooth: the rain's sheen stays as it was); dry, the ground is as matte as the rail band's setts.
+      fs = fs.replace(
+        "#include <lights_phong_fragment>",
+        /* glsl */ `#include <lights_phong_fragment>
+      {
+        float spPatch = pudVal(vPsxWorld.xz / 1.7) * 0.6 + pudVal(vPsxWorld.xz * 4.0) * 0.4;
+        material.specularColor *= uWet * smoothstep(0.15, 0.65, spPatch + uWet * 0.35);
+      }`,
+      );
+    }
     if (opts.foot || opts.mottle) {
       // (after the colour, the vertex colour and whatever a later patch draws there, houseGrime.ts; before the light)
       const wearOf = opts.foot?.vertexWear ? "\n        #ifdef USE_COLOR_ALPHA\n        fA *= 0.25 + 0.9 * vColor.a;\n        #endif" : "";
@@ -1042,6 +1057,19 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
           water *= smoothstep(0.46, 0.56, pudVal(pp / 2.1 + 57.1)) * smoothstep(0.3, 0.42, pudVal(pp / 4.7 - 23.9));
           // stones and pebbles stand out of the water: the shallower the puddle, the more of them
           ${opts.relief ? "water *= 1.0 - smoothstep(0.6 + lvl * 0.2, 0.7 + lvl * 0.2, psxH) * (1.0 - smoothstep(th + 0.05, th + 0.3, pn));" : ""}
+          ${
+            opts.relief
+              ? `// (the quay sheen, 2026-09-27) with no rain on the stones the water sinks into the hollows: the joints and the sunk
+          // stones hold it, the tops stand dry. A sheet of it over the tops of a dry quay mirrored the bright fog as one
+          // smooth pale patch with a few stones showing through (Steve: "a shine over it, flat plastic"). In the rain
+          // (and while the stones are still wet from it) the puddles are as they were.
+          {
+            float wlv = 0.06 + 0.24 * smoothstep(th, th + 0.3, pn);
+            float dryCut = 1.0 - smoothstep(wlv - 0.05, wlv + 0.02, psxH);
+            water *= mix(dryCut, 1.0, ${opts.wet ? "smoothstep(0.05, 0.4, uWet)" : "0.0"});
+          }`
+              : ""
+          }
           water = clamp(water, 0.0, 1.0);
           float damp = smoothstep(th - 0.09, th, pn);
           gl_FragColor.rgb *= 1.0 - 0.38 * damp * (1.0 - water);
