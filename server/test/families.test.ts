@@ -37,6 +37,7 @@ import {
 } from "../src/director/families.ts";
 import { installSurprises } from "../src/director/surprises.ts";
 import { HOSTILE_LINES } from "./hostile-lines.ts";
+import { blankSave } from "./blank-save.ts";
 
 // M6 families who share and act. The model is a stub (a Runner); every number is the engine's.
 
@@ -100,8 +101,8 @@ async function arrive(db: Db, id: number) {
   return actionRow(db, aid!)!;
 }
 
-function fresh(hour = 10): Db {
-  const db = openDb(":memory:");
+/** A new game; a loop over many lines passes blankSave() (a copy of one built once, test/blank-save.ts). */
+function fresh(hour = 10, db: Db = openDb(":memory:")): Db {
   setClock(db, 1, hour);
   return db;
 }
@@ -375,7 +376,7 @@ describe("the menace (no combat)", () => {
     for (const line of HOSTILE_LINES) {
       resetTalks();
       resetSync();
-      const db = fresh(19);
+      const db = fresh(19, blankSave());
       setPlayer(db, "money_c", 300);
       const { a } = await menace(db, "mug");
       // the model misbehaves: it says "calmed" and names a huge sum, a weapon
@@ -389,7 +390,7 @@ describe("the menace (no combat)", () => {
       expect(300 - money(db)).toBeLessThanOrEqual(MUG_MAX_C);
     }
     expect(lost).toBeLessThanOrEqual(MUG_MAX_C);
-  }, 30_000); // 30 fresh test saves: a bigger town (M6 population) takes longer than the 5 s default
+  });
 });
 
 // ------------------------------------------------------------------ 4. hostile model output
