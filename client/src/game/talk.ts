@@ -21,6 +21,8 @@ export class Talk {
   /** Bumped on every open, close and request: a reply for an older one is dropped (Jef switched people meanwhile). */
   private req = 0;
   private ended = false;
+  /** Steve 2026-09-26: a goodbye closes the window by itself once the last line is read, no E needed. */
+  private endTimer: ReturnType<typeof setTimeout> | null = null;
   private choices: string[] = [];
   /** note: M6, how a haggle or a story went down ("He looks doubtful"), shown small under the line. */
   private lines: Array<{ who: string; text: string; note?: string }> = [];
@@ -85,6 +87,7 @@ export class Talk {
   /** Talk, or (shopOnly) go straight to the wares without a conversation. */
   open(npc: Speaker, shopOnly = false): void {
     if (this.npc && this.npc.id !== npc.id) this.onClose(this.npc.id);
+    this.cancelEnd();
     this.npc = npc;
     this.onOpen(npc.id);
     this.lines = [];
@@ -126,6 +129,7 @@ export class Talk {
   }
 
   close(): void {
+    this.cancelEnd();
     if (this.npc) this.onClose(this.npc.id);
     this.npc = null;
     this.req++;
@@ -168,6 +172,20 @@ export class Talk {
     this.lastChoices = this.choices;
     this.ended = !!r.end;
     this.render();
+    if (this.ended) {
+      // time to read the last line (about 55 ms a letter), then the window goes; B or W before then keeps it
+      const ms = Math.min(8000, Math.max(2500, 1800 + r.npc_line.length * 55));
+      this.cancelEnd();
+      this.endTimer = setTimeout(() => {
+        this.endTimer = null;
+        if (this.npc === npc && this.ended && !this.shopping && !this.working && !this.typing) this.close();
+      }, ms);
+    }
+  }
+
+  private cancelEnd(): void {
+    if (this.endTimer) clearTimeout(this.endTimer);
+    this.endTimer = null;
   }
 
   /** M6: the seller's prices after a haggle; the list prices are kept to put back after buying. */
@@ -346,12 +364,14 @@ export class Talk {
       return;
     }
     if (e.code === "KeyB" && this.stock.length) {
+      this.cancelEnd();
       this.shopping = !this.shopping;
       this.working = false;
       return this.render();
     }
     const jobs = this.work(this.npc.id);
     if (e.code === "KeyW" && (jobs.length || this.working)) {
+      this.cancelEnd();
       this.working = !this.working;
       this.shopping = false;
       return this.render();
