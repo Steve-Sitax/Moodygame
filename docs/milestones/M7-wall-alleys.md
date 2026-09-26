@@ -181,3 +181,63 @@ Open:
   (`game/landmarks.ts updateCathedral`, not the wall); a reload fixed it.
 - The walk map knows only the first mill: a crowd walker could cross the second mill's disc (the crowd does not
   go there now). A later `plan.py` run could paint it in (`rampart.py` mill disc).
+
+## The town wall, pass 3: the look pass (2026-09-26)
+
+Steve, on the walk at dusk: "still looks flat here. Take pictures, make it better, also props, people, guards."
+Pictures first (test copy, the same twelve cameras at 13:00 clear, 18:00, 22:00 and in rain). What read flat and why:
+- the walk: the quays' setts at 2 m a tile; their relief light and stone tones melt into one tone past 8 to 22 m
+  (psx relief), so beyond a few metres the walk was a grey smear with faint lines;
+- the brick: 30 x 7.5 cm bricks at 53 px a metre (too big: Boom brick of 1873 is 22 x 10.5 x 5.5 cm), a 1 px joint the
+  height map could hardly lift, and bump 1.1;
+- the coping: one flat beige box (the ashlar picture) along every parapet, no joints, no edge, no weather;
+- the bastion lawns: a flat green polygon with a knife edge against the setts, nothing on it;
+- nobody on the walk on a weekday but three drawn sentries pacing a fixed line; no props but benches and lamps.
+
+| Part | What | Where |
+|---|---|---|
+| Walk | Its own Codex picture: big worn setts in courses across the walk, soil, moss and grass in the joints, leaves; height and stone maps from it (`setts_maps.py`); 2.4 m a tile; the relief and stone tones reach 1.7 times as far (psx `relief.reach`, a new option; its own program key) | `rampart.ts`, `textures/wall_walk_setts*` |
+| Brick | Cross bond (kruisverband) of 23 x 6.5 cm courses, 122 px a metre, lit upper arris, shaded lower one, dark over-burnt headers, spalled faces, eroded joints, a haze of salts; quoins on the same courses; bump 1.6 (quoins 1.4). The old painters still run and are thrown away, so every other picture keeps its dice and its hash | `build_wall.py paint_brick_1873`, `townwall_maps.py` |
+| Coping | Belgian bluestone slabs (`wall_coping`, four slabs a picture): 1 to 1.5 m, 1 cm joints over a dark mortar bed, each a few mm high or low, chamfered top edges, a drip over both faces; tooled strokes, drafted margin, cracks, chipped corners, lichen (grey and a few orange), moss at the joints; its height map by `townwall_maps.py` (`coping`, bump 1.5) | `build_wall.py coping_slabs`, `paint_coping` |
+| Lawns | A cut-out band of grass, straw and leaves over every lawn edge, thinning into the setts; a trodden path across each lawn; tussocks along the edges and in clumps, leaf drifts (the lawns' outlines in the dressing, `lawns`) | `build_wall.py build_lawns`, `rampartNature.ts` |
+| Details | Drain spouts under the cordon with a wet streak down the face (the face's own darker strip, no layer on it); iron breeching rings by every third embrasure; stair treads worn hollow off the middle | `build_wall.py spout, iron_ring, build_stair` |
+| The works | Period: Brialmont's ring (1859-64) made the Spanish ramparts useless and the town was pulling them down for its boulevards. On seg7 (s 70 to 80) the breastwork is pulled down: broken ends stepping down, two rubble heaps, shear legs leaning out over the field with a basket of rubble and a crab winch, a rope on posts, cleaned bricks stacked for sale, planks, a barrow, the town's notice | `build_wall.py WORKS, build_props` |
+| Props | Three garrison sentry boxes on the walk; old iron guns lying dismounted on sleepers (seg8, seg2); a washing line from the north-west bastion's guard house; a bench on three lawns (they are wall benches for the sleep system: the dressing's `benches`) | `build_wall.py build_props` |
+| Props in the game | Their own glb objects (`wall_props_<n>`) in the group `town_wall_props` (not a building group), boxes in the dressing (`props`): Jef's colliders and the prop check | `rampart.ts` |
+| Crows, the kite | Three small flocks (the works' coping and rubble, the north-west lawn, the parapet by the old guns): peck, turn, hop, fly up when Jef comes within 6.5 m, sometimes out over the fields and back; gone by night. A kite on its string from the hand of the child at the kite place, tail swinging | `world/wallLife.ts` (instanced; `setWallTown` in `main.ts`) |
+
+People (`server/src/town/wallfolk.ts`, ids `wf01`..`wf18`, added once in place like the millers and the standing roles;
+their own random stream): the garrison's round of two soldiers (rifles) walking side by side, by day between the
+Keizerspoort and the Kipdorppoort past the mill and in the evening from the Kipdorppoort to the works; two reliefs of a
+sentry at the sentry boxes by the Kipdorppoort and the Sint-Jorispoort; the town's gang Monday to Saturday 7:00 to 17:30
+(two carry rubble from the breach to the stacks, one at the winch pulling, one crouched cleaning bricks, the foreman by
+the notice; new trades `navvy` and `works_foreman`, their own lines in talk); a retired man walking his dog on the wall
+morning and afternoon; two lovers who walk the wall at dusk and stand in a quiet corner (`lovers:wall`; backlife lets a
+`mate` keep the side, not only the household); a brother and sister with a kite on the north-east bastion's lawn after
+school and on Sunday. `WorkSpec.motion` (new, optional): how a `post` stands. The drawn rounds of `wallGuards` are gone
+(the townspeople walk them now); the gate sentries stay drawn. All walk up from home and in by the stairs; none pops in.
+
+Rebuild: `blender -b --factory-startup -P tools/blender/build_wall.py`, then `python tools/textures/townwall_maps.py`
+(wall.glb 126k triangles, 3.3 MB; the coping slabs are most of the new triangles).
+
+The wall's stairs for the crowd (found on this pass, and so in HEAD too): the crowd's 1 m walking grid keeps half a metre
+off every wall cell, and a flight is 1.8 m between its railing and the wall, so no cell of it was open: nobody ever
+walked up a wall stair in view (the Sunday strollers, the millers' men and these people reached the walk only unseen,
+put at their goal when stuck). The grid now keeps 0.3 m off the walls on a stair's flight, its landing and a step round
+its foot (`CrowdGround.narrow`, `rampart.ts rampartStairAt`): the sentry's relief was watched from the street up the
+Kipdorppoort stair to his box (heights 0, 1.1, 3.0, 4.9, 6.5 on the way).
+
+Checks (2026-09-26, test copy `townwall` on 8945/5345):
+- Pictures, the same twelve cameras before and after, at 13:00 clear, 18:00, 22:00 and in rain (`data/shots/tw_before_*`,
+  `tw_final_*`), close shots of every prop and of the people (`tw_a3_*`, `tw_a4_*`, `tw_a5_*`, `tw_final_day_works*`).
+- `bumpaudit()`: every material of the wall has relief from its own height map (brick 1.6, quoins 1.4, coping 1.5,
+  props 0.6; the walk its relief); `totals.flat` 7, none of them the wall's.
+- `propcheck({ only: "town wall" })`: 0 problems of 17 props (the whole town: 1, a piece of litter crockery in a street
+  at (-163.1, 300.8), not the wall's). `paths()` empty. `shaders()`: no problems (220 programs; the crows and the kite
+  are two more).
+- z-fights, the wall's two groups alone with every chunk shown (`checkZFight` on them): the props 0 visible; the wall
+  itself only the gates' 59 back-to-back pairs and the sails' 16 thin layers, the same as HEAD's wall.glb checked the
+  same way (HEAD had 9 more thin layers on chunks 4 and 5; gone with the old coping).
+- Perf, `perf(60)` four times each, same place and view, HEAD's copy and this one side by side: the walk by day
+  53.1 / 52.9 ms, by night 51.3 / 50.4 ms, at the works 49.5 / 49.7 ms: no measurable cost (+30k triangles in view,
+  +12 draw calls).

@@ -183,6 +183,8 @@ export type TradeId =
   | "foreman" | "fish_merchant" | "water_bailiff" | "brewer"
   // the garrison and the customs (garrison.ts): they walk, stand and talk; they never fight or arrest
   | "soldier" | "sentry" | "corporal" | "customs"
+  // the look pass (town/wallfolk.ts): the town's gang pulling down the old wall, and its foreman
+  | "navvy" | "works_foreman"
   // M6 (paper/town.ts): boys who sell the morning paper at a corner, the clerk of the post office
   | "newsboy" | "post_clerk"
   // M6 homes (homes/town.ts): the second-hand dealer who sells furniture at his door
@@ -267,6 +269,9 @@ export const TRADES: Record<TradeId, TradeDef> = {
   sentry: { label: "soldier of the line, on guard", work: "guard", faction: null, wealth: [0, 1], bias: { courage: 2, honesty: 1, warmth: -1 } },
   corporal: { label: "corporal of the guard", work: "guard", faction: null, wealth: [0, 2], bias: { temper: 1, honesty: 1, courage: 2 } },
   customs: { label: "customs officer", work: "inspect", faction: null, wealth: [2, 4], bias: { honesty: 1, greed: 1, warmth: -1 } },
+  // the look pass (town/wallfolk.ts): the town pulls the old Spanish wall down a stretch at a time and sells the bricks
+  navvy: { label: "labourer of the town's works, pulling down the old wall", work: "haul", faction: null, wealth: [0, 1], bias: { courage: 1, temper: 1, piety: -1 } },
+  works_foreman: { label: "foreman of the town's works on the ramparts", work: "post", faction: "burgerij", wealth: [2, 4], bias: { temper: 1, honesty: 1 } },
   newsboy: { label: "newsboy", work: "post", faction: null, wealth: [0, 0], bias: { courage: 2, gossip: 2 } },
   post_clerk: { label: "clerk of the post and telegraph office", work: "post", faction: "burgerij", wealth: [3, 5], bias: { honesty: 2, gossip: 1 } },
   dealer: { label: "second-hand dealer", work: "post", faction: null, wealth: [2, 4], bias: { greed: 2, gossip: 2 } },

@@ -307,6 +307,12 @@ export interface PsxOptions {
     id?: THREE.Texture;
     /** How many stones sink or have gone (1 = old street setts; 0 = none gone, a few sunk). */
     holes?: number;
+    /**
+     * How far the relief light and the stones' tones reach before they melt into an even tone, as a factor on
+     * 8 to 22 m (and 14 to 30 m for the tones). Big stones keep their shape further off without a shimmer (the town
+     * wall's walk, the look pass 2026-09-26: 2). Default 1.
+     */
+    reach?: number;
   };
   /**
    * Large, soft patches of lighter and darker stone (worn, repaired, dirtier) over flat
@@ -852,12 +858,12 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
               : ""
           }
           psxH = hC;
-          float far = smoothstep(8.0, 22.0, length(vPsxWorld - cameraPosition));
+          float far = smoothstep(${(8 * (opts.relief.reach ?? 1)).toFixed(1)}, ${(22 * (opts.relief.reach ?? 1)).toFixed(1)}, length(vPsxWorld - cameraPosition));
           diffuseColor.rgb *= mix(relief, 0.86, far);
           ${
             opts.relief.id
               ? `{
-            float farS = smoothstep(14.0, 30.0, length(vPsxWorld - cameraPosition));
+            float farS = smoothstep(${(14 * (opts.relief.reach ?? 1)).toFixed(1)}, ${(30 * (opts.relief.reach ?? 1)).toFixed(1)}, length(vPsxWorld - cameraPosition));
             vec3 st = psxStoneTone(psxUv, psxWear, farS);
             ${opts.detile ? "if (psxDm > 0.001) st = mix(st, psxStoneTone(psxUv2, psxWear, farS), psxDm);" : ""}
             diffuseColor.rgb *= st;
@@ -1073,7 +1079,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
   };
   // M7 rendering (world/cull.ts): how far the fog lets this material show, and water (waves reach over the sheet)
   mat.userData.psx = { fogReach: opts.fogReach ?? 1, water: !!opts.water };
-  mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}${opts.relief.id ? `-id${opts.relief.holes ?? 0}` : ""}` : ""}${opts.vary ? `-v${opts.vary}` : ""}${opts.detile ? "-dt" : ""}${opts.slabs ? `-slab${opts.slabs.tile}-${opts.slabs.yMax}` : ""}${opts.foot ? `-foot${opts.foot.amount}${opts.foot.vertexWear ? "w" : ""}` : ""}${opts.mottle ? `-mot${opts.mottle}` : ""}${opts.spill === false ? "-nosp" : ""}`;
+  mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}${opts.relief.id ? `-id${opts.relief.holes ?? 0}` : ""}${opts.relief.reach ? `-r${opts.relief.reach}` : ""}` : ""}${opts.vary ? `-v${opts.vary}` : ""}${opts.detile ? "-dt" : ""}${opts.slabs ? `-slab${opts.slabs.tile}-${opts.slabs.yMax}` : ""}${opts.foot ? `-foot${opts.foot.amount}${opts.foot.vertexWear ? "w" : ""}` : ""}${opts.mottle ? `-mot${opts.mottle}` : ""}${opts.spill === false ? "-nosp" : ""}`;
   return mat;
 }
 

@@ -66,15 +66,17 @@ SHOTS = os.path.join(ROOT, "data", "shots")
 
 MATS = ["wall_brick", "wall_quoin", "wall_plinth", "wall_stone", "wall_cobble", "wall_slate", "wall_wood",
         "wall_iron", "wall_window", "wall_grass", "wall_arms", "wall_lamp_glow", "wall_canvas", "wall_moss_decal",
-        "wall_room_glow"]
-BRICK, QUOIN, PLINTH, STONE, COBBLE, SLATE, WOOD, IRON, WINDOW, GRASS, ARMS, GLOW, CANVAS, DECAL, ROOM = range(len(MATS))
-# metres per texture repeat (u, v). Brick and quoin share one pixel size (53 px to the metre), so
-# the courses run on from the brick into the corner stones
-TILE = {BRICK: (2.4, 1.8), QUOIN: (1.2, 1.8), PLINTH: (2.4, 2.4), STONE: (1.2, 1.2), COBBLE: (1.6, 1.6),
+        "wall_room_glow", "wall_coping", "wall_lawn_decal", "wall_props"]
+BRICK, QUOIN, PLINTH, STONE, COBBLE, SLATE, WOOD, IRON, WINDOW, GRASS, ARMS, GLOW, CANVAS, DECAL, ROOM, COPING, LAWN, PROPS = range(len(MATS))
+# metres per texture repeat (u, v). Brick and quoin share one pixel size (about 122 px to the metre), so
+# the courses run on from the brick into the corner stones. The brick (the look pass, 2026-09-26): Boom brick of
+# 1873, 22 x 10.5 x 5.5 cm with 1 cm joints, in cross bond: 8 stretchers of 23 cm, 24 courses of 6.5 cm a repeat
+TILE = {BRICK: (1.84, 1.56), QUOIN: (1.2, 1.56), PLINTH: (2.4, 2.4), STONE: (1.2, 1.2), COBBLE: (1.6, 1.6),
         SLATE: (1.2, 1.2), WOOD: (1.2, 1.2), IRON: (1.0, 1.0), WINDOW: (1.0, 1.0), GRASS: (3.0, 3.0),
-        ARMS: (1.0, 1.0), GLOW: (1.0, 1.0), CANVAS: (1.8, 1.8), DECAL: (1.0, 1.0), ROOM: (3.3, 2.5)}
+        ARMS: (1.0, 1.0), GLOW: (1.0, 1.0), CANVAS: (1.8, 1.8), DECAL: (1.0, 1.0), ROOM: (3.3, 2.5),
+        COPING: (1.0, 1.0), LAWN: (1.0, 1.0), PROPS: (1.0, 1.0)}
 QW = 1.2  # the quoin strip at a corner (the width of its texture)
-COURSE = TILE[BRICK][1] / 24  # one brick course (7.5 cm)
+COURSE = 1.8 / 24  # the mill's course grid (7.5 cm; its bands and door snap to it, as built before the look pass)
 PARK = os.path.join(ROOT, "client", "public", "models", "park.json")  # the Stadspark's pond, where it meets the wall
 MOSS_TOUCH, MOSS_NEAR, MOSS_PAD = 0.3, 4.0, 2.0  # the pond touches the face within this (or, not yet built, comes this near); moss runs on this far
 MOSS_OFF, MOSS_Y0, MOSS_Y1 = 0.02, -0.45, 1.8  # the moss decal: off the town face, from under the water to the plinth's top
@@ -214,7 +216,8 @@ def C(*rgb):
 
 
 def paint_brick(rng, w=128, h=96, px=4, blen=16):
-    """Red brick in stretcher bond: 4 px courses (7.5 cm), 16 px bricks, grey lime mortar."""
+    """Red brick in stretcher bond: 4 px courses (7.5 cm), 16 px bricks, grey lime mortar. (Before the look pass;
+    still painted and thrown away, so the pictures painted after it keep their dice.)"""
     img = np.empty((h, w, 3))
     img[:] = C(0.50, 0.47, 0.42)
     for c in range(h // px):
@@ -250,6 +253,234 @@ def paint_quoin(rng):
         blk[1, :wl - 1] *= 0.9
         img[v0:v0 + 24, 0:wl] = blk
     return img
+
+
+BR_CH, BR_SL = 8, 28  # the look pass: a brick course (6.5 cm) and a stretcher with its joint (23 cm), in pixels
+
+
+def paint_brick_1873(rng, w=224, h=192):
+    """Boom brick of 1873 in cross bond (the look pass, 2026-09-26; Steve: "the bricks look too big"): courses of
+    stretchers and of headers by turns, every other stretcher course shifted half a brick, 1 cm lime joints. Each
+    brick its own tone (the headers burnt darker more often), a lit upper arris and a shaded lower one, spalled faces,
+    eroded joints, a faint haze of salts. Rows run from the bottom of the picture (v = 0) up."""
+    img = np.empty((h, w, 3))
+    mortar = C(0.50, 0.48, 0.43)
+    img[:] = mortar
+    img *= (0.9 + 0.16 * noise2(rng, h, w, 12, 14))[..., None]
+    HL = BR_SL // 2
+    for c in range(h // BR_CH):
+        header = c % 2 == 1
+        blen = HL if header else BR_SL
+        off = HL // 2 if header else (0 if c % 4 == 0 else HL)
+        y0 = c * BR_CH
+        for b in range(w // blen + 2):
+            u0 = b * blen + off
+            r = rng.random()
+            if r < (0.2 if header else 0.08):
+                col = C(0.30, 0.15, 0.13) * rng.uniform(0.85, 1.12)  # over-burnt, purple-brown
+            elif r < (0.26 if header else 0.15):
+                col = C(0.64, 0.38, 0.26) * rng.uniform(0.92, 1.05)  # a pale, soft one
+            elif r < 0.3:
+                col = C(0.43, 0.26, 0.19) * rng.uniform(0.9, 1.08)  # brown
+            else:
+                col = C(0.52, 0.25, 0.17) * rng.uniform(0.84, 1.1)
+            cols = [(u0 + k) % w for k in range(1, blen)]
+            face = np.broadcast_to(col, (BR_CH - 1, blen - 1, 3)).copy()
+            face *= (0.9 + 0.14 * rng.random((BR_CH - 1, blen - 1, 1)))
+            face[0] *= 0.8  # the lower arris in its own shade
+            face[-1] *= 1.1  # the upper arris catching the sky
+            face[:, 0] *= 0.93
+            if rng.random() < 0.07:  # a spalled face: the fired skin gone, rough and darker
+                k0 = int(rng.integers(0, max(1, blen - 12)))
+                k1 = min(blen - 1, k0 + int(rng.integers(6, 14)))
+                face[1:-1, k0:k1] = col * 0.72 * (0.8 + 0.3 * rng.random((BR_CH - 3, k1 - k0, 1)))
+            img[y0 + 1:y0 + BR_CH, cols] = face
+            if rng.random() < 0.12:  # an eroded joint under this brick: sunk and dark
+                img[y0, cols] = C(0.30, 0.28, 0.25) * rng.uniform(0.9, 1.1)
+    img *= (0.88 + 0.18 * noise2(rng, h, w, 5, 6))[..., None]
+    salt = np.clip(noise2(rng, h, w, 6, 5) - 0.72, 0, 1)[..., None] * 0.55  # a faint white haze of salts
+    img = img * (1 - salt) + C(0.78, 0.76, 0.72) * salt
+    return bp.speckle(img, rng, 0.05, 0.82, 0.97)
+
+
+def paint_quoin_1873(rng):
+    """The quoins over the new brick: a long stone (0.8 m) over a short one (0.45 m), each six courses (39 cm);
+    u = 0 is the corner. 146 px for the strip's 1.2 m."""
+    w, h = 146, 24 * BR_CH
+    img = paint_brick_1873(rng, w, h)
+    stone = C(0.71, 0.67, 0.58)
+    sh = 6 * BR_CH
+    for k in range(4):
+        v0 = k * sh
+        wl = 98 if k % 2 == 0 else 55
+        tone = rng.uniform(0.92, 1.05)
+        blk = np.broadcast_to(stone * tone, (sh, wl, 3)).copy()
+        blk *= (0.9 + 0.14 * rng.random((sh, wl, 1)))
+        blk *= (0.94 + 0.08 * noise2(rng, sh, wl, 3, 6))[..., None]
+        blk[0, :] = stone * 0.6
+        blk[:, wl - 1] = stone * 0.6
+        blk[1, :wl - 1] *= 0.88
+        blk[-1, :wl - 1] *= 1.05
+        img[v0:v0 + sh, 0:wl] = blk
+    return img
+
+
+COPING_CELLS, COPING_W, COPING_H = 4, 128, 64  # the coping's picture: four slabs side by side, u along, v across
+
+
+def paint_coping(rng):
+    """Worn Belgian bluestone coping slabs (the look pass): four slabs side by side, each drawn with u along its
+    length and v across its top. Blue-grey, weathered pale on top; tooled in fine strokes across the slab with a
+    smooth drafted margin round the edge; cracks, chipped corners, grey-green lichen rosettes and a few orange ones,
+    moss at the ends where the joints hold water."""
+    W, H = COPING_W, COPING_H
+    out = np.empty((H, W * COPING_CELLS, 3))
+    yy, xx = np.mgrid[0:H, 0:W]
+    for k in range(COPING_CELLS):
+        base = C(0.46, 0.49, 0.52) * rng.uniform(0.86, 1.08)
+        img = np.broadcast_to(base, (H, W, 3)).copy()
+        img *= (0.86 + 0.2 * noise2(rng, H, W, 4, 6))[..., None]
+        # the tooling: fine strokes across the slab (constant u), not on the drafted margin
+        strokes = 0.965 + 0.07 * rng.random(W)
+        edge = np.minimum(np.minimum(xx, W - 1 - xx), np.minimum(yy, H - 1 - yy))
+        margin = edge < 4
+        img[~margin] *= strokes[None, :, None].repeat(H, 0)[~margin]
+        img[margin] *= 1.05
+        img[edge == 0] *= 0.78  # the arris
+        # dirt toward the ends and one long side
+        img *= (1.0 - 0.14 * np.clip(1 - np.minimum(xx, W - 1 - xx) / 18.0, 0, 1) - 0.06 * (yy / H))[..., None]
+        # lichen: grey-green rosettes, a few orange
+        for _ in range(int(rng.integers(6, 13))):
+            cx, cy, r = rng.uniform(4, W - 4), rng.uniform(4, H - 4), rng.uniform(1.4, 3.8)
+            d = np.hypot(xx - cx, yy - cy)
+            img[d < r] = C(0.60, 0.64, 0.54) * rng.uniform(0.9, 1.08)
+            img[(d >= r - 0.7) & (d < r)] = C(0.70, 0.73, 0.64)
+        for _ in range(int(rng.integers(0, 3))):
+            cx, cy, r = rng.uniform(4, W - 4), rng.uniform(4, H - 4), rng.uniform(0.8, 1.6)
+            img[np.hypot(xx - cx, yy - cy) < r] = C(0.72, 0.50, 0.20)
+        # moss at the ends, thick in the corners
+        for u_end in (0, W - 1):
+            d_end = np.abs(xx - u_end)
+            corner = np.minimum(yy, H - 1 - yy)
+            p = np.clip(1 - d_end / 7.0, 0, 1) * (0.35 + 0.65 * np.clip(1 - corner / 14.0, 0, 1))
+            m = rng.random((H, W)) < p * (0.4 + 0.8 * noise2(rng, H, W, 6, 8))
+            img[m] = C(0.20, 0.28, 0.09) * rng.uniform(0.75, 1.25, (int(m.sum()), 1))
+        # cracks: a walk across the slab from a long edge
+        for _ in range(int(rng.integers(0, 3))):
+            x, y = rng.uniform(10, W - 10), (0.0 if rng.random() < 0.5 else H - 1.0)
+            dy = 1.0 if y == 0 else -1.0
+            dx = rng.uniform(-0.7, 0.7)
+            for _s in range(int(rng.integers(18, 70))):
+                xi, yi = int(x), int(y)
+                if not (0 <= xi < W and 0 <= yi < H):
+                    break
+                img[yi, xi] = C(0.15, 0.16, 0.17)
+                x += dx + rng.uniform(-0.6, 0.6)
+                y += dy * rng.uniform(0.5, 1.0)
+        # chipped corners: a small triangle of rough, darker stone
+        for _ in range(int(rng.integers(1, 3))):
+            cu = 0 if rng.random() < 0.5 else W - 1
+            cv = 0 if rng.random() < 0.5 else H - 1
+            s = rng.uniform(4, 9)
+            m = (np.abs(xx - cu) + np.abs(yy - cv)) < s
+            img[m] = base * 0.62 * (0.8 + 0.4 * rng.random((int(m.sum()), 1)))
+        out[:, k * W:(k + 1) * W] = bp.speckle(img, rng, 0.06, 0.8, 0.96)
+    return out
+
+
+def paint_lawn_decal(rng, n=128):
+    """The lawn's soft edges and worn paths (the look pass), RGBA with alpha 0 or 1 per texel. The top half: the
+    edge band, u along the lawn's edge (it repeats), v from the lawn (v = 1) out over the setts (v = 0.5): blades,
+    tussocks, straw and leaves, thick at the lawn and thinning out to a few tufts in the joints (a dither). The bottom
+    half: a worn path, u along it, v across (0 .. 0.5): bare trodden earth and grit, ragged at both sides."""
+    img = np.empty((n, n, 3))
+    alpha = np.zeros((n, n), bool)
+    hh = n // 2
+    thr = np.tile(bayer4(), (n // 4, n // 4))
+    # the edge band (rows hh .. n-1, from its outer side up to the lawn)
+    v = (np.arange(hh) + 0.5) / hh  # 0 out on the setts .. 1 at the lawn
+    blob = noise2(rng, hh, n, 4, 10)
+    dens = np.clip(v[:, None] ** 1.6 * 1.25 + (blob - 0.5) * 0.55, 0, 1)
+    a = dens > 0.5 * thr[:hh] + 0.5 * rng.random((hh, n))
+    g = np.empty((hh, n, 3))
+    g[:] = C(0.24, 0.30, 0.12)
+    g *= (0.7 + 0.5 * rng.random((hh, n, 1)))
+    g *= (0.8 + 0.3 * noise2(rng, hh, n, 3, 12))[..., None]
+    straw = rng.random((hh, n)) < 0.08
+    g[straw] = C(0.52, 0.46, 0.24) * rng.uniform(0.8, 1.1, (int(straw.sum()), 1))
+    leaf = rng.random((hh, n)) < 0.05
+    g[leaf] = C(0.55, 0.30, 0.10) * rng.uniform(0.7, 1.2, (int(leaf.sum()), 1))
+    img[hh:] = g
+    alpha[hh:] = a
+    # the worn path (rows 0 .. hh-1): bare earth, grit, a few blades at the ragged sides
+    across = (np.arange(hh) + 0.5) / hh
+    side = np.minimum(across, 1 - across)[:, None]
+    rag = noise2(rng, hh, n, 3, 14)
+    a = side * 2.0 + (rag - 0.5) * 0.5 > 0.22 + 0.12 * thr[:hh]
+    e = np.empty((hh, n, 3))
+    e[:] = C(0.37, 0.31, 0.22)
+    e *= (0.75 + 0.35 * noise2(rng, hh, n, 5, 16))[..., None]
+    e *= (0.88 + 0.2 * rng.random((hh, n, 1)))
+    grit = rng.random((hh, n)) < 0.06
+    e[grit] = C(0.52, 0.50, 0.46) * rng.uniform(0.8, 1.1, (int(grit.sum()), 1))
+    tuft = (side < 0.16) & (rng.random((hh, n)) < 0.35)
+    e[tuft] = C(0.25, 0.31, 0.12) * rng.uniform(0.7, 1.2, (int(tuft.sum()), 1))
+    img[:hh] = e
+    alpha[:hh] = a
+    return np.concatenate([np.clip(img, 0, 1), alpha[..., None].astype(np.float64)], axis=2)
+
+
+def paint_props(rng):
+    """The wall's props (the look pass): four cells of 64 px side by side. 0 the town's notice on its board
+    (printed lines, too small to read, the arms in red), 1 washed linen (white shirts, grey), 2 coloured cloth
+    (a faded blue smock, a red kerchief), 3 cleaned bricks stacked for sale: their ends and sides in rows with dark
+    gaps between (not a wall's mortar), mortar crumbs still on some."""
+    n = 64
+    out = np.empty((n, 4 * n, 3))
+    # 0 the notice: yellowed paper, a heading, lines of print, the arms at the top
+    p = np.ones((n, n, 3)) * C(0.80, 0.76, 0.62)
+    p *= (0.9 + 0.12 * noise2(rng, n, n, 4, 4))[..., None]
+    for r in range(8, 44, 3):
+        x0, x1 = 6 + int(rng.integers(0, 3)), n - 6 - int(rng.integers(0, 10))
+        dots = rng.random(x1 - x0) < 0.7
+        p[r, x0:x1][dots] = C(0.16, 0.14, 0.12)
+    p[48:51, 12:52] = C(0.12, 0.10, 0.09)  # the heading (drawn bottom up: v rises to the top)
+    p[53:60, 27:37] = C(0.62, 0.14, 0.12)  # the red shield of the town
+    p[:2] = p[-2:] = C(0.35, 0.30, 0.22)
+    p[:, :2] = p[:, -2:] = C(0.35, 0.30, 0.22)
+    out[:, 0:n] = p
+    # 1 washed linen
+    l = np.ones((n, n, 3)) * C(0.86, 0.85, 0.80)
+    l *= (0.86 + 0.16 * noise2(rng, n, n, 3, 8))[..., None]
+    for u in range(0, n, 8):
+        l[:, u] *= 0.86  # folds
+    out[:, n:2 * n] = l
+    # 2 coloured cloth: faded blue above, red below
+    c = np.ones((n, n, 3))
+    c[n // 2:] = C(0.26, 0.33, 0.46)
+    c[:n // 2] = C(0.55, 0.16, 0.13)
+    c *= (0.84 + 0.2 * noise2(rng, n, n, 3, 8))[..., None]
+    out[:, 2 * n:3 * n] = c
+    # 3 stacked bricks: rows of 6 px (a brick's edge and its gap), bricks of 10 or 20 px, dark gaps
+    t = np.ones((n, n, 3)) * C(0.08, 0.06, 0.05)
+    for r in range(n // 6 + 1):
+        u = int(rng.integers(0, 8))
+        while u < n + 20:
+            w = 10 if rng.random() < 0.5 else 20
+            col = C(0.52, 0.26, 0.17) * rng.uniform(0.75, 1.15)
+            if rng.random() < 0.12:
+                col = C(0.32, 0.16, 0.13) * rng.uniform(0.9, 1.1)
+            y0, y1 = r * 6, min(n, r * 6 + 5)
+            x0, x1 = u, min(n, u + w - 1)
+            if y0 < n and x0 < n:
+                t[y0:y1, x0:x1] = col
+                t[y0:y1, x0:x1] *= (0.88 + 0.2 * rng.random((y1 - y0, x1 - x0, 1)))
+                t[y1 - 1, x0:x1] *= 1.12  # the upper edge in the light
+                crumbs = rng.random((y1 - y0, x1 - x0)) < 0.08
+                t[y0:y1, x0:x1][crumbs] = C(0.62, 0.60, 0.55)
+            u += w
+    out[:, 3 * n:4 * n] = t
+    return bp.speckle(out, rng, 0.04, 0.85, 0.97)
 
 
 def paint_ashlar(rng, n, base, joint, course, lo=18, hi=34):
@@ -474,9 +705,11 @@ def paint_moss_decal(rng, stretch):
 
 def make_materials(ctx=None):
     rng = np.random.default_rng(1873)
+    # (the look pass: the brick and quoins of 1873 have dice of their own; the old ones are still painted and thrown
+    # away, so every picture after them keeps its dice, its bytes and the height map made from it)
     paint = {
-        "wall_brick": lambda: paint_brick(rng),
-        "wall_quoin": lambda: paint_quoin(rng),
+        "wall_brick": lambda: (paint_brick(rng), paint_brick_1873(np.random.default_rng(18731)))[1],
+        "wall_quoin": lambda: (paint_quoin(rng), paint_quoin_1873(np.random.default_rng(18732)))[1],
         "wall_plinth": lambda: paint_ashlar(rng, 64, C(0.40, 0.41, 0.43), C(0.22, 0.22, 0.23), 16, 18, 34),
         "wall_stone": lambda: paint_ashlar(rng, 64, C(0.70, 0.66, 0.57), C(0.50, 0.47, 0.41), 16, 24, 40),
         "wall_cobble": lambda: paint_cobble(rng),
@@ -493,6 +726,9 @@ def make_materials(ctx=None):
     arrs = {name: np.clip(paint[name](), 0, 1) for name in MATS if name in paint}
     moss = getattr(ctx, "moss", None)
     arrs["wall_moss_decal"] = paint_moss_decal(np.random.default_rng(1874), (moss[2], moss[3]) if moss else (0.0, 4.0))
+    arrs["wall_coping"] = np.clip(paint_coping(np.random.default_rng(18733)), 0, 1)
+    arrs["wall_lawn_decal"] = paint_lawn_decal(np.random.default_rng(18734))
+    arrs["wall_props"] = np.clip(paint_props(np.random.default_rng(18735)), 0, 1)
     for name in MATS:
         arr = arrs[name]
         h, w, nch = arr.shape
@@ -512,7 +748,7 @@ def make_materials(ctx=None):
         if name.endswith("_glow"):
             nt.links.new(t.outputs["Color"], bsdf.inputs["Emission Color"])
             bsdf.inputs["Emission Strength"].default_value = 1.0
-        m.use_backface_culling = name not in ("wall_canvas", "wall_moss_decal")  # a sail cloth is seen from both sides
+        m.use_backface_culling = name not in ("wall_canvas", "wall_moss_decal", "wall_lawn_decal", "wall_props")  # a sail cloth is seen from both sides
         if name.endswith("_decal"):
             # alpha 0 or 1 per texel: exported as a mask (cutoff 0.5); the game draws "*_decal" with
             # alphaTest 0.5, polygon offset toward the eye, no depth write
@@ -557,15 +793,18 @@ class Geo:
         else:
             cols = [shade * k * tint(p.x, p.z) for p in pts]
         grp = self.grp
-        if grp is None:
+        if grp is None or grp == "props":
+            # (the look pass: the props on the walk are objects of their own, "wall_props_<n>", so the game keeps
+            # them apart from the wall itself: the prop check tests them against it)
             c = sum(pts, Vector()) / len(pts)
-            grp = ("chunk", math.floor(c.x / CHUNK), math.floor(c.z / CHUNK))
+            grp = ("chunk" if grp is None else "props", math.floor(c.x / CHUNK), math.floor(c.z / CHUNK))
         self.groups.setdefault(grp, []).append((pts, uvs, cols, mat))
 
     def to_objects(self, gate_ids):
         objs = {}
         chunks = sorted(k for k in self.groups if k[0] == "chunk")
         names = {k: f"wall_chunk_{i}" for i, k in enumerate(chunks)}
+        names.update({k: f"wall_props_{i}" for i, k in enumerate(sorted(k for k in self.groups if k[0] == "props"))})
         for k in self.groups:
             if k[0] == "gate":
                 names[k] = f"gate_{k[1]}"
@@ -825,7 +1064,8 @@ class Panel:
                     m = QUOIN
                     sh = 0.0 if zone[2] == 0 else 0.25
                     du = (lambda u: u / QW) if zone[2] == 0 else (lambda u: (L - u) / QW)
-                    uvs = [(du(ua), va / 1.8 + sh), (du(ub), va / 1.8 + sh), (du(ub), vb / 1.8 + sh), (du(ua), vb / 1.8 + sh)]
+                    qv = TILE[QUOIN][1]
+                    uvs = [(du(ua), va / qv + sh), (du(ub), va / qv + sh), (du(ub), vb / qv + sh), (du(ua), vb / qv + sh)]
                 else:
                     tu, tv = TILE[m]
                     uvs = [((self.uoff + ua) / tu, va / tv), ((self.uoff + ub) / tu, va / tv),
@@ -941,6 +1181,7 @@ class Ctx:
         self.dress = {"mills": [], "benches": [], "lamps": [], "lanterns": []}
         self.mills = mill_spots(self)
         self.moss = pond_stretch(self)
+        self.prop_set = None  # (the look pass: props of one site, which may touch: the dressing's "set")
         # the walk's paving follows its piece of the wall: the lines where one piece meets the next
         self.region_cuts = []
         for i in range(1, len(self.trace) - 1):
@@ -1124,7 +1365,8 @@ class Ring:
                     mm = QUOIN
                     sh = 0.0 if zone[2] == 0 else 0.25
                     du = (lambda s: s / QW) if zone[2] == 0 else (lambda s: (L - s) / QW)
-                    uvs = [(du(sa), y0 / 1.8 + sh), (du(sb), y0 / 1.8 + sh), (du(sb), y1 / 1.8 + sh), (du(sa), y1 / 1.8 + sh)]
+                    qv = TILE[QUOIN][1]
+                    uvs = [(du(sa), y0 / qv + sh), (du(sb), y0 / qv + sh), (du(sb), y1 / qv + sh), (du(sa), y1 / qv + sh)]
                 else:
                     tu, tv = TILE[mat]
                     if abs(ny) > 0.7:
@@ -1176,6 +1418,73 @@ def bat(y, h):
     return BATTER * min(1.0, max(0.0, y / h))
 
 
+SLAB_GAP, SLAB_CH = 0.01, 0.028
+
+
+def slab_rng(e, i):
+    return np.random.default_rng((int(abs(e.A.x) * 1000) * 31 + int(abs(e.A.y) * 1000) + i) % (2 ** 31))  # the look pass: the coping's joints, the chamfer along its top edges
+
+
+def coping_slabs(g, R, i, runs, d0, d1, y0, y1, over0, over1, rng, floor, bed=None):
+    """Bluestone coping slabs along edge i of a ring (the look pass, 2026-09-26; Steve: "the coping is flat grey
+    slabs"): the runs cut into slabs 1 to 1.5 m long with 1 cm joints (a dark mortar bed under them), each its own
+    picture of four and its own few millimetres higher or lower, a chamfer along both top edges, a drip hanging over
+    both faces (over0 on the d0 side, over1 on the d1 side). At a run's end on a corner the slab is mitred."""
+    e = R.E[i]
+    a0, a1 = d0 - over0, d1 + over1
+    wd = a1 - a0
+    # the mortar bed, seen down the joints (not over an embrasure: its head is drawn there)
+    R.sweep(g, i, [(d1, y0 + 0.001), (d0, y0 + 0.001)], [PLINTH], runs if bed is None else bed, floor=floor, k=0.5)
+    for r0, r1 in runs:
+        L = r1 - r0
+        n = max(1, round(L / 1.25))
+        cuts = [r0]
+        for j in range(1, n):
+            cuts.append(r0 + L * j / n + rng.uniform(-0.18, 0.18) * L / n)
+        cuts.append(r1)
+        for j in range(n):
+            sa = cuts[j] + (SLAB_GAP / 2 if j > 0 else 0.0)
+            sb = cuts[j + 1] - (SLAB_GAP / 2 if j < n - 1 else 0.0)
+            if sb - sa < 0.05:
+                continue
+            k = int(rng.integers(0, COPING_CELLS))
+            ya, yb = y1 + rng.uniform(-0.007, 0.007), y1 + rng.uniform(-0.007, 0.007)  # a slab set a little high or low
+            flip = rng.random() < 0.5  # its picture turned end for end
+            ch = SLAB_CH
+
+            def U(s):
+                f = (s - sa) / (sb - sa)
+                return (k + (1.0 - f if flip else f)) / COPING_CELLS
+
+            def top(s):
+                return ya + (yb - ya) * (s - sa) / (sb - sa)
+
+            prof = [(a0, y0), (a0, None, -ch), (a0 + ch, None, 0.0), (a1 - ch, None, 0.0), (a1, None, -ch), (a1, y0)]
+
+            def pt(s, q):
+                return R.P3(i, s, q[0], q[1] if q[1] is not None else top(s) + q[2])
+
+            vs = [0.0, 0.12, 0.2, 0.8, 0.88, 1.0]  # the side faces and chamfers on the picture's margin, the top between
+            nx_, nz_ = e.n.x, e.n.y  # (into the wall: d grows along it)
+            outs = [(-nx_, 0.0, -nz_), (-nx_, 1.0, -nz_), (0.0, 1.0, 0.0), (nx_, 1.0, nz_), (nx_, 0.0, nz_)]
+            for kk in range(5):
+                qa, qb = prof[kk], prof[kk + 1]
+                P = [pt(sa, qa), pt(sb, qa), pt(sb, qb), pt(sa, qb)]
+                uv = [(U(sa), vs[kk]), (U(sb), vs[kk]), (U(sb), vs[kk + 1]), (U(sa), vs[kk + 1])]
+                g.face(P, COPING, out=outs[kk], uvs=uv, floor=floor, k=0.84 if kk in (0, 4) else 1.0)
+            # the drips' undersides and the slab's two ends
+            for qa, qb in (((a0, y0), (d0, y0)), ((d1, y0), (a1, y0))):
+                if abs(qb[0] - qa[0]) > 1e-4:
+                    P = [R.P3(i, sa, qa[0], y0), R.P3(i, sb, qa[0], y0), R.P3(i, sb, qb[0], y0), R.P3(i, sa, qb[0], y0)]
+                    g.face(P, COPING, out=(0.0, -1.0, 0.0), uvs=[(U(sa), 0.0), (U(sb), 0.0), (U(sb), 0.08), (U(sa), 0.08)],
+                           floor=floor, k=0.45)
+            for s_, sg in ((sa, -1.0), (sb, 1.0)):
+                sec = [pt(s_, q) for q in prof]
+                u0 = U(s_)
+                uvs = [(u0, (q[0] - a0) / wd) for q in prof]
+                g.face(sec, COPING, out=(e.t.x * sg, 0.0, e.t.y * sg), uvs=uvs, floor=floor, k=0.8)
+
+
 # ------------------------------------------------------------------ the wall: body, walk, parapets
 
 
@@ -1214,7 +1523,15 @@ def build_ring(g, R, ctx):
                     if 1e-3 < sf < e.L - 1e-3:  # the lip's end over the stair's foot (at its head the top riser covers it)
                         R.cap(g, i, sf, lip, 1 if abs(sf - s0) < 1e-6 else -1, STONE, floor=0.0)
                 continue
-        R.sweep(g, i, prof, [PLINTH, PLINTH, STONE, BRICK, STONE, STONE, STONE], floor=0.0, quoin=True)
+        # (the look pass: under each drain spout the face is cut into a strip of its own, darker at the top: the wet
+        # streak down the brick is the face's own shade, no layer laid over it)
+        spots = spout_spots(R, i, ctx) if e.kind == "field" else []
+        wet_runs = [(sp - SPOUT_W, sp + SPOUT_W) for sp in spots]
+        R.sweep(g, i, prof, [PLINTH, PLINTH, STONE, BRICK, STONE, STONE, STONE], complement(wet_runs, e.L), floor=0.0, quoin=True)
+        if wet_runs:
+            R.sweep(g, i, prof, [PLINTH, PLINTH, STONE, BRICK, STONE, STONE, STONE], wet_runs, floor=0.0, quoin=True, shade=streak)
+        for sp in spots:
+            spout(g, e, sp, h)
 
     # the walk: the outline, pulled in by the batter on the field side, cut on a grid
     def dw(e):
@@ -1250,9 +1567,9 @@ def build_ring(g, R, ctx):
                     keep.append((a0, b0))
             pb_ = h + TOWN_H - 0.15
             R.sweep(g, i, [(0.0, h), (0.0, pb_), (TOWN_T, pb_), (TOWN_T, h)], [BRICK, None, BRICK], keep, floor=h)
-            cop = [(0.0, pb_), (0.0, h + TOWN_H), (TOWN_T + 0.04, h + TOWN_H), (TOWN_T + 0.04, pb_), (TOWN_T, pb_)]
-            R.sweep(g, i, cop, [STONE] * 4, keep, floor=h - 1.0)
-            sec = [(0.0, h), (0.0, h + TOWN_H), (TOWN_T + 0.04, h + TOWN_H), (TOWN_T + 0.04, pb_), (TOWN_T, pb_), (TOWN_T, h)]
+            # (the look pass: bluestone slabs, a drip over both faces)
+            coping_slabs(g, R, i, keep, 0.0, TOWN_T, pb_, h + TOWN_H, 0.045, 0.045, slab_rng(e, i), h - 1.0)
+            sec = [(0.0, h), (0.0, pb_), (TOWN_T, pb_), (TOWN_T, h)]
             # (where a run stops inside the edge a post stands against its end: no cap there)
             if keep and keep[0][0] < 1e-3 and prv.kind == "field":
                 R.cap(g, i, 0.0, sec, -1, BRICK, floor=h)
@@ -1263,6 +1580,9 @@ def build_ring(g, R, ctx):
             runs = R.solid_runs(i, (BW_O + d_in) / 2, ctx)
             huts = hut_spans(R, i, ctx)
             keep = intersect(complement(huts, e.L), runs)
+            breach = works_span(e, ctx)
+            if breach:
+                keep = intersect(keep, complement([breach], e.L))
             embs = []
             if e.L >= 7.0:
                 nemb = int((e.L - 3.0) / EMB_STEP)
@@ -1278,18 +1598,164 @@ def build_ring(g, R, ctx):
             R.sweep(g, i, [(BW_O, h), (BW_O, y0), (d_in, y0), (d_in, h)], [BRICK, None, BRICK], keep, floor=h, quoin=True)
             R.sweep(g, i, [(BW_O, y0), (d_in, y0)], [STONE], embs, floor=h)
             R.sweep(g, i, [(BW_O, y0), (BW_O, y1), (d_in, y1), (d_in, y0)], [BRICK, None, BRICK], keep_up, floor=h, quoin=True)
-            cop = [(BW_O, y1), (BW_O - 0.05, y1), (BW_O - 0.05, yt), (d_in, yt), (d_in, y1)]
-            R.sweep(g, i, cop, [STONE] * 4, keep, floor=h - 1.0)
+            coping_slabs(g, R, i, keep, BW_O, d_in, y1, yt, 0.05, 0.045, slab_rng(e, i), h - 1.0, bed=keep_up)
             R.sweep(g, i, [(d_in, y1), (BW_O, y1)], [STONE], embs, floor=h, k=0.7)
             jamb = [(BW_O, y0), (BW_O, y1), (d_in, y1), (d_in, y0)]
             for a, b in embs:
                 R.cap(g, i, a, jamb, 1, STONE, floor=h)
                 R.cap(g, i, b, jamb, -1, STONE, floor=h)
-            sec = [(BW_O, h), (BW_O, y1), (BW_O - 0.05, y1), (BW_O - 0.05, yt), (d_in, yt), (d_in, h)]
+            sec = [(BW_O, h), (BW_O, y1), (d_in, y1), (d_in, h)]
             if keep and keep[0][0] < 1e-3 and prv.kind == "town":
                 R.cap(g, i, 0.0, sec, -1, BRICK, floor=h)
             if keep and keep[-1][1] > e.L - 1e-3 and nxt.kind == "town":
                 R.cap(g, i, e.L, sec, 1, BRICK, floor=h)
+            if breach:
+                # the breastwork pulled down: its broken ends, bricks torn out stepping down to the walk
+                for sb_, sg_ in ((breach[0], 1), (breach[1], -1)):
+                    R.cap(g, i, sb_, [(BW_O, h), (BW_O, y1), (d_in, y1), (d_in, h)], sg_, BRICK, floor=h)
+                    for dy1, e0, e1, ins in ((0.62, 0.0, 0.55, 0.03), (0.3, 0.55, 1.1, 0.05)):
+                        a_, b_ = (sb_ + e0, sb_ + e1) if sg_ > 0 else (sb_ - e1, sb_ - e0)
+                        step = [(BW_O + ins, h), (BW_O + ins, h + dy1), (d_in - ins, h + dy1), (d_in - ins, h)]
+                        R.sweep(g, i, step, [BRICK, BRICK, BRICK], [(a_, b_)], floor=h, k=0.9)
+                        R.cap(g, i, b_ if sg_ > 0 else a_, step, sg_, BRICK, floor=h)
+            # (the look pass) drain spouts under the cordon with a wet streak down the brick; the old guns' iron
+            # breeching rings by some embrasures
+            for kk, (a, b) in enumerate(embs):
+                if kk % 3 == 1:
+                    iron_ring(g, e, a - 0.32, d_in, h + 0.52)
+
+
+WORKS = ("seg7", 70.0, 80.0)  # the look pass: the stretch of breastwork the town's gang is pulling down (server/src/town/wallfolk.ts)
+
+
+def works_span(e, ctx):
+    """Where the demolition works' breach lies along field edge e: (s0, s1), or None."""
+    sg = next((q for q in ctx.segs if q["name"] == WORKS[0]), None)
+    if sg is None:
+        return None
+    t, o = V2(sg["t"]), V2(sg["o"])
+    if abs(e.t.dot(t)) < 0.999 or abs(cross2(t, e.A - o)) > 0.3:
+        return None
+    a, b = sorted(((o + t * WORKS[1] - e.A).dot(e.t), (o + t * WORKS[2] - e.A).dot(e.t)))
+    a, b = max(0.0, a), min(e.L, b)
+    return (a, b) if b - a > 1.0 else None
+
+
+SPOUT_W = 0.09  # half the width of the wet streak under a spout
+
+
+def spout_spots(R, i, ctx):
+    """Where the drain spouts come out of field edge i (s along it): every 13 to 19 m where the breastwork stands
+    over them, clear of the guard houses, the corners' quoins and the works' breach."""
+    e = R.E[i]
+    d_in = BW_O + BW_T
+    huts = hut_spans(R, i, ctx)
+    keep = intersect(complement(huts, e.L), R.solid_runs(i, (BW_O + d_in) / 2, ctx))
+    breach = works_span(e, ctx)
+    if breach:
+        keep = intersect(keep, complement([breach], e.L))
+    rng = slab_rng(e, i + 101)
+    out = []
+    s = rng.uniform(5.0, 11.0)
+    while s < e.L - QW - 0.6:
+        if s > QW + 0.6 and not any(a - 1.2 < s < b + 1.2 for a, b in huts) and any(r0 + 0.5 < s < r1 - 0.5 for r0, r1 in keep):
+            out.append(s)
+        s += rng.uniform(13.0, 19.0)
+    return out
+
+
+def streak(p):
+    """The field face's shade in a spout's wet streak: dark under the spout, fading out toward the plinth."""
+    return amb(p, 0.0) * (0.52 + 0.48 * sm((6.0 - p[1]) / 4.2))
+
+
+def spout(g, e, s, h):
+    """A bluestone drain spout out of the field face just under the cordon, at s along edge e (the look pass; the
+    wet streak under it is the face's own strip, build_ring)."""
+    F = Frame(e.A.x, e.A.y, (e.t.x, e.t.y), (-e.n.x, -e.n.y))  # o out toward the field (o = -d)
+    ys = h - 0.3 - 0.26
+    df = bat(ys, h) + 0.05
+    F.box(g, s - 0.085, s + 0.085, -df - 0.06, -df + 0.4, ys, ys + 0.15, COPING, skip=("-o",), floor=ys - 2.0, k=0.9)
+
+
+def iron_ring(g, e, s, d_face, y):
+    """An iron ring on a staple in the breastwork's inner face (the guns' breeching rings), at s along edge e."""
+    F = Frame(e.A.x, e.A.y, (e.t.x, e.t.y), (e.n.x, e.n.y))  # o into the wall from the field edge: the walk is past d_face
+    o = d_face + 0.03
+    bar(g, F.p(s, d_face - 0.02, y), F.p(s, o + 0.005, y), 0.022, IRON, shade=0.7)
+    r, cy = 0.07, y - 0.075
+    pts = [F.p(s + r * math.sin(2 * math.pi * k / 6), o, cy + r * math.cos(2 * math.pi * k / 6)) for k in range(6)]
+    for k in range(6):
+        bar(g, pts[k], pts[(k + 1) % 6], 0.018, IRON, shade=0.6)
+
+
+LAWN_OUT, LAWN_IN, LAWN_Y, PATH_Y = 0.5, 0.25, 0.012, 0.016
+
+
+def build_lawns(g, ctx):
+    """The lawns on the land bastions (the look pass, 2026-09-26; Steve: "a flat green rectangle with a hard edge"):
+    a band of grass, tussocks, straw and leaves over every edge of a lawn, thick on the lawn and thinning out into the
+    setts' joints, and a path trodden across each from where the walk comes in (both cut-out decals, wall_lawn_decal).
+    Their outlines go to the game for the tussocks and leaves on them (dressing "lawns": world/rampartNature.ts)."""
+    h = ctx.h
+    ctx.dress["lawns"] = []
+    for (name, _P), (ring, paved) in zip(ctx.land_bastions, ctx.grass):
+        P = [V2(p) for p in ring]
+        edges = [(P[j], P[(j + 1) % len(P)]) for j in range(len(P))]
+        for q in paved:
+            Q = [V2(p) for p in q]
+            edges += [(Q[j], Q[(j + 1) % 4]) for j in range(4)]
+        u = 0.0
+        for A, Bp in edges:
+            d = Bp - A
+            L = d.length
+            if L < 1e-3:
+                continue
+            t = d / L
+            nn = Vector((-t.y, t.x))
+            ss = splits(0.0, L, 1.0)
+            for sa, sb in zip(ss, ss[1:]):
+                m = A + t * ((sa + sb) / 2)
+                l1, l2 = grass_at(m + nn * 0.3, ctx), grass_at(m - nn * 0.3, ctx)
+                if l1 == l2:
+                    continue
+                side = nn if l1 else -nn
+                pa, pb = A + t * sa, A + t * sb
+                q = [pa + side * LAWN_IN, pb + side * LAWN_IN, pb - side * LAWN_OUT, pa - side * LAWN_OUT]
+                g.face([(p.x, h + LAWN_Y, p.y) for p in q], LAWN, out=(0, 1, 0),
+                       uvs=[(u + sa, 1.0), (u + sb, 1.0), (u + sb, 0.5), (u + sa, 0.5)], shade=0.95)
+            u += L
+        # the worn path: from the lawn's edge nearest the walk's way in, across by the middle, a gentle wander
+        V = V2(ctx.blist[name]["vertex"])
+        c = centroid(P)
+        a = min(P, key=lambda p: (p - V).length)
+        a = a + (c - a) * 0.02
+        ax_ = (c - a).normalized()
+        far = max(P, key=lambda p: abs(cross2(ax_, p - a)) + 0.3 * (p - a).length)  # a corner well off the paved way in
+        mid = a + (far - a) * 0.45 + (far - a).orthogonal().normalized() * 1.5
+        pts = [a, mid, far + (c - far) * 0.03]
+        rng = np.random.default_rng(int(abs(V.x * 13 + V.y * 7)) % (2 ** 31))
+        dist = 0.0
+        for (p0, p1) in zip(pts, pts[1:]):
+            d = p1 - p0
+            L = d.length
+            t = d / L
+            nn = Vector((-t.y, t.x))
+            ss = splits(0.0, L, 0.8)
+            for sa, sb in zip(ss, ss[1:]):
+                m = p0 + t * ((sa + sb) / 2)
+                if not grass_at(m, ctx):
+                    continue
+                wa = 0.42 + 0.08 * math.sin((dist + sa) * 1.3)
+                wb = 0.42 + 0.08 * math.sin((dist + sb) * 1.3)
+                pa, pb = p0 + t * sa, p0 + t * sb
+                q = [pa - nn * wa, pb - nn * wb, pb + nn * wb, pa + nn * wa]
+                g.face([(p.x, h + PATH_Y, p.y) for p in q], LAWN, out=(0, 1, 0),
+                       uvs=[(dist + sa, 0.0), (dist + sb, 0.0), (dist + sb, 0.5), (dist + sa, 0.5)], shade=0.92)
+            dist += L
+        ctx.dress["lawns"].append({"ring": [[round(p.x, 2), round(p.y, 2)] for p in P],
+                                   "paved": [[[round(x, 2), round(z, 2)] for x, z in q] for q in paved],
+                                   "path": [[round(p.x, 2), round(p.y, 2)] for p in pts]})
 
 
 def stair_spans(R, i, ctx, feet=False):
@@ -2076,11 +2542,18 @@ def build_stair(g, st, ctx):
     N = max(1, round(h / STEP_RISE))
     rise, run = h / N, RUN / N
     END = RUN + LAND
+    # (the look pass) each tread worn hollow where the feet go, a little off the middle toward the rail: the tread and
+    # the nosing sink up to 1.6 cm there, polished darker
+    wear = [(-W, 0.0), (-0.8 * W, 0.004), (-0.58 * W, 0.016), (-0.36 * W, 0.006), (-0.15 * W, 0.0), (0.06, 0.0)]
     for i in range(N):
         y = (i + 0.5) * rise
         yb = 0.0 if i == 0 else (i - 0.5) * rise
-        F.quad(g, [(i * run, -W, y), ((i + 1) * run, -W, y), ((i + 1) * run, 0.06, y), (i * run, 0.06, y)], STONE, (0, 0, 1), floor=y - 1)
-        F.quad(g, [(i * run, -W, yb), (i * run, 0.06, yb), (i * run, 0.06, y), (i * run, -W, y)], STONE, (-1, 0, 0), floor=0.0, k=0.8)
+        for (oa, wa), (ob, wb) in zip(wear, wear[1:]):
+            kk = 1.0 - 6.0 * max(wa, wb)
+            F.quad(g, [(i * run, oa, y - wa), ((i + 1) * run, oa, y - wa * 0.3), ((i + 1) * run, ob, y - wb * 0.3), (i * run, ob, y - wb)],
+                   STONE, (0, 0, 1), floor=y - 1, k=kk)
+            ba, bb = (yb, yb) if i == 0 else (yb - wa * 0.3, yb - wb * 0.3)  # (down to the step below's worn back)
+            F.quad(g, [(i * run, oa, ba), (i * run, ob, bb), (i * run, ob, y - wb), (i * run, oa, y - wa)], STONE, (-1, 0, 0), floor=0.0, k=0.8)
     F.quad(g, [(RUN, -W, (N - 0.5) * rise), (RUN, 0.06, (N - 0.5) * rise), (RUN, 0.06, h), (RUN, -W, h)], STONE, (-1, 0, 0), k=0.8)
     for aa, ab in zip(splits(RUN, END, 2.0), splits(RUN, END, 2.0)[1:]):
         F.quad(g, [(aa, -W, h), (ab, -W, h), (ab, -0.06, h), (aa, -0.06, h)], STONE, (0, 0, 1), floor=h - 1)  # a joint short of the coping
@@ -2488,6 +2961,322 @@ def place_bench(g, ctx, rng, c, ua, uo, y, kind=None):
     return L, dep
 
 
+# ------------------------------------------------------------------ the look pass: props on the walk
+# (2026-09-26; Steve: "take pictures, make it better, also props, people, guards"). In 1873 the old Spanish ramparts
+# were being pulled down piece by piece: Brialmont's new ring (1859-64) had made them useless, and the town was
+# laying out its boulevards on their line. So the walk is half abandoned: a stretch of breastwork pulled down by the
+# town's gang (rubble, bricks cleaned and stacked for sale, planks, shear legs lowering baskets of rubble to the
+# carts below, the town's notice), the old guns lying dismounted on sleepers waiting for the scrap man, and the
+# garrison still keeping its sentries and a round. Every solid prop goes to the game in the dressing ("props": the
+# game's colliders and the prop check, world/rampart.ts).
+
+
+def prop_rec(ctx, name, F, a0, a1, o0, o1, top, y):
+    """Record a solid prop as a box in its frame: middle, along (a unit), length, depth, top over y."""
+    c = F.p((a0 + a1) / 2, (o0 + o1) / 2, y)
+    ctx.dress.setdefault("props", []).append({"name": name, "x": round(c[0], 3), "z": round(c[2], 3), "y": round(y, 3), "set": ctx.prop_set,
+                                              "a": [round(F.ua[0], 5), round(F.ua[1], 5)], "len": round(abs(a1 - a0), 3),
+                                              "dep": round(abs(o1 - o0), 3), "top": round(top, 3)})
+
+
+def heap(g, F, a0, a1, o0, o1, y, ht, rng, mats=(BRICK, PLINTH)):
+    """A heap of rubble: a low mound on a 6 x 4 grid, each quad brick or stone, the rim at the walk."""
+    na, no = 6, 4
+    H = np.full((na + 1, no + 1), -0.04)  # (the rim a little under the walk: no face lies in its plane)
+    for i in range(1, na):
+        for j in range(1, no):
+            fa = 1 - abs(2 * i / na - 1)
+            fo = 1 - abs(2 * j / no - 1)
+            H[i, j] = ht * (fa * fo) ** 0.6 * rng.uniform(0.7, 1.15)
+    P = [[F.p(a0 + (a1 - a0) * i / na, o0 + (o1 - o0) * j / no, y + H[i, j]) for j in range(no + 1)] for i in range(na + 1)]
+    for i in range(na):
+        for j in range(no):
+            q = [P[i][j], P[i + 1][j], P[i + 1][j + 1], P[i][j + 1]]
+            m = mats[int(rng.integers(0, len(mats)))]
+            g.face(q, m, out=(0, 1, 0), floor=y - 0.3, k=rng.uniform(0.85, 1.15))
+    # broken bricks lying on it
+    laid = []
+    for _ in range(int((a1 - a0) * (o1 - o0) * 7)):
+        a, o = rng.uniform(a0 + 0.2, a1 - 0.2), rng.uniform(o0 + 0.15, o1 - 0.15)
+        if any(math.hypot(a - pa, o - po) < 0.3 for pa, po in laid):
+            continue
+        laid.append((a, o))
+        i, j = int((a - a0) / (a1 - a0) * na), int((o - o0) / (o1 - o0) * no)
+        yy = y + H[min(i, na), min(j, no)] * 0.8
+        rot = rng.uniform(0, math.pi)
+        Fb = Frame(*F.p(a, o, 0)[::2], (math.cos(rot) * F.ua[0] - math.sin(rot) * F.uo[0], math.cos(rot) * F.ua[1] - math.sin(rot) * F.uo[1]),
+                   (math.sin(rot) * F.ua[0] + math.cos(rot) * F.uo[0], math.sin(rot) * F.ua[1] + math.cos(rot) * F.uo[1]))
+        Fb.box(g, -0.11, 0.11, -0.05, 0.05, yy, yy + 0.055, BRICK, skip=("-y",), floor=y, k=rng.uniform(0.75, 1.0))
+
+
+def brick_stack(g, F, a, o, y, rng, n_h=12):
+    """Cleaned bricks stacked for sale in a block (they were sold on, the town's gang's pay), a few loose on top.
+    Its sides the stacked bricks of wall_props (cell 3: dark gaps between the bricks, not a wall's mortar)."""
+    L, D = 1.1, 0.46
+    ht = n_h * 0.065
+    kk = rng.uniform(0.85, 1.0)
+    vt = ht / (64 * 0.065 / 6)  # (six texels a course of 6.5 cm, as painted)
+    for (oa, aa0, aa1, oo0, oo1) in ((-1, a - L / 2, a + L / 2, o - D / 2, o - D / 2), (1, a + L / 2, a - L / 2, o + D / 2, o + D / 2),
+                                     (0, a - L / 2, a - L / 2, o + D / 2, o - D / 2), (2, a + L / 2, a + L / 2, o - D / 2, o + D / 2)):
+        q = [F.p(aa0, oo0, y), F.p(aa1, oo1, y), F.p(aa1, oo1, y + ht), F.p(aa0, oo0, y + ht)]
+        w = L if oa in (-1, 1) else D
+        uw = min(0.25, 0.25 * w / 0.9)
+        out = F.v(0, -1) if oa == -1 else F.v(0, 1) if oa == 1 else F.v(-1, 0) if oa == 0 else F.v(1, 0)
+        g.face(q, PROPS, out=out, uvs=[(0.75, 0.0), (0.75 + uw, 0.0), (0.75 + uw, min(1.0, vt)), (0.75, min(1.0, vt))], floor=y - 0.5, k=kk)
+    top = [F.p(a - L / 2, o - D / 2, y + ht), F.p(a + L / 2, o - D / 2, y + ht), F.p(a + L / 2, o + D / 2, y + ht), F.p(a - L / 2, o + D / 2, y + ht)]
+    g.face(top, PROPS, out=(0, 1, 0), uvs=[(0.75, 0.0), (1.0, 0.0), (1.0, 0.45), (0.75, 0.45)], floor=y - 0.5, k=kk)
+    for k in range(int(rng.integers(2, 6))):
+        aa = a + rng.uniform(-L / 2 + 0.12, L / 2 - 0.12)
+        F.box(g, aa - 0.11, aa + 0.11, o - 0.2 + k * 0.125, o - 0.1 + k * 0.125, y + ht + 0.003 * k, y + ht + 0.055 + 0.003 * k, BRICK, skip=("-y",), floor=y, k=0.9)
+    return L, D, ht + 0.06
+
+
+def plank_stack(g, F, a, o, y, rng, n=5):
+    L, W = 2.6, 0.24
+    for k in range(n):
+        da = rng.uniform(-0.12, 0.12)
+        ow = o + rng.uniform(-0.05, 0.05)
+        F.box(g, a - L / 2 + da, a + L / 2 + da, ow - W / 2, ow + W / 2, y + 0.1 + k * 0.035, y + 0.135 + k * 0.035, WOOD, floor=y, k=rng.uniform(0.8, 1.0))
+    for aa in (a - L / 2 + 0.3, a + L / 2 - 0.3):  # the two bearers under the stack
+        F.box(g, aa - 0.06, aa + 0.06, o - 0.3, o + 0.3, y, y + 0.1, WOOD, skip=("-y",), floor=y, k=0.7)
+    return L + 0.25, 0.6, 0.12 + n * 0.035
+
+
+def barrow(g, F, a, o, y, rot):
+    """A navvy's wheelbarrow of planks, its wheel in front, its legs and handles behind."""
+    ca, sa = math.cos(rot), math.sin(rot)
+    Fr = Frame(*F.p(a, o, 0)[::2], (ca * F.ua[0] - sa * F.uo[0], ca * F.ua[1] - sa * F.uo[1]),
+               (sa * F.ua[0] + ca * F.uo[0], sa * F.ua[1] + ca * F.uo[1]))
+    Fr.box(g, -0.35, 0.35, -0.3, 0.3, y + 0.3, y + 0.34, WOOD, floor=y)  # the bed
+    for sg in (-1, 1):
+        Fr.box(g, -0.37, 0.37, sg * 0.3 - 0.02, sg * 0.3 + 0.02, y + 0.34, y + 0.58, WOOD, floor=y, k=0.85)  # the sides
+        bar(g, Fr.p(-0.95, sg * 0.24, y + 0.5), Fr.p(0.55, sg * 0.18, y + 0.24), 0.045, WOOD, shade=0.8)  # the handles
+        bar(g, Fr.p(-0.35, sg * 0.24, y + 0.3), Fr.p(-0.4, sg * 0.26, y), 0.04, WOOD, shade=0.7)  # the legs
+    Fr.box(g, 0.37, 0.4, -0.3, 0.3, y + 0.34, y + 0.58, WOOD, floor=y, k=0.85)
+    wc = Fr.p(0.72, 0.0, y + 0.22)
+    for k in range(8):
+        a0, a1 = 2 * math.pi * k / 8, 2 * math.pi * (k + 1) / 8
+        p0 = Fr.p(0.72 + 0.22 * math.cos(a0), 0.0, y + 0.22 + 0.22 * math.sin(a0))
+        p1 = Fr.p(0.72 + 0.22 * math.cos(a1), 0.0, y + 0.22 + 0.22 * math.sin(a1))
+        bar(g, p0, p1, 0.05, WOOD, h=0.06, shade=0.7)
+    bar(g, Fr.p(0.72, -0.05, y + 0.22), wc, 0.03, IRON, shade=0.6)
+    return Fr
+
+
+def shear_legs(g, F, a, o_foot, o_top, y, top_h, drop):
+    """Shear legs over the field face: two spars from the walk leaning out to a lashed head with a block, a stay back
+    to a stake, the fall down to a basket of rubble hanging over the berm, a crab winch at the legs' feet."""
+    head = Vector(F.p(a, o_top, y + top_h))
+    for sg in (-1, 1):
+        foot = Vector(F.p(a + sg * 1.1, o_foot, y))
+        bar(g, foot, head + Vector(F.v(sg * 0.08, 0)), 0.14, WOOD, shade=0.8)
+        F.box(g, a + sg * 1.1 - 0.2, a + sg * 1.1 + 0.2, o_foot - 0.2, o_foot + 0.2, y, y + 0.06, WOOD, skip=("-y",), floor=y, k=0.6)
+    bar(g, head + Vector((0, -0.05, 0)), head + Vector((0, 0.12, 0)), 0.2, IRON, shade=0.6)  # the lashing
+    stake = Vector(F.p(a, 2.1, y))
+    bar(g, head, stake + Vector((0, 0.35, 0)), 0.03, IRON, shade=0.5)  # the stay
+    bar(g, stake - Vector((0, 0.05, 0)), stake + Vector((0, 0.45, 0)), 0.08, WOOD, shade=0.7)
+    blk = head - Vector((0, 0.35, 0))
+    F.box(g, a - 0.09, a + 0.09, o_top - 0.06, o_top + 0.06, blk.y - 0.14, blk.y + 0.14, WOOD, floor=blk.y - 1, k=0.7)
+    bar(g, head, blk, 0.03, IRON, shade=0.5)
+    bot = Vector(F.p(a, o_top, y - drop))
+    bar(g, blk, bot + Vector((0, 0.55, 0)), 0.022, IRON, shade=0.45)  # the fall
+    for sg in (-1, 1):  # the basket's sling
+        bar(g, bot + Vector((0, 0.55, 0)), bot + Vector(F.v(sg * 0.28, 0, 0.1)), 0.02, IRON, shade=0.45)
+    lathe(g, (bot.x, bot.y - 0.3, bot.z), [(0.2, 0.0), (0.32, 0.4), (0.3, 0.42)], 8, WOOD, shade=0.75)  # the basket
+    lathe(g, (bot.x, bot.y - 0.3, bot.z), [(0.3, 0.38), (0.0, 0.5)], 8, BRICK, shade=0.8)  # its load of rubble
+    # the crab winch at the feet: two cheeks, a drum, the handles
+    wa, wo = a, o_foot - 1.0
+    for sg in (-1, 1):
+        F.box(g, wa + sg * 0.45 - 0.04, wa + sg * 0.45 + 0.04, wo - 0.35, wo + 0.35, y, y + 0.8, WOOD, skip=("-y",), floor=y, k=0.8)
+    bar(g, F.p(wa - 0.45, wo, y + 0.55), F.p(wa + 0.45, wo, y + 0.55), 0.2, WOOD, shade=0.7)
+    bar(g, F.p(wa - 0.5, wo, y + 0.55), F.p(wa + 0.62, wo, y + 0.55), 0.035, IRON, shade=0.6)
+    bar(g, F.p(wa + 0.62, wo, y + 0.55), F.p(wa + 0.62, wo + 0.28, y + 0.7), 0.035, IRON, shade=0.6)
+    bar(g, F.p(wa, wo, y + 0.64), blk, 0.022, IRON, shade=0.45)  # the fall's other end, back to the drum
+
+
+def notice(g, F, a, o, y, facing=1.0):
+    """The town's notice on a board on two posts, its face toward the walk."""
+    front = -facing  # (the side the notice is read from, along o)
+    for sg in (-1, 1):  # the posts behind the board
+        F.box(g, a + sg * 0.42 - 0.04, a + sg * 0.42 + 0.04, o - front * 0.1, o - front * 0.025, y, y + 1.75, WOOD, skip=("-y",), floor=y, k=0.75)
+    F.box(g, a - 0.5, a + 0.5, o - 0.02, o + 0.02, y + 1.0, y + 1.7, WOOD, skip=("+o" if front > 0 else "-o",), floor=y, k=0.8)
+    F.box(g, a - 0.52, a + 0.52, o - 0.08, o + 0.06, y + 1.7, y + 1.74, WOOD, skip=("-y",), floor=y, k=0.7)  # a drip board
+    # the board's face is the paper (the town's notice, pasted edge to edge)
+    of = o + front * 0.02
+    q = [F.p(a - 0.5, of, y + 1.0), F.p(a + 0.5, of, y + 1.0), F.p(a + 0.5, of, y + 1.7), F.p(a - 0.5, of, y + 1.7)]
+    g.face(q, PROPS, out=F.v(0, front), uvs=[(0.0, 0.0), (0.25, 0.0), (0.25, 1.0), (0.0, 1.0)] if front < 0 else
+           [(0.25, 0.0), (0.0, 0.0), (0.0, 1.0), (0.25, 1.0)], shade=0.95)
+
+
+def rope_line(g, F, a0, a1, o, y, posts=True):
+    """A rope along a on low posts, sagging between them (keeps the walkers off the breach)."""
+    ss = splits(a0, a1, 3.0)
+    for s in ss:
+        if posts:
+            F.box(g, s - 0.05, s + 0.05, o - 0.05, o + 0.05, y, y + 0.95, WOOD, skip=("-y",), floor=y, k=0.75)
+    for sa, sb in zip(ss, ss[1:]):
+        m = (sa + sb) / 2
+        bar(g, F.p(sa, o, y + 0.88), F.p(m, o, y + 0.72), 0.02, IRON, shade=0.55)
+        bar(g, F.p(m, o, y + 0.72), F.p(sb, o, y + 0.88), 0.02, IRON, shade=0.55)
+
+
+def sentry_walk(g, F, a, o, y):
+    """A garrison sentry box on the walk: planks painted dark, a pitched roof, open to the walk (its front along -o)."""
+    W, D, H = 1.0, 0.9, 2.15
+    wt = 0.05
+    F.box(g, a - W / 2, a + W / 2, o + D / 2 - wt, o + D / 2, y + 0.06, y + H, WOOD, skip=("-y",), floor=y, k=0.62)  # the back
+    for sg in (-1, 1):
+        F.box(g, a + sg * (W / 2 - wt / 2) - wt / 2, a + sg * (W / 2 - wt / 2) + wt / 2, o - D / 2, o + D / 2 - wt, y + 0.06, y + H, WOOD,
+              skip=("-y", "+o"), floor=y, k=0.62)
+    F.box(g, a - W / 2, a + W / 2, o - D / 2, o + D / 2, y, y + 0.06, WOOD, skip=("-y",), floor=y, k=0.55)  # the floor board
+    ov = 0.12
+    ridge_y = y + H + 0.42
+    for sg in (-1, 1):
+        q = [F.p(a + sg * (W / 2 + ov), o - D / 2 - ov, y + H), F.p(a + sg * (W / 2 + ov), o + D / 2 + ov, y + H),
+             F.p(a, o + D / 2 + ov, ridge_y), F.p(a, o - D / 2 - ov, ridge_y)]
+        g.face(q, SLATE, out=F.v(sg, 0, 0.6), floor=y, k=0.9)
+    for oo in (o - D / 2, o + D / 2):  # the gables
+        g.face([F.p(a - W / 2, oo, y + H), F.p(a + W / 2, oo, y + H), F.p(a, oo, ridge_y - 0.05)], WOOD, out=F.v(0, -1 if oo < o else 1), floor=y, k=0.6)
+    return W, D, H + 0.42
+
+
+def old_gun(g, F, a, o, y, rot=0.0):
+    """An old iron gun lying dismounted on two sleepers (the walls were disarmed; they wait for the scrap man)."""
+    ca, sa = math.cos(rot), math.sin(rot)
+    ua = (ca * F.ua[0] - sa * F.uo[0], ca * F.ua[1] - sa * F.uo[1])
+    uo = (sa * F.ua[0] + ca * F.uo[0], sa * F.ua[1] + ca * F.uo[1])
+    Fg = Frame(*F.p(a, o, 0)[::2], ua, uo)
+    for aa in (-0.7, 0.75):
+        Fg.box(g, aa - 0.1, aa + 0.1, -0.45, 0.45, y, y + 0.16, WOOD, skip=("-y",), floor=y, k=0.65)
+    # the barrel along a, a lathe about its own axis: rings at (x along, radius)
+    prof = [(-1.45, 0.0), (-1.45, 0.08), (-1.38, 0.1), (-1.32, 0.05), (-1.28, 0.25), (-1.2, 0.27), (-1.15, 0.25), (-0.4, 0.22),
+            (-0.36, 0.24), (-0.3, 0.21), (0.9, 0.17), (1.0, 0.19), (1.08, 0.15), (1.1, 0.0)]
+    cy = y + 0.16 + 0.24
+    n = 8
+    for (x0, r0), (x1, r1) in zip(prof, prof[1:]):
+        for k in range(n):
+            t0, t1 = 2 * math.pi * k / n, 2 * math.pi * (k + 1) / n
+            q = [Fg.p(x0, r0 * math.cos(t0), cy + r0 * math.sin(t0)), Fg.p(x1, r1 * math.cos(t0), cy + r1 * math.sin(t0)),
+                 Fg.p(x1, r1 * math.cos(t1), cy + r1 * math.sin(t1)), Fg.p(x0, r0 * math.cos(t1), cy + r0 * math.sin(t1))]
+            tm = (t0 + t1) / 2
+            out = Vector(Fg.v(0, math.cos(tm), math.sin(tm))) + Vector(Fg.v(-(r1 - r0), 0, 0)) * 0.5
+            if r0 < 1e-6:
+                q = [q[0], q[1], q[2]]
+            elif r1 < 1e-6:
+                q = [q[0], q[1], q[3]]
+            g.face(q, IRON, out=tuple(out), shade=1.7)  # (old iron gone rusty brown-grey: lighter than the new iron)
+    # the trunnions
+    for sg in (-1, 1):
+        bar(g, Fg.p(-0.35, sg * 0.2, cy), Fg.p(-0.35, sg * 0.36, cy), 0.12, IRON, shade=0.65)
+    return Fg
+
+
+def washing(g, p0, p1, y0, y1, rng, h):
+    """A line from the guard house to a pole with the washing on it: shirts and linen, a smock, a kerchief."""
+    a, b = Vector((p0.x, y0, p0.y)), Vector((p1.x, y1, p1.y))
+    d = b - a
+    L = d.length
+    t = d / L
+    sag = lambda f: -0.22 * 4 * f * (1 - f)
+    pts = [a + d * (k / 8) + Vector((0, sag(k / 8), 0)) for k in range(9)]
+    for q0, q1 in zip(pts, pts[1:]):
+        bar(g, q0, q1, 0.012, IRON, shade=0.7)
+    side = Vector((-t.z, 0, t.x)).normalized()
+    f = 0.1
+    while f < 0.9:
+        w = rng.uniform(0.35, 0.7)
+        f1 = min(0.95, f + w / L)
+        cell = 1 if rng.random() < 0.65 else 2
+        top0 = a + d * f + Vector((0, sag(f), 0))
+        top1 = a + d * f1 + Vector((0, sag(f1), 0))
+        hang = rng.uniform(0.45, 0.8)
+        sw = side * rng.uniform(-0.04, 0.04)
+        q = [top0 - Vector((0, hang, 0)) + sw, top1 - Vector((0, hang * rng.uniform(0.85, 1.1), 0)) + sw, top1, top0]
+        u0 = cell * 0.25 + rng.uniform(0, 0.08)
+        g.face(q, PROPS, out=tuple(side), uvs=[(u0, 0.0), (u0 + 0.15, 0.0), (u0 + 0.15, 1.0), (u0, 1.0)], shade=0.9)
+        f = f1 + rng.uniform(0.03, 0.08)
+    # the pole with its fork
+    bar(g, Vector((p1.x, h, p1.y)), Vector((p1.x, y1 + 0.1, p1.y)), 0.07, WOOD, shade=0.75)
+
+
+def build_props(g, ctx):
+    """The props of the look pass (see above), in segment frames: s along the segment, o out from the town face."""
+    h, T = ctx.h, ctx.t
+    segs = {q["name"]: q for q in ctx.D["segments"]}
+    rng = np.random.default_rng(18736)
+    g.grp = "props"
+    in_d = T - (BW_O + BW_T)  # the breastwork's inner face (o)
+    # ---- the demolition works on seg7: the breach, rubble, bricks, planks, shear legs, a barrow, the notice, a rope
+    sg = segs[WORKS[0]]
+    s0, s1 = WORKS[1], WORKS[2]
+    ctx.prop_set = "works"  # (one site: its heaps, shear legs, barrow and stacks may touch)
+    F = ctx.sframe(sg, 0.0)
+    for a0, a1 in ((s0 + 1.25, s0 + 3.7), (s1 - 3.7, s1 - 1.25)):
+        heap(g, F, a0, a1, in_d - 0.9, T - BW_O - 0.05, h, 0.62, rng)
+        prop_rec(ctx, "rubble", F, a0, a1, in_d - 0.9, T - BW_O - 0.05, 0.62, h)
+    shear_legs(g, F, (s0 + s1) / 2, in_d + 0.15, T + 0.9, h, 4.6, 3.2)
+    prop_rec(ctx, "shear legs", F, (s0 + s1) / 2 - 1.35, (s0 + s1) / 2 + 1.35, in_d - 1.4, in_d + 0.4, 0.8, h)
+    rope_line(g, F, s0 - 0.5, s1 + 0.5, in_d - 1.7, h)
+    for k, a in enumerate((s0 - 3.0, s0 - 1.6, s1 + 2.2)):
+        L, D, top = brick_stack(g, F, a, 1.05, h, rng, 12 + k * 2)
+        prop_rec(ctx, "brick stack", F, a - L / 2, a + L / 2, 1.05 - D / 2, 1.05 + D / 2, top, h)
+    L, D, top = plank_stack(g, F, s1 + 4.6, 1.1, h, rng)
+    prop_rec(ctx, "planks", F, s1 + 4.6 - L / 2, s1 + 4.6 + L / 2, 1.1 - D / 2, 1.1 + D / 2, top, h)
+    barrow(g, F, s0 + 2.0, in_d - 2.6, h, 0.5)
+    prop_rec(ctx, "barrow", F, s0 + 1.1, s0 + 2.9, in_d - 3.1, in_d - 2.1, 0.6, h)
+    notice(g, F, s0 - 6.5, 0.75, h, facing=-1.0)
+    prop_rec(ctx, "notice", F, s0 - 7.0, s0 - 6.0, 0.7, 0.8, 1.75, h)
+    ctx.dress["works"] = {"seg": WORKS[0], "s0": s0, "s1": s1}
+    ctx.prop_set = None
+    # ---- sentry boxes on the walk, against the breastwork, open to the walk: by the Kipdorppoort's stair head and on seg1
+    for name, s in (("seg5", 112.0), ("seg1", 70.0), ("seg8", 34.0)):
+        Fs = ctx.sframe(segs[name], 0.0)
+        o = in_d - 0.5
+        W, D, top = sentry_walk(g, Fs, s, o, h)
+        prop_rec(ctx, "sentry box", Fs, s - W / 2, s + W / 2, o - D / 2, o + D / 2, top, h)
+        ctx.dress.setdefault("sentry_boxes", []).append({"x": round(Fs.p(s, o - 0.85, h)[0], 3), "z": round(Fs.p(s, o - 0.85, h)[2], 3),
+                                                         "face": [round(-Fs.uo[0], 5), round(-Fs.uo[1], 5)]})
+    # ---- the old guns, dismounted, on sleepers against the breastwork (seg8, by the Sint-Jorispoort; seg2)
+    for name, s in (("seg8", 40.0), ("seg2", 75.0)):
+        Fs = ctx.sframe(segs[name], 0.0)
+        for k in range(2):
+            a = s + k * 3.1
+            old_gun(g, Fs, a, in_d - 0.75, h, rot=(math.pi if k else 0.0) + rng.uniform(-0.08, 0.08))
+            prop_rec(ctx, "old gun", Fs, a - 1.5, a + 1.5, in_d - 1.25, in_d - 0.2, 0.65, h)
+    # ---- a washing line from the guard house on the north-west bastion to a pole on its lawn
+    for (name, _P), (ring, paved) in zip(ctx.land_bastions, ctx.grass):
+        if name != "nw":
+            continue
+        hut = next((hh for hh in ctx.huts if inside((hh.c.x, hh.c.y), [(p.x, p.y) for p in _P])), None)
+        if hut is None:
+            continue
+        V = V2(ctx.blist[name]["vertex"])
+        ua, uo, W2, D2 = hut.facing(V - hut.c)  # uo: out of its door, toward the walk; the line runs off its side
+        best = None
+        for sgn in (1.0, -1.0):
+            p0 = hut.c + ua * sgn * (W2 - HIN + 0.02) - uo * 0.6
+            p1 = p0 + ua * sgn * 5.2 - uo * 1.2
+            if grass_at(p1, ctx) and grass_at((p0 + p1) / 2, ctx):
+                best = (p0, p1)
+                break
+        if best is None:
+            continue
+        p0, p1 = best
+        washing(g, p0, p1, h + 2.05, h + 2.0, rng, h)
+        ctx.dress.setdefault("props", []).append({"name": "washing pole", "x": round(p1.x, 3), "z": round(p1.y, 3), "y": h,
+                                                  "a": [1.0, 0.0], "len": 0.12, "dep": 0.12, "top": 2.1})
+    # ---- a bench on each lawn, looking back at the town (M7 sleep reads every bench: world/rampart.ts, server rest.ts)
+    for (name, _P), (ring, paved) in zip(ctx.land_bastions, ctx.grass):
+        V = V2(ctx.blist[name]["vertex"])
+        P = [V2(p) for p in ring]
+        c = centroid(P)
+        u = (V - c).normalized()
+        spot = c + u * 3.0 + u.orthogonal().normalized() * 2.5
+        if grass_at(spot, ctx) and all(grass_at(spot + u.orthogonal().normalized() * k, ctx) for k in (-1.0, 1.0)):
+            place_bench(g, ctx, rng, spot, Vector((-u.y, u.x)), u, h, 1)
+    g.grp = None
+
+
 def build_dressing(g, ctx):
     """The gas lamps' spots on the town side of the walk, benches against the breastwork (a few on the
     town side by a lamp), two benches by each mill; the lanterns of the huts and gates as lights."""
@@ -2512,6 +3301,8 @@ def build_dressing(g, ctx):
         def free(s, town):
             if any(abs(s - q) < 13.5 for q in gates):
                 return False
+            if not town and sg["name"] == WORKS[0] and WORKS[1] - 4.0 < s < WORKS[2] + 4.0:
+                return False  # (the look pass: the breach of the works)
             if town and any(a - 2.5 < s < b + 2.5 for a, b in stairs):
                 return False
             if not town and any(abs(s - q) < 7.0 for q in towers):
@@ -2570,6 +3361,7 @@ def build(ctx):
     rings = [Ring(r, ctx) for r in D["tops"]]
     for R in rings:
         build_ring(g, R, ctx)
+    build_lawns(g, ctx)
     # guard houses: on the towers (door toward the walk, at decor's door), on the land bastions
     # (door toward the line's corner, where the walk is), on the river bastions (toward the town)
     towers = [(centroid(t["hut"]), t) for t in D["towers"]]
@@ -2599,6 +3391,7 @@ def build(ctx):
     for mc, mr, home, M in ctx.mills:
         build_mill(g, ctx, mc, mr, home, M)
     build_dressing(g, ctx)
+    build_props(g, ctx)
     build_moss(g, ctx)
     build_ferns(g, ctx)
     for st in D["stairs"]:

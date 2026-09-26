@@ -6,9 +6,9 @@
   "map": "townwall_arms_h.png"
  },
  "wall_brick": {
-  "sha256": "6287be1e4985cf9ccbaaa7824a9939d3a7965556ec139c7740d766e59b21c414",
+  "sha256": "9f99ac743af909029e6a7fd9b6312a2d2a71e5c910c59ad52e3dd34a12f87cd6",
   "kind": "brick",
-  "bump": 1.1,
+  "bump": 1.6,
   "map": "townwall_brick_h.png"
  },
  "wall_canvas": {
@@ -16,6 +16,12 @@
   "kind": "cloth",
   "bump": 0.3,
   "map": "townwall_canvas_h.png"
+ },
+ "wall_coping": {
+  "sha256": "1bca9026b2b2766e2bcc8ad0d66dffae7d74bf0cda88959b401bd941ba0952df",
+  "kind": "coping",
+  "bump": 1.5,
+  "map": "townwall_coping_h.png"
  },
  "wall_iron": {
   "sha256": "b956204dabbdb8b8d515069d2a061d8aef9579eaa4309fa32b0a43c5746c6a2a",
@@ -29,10 +35,16 @@
   "bump": 1.2,
   "map": "townwall_plinth_h.png"
  },
+ "wall_props": {
+  "sha256": "ac1e74676950ed169db2aa2c3afce1bff2dcc5be726f40041db95bd7db756350",
+  "kind": "grain",
+  "bump": 0.6,
+  "map": "townwall_props_h.png"
+ },
  "wall_quoin": {
-  "sha256": "091d2e3959a8c7058040adf1a6103e50a1b990066ba02468e541cb6079d7f724",
+  "sha256": "c25c566122612628dde2fbe8257a1a62a4562a3e0f0af05bd58bd125e6ca39b6",
   "kind": "quoin",
-  "bump": 1.1,
+  "bump": 1.4,
   "map": "townwall_quoin_h.png"
  },
  "wall_slate": {

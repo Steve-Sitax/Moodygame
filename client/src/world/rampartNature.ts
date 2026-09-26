@@ -563,6 +563,56 @@ export function buildRampartNature(scene: THREE.Scene, d: WallDressing): Rampart
     }
   }
 
+  // ---- the lawns on the land bastions (the look pass, 2026-09-26: "a flat green rectangle with a hard edge"): tussocks
+  // along their edges and in clumps over them (never on the trodden path), leaves blown into drifts
+  for (const lw of d.lawns ?? []) {
+    const onLawn = (x: number, z: number) => inRing(lw.ring, x, z) && !lw.paved.some((q) => inRing(q, x, z));
+    const offPath = (x: number, z: number) => {
+      for (let i = 0; i < lw.path.length - 1; i++) {
+        const [ax, az] = lw.path[i];
+        const [bx, bz] = lw.path[i + 1];
+        const dx = bx - ax;
+        const dz = bz - az;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1)));
+        if (Math.hypot(x - ax - t * dx, z - az - t * dz) < 0.8) return false;
+      }
+      return true;
+    };
+    const edges: Array<[number[], number[]]> = [];
+    const addRing = (q: number[][]) => q.forEach((p, i) => edges.push([p, q[(i + 1) % q.length]]));
+    addRing(lw.ring);
+    lw.paved.forEach(addRing);
+    for (const [a, b] of edges) {
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const tx = (b[0] - a[0]) / L;
+      const tz = (b[1] - a[1]) / L;
+      for (let s = r() * 0.5; s < L; s += 0.45 + r() * 0.55) {
+        const mx = a[0] + tx * s;
+        const mz = a[1] + tz * s;
+        const sg = onLawn(mx - tz * 0.3, mz + tx * 0.3) ? 1 : onLawn(mx + tz * 0.3, mz - tx * 0.3) ? -1 : 0;
+        if (!sg) continue;
+        const k = 0.04 + r() * 0.3;
+        const x = mx - tz * k * sg;
+        const z = mz + tx * k * sg;
+        if (!offPath(x, z)) continue;
+        plant(x, R.h, z, Card.Sedge, 0.28 + r() * 0.34, 0.4 + r() * 0.3, r() * Math.PI, 0.72 + r() * 0.3);
+        if (r() < 0.35) flat(chunkAt(x, z).flats, x - tz * 0.25 * sg, hw, z + tx * 0.25 * sg, 0.5 + r() * 0.5, r() * Math.PI * 2, 0, 0.7 + r() * 0.3);
+      }
+    }
+    const xs = lw.ring.map((p) => p[0]);
+    const zs = lw.ring.map((p) => p[1]);
+    const clumpAt = noise1(77 + Math.round(xs[0]));
+    for (let x0 = Math.min(...xs); x0 < Math.max(...xs); x0 += 1.3)
+      for (let z0 = Math.min(...zs); z0 < Math.max(...zs); z0 += 1.3) {
+        const x = x0 + r() * 1.3;
+        const z = z0 + r() * 1.3;
+        if (!onLawn(x, z) || !offPath(x, z)) continue;
+        const v = clumpAt(x * 0.37 + z * 0.61);
+        if (v > 0.6) for (let k = 0; k < 1 + Math.floor(r() * 3); k++) plant(x + (r() - 0.5) * 0.7, R.h, z + (r() - 0.5) * 0.7, Card.Sedge, 0.22 + r() * 0.3, 0.35 + r() * 0.3, r() * Math.PI, 0.7 + r() * 0.3);
+        else if (v < 0.22 && r() < 0.5) flat(chunkAt(x, z).flats, x, hw, z, 0.6 + r() * 0.7, r() * Math.PI * 2, 0, 0.7 + r() * 0.3);
+      }
+  }
+
   // ---- the meshes: one per chunk and kind
   const plantMap = plantAtlas();
   const flatMap = flatAtlas();

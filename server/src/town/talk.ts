@@ -434,7 +434,11 @@ export function engineReply(db: DB, r: Resident, topic: Topic | null, seed: stri
       const mood =
         s.greed >= 7 ? "It pays little enough, and less every year." : s.warmth >= 7 ? "It's a living, and I've good people round me." : s.honesty <= 3 ? "Honest work. More or less." : "It's work.";
       if (r.trade === "thief") return "Me? I help people carry their purses. It's a kindness, at night.";
+      if (r.trade === "sentry" && r.work.place.startsWith("wall:"))
+        return "On guard on the ramparts. Four hours on, and the wind finds every button. The town pulls the old wall down stone by stone, and still the army wants a man on it.";
       if (r.trade === "sentry") return `On guard at ${place}. Two hours on, four off, and the corporal counts every minute. Nobody goes through without the railway's leave.`;
+      if (r.trade === "navvy") return "Pulling down the old wall for the town. Every brick knocked clean and stacked; they sell them on. Dust in your throat from seven till dark.";
+      if (r.trade === "works_foreman") return "Foreman of the town's works. The old Spanish wall comes down a stretch at a time, and the boulevards go where it stood. Keep off the rubble.";
       if (r.trade === "corporal") return "Corporal of the guard. I bring the relief out every two hours and see my men stay awake.";
       if (r.trade === "soldier") return `The line, at ${placeLabel(db, "barracks")}. I drew a bad number at home in ${r.origin ?? "the Kempen"}, so here I am, two years of it.`;
       if (r.trade === "customs") return "What comes off the ships: casks, bales, crates. I count them against the papers and write it down. Nothing leaves the quay till the duty's paid.";
@@ -618,6 +622,8 @@ function dutyOf(db: DB, r: Resident): string {
   if (!isSoldier(r.trade)) return "";
   const post = GUARD_POSTS.find((g) => r.work.place === `post:${g.id}`);
   const base = `\nDUTY: a soldier of the line infantry in the garrison of Antwerp, the kingdom's fortress. You drew a bad number in the militia lottery at home (or stand in for a richer man who paid), and serve your time for a few centimes a day. ${police}`;
+  if (r.trade === "sentry" && r.work.place.startsWith("wall:"))
+    return `${base} Now you stand sentry at a sentry box on the old town wall, which the town is pulling down a stretch at a time: you may not leave your post, and you keep talk short.`;
   if (r.trade === "sentry") return `${base} Now you stand sentry${post ? ` at ${post.label}` : ""}: you may not leave your post or let anyone through, and you keep talk short.`;
   if (r.trade === "corporal") return `${base} You are the corporal of the guard${post ? ` at ${post.label}` : ""}: you bring out the relief every two hours.`;
   return `${base} Off duty now: out with your comrade until the tattoo calls you back to ${placeLabel(db, "barracks")}.`;

@@ -662,7 +662,8 @@ export class BackLife {
     for (const [id, k] of this.kits) {
       if (id === r.id || k.place !== this.kits.get(r.id)?.place) continue;
       const o = this.town.simOf(id);
-      if (!o?.p || o.r.household !== r.household) continue;
+      // (the look pass: two lovers keep each other's side on the wall too, `mate`)
+      if (!o?.p || (o.r.household !== r.household && o.r.id !== r.mate)) continue;
       if (o.r.age > r.age || (o.r.age === r.age && o.r.id < r.id)) {
         // only one follows each lead (the crowd walks one at a side)
         const taken = [...this.kits.keys()].some((q) => q !== r.id && this.town.simOf(q)?.p && this.crowd.puppetFollowing(this.town.simOf(q)!.p!) && this.town.simOf(q)!.p!.lead === o.p);

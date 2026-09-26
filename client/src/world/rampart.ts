@@ -10,6 +10,8 @@ import type { GasLamps } from "./gaslamps";
 import type { Props } from "./props3d";
 import { buildRampartNature, type RampartNature } from "./rampartNature";
 import { loadTownWallBumps, townWallBump } from "./townWallBumps";
+import { addProp } from "./propSpots";
+import { buildWallLife, type WallLife } from "./wallLife";
 
 // The town wall (Steve, 2026-09-25; tools/city/rampart.py, tools/blender/build_wall.py -> wall.glb).
 // The walk map has the walk on the wall, the bastion tops and the stairs as open ground and the parapets,
@@ -131,6 +133,19 @@ export function rampartHeightAt(x: number, z: number): number | null {
   return null;
 }
 
+/** On a wall stair's flight or landing, or a step off its foot (the look pass: the crowd's grid keeps a narrower berth
+ * there, game/crowd.ts `narrow`, so townspeople walk up to the walk instead of only reaching it unseen). */
+export function rampartStairAt(x: number, z: number): boolean {
+  for (const { s, flight, landing } of STAIRS) {
+    const out = (b: Rect) => x < b.minX - 1.5 || x > b.maxX + 1.5 || z < b.minZ - 1.5 || z > b.maxZ + 1.5;
+    if (out(flight) && out(landing)) continue;
+    if (inPoly(s.flight, flight, x, z) || inPoly(s.landing, landing, x, z)) return true;
+    const [ax, az] = s.a;
+    if (Math.hypot(x - ax, z - az) < 1.2) return true;
+  }
+  return false;
+}
+
 /** The stairs, the gate passages and the bridges: props, carts and street things keep off them. */
 export function rampartKeepOut(): Rect[] {
   if (!R) return [];
@@ -173,6 +188,14 @@ export interface WallDressing {
   lamps: Array<[number, number, number]>;
   /** The lanterns of the guard houses and gates: their glass. */
   lanterns: Array<[number, number, number]>;
+  /** The look pass: the lawns on the land bastions (outline, the paved squares in them, the trodden path across). */
+  lawns?: Array<{ ring: number[][]; paved: number[][][]; path: number[][] }>;
+  /** The look pass: every solid prop on the walk as a box (middle, along, length, depth, top over y). */
+  props?: Array<{ name: string; x: number; z: number; y: number; a: [number, number]; len: number; dep: number; top: number; set?: string | null }>;
+  /** The look pass: the stretch of breastwork the town's gang pulls down (server/src/town/wallfolk.ts has it too). */
+  works?: { seg: string; s0: number; s1: number };
+  /** The look pass: where a sentry stands before each sentry box on the walk, and the way he faces. */
+  sentry_boxes?: Array<{ x: number; z: number; face: [number, number] }>;
 }
 
 export interface WallModel {
@@ -188,8 +211,12 @@ export interface WallModel {
 const lampNodes: THREE.Object3D[] = [];
 const LAMP_REACH = 160;
 
-/** The walk's paving (pass 2): the quays' granite setts (the Codex picture and its maps), a little smaller. */
-const WALK_TILE = 2.0;
+/**
+ * The walk's paving: big worn setts in courses across the walk, moss and soil in the joints (the look pass,
+ * 2026-09-26: its own Codex picture and the maps tools/textures/setts_maps.py made from it; Steve: "the walk is a flat
+ * grey smear"). The stones are big enough to keep their relief further off than the street's (psx relief reach).
+ */
+const WALK_TILE = 2.4;
 /** build_wall.py TILE: metres per repeat of the painted cobble and grass in the glb's uvs. */
 const GLB_COBBLE = 1.6;
 const GLB_GRASS = 3.0;
@@ -205,12 +232,17 @@ export function loadWall(scene: THREE.Scene): WallModel {
   const group = new THREE.Group();
   group.name = "town_wall";
   scene.add(group);
+  const propsGroup = new THREE.Group();
+  propsGroup.name = "town_wall_props";
+  scene.add(propsGroup);
   const mats = new Map<string, THREE.Material>();
   const chunks: THREE.Mesh[] = [];
   const sails: Array<{ node: THREE.Object3D; axle: THREE.Vector3; speed: number; phase: number; name: string; angle: number; cur: number }> = [];
   let sailT = performance.now() / 1000; // (M7 mills)
   const glows: Array<{ m: THREE.MeshBasicMaterial; day: number }> = [];
   let nature: RampartNature | null = null;
+  let life: WallLife | null = null;
+  let lifeT = performance.now();
   let walkMat: THREE.Material | null = null;
   let grassMat: THREE.Material | null = null;
   const matFor = (src: THREE.MeshStandardMaterial): THREE.Material => {
@@ -231,7 +263,7 @@ export function loadWall(scene: THREE.Scene): WallModel {
       // tone. No parallax: the uvs run along each piece of the wall, not the world's axes (psx relief assumes those)
       const pave = quayPaving();
       // colour, height and stone map in together, or the painted ones stay (bump maps checked, 2026-09-26)
-      withPictures(pave, { map: "/textures/quay_setts.jpg", height: "/textures/quay_setts_h.png", id: "/textures/quay_setts_id.png" });
+      withPictures(pave, { map: "/textures/wall_walk_setts.jpg", height: "/textures/wall_walk_setts_h.png", id: "/textures/wall_walk_setts_id.png" });
       m = psx(new THREE.MeshPhongMaterial({ map: pave.map, color: 0xf0f0f0, specular: 0x363636, shininess: 22, vertexColors: true }), {
         noSnap: true,
         affine: 0,
@@ -240,7 +272,7 @@ export function loadWall(scene: THREE.Scene): WallModel {
         // so up here at 6.5 m they showed the wall upside down in the walk (the lead's check, 2026-09-25)
         wet: true,
         vary: 1,
-        relief: { height: pave.height, id: pave.id, holes: 0.05, depth: 0, tile: WALK_TILE, bump: 3.2 },
+        relief: { height: pave.height, id: pave.id, holes: 0.05, depth: 0, tile: WALK_TILE, bump: 3.6, reach: 1.7 },
       });
       walkMat = m;
     } else if (src.name === "wall_grass") {
@@ -324,6 +356,12 @@ export function loadWall(scene: THREE.Scene): WallModel {
       try {
         if (node?.userData.dressing) d = JSON.parse(node.userData.dressing as string) as WallDressing;
         wallBenchSpots = d.benches.map((q) => ({ x: q.x, z: q.z, y: q.y })); // M7 sleep: Jef may sleep on them (game/sleep.ts)
+        // the look pass: the props on the walk into the town-wide prop check (dev/propcheck.ts), each as its box
+        for (const q of d.props ?? []) {
+          const [x0, x1, z0, z1] = [-q.len / 2, q.len / 2, -q.dep / 2, q.dep / 2];
+          const pts = new Float32Array([x0, 0, z0, x1, 0, z0, x0, 0, z1, x1, 0, z1, x0, q.top, z0, x1, q.top, z0, x0, q.top, z1, x1, q.top, z1]);
+          addProp({ src: "town wall", name: q.name, x: q.x, y: q.y, z: q.z, yaw: Math.atan2(-q.a[1], q.a[0]), pts: [pts], set: q.set ?? undefined });
+        }
       } catch (e) {
         console.warn("wall.glb: no dressing", e);
       }
@@ -358,11 +396,13 @@ export function loadWall(scene: THREE.Scene): WallModel {
         m.updateWorldMatrix(true, false);
         m.applyMatrix4(m.parent!.matrixWorld);
         m.geometry.computeBoundingSphere();
-        group.add(m);
+        // (the look pass: the props on the walk in a group of their own, not the wall's: world/wallprobe.ts)
+        (m.name.startsWith("wall_props") ? propsGroup : group).add(m);
         chunks.push(m);
       }
       draco.dispose();
       nature = buildRampartNature(scene, d);
+      life = buildWallLife(scene, d); // (the look pass: crows, the kite)
       dressingOk(d);
     })
     .catch((e) => {
@@ -398,6 +438,9 @@ export function loadWall(scene: THREE.Scene): WallModel {
         for (const g of glows) g.m.color.setScalar(g.day + (1 - g.day) * Math.min(1, dark));
       }
       nature?.update(camera, far);
+      const now = performance.now();
+      life?.update(Math.min(0.1, (now - lifeT) / 1000), camera, darkNow < 0 ? 0 : darkNow);
+      lifeT = now;
       const lr = Math.min(far + 20, LAMP_REACH);
       for (const o of lampNodes) o.visible = Math.hypot(o.position.x - cp.x, o.position.z - cp.z) < lr;
     },
@@ -420,7 +463,7 @@ export function wallColliders(d: WallDressing): Rect[] {
     out.push({ minX: m.x - r * 0.9, maxX: m.x + r * 0.9, minZ: m.z - r * 0.9, maxZ: m.z + r * 0.9 });
     if (m.tail) out.push({ minX: m.tail[0] - 0.75, maxX: m.tail[0] + 0.75, minZ: m.tail[1] - 0.75, maxZ: m.tail[1] + 0.75 });
   }
-  for (const b of d.benches) {
+  for (const b of [...d.benches, ...(d.props ?? []).map((q) => ({ ...q, y: q.y + q.top - 0.5 }))]) {
     const [ax, az] = b.a;
     const ox = -az;
     const oz = ax;
@@ -478,8 +521,8 @@ interface Guard {
 
 /**
  * Sentries of the garrison at the town wall (drawn here, not townspeople): two at each gate on the town
- * side of the arch, facing the street, and one on a round along the walk of each side, a halt at each
- * end. They stand still where the player stands in their way.
+ * side of the arch, facing the street. (The rounds of the walk and the sentry boxes on it are townspeople
+ * with a day since the look pass: server/src/town/wallfolk.ts.)
  */
 export function wallGuards(scene: THREE.Scene, heightAt: (x: number, z: number) => number) {
   const group = new THREE.Group();
@@ -490,20 +533,8 @@ export function wallGuards(scene: THREE.Scene, heightAt: (x: number, z: number) 
   for (const g of R?.gates ?? []) {
     for (const [x, z] of g.posts) guards.push({ kind: "post", human: null, x, z, yaw: yawOf(-g.out[0], -g.out[1]) });
   }
-  if (R) {
-    // a round along the middle of the walk on three segments of the bent wall: s from .. to (m)
-    const onWalk = (name: string, s: number): [number, number] => {
-      const g = R.segments.find((q) => q.name === name)!;
-      const off = R.t / 2 - R.t; // the middle of the walk, from the field face inward
-      return [g.o[0] + g.t[0] * s + g.n[0] * off, g.o[1] + g.t[1] * s + g.n[1] * off];
-    };
-    const rounds: Array<[[number, number], [number, number]]> = [
-      [onWalk("seg1", 45), onWalk("seg1", 95)],
-      [onWalk("seg5", 100), onWalk("seg5", 170)],
-      [onWalk("seg8", 20), onWalk("seg8", 50)],
-    ];
-    for (const [a, b] of rounds) guards.push({ kind: "round", human: null, x: a[0], z: a[1], yaw: yawOf(b[0] - a[0], b[1] - a[1]), a, b, toB: true, wait: 0 });
-  }
+  // (the look pass, 2026-09-26: the rounds of the walk are the garrison's own men now, townspeople with a day:
+  // server/src/town/wallfolk.ts. The sentries at the gates stay drawn here.)
   const SPEED = 0.9;
   return {
     group,

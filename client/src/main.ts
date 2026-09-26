@@ -19,6 +19,8 @@ import { wireSettings } from "./menu/apply"; // menus
 import { mountDevMenu } from "./game/devmenu";
 import { setAmbientViewHeight } from "./world/ambient";
 import { setFireViewHeight } from "./world/fire";
+import { setWallTown } from "./world/wallLife";
+import { rampartStairAt } from "./world/rampart";
 import { puddleAt } from "./world/puddlemask";
 import { setMirrorScale } from "./world/mirror";
 import { Culler, mountCullHud } from "./world/cull";
@@ -169,6 +171,8 @@ const crowd = new Crowd(
     // M7 back of town (hook): people stand on the ground where it is raised (the walk on the ramparts, stairs, bridges);
     // without it the Sunday strollers on the wall walked inside it at street level
     baseAt: (x: number, z: number) => world.baseAt(x, z),
+    // (the look pass: the wall's stairs are narrower than a walker's berth; up them all the same)
+    narrow: rampartStairAt,
   },
   placesFromCity((CITY as unknown as { places: Record<string, { x: number; z: number; kind: string }> }).places),
   { mats: { sack: world.mats.sack, crate: world.mats.crate } },
@@ -185,6 +189,7 @@ const animals = new Animals(world.scene, {
 });
 const stalls = new Stalls({ scene: world.scene, addCollider: world.addCollider });
 const town = new Town(world, crowd, jobs.people, animals, stalls);
+setWallTown((x, z, r) => town.inStreet(x, z, r)); // (the look pass: the kite on the wall flies from a child's hand, world/wallLife.ts)
 // M3i: market days on the Vismarkt and the Grote Markt (game/market.ts), and the working
 // trades: boat yard, farrier, rope walk, cooper, sailmaker, net menders (world/trades.ts)
 const market = new Market(world, crowd, town, stalls);

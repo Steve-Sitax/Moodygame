@@ -22,6 +22,7 @@ import { ensureLively } from "./town/lively.ts";
 // M7 back of town: the households, groups and gangs of the back streets (town/backtown.ts)
 import { ensureBackTown } from "./town/backtown.ts";
 import { ensureStanding } from "./town/standing.ts";
+import { ensureWallFolk } from "./town/wallfolk.ts";
 import { ensureMills } from "./town/mills.ts";
 import { ARRIVAL_KEY, ARRIVAL_TEXT } from "./arrival.ts";
 import { shortenOffered } from "./hooks/jobBoard.ts";
@@ -184,6 +185,8 @@ export function openDb(file: string): DB {
   ensureBackTown(db);
   // M7 walk-up: the standing roles (customs at the Entrepot, the lock and by night; a police patrol per beat day and night; thieves on the quays) (town/standing.ts); in place, once
   ensureStanding(db);
+  // the look pass: the wall's garrison round and sentries, the town's gang pulling it down, a man and his dog, two lovers, children with a kite (town/wallfolk.ts); in place, once
+  ensureWallFolk(db);
   // M7 mills: a miller and his man at each mill on the wall (town/mills.ts); in place, once
   ensureMills(db);
   // M7 short jobs: open goods work of an older save to the new sizes (at most two by hand); in place, once
@@ -286,6 +289,7 @@ export function resetDb(db: DB): void {
   ensureShopsTown(db);
   ensureBackTown(db);
   ensureStanding(db);
+  ensureWallFolk(db);
   ensureMills(db);
 }
 

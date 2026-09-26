@@ -50,6 +50,9 @@ export interface CrowdGround {
   gate?(x: number, z: number): boolean;
   /** Optional: height of the walkable ground (the Steen's courtyard and ramp, the gangway, the pontoon). */
   baseAt?(x: number, z: number): number;
+  /** Optional (the look pass, 2026-09-26): ways narrower than a walker's half-metre berth, where the grid keeps only
+   * 0.3 m off the walls: the town wall's stairs (1.8 m between the railing and the wall), else nobody walks up them. */
+  narrow?(x: number, z: number): boolean;
   /** Optional: make the crates people sit on solid for the player. */
   addCollider?(r: Rect): void;
   removeCollider?(r: Rect): void;
@@ -292,7 +295,7 @@ class NavGrid {
   }
 
   /** Rebuild round (cx, cz). False while the walk map is not in. */
-  build(flags: CrowdGround["flags"], cx: number, cz: number, solids: Rect[] = []): boolean {
+  build(flags: CrowdGround["flags"], cx: number, cz: number, solids: Rect[] = [], narrow?: (x: number, z: number) => boolean): boolean {
     if (flags(cx, cz) === undefined) return false;
     const n = this.n;
     this.cx = Math.round(cx);
@@ -305,16 +308,17 @@ class NavGrid {
       const z = this.z0 + iz + 0.5;
       for (let ix = 0; ix < n; ix++) {
         const x = this.x0 + ix + 0.5;
+        const [r, d] = narrow && narrow(x, z) ? [0.3, 0.3 * Math.SQRT1_2] : [R, D];
         this.open[iz * n + ix] =
           flags(x, z) === 0 &&
-          flags(x + R, z) === 0 &&
-          flags(x - R, z) === 0 &&
-          flags(x, z + R) === 0 &&
-          flags(x, z - R) === 0 &&
-          flags(x + D, z + D) === 0 &&
-          flags(x - D, z + D) === 0 &&
-          flags(x + D, z - D) === 0 &&
-          flags(x - D, z - D) === 0
+          flags(x + r, z) === 0 &&
+          flags(x - r, z) === 0 &&
+          flags(x, z + r) === 0 &&
+          flags(x, z - r) === 0 &&
+          flags(x + d, z + d) === 0 &&
+          flags(x - d, z + d) === 0 &&
+          flags(x + d, z - d) === 0 &&
+          flags(x - d, z - d) === 0
             ? 1
             : 0;
       }
@@ -669,7 +673,7 @@ export class Crowd {
     const changed = ver !== undefined ? ver !== this.solidVersion && this.gridAge > 0.5 : (solids = this.ground.solids?.() ?? []).length !== this.solidCount;
     if (!g.built || Math.hypot(player.x - g.cx, player.z - g.cz) > 20 || this.gridAge > 60 || changed) {
       solids ??= this.ground.solids?.() ?? [];
-      if (!g.build(this.ground.flags, player.x, player.z, solids)) return;
+      if (!g.build(this.ground.flags, player.x, player.z, solids, this.ground.narrow)) return;
       this.gridAge = 0;
       this.solidCount = solids.length;
       this.solidVersion = ver ?? -1;

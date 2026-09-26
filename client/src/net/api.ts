@@ -268,6 +268,8 @@ export interface WorkSpec {
   shop?: string;
   /** Wait (M6 emigrants): sit at `at` (on the family's chest), else stand there. */
   seat?: boolean;
+  /** Post (the look pass: the wall's works): how they stand at `at` (a Motion; arms folded if none). */
+  motion?: string;
 }
 
 export interface TownResident {

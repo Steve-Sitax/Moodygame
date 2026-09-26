@@ -452,3 +452,16 @@ Made with Codex image generation from our own prompt through `tools/codexImage.m
 | Picture | Where in repo | Prompt, in short | Made | Original PNG SHA-256 |
 |---|---|---|---|---|
 | A misty harbour quay in an old Flemish port, autumn 1873, as a sepia copperplate etching: moored sailing ships, a paddle steamer, dock cranes, stepped gables, a tall gothic spire in the fog, dock workers with barrels and a handcart | `client/public/boot/loading.jpg` (1600 x 900) | "a 19th-century copperplate etching printed in dark sepia ink on warm aged paper. An old Flemish port town on a wide river in autumn 1873, early morning fog ... lots of quiet empty fog in the upper third and on the left. No text ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `466dc67ceaf64685aefda34f20e12aa1dc9780feea589b4e70d4d630011ad135` |
+
+## Codex picture: the town wall's walk (the look pass, 2026-09-26)
+
+Made with Codex image generation from our own prompt through `tools/codexImage.mjs` (Steve's standing OK for Codex,
+`.claude/rule-overrides.md`). No example picture, no third-party images. Turned a quarter (the courses run across the
+walk), resized to 1024 px and saved as a JPEG (quality 90); its height and stone maps `wall_walk_setts_h.png` and
+`wall_walk_setts_id.png` made from it by `tools/textures/setts_maps.py` (joint percentile 60, mud 0.3). The wall's other
+new pictures (the brick of 1873 in cross bond, the bluestone coping, the lawn's edge and path, the props) are painted by
+`tools/blender/build_wall.py` and packed in `wall.glb`.
+
+| Picture | Where in repo | Prompt, in short | Made | Original PNG SHA-256 |
+|---|---|---|---|---|
+| The walk on top of an old brick rampart: courses of large worn blue-grey granite and bluestone setts, dark joints with soil, moss and small tufts of grass, a few fallen leaves, seamless | `client/public/textures/wall_walk_setts.jpg` (1024 px, 2.4 x 2.4 m) | "Seamless tileable ground texture, seen straight from above ... The paved walk on top of an old brick town rampart in Flanders in autumn, 19th century. Courses of large, roughly dressed, worn blue-grey granite and bluestone setts ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `efd8f59129374e9c956d69aa4d5e5c2a511e73366c9b6049c14bebf1f4afd6b5` |

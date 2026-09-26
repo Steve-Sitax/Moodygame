@@ -17,6 +17,8 @@ those pictures as they are in the glb, so every joint, slate edge and strap of t
     iron, canvas    only the grain of the picture (hammered iron, sewn cloth: faint)
     window          the stone frame and sill proud, the glass flat and back, the glazing bars between
     arms            the panel with its sunk frame, the shield raised, the lion proud on it
+    coping          (the look pass) bluestone slabs, four side by side: each slab high with a rounded arris all
+                    round, the tooled strokes faint, cracks and chipped corners sunk, moss standing in cushions
 
     python tools/textures/townwall_maps.py            every picture in KINDS
     python tools/textures/townwall_maps.py --check    which height maps are missing or older than their picture
@@ -46,8 +48,8 @@ MANIFEST = os.path.join(TEX, "townwall_maps.json")
 # material name in wall.glb: (kind of relief, bump strength in the game: three.js bumpScale, which tilts the normal by
 # the height's change from one screen pixel to the next; 0.3 and under hardly shows)
 KINDS = {
-    "wall_brick": ("brick", 1.1),
-    "wall_quoin": ("quoin", 1.1),
+    "wall_brick": ("brick", 1.6),
+    "wall_quoin": ("quoin", 1.4),
     "wall_plinth": ("ashlar", 1.2),
     "wall_stone": ("ashlar", 1.1),
     "wall_slate": ("slate", 1.0),
@@ -56,6 +58,8 @@ KINDS = {
     "wall_window": ("window", 0.8),
     "wall_arms": ("arms", 1.1),
     "wall_canvas": ("cloth", 0.3),
+    "wall_coping": ("coping", 1.5),
+    "wall_props": ("grain", 0.6),
 }
 OUT = 512  # the longest side of a height map
 
@@ -247,7 +251,22 @@ def arms(img, lum, s):
     return hmap, panel | shield
 
 
-RELIEF = {"brick": brick, "quoin": quoin, "ashlar": ashlar, "slate": slate, "wood": wood, "grain": grain, "cloth": cloth, "window": window, "arms": arms}
+def coping(img, lum, s):
+    h, w = lum.shape
+    cw = 128 if w % 128 == 0 else w  # the picture's slabs (build_wall.py COPING_W)
+    x = np.arange(w) % cw
+    y = np.arange(h)
+    border = (np.minimum(x, cw - 1 - x)[None, :] < 1) | (np.minimum(y, h - 1 - y)[:, None] < 1)
+    dark = local_ratio(lum, 7) < 0.72
+    r, g, b = img[:, :, 0], img[:, :, 1], img[:, :, 2]
+    moss = (g > r * 1.15) & (g > b * 1.25) & (lum < 0.4)
+    face = ~border & ~(dark & ~moss)
+    hmap = faces_height(face, lum, s, floor=0.1, top=0.84, arris=2.2, grain=0.06)
+    mf = up(moss.astype(np.float32), s) > 0.5
+    return np.where(mf, np.maximum(hmap, 0.93), hmap), face
+
+
+RELIEF = {"brick": brick, "quoin": quoin, "ashlar": ashlar, "slate": slate, "wood": wood, "grain": grain, "cloth": cloth, "window": window, "arms": arms, "coping": coping}
 
 
 def make(name, png):

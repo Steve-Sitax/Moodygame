@@ -75,7 +75,8 @@ export function ensureGarrison(db: DB): number {
   const n = (db.prepare("SELECT COUNT(*) AS n FROM resident").get() as { n: number }).n;
   if (n === 0) return 0; // no town yet: ensureTown makes one with its garrison
   // (M7 walk-up: the standing roles' customs men, ids "wu..", are not the garrison)
-  const q = `SELECT COUNT(*) AS n FROM resident WHERE id NOT LIKE 'wu%' AND trade IN (${GARRISON_TRADES.map(() => "?").join(", ")})`;
+  // (the look pass: nor are the wall's round and sentries, ids "wf..": town/wallfolk.ts)
+  const q = `SELECT COUNT(*) AS n FROM resident WHERE id NOT LIKE 'wu%' AND id NOT LIKE 'wf%' AND trade IN (${GARRISON_TRADES.map(() => "?").join(", ")})`;
   if ((db.prepare(q).get(...GARRISON_TRADES) as { n: number }).n > 0) return 0;
   const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'town'").get() as { value_json: string } | undefined;
   if (!row) return 0;

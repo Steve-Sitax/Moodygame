@@ -13,7 +13,7 @@ import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 // once the height map is in. No shader is built again.
 
 /** The wall.glb materials that townwall_maps.py makes a height map for (its KINDS). */
-const BUMPED = ["wall_brick", "wall_quoin", "wall_plinth", "wall_stone", "wall_slate", "wall_wood", "wall_iron", "wall_window", "wall_arms", "wall_canvas"];
+const BUMPED = ["wall_brick", "wall_quoin", "wall_plinth", "wall_stone", "wall_slate", "wall_wood", "wall_iron", "wall_window", "wall_arms", "wall_canvas", "wall_coping", "wall_props"];
 
 interface Rec {
   sha256: string;

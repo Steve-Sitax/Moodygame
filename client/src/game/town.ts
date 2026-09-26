@@ -511,7 +511,7 @@ export class Town {
       default:
         break;
     }
-    if (w.at) return { mode: "stand", x: w.at[0], z: w.at[1], yaw: w.at[2], motion: w.kind === "post" ? "fold" : "idle" };
+    if (w.at) return { mode: "stand", x: w.at[0], z: w.at[1], yaw: w.at[2], motion: (w.motion as Motion | undefined) ?? (w.kind === "post" ? "fold" : "idle") };
     const pl = P(w.place) ?? P("rijnkaai")!;
     const [x, z] = this.spot(pl, s);
     return { mode: "loiter", x, z, r: pl.r, place: w.place };
