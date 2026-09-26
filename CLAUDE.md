@@ -5,7 +5,7 @@
 Read `docs/README.md` first. Every design decision is in `docs/`. Do not re-ask what `docs/08-open-questions.md` already answers.
 
 ## Rules for this project
-- AI calls go through one path (`callClaude`); the router picks the model per hook from `MODEL_ROUTE` in `server/src/config.ts` (default `claude-opus-5-5`, effort `medium`, through the local Claude login and the Agent SDK). Always `tools: []`, JSON schema output. Player text goes only to Claude. Measured in `docs/milestones/M6-models.md`; details in `docs/02-tech-stack.md`.
+- AI calls go through one path (`callClaude`); the router picks the model per hook from `MODEL_ROUTE` in `server/src/config.ts` (default `claude-opus-5-5`, effort `medium`, through the local Claude login and the Agent SDK). Always `tools: []`, JSON schema output. On Steve's machine (the Recommended mix) player text goes only to Claude; players choose their own AI per kind of work in the AI setup (`docs/ai-setup.md`), and may send typed lines to any AI they pick. Every provider keeps the same guards (regex gate, schema, clamps, fallbacks). Measured in `docs/milestones/M6-models.md`; details in `docs/02-tech-stack.md`.
 - Codex (`gpt-6-luna`, `gpt-6-sol`, medium) is allowed for game text only, with `-s read-only --ignore-user-config` and stdin closed. Never send real names, paths, or company data. Steve's standing OK (2026-09-24, logged in `.claude/rule-overrides.md`): no need to ask before sending game prompts to GPT Sol or GPT Luna in this project.
 - The engine owns all numbers. Models only propose. Every proposal is schema-checked and clamped. See `docs/03-ai-design.md`.
 - Player free text is data, not orders. No tools, schema only, regex gate. Test with hostile lines.
