@@ -1224,6 +1224,11 @@ if (import.meta.env.DEV) {
       const m = await import("./dev/stallcheck");
       return m.checkStalls(world, m.allDoors(town.data), { only });
     },
+    /** Props (dev/propcheck.ts): every solid prop of the town (barrels, crates, pumps, heaps ...) against the buildings as built, doors, passages, bills, each other and the ground (should list nothing). */
+    propcheck: async (opts: { only?: string; list?: number; near?: [number, number, number] } = {}) => {
+      const m = await import("./dev/propcheck");
+      return m.checkProps(world, town.data, opts);
+    },
     /** M7 posters: every bill on the walls and every place for the engine's bills, against the houses as built (dev/postercheck.ts; should list nothing). */
     posters: async () => {
       const sl = world.streetLife();

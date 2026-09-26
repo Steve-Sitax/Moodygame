@@ -15,6 +15,9 @@ import { inGang, poortKeepOut, pumpColliders } from "./churches";
 import { trackKeepOut, type TrackData } from "./tracks";
 import { tradeKeepOut } from "./trades";
 import { trafficLanes } from "./traffic";
+import { addProp, dropProps, propIndex } from "./propSpots";
+import INWORLD from "../../../shared/inworld_houses.json";
+import { boxesOverlap, kerbFront, type GroundProbe, type WallBox, type WallProbe } from "./wallprobe";
 
 // Clutter (Steve 2026-09-24: "the city feels empty and some street ends look unfinished").
 //
@@ -49,6 +52,10 @@ export interface ClutterOptions {
   quayInfo?: () => { flights: Array<{ top: [number, number]; end: [number, number] }>; ladders: Array<{ x: number; z: number; top: number }> };
   /** What street life put where (pumps, troughs, the well, washing lines): no second pump near one, no line over a line. */
   sites?: Array<{ kind: string; x: number; z: number }>;
+  /** The houses as built (world/wallprobe.ts): things stand a hand off the real wall face, and nothing of it runs through them. */
+  probe?: WallProbe;
+  /** The ground as built: things stand flat on the street or wholly on the kerb, never half on its edge. */
+  ground?: GroundProbe;
   /** Shop fronts (street life): the goods by the door are lively.ts's; ours only further along. */
   shops?: Array<{ ax: number; az: number; tx: number; tz: number; ox: number; oz: number; len: number; door: number }>;
 }
@@ -66,6 +73,8 @@ export interface StreetEnd {
 export interface Clutter {
   group: THREE.Group;
   colliders: Rect[];
+  /** The things against the walls that do not stop a walker (brooms, shovels, cats, rubbish): no bill goes up behind them. */
+  leaners: Rect[];
   stats: {
     /** What was placed, by model (and "closure ...", "end ...", "washing line"). */
     counts: Record<string, number>;
@@ -100,6 +109,8 @@ interface Proto {
   minZ: number;
   maxZ: number;
   height: number;
+  /** Its foot: [x, z, ...] of its points within 10 cm of the ground (at most 40, spread over it). */
+  feet: number[];
 }
 interface Put {
   name: string;
@@ -187,7 +198,7 @@ async function loadModels(): Promise<{ protos: Map<string, Proto>; solidMap: THR
   gltf.scene.updateMatrixWorld(true);
   for (const node of gltf.scene.children) {
     if (node.name === "clutter_meta") continue;
-    const proto: Proto = { parts: [], minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity, height: 0 };
+    const proto: Proto = { parts: [], minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity, height: 0, feet: [] };
     const inv = new THREE.Matrix4().copy(node.matrixWorld).invert();
     node.traverse((o) => {
       const m = o as THREE.Mesh;
@@ -226,7 +237,15 @@ async function loadModels(): Promise<{ protos: Map<string, Proto>; solidMap: THR
       }
       proto.parts.push(part);
     });
-    if (proto.parts.length) protos.set(node.name, proto);
+    if (proto.parts.length) {
+      const low: number[] = [];
+      let y0 = Infinity;
+      for (const q of proto.parts) for (let i = 1; i < q.pos.length; i += 3) y0 = Math.min(y0, q.pos[i]);
+      for (const q of proto.parts) for (let i = 0; i + 2 < q.pos.length; i += 3) if (q.slot === SOLID && q.pos[i + 1] <= y0 + 0.1) low.push(q.pos[i], q.pos[i + 2]);
+      const step = Math.max(1, Math.ceil(low.length / 2 / 40));
+      for (let i = 0; i < low.length / 2; i += step) proto.feet.push(low[i * 2], low[i * 2 + 1]);
+      protos.set(node.name, proto);
+    }
   }
   if (!solidMap || !decalMap) throw new Error("clutter.glb: textures missing");
   for (const t of [solidMap as THREE.Texture, decalMap as THREE.Texture]) {
@@ -609,6 +628,9 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
     if (!k.startsWith("_") && s.x !== undefined && s.z !== undefined) clear.push({ x: s.x, z: s.z, r: 2.4 });
   }
   for (const d of LANDMARK_DOORS) clear.push({ x: d.step[0], z: d.step[1], r: 4 });
+  // the shops, taverns and homes whose insides stand in the world: their doors and the town's shop tables
+  // beside them (game/stalls.ts, which come later: a crate went into the Steenplein bakery's table)
+  for (const h of (INWORLD as { houses: Array<{ kind: string; door: number[] }> }).houses) clear.push({ x: h.door[0], z: h.door[1], r: h.kind === "shop" ? 4.5 : 2.5 });
   // where the town's people haul and sell (the quay ends of the hauls; the stalls are in the markets' keep-out)
   for (const [x, z, r] of TOWN_CLEAR) clear.push({ x, z, r: r + 0.5 });
   const quay = opts.quayInfo?.() ?? { flights: [], ladders: [] };
@@ -782,11 +804,16 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
   const M = new THREE.Matrix4();
   const Q = new THREE.Quaternion();
   const UP = new THREE.Vector3(0, 1, 0);
+  /** The things that stand on the ground (the prop check reads them: dev/propcheck.ts). */
+  const PROP = /^(barrel|keg|crate|crates|crate_broken|rain_butt|broom|shovel|handcart|sacks|baskets|rubbish|cat_grey|cat_black|cat_ginger|bench|leftovers|pump|trough|guard_stone|street_bollard)$/;
+  dropProps("clutter");
   const put = (name: string, x: number, y: number, z: number, yaw: number, sx = 1, sy = 1, sz = 1, shade = 1) => {
-    if (!protos.has(name)) return;
+    const proto = protos.get(name);
+    if (!proto) return;
     Q.setFromAxisAngle(UP, yaw);
     puts.push({ name, m: M.clone().compose(new THREE.Vector3(x, y, z), Q, new THREE.Vector3(sx, sy, sz)), shade });
     count(name);
+    if (PROP.test(name)) addProp({ src: "clutter", name, x, y, z, yaw, s: [sx, sy, sz], pts: proto.parts.filter((q) => q.slot === SOLID).map((q) => q.pos) });
   };
   /** A box collider from a model's footprint at (x, z, yaw), scaled. */
   const collide = (name: string, x: number, z: number, yaw: number, pad = 0.03, sx = 1, sz = 1, top?: number) => {
@@ -834,30 +861,97 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
     bench: [0.4, 0.78, true],
     leftovers: [0.9, 0.7, false],
   };
-  /** Along wall w at s, out by off: place the model; false if it does not fit. `maxDep`: how far out it may reach. */
+  /**
+   * Along wall w at s: place the model with its back a hand off the wall as built; false if it does not fit.
+   * `maxDep`: how far out it may reach. (Steve 2026-09-26: "barrels and crates in walls". The barrels,
+   * kegs and crates of clutter.glb stand on their middle, not on their back, so a back laid on the plan's
+   * line put half of them into the house; and the walls as built are not always on that line: a
+   * shopfront's sill and pilasters, a plinth, quoins, a gateway's pier or the next house stand out of it.
+   * So the footprint comes from the model's own points, the wall's face from the houses as built (the
+   * probe: level rays in from the street), and whatever runs through the footprint (a jamb, a pier, a
+   * house's end) sends it away.)
+   */
+  let lastFace = 0;
+  const boxGrid = new Map<string, WallBox[]>();
+  const others = propIndex("clutter");
   const againstWall = (name: string, w: Wall, s: number, maxDep: number, rules: Rules = {}, yawJitter = 0.06): boolean => {
     const spec = DEPTH[name];
-    if (!spec) return false;
+    const proto = protos.get(name);
+    if (!spec || !proto || !isFinite(proto.minX)) return false;
     const [dep, r, solid] = spec;
-    let off = 0.02;
     const bx = w.ax + w.tx * s;
     const bz = w.az + w.tz * s;
-    let y = 0;
-    if (w.kind === 0 && onKerb(bx + w.ox * 0.3, bz + w.oz * 0.3)) {
-      if (dep <= KERB + 0.1) y = KERB_Y;
-      else off = KERB + 0.04; // off the kerb, in the gutter
+    // (the spot's own dice: the turn and the shade, as before)
+    const R = rng(Math.round(bx * 97 + bz * 31));
+    const jit = (R() - 0.5) * 2 * yawJitter;
+    const shade = 0.85 + R() * 0.25;
+    const yaw = w.yaw + jit;
+    // its footprint turned: out of the wall (along o) and along it (along t)
+    const cj = Math.cos(jit), sj = Math.sin(jit);
+    const sgn = w.tx * Math.cos(w.yaw) - w.tz * Math.sin(w.yaw) < 0 ? -1 : 1; // the model's x along +t or -t
+    let back = Infinity, front = -Infinity, a0 = Infinity, a1 = -Infinity;
+    for (const [lx, lz] of [[proto.minX, proto.minZ], [proto.maxX, proto.minZ], [proto.maxX, proto.maxZ], [proto.minX, proto.maxZ]]) {
+      const n = -lx * sj + lz * cj;
+      const a = sgn * (lx * cj + lz * sj);
+      back = Math.min(back, n);
+      front = Math.max(front, n);
+      a0 = Math.min(a0, a);
+      a1 = Math.max(a1, a);
     }
-    if (off + dep > maxDep) return no("deep");
+    const deep = Math.max(dep, front - back);
+    // the wall's face as built here: the frontmost face met by level rays in from the street, across the
+    // thing's length, from just over the kerb to its top
+    let face = 0;
+    if (opts.probe) {
+      let mid = false;
+      let most = -Infinity;
+      // (every 12 cm up to its top as it would stand on the kerb: a sill is 6 cm thick, a shopfront's at half a metre)
+      const top = Math.max(0.3, Math.min(proto.height + KERB_Y - 0.03, 1.5));
+      const ys: number[] = [];
+      for (let y = 0.18; y < top; y += 0.12) ys.push(y);
+      ys.push(top);
+      for (const a of [a0 + 0.04, (a0 + a1) / 2, a1 - 0.04]) {
+        for (const y of ys) {
+          const d = opts.probe(bx + w.tx * a + w.ox * 1.3, y, bz + w.tz * a + w.oz * 1.3, -w.ox, -w.oz, 1.8);
+          if (d === null) continue;
+          if (a === (a0 + a1) / 2) mid = true;
+          most = Math.max(most, 1.3 - d);
+        }
+      }
+      if (!mid) return no("no wall");
+      face = Math.max(0, most);
+    }
+    const GAP = 0.03;
+    // the origin out of the plan's line: the back GAP off the face
+    let off = face + GAP - back;
+    let y = 0;
+    // the kerb as built under it (none on a yard's or a gang's wall: the plan's street fronts do not say), at
+    // its middle and both ends; else the plan's kerb
+    const kerbs = opts.probe
+      ? [a0 + 0.05, (a0 + a1) / 2, a1 - 0.05].map((a) => kerbFront(opts.probe!, bx + w.tx * a, bz + w.tz * a, w.ox, w.oz))
+      : [w.kind === 0 && onKerb(bx + w.ox * 0.3, bz + w.oz * 0.3) ? KERB : null];
+    const kerbAt = kerbs.filter((k): k is number => k !== null);
+    if (kerbAt.length) {
+      const kd = Math.min(...kerbAt);
+      // on the kerb if it fits there whole (a front over its edge floats), else down in the gutter beyond it
+      if (kerbAt.length === kerbs.length && off + front <= kd - 0.02) y = KERB_Y;
+      else if (name === "rain_butt") return no("kerb"); // (its downpipe comes down the wall: not out in the gutter)
+      else off = Math.max(off, Math.max(...kerbAt) + 0.04 - back);
+    }
+    const out0 = off + back; // its back and front, out of the plan's line
+    const out1 = off + front;
+    if (out1 > maxDep) return no("deep");
     // the middle of it, for the keep-outs; the ends of its footprint must be on open ground too
-    const cx = bx + w.ox * (off + dep / 2);
-    const cz = bz + w.oz * (off + dep / 2);
-    const half = Math.max(0.1, r - dep / 2);
+    const am = (a0 + a1) / 2;
+    const cx = bx + w.tx * am + (w.ox * (out0 + out1)) / 2;
+    const cz = bz + w.tz * am + (w.oz * (out0 + out1)) / 2;
+    const half = Math.max(0.1, (a1 - a0) / 2);
     // (the ground test looks at its front: the walk map's margin along the wall is not open)
-    const fd = Math.max(0.6, off + dep * 0.85);
-    const fx = bx + w.ox * fd;
-    const fz = bz + w.oz * fd;
+    const fd = Math.max(0.6, out0 + (out1 - out0) * 0.85);
+    const fx = bx + w.tx * am + w.ox * fd;
+    const fz = bz + w.tz * am + w.oz * fd;
     if (at(fx, fz) !== OPEN) return no("ground");
-    if (!freeAt(fx, fz, 0.05, { ...rules, wall: true }) || !freeAt(cx, cz, Math.min(r, dep / 2 + 0.05), { ...rules, wall: true, loose: true })) return false;
+    if (!freeAt(fx, fz, 0.05, { ...rules, wall: true }) || !freeAt(cx, cz, Math.min(r, deep / 2 + 0.05), { ...rules, wall: true, loose: true })) return false;
     for (const e of [-half, half]) {
       const ex = fx + w.tx * e;
       const ez = fz + w.tz * e;
@@ -866,29 +960,71 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
       if (onShop(ex, ez, 0.2)) return no("shop");
     }
     if (onShop(cx, cz, r)) return no("shop");
+    // nothing of the houses as built runs through it: a door's jamb, a pier, a pilaster's side, the next house's end
+    if (opts.probe) {
+      const ys: number[] = [];
+      for (let yy = y + 0.15; yy < y + Math.min(proto.height, 1.6) - 0.05; yy += 0.25) ys.push(yy);
+      for (const yy of ys) {
+        for (const v of [out0 + 0.04, (out0 + out1) / 2, out1 - 0.04]) {
+          const d = opts.probe(bx + w.tx * (a0 + 0.02) + w.ox * v, yy, bz + w.tz * (a0 + 0.02) + w.oz * v, w.tx, w.tz, a1 - a0 - 0.04);
+          if (d !== null) return no("jamb");
+        }
+      }
+    }
     if (rules.line) {
       // the line in front of it: clear of everything already along the other wall
-      const lx = bx + w.ox * (off + dep + 0.5);
-      const lz = bz + w.oz * (off + dep + 0.5);
+      const lx = bx + w.ox * (out1 + 0.5);
+      const lz = bz + w.oz * (out1 + 0.5);
       if (at(lx, lz) !== OPEN && at(lx + w.ox * 0.1, lz + w.oz * 0.1) !== OPEN) return no("line");
       // (M7 back of town: a body must still pass it, as the path check walks: half a metre off the far wall
       // and 0.3 m off the thing; 1.5 m of open ground before it, or a court behind a narrow lane is shut off)
-      for (const d of [1.0, 1.5]) if (at(bx + w.ox * (off + dep + d), bz + w.oz * (off + dep + d)) !== OPEN) return no("line");
+      for (const d of [1.0, 1.5]) if (at(bx + w.ox * (out1 + d), bz + w.oz * (out1 + d)) !== OPEN) return no("line");
       for (const e of [-half, 0, half]) {
         const qx = lx + w.tx * e;
         const qz = lz + w.tz * e;
         if (taken.some(([tx, tz, tr]) => Math.hypot(tx - qx, tz - qz) < tr + 0.42)) return no("line");
       }
     }
-    const R = rng(Math.round(bx * 97 + bz * 31));
-    const yaw = w.yaw + (R() - 0.5) * 2 * yawJitter;
-    put(name, bx + w.ox * off, y, bz + w.oz * off, yaw, 1, 1, 1, 0.85 + R() * 0.25);
+    // not into another thing of ours (the circles above are rough: a rain butt went into a handcart)
+    const ox0 = bx + w.ox * off, oz0 = bz + w.oz * off;
+    const lc = (proto.minX + proto.maxX) / 2, lz = (proto.minZ + proto.maxZ) / 2;
+    const cy = Math.cos(yaw), sy = Math.sin(yaw);
+    const mine: WallBox = { kind: name, name, flat: false, cx: ox0 + lc * cy + lz * sy, cz: oz0 - lc * sy + lz * cy, ux: cy, uz: -sy, nx: sy, nz: cy, hu: (proto.maxX - proto.minX) / 2, hn: (proto.maxZ - proto.minZ) / 2, y0: y, y1: y + proto.height };
+    const gk = (x: number, z: number) => `${Math.floor(x / 4)},${Math.floor(z / 4)}`;
+    for (let i = -1; i <= 1; i++) {
+      for (let j = -1; j <= 1; j++) {
+        for (const o of boxGrid.get(gk(mine.cx + i * 4, mine.cz + j * 4)) ?? []) if (boxesOverlap(mine, o, 0.02)) return no("taken");
+      }
+    }
+    // nor into the other layers' things set down before (litter's heaps, the pumps, the dressing)
+    if (others.hit(mine)) return no("solid");
+    // flat on the ground as built at its foot: all on the kerb or all off it (a kerb that ends, or runs
+    // shallower into a corner, under it)
+    if (opts.ground) {
+      for (let i = 0; i < proto.feet.length; i += 2) {
+        const lx = proto.feet[i], lzz = proto.feet[i + 1];
+        const g = opts.ground(ox0 + lx * cy + lzz * sy, oz0 - lx * sy + lzz * cy, y + 0.45);
+        if (g !== null && Math.abs(g - y) > 0.04) return no("kerb edge");
+      }
+    }
+    let gl = boxGrid.get(gk(mine.cx, mine.cz));
+    if (!gl) boxGrid.set(gk(mine.cx, mine.cz), (gl = []));
+    gl.push(mine);
+    put(name, bx + w.ox * off, y, bz + w.oz * off, yaw, 1, 1, 1, shade);
+    lastFace = face;
     taken.push([cx, cz, r]);
     // its front edge too, so a thing on the other side keeps the line open
-    for (const e of [-half, 0, half]) taken.push([bx + w.ox * (off + dep - 0.12) + w.tx * e, bz + w.oz * (off + dep - 0.12) + w.tz * e, 0.12]);
+    for (const e of [-half, 0, half]) taken.push([bx + w.tx * (am + e) + w.ox * (out1 - 0.12), bz + w.tz * (am + e) + w.oz * (out1 - 0.12), 0.12]);
     if (solid) collide(name, bx + w.ox * off, bz + w.oz * off, yaw);
+    else {
+      // a broom, a shovel, a cat, a heap of rubbish: not solid, but no bill goes up behind it (world/posters.ts)
+      const n0 = colliders.length;
+      collide(name, bx + w.ox * off, bz + w.oz * off, yaw);
+      leaners.push(...colliders.splice(n0));
+    }
     return true;
   };
+  const leaners: Rect[] = [];
 
   await sleep(0);
   // ================================================================ the walk grid: widths, alleys
@@ -1247,6 +1383,15 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
     }
     colliders.push({ minX: Math.min(...xs) - 0.03, maxX: Math.max(...xs) + 0.03, minZ: Math.min(...zs) - 0.03, maxZ: Math.max(...zs) + 0.03 });
     taken.push([e.x - e.dx * 0.5, e.z - e.dz * 0.5, 0.6]);
+    // its body, for the things set along the alley after (the probe was built before it: a barrel went into it)
+    {
+      const cxw = ox0 + e.ax * (W / 2) + e.dx * 0.15, czw = oz0 + e.az * (W / 2) + e.dz * 0.15;
+      const body: WallBox = { kind: "closure", name: "closure", flat: false, cx: cxw, cz: czw, ux: e.ax, uz: e.az, nx: e.dx, nz: e.dz, hu: W / 2 + 0.1, hn: 0.15 + 0.03, y0: 0, y1: H };
+      const k = `${Math.floor(cxw / 4)},${Math.floor(czw / 4)}`;
+      let l = boxGrid.get(k);
+      if (!l) boxGrid.set(k, (l = []));
+      l.push(body);
+    }
     a.closure = `${style} (${W.toFixed(1)} m, ${H.toFixed(1)} m)`;
     closures++;
     count(`closure ${style}`);
@@ -1319,8 +1464,8 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
       const sl = tryPut("rain_butt", (q) => q.w.H > 3.5);
       if (sl) {
         const w = sl.w;
-        const x = w.ax + w.tx * sl.s;
-        const z = w.az + w.tz * sl.s;
+        const x = w.ax + w.tx * sl.s + w.ox * lastFace;
+        const z = w.az + w.tz * sl.s + w.oz * lastFace;
         const top = w.H - 0.35;
         put("downpipe", x, 2.0, z, w.yaw, 1, top - 2.0, 1);
         put("rain_head", x, top, z, w.yaw);
@@ -1453,8 +1598,8 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
           s = s2;
           streetProps++;
           if (name === "rain_butt" && w.H > 3.5) {
-            const px = w.ax + w.tx * s;
-            const pz = w.az + w.tz * s;
+            const px = w.ax + w.tx * s + w.ox * lastFace;
+            const pz = w.az + w.tz * s + w.oz * lastFace;
             put("downpipe", px, 2.0, pz, w.yaw, 1, w.H - 2.35, 1);
             put("rain_head", px, w.H - 0.35, pz, w.yaw);
           }
@@ -1779,6 +1924,7 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
   const result: Clutter = {
     group,
     colliders,
+    leaners,
     stats,
     alleys: kept.map((a) => ({ x: +a.x.toFixed(1), z: +a.z.toFixed(1), length: +a.length.toFixed(1), width: +a.width.toFixed(1), through: a.through, props: a.props, closure: a.closure, end: a.end && a.closure && !a.closure.startsWith("(") ? { x: +a.end.x.toFixed(2), z: +a.end.z.toFixed(2), dx: a.end.dx, dz: a.end.dz, width: +a.end.span.toFixed(2) } : undefined })),
   };

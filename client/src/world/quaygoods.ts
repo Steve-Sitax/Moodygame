@@ -10,6 +10,8 @@ import { loadProps } from "./props3d";
 import { TOWN_CLEAR } from "./quayfurniture";
 import { trackKeepOut, type TrackData } from "./tracks";
 import { trafficLanes } from "./traffic";
+import { addProp, dropProps, propIndex } from "./propSpots";
+import type { GroundProbe } from "./wallprobe";
 
 // Goods on the working quays (Steve 2026-09-25: "make the kaaien with better graphics and more
 // detail, more props. High quality is needed").
@@ -47,6 +49,8 @@ export interface QuayGoodsOptions {
    * without looking at colliders), so the goods here keep off that stretch of wall.
    */
   shops?: Array<{ ax: number; az: number; tx: number; tz: number; ox: number; oz: number; len: number; door: number }>;
+  /** The ground as built: the debris lies flat on the setts, not half on a kerb or a rail's bed. */
+  ground?: GroundProbe;
 }
 
 export interface QuayGoods {
@@ -83,6 +87,8 @@ interface Proto {
   maxZ: number;
   height: number;
   tris: number;
+  /** How far it reaches from its origin on the ground plan (m). */
+  reach?: number;
 }
 interface Put {
   name: string;
@@ -919,6 +925,7 @@ async function load(): Promise<{ protos: Map<string, Proto>; solidMap: THREE.Tex
           proto.maxZ = Math.max(proto.maxZ, p.pos[i + 2]);
         }
     }
+    proto.reach = Math.max(Math.hypot(proto.minX, proto.minZ), Math.hypot(proto.maxX, proto.minZ), Math.hypot(proto.maxX, proto.maxZ), Math.hypot(proto.minX, proto.maxZ));
     protos.set(node.name, proto);
   }
   if (!solidMap || !decalMap) throw new Error("quaygoods.glb: textures missing");
@@ -1333,6 +1340,7 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
    * water, EDGE_GAP from it (the edge strip behind it stays free, no passage asked there). Marks the
    * ground if so.
    */
+  const others = propIndex("quay goods");
   function fits(kind: string, cx: number, cz: number, yaw: number, wall: boolean, commit: boolean, edge = false): boolean {
     const f = frames.get(kind)!;
     const hl = (f.maxX - f.minX) / 2;
@@ -1349,6 +1357,9 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
     const i1 = Math.ceil((cx + ex) / 0.5);
     const j0 = Math.floor((cz - ez) / 0.5);
     const j1 = Math.ceil((cz + ez) / 0.5);
+    // not into a thing the other layers set down (a hawser coil, a bitt, a booth, a barrel): the heap's frame
+    // against their models (the prop check; the colliders leave the low things out)
+    if (!commit && others.hit({ cx, cz, ux: c, uz: -s, nx: s, nz: c, hu: hl + 0.05, hn: hs + 0.05, y0: 0, y1: 3 })) return no("prop");
     for (let pass = 0; pass < 2; pass++) {
       for (let i = i0; i <= i1; i++)
         for (let j = j0; j <= j1; j++) {
@@ -1710,6 +1721,17 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
     if (solid && o === 2) return false; // (not in the walk in front of a row)
     return true;
   };
+  const debrisAt: Array<[number, number, number]> = [];
+  /** (the prop check) The ground as built flat at 0 all round, as far as the thing reaches. */
+  const flatAt = (x: number, z: number, reach: number) => {
+    if (!opts.ground) return true;
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      const g = opts.ground(x + Math.cos(a) * reach * 0.8, z + Math.sin(a) * reach * 0.8, 0.4);
+      if (g !== null && Math.abs(g) > 0.04) return false;
+    }
+    return true;
+  };
   const drop = (name: string, x: number, z: number, yaw: number, solid: boolean) => {
     const isDecal = name.startsWith("d_");
     put(name, x, z, yaw, 0.8 + r() * 0.25, isDecal ? 0.012 : 0);
@@ -1730,15 +1752,34 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
       const name = pick(r, NEAR);
       const solid = SOLID_DEBRIS.has(name);
       // round the heap: mostly in front (+z of its frame), sometimes at its ends
+      // (a broken cask's staves lie a metre round it: it keeps that far off the heap, the prop check)
+      const reach = protos.get(name)?.reach ?? 0;
       for (let t = 0; t < 4; t++) {
         const front = r() < 0.7;
-        const out = (solid ? 0.35 : 0.3) + r() * (solid ? 0.45 : 1.3);
+        const out = Math.max(solid ? 0.35 : 0.3, reach + 0.05) + r() * (solid ? 0.45 : 1.3);
         const a = front ? (r() - 0.5) * 2 * h.hl : (r() < 0.5 ? -1 : 1) * (h.hl + out);
         const b = front ? h.hs + out : (r() - 0.5) * 2 * h.hs;
         const x = h.x + a * c + b * s;
         const z = h.z - a * s + b * c;
         const isDecal = name.startsWith("d_");
         if (isDecal ? at(x, z) !== OPEN || occ.get(key(Math.floor(x / 0.5), Math.floor(z / 0.5))) === 1 : !onGround(x, z, solid, solid ? 0.5 : 0.2)) continue;
+        if (!isDecal && !flatAt(x, z, reach)) continue;
+        // (nor into another thing: the heaps' own debris, a bollard, a crate of the clutter; the prop check)
+        if (!isDecal && reach > 0.2) {
+          const pr = protos.get(name)!;
+          const bx = { cx: x, cz: z, ux: 1, uz: 0, nx: 0, nz: 1, hu: reach, hn: reach, y0: 0, y1: Math.max(0.3, pr.height) };
+          if (others.hit(bx) || debrisAt.some(([dx, dz, dr]) => Math.hypot(dx - x, dz - z) < dr + reach)) continue;
+          // (the heaps' own frames: a broken cask's staves went under the crates of the next heap)
+          const inHeap = heaps.some((o) => {
+            if (o.gone) return false;
+            const ddx = x - o.x, ddz = z - o.z;
+            const co = Math.cos(o.yaw), so = Math.sin(o.yaw);
+            const a = Math.abs(ddx * co - ddz * so) - o.hl, b = Math.abs(ddx * so + ddz * co) - o.hs;
+            return Math.hypot(Math.max(0, a), Math.max(0, b)) < reach + 0.03;
+          });
+          if (inHeap) continue;
+          debrisAt.push([x, z, reach]);
+        }
         drop(name, x, z, r() * Math.PI * 2, solid);
         break;
       }
@@ -1757,7 +1798,7 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
         if (u < 0.22) {
           if (occ.get(key(Math.floor(px / 0.5), Math.floor(pz / 0.5))) === 1) continue;
           drop(pick(r, ALONG_DECALS), px, pz, r() * Math.PI * 2, false);
-        } else if (u < 0.27 && onGround(px, pz, false, 0.3)) {
+        } else if (u < 0.27 && onGround(px, pz, false, 0.3) && flatAt(px, pz, 0.6)) {
           drop(pick(r, ALONG_BITS), px, pz, r() * Math.PI * 2, false);
         }
       }
@@ -1791,6 +1832,7 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
   hideBeyondFog(scene, chunks);
   scene.add(group);
   live = { scene, protos, mats: m, group, chunks, puts, debrisStart };
+  listQuayGoods(puts, protos, heaps, debrisStart);
 
   const result: QuayGoods = {
     group,
@@ -1808,6 +1850,23 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
   };
   last = { result, debug: { flags, keep, avoid, clear, heaps, onQuay, why } };
   return result;
+}
+
+/** The prop check's list (dev/propcheck.ts): every model of the heaps that stand, a heap one set; the debris alone. */
+function listQuayGoods(puts: Put[], protos: Map<string, Proto>, heaps: Array<{ p0: number; p1: number; gone: boolean }>, debrisStart: number): void {
+  dropProps("quay goods");
+  const add = (p: Put, set?: string) => {
+    const proto = protos.get(p.name);
+    if (!proto) return;
+    const pts = proto.parts.filter((q) => q.slot === SOLID).map((q) => q.pos);
+    if (!pts.length) return;
+    const e = p.m.elements;
+    addProp({ src: "quay goods", name: p.name, x: e[12], y: e[13], z: e[14], yaw: Math.atan2(e[8], e[0]), pts, set, onTop: e[13] > 0.05 });
+  };
+  heaps.forEach((h, i) => {
+    if (!h.gone) for (let k = h.p0; k < h.p1; k++) add(puts[k], `heap ${i}`);
+  });
+  for (let k = debrisStart; k < puts.length; k++) add(puts[k]);
 }
 
 // ------------------------------------------------------------------ keeping the town's places clear
@@ -1865,6 +1924,7 @@ export function pruneQuayGoods(points: Array<{ x: number; z: number; reach?: num
   live.chunks.push(...meshes);
   last.result.stats.meshes = meshes.length;
   last.result.stats.triangles = Math.round(triangles);
+  listQuayGoods(live.puts, live.protos, heaps, live.debrisStart);
   return gone;
 }
 

@@ -214,6 +214,11 @@ export async function createPosters(scene: THREE.Scene, flags: Flags, opts: Post
       const z = w.az + w.tz * (s + e);
       if (!(at(x - w.ox * 0.3, z - w.oz * 0.3) & WALL)) return "no house behind";
       for (const d of [0.45, 0.9]) if (at(x + w.ox * d, z + w.oz * d) !== 0) return "no open street before it";
+    }
+    // (the prop check, dev/propcheck.ts: every half of the bill's width, a narrow pump or a broom too)
+    for (const e of [-hu, -hu / 2, 0, hu / 2, hu]) {
+      const x = w.ax + w.tx * (s + e);
+      const z = w.az + w.tz * (s + e);
       for (const d of [0.3, 0.65]) if (blocked(x + w.ox * d, z + w.oz * d, b.y0)) return "something stands before it";
     }
     const mx = w.ax + w.tx * s, mz = w.az + w.tz * s;

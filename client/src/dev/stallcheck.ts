@@ -83,7 +83,7 @@ function footprints(): Map<string, Fp[]> {
 }
 
 /** How deep inside a footprint (m) the point is: > 0 inside, else 0. */
-function depthIn(x: number, z: number): { d: number; name: string } {
+export function depthIn(x: number, z: number): { d: number; name: string } {
   const l = footprints().get(`${Math.floor(x / CELL)},${Math.floor(z / CELL)}`) ?? [];
   let best = { d: 0, name: "" };
   for (const f of l) {

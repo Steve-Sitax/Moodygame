@@ -1388,11 +1388,14 @@ def tr_cooper():
         m.lathe([(0.2, 0.0), (0.22, 0.25), (0.0, 0.26)], 6, "iron_rust", cap0=False)
         disc(m, (0, 0, 0.25), 0.2, "coal_glow")
         flames(m, (0, 0, 0.25), 0.16, 0.45)
-    # hoops leaning on the wall behind, a stack of staves, the shaving horse
+    # hoops leaning on the wall behind, a stack of staves, the shaving horse. (The yard's house has its kerb,
+    # 0.12 m high, from 1.5 to 2.2 m behind, and a plinth 7 cm out of its wall: the hoops and the staves lie on the
+    # kerb, not half in it nor in the plinth: the prop check)
+    K = 0.12
     for k in range(4):
-        m.tube(ring_path(0.34 + k * 0.03, 10, 1.6 + k * 0.06, 1.8, 0.4 + k * 0.02, plane="xz"), 0.012, 3, "iron")
+        m.tube(ring_path(0.34 + k * 0.03, 10, 1.6 + k * 0.06, 1.8, K + 0.4 + k * 0.02, plane="xz"), 0.012, 3, "iron")
     for k in range(6):
-        m.box((0.2 + (k % 3) * 0.13, 1.7, 0.03 + (k // 3) * 0.05), (0.1, 0.9, 0.04), "new_wood")
+        m.box((0.2 + (k % 3) * 0.13, 1.81, K + 0.03 + (k // 3) * 0.05), (0.1, 0.54, 0.04), "new_wood")  # (clear of the wall's plinth)
     with m.at(move(2.3, 0.5, 0) @ rot("Z", 0.4)):
         m.box((0, 0, 0.5), (1.5, 0.28, 0.08), "wood")
         for sx in (-0.6, 0.6):
@@ -1427,7 +1430,8 @@ def tr_sailmaker():
             m.box((sx, 0, 0.2), (0.06, 0.32, 0.4), "wood_dark")
         m.box((0.6, 0.0, 0.47), (0.18, 0.12, 0.05), "leather")
         m.beam((0.3, -0.05, 0.47), (0.5, -0.05, 0.47), 0.02, 0.02, "wood")
-    m.lathe([(0.18, -0.9), (0.18, 0.9)], 6, "canvas", M=move(-3.0, 1.9, 0.18) @ rot("X", math.pi / 2), cap0=True, cap1=True)
+    # a roll of canvas beside the bench, along the quay (it lay out across the edge, its end over the water: the prop check)
+    m.lathe([(0.18, -0.6), (0.18, 0.6)], 6, "canvas", M=move(-3.3, 1.3, 0.18) @ rot("Y", math.pi / 2), cap0=True, cap1=True)
     m.lathe([(0.25, 0.0), (0.3, 0.3), (0.2, 0.6), (0.08, 0.7), (0.0, 0.72)], 6, "sail_tan", M=move(-3.6, -1.3, 0))
     post_sign(m, "sailmaker", -3.7, 1.3, 1.6, (1, 0, 0))
     return m

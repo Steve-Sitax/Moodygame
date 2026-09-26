@@ -7,6 +7,8 @@ import SPOT_TABLE from "../../../shared/spots.json";
 import { psx } from "../retro/psx";
 import type { Rect } from "./geom";
 import { trafficLanes } from "./traffic";
+import { addPropObject, dropProps } from "./propSpots";
+import type { GroundProbe, WallProbe } from "./wallprobe";
 
 // Street and quay props from Blender (tools/blender/build_props.py ->
 // /models/props.glb): carts, a dray and its horse, barrows, crates, casks,
@@ -358,6 +360,7 @@ async function load(): Promise<Props> {
     const o = place(name, x, z, yaw);
     o.position.y = y;
     o.scale.setScalar(scale);
+    addPropObject("props (batch)", o);
     if (!queued.length) queueMicrotask(flush);
     queued.push({ parent, o });
   }
@@ -411,6 +414,10 @@ export interface DressOptions {
   goods?: boolean;
   /** Quay cranes (x, z): nothing within 3.8 m. Default: the cranes rijnkaai.ts puts up. */
   cranes?: Array<[number, number]>;
+  /** The buildings as built (world/wallprobe.ts): no wall, pier or plinth runs through a thing. */
+  probe?: WallProbe;
+  /** The ground as built: a thing stands on the street, not half on a kerb or a step. */
+  ground?: GroundProbe;
 }
 
 export interface Dressing {
@@ -589,6 +596,36 @@ export async function dressCity(scene: THREE.Scene, flags: Flags, opts: DressOpt
 
   const at = (x: number, z: number) => flags(x, z) ?? -1;
 
+  /**
+   * Does `name` at (x, z, yaw) stand clear of the buildings as built (no face through its footprint, from
+   * over the kerb to its top) and flat on the street (not half on a kerb, a step or a plinth)? (the prop check)
+   */
+  const standsClear = (name: string, x: number, z: number, yaw: number): boolean => {
+    const f = props.footprint(name);
+    const c = Math.cos(yaw), s = Math.sin(yaw);
+    const W = (u: number, v: number): [number, number] => [x + u * c + v * s, z - u * s + v * c];
+    if (opts.probe) {
+      for (let y = 0.15; y < Math.min(f.height, 1.5); y += 0.3) {
+        for (const v of [f.minZ + 0.03, (f.minZ + f.maxZ) / 2, f.maxZ - 0.03]) {
+          const [ax, az] = W(f.minX + 0.03, v);
+          if (opts.probe(ax, y, az, c, -s, f.maxX - f.minX - 0.06) !== null) return false;
+        }
+        for (const u of [f.minX + 0.03, (f.minX + f.maxX) / 2, f.maxX - 0.03]) {
+          const [ax, az] = W(u, f.minZ + 0.03);
+          if (opts.probe(ax, y, az, s, c, f.maxZ - f.minZ - 0.06) !== null) return false;
+        }
+      }
+    }
+    if (opts.ground) {
+      for (const [u, v] of [[f.minX, f.minZ], [f.maxX, f.minZ], [f.maxX, f.maxZ], [f.minX, f.maxZ], [(f.minX + f.maxX) / 2, (f.minZ + f.maxZ) / 2]]) {
+        const [gx, gz] = W(u * 0.85 + ((f.minX + f.maxX) / 2) * 0.15, v * 0.85 + ((f.minZ + f.maxZ) / 2) * 0.15);
+        const g = opts.ground(gx, gz, 0.4);
+        if (g !== null && Math.abs(g) > 0.05) return false;
+      }
+    }
+    return true;
+  };
+
   // house doors in 10 m buckets: nothing stands in a doorway
   const doorGrid = new Map<string, Array<[number, number]>>();
   for (let i = 0; i + 1 < props.houseDoors.length; i += 2) {
@@ -748,6 +785,7 @@ export async function dressCity(scene: THREE.Scene, flags: Flags, opts: DressOpt
     const s = Math.sin(yaw);
     const x = cx - (ox * c + oz * s);
     const z = cz - (-ox * s + oz * c);
+    if (!standsClear(name, x, z, yaw)) return false;
     cells(cx, cz, tx, tz, hl + 0.3, hs + 0.3, (_x, _z, i, j) => void occ.set(key(i, j), 1));
     cells(fx, fz, tx, tz, hl + 0.3, deep / 2, (_x, _z, i, j) => {
       if (!occ.has(key(i, j))) occ.set(key(i, j), 2);
@@ -927,6 +965,7 @@ export async function dressCity(scene: THREE.Scene, flags: Flags, opts: DressOpt
     const s = Math.sin(yaw);
     const x = cx - (ox * c + oz * s);
     const z = cz - (-ox * s + oz * c);
+    if (!standsClear(name, x, z, yaw)) return false;
     cells(cx, cz, tx, tz, hl + 0.3, hs + 0.3, (_x, _z, i, j) => void occ.set(key(i, j), 1));
     for (const [bx, bz] of bands) {
       cells(cx + bx * (hs + deep / 2 + 0.05), cz + bz * (hs + deep / 2 + 0.05), tx, tz, hl + 0.3, deep / 2, (_x, _z, i, j) => {
@@ -1002,7 +1041,9 @@ export async function dressCity(scene: THREE.Scene, flags: Flags, opts: DressOpt
   const group = new THREE.Group();
   group.name = "props_dressing";
   const buckets = new Map<string, { mat: THREE.Material; geos: THREE.BufferGeometry[] }>();
+  dropProps("props");
   for (const o of all) {
+    addPropObject("props", o);
     o.updateMatrixWorld(true);
     const ck = `${Math.floor(o.position.x / 50)},${Math.floor(o.position.z / 50)}`;
     o.traverse((c) => {

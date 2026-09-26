@@ -31,10 +31,10 @@ import { createGasLamps, FOG_DAY_GLOW, glassColor, LIT_REACH, type GasLamps } fr
 import { lampFog, type LampFog } from "./lampFog";
 import { createLitter, type Litter } from "./litter";
 import { createClutter } from "./clutter";
-import { createPosters, type Posters } from "./posters";
+import { createPosters, fetchAiSpots, type Posters } from "./posters";
 import { createQuayGoods, quayGoodsAreas } from "./quaygoods";
 import { createStreetLife, type StreetLife } from "./streetlife";
-import { buildWallProbe } from "./wallprobe";
+import { buildGroundProbe, buildingRoots, buildWallProbe } from "./wallprobe";
 import { tradeKeepOut } from "./trades";
 import { marketKeepOut } from "../game/market";
 import { createQuayFurniture, type QuayFurniture } from "./quayfurniture";
@@ -49,6 +49,7 @@ import { createMirror } from "./mirror";
 import { BRIG_FLOOR, CHAMBER, DOCK, HW_MAX, LW_MIN, MID_Y, gateLine, levelAt, tideAt, tideDev, tideInfo, water as tideWater } from "./tide";
 import { buildTideMud } from "./tidemud";
 import { landmarkDoorKeepOut } from "./doorKeep";
+import { addPropObject } from "./propSpots";
 import { tuning } from "../menu/tuning"; // menus: the view distance setting
 
 // The Rijnkaai in the real 1873 city (world/city.ts). Water is at z < 0, the
@@ -430,15 +431,35 @@ export function buildRijnkaai(): World {
   let posters: Posters | null = null;
   // the filth of 1873: dung, straw, gutters, ash, fish waste, heaps, rats (world/litter.ts)
   let litter: Litter | null = null;
+  // clutter's brooms, shovels, cats and rubbish against the walls (no colliders): the bills keep off them
+  const leaners: Rect[] = [];
+  // the buildings as built (world/wallprobe.ts), once: the barrels, crates, heaps and carts stand clear of
+  // their walls and flat on their ground (the prop check, dev/propcheck.ts)
+  // (built again when another building has come into the scene since: the churches, the prison ...)
+  let wallsBuilt: { key: string; probe: ReturnType<typeof buildWallProbe> } | null = null;
+  let groundBuilt: { key: string; probe: ReturnType<typeof buildGroundProbe> } | null = null;
+  const rootsKey = () => buildingRoots(scene).map((o) => o.uuid).join(",");
+  const buildingsProbe = () => {
+    const key = rootsKey();
+    if (wallsBuilt?.key !== key) wallsBuilt = { key, probe: buildWallProbe(buildingRoots(scene)) };
+    return wallsBuilt.probe;
+  };
+  const buildingsGround = () => {
+    const key = rootsKey();
+    if (groundBuilt?.key !== key) groundBuilt = { key, probe: buildGroundProbe(buildingRoots(scene)) };
+    return groundBuilt.probe;
+  };
   city.ready
     // (M7 quays: the port goods of the naties are world/quaygoods.ts's composed heaps now; dressCity
     // keeps its carts, drays and casks by the water and on the squares. Dev: localStorage
     // "scheldemist.quaygoods" = "off" brings the old goods back, to compare)
-    .then(() => dressCity(scene, city.flags, { keepOut: quayGoodsOn ? [...propsKeepOut, ...quayGoodsAreas()] : propsKeepOut, goods: !quayGoodsOn }))
-    .then((d) => {
+    .then(() => dressCity(scene, city.flags, { keepOut: quayGoodsOn ? [...propsKeepOut, ...quayGoodsAreas()] : propsKeepOut, goods: !quayGoodsOn, probe: buildingsProbe(), ground: buildingsGround() }))
+    .then(async (d) => {
       colliders.push(...d.colliders);
+      // (the engine's bills' places: no pump before one)
+      const bills = (await fetchAiSpots()) ?? undefined;
       // (the probe: signs go only where the houses as built have a clear wall)
-      return createStreetLife(scene, city.flags, { avoid: [...d.colliders, ...omnibusLane, ...workplaces], probe: buildWallProbe(city.group) });
+      return createStreetLife(scene, city.flags, { avoid: [...d.colliders, ...omnibusLane, ...workplaces], probe: buildWallProbe(city.group), bills });
     })
     .then((sl) => {
       street = sl;
@@ -447,6 +468,8 @@ export function buildRijnkaai(): World {
         avoid: [...colliders, ...dynamic, ...omnibusLane, ...craneRunways, ...workplaces], // M3g: nothing on the omnibus lanes or crane runways; M3i: markets, trades
         quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
         houseWalls: { clear: sl.clearOnWall, add: sl.addWallItem }, // fixes 2026-09-25: notices off the painted windows
+        probe: buildingsProbe(),
+        ground: buildingsGround(),
       });
     })
     .then((qf) => {
@@ -457,6 +480,8 @@ export function buildRijnkaai(): World {
         qf.sites.filter((q) => q.kind.startsWith("tar_fire")).map((q) => ({ x: q.x, y: 0.12 + 0.6, z: q.z, size: 0.9 })),
       );
       return createLitter(scene, city.flags, {
+        probe: buildingsProbe(),
+        ground: buildingsGround(),
         avoid: [...colliders, ...craneRunways, ...steenKeepOut(), ...rampartKeepOut(), ...poortKeepOut(), ...landmarkDoorKeepOut()],
         quaySites: qf.sites,
         quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
@@ -467,6 +492,9 @@ export function buildRijnkaai(): World {
         colliders.push(...l.colliders);
         // alleys filled and closed, street furniture, proper ends where streets meet the water (world/clutter.ts)
         return createClutter(scene, city.flags, {
+          // (the houses and buildings as built: barrels and crates stand a hand off their real faces)
+          probe: buildingsProbe(),
+          ground: buildingsGround(),
           avoid: [...colliders, ...dynamic],
           keepOut: [...omnibusLane, ...workplaces], // (it keeps off the crane runways itself; a quay kerb may run under them)
           quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
@@ -474,6 +502,7 @@ export function buildRijnkaai(): World {
           shops: street?.shops,
         }).then((c) => {
           colliders.push(...c.colliders);
+          leaners.push(...c.leaners);
           if (!quayGoodsOn) return;
           // M7 quays: the goods of the working quays in composed heaps (world/quaygoods.ts), last, so
           // they keep off everything above; by the start only against the storehouses (its open
@@ -488,6 +517,7 @@ export function buildRijnkaai(): World {
               ...FLIGHTS.map(([x, z]) => ({ minX: x - 4.5, maxX: x + 4.5, minZ: z - 4.5, maxZ: z + 4.5 })),
             ],
             quayInfo: () => ({ flights: steps.flights, ladders: steps.ladders }),
+            ground: buildingsGround(),
             // the corner Madonnas' stands (lively.ts: reached from 1.8 m), 2 m more
             keepClear: (street?.madonnas ?? []).map((m) => ({ x: m.sx, z: m.sz, r: 3.8 })),
             shops: street?.shops,
@@ -496,7 +526,7 @@ export function buildRijnkaai(): World {
           });
         })
           // M7 posters: the town's bills (world/posters.ts), last, so they keep off the signs, the goods and the barrels
-          .then(() => (street ? createPosters(scene, city.flags, { streetLife: street, city: city.group, avoid: [...colliders, ...dynamic] }) : null))
+          .then(() => (street ? createPosters(scene, city.flags, { streetLife: street, city: city.group, avoid: [...colliders, ...dynamic, ...leaners] }) : null))
           .then((p) => {
             posters = p;
           });
@@ -902,14 +932,16 @@ export function buildRijnkaai(): World {
   loadProps()
     .then((p) => {
       for (const [name, x, z, yaw] of [["handcart_loaded", 47, 12, 0.5], ["dray_horse", 58, 30, 1.9]] as const) {
-        p.place(name, x, z, yaw, scene);
+        addPropObject("props (start)", p.place(name, x, z, yaw, scene));
         colliders.push(...p.colliders(name, x, z, yaw));
       }
       // gas lamps along the Werf, the Steenplein and the squares (tools/city/design.py decor)
       const decor = (CITY_DATA as unknown as { decor?: { lamps?: Array<[number, number]> } }).decor;
       (decor?.lamps ?? []).forEach(([x, z], i) => {
         // M6: each lit by the lamplighter on his round (world/gaslamps.ts)
-        gasLamps.addDecor(i, p.place("gas_lamp", x, z, 0, scene), x, z);
+        const lamp = p.place("gas_lamp", x, z, 0, scene);
+        addPropObject("gas lamps", lamp);
+        gasLamps.addDecor(i, lamp, x, z);
         colliders.push(rectAround(x, z, 0.2, 0.2));
       });
     })
@@ -2118,15 +2150,18 @@ function crane(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: num
 
 function crateStack(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number, n: number): void {
   const s = 1.1;
+  // (props.glb's crate_big is 1.18 m across at scale 1: 1.3 m at s, so the crates stand 1.4 m apart, a hand
+  // between them however they are turned; they went into each other at 1.14 m: the prop check)
+  const g = s * 1.18 + 0.1;
   let placed = 0;
   const spots: Array<[number, number, number, number]> = []; // x, z, yaw, lift
   for (let i = 0; i < n; i++) {
-    const cx = x + (i % 2) * (s + 0.04);
-    const cz = z + Math.floor(i / 2) * (s + 0.04);
+    const cx = x + (i % 2) * g;
+    const cz = z + Math.floor(i / 2) * g;
     spots.push([cx, cz, Math.sin(x * 3 + i) * 0.08, 0]);
     placed++;
   }
-  if (n >= 2) spots.push([x + s / 2, z, 0.2, s]);
+  if (n >= 2) spots.push([x + g / 2, z, 0.2, s]);
   // the packing crates of props.glb (all merged into one draw call); plain boxes if it will not load
   loadProps()
     .then((p) => spots.forEach(([cx, cz, yaw, y], i) => p.batch(scene, n === 1 ? "crate_open" : n === 3 && i === 2 ? "crate_broken" : "crate_big", cx, cz, yaw, y, s)))
@@ -2137,9 +2172,10 @@ function crateStack(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z
         scene.add(c);
       }
     });
-  const w = placed > 1 ? s * 2 + 0.04 : s;
-  const d = Math.ceil(placed / 2) * (s + 0.04);
-  colliders.push({ minX: x - s / 2, maxX: x - s / 2 + w, minZ: z - s / 2, maxZ: z - s / 2 + d, top: n >= 2 ? s * 2 : s });
+  const h = (s * 1.18) / 2;
+  const w = placed > 1 ? g : 0;
+  const d = (Math.ceil(placed / 2) - 1) * g;
+  colliders.push({ minX: x - h, maxX: x + w + h, minZ: z - h, maxZ: z + d + h, top: n >= 2 ? s * 2 : s });
 }
 
 function barrels(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number, n: number): void {
@@ -2166,7 +2202,8 @@ function sacks(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: num
   // jute sacks of props.glb, two layers (merged); plain boxes if it will not load
   loadProps()
     .then((p) => {
-      for (let i = 0; i < 6; i++) p.batch(scene, "sack", x + (i % 3) * 0.92, z, Math.sin(i * 4.1) * 0.12, Math.floor(i / 3) * 0.25);
+      // (a sack is 0.98 m long: a metre apart, turned a little, they touch; the upper layer lies on them)
+      for (let i = 0; i < 6; i++) p.batch(scene, "sack", x + (i % 3) * 1.04, z, Math.sin(i * 4.1) * 0.12, Math.floor(i / 3) * 0.25);
     })
     .catch(() => {
       for (let i = 0; i < 6; i++) {
@@ -2175,7 +2212,7 @@ function sacks(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: num
         scene.add(s);
       }
     });
-  colliders.push({ minX: x - 0.5, maxX: x + 2.3, minZ: z - 0.35, maxZ: z + 0.35, top: 0.7 });
+  colliders.push({ minX: x - 0.5, maxX: x + 2.6, minZ: z - 0.35, maxZ: z + 0.35, top: 0.7 });
 }
 
 function cart(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number): void {

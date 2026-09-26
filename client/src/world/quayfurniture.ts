@@ -11,6 +11,8 @@ import { trackKeepOut, type TrackData } from "./tracks";
 import { trafficLanes } from "./traffic";
 import { loadProps } from "./props3d";
 import { wallBox, type WallBox } from "./wallprobe";
+import { addProp, dropProps } from "./propSpots";
+import type { GroundProbe, WallProbe } from "./wallprobe";
 
 // Quay furniture (tools/blender/build_quayfurniture.py -> /models/quayfurniture.glb): the
 // iron, rope and timber along the water, after the 1870s photos of the Antwerp quays.
@@ -55,6 +57,10 @@ export interface QuayFurnitureOptions {
    * storehouse walls keep off them, and go on the list the sign check reads.
    */
   houseWalls?: { clear(b: WallBox): string | null; add(b: WallBox): void };
+  /** The buildings as built (world/wallprobe.ts): the huts, heaps and gear stand clear of their walls. */
+  probe?: WallProbe;
+  /** The ground as built: they stand flat on the quay, not half on its coping, a kerb or a step. */
+  ground?: GroundProbe;
 }
 
 export interface QuayFurniture {
@@ -398,9 +404,13 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
   }
 
   /** A copy of a model at (x, y, z), turned by yaw (0: its front looks along +z). `snap`: its decals go with snapped walls. */
+  /** The things that stand on the quay (the prop check reads them: dev/propcheck.ts). */
+  const PROP = /^(capstan|lantern_post|sign_|bollard_|bitt_|post_timber|harbour_hut|customs_booth|toll_shed|notice_board|boat_trestles|timber_baulks|tar_fire|anchor|cable_reel|oars_rack|sail_drying|hawser_coil|fish_baskets|eel_pots|nets_drying|coal_heap|grain_pallet)/;
+  dropProps("quay furniture");
   function put(name: string, x: number, y: number, z: number, yaw: number, snap = false): void {
     const p = protos.get(name);
     if (!p) return;
+    if (PROP.test(name)) addProp({ src: "quay furniture", name, x, y, z, yaw, pts: p.parts.filter((q) => q.slot === SOLID).map((q) => q.pos) });
     M.compose(Pv.set(x, y, z), Q.setFromAxisAngle(up, yaw), S);
     nm.getNormalMatrix(M);
     const e = M.elements;
@@ -672,7 +682,35 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
     const z = wz - g.nz * (u + wet) + oz;
     if (!fits(box(p, x, z, yaw), rules)) return null;
     if (passage > 0 && !sideOpen(p, x, z, yaw, facing === "water" ? -1 : 1, passage)) return null;
+    // (all but the edge's bollards and posts and what lies by them: huts, booths, boards, signs, capstans, gear)
+    if (!/^(bollard_|bitt_|post_timber|line_|fender_|ring_)/.test(name) && !standsClear(p, x, z, yaw)) return null;
     return { x, z, yaw };
+  }
+
+  /** (the prop check) No wall of the buildings as built through its footprint; its foot flat on the quay. */
+  function standsClear(p: Proto, x: number, z: number, yaw: number): boolean {
+    const c = Math.cos(yaw), s = Math.sin(yaw);
+    const W = (u: number, v: number): [number, number] => [x + u * c + v * s, z - u * s + v * c];
+    if (opts.probe) {
+      for (let y = 0.15; y < Math.min(p.height, 1.6); y += 0.3) {
+        for (const v of [p.minZ + 0.03, (p.minZ + p.maxZ) / 2, p.maxZ - 0.03]) {
+          const [ax, az] = W(p.minX + 0.03, v);
+          if (opts.probe(ax, y, az, c, -s, p.maxX - p.minX - 0.06) !== null) return false;
+        }
+        for (const u of [p.minX + 0.03, (p.minX + p.maxX) / 2, p.maxX - 0.03]) {
+          const [ax, az] = W(u, p.minZ + 0.03);
+          if (opts.probe(ax, y, az, s, c, p.maxZ - p.minZ - 0.06) !== null) return false;
+        }
+      }
+    }
+    if (opts.ground) {
+      const mu = (p.minX + p.maxX) / 2, mv = (p.minZ + p.maxZ) / 2;
+      for (const [u, v] of [[p.minX, p.minZ], [p.maxX, p.minZ], [p.maxX, p.maxZ], [p.minX, p.maxZ], [mu, mv]]) {
+        const g = opts.ground(...W(u * 0.85 + mu * 0.15, v * 0.85 + mv * 0.15), 0.4);
+        if (g !== null && Math.abs(g) > 0.05) return false;
+      }
+    }
+    return true;
   }
 
   const CLUTTER_RULES: FitRules = { gap: 1.4, avoidPad: 1.0, clearR: 3.5 };

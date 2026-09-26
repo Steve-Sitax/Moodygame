@@ -20,6 +20,8 @@ import SPOT_TABLE from "../../../shared/spots.json";
 import BUILD from "../../../shared/city_build.json";
 import { SHOP_END_CLEAR, shopTableSpot, type FrontHouse } from "../../../shared/shopFront";
 import { addStallThing } from "./stallSpots";
+import { addProp, dropProps, propIndex, ptsBox } from "../world/propSpots";
+import { buildingRoots, buildWallProbe } from "../world/wallprobe";
 import CITY from "../../../shared/city.json";
 
 // The back streets and the cathedral quarter come alive (M6 lively, Steve 2026-09-24). Everything
@@ -474,6 +476,9 @@ export class Lively {
       coal: ["coal"], draper: ["cloth"], bootmaker: ["clogs"], coffee: ["sacks"], wine: ["casks"], fish: ["baskets"], hatter: ["cloth"],
     };
     const spilled: Array<[number, number]> = [];
+    // the town's props set down already (barrels, crates, benches, a toll shed: world/propSpots.ts): the goods
+    // go on the door's other side, or not at all, rather than into one (the prop check)
+    const others = propIndex("");
     const placeGoods = (key: string, ax: number, az: number, tx: number, tz: number, ox: number, oz: number, len: number, door: number, seed: number) => {
       const kinds = SPILL[key];
       if (!kinds) return;
@@ -497,6 +502,11 @@ export class Lively {
         for (let d = 0.4; d <= 4.5; d += 0.5) if (!open(x + ox * d, z + oz * d) || !open(x + ox * d + tx * half, z + oz * d + tz * half) || !open(x + ox * d - tx * half, z + oz * d - tz * half)) wide = false;
         if (!wide || !isClear(x + ox * 0.4, z + oz * 0.4, half) || spilled.some(([sx, sz]) => dist(sx, sz, x, z) < 4)) continue;
         const yaw = Math.atan2(ox, oz);
+        {
+          const c = Math.cos(yaw), sn = Math.sin(yaw);
+          const mu = (p.minX + p.maxX) / 2, mv = (p.minZ + p.maxZ) / 2;
+          if (others.hit({ cx: x + mu * c + mv * sn, cz: z - mu * sn + mv * c, ux: c, uz: -sn, nx: sn, nz: c, hu: (p.maxX - p.minX) / 2 + 0.03, hn: (p.maxZ - p.minZ) / 2 + 0.03, y0: 0, y1: Math.max(0.3, p.height) })) continue;
+        }
         if (!put(name, x, 0, z, yaw)) continue;
         const r = footprint(name, x, z, yaw);
         if (r) this.world.addCollider(r);
@@ -522,6 +532,7 @@ export class Lively {
       placeGoods(key, f.wall[0] - tx * 1.0, f.wall[1] - tz * 1.0, tx, tz, f.out[0], f.out[1], 1.0 + room + 0.3, 1.0, 1000 + i);
     });
 
+    dropProps("lively");
     // --- flower pots on the sills of some homes (the ground-floor window beside the door, and over it), and cats
     const houses = new Map<number, { x: number; z: number; ox: number; oz: number; kind: string; id: string }>();
     for (const r of town.residents) if (r.home.house >= 0 && !houses.has(r.home.house)) {
@@ -541,6 +552,54 @@ export class Lively {
       }
       return out;
     };
+    // the pots stand on the window's stone sill as built (the houses' sills are 6 to 8 cm of stone out of the
+    // wall, at the foot of the window, the glass set back over it); on the plan's height where the wall is flat.
+    // Not where the pots would go into the sill, a reveal or a jamb: then none (the prop check)
+    const wallProbe = buildWallProbe(buildingRoots(this.world.scene));
+    const potBox = (() => {
+      const p = this.protos.get("pots_sill");
+      return p ? ptsBox(p.parts.map((q) => q.pos)) : null;
+    })();
+    const passages = ((CITY as unknown as { alleys?: { passages?: number[][] } }).alleys?.passages ?? []).map(([x0, z0, x1, z1]) => [Math.min(x0, x1), Math.min(z0, z1), Math.max(x0, x1), Math.max(z0, z1)]);
+    const potsOn = (x: number, z: number, ox: number, oz: number, want: number): number | null => {
+      if (!potBox) return null;
+      // (not on a wall inside a passage into the back alleys: they are 2.2 m wide)
+      if (want < 2 && passages.some(([x0, z0, x1, z1]) => x > x0 - 0.6 && x < x1 + 0.6 && z > z0 - 0.6 && z < z1 + 0.6)) return null;
+      // the face out of the wall line at a height (m; > 0 proud of it)
+      const out = (y: number) => {
+        const d = wallProbe(x + ox * 0.8, y, z + oz * 0.8, -ox, -oz, 1.6);
+        return d === null ? -1 : 0.8 - d;
+      };
+      // the sill: the top of a band proud of the wall, from 25 cm under the wanted height to 45 cm over it
+      let y = want;
+      for (let q = want - 0.25; q <= want + 0.45; q += 0.02) {
+        if (out(q) > 0.03 && out(q + 0.02) <= 0.03) {
+          let top = q;
+          while (top < q + 0.02 && out(top + 0.005) > 0.03) top += 0.005;
+          y = top + 0.005 - potBox[1]; // (its foot on the sill's top)
+          break;
+        }
+      }
+      // clear of the house as built: level rays along its back, middle and front, at its foot, middle and top
+      const c = Math.cos(Math.atan2(ox, oz)), sn = Math.sin(Math.atan2(ox, oz));
+      const [bx0, by0, bz0, bx1, by1, bz1] = potBox;
+      for (const yy of [y + by0 + 0.03, y + (by0 + by1) / 2, y + by1 - 0.03]) {
+        for (const v of [bz0 + 0.02, (bz0 + bz1) / 2, bz1 - 0.02]) {
+          const ax = x + (bx0 + 0.02) * c + v * sn, az = z - (bx0 + 0.02) * sn + v * c;
+          if (wallProbe(ax, yy, az, c, -sn, bx1 - bx0 - 0.04) !== null) return null;
+        }
+        for (const u of [bx0 + 0.02, (bx0 + bx1) / 2, bx1 - 0.02]) {
+          const ax = x + u * c + (bz0 + 0.02) * sn, az = z - u * sn + (bz0 + 0.02) * c;
+          if (wallProbe(ax, yy, az, sn, c, bz1 - bz0 - 0.04) !== null) return null;
+        }
+      }
+      return y;
+    };
+    // (the prop check, dev/propcheck.ts: on a sill, not on the ground)
+    const recordPot = (x: number, y: number, z: number, yaw: number) => {
+      const p = this.protos.get("pots_sill");
+      if (p) addProp({ src: "lively", name: "pots_sill", x, y, z, yaw, pts: p.parts.map((q) => q.pos), onTop: true });
+    };
     for (const [house, hd] of houses) {
       const u = h01(`pots:${house}`);
       const cat = h01(`cat:${house}`) < 0.22;
@@ -550,8 +609,16 @@ export class Lively {
       const yaw = Math.atan2(hd.ox, hd.oz);
       const w0 = wins[Math.floor(u * 97) % wins.length];
       if (u <= 0.3 && open(w0.x + hd.ox * 0.6, w0.z + hd.oz * 0.6)) {
-        put("pots_sill", w0.x, SILL_GROUND, w0.z, yaw);
-        if (u < 0.12 && w0.storeys >= 2) put("pots_sill", w0.x, GROUND_H + SILL_UPPER, w0.z, yaw);
+        const y0 = potsOn(w0.x, w0.z, hd.ox, hd.oz, SILL_GROUND);
+        if (y0 !== null) {
+          put("pots_sill", w0.x, y0, w0.z, yaw);
+          recordPot(w0.x, y0, w0.z, yaw);
+        }
+        const y1 = u < 0.12 && w0.storeys >= 2 ? potsOn(w0.x, w0.z, hd.ox, hd.oz, GROUND_H + SILL_UPPER) : null;
+        if (y1 !== null) {
+          put("pots_sill", w0.x, y1, w0.z, yaw);
+          recordPot(w0.x, y1, w0.z, yaw);
+        }
         this.stats_.pots++;
       }
       // a cat on the sill of the other window, now and then

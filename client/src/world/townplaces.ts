@@ -7,6 +7,7 @@ import { psx } from "../retro/psx";
 import { earthPaving, edgeStoneTexture, flagPaving, quayPaving, withPictures } from "./paving";
 import { rectAround, type Rect } from "./geom";
 import { buildTrees3D } from "./trees3d";
+import { addProp } from "./propSpots";
 
 // The round square and the greens (M7 prison and squares, docs/milestones/M7-prison-squares.md; the numbers in
 // shared/townplaces.json from tools/city/places.py).
@@ -359,6 +360,8 @@ export function loadTownPlaces(scene: THREE.Scene, ready: Promise<unknown>): Tow
         const parts = models.get(name);
         if (!parts) return;
         const m4 = new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(scale, 1, scale));
+        // (the prop check: dev/propcheck.ts)
+        addProp({ src: "town places", name, x, y: 0, z, yaw, s: [scale, 1, scale], pts: parts.map((q) => q.geo.getAttribute("position").array) });
         let byMat = put.get(grp);
         if (!byMat) put.set(grp, (byMat = new Map()));
         for (const p of parts) {

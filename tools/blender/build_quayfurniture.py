@@ -1469,7 +1469,9 @@ def eel_pots():
         M = move(x, y, 0) @ rot("Z", a)
         with m.at(M):
             m.box((0, 0, 0.02), (0.55, 0.38, 0.04), "wood_dark")
-            m.lathe([(0.19, -0.26), (0.19, 0.26)], 6, "wicker", M=move(0, 0, 0.04) @ rot("Y", math.pi / 2), arc=(0, math.pi))
+            # (the half over the base: turned about Y the lathe's a = 0 points down, so the dome runs from a = pi/2
+            # over the top to 3 pi/2; (0, pi) stood half of it in the ground, the prop check)
+            m.lathe([(0.19, -0.26), (0.19, 0.26)], 6, "wicker", M=move(0, 0, 0.04) @ rot("Y", math.pi / 2), arc=(math.pi / 2, 3 * math.pi / 2))
     return m
 
 

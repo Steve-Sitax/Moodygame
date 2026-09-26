@@ -177,3 +177,5 @@ seconds; `shared/clock.ts`, M7). Jump the clock with `t.skip(min)` rather than w
 
 Write what you saw into the milestone note: the numbers the kit gave, the pictures' names, and what you
 could not check.
+
+`await __scheldemist.propcheck()` (dev/propcheck.ts): every solid prop of the town (clutter, litter, quay goods and furniture, pumps, lamps, benches, trades, sill pots) against the buildings as built (walls, sills, plinths, steps, kerbs), doorways, passages, bills, each other and the ground; `problems` must be 0 (a new placer lists its props in world/propSpots.ts; `{ only: "clutter" }`, `{ near: [x, z, r] }`).

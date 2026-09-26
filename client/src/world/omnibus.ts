@@ -9,6 +9,7 @@ import type { Rect } from "./geom";
 import type { HorsePool } from "./horses";
 import { Kit, type RGB } from "./kit";
 import type { OpeningLike } from "./railway";
+import { addProp } from "./propSpots";
 import {
   absMinute,
   clockText,
@@ -998,6 +999,8 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
       geos.push(g);
       if (pt.bench) {
         const bg = benchGeometry();
+        // (the prop check, dev/propcheck.ts)
+        addProp({ src: "omnibus stops", name: "stop bench", x: pt.bench[0], y: 0, z: pt.bench[1], yaw: pt.bench[2], pts: [bg.getAttribute("position").array.slice()] });
         bg.applyMatrix4(new THREE.Matrix4().makeRotationY(pt.bench[2]).setPosition(pt.bench[0], 0, pt.bench[1]));
         geos.push(bg);
       }

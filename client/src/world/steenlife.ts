@@ -6,6 +6,7 @@ import { glowTexture } from "./textures";
 import type { Rect } from "./geom";
 import { water } from "./tide";
 import { loadSteenModel, type SteenModel } from "./steenModel";
+import { addPropObject } from "./propSpots";
 
 // Life round Het Steen (M3i, docs/milestones/M3i-steen.md). In 1873 the Steen was the city's
 // Museum of Antiquities (decided 1862, open from 1864), in the old castle gate and prison.
@@ -224,6 +225,8 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
     b.position.set(x, 0, z);
     b.rotation.y = yaw;
     group.add(b);
+    b.name = "steen_bench";
+    addPropObject("steen", b);
     const c = Math.abs(Math.cos(yaw));
     const s = Math.abs(Math.sin(yaw));
     const hw = 0.85 * c + 0.25 * s;

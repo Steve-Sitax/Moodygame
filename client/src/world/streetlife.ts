@@ -9,7 +9,8 @@ import { psx } from "../retro/psx";
 import { lampFog } from "./lampFog";
 import type { Rect } from "./geom";
 import { facadeOpenings } from "./cityTextures";
-import { boxesOverlap, SIGN_MARGIN, signOnWall, wallBox, type WallBox, type WallProbe } from "./wallprobe";
+import { boxesOverlap, kerbFront, SIGN_MARGIN, signOnWall, wallBox, type WallBox, type WallProbe } from "./wallprobe";
+import { addProp, dropProps } from "./propSpots";
 
 // Street life (tools/blender/build_streetlife.py -> /models/streetlife.glb): the small
 // things of an 1873 street, after period photos. Shop signboards and lettering, iron
@@ -33,6 +34,8 @@ export interface StreetLifeOptions {
   avoid?: Rect[];
   /** The houses as built (world/wallprobe.ts): signs go only where the wall is really there and clear. */
   probe?: WallProbe;
+  /** The engine's bills' places on the walls (world/posters.ts fetchAiSpots): no pump or trough before one. */
+  bills?: Array<{ x: number; z: number }>;
 }
 
 export interface StreetLife {
@@ -106,6 +109,8 @@ interface CityData {
 
 const OPEN = 0;
 const WALL = 1;
+/** The kerb's height along the street fronts (tools/blender/build_city.py KERB_H). */
+const KERB_Y = 0.12;
 const CHUNK = 64;
 /** M7: the street doors of the taverns, the Poesje and the homes whose insides stand in the world. */
 const INWORLD_DOORS = (INWORLD as { houses: Array<{ door: number[] }> }).houses.map((e) => [e.door[0], e.door[1]] as [number, number]);
@@ -511,10 +516,15 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
   /** East walkthrough 2026-09-25: while set, put() draws nothing (a shop chosen for an in-world house's front). */
   let muted = false;
   /** A copy of a model at (x, y, z), turned by yaw (0: its front looks along +z), stretched sx along its x (and sy up). */
+  dropProps("street life");
+  /** A pump and its trough: one set (its spout over the trough), for the prop check. */
+  let propSet: string | undefined;
   function put(name: string, x: number, y: number, z: number, yaw: number, sx = 1, kind = name, sy = 1): void {
     if (muted) return;
     const p = protos.get(name);
     if (!p) return;
+    // the pumps, troughs and the well (the prop check reads them: dev/propcheck.ts)
+    if (/^(pump_|trough|well$)/.test(name)) addProp({ src: "street life", name, x, y, z, yaw, s: [sx, sy, 1], pts: p.parts.filter((q) => q.slot === SOLID).map((q) => q.pos), set: propSet });
     if (kind in WALL_KINDS) addItem(wallBox(kind, name, WALL_KINDS[kind], p.box, x, y, z, yaw, sx, sy));
     M.compose(Pv.set(x, y, z), Q.setFromAxisAngle(up, yaw), S.set(sx, sy, 1));
     nm.getNormalMatrix(M);
@@ -780,6 +790,30 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
   }
 
   // ================================================================ pumps, the well, troughs
+  /** An engine's bill on the wall within r of (x, z). */
+  const billNear = (x: number, z: number, r: number) => (opts.bills ?? []).some((b) => Math.hypot(b.x - x, b.z - z) < r);
+  /**
+   * Where a thing against wall w at the wall point (wx, wz) stands: `out` metres out and `y` up. On the kerb
+   * as built if its foot (its points under 10 cm) fits there whole, a hand off the wall; else in the gutter
+   * beyond the kerb; `plain` metres out where no kerb is built.
+   */
+  const settleOnKerb = (name: string, wx: number, wz: number, w: Wall, plain: number): { out: number; y: number } => {
+    const p = protos.get(name);
+    const kd = opts.probe ? kerbFront(opts.probe, wx, wz, w.ox, w.oz) : null;
+    if (!p || kd === null) return { out: plain, y: 0 };
+    let back = Infinity, front = -Infinity;
+    for (const part of p.parts) {
+      for (let i = 0; i + 2 < part.pos.length; i += 3) {
+        if (part.pos[i + 1] > p.box[1] + 0.1) continue;
+        back = Math.min(back, part.pos[i + 2]);
+        front = Math.max(front, part.pos[i + 2]);
+      }
+    }
+    if (!isFinite(back)) return { out: plain, y: 0 };
+    const lo = 0.03 - back, hi = kd - 0.01 - front;
+    if (lo <= hi) return { out: Math.max(lo, Math.min(hi, plain)), y: KERB_Y };
+    return { out: kd + 0.04 - back, y: 0 };
+  };
   {
     const WANT: Array<[string, number, boolean]> = [
       // place, pumps, with a trough
@@ -809,8 +843,9 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
           const s = w.L * f;
           if (Math.abs(s - doorS) < 2.2 || s < 0.9 || s > w.L - 0.9) continue;
           const [wx, wz] = along(w, s);
-          const x = wx + w.ox * 0.45;
-          const z = wz + w.oz * 0.45;
+          let x = wx + w.ox * 0.45;
+          let z = wz + w.oz * 0.45;
+          if (billNear(wx, wz, 1.5)) continue;
           if (!openOut(wx, wz, w.ox, w.oz, 0.2, 3.5) || !openOut(wx + w.tx * 0.5, wz + w.tz * 0.5, w.ox, w.oz, 0.2, 2) || !openOut(wx - w.tx * 0.5, wz - w.tz * 0.5, w.ox, w.oz, 0.2, 2)) continue;
           if (!isClear(x, z, 3) || inStart(x, z) || onBridge(x, z) || inAvoid(x, z, 1.2) || !free(x, z, 1.5)) continue;
           // a trough beside it, along the wall
@@ -822,6 +857,7 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
               const [bx, bz] = along(w, ts);
               tx = bx + w.ox * 0.5;
               tz = bz + w.oz * 0.5;
+              if (billNear(bx, bz, 1.6)) continue;
               if (openOut(bx, bz, w.ox, w.oz, 0.2, 3) && openOut(bx + w.tx * 1, bz + w.tz * 1, w.ox, w.oz, 0.2, 1.5) && openOut(bx - w.tx * 1, bz - w.tz * 1, w.ox, w.oz, 0.2, 1.5) && isClear(tx, tz, 3) && !inAvoid(tx, tz, 1.3)) {
                 ok = true;
                 break;
@@ -830,14 +866,25 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
           }
           if (!ok) continue;
           const kind = pname === "Grote Markt" || pname === "Vismarkt" || R() < 0.35 ? "pump_stone" : "pump_iron";
+          // on the kerb as built, its foot a hand off the wall; a trough too deep for the kerb stands in the
+          // gutter beyond it, for the horses (the prop check: nothing half on the kerb's edge)
+          const py = settleOnKerb(kind, wx, wz, w, 0.45);
+          x = wx + w.ox * py.out;
+          z = wz + w.oz * py.out;
           // the pump's front (spout) looks out of the wall: its model front is local +z
-          put(kind, x, 0, z, w.yaw);
+          propSet = `pump at ${x.toFixed(0)}, ${z.toFixed(0)}`;
+          put(kind, x, py.y, z, w.yaw);
           collide(kind, x, z, w.yaw, 0.05);
           taken.push([x, z, 1.2]);
           // (the puddles are ambient.ts's, with real reflections)
           if (withTrough) {
+            const [bx, bz] = [tx - w.ox * 0.5, tz - w.oz * 0.5];
+            const ty = settleOnKerb("trough", bx, bz, w, 0.5);
+            tx = bx + w.ox * ty.out;
+            tz = bz + w.oz * ty.out;
             // the trough's long side (model x) along the wall
-            put("trough", tx, 0, tz, w.yaw);
+            put("trough", tx, ty.y, tz, w.yaw);
+            propSet = undefined;
             collide("trough", tx, tz, w.yaw, 0.03);
             taken.push([tx, tz, 1.3]);
             for (let k = 0; k < 3; k++) {
@@ -846,6 +893,7 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
               put(k === 0 ? `straw_${Math.floor(R() * 3)}` : `dung_${Math.floor(R() * 2)}`, tx + w.ox * d + w.tx * a, 0.012, tz + w.oz * d + w.tz * a, R() * 6.28, 1, k === 0 ? "straw" : "dung");
             }
           }
+          propSet = undefined;
           placed++;
           break;
         }

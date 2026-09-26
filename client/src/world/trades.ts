@@ -5,6 +5,7 @@ import { psx } from "../retro/psx";
 import { lampFog } from "./lampFog";
 import type { Rect } from "./geom";
 import { makeHuman, whenHumans, type Human, type HumanKind, type Motion } from "../game/humans";
+import { addPropObject } from "./propSpots";
 
 // Working trades (M3i; Steve: "boat repair shops (small boats), horse shoe fitter, rope
 // maker, ..."). Small scenes from tools/blender/build_trades.py -> /models/trades.glb, each
@@ -373,7 +374,7 @@ export const SITES: Site[] = [
     label: "the sailmaker",
     model: "tr_sailmaker",
     x: 151,
-    z: 112.2,
+    z: 112.5, // (0.3 m in: a corner of the sail lay over the quay's edge, the prop check)
     yaw: 0,
     boxes: [
       [-3.55, -3.05, -0.95, 0.95, 0.5], // the bench
@@ -504,6 +505,8 @@ export function createTrades(scene: THREE.Scene, _flags: (x: number, z: number) 
       }
       b.build(g, s.id);
       group.add(g);
+      // (the prop check, dev/propcheck.ts: the whole workplace as one thing)
+      addPropObject("trades", g, undefined, g.name);
       for (const [x, y, z] of s.smoke ?? []) {
         const [wx, wz] = toWorld(s, x, z);
         smokeSrc.push(new THREE.Vector3(wx, y, wz));

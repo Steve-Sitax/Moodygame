@@ -14,6 +14,8 @@ import { omnibusKeepOut, STOPS as OMNIBUS_STOPS } from "./omnibus";
 import { trackKeepOut, type TrackData } from "./tracks";
 import { SITES as TRADE_SITES, tradeKeepOut } from "./trades";
 import { TRAFFIC_ROUTES, trafficLanes } from "./traffic";
+import { addProp, dropProps } from "./propSpots";
+import { kerbFront, type GroundProbe, type WallProbe } from "./wallprobe";
 
 // Litter (M3j, Steve: "research trash and dirt at that time, I feel we need that more").
 // The waste of a port town in 1873, after the research in docs/milestones/M3j-filth.md:
@@ -49,6 +51,10 @@ export interface LitterOptions {
   swimFree?: (x: number, z: number, r: number) => boolean;
   /** The still water level (rijnkaai WATER_Y). */
   waterY?: number;
+  /** The houses as built (world/wallprobe.ts): the kerbs where they really are, heaps a hand off the real wall. */
+  probe?: WallProbe;
+  /** The ground as built: a heap stands flat on the street, not half on a kerb. */
+  ground?: GroundProbe;
 }
 
 export interface Litter {
@@ -74,6 +80,10 @@ interface Proto {
   geo: THREE.BufferGeometry;
   tris: number;
   r: number;
+  /** How far it reaches from its origin on the ground plan (m), its height, and its lowest point (under 0: it goes into the ground). */
+  rxz: number;
+  h: number;
+  y0: number;
 }
 interface Meta {
   decals: Record<string, { cell: [number, number, number, number]; w: number; d: number }>;
@@ -178,7 +188,15 @@ async function loadModels(): Promise<{ solid: Map<string, Proto>; meta: Meta; so
     geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
     geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
     geo.computeBoundingSphere();
-    solid.set(node.name, { geo, tris: pos.length / 9, r: geo.boundingSphere?.radius ?? 0.3 });
+    let rxz = 0;
+    let h = 0;
+    let y0 = Infinity;
+    for (let i = 0; i < pos.length; i += 3) {
+      rxz = Math.max(rxz, Math.hypot(pos[i], pos[i + 2]));
+      h = Math.max(h, pos[i + 1]);
+      y0 = Math.min(y0, pos[i + 1]);
+    }
+    solid.set(node.name, { geo, tris: pos.length / 9, r: geo.boundingSphere?.radius ?? 0.3, rxz, h, y0 });
   }
   if (!meta || !solidMap || !decalMap) throw new Error("litter.glb: meta or textures missing");
   for (const t of [solidMap as THREE.Texture, decalMap as THREE.Texture]) {
@@ -219,6 +237,8 @@ interface Put {
   /** Market waste: which market, and the level (0..1) at which it shows. */
   market?: string;
   u?: number;
+  /** One heap and what belongs to it (the dung barrow against the manure heap): the prop check lets them touch. */
+  set?: string;
 }
 
 /**
@@ -311,10 +331,13 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
   const settle = (x: number, z: number, r: number): [number, number, number] => {
     const k = kerbOf(x, z);
     if (!k) return [x, 0, z];
+    // the kerb as built (none on a yard's or a gang's wall, whatever the plan's street fronts say)
+    const kd = opts.probe ? kerbFront(opts.probe, x - k.w.ox * k.d, z - k.w.oz * k.d, k.w.ox, k.w.oz) : KERB;
+    if (kd === null) return [x, 0, z];
     // (a little overhang is not seen: the kerb is only 12 cm)
-    if (k.d < KERB - 0.05 && k.d + r * 0.6 < KERB + 0.05) return [x, KERB_Y, z];
-    if (k.d > KERB + 0.05 && k.d - r * 0.6 > KERB - 0.05) return [x, 0, z];
-    const push = KERB + 0.04 + r * 0.6 - k.d;
+    if (k.d < kd - 0.05 && k.d + r * 0.6 < kd + 0.05) return [x, KERB_Y, z];
+    if (k.d > kd + 0.05 && k.d - r * 0.6 > kd - 0.05) return [x, 0, z];
+    const push = kd + 0.04 + r * 0.6 - k.d;
     return [x + k.w.ox * push, 0, z + k.w.oz * push];
   };
   // every house door: nothing solid in front of one
@@ -371,8 +394,30 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
     const p = protos.get(name);
     if (!p) return false;
     const r = Math.min(p.r, 1.6) * 0.8;
-    const [sx, y, sz] = settle(x, z, r);
+    // (on the kerb only if all of it is: a heap's skirt over the kerb's edge hangs in the air)
+    const reachAll = p.rxz * 1.15;
+    let [sx, y, sz] = opts.probe ? settle(x, z, reachAll / 0.6) : settle(x, z, r);
+    // a hand off the houses as built: level rays out of its middle, just over the kerb, as far as it
+    // reaches (turned any way, at its largest); pushed off a wall face it would stand in, else not here
+    if (opts.probe && p.h > 0.03) {
+      const reach = p.rxz * 1.15 + 0.03;
+      const yy = y + Math.min(0.13, Math.max(0.02, p.h * 0.6));
+      const dirs = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => [Math.cos((k * Math.PI) / 4), Math.sin((k * Math.PI) / 4)]);
+      for (const [dx, dz] of dirs) {
+        const d = opts.probe(sx, yy, sz, dx, dz, reach);
+        if (d !== null) {
+          sx -= dx * (reach - d);
+          sz -= dz * (reach - d);
+        }
+      }
+      for (const [dx, dz] of dirs) if (opts.probe(sx, yy, sz, dx, dz, reach - 0.02) !== null) return false;
+      if (Math.hypot(sx - x, sz - z) > 0.02) [sx, y, sz] = settle(sx, sz, reachAll / 0.6);
+    }
     if (!solidOk(sx, sz, r, rules)) return false;
+    // not before a door with any of it (a heap reaches further than its middle)
+    if (opts.probe && p.h > 0.12 && atDoor(sx, sz, reachAll)) return false;
+    // a model that goes into the ground (the broken pot's shards): on it
+    if (p.y0 < -0.005) y -= p.y0;
     const s = 0.85 + R() * 0.3;
     puts.push({ layer: "solid", name, x: sx, y, z: sz, yaw: R() * Math.PI * 2, sx: s, sz: s, shade: 0.8 + R() * 0.3, ...extra });
     count(name);
@@ -868,6 +913,14 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
         const a = (k / 8) * Math.PI * 2;
         if (at(x + Math.cos(a) * 3.5, z + Math.sin(a) * 3.5) & WATER) return null;
       }
+      // (no wall of the buildings as built within its reach, at its foot and its middle; flat on the street,
+      // not half on a kerb: the prop check)
+      for (let k = 0; k < 16; k++) {
+        const a = (k / 16) * Math.PI * 2;
+        if (opts.probe) for (const y of [0.15, 0.6]) if (opts.probe(x, y, z, Math.cos(a), Math.sin(a), r) !== null) return null;
+        const g = opts.ground?.(x + Math.cos(a) * r * 0.8, z + Math.sin(a) * r * 0.8, 0.4);
+        if (g !== undefined && g !== null && Math.abs(g) > 0.04) return null;
+      }
       return [x, z] as P;
     };
     // the stable yard: a corner near where the drays stand (their stables), else any
@@ -889,7 +942,8 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
     for (const c of chosen) {
       // its back (model -z) to the wall
       const yaw = Math.atan2(-c.wx, -c.wz);
-      puts.push({ layer: "solid", name: c.kind, x: c.x, y: 0, z: c.z, yaw, sx: 1, sz: 1, shade: 1 });
+      const set = `heap at ${c.x.toFixed(0)}, ${c.z.toFixed(0)}`;
+      puts.push({ layer: "solid", name: c.kind, x: c.x, y: 0, z: c.z, yaw, sx: 1, sz: 1, shade: 1, set });
       count(c.kind);
       const h = c.kind === "manure_heap" ? 1.05 : 0.85;
       colliders.push({ minX: c.x - h, maxX: c.x + h, minZ: c.z - h, maxZ: c.z + h, top: c.kind === "manure_heap" ? 0.95 : 0.7 });
@@ -910,7 +964,7 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
         const bx = c.x - c.wz * 2.3 - c.wx * 0.4;
         const bz = c.z + c.wx * 2.3 - c.wz * 0.4;
         if (open(bx, bz, 0.9) && !avoid.some((q) => inR(q, bx, bz, 1))) {
-          puts.push({ layer: "solid", name: "dung_barrow", x: bx, y: 0, z: bz, yaw: yaw + 1.2, sx: 1, sz: 1, shade: 1 });
+          puts.push({ layer: "solid", name: "dung_barrow", x: bx, y: 0, z: bz, yaw: yaw + 1.2, sx: 1, sz: 1, shade: 1, set });
           count("dung_barrow");
           colliders.push({ minX: bx - 0.6, maxX: bx + 0.6, minZ: bz - 0.6, maxZ: bz + 0.6, top: 0.7 });
         }
@@ -1116,6 +1170,12 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
     return batch;
   }
   const solidPuts = puts.filter((p) => p.layer === "solid");
+  // (the prop check: dev/propcheck.ts)
+  dropProps("litter");
+  for (const p of solidPuts) {
+    const g = protos.get(p.name)?.geo.getAttribute("position");
+    if (g) addProp({ src: "litter", name: p.name, x: p.x, y: p.y, z: p.z, yaw: p.yaw, s: [p.sx, p.sx, p.sz], pts: [g.array], set: p.set });
+  }
   const flatPuts = puts.filter((p) => p.layer === "flat");
   const floatPuts = puts.filter((p) => p.layer === "float");
   const solidBatch = makeBatch("solid", solidMat, solidPuts);

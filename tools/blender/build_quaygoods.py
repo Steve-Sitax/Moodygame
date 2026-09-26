@@ -1625,7 +1625,8 @@ def sack_truck():
         for z in (0.35, 0.75, 1.1):
             box(m, -0.175, 0.175, 0.005, 0.045, z, z + 0.04, "wood_dark")
         box(m, -0.22, 0.22, -0.3, 0.02, 0.02, 0.05, "iron")
-        sack_geo(m, 0.0, -0.18, 0.05, 0.0, "sack_coffee", 81, L=0.8, Wd=0.42, Hh=0.3, pitch=-math.pi / 2 + 0.12, flat=False)
+        # (stood on the toe plate: its middle half its length up; at 0.05 it went 0.35 m into the ground, the prop check)
+        sack_geo(m, 0.0, -0.18, 0.05 + 0.4, 0.0, "sack_coffee", 81, L=0.8, Wd=0.42, Hh=0.3, pitch=-math.pi / 2 + 0.12, flat=False)
     for sx in (-1, 1):
         with m.at(move(sx * 0.27, 0.12, 0.14) @ rot("Y", math.pi / 2)):
             lathe(m, [(0.14, -0.03), (0.14, 0.03)], 10, "iron", cap=("iron", 1))

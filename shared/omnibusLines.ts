@@ -130,7 +130,7 @@ export const STOPS: OmnibusStop[] = [
   { id: "bassin", name: "the Petit Bassin", line: "kaaien", x: 76, z: 31, post: [78.3, 31], bench: [78.5, 29.1, -Math.PI / 2] },
   { id: "rijnkaai_back", name: "the Rijnkaai", line: "kaaien", x: 0, z: 37, post: [0, 39.3], bench: [1.9, 39.75, Math.PI] },
   { id: "vismarkt", name: "the Vismarkt", line: "markt", x: -96, z: 31, post: [-98.3, 31], bench: [-98.75, 29.1, Math.PI / 2] },
-  { id: "vleeshuis", name: "the Vleeshuis", line: "markt", x: -118, z: 114, post: [-118, 111.6], bench: [-116.1, 111.15, 0] },
+  { id: "vleeshuis", name: "the Vleeshuis", line: "markt", x: -118, z: 114, post: [-118, 111.6], bench: [-119.9, 111.15, 0] }, // (west of the post: east of it the bench stood before the Vleeshuis's north door, the prop check)
   // the post beside the town hall door's line, not on it (fixes 2026-09-25: Jef walking in bumped into it)
   { id: "grote_markt", name: "the Grote Markt", line: "markt", x: -257, z: 70, post: [-252, 67.6], bench: [-249.69, 67.41, -1.123] },
   // M7: out by the gate road to the Sint-Jorispoort, back past the Stadspark

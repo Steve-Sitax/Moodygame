@@ -10,11 +10,12 @@ export type WallProbe = (x: number, y: number, z: number, dx: number, dz: number
 
 const CELL = 2;
 
-export function buildWallProbe(root: THREE.Object3D): WallProbe {
-  root.updateMatrixWorld(true);
+export function buildWallProbe(roots: THREE.Object3D | THREE.Object3D[]): WallProbe {
+  const rootList = Array.isArray(roots) ? roots : [roots];
+  for (const r of rootList) r.updateMatrixWorld(true);
   const tris: number[] = [];
   const v = new THREE.Vector3();
-  root.traverse((o) => {
+  for (const root of rootList) root.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh || !m.geometry) return;
     const g = m.geometry;
@@ -201,4 +202,112 @@ export function signOnWall(b: WallBox, probe: WallProbe): string | null {
     }
   }
   return null;
+}
+
+/** The groups of the scene that are buildings as built: the houses and landmarks (city.glb), the churches, the prison, the Steen, the Vleeshuis, the town hall, the cathedral, the town wall. */
+export const BUILDING_GROUPS = ["city", "churches", "prison", "steen", "vleeshuis", "stadhuis", "cathedral_outside", "town_wall"];
+
+/** The building groups in the scene now (and the alleys' back walls, world/clutter.ts, once they are built). */
+export function buildingRoots(scene: THREE.Object3D): THREE.Object3D[] {
+  const roots = scene.children.filter((c) => BUILDING_GROUPS.includes(c.name));
+  scene.traverse((o) => {
+    if (o.name === "clutter_backwalls" || o.name === "clutter_backwalls_dark") roots.push(o);
+  });
+  return roots;
+}
+
+/**
+ * Where the kerb before a street wall ends, as built (city.glb: 0.7 m of stone slabs, 0.12 m high, along the
+ * street fronts, none on a yard's or a gang's wall nor through a covered passage): metres out from the point
+ * (x, z) on the wall's plan line, along its outward normal (ox, oz); null where no kerb is built. A level ray
+ * at 6 cm, in from the street, meets the kerb's front face.
+ */
+export function kerbFront(probe: WallProbe, x: number, z: number, ox: number, oz: number): number | null {
+  const d = probe(x + ox * 1.4, 0.06, z + oz * 1.4, -ox, -oz, 1.5);
+  if (d === null) return null;
+  const out = 1.4 - d;
+  return out > 0.3 && out < 1.2 ? out : null;
+}
+
+/**
+ * The ground as built under a point: the highest level face (the street, a kerb, a step, a quay's top,
+ * a square's plinth) at or under `yTop`, from the same buildings and the town's ground (city.glb).
+ * Only faces within 2.5 m of the street are kept. Null: no face there.
+ */
+export type GroundProbe = (x: number, z: number, yTop: number) => number | null;
+export function buildGroundProbe(roots: THREE.Object3D[]): GroundProbe {
+  const tris: number[] = [];
+  const v = new THREE.Vector3();
+  const p: number[] = new Array(9);
+  for (const root of roots) {
+    root.updateMatrixWorld(true);
+    root.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || !m.geometry || !m.visible && m.name.startsWith("landmark_")) return;
+      const P = m.geometry.getAttribute("position");
+      if (!P) return;
+      const idx = m.geometry.index;
+      const n = idx ? idx.count : P.count;
+      for (let i = 0; i + 2 < n; i += 3) {
+        let low = Infinity;
+        for (let k = 0; k < 3; k++) {
+          v.fromBufferAttribute(P, idx ? idx.getX(i + k) : i + k).applyMatrix4(m.matrixWorld);
+          p[k * 3] = v.x;
+          p[k * 3 + 1] = v.y;
+          p[k * 3 + 2] = v.z;
+          low = Math.min(low, v.y);
+        }
+        if (low > 2.5 || low < -1.5) continue;
+        const ax = p[3] - p[0], ay = p[4] - p[1], az = p[5] - p[2];
+        const bx = p[6] - p[0], by = p[7] - p[1], bz = p[8] - p[2];
+        const nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
+        const l = Math.hypot(nx, ny, nz);
+        if (l < 1e-9 || Math.abs(ny) / l < 0.7) continue;
+        tris.push(...p);
+      }
+    });
+  }
+  const G = 2;
+  const grid = new Map<string, number[]>();
+  for (let t = 0; t < tris.length / 9; t++) {
+    const o = t * 9;
+    const x0 = Math.floor(Math.min(tris[o], tris[o + 3], tris[o + 6]) / G), x1 = Math.floor(Math.max(tris[o], tris[o + 3], tris[o + 6]) / G);
+    const z0 = Math.floor(Math.min(tris[o + 2], tris[o + 5], tris[o + 8]) / G), z1 = Math.floor(Math.max(tris[o + 2], tris[o + 5], tris[o + 8]) / G);
+    if ((x1 - x0 + 1) * (z1 - z0 + 1) > 4000) {
+      // a big face of the ground: in a list of its own, tested everywhere
+      const k = "big";
+      let l = grid.get(k);
+      if (!l) grid.set(k, (l = []));
+      l.push(t);
+      continue;
+    }
+    for (let i = x0; i <= x1; i++) {
+      for (let j = z0; j <= z1; j++) {
+        const k = `${i},${j}`;
+        let l = grid.get(k);
+        if (!l) grid.set(k, (l = []));
+        l.push(t);
+      }
+    }
+  }
+  const probe: GroundProbe = (x, z, yTop) => {
+    let best: number | null = null;
+    for (const t of [...(grid.get(`${Math.floor(x / G)},${Math.floor(z / G)}`) ?? []), ...(grid.get("big") ?? [])]) {
+      const o = t * 9;
+      const x0 = tris[o], z0 = tris[o + 2], x1 = tris[o + 3], z1 = tris[o + 5], x2 = tris[o + 6], z2 = tris[o + 8];
+      const d = (z1 - z2) * (x0 - x2) + (x2 - x1) * (z0 - z2);
+      if (Math.abs(d) < 1e-12) continue;
+      const a = ((z1 - z2) * (x - x2) + (x2 - x1) * (z - z2)) / d;
+      const b = ((z2 - z0) * (x - x2) + (x0 - x2) * (z - z2)) / d;
+      const c = 1 - a - b;
+      // (1 cm over an edge still counts: two kerb slabs or two faces of the ground that meet leave a seam
+      // no point falls in, and the face under them both showed through)
+      const ad = Math.abs(d);
+      if (a < (-0.01 * Math.hypot(x1 - x2, z1 - z2)) / ad || b < (-0.01 * Math.hypot(x2 - x0, z2 - z0)) / ad || c < (-0.01 * Math.hypot(x0 - x1, z0 - z1)) / ad) continue;
+      const y = a * tris[o + 1] + b * tris[o + 4] + c * tris[o + 7];
+      if (y <= yTop + 1e-4 && (best === null || y > best)) best = y;
+    }
+    return best;
+  };
+  return probe;
 }
