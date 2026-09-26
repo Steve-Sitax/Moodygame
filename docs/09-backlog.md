@@ -2,6 +2,9 @@
 
 Newest on top. Each item says who raised it and when.
 
+## Engine (Steve, 2026-09-26)
+- **Fight spike before any fight milestone.** Steve chose to stay in the browser (docs/08 #14). Before "hate and fights" is planned: build one street fight (two people, blended moves, hit checks, a server-owned outcome) in three.js and the same in Godot, 1 to 2 weeks. Compare feel, work and frame time, then decide on a port.
+
 ## Feedback after playing M2b (Steve, 2026-09-23)
 M2b "works, that was more interesting". Ideas and wishes from that play:
 - **More thieves, a gang, and combat.** Steve decided (2026-09-23): no combat in the demo (docs/08 #10). More thieves and a gang are welcome, without fighting: chase off, pay off, report, or lose goods.
