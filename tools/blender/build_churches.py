@@ -1148,6 +1148,8 @@ class Wall:
             pts = [self.pt(pu, py), self.pt(qu, qy), self.pt(qu, qy, h.depth), self.pt(pu, py, h.depth)]
             g.face(pts, h.rmat, out=self.inplane(nu, ny), k=self.k * kk)
         cell = h.cell or "dark"
+        if cell == "open":  # a real opening (the Carolus's main door: the hall behind it, the leaves hung in the game)
+            return
         part_b = "body" if h.shape != "rect" else "all"
         if ys - h.yb > 1e-4:
             body = [(h.u0, h.yb), (h.u1, h.yb), (h.u1, ys), (h.u0, ys)]
@@ -1600,7 +1602,7 @@ CF = dict(FA=0.9, FB=1.9, NV=6.5, AW=12.8, TW=15.3, FT=1.4, TB=4.4, Y0=0.6,
           NE=20.8, RID=25.2, AE=15.4, AH=18.6, LK=10.6,
           TA=-2.2, TS=10.9, RISE=0.15, TREAD=0.3, FLIGHTS=((-2.6, 2.6), (-10.9, -8.4), (8.4, 10.9)),
           DOOR=(3.4, 7.2), SIDE=9.35, END=0.15,
-          OPEN=False, CHAPEL=(12.4, 25.4, 10.2))
+          OPEN=True, CHAPEL=(12.4, 25.4, 10.2))
 # OPEN: the main door a real opening and the Lady Chapel's room cut out of the shell (the interior in the game:
 # client/src/world/carolusHall.ts); CHAPEL: that room's a0, a1 and its ceiling
 
@@ -2332,7 +2334,7 @@ def carolus(g, fr):
     # ---- the front: a slab 1 m thick, the ground and middle storeys full width, the crown over the nave
     top = [(0, B2), (u(-6.5), B2), (u(-6.5), C2), (u(6.5), C2), (u(6.5), B2), (u(AW), B2)]
     DW, DH = c["DOOR"]
-    holes = [Hc(u(0), DW, Y0, Y0 + DH, "round", "door_main", depth=FB - FA, rmat=BLUE),
+    holes = [Hc(u(0), DW, Y0, Y0 + DH, "round", "open" if c.get("OPEN") else "door_main", depth=FB - FA, rmat=BLUE),
              Hc(u(0), 1.8, 22.6, 26.9, "round", "niche_back", depth=0.7, rmat=SAND, k=0.8)]
     for sg in (-1, 1):
         holes += [Hc(u(sg * 4.45), 1.4, 3.0, 7.9, "round", "niche_back", depth=0.75, rmat=SAND, k=0.8),

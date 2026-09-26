@@ -4,7 +4,7 @@ Steve, 2026-09-26, with a picture of the real front on the Conscienceplein: "cha
 like the image. add details/textures. also search online for the inside, make codex generate reference images
 and create a detailed interior. we must be able to walk in and out."
 
-Part 1 (this note so far): the front and the sides. Part 2 (the interior, walking in and out) follows.
+Part 1: the front, its colours and the sides. Part 2: the interior, walked in and out.
 
 ## What the church was like (reference only, nothing copied)
 - The front is about 32 m wide and 33 m high without the cross, as broad as tall. It has seven bays in two full
@@ -121,3 +121,55 @@ finds no faces in one plane and none within 5 cm. St Paul, St James, the park an
 - Pictures (`data/shots/`): before `carolus_before_above`, `carolus_before_close`; after `carolus_after_square`,
   `carolus_after_high`, `carolus_after_door`, `carolus_after_terrace`, `carolus_after_above`; Blender's own
   `churches_carolus_above.png`, `churches_carolus_square.png`.
+
+## The interior (part 2): walking in and out
+The church stands open by day, as the cathedral and the halls do (`M7-cathedral-inworld.md`, `M7-halls-inworld.md`).
+You walk up the terrace's steps and through the main door into the nave. From inside you see the square
+through the door.
+
+| Part | What | Where |
+|---|---|---|
+| The plan | A `HallPlan` fitted inside the shell. The frame is the door's plane (the front's face): x along the front, z into the church, the floor level with the terrace (world 0.6). It holds the floors (the terrace strip before the door, the doorway, the nave and aisles, the choir, the apse, the Lady Chapel and its arch), the solids, the sanctuary's three steps, Jef's barriers (the gates in the two rails), the people's points and the wall boxes. | `shared/carolusPlan.ts` (`PLAN`, `IN`, `BAYS`, `HT`, `CHAPEL` ...) |
+| The shell | The main door is a real opening: the Hole's cell "open" draws the reveal and the sill but no painted door. The shell's aisle wall and the chapel's inner wall are cut where the Lady Chapel's room stands (`CF OPEN`, `CHAPEL`). | `build_churches.py` |
+| The hall | Eight bays. Grey stone Doric columns carry round arches, and the galleries over the aisles stand on Ionic columns with a balustrade. The organ loft is over the first bay, with the organ's oak case, three towers of tin pipes and angels. There is a white barrel vault with broad transverse arches and flat stucco ceilings over the galleries. The choir is raised three steps behind a white marble rail. The round apse has grey pilasters, a cornice, a half dome and three coloured windows. The high altar is black and white marble with a tall painting in a gilded frame, statues and candles. There are side altars at the aisles' ends, seven oak confessionals with carved angels in the aisles' panelling, and the Stations of the Cross between them. The oak pulpit stands on a column with its stair, figure and sounding board. There are rows of rush chairs (none round the pulpit), the font by the door, three brass chandeliers, and a floor of black and white marble laid diagonally. The Lady Chapel off the south aisle is clad in marble panels. It has a coffered ceiling with four small paintings, a marble altar with its painting and statues, a white rail, two benches, a candle stand and two coloured windows. | `client/src/world/carolusHall.ts` (`buildCarolusHall`) |
+| Walking, doors, drawing | The plan's `WalkArea` (the feet on the sanctuary's steps), the oak leaves hung in the door with a fixed board in the arch, the `InWorldRoom` (the hall drawn through the door, the street through it from inside), and the fog and light blended over the threshold. This is all the halls' `createHallInWorld`. | `world/hallInWorld.ts` (reused as it is) |
+| The life | The door stands open from six to seven. At closing the sexton puts Jef out on the terrace ("The sexton rattles his keys ...") and the leaves turn shut. Inside, the church's echo plays (`setInterior("church")`) and the footsteps echo. The glass glows with the hour and the weather. `paths()` checks ten points inside while the door is open. There are no people inside yet: the cathedral's life is keyed to the server's landmarks, and reusing it would need a server id and its hours. | `carolusInWorld` in `carolusHall.ts`; hooks in `main.ts` |
+
+Textures inside, all from Codex, with rows in `assets/ATTRIBUTION.md`:
+- `carolus_oak.jpg`, `carolus_plaster.jpg` and `carolus_marble_panel.jpg`, at 512 px.
+- The grey stone is the front's `carolus_bluestone.jpg`.
+- The floor, `carolus_floor.jpg`, is cut by script into a diagonal checker from two Codex marbles, white and black. It tiles.
+- The high altar's Coronation of the Virgin, the Lady Chapel's Assumption and the side altars' Jesuit saint. The second side altar shows the saint mirrored. These are new pictures in the old manner, not copies of any work.
+
+Each picture is painted in code first, as a stand-in, until it loads.
+
+## Checks (part 2, 2026-09-26, test copy on 8948/5348, 13:00 clear unless said)
+- Walking, as a player does with W:
+  - From the square up the middle flight, through the door and down the nave: the eye went 1.6, 2.2, then 2.2 m (the floor is 0.6), and Jef was "inside" from 1.3 m past the door.
+  - Back out the same way onto the square.
+  - Into the Lady Chapel through its arch; the benches stop him.
+  - The communion rail stops him at 25.15 (the rail at 25.5); the choir is not his.
+- `paths()` lists nothing, with the ten points inside (door open).
+- Night: at 19:02 with Jef in the nave, the line was "The sexton rattles his keys ...", and Jef stood on the terrace (z 167.3). The leaves shut, and walking in stopped at 168.1 before them.
+- Door walk (`halls().walk` on this hall, 10 frames a metre, straight and turned, in and out): no spikes. The worst steady change, 12 to 17, is the terrace's steps.
+- Holes (`halls().gaps`, 86 points, 478 views, the background turned magenta): none.
+- z-fights:
+  - Street: `zfight({list: 300000})` finds nothing new round the Carolus. The 28 pairs there are the houses' own, and the leaves against the shell are 4 hidden pairs.
+  - Hall (its own scene, `checkZFight`): the visible pairs went from 58 to 24 slivers of 0.02 to 0.06 m², at box corners under the floor and over the ceilings. None was seen in the pictures.
+- Blender plane check: 0 in one plane, 0 within 5 cm.
+- Frame cost: the hall seen through the door adds about 24 draw calls and 32k triangles to the square. Inside, looking at the altar, the whole frame is 30 draw calls and 32k triangles. Looking out of the door is 300 calls, about what the square costs. The machine was loaded (a floor of about 37 ms a frame even at 30 calls), so the milliseconds say nothing here.
+- `npx vitest run test/carolus-inworld.test.ts` (new, 7 tests: the walls inside the rectangle, the door, the walk in, the rails, the shut door, the threshold, the terrace) passes. With the cathedral's and the halls' tests: 50 of 50.
+- The client builds (`npm --prefix client run build`, tsc included).
+- Pictures (`data/shots/`):
+  - `carolus_in_square` (the lit nave through the open door)
+  - `carolus_in_nave`, `carolus_in_aisle`, `carolus_in_chapel`, `carolus_in_altar`, `carolus_in_sidealtar`
+  - `carolus_in_organ`, `carolus_in_pulpit`, `carolus_in_lookout` (the square from inside)
+  - `carolus_door_night`, `carolus_door_night_in`
+  - the sheet `carolus_in_sheet.jpg`
+
+## Open
+- No people inside. The cathedral's life (masses, the beadle, the chair woman) is keyed to the server's landmarks; giving the Carolus its own would need a server id, hours and roles.
+- The side doors are painted, and so are the house's and chapel's doors to the square.
+- The shell's windows are painted glass outside; inside, the hall's windows are its own. The apse's are lower inside than out.
+- At night nothing glows to the square, since the church is shut.
+- `server/src/town/possessions.ts` does not know the terrace. A velocipede or handcart spot could land on it; none was seen.

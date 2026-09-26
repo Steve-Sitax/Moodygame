@@ -8,6 +8,8 @@
 // world x = ORIGIN.x + s, z = ORIGIN.z + a. The rectangle (shared/city.json landmarks.carolus) is solid
 // in the walk map from a 0; the terrace and its flights stand on the square before it.
 
+import type { HallPlan, Mark, Rect as HRect } from "./hallPlan.js";
+
 export type Rect = { minX: number; maxX: number; minZ: number; maxZ: number; top?: number };
 
 /** The rectangle's front edge on the church's axis (city.json frame c + open * n * W / 2), in world metres. */
@@ -81,4 +83,172 @@ export function frontSolids(): Rect[] {
 /** Where nothing the town sets down may stand: the terrace, the flights and 2.5 m of the square before them. */
 export function frontKeepOut(street = 2.5): Rect[] {
   return [rect(-TERRACE.TS - 0.5, TERRACE.TS + 0.5, FLIGHT_FOOT - street, FRONT.face, 0)].map(({ top: _t, ...r }) => r);
+}
+
+// ================================================================ the interior (walked in the world)
+//
+// The hall stands inside the shell as the cathedral's and the halls' do (docs/milestones/M7-carolus.md,
+// shared/hallPlan.ts). Its frame: the main door's plane (the front's face, a 0.9) at local z 0, local x = s
+// (world +x), z into the church (world +z), not turned; local y 0 the nave's floor, level with the terrace
+// (world 0.6). A basilica of eight bays: Doric columns carrying round arches, galleries over the aisles on
+// Ionic columns, the barrel vault of 1718 with broad transverse arches, the organ loft over the first bay,
+// the raised choir behind the communion rail and the high altar in the round apse; the Lady Chapel opens
+// off the south aisle (the shell's chapel range, cut open there: build_churches.py CF CHAPEL).
+
+const R = (minX: number, maxX: number, minZ: number, maxZ: number): HRect => ({ minX, maxX, minZ, maxZ });
+
+/** The hall's frame in the world: the door's plane, and the floor (the terrace's height). */
+export const HALL_ORIGIN = { x: ORIGIN.x, z: ORIGIN.z + FRONT.face } as const;
+export const FLOOR_Y = TERRACE.Y0;
+
+/** The hall's lines (local metres). */
+export const IN = {
+  /** The west wall's inner face (the wall stands 0.9..1.5, behind the shell's front slab at 1.0). */
+  west: 1.5,
+  /** The aisles' outer walls' inner face (the shell's aisle walls at 12.8), their east end. */
+  aisle: 12.3,
+  east: 26.1,
+  /** The arcades' line, their half thickness. */
+  arcade: 6.2,
+  arcadeHalf: 0.35,
+  /** The choir's side walls (inner face), the apse's centre (the shell's AC 28.45), its walls' circumradius. */
+  choir: 5.85,
+  apse: 27.55,
+  apseR: 5.7,
+} as const;
+/** The bays: the west wall, the columns, the east end. */
+export const BAYS = [1.5, 4.6, 7.67, 10.74, 13.81, 16.89, 19.96, 23.03, 26.1];
+/** Heights: the ground arcade (capital top), the gallery floor, the upper arcade, the vault. */
+export const HT = { cap: 4.3, gallery: 6.4, galleryTop: 6.7, upperCap: 11.2, entab: 13.6, spring: 14.2, galleryCeil: 14.4, vaultR: 6.2 } as const;
+/** The main door: the shell's round-arched opening 3.4 wide, springing 5.5 over the sill. */
+export const DOOR = { hw: 1.7, spring: 5.5, h: 7.2 } as const;
+/** The gallery windows over the aisles (local z, and their sill and head over the floor), the shell's. */
+export const GALLERY_WINDOWS = { z: [5.5, 9.3, 13.1, 16.9, 20.7, 24.5], y0: 10.4, y1: 13.6, w: 1.7 } as const;
+/** The Lady Chapel: its room (the shell's chapel range, cut open), the arch from the south aisle, its ceiling. */
+export const CHAPEL = { x0: 12.55, x1: 20.8, z0: 11.5, z1: 24.5, door: [13.8, 17.2] as const, doorSpring: 4.6, ceil: 9.6, windows: [13.7, 18.9] } as const;
+/** The communion rail, the gate in it; the sanctuary's floor (three steps up). */
+export const RAIL = { z0: 25.5, z1: 25.8, gate: 0.7 } as const;
+export const SANCTUARY = 0.45;
+/** Rows of chairs: the blocks either side of the middle way. */
+export const CHAIRS = { x0: 0.85, x1: 4.95, z0: 7.8, z1: 21.9, row: 0.94 } as const;
+export const PULPIT = { x: -5.3, z: BAYS[4] } as const;
+/** No chairs on the pulpit's side round it (its stair comes down toward the door). */
+export const CHAIR_GAP = [11.0, 16.0] as const;
+export const CONFESSIONALS: Array<{ x: number; z: number }> = [
+  ...[6.1, 11.4, 16.7, 22.0].map((z) => ({ x: -1, z })),
+  ...[6.1, 10.4, 20.9].map((z) => ({ x: 1, z })),
+];
+export const FONT = { x: -9.3, z: 3.3 } as const;
+
+const marks: Record<string, Mark> = {
+  door: { x: 0, z: -2.0, yaw: Math.PI },
+  inside: { x: 0, z: 3.2, yaw: 0 },
+  nave: { x: 0, z: 12, yaw: 0 },
+  rail: { x: 0, z: 25.0, yaw: 0 },
+  pulpit: { x: -3.9, z: PULPIT.z, yaw: -Math.PI / 2 },
+  chapel: { x: 16.8, z: 16.0, yaw: 0 },
+  chapelRail: { x: 16.8, z: 20.9, yaw: 0 },
+};
+
+const floors: HRect[] = [
+  R(-2.2, 2.2, -1.7, 0), // the terrace before the door (the walk map is wall from the rectangle's edge, 0.9 before the door)
+  R(-DOOR.hw, DOOR.hw, 0, IN.west), // the doorway through the front and the west wall
+  R(-IN.aisle, IN.aisle, IN.west, IN.east), // the nave and the aisles
+  R(-IN.choir, IN.choir, IN.east, IN.apse), // the choir
+  R(-4.5, 4.5, IN.apse, 30.8), // the apse
+  R(-1.7, 1.7, 30.8, 32.8),
+  R(CHAPEL.x0, CHAPEL.x1, CHAPEL.z0, CHAPEL.z1), // the Lady Chapel
+  R(IN.aisle, CHAPEL.x0, CHAPEL.door[0], CHAPEL.door[1]), // its arch through the aisle wall
+];
+const col = (x: number, z: number, h: number) => R(x - h, x + h, z - h, z + h);
+const solids: HRect[] = [
+  // the arcades' columns and their responds at both ends
+  ...BAYS.slice(1, -1).flatMap((z) => [col(-IN.arcade, z, 0.45), col(IN.arcade, z, 0.45)]),
+  ...[-1, 1].flatMap((sg) => [
+    R(sg * IN.arcade - 0.35, sg * IN.arcade + 0.35, IN.west, IN.west + 0.4),
+    R(sg * IN.arcade - 0.35, sg * IN.arcade + 0.35, IN.east - 0.4, IN.east),
+  ]),
+  // the organ loft's two columns
+  col(-2.6, BAYS[1], 0.28),
+  col(2.6, BAYS[1], 0.28),
+  // the chairs
+  R(CHAIRS.x0, CHAIRS.x1, CHAIRS.z0, CHAIRS.z1),
+  R(-CHAIRS.x1, -CHAIRS.x0, CHAIRS.z0, CHAIR_GAP[0]),
+  R(-CHAIRS.x1, -CHAIRS.x0, CHAIR_GAP[1], CHAIRS.z1),
+  // the pulpit on its column, the font, the confessionals, the side altars at the aisles' ends
+  R(PULPIT.x - 0.8, PULPIT.x + 0.8, PULPIT.z - 2.5, PULPIT.z + 0.8),
+  R(FONT.x - 0.5, FONT.x + 0.5, FONT.z - 0.5, FONT.z + 0.5),
+  ...CONFESSIONALS.map((c) => (c.x < 0 ? R(-IN.aisle, -IN.aisle + 1.3, c.z - 1.5, c.z + 1.5) : R(IN.aisle - 1.3, IN.aisle, c.z - 1.5, c.z + 1.5))),
+  R(-11.3, -7.1, 25.0, IN.east),
+  R(7.1, 11.3, 25.0, IN.east),
+  // the communion rail (its gate is Jef's barrier only), the high altar
+  R(-IN.arcade, -RAIL.gate, RAIL.z0, RAIL.z1),
+  R(RAIL.gate, IN.arcade, RAIL.z0, RAIL.z1),
+  R(-1.6, 1.6, 29.4, 31.0),
+  // the Lady Chapel: its altar, its marble rail, two benches, the candle stand
+  R(14.6, 19.0, 23.2, CHAPEL.z1),
+  R(CHAPEL.x0, 16.1, 21.4, 21.7),
+  R(17.5, CHAPEL.x1, 21.4, 21.7),
+  R(14.4, 19.2, 17.8, 18.3),
+  R(14.4, 19.2, 19.0, 19.5),
+  R(13.1, 13.7, 20.4, 21.0),
+];
+
+/** The Carolus's interior plan (shared/hallPlan.ts). Its id is not one of the server's landmarks: the church has no life of its own yet. */
+export const PLAN: HallPlan = {
+  id: "carolus" as unknown as HallPlan["id"],
+  origin: { x: HALL_ORIGIN.x, z: HALL_ORIGIN.z },
+  yaw: 0,
+  floorY: FLOOR_Y,
+  levels: [{ y: 0, floors, solids }],
+  stairs: [],
+  doors: [
+    {
+      id: "carolus_main",
+      x: 0,
+      z: 0,
+      dir: 1,
+      hw: DOOR.hw,
+      h: DOOR.spring,
+      inner: IN.west,
+      y: 0,
+      leaves: 2,
+      open: (84 * Math.PI) / 180,
+      step: marks.door,
+      archTop: Array.from({ length: 13 }, (_, i) => {
+        const a = (Math.PI * i) / 12;
+        return [DOOR.hw * Math.cos(a), DOOR.spring + DOOR.hw * Math.sin(a)] as [number, number];
+      }),
+    },
+  ],
+  area: [R(-12.6, 12.6, -1.7, IN.apse), R(-5.9, 5.9, IN.apse, 33.2), R(12.2, 21.0, 11.3, 24.7)],
+  // the sanctuary's three steps up from the choir, and its floor
+  steps: [
+    { rect: R(-IN.choir, IN.choir, IN.east, IN.east + 0.3), y: 0.15 },
+    { rect: R(-IN.choir, IN.choir, IN.east + 0.3, IN.east + 0.6), y: 0.3 },
+    { rect: R(-IN.choir, IN.choir, IN.east + 0.6, IN.apse), y: SANCTUARY },
+    { rect: R(-4.5, 4.5, IN.apse, 30.8), y: SANCTUARY },
+    { rect: R(-1.7, 1.7, 30.8, 32.8), y: SANCTUARY },
+  ],
+  jefOnly: [R(-RAIL.gate, RAIL.gate, RAIL.z0, RAIL.z1), R(16.1, 17.5, 21.4, 21.7)],
+  nodes: [
+    [0, -1.6], [0, 2.4], [0, 6.5], [0, 14], [0, 23.5], [-8.8, 6.5], [-8.8, 14], [-8.8, 23.5], [8.8, 6.5], [8.8, 12.4], [8.8, 23.5],
+    [11.3, 15.5], [16.8, 15.5], [16.8, 20.8],
+  ],
+  marks,
+  sets: {},
+};
+
+/** The hall's walls as boxes (local), for the check that they stand inside the shell and the footprint. */
+export function wallRects(): HRect[] {
+  return [
+    R(-12.55, 12.55, 0.9, IN.west), // the west wall
+    R(-12.55, -IN.aisle, IN.west, IN.east + 0.25), // the aisles' outer walls
+    R(IN.aisle, 12.55, IN.west, IN.east + 0.25),
+    R(-12.55, -IN.choir, IN.east, IN.east + 0.25), // the aisles' east ends
+    R(IN.choir, 12.55, IN.east, IN.east + 0.25),
+    R(CHAPEL.x1, CHAPEL.x1 + 0.25, CHAPEL.z0 - 0.25, CHAPEL.z1 + 0.25), // the Lady Chapel's walls
+    R(12.55, CHAPEL.x1, CHAPEL.z0 - 0.25, CHAPEL.z0),
+    R(12.55, CHAPEL.x1, CHAPEL.z1, CHAPEL.z1 + 0.25),
+  ];
 }
