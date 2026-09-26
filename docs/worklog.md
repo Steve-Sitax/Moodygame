@@ -7,6 +7,7 @@ Git history has the detail of each commit.
 
 ## Waiting for Steve
 
+- Going public: the audit says safe. Steve flips the repo to public himself. Optional: an AGPL section 7 permission for the proprietary Claude Agent SDK (draft in `docs/public-release-check.md`). The commit email steve@sitax.be becomes public with the history.
 - Multiplayer: the plan's questions are answered (see the plan's last part). Go for M8a (walk together) when the menus, character creator and loading screen are in?
 - The clockmaker's pocket watches and the junk-stall clocks: live hands too? (Steve did not pick it: no for now.)
 
@@ -18,13 +19,11 @@ and foot-of-wall dirt.
 
 | Work | Scope and files | Started |
 |---|---|---|
-| Codex: low-poly props and tight collisions | IN PROGRESS. Reference `assets/concepts/quay-props.png`; `modelCollision.ts` + `geom.ts`, only collision sections of `rijnkaai.ts`, props3d/quaygoods/quayfurniture/clutter/streetlife/litter/trades/townplaces loaders. Preserve Props in walls + Picture round placement/registry/sky edits. Six geometry tests pass. Cargo text + matching bump/wet atlas in `build_quaygoods.py`, `quaygoods.glb`, `quaygoods_surface.png`, `propSurface.ts`. Blender review shots `data/shots/tight-assets-*`. Own test stack tight-assets now 5349/8959; T3 preview renderer failing, browser verification pending. No play checkout until verified. | 2026-09-26 |
-| Licence and public check | AGPL-3.0 LICENSE, package.json fields, README licence part, Source link in the game, `docs/public-release-check.md` (secrets in history, third-party files, dependencies) | 2026-09-26 |
+| Codex: low-poly props and tight collisions | IMPLEMENTED + VERIFIED; awaiting coordinated integration with Props in walls/Picture round. See `docs/milestones/M7-tight-props.md`. Generated mood reference, cargo lettering, matching bump/wet atlas; model-triangle collision across shared prop loaders, lively props, stop benches, initial stacks and lamps; navigation uses exact surfaces. Final Chrome jump crossed pyramid (feet max 2.30 m); 398 quay props / 0 placement issues; paths `[]`, shaders `[]`; build and 8 tests pass. Preserve inherited placement/registry and new sky edits; scoped deltas in `data/tight-assets-baseline/` exclude cloud changes. No commit or play checkout by this session: whole shared files contain other helpers' uncommitted work. Test stack 5349/8959 cleaned up. | 2026-09-26 |
 | Picture round 1, 4, 5 + tuning | autumn ground (leaves, dung, straw), clouds, smoke and works chimneys; stronger gutter streams and foot-of-wall dirt; litter.ts, leaves, sky in rijnkaai.ts, ambient.ts, eaves.ts, footDirt constants | 2026-09-26 |
 | Yard windows 3D | the 348 yard-side walls get real windows; build_city.py, city.glb; posters/props/gutters checks stay clean | 2026-09-26 |
 | AI setup, round 2 | a setting: typed lines to any chosen AI (default) or only to Claude; server AI code, `docs/ai-setup.md` | 2026-09-26 |
 | Character creator | name, sex, age, looks, clothes; profile per player id; prompts and lines follow it; `client/src/menu/character.ts`, server profile | 2026-09-26 |
-| Menus, settings, fonts, design | new menu module, `settings.ts`, `style.css`, bundled OFL fonts, graphics presets, key rebinding, the AI setup screen | 2026-09-26 |
 | Loading screen | a boot module, `client/index.html`: progress bar, shaders and textures warmed up front | 2026-09-26 |
 | Empty shop fronts | every cut shop house opening onto a void gets a real use and a real room (Steve's spot next to the bakery) | 2026-09-26 |
 | Job figures walk up | customs, police, thieves, foremen live in the town and walk or run up; no pop-in; `popcheck()` | 2026-09-26 |
@@ -39,6 +38,8 @@ and foot-of-wall dirt.
 
 | Commit | What |
 |---|---|
+| 7d8a3ea | Menus: handbill title, settings (graphics presets, sound, controls rebinding, game, accessibility), AI setup screen, bundled OFL fonts |
+| f1670b1 | Licence AGPL-3.0-or-later, README, `docs/public-release-check.md` (safe to go public) |
 | 26ef905 | The multiplayer plan (design only): `docs/multiplayer-plan.md` |
 | 82cb0ed | This work log |
 | 07063f9 | CLAUDE.md: typed lines only to Claude is Steve's own setup; players pick their AI |
