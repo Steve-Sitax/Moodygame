@@ -17,6 +17,7 @@ import type { RideWalk } from "../player/firstPerson";
 import type { World } from "../world/rijnkaai";
 import type { InWorld } from "../world/inworld";
 import { createCathedralInWorld, type CathedralInWorld } from "../world/cathedralInWorld";
+import { loadStadhuisShell } from "../world/stadhuisShell"; // the town hall in detail (stadhuis.glb)
 import * as PLAN from "../../../shared/cathedralPlan";
 import * as HP from "../../../shared/hallPlan";
 import { makeCoffin, makeWear, type WardrobeRole } from "./wardrobe";
@@ -327,6 +328,7 @@ export class Landmarks {
     this.world = world;
     // M7 halls: the other landmarks stand in the world too, walked into through their doors
     this.halls = hallsInWorld(world, inWorld);
+    loadStadhuisShell(world.scene); // the town hall in detail: its own model, the old one of landmarks.glb hidden
   }
 
   /** M7 funeral: is this person's figure in the hall now (a townsperson of an event walks out of the street only once it has walked out)? */

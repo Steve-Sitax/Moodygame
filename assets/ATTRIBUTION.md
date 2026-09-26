@@ -276,3 +276,22 @@ kept out of the repo.
 | A new painting: the Virgin and Child in glory over kneeling saints (a side altar) | `client/public/textures/cath_paint_saints.jpg` (272 x 400) | "... the Virgin and Child in glory on clouds with angels, above a group of kneeling saints ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `443e184686053e44f6dbdbed5df66dca149bd50a8ebb6b6f6c98300ae985f69a` |
 | A new painting: the adoration of the shepherds (side altars) | `client/public/textures/cath_paint_nativity.jpg` (272 x 400) | "... the newborn child glowing in a manger of straw, the young mother in blue lifting the cloth, rough shepherds with a lamb ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `89c203443a3571cbc323a0c66252a2c7f34b3b8cf519aba20a6a0a4eb558b745` |
 | A new painting: a giant saint carrying a child over a river (side altars) | `client/public/textures/cath_paint_christopher.jpg` (272 x 400) | "... a giant bearded saint wading through a river with a staff, carrying a small child on his shoulders who holds an orb ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `f1e8dba991288fa2d25475960e9504b3f438b2c3cfd26b3e24f68e2b6655c984` |
+
+## Codex pictures: the town hall (the Stadhuis in detail, 2026-09-26)
+
+The town hall on the Grote Markt (`client/src/world/stadhuisShell.ts`, `tools/blender/build_stadhuis.py`): pictures made
+with Codex image generation from our own prompts through `tools/codexImage.mjs` (no example picture, no third-party
+images). Resized by `tools/textures/stadhuis_maps.py`, which also works out each one's height map
+(`stadhuis_<name>_h.png`) from the resized picture itself. A reference impression of the front was made first and kept
+out of the repo. The three coats of arms (`client/public/textures/stadhuis_arms.png` and its height map) are painted
+by that script, not generated. Web pages on the building were read for reference only, nothing copied
+(en.wikipedia.org and nl.wikipedia.org on the Antwerp city hall, aviewoncities.com's page on it).
+
+| Picture | Where in repo | Prompt, in short | Made | Original PNG SHA-256 |
+|---|---|---|---|---|
+| Pale cream limestone ashlar, four courses, fresh 19th-century stone, seamless (the storeys' walls) | `client/public/textures/stadhuis_limestone.jpg` (1024 px, 1.8 x 1.8 m) | "seamless tileable texture ... a wall of pale cream-white limestone ashlar from a Renaissance town hall facade ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `eb37b70b53306968eda4788b3105e0df8374c120a06edad628a984424c843ed2` |
+| Dressed pale limestone without joints, fine tooling, seamless (orders, frames, cornices, statues) | `client/public/textures/stadhuis_carved.jpg` (1024 px, 1.2 x 1.2 m) | "seamless tileable texture ... the smooth dressed surface of pale cream-white limestone without any joints ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `2ba8dac0c9d07f20694a7054f53d1fe92b21b9fda2b6ea2cc46ae4e2405a1f82` |
+| Belgian bluestone, point-tooled, fossil flecks, seamless (the rusticated ground floor, plinths, steps) | `client/public/textures/stadhuis_bluestone.jpg` (1024 px, 1.2 x 1.2 m) | "seamless tileable texture ... the surface of dark Belgian bluestone ... finely point-tooled ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `3826e217a1ec9de56c89276e7a53446ef69bfa25803cd871cdd383651a00c7dc` |
+| Dark blue-grey natural slates in eight courses, lichen, seamless (the roof, the dormers) | `client/public/textures/stadhuis_slate.jpg` (1024 px, 2 x 2 m) | "seamless tileable texture ... a roof of dark blue-grey natural slates laid in overlapping horizontal courses ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `e4d8b82745df51041147099c9f98a80d84c29cba304c49f8fd4a431d8f88b3d6` |
+| An old leaded light, four by five panes of greenish crown glass in lead cames, seamless (every window) | `client/public/textures/stadhuis_glass.jpg` (512 px, 1 x 1.25 m) | "seamless tileable texture ... an old leaded window light: small rectangular panes of slightly uneven greenish-grey crown glass ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `fb67096cf6816aab3467ef786e322356faf4ba3275d0bfe841b9f4546acb65da` |
+| Old dark oak door boards with nailed battens, seamless (the side doors, shop fronts, the gallery's doors) | `client/public/textures/stadhuis_oak.jpg` (512 px, 1.2 x 1.2 m) | "seamless tileable texture ... old dark oak door boards of a nineteenth-century public building ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `0d891081db189c7edf79303851140f8426f8f1fda00cf6a3cf95a035d560733c` |
