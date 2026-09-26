@@ -408,6 +408,18 @@ boxes.clock = () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF });
 jobs.boxes = boxes;
 const night = new Nightlife(world, player, jobs, town);
 night.indoors = () => interiors.inside || landmarks.indoors || carolus.indoors || gothic.indoors || prison.indoors;
+// M7 warmth: where Jef is and whether his lantern is lit go with each tick; the server checks both (server/src/warmth.ts)
+jobs.day.where = () => {
+  const lantern = deeds.lantern.lit;
+  const room = interiors.placeId;
+  if (room) return { at: room.startsWith("tavern:") || room.startsWith("shop:") || room === "poesje" ? room : `home:${room}`, lantern };
+  const hall = landmarks.indoors ? landmarks.inside : null;
+  if (hall) return { at: `landmark:${hall}`, lantern };
+  if (carolus.indoors) return { at: "church:carolus", lantern };
+  if (gothic.indoors) return { at: "church:gothic", lantern };
+  if (prison.indoors) return { at: "prison", lantern };
+  return { at: null, lantern };
+};
 {
   const onPush = jobs.onPush;
   jobs.onPush = (m) => {

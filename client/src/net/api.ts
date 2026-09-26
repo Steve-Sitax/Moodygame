@@ -403,6 +403,19 @@ export interface ActionsPayload {
 /** Anything else the server pushes (M4: actions, events, convo). */
 export type PushMsg = { type: string } & Record<string, unknown>;
 
+/** M7 warmth: where Jef is, as the client says it with each tick: a room ("tavern:ankere", "poesje", "shop:<id>", "home:<id>", "landmark:cathedral", "church:carolus", "church:gothic", "prison") or null outside. */
+export interface WhereReport {
+  at: string | null;
+  lantern: boolean;
+}
+/** M7 warmth: where the server believes Jef is (a room it could check is open, else outside), for the cold. */
+export interface WhereNow {
+  shelter: "outside" | "heated" | "sheltered";
+  place: string | null;
+  label: string;
+  lantern: boolean;
+}
+
 async function call<T>(method: string, url: string, body?: unknown, timeoutMs = 8000): Promise<T> {
   const res = await fetch(url, {
     method,
@@ -439,7 +452,8 @@ export const api = {
     call<TalkLine>("POST", `/api/npc/${npc}/talk`, { kind, text }, 30_000),
   witness: (npc: string, event: "took" | "returned") => call<{ ok: boolean }>("POST", `/api/npc/${npc}/witness`, { event }),
   progress: (id: number, p: Progress) => call<{ job: Job }>("POST", `/api/jobs/${id}/progress`, p),
-  tick: () => call<JobsPayload & { advanced: boolean; night?: Night; ended?: Ending; turned?: DayTurn }>("POST", "/api/tick"),
+  /** M7 warmth: `where` says where Jef is and whether his lantern is lit; the reply says what the server believes (server/src/warmth.ts). */
+  tick: (where?: WhereReport) => call<JobsPayload & { advanced: boolean; night?: Night; ended?: Ending; turned?: DayTurn; where?: WhereNow }>("POST", "/api/tick", { where }),
   /** M7 night: the work is done, the employer is at home asleep; the facts wait for the box at his door. */
   hold: (id: number, report: Report) => call<JobsPayload & { job: Job }>("POST", `/api/jobs/${id}/hold`, report),
   /** Dev (M7 night): the clock on by game minutes the way the game moves it (the date turns at midnight). */

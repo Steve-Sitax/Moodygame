@@ -119,6 +119,48 @@ export function rentPaid(db: DB): boolean {
 
 const clamp = (n: number) => Math.max(0, Math.min(10, n));
 
+/** M7 warmth: hours between two points of warmth lost on foot, with a lantern, out of the wind; the heated room's gain (applyHour). */
+export const WARMTH = {
+  day: 5,
+  night: 3,
+  lanternDay: 6,
+  lanternNight: 4,
+  shelteredDay: 10,
+  shelteredNight: 6,
+  /** In a heated room: +1 at every 2nd hour while warmth is below the cap. */
+  roomEvery: 2,
+  roomCap: 7,
+} as const;
+
+/**
+ * M7 warmth: where Jef is for the cold, as the engine believes it (warmth.ts sets `now`: the client's
+ * report, checked; with no report he is outside). `lantern`: lit in his hand, owned, outside and dry.
+ */
+export type Shelter = "outside" | "heated" | "sheltered";
+export interface JefWhere {
+  shelter: Shelter;
+  lantern: boolean;
+  place: string | null;
+  label: string;
+}
+export const WHERE: { now: (db: DB) => JefWhere } = {
+  now: () => ({ shelter: "outside", lantern: false, place: null, label: "outside" }),
+};
+
+/** How warmth goes this hour for Jef where he is: -1 every `chill` hours (null: no loss), +1 every `gain` hours up to `cap`. */
+export function warmthRule(db: DB, cold: boolean): { chill: number | null; gain: number | null; cap: number; where: JefWhere | null } {
+  const row = rowChillEvery(db, cold);
+  if (row !== null) return { chill: row, gain: null, cap: 10, where: null };
+  // on the omnibus: inside out of the wind; on its roof seat a little better off than on foot
+  const on = ridePlace(db);
+  if (on) return { chill: cold ? (on === "inside" ? WARMTH.shelteredNight : 4) : on === "inside" ? WARMTH.shelteredDay : 7, gain: null, cap: 10, where: null };
+  const at = WHERE.now(db);
+  if (at.shelter === "heated") return { chill: null, gain: WARMTH.roomEvery, cap: WARMTH.roomCap, where: at };
+  if (at.shelter === "sheltered") return { chill: cold ? WARMTH.shelteredNight : WARMTH.shelteredDay, gain: null, cap: 10, where: at };
+  if (at.lantern) return { chill: cold ? WARMTH.lanternNight : WARMTH.lanternDay, gain: null, cap: 10, where: at };
+  return { chill: cold ? WARMTH.night : WARMTH.day, gain: null, cap: 10, where: at };
+}
+
 /**
  * Needs for one game hour awake (engine numbers; eased 2026-09-23 after Steve
  * starved within minutes): food -1 every 6 h, sleep -1 every 3 h, warmth -1
@@ -129,6 +171,16 @@ const clamp = (n: number) => Math.max(0, Math.min(10, n));
  * Food is the same on board as on foot.
  * In a rowing boat (M3j, rowing.ts), in the wind: warmth -1 every 4 h by day (3 in rain or a
  * gale) and every 2 h at night; a long row and hard strokes cost food (rowFood).
+ * M7 warmth (Steve 2026-09-26, docs/milestones/M7-warmth.md; where Jef is: warmth.ts, checked there):
+ * - outside with a lit lantern in his hand, and dry: warmth -1 every 6 h by day and every 4 h at
+ *   night. In rain or a gale, or within two game hours of a swim, the lantern does not help.
+ * - in a heated room (an open tavern or the Poesje, a shop with a stove, his own room with a stove
+ *   or hearth): no loss, and +1 every 2 h by itself up to 7 (WARMTH.roomCap). The fire (E in a
+ *   tavern, the stove at home) still gives its +1 once an hour, up to 10.
+ * - in a big unheated room (the cathedral and the churches, a landmark hall, the prison, a shop
+ *   or a room without a stove): out of the wind, as inside the omnibus: -1 every 10 h by day and
+ *   every 6 h at night; no gain.
+ * The boat and the omnibus are the server's own record and come first; a swim still costs 1 at once.
  */
 export function applyHour(db: DB, hour: number): { healthZero: boolean } {
   const p = player(db);
@@ -136,11 +188,10 @@ export function applyHour(db: DB, hour: number): { healthZero: boolean } {
   if (hour % 6 === 0) food--;
   if (hour % 3 === 0) sleep--;
   const cold = hour >= 20 || hour < 7;
-  // on the omnibus: inside out of the wind; on its roof seat a little better off than on foot
-  const on = ridePlace(db);
-  const chillEvery = rowChillEvery(db, cold) ?? (cold ? (on === "inside" ? 6 : on === "roof" ? 4 : 3) : on === "inside" ? 10 : on === "roof" ? 7 : 5);
+  const rule = warmthRule(db, cold);
   food -= rowFood(db, hour);
-  if (hour % chillEvery === 0) warmth--;
+  if (rule.chill !== null && hour % rule.chill === 0) warmth--;
+  if (rule.gain !== null && hour % rule.gain === 0 && warmth < rule.cap) warmth++;
   food = clamp(food);
   warmth = clamp(warmth);
   sleep = clamp(sleep);
@@ -173,6 +224,11 @@ export function swim(db: DB, now = Date.now()): { cold: boolean } {
   if (now - lastSwimAt < SWIM_EVERY_MS) return { cold: false };
   lastSwimAt = now;
   db.prepare("UPDATE player SET warmth = MAX(0, warmth - 1) WHERE id = 1").run();
+  // M7 warmth: his coat is wet for a while (warmth.ts wetNow: the lantern does not help then)
+  const c = clock(db);
+  db.prepare("INSERT INTO world_state (key, value_json) VALUES ('swam_at', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(
+    JSON.stringify(c.day * 1440 + c.hour * 60 + c.minute),
+  );
   return { cold: true };
 }
 

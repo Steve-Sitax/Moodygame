@@ -53,6 +53,7 @@ import { setPaused, sweepHolders, withGate } from "./save/gate.ts";
 import { dropStealables } from "./town/deeds.ts";
 import { dropGameWords } from "./ballads/guard.ts";
 import { auditCounts, auditSave } from "./town/audit.ts";
+import { reportWhere, whereNow } from "./warmth.ts"; // M7 warmth: where Jef is for the cold
 
 const db = openDb(DB_FILE);
 const stale = closeStaleCalls(db);
@@ -295,13 +296,17 @@ async function epilogue(e: Ending): Promise<void> {
   broadcast({ type: "jobs", ...jobsPayload() });
 }
 
-app.post("/api/tick", (c) => {
+app.post("/api/tick", async (c) => {
+  // M7 warmth: where Jef is and whether his lantern is lit in his hand; checked in warmth.ts, fresh a short while only
+  const body = (await c.req.json().catch(() => null)) as { where?: unknown } | null;
+  reportWhere(body && typeof body === "object" ? body.where : undefined);
   const r = tick(db);
   // M7 night: the date turned at midnight (a new board), or the week ended; a night only if he dropped
   const day = newDayOf(r);
   if (day.due) afterNight(day.ended);
   if (r.advanced) broadcast({ type: "jobs", ...jobsPayload() });
-  return c.json({ ...r, ...jobsPayload() });
+  const w = whereNow(db);
+  return c.json({ ...r, ...jobsPayload(), where: { shelter: w.shelter, place: w.place, label: w.label, lantern: w.lantern } });
 });
 
 app.post("/api/sleep", (c) => {

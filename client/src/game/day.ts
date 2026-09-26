@@ -1,4 +1,4 @@
-import { api, type DayTurn, type Ending, type JobsPayload, type Night } from "../net/api";
+import { api, type DayTurn, type Ending, type JobsPayload, type Night, type WhereNow, type WhereReport } from "../net/api";
 import type { FirstPerson } from "../player/firstPerson";
 import { DOSS_POS, type World } from "../world/rijnkaai";
 import { esc } from "./runs";
@@ -48,6 +48,36 @@ export class Day {
     window.setInterval(() => this.renderClock(), 1000);
     // M7 night: dead tired, the legs drag and the sight swims
     window.setInterval(() => this.tiredness(), 200);
+    // M7 warmth: through a door (or the lantern up or down), the server hears of it now, not at the next tick
+    window.setInterval(() => {
+      if (!this.playing) return;
+      const w = this.where();
+      const key = `${w.at ?? ""}|${w.lantern}`;
+      if (key !== this.whereSent) void this.tick();
+    }, 1000);
+  }
+
+  /**
+   * M7 warmth: set by main: where Jef is (a room's id, or null outside) and whether his lantern is lit in his
+   * hand. Sent with each tick; the server believes only what it can check (server/src/warmth.ts).
+   */
+  where: () => WhereReport = () => ({ at: null, lantern: false });
+  private whereSent = "";
+  /** What the server last believed (the kit and the warm-room line). */
+  whereNow: WhereNow | null = null;
+
+  /** M7 warmth: a line once as Jef comes into a heated room. */
+  private warmRoom(w: WhereNow | undefined): void {
+    if (!w) return;
+    const before = this.whereNow;
+    this.whereNow = w;
+    if (w.shelter !== "heated" || (before?.shelter === "heated" && before.place === w.place)) return;
+    const fire = w.place?.startsWith("tavern:") || w.place === "poesje";
+    // a moment after the door: the room's own line (its smell, who is in) is read first; only if he is still there
+    window.setTimeout(() => {
+      if (this.whereNow?.shelter === "heated" && this.whereNow.place === w.place)
+        this.toast(fire ? "The warmth of the fire gets into your coat." : "The warmth of the stove gets into your coat.");
+    }, 4000);
   }
 
   private tiredT = 0;
@@ -156,7 +186,7 @@ export class Day {
     if (!before || !now || p.ending) return;
     const lines: Array<[number, number, string, string]> = [
       [before.food, now.food, "Your belly aches. Eat something soon: Fientje sells herring, the widow sells biscuit.", "You are starving. Your strength is going. Eat."],
-      [before.warmth, now.warmth, "You are cold to the bone. A bed or a nip of jenever warms you.", "You are freezing. Get under a roof or you will fall ill."],
+      [before.warmth, now.warmth, "You are cold to the bone. A warm room, a bed or a nip of jenever warms you; a lantern or a roof slows the cold.", "You are freezing. Get into a warm room, a tavern or a shop with a stove, or you will fall ill."],
       [before.sleep, now.sleep, "Your eyes close by themselves and your legs drag. Lie down soon (the doss house takes you early when you are this tired), or you will drop where you stand.", "You drop where you stand."],
       [before.health, now.health, "You feel ill. Eat, get warm and sleep.", "You can hardly stand."],
     ];
@@ -187,9 +217,12 @@ export class Day {
     this.busy = true;
     const seq = ++this.sent;
     try {
-      const r = await api.tick();
+      const where = this.where();
+      this.whereSent = `${where.at ?? ""}|${where.lantern}`;
+      const r = await api.tick(where);
       if (!this.fresh(seq)) return;
       this.apply(r);
+      this.warmRoom(r.where);
       if (r.night) this.showNight(r.night);
       else if (r.turned && !r.turned.ended) this.midnight(r.turned);
     } catch {
