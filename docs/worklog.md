@@ -36,13 +36,13 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 | Work | Scope and files | Started |
 |---|---|---|
 | Town wall visual pass | the wall walk still flat: real paving, brick at the right scale, bluestone coping, lawn edge; props (sentry boxes, benches, demolition works if period-true); guards and strollers | 2026-09-26 |
-| Mills: millers and flour transport | millers at the windmills; flour carts to the bakeries and grain from the quays; carry/fetch jobs; bakery flour stock | 2026-09-26 |
 | Codex: low-poly props and tight collisions | SAFE BATCH MERGED + PUSHED `abb6a21` (already live through `9aa9cd4`; reconciled main `98bdebe`): collision core, tree trunks and static stop benches; tree/vegetation design, matching bark bump/wet map. Seven collision tests, clean build, Chrome contact + dry/rain, paths/shaders empty. Test Chrome and isolated 5469/9069 stack cleaned up. HOLD barrels/crates/sacks and other prepared prop-loader changes until Props in walls/Picture round finishes; defer other active assets per Steve. Queue/scope and validation: `docs/milestones/M7-small-assets.md`; original cargo evidence `M7-tight-props.md`. Extra router check: 19 passed, two timeouts (first Codex stub and process-kill test); report to Flaky talk-down/AI owner, no edits to their files. | 2026-09-26 |
 
 ## Live (2026-09-26, after the away batch)
 
 | Commit | What |
 |---|---|
+| 223c486 | The mills at work: millers, flour and grain carts, three mill jobs |
 | 362e03c | Bumps on every textured surface (383 flat -> 8 on purpose); the town wall's own height maps |
 | 5c0d603 | Night fog: no pale outlines; every light seen from far |
 | 5243b63 | Multiplayer M8a: walk together on the home network (docs/milestones/M8a.md) |
