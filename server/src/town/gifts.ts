@@ -1,3 +1,4 @@
+import { sexed } from "../player/profile.ts"; // M7 character: lines said to the player follow the profile
 import type { DB } from "../db.ts";
 import { log } from "../game.ts";
 import { relationship, remember, TRUST_MAX, TRUST_MIN } from "../npcs.ts";
@@ -310,7 +311,7 @@ function knowsStolen(_db: DB, r: Resident, d: DeedRow): boolean {
  */
 export function judgeGift(db: DB, r: Resident, pick: GiftPick, jefWords: string): GiftVerdict {
   const base = { trust: 0, eaten: false, held: pick.held, felt: 0 };
-  const no = (reason: GiftReason, line: string, note = ""): GiftVerdict => ({ ok: false, reason, line, note, ...base });
+  const no = (reason: GiftReason, line: string, note = ""): GiftVerdict => ({ ok: false, reason, line: sexed(db, line), note, ...base });
   if (!pick.held) {
     if (pick.why === "money") return no("money", r.stats.greed >= 7 ? "Money? Keep it. I don't take coin from a lad in the street, whatever I look like." : "Keep your money. You've little enough of it.");
     if (pick.why === "medal") return no("medal", "That's your mother's medal. Put it away and keep it.");
@@ -381,7 +382,7 @@ function applyGiftNow(db: DB, r: Resident, v: GiftVerdict): GiftVerdict {
         : `${she(r)} takes it gladly enough.`;
   const line = v.eaten
     ? r.age < 13
-      ? `For me? Thank you, mister!`
+      ? sexed(db, `For me? Thank you, mister!`)
       : `${what[0].toUpperCase() + what.slice(1)}. God bless you, I've not eaten since this morning.`
     : worth
       ? r.stats.warmth >= 6

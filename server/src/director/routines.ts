@@ -1,3 +1,4 @@
+import { sexed } from "../player/profile.ts"; // M7 character: lines said to the player follow the profile
 import type { DB } from "../db.ts";
 import { CALLS_PER_DAY, CALLS_RESERVE, ROUTINE_CALLS_PER_DAY } from "../config.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
@@ -832,7 +833,7 @@ function cleanGoal(g: string): string {
 export function personRefusal(db: DB, r: Resident): { kind: ErrandRefusal; line: string } | null {
   const now = nowOf(db, r);
   const h = clock(db).hour;
-  if (r.age < 8) return { kind: "child", line: LINES.child };
+  if (r.age < 8) return { kind: "child", line: sexed(db, LINES.child) };
   if (TOWN_EMPLOYER_IDS.includes(r.id) || r.work.kind === "guard" || ((["police", "water_bailiff", "customs", "priest", "sexton"] as string[]).includes(r.trade) && now.act === "work")) return { kind: "post", line: LINES.post };
   if (isKeeperAtWork(db, r)) return { kind: "at_stall", line: LINES.at_stall };
   if (now.act === "home" && (h >= 22 || h < 5)) return { kind: "night", line: LINES.night };

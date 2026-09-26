@@ -64,6 +64,8 @@ if (import.meta.env.DEV) Object.assign(window, { __mirrors: mirrorsForDev, __psx
 
 /** The mirrors' own cameras: a mirror is not drawn again inside another mirror's picture. */
 const mirrorCams = new WeakSet<THREE.Camera>();
+/** M7 character: is this camera a mirror's (the player's own body draws only there: player/body.ts)? */
+export const isMirrorCamera = (cam: THREE.Camera): boolean => mirrorCams.has(cam);
 
 /** Mirror pictures grow with the render height (settings): 1 = 320 x 180 at 270 lines. */
 let mirrorScale = 1;

@@ -9,6 +9,7 @@ import { anthropicRunner, ollamaRunner, openaiRunner } from "./http.ts";
 import { resolveRoute, type Route } from "./router.ts";
 import { scrubKeys } from "./setup.ts";
 import { callBegan, callEnded, holdResult, waitToStart } from "../save/gate.ts";
+import { playerIn, playerOut } from "../player/prompt.ts";
 
 // One way to call a model: no tools, our own system prompt, JSON schema output. docs/02 and docs/03.
 // The router (router.ts, MODEL_ROUTE in config.ts) picks the model per hook: Claude through the
@@ -81,7 +82,8 @@ export async function callClaude<S extends z.ZodType>(
   await waitToStart();
   callBegan();
   try {
-    const r = await callModel(db, req, runner);
+    // M7 character: the player's name, words and look go in; the name comes back as "Jef" (player/prompt.ts)
+    const r = playerOut(db, await callModel(db, playerIn(db, req), runner));
     await holdResult();
     return r;
   } finally {

@@ -28,6 +28,9 @@ import { LanternLights } from "./world/lanternLights";
 import { createSpill, setSpillBudget, spillBudget } from "./world/spill";
 import { ShaderWarmer } from "./world/warmup";
 import { FirstPerson } from "./player/firstPerson";
+// M7 character: the player's profile and the body dressed from it (player/profile.ts, player/body.ts)
+import { PlayerBody } from "./player/body";
+import { loadProfile } from "./player/profile";
 import { Soundscape, type VehicleSound } from "./audio/soundscape";
 import { Jobs } from "./game/jobs";
 import CITY from "../../shared/city.json";
@@ -399,6 +402,10 @@ const families = new Families(world, player, jobs, town);
 const steps = new Steps(world, player, town, crowd, jobs);
 steps.say = (t) => jobs.say(t);
 const hands = new Hands(player, jobs, town, crowd, interiors, steps);
+// M7 character: the player's body in the world (the reflections and a lantern's shadow see it; the eye sees
+// the forearms: hands.ts, lantern.ts), dressed from the profile the server keeps
+const meBody = new PlayerBody(world.scene, player);
+void loadProfile();
 hands.say = (t) => jobs.say(t);
 hands.sfx = (n) => sound?.play(n);
 {
@@ -984,6 +991,7 @@ function frame(): void {
   safe("actions.update", () => actions.update(dt));
   safe("steps.update", () => steps.update(dt, routinesRun()));
   safe("hands.update", () => hands.update(dt, routinesRun()));
+  safe("meBody.update", () => meBody.update(dt)); // M7 character
   safe("families.update", () => families.update(dt));
   safe("events.update", () => events.update(dt, player));
   safe("hearses.update", () => hearses.update(dt, player, events.list));
@@ -1474,6 +1482,7 @@ if (import.meta.env.DEV) {
         actions.update(dt);
         steps.update(dt, routinesRun());
         hands.update(dt, routinesRun());
+        meBody.update(dt); // M7 character
         families.update(dt);
         events.update(dt, player);
         hearses.update(dt, player, events.list);

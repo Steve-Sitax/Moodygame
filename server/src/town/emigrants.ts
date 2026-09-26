@@ -1,3 +1,4 @@
+import { sexed } from "../player/profile.ts"; // M7 character: lines said to the player follow the profile
 import type { DB } from "../db.ts";
 import { clock } from "../day.ts";
 import { remember, applyTrust } from "../npcs.ts";
@@ -1317,7 +1318,7 @@ export function installEmigrantTalk(): void {
         answer: (db2, r2) => {
           const w = warnFamily(db2, r2.id);
           if (!w.ok) return { text: "Which man? He is gone already." };
-          return { text: pickBy(r2.id, ["False? But he has a stamp, and a paper with an eagle... No. You are right, the price was too good. Thank you, thank you. We keep our money.", "Oh. Oh, God. We almost paid him everything. Thank you, young man. We ask at the real office.", "False? Then he is a thief with a nice coat. Thank you. We do not forget this."]) + w.text, trust: w.trust };
+          return { text: sexed(db2, pickBy(r2.id, ["False? But he has a stamp, and a paper with an eagle... No. You are right, the price was too good. Thank you, thank you. We keep our money.", "Oh. Oh, God. We almost paid him everything. Thank you, young man. We ask at the real office.", "False? Then he is a thief with a nice coat. Thank you. We do not forget this."]) + w.text), trust: w.trust };
         },
       });
     }
@@ -1329,7 +1330,7 @@ export function installEmigrantTalk(): void {
           if (!rep.ok) return { text: "I'll keep my eyes open on the quay." };
           const runner = town(db2).byId.get(e.runner);
           return {
-            text: `False tickets? That'll be ${runner?.first ?? "one of the runners"} ${runner?.surname ?? ""}, he works the lodging houses. We'll have him in the cell tonight${rep.returned ? ", and the family's money back out of his pockets" : ""}. Good lad.`.replace(/\s+,/g, ","),
+            text: sexed(db2, `False tickets? That'll be ${runner?.first ?? "one of the runners"} ${runner?.surname ?? ""}, he works the lodging houses. We'll have him in the cell tonight${rep.returned ? ", and the family's money back out of his pockets" : ""}. Good lad.`.replace(/\s+,/g, ",")),
             trust: 1,
           };
         },

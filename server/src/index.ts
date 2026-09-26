@@ -10,6 +10,9 @@ import { closeStaleCalls } from "./ai/claude.ts";
 import { mountAiSetup } from "./ai/routes.ts"; // the AI setup: which AI per kind of work, the test, walk-around mode
 import { loadAiSetup } from "./ai/setup.ts";
 import { plainEnglish } from "./text.ts";
+import { mountPlayer } from "./player/routes.ts"; // M7 character: the player's profile
+import { hasProfile } from "./player/profile.ts";
+import { shownJson } from "./player/prompt.ts";
 import { BEDTIME, clock, DAWN, ending, fogDay, markDayStart, newDayOf, passTime, payRent, RENT_C, rentPaid, resetTickLimit, setEnding, setWeather, sleep, swim, tick, type Ending } from "./day.ts";
 import { writeEpilogue } from "./hooks/epilogue.ts";
 import { resetTalks } from "./hooks/dialogue.ts";
@@ -77,6 +80,16 @@ const tooLarge = (c: Parameters<MiddlewareHandler>[0]) => c.json({ error: "too l
 const apiLimit = bodyLimit({ maxSize: 64 * 1024, onError: tooLarge });
 const shotLimit = bodyLimit({ maxSize: 16 * 1024 * 1024, onError: tooLarge }); // a dev picture of the game
 app.use("/api/*", (c, next) => (c.req.path === "/api/dev/shot" ? shotLimit : apiLimit)(c, next));
+// M7 character: the engine's text says "Jef"; what the browser reads says the player's name, and "the
+// farm boy", "a young man on the quays" follow the profile (player/prompt.ts shownJson). No profile: as it was.
+app.use("/api/*", async (c, next) => {
+  await next();
+  if (c.req.path.startsWith("/api/player/") || !/json/i.test(c.res.headers.get("content-type") ?? "") || !hasProfile(db)) return;
+  const text = await c.res.text();
+  const headers = new Headers(c.res.headers);
+  headers.delete("content-length");
+  c.res = new Response(shownJson(db, text), { status: c.res.status, headers });
+});
 // Every paid action refreshes the money on screen (QA 2026-09-24: 5 c behind after the fortune,
 // paid in a talk choice): a POST that changed Jef's money pushes the new payload to the client.
 app.use("/api/*", async (c, next) => {
@@ -155,6 +168,8 @@ mountWalkup(app, { db });
 mountRoutines(app, { db, payload: () => jobsPayload() });
 // M7 ferry arrival: a new week begins with Jef on the ferry's deck at the Werf pontoon (arrival.ts)
 mountArrival(app, { db });
+// M7 character: the player's profile, by player id (player/routes.ts)
+mountPlayer(app, { db });
 // M7 night: the night's work from the shady givers, the gangs, the quest boxes' settling (night/)
 mountNight(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m), afterNight: (e) => afterNight(e) });
 
@@ -592,12 +607,12 @@ wss.on("connection", (ws, req) => {
   ws.on("close", () => {
     if (id && ![...wss.clients].some((o) => o !== ws && clientOf.get(o) === id)) setPaused(id, false);
   });
-  ws.send(JSON.stringify({ type: "jobs", ...jobsPayload() }));
+  ws.send(shownJson(db, JSON.stringify({ type: "jobs", ...jobsPayload() })));
 });
 setInterval(() => sweepHolders(new Set([...wss.clients].map((o) => clientOf.get(o)).filter((x): x is string => !!x))), 30_000).unref();
 
 function broadcast(msg: unknown): void {
-  const s = JSON.stringify(msg);
+  const s = shownJson(db, JSON.stringify(msg)); // M7 character: the player's name in every push
   for (const c of wss.clients) if (c.readyState === WebSocket.OPEN) c.send(s);
 }
 

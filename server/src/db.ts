@@ -25,6 +25,8 @@ import { ensureStanding } from "./town/standing.ts";
 import { ARRIVAL_KEY, ARRIVAL_TEXT } from "./arrival.ts";
 import { shortenOffered } from "./hooks/jobBoard.ts";
 import { CLIENT_STATE_SQL } from "./save/schema.ts";
+// M7 character: the player's profile by player id; a new week's player row takes its name (player/profile.ts)
+import { PROFILE_SQL, seedName } from "./player/profile.ts";
 
 // SQLite schema from docs/04-data-model.md. Only the server writes.
 // Delete data/game.sqlite to start over.
@@ -231,6 +233,8 @@ function migrate(db: DB): void {
   if (!cols("town_event").includes("leads_json")) db.exec("ALTER TABLE town_event ADD COLUMN leads_json TEXT NOT NULL DEFAULT '[]'");
   // M7 save and pause: the browser's side of a save, per player (save/schema.ts)
   db.exec(CLIENT_STATE_SQL);
+  // M7 character: the player's profile (none in an older save: today's Jef)
+  db.exec(PROFILE_SQL);
 }
 
 /**
@@ -283,8 +287,8 @@ function seed(db: DB): void {
     // docs/01: 50 centimes, a thin coat, a bed in Sint-Andries. Day 1, dawn.
     db.prepare(
       `INSERT INTO player (id, name, money_c, food, warmth, health, sleep, day, hour, district, rent_paid_until)
-       VALUES (1, 'Jef', 50, 7, 7, 8, 7, 1, 6, 'rijnkaai', 0)`,
-    ).run();
+       VALUES (1, ?, 50, 7, 7, 8, 7, 1, 6, 'rijnkaai', 0)`,
+    ).run(seedName(db));
     const ft = db.prepare("INSERT INTO faction_trust (faction, trust) VALUES (?, 0)");
     for (const f of FACTIONS) ft.run(f);
     const np = db.prepare("INSERT INTO npc (id, name, role, district, faction) VALUES (?, ?, ?, ?, ?)");

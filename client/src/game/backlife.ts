@@ -1,3 +1,4 @@
+import { toMeOr } from "../player/profile"; // M7 character: lines said to the player follow the profile
 import * as THREE from "three";
 import { psx } from "../retro/psx";
 import type { World } from "../world/rijnkaai";
@@ -599,7 +600,7 @@ export class BackLife {
     const gr = this.group(k.place, "step");
     if (jd < 4.5 && gr.menaceT <= 0 && k.motion === "sit") {
       gr.menaceT = 90;
-      const text = line("step", `${s.r.id}:${Math.floor(performance.now() / 30000)}`, this.vars([s], s));
+      const text = toMeOr(line("step", `${s.r.id}:${Math.floor(performance.now() / 30000)}`, this.vars([s], s)));
       if (text) this.lineOver(s, text);
     }
     return true;
@@ -730,7 +731,7 @@ export class BackLife {
         k.phase = "back";
       } else this.stand(p, k, "idle", null);
       if (dist(p.x, p.z, this.player.x, this.player.z) < 14) {
-        const text = line("drunk", `${s.r.id}:${Math.floor(performance.now() / 7000)}`, this.vars([s], s));
+        const text = toMeOr(line("drunk", `${s.r.id}:${Math.floor(performance.now() / 7000)}`, this.vars([s], s)));
         if (text) this.lineOver(s, text);
       }
       return true;
@@ -1152,7 +1153,7 @@ export class BackLife {
       g.menaceT = 45;
       const night = isNight(this.clock().hour);
       const s = who[Math.floor(Math.random() * who.length)];
-      const t = line(night ? "menace_night" : "menace", `${g.place}:${Math.floor(performance.now() / 1000)}`, this.vars(who, s));
+      const t = toMeOr(line(night ? "menace_night" : "menace", `${g.place}:${Math.floor(performance.now() / 1000)}`, this.vars(who, s)));
       if (t) g.queue.push({ who: s, text: t });
     }
   }

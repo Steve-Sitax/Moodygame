@@ -1,3 +1,4 @@
+import { sexed } from "../player/profile.ts"; // M7 character: lines said to the player follow the profile
 import type { DB } from "../db.ts";
 import { clock } from "../day.ts";
 import { log } from "../game.ts";
@@ -116,5 +117,5 @@ export function ranInChurch(db: DB, witnesses: unknown): HushResult {
     : delta
       ? "Heads turn along the rows. The church will remember that."
       : "Heads turn. You slow down.";
-  return { counted: true, strike, line: hiss.text, speaker: hiss.who, delta, leave, text };
+  return { counted: true, strike, line: sexed(db, hiss.text), speaker: hiss.who, delta, leave, text };
 }

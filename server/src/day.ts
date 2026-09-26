@@ -1,3 +1,4 @@
+import { sexed } from "./player/profile.ts"; // M7 character: lines said to the player follow the profile
 import type { DB } from "./db.ts";
 import { log, player } from "./game.ts";
 import { spreadRumours } from "./town/rumours.ts";
@@ -509,7 +510,7 @@ export function consolidate(db: DB): void {
 export function payRent(db: DB): { paid: boolean; text: string } {
   if (rentPaid(db)) return { paid: false, text: "The landlady waves you off. \"Paid till Sunday. Go and work.\"" };
   const p = player(db);
-  if (p.money_c < RENT_C) return { paid: false, text: `"${RENT_C} centimes for the week, lad, and you have ${p.money_c}. Sunday is Sunday."` };
+  if (p.money_c < RENT_C) return { paid: false, text: sexed(db, `"${RENT_C} centimes for the week, lad, and you have ${p.money_c}. Sunday is Sunday."`) };
   db.transaction(() => {
     db.prepare("UPDATE player SET money_c = money_c - ?, rent_paid_until = ? WHERE id = 1").run(RENT_C, WEEK_DAYS);
     log(db, "paid_rent", null, `Jef paid the week's rent at the doss house, ${RENT_C} centimes.`);

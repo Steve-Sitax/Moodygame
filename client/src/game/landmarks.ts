@@ -1,3 +1,4 @@
+import { toMe } from "../player/profile"; // M7 character: lines said to the player follow the profile
 import * as THREE from "three";
 import "./landmarks.css";
 import type { FirstPerson } from "../player/firstPerson";
@@ -1154,7 +1155,7 @@ export class Landmarks {
       return;
     }
     const n = this.now;
-    if (n?.barred) return this.putOut('The beadle stands in the doorway, his staff across it. "Not today, young man. You had your chance."');
+    if (n?.barred) return this.putOut(toMe('The beadle stands in the doorway, his staff across it. "Not today, young man. You had your chance."'));
     if (n && this.t - this.welcomedAt > 90) {
       this.welcomedAt = this.t;
       this.say(this.welcome(n));

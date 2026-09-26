@@ -288,7 +288,7 @@ YOU NOW MAKE A STRANGER WHO HAS JUST COME TO ANTWERP, autumn 1873, off a ship or
 - first, surname: a name that fits where they come from (Holland, England, Germany, France, Norway, the Walloon country, the
   Kempen). origin: that town or country. Never a famous person.
 - story: two short sentences, who they are and why they came. goal: what they want in Antwerp, small and concrete.
-- secret: one thing they hide (not a crime of blood). greeting: the first thing they say to a young man who stops them.
+- secret: one thing they hide (not a crime of blood). greeting: the first thing they say to Jef, a young man, who stops them.
 - No weapons, no killing. ${LANGUAGE_RULE.replace(/\s*\n\s*/g, " ")}`;
 
 const STRANGER_FALLBACK: Record<StrangerKind, { first: string; surname: string; origin: string; story: string; goal: string; secret: string; greeting: string }> = {

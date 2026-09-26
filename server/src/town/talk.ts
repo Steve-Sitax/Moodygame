@@ -1,3 +1,4 @@
+import { sexed, shownText } from "../player/profile.ts"; // M7 character: lines said to the player follow the profile
 import { z } from "zod";
 import { playNow } from "../save/gate.ts";
 import type { DB } from "../db.ts";
@@ -344,8 +345,8 @@ function youHeard(rs: Rumour[]): Rumour | null {
 function openingText(db: DB, r: Resident, mood: string, met: number): string {
   const seed = `${r.id}:${met}:${clockOf(db).day}:${clockOf(db).hour}`;
   const own = firstOf(talkExtras.greet.map((f) => () => f(db, r, mood, met)));
-  if (own) return own;
-  if (r.age < 13) return pickBy(seed, CHILD_GREET);
+  if (own) return sexed(db, own);
+  if (r.age < 13) return sexed(db, pickBy(seed, CHILD_GREET));
   const h = clockOf(db).hour;
   let line = pickBy(seed, fitHour(GREET[mood] ?? GREET.neutral, h));
   const heard = youHeard(rumoursOf(db, r.id, 3).filter((h) => stillTrue(db, h.fact)));
@@ -358,7 +359,7 @@ function openingText(db: DB, r: Resident, mood: string, met: number): string {
     line += pickBy(seed + "m", [" You again.", " Back again, are you?", ""]);
   } else {
     const w = TRADE_WORD[r.trade];
-    if (w) line += " " + pickBy(seed + "t", fitHour(w, h));
+    if (w) line += " " + sexed(db, pickBy(seed + "t", fitHour(w, h)));
   }
   return line;
 }
@@ -674,7 +675,7 @@ export async function residentChoice(db: DB, id: string, choice: string, runner?
   const r = need(db, id);
   const sess = sessionFor(id);
   // as offered, or as the client showed it (plainEnglish)
-  const said = [...sess.offered.keys()].find((k) => k.slice(0, 120) === choice.slice(0, 120) || plainEnglish(k).slice(0, 120) === choice.slice(0, 120));
+  const said = [...sess.offered.keys()].find((k) => k.slice(0, 120) === choice.slice(0, 120) || plainEnglish(k).slice(0, 120) === choice.slice(0, 120) || shownText(db, plainEnglish(k)).slice(0, 120) === choice.slice(0, 120));
   if (said === undefined) {
     const own = await residentFree(db, id, choice, runner);
     if (!("npc_line" in own)) throw new GameError(`not said (${own.gated})`, own.gated === "too fast" ? 409 : 400);
@@ -715,7 +716,7 @@ export async function residentFree(db: DB, id: string, raw: string, runner?: Run
       "Jef said something strange that made no sense.",
     );
     remember(db, id, "Jef talked strange at me, words that made no sense.", 4, "seen", null, { gist: "Jef talked strange, about things nobody understands", tone: -1 });
-    const text = r.stats.temper >= 7 ? "Talk sense or clear off." : r.age < 13 ? "You talk funny, mister." : "Hm? Are you ill? You're not making sense.";
+    const text = sexed(db, r.stats.temper >= 7 ? "Talk sense or clear off." : r.age < 13 ? "You talk funny, mister." : "Hm? Are you ill? You're not making sense.");
     return { ...apply(db, r, sess, { ...engineLine(db, r, sess, text), mood: "suspicious" }), gated: "blocked", note: `${r.sex === "f" ? "She" : "He"} looks at you as if you had been drinking.` };
   }
   markFreeLine();

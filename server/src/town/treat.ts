@@ -1,3 +1,4 @@
+import { sexed } from "../player/profile.ts"; // M7 character: lines said to the player follow the profile
 import type { DB } from "../db.ts";
 import { clock } from "../day.ts";
 import { GameError, player } from "../game.ts";
@@ -78,7 +79,7 @@ const treatedKey = (db: DB, npc: string) => `treat:${clock(db).day}:${npc}`;
 
 /** Would this person come for a drink with Jef now? The engine's check (no side effects). */
 export function judgeTreat(db: DB, r: Resident, words: string, at: { jef: { x: number; z: number } | null; mine: Where }): { ok: true; tavern: { place: string; label: string; x: number; z: number } } | { ok: false; line: string } {
-  const no = (line: string) => ({ ok: false as const, line });
+  const no = (line: string) => ({ ok: false as const, line: sexed(db, line) });
   const now = nowOf(db, r);
   const h = clock(db).hour;
   if (r.age < 16) return no("A tavern? Mother would have my ears, mister.");

@@ -219,7 +219,7 @@ export function fallbackTaunts(r: Resident): Taunts {
   return {
     greet: hot ? "Sit, then. And keep your hands where I can see them." : kind ? "A throw or two? Why not, it's a long evening." : "Dice? Put your money down first.",
     jef_wins: hot ? ["Luck. Pure dumb luck.", "Again. Now."] : ["Well thrown, curse you.", "The dice like a new face."],
-    patron_wins: hot ? ["Ha! Pay up, farm boy.", "That's the Kempen for you."] : kind ? ["Sorry, lad. The cup was kind to me.", "Better luck on the next one."] : ["Mine.", "Thank you kindly."],
+    patron_wins: hot ? ["Ha! Pay up, farm boy.", "That's the Kempen for you."] : kind ? ["Sorry, friend. The cup was kind to me.", "Better luck on the next one."] : ["Mine.", "Thank you kindly."],
     draw: "Nobody's the richer. Throw again.",
     refuse: hot ? "Enough. My purse is shut for tonight." : "No more for me tonight, I've a wife to answer to.",
   };

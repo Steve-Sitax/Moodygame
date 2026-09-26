@@ -1,3 +1,4 @@
+import { fpArm } from "../player/body"; // M7 character: the player's own sleeve and hand
 import * as THREE from "three";
 import type { FirstPerson } from "../player/firstPerson";
 import type { JobsPayload, PushMsg, TalkLine } from "../net/api";
@@ -94,6 +95,12 @@ function makeArm(kind: string): { root: THREE.Group; thing: THREE.Object3D } {
   const thing = thingMesh(kind);
   thing.position.set(0, 0.022, -0.02);
   root.add(sleeve, cuff, hand, fingers, thumb, thing);
+  // M7 character: the player's own forearm, as dressed (a woman's blouse sleeve, a man's coat and cuff)
+  const own = fpArm("give");
+  if (own) {
+    for (const o of [sleeve, cuff, hand, fingers, thumb]) o.visible = false;
+    root.add(own);
+  }
   // the camera's near plane is close; keep it drawn over the scene's fog
   root.traverse((o) => {
     const m = (o as THREE.Mesh).material as THREE.Material | undefined;

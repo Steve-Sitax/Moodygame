@@ -1,3 +1,4 @@
+import { sexed } from "../player/profile.ts"; // M7 character: lines said to the player follow the profile
 import type { DB } from "../db.ts";
 import { clock, SLEEP_HOOKS, type SleepInfo } from "../day.ts";
 import { GameError, log, player } from "../game.ts";
@@ -269,7 +270,7 @@ export function resolveGang(db: DB, id: number, how: GangHow, facts: GangFacts =
     if (p.money_c >= g.demand_c) {
       db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(g.demand_c);
       log(db, "paid_off", null, `Jef paid a gang ${g.demand_c} centimes in the street at night to leave him be.`);
-      res = { outcome: "paid", text: `You count ${g.demand_c} centimes into a dirty palm. "Sensible lad." They melt back into the dark.`, money_c: g.demand_c, health_lost: 0, things: [], hands: "keep" };
+      res = { outcome: "paid", text: sexed(db, `You count ${g.demand_c} centimes into a dirty palm. "Sensible lad." They melt back into the dark.`), money_c: g.demand_c, health_lost: 0, things: [], hands: "keep" };
     } else res = rob(db, g, 0, "Not enough in your purse. They go through your coat for the rest.");
   } else if (how === "run") {
     const odds = ODDS.run + (carrying ? ODDS.runCarrying : 0) + t * ODDS.runTipsy + (tired ? ODDS.runTired : 0) + (p.health <= 3 ? ODDS.runWeak : 0);

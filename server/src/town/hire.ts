@@ -1,3 +1,4 @@
+import { sexed } from "../player/profile.ts"; // M7 character: lines said to the player follow the profile
 import { z } from "zod";
 import type { DB } from "../db.ts";
 import { HANDS_CALLS_PER_DAY } from "../config.ts";
@@ -257,8 +258,8 @@ export function proposeHire(db: DB, r: Resident, p: ActionProposal, words: strin
   if (!WORK_RE.test(text)) return said(r, "Work for you? Doing what?");
   const now = nowOf(db, r);
   const h = clock(db).hour;
-  if (r.age < 14) return said(r, "I'm too small for that, mister. Ask a grown man.");
-  if (r.age > 62) return said(r, "My back's past carrying, lad. Ask a younger man.");
+  if (r.age < 14) return said(r, sexed(db, "I'm too small for that, mister. Ask a grown man."));
+  if (r.age > 62) return said(r, sexed(db, "My back's past carrying, lad. Ask a younger man."));
   if (TOWN_EMPLOYER_IDS.includes(r.id) || r.work.kind === "guard" || ((r.trade === "police" || r.trade === "water_bailiff" || r.trade === "customs" || r.trade === "priest" || r.trade === "sexton") && now.act === "work"))
     return said(r, "I can't leave my post. Ask someone with time on their hands.");
   if (now.act === "home" && (h >= 22 || h < 5)) return said(r, "At this hour? I'm for my bed.");

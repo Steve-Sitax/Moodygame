@@ -153,6 +153,11 @@ export function whenHumans(cb: () => void): void {
     });
 }
 
+/** M7 character: the townspeople's clips (rotations only), for the player's figure (player/look.ts); null until loaded. */
+export function peopleClips(): Map<string, THREE.AnimationClip> | null {
+  return template?.clips ?? null;
+}
+
 /** A new person of this kind, or null while the models are not loaded. */
 export function makeHuman(kind: HumanKind): Human | null {
   if (!template) {

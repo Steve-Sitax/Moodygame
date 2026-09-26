@@ -1,3 +1,4 @@
+import { sexed } from "../player/profile.ts"; // M7 character: lines said to the player follow the profile
 import type { DB } from "../db.ts";
 import type { Runner } from "../ai/claude.ts";
 import { clock } from "../day.ts";
@@ -591,7 +592,7 @@ export function validateProposal(db: DB, r: Resident, raw: unknown): Accepted | 
   if (keeper) return refuse("at_stall");
   // the guard (town/garrison.ts): a sentry or the corporal is on guard the whole day, at the post or in the guard room
   if (r.work.kind === "guard") return refuse("post");
-  if (r.age < 13 && (p.kind === "talk_to" || p.kind === "fetch_police" || p.kind === "look_for")) return refuse("child");
+  if (r.age < 13 && (p.kind === "talk_to" || p.kind === "fetch_police" || p.kind === "look_for")) return refuse("child", sexed(db, REFUSE_LINE.child));
 
   // the stats
   if (p.kind === "follow") {

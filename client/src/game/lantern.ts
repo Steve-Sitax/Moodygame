@@ -1,3 +1,4 @@
+import { holdArm } from "../player/body"; // M7 character: the hand that holds the lantern
 import * as THREE from "three";
 import { psx, psxUniforms } from "../retro/psx";
 import type { FirstPerson } from "../player/firstPerson";
@@ -123,6 +124,8 @@ export class HandLantern {
     });
     this.view.visible = false;
     player.camera.add(this.view);
+    // M7 character: the player's own hand round the ring, the sleeve as dressed (player/body.ts)
+    holdArm(this.view, "lantern");
   }
 
   get lit(): boolean {

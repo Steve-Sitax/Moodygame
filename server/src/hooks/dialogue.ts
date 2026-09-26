@@ -1,3 +1,4 @@
+import { sexed, shownText } from "../player/profile.ts"; // M7 character: lines said to the player follow the profile
 import { z } from "zod";
 import { playNow } from "../save/gate.ts";
 import { weather, WEATHER_TEXT } from "../day.ts";
@@ -126,7 +127,9 @@ export function fenceTurns(turns: string[]): string[] {
 
 async function generate(db: DB, id: string, hook: "dialogue" | "free_reply", scene: string, turns: string[], runner?: Runner): Promise<Line> {
   const res = await callClaude(db, { hook, system: SYSTEM + "\n" + DIALOGUE_RULES, prompt: buildPrompt(db, id, scene, turns), schema: LineSchema }, runner);
-  return res.ok && res.data ? res.data : fallbackLine(id);
+  if (res.ok && res.data) return res.data;
+  const fb = fallbackLine(id);
+  return { ...fb, npc_line: sexed(db, fb.npc_line) };
 }
 
 const FALLBACK_LINES: Record<string, string> = {
@@ -164,7 +167,8 @@ function apply(db: DB, id: string, talk: Talk, line: Line): Line & { trust_appli
   talk.turns.push(`- ${npcRow(db, id)!.name}: ${line.npc_line}`);
   talk.lastAt = playNow();
   // the client gets the choices through plainEnglish (index.ts): both forms count as offered
-  talk.offered = new Set(line.choices.flatMap((c) => [c.slice(0, 160), plainEnglish(c).slice(0, 160)]));
+  // (M7 character: and as the browser shows it, with the player's name in: player/prompt.ts shownJson)
+  talk.offered = new Set(line.choices.flatMap((c) => [c.slice(0, 160), plainEnglish(c).slice(0, 160), shownText(db, plainEnglish(c)).slice(0, 160)]));
   talk.last = line;
   return { ...line, trust_applied: applied };
 }
@@ -267,7 +271,7 @@ export async function freeReply(db: DB, id: string, raw: string, runner?: Runner
       "Jef said something strange that made no sense on the kaai.",
     );
     remember(db, id, "Jef talked strange at me, words that made no sense.", 4, "seen", null, { gist: "Jef talked strange, about things nobody understands", tone: -1 });
-    const line: Line = { ...fallbackLine(id), npc_line: CANNED[id] ?? "They stare at you.", mood: "suspicious", end_conversation: false };
+    const line: Line = { ...fallbackLine(id), npc_line: sexed(db, CANNED[id] ?? "They stare at you."), mood: "suspicious", end_conversation: false };
     return { ...apply(db, id, talk, line), gated: "blocked" };
   }
   lastFreeAt = Date.now();

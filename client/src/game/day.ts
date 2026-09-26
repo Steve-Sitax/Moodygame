@@ -1,3 +1,4 @@
+import { aboutMe, me } from "../player/profile"; // M7 character: the player's name and words
 import { api, type DayTurn, type Ending, type JobsPayload, type Night, type WhereNow, type WhereReport } from "../net/api";
 import type { FirstPerson } from "../player/firstPerson";
 import { DOSS_POS, type World } from "../world/rijnkaai";
@@ -295,7 +296,7 @@ export class Day {
     this.open("end");
     const body = e.epilogue
       ? `<h2>${esc(e.epilogue.title)}</h2>${e.epilogue.paragraphs.map((p) => `<p>${esc(p)}</p>`).join("")}`
-      : `<h2>${e.kind === "health" ? "The end of Jef" : "Sunday night"}</h2><p class="wait">Somebody is writing down what became of him &hellip;</p>`;
+      : `<h2>${e.kind === "health" ? aboutMe("The end of Jef") : "Sunday night"}</h2><p class="wait">Somebody is writing down what became of ${me().sex === "woman" ? "her" : "him"} &hellip;</p>`;
     this.sheet.innerHTML = `${body}<p class="keys">${e.epilogue ? "N  start a new week" : ""}</p>`;
   }
 
@@ -321,11 +322,21 @@ export class Day {
   }
 
   private async newWeek(): Promise<void> {
+    // M7 character: "Your character" first (menu/character.ts); the new week once the server has it
+    if (document.querySelector(".char-sheet")) return;
+    const start = async () => {
+      try {
+        await api.newGame();
+        location.reload();
+      } catch (e) {
+        this.toast((e as Error).message);
+      }
+    };
     try {
-      await api.newGame();
-      location.reload();
-    } catch (e) {
-      this.toast((e as Error).message);
+      const { openCharacterCreator } = await import("../menu/character");
+      openCharacterCreator(() => void start());
+    } catch {
+      await start();
     }
   }
 

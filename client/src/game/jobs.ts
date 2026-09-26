@@ -1,3 +1,4 @@
+import { toMe } from "../player/profile"; // M7 character: lines said to the player follow the profile
 import * as THREE from "three";
 import { doorSpot } from "../world/city";
 import { keyLabel } from "../menu/keys"; // menus: prompts show the bound key
@@ -394,7 +395,7 @@ export class Jobs {
       const owner = this.people.get(item.owner);
       if (owner && owner.distTo(this.player.x, this.player.z) < OWNER_SEES) {
         owner.lookAt(this.player.x, this.player.z);
-        this.toastMsg(OWNER_SHOUT[item.owner] ?? `${owner.def.name} shouts at you.`);
+        this.toastMsg(toMe(OWNER_SHOUT[item.owner] ?? `${owner.def.name} shouts at you.`));
         this.watched = { item, owner: item.owner };
         api.witness(item.owner, "took").catch(() => {});
       }

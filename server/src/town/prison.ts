@@ -1,3 +1,4 @@
+import { sexed } from "../player/profile.ts"; // M7 character: lines said to the player follow the profile
 import type { Hono } from "hono";
 import type { DB } from "../db.ts";
 import { log } from "../game.ts";
@@ -214,7 +215,7 @@ export function warderLine(db: DB, role: string): string {
   }
   if (role === "yard") return v.exercise ? "\"Keep walking, you lot. No talking in the ring.\" He does not look at you." : "\"The yard is empty till the next hour of exercise.\"";
   if (role === "visits") return "\"One visitor at a time, and a quarter of an hour. I hear every word.\"";
-  if (role === "chief") return "\"The cellular system, sir: every man alone with his conscience. It works, most of the time.\"";
+  if (role === "chief") return sexed(db, "\"The cellular system, sir: every man alone with his conscience. It works, most of the time.\"");
   return "The warder looks up from his book and says nothing.";
 }
 

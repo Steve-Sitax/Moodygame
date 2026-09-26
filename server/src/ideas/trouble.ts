@@ -355,7 +355,7 @@ export function engineWords(plan: { kind: TroubleKind; cast: CastMember[]; optio
     weather: "The sky over the river goes dark in a minute. The wind picks up and the first of it comes over the quay.",
   };
   const lines: Record<TroubleKind, string> = {
-    stowaway: "Please, mister. Don't give me up. I only want to get to America.",
+    stowaway: "Please. Don't give me up. I only want to get to America.",
     broken_crate: "That will be counted, you know.",
     customs: "Papers for this. Now, if you please.",
     rival: "That is natie work, farm boy. Give it here, or share the pay.",

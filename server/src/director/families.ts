@@ -1,3 +1,4 @@
+import { sexed } from "../player/profile.ts"; // M7 character: lines said to the player follow the profile
 import { z } from "zod";
 import type { DB } from "../db.ts";
 import { CALLS_PER_DAY, CALLS_RESERVE, FAMILY_CALLS_PER_DAY, RESIDENT_CALLS_PER_DAY } from "../config.ts";
@@ -641,7 +642,7 @@ export function visitOpening(db: DB, a: ActionRow): string {
         // how Jef looks, from his real needs (QA 2026-09-24: "half starved" with food at 8)
         const p = player(db);
         const look = p.food <= 2 ? "You look half starved, lad." : p.food <= 4 ? "You look as if you could do with a bite, lad." : p.warmth <= 3 ? "You look frozen through, lad." : "Something for later, lad.";
-        return `${look} Here, take this. No, no, I insist.`;
+        return sexed(db, `${look} Here, take this. No, no, I insist.`);
       }
     case "police_word":
       return `A word, Jef. ${n ? `${resident(db, n.listener)?.name ?? "Someone"} came to me: ${fact}.` : "There's been a complaint about you."} I'll not have trouble on my beat.`;

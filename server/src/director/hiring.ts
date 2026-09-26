@@ -1,3 +1,4 @@
+import { sexed } from "../player/profile.ts"; // M7 character: lines said to the player follow the profile
 import { z } from "zod";
 import type { DB } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
@@ -344,7 +345,7 @@ function fallbackLines(db: DB, sp: HiringSpot): { call: string; remarks: string[
   const call = CALLS[k("c") % CALLS.length](sp.ship);
   const remarks = [REMARKS[k("r") % REMARKS.length]];
   const to = sp.jef_result?.picked ? TO_JEF.yes : TO_JEF.no;
-  return { call: fillNames(db, call, sp), remarks, to_jef: to[k("j") % to.length] };
+  return { call: fillNames(db, call, sp), remarks, to_jef: sexed(db, to[k("j") % to.length]) };
 }
 
 /** "{names}" becomes the men taken; a call without the placeholder gets the names added. */
