@@ -48,6 +48,7 @@ import { waveAt } from "../retro/psx";
 import { createMirror } from "./mirror";
 import { BRIG_FLOOR, CHAMBER, DOCK, HW_MAX, LW_MIN, MID_Y, gateLine, levelAt, tideAt, tideDev, tideInfo, water as tideWater } from "./tide";
 import { buildTideMud } from "./tidemud";
+import { MOORINGS, mooringRect } from "../../../shared/smallBoats";
 import { landmarkDoorKeepOut } from "./doorKeep";
 import { addPropObject } from "./propSpots";
 import { tuning } from "../menu/tuning"; // menus: the view distance setting
@@ -813,7 +814,11 @@ export function buildRijnkaai(): World {
         const hb = d.beam * 0.5;
         swimSolids.push({ minX: x - s * hl - c * hb, maxX: x + s * hl + c * hb, minZ: z - c * hl - s * hb, maxZ: z + c * hl + s * hb });
       };
+      // M7 boats: the rows keep clear of the small boats' moorings (shared/smallBoats.ts: each small boat
+      // lies at her own ladder or steps, so every one can be taken); the rows are barges and lighters only
+      const keepClear = MOORINGS.map((q) => mooringRect(q, 1.5));
       const moor = (...a: Parameters<Boats["mooreAlong"]>) => {
+        a[7] = { ...a[7], avoid: keepClear };
         for (const p of b.mooreAlong(...a).placed) {
           hull(p.name, p.x, p.z, p.yaw);
           addTall(p.name, p.x, p.z, p.yaw);
@@ -827,36 +832,25 @@ export function buildRijnkaai(): World {
       // the river: moored along the Werf and the north Rijnkaai, ships at anchor further out
       // (gaps left for the stone steps, FLIGHTS)
       const river = { x: 0, z: -40 };
-      moor(scene, -316, 0, -258, 0, river, ["rhine_barge", "hengst", "lighter_loaded", "sloop", "lighter"], { rows: 2, seed: 3 });
-      moor(scene, -240, 0, -216, 0, river, ["hengst", "lighter", "rowboat"], { seed: 4 });
-      moor(scene, -140, 0, -119, 0, river, ["hengst", "lighter_loaded", "sloop", "punt"], { rows: 2, seed: 5 });
-      moor(scene, -107, 0, -90, 0, river, ["hengst", "lighter_loaded", "sloop", "punt"], { rows: 2, seed: 8 });
-      moor(scene, 60, 0, 100, 0, river, ["tug", "lighter", "hengst"], { seed: 6 });
-      moor(scene, 120, 0, 176, 0, river, ["rhine_barge", "lighter_loaded", "sloop"], { rows: 2, seed: 7 });
+      moor(scene, -316, 0, -258, 0, river, ["rhine_barge", "hengst", "lighter_loaded", "sloop", "lighter_coal"], { rows: 2, seed: 3 });
+      moor(scene, -240, 0, -216, 0, river, ["hengst", "lighter_timber", "lighter"], { seed: 4 });
+      moor(scene, -140, 0, -119, 0, river, ["hengst", "lighter_loaded", "sloop", "lighter_sand"], { rows: 2, seed: 5 });
+      moor(scene, -107, 0, -90, 0, river, ["hengst", "lighter_coal", "sloop", "lighter_loaded"], { rows: 2, seed: 8 });
+      moor(scene, 60, 0, 100, 0, river, ["tug", "lighter", "hengst", "lighter_coal"], { seed: 6 });
+      moor(scene, 120, 0, 176, 0, river, ["rhine_barge", "lighter_loaded", "sloop", "lighter_timber"], { rows: 2, seed: 7 });
       put("steamer", -150, -62, Math.PI / 2, scene);
       put("barque", -40, -48, Math.PI / 2, scene);
       put("barque", 110, -44, -Math.PI / 2, scene);
       put("paddle_tug", -205, -64, Math.PI / 2 + 0.3, scene);
       put("sloop", 30, -70, 1.2, scene);
-      // the Canal des Brasseurs and the Sint-Pietersvliet: narrow boats against both walls
-      const canal = { x: -76, z: 100 };
-      for (const [z0, z1] of [[12, 64], [76, 148], [160, 202]]) {
-        moor(scene, -82, z0, -82, z1, canal, ["hengst", "lighter", "punt", "rowboat", "lighter_loaded"], { maxBeam: 4.5, seed: z0 });
-        if (z0 === 12) {
-          // the steps on the east wall at z 38..44
-          moor(scene, -70, 12, -70, 35, canal, ["lighter", "punt", "rowboat"], { maxBeam: 4.5, seed: 13 });
-          moor(scene, -70, 47, -70, 64, canal, ["lighter", "punt", "rowboat"], { maxBeam: 4.5, seed: 14 });
-        } else moor(scene, -70, z0, -70, z1, canal, ["lighter", "punt", "rowboat"], { maxBeam: 4.5, seed: z0 + 1 });
-      }
-      const vliet = { x: -146, z: 30 };
-      moor(scene, -150, 11, -150, 38, vliet, ["punt", "rowboat"], { maxBeam: 3, seed: 21 });
-      moor(scene, -142, 49, -142, 70, vliet, ["punt", "rowboat"], { maxBeam: 3, seed: 22 });
+      // the Canal des Brasseurs and the Sint-Pietersvliet: their walls are lined with the town's small
+      // boats, each at her own ladder (M7 boats: shared/smallBoats.ts ROWS, drawn by game/rowing.ts)
       // the Petit Bassin: barges and lighters along all four quays, a barque in the middle
       const dock = { x: 120, z: 78 };
-      moor(scene, 70, 50, 70, 106, dock, ["rhine_barge", "lighter_loaded", "hengst"], { rows: 2, seed: 31 });
-      moor(scene, 170, 50, 170, 106, dock, ["rhine_barge", "lighter_loaded", "tug"], { rows: 2, seed: 32 });
-      moor(scene, 76, 110, 164, 110, dock, ["hengst", "lighter", "rhine_barge"], { seed: 33 });
-      moor(scene, 120, 46, 164, 46, dock, ["lighter_loaded", "hengst"], { seed: 34 });
+      moor(scene, 70, 50, 70, 106, dock, ["rhine_barge", "lighter_loaded", "hengst", "lighter_timber"], { rows: 2, seed: 31 });
+      moor(scene, 170, 50, 170, 106, dock, ["rhine_barge", "lighter_loaded", "tug", "lighter_coal"], { rows: 2, seed: 32 });
+      moor(scene, 76, 110, 164, 110, dock, ["hengst", "lighter", "rhine_barge", "lighter_sand"], { seed: 33 });
+      moor(scene, 120, 46, 164, 46, dock, ["lighter_loaded", "hengst", "lighter_coal"], { seed: 34 });
       put("barque", 125, 80, 0, scene);
       // the ferry pontoon at the Werf (its deck is walkable, see tools/city/design.py); it floats
       // below the quay now, so a gangway slopes down onto it
@@ -1530,9 +1524,19 @@ export function buildRijnkaai(): World {
   }
   function placeLaddersNow(): void {
     const quays = (CITY_DATA as unknown as { quays: number[][] }).quays;
+    // M7 boats: an iron ladder down to each small boat moored at one (shared/smallBoats.ts), at her thwart
+    const boatLadders: Array<[number, number]> = [];
+    for (const q of MOORINGS) {
+      if (q.board.kind !== "ladder") continue;
+      const [lx, lz] = q.board.top;
+      steps.addLadder(frameAt(lx, lz, q.board.t[0], q.board.t[1], q.board.n[0], q.board.n[1]), 0, 0);
+      boatLadders.push([lx, lz]);
+    }
     const blocked = (x: number, z: number, nx: number, nz: number) => {
       const wx = x + nx * 0.8;
       const wz = z + nz * 0.8;
+      if (boatLadders.some(([lx, lz]) => Math.hypot(lx - x, lz - z) < 10)) return true; // M7 boats: one of theirs is here
+      if (MOORINGS.some((q) => inRect(mooringRect(q, 0.5), wx, wz))) return true; // a small boat lies against the wall here
       if (!swimFree(wx, wz, 0.45)) return true; // a hull, a pile, the steps, a bridge
       if (steps.solidAt(x, z, 3)) return true;
       if (Math.hypot(x - 7, z) < 5) return true; // the pier root
@@ -1749,7 +1753,7 @@ export function buildRijnkaai(): World {
       const sea = weatherNow === "storm" ? 3.6 : weatherNow === "rain" ? 1.5 : weatherNow === "clear" ? 1.1 : 0.85;
       psxUniforms.uSea.value += (sea - psxUniforms.uSea.value) * Math.min(1, dt * 0.05);
     }
-    boats?.update(t, dt);
+    boats?.update(t, dt, lampsLit); // M7 boats: the boats' lanterns burn with the gas lamps
     if (cam) camera = cam;
     lock?.update(t, dt, camera ?? undefined);
     bridges?.update(t, dt, camera ?? undefined);

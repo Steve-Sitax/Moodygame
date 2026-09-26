@@ -103,7 +103,8 @@ describe("who owns what (the migration)", () => {
     expect(drays.map((d) => d.route).sort()).toEqual(["eilandje", "rijnkaai_back", "werf"]);
     for (const d of drays) expect(["carter", "merchant"]).toContain(t.byId.get(d.owner)!.trade);
     // boats: the boats tied up at the steps, and their owners
-    expect(kinds("boat").map((b) => b.id).sort()).toEqual(rowBoats(db).map((b) => b.id).sort());
+    // (M7 boats: the family boats of M3j; the other small boats stay at their moorings)
+    expect(kinds("boat").map((b) => b.id).sort()).toEqual(rowBoats(db).filter((b) => b.family).map((b) => b.id).sort());
     // every spot on open, reachable ground with room round it, off the omnibus, the drays and the rails
     const wm = walkMap();
     for (const v of [...velos, ...carts]) {

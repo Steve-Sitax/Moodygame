@@ -3,6 +3,8 @@
 // game that must know it before their first word with the server (a boat Jef sat in) peek at it here;
 // game/saves.ts puts the rest back once the town is in.
 
+import type { SmallKind } from "../../../shared/smallBoats";
+
 const KEY = "scheldemist.restore";
 
 export interface RestorePose {
@@ -16,7 +18,8 @@ export interface RestorePose {
 }
 export interface RestoreRow {
   what: string;
-  kind: "rowboat" | "punt";
+  /** M7 boats: any of the small kinds (shared/smallBoats.ts). */
+  kind: SmallKind;
   x: number;
   z: number;
   yaw: number;

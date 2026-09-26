@@ -450,6 +450,10 @@ export class FirstPerson {
     if (c.i >= c.keys.length) {
       [this.x, this.y, this.z] = c.from;
       this.climb = null;
+      // M7 boats: a climb down a ladder into a boat ends in the boat (game/rowing.ts sits him down)
+      const then = this.climbThen;
+      this.climbThen = null;
+      if (then) return then();
       this.grounded = true;
       this.eye = EYE;
       this.onLand?.(this.world.surfaceAt(this.x, this.z));
@@ -930,6 +934,21 @@ export class FirstPerson {
   rowSeat(): [number, number] {
     const z = this.rowHull.seatZ;
     return [this.x + Math.sin(this.rowHeading) * z, this.z + Math.cos(this.rowHeading) * z];
+  }
+
+  /** M7 boats: what happens when the climb in hand ends (instead of standing on the ground there). */
+  private climbThen: (() => void) | null = null;
+  /**
+   * M7 boats: climb from where he stands through the key points [x, y (feet), z, seconds] (down a quay
+   * ladder, over a gunwale), then `then` (game/rowing.ts: sit down in the boat). Looks where he looks.
+   */
+  climbTo(keys: Array<[number, number, number, number]>, then: () => void): void {
+    this.climb = { from: [this.x, this.y, this.z], keys, i: 0, t: 0 };
+    this.climbThen = then;
+    this.swimming = false;
+    this.crouching = false;
+    this.vel.set(0, 0);
+    this.vy = 0;
   }
 
   /** Stand up and step out onto a landing, the foot of a ladder, a pontoon (game/rowing.ts found it). */

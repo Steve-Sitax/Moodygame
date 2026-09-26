@@ -177,12 +177,24 @@ export function draftOf(kind: string): number {
   switch (kind) {
     case "rowboat":
     case "punt":
+    // M7 boats: the other small boats (shared/smallBoats.ts HULLS has their drafts too)
+    case "workboat":
+    case "dinghy":
+    case "gig":
+    case "eelboat":
       return 0.25;
+    case "shipsboat":
+    case "bumboat":
+    case "oldboat":
+      return 0.3;
     case "lighter":
     case "hengst":
     case "sloop":
       return 0.55;
     case "lighter_loaded":
+    case "lighter_coal":
+    case "lighter_sand":
+    case "lighter_timber":
     case "rhine_barge":
       return 0.85;
     default:

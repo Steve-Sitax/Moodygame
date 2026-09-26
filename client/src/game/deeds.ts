@@ -312,8 +312,8 @@ export class Deeds {
     }
   }
 
-  /** The owner (or a witness) answers the theft, as the server said. */
-  private react(r: DeedReply): void {
+  /** The owner (or a witness) answers the theft, as the server said. M7 boats: game/rowing.ts calls it for a boat's owner. */
+  react(r: DeedReply): void {
     const rc = r.reaction!;
     this.sfx("bell", new THREE.Vector3(this.player.x, 1.6, this.player.z));
     const n = this.jobs.people.get(rc.who);

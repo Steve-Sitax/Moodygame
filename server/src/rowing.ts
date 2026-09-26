@@ -2,6 +2,7 @@ import type { DB } from "./db.ts";
 import { GameError, log, player } from "./game.ts";
 import { applyTrust, remember } from "./npcs.ts";
 import { town } from "./town/store.ts";
+import { HULLS, MOORINGS, SMALL_KINDS, possessive, type Mooring, type OwnerRule, type SmallKind } from "../../shared/smallBoats.ts";
 
 // Rowing boats (M3j). Steve, 2026-09-23: "We should be able to take a boat and row to other
 // places. Bridge goes up if we don't fit underneath. Only rowing boats, no big ones."
@@ -33,7 +34,7 @@ export const ROW_LEFT_FINE_C = 15;
 /** ...and the boy finds it this many game minutes after you left it. */
 export const ROW_FETCH_MIN = 60;
 /** A lost boat (broken and sunk): what the waterman asks, by kind; always within the clamp below. */
-export const ROW_LOST_C: Record<BoatKind, number> = { rowboat: 100, punt: 70 };
+export const ROW_LOST_C = Object.fromEntries(SMALL_KINDS.map((k) => [k, HULLS[k].lost_c])) as Record<BoatKind, number>;
 export const ROW_LOST_MIN_C = 60;
 export const ROW_LOST_MAX_C = 120;
 /** The most anyone can owe the watermen. */
@@ -43,7 +44,8 @@ export const ROW_EFFORT_PER_FOOD = 60;
 /** At most this many hard strokes a real second (the client's count is clamped by the clock). */
 export const ROW_STROKES_PER_S = 1;
 
-export type BoatKind = "rowboat" | "punt";
+/** M7 boats: nine kinds of small boat (shared/smallBoats.ts), every one of them can be rowed. */
+export type BoatKind = SmallKind;
 export type LandingId = "rijnkaai" | "vismarkt" | "bassin";
 
 export interface Flight {
@@ -80,7 +82,7 @@ export function isLanding(s: unknown): s is LandingId {
   return typeof s === "string" && Object.hasOwn(LANDINGS, s);
 }
 
-/** Unattended boats, tied up at other steps: their owners are boatmen of the town. */
+/** Unattended boats, tied up at other steps: their owners are boatmen of the town (M3j; the family boats of M6 transport). */
 const LOOSE: Array<{ id: string; flight: Flight; kind: BoatKind; place: string; where: string }> = [
   { id: "boat:canal", flight: { top: [-70, 38], t: [0, 1], n: [-1, 0] }, kind: "punt", place: "canal", where: "from the canal steps" },
   { id: "boat:cartstand", flight: { top: [50, 0], t: [1, 0], n: [0, -1] }, kind: "rowboat", place: "werf", where: "from the steps by the cart stand" },
@@ -168,13 +170,20 @@ export function rowing(db: DB): boolean {
 export interface LooseBoat {
   id: string;
   kind: BoatKind;
-  owner: string;
+  /** The owner's npc id; null for a boat nobody owns (an old one left lying: taking it is no theft). */
+  owner: string | null;
+  /** How the prompt names whose it is when not by the owner's name: "the water police's", "the ferry's". */
+  label: string | null;
   x: number;
   z: number;
   yaw: number;
-  /** Where Jef stands to step in (the landing of the flight). */
+  /** Where Jef stands to step in (the landing of the flight; for a ladder, the ladder's head on the quay). */
   landing: [number, number];
   where: string;
+  /** M6 transport: a family boat that goes on errands (the three of M3j). */
+  family: boolean;
+  /** M7 boats: the mooring (ladder or steps, the rings of her lines); null for the three of M3j. */
+  mooring: Mooring | null;
 }
 
 const memo = new WeakMap<DB, { seed: number; boats: LooseBoat[]; watermen: Record<LandingId, string | null> }>();
@@ -200,11 +209,39 @@ function people(db: DB) {
     if (!owner) continue;
     used.add(owner.id);
     const berth = berthOf(b.flight);
-    boats.push({ id: b.id, kind: b.kind, owner: owner.id, x: berth.x, z: berth.z, yaw: berth.yaw, landing: berth.landing, where: b.where });
+    boats.push({ id: b.id, kind: b.kind, owner: owner.id, label: null, x: berth.x, z: berth.z, yaw: berth.yaw, landing: berth.landing, where: b.where, family: true, mooring: null });
+  }
+  // M7 boats: every other small boat of the waterfront, owned by the rule of its mooring
+  const owners = new Set<string>(used);
+  for (const m of MOORINGS) {
+    const o = ownerOf(db, m.owner, t.residents, owners);
+    if (o.owner) owners.add(o.owner);
+    const landing = m.board.kind === "ladder" ? m.board.top : m.board.at;
+    boats.push({ id: m.id, kind: m.kind, owner: o.owner, label: o.label, x: m.x, z: m.z, yaw: m.yaw, landing, where: m.where, family: false, mooring: m });
   }
   const out = { seed: t.seed, boats, watermen };
   memo.set(db, out);
   return out;
+}
+
+/**
+ * M7 boats: who owns the boat at a mooring, by its rule: a resident of the first trade that has one
+ * (one working at the rule's place first, one who owns no boat yet first), a named person of the quay,
+ * a service kept by a resident, or nobody. The same town always gives the same owners.
+ */
+function ownerOf(db: DB, rule: OwnerRule, residents: ReturnType<typeof town>["town"]["residents"], taken: Set<string>): { owner: string | null; label: string | null } {
+  if (rule.kind === "none") return { owner: null, label: null };
+  if (rule.kind === "npc") {
+    const has = db.prepare("SELECT 1 FROM npc WHERE id = ?").get(rule.id);
+    return has ? { owner: rule.id, label: rule.label } : { owner: null, label: null };
+  }
+  const fits = residents.filter((r) => rule.trades.includes(r.trade) && r.age >= 16 && r.age < 70 && (!rule.sex || r.sex === rule.sex));
+  const score = (r: (typeof fits)[number]) => rule.trades.indexOf(r.trade) * 4 + (rule.place && r.work.place === rule.place ? 0 : 2) + (taken.has(r.id) ? 1 : 0);
+  const best = fits.slice().sort((a, b) => score(a) - score(b))[0];
+  // a town without anyone of those trades: a sailor or a docker keeps a boat too
+  const pick = best ?? residents.find((r) => ["sailor", "docker", "boatman"].includes(r.trade) && r.age >= 18 && !taken.has(r.id));
+  if (!pick) return { owner: null, label: null };
+  return { owner: pick.id, label: rule.kind === "service" ? rule.label : null };
 }
 
 /** The boats that lie unattended, made from the town (same seed, same owners). */
@@ -259,6 +296,34 @@ export function rowBoatHome(db: DB, id: string): void {
     saveRow(db, s);
   }
 }
+
+/**
+ * M7 boats: what the prompt says when Jef can take a boat (Steve: "If boat has owner it should say so
+ * when taking the boat. Like take xxx's boat."): the owner's whole name, or the service's, or none.
+ * "take Mie Janssens's boat", "take the water police's gig", "take the old boat".
+ */
+export function takePrompt(db: DB, b: LooseBoat): string {
+  const noun = b.kind === "rowboat" ? "boat" : HULLS[b.kind].noun;
+  if (!b.owner) return `take the ${noun}`;
+  if (b.label) return `take ${b.label} ${noun}`;
+  const n = (db.prepare("SELECT name FROM npc WHERE id = ?").get(b.owner) as { name: string } | undefined)?.name;
+  return n ? `take ${possessive(n)} ${noun}` : `take the ${noun}`;
+}
+
+/** M7 boats: is the boat back at her own mooring (within a few metres, as the waterman ties it up)? */
+export function atMooring(b: LooseBoat, x: number, z: number): boolean {
+  return Math.hypot(x - b.x, z - b.z) <= ROW_HOME_M;
+}
+/** How near her mooring a boat left behind counts as brought back (m). */
+export const ROW_HOME_M = 4;
+
+/**
+ * M7 boats: set by town/rowDeeds.ts. Jef left a boat he took at her own mooring: the deed is settled
+ * there (the owner calms down, the police let it be). Returns the words for the player, or "".
+ */
+export const rowHooks = {
+  home: (_db: DB, _id: string): string => "",
+};
 
 /** Jef sits in a loose boat now (deeds.ts calls this when he takes one). */
 export function rowOn(db: DB, what: string): void {
@@ -319,6 +384,17 @@ function wet(db: DB): boolean {
 }
 
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
+/** M7 boats: the owner found her gone and grumbled (town/rowDeeds.ts boatTick); for the client's bubble. */
+export function missedBy(db: DB, id: string): number {
+  return state<Record<string, number>>(db, "row_missed", {})[id] ?? 0;
+}
+export function setMissed(db: DB, id: string, n: number | null): void {
+  const all = state<Record<string, number>>(db, "row_missed", {});
+  if (n === null) delete all[id];
+  else all[id] = n;
+  setState(db, "row_missed", all);
+}
+
 function first(db: DB, id: string | null): string {
   if (!id) return "The waterman";
   const n = (db.prepare("SELECT name FROM npc WHERE id = ?").get(id) as { name: string } | undefined)?.name;
@@ -397,11 +473,18 @@ export function leaveBoat(db: DB, x: number, z: number, yaw: number, ashore = tr
   if (s.on !== "hire") {
     const id = s.on;
     const st = rowBoatStates(db)[id];
+    const b = rowBoats(db).find((q) => q.id === id);
     s.on = null;
     db.transaction(() => {
       if (st) setRowBoat(db, id, { ...st, x: r2(x), z: r2(z), yaw: Number.isFinite(yaw) ? +yaw.toFixed(3) : st.yaw, ridden: false });
       saveRow(db, s);
     })();
+    // M7 boats: brought back to her own mooring and tied up there: she is home, the deed settled
+    if (b && ashore && atMooring(b, x, z)) {
+      const text = rowHooks.home(db, id);
+      rowBoatHome(db, id);
+      return { returned: true, late_c: 0, paid_c: 0, owed_c: 0, text };
+    }
     return { returned: false, late_c: 0, paid_c: 0, owed_c: 0, text: "" };
   }
   const h = s.hire!;
@@ -574,7 +657,28 @@ export function rowWorld(db: DB) {
     }),
     boats: rowBoats(db).map((b) => {
       const st = states[b.id];
-      return { id: b.id, kind: b.kind, owner: b.owner, owner_name: first(db, b.owner), landing: b.landing, where: b.where, x: st.x, z: st.z, yaw: st.yaw, ridden: st.ridden, mine: st.deed !== null, lost: st.lostDay !== undefined };
+      const m = b.mooring;
+      return {
+        id: b.id,
+        kind: b.kind,
+        owner: b.owner,
+        owner_name: b.owner ? first(db, b.owner) : "",
+        // M7 boats: the prompt names the owner (the engine's words), where she belongs, how to get in
+        prompt: takePrompt(db, b),
+        home: { x: b.x, z: b.z, yaw: b.yaw },
+        board: m ? m.board.kind : "steps",
+        rings: m ? m.rings : null,
+        landing: b.landing,
+        where: b.where,
+        x: st.x,
+        z: st.z,
+        yaw: st.yaw,
+        ridden: st.ridden,
+        // taken by Jef and not given back; M7 boats: an owner-less boat he sits in or left out is his to row too
+        mine: st.deed !== null || (!b.owner && (st.ridden || !atMooring(b, st.x, st.z))),
+        lost: st.lostDay !== undefined,
+        missed: missedBy(db, b.id),
+      };
     }),
     hire: s.hire ? { landing: s.hire.landing, kind: s.hire.kind, minutes: now - s.hire.since, time_left_min: Math.max(0, s.hire.since + ROW_HIRE_HOURS * 60 - now), late_c: lateFee(s.hire, now), left: s.hire.left } : null,
     on: s.on,

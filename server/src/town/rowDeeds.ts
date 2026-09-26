@@ -2,9 +2,10 @@ import type { Hono } from "hono";
 import type { DB } from "../db.ts";
 import { GameError, log, player } from "../game.ts";
 import { applyTrust, remember } from "../npcs.ts";
-import { boardHired, hireBoat, leaveBoat, loseHired, notice, rowBoatStates, rowBoats, rowEffort, rowMinute, rowState, rowTick, rowWorld, saveRow, setRowBoat } from "../rowing.ts";
-import { deedRow, deedTables, npcName } from "./deeds.ts";
-import { policeRespond } from "./police.ts";
+import { atMooring, boardHired, hireBoat, leaveBoat, loseHired, missedBy, notice, rowBoatStates, rowBoats, rowEffort, rowHooks, rowMinute, rowState, rowTick, rowWorld, saveRow, setMissed, setRowBoat } from "../rowing.ts";
+import { BOAT_GRACE_MIN, deedRow, deedTables, gameMinute, npcName } from "./deeds.ts";
+import { deedSettled, policeRespond, policeState } from "./police.ts";
+import { HULLS } from "../../../shared/smallBoats.ts";
 
 // The HTTP side of the rowing boats (M3j, rowing.ts), and where a boat meets the M3h theft
 // system: a stolen boat wrecked is a worse deed ("boat_lost"), and a hired boat lost and not
@@ -21,10 +22,20 @@ export interface RowDeps {
 export function loseStolen(db: DB, id: string): { text: string } {
   const b = rowBoats(db).find((q) => q.id === id);
   const st = rowBoatStates(db)[id];
-  if (!b || !st || st.deed === null) throw new GameError("that boat is not yours to lose", 409);
+  // M7 boats: an old boat nobody owns goes to the bottom, and nobody asks after her (a new one lies there by morning)
+  if (b && st && !b.owner) {
+    setRowBoat(db, id, { ...st, ridden: false, lostDay: player(db).day });
+    const s = rowState(db);
+    if (s.on === id) s.on = null;
+    saveRow(db, s);
+    log(db, "wrecked_boat", id, `The old boat nobody owned, ${b.where}, went to the bottom under Jef.`);
+    return { text: "The old boat is gone to the bottom. Nobody will ask after her." };
+  }
+  if (!b || !b.owner || !st || st.deed === null) throw new GameError("that boat is not yours to lose", 409);
+  const bo = b.owner;
   const d = deedRow(db, st.deed);
   const day = player(db).day;
-  const owner = npcName(db, b.owner);
+  const owner = npcName(db, bo);
   db.transaction(() => {
     setRowBoat(db, id, { ...st, ridden: false, lostDay: day });
     const s = rowState(db);
@@ -37,10 +48,117 @@ export function loseStolen(db: DB, id: string): { text: string } {
     log(db, "wrecked_boat", id, `Jef wrecked ${owner}'s boat, taken ${b.where}.`);
   })();
   if (d?.seen) {
-    remember(db, b.owner, `Jef stole my boat and wrecked it. It is at the bottom of the river.`, 9, "seen", null, { gist: `Jef stole ${owner}'s boat and wrecked it`, tone: -2 });
-    applyTrust(db, b.owner, -2, 0);
-  } else remember(db, b.owner, "My boat was taken from the steps and wrecked on the river.", 6);
+    remember(db, bo, `Jef stole my boat and wrecked it. It is at the bottom of the river.`, 9, "seen", null, { gist: `Jef stole ${owner}'s boat and wrecked it`, tone: -2 });
+    applyTrust(db, bo, -2, 0);
+  } else remember(db, bo, "My boat was taken from the steps and wrecked on the river.", 6);
   return { text: "The boat is gone. Whose it was, you know; soon they will know about you." };
+}
+
+// ------------------------------------------------------------------ M7 boats: brought back, missed, the police
+
+function asked(db: DB): Record<string, number> {
+  const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'boat_asked'").get() as { value_json: string } | undefined;
+  try {
+    return row ? (JSON.parse(row.value_json) as Record<string, number>) : {};
+  } catch {
+    return {};
+  }
+}
+function setAsked(db: DB, v: Record<string, number>): void {
+  db.prepare("INSERT INTO world_state (key, value_json) VALUES ('boat_asked', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(JSON.stringify(v));
+}
+
+/** A day's trust given back for a boat brought home, at most once a game day per owner (no trust farm). */
+function trustBack(db: DB, owner: string): boolean {
+  const day = Math.floor(gameMinute(db) / 1440) + 1;
+  const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'boat_home_trust'").get() as { value_json: string } | undefined;
+  const ledger = row ? (JSON.parse(row.value_json) as Record<string, number>) : {};
+  if (ledger[owner] === day) return false;
+  ledger[owner] = day;
+  db.prepare("INSERT INTO world_state (key, value_json) VALUES ('boat_home_trust', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(JSON.stringify(ledger));
+  return true;
+}
+
+/**
+ * Jef tied a boat he took up again at her own mooring (rowing.ts leaveBoat). That calms things: the
+ * deed is settled (the police let a boat that is back be, if they have not come yet), an owner who saw
+ * her go remembers she came back and gives a little trust back (once a day), one who found her gone
+ * finds her back. Returns the words for the player.
+ */
+export function boatHome(db: DB, id: string): string {
+  const b = rowBoats(db).find((q) => q.id === id);
+  const st = rowBoatStates(db)[id];
+  if (!b) return "";
+  const noun = HULLS[b.kind].noun;
+  setMissed(db, id, null);
+  if (!b.owner || !st || st.deed === null) return `You tie the ${noun === "rowing boat" ? "boat" : noun} up again where she lay.`;
+  const d = deedRow(db, st.deed);
+  const owner = b.owner;
+  const name = npcName(db, owner);
+  const first = name.replace(/^(Widow|Agent|Pastoor|Meneer) /, "").split(" ")[0];
+  if (!d || d.status !== "open") return `You tie the ${noun} up again where she lay.`;
+  db.transaction(() => {
+    db.prepare("UPDATE deed SET status = 'returned', rumour_at = NULL WHERE id = ?").run(d.id);
+    const a = asked(db);
+    delete a[String(d.id)];
+    setAsked(db, a);
+    log(db, "gave_back", id, `Jef brought ${name}'s ${noun} back to where she lay, ${b.where}.`);
+    if (d.seen) {
+      remember(db, owner, `Jef brought my ${noun} back and tied her up where she belongs. Still, he took her.`, 4, "seen", null, {
+        gist: `Jef took ${name}'s ${noun} and brought her back`,
+        tone: -1,
+      });
+      if (trustBack(db, owner)) applyTrust(db, owner, 1, 0);
+    } else if (missedBy(db, id)) {
+      remember(db, owner, `My ${noun} is back at her mooring. Somebody had borrowed her.`, 3);
+    }
+  })();
+  // a boat that is back is no matter for the police, if they are not at Jef already
+  if (policeState(db).visit?.deeds.includes(d.id)) deedSettled(db, d.id, "food"); // settled like a small thing: off the visit
+  return d.seen ? `You tie ${first}'s ${noun} up again where she lay. That will calm ${first} down, a little.` : `You tie the ${noun} up again where she lay. Nobody need ever know.`;
+}
+rowHooks.home = boatHome;
+
+/** How long before an owner who did not see it finds his boat gone (game minutes). */
+export const BOAT_MISS_MIN = 45;
+
+/**
+ * Every tick (M7 boats): an owner finds his boat gone from her mooring once it has been away a while
+ * (he grumbles: a memory, no name to it; the client shows him at the quay looking for her), and an
+ * owner who asked for his boat back and did not get her goes to the police.
+ */
+export function boatTick(db: DB): boolean {
+  let changed = false;
+  const now = gameMinute(db);
+  const states = rowBoatStates(db);
+  for (const b of rowBoats(db)) {
+    const st = states[b.id];
+    if (!b.owner || !st || st.deed === null || st.lostDay !== undefined || missedBy(db, b.id)) continue;
+    if (!st.ridden && atMooring(b, st.x, st.z)) continue;
+    const d = deedRow(db, st.deed);
+    if (!d || d.status !== "open" || d.seen) continue;
+    const at = (d.day - 1) * 1440 + d.hour * 60 + d.minute;
+    if (now - at < BOAT_MISS_MIN) continue;
+    const noun = HULLS[b.kind].noun;
+    setMissed(db, b.id, now);
+    remember(db, b.owner, `My ${noun} was gone from her mooring ${b.where}. Somebody took her, and I had to do without.`, 4);
+    log(db, "missed_boat", b.id, `${npcName(db, b.owner)} found the ${noun} gone ${b.where}.`);
+    changed = true;
+  }
+  const a = asked(db);
+  for (const [k, since] of Object.entries(a)) {
+    if (now - since < BOAT_GRACE_MIN) continue;
+    delete a[k];
+    const d = deedRow(db, Number(k));
+    if (!d || d.status !== "open") continue;
+    const b = rowBoats(db).find((q) => q.id === d.ref);
+    remember(db, d.owner, `Jef took my ${b ? HULLS[b.kind].noun : "boat"} and did not bring her back when I asked. I went to the police.`, 6, "seen", null, { gist: "Jef took a boat and would not bring it back", tone: -2 });
+    log(db, "police_called_boat", d.ref, `${npcName(db, d.owner)} went to the police about the boat Jef took.`);
+    policeRespond(db, d.id);
+    changed = true;
+  }
+  setAsked(db, a);
+  return changed;
 }
 
 /**
@@ -91,7 +209,8 @@ export function mountRowing(app: Hono, deps: RowDeps): void {
       try {
         const fetched = rowTick(db);
         const police = rowDebtToPolice(db);
-        if (fetched || police) push();
+        const boats = boatTick(db);
+        if (fetched || police || boats) push();
       } catch (e) {
         console.error("[rowing] tick", e);
       }

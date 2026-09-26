@@ -5,6 +5,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { psx, psxUniforms } from "../retro/psx";
 import type { Rect } from "./geom";
 import { bedAt, draftOf, levelAt, levelOf, regionAt } from "./tide";
+import { addLantern, type LanternSource } from "./lanternLights";
 
 // Boats, ships and quay cranes from Blender (tools/blender/build_boats.py ->
 // /models/boats.glb). Our own models, made by script. A vessel's origin is the
@@ -36,6 +37,17 @@ export const BOAT_NAMES = [
   "hengst_sail",
   "rowboat",
   "punt",
+  // M7 boats: more small boats (every one can be taken and rowed: shared/smallBoats.ts), and cargo for the lighters
+  "workboat",
+  "dinghy",
+  "shipsboat",
+  "gig",
+  "bumboat",
+  "eelboat",
+  "oldboat",
+  "lighter_coal",
+  "lighter_sand",
+  "lighter_timber",
   "pontoon_section",
   "portal_crane",
   "hand_crane",
@@ -78,11 +90,32 @@ export interface MooreOptions {
   seed?: number;
   /** Heave and roll on the water. Default true. */
   bob?: boolean;
+  /** M7 boats: keep clear of these (the small boats' moorings, their ladders): no hull is placed over them. */
+  avoid?: Rect[];
 }
 
 export interface Moored {
   group: THREE.Group;
-  placed: Array<{ name: BoatName; x: number; z: number; yaw: number }>;
+  /** M7 boats: `world` is the boat's live matrix (heave, roll, the tide): life aboard rides with it. */
+  placed: Array<{ name: BoatName; x: number; z: number; yaw: number; world?: THREE.Matrix4 }>;
+}
+
+/** M7 boats: a vessel set down by place(), mooreAlong() or pontoon(), for the boat check (__scheldemist.rowing.boatCheck()). */
+export interface Placement {
+  name: BoatName;
+  x: number;
+  z: number;
+  yaw: number;
+  /** Her waterline cannot go below this (the mud + her draft), or -Infinity. */
+  floor: number;
+  /** Where her waterline is now (y), read live. */
+  y: () => number;
+  /** Placed by place() (a free-standing copy, maybe moved later by its owner) or one of a moored row. */
+  single: boolean;
+  /** place()'s copy: where it is now (its owner may move it: traffic, the lock, the rowing boats). */
+  obj?: THREE.Object3D;
+  /** One of a moored row: her live matrix (heave, roll, the tide), for life aboard. */
+  world?: THREE.Matrix4;
 }
 
 export interface PontoonOptions {
@@ -143,8 +176,24 @@ export interface Boats {
     kinds: BoatName[],
     opts?: MooreOptions,
   ): Moored;
-  /** Bob the boats, swing the cranes. Call every frame with the game time. */
-  update(t: number, dt: number): void;
+  /**
+   * Bob the boats, swing the cranes. Call every frame with the game time. M7 boats: `lit` (0..1, the gas
+   * lamps' level, world/rijnkaai.ts) lights the boats' lanterns and wakes their lamp sources.
+   */
+  update(t: number, dt: number, lit?: number): void;
+  /**
+   * M7 boats: small boats at their moorings, one InstancedMesh per part and kind (a canal full of boats
+   * costs a few draw calls per kind). `floor`: her waterline never goes below this (the mud + her draft).
+   */
+  fleetOf(scene: THREE.Object3D, list: Array<{ name: BoatName; x: number; z: number; yaw: number; floor: number }>): SmallFleet;
+  /** M7 boats: every vessel set down so far (the boat check reads it). */
+  placements(): readonly Placement[];
+  /** M7 boats: the boats' lanterns (world position, kind 0 white, 1 red, 2 green, lit now). */
+  lamps(): Array<{ x: number; y: number; z: number; kind: number; on: number }>;
+  /** M7 boats: a glTF extra of a model (the small boats' "row": seat, rowlocks, rings), parsed; undefined if none. */
+  extra(name: BoatName, key: string): unknown;
+  /** M7 boats: show or hide a small boat's oars (and a dinghy's mast) laid in (hidden while she is rowed). */
+  stowed(obj: THREE.Object3D, show: boolean): void;
   /** The PS1 materials by name. */
   materials: Record<string, THREE.Material>;
   /**
@@ -175,12 +224,24 @@ const MOTION: Record<string, [number, number, number, number]> = {
   hengst_sail: [0.04, 0.02, 0.008, 5.0],
   rowboat: [0.05, 0.035, 0.015, 3.0],
   punt: [0.045, 0.03, 0.012, 3.2],
+  workboat: [0.045, 0.03, 0.012, 3.3],
+  dinghy: [0.055, 0.04, 0.018, 2.8],
+  shipsboat: [0.045, 0.03, 0.013, 3.2],
+  gig: [0.05, 0.04, 0.012, 3.1],
+  bumboat: [0.045, 0.03, 0.013, 3.2],
+  eelboat: [0.045, 0.028, 0.012, 3.4],
+  oldboat: [0.035, 0.02, 0.01, 3.6],
+  lighter_coal: [0.02, 0.008, 0.004, 6.5],
+  lighter_sand: [0.02, 0.008, 0.004, 6.5],
+  lighter_timber: [0.022, 0.009, 0.004, 6.2],
   pontoon_section: [0.008, 0.002, 0.001, 7.0],
   liner: [0.015, 0.002, 0.0008, 11.0],
 };
 
-const DOUBLE = new Set(["shrouds", "lattice", "flag", "canvas", "canvas_tan", "tarp", "washing"]);
+const DOUBLE = new Set(["shrouds", "lattice", "flag", "canvas", "canvas_tan", "tarp", "washing", "netting", "streaks"]);
 const JIB_NODES = ["jib", "hand_crane_jib"];
+/** M7 boats: a child node merged on its own (a crane's jib; a small boat's oars laid in, "<kind>_stow"). */
+const ownNode = (o: THREE.Object3D) => JIB_NODES.includes(o.name) || o.name.endsWith("_stow");
 
 function rng(seed: number): () => number {
   let s = seed >>> 0;
@@ -240,7 +301,18 @@ interface Fleet {
     region: 0 | 1 | 2;
     floor: number;
     list: number;
+    /** M7 boats: not drawn (a small boat taken from her mooring: game/rowing.ts draws her as a copy). */
+    hidden?: boolean;
   }>;
+}
+
+/** M7 boats: small boats lying at their moorings, drawn instanced by kind (game/rowing.ts). */
+export interface SmallFleet {
+  /** Hide one (she is taken, rowed, lying elsewhere) or show her at her mooring again. */
+  hide(i: number, hidden: boolean): void;
+  /** Her live matrix (heave, roll, the tide), for her ropes. */
+  world(i: number): THREE.Matrix4;
+  hidden(i: number): boolean;
 }
 
 /** A small soft puff of coal smoke, 16 px, nearest filter: PS1 smoke. */
@@ -460,7 +532,7 @@ export async function loadModelSet(url: string): Promise<ModelSet> {
     const inv = node.matrixWorld.clone().invert();
     const meshes: THREE.Mesh[] = [];
     const visit = (o: THREE.Object3D) => {
-      if (o !== node && JIB_NODES.includes(o.name)) return;
+      if (o !== node && ownNode(o)) return;
       const om = o as THREE.Mesh;
       if (om.isMesh && (om.material as THREE.Material).name === "cap") {
         // the hull's water cap stays its own mesh: drawn after the hulls, into the stencil
@@ -539,7 +611,7 @@ export async function loadModelSet(url: string): Promise<ModelSet> {
     node.updateMatrixWorld(true);
     atlasify(node);
     node.traverse((o) => {
-      if (o !== node && JIB_NODES.includes(o.name)) atlasify(o);
+      if (o !== node && ownNode(o)) atlasify(o);
     });
     node.updateMatrixWorld(true);
     protos.set(node.name, node);
@@ -651,6 +723,125 @@ async function load(): Promise<Boats> {
     for (let i = 0; i + 2 < f.length; i += 3) out.push(new THREE.Vector3(f[i], f[i + 2], -f[i + 1]));
     return out;
   }
+
+  /** M7 boats: a model's lanterns [x, y, z, kind] in its own frame (game axes), from the glTF extra "lamps". */
+  function lampPoints(name: BoatName): Array<[THREE.Vector3, number]> {
+    const raw = extras.get(name)?.lamps as string | undefined;
+    if (!raw) return [];
+    return (JSON.parse(raw) as number[][]).map((q) => [new THREE.Vector3(q[0], q[2], -q[1]), q[3] ?? 0]);
+  }
+  /** M7 boats: the stovepipes of the barges' cabins (a thin coal smoke). */
+  function stovePoints(name: BoatName): THREE.Vector3[] {
+    const raw = extras.get(name)?.stove as string | undefined;
+    if (!raw) return [];
+    return (JSON.parse(raw) as number[][]).map((q) => new THREE.Vector3(q[0], q[2], -q[1]));
+  }
+
+  // ---- M7 boats: the boats' lanterns. Each is a glow on its glass (one Points object for all) and a
+  // lamp source of world/lanternLights.ts (the nearest get a real light; the light-spill system picks
+  // them up). Lit with the gas lamps at dusk, out at dawn.
+  const LAMP_RGB = [new THREE.Color(1.0, 0.82, 0.5), new THREE.Color(1.0, 0.25, 0.15), new THREE.Color(0.35, 1.0, 0.45)];
+  const lampList: Array<{ at: (out: THREE.Vector3) => void; kind: number; src: LanternSource; phase: number; root: () => THREE.Object3D | null }> = [];
+  let lampPts: THREE.Points | null = null;
+  let lampLit = 0;
+  const lampMat = new THREE.ShaderMaterial({
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { scale: { value: 150 } }]),
+    vertexShader: /* glsl */ `
+      attribute float size;
+      attribute vec3 tint;
+      uniform float scale;
+      varying vec3 vTint;
+      #include <fog_pars_vertex>
+      void main() {
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        gl_Position = projectionMatrix * mvPosition;
+        gl_PointSize = size * scale / max(0.5, -mvPosition.z);
+        vTint = tint;
+        #include <fog_vertex>
+      }`,
+    fragmentShader: /* glsl */ `
+      varying vec3 vTint;
+      #include <fog_pars_fragment>
+      void main() {
+        vec2 d = gl_PointCoord - 0.5;
+        float r = length(d) * 2.0;
+        float a = smoothstep(1.0, 0.15, r);
+        if (a < 0.04 || vTint.r + vTint.g + vTint.b < 0.01) discard;
+        gl_FragColor = vec4(vTint * (0.55 + 0.45 * a), a);
+        #include <fog_fragment>
+      }`,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    fog: true,
+  });
+  lampMat.userData.fogReach = 1;
+  function growLamps(): void {
+    const n = lampList.length;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+    g.setAttribute("size", new THREE.BufferAttribute(new Float32Array(n), 1));
+    g.setAttribute("tint", new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+    if (!lampPts) {
+      lampPts = new THREE.Points(g, lampMat);
+      lampPts.name = "boat_lamps";
+      lampPts.frustumCulled = false;
+      lampPts.renderOrder = 2;
+      const sz = new THREE.Vector2();
+      lampPts.onBeforeRender = (renderer, _scene, camera) => {
+        const rt = renderer.getRenderTarget();
+        const h = rt ? rt.height : renderer.getDrawingBufferSize(sz).y;
+        lampMat.uniforms.scale.value = (h / 2) * camera.projectionMatrix.elements[5];
+      };
+    } else {
+      lampPts.geometry.dispose();
+      lampPts.geometry = g;
+    }
+  }
+  function addLamp(at: (out: THREE.Vector3) => void, kind: number, root: () => THREE.Object3D | null): void {
+    const src = addLantern({ power: kind === 0 ? 0.55 : 0.3 });
+    lampList.push({ at, kind, src, phase: motionRandLamp() * 6.283, root });
+    growLamps();
+  }
+  let lampSeed = 91;
+  const motionRandLamp = () => {
+    lampSeed = (lampSeed * 16807) % 2147483647;
+    return lampSeed / 2147483647;
+  };
+  const lp = new THREE.Vector3();
+  function updateLamps(t: number): void {
+    if (!lampPts || !lampList.length) return;
+    if (!lampPts.parent) {
+      // the scene: through any lamp whose boat is in it (a rowing boat's copy in the pool is not)
+      for (const l of lampList) {
+        const r = l.root();
+        if (r) {
+          r.add(lampPts);
+          break;
+        }
+      }
+    }
+    const pos = lampPts.geometry.getAttribute("position") as THREE.BufferAttribute;
+    const size = lampPts.geometry.getAttribute("size") as THREE.BufferAttribute;
+    const tint = lampPts.geometry.getAttribute("tint") as THREE.BufferAttribute;
+    for (let i = 0; i < lampList.length; i++) {
+      const l = lampList[i];
+      l.at(lp);
+      pos.setXYZ(i, lp.x, lp.y, lp.z);
+      const flick = 0.9 + 0.1 * Math.sin(t * 7.3 + l.phase) * Math.sin(t * 3.1 + l.phase * 2);
+      const k = lampLit * flick;
+      const c = LAMP_RGB[l.kind] ?? LAMP_RGB[0];
+      tint.setXYZ(i, c.r * k, c.g * k, c.b * k);
+      size.setX(i, l.kind === 0 ? 0.55 : 0.4);
+      l.src.pos.copy(lp);
+      l.src.ground = levelAt(lp.x, lp.z);
+      l.src.on = lampLit > 0.05 ? 1 : 0;
+    }
+    pos.needsUpdate = size.needsUpdate = tint.needsUpdate = true;
+  }
+
+  // ---- M7 boats: every vessel set down, for the boat check
+  const placedAll: Placement[] = [];
 
   // ---- smoke from the funnels: one Points object, a few puffs per funnel
   const PUFFS = 9;
@@ -784,6 +975,16 @@ async function load(): Promise<Boats> {
       const local = sp.clone();
       addEmitter({ at: (out) => void out.copy(local).applyMatrix4(inner.matrixWorld), strength: 0.55, phase: motionRand(), root: () => rootOf(outer) });
     }
+    // M7 boats: a barge's stove smokes thinly; her lanterns burn at night (only while she is shown)
+    for (const sp of stovePoints(name)) {
+      const local = sp.clone();
+      addEmitter({ at: (out) => void (outer.visible ? out.copy(local).applyMatrix4(inner.matrixWorld) : out.set(0, -999, 0)), strength: 0.2, phase: motionRand(), root: () => rootOf(outer) });
+    }
+    for (const [lpnt, kind] of lampPoints(name)) {
+      const local = lpnt.clone();
+      addLamp((out) => void (outer.visible && outer.parent ? out.copy(local).applyMatrix4(inner.matrixWorld) : out.set(0, -999, 0)), kind, () => rootOf(outer));
+    }
+    placedAll.push({ name, x, z, yaw, floor: bedAt(x, z) + draftOf(name), y: () => outer.position.y, single: true, obj: outer });
     parent?.add(outer);
     return outer;
   }
@@ -841,11 +1042,21 @@ async function load(): Promise<Boats> {
     nx: number,
     nz: number,
     kinds: BoatName[],
-    o: Required<Omit<MooreOptions, "bob">>,
+    o: Required<Omit<MooreOptions, "bob" | "avoid">> & { avoid: Rect[] },
   ): Array<{ name: BoatName; x: number; z: number; yaw: number }> {
     const L = Math.hypot(x1 - x0, z1 - z0);
     const out: Array<{ name: BoatName; x: number; z: number; yaw: number }> = [];
     if (L < 1) return out;
+    // M7 boats: a hull over a small boat's mooring is not placed there
+    const clash = (cx: number, cz: number, yaw: number, d: Dims) => {
+      if (!o.avoid.length) return false;
+      const s = Math.abs(Math.sin(yaw));
+      const c = Math.abs(Math.cos(yaw));
+      const hl = d.length / 2;
+      const hb = d.beam / 2;
+      const r = { minX: cx - s * hl - c * hb, maxX: cx + s * hl + c * hb, minZ: cz - c * hl - s * hb, maxZ: cz + c * hl + s * hb };
+      return o.avoid.some((a) => r.minX < a.maxX && r.maxX > a.minX && r.minZ < a.maxZ && r.maxZ > a.minZ);
+    };
     const tx = (x1 - x0) / L;
     const tz = (z1 - z0) / L;
     const r = rng(o.seed);
@@ -871,6 +1082,10 @@ async function load(): Promise<Boats> {
         const along = s + d.length / 2;
         const across = off + d.beam / 2;
         const flip = r() < 0.5 ? 0 : Math.PI;
+        if (clash(x0 + tx * along + nx * across, z0 + tz * along + nz * across, Math.atan2(tx, tz), d)) {
+          s += 1;
+          continue;
+        }
         out.push({
           name,
           x: x0 + tx * along + nx * across,
@@ -902,6 +1117,7 @@ async function load(): Promise<Boats> {
   const tmpE = new THREE.Euler(0, 0, 0, "YXZ");
   const tmpP = new THREE.Vector3();
   const one = new THREE.Vector3(1, 1, 1);
+  const zero = new THREE.Vector3(0, 0, 0);
   const _m = new THREE.Matrix4();
   /** Each rigging geometry's four matrix columns (i0..i3), looked up once. */
   const rigAttrs = new WeakMap<THREE.BufferGeometry, THREE.InstancedBufferAttribute[]>();
@@ -928,7 +1144,7 @@ async function load(): Promise<Boats> {
       tmpP.set(b.x, Math.max(level, b.floor) + h * Math.sin(w * t + b.p[0]) + h * 0.4 * Math.sin(2.3 * w * t + b.p[0] * 1.7), b.z);
       tmpE.set(pitch * Math.sin(1.13 * w * t + b.p[2]), b.yaw, roll * Math.sin(0.83 * w * t + b.p[1]) + b.list * aground);
       tmpQ.setFromEuler(tmpE);
-      tmpM.compose(tmpP, tmpQ, one);
+      tmpM.compose(tmpP, tmpQ, b.hidden ? zero : one);
       for (let k = 0; k < f.meshes.length; k++) {
         f.meshes[k].setMatrixAt(i, _m.multiplyMatrices(tmpM, f.parts[k].matrix));
       }
@@ -940,6 +1156,92 @@ async function load(): Promise<Boats> {
     }
     for (const m of f.meshes) m.instanceMatrix.needsUpdate = true;
     if (rig) for (const a of rig) a.needsUpdate = true;
+  }
+
+  /** M7 boats: a model's parts merged by material (her oars laid in go into her solid mesh): 3 draw calls a kind. */
+  const mergedCache = new Map<BoatName, Part[]>();
+  function mergedParts(name: BoatName): Part[] {
+    let out = mergedCache.get(name);
+    if (out) return out;
+    const byMat = new Map<THREE.Material, THREE.BufferGeometry[]>();
+    for (const part of parts(name)) {
+      const g = part.geometry.clone().applyMatrix4(part.matrix);
+      let l = byMat.get(part.material);
+      if (!l) byMat.set(part.material, (l = []));
+      l.push(g);
+    }
+    out = [...byMat].map(([material, geos]) => ({ geometry: (geos.length > 1 ? mergeGeometries(geos, false) : null) ?? geos[0], material, matrix: new THREE.Matrix4() }));
+    mergedCache.set(name, out);
+    return out;
+  }
+
+  function fleetOf(scene: THREE.Object3D, list: Array<{ name: BoatName; x: number; z: number; yaw: number; floor: number }>): SmallFleet {
+    const group = new THREE.Group();
+    group.name = "small_boats";
+    const r = rng(1873 ^ list.length);
+    const slot: Array<{ fleet: Fleet; i: number }> = [];
+    // by kind and by quarter of the waterfront (the river west and east of the canal, the canal and the
+    // Vliet, the Petit Bassin): few draw calls, and a quarter out of view is not drawn
+    const quarter = (x: number, z: number) => (z > 40 && x > 50 ? "dock" : z > 1 ? "canals" : x < -60 ? "west" : "east");
+    const byKind = new Map<string, number[]>();
+    list.forEach((b, i) => {
+      const key = `${b.name}:${quarter(b.x, b.z)}`;
+      let l = byKind.get(key);
+      if (!l) byKind.set(key, (l = []));
+      l.push(i);
+    });
+    for (const [key, idx] of byKind) {
+      const name = key.split(":")[0] as BoatName;
+      const ps = mergedParts(name);
+      const fleet: Fleet = {
+        meshes: [],
+        lines: null,
+        parts: ps,
+        boats: idx.map((i) => ({
+          x: list[i].x,
+          z: list[i].z,
+          yaw: list[i].yaw,
+          m: MOTION[name] ?? MOTION.rowboat,
+          p: [r() * 6.283, r() * 6.283, r() * 6.283] as [number, number, number],
+          world: new THREE.Matrix4(),
+          region: regionAt(list[i].x, list[i].z),
+          floor: list[i].floor,
+          list: (r() - 0.5) * 0.1,
+        })),
+      };
+      for (const part of ps) {
+        const im = new THREE.InstancedMesh(part.geometry, part.material, idx.length);
+        if (part.material === capMaterial) im.renderOrder = 1;
+        im.name = `${name}_small`;
+        fleet.meshes.push(im);
+        group.add(im);
+      }
+      idx.forEach((i, k) => {
+        slot[i] = { fleet, i: k };
+        const b = fleet.boats[k];
+        for (const [lpnt, kind] of lampPoints(name)) {
+          const local = lpnt.clone();
+          addLamp((out) => void (b.hidden ? out.set(0, -999, 0) : out.copy(local).applyMatrix4(b.world)), kind, () => rootOf(group));
+        }
+        placedAll.push({ name, x: b.x, z: b.z, yaw: b.yaw, floor: b.floor, y: () => b.world.elements[13], single: false });
+      });
+      writeFleet(fleet, 0);
+      // the tide lifts and lowers them some 5 m: room for that round the instances
+      for (const im of fleet.meshes) {
+        im.computeBoundingSphere();
+        if (im.boundingSphere) im.boundingSphere.radius += 4;
+      }
+      fleets.push(fleet);
+    }
+    scene.add(group);
+    return {
+      hide(i, hidden) {
+        const q = slot[i];
+        if (q) q.fleet.boats[q.i].hidden = hidden;
+      },
+      world: (i) => slot[i].fleet.boats[slot[i].i].world,
+      hidden: (i) => !!slot[i]?.fleet.boats[slot[i].i].hidden,
+    };
   }
 
   function mooreAlong(
@@ -960,8 +1262,9 @@ async function load(): Promise<Boats> {
       rows: opts.rows ?? 1,
       maxBeam: opts.maxBeam ?? Infinity,
       seed: opts.seed ?? 1873,
+      avoid: opts.avoid ?? [],
     };
-    const placed = pack(x0, z0, x1, z1, nx, nz, kinds, o);
+    const placed: Moored["placed"] = pack(x0, z0, x1, z1, nx, nz, kinds, o);
     const group = new THREE.Group();
     group.name = "moored";
     const byKind = new Map<BoatName, typeof placed>();
@@ -1013,6 +1316,17 @@ async function load(): Promise<Boats> {
           const local = sp.clone();
           addEmitter({ at: (out) => void out.copy(local).applyMatrix4(b.world), strength: 0.3, phase: (i * 0.37) % 1, root: () => rootOf(group) });
         }
+        // M7 boats: the stoves in the barges' cabins, the lanterns; the placement for the check and life aboard
+        for (const sp of stovePoints(name)) {
+          const local = sp.clone();
+          addEmitter({ at: (out) => void out.copy(local).applyMatrix4(b.world), strength: 0.2, phase: (i * 0.53 + 0.2) % 1, root: () => rootOf(group) });
+        }
+        for (const [lpnt, kind] of lampPoints(name)) {
+          const local = lpnt.clone();
+          addLamp((out) => void out.copy(local).applyMatrix4(b.world), kind, () => rootOf(group));
+        }
+        list[i].world = b.world;
+        placedAll.push({ name, x: b.x, z: b.z, yaw: b.yaw, floor: b.floor, y: () => b.world.elements[13], single: false, world: b.world });
       });
       writeFleet(fleet, 0);
       for (const im of fleet.meshes) im.computeBoundingSphere();
@@ -1044,6 +1358,7 @@ async function load(): Promise<Boats> {
           rows: 1,
           maxBeam: Infinity,
           seed: seed + (sx > 0 ? 0 : 99),
+          avoid: [],
         });
         for (const b of list) place(b.name, b.x, b.z, b.yaw, scene);
       }
@@ -1051,7 +1366,8 @@ async function load(): Promise<Boats> {
     return [{ minX: x - half, maxX: x + half, minZ: Math.min(z0, zEnd), maxZ: Math.max(z0, zEnd), y: levelAt(x, (z0 + zEnd) / 2) + deckTop }];
   }
 
-  function update(t: number, dt: number): void {
+  function update(t: number, dt: number, lit = 0): void {
+    lampLit += (Math.max(0, Math.min(1, lit)) - lampLit) * Math.min(1, dt * 2);
     const sea = psxUniforms.uSea.value;
     for (const f of floats) {
       const [h0, roll0, pitch0, period] = f.m;
@@ -1073,6 +1389,7 @@ async function load(): Promise<Boats> {
     }
     for (const f of fleets) writeFleet(f, t);
     updateSmoke(t);
+    updateLamps(t);
     for (const s of swings) {
       if (s.wait > 0) {
         s.wait -= dt;
@@ -1117,7 +1434,31 @@ async function load(): Promise<Boats> {
     },
     pontoon,
     mooreAlong,
+    fleetOf,
     update,
+    placements: () => placedAll,
+    extra(name, key) {
+      const raw = extras.get(name)?.[key];
+      if (typeof raw !== "string") return raw;
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return raw;
+      }
+    },
+    lamps: () => {
+      const out: Array<{ x: number; y: number; z: number; kind: number; on: number }> = [];
+      for (const l of lampList) {
+        l.at(lp);
+        if (lp.y > -900) out.push({ x: +lp.x.toFixed(2), y: +lp.y.toFixed(2), z: +lp.z.toFixed(2), kind: l.kind, on: +lampLit.toFixed(2) });
+      }
+      return out;
+    },
+    stowed(obj, show) {
+      obj.traverse((o) => {
+        if (o.name.endsWith("_stow")) o.visible = show;
+      });
+    },
     materials,
     moving() {
       movingOut.length = 0;

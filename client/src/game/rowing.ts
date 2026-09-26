@@ -2,9 +2,9 @@ import * as THREE from "three";
 import type { FirstPerson, RowHull } from "../player/firstPerson";
 import { WATER_Y, type World } from "../world/rijnkaai";
 import type { Exit } from "../world/quaysteps";
-import { BOAT_NAMES, type BoatName } from "../world/boats";
+import { BOAT_NAMES, type BoatName, type SmallFleet } from "../world/boats";
 import { DECK_UNDER } from "../world/bridges";
-import { bedAt, levelAt, MID_Y, tideRate, water } from "../world/tide";
+import { bedAt, HW_MAX, levelAt, LW_MIN, MID_Y, tideRate, water } from "../world/tide";
 import type { Rect } from "../world/geom";
 import { psx, psxUniforms } from "../retro/psx";
 import type { JobsPayload } from "../net/api";
@@ -15,6 +15,9 @@ import { nearestAim, type Target } from "./facing";
 import type { MapMark } from "./map";
 import { makeHuman, type Human, type HumanKind } from "./humans";
 import { bootRestore } from "./restoreData";
+import { HULLS, MOORINGS, SMALL_KINDS, isSmallKind, type Mooring, type SmallKind } from "../../../shared/smallBoats";
+import { Moorings, floorOf, type RopeEnd } from "./boatMoorings";
+import { LifeAboard } from "./lifeAboard";
 
 // Rowing boats (M3j), on the client. Steve, 2026-09-23: "We should be able to take a boat and
 // row to other places. Bridge goes up if we don't fit underneath. Only rowing boats, no big
@@ -31,7 +34,8 @@ import { bootRestore } from "./restoreData";
 // A/D, Shift (firstPerson.ts); E gets you out: onto the steps, a ladder, a pontoon, or over the
 // side into the water. A hired boat got out of at any hire landing goes back to the waterman.
 
-type Kind = "rowboat" | "punt";
+/** M7 boats: nine kinds of small boat (shared/smallBoats.ts), every one rowable. */
+type Kind = SmallKind;
 
 interface Landing {
   id: string;
@@ -47,8 +51,15 @@ interface Landing {
 interface LooseInfo {
   id: string;
   kind: Kind;
-  owner: string;
+  owner: string | null;
   owner_name: string;
+  /** M7 boats: the engine's words for taking her ("take Mie Janssens's punt"), where she belongs, how to get in. */
+  prompt: string;
+  home: { x: number; z: number; yaw: number };
+  board: "steps" | "ladder";
+  rings: [[number, number], [number, number]] | null;
+  /** The owner found her gone (a game minute), 0 if not. */
+  missed: number;
   landing: [number, number];
   where: string;
   x: number;
@@ -69,11 +80,14 @@ export interface RowWorld {
   fees: { hire_c: number; hours: number; late_c: number; left_fine_c: number };
 }
 
-/** Hull sizes and the rower's seat, from boats.glb (measured: rowboat thwarts at z -0.43 and 1.0, rowlocks at z 0.25). */
-const HULL: Record<Kind, RowHull & { pin: [number, number, number]; len: number }> = {
-  rowboat: { half: 2.65, beam: 0.72, seatZ: -0.43, seatY: 0.38, speed: 1, pin: [0.77, 0.62, 0.25], len: 5.4 },
-  punt: { half: 2.55, beam: 0.64, seatZ: -1.25, seatY: 0.38, speed: 0.9, pin: [0.68, 0.56, -0.6], len: 5.2 },
-};
+/** Hull sizes and the rower's seat, from boats.glb (M7 boats: every small kind, shared/smallBoats.ts HULLS; the boat check compares them with the model). */
+const HULL: Record<Kind, RowHull & (typeof HULLS)[Kind]> = HULLS;
+/** M7 boats: each mooring by its boat's id (its ladder, its rings). */
+const MOORING_OF = new Map<string, Mooring>(MOORINGS.map((m) => [m.id, m]));
+/** M7 boats: the longest a mooring line may be (the boat check): a tide's rise and the way to the ring. */
+const ROPE_MAX = 9;
+/** A boat's name in the player's words (the rowing boat is "the boat"). */
+const nounOf = (k: Kind) => (k === "rowboat" ? "boat" : HULLS[k].noun);
 /** A seated rower's head over the waterline, and room to spare under a deck. */
 const HEAD = 1.2;
 const HEAD_ROOM = 0.25;
@@ -147,7 +161,13 @@ export class Rowing {
   private boat: { obj: THREE.Object3D; what: string; kind: Kind; oars: THREE.Group } | null = null;
   /** Boats lying on the water, by key: "berth:<landing>", a loose boat's id, "mine" (the hired boat left out). */
   private lying = new Map<string, Lying>();
-  private pool: Record<Kind, THREE.Object3D[]> = { rowboat: [], punt: [] };
+  private pool = Object.fromEntries(SMALL_KINDS.map((k) => [k, [] as THREE.Object3D[]])) as Record<Kind, THREE.Object3D[]>;
+  /** M7 boats: the small boats at their moorings, drawn instanced (world/boats.ts fleetOf); a taken one is a copy (lying). */
+  private fleet: SmallFleet | null = null;
+  private fleetIdx = new Map<string, number>();
+  private moorings: Moorings | null = null;
+  /** The last grumble shown for each boat (the owner found her gone). */
+  private grumbled = new Map<string, number>();
   private busy = false;
   private pollT = 0;
   private notice = -1;
@@ -284,7 +304,7 @@ export class Rowing {
     } else if (first) this.notice = w.notice?.n ?? 0;
     // M7 save and pause: a loaded save had Jef in this boat: he sits in it again where he was
     const back = bootRestore()?.row;
-    if (w.on && !this.boat && !this.busy && back && !this.rowBack && (back.kind === "rowboat" || back.kind === "punt")) {
+    if (w.on && !this.boat && !this.busy && back && !this.rowBack && isSmallKind(back.kind)) {
       this.sitIn(null, w.on === "hire" ? "hire" : w.on, back.kind, back.x, back.z, back.yaw);
       if (this.boat) this.rowBack = true;
       else if (this.rowTries++ < 20) window.setTimeout(() => void this.load(), 1000); // the boats are not in yet
@@ -301,6 +321,14 @@ export class Rowing {
     // the server took us out of the boat (the night, the police): step out where we are
     if (!w.on && this.boat && this.player.rowing && !this.busy) this.forceOut();
     this.syncLying();
+    // M7 boats: an owner found his boat gone and grumbles, if Jef is near her mooring to hear it
+    for (const b of w.boats) {
+      if (!b.missed || this.grumbled.get(b.id) === b.missed) continue;
+      this.grumbled.set(b.id, b.missed);
+      if (first || !b.owner) continue;
+      if (Math.hypot(this.player.x - b.home.x, this.player.z - b.home.z) < 45)
+        this.jobs.say(`Someone on the quay ${b.where.replace(/^(by|at|in|under|before|along) the /, "by the ")} is shouting: "My ${nounOf(b.kind)}! Who has taken my ${nounOf(b.kind)}?"`);
+    }
   }
 
   private objFor(kind: Kind): THREE.Object3D | null {
@@ -315,6 +343,48 @@ export class Rowing {
     l.obj.visible = false;
     this.pool[l.kind].push(l.obj);
     this.lying.delete(l.key);
+  }
+
+  /** M7 boats: the small boats at their moorings, drawn instanced once the boats and the list are in. */
+  private ensureFleet(w: RowWorld): void {
+    const b = this.world.boats();
+    if (this.fleet || !b) return;
+    const list = w.boats.map((q) => ({ name: q.kind as BoatName, x: q.home.x, z: q.home.z, yaw: q.home.yaw, floor: floorOf(q.kind, q.home.x, q.home.z, q.home.yaw) }));
+    this.fleet = b.fleetOf(this.world.scene, list);
+    w.boats.forEach((q, i) => this.fleetIdx.set(q.id, i));
+    // every boat at her mooring is a solid for the other boats and for swimmers
+    for (const q of w.boats) {
+      const r = this.rectOf(q.home.x, q.home.z, q.home.yaw, q.kind);
+      this.homeRects.set(q.id, r);
+      this.world.addWaterSolid(r);
+    }
+    this.homeSolid = new Set(w.boats.map((q) => q.id));
+    this.moorings = new Moorings(this.world.scene);
+    const rings: Array<[number, number, number]> = [];
+    for (const q of w.boats) for (const r of q.rings ?? []) rings.push([r[0], r[1], this.world.baseAt(r[0], r[1])]);
+    this.moorings.setRings(rings, this.world.mats.iron);
+    // the families who live aboard a few of the barges (the moored rows are in by now)
+    this.life = new LifeAboard(this.world.scene, b);
+  }
+  /** M7 boats: the families aboard the barges. */
+  life: LifeAboard | null = null;
+  /** Boats whose mooring counts as a solid now (she lies there). */
+  private homeSolid = new Set<string>();
+  private homeRects = new Map<string, Rect>();
+  /** Show her at her mooring (instanced) or not; her mooring is a solid only while she lies there. */
+  private atHome(b: LooseInfo, home: boolean): void {
+    const i = this.fleetIdx.get(b.id);
+    if (i === undefined || !this.fleet) return;
+    this.fleet.hide(i, !home);
+    let r = this.homeRects.get(b.id);
+    if (!r) this.homeRects.set(b.id, (r = this.rectOf(b.home.x, b.home.z, b.home.yaw, b.kind)));
+    if (home && !this.homeSolid.has(b.id)) {
+      this.world.addWaterSolid(r);
+      this.homeSolid.add(b.id);
+    } else if (!home && this.homeSolid.has(b.id)) {
+      this.world.removeWaterSolid(r);
+      this.homeSolid.delete(b.id);
+    }
   }
   private rectOf(x: number, z: number, yaw: number, kind: Kind): Rect {
     const hl = HULL[kind].len * 0.47;
@@ -345,6 +415,9 @@ export class Rowing {
     }
     l.obj.position.set(l.x, levelAt(l.x, l.z), l.z);
     l.obj.rotation.set(0, l.yaw, 0);
+    // M7 boats: she takes the mud where she lies (world/boats.ts reads the floor), her oars laid in
+    l.obj.userData.floor = floorOf(kind, l.x, l.z, l.yaw);
+    this.world.boats()?.stowed(l.obj, true);
     return l;
   }
 
@@ -366,12 +439,18 @@ export class Rowing {
       if (had && had.kind !== L.kind && Math.hypot(px - L.x, pz - L.z) < 40) continue;
       this.lay(key, L.kind, L.x, L.z, L.yaw);
     }
+    this.ensureFleet(w);
     for (const b of w.boats) {
-      if (b.lost || (this.boat && this.boat.what === b.id)) continue;
+      const riding = !!(this.boat && this.boat.what === b.id) || this.climbing === b.id;
+      const had = this.lying.get(b.id);
+      const home = !b.lost && !riding && !this.townAway.has(b.id) && Math.hypot(b.x - b.home.x, b.z - b.home.z) < 0.05 && !(had?.drifted && b.mine);
+      // M7 boats: at her mooring she is one of the instanced boats; anywhere else a copy of her own
+      this.atHome(b, home && !!this.fleet);
+      if (home && this.fleet) continue;
+      if (b.lost || riding) continue;
       // M6 transport: its owners are out in it (a family errand): it lies at no berth now
       if (this.townAway.has(b.id)) continue;
       want.add(b.id);
-      const had = this.lying.get(b.id);
       // one we left drifting: keep where it drifted to, unless the server moved it (home again)
       if (had?.drifted && b.mine) continue;
       this.lay(b.id, b.kind, b.x, b.z, b.yaw, b.mine && b.z < -1);
@@ -420,8 +499,9 @@ export class Rowing {
     // on a landing, a pontoon, the foot of a ladder: by the water (M6 tides: at low water the
     // boat lies below the landing and you climb down into it; at high water the landing is under
     // water and you stand on the steps above it)
-    if (this.player.y > levelAt(x, z) + 3.2) return {};
-    for (const L of w.landings) {
+    // (M7 boats: high over the water, only the ladder down to a boat at its foot)
+    const high = this.player.y > levelAt(x, z) + 3.2;
+    for (const L of high ? [] : w.landings) {
       const l = this.lying.get(`berth:${L.id}`);
       const d = Math.hypot(L.landing[0] - x, L.landing[1] - z);
       const flooded = levelAt(L.x, L.z) > WATER_Y + 0.4 + 0.3;
@@ -430,18 +510,43 @@ export class Rowing {
       const debt = w.debt_c ? `, and the ${w.debt_c} c you owe` : "";
       options.push([d, { key: "KeyE", text: w.hire ? `hire ${what} (you have one out already)` : `hire ${what} from ${L.waterman} (${w.fees.hire_c} c${debt})`, run: () => void this.hire(L), at: this.hullAt(l) }]);
     }
-    for (const l of this.lying.values()) {
-      if (l.key.startsWith("berth:")) continue;
+    const mine = high ? undefined : this.lying.get("mine");
+    if (mine && this.distToHull(mine, x, z) <= 2.0) options.push([this.distToHull(mine, x, z), { key: "KeyE", text: "get back into your boat", run: () => void this.board(mine), at: this.hullAt(mine) }]);
+    // M7 boats: every small boat, at her mooring or lying where she was left: from the steps or a landing,
+    // down the ladder at her thwart, or straight off the quay when the water is high enough to step down
+    const quayTop = this.world.baseAt(x, z);
+    const onQuay = quayTop > -0.6 && this.player.y > quayTop - 0.3 && !this.world.isWater(x, z);
+    for (const b of w.boats) {
+      if (b.lost || this.townAway.has(b.id) || b.ridden) continue;
+      const l = this.lying.get(b.id) ?? this.homeLying(b);
+      const text = b.mine ? `get into the ${nounOf(b.kind)}` : b.prompt;
       const d = this.distToHull(l, x, z);
-      if (d > 2.0) continue;
-      if (l.key === "mine") options.push([d, { key: "KeyE", text: "get back into your boat", run: () => void this.board(l), at: this.hullAt(l) }]);
-      else {
-        const b = w.boats.find((q) => q.id === l.key);
-        if (!b) continue;
-        options.push([d, { key: "KeyE", text: b.mine ? "get into the boat" : `take the ${b.kind === "punt" ? "punt" : "rowing boat"}`, run: () => void this.board(l), at: this.hullAt(l) }]);
+      const m = MOORING_OF.get(b.id);
+      const home = !this.lying.has(b.id);
+      // down the ladder: standing at its head on the quay, she lies at its foot
+      if (home && m && m.board.kind === "ladder" && onQuay) {
+        const dl = Math.hypot(x - m.board.top[0], z - m.board.top[1]);
+        if (dl <= 1.4) {
+          options.push([dl * 0.5, { key: "KeyE", text, run: () => void this.board(l, { ladder: m.board as Extract<Mooring["board"], { kind: "ladder" }> }), at: this.hullAt(l) }]);
+          continue;
+        }
       }
+      if (high) continue;
+      if (onQuay) {
+        // off the quay's edge: only when her gunwale is no more than a long step down
+        const drop = this.world.baseAt(x, z) - (levelAt(l.x, l.z) + HULLS[b.kind].bow[1] - 0.1);
+        if (drop <= 1.3 && d <= 1.3) options.push([d, { key: "KeyE", text, run: () => void this.board(l, { step: true }), at: this.hullAt(l) }]);
+        continue;
+      }
+      if (d > 2.0) continue;
+      options.push([d, { key: "KeyE", text, run: () => void this.board(l), at: this.hullAt(l) }]);
     }
     return { options };
+  }
+
+  /** A boat at her mooring as a Lying (for the prompt's look and the way in): she is instanced, not a copy. */
+  private homeLying(b: LooseInfo): Lying {
+    return { key: b.id, kind: b.kind, obj: null as unknown as THREE.Object3D, rect: this.rectOf(b.home.x, b.home.z, b.home.yaw, b.kind), x: b.home.x, z: b.home.z, yaw: b.home.yaw, drift: false };
   }
 
   /** The point along a lying boat nearest the crosshair (bow, middle, stern), for looking at it (game/facing.ts). */
@@ -544,8 +649,15 @@ export class Rowing {
     }
   }
 
-  /** Into a lying boat: your own (left out, or taken before), or someone else's (theft). */
-  private async board(l: Lying): Promise<void> {
+  /** M7 boats: the boat Jef is climbing down into now (not drawn at her mooring meanwhile). */
+  private climbing: string | null = null;
+
+  /**
+   * Into a boat: your own (left out, or taken before), someone else's (the engine judges it: M3h
+   * deeds, M7 boats), or one nobody owns. M7 boats: down the ladder at her thwart, or a step down off
+   * the quay at high water; the owner who saw it answers (world: game/deeds.ts react).
+   */
+  private async board(l: Lying, via: { ladder?: Extract<Mooring["board"], { kind: "ladder" }>; step?: boolean } = {}): Promise<void> {
     if (this.busy) return;
     if (this.jobs.goods.carried || this.player.laden) {
       this.jobs.say("Not with that in your arms.");
@@ -560,7 +672,7 @@ export class Rowing {
         this.sitIn(l, "hire", l.kind, l.x, l.z, l.yaw);
         this.jobs.say(r.text);
       } else {
-        const r = await this.post<JobsPayload & { again: boolean; text: string; reaction: { line: string } | null }>("/api/deed", {
+        const r = await this.post<JobsPayload & { deed: number | null; again: boolean; text: string; reaction: { who: string; name: string; kind: "shout" | "chase" | "ask"; line: string } | null }>("/api/deed", {
           ref: l.key,
           x: +x.toFixed(2),
           z: +z.toFixed(2),
@@ -569,17 +681,63 @@ export class Rowing {
           lantern: this.deeds.lantern.lit,
         });
         this.jobs.refresh(r);
-        this.sitIn(l, l.key, l.kind, l.x, l.z, l.yaw);
-        this.jobs.say(r.again ? "You get back into the boat." : r.reaction?.line ?? r.text);
-        if (r.reaction) this.sfx("thud_soft");
-        this.stormWarning();
+        const say = () => {
+          this.jobs.say(r.again ? "You get back into the boat." : r.reaction?.line ?? r.text);
+          this.stormWarning();
+        };
+        if (r.reaction) {
+          this.sfx("thud_soft");
+          // the owner who saw it shouts, runs for the quay or comes to ask for her back (game/deeds.ts)
+          this.deeds.react(r as unknown as Parameters<Deeds["react"]>[0]);
+        }
+        // a boat at her mooring is instanced: she becomes a copy of her own now
+        const lay = l.obj ? l : this.lay(l.key, l.kind, l.x, l.z, l.yaw);
+        if (!lay) return;
+        if (via.ladder || via.step) {
+          // busy till she is under him: the poll must not think he is out of her meanwhile
+          this.climbInto(lay, via, () => {
+            this.climbing = null;
+            this.busy = false;
+            this.sitIn(lay, l.key, l.kind, lay.x, lay.z, lay.yaw);
+            say();
+          });
+          this.climbing = l.key;
+          const b = this.data?.boats.find((q) => q.id === l.key);
+          if (b) this.atHome(b, false);
+        } else {
+          this.sitIn(lay, l.key, l.kind, lay.x, lay.z, lay.yaw);
+          say();
+        }
       }
     } catch (e) {
       this.jobs.say(`${cap((e as Error).message)}.`);
     } finally {
-      this.busy = false;
+      if (!this.climbing) this.busy = false;
       void this.load();
     }
+  }
+
+  /** M7 boats: climb down the ladder (or step down off the quay) to her thwart, then `then`. */
+  private climbInto(l: Lying, via: { ladder?: Extract<Mooring["board"], { kind: "ladder" }> }, then: () => void): void {
+    const p = this.player;
+    const h = HULL[l.kind];
+    const lv = levelAt(l.x, l.z);
+    const seat: [number, number] = [l.x + Math.sin(l.yaw) * h.seatZ, l.z + Math.cos(l.yaw) * h.seatZ];
+    const top = this.world.baseAt(p.x, p.z);
+    const keys: Array<[number, number, number, number]> = [];
+    if (via.ladder) {
+      const [tx, tz] = via.ladder.top;
+      const [nx, nz] = via.ladder.n;
+      // to the ladder's head, over the edge, down the rungs (0.5 m a second), and onto the thwart
+      const lx = tx + nx * 0.25;
+      const lz = tz + nz * 0.25;
+      const foot = lv + h.seatY + 0.35;
+      keys.push([tx - nx * 0.2, top, tz - nz * 0.2, 0.35]);
+      keys.push([lx, top - 0.3, lz, 0.5]);
+      keys.push([lx, foot, lz, Math.max(0.4, (top - 0.3 - foot) / 1.6)]);
+    } else keys.push([p.x + (seat[0] - p.x) * 0.5, top - 0.2, p.z + (seat[1] - p.z) * 0.5, 0.45]);
+    keys.push([seat[0], lv + h.seatY - 0.2, seat[1], 0.45]);
+    p.climbTo(keys, then);
   }
 
   private sitIn(l: Lying | null, what: string, kind: Kind, x: number, z: number, yaw: number): void {
@@ -593,6 +751,7 @@ export class Rowing {
       yaw = l.yaw;
     } else obj = this.objFor(kind);
     if (!obj) return;
+    this.world.boats()?.stowed(obj, false);
     this.boat = { obj, what, kind, oars: this.oarsFor(obj, kind) };
     this.player.rowStart(x, z, yaw, HULL[kind]);
     this.warned = false;
@@ -627,6 +786,8 @@ export class Rowing {
       const r = await this.post<JobsPayload & { text: string; returned: boolean; row: RowWorld }>("/api/row/leave", { x: +at.x.toFixed(2), z: +at.z.toFixed(2), yaw: +at.yaw.toFixed(3), ashore: !!exit });
       this.jobs.refresh(r);
       this.data = r.row;
+      // M7 boats: tied up at her own mooring: she lies there again (the server has her home)
+      if (r.returned && b.what !== "hire") this.syncLying();
       if (r.text) this.jobs.say(r.text);
       else if (b.what === "hire" && !L) this.jobs.say(exit ? "You leave the boat tied here. The waterman will not like it." : "You go over the side. The water is ice cold. The boat drifts on without you.");
       else if (!exit) this.jobs.say("You go over the side into the cold water.");
@@ -652,6 +813,7 @@ export class Rowing {
     this.releaseAll();
     b.oars.visible = false;
     b.obj.visible = false;
+    this.world.boats()?.stowed(b.obj, true);
     this.pool[b.kind].push(b.obj);
     this.boat = null;
   }
@@ -1007,6 +1169,7 @@ export class Rowing {
     obj.position.set(at.x, levelAt(at.x, at.z), at.z);
     obj.rotation.set(0, at.yaw, 0);
     const oars = this.oarsFor(obj, kind);
+    this.world.boats()?.stowed(obj, false); // M7 boats: her oars are out, not laid in
     const people: Array<{ h: Human; g: THREE.Group; row: boolean }> = [];
     const H = HULL[kind];
     crew.slice(0, 3).forEach((c, i) => {
@@ -1270,12 +1433,48 @@ export class Rowing {
         this.splinters.visible = false;
       }
     }
+    // M7 boats: the lines of the boats at their moorings near the eye; copies far off are not drawn
+    this.ropes();
+    this.life?.update(dt, this.player.camera.position);
     // a new boat at a berth once nobody is looking
     this.syncT -= dt;
     if (this.data && this.syncT <= 0) {
       this.syncT = 2;
       this.syncLying();
     }
+  }
+
+  private ropeT = 0;
+  private ropeEnds: RopeEnd[] = [];
+  private ropes(): void {
+    const w = this.data;
+    if (!w || !this.moorings || !this.fleet) return;
+    const px = this.player.camera.position.x;
+    const pz = this.player.camera.position.z;
+    // which boats: every half second, the nearest at their moorings (or lying there as a copy)
+    this.ropeT -= 1 / 60;
+    if (this.ropeT <= 0) {
+      this.ropeT = 0.5;
+      this.ropeEnds = [];
+      const near = w.boats
+        .filter((b) => b.rings && !b.lost && Math.hypot(b.home.x - px, b.home.z - pz) < 70)
+        .sort((a, b) => Math.hypot(a.home.x - px, a.home.z - pz) - Math.hypot(b.home.x - px, b.home.z - pz))
+        .slice(0, 32);
+      for (const b of near) {
+        const i = this.fleetIdx.get(b.id);
+        let m: THREE.Matrix4 | null = null;
+        if (i !== undefined && !this.fleet.hidden(i)) m = this.fleet.world(i);
+        else {
+          const l = this.lying.get(b.id);
+          if (l && Math.hypot(l.x - b.home.x, l.z - b.home.z) < 1.5) m = (l.obj.children[0] ?? l.obj).matrixWorld;
+        }
+        if (!m) continue;
+        this.ropeEnds.push({ m, kind: b.kind, rings: b.rings!, top: this.world.baseAt(b.rings![0][0], b.rings![0][1]) });
+      }
+    }
+    this.moorings.update(this.ropeEnds);
+    // copies of boats far off: not drawn (the instanced ones cull by their squares)
+    for (const l of this.lying.values()) l.obj.visible = Math.hypot(l.x - px, l.z - pz) < 170;
   }
 
   // ------------------------------------------------------------------ the map and the path check
@@ -1291,6 +1490,11 @@ export class Rowing {
     for (const f of this.world.quayInfo().flights) {
       const b = this.data?.boats.find((q) => Math.hypot(q.landing[0] - f.end[0], q.landing[1] - f.end[1]) < 6);
       if (b) out.push({ label: `the ${b.kind} ${b.where}`, x: f.top[0], z: f.top[1], reach: 2.2 });
+    }
+    // M7 boats: every small boat's way in: the head of her ladder, or the top of her flight of steps
+    for (const m of MOORINGS) {
+      const at = m.board.top;
+      out.push({ label: `the ${HULLS[m.kind].noun} ${m.where} (${m.id})`, x: at[0] - (m.board.kind === "ladder" ? m.board.n[0] * 0.8 : 0), z: at[1] - (m.board.kind === "ladder" ? m.board.n[1] * 0.8 : 0), reach: 1.6 });
     }
     return out;
   }
@@ -1318,6 +1522,122 @@ export class Rowing {
       server: this.data ? { hire: this.data.hire, on: this.data.on, debt_c: this.data.debt_c, storm: this.data.storm } : null,
       sinking: this.sinking.length,
     };
+  }
+
+  /**
+   * M7 boats: the boat check (__scheldemist.rowing.boatCheck()). Every small boat floats on her own water
+   * at the height the tide gives her (on the mud only where the water is too low for her), clear of the
+   * quay wall, the land and every other hull; her two lines reach their rings in the coping at high and
+   * low water; the way in (her ladder, her steps) is there; her numbers match her model. Every other
+   * vessel set down (the moored rows, the ships) floats on water at her height and clear of the others.
+   * `problems` must be empty. (`paths()` checks the quay at the head of each ladder and flight.)
+   */
+  boatCheck(): { boats: number; aground: number; ropes: number; ladders: number; vessels: number; problems: string[] } {
+    const w = this.data;
+    const bs = this.world.boats();
+    const problems: string[] = [];
+    if (!w || !bs || !this.fleet) return { boats: 0, aground: 0, ropes: 0, ladders: 0, vessels: 0, problems: ["the boats are not in yet"] };
+    const ladders = this.world.quayInfo().ladders;
+    const flights = this.world.quayInfo().flights;
+    const rects = new Map<string, Rect>();
+    let aground = 0;
+    let ropes = 0;
+    let ladderN = 0;
+    const tmp = new THREE.Vector3();
+    for (const b of w.boats) {
+      if (b.lost) continue;
+      const h = HULL[b.kind];
+      const l = this.lying.get(b.id);
+      const at = l ? { x: l.x, z: l.z, yaw: l.yaw } : b.home;
+      const name = `${b.id} (${b.kind})`;
+      // on the water: the ends and the sides of her hull
+      const fx = Math.sin(at.yaw);
+      const fz = Math.cos(at.yaw);
+      for (const [a, c] of [[h.half, 0], [-h.half, 0], [0, h.beam], [0, -h.beam], [h.half * 0.7, h.beam * 0.8], [-h.half * 0.7, -h.beam * 0.8]]) {
+        const px = at.x + fx * a + fz * c;
+        const pz = at.z + fz * a - fx * c;
+        if (!this.world.isWater(px, pz)) problems.push(`${name}: part of her hull is on land or in the wall at (${px.toFixed(1)}, ${pz.toFixed(1)})`);
+      }
+      // her height: the level of her water, or the mud under her at low water
+      const i = this.fleetIdx.get(b.id);
+      const y = l ? l.obj.position.y : i !== undefined ? this.fleet.world(i).elements[13] : NaN;
+      const floor = floorOf(b.kind, at.x, at.z, at.yaw);
+      const lv = levelAt(at.x, at.z);
+      const want = Math.max(lv, floor);
+      if (!(Math.abs(y - want) < 0.2)) problems.push(`${name}: floats at y ${y.toFixed(2)}, the water (or the mud) wants ${want.toFixed(2)}`);
+      if (floor > lv) aground++;
+      if (floor > -Infinity && floor > MID_Y + 0.5) problems.push(`${name}: the mud under her is too high (${floor.toFixed(2)}): she would lie dry most of the tide`);
+      const r = this.rectOf(at.x, at.z, at.yaw, b.kind);
+      for (const [k, o] of rects) if (r.minX < o.maxX - 0.1 && r.maxX > o.minX + 0.1 && r.minZ < o.maxZ - 0.1 && r.maxZ > o.minZ + 0.1) problems.push(`${name}: lies inside ${k}`);
+      rects.set(name, r);
+      // her lines: the rings on the quay, the ropes long enough at low water, not through the ring at high water
+      const m = MOORING_OF.get(b.id);
+      if (m) {
+        for (const [end, ring] of m.rings.entries()) {
+          const top = this.world.baseAt(ring[0], ring[1]);
+          if (this.world.isWater(ring[0], ring[1]) || top < -0.8) problems.push(`${name}: ring ${end} is not on the quay (${ring[0]}, ${ring[1]})`);
+          const p = end === 0 ? h.bow : h.stern;
+          for (const level of [LW_MIN, HW_MAX]) {
+            const lvl = Math.max(level, floor);
+            tmp.set(m.x + p[0] * Math.cos(m.yaw) + p[2] * Math.sin(m.yaw), lvl + p[1], m.z - p[0] * Math.sin(m.yaw) + p[2] * Math.cos(m.yaw));
+            const d = Math.hypot(ring[0] - tmp.x, top - tmp.y, ring[1] - tmp.z);
+            if (d > ROPE_MAX) problems.push(`${name}: her ${end ? "stern" : "bow"} line does not reach its ring at ${level === LW_MIN ? "low" : "high"} water (${d.toFixed(1)} m)`);
+            if (d < 0.25) problems.push(`${name}: her ${end ? "stern" : "bow"} is right on its ring at high water`);
+          }
+          ropes++;
+        }
+        // the way in: her ladder at her thwart, or her flight's landing by her end
+        const bd = m.board;
+        if (bd.kind === "ladder") {
+          const [tx, tz] = bd.top;
+          const lad = ladders.find((q) => Math.hypot(q.x - tx - bd.n[0] * 0.3, q.z - tz - bd.n[1] * 0.3) < 0.9);
+          if (!lad) problems.push(`${name}: no ladder at (${tx}, ${tz})`);
+          else ladderN++;
+          const foot = this.distToHull(this.homeLying(b), tx + bd.n[0] * 0.3, tz + bd.n[1] * 0.3);
+          if (foot > 0.8) problems.push(`${name}: her hull is ${foot.toFixed(1)} m from the foot of her ladder`);
+        } else {
+          if (!flights.some((f) => Math.hypot(f.top[0] - bd.top[0], f.top[1] - bd.top[1]) < 1)) problems.push(`${name}: no flight of steps at (${bd.top})`);
+          const d = this.distToHull(this.homeLying(b), bd.at[0], bd.at[1]);
+          if (d > 2.0) problems.push(`${name}: ${d.toFixed(1)} m from the landing (more than a step)`);
+        }
+      }
+      // her numbers are her model's (shared/smallBoats.ts HULLS against the glTF extra "row")
+      const ex = bs.extra(b.kind as BoatName, "row") as { half: number; seatZ: number; pin: number[] } | undefined;
+      if (!ex) problems.push(`${b.kind}: boats.glb has no "row" extra`);
+      else if (Math.abs(ex.half - h.half) > 0.06 || Math.abs(ex.seatZ - h.seatZ) > 0.06 || Math.abs(ex.pin[2] - h.pin[2]) > 0.06)
+        problems.push(`${b.kind}: HULLS differs from the model (half ${ex.half}, seat ${ex.seatZ}, pin z ${ex.pin[2]})`);
+    }
+    // every other vessel: on water, at her height, clear of the others (and of the small boats)
+    const SMALL = new Set<string>(SMALL_KINDS);
+    let vessels = 0;
+    const others: Array<{ n: string; r: Rect }> = [];
+    for (const v of bs.placements()) {
+      if (SMALL.has(v.name) || v.name === "pontoon_section") continue;
+      const x = v.obj ? v.obj.position.x : v.x;
+      const z = v.obj ? v.obj.position.z : v.z;
+      const yaw = v.obj ? v.obj.rotation.y : v.yaw;
+      if (v.obj && (!v.obj.visible || !v.obj.parent)) continue;
+      // boats under way (river traffic, the lock, the canal) are their own movers' business
+      if (v.obj && v.obj.parent?.name !== "" && ["river_traffic", "lock", "opening_bridges"].includes(v.obj.parent?.name ?? "")) continue;
+      vessels++;
+      const n = `${v.name} at (${x.toFixed(0)}, ${z.toFixed(0)})`;
+      // (a ship with a deck to walk on, the Anna Maria: her middle is her deck, not water)
+      if (!this.world.isWater(x, z) && !bs.deck(v.name, x, z, yaw)) problems.push(`${n}: her middle is not on the water`);
+      const floor = (v.obj?.userData.floor as number | undefined) ?? v.floor;
+      const want = Math.max(levelAt(x, z), floor);
+      const y = v.y();
+      if (!(Math.abs(y - want) < 0.25)) problems.push(`${n}: floats at y ${y.toFixed(2)}, wants ${want.toFixed(2)}`);
+      const d = bs.dims(v.name);
+      const s = Math.abs(Math.sin(yaw));
+      const c = Math.abs(Math.cos(yaw));
+      const hl = d.length * 0.42;
+      const hb = d.beam * 0.42;
+      const r = { minX: x - s * hl - c * hb, maxX: x + s * hl + c * hb, minZ: z - c * hl - s * hb, maxZ: z + c * hl + s * hb };
+      for (const o of others) if (r.minX < o.r.maxX && r.maxX > o.r.minX && r.minZ < o.r.maxZ && r.maxZ > o.r.minZ) problems.push(`${n}: lies inside ${o.n}`);
+      for (const [k, o] of rects) if (r.minX < o.maxX && r.maxX > o.minX && r.minZ < o.maxZ && r.maxZ > o.minZ) problems.push(`${n}: lies over the small boat ${k}`);
+      others.push({ n, r });
+    }
+    return { boats: rects.size, aground, ropes, ladders: ladderN, vessels, problems };
   }
 
   /** Dev: walk onto a landing's floor (for checks without walking there). */

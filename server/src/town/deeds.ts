@@ -9,7 +9,8 @@ import { TOWN_EMPLOYER_IDS, resident, town } from "./store.ts";
 import { cityHouses, houseDoors, walkMap } from "./walkmap.ts";
 import { shopTableSpot } from "../../../shared/shopFront.ts";
 import type { Resident } from "./population.ts";
-import { rowBoatHome, rowBoatStates, rowBoats, rowOn, rowState, setRowBoat } from "../rowing.ts";
+import { rowBoatHome, rowBoatStates, rowBoats, rowOn, rowState, setRowBoat, takePrompt, type LooseBoat } from "../rowing.ts";
+import { HULLS } from "../../../shared/smallBoats.ts";
 import { wantedFactor } from "../ideas/wanted.ts";
 import SPOTS from "../../../shared/spots.json" with { type: "json" };
 import CITY from "../../../shared/city.json" with { type: "json" };
@@ -582,7 +583,7 @@ function findThing(db: DB, ref: string) {
     if (!b) throw new GameError("no such boat", 404);
     const st = rowBoatStates(db)[ref];
     if (st.lostDay !== undefined) throw new GameError("it is gone", 409);
-    return { thing: "boat" as Thing, item: b.kind, owner: b.owner, x: st.x, z: st.z, where: b.where, noun: "rowing boat", velo: null, at: null };
+    return { thing: "boat" as Thing, item: b.kind, owner: b.owner ?? "", x: st.x, z: st.z, where: b.where, noun: HULLS[b.kind].noun, velo: null, at: null, boat: b };
   }
   if (ref.startsWith("lamp:")) {
     const l = s.lamps.find((q) => q.id === ref);
@@ -611,6 +612,18 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
   const req = parsed.data;
   if (!Number.isFinite(req.x) || !Number.isFinite(req.z)) throw new GameError("bad place", 400);
   const t = findThing(db, req.ref);
+  // M7 boats: a boat has its own rules (only her owner's eyes count; one nobody owns is no theft); the
+  // reach is to the nearest point of her hull (a long boat is got into at her end)
+  const tb = (t as { boat?: LooseBoat }).boat;
+  if (tb) {
+    const st = rowBoatStates(db)[tb.id];
+    const fx = Math.sin(st.yaw);
+    const fz = Math.cos(st.yaw);
+    const half = HULLS[tb.kind].half;
+    const along = Math.max(-half, Math.min(half, (req.x - st.x) * fx + (req.z - st.z) * fz));
+    if (Math.hypot(req.x - st.x - fx * along, req.z - st.z - fz * along) > REACH_M) throw new GameError("too far away to take it", 409);
+    return takeBoat(db, req, tb);
+  }
   if (Math.hypot(req.x - t.x, req.z - t.z) > REACH_M) throw new GameError("too far away to take it", 409);
   const p = player(db);
   const ownerName = npcName(db, t.owner);
@@ -772,6 +785,124 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
     text,
     police: seen,
     item_id: itemId,
+  };
+}
+
+// ------------------------------------------------------------------ M7 boats: taking a boat
+
+/**
+ * How far the owner makes out a man at his boat (m): the weather's sight by daylight; at night only
+ * by lamplight (a gas lamp of the quays near the boat, Jef's own lantern), else close by. Pure.
+ */
+export function boatSight(weather: Weather | "storm", hour: number, lit: { lantern: boolean; lamp: boolean }): number {
+  const day = daylight(hour);
+  const light = Math.max(0.25 + 0.75 * day, lit.lantern ? 0.9 : 0, lit.lamp ? 0.75 : 0);
+  return (SIGHT_M[weather] ?? 13) * light;
+}
+
+/** The owner sees it: within sight, a clear line, and not with his back to it (unless he is close). Pure. */
+export function ownerSees(w: Witness | undefined, range: number): boolean {
+  if (!w || !w.los) return false;
+  if (w.d > range) return false;
+  return w.facing > -0.3 || w.d < 8;
+}
+
+/** The gas lamps of the quays (city.json decor): lit at night, they light a boat within reach. */
+const QUAY_LAMPS = ((CITY as unknown as { decor?: { lamps?: Array<[number, number]> } }).decor?.lamps ?? []) as Array<[number, number]>;
+export function quayLampNear(x: number, z: number, r = 11): boolean {
+  return QUAY_LAMPS.some(([lx, lz]) => Math.hypot(lx - x, lz - z) <= r);
+}
+
+/** Game minutes an owner who only asked for his boat back waits before he goes to the police (town/rowDeeds.ts). */
+export const BOAT_GRACE_MIN = 40;
+
+function boatLine(db: DB, who: string, kind: Reaction, noun: string): string {
+  const n = firstName(db, who);
+  const what = noun === "rowing boat" ? "boat" : noun;
+  if (kind === "chase") return `${n} shouts and runs for the quay: "Hey! That's my ${what}! Bring her back, you thief!"`;
+  if (kind === "ask") return `${n}: "That's my ${what} you're in. Bring her back to where she lay, and we'll say no more."`;
+  return `${n} shouts across the water: "Thief! That's my ${what}! Thief!"`;
+}
+
+/**
+ * Jef takes a small boat (Steve, 2026-09-26: "we can take any of them to use. Only when owner within
+ * sight he will be angry."). Only the owner's eyes count, and the engine judges them: within sight by
+ * the weather and the light, a clear line, not turned away. Seen: he is angry (a shout; he runs for the
+ * quay, or asks for her back), trust with him falls (clamped), he remembers it, and the police hear of
+ * it (at once, or after BOAT_GRACE_MIN if he only asked and she is not back). Unseen: nothing now; he
+ * may find her gone later and grumble (rowDeeds.ts boatTick). A boat nobody owns: no deed at all.
+ */
+function takeBoat(db: DB, req: DeedRequest, b: LooseBoat): DeedResult {
+  const st = rowBoatStates(db)[b.id];
+  if (st.ridden) throw new GameError("you are already in it", 409);
+  if (rowState(db).on) throw new GameError("you are in a boat already", 409);
+  const noun = HULLS[b.kind].noun;
+  // his already (taken before and not given back), or nobody's: in he gets, no new deed
+  if (st.deed !== null || !b.owner) {
+    setRowBoat(db, b.id, { ...st, ridden: true });
+    rowOn(db, b.id);
+    if (!b.owner) log(db, "took_boat", b.id, `Jef took the ${noun} nobody owns, ${b.where}.`);
+    return {
+      deed: st.deed,
+      again: st.deed !== null,
+      seen: false,
+      owner_saw: false,
+      seen_by: [],
+      owner: b.owner ? { id: b.owner, name: npcName(db, b.owner) } : { id: "", name: "" },
+      reaction: null,
+      text: b.owner ? "" : `Nobody's boat, and not much of one. You untie her and push off.`,
+      police: false,
+      item_id: null,
+    };
+  }
+  deedTables(db);
+  const owner = b.owner;
+  const p = player(db);
+  const pm = db.prepare("SELECT minute FROM player WHERE id = 1").get() as { minute: number };
+  const ownerName = npcName(db, owner);
+  // the owner's eyes only: the others on the quay shrug (boats are borrowed on the water all the time)
+  const ws = cleanWitnesses(db, req.witnesses, owner);
+  const ow = ws.find((w) => w.owner);
+  const dark = daylight(p.hour) < 1;
+  const range = boatSight(weather(db), p.hour, { lantern: req.lantern, lamp: dark && (quayLampNear(st.x, st.z) || quayLampNear(req.x, req.z)) });
+  const saw = ownerSees(ow, range);
+  const r = resident(db, owner);
+  let kind: Reaction = saw ? reactionOf(db, owner) : "shout";
+  // an owner who can run runs for the quay (Steve: "shouts, runs toward the quay")
+  if (saw && kind === "shout" && r && r.age >= 14 && r.age < 65 && !TOWN_EMPLOYER_IDS.includes(owner)) kind = "chase";
+  let deedId = 0;
+  db.transaction(() => {
+    const ins = db
+      .prepare(
+        `INSERT INTO deed (day, hour, minute, thing, item, ref, owner, x, z, seen, owner_saw, witnesses, item_id, status, rumour_at)
+         VALUES (?, ?, ?, 'boat', ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'open', NULL)`,
+      )
+      .run(p.day, p.hour, pm.minute, b.kind, b.id, owner, st.x, st.z, saw ? 1 : 0, saw ? 1 : 0, JSON.stringify(saw ? [owner] : []));
+    deedId = Number(ins.lastInsertRowid);
+    setRowBoat(db, b.id, { ...st, ridden: true, deed: deedId });
+    rowOn(db, b.id);
+    log(db, "stole", b.id, saw ? `Jef took ${ownerName}'s ${noun} ${b.where}, and ${ownerName} saw it.` : `Jef took ${ownerName}'s ${noun} ${b.where}. Nobody saw.`);
+    if (saw) {
+      remember(db, owner, `Jef took my ${noun} ${b.where}, in front of my eyes, and rowed off in her.`, 8, "seen", null, { gist: `Jef took ${ownerName}'s ${noun}`, tone: -2 });
+      applyTrust(db, owner, -2, 0);
+      const faction = (db.prepare("SELECT faction FROM npc WHERE id = ?").get(owner) as { faction: string | null } | undefined)?.faction;
+      if (faction) db.prepare("UPDATE faction_trust SET trust = MAX(-5, trust - 1) WHERE faction = ?").run(faction);
+      // one who only asked goes to the police if she is not back in time (rowDeeds.ts boatTick)
+      if (kind === "ask") setState(db, "boat_asked", { ...state<Record<string, number>>(db, "boat_asked", {}), [String(deedId)]: gameMinute(db) });
+    }
+  })();
+  const reaction = saw ? { who: owner, name: ownerName, kind, line: boatLine(db, owner, kind, noun) } : null;
+  return {
+    deed: deedId,
+    again: false,
+    seen: saw,
+    owner_saw: saw,
+    seen_by: saw ? [{ id: owner, name: ownerName }] : [],
+    owner: { id: owner, name: ownerName },
+    reaction,
+    text: reaction ? reaction.line : `Nobody seems to have seen. You cast off in ${takePrompt(db, b).replace(/^take /, "")}.`,
+    police: saw && kind !== "ask",
+    item_id: null,
   };
 }
 

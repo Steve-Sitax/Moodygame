@@ -405,6 +405,8 @@ export function makeTransport(db: DB): TransportRecord {
 
   // rowing boats: the boats tied up at quay steps (rowing.ts), their owners' households
   for (const b of rowBoats(db)) {
+    // M7 boats: only the family boats of M6 go on errands; the other small boats stay at their moorings
+    if (!b.family || !b.owner) continue;
     const r = byId.get(b.owner);
     if (!r) continue;
     vehicles.push({
@@ -414,7 +416,7 @@ export function makeTransport(db: DB): TransportRecord {
       household: r.household,
       home: [b.x, b.z, b.yaw],
       parks: { home: [b.x, b.z, b.yaw] },
-      boat: { kind: b.kind, landing: b.landing, flight: FLIGHT_OF[b.id] ?? b.landing },
+      boat: { kind: b.kind as "rowboat" | "punt", landing: b.landing, flight: FLIGHT_OF[b.id] ?? b.landing }, // the family boats are the three of M3j
       label: `${r.name}'s ${b.kind === "punt" ? "punt" : "rowing boat"}`,
     });
   }

@@ -74,13 +74,15 @@ describe("the hire landings and the boats", () => {
       // open ground on the quay within a few metres of the top of the flight
       expect(walkMap().nearestOpen(f.top[0] - f.n[0] * 1.5, f.top[1] - f.n[1] * 1.5, 4)).not.toBeNull();
     }
-    for (const b of rowBoats(db)) {
-      expect(["boatman", "sailor", "docker", "natie", "porter"]).toContain(resident(db, b.owner)!.trade);
+    // the three family boats of M3j (the other small boats of M7 have tests of their own below)
+    const family = rowBoats(db).filter((b) => b.family);
+    for (const b of family) {
+      expect(["boatman", "sailor", "docker", "natie", "porter"]).toContain(resident(db, b.owner!)!.trade);
       expect(["rowboat", "punt"]).toContain(b.kind);
     }
-    expect(rowBoats(db).length).toBe(3);
+    expect(family.length).toBe(3);
     // owners and watermen are different men
-    const all = [...rowBoats(db).map((b) => b.owner), waterman(db, "rijnkaai"), waterman(db, "vismarkt"), waterman(db, "bassin")];
+    const all = [...family.map((b) => b.owner), waterman(db, "rijnkaai"), waterman(db, "vismarkt"), waterman(db, "bassin")];
     expect(new Set(all).size).toBe(all.length);
   });
 

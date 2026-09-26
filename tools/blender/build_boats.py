@@ -53,26 +53,61 @@ class Mesh(bp.Mesh):
         self.smoke = []
         self.hulls = []
         self.extras = {}
+        # M7 boats: a colour cast on the baked shade, by where the vertex is (model frame): the
+        # green-brown slime of the waterline, weed below it, soot, rust. None: grey shade only.
+        self.tintfn = None
+
+    def face(self, vs, uvs, mat, shade=1.0, smooth=False, local=None):
+        f = super().face(vs, uvs, mat, shade, smooth, local)
+        if f is not None and self.tintfn is not None:
+            for loop in f.loops:
+                c = loop[self.col]
+                r, g, b = self.tintfn(loop.vert.co)
+                loop[self.col] = (c[0] * r, c[1] * g, c[2] * b, 1.0)
+        return f
 
     def line(self, a, b):
         self.lines.append((self.xf @ Vector(a), self.xf @ Vector(b)))
+
+    def lamp(self, p, kind=0):
+        """M7 boats: a lantern's flame here (model frame), for the game's lamp APIs: kind 0 a white
+        riding or stern light, 1 red (port), 2 green (starboard)."""
+        q = self.xf @ Vector(p)
+        self.extras.setdefault("lamps", []).append([round(q.x, 3), round(q.y, 3), round(q.z, 3), kind])
+
+    def stove(self, p):
+        """M7 boats: the top of a cabin's stovepipe (a thin coal smoke, weaker than a funnel's)."""
+        q = self.xf @ Vector(p)
+        self.extras.setdefault("stove", []).append([round(q.x, 3), round(q.y, 3), round(q.z, 3)])
+
+
+def waterline_tint(p):
+    """Grime of a hull that lives in the Schelde: green-brown slime round the waterline (the tide
+    moves it up and down a hand's breadth), weed and a pale bloom below it."""
+    z = p.z
+    band = math.exp(-((z - 0.05) / 0.22) ** 2)
+    weed = min(1.0, max(0.0, (-0.12 - z) / 0.5))
+    return (1 - 0.34 * band - 0.28 * weed, 1 - 0.18 * band - 0.08 * weed, 1 - 0.42 * band - 0.34 * weed)
 
 OUT = os.path.join(ROOT, "client", "public", "models", "boats.glb")
 SHOTS = os.path.join(ROOT, "data", "shots")
 
 EXTRA = ["tar", "clinker", "iron_hull", "iron_ports", "band", "copper", "redlead", "deck", "paint_green",
          "paint_white", "canvas", "canvas_tan", "rigging", "shrouds", "lattice", "funnel", "window", "hatch",
-         "tarp", "flag", "names", "washing", "names2", "funnel_star", "names3"]
+         "tarp", "flag", "names", "washing", "names2", "funnel_star", "names3",
+         # M7 boats: the detail pass and the small boats
+         "tar_weed", "names4", "netting", "coal", "sand", "streaks", "bilge", "varnish", "hood"]
 # the street-prop materials we use, painted with build_props' painters (our own list: props.glb may change)
 BASE = ["wood", "wood_dark", "iron", "rope", "sackcloth", "crate", "barrel", "stone", "glass"]
 WOOD, DARK, IRON, ROPE, SACK, CRATE, BARREL, STONE, GLASS = range(len(BASE))
 MATS = BASE + EXTRA
 (TAR, CLINKER, IRONHULL, PORTS, BAND, COPPER, REDLEAD, DECK, GREEN, WHITE, CANVAS, TAN, RIG, SHROUD, LATTICE,
- FUNNEL, WINDOW, HATCH, TARP, FLAG, NAMES, WASH, NAMES2, FUNNEL_STAR, NAMES3) = range(len(BASE), len(MATS))
+ FUNNEL, WINDOW, HATCH, TARP, FLAG, NAMES, WASH, NAMES2, FUNNEL_STAR, NAMES3,
+ TARWEED, NAMES4, NET, COAL, SAND, STREAKS, BILGE, VARNISH, HOOD) = range(len(BASE), len(MATS))
 # thin parts, seen from both sides (the game makes these double-sided too)
-THIN = {"shrouds", "lattice", "flag", "canvas", "canvas_tan", "tarp", "washing"}
+THIN = {"shrouds", "lattice", "flag", "canvas", "canvas_tan", "tarp", "washing", "netting", "streaks"}
 # metres per texture tile for faces mapped by position
-TILE = {TAR: 2.0, CLINKER: 1.0, IRONHULL: 4.0, COPPER: 2.0, REDLEAD: 2.0, GREEN: 1.6, WHITE: 1.6, DECK: 1.6,
+TILE = {TAR: 2.0, TARWEED: 2.0, VARNISH: 1.2, CLINKER: 1.0, IRONHULL: 4.0, COPPER: 2.0, REDLEAD: 2.0, GREEN: 1.6, WHITE: 1.6, DECK: 1.6,
         WOOD: 1.6, DARK: 1.2}
 
 # ------------------------------------------------------------------ textures
@@ -221,8 +256,8 @@ def paint_white(seed):
     return img
 
 
-def paint_canvas(seed, base):
-    """Furled sailcloth: creases run along the bundle (constant u)."""
+def paint_canvas(seed, base, gaskets=True):
+    """Furled sailcloth: creases run along the bundle (constant u). M7 boats: without the gaskets, a canvas hood."""
     rng = np.random.default_rng(seed)
     uu = np.arange(64)[None, :]
     folds = 0.82 + 0.18 * np.sin(uu / 64 * 2 * math.pi * 5 + rng.uniform(0, 6)) + 0.1 * np.sin(uu / 64 * 2 * math.pi * 11)
@@ -232,7 +267,7 @@ def paint_canvas(seed, base):
         u = int(rng.integers(0, 64))
         img[:, u] *= 0.55
     img *= (0.9 + 0.15 * noise(rng, 64, 64, 6, 6))[..., None]
-    for r0 in (14, 46):  # gaskets: the rope bands that hold a furled sail, one a metre
+    for r0 in ((14, 46) if gaskets else ()):  # gaskets: the rope bands that hold a furled sail, one a metre
         img[r0:r0 + 3] = img[r0:r0 + 3] * 0.35 + col((0.2, 0.16, 0.11)) * 0.5
         img[r0 + 3] *= 1.15
     return speckle(img, rng, 0.04)
@@ -338,6 +373,10 @@ FONT = {
     "C": ["01110", "10001", "10000", "10000", "10000", "10001", "01110"],
     "D": ["11110", "10001", "10001", "10001", "10001", "10001", "11110"],
     "E": ["11111", "10000", "10000", "11110", "10000", "10000", "11111"],
+    "F": ["11111", "10000", "10000", "11110", "10000", "10000", "10000"],
+    "J": ["00111", "00010", "00010", "00010", "00010", "10010", "01100"],
+    "Y": ["10001", "10001", "01010", "00100", "00100", "00100", "00100"],
+    "X": ["10001", "10001", "01010", "00100", "01010", "10001", "10001"],
     "G": ["01110", "10001", "10000", "10111", "10001", "10001", "01111"],
     "H": ["10001", "10001", "10001", "11111", "10001", "10001", "10001"],
     "I": ["01110", "00100", "00100", "00100", "00100", "00100", "01110"],
@@ -362,6 +401,8 @@ NAME_ROWS = ["ELISABETH", "ANTWERPEN", "SCHELDE", "HERCULES", "DE HOOP", "NOORDS
 NAME_ROWS2 = ["ANNA MARIA", "ANTWERPEN", "BRIG", "", "", "", "", ""]
 # the ocean steamer at anchor (liner): her name and port (a -land name, as the line of 1873 gave them)
 NAME_ROWS3 = ["KEMPENLAND", "ANTWERPEN", "", "", "", "", "", ""]
+# M7 boats: home ports on the sterns of the barges and lighters, two barge names, the water police's gig
+NAME_ROWS4 = ["ANTWERPEN", "BOOM", "TEMSE", "LILLO", "DOEL", "DRIE GEBR", "JOZEF", "POLITIE"]
 
 
 def paint_names(seed, rows=None):
@@ -443,6 +484,84 @@ def paint_hatch(seed):
     return bp.paint_planks(seed, (0.2, 0.16, 0.12), boards=2, joints=False, knots=1).transpose(1, 0, 2).copy()
 
 
+# ------------------------------------------------------------------ M7 boats: the detail pass
+
+
+def paint_tar_weed(seed, n=128):
+    """Tarred planks under the waterline: green weed in tufts and runs, a pale salt-and-barnacle
+    bloom in patches, the seams still showing. For the bottoms that show when a boat takes the mud."""
+    rng = np.random.default_rng(seed)
+    img = paint_tar(seed, n, base=(0.075, 0.07, 0.055))
+    weed = np.clip((noise(rng, n, n, 10, 3) - 0.35) * 2.2, 0, 1) * np.clip(noise(rng, n, n, 3, 18) * 1.4, 0, 1)
+    img = img * (1 - weed[..., None] * 0.75) + col((0.11, 0.16, 0.07)) * (weed[..., None] * 0.75)
+    bloom = (np.clip(noise(rng, n, n, 7, 7) - 0.62, 0, 1) * 3.5)[..., None] * (rng.random((n, n, 1)) < 0.35)
+    img = img * (1 - bloom * 0.6) + col((0.32, 0.31, 0.26)) * bloom * 0.6
+    return speckle(img, rng, 0.06, 0.6, 1.3)
+
+
+def paint_netting(seed, n=32):
+    """Tanned fishing net, cut out: a diamond mesh of knotted twine (an eel trap's netting, a net hung to dry)."""
+    rng = np.random.default_rng(seed)
+    uu, vv = np.meshgrid(np.arange(n) + 0.5, np.arange(n) + 0.5)
+    a = ((np.abs(((uu + vv) % 8) - 4) < 0.8) | (np.abs(((uu - vv) % 8) - 4) < 0.8)).astype(float)
+    img = np.ones((n, n, 3)) * col((0.24, 0.16, 0.09)) * (0.8 + 0.4 * rng.random((n, n, 1)))
+    return img, a
+
+
+def paint_heap(seed, base, lump, grain=0.25, n=64):
+    """A heap of coal or sand seen from above: lumps and shadows (coal) or ripples and wet dark (sand)."""
+    rng = np.random.default_rng(seed)
+    img = np.ones((n, n, 3)) * col(base)
+    img *= (1 - grain + 2 * grain * noise(rng, n, n, 16, 16))[..., None]
+    lumps = rng.random((n, n)) < lump
+    img[lumps] *= 1.7
+    img[np.roll(lumps, 1, axis=0)] *= 0.55
+    return speckle(img, rng, 0.08, 0.6, 1.4)
+
+
+def paint_streaks(seed, n=64):
+    """Rust and soot running down a hull or a wall under a fitting, cut out: dark tapering runs."""
+    rng = np.random.default_rng(seed)
+    img = np.zeros((n, n, 3))
+    a = np.zeros((n, n))
+    for _ in range(9):
+        u = int(rng.integers(4, n - 4))
+        ln = int(rng.integers(n // 3, n - 2))
+        w = int(rng.integers(1, 4))
+        rust = rng.random() < 0.7
+        c = col((0.34, 0.15, 0.07)) if rust else col((0.05, 0.045, 0.04))
+        for k in range(ln):
+            v = n - 1 - k  # image rows run bottom-up: the run starts at the top
+            ww = max(1, int(round(w * (1 - k / ln) + 0.4)))
+            a[v, u:u + ww] = 1
+            img[v, u:u + ww] = c * (0.8 + 0.4 * rng.random())
+            if rng.random() < 0.15:
+                u += int(rng.integers(-1, 2))
+    return img, a
+
+
+def paint_bilge(seed, n=32):
+    """Dirty bilge water standing in an old boat: dark green-brown with a scum."""
+    rng = np.random.default_rng(seed)
+    img = np.ones((n, n, 3)) * col((0.07, 0.08, 0.05))
+    img *= (0.75 + 0.5 * noise(rng, n, n, 6, 6))[..., None]
+    scum = rng.random((n, n)) < 0.05
+    img[scum] = col((0.22, 0.22, 0.16))
+    return img
+
+
+def paint_varnish(seed, n=64):
+    """Varnished planking of a gig: warm brown carvel strakes, thin seams, the grain along u."""
+    rng = np.random.default_rng(seed)
+    img = np.zeros((n, n, 3))
+    h = n // 8
+    for b in range(8):
+        img[b * h:(b + 1) * h] = col((0.36, 0.2, 0.1)) * (1 + rng.uniform(-0.12, 0.12))
+        img[b * h] *= 0.5
+    img *= (0.8 + 0.4 * noise(rng, n, n, 3, 32))[..., None]
+    return speckle(img, rng, 0.03)
+
+
 def image_rgba(name, arr, alpha=None):
     h, w, _ = arr.shape
     img = bpy.data.images.new(name, w, h, alpha=alpha is not None)
@@ -491,6 +610,15 @@ def make_materials():
         "names2": lambda: paint_names(123, NAME_ROWS2),
         "funnel_star": lambda: paint_funnel_star(124),
         "names3": lambda: paint_names(125, NAME_ROWS3),
+        "tar_weed": lambda: paint_tar_weed(126),
+        "names4": lambda: paint_names(127, NAME_ROWS4),
+        "netting": lambda: paint_netting(128),
+        "coal": lambda: paint_heap(129, (0.06, 0.06, 0.065), 0.08),
+        "sand": lambda: paint_heap(130, (0.42, 0.36, 0.25), 0.02, 0.15),
+        "streaks": lambda: paint_streaks(131),
+        "bilge": lambda: paint_bilge(132),
+        "varnish": lambda: paint_varnish(133),
+        "hood": lambda: paint_canvas(134, (0.44, 0.4, 0.33), gaskets=False),
     }
     for name in MATS:
         res = paint[name]()
@@ -634,6 +762,10 @@ class Hull:
         Z = [self.zs(t) for t in T]
         K = len(self.levels)
         m.shadefn = self.shade
+        # M7 boats: the waterline's slime and the weed below it, on every hull
+        tint_was = getattr(m, "tintfn", None)
+        if hasattr(m, "tintfn") and getattr(self, "tint", True):
+            m.tintfn = waterline_tint
         for i in range(len(T) - 1):
             ta, tb = T[i], T[i + 1]
             for k in range(K - 1):
@@ -655,6 +787,32 @@ class Hull:
                 pts = [self.P(t, Z[i][k], 1), self.P(t, Z[i][k + 1], 1), self.P(t, Z[i][k + 1], -1), self.P(t, Z[i][k], -1)]
                 m.poly(pts, mat, out=(0, ty, 0), uvs=self._uv(pts, mat, fit, (0, 1, 1, 0), along="x"))
         m.shadefn = None
+        if hasattr(m, "tintfn"):
+            m.tintfn = tint_was
+
+    def wale(self, m, zfn, t0, t1, h=0.12, out=0.06, mat=None, shade=0.8):
+        """M7 boats: a wale (a thick rubbing strake) along the side from t0 to t1, its top at zfn(t)."""
+        mat = DARK if mat is None else mat
+        T = self.span(t0, t1)
+        for ta, tb in zip(T, T[1:]):
+            for sx in (1, -1):
+                a0, b0 = self.P(ta, zfn(ta) - h, sx), self.P(tb, zfn(tb) - h, sx)
+                a1, b1 = self.P(ta, zfn(ta), sx), self.P(tb, zfn(tb), sx)
+                o = V(sx * out, 0, 0)
+                m.poly([a0 + o, b0 + o, b1 + o, a1 + o], mat, out=(sx, 0, 0), shade=shade,
+                       uvs=[(-p.y / 1.2, p.z / 1.2) for p in (a0, b0, b1, a1)])
+                m.poly([a1, b1, b1 + o, a1 + o], mat, out=(0, 0, 1), shade=shade * 1.1)
+                m.poly([a0, b0, b0 + o, a0 + o], mat, out=(0, 0, -1), shade=shade * 0.6)
+
+    def decal(self, m, t, z, w, h, sx, mat=None, u=(0.0, 1.0), off=0.03):
+        """M7 boats: a cut-out picture laid on the side (rust and soot runs): centre at (t, z), w along, h down."""
+        mat = STREAKS if mat is None else mat
+        p = self.P(t, z, sx) + V(sx * off, 0, 0)
+        tan = (self.P(min(1.0, t + 0.02), z, sx) - self.P(max(0.0, t - 0.02), z, sx)).normalized()
+        r = -tan if sx > 0 else tan
+        up = V(0, 0, 1)
+        pts = [p - r * w / 2 - up * h, p + r * w / 2 - up * h, p + r * w / 2, p - r * w / 2]
+        m.poly(pts, mat, out=(sx, 0, 0), uvs=[(u[0], 0), (u[1], 0), (u[1], 1), (u[0], 1)])
 
     def rim(self, drop=0.03):
         """The outline of the hull at its rail, starboard stern to bow, port bow to stern."""
@@ -1007,6 +1165,96 @@ def windlass(m, x, y, z, w=1.6, r=0.2):
         m.box((x + sx * (w / 2 + 0.1), y, z - 0.15 + (r + 0.35) / 2 - 0.1), (0.18, 0.4, r + 0.55), DARK)
 
 
+# ------------------------------------------------------------------ M7 boats: small parts
+
+
+def lantern(m, c, kind=0, bail=True):
+    """A ship's lantern standing (or hung by its bail) with its flame at c: an iron frame, four
+    panes and a hood. Registered for the game's lamp APIs (Mesh.lamp)."""
+    c = Vector(c)
+    m.box(c - V(0, 0, 0.14), (0.2, 0.2, 0.05), IRON)
+    for sx in (1, -1):
+        for sy in (1, -1):
+            m.box(c + V(sx * 0.085, sy * 0.085, 0), (0.025, 0.025, 0.24), IRON)
+    for d in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        o = V(d[0] * 0.08, d[1] * 0.08, 0)
+        r = V(-d[1], d[0], 0) * 0.07
+        m.poly([c + o - r - V(0, 0, 0.1), c + o + r - V(0, 0, 0.1), c + o + r + V(0, 0, 0.1), c + o - r + V(0, 0, 0.1)], GLASS,
+               out=o, uvs=[(0, 0), (1, 0), (1, 1), (0, 1)], shade=1.2)
+    with m.at(move(c.x, c.y, c.z + 0.12)):
+        m.lathe([(0.13, 0.0), (0.05, 0.1), (0.03, 0.14)], 6, IRON, smooth=False, cap1=True)
+    if bail:
+        m.beam(c + V(-0.08, 0, 0.26), c + V(0.08, 0, 0.26), 0.015, 0.015, IRON)
+    m.lamp(c, kind)
+
+
+def fender(m, p, sx, drop=0.45, r=0.13):
+    """A rope fender hung over the side by its lanyard: a fat plaited sausage."""
+    p = Vector(p)
+    a = p + V(sx * (r + 0.02), 0, -0.05)
+    m.line(p + V(0, 0, 0.05), a)
+    m.tube([a, a - V(0, 0, drop)], [(r * 0.8, r), (r * 0.8, r)], 5, ROPE, side=(0, 1, 0), smooth=False, cap0=True, cap1=True)
+
+
+def ribs(m, hull, ts, zlo, ztop, inset, w=0.04, mat=None):
+    """The frames inside an open boat, keelson to gunwale, at the stations ts."""
+    mat = WOOD if mat is None else mat
+    for t in ts:
+        z0, z1 = zlo(t), ztop(t) - 0.04
+        for sx in (1, -1):
+            pts = [hull.P(t, z0 + (z1 - z0) * k / 3, sx, inset + 0.01) for k in range(4)]
+            for a, b in zip(pts, pts[1:]):
+                m.beam(a, b, w, w * 0.8, mat, side=(0, 1, 0), shade=0.75)
+
+
+def thole(m, p, gap=0.1):
+    """A pair of iron thole pins on the gunwale: the oar works between them."""
+    p = Vector(p)
+    for dy in (-gap / 2, gap / 2):
+        m.box(p + V(0, dy, 0.06), (0.03, 0.03, 0.14), IRON)
+
+
+def stern_name(m, hull, t, z, w, h, row, both=True):
+    """A home port or a name on a stern quarter (NAMES4)."""
+    hull_name(m, hull, t, z, w, h, row, both, mat=NAMES4)
+
+
+def basket(m, c, r=0.22, h=0.28, mat=None):
+    """A round wicker basket."""
+    with m.at(move(*Vector(c))):
+        m.lathe([(r * 0.75, 0.0), (r, h), (r * 0.9, h - 0.02)], 7, ROPE if mat is None else mat, smooth=False, cap0=True,
+                urep=2, vscale=2)
+
+
+def eel_trap(m, a, b, r=0.3):
+    """A fyke (eel trap): netting over wooden hoops, from its mouth a to its tail b."""
+    a, b = Vector(a), Vector(b)
+    n = 4
+    path = [a.lerp(b, k / n) for k in range(n + 1)]
+    radii = [r * (1 - 0.7 * k / n) for k in range(n + 1)]
+    m.tube(path, radii, 7, NET, side=(0, 0, 1), smooth=False, urep=2, vscale=1.5)
+    for k in range(n):
+        p = path[k]
+        d = (b - a).normalized()
+        s = d.cross(V(0, 0, 1)).normalized()
+        u = d.cross(s)
+        ring = [p + (s * math.cos(2 * math.pi * i / 7) + u * math.sin(2 * math.pi * i / 7)) * radii[k] for i in range(7)]
+        m.tube(ring, [0.015] * 7, 3, WOOD, side=d, closed_path=True, smooth=False)
+
+
+def oars_stowed(m, a, b, blade_at_b=True):
+    """A pair of oars laid in along the thwarts (a to b), blades aft."""
+    a, b = Vector(a), Vector(b)
+    for dx in (-0.09, 0.09):
+        o = V(dx, 0, 0)
+        m.beam(a + o, b + o, 0.045, 0.045, WOOD, side=(0, 0, 1))
+        d = (b - a).normalized()
+        e = b if blade_at_b else a
+        s = -1 if blade_at_b else 1
+        m.slab([e + o - V(0.07, 0, 0), e + o + V(0.07, 0, 0), e + o + d * s * 0.55 + V(0.07, 0, 0),
+                e + o + d * s * 0.55 - V(0.07, 0, 0)], 0.02, DARK, out=(0, 0, 1))
+
+
 # ------------------------------------------------------------------ barges
 
 
@@ -1060,8 +1308,16 @@ def barge(kind, sailing=False):
     ts = [0, 0.015, 0.04, 0.075, 0.12, 0.16, 0.25, 0.4, 0.55, 0.7, 0.78, 0.86, 0.9, 0.935, 0.965, 0.985, 1.0]
     levels = [keel, lambda t: keel(t) + 0.3, lambda t: -0.05, lambda t: sheer(t) - 0.24, sheer]
     mats = [(TAR, 0), (TAR, 0), (TAR, 0), (GREEN, 3.0)]
+    mats = [(TARWEED, 0), (TARWEED, 0), (TAR, 0), (GREEN, 3.0)]
     hull = Hull(L, ts, levels, hb, mats, yfn=yfn, shade=lambda p: 0.55 + 0.45 * sm((p.z + D) / (D + 1.2)))
     hull.outer(m)
+    # M7 boats: heavy wales along her sides, rust run down from the hawse and the leeboard irons
+    hull.wale(m, lambda t: sheer(t) - 0.22, 0.02, 0.98, h=0.16, out=0.08)
+    hull.wale(m, lambda t: sheer(t) - 0.62, 0.05, 0.95, h=0.12, out=0.06)
+    for sx in (1, -1):
+        hull.decal(m, 0.95, sheer(0.95) - 0.3, 0.7, 1.0, sx)
+        hull.decal(m, 0.6 if not rh else 0.63, sheer(0.62) - 0.35, 0.5, 0.7, sx, u=(0.5, 1.0))
+        hull.decal(m, 0.25, sheer(0.25) - 0.3, 0.9, 0.6, sx, u=(0.0, 0.6))
 
     def zd(t):
         return sheer(t) - 0.28
@@ -1122,6 +1378,13 @@ def barge(kind, sailing=False):
                    ("-y", -0.6, zt - 0.5)],
           door=("-y", 0.55, 0.7, zt - zb - 0.35))
     chimney(m, cabw * 0.5, (y0 + y1) / 2 + 0.4, zt + 0.15, 0.8, 0.09)
+    m.stove((cabw * 0.5, (y0 + y1) / 2 + 0.4, zt + 1.18))
+    # M7 boats: her lantern on the cabin roof, fenders over the side, her home port on the quarters
+    lantern(m, V(-cabw + 0.3, y1 - 0.3, zt + 0.18 + 0.16), 0)
+    for sx in (1, -1):
+        for t in (0.3, 0.5, 0.7):
+            fender(m, hull.P(t, sheer(t), sx, 0.04), sx, drop=0.55, r=0.14)
+    stern_name(m, hull, 0.06, sheer(0.06) - 0.45, 2.0 if rh else 1.7, 0.26 if rh else 0.22, 0 if rh else 2)
     # rudder and tiller
     ys = L / 2
     zr = sheer(0)
@@ -1217,8 +1480,31 @@ def barge(kind, sailing=False):
 # ------------------------------------------------------------------ open boats
 
 
+def heap(m, hull, t0, t1, zf, H, mat, inset=0.25, nu=8, nv=5, seed=1):
+    """M7 boats: a heap of loose cargo (coal, sand) filling the hold from t0 to t1, H high in the middle."""
+    rnd = random.Random(seed)
+    P = []
+    for j in range(nu + 1):
+        t = t0 + (t1 - t0) * j / nu
+        w = hull.hb(t, zf + 0.3) - inset
+        row = []
+        for i in range(nv + 1):
+            u = i / nv
+            x = -w + 2 * w * u
+            h = H * math.sin(math.pi * j / nu) ** 0.6 * math.sin(math.pi * u) ** 0.7
+            if 0 < i < nv and 0 < j < nu:
+                h += rnd.uniform(-0.08, 0.08)
+            row.append(V(x, hull.y(t, zf), zf + max(0.02, h)))
+        P.append(row)
+    for j in range(nu):
+        for i in range(nv):
+            q = [P[j][i], P[j][i + 1], P[j + 1][i + 1], P[j + 1][i]]
+            m.poly(q, mat, out=(0, 0, 1), uvs=[(p.x / 1.2, -p.y / 1.2) for p in q], shade=0.85 + 0.15 * (i % 2))
+
+
 def lighter(loaded):
-    """A Scheldt lighter: an open cargo boat, towed or poled, bluff ends, small decks."""
+    """A Scheldt lighter: an open cargo boat, towed or poled, bluff ends, small decks.
+    M7 boats: loaded is False (empty), True (sacks and casks), "coal", "sand" or "timber"."""
     m = Mesh(ao=0.0)
     L, B, D = 17.0, 4.4, 0.8
 
@@ -1241,10 +1527,17 @@ def lighter(loaded):
 
     ts = [0, 0.02, 0.05, 0.1, 0.2, 0.35, 0.5, 0.65, 0.8, 0.84, 0.88, 0.92, 0.96, 0.985, 1.0]
     levels = [keel, lambda t: keel(t) + 0.2, lambda t: -0.05, lambda t: sheer(t) - 0.2, sheer]
-    hull = Hull(L, ts, levels, hb, [(TAR, 0), (TAR, 0), (TAR, 0), (DARK, 2.0)],
+    hull = Hull(L, ts, levels, hb, [(TARWEED, 0), (TARWEED, 0), (TAR, 0), (DARK, 2.0)],
                 yfn=lambda t, z: -0.35 * cl((z + D) / 1.8) * sm((t - 0.9) / 0.1),
                 shade=lambda p: 0.55 + 0.45 * sm((p.z + D) / (D + 1.2)))
     hull.outer(m)
+    # M7 boats: a wale, rust runs, fenders; her port on the quarters
+    hull.wale(m, lambda t: sheer(t) - 0.18, 0.03, 0.97, h=0.14, out=0.07)
+    for sx in (1, -1):
+        hull.decal(m, 0.93, sheer(0.93) - 0.25, 0.6, 0.8, sx)
+        for t in (0.3, 0.62):
+            fender(m, hull.P(t, sheer(t), sx, 0.04), sx, drop=0.5, r=0.13)
+    stern_name(m, hull, 0.05, sheer(0.05) - 0.42, 1.5, 0.2, 3 if loaded in (True, "coal") else 1)
     zf = 0.24  # the hold floor sits above the game's water sheet (waves reach about 0.2 m)
     tf0, tf1 = 0.1, 0.86
     hull.inner(m, [lambda t: zf, lambda t: zf + 0.35, sheer], tf0, tf1, 0.08, WOOD, DECK)
@@ -1267,6 +1560,8 @@ def lighter(loaded):
     pennant(m, (0, ym, 4.75), 0.9, h=0.2)
     rig(m, (0, ym, 4.4), (0, hull.y(1, sheer(1)) + 0.2, sheer(1) + 0.05))
     chimney(m, 0.7, hull.y(0.94, zd(0.94)), zd(0.94), 0.55, 0.07)
+    m.stove((0.7, hull.y(0.94, zd(0.94)), zd(0.94) + 0.77))
+    lantern(m, V(0.18, ym, 3.1), 0)
     m.box((-0.3, hull.y(0.92, zd(0.92)), zd(0.92) + 0.12), (0.7, 0.6, 0.25), DARK)
     # rudder and tiller
     ys = L / 2
@@ -1279,7 +1574,22 @@ def lighter(loaded):
             bitts(m, sx * 0.45, hull.y(t, zd(t)), zd(t), 0.45, 0.16)
     # a long sweep lying along the gunwale
     m.beam((1.6, hull.y(0.2, 0), sheer(0.2) + 0.06), (1.7, hull.y(0.7, 0), sheer(0.7) + 0.06), 0.07, 0.07, WOOD)
-    if loaded:
+    if loaded == "coal":
+        heap(m, hull, 0.14, 0.82, zf, 1.15, COAL, seed=3)
+        m.beam((0.8, hull.y(0.5, 0), zf + 0.9), (1.6, hull.y(0.62, 0), sheer(0.62) + 0.05), 0.05, 0.05, WOOD)  # a shovel
+    elif loaded == "sand":
+        heap(m, hull, 0.14, 0.82, zf, 0.95, SAND, seed=4)
+    elif loaded == "timber":
+        # squared baulks stowed fore and aft, three tiers, chocked
+        for k, z in enumerate((zf, zf + 0.3, zf + 0.6)):
+            n = 6 - k
+            for i in range(n):
+                x = (i - (n - 1) / 2) * 0.34
+                a, b = hull.y(0.16 + 0.02 * k, 0), hull.y(0.8 - 0.02 * k, 0)
+                m.box((x, (a + b) / 2, z + 0.14), (0.28, abs(a - b), 0.28), WOOD, shade=0.8 + 0.05 * (i % 3), mode="fit")
+        for t in (0.3, 0.6):
+            rope_path(m, [hull.P(t, sheer(t), 1, 0.1), V(0, hull.y(t, 0), zf + 0.95), hull.P(t, sheer(t), -1, 0.1)], 0.02, ROPE)
+    elif loaded:
         k = 0
         for t in (0.58, 0.64, 0.7, 0.76):
             y = hull.y(t, 0)
@@ -1338,31 +1648,219 @@ def boat_hull(L, B, D, mats, stern_w=0.55):
     return hull, keel, sheer
 
 
-def rowboat():
+def row_info(m, hull, sheer, t_seat, z_seat, t_pin, beam_k=0.93, half_k=0.98, speed=1.0, bow_t=1.0, stern_t=0.0):
+    """M7 boats: what the game needs to row this boat (game frame: x across, y up, z toward the bow),
+    stored as the glTF extra "row" and checked against shared/smallBoats.ts by the boat check."""
+    def yz(t, z):
+        return -hull.y(t, z)  # Blender -y is the game's +z
+
+    zp = sheer(t_pin) + 0.06
+    stem = hull.P(bow_t, sheer(bow_t), 1)
+    tail = hull.P(stern_t, sheer(stern_t), 1)
+    m.extras["row"] = {
+        "half": round(hull.L / 2 * half_k, 3),
+        "beam": round(max(hull.hb(t, sheer(t)) for t in hull.ts) * beam_k, 3),
+        "seatZ": round(yz(t_seat, z_seat), 3),
+        "seatY": round(z_seat + 0.02, 3),
+        "pin": [round(hull.hb(t_pin, sheer(t_pin)) + 0.02, 3), round(zp, 3), round(yz(t_pin, zp), 3)],
+        "len": round(hull.L, 3),
+        "speed": speed,
+        # the painter's ring at the stem and the stern's ring: where the mooring ropes are made fast
+        "bow": [0.0, round(sheer(bow_t) - 0.05, 3), round(-stem.y, 3)],
+        "stern": [0.0, round(sheer(stern_t) - 0.05, 3), round(-tail.y, 3)],
+    }
+
+
+def round_boat(L, B, D, mats, stern_w=0.55, thwarts=(0.42, 0.66), seat=0, sheets=0.1, ribs_at=None, inner=WOOD,
+               floor=DECK, cap=DARK, transom=False, tholes=True, boards=True):
+    """M7 boats: an open round-bilged boat (rowing boat, dinghy, ship's boat, gig, bumboat): the hull,
+    its inside with frames, bottom boards, thwarts, stern sheets, thole pins, a painter at the stem."""
     m = Mesh(ao=0.0)
-    hull, keel, sheer = boat_hull(5.4, 1.55, 0.8, CLINKER)
+    m.stow = Mesh(ao=0.0)
+    hull, keel, sheer = boat_hull(L, B, D, mats, stern_w=stern_w)
     hull.outer(m)
-    hull.inner(m, [lambda t: max(keel(t) + 0.1, 0.16), lambda t: 0.5 * (keel(t) + sheer(t)) + 0.1, sheer], 0.0, 1.0, 0.035, WOOD, DECK,
-               end1=False)
-    hull.cap(m, sheer, 0.0, 1.0, 0.035, DARK)
+
+    def fl(t):
+        return max(keel(t) + 0.1, 0.16)
+
+    hull.inner(m, [fl, lambda t: 0.5 * (keel(t) + sheer(t)) + 0.1, sheer], 0.0, 1.0, 0.035, inner, floor, end0=transom, end1=False)
+    hull.cap(m, sheer, 0.0, 1.0, 0.035, cap)
+    # the keel under her, and a rubbing strake along the sheer
     m.beam((0, hull.y(0.02, keel(0.02)), keel(0.02) - 0.03), (0, hull.y(0.9, keel(0.9)), keel(0.9) - 0.03), 0.06, 0.06, DARK)
-    for t in (0.42, 0.66):
+    hull.wale(m, lambda t: sheer(t) - 0.03, 0.03, 0.97, h=0.05, out=0.025, mat=cap)
+    ribs(m, hull, ribs_at or [0.12 + k * 0.1 for k in range(8)], fl, sheer, 0.035, w=0.035)
+    if boards:
+        for x in (-0.22, 0.0, 0.22):
+            a, b = hull.y(0.12, 0), hull.y(0.86, 0)
+            m.box((x * B / 1.55, (a + b) / 2, max(fl(0.5), 0.16) + 0.02), (0.18, abs(a - b), 0.025), WOOD, shade=0.7)
+    for t in thwarts:
         z = sheer(t) - 0.2
         w = hull.hb(t, z) - 0.03
         m.box((0, hull.y(t, z), z), (2 * w, 0.24, 0.04), WOOD, shade=0.9)
-    z = sheer(0.1) - 0.22
-    w = hull.hb(0.1, z) - 0.03
-    m.box((0, hull.y(0.1, z), z), (2 * w, 0.5, 0.04), WOOD, shade=0.9)
-    for sx in (1, -1):
-        a = V(sx * 0.28, hull.y(0.12, 0), sheer(0.42) - 0.12)
-        b = V(sx * 0.18, hull.y(0.95, 0), sheer(0.66) - 0.1)
-        m.beam(a, b, 0.05, 0.05, WOOD, side=(0, 0, 1))
-        d = (b - a).normalized()
-        m.slab([a - V(0.07, 0, 0), a + V(0.07, 0, 0), a + d * 1.0 + V(0.07, 0, 0), a + d * 1.0 - V(0.07, 0, 0)], 0.02,
-               WOOD, out=(0, 0, 1))
-        m.box(hull.P(0.55, sheer(0.55) + 0.05, sx, 0.02), (0.04, 0.04, 0.1), IRON)
+        for sx in (1, -1):  # the knees that hold the thwart to the side
+            m.beam(hull.P(t, z + 0.02, sx, 0.05), hull.P(t, z + 0.17, sx, 0.04), 0.04, 0.06, DARK, side=(0, 1, 0))
+    if sheets:
+        z = sheer(sheets) - 0.22
+        w = hull.hb(sheets, z) - 0.03
+        m.box((0, hull.y(sheets, z), z), (2 * w, 0.5, 0.04), WOOD, shade=0.9)
+    ts = thwarts[seat]
+    tp = ts + 0.68 / L
+    if tholes:
+        for sx in (1, -1):
+            thole(m, hull.P(tp, sheer(tp) + 0.01, sx, 0.02))
     stem = V(0, hull.y(1, sheer(1)), sheer(1) - 0.05)
-    rope_path(m, [stem, stem + V(0, -0.3, -0.2), stem + V(0, -0.45, -0.55)], 0.018, ROPE)
+    m.box(stem + V(0, 0.06, 0), (0.05, 0.05, 0.05), IRON)
+    rope_path(m, [stem + V(0, 0.02, 0), stem + V(0, 0.25, -0.12), stem + V(0.1, 0.55, sheer(0.85) - sheer(1) - 0.02)], 0.018, ROPE)
+    row_info(m, hull, sheer, ts, sheer(ts) - 0.2 + 0.02, tp)
+    return m, hull, keel, sheer
+
+
+def rudder_tiller(m, hull, keel, sheer, tiller=0.9):
+    """A rudder hung on the transom by pintles, and its tiller over the stern sheets."""
+    ys = hull.y(0, sheer(0))
+    k0, zr = keel(0.0), sheer(0)
+    rud = [V(0, ys + 0.03, k0 + 0.02), V(0, ys + 0.35, k0 + 0.05), V(0, ys + 0.38, zr - 0.25), V(0, ys + 0.12, zr + 0.12),
+           V(0, ys + 0.03, zr + 0.12)]
+    m.prism([p + V(-0.025, 0, 0) for p in rud], (0.05, 0, 0), DARK, tile=1.0)
+    for z in (k0 + 0.25, zr - 0.2):
+        m.box((0, ys + 0.02, z), (0.07, 0.06, 0.04), IRON)
+    m.beam((0, ys + 0.1, zr + 0.1), (0, ys - tiller, zr + 0.2), 0.035, 0.04, WOOD)
+
+
+def rowboat():
+    """The waterman's clinker rowing boat (M3j), with the M7 detail: frames, bottom boards, knees,
+    thole pins, a bailer, the painter, a basket, oars laid in (a child node: hidden while rowed)."""
+    m, hull, keel, sheer = round_boat(5.4, 1.55, 0.8, [(TARWEED, 0), (CLINKER, 0), (CLINKER, 0)])
+    a = V(0.0, hull.y(0.12, 0), sheer(0.42) - 0.12)
+    b = V(0.0, hull.y(0.95, 0), sheer(0.66) - 0.1)
+    oars_stowed(m.stow, a, b, blade_at_b=False)
+    # a bailer and a basket in the stern, a grapnel and its line forward
+    with m.at(move(0.3, hull.y(0.2, 0), 0.2)):
+        m.lathe([(0.07, 0.0), (0.1, 0.08), (0.1, 0.1)], 6, WOOD, smooth=False, cap0=True)
+    basket(m, (-0.3, hull.y(0.24, 0), 0.19), 0.17, 0.2)
+    g = V(0.1, hull.y(0.86, 0), 0.25)
+    m.beam(g, g + V(0, -0.35, 0.02), 0.03, 0.03, IRON)
+    for k in range(4):
+        a4 = math.pi / 2 * k
+        m.beam(g + V(0, -0.35, 0), g + V(0.14 * math.cos(a4), -0.45, 0.14 * math.sin(a4) + 0.02), 0.025, 0.025, IRON)
+    coil(m, (-0.15, hull.y(0.88, 0), 0.2), 0.14)
+    return m
+
+
+def dinghy():
+    """A jol: a small beamy clinker dinghy with a transom, her stubby mast unstepped and laid along
+    the thwarts with the tanned spritsail furled round it; a rudder and tiller."""
+    m, hull, keel, sheer = round_boat(4.3, 1.62, 0.78, [(TARWEED, 0), (CLINKER, 0), (GREEN, 0)], stern_w=0.72,
+                                      thwarts=(0.46, 0.78), sheets=0.12, transom=True)
+    rudder_tiller(m, hull, keel, sheer, tiller=0.8)
+    # the mast and sprit laid in, the sail rolled round them; the mast thwart's iron band
+    a = V(-0.35, hull.y(0.95, 0), sheer(0.8) - 0.05)
+    b = V(-0.3, hull.y(0.05, 0) + 0.3, sheer(0.2) - 0.02)
+    spar(m.stow, a, b, 0.05, 0.035, DARK)
+    bundle(m.stow, a.lerp(b, 0.12) + V(0.03, 0, 0.06), a.lerp(b, 0.8) + V(0.03, 0, 0.06), 0.12, TAN, n=4)
+    oars_stowed(m.stow, V(0.35, hull.y(0.2, 0), sheer(0.46) - 0.1), V(0.3, hull.y(0.92, 0), sheer(0.78) - 0.1), blade_at_b=False)
+    t = 0.78
+    with m.at(move(0, hull.y(t, 0), sheer(t) - 0.17)):
+        m.lathe([(0.06, 0.0), (0.06, 0.03)], 6, IRON, smooth=False)
+    stern_name(m, hull, 0.08, sheer(0.08) - 0.2, 0.8, 0.13, 4, both=True)
+    return m
+
+
+def shipsboat():
+    """A sloep: a ship's boat, carvel, white topsides and a black sheer strake, tarred bottom,
+    three thwarts, stern sheets with a back board, a rudder with a yoke, a boat hook."""
+    m, hull, keel, sheer = round_boat(6.3, 1.9, 0.86, [(TARWEED, 0), (WHITE, 0), (WHITE, 0)], stern_w=0.62,
+                                      thwarts=(0.5, 0.3, 0.72), sheets=0.1, transom=True, cap=DARK)
+    rudder_tiller(m, hull, keel, sheer, tiller=0.5)
+    ys = hull.y(0, sheer(0))
+    m.beam((-0.45, ys - 0.05, sheer(0) + 0.14), (0.45, ys - 0.05, sheer(0) + 0.14), 0.05, 0.05, WOOD)  # the yoke
+    z = sheer(0.1)
+    m.box((0, hull.y(0.04, z), z - 0.02), (2 * hull.hb(0.04, z) - 0.1, 0.05, 0.3), WOOD, shade=0.8)
+    oars_stowed(m.stow, V(-0.4, hull.y(0.15, 0), sheer(0.3) - 0.12), V(-0.35, hull.y(0.92, 0), sheer(0.72) - 0.12), blade_at_b=False)
+    m.beam((0.45, hull.y(0.15, 0), sheer(0.3) - 0.14), (0.4, hull.y(0.9, 0), sheer(0.72) - 0.14), 0.035, 0.035, WOOD)
+    m.beam((0.4, hull.y(0.9, 0), sheer(0.72) - 0.14), (0.4, hull.y(0.95, 0), sheer(0.72) - 0.1), 0.03, 0.03, IRON)
+    stern_name(m, hull, 0.06, sheer(0.06) - 0.18, 1.0, 0.14, 0, both=True)
+    return m
+
+
+def gig():
+    """A gig of the water police: long and narrow for speed, black with a varnished sheer strake,
+    four thwarts, a rudder with a yoke, a flagstaff with the Belgian colours, a lantern in the bow."""
+    m, hull, keel, sheer = round_boat(7.4, 1.38, 0.72, [(TARWEED, 0), (IRONHULL, 0), (VARNISH, 0)], stern_w=0.5,
+                                      thwarts=(0.52, 0.3, 0.72, 0.86), sheets=0.1, transom=True, cap=VARNISH)
+    rudder_tiller(m, hull, keel, sheer, tiller=0.35)
+    ys = hull.y(0, sheer(0))
+    m.beam((-0.4, ys - 0.05, sheer(0) + 0.14), (0.4, ys - 0.05, sheer(0) + 0.14), 0.04, 0.04, WOOD)
+    fs = V(0, ys - 0.1, sheer(0) - 0.05)
+    spar(m, fs, fs + V(0, 0.1, 1.4), 0.025, 0.018, WOOD, cap=True)
+    flag(m, fs + V(0, 0.12, 1.38), 0.6, 0.4, along=(0, 1, -0.1), kind="belgian")
+    name_board(m, (0, ys + 0.06, sheer(0) - 0.1), (-1, 0, 0), (0, 0, 1), 0.56, 0.08, 7, off=0.02, mat=NAMES4)
+    bow = V(0, hull.y(0.95, sheer(0.95)), sheer(0.95))
+    lantern(m, bow + V(0, 0.15, 0.16), 0, bail=True)
+    oars_stowed(m.stow, V(-0.25, hull.y(0.12, 0), sheer(0.3) - 0.1), V(-0.22, hull.y(0.94, 0), sheer(0.86) - 0.1), blade_at_b=False)
+    oars_stowed(m.stow, V(0.25, hull.y(0.12, 0), sheer(0.3) - 0.07), V(0.22, hull.y(0.94, 0), sheer(0.86) - 0.07), blade_at_b=False)
+    return m
+
+
+def bumboat():
+    """A bumboat: a beamy boat that sells to the ships in the roads, a canvas hood on hoops over
+    her after half and the goods under it: bread, a crate of bottles, a cask, baskets of greens."""
+    m, hull, keel, sheer = round_boat(5.0, 1.95, 0.82, [(TARWEED, 0), (CLINKER, 0), (GREEN, 0)], stern_w=0.7,
+                                      thwarts=(0.62, 0.84), sheets=0.08, transom=True)
+    # the hood: hoops from gunwale to gunwale, the canvas over them (t 0.06 .. 0.44)
+    arcs = []
+    for t in (0.06, 0.18, 0.31, 0.44):
+        w = hull.hb(t, sheer(t)) - 0.04
+        y = hull.y(t, sheer(t))
+        z0 = sheer(t)
+        arc = [V(w * math.cos(math.pi * j / 6), y, z0 + 0.85 * math.sin(math.pi * j / 6)) for j in range(7)]
+        m.tube(arc, [0.02] * 7, 3, WOOD, side=(0, 1, 0), smooth=False)
+        arcs.append(arc)
+    for a, b in zip(arcs, arcs[1:]):
+        for j in range(6):
+            pts = [a[j] + V(0, 0, 0.02), a[j + 1] + V(0, 0, 0.02), b[j + 1] + V(0, 0, 0.02), b[j] + V(0, 0, 0.02)]
+            m.poly(pts, HOOD, out=((a[j].x + a[j + 1].x) / 2, 0, 1), uvs=[(j / 3, 0), ((j + 1) / 3, 0), ((j + 1) / 3, 1), (j / 3, 1)],
+                   shade=0.8)
+    # the goods under the hood
+    z = 0.2
+    for x, t in [(-0.45, 0.14), (0.45, 0.16), (-0.4, 0.32), (0.42, 0.3)]:
+        basket(m, (x, hull.y(t, 0), z), 0.2, 0.26)
+    for k in range(5):
+        sack_lo(m, (-0.45 + 0.05 * (k % 2), hull.y(0.14, 0) + 0.08 * k - 0.16, z + 0.26), yaw=math.pi / 2 + 0.2 * k)
+    cy = hull.y(0.24, 0)
+    crate_lo(m, (0.0, cy, z), size=(0.5, 0.36, 0.26))
+    for i in range(6):
+        with m.at(move(-0.15 + 0.15 * (i % 3), cy - 0.08 + 0.16 * (i // 3), z + 0.26)):
+            m.lathe([(0.035, 0.0), (0.035, 0.18), (0.015, 0.24), (0.012, 0.3)], 5, GLASS, smooth=False, cap1=True)
+    # a small keg of gin on its side
+    with m.at(move(0.4, hull.y(0.4, 0), z + 0.18) @ Matrix.Rotation(math.pi / 2, 4, "X")):
+        m.lathe([(0.14, -0.22), (0.18, 0.0), (0.14, 0.22)], 7, BARREL, cap0=True, cap1=True, smooth=False)
+    lantern(m, V(0, hull.y(0.44, sheer(0.44)) + 0.05, sheer(0.44) + 0.62), 0)
+    oars_stowed(m.stow, V(-0.55, hull.y(0.5, 0), sheer(0.62) - 0.08), V(-0.45, hull.y(0.96, 0), sheer(0.84) - 0.08), blade_at_b=True)
+    return m
+
+
+def oldboat():
+    """An old clinker boat nobody owns any more: grey and worn, a sheet of tin nailed over a split
+    strake, one thwart cracked and sagging, bilge water standing in her; a pair of old oars."""
+    m, hull, keel, sheer = round_boat(4.9, 1.5, 0.78, [(TARWEED, 0), (CLINKER, 0), (CLINKER, 0)], thwarts=(0.44, 0.7),
+                                      inner=DARK, floor=DARK, boards=False)
+    # bilge water inside (a flat sheet over the floor)
+    zb = 0.24
+    T = hull.span(0.12, 0.9)
+    for ta, tb in zip(T, T[1:]):
+        a, b = hull.P(ta, zb, 1, 0.06), hull.P(tb, zb, 1, 0.06)
+        pts = [mirror(a, -1), a, b, mirror(b, -1)]
+        m.poly(pts, BILGE, out=(0, 0, 1), uvs=[(-p.y, p.x) for p in pts])
+    # the tin patch over the split strake; rust and weather running down the other side
+    p = hull.P(0.58, 0.28, 1) + V(0.012, 0, 0)
+    m.box(p, (0.02, 0.55, 0.22), IRON)
+    hull.decal(m, 0.35, sheer(0.35) - 0.06, 0.5, 0.45, -1)
+    # the cracked thwart sags (drawn over the whole one)
+    t = 0.7
+    z = sheer(t) - 0.2
+    m.beam((-0.55, hull.y(t, z), z + 0.03), (0.02, hull.y(t, z) + 0.02, z - 0.06), 0.24, 0.045, WOOD, side=(0, 1, 0))
+    oars_stowed(m.stow, V(0.2, hull.y(0.14, 0), sheer(0.44) - 0.1), V(0.25, hull.y(0.9, 0), sheer(0.7) - 0.12), blade_at_b=False)
     return m
 
 
@@ -1376,31 +1874,143 @@ def ships_boat(m, c, L, B, D, yaw=0.0, mat=WHITE, cover=CANVAS):
     return hull
 
 
-def punt():
-    """A flat-bottomed rowing punt with raked flat ends, as in the canals."""
-    m = Mesh(ao=0.0)
-    L, B = 5.2, 1.35
-
+def flat_boat(L, B, bottom=-0.12, rise=0.06, flare=0.12, bow_rake=0.55, stern_rake=0.45, mats=None, bow_rise=0.0):
+    """M7 boats: a flat-bottomed boat with raked flat ends (punt, vlet, eel boat): the hull."""
     def sheer(t):
-        return 0.52 + 0.06 * abs(2 * t - 1) ** 2
+        return 0.52 + rise * abs(2 * t - 1) ** 2 + bow_rise * max(0.0, (t - 0.7) / 0.3) ** 2
 
     def hb(t, z):
-        u = cl((z + 0.12) / 0.64)
+        u = cl((z - bottom) / (0.52 - bottom))
         p = 1 - 0.3 * abs(2 * t - 1) ** 3
-        return B / 2 * (0.88 + 0.12 * u) * p
+        return B / 2 * (1 - flare + flare * u) * p
 
     def yfn(t, z):
-        u = cl((z + 0.14) / 0.5)
-        return -0.55 * u * sm((t - 0.9) / 0.1) + 0.45 * u * sm((0.1 - t) / 0.1)
+        u = cl((z - bottom + 0.02) / 0.5)
+        return -bow_rake * u * sm((t - 0.9) / 0.1) + stern_rake * u * sm((0.1 - t) / 0.1)
 
-    hull = Hull(L, [0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0], [lambda t: -0.12, lambda t: 0.0, sheer], hb, [(TAR, 0), (TAR, 0)],
-                yfn=yfn, shade=lambda p: 0.65 + 0.35 * sm((p.z + 0.14) / 0.5))
+    hull = Hull(L, [0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0], [lambda t: bottom, lambda t: 0.0, sheer], hb,
+                mats or [(TARWEED, 0), (TAR, 0)], yfn=yfn, shade=lambda p: 0.65 + 0.35 * sm((p.z - bottom) / 0.5))
+    return hull, sheer, hb
+
+
+def punt():
+    """A flat-bottomed rowing punt with raked flat ends, as in the canals (M3j), with the M7 detail:
+    frames across the bottom, bottom boards, iron pins for the oars, the painter, a bucket, the
+    quant pole, a washerwoman's basket; a pair of oars laid in (child node, hidden while rowed)."""
+    m = Mesh(ao=0.0)
+    m.stow = Mesh(ao=0.0)
+    L, B = 5.2, 1.35
+    hull, sheer, hb = flat_boat(L, B, mats=[(TAR, 0), (TAR, 0)])
     hull.outer(m)
     hull.inner(m, [lambda t: 0.14, sheer], 0.0, 1.0, 0.04, WOOD, DECK)
     hull.cap(m, sheer, 0, 1, 0.04, DARK)
+    hull.wale(m, lambda t: sheer(t) - 0.02, 0.02, 0.98, h=0.05, out=0.025)
     for t in (0.3, 0.72):
         m.box((0, hull.y(t, 0), 0.36), (B * 0.86, 0.26, 0.04), WOOD, shade=0.9)
+    for t in (0.12, 0.2, 0.4, 0.5, 0.6, 0.82, 0.9):
+        w = hb(t, 0.15) - 0.06
+        m.box((0, hull.y(t, 0), 0.155), (2 * w, 0.05, 0.03), DARK, shade=0.7)
+        for sx in (1, -1):
+            m.beam(hull.P(t, 0.16, sx, 0.05), hull.P(t, sheer(t) - 0.05, sx, 0.045), 0.035, 0.05, DARK, side=(0, 1, 0), shade=0.7)
+    for x in (-0.25, 0.0, 0.25):
+        m.box((x, hull.y(0.5, 0), 0.18), (0.18, 3.4, 0.02), WOOD, shade=0.75)
     m.beam((0.25, hull.y(0.05, 0), 0.45), (0.35, hull.y(1.0, 0) - 1.2, 0.58), 0.05, 0.05, WOOD)  # the quant pole
+    tp = 0.26 + 0.68 / L
+    for sx in (1, -1):
+        m.box(hull.P(tp, sheer(tp) + 0.05, sx, 0.02), (0.04, 0.04, 0.12), IRON)
+    stem = V(0, hull.y(1, sheer(1)), sheer(1) - 0.05)
+    m.box(stem + V(0, 0.05, 0), (0.06, 0.06, 0.06), IRON)
+    rope_path(m, [stem, stem + V(0, 0.3, -0.12), stem + V(-0.1, 0.6, -0.2)], 0.018, ROPE)
+    with m.at(move(-0.35, hull.y(0.1, 0), 0.16)):
+        m.lathe([(0.13, 0.0), (0.15, 0.26), (0.16, 0.27)], 7, WOOD, smooth=False, cap0=True, urep=2)
+    basket(m, (0.3, hull.y(0.86, 0), 0.16), 0.24, 0.24)
+    oars_stowed(m.stow, V(-0.3, hull.y(0.34, 0), 0.43), V(-0.25, hull.y(0.95, 0), 0.43), blade_at_b=False)
+    # rower on the after thwart, the pins 0.68 m forward
+    row_info(m, hull, sheer, 0.26, 0.36, tp, speed=0.9)
+    return m
+
+
+def workboat():
+    """A vlet: the harbour's flat-bottomed work boat, bigger and heavier than a punt: tarred sides
+    with a green top strake, a transom at each end, frames, a sculling notch in the stern, a
+    boat hook and a coil of rope, a grapnel; worked with oars or a single sculling oar."""
+    m = Mesh(ao=0.0)
+    m.stow = Mesh(ao=0.0)
+    L, B = 6.0, 1.85
+    hull, sheer, hb = flat_boat(L, B, bottom=-0.16, rise=0.1, flare=0.16, bow_rake=0.75, stern_rake=0.4, bow_rise=0.1)
+    hull.outer(m)
+    hull.inner(m, [lambda t: 0.14, sheer], 0.0, 1.0, 0.045, WOOD, DECK)
+    hull.cap(m, sheer, 0, 1, 0.045, DARK)
+    hull.wale(m, lambda t: sheer(t) - 0.02, 0.02, 0.98, h=0.14, out=0.03, mat=GREEN, shade=0.9)
+    for t in (0.1, 0.2, 0.3, 0.42, 0.54, 0.66, 0.78, 0.9):
+        for sx in (1, -1):
+            m.beam(hull.P(t, 0.16, sx, 0.055), hull.P(t, sheer(t) - 0.05, sx, 0.05), 0.04, 0.055, DARK, side=(0, 1, 0), shade=0.7)
+    ts, tf = 0.36, 0.7
+    for t in (ts, tf):
+        m.box((0, hull.y(t, 0), sheer(t) - 0.2), (2 * hb(t, sheer(t) - 0.2) - 0.1, 0.26, 0.045), WOOD, shade=0.9)
+    m.box((0, hull.y(0.06, 0), sheer(0.06) - 0.22), (2 * hb(0.06, 0.4) - 0.1, 0.5, 0.045), WOOD, shade=0.9)
+    ys = hull.y(0, sheer(0))
+    m.box((0, ys - 0.04, sheer(0) + 0.02), (0.12, 0.1, 0.06), DARK)  # the sculling notch's chock
+    for x in (-0.3, 0.0, 0.3):
+        m.box((x, hull.y(0.5, 0), 0.17), (0.2, 4.0, 0.025), WOOD, shade=0.75)
+    tp = ts + 0.68 / L
+    for sx in (1, -1):
+        thole(m, hull.P(tp, sheer(tp) + 0.01, sx, 0.02))
+    m.beam((0.55, hull.y(0.1, 0), 0.3), (0.6, hull.y(0.95, 0), 0.35), 0.035, 0.035, WOOD)  # the boat hook
+    m.beam((0.6, hull.y(0.95, 0), 0.35), (0.6, hull.y(0.97, 0), 0.4), 0.03, 0.03, IRON)
+    coil(m, (-0.3, hull.y(0.86, 0), 0.17), 0.22)
+    coil(m, (0.35, hull.y(0.15, 0), 0.17), 0.18)
+    stem = V(0, hull.y(1, sheer(1)), sheer(1) - 0.05)
+    m.box(stem + V(0, 0.05, 0), (0.07, 0.07, 0.07), IRON)
+    rope_path(m, [stem, stem + V(0, 0.35, -0.1), stem + V(0.15, 0.7, -0.25)], 0.02, ROPE)
+    stern_name(m, hull, 0.04, sheer(0.04) - 0.2, 1.0, 0.14, 1, both=True)
+    oars_stowed(m.stow, V(-0.45, hull.y(0.12, 0), sheer(ts) - 0.12), V(-0.4, hull.y(0.94, 0), sheer(tf) - 0.12), blade_at_b=False)
+    row_info(m, hull, sheer, ts, sheer(ts) - 0.18, tp, speed=0.85)
+    return m
+
+
+def eelboat():
+    """An aalschuit, the eel fisherman's boat: flat-bottomed and tarred, a wet well amidships (a
+    box through which the river runs, pierced with holes), eel traps (fykes) forward, baskets."""
+    m = Mesh(ao=0.0)
+    m.stow = Mesh(ao=0.0)
+    L, B = 6.2, 2.0
+    hull, sheer, hb = flat_boat(L, B, bottom=-0.16, rise=0.12, flare=0.18, bow_rake=0.9, stern_rake=0.45, bow_rise=0.18)
+    hull.outer(m)
+    hull.inner(m, [lambda t: 0.14, sheer], 0.0, 1.0, 0.045, TAR, DECK)
+    hull.cap(m, sheer, 0, 1, 0.045, DARK)
+    hull.wale(m, lambda t: sheer(t) - 0.03, 0.02, 0.98, h=0.08, out=0.03)
+    # the wet well: a box across the boat, its lid in two halves, holes in its side
+    w0, w1 = 0.42, 0.62
+    ya, yb = hull.y(w0, 0), hull.y(w1, 0)
+    wz = sheer(0.5) - 0.08
+    ww = hb(0.5, wz) - 0.06
+    m.box((0, (ya + yb) / 2, (0.14 + wz) / 2), (2 * ww, abs(ya - yb), wz - 0.14), WOOD, shade=0.8)
+    for x in (-ww / 2, ww / 2):
+        m.box((x, (ya + yb) / 2, wz + 0.02), (ww - 0.04, abs(ya - yb) - 0.06, 0.03), DARK)
+        m.box((x * 0.4, (ya + yb) / 2, wz + 0.05), (0.14, 0.05, 0.03), IRON)
+    for i in range(6):
+        for j in range(2):
+            m.box((-ww + 0.3 + i * (2 * ww - 0.6) / 5, ya + 0.005, 0.26 + 0.12 * j), (0.05, 0.02, 0.04), BILGE)
+    ts = 0.3
+    m.box((0, hull.y(ts, 0), sheer(ts) - 0.2), (2 * hb(ts, 0.4) - 0.1, 0.26, 0.045), WOOD, shade=0.9)
+    tp = ts + 0.68 / L
+    for sx in (1, -1):
+        thole(m, hull.P(tp, sheer(tp) + 0.01, sx, 0.02))
+    # two fykes forward; baskets aft; a net hung over the gunwale to dry
+    eel_trap(m, V(-0.45, hull.y(0.68, 0), 0.45), V(-0.3, hull.y(0.95, 0) + 0.3, 0.3), 0.28)
+    eel_trap(m, V(0.4, hull.y(0.7, 0), 0.42), V(0.25, hull.y(0.92, 0) + 0.2, 0.3), 0.26)
+    basket(m, (-0.45, hull.y(0.12, 0), 0.16), 0.22, 0.3)
+    basket(m, (0.4, hull.y(0.16, 0), 0.16), 0.2, 0.28)
+    a = hull.P(0.2, sheer(0.2), -1) + V(-0.03, 0, 0)
+    b = hull.P(0.36, sheer(0.36), -1) + V(-0.03, 0, 0)
+    m.poly([a, b, b + V(-0.05, 0, -0.45), a + V(-0.05, 0, -0.35)], NET, out=(-1, 0, 0), uvs=[(0, 0), (3, 0), (3, 1.5), (0, 1.2)])
+    stem = V(0, hull.y(1, sheer(1)), sheer(1) - 0.05)
+    m.box(stem + V(0, 0.05, 0), (0.07, 0.07, 0.07), IRON)
+    rope_path(m, [stem, stem + V(0, 0.35, -0.12), stem + V(-0.12, 0.7, -0.25)], 0.02, ROPE)
+    stern_name(m, hull, 0.04, sheer(0.04) - 0.2, 1.0, 0.14, 3, both=True)
+    oars_stowed(m.stow, V(0.6, hull.y(0.1, 0), sheer(ts) - 0.1), V(0.62, hull.y(0.4, 0), sheer(0.4) + 0.06), blade_at_b=False)
+    row_info(m, hull, sheer, ts, sheer(ts) - 0.18, tp, speed=0.85)
     return m
 
 
@@ -1434,9 +2044,15 @@ def sloop(sailing=False):
 
     ts = [0, 0.05, 0.12, 0.25, 0.4, 0.55, 0.68, 0.78, 0.86, 0.92, 0.96, 1.0]
     levels = [keel, lambda t: keel(t) + 0.05, lambda t: 0.0, lambda t: sheer(t) - 0.2, sheer]
-    hull = Hull(L, ts, levels, hb, [(TAR, 0), (TAR, 0), (TAR, 0), (GREEN, 2.0)], yfn=yfn,
+    hull = Hull(L, ts, levels, hb, [(TARWEED, 0), (TARWEED, 0), (TAR, 0), (GREEN, 2.0)], yfn=yfn,
                 shade=lambda p: 0.55 + 0.45 * sm((p.z + 0.75) / 1.6))
     hull.outer(m)
+    # M7 boats: a wale, her name on the bow and her port on the quarters
+    hull.wale(m, lambda t: sheer(t) - 0.16, 0.03, 0.97, h=0.12, out=0.06)
+    hull_name(m, hull, 0.88, sheer(0.88) - 0.35, 1.5, 0.2, 7)
+    stern_name(m, hull, 0.05, sheer(0.05) - 0.3, 1.1, 0.16, 4)
+    for sx in (1, -1):
+        hull.decal(m, 0.9, sheer(0.9) - 0.2, 0.5, 0.7, sx)
 
     def zd(t):
         return sheer(t) - 0.14
@@ -1488,6 +2104,20 @@ def sloop(sailing=False):
     with m.at(move(0.6, hull.y(0.2, 0), 0.2)):
         m.lathe([(0.2, 0), (0.28, 0.35), (0.3, 0.4)], 7, ROPE, smooth=False, cap0=True, urep=2)
     barrel_lo(m, (-0.7, hull.y(0.18, 0), 0.2), yaw=0.3)
+    # M7 boats: the stove in the fore cuddy, fish baskets, a net hung from the boom to dry, a lantern
+    chimney(m, 0.35, hull.y(th, zd(th)), zd(th) + 0.25, 0.45, 0.06)
+    m.stove((0.35, hull.y(th, zd(th)), zd(th) + 0.25 + 0.66))
+    for k, (x, t) in enumerate([(-0.9, 0.3), (-0.4, 0.34), (0.9, 0.36)]):
+        basket(m, (x, hull.y(t, 0), 0.2), 0.24, 0.32)
+    if not sailing:
+        a = boom_a.lerp(boom_b, 0.3) - V(0, 0, 0.1)
+        b = boom_a.lerp(boom_b, 0.62) - V(0, 0, 0.1)
+        m.poly([a + V(0.05, 0, 0), b + V(0.05, 0, 0), b + V(0.4, 0, -0.9), a + V(0.3, 0, -1.1)], NET, out=(1, 0, 0),
+               uvs=[(0, 0), (3, 0), (3, 1.8), (0, 2.2)])
+        lantern(m, V(0.2, ym - 0.15, zm + 3.2), 0)
+    else:
+        for sx, kind in ((1, 1), (-1, 2)):  # port (+x) red, starboard green
+            lantern(m, hull.P(0.7, sheer(0.7) + 0.2, sx, -0.05), kind, bail=False)
     return m
 
 
@@ -1752,6 +2382,8 @@ def brig():
         "obstacles": [[round(v, 3) for v in r] for r in obstacles],
         "gangway": [round(-hull.hb(0.447, zd(0.447)), 3), round((yg0 + yg1) / 2, 3)],
     }
+    # M7 boats: her riding light on the forestay, lit at night
+    lantern(m, V(0, hull.y(0.9, sheer(0.9)), sheer(0.9) + 3.2), 0)
     return m
 
 
@@ -1872,6 +2504,8 @@ def schooner():
     flag(m, mg1 + V(0, 0.05, -0.05), 1.5, 1.0, along=(0, 0.2, -1), kind="dutch")
     pennant(m, ftop + V(0, 0, 0.2), 2.5, h=0.25)
     hull_name(m, hull, 0.9, sheer(0.9) - 0.3, 2.2, 0.275, 7)
+    # M7 boats: her riding light on the forestay
+    lantern(m, V(0, hull.y(0.9, sheer(0.9)), sheer(0.9) + 2.8), 0)
     return m
 
 
@@ -2150,6 +2784,12 @@ def barque(sailing=False):
         barrel_lo(m, (x, hull.y(t, zd(t)), zd(t)), yaw=0.7 * i)
     crate_lo(m, (1.6, hull.y(0.7, zd(0.7)), zd(0.7)), yaw=0.2)
     coil(m, (0.9, hull.y(0.92, zd(0.92)), zd(0.92)), 0.34)
+    # M7 boats: a riding light at anchor; under way the red and green side lights
+    if sailing:
+        for sx, kind in ((1, 1), (-1, 2)):
+            lantern(m, hull.P(0.72, sheer(0.72) + 0.4, sx, -0.1), kind, bail=False)
+    else:
+        lantern(m, V(0, hull.y(0.9, sheer(0.9)), sheer(0.9) + 3.4), 0)
     return m
 
 
@@ -2353,6 +2993,8 @@ def steamer():
                out=(0, -1, 0))
     rud = [V(0, L / 2 + 0.15, KZ + 0.9), V(0, L / 2 + 1.6, KZ + 0.9), V(0, L / 2 + 1.6, 0.4), V(0, L / 2 + 0.15, 0.9)]
     m.prism([p + V(-0.08, 0, 0) for p in rud], (0.16, 0, 0), IRON, tile=2.0)
+    # M7 boats: a riding light forward
+    lantern(m, V(0, hull.y(0.9, sheer(0.9)), sheer(0.9) + 3.0), 0)
     return m
 
 
@@ -2675,6 +3317,9 @@ def liner():
                out=(0, -1, 0))
     rud = [V(0, L / 2 + 0.2, KZ + 1.3), V(0, L / 2 + 2.4, KZ + 1.3), V(0, L / 2 + 2.4, 0.3), V(0, L / 2 + 0.2, 0.9)]
     m.prism([p + V(-0.1, 0, 0) for p in rud], (0.2, 0, 0), IRON, tile=2.0)
+    # M7 boats: riding lights forward and aft (at anchor in the roads)
+    lantern(m, V(0, hull.y(0.9, sheer(0.9)), sheer(0.9) + 4.0), 0)
+    lantern(m, V(0, hull.y(0.04, sheer(0.04)), sheer(0.04) + 2.5), 0)
     return m
 
 
@@ -2757,6 +3402,8 @@ def tug(paddle=False):
     m.box((0, ym + 0.05, zd(tm) + 5.0), (0.25, 0.25, 0.35), IRON)
     rig(m, (0, ym + 0.2, zd(tm) + 7.2), (0, hull.y(1, sheer(1)) + 0.2, sheer(1) + 0.05))
     pennant(m, (0, ym + 0.2, zd(tm) + 7.7), 1.2, h=0.2)
+    if not paddle:
+        lantern(m, V(0, ym - 0.18, zd(tm) + 5.6), 0)
     ta = 0.2
     wa = hull.hb(ta, sheer(ta)) - 0.1
     ya = hull.y(ta, zd(ta))
@@ -3284,6 +3931,9 @@ BUILDERS = [
     ("hengst", lambda: barge("hengst")),
     ("lighter", lambda: lighter(False)),
     ("lighter_loaded", lambda: lighter(True)),
+    ("lighter_coal", lambda: lighter("coal")),
+    ("lighter_sand", lambda: lighter("sand")),
+    ("lighter_timber", lambda: lighter("timber")),
     ("tug", lambda: tug(False)),
     ("paddle_tug", lambda: tug(True)),
     ("sloop", sloop),
@@ -3294,6 +3944,14 @@ BUILDERS = [
     ("hengst_sail", lambda: barge("hengst", True)),
     ("rowboat", rowboat),
     ("punt", punt),
+    # M7 boats: more kinds of small boat, every one of them can be taken and rowed
+    ("workboat", workboat),
+    ("dinghy", dinghy),
+    ("shipsboat", shipsboat),
+    ("gig", gig),
+    ("bumboat", bumboat),
+    ("eelboat", eelboat),
+    ("oldboat", oldboat),
     ("pontoon_section", pontoon_section),
     ("portal_crane", portal_crane),
     ("hand_crane", hand_crane),
@@ -3316,6 +3974,12 @@ def build_all():
         counts[name] = tris(ob)
         if hull is not None:
             cap_object(hull, f"{name}_cap", ob)
+        stow = getattr(m, "stow", None)
+        if stow is not None and len(stow.bm.faces):
+            # M7 boats: the oars (and a dinghy's mast) laid in: their own node, hidden while the boat is rowed
+            ch = to_object(stow, f"{name}_stow", parent=ob)
+            objs[f"{name}_stow"] = ch
+            counts[name] += tris(ch)
         if name in CHILDREN:
             cname, cfn, loc = CHILDREN[name]
             ch = to_object(cfn(), cname, parent=ob, loc=loc)
@@ -3541,6 +4205,32 @@ def closeup(objs, names, path, az=-35.0, el=0.35):
     render(path, (1600, 1000))
 
 
+def closeups_each(objs, names, outdir, views=((-35.0, 0.45), (150.0, 0.3))):
+    """M7 boats: one close picture per object and view (azimuth, elevation), the object alone at the origin."""
+    cam = stage()
+    for n in names:
+        ob = objs[n]
+        for o in bpy.context.scene.objects:
+            if o.type == "MESH" and o.name not in ("water", "quay"):
+                o.hide_render = root_of(o) is not ob
+        ob.location = (0, 0, 0)
+        ob.rotation_euler = (0, 0, 0)
+        bpy.context.view_layer.update()
+        pts = [ob.matrix_world @ Vector(c) for c in ob.bound_box]
+        for ch in ob.children:
+            pts += [ch.matrix_world @ Vector(c) for c in ch.bound_box]
+        lo = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts)))
+        hi = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
+        c = (lo + hi) / 2
+        c.z = min(c.z, 1.5)
+        r = max(hi.x - lo.x, hi.y - lo.y, 2.0) / 2
+        for k, (az, el) in enumerate(views):
+            a = math.radians(az)
+            d = r * 1.9 + 1.0
+            aim(cam, (c.x + d * math.sin(a), c.y - d * math.cos(a), max(0.6, c.z + d * el)), c, lens=35)
+            render(os.path.join(outdir, f"{n}_{k}.png"), (960, 600))
+
+
 # ------------------------------------------------------------------ main
 
 
@@ -3560,6 +4250,11 @@ def main():
         preview_lineup(objs)
     if "--harbour" in argv or "--preview" in argv:
         preview_harbour(objs)
+    if "--each" in argv:
+        i = argv.index("--each")
+        preview_materials()
+        preview_lines(objs)
+        closeups_each(objs, argv[i + 1].split(","), os.path.abspath(os.path.join(ROOT, argv[i + 2])))
     if "--closeup" in argv:
         i = argv.index("--closeup")
         names = argv[i + 1].split(",")
