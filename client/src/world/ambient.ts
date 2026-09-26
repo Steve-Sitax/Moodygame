@@ -1366,9 +1366,10 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
     psxUniforms.uRain.value = rainNow;
     psxUniforms.uWet.value = wet;
     rain.visible = rainNow > 0.01;
-    // puddles: rain fills them; fog and mist keep the big ones; a sunny day dries them out
+    // puddles: rain fills them; fog and mist keep the big ones; a sunny day shrinks them, but an autumn sun never
+    // dries the deepest hollows of the setts and ruts (picture round 2026-09-26: every made-over view had wet ground)
     const sunny = weather === "clear" && hourNow > 8 && hourNow < 18;
-    const pudTarget = rainNow > 0.05 ? 0.7 : weather === "rain" || weather === "storm" ? 0.5 : weather === "fog" ? 0.34 : weather === "mist" ? 0.26 : sunny ? 0 : 0.12;
+    const pudTarget = rainNow > 0.05 ? 0.7 : weather === "rain" || weather === "storm" ? 0.5 : weather === "fog" ? 0.34 : weather === "mist" ? 0.26 : sunny ? 0.1 : 0.12;
     pudBase += pudTarget > pudBase ? (pudTarget - pudBase) * Math.min(1, dt * 0.08) : Math.max(pudTarget - pudBase, -dt * 0.004);
     // the puddles are in the ground shader (retro/psx.ts option puddles)
     psxUniforms.uPuddle.value = Math.max(pudBase, wet * 0.75);

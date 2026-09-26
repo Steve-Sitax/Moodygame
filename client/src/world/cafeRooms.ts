@@ -417,7 +417,7 @@ export function buildCafe(opts: { plan: HousePlan; label: string; seed: number; 
       k.lamp(XA, F + H - 0.95, cz, top, "globe", lights, glows, 8);
       for (const [dx, dz] of [[0.3, 0], [-0.15, 0.26], [-0.15, -0.26]]) {
         b.cyl(0.01, 0.3, XA + dx / 2, F + H - 0.9, cz + dz / 2, M.brass(), false, 3).rotation.z = dx * 1.5;
-        const g = new THREE.Mesh(new THREE.SphereGeometry(0.09, 7, 5), M.glow(0xffe8c0));
+        const g = new THREE.Mesh(new THREE.SphereGeometry(0.09, 7, 5), M.glow(0xffc47a)); // amber, as interiorKit's globe
         g.position.set(XA + dx, F + H - 0.78, cz + dz);
         b.group.add(g);
       }

@@ -515,10 +515,11 @@ export class Kit {
     } else if (kind === "lantern") {
       this.b.box(0.18, 0.26, 0.18, x, y + 0.1, z, M.iron());
     } else this.b.cyl(0.08, 0.08, x, y, z, M.brass(), false, 8);
-    const glass = new THREE.Mesh(kind === "globe" ? new THREE.SphereGeometry(0.12, 8, 6) : new THREE.CylinderGeometry(0.05, 0.06, 0.18, 6), mat(`ik_lampglass_${kind}`, () => new THREE.MeshBasicMaterial({ color: kind === "globe" ? 0xffe8c0 : 0xffd490 })));
+    // a gas flame behind etched glass glows amber, not white (picture round 2026-09-26: the globes read as flat white discs)
+    const glass = new THREE.Mesh(kind === "globe" ? new THREE.SphereGeometry(0.12, 8, 6) : new THREE.CylinderGeometry(0.05, 0.06, 0.18, 6), mat(`ik_lampglass_${kind}`, () => new THREE.MeshBasicMaterial({ color: kind === "globe" ? 0xffc47a : 0xffd490 })));
     glass.position.set(x, y + (kind === "globe" ? 0.16 : kind === "green" ? 0.05 : 0.14), z);
     this.b.group.add(glass);
-    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: kind === "globe" ? 0xffd8a0 : 0xffb060, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.8 }));
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: kind === "globe" ? 0xffc27c : 0xffb060, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.8 }));
     glow.scale.set(kind === "globe" ? 1.1 : 0.9, kind === "globe" ? 1.1 : 0.9, 1);
     glow.position.copy(glass.position);
     this.b.group.add(glow);
