@@ -339,7 +339,7 @@ events.eventSound = (k, at, s) => sound?.eventSound(k, at, s) ?? null;
 figureNav.path = (ax, az, bx, bz) => crowd.pathOn(ax, az, bx, bz);
 figureNav.water = (x, z) => world.isWater(x, z);
 // M7 ferry arrival: a new game begins on the ferry's deck at the Werf pontoon (game/ferryArrival.ts)
-const ferry = new FerryArrival({ world, player, say: (t) => jobs.say(t), path: (ax, az, bx, bz) => crowd.pathOn(ax, az, bx, bz) });
+const ferry = new FerryArrival({ world, player, say: (t) => jobs.say(t), path: (ax, az, bx, bz) => crowd.pathOn(ax, az, bx, bz), dark: lanternDark });
 events.eventCues = (cues, at, s) => sound?.eventCues(cues, at, s) ?? null;
 events.say = (t) => jobs.say(t);
 // M6 town life: the lamplighters, the house fire and its bucket chain, the naties' hiring at dawn (game/townlife.ts)

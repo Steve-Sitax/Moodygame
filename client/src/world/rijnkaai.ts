@@ -94,6 +94,12 @@ export const RAMP = { x: -42, halfW: 0.45, zLow: 0.3, zHigh: -3.0 };
 const RAMP_LEN = 4.0;
 /** The ferry pontoon's gangway: a plank this long, hinged at the quay edge (M6 tides). */
 const PONTOON_PLANK = 7.0;
+/**
+ * The Werf landing stage floats this far off the quay wall (world/landingStage.ts): the gangway spans the
+ * water between. Below the quay its foot rolls on the stage's boards (6.12 m out at the lowest spring
+ * tide); above the quay the stage's end holds it up, and its end lies over the boards.
+ */
+const PONTOON_GAP = 5.9;
 
 export type Surface = "stone" | "wood";
 
@@ -347,6 +353,8 @@ export function buildRijnkaai(): World {
   let pontoonY = WATER_Y + pontoonDeck;
   /** How far out from the quay edge the pontoon's gangway reaches now (it is hinged at the edge). */
   let pontoonReach = Math.sqrt(PONTOON_PLANK ** 2 - pontoonY ** 2);
+  /** The gangway's rise per metre out from the quay (its angle's tangent). */
+  let pontoonSlope = pontoonY / pontoonReach;
   let pontoonPivot: THREE.Object3D | null = null;
 
   // cold light from a sky nobody can see
@@ -821,6 +829,8 @@ export function buildRijnkaai(): World {
       const deckRect = b.pontoon(scene, PONTOON.x, PONTOON.maxZ, PONTOON.minZ)[0];
       if (deckRect) pontoonDeck = deckRect.y - levelAt(PONTOON.x, (PONTOON.minZ + PONTOON.maxZ) / 2);
       pontoonPivot = pontoonGangway(scene, m);
+      // its hand rails over the water between the quay and the stage: you keep between them
+      for (const sx of [-1, 1]) colliders.push({ minX: PONTOON.x + sx * 1.7 - 0.06, maxX: PONTOON.x + sx * 1.7 + 0.06, minZ: -PONTOON_GAP - 0.2, maxZ: 0.25 });
       // ladders on the free stretches of wall, now that the boats lie where they lie
       city.ready.then(placeLadders).catch((e) => console.warn("ladders", e));
       // the goods train on the quay railway, the cranes at work (world/railway.ts, M3g)
@@ -1008,7 +1018,8 @@ export function buildRijnkaai(): World {
   const baseAt = (x: number, z: number, feet?: number) => {
     if (onDeck(x, z)) return DECK.y;
     if (onRamp(x, z)) return THREE.MathUtils.clamp((RAMP.zLow - z) / (RAMP.zLow - RAMP.zHigh), 0, 1) * DECK.y;
-    if (onPontoon(x, z)) return pontoonY * THREE.MathUtils.clamp(-z / pontoonReach, 0, 1);
+    // (above the quay the plank's end lies over the stage's boards: its last 15 cm too, then a step down)
+    if (onPontoon(x, z)) return -z < pontoonReach + (pontoonY > 0 ? 0.15 : 0) ? Math.max(0, -z) * pontoonSlope : pontoonY;
     const st = steps.heightAt(x, z);
     if (st) return st.y;
     const wa = areaAt(x, z); // M7: a building's inside in the world
@@ -1683,9 +1694,10 @@ export function buildRijnkaai(): World {
     DECK.y = Math.max(levelAt(-40, -7.2), BRIG_FLOOR) + DECK_OVER_WATER;
     placeBrigKit();
     pontoonY = levelAt(PONTOON.x, -30) + pontoonDeck;
-    const ps = THREE.MathUtils.clamp(pontoonY / PONTOON_PLANK, -0.95, 0.95);
-    pontoonReach = PONTOON_PLANK * Math.sqrt(1 - ps * ps);
-    if (pontoonPivot) pontoonPivot.rotation.x = Math.asin(ps);
+    const ang = pontoonY <= 0 ? Math.asin(THREE.MathUtils.clamp(pontoonY / PONTOON_PLANK, -0.95, 0.95)) : Math.atan2(pontoonY, PONTOON_GAP);
+    pontoonReach = PONTOON_PLANK * Math.cos(ang);
+    pontoonSlope = Math.tan(ang);
+    if (pontoonPivot) pontoonPivot.rotation.x = ang;
   }
 
   let camera: THREE.Camera | null = null;
@@ -1926,6 +1938,7 @@ function pontoonGangway(scene: THREE.Scene, m: Mats): THREE.Object3D {
   const L = PONTOON_PLANK;
   const w = PONTOON.maxX - PONTOON.minX - 0.5;
   const g = new THREE.Group();
+  g.name = "pontoon_gangway";
   g.position.set(PONTOON.x, 0, 0);
   // the plank runs out along -z from the hinge
   g.add(box(w, 0.1, L + 0.3, m.planks, 0, -0.02, -L / 2, 1.5));
