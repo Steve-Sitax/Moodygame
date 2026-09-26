@@ -328,7 +328,7 @@ export class Landmarks {
   attachWorld(world: World, inWorld: InWorld): void {
     this.cath = createCathedralInWorld(world, inWorld);
     // M7 the cathedral outside: its own model in detail (world/cathedralOutside.ts, cathedral.glb)
-    loadCathedralOutside(world.scene);
+    loadCathedralOutside(world);
     this.world = world;
     // M7 halls: the other landmarks stand in the world too, walked into through their doors
     this.halls = hallsInWorld(world, inWorld);

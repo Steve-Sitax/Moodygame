@@ -4,6 +4,7 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { bumpFromMap, footDirt, psx } from "../retro/psx";
 import { brickBandTexture, glassTexture, slateTexture } from "./cityTextures";
 import { rand } from "./rooms";
+import type { World } from "./rijnkaai";
 
 // The cathedral outside (M7, 2026-09-26; Steve: "cathedral needs more detail, the other churches have 3d statues and
 // cathedral not ... good textures", and the houses against it were flat painted fronts). Its own model,
@@ -222,8 +223,42 @@ export interface CathedralOutside {
   group: THREE.Group;
 }
 
-/** Load the cathedral's model into the scene; hide the landmark's stand-in when it is in. */
-export function loadCathedralOutside(scene: THREE.Scene): CathedralOutside {
+type WRect = [number, number, number, number];
+
+/**
+ * The ground round the cathedral (the houses' check, 2026-09-26): the walk map counts the landmark's whole rectangle as
+ * church, so nobody could walk up to the houses built against it (3 to 7 m of cobbles before their doors). The model's
+ * build lists those strips and what stands on them (/models/cathedral_walk.json, build_landmarks.py _open_ground):
+ * walked like any street, with the stone and the houses as walls.
+ */
+function openGround(world: World): void {
+  fetch("/models/cathedral_walk.json")
+    .then((r) => (r.ok ? (r.json() as Promise<{ strips: WRect[]; blocks: WRect[] }>) : null))
+    .then((w) => {
+      if (!w?.strips.length) return;
+      const inR = (q: WRect, x: number, z: number, m = 0) => x >= q[0] - m && x <= q[1] + m && z >= q[2] - m && z <= q[3] + m;
+      const box = {
+        minX: Math.min(...w.strips.map((q) => q[0])),
+        maxX: Math.max(...w.strips.map((q) => q[1])),
+        minZ: Math.min(...w.strips.map((q) => q[2])),
+        maxZ: Math.max(...w.strips.map((q) => q[3])),
+      };
+      const has = (x: number, z: number) => w.strips.some((q) => inR(q, x, z));
+      world.addWalkArea({
+        box,
+        has,
+        walkable: (x, z) => has(x, z) && !w.blocks.some((q) => inR(q, x, z)),
+        floor: () => 0,
+        hits: (x, z, r) => has(x, z) && w.blocks.some((q) => inR(q, x, z, r)),
+      });
+    })
+    .catch((e) => console.warn("cathedral_walk.json did not load", e));
+}
+
+/** Load the cathedral's model into the scene; hide the landmark's stand-in when it is in; open the ground round it. */
+export function loadCathedralOutside(world: World): CathedralOutside {
+  const scene = world.scene;
+  openGround(world);
   const group = new THREE.Group();
   group.name = "cathedral_outside";
   scene.add(group);

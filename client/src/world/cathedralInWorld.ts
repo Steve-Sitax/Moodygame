@@ -2,7 +2,7 @@ import * as THREE from "three";
 import * as P from "../../../shared/cathedralPlan";
 import { buildCathedral } from "./cathedralHall";
 import type { LandmarkRoom } from "./landmarkRooms";
-import { boxGeo, lambert, tex } from "./rooms";
+import { psx } from "../retro/psx";
 import type { World } from "./rijnkaai";
 import type { InWorld, InWorldRoom } from "./inworld";
 
@@ -50,26 +50,34 @@ export function createCathedralInWorld(world: World, inWorld: InWorld): Cathedra
   // ---- the two leaves of the west door, hinged at the jambs (drawn with the street: seen from both sides)
   const D = P.SHELL.door;
   const DH = D.top - P.FLOOR_Y;
-  // old oak, lighter than the tint suggests: the planks texture is dark and a leaf stands a step from the eye as you pass
-  const oak = lambert("cathedral_leaf", { map: tex().planks, color: 0xe0c8a8 }, 0);
-  const iron = lambert("cathedral_leaf_iron", { color: 0x2c2a28 }, 0);
+  // The leaves: the cathedral's oak doors with their iron (the portals' picture, /textures/cathx_door.jpg, a half on each
+  // leaf; world/cathedralOutside.ts). Deep in the porch no sun reaches them and they stood black from the square (Steve,
+  // 2026-09-26): a little of the day's light of their own (the fill follows the daylight: none at night).
+  const doorPic = new THREE.TextureLoader().load("/textures/cathx_door.jpg");
+  doorPic.colorSpace = THREE.SRGBColorSpace;
+  doorPic.anisotropy = 4;
+  const oakFor = (half: number) => {
+    const map = doorPic.clone();
+    map.repeat.set(0.5, 1);
+    map.offset.set(half * 0.5, 0);
+    map.needsUpdate = true;
+    return psx(new THREE.MeshLambertMaterial({ map, color: 0xf0e4d8, emissive: 0x000000, emissiveMap: map }), { affine: 0 });
+  };
+  const edge = psx(new THREE.MeshLambertMaterial({ color: 0x3a2a1e }), { affine: 0 });
+  const oaks: THREE.MeshLambertMaterial[] = [];
   const leaves: THREE.Group[] = [];
   for (const s of [-1, 1]) {
     const hinge = new THREE.Group();
     hinge.position.set(P.ORIGIN.x + s * D.hw, P.FLOOR_Y, P.ORIGIN.z + D.z - 0.06);
     const w = P.LEAF.w;
-    // the leaf reaches from its hinge toward the trumeau (-s along x)
-    const leaf = new THREE.Mesh(boxGeo(w, DH, 0.12, 1.2), oak);
+    // the leaf reaches from its hinge toward the trumeau (-s along x); from the square the left leaf shows the
+    // picture's left half (both faces: the inside mirrors it)
+    const oak = oakFor(s < 0 ? 1 : 0);
+    oaks.push(oak);
+    // faces +x, -x, +y, -y, +z, -z: the picture on the two broad faces, dark oak on the edges
+    const leaf = new THREE.Mesh(new THREE.BoxGeometry(w, DH, 0.12), [edge, edge, edge, edge, oak, oak]);
     leaf.position.set(-s * (w / 2), DH / 2, 0);
     hinge.add(leaf);
-    // planks' battens and the iron straps with their hinges, on both faces
-    for (const y of [DH * 0.18, DH * 0.5, DH * 0.82]) {
-      for (const f of [-1, 1]) {
-        const strap = new THREE.Mesh(new THREE.BoxGeometry(w * 0.72, 0.12, 0.03), iron);
-        strap.position.set(-s * w * 0.36, y, f * 0.075);
-        hinge.add(strap);
-      }
-    }
     world.scene.add(hinge);
     leaves.push(hinge);
   }
@@ -132,6 +140,7 @@ export function createCathedralInWorld(world: World, inWorld: InWorld): Cathedra
         setLeaves();
       }
       dayNow = day;
+      for (const m of oaks) m.emissive.setRGB(0.32, 0.29, 0.26).multiplyScalar(THREE.MathUtils.clamp(day, 0, 1) * sky);
       // the flames, lights and glass always follow the hour (cheap): no step in them when the hall's life starts
       void live;
       room.update(t, dt);

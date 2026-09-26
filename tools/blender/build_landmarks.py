@@ -504,7 +504,8 @@ def paint_atlas():
     c[0:3] = C["hi"]
     noise(c, 0.06)
 
-    # -- the clock: dark face, gilt ring, hour marks and hands (ten past ten)
+    # -- the clock: dark face, gilt ring, hour marks. No hands (Steve, 2026-09-26: every clock in the game shows the
+    # game's time): the game hangs live hands on a marker at each dial's middle (clock_face_<n>, see clock_marker)
     c = cell("clock")
     stone_bg(c)
     c[circle(64, 64, 32, 32, 0, 31.5)] = C["gold"]
@@ -513,9 +514,6 @@ def paint_atlas():
     for k in range(12):
         a = 2 * math.pi * k / 12
         line(c, 32 + 23 * math.sin(a), 32 - 23 * math.cos(a), 32 + 27 * math.sin(a), 32 - 27 * math.cos(a), C["gold"], 2)
-    for a, r in ((math.radians(305), 14), (math.radians(60), 22)):
-        line(c, 32, 32, 32 + r * math.sin(a), 32 - r * math.cos(a), C["gold"], 2)
-    c[31:34, 31:34] = C["gold"]
 
     # -- a niche with a statue under a canopy
     c = cell("niche")
@@ -901,6 +899,7 @@ class CMesh(Mesh):
         self.uvl = self.bm.loops.layers.uv.new("UVMap")
         self.fixed = set()
         self.doors = []
+        self.clocks = []
 
     def door(self, name, pt):
         """Note a door (local u, v, y at the middle of its sill) for the report."""
@@ -924,6 +923,11 @@ class CMesh(Mesh):
 
     def decal(self, p, d, o, s0, s1, y0, y1, cell, shape=RECT, off=0.06, shade=1.0):
         """An atlas cell on a wall: p a point of the wall, d along it, o out of it (unit, local u-v)."""
+        if cell == "clock":
+            # the dial's middle, 5 mm in front of it, its radius (the gilt ring): for the live hands (clock_marker)
+            sm = (s0 + s1) / 2
+            self.clocks.append(((p[0] + d[0] * sm + o[0] * (off + 0.005), p[1] + d[1] * sm + o[1] * (off + 0.005), (y0 + y1) / 2),
+                                (o[0], o[1]), (s1 - s0) / 2 * 31.5 / 32))
         pts = []
         for x, t in shape:
             s = s0 + (s1 - s0) * x
@@ -1550,6 +1554,31 @@ class CathMesh(CMesh):
         self.tint = (1.0, 1.0, 1.0)
         self.furnish = True
         self._rep = 0
+        # (the houses' check, 2026-09-26: every solid of stone as a box in the plan (u0, u1, v0, v1, y0, y1); the
+        # parts of the houses as (house, kind, box); both meshes share them)
+        self.solids = []
+        self.parts = []
+        self.house = None
+        if detail:
+            self.d.solids = self.solids
+            self.d.parts = self.parts
+
+    def reg(self, us, vs, y0, y1):
+        """Note a solid of stone by its extent (not while a house is built)."""
+        if self.house is None:
+            self.solids.append((min(us), max(us), min(vs), max(vs), min(y0, y1), max(y0, y1)))
+
+    def set_house(self, idx):
+        self.house = idx
+        self.d.house = idx
+
+    def prism(self, ring, y0, y1, mat, top=True, top_mat=None, shade=1.0):
+        self.reg([q[0] for q in ring], [q[1] for q in ring], y0, y1)
+        return super().prism(ring, y0, y1, mat, top, top_mat, shade)
+
+    def pyramid(self, ring, y0, apex_y, mat, shade=1.0):
+        self.reg([q[0] for q in ring], [q[1] for q in ring], y0, apex_y)
+        return super().pyramid(ring, y0, apex_y, mat, shade)
 
     # ---------------------------------------------------------------- basics
     def poly(self, pts, mat, shade=1.0):
@@ -1575,6 +1604,7 @@ class CathMesh(CMesh):
     def hexa(self, P, mat, shade=1.0, skip=()):
         """A six-faced solid from 8 corners: 0-3 one ring, 4-7 the other in the same order."""
         c = _mean(P)
+        self.reg([q[0] for q in P], [q[1] for q in P], min(q[2] for q in P), max(q[2] for q in P))
         for k, idx in enumerate(HEXF):
             if k not in skip:
                 self.face([P[i] for i in idx], mat, shade, centre=c)
@@ -1598,6 +1628,8 @@ class CathMesh(CMesh):
         """A turned solid about the vertical through c = (u, v, y): prof [(r, dy)] from the bottom up."""
         rings = [[(c[0] + r * math.cos(rot + 2 * math.pi * i / sides), c[1] + r * math.sin(rot + 2 * math.pi * i / sides), c[2] + y)
                   for i in range(sides)] for r, y in prof]
+        rmax = max(r for r, _ in prof)
+        self.reg([c[0] - rmax, c[0] + rmax], [c[1] - rmax, c[1] + rmax], c[2] + min(y for _, y in prof), c[2] + max(y for _, y in prof))
         for k in range(len(prof) - 1):
             (r0, y0), (r1, y1) = prof[k], prof[k + 1]
             if r0 < 1e-6 and r1 < 1e-6:
@@ -1763,6 +1795,7 @@ class CathMesh(CMesh):
                 self.tex_prism(ra, y0 + (y1 - y0) * k / rep, y0 + (y1 - y0) * (k + 1) / rep, cell, rb, shade, skip)
             self._rep = 0
             return
+        self.reg([q[0] for q in ring], [q[1] for q in ring], y0, y1)
         super().tex_prism(ring, y0, y1, cell, ring_top, shade, skip)
 
     # ---------------------------------------------------------------- the atlas' painted stone, now stone
@@ -2342,14 +2375,141 @@ def _frame(D, p, d, o, e, sa, sb, ya, yb, w, dep, mat, shade=1.0, bottom=True):
         D.bar(Q(sa + w, ya + w / 2), Q(sb - w, ya + w / 2), w, dep, mat, shade)
 
 
-def _house2(m, p, d, o, s0, s1, depth, h, rise, idx, chimney=False):
+# (CATH_OLD_HOUSES=1 builds the houses as before the check, 2026-09-26: to see what the check finds there)
+OLD_HOUSES = os.environ.get("CATH_OLD_HOUSES") == "1"
+
+
+def _fbox(p, d, o, sa, sb, ea, eb):
+    """A box in a wall frame (s along d, e out along o) as its extent in the plan: (u0, u1, v0, v1)."""
+    pts = [_wpt(p, d, o, s_, e_, 0) for s_ in (sa, sb) for e_ in (ea, eb)]
+    return (min(q[0] for q in pts), max(q[0] for q in pts), min(q[1] for q in pts), max(q[1] for q in pts))
+
+
+def _hits(boxes, box, y0, y1, pad=0.0):
+    """The boxes (u0, u1, v0, v1, y0, y1, ...) that overlap box (u0, u1, v0, v1) between y0 and y1, pad apart."""
+    return [q for q in boxes if q[0] < box[1] + pad and q[1] > box[0] - pad and q[2] < box[3] + pad and q[3] > box[2] - pad
+            and q[4] < y1 + pad and q[5] > y0 - pad]
+
+
+def _s_range(p, d, q):
+    """A plan box's extent along a wall frame's d."""
+    ss = [(u - p[0]) * d[0] + (v - p[1]) * d[1] for u in (q[0], q[1]) for v in (q[2], q[3])]
+    return min(ss), max(ss)
+
+
+def _runs(lo, hi, blocked):
+    """What is left of lo..hi without the blocked intervals, longest first."""
+    runs = [(lo, hi)]
+    for a, b in blocked:
+        nxt = []
+        for r0, r1 in runs:
+            if b <= r0 or a >= r1:
+                nxt.append((r0, r1))
+                continue
+            if a > r0:
+                nxt.append((r0, a))
+            if b < r1:
+                nxt.append((b, r1))
+        runs = nxt
+    return sorted([r for r in runs if r[1] > r[0]], key=lambda r: r[0] - r[1])
+
+
+def _house_window(m, p, d, o, E, sa, sb, ya, yb, brick, paint, wall, shut=None, shut_w=0.0, rec=None):
+    """A sash window in a wall at E out of the frame: its reveal, a bluestone sill, a stone lintel (brick) or a moulded
+    surround (plaster), the glass, a white frame and bars, and open shutters shut_w wide when there is room."""
+    D = m.d
+    rd = 0.24
+    m.set_tint(paint)
+    _reveal(m, p, d, o, E, sa, sb, ya, yb, rd, wall, 0.62)
+    m.set_tint((1.0, 1.0, 1.0))
+    _wb(m, p, d, o, sa - 0.08, sb + 0.08, E, E + 0.08, ya - 0.1, ya, PLINTH, 0.95)
+    if brick:
+        _wb(m, p, d, o, sa - 0.12, sb + 0.12, E, E + 0.04, yb, yb + 0.24, PLINTH, 1.0)
+        ext = 0.12
+    else:
+        m.set_tint(tuple(min(1.0, c * 1.04) for c in paint))
+        for s_a, s_b, y_a, y_b in ((sa - 0.13, sa, ya, yb + 0.13), (sb, sb + 0.13, ya, yb + 0.13), (sa, sb, yb, yb + 0.13)):
+            _wb(m, p, d, o, s_a, s_b, E, E + 0.05, y_a, y_b, wall, 1.05)
+        _wb(m, p, d, o, sa - 0.2, sb + 0.2, E, E + 0.1, yb + 0.13, yb + 0.22, wall, 1.1)
+        ext = 0.2
+    if rec:
+        rec("window", p, d, o, sa, sb, E - rd, E + 0.01, ya, yb)
+        rec("sill", p, d, o, sa - 0.08, sb + 0.08, E, E + 0.08, ya - 0.1, ya)
+        if brick:
+            rec("lintel", p, d, o, sa - 0.12, sb + 0.12, E, E + 0.04, yb, yb + 0.24)
+        else:
+            rec("surround", p, d, o, sa - 0.13, sa, E, E + 0.05, ya, yb + 0.13)
+            rec("surround", p, d, o, sb, sb + 0.13, E, E + 0.05, ya, yb + 0.13)
+            rec("head", p, d, o, sa - 0.2, sb + 0.2, E, E + 0.1, yb + 0.13, yb + 0.22)
+    m.set_tint((1.0, 1.0, 1.0))
+    ge = E - rd + 0.06
+    m.face([_wpt(p, d, o, sa, ge, ya), _wpt(p, d, o, sb, ge, ya), _wpt(p, d, o, sb, ge, yb), _wpt(p, d, o, sa, ge, yb)], HGLASS, 0.9,
+           out=(o[0], o[1], 0))
+    # (the frame and the bars stand clear of the glass: 1 cm, never back to back with it)
+    # (1 cm clear of the reveal all round: never face to face with its sides, head and sill)
+    _frame(D, p, d, o, ge + 0.05, sa + 0.01, sb - 0.01, ya + 0.01, yb - 0.01, 0.075, 0.08, HTRIM, 1.0)
+    sc = (sa + sb) / 2
+    D.bar(_wpt(p, d, o, sc, ge + 0.04, ya + 0.07), _wpt(p, d, o, sc, ge + 0.04, yb - 0.07), 0.05, 0.05, HTRIM, 1.0)
+    for t in ((0.5,) if yb - ya < 1.4 else (0.36, 0.68)):
+        y = ya + (yb - ya) * t
+        D.bar(_wpt(p, d, o, sa + 0.07, ge + 0.04, y), _wpt(p, d, o, sb - 0.07, ge + 0.04, y), 0.045, 0.05, HTRIM, 1.0)
+    if shut is not None and shut_w >= 0.28:
+        # open shutters, clear of the surround (plaster) or of the reveal's edge (brick)
+        gap = 0.15 if not brick and not OLD_HOUSES else 0.02
+        D.set_tint(shut)
+        for a_, b_ in ((sa - gap - shut_w, sa - gap), (sb + gap, sb + gap + shut_w)):
+            _wb(D, p, d, o, a_, b_, E + 0.01, E + 0.05, ya + 0.02, yb - 0.02, HSHUT, 0.95)
+            for t in (0.33, 0.66):
+                y = ya + (yb - ya) * t
+                _wb(D, p, d, o, a_ + 0.03, b_ - 0.03, E + 0.05, E + 0.07, y - 0.03, y + 0.03, HSHUT, 0.8)
+            if rec:
+                rec("shutter", p, d, o, a_, b_, E + 0.01, E + 0.07, ya + 0.02, yb - 0.02)
+        D.set_tint((1.0, 1.0, 1.0))
+
+
+def _house2(m, p, d, o, s0, s1, depth, h, rise, idx, chimney=False, row=(), ground=None):
     """A house built against the church: its front `depth` out from the church wall (p, d, o), s0..s1 along it,
-    h to the eaves, the roof's ridge along the wall `rise` higher."""
+    h to the eaves, the roof's ridge along the wall `rise` higher. `row`: the houses of its row (s0, s1, depth, h), for
+    its neighbours; `ground(u, v)`: is there free walkable ground there (the walk map).
+    (The houses' check, 2026-09-26, Steve: a door half inside a buttress. The house now looks at the stone round it,
+    m.solids: where stone stands before its front at an end, the house stops at it; doors, windows, shutters, the shop
+    front, the cornice, the dormer and the chimney go only where they are clear of it and of the neighbours; a door only
+    where there is ground to walk in front of it; the ends that are seen get windows. Every part is noted in m.parts for
+    check_houses().)"""
     import random
     rng = random.Random(idx * 7919 + int(s0 * 10))
     D = m.d
-    W = s1 - s0
+    m.set_house(idx)
     E = depth
+    # the neighbours: how far off each end, how deep, how high
+    nb_ = {-1: None, 1: None}
+    for q in row:
+        if q[0] >= s1 - 0.01 and (nb_[1] is None or q[0] < nb_[1][0]):
+            nb_[1] = q
+        if q[1] <= s0 + 0.01 and (nb_[-1] is None or q[1] > nb_[-1][1]):
+            nb_[-1] = q
+    gap = {-1: (s0 - nb_[-1][1]) if nb_[-1] else 9.0, 1: (nb_[1][0] - s1) if nb_[1] else 9.0}
+    # stone standing in the front's way: the house stops at it (its end wall against the stone)
+    front = _fbox(p, d, o, s0, s1, E - 0.35, E + 0.6)
+    blocked = [_s_range(p, d, q) for q in _hits(m.solids, front, -0.3, h + 0.2)]
+    runs = _runs(s0, s1, [(a - 0.06, b + 0.06) for a, b in blocked])
+    fa, fb = runs[0] if runs else (s0, s0 + 1.0)
+    if OLD_HOUSES:
+        fa, fb = s0, s1
+    if fa > s0 + 0.01:
+        gap[-1] = 0.06
+        s0 = fa
+    if fb < s1 - 0.01:
+        gap[1] = 0.06
+        s1 = fb
+    W = s1 - s0
+    lim = (s0 - min(gap[-1], 0.3) / 2 + 0.005, s1 + min(gap[1], 0.3) / 2 - 0.005)  # no part past half the gap
+    if OLD_HOUSES:
+        lim = (s0 - 0.12, s1 + 0.12)
+
+    def rec(kind, P_, D_, O_, sa, sb, ea, eb, ya, yb):
+        m.parts.append((idx, kind, _fbox(P_, D_, O_, sa, sb, ea, eb) + (min(ya, yb), max(ya, yb))))
+
     wall = HOUSE_WALLS[idx % len(HOUSE_WALLS)]
     paint = rng.choice(HOUSE_PAINT[wall])
     shut = rng.choice(SHUTTER_PAINT)
@@ -2359,72 +2519,71 @@ def _house2(m, p, d, o, s0, s1, depth, h, rise, idx, chimney=False):
     gh = 3.2 + rng.uniform(-0.1, 0.25)
     nup = max(1, int(round((h - gh - 0.5) / 2.75)))
     fh = (h - gh - 0.45) / nup
-    nb = max(1, int(W / 1.75))
-    bw = W / nb
-    door_bay = 0 if rng.random() < 0.5 else nb - 1
-    shop = nb >= 2 and W > 4.4 and rng.random() < 0.55
+    # the bays, 0.3 m in from each end
+    ia, ib = (s0 + 0.3, s1 - 0.3) if not OLD_HOUSES else (s0, s1)
+    nb = int((ib - ia) / 1.75)
+    if nb == 0 and ib - ia >= 1.25:
+        nb = 1
+    bw = (ib - ia) / nb if nb else 0.0
+    # the door: in an end bay with ground to walk before it
+    door_bay = None
+    order = [0, nb - 1] if rng.random() < 0.5 else [nb - 1, 0]
+    order += [k for k in range(nb) if k not in order]
+    for k in order:
+        if nb == 0:
+            break
+        c = ia + (k + 0.5) * bw
+        if OLD_HOUSES or ground is None or all(ground(*_wpt(p, d, o, c + ds, E + de, 0)[:2]) for ds in (-0.3, 0.0, 0.3) for de in (1.4, 2.0)):
+            door_bay = k
+            break
+    shop = nb >= 2 and W > 4.4 and rng.random() < 0.55 and door_bay in (0, nb - 1)
     shutters = rng.random() < 0.6
+    ww = rng.choice([0.9, 1.0, 1.1])
+    wh = min(fh - 0.95, rng.choice([1.5, 1.65, 1.8]))
     holes = []
     for k in range(nb):
-        c = s0 + (k + 0.5) * bw
+        c = ia + (k + 0.5) * bw
         if k == door_bay:
             holes.append((c - 0.55, c + 0.55, 0.0, 2.45, "door"))
         elif not shop:
-            holes.append((c - 0.5, c + 0.5, 0.95, 2.6, "win", 0))
+            holes.append((c - ww / 2, c + ww / 2, 0.95, 2.6, "win", 0))
     if shop:
-        sa = s0 + (bw if door_bay == 0 else 0.0) + 0.35
-        sb = s1 - (bw if door_bay == nb - 1 else 0.0) - 0.35
+        sa = ia + (bw if door_bay == 0 else 0.0) + 0.35
+        sb = ib - (bw if door_bay == nb - 1 else 0.0) - 0.35
         holes.append((sa, sb, 0.62, 2.7, "shop"))
-    ww = rng.choice([0.9, 1.0, 1.1])
-    wh = min(fh - 0.95, rng.choice([1.5, 1.65, 1.8]))
     for f in range(nup):
         yb = gh + f * fh + 0.75
         for k in range(nb):
-            c = s0 + (k + 0.5) * bw
+            c = ia + (k + 0.5) * bw
             holes.append((c - ww / 2, c + ww / 2, yb, yb + wh * (0.92 if f == nup - 1 and nup > 1 else 1.0), "win", f + 1))
-    # the front and its two ends
+    # the shutters' width: what the neighbouring openings and the ends leave (each shares a gap with the next)
+    ext = 0.12 if brick else 0.2
+    sgap = 0.02 if brick else 0.15
+
+    def room(hole):
+        sa, sb = hole[0], hole[1]
+        left = [x[1] + (0.2 if x[4] == "shop" else ext) for x in holes if x is not hole and x[1] <= sa + 0.01 and x[2] < hole[3] and x[3] > hole[2]]
+        right = [x[0] - (0.2 if x[4] == "shop" else ext) for x in holes if x is not hole and x[0] >= sb - 0.01 and x[2] < hole[3] and x[3] > hole[2]]
+        sp_l = (sa - max(left)) / 2 if left else sa - s0 - 0.08
+        sp_r = (min(right) - sb) / 2 if right else s1 - sb - 0.08
+        return min(sp_l, sp_r) - sgap - 0.03
+    # (one width for a whole storey: the same shutters all along it)
+    shut_w = {}
+    for hole in holes:
+        if hole[4] == "win":
+            f = hole[5]
+            shut_w[f] = min(shut_w.get(f, 9.0), room(hole), (hole[1] - hole[0]) / 2) if not OLD_HOUSES else (hole[1] - hole[0]) / 2
+    # the front
     m.set_tint(paint)
     _wall_holes(m, p, d, o, E, s0, s1, -0.3, h, holes, wall)
-    end = [(0, -0.3), (E, -0.3), (E, h), (E / 2, h + rise), (0, h)]
-    for se, sg in ((s0, -1), (s1, 1)):
-        m.face([_wpt(p, d, o, se, e, y) for e, y in end], wall, 0.85, out=(d[0] * sg, d[1] * sg, 0))
-    rd = 0.24
     for hole in holes:
         sa, sb, ya, yb, kind = hole[:5]
-        m.set_tint(paint)
-        _reveal(m, p, d, o, E, sa, sb, ya, yb, rd, wall, 0.62, sill=kind != "door")
         if kind == "win":
-            # heads and sills: bluestone on the brick fronts, a moulded plaster surround on the painted ones
-            m.set_tint((1.0, 1.0, 1.0))
-            _wb(m, p, d, o, sa - 0.08, sb + 0.08, E, E + 0.08, ya - 0.1, ya, PLINTH, 0.95)
-            if brick:
-                _wb(m, p, d, o, sa - 0.12, sb + 0.12, E, E + 0.04, yb, yb + 0.24, PLINTH, 1.0)
-            else:
-                m.set_tint(tuple(min(1.0, c * 1.04) for c in paint))
-                for s_a, s_b, y_a, y_b in ((sa - 0.13, sa, ya, yb + 0.13), (sb, sb + 0.13, ya, yb + 0.13), (sa, sb, yb, yb + 0.13)):
-                    _wb(m, p, d, o, s_a, s_b, E, E + 0.05, y_a, y_b, wall, 1.05)
-                _wb(m, p, d, o, sa - 0.2, sb + 0.2, E, E + 0.1, yb + 0.13, yb + 0.22, wall, 1.1)
-            # the sash: glass, a white frame, the bars of six (or four) panes
-            m.set_tint((1.0, 1.0, 1.0))
-            ge = E - rd + 0.06
-            m.face([_wpt(p, d, o, sa, ge, ya), _wpt(p, d, o, sb, ge, ya), _wpt(p, d, o, sb, ge, yb), _wpt(p, d, o, sa, ge, yb)], HGLASS, 0.9,
-                   out=(o[0], o[1], 0))
-            # (the frame and the bars stand clear of the glass: 1 cm, never back to back with it)
-            _frame(D, p, d, o, ge + 0.05, sa, sb, ya, yb, 0.075, 0.08, HTRIM, 1.0)
-            sc = (sa + sb) / 2
-            D.bar(_wpt(p, d, o, sc, ge + 0.04, ya + 0.07), _wpt(p, d, o, sc, ge + 0.04, yb - 0.07), 0.05, 0.05, HTRIM, 1.0)
-            for t in ((0.5,) if yb - ya < 1.4 else (0.36, 0.68)):
-                y = ya + (yb - ya) * t
-                D.bar(_wpt(p, d, o, sa + 0.07, ge + 0.04, y), _wpt(p, d, o, sb - 0.07, ge + 0.04, y), 0.045, 0.05, HTRIM, 1.0)
-            if shutters and hole[5] <= 1:
-                D.set_tint(shut)
-                for sg, (a_, b_) in ((-1, (sa - (sb - sa) / 2 - 0.02, sa - 0.02)), (1, (sb + 0.02, sb + (sb - sa) / 2 + 0.02))):
-                    _wb(D, p, d, o, a_, b_, E + 0.01, E + 0.05, ya + 0.02, yb - 0.02, HSHUT, 0.95)
-                    for t in (0.33, 0.66):
-                        y = ya + (yb - ya) * t
-                        _wb(D, p, d, o, a_ + 0.03, b_ - 0.03, E + 0.05, E + 0.07, y - 0.03, y + 0.03, HSHUT, 0.8)
-                D.set_tint((1.0, 1.0, 1.0))
+            _house_window(m, p, d, o, E, sa, sb, ya, yb, brick, paint, wall, shut if shutters and hole[5] <= 1 else None, shut_w.get(hole[5], 0.0), rec)
         elif kind == "door":
+            rd = 0.24
+            m.set_tint(paint)
+            _reveal(m, p, d, o, E, sa, sb, ya, yb, rd, wall, 0.62, sill=False)
             m.set_tint((1.0, 1.0, 1.0))
             de = E - rd
             _wb(m, p, d, o, sa, sb, de, E, -0.3, 0.16, PLINTH, 0.9)
@@ -2435,15 +2594,19 @@ def _house2(m, p, d, o, s0, s1, depth, h, rise, idx, chimney=False):
             for (a_, b_) in ((sa + 0.12, (sa + sb) / 2 - 0.05), ((sa + sb) / 2 + 0.05, sb - 0.12)):
                 for (y_a, y_b) in ((0.35, 1.05), (1.25, 1.95)):
                     _wb(D, p, d, o, a_, b_, de + 0.03, de + 0.06, y_a, y_b, HDOOR, 1.1)
-            _frame(D, p, d, o, de + 0.08, sa, sb, 0.16, 2.45, 0.1, 0.1, HDOOR, 0.8, bottom=False)
-            D.bar(_wpt(p, d, o, sa, de + 0.08, 2.12), _wpt(p, d, o, sb, de + 0.08, 2.12), 0.08, 0.1, HDOOR, 0.8)
+            _frame(D, p, d, o, de + 0.08, sa + 0.01, sb - 0.01, 0.17, 2.44, 0.1, 0.1, HDOOR, 0.8, bottom=False)
+            D.bar(_wpt(p, d, o, sa + 0.01, de + 0.08, 2.12), _wpt(p, d, o, sb - 0.01, de + 0.08, 2.12), 0.08, 0.1, HDOOR, 0.8)
             m.set_tint((1.0, 1.0, 1.0))
             D.set_tint((1.0, 1.0, 1.0))
             m.face([_wpt(p, d, o, sa, de + 0.01, 2.08), _wpt(p, d, o, sb, de + 0.01, 2.08), _wpt(p, d, o, sb, de + 0.01, 2.45),
                     _wpt(p, d, o, sa, de + 0.01, 2.45)], HGLASS, 0.9, out=(o[0], o[1], 0))
             k_ = _wpt(p, d, o, (sa + sb) / 2 + 0.2, de + 0.07, 1.05)
             D.lathe(k_, [(0.035, 0.0), (0.035, 0.07)], 6, IRON, shade=0.7)
+            rec("door", p, d, o, sa, sb, de, E + 0.02, -0.3, 2.45)
         elif kind == "shop":
+            rd = 0.24
+            m.set_tint(paint)
+            _reveal(m, p, d, o, E, sa, sb, ya, yb, rd, wall, 0.62)
             m.set_tint((1.0, 1.0, 1.0))
             ge = E - 0.14
             m.face([_wpt(p, d, o, sa, ge, ya), _wpt(p, d, o, sb, ge, ya), _wpt(p, d, o, sb, ge, yb), _wpt(p, d, o, sa, ge, yb)], HGLASS, 0.95,
@@ -2455,7 +2618,7 @@ def _house2(m, p, d, o, s0, s1, depth, h, rise, idx, chimney=False):
                 s = sa + (sb - sa) * i / n
                 D.bar(_wpt(p, d, o, s, ge + 0.04, ya), _wpt(p, d, o, s, ge + 0.04, yb), 0.05, 0.06, HDOOR, 1.0)
             D.bar(_wpt(p, d, o, sa, ge + 0.04, ya + (yb - ya) * 0.72), _wpt(p, d, o, sb, ge + 0.04, ya + (yb - ya) * 0.72), 0.06, 0.06, HDOOR, 1.0)
-            _frame(D, p, d, o, ge + 0.06, sa, sb, ya, yb, 0.1, 0.1, HDOOR, 0.95)
+            _frame(D, p, d, o, ge + 0.06, sa + 0.01, sb - 0.01, ya + 0.01, yb - 0.01, 0.1, 0.1, HDOOR, 0.95)
             # the shop front: pilasters, the fascia board and its cornice, the stall board
             for a_, b_ in ((sa - 0.2, sa), (sb, sb + 0.2)):
                 _wb(m, p, d, o, a_, b_, E, E + 0.12, 0.0, 2.95, HDOOR, 0.9)
@@ -2464,29 +2627,68 @@ def _house2(m, p, d, o, s0, s1, depth, h, rise, idx, chimney=False):
             _wb(m, p, d, o, sa, sb, E, E + 0.06, 0.05, ya, HDOOR, 0.85)
             m.set_tint((1.0, 1.0, 1.0))
             D.set_tint((1.0, 1.0, 1.0))
+            rec("shopfront", p, d, o, sa - 0.3, sb + 0.3, E - rd, E + 0.22, 0.0, 3.2)
+    # the ends: walls, and windows where an end is seen (no neighbour close by, no stone before it)
+    for se, sg in ((s0, -1), (s1, 1)):
+        pe = _wpt(p, d, o, se, 0, 0)[:2]
+        de_, oe_ = o, (d[0] * sg, d[1] * sg)
+        nq = nb_[sg] if gap[sg] <= 0.6 else None
+        end_holes = []
+        if nb and not OLD_HOUSES:
+            floors = [(0.95, 2.6, 0)] + [(gh + f * fh + 0.75, gh + f * fh + 0.75 + wh, f + 1) for f in range(nup)]
+            for ya, yb, f in floors:
+                # (the neighbour covers the end up to its depth, as high as its ridge)
+                cov = nq[2] if (nq and nq[3] + (nq[4] if len(nq) > 4 else 0.0) >= yb + 0.3) else 0.0
+                box = _fbox(pe, de_, oe_, cov, E, -0.35, 0.7)
+                stone = [_s_range(pe, de_, q) for q in _hits(m.solids, box, ya - 0.3, yb + 0.3)]
+                er = _runs(cov + 0.5, E - 0.5, [(a - 0.12, b + 0.12) for a, b in stone])
+                if not er or er[0][1] - er[0][0] < 0.85:
+                    continue
+                a_, b_ = er[0]
+                n = max(1, int((b_ - a_ + 0.6) / 1.9))
+                step = (b_ - a_) / n
+                for k in range(n):
+                    c = a_ + (k + 0.5) * step
+                    w_ = min(ww if f else 0.9, step - 0.45)
+                    if w_ >= 0.6:
+                        end_holes.append((c - w_ / 2, c + w_ / 2, ya, yb, "win", f))
+        m.set_tint(paint)
+        _wall_holes(m, pe, de_, oe_, 0.0, 0.0, E, -0.3, h, end_holes, wall, 0.9)
+        m.face([_wpt(pe, de_, oe_, 0, 0, h), _wpt(pe, de_, oe_, E, 0, h), _wpt(pe, de_, oe_, E / 2, 0, h + rise)], wall, 0.9, out=(oe_[0], oe_[1], 0))
+        for hole in end_holes:
+            _house_window(m, pe, de_, oe_, 0.0, hole[0], hole[1], hole[2], hole[3], brick, paint, wall, None, 0.0, rec)
+        # (what of this end is seen, for the check: the end's ground to eaves beyond the neighbour, clear of stone)
+        m.parts.append((idx, "end", _fbox(pe, de_, oe_, 0.0, E, 0.0, 0.02) + (-0.3, h), (sg, gap[sg], nq, len(end_holes), pe, de_, oe_, E)))
     # the cornice, the gutter, a downpipe
     m.set_tint((0.95, 0.94, 0.9) if brick else tuple(min(1.0, c * 1.05) for c in paint))
     _wb(m, p, d, o, s0, s1, E, E + 0.16, h - 0.5, h - 0.32, HTRIM if brick else wall, 0.95)
     _wb(m, p, d, o, s0, s1, E, E + 0.34, h - 0.32, h - 0.06, HTRIM if brick else wall, 1.05)
+    rec("cornice", p, d, o, s0, s1, E, E + 0.34, h - 0.5, h - 0.06)
     m.set_tint((1.0, 1.0, 1.0))
-    _wb(m, p, d, o, s0 - 0.04, s1 + 0.04, E + 0.34, E + 0.48, h - 0.16, h + 0.02, LEAD, 0.8)
+    ga, gb = max(s0 - 0.04, lim[0]), min(s1 + 0.04, lim[1])
+    _wb(m, p, d, o, ga, gb, E + 0.34, E + 0.48, h - 0.16, h + 0.02, LEAD, 0.8)
+    rec("gutter", p, d, o, ga, gb, E + 0.34, E + 0.48, h - 0.16, h + 0.02)
     sp_ = s1 - 0.28 if idx % 2 else s0 + 0.28
     m.bar(_wpt(p, d, o, sp_, E + 0.1, h - 0.1), _wpt(p, d, o, sp_, E + 0.1, 0.05), 0.09, 0.09, LEAD, 0.75)
     m.bar(_wpt(p, d, o, sp_, E + 0.1, h - 0.1), _wpt(p, d, o, sp_, E + 0.42, h - 0.05), 0.09, 0.09, LEAD, 0.75)
-    # the roof: the front slope to the ridge along the church wall, the back slope down to it; a ridge
+    rec("downpipe", p, d, o, sp_ - 0.05, sp_ + 0.05, E + 0.05, E + 0.46, 0.05, h - 0.05)
+    # the roof: the front slope to the ridge along the church wall, the back slope down to it; a ridge. Its overhang
+    # at each end: at most half the gap to the neighbour
     om = E / 2
     eave = (E + 0.5, h - 0.12)
+    ra, rb = max(s0 - 0.12, lim[0]), min(s1 + 0.12, lim[1])
     for sgv, (ea, ya) in ((1, eave), (-1, (0.0, h))):
-        m.face([_wpt(p, d, o, s0 - 0.12, ea, ya), _wpt(p, d, o, s1 + 0.12, ea, ya), _wpt(p, d, o, s1 + 0.12, om, h + rise),
-                _wpt(p, d, o, s0 - 0.12, om, h + rise)], roof, 0.92 if sgv > 0 else 0.8, out=(o[0] * sgv, o[1] * sgv, 1))
-        m.face([_wpt(p, d, o, s0 - 0.12, ea, ya - 0.08), _wpt(p, d, o, s1 + 0.12, ea, ya - 0.08), _wpt(p, d, o, s1 + 0.12, ea, ya),
-                _wpt(p, d, o, s0 - 0.12, ea, ya)], roof, 0.6, out=(o[0] * sgv, o[1] * sgv, 0))
-    m.bar(_wpt(p, d, o, s0 - 0.12, om, h + rise + 0.04), _wpt(p, d, o, s1 + 0.12, om, h + rise + 0.04), 0.22, 0.12, roof, 0.75)
+        m.face([_wpt(p, d, o, ra, ea, ya), _wpt(p, d, o, rb, ea, ya), _wpt(p, d, o, rb, om, h + rise),
+                _wpt(p, d, o, ra, om, h + rise)], roof, 0.92 if sgv > 0 else 0.8, out=(o[0] * sgv, o[1] * sgv, 1))
+        m.face([_wpt(p, d, o, ra, ea, ya - 0.08), _wpt(p, d, o, rb, ea, ya - 0.08), _wpt(p, d, o, rb, ea, ya),
+                _wpt(p, d, o, ra, ea, ya)], roof, 0.6, out=(o[0] * sgv, o[1] * sgv, 0))
+    m.bar(_wpt(p, d, o, ra, om, h + rise + 0.04), _wpt(p, d, o, rb, om, h + rise + 0.04), 0.22, 0.12, roof, 0.75)
+    rec("roof", p, d, o, ra, rb, 0.0, E + 0.5, h - 0.2, h + rise + 0.2)
     # a dormer on the front slope
     if E >= 5.5 and W >= 3.8:
         def e_at(y):
             return eave[0] + (y - eave[1]) / (h + rise - eave[1]) * (om - eave[0])
-        sc = s0 + W * (0.5 if nb % 2 else 0.5 + 0.5 / nb)
+        sc = s0 + W * (0.5 if nb % 2 else 0.5 + 0.5 / max(nb, 1))
         yb = h + 0.25
         dw, dh = 1.2, 1.55
         ef = e_at(yb)
@@ -2505,21 +2707,162 @@ def _house2(m, p, d, o, s0, s1, depth, h, rise, idx, chimney=False):
                    out=(d[0] * sg, d[1] * sg, 0))
             m.face([_wpt(p, d, o, s + sg * 0.1, ef + 0.1, yb + dh - 0.05), _wpt(p, d, o, sc, ef + 0.1, yb + dh + 0.6), _wpt(p, d, o, sc, et, yb + dh + 0.6),
                     _wpt(p, d, o, s + sg * 0.1, e_at(yb + dh - 0.05), yb + dh - 0.05)], roof, 0.9, out=(d[0] * sg, d[1] * sg, 1.2))
+        rec("dormer", p, d, o, sc - dw / 2 - 0.1, sc + dw / 2 + 0.1, et, ef + 0.1, yb, yb + dh + 0.6)
     if chimney:
-        cs = s0 + W * (0.72 if idx % 2 else 0.28)
+        # (where it stands clear of the stone: a pinnacle or a buttress may rise through the roof)
         ce = om * 0.9
         yb = h + rise * 0.35
         yt = h + rise + 1.0
-        m.set_tint((0.95, 0.9, 0.88))
-        _wb(m, p, d, o, cs - 0.35, cs + 0.35, ce - 0.3, ce + 0.3, yb, yt, HBRICK, 0.9)
-        m.set_tint((1.0, 1.0, 1.0))
-        _wb(m, p, d, o, cs - 0.42, cs + 0.42, ce - 0.37, ce + 0.37, yt, yt + 0.1, PLINTH, 0.9)
-        m.set_tint((0.85, 0.5, 0.36))
-        for k in ((-0.15,) if idx % 3 else (-0.15, 0.15)):
-            c = _wpt(p, d, o, cs + k, ce, yt + 0.1)
-            m.lathe(c, [(0.09, 0.0), (0.08, 0.3), (0.1, 0.34), (0.09, 0.4)], 6, HPANTILE, shade=0.9, caps=False)
-        m.set_tint((1.0, 1.0, 1.0))
+        cs = None
+        for t in ((0.72, 0.28, 0.5) if idx % 2 else (0.28, 0.72, 0.5)):
+            if OLD_HOUSES or not _hits(m.solids, _fbox(p, d, o, s0 + W * t - 0.5, s0 + W * t + 0.5, ce - 0.45, ce + 0.45), yb, yt + 0.6):
+                cs = s0 + W * t
+                break
+        if cs is not None:
+            m.set_tint((0.95, 0.9, 0.88))
+            _wb(m, p, d, o, cs - 0.35, cs + 0.35, ce - 0.3, ce + 0.3, yb, yt, HBRICK, 0.9)
+            m.set_tint((1.0, 1.0, 1.0))
+            _wb(m, p, d, o, cs - 0.42, cs + 0.42, ce - 0.37, ce + 0.37, yt, yt + 0.1, PLINTH, 0.9)
+            m.set_tint((0.85, 0.5, 0.36))
+            for k in ((-0.15,) if idx % 3 else (-0.15, 0.15)):
+                c = _wpt(p, d, o, cs + k, ce, yt + 0.1)
+                m.lathe(c, [(0.09, 0.0), (0.08, 0.3), (0.1, 0.34), (0.09, 0.4)], 6, HPANTILE, shade=0.9, caps=False)
+            rec("chimney", p, d, o, cs - 0.42, cs + 0.42, ce - 0.37, ce + 0.37, yb, yt + 0.5)
     m.set_tint((1.0, 1.0, 1.0))
+    # the house itself, for the check
+    m.parts.append((idx, "body", _fbox(p, d, o, s0, s1, 0.0, E) + (-0.3, h + rise), (p, d, o, s0, s1, E, h, gap[-1], gap[1], door_bay)))
+    m.set_house(None)
+
+
+WALK = os.path.join(ROOT, "client", "public", "city", "walk.png")
+_WALK = []
+
+
+def _ground(fr, m=None):
+    """Is there free walkable ground at a local (u, v) of frame fr? (The walk map: no wall, no water; or with m, the
+    strips round the cathedral that the game opens, less its stone and its houses: _open_ground.)"""
+    import numpy as np
+    if not _WALK:
+        img = bpy.data.images.load(WALK)
+        w, h = img.size
+        arr = np.array(img.pixels[:], dtype=np.float32).reshape(h, w, 4)
+        bpy.data.images.remove(img)
+        _WALK.append((arr, w, h, json.load(open(CITY))["walk"]))
+    arr, w, h, W0 = _WALK[0]
+
+    def free(u, v):
+        x, _, z = fr.w(u, v, 0)
+        col = int((z - W0["z0"]) / W0["res"])
+        row = int((x - W0["x0"]) / W0["res"])
+        if not (0 <= col < w and 0 <= row < h):
+            return False
+        px = arr[h - 1 - row, col]
+        if px[0] < 0.5 and px[1] < 0.5:
+            return True
+        if m is None or not any(q[0] <= u <= q[1] and q[2] <= v <= q[3] for q in m.strips):
+            return False
+        return not _hits(_blocks(m), (u, u, v, v), 0.0, 1.8, 0.45)
+    return free
+
+
+def _blocks(m):
+    """What stands on the open ground by the cathedral (plan boxes): its stone down to a man's height, the houses and
+    their parts low down (door steps, shop fronts, downpipes)."""
+    out = [q for q in m.solids if q[4] < 1.9]
+    out += [q[2] for q in m.parts if q[1] == "body" or (q[1] not in ("end",) and q[2][4] < 1.9)]
+    return out
+
+
+def _open_ground(m):
+    """The strips and what stands in them, in world rectangles (minX, maxX, minZ, maxZ): for the game's walk area."""
+    def world(q):
+        xs, zs = [], []
+        for u in (q[0], q[1]):
+            for v in (q[2], q[3]):
+                x, _, z = m.f.w(u, v, 0)
+                xs.append(round(x, 3))
+                zs.append(round(z, 3))
+        return [min(xs), max(xs), min(zs), max(zs)]
+    strips = [world(q) for q in m.strips]
+    blocks = [world(q) for q in _blocks(m) if any(q[0] < s[1] and q[1] > s[0] and q[2] < s[3] and q[3] > s[2] for s in m.strips)]
+    return {"about": "M7 the cathedral outside: ground round the cathedral opened for walking (the strips, world rects "
+                     "minX, maxX, minZ, maxZ), less what stands on it (blocks): tools/blender/build_landmarks.py _open_ground",
+            "strips": strips, "blocks": blocks}
+
+
+def check_houses(m, ground=None, pad=0.03):
+    """The houses against the church, checked (Steve, 2026-09-26: "quality checks?"): every door, window, shutter,
+    shop front, cornice, gutter, downpipe, dormer and chimney clear of the stone by `pad`; no part past half the gap to
+    the next house or in another house; the openings of a front clear of each other; each door with ground to walk in
+    front of it; the back of each house against the church (not floating); no stone through a front; no end that is
+    seen left blank. Returns the list of problems (empty: all good)."""
+    bad = []
+    parts = [q for q in m.parts]
+    bodies = {q[0]: q for q in parts if q[1] == "body"}
+
+    def where(box):
+        x, _, z = m.f.w((box[0] + box[1]) / 2, (box[2] + box[3]) / 2, 0)
+        return f"x {x:.1f}, z {z:.1f}, y {box[4]:.1f}..{box[5]:.1f}"
+    for idx, kind, box, *info in parts:
+        if kind in ("body", "end"):
+            continue
+        # in the stone
+        if kind != "roof":
+            for q in _hits(m.solids, box[:4], box[4] - pad, box[5] + pad, pad):
+                bad.append((idx, f"{kind} in the stone", where(box)))
+                break
+        # in another house
+        for j, b in bodies.items():
+            if j != idx and _hits([b[2]], box[:4], box[4], box[5], -0.005):
+                bad.append((idx, f"{kind} in house {j}", where(box)))
+    for idx, b in bodies.items():
+        p, d, o, s0, s1, E, h, g0, g1, door_bay = b[3]
+        body = b[2]
+        # the openings of the front and the ends: clear of each other
+        items = [q for q in parts if q[0] == idx and q[1] in ("window", "sill", "lintel", "surround", "head", "shutter", "door", "shopfront")]
+        for i in range(len(items)):
+            for k in range(i + 1, len(items)):
+                a_, c_ = items[i][2], items[k][2]
+                if _hits([a_], c_[:4], c_[4], c_[5], -0.01):
+                    bad.append((idx, f"{items[i][1]} through {items[k][1]}", where(a_)))
+        if door_bay is None:
+            bad.append((idx, "no door", where(body)))
+        for q in parts:
+            if q[0] == idx and q[1] == "door" and ground is not None:
+                db = q[2]
+                cu, cv = (db[0] + db[1]) / 2, (db[2] + db[3]) / 2
+                su, sv = (cu - p[0]) * d[0] + (cv - p[1]) * d[1], 0
+                if not all(ground(*_wpt(p, d, o, su + ds, E + de, 0)[:2]) for ds in (-0.3, 0.0, 0.3) for de in (1.4, 2.0)):
+                    bad.append((idx, "door with no ground before it", where(db)))
+        # the back against the church
+        for t in (0.1, 0.5, 0.9):
+            u, v, _ = _wpt(p, d, o, s0 + (s1 - s0) * t, -0.2, 0)
+            if not _hits(m.solids, (u, u, v, v), 2.0, 2.0):
+                bad.append((idx, "back not against the church", where((u, u, v, v, 2.0, 2.0))))
+                break
+        # stone through the front
+        for q in _hits(m.solids, _fbox(p, d, o, s0 + 0.02, s1 - 0.02, E - 0.3, E + 0.02), 0.0, h - 0.05):
+            bad.append((idx, "stone through the front", where(q)))
+            break
+    # ends that are seen and blank: sample the end 0.9 m out of it: seen where no other house and no stone stands there
+    # (a slot narrower than that, between two houses or a house and the church, shows its walls only edge on)
+    others = [q[2] for q in parts if q[1] == "body"]
+    for idx, kind, box, *info in parts:
+        if kind != "end":
+            continue
+        sg, gp, nq, nwin, pe, de_, oe_, E = info[0]
+        h = bodies[idx][3][6]
+        seen = 0
+        for i in range(int(E / 0.5)):
+            for j in range(int(h / 0.5)):
+                u, v, _ = _wpt(pe, de_, oe_, 0.25 + i * 0.5, 0.9, 0)
+                y = 0.25 + j * 0.5
+                pt = (u, u, v, v)
+                if not _hits([q for q in others if q is not bodies[idx][2]], pt, y, y) and not _hits(m.solids, pt, y, y):
+                    seen += 1
+        if seen * 0.25 >= 4.0 and nwin == 0:
+            bad.append((idx, f"a seen end left blank ({seen * 0.25:.0f} m2)", where(box)))
+    return bad
 
 
 def cathedral(fr, world_north):
@@ -2781,19 +3124,57 @@ def cathedral(fr, world_north):
     _cath_tower(m, TU, -TVN, north=False)
 
     # ---- houses built against the church (the chapter let them between the buttresses)
-    cells = ["house_a", "house_c", "house_b"]
+    # (the houses' check, 2026-09-26: the church's own walls behind the houses as solids, for their backs and ends)
+    for side in (-1, 1):
+        m.reg([9.0, AU], [side * (VO - 1.0), side * VO], 0.0, AE)  # the outer aisle walls
+        m.reg([9.0, 10.0], [side * 18.2, side * VO], 0.0, AE)  # the outer aisles' west walls, over the Handschoenmarkt
+        m.reg([T0, T0 + 1.0], [side * VO, side * TV], 0.0, NE)  # the transept's west and east walls
+        m.reg([T1 - 1.0, T1], [side * VO, side * TV], 0.0, NE)
+    # the ground between the houses and the edge of the landmark's rectangle (the walk map counts the whole rectangle
+    # as the church: nobody could walk up to these houses; world/cathedralOutside.ts opens these strips, less the
+    # stone and the houses, with a walk area): north and south along the aisles and the choir, and the Handschoenmarkt
+    # corners by the towers
+    # (1.5 m past the rectangle's edge: the walk map's wall is the rectangle grown by its margin)
+    HW = fr.W / 2 + 1.5
+    m.strips = []
+    for side in (-1, 1):
+        for u0, u1 in ((9.0, T0), (T1, AU)):
+            m.strips.append((u0, u1) + tuple(sorted((side * VO, side * HW))))
+        m.strips.append((-1.5, 9.0) + tuple(sorted((side * 18.2, side * HW))))
+    ground = _ground(lf, m)
+    rows = []
     for side in (-1, 1):  # at the Handschoenmarkt, before the outer aisles
         s0, s1 = sorted((side * 18.5, side * 25.6))
-        _house2(m, (9.0, 0), (0, 1), (-1, 0), s0, s1, 5.6, 8.6, 3.6, 40 + side, chimney=True)
+        rows.append(((9.0, 0), (0, 1), (-1, 0), [(s0, s1, 5.6, 8.6, 3.6, 40 + side, True)]))
     north = [(9.3, 16.6, 5.0, 8.0), (16.8, 22.6, 8.0, 9.6), (22.7, 28.3, 8.1, 7.6), (28.4, 33.4, 8.2, 10.4), (33.5, 38.4, 8.4, 8.2),
-             (38.5, 42.4, 8.6, 9.0), (42.9, 48.8, 9.2, 7.8), (48.9, 55.0, 9.2, 10.2), (55.1, 61.0, 9.2, 8.4), (61.1, 67.0, 9.2, 9.4),
+             (38.5, 42.8, 8.6, 9.0), (42.9, 48.8, 9.2, 7.8), (48.9, 55.0, 9.2, 10.2), (55.1, 61.0, 9.2, 8.4), (61.1, 67.0, 9.2, 9.4),
              (82.2, 86.6, 5.3, 8.2), (86.7, 92.2, 5.3, 9.6), (92.3, 98.2, 5.3, 7.8)]
-    for i, (s0, s1, depth, h) in enumerate(north):
-        _house2(m, (0, VO), (1, 0), (0, 1), s0, s1, depth, h, 3.0 + (i % 3) * 0.5, i, chimney=i % 2 == 0)
+    rows.append(((0, VO), (1, 0), (0, 1), [(s0, s1, dp, h, 3.0 + (i % 3) * 0.5, i, i % 2 == 0) for i, (s0, s1, dp, h) in enumerate(north)]))
     south = [(41.5, 45.7, 4.3, 7.6), (45.8, 49.3, 4.3, 8.8), (49.4, 54.3, 7.6, 9.8), (54.4, 58.7, 7.6, 8.0), (58.8, 62.2, 7.6, 9.2),
              (62.3, 67.0, 7.6, 7.8)]
-    for i, (s0, s1, depth, h) in enumerate(south):
-        _house2(m, (0, -VO), (1, 0), (0, -1), s0, s1, depth, h, 3.2 + (i % 2) * 0.5, 20 + i, chimney=i % 2 == 1)
+    rows.append(((0, -VO), (1, 0), (0, -1), [(s0, s1, dp, h, 3.2 + (i % 2) * 0.5, 20 + i, i % 2 == 1) for i, (s0, s1, dp, h) in enumerate(south)]))
+    for p, d, o, row in rows:
+        for s0, s1, dp, h, rise, idx, chim in row:
+            others = [(q[0], q[1], q[2], q[3], q[4]) for q in row if q[5] != idx]
+            _house2(m, p, d, o, s0, s1, dp, h, rise, idx, chimney=chim, row=others, ground=ground)
+    m.check = check_houses(m, ground)
+    m.walk = _open_ground(m)
+    if os.environ.get("CATH_HOUSES_DUMP"):
+        # (for the shots: each house's front middle, its ends and which way it looks, in world metres)
+        out = []
+        for q in m.parts:
+            if q[1] != "body":
+                continue
+            p, d, o, s0, s1, E, h = q[3][:7]
+            W_ = lambda s_, e_: [round(c, 2) for c in lf.w(*_wpt(p, d, o, s_, e_, 0))]  # noqa: E731
+            f0, f1 = W_(s0, E), W_(s1, E)
+            ox, _, oz = [a_ - b_ for a_, b_ in zip(W_(0, 1), W_(0, 0))]
+            out.append({"idx": q[0], "s0": W_(s0, E), "s1": W_(s1, E), "mid": W_((s0 + s1) / 2, E), "out": [ox, oz], "h": h, "E": E,
+                        "b0": W_(s0, 0), "b1": W_(s1, 0)})
+        json.dump(out, open(os.environ["CATH_HOUSES_DUMP"], "w"), indent=0)
+    print(f"[check houses] {len(m.check)} problem(s) with the houses against the cathedral")
+    for idx, what, where in m.check:
+        print(f"[check houses]   house {idx}: {what} at {where}")
     return m
 
 
@@ -5474,6 +5855,30 @@ def steen5(fr):
     st(SAND)
     return m
 
+def clock_marker(fr, pt, out, radius, name):
+    """An empty at a clock dial's middle, a few mm in front of it (Steve, 2026-09-26: every clock shows the game's time;
+    the game hangs live hands on every object named clock_face_*): in the glTF its local +Z looks out of the dial and
+    its +Y is up (Blender: -Y out, +Z up); `radius` (custom property, in the glTF extras) is the dial's in metres."""
+    from mathutils import Matrix
+    x, y, z = fr.w(*pt)
+    du, dv = out
+    wx, wz = fr.ax[0] * du + fr.n[0] * dv, fr.ax[1] * du + fr.n[1] * dv
+    nb = B(wx, 0, wz)
+    nb.z = 0.0
+    nb.normalize()
+    Z = Vector((0.0, 0.0, 1.0))
+    Y = -nb
+    X = Y.cross(Z)
+    ob = bpy.data.objects.new(name, None)
+    ob.empty_display_type = "PLAIN_AXES"
+    ob.empty_display_size = radius
+    ob.location = B(x, y, z)
+    ob.rotation_euler = Matrix(((X.x, Y.x, Z.x), (X.y, Y.y, Z.y), (X.z, Y.z, Z.z))).to_euler()
+    ob["radius"] = float(radius)
+    bpy.context.scene.collection.objects.link(ob)
+    return ob
+
+
 def main():
     city = json.load(open(CITY))
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -5483,6 +5888,7 @@ def main():
     world_north = (math.cos(th), -math.sin(th))
     L = city["landmarks"]
     built = []
+    clocks, cath_clocks, cath_walk = [], [], []
 
     def frame(name, open_side=False, away=False):
         f = dict(L[name]["frame"])
@@ -5508,9 +5914,22 @@ def main():
             # M7 the cathedral outside: its small things in pieces drawn near only
             if isinstance(mm, CathMesh) and mm.d is not mm:
                 mm.d.to_object(f"landmark_{name}_near", split=48.0)
+            for pt, out, r in getattr(mm, "clocks", []):
+                ob = clock_marker(mm.f, pt, out, r, f"clock_face_{len(clocks)}")
+                clocks.append(ob)
+                if name == "cathedral":
+                    cath_clocks.append(ob)
+            if getattr(mm, "walk", None):
+                cath_walk.append(mm.walk)
             built.append(name)
+    if cath_walk:
+        path = os.path.join(ROOT, "client", "public", "models", "cathedral_walk.json")
+        json.dump(cath_walk[0], open(path, "w", newline=chr(10)))
+        print(f"[build_landmarks] {path}: {len(cath_walk[0]['strips'])} strips, {len(cath_walk[0]['blocks'])} blocks")
+    for ob in clocks:
+        print(f"[build_landmarks] {ob.name}: at {tuple(round(c, 2) for c in ob.location)}, radius {ob['radius']:.2f} m")
     # the cathedral goes into its own file with its own materials (client/src/world/cathedralOutside.ts); the rest as before
-    cath = [o for o in bpy.context.scene.objects if o.name.startswith("landmark_cathedral")]
+    cath = [o for o in bpy.context.scene.objects if o.name.startswith("landmark_cathedral")] + cath_clocks
     rest = [o for o in bpy.context.scene.objects if o not in cath]
     for obs, path, q in ((rest, OUT, {}), (cath, CATH_OUT, {"export_draco_position_quantization": 16, "export_draco_texcoord_quantization": 16})):
         if not obs:
@@ -5519,8 +5938,8 @@ def main():
             o.select_set(o in obs)
         bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", export_yup=True, export_texcoords=True, export_normals=True,
                                   export_materials="EXPORT", use_selection=True, export_vertex_color="ACTIVE", export_all_vertex_colors=True,
-                                  export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=7, **q)
-        faces = sum(len(o.data.polygons) for o in obs)
+                                  export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=7, export_extras=True, **q)
+        faces = sum(len(o.data.polygons) for o in obs if o.type == "MESH")
         print(f"[build_landmarks] {len(obs)} objects: {faces} faces -> {path} ({os.path.getsize(path)//1024} KB)")
     print(f"[build_landmarks] built {', '.join(built)}; cathedral parts {COUNT}")
 
