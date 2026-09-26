@@ -7,6 +7,7 @@ import type { Rect } from "./geom";
 import { water } from "./tide";
 import { loadSteenModel, type SteenModel } from "./steenModel";
 import { addPropObject } from "./propSpots";
+import { STEEN_BENCHES } from "../../../shared/sleep";
 
 // Life round Het Steen (M3i, docs/milestones/M3i-steen.md). In 1873 the Steen was the city's
 // Museum of Antiquities (decided 1862, open from 1864), in the old castle gate and prison.
@@ -58,10 +59,8 @@ const PAINTER_YAW = face(PAINTER[0], PAINTER[1], -178, -30);
 // the old man fishing over the promontory's east railing, into the river
 const ANGLER: P = [-151.5, -6.5];
 const ANGLER_YAW = Math.PI / 2;
-const BENCHES: Array<[number, number, number]> = [
-  [-203, -27.5, face(-203, -27.5, -230, -60)],
-  [-209.5, -8.5, -Math.PI / 2],
-];
+// M7 sleep: the two benches' places are shared with the server (shared/sleep.ts), which lets Jef sleep on them
+const BENCHES: Array<[number, number, number]> = STEEN_BENCHES;
 /** Where someone sits on a bench: a little back from its middle, `side` along it. */
 const benchSeat = (b: [number, number, number], side: number): P => [
   b[0] - Math.sin(b[2]) * 0.18 + Math.cos(b[2]) * side,

@@ -153,6 +153,9 @@ export function rampartGates(): Array<{ id: string; name: string; x: number; z: 
   return (R?.gates ?? []).map((g) => ({ id: g.id, name: g.name, x: g.passage.reduce((a, p) => a + p[0], 0) / 4, z: g.passage.reduce((a, p) => a + p[1], 0) / 4 }));
 }
 
+/** M7 sleep: the wall walk's benches once wall.glb is in (the server reads the same list: server/src/rest.ts). */
+export let wallBenchSpots: Array<{ x: number; z: number; y: number }> = [];
+
 /** What build_wall.py placed on the wall (pass 2: the node "wall_dressing" in wall.glb). */
 export interface WallDressing {
   /** The mills: the tower's foot (r), the tail pole's capstan, a stage's reach; the sails' node and axle. */
@@ -310,6 +313,7 @@ export function loadWall(scene: THREE.Scene): WallModel {
       let d: WallDressing = { mills: [], benches: [], lamps: [], lanterns: [] };
       try {
         if (node?.userData.dressing) d = JSON.parse(node.userData.dressing as string) as WallDressing;
+        wallBenchSpots = d.benches.map((q) => ({ x: q.x, z: q.z, y: q.y })); // M7 sleep: Jef may sleep on them (game/sleep.ts)
       } catch (e) {
         console.warn("wall.glb: no dressing", e);
       }

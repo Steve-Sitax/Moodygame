@@ -376,13 +376,9 @@ export class Homes {
     }
     const bd = Math.hypot(hr.bed.x - x, hr.bed.z - z);
     const bed = this.interiors.roomPoint(hr.bed.x, hr.bed.z, 0.5);
+    // M7 sleep: his own bed at any hour, for as long as he chooses (game/sleep.ts, the chooser)
     if (bd < hr.bed.r)
-      options.push([
-        bd - 0.5,
-        this.jobs.day.bedOpen
-          ? { key: "KeyE", text: "go to bed", run: () => void this.jobs.day.sleep(() => homesApi.sleep()), at: bed }
-          : { key: "KeyE", text: "lie down on the bed", run: () => this.say("Too early for bed. From six in the evening, or when you are dead tired."), at: bed },
-      ]);
+      options.push([bd - 0.5, { key: "KeyE", text: "go to bed", run: () => this.jobs.day.rest.choose({ kind: "home", label: this.info?.homes.find((h) => h.id === this.lease?.home)?.label ?? "your own room" }), at: bed }]);
     for (const f of hr.fires()) {
       const d = Math.hypot(f.x - x, f.z - z);
       if (d < 1.3) options.push([d - 0.2, { key: "KeyE", text: "warm yourself at the fire", run: () => void this.warm(), at: this.interiors.roomPoint(f.x, f.z, 0.5) }]);

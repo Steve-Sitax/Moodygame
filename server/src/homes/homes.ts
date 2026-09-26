@@ -204,6 +204,18 @@ export function sleepHome(db: DB): SleepResult {
   return sleep(db, "home", homeNight(db, h));
 }
 
+/**
+ * M7 sleep (rest.ts): Jef's own bed, at any hour: the home he rents and its night by the room's comfort
+ * (homeNight). No room, or the landlord has changed the lock: refused.
+ */
+export function homeBed(db: DB): { home: HomeDef; night: HomeNight } {
+  const l = lease(db);
+  if (!l) throw new GameError("you rent no room", 409);
+  const h = homeDef(db, l.home)!;
+  if (lockedOut(db, l)) throw new GameError(`The key does not turn: ${landlordName(db, h)} has changed the lock. You owe him rent.`, 409);
+  return { home: h, night: homeNight(db, h) };
+}
+
 // ---------------------------------------------------------------- the stove
 
 export const STOVE_WARMTH = 1;

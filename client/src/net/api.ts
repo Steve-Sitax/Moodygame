@@ -165,6 +165,40 @@ export interface Night {
   robbed?: { money_c: number; things: string[] };
 }
 
+/** M7 sleep (server/src/rest.ts): asleep now, how far. */
+export interface RestView {
+  place: "home" | "doss" | "bench";
+  label: string;
+  bench?: string;
+  home?: string;
+  planned_min: number;
+  slept_min: number;
+  from: { hour: number; minute: number };
+  now: { day: number; hour: number; minute: number; weekday: string };
+}
+/** M7 sleep: how a sleep ended (rested: the hours chosen; up: a key; police: moved on; robbed; ended: the week or his body). */
+export interface RestEnd {
+  place: "home" | "doss" | "bench";
+  label: string;
+  home?: string;
+  bench?: string;
+  reason: "rested" | "up" | "police" | "robbed" | "ended";
+  slept_min: number;
+  planned_min: number;
+  lines: string[];
+  wake: { day: number; hour: number; minute: number; weekday: string };
+  turned: boolean;
+  ended?: Ending;
+  robbed?: { money_c: number; things: string[] };
+}
+/** M7 sleep: what the client asks for: where, how long, and where Jef stands. */
+export interface RestAsk {
+  place: "home" | "doss" | "bench";
+  bench?: string;
+  hours: number | "morning";
+  pos: { x: number; z: number; y: number };
+}
+
 /** M7 night: the date turned at midnight (the night's other work may have a word: a note about the rent). */
 export interface DayTurn {
   day: number;
@@ -453,14 +487,16 @@ export const api = {
   witness: (npc: string, event: "took" | "returned") => call<{ ok: boolean }>("POST", `/api/npc/${npc}/witness`, { event }),
   progress: (id: number, p: Progress) => call<{ job: Job }>("POST", `/api/jobs/${id}/progress`, p),
   /** M7 warmth: `where` says where Jef is and whether his lantern is lit; the reply says what the server believes (server/src/warmth.ts). */
-  tick: (where?: WhereReport) => call<JobsPayload & { advanced: boolean; night?: Night; ended?: Ending; turned?: DayTurn; where?: WhereNow }>("POST", "/api/tick", { where }),
+  tick: (where?: WhereReport, more: { asleep?: boolean; pos?: { x: number; z: number; y: number } } = {}) =>
+    call<JobsPayload & { advanced: boolean; night?: Night; ended?: Ending; turned?: DayTurn; where?: WhereNow; rest?: RestView; woke?: RestEnd }>("POST", "/api/tick", { where, ...more }),
   /** M7 night: the work is done, the employer is at home asleep; the facts wait for the box at his door. */
   hold: (id: number, report: Report) => call<JobsPayload & { job: Job }>("POST", `/api/jobs/${id}/hold`, report),
   /** Dev (M7 night): the clock on by game minutes the way the game moves it (the date turns at midnight). */
   devAdvance: (minutes: number) => call<JobsPayload & { lines: string[]; turned: boolean }>("POST", "/api/dev/advance", { minutes }),
-  sleep: () => call<JobsPayload & { night: Night }>("POST", "/api/sleep"),
-  /** M7 night: lie down where he stands (at night, or dead tired) and sleep rough. */
-  sleepRough: () => call<JobsPayload & { night: Night }>("POST", "/api/night/sleep-rough"),
+  /** M7 sleep: lie down in a bed or on a bench for so long (server/src/rest.ts checks the place and clamps the hours). */
+  sleep: (ask: RestAsk) => call<JobsPayload & { rest: RestView }>("POST", "/api/sleep", ask),
+  /** M7 sleep: a key wakes him; only the time slept counts. */
+  wake: () => call<JobsPayload & { woke: RestEnd | null }>("POST", "/api/sleep/wake"),
   rent: () => call<JobsPayload & { paid: boolean; text: string }>("POST", "/api/rent"),
   /** Fell into the Schelde: the server takes the cold off your warmth (once per swim). */
   swim: () => call<JobsPayload & { cold: boolean }>("POST", "/api/swim"),

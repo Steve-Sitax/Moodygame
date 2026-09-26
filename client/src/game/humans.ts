@@ -184,6 +184,7 @@ export class Human {
     readonly scale = 1,
   ) {
     this.root = cloneSkinned(src);
+    this.root.userData.human = kind; // M7 sleep: a bench with someone on it is taken (game/sleep.ts)
     // a lantern near them throws their shadow (world/lanternLights.ts picks the ones near a light)
     addCaster(this.root);
     this.mixer = new THREE.AnimationMixer(this.root);

@@ -1,8 +1,8 @@
 import type { Hono } from "hono";
 import type { DB } from "../db.ts";
 import { DEV } from "../config.ts";
-import { GameError, player } from "../game.ts";
-import { clock, DAWN, ending, sleep, type Ending } from "../day.ts";
+import { GameError } from "../game.ts";
+import type { Ending } from "../day.ts";
 import { NIGHT_GIVERS } from "../town/places.ts";
 import { clearGangs, gangChancePerHour, gangNow, resolveGang, rollGang, type GangFacts, type GangHow } from "./gangs.ts";
 import { clampNight, FALLBACK_NIGHT, insertNightJobs, nightBoardDue, nightIdle, nightWorkTick, writeNightBoard } from "./nightwork.ts";
@@ -22,10 +22,6 @@ export interface NightDeps {
   afterNight: (ended?: Ending) => void;
 }
 
-/** Rough in the street: at night (from 20:00 to 6:00), or at any hour when this tired. */
-export const ROUGH_FROM = 20;
-export const ROUGH_TIRED = 3;
-
 const HOWS = new Set<GangHow>(["run", "fight", "shout", "pay", "stand"]);
 
 function facts(b: unknown): GangFacts {
@@ -35,7 +31,7 @@ function facts(b: unknown): GangFacts {
 }
 
 export function mountNight(app: Hono, deps: NightDeps): void {
-  const { db, payload, broadcast, afterNight } = deps;
+  const { db, payload, broadcast } = deps;
   const pushJobs = () => broadcast({ type: "jobs", ...payload() });
 
   app.use("/api/new-game", async (_c, next) => {
@@ -57,15 +53,12 @@ export function mountNight(app: Hono, deps: NightDeps): void {
     }
   });
 
-  /** M7 night: Jef lies down where he stands and sleeps rough (a gang may find him: night/gangs.ts). */
-  app.post("/api/night/sleep-rough", (c) => {
-    if (ending(db)) throw new GameError("the week is over", 409);
-    const h = clock(db).hour;
-    if (h >= DAWN && h < ROUGH_FROM && player(db).sleep > ROUGH_TIRED) throw new GameError("you are not tired enough to lie down on the stones", 409);
-    const night = sleep(db, "rough");
-    if (night.turned || night.ended) afterNight(night.ended);
-    pushJobs();
-    return c.json({ night, ...payload() });
+  /**
+   * M7 sleep (Steve 2026-09-26): no more lying down on the bare street. A bed or a bench (rest.ts, POST
+   * /api/sleep); only a man dead on his feet still drops where he stands (day.ts tick).
+   */
+  app.post("/api/night/sleep-rough", () => {
+    throw new GameError("no lying down on the stones: find a bench or a bed", 409);
   });
 
   /** What the client needs at a load: a gang in the street now, and where the givers stand. */

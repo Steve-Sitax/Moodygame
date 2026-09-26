@@ -58,10 +58,11 @@ runs on through the night; nobody is sent to bed. Details and numbers: `mileston
 - **Midnight** turns the date: the day counter and the weekday, the new job board, the rent of a
   room, the memories fading, a night of talk in the taverns, the weather. After Sunday there is no
   day 8: the week ends at Sunday's midnight (asleep or awake), and the epilogue is written.
-- **Sleep** is Jef's choice: the doss house bed (18:00 until dawn, rent due by Sunday), his own room,
-  or rough anywhere (G, late at night or dead tired). He sleeps seven to eight game hours from when
-  he lies down (longer the more tired) and wakes on his own, where he lay. Dead tired (sleep 0) he
-  drops where he stands. Asleep rough at night, a gang may go through his coat.
+- **Sleep** is Jef's choice (M7 sleep, 2026-09-26): the doss house bed (rent due by Sunday), the bed in
+  a room he rents, or a bench in town, at any hour, for 1, 2, 4 or 8 hours or until 6:00. A bench rests
+  him less and takes his warmth down to 1; asleep on one, hands may go through his coat, and in the fine
+  squares the police move him on at night. No lying down on the bare stones; only dead tired (sleep 0)
+  he drops where he stands. See milestones/M7-sleep.md.
 - **The day's employers go home.** Sooi 5:00 to 20:00, the widow 7:00 to 19:00, Fientje 6:00 to
   18:00, Tuur 7:00 to 2:00, the town's employers by their schedule (6:00 to 22:00). Each has a
   **quest box** on a post by his door, with a lamp he leaves burning: a job finished while he is

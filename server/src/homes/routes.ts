@@ -1,7 +1,7 @@
 import type { Hono } from "hono";
 import type { DB } from "../db.ts";
 import type { Ending } from "../day.ts";
-import { abandonArms, homesInfo, liftItem, payRent, placeItem, sleepHome, takeKey, warmAtStove } from "./homes.ts";
+import { abandonArms, homesInfo, liftItem, payRent, placeItem, takeKey, warmAtStove } from "./homes.ts";
 import { remarkOnRoom } from "./remark.ts";
 
 // The HTTP side of the homes (M6 homes), mounted by index.ts. Everything that moves money,
@@ -20,7 +20,7 @@ async function body(c: { req: { json(): Promise<unknown> } }): Promise<Record<st
 }
 
 export function mountHomes(app: Hono, deps: HomeDeps): void {
-  const { db, payload, broadcast, afterNight } = deps;
+  const { db, payload, broadcast } = deps;
   const both = () => ({ ...payload(), homes: homesInfo(db) });
   const moved = () => broadcast({ type: "jobs", ...payload() });
 
@@ -40,13 +40,7 @@ export function mountHomes(app: Hono, deps: HomeDeps): void {
     return c.json({ ...r, ...both() });
   });
 
-  app.post("/api/homes/sleep", (c) => {
-    const night = sleepHome(db);
-    // M7 night: a new board only if the date turned in his sleep (or the week ended)
-    if (night.turned || night.ended) afterNight(night.ended);
-    moved();
-    return c.json({ night, ...both() });
-  });
+  // M7 sleep: his own bed at any hour, for as long as he chooses, is POST /api/sleep {place: "home"} (rest.ts)
 
   app.post("/api/homes/stove", (c) => {
     const r = warmAtStove(db);

@@ -173,6 +173,8 @@ export class Jobs {
       this.toastMsg(line);
     };
     this.day = new Day(world, player);
+    // M7 sleep: E at a bench (game/sleep.ts); no more lying down on the bare street
+    this.extraActions.push((x, z) => this.day.rest.keys(x, z));
     this.map = new CityMap(player);
     this.map.marks = () => this.mapMarks();
     this.day.apply = (p) => this.apply(p);
@@ -289,7 +291,7 @@ export class Jobs {
   }
 
   private findAll(): Action[] {
-    if (this.boardOpen || this.talk.isOpen || this.pockets.open || this.day.sheetOpen || this.map.open) return [];
+    if (this.boardOpen || this.talk.isOpen || this.pockets.open || this.day.sheetOpen || this.map.open || this.day.rest.busy) return [];
     const { x, z } = this.player;
     const out: Action[] = [];
     const add = (a: Action) => {
@@ -353,17 +355,9 @@ export class Jobs {
     }
     if (board < REACH_BOARD) options.push([board, { key: "KeyE", text: "read the hiring board", run: () => this.openBoard(), at: { x: BOARD_POS.x, y: 1.55, z: BOARD_POS.z } }]);
     const doss = Math.hypot(DOSS_POS.x - x, DOSS_POS.z - z);
-    if (doss < REACH_DOSS) {
-      const bed: Action = this.day.bedOpen
-        ? { key: "KeyE", text: "go to bed in the doss house", run: () => void this.day.sleep(), at: DOSS_DOOR }
-        : {
-            key: "KeyE",
-            text: "knock at the doss house",
-            run: () => this.toastMsg(`The landlady opens a crack. "Beds from six in the evening. Not before." It is ${this.day.hour}:00.`),
-            at: DOSS_DOOR,
-          };
-      options.push([doss, bed]);
-    }
+    // M7 sleep: the doss house bed, paid by the week, at any hour and for as long as he chooses (game/sleep.ts)
+    if (doss < REACH_DOSS)
+      options.push([doss, { key: "KeyE", text: "sleep in the doss house", run: () => this.day.rest.choose({ kind: "doss", label: "the doss house, Sint-Andries" }), at: DOSS_DOOR }]);
     for (const m of more) options.push(...(m.options ?? []));
     const top = best(options);
     if (top) add(top);
@@ -373,12 +367,6 @@ export class Jobs {
     if (doss < REACH_DOSS && !this.day.rentPaid) {
       const price = this.payload?.rent.price_c ?? 150;
       add({ key: "KeyF", text: `pay the week's rent (${price} c)`, run: () => void this.day.rent(), at: DOSS_DOOR });
-    }
-    // M7 night: lie down where he stands, late at night or dead tired (last: any other G key wins)
-    const h = this.day.hour;
-    const sleepNeed = this.payload?.player.sleep ?? 10;
-    if ((h >= 22 || h < 5 || sleepNeed <= 3) && doss >= REACH_DOSS) {
-      add({ key: "KeyG", text: "lie down here and sleep rough", run: () => void this.day.sleep(api.sleepRough), self: true });
     }
     return out;
   }

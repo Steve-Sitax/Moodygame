@@ -13,7 +13,7 @@ import { plainEnglish } from "./text.ts";
 import { mountPlayer } from "./player/routes.ts"; // M7 character: the player's profile
 import { hasProfile } from "./player/profile.ts";
 import { shownJson } from "./player/prompt.ts";
-import { BEDTIME, clock, DAWN, ending, fogDay, markDayStart, newDayOf, passTime, payRent, RENT_C, rentPaid, resetTickLimit, setEnding, setWeather, sleep, swim, tick, type Ending } from "./day.ts";
+import { BEDTIME, clock, ending, fogDay, markDayStart, newDayOf, passTime, payRent, RENT_C, rentPaid, resetTickLimit, setEnding, setWeather, swim, tick, type Ending } from "./day.ts";
 import { writeEpilogue } from "./hooks/epilogue.ts";
 import { resetTalks } from "./hooks/dialogue.ts";
 import { devJob, jobById, listJobs, makeBoard } from "./hooks/jobBoard.ts";
@@ -54,6 +54,7 @@ import { mountWalkup } from "./town/walkupRoutes.ts";
 import { mountRoutines } from "./director/routineRoutes.ts";
 import { mountArrival } from "./arrival.ts";
 import { mountNight } from "./night/routes.ts";
+import { mountRest } from "./restRoutes.ts";
 import { mountSaves } from "./save/routes.ts";
 import { setPaused, sweepHolders, withGate } from "./save/gate.ts";
 import { dropStealables } from "./town/deeds.ts";
@@ -172,6 +173,8 @@ mountArrival(app, { db });
 mountPlayer(app, { db });
 // M7 night: the night's work from the shady givers, the gangs, the quest boxes' settling (night/)
 mountNight(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m), afterNight: (e) => afterNight(e) });
+// M7 sleep: a bed or a bench, for as long as he chooses; the time passes on the ticks (rest.ts)
+mountRest(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 
 // Board status the client can show while Claude writes.
 let board: { state: "writing" | "ready"; source?: string; error?: string } = { state: "ready" };
@@ -321,28 +324,16 @@ async function epilogue(e: Ending): Promise<void> {
 
 app.post("/api/tick", async (c) => {
   // M7 warmth: where Jef is and whether his lantern is lit in his hand; checked in warmth.ts, fresh a short while only
-  const body = (await c.req.json().catch(() => null)) as { where?: unknown } | null;
+  const body = (await c.req.json().catch(() => null)) as { where?: unknown; asleep?: unknown } | null;
   reportWhere(body && typeof body === "object" ? body.where : undefined);
-  const r = tick(db);
+  // M7 sleep: asleep, the tick is a step of the sleep (rest.ts)
+  const r = tick(db, Date.now(), { asleep: body?.asleep === true });
   // M7 night: the date turned at midnight (a new board), or the week ended; a night only if he dropped
   const day = newDayOf(r);
   if (day.due) afterNight(day.ended);
   if (r.advanced) broadcast({ type: "jobs", ...jobsPayload() });
   const w = whereNow(db);
   return c.json({ ...r, ...jobsPayload(), where: { shelter: w.shelter, place: w.place, label: w.label, lantern: w.lantern } });
-});
-
-app.post("/api/sleep", (c) => {
-  if (ending(db)) throw new GameError("the week is over", 409);
-  const h = clock(db).hour;
-  const tired = player(db).sleep <= 2;
-  // M7 night: the beds are let from 18:00 until dawn; earlier only to a man dead on his feet
-  if (h >= DAWN && h < BEDTIME && !tired) throw new GameError(`the doss house opens its beds at ${BEDTIME}:00`, 409);
-  const night = sleep(db, "bed");
-  const day = newDayOf({ night });
-  if (day.due) afterNight(day.ended);
-  broadcast({ type: "jobs", ...jobsPayload() });
-  return c.json({ night, ...jobsPayload() });
 });
 
 app.post("/api/rent", (c) => {

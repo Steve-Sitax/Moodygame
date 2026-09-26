@@ -8,6 +8,7 @@ import { TICK_MINUTES, TICK_EVERY_MS } from "../../shared/clock.ts";
 import { COLLAPSE_AT, sleepMinutes } from "../../shared/night.ts";
 import { fogAt, type FogDay } from "./town/lampround.ts";
 import { gateMode, isPaused } from "./save/gate.ts";
+import type { RestEnd, RestView } from "./rest.ts";
 
 // The day and the week (M5). The engine owns time and needs (docs/01, docs/03).
 // A client says "time passed while I played" with a tick; the server decides how
@@ -251,7 +252,16 @@ export type TickResult = {
   ended?: Ending;
   /** The date turned at midnight on this tick. */
   turned?: DayTurn;
+  /** M7 sleep (rest.ts): asleep now, how far; or how the sleep ended on this tick. */
+  rest?: RestView;
+  woke?: RestEnd;
 };
+
+/**
+ * M7 sleep (rest.ts sets it): while Jef is asleep in a bed or on a bench, the tick is a step of his sleep
+ * (the time passes faster while all players sleep) instead of the waking hour. Null: he is not asleep.
+ */
+export const RESTING: { step: (db: DB, now: number, asleep: boolean) => TickResult | null } = { step: () => null };
 
 /**
  * Midnight: the date turns. The week's end, the rent of a room, the memories fading, a night of
@@ -300,11 +310,17 @@ export function passTime(db: DB, minutes: number): { lines: string[]; turned: bo
   return { lines, turned };
 }
 
-/** Time passes while Jef plays. At most one tick per TICK_EVERY_MS less a second (9 s), whatever the client sends. */
-export function tick(db: DB, now = Date.now()): TickResult {
+/**
+ * Time passes while Jef plays. At most one tick per TICK_EVERY_MS less a second (9 s), whatever the client sends.
+ * `asleep`: the client is in its sleep (M7 sleep, rest.ts: the tick is a step of the sleep then).
+ */
+export function tick(db: DB, now = Date.now(), opts: { asleep?: boolean } = {}): TickResult {
   if (ending(db)) return { advanced: false };
   // M7 save and pause: nothing moves while the game is paused, saving or loading (save/gate.ts)
   if (isPaused() || gateMode() !== "open") return { advanced: false };
+  // M7 sleep: asleep in a bed or on a bench, the tick is a step of the sleep
+  const rest = RESTING.step(db, now, !!opts.asleep);
+  if (rest) return rest;
   if (now - lastTickAt < TICK_EVERY_MS - 1000) return { advanced: false };
   lastTickAt = now;
   const c = clock(db);
@@ -415,6 +431,10 @@ export function countNight(db: DB): void {
 const hhmm = (h: number, m: number) => `${h}:${String(m).padStart(2, "0")}`;
 
 /**
+ * The whole night at once. M7 sleep (rest.ts): the player lies down in a bed or on a bench through
+ * POST /api/sleep, for the hours he chooses; this is now only the night of a man who drops where he
+ * stands (tick, sleep 0), and the tests' way to pass a night.
+ *
  * Jef lies down: in the doss house bed (from 18:00, rent paid or not yet due), in his own room, or
  * rough wherever he is. He sleeps seven to eight game hours (shared/night.ts sleepMinutes: longer the
  * more tired) and wakes on his own; the date turns at midnight on the way (turnDay). The needs are

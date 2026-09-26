@@ -52,7 +52,7 @@ export const ACTIONS: ActionDef[] = [
   { id: "jump", code: "Space", label: "Jump", group: "Walking" },
   { id: "use", code: "KeyE", label: "Use, take, talk to", also: "the first thing the hint offers", group: "Hands" },
   { id: "second", code: "KeyF", label: "Second choice", also: "fill, lift, fight", group: "Hands" },
-  { id: "third", code: "KeyG", label: "Third choice", also: "give, sing along, sleep rough", group: "Hands" },
+  { id: "third", code: "KeyG", label: "Third choice", also: "give, sing along", group: "Hands" },
   { id: "fourth", code: "KeyR", label: "Fourth choice", also: "run from trouble, hurry home", group: "Hands" },
   { id: "lantern", code: "KeyL", label: "Lantern on or off", group: "Hands" },
   { id: "talk", code: "KeyT", label: "Say something", also: "type a line in a talk", group: "Talks" },

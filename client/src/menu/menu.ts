@@ -444,7 +444,7 @@ function helpHtml(): string {
     <section><h3>Jobs</h3>
       <p>The board on the quay has the day's work; a new board goes up at midnight. The naties hire day men at their gates at dawn. Carry, watch, deliver: take a job (${k("use")}), do it, and bring the proof back for your pay. Some jobs change on the way: a thief, a bribe, thick fog.</p></section>
     <section><h3>Needs</h3>
-      <p>Food, warmth, sleep and health, in the corner. Food falls through the day: bread, herring or a meal fill it. Warmth goes in the cold and the rain: a coat, a fire, a warm bed. Sleep in a bed from six in the evening, or rough (${k("third")}) late at night. A need at 2 or less is marked, and costs you.</p></section>
+      <p>Food, warmth, sleep and health, in the corner. Food falls through the day: bread, herring or a meal fill it. Warmth goes in the cold and the rain: a coat, a fire, a warm bed. Sleep in a bed (the doss house, or a room you rent) at any hour, for as long as you choose; a bench will do, but you rest less and the cold gets into your coat. A need at 2 or less is marked, and costs you.</p></section>
     <section><h3>Money and rent</h3>
       <p>Money is in centimes: 100 make a franc, and a good day on the docks pays two or three. The rent of your bed is due every Sunday: no rent, no bed, and a night on the quay costs health. The pawnshop lends on what you carry.</p></section>
     <section><h3>The night and saving</h3>

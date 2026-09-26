@@ -1,7 +1,8 @@
 import { aboutMe, me } from "../player/profile"; // M7 character: the player's name and words
-import { api, type DayTurn, type Ending, type JobsPayload, type Night, type WhereNow, type WhereReport } from "../net/api";
+import { api, type DayTurn, type Ending, type JobsPayload, type Night, type RestEnd, type RestView, type WhereNow, type WhereReport } from "../net/api";
 import type { FirstPerson } from "../player/firstPerson";
 import { DOSS_POS, type World } from "../world/rijnkaai";
+import { Sleep } from "./sleep";
 import { esc } from "./runs";
 import { topLeft } from "./corner";
 import { GAME_MIN_PER_REAL_S, TICK_EVERY_MS, TICK_MINUTES } from "../../../shared/clock";
@@ -12,8 +13,9 @@ import { dialogs } from "./dialogs";
 // The day and the week (M5). The server owns the clock; this side asks for a
 // tick every 10 s while you play (shared/clock.ts: 5 game minutes; a game hour is 2 real minutes), shows the time, turns the light, and shows
 // the night and the end of the week. docs/01: seven days. M7 night (Steve 2026-09-25): the clock runs
-// on through the night, the date turns at midnight; Jef sleeps when he chooses (or drops, dead tired)
-// and wakes seven or eight hours later where he lay. Very tired, he is slower and his sight swims.
+// on through the night, the date turns at midnight. M7 sleep (2026-09-26, game/sleep.ts): Jef sleeps in a
+// bed or on a bench when he chooses and as long as he chooses; dead tired, he still drops where he stands
+// and wakes seven or eight hours later where he lay (the night sheet). Very tired, he is slower and his sight swims.
 
 const TICK_MS = TICK_EVERY_MS;
 
@@ -30,6 +32,8 @@ export class Day {
   toast: (t: string) => void = () => {};
   /** Set by Jobs: close the board, talk and pockets when a sheet comes up. */
   onSheet: () => void = () => {};
+  /** M7 sleep: the chooser at a bed or a bench, the fade while he sleeps (game/sleep.ts). */
+  readonly rest: Sleep;
 
   constructor(
     private readonly world: World,
@@ -44,6 +48,21 @@ export class Day {
     document.body.appendChild(this.sheet);
     window.addEventListener("keydown", (e) => this.onKey(e), true);
     dialogs.register("day sheet", () => this.sheetOpen); // focus fix: the pause knows it is up (game/dialogs.ts)
+    this.rest = new Sleep(
+      {
+        restTick: () => this.restTick(),
+        restCall: (call) => this.restCall(call),
+        toast: (t) => this.toast(t),
+        report: () => this.tick(),
+        inside: () => this.where().at !== null,
+        hour: () => {
+          const at = Math.floor(this.hourF * 60 + 1e-6); // the clock as shown in the corner
+          return { hour: Math.floor(at / 60) % 24, minute: at % 60 };
+        },
+      },
+      player,
+      world,
+    );
     window.setInterval(() => {
       if (this.playing) void this.tick();
     }, TICK_MS);
@@ -103,9 +122,9 @@ export class Day {
     canvas.style.filter = `blur(${Math.max(0, blur).toFixed(2)}px) brightness(${dim.toFixed(2)})`;
   }
 
-  /** Time runs while you are in the game: pointer locked (or dev input), no night sheet up. */
+  /** Time runs while you are in the game: pointer locked (or dev input), no night sheet up, not asleep (the sleep runs its own clock). */
   get playing(): boolean {
-    return (this.player.locked || this.player.freeInput) && !this.player.fly && this.shown === "none" && !this.payload?.ending && !this.hold;
+    return (this.player.locked || this.player.freeInput) && !this.player.fly && this.shown === "none" && !this.payload?.ending && !this.hold && !this.rest.asleep;
   }
   /** M3h: another sheet is up (the night in the cell): the clock waits. */
   hold = false;
@@ -149,12 +168,6 @@ export class Day {
     return this.payload?.rent.paid ?? false;
   }
 
-  /** May Jef go to bed now? From 18:00 until dawn (6:00), or at any hour when he is dead tired. */
-  get bedOpen(): boolean {
-    const p = this.payload;
-    return !!p && (p.clock.hour >= p.rent.bedtime || p.clock.hour < 6 || p.player.sleep <= 2);
-  }
-
   /** New state from the server (push or reply). */
   show(p: JobsPayload): void {
     this.warnNeeds(p);
@@ -190,7 +203,7 @@ export class Day {
     const lines: Array<[number, number, string, string]> = [
       [before.food, now.food, "Your belly aches. Eat something soon: Fientje sells herring, the widow sells biscuit.", "You are starving. Your strength is going. Eat."],
       [before.warmth, now.warmth, "You are cold to the bone. A warm room, a bed or a nip of jenever warms you; a lantern or a roof slows the cold.", "You are freezing. Get into a warm room, a tavern or a shop with a stove, or you will fall ill."],
-      [before.sleep, now.sleep, "Your eyes close by themselves and your legs drag. Lie down soon (the doss house takes you early when you are this tired), or you will drop where you stand.", "You drop where you stand."],
+      [before.sleep, now.sleep, "Your eyes close by themselves and your legs drag. Get to a bed or a bench soon, or you will drop where you stand.", "You drop where you stand."],
       [before.health, now.health, "You feel ill. Eat, get warm and sleep.", "You can hardly stand."],
     ];
     for (const [was, is, low, zero] of lines) {
@@ -222,7 +235,7 @@ export class Day {
     try {
       const where = this.where();
       this.whereSent = `${where.at ?? ""}|${where.lantern}`;
-      const r = await api.tick(where);
+      const r = await api.tick(where, { pos: this.pos() });
       if (!this.fresh(seq)) return;
       this.apply(r);
       this.warmRoom(r.where);
@@ -235,24 +248,47 @@ export class Day {
     }
   }
 
-  /** M6 homes: set by the homes; after a night at home Jef wakes in his own room. */
-  onWakeHome: (home: string) => void = () => {};
+  /** Where Jef stands (with each tick: the server's check of a bench or the doss house step, server/src/rest.ts). */
+  private pos(): { x: number; z: number; y: number } {
+    const r = (n: number) => Math.round(n * 100) / 100;
+    return { x: r(this.player.x), z: r(this.player.z), y: r(this.player.y) };
+  }
 
-  async sleep(call: () => Promise<JobsPayload & { night: Night }> = api.sleep): Promise<void> {
-    if (this.sleeping) return; // E twice: one night
+  /** M7 sleep: one step of the sleep (game/sleep.ts): a tick that says he is asleep. */
+  private async restTick(): Promise<(JobsPayload & { advanced: boolean; rest?: RestView; woke?: RestEnd }) | null> {
+    if (this.busy || this.sleeping) return null;
+    this.busy = true;
+    const seq = ++this.sent;
+    try {
+      const r = await api.tick(this.where(), { asleep: true, pos: this.pos() });
+      if (!this.fresh(seq)) return null;
+      this.apply(r);
+      // the date turned in his sleep: the night's other work (a note about the rent) is in the wake lines
+      if (r.turned && !r.turned.ended) this.onMidnight(r.turned);
+      return r;
+    } catch {
+      return null;
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  /** M7 sleep: lie down, wake: the reply always applies, and no tick goes out while it is on its way. */
+  private async restCall<T extends JobsPayload>(call: () => Promise<T>): Promise<T> {
     const seq = ++this.sent;
     this.sleeping = true;
     try {
       const r = await call();
       this.applied = Math.max(this.applied, seq);
       this.apply(r);
-      this.showNight(r.night);
-    } catch (e) {
-      this.toast((e as Error).message);
+      return r;
     } finally {
       this.sleeping = false;
     }
   }
+
+  /** M6 homes: set by the homes; after a night at home Jef wakes in his own room. */
+  onWakeHome: (home: string) => void = () => {};
 
   async rent(): Promise<void> {
     try {

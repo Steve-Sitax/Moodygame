@@ -130,8 +130,11 @@ at midnight (milestones/M7-night.md). To test the night:
   on for good. Send the `keyup` too (`__scheldemist.key("KeyW", false)`).
 - **The preview pane is shared**: another agent may open a tab in it. Pass your own `tabId` to every
   browser call, or your script runs in their game.
-- To sleep: stand at the doss house step facing the door (E "go to bed", from 18:00 until 6:00); G "lie
-  down here and sleep rough" from 22:00 to 5:00 or when dead tired. Sleep lasts 7 to 8 game hours.
+- To sleep (M7 sleep, milestones/M7-sleep.md): E at the doss house door ("sleep in the doss house"), at the bed in
+  a rented room ("go to bed") or at a bench ("sleep on the bench") opens the chooser at any hour: keys 1-4 for
+  1, 2, 4, 8 hours, 5 until 6:00. The fade runs the time (half a game hour every 0.35 real s); any key but Esc
+  and P wakes him. No more lying down in the street; only a man at sleep 0 drops where he stands.
+  `__scheldemist.jobs.day.rest.info()`: the sleep's state and the five nearest benches (taken or free).
 
 ## Where and when
 Day 1 is a Monday; day 7 and 14 are Sundays. A game hour is two real minutes (a game minute two real

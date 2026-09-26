@@ -2,7 +2,7 @@
 // every number: the rents, the days paid, the key, where a piece may stand, the comfort and
 // what a night at home does. The client shows it and asks.
 
-import type { JobsPayload, Night, Pt } from "./api";
+import type { JobsPayload, Pt } from "./api";
 import type { Comfort, HomeClass, Placed } from "../../../shared/homes";
 
 export interface HomeDoor {
@@ -83,7 +83,6 @@ export const homesApi = {
   info: () => call<HomesInfo>("GET", "/api/homes"),
   take: (home: string, plan: "day" | "week") => call<WithHomes<{ text: string; paid_c: number }>>("POST", "/api/homes/take", { home, plan }),
   rent: (plan: "day" | "week") => call<WithHomes<{ text: string; paid_c: number }>>("POST", "/api/homes/rent", { plan }),
-  sleep: () => call<WithHomes<{ night: Night }>>("POST", "/api/homes/sleep"),
   stove: () => call<WithHomes<{ text: string; warmed: boolean }>>("POST", "/api/homes/stove"),
   place: (id: number, gx: number, gz: number, rot: number) => call<WithHomes<{ placed: Placed }>>("POST", "/api/homes/place", { id, gx, gz, rot }),
   lift: (id: number) => call<WithHomes<{ item: HomeItem }>>("POST", "/api/homes/lift", { id }),
