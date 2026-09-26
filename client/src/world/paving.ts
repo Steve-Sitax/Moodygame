@@ -562,6 +562,20 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 }
 
 /**
+ * A texture whose image was swapped for one of another size (the painted stand-in for its picture): three.js keeps
+ * the GPU storage of the first upload (texStorage2D), so a bigger picture does not fit (GL_INVALID_VALUE) and the
+ * painted stand-in stays on screen for good if a frame was drawn before the picture came (Steve's picture of a lane
+ * in grey squares, 2026-09-26). Disposing frees that storage; the next draw makes it again at the new size.
+ */
+export function swapped(...texs: Array<THREE.Texture | undefined>): void {
+  for (const t of texs) {
+    if (!t) continue;
+    t.dispose();
+    t.needsUpdate = true;
+  }
+}
+
+/**
  * A painted paving swapped for its pictures (client/public/textures) all at once (bump maps checked, 2026-09-26):
  * the colour, the height and the stone map go in together, or none of them does, so a painted height never lies
  * under a picture's stones (or the other way round) while one is still loading or if one fails. `id: null` blanks
@@ -583,8 +597,7 @@ export function withPictures(p: Paving, urls: { map: string; height: string; id?
         g.fillRect(0, 0, 4, 4);
         p.id.image = blank;
       }
-      p.map.needsUpdate = p.height.needsUpdate = true;
-      if (p.id) p.id.needsUpdate = true;
+      swapped(p.map, p.height, p.id);
     })
     .catch((e) => console.warn("paving pictures did not load: the painted paving stays", e));
   return p;
@@ -643,7 +656,7 @@ function railSettsPictures(p: Paving): void {
       p.map.image = mc;
       p.height.image = hc;
       p.id!.image = ic;
-      p.map.needsUpdate = p.height.needsUpdate = p.id!.needsUpdate = true;
+      swapped(p.map, p.height, p.id);
     })
     .catch((e) => console.warn("rail setts pictures did not load", e));
 }

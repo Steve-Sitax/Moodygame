@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { psx } from "../retro/psx";
+import { bumpFromMap, psx } from "../retro/psx";
 import { canvasTex, rand } from "./rooms";
 import { glowTexture } from "./textures";
 
@@ -20,8 +20,16 @@ export interface MatDef {
 
 const cache = new Map<string, THREE.Material>();
 /** A psx Lambert with a map and vertex colour, made once. */
-export function lmMat(key: string, o: THREE.MeshLambertMaterialParameters, affine = 0.15): MatDef {
-  return { key, make: () => psx(new THREE.MeshLambertMaterial({ ...o, vertexColors: true }), { affine }) };
+export function lmMat(key: string, o: THREE.MeshLambertMaterialParameters, affine = 0.15, bump = 0): MatDef {
+  // `bump`: metres of relief from the map's own colour (retro/psx.ts bumpFromMap; the floors, 2026-09-26), 0 = none.
+  // Not for a map that is swapped for a picture later: the relief would stay the stand-in's.
+  return {
+    key,
+    make: () => {
+      const m = psx(new THREE.MeshLambertMaterial({ ...o, vertexColors: true }), { affine });
+      return bump > 0 ? bumpFromMap(m, bump) : m;
+    },
+  };
 }
 /** Unlit (glass, flames, painted light): basic with vertex colour. */
 export function lmBasic(key: string, o: THREE.MeshBasicMaterialParameters): MatDef {

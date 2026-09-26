@@ -142,15 +142,16 @@ export function freeFn(floors: Rect[], solids: Rect[], r = 0.25): (x: number, z:
 // ---------------------------------------------------------------- materials
 
 export const M = {
-  stone: lmMat("lm_stone", { map: ashlar(1), color: 0xd8ccb4 }, 0.1),
-  stoneDark: lmMat("lm_stone_dark", { map: ashlar(2, [120, 112, 100]), color: 0xb0a898 }, 0.1),
+  // (bump maps on every floor, 2026-09-26: the last number, metres of relief from the map's own colour)
+  stone: lmMat("lm_stone", { map: ashlar(1), color: 0xd8ccb4 }, 0.1, 0.01),
+  stoneDark: lmMat("lm_stone_dark", { map: ashlar(2, [120, 112, 100]), color: 0xb0a898 }, 0.1, 0.01),
   vault: lmMat("lm_vault", { map: whitewash(3), color: 0xd8d0bc, side: THREE.DoubleSide }, 0.05),
-  floor: lmMat("lm_slabs", { map: slabs(2), color: 0xe0dcd4 }, 0.1),
-  oak: lmMat("lm_oak", { map: tex().planks, color: 0x6a4a30 }, 0.2),
-  oakDark: lmMat("lm_oak_dark", { map: tex().planks, color: 0x5e4028 }, 0.2),
+  floor: lmMat("lm_slabs", { map: slabs(2), color: 0xe0dcd4 }, 0.1, 0.01),
+  oak: lmMat("lm_oak", { map: tex().planks, color: 0x6a4a30 }, 0.2, 0.005),
+  oakDark: lmMat("lm_oak_dark", { map: tex().planks, color: 0x5e4028 }, 0.2, 0.005),
   rush: lmMat("lm_rush", { map: tex().sack, color: 0xb09a60 }, 0.2),
-  marbleW: lmMat("lm_marble_w", { map: marble(false), color: 0xe8e4dc }, 0.1),
-  marbleB: lmMat("lm_marble_b", { map: marble(true), color: 0x9a9a9a }, 0.1),
+  marbleW: lmMat("lm_marble_w", { map: marble(false), color: 0xe8e4dc }, 0.1, 0.003),
+  marbleB: lmMat("lm_marble_b", { map: marble(true), color: 0x9a9a9a }, 0.1, 0.003),
   gilt: lmMat("lm_gilt", { color: 0xb08a3a, emissive: 0x2a1a04 }),
   linen: lmMat("lm_linen", { color: 0xe8e2d0 }),
   red: lmMat("lm_red", { color: 0x7a1a14 }),

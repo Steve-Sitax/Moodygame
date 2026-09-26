@@ -122,6 +122,30 @@ Pictures: `data/shots/wc0_L<n>_*` (no bump) and `wc1_L<n>_*` (bump), n = the arr
 (now), for the clinker and the speklagen; `wb2_ps1_brick_*` the default PS1 settings; `wallh_<name>.jpg` what the tool
 found (the picture, the joints in red, the height).
 
+### Bump maps on every floor (2026-09-26)
+Steve, with a picture of a lane in grey squares: "The floor over all of town is not all bump-mapped: do all."
+- His lane was the street cobbles' painted stand-in, not a floor without relief: three.js keeps a texture's GPU storage
+  from its first upload (texStorage2D), so when a frame was drawn before the pictures had loaded, the bigger picture did
+  not fit (GL_INVALID_VALUE) and the painted stand-in stayed for good. Every picture swap now disposes the texture first
+  (`paving.ts swapped`, used by `withPictures` and the rail band; `quayStone.ts withPicture`). Reproduced in the test
+  stack (a small texture drawn once, then the picture: magenta stayed; with the fix, the picture).
+- Inventory of the walkable floors (up-facing faces near the walk, in the running game): the ground zones, rail band, wall
+  walk and gate passages had relief. Without: the pavements, kerbs and door steps (the house trim, about 6,100 m2 at
+  0.12 m), the edge stones along the seams (1,600 m2), the landmarks' steps and terraces, the quay flights, the pier deck,
+  the landmark halls' floors. Now: the pavements, kerbs and door steps (flat, below 0.8 m) are bluestone slabs laid in
+  world metres with the ground's relief light (`psx.ts` option `slabs`; their own uv stretched the stone texture flat);
+  the others get three.js's bumpMap made from their own colour (`psx.ts bumpFromMap`: light stone high, dark joints low),
+  so the bump always matches the picture: edge stones, landmark stone, quay flights, pier deck, the halls' slabs, stone,
+  oak and marble (`landmarkKit.ts lmMat` takes the depth as a fourth value).
+- Left to their owners (same approach): the churches' floors and park paths (churches.ts, carolusHall.ts), the in-world
+  shop, tavern and home interiors (rooms.ts, homeRooms.ts, houseInWorld.ts), the bridges' and pontoons' decks (the boats'
+  atlas material: bumpMap does not follow psx's atlas cells).
+- Checks: `paths()` [], `npm run build` passes, frame time within the noise (perf(60) in the lane 9.5 ms with, 12.6 ms
+  without: the pane's noise); no geometry changed, so the z-fight check has nothing new to find (its full run did not
+  finish in the preview tool's time). Pictures: Steve's `images/11.webp` (before) and `data/shots/fl2_steve_view.jpg`,
+  `fl2_steve_view_ps1.jpg` (14:30, mist; the default PS1 settings); `fl0_pave2..4` / `fl2_pave2..4` (pavements),
+  `fl0_pier` / `fl2_pier`, `fl2_night_lamp` (22:00), `fl_bug_swap` / `fl_bug_fixed` (the swap).
+
 ## The air, darker and smokier (the lead, 2026-09-26)
 Steve: "The pictures were wrong: it is a misty, darker, grimy atmosphere, a bit dangerous at all times. So rust, soot,
 clutter, dirt."

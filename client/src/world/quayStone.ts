@@ -34,6 +34,8 @@ export function withPicture(tex: THREE.Texture, url: string): THREE.Texture {
   const img = new Image();
   img.onload = () => {
     tex.image = img;
+    // (another size than the painted one: free the first upload's storage, or the painted one stays; paving.ts swapped)
+    tex.dispose();
     tex.needsUpdate = true;
     (tex.userData.onPicture as (() => void) | undefined)?.();
   };

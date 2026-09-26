@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { psx } from "../retro/psx";
+import { bumpFromMap, psx } from "../retro/psx";
 import { rectAround, type Rect } from "./geom";
 import { Geo, WORLD, frameAt, tideCuts, tideShade, type QuaySteps } from "./quaysteps";
 import { LW_MIN, MHW, MLW } from "./tide";
@@ -114,6 +114,7 @@ export function buildPier(scene: THREE.Object3D, waterY: number, planks: THREE.T
   }
 
   const planksMat = psx(new THREE.MeshLambertMaterial({ map: planks, vertexColors: true }), { affine: 0.4 });
+  bumpFromMap(planksMat, 0.006); // bump maps on every floor (2026-09-26): the boards' gaps and grain, from their own colour
   const woodMat = psx(new THREE.MeshLambertMaterial({ map: planks, vertexColors: true }), { affine: 0.3 });
   const shellMat = psx(new THREE.MeshLambertMaterial({ color: 0xc8c4b4, vertexColors: true }));
   for (const [g, m, name] of [[deck, planksMat, "pier_deck"], [wood, woodMat, "pier_timber"], [shells, shellMat, "pier_barnacles"]] as const) {

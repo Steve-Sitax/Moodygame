@@ -280,7 +280,7 @@ export function buildTownhall(): LandmarkRoom {
   const k = new Kit(group);
   k.shadeTop = 12;
   const { UP, CEIL0: C0, CEIL1: C1, GLASS_Y: GY, VEST, COURT, OFFICE, LANDING, WEDDING, ALDERMEN, LEYS, FRONT, DOOR, STAIR } = TH;
-  const floorM = lmMat("lm_th_floor", { map: slabs(7), color: 0xd0ccc4 }, 0.1);
+  const floorM = lmMat("lm_th_floor", { map: slabs(7), color: 0xd0ccc4 }, 0.1, 0.01); // (bump maps on every floor, 2026-09-26)
   const box = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, m: MatDef, tile = 2) => k.box(x1 - x0, y1 - y0, z1 - z0, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, m, { tile });
   // a wall reaches a little under the floor and into the ceiling: the PS1 vertex snap never opens a seam there
   const wall = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, m: MatDef, tile = 2) => box(x0, x1, y0 - 0.12, y1 + 0.12, z0, z1, m, tile);
@@ -612,7 +612,7 @@ export function buildVleeshuis(): LandmarkRoom {
     const fp = fg.getAttribute("position") as THREE.BufferAttribute;
     const fu = fg.getAttribute("uv") as THREE.BufferAttribute;
     for (let i = 0; i < fu.count; i++) fu.setXY(i, fp.getX(i) / 1.8, fp.getZ(i) / 1.8);
-    k.add(fg, lmMat("lm_vh_floor", { map: slabs(8), color: 0xd8d0c4 }, 0.1), (X0 + X1) / 2, 0, (Z0 + Z1) / 2, { flat: true });
+    k.add(fg, lmMat("lm_vh_floor", { map: slabs(8), color: 0xd8d0c4 }, 0.1, 0.01), (X0 + X1) / 2, 0, (Z0 + Z1) / 2, { flat: true });
   }
   const bluestone = lmMat("lm_vh_blue", { map: ashlar(33, [96, 102, 112]), color: 0xb0b4c0 }, 0.1);
   box(-DOOR.hw - 0.1, DOOR.hw + 0.1, -0.1, 0, -0.02, Z0, bluestone, 1); // the doorway's sill
@@ -962,7 +962,7 @@ export function buildSteen(): LandmarkRoom {
   const DOOR = S.door;
   const DH = DOOR.spring;
   const box = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, m: MatDef, tile = 1.6) => k.box(x1 - x0, y1 - y0, z1 - z0, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, m, { tile });
-  const floor = lmMat("lm_st_floor", { map: slabs(9), color: 0xd0c8bc }, 0.1);
+  const floor = lmMat("lm_st_floor", { map: slabs(9), color: 0xd0c8bc }, 0.1, 0.01);
   const win = glassMat("grisaille", 71);
 
   // ---- floors: the doorway's sill, the gatehouse and the hall (not over the stairwell), the cell's straw
@@ -1188,7 +1188,7 @@ export function buildOostershuis(): LandmarkRoom {
   const r = rand(123);
   const { IN, PASS, DOOR, CEIL, POST_Z, HATCH, SCALE, DESK } = OH;
   const box = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, m: MatDef, tile = 2) => k.box(x1 - x0, y1 - y0, z1 - z0, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, m, { tile });
-  const cobble = lmMat("lm_oh_cobble", { map: tex().cobble, color: 0x9a948c }, 0.1);
+  const cobble = lmMat("lm_oh_cobble", { map: tex().cobble, color: 0x9a948c }, 0.1, 0.012);
 
   // ---- floors: cobbles in the gateway and the passage, boards in the halls
   box(-DOOR.hw - 0.2, DOOR.hw + 0.2, -0.1, 0, 0, IN.front, cobble, 1.4);

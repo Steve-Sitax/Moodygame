@@ -189,6 +189,12 @@ export interface PsxOptions {
   vary?: number;
   /** Break up the tiling of a ground texture: a second, turned and scaled sample blended in by a slow noise (needs vary). */
   detile?: boolean;
+  /**
+   * Bump maps on every floor (2026-09-26): the faces of this material that lie flat and low (pavements, kerbs, door
+   * steps: up-facing, below `yMax` metres) are drawn as stone slabs laid in world metres (`map` and its `height`, one
+   * tile `tile` m), with the ground's relief light, whatever the mesh's own uv there. The rest keeps its texture.
+   */
+  slabs?: { map: THREE.Texture; height: THREE.Texture; tile: number; yMax: number };
 }
 
 const commonVertex = /* glsl */ `
@@ -294,6 +300,10 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
       shader.uniforms.uReliefBump = { value: opts.relief.bump ?? 3 };
       if (opts.relief.id) shader.uniforms.uStoneId = { value: opts.relief.id };
     }
+    if (opts.slabs) {
+      shader.uniforms.uSlabMap = { value: opts.slabs.map };
+      shader.uniforms.uSlabH = { value: opts.slabs.height };
+    }
     if (opts.wet || opts.water) {
       shader.uniforms.uWet = psxUniforms.uWet;
       shader.uniforms.uRain = psxUniforms.uRain;
@@ -397,6 +407,7 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         (opts.puddles ? "uniform float uPuddle;\nuniform sampler2D uMirror;\nuniform mat4 uMirrorMat;\nuniform sampler2D uPudNoise;\n" : "") +
         (opts.wet || opts.puddles || opts.vary ? pudNoiseGlsl : "") +
         (opts.vary ? "uniform sampler2D uDirt;\nuniform vec4 uDirtBox;\n" : "") +
+        (opts.slabs ? "uniform sampler2D uSlabMap;\nuniform sampler2D uSlabH;\n" : "") +
         (opts.relief ? "uniform sampler2D uHeight;\nuniform float uReliefDepth;\nuniform float uReliefTile;\nuniform float uReliefBump;\n" : "") +
         (opts.relief?.id
           ? /* glsl */ `uniform sampler2D uStoneId;
@@ -522,6 +533,26 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
             : ""
         }
         diffuseColor *= sampledDiffuseColor;
+        ${
+          opts.slabs
+            ? `{
+          // pavements, kerbs and door steps: slabs in world metres with their own relief (bump maps on every floor)
+          vec3 fN = normalize(cross(dFdx(vPsxWorld), dFdy(vPsxWorld)));
+          if (abs(fN.y) > 0.9 && vPsxWorld.y < ${opts.slabs.yMax.toFixed(2)}) {
+            vec2 suv = vPsxWorld.xz / ${opts.slabs.tile.toFixed(2)};
+            diffuseColor.rgb = diffuse * texture2D(uSlabMap, suv).rgb * 1.25; // (as light as the pale kerbs were)
+            float e = 1.0 / 128.0;
+            float sh = texture2D(uSlabH, suv).r;
+            float sx = texture2D(uSlabH, suv + vec2(e, 0.0)).r - texture2D(uSlabH, suv - vec2(e, 0.0)).r;
+            float sz = texture2D(uSlabH, suv + vec2(0.0, e)).r - texture2D(uSlabH, suv - vec2(0.0, e)).r;
+            vec3 rn = normalize(vec3(-sx * 1.6, 1.0, -sz * 1.6));
+            float lit = clamp(dot(rn, normalize(vec3(-0.45, 0.8, -0.35))), 0.0, 1.0);
+            float rel = mix(0.6, 1.12, lit) * (0.55 + 0.45 * sh);
+            diffuseColor.rgb *= mix(rel, 0.86, smoothstep(8.0, 22.0, length(vPsxWorld - cameraPosition)));
+          }
+        }`
+            : ""
+        }
         ${
           opts.vary
             ? `{
@@ -754,7 +785,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
   };
   // M7 rendering (world/cull.ts): how far the fog lets this material show, and water (waves reach over the sheet)
   mat.userData.psx = { fogReach: opts.fogReach ?? 1, water: !!opts.water };
-  mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}${opts.relief.id ? `-id${opts.relief.holes ?? 0}` : ""}` : ""}${opts.vary ? `-v${opts.vary}` : ""}${opts.detile ? "-dt" : ""}`;
+  mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}${opts.relief.id ? `-id${opts.relief.holes ?? 0}` : ""}` : ""}${opts.vary ? `-v${opts.vary}` : ""}${opts.detile ? "-dt" : ""}${opts.slabs ? `-slab${opts.slabs.tile}-${opts.slabs.yMax}` : ""}`;
   return mat;
 }
 
@@ -892,4 +923,93 @@ export function wallRelief(mat: THREE.Material, names: string[]): void {
   };
   mat.customProgramCacheKey = () => `${prevKey()}-wallrelief`;
   mat.needsUpdate = true;
+}
+
+// --- Bump maps on every floor (Steve, 2026-09-26: "the floor over all of town is not all bump-mapped: do all") ---
+// The painted textures of the pavements, kerbs, edge stones, stone flights, decks and the floors inside (flags,
+// boards, tiles, slabs) get a height map worked out from their own colour (light stone high, dark joints low, the
+// fine grain smoothed), so the bump can never disagree with the picture. It goes in as three.js's own bumpMap: the
+// normal is tilted with the screen-space derivatives of the uv, so it works on any face and any uv layout and reads
+// under the sun, the sky and the gas lamps. Not for atlas materials (their uv is remapped per cell in psx) and not for
+// textures swapped for a picture later (the height would be the stand-in's).
+
+const bumpCache = new WeakMap<THREE.Texture, THREE.Texture>();
+
+function heightFromColour(map: THREE.Texture): THREE.Texture {
+  const c = document.createElement("canvas");
+  c.width = c.height = 4;
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = map.wrapS;
+  t.wrapT = map.wrapT;
+  t.repeat.copy(map.repeat);
+  t.offset.copy(map.offset);
+  t.center.copy(map.center);
+  t.rotation = map.rotation;
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.generateMipmaps = true;
+  const fill = () => {
+    const img = map.image as { width: number; height: number } & CanvasImageSource;
+    if (!img?.width) return;
+    const k = Math.min(1, 512 / Math.max(img.width, img.height));
+    const w = Math.max(4, Math.round(img.width * k));
+    const h = Math.max(4, Math.round(img.height * k));
+    c.width = w;
+    c.height = h;
+    const g = c.getContext("2d", { willReadFrequently: true })!;
+    g.drawImage(img, 0, 0, w, h);
+    const px = g.getImageData(0, 0, w, h);
+    const lum = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) lum[i] = (px.data[i * 4] * 0.3 + px.data[i * 4 + 1] * 0.59 + px.data[i * 4 + 2] * 0.11) / 255;
+    // a box blur that wraps (the textures tile), twice: the stone's own level round each texel
+    const blur = (src: Float32Array, r: number) => {
+      const tmp = new Float32Array(w * h);
+      const out = new Float32Array(w * h);
+      for (let y = 0; y < h; y++)
+        for (let x = 0; x < w; x++) {
+          let s = 0;
+          for (let d = -r; d <= r; d++) s += src[y * w + ((x + d + w) % w)];
+          tmp[y * w + x] = s / (2 * r + 1);
+        }
+      for (let y = 0; y < h; y++)
+        for (let x = 0; x < w; x++) {
+          let s = 0;
+          for (let d = -r; d <= r; d++) s += tmp[((y + d + h) % h) * w + x];
+          out[y * w + x] = s / (2 * r + 1);
+        }
+      return out;
+    };
+    const R = Math.max(2, Math.round(Math.min(w, h) / 16));
+    const low = blur(blur(lum, R), R);
+    const hp = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) hp[i] = lum[i] - low[i];
+    const sorted = Array.from(hp, Math.abs).sort((a, b) => a - b);
+    const top = sorted[Math.floor(sorted.length * 0.98)] || 1;
+    const fine = blur(hp, 1);
+    for (let i = 0; i < w * h; i++) {
+      const v = Math.round(255 * Math.min(1, Math.max(0, 0.5 + (0.5 * fine[i]) / top)));
+      px.data[i * 4] = px.data[i * 4 + 1] = px.data[i * 4 + 2] = v;
+      px.data[i * 4 + 3] = 255;
+    }
+    g.putImageData(px, 0, 0);
+    t.flipY = map.flipY;
+    t.dispose();
+    t.needsUpdate = true;
+  };
+  const img = map.image as HTMLImageElement | undefined;
+  if (img instanceof HTMLImageElement && !img.complete) img.addEventListener("load", fill, { once: true });
+  else fill();
+  return t;
+}
+
+/** A bump map from the material's own colour map, `depth` metres deep (1 cm for setts and flags, less for boards). */
+export function bumpFromMap<T extends THREE.Material>(mat: T, depth = 0.01): T {
+  const m = mat as unknown as THREE.MeshLambertMaterial;
+  if (!m.map) return mat;
+  let h = bumpCache.get(m.map);
+  if (!h) bumpCache.set(m.map, (h = heightFromColour(m.map)));
+  m.bumpMap = h;
+  m.bumpScale = depth;
+  m.needsUpdate = true;
+  return mat;
 }

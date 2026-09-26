@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { psx } from "../retro/psx";
+import { bumpFromMap, psx } from "../retro/psx";
 import type { Rect } from "./geom";
 import { HW_MAX, LW_MIN, MHW, MID_Y, MLW, WADE, levelAt } from "./tide";
 
@@ -261,6 +261,7 @@ export function quaySteps(waterY: number, tex: { stone: THREE.Texture; iron: THR
   // the flights lie in the plane of the quay wall where they meet it: a pixel's depth toward the eye
   // so the steps win there instead of flickering with the wall (z-fight check)
   const stoneMat = psx(new THREE.MeshLambertMaterial({ map: tex.stone, vertexColors: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), { affine: 0.3 });
+  bumpFromMap(stoneMat, 0.012); // bump maps on every floor (2026-09-26): the treads' joints, from their own colour
   const ironMat = psx(new THREE.MeshLambertMaterial({ map: tex.iron, vertexColors: true }), { affine: 0.3 });
   let stone = new Geo(tideShade(), 2, cuts);
   let iron = new Geo(tideShade([0.9, 0.86, 0.82]), 1, cuts);
