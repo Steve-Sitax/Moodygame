@@ -7,6 +7,8 @@ import SPOT_TABLE from "../../../shared/spots.json";
 import { steenHeightAt, steenKeepOut } from "./steenramp";
 import { buildCountryside } from "./countryside";
 import { loadChurches, parkBridgeHeight, poortKeepOut, pumpColliders } from "./churches";
+import { loadPrison } from "./prison"; // M7 prison and squares
+import { loadTownPlaces } from "./townplaces"; // M7 prison and squares
 import { frontFloor as carolusFloor, frontSolids as carolusSolids } from "../../../shared/carolusPlan";
 import { loadWall, rampartHeightAt, rampartKeepOut, wallColliders, wallGuards, wallLamps } from "./rampart";
 import CITY_DATA from "../../../shared/city.json";
@@ -499,6 +501,11 @@ export function buildRijnkaai(): World {
   const guards = wallGuards(scene, (x, z) => rampartHeightAt(x, z) ?? 0);
   // the churches of the angled streets, the Stadspark, the pumps of the alleys' courts (world/churches.ts)
   const churches = loadChurches(scene);
+  // M7 prison and squares: the prison of 1855 on the wall street (world/prison.ts, tools/blender/build_prison.py)
+  const prison = loadPrison(scene);
+  // M7 prison and squares: the Sint-Jansplein and the greens (world/townplaces.ts)
+  const townPlaces = loadTownPlaces(scene, city.ready);
+  colliders.push(...townPlaces.colliders);
   colliders.push(...pumpColliders());
   colliders.push(...carolusSolids()); // the Carolus's terrace railing (shared/carolusPlan.ts)
   const wildTrees = (CITY_DATA as unknown as { decor?: { trees_wild?: Array<[number, number]> } }).decor?.trees_wild ?? [];
@@ -1742,6 +1749,8 @@ export function buildRijnkaai(): World {
       wall.update(camera, fog.far, lampsLit);
       guards.update(dt, camera);
       churches.update(camera, fog.far);
+      prison.update(camera, fog.far, lampsLit); // M7 prison and squares
+      townPlaces.update(camera, fog.far);
     }
     if (camera && !devView) ambient.update(t, dt, camera, dayNow, weatherNow);
     street?.update(t, dt, lampsLit, camera ?? undefined);

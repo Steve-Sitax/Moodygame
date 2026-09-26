@@ -106,7 +106,7 @@ export interface Trees3D {
 export async function buildTrees3D(
   scene: THREE.Scene,
   trees: P[],
-  opts: { baseAt?: (x: number, z: number) => number; willows?: P[] } = {},
+  opts: { baseAt?: (x: number, z: number) => number; willows?: P[]; kindAt?: (x: number, z: number) => string | null } = {},
 ): Promise<Trees3D> {
   const draco = new DRACOLoader().setDecoderPath("/draco/");
   const gltf = await new GLTFLoader().setDRACOLoader(draco).loadAsync("/models/trees.glb");
@@ -153,7 +153,7 @@ export async function buildTrees3D(
   for (const [x, z] of trees) {
     let nn = Infinity;
     for (const [x2, z2] of trees) if (x2 !== x || z2 !== z) nn = Math.min(nn, Math.hypot(x2 - x, z2 - z));
-    const kind = pick(nn >= 10 ? WIDE : NARROW, hash(x, z));
+    const kind = opts.kindAt?.(x, z) ?? pick(nn >= 10 ? WIDE : NARROW, hash(x, z)); // (M7 prison and squares: kindAt)
     spots.push({ kind, x, z });
   }
   for (const [x, z] of opts.willows ?? []) spots.push({ kind: "tree_willow", x, z });

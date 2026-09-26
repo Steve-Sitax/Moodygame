@@ -136,6 +136,10 @@ LANDMARKS = {
 
 # street furniture after the period photos (the Steenplein, the Werf, the quays):
 # rows of young trees, an iron railing along the water, gas lamps
+# M7 prison and squares (tools/city/places.py): its lamps and named places, read back so a new run keeps them
+_TP_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "shared", "townplaces.json")
+_TOWNPLACES = json.load(open(_TP_PATH)) if os.path.exists(_TP_PATH) else {}
+
 DECOR = {
     "trees": [(x, z) for z in (24.0, 34.0) for x in range(-208, -150, 8)]
     + [(x, 11.0) for x in range(-300, -222, 12)],
@@ -191,7 +195,10 @@ DECOR = {
         (-90.4, 141.0), (-90.4, 162.5), (-90.4, 186.5), (-153.8, 142.0), (-153.8, 167.0), (-153.8, 194.0),
         # the street behind the Rijnkaai (before the house fronts, between the doors)
         (-12, 43.4), (36, 43.4),
-    ],
+    ]
+    # M7 prison and squares: the Sint-Jansplein's four lamps, after all the others (tools/city/places.py writes
+    # them into shared/townplaces.json and city.json; the lamplighters take lamps by their index)
+    + [tuple(p) for p in _TOWNPLACES.get("lamps", [])],
     # (the Oostershuis lamp stands on the pier beside the gate's frontispiece, not before the gate: M7 doors)
     # Left dark on purpose (M7 night: the gangs' ground): the lane behind the town hall, the narrow lanes
     # along the cathedral's north side and behind its choir, the back streets behind the Rijnkaai, the Eilandje.
@@ -313,6 +320,8 @@ PLACES = {
     "Sint-Carolus Borromeus": (-116, 186, "building"),
     "Sint-Pauluskerk": (103, 266, "building"),
     "Sint-Jacobskerk": (-95, 305, "building"),
+    # M7 prison and squares (tools/city/places.py)
+    **{k: (v["x"], v["z"], v["kind"]) for k, v in _TOWNPLACES.get("places", {}).items()},
 }
 
 

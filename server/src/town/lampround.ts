@@ -56,8 +56,11 @@ export interface LampRound {
  */
 export const DUSK_START = 16.75;
 export const DUSK_SPAN_H = 3.7;
-/** The rounds' dusk starts, one after another (round i starts at DUSK_START + i * DUSK_STAGGER_H). */
-export const DUSK_STAGGER_H = 0.05;
+/**
+ * The rounds' dusk starts, one after another (round i starts at DUSK_START + i * DUSK_STAGGER_H). M7 prison and
+ * squares: four rounds now, 2.4 minutes apart (was three, 3 minutes), so the last window still closes by 20:34.
+ */
+export const DUSK_STAGGER_H = 0.04;
 export const DAWN_START = 5;
 export const DAWN_SPAN_H = 3.7;
 /**

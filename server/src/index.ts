@@ -35,6 +35,7 @@ import { mountIdeas } from "./ideas/routes.ts";
 import { mountHomes } from "./homes/routes.ts";
 import { mountTownLife } from "./director/townlife-routes.ts";
 import { mountEmigrants } from "./town/emigrantRoutes.ts";
+import { mountPrison, thiefCaught } from "./town/prison.ts"; // M7 prison and squares
 import { mountLandmarks } from "./landmarks/routes.ts";
 import { mountPopulation } from "./town/popsettings.ts";
 import { mountHaggle } from "./town/haggleRoutes.ts";
@@ -104,6 +105,7 @@ mountSaves(app, {
 mountPopulation(app, db);
 // M6: emigrant families come and go with the clock (town/emigrants.ts); first, so its after-tick step wraps every tick route
 mountEmigrants(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
+mountPrison(app, { db }); // M7 prison and squares: the prison in the Begijnenstraat (town/prison.ts)
 // M4: townspeople who act, conversations in the street, the director and its events; first, so its
 // talk middleware (the event log) sees every talk before the police take theirs
 // M6: families who share and act, the fortune teller, strangers, schemes, dreams; first, so its
@@ -445,6 +447,7 @@ app.post("/api/resident/:id/pick", (c) => {
 
 app.post("/api/resident/:id/catch", (c) => {
   const r = catchThief(db, c.req.param("id"));
+  r.text += thiefCaught(db, c.req.param("id")); // M7 prison and squares: the police bring him to the prison
   broadcast({ type: "jobs", ...jobsPayload() });
   return c.json({ ...r, ...jobsPayload() });
 });

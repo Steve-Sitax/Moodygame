@@ -1688,12 +1688,13 @@ class Builder:
                       [(0.2, 0.3), (0.8, 0.3), (0.8, 0.7), (0.2, 0.7)], SOOT, out, 1.0)
             for y in [0.0] + floors:
                 self.decal(W, fs - 0.6, fs + 0.6, y + 0.1, y + 1.5, SOOT, out, d=0.010)
-            # scraps of wallpaper, a few to a room, each room its own paper
+            # a patch of wallpaper in most rooms, each room its own paper (the lead's review, 2026-09-26: one clean
+            # patch reads as a room; three scraps a room read as noise)
             for y in [0.0] + floors:
                 paper = r.choice(WALLPAPER)
-                for _ in range(r.randint(1, 3)):
-                    w_ = r.uniform(0.4, 1.3)
-                    h_ = r.uniform(0.5, 1.4)
+                for _ in range(1 if r.random() < 0.7 else 0):
+                    w_ = r.uniform(0.9, 1.8)
+                    h_ = r.uniform(1.0, 1.7)
                     c = r.uniform(s0 + 0.4 + w_ / 2, max(s0 + 0.5 + w_ / 2, s1 - 0.4 - w_ / 2))
                     y_ = y + r.uniform(0.6, max(0.7, min(self.sh, Hg - y) - h_ - 0.3))
                     if y_ + h_ > Hg - 0.2 or abs(c - fs) < 0.3 + w_ / 2:

@@ -505,6 +505,11 @@ def walk_map(city, houses, backs, landmarks):
         hw = b["width"] / 2 - 0.1
         deck = Polygon([(fx - uz * hw, fz + ux * hw), (tx - uz * hw, tz + ux * hw), (tx + uz * hw, tz - ux * hw), (fx + uz * hw, fz - ux * hw)])
         solid = paint(solid, [ring_of(p) for p in pieces(pond.difference(deck))] + park["solids"])
+    # M7 prison and squares (tools/city/places.py -> shared/townplaces.json): the prison's compound, the greens'
+    # railings, the benches, the trunks, the fountain, the kiosk and the urinal are wall, cell by cell
+    tp = townplaces()
+    if tp:
+        solid = paint(solid, tp.get("solids", []))
     # beyond the far bank: the fields in the fog, not walked on
     outside = paint(outside, city.get("decor", {}).get("offlimits", []))
     # open ground nobody can reach (a yard shut in by houses, a garden behind the alleys' cottages): wall, so that
@@ -524,6 +529,12 @@ def walk_map(city, houses, backs, landmarks):
     os.makedirs(os.path.dirname(out), exist_ok=True)
     img.save(out, optimize=True)
     return {"x0": x0, "z0": z0, "res": WALK_RES, "w": W, "h": H, "file": "/city/walk.png", "about": "pixel (col, row) = ((z - z0) / res, (x - x0) / res); R wall, G water, B outside"}
+
+
+def townplaces():
+    """M7 prison and squares: shared/townplaces.json (tools/city/places.py), or None."""
+    path = os.path.join(ROOT, "shared", "townplaces.json")
+    return json.load(open(path)) if os.path.exists(path) else None
 
 
 def park_data():
@@ -685,6 +696,21 @@ def ground_zones(city, houses, landmarks):
         pond = Polygon(park["pond"]).buffer(0.1, join_style=2)
         land = land.difference(pond)
         earth, flags, grass, quay = earth.difference(pond), flags.difference(pond), grass.difference(pond), quay.difference(pond)
+    # M7 prison and squares (shared/townplaces.json, tools/city/places.py): the greens' lawns are grass and their
+    # walks packed earth (gravel); the prison's compound is packed earth (its yards; the buildings stand on it);
+    # the round square's disc has no zone ground: world/places.ts lays its own (pavement, setts in rings, island)
+    tp = townplaces()
+    if tp:
+        lawns = unary_union([Polygon(r).buffer(0) for g in tp["greens"] for r in g["grass"]])
+        walks = unary_union([Polygon(r).buffer(0) for g in tp["greens"] for r in g["paths"]])
+        lawns = lawns.difference(walks)
+        new_earth = walks.union(Polygon(tp["prison"]["ring"]).buffer(0))
+        disc = Point(tp["rond"]["c"]).buffer(tp["rond"]["r_disc"], resolution=32)
+        earth = earth.difference(lawns).union(new_earth.intersection(land))
+        flags, quay = flags.difference(lawns).difference(new_earth), quay.difference(lawns).difference(new_earth)
+        grass = grass.union(lawns.intersection(land)).difference(new_earth)
+        earth, flags, grass, quay = (z.difference(disc).buffer(0) for z in (earth, flags, grass, quay))
+        land = land.difference(disc)
     # (the quay cut from the others once more: the float work above left slivers of it over the flags and the grass)
     quay = quay.difference(flags).difference(grass).buffer(0)
     cobble = land.difference(earth).difference(flags).difference(grass).difference(quay)

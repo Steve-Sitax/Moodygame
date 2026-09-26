@@ -655,11 +655,10 @@ export function grimeDecals(): THREE.CanvasTexture {
   };
   const gA = tileNoise(4, 31), gB = tileNoise(11, 32), gC = tileNoise(29, 33);
   cell(1, 1, (u, v) => {
-    // the old rooms' plaster left on the brick: patchy, broken off in hard-edged holes, streaked down
-    // (a thin film over the brick, the brick's courses still showing through; holes where it fell, hard-edged)
-    const n = gA(u, v) * 0.55 + gB(u, v) * 0.3 + gC(u, v) * 0.15;
-    const kept = n > 0.47 ? 1 : 0.3;
-    return kept * (0.2 + 0.14 * gB((u * 2) % 1, v)) * (0.85 + 0.15 * streaks[Math.floor(u * C)]);
+    // the old rooms' limewash left on the brick: ONE clean, even film over the lost house's outline, the brick's
+    // courses showing through (M7 prison and squares, the lead's review 2026-09-26: the patchy plaster with
+    // hard-edged holes read as big dark camouflage blotches over the whole wall); only a breath of variation
+    return 0.2 + 0.02 * (gA(u, v) - 0.5) + 0.015 * (streaks[Math.floor(u * C)] - 0.5);
   });
   // a dark line along its length (a floor's joists, the roof's flashing): hard below, soft above, a little ragged
   cell(2, 1, (u, v) => (sm(0.1, 0.25, v) * (1 - sm(0.55, 0.95, v))) * (0.7 + 0.3 * gB(u, 0.5)) * 0.85);

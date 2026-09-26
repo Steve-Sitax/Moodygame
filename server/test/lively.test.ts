@@ -252,9 +252,10 @@ describe("the save: in place, once", () => {
       };
       for (const r of after) if (before.has(r.id)) expect(plain(r.data_json, lit(r.data_json), r.id), r.id).toBe(plain(before.get(r.id)!, lit(r.data_json), r.id));
       checkRehomed(before, after, moved);
-      expect(after.filter((r) => lit(r.data_json)).length).toBe(3);
+      // (M7 prison and squares, LAMPS_VERSION 10: a fourth round, the north, and one more man for it)
+      expect(after.filter((r) => lit(r.data_json)).length).toBe(4);
       const newLighters = after.filter((r) => before.has(r.id) && lit(r.data_json) && !lit(before.get(r.id)!));
-      expect(newLighters.length).toBeLessThanOrEqual(1);
+      expect(newLighters.length).toBeLessThanOrEqual(2);
       for (const r of newLighters) expect(["docker", "porter"]).toContain((JSON.parse(before.get(r.id)!) as { trade: string }).trade);
       expect(after.length - before.size).toBeGreaterThanOrEqual(24);
       expect((db.prepare("SELECT COUNT(*) n FROM npc_memory").get() as { n: number }).n).toBe(mem);

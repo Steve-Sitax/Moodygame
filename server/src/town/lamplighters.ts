@@ -41,7 +41,7 @@ export const QUAY_LAMPS: RPt[] = [
  * the windows longer (lampround.ts); each tour tightened with the walked lengths and walked the way that
  * crosses its opening bridges earlier; the lamplighter's day until full dark and full day.
  */
-export const LAMPS_VERSION = 9;
+export const LAMPS_VERSION = 10; // (10: M7 prison and squares, the Sint-Jansplein's four lamps d66..d69)
 const STATE_KEY = "townlife_lamps";
 
 export interface LampRounds {
@@ -59,21 +59,30 @@ export function allLamps(): Array<{ id: string; x: number; z: number }> {
  * The three rounds (M7 lamps, 2026-09-25), in this order in the save. `start`: where the round's
  * lamplighter is sought when the town has none to spare (the man living nearest changes his trade).
  */
-export const ROUNDS: ReadonlyArray<{ id: "west" | "market" | "east"; label: string; start: RPt }> = [
+export const ROUNDS: ReadonlyArray<{ id: RoundId; label: string; start: RPt }> = [
   { id: "west", label: "the west old town: the Werf, the Steenplein, the quay road to the Rijnkaai", start: [-300, 12] },
   { id: "market", label: "the Grote Markt, the Handschoenmarkt and the cathedral quarter", start: [-250, 100] },
-  { id: "east", label: "the east quays: the Rijnkaai, the canal, the lock and the basins", start: [-20, 40] },
+  { id: "east", label: "the east quays: the Rijnkaai, the lock and the basins", start: [-20, 40] },
+  // M7 prison and squares (LAMPS_VERSION 10): the Sint-Jansplein's lamps lie far up the angled streets; a fourth man
+  // takes them with the canal's quays and the street west of the Vleeshuis quarter on his way there
+  { id: "north", label: "the canal's quays and the angled streets up to the Sint-Jansplein", start: [-80, 150] },
 ];
+export type RoundId = "west" | "market" | "east" | "north";
 
 /**
- * Which round a lamp is on. The market quarter: west of the Steenplein's houses (x < -205) north of
- * the town hall's front, or anything west of the canal quarter north of the Handschoenmarkt street
- * (z > 120). The west old town: the rest west of x -145, and the quay road south of z 50 as far as the
- * Rijnkaai's first two lamps (x < -25). The east quays: everything else.
+ * Which round a lamp is on. The north: the Sint-Jansplein and the canal's quays (below). The market quarter:
+ * west of the Steenplein's houses (x < -205) north of the town hall's front, or anything west of the canal
+ * quarter north of the Handschoenmarkt street (z > 120). The west old town: the rest west of x -145, and the
+ * quay road south of z 50 as far as x -100. The east quays: everything else.
  */
-export function roundOf(l: { x: number; z: number }): "west" | "market" | "east" {
+export function roundOf(l: { x: number; z: number }): RoundId {
+  // M7 prison and squares (LAMPS_VERSION 10): the Sint-Jansplein's four lamps (d66..d69, z > 250) and the canal's quays
+  // with the street west of the Vleeshuis quarter (x -155..-60, north of z 55) are the north round; the quay road from
+  // x -100 to the Rijnkaai goes to the east round. Followed at a walk the four take 378, 422, 433 and 440 s (three
+  // rounds could not take the square: 685 s for the east round, 432 s the most a window holds at a brisk walk)
+  if ((l.z > 250 && l.x > -60) || (l.x < -60 && l.x > -155 && l.z > 55)) return "north";
   if (l.x < -145 && ((l.x < -205 && l.z > 55) || l.z > 120)) return "market";
-  if (l.x < -145 || (l.z < 50 && l.x < -25)) return "west";
+  if (l.x < -145 || (l.z < 50 && l.x < -100)) return "west";
   return "east";
 }
 

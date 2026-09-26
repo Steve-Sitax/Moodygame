@@ -65,6 +65,8 @@ import { QuestBoxes } from "./game/questboxes";
 import { Nightlife } from "./game/nightlife";
 import { Saves } from "./game/saves";
 import { carolusInWorld } from "./world/carolusHall";
+import { prisonInWorld } from "./world/prisonHall"; // M7 prison and squares
+import { townPlacePoints } from "./world/townplaces"; // M7 prison and squares
 import { gothicInWorld } from "./world/gothicHall";
 // M7 alive (docs/milestones/M7-alive.md): the town's small life that is not people (hook)
 import { createAlive } from "./world/alive";
@@ -257,6 +259,17 @@ landmarks.attachWorld(world, inWorld);
 landmarks.roomSound = (k) => sound?.setInterior(k);
 // M7 Carolus: Sint-Carolus Borromeus stands in the world too, walked into through its main door (world/carolusHall.ts)
 const carolus = carolusInWorld(world, inWorld, { roomSound: (k) => sound?.setInterior(k), say: (t) => jobs.say(t), jef: () => player });
+// M7 prison and squares: the prison in the Begijnenstraat, walked in through its gate in visiting hours (world/prisonHall.ts)
+const prison = prisonInWorld(world, inWorld, {
+  roomSound: (k) => sound?.setInterior(k),
+  say: (t) => jobs.say(t),
+  jef: () => player,
+  talk: (id, name) => jobs.talk.open({ id, def: { name } }),
+});
+jobs.extraActions.push((x, z) => {
+  const a = prison.action(x, z);
+  return a ? { options: [[0.5, { key: "KeyE", text: a.label, run: () => a.run(), self: true }]] } : {};
+});
 // M7 Paul and James: St Paul's and St James's in the world too, walked into through their west doors (world/gothicHall.ts)
 const gothic = gothicInWorld(world, inWorld, { roomSound: (k) => sound?.setInterior(k), say: (t) => jobs.say(t), jef: () => player });
 // M7 taverns and homes: the taverns, the Poesje and the homes stand inside their own city houses; walked into
@@ -379,7 +392,7 @@ const boxes = new QuestBoxes(world, jobs.people, town);
 boxes.clock = () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF });
 jobs.boxes = boxes;
 const night = new Nightlife(world, player, jobs, town);
-night.indoors = () => interiors.inside || landmarks.indoors || carolus.indoors || gothic.indoors;
+night.indoors = () => interiors.inside || landmarks.indoors || carolus.indoors || gothic.indoors || prison.indoors;
 {
   const onPush = jobs.onPush;
   jobs.onPush = (m) => {
@@ -499,7 +512,7 @@ function start(): void {
     player.onStep = (surface, hurry) => {
       // M6: inside a room the steps are the room's, not the street's
       // M7: and in the cathedral's nave in the world (M7 halls: and in any hall in the world)
-      const indoors = interiors.inside || landmarks.indoors || carolus.indoors || gothic.indoors;
+      const indoors = interiors.inside || landmarks.indoors || carolus.indoors || gothic.indoors || prison.indoors;
       const step = () => sound?.footstep(surface, hurry, surface === "stone" && !indoors ? puddleAt(player.x, player.z, 1.1) : 0);
       if (indoors) sound?.indoors(step);
       else step();
@@ -786,6 +799,8 @@ function quayGoodsKeepClear(): void {
     ...homes.pathPoints(),
     ...landmarks.pathPoints(),
     ...carolus.pathPoints(),
+    ...prison.pathPoints(), // M7 prison and squares
+    ...townPlacePoints(),
     ...gothic.pathPoints(),
     ...ballads.pathPoints(),
     ...handcarts.pathPoints(),
@@ -821,6 +836,10 @@ function frame(): void {
   safe("interiors.update", () => interiors.update(dt));
   safe("homes.update", () => homes.update(dt));
   safe("landmarks.update", () => landmarks.update(dt));
+  safe("prison.update", () => {
+    const d = landmarks.daylight();
+    prison.update(elapsed, dt, jobs.day.dayNum, jobs.day.hourF, d.day, d.sky); // M7 prison and squares
+  });
   safe("carolus.update", () => {
     const d = landmarks.daylight();
     carolus.update(elapsed, dt, jobs.day.hourF, d.day, d.sky);
@@ -1016,6 +1035,8 @@ if (import.meta.env.DEV) {
     inWorld,
     /** M7 Carolus: the church in the world (world/carolusHall.ts). */
     carolus,
+    /** M7 prison and squares: the prison (world/prisonHall.ts). */
+    prison,
     /** M7 Paul and James: St Paul's and St James's in the world (world/gothicHall.ts). */
     gothic,
     ballads,
@@ -1146,6 +1167,8 @@ if (import.meta.env.DEV) {
       for (const q of landmarks.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M7 Carolus: inside the church, while its door stands open
       for (const q of carolus.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
+      // M7 prison and squares: inside the prison while its gate stands open; the square's and the greens' benches
+      for (const q of [...prison.pathPoints(), ...townPlacePoints()]) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M7 Paul and James: inside St Paul's and St James's, while their doors stand open
       for (const q of gothic.pathPoints()) if (!can(q.x, q.z, q.reach)) bad.push(q.label);
       // M6 ballads: the ballad singer's corners
@@ -1240,6 +1263,7 @@ if (import.meta.env.DEV) {
           const d = landmarks.daylight();
           carolus.update(elapsed, dt, jobs.day.hourF, d.day, d.sky);
           gothic.update(elapsed, dt, jobs.day.hourF, d.day, d.sky);
+          prison.update(elapsed, dt, jobs.day.dayNum, jobs.day.hourF, d.day, d.sky); // M7 prison and squares
         }
         jobs.update(dt);
         boxes.update(elapsed);
