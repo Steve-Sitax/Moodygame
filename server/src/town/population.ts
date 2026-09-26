@@ -3,7 +3,8 @@
 // workplaces, daily schedules, stats and looks, all from one seeded random
 // stream, so a seed always gives the same town.
 
-import { houseDoors, walkMap, type HouseDoor } from "./walkmap.ts";
+import { cityHouses, houseDoors, walkMap, type HouseDoor } from "./walkmap.ts";
+import { shopTableSpot } from "../../../shared/shopFront.ts";
 import {
   HAUNTS,
   HAULS,
@@ -622,11 +623,9 @@ export function generateTown(seed: number, size: TownSize = "normal"): Town {
     const hh = ++household;
     const surname = surnameFree();
     const wall: Pt = [d.x, d.z];
-    const side: Pt = [-d.out[1], d.out[0]];
-    // the table stands beside the door, the keeper behind it
-    const tx = d.x + side[0] * 1.9 + d.out[0] * 0.6;
-    const tz = d.z + side[1] * 1.9 + d.out[1] * 0.6;
-    const at = snap(tx + d.out[0] * 0.2, tz + d.out[1] * 0.2);
+    // the table stands beside the door on the house's own front, the keeper at its door end (shared/shopFront.ts)
+    const spot = shopTableSpot(cityHouses(), { wall, out: d.out });
+    const at = snap(...(spot ? spot.seller : [d.x + d.out[0] * 0.9, d.z + d.out[1] * 0.9] as Pt));
     const headSex: "m" | "f" = s.trade === "draper" && chance(0.5) ? "f" : "m";
     const headTrade: TradeId = headSex === "f" ? "shopwife" : s.trade;
     const head = add({ sex: headSex, age: int(30, 62), trade: headTrade, role: "head", surname, home, hh, work: { place: s.id, kind: "shop", shop: s.id, at: [at[0], at[1], Math.atan2(d.out[0], d.out[1])] } });

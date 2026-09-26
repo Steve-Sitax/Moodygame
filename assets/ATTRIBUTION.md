@@ -317,3 +317,30 @@ Web pages on the building were read for reference only (the heritage inventory, 
 | Leaded lights, lozenge panes of greenish glass, seamless (every window) | `client/public/textures/vleeshuis_glass.jpg` (512 px, 1.2 x 1.2 m) | "seamless tileable texture ... old leaded glass window seen from outside on a dull grey day, small diamond-shaped lozenge panes ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `377c66dc79be91bf0567d108f04888b6b3664d3dd031dc8587e7fc862346dac6` |
 | A pair of old oak doors with wrought-iron straps, nails and a wicket (the east front's doors; the shutters and dormer fronts take a piece of it) | `client/public/textures/vleeshuis_oak.jpg` (512 x 768) | "straight front view ... an old pair of heavy oak doors from a late Gothic hall ... black wrought iron strap hinges ... a small wicket door ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `f986a9b5adb14f473fcef2d6625c41a4c54adb5c4af20adb6d8e40e9c3d5ad5b` |
 | The Madonna and Child, crowned, weathered paint, a gilt glory, on a carved corbel (in her niche on the south-east turret; the painted niche round her cut away) | `client/public/textures/vleeshuis_madonna.jpg` (384 x 1024) | "straight front view, tall portrait format: a weathered painted stone statue of the crowned Virgin Mary holding the Christ child ... a gilded radiant glory ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `db86f504e1b63c7066170d64d77cc874ac783493e23b2eb4226b38ff4889cbef` |
+
+## Codex pictures: the market stalls and their goods (2026-09-26)
+
+Made for this game with Codex image generation from our own prompts (Steve's OK to use Codex here,
+`.claude/rule-overrides.md`); OpenAI's terms give the output to the user. No third-party images went in.
+Four sheets of 2 x 2 tiles were made; `tools/blender/build_stalls.py` never reads a sheet: each tile was cut
+out (a few pixels in from its edges; the awnings two stripe periods wide so they tile across) and shrunk
+to 128 px into `tools/blender/art/market/`. The build shrinks them again to 64 px (one metre of awning, or one
+cell of the `market_detail` atlas), sets them to 15-bit colour and bakes them into `client/public/models/stalls.glb`.
+No height maps: 64 px cells on small props show nothing a height map would add.
+
+| Picture | Where in repo | Prompt, in short | Made | Original PNG SHA-256 (the sheet) |
+|---|---|---|---|---|
+| Fish on ice: herring, cod, a plaice, scales | `tools/blender/art/market/fish.png` (128 px, sheet "goods", top left) | "2 by 2 grid of four ... textures ... fresh North Sea fish heaped close together ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `e41298cf556843775eb3fdf60e7b4d334fc931b7a25f040dc550a9b97afd352d` |
+| A heap of vegetables: cabbages, carrots, leeks, potatoes, onions, beets | `tools/blender/art/market/veg.png` (sheet "goods", top right) | "... a market heap of vegetables ..." | same | same sheet |
+| Cheeses: Gouda wheels, Edam balls, a cut wheel | `tools/blender/art/market/cheese.png` (sheet "goods", bottom left) | "... round Dutch cheeses stacked close ..." | same | same sheet |
+| Bread: rye and round crusty loaves, rolls | `tools/blender/art/market/bread.png` (sheet "goods", bottom right) | "... loaves of 19th-century bread close together ..." | same | same sheet |
+| Wool and linen in five colours | `tools/blender/art/market/cloth.png` (sheet "wares", top left) | "... bolts and folded lengths of plain 19th-century wool and linen ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `d4954791c73e42052962fa680805f75b74cebba0c35f092b7145c402823d25e5` |
+| Earthenware and stoneware from above | `tools/blender/art/market/pots.png` (sheet "wares", top right) | "... rustic earthenware and stoneware seen from above ..." | same | same sheet |
+| Willow wicker | `tools/blender/art/market/wicker.png` (sheet "wares", bottom left) | "... woven willow wicker of an old basket ..." | same | same sheet |
+| Jute sacking with a stain | `tools/blender/art/market/sacking.png` (sheet "wares", bottom right) | "... coarse jute sacking ..." | same | same sheet |
+| A fish crate's side: planks, nails, a painted anchor, scales | `tools/blender/art/market/crate.png` (sheet "wood", top left) | "... the long side of an old wooden fish crate ... a faded black painted anchor mark ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `9670e689b4f9171d5dac7a550ee01588c9f2837ba3e83ab6140707d641aa94f2` |
+| A fishmonger's wet table top | `tools/blender/art/market/wet_wood.png` (sheet "wood", top right) | "... a fishmonger's old wet wooden table top ..." | same | same sheet |
+| Patched stall canvas (the rough stalls) | `tools/blender/art/market/canvas_patched.png` (sheet "wood", bottom left) | "... plain heavy greyish-ochre sailcloth canvas ... sewn-on patches ..." | same | same sheet |
+| Packing straw | `tools/blender/art/market/straw.png` (sheet "wood", bottom right) | "... loose golden-brown packing straw" | same | same sheet |
+| Blue and cream awning canvas, stained | `tools/blender/art/market/awning_blue.png` (sheet "awnings", top half, left half) | "... awning canvas with vertical stripes of faded indigo blue and dirty cream ... rain streaks, brown water stains ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `71e734d90a89cb1adf7f7658018b0c41568de0a056c452f047611b1399ce8324` |
+| Red and cream awning canvas, stained | `tools/blender/art/market/awning_red.png` (sheet "awnings", bottom half, left half) | "... the same canvas with vertical stripes of faded brick red and dirty cream ..." | same | same sheet |

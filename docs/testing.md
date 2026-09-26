@@ -77,7 +77,10 @@ jumps the server's clock on and ticks once, and the stages it passes are played.
 | `pause(on = true)`, `paused()` | M7: P's pause (the card, the server's pause, the sound suspended); the pause now: its reasons, the ms paused, the card, the audio. While paused `run`, `until` and `step` do nothing. |
 | `save("slot1", name?)`, `load("slot1")`, `saves()`, `capture()` | M7: save into a slot (`slot1`..`slot5`, or `"auto"`): the game pauses while the server waits for the model calls on their way; load one (the page reloads: wait, then `free(true)` and `const t = __scheldemist.t` again); the list; the browser's part of a save as it would be written now. Test save only. |
 
-Also still there: `__scheldemist.paths()` (must be `[]` before a milestone ends), `await __scheldemist.zfight()`
+Also still there: `__scheldemist.paths()` (must be `[]` before a milestone ends), `await __scheldemist.stallcheck()`
+(every market stall, town stall, shop table and awning, cathedral stall and goods set out before a shop against the
+house walls, corners, doorways, the walk map and each other; `problems` must be 0; build the lively streets and put
+the markets up first: a market day, 10:00), `await __scheldemist.zfight()`
 (faces in one plane that flicker, by cause; the houses list 4 small ones, see M3c pass 5),
 `__scheldemist.shaders()` (the shaders and their light settings; `problems` must be empty, see rendering.md), `perf(n)`,
 `step(s)`, `shotFrom(name, from, to, fogFar)`, and each part's `info()` (`events`, `ballads`, `actions` ...).

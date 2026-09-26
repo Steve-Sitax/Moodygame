@@ -6,7 +6,8 @@ import { POCKET_SLOTS, atWork } from "../trade.ts";
 import { weather, type Weather } from "../day.ts";
 import { activityAt } from "./schedule.ts";
 import { TOWN_EMPLOYER_IDS, resident, town } from "./store.ts";
-import { houseDoors, walkMap } from "./walkmap.ts";
+import { cityHouses, houseDoors, walkMap } from "./walkmap.ts";
+import { shopTableSpot } from "../../../shared/shopFront.ts";
 import type { Resident } from "./population.ts";
 import { rowBoatHome, rowBoatStates, rowBoats, rowOn, rowState, setRowBoat } from "../rowing.ts";
 import { wantedFactor } from "../ideas/wanted.ts";
@@ -311,10 +312,10 @@ export function stealables(db: DB): Stealables {
   for (const sh of t.shops) {
     const item = FOOD_OF[sh.goods ?? ""];
     if (!item) continue;
-    const [ox, oz] = sh.out;
-    // the table beside the door (the same sum as client/src/game/stalls.ts)
-    const x = sh.wall[0] - oz * 1.9 + ox * 0.6;
-    const z = sh.wall[1] + ox * 1.9 + oz * 0.6;
+    // the table beside the door, on the shop's own house front (shared/shopFront.ts, as client/src/game/stalls.ts draws it)
+    const spot = shopTableSpot(cityHouses(), sh);
+    if (!spot) continue;
+    const [x, z] = spot.food;
     food.push({ id: `shop:${sh.id}`, keeper: sh.keeper, x: r1(x), z: r1(z), item, where: sh.label });
   }
   const out = { velos, lamps, food };

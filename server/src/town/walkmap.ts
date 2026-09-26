@@ -283,5 +283,15 @@ export function goneHouses(): Set<number> {
   return goneCache;
 }
 
+let housesCache: Array<{ fp: number[][]; gone?: boolean }> | null = null;
+
+/** The houses of shared/city_build.json (footprints): a shop's table stays on its own front (shared/shopFront.ts). */
+export function cityHouses(): Array<{ fp: number[][]; gone?: boolean }> {
+  if (housesCache) return housesCache;
+  const build = JSON.parse(fs.readFileSync(path.join(ROOT, "shared", "city_build.json"), "utf8")) as { houses: House[] };
+  housesCache = build.houses.map((h) => ({ fp: h.fp, ...(h.gone ? { gone: true } : {}) }));
+  return housesCache;
+}
+
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const round2 = (n: number) => Math.round(n * 100) / 100;

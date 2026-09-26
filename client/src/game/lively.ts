@@ -17,6 +17,9 @@ import { omnibusKeepOut } from "../world/omnibus";
 import { trafficLanes } from "../world/traffic";
 import { WELL_AT } from "../world/streetlife";
 import SPOT_TABLE from "../../../shared/spots.json";
+import BUILD from "../../../shared/city_build.json";
+import { SHOP_END_CLEAR, shopTableSpot, type FrontHouse } from "../../../shared/shopFront";
+import { addStallThing } from "./stallSpots";
 import CITY from "../../../shared/city.json";
 
 // The back streets and the cathedral quarter come alive (M6 lively, Steve 2026-09-24). Everything
@@ -42,6 +45,8 @@ import CITY from "../../../shared/city.json";
 //
 // Nothing here owns a number: who goes where and when is the engine's; prices are the trade rules'.
 
+/** The houses of the town plan: the town's shop tables stand on their own house fronts (shared/shopFront.ts). */
+const HOUSES = (BUILD as unknown as { houses: FrontHouse[] }).houses;
 const CHUNK = 64;
 const SOLID = 0;
 const DECAL = 1;
@@ -451,6 +456,7 @@ export class Lively {
       const name = `stall_${st.goods}`;
       if (!put(name, st.x, 0, st.z, st.yaw)) continue;
       this.stats_.stalls++;
+      this.recordStall("cathedral stall", `the stall ${st.id} against the cathedral`, name, st.x, st.z, st.yaw, { leanTo: true });
       // the counter, 0.5-1.0 m before the keeper: solid for Jef (a mover: the crowd's own paths go round it)
       const fx = Math.sin(st.yaw);
       const fz = Math.cos(st.yaw);
@@ -479,8 +485,13 @@ export class Lively {
       for (const side of h01(`${seed}:side`) < 0.5 ? [1, -1] : [-1, 1]) {
         const s = door + side * (1.5 + half);
         if (s - half < 0.3 || s + half > len - 0.3) continue;
-        const x = ax + tx * s;
-        const z = az + tz * s;
+        // a hand off the wall (a sill, a door's surround or a shutter stands out of it)
+        const x = ax + tx * s + ox * 0.12;
+        const z = az + tz * s + oz * 0.12;
+        // the house behind it all along (not past a corner or onto an open gateway)
+        let backed = true;
+        for (const k of [-half, 0, half]) if (open(x - ox * 0.6 + tx * k, z - oz * 0.6 + tz * k)) backed = false;
+        if (!backed) continue;
         // the street must be wide enough (4.5 m across), nothing at the door, the lanes and the job spots clear
         let wide = true;
         for (let d = 0.4; d <= 4.5; d += 0.5) if (!open(x + ox * d, z + oz * d) || !open(x + ox * d + tx * half, z + oz * d + tz * half) || !open(x + ox * d - tx * half, z + oz * d - tz * half)) wide = false;
@@ -491,6 +502,7 @@ export class Lively {
         if (r) this.world.addCollider(r);
         spilled.push([x, z]);
         this.goodsAt.push({ kind, x: +x.toFixed(1), z: +z.toFixed(1), yaw: +yaw.toFixed(2) });
+        this.recordStall("shop goods", `${kind} set out before the ${key} at ${x.toFixed(0)}, ${z.toFixed(0)}`, name, x, z, yaw, { wall: true });
         this.stats_.goods++;
         return;
       }
@@ -501,12 +513,13 @@ export class Lively {
       const keeper = town.residents.find((r) => r.id === f.keeper);
       const key = keeper?.trade === "cobbler" ? "bootmaker" : keeper?.trade === "tobacconist" ? "tobacco" : TOWN_SHOP[f.goods ?? ""];
       if (!key) return;
-      // the town's shop table stands on one side of the door (stalls.ts); the goods go on the other
-      const tx = -f.out[1];
-      const tz = f.out[0];
-      const x0 = f.wall[0] - tx * 4;
-      const z0 = f.wall[1] - tz * 4;
-      placeGoods(key, x0, z0, tx, tz, f.out[0], f.out[1], 8, 4 - 1.2, 1000 + i);
+      // the town's shop table stands on one side of the door (stalls.ts, shared/shopFront.ts); the goods go on
+      // the other, on the same house front: a front from a metre before the door to the end of the house
+      const spot = shopTableSpot(HOUSES, f);
+      const tx = spot ? -spot.side[0] : -f.out[1];
+      const tz = spot ? -spot.side[1] : f.out[0];
+      const room = spot ? spot.other - SHOP_END_CLEAR : 4 - 1.2;
+      placeGoods(key, f.wall[0] - tx * 1.0, f.wall[1] - tz * 1.0, tx, tz, f.out[0], f.out[1], 1.0 + room + 0.3, 1.0, 1000 + i);
     });
 
     // --- flower pots on the sills of some homes (the ground-floor window beside the door, and over it), and cats
@@ -2049,6 +2062,13 @@ export class Lively {
   }
 
   // ------------------------------------------------------------------ checks and the dev
+
+  /** The stall check's record (dev/stallcheck.ts): a stall or goods set out, with its model's points. */
+  private recordStall(kind: string, label: string, name: string, x: number, z: number, yaw: number, o: { wall?: boolean; leanTo?: boolean }): void {
+    const p = this.protos.get(name);
+    if (!p) return;
+    addStallThing({ kind, label, x, z, yaw, ...o, parts: p.parts.map((q) => ({ pts: q.pos, u: 0, y: 0, v: 0 })) });
+  }
 
   /** For the path check (CLAUDE.md): the stalls' counters, the Madonnas' stands, the beggars' places, every stop of a round. */
   pathPoints(): Array<{ label: string; x: number; z: number; reach: number }> {

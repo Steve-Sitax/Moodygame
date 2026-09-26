@@ -10,6 +10,7 @@ import { Batch, loadTradeModels, partsOf, type Part, type TradeModels } from "..
 import type { Crowd, Puppet } from "./crowd";
 import type { HumanKind } from "./humans";
 import { stallProtos, type Stalls } from "./stalls";
+import { addStallThing, dropStallThings } from "./stallSpots";
 import type { Town } from "./town";
 
 // Market days (M3i). Steve: "vismarkt can be way fuller when markt is going on. stalls are
@@ -37,8 +38,18 @@ import type { Town } from "./town";
 // before (server trade.ts).
 
 type P = [number, number];
-type Goods = "fish" | "veg" | "bread" | "wares" | "cloth" | "cheese" | "baskets" | "junk";
-type Kind = "stall" | "table" | "bench" | "barrow" | "cart" | "baskets";
+type Goods = "fish" | "veg" | "bread" | "wares" | "cloth" | "cheese" | "baskets" | "junk" | "pots" | "hot";
+// (stall: posts and an awning; table: a trestle table; the detailed kinds of 2026-09-26 from stalls.glb's mk2_*:
+// fishtable, vegstall with its crates in steps, pottery on sacking, a hot food brazier, clothstall with its rail)
+type Kind = "stall" | "table" | "bench" | "barrow" | "cart" | "baskets" | "fishtable" | "vegstall" | "pottery" | "brazier" | "clothstall";
+
+/** A thing's extent in its own frame: u along, v out toward the buyers. */
+interface Box4 {
+  u0: number;
+  u1: number;
+  v0: number;
+  v1: number;
+}
 
 interface Row {
   pts: P[];
@@ -61,6 +72,8 @@ interface FieldDef {
   litter: Array<[string, number, number, number]>;
   /** How many odd ones to set down between the rows. */
   scatter: number;
+  /** Rough (by the quays: patched canvas, wet tables, mud) or neat (the main square: cloths on the tables). */
+  rough: boolean;
   seed: number;
 }
 
@@ -82,8 +95,9 @@ const FIELDS: FieldDef[] = [
       { pts: [[-90.6, 24.5], [-91.1, 31], [-90.5, 37.8]], face: [-1, 0] },
     ],
     mix: [
-      [0.34, "stall", "fish"], [0.15, "bench", "fish"], [0.1, "table", "fish"], [0.14, "baskets", "fish"], [0.07, "barrow", "fish"],
-      [0.06, "stall", "veg"], [0.03, "table", "bread"], [0.05, "baskets", "veg"], [0.04, "cart", "veg"],
+      [0.26, "fishtable", "fish"], [0.16, "stall", "fish"], [0.1, "bench", "fish"], [0.05, "table", "fish"], [0.1, "baskets", "fish"], [0.06, "barrow", "fish"],
+      [0.06, "vegstall", "veg"], [0.03, "stall", "veg"], [0.03, "table", "bread"], [0.05, "baskets", "veg"], [0.03, "cart", "veg"],
+      [0.04, "brazier", "hot"], [0.03, "pottery", "pots"],
     ],
     keep: [
       [-140.5, -112, 20.9, 23.5], // the haulers from the vliet to the fish banks
@@ -100,6 +114,7 @@ const FIELDS: FieldDef[] = [
     ],
     scatter: 16,
     seed: 71,
+    rough: true,
   },
   {
     place: "grote_markt",
@@ -116,8 +131,9 @@ const FIELDS: FieldDef[] = [
       { pts: [[-251.5, 120.4], [-246.5, 121.8], [-242.2, 120.6]], face: [0, -1] },
     ],
     mix: [
-      [0.2, "stall", "veg"], [0.12, "stall", "cheese"], [0.1, "stall", "junk"], [0.08, "stall", "baskets"], [0.07, "stall", "cloth"], [0.08, "table", "veg"],
-      [0.06, "table", "cheese"], [0.06, "table", "junk"], [0.08, "baskets", "veg"], [0.06, "barrow", "veg"], [0.05, "cart", "veg"], [0.04, "stall", "bread"],
+      [0.14, "vegstall", "veg"], [0.09, "stall", "veg"], [0.09, "stall", "cheese"], [0.08, "table", "cheese"], [0.06, "stall", "junk"], [0.06, "table", "junk"],
+      [0.05, "stall", "baskets"], [0.08, "clothstall", "cloth"], [0.04, "stall", "cloth"], [0.06, "pottery", "pots"], [0.05, "table", "veg"],
+      [0.07, "baskets", "veg"], [0.05, "barrow", "veg"], [0.04, "cart", "veg"], [0.04, "table", "bread"], [0.03, "stall", "bread"], [0.04, "brazier", "hot"],
     ],
     keep: [
       [-256.8, -250.2, 92, 112], // the cart ruts across the square (world/ruts.ts)
@@ -131,6 +147,7 @@ const FIELDS: FieldDef[] = [
     ],
     scatter: 10,
     seed: 94,
+    rough: false,
   },
 ];
 
@@ -144,11 +161,14 @@ const SELLERS: Record<Goods, HumanKind[]> = {
   cheese: ["wife_a", "shopkeeper", "shopwife"],
   baskets: ["old_man", "old_woman"],
   junk: ["old_man", "shopkeeper", "beggar"],
+  pots: ["old_woman", "wife_b", "old_man"],
+  hot: ["old_man", "wife_a", "old_woman"],
 };
 const SHOPPERS: HumanKind[] = ["maid", "wife_a", "wife_b", "old_woman", "maid", "fishwife_b", "gentleman", "docker_b", "sailor_b", "clerk", "wife_a", "girl_b"];
 /** What a buyer walks off with. */
 const BOUGHT: Record<Goods, "fish" | "parcel" | "sack" | "basket"> = {
   fish: "fish", veg: "sack", bread: "parcel", wares: "parcel", cloth: "parcel", cheese: "parcel", baskets: "basket", junk: "parcel",
+  pots: "parcel", hot: "parcel",
 };
 
 const MAX_SELLERS = 8;
@@ -188,11 +208,55 @@ interface Item {
   front: { x: number; z: number; yaw: number };
   sellerKind: HumanKind;
   sits: boolean;
+  /** What was put down for it, in its own frame: drawn into the market's batch, and read by the stall check (dev/stallcheck.ts). */
+  puts: Put[];
+  /** Where the seller stands (or sits) and where a buyer stands, in its own frame (u along, v out). */
+  sellerAt: P;
+  frontAt: P;
   /** Its place in the order stalls go up. */
   rank: number;
   /** The seller's body when Jef is near. */
   p: Puppet | null;
   talkT: number;
+}
+
+/** One model put down for an item, in the item's frame. */
+interface Put {
+  parts: Part[];
+  u: number;
+  y: number;
+  v: number;
+  dyaw: number;
+  sc: [number, number, number];
+  tint?: [number, number, number];
+  swap?: (m: THREE.Material) => THREE.Material;
+  /** Stands in the way (not: a stool someone sits on, mud on the stones). */
+  solid: boolean;
+}
+
+/** The extent of an item's solid things below `below` m, in its own frame (the mud and the stool left out). */
+function extentOf(puts: Put[], below: number, uMin = -Infinity, uMax = Infinity): Box4 {
+  const b: Box4 = { u0: Infinity, u1: -Infinity, v0: Infinity, v1: -Infinity };
+  for (const q of puts) {
+    if (!q.solid) continue;
+    const pts = partPts(q.parts);
+    const c = Math.cos(q.dyaw);
+    const s = Math.sin(q.dyaw);
+    for (let i = 0; i + 2 < pts.length; i += 3) {
+      if (q.y + pts[i + 1] * q.sc[1] > below) continue;
+      const lx = pts[i] * q.sc[0];
+      const lz = pts[i + 2] * q.sc[2];
+      const u = q.u + lx * c + lz * s;
+      const v = q.v - lx * s + lz * c;
+      if (u < uMin || u > uMax) continue;
+      b.u0 = Math.min(b.u0, u);
+      b.u1 = Math.max(b.u1, u);
+      b.v0 = Math.min(b.v0, v);
+      b.v1 = Math.max(b.v1, v);
+    }
+  }
+  if (!Number.isFinite(b.u0)) return { u0: -0.5, u1: 0.5, v0: -0.4, v1: 0.4 };
+  return b;
 }
 
 /** Something a browser can walk up to. */
@@ -238,6 +302,25 @@ export interface MarketWorld {
   isFree(x: number, z: number, r: number): boolean;
   solids(): Rect[];
   city: { flags(x: number, z: number): number | undefined };
+}
+
+/** The points of a model's parts, in one array (extents, the stall check), once per model. */
+const partPtsCache = new WeakMap<Part[], Float32Array>();
+function partPts(parts: Part[]): Float32Array {
+  let p = partPtsCache.get(parts);
+  if (p) return p;
+  // (not the mud on the stones: a flat decal stands in nobody's way)
+  const solid = parts.filter((q) => q.mat.name !== "market_mud");
+  let n = 0;
+  for (const q of solid) n += q.pos.length;
+  p = new Float32Array(n);
+  let o = 0;
+  for (const q of solid) {
+    p.set(q.pos, o);
+    o += q.pos.length;
+  }
+  partPtsCache.set(parts, p);
+  return p;
 }
 
 // ------------------------------------------------------------------ keep-outs
@@ -318,7 +401,7 @@ export class Market {
     const solids = this.world.solids();
     const keep: Rect[] = def.keep.map(([a, b, c, d]) => ({ minX: a, maxX: b, minZ: c, maxZ: d }));
     const inRect = (r: Rect, x: number, z: number, pad = 0) => x > r.minX - pad && x < r.maxX + pad && z > r.minZ - pad && z < r.maxZ + pad;
-    const placed: Array<{ x: number; z: number; c: number; s: number; hl: number; hd: number }> = [];
+    const placed: Array<{ x: number; z: number; c: number; s: number } & Box4> = [];
 
     /** Is a box (centre, yaw, half extents, with a margin behind and before) free? */
     const why: Record<string, number> = {};
@@ -326,15 +409,17 @@ export class Market {
       why[k] = (why[k] ?? 0) + 1;
       return false;
     };
-    const fits = (x: number, z: number, yaw: number, hl: number, back: number, front: number): boolean => {
+    /** Is a thing (its extent b in its own frame) free here, with room behind it (the seller) and before it (the buyers)? */
+    const fits = (x: number, z: number, yaw: number, b: Box4, back: number, front: number): boolean => {
       const c = Math.cos(yaw);
       const s = Math.sin(yaw);
-      for (let u = -hl; u <= hl + 1e-6; u += Math.max(0.3, hl / 4)) {
-        for (let v = -back; v <= front + 1e-6; v += 0.35) {
+      const du = Math.max(0.2, (b.u1 - b.u0) / 10);
+      for (let u = b.u0; u <= b.u1 + 1e-6; u += du) {
+        for (let v = b.v0 - back; v <= b.v1 + front + 1e-6; v += 0.3) {
           const px = x + u * c + v * s;
           const pz = z - u * s + v * c;
           // the body and the seller's room must be on the square; the customers may stand on its edge
-          const body = v < front - 1.0;
+          const body = v < b.v1 + 0.2;
           if (body && !def.bounds.some((b) => inRect(b, px, pz))) return no("bounds");
           if (this.world.city.flags(px, pz) !== 0) return no("walk map");
           for (const r of lanes) if (inRect(r, px, pz, 0.2)) return no("omnibus");
@@ -348,7 +433,7 @@ export class Market {
             const dz = pz - q.z;
             const lu = dx * q.c - dz * q.s;
             const lv = dx * q.s + dz * q.c;
-            if (Math.abs(lu) < q.hl + 0.15 && lv > -q.hd - 0.15 && lv < q.hd + 0.15) return no("another stall");
+            if (lu > q.u0 - 0.15 && lu < q.u1 + 0.15 && lv > q.v0 - 0.15 && lv < q.v1 + 0.15) return no("another stall");
           }
         }
       }
@@ -364,8 +449,23 @@ export class Market {
       for (const [w, k, g] of def.mix) if ((r -= w) <= 0) return [k, g];
       return [def.mix[0][1], def.mix[0][2]];
     };
-    const LEN: Record<Kind, [number, number]> = { stall: [2.2, 3.1], table: [1.6, 1.6], bench: [2.2, 2.2], barrow: [2.1, 2.1], cart: [2.8, 2.8], baskets: [1.5, 2.1] };
-    const DEPTH: Record<Kind, number> = { stall: 0.72, table: 0.4, bench: 0.42, barrow: 0.42, cart: 0.7, baskets: 0.45 };
+    const LEN: Record<Kind, [number, number]> = {
+      stall: [2.2, 3.1], table: [1.6, 1.6], bench: [2.2, 2.2], barrow: [2.1, 2.1], cart: [2.8, 2.8], baskets: [1.5, 2.1],
+      fishtable: [2.2, 2.2], vegstall: [2.4, 2.4], pottery: [1.9, 1.9], brazier: [1.6, 1.6], clothstall: [2.2, 2.2],
+    };
+    const DEPTH: Record<Kind, number> = {
+      stall: 0.72, table: 0.4, bench: 0.42, barrow: 0.42, cart: 0.7, baskets: 0.45, fishtable: 0.5, vegstall: 0.5, pottery: 0.6, brazier: 0.45, clothstall: 0.42,
+    };
+    // striped red, striped blue, patched canvas or sackcloth, each in many shades (more canvas by the quay)
+    const awnings = (def.rough ? ["awning_red", "awning_blue", "canvas_patched", "canvas_patched", "sackcloth"] : ["awning_red", "awning_blue", "awning_red", "awning_blue", "canvas_patched"])
+      .map((n) => mats.get(n))
+      .filter((m): m is THREE.Material => !!m);
+    /** Make and dress an item (in its own frame); its extent: all that stands, and the low part (the colliders). */
+    const make = (kind: Kind, goods: Goods, len: number) => {
+      const it = this.makeItem(kind, goods, len / 2, DEPTH[kind], R);
+      this.dress(it, stallParts, trades, awnings, R, def.rough);
+      return { it, all: extentOf(it.puts, 99), low: extentOf(it.puts, 1.3) };
+    };
     for (const row of def.rows) {
       // the row as a smooth line (Catmull-Rom through its points), by arc length
       const line: P[] = [];
@@ -401,8 +501,11 @@ export class Market {
         const [kind, goods] = pickMix();
         const [l0, l1] = LEN[kind];
         const len = l0 + R() * (l1 - l0);
-        if (s + len > total + 0.3) break;
-        const c = at(s + len / 2);
+        const made = make(kind, goods, len);
+        // its real length along the row (the goods, the crates at its ends), from the middle out
+        const half = Math.max(-made.all.u0, made.all.u1);
+        if (s + 2 * half > total + 0.3) break;
+        const c = at(s + half);
         // the customers' side: the row's normal that points along `face`
         let nx = -c.tz;
         let nz = c.tx;
@@ -413,18 +516,18 @@ export class Market {
         const x = c.x + nx * J(0.45) + c.tx * J(0.2);
         const z = c.z + nz * J(0.45) + c.tz * J(0.2);
         const yaw = Math.atan2(nx, nz) + J(0.22);
-        const hd = DEPTH[kind];
         tried++;
-        if (!fits(x, z, yaw, len / 2, hd + 1.3, hd + 1.35)) {
+        if (!fits(x, z, yaw, made.all, 0.9, 1.25)) {
           s += 0.7;
           continue;
         }
-        const it = this.makeItem(kind, goods, x, z, yaw, len / 2, hd, R);
+        const it = made.it;
+        this.placeItem(it, x, z, yaw, made.low);
         items.push(it);
-        placed.push({ x, z, c: Math.cos(yaw), s: Math.sin(yaw), hl: len / 2, hd: hd + 1.25 });
+        placed.push({ x, z, c: Math.cos(yaw), s: Math.sin(yaw), u0: made.all.u0, u1: made.all.u1, v0: made.all.v0 - 0.85, v1: made.all.v1 + 1.1 });
         byKind[`${kind} ${goods}`] = (byKind[`${kind} ${goods}`] ?? 0) + 1;
         // now and then a passage between stalls, else a narrow gap
-        s += len + (R() < 0.1 ? 1.8 + R() * 0.8 : 0.2 + R() * 0.45);
+        s += 2 * half + (R() < 0.1 ? 1.8 + R() * 0.8 : 0.2 + R() * 0.45);
       }
     }
     // then the odd ones in between: a woman with her baskets on the stones, a barrow, set down
@@ -437,11 +540,12 @@ export class Market {
       const kind: Kind = R() < 0.7 ? "baskets" : "barrow";
       const goods: Goods = def.place === "vismarkt" ? (R() < 0.75 ? "fish" : "veg") : "veg";
       const len = kind === "baskets" ? 1.5 : 2.1;
-      const hd = DEPTH[kind];
+      const made = make(kind, goods, len);
       tried++;
-      if (!fits(x, z, yaw, len / 2, hd + 1.0, hd + 1.2)) continue;
-      items.push(this.makeItem(kind, goods, x, z, yaw, len / 2, hd, R));
-      placed.push({ x, z, c: Math.cos(yaw), s: Math.sin(yaw), hl: len / 2, hd: hd + 1.0 });
+      if (!fits(x, z, yaw, made.all, 0.8, 1.2)) continue;
+      this.placeItem(made.it, x, z, yaw, made.low);
+      items.push(made.it);
+      placed.push({ x, z, c: Math.cos(yaw), s: Math.sin(yaw), u0: made.all.u0, u1: made.all.u1, v0: made.all.v0 - 0.8, v1: made.all.v1 + 1.0 });
       byKind[`${kind} ${goods} (scattered)`] = (byKind[`${kind} ${goods} (scattered)`] ?? 0) + 1;
       if (Object.entries(byKind).filter(([k2]) => k2.endsWith("(scattered)")).reduce((a, [, n]) => a + n, 0) >= def.scatter) break;
     }
@@ -455,13 +559,20 @@ export class Market {
     group.name = `market_${def.place}`;
     this.world.scene.add(group);
     const batch = new Batch();
-    // striped red, striped blue, or plain canvas (sackcloth), each in many shades
-    const awnings = ["awning_red", "awning_blue", "awning_red", "awning_blue", "sackcloth"].map((n) => mats.get(n)).filter((m): m is THREE.Material => !!m);
     for (const it of items) {
-      this.dress(batch, it, stallParts, trades, awnings, R);
+      const c = Math.cos(it.yaw);
+      const sn = Math.sin(it.yaw);
+      for (const q of it.puts) batch.put(q.parts, it.x + q.u * c + q.v * sn, q.y, it.z - q.u * sn + q.v * c, it.yaw + q.dyaw, q.sc, q.tint, q.swap);
       batch.next();
     }
     batch.build(group, def.place);
+    dropStallThings((k) => k === `market ${def.place}`);
+    items.forEach((it, k) =>
+      addStallThing({
+        kind: `market ${def.place}`, label: `${def.place} ${it.kind} ${k} (${it.goods})`, x: it.x, z: it.z, yaw: it.yaw, front: 1.2,
+        parts: it.puts.filter((q) => q.solid).map((q) => ({ pts: partPts(q.parts), u: q.u, y: q.y, v: q.v, yaw: q.dyaw, s: q.sc })),
+      }),
+    );
     const litter = new Batch();
     for (const [name, x, z, yaw] of def.litter) litter.put(trades.parts.get(name), x, 0, z, yaw);
     litter.build(group, `${def.place}_litter`);
@@ -470,87 +581,175 @@ export class Market {
     return { def, items, batch, litter, group, lo: 0, hi: 0, colliders: new Set(), shoppers: [], on: false };
   }
 
-  private makeItem(kind: Kind, goods: Goods, x: number, z: number, yaw: number, hl: number, hd: number, R: () => number): Item {
-    const c = Math.cos(yaw);
-    const s = Math.sin(yaw);
-    const w = (u: number, v: number): P => [x + u * c + v * s, z - u * s + v * c];
-    const box = (u0: number, u1: number, v0: number, v1: number, top: number): Rect => {
-      const ps = [w(u0, v0), w(u1, v0), w(u0, v1), w(u1, v1)];
-      return { minX: Math.min(...ps.map((p) => p[0])), maxX: Math.max(...ps.map((p) => p[0])), minZ: Math.min(...ps.map((p) => p[1])), maxZ: Math.max(...ps.map((p) => p[1])), top };
-    };
+  private makeItem(kind: Kind, goods: Goods, hl: number, hd: number, R: () => number): Item {
     const kinds = SELLERS[goods];
     const sellerKind = kinds[Math.floor(R() * kinds.length)];
-    const sits = sellerKind === "old_man";
-    const back = hd + 0.5;
-    const [sx, sz] = w(R() * 0.6 - 0.3, -back);
-    const [fx, fz] = w(R() * 0.8 - 0.4, hd + 0.75);
-    const rects: Rect[] = [];
-    // a stall table's frame, split in two along its length (an AABB of a turned box is fat)
-    const top = kind === "baskets" ? 0.5 : kind === "barrow" ? 0.7 : 1.1;
-    rects.push(box(-hl, 0, -hd, hd, top), box(0, hl, -hd, hd, top));
+    // an old man sits on his stool; so does the potter by her spread on the stones
+    const sits = sellerKind === "old_man" || kind === "pottery";
+    const su = R() * 0.6 - 0.3;
+    const fu = R() * 0.8 - 0.4;
     return {
-      kind, goods, x, z, yaw, hl, hd, rects, sellerKind, sits, rank: 0, p: null, talkT: R() * 5,
-      seller: { x: sx, z: sz, yaw },
-      front: { x: fx, z: fz, yaw: yaw + Math.PI },
+      kind, goods, x: 0, z: 0, yaw: 0, hl, hd, rects: [], sellerKind, sits, rank: 0, p: null, talkT: R() * 5, puts: [],
+      sellerAt: [su, -(hd + 0.5)],
+      frontAt: [fu, hd + 0.75],
+      seller: { x: 0, z: 0, yaw: 0 },
+      front: { x: 0, z: 0, yaw: 0 },
     };
   }
 
-  /** Put an item's models into the batch: the stall, its goods, crates, a stool, a gull. */
-  private dress(b: Batch, it: Item, sp: Map<string, Part[]>, tr: TradeModels, awnings: THREE.Material[], R: () => number): void {
-    const c = Math.cos(it.yaw);
-    const s = Math.sin(it.yaw);
-    const at = (u: number, v: number): P => [it.x + u * c + v * s, it.z - u * s + v * c];
-    const put = (parts: Part[] | undefined, u: number, y: number, v: number, dyaw = 0, sc: [number, number, number] = [1, 1, 1], tint?: [number, number, number], swap?: (m: THREE.Material) => THREE.Material) => {
-      const [x, z] = at(u, v);
-      b.put(parts, x, y, z, it.yaw + dyaw, sc, tint, swap);
+  /** Set an item down: where it stands, its seller's and buyer's places, its colliders (each half of it by its own depth). */
+  private placeItem(it: Item, x: number, z: number, yaw: number, low: Box4): void {
+    it.x = x;
+    it.z = z;
+    it.yaw = yaw;
+    const c = Math.cos(yaw);
+    const s = Math.sin(yaw);
+    const w = (u: number, v: number): P => [x + u * c + v * s, z - u * s + v * c];
+    const box = (b: Box4, top: number): Rect => {
+      const ps = [w(b.u0, b.v0), w(b.u1, b.v0), w(b.u0, b.v1), w(b.u1, b.v1)];
+      return { minX: Math.min(...ps.map((p) => p[0])), maxX: Math.max(...ps.map((p) => p[0])), minZ: Math.min(...ps.map((p) => p[1])), maxZ: Math.max(...ps.map((p) => p[1])), top };
+    };
+    const top = it.kind === "baskets" || it.kind === "pottery" ? 0.5 : it.kind === "barrow" ? 0.7 : 1.1;
+    const mid = (low.u0 + low.u1) / 2;
+    // (an AABB of a turned box is fat: two halves, each only as deep as what stands in it)
+    it.rects = [extentOf(it.puts, 1.3, low.u0, mid), extentOf(it.puts, 1.3, mid, low.u1)].map((b) => box(b, top));
+    // the buyer stands before the goods, the seller behind the table (or where the dressing put her)
+    it.frontAt = [it.frontAt[0], low.v1 + 0.6];
+    const [sx, sz] = w(it.sellerAt[0], it.sellerAt[1]);
+    const [fx, fz] = w(it.frontAt[0], it.frontAt[1]);
+    it.seller = { x: sx, z: sz, yaw };
+    it.front = { x: fx, z: fz, yaw: yaw + Math.PI };
+  }
+
+  /**
+   * Dress an item in its own frame (recorded in it.puts): the stall or table, its goods with volume,
+   * what lies under and behind it, a stool, a gull; mud on the stones in the rough markets.
+   */
+  private dress(it: Item, sp: Map<string, Part[]>, tr: TradeModels, awnings: THREE.Material[], R: () => number, rough: boolean): void {
+    const put = (parts: Part[] | undefined, u: number, y: number, v: number, dyaw = 0, sc: [number, number, number] = [1, 1, 1], tint?: [number, number, number], swap?: (m: THREE.Material) => THREE.Material, solid = true) => {
+      if (parts) it.puts.push({ parts, u, y, v, dyaw, sc, tint, swap, solid });
     };
     const T = tr.parts;
+    const S = (n: string) => sp.get(n);
     const shade = 0.82 + R() * 0.3;
     const tint: [number, number, number] = [shade * (0.92 + R() * 0.16), shade * (0.92 + R() * 0.16), shade * (0.92 + R() * 0.16)];
-    const goodsOn = (y: number, v: number, sx: number) => {
-      if (it.goods === "cheese" || it.goods === "baskets" || it.goods === "junk") put(T.get(`mk_goods_${it.goods}`), 0, y, v, 0, [Math.min(1.2, sx), 1, 1]);
+    const mudUnder = (big: boolean, chance: number) => {
+      if (rough && R() < chance) put(S(big ? "mk2_mud" : "mk2_mud_small"), (R() - 0.5) * 0.4, 0, (R() - 0.5) * 0.3, (R() - 0.5) * 0.6, [1, 1, 1], undefined, undefined, false);
     };
+    let ownBack = false; // the kind brings its own crates and baskets behind
+    const hl = it.hl;
+    const hd = it.hd;
     switch (it.kind) {
       case "stall": {
-        const sx = (it.hl * 2) / 2.8;
+        const sx = (hl * 2) / 2.8;
         const sy = 0.93 + R() * 0.14;
-        put(sp.get("stall_frame"), 0, 0, 0, 0, [sx, sy, 1]);
+        put(S("stall_frame"), 0, 0, 0, 0, [sx, sy, 1]);
         const aw = awnings[Math.floor(R() * awnings.length)];
         const tw: [number, number, number] = [0.75 + R() * 0.4, 0.75 + R() * 0.35, 0.75 + R() * 0.4];
-        put(sp.get("stall_awning"), 0, 0, 0, 0, [sx, sy, 1], tw, (m) => (m.name === "awning_red" && aw ? aw : m));
-        const g = it.goods === "cheese" || it.goods === "baskets" || it.goods === "junk" ? null : sp.get(`stall_goods_${it.goods}`);
-        if (g) put(g, 0, 0, 0, 0, [sx, sy, 1]);
-        else goodsOn(0.85 * sy, 0, sx);
+        put(S("stall_awning"), 0, 0, 0, 0, [sx, sy, 1], tw, (m) => (m.name === "awning_red" && aw ? aw : m));
+        const top = 0.85 * sy;
+        // a linen cloth over the table on the neat square (not under fish)
+        if (!rough && it.goods !== "fish") put(S("stall_cloth"), 0, 0, 0, 0, [sx, sy, 1]);
+        switch (it.goods) {
+          case "cheese":
+          case "junk":
+            put(S(`mk2_goods_${it.goods}`), 0, top - 0.785, 0, 0, [Math.min(1.25, sx), 1, 1]);
+            break;
+          case "baskets":
+            put(T.get("mk_goods_baskets"), 0, top, 0, 0, [Math.min(1.2, sx), 1, 1]);
+            break;
+          default:
+            put(S(`stall_goods_${it.goods}`), 0, 0, 0, 0, [sx, sy, 1]);
+            put(S(`stall_more_${it.goods}`), 0, 0, 0, 0, [sx, sy, 1]);
+        }
+        if (it.goods !== "fish") put(S("mk2_under"), (R() - 0.5) * 0.4, 0, 0.05, (R() - 0.5) * 0.3);
+        mudUnder(true, 0.55);
         break;
       }
       case "table": {
-        put(sp.get("shop_table"), 0, 0, -0.6, 0, [1, 0.95 + R() * 0.1, 1], tint);
-        const g = it.goods === "cheese" || it.goods === "baskets" || it.goods === "junk" || it.goods === "cloth" ? null : sp.get(`shop_goods_${it.goods}`);
-        if (g) put(g, 0, 0, -0.6);
-        else goodsOn(0.8, 0, 1);
+        const neat = !rough || it.goods === "bread";
+        if (neat && it.goods !== "fish") {
+          put(S("mk2_trestle_cloth"), 0, 0, 0, 0, [1, 1, 1], tint);
+          if (it.goods === "cheese" || it.goods === "bread" || it.goods === "junk") put(S(`mk2_goods_${it.goods}`), 0, 0, 0);
+          else if (it.goods === "veg") {
+            put(S("shop_goods_veg"), 0, -0.02, -0.6);
+            put(S("shop_more_veg"), 0, -0.02, -0.6);
+          } else put(T.get(`mk_goods_${it.goods}`), 0, 0.78, 0);
+        } else {
+          put(S("shop_table"), 0, 0, -0.6, 0, [1, 0.95 + R() * 0.1, 1], tint);
+          const g = it.goods === "cloth" ? "wares" : it.goods;
+          if (S(`shop_goods_${g}`)) {
+            put(S(`shop_goods_${g}`), 0, 0, -0.6);
+            put(S(`shop_more_${g}`), 0, 0, -0.6);
+          } else put(T.get(`mk_goods_${it.goods}`), 0, 0.8, 0);
+        }
+        mudUnder(false, 0.6);
         break;
       }
+      case "fishtable":
+        put(S("mk2_fish_table"), 0, 0, 0, 0, [1, 1, 1], tint);
+        put(S("mk2_fish_crates"), 0.3, 0, -0.98, (R() - 0.5) * 0.2);
+        it.sellerAt = [-0.45 + (R() - 0.5) * 0.3, -0.95];
+        ownBack = true;
+        break;
+      case "vegstall":
+        put(S("mk2_veg_stall"), 0, 0, 0, 0, [1, 1, 1], tint);
+        it.sellerAt = [(R() - 0.5) * 0.6, -0.95];
+        ownBack = true;
+        break;
+      case "pottery":
+        put(S("mk2_pottery"), 0, 0, 0, (R() - 0.5) * 0.1);
+        it.sellerAt = [-0.45, -1.05];
+        ownBack = true;
+        mudUnder(false, 0.4);
+        break;
+      case "brazier":
+        put(S("mk2_brazier"), 0, 0, 0);
+        it.sellerAt = [0.05, -0.68];
+        ownBack = true;
+        break;
+      case "clothstall":
+        put(S("mk2_trestle_cloth"), 0, 0, 0, 0, [1, 1, 1], tint);
+        put(S("mk2_cloth_stall"), 0, 0, 0);
+        it.sellerAt = [(R() - 0.5) * 0.5, -0.95];
+        break;
       case "bench":
         put(T.get("mk_bench"), 0, 0, 0);
+        mudUnder(false, 0.7);
         break;
       case "barrow":
         put(T.get(it.goods === "fish" ? "mk_barrow_fish" : "mk_barrow_veg"), 0, 0, 0, Math.PI / 2 + (R() - 0.5) * 0.3);
+        mudUnder(false, 0.5);
         break;
       case "cart":
         put(T.get("mk_cart"), -0.4, 0, 0, Math.PI / 2 + (R() - 0.5) * 0.2);
+        mudUnder(true, 0.5);
         break;
       case "baskets": {
-        const n = it.hl > 0.9 ? 2 : 1;
-        for (let i = 0; i < n; i++) put(T.get(it.goods === "fish" ? "mk_basket_fish" : "mk_basket_veg"), (i - (n - 1) / 2) * 0.95 - 0.2, 0, 0.05, R() * 6);
+        if (it.goods === "veg" && R() < 0.5) {
+          put(S("mk2_ground_baskets"), 0, 0, 0, (R() - 0.5) * 0.3);
+          ownBack = true;
+        } else {
+          const n = hl > 0.9 ? 2 : 1;
+          for (let i = 0; i < n; i++) put(T.get(it.goods === "fish" ? "mk_basket_fish" : "mk_basket_veg"), (i - (n - 1) / 2) * 0.95 - 0.2, 0, 0.05, R() * 6);
+        }
+        mudUnder(false, 0.5);
         break;
       }
     }
-    // behind: crates stacked (fish boxes on the fish market), the seller's stool; now and then a gull
-    if (it.kind !== "barrow" && R() < 0.75) put(T.get(it.goods === "fish" ? "mk_crates" : R() < 0.5 ? "mk_crates" : "mk_basket_tall"), (R() < 0.5 ? -1 : 1) * (it.hl - 0.35), 0, -it.hd - 0.7, (R() - 0.5) * 0.6);
-    if (it.sits) put(T.get("mk_stool"), 0, 0, -it.hd - 0.5);
-    if (it.goods === "fish" && it.kind !== "baskets" && R() < 0.2) put(T.get("mk_gull"), (R() - 0.5) * it.hl, it.kind === "stall" ? 0.86 : it.kind === "bench" ? 0.8 : 0.62, 0.1, R() * 6);
-    if (it.goods === "fish" && R() < 0.35) put(T.get("mk_fishbox"), (R() < 0.5 ? -1 : 1) * (it.hl + 0.1), 0, it.hd + 0.2, (R() - 0.5) * 0.8);
-    if (it.goods === "veg" && R() < 0.3) put(T.get("mk_leaves"), 0, 0, it.hd + 0.8, R() * 6);
+    // behind: crates stacked (fish boxes on the fish market), within the item's own length
+    if (!ownBack && it.kind !== "barrow" && R() < 0.75) put(T.get(it.goods === "fish" ? "mk_crates" : R() < 0.5 ? "mk_crates" : "mk_basket_tall"), (R() < 0.5 ? -1 : 1) * (hl - 0.4), 0, -hd - 0.7, (R() - 0.5) * 0.6);
+    // the seller's stool, clear of what stands behind the table
+    if (it.sits) {
+      const e = extentOf(it.puts, 1.3, it.sellerAt[0] - 0.3, it.sellerAt[0] + 0.3);
+      it.sellerAt = [it.sellerAt[0], Math.min(it.sellerAt[1], e.v0 - 0.3)];
+      put(S("mk2_stool") ?? T.get("mk_stool"), it.sellerAt[0], 0, it.sellerAt[1], R() * 6, [1, 1, 1], undefined, undefined, false);
+    }
+    if (it.goods === "fish" && (it.kind === "stall" || it.kind === "bench" || it.kind === "fishtable") && R() < 0.2) {
+      put(T.get("mk_gull"), (R() - 0.5) * hl, it.kind === "bench" ? 0.8 : 0.86, 0.1, R() * 6, [1, 1, 1], undefined, undefined, false);
+    }
+    if (it.goods === "fish" && it.kind !== "fishtable" && R() < 0.35) put(T.get("mk_fishbox"), (R() < 0.5 ? -1 : 1) * (hl - 0.3), 0, hd + 0.2, (R() - 0.5) * 0.8);
+    if (it.goods === "veg" && it.kind !== "vegstall" && R() < 0.3) put(T.get("mk_leaves"), 0, 0, hd + 0.8, R() * 6, [1, 1, 1], undefined, undefined, false);
   }
 
   // ---------------------------------------------------------------- every frame

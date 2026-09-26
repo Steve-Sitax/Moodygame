@@ -1110,6 +1110,11 @@ if (import.meta.env.DEV) {
       const p = world.posters();
       return sl && p ? (await import("./dev/postercheck")).checkPosters(world.city.group, world.city.flags, sl, p, undefined, world.scene) : "the bills are not up yet";
     },
+    /** Stalls (hook, dev/stallcheck.ts): every stall, shop table, awning and goods pile against the house walls, doors and the walk map (should list nothing). */
+    stallcheck: async (only?: string) => {
+      const m = await import("./dev/stallcheck");
+      return m.checkStalls(world, m.allDoors(town.data), { only });
+    },
     /** Z-fight check (dev/zfight.ts): faces of the static world in one plane that overlap, and layers too close to their surface, by cause (M3c pass 5). */
     zfight: async (opts = {}) => (await import("./dev/zfight")).checkZFight(world.scene, world.city.flags, opts),
     /** M7 halls: the checks of the halls in the world (dev/hallcheck.ts): pictures, the walk through a door (pops), holes in a hall. */

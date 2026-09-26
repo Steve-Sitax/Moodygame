@@ -53,14 +53,15 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_props as bp  # noqa: E402  (mesh helpers, painters, the prop materials)
 from build_props import Mesh, col, move, rot_z, speckle, vnoise  # noqa: E402
 from build_props import DARK, IRON, ROPE, SACK, WOOD  # noqa: E402
+from build_props import BARREL, GLASS, LEATHER  # noqa: E402
 
 ROOT = bp.ROOT
 OUT = os.path.join(ROOT, "client", "public", "models", "stalls.glb")
 SHOT = os.path.join(ROOT, "data", "shots", "stalls_preview.png")
 
-EXTRA = ["awning_red", "awning_blue", "tarpaulin", "market_goods", "stall_sign"]
+EXTRA = ["awning_red", "awning_blue", "tarpaulin", "market_goods", "stall_sign", "market_detail", "canvas_patched", "market_mud"]
 MATS = bp.MATS + EXTRA
-RED, BLUE, TARP, GOODS, SIGN = range(len(bp.MATS), len(MATS))
+RED, BLUE, TARP, GOODS, SIGN, DETAIL, CANVAS, MUD = range(len(bp.MATS), len(MATS))
 
 # ------------------------------------------------------------------ dimensions (Blender: front = -Y)
 
@@ -391,16 +392,20 @@ def paint_goods(seed):
 def make_materials():
     bp.make_materials()
     paint = {
-        "awning_red": lambda: paint_awning(201, (0.55, 0.19, 0.14)),
-        "awning_blue": lambda: paint_awning(202, (0.2, 0.28, 0.44)),
+        # the awnings: the Codex canvas pictures when they are there (tools/blender/art/market), else painted
+        "awning_red": lambda: art("awning_red", S) if art("awning_red", S) is not None else paint_awning(201, (0.55, 0.19, 0.14)),
+        "awning_blue": lambda: art("awning_blue", S) if art("awning_blue", S) is not None else paint_awning(202, (0.2, 0.28, 0.44)),
         "tarpaulin": lambda: paint_tarpaulin(203),
         "market_goods": lambda: paint_goods(204),
         "stall_sign": lambda: paint_sign(205),
+        "market_detail": lambda: paint_detail(301),
+        "canvas_patched": lambda: paint_canvas(302),
     }
     for name in EXTRA:
         if name in bpy.data.materials:
             raise ValueError(f"material name {name} is taken by build_props.py; rename it here")
-        img = bp.image(f"{name}_tex", paint[name]())
+        alpha = name == "market_mud"
+        img = image_rgba(f"{name}_tex", paint_mud(303)) if alpha else bp.image(f"{name}_tex", paint[name]())
         m = bpy.data.materials.new(name)
         nt = m.node_tree
         bsdf = nt.nodes.get("Principled BSDF")
@@ -408,6 +413,12 @@ def make_materials():
         t.image = img
         t.interpolation = "Closest"
         nt.links.new(t.outputs["Color"], bsdf.inputs["Base Color"])
+        if alpha:
+            nt.links.new(t.outputs["Alpha"], bsdf.inputs["Alpha"])
+            try:
+                m.surface_render_method = "BLENDED"
+            except (AttributeError, TypeError):
+                m.blend_method = "BLEND"
         bsdf.inputs["Roughness"].default_value = 1.0
 
 
@@ -863,8 +874,10 @@ def stall_frame():
     return m
 
 
-def stall_awning():
-    """The open canvas: striped, sagging a little between the rails, a pinked valance in front."""
+def stall_awning(mat=RED):
+    """The open canvas: striped, sagging a little between the rails, a pinked valance in front
+    (mat=CANVAS: the plain patched canvas, the same uv, so the game may swap one for the other)."""
+    RED = mat  # noqa: N806
     m = Mesh(ao=0.0)
 
     def sag(x, y):
@@ -1090,6 +1103,938 @@ def crates_goods():
     return m
 
 
+# ------------------------------------------------------------------ the market, detailed (2026-09-26)
+#
+# Steve: "shop stalls and goods update: make a picture and ask codex to make it look more detailed and
+# implement." The references (Codex repaints of our own shots) show goods heaped with volume, not
+# laid flat on a board: fish in wet heaps on a dark table, vegetables in crates tilted to the buyer,
+# cheeses stacked, bolts of cloth piled and hanging, pots spread on sacking on the stones, a hot food
+# brazier; price slates, scales, baskets and a bucket under the table, mud at the legs. The pictures
+# of the goods (fish, vegetables, cheese, bread, cloth, pots, wicker, sacking, a crate's side, a wet
+# table) are Codex pictures (assets/ATTRIBUTION.md), shrunk to 64 px cells of one 256 px atlas
+# ("market_detail"); the rest is painted here. Every shape is built from code.
+
+ART = os.path.join(ROOT, "tools", "blender", "art", "market")
+DET = 256
+DCELL = 64
+DCELLS = {
+    "fish": (0, 0), "veg": (1, 0), "cheese": (2, 0), "bread": (3, 0),
+    "cloth": (0, 1), "pots": (1, 1), "wicker2": (2, 1), "sacking": (3, 1),
+    "crate2": (0, 2), "wetwood": (1, 2), "linen2": (2, 2), "slate": (3, 2),
+    "coals": (0, 3), "chestnut": (1, 3), "straw": (2, 3), "carrot": (3, 3),
+}
+# the cells painted from a Codex picture, by the picture's name (tools/blender/art/market/<name>.png)
+DART = {"fish": "fish", "veg": "veg", "cheese": "cheese", "bread": "bread", "cloth": "cloth", "pots": "pots",
+        "wicker2": "wicker", "sacking": "sacking", "crate2": "crate", "wetwood": "wet_wood", "straw": "straw"}
+
+
+def art(name, size):
+    """A Codex picture from tools/blender/art/market, box-filtered to size x size (rows bottom-up), or None."""
+    path = os.path.join(ART, f"{name}.png")
+    if not os.path.exists(path):
+        return None
+    img = bpy.data.images.load(path)
+    w, h = img.size
+    px = np.empty(w * h * 4, dtype=np.float32)
+    img.pixels.foreach_get(px)
+    bpy.data.images.remove(img)
+    a = px.reshape(h, w, 4)[..., :3].astype(np.float64)
+    n = min(w, h)
+    a = a[:n, :n]
+    f = n // size
+    a = a[:f * size, :f * size].reshape(size, f, size, f, 3).mean(axis=(1, 3))
+    # a touch more contrast (a small picture goes grey), then 15-bit colour as the PlayStation had
+    a = np.clip((a - a.mean()) * 1.12 + a.mean(), 0, 1)
+    return np.round(a * 31) / 31
+
+
+def p_fallback(rng, base, spots=None):
+    img = np.ones((DCELL, DCELL, 3)) * col(base) * (0.75 + 0.45 * vnoise(rng, DCELL, 8, 8))[..., None]
+    if spots:
+        m = rng.random((DCELL, DCELL)) < 0.08
+        img[m] = col(spots)
+    return img
+
+
+def p_linen2(rng):
+    uu, vv = np.meshgrid(np.arange(DCELL), np.arange(DCELL))
+    img = np.ones((DCELL, DCELL, 3)) * col((0.74, 0.71, 0.62))
+    img *= np.where((uu + vv) % 2 == 0, 1.03, 0.97)[..., None]
+    img *= (0.86 + 0.2 * vnoise(rng, DCELL, 3, 3))[..., None]
+    # a hem and a few old stains
+    img[:3] *= 0.8
+    stain = vnoise(rng, DCELL, 5, 5) > 0.72
+    img[stain] = img[stain] * 0.82 + col((0.45, 0.38, 0.26)) * 0.18
+    return img
+
+
+def p_slate(rng):
+    """A chalked price slate in a wooden frame: a few strokes (no letters), smudges."""
+    img = np.ones((DCELL, DCELL, 3)) * col((0.1, 0.11, 0.12)) * (0.85 + 0.3 * vnoise(rng, DCELL, 6, 6))[..., None]
+    img[:5] = img[-5:] = col((0.36, 0.26, 0.16))
+    img[:, :5] = img[:, -5:] = col((0.36, 0.26, 0.16))
+    chalk = col((0.78, 0.78, 0.74))
+    for row in (46, 32, 18):
+        x = 10
+        while x < 52:
+            w = int(rng.integers(3, 7))
+            h = int(rng.integers(5, 9))
+            if rng.random() < 0.75:
+                img[row - h // 2:row + h // 2, x:x + 1] = chalk
+                img[row - h // 2, x:x + w] = chalk
+                if rng.random() < 0.5:
+                    img[row + h // 2 - 1, x:x + w] = chalk
+            x += w + int(rng.integers(2, 5))
+    smudge = vnoise(rng, DCELL, 4, 4) > 0.7
+    img[smudge] = img[smudge] * 0.8 + 0.08
+    return img
+
+
+def p_coals(rng):
+    img = np.ones((DCELL, DCELL, 3)) * col((0.08, 0.07, 0.07)) * (0.7 + 0.6 * vnoise(rng, DCELL, 10, 10))[..., None]
+    glow = vnoise(rng, DCELL, 7, 7)
+    img[glow > 0.62] = col((0.85, 0.32, 0.06))
+    img[glow > 0.74] = col((1.0, 0.62, 0.2))
+    ash = rng.random((DCELL, DCELL)) < 0.06
+    img[ash] = col((0.55, 0.53, 0.5))
+    return img
+
+
+def p_blobs64(rng, base, bg, n=9, rr=(3.5, 5.5), cheek=None):
+    uu, vv = np.meshgrid(np.arange(DCELL, dtype=float), np.arange(DCELL, dtype=float))
+    img = np.ones((DCELL, DCELL, 3)) * col(bg) * (0.8 + 0.3 * vnoise(rng, DCELL, 8, 8))[..., None]
+    step = DCELL / n
+    for i in range(n + 1):
+        for j in range(n + 1):
+            cu, cv, r = i * step + rng.uniform(-2, 2), j * step + rng.uniform(-2, 2), rng.uniform(*rr)
+            d = np.hypot(uu - cu, vv - cv) / r
+            m = d < 1
+            c = np.ones((DCELL, DCELL, 3)) * col(base) * rng.uniform(0.82, 1.12)
+            if cheek is not None:
+                c = c * 0.7 + col(cheek) * 0.3 * rng.random()
+            c *= (1 - 0.4 * np.clip(d - 0.55, 0, 1) / 0.45)[..., None]
+            img[m] = c[m]
+    return img
+
+
+def p_carrot(rng):
+    uu, vv = np.meshgrid(np.arange(DCELL, dtype=float), np.arange(DCELL, dtype=float))
+    img = np.ones((DCELL, DCELL, 3)) * col((0.2, 0.28, 0.12)) * (0.8 + 0.4 * vnoise(rng, DCELL, 8, 8))[..., None]
+    for k in range(26):
+        cu, cv = rng.uniform(0, DCELL), rng.uniform(0, DCELL)
+        a = rng.uniform(0, math.pi)
+        du = (uu - cu) * math.cos(a) + (vv - cv) * math.sin(a)
+        dv = -(uu - cu) * math.sin(a) + (vv - cv) * math.cos(a)
+        m = (np.abs(du) < 11) & (np.abs(dv) < 2.6 * (1 - (du + 11) / 26))
+        img[m] = col((0.78, 0.36, 0.09)) * rng.uniform(0.85, 1.1) * (0.9 + 0.2 * (dv[m] < 0))[..., None]
+    return img
+
+
+def p_straw(rng):
+    uu, vv = np.meshgrid(np.arange(DCELL), np.arange(DCELL))
+    img = np.ones((DCELL, DCELL, 3)) * col((0.62, 0.52, 0.28)) * (0.7 + 0.4 * vnoise(rng, DCELL, 32, 4))[..., None]
+    img[((uu * 3 + vv) % 7) == 0] *= 0.6
+    return speckle(img, rng, 0.08, 0.5, 0.8)
+
+
+def paint_detail(seed):
+    rng = np.random.default_rng(seed)
+    fallback = {
+        "fish": lambda: p_fallback(rng, (0.45, 0.5, 0.52), (0.85, 0.88, 0.9)),
+        "veg": lambda: p_blobs64(rng, (0.35, 0.5, 0.22), (0.25, 0.18, 0.1), cheek=(0.75, 0.4, 0.1)),
+        "cheese": lambda: p_fallback(rng, (0.82, 0.62, 0.22)),
+        "bread": lambda: p_blobs64(rng, (0.55, 0.34, 0.15), (0.35, 0.25, 0.15), n=6, rr=(6, 9)),
+        "cloth": lambda: p_fallback(rng, (0.35, 0.3, 0.32)),
+        "pots": lambda: p_fallback(rng, (0.52, 0.3, 0.18)),
+        "wicker2": lambda: p_fallback(rng, (0.48, 0.37, 0.2)),
+        "sacking": lambda: p_fallback(rng, (0.5, 0.42, 0.28)),
+        "crate2": lambda: p_fallback(rng, (0.45, 0.4, 0.33)),
+        "wetwood": lambda: p_fallback(rng, (0.16, 0.13, 0.1), (0.6, 0.62, 0.64)),
+    }
+    painted = {
+        "linen2": lambda: p_linen2(rng), "slate": lambda: p_slate(rng), "coals": lambda: p_coals(rng),
+        "chestnut": lambda: p_blobs64(rng, (0.36, 0.2, 0.1), (0.14, 0.1, 0.08), n=10, rr=(3.0, 4.2)),
+        "straw": lambda: p_straw(rng), "carrot": lambda: p_carrot(rng),
+    }
+    A = np.zeros((DET, DET, 3))
+    for cell, (cx, cy) in DCELLS.items():
+        img = art(DART[cell], DCELL) if cell in DART else None
+        if img is None:
+            img = (painted.get(cell) or fallback[cell])()
+        A[cy * DCELL:(cy + 1) * DCELL, cx * DCELL:(cx + 1) * DCELL] = img
+    return A
+
+
+def paint_canvas(seed):
+    """A plain, patched stall canvas (rough districts), 64 px a metre; the Codex picture when there is one."""
+    img = art("canvas_patched", S)
+    if img is not None:
+        return img
+    rng = np.random.default_rng(seed)
+    img = np.ones((S, S, 3)) * col((0.52, 0.47, 0.36)) * (0.8 + 0.3 * vnoise(rng, S, 4, 4))[..., None]
+    uu, vv = np.meshgrid(np.arange(S), np.arange(S))
+    p = (uu >= 8) & (uu < 26) & (vv >= 30) & (vv < 50)
+    img[p] = img[p] * 0.75 + col((0.3, 0.27, 0.2)) * 0.25
+    return speckle(img, rng, 0.05)
+
+
+def paint_mud(seed):
+    """Mud and trodden muck on the stones round a stall's legs: RGBA, the edge ragged (alpha)."""
+    rng = np.random.default_rng(seed)
+    n = S
+    uu, vv = np.meshgrid(np.linspace(-1, 1, n), np.linspace(-1, 1, n))
+    r = np.hypot(uu, vv)
+    blot = vnoise(rng, n, 5, 5) * 0.55 + vnoise(rng, n, 12, 12) * 0.45
+    a = np.clip((1 - r) * 1.6 + (blot - 0.5) * 1.4, 0, 1)
+    a = np.where(a > 0.35, np.clip(a * 1.1, 0, 0.92), 0.0)
+    img = np.ones((n, n, 4))
+    img[..., :3] = col((0.13, 0.1, 0.07)) * (0.7 + 0.5 * vnoise(rng, n, 16, 16))[..., None]
+    wet = vnoise(rng, n, 6, 6) > 0.66
+    img[wet, :3] *= 0.6
+    straw = (rng.random((n, n)) < 0.02) & (a > 0)
+    img[straw, :3] = col((0.5, 0.42, 0.22))
+    img[..., 3] = a
+    return img
+
+
+def image_rgba(name, arr):
+    h, w, _ = arr.shape
+    img = bpy.data.images.new(name, w, h, alpha=True)
+    img.pixels.foreach_set(np.clip(arr, 0, 1).astype(np.float32).ravel())
+    img.pack()
+    return img
+
+
+def duv(cell, s, t, sub=None):
+    x0, y0 = DCELLS[cell]
+    if sub:
+        s = sub[0] + (sub[1] - sub[0]) * s
+        t = sub[2] + (sub[3] - sub[2]) * t
+    s = min(1.0, max(0.0, s))
+    t = min(1.0, max(0.0, t))
+    return ((x0 * DCELL + 0.5 + s * (DCELL - 1)) / DET, (y0 * DCELL + 0.5 + t * (DCELL - 1)) / DET)
+
+
+# ---- shapes on the detail atlas
+
+
+def heap(m, cx, cy, rx, ry, h, cell, n=6, seed=0, z0=0.0, sub=None, peak=0.65, rough=0.12):
+    """A heap of goods on z0: a mound over an ellipse (rx, ry), h high, the cell projected from above."""
+    rng = random.Random(seed)
+    rows = []
+    for j in range(n + 1):
+        row = []
+        for i in range(n + 1):
+            u = -1 + 2 * i / n
+            v = -1 + 2 * j / n
+            k = max(abs(u), abs(v))
+            r = math.hypot(u, v)
+            su, sv = (u * k / r, v * k / r) if r > 1e-6 else (0.0, 0.0)
+            d = math.hypot(su, sv)
+            z = h * max(0.0, 1 - d * d) ** peak
+            inner = 0 < i < n and 0 < j < n
+            if inner:
+                z += rng.uniform(-rough, rough) * h
+                su += rng.uniform(-0.04, 0.04)
+                sv += rng.uniform(-0.04, 0.04)
+            row.append((cx + su * rx, cy + sv * ry, z0 + max(0.003, z)))
+        rows.append(row)
+    with shading(m, lambda p: 0.66 + 0.34 * min(1.0, max(0.0, (p.z - z0) / max(h, 1e-3)))):
+        m.grid(rows, DETAIL, closed=False, smooth=True,
+               uvfn=lambda p: duv(cell, (p.x - cx) / (2 * rx) + 0.5, (p.y - cy) / (2 * ry) + 0.5, sub))
+
+
+def dplane(m, pts, cell, out, shade=1.0, sub=None):
+    """A flat face on the detail atlas, its points' order giving the cell corners (0,0) (1,0) (1,1) (0,1)."""
+    return m.poly(pts, DETAIL, out=out, shade=shade, uvs=[duv(cell, *st, sub) for st in ((0, 0), (1, 0), (1, 1), (0, 1))])
+
+
+def dbox(m, sx, sy, sz, cell, shade=1.0, sub=None, top_cell=None, top_sub=None):
+    """A box standing on z=0, its sides mapped onto a cell of the detail atlas (the top onto top_cell)."""
+    hx, hy = sx / 2, sy / 2
+    tc = top_cell or cell
+    m.poly([(-hx, -hy, sz), (hx, -hy, sz), (hx, hy, sz), (-hx, hy, sz)], DETAIL, out=(0, 0, 1), shade=shade,
+           uvs=[duv(tc, s, t, top_sub if top_cell else sub) for s, t in ((0, 0), (1, 0), (1, 1), (0, 1))])
+    for pts, out in (([(-hx, -hy, 0), (hx, -hy, 0), (hx, -hy, sz), (-hx, -hy, sz)], (0, -1, 0)),
+                     ([(hx, hy, 0), (-hx, hy, 0), (-hx, hy, sz), (hx, hy, sz)], (0, 1, 0)),
+                     ([(-hx, hy, 0), (-hx, -hy, 0), (-hx, -hy, sz), (-hx, hy, sz)], (-1, 0, 0)),
+                     ([(hx, -hy, 0), (hx, hy, 0), (hx, hy, sz), (hx, -hy, sz)], (1, 0, 0))):
+        with shading(m, bottom_dark(sz, 0.7)):
+            m.poly(pts, DETAIL, out=out, shade=shade * 0.92, uvs=[duv(cell, *st, sub) for st in ((0, 0), (1, 0), (1, 1), (0, 1))])
+
+
+def crate2(m, sx, sy, h, fill=None, heap_h=0.08, seed=0, fill_sub=None):
+    """A fish or produce crate of rough boards (the Codex crate side), open, heaped with `fill`."""
+    t = 0.02
+    with shading(m, bottom_dark(h, 0.72)):
+        for pts, out in (([(-sx / 2, -sy / 2, 0), (sx / 2, -sy / 2, 0), (sx / 2, -sy / 2, h), (-sx / 2, -sy / 2, h)], (0, -1, 0)),
+                         ([(sx / 2, sy / 2, 0), (-sx / 2, sy / 2, 0), (-sx / 2, sy / 2, h), (sx / 2, sy / 2, h)], (0, 1, 0))):
+            m.poly(pts, DETAIL, out=out, uvs=[duv("crate2", *st) for st in ((0, 0), (1, 0), (1, 1), (0, 1))])
+            m.poly(pts, DETAIL, out=(-out[0], -out[1], 0), shade=0.5, uvs=[duv("crate2", *st) for st in ((0, 0), (1, 0), (1, 1), (0, 1))])
+        for pts, out in (([(-sx / 2, sy / 2, 0), (-sx / 2, -sy / 2, 0), (-sx / 2, -sy / 2, h), (-sx / 2, sy / 2, h)], (-1, 0, 0)),
+                         ([(sx / 2, -sy / 2, 0), (sx / 2, sy / 2, 0), (sx / 2, sy / 2, h), (sx / 2, -sy / 2, h)], (1, 0, 0))):
+            m.poly(pts, DETAIL, out=out, uvs=[duv("crate2", *st, (0.0, 0.45, 0.0, 1.0)) for st in ((0, 0), (1, 0), (1, 1), (0, 1))])
+    # the rim: four thin battens so the box reads at a distance
+    for y in (-sy / 2, sy / 2):
+        m.beam((-sx / 2, y, h - 0.012), (sx / 2, y, h - 0.012), t, 0.024, WOOD, side=(0, 1, 0), caps=False, shade=0.85)
+    if fill:
+        heap(m, 0, 0, sx / 2 - t, sy / 2 - t, heap_h, fill, n=4, seed=seed, z0=h - 0.05, sub=fill_sub)
+    else:
+        m.poly([(-sx / 2, -sy / 2, 0.02), (sx / 2, -sy / 2, 0.02), (sx / 2, sy / 2, 0.02), (-sx / 2, sy / 2, 0.02)], DARK, out=(0, 0, 1), shade=0.4)
+
+
+def basket2(m, R, H, fill=None, mound=0.05, sides=8, seed=0, fill_sub=None, handle=False):
+    """A round willow basket (the Codex wicker), heaped with `fill` of the detail atlas."""
+    with shading(m, bottom_dark(H, 0.68)):
+        m.lathe([(0.8 * R, 0.0), (R, H), (0.93 * R, H + 0.015)], sides, DETAIL, smooth=False,
+                uvfn=lambda p: duv("wicker2", abs(math.atan2(p.y, p.x)) / math.pi, min(p.z, H) / H))
+    if fill:
+        heap(m, 0, 0, 0.92 * R, 0.92 * R, mound, fill, n=4, seed=seed, z0=H - 0.02, sub=fill_sub)
+    else:
+        m.poly([(0.85 * R * math.cos(2 * math.pi * k / sides), 0.85 * R * math.sin(2 * math.pi * k / sides), 0.05) for k in range(sides)],
+               DARK, out=(0, 0, 1), shade=0.3)
+    if handle:
+        path = [(-0.9 * R, 0, H), (-0.7 * R, 0, H + 0.6 * R), (0, 0, H + 0.85 * R), (0.7 * R, 0, H + 0.6 * R), (0.9 * R, 0, H)]
+        m.tube(path, [0.012] * 5, 4, DETAIL, side=(0, 1, 0), uvfn=lambda p: duv("wicker2", 0.5 + p.x / (2 * R), 0.5))
+
+
+def trestle(m, hx, hy, top, cell=None, rough=False, seed=0):
+    """A trestle table: a plank top (WOOD or a detail cell) on two splayed trestles."""
+    rng = random.Random(seed)
+    th = 0.04
+    if cell:
+        with m.at(move(0, 0, top - th)):
+            dbox(m, 2 * hx, 2 * hy, th, cell)
+    else:
+        m.box((0, 0, top - th / 2), (2 * hx, 2 * hy, th), WOOD, tile=1.2)
+    for tx in (-hx * 0.72, hx * 0.72):
+        j = rng.uniform(-0.03, 0.03) if rough else 0.0
+        m.beam((tx, -hy + 0.06, top - th - 0.03), (tx, hy - 0.06, top - th - 0.03), 0.06, 0.06, DARK, side=(1, 0, 0))
+        for sy in (-1, 1):
+            for lx in (-1, 1):
+                m.beam((tx + lx * 0.02, sy * (hy - 0.08), top - th - 0.04), (tx + lx * (0.14 + j), sy * (hy - 0.04), 0.0), 0.045, 0.045,
+                       DARK, side=(0, 1, 0))
+        m.beam((tx - 0.13, 0, 0.22), (tx + 0.13, 0, 0.22), 0.035, 0.03, DARK, side=(0, 1, 0))
+
+
+def cloth_over(m, hx, hy, top, drop=0.32, cell="linen2", sub=None, sides=True):
+    """A cloth over a table top, hanging down the front (and the ends)."""
+    z = top + 0.004
+    e = 0.012
+    dplane(m, [(-hx - e, -hy - e, z), (hx + e, -hy - e, z), (hx + e, hy + e, z), (-hx - e, hy + e, z)], cell, (0, 0, 1), sub=sub)
+    # the front flap, a little wavy at the hem
+    n = 6
+    top_row = [(-hx - e + (2 * hx + 2 * e) * k / n, -hy - e, z) for k in range(n + 1)]
+    bot_row = [(x, y - 0.015, z - drop + (0.02 if k % 2 else 0.0)) for k, (x, y, _) in enumerate(top_row)]
+    m.grid([bot_row, top_row], DETAIL, closed=False, smooth=False,
+           uvfn=lambda p: duv(cell, (p.x + hx) / (2 * hx), 0.25 * (p.z - (z - drop)) / drop, sub))
+    m.grid([bot_row[::-1], top_row[::-1]], DETAIL, closed=False, smooth=False, shade=0.6,
+           uvfn=lambda p: duv(cell, (p.x + hx) / (2 * hx), 0.25 * (p.z - (z - drop)) / drop, sub))
+    if sides:
+        for s in (-1, 1):
+            x = s * (hx + e)
+            pts = [(x, -hy - e, z), (x, hy + e, z), (x, hy + e, z - drop * 0.7), (x, -hy - e, z - drop * 0.8)]
+            m.poly(pts, DETAIL, out=(s, 0, 0), shade=0.85, uvs=[duv(cell, *st, sub) for st in ((0, 0.25), (1, 0.25), (1, 0), (0, 0))])
+            m.poly(pts, DETAIL, out=(-s, 0, 0), shade=0.5, uvs=[duv(cell, *st, sub) for st in ((0, 0.25), (1, 0.25), (1, 0), (0, 0))])
+
+
+def price_slate(m, stick=True):
+    """A small chalked slate: on a stick pushed into the goods, or leaning (stick=False)."""
+    w, h = 0.2, 0.15
+    if stick:
+        m.beam((0, 0, 0), (0, 0.004, 0.24), 0.012, 0.012, DARK, side=(1, 0, 0))
+        base = 0.2
+        dplane(m, [(-w / 2, -0.012, base), (w / 2, -0.012, base), (w / 2, -0.012, base + h), (-w / 2, -0.012, base + h)], "slate", (0, -1, 0))
+        m.box((0, -0.004, base + h / 2), (w, 0.014, h), DARK, shade=0.7, skip=("-y",))
+    else:
+        with m.at(Matrix.Rotation(-0.3, 4, "X")):
+            dplane(m, [(-w / 2, -0.012, 0), (w / 2, -0.012, 0), (w / 2, -0.012, h), (-w / 2, -0.012, h)], "slate", (0, -1, 0))
+            m.box((0, -0.004, h / 2), (w, 0.014, h), DARK, shade=0.7, skip=("-y",))
+
+
+def scales(m):
+    """A shop balance: a foot, a pillar, the beam and two brass pans hanging on short chains."""
+    m.lathe([(0.07, 0.0), (0.07, 0.02), (0.02, 0.03)], 6, IRON, cap1=True, smooth=False)
+    m.beam((0, 0, 0.02), (0, 0, 0.28), 0.018, 0.018, IRON, side=(1, 0, 0))
+    m.beam((-0.16, 0, 0.28), (0.16, 0, 0.28), 0.012, 0.014, IRON, side=(0, 1, 0))
+    for s in (-1, 1):
+        x = s * 0.15
+        m.beam((x, 0, 0.28), (x, 0, 0.11), 0.005, 0.005, IRON, caps=False, side=(1, 0, 0))
+        with m.at(move(x, 0, 0.09)):
+            m.lathe([(0.02, 0.0), (0.075, 0.02), (0.08, 0.025)], 7, IRON, cap0=True, smooth=False, shade=1.25)
+    with m.at(move(0.15, 0, 0.115)):
+        m.lathe([(0.02, 0.0), (0.02, 0.03)], 5, IRON, cap1=True, smooth=False)
+
+
+def bucket(m, R=0.13, H=0.26, fill=None):
+    """A wooden bucket of staves with two iron hoops (water, or eels in it)."""
+    with shading(m, bottom_dark(H, 0.7)):
+        m.lathe([(0.85 * R, 0.0), (R, H)], 8, BARREL, smooth=False, urep=2, vscale=1 / H)
+    for z in (0.05, H - 0.04):
+        r = 0.85 * R + (R - 0.85 * R) * z / H + 0.005
+        m.lathe([(r, z - 0.012), (r, z + 0.012)], 8, IRON, smooth=False)
+    m.poly([(0.93 * R * math.cos(2 * math.pi * k / 8), 0.93 * R * math.sin(2 * math.pi * k / 8), H - 0.05) for k in range(8)],
+           DETAIL if fill else IRON, out=(0, 0, 1), shade=0.6 if fill else 0.35,
+           uvs=[duv(fill or "wetwood", 0.5 + 0.5 * math.cos(2 * math.pi * k / 8), 0.5 + 0.5 * math.sin(2 * math.pi * k / 8)) for k in range(8)])
+
+
+def stool2(m):
+    """A three-legged stool."""
+    m.lathe([(0.16, 0.42), (0.16, 0.46)], 8, WOOD, cap1=True, smooth=False)
+    for k in range(3):
+        a = 2 * math.pi * k / 3
+        m.beam((0.1 * math.cos(a), 0.1 * math.sin(a), 0.42), (0.19 * math.cos(a), 0.19 * math.sin(a), 0.0), 0.035, 0.035, DARK)
+
+
+def open_sack(m, cell, seed=0):
+    """A sack standing open, its top rolled down, heaped with `cell` (potatoes, onions, chestnuts)."""
+    prof = [(0.17, 0.0), (0.21, 0.08), (0.21, 0.36), (0.18, 0.44), (0.205, 0.475)]
+    with shading(m, bottom_dark(0.48, 0.7)):
+        m.lathe(prof, 8, DETAIL, smooth=True, uvfn=lambda p: duv("sacking", abs(math.atan2(p.y, p.x)) / math.pi, p.z / 0.48))
+    heap(m, 0, 0, 0.19, 0.19, 0.07, cell, n=4, seed=seed, z0=0.44)
+
+
+def pot(m, R, H, sub, neck=0.6, lip=True, handle=False):
+    """A turned earthenware or stoneware pot or jug; its glaze from a part (sub) of the Codex pottery cell."""
+    prof = [(0.7 * R, 0.0), (R, 0.35 * H), (0.95 * R, 0.7 * H), (neck * R, 0.92 * H), ((neck + 0.08) * R, H)]
+    with shading(m, bottom_dark(H, 0.62)):
+        m.lathe(prof, 8, DETAIL, smooth=True, uvfn=lambda p: duv("pots", abs(math.atan2(p.y, p.x)) / math.pi, p.z / H, sub))
+    m.poly([((neck + 0.02) * R * math.cos(2 * math.pi * k / 8), (neck + 0.02) * R * math.sin(2 * math.pi * k / 8), H - 0.01) for k in range(8)],
+           DARK, out=(0, 0, 1), shade=0.25)
+    if handle:
+        path = [(R * 0.95, 0, 0.72 * H), (R * 1.35, 0, 0.7 * H), (R * 1.3, 0, 0.35 * H), (R * 0.98, 0, 0.3 * H)]
+        m.tube(path, [0.012] * 4, 4, DETAIL, side=(0, 1, 0), uvfn=lambda p: duv("pots", 0.5, 0.5, sub))
+
+
+def bowl(m, R, H, sub):
+    m.lathe([(0.45 * R, 0.0), (R, H), (0.9 * R, H), (0.4 * R, 0.02)], 8, DETAIL, smooth=True,
+            uvfn=lambda p: duv("pots", abs(math.atan2(p.y, p.x)) / math.pi, p.z / H, sub))
+
+
+def plates(m, R, n, sub):
+    """A stack of plates."""
+    m.lathe([(0.6 * R, 0.0), (R, 0.012 * n), (0.95 * R, 0.012 * n + 0.01)], 8, DETAIL, cap1=True, smooth=False,
+            uvfn=lambda p: duv("pots", 0.5 + 0.5 * p.x / R, 0.5 + 0.5 * p.y / R, sub))
+
+
+def cheese_wheel(m, R, H, cut=False):
+    """A round cheese: the waxed rind round the side, the Codex cheese on top."""
+    with shading(m, bottom_dark(H, 0.72)):
+        # (the Codex cheese picture: the Gouda wheels on its left, their waxed side in a band across the middle)
+        m.lathe([(R * 0.96, 0.0), (R, 0.2 * H), (R, 0.8 * H), (R * 0.96, H)], 10, DETAIL, smooth=True,
+                uvfn=lambda p: duv("cheese", 0.08 + 0.3 * abs(math.atan2(p.y, p.x)) / math.pi, 0.42 + 0.1 * p.z / H))
+    m.poly([(0.96 * R * math.cos(2 * math.pi * k / 10), 0.96 * R * math.sin(2 * math.pi * k / 10), H) for k in range(10)], DETAIL,
+           out=(0, 0, 1), uvs=[duv("cheese", 0.22 + 0.15 * math.cos(2 * math.pi * k / 10), 0.78 + 0.15 * math.sin(2 * math.pi * k / 10)) for k in range(10)])
+    if cut:
+        # a wedge gone: the pale inside showing on two faces
+        for a in (0.0, 0.7):
+            pts = [(0, 0, 0.01), (R * math.cos(a), R * math.sin(a), 0.01), (R * math.cos(a), R * math.sin(a), H + 0.002), (0, 0, H + 0.002)]
+            m.poly(pts, DETAIL, out=(-math.sin(a), math.cos(a), 0) if a == 0 else (math.sin(a), -math.cos(a), 0), shade=1.15,
+                   uvs=[duv("cheese", *st, (0.68, 0.85, 0.6, 0.8)) for st in ((0, 0), (1, 0), (1, 1), (0, 1))])
+
+
+def bolt2(m, x, y, z, L, R, sub, along_y=True):
+    """A bolt of cloth lying on the table, its colour from a part of the Codex cloth picture."""
+    frame = lathe_y(m, x, y + L / 2, z + R) if along_y else lathe_x(m, x - L / 2, y, z + R, L)
+    with m.at(frame):
+        rings = [[(R * math.cos(math.pi / 8 + 2 * math.pi * i / 8), R * math.sin(math.pi / 8 + 2 * math.pi * i / 8), zz) for i in range(8)]
+                 for zz in (0.0, L)]
+        m.grid(rings, DETAIL, cap0=True, cap1=True, uvfn=lambda p: duv("cloth", 0.5 + 0.3 * math.atan2(p.y, p.x) / math.pi, p.z / L, sub))
+
+
+def folded(m, sx, sy, sz, sub):
+    """A folded length of cloth (a flat block), coloured from a part of the cloth cell."""
+    dbox(m, sx, sy, sz, "cloth", sub=sub, top_cell="cloth", top_sub=sub)
+
+
+# the parts of the Codex vegetable picture that hold one kind (s0, s1, t0, t1; t from the bottom)
+VEG_SUBS = {"cabbage": (0.1, 0.4, 0.4, 0.9), "carrot": (0.02, 0.3, 0.05, 0.45), "leek": (0.48, 0.62, 0.45, 0.95),
+            "potato": (0.55, 0.9, 0.02, 0.3), "beet": (0.82, 1.0, 0.45, 0.8), "onion": (0.3, 0.45, 0.02, 0.2)}
+# the parts of the Codex cloth and pottery pictures that are one colour (s0, s1, t0, t1)
+CLOTH_SUBS = [(0.02, 0.18, 0.1, 0.9), (0.2, 0.36, 0.1, 0.9), (0.38, 0.54, 0.1, 0.9), (0.56, 0.72, 0.1, 0.9), (0.74, 0.9, 0.1, 0.9)]
+POT_SUBS = [(0.05, 0.3, 0.55, 0.9), (0.4, 0.65, 0.55, 0.9), (0.68, 0.95, 0.55, 0.9), (0.05, 0.3, 0.1, 0.45), (0.4, 0.65, 0.1, 0.45),
+            (0.68, 0.95, 0.1, 0.45)]
+
+
+def mud(m, rx, ry, seed=0):
+    """Mud trodden round a stall (the market_mud decal), a few mm over the stones."""
+    rng = random.Random(seed)
+    n = 4
+    rows = []
+    for j in range(n + 1):
+        rows.append([(-rx + 2 * rx * i / n + (rng.uniform(-0.05, 0.05) if 0 < i < n else 0), -ry + 2 * ry * j / n, 0.012) for i in range(n + 1)])
+    m.grid(rows, MUD, closed=False, smooth=False, uvfn=lambda p: ((p.x + rx) / (2 * rx), (p.y + ry) / (2 * ry)))
+
+
+# ---- the stall kinds (origin on the ground in the middle of the table, the buyer at -y)
+
+
+def mk2_fish_table():
+    """The fishmonger's table of the fish market: rough heavy trestles, a wet dark top leaning a
+    little to the buyer, fish in heaps, ice, a scale and a slate; a bucket and baskets under it."""
+    m = Mesh(ao=0.4)
+    hx, hy, top = 1.05, 0.46, 0.8
+    trestle(m, hx, hy, top, cell="wetwood", rough=True, seed=3)
+    # a rim of boards round the top keeps the fish and the ice on it
+    for y in (-hy - 0.01, hy + 0.01):
+        m.beam((-hx, y, top + 0.02), (hx, y, top + 0.02), 0.03, 0.07, DARK, side=(0, 1, 0))
+    for x in (-hx - 0.01, hx + 0.01):
+        m.beam((x, -hy, top + 0.02), (x, hy, top + 0.02), 0.03, 0.07, DARK, side=(1, 0, 0))
+    # a bed of ice and small fish over the whole top (the reference: fish in rows on ice, not heaps)
+    heap(m, 0, 0, hx - 0.03, hy - 0.03, 0.05, "fish", n=8, seed=1, z0=top, sub=(0.0, 1.0, 0.0, 1.0), peak=0.25, rough=0.25)
+    # the catch laid out in rows, heads to the buyer: herring in two rows, cod, a plaice
+    rng = random.Random(8)
+    for k in range(9):
+        x = -0.92 + 0.115 * k
+        with m.at(move(x, -0.12 + rng.uniform(-0.02, 0.02), top + 0.045) @ rot_z(math.pi / 2 + rng.uniform(-0.12, 0.12))):
+            fish(m, 0.32, 0.045, 0.02, cell="herring")
+    for k in range(6):
+        x = -0.9 + 0.16 * k
+        with m.at(move(x, 0.26 + rng.uniform(-0.02, 0.02), top + 0.045) @ rot_z(math.pi / 2 + rng.uniform(-0.1, 0.1))):
+            fish(m, 0.34, 0.05, 0.02, cell="herring")
+    for k, (x, y) in enumerate(((0.2, -0.1), (0.42, -0.14), (0.64, -0.08))):
+        with m.at(move(x, y, top + 0.05) @ rot_z(math.pi / 2 + 0.25 * (k - 1))):
+            fish(m, 0.52, 0.08, 0.035, cell="cod")
+    with m.at(move(0.3, 0.26, top + 0.05) @ rot_z(0.3)):
+        m.lathe([(0.0, 0.0), (0.15, 0.006), (0.14, 0.022), (0.0, 0.03)], 7, DETAIL, sy=0.7, smooth=True,
+                uvfn=lambda p: duv("fish", 0.52 + 0.4 * p.x / 0.3, 0.55 + 0.4 * p.y / 0.3))
+    # eels coiled in a basket at the end of the table
+    with m.at(move(0.84, 0.18, top)):
+        basket(m, 0.17, 0.12, "eel", mound=0.03)
+        eel(m, 0.17, 0.12, -1.9, reach=0.18)
+    with m.at(move(0.6, 0.34, top + 0.05)):
+        scales(m)
+    with m.at(move(-0.3, 0.38, top + 0.04) @ rot_z(0.1)):
+        price_slate(m)
+    # a knife on the board
+    m.box((0.16, -0.36, top + 0.006), (0.2, 0.025, 0.006), IRON, shade=1.2)
+    m.box((0.02, -0.36, top + 0.008), (0.1, 0.03, 0.016), DARK)
+    # under it: a bucket of eels, a basket, a crate of ice
+    with m.at(move(-0.6, 0.05, 0)):
+        bucket(m, fill="fish")
+    with m.at(move(0.15, 0.12, 0)):
+        basket2(m, 0.2, 0.24, fill="fish", mound=0.05, seed=4)
+    with m.at(move(0.72, 0.0, 0) @ rot_z(0.1)):
+        crate2(m, 0.5, 0.36, 0.2, fill="fish", seed=5)
+    with m.at(move(0, 0, 0)):
+        mud(m, hx + 0.35, hy + 0.35, seed=6)
+    return m
+
+
+def mk2_fish_crates():
+    """Fish crates stacked behind a stall (and one open on the ground with its catch)."""
+    m = Mesh(ao=0.4)
+    for z, a in ((0.0, 0.0), (0.2, 0.08), (0.4, -0.05)):
+        with m.at(move(0, 0, z) @ rot_z(a)):
+            crate2(m, 0.56, 0.4, 0.2, fill="fish" if z > 0.3 else None, seed=int(z * 10))
+    with m.at(move(0.62, -0.12, 0) @ rot_z(-0.3)):
+        crate2(m, 0.56, 0.4, 0.2, fill="fish", seed=9)
+    return m
+
+
+def mk2_veg_stall():
+    """The greengrocer's stall: crates tilted to the buyer in two steps on a trestle, crates on the
+    ground in front, a sack of potatoes, a slate."""
+    m = Mesh(ao=0.4)
+    hx, hy, top = 1.0, 0.45, 0.72
+    trestle(m, hx, hy, top, seed=7)
+    # the back step: a plank on two crates, so the back row stands higher
+    m.box((0, 0.24, top + 0.16), (2 * hx, 0.3, 0.03), WOOD)
+    for x in (-0.7, 0.7):
+        m.box((x, 0.24, top + 0.075), (0.3, 0.26, 0.15), DARK, shade=0.7)
+    # one kind to a crate (parts of the Codex vegetable picture): cabbages, carrots, leeks; potatoes, beets, onions
+    fills = [("veg", VEG_SUBS["cabbage"]), ("veg", VEG_SUBS["carrot"]), ("veg", VEG_SUBS["leek"]), ("veg", VEG_SUBS["potato"]),
+             ("veg", VEG_SUBS["beet"]), ("veg", VEG_SUBS["onion"])]
+    for k, x in enumerate((-0.66, 0.0, 0.66)):
+        with m.at(move(x, -0.14, top) @ Matrix.Rotation(-0.22, 4, "X")):
+            crate2(m, 0.6, 0.4, 0.14, fill=fills[k][0], fill_sub=fills[k][1], heap_h=0.1, seed=10 + k)
+        with m.at(move(x, 0.24, top + 0.175) @ Matrix.Rotation(-0.3, 4, "X")):
+            crate2(m, 0.6, 0.3, 0.12, fill=fills[k + 3][0], fill_sub=fills[k + 3][1], heap_h=0.09, seed=20 + k)
+    # cabbages on top of the front row: an outline over the heaps
+    for x, y in ((-0.8, -0.2), (-0.62, -0.08), (0.55, -0.22)):
+        with m.at(move(x, y, top + 0.1) @ rot_z(x * 5)):
+            ball(m, 0.09, "cabbage", h=0.14, top=0.6)
+    with m.at(move(0.25, -0.34, top + 0.12) @ rot_z(0.2)):
+        price_slate(m)
+    # on the ground before it: two crates leaning on the table's front, a sack at the end
+    for x, sub in ((-0.5, VEG_SUBS["cabbage"]), (0.3, VEG_SUBS["potato"])):
+        with m.at(move(x, -hy - 0.2, 0) @ Matrix.Rotation(-0.15, 4, "X")):
+            crate2(m, 0.6, 0.38, 0.22, fill="veg", fill_sub=sub, seed=31)
+    with m.at(move(hx + 0.2, -0.1, 0)):
+        open_sack(m, "chestnut", seed=32)
+    with m.at(move(-0.1, 0.1, 0)):
+        basket2(m, 0.2, 0.22, fill="veg", seed=33, handle=True)
+    mud(m, hx + 0.35, hy + 0.5, seed=34)
+    return m
+
+
+def mk2_trestle_cloth():
+    """A trestle table under a linen cloth (the neat squares), the seller's things under it."""
+    m = Mesh(ao=0.4)
+    hx, hy, top = 0.85, 0.38, 0.78
+    trestle(m, hx, hy, top, seed=11)
+    cloth_over(m, hx, hy, top, drop=0.36)
+    with m.at(move(-0.45, 0.12, 0)):
+        basket2(m, 0.18, 0.22, handle=True)
+    with m.at(move(0.4, 0.15, 0) @ rot_z(0.4)):
+        bp.sack(m, 12, L=0.55, W=0.34, H=0.2)
+    return m
+
+
+def mk2_goods_cheese():
+    """Cheeses on a cloth-covered table: wheels stacked, a cut one, red balls in a basket, a scale."""
+    m = Mesh(ao=0.0)
+    top = 0.785
+    with m.at(move(0, 0, top)):
+        for x, y, n, r in ((-0.55, 0.05, 3, 0.19), (-0.15, 0.12, 2, 0.17), (0.2, 0.1, 3, 0.15)):
+            for k in range(n):
+                with m.at(move(x + 0.01 * k, y, 0.085 * k) @ rot_z(0.3 * k)):
+                    cheese_wheel(m, r - 0.01 * k, 0.08)
+        with m.at(move(-0.2, -0.2, 0)):
+            cheese_wheel(m, 0.18, 0.09, cut=True)
+        with m.at(move(0.6, 0.08, 0)):
+            basket2(m, 0.17, 0.1, fill="cheese", fill_sub=(0.05, 0.35, 0.05, 0.35), mound=0.07)
+        with m.at(move(0.25, -0.2, 0)):
+            scales(m)
+        with m.at(move(0.62, -0.22, 0) @ rot_z(-0.2)):
+            price_slate(m, stick=False)
+        # a knife and a board
+        m.box((-0.62, -0.24, 0.01), (0.26, 0.16, 0.02), WOOD)
+    return m
+
+
+def mk2_goods_bread():
+    m = Mesh(ao=0.0)
+    top = 0.785
+    with m.at(move(0, 0, top)):
+        with m.at(move(-0.45, 0.02, 0)):
+            basket2(m, 0.3, 0.12, fill="bread", mound=0.1, seed=41)
+        heap(m, 0.2, 0.05, 0.36, 0.26, 0.14, "bread", n=5, seed=42, z0=0.0)
+        for i, x in enumerate((0.05, 0.28, 0.5)):
+            with m.at(move(x, -0.24, 0.004) @ rot_z(math.pi / 2 - 0.1 + 0.1 * i)):
+                loaf(m, 0.34, 0.14, 0.1)
+        with m.at(move(-0.62, -0.25, 0) @ rot_z(0.2)):
+            price_slate(m, stick=False)
+    return m
+
+
+def mk2_goods_junk():
+    """Second-hand goods: pots and a jug, boots, a clock case, bottles, a framed glass, a box of odds."""
+    m = Mesh(ao=0.0)
+    top = 0.785
+    with m.at(move(0, 0, top)):
+        with m.at(move(-0.6, 0.1, 0)):
+            iron_pot(m)
+        with m.at(move(-0.3, 0.14, 0)):
+            pot(m, 0.08, 0.24, POT_SUBS[0], handle=True)
+        for x, y, a in ((0.02, -0.18, 0.2), (0.14, -0.2, 0.1)):
+            with m.at(move(x, y, 0) @ rot_z(a)):
+                m.box((0, 0, 0.05), (0.1, 0.24, 0.1), LEATHER)
+                m.box((0, 0.08, 0.14), (0.09, 0.08, 0.1), LEATHER, shade=0.9)
+        with m.at(move(0.12, 0.18, 0)):
+            m.box((0, 0, 0.22), (0.2, 0.12, 0.44), DARK)
+            m.poly([(-0.07, -0.061, 0.3), (0.07, -0.061, 0.3), (0.07, -0.061, 0.42), (-0.07, -0.061, 0.42)], GLASS, out=(0, -1, 0))
+        for k in range(3):
+            with m.at(move(0.42 + 0.07 * k, 0.12, 0)):
+                m.lathe([(0.03, 0.0), (0.03, 0.16), (0.012, 0.21), (0.012, 0.25)], 6, GLASS, cap1=True, smooth=True)
+        with m.at(move(0.6, -0.16, 0) @ rot_z(0.3)):
+            crate2(m, 0.34, 0.24, 0.1, fill="pots", seed=51)
+        with m.at(move(-0.55, -0.2, 0)):
+            price_slate(m, stick=False)
+    return m
+
+
+def mk2_cloth_stall():
+    """The cloth seller: bolts and folded lengths piled on the table, a rail at the end with lengths
+    hanging, a yardstick."""
+    m = Mesh(ao=0.0)
+    top = 0.785
+    with m.at(move(0, 0, top)):
+        for i in range(4):
+            for j in range(3 if i % 2 == 0 else 2):
+                bolt2(m, -0.72 + 0.14 * i, 0.05, 0.13 * j, 0.62, 0.065, CLOTH_SUBS[(i + j) % 5])
+        for k, (x, y) in enumerate(((-0.05, -0.14), (0.3, -0.12), (0.12, 0.2))):
+            for j in range(4 - k):
+                with m.at(move(x + 0.01 * j, y, 0.045 * j) @ rot_z(0.05 * (j - 1))):
+                    folded(m, 0.34, 0.26, 0.045, CLOTH_SUBS[(k + j) % 5])
+        m.beam((-0.2, -0.33, 0.006), (0.6, -0.35, 0.006), 0.022, 0.012, WOOD, side=(0, 1, 0))
+        # lengths laid over the table's front edge, hanging down before the linen
+        for k, x in enumerate((-0.05, 0.25, 0.55)):
+            sub = CLOTH_SUBS[(k * 2 + 1) % 5]
+            y0, yf, z = -0.08, -0.43 - 0.004 * k, 0.012 + 0.002 * k
+            dplane(m, [(x - 0.13, yf, z), (x + 0.13, yf, z), (x + 0.13, y0, z), (x - 0.13, y0, z)], "cloth", (0, 0, 1), sub=sub)
+            for side in (-1, 1):
+                dplane(m, [(x - 0.13, yf, -0.5 + 0.05 * k), (x + 0.13, yf, -0.5 + 0.05 * k), (x + 0.13, yf, z), (x - 0.13, yf, z)], "cloth",
+                       (0, side, 0), shade=0.9 if side < 0 else 0.5, sub=sub)
+    # a rack at the end of the table: two posts, a bar, lengths of cloth hanging to the buyer's eye
+    y = 0.0
+    for x in (1.0, 1.62):
+        m.beam((x, y, 0.0), (x, y, 1.8), 0.05, 0.05, DARK, side=(1, 0, 0))
+    m.beam((0.97, y, 1.77), (1.65, y, 1.77), 0.04, 0.04, DARK, side=(0, 1, 0))
+    for k, x in enumerate((1.16, 1.31, 1.47)):
+        d = 1.1 - 0.15 * k
+        yo = y - 0.03 - 0.008 * k  # (each a hair nearer: no two in one plane)
+        for side in (-1, 1):
+            pts = [(x - 0.075, yo, 1.77 - d), (x + 0.075, yo, 1.77 - d), (x + 0.075, yo, 1.77), (x - 0.075, yo, 1.77)]
+            dplane(m, pts, "cloth", (0, side, 0), shade=1.0 if side < 0 else 0.6, sub=CLOTH_SUBS[(k * 2) % 5])
+    return m
+
+
+def mk2_pottery():
+    """The potter's spread on the stones: sacking laid down, jugs, pots, bowls and plates set out on
+    it, a crate of straw behind (the seller's stool is put by the game, where she sits)."""
+    m = Mesh(ao=0.3)
+    hx, hy = 0.9, 0.55
+    rows = [[(-hx + 2 * hx * i / 4, -hy + 2 * hy * j / 3, 0.012 + (0.01 if 0 < i < 4 and 0 < j < 3 and (i + j) % 2 else 0.0)) for i in range(5)]
+            for j in range(4)]
+    m.grid(rows, DETAIL, closed=False, smooth=True, uvfn=lambda p: duv("sacking", (p.x + hx) / (2 * hx), (p.y + hy) / (2 * hy)))
+    rng = random.Random(61)
+    k = 0
+    for j, y in enumerate((-0.32, 0.0, 0.3)):
+        for i in range(5):
+            x = -0.68 + 0.34 * i + rng.uniform(-0.05, 0.05)
+            sub = POT_SUBS[k % len(POT_SUBS)]
+            k += 1
+            with m.at(move(x, y + rng.uniform(-0.04, 0.04), 0.012)):
+                c = (i + j) % 4
+                if c == 0:
+                    pot(m, 0.12, 0.4 if j == 2 else 0.3, sub, handle=True)
+                elif c == 1:
+                    bowl(m, 0.14, 0.08, sub)
+                elif c == 2:
+                    plates(m, 0.13, 6, sub)
+                else:
+                    pot(m, 0.13, 0.24, sub, neck=0.8)
+    with m.at(move(0.4, hy + 0.3, 0)):
+        crate2(m, 0.5, 0.36, 0.3, fill="straw", seed=62)
+    return m
+
+
+def mk2_brazier():
+    """The hot food seller: an iron brazier on legs with glowing coals, a pan of chestnuts on it, a
+    crate as a table with paper cones, the coal bucket and a stool."""
+    m = Mesh(ao=0.3)
+    with m.at(move(0.0, 0.0, 0)):
+        for k in range(3):
+            a = 2 * math.pi * k / 3 + 0.3
+            m.beam((0.18 * math.cos(a), 0.18 * math.sin(a), 0.55), (0.3 * math.cos(a), 0.3 * math.sin(a), 0.0), 0.03, 0.03, IRON)
+        m.lathe([(0.12, 0.5), (0.25, 0.6), (0.27, 0.72), (0.25, 0.72)], 8, IRON, cap0=True, smooth=False)
+        heap(m, 0, 0, 0.24, 0.24, 0.05, "coals", n=4, seed=71, z0=0.68)
+        # the pan with its handle, and the chestnuts in it
+        m.lathe([(0.2, 0.76), (0.23, 0.82), (0.21, 0.82)], 8, IRON, cap0=True, smooth=False)
+        heap(m, 0, 0, 0.2, 0.2, 0.05, "chestnut", n=4, seed=72, z0=0.78)
+        m.beam((0.22, 0, 0.8), (0.55, 0.05, 0.84), 0.025, 0.02, IRON)
+    with m.at(move(-0.6, 0.1, 0)):
+        crate2(m, 0.5, 0.36, 0.55, fill=None)
+        for k in range(4):
+            with m.at(move(-0.15 + 0.1 * k, -0.05 + 0.05 * (k % 2), 0.55)):
+                m.lathe([(0.004, 0.0), (0.04, 0.12), (0.035, 0.125)], 5, DETAIL, cap1=False, smooth=False,
+                        uvfn=lambda p: duv("linen2", 0.5 + p.x, p.z * 4))
+        with m.at(move(0.12, 0.1, 0.55)):
+            price_slate(m, stick=False)
+    with m.at(move(0.45, 0.3, 0)):
+        bucket(m, R=0.13, H=0.24, fill="coals")
+    mud(m, 0.8, 0.7, seed=73)
+    return m
+
+
+def mk2_ground_baskets():
+    """A countrywoman's baskets on the stones: three round baskets and a flat one, heaped."""
+    m = Mesh(ao=0.3)
+    for x, y, R, H, f, s in ((-0.45, 0.0, 0.24, 0.26, "veg", (0.0, 0.5, 0.0, 0.5)), (0.05, 0.05, 0.22, 0.24, "carrot", None),
+                             (0.5, -0.02, 0.23, 0.22, "veg", (0.5, 1.0, 0.5, 1.0))):
+        with m.at(move(x, y, 0)):
+            basket2(m, R, H, fill=f, fill_sub=s, mound=0.08, seed=int(x * 10) + 90, handle=x > 0)
+    with m.at(move(0.0, 0.38, 0)):
+        open_sack(m, "chestnut", seed=93)
+    return m
+
+
+def mk2_under():
+    """What a seller keeps under and behind the table: a basket with a cloth, a bucket, a sack, a crate."""
+    m = Mesh(ao=0.3)
+    with m.at(move(-0.45, 0.0, 0)):
+        basket2(m, 0.2, 0.22, fill="linen2", mound=0.04, handle=True)
+    with m.at(move(0.05, 0.08, 0)):
+        bucket(m)
+    with m.at(move(0.5, 0.0, 0) @ rot_z(0.3)):
+        bp.sack(m, 81, L=0.6, W=0.36, H=0.22)
+    return m
+
+
+def mk2_slate():
+    m = Mesh(ao=0.0)
+    price_slate(m)
+    return m
+
+
+def mk2_scales():
+    m = Mesh(ao=0.0)
+    scales(m)
+    return m
+
+
+def mk2_stool():
+    m = Mesh(ao=0.3)
+    stool2(m)
+    return m
+
+
+def mk2_mud():
+    m = Mesh(ao=0.0)
+    mud(m, 1.4, 0.9, seed=99)
+    return m
+
+
+def mk2_mud_small():
+    m = Mesh(ao=0.0)
+    mud(m, 0.7, 0.55, seed=98)
+    return m
+
+
+# ---- the town's stalls and shop tables: more on them (heaps, slates, scales, under the table)
+
+
+def stall_more(goods):
+    """Goods with volume added to the town stall's table (stall_goods_<goods> stays), and what lies under it."""
+    m = Mesh(ao=0.0)
+    top = STALL_TOP
+    if goods == "fish":
+        heap(m, -0.2, 0.25, 0.3, 0.2, 0.09, "fish", n=5, seed=101, z0=top, peak=0.4)
+        # dried cod hanging by the tail from the front rail, on strings
+        zr = canvas_z(-PY) - 0.07
+        for k, x in enumerate((-1.1, -0.95, -0.8)):
+            ln = 0.5 - 0.05 * k
+            m.beam((x, -PY, zr), (x, -PY, zr - 0.12), 0.006, 0.006, ROPE, caps=False, side=(1, 0, 0))
+            with m.at(move(x, -PY, zr - 0.12 - 0.36 * ln) @ rot_z(math.pi / 2) @ Matrix.Rotation(-math.pi / 2, 4, "Y")):
+                fish(m, ln, 0.07, 0.022, cell="cod")
+        with m.at(move(0.45, 0.33, top)):
+            scales(m)
+        with m.at(move(0.2, -0.45, top)):
+            price_slate(m)
+        with m.at(move(-0.7, 0.05, 0)):
+            bucket(m, fill="fish")
+        with m.at(move(0.5, 0.1, 0)):
+            crate2(m, 0.5, 0.36, 0.2, fill="fish", seed=102)
+        mud(m, 1.5, 0.95, seed=103)
+    elif goods == "veg":
+        heap(m, 0.2, 0.3, 0.3, 0.16, 0.1, "veg", n=5, seed=111, z0=top)
+        with m.at(move(-0.3, -0.4, top) @ rot_z(0.1)):
+            price_slate(m)
+        with m.at(move(0.2, 0.1, 0)):
+            open_sack(m, "chestnut", seed=112)
+        with m.at(move(-0.6, 0.05, 0)):
+            basket2(m, 0.2, 0.22, fill="carrot", seed=113, handle=True)
+    elif goods == "bread":
+        heap(m, 0.35, -0.1, 0.3, 0.22, 0.12, "bread", n=5, seed=121, z0=top)
+        with m.at(move(-0.1, -0.42, top)):
+            price_slate(m, stick=False)
+        with m.at(move(0.3, 0.05, 0)):
+            basket2(m, 0.24, 0.2, fill="bread", seed=122, handle=True)
+    elif goods == "wares":
+        with m.at(move(0.45, -0.1, top)):
+            for i in range(3):
+                with m.at(move(0.12 * i - 0.12, 0.0, 0)):
+                    pot(m, 0.07, 0.2, POT_SUBS[i], handle=i == 1)
+        with m.at(move(-0.2, 0.1, 0)):
+            crate2(m, 0.5, 0.36, 0.28, fill="straw", seed=131)
+    elif goods == "cloth":
+        with m.at(move(0.6, 0.2, top)):
+            for j in range(3):
+                with m.at(move(0, 0, 0.045 * j)):
+                    folded(m, 0.36, 0.26, 0.045, CLOTH_SUBS[j])
+        with m.at(move(0.0, 0.1, 0)):
+            basket2(m, 0.2, 0.22, fill="linen2", handle=True)
+    return m
+
+
+def stall_cloth():
+    """A linen cloth over a stall's table, hanging down its front (the neat squares)."""
+    m = Mesh(ao=0.0)
+    cloth_over(m, STALL_HX, STALL_HY, STALL_TOP + 0.004, drop=0.42, sides=False)
+    return m
+
+
+def boot(m, cell_mat=LEATHER, tall=True):
+    """A worn boot standing on its sole, toe to -y."""
+    m.box((0, -0.04, 0.035), (0.09, 0.24, 0.07), cell_mat, shade=0.9)
+    m.box((0, -0.14, 0.02), (0.08, 0.05, 0.04), cell_mat, shade=0.85)
+    if tall:
+        m.box((0, 0.04, 0.16), (0.09, 0.1, 0.2), cell_mat)
+    m.box((0, -0.04, 0.004), (0.095, 0.25, 0.008), DARK, shade=0.6)
+
+
+def clog(m):
+    """A wooden clog (a klomp), pale willow, toe to -y."""
+    with m.at(Matrix.Rotation(math.pi / 2, 4, "X")):
+        m.lathe([(0.02, -0.14), (0.045, -0.1), (0.05, 0.0), (0.045, 0.1), (0.03, 0.13)], 6, WOOD, sy=0.9, cap0=True, cap1=True,
+                smooth=True, shade=1.25)
+    m.poly([(-0.03, 0.0, 0.052), (0.03, 0.0, 0.052), (0.03, 0.09, 0.052), (-0.03, 0.09, 0.052)], DARK, out=(0, 0, 1), shade=0.3)
+
+
+def shop_goods_boots():
+    """The cobbler's table: boots and shoes in pairs, clogs, a last, a basket of offcuts."""
+    m = Mesh(ao=0.0)
+    with m.at(move(0, SHOP_CY, SHOP_TOP)):
+        for k, x in enumerate((-0.6, -0.48, -0.25, -0.13)):
+            with m.at(move(x, 0.02 * (k % 2), 0) @ rot_z(0.08 * (k - 1.5))):
+                boot(m, tall=k < 2)
+        for k, x in enumerate((0.1, 0.22, 0.42, 0.54)):
+            with m.at(move(x, -0.05 + 0.03 * (k % 2), 0) @ rot_z(0.1 * (k - 1.5))):
+                clog(m)
+        with m.at(move(0.3, 0.2, 0)):
+            m.box((0, 0, 0.03), (0.08, 0.2, 0.06), DARK)
+            m.beam((0, 0.06, 0.06), (0, 0.06, 0.2), 0.03, 0.03, IRON)
+        with m.at(move(0.64, 0.18, 0)):
+            basket2(m, 0.1, 0.07, fill="sacking", mound=0.03)
+    return m
+
+
+def shop_mud():
+    """Mud and straw trodden on the stones before a shop's table in the rough streets (off the wall)."""
+    m = Mesh(ao=0.0)
+    with m.at(move(0, SHOP_CY - 0.05, 0)):
+        mud(m, 1.0, 0.45, seed=97)
+    return m
+
+
+def shop_sack(end):
+    """A sack standing by the end of a shop table away from the door (end -1: the model's -x end, +1: the +x end)."""
+    m = Mesh(ao=0.3)
+    with m.at(move(end * 1.0, SHOP_CY + 0.05, 0) @ Matrix.Scale(0.75, 4)):
+        bp.sack_standing(m, 173)
+    return m
+
+
+def shop_more(goods):
+    """The same for a shop table (origin on the wall line; the table from 0.25 to 0.95 m out)."""
+    m = Mesh(ao=0.0)
+    top = SHOP_TOP
+    cy = SHOP_CY
+    if goods == "bread":
+        heap(m, 0.3, cy + 0.08, 0.25, 0.14, 0.1, "bread", n=4, seed=141, z0=top)
+    elif goods == "veg":
+        heap(m, 0.0, cy + 0.12, 0.3, 0.12, 0.09, "veg", n=4, seed=151, z0=top)
+        with m.at(move(-0.6, cy - 0.5, 0) @ Matrix.Rotation(-0.15, 4, "X")):
+            crate2(m, 0.5, 0.34, 0.2, fill="veg", fill_sub=(0.2, 0.8, 0.2, 0.8), seed=152)
+    elif goods == "wares":
+        with m.at(move(-0.45, cy + 0.15, top)):
+            pot(m, 0.07, 0.2, POT_SUBS[1], handle=True)
+    elif goods == "fish":
+        heap(m, -0.3, cy + 0.1, 0.22, 0.12, 0.1, "fish", n=4, seed=161, z0=top)
+    with m.at(move(0.55, cy - 0.33, top) @ rot_z(-0.2)):
+        price_slate(m, stick=False)
+    # under the table: a basket and a bucket or sack
+    with m.at(move(-0.35, cy + 0.05, 0)):
+        basket2(m, 0.17, 0.2, fill="linen2" if goods != "veg" else "veg", handle=True, seed=171)
+    with m.at(move(0.3, cy + 0.1, 0) @ rot_z(0.3)):
+        if goods == "fish":
+            bucket(m, fill="fish")
+        else:
+            bp.sack(m, 172, L=0.5, W=0.3, H=0.18)
+    return m
+
+
 # ------------------------------------------------------------------ build
 
 
@@ -1097,6 +2042,7 @@ BUILDERS = [
     ("stall_frame", stall_frame),
     ("stall_awning", stall_awning),
     ("stall_awning_rolled", stall_awning_rolled),
+    ("stall_awning_canvas", lambda: stall_awning(CANVAS)),
     ("stall_tarp", stall_tarp),
     ("stall_goods_fish", lambda: goods_fish(True)),
     ("stall_goods_bread", lambda: goods_bread(True)),
@@ -1112,6 +2058,38 @@ BUILDERS = [
     ("shop_goods_wares", lambda: goods_wares(False)),
     ("shop_goods_fish", lambda: goods_fish(False)),
     ("crates_goods", crates_goods),
+    # the market, detailed (2026-09-26)
+    ("mk2_fish_table", mk2_fish_table),
+    ("mk2_fish_crates", mk2_fish_crates),
+    ("mk2_veg_stall", mk2_veg_stall),
+    ("mk2_trestle_cloth", mk2_trestle_cloth),
+    ("mk2_goods_cheese", mk2_goods_cheese),
+    ("mk2_goods_bread", mk2_goods_bread),
+    ("mk2_goods_junk", mk2_goods_junk),
+    ("mk2_cloth_stall", mk2_cloth_stall),
+    ("mk2_pottery", mk2_pottery),
+    ("mk2_brazier", mk2_brazier),
+    ("mk2_ground_baskets", mk2_ground_baskets),
+    ("mk2_under", mk2_under),
+    ("mk2_slate", mk2_slate),
+    ("mk2_scales", mk2_scales),
+    ("mk2_stool", mk2_stool),
+    ("mk2_mud", mk2_mud),
+    ("mk2_mud_small", mk2_mud_small),
+    ("stall_cloth", stall_cloth),
+    ("stall_more_fish", lambda: stall_more("fish")),
+    ("stall_more_veg", lambda: stall_more("veg")),
+    ("stall_more_bread", lambda: stall_more("bread")),
+    ("stall_more_wares", lambda: stall_more("wares")),
+    ("stall_more_cloth", lambda: stall_more("cloth")),
+    ("shop_goods_boots", shop_goods_boots),
+    ("shop_mud", shop_mud),
+    ("shop_sack_l", lambda: shop_sack(-1)),
+    ("shop_sack_r", lambda: shop_sack(1)),
+    ("shop_more_bread", lambda: shop_more("bread")),
+    ("shop_more_veg", lambda: shop_more("veg")),
+    ("shop_more_wares", lambda: shop_more("wares")),
+    ("shop_more_fish", lambda: shop_more("fish")),
 ]
 
 
@@ -1155,6 +2133,9 @@ def main():
     if "--preview" in argv:
         bp.preview_materials()
         preview(objs)
+    elif "--preview2" in argv:
+        bp.preview_materials()
+        preview_market(objs)
 
 
 # ------------------------------------------------------------------ preview
@@ -1253,6 +2234,66 @@ def preview(objs):
     os.makedirs(os.path.dirname(SHOT), exist_ok=True)
     out.save()
     print(f"[build_stalls] preview -> {SHOT} (panels in {tmp})")
+
+
+def preview_market(objs):
+    """A contact sheet of the detailed market pieces (data/shots/stalls_market_preview.png)."""
+    cam = bp.stage()
+    sc = bpy.context.scene
+    try:
+        sc.eevee.taa_render_samples = 16
+    except AttributeError:
+        pass
+    for o in objs.values():
+        o.hide_render = True
+    sets = [
+        ["mk2_fish_table", ("mk2_fish_crates", (0.2, 1.3, 0))],
+        ["mk2_veg_stall"],
+        ["mk2_trestle_cloth", "mk2_goods_cheese"],
+        ["mk2_trestle_cloth", "mk2_goods_bread"],
+        ["mk2_trestle_cloth", "mk2_goods_junk"],
+        ["mk2_trestle_cloth", "mk2_cloth_stall"],
+        ["mk2_pottery", ("mk2_brazier", (2.1, 0.2, 0))],
+        ["stall_frame", "stall_awning", "stall_goods_fish", "stall_more_fish"],
+    ]
+    panels = []
+    for i, names in enumerate(sets):
+        X = i * 20.0
+        ps = []
+        for n in names:
+            name, off = (n if isinstance(n, tuple) else (n, (0, 0, 0)))
+            ps.append(inst(objs, name, (X + off[0], off[1], off[2])))
+        panels.append((ps, (X + 1.2, -3.2, 1.9), (X + 0.2, 0, 0.7), 28))
+    every = [o for ps, *_ in panels for o in ps]
+    tmp = os.path.join(tempfile.gettempdir(), "stalls_panels2")
+    os.makedirs(tmp, exist_ok=True)
+    pw, ph = 960, 600
+    sheet_px = np.zeros((ph * 4, pw * 2, 4), dtype=np.float32)
+    for i, (ps, loc, target, lens) in enumerate(panels):
+        for o in every:
+            o.hide_render = o not in ps
+        bp.aim(cam, loc, target, lens)
+        path = os.path.join(tmp, f"panel{i + 1}.png")
+        sc.render.resolution_x, sc.render.resolution_y = pw, ph
+        sc.render.resolution_percentage = 100
+        sc.render.image_settings.file_format = "PNG"
+        sc.render.filepath = path
+        bpy.ops.render.render(write_still=True)
+        img = bpy.data.images.load(path)
+        buf = np.empty(pw * ph * 4, dtype=np.float32)
+        img.pixels.foreach_get(buf)
+        bpy.data.images.remove(img)
+        r, c = divmod(i, 2)
+        y0 = ph * (3 - r)
+        sheet_px[y0:y0 + ph, c * pw:(c + 1) * pw] = buf.reshape(ph, pw, 4)
+    sheet_px[..., 3] = 1
+    out = bpy.data.images.new("stalls_sheet2", pw * 2, ph * 4, alpha=False)
+    out.pixels.foreach_set(sheet_px.ravel())
+    shot = os.path.join(os.path.dirname(SHOT), "stalls_market_preview.png")
+    out.filepath_raw = shot
+    out.file_format = "PNG"
+    out.save()
+    print(f"[build_stalls] market preview -> {shot}")
 
 
 if __name__ == "__main__":
