@@ -38,6 +38,9 @@ export interface Ambient {
   setRain(amount: number): void;
   /** Dev: counts and the current levels. */
   info(): Record<string, number>;
+  /** M7 alive (hook): the chimney tops (empty until the city is in), and how many smoke now (a chimney smokes when act < level). */
+  chimneys(): ReadonlyArray<{ x: number; y: number; z: number; act: number }>;
+  smokeLevel(): number;
 }
 
 // ------------------------------------------------------------------ helpers
@@ -1005,11 +1008,13 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
   let pudBase = 0.34;
   const winChunks: Array<{ win: THREE.Mesh; spill: THREE.Mesh | null; centre: THREE.Vector3; radius: number }> = [];
   let chimneyCount = 0;
+  let chimneyList: Chimney[] = [];
   let windowCount = 0;
 
   city.ready
     .then(async () => {
       const chimneys = findChimneys(city.group);
+      chimneyList = chimneys; // M7 alive (hook)
       chimneyCount = chimneys.length;
       if (chimneys.length) {
         smoke = buildSmoke(chimneys);
@@ -1392,6 +1397,8 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
 
   return {
     update,
+    chimneys: () => chimneyList,
+    smokeLevel: () => U.uSmoke.value,
     setRain: (a) => {
       manualRain = THREE.MathUtils.clamp(a, 0, 1);
     },

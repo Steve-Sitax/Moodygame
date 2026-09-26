@@ -64,6 +64,9 @@ import { QuestBoxes } from "./game/questboxes";
 import { Nightlife } from "./game/nightlife";
 import { Saves } from "./game/saves";
 import { carolusInWorld } from "./world/carolusHall";
+// M7 alive (docs/milestones/M7-alive.md): the town's small life that is not people (hook)
+import { createAlive } from "./world/alive";
+import { setAliveViewHeight } from "./world/alive/common";
 import { bootRestore, type ClientState } from "./game/restoreData";
 import type { JobSnap } from "./game/jobs";
 
@@ -150,6 +153,8 @@ animals.scraps = market.scrapSpots();
 const trades = createTrades(world.scene, world.city.flags, { clock: () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF }) });
 // visitors at the Steen (the Museum of Antiquities), the attendant, a painter, an angler (world/steenlife.ts)
 const steenLife = createSteenLife(world.scene, crowd);
+// M7 alive (hook): leaves in the wind, birds, bats, moths, drips, mist, buoys, thunder (world/alive/)
+const alive = createAlive(world.scene, world, () => sound);
 for (const r of steenLife.colliders) world.addCollider(r);
 for (const r of trades.colliders) world.addCollider(r);
 jobs.town = town;
@@ -413,6 +418,7 @@ function resize(): void {
   else psxUniforms.uSnapRes.value.set(1e5, 1e5);
   setAmbientViewHeight(retro.height);
   setFireViewHeight(retro.height);
+  setAliveViewHeight(retro.height); // M7 alive (hook)
   setMirrorScale(retro.height / 270);
 }
 window.addEventListener("resize", resize);
@@ -840,6 +846,7 @@ function frame(): void {
   safe("lively.update", () => lively.update(dt, player, player.camera, crowd.fogDistance));
   safe("quayGoods.keepClear", quayGoodsKeepClear);
   safe("animals.update", () => animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7));
+  safe("alive.update", () => alive.update(elapsed, dt, player.camera, { day: jobs.day.dayNum, hour: jobs.day.hourF }, weatherNow)); // M7 alive (hook)
   // the murmur follows the people near Jef, not everyone in view (audio/soundscape.ts setCrowdAround)
   safe("sound.setCrowd", () => sound?.setCrowdAround(crowd.positions()));
   // talk in a tavern, the cellar or a hall follows the people in it: none alone, more with more (Steve 2026-09-25)
@@ -1240,6 +1247,7 @@ if (import.meta.env.DEV) {
         emigrants.update(dt);
         lively.update(dt, player, player.camera, crowd.fogDistance);
         animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
+        alive.update(elapsed, dt, player.camera, { day: jobs.day.dayNum, hour: jobs.day.hourF }, weatherNow); // M7 alive (hook)
         lanternLights.update(dt, player.camera, lanternDark());
       }
     },
@@ -1278,5 +1286,6 @@ if (import.meta.env.DEV) {
 // M7 rendering, dev: the culler and the renderer for checks (__scheldemist.cull), and the view's numbers
 if (import.meta.env.DEV) {
   Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, { cull, renderer, retro, lanternLights });
+  Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, { cull, renderer, retro, lanternLights, alive });
   mountCullHud(cull);
 }

@@ -1579,6 +1579,38 @@ export class Soundscape {
     return { move: (x, z) => this.moveSpot(spot, x, z), stop };
   }
 
+  // ---------------------------------------------------------------- M7 alive (world/alive/): hook
+
+  /**
+   * M7 alive: a sound made in code (audio/aliveSounds.ts) at a place, with its own real reach: inverse
+   * fall-off from `ref` metres, dull towards `reach`, silent past `max` (not started beyond it). `make`
+   * builds the sound into `out` from `t0` and returns its length in seconds. `occl` 1 at street level,
+   * 0 in the air (a bird over the roofs, a bell buoy on open water).
+   */
+  placed(
+    at: { x: number; y?: number; z: number },
+    o: { ref: number; reach: number; max: number; rolloff?: number; wet?: number; occl?: number; gain?: number },
+    make: (ctx: BaseAudioContext, out: AudioNode, t0: number, noise: AudioBuffer) => number,
+  ): boolean {
+    const d = this.distTo(at.x, at.y ?? 1, at.z);
+    if (d > o.max || (this.spots.size >= SPOT_CAP && d > 25)) return false;
+    const spot = this.spot({ x: at.x, y: at.y ?? 1, z: at.z }, o.ref, o.rolloff ?? 1, o.reach, o.wet ?? 0.3, 14000, this.master, o.max, o.occl ?? 1);
+    const out = this.ctx.createGain();
+    out.gain.value = o.gain ?? 1;
+    out.connect(spot.fog);
+    const len = make(this.ctx, out, this.ctx.currentTime + 0.02, this.noise);
+    window.setTimeout(() => {
+      out.disconnect();
+      this.dropSpot(spot);
+    }, (Math.max(0.2, len) + 1.5) * 1000);
+    return true;
+  }
+
+  /** M7 alive: the listener (the camera), for choosing where a sound comes from. */
+  get ear(): { x: number; y: number; z: number } {
+    return this.listenerPos;
+  }
+
   // ---------------------------------------------------------------- street events
 
   /** A dog far off, inland. */
