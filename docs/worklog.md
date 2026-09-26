@@ -15,29 +15,43 @@ Decided 2026-09-26: licence AGPL-3.0 (being added, with a public-release check);
 jobs 1, 4, 5 now (2 and 3 after light spill and props); yard windows 3D; stronger gutter streams
 and foot-of-wall dirt.
 
+## Order of work (Steve 2026-09-26: fewer at a time, a logical sequence)
+
+At most 3-4 helpers at once, so tests and browser checks do not time out.
+
+1. Wave 1, running: loading screen, character creator, prison made real, empty shop fronts.
+   Why first: they are nearly done; multiplayer needs the loading screen and the character creator;
+   the prison writes the interior check and template the shop fronts use; the shop fronts change the
+   houses before the yard windows do.
+2. Wave 2, paused until wave 1 is in: yard windows 3D, picture round 1/4/5 (+ tuning).
+   Why: both touch houses, walls and the ground; yard windows after the shop fronts (both rebuild
+   city.glb). (Props in walls finished early and goes live first: others build on its checks.)
+3. Wave 3: all boats (big; its steamers get the picture round's smoke), then multiplayer M8a (walk
+   together), which builds on the menus, the loading screen and the character creator.
+4. Later: picture round 2 (wall lanterns, after the light spill) and 3 (goods along walls, after props).
+
 ## In progress (helpers, 2026-09-26)
 
 | Work | Scope and files | Started |
 |---|---|---|
 | Codex: low-poly props and tight collisions | SAFE BATCH MERGED + PUSHED `abb6a21` (already live through `9aa9cd4`; reconciled main `98bdebe`): collision core, tree trunks and static stop benches; tree/vegetation design, matching bark bump/wet map. Seven collision tests, clean build, Chrome contact + dry/rain, paths/shaders empty. Test Chrome and isolated 5469/9069 stack cleaned up. HOLD barrels/crates/sacks and other prepared prop-loader changes until Props in walls/Picture round finishes; defer other active assets per Steve. Queue/scope and validation: `docs/milestones/M7-small-assets.md`; original cargo evidence `M7-tight-props.md`. Extra router check: 19 passed, two timeouts (first Codex stub and process-kill test); report to Flaky talk-down/AI owner, no edits to their files. | 2026-09-26 |
-| Picture round 1, 4, 5 + tuning | autumn ground (leaves, dung, straw), clouds, smoke and works chimneys; stronger gutter streams and foot-of-wall dirt; litter.ts, leaves, sky in rijnkaai.ts, ambient.ts, eaves.ts, footDirt constants | 2026-09-26 |
-| Yard windows 3D | the 348 yard-side walls get real windows; build_city.py, city.glb; posters/props/gutters checks stay clean | 2026-09-26 |
-| AI setup, round 2 | a setting: typed lines to any chosen AI (default) or only to Claude; server AI code, `docs/ai-setup.md` | 2026-09-26 |
+| Picture round 1, 4, 5 + tuning | PAUSED. autumn ground (leaves, dung, straw), clouds, smoke and works chimneys; stronger gutter streams and foot-of-wall dirt; litter.ts, leaves, sky in rijnkaai.ts, ambient.ts, eaves.ts, footDirt constants | 2026-09-26 |
+| Yard windows 3D | PAUSED. the 348 yard-side walls get real windows; build_city.py, city.glb; posters/props/gutters checks stay clean | 2026-09-26 |
 | Character creator | name, sex, age, looks, clothes; profile per player id; prompts and lines follow it; `client/src/menu/character.ts`, server profile | 2026-09-26 |
 | Loading screen | a boot module, `client/index.html`: progress bar, shaders and textures warmed up front | 2026-09-26 |
 | Empty shop fronts | every cut shop house opening onto a void gets a real use and a real room (Steve's spot next to the bakery) | 2026-09-26 |
-| Job figures walk up | customs, police, thieves, foremen live in the town and walk or run up; no pop-in; `popcheck()` | 2026-09-26 |
 | Prison made real | every room the outside shows built inside, seen through every window; a general `interiorcheck`; `docs/building-with-interior.md` | 2026-09-26 |
-| All boats | detail on every boat and barge, 6+ kinds of small boats, take any boat ("take X's boat"), owner angry if he sees it | 2026-09-26 |
-| Ferry arrival and pier | the gangway stays down until the last one is off; the arrival boat (own file) and the pier in detail; lights | 2026-09-26 |
-| Light spill | light from windows, doors and lamps falls on the ground the same way everywhere; `spill()` check | 2026-09-26 |
-| Props in walls | one town-wide `propcheck()`; barrels and crates out of walls | 2026-09-26 |
-| Flaky talk-down test | a separate session Steve started (families.test.ts timeout under load) | 2026-09-26 |
+| All boats | PAUSED. detail on every boat and barge, 6+ kinds of small boats, take any boat ("take X's boat"), owner angry if he sees it | 2026-09-26 |
 
 ## Live (2026-09-26, after the away batch)
 
 | Commit | What |
 |---|---|
+| abb6a21, ed6e6e2 | (other session) Small vegetation, model-shaped tree and bench collisions |
+| e60ca44 | (other session) Tests: hostile-line loops copy one save; timed-out calls no longer wait |
+| 9aa9cd4 | Light from windows, doors and lamps falls on the street the same way everywhere |
+| 13f15d3 | Job figures walk up from the town; AI setup round 2 (typed lines, call cap, host-only) |
+| c9acc1e | Ferry arrival: gangway stays down until all are off; the St. Anna and the landing stage |
 | abb6a21 | Small trees/vegetation design pass, matching bark bump and rain response; model-shaped street/quay tree and static stop-bench collision. Active-session assets deferred. |
 | 7d8a3ea | Menus: handbill title, settings (graphics presets, sound, controls rebinding, game, accessibility), AI setup screen, bundled OFL fonts |
 | f1670b1 | Licence AGPL-3.0-or-later, README, `docs/public-release-check.md` (safe to go public) |
