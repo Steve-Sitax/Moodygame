@@ -8,7 +8,6 @@ Git history has the detail of each commit.
 ## Waiting for Steve
 
 - Going public: the audit says safe. Steve flips the repo to public himself. Optional: an AGPL section 7 permission for the proprietary Claude Agent SDK (draft in `docs/public-release-check.md`). The commit email steve@sitax.be becomes public with the history.
-- Multiplayer: the plan's questions are answered (see the plan's last part). Go for M8a (walk together) when the menus, character creator and loading screen are in?
 - The clockmaker's pocket watches and the junk-stall clocks: live hands too? (Steve did not pick it: no for now.)
 
 Decided 2026-09-26: licence AGPL-3.0 (being added, with a public-release check); picture-round
@@ -26,7 +25,7 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 2. Wave 2: done and live (yard windows 3D, picture round 1/4/5 + tuning).
    Why: both touch houses, walls and the ground; yard windows after the shop fronts (both rebuild
    city.glb). (Props in walls finished early and goes live first: others build on its checks.)
-3. Wave 3: all boats (big; its steamers get the picture round's smoke), then multiplayer M8a (walk
+3. Wave 3, running: multiplayer M8a (walk together); sleep rework next to it.
    together), which builds on the menus, the loading screen and the character creator.
 4. Later: picture round 2 (wall lanterns, after the light spill) and 3 (goods along walls, after props).
 
@@ -34,6 +33,7 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 
 | Work | Scope and files | Started |
 |---|---|---|
+| Multiplayer M8a: walk together | LAN host, join code, assets cached by hash, shared clock and weather, others drawn smoothly, own movement never pulled back, no pause; `docs/milestones/M8a.md` | 2026-09-26 |
 | Sleep: beds any time, benches | no more "G lie down" at night; E at a rented bed: sleep 1/2/4/8 h or until morning, any time; benches: less sleep, warmth to 1; per player id | 2026-09-26 |
 | Codex: low-poly props and tight collisions | SAFE BATCH MERGED + PUSHED `abb6a21` (already live through `9aa9cd4`; reconciled main `98bdebe`): collision core, tree trunks and static stop benches; tree/vegetation design, matching bark bump/wet map. Seven collision tests, clean build, Chrome contact + dry/rain, paths/shaders empty. Test Chrome and isolated 5469/9069 stack cleaned up. HOLD barrels/crates/sacks and other prepared prop-loader changes until Props in walls/Picture round finishes; defer other active assets per Steve. Queue/scope and validation: `docs/milestones/M7-small-assets.md`; original cargo evidence `M7-tight-props.md`. Extra router check: 19 passed, two timeouts (first Codex stub and process-kill test); report to Flaky talk-down/AI owner, no edits to their files. | 2026-09-26 |
 
