@@ -9,12 +9,19 @@ import { withPicture } from "./quayStone";
 const CAROLUS_PICTURES: Record<string, string> = {
   carolus_sand: "/textures/carolus_sandstone.jpg",
   carolus_blue: "/textures/carolus_bluestone.jpg",
+  // St Paul's brick and white stone, St James's Lede sandstone (M7 Paul and James)
+  pj_brick: "/textures/pj_brick.jpg",
+  pj_white: "/textures/pj_white.jpg",
+  pj_brabant: "/textures/pj_brabant.jpg",
 };
 const CAROLUS_TINT: Record<string, THREE.Color> = {
   carolus_sand: new THREE.Color(1.38, 1.27, 1.06),
   carolus_blue: new THREE.Color(1.16, 1.13, 1.04),
   carolus_pale: new THREE.Color(1.3, 1.28, 1.22),
   carolus_art: new THREE.Color(1.25, 1.22, 1.15),
+  pj_brick: new THREE.Color(1.12, 1.08, 1.04),
+  pj_white: new THREE.Color(1.3, 1.28, 1.22),
+  pj_brabant: new THREE.Color(1.5, 1.42, 1.28),
 };
 
 // The churches of the angled streets (Sint-Carolus Borromeus, Sint-Pauluskerk, Sint-Jacobskerk), the Stadspark's
