@@ -1057,19 +1057,6 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
           water *= smoothstep(0.46, 0.56, pudVal(pp / 2.1 + 57.1)) * smoothstep(0.3, 0.42, pudVal(pp / 4.7 - 23.9));
           // stones and pebbles stand out of the water: the shallower the puddle, the more of them
           ${opts.relief ? "water *= 1.0 - smoothstep(0.6 + lvl * 0.2, 0.7 + lvl * 0.2, psxH) * (1.0 - smoothstep(th + 0.05, th + 0.3, pn));" : ""}
-          ${
-            opts.relief
-              ? `// (the quay sheen, 2026-09-27) with no rain on the stones the water sinks into the hollows: the joints and the sunk
-          // stones hold it, the tops stand dry. A sheet of it over the tops of a dry quay mirrored the bright fog as one
-          // smooth pale patch with a few stones showing through (Steve: "a shine over it, flat plastic"). In the rain
-          // (and while the stones are still wet from it) the puddles are as they were.
-          {
-            float wlv = 0.06 + 0.24 * smoothstep(th, th + 0.3, pn);
-            float dryCut = 1.0 - smoothstep(wlv - 0.05, wlv + 0.02, psxH);
-            water *= mix(dryCut, 1.0, ${opts.wet ? "smoothstep(0.05, 0.4, uWet)" : "0.0"});
-          }`
-              : ""
-          }
           water = clamp(water, 0.0, 1.0);
           float damp = smoothstep(th - 0.09, th, pn);
           gl_FragColor.rgb *= 1.0 - 0.38 * damp * (1.0 - water);
