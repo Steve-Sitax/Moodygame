@@ -34,14 +34,15 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 
 | Work | Scope and files | Started |
 |---|---|---|
+| Night sound errors | "non-finite AudioParam" from rail clack and cranes at night; the dray NaN; press.ts and rowing errors; a frame loop that survives one part failing | 2026-09-26 |
 | Codex: low-poly props and tight collisions | SAFE BATCH MERGED + PUSHED `abb6a21` (already live through `9aa9cd4`; reconciled main `98bdebe`): collision core, tree trunks and static stop benches; tree/vegetation design, matching bark bump/wet map. Seven collision tests, clean build, Chrome contact + dry/rain, paths/shaders empty. Test Chrome and isolated 5469/9069 stack cleaned up. HOLD barrels/crates/sacks and other prepared prop-loader changes until Props in walls/Picture round finishes; defer other active assets per Steve. Queue/scope and validation: `docs/milestones/M7-small-assets.md`; original cargo evidence `M7-tight-props.md`. Extra router check: 19 passed, two timeouts (first Codex stub and process-kill test); report to Flaky talk-down/AI owner, no edits to their files. | 2026-09-26 |
-| Picture round 1, 4, 5 + tuning | RUNNING (wave 2). autumn ground (leaves, dung, straw), clouds, smoke and works chimneys; stronger gutter streams and foot-of-wall dirt; litter.ts, leaves, sky in rijnkaai.ts, ambient.ts, eaves.ts, footDirt constants | 2026-09-26 |
 | Yard windows 3D | RUNNING (wave 2). the 348 yard-side walls get real windows; build_city.py, city.glb; posters/props/gutters checks stay clean | 2026-09-26 |
 
 ## Live (2026-09-26, after the away batch)
 
 | Commit | What |
 |---|---|
+| b77dc69 | Autumn ground (leaves, dung, straw), clouds, smoke and works chimneys; stronger gutter streams and wall-foot dirt |
 | 81b5c10 | Boats: detail on all, seven new small kinds, take any boat by its owner's name |
 | e989164 | The prison made real; interiorcheck; the template for buildings with an inside |
 | 5daf31c | Loading screen; every shader, texture and room ready before the menu |
