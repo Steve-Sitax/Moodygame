@@ -1276,9 +1276,27 @@ def _cath_tower(m, tu, tv, north):
     if north:
         holes.append((tv + 3.3, 0.62, 3.0, 0.8))
     _holed_wall(m, *Wt, tv - hs[0], tv + hs[0], 0, 17.3, holes, "tower_blind", shade=0.88)
-    _portal(m, *Wt, tv, 2.2, 1.25, 1.5, 8.4, 6.6, 0.58, 4.1, bands=3, door=f"cathedral, {'north' if north else 'south'} side portal")
-    _wimperg(m, *Wt, tv, 2.5, 7.0, 11.6, off=0.3, w=0.35)
-    if north:
+    if isinstance(m, CathMesh):
+        # M7 the cathedral outside: the side portal carved (jamb statues, statuettes, the tympanum, oak leaves), a
+        # statue in a niche each side of it, blind arcading over it, the plinth along the foot
+        _cportal(m, *Wt, tv, 2.2, 1.25, 1.5, 8.4, 6.6, 0.58, 4.1, bands=3, jamb=2, virgin=False,
+                 door=f"cathedral, {'north' if north else 'south'} side portal")
+        _cwimperg(m, *Wt, tv, 2.5, 7.0, 11.6, off=0.3, w=0.35)
+        for sg in (-1, 1):
+            _niche3d(m, *Wt, tv + sg * 3.4, 3.8 if (north and sg > 0) else 3.0, 2.6, kind=("apostle", "bishop")[(sg > 0) ^ north], dep=0.45)
+        for k in range(4):
+            s0 = tv - 3.8 + k * 1.9
+            _curve_band(m, *Wt, _arch_curve(s0 + 0.2, s0 + 1.6, 12.6, 16.6, 0.72, 4), 0.14, 0.0, 0.18, CARVED, 0.9, caps=False)
+        _string(m, *Wt, tv - hs[0], tv + hs[0], 12.3, 0.24, 0.3)
+        for a, b in ((tv - hs[0], tv - 2.65), ((tv + 3.95) if north else (tv + 2.65), tv + hs[0])):
+            _plinth_run(m, *Wt, a, b)
+        if north:
+            _cportal(m, *Wt, tv + 3.3, 0.62, 0.52, 0.45, 3.0, 2.8, 0.8, 2.45, bands=1, steps=False, figures=False, jamb=0,
+                     door="cathedral, north tower door")
+    else:
+        _portal(m, *Wt, tv, 2.2, 1.25, 1.5, 8.4, 6.6, 0.58, 4.1, bands=3, door=f"cathedral, {'north' if north else 'south'} side portal")
+        _wimperg(m, *Wt, tv, 2.5, 7.0, 11.6, off=0.3, w=0.35)
+    if north and not isinstance(m, CathMesh):
         _portal(m, *Wt, tv + 3.3, 0.62, 0.52, 0.45, 3.0, 2.8, 0.8, 2.45, bands=1, steps=False, door="cathedral, north tower door")
     top = ys[nst]
     if not north:
@@ -1419,6 +1437,11 @@ def _aisle_bay(m, ua, ub, side, window=True, flyer=False):
     if window:
         m.decal((0, vo), (1, 0), o, ua + 1.7, ub - 1.7, 3.6, 14.6, "great_window", arch_shape(0.66, 3))
     m.balustrade((ua, vo + side * 0.25), (ub, vo + side * 0.25), AE, o, 1.1)
+    if isinstance(m, CathMesh):
+        # M7 the cathedral outside: a cornice under the balustrade, a string course at the sills, the plinth
+        _wb(m, (0, vo), (1, 0), o, ua, ub, 0.0, 0.3, AE - 0.55, AE, CARVED, 0.95)
+        _string(m, (0, vo), (1, 0), o, ua, ub, 3.35)
+        _plinth_run(m, (0, vo), (1, 0), o, ua, ub)
     hr = (ub - ua) / 2
     um = (ua + ub) / 2
     R = hr * 1.25
@@ -1438,6 +1461,1067 @@ def _buttress(m, u, side, top=AE - 0.4, pin=5.0, depth=1.4, w=0.6):
     m.pinnacle(u, vo + side * depth * 0.55, top, pin, 0.45)
 
 
+# ------------------------------------------------------------------ the cathedral outside in detail (M7, 2026-09-26)
+#
+# Steve: "cathedral needs more detail, the other churches have 3d statues and cathedral not ... (entrances have a
+# lot of detail)", and the houses against it were flat painted fronts. The cathedral now has its own model
+# (client/public/models/cathedral.glb, drawn by client/src/world/cathedralOutside.ts) with its own materials:
+# Codex pictures of weathered, sooted Brabant sandstone (walls, low courses, carved work), the oak of the doors and
+# the portal's tympanum, and the town's own house wall pictures, each with a height map made from it (bump).
+# The plan is unchanged (the footprint, the doors, the inside's walls: shared/cathedralPlan.ts). What was painted
+# into the atlas as stone is now stone: the statues stand in 3D niches, on the portals' jambs, trumeaux and
+# archivolts, on the buttresses and in the gables; the windows have moulded surrounds, mullions and tracery in
+# front of their glass; pinnacles carry crockets and finials. The small things go into a second mesh per part of
+# the church that the game draws near only (the "near" objects).
+#
+# In 1873 (reference only, nothing copied: Wikipedia, the Flemish heritage inventory, period photographs): the
+# west portal's tympanum was not yet the Last Judgement of 1903 (it had been painted until the 18th century), so
+# here it is carved blind tracery with the Virgin in a medallion; the transepts were not yet re-gothicised (after
+# 1875); the houses of the church fabric stood between the buttresses (those on the Handschoenmarkt came down
+# between 1865 and 1875: here they still stand).
+
+CATH2_MATS = ["cath_ashlar", "cath_slate", "cath_glass", "brickband", "cath_lead", "cath_atlas", "gilt",
+              "cath_plinth", "cath_carved", "cath_oak", "cath_iron", "cath_tymp",
+              "hs_brick", "hs_plaster", "hs_render", "hs_brick_old", "hs_trim", "hs_shutter", "hs_slate", "hs_pantile", "hs_glass",
+              "hs_door"]
+PLINTH, CARVED, OAK, IRON, TYMP, HBRICK, HPLASTER, HRENDER, HBRICKOLD, HTRIM, HSHUT, HSLATE, HPANTILE, HGLASS, HDOOR = range(7, 22)
+# metres a texture repeat on the box-projected faces, per material slot (the pictures' own scale)
+CATH_TILE = {STONE: 3.2, SLATE: 2.4, GLASS: 1.0, BRICK: 3.0, LEAD: 1.2, PLINTH: 3.0, CARVED: 1.6, IRON: 1.0,
+             HBRICK: 1.9, HPLASTER: 3.0, HRENDER: 3.0, HBRICKOLD: 1.1, HTRIM: 1.5, HSHUT: 1.2, HSLATE: 2.0, HPANTILE: 2.0,
+             HGLASS: 1.0, HDOOR: 1.4}
+CATH_OUT = os.path.join(ROOT, "client", "public", "models", "cathedral.glb")
+FIG = [(0.17, 0.0), (0.155, 0.1), (0.128, 0.56), (0.155, 0.77), (0.09, 0.82), (0.058, 0.845), (0.075, 0.91), (0.045, 0.985), (0.0, 1.0)]
+FIG_S = [(0.16, 0.0), (0.13, 0.45), (0.145, 0.74), (0.09, 0.8), (0.07, 0.86), (0.072, 0.94), (0.0, 1.0)]
+COUNT = {}
+HEXF = [(0, 1, 2, 3), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)]
+
+
+def _add(a, b, k=1.0):
+    return (a[0] + b[0] * k, a[1] + b[1] * k, a[2] + b[2] * k)
+
+
+def _sub(a, b):
+    return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
+
+
+def _len(a):
+    return math.sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2])
+
+
+def _unit(a):
+    n = _len(a) or 1.0
+    return (a[0] / n, a[1] / n, a[2] / n)
+
+
+def _cross(a, b):
+    return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
+
+
+def _mean(P):
+    n = len(P)
+    return (sum(p[0] for p in P) / n, sum(p[1] for p in P) / n, sum(p[2] for p in P) / n)
+
+
+def _parc(s0, s1, ys, rise, n=6, grow=0.0):
+    """A two-centred pointed arch from the left springing (s0, ys) over the apex to the right one (s1, ys), as
+    (s, y); `grow` > 0 gives the concentric arch that far outside it (a moulding round it)."""
+    hw = (s1 - s0) / 2
+    sc = (s0 + s1) / 2
+    rise = max(rise, hw * 0.35)
+    R = (hw * hw + rise * rise) / (2 * hw)
+    Rg = R + grow
+    cl = s0 + R  # the left arc's centre
+    a_top = math.acos(max(-1.0, min(1.0, (sc - cl) / Rg)))
+    left = [(cl + Rg * math.cos(math.pi + (a_top - math.pi) * i / n), ys + Rg * math.sin(math.pi + (a_top - math.pi) * i / n)) for i in range(n + 1)]
+    left[-1] = (sc, left[-1][1])
+    return left + [(2 * sc - s, y) for s, y in reversed(left[:-1])]
+
+
+class CathMesh(CMesh):
+    """The cathedral's own mesh: the Codex stone on the walls, carved stone on everything cut, the houses against the
+    church. `d` is a second mesh for the small things (statues, crockets, finials, glazing bars) that the game draws
+    near only; tint is a colour multiplier on the vertex shade (the paint of a house)."""
+
+    mats = CATH2_MATS
+
+    def __init__(self, frame, detail=False):
+        super().__init__(frame)
+        self.d = CathMesh(frame) if detail else self
+        self.tint = (1.0, 1.0, 1.0)
+        self.furnish = True
+        self._rep = 0
+
+    # ---------------------------------------------------------------- basics
+    def poly(self, pts, mat, shade=1.0):
+        f = Mesh.poly(self, pts, mat, shade)
+        if f is not None and self.tint != (1.0, 1.0, 1.0):
+            for loop in f.loops:
+                loop[self.col] = (shade * self.tint[0], shade * self.tint[1], shade * self.tint[2], 1.0)
+        return f
+
+    def set_tint(self, rgb):
+        self.tint = rgb
+        self.d.tint = rgb
+
+    def face(self, pts, mat, shade=1.0, out=None, centre=None):
+        f = self.poly(pts, mat, shade)
+        if f is None:
+            return None
+        if out is None:
+            out = _sub(_mean(pts), centre)
+        self.orient(f, out)
+        return f
+
+    def hexa(self, P, mat, shade=1.0, skip=()):
+        """A six-faced solid from 8 corners: 0-3 one ring, 4-7 the other in the same order."""
+        c = _mean(P)
+        for k, idx in enumerate(HEXF):
+            if k not in skip:
+                self.face([P[i] for i in idx], mat, shade, centre=c)
+
+    def bar(self, a, b, w, h=None, mat=CARVED, shade=1.0, up=(0.0, 0.0, 1.0), skip=()):
+        """A square bar from a to b (local u, v, y), w across and h the other way."""
+        h = w if h is None else h
+        t = _unit(_sub(b, a))
+        s = _cross(t, up)
+        if _len(s) < 1e-4:
+            s = _cross(t, (1.0, 0.0, 0.0))
+        s = _unit(s)
+        n = _unit(_cross(s, t))
+        P = []
+        for base in (a, b):
+            for i, j in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
+                P.append(_add(_add(base, s, i * w / 2), n, j * h / 2))
+        self.hexa(P, mat, shade, skip)
+
+    def lathe(self, c, prof, sides, mat=CARVED, rot=0.0, shade=1.0, caps=True):
+        """A turned solid about the vertical through c = (u, v, y): prof [(r, dy)] from the bottom up."""
+        rings = [[(c[0] + r * math.cos(rot + 2 * math.pi * i / sides), c[1] + r * math.sin(rot + 2 * math.pi * i / sides), c[2] + y)
+                  for i in range(sides)] for r, y in prof]
+        for k in range(len(prof) - 1):
+            (r0, y0), (r1, y1) = prof[k], prof[k + 1]
+            if r0 < 1e-6 and r1 < 1e-6:
+                continue
+            A, Bq = rings[k], rings[k + 1]
+            for i in range(sides):
+                j = (i + 1) % sides
+                am = rot + 2 * math.pi * (i + 0.5) / sides
+                out = (math.cos(am) * (y1 - y0), math.sin(am) * (y1 - y0), -(r1 - r0))
+                if abs(out[0]) + abs(out[1]) + abs(out[2]) < 1e-9:
+                    out = (math.cos(am), math.sin(am), 0.0)
+                if r0 < 1e-6:
+                    pts = [A[i], Bq[j], Bq[i]]
+                elif r1 < 1e-6:
+                    pts = [A[i], A[j], Bq[i]]
+                else:
+                    pts = [A[i], A[j], Bq[j], Bq[i]]
+                self.face(pts, mat, shade, out=out)
+        if caps and prof[0][0] > 1e-6:
+            self.face(rings[0], mat, shade * 0.8, out=(0, 0, -1))
+        if caps and prof[-1][0] > 1e-6:
+            self.face(rings[-1], mat, shade, out=(0, 0, 1))
+
+    def finial(self, u, v, y, h, mat=CARVED):
+        """A cross-shaped finial (a fleuron): four leaves round a knob, a point."""
+        self.lathe((u, v, y), [(0.07 * h, 0), (0.24 * h, 0.4 * h), (0.06 * h, 0.6 * h), (0.0, h)], 4, mat, caps=False)
+
+    def crockets(self, a, b, n, out, size, mat=CARVED):
+        """n crockets along a to b (local 3D), curling out (a local direction) and up."""
+        o = _unit(out)
+        for k in range(1, n + 1):
+            q = _add(a, _sub(b, a), k / (n + 1))
+            tip = _add(_add(q, o, size * 0.6), (0, 0, 1), size * 0.7)
+            self.leaf(q, tip, size * 0.26, mat)
+
+    def leaf(self, a, tip, r, mat=CARVED, shade=1.0):
+        """A three-sided point from a (its base's middle) to tip: a crocket's leaf."""
+        t = _unit(_sub(tip, a))
+        s = _cross(t, (0.0, 0.0, 1.0))
+        if _len(s) < 1e-4:
+            s = (1.0, 0.0, 0.0)
+        s = _unit(s)
+        n = _unit(_cross(s, t))
+        base = [_add(_add(a, s, r * math.cos(2 * math.pi * k / 3)), n, r * math.sin(2 * math.pi * k / 3)) for k in range(3)]
+        c = _mean(base + [tip])
+        for k in range(3):
+            self.face([base[k], base[(k + 1) % 3], tip], mat, shade, centre=c)
+        self.face(base, mat, shade * 0.8, centre=c)
+
+    def ring(self, p, d, o, cs, cy, rs, ry, e0, e1, bw, mat=CARVED, shade=1.0, seg=12):
+        """A ring of tracery on a wall (an ellipse rs x ry round (cs, cy)), bw wide, from e0 to e1 out."""
+        pts = [(math.cos(2 * math.pi * k / seg), math.sin(2 * math.pi * k / seg)) for k in range(seg)]
+        inn = [_wpt(p, d, o, cs + c * (rs - bw / 2), e1, cy + sn * (ry - bw / 2)) for c, sn in pts]
+        out = [_wpt(p, d, o, cs + c * (rs + bw / 2), e1, cy + sn * (ry + bw / 2)) for c, sn in pts]
+        inn0 = [_wpt(p, d, o, cs + c * (rs - bw / 2), e0, cy + sn * (ry - bw / 2)) for c, sn in pts]
+        out0 = [_wpt(p, d, o, cs + c * (rs + bw / 2), e0, cy + sn * (ry + bw / 2)) for c, sn in pts]
+        for k in range(seg):
+            j = (k + 1) % seg
+            c, sn = math.cos(2 * math.pi * (k + 0.5) / seg), math.sin(2 * math.pi * (k + 0.5) / seg)
+            rad = (d[0] * c, d[1] * c, sn)
+            self.face([inn[k], inn[j], out[j], out[k]], mat, shade, out=(o[0], o[1], 0))
+            self.face([inn0[k], inn0[j], inn[j], inn[k]], mat, shade * 0.75, out=(-rad[0], -rad[1], -rad[2]))
+            self.face([out0[k], out0[j], out[j], out[k]], mat, shade * 0.9, out=rad)
+
+    # ---------------------------------------------------------------- figures
+    def figure(self, u, v, y, h, face, kind="saint", mat=CARVED, shade=1.0, arm=1, small=False):
+        """A standing figure turned toward `face` (du, dv): a robe, the head, an arm bent to hold a book (a key, a
+        staff); the Virgin crowned with the Child, a bishop with mitre and crozier, a king with a sceptre, an angel
+        with wings."""
+        m = self.d
+        COUNT["figure" + ("_s" if small else "")] = COUNT.get("figure" + ("_s" if small else ""), 0) + 1
+        if small:
+            m.lathe((u, v, y), [(r * h, yy * h) for r, yy in FIG], 6, mat, rot=math.pi / 6, shade=shade)
+            return
+        m.lathe((u, v, y), [(r * h, yy * h) for r, yy in FIG], 6, mat, rot=math.pi / 6, shade=shade)
+        fl = math.hypot(face[0], face[1]) or 1.0
+        fu, fv = face[0] / fl, face[1] / fl
+        su, sv = -fv * arm, fu * arm
+
+        def P(a, b, c):
+            return (u + su * a * h + fu * b * h, v + sv * a * h + fv * b * h, y + c * h)
+        m.bar(P(0.13, 0.0, 0.76), P(0.12, 0.1, 0.6), 0.05 * h, mat=mat, shade=shade)
+        m.bar(P(0.12, 0.1, 0.6), P(0.03, 0.17, 0.66), 0.045 * h, mat=mat, shade=shade)
+        m.bar(P(-0.12, 0.02, 0.76), P(-0.1, 0.06, 0.45), 0.05 * h, mat=mat, shade=shade * 0.95)
+        if kind in ("saint", "apostle"):
+            m.bar(P(0.0, 0.19, 0.6), P(0.0, 0.19, 0.72), 0.1 * h, 0.035 * h, mat=mat, shade=shade * 1.05)
+        if kind in ("apostle", "bishop"):
+            top = 1.04 if kind == "apostle" else 1.12
+            m.bar(P(-0.17, 0.08, 0.0), P(-0.17, 0.08, top), 0.024 * h, mat=mat, shade=shade)
+            if kind == "bishop":
+                m.bar(P(-0.17, 0.08, top), P(-0.1, 0.1, top + 0.06), 0.024 * h, mat=mat, shade=shade)
+                m.lathe(P(0, 0, 0.955), [(0.05 * h, 0), (0.045 * h, 0.08 * h), (0.0, 0.15 * h)], 4, mat, rot=math.atan2(fv, fu), shade=shade)
+        if kind in ("virgin", "king"):
+            m.lathe(P(0, 0, 0.965), [(0.055 * h, 0), (0.065 * h, 0.07 * h), (0.045 * h, 0.07 * h)], 6, mat, shade=shade * 1.05, caps=False)
+        if kind == "virgin":
+            m.lathe(P(0.07, 0.14, 0.55), [(0.05 * h, 0), (0.06 * h, 0.14 * h), (0.035 * h, 0.2 * h), (0.0, 0.25 * h)], 6, mat, shade=shade * 1.05)
+        if kind == "king":
+            m.bar(P(0.03, 0.17, 0.62), P(0.03, 0.22, 0.95), 0.022 * h, mat=mat, shade=shade)
+        if kind == "angel":
+            for sg in (-1, 1):
+                m.bar(P(sg * 0.06, -0.08, 0.8), P(sg * 0.26, -0.18, 0.42), 0.02 * h, 0.2 * h, mat=mat, shade=shade * 0.95)
+
+    def canopy(self, u, v, y, w, mat=CARVED, rot=0.0):
+        """A small hexagonal canopy over a statue, a spirelet on it."""
+        m = self.d
+        m.lathe((u, v, y), [(w * 0.5, 0.0), (w * 0.62, w * 0.28), (w * 0.55, w * 0.38)], 6, mat, rot=rot)
+        m.lathe((u, v, y + w * 0.38), [(w * 0.45, 0.0), (w * 0.16, w * 0.42), (0.0, w * 0.62)], 6, mat, rot=rot)
+
+    # ---------------------------------------------------------------- pinnacles and flyers, richer
+    def gable_roof(self, u0, u1, v0, v1, y, rise, along="u", mat=SLATE, gable_mat=STONE, over=0.4, skip_gable=()):
+        """As Mesh.gable_roof; skip_gable: the gable walls (0 the first end, 1 the other) left out where they stand
+        inside another roof (they lay back to back with its own)."""
+        if along != "u" or not skip_gable:
+            return super().gable_roof(u0, u1, v0, v1, y, rise, along, mat, gable_mat, over)
+        vm = (v0 + v1) / 2
+        for vs, vo in ((v0 - over, -1), (v1 + over, 1)):
+            f = self.poly([(u0, vs, y - over * rise / ((v1 - v0) / 2)), (u1, vs, y - over * rise / ((v1 - v0) / 2)), (u1, vm, y + rise), (u0, vm, y + rise)], mat)
+            self.orient(f, (0, vo, 1))
+        for k, (ue, uo) in enumerate(((u0, -1), (u1, 1))):
+            if k not in skip_gable:
+                f = self.poly([(ue, v0, y), (ue, v1, y), (ue, vm, y + rise)], gable_mat)
+                self.orient(f, (uo, 0, 0))
+
+    def pinnacle(self, u, v, y0, h, r=0.5, mat=STONE):
+        COUNT["pinnacle"] = COUNT.get("pinnacle", 0) + 1
+        """A pinnacle: a square shaft, gablets on its faces, a moulded cap, the spire with crockets, a finial."""
+        ring = self.ngon(u, v, r, 4, math.pi / 4)
+        ys = y0 + h * 0.4
+        self.prism(ring, y0, ys, CARVED, top=False)
+        self.prism(self.ngon(u, v, r * 1.16, 4, math.pi / 4), ys, ys + h * 0.045, CARVED, top=True)
+        yb = ys + h * 0.045
+        apex = y0 + h * 0.9
+        self.pyramid(self.ngon(u, v, r * 0.98, 4, math.pi / 4), yb, apex, CARVED)
+        if h >= 2.2:
+            # gablets on the shaft's four faces
+            for i in range(4):
+                a, b = ring[i], ring[(i + 1) % 4]
+                mu, mv = (a[0] + b[0]) / 2 - u, (a[1] + b[1]) / 2 - v
+                ln = math.hypot(mu, mv) or 1
+                ou, ov = mu / ln * r * 0.05, mv / ln * r * 0.05  # (inside the cap's faces, r * 1.16: never in their plane)
+                self.face([(a[0] + ou, a[1] + ov, ys - h * 0.1), (b[0] + ou, b[1] + ov, ys - h * 0.1),
+                           ((a[0] + b[0]) / 2 + ou, (a[1] + b[1]) / 2 + ov, ys + h * 0.16)], CARVED, 1.05, out=(mu, mv, 0))
+            if h >= 3.0:
+                n = max(2, min(3, int(h / 2.0)))
+                for i in range(4):
+                    cu_, cv_ = ring[i]
+                    self.d.crockets((cu_, cv_, yb), (u, v, apex), n, (cu_ - u, cv_ - v, 0), min(0.45, h * 0.07))
+        self.d.finial(u, v, apex - 0.05, max(0.4, h * 0.16))
+
+    def flyer(self, a, b, w=0.45, t=0.8):
+        super().flyer(a, b, w, t)
+        L = math.hypot(b[0] - a[0], b[1] - a[1])
+        n = max(2, int(L / 1.6))
+        self.d.crockets((a[0], a[1], a[2] + 0.05), (b[0], b[1], b[2] + 0.05), n, (0, 0, 1), 0.36)
+
+    def tex_prism(self, ring, y0, y1, cell, ring_top=None, shade=1.0, skip=(), rep=1):
+        if rep > 1:
+            rt = ring_top or ring
+            for k in range(rep):
+                ra = [_lerp2(a, b, k / rep) for a, b in zip(ring, rt)]
+                rb = [_lerp2(a, b, (k + 1) / rep) for a, b in zip(ring, rt)]
+                self._rep = k
+                self.tex_prism(ra, y0 + (y1 - y0) * k / rep, y0 + (y1 - y0) * (k + 1) / rep, cell, rb, shade, skip)
+            self._rep = 0
+            return
+        super().tex_prism(ring, y0, y1, cell, ring_top, shade, skip)
+
+    # ---------------------------------------------------------------- the atlas' painted stone, now stone
+    def tex(self, pts, cell, shape=RECT, shade=1.0, out=None):
+        if self.furnish and cell in ("tower_lancets", "tower_blind", "buttress", "openwork", "gable"):
+            f = self.poly(pts, STONE, shade)
+            if f is None:
+                return None
+            if out is not None:
+                self.orient(f, out)
+            if cell == "gable" and len(pts) == 3:
+                _gable_trim(self, pts, out)
+            elif len(shape) == 4 and len(pts) == 4 and out is not None:
+                _furnish(self, pts, cell, out, shade)
+            return f
+        if cell == "tympanum":
+            return self.upoly(pts, [(x, t) for x, t in shape], TYMP, shade, out)
+        return super().tex(pts, cell, shape, shade, out)
+
+    def decal(self, p, d, o, s0, s1, y0, y1, cell, shape=RECT, off=0.06, shade=1.0):
+        if self.furnish and cell == "niche":
+            _niche3d(self, p, d, o, (s0 + s1) / 2, y0 + 0.3, (y1 - y0) * 0.95, kind="saint")
+            return None
+        f = super().decal(p, d, o, s0, s1, y0, y1, cell, shape, off, shade)
+        if self.furnish and cell in WIN3D:
+            _win3d(self, p, d, o, s0, s1, y0, y1, **WIN3D[cell])
+        return f
+
+    def subdecal(self, p, d, o, s0, s1, y0, y1, cell, box, shape=RECT, off=0.04, shade=1.0):
+        """Part of an atlas cell (box: x, y, w, h in the cell's pixels, y down) on a wall."""
+        cx, cy, _, _ = CELL[cell]
+        bx, by, bw, bh = box
+        pts, uvs = [], []
+        for x, t in shape:
+            s = s0 + (s1 - s0) * x
+            pts.append((p[0] + d[0] * s + o[0] * off, p[1] + d[1] * s + o[1] * off, y0 + (y1 - y0) * t))
+            uvs.append(((cx + bx + 0.5 + x * (bw - 1)) / AT, 1 - (cy + by + 0.5 + (1 - t) * (bh - 1)) / ATH))
+        return self.upoly(pts, uvs, ATLAS, shade, (o[0], o[1], 0))
+
+    # ---------------------------------------------------------------- out
+    def to_object(self, name, split=0.0):
+        """The mesh as one object, or with split > 0 as one object per split x split m square of the plan
+        (`name`_near_<i>: the game draws each near only)."""
+        c = self.f.w(0, 0, 0)
+        ox, oy = round(c[0]), round(-c[2])
+        for f in self.bm.faces:
+            for loop in f.loops:
+                col = loop[self.col]
+                k = 0.8 + 0.2 * min(1.0, max(0.0, loop.vert.co.z / 30.0))
+                loop[self.col] = (col[0] * k, col[1] * k, col[2] * k, 1.0)
+            if f in self.fixed:
+                continue
+            tile = CATH_TILE.get(f.material_index, 3.0)
+            f.normal_update()
+            n = f.normal
+            if abs(n.z) > 0.7:
+                for loop in f.loops:
+                    loop[self.uvl].uv = ((loop.vert.co.x - ox) / tile, (loop.vert.co.y - oy) / tile)
+            else:
+                tx, ty = -n.y, n.x
+                ln = math.hypot(tx, ty) or 1
+                tx, ty = tx / ln, ty / ln
+                for loop in f.loops:
+                    co = loop.vert.co
+                    loop[self.uvl].uv = (((co.x - ox) * tx + (co.y - oy) * ty) / tile, co.z / tile)
+        self.tris = sum(len(f.verts) - 2 for f in self.bm.faces)
+        by = {}
+        for f in self.bm.faces:
+            by[self.mats[f.material_index]] = by.get(self.mats[f.material_index], 0) + len(f.verts) - 2
+        print(f"[build_landmarks] {name} by material: {sorted(by.items(), key=lambda kv: -kv[1])}")
+        groups = {}
+        self.bm.faces.index_update()
+        if split > 0:
+            for f in self.bm.faces:
+                cc = f.calc_center_median()
+                groups.setdefault((math.floor(cc.x / split), math.floor(cc.y / split)), []).append(f.index)
+        obs = []
+        items = sorted(groups.items()) if split > 0 else [(None, None)]
+        for gi, (key, idx) in enumerate(items):
+            bm = self.bm
+            if idx is not None:
+                bm = self.bm.copy()
+                bm.faces.ensure_lookup_table()
+                keep = set(idx)
+                bmesh.ops.delete(bm, geom=[f for i, f in enumerate(bm.faces) if i not in keep], context="FACES")
+            me = bpy.data.meshes.new(name if idx is None else f"{name}_{gi}")
+            bm.to_mesh(me)
+            if idx is not None:
+                bm.free()
+            for mname in self.mats:
+                me.materials.append(bpy.data.materials[mname])
+            ob = bpy.data.objects.new(me.name, me)
+            bpy.context.scene.collection.objects.link(ob)
+            use_shading(ob)
+            obs.append(ob)
+        self.bm.free()
+        print(f"[build_landmarks] {name}: {self.tris} triangles in {len(obs)} object(s)")
+        for dn, dx, dz in self.doors:
+            print(f"[build_landmarks]   door {dn}: world x {dx}, z {dz}")
+        return obs
+
+
+# the windows painted in the atlas, their stone in front of the glass (the numbers of paint_atlas's window())
+WIN3D = {"great_window": dict(tsp=0.66, lights=6, frame=5, transom=0.62, rings=2, cw=128, ch=256),
+         "lancet": dict(tsp=0.72, lights=2, frame=3, transom=None, rings=1, cw=64, ch=128)}
+
+
+def _wb(m, p, d, o, s0, s1, e0, e1, y0, y1, mat=STONE, shade=1.0, top=True):
+    """A box standing against a wall (as _wbox) without its face on the wall (it would lie back to back with it)."""
+    Q = lambda s, e, y: _wpt(p, d, o, s, e, y)  # noqa: E731
+    P = [Q(s0, e0, y0), Q(s1, e0, y0), Q(s1, e1, y0), Q(s0, e1, y0), Q(s0, e0, y1), Q(s1, e0, y1), Q(s1, e1, y1), Q(s0, e1, y1)]
+    m.hexa(P, mat, shade, skip=(2,) if top else (1, 2))
+
+
+def _curve_band(m, p, d, o, curve, bw, e0, e1, mat=CARVED, shade=1.0, inset=0.0, caps=True, outer=None):
+    """A moulding along a line on a wall (curve: (s, y) points, walked so that the outside is on the left, as up a
+    left jamb, over an arch and down the right one): bw wide, from e0 to e1 out of the wall, `inset` outside the line."""
+    n = len(curve)
+    nrm = []
+    for i in range(n):
+        a = curve[max(0, i - 1)]
+        b = curve[min(n - 1, i + 1)]
+        ts, ty = b[0] - a[0], b[1] - a[1]
+        ln = math.hypot(ts, ty) or 1.0
+        ns, ny = -ty / ln, ts / ln
+        # a mitre at a corner: keep the band's width across both of its lines
+        if 0 < i < n - 1:
+            a2, b2 = curve[i - 1], curve[i]
+            l1 = math.hypot(b2[0] - a2[0], b2[1] - a2[1]) or 1.0
+            n1 = (-(b2[1] - a2[1]) / l1, (b2[0] - a2[0]) / l1)
+            cosang = max(0.35, ns * n1[0] + ny * n1[1])
+            ns, ny = ns / cosang, ny / cosang
+        nrm.append((ns, ny))
+    inner = [(q[0] + nn[0] * inset, q[1] + nn[1] * inset) for q, nn in zip(curve, nrm)]
+    outer = [(q[0] + nn[0] * (inset + bw), q[1] + nn[1] * (inset + bw)) for q, nn in zip(curve, nrm)]
+
+    def P(q, e):
+        return _wpt(p, d, o, q[0], e, q[1])
+    for i in range(n - 1):
+        ns, ny = (nrm[i][0] + nrm[i + 1][0]) / 2, (nrm[i][1] + nrm[i + 1][1]) / 2
+        side = (d[0] * ns, d[1] * ns, ny)
+        m.face([P(inner[i], e1), P(inner[i + 1], e1), P(outer[i + 1], e1), P(outer[i], e1)], mat, shade, out=(o[0], o[1], 0))
+        m.face([P(inner[i], e0), P(inner[i + 1], e0), P(inner[i + 1], e1), P(inner[i], e1)], mat, shade * 0.72, out=(-side[0], -side[1], -side[2]))
+        if outer is None and bw > 0.17 or outer:
+            m.face([P(outer[i], e0), P(outer[i + 1], e0), P(outer[i + 1], e1), P(outer[i], e1)], mat, shade * 0.9, out=side)
+    if caps:
+        for i, j in ((0, 1), (n - 1, n - 2)):
+            ts, ty = curve[i][0] - curve[j][0], curve[i][1] - curve[j][1]
+            m.face([P(inner[i], e0), P(outer[i], e0), P(outer[i], e1), P(inner[i], e1)], mat, shade * 0.8,
+                   out=(d[0] * ts, d[1] * ts, ty))
+
+
+def _arch_curve(s0, s1, y0, y1, tsp, n=5):
+    """The outline of an atlas window (arch_shape in its box): up the left jamb, over the arch, down the right."""
+    W, H = s1 - s0, y1 - y0
+    ysp = y0 + tsp * H
+    return [(s0, y0), (s0, ysp)] + [(s0 + W * x, y0 + H * arch_t(x, tsp)) for x in (k / (2 * n) for k in range(1, 2 * n))] + [(s1, ysp), (s1, y0)]
+
+
+def _win3d(m, p, d, o, s0, s1, y0, y1, tsp, lights, frame, transom, rings, cw, ch):
+    COUNT["window"] = COUNT.get("window", 0) + 1
+    """The stone of a painted window: a moulded surround, a hood with label stops, a sill; in front of the glass the
+    mullions, the transom and the tracery's rings where the picture has them."""
+    W, H = s1 - s0, y1 - y0
+    D = m.d
+
+    def X(px):
+        return s0 + px / cw * W
+
+    def Y(py):
+        return y1 - py / ch * H
+    ysp = y0 + tsp * H
+    bw = max(0.16, min(0.42, W * 0.065))
+    curve = _arch_curve(s0, s1, y0, y1, tsp)
+    _curve_band(m, p, d, o, curve, bw, 0.0, bw * 0.85, CARVED, 0.95, caps=False)
+    arch = [q for q in curve if q[1] >= ysp - 1e-6]
+    _curve_band(m, p, d, o, arch, bw * 0.45, bw * 0.5, bw * 1.25, CARVED, 1.0, inset=bw * 1.05)
+    for sg, q in ((-1, arch[0]), (1, arch[-1])):
+        s = q[0] + sg * (bw * 1.3)
+        _wb(m, p, d, o, s - bw * 0.35, s + bw * 0.35, 0.0, bw * 1.3, ysp - bw * 1.4, ysp, CARVED, 0.95)
+    _wb(m, p, d, o, s0 - bw, s1 + bw, 0.0, bw * 1.2, y0 - 0.24, y0 + 0.02, CARVED, 0.9)
+    iw = cw - 2 * frame
+    lw = iw / lights
+    spring_px = ch * (1 - tsp)
+    ytop = Y(spring_px - lw * 0.3)
+    mw = max(0.08, W / cw * 2.2)
+    for i in range(1, lights):
+        x = X(frame + i * lw)
+        D.bar(_wpt(p, d, o, x, 0.12, y0), _wpt(p, d, o, x, 0.12, ytop), mw, 0.18, CARVED, 0.95)
+    if transom:
+        yt = Y(ch * transom)
+        D.bar(_wpt(p, d, o, X(frame), 0.13, yt), _wpt(p, d, o, X(cw - frame), 0.13, yt), 0.16, mw, CARVED, 0.95)
+    if rings:
+        r = min(iw * 0.26, spring_px * 0.42) - 0.8
+        circ = [((cw / 2, spring_px * 0.55), r)]
+        if rings > 1:
+            r2 = r * 0.55 / 1.0
+            circ += [((cw / 2 - iw * 0.26, spring_px * 0.88), r2), ((cw / 2 + iw * 0.26, spring_px * 0.88), r2)]
+        for (cxp, cyp), rp in circ:
+            D.ring(p, d, o, X(cxp), Y(cyp), rp / cw * W, rp / ch * H, 0.03, 0.17, mw * 0.9, CARVED, 0.95, seg=12)
+
+
+def _niche3d(m, p, d, o, s, y0, h, kind="saint", statue=True, dep=None, arm=1):
+    """A statue in a niche on a wall: the shadowed back, a pedestal on a corbel, two colonnettes, a gabled canopy
+    with crockets, pinnacles and a finial; the statue (see figure)."""
+    w = h * 0.4
+    dep = dep if dep is not None else w * 0.85
+    D = m.d
+    yc = y0 + h * 0.74
+    back = [(s - w / 2, y0 - 0.1 * h), (s - w / 2, yc)] + _parc(s - w / 2, s + w / 2, yc, h * 0.22, 3)[1:-1] + [(s + w / 2, yc), (s + w / 2, y0 - 0.1 * h)]
+    m.face([_wpt(p, d, o, q[0], 0.03, q[1]) for q in back], CARVED, 0.34, out=(o[0], o[1], 0))
+    _wb(m, p, d, o, s - w * 0.42, s + w * 0.42, 0.0, dep, y0 - 0.1 * h, y0, CARVED, 1.0)
+    c = _wpt(p, d, o, s, dep * 0.5, y0 - 0.1 * h)
+    rot = math.atan2(d[1], d[0]) + math.pi / 4
+    m.lathe(c, [(0.0, -0.2 * h), (w * 0.42 * 1.41, 0.0)], 4, CARVED, rot=rot, shade=0.8, caps=False)
+    for sg in (-1, 1):
+        D.bar(_wpt(p, d, o, s + sg * w / 2, dep * 0.6, y0), _wpt(p, d, o, s + sg * w / 2, dep * 0.6, yc), 0.05 * h, mat=CARVED)
+    # the canopy: a slab, the gablet on it, crockets, a finial, a pinnacle each side
+    _wb(m, p, d, o, s - w / 2 - 0.03 * h, s + w / 2 + 0.03 * h, 0.0, dep, yc, yc + 0.06 * h, CARVED, 1.0)
+    ga, gb, gt = s - w / 2 - 0.03 * h, s + w / 2 + 0.03 * h, yc + 0.06 * h
+    apex = yc + 0.4 * h
+    for e, sh in ((dep, 1.05),):
+        m.face([_wpt(p, d, o, ga, e, gt), _wpt(p, d, o, gb, e, gt), _wpt(p, d, o, s, e, apex)], CARVED, sh, out=(o[0], o[1], 0))
+    for sg, (sa, sb) in ((-1, (ga, s)), (1, (gb, s))):
+        yy0 = gt
+        m.face([_wpt(p, d, o, sa, 0.0, yy0), _wpt(p, d, o, sa, dep, yy0), _wpt(p, d, o, sb, dep, apex), _wpt(p, d, o, sb, 0.0, apex)],
+               CARVED, 0.95, out=(d[0] * sg, d[1] * sg, 1.0))
+        D.crockets(_wpt(p, d, o, sa, dep, yy0 + 0.02), _wpt(p, d, o, sb, dep, apex), 2, (d[0] * sg, d[1] * sg, 0), 0.07 * h)
+        pu, pv, _ = _wpt(p, d, o, sa if sg < 0 else sb, dep * 0.5, 0)
+        pc = _wpt(p, d, o, ga if sg < 0 else gb, dep * 0.5, 0)
+        D.lathe((pc[0], pc[1], gt), [(0.035 * h, 0.0), (0.035 * h, 0.12 * h), (0.0, 0.3 * h)], 4, CARVED, rot=rot)
+    ap = _wpt(p, d, o, s, dep * 0.9, apex - 0.02)
+    D.finial(ap[0], ap[1], ap[2], 0.12 * h)
+    if statue:
+        c = _wpt(p, d, o, s, dep * 0.5, 0)
+        m.figure(c[0], c[1], y0, h * 0.72, (o[0], o[1]), kind, arm=arm)
+
+
+def _gable_trim(m, pts, out, t=0.3, statue=False):
+    """The raking copings of a gable (pts: foot, foot, apex), crockets on them, a finial on the apex."""
+    a, b, c = pts
+    o = _unit((out[0], out[1], 0.0))
+    off = (o[0] * t * 0.5, o[1] * t * 0.5, 0.0)
+    for q in (a, b):
+        m.bar(_add(q, off), _add(c, off), t, t * 0.9, CARVED, 1.0)
+        L = _len(_sub(c, q))
+        n = max(2, int(L / 1.1))
+        sgv = _unit(_sub(q, c))
+        m.d.crockets(_add(_add(q, off), (0, 0, t * 0.5)), _add(_add(c, off), (0, 0, t * 0.5)), n, (sgv[0], sgv[1], 0), max(0.25, t * 1.1))
+    m.d.finial(c[0] + off[0], c[1] + off[1], c[2] + t * 0.3, max(0.8, t * 4))
+
+
+def _furnish(m, pts, cell, out, shade):
+    """The painted stone of a face of the atlas (a tower stage, a buttress, the octagon), built: the openings keep
+    their painted louvres and glass; frames, gablets, colonnettes, niches with statues, string courses are 3D."""
+    a0, b0, b1, a1 = pts
+    L = math.hypot(b0[0] - a0[0], b0[1] - a0[1])
+    if L < 0.3:
+        return
+    d = ((b0[0] - a0[0]) / L, (b0[1] - a0[1]) / L)
+    ol = math.hypot(out[0], out[1]) or 1.0
+    o = (out[0] / ol, out[1] / ol)
+    p = (a0[0], a0[1])
+    y0, y1 = a0[2], a1[2]
+    H = y1 - y0
+    _, _, cw, ch = CELL[cell]
+    D = m.d
+
+    def S(px):
+        return px / cw * L
+
+    def Y(py):
+        return y1 - py / ch * H
+    if cell == "tower_lancets":
+        for x0 in (17, 69):
+            s0, s1, yb, yt = S(x0), S(x0 + 42), Y(252), Y(30)
+            m.subdecal(p, d, o, s0, s1, yb, yt, cell, (x0, 30, 42, 222), arch_shape(0.8, 3), off=0.03)
+            _curve_band(m, p, d, o, _arch_curve(s0, s1, yb, yt, 0.8), 0.3, 0.0, 0.34, CARVED, shade * 0.95, caps=False)
+            sc = (s0 + s1) / 2
+            ysp = yb + 0.8 * (yt - yb)
+            D.bar(_wpt(p, d, o, sc, 0.14, yb), _wpt(p, d, o, sc, 0.14, ysp + 0.3), 0.2, 0.22, CARVED)
+            for tf in (0.4, 0.66):
+                yy = yt - tf * (yt - yb)
+                D.bar(_wpt(p, d, o, s0, 0.12, yy), _wpt(p, d, o, s1, 0.12, yy), 0.22, 0.2, CARVED)
+            # the crocketed gablet over the lancet
+            A = _wpt(p, d, o, S(x0 - 1), 0.4, Y(78))
+            T = _wpt(p, d, o, S(x0 + 21), 0.4, Y(14))
+            Bq = _wpt(p, d, o, S(x0 + 43), 0.4, Y(78))
+            for q in (A, Bq):
+                m.bar(q, T, 0.28, 0.3, CARVED, 1.02)
+                sgv = _unit(_sub(q, T))
+                D.crockets(_add(q, (0, 0, 0.15)), _add(T, (0, 0, 0.15)), 4, (sgv[0], sgv[1], 0), 0.42)
+            D.finial(T[0], T[1], T[2] + 0.1, 1.3)
+        # the shaft between the lancets, the blind panels at the sides
+        D.bar(_wpt(p, d, o, S(64), 0.2, Y(252)), _wpt(p, d, o, S(64), 0.2, Y(12)), 0.3, 0.3, CARVED)
+        for x0 in (3, 115):
+            for yb_, yt_ in ((126, 14), (250, 130)):
+                _curve_band(m, p, d, o, _arch_curve(S(x0), S(x0 + 10), Y(yb_), Y(yt_), 0.9, 4), 0.12, 0.0, 0.14, CARVED, shade * 0.9, caps=False)
+        _wb(m, p, d, o, 0.0, L, 0.0, 0.32, Y(10), Y(5), CARVED, 1.0)
+    elif cell == "tower_blind":
+        if H < 5:
+            return
+        for k in range(4):
+            for yb_, yt_ in ((66, 14), (124, 70)):
+                s0, s1 = S(4 + k * 30), S(32 + k * 30)
+                _curve_band(m, p, d, o, _arch_curve(s0, s1, Y(yb_), Y(yt_), 0.72, 5), 0.16, 0.0, 0.2, CARVED, shade * 0.92, caps=False)
+                D.bar(_wpt(p, d, o, (s0 + s1) / 2, 0.08, Y(yb_)), _wpt(p, d, o, (s0 + s1) / 2, 0.08, Y(yt_) - (Y(yt_) - Y(yb_)) * 0.3), 0.1, 0.12, CARVED)
+        _wb(m, p, d, o, 0.0, L, 0.0, 0.3, Y(10), Y(5), CARVED, 1.0)
+    elif cell == "buttress":
+        if H < 3.0 or L < 0.75:
+            return
+        # (a statue where the face looks away from the east and is wide enough; the lower of two repeats)
+        big = L >= 0.95 and H >= 5.0
+        # (the towers' buttresses: their faces to the square and to the streets, below the octagon, one of each two)
+        facing = o[0] < -0.5 or (abs(o[1]) > 0.5 and o[1] * p[1] > 0 and (p[1] * o[1] > 16.0 or p[0] > 15.0))
+        if big and facing and y0 < 60 and m._rep % 2 == 0:
+            _niche3d(m, p, d, o, L / 2, Y(56) + 0.1, (Y(22) - Y(56)) * 1.05, kind=("apostle", "saint", "bishop", "king")[int(abs(p[0] * 7 + p[1] * 3)) % 4], dep=min(0.5, L * 0.35))
+        else:
+            _curve_band(m, p, d, o, _arch_curve(S(7), S(25), Y(56), Y(22), 0.7, 4), min(0.14, L * 0.08), 0.0, 0.12, CARVED, shade * 0.92, caps=False)
+        _curve_band(m, p, d, o, _arch_curve(S(5), S(27), Y(124), Y(62), 0.85, 4), min(0.14, L * 0.08), 0.0, 0.12, CARVED, shade * 0.9, caps=False)
+        _wb(m, p, d, o, 0.0, L, 0.0, 0.14, y0, y0 + 0.18, CARVED, 0.95)
+    elif cell == "openwork":
+        s0, s1, yb, yt = S(9), S(55), Y(126), Y(20)
+        m.subdecal(p, d, o, s0, s1, yb, yt, cell, (9, 20, 46, 106), arch_shape(0.76, 3), off=0.03)
+        if H < 5:
+            return
+        _curve_band(m, p, d, o, _arch_curve(s0, s1, yb, yt, 0.76), 0.22, 0.0, 0.26, CARVED, shade * 0.95, caps=False)
+        D.bar(_wpt(p, d, o, (s0 + s1) / 2, 0.12, yb), _wpt(p, d, o, (s0 + s1) / 2, 0.12, yb + 0.76 * (yt - yb) + 0.2), 0.18, 0.2, CARVED)
+        A, T, Bq = _wpt(p, d, o, S(6), 0.34, Y(50)), _wpt(p, d, o, S(32), 0.34, Y(4)), _wpt(p, d, o, S(57), 0.34, Y(50))
+        for q in (A, Bq):
+            m.bar(q, T, 0.24, 0.26, CARVED, 1.02)
+            sgv = _unit(_sub(q, T))
+            D.crockets(_add(q, (0, 0, 0.12)), _add(T, (0, 0, 0.12)), 3, (sgv[0], sgv[1], 0), 0.36)
+        D.finial(T[0], T[1], T[2] + 0.1, 1.1)
+        for x in (2.5, 61.5):
+            m.bar(_wpt(p, d, o, S(x), 0.12, y0), _wpt(p, d, o, S(x), 0.12, y1), S(5), 0.24, CARVED, 0.95)
+
+
+def _gable3d(m, p, d, o, s0, s1, y0, apex, statues=3, off=0.0):
+    """A great gable's face: blind arcading of lancets rising with the slopes, niches with statues, the raking
+    copings with crockets, a finial."""
+    sc, hw = (s0 + s1) / 2, (s1 - s0) / 2
+    rise = apex - y0
+
+    def top_at(s):
+        return y0 + rise * (1 - abs(s - sc) / hw)
+    # the lancets of the arcade (clear of the niches in the middle)
+    step = 1.25
+    k = 0
+    s = s0 + 0.9
+    while s + 0.9 < s1:
+        a, b = s, s + 0.9
+        t = min(top_at(a), top_at(b)) - 0.7
+        mid = (a + b) / 2
+        if t - y0 > 2.2 and abs(mid - sc) > hw * 0.3 + 0.95:
+            _curve_band(m, p, d, o, _arch_curve(a, b, y0 + 0.9, t, 0.8, 4), 0.12, off, off + 0.14, CARVED, 0.9, caps=False)
+        s += step
+        k += 1
+    # the niches: a big one in the middle, two smaller beside it
+    if statues:
+        _niche3d(m, p, d, o, sc, y0 + 1.4, min(3.4, rise * 0.42), kind="virgin", dep=0.55)
+        if statues > 1:
+            for sg in (-1, 1):
+                hh = min(2.6, rise * 0.3)
+                _niche3d(m, p, d, o, sc + sg * hw * 0.3, y0 + 1.2, hh, kind="angel" if statues > 3 else "saint", dep=0.45, arm=sg)
+    # the copings with crockets, and the finial
+    o3 = (o[0], o[1], 0.0)
+    _gable_trim(m, [_wpt(p, d, o, s0, off, y0), _wpt(p, d, o, s1, off, y0), _wpt(p, d, o, sc, off, apex)], o3, t=0.45)
+
+
+def _cportal(m, p, d, o, sc, hw0, hw1, depth, h0, h1, tsp, lintel, bands=5, trumeau=False, steps=True, door=None, leaves=True,
+             jamb=3, figures=True, virgin=True):
+    """A splayed Gothic portal (as _portal: the same bands, the same opening), carved: statues on corbels under
+    canopies on the jambs, statuettes on the archivolts, the carved tympanum (cath_tymp), a trumeau with the Virgin,
+    oak leaves (the picture: iron straps, nails, rings; leaves=False: an opening, the game hangs its own leaves: world/cathedralInWorld.ts),
+    bluestone steps."""
+    def W(s, y, dep):
+        return (p[0] + d[0] * s - o[0] * dep, p[1] + d[1] * s - o[1] * dep, y)
+    D = m.d
+    ysp = h0 * tsp
+    rings = []
+    for k in range(bands + 1):
+        f = k / bands
+        rings.append((depth * f, _arch_outline(hw0 + (hw1 - hw0) * f, h0 + (h1 - h0) * f, tsp)))
+    if door and hasattr(m, "door"):
+        m.door(door, W(sc, 0, depth))
+    for k in range(bands):
+        (da, A), (db, Bn) = rings[k], rings[k + 1]
+        dm = (da + db) / 2
+        for i in range(len(A) - 1):
+            sm = (A[i][0] + A[i + 1][0]) / 2
+            ym = (A[i][1] + A[i + 1][1]) / 2
+            out = (o[0] + d[0] * (-sm) * 0.3, o[1] + d[1] * (-sm) * 0.3, (ysp - ym) * 0.3 if ym > ysp else 0)
+            f = m.poly([W(sc + A[i][0], A[i][1], da), W(sc + A[i + 1][0], A[i + 1][1], da),
+                        W(sc + Bn[i + 1][0], Bn[i + 1][1], dm), W(sc + Bn[i][0], Bn[i][1], dm)], CARVED, (0.95 if k % 2 == 0 else 0.72) * (1 - 0.45 * k / bands))
+            m.orient(f, out)
+            f = m.poly([W(sc + Bn[i][0], Bn[i][1], dm), W(sc + Bn[i + 1][0], Bn[i + 1][1], dm),
+                        W(sc + Bn[i + 1][0], Bn[i + 1][1], db), W(sc + Bn[i][0], Bn[i][1], db)], CARVED, (0.55 if k % 2 == 0 else 0.42) * (1 - 0.45 * k / bands))
+            m.orient(f, (-d[0] * sm - o[0] * 0.1, -d[1] * sm - o[1] * 0.1, (ysp - ym) if ym > ysp else 0))
+        if not figures:
+            continue
+        # statuettes up the archivolt (on the arch, standing on little corbels, under little canopies)
+        bw = (A[0][0] - Bn[0][0]) if A[0][0] > Bn[0][0] else 0.4
+        hs = max(0.5, min(0.95, abs(bw) * 1.9))
+        arch_idx = [i for i in range(1, len(A) - 1) if A[i][1] > (h0 + (h1 - h0) * da / max(depth, 1e-6)) * tsp + 0.3]
+        for i in arch_idx:
+            q = ((A[i][0] + Bn[i][0]) / 2, (A[i][1] + Bn[i][1]) / 2 - hs * 0.55)
+            c = W(sc + q[0], q[1], (da + dm) / 2)
+            D.figure(c[0], c[1], c[2], hs, (o[0], o[1]), small=True, shade=0.95 * (1 - 0.3 * k / bands))
+            D.lathe((c[0], c[1], c[2] + hs * 1.02), [(hs * 0.2, 0.0), (hs * 0.26, hs * 0.1), (0.0, hs * 0.3)], 6, CARVED, shade=0.9)
+        # a statue on each jamb of the outer bands, on a corbel above a man's head, under a canopy
+        if k < jamb:
+            hs = 1.85 if hw0 > 3.0 else 1.55
+            for sg in (-1, 1):
+                sj = sc + sg * abs((A[0][0] + Bn[0][0]) / 2) - sg * 0.3
+                c = W(sj, 0, (da + dm) / 2 + 0.05)
+                yb = 2.25 + (0.0 if hw0 > 3.0 else -0.15)
+                D.lathe((c[0], c[1], yb - 0.4), [(0.0, 0.0), (0.26, 0.3), (0.3, 0.4)], 6, CARVED, shade=0.85)
+                face = (o[0] - d[0] * sg * 0.6, o[1] - d[1] * sg * 0.6)
+                m.figure(c[0], c[1], yb, hs, face, ("apostle", "saint", "bishop", "king", "saint")[(k + (sg > 0)) % 5], shade=0.95 - 0.08 * k, arm=-sg)
+                D.canopy(c[0], c[1], yb + hs * 1.05, 0.62, rot=math.pi / 6)
+    dep, inner = rings[-1]
+    # the tympanum over the lintel: the carved picture
+    top = [pt for pt in inner if pt[1] > lintel + 0.05]
+    tpts = [(hw1, lintel)] + top + [(-hw1, lintel)]
+    ymax = max(y for _, y in tpts)
+    m.upoly([W(sc + s, y, dep) for s, y in tpts], [((s + hw1) / (2 * hw1), (y - lintel) / (ymax - lintel)) for s, y in tpts], TYMP, 0.9, (o[0], o[1], 0))
+    # the lintel: a carved band on corbels
+    for k, (y0, y1, fwd) in enumerate(((lintel - 0.5, lintel, 0.2), (lintel - 0.62, lintel - 0.5, 0.12))):
+        ring = [W(sc - hw1, 0, dep - fwd)[:2], W(sc + hw1, 0, dep - fwd)[:2], W(sc + hw1, 0, dep)[:2], W(sc - hw1, 0, dep)[:2]]
+        m.prism(ring, y0, y1, CARVED, top=True, shade=1.05 if k == 0 else 0.85)
+    if figures:
+        n = max(3, int(hw1 * 2 / 0.55))
+        for i in range(n):
+            s = sc - hw1 + (i + 0.5) * 2 * hw1 / n
+            c = W(s, 0, dep - 0.28)
+            D.figure(c[0], c[1], lintel + 0.02, 0.55, (o[0], o[1]), small=True, shade=0.8)
+    # the leaves: oak (the picture), iron straps with scrolls, ring handles
+    tw = 0.3 if trumeau else 0.03
+    dh = lintel - 0.62
+    if leaves:
+        for s0, s1, hinge in ((-hw1, -tw, -1), (tw, hw1, 1)):
+            u0 = (s0 + hw1) / (2 * hw1)
+            u1 = (s1 + hw1) / (2 * hw1)
+            m.upoly([W(sc + s0, 0.3, dep), W(sc + s1, 0.3, dep), W(sc + s1, dh, dep), W(sc + s0, dh, dep)],
+                    [(u0, 0.0), (u1, 0.0), (u1, 1.0), (u0, 1.0)], OAK, 0.9, (o[0], o[1], 0))
+            # (the strap hinges, the scrolls, the nails and the rings are in the picture and its height map)
+    if trumeau:
+        ring = [W(sc - 0.28, 0, dep - 0.55)[:2], W(sc + 0.28, 0, dep - 0.55)[:2], W(sc + 0.28, 0, dep)[:2], W(sc - 0.28, 0, dep)[:2]]
+        m.prism(ring, 0, lintel - 0.62, CARVED, top=False, shade=1.0)
+        c = W(sc, 0, dep - 0.72)
+        m.lathe((c[0], c[1], 1.9), [(0.08, 0.0), (0.46, 0.55), (0.46, 0.7)], 6, CARVED, shade=0.95)  # the corbel
+        if virgin:
+            m.figure(c[0], c[1], 2.6, 1.95, (o[0], o[1]), "virgin", shade=1.05)
+        m.canopy(c[0], c[1], 4.75, 0.95)
+    if steps:
+        for k, (e0, e1, y) in enumerate(((-0.9, 0.0, 0.15), (0.0, dep, 0.3))):
+            hw = hw0 + 0.4 if k == 0 else hw1 + 0.05
+            ring = [W(sc - hw, 0, e0)[:2], W(sc + hw, 0, e0)[:2], W(sc + hw, 0, e1)[:2], W(sc - hw, 0, e1)[:2]]
+            m.prism(ring, 0, y, PLINTH, top=True, shade=0.85)
+
+
+def _cwimperg(m, p, d, o, sc, hw, y0, y1, off=0.35, w=0.45):
+    """The open gable over a portal: crocketed copings, a trefoil of tracery in it, a finial on the apex."""
+    def Wp(s, y, e):
+        return (p[0] + d[0] * s + o[0] * e, p[1] + d[1] * s + o[1] * e, y)
+    for sg in (-1, 1):
+        a = sc + sg * hw
+        f = m.poly([Wp(a, y0, off), Wp(a - sg * w, y0, off), Wp(sc, y1 - w * 1.2, off), Wp(sc, y1, off)], CARVED, 1.05)
+        m.orient(f, (o[0], o[1], 0))
+        f = m.poly([Wp(a, y0, off - 0.3), Wp(a, y0, off), Wp(sc, y1, off), Wp(sc, y1, off - 0.3)], CARVED, 1.0)
+        m.orient(f, (d[0] * sg, d[1] * sg, 1.0))
+        m.d.crockets(Wp(a, y0 + 0.1, off + 0.05), Wp(sc, y1 + 0.1, off + 0.05), max(3, int((y1 - y0) / 1.1)), (d[0] * sg, d[1] * sg, 0), 0.5)
+    # a trefoil ring in the gable
+    cy = y0 + (y1 - y0) * 0.38
+    r = min(hw * 0.45, (y1 - y0) * 0.2)
+    m.ring(p, d, o, sc, cy, r, r, off - 0.25, off - 0.02, 0.18, CARVED, 0.95, seg=14)
+    for k in range(3):
+        # the three foils
+        a = math.pi / 2 + 2 * math.pi * k / 3
+        m.d.ring(p, d, o, sc + r * 0.44 * math.cos(a), cy + r * 0.44 * math.sin(a), r * 0.42, r * 0.42, off - 0.22, off - 0.04, 0.1, CARVED, 0.95, seg=8)
+    c = Wp(sc, 0, off)
+    m.pinnacle(c[0], c[1], y1 - 0.3, 2.4, 0.3)
+
+
+def _cbuttress(m, u, side, top=AE - 0.4, pin=5.0, depth=1.4, w=0.6, statue=True):
+    """An aisle buttress in two stages with weatherings, a niche with a statue high on its face, a gablet and the
+    pinnacle on top."""
+    vo = side * VO
+    ya = top * 0.55
+    va, vb = sorted((vo, vo + side * depth))
+    m.box(u - w, u + w, va, vb, 0, ya, STONE, shade=0.95)
+    # the weathering: a slope back to the upper stage
+    d2 = depth * 0.68
+    m.face([(u - w, vo + side * depth, ya), (u + w, vo + side * depth, ya), (u + w, vo + side * d2, ya + 0.7), (u - w, vo + side * d2, ya + 0.7)],
+           CARVED, 1.0, out=(0, side, 1))
+    for sg in (-1, 1):
+        m.face([(u + sg * w, vo, ya), (u + sg * w, vo + side * depth, ya), (u + sg * w, vo + side * d2, ya + 0.7), (u + sg * w, vo, ya + 0.7)],
+               STONE, 0.9, out=(sg, 0, 0))
+    va, vb = sorted((vo, vo + side * d2))
+    m.box(u - w * 0.9, u + w * 0.9, va, vb, ya + 0.7, top, STONE, shade=0.95)
+    # plinth
+    va, vb = sorted((vo, vo + side * (depth + 0.1)))
+    m.box(u - w - 0.1, u + w + 0.1, va, vb, -0.3, 0.9, PLINTH, shade=0.9)
+    if statue:
+        _niche3d(m, (u - w * 0.9, vo + side * d2), (1, 0), (0, side), w * 0.9, ya + 1.6, min(2.6, (top - ya) * 0.55), kind="saint", dep=0.42)
+    # a gablet on the face under the pinnacle
+    Wf = ((u - w * 0.9, vo + side * d2), (1, 0), (0, side))
+    _gable_trim(m, [_wpt(*Wf, 0.0, 0.02, top - 0.2), _wpt(*Wf, 1.8 * w, 0.02, top - 0.2), _wpt(*Wf, 0.9 * w, 0.02, top + 1.1)], (0, side, 0), t=0.2)
+    m.face([_wpt(*Wf, 0.0, 0.01, top - 0.2), _wpt(*Wf, 1.8 * w, 0.01, top - 0.2), _wpt(*Wf, 0.9 * w, 0.01, top + 1.1)], STONE, 0.95, out=(0, side, 0))
+    m.pinnacle(u, vo + side * d2 * 0.5, top, pin, 0.42)
+
+
+def _plinth_run(m, p, d, o, s0, s1, h=1.0, e=0.12):
+    """The low courses along a wall's foot: a projecting plinth with a sloped top (the damp, sooted stone)."""
+    m.face([_wpt(p, d, o, s0, e, -0.3), _wpt(p, d, o, s1, e, -0.3), _wpt(p, d, o, s1, e, h), _wpt(p, d, o, s0, e, h)], PLINTH, 0.95, out=(o[0], o[1], 0))
+    m.face([_wpt(p, d, o, s0, e, h), _wpt(p, d, o, s1, e, h), _wpt(p, d, o, s1, 0.0, h + e * 1.2), _wpt(p, d, o, s0, 0.0, h + e * 1.2)], PLINTH, 1.0,
+           out=(o[0], o[1], 1.0))
+    for s, sg in ((s0, -1), (s1, 1)):
+        m.face([_wpt(p, d, o, s, 0.0, -0.3), _wpt(p, d, o, s, e, -0.3), _wpt(p, d, o, s, e, h), _wpt(p, d, o, s, 0.0, h + e * 1.2)], PLINTH, 0.85,
+               out=(d[0] * sg, d[1] * sg, 0))
+
+
+def _string(m, p, d, o, s0, s1, y, e=0.16, h=0.22):
+    """A string course: a moulded band along a wall."""
+    _wb(m, p, d, o, s0, s1, 0.0, e, y - h, y, CARVED, 0.95)
+
+
+# ---- the houses against the church, as good as the town's (build_city.py): the town's wall pictures and their
+# height maps (brick, plaster, render, the old brick), painted; windows with reveals, frames, glazing bars, sills,
+# heads and shutters; panelled doors in a recess with a step and a fanlight; shop fronts; cornices, gutters and
+# downpipes; slate or pantile roofs with dormers; chimneys with pots.
+HOUSE_WALLS = [HBRICK, HPLASTER, HRENDER, HBRICKOLD, HPLASTER, HBRICK]
+HOUSE_PAINT = {HPLASTER: [(0.98, 0.96, 0.9), (0.97, 0.88, 0.72), (0.86, 0.88, 0.88), (0.95, 0.8, 0.68), (0.88, 0.92, 0.84)],
+               HRENDER: [(0.95, 0.94, 0.9), (0.98, 0.92, 0.8), (0.84, 0.82, 0.78)],
+               HBRICK: [(1.0, 1.0, 1.0), (0.92, 0.9, 0.9)], HBRICKOLD: [(1.0, 1.0, 1.0)]}
+SHUTTER_PAINT = [(0.42, 0.62, 0.45), (0.62, 0.3, 0.24), (0.36, 0.44, 0.58), (0.5, 0.44, 0.34), (0.3, 0.42, 0.34)]
+DOOR_PAINT = [(0.55, 0.36, 0.24), (0.3, 0.42, 0.34), (0.42, 0.22, 0.18), (0.32, 0.3, 0.3), (0.62, 0.48, 0.3)]
+
+
+def _wall_holes(m, p, d, o, e, s0, s1, y0, y1, holes, mat, shade=1.0):
+    """A flat wall at e out of the frame with rectangular holes [(sa, sb, ya, yb, ...)]: cut into strips."""
+    ss = sorted({s0, s1} | {q for h in holes for q in h[:2]})
+    ys = sorted({y0, y1} | {q for h in holes for q in h[2:4]})
+    for j in range(len(ys) - 1):
+        ya, yb = ys[j], ys[j + 1]
+        run = None
+        for i in range(len(ss) - 1):
+            sa, sb = ss[i], ss[i + 1]
+            cs, cy = (sa + sb) / 2, (ya + yb) / 2
+            hole = any(h[0] < cs < h[1] and h[2] < cy < h[3] for h in holes)
+            if not hole:
+                run = (run[0], sb) if run else (sa, sb)
+            if (hole or i == len(ss) - 2) and run:
+                m.face([_wpt(p, d, o, run[0], e, ya), _wpt(p, d, o, run[1], e, ya), _wpt(p, d, o, run[1], e, yb), _wpt(p, d, o, run[0], e, yb)],
+                       mat, shade, out=(o[0], o[1], 0))
+                run = None
+
+
+def _reveal(m, p, d, o, e, sa, sb, ya, yb, rd, mat, shade=0.7, sill=True):
+    """The four sides of a hole in a wall at e, rd deep."""
+    Q = lambda s, ee, y: _wpt(p, d, o, s, ee, y)  # noqa: E731
+    m.face([Q(sa, e, ya), Q(sa, e, yb), Q(sa, e - rd, yb), Q(sa, e - rd, ya)], mat, shade, out=(d[0], d[1], 0))
+    m.face([Q(sb, e, ya), Q(sb, e, yb), Q(sb, e - rd, yb), Q(sb, e - rd, ya)], mat, shade, out=(-d[0], -d[1], 0))
+    m.face([Q(sa, e, yb), Q(sb, e, yb), Q(sb, e - rd, yb), Q(sa, e - rd, yb)], mat, shade * 0.75, out=(0, 0, -1))
+    if sill:
+        m.face([Q(sa, e, ya), Q(sb, e, ya), Q(sb, e - rd, ya), Q(sa, e - rd, ya)], mat, shade * 1.1, out=(0, 0, 1))
+
+
+def _frame(D, p, d, o, e, sa, sb, ya, yb, w, dep, mat, shade=1.0, bottom=True):
+    """A frame of four bars inside a hole's edge (a window's or a door's)."""
+    Q = lambda s, y: _wpt(p, d, o, s, e, y)  # noqa: E731
+    D.bar(Q(sa + w / 2, ya), Q(sa + w / 2, yb), w, dep, mat, shade)
+    D.bar(Q(sb - w / 2, ya), Q(sb - w / 2, yb), w, dep, mat, shade)
+    D.bar(Q(sa + w, yb - w / 2), Q(sb - w, yb - w / 2), w, dep, mat, shade)
+    if bottom:
+        D.bar(Q(sa + w, ya + w / 2), Q(sb - w, ya + w / 2), w, dep, mat, shade)
+
+
+def _house2(m, p, d, o, s0, s1, depth, h, rise, idx, chimney=False):
+    """A house built against the church: its front `depth` out from the church wall (p, d, o), s0..s1 along it,
+    h to the eaves, the roof's ridge along the wall `rise` higher."""
+    import random
+    rng = random.Random(idx * 7919 + int(s0 * 10))
+    D = m.d
+    W = s1 - s0
+    E = depth
+    wall = HOUSE_WALLS[idx % len(HOUSE_WALLS)]
+    paint = rng.choice(HOUSE_PAINT[wall])
+    shut = rng.choice(SHUTTER_PAINT)
+    dpaint = rng.choice(DOOR_PAINT)
+    brick = wall in (HBRICK, HBRICKOLD)
+    roof = HPANTILE if rng.random() < 0.45 else HSLATE
+    gh = 3.2 + rng.uniform(-0.1, 0.25)
+    nup = max(1, int(round((h - gh - 0.5) / 2.75)))
+    fh = (h - gh - 0.45) / nup
+    nb = max(1, int(W / 1.75))
+    bw = W / nb
+    door_bay = 0 if rng.random() < 0.5 else nb - 1
+    shop = nb >= 2 and W > 4.4 and rng.random() < 0.55
+    shutters = rng.random() < 0.6
+    holes = []
+    for k in range(nb):
+        c = s0 + (k + 0.5) * bw
+        if k == door_bay:
+            holes.append((c - 0.55, c + 0.55, 0.0, 2.45, "door"))
+        elif not shop:
+            holes.append((c - 0.5, c + 0.5, 0.95, 2.6, "win", 0))
+    if shop:
+        sa = s0 + (bw if door_bay == 0 else 0.0) + 0.35
+        sb = s1 - (bw if door_bay == nb - 1 else 0.0) - 0.35
+        holes.append((sa, sb, 0.62, 2.7, "shop"))
+    ww = rng.choice([0.9, 1.0, 1.1])
+    wh = min(fh - 0.95, rng.choice([1.5, 1.65, 1.8]))
+    for f in range(nup):
+        yb = gh + f * fh + 0.75
+        for k in range(nb):
+            c = s0 + (k + 0.5) * bw
+            holes.append((c - ww / 2, c + ww / 2, yb, yb + wh * (0.92 if f == nup - 1 and nup > 1 else 1.0), "win", f + 1))
+    # the front and its two ends
+    m.set_tint(paint)
+    _wall_holes(m, p, d, o, E, s0, s1, -0.3, h, holes, wall)
+    end = [(0, -0.3), (E, -0.3), (E, h), (E / 2, h + rise), (0, h)]
+    for se, sg in ((s0, -1), (s1, 1)):
+        m.face([_wpt(p, d, o, se, e, y) for e, y in end], wall, 0.85, out=(d[0] * sg, d[1] * sg, 0))
+    rd = 0.24
+    for hole in holes:
+        sa, sb, ya, yb, kind = hole[:5]
+        m.set_tint(paint)
+        _reveal(m, p, d, o, E, sa, sb, ya, yb, rd, wall, 0.62, sill=kind != "door")
+        if kind == "win":
+            # heads and sills: bluestone on the brick fronts, a moulded plaster surround on the painted ones
+            m.set_tint((1.0, 1.0, 1.0))
+            _wb(m, p, d, o, sa - 0.08, sb + 0.08, E, E + 0.08, ya - 0.1, ya, PLINTH, 0.95)
+            if brick:
+                _wb(m, p, d, o, sa - 0.12, sb + 0.12, E, E + 0.04, yb, yb + 0.24, PLINTH, 1.0)
+            else:
+                m.set_tint(tuple(min(1.0, c * 1.04) for c in paint))
+                for s_a, s_b, y_a, y_b in ((sa - 0.13, sa, ya, yb + 0.13), (sb, sb + 0.13, ya, yb + 0.13), (sa, sb, yb, yb + 0.13)):
+                    _wb(m, p, d, o, s_a, s_b, E, E + 0.05, y_a, y_b, wall, 1.05)
+                _wb(m, p, d, o, sa - 0.2, sb + 0.2, E, E + 0.1, yb + 0.13, yb + 0.22, wall, 1.1)
+            # the sash: glass, a white frame, the bars of six (or four) panes
+            m.set_tint((1.0, 1.0, 1.0))
+            ge = E - rd + 0.06
+            m.face([_wpt(p, d, o, sa, ge, ya), _wpt(p, d, o, sb, ge, ya), _wpt(p, d, o, sb, ge, yb), _wpt(p, d, o, sa, ge, yb)], HGLASS, 0.9,
+                   out=(o[0], o[1], 0))
+            # (the frame and the bars stand clear of the glass: 1 cm, never back to back with it)
+            _frame(D, p, d, o, ge + 0.05, sa, sb, ya, yb, 0.075, 0.08, HTRIM, 1.0)
+            sc = (sa + sb) / 2
+            D.bar(_wpt(p, d, o, sc, ge + 0.04, ya + 0.07), _wpt(p, d, o, sc, ge + 0.04, yb - 0.07), 0.05, 0.05, HTRIM, 1.0)
+            for t in ((0.5,) if yb - ya < 1.4 else (0.36, 0.68)):
+                y = ya + (yb - ya) * t
+                D.bar(_wpt(p, d, o, sa + 0.07, ge + 0.04, y), _wpt(p, d, o, sb - 0.07, ge + 0.04, y), 0.045, 0.05, HTRIM, 1.0)
+            if shutters and hole[5] <= 1:
+                D.set_tint(shut)
+                for sg, (a_, b_) in ((-1, (sa - (sb - sa) / 2 - 0.02, sa - 0.02)), (1, (sb + 0.02, sb + (sb - sa) / 2 + 0.02))):
+                    _wb(D, p, d, o, a_, b_, E + 0.01, E + 0.05, ya + 0.02, yb - 0.02, HSHUT, 0.95)
+                    for t in (0.33, 0.66):
+                        y = ya + (yb - ya) * t
+                        _wb(D, p, d, o, a_ + 0.03, b_ - 0.03, E + 0.05, E + 0.07, y - 0.03, y + 0.03, HSHUT, 0.8)
+                D.set_tint((1.0, 1.0, 1.0))
+        elif kind == "door":
+            m.set_tint((1.0, 1.0, 1.0))
+            de = E - rd
+            _wb(m, p, d, o, sa, sb, de, E, -0.3, 0.16, PLINTH, 0.9)
+            D.set_tint(dpaint)
+            m.set_tint(dpaint)
+            m.face([_wpt(p, d, o, sa, de + 0.02, 0.16), _wpt(p, d, o, sb, de + 0.02, 0.16), _wpt(p, d, o, sb, de + 0.02, 2.08),
+                    _wpt(p, d, o, sa, de + 0.02, 2.08)], HDOOR, 0.9, out=(o[0], o[1], 0))
+            for (a_, b_) in ((sa + 0.12, (sa + sb) / 2 - 0.05), ((sa + sb) / 2 + 0.05, sb - 0.12)):
+                for (y_a, y_b) in ((0.35, 1.05), (1.25, 1.95)):
+                    _wb(D, p, d, o, a_, b_, de + 0.03, de + 0.06, y_a, y_b, HDOOR, 1.1)
+            _frame(D, p, d, o, de + 0.08, sa, sb, 0.16, 2.45, 0.1, 0.1, HDOOR, 0.8, bottom=False)
+            D.bar(_wpt(p, d, o, sa, de + 0.08, 2.12), _wpt(p, d, o, sb, de + 0.08, 2.12), 0.08, 0.1, HDOOR, 0.8)
+            m.set_tint((1.0, 1.0, 1.0))
+            D.set_tint((1.0, 1.0, 1.0))
+            m.face([_wpt(p, d, o, sa, de + 0.01, 2.08), _wpt(p, d, o, sb, de + 0.01, 2.08), _wpt(p, d, o, sb, de + 0.01, 2.45),
+                    _wpt(p, d, o, sa, de + 0.01, 2.45)], HGLASS, 0.9, out=(o[0], o[1], 0))
+            k_ = _wpt(p, d, o, (sa + sb) / 2 + 0.2, de + 0.07, 1.05)
+            D.lathe(k_, [(0.035, 0.0), (0.035, 0.07)], 6, IRON, shade=0.7)
+        elif kind == "shop":
+            m.set_tint((1.0, 1.0, 1.0))
+            ge = E - 0.14
+            m.face([_wpt(p, d, o, sa, ge, ya), _wpt(p, d, o, sb, ge, ya), _wpt(p, d, o, sb, ge, yb), _wpt(p, d, o, sa, ge, yb)], HGLASS, 0.95,
+                   out=(o[0], o[1], 0))
+            D.set_tint(dpaint)
+            m.set_tint(dpaint)
+            n = max(2, int((sb - sa) / 0.55))
+            for i in range(1, n):
+                s = sa + (sb - sa) * i / n
+                D.bar(_wpt(p, d, o, s, ge + 0.04, ya), _wpt(p, d, o, s, ge + 0.04, yb), 0.05, 0.06, HDOOR, 1.0)
+            D.bar(_wpt(p, d, o, sa, ge + 0.04, ya + (yb - ya) * 0.72), _wpt(p, d, o, sb, ge + 0.04, ya + (yb - ya) * 0.72), 0.06, 0.06, HDOOR, 1.0)
+            _frame(D, p, d, o, ge + 0.06, sa, sb, ya, yb, 0.1, 0.1, HDOOR, 0.95)
+            # the shop front: pilasters, the fascia board and its cornice, the stall board
+            for a_, b_ in ((sa - 0.2, sa), (sb, sb + 0.2)):
+                _wb(m, p, d, o, a_, b_, E, E + 0.12, 0.0, 2.95, HDOOR, 0.9)
+            _wb(m, p, d, o, sa - 0.25, sb + 0.25, E, E + 0.14, 2.75, 3.1, HDOOR, 1.0)
+            _wb(m, p, d, o, sa - 0.3, sb + 0.3, E, E + 0.22, 3.1, 3.2, HDOOR, 1.1)
+            _wb(m, p, d, o, sa, sb, E, E + 0.06, 0.05, ya, HDOOR, 0.85)
+            m.set_tint((1.0, 1.0, 1.0))
+            D.set_tint((1.0, 1.0, 1.0))
+    # the cornice, the gutter, a downpipe
+    m.set_tint((0.95, 0.94, 0.9) if brick else tuple(min(1.0, c * 1.05) for c in paint))
+    _wb(m, p, d, o, s0, s1, E, E + 0.16, h - 0.5, h - 0.32, HTRIM if brick else wall, 0.95)
+    _wb(m, p, d, o, s0, s1, E, E + 0.34, h - 0.32, h - 0.06, HTRIM if brick else wall, 1.05)
+    m.set_tint((1.0, 1.0, 1.0))
+    _wb(m, p, d, o, s0 - 0.04, s1 + 0.04, E + 0.34, E + 0.48, h - 0.16, h + 0.02, LEAD, 0.8)
+    sp_ = s1 - 0.28 if idx % 2 else s0 + 0.28
+    m.bar(_wpt(p, d, o, sp_, E + 0.1, h - 0.1), _wpt(p, d, o, sp_, E + 0.1, 0.05), 0.09, 0.09, LEAD, 0.75)
+    m.bar(_wpt(p, d, o, sp_, E + 0.1, h - 0.1), _wpt(p, d, o, sp_, E + 0.42, h - 0.05), 0.09, 0.09, LEAD, 0.75)
+    # the roof: the front slope to the ridge along the church wall, the back slope down to it; a ridge
+    om = E / 2
+    eave = (E + 0.5, h - 0.12)
+    for sgv, (ea, ya) in ((1, eave), (-1, (0.0, h))):
+        m.face([_wpt(p, d, o, s0 - 0.12, ea, ya), _wpt(p, d, o, s1 + 0.12, ea, ya), _wpt(p, d, o, s1 + 0.12, om, h + rise),
+                _wpt(p, d, o, s0 - 0.12, om, h + rise)], roof, 0.92 if sgv > 0 else 0.8, out=(o[0] * sgv, o[1] * sgv, 1))
+        m.face([_wpt(p, d, o, s0 - 0.12, ea, ya - 0.08), _wpt(p, d, o, s1 + 0.12, ea, ya - 0.08), _wpt(p, d, o, s1 + 0.12, ea, ya),
+                _wpt(p, d, o, s0 - 0.12, ea, ya)], roof, 0.6, out=(o[0] * sgv, o[1] * sgv, 0))
+    m.bar(_wpt(p, d, o, s0 - 0.12, om, h + rise + 0.04), _wpt(p, d, o, s1 + 0.12, om, h + rise + 0.04), 0.22, 0.12, roof, 0.75)
+    # a dormer on the front slope
+    if E >= 5.5 and W >= 3.8:
+        def e_at(y):
+            return eave[0] + (y - eave[1]) / (h + rise - eave[1]) * (om - eave[0])
+        sc = s0 + W * (0.5 if nb % 2 else 0.5 + 0.5 / nb)
+        yb = h + 0.25
+        dw, dh = 1.2, 1.55
+        ef = e_at(yb)
+        m.set_tint(paint)
+        m.face([_wpt(p, d, o, sc - dw / 2, ef, yb), _wpt(p, d, o, sc + dw / 2, ef, yb), _wpt(p, d, o, sc + dw / 2, ef, yb + dh),
+                _wpt(p, d, o, sc, ef, yb + dh + 0.55), _wpt(p, d, o, sc - dw / 2, ef, yb + dh)], wall, 0.9, out=(o[0], o[1], 0))
+        m.set_tint((1.0, 1.0, 1.0))
+        m.face([_wpt(p, d, o, sc - 0.36, ef + 0.02, yb + 0.25), _wpt(p, d, o, sc + 0.36, ef + 0.02, yb + 0.25), _wpt(p, d, o, sc + 0.36, ef + 0.02, yb + 1.3),
+                _wpt(p, d, o, sc - 0.36, ef + 0.02, yb + 1.3)], HGLASS, 0.9, out=(o[0], o[1], 0))
+        _frame(D, p, d, o, ef + 0.06, sc - 0.36, sc + 0.36, yb + 0.25, yb + 1.3, 0.07, 0.06, HTRIM)
+        D.bar(_wpt(p, d, o, sc, ef + 0.06, yb + 0.3), _wpt(p, d, o, sc, ef + 0.06, yb + 1.25), 0.045, 0.05, HTRIM)
+        et = e_at(yb + dh + 0.55)
+        for sg in (-1, 1):
+            s = sc + sg * dw / 2
+            m.face([_wpt(p, d, o, s, ef, yb), _wpt(p, d, o, s, ef, yb + dh), _wpt(p, d, o, s, e_at(yb + dh), yb + dh)], roof, 0.75,
+                   out=(d[0] * sg, d[1] * sg, 0))
+            m.face([_wpt(p, d, o, s + sg * 0.1, ef + 0.1, yb + dh - 0.05), _wpt(p, d, o, sc, ef + 0.1, yb + dh + 0.6), _wpt(p, d, o, sc, et, yb + dh + 0.6),
+                    _wpt(p, d, o, s + sg * 0.1, e_at(yb + dh - 0.05), yb + dh - 0.05)], roof, 0.9, out=(d[0] * sg, d[1] * sg, 1.2))
+    if chimney:
+        cs = s0 + W * (0.72 if idx % 2 else 0.28)
+        ce = om * 0.9
+        yb = h + rise * 0.35
+        yt = h + rise + 1.0
+        m.set_tint((0.95, 0.9, 0.88))
+        _wb(m, p, d, o, cs - 0.35, cs + 0.35, ce - 0.3, ce + 0.3, yb, yt, HBRICK, 0.9)
+        m.set_tint((1.0, 1.0, 1.0))
+        _wb(m, p, d, o, cs - 0.42, cs + 0.42, ce - 0.37, ce + 0.37, yt, yt + 0.1, PLINTH, 0.9)
+        m.set_tint((0.85, 0.5, 0.36))
+        for k in ((-0.15,) if idx % 3 else (-0.15, 0.15)):
+            c = _wpt(p, d, o, cs + k, ce, yt + 0.1)
+            m.lathe(c, [(0.09, 0.0), (0.08, 0.3), (0.1, 0.34), (0.09, 0.4)], 6, HPANTILE, shade=0.9, caps=False)
+        m.set_tint((1.0, 1.0, 1.0))
+    m.set_tint((1.0, 1.0, 1.0))
+
+
 def cathedral(fr, world_north):
     """Onze-Lieve-Vrouwekathedraal, 1873. The west front faces the Handschoenmarkt
     (u = 0), the choir the east; the tall tower is the north one."""
@@ -1447,7 +2531,13 @@ def cathedral(fr, world_north):
     k = L / 124.94  # the plan below was fitted to this length; stretch along u if the outline changes
     lf = Frame({"c": [fr.c[0] - fr.ax[0] * L / 2, fr.c[1] - fr.ax[1] * L / 2], "ax": [fr.ax[0] * k, fr.ax[1] * k],
                 "n": [fr.n[0] * ns, fr.n[1] * ns], "L": L, "W": fr.W})
-    m = CMesh(lf)
+    for mname, rgb in zip(CATH2_MATS, [(0.52, 0.48, 0.4), (0.25, 0.27, 0.3), (0.05, 0.06, 0.07), (0.55, 0.3, 0.22), (0.3, 0.31, 0.32), (0.5, 0.5, 0.5),
+                                       (0.8, 0.55, 0.16), (0.4, 0.38, 0.34), (0.58, 0.54, 0.46), (0.3, 0.2, 0.12), (0.1, 0.1, 0.1), (0.5, 0.46, 0.4),
+                                       (0.5, 0.28, 0.2), (0.8, 0.78, 0.7), (0.75, 0.74, 0.7), (0.5, 0.4, 0.3), (0.9, 0.9, 0.88), (0.4, 0.5, 0.4),
+                                       (0.3, 0.32, 0.36), (0.6, 0.3, 0.2), (0.1, 0.12, 0.14), (0.4, 0.28, 0.2)]):
+        if mname not in bpy.data.materials:
+            material(mname, rgb)
+    m = CathMesh(lf, detail=True)
     nave_bays = [13.8 + i * (T0 - 13.8) / 6 for i in range(7)]
     choir_bays = [T1 + i * (AU - T1) / 3 for i in range(4)]
 
@@ -1458,6 +2548,8 @@ def cathedral(fr, world_north):
         for ua, ub in ((13.8, T0), (T1, AU)):
             f = m.poly([(ua, v, AE), (ub, v, AE), (ub, v, NE), (ua, v, NE)], STONE)
             m.orient(f, (0, side, 0))
+            _wb(m, (0, v), (1, 0), (0, side), ua, ub, 0.0, 0.34, NE - 0.62, NE, CARVED, 0.95)
+            _string(m, (0, v), (1, 0), (0, side), ua, ub, 22.3)
         for bays in (nave_bays, choir_bays):
             for ua, ub in zip(bays, bays[1:]):
                 m.decal((0, v), (1, 0), (0, side), ua + 1.8, ub - 1.8, 22.6, 29.4, "great_window", arch_shape(0.66, 3))
@@ -1465,7 +2557,7 @@ def cathedral(fr, world_north):
             for u in bays:
                 m.pinnacle(u, v + side * 0.35, NE, 4.2, 0.35)
     # ---- the great roofs: nave and choir in one, the transept across, dormers, crestings
-    m.gable_roof(13.8, AU, -HN, HN, NE, NR - NE, along="u", over=0.5)
+    m.gable_roof(13.8, AU, -HN, HN, NE, NR - NE, along="u", over=0.5, skip_gable=(0,))
     m.gable_roof(T0, T1, -TV, TV, NE, NR - NE, along="v", over=0.5)
     for u0, u1 in ((13.8, AU),):
         f = m.poly([(u0, 0, NR), (u1, 0, NR), (u1, 0, NR + 0.6), (u0, 0, NR + 0.6)], LEAD)
@@ -1485,13 +2577,15 @@ def cathedral(fr, world_north):
         for ua, ub in zip(choir_bays, choir_bays[1:]):
             _aisle_bay(m, ua, ub, side)
         for u in nave_bays:
-            _buttress(m, u, side)
-        _buttress(m, choir_bays[0], side)
-        _buttress(m, choir_bays[3], side)
+            _cbuttress(m, u, side)
+        _cbuttress(m, choir_bays[0], side)
+        _cbuttress(m, choir_bays[3], side)
         # east wall of the outer choir aisles
         va, vb = sorted((side * 13.0, side * VO))
         f = m.poly([(AU, va, 0), (AU, vb, 0), (AU, vb, AE), (AU, va, AE)], STONE, 0.95)
         m.orient(f, (1, 0, 0))
+        _plinth_run(m, (AU, 0), (0, 1), (1, 0), va, vb)
+        _wb(m, (AU, 0), (0, 1), (1, 0), va, vb, 0.0, 0.3, AE - 0.55, AE, CARVED, 0.95)
         m.decal((AU, 0), (0, 1), (1, 0), min(side * 15.5, side * 23.5), max(side * 15.5, side * 23.5), 3.6, 13.6, "lancet", arch_shape(0.72, 2))
         # the outer aisles beside the towers: their own west gable over the houses
         va, vb = sorted((side * 18.2, side * VO))
@@ -1523,6 +2617,10 @@ def cathedral(fr, world_north):
                 yb = AE if abs(a + b) / 2 < VO else 0
                 f = m.poly([(ue, a, yb), (ue, b, yb), (ue, b, NE), (ue, a, NE)], STONE)
                 m.orient(f, (sg, 0, 0))
+                _wb(m, (ue, 0), (0, 1), (sg, 0), a, b, 0.0, 0.34, NE - 0.62, NE, CARVED, 0.95)
+                if yb == 0:
+                    _plinth_run(m, (ue, 0), (0, 1), (sg, 0), a, b)
+                    _string(m, (ue, 0), (0, 1), (sg, 0), a, b, 3.6)
             s0, s1 = sorted((side * 27.0, side * 35.0))
             m.decal((ue, 0), (0, 1), (sg, 0), s0, s1, 4.0, 27.8, "great_window", arch_shape(0.7, 3))
             for c0 in (9.0, 17.0):
@@ -1533,13 +2631,18 @@ def cathedral(fr, world_north):
         o = (0, side)
         Wt = ((0, tv_), (1, 0), o)
         _holed_wall(m, *Wt, T0, T1, 0, NE, [(74.6, 3.2, 12.0, 0.56)])
-        _portal(m, *Wt, 74.6, 3.2, 1.75, 2.6, 12.0, 9.0, 0.56, 5.4, bands=4, trumeau=True, door=f"cathedral, {'north' if side > 0 else 'south'} transept portal")
-        _wimperg(m, *Wt, 74.6, 3.5, 9.6, 16.6, off=0.35)
+        _cportal(m, *Wt, 74.6, 3.2, 1.75, 2.6, 12.0, 9.0, 0.56, 5.4, bands=4, trumeau=True, jamb=2,
+                 door=f"cathedral, {'north' if side > 0 else 'south'} transept portal")
+        _cwimperg(m, *Wt, 74.6, 3.5, 9.6, 16.6, off=0.35)
+        for a, b in ((T0, 74.6 - 3.65), (74.6 + 3.65, T1)):
+            _plinth_run(m, *Wt, a, b)
+        _string(m, *Wt, T0, T1, 12.9, 0.22, 0.28)
+        _wb(m, *Wt, T0, T1, 0.0, 0.34, NE - 0.62, NE, CARVED, 0.95)
         m.pinnacle(70.8, tv_ + side * 0.5, 9.5, 7.5, 0.35)
         m.pinnacle(78.4, tv_ + side * 0.5, 9.5, 7.5, 0.35)
         m.decal((0, tv_), (1, 0), o, 69.8, 79.4, 13.6, 28.8, "great_window", arch_shape(0.66, 3))
         m.balustrade((T0, tv_ + side * 0.3), (T1, tv_ + side * 0.3), NE, o, 1.2)
-        m.decal((0, tv_), (1, 0), o, T0, T1, NE, NR, "gable", GABLE, off=0.08)
+        _gable3d(m, (0, tv_), (1, 0), o, T0, T1, NE, NR, statues=3, off=0.02)
         m.pinnacle(74.6, tv_, NR - 0.6, 4.6, 0.45)
         m.cross(74.6, tv_, NR + 3.9, 1.8, 0.5, 0.07, LEAD)
         for tu_ in (T0 + 1.5, T1 - 1.5):
@@ -1585,6 +2688,7 @@ def cathedral(fr, world_north):
         d = ((b[0] - a[0]) / ln, (b[1] - a[1]) / ln)
         o = (mu / math.hypot(mu, mv), mv / math.hypot(mu, mv))
         m.decal(a, d, o, 0.8, ln - 0.8, 21.0, 29.0, "lancet", arch_shape(0.75, 2))
+        _wb(m, a, d, o, 0.0, ln, 0.0, 0.34, NE - 0.62, NE, CARVED, 0.95)
         m.balustrade((a[0] + o[0] * 0.3, a[1] + o[1] * 0.3), (b[0] + o[0] * 0.3, b[1] + o[1] * 0.3), NE, o, 1.2, piece=4.0)
         f = m.poly([(a[0] + o[0] * 0.5, a[1] + o[1] * 0.5, NE - 0.2), (b[0] + o[0] * 0.5, b[1] + o[1] * 0.5, NE - 0.2), (AU, 0, NR)], SLATE)
         m.orient(f, (mu, mv, 1))
@@ -1624,6 +2728,8 @@ def cathedral(fr, world_north):
                 o = (mu / math.hypot(mu, mv), mv / math.hypot(mu, mv))
                 o2 = (-d[1], d[0]) if (-d[1] * mu + d[0] * mv) > 0 else (d[1], -d[0])
                 m.decal(p0, d, o2, 0.35, ln - 0.35, 3.0, 10.4, "lancet", arch_shape(0.72, 2))
+                _plinth_run(m, p0, d, o2, 0.0, ln)
+                _wb(m, p0, d, o2, 0.0, ln, 0.0, 0.3, CE - 0.5, CE, CARVED, 0.95)
         m.pyramid(ring, CE, CE + 5.2, SLATE)
         m.pinnacle(*P(15.4, 0), CE + 4.6, 2.6, 0.22)
     # the piers between the chapels and their two-flight flyers to the apse
@@ -1650,8 +2756,13 @@ def cathedral(fr, world_north):
     for sv in (-1, 1):  # the sides of the bay, back to the towers
         f = m.poly([(FU, sv * fw, 0), (TU - 6.0, sv * fw, 0), (TU - 6.0, sv * fw, 40.0), (FU, sv * fw, 40.0)], STONE, 0.9)
         m.orient(f, (0, sv, 0))
-    _portal(m, *W_, 0.0, 4.9, 2.55, 2.8, 15.4, 11.2, 0.56, 7.0, bands=5, trumeau=True, door="cathedral, central west portal", leaves=False)
-    _wimperg(m, *W_, 0.0, 5.2, 12.6, 21.6, off=0.4)
+    _cportal(m, *W_, 0.0, 4.9, 2.55, 2.8, 15.4, 11.2, 0.56, 7.0, bands=5, trumeau=True, door="cathedral, central west portal", leaves=False,
+             jamb=3)
+    _cwimperg(m, *W_, 0.0, 5.2, 12.6, 21.6, off=0.4)
+    for sv in (-1, 1):
+        _plinth_run(m, *W_, min(sv * 5.35, sv * fw), max(sv * 5.35, sv * fw))
+    _wb(m, *W_, -fw, fw, 0.0, 0.34, 21.7, 22.3, CARVED, 0.95)
+    _wb(m, *W_, -fw, fw, 0.0, 0.34, 39.4, 40.0, CARVED, 0.95)
     for sv in (-1, 1):
         m.pinnacle(FU - 0.5, sv * 5.3, 12.8, 8.4, 0.38)
         m.decal(*W_, sv * 5.6 - 0.9, sv * 5.6 + 0.9, 23.5, 27.0, "niche", off=0.1)
@@ -1659,7 +2770,7 @@ def cathedral(fr, world_north):
     m.decal(*W_, -5.0, 5.0, 23.8, 39.4, "great_window", arch_shape(0.64, 3))
     m.balustrade((FU - 0.3, -fw), (FU - 0.3, fw), 40.0, (-1, 0), 1.2)
     m.gable_roof(FU, 13.8, -fw, fw, 40.0, 11.5, along="u", over=0.0)
-    m.decal(*W_, -fw, fw, 41.2, 52.0, "gable", GABLE, off=0.08)
+    _gable3d(m, *W_, -fw, fw, 40.0, 51.5, statues=3, off=0.02)
     m.pinnacle(FU, 0, 51.4, 4.2, 0.45)
     m.cross(FU, 0, 55.4, 1.6, 0.45, 0.07, LEAD)
     for sv in (-1, 1):
@@ -1673,16 +2784,16 @@ def cathedral(fr, world_north):
     cells = ["house_a", "house_c", "house_b"]
     for side in (-1, 1):  # at the Handschoenmarkt, before the outer aisles
         s0, s1 = sorted((side * 18.5, side * 25.6))
-        _house(m, (9.0, 0), (0, 1), (-1, 0), s0, s1, 5.6, 8.6, 3.6, "house_a" if side > 0 else "house_c", chimney=True)
+        _house2(m, (9.0, 0), (0, 1), (-1, 0), s0, s1, 5.6, 8.6, 3.6, 40 + side, chimney=True)
     north = [(9.3, 16.6, 5.0, 8.0), (16.8, 22.6, 8.0, 9.6), (22.7, 28.3, 8.1, 7.6), (28.4, 33.4, 8.2, 10.4), (33.5, 38.4, 8.4, 8.2),
              (38.5, 42.4, 8.6, 9.0), (42.9, 48.8, 9.2, 7.8), (48.9, 55.0, 9.2, 10.2), (55.1, 61.0, 9.2, 8.4), (61.1, 67.0, 9.2, 9.4),
              (82.2, 86.6, 5.3, 8.2), (86.7, 92.2, 5.3, 9.6), (92.3, 98.2, 5.3, 7.8)]
     for i, (s0, s1, depth, h) in enumerate(north):
-        _house(m, (0, VO), (1, 0), (0, 1), s0, s1, depth, h, 3.0 + (i % 3) * 0.5, cells[i % 3], chimney=i % 2 == 0)
+        _house2(m, (0, VO), (1, 0), (0, 1), s0, s1, depth, h, 3.0 + (i % 3) * 0.5, i, chimney=i % 2 == 0)
     south = [(41.5, 45.7, 4.3, 7.6), (45.8, 49.3, 4.3, 8.8), (49.4, 54.3, 7.6, 9.8), (54.4, 58.7, 7.6, 8.0), (58.8, 62.2, 7.6, 9.2),
              (62.3, 67.0, 7.6, 7.8)]
     for i, (s0, s1, depth, h) in enumerate(south):
-        _house(m, (0, -VO), (1, 0), (0, -1), s0, s1, depth, h, 3.2 + (i % 2) * 0.5, cells[(i + 1) % 3], chimney=i % 2 == 1)
+        _house2(m, (0, -VO), (1, 0), (0, -1), s0, s1, depth, h, 3.2 + (i % 2) * 0.5, 20 + i, chimney=i % 2 == 1)
     return m
 
 
@@ -4392,13 +5503,26 @@ def main():
     }
     for name in L:
         if name in builders:
-            builders[name]().to_object(f"landmark_{name}")
+            mm = builders[name]()
+            mm.to_object(f"landmark_{name}")
+            # M7 the cathedral outside: its small things in pieces drawn near only
+            if isinstance(mm, CathMesh) and mm.d is not mm:
+                mm.d.to_object(f"landmark_{name}_near", split=48.0)
             built.append(name)
-    bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_yup=True, export_texcoords=True, export_normals=True,
-                              export_materials="EXPORT", use_selection=False, export_vertex_color="ACTIVE", export_all_vertex_colors=True,
-                              export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=7)
-    faces = sum(len(o.data.polygons) for o in bpy.context.scene.objects)
-    print(f"[build_landmarks] {', '.join(built)}: {faces} faces -> {OUT} ({os.path.getsize(OUT)//1024} KB)")
+    # the cathedral goes into its own file with its own materials (client/src/world/cathedralOutside.ts); the rest as before
+    cath = [o for o in bpy.context.scene.objects if o.name.startswith("landmark_cathedral")]
+    rest = [o for o in bpy.context.scene.objects if o not in cath]
+    for obs, path, q in ((rest, OUT, {}), (cath, CATH_OUT, {"export_draco_position_quantization": 16, "export_draco_texcoord_quantization": 16})):
+        if not obs:
+            continue
+        for o in bpy.context.scene.objects:
+            o.select_set(o in obs)
+        bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", export_yup=True, export_texcoords=True, export_normals=True,
+                                  export_materials="EXPORT", use_selection=True, export_vertex_color="ACTIVE", export_all_vertex_colors=True,
+                                  export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=7, **q)
+        faces = sum(len(o.data.polygons) for o in obs)
+        print(f"[build_landmarks] {len(obs)} objects: {faces} faces -> {path} ({os.path.getsize(path)//1024} KB)")
+    print(f"[build_landmarks] built {', '.join(built)}; cathedral parts {COUNT}")
 
 
 if __name__ == "__main__":

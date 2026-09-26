@@ -344,3 +344,21 @@ No height maps: 64 px cells on small props show nothing a height map would add.
 | Packing straw | `tools/blender/art/market/straw.png` (sheet "wood", bottom right) | "... loose golden-brown packing straw" | same | same sheet |
 | Blue and cream awning canvas, stained | `tools/blender/art/market/awning_blue.png` (sheet "awnings", top half, left half) | "... awning canvas with vertical stripes of faded indigo blue and dirty cream ... rain streaks, brown water stains ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `71e734d90a89cb1adf7f7658018b0c41568de0a056c452f047611b1399ce8324` |
 | Red and cream awning canvas, stained | `tools/blender/art/market/awning_red.png` (sheet "awnings", bottom half, left half) | "... the same canvas with vertical stripes of faded brick red and dirty cream ..." | same | same sheet |
+
+## Codex pictures: the cathedral outside (2026-09-26)
+
+The cathedral's outside in detail (`client/src/world/cathedralOutside.ts`, `tools/blender/build_landmarks.py`
+`cathedral()`, `client/public/models/cathedral.glb`): pictures made with Codex image generation from our own prompts
+through `tools/codexImage.mjs` (no example picture, no third-party images). Resized, made to tile where they must and
+toned by `tools/textures/cathedral_maps.py`, which also works out each one's height map (`cathx_<name>_h.png`) from
+the written picture itself. The houses against the church use the town's own wall pictures (above). Web pages on the
+cathedral were read for reference only, nothing copied (en.wikipedia.org on the Cathedral of Our Lady, the Flemish
+heritage inventory's page on the cathedral, aviewoncities.com's page on it).
+
+| Picture | Where in repo | Prompt, in short | Made | Original PNG SHA-256 |
+|---|---|---|---|---|
+| Weathered, sooted Brabant sandstone ashlar in courses, lime joints, streaks and a little lichen, seamless (the walls) | `client/public/textures/cathx_ashlar.jpg` (1024 px, 3.2 x 3.2 m; cropped to whole courses) | "seamless tileable texture ... the wall of a great Gothic cathedral in Flanders, built of weathered Brabant sandstone ashlar: grey-ochre stone gone grey-brown from a century of coal smoke ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `ab452dbf38872ad55ff20f5e35f5f166386b53fce5b38cd4c69ebce4236252ce` |
+| The low courses by the street: bigger, darker, damp blocks with algae, soot and mud splashes, seamless (the plinths, the portals' steps) | `client/public/textures/cathx_plinth.jpg` (1024 px, 3 x 3 m) | "seamless tileable texture ... the lowest courses of an old Gothic cathedral wall near a cobbled street in a damp northern port town ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `29a12f8bc639cf789001ff97ae2f959071293cbc46e70b7cc26732be930c3b0b` |
+| Weathered carved sandstone without joints, fine grain, soot and rain streaks, seamless (statues, tracery, mouldings, pinnacles) | `client/public/textures/cathx_carved.jpg` (512 px, 1.6 x 1.6 m) | "seamless tileable texture ... the surface of weathered carved sandstone from Gothic cathedral sculpture and mouldings: fine even grain with no mortar joints ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `f0603e42a754a2a2933fbddc23d7c5586b859171b7613a84a61943aa5d84d5fe` |
+| A pair of old Gothic church door leaves: dark weathered oak boards, wrought-iron strap hinges with scrolls, nail heads, ring handles (the closed portals' doors) | `client/public/textures/cathx_door.jpg` (512 x 819) | "Front view, flat and orthographic, filling the whole image edge to edge: a pair of tall old Gothic church door leaves side by side, made of dark weathered oak planks ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `0aade2004747c8e5408bbc7d11cb4979d73e15828edefa3b55936cf84bfdf121` |
+| A Gothic tympanum in sooted sandstone: two tiers of blind tracery, the Virgin and Child in a quatrefoil (the portals' tympana; in 1873 the west portal had no Last Judgement yet, that came in 1903) | `client/public/textures/cathx_tympanum.jpg` (512 x 341) | "Front view, flat and orthographic, filling the whole image: the stone tympanum over a Gothic cathedral door, pointed arch shape ... Gothic blind tracery panels with trefoils ... a quatrefoil medallion with the Virgin and Child carved in low relief ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `6536b4491e124683c25d6c2f8e12dce45c570a0ab1f903218a587c9ca4414154` |
