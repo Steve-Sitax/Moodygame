@@ -34,6 +34,7 @@ import { Rowing } from "./game/rowing";
 import { Journeys } from "./game/journeys";
 import { Market } from "./game/market";
 import { setLitterClock } from "./world/litter";
+import { clockReport, setClockHands } from "./world/clockHands"; // every clock shows the game's time (Steve 2026-09-26)
 import { clutterInfo, streetEndCheck } from "./world/clutter";
 import { pruneQuayGoods, quayGoodsInfo, quayGoodsMap, quayGoodsShowroom, quayGoodsWhy, quayGoodsKeepAt } from "./world/quaygoods";
 import { createTrades } from "./world/trades";
@@ -873,6 +874,7 @@ function frame(): void {
   safe("journeys.update", () => journeys.update(dt, player));
   safe("market.update", () => market.update(dt, player, jobs.day.dayNum, jobs.day.hourF));
   setLitterClock(jobs.day.dayNum, jobs.day.hourF);
+  setClockHands(jobs.day.hourF); // the live hands of every clock (world/clockHands.ts)
   safe("trades.update", () => trades.update(elapsed, dt, player.camera, crowd.fogDistance));
   safe("steenLife.update", () => steenLife.update(dt, jobs.day.hourF, player.camera));
   safe("deeds.update", () => deeds.update(dt, jobs.day.hourF));
@@ -1104,17 +1106,19 @@ if (import.meta.env.DEV) {
       const sl = world.streetLife();
       return sl ? checkSigns(world.scene, world.city.group, sl) : "street life not loaded yet";
     },
+    /** Stalls (hook, dev/stallcheck.ts): every stall, shop table, awning and goods pile against the house walls, doors and the walk map (should list nothing). */
+    stallcheck: async (only?: string) => {
+      const m = await import("./dev/stallcheck");
+      return m.checkStalls(world, m.allDoors(town.data), { only });
+    },
     /** M7 posters: every bill on the walls and every place for the engine's bills, against the houses as built (dev/postercheck.ts; should list nothing). */
     posters: async () => {
       const sl = world.streetLife();
       const p = world.posters();
       return sl && p ? (await import("./dev/postercheck")).checkPosters(world.city.group, world.city.flags, sl, p, undefined, world.scene) : "the bills are not up yet";
     },
-    /** Stalls (hook, dev/stallcheck.ts): every stall, shop table, awning and goods pile against the house walls, doors and the walk map (should list nothing). */
-    stallcheck: async (only?: string) => {
-      const m = await import("./dev/stallcheck");
-      return m.checkStalls(world, m.allDoors(town.data), { only });
-    },
+    /** Every clock face (world/clockHands.ts): where, what, the time it shows against the game's; `problems` must be empty. */
+    clocks: () => clockReport(world.scene, jobs.day.hourF),
     /** Z-fight check (dev/zfight.ts): faces of the static world in one plane that overlap, and layers too close to their surface, by cause (M3c pass 5). */
     zfight: async (opts = {}) => (await import("./dev/zfight")).checkZFight(world.scene, world.city.flags, opts),
     /** M7 halls: the checks of the halls in the world (dev/hallcheck.ts): pictures, the walk through a door (pops), holes in a hall. */
@@ -1340,6 +1344,7 @@ if (import.meta.env.DEV) {
         journeys.update(dt, player);
         market.update(dt, player, jobs.day.dayNum, jobs.day.hourF);
         setLitterClock(jobs.day.dayNum, jobs.day.hourF);
+        setClockHands(jobs.day.hourF); // the live hands of every clock (world/clockHands.ts)
         trades.update(elapsed, dt, player.camera, crowd.fogDistance);
         steenLife.update(dt, jobs.day.hourF, player.camera);
         deeds.update(dt, jobs.day.hourF);

@@ -728,11 +728,7 @@ def paint_clock(rng, n=32):
         a = i * 2 * math.pi / 12
         d = np.hypot(dx - math.cos(a) * 11, dy - math.sin(a) * 11)
         img[d < 1.0] = C(0.1, 0.1, 0.1)
-    for a, L in ((math.radians(150), 6.0), (math.radians(60), 10.0)):
-        t = dx * math.cos(a) + dy * math.sin(a)
-        perp = np.abs(-dx * math.sin(a) + dy * math.cos(a))
-        img[(t > 0) & (t < L) & (perp < 0.9)] = C(0.78, 0.62, 0.27) if L > 8 else C(0.1, 0.1, 0.1)
-    img[r < 1.5] = C(0.1, 0.1, 0.1)
+    # no hands: the game's live hands show its time (clock_mark, client/src/world/clockHands.ts)
     img[np.abs(r - 15.5) < 0.8] = C(0.78, 0.62, 0.27)
     return img
 
@@ -1244,6 +1240,30 @@ def extrude(g, W, poly, d_front, d_back, mat, side_mat=None, back=False, k=1.0, 
         nu, ny = (ey, -eu) if ccw else (-ey, eu)
         g.face([W.pt(pu, py, d_back), W.pt(qu, qy, d_back), W.pt(qu, qy, d_front), W.pt(pu, py, d_front)], side_mat,
                out=W.inplane(nu, ny), k=k * (0.7 if ny < -0.5 else 0.9), cell=cell)
+
+
+# ------------------------------------------------------------------ live clock hands
+
+# Every clock in the game shows the game's time (Steve, 2026-09-26): the dials are painted without hands, and
+# the game hangs live hands (client/src/world/clockHands.ts) on an empty named clock_face_<name> at the middle
+# of each face: `radius` the face's radius, nx/ny/nz out of the face (game axes), minute/hour/width the hands
+# as parts of the radius (the painted marks stand at about 0.69 of it).
+CLOCK_MARKS = []
+
+
+def clock_mark(name, p, out, r, minute=0.64, hour=0.43, width=0.14):
+    CLOCK_MARKS.append((name, p, out, r, minute, hour, width))
+
+
+def clock_markers():
+    for name, p, out, r, minute, hour, width in CLOCK_MARKS:
+        ob = bpy.data.objects.new("clock_face_" + name, None)
+        ob.empty_display_size = r
+        ob.location = B(p)
+        ob["radius"], ob["minute"], ob["hour"], ob["width"] = float(r), float(minute), float(hour), float(width)
+        ob["nx"], ob["ny"], ob["nz"] = float(out[0]), float(out[1]), float(out[2])
+        bpy.context.scene.collection.objects.link(ob)
+    return len(CLOCK_MARKS)
 
 
 def disc(g, W, uc, yc, r, cell, d_front=-0.2, d_back=0.05, sides=16, side_mat=STONE, k=1.0, crop=1.0):
@@ -2209,6 +2229,7 @@ def carolus_sides(g, F, c, D, S, AC, TA0, HE, HR, CE, CR, SE):
         arch_band(g, W, L_ / 2, T2 + 1.9, T2 + 6.6 - 0.8, 1.6, 0.22, -0.16)
         arch_band(g, W, L_ / 2, T1 + 2.4, T1 + 5.8 - 0.5, 1.0, 0.18, -0.14)
         disc(g, W, L_ / 2, T3 - 1.3, 0.62, "clock", d_front=-0.14, d_back=0.0, sides=12, side_mat=SAND)
+        clock_mark("carolus_%d" % fi, W.pt(L_ / 2, T3 - 1.3, -0.14), W.out(), 0.62)
         if fi == 0:
             arch_band(g, W, L_ / 2, 3.0, 6.0 - 0.5, 1.0, 0.18, -0.14)
             ihs_medallion(g, W, L_ / 2, 9.2, R=1.05)
@@ -3119,6 +3140,7 @@ def stpaul(g, fr):
             arch_band(g, W, 4.0, h_.yb, h_.yt - 0.4, 0.8, 0.14, -0.1, Wt_)
         if fi in (1, 2):
             disc(g, W, 4.0, 22.0 - 0.3, 1.0, "clock", d_front=-0.12, d_back=0.05, sides=12, side_mat=Wt_)
+            clock_mark("stpaul_%d" % fi, W.pt(4.0, 22.0 - 0.3, -0.12), W.out(), 1.0)
     sq = rect_pts(F, TW0, TW1, TS0, TS1)
     ring_stack(g, sq, [(T1 - 0.2, T1 + 0.05, 0.22, Wt_), (T1 + 0.05, T1 + 0.35, 0.4, Wt_)])
     R8, rot8 = 3.7, math.pi / 8
@@ -4663,6 +4685,7 @@ def main():
     pump(g)
     fill_check(g, city)
     objs = g.to_objects()
+    print(f"[build_churches] {clock_markers()} clock faces for live hands")
     export()
     with open(PARK_JSON, "w", newline="\n") as f:
         json.dump(info, f, separators=(",", ":"))

@@ -466,10 +466,13 @@ export function mergeStatic(stat: THREE.Group, into: THREE.Group): void {
   const by = new Map<THREE.Material, THREE.BufferGeometry[]>();
   const move: THREE.Object3D[] = [];
   const rel = new THREE.Matrix4();
+  const live: THREE.Object3D[] = [];
   stat.traverse((o) => {
     if (o === stat) return;
     const m = o as THREE.Mesh;
-    if (m.isMesh && !Array.isArray(m.material)) {
+    // a clock's hands (world/clockHands.ts) move with the game's time: kept as they are, not merged
+    if (o.userData.liveClock) live.push(o);
+    else if (m.isMesh && !Array.isArray(m.material)) {
       rel.multiplyMatrices(inv, m.matrixWorld);
       let geo = m.geometry.clone().applyMatrix4(rel);
       if (geo.index) geo = geo.toNonIndexed();
@@ -482,7 +485,8 @@ export function mergeStatic(stat: THREE.Group, into: THREE.Group): void {
     } else if ((o as THREE.Sprite).isSprite || (o as THREE.Light).isLight) move.push(o);
   });
   for (const o of move) into.attach(o);
-  for (const ch of [...stat.children]) stat.remove(ch);
+  for (const o of live) into.attach(o);
+  for (const ch of [...stat.children]) if (!(into === stat && ch.userData.liveClock)) stat.remove(ch);
   for (const [m, geos] of by) {
     const merged = mergeGeometries(geos, false);
     if (merged) stat.add(new THREE.Mesh(merged, m));

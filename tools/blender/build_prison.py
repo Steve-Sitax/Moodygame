@@ -316,7 +316,7 @@ def paint_atlas(rng):
     r[(d > 9) & (d < 11.5)] = C(0.08, 0.08, 0.08)
     r[d < 5] = C(0.5, 0.35, 0.15)
     r[d > 29] = C(0.46, 0.44, 0.4)
-    # the clock: a white face, black numerals as ticks, two hands (ten past eight)
+    # the clock: a white face, black numerals as ticks (the hands are the game's own, live)
     r = region("clock")
     r[:] = C(0.4, 0.39, 0.37)
     r[d < 28] = C(0.82, 0.8, 0.74)
@@ -325,10 +325,7 @@ def paint_atlas(rng):
         for t in np.linspace(22, 26, 5):
             px_, py_ = int(31.5 + math.cos(a) * t), int(31.5 + math.sin(a) * t)
             r[63 - py_ - 1:63 - py_ + 1, px_ - 1:px_ + 1] = C(0.05, 0.05, 0.05)
-    for a, L in ((math.radians(90 - 250), 13), (math.radians(90 - 60), 19)):
-        for t in np.linspace(0, L, 30):
-            px_, py_ = int(31.5 + math.cos(a) * t), int(31.5 + math.sin(a) * t)
-            r[63 - py_ - 1:63 - py_ + 1, px_ - 1:px_ + 1] = C(0.05, 0.05, 0.05)
+    # no hands: the game's live hands show its time (clock_mark, client/src/world/clockHands.ts)
     # the plaque: pale stone, cut letters with a shadow: GEVANGENIS over MAISON D ARRET is not needed; one line and a date
     r = region("plaque")
     r[:] = C(0.52, 0.52, 0.5) * noise(rng, 64, 256, 0.05)
@@ -1055,6 +1052,7 @@ def gate_tower(g):
     front = [W.pt(u, y, -0.1) for u, y in disc_pts]
     uvs = [cell_uv("clock", W.fu(u, um - 0.62, 1.24), (y - 10.48) / 1.24) for u, y in disc_pts]
     g.face(front, ATLAS, out=W.out(), uvs=uvs)
+    clock_mark("prison_gate", W.pt(um, 11.1, -0.1), W.out(), 0.62, minute=0.66, hour=0.44)
     course(g, W, 0.62, 0.7, 0.07)
     course(g, W, 4.25, 4.45, 0.12)
     course(g, W, 9.95, 10.15, 0.1)
@@ -1498,6 +1496,30 @@ def exterior_lanterns(g):
 # ------------------------------------------------------------------ export, check
 
 
+# ------------------------------------------------------------------ live clock hands
+
+# Every clock in the game shows the game's time (Steve, 2026-09-26): the dials are painted without hands, and
+# the game hangs live hands (client/src/world/clockHands.ts) on an empty named clock_face_<name> at the middle
+# of each face: `radius` the face's radius, nx/ny/nz out of the face (game axes), minute/hour/width the hands
+# as parts of the radius (the painted marks stand at about 0.69 of it).
+CLOCK_MARKS = []
+
+
+def clock_mark(name, p, out, r, minute=0.64, hour=0.43, width=0.14):
+    CLOCK_MARKS.append((name, p, out, r, minute, hour, width))
+
+
+def clock_markers():
+    for name, p, out, r, minute, hour, width in CLOCK_MARKS:
+        ob = bpy.data.objects.new("clock_face_" + name, None)
+        ob.empty_display_size = r
+        ob.location = B(p)
+        ob["radius"], ob["minute"], ob["hour"], ob["width"] = float(r), float(minute), float(hour), float(width)
+        ob["nx"], ob["ny"], ob["nz"] = float(out[0]), float(out[1]), float(out[2])
+        bpy.context.scene.collection.objects.link(ob)
+    return len(CLOCK_MARKS)
+
+
 def export():
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_yup=True, export_texcoords=True, export_normals=True,
@@ -1615,6 +1637,7 @@ def main():
     yard(g)
     exterior_lanterns(g)
     objs = g.to_objects()
+    print(f"[build_prison] {clock_markers()} clock faces for live hands")
     export()
     total = 0
     for nme in sorted(objs):

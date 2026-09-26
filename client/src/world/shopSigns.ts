@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { addDial } from "./clockHands";
 import { psx } from "../retro/psx";
 import { SHOP_LOOK, type ShopTrade } from "../../../shared/shops";
 
@@ -91,8 +92,8 @@ function symbol(kind: NonNullable<(typeof SHOP_LOOK)[ShopTrade]["hang"]>): THREE
     case "clock":
       add(new THREE.CylinderGeometry(0.2, 0.2, 0.06, 14), im, 0, -0.38, 0, 0, 0, Math.PI / 2);
       add(new THREE.CylinderGeometry(0.17, 0.17, 0.07, 14), psx(new THREE.MeshLambertMaterial({ color: 0xe8e0c8 }), { affine: 0 }), 0, -0.38, 0, 0, 0, Math.PI / 2);
-      add(new THREE.BoxGeometry(0.075, 0.12, 0.012), im, 0, -0.34, 0.0);
-      add(new THREE.BoxGeometry(0.075, 0.012, 0.09), im, 0, -0.38, 0.03);
+      // live hands on both faces (world/clockHands.ts): the clockmaker's sign shows the game's time
+      for (const sx of [1, -1]) addDial(g, { at: [sx * 0.035, -0.38, 0], normal: [sx, 0, 0], radius: 0.17, lift: 0.004, mat: im, minute: 0.78, hour: 0.52, width: 0.12, kind: "clockmaker's hanging sign" });
       break;
     case "book":
       add(new THREE.BoxGeometry(0.06, 0.34, 0.26), psx(new THREE.MeshLambertMaterial({ color: 0x5a1a12 }), { affine: 0 }), 0, -0.36, 0);

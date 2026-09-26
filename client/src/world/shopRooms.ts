@@ -136,7 +136,7 @@ function backDoor(c: Ctx, x: number): void {
   g.add(knob);
   c.b.group.add(g);
   c.b.boxes.push({ minX: x - 0.5, maxX: x + 0.5, minZ: c.z1 - 0.15, maxZ: c.z1 });
-  c.k.wallPic(x, c.F + 2.45, c.z1 - 0.02, 0.28, 0.28, Math.PI, M.basic("sh_clockface", () => clockFaceTex(2, 10, 50)), M.darkOak());
+  c.k.clock(x, c.F + 2.45, c.z1 - 0.02, 0.28, Math.PI, M.basic("sh_clockface", () => clockFaceTex(2)), "shop clock over the back door", M.darkOak());
 }
 
 /** The window display: a low platform behind each front window, its goods on it (seen from the street). */
@@ -625,7 +625,7 @@ function dressClocks(c: Ctx): void {
   wallShelves(c, true, zc0 - 0.2, c.z1 - 0.3, [1.2, 1.7], (y, a, b, x) => {
     for (let z = a + 0.2; z < b - 0.1; z += 0.35) {
       k.b.box(0.16, 0.26, 0.2, x, y + 0.13, z, M.mahogany());
-      k.wallPic(x - c.ns * 0.081, y + 0.16, z, 0.13, 0.13, c.ns > 0 ? -Math.PI / 2 : Math.PI / 2, M.basic(`sh_face_${Math.floor(z * 10) % 3}`, () => clockFaceTex(Math.floor(z * 10) % 3, 3 + (Math.floor(z * 10) % 9), 20)));
+      k.clock(x - c.ns * 0.081, y + 0.16, z, 0.13, c.ns > 0 ? -Math.PI / 2 : Math.PI / 2, M.basic(`sh_face_${Math.floor(z * 10) % 3}`, () => clockFaceTex(Math.floor(z * 10) % 3)), "clockmaker's shelf clock");
     }
   });
   // a glass counter of watches
@@ -638,12 +638,12 @@ function dressClocks(c: Ctx): void {
       if (c.farHoles.some(([a, b]) => z > a - 0.4 && z < b + 0.4)) continue;
       const big = c.r() < 0.35;
       k.bx(c.farW, XF(0.12), F + y - (big ? 0.35 : 0.2), big ? 0.7 : 0.4, z - 0.17, z + 0.17, M.mahogany());
-      k.wallPic(XF(0.125), F + y, z, 0.24, 0.24, c.ns > 0 ? Math.PI / 2 : -Math.PI / 2, M.basic(`sh_face_${Math.floor(y * z) % 3}`, () => clockFaceTex(Math.floor(y * z) % 3, 7, 5)));
+      k.clock(XF(0.125), F + y, z, 0.24, c.ns > 0 ? Math.PI / 2 : -Math.PI / 2, M.basic(`sh_face_${Math.floor(y * z) % 3}`, () => clockFaceTex(Math.floor(y * z) % 3)), "clockmaker's wall clock");
       if (big) k.b.box(0.01, 0.02, 0.1, XF(0.13), F + y - 0.25, z, M.brass());
     }
   const cz = c.z1 - 0.6;
   k.bx(XF(0.05), XF(0.5), F, 2.2, cz - 0.25, cz + 0.25, M.mahogany(), true);
-  k.wallPic(XF(0.505), F + 1.85, cz, 0.3, 0.3, c.ns > 0 ? Math.PI / 2 : -Math.PI / 2, M.basic("sh_face_tall", () => clockFaceTex(1, 11, 55)));
+  k.clock(XF(0.505), F + 1.85, cz, 0.3, c.ns > 0 ? Math.PI / 2 : -Math.PI / 2, M.basic("sh_face_tall", () => clockFaceTex(1)), "clockmaker's tall case clock");
   // the workbench at the back with its lamp and tools, a stool
   const wz = c.z1 - 1.6;
   k.bx(X(2.2), X(1.5), F, 0.85, wz - 0.5, wz + 0.5, M.oak(), true);
@@ -652,7 +652,7 @@ function dressClocks(c: Ctx): void {
   windowDisplay(c, (a, b, y, z) => {
     for (let x = a + 0.15; x < b; x += 0.3) {
       k.b.box(0.2, 0.32, 0.12, x, y + 0.16, z, M.mahogany());
-      k.wallPic(x, y + 0.2, z - 0.061, 0.14, 0.14, Math.PI, M.basic("sh_face_win", () => clockFaceTex(0, 10, 10)));
+      k.clock(x, y + 0.2, z - 0.061, 0.14, Math.PI, M.basic("sh_face_win", () => clockFaceTex(0)), "clockmaker's window clock");
     }
   });
 }

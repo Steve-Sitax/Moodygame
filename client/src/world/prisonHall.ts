@@ -4,6 +4,7 @@ import * as PP from "../../../shared/prisonPlan";
 import { billTex, Flames, Kit, lmBasic, lmMat, matOf, type MatDef } from "./landmarkKit";
 import { glassMat, M, walkGraph, type LandmarkRoom } from "./landmarkRooms";
 import { canvasTex, flicker, frameRoom, rand } from "./rooms";
+import { addDial } from "./clockHands";
 import { panel, planarUV } from "./carolusHall";
 import { createHallInWorld, type HallInWorld } from "./hallInWorld";
 import { withPicture } from "./quayStone";
@@ -552,8 +553,17 @@ export function buildPrisonHall(): LandmarkRoom {
   box(-1.05, 1.05, 1.35, 1.4, 18.1, 18.9, C.plank, 1.2);
   box(-0.4, 0.3, 1.4, 1.46, 18.3, 18.75, C.ledger);
   k.cyl(0.07, 0.09, 0.1, 0.7, 1.4, 18.5, C.brass, { seg: 8 });
-  k.cyl(0.55, 0.55, 0.08, 0, 5.2, pz - I.pavR + 0.08, C.paper, { seg: 16, rx: Math.PI / 2 });
-  k.cyl(0.6, 0.6, 0.06, 0, 5.2, pz - I.pavR + 0.05, C.oak, { seg: 16, rx: Math.PI / 2 });
+  // (the clock, 2026-09-26: 0.15 m further out, the wall's face stands 0.15 inside pavR and hid the dial; and
+  // half a metre up, clear of the first gallery's rail)
+  k.cyl(0.55, 0.55, 0.08, 0, 5.71, pz - I.pavR + 0.23, C.paper, { seg: 16, rx: Math.PI / 2 });
+  k.cyl(0.6, 0.6, 0.06, 0, 5.72, pz - I.pavR + 0.2, C.oak, { seg: 16, rx: Math.PI / 2 });
+  // the hour marks, painted iron on the paper
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    k.box(i % 3 ? 0.03 : 0.05, i % 3 ? 0.08 : 0.11, 0.006, Math.sin(a) * 0.44, 5.75 + Math.cos(a) * 0.44, pz - I.pavR + 0.273, C.ironPaint, { rz: -a });
+  }
+  // its hands show the game's time (world/clockHands.ts); the face (paper, its middle at 5.75: kit cyl stands on y) looks into the pavilion (+z)
+  addDial(group, { at: [0, 5.75, pz - I.pavR + 0.27], normal: [0, 0, 1], radius: 0.55, lift: 0.01, mat: matOf(C.ironPaint), minute: 0.8, hour: 0.52, width: 0.12, kind: "prison hall clock", where: "the prison, over the link's arch" });
   // wing A (walked) and wing B (seen through its grille)
   wingInside(k, 1, flames, true);
   wingInside(k, -1, flames, false);

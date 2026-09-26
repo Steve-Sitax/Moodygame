@@ -3,6 +3,7 @@ import { psx, bumpFromMap } from "../retro/psx";
 import { withPicture } from "./quayStone";
 import { Builder, canvasTex, lambert, mat, rand, tex } from "./rooms";
 import { glowTexture } from "./textures";
+import { addDial } from "./clockHands";
 
 // M7 shops and cafes (docs/milestones/M7-shops.md): the pieces the shops (world/shopRooms.ts) and the cafes
 // (world/cafeRooms.ts) are built from, in the PS1 way: boxes and low cylinders, painted 64-256 px textures and
@@ -263,30 +264,26 @@ export function mirrorTex(seed = 2): THREE.CanvasTexture {
   }, false);
 }
 
-/** A clock's face (roman figures, two hands). */
-export function clockFaceTex(seed = 1, hours = 10, mins = 10): THREE.CanvasTexture {
+/**
+ * A clock's face: the ring and the hour marks, no hands (every clock shows the game's time: the hands are
+ * live, world/clockHands.ts; Kit.clock). `seed` varies the face a little (paper, enamel, the marks).
+ * The face's own circle is 14/16 of the picture's half width.
+ */
+export function clockFaceTex(seed = 1): THREE.CanvasTexture {
+  const faces = ["#e8e0c8", "#ece6d6", "#e0d4b4", "#efe8d8"];
   return canvasTex(32, 32, (g) => {
     g.fillStyle = "#1a140c";
     g.fillRect(0, 0, 32, 32);
-    g.fillStyle = "#e8e0c8";
+    g.fillStyle = faces[((seed % 4) + 4) % 4];
     g.beginPath();
     g.arc(16, 16, 14, 0, Math.PI * 2);
     g.fill();
     g.fillStyle = "#2a2018";
     for (let i = 0; i < 12; i++) {
       const a = (i / 12) * Math.PI * 2;
-      g.fillRect(16 + Math.sin(a) * 11 - 0.5, 16 - Math.cos(a) * 11 - 1, 1.2, 2);
+      const big = i % 3 === 0 && seed % 2 === 0;
+      g.fillRect(16 + Math.sin(a) * 11 - (big ? 0.8 : 0.5), 16 - Math.cos(a) * 11 - 1, big ? 1.6 : 1.2, 2);
     }
-    g.strokeStyle = "#1a1410";
-    g.lineWidth = 1.4;
-    const ha = ((hours % 12) / 12 + mins / 720) * Math.PI * 2 + seed * 0.3;
-    const ma = (mins / 60) * Math.PI * 2 + seed * 1.7;
-    g.beginPath();
-    g.moveTo(16, 16);
-    g.lineTo(16 + Math.sin(ha) * 6, 16 - Math.cos(ha) * 6);
-    g.moveTo(16, 16);
-    g.lineTo(16 + Math.sin(ma) * 10, 16 - Math.cos(ma) * 10);
-    g.stroke();
   }, false);
 }
 
@@ -561,5 +558,17 @@ export class Kit {
       }
       this.b.group.add(g);
     }
+  }
+
+  /**
+   * A wall clock: its face as a wall picture (clockFaceTex, no painted hands) and live hands on it that
+   * show the game's time (world/clockHands.ts). w: the picture's size; the face is 14/16 of its half.
+   */
+  clock(x: number, y: number, z: number, w: number, ry: number, face: THREE.Material, kind: string, frame?: THREE.Material): void {
+    this.wallPic(x, y, z, w, w, ry, face, frame);
+    const nx = Math.sin(ry);
+    const nz = Math.cos(ry);
+    const R = (w / 2) * 0.875;
+    addDial(this.b.group, { at: [x + nx * 0.012, y, z + nz * 0.012], ry, radius: R, lift: 0.004, mat: M.iron(), minute: 0.76, hour: 0.5, width: 0.16, kind });
   }
 }

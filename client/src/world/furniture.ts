@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { canvasTex, lambert, mat, tex } from "./rooms";
 import { glowTexture } from "./textures";
+import { addDial } from "./clockHands";
 
 // Furniture for the rented rooms (M6 homes), made in code the PS1 way: a few boxes, painted
 // 32-64 px textures. Every piece is a group with its origin at the middle of its footprint on
@@ -89,6 +90,7 @@ function printTex(): THREE.Material {
   });
 }
 
+/** A clock's face: the ring and the marks, no hands (live hands: world/clockHands.ts). The face is 12/16 of the half width. */
 function dialTex(): THREE.Material {
   return mat("f_dial", () => {
     const t = canvasTex(32, 32, (g) => {
@@ -103,8 +105,6 @@ function dialTex(): THREE.Material {
         const a = (i / 12) * Math.PI * 2;
         g.fillRect(16 + Math.sin(a) * 10 - 0.5, 16 - Math.cos(a) * 10 - 0.5, 1.5, 1.5);
       }
-      g.fillRect(15.5, 8, 1, 8);
-      g.fillRect(16, 15.5, 6, 1);
     }, false);
     return new THREE.MeshLambertMaterial({ map: t });
   });
@@ -393,6 +393,7 @@ export function makePiece(kind: string, ceiling = 2.6): Piece {
       const dial = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 0.24), dialTex());
       dial.position.set(0, 1.74, 0.162);
       g.add(dial);
+      addDial(g, { at: [0, 1.74, 0.162], radius: 0.09, lift: 0.004, mat: iron(), minute: 0.84, hour: 0.56, width: 0.15, kind: "wall clock in a home" });
       b.box(0.015, 0.36, 0.015, 0, 1.33, 0.1, brass());
       b.cyl(0.05, 0.05, 0.015, 0, 1.15, 0.1, brass(), 8).rotation.x = Math.PI / 2;
       for (const x of [-0.07, 0.07]) b.cyl(0.02, 0.02, 0.12, x, 1.25, 0.12, iron(), 5);
@@ -487,6 +488,7 @@ export function makePiece(kind: string, ceiling = 2.6): Piece {
       const dial = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.16), dialTex());
       dial.position.set(0, 1.35, -0.005);
       g.add(dial);
+      addDial(g, { at: [0, 1.35, -0.005], radius: 0.06, lift: 0.003, mat: iron(), minute: 0.84, hour: 0.56, width: 0.15, kind: "mantel clock in a home" });
       for (const x of [-0.55, 0.55]) {
         b.cyl(0.03, 0.05, 0.22, x, 1.28, -0.06, brass(), 6);
         b.cyl(0.015, 0.015, 0.1, x, 1.44, -0.06, flat(0xe8e0cc), 5);
