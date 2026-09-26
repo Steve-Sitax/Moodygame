@@ -25,6 +25,7 @@ import { BOARD_POS, DOSS_POS, RAMP, SPOTS, buildRijnkaai } from "./world/rijnkaa
 import { InWorld } from "./world/inworld";
 import { loadHousePlans } from "./world/houses";
 import { LanternLights } from "./world/lanternLights";
+import { createSpill, setSpillBudget, spillBudget } from "./world/spill";
 import { ShaderWarmer } from "./world/warmup";
 import { FirstPerson } from "./player/firstPerson";
 import { Soundscape, type VehicleSound } from "./audio/soundscape";
@@ -97,6 +98,13 @@ const world = buildRijnkaai();
 // carried lanterns light the world: a pool of real lights (the nearest throws shadows), ground pools
 // for the rest (world/lanternLights.ts). Made before any shader is built: it switches shadows on.
 const lanternLights = new LanternLights(world.scene, renderer, (x, z, feet) => world.groundAt(x, z, 0, feet));
+// light spilt from lit windows, doors, lamps and lanterns onto the ground, the walls and the people (world/spill.ts)
+// (the ground under a light: where the walk map stops short of a wall, the street's own level there; the water a drop)
+const spill = createSpill(
+  world.scene,
+  (x, z, feet) => world.groundAt(x, z, 0, feet),
+  (x, z) => (world.isWater(x, z) ? -8 : world.baseAt(x, z)),
+);
 /** How dark it is by the clock, 0..1 (deeds.ts reckons Jef's lantern the same way). */
 function lanternDark(): number {
   const h = jobs.day.hourF;
@@ -1053,6 +1061,7 @@ function frame(): void {
   safe("lanternLights.update", () => {
     lanternLights.update(dt, player.camera, lanternDark());
   });
+  safe("spill.update", () => spill.update(dt, player.camera));
   // M7: every room stands in the world now (world/inworld.ts draws it through its openings)
   // (the first screen, while the shaders are built in the background: the picture holds, so the page
   // does not stand still waiting for them; in the game it always draws)
@@ -1355,6 +1364,8 @@ if (import.meta.env.DEV) {
       world.update(elapsed, 0.016, cam);
       crowd.update(0.0001, player, cam);
       animals.update(0.0001, player, cam, fogFar || crowd.fogDistance, false);
+      // the spilt light as seen from the picture's place (world/spill.ts)
+      spill.update(0.0001, cam, true);
       const fog = world.scene.fog as THREE.Fog;
       const keepFog = [fog.near, fog.far];
       if (fogFar) {
@@ -1367,6 +1378,8 @@ if (import.meta.env.DEV) {
       const url = canvas.toDataURL("image/jpeg", 0.85);
       cam.position.copy(keep.p);
       cam.quaternion.copy(keep.q);
+      cam.updateMatrixWorld();
+      spill.update(0.0001, cam, true);
       const r = await fetch("/api/dev/shot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, url }) });
       return r.ok ? `data/shots/${name}.jpg` : `failed ${r.status}`;
     },
@@ -1470,6 +1483,7 @@ if (import.meta.env.DEV) {
         animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
         alive.update(elapsed, dt, player.camera, { day: jobs.day.dayNum, hour: jobs.day.hourF }, weatherNow); // M7 alive (hook)
         lanternLights.update(dt, player.camera, lanternDark());
+        spill.update(dt, player.camera);
       }
     },
     info() {
@@ -1507,6 +1521,16 @@ if (import.meta.env.DEV) {
 // M7 rendering, dev: the culler and the renderer for checks (__scheldemist.cull), and the view's numbers
 if (import.meta.env.DEV) {
   Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, { cull, renderer, retro, lanternLights, alive });
+  // light spilt from windows, doors, lamps and lanterns (world/spill.ts): __scheldemist.spill() lists every lit source
+  // in view range, whether it spills and glows, and `problems` (must be empty); .spillInfo() the counts
+  Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, {
+    spill: (all = false) => spill.check(player.camera, all),
+    spillInfo: () => spill.info(),
+    spillBudget: (n?: number, bars = true) => {
+      if (n !== undefined) setSpillBudget(n, bars);
+      return spillBudget();
+    },
+  });
   // M7 back of town (hook): __scheldemist.back.info(), .at(place)
   Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, { back: backLife });
   // the ink cursor and the dialogs up (game/cursor.ts, game/dialogs.ts): t.focusTest(), t.mouseTest()

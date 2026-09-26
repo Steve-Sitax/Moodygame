@@ -351,6 +351,8 @@ export class Interiors {
         const lz = d.wall[1] + d.out[1] * 0.25 + side[1] * 0.9;
         const light = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.24, 0.16), new THREE.MeshBasicMaterial({ color: 0x3a3228 }));
         light.position.set(lx, 2.2, lz);
+        // (its light on the street: world/spill.ts reads the lantern's colour)
+        light.userData.spillGlow = true;
         const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffb060, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 }));
         sprite.scale.set(1.1, 1.1, 1);
         sprite.position.set(lx, 2.2, lz);

@@ -27,6 +27,9 @@ through ANGLE on Direct3D 11, and there one shader build takes 0.1 to 0.4 s. The
    and 1 point shadow (the lantern pool, `world/lanternLights.ts`). In a room, lamps may come and go
    (the dark fill-up lights follow), but a room has at most `ROOM_POINT_LIGHTS` lamps and always 1
    hemisphere light. More lamps give it its own shader set (the console warns).
+   Light from lit windows, open doors and the lamps and lanterns past the real lights is no light at all
+   to three.js: `world/spill.ts` hands the nearest `MAX_SPILL` (retro/psx.ts) to every lit psx material as a
+   uniform list and draws the rest as ground pools. A new source never changes a shader: register it there.
 2. **No scene material drawn to the screen.** Draw scenes into a render target (`retro.target`, a
    mirror's target), never with `setRenderTarget(null)`. Only the final retro quad goes to the screen.
 3. **Few shader kinds.** A new shader kind is a new build on every machine. Reuse materials and the

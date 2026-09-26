@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { addSpill, type SpillSource } from "./spill";
 import * as HP from "../../../shared/hallPlan";
 import type { HallPlan } from "../../../shared/hallPlan";
 import type { LandmarkId } from "../../../shared/landmarks";
@@ -151,6 +152,19 @@ export function createHallInWorld(world: World, inWorld: InWorld, plan: HallPlan
     glowMesh.name = `${plan.id}_lit_windows`;
     frame.add(glowMesh);
   }
+  // ---- the lit hall's light on the street (world/spill.ts): its lit windows at night, its open doors after dark
+  const paneSpills: SpillSource[] = glow.map((g) => {
+    const [ax, az] = g.along === "x" ? [g.a, g.face + g.out * 0.12] : [g.face + g.out * 0.12, g.a];
+    const [bx, bz] = g.along === "x" ? [g.a, g.face + g.out * 1.12] : [g.face + g.out * 1.12, g.a];
+    const [mx, mz] = toW(ax, az);
+    const [nx, nz] = toW(bx, bz);
+    return addSpill({ kind: "hall", label: `${plan.id} lit window`, x: mx, y: plan.floorY + (g.y0 + g.y1) / 2, z: mz, nx: nx - mx, nz: nz - mz, hw: g.w / 2, hh: (g.y1 - g.y0) / 2, bars: 23 });
+  });
+  const doorSpills = plan.doors.map((d) => {
+    const [mx, mz] = toW(d.x, d.z - d.dir * 0.02);
+    const [nx, nz] = toW(d.x, d.z - d.dir * 1.02);
+    return { d, s: addSpill({ kind: "hall", label: `${plan.id} door`, x: mx, y: plan.floorY + d.y + d.h / 2, z: mz, nx: nx - mx, nz: nz - mz, hw: d.hw, hh: d.h / 2 }) };
+  });
   const setLeaves = () => {
     for (const { d, hs } of leaves) {
       const a = open.get(d.id) ?? 0;
@@ -247,10 +261,24 @@ export function createHallInWorld(world: World, inWorld: InWorld, plan: HallPlan
       dayNow = day;
       room.update(t, dt);
       room.setDaylight(day, sky);
+      const dusk = THREE.MathUtils.clamp((0.45 - day) / 0.25, 0, 1);
       if (glowMesh) {
-        const k = (room.nightGlow?.() ?? 0) * THREE.MathUtils.clamp((0.45 - day) / 0.25, 0, 1);
+        const k = (room.nightGlow?.() ?? 0) * dusk;
         (glowMesh.material as THREE.MeshBasicMaterial).opacity = k * (0.85 + 0.1 * Math.sin(t * 3.1) * Math.sin(t * 1.7));
         glowMesh.visible = k > 0.01;
+      }
+      {
+        const k = (room.nightGlow?.() ?? 0) * dusk;
+        for (const s of paneSpills) {
+          s.level = k;
+          s.glow = () => k;
+        }
+        // an open door shows the lit hall (its lamps burn while it is open)
+        for (const { d, s } of doorSpills) {
+          const a = THREE.MathUtils.smoothstep((open.get(d.id) ?? 0) / Math.max(d.open, 0.01), 0.05, 0.6);
+          s.level = a * dusk;
+          s.glow = () => a * dusk;
+        }
       }
     },
     local,

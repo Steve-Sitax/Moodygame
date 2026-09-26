@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { MAX_LAMPS, psxUniforms } from "../retro/psx";
 import { fireViewHeight } from "./fire";
 import { lampFog, type LampFog } from "./lampFog";
+import { addSpill, removeSpill, type SpillSource } from "./spill";
 
 // The gas lamps one by one (M6 town life): each lamp of the town has its own lit state, set
 // by the lamplighter's progress (game/lamplighter.ts, server town/lampround.ts). The six lamps of
@@ -14,9 +15,10 @@ import { lampFog, type LampFog } from "./lampFog";
 // and the psx lamp slots (retro/psx.ts MAX_LAMPS: the glow in the fog, the streaks on wet stone and
 // water); both now go to the lit lamps nearest the eye, whichever they are, and move on as you walk
 // (a lamp that joins or leaves fades over half a second). The last psx slot stays free for Jef's
-// lantern (game/lantern.ts takes a free one first). Every other lit lamp throws a cheap pool of
-// light on the cobbles (one instanced decal, as world/lanternLights.ts does for the lanterns): the
-// light the point light would give flat stone, stopped where the ground drops away (a quay edge).
+// lantern (game/lantern.ts takes a free one first). Every other lit lamp lights the street through
+// world/spill.ts (2026-09-26): the nearest per pixel on the ground, the walls and the people, as its
+// point light would, the rest as a pool on the ground, stopped where the ground drops away (a quay
+// edge). Every lamp registered here spills, the ones added later too (addDecor).
 //
 // M7 fog lamps (2026-09-25): on a day of thick fog the lamplighters leave the lamps lit (lampround.ts
 // FogDay); by day such a lamp glows in the grey (FOG_DAY_GLOW) and lights the ground a little. Its
@@ -44,8 +46,8 @@ export interface GasLamps {
   /** Where each lamp is (the post, the glass at 3.65 m). */
   lamps(): Array<{ id: string; x: number; z: number }>;
   info(): { lamps: number; on: number; set: number };
-  /** Dev: who has the lights and the psx slots now, and how many ground pools are drawn. */
-  lightInfo(): { lights: Array<{ id: string | null; w: number; i: number }>; slots: Array<{ id: string | null; w: number }>; pools: number; lit: number };
+  /** Dev: who has the lights and the psx slots now, and how many lit lamps light the street through world/spill.ts. */
+  lightInfo(): { lights: Array<{ id: string | null; w: number; i: number }>; slots: Array<{ id: string | null; w: number }>; spilling: number; lit: number };
 }
 
 const GLASS_Y = 3.65;
@@ -54,10 +56,8 @@ const POWER = 26;
 const DECAY = 1.7;
 /** A lamp joins or leaves the lights in about half a second. */
 const FADE = 2.2;
-/** Ground pools: radius (m), how far off they are still drawn, how many at most. */
-const POOL_R = 8;
-const POOL_FAR = 110;
-const MAX_POOLS = 96;
+/** Its point light's reach (rijnkaai.ts gasLamp), for its light through world/spill.ts. */
+const RANGE = 18;
 /** psx slots for the gas lamps; the last one is left for Jef's lantern (game/lantern.ts). */
 const GAS_SLOTS = MAX_LAMPS - 1;
 /**
@@ -104,7 +104,7 @@ export function createGasLamps(
   quay: Array<{ x: number; z: number }>,
   /** The scene's gas-lamp point lights (the quay lamps' own): lent to the nearest lit lamps. */
   lights: THREE.PointLight[] = [],
-  /** The ground's height (world.groundAt): a pool never hangs out over a drop. */
+  /** The ground's height (world.groundAt): where its light's pool lies (world/spill.ts). */
   groundAt: (x: number, z: number) => number = () => 0,
 ): GasLamps {
   interface L {
@@ -127,12 +127,15 @@ export function createGasLamps(
     /** this frame's light, 0..1: in the glass and the air (b), on the ground (g) */
     b: number;
     g: number;
-    /** the ground pool: foot height, centre, radius (worked out once) */
-    pool: { g: number; cx: number; cz: number; r: number } | null;
+    /** its light on the street past the point lights (world/spill.ts) */
+    spill: SpillSource;
   }
+  /** The lamp's light on the street (world/spill.ts): a point light of the lamps' own power, decay and reach. */
+  const spillOf = (id: string, x: number, y: number, z: number, foot: number | null): SpillSource =>
+    addSpill({ kind: "lamp", label: `gas lamp ${id}`, x, y, z, power: POWER, decay: DECAY, range: RANGE, ground: foot ?? NaN, hw: 0.15, hh: 0.2 });
   const all = new Map<string, L>();
   quay.forEach((q, i) =>
-    all.set(`q${i}`, { id: `q${i}`, x: q.x, z: q.z, gy: GLASS_Y, foot: null, want: 1, level: 1, set: false, glass: [], reach: [], slot: -1, seed: i * 1.37 + 0.5, flame: 0, b: 0, g: 0, pool: null }),
+    all.set(`q${i}`, { id: `q${i}`, x: q.x, z: q.z, gy: GLASS_Y, foot: null, want: 1, level: 1, set: false, glass: [], reach: [], slot: -1, seed: i * 1.37 + 0.5, flame: 0, b: 0, g: 0, spill: spillOf(`q${i}`, q.x, GLASS_Y, q.z, null) }),
   );
 
   // the city lamps' halos: one Points object, a slot per lamp, the lit level as an attribute
@@ -200,119 +203,9 @@ export function createGasLamps(
   let t = 0;
   const ranked: Array<{ l: L; score: number }> = [];
 
-  // the ground pools: what the point lights do not give (world/lanternLights.ts, with a gas lamp's height and decay)
-  const poolGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
-  // per pool: the light at the foot, the lamp's height over the ground, the pool's radius; the foot's offset from the pool's centre
-  const poolPow = new THREE.InstancedBufferAttribute(new Float32Array(MAX_POOLS * 3), 3);
-  const poolFoot = new THREE.InstancedBufferAttribute(new Float32Array(MAX_POOLS * 2), 2);
-  poolPow.setUsage(THREE.DynamicDrawUsage);
-  poolFoot.setUsage(THREE.DynamicDrawUsage);
-  poolGeo.setAttribute("aPow", poolPow);
-  poolGeo.setAttribute("aFoot", poolFoot);
-  const poolGain = { value: 0.07 }; // as the lanterns' pools: matched by eye to the real lights (lanternLights.ts)
-  const poolMat = new THREE.ShaderMaterial({
-    uniforms: { ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog), uColor: { value: new THREE.Color(0xffa048) }, uGain: poolGain },
-    vertexShader: /* glsl */ `
-      attribute vec3 aPow;
-      attribute vec2 aFoot;
-      varying vec3 vPow;
-      varying vec2 vRel;
-      varying vec2 vUv;
-      varying float vFogDepth;
-      void main() {
-        vPow = aPow;
-        vUv = uv;
-        // metres from the lamp's foot (the pool may be shifted off it, away from a drop)
-        vRel = (uv * 2.0 - 1.0) * aPow.z - aFoot;
-        vec4 mv = modelViewMatrix * instanceMatrix * vec4(position, 1.0);
-        vFogDepth = -mv.z;
-        gl_Position = projectionMatrix * mv;
-      }`,
-    fragmentShader: /* glsl */ `
-      uniform vec3 uColor;
-      uniform float uGain;
-      uniform float fogNear;
-      uniform float fogFar;
-      varying vec3 vPow;
-      varying vec2 vRel;
-      varying vec2 vUv;
-      varying float vFogDepth;
-      void main() {
-        float r = length(vRel);
-        float edge = length(vUv * 2.0 - 1.0);
-        // what the point light gives flat ground, cos / d^decay, relative to the foot; soft edge
-        float h = vPow.y;
-        float fall = pow(h / sqrt(r * r + h * h), ${(DECAY + 1).toFixed(2)}) * smoothstep(1.0, 0.6, edge);
-        float fog = smoothstep(fogNear, fogFar, vFogDepth);
-        gl_FragColor = vec4(uColor * vPow.x * uGain * fall * (1.0 - fog), 1.0);
-      }`,
-    transparent: true,
-    depthWrite: false,
-    fog: true,
-    blending: THREE.AdditiveBlending,
-    polygonOffset: true,
-    polygonOffsetFactor: -2,
-    polygonOffsetUnits: -4,
-  });
-  const pools = new THREE.InstancedMesh(poolGeo, poolMat, MAX_POOLS);
-  pools.name = "gas_lamp_ground_pools";
-  pools.count = 0;
-  pools.frustumCulled = false;
-  pools.renderOrder = 2;
-  scene.add(pools);
-  const pm = new THREE.Matrix4();
-  const pq = new THREE.Quaternion();
-  const pp = new THREE.Vector3();
-  const ps = new THREE.Vector3();
-  let poolsDrawn = 0;
   let litCount = 0;
+  let spilling = 0;
 
-  /** Where a lamp's pool may lie: the ground within a step of its foot's (worked out once: lamps stand still). */
-  function poolOf(l: L): NonNullable<L["pool"]> {
-    if (l.pool) return l.pool;
-    const g = l.foot ?? groundAt(l.x, l.z);
-    const flat = (x: number, z: number) => Math.abs(groundAt(x, z) - g) <= 0.25;
-    const N = 16;
-    const reach: number[] = [];
-    let dx = 0;
-    let dz = 0;
-    for (let i = 0; i < N; i++) {
-      const a = (i / N) * Math.PI * 2;
-      let r = POOL_R;
-      for (const d of [1, 2, 3, 4.5, 6, POOL_R]) {
-        if (!flat(l.x + Math.cos(a) * d, l.z + Math.sin(a) * d)) {
-          r = Math.max(0, d - 0.6);
-          break;
-        }
-      }
-      reach.push(r);
-      dx += Math.cos(a) * (POOL_R - r);
-      dz += Math.sin(a) * (POOL_R - r);
-    }
-    let best = { g, cx: l.x, cz: l.z, r: Math.min(...reach) };
-    const dl = Math.hypot(dx, dz);
-    if (best.r < POOL_R && dl > 0) {
-      // shift the pool away from the drop: the biggest disc that stays on the flat
-      const ux = -dx / dl;
-      const uz = -dz / dl;
-      for (const s of [0.5, 1, 1.5, 2, 3, 4, 5])
-        for (let rr = POOL_R; rr > best.r; rr -= 0.5) {
-          const cx = l.x + ux * s;
-          const cz = l.z + uz * s;
-          let ok = flat(cx, cz);
-          for (let i = 0; i < N && ok; i++) {
-            const a = (i / N) * Math.PI * 2;
-            ok = flat(cx + Math.cos(a) * rr, cz + Math.sin(a) * rr) && flat(cx + Math.cos(a) * rr * 0.55, cz + Math.sin(a) * rr * 0.55);
-          }
-          if (ok) {
-            if (rr > best.r) best = { g, cx, cz, r: rr };
-            break;
-          }
-        }
-    }
-    l.pool = best;
-    return best;
-  }
 
   /** A slot follows its lamp while the lamp is wanted; else it fades out and frees; wanted lamps take free slots. */
   function assign(slots: Slot[], want: Set<L>, dt: number): void {
@@ -349,7 +242,10 @@ export function createGasLamps(
       }
       // M7 fog lamps: the glass fogs like its post (a lit one shows a little further)
       const reach = glass.map((m) => lampFog(m, 1, 1 + LIT_REACH));
-      all.set(`d${i}`, { id: `d${i}`, x, z, gy: at?.glass ?? GLASS_Y, foot: at?.ground ?? null, want: 1, level: 1, set: false, glass, reach, slot, seed: i * 2.31 + 7.1, flame: -1, b: 0, g: 0, pool: null });
+      const gy = at?.glass ?? GLASS_Y;
+      const old = all.get(`d${i}`);
+      if (old) removeSpill(old.spill);
+      all.set(`d${i}`, { id: `d${i}`, x, z, gy, foot: at?.ground ?? null, want: 1, level: 1, set: false, glass, reach, slot, seed: i * 2.31 + 7.1, flame: -1, b: 0, g: 0, spill: spillOf(`d${i}`, x, gy, z, at?.ground ?? null) });
     },
     set(id, on) {
       const l = all.get(id);
@@ -415,6 +311,18 @@ export function createGasLamps(
       }
       assign(lightSlots, wantLight, dt);
       assign(psxSlots, wantSlot, dt);
+      // the light the point lights do not give (or only part-way, while they fade): through world/spill.ts
+      spilling = 0;
+      for (const l of all.values()) {
+        let rest = 1;
+        for (const s of lightSlots) if (s.lamp === l) rest -= s.w;
+        l.spill.level = Math.max(0, Math.min(1, l.g * rest));
+        // (the ground under it, once the town is in: its pool lies there)
+        if (Number.isNaN(l.spill.ground) && l.spill.level > 0) l.spill.ground = l.foot ?? groundAt(l.x, l.z);
+        l.spill.glow = () => Math.min(1, l.b);
+        l.spill.real = () => (l.g > 0.01 ? 1 - rest : 0);
+        if (l.spill.level > 0.001) spilling++;
+      }
       lightSlots.forEach((s, i) => {
         const light = lights[i];
         const l = s.lamp;
@@ -435,33 +343,6 @@ export function createGasLamps(
       // the slots past the gas lamps' (the lantern's): empty unless the lantern takes one after this
       for (let i = psxSlots.length; i < uL.length; i++) uL[i].set(0, -999, 0, 0);
 
-      // the ground pools: the lit lamps the point lights do not light (or only part-way, while they fade)
-      let n = 0;
-      for (const r of ranked) {
-        if (n >= MAX_POOLS) break;
-        const l = r.l;
-        let rest = 1;
-        for (const s of lightSlots) if (s.lamp === l) rest -= s.w;
-        const pw = l.g * Math.max(0, rest);
-        if (pw < 0.02) continue;
-        if (Math.hypot(l.x - eye.x, l.z - eye.z) > POOL_FAR) continue;
-        const pl = poolOf(l);
-        if (pl.r < 0.8) continue;
-        const h = Math.max(0.5, l.foot === null ? GLASS_Y : l.gy - pl.g);
-        pm.compose(pp.set(pl.cx, pl.g + 0.05, pl.cz), pq, ps.set(pl.r * 2, 1, pl.r * 2));
-        pools.setMatrixAt(n, pm);
-        poolPow.setXYZ(n, (POWER * pw) / Math.pow(h, DECAY), h, pl.r);
-        poolFoot.setXY(n, l.x - pl.cx, l.z - pl.cz);
-        n++;
-      }
-      poolsDrawn = n;
-      pools.count = n;
-      pools.visible = n > 0;
-      if (n) {
-        pools.instanceMatrix.needsUpdate = true;
-        poolPow.needsUpdate = true;
-        poolFoot.needsUpdate = true;
-      }
     },
     lamps() {
       return [...all.values()].map((l) => ({ id: l.id, x: l.x, z: l.z }));
@@ -479,7 +360,7 @@ export function createGasLamps(
       return {
         lights: lightSlots.map((s, i) => ({ id: s.lamp?.id ?? null, w: +s.w.toFixed(2), i: +(lights[i]?.intensity ?? 0).toFixed(1) })),
         slots: psxSlots.map((s) => ({ id: s.lamp?.id ?? null, w: +s.w.toFixed(2) })),
-        pools: poolsDrawn,
+        spilling,
         lit: litCount,
       };
     },

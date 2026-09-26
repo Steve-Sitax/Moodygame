@@ -1,7 +1,9 @@
 import * as THREE from "three";
 import { psx, psxUniforms } from "../retro/psx";
 import { TARGET_HEIGHT } from "../retro/retroPass";
-import { edgeZ, type CityWorld } from "./city";
+import { edgeZ, type CityOpenings, type CityWorld } from "./city";
+import { addSpill, setSpillClock, type SpillKind } from "./spill";
+import { sharedFacadeProbe, type FacadeProbe } from "./facadeProbe";
 import INWORLD from "../../../shared/inworld_houses.json";
 
 /**
@@ -442,10 +444,6 @@ interface ChunkBuf {
   winUv: number[];
   winLit: number[];
   winTone: number[];
-  spill: number[];
-  spillUv: number[];
-  spillLit: number[];
-  spillTone: number[];
 }
 
 /** The wall rings of the plan's houses as build_city.py makes them (house_ring). */
@@ -514,8 +512,107 @@ function flatWalls(houses: House[]): Set<string> {
  * [s_mid from the front's first corner, y0, y1, width, small]. */
 type GableWin = [number, number, number, number, boolean];
 
-function buildWindows(houses: House[], gables: Record<string, GableWin[]> = {}, lamps: number[][] = []): Map<string, ChunkBuf> {
+/** A lit pane as buildWindows laid it, for its light on the street (world/spill.ts). */
+interface Pane {
+  x: number;
+  z: number;
+  ox: number;
+  oz: number;
+  ux: number;
+  uz: number;
+  w: number;
+  y0: number;
+  y1: number;
+  l: Lit;
+  tone: number;
+  kind: number;
+  group: string | null;
+}
+
+/** And their light on the street: the kind of source (world/spill.ts) and its power against that kind's own. */
+const PANE_SPILL: Array<[SpillKind, number]> = [["upper", 1], ["room", 1.2], ["garret", 1], ["lantern", 0.6], ["garret", 1.5]];
+
+/**
+ * Every lit pane lights the street (world/spill.ts): the ground storey's one by one, with its bars thrown out;
+ * a room upstairs by the span of its windows on that wall; the lanterns by the doors as flames. Its level is the
+ * pane's own schedule, so a pane that glows spills and one that spills glows.
+ */
+function spillPanes(list: Pane[]): number {
+  const groups = new Map<string, Pane[]>();
+  const one: Pane[][] = [];
+  for (const p of list) {
+    if (p.group === null) one.push([p]);
+    else {
+      let g = groups.get(p.group);
+      if (!g) groups.set(p.group, (g = []));
+      g.push(p);
+    }
+  }
+  let n = 0;
+  for (const g of [...one, ...groups.values()]) {
+    const p0 = g[0];
+    // the span along the wall, from the first pane
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (const p of g) {
+      const s = (p.x - p0.x) * p0.ux + (p.z - p0.z) * p0.uz;
+      lo = Math.min(lo, s - p.w / 2);
+      hi = Math.max(hi, s + p.w / 2);
+    }
+    const mid = (lo + hi) / 2;
+    const [kind, k] = PANE_SPILL[p0.kind] ?? PANE_SPILL[0];
+    // oil lamp and candle: the pane's own warm (its tone), in linear light
+    const c = new THREE.Color().setRGB(1, 0.36 + 0.16 * p0.tone, 0.08 + 0.08 * p0.tone, THREE.LinearSRGBColorSpace);
+    const lantern = p0.kind === 3;
+    const s = addSpill({
+      kind,
+      label: lantern ? "door lantern" : p0.kind === 1 ? "lit window (ground)" : p0.kind === 4 ? "lit cottage window" : p0.kind === 2 ? "lit garret window" : "lit windows upstairs",
+      x: p0.x + p0.ux * mid,
+      y: (p0.y0 + p0.y1) / 2,
+      z: p0.z + p0.uz * mid,
+      nx: lantern ? 0 : p0.ox,
+      nz: lantern ? 0 : p0.oz,
+      hw: (hi - lo) / 2,
+      hh: (p0.y1 - p0.y0) / 2,
+      color: c,
+      bars: p0.kind === 1 ? 23 : p0.kind === 4 ? 22 : 0,
+      // (upstairs the room's shape falls far off and faint: only the ground storey throws it)
+      ...(p0.kind === 1 || p0.kind === 4 ? {} : { depth: 0 }),
+      sched: p0.l,
+    });
+    s.power *= k * (0.8 + 0.4 * p0.tone);
+    n++;
+  }
+  return n;
+}
+
+let panes: Pane[] = [];
+
+/** Panes left out: they lay on plain wall as built (a storehouse's gate bay, a front the plan and the model paint apart). */
+let hiddenPanes = 0;
+
+/**
+ * Is this pane on plain wall as the house was built (world/facadeProbe.ts: a level ray from before the wall meets
+ * the facade atlas's plain wall, not a painted window, at every point tried)? Such a pane was drawn inside the wall,
+ * never seen; its light on the street would come from nowhere, so it is left out, glow and light alike.
+ */
+function onPlainWall(probe: FacadeProbe, x: number, z: number, ox: number, oz: number, ux: number, uz: number, w: number, y0: number, y1: number): boolean {
+  let hits = 0;
+  for (const [a, f] of [[0, 0.5], [-0.28, 0.3], [0.28, 0.3], [-0.28, 0.75], [0.28, 0.75]]) {
+    const px = x + ux * a * w + ox * 0.6;
+    const pz = z + uz * a * w + oz * 0.6;
+    const h = probe(px, y0 + (y1 - y0) * f, pz, -ox, -oz, 1.2);
+    if (!h) continue;
+    if (h.alpha > 200) return false;
+    hits++;
+  }
+  return hits > 0;
+}
+
+function buildWindows(houses: House[], gables: Record<string, GableWin[]> = {}, lamps: number[][] = [], probe: FacadeProbe | null = null, cottages: CityOpenings["cottages"] | null = null): Map<string, ChunkBuf> {
   const chunks = new Map<string, ChunkBuf>();
+  panes = [];
+  hiddenPanes = 0;
   let buf: ChunkBuf;
   const quad = (pos: number[], uv: number[], lit: number[], tone: number[], p: number[][], l: Lit, t: number[], uvs: number[][]) => {
     for (const i of [0, 1, 2, 0, 2, 3]) {
@@ -525,28 +622,26 @@ function buildWindows(houses: House[], gables: Record<string, GableWin[]> = {}, 
       tone.push(...t);
     }
   };
-  /** A lit pane: centre on the wall (x, z), outward (ox, oz), along (ux, uz). */
-  const addWindow = (x: number, z: number, ox: number, oz: number, ux: number, uz: number, w: number, y0: number, y1: number, l: Lit, tone: number, ground: boolean, off = 0.04) => {
+  /**
+   * A lit pane: centre on the wall (x, z), outward (ox, oz), along (ux, uz). `kind` (the pane's brightness and its
+   * light on the street, world/spill.ts): 1 the ground storey (a shop or a front room), 0 a room upstairs, 2 a
+   * garret's candle in the gable, 3 a lantern by a door. `group`: the panes of one room on one wall throw their
+   * light together (upstairs); null, each its own (the ground storey's, with their bars).
+   */
+  const addWindow = (x: number, z: number, ox: number, oz: number, ux: number, uz: number, w: number, y0: number, y1: number, l: Lit, tone: number, kind: number, off = 0.04, group: string | null = null) => {
+    if (probe && kind !== 3 && onPlainWall(probe, x, z, ox, oz, ux, uz, w, y0, y1)) {
+      hiddenPanes++;
+      return;
+    }
     const cx = x + ox * off;
     const cz = z + oz * off;
     const hw = w / 2;
-    const t = [tone, ground ? 1 : 0];
+    const t = [tone, kind];
     quad(buf.win, buf.winUv, buf.winLit, buf.winTone,
       [[cx - ux * hw, y0, cz - uz * hw], [cx + ux * hw, y0, cz + uz * hw], [cx + ux * hw, y1, cz + uz * hw], [cx - ux * hw, y1, cz - uz * hw]],
       l, t, [[0, 0], [1, 0], [1, 1], [0, 1]]);
-    if (ground && l[0] < 99) {
-      // light from the shop window on the street: a fan on the cobbles, above the kerb
-      const nx = x + ox * 0.12;
-      const nz = z + oz * 0.12;
-      const fx = x + ox * 2.7;
-      const fz = z + oz * 2.7;
-      const nw = w * 0.55;
-      const fw = w * 1.25;
-      const y = 0.09;
-      quad(buf.spill, buf.spillUv, buf.spillLit, buf.spillTone,
-        [[nx - ux * nw, y, nz - uz * nw], [nx + ux * nw, y, nz + uz * nw], [fx + ux * fw, y, fz + uz * fw], [fx - ux * fw, y, fz - uz * fw]],
-        l, t, [[-1, 0], [1, 0], [1, 1], [-1, 1]]);
-    }
+    // (its light on the street starts at the wall's face, not at the glass set back in it)
+    panes.push({ x: x + ox * 0.02, z: z + oz * 0.02, ox, oz, ux, uz, w, y0, y1, l, tone, kind, group });
   };
 
   const flat = flatWalls(houses);
@@ -557,9 +652,10 @@ function buildWindows(houses: House[], gables: Record<string, GableWin[]> = {}, 
     hi++;
     // a house pulled down (the churches freed, 2026-09-26: city_build.json "gone") has no windows
     if (h.gone) continue;
-    // the alleys' cottages have their own small windows (tools/blender/build_city.py): no panes painted on them yet
-    if ((h as House & { alley?: boolean }).alley) continue;
+    // the alleys' cottages have their own small windows (tools/blender/build_city.py): lit below from their list
+    const alley = !!(h as House & { alley?: boolean }).alley;
     const own = OWN_LIGHT.get(hi);
+    if (alley && (own || !h.rect || !cottages?.[String(hi)])) continue;
     const poort = (h as House & { poort?: { s: [number, number] } }).poort;
     const r = mulberry(h.seed);
     const store = !!h.store;
@@ -582,10 +678,36 @@ function buildWindows(houses: House[], gables: Record<string, GableWin[]> = {}, 
     const key = `${Math.floor(cx / 100)},${Math.floor(cz / 100)}`;
     let b = chunks.get(key);
     if (!b) {
-      b = { win: [], winUv: [], winLit: [], winTone: [], spill: [], spillUv: [], spillLit: [], spillTone: [] };
+      b = { win: [], winUv: [], winLit: [], winTone: [] };
       chunks.set(key, b);
     }
     buf = b;
+
+    if (alley) {
+      // a cottage of the back alleys: its own small windows as build_city.py cut them (city.glb "city_openings"),
+      // lit by the household's hours like any other; a candle or a small oil lamp (kind 4 downstairs, 2 up)
+      const [ox, oz] = h.o;
+      const [ux, uz] = h.u;
+      const [nx, nz] = h.n;
+      const [s0, s1] = h.s;
+      const [t0, t1] = h.t;
+      const P = (s: number, t: number): [number, number] => [ox + ux * s + nx * t, oz + uz * s + nz * t];
+      const c = [P(s0, t0), P(s1, t0), P(s1, t1), P(s0, t1)];
+      const outs: Array<[number, number]> = [[-nx, -nz], [ux, uz], [nx, nz], [-ux, -uz]];
+      for (const [wi, sm, w, y0, y1] of cottages![String(hi)]) {
+        const [ax, az] = c[wi];
+        const [bx, bz] = c[(wi + 1) % 4];
+        const L = Math.hypot(bx - ax, bz - az) || 1;
+        const wx = (bx - ax) / L;
+        const wz = (bz - az) / L;
+        const down = y0 < GROUND_H - 0.5;
+        const l = litOf(down ? -1 : Math.max(0, Math.floor((y0 - GROUND_H) / STOREY_H)), false);
+        if (l[0] >= 99 && l[2] >= 99) continue;
+        // (the sash COT_R = 0.11 back in the cottage's wall, build_city.py)
+        addWindow(ax + wx * sm, az + wz * sm, outs[wi][0], outs[wi][1], wx, wz, w * 0.86, y0 + 0.06, y1 - 0.06, l, tone, down ? 4 : 2, -0.095, down ? null : `${hi}:${wi}:${y0.toFixed(1)}`);
+      }
+      continue;
+    }
 
     /** Windows on one street wall from a to b. gable: height of the gable outline over the eaves at a point along the wall. */
     /** M7 quays pass 2: a storehouse front's columns of loading doors and gates (build_city.py rect_house), along the wall. */
@@ -611,7 +733,7 @@ function buildWindows(houses: House[], gables: Record<string, GableWin[]> = {}, 
             if (loads.some((g) => k * bw < g + 1.7 && (k + 1) * bw > g - 1.7)) continue;
             const [x, z] = at((k + 0.5) * bw);
             // M7 quays pass 2: the shop window's glass stands SHOP_R (0.12 m) back in the wall now (build_city.py)
-            addWindow(x, z, ox, oz, ux, uz, (bw * 36) / 64, 0.83, 2.85, l, tone, true, setIn ? -0.095 : 0.04);
+            addWindow(x, z, ox, oz, ux, uz, (bw * 36) / 64, 0.83, 2.85, l, tone, 1, setIn ? -0.095 : 0.04);
           }
         }
       }
@@ -635,7 +757,7 @@ function buildWindows(houses: House[], gables: Record<string, GableWin[]> = {}, 
             if (lds.some((g) => Math.abs(c - g) < 1.05 + (bw * 11) / 64)) continue;
             const [x, z] = at(c);
             // M7 quays pass 2: the sash stands WIN_R (0.16 m) back in the wall now (build_city.py)
-            addWindow(x, z, ox, oz, ux, uz, pw, yb, yt, l, tone, false, setIn ? -0.135 : 0.04);
+            addWindow(x, z, ox, oz, ux, uz, pw, yb, yt, l, tone, 0, setIn ? -0.135 : 0.04, `${hi}:${ax},${az}:${k}`);
           }
           continue;
         }
@@ -645,7 +767,7 @@ function buildWindows(houses: House[], gables: Record<string, GableWin[]> = {}, 
             if (Math.abs(y0 - (GROUND_H + k * STOREY_H + (small ? 0.6 : 0.5625))) > 0.01) continue;
             const [x, z] = at(s);
             const inset = small ? 0.11 : 0.0975;
-            addWindow(x, z, ox, oz, ux, uz, small ? w * 0.78 : (w * 18) / 22, y0 + inset, y1 - inset, l, tone, false, -0.115);
+            addWindow(x, z, ox, oz, ux, uz, small ? w * 0.78 : (w * 18) / 22, y0 + inset, y1 - inset, l, tone, 2, -0.115, `${hi}:${ax},${az}:${k}`);
           }
           continue;
         }
@@ -659,7 +781,7 @@ function buildWindows(houses: House[], gables: Record<string, GableWin[]> = {}, 
           const need = yt - H + 0.15;
           if (gable!(d - pw / 2) < need || gable!(d + pw / 2) < need) continue;
           const [x, z] = at(d);
-          addWindow(x, z, ox, oz, ux, uz, pw, yb, yt, l, tone, false, 0.06);
+          addWindow(x, z, ox, oz, ux, uz, pw, yb, yt, l, tone, 2, 0.06, `${hi}:${ax},${az}:${k}`);
         }
       }
     };
@@ -723,14 +845,14 @@ function buildWindows(houses: House[], gables: Record<string, GableWin[]> = {}, 
   for (const [x, y, z, ox, oz] of lamps) {
     const key = `${Math.floor(x / 100)},${Math.floor(z / 100)}`;
     let b = chunks.get(key);
-    if (!b) chunks.set(key, (b = { win: [], winUv: [], winLit: [], winTone: [], spill: [], spillUv: [], spillLit: [], spillTone: [] }));
+    if (!b) chunks.set(key, (b = { win: [], winUv: [], winLit: [], winTone: [] }));
     buf = b;
-    addWindow(x, z, ox, oz, oz, -ox, 0.15, y - 0.13, y + 0.12, [17.2, 30.5, 99, 99], 0.95, false, 0.09);
+    addWindow(x, z, ox, oz, oz, -ox, 0.15, y - 0.13, y + 0.12, [17.2, 30.5, 99, 99], 0.95, 3, 0.09);
   }
   return chunks;
 }
 
-function windowMaterials(): { win: THREE.ShaderMaterial; spill: THREE.ShaderMaterial } {
+function windowMaterials(): { win: THREE.ShaderMaterial } {
   const litGlsl = /* glsl */ `
     uniform float uHourN;
     uniform float uNight;
@@ -782,54 +904,23 @@ function windowMaterials(): { win: THREE.ShaderMaterial; spill: THREE.ShaderMate
         float cw = 0.16 + 0.1 * fract(vTone.x * 11.3);
         float side = max(step(vUv.x, cw), step(1.0 - cw, vUv.x));
         float folds = 0.55 + 0.25 * sin(vUv.x * 60.0 + vTone.x * 9.0);
-        warm *= mix(1.0, folds * 0.8, side * step(0.35, fract(vTone.x * 5.7)) * (1.0 - vTone.y));
+        float shopFront = step(0.5, vTone.y) * step(vTone.y, 1.5);
+        warm *= mix(1.0, folds * 0.8, side * step(0.35, fract(vTone.x * 5.7)) * (1.0 - shopFront));
         // glazing bars: a mullion and two transoms (the shop window: two mullions)
         float bars = step(abs(vUv.x - 0.5), 0.04);
         bars = max(bars, step(abs(vUv.y - 0.333), 0.025) + step(abs(vUv.y - 0.667), 0.025));
         warm *= 1.0 - 0.7 * min(bars, 1.0);
         warm *= 0.94 + 0.06 * sin(uTime * 3.1 + vTone.x * 40.0) * sin(uTime * 7.7 + vTone.x * 13.0);
+        // by the kind of room (world/spill.ts gives their light on the street the same order): a shop or front
+        // room downstairs, upstairs, a garret's candle, a lantern
+        warm *= vTone.y > 3.5 ? 0.75 : vTone.y > 2.5 ? 1.0 : vTone.y > 1.5 ? 0.6 : vTone.y > 0.5 ? 1.15 : 0.9;
         float f = fogK();
         // a faint warm glow stays in the fog: lamplight carries further than the walls show
         gl_FragColor = vec4(warm * vLit * (1.0 - f * 0.82) * 1.25, 1.0);
         #include <colorspace_fragment>
       }`,
   });
-  const spill = shaderMat({
-    transparent: true,
-    depthWrite: false,
-    decal: true,
-    blending: THREE.AdditiveBlending,
-    vertexShader: /* glsl */ `
-      ${VCOMMON}
-      ${litGlsl}
-      attribute vec2 aUv;
-      varying vec2 vUv;
-      varying float vLit;
-      varying vec2 vTone;
-      void main() {
-        vLit = litNow();
-        vUv = aUv;
-        vTone = aTone;
-        vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        vFogDepth = -mv.z;
-        gl_Position = projectionMatrix * mv;
-        if (vLit < 0.004) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
-      }`,
-    fragmentShader: /* glsl */ `
-      ${FCOMMON}
-      uniform float uWetAmt;
-      varying vec2 vUv;
-      varying float vLit;
-      varying vec2 vTone;
-      void main() {
-        float out_ = vUv.y;
-        float k = smoothstep(0.0, 0.12, out_) * pow(1.0 - out_, 1.8) * (1.0 - vUv.x * vUv.x);
-        vec3 warm = mix(vec3(1.0, 0.35, 0.07), vec3(1.0, 0.5, 0.15), vTone.x);
-        float f = fogK();
-        gl_FragColor = vec4(warm * k * vLit * 0.32 * (1.0 + uWetAmt * 1.2) * (1.0 - f), 1.0);
-      }`,
-  });
-  return { win, spill };
+  return { win };
 }
 
 // ------------------------------------------------------------------ 3. rain and puddles
@@ -1006,10 +1097,11 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
   // --- things that wait for the houses and the walk map
   let smoke: THREE.Points | null = null;
   let pudBase = 0.34;
-  const winChunks: Array<{ win: THREE.Mesh; spill: THREE.Mesh | null; centre: THREE.Vector3; radius: number }> = [];
+  const winChunks: Array<{ win: THREE.Mesh; centre: THREE.Vector3; radius: number }> = [];
   let chimneyCount = 0;
   let chimneyList: Chimney[] = [];
   let windowCount = 0;
+  let spillCount = 0;
 
   city.ready
     .then(async () => {
@@ -1090,7 +1182,11 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
       // lit windows, from the plan the houses were built from
       const data = (await import("../../../shared/city_build.json")).default as unknown as { houses: House[] };
       const gables = (await import("../../../shared/city_gable_windows.json")).default as unknown as { houses: Record<string, GableWin[]> };
-      const chunks = buildWindows(data.houses, gables.houses, (gables as unknown as { lamps?: number[][] }).lamps ?? []);
+      // (the houses as built: a pane only where the model paints a window, world/facadeProbe.ts)
+      const chunks = buildWindows(data.houses, gables.houses, (gables as unknown as { lamps?: number[][] }).lamps ?? [], sharedFacadeProbe(city.group), city.openings()?.cottages ?? null);
+      // their light on the street (world/spill.ts; the old fans on the cobbles lay under the pavements)
+      spillCount = spillPanes(panes);
+      panes = [];
       const mats = windowMaterials();
       for (const c of chunks.values()) {
         if (!c.win.length) continue;
@@ -1105,20 +1201,8 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
         win.name = "ambient_windows";
         root.add(win);
         windowCount += c.win.length / 18;
-        let spill: THREE.Mesh | null = null;
-        if (c.spill.length) {
-          const sg = new THREE.BufferGeometry();
-          sg.setAttribute("position", new THREE.Float32BufferAttribute(c.spill, 3));
-          sg.setAttribute("aUv", new THREE.Float32BufferAttribute(c.spillUv, 2));
-          sg.setAttribute("aLit", new THREE.Float32BufferAttribute(c.spillLit, 4));
-          sg.setAttribute("aTone", new THREE.Float32BufferAttribute(c.spillTone, 2));
-          sg.computeBoundingSphere();
-          spill = new THREE.Mesh(sg, mats.spill);
-          spill.name = "ambient_spill";
-          root.add(spill);
-        }
         const s = g.boundingSphere!;
-        winChunks.push({ win, spill, centre: s.center.clone(), radius: s.radius });
+        winChunks.push({ win, centre: s.center.clone(), radius: s.radius });
       }
     })
     .catch((e) => console.warn("ambient: city not ready", e));
@@ -1347,6 +1431,8 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
     const dim = weather === "fog" || weather === "rain" || weather === "storm" ? 0.4 : 0; // a dark day lights up earlier
     const night = Math.max(curve(NIGHT_BY_HOUR, hourNow + dim), curve(NIGHT_BY_HOUR, hourNow - dim));
     U.uNight.value = night;
+    // the lit panes' light on the street follows the same clock (world/spill.ts)
+    setSpillClock(U.uHourN.value, night);
 
     // rain: on a rain day showers come and go over the hours, with drizzle between
     let auto = 0;
@@ -1390,7 +1476,6 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
     for (const c of winChunks) {
       const vis = night > 0.02 && c.centre.distanceTo(camPos) - c.radius < far;
       c.win.visible = vis;
-      if (c.spill) c.spill.visible = vis;
     }
 
     updateBirds(t, Math.min(dt, 0.1), night);
@@ -1406,6 +1491,8 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
     info: () => ({
       chimneys: chimneyCount,
       windows: windowCount,
+      windowSpills: spillCount,
+      windowsOnPlainWall: hiddenPanes,
       windowChunks: winChunks.length,
       birds: birds.length,
       birdsShown: birds.filter((b) => b.shown).length,

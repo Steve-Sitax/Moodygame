@@ -171,6 +171,14 @@ export function buildFacadeProbe(root: THREE.Object3D): FacadeProbe | null {
   };
 }
 
+const shared = new WeakMap<THREE.Object3D, FacadeProbe | null>();
+
+/** The probe of a root, built once and shared (the lit windows, world/ambient.ts; about 0.2 s to build). */
+export function sharedFacadeProbe(root: THREE.Object3D): FacadeProbe | null {
+  if (!shared.has(root)) shared.set(root, buildFacadeProbe(root));
+  return shared.get(root) ?? null;
+}
+
 /** How many points of a flat thing (centre cx, cz; along u; out n; y0..y1; half width hu) meet paint, of how many that met a facade. */
 export function paintUnder(probe: FacadeProbe, b: { cx: number; cz: number; ux: number; uz: number; nx: number; nz: number; hn: number; hu: number; y0: number; y1: number }, margin = 0.04, step = 0.08): { painted: number; hits: number; of: number } {
   const bx = b.cx - b.nx * b.hn, bz = b.cz - b.nz * b.hn;

@@ -7,6 +7,7 @@ import { REVEAL } from "../../../shared/housePlan";
 import { boxGeo, lambert, mergeStatic, tex, type Room } from "./rooms";
 import type { World } from "./rijnkaai";
 import type { InWorld, InWorldRoom, Opening } from "./inworld";
+import { addSpill, type SpillKind, type SpillSource } from "./spill";
 
 // The taverns, the Poesje and the homes in the world (M7, docs/milestones/M7-taverns-homes-inworld.md): the
 // halls' way (world/hallInWorld.ts) for a city house. The room (world/rooms.ts, homeRooms.ts) is built from the
@@ -22,6 +23,8 @@ import type { InWorld, InWorldRoom, Opening } from "./inworld";
 //  - a dark lining just inside the house's faces (street scene): what an open door or a window shows when
 //    the room itself is not drawn (too far, over the budget, a mirror's picture);
 //  - warm panes at night over painted windows of a room upstairs (the garret);
+//  - the lit room's light on the street through its windows and its open door (world/spill.ts), as bright as the
+//    kind of room (a shop, a taproom, a home's candle); the lining glows with it when the room itself is not drawn;
 //  - the InWorldRoom (world/inworld.ts): the door and every window an opening; the air blends at the threshold.
 
 export interface HouseAir {
@@ -204,7 +207,11 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
     mergeStatic(parent, parent);
   }
 
-  // the lining: dark faces just inside the house's side, back, floor and top faces, open at the front
+  // the lining: dark faces just inside the house's side, back, floor and top faces, open at the front (warm when the
+  // room is lit at night: a window whose room is not drawn still glows as its light spills, world/spill.ts)
+  const LINING = new THREE.Color(0x0e0b08);
+  const LINING_LIT = new THREE.Color(0x8a5428);
+  const liningMat = new THREE.MeshBasicMaterial({ color: LINING, side: THREE.DoubleSide });
   {
     const f = plan.frame;
     const x0 = f.x0 + 0.1;
@@ -227,7 +234,7 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
     holedFace(geos, 0.1, z1, bot, top, cut((w) => side(w) && !nearX0(w), (p) => p[1]), (u, y) => [x1, y, u]);
     quad(geos, [[x0, bot, 0.1], [x1, bot, 0.1], [x1, bot, z1], [x0, bot, z1]]);
     quad(geos, [[x0, top, z1], [x1, top, z1], [x1, top, 0.1], [x0, top, 0.1]]);
-    const lining = new THREE.Mesh(mergeGeometries(geos, false)!, new THREE.MeshBasicMaterial({ color: 0x0e0b08, side: THREE.DoubleSide }));
+    const lining = new THREE.Mesh(mergeGeometries(geos, false)!, liningMat);
     for (const g of geos) g.dispose();
     lining.name = `house_lining_${plan.id}`;
     street.add(lining);
@@ -353,6 +360,47 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
     const [nx, nz] = toW(...e(wf.len / 2, 1));
     openings.push({ kind: "window", label: `${plan.id} window`, box, inBox: box, centre: new THREE.Vector3(mx, plan.floorY + (w.y0 + w.y1) / 2, mz), out: new THREE.Vector3(nx - mx, 0, nz - mz).normalize(), open: () => true });
   }
+  // ---- the lit room's light on the street (world/spill.ts): each window, and the door while it stands open
+  const litKind: SpillKind = plan.kind === "shop" ? "shop" : plan.kind === "tavern" ? "tavern" : "room";
+  const spills: Array<{ s: SpillSource; door: boolean }> = [];
+  for (const w of plan.windows) {
+    const wf = winFrame(w);
+    const e = (s: number, dd: number): [number, number] => [wf.ax + wf.tx * s + wf.ox * dd, wf.az + wf.tz * s + wf.oz * dd];
+    const [mx, mz] = toW(...e(wf.len / 2, 0.02));
+    const [nx, nz] = toW(...e(wf.len / 2, 1.02));
+    const kind: SpillKind = w.kind === "glow" ? (plan.id.endsWith("garret") ? "garret" : "room") : litKind;
+    const s = addSpill({
+      kind,
+      label: `${plan.id} window`,
+      x: mx,
+      y: plan.floorY + (w.y0 + w.y1) / 2,
+      z: mz,
+      nx: nx - mx,
+      nz: nz - mz,
+      hw: wf.len / 2,
+      hh: (w.y1 - w.y0) / 2,
+      bars: w.kind === "hole" ? 22 : 0,
+      ...(w.y0 > 2.5 ? { depth: 0 } : {}),
+    });
+    spills.push({ s, door: false });
+  }
+  {
+    const [mx, mz] = toW(0, -0.02);
+    const [nx, nz] = toW(0, -1.02);
+    const s = addSpill({
+      kind: litKind === "room" ? "room" : "door",
+      label: `${plan.id} door`,
+      x: mx,
+      y: plan.floorY + (dp.hs + dp.yd) / 2,
+      z: mz,
+      nx: nx - mx,
+      nz: nz - mz,
+      hw: d.hw,
+      hh: (dp.yd - dp.hs) / 2,
+    });
+    spills.push({ s, door: true });
+  }
+
   // someone at home at night (glow): a candle in the room, so its see-through window is lit from the street
   let candle: THREE.PointLight | null = null;
   if (plan.kind === "home") {
@@ -428,6 +476,13 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
       if (glowMesh) {
         (glowMesh.material as THREE.MeshBasicMaterial).opacity = lit * (0.8 + 0.08 * Math.sin(t * 2.3) * Math.sin(t * 1.3));
         glowMesh.visible = lit > 0.01;
+      }
+      liningMat.color.copy(LINING).lerp(LINING_LIT, lit);
+      // the light on the street: the windows while the room is lit, the door as far as it stands open
+      const flick = 0.95 + 0.05 * Math.sin(t * 3.7) * Math.sin(t * 1.9);
+      for (const { s, door } of spills) {
+        s.level = lit * flick * (door ? THREE.MathUtils.smoothstep(open, 0.05, 0.6) : 1);
+        s.glow = door ? () => lit * THREE.MathUtils.smoothstep(open, 0.05, 0.6) : () => lit;
       }
     },
   };

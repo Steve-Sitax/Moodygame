@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { addSpill, removeSpill, type SpillSource } from "./spill";
 
 // Carried lanterns light the world (2026-09-24, Steve: "live lighting and shadows on the ground").
 //
@@ -6,9 +7,10 @@ import * as THREE from "three";
 // people work) is a source here. The nearest few to the eye get a real three.js point light from a
 // fixed pool, warm and flickering like the gas lamps (world/rijnkaai.ts: the same colour, a softer decay);
 // the nearest of all casts real shadows (a cube shadow map: the carrier's legs, the people round
-// him). The rest get a cheap pool of light on the cobbles (one instanced decal: the warm light the
-// point light would give flat stone, stopped where the ground drops away). A lantern that joins or
-// leaves the pool fades over half a second, and its ground pool fades the other way: nothing pops.
+// him). The rest light the street through world/spill.ts (2026-09-26): the nearest per pixel on the
+// ground, the walls and the people as the point light would, the others as a pool on the ground,
+// stopped where the ground drops away. A lantern that joins or leaves the pool fades over half a second,
+// and its spilt light fades the other way: nothing pops. Every lantern made with addLantern spills.
 //
 // The pool's lights are in the scene from the start and never leave it (intensity 0 when idle), and
 // the shadow ones always say castShadow: the light count and shadow count never change, so no
@@ -31,6 +33,8 @@ export interface LanternSource {
   readonly seed: number;
   /** (the pool's) eased level 0..1 */
   level: number;
+  /** its light past the real lights (world/spill.ts) */
+  spill: SpillSource | null;
 }
 
 /**
@@ -46,13 +50,16 @@ const sources = new Set<LanternSource>();
 let seedN = 0;
 
 export function addLantern(opts: { own?: boolean; power?: number } = {}): LanternSource {
-  const s: LanternSource = { pos: new THREE.Vector3(0, -999, 0), ground: 0, on: 0, power: opts.power ?? 1, own: !!opts.own, seed: (seedN++ * 1.618) % 7, level: 0 };
+  const s: LanternSource = { pos: new THREE.Vector3(0, -999, 0), ground: 0, on: 0, power: opts.power ?? 1, own: !!opts.own, seed: (seedN++ * 1.618) % 7, level: 0, spill: null };
   sources.add(s);
   return s;
 }
 
 export function removeLantern(s: LanternSource | null | undefined): void {
-  if (s) sources.delete(s);
+  if (!s) return;
+  sources.delete(s);
+  removeSpill(s.spill);
+  s.spill = null;
 }
 
 /**
@@ -99,9 +106,6 @@ const RANGE = 10;
 export const POOL = 4;
 export const SHADOWS = 1;
 const FADE = 2.2; // per second: a lantern joins or leaves the pool in about half a second
-const MAX_DECALS = 48;
-/** A ground pool's radius, metres (the point light's reach on the ground that still shows). */
-const POOL_R = 5;
 /** The shadow map is drawn again this often, seconds. */
 const SHADOW_DT = 1 / 30;
 /** People who throw a shadow: within this of a shadow light. */
@@ -124,11 +128,6 @@ function flicker(t: number, seed: number): number {
 
 export class LanternLights {
   private readonly slots: Slot[] = [];
-  private readonly decals: THREE.InstancedMesh;
-  private readonly decalPow: THREE.InstancedBufferAttribute;
-  private readonly m = new THREE.Matrix4();
-  private readonly q = new THREE.Quaternion();
-  private readonly one = new THREE.Vector3(1, 1, 1);
   private readonly p = new THREE.Vector3();
   private readonly camDir = new THREE.Vector3();
   private t = 0;
@@ -137,24 +136,15 @@ export class LanternLights {
   /** Dev: on/off (the pool's lights, the shadows, the ground pools). */
   enabled = true;
   shadows = true;
-  /** Dev: false puts every lantern on the cheap ground pools (to match the two by eye). */
+  /** Dev: false puts every lantern on the spilt light (world/spill.ts; to match the two by eye). */
   lights = true;
-  /**
-   * The ground pools add the light the point light would give flat stone of about this brightness
-   * (matched by eye to the real lights at night, 2026-09-24, the Rijnkaai). Not in proportion to the
-   * stone's own colour: at night that colour is nearly black, and a pool that multiplied it would
-   * blow up whatever shows behind an edge it hangs over.
-   */
-  readonly decalGain = { value: 0.07 };
-  /** Where a ground pool must stop: the ground drops away (the quay edge, steps). Cached per lantern. */
-  private readonly reach = new Map<LanternSource, { x: number; z: number; r: number }>();
-  stats = { sources: 0, lit: 0, lights: 0, shadowLights: 0, decals: 0, casters: 0 };
+  stats = { sources: 0, lit: 0, lights: 0, shadowLights: 0, spilling: 0, casters: 0 };
 
   constructor(
     private readonly scene: THREE.Scene,
     private readonly renderer: THREE.WebGLRenderer,
-    /** The ground's height at (x, z) (world.groundAt): a pool never hangs out over a drop. */
-    private readonly groundAt: (x: number, z: number, feet: number) => number = () => 0,
+    /** (unused since world/spill.ts lays the pools; kept for the callers) */
+    _groundAt: (x: number, z: number, feet: number) => number = () => 0,
   ) {
     // before any shader is built (main.ts makes this right after the renderer)
     renderer.shadowMap.enabled = true;
@@ -177,58 +167,6 @@ export class LanternLights {
       scene.add(light);
       this.slots.push({ light, shadow, src: null, w: 0 });
     }
-
-    // the cheap ground pools: the warm light a lantern throws on flat stone, added
-    const geo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
-    // per pool: the light at the lantern's foot (as the point light gives it), its height, the pool's radius
-    this.decalPow = new THREE.InstancedBufferAttribute(new Float32Array(MAX_DECALS * 3), 3);
-    this.decalPow.setUsage(THREE.DynamicDrawUsage);
-    geo.setAttribute("aPow", this.decalPow);
-    const mat = new THREE.ShaderMaterial({
-      uniforms: { ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog), uColor: { value: new THREE.Color(COLOR) }, uGain: this.decalGain },
-      vertexShader: /* glsl */ `
-        attribute vec3 aPow;
-        varying vec3 vPow;
-        varying vec2 vUv;
-        varying float vFogDepth;
-        void main() {
-          vPow = aPow;
-          vUv = uv;
-          vec4 mv = modelViewMatrix * instanceMatrix * vec4(position, 1.0);
-          vFogDepth = -mv.z;
-          gl_Position = projectionMatrix * mv;
-        }`,
-      fragmentShader: /* glsl */ `
-        uniform vec3 uColor;
-        uniform float uGain;
-        uniform float fogNear;
-        uniform float fogFar;
-        varying vec3 vPow;
-        varying vec2 vUv;
-        varying float vFogDepth;
-        void main() {
-          // metres from the foot of the lantern (vPow.z: the pool's radius)
-          float r = length(vUv * 2.0 - 1.0) * vPow.z;
-          // what the point light gives flat ground, cos / d^decay, relative to the foot; soft edge
-          float h = vPow.y;
-          float fall = pow(h / sqrt(r * r + h * h), ${(DECAY + 1).toFixed(2)}) * smoothstep(vPow.z, vPow.z * 0.6, r);
-          float fog = smoothstep(fogNear, fogFar, vFogDepth);
-          gl_FragColor = vec4(uColor * vPow.x * uGain * fall * (1.0 - fog), 1.0);
-        }`,
-      transparent: true,
-      depthWrite: false,
-      fog: true,
-      blending: THREE.AdditiveBlending,
-      polygonOffset: true,
-      polygonOffsetFactor: -2,
-      polygonOffsetUnits: -4,
-    });
-    this.decals = new THREE.InstancedMesh(geo, mat, MAX_DECALS);
-    this.decals.name = "lantern_ground_pools";
-    this.decals.count = 0;
-    this.decals.frustumCulled = false; // M7 culler: never culled (it moves every frame)
-    this.decals.renderOrder = 2;
-    scene.add(this.decals);
   }
 
   /**
@@ -249,7 +187,7 @@ export class LanternLights {
     if (this.recvT <= 0) {
       this.recvT = 1;
       this.scene.traverse((o) => {
-        if ((o as THREE.Mesh).isMesh && !o.receiveShadow && o !== this.decals) o.receiveShadow = true;
+        if ((o as THREE.Mesh).isMesh && !o.receiveShadow && o.name !== "spill_ground_pools") o.receiveShadow = true;
       });
     }
 
@@ -364,58 +302,31 @@ export class LanternLights {
       }
     }
 
-    // the ground pools: what the real lights do not give
-    let n = 0;
-    for (const r of ranked) {
-      if (n >= MAX_DECALS) break;
-      const s = r.s;
+    // the light the real lights do not give (or only part-way, while they fade): through world/spill.ts, every lantern
+    let spilling = 0;
+    for (const s of sources) {
+      const b = bOf.get(s) ?? 0;
       const rest = 1 - Math.min(1, pooled(s, null));
-      const pw = r.b * rest;
-      if (pw < 0.02) continue;
-      const dx = s.pos.x - cx;
-      const dz = s.pos.z - cz;
-      if (dx * dx + dz * dz > 90 * 90) continue;
-      const h = Math.max(0.3, s.pos.y - s.ground);
-      const rad = this.poolReach(s);
-      if (rad < 0.5) continue;
-      this.m.compose(this.p.set(s.pos.x, s.ground + 0.05, s.pos.z), this.q, this.one.set(rad * 2, 1, rad * 2));
-      this.decals.setMatrixAt(n, this.m);
-      this.decalPow.setXYZ(n, (POWER * pw * flicker(t, s.seed)) / Math.pow(h, DECAY), h, rad);
-      n++;
+      if (!s.spill) {
+        if (b * rest < 0.01) continue;
+        s.spill = addSpill({ kind: "lantern", label: s.own ? "Jef's lantern" : "a carried lantern", x: s.pos.x, y: s.pos.y, z: s.pos.z, power: POWER, decay: DECAY, range: RANGE, moving: true, hw: 0.08, hh: 0.12 });
+      }
+      const sp = s.spill;
+      sp.x = s.pos.x;
+      sp.y = s.pos.y;
+      sp.z = s.pos.z;
+      sp.ground = s.ground;
+      sp.level = Math.max(0, Math.min(1, b * rest * flicker(t, s.seed)));
+      const glow = Math.min(1, b > 0.01 ? s.level * s.power : 0);
+      sp.glow = () => glow;
+      sp.real = () => (b > 0.01 ? 1 - rest : 0);
+      if (sp.level > 0.01) spilling++;
     }
-    this.one.set(1, 1, 1);
-    for (const k of this.reach.keys()) if (!sources.has(k)) this.reach.delete(k);
-    this.decals.count = n;
-    this.decals.visible = n > 0;
-    if (n) {
-      this.decals.instanceMatrix.needsUpdate = true;
-      this.decalPow.needsUpdate = true;
-    }
-    this.stats = { sources: sources.size, lit, lights, shadowLights: this.slots.filter((s) => s.shadow && s.light.intensity > 0).length, decals: n, casters: nCast };
+    this.stats = { sources: sources.size, lit, lights, shadowLights: this.slots.filter((s) => s.shadow && s.light.intensity > 0).length, spilling, casters: nCast };
   }
 
   private shadowOn = false;
   private shadowT = 1;
-
-  /** How far a lantern's ground pool may reach before the ground drops away (0.75 m of walking between looks). */
-  private poolReach(s: LanternSource): number {
-    const c = this.reach.get(s);
-    if (c && Math.abs(c.x - s.pos.x) + Math.abs(c.z - s.pos.z) < 0.75) return c.r;
-    let r = POOL_R;
-    for (let i = 0; i < 8 && r > 0; i++) {
-      const a = (i / 8) * Math.PI * 2;
-      for (const d of [1, 2, 3.5, POOL_R]) {
-        if (d >= r) break;
-        const g = this.groundAt(s.pos.x + Math.cos(a) * d, s.pos.z + Math.sin(a) * d, s.ground);
-        if (Math.abs(g - s.ground) > 0.25) {
-          r = Math.max(0, d - 0.6);
-          break;
-        }
-      }
-    }
-    this.reach.set(s, { x: s.pos.x, z: s.pos.z, r });
-    return r;
-  }
 
   /** Dev perf(): each timed frame (1/60 s) pays for the shadow maps as a real frame would. */
   redraw(dt = 1 / 60): void {

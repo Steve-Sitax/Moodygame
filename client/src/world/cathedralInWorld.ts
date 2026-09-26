@@ -5,6 +5,7 @@ import type { LandmarkRoom } from "./landmarkRooms";
 import { psx } from "../retro/psx";
 import type { World } from "./rijnkaai";
 import type { InWorld, InWorldRoom } from "./inworld";
+import { addSpill } from "./spill";
 
 // The cathedral in the world (M7): its hall (world/cathedralHall.ts buildCathedral, from the plan
 // in shared/cathedralPlan.ts) stands inside the Blender shell at the shell's own place; the west
@@ -122,6 +123,19 @@ export function createCathedralInWorld(world: World, inWorld: InWorld): Cathedra
   };
   inWorld.add(iw);
 
+  // the lit nave's light on the square through the open west door after dark (world/spill.ts)
+  const doorLight = addSpill({
+    kind: "hall",
+    label: "the cathedral's west door",
+    x: P.ORIGIN.x,
+    y: P.FLOOR_Y + DH / 2,
+    z: P.ORIGIN.z + D.z - 0.02,
+    nx: 0,
+    nz: -1,
+    hw: D.hw,
+    hh: DH / 2,
+  });
+
   return {
     room,
     get doorOpen() {
@@ -140,6 +154,11 @@ export function createCathedralInWorld(world: World, inWorld: InWorld): Cathedra
         setLeaves();
       }
       dayNow = day;
+      {
+        const k = THREE.MathUtils.smoothstep(leafAngle / P.LEAF.open, 0.05, 0.6) * THREE.MathUtils.clamp((0.45 - day) / 0.25, 0, 1);
+        doorLight.level = k;
+        doorLight.glow = () => k;
+      }
       for (const m of oaks) m.emissive.setRGB(0.32, 0.29, 0.26).multiplyScalar(THREE.MathUtils.clamp(day, 0, 1) * sky);
       // the flames, lights and glass always follow the hour (cheap): no step in them when the hall's life starts
       void live;

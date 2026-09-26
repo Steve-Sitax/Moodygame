@@ -79,6 +79,18 @@ export interface CityWorld {
   /** Hide house chunks beyond the fog. */
   update(camera: THREE.Camera, far: number): void;
   landmarks: CityJson["landmarks"];
+  /**
+   * Where build_city.py put openings the plan does not say (city.glb node "city_openings"), by house index: the alley
+   * cottages' windows [wall, s_mid, width, y0, y1] (walls 0 front, 1 right, 2 back, 3 left; s from the wall's first
+   * corner), the ground bays built as plain wall, the covered passages. Null until the houses are in.
+   */
+  openings(): CityOpenings | null;
+}
+
+export interface CityOpenings {
+  cottages: Record<string, Array<[number, number, number, number, number]>>;
+  plain_ground: Record<string, Array<[number, number, number]>>;
+  poorts: Record<string, unknown>;
 }
 
 const LANDMARK_HEIGHT: Record<string, number> = {
@@ -404,7 +416,14 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
   const chunks: THREE.Mesh[] = [];
   const draco = new DRACOLoader().setDecoderPath("/draco/");
   const loader = new GLTFLoader().setDRACOLoader(draco);
+  let openings: CityOpenings | null = null;
   const houses = loader.loadAsync("/models/city.glb").then((gltf) => {
+    try {
+      const raw = gltf.scene.getObjectByName("city_openings")?.userData.openings;
+      if (typeof raw === "string") openings = JSON.parse(raw) as CityOpenings;
+    } catch {
+      openings = null;
+    }
     gltf.scene.traverse((o) => {
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;
@@ -490,5 +509,5 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
     }
   }
 
-  return { group, ready: Promise.all([houses, walkReady, landmarks]).then(() => {}), flags, update, landmarks: data.landmarks };
+  return { group, ready: Promise.all([houses, walkReady, landmarks]).then(() => {}), flags, update, landmarks: data.landmarks, openings: () => openings };
 }

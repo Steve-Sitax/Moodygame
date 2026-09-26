@@ -6,6 +6,17 @@ import * as THREE from "three";
 
 export const MAX_LAMPS = 6;
 
+/**
+ * Light that spills out of lit windows, open doors, lamps and lanterns (world/spill.ts): the nearest MAX_SPILL
+ * sources are worked out in every lit psx material (ground of every kind, walls, people), the rest are cheap pools
+ * on the ground (spill.ts). Each source is four vec4s, the active ones first (power 0 ends the list):
+ *   A: centre of the opening or the flame (world), power (already times its level)
+ *   B: the way out of the wall (x, z; 0, 0 for a lamp or lantern), half width, half height of the opening
+ *   C: colour (linear), bars (columns * 10 + rows of panes; 0 none)
+ *   D: range (m), decay, depth of the lamp behind the glass (m), softening (m^2)
+ */
+export const MAX_SPILL = 48;
+
 export const psxUniforms = {
   uSnapRes: { value: new THREE.Vector2(240, 135) },
   uTime: { value: 0 },
@@ -40,7 +51,117 @@ export const psxUniforms = {
   uMirrorMat: { value: new THREE.Matrix4() },
   /** Where water lies: a soft tiling noise (low spots fill first). */
   uPudNoise: { value: null as THREE.Texture | null },
+  /** The spill sources (world/spill.ts; see MAX_SPILL). */
+  uSpillA: { value: Array.from({ length: MAX_SPILL }, () => new THREE.Vector4(0, -999, 0, 0)) },
+  uSpillB: { value: Array.from({ length: MAX_SPILL }, () => new THREE.Vector4()) },
+  uSpillC: { value: Array.from({ length: MAX_SPILL }, () => new THREE.Vector4()) },
+  uSpillD: { value: Array.from({ length: MAX_SPILL }, () => new THREE.Vector4(1, 2, 0, 1)) },
 };
+
+/**
+ * The light one spill source gives a point P with normal N (irradiance, three.js units: a lamp of power I and decay
+ * k gives I cos / d^k, as its point light would). A window or door is an opening with a soft lobe out of the wall:
+ * lit from its nearest point and its middle (bright right under and before it, from the wall's foot on, fading
+ * with distance and angle), and the room's lamp behind the glass throws the window's shape with its bars as softer,
+ * darker stripes further out. Shared by the psx materials and the far pools (world/spill.ts).
+ */
+export const spillGlsl = /* glsl */ `
+vec3 spillOne(vec3 P, vec3 N, vec4 A, vec4 B, vec4 C, vec4 D) {
+  vec3 d = P - A.xyz;
+  float dd = dot(d, d);
+  float r2 = D.x * D.x;
+  if (dd >= r2) return vec3(0.0);
+  float q = dd / r2;
+  float fade = (1.0 - q * q);
+  fade *= fade;
+  vec3 n = vec3(B.x, 0.0, B.y);
+  if (dot(n, n) < 0.01) {
+    // a lamp or a lantern: a point light
+    float dl = sqrt(dd);
+    float cr = max(dot(N, -d / max(dl, 1e-4)), 0.0);
+    return C.rgb * (A.w * cr * fade / (pow(max(dl, 0.05), D.y) + D.w));
+  }
+  float o = dot(d, n);
+  if (o < -0.08) return vec3(0.0);
+  vec3 u = vec3(-n.z, 0.0, n.x);
+  float s = dot(d, u);
+  // the nearest point of the opening, and its middle
+  vec3 e = vec3(clamp(s, -B.z, B.z), clamp(d.y, -B.w, B.w), 0.0);
+  vec3 L1 = u * e.x + vec3(0.0, e.y, 0.0) - d;
+  float l1 = length(L1);
+  vec3 L2 = -d;
+  float l2 = sqrt(dd);
+  L1 /= max(l1, 1e-4);
+  L2 /= max(l2, 1e-4);
+  // the lobe out of the opening; the ground under it takes some light even straight below the sill (the room's
+  // light through the whole pane, the frame and the reveal: a pool from the wall's foot on), a wall along it none
+  float under = 0.45 * clamp(N.y, 0.0, 1.0) * (1.0 - smoothstep(B.z, B.z + 0.6 + 0.5 * max(o, 0.0), abs(s)));
+  float lobe = (under + (1.0 - under) * max(dot(-L1, n), 0.0)) * smoothstep(-0.08, 0.1, o);
+  float cr = 0.5 * (max(dot(N, L1), 0.0) + max(dot(N, L2), 0.0));
+  float fall = 0.5 * (1.0 / (pow(l1 * l1, D.y * 0.5) + D.w) + 1.0 / (pow(l2 * l2, D.y * 0.5) + D.w));
+  // the opening's shape thrown by the lamp inside (D.z behind the glass, a little over the middle), its bars
+  float pat = 1.0;
+  if (D.z > 0.0) {
+    vec3 lamp = vec3(0.0, B.w * 0.35, 0.0) - n * D.z;
+    vec3 rel = d - lamp;
+    float k = D.z / max(D.z + o, 0.05);
+    vec3 w = lamp + rel * k;
+    float ws = dot(w, u) / B.z;
+    float wt = w.y / B.w;
+    float sw = 0.1 + 0.08 * max(o, 0.0);
+    float m = (1.0 - smoothstep(1.0 - sw, 1.0 + sw, abs(ws))) * (1.0 - smoothstep(1.0 - sw, 1.0 + sw, abs(wt)));
+    if (C.w > 0.5) {
+      float cols = floor(C.w / 10.0 + 0.01);
+      float rows = C.w - cols * 10.0;
+      float fx = (ws * 0.5 + 0.5) * cols;
+      float fy = (wt * 0.5 + 0.5) * rows;
+      float bw = 0.05 + 0.05 * max(o, 0.0);
+      float bx = (1.0 - smoothstep(bw, bw + 0.12, abs(fx - floor(fx + 0.5)))) * step(0.5, fx) * step(fx, cols - 0.5);
+      float by = (1.0 - smoothstep(bw, bw + 0.12, abs(fy - floor(fy + 0.5)))) * step(0.5, fy) * step(fy, rows - 0.5);
+      m *= 1.0 - 0.5 * max(bx, by);
+    }
+    pat = 0.5 + 0.5 * m;
+  }
+  return C.rgb * (A.w * lobe * cr * fall * fade * pat);
+}
+`;
+
+/** All the spill sources at P (normal N): the list ends at the first with no power. */
+const spillSumGlsl = /* glsl */ `
+#define MAX_SPILL ${MAX_SPILL}
+uniform vec4 uSpillA[MAX_SPILL];
+uniform vec4 uSpillB[MAX_SPILL];
+uniform vec4 uSpillC[MAX_SPILL];
+uniform vec4 uSpillD[MAX_SPILL];
+${spillGlsl}
+vec3 psxSpill(vec3 P, vec3 N) {
+  vec3 E = vec3(0.0);
+  for (int i = 0; i < MAX_SPILL; i++) {
+    if (uSpillA[i].w <= 0.0) break;
+    E += spillOne(P, N, uSpillA[i], uSpillB[i], uSpillC[i], uSpillD[i]);
+  }
+  return E;
+}
+`;
+
+/** Wet stone and puddles: the spill sources mirrored as streaks (needs wetStreak and spillSumGlsl). */
+const spillWetGlsl = /* glsl */ `
+vec3 psxSpillWet(vec3 P, vec3 rr) {
+  vec3 E = vec3(0.0);
+  for (int i = 0; i < MAX_SPILL; i++) {
+    vec4 A = uSpillA[i];
+    if (A.w <= 0.0) break;
+    vec3 d = P - A.xyz;
+    float r = uSpillD[i].x * 1.6;
+    float dd = dot(d, d);
+    if (dd > r * r) continue;
+    // (a window's glow sits a little out of its wall, so the streak is not cut by it)
+    vec3 c = A.xyz + vec3(uSpillB[i].x, 0.0, uSpillB[i].y) * 0.3;
+    E += uSpillC[i].rgb * A.w * wetStreak(P, rr, c) * (1.0 - dd / (r * r));
+  }
+  return E;
+}
+`;
 
 /** A soft tiling value noise, 128 x 128: where the puddles lie (psx option `puddles`). */
 function puddleNoise(): THREE.DataTexture {
@@ -167,6 +288,11 @@ export interface PsxOptions {
    * elsewhere (1 = the city's normal; earth quays more, flagstones less).
    */
   puddles?: number;
+  /**
+   * false: this lit material takes no light from the spill sources (world/spill.ts). Every other lit psx
+   * material (not the water) does.
+   */
+  spill?: boolean;
   /**
    * Stones that stand up (flat ground only, uv = world xz / tile): a height map for
    * parallax (the stones hide the joints behind them at a slant) and for a relief light
@@ -485,12 +611,22 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
     shader.vertexShader = vs;
 
     let fs = shader.fragmentShader;
+    // light spilt from lit windows, doors, lamps and lanterns (world/spill.ts): every lit material but the water
+    const spillOn = !opts.water && opts.spill !== false && fs.includes("#include <lights_fragment_end>");
+    if (spillOn) {
+      shader.uniforms.uSpillA = psxUniforms.uSpillA;
+      shader.uniforms.uSpillB = psxUniforms.uSpillB;
+      shader.uniforms.uSpillC = psxUniforms.uSpillC;
+      shader.uniforms.uSpillD = psxUniforms.uSpillD;
+    }
     fs = fs.replace(
       "#include <common>",
       "#include <common>\n" +
         commonFragment +
         (opts.atlas ? "varying vec2 vCell;\n" : "") +
         (opts.wet || opts.water ? wetFragment : "") +
+        (spillOn ? spillSumGlsl : "") +
+        (spillOn && opts.wet ? spillWetGlsl : "") +
         (opts.puddles ? "uniform float uPuddle;\nuniform sampler2D uMirror;\nuniform mat4 uMirrorMat;\nuniform sampler2D uPudNoise;\n" : "") +
         (opts.wet || opts.puddles || opts.vary || opts.foot || opts.mottle ? pudNoiseGlsl : "") +
         (opts.vary || opts.foot || opts.mottle ? "uniform sampler2D uDirt;\nuniform vec4 uDirtBox;\n" : "") +
@@ -724,6 +860,17 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
       }
       #endif`,
     );
+    if (spillOn) {
+      fs = fs.replace(
+        "#include <lights_fragment_end>",
+        /* glsl */ `#include <lights_fragment_end>
+      {
+        // the spill sources light this face as point lights would (world/spill.ts), by its own normal
+        vec3 spillN = normalize((vec4(geometryNormal, 0.0) * viewMatrix).xyz);
+        reflectedLight.directDiffuse += psxSpill(vPsxWorld, spillN) * BRDF_Lambert(diffuseColor.rgb);
+      }`,
+      );
+    }
     if (opts.foot || opts.mottle) {
       // (after the colour, the vertex colour and whatever a later patch draws there, houseGrime.ts; before the light)
       const wearOf = opts.foot?.vertexWear ? "\n        #ifdef USE_COLOR_ALPHA\n        fA *= 0.25 + 0.9 * vColor.a;\n        #endif" : "";
@@ -826,6 +973,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
             wrefl += uLamps[i].w * wetStreak(vPsxWorld, rr, uLamps[i].xyz);
           }
           gl_FragColor.rgb += uLampColor * wrefl * wetK * stone * (0.15 + 0.85 * glint) * 0.4;
+          ${spillOn ? "gl_FragColor.rgb += psxSpillWet(vPsxWorld, rr) * wetK * (0.35 + 0.65 * stone) * (0.55 + 0.45 * glint) * 0.02;" : ""}
           if (uRain > 0.001) gl_FragColor.rgb += fogColor * rainRings(vPsxWorld.xz * 1.6, uTime * 1.3, uRain * 0.6) * 0.18 * wetK;
         }`
             : ""
@@ -867,6 +1015,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
             float lamp = 0.0;
             for (int i = 0; i < MAX_LAMPS; i++) lamp += uLamps[i].w * wetStreak(vPsxWorld, rr, uLamps[i].xyz);
             refl += uLampColor * lamp * 0.8;
+            ${spillOn && opts.wet ? "refl += psxSpillWet(vPsxWorld, rr) * 0.05;" : ""}
             // shallow, a little brown: the ground under it, darker
             vec3 under = gl_FragColor.rgb * vec3(0.52, 0.48, 0.42);
             gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(under, refl, F), water);
@@ -885,7 +1034,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
   };
   // M7 rendering (world/cull.ts): how far the fog lets this material show, and water (waves reach over the sheet)
   mat.userData.psx = { fogReach: opts.fogReach ?? 1, water: !!opts.water };
-  mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}${opts.relief.id ? `-id${opts.relief.holes ?? 0}` : ""}` : ""}${opts.vary ? `-v${opts.vary}` : ""}${opts.detile ? "-dt" : ""}${opts.slabs ? `-slab${opts.slabs.tile}-${opts.slabs.yMax}` : ""}${opts.foot ? `-foot${opts.foot.amount}${opts.foot.vertexWear ? "w" : ""}` : ""}${opts.mottle ? `-mot${opts.mottle}` : ""}`;
+  mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}${opts.relief.id ? `-id${opts.relief.holes ?? 0}` : ""}` : ""}${opts.vary ? `-v${opts.vary}` : ""}${opts.detile ? "-dt" : ""}${opts.slabs ? `-slab${opts.slabs.tile}-${opts.slabs.yMax}` : ""}${opts.foot ? `-foot${opts.foot.amount}${opts.foot.vertexWear ? "w" : ""}` : ""}${opts.mottle ? `-mot${opts.mottle}` : ""}${opts.spill === false ? "-nosp" : ""}`;
   return mat;
 }
 

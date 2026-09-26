@@ -83,7 +83,10 @@ Also still there: `__scheldemist.paths()` (must be `[]` before a milestone ends)
 house walls, corners, doorways, the walk map and each other; `problems` must be 0; build the lively streets and put
 the markets up first: a market day, 10:00), `await __scheldemist.zfight()`
 (faces in one plane that flicker, by cause; the houses list 4 small ones, see M3c pass 5),
-`__scheldemist.shaders()` (the shaders and their light settings; `problems` must be empty, see rendering.md), `perf(n)`,
+`__scheldemist.shaders()` (the shaders and their light settings; `problems` must be empty, see rendering.md),
+`__scheldemist.spill()` (night: every lit window, open door, lamp and lantern in view range, whether it glows and throws
+its light per pixel, as a ground pool or by its own real light, and where its pool starts against its wall; `problems`
+must be empty; `spillInfo()` the counts, `spillBudget(n, bars)` the graphics knob; world/spill.ts), `perf(n)`,
 `step(s)`, `shotFrom(name, from, to, fogFar)`, and each part's `info()` (`events`, `ballads`, `actions` ...).
 Server dev routes: `POST /api/dev/set {day, hour, minute, weather, food ...}` (sets the hands only: no date
 turns), `/api/dev/advance {minutes}` (M7 night: as the game moves the clock, midnight included), `/api/dev/job`,
