@@ -35,6 +35,8 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 
 | Work | Scope and files | Started |
 |---|---|---|
+| Quay cobbles look like shiny plastic | the rail setts band reads smooth and lighter in some directions: find the sheen (puddle mirror on clear days? wet shading? lost relief?) and fix; all ground kinds | 2026-09-27 |
+| People walking against walls | townspeople walking in place against walls in the alleys: a `stuck()` detector, root cause, fix | 2026-09-27 |
 | Codex: low-poly props and tight collisions | SAFE BATCH MERGED + PUSHED `abb6a21` (already live through `9aa9cd4`; reconciled main `98bdebe`): collision core, tree trunks and static stop benches; tree/vegetation design, matching bark bump/wet map. Seven collision tests, clean build, Chrome contact + dry/rain, paths/shaders empty. Test Chrome and isolated 5469/9069 stack cleaned up. HOLD barrels/crates/sacks and other prepared prop-loader changes until Props in walls/Picture round finishes; defer other active assets per Steve. Queue/scope and validation: `docs/milestones/M7-small-assets.md`; original cargo evidence `M7-tight-props.md`. Extra router check: 19 passed, two timeouts (first Codex stub and process-kill test); report to Flaky talk-down/AI owner, no edits to their files. | 2026-09-26 |
 
 ## Live (2026-09-26, after the away batch)
