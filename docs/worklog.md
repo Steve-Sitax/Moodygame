@@ -35,6 +35,8 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 
 | Work | Scope and files | Started |
 |---|---|---|
+| Ground bumps for light + puddles back | the ground relief only darkened colour, so light saw a flat plane: a real lighting normal from the height maps; dry-day puddles visible again where the splash sounds | 2026-09-27 |
+| Soft window light on the street | the window light on the cobbles showed as hard blocky diamonds: soft bars, smooth falloff | 2026-09-27 |
 | Multiplayer M8b: one street for all | the same townspeople (owner per 64 m cell, remote puppets, handover), omnibus, river traffic, bridges, lock, cranes and drays (the world PC), platforms in their frame, shared doors; branch `m8b` in the worktree `D:\Code\MoodyGame-m8b`, merged when done | 2026-09-27 |
 | People walking against walls | townspeople walking in place against walls in the alleys: a `stuck()` detector, root cause, fix | 2026-09-27 |
 | Codex: low-poly props and tight collisions | SAFE BATCH MERGED + PUSHED `abb6a21` (already live through `9aa9cd4`; reconciled main `98bdebe`): collision core, tree trunks and static stop benches; tree/vegetation design, matching bark bump/wet map. Seven collision tests, clean build, Chrome contact + dry/rain, paths/shaders empty. Test Chrome and isolated 5469/9069 stack cleaned up. HOLD barrels/crates/sacks and other prepared prop-loader changes until Props in walls/Picture round finishes; defer other active assets per Steve. Queue/scope and validation: `docs/milestones/M7-small-assets.md`; original cargo evidence `M7-tight-props.md`. Extra router check: 19 passed, two timeouts (first Codex stub and process-kill test); report to Flaky talk-down/AI owner, no edits to their files. | 2026-09-26 |
