@@ -7,6 +7,8 @@ Git history has the detail of each commit.
 
 ## Waiting for Steve
 
+- Day fog, rain and storm: the skyline is still a little lighter than the cloud deck (18-35% at 13:00). A one-line sky.ts change would use the night rule by day too, at the cost of flatter fog-day skies. Steve's call.
+- Multiplayer: try M8a on the laptop (steps in docs/milestones/M8a.md); then M8b?
 - Going public: the audit says safe. Steve flips the repo to public himself. Optional: an AGPL section 7 permission for the proprietary Claude Agent SDK (draft in `docs/public-release-check.md`). The commit email steve@sitax.be becomes public with the history.
 - The clockmaker's pocket watches and the junk-stall clocks: live hands too? (Steve did not pick it: no for now.)
 
@@ -25,7 +27,7 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 2. Wave 2: done and live (yard windows 3D, picture round 1/4/5 + tuning).
    Why: both touch houses, walls and the ground; yard windows after the shop fronts (both rebuild
    city.glb). (Props in walls finished early and goes live first: others build on its checks.)
-3. Wave 3, running: multiplayer M8a (walk together); sleep rework next to it.
+3. Wave 3: multiplayer M8a is live. Next: M8b (one street for all) when Steve says go.
    together), which builds on the menus, the loading screen and the character creator.
 4. Later: picture round 2 (wall lanterns, after the light spill) and 3 (goods along walls, after props).
 
@@ -34,14 +36,14 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 | Work | Scope and files | Started |
 |---|---|---|
 | Bump audit of every texture | `bumpaudit()` of every material in the street and rooms; raking-light shots where flat; height maps that follow the pictures; the town wall first | 2026-09-26 |
-| Night fog outlines + light audit | far objects lighter than the sky at night; a picture audit across weathers and times for things visible that should not be; every lamp and lantern visible from far (the start pier lamps were not); `fogcheck()` | 2026-09-26 |
-| Multiplayer M8a: walk together | LAN host, join code, assets cached by hash, shared clock and weather, others drawn smoothly, own movement never pulled back, no pause; `docs/milestones/M8a.md` | 2026-09-26 |
 | Codex: low-poly props and tight collisions | SAFE BATCH MERGED + PUSHED `abb6a21` (already live through `9aa9cd4`; reconciled main `98bdebe`): collision core, tree trunks and static stop benches; tree/vegetation design, matching bark bump/wet map. Seven collision tests, clean build, Chrome contact + dry/rain, paths/shaders empty. Test Chrome and isolated 5469/9069 stack cleaned up. HOLD barrels/crates/sacks and other prepared prop-loader changes until Props in walls/Picture round finishes; defer other active assets per Steve. Queue/scope and validation: `docs/milestones/M7-small-assets.md`; original cargo evidence `M7-tight-props.md`. Extra router check: 19 passed, two timeouts (first Codex stub and process-kill test); report to Flaky talk-down/AI owner, no edits to their files. | 2026-09-26 |
 
 ## Live (2026-09-26, after the away batch)
 
 | Commit | What |
 |---|---|
+| 5c0d603 | Night fog: no pale outlines; every light seen from far |
+| 5243b63 | Multiplayer M8a: walk together on the home network (docs/milestones/M8a.md) |
 | 2c028f3 | Sleep: a bed at any hour for as long as you choose, benches for worse, no sleeping rough |
 | db527ee | Night sounds and the frame loop: no NaN can stop the game; the dray route fixed |
 | 99dbc5d | Yard walls: real 3D windows instead of painted ones, lit at night |
