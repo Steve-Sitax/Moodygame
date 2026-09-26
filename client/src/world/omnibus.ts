@@ -8,25 +8,47 @@ import type { Rect } from "./geom";
 import type { HorsePool } from "./horses";
 import { Kit, type RGB } from "./kit";
 import type { OpeningLike } from "./railway";
+import {
+  absMinute,
+  clockText,
+  departures,
+  LINES,
+  lineTiming,
+  linesAt as linesAtStop,
+  loopPath,
+  nextSlot,
+  passes as loopPasses,
+  STOPS,
+  type LineDef,
+  type OmnibusStop,
+} from "../../../shared/omnibusLines";
 
 // The horse omnibuses (M3g). Autumn 1873 had no tram on the river quays yet (Antwerp's first
 // horse tram ran from 25 May 1873, Meir to Berchem; the harbour tramways came from 1881), but
 // omnibuses had run between the harbour and the town since the 1830s (docs/milestones/M3g.md).
 // Pair-horse omnibuses with a driver on the box and a conductor on the back platform, on the
-// cobbles, no rails. Two lines, each with its colour and its destination board:
+// cobbles, no rails. Three lines (M7 omnibus routes, docs/milestones/M7-omnibus-routes.md), each
+// with its colour and its destination board; the rounds are in shared/omnibusLines.ts:
 //
 //   KAAIEN (green, one omnibus): the Werf -> the Steenplein -> the Vismarkt -> the Rijnkaai ->
 //     the Petit Bassin -> back along the Rijnkaai -> the Vismarkt -> the Steenplein -> round
 //     behind the Werf.
-//   GROTE MARKT (red, two omnibuses): the Vismarkt -> the Vleeshuis -> the Grote Markt (by the
-//     town hall) -> the Cathedral (the Handschoenmarkt; the square before the west portal kept
-//     free) -> the road to the Meir -> the Brouwersvliet (the canal quay) -> the Vismarkt.
+//   GROTE MARKT (red, three): the Vismarkt -> the Vleeshuis -> the Grote Markt (by the town hall)
+//     -> the Sint-Jorispoort -> the Stadspark -> the Cathedral (the Handschoenmarkt; the square
+//     before the west portal kept free) -> the road to the Meir -> the Brouwersvliet -> the Vismarkt.
+//   KEIZERSPOORT (blue, two, M7): the Keizerspoort -> Sint-Paulus -> the Keizerstraat -> the
+//     Conscienceplein -> the road to the Meir -> Sint-Jacob -> the Kipdorppoort -> the Ramparts.
 //
-// The lines meet at the Vismarkt (two bays, a short walk apart): a change there is free (the
-// server, server/src/ride.ts). The town line is a one-way ring with no crossings: in the wide
-// streets it keeps to its own lane each way, so two omnibuses never meet head-on; one that
-// catches up waits behind the other, at a stop too. Each stop post carries a plate in the
-// colour of every line that calls there. Two carriage lamps, lit after dusk.
+// Changes: at the Vismarkt (two bays, a short walk apart) and at the road to the Meir (one bay for
+// both town lines): free on one ticket (server/src/ride.ts). The rounds are one way: in the wide
+// streets a line keeps to its own lane each way, so two omnibuses never meet head-on; one that
+// catches up waits behind the other, at a stop too. Each stop post carries its name and a plate in
+// the colour of every line that calls there; most have a bench, and people wait there by day.
+// Two carriage lamps, lit after dusk.
+//
+// M7 timetable (the engine's numbers, shared/omnibusLines.ts): each line leaves its terminus at
+// fixed times from 6:00 to 22:00, one omnibus each headway; an omnibus that comes round early
+// waits there, and after the last round they all stand at the terminus till morning.
 //
 // It stops at every stop for a few seconds, longer while someone gets on or off (game/ride.ts:
 // E at the back platform). It stops for the player in its way, for people and anything on its
@@ -38,88 +60,9 @@ import type { OpeningLike } from "./railway";
 
 type P = [number, number];
 
-export interface LineDef {
-  id: string;
-  /** What the destination board says (a name: Dutch is fine). */
-  board: string;
-  /** The side boards: the line's stops. */
-  sideBoard: string;
-  /** In plain English, for the notes. */
-  name: string;
-  /** Paint (0..1). */
-  colour: RGB;
-  /** Corner points of the round, in the way it runs (rounded with a 5 m radius). */
-  route: P[];
-  buses: number;
-}
-
-/** The round along the quays. Checked on the walk map: all open ground. */
-const QUAY_ROUTE: P[] = [
-  [-305, 29.5], [-305, 8.3], [-158, 8.3], [-152, 7.6], [-140, 7.6], [-134, 8.3], [-90, 8.3], [-84, 7.8], [-68, 7.8],
-  [-62, 8.3], [66, 8.3], [76, 15], [76, 37], [-54, 37], [-58, 33], [-58, 12], [-62, 8.3], [-204, 8.3], [-204, 29.5],
-  // (M3i: the Steen stands on the promontory again, restored as in 1890; the round turns inland over the Steenplein)
-];
-
-/**
- * The town ring (a one-way loop; the walk map gives at least 2.0 m from the lane's middle to any
- * wall all round, every corner rounded). In the two-way stretches it keeps its own lane: the canal
- * quay (south at x -89.5, north at x -84.5), the wide street west of the Vleeshuis (x -149 and
- * -145), the street into the Handschoenmarkt (west at z 126.2, east at z 129.8).
- */
-const TOWN_ROUTE: P[] = [
-  [-84.5, 20], [-96, 20], [-96, 38], [-89.5, 45], [-89.5, 114], [-149, 114], [-149, 126.2], [-238, 126.2], [-238, 70],
-  [-280, 70], [-280, 129.8], [-145, 129.8], [-145, 208.5], [-84.5, 208.5],
-];
-
-export const LINES: LineDef[] = [
-  {
-    id: "kaaien",
-    board: "KAAIEN",
-    sideBoard: "WERF  ·  STEENPLEIN  ·  VISMARKT  ·  RIJNKAAI  ·  PETIT BASSIN",
-    name: "the quay line",
-    colour: [0.4, 0.52, 0.42],
-    route: QUAY_ROUTE,
-    buses: 1,
-  },
-  {
-    id: "markt",
-    board: "GROTE MARKT",
-    sideBoard: "VISMARKT  ·  VLEESHUIS  ·  GROTE MARKT  ·  KATHEDRAAL  ·  MEIR",
-    name: "the Grote Markt line",
-    colour: [0.62, 0.26, 0.2],
-    route: TOWN_ROUTE,
-    buses: 2,
-  },
-];
-
-export interface OmnibusStop {
-  /** The stop (the server's name for it, server/src/ride.ts). Lines that meet share it. */
-  id: string;
-  name: string;
-  /** The line this bay is for. */
-  line: string;
-  x: number;
-  z: number;
-  /** Where the post stands. */
-  post: P;
-}
-
-/** The stop bays, one per line and stop. */
-export const STOPS: OmnibusStop[] = [
-  { id: "werf", name: "the Werf", line: "kaaien", x: -270, z: 8.3, post: [-270, 10.4] },
-  { id: "steenplein", name: "the Steenplein", line: "kaaien", x: -180, z: 8.3, post: [-180, 10.4] },
-  { id: "vismarkt", name: "the Vismarkt", line: "kaaien", x: -112, z: 8.3, post: [-112, 10.4] },
-  { id: "rijnkaai", name: "the Rijnkaai", line: "kaaien", x: 30, z: 8.3, post: [30, 10.4] },
-  { id: "bassin", name: "the Petit Bassin", line: "kaaien", x: 76, z: 31, post: [78.3, 31] },
-  { id: "rijnkaai_back", name: "the Rijnkaai", line: "kaaien", x: 0, z: 37, post: [0, 39.3] },
-  { id: "vismarkt", name: "the Vismarkt", line: "markt", x: -96, z: 31, post: [-98.3, 31] },
-  { id: "vleeshuis", name: "the Vleeshuis", line: "markt", x: -118, z: 114, post: [-118, 111.6] },
-  // the post beside the town hall door's line, not on it (fixes 2026-09-25: Jef walking in bumped into it)
-  { id: "grote_markt", name: "the Grote Markt", line: "markt", x: -257, z: 70, post: [-252, 67.6] },
-  { id: "cathedral", name: "the Cathedral", line: "markt", x: -248, z: 129.8, post: [-248, 132.3] },
-  { id: "meir", name: "the road to the Meir", line: "markt", x: -145, z: 198, post: [-141.6, 198] },
-  { id: "brouwersvliet", name: "the Brouwersvliet", line: "markt", x: -84.5, z: 180, post: [-87, 176] },
-];
+// M7 omnibus routes: the lines, rounds, stops and the timetable live in shared/omnibusLines.ts (the
+// server reads them too: the fares, the timetable at the posts, the lanes parked carts keep off).
+export { LINES, STOPS, type LineDef, type OmnibusStop } from "../../../shared/omnibusLines";
 
 /** Boxes along every omnibus lane, for props, pumps and troughs to keep off them (rijnkaai.ts). */
 export function omnibusKeepOut(): Rect[] {
@@ -157,6 +100,8 @@ export interface Omnibus {
   nextStop(): OmnibusStop;
   /** Hold at the stop while someone gets on or off. */
   hold(on: boolean): void;
+  /** M7 timetable: standing at its terminus till a later departure (null: not waiting on the timetable); `night`: laid up till the morning. */
+  due(): { at: number; night: boolean } | null;
   /** Someone rides: it no longer waits for "the player in the way". */
   rider: boolean;
   /** Where a rider stands on the back platform (feet), the way the omnibus points, its speed. */
@@ -206,6 +151,14 @@ export interface Omnibuses {
   residents(): Array<{ id: string; bus: number; alight: string; seated: boolean }>;
   /** M6: no nameless passengers (the town's own people ride instead). */
   anonymous: boolean;
+  /** M7 timetable: the game clock (set by main). Without it the omnibuses run without a timetable. */
+  clock?: () => { day: number; hour: number };
+  /** M7: where the player looks from (set by main; the kit's runs pass no camera): people wait at the stops near it. */
+  eye?: () => { x: number; z: number };
+  /** M7: the lines at a stop and the next times their omnibuses are due there (the shared timetable, by the game clock). */
+  timetable(stop: string): Array<{ line: LineDef; next: string[]; headwayMin: number }>;
+  /** M7 dev: drive every round with the whole rig (body, wheels, horses) against the walls and fixed things; [] is clean. */
+  sweep(): Array<{ line: string; x: number; z: number; what: string }>;
 }
 
 export interface OmnibusOptions {
@@ -244,42 +197,12 @@ class Loop {
   static readonly STEP = 0.25;
 
   constructor(corners: P[], radius: number) {
-    const pts: P[] = [];
-    const n = corners.length;
-    for (let i = 0; i < n; i++) {
-      const p = corners[i];
-      const a = corners[(i + n - 1) % n];
-      const b = corners[(i + 1) % n];
-      const la = Math.hypot(a[0] - p[0], a[1] - p[1]);
-      const lb = Math.hypot(b[0] - p[0], b[1] - p[1]);
-      const r = Math.min(radius, la / 2.2, lb / 2.2);
-      const s: P = [p[0] + ((a[0] - p[0]) / la) * r, p[1] + ((a[1] - p[1]) / la) * r];
-      const e: P = [p[0] + ((b[0] - p[0]) / lb) * r, p[1] + ((b[1] - p[1]) / lb) * r];
-      for (let k = 0; k <= 10; k++) {
-        const t = k / 10;
-        pts.push([(1 - t) * (1 - t) * s[0] + 2 * (1 - t) * t * p[0] + t * t * e[0], (1 - t) * (1 - t) * s[1] + 2 * (1 - t) * t * p[1] + t * t * e[1]]);
-      }
-    }
-    pts.push(pts[0]);
-    const xs: number[] = [];
-    const zs: number[] = [];
-    let carry = 0;
-    for (let i = 0; i < pts.length - 1; i++) {
-      const [ax, az] = pts[i];
-      const [bx, bz] = pts[i + 1];
-      const L = Math.hypot(bx - ax, bz - az);
-      if (L < 1e-6) continue;
-      let d = carry;
-      while (d < L) {
-        xs.push(ax + ((bx - ax) * d) / L);
-        zs.push(az + ((bz - az) * d) / L);
-        d += Loop.STEP;
-      }
-      carry = d - L;
-    }
-    this.x = Float32Array.from(xs);
-    this.z = Float32Array.from(zs);
-    this.length = xs.length * Loop.STEP;
+    const path = loopPath(corners, radius);
+    const xs = path.x;
+    const zs = path.z;
+    this.x = xs;
+    this.z = zs;
+    this.length = path.length;
     this.k = new Float32Array(xs.length);
     const N = xs.length;
     for (let i = 0; i < N; i++) {
@@ -317,24 +240,7 @@ class Loop {
 
   /** Every arc position where the loop passes within r of (x, z). */
   passes(x: number, z: number, r: number): number[] {
-    const out: number[] = [];
-    let best = -1;
-    let bd = Infinity;
-    for (let i = 0; i < this.x.length; i++) {
-      const d = Math.hypot(this.x[i] - x, this.z[i] - z);
-      if (d < r) {
-        if (d < bd) {
-          bd = d;
-          best = i;
-        }
-      } else if (best >= 0) {
-        out.push(best * Loop.STEP);
-        best = -1;
-        bd = Infinity;
-      }
-    }
-    if (best >= 0) out.push(best * Loop.STEP);
-    return out;
+    return loopPasses(this, x, z, r);
   }
 }
 
@@ -549,6 +455,183 @@ function postGeometry(lines: LineDef[]): THREE.BufferGeometry {
   return k.build();
 }
 
+// ------------------------------------------------------------------ M7: the stops (post, name, timetable, bench)
+
+interface StopPost {
+  id: string;
+  /** The name on the sign. */
+  label: string;
+  x: number;
+  z: number;
+  /** The post's turn (its sign's faces look along the lane's normal; local -x faces the lane). */
+  yaw: number;
+  /** Toward the lane (unit). */
+  toLane: P;
+  bench?: [number, number, number];
+}
+
+/** One post per spot (bays of two lines at one spot share it). */
+function stopPosts(): StopPost[] {
+  const out: StopPost[] = [];
+  for (const st of STOPS) {
+    const had = out.find((p) => Math.hypot(p.x - st.post[0], p.z - st.post[1]) < 0.3);
+    if (had) {
+      had.bench ??= st.bench;
+      continue;
+    }
+    const dx = st.x - st.post[0];
+    const dz = st.z - st.post[1];
+    const L = Math.hypot(dx, dz) || 1;
+    const label = (st.id === "meir" ? "Meir" : st.name.replace(/^the /, "")).toUpperCase();
+    out.push({ id: st.id, label, x: st.post[0], z: st.post[1], yaw: Math.atan2(dx, dz) + Math.PI / 2, toLane: [dx / L, dz / L], bench: st.bench });
+  }
+  return out;
+}
+
+/** A park bench: two cast-iron ends, a slatted seat and back. Body frame: it faces +z, 1.5 m long along x. */
+function benchGeometry(): THREE.BufferGeometry {
+  const k = new Kit();
+  const WOOD: RGB = [0.42, 0.3, 0.2];
+  for (const x of [-0.68, 0.68]) {
+    k.box(0.05, 0.44, 0.06, x, 0.22, 0.16, IRON); // front leg
+    k.box(0.05, 0.84, 0.06, x, 0.42, -0.17, IRON, 0, -0.12); // back leg and back stand
+    k.box(0.05, 0.05, 0.42, x, 0.43, 0, IRON); // the arm under the seat
+    k.box(0.05, 0.05, 0.32, x, 0.66, 0.02, IRON); // the armrest
+  }
+  for (let i = 0; i < 4; i++) k.box(1.5, 0.03, 0.08, 0, 0.46, 0.14 - i * 0.095, WOOD); // seat slats
+  for (let i = 0; i < 3; i++) k.box(1.5, 0.08, 0.025, 0, 0.6 + i * 0.12, -0.2 - i * 0.015, WOOD, 0, -0.12); // back slats
+  return k.build();
+}
+
+/** Solid boxes for the benches (the posts are added by rijnkaai.ts from STOPS). */
+export function stopSolids(): Rect[] {
+  const out: Rect[] = [];
+  for (const pt of stopPosts()) {
+    if (!pt.bench) continue;
+    const [x, z, yaw] = pt.bench;
+    const hl = 0.76;
+    const hw = 0.24;
+    const a = Math.abs(Math.cos(yaw));
+    const b = Math.abs(Math.sin(yaw));
+    out.push({ minX: x - a * hl - b * hw, maxX: x + a * hl + b * hw, minZ: z - b * hl - a * hw, maxZ: z + b * hl + a * hw, top: 0.9 });
+  }
+  return out;
+}
+
+const minutesText = (m: number): string => (m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${String(m % 60).padStart(2, "0")}` : ""}`);
+
+/** The names on the signs (both faces) and a timetable plate on the lane side of each post: one mesh, one canvas. */
+function signMesh(posts: StopPost[]): THREE.Mesh | null {
+  if (!posts.length || typeof document === "undefined") return null;
+  const CW = 128;
+  const NH = 64;
+  const TH = 160;
+  const cols = 2;
+  const rows = Math.ceil(posts.length / cols);
+  const c = document.createElement("canvas");
+  c.width = CW * cols;
+  c.height = (NH + TH) * rows;
+  const g = c.getContext("2d")!;
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  const cell = (i: number) => [(i % cols) * CW, Math.floor(i / cols) * (NH + TH)] as const;
+  posts.forEach((pt, i) => {
+    const [x0, y0] = cell(i);
+    // the name: dark letters on the cream enamel, a thin border
+    g.fillStyle = "#e6dbbd";
+    g.fillRect(x0, y0, CW, NH);
+    g.strokeStyle = "#2a2622";
+    g.lineWidth = 3;
+    g.strokeRect(x0 + 3, y0 + 3, CW - 6, NH - 6);
+    g.fillStyle = "#231f1b";
+    const words = pt.label.split(/[ -]/);
+    const two = pt.label.length > 10 && words.length > 1;
+    g.font = `bold ${two ? 20 : pt.label.length > 9 ? 17 : 22}px Georgia, serif`;
+    if (two) {
+      const half = Math.ceil(words.length / 2);
+      g.fillText(words.slice(0, half).join(" "), x0 + CW / 2, y0 + NH * 0.34, CW - 12);
+      g.fillText(words.slice(half).join(" "), x0 + CW / 2, y0 + NH * 0.7, CW - 12);
+    } else g.fillText(pt.label, x0 + CW / 2, y0 + NH / 2 + 1, CW - 12);
+    // the timetable: each line that calls, how often, the first and the last omnibus here
+    const ty = y0 + NH;
+    g.fillStyle = "#ece3c8";
+    g.fillRect(x0, ty, CW, TH);
+    g.strokeStyle = "#3a332c";
+    g.lineWidth = 2;
+    g.strokeRect(x0 + 2, ty + 2, CW - 4, TH - 4);
+    g.fillStyle = "#231f1b";
+    g.font = "bold 13px Georgia, serif";
+    g.fillText("OMNIBUS", x0 + CW / 2, ty + 13, CW - 10);
+    let y = ty + 26;
+    for (const l of linesAtStop(pt.id)) {
+      const t = lineTiming(l.id);
+      const off = t.offsetMin[pt.id] ?? 0;
+      const [r, gg, bb] = l.colour.map((v) => Math.round(v * 200));
+      g.fillStyle = `rgb(${r},${gg},${bb})`;
+      g.fillRect(x0 + 6, y, CW - 12, 16);
+      g.fillStyle = "#f1e6c4";
+      g.font = "bold 11px Georgia, serif";
+      g.fillText(l.board, x0 + CW / 2, y + 8.5, CW - 16);
+      g.fillStyle = "#231f1b";
+      g.font = "11px Georgia, serif";
+      g.fillText(`every ${minutesText(t.headwayMin)}`, x0 + CW / 2, y + 26, CW - 10);
+      const first = clockText(6 * 60 + off);
+      let last = 6 * 60;
+      while (last + t.headwayMin <= 22 * 60) last += t.headwayMin;
+      g.fillText(`${first} to ${clockText(last + off)}`, x0 + CW / 2, y + 40, CW - 10);
+      y += 52;
+    }
+  });
+  const tex = new THREE.CanvasTexture(c);
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  tex.generateMipmaps = false;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  // the quads: per post, the name on both faces of the sign (local x = +-0.061), the plate on the lane side
+  const pos: number[] = [];
+  const nor: number[] = [];
+  const uv: number[] = [];
+  const quad = (pt: StopPost, lx: number, cy: number, w: number, h: number, u0: number, v0: number, u1: number, v1: number) => {
+    // local x = lx faces out along sign(lx); "right" as seen from that side: -z for +x, +z for -x
+    const cs = Math.cos(pt.yaw);
+    const sn = Math.sin(pt.yaw);
+    const world = (x: number, z: number): P => [pt.x + x * cs + z * sn, pt.z - x * sn + z * cs];
+    const rz = lx > 0 ? -1 : 1;
+    const nx = Math.sign(lx) * cs;
+    const nz = -Math.sign(lx) * sn;
+    const corner = (su: number, sv: number, u: number, v: number) => {
+      const [wx, wz] = world(lx, rz * su * (w / 2));
+      pos.push(wx, cy + sv * (h / 2), wz);
+      nor.push(nx, 0, nz);
+      uv.push(u, v);
+    };
+    corner(-1, -1, u0, v0);
+    corner(1, -1, u1, v0);
+    corner(1, 1, u1, v1);
+    corner(-1, -1, u0, v0);
+    corner(1, 1, u1, v1);
+    corner(-1, 1, u0, v1);
+  };
+  posts.forEach((pt, i) => {
+    const [x0, y0] = cell(i);
+    const u0 = x0 / c.width;
+    const u1 = (x0 + CW) / c.width;
+    const vn1 = 1 - y0 / c.height;
+    const vn0 = 1 - (y0 + NH) / c.height;
+    const vt1 = vn0;
+    const vt0 = 1 - (y0 + NH + TH) / c.height;
+    for (const lx of [0.062, -0.062]) quad(pt, lx, 2.45, 0.54, 0.28, u0, vn0, u1, vn1);
+    quad(pt, -0.06, 1.12, 0.3, 0.375, u0, vt0, u1, vt1);
+  });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  const m = new THREE.Mesh(geo, psx(new THREE.MeshLambertMaterial({ map: tex })));
+  m.name = "omnibus_signs";
+  return m;
+}
+
 /** Advertisements over the windows inside (plain English; the names are names). */
 const ADS = ["JENEVER  DE KUYPER", "SOAP  ·  DE WINTER", "COFFEE AND TEA  ·  PEETERS", "PIPE TOBACCO  ·  VAN ROMPAEY"];
 
@@ -662,6 +745,8 @@ interface BusState extends Omnibus {
   blockT: number;
   backM: number;
   backs: number;
+  /** M7 timetable: the departure it waits for at its terminus (absolute game minutes), or null. */
+  departAt: number | null;
 }
 
 interface Passenger {
@@ -692,6 +777,13 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     loops.set(l.id, { loop, watch, stopAt });
   }
   const buses: BusState[] = [];
+  /** M7 timetable: the last departure each line's omnibuses took from its terminus (absolute game minutes). */
+  const lastSlot = new Map<string, number>();
+  /** The game clock now (absolute game minutes), or null without a clock. */
+  const nowMin = (): number | null => {
+    const c = api.clock?.();
+    return c ? absMinute(c.day, 0) + c.hour * 60 : null;
+  };
   for (const l of LINES) {
     const { loop, watch, stopAt } = loops.get(l.id)!;
     for (let k = 0; k < l.buses; k++) {
@@ -737,6 +829,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         spans: new Map(),
         zones: railZones(loop),
         blockT: 0,
+        departAt: null,
         backM: 0,
         backs: 0,
         taken: SEATS.map(() => null),
@@ -777,9 +870,15 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
           const back = -2.6;
           return { x: b.pa.x + Math.sin(b.yaw) * back, z: b.pa.z + Math.cos(b.yaw) * back, yaw: b.yaw + Math.PI };
         },
+        due() {
+          const now = nowMin();
+          if (!b.at || b.departAt === null || now === null || b.departAt <= now) return null;
+          return { at: b.departAt, night: b.departAt - now > 120 };
+        },
         info() {
           return {
             line: l.id,
+            due: b.departAt === null ? null : clockText(b.departAt),
             s: +b.s.toFixed(1),
             at: [+b.pa.x.toFixed(1), +b.pa.z.toFixed(1)],
             v: +b.v.toFixed(2),
@@ -886,19 +985,28 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
   halos.frustumCulled = false;
   group.add(halos);
 
-  // the stop posts: one merged mesh; each post shows the lines that call at its stop
-  const linesAt = (id: string) => LINES.filter((l) => STOPS.some((s) => s.id === id && s.line === l.id));
+  // the stop posts: one merged mesh; each post shows the lines that call at its stop (M7: one post
+  // for bays of two lines at one spot, its name on the sign, the timetable on a plate, a bench)
+  const linesAt = (id: string) => linesAtStop(id);
+  const posts = stopPosts();
   {
-    const geos = STOPS.map((st) => {
-      const g = postGeometry(linesAt(st.id));
-      g.applyMatrix4(new THREE.Matrix4().makeRotationY(Math.atan2(st.x - st.post[0], st.z - st.post[1]) + Math.PI / 2).setPosition(st.post[0], 0, st.post[1]));
-      return g;
-    });
-    const posts = new THREE.Mesh(mergeGeometries(geos, false) ?? geos[0], wood);
-    posts.name = "omnibus_posts";
-    scene.add(posts);
+    const geos: THREE.BufferGeometry[] = [];
+    for (const pt of posts) {
+      const g = postGeometry(linesAt(pt.id));
+      g.applyMatrix4(new THREE.Matrix4().makeRotationY(pt.yaw).setPosition(pt.x, 0, pt.z));
+      geos.push(g);
+      if (pt.bench) {
+        const bg = benchGeometry();
+        bg.applyMatrix4(new THREE.Matrix4().makeRotationY(pt.bench[2]).setPosition(pt.bench[0], 0, pt.bench[1]));
+        geos.push(bg);
+      }
+    }
+    const mesh = new THREE.Mesh(mergeGeometries(geos, false) ?? geos[0], wood);
+    mesh.name = "omnibus_posts";
+    scene.add(mesh);
+    const signs = signMesh(posts);
+    if (signs) scene.add(signs);
   }
-
 
   // --- passengers: townspeople who ride a stop or three, on the benches inside
   const PASSENGER_KINDS: HumanKind[] = ["gentleman", "clerk", "old_man", "priest", "sailor_b", "docker_a", "porter", "carter", "docker_b"];
@@ -912,10 +1020,10 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     [0, seat.z],
     [seat.x * 0.75, seat.z],
   ];
-  function board(b: BusState): void {
+  function board(b: BusState, kind?: HumanKind): void {
     const free = insideSeats.filter((q) => !b.taken[q.i]);
     if (!free.length) return;
-    const human = makeHuman(PASSENGER_KINDS[Math.floor(Math.random() * PASSENGER_KINDS.length)]);
+    const human = makeHuman(kind ?? PASSENGER_KINDS[Math.floor(Math.random() * PASSENGER_KINDS.length)]);
     if (!human || !human.canSit) return;
     const q = free[Math.floor(Math.random() * free.length)];
     const g = new THREE.Group();
@@ -1032,6 +1140,128 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     }
     b.passengers = b.passengers.filter((p) => (p.state as string) !== "gone");
   }
+
+  // --- M7: people waiting at the stops (near Jef only): they stand by the post or sit on the bench,
+  // and when an omnibus of a line that calls there stops, they walk to its step and get on (the
+  // omnibus waits for them). None before the first omnibus or after the last.
+  interface Waiter {
+    human: Human;
+    g: THREE.Group;
+    post: StopPost;
+    state: "wait" | "go";
+    bus: BusState | null;
+    t: number;
+    from: P;
+  }
+  const waiters: Waiter[] = [];
+  const WAIT_KINDS: HumanKind[] = ["clerk", "old_man", "gentleman", "wife_a", "wife_b", "old_woman", "maid", "shopwife", "docker_b", "priest", "tourist", "girl_b"];
+  let waitT = 0;
+  /** How many wait at a post this hour (0 to 3, the same all hour; more on a market morning). */
+  function wantAt(pt: StopPost, day: number, hour: number): number {
+    const now = absMinute(day, 0) + hour * 60;
+    if (!linesAt(pt.id).some((l) => departures(l.id, pt.id, now, 1)[0] - now < 150)) return 0;
+    if (hour < 6.5 || hour >= 21.5) return 0;
+    let h = (Math.floor(hour) * 73856093) ^ (day * 19349663);
+    for (let i = 0; i < pt.id.length; i++) h = (h * 31 + pt.id.charCodeAt(i)) | 0;
+    return (Math.abs(h) % 4) - (hour < 8 || hour > 19 ? 1 : 0);
+  }
+  function spotFor(pt: StopPost, i: number): { x: number; z: number; yaw: number; sit: boolean } {
+    const [ox, oz] = pt.toLane;
+    const yaw = Math.atan2(ox, oz);
+    if (i === 0 && pt.bench) {
+      const [bx, bz, by] = pt.bench;
+      return { x: bx - Math.sin(by) * 0.1 + Math.cos(by) * 0.35, z: bz - Math.cos(by) * 0.1 - Math.sin(by) * 0.35, yaw: by, sit: true };
+    }
+    // along the kerb beside the post, a little back from the lane
+    const along = (i % 2 ? 1 : -1) * (0.7 + 0.5 * Math.floor(i / 2));
+    return { x: pt.x - ox * 0.4 + oz * along, z: pt.z - oz * 0.4 - ox * along, yaw, sit: false };
+  }
+  function updateWaiters(dt: number, camera?: THREE.Camera): void {
+    const c = api.clock?.();
+    const cam = camera?.position ?? api.eye?.();
+    waitT -= dt;
+    if (waitT <= 0 && c && cam && api.anonymous) {
+      waitT = 2;
+      for (const pt of posts) {
+        const d = Math.hypot(pt.x - cam.x, pt.z - cam.z);
+        const mine = waiters.filter((w) => w.post === pt);
+        if (d > 60) {
+          for (const w of mine) dropWaiter(w);
+          continue;
+        }
+        const want = Math.max(0, wantAt(pt, c.day, c.hour));
+        // new ones only out of arm's reach (they come while you are not looking closely)
+        if (mine.filter((w) => w.state === "wait").length < want && d > 18 && waiters.length < 8) {
+          const i = mine.length;
+          const kind = WAIT_KINDS[Math.floor(Math.random() * WAIT_KINDS.length)];
+          const human = makeHuman(kind);
+          if (!human) continue;
+          const spot = spotFor(pt, i);
+          const g = new THREE.Group();
+          g.add(human.root);
+          group.add(g);
+          if (spot.sit && human.canSit) {
+            human.play("sit", 0);
+            g.position.set(spot.x, 0.46 + human.sitDrop(0), spot.z);
+          } else {
+            const s2 = spot.sit ? spotFor(pt, i + 1) : spot;
+            human.play("idle", 0);
+            g.position.set(s2.x, 0, s2.z);
+          }
+          g.rotation.y = spot.yaw;
+          waiters.push({ human, g, post: pt, state: "wait", bus: null, t: 0, from: [g.position.x, g.position.z] });
+        }
+      }
+    }
+    for (const w of [...waiters]) {
+      if (w.state === "go" && w.bus) {
+        // to the foot of the step at walking pace, then up it (a nameless passenger now)
+        const st = w.bus.stepDown();
+        const dx = st.x - w.g.position.x;
+        const dz = st.z - w.g.position.z;
+        const L = Math.hypot(dx, dz);
+        w.t += dt;
+        if (L < 0.35 || w.t > 20 || !w.bus.at) {
+          const kind = w.human.kind;
+          dropWaiter(w);
+          if (w.bus.at) board(w.bus, kind);
+          continue;
+        }
+        const v = Math.min(L, 1.2 * dt);
+        w.g.position.set(w.g.position.x + (dx / L) * v, 0, w.g.position.z + (dz / L) * v);
+        w.g.rotation.y = Math.atan2(dx, dz);
+        if (w.human.motion !== "walk") {
+          w.human.play("walk", 0.2);
+          w.human.setPace(1.1);
+        }
+      }
+      if (!cam || Math.hypot(w.g.position.x - cam.x, w.g.position.z - cam.z) < 70) w.human.update(dt);
+    }
+  }
+  function dropWaiter(w: Waiter): void {
+    const i = waiters.indexOf(w);
+    if (i >= 0) waiters.splice(i, 1);
+    w.human.dispose();
+    w.g.removeFromParent();
+  }
+  /** An omnibus stops at a post: those waiting for a line that calls there go to its step. */
+  function callWaiters(b: BusState, stop: OmnibusStop): void {
+    const pt = posts.find((q) => Math.hypot(q.x - stop.post[0], q.z - stop.post[1]) < 0.3);
+    if (!pt) return;
+    const room = insideSeats.filter((q) => !b.taken[q.i]).length;
+    let n = 0;
+    for (const w of waiters) {
+      if (w.post !== pt || w.state !== "wait" || n >= room) continue;
+      // (not everyone waits for this line where two call)
+      if (linesAt(pt.id).length > 1 && Math.random() < 0.4) continue;
+      w.state = "go";
+      w.bus = b;
+      w.t = 0;
+      if (w.human.motion === "sit") w.g.position.y = 0;
+      n++;
+    }
+  }
+  const waitersGoing = (b: BusState) => waiters.some((w) => w.bus === b && w.state === "go");
 
   // --- moving
   function findNext(b: BusState): void {
@@ -1155,6 +1385,37 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         }
       }
     }
+    let queueGap = Infinity;
+    // M7: another omnibus ahead on this lane, going the same way (one of its own line at the
+    // terminus, the other town line on the Meir): wait behind it (a queue is no hold-up to back from)
+    for (const o of buses) {
+      if (o === b) continue;
+      if (o.line === b.line) {
+        // (its own line: the same round, so the gap along it, round the corners too)
+        const gap = lp.wrap(o.s + TAIL - nose);
+        if (gap < 14) queueGap = Math.min(queueGap, gap);
+        if (gap < 14 && gap - 2.5 < lim) {
+          lim = Math.max(0, gap - 2.5);
+          b.waitWhy = "queue";
+        }
+        continue;
+      }
+      const tx = o.pa.x - Math.sin(o.yaw) * -TAIL;
+      const tz = o.pa.z - Math.cos(o.yaw) * -TAIL;
+      if (Math.abs(tx - lp.x[Math.floor(lp.wrap(nose) / Loop.STEP)]) > 16 || Math.abs(tz - lp.z[Math.floor(lp.wrap(nose) / Loop.STEP)]) > 16) continue;
+      for (let dd = 0; dd <= 12; dd += 1) {
+        lp.at(nose + dd, pa);
+        if (Math.hypot(tx - pa.x, tz - pa.z) < 1.3) {
+          const turn = Math.abs(Math.atan2(Math.sin(o.yaw - lp.yaw(nose + dd)), Math.cos(o.yaw - lp.yaw(nose + dd))));
+          if (turn < 0.8) queueGap = Math.min(queueGap, dd);
+          if (turn < 0.8 && dd - 2.5 < lim) {
+            lim = Math.max(0, dd - 2.5);
+            b.waitWhy = "queue";
+          }
+          break;
+        }
+      }
+    }
     // anything on the lane ahead: goods, carts, the other omnibuses (its own boxes out of the way
     // meanwhile: turned on a bend, they reach ahead of the noses)
     const keep = b.rects.map((r) => [r.minX, r.maxX]);
@@ -1163,8 +1424,11 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
       const i = Math.floor(lp.wrap(nose + dd) / Loop.STEP);
       if (!b.watch[i]) continue;
       if (!opts.isFree(lp.x[i], lp.z[i], 0.5)) {
-        lim = Math.min(lim, Math.max(0, dd - 3));
-        b.waitWhy = "blocked";
+        // (M7: from the queue's gap on it is the omnibus ahead: no hold-up to back from)
+        if (dd < queueGap - 0.6) {
+          lim = Math.min(lim, Math.max(0, dd - 3));
+          b.waitWhy = "blocked";
+        }
         break;
       }
     }
@@ -1196,12 +1460,38 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     return ok;
   }
 
+  /**
+   * M7 timetable: may it leave now? Anywhere but its terminus, yes. At the terminus it takes the
+   * line's next free departure (never one another omnibus of the line took, never more than half a
+   * headway late) and waits for it; after the last one of the day, till the first in the morning.
+   */
+  function onTime(b: BusState): boolean {
+    if (!b.at || b.at.id !== b.line.terminus) return true;
+    const now = nowMin();
+    if (now === null) return true;
+    const h = lineTiming(b.line.id).headwayMin;
+    // a clock set back (the dev kit, a load): forget a departure that lies too far ahead
+    if (b.departAt !== null && b.departAt > nextSlot(b.line.id, now) + h) b.departAt = null;
+    if (b.departAt === null) {
+      let last = lastSlot.get(b.line.id) ?? -Infinity;
+      if (last > nextSlot(b.line.id, now) + h) last = -Infinity;
+      b.departAt = nextSlot(b.line.id, Math.max(now - h / 2, last + 1));
+      lastSlot.set(b.line.id, b.departAt);
+    }
+    if (now < b.departAt) {
+      b.waitWhy = "timetable";
+      return false;
+    }
+    return true;
+  }
+
   function move(b: BusState, dt: number, player: { x: number; z: number } | null): void {
     const lp = b.loop;
     if (b.at) {
       b.v = 0;
-      if (!b.held && !b.passengers.some((p) => p.state === "out")) b.dwell -= dt;
-      if (b.dwell <= 0 && !b.held) {
+      if (!b.held && !b.passengers.some((p) => p.state === "out") && !waitersGoing(b)) b.dwell -= dt;
+      if (b.dwell <= 0 && !b.held && onTime(b)) {
+        b.departAt = null;
         const was = b.at;
         b.at = null;
         b.nextI = (b.nextI + 1) % b.stopAt.length;
@@ -1248,6 +1538,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         b.at = st.stop;
         b.dwell = DWELL;
         atStop(b);
+        callWaiters(b, st.stop);
         b.v = 0;
         api.onArrive?.(b, st.stop);
       }
@@ -1381,6 +1672,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
       });
       opts.horses.commit();
       draw(camera);
+      updateWaiters(dt, camera);
       for (const b of buses) {
         movePassengers(b, dt);
         if (!b.near) continue;
@@ -1406,6 +1698,52 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
       return buses.filter((b) => b.near).map((b) => ({ kind: "dray" as const, x: b.pc.x, z: b.pc.z, state: b.v > 0.1 ? "go" : "wait" }));
     },
     linesAt,
+    timetable(stop) {
+      const now = nowMin();
+      return linesAt(stop).map((line) => ({
+        line,
+        next: now === null ? [] : departures(line.id, stop, now, 3).map(clockText),
+        headwayMin: lineTiming(line.id).headwayMin,
+      }));
+    },
+    sweep() {
+      // the rig as it drives: the saloon and platform (tail -2.3 m to the dashboard, 1.0 m each side
+      // at the wheels), the pair of horses; against the walk map and every fixed thing (not the
+      // omnibuses themselves: their boxes are parked out of the way meanwhile)
+      const out: Array<{ line: string; x: number; z: number; what: string }> = [];
+      const keep = buses.map((b) => b.rects.map((r) => [r.minX, r.maxX] as const));
+      for (const b of buses) for (const r of b.rects) r.minX = r.maxX = 1e6;
+      try {
+        for (const l of LINES) {
+          const lp = loops.get(l.id)!.loop;
+          const q = { x: 0, z: 0 };
+          const r2 = { x: 0, z: 0 };
+          let lastKey = "";
+          for (let s = 0; s < lp.length; s += 0.5) {
+            lp.at(s, q);
+            lp.at(s + WHEELBASE, r2);
+            const yw = Math.atan2(r2.x - q.x, r2.z - q.z);
+            const fx = Math.sin(yw);
+            const fz = Math.cos(yw);
+            const pts: P[] = [];
+            for (let a = -2.3; a <= 4.31; a += 0.4) for (const w of [-1, -0.5, 0, 0.5, 1]) pts.push([q.x + fx * a + fz * w, q.z + fz * a - fx * w]);
+            const hs = s + WHEELBASE + HORSES;
+            lp.at(hs, r2);
+            const hy = lp.yaw(hs);
+            for (let a = -1.6; a <= 1.61; a += 0.4) for (const w of [-0.85, 0, 0.85]) pts.push([r2.x + Math.sin(hy) * a + Math.cos(hy) * w, r2.z + Math.cos(hy) * a - Math.sin(hy) * w]);
+            const hit = pts.find(([x, z]) => !opts.isFree(x, z, 0));
+            if (!hit) continue;
+            const key = `${l.id}:${Math.round(q.x / 4)}:${Math.round(q.z / 4)}`;
+            if (key === lastKey) continue;
+            lastKey = key;
+            out.push({ line: l.id, x: +q.x.toFixed(1), z: +q.z.toFixed(1), what: `at ${hit[0].toFixed(1)}, ${hit[1].toFixed(1)}` });
+          }
+        }
+      } finally {
+        buses.forEach((b, i) => b.rects.forEach((r, k) => ([r.minX, r.maxX] = keep[i][k])));
+      }
+      return out;
+    },
     group,
     info() {
       return { buses: buses.map((b) => b.info()), lines: LINES.map((l) => ({ id: l.id, length: +loops.get(l.id)!.loop.length.toFixed(0), stops: loops.get(l.id)!.stopAt.map((x) => [x.stop.id, +x.s.toFixed(0)]) })) };

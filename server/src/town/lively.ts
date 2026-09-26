@@ -82,8 +82,39 @@ export const SIGHTS: Array<[number, number, number, number]> = [
   [-264, 100, -285, 94],
   [-118, 80, -116, 99],
   [-182, 16, -177, -31],
-  [-305.5, 204, -290, 210],
+  // (M7 omnibus routes: on the kerb by the cathedral's wall; x -305.5 was the Grote Markt line's lane. Older saves: fixSights)
+  [-301.6, 204, -290, 210],
 ];
+
+/**
+ * M7 omnibus routes: the travellers of an older save stood at their last sight in the middle of the
+ * street along the cathedral's south side, where the Grote Markt line runs now: that stop of their
+ * round moves onto the kerb (SIGHTS). Nothing else of them changes. Returns how many were moved.
+ */
+export function fixSights(db: DB): number {
+  const OLD: Pt = [-305.5, 204];
+  const [nx, nz, lx, lz] = SIGHTS[SIGHTS.length - 1];
+  let moved = 0;
+  const rows = db.prepare("SELECT id, data_json FROM resident WHERE trade = 'tourist'").all() as Array<{ id: string; data_json: string }>;
+  const upd = db.prepare("UPDATE resident SET data_json = ? WHERE id = ?");
+  for (const row of rows) {
+    const r = JSON.parse(row.data_json) as Resident;
+    const route = r.work?.route;
+    if (!route) continue;
+    let hit = false;
+    route.forEach((q, i) => {
+      if (Math.hypot(q[0] - OLD[0], q[1] - OLD[1]) > 1) return;
+      route[i] = [nx, nz];
+      if (r.work.faces) r.work.faces[i] = Math.round(Math.atan2(lx - nx, lz - nz) * 1000) / 1000;
+      hit = true;
+    });
+    if (!hit) continue;
+    upd.run(JSON.stringify(r), row.id);
+    moved++;
+  }
+  if (moved) dropTownCache(db);
+  return moved;
+}
 
 /**
  * The rounds of the dog carts and the street sellers: where each goes (a middle and a reach),
@@ -587,6 +618,8 @@ function makeLively(seed: number, places: Record<string, TownPlace>, residents: 
 export function ensureLively(db: DB): number {
   const n = (db.prepare("SELECT COUNT(*) AS n FROM resident").get() as { n: number }).n;
   if (n === 0) return 0;
+  fixSights(db); // M7 omnibus routes
+
   const q = `SELECT COUNT(*) AS n FROM resident WHERE trade IN (${LIVELY_TRADES.map(() => "?").join(", ")})`;
   if ((db.prepare(q).get(...LIVELY_TRADES) as { n: number }).n > 0) return 0;
   const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'town'").get() as { value_json: string } | undefined;

@@ -37,7 +37,7 @@ import { createQuayFurniture, type QuayFurniture } from "./quayfurniture";
 import { createTraffic, type Traffic } from "./traffic";
 import { createRailway, type CraneSite, type RaisedDeck, type Railway } from "./railway";
 import { createRailGate, type RailGate } from "./railgate";
-import { createOmnibuses, OMNIBUS_HORSES, omnibusKeepOut, STOPS as OMNIBUS_STOPS, type Omnibuses } from "./omnibus";
+import { createOmnibuses, OMNIBUS_HORSES, omnibusKeepOut, STOPS as OMNIBUS_STOPS, stopSolids, type Omnibuses } from "./omnibus";
 import { quaySteps, shoreTexture, frameAt, type Exit } from "./quaysteps";
 import { buildPier, PIER_BOLLARD } from "./pier";
 import { waveAt } from "../retro/psx";
@@ -841,6 +841,7 @@ export function buildRijnkaai(): World {
           });
           for (const r of omnibus.colliders()) dynamic.add(r);
           for (const st of OMNIBUS_STOPS) colliders.push(rectAround(st.post[0], st.post[1], 0.12, 0.12));
+          for (const r of stopSolids()) colliders.push(r); // M7 omnibus routes: the benches at the stops
         })
         .catch((e) => console.warn("the quay railway did not start", e));
     })
@@ -1684,7 +1685,8 @@ export function buildRijnkaai(): World {
     if (camera) traffic?.update(t, dt, camera.position);
     if (camera) railway?.update(t, dt, { x: camera.position.x, z: camera.position.z }, camera);
     if (camera) railGate.update(dt, { x: camera.position.x, z: camera.position.z }, camera);
-    if (camera) omnibus?.update(t, dt, { x: camera.position.x, z: camera.position.z }, camera);
+    // (M7 omnibus routes: also in the kit's step(), with no camera, so t.run() rides the omnibuses)
+    omnibus?.update(t, dt, camera ? { x: camera.position.x, z: camera.position.z } : null, camera ?? undefined);
     // the sky dome and the water sheet go where you go
     if (camera) {
       sky.position.set(camera.position.x, 0, camera.position.z);

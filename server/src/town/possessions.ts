@@ -1,4 +1,5 @@
 import type { DB } from "../db.ts";
+import { LINES as OMNIBUS_LINES } from "../../../shared/omnibusLines.ts";
 import { log } from "../game.ts";
 import { remember } from "../npcs.ts";
 import { dropTownCache, town, TOWN_EMPLOYER_IDS } from "./store.ts";
@@ -109,9 +110,8 @@ const LANES: Array<{ s: Seg2; half: number }> = (() => {
       out.push({ s: [a[0], a[1], b[0], b[1]], half });
     }
   };
-  // the omnibus rounds (copied from world/omnibus.ts QUAY_ROUTE and TOWN_ROUTE; keep in step)
-  poly([[-305, 29.5], [-305, 8.3], [-158, 8.3], [-152, 7.6], [-140, 7.6], [-134, 8.3], [-90, 8.3], [-84, 7.8], [-68, 7.8], [-62, 8.3], [66, 8.3], [76, 15], [76, 37], [-54, 37], [-58, 33], [-58, 12], [-62, 8.3], [-204, 8.3], [-204, 29.5]], 2.4, true);
-  poly([[-84.5, 20], [-96, 20], [-96, 38], [-89.5, 45], [-89.5, 114], [-149, 114], [-149, 126.2], [-238, 126.2], [-238, 70], [-280, 70], [-280, 129.8], [-145, 129.8], [-145, 208.5], [-84.5, 208.5]], 2.4, true);
+  // the omnibus rounds (M7 omnibus routes: read from shared/omnibusLines.ts, the client drives the same)
+  for (const l of OMNIBUS_LINES) poly(l.route, 2.4, true);
   // the drays' and handcarts' rounds (world/traffic.ts TRAFFIC_ROUTES)
   poly([[-4.2, 66.4], [0, 66], [30.9, 63.1], [29.2, 80], [28, 100], [28.6, 108.7], [14, 106.8], [-0.5, 105.4], [-3, 88], [-4.2, 66.4]], 2.2, true);
   poly([[120, 11], [158.6, 11], [158.6, 43], [120, 43]], 2.2, true); // (M6 handcart: moved off the farrier's forge)

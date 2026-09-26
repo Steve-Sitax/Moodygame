@@ -1,6 +1,7 @@
 import type { FirstPerson } from "../player/firstPerson";
 import * as THREE from "three";
-import { LADDER_SPOT, PLATFORM_SPOT, SEATS, type Omnibus, type Omnibuses, type OmnibusStop } from "../world/omnibus";
+import { LADDER_SPOT, PLATFORM_SPOT, SEATS, STOPS, type Omnibus, type Omnibuses, type OmnibusStop } from "../world/omnibus";
+import { clockText } from "../../../shared/omnibusLines"; // M7 omnibus routes
 import type { World } from "../world/rijnkaai";
 import { api, type JobsPayload } from "../net/api";
 import type { Action } from "./runs";
@@ -96,11 +97,42 @@ export class Ride {
       const d = Math.hypot(x - s.x, z - s.z);
       if (d <= REACH && (!best || d < best.d)) best = { bus, stop, d };
     }
-    if (!best) return {};
+    if (!best) return this.postKeys(x, z);
     const { bus, stop, d } = best;
     const step = bus.stepDown();
     const cost = this.change && this.change !== bus.line.id ? "a free change" : `${this.fare} c`;
+    // M7 timetable: laid up at its terminus for the night: the conductor says when the first one goes
+    const due = bus.due();
+    if (due?.night) return { options: [[d - 0.5, { key: "KeyE", text: `the ${bus.line.board} omnibus stands here for the night`, run: () => this.say(`The conductor yawns. "Not before ${clockText(due.at)}."`), at: { x: step.x, z: step.z } }]] };
     return { options: [[d - 0.5, { key: "KeyE", text: `get on the ${bus.line.board} omnibus (${cost})`, run: () => void this.getOn(bus, stop), at: { x: step.x, z: step.z } }]] };
+  }
+
+  /** M7 omnibus routes: at a stop's post, E reads the timetable (the engine's: the server tells it by the game clock). */
+  private postKeys(x: number, z: number): { options?: Array<[number, Action]> } {
+    let best: { id: string; d: number; x: number; z: number } | null = null;
+    for (const st of STOPS) {
+      const d = Math.hypot(x - st.post[0], z - st.post[1]);
+      if (d <= 1.8 && (!best || d < best.d)) best = { id: st.id, d, x: st.post[0], z: st.post[1] };
+    }
+    if (!best) return {};
+    const id = best.id;
+    return {
+      options: [
+        [
+          best.d,
+          {
+            key: "KeyE",
+            text: "read the timetable",
+            run: () =>
+              void api
+                .ride("timetable", id)
+                .then((r) => this.say(r.text))
+                .catch(() => this.say("The plate is too worn to read.")),
+            at: { x: best.x, z: best.z },
+          },
+        ],
+      ],
+    };
   }
 
   private async getOn(bus: Omnibus, stop: OmnibusStop): Promise<void> {
@@ -127,7 +159,13 @@ export class Ride {
       this.say(r.text);
     } catch (e) {
       const msg = String((e as Error).message ?? e);
-      this.say(msg.includes("money") ? `The conductor shakes his head. The fare is ${this.fare} c.` : "The conductor waves you off.");
+      this.say(
+        msg.includes("money")
+          ? `The conductor shakes his head. The fare is ${this.fare} c.`
+          : msg.includes("do not run") // M7 timetable
+            ? `The conductor waves you off: ${msg.replace(/^.*?the omnibuses/, "the omnibuses")}.`
+            : "The conductor waves you off.",
+      );
     } finally {
       bus.hold(false);
       this.busy = false;

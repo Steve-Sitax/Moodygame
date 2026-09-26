@@ -21,7 +21,7 @@ import { isResident, town } from "./town/store.ts";
 import { residentChoice, residentFree, residentOpen } from "./town/talk.ts";
 import { catchThief, pickPocket } from "./town/thieves.ts";
 import { NIGHT_GIVERS, shownTrade, TOWN_EMPLOYERS } from "./town/places.ts";
-import { alight, board as boardRide, change as rideChange, isLine, isStop, ride, RIDE_FARE_C, seat as rideSeat } from "./ride.ts";
+import { alight, board as boardRide, change as rideChange, isLine, isStop, ride, RIDE_FARE_C, seat as rideSeat, timetable as rideTimetable } from "./ride.ts";
 import { freeReply, openTalk, pickChoice, prefetchOpening, witness, type Line } from "./hooks/dialogue.ts";
 import { mountDeeds } from "./town/deedRoutes.ts";
 import { mountRowing } from "./town/rowDeeds.ts";
@@ -384,7 +384,12 @@ app.post("/api/ride", async (c) => {
     const r = rideSeat(db, body.place);
     return c.json({ ...r, ...jobsPayload() });
   }
-  throw new GameError("action must be board, alight or seat", 400);
+  // M7 omnibus routes: the timetable at a stop (the plate on the post), by the game clock
+  if (body.action === "timetable") {
+    if (!isStop(body.stop)) throw new GameError("no such stop", 400);
+    return c.json(rideTimetable(db, body.stop));
+  }
+  throw new GameError("action must be board, alight, seat or timetable", 400);
 });
 
 app.post("/api/jobs/:id/handover", (c) => {

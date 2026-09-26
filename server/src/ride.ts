@@ -1,7 +1,9 @@
 import type { DB } from "./db.ts";
 import { GameError, log, player } from "./game.ts";
+import { clockText, departures, inService, LINES, lineTiming, STOPS } from "../../shared/omnibusLines.ts";
 
-// The horse omnibuses (M3g, client/src/world/omnibus.ts): two lines that meet at the Vismarkt.
+// The horse omnibuses (M3g, client/src/world/omnibus.ts; M7: three lines, shared/omnibusLines.ts):
+// changes at the Vismarkt and the road to the Meir.
 // The engine owns the fare and what riding does to your needs: the client only says "I got on
 // this line at this stop" and "I got off". A fare buys a ticket good for RIDE_MAX_HOURS game
 // hours from the moment you first got on, with one free change: get off, and get on a bus of the
@@ -17,29 +19,22 @@ export const RIDE_MAX_HOURS = 4;
 /** Free changes on one ticket. */
 export const RIDE_CHANGES = 1;
 
-/** The lines and their stops (client/src/world/omnibus.ts LINES and STOPS). */
-export const RIDE_LINES = {
-  kaaien: ["werf", "steenplein", "vismarkt", "rijnkaai", "rijnkaai_back", "bassin"],
-  markt: ["vismarkt", "vleeshuis", "grote_markt", "cathedral", "meir", "brouwersvliet"],
-} as const;
-export type RideLine = keyof typeof RIDE_LINES;
-export type RideStop = (typeof RIDE_LINES)[RideLine][number];
+/**
+ * The lines and their stops, in the order of the round from the terminus (shared/omnibusLines.ts,
+ * M7 omnibus routes: three lines, the timetable is the engine's too).
+ */
+export const RIDE_LINES: Record<string, string[]> = Object.fromEntries(
+  LINES.map((l) => {
+    const t = lineTiming(l.id);
+    return [l.id, Object.keys(t.offsetMin).sort((a, b) => t.offsetMin[a] - t.offsetMin[b])];
+  }),
+);
+export type RideLine = string;
+export type RideStop = string;
 export const RIDE_STOPS = [...new Set(Object.values(RIDE_LINES).flat())] as RideStop[];
 
-const STOP_NAMES: Record<RideStop, string> = {
-  werf: "the Werf",
-  steenplein: "the Steenplein",
-  vismarkt: "the Vismarkt",
-  rijnkaai: "the Rijnkaai",
-  rijnkaai_back: "the Rijnkaai",
-  bassin: "the Petit Bassin",
-  vleeshuis: "the Vleeshuis",
-  grote_markt: "the Grote Markt",
-  cathedral: "the Cathedral",
-  meir: "the road to the Meir",
-  brouwersvliet: "the Brouwersvliet",
-};
-const LINE_NAMES: Record<RideLine, string> = { kaaien: "the quay line", markt: "the Grote Markt line" };
+const STOP_NAMES: Record<RideStop, string> = Object.fromEntries(STOPS.map((s) => [s.id, s.name]));
+const LINE_NAMES: Record<RideLine, string> = Object.fromEntries(LINES.map((l) => [l.id, l.name]));
 
 interface Ticket {
   /** Game minutes since day 1, 0:00, when the fare was paid. */
@@ -147,6 +142,10 @@ export function seat(db: DB, place: "inside" | "roof"): { place: "inside" | "roo
 export function board(db: DB, stop: RideStop, line: RideLine): { fare_c: number; change: boolean; text: string } {
   if (!calls(line, stop)) throw new GameError("that line does not call there", 400);
   if (riding(db)) throw new GameError("you are on the omnibus already", 409);
+  // M7 timetable: no omnibus runs before the first or long after the last (the engine's timetable)
+  if (!inService(line, stop, gameMinutes(db))) {
+    throw new GameError(`the omnibuses do not run now: the first is due here at ${clockText(departures(line, stop, gameMinutes(db), 1)[0])}`, 409);
+  }
   const t = ticket(db);
   const now = gameMinutes(db);
   if (t && !t.on && t.line !== line && t.changes < RIDE_CHANGES) {
@@ -175,4 +174,21 @@ export function alight(db: DB): { text: string } {
 /** The night ends every ride and every ticket (day.ts sleep). */
 export function endRide(db: DB): void {
   db.prepare("DELETE FROM world_state WHERE key = 'ride'").run();
+}
+
+/**
+ * M7 timetable: the lines that call at a stop and when their omnibuses are next due there, by the
+ * game clock (the plate on the post says the same). The client's omnibuses keep to it.
+ */
+export function timetable(db: DB, stop: RideStop): { stop: string; name: string; lines: Array<{ line: string; name: string; every_min: number; next: string[] }>; text: string } {
+  const now = gameMinutes(db);
+  const lines = LINES.filter((l) => calls(l.id, stop)).map((l) => ({
+    line: l.id,
+    name: l.name,
+    every_min: lineTiming(l.id).headwayMin,
+    next: departures(l.id, stop, now, 3).map(clockText),
+  }));
+  const text = lines.map((l) => `${l.name[0].toUpperCase()}${l.name.slice(1)}: every ${l.every_min} minutes, next at ${l.next.join(", ")}.`).join(" ");
+  const name = STOP_NAMES[stop] ?? stop;
+  return { stop, name, lines, text: `${name[0].toUpperCase()}${name.slice(1)}. ${text}` };
 }

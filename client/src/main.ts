@@ -908,6 +908,8 @@ function frame(): void {
     if (bus && !bus.people) bus.people = () => folkNow;
     // M6 transport: the town's own people ride the omnibus (no fare), and step off at their stop
     if (bus && !bus.onResidentOff) bus.onResidentOff = (_b, id, at) => journeys.offBus(id, at);
+    // M7 omnibus routes: the timetable runs by the game clock (shared/omnibusLines.ts)
+    if (bus && !bus.clock) bus.clock = () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF });
   }
   });
   safe("lanternLights.update", () => {
@@ -1216,6 +1218,10 @@ if (import.meta.env.DEV) {
       // M7 save and pause: a paused game does not move for the kit either
       if (pause.paused) return;
       const dt = 1 / 60;
+      // M7 omnibus routes: the omnibuses keep the timetable in the kit's runs too (the frame sets this hook as well)
+      const bus = world.omnibus();
+      if (bus && !bus.clock) bus.clock = () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF });
+      if (bus && !bus.eye) bus.eye = () => player.camera.position;
       for (let t = 0; t < seconds; t += dt) {
         elapsed += dt;
         world.update(elapsed, dt);

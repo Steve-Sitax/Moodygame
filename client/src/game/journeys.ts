@@ -6,6 +6,8 @@ import { loadVelocipede, type Velocipedes } from "./velocipedes";
 import type { Rowing } from "./rowing";
 import type { HumanKind } from "./humans";
 import { STOPS as OMNIBUS_STOPS, type Omnibus, type OmnibusStop } from "../world/omnibus";
+import { absMinute, departures } from "../../../shared/omnibusLines"; // M7 omnibus routes
+import { realS } from "../../../shared/clock";
 import { PushCart } from "../world/traffic";
 import { loadProps, type Props } from "../world/props3d";
 import type { Rect } from "../world/geom";
@@ -367,6 +369,11 @@ export class Journeys {
       // about 2.6 m/s with the stops on the way
       best = Math.min(best, b.stop === st.id ? 0 : ahead / 2.6);
     }
+    // M7 omnibus routes: and never before the timetable's next omnibus there (none at night)
+    const { day, hour } = this.town.clock();
+    const now = absMinute(day, 0) + hour * 60;
+    const due = departures(st.line, st.id, now, 1)[0];
+    if (due !== undefined) best = Math.max(best, realS(due - now) - 20);
     return best;
   }
 
