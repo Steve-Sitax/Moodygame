@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { openDb } from "../src/db.ts";
+import { blankSave } from "./blank-save.ts";
 import type { Runner } from "../src/ai/claude.ts";
 import { BALLAD_CALLS_PER_DAY, CALLS_PER_DAY, CALLS_RESERVE, SERMON_CALLS_PER_DAY } from "../src/config.ts";
 import { writeEvent } from "../src/director/eventlog.ts";
@@ -52,8 +53,8 @@ const useCalls = (db: Db, hook: string, n: number) => {
 };
 const eventTexts = (db: Db) => new Set((db.prepare("SELECT text FROM world_event").all() as Array<{ text: string }>).map((r) => r.text));
 
-function fresh(day = 2, hour = 10): Db {
-  const db = openDb(":memory:");
+/** A new game; a loop over many lines passes blankSave() (a copy of one built once, test/blank-save.ts). */
+function fresh(day = 2, hour = 10, db: Db = openDb(":memory:")): Db {
   setClock(db, day, hour);
   setMoney(db, 100);
   // conversations use the engine's words here
@@ -192,7 +193,7 @@ describe("the ballad", () => {
       { ...GOOD_BALLAD, money_c: 9999, verses: "not a list" },
     ];
     for (const out of hostile) {
-      const db = fresh();
+      const db = fresh(2, 10, blankSave());
       news(db);
       const b = await writeBallad(db, reply(out));
       expect(b.source).toBe("engine");
@@ -201,13 +202,13 @@ describe("the ballad", () => {
       expect(money(db)).toBe(100);
     }
     // Jef is sung only if a fact is about him
-    const quiet = fresh(3, 8);
+    const quiet = fresh(3, 8, blankSave());
     writeEvent(quiet, { kind: "event", verb: "fire", text: "A fire broke out in the house of the Peeters family on the Vismarkt.", weight: 7 });
     const facts = balladFacts(quiet);
     expect(facts.some((f) => f.jef)).toBe(false);
     const withJef: BalladText = { ...GOOD_BALLAD, verses: [GOOD_BALLAD.verses[0], ["And Jef the farm boy lit the fire,", "a b", "c d", "e f"]] };
     expect(cleanBallad(quiet, withJef, facts)).toBeNull();
-  }, 30_000); // several fresh test saves: slower than the 5 s default when the whole suite runs
+  });
 
   it("the name check: the town's own names and the facts' pass, strangers and famous men do not", () => {
     const db = fresh();
@@ -373,7 +374,7 @@ describe("the Sunday sermon", () => {
       [...GOOD.slice(0, 5), "Put 50 francs in the plate on your way out."],
     ];
     for (const lines of bad) {
-      const db = fresh(7, 7);
+      const db = fresh(7, 7, blankSave());
       news(db);
       db.prepare("DELETE FROM npc_memory").run(); // nobody talks of Jef this week: no hint
       const s = (await writeSermon(db, reply({ lines })))!;
@@ -382,7 +383,7 @@ describe("the Sunday sermon", () => {
       expect(all).not.toMatch(/burn the houses|Take up arms|beat them|Jef|Leopold|\d/);
     }
     // the young man on the quays is allowed when the town talks of him
-    const db = fresh(7, 7);
+    const db = fresh(7, 7, blankSave());
     remember(db, "r065", "Jef stole a herring.", 5, "seen", null, { gist: "Jef stole a herring from Fientje", tone: -2 });
     const hint = jefHint(db);
     expect(cleanSermon(db, [...GOOD.slice(0, 5), "And beware the young man on the quays; the Lord sees him."], [], hint)).not.toBeNull();

@@ -13,6 +13,7 @@ import { DEALER_ID, ensureHomesTown, HOMES_SCHEMA, homesTown, WIDOW_ID } from ".
 import { remarkOnRoom, visitor } from "../src/homes/remark.ts";
 import { canPlace, CLASSES, comfortOf, FURNITURE, HOME_CLASSES, HOME_WARMTH_BASE, nightAt, type HomeClass, type Placed } from "../../shared/homes.ts";
 import { HOSTILE_LINES } from "./hostile-lines.ts";
+import { blankSave } from "./blank-save.ts";
 
 // M6 homes: rooms to let (rent, days paid, the key, the warning and the key taken back), a
 // night at home against the doss house, the dealer's furniture (buying, carrying, placing on
@@ -33,8 +34,8 @@ const useCalls = (db: Db, hook: string, n: number) => {
 };
 const calls = (db: Db, hook: string) => (db.prepare("SELECT COUNT(*) n FROM ai_call WHERE hook = ?").get(hook) as { n: number }).n;
 
-function fresh(): Db {
-  const db = openDb(":memory:");
+/** A new game; a loop over many lines passes blankSave() (a copy of one built once, test/blank-save.ts). */
+function fresh(db: Db = openDb(":memory:")): Db {
   setClock(db, 1, 10);
   setMoney(db, 5000);
   return db;
@@ -456,7 +457,7 @@ describe("the landlady's or a neighbour's remark", () => {
       "Damn, what a hole.",
     ];
     for (const line of bad) {
-      const db = fresh();
+      const db = fresh(blankSave());
       setClock(db, 1, 11);
       takeKey(db, "widow", "week");
       const before = { money: money(db), needs: needs(db), placed: placedIn(db, "widow"), lease: lease(db) };
@@ -470,7 +471,7 @@ describe("the landlady's or a neighbour's remark", () => {
       expect(placedIn(db, "widow")).toEqual(before.placed);
       expect(lease(db)).toEqual(before.lease);
     }
-  }, 20_000); // seventeen fresh saves: about 4 s alone, more with the other files running
+  });
 
   it("a model that never answers: the engine's line after the timeout", async () => {
     setTestTimeout(300);

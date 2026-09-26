@@ -81,12 +81,22 @@ const ALLOWED_ITEMS = new Set(["agent_message", "reasoning"]);
  */
 export function killTree(pid: number | undefined): void {
   if (!pid) return;
+  if (process.platform === "win32") {
+    // Starting taskkill holds the event loop (up to 0.2 s, more on a busy machine): start it on
+    // the next turn, after the timed-out caller has its fallback.
+    setImmediate(() => {
+      try {
+        const k = spawn("taskkill", ["/pid", String(pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
+        k.on("error", () => {});
+        k.unref();
+      } catch {
+        // already gone
+      }
+    });
+    return;
+  }
   try {
-    if (process.platform === "win32") {
-      const k = spawn("taskkill", ["/pid", String(pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
-      k.on("error", () => {});
-      k.unref();
-    } else process.kill(pid, "SIGKILL");
+    process.kill(pid, "SIGKILL");
   } catch {
     // already gone
   }
