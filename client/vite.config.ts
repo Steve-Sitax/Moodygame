@@ -17,6 +17,7 @@ export default defineConfig({
     proxy: {
       "/api": `http://127.0.0.1:${serverPort}`,
       "/ws": { target: `ws://127.0.0.1:${serverPort}`, ws: true },
+      "/mp": { target: `ws://127.0.0.1:${serverPort}`, ws: true }, // M8a multiplayer: the movement socket
     },
   },
 });

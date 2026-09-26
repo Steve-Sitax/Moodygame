@@ -26,6 +26,8 @@ import { ARRIVAL_KEY, ARRIVAL_TEXT } from "./arrival.ts";
 import { shortenOffered } from "./hooks/jobBoard.ts";
 import { CLIENT_STATE_SQL } from "./save/schema.ts";
 // M7 character: the player's profile by player id; a new week's player row takes its name (player/profile.ts)
+import { WORLD_CLOCK_SQL } from "./mp/worldClock.ts"; // M8a
+import { MP_PLAYER_SQL } from "./mp/players.ts"; // M8a
 import { PROFILE_SQL, seedName } from "./player/profile.ts";
 
 // SQLite schema from docs/04-data-model.md. Only the server writes.
@@ -235,6 +237,9 @@ function migrate(db: DB): void {
   db.exec(CLIENT_STATE_SQL);
   // M7 character: the player's profile (none in an older save: today's Jef)
   db.exec(PROFILE_SQL);
+  // M8a multiplayer: the world's clock in world_state (mp/worldClock.ts), the players who joined (mp/players.ts)
+  db.exec(WORLD_CLOCK_SQL);
+  db.exec(MP_PLAYER_SQL);
 }
 
 /**

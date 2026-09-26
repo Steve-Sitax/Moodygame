@@ -93,6 +93,7 @@ import { createAlive } from "./world/alive";
 import { BackLife } from "./game/backlife";
 import { setAliveViewHeight } from "./world/alive/common";
 import { bootRestore, type ClientState } from "./game/restoreData";
+import { Together } from "./net/mp/together"; // M8a multiplayer: the others in the town, no pause together
 import type { JobSnap } from "./game/jobs";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
@@ -729,7 +730,7 @@ function menuKey(e: KeyboardEvent, typing: boolean): boolean {
 onPausedKey(menuKey);
 window.addEventListener("keydown", (e) => {
   // P in the game: the pause (the gang's and the menace's own P go first: they stop the key)
-  if (e.code === "KeyP" && !e.repeat && hasInput() && !pause.paused && !jobs.day.sheetOpen) {
+  if (e.code === "KeyP" && !e.repeat && hasInput() && !pause.paused && !jobs.day.sheetOpen && !pause.together) { // M8a: no pause together
     const t = document.activeElement as HTMLElement | null;
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
     e.preventDefault();
@@ -889,7 +890,7 @@ function safe(name: string, fn: () => void): void {
 let crowdNow: Array<{ x: number; z: number }> = [];
 const folkNow: Array<{ x: number; z: number }> = [];
 function refreshFolk(): void {
-  crowdNow = crowd.positions();
+  crowdNow = together.withPeople(crowd.positions()); // M8a: the other players too (the bridges do not open under them)
   folkNow.length = 0;
   for (const q of crowdNow) folkNow.push(q);
   for (const q of handcarts.points()) folkNow.push(q);
@@ -963,6 +964,7 @@ function frame(): void {
   safe("world.update", () => world.update(elapsed, dt, player.camera));
   safe("ferry.update", () => ferry.update(dt));
   safe("player.update", () => player.update(dt));
+  safe("together.frame", () => together.frame(dt)); // M8a: own state out, the others drawn
   safe("handcarts.update", () => handcarts.update(dt));
   safe("interiors.update", () => interiors.update(dt));
   safe("homes.update", () => homes.update(dt));
@@ -1204,6 +1206,25 @@ if (import.meta.env.DEV) {
   }, 200);
 }
 
+// M8a multiplayer (net/mp/together.ts, docs/milestones/M8a.md): the other players, the Together panel, no pause together
+const together = new Together({
+  scene: world.scene,
+  camera: player.camera,
+  player,
+  groundAt: (x, z, r, feet) => world.groundAt(x, z, r, feet),
+  isFree: (x, z, r, feet) => world.isFree(x, z, r, feet),
+  surfaceAt: (x, z) => world.surfaceAt(x, z),
+  buses: () => world.omnibus()?.buses ?? [],
+  riding: () => (ride as unknown as { bus: { index: number; pose(): { x: number; y: number; z: number; yaw: number } } | null }).bus,
+  away: () => !hasInput() || !startEl.classList.contains("hidden"),
+  entered: () => started,
+  say: (t) => jobs.say(t),
+  sound: () => sound,
+  paper: startEl.querySelector(".paper"),
+  cityReady: world.city.ready,
+});
+together.start();
+
 // Dev hook for automated checks: teleport, hold keys, read state.
 if (import.meta.env.DEV) {
   (window as unknown as Record<string, unknown>).__scheldemist = {
@@ -1246,6 +1267,8 @@ if (import.meta.env.DEV) {
     lively,
     /** M7 ferry arrival: info(true) shows the deck, devIdle(s) skips the ferryman's patience. */
     ferry,
+    /** M8a multiplayer: the other players (report(): own camera snaps, each remote's jitter and buffer; resetMeter()). */
+    mp: together,
     /** M7 night: the quest boxes (info()), the gangs (info(), answer(how)). */
     boxes,
     night,
@@ -1520,6 +1543,7 @@ if (import.meta.env.DEV) {
         safe("step: world.update", () => world.update(elapsed, dt));
         safe("step: ferry.update", () => ferry.update(dt));
         safe("step: player.update", () => player.update(dt));
+        safe("step: together.frame", () => together.frame(dt)); // M8a
         safe("step: handcarts.update", () => handcarts.update(dt));
         safe("step: interiors.update", () => interiors.update(dt));
         safe("step: homes.update", () => homes.update(dt));

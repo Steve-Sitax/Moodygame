@@ -1,0 +1,393 @@
+// M8a multiplayer (docs/multiplayer-plan.md 2.2 and 3.3; docs/milestones/M8a.md): the page's first code,
+// before the game's own (index.html loads this; it loads main.ts when it is done).
+//
+// 1. Who this tab is: the host on the host PC (no token), or a guest with a player token. A guest types the
+//    join code from the host's screen once; the token is kept in localStorage (per ?seat=N) and sent with
+//    every call to the server. In a dev build on this PC, ?seat=2 joins by itself (the tests).
+// 2. The files (a built game served by the host, npm run host): every file of the game is kept in the
+//    browser (IndexedDB, one entry per SHA-256 of the manifest). Only the files whose hash is not there yet
+//    are downloaded, four at a time, each checked; a new version downloads only what changed. The game's
+//    own paths stay as they are: one hook (three.js's URL modifier, fetch, and an image's src) sends each
+//    to its stored copy. (A Service Worker would be the usual way, but it needs https or this computer.)
+// In a dev build (vite) step 2 is skipped: single player starts as it always did.
+
+import * as THREE from "three";
+import { identity, TOKEN_HEADER, tokenKey } from "../net/mp/identity";
+
+const params = new URLSearchParams(location.search);
+identity.seat = Math.max(1, Math.min(8, Math.floor(Number(params.get("seat") ?? 1)) || 1));
+identity.local = ["127.0.0.1", "localhost", "[::1]"].includes(location.hostname);
+
+// ------------------------------------------------------------------ the boot card
+
+const $ = <T extends Element>(sel: string) => document.querySelector<T>(`#boot ${sel}`);
+function show(step: string, count: string, progress: number | null, now?: string): void {
+  const what = $<HTMLElement>(".step .what");
+  const c = $<HTMLElement>(".step .count");
+  const pct = $<HTMLElement>(".step .pct");
+  if (what) what.textContent = step;
+  if (c) c.textContent = count;
+  if (progress !== null) {
+    const fill = $<HTMLElement>(".fill");
+    if (fill) fill.style.transform = `scaleX(${Math.max(0.02, Math.min(1, progress)).toFixed(4)})`;
+    if (pct) pct.textContent = `${Math.round(progress * 100)}%`;
+  }
+  if (now !== undefined) {
+    const n = $<HTMLElement>(".now");
+    if (n) n.textContent = now;
+  }
+}
+const hold = (on: boolean) => ((window as unknown as { __bootHold?: boolean }).__bootHold = on);
+
+// ------------------------------------------------------------------ the token on every call
+
+/** Asset paths (the manifest's, no leading slash) and their stored copies. */
+let assetMap: Map<string, string> | null = null;
+
+function keyOf(url: string): string | null {
+  try {
+    const u = new URL(url, location.href);
+    if (u.origin !== location.origin) return null;
+    return decodeURIComponent(u.pathname.slice(1));
+  } catch {
+    return null;
+  }
+}
+const mapped = (url: string): string => {
+  if (!assetMap || url.startsWith("blob:") || url.startsWith("data:")) return url;
+  const k = keyOf(url);
+  return (k !== null && assetMap.get(k)) || url;
+};
+const isApi = (url: string) => {
+  const k = keyOf(url);
+  return k !== null && k.startsWith("api/");
+};
+
+{
+  const orig = window.fetch.bind(window);
+  window.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
+    if (assetMap && method === "GET") {
+      const m = mapped(url);
+      if (m !== url) return orig(m, init);
+    }
+    if (identity.token && isApi(url)) {
+      const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+      headers.set(TOKEN_HEADER, identity.token);
+      return orig(input, { ...init, headers });
+    }
+    return orig(input, init);
+  };
+  // a guest saves nothing of the host's: the autosave's beacon on leaving the tab is not sent
+  const beacon = navigator.sendBeacon?.bind(navigator);
+  if (beacon)
+    navigator.sendBeacon = (url: string | URL, data?: BodyInit | null) => {
+      if (identity.token && isApi(String(url))) return true;
+      return beacon(url, data);
+    };
+}
+
+// ------------------------------------------------------------------ joining
+
+interface Info {
+  multiplayer: boolean;
+  protocol: number;
+  version: string;
+  you: { id: number; host: boolean; guest: boolean; name: string } | null;
+}
+
+async function info(token: string | null): Promise<{ status: number; body: Info | null }> {
+  try {
+    const r = await fetch("/api/mp/info", { headers: token ? { [TOKEN_HEADER]: token } : {}, signal: AbortSignal.timeout(8000) });
+    return { status: r.status, body: r.ok ? ((await r.json()) as Info) : null };
+  } catch {
+    return { status: 0, body: null };
+  }
+}
+
+async function join(code: string, name: string): Promise<{ token?: string; error?: string }> {
+  try {
+    const r = await fetch("/api/mp/join", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, name }), signal: AbortSignal.timeout(8000) });
+    const d = (await r.json().catch(() => ({}))) as { token?: string; error?: string };
+    return r.ok && d.token ? { token: d.token } : { error: d.error ?? `The host did not answer (${r.status}).` };
+  } catch {
+    return { error: "The host's PC does not answer. Is the game running there?" };
+  }
+}
+
+/** The join card over the loading screen: the code, a first name. Resolves with the token. */
+function joinCard(why: string): Promise<string> {
+  return new Promise((resolve) => {
+    hold(false); // the boot screen holds keys and clicks; the card needs them
+    const card = document.createElement("form");
+    card.className = "card mp-join";
+    card.style.cssText = "bottom:auto;top:34vh;z-index:3;cursor:auto";
+    card.innerHTML = `
+      <p class="step"><span class="what">Join the town</span></p>
+      <p class="now">${why}</p>
+      <p class="save" style="display:flex;gap:10px;align-items:center;margin-top:10px">
+        <label style="flex:1">Code <input name="code" autocomplete="off" spellcheck="false" maxlength="9" placeholder="KADE-47" style="width:7.5em;font:inherit;text-transform:uppercase;letter-spacing:0.08em"></label>
+        <label style="flex:1">Your first name <input name="name" autocomplete="given-name" maxlength="20" placeholder="Anna" style="width:8em;font:inherit"></label>
+      </p>
+      <p class="save" style="margin-top:10px"><button type="submit" style="font:inherit;padding:2px 14px">Join</button> <span class="mp-join-out" style="font-style:italic"></span></p>`;
+    document.getElementById("boot")?.appendChild(card);
+    const code = card.querySelector<HTMLInputElement>("input[name=code]")!;
+    const name = card.querySelector<HTMLInputElement>("input[name=name]")!;
+    const out = card.querySelector<HTMLElement>(".mp-join-out")!;
+    try {
+      name.value = localStorage.getItem("scheldemist.mp.name") ?? "";
+    } catch {
+      /* no storage */
+    }
+    code.focus();
+    card.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      out.textContent = "Asking the host...";
+      const r = await join(code.value, name.value);
+      if (!r.token) {
+        out.textContent = r.error ?? "No.";
+        return;
+      }
+      try {
+        localStorage.setItem("scheldemist.mp.name", name.value);
+      } catch {
+        /* no storage */
+      }
+      card.remove();
+      hold(true);
+      resolve(r.token);
+    });
+  });
+}
+
+async function whoAmI(): Promise<void> {
+  const guestPage = !identity.local || identity.seat >= 2;
+  if (!guestPage) {
+    const r = await info(null);
+    identity.together = !!r.body?.multiplayer;
+    return;
+  }
+  let token: string | null = null;
+  try {
+    token = localStorage.getItem(tokenKey(identity.seat));
+  } catch {
+    /* no storage: a new join every time */
+  }
+  if (token) {
+    const r = await info(token);
+    if (r.status === 401 || (r.body && !r.body.you)) token = null; // the host removed him, or a new save: join again
+    else if (r.body) identity.together = r.body.multiplayer;
+  }
+  if (!token && import.meta.env.DEV && identity.local) {
+    // tests: a second seat in the same browser joins with the code the host's side can read
+    try {
+      const h = (await (await fetch("/api/mp/host")).json()) as { code?: string };
+      const r = h.code ? await join(h.code, ["Anna", "Piet", "Mie", "Tist", "Lien", "Rik", "Wannes"][identity.seat - 2] ?? "Guest") : {};
+      if ("token" in r && r.token) token = r.token;
+    } catch {
+      /* then the card */
+    }
+  }
+  while (!token) {
+    const r = await info(null);
+    if (r.body && !r.body.multiplayer) {
+      show("The host is playing alone", "", null, "The game on the host's PC is not open to the house. Ask the host to open it, then reload this page.");
+      await new Promise((ok) => setTimeout(ok, 4000));
+      continue;
+    }
+    token = await joinCard(r.status === 0 ? "The host's PC does not answer yet. Type the code when it does." : "Type the code on the host's screen, and your first name.");
+  }
+  try {
+    localStorage.setItem(tokenKey(identity.seat), token);
+  } catch {
+    /* no storage */
+  }
+  identity.token = token;
+  const me = await info(token);
+  identity.together = !!me.body?.multiplayer;
+  if (me.body?.you?.name) show("Welcome", "", null, `You come into the town as ${me.body.you.name}.`);
+}
+
+// ------------------------------------------------------------------ the files
+
+interface ManFile {
+  path: string;
+  size: number;
+  sha256: string;
+}
+interface Manifest {
+  version: string;
+  protocol: number;
+  files: ManFile[];
+  total: number;
+}
+
+/** What the store did at this start (the kit and the tests read it: __scheldemistCache). */
+export const cacheReport = { manifest: false, files: 0, stored: 0, downloaded: 0, bytes: 0, bad: 0, removed: 0, ms: 0, firstVisit: false, version: "" };
+(window as unknown as { __scheldemistCache: typeof cacheReport }).__scheldemistCache = cacheReport;
+
+/** The page and the code bundle stay in the browser's normal cache (their names carry Vite's hash). */
+const cacheable = (p: string) => !(p === "index.html" || p === "manifest.json" || p.startsWith("assets/") || p.startsWith("boot/"));
+
+function idb(): Promise<IDBDatabase | null> {
+  return new Promise((resolve) => {
+    try {
+      const r = indexedDB.open("scheldemist-files", 1);
+      r.onupgradeneeded = () => {
+        r.result.createObjectStore("files", { keyPath: "sha" });
+      };
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => resolve(null);
+      r.onblocked = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+const req = <T>(r: IDBRequest<T>) => new Promise<T>((ok, bad) => ((r.onsuccess = () => ok(r.result)), (r.onerror = () => bad(r.error))));
+
+let worker: Worker | null = null;
+let jobId = 0;
+const waiting = new Map<number, (sha: string) => void>();
+function hashOf(buf: ArrayBuffer): Promise<string> {
+  if (!worker) {
+    worker = new Worker(new URL("./sha.worker.ts", import.meta.url), { type: "module" });
+    worker.onmessage = (e: MessageEvent<{ id: number; sha: string }>) => {
+      waiting.get(e.data.id)?.(e.data.sha);
+      waiting.delete(e.data.id);
+    };
+  }
+  const id = ++jobId;
+  return new Promise((ok) => {
+    waiting.set(id, ok);
+    worker!.postMessage({ id, buf }, [buf]);
+  });
+}
+
+const typeOf = (p: string) =>
+  ({ glb: "model/gltf-binary", json: "application/json", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", ogg: "audio/ogg", wasm: "application/wasm", js: "text/javascript", svg: "image/svg+xml", webp: "image/webp" })[p.split(".").pop()!.toLowerCase()] ?? "application/octet-stream";
+
+async function assetStore(): Promise<void> {
+  if (import.meta.env.DEV) return;
+  const t0 = performance.now();
+  let man: Manifest;
+  try {
+    const r = await fetch("/manifest.json", { cache: "no-store", signal: AbortSignal.timeout(10_000) });
+    if (!r.ok || !/json/.test(r.headers.get("content-type") ?? "")) return;
+    man = (await r.json()) as Manifest;
+  } catch {
+    return;
+  }
+  cacheReport.manifest = true;
+  cacheReport.version = identity.version = man.version;
+  const files = man.files.filter((f) => cacheable(f.path));
+  cacheReport.files = files.length;
+  const db = await idb();
+  if (!db) return; // no store (a private window): the files come over the network as usual
+  const have = new Set((await req(db.transaction("files").objectStore("files").getAllKeys())) as string[]);
+  const missing = files.filter((f) => !have.has(f.sha256));
+  const firstVisit = ![...have].length;
+  cacheReport.firstVisit = firstVisit;
+  const total = missing.reduce((n, f) => n + f.size, 0);
+  const mb = (n: number) => (n / 1048576).toFixed(n < 10 * 1048576 ? 1 : 0);
+  let done = 0;
+  const label = () => (firstVisit ? `Downloading ${mb(done)} of ${mb(total)} MB` : `New version: downloading ${mb(total)} MB`);
+  if (missing.length) {
+    console.info(`[files] ${label()} (${missing.length} files)`);
+    show(label(), `${missing.length} files`, 0, firstVisit ? "The first visit copies the game from the host's PC. Later visits start at once." : `A new version (${man.version}): only the files that changed.`);
+    let next = 0;
+    const one = async (f: ManFile) => {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const r = await fetch(`/a/${f.sha256}`, { signal: AbortSignal.timeout(120_000) });
+          if (!r.ok || !r.body) throw new Error(String(r.status));
+          const reader = r.body.getReader();
+          const parts: Uint8Array[] = [];
+          let got = 0;
+          for (;;) {
+            const { done: end, value } = await reader.read();
+            if (end) break;
+            parts.push(value);
+            got += value.length;
+            done += value.length;
+            show(label(), `${missing.length} files`, total ? done / total : 1);
+          }
+          const buf = new Uint8Array(got);
+          let o = 0;
+          for (const p of parts) (buf.set(p, o), (o += p.length));
+          const blob = new Blob([buf], { type: typeOf(f.path) });
+          const sha = got === f.size ? await hashOf(buf.buffer) : "size";
+          if (sha !== f.sha256) {
+            cacheReport.bad++;
+            done -= got;
+            continue;
+          }
+          await req(db.transaction("files", "readwrite").objectStore("files").put({ sha: f.sha256, path: f.path, size: f.size, blob }));
+          cacheReport.downloaded++;
+          cacheReport.bytes += got;
+          return;
+        } catch {
+          /* once more, then the network at play time */
+        }
+      }
+    };
+    await Promise.all(
+      [0, 1, 2, 3].map(async () => {
+        while (next < missing.length) await one(missing[next++]);
+      }),
+    );
+    // a whole, checked download: what no manifest names any more goes
+    if (cacheReport.downloaded === missing.length) {
+      const keep = new Set(man.files.map((f) => f.sha256));
+      const store = db.transaction("files", "readwrite").objectStore("files");
+      for (const k of have) if (!keep.has(k)) (store.delete(k), cacheReport.removed++);
+    }
+  }
+  // every stored file as a blob: URL, by its path
+  const rows = (await req(db.transaction("files").objectStore("files").getAll())) as Array<{ sha: string; path: string; blob: Blob }>;
+  const bySha = new Map(rows.map((r) => [r.sha, r.blob]));
+  const map = new Map<string, string>();
+  for (const f of files) {
+    const b = bySha.get(f.sha256);
+    if (b) map.set(f.path, URL.createObjectURL(b));
+  }
+  cacheReport.stored = map.size;
+  assetMap = map;
+  identity.cached = map.size > 0;
+  // the hook: three.js's loaders (models, textures, the Draco decoder), fetch (above), an image's src
+  THREE.DefaultLoadingManager.setURLModifier(mapped);
+  const d = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "src");
+  if (d?.set && d.get) {
+    Object.defineProperty(HTMLImageElement.prototype, "src", {
+      configurable: true,
+      enumerable: d.enumerable,
+      get() {
+        return d.get!.call(this);
+      },
+      set(v: string) {
+        d.set!.call(this, mapped(String(v)));
+      },
+    });
+  }
+  worker?.terminate();
+  worker = null;
+  cacheReport.ms = Math.round(performance.now() - t0);
+  console.info(`[files] ${man.version}: ${map.size} of ${files.length} from the browser's store; ${cacheReport.downloaded} downloaded (${mb(cacheReport.bytes)} MB) in ${cacheReport.ms} ms`);
+}
+
+// ------------------------------------------------------------------ then the game
+
+void (async () => {
+  try {
+    await whoAmI();
+  } catch (e) {
+    console.warn("[mp] who am I", e);
+  }
+  try {
+    await assetStore();
+  } catch (e) {
+    console.warn("[files] the store failed; the files come over the network", e);
+  }
+  await import("../main");
+})();

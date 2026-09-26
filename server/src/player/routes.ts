@@ -2,6 +2,7 @@ import type { Hono } from "hono";
 import type { DB } from "../db.ts";
 import { ageBand, appearanceCode, lookLine, wordsFor } from "../../../shared/character.ts";
 import { checkProfile, PLAYER_ONE, profileOf, saveProfile, storedProfile } from "./profile.ts";
+import { pidOf } from "../mp/auth.ts"; // M8a: the profile of the player who asks (a guest has his own)
 
 // M7 character: the profile over HTTP.
 //   GET /api/player/profile        this player's profile (a missing one is today's Jef), its code, the look in words
@@ -26,18 +27,18 @@ function view(db: DB, id = PLAYER_ONE) {
 
 export function mountPlayer(app: Hono, deps: { db: DB }): void {
   const { db } = deps;
-  app.get("/api/player/profile", (c) => c.json(view(db)));
+  app.get("/api/player/profile", (c) => c.json(view(db, pidOf(c)))); // M8a
   app.put("/api/player/profile", async (c) => {
     const body = (await c.req.json().catch(() => null)) as unknown;
     const raw = body && typeof body === "object" && "profile" in body ? (body as { profile: unknown }).profile : body;
     const checked = checkProfile(raw);
     if (!checked) return c.json({ error: "a profile is an object: name, sex, age, looks, clothes" }, 400);
-    saveProfile(db, checked.profile);
-    return c.json({ ...view(db), fixed: checked.fixed });
+    saveProfile(db, checked.profile, pidOf(c)); // M8a
+    return c.json({ ...view(db, pidOf(c)), fixed: checked.fixed });
   });
   app.get("/api/player/:id/look", (c) => {
     const id = Number(c.req.param("id"));
-    if (!Number.isInteger(id) || id !== PLAYER_ONE) return c.json({ error: "no such player" }, 404);
+    if (!Number.isInteger(id) || (id !== PLAYER_ONE && !storedProfile(db, id))) return c.json({ error: "no such player" }, 404); // M8a: guests too
     const p = profileOf(db, id);
     return c.json({ id, code: appearanceCode(p), first: p.first, last: p.last });
   });

@@ -92,7 +92,7 @@ export default {
     open: false,
     hmr: false,
     fs: { allow: [path.join(here, "..")] },
-    proxy: { "/api": "http://127.0.0.1:${SERVER}", "/ws": { target: "ws://127.0.0.1:${SERVER}", ws: true } },
+    proxy: { "/api": "http://127.0.0.1:${SERVER}", "/ws": { target: "ws://127.0.0.1:${SERVER}", ws: true }, "/mp": { target: "ws://127.0.0.1:${SERVER}", ws: true } },
   },
 };
 `,
@@ -128,7 +128,8 @@ function stop() {
   const left = [SERVER, VITE].filter((p) => listeners(p).length);
   // the copy's own AI settings (server ai/setup.ts: data/test-<name>.ai-config.json), if the check saved any
   const aiCfg = path.join(data, `test-${name}.ai-config.json`);
-  for (const f of [db, `${db}-shm`, `${db}-wal`, logS, logV, cfg, aiCfg]) rmSync(f, { force: true });
+  const mpCfg = path.join(data, `test-${name}.mp-config.json`); // M8a: the copy's together settings (server mp/settings.ts)
+  for (const f of [db, `${db}-shm`, `${db}-wal`, logS, logV, cfg, aiCfg, mpCfg]) rmSync(f, { force: true });
   // M7 save and pause: the copy's own saves (server save/saves.ts: data/saves/<the copy's name>)
   rmSync(path.join(data, "saves", `test-${name}`), { recursive: true, force: true });
   console.log(left.length ? `still listening: ${left.join(", ")}` : `test stack "${name}" stopped; copy, logs and config deleted`);

@@ -9,7 +9,7 @@ export const DB_FILE = process.env.SCHELDEMIST_DB ? path.resolve(process.env.SCH
 /** Empty folder the Claude subprocess runs in. Nothing of ours is in it. */
 export const AI_CWD = path.join(ROOT, "data", "ai-cwd");
 
-export const HOST = "127.0.0.1"; // localhost only, never the LAN
+export const HOST = "127.0.0.1"; // localhost only; M8a "Open to the house" adds the home-network addresses beside it (mp/lan.ts)
 export const PORT = Number(process.env.SCHELDEMIST_PORT) || 8787;
 
 /**
@@ -23,13 +23,19 @@ export const CLIENT_PORTS: ReadonlySet<number> = new Set(
   [PORT, 5173, 5183, 5341, Number(process.env.SCHELDEMIST_CLIENT_PORT)].filter((p) => Number.isInteger(p) && p > 0),
 );
 const LOCAL_NAMES = new Set(["127.0.0.1", "localhost", "[::1]"]);
+/**
+ * M8a "Open to the house" (mp/lan.ts fills it while it is on): this PC's home-network addresses and its
+ * computer name, accepted as a Host or an Origin on the game's own port only (the built game is served there).
+ */
+export const LAN_NAMES = new Set<string>();
+const lanName = (u: URL) => LAN_NAMES.has(u.hostname.toLowerCase()) && Number(u.port) === PORT;
 
 /** A Host header naming this machine on one of the game's ports (no DNS rebinding). */
 export function allowedHost(host: string | undefined, ports: ReadonlySet<number> = CLIENT_PORTS): boolean {
   if (!host) return false;
   try {
     const u = new URL(`http://${host}`);
-    return LOCAL_NAMES.has(u.hostname) && ports.has(Number(u.port));
+    return (LOCAL_NAMES.has(u.hostname) && ports.has(Number(u.port))) || lanName(u); // M8a: or a home-network name
   } catch {
     return false;
   }
@@ -39,7 +45,7 @@ export function allowedHost(host: string | undefined, ports: ReadonlySet<number>
 export function allowedOrigin(origin: string, ports: ReadonlySet<number> = CLIENT_PORTS): boolean {
   try {
     const u = new URL(origin);
-    return u.protocol === "http:" && u.origin === origin && LOCAL_NAMES.has(u.hostname) && ports.has(Number(u.port));
+    return u.protocol === "http:" && u.origin === origin && ((LOCAL_NAMES.has(u.hostname) && ports.has(Number(u.port))) || lanName(u)); // M8a: or a home-network name
   } catch {
     return false;
   }

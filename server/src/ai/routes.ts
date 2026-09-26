@@ -2,6 +2,7 @@ import type { Context, Hono } from "hono";
 import { z } from "zod";
 import type { DB } from "../db.ts";
 import { plainEnglish } from "../text.ts";
+import { mpHostRule } from "../mp/auth.ts"; // M8a
 import { testCall } from "./claude.ts";
 import { codexBin } from "./codex.ts";
 import { routeOfChoice, type Route } from "./router.ts";
@@ -60,6 +61,8 @@ let testing = false;
  */
 const LOCAL_ADDRESSES = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 export function fromHost(c: Context): boolean {
+  const mp = mpHostRule(c); // M8a multiplayer: a guest's token is never the host; a player the host marked admin is
+  if (mp !== null) return mp;
   const addr = (c.env as { incoming?: { socket?: { remoteAddress?: string } } } | undefined)?.incoming?.socket?.remoteAddress;
   if (!addr || !LOCAL_ADDRESSES.has(addr)) return false;
   const fwd = c.req.header("x-forwarded-for") ?? c.req.header("forwarded");

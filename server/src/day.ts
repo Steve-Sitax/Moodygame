@@ -8,6 +8,7 @@ import { TICK_MINUTES, TICK_EVERY_MS } from "../../shared/clock.ts";
 import { COLLAPSE_AT, sleepMinutes } from "../../shared/night.ts";
 import { fogAt, type FogDay } from "./town/lampround.ts";
 import { gateMode, isPaused } from "./save/gate.ts";
+import { setWorldClock, worldClock } from "./mp/worldClock.ts"; // M8a: the clock is the world's (world_state), not player 1's row
 import type { RestEnd, RestView } from "./rest.ts";
 
 // The day and the week (M5). The engine owns time and needs (docs/01, docs/03).
@@ -77,7 +78,7 @@ export function setWeather(db: DB, w: Weather, at?: number): Weather {
  * save) means the weather has not turned since: the day began in today's weather.
  */
 export function fogDay(db: DB): FogDay {
-  const day = (db.prepare("SELECT day FROM player WHERE id = 1").get() as { day: number } | undefined)?.day ?? 1;
+  const day = worldClock(db).day; // M8a
   const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'fog_day'").get() as { value_json: string } | undefined;
   try {
     const f = row ? (JSON.parse(row.value_json) as FogDay) : null;
@@ -100,7 +101,7 @@ export interface Clock {
 }
 
 export function clock(db: DB): Clock {
-  const p = db.prepare("SELECT day, hour, minute FROM player WHERE id = 1").get() as { day: number; hour: number; minute: number };
+  const p = worldClock(db); // M8a: the world's clock
   return { ...p, weekday: DAY_NAMES[(p.day - 1) % 7], weather: weather(db) };
 }
 
@@ -278,7 +279,7 @@ export function turnDay(db: DB): DayTurn {
     for (let i = 0; i < 3; i++) spreadRumours(db);
   })();
   if (c.day >= WEEK_DAYS) return { day: c.day, lines, ended: endGame(db, "week") };
-  db.prepare("UPDATE player SET day = day + 1, hour = 0, minute = 0 WHERE id = 1").run();
+  setWorldClock(db, { day: c.day + 1, hour: 0, minute: 0 }); // M8a
   markDayStart(db);
   rollWeather(db);
   return { day: c.day + 1, lines };
@@ -297,7 +298,7 @@ export function passTime(db: DB, minutes: number): { lines: string[]; turned: bo
     const toMidnight = (24 - c.hour) * 60 - c.minute;
     if (left < toMidnight) {
       const t = c.hour * 60 + c.minute + left;
-      db.prepare("UPDATE player SET hour = ?, minute = ? WHERE id = 1").run(Math.floor(t / 60), t % 60);
+      setWorldClock(db, { day: c.day, hour: Math.floor(t / 60), minute: t % 60 }); // M8a
       left = 0;
     } else {
       left -= toMidnight;
@@ -327,7 +328,7 @@ export function tick(db: DB, now = Date.now(), opts: { asleep?: boolean } = {}):
   let minute = c.minute + TICK_MINUTES;
   let hour = c.hour;
   if (minute < 60) {
-    db.prepare("UPDATE player SET minute = ? WHERE id = 1").run(minute);
+    setWorldClock(db, { day: c.day, hour: c.hour, minute }); // M8a
     return { advanced: true };
   }
   minute -= 60;
@@ -339,7 +340,7 @@ export function tick(db: DB, now = Date.now(), opts: { asleep?: boolean } = {}):
     if (turned.ended) return { advanced: true, ended: turned.ended, turned };
     hour -= 24;
   }
-  db.prepare("UPDATE player SET hour = ?, minute = ? WHERE id = 1").run(hour, minute);
+  setWorldClock(db, { day: clock(db).day, hour, minute }); // M8a (the date may have turned above)
   const { healthZero } = applyHour(db, hour);
   // M3e: an hour of talk in the town; rumours about Jef pass on
   spreadRumours(db);

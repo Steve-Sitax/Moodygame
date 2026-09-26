@@ -2053,11 +2053,11 @@ export class Soundscape {
     src.start(t);
   }
 
-  footstep(surface: Surface, hurry: boolean, puddle = 0): void {
+  footstep(surface: Surface, hurry: boolean, puddle = 0, level = 1): void {
     const ctx = this.ctx;
     if (puddle > 0.3) this.splashStep(hurry, puddle);
     const t = ctx.currentTime + 0.005;
-    const vol = hurry ? 1.25 : 1;
+    const vol = (hurry ? 1.25 : 1) * Math.max(0, Math.min(1, level)); // M8a: level < 1 for another player's step further off
     const out = ctx.createGain();
     out.gain.value = 0.9;
     out.connect(this.bus("effects"));

@@ -15,7 +15,8 @@
 //   model calls stop too.
 // `real` has the untouched functions, for the pause screen itself.
 
-type Reason = "menu" | "key" | "saving" | "loading" | "boot";
+// M8a multiplayer: "host" is the host's "Pause all" (net/mp/together.ts), the only pause when played together
+type Reason = "menu" | "key" | "saving" | "loading" | "boot" | "host";
 
 const perf = performance;
 const realNowFn = perf.now.bind(perf);
@@ -32,6 +33,8 @@ export const real = {
 export const clientId = `tab-${Math.random().toString(36).slice(2, 10)}`;
 
 const reasons = new Set<Reason>();
+/** M8a: played together: the menu and P do not pause (the town runs on for the others; he stands there "away"). */
+let together = false;
 let pausedAt: number | null = null;
 let pausedTotal = 0;
 const listeners: Array<(paused: boolean) => void> = [];
@@ -52,8 +55,20 @@ export const pause = {
   get reasons(): Reason[] {
     return [...reasons];
   },
+  /** M8a: played together (net/mp/together.ts sets it at the start). */
+  get together(): boolean {
+    return together;
+  },
+  setTogether(on: boolean): void {
+    together = on;
+    if (on) {
+      pause.set("menu", false);
+      pause.set("key", false);
+    }
+  },
   /** Add or take away one reason to be paused; the game plays when there is none. */
   set(r: Reason, on: boolean): void {
+    if (together && on && (r === "menu" || r === "key")) return; // M8a
     const was = reasons.size > 0;
     if (on) reasons.add(r);
     else reasons.delete(r);

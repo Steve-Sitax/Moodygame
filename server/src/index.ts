@@ -61,6 +61,7 @@ import { dropStealables } from "./town/deeds.ts";
 import { dropGameWords } from "./ballads/guard.ts";
 import { auditCounts, auditSave } from "./town/audit.ts";
 import { reportWhere, whereNow } from "./warmth.ts"; // M7 warmth: where Jef is for the cold
+import { mountMultiplayer } from "./mp/index.ts"; // M8a multiplayer: who asks, the join code, the movement socket, the server's own clock
 
 const db = openDb(DB_FILE);
 const stale = closeStaleCalls(db);
@@ -107,6 +108,9 @@ function moneyNow(): number | null {
     return null;
   }
 }
+// M8a multiplayer (mp/index.ts, docs/milestones/M8a.md): before every other part, so it knows who asks (the host or
+// a guest by his token) and keeps guests to walking; together, a tab's pause and tick do not move the town
+const mp = mountMultiplayer(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 // M7 save and pause: saves, loads and the pause; first, so its gate sees every request (save/routes.ts)
 mountSaves(app, {
   db,
@@ -585,7 +589,7 @@ const server = serve({ fetch: app.fetch, hostname: HOST, port: PORT }, (info) =>
 
 // push channel: the game never waits on a call, results arrive here
 const wss = new WebSocketServer({
-  server: server as import("node:http").Server,
+  noServer: true, // M8a: the upgrades are handed out by mp (the push here, the movement socket there; the house's listeners too)
   path: "/ws",
   // the same rule as /api: the game's own pages only (a browser always sends an Origin here)
   verifyClient: (info: { origin: string; req: import("node:http").IncomingMessage }) => allowedHost(info.req.headers.host) && (!info.req.headers.origin || allowedOrigin(info.origin)),
@@ -600,6 +604,7 @@ wss.on("connection", (ws, req) => {
   });
   ws.send(shownJson(db, JSON.stringify({ type: "jobs", ...jobsPayload() })));
 });
+mp.attach(server as import("node:http").Server, wss); // M8a
 setInterval(() => sweepHolders(new Set([...wss.clients].map((o) => clientOf.get(o)).filter((x): x is string => !!x))), 30_000).unref();
 
 function broadcast(msg: unknown): void {
@@ -617,6 +622,7 @@ if (!db.prepare("SELECT 1 FROM world_state WHERE key = 'day_start_money'").get()
 }
 
 function shutdown(): void {
+  void mp.close(); // M8a: the house's listeners
   wss.close();
   server.close();
   db.close();

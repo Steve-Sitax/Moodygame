@@ -7,7 +7,8 @@
     "dev": "concurrently -k -n server,client -c yellow,cyan \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
     "dev:alt": "node tools/dev-alt.mjs",
     "test": "npm --prefix server test",
-    "build": "npm --prefix client run build && npm --prefix server run typecheck"
+    "build": "npm --prefix client run build && npm --prefix server run typecheck",
+    "host": "node tools/host.mjs"
   },
   "devDependencies": {
     "concurrently": "^10.0.5"

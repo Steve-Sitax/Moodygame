@@ -149,7 +149,7 @@ export class Day {
     // M7 save and pause: paused, the clock stands where it was on screen (performance.now stands still: game/pause.ts).
     // Back in play after a time out of it (the first screen, a loaded save, a sheet): the run on starts again from here,
     // not from when the server's time came in (a loaded 13:40 showed 13:45 at once).
-    const on = this.playing || pause.paused;
+    const on = this.playing || pause.paused || pause.together; // M8a: together the town's clock runs on behind the menu
     if (on && !this.wasOn) this.shownAt = Math.max(this.shownAt, performance.now());
     this.wasOn = on;
     const ahead = on ? Math.min(TICK_MINUTES / 60, ((performance.now() - this.shownAt) / 1000) * (GAME_MIN_PER_REAL_S / 60)) : 0;

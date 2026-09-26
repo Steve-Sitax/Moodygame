@@ -183,6 +183,24 @@ could not check.
 
 `await __scheldemist.propcheck()` (dev/propcheck.ts): every solid prop of the town (clutter, litter, quay goods and furniture, pumps, lamps, benches, trades, sill pots) against the buildings as built (walls, sills, plinths, steps, kerbs), doorways, passages, bills, each other and the ground; `problems` must be 0 (a new placer lists its props in world/propSpots.ts; `{ only: "clutter" }`, `{ near: [x, z, r] }`).
 
+## Together (M8a multiplayer, 2026-09-26)
+`docs/milestones/M8a.md`. The test stack plays alone until it is told: `curl -X POST -H "content-type: application/json" -d '{"multiplayer":true}' http://127.0.0.1:<server>/api/mp/config`
+(host-only; the setting lives in `data/test-<name>.mp-config.json` and goes with `stop`).
+
+- **A second player in the same browser**: `?seat=2` (in a dev build it joins by itself with the host's code).
+  A tab that is not the active one runs its timers once a second, so it cannot walk in real time: put the
+  second seat in an iframe of the active tab (`iframe.src = "/?seat=2"`) and drive both with `step(1/60)`
+  from one timer. Its kit is `iframe.contentWindow.__scheldemist`. A guest's `/api/dev/*` is refused: take
+  its pictures by rendering its canvas and posting the picture from the host's window.
+- **The numbers**: `__scheldemist.mp.report()`: `camSnaps` (the own camera jumped: must be 0), each other
+  player's drawn pace, largest step a frame, jitter, delay and buffer (`starved` should stay 0); `resetMeter()`.
+  The server's side: `GET /api/mp/stats` (refused moves per player; `corrections` is always 0).
+- **Headless players and a bad line**: `node tools/mp-harness.mjs` (`smooth`, `bot`, `crowd`, `proxy`, `vite`,
+  `stop`): a walker and a watcher measured against the true path; a TCP proxy with delay, jitter and stalls;
+  a second vite through the proxy.
+- **The built game and its file store**: `npm run host -- --alone` (or the server with `NODE_ENV=production`)
+  serves `client/dist` with its manifest; `window.__scheldemistCache` says what the page downloaded.
+
 ## The start: the loading screen (2026-09-26)
 The page opens on the loading screen (`client/src/boot/loader.ts`); the menu comes up when the town is built and
 every shader is ready. Keys and clicks wait until then. `__scheldemist.free(true)` takes the screen away at once
