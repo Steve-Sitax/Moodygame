@@ -543,6 +543,30 @@ export function facadeAtlas(): THREE.CanvasTexture {
     g.fillStyle = "rgba(40,30,20,0.35)";
     g.fillRect(x, y, C, C);
   }
+  // (yard windows, 2026-09-26) a patched sash on the poorer backs (build_city.py SASH_PATCHED): a pane boarded
+  // with two planks, one pasted over with paper, a drab curtain, the frame grimy; its own dice (r2 goes on as before)
+  {
+    const [x, y] = at(7, 2);
+    const r3 = rand(1878);
+    sash(g, x, y, "#9a8e74", "drawn", "#5a4c3c", r3);
+    for (const [py, ph, sh] of [[42, 9, "#5c4630"], [51, 9, "#4e3b28"]] as const) {
+      g.fillStyle = sh;
+      g.fillRect(x + 6, y + py, 25, ph);
+      g.fillStyle = "rgba(0,0,0,0.35)";
+      g.fillRect(x + 6, y + py + ph - 1, 25, 1);
+      g.fillStyle = "#2a2622";
+      g.fillRect(x + 8, y + py + 4, 1, 1);
+      g.fillRect(x + 28, y + py + 4, 1, 1);
+    }
+    g.fillStyle = "#b3a88a";
+    g.fillRect(x + 33, y + 23, 25, 17);
+    g.fillStyle = "rgba(90,70,40,0.35)";
+    for (let k = 0; k < 25; k++) g.fillRect(x + 33 + k, y + 30 + Math.round(k * 0.12), 1, 3);
+    g.fillStyle = "rgba(60,50,30,0.25)";
+    g.fillRect(x + 33, y + 36, 25, 4);
+    g.fillStyle = "rgba(40,30,20,0.3)";
+    g.fillRect(x, y, C, C);
+  }
   // row 7, one cell per style (build_city.py FARPIER_ROW): the upper-storey wall round a window cut into it,
   // its lintel and sill painted where the upper cell paints them, no shutters: what a front shows far off,
   // where the game does not draw its 3D sills, heads and shutters

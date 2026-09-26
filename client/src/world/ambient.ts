@@ -5,6 +5,8 @@ import { edgeZ, type CityOpenings, type CityWorld } from "./city";
 import { addSpill, setSpillClock, type SpillKind } from "./spill";
 import { sharedFacadeProbe, type FacadeProbe } from "./facadeProbe";
 import INWORLD from "../../../shared/inworld_houses.json";
+import YARDS from "../../../shared/city_yard_windows.json";
+import { YARD_PANE_OFF, yardPanes } from "./yardWindows";
 
 /**
  * M7 taverns and homes: the houses whose insides stand in the world light their own windows (the room itself
@@ -844,6 +846,15 @@ function buildWindows(houses: House[], gables: Record<string, GableWin[]> = {}, 
         wall(ax, az, bx, bz, ox, oz, i === doorI && lens[i] > 2);
       }
     }
+  }
+  // (yard windows, 2026-09-26) the windows build_city.py cut into the backs on the yards: a back room's lamp
+  // (world/yardWindows.ts); downstairs a kitchen's small lamp (kind 4, as a cottage's), upstairs a room's
+  for (const p of yardPanes(houses, YARDS.houses, litFor, (hi) => OWN_LIGHT.has(hi))) {
+    const key = `${Math.floor(p.x / 100)},${Math.floor(p.z / 100)}`;
+    let b = chunks.get(key);
+    if (!b) chunks.set(key, (b = { win: [], winUv: [], winLit: [], winTone: [] }));
+    buf = b;
+    addWindow(p.x, p.z, p.ox, p.oz, p.ux, p.uz, p.w, p.y0, p.y1, p.lit, p.tone, p.down ? 4 : 0, YARD_PANE_OFF, p.down ? null : p.group);
   }
   // M7 quays pass 2: the lanterns build_city.py hangs by some doors, lit from dusk to dawn: a pane on the
   // front of the glass (x, y, z of the glass's middle, 8.5 cm to its front, outward ox, oz)

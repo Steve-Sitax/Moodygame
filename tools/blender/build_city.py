@@ -69,6 +69,8 @@ REVEAL = 0.2  # a door sits this far back in the wall
 # rows 0-2), the whole cell over the opening.
 WIN_R, SHOP_R = 0.16, 0.12  # how far back in the wall the sash stands (ambient.ts puts the lit pane there)
 COT_R = 0.11  # the alley cottages' sash, as far back in its thinner wall (the houses' pass, 2026-09-26)
+YARD_R = 0.12  # (yard windows, 2026-09-26) the sash of a back wall on a yard, as far back (ambient.ts puts the lit pane there)
+SASH_PATCHED = (7, 2)  # (yard windows) a sash with a pane boarded and one pasted over with paper (cityTextures.ts)
 UP_U, UP_V = (21 / 64, 43 / 64), (12 / 64, 52 / 64)
 SHOP_U, SHOP_V = (12 / 64, 52 / 64), (12 / 64, 50 / 64)
 SASH = [(4, 0), (5, 0), (6, 0), (7, 0)]
@@ -123,6 +125,8 @@ class Builder:
         self.rec = None  # a list to note the plain ground bays in (poort houses), or None
         self.rec_wall = 0
         self.rec_win = None  # a list to note a cottage's windows in, or None
+        self.rec_yard = None  # (yard windows) a list to note a back wall's windows in, or None
+        self.yd = None  # (yard windows) the house's dress while its back wall on a yard is built, or None
         # M7 quays pass 2: the small things on the fronts (sills, lintels, shutters, bands, anchors, pipes,
         # gutters) go into a second mesh per chunk, "<chunk>_d", that the game draws only near (city.ts)
         self.dbm = bmesh.new()
@@ -205,8 +209,16 @@ class Builder:
         # (where two houses of the plan overlap, their walls lie in one plane: a front cut there only makes
         # more faces fight (z-fight check); it stays as it was)
         keep_ds = self.ds
+        self.yd = None
         if self.ds is not None and not kerb:
-            # (a back wall on a yard keeps its painted windows: street life counts it blind and pastes bills on it)
+            # (a back wall on a yard kept its painted windows: street life counted it blind and pasted bills on it)
+            # (yard windows, 2026-09-26, Steve: the backs get real windows as the alley cottages did: yard_run.
+            # Not where another house's wall lies in its plane, not on a house whose rooms stand in the world)
+            if street and not holes and self.backing is not None and not overlapped(self.hid, a, b):
+                self.yd = keep_ds
+                YARD_N["walls"] = YARD_N.get("walls", 0) + 1
+            else:
+                YARD_N["painted"] = YARD_N.get("painted", 0) + 1
             self.ds = None
         elif self.ds is not None and street and overlapped(self.hid, a, b):
             self.ds = None
@@ -265,6 +277,8 @@ class Builder:
                                    (PART_COL["ground"], row), facing, holes)
                     elif self.ds is not None and y0 == 0 and gy > self.gh - 0.01:
                         self.shop_run(a, b, L, facing, k0, k1, bw, gy, row)  # M7 quays pass 2: the shop windows set in
+                    elif self.yd is not None and y0 == 0:
+                        self.yard_run(a, b, L, facing, k0, k1, bw, 0.0, gy, row)  # (yard windows) the back rooms' windows set in
                     else:
                         self.face([(pa[0], y0, pa[1]), (pb[0], y0, pb[1]), (pb[0], gy, pb[1]), (pa[0], gy, pa[1])], MAT_FACADE,
                                   [(0, 0), (k1 - k0, 0), (k1 - k0, vt), (0, vt)], (PART_COL["ground"], row), facing)
@@ -277,6 +291,8 @@ class Builder:
             elif holes:
                 bwu = L / bays
                 self.holed(a, b, L, 0, L, ya, y1, lambda s, y: (s / bwu, (y - self.gh) / self.sh), (PART_COL["upper"], row), facing, holes)
+            elif self.yd is not None and abs(ya - self.gh) < 0.01:
+                self.yard_run(a, b, L, facing, 0, bays, L / bays, ya, y1, row)  # (yard windows) the upper storeys
             else:
                 self.face([(a[0], ya, a[1]), (b[0], ya, b[1]), (b[0], y1, b[1]), (a[0], y1, a[1])], MAT_FACADE,
                           [(0, v0), (bays, v0), (bays, v1), (0, v1)], (PART_COL["upper"], row), facing)
@@ -350,6 +366,7 @@ class Builder:
                               self.pipe["top"], KERB_H if kerb else 0.0, L)
         self.holes = []
         self.ds = keep_ds
+        self.yd = None
 
     def box(self, cx, cy, cz, sx, sy, sz, ux, uz, mat=MAT_STONE, cell=(0, 0), shade=0.9, skip=None, bottom=False, uv01=False):
         """An oriented box: centre, size along u (sx), up (sy), along n (sz); u = (ux, uz) on the ground.
@@ -1330,6 +1347,119 @@ class Builder:
             if self.prime:
                 self.dress_detail(W, ux, uz, f, o, gy, bw)
 
+    # ---------------------------------------------------------------- yard windows (2026-09-26)
+    # Steve: the backs of the houses on the yards and courts (tools/city/alleys.py) had their windows painted
+    # flat on the wall (the front's storey cells, shop windows and all); the alley cottages got real ones
+    # (cottage_wall). Now the backs too: the wall is the house's plain picture (the ground storey on its
+    # plinth), each bay's window cut in, its sash YARD_R back in a reveal of the wall's own picture, a sill and
+    # a lintel on the wall (near-only mesh), the painted shutters flat beside the glass on a plastered house
+    # that has shutters. By the house's class and wear: the better backs tall and clean; the poorer smaller, a
+    # pane patched with a board or paper or cracked, now and then boarded up, a timber lintel, a bay left
+    # blind. Every window (with its shutters, sill and lintel) stays inside the box shared/posterWalls.ts
+    # wallOpenings gives a "front" wall's window, so the bills and the gutters keep clear of it; the windows
+    # are listed in shared/city_yard_windows.json (world/yardWindows.ts: ambient.ts lights them, clutter.ts keeps its
+    # downpipes off them).
+    YARD_GRADE = {"fine": 2, "good": 2, "merchant": 2, "middle": 1, "store": 1, "poor": 0, "alley": 0}
+    # by grade: the glass's width in 64ths of a bay; an upper window's foot and head over its storey's floor;
+    # a ground-storey window's foot and head
+    YARD_WIN = {2: (22, 0.6, 2.4, 0.95, 2.75), 1: (20, 0.7, 2.3, 1.0, 2.6), 0: (18, 0.8, 2.2, 1.05, 2.45)}
+
+    def yard_run(self, a, b, L, f, k0, k1, bw, ya, yb, row):
+        """Bays k0..k1 of a back wall on a yard, ya..yb (the ground storey, or all the upper storeys), with
+        their windows cut in (the yard windows above)."""
+        ux, uz = (b[0] - a[0]) / L, (b[1] - a[1]) / L
+        fx, fz = f[0], f[2]
+
+        def W(s, y, d=0.0):
+            return (a[0] + ux * s + fx * d, y, a[1] + uz * s + fz * d)
+        yd = self.yd
+        gh, sh = self.gh, self.sh
+        grade = self.YARD_GRADE.get(yd.get("klass"), 1)
+        pw, u0, u1, gy0, gy1 = self.YARD_WIN[grade]
+        gw = bw * pw / 64.0
+        shut = yd["plaster"] and yd["shutters"] and not yd["store"]
+        sw = gw * 6 / 28.0 if shut else 0.0  # (the painted leaf beside the glass, as on the cottages)
+        ground = ya < 0.01
+        # (the wall's own dice: the house's dress keeps its own draws)
+        r = random.Random(int(yd.get("seed", 0)) * 53 + 1874 + int(round(abs(a[0]) * 10 + abs(a[1]) * 7 + ya * 3)))
+        ops = []
+        if ground:
+            for k in range(k0, k1):
+                if grade == 0 and r.random() < 0.15:
+                    continue  # (a poor back: a bay left blind now and then)
+                if gy1 + 0.4 > yb:
+                    continue
+                c = (k + 0.5) * bw
+                ops.append({"s0": c - gw / 2, "s1": c + gw / 2, "y0": gy0, "y1": gy1, "kind": "win"})
+            ycut = yb
+        else:
+            ycut = ya
+            j = 0
+            while True:
+                base = gh + j * sh
+                wy0, wy1 = base + u0, base + u1
+                if wy1 + 0.35 > yb:  # (the lintel keeps clear of the eaves)
+                    break
+                for k in range(k0, k1):
+                    if grade == 0 and r.random() < 0.08:
+                        continue
+                    c = (k + 0.5) * bw
+                    ops.append({"s0": c - gw / 2, "s1": c + gw / 2, "y0": wy0, "y1": wy1, "kind": "win"})
+                ycut = min(yb, base + sh)
+                j += 1
+        holes = [dict(o, s0=o["s0"] - sw, s1=o["s1"] + sw) for o in ops]
+        if ground:
+            cell = (PART_COL["door"], row)  # (the plain ground storey on its plinth)
+            uvf = lambda s, y: (s / bw, min(y / gh, 0.98))  # noqa: E731
+            self.cut(W, k0 * bw, k1 * bw, 0, yb, holes, uvf, cell, f, self.backing - 0.02)
+        else:
+            cell = (PART_COL["blind"], row)
+            uvf = lambda s, y: (s / bw, (y - gh) / sh + 0.01)  # noqa: E731
+            if ycut > ya + 0.01:
+                self.cut(W, 0, L, ya, ycut, holes, uvf, cell, f, self.backing)
+            if yb - ycut > 0.01:
+                self.face([W(0, ycut), W(L, ycut), W(L, yb), W(0, yb)], MAT_FACADE, [uvf(0, ycut), uvf(L, ycut), uvf(L, yb), uvf(0, yb)], cell, f)
+        stone = yd["stone"] * (0.92 if grade == 0 else 1.0)
+        keep_ds, keep_tint = self.ds, self.tint
+        self.ds = yd  # (dress_open: the reveal in the wall's own row)
+        for o in ops:
+            g0, g1, y0, y1 = o["s0"], o["s1"], o["y0"], o["y1"]
+            # the pane: the house's sash; the poorer backs patched, cracked or boarded now and then
+            x = r.random()
+            bad = None
+            if grade == 0:
+                bad = "boards" if (x < 0.08 and self.wear > 0.8) else "patched" if x < 0.26 else "cracked" if x < 0.34 else None
+            elif grade == 1:
+                bad = "patched" if x < 0.05 else "cracked" if x < 0.09 else None
+            glass = SASH_PATCHED if bad == "patched" else SASH_CRACKED if bad == "cracked" else yd["sash"]
+            self.dress_open(W, ux, uz, f, o, YARD_R, glass)
+            if bad == "boards":
+                self.boards(W, ux, uz, f, o)
+            if self.rec_yard is not None:
+                self.rec_yard.append([self.rec_wall, round((g0 + g1) / 2, 2), round(g1 - g0, 2), round(y0, 2), round(y1, 2)] + ([1] if bad == "boards" else []))
+            YARD_N["windows"] = YARD_N.get("windows", 0) + 1
+            YARD_N[bad or "clean"] = YARD_N.get(bad or "clean", 0) + 1
+            # the painted shutters (the upper cell's leaves) flat on the wall, left and right of the glass
+            if sw > 0:
+                for sa, sb, pa, pb in ((g0 - sw, g0, 12, 18), (g1, g1 + sw, 46, 52)):
+                    self.face([W(sa, y0), W(sb, y0), W(sb, y1), W(sa, y1)], MAT_FACADE,
+                              [(pa / 64.0, 12 / 64.0), (pb / 64.0, 12 / 64.0), (pb / 64.0, 52 / 64.0), (pa / 64.0, 52 / 64.0)], (PART_COL["upper"], row), f)
+            # the sill and the lintel on the wall (near-only): stone; a timber lintel on the poor backs, a keystone on the fine
+            self.detail(True)
+            self.slab(W, ux, uz, f, g0 - 0.04, g1 + 0.04, y0 - 0.05, y0 + 0.03, 0, 0.07, stone * 0.9, under=y0 > 1.7)
+            if grade == 0:
+                self.tint = (0.42, 0.35, 0.28)
+                # (6.5 cm proud: nearer the wall, the zfight check counts it a close layer that the wobble can make flicker)
+                self.slab(W, ux, uz, f, g0 - 0.1, g1 + 0.1, y1, y1 + 0.14, 0, 0.065, 0.8, mat=MAT_WOOD, under=True)
+                self.tint = keep_tint
+            else:
+                self.slab(W, ux, uz, f, g0 - 0.06, g1 + 0.06, y1, y1 + (0.16 if grade == 2 else 0.13), 0, 0.055, stone, under=True, ends=False)
+                if yd.get("klass") == "fine":
+                    sc = (g0 + g1) / 2
+                    self.slab(W, ux, uz, f, sc - 0.07, sc + 0.07, y1 - 0.02, y1 + 0.22, 0, 0.1, stone * 1.05, under=True, top=False)
+            self.detail(False)
+        self.ds = keep_ds
+
     def front_lines(self, W, ux, uz, f, L, yb, bw, bays, ops):
         """At the floor lines over the first floor (the first, 3.8 m, is the signs' band): a stone band
         across the front, or iron anchors on the piers between the windows (near-only mesh)."""
@@ -1764,6 +1894,7 @@ class Builder:
         self.wear = wear_of(h, self.klass)
         self.wallmat = wall_material(h, self.klass)
         self.ds["klass"] = self.klass
+        self.ds["seed"] = h["seed"]  # (yard windows: their own dice from it)
         # (the districts pass) some fine fronts take corner pilasters in place of quoins; by the seed, the dice untouched
         self.ds["pilaster"] = self.klass == "fine" and h["seed"] % 5 < 2
         # (a house whose rooms stand in the world has no backing wall in them: its fronts get the full grid)
@@ -1888,8 +2019,10 @@ class Builder:
                 # the back alleys (tools/city/alleys.py): a back wall on a yard has windows, no door
                 if pt and i == 2:
                     self.rec, self.rec_wall = OPENINGS["plain_ground"].setdefault(str(h.get("_i")), []), i
+                self.rec_yard, self.rec_wall = YARD_WINDOWS.setdefault(str(h.get("_i")), []), i  # (yard windows)
                 self.wall(c[i], c[(i + 1) % 4], 0, H, style, True, outs[i], door=([back_op] if pt and i == 2 else None), kerb=False)
                 self.rec = None
+                self.rec_yard = None
             elif pt and i == 2:
                 self.blind_way(c[2], c[3], H, style, outs[2], back_op)
             else:
@@ -2330,7 +2463,9 @@ class Builder:
             self.pipe = None
             if not h["street"][i]:
                 if yard[i]:
+                    self.rec_yard, self.rec_wall = YARD_WINDOWS.setdefault(str(h.get("_i")), []), i  # (yard windows)
                     self.wall(a, b, 0, H, h["style"], True, outs[i], kerb=False)  # on a back yard (alleys.py): windows, no door
+                    self.rec_yard = None
                 else:
                     self.side_wall(fp, h["street"], outs, i, 0, H, h["style"], H)
                 continue
@@ -2914,6 +3049,8 @@ ID_ALLEY = {}  # id(house) -> a cottage of the back alleys
 # life (carried in city.glb, node "city_openings"): by house index; walls numbered as the rect ring (0 front,
 # 1 right side, 2 back, 3 left side), s in metres from the wall's first corner
 OPENINGS = {"poorts": {}, "plain_ground": {}, "cottages": {}}
+YARD_N = {}  # (yard windows) the back walls on the yards and their windows, printed
+YARD_WINDOWS = {}  # (yard windows) by house index, the windows cut into its backs on the yards (shared/city_yard_windows.json)
 PASSAGES = []  # the covered passages' insides, as world rectangles (4 corners): no kerb runs in there
 KERBS = []  # the kerb along every street wall: {a, b, f (outward), tint, bld}
 RAIL_POSTS = set()  # railing posts already standing
@@ -3341,11 +3478,19 @@ def main():
             json.dump({"about": "tools/blender/build_city.py gable_front: by house index, the windows cut into its front gable: "
                                 "[s_mid from the front's first corner, y0, y1, width, small]; lamps: the lanterns by the doors "
                                 "[x, y, z of the glass, outward x, z]", "houses": GABLE_WINDOWS, "lamps": LAMPS}, fh, separators=(",", ":"))
+        # (yard windows) the windows cut into the backs on the yards that can be lit (world/yardWindows.ts)
+        with open(os.path.join(ROOT, "shared", "city_yard_windows.json"), "w", encoding="utf-8") as fh:
+            json.dump({"about": "tools/blender/build_city.py yard_run: by house index, the glass of the windows cut into its back "
+                                "walls on the yards and courts: [wall, s_mid, width, y0, y1], and a sixth 1 when it is boarded up; wall "
+                                "the index in the house's ring (a rect house 0 front, 1 right, 2 back, 3 left; else the footprint's edge "
+                                "from fp[wall]), s from that wall's first corner",
+                       "houses": {k: v for k, v in YARD_WINDOWS.items() if v}}, fh, separators=(",", ":"))
     node = bpy.data.objects.new("city_openings", None)
     node["openings"] = json.dumps(dict(OPENINGS, about="by house index: poorts {s: [s0, s1] along the front from its first corner, h, kind}; "
                                        "plain_ground [[wall, s0, s1]]: ground bays built as plain wall (no shop window); "
                                        "cottages [[wall, s_mid, width, y0, y1]]: the only windows of an alley cottage's walls "
                                        "(walls: 0 front, 1 right, 2 back, 3 left, s from the wall's first corner)"), separators=(",", ":"))
+    print(f"[build_city] yard windows: {dict(sorted(YARD_N.items()))}")
     bpy.context.scene.collection.objects.link(node)
     meshes = [o for o in bpy.context.scene.objects if o.type == "MESH"]
     faces = sum(len(o.data.polygons) for o in meshes)

@@ -18,6 +18,7 @@ import { trafficLanes } from "./traffic";
 import { addProp, dropProps, propIndex } from "./propSpots";
 import INWORLD from "../../../shared/inworld_houses.json";
 import { boxesOverlap, kerbFront, type GroundProbe, type WallBox, type WallProbe } from "./wallprobe";
+import { yardWindowColumn } from "./yardWindows";
 
 // Clutter (Steve 2026-09-24: "the city feels empty and some street ends look unfinished").
 //
@@ -1461,7 +1462,8 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
     const budget = Math.max(2, Math.min(12, Math.round(a.length / 2.2)));
     // a rain butt under a downpipe, the pipe up to the eaves
     if (R() < 0.7) {
-      const sl = tryPut("rain_butt", (q) => q.w.H > 3.5);
+      // (yard windows, 2026-09-26: its downpipe not down over a window of a back on a yard, world/yardWindows.ts)
+      const sl = tryPut("rain_butt", (q) => q.w.H > 3.5 && !yardWindowColumn(q.w.ax + q.w.tx * q.s, q.w.az + q.w.tz * q.s));
       if (sl) {
         const w = sl.w;
         const x = w.ax + w.tx * sl.s + w.ox * lastFace;
@@ -1593,6 +1595,7 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
         const name = pickW(R, kit);
         const s2 = s + tries[k];
         if (s2 < 0.6 || s2 > w.L - 0.6) continue;
+        if (name === "rain_butt" && yardWindowColumn(w.ax + w.tx * s2, w.az + w.tz * s2)) continue; // (yard windows: its downpipe)
         done = againstWall(name, w, s2, maxDep, { market });
         if (done) {
           s = s2;
