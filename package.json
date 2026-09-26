@@ -1,6 +1,7 @@
 {
   "name": "scheldemist",
   "private": true,
+  "license": "AGPL-3.0-or-later",
   "scripts": {
     "setup": "npm install && npm --prefix server install && npm --prefix client install",
     "dev": "concurrently -k -n server,client -c yellow,cyan \"npm --prefix server run dev\" \"npm --prefix client run dev\"",

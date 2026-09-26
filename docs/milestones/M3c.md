@@ -92,7 +92,7 @@ Steve (screenshot of a street): the doors were flat dark plank rectangles, some 
 
 The door stays in the middle of the middle bay, so `build_props.py` (doorways kept clear) and `build_streetlife.py` (doorsteps, numbers) need no rebuild. The doors have their own dice (`seed * 31 + 1873`); the carriage-gate draw is the same as before, so every other house detail (gables, chimneys, dormers) is unchanged. The facade atlas is now 8 x 8 cells (512 px); city.ts `atlas: 8`.
 
-Rebuild (Blender 5.2 on PCX):
+Rebuild (Blender 5.2):
 
     "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --factory-startup -P tools/blender/build_city.py
 

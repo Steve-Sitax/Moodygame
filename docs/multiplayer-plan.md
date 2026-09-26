@@ -58,7 +58,7 @@ Non-goals (for now):
 ## 2. Architecture
 
 ```
- Host PC (PCX)                                              Guest PC / laptop (STX-PCX01)
+ Host PC                                                    Guest PC / laptop            
  +------------------------------------------+               +-----------------------------+
  | node server (Hono + ws), one port 8787   |  HTTP         | browser                     |
  |  - serves client/dist (the built game)   |<------------->|  loader: manifest, IndexedDB|
@@ -493,7 +493,7 @@ S: a day or less. M: a few days. L: a week or more.
   buffer on purpose.
 - Numbers to watch: corrections sent (must be 0 in normal play), the largest jump of a remote figure between
   frames, the interpolation buffer never empty, bytes per second per client.
-- A real LAN check on two machines: PCX as host, STX-PCX01 on Wi-Fi as guest.
+- A real LAN check on two machines: the desktop as host, the laptop on Wi-Fi as guest.
 - The path check (`__scheldemist.paths()`) as before; and a check that every player can reach the ferry
   landing and his home.
 
@@ -510,7 +510,7 @@ Two players on the LAN walk the town and see each other smoothly.
   jump, crouch, swim animations and footsteps.
 - Guests are visitors in this phase: they walk, jump, swim and look; they cannot yet work, buy or talk.
   The townspeople are still each PC's own (a known gap, fixed in M8b).
-- Checks: two tabs on the test stack (`?seat=2`) and PCX + STX-PCX01 over Wi-Fi. A guest's first join shows
+- Checks: two tabs on the test stack (`?seat=2`) and the desktop and the laptop over Wi-Fi. A guest's first join shows
   "Downloading N of 66 MB" and then the town; the second join downloads 0 files; one changed texture after a
   rebuild downloads that file only. Two players walk together, jump on crates, go up the quay stairs, swim:
   0 corrections, no jumps of the other figure. The same time and weather on both screens. Esc on one does
