@@ -5,6 +5,9 @@ import { buildCellar, buildTavern, type Room, type Seat, type Spot } from "../wo
 import { buildShop } from "../world/shopRooms";
 import { buildCafe, CAFE_STYLE } from "../world/cafeRooms";
 import { hangShopSigns, type FrontSpan } from "../world/shopSigns";
+// empty fronts (2026-09-26): shutters up on a shut shop; the net for listed houses left without a room
+import { makeShutters, shutUp, type Shutters } from "../world/shopShutters";
+import { standInHas, updateStandIns } from "../world/emptyFronts";
 import { holdProp, shopProp } from "./shopProps";
 import { SHOP_LOOK } from "../../../shared/shops";
 import { signTexture, glowTexture } from "../world/textures";
@@ -95,6 +98,9 @@ export class Interiors {
   /** M7 shops: the town's shops (server shops/routes.ts), by place; their rooms are keyed "shop:<id>" in houses. */
   private shops: ShopInfo[] = [];
   private shopsDecorated = false;
+  /** Empty fronts: the shops' shutters (world/shopShutters.ts), by "shop:<id>"; and the shops' list has come in once. */
+  private shutters = new Map<string, Shutters>();
+  private shopsIn = false;
   /** M7 shops: who serves beside the keeper in the shop whose life runs (his wife, a helper). */
   private helperIds = new Set<string>();
   private world: { world: World; inWorld: InWorld; plans: Map<string, HousePlan> } | null = null;
@@ -163,6 +169,11 @@ export class Interiors {
       this.dice.close();
     };
     void this.load();
+  }
+
+  /** Empty fronts (world/emptyFronts.ts): the shops, the taverns and the Poesje have been built from the server's answer. */
+  get frontsLoaded(): boolean {
+    return this.shopsIn && !!this.info && !!this.world;
   }
 
   /** Jef is inside a tavern, the Poesje or his home. */
@@ -253,7 +264,8 @@ export class Interiors {
     if (!w) return;
     for (const s of this.shops) {
       const key = `shop:${s.place}`;
-      if (this.houses.has(key) || !s.trade) continue;
+      // (empty fronts: a shut stand-in already stands in this house, world/emptyFronts.ts)
+      if (this.houses.has(key) || !s.trade || standInHas(key)) continue;
       const plan = w.plans.get(key);
       // the town's door must be the listed house's (another save may have its shop elsewhere: then no room)
       if (!plan || Math.hypot(plan.origin.x - s.wall[0], plan.origin.z - s.wall[1]) > 0.8) continue;
@@ -261,6 +273,7 @@ export class Interiors {
       const house = createHouseInWorld(w.world, w.inWorld, plan, room, { color: 0x1c1610, near: 3.5, far: 16 }, 0.35);
       house.doorOpen = s.open;
       this.houses.set(key, { kind: "shop", house });
+      this.shutters.set(key, makeShutters(plan, w.world.scene, room.scene));
     }
     // the boards and bracket signs over the doors, once (they want the fronts from the house plans)
     if (!this.shopsDecorated && this.shops.length) {
@@ -274,6 +287,7 @@ export class Interiors {
       // M7 shops: the shops' doors and hours (their own route; a failure leaves the taverns be)
       try {
         this.shops = (await interiorApi.shops()).shops ?? this.shops; // a reply that did not parse keeps the list
+        this.shopsIn = true;
         this.buildShops();
         for (const s of this.shops) {
           const h = this.houses.get(`shop:${s.place}`);
@@ -1242,8 +1256,11 @@ export class Interiors {
       // a tavern shut for the night: its lamps out, the fire down to embers (the Poesje's candles only in the evening)
       hw.house.room.setLamps?.(hw.house.doorOpen ? 1 : 0);
       hw.house.update(this.t, dt, day);
+      // empty fronts: a shut shop's shutters are up (not in the midday break), once its door has swung to
+      this.shutters.get(hw.house.id)?.set(shutUp(hw.house.doorOpen || hw.house.leaf > 0.05, h));
       if (hw.house.drawn() || this.here?.house === hw.house) hw.house.room.update(this.t, dt);
     }
+    updateStandIns(h);
     // whose life runs, and Jef in or out (a little either way so it never flickers at the threshold)
     this.choose();
     const here = this.here;

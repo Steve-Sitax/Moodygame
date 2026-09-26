@@ -9,6 +9,7 @@ import { buildHome } from "../world/homeRooms";
 import { makePiece } from "../world/furniture";
 import type { Room } from "../world/rooms";
 import { createHouseInWorld, type HouseInWorld } from "../world/houseInWorld";
+import { watchEmptyFronts } from "../world/emptyFronts";
 import type { HousePlan } from "../../../shared/housePlan";
 import * as HP from "../../../shared/hallPlan";
 import { canPlace, CELL, CLASSES, FURNITURE, footprint, grid, type HomeClass, type Placed } from "../../../shared/homes";
@@ -80,6 +81,9 @@ export class Homes {
   attachWorld(inWorld: InWorld, plans: Map<string, HousePlan>): void {
     this.world = { inWorld, plans };
     this.build();
+    // empty fronts (2026-09-26): once the homes and the shops, taverns and Poesje are built, a shut room in every listed
+    // house still without one (world/emptyFronts.ts)
+    watchEmptyFronts(this.worldRef, inWorld, plans, () => !!this.info && this.interiors.frontsLoaded);
   }
 
   private build(): void {

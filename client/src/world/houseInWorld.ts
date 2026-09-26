@@ -472,7 +472,9 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
       }
       const lit = self.glow * THREE.MathUtils.clamp((0.45 - day) / 0.25, 0, 1);
       if (candle) candle.intensity = 7 * lit * (0.92 + 0.08 * Math.sin(t * 5.3) * Math.sin(t * 2.1));
-      transomMat.color.setRGB(0.11 + 0.5 * lit, 0.13 + 0.34 * lit, 0.16 + 0.12 * lit);
+      // (empty fronts, 2026-09-26: the unlit glass takes the sky's light; at night a grey pane glowed over a shut door)
+      const sky = 0.06 + 0.94 * THREE.MathUtils.clamp(day, 0, 1);
+      transomMat.color.setRGB(0.11 * sky + 0.5 * lit, 0.13 * sky + 0.34 * lit, 0.16 * sky + 0.12 * lit);
       if (glowMesh) {
         (glowMesh.material as THREE.MeshBasicMaterial).opacity = lit * (0.8 + 0.08 * Math.sin(t * 2.3) * Math.sin(t * 1.3));
         glowMesh.visible = lit > 0.01;

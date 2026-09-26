@@ -1252,6 +1252,8 @@ if (import.meta.env.DEV) {
       const d = (window as unknown as { __scheldemist: { step(s: number): void; shot(n: string): Promise<string> } }).__scheldemist;
       return (await import("./dev/hallcheck")).makeHallCheck({ halls: () => landmarks.inWorldHalls, player, world, inWorld, renderer, render: (cam, t) => retro.render(world.scene, cam, t), update: (dt) => d.step(dt), shot: (n) => d.shot(n) });
     },
+    /** Empty fronts (world/emptyFronts.ts): every house cut open in the city and what stands behind its door and windows; `problems` must be empty. */
+    emptyfronts: async () => (await import("./world/emptyFronts")).emptyFrontsReport(),
     /** M7 taverns and homes: the halls' checks (walk, gaps, shot) for the in-world houses, by id ("tavern:ankere", "home:garret"). */
     houses: async () => {
       const d = (window as unknown as { __scheldemist: { step(s: number): void; shot(n: string): Promise<string> } }).__scheldemist;

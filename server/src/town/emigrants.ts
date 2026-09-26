@@ -12,6 +12,7 @@ import type { Seg } from "./schedule.ts";
 import { policePost } from "./police.ts";
 import { talkExtras, type ExtraTopic } from "./talk.ts";
 import { HAND_MAX } from "../hooks/loads.ts";
+import { INWORLD_HOUSES } from "./kept.ts";
 
 // Emigrants on the Rijnkaai (M6, Steve 2026-09-24: "Families with bundles wait on the quay and in
 // cheap lodging houses for the new Red Star Line ship"). Research and sources:
@@ -570,7 +571,8 @@ export function makeFamily(seed: number, n: number, slot: number, home: { house:
 /** A door nobody lives or works behind, that no place, shop or other record uses. */
 function freeDoors(db: DB): HouseDoor[] {
   const t = town(db).town;
-  const houses = new Set(t.residents.map((r) => r.home.house));
+  // (empty fronts, 2026-09-26) never a house whose inside stands in the world for its own use (town/kept.ts)
+  const houses = new Set([...t.residents.map((r) => r.home.house), ...INWORLD_HOUSES]);
   const taken: Pt[] = [];
   for (const r of t.residents) {
     taken.push([r.home.sx, r.home.sz]);
@@ -602,7 +604,7 @@ function pickLogement(free: HouseDoor[]): { door: HouseDoor; shared: boolean } {
   const score = (d: HouseDoor) => Math.hypot(d.sx - LOGEMENT_ANCHOR[0], d.sz - LOGEMENT_ANCHOR[1]) + (d.out[1] < -0.7 ? 0 : 25) + (d.storeys >= 3 ? 0 : 10);
   const door = free.filter((d) => Math.hypot(d.sx - LOGEMENT_ANCHOR[0], d.sz - LOGEMENT_ANCHOR[1]) < 90).sort((a, b) => score(a) - score(b))[0];
   if (door) return { door, shared: false };
-  return { door: [...houseDoors()].sort((a, b) => score(a) - score(b))[0], shared: true };
+  return { door: [...houseDoors()].filter((d) => !INWORLD_HOUSES.has(d.house)).sort((a, b) => score(a) - score(b))[0], shared: true };
 }
 
 /** The runner's lodging: the free house nearest the back lanes behind the Rijnkaai. */
@@ -642,8 +644,12 @@ function doorStands(house: number, step: Pt): boolean {
  */
 export function rehouseEmigrants(db: DB, e: EmigrantTown): boolean {
   const runner = town(db).byId.get(e.runner);
-  const runnerStale = !!runner && runner.home.house >= 0 && !doorStands(runner.home.house, [runner.home.sx, runner.home.sz]);
-  const lgStale = !doorStands(e.logement.house, e.logement.step);
+  // (empty fronts, 2026-09-26) an older save put the Logement or the runner in a house whose inside stands in the world
+  // for its own use (town/kept.ts: Steve's save had the Logement in the barber's house by the Rijnkaai bakery, whose
+  // cut-open front then showed a void): they move out as a stale one does, and the shop moves in (shops/town.ts)
+  const listed = INWORLD_HOUSES.has(e.logement.house);
+  const runnerStale = !!runner && runner.home.house >= 0 && (INWORLD_HOUSES.has(runner.home.house) || !doorStands(runner.home.house, [runner.home.sx, runner.home.sz]));
+  const lgStale = listed || !doorStands(e.logement.house, e.logement.step);
   if (!lgStale && !runnerStale) return false;
   const free = freeDoors(db);
   const old = e.logement.step;
@@ -661,7 +667,9 @@ export function rehouseEmigrants(db: DB, e: EmigrantTown): boolean {
     for (const row of rows) {
       const r = JSON.parse(row.data_json) as Resident;
       const before = row.data_json;
-      if (lgStale && atOld([r.home.sx, r.home.sz])) r.home = stepAt(door);
+      // (out of a listed house only the Logement's own people go: its keeper and the emigrant families)
+      const ours = !listed || r.id === e.keeper || r.household >= HH_BASE || r.work.place === "logement";
+      if (lgStale && ours && atOld([r.home.sx, r.home.sz])) r.home = stepAt(door);
       if (lgStale && atOld(r.work.door)) r.work.door = [door.sx, door.sz];
       if (lgStale && r.id === e.keeper) r.work.at = keeperPost(door);
       if (rdoor && r.id === e.runner) {
