@@ -19,11 +19,11 @@ and foot-of-wall dirt.
 
 At most 3-4 helpers at once, so tests and browser checks do not time out.
 
-1. Wave 1: loading screen, character creator, empty shop fronts are live; prison made real still running.
+1. Wave 1: done and live (loading screen, character creator, empty shop fronts, prison, boats).
    Why first: they are nearly done; multiplayer needs the loading screen and the character creator;
    the prison writes the interior check and template the shop fronts use; the shop fronts change the
    houses before the yard windows do.
-2. Wave 2, paused until wave 1 is in: yard windows 3D, picture round 1/4/5 (+ tuning).
+2. Wave 2, running now: yard windows 3D, picture round 1/4/5 (+ tuning).
    Why: both touch houses, walls and the ground; yard windows after the shop fronts (both rebuild
    city.glb). (Props in walls finished early and goes live first: others build on its checks.)
 3. Wave 3: all boats (big; its steamers get the picture round's smoke), then multiplayer M8a (walk
@@ -35,15 +35,15 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 | Work | Scope and files | Started |
 |---|---|---|
 | Codex: low-poly props and tight collisions | SAFE BATCH MERGED + PUSHED `abb6a21` (already live through `9aa9cd4`; reconciled main `98bdebe`): collision core, tree trunks and static stop benches; tree/vegetation design, matching bark bump/wet map. Seven collision tests, clean build, Chrome contact + dry/rain, paths/shaders empty. Test Chrome and isolated 5469/9069 stack cleaned up. HOLD barrels/crates/sacks and other prepared prop-loader changes until Props in walls/Picture round finishes; defer other active assets per Steve. Queue/scope and validation: `docs/milestones/M7-small-assets.md`; original cargo evidence `M7-tight-props.md`. Extra router check: 19 passed, two timeouts (first Codex stub and process-kill test); report to Flaky talk-down/AI owner, no edits to their files. | 2026-09-26 |
-| Picture round 1, 4, 5 + tuning | PAUSED. autumn ground (leaves, dung, straw), clouds, smoke and works chimneys; stronger gutter streams and foot-of-wall dirt; litter.ts, leaves, sky in rijnkaai.ts, ambient.ts, eaves.ts, footDirt constants | 2026-09-26 |
-| Yard windows 3D | PAUSED. the 348 yard-side walls get real windows; build_city.py, city.glb; posters/props/gutters checks stay clean | 2026-09-26 |
-| Prison made real | every room the outside shows built inside, seen through every window; a general `interiorcheck`; `docs/building-with-interior.md` | 2026-09-26 |
-| All boats | Done; the patch is being rebuilt on the newest version, then live. detail on every boat and barge, 6+ kinds of small boats, take any boat ("take X's boat"), owner angry if he sees it | 2026-09-26 |
+| Picture round 1, 4, 5 + tuning | RUNNING (wave 2). autumn ground (leaves, dung, straw), clouds, smoke and works chimneys; stronger gutter streams and foot-of-wall dirt; litter.ts, leaves, sky in rijnkaai.ts, ambient.ts, eaves.ts, footDirt constants | 2026-09-26 |
+| Yard windows 3D | RUNNING (wave 2). the 348 yard-side walls get real windows; build_city.py, city.glb; posters/props/gutters checks stay clean | 2026-09-26 |
 
 ## Live (2026-09-26, after the away batch)
 
 | Commit | What |
 |---|---|
+| 81b5c10 | Boats: detail on all, seven new small kinds, take any boat by its owner's name |
+| e989164 | The prison made real; interiorcheck; the template for buildings with an inside |
 | 5daf31c | Loading screen; every shader, texture and room ready before the menu |
 | 8033055 | Empty shop fronts get their shops (barber by the bakery), shutters at night, a guard |
 | 6726659 | Your character: name, sex, age, looks and clothes before a new week |
