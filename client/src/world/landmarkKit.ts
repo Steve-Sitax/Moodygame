@@ -22,7 +22,7 @@ const cache = new Map<string, THREE.Material>();
 /** A psx Lambert with a map and vertex colour, made once. */
 export function lmMat(key: string, o: THREE.MeshLambertMaterialParameters, affine = 0.15, bump = 0): MatDef {
   // `bump`: metres of relief from the map's own colour (retro/psx.ts bumpFromMap; the floors, 2026-09-26), 0 = none.
-  // Not for a map that is swapped for a picture later: the relief would stay the stand-in's.
+  // A map swapped for a picture later (withPicture) has its relief made again from the picture (2026-09-26).
   return {
     key,
     make: () => {

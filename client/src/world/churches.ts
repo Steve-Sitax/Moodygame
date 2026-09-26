@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import CITY from "../../../shared/city.json";
-import { psx } from "../retro/psx";
+import { bumpFromMap, psx } from "../retro/psx";
 import type { Rect } from "./geom";
 import { withPicture } from "./quayStone";
 
@@ -14,6 +14,13 @@ const CAROLUS_PICTURES: Record<string, string> = {
   pj_white: "/textures/pj_white.jpg",
   pj_brabant: "/textures/pj_brabant.jpg",
 };
+// --- the churches' walls (Steve, 2026-09-26: "churches do not forget bump mapping"; the foot of the walls): the stone
+// and brick of the three churches get a height map from their own picture (retro/psx.ts bumpFromMap, made again when
+// the Codex picture comes in), big soft patches so a repeated picture does not show its grid (psx mottle), and the
+// mud and damp at the foot (psx foot). Not the park's things, the gilding, the roofs or the glass ---
+const CHURCH_WALLS = /^(church_(stone|greystone|brick|atlas)|carolus_(sand|blue|pale|art)|pj_(brick|white|brabant))$/;
+const wallLook = (name: string) => (CHURCH_WALLS.test(name) ? { foot: { amount: 0.5 }, mottle: name === "church_atlas" ? 0 : 0.45 } : {});
+// ---
 const CAROLUS_TINT: Record<string, THREE.Color> = {
   carolus_sand: new THREE.Color(1.38, 1.27, 1.06),
   carolus_blue: new THREE.Color(1.16, 1.13, 1.04),
@@ -141,11 +148,14 @@ export function loadChurches(scene: THREE.Scene): ChurchesModel {
       m = psx(new THREE.MeshLambertMaterial({ map: map ?? null, color: CAROLUS_TINT[src.name], vertexColors: true, side: THREE.DoubleSide }), {
         fogReach: 2.2,
         affine: 0,
+        ...wallLook(src.name),
       });
     else if (src.name === "park_water")
       m = psx(new THREE.MeshLambertMaterial({ map: map ?? null, color: map ? 0xffffff : 0x3a4a4c, vertexColors: true, transparent: true, opacity: 0.88 }), { affine: 0, wet: true });
     // (the railing's pickets are single faces: both sides)
-    else m = psx(new THREE.MeshLambertMaterial({ map: map ?? null, color: map ? 0xffffff : src.color, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 });
+    else m = psx(new THREE.MeshLambertMaterial({ map: map ?? null, color: map ? 0xffffff : src.color, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0, ...wallLook(src.name) });
+    // (the churches' walls: bumps from their own picture; not the atlas's painted windows)
+    if (map && CHURCH_WALLS.test(src.name) && src.name !== "church_atlas") bumpFromMap(m, 0.05);
     m.name = src.name;
     mats.set(src.name, m);
     return m;

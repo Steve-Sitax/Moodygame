@@ -262,7 +262,14 @@ export function loadWall(scene: THREE.Scene): WallModel {
         { fogReach: 2.2, affine: 0 },
       );
     } else {
-      m = psx(new THREE.MeshLambertMaterial({ map: map ?? null, color: map ? 0xffffff : src.color, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 });
+      // (2026-09-26: the brick and stone of the wall, its gates and guard houses: mud and damp at the foot, big soft
+      // patches so the picture shows no grid; retro/psx.ts foot and mottle)
+      const masonry = /^wall_(brick|quoin|plinth|stone)$/.test(src.name);
+      m = psx(new THREE.MeshLambertMaterial({ map: map ?? null, color: map ? 0xffffff : src.color, vertexColors: true, side: THREE.DoubleSide }), {
+        fogReach: 2.2,
+        affine: 0,
+        ...(masonry ? { foot: { amount: 0.6 }, mottle: src.name === "wall_brick" || src.name === "wall_stone" ? 0.45 : 0 } : {}),
+      });
     }
     m.name = src.name;
     mats.set(src.name, m);

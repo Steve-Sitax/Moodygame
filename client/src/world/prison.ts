@@ -19,6 +19,14 @@ const PICTURES: Record<string, string> = {
   pr_brick: "/textures/wall_brick.jpg",
   pr_blue: "/textures/wall_ashlar_blue.jpg",
 };
+/**
+ * The pictures' own height maps (tools/textures/wall_heights.py, the same the house walls use), laid on as bump maps
+ * when the picture comes in, never before: the painted stand-in has other bricks (2026-09-26, bump maps on the walls).
+ */
+const HEIGHTS: Record<string, string> = {
+  pr_brick: "/textures/wall_brick_h.png",
+  pr_blue: "/textures/wall_ashlar_blue_h.png",
+};
 /** A weathered prison: the pictures a shade darker and colder than the town's houses. */
 const TINT: Record<string, THREE.Color> = {
   pr_brick: new THREE.Color(0.74, 0.68, 0.64),
@@ -55,6 +63,23 @@ export function loadPrison(scene: THREE.Scene): PrisonModel {
       map.magFilter = THREE.LinearFilter;
       map.minFilter = THREE.LinearMipmapLinearFilter;
       map.anisotropy = 4;
+      const hUrl = HEIGHTS[src.name];
+      if (hUrl)
+        map.userData.onPicture = () => {
+          const h = new THREE.TextureLoader().load(hUrl, () => {
+            const lm = mats.get(src.name) as THREE.MeshLambertMaterial | undefined;
+            if (!lm) return;
+            lm.bumpMap = h;
+            lm.bumpScale = 0.03;
+            lm.needsUpdate = true;
+          });
+          h.flipY = map.flipY;
+          h.wrapS = h.wrapT = THREE.RepeatWrapping;
+          h.repeat.copy(map.repeat);
+          h.offset.copy(map.offset);
+          h.magFilter = THREE.LinearFilter;
+          h.minFilter = THREE.LinearMipmapLinearFilter;
+        };
       withPicture(map, picture);
     }
     let m: THREE.Material;
@@ -63,11 +88,13 @@ export function loadPrison(scene: THREE.Scene): PrisonModel {
       m = psx(glow, { affine: 0 });
     } else if (src.name === "pr_atlas") {
       // (the atlas: nearest, no warp: the bars stay straight)
-      m = psx(new THREE.MeshLambertMaterial({ map: map ?? null, vertexColors: true }), { fogReach: 2.0, affine: 0 });
+      m = psx(new THREE.MeshLambertMaterial({ map: map ?? null, vertexColors: true }), { fogReach: 2.0, affine: 0, foot: { amount: 0.8 } });
     } else if (src.name === "pr_iron") {
       m = psx(new THREE.MeshLambertMaterial({ map: map ?? null, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.0, affine: 0 });
     } else {
-      m = psx(new THREE.MeshLambertMaterial({ map: map ?? null, color: TINT[src.name] ?? 0xffffff, vertexColors: true }), { fogReach: 2.0, affine: 0 });
+      // (the walls: mud and damp at the foot, big soft patches so the picture shows no grid: retro/psx.ts foot, mottle)
+      const wall = src.name === "pr_brick" || src.name === "pr_blue";
+      m = psx(new THREE.MeshLambertMaterial({ map: map ?? null, color: TINT[src.name] ?? 0xffffff, vertexColors: true }), { fogReach: 2.0, affine: 0, ...(wall ? { foot: { amount: 0.8 }, mottle: 0.5 } : {}) });
     }
     m.name = src.name;
     mats.set(src.name, m);

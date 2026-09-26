@@ -68,6 +68,7 @@ REVEAL = 0.2  # a door sits this far back in the wall
 # window 12..52 across, 12..50 up the ground storey. Their sashes have cells of their own now (columns 4-7,
 # rows 0-2), the whole cell over the opening.
 WIN_R, SHOP_R = 0.16, 0.12  # how far back in the wall the sash stands (ambient.ts puts the lit pane there)
+COT_R = 0.11  # the alley cottages' sash, as far back in its thinner wall (the houses' pass, 2026-09-26)
 UP_U, UP_V = (21 / 64, 43 / 64), (12 / 64, 52 / 64)
 SHOP_U, SHOP_V = (12 / 64, 52 / 64), (12 / 64, 50 / 64)
 SASH = [(4, 0), (5, 0), (6, 0), (7, 0)]
@@ -2247,14 +2248,26 @@ class Builder:
         if self.rec_win is not None:
             for wn in wins:
                 self.rec_win.append([self.rec_wall, round((wn["s0"] + wn["s1"]) / 2, 3), round(wn["s1"] - wn["s0"], 3), round(wn["y0"], 3), round(wn["y1"], 3)])
+        # (the houses' pass, 2026-09-26, Steve: "not all houses are high quality": the cottages' windows were painted
+        # flat on the wall. Now the glass is set in: the sash (an atlas cell of its own, the house's dice) COT_R back
+        # in a reveal of the wall's own picture, a stone lintel over it, the sill under it; the painted shutters stay
+        # flat on the wall beside it. The opening's box is the painted window's, as recorded above: the bills keep
+        # clear of it, and no lit pane is drawn on the cottages (ambient.ts))
+        sash = self.ds["sash"] if self.ds else SASH[0]
         for wn in wins:
             px0, px1 = pxs(wn["sh"])
-            u0, u1 = px0 / 64.0, px1 / 64.0
             glass = ((wn["s1"] - wn["s0"]) * 28 / (px1 - px0)) / 2  # half the window without its shutters
-            self.face([W(wn["s0"], wn["y0"]), W(wn["s1"], wn["y0"]), W(wn["s1"], wn["y1"]), W(wn["s0"], wn["y1"])], MAT_FACADE,
-                      [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], (PART_COL["upper"], row), f)
             sm = (wn["s0"] + wn["s1"]) / 2
-            self.slab(W, ux, uz, f, sm - glass - 0.04, sm + glass + 0.04, wn["y0"] - 0.05, wn["y0"] + 0.03, 0, 0.07, stone * 0.9, under=wn["y0"] > 1.7)
+            g0, g1 = sm - glass, sm + glass
+            # the painted shutters (or the painted frame's edge) on the wall, left and right of the glass
+            for sa, sb, pa, pb in ((wn["s0"], g0, px0, 32 - 14), (g1, wn["s1"], 32 + 14, px1)):
+                if sb - sa > 0.005:
+                    self.face([W(sa, wn["y0"]), W(sb, wn["y0"]), W(sb, wn["y1"]), W(sa, wn["y1"])], MAT_FACADE,
+                              [(pa / 64.0, v0), (pb / 64.0, v0), (pb / 64.0, v1), (pa / 64.0, v1)], (PART_COL["upper"], row), f)
+            self.dress_open(W, ux, uz, f, {"s0": g0, "s1": g1, "y0": wn["y0"], "y1": wn["y1"], "kind": "win"}, COT_R, sash)
+            self.slab(W, ux, uz, f, g0 - 0.04, g1 + 0.04, wn["y0"] - 0.05, wn["y0"] + 0.03, 0, 0.07, stone * 0.9, under=wn["y0"] > 1.7)
+            # the lintel: a plain stone over the glass
+            self.slab(W, ux, uz, f, g0 - 0.06, g1 + 0.06, wn["y1"], wn["y1"] + (0.13 if shut else 0.11), 0, 0.05, stone, under=True, ends=False)
         if door:
             self.doorway(W, door, self.arc_pts(door), ux, uz, f, stone)
 

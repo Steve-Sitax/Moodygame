@@ -344,10 +344,12 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
   // --- landmarks from Blender (tools/blender/build_landmarks.py) replace the stand-ins
   const lmMats: Record<string, THREE.Material> = {
     // (bump maps on every floor, 2026-09-26: the landmarks' steps, terraces and plinths, from their own colour)
-    stone: bumpFromMap(psx(new THREE.MeshLambertMaterial({ map: stoneTexture(), color: 0xd8d0c0, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 }), 0.01),
+    // (2026-09-26: the foot of the walls, mud and damp, and big soft patches so the stone's picture shows no grid:
+    // retro/psx.ts foot and mottle; the cathedral too)
+    stone: bumpFromMap(psx(new THREE.MeshLambertMaterial({ map: stoneTexture(), color: 0xd8d0c0, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0, foot: { amount: 0.5 }, mottle: 0.4 }), 0.01),
     slate: psx(new THREE.MeshLambertMaterial({ map: slateTexture(), vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 }),
     glass: psx(new THREE.MeshLambertMaterial({ map: glassTexture(), vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 }),
-    brickband: psx(new THREE.MeshLambertMaterial({ map: brickBandTexture(), vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 }),
+    brickband: psx(new THREE.MeshLambertMaterial({ map: brickBandTexture(), vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0, foot: { amount: 0.5 }, mottle: 0.4 }),
     lead: psx(new THREE.MeshLambertMaterial({ color: 0x4a4e52, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 }),
     // the gilt cross, ball and clock dials of the cathedral
     gilt: psx(new THREE.MeshLambertMaterial({ color: 0xc8a040, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 }),
@@ -366,7 +368,7 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
           map.magFilter = THREE.NearestFilter;
           map.minFilter = THREE.NearestFilter;
           map.generateMipmaps = false;
-          lmMats[name] = psx(new THREE.MeshLambertMaterial({ map, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 });
+          lmMats[name] = psx(new THREE.MeshLambertMaterial({ map, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0, foot: { amount: 0.5 } });
         }
       }
       m.material = lmMats[name] ?? lmMats.stone;
@@ -385,14 +387,15 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
   // --- houses from Blender
   // both sides drawn: a wall seen from behind (a party wall, a gable back) is never a hole
   const DS = THREE.DoubleSide;
-  const facade = psx(new THREE.MeshLambertMaterial({ map: facadeAtlas(), vertexColors: true, side: DS }), { atlas: 8, affine: 0 });
+  // (the foot of the walls, 2026-09-26: mud, damp and its tide line, by the house's wear: retro/psx.ts foot)
+  const facade = psx(new THREE.MeshLambertMaterial({ map: facadeAtlas(), vertexColors: true, side: DS }), { atlas: 8, affine: 0, foot: { amount: 1, vertexWear: true } });
   const roof = psx(new THREE.MeshLambertMaterial({ map: roofAtlas(), vertexColors: true, side: DS }), { atlas: 2, affine: 0 });
   const wood = psx(new THREE.MeshLambertMaterial({ map: makeTextures().planks, vertexColors: true, side: DS }), { affine: 0.2 });
   const leaves = psx(new THREE.MeshLambertMaterial({ map: leafTexture(), vertexColors: true, side: DS }), { affine: 0 });
   // --- bump maps on every floor (2026-09-26): the pavements, kerbs and door steps (flat, below 0.8 m) as bluestone slabs in
   // world metres with their own relief (retro/psx.ts slabs); their own uv there stretched the stone texture flat
   const slabPave = flagPaving();
-  const trim = psx(new THREE.MeshLambertMaterial({ map: stoneTexture(), vertexColors: true, side: DS }), { affine: 0.2, slabs: { map: slabPave.map, height: slabPave.height, tile: 2.6, yMax: 0.8 } });
+  const trim = psx(new THREE.MeshLambertMaterial({ map: stoneTexture(), vertexColors: true, side: DS }), { affine: 0.2, slabs: { map: slabPave.map, height: slabPave.height, tile: 2.6, yMax: 0.8 }, foot: { amount: 0.8, vertexWear: true } });
   // M7 the grime pass: the fronts old and dirty (world/houseGrime.ts: wall pictures, streaks, damp, soot, worn paint)
   houseGrime(facade, trim);
   // grime pass 2: rust runs, soot, damp and corner grime as decals (build_city.py MAT_GRIME): see-through, no

@@ -48,8 +48,9 @@ const G = {
   } as MatDef,
   wash: lmMat("gh_wash", { map: PIC("/textures/pj_wash.jpg", flat("#d8d2c4")), color: 0xe4ded0 }, 0.03),
   vault: lmMat("gh_vault", { map: PIC("/textures/pj_wash.jpg", flat("#d8d2c4")), color: 0xe8e2d6, side: THREE.DoubleSide }, 0.03),
-  white: lmMat("gh_white", { map: PIC("/textures/pj_white.jpg", flat("#c8c4bc")), color: 0xe0dcd4 }, 0.05),
-  sand: lmMat("gh_sand", { map: PIC("/textures/pj_brabant.jpg", flat("#b0a894")), color: 0xf2eadc }, 0.05),
+  // (the stone pictures with bumps from their own picture, 2026-09-26: "churches do not forget bump mapping")
+  white: lmMat("gh_white", { map: PIC("/textures/pj_white.jpg", flat("#c8c4bc")), color: 0xe0dcd4 }, 0.05, 0.02),
+  sand: lmMat("gh_sand", { map: PIC("/textures/pj_brabant.jpg", flat("#b0a894")), color: 0xf2eadc }, 0.05, 0.02),
   oak: C.oak,
   oakPlain: C.oakPlain,
   marbleW: lmMat("gh_marble_w", { map: marble(false), color: 0xf0ece4 }, 0.05),

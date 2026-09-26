@@ -195,7 +195,94 @@ export interface PsxOptions {
    * tile `tile` m), with the ground's relief light, whatever the mesh's own uv there. The rest keeps its texture.
    */
   slabs?: { map: THREE.Texture; height: THREE.Texture; tile: number; yMax: number };
+  /**
+   * Dirt at the foot of the walls (Steve, 2026-09-26: "bit more dirty on the underside where it touches the road"):
+   * on the upright faces of this material, a band 0.5 to 1.2 m over the street, darker, splashed with mud, the damp
+   * rising with a tide line at its top, uneven along the wall. `amount` 0..1; `vertexWear`: the house's own wear in
+   * the vertex colour's alpha (build_city.py wear_of) sets how high and how dark. Less on the fine squares (FOOT_FINE),
+   * more where the street by the wall is dirty (world/dirt.ts). World space: any building, any uv.
+   */
+  foot?: { amount: number; vertexWear?: boolean };
+  /**
+   * Big soft patches of lighter, darker, warmer and sootier stone over the upright faces (world metres, a noise that
+   * never repeats), so a picture repeated over a big wall does not show its grid. Colour only: the bumps stay those of
+   * the picture under it. 0..1 strength.
+   */
+  mottle?: number;
 }
+
+/**
+ * The fine squares and their reach (tools/blender/build_city.py FINE_PLACES: the Grote Markt, the Handschoenmarkt and
+ * the cathedral's square, the Conscienceplein, the Stadspark's fronts): x, z, radius. The foot of the walls is kept
+ * cleaner there.
+ */
+const FOOT_FINE: Array<[number, number, number]> = [[-254, 94, 48], [-262, 132, 32], [-262, 175, 50], [-116, 160, 30], [-300, 318, 45]];
+
+/**
+ * The GLSL of `foot` and `mottle` (needs pudNoiseGlsl, uDirt and uDirtBox). psxFootDirt darkens `c` at the foot of an
+ * upright face; psxMottle tones it in big patches. Both in world space, from the face's own normal.
+ */
+const footGlsl = /* glsl */ `
+vec3 psxFaceN() { return normalize(cross(dFdx(vPsxWorld), dFdy(vPsxWorld))); }
+// along the wall, in metres (the ground's xz on the wall's own line)
+float psxAlong(vec3 n) {
+  vec2 t = vec2(-n.z, n.x);
+  float l = length(t);
+  return l > 0.2 ? dot(vPsxWorld.xz, t / l) : vPsxWorld.x + vPsxWorld.z;
+}
+vec3 psxFootDirt(vec3 c, float amount) {
+  float y = vPsxWorld.y;
+  if (y > 1.7 || y < -0.4 || amount <= 0.0) return c;
+  vec3 n = psxFaceN();
+  float vert = 1.0 - smoothstep(0.45, 0.75, abs(n.y));
+  if (vert <= 0.0) return c;
+  float s = psxAlong(n);
+  // the street before the wall: its grime and mud (world/dirt.ts), 0.5 m out from the face
+  vec2 out2 = vPsxWorld.xz + normalize(n.xz + 1e-5) * 0.5;
+  float street = texture2D(uDirt, (out2 - uDirtBox.xy) / uDirtBox.zw).r;
+  float street2 = texture2D(uDirt, (vPsxWorld.xz - normalize(n.xz + 1e-5) * 0.5 - uDirtBox.xy) / uDirtBox.zw).r;
+  street = max(street, street2);
+  // the fine squares kept cleaner
+  float fine = 0.0;
+  ${FOOT_FINE.map(([x, z, r]) => `fine = max(fine, 1.0 - smoothstep(${(r * 0.65).toFixed(1)}, ${r.toFixed(1)}, length(vPsxWorld.xz - vec2(${x.toFixed(1)}, ${z.toFixed(1)}))));`).join("\n  ")}
+  float a = clamp(amount * (0.65 + 0.7 * street) * mix(1.0, 0.35, fine), 0.0, 1.2);
+  // the damp's top: 0.5 m on a kept wall, 1.2 m on a foul one, ragged along the wall (metres and hand spans)
+  float top = mix(0.45, 1.15, clamp(a, 0.0, 1.0)) + 0.22 * (pudVal(vec2(s / 1.6, 3.1)) - 0.5) + 0.1 * (pudVal(vec2(s / 0.37, 7.7)) - 0.5);
+  float damp = 1.0 - smoothstep(top - 0.28, top, y);
+  // the tide line: salts left where the damp stops, a darker thin run just under its top
+  float tide = smoothstep(top - 0.16, top - 0.05, y) * (1.0 - smoothstep(top - 0.05, top, y));
+  // splashed mud from the wheels and the feet: specks and blots, thicker and more of them near the street
+  float low = 1.0 - smoothstep(0.0, 0.55, y);
+  // (in clusters where a wheel threw them, a metre or two apart, not an even grain over the wall)
+  float clus = smoothstep(0.35, 0.75, pudVal(vec2(s / 0.9, y / 0.5) + 41.3));
+  float sp = pudVal(vec2(s, y) * vec2(8.0, 6.5) + 13.7) * 0.75 + pudVal(vec2(s, y) * vec2(19.0, 16.0) - 5.1) * 0.25;
+  float splash = smoothstep(0.74 - 0.2 * low * a - 0.1 * clus, 0.79 - 0.2 * low * a - 0.1 * clus, sp) * clus * smoothstep(0.0, 0.1, top - y);
+  // the kick of the street's own muck along the very bottom
+  float muck = 1.0 - smoothstep(0.02, 0.2 + 0.18 * a + 0.12 * pudVal(vec2(s / 0.5, 1.3)), y);
+  vec3 d = c;
+  // the damp: darker and a little green-brown, most at the bottom
+  d *= mix(vec3(1.0), vec3(0.6, 0.58, 0.5), damp * (0.4 + 0.45 * a) * (0.75 + 0.25 * (1.0 - y / max(top, 0.1))));
+  d *= mix(vec3(1.0), vec3(0.72, 0.7, 0.64), tide * 0.7 * a);
+  d = mix(d, d * vec3(0.46, 0.4, 0.32), clamp(splash * (0.4 + 0.45 * a), 0.0, 1.0));
+  d = mix(d, d * vec3(0.32, 0.28, 0.22), muck * (0.4 + 0.45 * a));
+  return mix(c, d, vert);
+}
+vec3 psxMottle(vec3 c, float k) {
+  vec3 n = psxFaceN();
+  float vert = 1.0 - smoothstep(0.45, 0.75, abs(n.y));
+  if (vert <= 0.0 || k <= 0.0) return c;
+  // (far off it would shimmer: it only tones, a slow noise at 1.5 to 9 m)
+  vec2 w = vec2(psxAlong(n), vPsxWorld.y);
+  float big = pudVal(w / 8.5 + 3.3) - 0.5;
+  float mid = pudVal(w / 3.1 - 11.9) - 0.5;
+  float small = pudVal(w / 1.3 + 27.1) - 0.5;
+  vec3 t = vec3(1.0 + (big * 0.28 + mid * 0.18 + small * 0.08) * k);
+  // warmer where it was patched, greyer and darker where the smoke settled
+  t *= mix(vec3(1.0), vec3(1.05, 1.0, 0.93), smoothstep(0.12, 0.3, mid) * k);
+  t *= mix(vec3(1.0), vec3(0.82, 0.8, 0.78), smoothstep(0.1, 0.35, big) * k * 0.8);
+  return c * mix(vec3(1.0), t, vert);
+}
+`;
 
 const commonVertex = /* glsl */ `
 uniform float uSea;
@@ -289,7 +376,7 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
     shader.uniforms.uLampColor = psxUniforms.uLampColor;
     shader.uniforms.uScatter = psxUniforms.uScatter;
     shader.uniforms.uAffine = { value: affine };
-    if (opts.vary) {
+    if (opts.vary || opts.foot || opts.mottle) {
       shader.uniforms.uDirt = psxUniforms.uDirt;
       shader.uniforms.uDirtBox = psxUniforms.uDirtBox;
     }
@@ -405,8 +492,9 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         (opts.atlas ? "varying vec2 vCell;\n" : "") +
         (opts.wet || opts.water ? wetFragment : "") +
         (opts.puddles ? "uniform float uPuddle;\nuniform sampler2D uMirror;\nuniform mat4 uMirrorMat;\nuniform sampler2D uPudNoise;\n" : "") +
-        (opts.wet || opts.puddles || opts.vary ? pudNoiseGlsl : "") +
-        (opts.vary ? "uniform sampler2D uDirt;\nuniform vec4 uDirtBox;\n" : "") +
+        (opts.wet || opts.puddles || opts.vary || opts.foot || opts.mottle ? pudNoiseGlsl : "") +
+        (opts.vary || opts.foot || opts.mottle ? "uniform sampler2D uDirt;\nuniform vec4 uDirtBox;\n" : "") +
+        (opts.foot || opts.mottle ? footGlsl : "") +
         (opts.slabs ? "uniform sampler2D uSlabMap;\nuniform sampler2D uSlabH;\n" : "") +
         (opts.relief ? "uniform sampler2D uHeight;\nuniform float uReliefDepth;\nuniform float uReliefTile;\nuniform float uReliefBump;\n" : "") +
         (opts.relief?.id
@@ -636,6 +724,18 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
       }
       #endif`,
     );
+    if (opts.foot || opts.mottle) {
+      // (after the colour, the vertex colour and whatever a later patch draws there, houseGrime.ts; before the light)
+      const wearOf = opts.foot?.vertexWear ? "\n        #ifdef USE_COLOR_ALPHA\n        fA *= 0.25 + 0.9 * vColor.a;\n        #endif" : "";
+      fs = fs.replace(
+        "#include <emissivemap_fragment>",
+        /* glsl */ `{
+        ${opts.mottle ? `diffuseColor.rgb = psxMottle(diffuseColor.rgb, ${opts.mottle.toFixed(2)});` : ""}
+        ${opts.foot ? `float fA = ${opts.foot.amount.toFixed(2)};${wearOf}\n        diffuseColor.rgb = psxFootDirt(diffuseColor.rgb, fA);` : ""}
+      }
+      #include <emissivemap_fragment>`,
+      );
+    }
     fs = fs.replace(
       "#include <fog_fragment>",
       /* glsl */ `#ifdef USE_FOG
@@ -785,7 +885,39 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
   };
   // M7 rendering (world/cull.ts): how far the fog lets this material show, and water (waves reach over the sheet)
   mat.userData.psx = { fogReach: opts.fogReach ?? 1, water: !!opts.water };
-  mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}${opts.relief.id ? `-id${opts.relief.holes ?? 0}` : ""}` : ""}${opts.vary ? `-v${opts.vary}` : ""}${opts.detile ? "-dt" : ""}${opts.slabs ? `-slab${opts.slabs.tile}-${opts.slabs.yMax}` : ""}`;
+  mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}${opts.relief.id ? `-id${opts.relief.holes ?? 0}` : ""}` : ""}${opts.vary ? `-v${opts.vary}` : ""}${opts.detile ? "-dt" : ""}${opts.slabs ? `-slab${opts.slabs.tile}-${opts.slabs.yMax}` : ""}${opts.foot ? `-foot${opts.foot.amount}${opts.foot.vertexWear ? "w" : ""}` : ""}${opts.mottle ? `-mot${opts.mottle}` : ""}`;
+  return mat;
+}
+
+/**
+ * The foot of the walls (and the mottle) on a material already made with psx(), for a module that builds its own
+ * materials (the cathedral's outside, world/cathedralOutside.ts: one call in its material factory). The same as the
+ * psx options `foot: { amount }` and `mottle`.
+ */
+export function footDirt<T extends THREE.Material>(mat: T, amount = 0.5, mottle = 0): T {
+  const prev = mat.onBeforeCompile;
+  const prevKey = mat.customProgramCacheKey.bind(mat);
+  mat.onBeforeCompile = (shader, renderer) => {
+    prev.call(mat, shader, renderer);
+    if (!shader.fragmentShader.includes("varying vec3 vPsxWorld;") || shader.fragmentShader.includes("vec3 psxFootDirt(")) return;
+    shader.uniforms.uDirt = psxUniforms.uDirt;
+    shader.uniforms.uDirtBox = psxUniforms.uDirtBox;
+    let fs = shader.fragmentShader;
+    const head =
+      (fs.includes("float pudHash(") ? "" : pudNoiseGlsl) + (fs.includes("uniform sampler2D uDirt;") ? "" : "uniform sampler2D uDirt;\nuniform vec4 uDirtBox;\n") + footGlsl;
+    fs = fs.replace("void main() {", head + "\nvoid main() {");
+    fs = fs.replace(
+      "#include <emissivemap_fragment>",
+      `{
+        ${mottle > 0 ? `diffuseColor.rgb = psxMottle(diffuseColor.rgb, ${mottle.toFixed(2)});` : ""}
+        diffuseColor.rgb = psxFootDirt(diffuseColor.rgb, ${amount.toFixed(2)});
+      }
+      #include <emissivemap_fragment>`,
+    );
+    shader.fragmentShader = fs;
+  };
+  mat.customProgramCacheKey = () => `${prevKey()}-footdirt${amount}-${mottle}`;
+  mat.needsUpdate = true;
   return mat;
 }
 
@@ -805,7 +937,35 @@ const wallReliefU = {
   uWallH: { value: null as THREE.DataArrayTexture | null },
   /** Per layer: 0 = no height map (flat), else how strong. */
   uWallHK: { value: [] as number[] },
+  /** Per layer: where a bed joint runs across the picture (v, 0..1), from its height map; -1 = no courses (no bands). */
+  uWallBed: { value: [] as number[] },
 };
+
+/**
+ * The row of a height map that is most nearly all joint from side to side (a bed joint of the courses), as v 0..1,
+ * or -1 when no row is (plaster, or courses that wander). The joints are the lowest third of the map; a row counts
+ * when, within 2 px up or down, 96 % of its columns are joint.
+ */
+function bedJoint(h: Uint8Array, off: number): number {
+  const N = WALL_H;
+  const hist = new Uint32Array(256);
+  for (let p = 0; p < N * N; p++) hist[h[off + p]]++;
+  let acc = 0;
+  let p30 = 0;
+  while (p30 < 255 && (acc += hist[p30]) < N * N * 0.3) p30++;
+  let best = -1;
+  let bestCov = 0;
+  for (let r = 0; r < N; r++) {
+    let cov = 0;
+    for (let x = 0; x < N; x++) {
+      let lo = 255;
+      for (let d = -2; d <= 2; d++) lo = Math.min(lo, h[off + (((r + d + N) % N) * N) + x]);
+      if (lo < p30) cov++;
+    }
+    if (cov > bestCov) (bestCov = cov), (best = r);
+  }
+  return bestCov >= N * 0.96 ? (best + 0.5) / N : -1;
+}
 
 async function sha256(url: string): Promise<string | null> {
   if (!globalThis.crypto?.subtle) return null;
@@ -825,6 +985,7 @@ function wallHeights(names: string[]): void {
   t.needsUpdate = true;
   wallReliefU.uWallH.value = t;
   wallReliefU.uWallHK.value = names.map(() => 0);
+  wallReliefU.uWallBed.value = names.map(() => -1);
   const c = document.createElement("canvas");
   c.width = c.height = WALL_H;
   const g = c.getContext("2d", { willReadFrequently: true })!;
@@ -839,6 +1000,7 @@ function wallHeights(names: string[]): void {
     .then((r) => r.json() as Promise<Record<string, { sha256: string; kind: string; bump?: number }>>)
     .then(async (made) => {
       const k = names.map(() => 0);
+      const bed = names.map(() => -1);
       await Promise.all(
         names.map(async (name, i) => {
           const m = made[name];
@@ -854,38 +1016,62 @@ function wallHeights(names: string[]): void {
           const off = i * WALL_H * WALL_H;
           for (let p = 0; p < WALL_H * WALL_H; p++) data[off + p] = px[p * 4];
           k[i] = m.bump ?? WALL_KIND_BUMP[m.kind] ?? 1;
+          // (bricks and stones only: the colour and the height map take the bands together, so both wait for this)
+          if (m.kind === "brick") bed[i] = bedJoint(data, off);
         }),
       );
       t.needsUpdate = true;
       wallReliefU.uWallHK.value = k;
+      wallReliefU.uWallBed.value = bed;
     })
     .catch((e) => console.warn("wall height maps did not load: the walls stay flat", e));
 }
 
 /**
- * The GLSL: `wallRelief(layer, w, wn, tile)` in the house material's colour code (houseGrime.ts, inside #ifdef
- * WALL_RELIEF) returns the darkening of the joints and a little sky light on the tops, and leaves the tilt for the
- * lights in gWallDN (world space), which the normal takes after normal_fragment_maps.
+ * The GLSL: `wallTileUv(layer, w / tile, key)` gives the picture's uv (the bands, anti-tiling) and its mirror, for the
+ * colour and the relief alike; `wallRelief(layer, uv, mirror, wn)` in the house material's colour code (houseGrime.ts,
+ * inside #ifdef WALL_RELIEF) returns the darkening of the joints and a little sky light on the tops, and leaves the
+ * tilt for the lights in gWallDN (world space), which the normal takes after normal_fragment_maps.
  */
 const wallReliefGlsl = /* glsl */ `
 #define WALL_RELIEF
 uniform highp sampler2DArray uWallH;
 uniform float uWallHK[WALL_LAYERS];
+uniform float uWallBed[WALL_LAYERS];
 vec3 gWallDN = vec3(0.0);
-float wallH(vec2 uv, float layer) { return texture(uWallH, vec3(uv, layer)).r; }
-float wallRelief(float layer, vec2 w, vec3 wn, float tile) {
-  vec2 uv = w / tile;
+// (the gradients of the untouched uv: at a band's edge the shifted uv jumps, and the mip would jump with it)
+vec2 gWallGx = vec2(0.0);
+vec2 gWallGy = vec2(0.0);
+float wallH(vec2 uv, float layer) { return textureGrad(uWallH, vec3(uv, layer), gWallGx, gWallGy).r; }
+// Anti-tiling (Steve, 2026-09-26: "big flat sides ... repeating textures"): a wall of bricks or stones is cut into
+// bands one picture high, each cut on a bed joint of the picture (uWallBed, found in its height map), and every band
+// slid along the wall by its own dice and now and then mirrored. The courses run on unbroken, the bond changes at the
+// joint as a real wall's does, and no picture sits over the one below it. The colour, the height map and every later
+// sample take this same uv, so the bumps lie under the bricks drawn. Plaster and render (no courses): no bands.
+// Returns the picture's uv and the mirror (1 or -1); raw = w / tile, key = the wall's own dice.
+vec3 wallTileUv(float layer, vec2 raw, float key) {
+  gWallGx = dFdx(raw);
+  gWallGy = dFdy(raw);
+  float ph = uWallBed[int(layer)];
+  if (ph < 0.0) return vec3(raw, 1.0);
+  float b = floor(raw.y - ph);
+  float h = fract(sin(b * 12.9898 + key * 78.233) * 43758.5453);
+  float f = fract(h * 91.7) < 0.35 ? -1.0 : 1.0;
+  return vec3(raw.x * f + h * 5.0, raw.y, f);
+}
+float wallRelief(float layer, vec2 uv, float flip, vec3 wn) {
   // how many texels of the height map one pixel covers: the step grows with it (so the slope is the mip's, not the
   // base map's: small courses at 5 to 10 m striped like corrugated sheet), and the relief fades where the joints get
   // smaller than a pixel or two (the lead's review, 2026-09-26)
-  float fp = max(length(dFdx(uv)), length(dFdy(uv))) * ${WALL_H.toFixed(1)};
+  float fp = max(length(gWallGx), length(gWallGy)) * ${WALL_H.toFixed(1)};
   float k = uWallHK[int(layer)];
   float fade = (1.0 - smoothstep(10.0, 28.0, length(vPsxWorld - cameraPosition))) * (1.0 - smoothstep(2.5, 5.0, fp));
   if (k <= 0.0 || fade <= 0.0 || abs(wn.y) > 0.7) return 1.0;
   // two texels of the 512 px map near (about 7 mm on a 1.9 m brick tile), a pixel's worth further off
   float e = max(2.0, fp) / ${WALL_H.toFixed(1)};
   float h = wallH(uv, layer);
-  float dU = wallH(uv + vec2(e, 0.0), layer) - wallH(uv - vec2(e, 0.0), layer);
+  // (a mirrored band runs the picture backwards along the wall: its slope along turns round with it)
+  float dU = (wallH(uv + vec2(e, 0.0), layer) - wallH(uv - vec2(e, 0.0), layer)) * flip;
   float dV = wallH(uv + vec2(0.0, e), layer) - wallH(uv - vec2(0.0, e), layer);
   // the wall's own frame, as houseGrime.ts gWallUv lays the picture: along (u) and up (v)
   vec3 along = normalize(vec3(-wn.z, 0.0, wn.x));
@@ -914,7 +1100,7 @@ export function wallRelief(mat: THREE.Material, names: string[]): void {
     Object.assign(shader.uniforms, wallReliefU);
     let fs = shader.fragmentShader;
     // (before main: vPsxWorld is declared by then; the functions go before the first use in main)
-    fs = fs.replace("void main() {", wallReliefGlsl.replace("WALL_LAYERS", String(names.length)) + "\nvoid main() {");
+    fs = fs.replace("void main() {", wallReliefGlsl.replaceAll("WALL_LAYERS", String(names.length)) + "\nvoid main() {");
     fs = fs.replace(
       "#include <normal_fragment_maps>",
       "#include <normal_fragment_maps>\n  normal = normalize(normal + faceDirection * (viewMatrix * vec4(gWallDN, 0.0)).xyz);",
@@ -930,8 +1116,8 @@ export function wallRelief(mat: THREE.Material, names: string[]): void {
 // boards, tiles, slabs) get a height map worked out from their own colour (light stone high, dark joints low, the
 // fine grain smoothed), so the bump can never disagree with the picture. It goes in as three.js's own bumpMap: the
 // normal is tilted with the screen-space derivatives of the uv, so it works on any face and any uv layout and reads
-// under the sun, the sky and the gas lamps. Not for atlas materials (their uv is remapped per cell in psx) and not for
-// textures swapped for a picture later (the height would be the stand-in's).
+// under the sun, the sky and the gas lamps. Not for atlas materials (their uv is remapped per cell in psx). A texture
+// swapped for a picture later (withPicture) gets its height made again from the picture.
 
 const bumpCache = new WeakMap<THREE.Texture, THREE.Texture>();
 
@@ -999,6 +1185,13 @@ function heightFromColour(map: THREE.Texture): THREE.Texture {
   const img = map.image as HTMLImageElement | undefined;
   if (img instanceof HTMLImageElement && !img.complete) img.addEventListener("load", fill, { once: true });
   else fill();
+  // (the churches' bump maps, 2026-09-26: a stand-in swapped for its picture later (world/quayStone.ts withPicture) takes
+  // its height map along, made again from the picture, so the relief is never the stand-in's)
+  const prev = map.userData.onPicture as (() => void) | undefined;
+  map.userData.onPicture = () => {
+    prev?.();
+    fill();
+  };
   return t;
 }
 

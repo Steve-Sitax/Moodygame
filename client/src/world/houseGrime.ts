@@ -126,6 +126,25 @@ vec3 gPic(float layer, vec2 w) {
   int i = int(layer);
   return texture(uWallArr, vec3(w / uWallTile[i], layer)).rgb;
 }
+// the picture at a uv of wallTileUv (retro/psx.ts: the bands), its mip from the untouched uv's gradients
+vec3 gPicUv(float layer, vec2 uv, vec2 raw) {
+  return textureGrad(uWallArr, vec3(uv, layer), dFdx(raw), dFdy(raw)).rgb;
+}
+// (Steve, 2026-09-26: "repeating textures"): a value noise from a hash of the cell corners, so the blotches, the
+// streaks, the stains and the fallen plaster never repeat over a big wall (the 128 px grime noise repeated every 5 m,
+// its streaks every 2.2 m)
+float gHash(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+float gVal(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(gHash(i), gHash(i + vec2(1.0, 0.0)), u.x), mix(gHash(i + vec2(0.0, 1.0)), gHash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+float gFbm(vec2 p) { return gVal(p) * 0.55 + gVal(p * 2.03 + 17.1) * 0.3 + gVal(p * 4.1 - 5.3) * 0.15; }
 float gWearOf() {
   #ifdef USE_COLOR_ALPHA
     return vColor.a;
@@ -160,9 +179,10 @@ function install(mat: THREE.Material, kind: "facade" | "stone"): void {
       vec3 gN = normalize((vec4(vNormal, 0.0) * viewMatrix).xyz);
       float gVert = 1.0 - abs(gN.y);
       vec2 gW = gWallUv(gN);
-      vec4 gNz = texture2D(uGrimeNoise, gW / 5.0);
+      // big blotches (r) and a fine speckle (g), and streaks running down: noise without a grid (see gVal)
+      vec4 gNz = vec4(gFbm(gW / 1.25), 0.0, 0.0, 0.0);
       vec4 gNf = texture2D(uGrimeNoise, gW / 1.3);
-      float gStreak = texture2D(uGrimeNoise, vec2(gW.x / 2.2, gW.y / 9.0)).b;
+      float gStreak = clamp((smoothstep(0.5, 0.95, gVal(vec2(gW.x / 0.3, 0.37))) * 0.9 + 0.12 * gVal(vec2(gW.x / 0.13, 5.1))) * (0.4 + 0.9 * gVal(vec2(gW.x / 2.0, gW.y / 5.0))), 0.0, 1.0);
       ${
         facade
           ? /* glsl */ `
@@ -175,23 +195,48 @@ function install(mat: THREE.Material, kind: "facade" | "stone"): void {
         // the plain wall from the house's own picture, in its paint (the painted ones) or a slight tint
         float layer = floor(vGMat.x + 0.5);
         // (glTF stores v flipped: the paint's index is 1 - v)
-        vec3 gPaint = uPaint[int(clamp(floor(1.5 - vGMat.y), 0.0, 19.0))];
-        vec3 pic = gPic(layer, gW) * gPaint;
+        float gPi = clamp(floor(1.5 - vGMat.y), 0.0, 19.0);
+        vec3 gPaint = uPaint[int(gPi)];
+        // the picture's uv: in bands slid along the wall (retro/psx.ts wallTileUv); the relief takes the same uv.
+        // The wall's dice: its facing and its paint, so two walls side by side do not slide alike
+        vec2 gRaw = gW / uWallTile[int(layer)];
+        #ifdef WALL_RELIEF
+        vec3 gT = wallTileUv(layer, gRaw, floor(atan(gN.z, gN.x) * 1.27 + 4.5) + gPi * 9.1 + layer * 3.7);
+        #else
+        vec3 gT = vec3(gRaw, 1.0);
+        #endif
+        vec3 pic = gPicUv(layer, gT.xy, gRaw) * gPaint;
+        if (layer < 5.5 || layer > 10.5) {
+          // bricks and stones over a big wall (anti-tiling, colour only: the bumps stay the picture's): stretches of
+          // other bricks where it was patched, warmer or darker; fresh pointing, lighter joints, in patches; smoke
+          // settled in big soft clouds. No grid: world metres through a hash noise
+          float gB = gFbm(gW / 3.3 + 7.1) - 0.5;
+          float gM2 = gVal(gW / 1.4 - 3.7) - 0.5;
+          pic *= 1.0 + gB * 0.32 + gM2 * 0.14;
+          float gPatch = smoothstep(0.62, 0.7, gVal(vec2(gW.x / 2.4, gW.y / 1.1) + 31.3));
+          pic *= mix(vec3(1.0), vec3(1.1, 0.95, 0.86), gPatch * 0.7);
+          #ifdef WALL_RELIEF
+          if (uWallHK[int(layer)] > 0.0) {
+            float gJ = 1.0 - smoothstep(0.25, 0.55, wallH(gT.xy, layer));
+            float gPoint = smoothstep(0.55, 0.68, gVal(gW / 2.8 - 13.9));
+            pic = mix(pic, pic * 0.55 + vec3(0.2, 0.19, 0.17), gJ * gPoint * 0.6);
+          }
+          #endif
+        }
         if (layer > 5.5 && layer < 10.5) {
           // plaster and limewash (Steve's review, 2026-09-26: "leopard blotches"): the picture's own patches and
           // stains flattened, so the skin reads as one; the weathering is drawn here, the way water and damp make it
-          int gi = int(layer);
-          vec3 gFlat = textureLod(uWallArr, vec3(gW / uWallTile[gi], layer), 6.0).rgb * gPaint;
+          vec3 gFlat = textureLod(uWallArr, vec3(gT.xy, layer), 6.0).rgb * gPaint;
           pic = mix(gFlat, pic, 0.4);
           // soft stains, long and ragged, running down (never round): brown where the water ran and dried
-          float gSt = texture2D(uGrimeNoise, vec2(gW.x / 3.4 + 0.37, gW.y / 12.0)).r * 0.7 + texture2D(uGrimeNoise, vec2(gW.x / 1.1, gW.y / 4.0)).g * 0.3;
+          float gSt = gFbm(vec2(gW.x / 0.85 + 0.37, gW.y / 3.0)) * 0.8 + gVal(vec2(gW.x / 0.28, gW.y / 1.0)) * 0.2;
           pic *= mix(vec3(1.0), vec3(0.8, 0.75, 0.66), smoothstep(0.45, 0.8, gSt) * (0.2 + 0.8 * gWear));
           // plaster fallen off a worn house: few, ragged, hard-edged holes to the brick, most near the foot where
           // the damp works; a light rim where the plaster breaks, a shadow under its lower edge
           if (gWear > 0.55) {
             vec2 gWp = gW + (vec2(gNf.g, texture2D(uGrimeNoise, gW / 0.8 + 0.5).g) - 0.5) * 0.7;
-            float gM = texture2D(uGrimeNoise, vec2(gWp.x / 4.5, gWp.y / 2.6) + 0.21).r * 0.8 + texture2D(uGrimeNoise, gWp / 0.9).g * 0.2;
-            float gMu = texture2D(uGrimeNoise, vec2(gWp.x / 4.5, (gWp.y + 0.05) / 2.6) + 0.21).r * 0.8 + texture2D(uGrimeNoise, vec2(gWp.x, gWp.y + 0.05) / 0.9).g * 0.2;
+            float gM = gFbm(vec2(gWp.x / 1.1, gWp.y / 0.65) + 0.21) * 0.8 + texture2D(uGrimeNoise, gWp / 0.9).g * 0.2;
+            float gMu = gFbm(vec2(gWp.x / 1.1, (gWp.y + 0.05) / 0.65) + 0.21) * 0.8 + texture2D(uGrimeNoise, vec2(gWp.x, gWp.y + 0.05) / 0.9).g * 0.2;
             float gLow = 1.0 - smoothstep(0.4, 3.0, vPsxWorld.y);
             float gThr = 0.74 - 0.08 * (gWear - 0.55) / 0.45 - 0.1 * gLow;
             float gOff = step(gThr, gM);
@@ -205,7 +250,7 @@ function install(mat: THREE.Material, kind: "facade" | "stone"): void {
         diffuseColor.rgb = diffuse * pic * 1.08;
         // --- bump maps on the walls (retro/psx.ts wallRelief, 2026-09-26): the picture's height map ---
         #ifdef WALL_RELIEF
-        diffuseColor.rgb *= wallRelief(layer, gW, gN, uWallTile[int(layer)]);
+        diffuseColor.rgb *= wallRelief(layer, gT.xy, gT.z, gN);
         #endif
         // ---
       }
