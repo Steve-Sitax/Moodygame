@@ -360,6 +360,7 @@ export class Handcarts {
     g.textBaseline = "middle";
     g.fillText("WHEELWRIGHT", 128, 21);
     const tex = new THREE.CanvasTexture(c);
+    tex.name = "sign"; // (the bump audit: lettering stays flat, world/bumps.ts)
     tex.magFilter = THREE.NearestFilter;
     tex.colorSpace = THREE.SRGBColorSpace;
     const m = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.4), new THREE.MeshLambertMaterial({ map: tex }));

@@ -208,6 +208,7 @@ export class Press {
     g.font = "bold 44px 'Scheldemist Print', Georgia, 'Times New Roman', serif";
     lines.forEach((l, i) => g.fillText(l, 256, 64 + (i - (lines.length - 1) / 2) * 48));
     const tex = new THREE.CanvasTexture(c);
+    tex.name = "sign"; // (the bump audit: lettering stays flat, world/bumps.ts)
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.magFilter = THREE.NearestFilter;
     tex.minFilter = THREE.NearestFilter;

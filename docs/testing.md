@@ -84,6 +84,7 @@ house walls, corners, doorways, the walk map and each other; `problems` must be 
 the markets up first: a market day, 10:00), `await __scheldemist.zfight()`
 (faces in one plane that flicker, by cause; the houses list 4 small ones, see M3c pass 5),
 `__scheldemist.shaders()` (the shaders and their light settings; `problems` must be empty, see rendering.md),
+`await __scheldemist.bumpaudit({ text: true })` (every material of the street and the rooms, by source: its picture and its relief; `totals.flat` and `totals.weak` should stay near 0, see rendering.md, Bumps),
 `__scheldemist.spill()` (night: every lit window, open door, lamp and lantern in view range, whether it glows and throws
 its light per pixel, as a ground pool or by its own real light, and where its pool starts against its wall; `problems`
 must be empty; `spillInfo()` the counts, `spillBudget(n, bars)` the graphics knob; world/spill.ts), `perf(n)`,

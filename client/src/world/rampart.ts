@@ -9,6 +9,7 @@ import { grassPaving, quayPaving, withPictures } from "./paving";
 import type { GasLamps } from "./gaslamps";
 import type { Props } from "./props3d";
 import { buildRampartNature, type RampartNature } from "./rampartNature";
+import { loadTownWallBumps, townWallBump } from "./townWallBumps";
 
 // The town wall (Steve, 2026-09-25; tools/city/rampart.py, tools/blender/build_wall.py -> wall.glb).
 // The walk map has the walk on the wall, the bastion tops and the stairs as open ground and the parapets,
@@ -275,6 +276,7 @@ export function loadWall(scene: THREE.Scene): WallModel {
       });
     }
     m.name = src.name;
+    townWallBump(m, src.name); // (the bump audit, 2026-09-26: its height map from its own picture, world/townWallBumps.ts)
     mats.set(src.name, m);
     return m;
   };
@@ -308,6 +310,7 @@ export function loadWall(scene: THREE.Scene): WallModel {
     .setDRACOLoader(draco)
     .loadAsync("/models/wall.glb")
     .then((gltf) => {
+      void loadTownWallBumps(gltf); // (the bump audit: the height maps, each checked against its picture)
       const meshes: THREE.Mesh[] = [];
       const node = gltf.scene.getObjectByName("wall_dressing");
       let d: WallDressing = { mills: [], benches: [], lamps: [], lanterns: [] };

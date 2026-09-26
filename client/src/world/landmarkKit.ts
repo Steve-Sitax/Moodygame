@@ -38,7 +38,11 @@ export function lmBasic(key: string, o: THREE.MeshBasicMaterialParameters): MatD
 /** The one material of a definition (made on first use). */
 export function matOf(d: MatDef): THREE.Material {
   let m = cache.get(d.key);
-  if (!m) cache.set(d.key, (m = d.make()));
+  if (!m) {
+    cache.set(d.key, (m = d.make()));
+    // (the bump audit: the key says what the surface is, world/bumps.ts)
+    if (!m.name) m.name = d.key;
+  }
   return m;
 }
 

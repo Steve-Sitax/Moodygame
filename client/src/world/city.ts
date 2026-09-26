@@ -366,6 +366,9 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
     // the gilt cross, ball and clock dials of the cathedral
     gilt: psx(new THREE.MeshLambertMaterial({ color: 0xc8a040, vertexColors: true, side: THREE.DoubleSide }), { fogReach: 2.2, affine: 0 }),
   };
+  // (the bump audit, 2026-09-26: names that say what each is, for its bump from its own picture: world/bumps.ts)
+  for (const [k, m] of Object.entries(lmMats)) if (!m.name) m.name = `landmark_${k}`;
+  stone.name = "standin_stone";
   const lmLoader = new GLTFLoader().setDRACOLoader(new DRACOLoader().setDecoderPath("/draco/"));
   const landmarks = lmLoader.loadAsync("/models/landmarks.glb").then((gltf) => {
     const meshes: THREE.Mesh[] = [];
@@ -409,6 +412,10 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
   // world metres with their own relief (retro/psx.ts slabs); their own uv there stretched the stone texture flat
   const slabPave = flagPaving();
   const trim = psx(new THREE.MeshLambertMaterial({ map: stoneTexture(), vertexColors: true, side: DS }), { affine: 0.2, slabs: { map: slabPave.map, height: slabPave.height, tile: 2.6, yMax: 0.8 }, foot: { amount: 1.0, vertexWear: true } });
+  // (the bump audit, 2026-09-26: names that say what each is, for its bump from its own picture: world/bumps.ts)
+  wood.name = "city_wood";
+  leaves.name = "city_leaves";
+  roof.name = "city_roof_atlas";
   // M7 the grime pass: the fronts old and dirty (world/houseGrime.ts: wall pictures, streaks, damp, soot, worn paint)
   houseGrime(facade, trim);
   // grime pass 2: rust runs, soot, damp and corner grime as decals (build_city.py MAT_GRIME): see-through, no

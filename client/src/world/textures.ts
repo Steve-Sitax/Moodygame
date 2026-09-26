@@ -226,7 +226,10 @@ export function makeTextures() {
     }
   });
 
-  return { cobble, quayWall, brick, planks, water, iron, hull, crate, slate, sack, rope };
+  // (the bump audit, 2026-09-26: each named for what it shows, for its bump from its own picture: world/bumps.ts)
+  const all = { cobble, quayWall, brick, planks, water, iron, hull, crate, slate, sack, rope };
+  for (const [k, t] of Object.entries(all)) t.name = k;
+  return all;
 }
 
 export type Textures = ReturnType<typeof makeTextures>;
@@ -251,6 +254,7 @@ export function signTexture(text: string): THREE.CanvasTexture {
     g.fillRect((r() * 256) | 0, (r() * 32) | 0, 2, 1);
   }
   const t = new THREE.CanvasTexture(c);
+  t.name = "sign"; // (the bump audit: lettering stays flat, world/bumps.ts)
   t.colorSpace = THREE.SRGBColorSpace;
   t.magFilter = THREE.NearestFilter;
   t.minFilter = THREE.NearestFilter;

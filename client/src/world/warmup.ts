@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { InWorld } from "./inworld";
+import { autoBumpObject } from "./bumps";
 
 // Shaders built before they are needed (2026-09-26, the stutter; docs/rendering.md).
 //
@@ -66,6 +67,10 @@ export class ShaderWarmer {
         was.material = d.material;
         was.sig = sig;
       } else this.seen.set(o, { scene, material: d.material, sig });
+      // (the bump audit, 2026-09-26: a flat picture gets its bump before its shader is built, world/bumps.ts; the
+      // signature again, as a bump map given here is part of it)
+      autoBumpObject(o);
+      this.seen.get(o)!.sig = signature(d);
       list.push(o);
     });
     return list;

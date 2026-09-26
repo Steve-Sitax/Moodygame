@@ -174,6 +174,7 @@ function billTexture(p: PosterV): THREE.CanvasTexture {
     g.fillText(`${p.reward_c} c`, 64, 164);
   }
   const tex = new THREE.CanvasTexture(c);
+  tex.name = "poster"; // (the bump audit: lettering stays flat, world/bumps.ts)
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.magFilter = THREE.NearestFilter;
   tex.minFilter = THREE.NearestFilter;

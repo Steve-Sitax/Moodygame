@@ -1067,6 +1067,8 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
       }
       #endif`,
     );
+    // (bump part, the bump audit 2026-09-26) an atlas material's bump map is read in its cell, as its colour is
+    if (opts.atlas) fs = fs.replace("#include <bumpmap_pars_fragment>", atlasBumpGlsl(opts.atlas));
     shader.fragmentShader = fs;
   };
   // M7 rendering (world/cull.ts): how far the fog lets this material show, and water (waves reach over the sheet)
@@ -1306,8 +1308,103 @@ export function wallRelief(mat: THREE.Material, names: string[]): void {
 // swapped for a picture later (withPicture) gets its height made again from the picture.
 
 const bumpCache = new WeakMap<THREE.Texture, THREE.Texture>();
+/** (the bump audit) the sharp ones: small pictures made bigger first, so a joint's slope is a fraction of a texel */
+const sharpCache = new WeakMap<THREE.Texture, THREE.Texture>();
 
-function heightFromColour(map: THREE.Texture): THREE.Texture {
+/** A box blur that wraps (the textures tile), `r` texels each way, on a w x h field. */
+function wrapBlur(src: Float32Array, w: number, h: number, r: number): Float32Array {
+  const n = 2 * r + 1;
+  const tmp = new Float32Array(w * h);
+  const out = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    const row = y * w;
+    let s = 0;
+    for (let d = -r; d <= r; d++) s += src[row + (((d % w) + w) % w)];
+    for (let x = 0; x < w; x++) {
+      tmp[row + x] = s / n;
+      s += src[row + ((x + r + 1) % w)] - src[row + ((((x - r) % w) + w) % w)];
+    }
+  }
+  for (let x = 0; x < w; x++) {
+    let s = 0;
+    for (let d = -r; d <= r; d++) s += tmp[(((d % h) + h) % h) * w + x];
+    for (let y = 0; y < h; y++) {
+      out[y * w + x] = s / n;
+      s += tmp[((y + r + 1) % h) * w + x] - tmp[((((y - r) % h) + h) % h) * w + x];
+    }
+  }
+  return out;
+}
+
+/** (bump part, the bump audit) The pictures waiting to be read back for a sharp height map, and their jobs. */
+const sharpJobs: Array<{ img: CanvasImageSource; w: number; h: number; done: (px: ImageData) => void }> = [];
+let sharpTimer: ReturnType<typeof setTimeout> | null = null;
+
+function sharpRead(img: CanvasImageSource, w: number, h: number, done: (px: ImageData) => void): void {
+  sharpJobs.push({ img, w, h, done });
+  sharpTimer ??= setTimeout(sharpFlush, 0);
+}
+
+/**
+ * Every picture waiting is drawn into one sheet on the GPU (copies, no waiting) and the sheet read back once; the
+ * height maps are then worked out in slices of about 25 ms, so the loading and the game never stand still for them.
+ */
+function sharpFlush(): void {
+  sharpTimer = null;
+  const jobs = sharpJobs.splice(0);
+  const SW = 2048;
+  const SH = 4096;
+  const ready: Array<{ px: ImageData; done: (px: ImageData) => void }> = [];
+  while (jobs.length) {
+    let x = 0;
+    let y = 0;
+    let rowH = 0;
+    const put: Array<[number, number]> = [];
+    let n = 0;
+    for (; n < jobs.length; n++) {
+      const j = jobs[n];
+      if (x + j.w > SW) {
+        x = 0;
+        y += rowH;
+        rowH = 0;
+      }
+      if (y + j.h > SH && n > 0) break;
+      put.push([x, y]);
+      x += j.w;
+      rowH = Math.max(rowH, j.h);
+    }
+    const batch = jobs.splice(0, n);
+    const sheet = document.createElement("canvas");
+    sheet.width = SW;
+    sheet.height = Math.max(1, y + rowH);
+    const g = sheet.getContext("2d")!;
+    batch.forEach((j, i) => g.drawImage(j.img, put[i][0], put[i][1], j.w, j.h));
+    const all = g.getImageData(0, 0, sheet.width, sheet.height).data;
+    batch.forEach((j, i) => {
+      const px = new ImageData(j.w, j.h);
+      for (let r = 0; r < j.h; r++) {
+        const from = ((put[i][1] + r) * SW + put[i][0]) * 4;
+        px.data.set(all.subarray(from, from + j.w * 4), r * j.w * 4);
+      }
+      ready.push({ px, done: j.done });
+    });
+  }
+  const work = () => {
+    const t0 = performance.now();
+    while (ready.length && performance.now() - t0 < 25) {
+      const r = ready.shift()!;
+      try {
+        r.done(r.px);
+      } catch (e) {
+        console.warn("bump: a height map was not made", e);
+      }
+    }
+    if (ready.length) setTimeout(work, 0);
+  };
+  work();
+}
+
+function heightFromColour(map: THREE.Texture, sharp = false): THREE.Texture {
   const c = document.createElement("canvas");
   c.width = c.height = 4;
   const t = new THREE.CanvasTexture(c);
@@ -1326,11 +1423,23 @@ function heightFromColour(map: THREE.Texture): THREE.Texture {
     const k = Math.min(1, 512 / Math.max(img.width, img.height));
     const w = Math.max(4, Math.round(img.width * k));
     const h = Math.max(4, Math.round(img.height * k));
+    // (bump part, the bump audit) the sharp ones are read back together, a few times a second at most: reading one
+    // painted canvas back from the GPU stalls it for 10 to 20 ms, and there are some 200 of them
+    if (sharp) sharpRead(img, w, h, make);
+    else {
+      c.width = w;
+      c.height = h;
+      const g = c.getContext("2d", { willReadFrequently: true })!;
+      g.drawImage(img, 0, 0, w, h);
+      make(g.getImageData(0, 0, w, h));
+    }
+  };
+  const make = (px: ImageData) => {
+    const w = px.width;
+    const h = px.height;
     c.width = w;
     c.height = h;
     const g = c.getContext("2d", { willReadFrequently: true })!;
-    g.drawImage(img, 0, 0, w, h);
-    const px = g.getImageData(0, 0, w, h);
     const lum = new Float32Array(w * h);
     for (let i = 0; i < w * h; i++) lum[i] = (px.data[i * 4] * 0.3 + px.data[i * 4 + 1] * 0.59 + px.data[i * 4 + 2] * 0.11) / 255;
     // a box blur that wraps (the textures tile), twice: the stone's own level round each texel
@@ -1363,17 +1472,50 @@ function heightFromColour(map: THREE.Texture): THREE.Texture {
     const low = blur(blur(lum, R), R);
     const hp = new Float32Array(w * h);
     for (let i = 0; i < w * h; i++) hp[i] = lum[i] - low[i];
-    const sorted = new Float32Array(w * h);
-    for (let i = 0; i < w * h; i++) sorted[i] = Math.abs(hp[i]);
-    sorted.sort();
-    const top = sorted[Math.floor(sorted.length * 0.98)] || 1;
-    const fine = blur(hp, 1);
-    for (let i = 0; i < w * h; i++) {
-      const v = Math.round(255 * Math.min(1, Math.max(0, 0.5 + (0.5 * fine[i]) / top)));
-      px.data[i * 4] = px.data[i * 4 + 1] = px.data[i * 4 + 2] = v;
-      px.data[i * 4 + 3] = 255;
+    // the 98th percentile of the relief's size (bump part, the bump audit: counted in 4096 bins, not sorted: the same
+    // number to a 4096th of the largest, and a sort of a 512 px map took 20 ms)
+    let most = 0;
+    for (let i = 0; i < w * h; i++) most = Math.max(most, Math.abs(hp[i]));
+    const bins = new Uint32Array(4096);
+    const toBin = 4095 / (most || 1);
+    for (let i = 0; i < w * h; i++) bins[Math.round(Math.abs(hp[i]) * toBin)]++;
+    let seen = 0;
+    let b98 = 0;
+    const want = Math.floor(w * h * 0.98) + 1;
+    while (b98 < 4095 && (seen += bins[b98]) < want) b98++;
+    const top = b98 / toBin || 1;
+    // (bump part, the bump audit 2026-09-26) sharp: a small picture drawn pixel sharp (64 px a metre and less) had
+    // joints a few centimetres wide in its height, too gentle a slope to light: each texel made u x u first, the
+    // steps between them smoothed over a third of a texel, so the joints are as sharp as the picture's own pixels
+    const u = sharp ? Math.max(1, Math.min(8, Math.floor(256 / Math.max(w, h)))) : 1;
+    if (u > 1) {
+      const W = w * u;
+      const H = h * u;
+      let big: Float32Array = new Float32Array(W * H);
+      for (let y = 0; y < H; y++) {
+        const sy = ((y / u) | 0) * w;
+        for (let x = 0; x < W; x++) big[y * W + x] = Math.min(1, Math.max(0, 0.5 + (0.5 * hp[sy + ((x / u) | 0)]) / top));
+      }
+      const r = Math.max(1, Math.round(u / 4));
+      big = wrapBlur(wrapBlur(big, W, H, r), W, H, r);
+      c.width = W;
+      c.height = H;
+      const pb = g.createImageData(W, H);
+      for (let i = 0; i < W * H; i++) {
+        const v = Math.round(255 * big[i]);
+        pb.data[i * 4] = pb.data[i * 4 + 1] = pb.data[i * 4 + 2] = v;
+        pb.data[i * 4 + 3] = 255;
+      }
+      g.putImageData(pb, 0, 0);
+    } else {
+      const fine = blur(hp, 1);
+      for (let i = 0; i < w * h; i++) {
+        const v = Math.round(255 * Math.min(1, Math.max(0, 0.5 + (0.5 * fine[i]) / top)));
+        px.data[i * 4] = px.data[i * 4 + 1] = px.data[i * 4 + 2] = v;
+        px.data[i * 4 + 3] = 255;
+      }
+      g.putImageData(px, 0, 0);
     }
-    g.putImageData(px, 0, 0);
     t.flipY = map.flipY;
     t.dispose();
     t.needsUpdate = true;
@@ -1391,14 +1533,58 @@ function heightFromColour(map: THREE.Texture): THREE.Texture {
   return t;
 }
 
-/** A bump map from the material's own colour map, `depth` metres deep (1 cm for setts and flags, less for boards). */
-export function bumpFromMap<T extends THREE.Material>(mat: T, depth = 0.01): T {
+/**
+ * The bump of an atlas material (the bump audit, 2026-09-26: the boats, the props, the roofs): three.js's bump reads its
+ * map at the mesh's own uv, but an atlas material draws each face from its cell (psx `atlas`: the uv repeats inside the
+ * cell). This reads the height map (made from the whole atlas picture) in the same cell, the neighbours one screen pixel
+ * over wrapped inside it too, so the bumps lie under the picture drawn and no cell bleeds into the next.
+ */
+function atlasBumpGlsl(n: number): string {
+  const N = n.toFixed(1);
+  return /* glsl */ `
+#ifdef USE_BUMPMAP
+  uniform sampler2D bumpMap;
+  uniform float bumpScale;
+  vec2 dHdxy_fwd() {
+    vec2 raw = vBumpMapUv;
+    vec2 dx = dFdx(raw);
+    vec2 dy = dFdy(raw);
+    vec2 gx = dx / ${N};
+    vec2 gy = dy / ${N};
+    float Hll = bumpScale * textureGrad(bumpMap, (vCell + fract(raw)) / ${N}, gx, gy).x;
+    float dBx = bumpScale * textureGrad(bumpMap, (vCell + fract(raw + dx)) / ${N}, gx, gy).x - Hll;
+    float dBy = bumpScale * textureGrad(bumpMap, (vCell + fract(raw + dy)) / ${N}, gx, gy).x - Hll;
+    return vec2(dBx, dBy);
+  }
+  vec3 perturbNormalArb(vec3 surf_pos, vec3 surf_norm, vec2 dHdxy, float faceDirection) {
+    vec3 vSigmaX = normalize(dFdx(surf_pos.xyz));
+    vec3 vSigmaY = normalize(dFdy(surf_pos.xyz));
+    vec3 vN = surf_norm;
+    vec3 R1 = cross(vSigmaY, vN);
+    vec3 R2 = cross(vN, vSigmaX);
+    float fDet = dot(vSigmaX, R1) * faceDirection;
+    vec3 vGrad = sign(fDet) * (dHdxy.x * R1 + dHdxy.y * R2);
+    return normalize(abs(fDet) * surf_norm - vGrad);
+  }
+#endif
+`;
+}
+
+/**
+ * A bump map from the material's own colour map. `depth`: three.js's bumpScale, which tilts the normal by the height's
+ * change from one screen pixel to the next (about 1 for stone, 0.8 for wood, 0.2 for cloth). A value under 0.05 is
+ * read as metres, 1 cm = 1.0 (the bump audit, 2026-09-26: the floors were given 0.003 to 0.012 "metres", which three.js
+ * r186 draws as nothing). `sharp`: a small picture's height map made bigger first (world/bumps.ts uses it).
+ */
+export function bumpFromMap<T extends THREE.Material>(mat: T, depth = 0.01, sharp = false): T {
   const m = mat as unknown as THREE.MeshLambertMaterial;
   if (!m.map) return mat;
-  let h = bumpCache.get(m.map);
-  if (!h) bumpCache.set(m.map, (h = heightFromColour(m.map)));
+  const cache = sharp ? sharpCache : bumpCache;
+  let h = cache.get(m.map);
+  if (!h) cache.set(m.map, (h = heightFromColour(m.map, sharp)));
   m.bumpMap = h;
-  m.bumpScale = depth;
+  m.bumpScale = depth < 0.05 ? depth * 100 : depth;
+  if (depth < 0.05) m.userData.bumpBefore = depth; // (the bump audit's before and after pictures)
   m.needsUpdate = true;
   return mat;
 }

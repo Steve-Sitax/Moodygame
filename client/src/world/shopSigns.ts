@@ -49,6 +49,7 @@ function boardCanvas(lines: string[], bg: string, fg: string): THREE.CanvasTextu
     g.fillRect(r() * 512, r() * 96, 2 + r() * 3, 1);
   }
   const t = new THREE.CanvasTexture(c);
+  t.name = "sign"; // (the bump audit: lettering stays flat, world/bumps.ts)
   t.colorSpace = THREE.SRGBColorSpace;
   t.magFilter = THREE.NearestFilter;
   t.minFilter = THREE.NearestFilter;

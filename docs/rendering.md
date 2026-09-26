@@ -42,6 +42,24 @@ through ANGLE on Direct3D 11, and there one shader build takes 0.1 to 0.4 s. The
    test tab (see testing.md). `problems` must be empty. `lightSettings` shows 2 rows: the street and
    the rooms. `programs` was 187 on 2026-09-26: a big jump means new shader kinds.
 
+## Bumps (the bump audit, 2026-09-26)
+Every textured surface has relief from its own picture, never a second pattern:
+- **Big surfaces** have height maps made from the same picture by a script and checked by hash (a picture replaced
+  without running it again draws flat): the house walls (`tools/textures/wall_heights.py`), the town wall
+  (`tools/textures/townwall_maps.py`, `world/townWallBumps.ts`: the pictures packed in `wall.glb`), the landmarks
+  (`tools/textures/*_maps.py`). The ground has the psx `relief` and `slabs`.
+- **Everything else** gets a bump from its picture in the warm-up (`world/bumps.ts`, before its shader is first built):
+  the strength by what the surface is, read from the material's name, then its picture's name or file, then its
+  object's name (stone and brick 1.4, wood 1.1, rope and straw 1.0, iron 0.6, plaster 0.4, cloth 0.28, marble and
+  brass 0.18; glass, paper, bills, signs, paintings, gilt and skin none). Name a new material or texture for what it
+  is (`rooms.ts mat(key)` does it from the key), or tag a painted texture with `bumpTag(t, "wood")`.
+- `bumpScale` is three.js r186's: it tilts the normal by the height's change from one screen pixel to the next, so
+  well under 0.3 does not show. `bumpFromMap(m, k)` reads a value under 0.05 as metres (1 cm = 1.0). Small pixel-sharp
+  pictures (64 px) get a height map made 4 times bigger first (`sharp`), so a joint is as sharp as a pixel. Atlas
+  materials (psx `atlas`: boats, props, roofs) read their bump in their cell (`retro/psx.ts atlasBumpGlsl`).
+- Check: `bumpaudit()` (docs/testing.md). Cost: no measurable frame time (the same view with and without, in one tab),
+  about 5 more shader programs.
+
 ## Still open
 - The water mirror draws the town a second time when water is in view: about 12 ms more per frame on
   the quays (not a stutter, a steady cost). Cheaper options change the picture, so none is taken yet.

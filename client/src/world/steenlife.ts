@@ -517,6 +517,7 @@ function sketchTexture(): THREE.CanvasTexture {
   g.fillStyle = "#7c8a90";
   g.fillRect(0, 40, 64, 8); // the river
   const t = new THREE.CanvasTexture(c);
+  t.name = "sketch"; // (the bump audit: a painted picture stays flat, world/bumps.ts)
   t.colorSpace = THREE.SRGBColorSpace;
   t.magFilter = THREE.NearestFilter;
   t.minFilter = THREE.NearestFilter;

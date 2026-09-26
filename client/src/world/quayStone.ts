@@ -31,6 +31,8 @@ function finish(c: HTMLCanvasElement, wrapT: THREE.Wrapping): THREE.CanvasTextur
  * were made with Codex image generation, assets/ATTRIBUTION.md). If it fails, the painted one stays.
  */
 export function withPicture(tex: THREE.Texture, url: string): THREE.Texture {
+  // (the bump audit: the picture's name says what the surface is, world/bumps.ts)
+  tex.userData.picture = url.replace(/^.*\//, "");
   const img = new Image();
   img.onload = () => {
     tex.image = img;

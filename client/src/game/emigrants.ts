@@ -418,6 +418,7 @@ export class Emigrants {
     g.font = "bold 26px 'Scheldemist Print', Georgia, 'Times New Roman', serif";
     g.fillText(lines[1] ?? "", 256, 96);
     const tex = new THREE.CanvasTexture(c);
+    tex.name = "sign"; // (the bump audit: lettering stays flat, world/bumps.ts)
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.magFilter = THREE.NearestFilter;
     tex.minFilter = THREE.NearestFilter;
@@ -445,6 +446,7 @@ export class Emigrants {
     c.height = 320;
     const ctx = c.getContext("2d")!;
     const tex = new THREE.CanvasTexture(c);
+    tex.name = "notice"; // (the bump audit: lettering stays flat, world/bumps.ts)
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.magFilter = THREE.NearestFilter;
     tex.minFilter = THREE.NearestFilter;

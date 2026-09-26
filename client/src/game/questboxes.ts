@@ -62,6 +62,7 @@ function signTexture(name: string): THREE.CanvasTexture {
   g.font = "italic 12px 'Scheldemist Print', Georgia, serif";
   g.fillText("work done: proof here", 64, 48);
   const t = new THREE.CanvasTexture(c);
+  t.name = "sign"; // (the bump audit: lettering stays flat, world/bumps.ts)
   t.colorSpace = THREE.SRGBColorSpace;
   t.magFilter = THREE.NearestFilter;
   return t;

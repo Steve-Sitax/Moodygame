@@ -99,6 +99,7 @@ function boardTexture(): THREE.CanvasTexture {
   g.textBaseline = "middle";
   g.fillText("STAATSSPOORWEGEN", 128, 17, 240);
   const t = new THREE.CanvasTexture(c);
+  t.name = "sign"; // (the bump audit: lettering stays flat, world/bumps.ts)
   t.magFilter = THREE.NearestFilter;
   t.minFilter = THREE.NearestFilter;
   t.generateMipmaps = false;

@@ -266,7 +266,11 @@ function vogelpik(): THREE.CanvasTexture {
 const mats = new Map<string, THREE.Material>();
 export function mat(key: string, make: () => THREE.Material): THREE.Material {
   let m = mats.get(key);
-  if (!m) mats.set(key, (m = make()));
+  if (!m) {
+    mats.set(key, (m = make()));
+    // (the bump audit: the key says what the surface is, world/bumps.ts)
+    if (!m.name) m.name = key;
+  }
   return m;
 }
 export const lambert = (key: string, o: THREE.MeshLambertMaterialParameters, affine = 0.4) => mat(key, () => psx(new THREE.MeshLambertMaterial(o), { affine }));

@@ -538,6 +538,7 @@ export class Deeds {
     g.textBaseline = "middle";
     g.fillText("POLICE", 64, 17);
     const tex = new THREE.CanvasTexture(c);
+    tex.name = "sign"; // (the bump audit: lettering stays flat, world/bumps.ts)
     tex.magFilter = THREE.NearestFilter;
     tex.colorSpace = THREE.SRGBColorSpace;
     const m = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.46), new THREE.MeshLambertMaterial({ map: tex }));

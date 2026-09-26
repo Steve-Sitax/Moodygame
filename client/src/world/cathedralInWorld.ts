@@ -62,7 +62,9 @@ export function createCathedralInWorld(world: World, inWorld: InWorld): Cathedra
     map.repeat.set(0.5, 1);
     map.offset.set(half * 0.5, 0);
     map.needsUpdate = true;
-    return psx(new THREE.MeshLambertMaterial({ map, color: 0xf0e4d8, emissive: 0x000000, emissiveMap: map }), { affine: 0 });
+    const m = psx(new THREE.MeshLambertMaterial({ map, color: 0xf0e4d8, emissive: 0x000000, emissiveMap: map }), { affine: 0 });
+    m.name = "cath_door_oak"; // (the bump audit: its bump from its own picture, world/bumps.ts)
+    return m;
   };
   const edge = psx(new THREE.MeshLambertMaterial({ color: 0x3a2a1e }), { affine: 0 });
   const oaks: THREE.MeshLambertMaterial[] = [];

@@ -1,0 +1,62 @@
+{
+ "wall_arms": {
+  "sha256": "0b802b4974afcafc6404ab1b69521b2450aacb5fde5c626d98a3b149591ef0d7",
+  "kind": "arms",
+  "bump": 1.1,
+  "map": "townwall_arms_h.png"
+ },
+ "wall_brick": {
+  "sha256": "6287be1e4985cf9ccbaaa7824a9939d3a7965556ec139c7740d766e59b21c414",
+  "kind": "brick",
+  "bump": 1.1,
+  "map": "townwall_brick_h.png"
+ },
+ "wall_canvas": {
+  "sha256": "5b827fe060875290c0fe4ff57ebb2af15c5654c6be35cc09cd98f1c17e2560a7",
+  "kind": "cloth",
+  "bump": 0.3,
+  "map": "townwall_canvas_h.png"
+ },
+ "wall_iron": {
+  "sha256": "b956204dabbdb8b8d515069d2a061d8aef9579eaa4309fa32b0a43c5746c6a2a",
+  "kind": "grain",
+  "bump": 0.45,
+  "map": "townwall_iron_h.png"
+ },
+ "wall_plinth": {
+  "sha256": "e76d3a41f162749d7f5dbd99e9d391ab97b972d255e0fee75e339b8a1883be30",
+  "kind": "ashlar",
+  "bump": 1.2,
+  "map": "townwall_plinth_h.png"
+ },
+ "wall_quoin": {
+  "sha256": "091d2e3959a8c7058040adf1a6103e50a1b990066ba02468e541cb6079d7f724",
+  "kind": "quoin",
+  "bump": 1.1,
+  "map": "townwall_quoin_h.png"
+ },
+ "wall_slate": {
+  "sha256": "b53b75ef330b099fcac13e68b0288596888cd323485e61a513cf73441b94647a",
+  "kind": "slate",
+  "bump": 1.0,
+  "map": "townwall_slate_h.png"
+ },
+ "wall_stone": {
+  "sha256": "3124b6fbdc86a4c7dbae32664e1e2e88575c9fc304ddafccb5db72a8748f2bcd",
+  "kind": "ashlar",
+  "bump": 1.1,
+  "map": "townwall_stone_h.png"
+ },
+ "wall_window": {
+  "sha256": "0166ff2a6acc0ac4ecbae2ccfa2a5727087fb1b7a8e2c8ffa3c9be5b15e32401",
+  "kind": "window",
+  "bump": 0.8,
+  "map": "townwall_window_h.png"
+ },
+ "wall_wood": {
+  "sha256": "b834ff9976c160bd935ed8e77a44f0935df57502a85c09211f7aa6ea6b072745",
+  "kind": "wood",
+  "bump": 1.0,
+  "map": "townwall_wood_h.png"
+ }
+}
