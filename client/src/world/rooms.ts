@@ -109,25 +109,59 @@ export function rand(seed: number): () => number {
 /** Lime plaster gone yellow with smoke: blotches, soot toward the top, scuffs toward the floor. */
 export function plaster(seed: number, base: [number, number, number]): THREE.CanvasTexture {
   const r = rand(seed);
-  return canvasTex(64, 64, (g) => {
+  // Steve 2026-09-26 ("z-fighting in a shop"): the old 64 px plaster had hard blotch rectangles and 1 px stain bars,
+  // nearest-filtered with no mipmaps, so across a room they shimmered as grey slats when Jef moved. Now soft blots
+  // and soft stains, drawn wrapped so the tile has no seam, and mipmapped far off (nearest up close keeps the look).
+  const S = 128;
+  const wrapped = (x: number, y: number, w: number, h: number, draw: (x: number, y: number) => void) => {
+    for (const dx of [0, -S, S]) for (const dy of [0, -S, S]) if (x + dx < S && x + dx + w > 0 && y + dy < S && y + dy + h > 0) draw(x + dx, y + dy);
+  };
+  const t = canvasTex(S, S, (g) => {
     g.fillStyle = `rgb(${base.join(",")})`;
-    g.fillRect(0, 0, 64, 64);
-    for (let i = 0; i < 90; i++) {
-      const v = (r() - 0.5) * 30;
-      g.fillStyle = `rgba(${base[0] + v},${base[1] + v},${base[2] + v * 0.8},0.35)`;
-      g.fillRect(r() * 64, r() * 64, 3 + r() * 9, 2 + r() * 7);
+    g.fillRect(0, 0, S, S);
+    for (let i = 0; i < 70; i++) {
+      const v = (r() - 0.5) * 26;
+      const rad = 6 + r() * 22;
+      const [x, y] = [r() * S, r() * S];
+      const c = `${base[0] + v | 0},${base[1] + v | 0},${base[2] + v * 0.8 | 0}`;
+      wrapped(x - rad, y - rad, 2 * rad, 2 * rad, (cx, cy) => {
+        const gr = g.createRadialGradient(cx + rad, cy + rad, 0, cx + rad, cy + rad, rad);
+        gr.addColorStop(0, `rgba(${c},0.3)`);
+        gr.addColorStop(1, `rgba(${c},0)`);
+        g.fillStyle = gr;
+        g.fillRect(cx, cy, 2 * rad, 2 * rad);
+      });
     }
-    for (let y = 0; y < 64; y++) {
-      g.fillStyle = `rgba(20,14,8,${Math.max(0, 0.35 - y / 64) * 0.9})`;
-      g.fillRect(0, y, 64, 1);
+    // fine grain, a pixel at a time, faint
+    for (let i = 0; i < 900; i++) {
+      const v = (r() - 0.5) * 40;
+      g.fillStyle = `rgba(${base[0] + v | 0},${base[1] + v | 0},${base[2] + v | 0},0.18)`;
+      g.fillRect(r() * S | 0, r() * S | 0, 1, 1);
     }
-    // M7 shops (the lead, 2026-09-26): thin water stains lower down, not dark bars hanging from the top edge (nearest
-    // filtered and of every length, those read as a staircase along the ceiling in every room)
-    for (let i = 0; i < 10; i++) {
-      g.fillStyle = "rgba(40,30,20,0.12)";
-      g.fillRect(r() * 64, 18 + r() * 30, 1, 6 + r() * 12);
+    // soot toward the ceiling
+    const top = g.createLinearGradient(0, 0, 0, S * 0.55);
+    top.addColorStop(0, "rgba(20,14,8,0.3)");
+    top.addColorStop(1, "rgba(20,14,8,0)");
+    g.fillStyle = top;
+    g.fillRect(0, 0, S, S);
+    // a few soft water stains lower down: wide, fading at both ends
+    for (let i = 0; i < 5; i++) {
+      const w = 5 + r() * 9;
+      const h = 20 + r() * 34;
+      const [x, y] = [r() * S, S * 0.3 + r() * S * 0.4];
+      wrapped(x, y, w, h, (cx, cy) => {
+        const gr = g.createLinearGradient(0, cy, 0, cy + h);
+        gr.addColorStop(0, "rgba(60,44,28,0)");
+        gr.addColorStop(0.4, "rgba(60,44,28,0.1)");
+        gr.addColorStop(1, "rgba(60,44,28,0)");
+        g.fillStyle = gr;
+        g.fillRect(cx, cy, w, h);
+      });
     }
   });
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.generateMipmaps = true;
+  return t;
 }
 
 function cloth(color: string, folds = 6): THREE.CanvasTexture {
