@@ -380,7 +380,8 @@ export class Landmarks {
 
   private async loadDoors(): Promise<void> {
     try {
-      this.doors = (await landmarksApi.doors()).doors;
+      // an answer without a list (a dropped connection) keeps the old list: updateCathedral reads it every frame
+      this.doors = (await landmarksApi.doors()).doors ?? this.doors;
     } catch {
       /* the server is not up yet: again in a moment */
     }
