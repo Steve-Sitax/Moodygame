@@ -45,6 +45,25 @@ through ANGLE on Direct3D 11, and there one shader build takes 0.1 to 0.4 s. The
 ## Still open
 - The water mirror draws the town a second time when water is in view: about 12 ms more per frame on
   the quays (not a stutter, a steady cost). Cheaper options change the picture, so none is taken yet.
-- Lantern shadows (night) build their depth shader the first time a person throws a shadow: once.
-- The back streets (`game/lively.ts`) build once, 1 s after the town loads: about 0.2 s. It runs on
-  the first screen when the player waits a moment.
+
+## The loading screen (2026-09-26)
+`client/index.html` shows it from the first paint: the picture, the name, a bar with the step, a tip. Its CSS
+and a small script are inline, so it stands before the game's code has loaded. `client/src/boot/loader.ts` then
+drives it and does the heavy work before the menu:
+
+1. **Loading the town.** Every file three's loaders and the game's own fetches ask for, counted. The step
+   ends when no file is in flight and no task over 150 ms has run for 0.8 s (at most 30 s after the town's
+   data is in): the street life, litter, clutter, goods and posters are built by then, not on the first walk.
+2. **Unpacking the pictures.** `renderer.initTexture` for every texture of the street and the rooms.
+3. **Preparing the shaders.** The warm-up (`world/warmup.ts`) over everything, counted by programs ready
+   (`isReady()`, with KHR_parallel_shader_compile).
+4. **Warming the lights.** One draw of the whole street with nothing hidden and nothing culled (the rain,
+   the lamps' glows, the night's things), and the lantern's shadow cube drawn once with one body of every
+   kind casting: the depth shaders a first dusk used to build in the middle of play.
+5. **Opening the doors.** Every room in `InWorld` drawn once, in its own light.
+
+While it runs, `main.ts` draws no frames and skips its own draw-everything at city-ready: a frame drawn
+during the loading waited on shaders still linking (6 s of the loading in a profile of 2026-09-26). Keys
+and clicks wait. The screen fades into the menu. Numbers: `__scheldemistBoot` (docs/testing.md).
+Add a new kind of thing that loads late? It is counted if it loads through three's loaders or `fetch`, and
+drawn once if it is in the scene or a room when the loading ends.

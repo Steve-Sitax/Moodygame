@@ -179,3 +179,15 @@ Write what you saw into the milestone note: the numbers the kit gave, the pictur
 could not check.
 
 `await __scheldemist.propcheck()` (dev/propcheck.ts): every solid prop of the town (clutter, litter, quay goods and furniture, pumps, lamps, benches, trades, sill pots) against the buildings as built (walls, sills, plinths, steps, kerbs), doorways, passages, bills, each other and the ground; `problems` must be 0 (a new placer lists its props in world/propSpots.ts; `{ only: "clutter" }`, `{ near: [x, z, r] }`).
+
+## The start: the loading screen (2026-09-26)
+The page opens on the loading screen (`client/src/boot/loader.ts`); the menu comes up when the town is built and
+every shader is ready. Keys and clicks wait until then. `__scheldemist.free(true)` takes the screen away at once
+(the work goes on behind the game), so checks that start with it are not held up.
+
+- `__scheldemistBoot.marks`: when each step ended (ms from the page's start): `city`, `boot:files`,
+  `boot:textures`, `boot:shaders`, `boot:lights`, `boot:doors`, `menu`.
+- `__scheldemistBoot.report(60)`: after entering, the frames over 50 ms in the first minute, what came with each
+  (new shaders, textures, files), the worst, and `playableAt` (from then on a whole second without a frame over 100 ms).
+- `__scheldemistBoot.files()`: every file the loading counted, with its start and end.
+- In a production build the probe is there with `?probe` in the address (`enter()`, `walk(s)`, `report()`).

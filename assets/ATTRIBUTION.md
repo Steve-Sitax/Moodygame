@@ -440,3 +440,13 @@ not in the repo.
 | A small worn relief of a standing figure in a round-headed niche (the Semini over the Steenpoort) | `client/public/textures/steen_carve.jpg` (the carvings sheet, cell top left); height map `steen_carve_h.png` | "front view ... a small, very worn stone relief of a standing human figure in a shallow round-headed niche ... no text" | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `a88a30dd8d223072ca0ea9975d2705972e65ede7797f271d344199b1e3890425` |
 | A weathered carved sandstone panel with a crowned double-headed eagle on a shield (the oriel's middle panel, the book tower, the passage's shields) | `client/public/textures/steen_carve.jpg` (the carvings sheet, cell top right) | "front view ... a weathered carved sandstone panel from a 16th-century Flemish gatehouse: a coat of arms with a crowned double-headed eagle ... no letters" | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `a511d462fb8a3bf53cf0e0b9267d67f8680b9752c83ab80bfa808e92c126941a` |
 | A weathered carved sandstone panel with a ragged saltire, a fire steel and two columns (the oriel's side panels) | `client/public/textures/steen_carve.jpg` (the carvings sheet, two cells) | "front view ... a weathered carved sandstone panel ...: a ragged saltire cross ... a fire steel and sparks in the middle, a column with a banner on each side ... no letters" | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `b0aa34779b4656a601b8cba1167b74146af7a743b2463ebefd84b2e9cb99812b` |
+
+## Codex picture: the loading screen (2026-09-26)
+
+Made with Codex image generation from our own prompt through `tools/codexImage.mjs` (Steve's standing OK for Codex,
+`.claude/rule-overrides.md`). No example picture, no third-party images. Resized to 1600 x 900 and saved as a JPEG
+(quality 82).
+
+| Picture | Where in repo | Prompt, in short | Made | Original PNG SHA-256 |
+|---|---|---|---|---|
+| A misty harbour quay in an old Flemish port, autumn 1873, as a sepia copperplate etching: moored sailing ships, a paddle steamer, dock cranes, stepped gables, a tall gothic spire in the fog, dock workers with barrels and a handcart | `client/public/boot/loading.jpg` (1600 x 900) | "a 19th-century copperplate etching printed in dark sepia ink on warm aged paper. An old Flemish port town on a wide river in autumn 1873, early morning fog ... lots of quiet empty fog in the upper third and on the left. No text ..." | 2026-09-26, gpt-6-sol via Codex CLI 0.157.0 | `466dc67ceaf64685aefda34f20e12aa1dc9780feea589b4e70d4d630011ad135` |

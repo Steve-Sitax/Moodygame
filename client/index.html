@@ -4,8 +4,169 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Scheldemist</title>
+    <!-- boot: the loading screen (client/src/boot/loader.ts drives it): shown from the first paint, before the game's code runs -->
+    <link rel="preload" href="/boot/loading.jpg" as="image" fetchpriority="high" />
+    <style>
+      html, body { margin: 0; height: 100%; background: #16120d; overflow: hidden; }
+      #boot {
+        position: fixed; inset: 0; z-index: 2000; overflow: hidden;
+        /* the fog's own tone under the picture: the first paint, before the picture is in, is already the morning */
+        background: radial-gradient(ellipse 85% 90% at 58% 46%, #d6cbb1 40%, #8f846f 100%) #cfc3a8;
+        color: var(--ink, #221b15); cursor: progress;
+        font-family: var(--f-print, "Scheldemist Print", Georgia, "Times New Roman", serif);
+        transition: opacity 1.1s ease-in;
+        -webkit-user-select: none; user-select: none;
+      }
+      #boot.gone { opacity: 0; pointer-events: none; }
+      #boot .pic {
+        position: absolute; inset: -2%; width: 104%; height: 104%;
+        object-fit: cover; object-position: 72% 42%;
+        opacity: 0; transform-origin: 78% 40%;
+        filter: sepia(0.12) contrast(1.03) brightness(0.97);
+        transition: opacity 1.4s ease-out;
+        animation: boot-drift 90s ease-out both;
+      }
+      #boot .pic.in { opacity: 1; }
+      @keyframes boot-drift { from { transform: scale(1); } to { transform: scale(1.07) translateX(-1.2%); } }
+      /* the fog on the left a little lighter (the words sit in it), the edges burnt like an old print */
+      #boot .veil {
+        position: absolute; inset: 0; pointer-events: none;
+        background:
+          radial-gradient(ellipse 85% 90% at 58% 46%, rgba(0, 0, 0, 0) 55%, rgba(22, 15, 8, 0.55) 100%),
+          linear-gradient(90deg, rgba(232, 222, 199, 0.5) 0%, rgba(232, 222, 199, 0.28) 30%, rgba(232, 222, 199, 0) 52%);
+      }
+      #boot .title { position: absolute; left: 6.5vw; top: 9vh; max-width: 46vw; }
+      #boot .kicker {
+        margin: 0 0 0.3em; font-size: clamp(11px, 1.6vh, 18px); letter-spacing: 0.34em; text-transform: uppercase;
+        color: var(--ink-soft, #54463a);
+      }
+      #boot h1 {
+        margin: 0; line-height: 0.95; font-weight: normal;
+        font-family: var(--f-slab, "Scheldemist Slab", "Rockwell Extra Bold", "Rockwell", Georgia, serif);
+        font-size: clamp(40px, 10.5vh, 124px); letter-spacing: 0.06em; text-transform: uppercase;
+        color: var(--ink, #221b15);
+        text-shadow: 0 0 24px rgba(236, 227, 206, 0.75), 0.5px 0.5px 0 rgba(34, 27, 21, 0.3);
+      }
+      #boot .rule { display: block; width: min(34vw, 470px); height: 12px; margin: 1.1vh 0 0.9vh; color: var(--ink, #221b15); opacity: 0.7; }
+      #boot .sub { margin: 0; font-style: italic; font-size: clamp(14px, 2.3vh, 26px); color: var(--ink-soft, #54463a); text-shadow: 0 0 12px rgba(236, 227, 206, 0.8); }
+      #boot .card {
+        position: absolute; left: 6.5vw; bottom: 7.5vh; box-sizing: border-box;
+        width: min(560px, 46vw); min-width: min(340px, 88vw); padding: 16px 24px 14px;
+        color: var(--ink, #221b15);
+        background: var(--grain, none), radial-gradient(ellipse at 45% 35%, var(--paper-hi, #e9e1cb) 0%, var(--paper, #ddd3b9) 58%, var(--paper-2, #d2c6a6) 100%);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.62), 0 2px 5px rgba(0, 0, 0, 0.45), inset 0 0 34px rgba(110, 76, 30, 0.26);
+        transform: rotate(-0.7deg);
+      }
+      #boot .card::before { content: ""; position: absolute; inset: 6px; border: 3px double rgba(34, 27, 21, 0.28); pointer-events: none; }
+      #boot .step { display: flex; align-items: baseline; gap: 10px; margin: 0 0 8px; font-size: clamp(15px, 2.3vh, 22px); font-variant: small-caps; letter-spacing: 0.04em; }
+      #boot .step .what { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #boot .step .count { font-variant: normal; font-style: italic; font-size: 0.8em; color: var(--ink-soft, #54463a); }
+      #boot .step .pct { font-variant-numeric: tabular-nums; font-size: 0.85em; color: var(--ink-soft, #54463a); }
+      /* the bar: an engraver's frame, filled with hatching; a light runs over the ink so it never looks stuck */
+      #boot .bar { position: relative; height: 13px; padding: 2px; border: 1.5px solid var(--ink, #221b15); background: rgba(255, 250, 235, 0.35); overflow: hidden; }
+      #boot .fill {
+        position: relative; height: 100%; overflow: hidden; transform-origin: 0 50%; transform: scaleX(0.02);
+        transition: transform 0.6s ease-out;
+        background: repeating-linear-gradient(-55deg, var(--ink, #221b15) 0 2px, rgba(34, 27, 21, 0.55) 2px 3px, transparent 3px 5px);
+      }
+      #boot .fill::after {
+        content: ""; position: absolute; inset: 0; width: 40%;
+        background: linear-gradient(90deg, rgba(233, 225, 203, 0) 0%, rgba(233, 225, 203, 0.55) 50%, rgba(233, 225, 203, 0) 100%);
+        animation: boot-sheen 2.6s linear infinite;
+      }
+      @keyframes boot-sheen { from { transform: translateX(-110%); } to { transform: translateX(260%); } }
+      #boot .save { margin: 8px 0 0; font-size: clamp(13px, 1.9vh, 17px); line-height: 1.3; color: var(--ink, #221b15); }
+      #boot .save[hidden] { display: none; }
+      #boot .now { margin: 8px 0 0; font-style: italic; font-size: clamp(12px, 1.75vh, 16px); line-height: 1.3; color: var(--ink-soft, #54463a); }
+      #boot .tip {
+        margin: 9px 0 0; padding-top: 7px; border-top: 1px dashed rgba(34, 27, 21, 0.3);
+        min-height: 2.6em; font-family: var(--f-hand, "Scheldemist Hand", "Segoe Print", "Bradley Hand", cursive);
+        font-size: clamp(13px, 2vh, 19px); line-height: 1.3; opacity: 0; transition: opacity 0.45s ease;
+      }
+      #boot .tip.in { opacity: 1; }
+      #boot .tip b { font-weight: 700; }
+      #boot .later { position: absolute; right: 2.2vw; bottom: 2vh; margin: 0; font-size: 13px; font-style: italic; color: rgba(240, 232, 212, 0.85); text-shadow: 0 0 6px #120d08, 0 0 2px #120d08, 0 1px 1px #120d08; }
+      @media (max-width: 760px) {
+        #boot .title { max-width: 88vw; }
+        #boot .rule { width: 70vw; }
+        #boot .card { width: 88vw; left: 6vw; }
+      }
+      /* after the loading: the menu comes up out of the picture, not with a cut */
+      #start.boot-reveal { animation: boot-reveal 1.3s ease-out both; }
+      @keyframes boot-reveal { from { opacity: 0; } to { opacity: 1; } }
+      @media (prefers-reduced-motion: reduce) {
+        #boot .pic, #boot .fill::after { animation: none; }
+      }
+    </style>
   </head>
   <body>
+    <div id="boot" aria-busy="true">
+      <img class="pic" src="/boot/loading.jpg" alt="" decoding="async" onload="this.classList.add('in')" />
+      <div class="veil"></div>
+      <div class="title">
+        <p class="kicker">Antwerp &middot; Autumn 1873</p>
+        <h1>Scheldemist</h1>
+        <svg class="rule" viewBox="0 0 400 12" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M0 4.5H180M220 4.5H400M0 7.5H180M220 7.5H400" stroke="currentColor" stroke-width="1" fill="none" />
+          <path d="M200 1L207 6L200 11L193 6Z" fill="currentColor" />
+        </svg>
+        <p class="sub">The river, the fog, and a town that has work for those who ask.</p>
+      </div>
+      <div class="card" role="status" aria-live="polite">
+        <p class="step"><span class="what">Opening the page</span><span class="count"></span><span class="pct">1%</span></p>
+        <div class="bar"><div class="fill"></div></div>
+        <p class="save" hidden></p>
+        <p class="now">The game is reading its code.</p>
+        <p class="tip"></p>
+      </div>
+      <p class="later">The first start takes longest. Later starts are quicker.</p>
+    </div>
+    <script>
+      // boot: keys and clicks wait until the menu is up (client/src/boot/loader.ts lets go). The first listener
+      // of all, before the game's own: a key pressed while loading must not reach the menu under this screen.
+      window.__bootHold = true;
+      ["keydown", "keyup", "keypress", "click", "dblclick", "mousedown", "mouseup", "pointerdown", "pointerup", "contextmenu"].forEach(function (t) {
+        window.addEventListener(t, function (e) {
+          if (!window.__bootHold) return;
+          // reload, full screen, the browser's tools: the browser's own
+          if (e.ctrlKey || e.metaKey || e.altKey || /^F(5|11|12)$/.test(e.key || "")) return;
+          e.stopImmediatePropagation();
+          if (e.cancelable) e.preventDefault();
+        }, true);
+      });
+      // boot: short tips while the game loads, changed every few seconds
+      (function () {
+        var tips = [
+          "The hiring board on the Rijnkaai has the day's work. Walk up to it and press <b>E</b>.",
+          "Anyone in the street will talk to you. Walk up to them and press <b>E</b>.",
+          "<b>M</b> shows the map, <b>I</b> your pockets, <b>P</b> pauses the town.",
+          "The Schelde is ice cold. If you fall in, find a ladder or a flight of steps.",
+          "After dark the streets are not safe. Carry a lantern and keep to the lamps.",
+          "A bed in the doss house is cheap. You can go to bed there from six in the evening.",
+          "Too far from a bed? From ten at night you can lie down and sleep rough, at your own risk.",
+          "A warm room takes the cold off you. The taverns keep a fire.",
+          "The horse omnibus goes round the quays. Wait at a stop and press <b>E</b> to get on.",
+          "Rowing boats can be hired at the river steps.",
+          "Short of money? The Berg van Barmhartigheid lends against what you own.",
+          "The ballad singer sells his sheets at the market corners.",
+          "The newsboys call the morning paper. The news moves prices on the quays.",
+          "<b>Shift</b> to hurry. <b>Esc</b> opens the menu, where you can save."
+        ];
+        var el = document.querySelector("#boot .tip");
+        var i = Math.floor(Math.random() * tips.length);
+        function show() {
+          if (!el) return;
+          el.classList.remove("in");
+          setTimeout(function () {
+            el.innerHTML = "Tip: " + tips[i++ % tips.length];
+            el.classList.add("in");
+          }, 450);
+        }
+        el.innerHTML = "Tip: " + tips[i++ % tips.length];
+        el.classList.add("in");
+        window.__bootTips = setInterval(show, 7500);
+      })();
+    </script>
     <canvas id="game"></canvas>
     <div id="start">
       <div class="paper">

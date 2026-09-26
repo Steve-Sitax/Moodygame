@@ -2,6 +2,10 @@
 import "./menu/keys";
 // M7 save and pause: first of all, so the pause clock is in place before any other part runs (game/pause.ts)
 import { onPausedKey, pause, real } from "./game/pause";
+// boot: the loading screen's numbers (boot/probe.ts): from the first moment on
+import { bootMark, bootNote, bootProbe } from "./boot/probe";
+// boot: the loading screen (boot/loader.ts): counts the files from here on, holds keys and clicks until the menu is up
+import { booting, finishBoot, runBoot } from "./boot/loader";
 import { dialogs } from "./game/dialogs";
 import { InkCursor } from "./game/cursor";
 import * as THREE from "three";
@@ -1073,7 +1077,8 @@ function frame(): void {
   // M7: every room stands in the world now (world/inworld.ts draws it through its openings)
   // (the first screen, while the shaders are built in the background: the picture holds, so the page
   // does not stand still waiting for them; in the game it always draws)
-  if (started || !warmer.pending) retro.render(world.scene, player.camera, elapsed);
+  // (boot: not while the loading screen builds and warms everything; boot/loader.ts draws then)
+  if (started || (!warmer.pending && !booting())) retro.render(world.scene, player.camera, elapsed);
   // a frame that hung: the mouse moves piled up meanwhile would turn the view in one jerk (player/firstPerson.ts)
   player.stalled = real.now() - frameStart > 150;
   }
@@ -1093,6 +1098,8 @@ void warm();
 setInterval(() => void warm(), 500);
 world.city.ready.then(async () => {
   await warm();
+  // (boot: the loading screen draws everything once at its end, the town and the rooms complete; boot/loader.ts)
+  if (booting()) return;
   const hidden: THREE.Object3D[] = [];
   // M7: each mesh gets its own frustumCulled back (it was set true on all, also on those that must not be culled)
   const culled = new Map<THREE.Object3D, boolean>();
@@ -1114,6 +1121,54 @@ world.city.ready.then(async () => {
   for (const [o, f] of culled) o.frustumCulled = f;
   for (const o of hidden) o.visible = false;
 }).catch(() => {});
+
+// ---- boot (the loading screen, boot/probe.ts): the start's numbers and the probe's way into the game ----
+world.city.ready.then(() => (bootMark("city"), bootNote("city ready"))).catch(() => {});
+{
+  let turnTimer = 0;
+  let lastPos = { x: 0, z: 0, t: 0 };
+  bootProbe.attach({
+    renderer,
+    enter: () => {
+      player.freeInput = true;
+      startEl.classList.add("hidden");
+      started = true;
+      if (!sound) start();
+      syncPause();
+    },
+    drive: (on, turn) => {
+      player.setKey("KeyW", on);
+      clearInterval(turnTimer);
+      if (!on) return;
+      let k = 0;
+      turnTimer = window.setInterval(() => {
+        k++;
+        player.yaw += turn * 0.05 * Math.sin(k / 40);
+        // walked into something: turn away
+        if (k % 20 === 0) {
+          if (Math.hypot(player.x - lastPos.x, player.z - lastPos.z) < 0.5) player.yaw += Math.PI * 0.6;
+          lastPos = { x: player.x, z: player.z, t: k };
+        }
+      }, 50);
+    },
+  });
+}
+// the loading screen's work (boot/loader.ts), then the fade into the menu
+void runBoot({
+  renderer,
+  scene: world.scene,
+  camera: player.camera,
+  target: () => retro.target,
+  inWorld,
+  warm: () => warm(),
+  draw: () => retro.render(world.scene, player.camera, elapsed),
+  culling: (on) => (on === undefined ? cull.enabled : (cull.enabled = on)),
+  cityReady: world.city.ready,
+  townReady: () => !!town.data,
+})
+  .catch((e) => console.warn("[boot]", e))
+  .finally(() => void finishBoot(startEl));
+// ---- end boot ----
 
 // Dev fly mode (F9): fly anywhere, no fog, noon light; a readout of where you are.
 if (import.meta.env.DEV) {
