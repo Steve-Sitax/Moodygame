@@ -1,3 +1,4 @@
+import { modelCollider, ModelCollision } from "./modelCollision";
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { psx } from "../retro/psx";
@@ -506,15 +507,15 @@ function benchGeometry(): THREE.BufferGeometry {
 /** Solid boxes for the benches (the posts are added by rijnkaai.ts from STOPS). */
 export function stopSolids(): Rect[] {
   const out: Rect[] = [];
+  const geometry = benchGeometry();
+  const g = geometry.index ? geometry.toNonIndexed() : geometry;
+  const shape = new ModelCollision([g.getAttribute("position").array]);
   for (const pt of stopPosts()) {
     if (!pt.bench) continue;
     const [x, z, yaw] = pt.bench;
-    const hl = 0.76;
-    const hw = 0.24;
-    const a = Math.abs(Math.cos(yaw));
-    const b = Math.abs(Math.sin(yaw));
-    out.push({ minX: x - a * hl - b * hw, maxX: x + a * hl + b * hw, minZ: z - b * hl - a * hw, maxZ: z + b * hl + a * hw, top: 0.9 });
+    out.push(modelCollider(shape, x, z, yaw));
   }
+
   return out;
 }
 

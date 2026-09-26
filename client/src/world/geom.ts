@@ -73,6 +73,11 @@ export interface Rect {
   maxZ: number;
   /** Height of its top. Missing = a wall you cannot climb. */
   top?: number;
+  /** Narrow phase from the visible model; bounds remain useful for placement and the spatial grid. */
+  surface?: {
+    blocks(x: number, z: number, radius: number, feet: number, step: number): boolean;
+    topAt(x: number, z: number, radius: number, ceiling: number): number;
+  };
 }
 
 export function rectAround(x: number, z: number, hw: number, hd: number, top?: number): Rect {

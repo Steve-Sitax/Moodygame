@@ -1,6 +1,7 @@
 import { TOWN } from "./townBox";
 import * as THREE from "three";
-import { psx } from "../retro/psx";
+import { psx, psxUniforms } from "../retro/psx";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { earthTexture } from "./cityTextures";
 import type { Rect } from "./geom";
 
@@ -41,17 +42,22 @@ function alphaTex(size: number, draw: (g: CanvasRenderingContext2D, r: () => num
 /** Grass blades: thin strokes from the bottom, some bent, green going to straw. */
 function grassTex(): THREE.CanvasTexture {
   return alphaTex(32, (g, r) => {
-    for (let i = 0; i < 26; i++) {
+    for (let i = 0; i < 20; i++) {
       const x = 2 + r() * 28;
       const h = 8 + r() * 22;
       const lean = (r() - 0.5) * 8;
       const v = r();
-      g.strokeStyle = v < 0.55 ? `rgb(${70 + r() * 30},${92 + r() * 30},${40 + r() * 20})` : `rgb(${130 + r() * 40},${120 + r() * 30},${60 + r() * 20})`;
+      g.strokeStyle = v < 0.45 ? `rgb(${65 + r() * 25},${78 + r() * 25},${43 + r() * 18})` : `rgb(${112 + r() * 30},${100 + r() * 25},${61 + r() * 18})`;
       g.lineWidth = 1 + (r() < 0.3 ? 1 : 0);
       g.beginPath();
       g.moveTo(x, 32);
       g.quadraticCurveTo(x + lean * 0.3, 32 - h * 0.6, x + lean, 32 - h);
       g.stroke();
+      if (i % 5 === 0) {
+        // Bent seed stems survive after the green blades have died back.
+        g.fillStyle = "#786746";
+        for (let j = 0; j < 3; j++) g.fillRect(Math.round(x + lean) + (j % 2 ? 1 : -1), Math.round(32 - h + j * 2), 2, 1);
+      }
     }
   }, 11);
 }
@@ -59,7 +65,7 @@ function grassTex(): THREE.CanvasTexture {
 /** Late flowers in the grass: asters (mauve), dandelions (yellow), yarrow (white). */
 function flowerTex(): THREE.CanvasTexture {
   return alphaTex(32, (g, r) => {
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 9; i++) {
       const x = 3 + r() * 26;
       const h = 10 + r() * 16;
       g.strokeStyle = `rgb(${60 + r() * 20},${85 + r() * 20},${40})`;
@@ -69,7 +75,7 @@ function flowerTex(): THREE.CanvasTexture {
       g.lineTo(x + (r() - 0.5) * 3, 32 - h);
       g.stroke();
       const k = r();
-      g.fillStyle = k < 0.45 ? "#9a78b8" : k < 0.75 ? "#d8b830" : "#e8e4d8";
+      g.fillStyle = k < 0.35 ? "#88748e" : k < 0.55 ? "#b29a4b" : k < 0.75 ? "#c0b8a0" : "#716048";
       g.fillRect(Math.round(x - 1), Math.round(32 - h - 2), 3, 3);
     }
   }, 13);
@@ -110,27 +116,44 @@ function leavesTex(): THREE.CanvasTexture {
   }, 19);
 }
 
-/** Two crossed upright quads, base at y = 0, width w and height h. */
+/** Three bent fans, rooted together: uneven clumps rather than a rigid billboard cross. */
 function crossGeo(w: number, h: number): THREE.BufferGeometry {
-  const a = new THREE.PlaneGeometry(w, h).translate(0, h / 2, 0);
-  const b = a.clone().rotateY(Math.PI / 2);
-  const g = new THREE.BufferGeometry();
-  const pos = [...(a.getAttribute("position").array as Float32Array), ...(b.getAttribute("position").array as Float32Array)];
-  const uv = [...(a.getAttribute("uv").array as Float32Array), ...(b.getAttribute("uv").array as Float32Array)];
-  const ia = Array.from(a.getIndex()!.array);
-  const ib = Array.from(b.getIndex()!.array).map((i) => i + 4);
-  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
-  // each card twice, the second wound the other way: both sides are front faces, lit alike
-  const flip = (ix: number[]) => ix.flatMap((_, k, arr) => (k % 3 === 0 ? [arr[k], arr[k + 2], arr[k + 1]] : []));
-  g.setIndex([...ia, ...ib, ...flip(ia), ...flip(ib)]);
-  // normals up: grass lit like the ground, not like a wall
-  g.setAttribute("normal", new THREE.Float32BufferAttribute(new Array(8).fill([0, 1, 0]).flat(), 3));
+  const fans = [0, 1, 2].map(k => {
+    const height = h * [1, 0.79, 0.91][k];
+    const a = new THREE.PlaneGeometry(w, height, 1, 2).translate(0, height / 2, 0);
+    const pos = a.getAttribute("position");
+    for (let i = 0; i < pos.count; i++) {
+      const t = pos.getY(i) / height;
+      pos.setXYZ(i, pos.getX(i) * (0.65 + 0.35 * t), pos.getY(i), t * t * h * [0.18, -0.12, 0.1][k]);
+    }
+    a.rotateY(k * Math.PI / 3 + (k === 1 ? 0.16 : 0));
+    const ids = Array.from(a.getIndex()!.array);
+    a.setIndex([...ids, ...ids.flatMap((_, i) => i % 3 === 0 ? [ids[i], ids[i + 2], ids[i + 1]] : [])]);
+    a.setAttribute("normal", new THREE.Float32BufferAttribute(new Array(pos.count).fill([0, 1, 0]).flat(), 3));
+    return a;
+  });
+  const g = mergeGeometries(fans)!;
+  fans.forEach(f => f.dispose());
   return g;
 }
 
 function plantMat(map: THREE.Texture): THREE.Material {
-  return psx(new THREE.MeshLambertMaterial({ map, alphaTest: 0.5, side: THREE.FrontSide, vertexColors: false }), { affine: 0 });
+  const mat = psx(new THREE.MeshLambertMaterial({ map, alphaTest: 0.5, side: THREE.FrontSide, vertexColors: false }), { affine: 0 });
+  const base = mat.onBeforeCompile, key = mat.customProgramCacheKey.bind(mat);
+  mat.onBeforeCompile = (shader, renderer) => {
+    base.call(mat, shader, renderer);
+    shader.uniforms.uPlantWet = psxUniforms.uWet;
+    shader.fragmentShader = "uniform float uPlantWet;\n" + shader.fragmentShader;
+    shader.fragmentShader = shader.fragmentShader.replace("#include <color_fragment>", "#include <color_fragment>\ndiffuseColor.rgb *= 1.0 - 0.18 * uPlantWet;");
+    shader.vertexShader = shader.vertexShader.replace("#include <begin_vertex>", `#include <begin_vertex>
+      float plantPhase = 0.0;
+      #ifdef USE_INSTANCING
+        plantPhase = instanceMatrix[3].x * 0.73 + instanceMatrix[3].z * 0.31;
+      #endif
+      transformed.x += sin(uTime * 1.5 + plantPhase) * position.y * position.y * (0.018 + 0.025 * uSea);`);
+  };
+  mat.customProgramCacheKey = () => key() + "-small-plants-v1";
+  return mat;
 }
 
 export interface VegetationOptions {

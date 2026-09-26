@@ -531,9 +531,17 @@ export function buildRijnkaai(): World {
   colliders.push(...pumpColliders());
   colliders.push(...carolusSolids()); // the Carolus's terrace railing (shared/carolusPlan.ts)
   const wildTrees = (CITY_DATA as unknown as { decor?: { trees_wild?: Array<[number, number]> } }).decor?.trees_wild ?? [];
+  const treeSpots = [...(CITY_DATA as unknown as { decor?: { trees?: Array<[number, number]> } }).decor?.trees ?? [], ...wildTrees];
+  const treeFallback = treeSpots.map(([x, z]) => rectAround(x, z, 0.22, 0.22));
+  colliders.push(...treeFallback);
   // the trees of the Steenplein and the Werf (world/trees3d.ts, tools/blender/build_trees.py)
   city.ready
-    .then(() => buildTrees3D(scene, [...(CITY_DATA as unknown as { decor?: { trees?: Array<[number, number]> } }).decor?.trees ?? [], ...wildTrees]))
+    .then(() => buildTrees3D(scene, treeSpots, { collisions: true }))
+    .then((trees) => {
+      // Retire the pre-load boxes; newly appended model bounds are filed by the world grid.
+      for (const c of treeFallback) { c.minX = c.maxX = c.minZ = c.maxZ = 1e7; c.top = 0; }
+      colliders.push(...trees.colliders);
+    })
     .catch((e) => console.warn("trees did not load", e));
   // tree pits, grass and weeds at the foot of walls, late flowers, bare bushes (world/vegetation.ts)
   city.ready
@@ -550,10 +558,6 @@ export function buildRijnkaai(): World {
   buildCountryside(scene, WATER_Y);
   // wheel ruts down the cart roads (world/ruts.ts)
   city.ready.then(() => buildRuts(scene, city.flags)).catch(() => {});
-  // tree trunks on the squares and quays (tools/city/design.py decor)
-  for (const [x, z] of [...(CITY_DATA as unknown as { decor?: { trees?: Array<[number, number]> } }).decor?.trees ?? [], ...wildTrees]) {
-    colliders.push(rectAround(x, z, 0.22, 0.22));
-  }
 
   // --- water: one sheet that goes where you go, under the land; it moves in
   // whole texture tiles (4 m), so the ripples stay put on the water
@@ -1102,7 +1106,8 @@ export function buildRijnkaai(): World {
   })();
   /** Things with a top lower than feet + STEP can be walked onto. */
   const STEP = 0.36;
-  const blocks = (c: Rect, feet: number) => (c.top ?? Infinity) > feet + STEP;
+  const blocks = (c: Rect, feet: number, x: number, z: number, r: number) =>
+    c.surface ? c.surface.blocks(x, z, r, feet, STEP) : (c.top ?? Infinity) > feet + STEP;
   // the fixed colliders filed in 4 m cells, so a question looks at the few near it, not all of
   // them; the list only grows (the new ones are filed at the next question)
   const CELL = 4;
@@ -1139,7 +1144,7 @@ export function buildRijnkaai(): World {
   /** A fixed collider within r of (x, z) that stops feet at this height (the same answer as trying them all). */
   const staticHit = (x: number, z: number, r: number, feet: number) => {
     fileSolids();
-    for (const c of bigSolids) if (inRect(c, x, z, r) && blocks(c, feet)) return true;
+    for (const c of bigSolids) if (inRect(c, x, z, r) && blocks(c, feet, x, z, r)) return true;
     // a hair wider than r, so rounding never leaves out a cell inRect would reach
     const e = Math.abs(r) + 1e-6;
     const i0 = Math.floor((x - e) / CELL);
@@ -1149,7 +1154,7 @@ export function buildRijnkaai(): World {
     for (let i = i0; i <= i1; i++)
       for (let j = j0; j <= j1; j++) {
         const l = cells.get(cellKey(i, j));
-        if (l) for (const c of l) if (inRect(c, x, z, r) && blocks(c, feet)) return true;
+        if (l) for (const c of l) if (inRect(c, x, z, r) && blocks(c, feet, x, z, r)) return true;
       }
     return false;
   };
@@ -1176,7 +1181,7 @@ export function buildRijnkaai(): World {
     if (wallNear(x, z, r + 0.15, feet)) return false;
     if (areaHits(x, z, r, feet)) return false;
     if (staticHit(x, z, r, feet)) return false;
-    for (const c of dynamic) if (inRect(c, x, z, r) && blocks(c, feet)) return false;
+    for (const c of dynamic) if (inRect(c, x, z, r) && blocks(c, feet, x, z, r)) return false;
     return true;
   };
   /** M6 handcart: carts pushed by walkers and led drays (World.addMover): solid for Jef and the vehicles. */
@@ -1324,11 +1329,11 @@ export function buildRijnkaai(): World {
     const hit = (c: Rect) => inRect(c, x, z, r) && !inside?.has(c);
     // the grid cannot leave out the colliders Jef stands inside: then the plain loop
     if (inside?.size) {
-      for (const c of colliders) if (hit(c) && blocks(c, feet)) return true;
+      for (const c of colliders) if (hit(c) && blocks(c, feet, x, z, r)) return true;
     } else if (staticHit(x, z, r, feet)) return true;
-    for (const c of dynamic) if (hit(c) && blocks(c, feet)) return true;
+    for (const c of dynamic) if (hit(c) && blocks(c, feet, x, z, r)) return true;
     for (const c of railings) if (hit(c)) return true;
-    for (const c of movers) if (hit(c) && blocks(c, feet)) return true;
+    for (const c of movers) if (hit(c) && blocks(c, feet, x, z, r)) return true;
     return false;
   };
   function walkFree(fx: number, fz: number, x: number, z: number, r: number, feet: number, laden: boolean): boolean {
@@ -1366,7 +1371,9 @@ export function buildRijnkaai(): World {
     const f = floorAt(x, z, feet);
     let g = f ?? LW_MIN - 3;
     const consider = (c: Rect) => {
-      if (c.top !== undefined && c.top <= feet + STEP && inRect(c, x, z, r * 0.6)) g = Math.max(g, c.top);
+      if (!inRect(c, x, z, r * 0.6)) return;
+      const top = c.surface ? c.surface.topAt(x, z, r * 0.6, feet + STEP) : c.top;
+      if (top !== undefined && top <= feet + STEP) g = Math.max(g, top);
     };
     colliders.forEach(consider);
     dynamic.forEach(consider);
@@ -1420,7 +1427,7 @@ export function buildRijnkaai(): World {
   let inside: Set<Rect> | null = null;
   function moveOut(x: number, z: number, dx: number, dz: number, r: number, feet: number, laden: boolean): [number, number] {
     const got = new Set<Rect>();
-    for (const set of [colliders, dynamic, movers] as Iterable<Rect>[]) for (const c of set) if (inRect(c, x, z, r) && blocks(c, feet)) got.add(c);
+    for (const set of [colliders, dynamic, movers] as Iterable<Rect>[]) for (const c of set) if (inRect(c, x, z, r) && blocks(c, feet, x, z, r)) got.add(c);
     for (const c of railings) if (inRect(c, x, z, r)) got.add(c);
     if (!got.size) return [x, z];
     inside = got;
@@ -1560,7 +1567,7 @@ export function buildRijnkaai(): World {
           const [x, z] = at(i, j);
           // a collider with a top you could stand on only blocks you from below
           if (c.top !== undefined && baseAt(x, z) + STEP >= c.top) continue;
-          if (inRect(c, x, z, R)) pass[j * W + i] = 0;
+          if (inRect(c, x, z, R) && blocks(c, baseAt(x, z), x, z, R)) pass[j * W + i] = 0;
         }
     }
     const si = Math.round((sx - X0) / C);
@@ -1826,7 +1833,7 @@ export function buildRijnkaai(): World {
     moverAt,
     onRails: (x, z, r = 0) => railBand.some((c) => inRect(c, x, z, r)),
     isFree,
-    solids: () => [...colliders, ...dynamic].filter((c) => blocks(c, 0)),
+    solids: () => [...colliders, ...dynamic].filter((c) => (c.top ?? Infinity) > STEP),
     // (the fixed list only grows: its length and the count of changes to the others)
     solidsVersion: () => {
       checkRests();

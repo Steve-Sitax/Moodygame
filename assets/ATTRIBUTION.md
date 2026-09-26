@@ -3,6 +3,14 @@
 Every third-party asset and package in Scheldemist is listed here with its licence.
 Nothing enters the repo without a clear licence. See CLAUDE.md.
 
+## Small tree and vegetation pass (2026-09-26)
+
+The revised `client/public/models/trees.glb` and `trees_bark_surface.png` are original procedural
+artwork from `tools/blender/build_trees.py`, without downloaded textures or model inputs. Bark
+colour and relief use the same seeded fissure/flaking masks; lichen is colour only. The small
+grass/flower/bush textures in `client/src/world/vegetation.ts` are original canvas artwork.
+The review picture is a Blender render of those models, not an imported asset.
+
 ## Sound
 
 | Asset | Where in repo | Source | Licence | Checked |

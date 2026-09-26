@@ -2,6 +2,9 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { psx, psxUniforms } from "../retro/psx";
+import { modelCollider, modelShape } from "./modelCollision";
+import type { Rect } from "./geom";
+import { propSurface } from "./propSurface";
 
 // The trees of the Steenplein and the Werf in autumn (Steve, 2026-09-23: "trees are blobs,
 // make them nicer, more detailed"). Models from tools/blender/build_trees.py ->
@@ -84,13 +87,16 @@ export function treeMaterial<T extends THREE.Material>(mat: T, leaf: boolean, me
     if (merged) shader.vertexShader = "attribute vec3 aTreeAt;\n" + shader.vertexShader;
     shader.vertexShader = shader.vertexShader.replace("#include <begin_vertex>", swayGlsl(leaf, merged));
     if (leaf) {
+      shader.uniforms.uPlantWet = psxUniforms.uWet;
+      shader.fragmentShader = "uniform float uPlantWet;\n" + shader.fragmentShader;
+      shader.fragmentShader = shader.fragmentShader.replace("#include <color_fragment>", "#include <color_fragment>\ndiffuseColor.rgb *= 1.0 - 0.16 * uPlantWet;");
       shader.fragmentShader = shader.fragmentShader.replace(
         "#include <normal_fragment_begin>",
         THREE.ShaderChunk.normal_fragment_begin.replace("gl_FrontFacing ? 1.0 : - 1.0", "1.0"),
       );
     }
   };
-  mat.customProgramCacheKey = () => key.call(mat) + (leaf ? "-treeleaf" : "-treebark") + (merged ? "-merged" : "");
+  mat.customProgramCacheKey = () => key.call(mat) + (leaf ? "-treeleaf-wet-v1" : "-treebark") + (merged ? "-merged" : "");
   return mat;
 }
 
@@ -108,6 +114,8 @@ export interface Trees3D {
   /** Kind name per tree position, in the order given. */
   kinds: string[];
   meshes: THREE.Object3D[];
+  /** Woody mesh only: transparent foliage never makes an invisible wall. */
+  colliders: Rect[];
 }
 
 /**
@@ -117,7 +125,7 @@ export interface Trees3D {
 export async function buildTrees3D(
   scene: THREE.Scene,
   trees: P[],
-  opts: { baseAt?: (x: number, z: number) => number; willows?: P[]; kindAt?: (x: number, z: number) => string | null } = {},
+  opts: { baseAt?: (x: number, z: number) => number; willows?: P[]; kindAt?: (x: number, z: number) => string | null; collisions?: boolean } = {},
 ): Promise<Trees3D> {
   const draco = new DRACOLoader().setDecoderPath("/draco/");
   const gltf = await new GLTFLoader().setDRACOLoader(draco).loadAsync("/models/trees.glb");
@@ -135,6 +143,9 @@ export async function buildTrees3D(
   crisp(barkMap);
   crisp(leafMap);
   const bark = treeMaterial(new THREE.MeshLambertMaterial({ map: barkMap, vertexColors: true }), false);
+  const surface = await new THREE.TextureLoader().loadAsync("/models/trees_bark_surface.png");
+  propSurface(bark, surface);
+  surface.wrapT = THREE.RepeatWrapping; // bark UVs repeat up branches; match the colour map
   bark.name = "trees_bark";
   const leaves = treeMaterial(
     new THREE.MeshLambertMaterial({ map: leafMap, vertexColors: true, alphaTest: 0.5, side: THREE.DoubleSide }),
@@ -174,6 +185,7 @@ export async function buildTrees3D(
   const m4 = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const up = new THREE.Vector3(0, 1, 0);
+  const colliders: Rect[] = [];
   for (const s of spots) {
     if (!geo.has(s.kind)) continue;
     const yaw = hash(s.x, s.z, 1) * Math.PI * 2;
@@ -183,6 +195,11 @@ export async function buildTrees3D(
     const list = byKind.get(s.kind) ?? [];
     list.push(m4.clone());
     byKind.set(s.kind, list);
+    const barkGeo = geo.get(s.kind)?.bark;
+    if (barkGeo && opts.collisions) {
+      const shape = modelShape(barkGeo, () => [(barkGeo.index ? barkGeo.toNonIndexed() : barkGeo).getAttribute("position").array]);
+      colliders.push(modelCollider(shape, s.x, s.z, yaw, baseAt(s.x, s.z), k, k, k));
+    }
   }
 
   const meshes: THREE.Object3D[] = [];
@@ -213,7 +230,7 @@ export async function buildTrees3D(
     meshes.push(fall);
   }
 
-  return { kinds: spots.map((s) => s.kind), meshes };
+  return { kinds: spots.map((s) => s.kind), meshes, colliders };
 }
 
 /**

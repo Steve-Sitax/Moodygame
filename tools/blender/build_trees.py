@@ -80,7 +80,7 @@ def vnoise(rng, w, h, cu, cv):
     return (a * (1 - fu) + b * fu) * (1 - fv) + (c * (1 - fu) + d * fu) * fv
 
 
-def paint_bark():
+def paint_bark(surface=False):
     rng = np.random.default_rng(31)
     img = np.ones((BW, BW, 4))
     # left: fissured bark of lime and elm, furrows running up the trunk
@@ -96,6 +96,9 @@ def paint_bark():
     lm = lichen > 0.7
     col[lm] = col[lm] * 0.5 + np.array([0.44, 0.5, 0.38]) * 0.5
     img[:, :64, :3] = col
+    height = np.ones((BW, BW)) * 0.5
+    # The same fissures as the colour; lichen and colour variation are pigment, not pits.
+    height[:, :64] = np.clip((ridge - 0.35) * 1.7, 0.15, 0.75) + (fine - 0.5) * 0.035
     # right: plane bark, flaking in patches of cream, olive grey and brown grey
     n = vnoise(rng, w, h, 5, 9) * 0.75 + vnoise(rng, w, h, 13, 21) * 0.25
     fine = vnoise(rng, w, h, 32, 64)
@@ -108,11 +111,17 @@ def paint_bark():
         col[b] *= 0.7
     col *= (0.9 + 0.2 * fine)[..., None]
     img[:, 64:, :3] = col
+    # Plane bark flakes are shallow shelves, not the brightness of the cream patches.
+    height[:, 64:] = np.where(n < 0.36, 0.49, np.where(n < 0.6, 0.53, 0.57)) + (fine - 0.5) * 0.025
+    if surface:
+        img[..., 0] = height
+        img[..., 1] = 0.9
+        img[..., 2] = 0.035
     return img
 
 
 # autumn palettes (painted colours; the vertex tint shifts them further)
-YELLOW = [(0.86, 0.72, 0.22), (0.78, 0.60, 0.16), (0.93, 0.80, 0.34), (0.70, 0.52, 0.14)]
+YELLOW = [(0.72, 0.62, 0.25), (0.66, 0.53, 0.20), (0.80, 0.70, 0.36), (0.59, 0.46, 0.20)]
 RUST = [(0.64, 0.31, 0.12), (0.74, 0.42, 0.14), (0.52, 0.25, 0.10), (0.80, 0.53, 0.20)]
 BROWN = [(0.46, 0.31, 0.15), (0.56, 0.39, 0.18), (0.38, 0.25, 0.12)]
 GREEN = [(0.42, 0.50, 0.18), (0.55, 0.58, 0.20), (0.34, 0.42, 0.16)]
@@ -285,6 +294,12 @@ def bl_image(name, arr, alpha):
 
 def make_materials():
     bark = bl_image("tree_bark_tex", paint_bark(), False)
+    surface = bl_image("tree_bark_surface", paint_bark(surface=True), False)
+    surface.colorspace_settings.name = "Non-Color"
+    surface.filepath_raw = os.path.join(ROOT, "client", "public", "models", "trees_bark_surface.png")
+    surface.file_format = "PNG"
+    os.makedirs(os.path.dirname(surface.filepath_raw), exist_ok=True)
+    surface.save()
     leaves = bl_image("tree_leaves_tex", paint_leaves(), True)
     for name, img in zip(MAT_NAMES, [bark, leaves]):
         m = bpy.data.materials.new(name)
@@ -372,7 +387,9 @@ class Tree:
             for k in range(sides + 1):
                 a = TAU * (k / sides + rot)
                 d = N * math.cos(a) + B * math.sin(a)
-                ring.append((self.vert(pts[i] + d * radii[i]), d))
+                # Low buttresses make a grounded, uneven root flare without adding polygons.
+                flare = 1.0 + 0.20 * (0.5 + 0.5 * math.sin(a * 3 + 0.7)) * max(0, 1 - z / 0.45) if lvl == 0 else 1.0
+                ring.append((self.vert(pts[i] + d * radii[i] * flare), d))
             rings.append(("ring", ring, s / vlen + voff, c, T[i]))
 
         def u(k):
@@ -487,7 +504,7 @@ class Tree:
                 leafy = False  # a thin place in the crown
             if leafy:
                 ci = rng.choice(L["cells"])
-                size = L["size"] * rng.uniform(0.8, 1.2)
+                size = L["size"] * rng.uniform(0.68, 1.12)
                 jitter = Vector((rng.uniform(-1, 1), rng.uniform(-1, 1), rng.uniform(-1, 1)))
                 a = (d * 0.5 + outn * 0.35 + UP * L.get("up", 0.5) + jitter * 0.35).normalized()
                 tint = rng.choice(L["tints"])
@@ -499,6 +516,8 @@ class Tree:
                 tint = (0.95, 0.92, 0.9)
             else:
                 continue
+            # A ragged windward side, with open gaps that reveal the branch forks.
+            size *= 0.87 if q.x > centre.x + rc * 0.3 else 1.0
             c = q + a * size * 0.38
             if c.z - size * 0.5 < sp["clear"]:
                 continue  # keep the leaves above the heads of the people under the tree
