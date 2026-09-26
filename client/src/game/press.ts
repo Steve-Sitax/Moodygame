@@ -9,6 +9,7 @@ import { chest, type Target } from "./facing";
 import type { Bubbles } from "./bubbles";
 import type { Jobs } from "./jobs";
 import type { Town } from "./town";
+import { dialogs } from "./dialogs";
 
 // The paper, the post and the pawn office on the client (M6). The server owns
 // every fact and number (server/src/paper/); this side shows them: the newsboys'
@@ -117,6 +118,7 @@ export class Press {
     this.page.style.display = "none";
     document.body.appendChild(this.page);
     window.addEventListener("keydown", (e) => this.onKey(e), true);
+    dialogs.register("press page", () => this.isOpen); // focus fix: the pause knows it is up (game/dialogs.ts)
 
     // reading from the pockets
     jobs.pockets.onRead = (it) => setTimeout(() => void this.read(it), 0);

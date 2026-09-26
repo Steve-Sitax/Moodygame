@@ -100,6 +100,8 @@ export function makeTestKit(d: TestKitDeps) {
         "boxes()                          M7 night: the quest boxes, and whose man is away now",
         "shot('name', target?)            a picture of the target from 4 m, lit, fog pushed back",
         "pause(on=true) / paused()        M7: P's pause (nothing moves: run() does nothing either); the pause now",
+        "focusTest({trouble?, only?})     a dialog open, the window left and come back to: its keys work again (all ok); snapTab(name) the tab as seen",
+        "mouseTest({trouble?, only?})     the ink cursor clicks each dialog's lines and keys (all ok)",
         "save('slot1', name?) / load('slot1') / saves()  M7: save into a slot (the game waits for the model), load one (the page reloads: free(true) again), the list",
         "state()                          clock, place, people near, events, the job",
         "clear()                          remove spawned figures, let summoned people go",
@@ -385,6 +387,18 @@ export function makeTestKit(d: TestKitDeps) {
     },
     paused() {
       return d.pauseState();
+    },
+    /** Focus fix (2026-09-26): each kind of dialog, the window left and come back to (away, the menu, P); all must pass (dev/focustest.ts). */
+    async focusTest(opts: { trouble?: boolean; only?: string[] } = {}) {
+      return (await import("./focustest")).focusTest(opts);
+    },
+    /** The mouse in the dialogs (2026-09-26): the ink cursor onto a line or key of each dialog, a click, the dialog reacts; all must pass. */
+    async mouseTest(opts: { trouble?: boolean; only?: string[] } = {}) {
+      return (await import("./focustest")).mouseTest(opts);
+    },
+    /** The tab as the player sees it (the picture and the papers on it), as data/shots/<name>.jpg (dev/focustest.ts). */
+    async snapTab(name: string) {
+      return (await import("./focustest")).snap(name);
     },
     /** M7: save into a slot (slot1..slot5, or "auto"); the game waits while the server waits for the model calls on their way. */
     async save(slot = "slot1", name = ""): Promise<string> {

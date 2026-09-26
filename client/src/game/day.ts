@@ -6,6 +6,7 @@ import { topLeft } from "./corner";
 import { GAME_MIN_PER_REAL_S, TICK_EVERY_MS, TICK_MINUTES } from "../../../shared/clock";
 import { TIRED_AT } from "../../../shared/night";
 import { pause } from "./pause";
+import { dialogs } from "./dialogs";
 
 // The day and the week (M5). The server owns the clock; this side asks for a
 // tick every 10 s while you play (shared/clock.ts: 5 game minutes; a game hour is 2 real minutes), shows the time, turns the light, and shows
@@ -41,6 +42,7 @@ export class Day {
     this.sheet.style.display = "none";
     document.body.appendChild(this.sheet);
     window.addEventListener("keydown", (e) => this.onKey(e), true);
+    dialogs.register("day sheet", () => this.sheetOpen); // focus fix: the pause knows it is up (game/dialogs.ts)
     window.setInterval(() => {
       if (this.playing) void this.tick();
     }, TICK_MS);

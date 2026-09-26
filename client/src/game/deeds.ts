@@ -12,6 +12,7 @@ import { Velocipedes, type VeloInfo } from "./velocipedes";
 import { HandLantern } from "./lantern";
 import { esc } from "./runs";
 import { chest, pick } from "./facing";
+import { dialogs } from "./dialogs";
 
 // Theft, velocipedes, a lantern to carry, and the police (M3h), on the client.
 // The server decides everything that counts (server/src/town/deeds.ts and
@@ -165,6 +166,7 @@ export class Deeds {
     this.sheet.style.display = "none";
     document.body.appendChild(this.sheet);
     window.addEventListener("keydown", (e) => this.onSheetKey(e), true);
+    dialogs.register("police cell", () => !!this.cell); // focus fix: the pause knows it is up (game/dialogs.ts)
     void this.load();
   }
 

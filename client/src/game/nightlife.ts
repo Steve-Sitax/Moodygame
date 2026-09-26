@@ -10,6 +10,7 @@ import { Figure } from "./figures";
 import type { Jobs } from "./jobs";
 import type { Town } from "./town";
 import { esc } from "./runs";
+import { dialogs } from "./dialogs";
 
 // M7 night, the client side of the gangs (server night/gangs.ts decides everything). Once a tick at
 // night Jef's position and what he sees go to the server (a lit lamp near, on a quay, goods in his
@@ -88,6 +89,7 @@ export class Nightlife {
     this.veil.className = "gang-veil";
     document.body.appendChild(this.veil);
     window.addEventListener("keydown", (e) => this.onKey(e), true);
+    dialogs.register("gang", () => !!this.gang && !this.sent); // focus fix: the pause knows it is up (game/dialogs.ts)
   }
 
   /** At a load: a gang already in the street (a reload in the middle of it). */

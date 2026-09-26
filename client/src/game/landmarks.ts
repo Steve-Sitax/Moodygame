@@ -24,6 +24,7 @@ import * as PLAN from "../../../shared/cathedralPlan";
 import * as HP from "../../../shared/hallPlan";
 import { makeCoffin, makeWear, type WardrobeRole } from "./wardrobe";
 import { BIER_TOP, makeBier, type Bier } from "../world/bier";
+import { dialogs } from "./dialogs";
 
 // Inside the landmarks (M6 landmark interiors): E at the cathedral's west door, the town hall's
 // door, the Vleeshuis's two doors, the museum door in the Steen's courtyard or the Oostershuis's
@@ -1842,6 +1843,7 @@ class ConfessionPanel {
     this.input.placeholder = "Say it in your own words, then Enter";
     document.body.appendChild(this.el);
     window.addEventListener("keydown", (e) => this.onKey(e), true);
+    dialogs.register("confessional", () => this.openNow); // focus fix: the pause knows it is up (game/dialogs.ts)
   }
 
   get isOpen(): boolean {

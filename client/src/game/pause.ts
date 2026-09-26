@@ -212,9 +212,13 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
 
 // ------------------------------------------------------------------ keys
 
-let keyHandler: ((e: KeyboardEvent, typing: boolean) => void) | null = null;
-/** While paused the keys go only here (main.ts: the menu, the pause card, the save panel); the game's own wait. */
-export function onPausedKey(f: (e: KeyboardEvent, typing: boolean) => void): void {
+let keyHandler: ((e: KeyboardEvent, typing: boolean) => boolean | void) | null = null;
+/**
+ * While paused the keys go only here (main.ts: the menu, the pause card, the save panel); the game's own wait.
+ * The handler returns true when it went back into the game and the key is for the game too (a dialog's digit
+ * after coming back to the window): then it goes on to the dialogs' own listeners.
+ */
+export function onPausedKey(f: (e: KeyboardEvent, typing: boolean) => boolean | void): void {
   keyHandler = f;
 }
 // first of all the key listeners (this file is imported first): nothing in the game hears a key while paused
@@ -224,8 +228,12 @@ window.addEventListener(
     if (reasons.size === 0) return;
     const t = e.target as HTMLElement | null;
     const typing = !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT");
-    e.stopImmediatePropagation();
-    keyHandler?.(e, typing);
+    let goOn = false;
+    try {
+      goOn = keyHandler?.(e, typing) === true;
+    } finally {
+      if (!goOn || reasons.size > 0) e.stopImmediatePropagation();
+    }
   },
   true,
 );

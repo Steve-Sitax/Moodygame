@@ -1,5 +1,6 @@
 import CITY from "../../../shared/city.json";
 import type { FirstPerson } from "../player/firstPerson";
+import { dialogs } from "./dialogs";
 
 // The paper map (M). Drawn from the traced 1873 city (shared/city.json) in the
 // colours of the Vuillaume map: red blocks, blue-grey water, ink names.
@@ -82,6 +83,7 @@ export class CityMap {
     };
     this.base = this.drawBase();
     window.addEventListener("keydown", (e) => this.onKey(e));
+    dialogs.register("map", () => this.open); // focus fix: the pause knows it is up (game/dialogs.ts)
   }
 
   private px(x: number, z: number): [number, number] {

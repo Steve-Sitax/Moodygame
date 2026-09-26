@@ -12,6 +12,7 @@ import type { Town } from "./town";
 import type { Press } from "./press";
 import { Figure } from "./figures";
 import { makeAnimal, type Animal, type AnimalKind } from "./animals";
+import { dialogs } from "./dialogs";
 
 const DOGS = ["dog_brown", "dog_black", "dog_spotted", "dog_grey"];
 const dogKind = (look?: string): AnimalKind => (DOGS.includes(look ?? "") ? look : "dog_brown") as AnimalKind;
@@ -206,6 +207,7 @@ export class Ideas {
     this.page.style.display = "none";
     document.body.appendChild(this.page);
     window.addEventListener("keydown", (e) => this.onKey(e), true);
+    dialogs.register("card", () => this.isOpen); // focus fix: the pause knows it is up (game/dialogs.ts)
     this.stepMark = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.05, 14), psx(new THREE.MeshBasicMaterial({ color: 0xe8dcb0, transparent: true, opacity: 0.7 })));
     this.stepMark.rotation.x = -Math.PI / 2;
     this.stepMark.visible = false;

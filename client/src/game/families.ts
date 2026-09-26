@@ -5,6 +5,7 @@ import type { World } from "../world/rijnkaai";
 import type { Jobs } from "./jobs";
 import type { Town } from "./town";
 import { esc } from "./runs";
+import { dialogs } from "./dialogs";
 
 // M6 families and surprises, the client side. The server decides everything
 // (director/families.ts, surprises.ts); this side only shows it:
@@ -105,6 +106,7 @@ export class Families {
     this.input.maxLength = 300;
     this.input.placeholder = "Your own words, then Enter (Esc: never mind)";
     window.addEventListener("keydown", (e) => this.onKey(e), true);
+    dialogs.register("menace", () => !!this.menace, { cursor: false }); // focus fix: the pause knows it is up (game/dialogs.ts)
   }
 
   /** After the town loaded: the strangers' names and days, the fortune teller's table, a menace in progress. */

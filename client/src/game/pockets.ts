@@ -2,6 +2,7 @@ import { api, type JobsPayload, type PocketItem } from "../net/api";
 import type { FirstPerson } from "../player/firstPerson";
 import { esc } from "./runs";
 import { SHOP_ICONS } from "./shopIcons";
+import { dialogs } from "./dialogs";
 
 // Pockets and needs on screen (M3b). Paper and ink, docs/05: needs as small
 // drawings, not bars. Six slots always in view; I opens them to eat or look.
@@ -224,6 +225,7 @@ export class Pockets {
     this.needsImg.className = "needs";
     hud.after(this.needsImg);
     window.addEventListener("keydown", (e) => this.onKey(e));
+    dialogs.register("pockets", () => this.open); // focus fix: the pause knows it is up (game/dialogs.ts)
   }
 
   apply(p: JobsPayload): void {

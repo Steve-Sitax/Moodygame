@@ -21,6 +21,7 @@ import type { InWorld } from "../world/inworld";
 import { createHouseInWorld, type HouseInWorld } from "../world/houseInWorld";
 import type { HousePlan } from "../../../shared/housePlan";
 import * as HP from "../../../shared/hallPlan";
+import { dialogs } from "./dialogs";
 
 // Inside (M6, M7 in the world): the taverns and the Poesje stand inside their own city houses
 // (shared/housePlan.ts, world/houseInWorld.ts): their doors stand open in opening hours and you walk in;
@@ -272,7 +273,7 @@ export class Interiors {
     try {
       // M7 shops: the shops' doors and hours (their own route; a failure leaves the taverns be)
       try {
-        this.shops = (await interiorApi.shops()).shops;
+        this.shops = (await interiorApi.shops()).shops ?? this.shops; // a reply that did not parse keeps the list
         this.buildShops();
         for (const s of this.shops) {
           const h = this.houses.get(`shop:${s.place}`);
@@ -1433,6 +1434,7 @@ class DicePanel {
     this.el.style.display = "none";
     document.body.appendChild(this.el);
     window.addEventListener("keydown", (e) => this.onKey(e), true);
+    dialogs.register("tavern dice", () => this.open); // focus fix: the pause knows it is up (game/dialogs.ts)
   }
 
   show(place: string, who: Person, line: string, stakes: number[], left: { games: number; loss_c: number }, money: number): void {

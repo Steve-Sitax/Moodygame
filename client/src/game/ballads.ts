@@ -8,6 +8,7 @@ import { chest } from "./facing";
 import type { Jobs } from "./jobs";
 import type { Town } from "./town";
 import type { Interiors } from "./interiors";
+import { dialogs } from "./dialogs";
 
 // The ballad singer on the client (M6). The server owns the singer, his corners and hours, the
 // day's ballad and the price of a sheet (server/src/ballads/); this side plays it: line by line
@@ -145,6 +146,7 @@ export class Ballads {
     this.page.style.display = "none";
     document.body.appendChild(this.page);
     window.addEventListener("keydown", (e) => this.onKey(e), true);
+    dialogs.register("ballad sheet", () => this.isOpen); // focus fix: the pause knows it is up (game/dialogs.ts)
     // reading a sheet from the pockets; everything else stays with the others
     const prev = jobs.pockets.onRead;
     jobs.pockets.onRead = (it) => (it.kind === "ballad" ? setTimeout(() => void this.read(it), 0) : prev(it));

@@ -16,6 +16,7 @@ import type { Town } from "./town";
 import { topLeft } from "./corner";
 import { auditShown, best, bindView, inView, type Target } from "./facing";
 import type { QuestBoxes } from "./questboxes";
+import { dialogs } from "./dialogs";
 
 // The hands and the job (M2, M2b, M3). Everything you do with E and F goes
 // through here: lift, set down, stack, drop in the Schelde, talk, read the
@@ -199,6 +200,7 @@ export class Jobs {
     world.scene.add(this.glowLight);
 
     window.addEventListener("keydown", (e) => this.onKey(e));
+    dialogs.register("job board", () => this.boardOpen); // focus fix: the pause knows it is up (game/dialogs.ts)
     connectPush(
       (p) => this.apply(p),
       (o) => this.showOutcome(o),

@@ -1,5 +1,7 @@
 // M7 save and pause: first of all, so the pause clock is in place before any other part runs (game/pause.ts)
 import { onPausedKey, pause, real } from "./game/pause";
+import { dialogs } from "./game/dialogs";
+import { InkCursor } from "./game/cursor";
 import * as THREE from "three";
 import "./style.css";
 import { RetroPass } from "./retro/retroPass";
@@ -549,6 +551,16 @@ function start(): void {
   }
   if (weatherNow) sound.setWeather(weatherNow);
   sound.resume();
+  // focus fix (2026-09-26): a dialog up (a talk, a card): back into it at once, whether the mouse lock
+  // comes now, a moment later or not at all (the browser may refuse it); the lock is asked for below
+  if (started && dialogs.any()) {
+    dialogPlay = true;
+    quietPause = false;
+    startEl.classList.add("hidden");
+    resumeEl.classList.add("hidden");
+    saves.closePanel();
+    syncPause();
+  }
   player.lock();
 }
 startEl.addEventListener("click", start);
@@ -577,13 +589,23 @@ startEl.querySelector(".paper")?.prepend(stamp);
 let quietPause = false;
 /** The game has been entered in this page (the first screen is not a pause). */
 let started = false;
+/**
+ * Focus fix (2026-09-26): back in a dialog without the mouse lock (it is asked for, and comes a moment later
+ * or never): the game plays while the dialog is up. Cleared when the lock comes, the window is left or the
+ * dialog closes (then the quiet pause, as after going away).
+ */
+let dialogPlay = false;
+/** The game has the player's input: the mouse lock, the dev's free input, or a dialog gone back to. */
+const hasInput = () => player.locked || player.freeInput || (dialogPlay && dialogs.any());
 const hintEl = startEl.querySelector(".hint");
 const hintText = hintEl?.textContent ?? "";
 function showMenu(on: boolean): void {
   // once in the game, the paper says how to go on (a loaded save's line was for the first screen)
   if (on && started && hintEl) hintEl.textContent = hintText.replace("to walk", "to go on");
   startEl.classList.toggle("hidden", !on);
-  resumeEl.classList.toggle("hidden", on || player.locked || player.freeInput || !quietPause || pause.has("key"));
+  resumeEl.classList.toggle("hidden", on || hasInput() || !quietPause || pause.has("key"));
+  // focus fix: with a dialog up, any key goes back to it
+  resumeEl.textContent = dialogs.any() ? "Click or press any key to go on · Esc: menu" : "Click or press W to go on · Esc: menu";
   stamp.style.display = started && on ? "" : "none";
   if (on) saves.showMenu(started);
   else saves.closePanel();
@@ -591,7 +613,7 @@ function showMenu(on: boolean): void {
 }
 /** The menu reason: entered once, and the menu is up or the game does not have the mouse (the dev's free input has it). */
 function syncPause(): void {
-  pause.set("menu", started && (!startEl.classList.contains("hidden") || !(player.locked || player.freeInput)));
+  pause.set("menu", started && (!startEl.classList.contains("hidden") || !hasInput()));
 }
 /** P: the "Paused" card; P, W or a click again goes on. */
 function keyPause(on: boolean): void {
@@ -613,17 +635,31 @@ pause.onChange((p) => {
 });
 const RESUME_KEYS = ["KeyW", "KeyA", "KeyS", "KeyD", "Space", "Enter", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
 const panelsOpen = () => [...document.querySelectorAll<HTMLElement>(".settings")].filter((p) => p.style.display !== "none");
-/** Keys on the menu, the card, a panel: before the game is entered, and (game/pause.ts) while paused. */
-function menuKey(e: KeyboardEvent, typing: boolean): void {
-  if (e.repeat) return;
-  if (pause.has("saving") || pause.has("loading")) return; // wait for it
+/** Keys that never go back into the game from the quiet pause: a lone modifier, the print key, a shortcut. */
+const NOT_BACK = /^(Alt|Control|Shift|Meta|OS|Tab|PrintScreen|CapsLock|NumLock|ScrollLock|ContextMenu|F\d+)/;
+/**
+ * Keys on the menu, the card, a panel: before the game is entered, and (game/pause.ts) while paused.
+ * True: the game plays again and the key goes on to it (a dialog's key after coming back to the window).
+ */
+function menuKey(e: KeyboardEvent, typing: boolean): boolean {
+  if (e.repeat) return false;
+  if (pause.has("saving") || pause.has("loading")) return false; // wait for it
+  // focus fix (2026-09-26): back at the window with a dialog up (a talk, a card): any key goes back into
+  // the game; the dialog's own keys (a digit, E, B, the letters in its input) reach it, the walking keys only go on
+  if (e.code !== "Escape" && quietPause && started && !pause.has("key") && startEl.classList.contains("hidden") && !panelsOpen().length && dialogs.any()) {
+    if (NOT_BACK.test(e.code) || e.ctrlKey || e.altKey || e.metaKey) return false;
+    start();
+    if (typing || !RESUME_KEYS.includes(e.code)) return true;
+    e.preventDefault();
+    return false;
+  }
   if (e.code === "Escape") {
     e.preventDefault();
     // a panel open (Settings, Save, Load, Dev): Esc closes it
     const open = panelsOpen();
     if (open.length) {
       for (const p of open) p.style.display = "none";
-      return;
+      return false;
     }
     if (pause.has("key")) {
       // from the card to the menu (the menu's pause first: no moment of play between them)
@@ -631,41 +667,42 @@ function menuKey(e: KeyboardEvent, typing: boolean): void {
       quietPause = false;
       showMenu(true);
       pause.set("key", false);
-      return;
+      return false;
     }
     const menuOpen = !startEl.classList.contains("hidden");
     quietPause = menuOpen;
     showMenu(!menuOpen);
-    return;
+    return false;
   }
   if (typing) {
     // Enter in a save's name: save there
     if (e.code === "Enter") (e.target as HTMLElement).closest("li")?.querySelector<HTMLButtonElement>("button[name=go]")?.click();
-    return;
+    return false;
   }
-  if (panelsOpen().length) return;
+  if (panelsOpen().length) return false;
   if (e.code === "KeyP" && pause.has("key")) {
     e.preventDefault();
     keyPause(false);
-    return;
+    return false;
   }
   if (RESUME_KEYS.includes(e.code)) {
     e.preventDefault();
     if (pause.has("key")) keyPause(false);
     else start();
   }
+  return false;
 }
 onPausedKey(menuKey);
 window.addEventListener("keydown", (e) => {
   // P in the game: the pause (the gang's and the menace's own P go first: they stop the key)
-  if (e.code === "KeyP" && !e.repeat && (player.locked || player.freeInput) && !pause.paused && !jobs.day.sheetOpen) {
+  if (e.code === "KeyP" && !e.repeat && hasInput() && !pause.paused && !jobs.day.sheetOpen) {
     const t = document.activeElement as HTMLElement | null;
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
     e.preventDefault();
     keyPause(true);
     return;
   }
-  if (player.locked || player.freeInput) return;
+  if (hasInput()) return;
   const menuOpen = !startEl.classList.contains("hidden");
   if (!menuOpen && !quietPause) return;
   const t = document.activeElement as HTMLElement | null;
@@ -676,10 +713,37 @@ canvas.addEventListener("click", () => {
   else if (!player.locked) start();
 });
 pauseCard.addEventListener("click", () => keyPause(false));
+// the mouse in the dialogs (Steve 2026-09-26): an ink cursor while one is up, the lock kept; a click on a
+// line or a key there does what the key does (game/cursor.ts). A click on a line from the quiet pause goes on first.
+const ink = new InkCursor(player, () => {
+  if (quietPause && startEl.classList.contains("hidden") && !pause.has("key")) start();
+});
+player.mouseHeld = () => ink.active;
+// focus fix (2026-09-26): with a dialog up, a click on it (not only on the picture) goes back into the game
+window.addEventListener("click", (e) => {
+  if (!quietPause || pause.has("key") || !dialogs.any() || !startEl.classList.contains("hidden")) return;
+  const el = e.target as HTMLElement | null;
+  if (el === canvas || el?.closest?.("#start, .settings, .pause-ui")) return;
+  start();
+});
 let lostFocusAt = -1e9;
 window.addEventListener("blur", () => (lostFocusAt = real.now()));
+// focus fix: in a dialog without the lock, leaving the window pauses as losing the lock does; the dialog
+// closed without the lock: the quiet pause (a click or W goes on, and takes the mouse)
+function leaveDialogPlay(): void {
+  if (!dialogPlay) return;
+  dialogPlay = false;
+  if (player.locked || player.freeInput || pause.has("key")) return;
+  quietPause = true;
+  showMenu(false);
+}
+window.addEventListener("blur", leaveDialogPlay);
+setInterval(() => {
+  if (dialogPlay && !dialogs.any()) leaveDialogPlay();
+}, 100);
 document.addEventListener("pointerlockchange", () => {
   const locked = document.pointerLockElement === canvas;
+  dialogPlay = false; // focus fix: the lock came (the usual rules again), or went: the pause as ever
   if (locked || player.freeInput) {
     started = true;
     quietPause = false;
@@ -697,7 +761,7 @@ document.addEventListener("pointerlockchange", () => {
   // The focus change can come a moment after the lock change, so look again shortly (a real timer:
   // the game's own timers wait for the unpause).
   real.setTimeout(() => {
-    if (player.locked || player.freeInput || pause.has("key")) return;
+    if (hasInput() || pause.has("key")) return;
     const away = !document.hasFocus() || real.now() - lostFocusAt < 600;
     quietPause = away;
     showMenu(!away);
@@ -1417,5 +1481,7 @@ if (import.meta.env.DEV) {
   Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, { cull, renderer, retro, lanternLights, alive });
   // M7 back of town (hook): __scheldemist.back.info(), .at(place)
   Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, { back: backLife });
+  // the ink cursor and the dialogs up (game/cursor.ts, game/dialogs.ts): t.focusTest(), t.mouseTest()
+  Object.assign((window as unknown as { __scheldemist: object }).__scheldemist, { ink, dialogs });
   mountCullHud(cull);
 }

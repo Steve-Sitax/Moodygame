@@ -6,6 +6,7 @@ export interface Speaker {
   def: { name: string; title?: string };
 }
 import { esc } from "./runs";
+import { dialogs } from "./dialogs";
 
 // The talk window (M3). The NPC speaks; Jef picks one of three lines (1-3),
 // or types his own (T). B shows what they sell and pays on the spot (M3b).
@@ -60,6 +61,7 @@ export class Talk {
     this.input.placeholder = "Say it in your own words, then Enter";
     // capture phase: while talking, keys belong to this window
     window.addEventListener("keydown", (e) => this.onKey(e), true);
+    dialogs.register("talk", () => this.isOpen); // focus fix: the pause knows it is up (game/dialogs.ts)
     api
       .npcs()
       .then((list) => list.forEach((n) => this.wares.set(n.id, n.wares)))

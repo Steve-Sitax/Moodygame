@@ -144,6 +144,8 @@ export class FirstPerson {
   private recentAt = 0;
   /** The last frame hung (main.ts): the mouse moves until the next frame are dropped. */
   stalled = false;
+  /** A dialog is up: the mouse moves the ink cursor (game/cursor.ts), not the look. Set by main.ts. */
+  mouseHeld: () => boolean = () => false;
 
   constructor(
     private readonly world: World,
@@ -169,7 +171,7 @@ export class FirstPerson {
     //  - Chrome on Windows now and then reports one move far bigger than the ones round it: dropped. A real
     //    flick grows over several moves, so only a lone jump is left out (its size is still remembered).
     document.addEventListener("mousemove", (e) => {
-      if (!this.locked) return;
+      if (!this.locked || this.mouseHeld()) return;
       const m = Math.hypot(e.movementX, e.movementY);
       const before = this.recentMove * Math.exp(-Math.max(0, e.timeStamp - this.recentAt) / 150);
       this.recentMove = Math.max(m, before);
