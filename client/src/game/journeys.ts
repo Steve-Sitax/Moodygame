@@ -508,7 +508,7 @@ export class Journeys {
         g.lineWidth = 3;
         g.strokeRect(3, 3, 250, 42);
         g.fillStyle = "#e0cf98";
-        g.font = "bold 26px Georgia, serif";
+        g.font = "bold 26px 'Scheldemist Print', Georgia, serif";
         g.textAlign = "center";
         g.textBaseline = "middle";
         g.fillText("VELOCIPEDES", 128, 25);

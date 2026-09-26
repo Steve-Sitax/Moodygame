@@ -49,6 +49,7 @@ import { createMirror } from "./mirror";
 import { BRIG_FLOOR, CHAMBER, DOCK, HW_MAX, LW_MIN, MID_Y, gateLine, levelAt, tideAt, tideDev, tideInfo, water as tideWater } from "./tide";
 import { buildTideMud } from "./tidemud";
 import { landmarkDoorKeepOut } from "./doorKeep";
+import { tuning } from "../menu/tuning"; // menus: the view distance setting
 
 // The Rijnkaai in the real 1873 city (world/city.ts). Water is at z < 0, the
 // quay edge runs along x (the world is turned 19 deg so it does). Quay top is
@@ -1745,8 +1746,8 @@ export function buildRijnkaai(): World {
     sun.intensity = sunDay * (1.35 - wNow[2]) * 2.6 * (1 + 0.8 * gold);
     psxUniforms.uScatter.value = SCATTER * wNow[2];
     // the job twist "thick fog" always closes in, whatever the weather
-    fog.near = THREE.MathUtils.lerp(3 * wNow[0], 1.5, fogMix);
-    fog.far = THREE.MathUtils.lerp(dayFar * wNow[1], 11, fogMix);
+    fog.near = THREE.MathUtils.lerp(3 * wNow[0] * tuning.viewFar, 1.5, fogMix);
+    fog.far = THREE.MathUtils.lerp(dayFar * wNow[1] * tuning.viewFar, 11, fogMix); // menus: view distance
     sky.visible = !devView;
     if (devView) {
       // look at everything: no fog, bright day

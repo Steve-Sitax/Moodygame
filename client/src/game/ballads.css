@@ -19,7 +19,7 @@
   border: 1px solid #7a6c52;
   padding: 14px 24px 10px;
   color: #221e1a;
-  font-family: "Times New Roman", Georgia, serif;
+  font-family: "Scheldemist Print", "Times New Roman", Georgia, serif;
   font-size: calc(13px * var(--ui, 1));
   line-height: 1.32;
   text-align: center;
@@ -41,7 +41,7 @@
 }
 .ballad-sheet h1 {
   margin: 0 0 2px;
-  font-family: "Rockwell Extra Bold", "Clarendon", "Bookman Old Style", Georgia, serif;
+  font-family: "Scheldemist Slab", "Rockwell Extra Bold", "Clarendon", "Bookman Old Style", Georgia, serif;
   font-size: calc(21px * var(--ui, 1));
   letter-spacing: 1px;
   line-height: 1.1;
@@ -63,7 +63,7 @@
   max-width: min(760px, 90vw);
   text-align: center;
   color: #efe4c8;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Scheldemist Print", Georgia, "Times New Roman", serif;
   font-size: calc(18px * var(--ui, 1));
   line-height: 1.35;
   text-shadow: 0 0 8px #000, 0 0 3px #000;

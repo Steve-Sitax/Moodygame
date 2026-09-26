@@ -240,7 +240,7 @@ export function signTexture(text: string): THREE.CanvasTexture {
   g.fillStyle = "#1a1714";
   g.fillRect(0, 0, 256, 32);
   g.fillStyle = "#b8ab8a";
-  g.font = "bold 22px Georgia, serif";
+  g.font = "bold 22px 'Scheldemist Print', Georgia, serif";
   g.textAlign = "center";
   g.textBaseline = "middle";
   g.fillText(text, 128, 17);

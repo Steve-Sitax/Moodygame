@@ -33,12 +33,12 @@ function boardCanvas(lines: string[], bg: string, fg: string): THREE.CanvasTextu
   g.textAlign = "center";
   g.textBaseline = "middle";
   if (lines.length === 1) {
-    g.font = "bold 50px Georgia, 'Times New Roman', serif";
+    g.font = "bold 50px 'Scheldemist Print', Georgia, 'Times New Roman', serif";
     g.fillText(lines[0], 256, 50, 480);
   } else {
-    g.font = "bold 38px Georgia, 'Times New Roman', serif";
+    g.font = "bold 38px 'Scheldemist Print', Georgia, 'Times New Roman', serif";
     g.fillText(lines[0], 256, 34, 480);
-    g.font = "24px Georgia, 'Times New Roman', serif";
+    g.font = "24px 'Scheldemist Print', Georgia, 'Times New Roman', serif";
     g.fillText(lines[1], 256, 72, 480);
   }
   // weather on the paint

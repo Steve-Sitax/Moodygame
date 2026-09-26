@@ -546,7 +546,7 @@ function signMesh(posts: StopPost[]): THREE.Mesh | null {
     g.fillStyle = "#231f1b";
     const words = pt.label.split(/[ -]/);
     const two = pt.label.length > 10 && words.length > 1;
-    g.font = `bold ${two ? 20 : pt.label.length > 9 ? 17 : 22}px Georgia, serif`;
+    g.font = `bold ${two ? 20 : pt.label.length > 9 ? 17 : 22}px "Scheldemist Print", Georgia, serif`;
     if (two) {
       const half = Math.ceil(words.length / 2);
       g.fillText(words.slice(0, half).join(" "), x0 + CW / 2, y0 + NH * 0.34, CW - 12);
@@ -560,7 +560,7 @@ function signMesh(posts: StopPost[]): THREE.Mesh | null {
     g.lineWidth = 2;
     g.strokeRect(x0 + 2, ty + 2, CW - 4, TH - 4);
     g.fillStyle = "#231f1b";
-    g.font = "bold 13px Georgia, serif";
+    g.font = "bold 13px 'Scheldemist Print', Georgia, serif";
     g.fillText("OMNIBUS", x0 + CW / 2, ty + 13, CW - 10);
     let y = ty + 26;
     for (const l of linesAtStop(pt.id)) {
@@ -570,10 +570,10 @@ function signMesh(posts: StopPost[]): THREE.Mesh | null {
       g.fillStyle = `rgb(${r},${gg},${bb})`;
       g.fillRect(x0 + 6, y, CW - 12, 16);
       g.fillStyle = "#f1e6c4";
-      g.font = "bold 11px Georgia, serif";
+      g.font = "bold 11px 'Scheldemist Print', Georgia, serif";
       g.fillText(l.board, x0 + CW / 2, y + 8.5, CW - 16);
       g.fillStyle = "#231f1b";
-      g.font = "11px Georgia, serif";
+      g.font = "11px 'Scheldemist Print', Georgia, serif";
       g.fillText(`every ${minutesText(t.headwayMin)}`, x0 + CW / 2, y + 26, CW - 10);
       const first = clockText(6 * 60 + off);
       let last = 6 * 60;
@@ -653,7 +653,7 @@ function boardAtlas(): { tex: THREE.CanvasTexture; rows: number; adRow: number }
       g.fillStyle = `rgb(${cr},${cg},${cb})`;
       g.fillRect(0, r * h, w, h);
       g.fillStyle = "#e8d8a0";
-      g.font = `bold ${Math.floor(h * size)}px Georgia, serif`;
+      g.font = `bold ${Math.floor(h * size)}px "Scheldemist Print", Georgia, serif`;
       g.fillText(text, w / 2, r * h + h / 2 + 1, w - 12);
     }
   });
@@ -667,7 +667,7 @@ function boardAtlas(): { tex: THREE.CanvasTexture; rows: number; adRow: number }
     g.strokeStyle = fg[i];
     g.strokeRect(x0 + 2.5, adRow * h + 2.5, 123, h - 5);
     g.fillStyle = fg[i];
-    g.font = `bold ${Math.floor(h * 0.36)}px Georgia, serif`;
+    g.font = `bold ${Math.floor(h * 0.36)}px "Scheldemist Print", Georgia, serif`;
     const [a, b] = text.split("  ·  ");
     if (b) {
       g.fillText(a, x0 + 64, adRow * h + h * 0.34, 118);

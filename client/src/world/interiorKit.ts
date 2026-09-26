@@ -186,7 +186,7 @@ export function posterTex(lines: string[], bg: string, fg: string, emblem: "lion
     g.textAlign = "center";
     let y = 17;
     lines.forEach((l, i) => {
-      g.font = `${i === 0 ? "bold " : ""}${i === 0 ? 11 : 8}px Georgia, serif`;
+      g.font = `${i === 0 ? "bold " : ""}${i === 0 ? 11 : 8}px "Scheldemist Print", Georgia, serif`;
       g.fillText(l, 32, y, 56);
       y += i === 0 ? 13 : 10;
       if (i === 0 && emblem !== "none") y += 34;
@@ -288,7 +288,7 @@ export function clockFaceTex(seed = 1): THREE.CanvasTexture {
 }
 
 /** A board of lettering (a shop's name inside, a price list, a chalkboard). */
-export function boardTex(lines: string[], bg: string, fg: string, w = 256, h = 64, font = "Georgia, serif"): THREE.CanvasTexture {
+export function boardTex(lines: string[], bg: string, fg: string, w = 256, h = 64, font = "'Scheldemist Print', Georgia, serif"): THREE.CanvasTexture {
   return canvasTex(w, h, (g) => {
     g.fillStyle = bg;
     g.fillRect(0, 0, w, h);

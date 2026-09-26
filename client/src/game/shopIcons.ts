@@ -133,7 +133,7 @@ export const SHOP_ICONS: Record<string, Draw> = {
   },
   almanac: (g) => {
     g.strokeRect(8, 6, 16, 21);
-    g.font = "bold 7px Georgia, serif";
+    g.font = "bold 7px 'Scheldemist Print', Georgia, serif";
     g.fillText("1874", 9, 17);
   },
   paper_env: (g) => {

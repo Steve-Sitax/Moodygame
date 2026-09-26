@@ -8,7 +8,7 @@
   width: min(520px, 86vw);
   background: #d4cab0;
   padding: 10px 22px 8px;
-  font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  font-family: "Scheldemist Hand", "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
   color: #2a2420;
   box-shadow: 0 8px 36px rgba(0, 0, 0, 0.8);
   filter: sepia(0.35);
@@ -32,7 +32,7 @@
   max-width: min(760px, 90vw);
   text-align: center;
   color: #efe4c8;
-  font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  font-family: "Scheldemist Hand", "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
   font-size: 19px;
   line-height: 1.35;
   text-shadow: 0 0 8px #000, 0 0 3px #000;

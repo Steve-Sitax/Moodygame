@@ -57,9 +57,9 @@ function signTexture(name: string): THREE.CanvasTexture {
   g.strokeRect(2, 2, 124, 60);
   g.fillStyle = "#e8dcbc";
   g.textAlign = "center";
-  g.font = "bold 20px Georgia, serif";
+  g.font = "bold 20px 'Scheldemist Print', Georgia, serif";
   g.fillText(name.toUpperCase().slice(0, 12), 64, 27);
-  g.font = "italic 12px Georgia, serif";
+  g.font = "italic 12px 'Scheldemist Print', Georgia, serif";
   g.fillText("work done: proof here", 64, 48);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;

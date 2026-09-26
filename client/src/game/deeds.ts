@@ -533,7 +533,7 @@ export class Deeds {
     g.strokeStyle = "#b8a878";
     g.strokeRect(2, 2, 124, 28);
     g.fillStyle = "#e0d4a8";
-    g.font = "bold 18px Georgia, serif";
+    g.font = "bold 18px 'Scheldemist Print', Georgia, serif";
     g.textAlign = "center";
     g.textBaseline = "middle";
     g.fillText("POLICE", 64, 17);

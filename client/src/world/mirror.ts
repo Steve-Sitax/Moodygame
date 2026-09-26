@@ -69,14 +69,26 @@ const mirrorCams = new WeakSet<THREE.Camera>();
 let mirrorScale = 1;
 export function setMirrorScale(k: number): void {
   mirrorScale = Math.max(1, Math.min(4, k));
-  for (const d of mirrorsForDev) d.rt.setSize(Math.round(d.baseW * mirrorScale), Math.round(d.baseH * mirrorScale));
+  for (const d of mirrorsForDev) d.rt.setSize(Math.round(d.baseW * mirrorScale * mirrorQuality), Math.round(d.baseH * mirrorScale * mirrorQuality));
 }
+/**
+ * Menus (2026-09-26, graphics for weaker computers): "full" as before, "coarse" half the picture's size
+ * each way, "off" no second drawing of the scene at all: the surfaces show the air's colour (the fog).
+ */
+let mirrorQuality = 1;
+let mirrorsOff = false;
+export function setMirrorQuality(q: "off" | "coarse" | "full"): void {
+  mirrorsOff = q === "off";
+  mirrorQuality = q === "coarse" ? 0.5 : 1;
+  setMirrorScale(mirrorScale);
+}
+const offColour = new THREE.Color();
 
 export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
   let planeY = plane0;
   const baseW = opts.width ?? 320;
   const baseH = opts.height ?? 180;
-  const rt = new THREE.WebGLRenderTarget(Math.round(baseW * mirrorScale), Math.round(baseH * mirrorScale), {
+  const rt = new THREE.WebGLRenderTarget(Math.round(baseW * mirrorScale * mirrorQuality), Math.round(baseH * mirrorScale * mirrorQuality), {
     magFilter: THREE.NearestFilter,
     minFilter: THREE.NearestFilter,
     depthBuffer: true,
@@ -99,7 +111,7 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
     get pixel() {
       return (2 * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2))) / rt.height;
     },
-    willRender: (eye) => (!opts.enabled || opts.enabled()) && eye.y > planeY + 0.02,
+    willRender: (eye) => !mirrorsOff && (!opts.enabled || opts.enabled()) && eye.y > planeY + 0.02,
   });
   const matrix = new THREE.Matrix4();
   const plane = new THREE.Plane();
@@ -122,6 +134,23 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
     if (!(camera instanceof THREE.PerspectiveCamera)) return void (dev.why = "camera " + camera.type);
     if (mirrorCams.has(camera)) return void (dev.why = "inside another mirror");
     if (opts.enabled && !opts.enabled(camera)) return void (dev.why = "disabled");
+    if (mirrorsOff) {
+      // menus: reflections off; the picture is the air's colour, once a frame (cheap: no scene drawn)
+      if (drawn) return void (dev.why = "off");
+      drawn = true;
+      queueMicrotask(() => (drawn = false));
+      const before = renderer.getRenderTarget();
+      const alpha = renderer.getClearAlpha();
+      renderer.getClearColor(offColour);
+      const keep = offColour.getHex();
+      const fog = (scene.fog as THREE.Fog | null)?.color;
+      renderer.setClearColor(fog ?? offColour, 1);
+      renderer.setRenderTarget(rt);
+      renderer.clear();
+      renderer.setRenderTarget(before);
+      renderer.setClearColor(keep, alpha);
+      return void (dev.why = "off");
+    }
     eye.setFromMatrixPosition(camera.matrixWorld);
     if (eye.y <= planeY + 0.02) return void (dev.why = "eye below " + eye.y.toFixed(2));
     // once per frame, however many surfaces use this mirror: a whole frame is drawn in

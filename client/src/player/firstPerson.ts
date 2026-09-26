@@ -18,6 +18,11 @@ const HURRY = 3.4;
 const RADIUS = 0.32;
 const STEP_LEN = 0.72; // metres per footstep
 const TURN_SENS = 0.0019;
+/**
+ * Menus (2026-09-26): the player's own look settings (game/settings.ts, set by menu/apply.ts): mouse
+ * speed times TURN_SENS, the mouse's up and down turned round, and how much the head bobs (0: none).
+ */
+export const look = { sens: 1, invertY: false, bob: 1 };
 /** A single mouse move this big (px) that comes out of a calm hand is a browser mistake (see the mousemove handler). */
 const SPIKE = 250;
 const SWIM = 1.0; // m/s, heavy clothes in cold water
@@ -178,8 +183,8 @@ export class FirstPerson {
       this.recentAt = e.timeStamp;
       if (e.timeStamp - this.lockedAt < 100 || this.stalled) return;
       if (m > SPIKE && m > 5 * Math.max(before, 20)) return;
-      this.yaw -= e.movementX * TURN_SENS;
-      this.pitch -= e.movementY * TURN_SENS;
+      this.yaw -= e.movementX * TURN_SENS * look.sens;
+      this.pitch -= e.movementY * TURN_SENS * look.sens * (look.invertY ? -1 : 1);
       this.pitch = Math.max(-1.35, Math.min(1.35, this.pitch));
     });
   }
@@ -306,8 +311,8 @@ export class FirstPerson {
     }
     this.lastStepSide = side;
 
-    const bobY = -Math.abs(Math.sin(this.bobPhase)) * 0.045 * this.bobAmp * (hurry ? 1.4 : 1);
-    const bobX = Math.cos(this.bobPhase) * 0.025 * this.bobAmp;
+    const bobY = -Math.abs(Math.sin(this.bobPhase)) * 0.045 * this.bobAmp * (hurry ? 1.4 : 1) * look.bob;
+    const bobX = Math.cos(this.bobPhase) * 0.025 * this.bobAmp * look.bob;
 
     // slow turn: the view lags the mouse a little
     const s = 1 - Math.exp(-dt * 22);
@@ -315,7 +320,7 @@ export class FirstPerson {
     this.lookPitch += (this.pitch - this.lookPitch) * s;
 
     this.camera.position.set(this.x + cos * bobX, this.y + this.eye + bobY, this.z - sin * bobX);
-    this.camera.rotation.set(this.lookPitch, this.lookYaw, Math.cos(this.bobPhase) * 0.004 * this.bobAmp);
+    this.camera.rotation.set(this.lookPitch, this.lookYaw, Math.cos(this.bobPhase) * 0.004 * this.bobAmp * look.bob);
   }
 
   // ------------------------------------------------------------ in the water

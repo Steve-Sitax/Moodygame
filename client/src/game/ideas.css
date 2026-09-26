@@ -7,7 +7,7 @@
   background-image: radial-gradient(ellipse at 20% 15%, rgba(255, 250, 225, 0.5), transparent 60%), radial-gradient(ellipse at 85% 90%, rgba(110, 80, 40, 0.22), transparent 55%);
   border: 1px solid #8a7a5a;
   padding: 22px 28px 14px;
-  font-family: "Times New Roman", Georgia, serif;
+  font-family: "Scheldemist Print", "Times New Roman", Georgia, serif;
   text-align: center;
   transform: translate(-50%, -50%) rotate(0.8deg);
   filter: sepia(0.2) contrast(0.97);
@@ -18,7 +18,7 @@
 .press-page.bill.auction { background-color: #e7d2a4; }
 .bill h1 {
   margin: 0 0 10px;
-  font-family: "Rockwell Extra Bold", "Clarendon", "Bookman Old Style", Georgia, serif;
+  font-family: "Scheldemist Slab", "Rockwell Extra Bold", "Clarendon", "Bookman Old Style", Georgia, serif;
   font-size: calc(34px * var(--ui, 1));
   letter-spacing: 2px;
   line-height: 1.05;
@@ -36,7 +36,7 @@
   background-image: repeating-linear-gradient(0deg, transparent 0 21px, rgba(60, 80, 120, 0.16) 21px 22px);
   border-left: 14px solid #3b2c22;
   padding: 16px 26px 12px;
-  font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  font-family: "Scheldemist Hand", "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
   color: #3a3530;
   font-size: calc(14px * var(--ui, 1));
   line-height: 1.55;
@@ -50,7 +50,7 @@
   width: min(560px, 90vw);
   background: #d8cfb8;
   padding: 16px 22px 12px;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Scheldemist Print", Georgia, "Times New Roman", serif;
   font-size: calc(15px * var(--ui, 1));
 }
 .scene h2 { margin: 0 0 6px; font-size: calc(19px * var(--ui, 1)); letter-spacing: 1px; }
@@ -66,7 +66,7 @@
   width: min(520px, 90vw);
   background: #efe6cf;
   padding: 20px 28px 12px;
-  font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  font-family: "Scheldemist Hand", "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
   font-size: calc(15px * var(--ui, 1));
 }
 .press-page.writing textarea {

@@ -386,7 +386,7 @@ export function buildCafe(opts: { plan: HousePlan; label: string; seed: number; 
     farPic(z0 + 3.7, 1.95, 0.55, 0.82, M.basic("cf_poster_lion", () => posterTex(["BIERE", "DE GAND", "PURE ET NATURELLE"], "#e8dcc0", "#8a1a12", "lion", 12)));
     farPic(z0 + 5.4, 1.9, 0.5, 0.38, M.basic("cf_saint", () => paintingTex("saint", 3)), lambert("cf_gilt", { color: 0xa88838 }, 0));
     // the slate with the day's beers, a clock over the bar's end, coat pegs by the door
-    k.wallPic(XF(0.02), F + 1.55, z1 - 0.9, 0.5, 0.65, ryFar, M.basic("cf_slate", () => boardTex(["TODAY", "BRUIN 5", "JENEVER 10", "SOEP 8"], "#1e2220", "#d8d4c8", 128, 160, "Georgia, serif")));
+    k.wallPic(XF(0.02), F + 1.55, z1 - 0.9, 0.5, 0.65, ryFar, M.basic("cf_slate", () => boardTex(["TODAY", "BRUIN 5", "JENEVER 10", "SOEP 8"], "#1e2220", "#d8d4c8", 128, 160, "'Scheldemist Print', Georgia, serif")));
     k.clock(X(0.02), F + 2.75, zc1 + 0.5, 0.3, ryNear, M.basic("cf_clock", () => clockFaceTex(3)), "cafe clock over the bar", M.darkOak());
     for (let i = 0; i < 4; i++) b.box(0.03, 0.03, 0.12, XF(0.06), F + 1.75, z0 + 0.5 + i * 0.25, M.brass());
     k.lamp(XA, F + H - 0.8, z0 + (z1 - z0) * 0.3, top, "globe", lights, glows, 7);

@@ -1,0 +1,483 @@
+/* ---- The menus (menu/menu.ts): the title and pause handbill, the sheets over it ----
+   Paper and ink, a printer's handbill of 1873: the slab for the title, the book face for the words,
+   the hand for notes. The families are the game's own (menu/fonts.ts). */
+
+:root {
+  --f-hand: "Scheldemist Hand", "Segoe Print", "Bradley Hand", cursive;
+  --f-print: "Scheldemist Print", Georgia, "Times New Roman", serif;
+  --f-slab: "Scheldemist Slab", "Rockwell Extra Bold", Georgia, serif;
+  --f-black: "Scheldemist Black", "Old English Text MT", Georgia, serif;
+  --f-mono: "Scheldemist Mono", "Courier New", monospace;
+  --paper: #ddd3b9;
+  --paper-2: #d2c6a6;
+  --paper-hi: #e9e1cb;
+  --ink: #221b15;
+  --ink-soft: #54463a;
+  --ink-faint: rgba(34, 27, 21, 0.28);
+  --rust: #7d2a18;
+  --rust-soft: rgba(125, 42, 24, 0.12);
+  --good: #2f5a2a;
+  --bad: #8a1c10;
+  /* a faint grain in the paper (an SVG noise, no file) */
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.14  0 0 0 0 0.08  0 0 0 0.55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.35'/></svg>");
+  /* text size (Accessibility) times the window's own scale */
+  --ui: calc(1.3 * var(--text, 1));
+}
+@media (min-width: 1600px) { :root { --ui: calc(1.5 * var(--text, 1)); } }
+@media (min-width: 2200px) { :root { --ui: calc(1.8 * var(--text, 1)); } }
+@media (min-width: 3000px) { :root { --ui: calc(2.2 * var(--text, 1)); } }
+/* a short window (1280 x 720 and less high): the papers a little smaller */
+@media (max-height: 800px) { :root { --ui: calc(1.1 * var(--text, 1)); } }
+@media (max-height: 800px) and (min-width: 1600px) { :root { --ui: calc(1.2 * var(--text, 1)); } }
+
+/* speech bubbles: their own size setting (Game) */
+.bubble { font-size: calc(11px * var(--ui, 1) * var(--bubble, 1)); max-width: calc(200px * var(--ui, 1) * var(--bubble, 1)); }
+
+/* ------------------------------------------------------------------ the title and pause handbill */
+#start { background: radial-gradient(ellipse at center, rgba(8, 9, 10, 0.35) 0%, rgba(8, 9, 10, 0.72) 100%); }
+#start .paper.title-sheet {
+  position: relative;
+  box-sizing: border-box;
+  width: 440px;
+  max-width: calc(94vw / var(--ui));
+  max-height: calc(96vh / var(--ui));
+  overflow: auto;
+  scrollbar-width: none;
+  padding: 22px 34px 16px;
+  color: var(--ink);
+  background: var(--grain), radial-gradient(ellipse at 50% 40%, var(--paper-hi) 0%, var(--paper) 55%, var(--paper-2) 100%);
+  box-shadow: 0 14px 50px rgba(0, 0, 0, 0.8), 0 2px 6px rgba(0, 0, 0, 0.5), inset 0 0 38px rgba(110, 76, 30, 0.28);
+  transform: rotate(-0.8deg);
+  filter: sepia(0.18);
+  font-family: var(--f-print);
+  cursor: default;
+}
+/* the printer's double rule round the sheet */
+#start .paper.title-sheet::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 3px double var(--ink-faint);
+  pointer-events: none;
+}
+.title-sheet .masthead { position: relative; }
+.title-sheet .kicker, .menu-sheet .kicker {
+  margin: 0 0 2px;
+  font: 12px/1.2 var(--f-print);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.title-sheet h1 {
+  margin: 2px 0 0;
+  font: 44px/1 var(--f-slab);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink);
+  text-shadow: 0.5px 0.5px 0 rgba(34, 27, 21, 0.35);
+}
+.title-sheet .sub {
+  margin: 6px 0 0;
+  font: italic 16px/1.2 var(--f-print);
+  color: var(--ink-soft);
+}
+.title-sheet .rule, .menu-sheet .rule { color: var(--ink); opacity: 0.75; margin: 8px auto 6px; width: 78%; }
+.rule-svg { display: block; width: 100%; height: 10px; }
+.title-sheet .paused-stamp {
+  position: absolute;
+  right: -14px;
+  top: 8px;
+  margin: 0;
+  z-index: 1;
+  font: 15px/1.3 var(--f-slab);
+  letter-spacing: 0.25em;
+  color: var(--rust);
+  border: 2px solid var(--rust);
+  background: rgba(221, 211, 185, 0.4);
+  transform: rotate(8deg);
+  opacity: 0.8;
+  mix-blend-mode: multiply;
+}
+
+.menu-list { display: flex; flex-direction: column; align-items: stretch; margin: 2px 0 4px; }
+.menu-list .save-row, .menu-list .slot-saves { display: contents; }
+.menu-list .slot-dev { display: none; }
+.menu-item, .menu-list .save-row button {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin: 0 !important;
+  padding: 3px 34px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 20px/1.25 var(--f-print);
+  font-variant: small-caps;
+  letter-spacing: 0.06em;
+  text-align: center;
+  cursor: pointer;
+  outline: none;
+}
+.menu-item[hidden] { display: none; }
+.menu-item .mi-sub { display: block; font: italic 13px/1.2 var(--f-print); font-variant: normal; letter-spacing: 0; color: var(--ink-soft); }
+/* the printer's hand points at the item under the mouse or the keys */
+.menu-item::before, .menu-item::after {
+  content: "\261E";
+  position: absolute;
+  top: 50%;
+  font: 22px/1 "Segoe UI Symbol", "DejaVu Sans", serif;
+  font-variant: normal;
+  color: var(--rust);
+  opacity: 0;
+  transform: translate(-6px, -52%);
+  transition: opacity 0.12s, transform 0.12s;
+}
+.menu-item::before { left: 8px; }
+.menu-item::after { right: 8px; transform: translate(6px, -52%) scaleX(-1); }
+.menu-item:hover, .menu-item:focus-visible { color: var(--rust); }
+.menu-item:hover::before, .menu-item:focus-visible::before { opacity: 1; transform: translate(0, -52%); }
+.menu-item:hover::after, .menu-item:focus-visible::after { opacity: 1; transform: translate(0, -52%) scaleX(-1); }
+.menu-item:focus-visible { background: var(--rust-soft); }
+.menu-item:active { transform: translateY(1px); }
+/* the first line: the way into the game */
+.menu-item[data-go="play"] { font: 25px/1.2 var(--f-slab); font-variant: normal; letter-spacing: 0.05em; text-transform: uppercase; padding-top: 4px; padding-bottom: 6px; }
+.menu-list .save-row button:first-child:not([style*="none"]) + button, .menu-item[data-go="new"] { margin-top: 0 !important; }
+.menu-item[data-go="quit"] { margin-top: 4px !important; border-top: 1px dotted var(--ink-faint); padding-top: 6px; }
+.menu-dev { font: 13px/1.4 var(--f-mono) !important; font-variant: normal !important; opacity: 0.6; }
+.title-sheet .ai-note { margin: 4px 6px 0; font: 13px/1.35 var(--f-print); color: var(--ink-soft); border: 1px dashed var(--ink-faint); padding: 4px 8px; }
+.title-sheet .ai-note[hidden] { display: none; }
+.title-sheet .sheet-foot { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--ink-faint); }
+.title-sheet .hint { margin: 0 0 4px; font: 16px/1.3 var(--f-hand); color: var(--ink); }
+.title-sheet .keys { margin: 0; font: 12px/1.9 var(--f-print); color: var(--ink-soft); opacity: 1; }
+
+kbd {
+  display: inline-block;
+  min-width: 1.1em;
+  padding: 0 4px;
+  border: 1px solid rgba(34, 27, 21, 0.55);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background: rgba(255, 250, 235, 0.35);
+  font: bold 0.86em/1.35 var(--f-mono);
+  color: var(--ink);
+  text-align: center;
+  vertical-align: 0.05em;
+}
+
+/* a sheet up: the handbill under it steps back */
+body:has(> .settings.paper:not([style*="display: none"])) #start > .paper { visibility: hidden; }
+
+/* ------------------------------------------------------------------ the sheets (Settings, AI, Help ...) */
+.settings.menu-sheet {
+  display: none;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 820px;
+  max-width: calc(96vw / var(--ui));
+  height: calc(90vh / var(--ui));
+  max-height: 900px;
+  padding: 0;
+  text-align: left;
+  color: var(--ink);
+  background: var(--grain), linear-gradient(180deg, var(--paper-hi) 0%, var(--paper) 30%, var(--paper-2) 100%);
+  box-shadow: 0 16px 60px rgba(0, 0, 0, 0.85), inset 0 0 44px rgba(110, 76, 30, 0.25);
+  transform: translate(-50%, -50%);
+  filter: sepia(0.12);
+  font-family: var(--f-print);
+}
+.menu-sheet[data-screen="new"], .menu-sheet[data-screen="quit"] { height: auto; width: 560px; }
+.menu-sheet::before { content: ""; position: absolute; inset: 7px; border: 3px double var(--ink-faint); pointer-events: none; }
+.menu-sheet .sheet-head { position: relative; padding: 16px 36px 0; text-align: center; }
+.menu-sheet h2 { margin: 0; font: 32px/1.05 var(--f-slab); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); }
+.menu-sheet .sheet-head .rule { margin: 6px auto 8px; width: 60%; }
+.menu-sheet .sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 38px 12px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(34, 27, 21, 0.45) transparent;
+}
+.menu-sheet .sheet-foot-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 10px 36px 16px;
+  border-top: 1px solid var(--ink-faint);
+  margin: 0 18px;
+}
+.menu-sheet .sheet-foot-row .saved-note { margin-right: auto; order: -1; font: italic 13px var(--f-print); color: var(--ink-soft); }
+.menu-sheet .sheet-foot-row [data-act="reset-tab"] { order: -2; }
+.menu-sheet h3 {
+  margin: 16px 0 4px;
+  font: 13px/1.2 var(--f-print);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--rust);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.menu-sheet h3::after { content: ""; flex: 1; border-top: 1px solid var(--ink-faint); }
+.menu-sheet p { margin: 6px 0; font-size: 16px; line-height: 1.45; }
+.menu-sheet p.lead { font-size: 18px; }
+.menu-sheet .fine { font: italic 14px/1.4 var(--f-print); color: var(--ink-soft); }
+.menu-sheet .msg { min-height: 1.3em; font: 15px/1.3 var(--f-hand); color: var(--rust); }
+.menu-sheet code { font: 0.9em var(--f-mono); }
+
+/* the tabs: ledger tabs along the top of the sheet */
+.menu-sheet .tabs { display: flex; justify-content: center; gap: 4px; margin: 0 -18px; padding: 0 12px; border-bottom: 1.5px solid var(--ink); }
+.menu-sheet .tab {
+  position: relative;
+  top: 1.5px;
+  padding: 6px 16px 5px;
+  border: 1.5px solid transparent;
+  border-bottom: 0;
+  border-radius: 5px 5px 0 0;
+  background: none;
+  color: var(--ink-soft);
+  font: 17px/1.2 var(--f-print);
+  font-variant: small-caps;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  outline: none;
+}
+.menu-sheet .tab:hover { color: var(--ink); background: rgba(255, 250, 235, 0.25); }
+.menu-sheet .tab.on { color: var(--ink); border-color: var(--ink); background: var(--paper-hi); }
+.menu-sheet .tab:focus-visible { box-shadow: inset 0 -3px 0 var(--rust); color: var(--rust); }
+
+/* a setting: its name and a word on it, the control on the right */
+.set-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 18px;
+  padding: 7px 0;
+  border-bottom: 1px dotted var(--ink-faint);
+}
+.set-row .lbl { font-size: 17px; line-height: 1.25; }
+.set-row .lbl small { display: block; margin-top: 2px; font: italic 13.5px/1.3 var(--f-print); color: var(--ink-soft); }
+.set-row .ctl { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; max-width: 420px; }
+.set-row .fixed { font: italic 15px var(--f-print); color: var(--ink-soft); }
+.set-row.key-row { padding: 4px 0; }
+
+/* buttons */
+.menu-sheet .btn {
+  padding: 5px 16px;
+  border: 1.5px solid var(--ink);
+  border-radius: 2px;
+  background: rgba(255, 250, 235, 0.3);
+  color: var(--ink);
+  font: 16px/1.2 var(--f-print);
+  font-variant: small-caps;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  outline: none;
+}
+.menu-sheet .btn.small { padding: 3px 11px; font-size: 14px; }
+.menu-sheet .btn:hover { background: rgba(255, 250, 235, 0.65); }
+.menu-sheet .btn.primary { background: var(--ink); color: var(--paper-hi); }
+.menu-sheet .btn.primary:hover { background: #3a2c20; }
+.menu-sheet .btn kbd { margin-left: 4px; font-size: 0.72em; border-color: currentColor; background: none; color: inherit; }
+.menu-sheet .btn:focus-visible, .menu-sheet .seg button:focus-visible, .menu-sheet select:focus-visible, .menu-sheet input:focus-visible, .menu-sheet .keycap:focus-visible, .menu-sheet .chip:focus-visible, .menu-sheet .mode-card:focus-visible {
+  outline: 2px solid var(--rust);
+  outline-offset: 2px;
+}
+.row-btns { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0 4px; }
+
+/* a row of choices: set in type like a printer's list, the chosen one inked in */
+.seg { display: inline-flex; border: 1.5px solid var(--ink); border-radius: 2px; overflow: hidden; }
+.seg button {
+  padding: 4px 12px;
+  border: 0;
+  border-left: 1px solid var(--ink-faint);
+  background: rgba(255, 250, 235, 0.25);
+  color: var(--ink);
+  font: 15px/1.2 var(--f-print);
+  cursor: pointer;
+  outline: none;
+  white-space: nowrap;
+}
+.seg button:first-child { border-left: 0; }
+.seg button:hover { background: rgba(255, 250, 235, 0.65); }
+.seg button.on { background: var(--ink); color: var(--paper-hi); }
+.seg.small button { padding: 2px 8px; font-size: 13px; }
+
+/* on and off: a box ticked in ink */
+.menu-sheet .tog { display: inline-flex; margin: 0; align-items: center; gap: 8px; cursor: pointer; font: 15px var(--f-print); }
+.tog input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.tog .box { width: 20px; height: 20px; border: 1.5px solid var(--ink); border-radius: 2px; background: rgba(255, 250, 235, 0.35); display: grid; place-items: center; }
+.tog input:checked + .box::after { content: ""; width: 10px; height: 5px; border: solid var(--ink); border-width: 0 0 3px 3px; transform: translateY(-2px) rotate(-45deg); }
+.tog input:focus-visible + .box { outline: 2px solid var(--rust); outline-offset: 2px; }
+.tog .tog-word { min-width: 2em; color: var(--ink-soft); }
+
+/* a slider: an inked rule with a brass knob */
+.rng { display: flex; align-items: center; gap: 10px; }
+.rng output { min-width: 3.4em; text-align: right; font: 15px var(--f-mono); }
+.menu-sheet input[type="range"] { -webkit-appearance: none; appearance: none; width: 200px; height: 20px; background: none; cursor: pointer; }
+.menu-sheet input[type="range"]::-webkit-slider-runnable-track { height: 3px; background: var(--ink); border-radius: 1px; }
+.menu-sheet input[type="range"]::-moz-range-track { height: 3px; background: var(--ink); }
+.menu-sheet input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 18px; margin-top: -7.5px; border: 1.5px solid var(--ink); border-radius: 2px; background: linear-gradient(180deg, #d9b25f, #9a7430); }
+.menu-sheet input[type="range"]::-moz-range-thumb { width: 12px; height: 16px; border: 1.5px solid var(--ink); border-radius: 2px; background: #c29a48; }
+.menu-sheet input[type="range"]:focus-visible { outline: none; }
+.menu-sheet input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--rust); }
+
+.menu-sheet select, .menu-sheet input[type="text"], .menu-sheet input[type="url"], .menu-sheet input[type="password"] {
+  padding: 4px 8px;
+  border: 1.5px solid var(--ink);
+  border-radius: 2px;
+  background: rgba(255, 250, 235, 0.45);
+  color: var(--ink);
+  font: 15px var(--f-print);
+  max-width: 260px;
+}
+.menu-sheet select { padding-right: 24px; appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%), linear-gradient(135deg, var(--ink) 50%, transparent 50%); background-position: calc(100% - 13px) 55%, calc(100% - 8px) 55%; background-size: 5px 5px; background-repeat: no-repeat; }
+.menu-sheet input[type="password"], .menu-sheet input[type="url"], .menu-sheet input[type="text"] { width: 220px; font-family: var(--f-mono); font-size: 14px; }
+
+/* a key: a typewriter's key */
+.keycap {
+  min-width: 92px;
+  padding: 3px 12px;
+  border: 1.5px solid var(--ink);
+  border-bottom-width: 3px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #f1ead6, #d8cdb0);
+  color: var(--ink);
+  font: bold 15px/1.3 var(--f-mono);
+  cursor: pointer;
+  outline: none;
+}
+.keycap:hover { background: #f4eedc; }
+.keycap.changed { color: var(--rust); }
+.keycap.waiting { background: var(--ink); color: var(--paper-hi); animation: key-wait 1s ease-in-out infinite; }
+@keyframes key-wait { 50% { opacity: 0.65; } }
+
+.frame-box { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 6px; padding: 7px 12px; border: 1px solid var(--ink-faint); background: rgba(255, 250, 235, 0.25); }
+.frame-box .frame-line { margin: 0; font-size: 14.5px; }
+.frame-box .btn { white-space: nowrap; }
+
+/* Help and Credits: columns of short pieces */
+.menu-sheet .cols { columns: 2 300px; column-gap: 34px; }
+.menu-sheet .cols section { break-inside: avoid; margin-bottom: 8px; }
+.menu-sheet .cols section h3 { margin-top: 10px; }
+.menu-sheet .cols p { font-size: 15.5px; }
+.menu-sheet .type-sample { margin: 3px 0; font-size: 19px; line-height: 1.25; }
+.type-sample.hand { font-family: var(--f-hand); }
+.type-sample.print { font-family: var(--f-print); }
+.type-sample.slab { font-family: var(--f-slab); }
+.type-sample.black { font-family: var(--f-black); font-size: 22px; }
+.type-sample.mono { font-family: var(--f-mono); }
+.menu-sheet .small { font-size: 13px; color: var(--ink-soft); }
+
+/* ------------------------------------------------------------------ the AI sheet */
+.ai-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 6px 0 8px; }
+.mode-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--ink-faint);
+  border-radius: 2px;
+  background: rgba(255, 250, 235, 0.25);
+  color: var(--ink);
+  text-align: left;
+  font: 14px/1.35 var(--f-print);
+  cursor: pointer;
+  outline: none;
+}
+.mode-card b { font: 19px/1.2 var(--f-slab); letter-spacing: 0.04em; }
+.mode-card:hover { background: rgba(255, 250, 235, 0.55); }
+.mode-card.on { border-color: var(--ink); border-width: 2.5px; background: rgba(255, 250, 235, 0.7); box-shadow: inset 0 0 0 3px rgba(34, 27, 21, 0.08); }
+.mode-card.on b::before { content: "\2713  "; color: var(--good); }
+.ai-status { font-size: 15px !important; color: var(--ink-soft); }
+.ai-kinds { border: 0; margin: 0; padding: 0; min-width: 0; }
+.ai-kinds[disabled] { opacity: 0.45; }
+.ai-kinds .set-row .ctl { max-width: 470px; }
+.ai-kinds select { max-width: 230px; }
+.test-res { margin: 2px 0 6px 18px !important; font-size: 14px !important; line-height: 1.35; }
+.test-res.good .mark { color: var(--good); font-weight: bold; }
+.test-res.bad { color: var(--bad); }
+.test-res.wait { font-style: italic; color: var(--ink-soft); }
+.test-res .model { font: 12px var(--f-mono); color: var(--ink-soft); }
+.test-res q { font-family: var(--f-hand); }
+.ai-guide { margin: 14px 0 4px; padding: 8px 12px; border: 1px solid var(--ink-faint); background: rgba(255, 250, 235, 0.2); }
+.ai-guide summary { cursor: pointer; font: 17px var(--f-print); font-variant: small-caps; letter-spacing: 0.05em; }
+.ai-guide p { font-size: 15px !important; }
+.ai-help-pick { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; font: italic 14px var(--f-print); align-items: center; }
+.chip { padding: 2px 9px; border: 1px solid var(--ink-faint); border-radius: 10px; background: none; font: 13px var(--f-print); color: var(--ink); cursor: pointer; }
+.chip.on { background: var(--ink); color: var(--paper-hi); border-color: var(--ink); }
+.ai-help h4 { margin: 4px 0; font: 18px var(--f-print); }
+.ai-help .cost { font: italic 13px var(--f-print); color: var(--ink-soft); margin-left: 6px; }
+.ai-help dl { display: grid; grid-template-columns: 130px 1fr; gap: 3px 12px; margin: 0; font-size: 14.5px; line-height: 1.4; }
+.ai-help dt { font-variant: small-caps; color: var(--ink-soft); }
+.ai-help dd { margin: 0; }
+
+/* ------------------------------------------------------------------ small notes */
+.menu-toast {
+  position: fixed;
+  left: 50%;
+  top: 18px;
+  transform: translateX(-50%) rotate(-0.5deg);
+  max-width: calc(80vw / var(--ui));
+  padding: 6px 16px;
+  background: var(--paper);
+  color: var(--ink);
+  font: 15px/1.35 var(--f-print);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.7);
+  zoom: var(--ui);
+  z-index: 70;
+  opacity: 0;
+  transition: opacity 0.8s;
+  pointer-events: none;
+}
+.menu-toast.on { opacity: 1; }
+.fps-note {
+  position: fixed;
+  right: 10px;
+  top: 8px;
+  padding: 2px 8px;
+  background: rgba(10, 10, 10, 0.55);
+  color: #e8e0c8;
+  font: 12px/1.4 var(--f-mono);
+  z-index: 45;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------ Accessibility */
+/* high contrast: white paper, black ink, no sepia, firmer lines */
+html.hi-contrast {
+  --paper: #fbf8ef;
+  --paper-2: #f3eee0;
+  --paper-hi: #ffffff;
+  --ink: #000;
+  --ink-soft: #222;
+  --ink-faint: rgba(0, 0, 0, 0.55);
+  --grain: none;
+}
+html.hi-contrast .paper, html.hi-contrast .board, html.hi-contrast .talk, html.hi-contrast .note, html.hi-contrast .clock, html.hi-contrast .hud, html.hi-contrast .task,
+html.hi-contrast .pocket-panel, html.hi-contrast .bubble, html.hi-contrast .needs, html.hi-contrast .pockets .slot {
+  filter: none !important;
+  background-color: #fbf8ef !important;
+  color: #000 !important;
+}
+html.hi-contrast .bubble::after { border-top-color: #fbf8ef; }
+html.hi-contrast .prompt, html.hi-contrast .toast { color: #fff; text-shadow: 0 0 3px #000, 0 0 3px #000, 0 0 6px #000; font-weight: bold; }
+/* less motion: nothing fades, slides or blinks */
+html.calm *, html.calm *::before, html.calm *::after { transition: none !important; animation: none !important; }
+.ai-mode.typed .mode-card b { font: 16px/1.2 var(--f-print); font-weight: bold; }
+/* the keys: two columns of typewriter keys */
+.key-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 34px; }
+.key-grid .keycap { min-width: 74px; }
+@media (max-width: 1100px) { .key-grid { grid-template-columns: 1fr; } }
+/* the quay engraving, printed on the paper (multiply); smaller on a short window */
+.title-sheet .vignette { display: block; width: 86%; height: auto; margin: 8px auto 0; mix-blend-mode: multiply; filter: contrast(1.05); }
+@media (max-height: 900px) { .title-sheet .vignette { width: 66%; margin-top: 4px; } }
+/* a short window: tighter lines; in the game (a longer list) the engraving gives way */
+@media (max-height: 800px) {
+  .menu-item, .menu-list .save-row button { font-size: 18px; padding-top: 2px; padding-bottom: 2px; }
+  .menu-item[data-go="play"] { font-size: 22px; }
+  .title-sheet.in-game .vignette { display: none; }
+  .title-sheet h1 { font-size: 40px; }
+}
+.title-sheet.in-game .vignette { width: 70%; }

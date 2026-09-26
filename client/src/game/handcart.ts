@@ -355,7 +355,7 @@ export class Handcarts {
     g.strokeStyle = "#c8b078";
     g.strokeRect(3, 3, 250, 34);
     g.fillStyle = "#e8d8a8";
-    g.font = "bold 22px Georgia, serif";
+    g.font = "bold 22px 'Scheldemist Print', Georgia, serif";
     g.textAlign = "center";
     g.textBaseline = "middle";
     g.fillText("WHEELWRIGHT", 128, 21);

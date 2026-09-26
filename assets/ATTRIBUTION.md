@@ -208,6 +208,29 @@ Blender 5.2 (GPL-3.0), Python packages numpy (BSD-3), opencv-python-headless (Ap
 | @types/three | 0.186.x | MIT |
 | vite | 7.x | MIT |
 | typescript | 7.x | Apache-2.0 |
+| @fontsource/kalam, @fontsource/old-standard-tt, @fontsource/alfa-slab-one, @fontsource/unifrakturmaguntia, @fontsource/courier-prime | 5.3.0 | OFL-1.1. See Fonts below. |
+
+## Fonts (the menus, 2026-09-26)
+
+Steve: "Fonts included in game, not system." Five faces under the SIL Open Font License 1.1, as the declared npm
+packages above (Fontsource; each package ships the font's `LICENSE` with the OFL text and the copyright). Only the
+Latin woff2 files are used, loaded by `client/src/menu/fonts.ts` under names of our own; nothing is copied into our
+source, and no font is renamed or changed (OFL: Reserved Font Names untouched; our names are CSS family aliases).
+
+| Our name | Font | Designer, copyright | Where it shows | Licence |
+|---|---|---|---|---|
+| Scheldemist Hand | Kalam 300, 400, 700 | Indian Type Foundry (c) 2014 | notes, the HUD, prompts, the paper's hints | OFL-1.1 |
+| Scheldemist Print | Old Standard TT 400, 400 italic, 700 | The Old Standard Project Authors (Alexey Kryukov) (c) 2011 | the menus, talk and reading text, signs, posters, the map | OFL-1.1 |
+| Scheldemist Slab | Alfa Slab One 400 | The Alfa Slab One Project Authors (JM Solé) (c) 2016, Reserved Font Name "Alfa Slab" | titles, poster headlines, the menu's headings | OFL-1.1 |
+| Scheldemist Black | UnifrakturMaguntia 400 | j. 'mach' wust (c) 2010, Peter Wiegel (c) 2009, Reserved Font Name UnifrakturMaguntia | the newspaper's masthead | OFL-1.1 |
+| Scheldemist Mono | Courier Prime 400, 700 | The Courier Prime Project Authors (Alan Dague-Greene, Quote-Unquote Apps) (c) 2015 | telegrams, keys in the menus | OFL-1.1 |
+
+The menus' one picture, made with Codex image generation from our own prompt through `tools/codexImage.mjs` (no
+example picture, no third-party images); turned grey and resized to 880 px:
+
+| Picture | Where in repo | Prompt, in short | Made | Original PNG SHA-256 |
+|---|---|---|---|---|
+| A wood engraving of a river quay: cranes, tall ships, a paddle steamer, stepped gables and a cathedral spire behind | `client/public/ui/quay_woodcut.jpg` (880 x 293) | "A small nineteenth-century wood engraving used as a printer's vignette on a handbill: black ink on a pure white background ... Fine parallel hatching ... No text" | 2026-09-26, gpt-6-sol via Codex CLI | `c3291d329cf89329fb4e4dad00721ae68eb2553d4c2a831cc9ad8d322c4ecdd8` |
 
 ## npm packages (server, M2)
 

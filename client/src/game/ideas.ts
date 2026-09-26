@@ -140,7 +140,7 @@ function billTexture(p: PosterV): THREE.CanvasTexture {
   const words = p.text.heading.split(/\s+/);
   const lines: string[] = [];
   let cur = "";
-  g.font = '900 19px Impact, "Arial Black", sans-serif';
+  g.font = '900 19px "Scheldemist Slab", Impact, "Arial Black", sans-serif';
   for (const w of words) {
     const t = cur ? `${cur} ${w}` : w;
     if (g.measureText(t).width > 112 && cur) {
@@ -169,7 +169,7 @@ function billTexture(p: PosterV): THREE.CanvasTexture {
   for (let r = 0; r < 9 && y < 160; r++, y += 9) g.fillRect(14 + (r % 3) * 2, y, 100 - (r % 4) * 8, 3);
   if (p.reward_c) {
     g.fillStyle = "#1e1a16";
-    g.font = "bold 13px Georgia, serif";
+    g.font = "bold 13px 'Scheldemist Print', Georgia, serif";
     g.fillText(`${p.reward_c} c`, 64, 164);
   }
   const tex = new THREE.CanvasTexture(c);

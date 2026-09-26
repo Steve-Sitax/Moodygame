@@ -152,10 +152,10 @@ function noise2(r: () => number, cells: number): (x: number, y: number) => numbe
 
 const FONT: Record<"h1" | "h2" | "b" | "s", (px: number) => string> = {
   // wood type for the big words, a bold serif under them, a plain serif for the rest
-  h1: (px) => `900 ${px}px Impact, "Arial Black", "Arial Narrow", sans-serif`,
-  h2: (px) => `bold ${px}px Georgia, "Times New Roman", serif`,
-  b: (px) => `bold ${px}px Georgia, "Times New Roman", serif`,
-  s: (px) => `${px}px Georgia, "Times New Roman", serif`,
+  h1: (px) => `900 ${px}px "Scheldemist Slab", Impact, "Arial Black", "Arial Narrow", sans-serif`,
+  h2: (px) => `bold ${px}px "Scheldemist Print", Georgia, "Times New Roman", serif`,
+  b: (px) => `bold ${px}px "Scheldemist Print", Georgia, "Times New Roman", serif`,
+  s: (px) => `${px}px "Scheldemist Print", Georgia, "Times New Roman", serif`,
 };
 /** Type sizes (px) by shape. */
 const SIZES: Record<Shape, Record<"h1" | "h2" | "b" | "s", number>> = {

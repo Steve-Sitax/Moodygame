@@ -94,7 +94,7 @@ function boardTexture(): THREE.CanvasTexture {
   g.strokeStyle = "#c8b47a";
   g.strokeRect(2.5, 2.5, 251, 27);
   g.fillStyle = "#e4d49c";
-  g.font = "bold 17px Georgia, serif";
+  g.font = "bold 17px 'Scheldemist Print', Georgia, serif";
   g.textAlign = "center";
   g.textBaseline = "middle";
   g.fillText("STAATSSPOORWEGEN", 128, 17, 240);

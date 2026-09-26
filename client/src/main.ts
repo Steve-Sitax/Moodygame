@@ -1,12 +1,17 @@
+// menus: the key bindings and the menu's keys, before every other key listener (menu/keys.ts)
+import "./menu/keys";
 // M7 save and pause: first of all, so the pause clock is in place before any other part runs (game/pause.ts)
 import { onPausedKey, pause, real } from "./game/pause";
 import { dialogs } from "./game/dialogs";
 import { InkCursor } from "./game/cursor";
 import * as THREE from "three";
 import "./style.css";
+// menus: the game's own fonts; the town's canvases are painted after they are in (menu/fonts.ts)
+import "./menu/fonts";
 import { RetroPass } from "./retro/retroPass";
 import { psxUniforms } from "./retro/psx";
 import { mountSettings, STREET_LEVELS, type GameSettings } from "./game/settings";
+import { wireSettings } from "./menu/apply"; // menus
 import { mountDevMenu } from "./game/devmenu";
 import { setAmbientViewHeight } from "./world/ambient";
 import { setFireViewHeight } from "./world/fire";
@@ -828,6 +833,9 @@ const saves = new Saves(startEl.querySelector(".paper") as HTMLElement, {
   say: (t) => jobs.say(t),
 });
 saves.showMenu(false);
+// menus (menu/apply.ts): the settings put to work: render scale, view distance, rooms, reflections, shadows,
+// lights, particles, the frame cap, the sound's levels, the mouse and the view
+wireSettings({ retro, camera: player.camera, inWorld, lanternLights, alive, sound: () => sound, town, resize });
 {
   const c = bootRestore();
   const hint = startEl.querySelector(".hint");

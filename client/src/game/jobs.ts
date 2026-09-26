@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { doorSpot } from "../world/city";
+import { keyLabel } from "../menu/keys"; // menus: prompts show the bound key
 import { api, connectPush, type Job, type JobsPayload, type OutcomeMsg, type Progress, type PushMsg, type Report } from "../net/api";
 import { BOARD_POS, DOSS_POS, SPOTS, type World } from "../world/rijnkaai";
 import type { FirstPerson } from "../player/firstPerson";
@@ -262,7 +263,7 @@ export class Jobs {
       this.actsRun = this.run;
       this.acts = this.findActions();
     }
-    const text = this.boardOpen || this.talk.isOpen || this.pockets.open || this.day.sheetOpen || this.map.open ? "" : this.acts.map((a) => `${a.key.slice(3)}  ${a.text}`).join("\n");
+    const text = this.boardOpen || this.talk.isOpen || this.pockets.open || this.day.sheetOpen || this.map.open ? "" : this.acts.map((a) => `${keyLabel(a.key)}  ${a.text}`).join("\n"); // menus: the key bound now (menu/keys.ts)
     if (this.el.prompt.textContent !== text) this.el.prompt.textContent = text;
     this.el.prompt.style.display = text ? "block" : "none";
     this.renderTask();

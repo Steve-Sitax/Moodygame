@@ -99,7 +99,7 @@ const ICON: Record<string, Draw> = {
     g.beginPath();
     g.arc(10, 12, 1.6, 0, Math.PI * 2);
     g.stroke();
-    g.font = "bold 8px Georgia, serif";
+    g.font = "bold 8px 'Scheldemist Print', Georgia, serif";
     g.fillText("No.", 13, 15);
     g.fillRect(9, 19, 14, 1);
   },
@@ -180,14 +180,16 @@ function needsDrawing(food: number, warmth: number, sleep: number, health: numbe
     ["Sleep", sleep, moon],
     ["Health", health, heart],
   ];
-  g.font = "bold 14px Georgia, 'Palatino Linotype', serif";
+  g.font = "bold 14px 'Scheldemist Print', Georgia, 'Palatino Linotype', serif";
   g.textBaseline = "middle";
   rows.forEach(([label, v, draw], r) => {
     const y = 12 + r * 22;
-    const col = v <= 2 ? "#8a1c10" : INK;
+    // menus: colour-safe markers (Accessibility): a low need in orange with a mark, not red alone
+    const safe = document.documentElement.classList.contains("colour-safe");
+    const col = v <= 2 ? (safe ? "#b34700" : "#8a1c10") : INK;
     g.fillStyle = col;
     g.strokeStyle = col;
-    g.fillText(label, 4, y);
+    g.fillText(v <= 2 && safe ? `${label} !` : label, 4, y);
     for (let i = 0; i < 5; i++) {
       g.beginPath();
       draw(76 + i * 17, y);

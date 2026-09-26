@@ -222,6 +222,9 @@ export interface SoundscapeOptions {
   emitters?: Emitter[];
 }
 
+/** Menus: the kinds of sound the Sound settings set apart. */
+export type MixKind = "music" | "voices" | "ambience" | "effects";
+
 export class Soundscape {
   private ctx: BaseAudioContext;
   private master: GainNode;
@@ -305,6 +308,30 @@ export class Soundscape {
   private smithyNext = 20; // at work when you arrive, then rests and works in turn
   /** Log of bells rung (dev checks). */
   readonly rung: string[] = [];
+  /** Menus (2026-09-26, the Sound settings): each kind of sound's own level (setMix), 0 .. 1. */
+  private mixLevel: Record<MixKind, number> = { music: 1, voices: 1, ambience: 1, effects: 1 };
+  private mixBuses = new Map<AudioNode, Partial<Record<MixKind, GainNode>>>();
+
+  /** A kind's gain into `dest` (the street's master, or the room's bus inside): made once for each pair. */
+  private bus(kind: MixKind, dest: AudioNode = this.master): GainNode {
+    let m = this.mixBuses.get(dest);
+    if (!m) this.mixBuses.set(dest, (m = {}));
+    let g = m[kind];
+    if (!g) {
+      g = this.ctx.createGain();
+      g.gain.value = this.mixLevel[kind];
+      g.connect(dest);
+      m[kind] = g;
+    }
+    return g;
+  }
+
+  /** Menus: the levels of music (the organ, ballads, a tavern's song), voices, the town's sounds, and Jef's own. */
+  setMix(levels: Partial<Record<MixKind, number>>): void {
+    Object.assign(this.mixLevel, levels);
+    const t = this.ctx.currentTime;
+    for (const m of this.mixBuses.values()) for (const [k, g] of Object.entries(m) as Array<[MixKind, GainNode]>) g.gain.setTargetAtTime(this.mixLevel[k], t, 0.05);
+  }
 
   constructor(
     private readonly lampPositions: THREE.Vector3[],
@@ -357,17 +384,17 @@ export class Soundscape {
     this.waterPanner = this.panner(4, 1.2);
     this.waterGain = this.ctx.createGain();
     this.waterGain.gain.value = 0.5;
-    this.waterPanner.connect(this.waterGain).connect(this.master);
+    this.waterPanner.connect(this.waterGain).connect(this.bus("ambience"));
     this.loopNoise(this.brown, "lowpass", 380, 0.5, this.waterPanner, 0.13, 0.11);
     this.loopNoise(this.noise, "bandpass", 900, 0.8, this.waterPanner, 0.018, 0.23);
 
     // wind bed, everywhere (made in code), and wind in the rigging (recorded)
     this.windGain = this.ctx.createGain();
-    this.windGain.connect(this.master);
+    this.windGain.connect(this.bus("ambience"));
     this.loopNoise(this.brown, "lowpass", 180, 0.7, this.windGain, 0.06, 0.05);
     this.windRec = this.ctx.createGain();
     this.windRec.gain.value = 0;
-    this.windRec.connect(this.master);
+    this.windRec.connect(this.bus("ambience"));
 
     // crowd murmur: follows how many people are near (setCrowd)
     this.murmurGain = this.ctx.createGain();
@@ -375,7 +402,7 @@ export class Soundscape {
     const murmurLp = this.ctx.createBiquadFilter();
     murmurLp.type = "lowpass";
     murmurLp.frequency.value = 2200;
-    murmurLp.connect(this.murmurGain).connect(this.master);
+    murmurLp.connect(this.murmurGain).connect(this.bus("ambience"));
     const murmurWet = this.ctx.createGain();
     murmurWet.gain.value = 0.15;
     this.murmurGain.connect(murmurWet).connect(this.reverbIn);
@@ -383,10 +410,10 @@ export class Soundscape {
     // rain beds (setRain)
     this.rainRoofGain = this.ctx.createGain();
     this.rainRoofGain.gain.value = 0;
-    this.rainRoofGain.connect(this.master);
+    this.rainRoofGain.connect(this.bus("ambience"));
     this.rainCobbleGain = this.ctx.createGain();
     this.rainCobbleGain.gain.value = 0;
-    this.rainCobbleGain.connect(this.master);
+    this.rainCobbleGain.connect(this.bus("ambience"));
 
     // positioned loops and events; the world's own lamps join the city's
     const list = opts.emitters ?? cityEmitters();
@@ -507,13 +534,13 @@ export class Soundscape {
   /** M6 landmarks: the organ in the cathedral (a chord bed made in code), on or off. */
   organ(on: boolean, level = 1): void {
     if (!on && !this.organSynth) return;
-    this.organSynth ??= new Organ(this.ctx, [this.room, this.hallSend]);
+    this.organSynth ??= new Organ(this.ctx, [this.bus("music", this.room), this.bus("music", this.hallSend)]);
     this.organSynth.set(on, level);
   }
 
   /** M6 landmarks: the small bell at the altar (the elevation). */
   altarBell(): void {
-    this.organSynth ??= new Organ(this.ctx, [this.room, this.hallSend]);
+    this.organSynth ??= new Organ(this.ctx, [this.bus("music", this.room), this.bus("music", this.hallSend)]);
     this.organSynth.bell([this.room, this.hallSend]);
   }
 
@@ -1283,7 +1310,7 @@ export class Soundscape {
     const ship = this.nearest("ship", 160);
     if (!b || !ship) return;
     this.log(`watch ${n}`);
-    const spot = this.spot({ x: ship.x + rand(-4, 4), z: ship.z + rand(-4, 4), y: 4 }, 4, 1, 300, 0.6, 14000, this.master, 180);
+    const spot = this.spot({ x: ship.x + rand(-4, 4), z: ship.z + rand(-4, 4), y: 4 }, 4, 1, 300, 0.6, 14000, this.bus("ambience"), 180);
     let t = this.ctx.currentTime + rand(1, 4);
     for (let i = 0; i < n; i++) {
       const src = this.ctx.createBufferSource();
@@ -1311,7 +1338,7 @@ export class Soundscape {
     const dur = Math.max(0.5, Math.min(6, seconds));
     const t0 = ctx.currentTime + 0.02;
     if (this.distTo(at.x, 1.6, at.z) > 35) return;
-    const spot = this.spot({ x: at.x, z: at.z, y: 1.6 }, 2, 1.2, 40, 0.25, 14000, this.master, 35);
+    const spot = this.spot({ x: at.x, z: at.z, y: 1.6 }, 2, 1.2, 40, 0.25, 14000, this.bus("voices"), 35);
     const out = ctx.createGain();
     out.gain.value = 0.16;
     out.connect(spot.fog);
@@ -1381,7 +1408,7 @@ export class Soundscape {
   streetWork(kind: StreetWork, at: { x: number; z: number }, seconds: number): void {
     const max = kind === "rattle" ? 50 : 40;
     if (this.distTo(at.x, 1, at.z) > max) return;
-    const spot = this.spot({ x: at.x, z: at.z, y: 1.0 }, 2, 1.3, kind === "rattle" ? 45 : 30, 0.25, 14000, this.master, max);
+    const spot = this.spot({ x: at.x, z: at.z, y: 1.0 }, 2, 1.3, kind === "rattle" ? 45 : 30, 0.25, 14000, this.bus("voices"), max);
     const out = this.ctx.createGain();
     out.gain.value = kind === "scrub" ? 0.12 : 0.22;
     out.connect(spot.fog);
@@ -1390,7 +1417,7 @@ export class Soundscape {
 
   sing(at: { x: number; z: number }, voice: { sex: "m" | "f"; age: number }, notes: Note[], beat: number): number {
     const ctx = this.ctx;
-    const spot = this.spot({ x: at.x, z: at.z, y: 1.6 }, 3, 1.1, 55, 0.3, 14000, this.master, 60);
+    const spot = this.spot({ x: at.x, z: at.z, y: 1.6 }, 3, 1.1, 55, 0.3, 14000, this.bus("music"), 60);
     const out = ctx.createGain();
     out.gain.value = 0.2;
     out.connect(spot.fog);
@@ -1467,7 +1494,7 @@ export class Soundscape {
     }
     if (kind === "handbell") {
       const bell = this.buf.get("handbell");
-      const spot = this.spot({ x: at.x, z: at.z, y: 1.8 }, 3, 1.2, 120, 0.5, 14000, this.master, 90);
+      const spot = this.spot({ x: at.x, z: at.z, y: 1.8 }, 3, 1.2, 120, 0.5, 14000, this.bus("ambience"), 90);
       let on = true;
       let n = 0;
       const ring = () => {
@@ -1488,7 +1515,7 @@ export class Soundscape {
     if (!b) return { move: () => {}, stop: () => {} };
     // a murmur is talk: heard near the gathering (35 m, was 90), and only as loud as the people there make it
     const murmur = kind === "murmur";
-    const spot = murmur ? this.spot({ x: at.x, z: at.z, y: 1.5 }, 3, 1.4, 30, 0.3, 14000, this.master, 35) : this.spot({ x: at.x, z: at.z, y: 1.5 }, 3, 1.2, 70, 0.3, 14000, this.master, 90);
+    const spot = murmur ? this.spot({ x: at.x, z: at.z, y: 1.5 }, 3, 1.4, 30, 0.3, 14000, this.bus("voices"), 35) : this.spot({ x: at.x, z: at.z, y: 1.5 }, 3, 1.2, 70, 0.3, 14000, this.bus("music"), 90);
     const src = ctx.createBufferSource();
     src.buffer = b;
     src.loop = true;
@@ -1536,7 +1563,7 @@ export class Soundscape {
   eventCues(cues: CueSpec[], at: { x: number; z: number }, seconds: number): { move(x: number, z: number): void; stop(): void } {
     const ctx = this.ctx;
     const secs = Math.max(4, Math.min(180, seconds));
-    const spot = this.spot({ x: at.x, z: at.z, y: 1.5 }, 3, 1.15, 75, 0.3, 14000, this.master, 100);
+    const spot = this.spot({ x: at.x, z: at.z, y: 1.5 }, 3, 1.15, 75, 0.3, 14000, this.bus("voices"), 100);
     const out = ctx.createGain();
     out.gain.value = 0.9;
     out.connect(spot.fog);
@@ -1594,7 +1621,7 @@ export class Soundscape {
   ): boolean {
     const d = this.distTo(at.x, at.y ?? 1, at.z);
     if (d > o.max || (this.spots.size >= SPOT_CAP && d > 25)) return false;
-    const spot = this.spot({ x: at.x, y: at.y ?? 1, z: at.z }, o.ref, o.rolloff ?? 1, o.reach, o.wet ?? 0.3, 14000, this.master, o.max, o.occl ?? 1);
+    const spot = this.spot({ x: at.x, y: at.y ?? 1, z: at.z }, o.ref, o.rolloff ?? 1, o.reach, o.wet ?? 0.3, 14000, this.bus("voices"), o.max, o.occl ?? 1);
     const out = this.ctx.createGain();
     out.gain.value = o.gain ?? 1;
     out.connect(spot.fog);
@@ -1661,7 +1688,7 @@ export class Soundscape {
   /** An iron wheel over a rail joint (M3g, world/railway.ts): a knock and a short ring, made in code. */
   railClack(x: number, z: number): void {
     if (Math.hypot(x - this.listenerPos.x, z - this.listenerPos.z) > 70) return;
-    const spot = this.spot({ x, z, y: 0.4 }, 4, 1.2, 70, 0.25, 14000, this.master, 70);
+    const spot = this.spot({ x, z, y: 0.4 }, 4, 1.2, 70, 0.25, 14000, this.bus("ambience"), 70);
     const t = this.ctx.currentTime + 0.01;
     this.burst(t, 0.07, "bandpass", rand(1700, 2300), 3, 0.45, spot.fog, 0.001);
     this.burst(t + 0.1, 0.06, "bandpass", rand(1500, 2100), 3, 0.3, spot.fog, 0.001);
@@ -1737,7 +1764,7 @@ export class Soundscape {
     const ctx = this.ctx;
     const d = this.distTo(at.x, at.y ?? 1, at.z);
     if (d > max || (this.spots.size >= SPOT_CAP && d > 25)) return;
-    const spot = this.spot(at, ref, 1, reach, 0.35, 14000, this.master, max, occl);
+    const spot = this.spot(at, ref, 1, reach, 0.35, 14000, this.bus("ambience"), max, occl);
     const src = ctx.createBufferSource();
     src.buffer = b;
     src.playbackRate.value = rate;
@@ -1813,7 +1840,7 @@ export class Soundscape {
 
   /** The cathedral tower's bells: their own fall-off and dullness (BELL). */
   private bellSpot(cat: Emitter): Spot {
-    const sp = this.spot(cat, BELL.ref, BELL.rolloff, BELL.reach, BELL.wet, 14000, this.master, Infinity, BELL.occl);
+    const sp = this.spot(cat, BELL.ref, BELL.rolloff, BELL.reach, BELL.wet, 14000, this.bus("ambience"), Infinity, BELL.occl);
     sp.dull = BELL.dull;
     this.tuneSpot(sp, this.ctx.currentTime, true);
     return sp;
@@ -1971,7 +1998,7 @@ export class Soundscape {
       g.gain.linearRampToValueAtTime(peak, t + 0.006);
       g.gain.setValueAtTime(peak, t + dur * 0.6);
       g.gain.linearRampToValueAtTime(0, t + dur);
-      src.connect(hp).connect(lp).connect(g).connect(this.master);
+      src.connect(hp).connect(lp).connect(g).connect(this.bus("effects"));
       src.start(t, start, dur + 0.02);
       return;
     }
@@ -1996,7 +2023,7 @@ export class Soundscape {
     lp.frequency.value = 3800;
     const g = ctx.createGain();
     g.gain.value = 0.32 * Math.min(1, wet) * (hurry ? 1.3 : 1);
-    src.connect(bp).connect(lp).connect(g).connect(this.master);
+    src.connect(bp).connect(lp).connect(g).connect(this.bus("effects"));
     src.start(t);
   }
 
@@ -2007,7 +2034,7 @@ export class Soundscape {
     const vol = hurry ? 1.25 : 1;
     const out = ctx.createGain();
     out.gain.value = 0.9;
-    out.connect(this.master);
+    out.connect(this.bus("effects"));
     const wet = ctx.createGain();
     wet.gain.value = surface === "wood" ? 0.25 : 0.12;
     out.connect(wet).connect(this.reverbIn);
@@ -2061,7 +2088,7 @@ export class Soundscape {
     // out on the river, 180-260 m off the quays; it carries (low rolloff), a long wet tail
     // fixes 2026-09-24: ref 40 m, rolloff 0.6 made it one of the loudest things in the old town; now it is
     // clearly far off inland, and the house rows muffle it half
-    const spot = this.spot({ x: this.listenerPos.x + rand(-160, 160), z: rand(-260, -180), y: 5 }, 15, 0.8, 900, 1.6, 14000, this.master, Infinity, 0.5);
+    const spot = this.spot({ x: this.listenerPos.x + rand(-160, 160), z: rand(-260, -180), y: 5 }, 15, 0.8, 900, 1.6, 14000, this.bus("ambience"), Infinity, 0.5);
     const lp = ctx.createBiquadFilter();
     lp.type = "lowpass";
     lp.frequency.value = 520;
@@ -2106,7 +2133,7 @@ export class Soundscape {
     if (this.quayDist > 130) return;
     const ctx = this.ctx;
     // over the water near you (they follow the river, not you inland)
-    const spot = this.spot({ x: this.listenerPos.x + rand(-40, 40), z: rand(-45, -8), y: rand(8, 18) }, 6, 1, 200, 0.9, 3200, this.master, 160, 0);
+    const spot = this.spot({ x: this.listenerPos.x + rand(-40, 40), z: rand(-45, -8), y: rand(8, 18) }, 6, 1, 200, 0.9, 3200, this.bus("ambience"), 160, 0);
 
     // a slice of the harbour recording: a few calls, faded in and out
     const [a, b] = GULL_SPANS[Math.floor(Math.random() * GULL_SPANS.length)];
@@ -2142,7 +2169,7 @@ export class Soundscape {
     pan.positionX.value = p.x + rand(-15, 15);
     pan.positionY.value = p.y;
     pan.positionZ.value = p.z;
-    pan.connect(this.master);
+    pan.connect(this.bus("ambience"));
     const t = this.ctx.currentTime + 0.05;
     this.creakAt(t, rand(140, 240), rand(0.6, 1.3), 0.22, pan);
     if (Math.random() < 0.5) this.creakAt(t + rand(0.9, 1.6), rand(160, 260), rand(0.4, 0.9), 0.15, pan);
@@ -2216,7 +2243,7 @@ export class Soundscape {
     const g = ctx.createGain();
     g.gain.value = name === "bell" ? 0.5 : vol;
     if (at) {
-      const spot = this.spot(at, 2, 1.1, 150, name === "bell" ? 1.2 : 0.3, 14000, this.master, name === "bell" ? 120 : 60);
+      const spot = this.spot(at, 2, 1.1, 150, name === "bell" ? 1.2 : 0.3, 14000, this.bus("effects"), name === "bell" ? 120 : 60);
       src.connect(g).connect(spot.fog);
       src.onended = () => this.dropSpot(spot);
     } else {
@@ -2224,7 +2251,7 @@ export class Soundscape {
       const lp = ctx.createBiquadFilter();
       lp.type = "lowpass";
       lp.frequency.value = name === "bell" ? 1800 : 6000;
-      src.connect(lp).connect(g).connect(this.master);
+      src.connect(lp).connect(g).connect(this.bus("effects"));
       const send = ctx.createGain();
       send.gain.value = name === "bell" ? 1.2 : 0.3;
       g.connect(send).connect(this.reverbIn);
@@ -2280,7 +2307,7 @@ export class Soundscape {
     const t = this.ctx.currentTime + 0.01;
     const out = this.ctx.createGain();
     out.gain.value = 0.7;
-    out.connect(this.master);
+    out.connect(this.bus("effects"));
     this.burst(t, rand(0.35, 0.55), "bandpass", rand(500, 900), 1.2, 0.35, out, 0.08);
     this.burst(t + 0.14, rand(0.3, 0.45), "lowpass", rand(350, 480), 0.7, 0.3, out, 0.05);
   }

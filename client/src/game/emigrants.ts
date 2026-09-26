@@ -383,7 +383,7 @@ export class Emigrants {
       g.textBaseline = "middle";
       const lines = text.split("|");
       g.fillStyle = "#8a1e1a";
-      g.font = "bold 30px Georgia, 'Times New Roman', serif";
+      g.font = "bold 30px 'Scheldemist Print', Georgia, 'Times New Roman', serif";
       g.fillText(lines[0], 128, 42);
       // the red star
       g.beginPath();
@@ -394,7 +394,7 @@ export class Emigrants {
       }
       g.fill();
       g.fillStyle = "#2a2018";
-      g.font = "bold 19px Georgia, serif";
+      g.font = "bold 19px 'Scheldemist Print', Georgia, serif";
       lines.slice(1).forEach((l, i) => g.fillText(l, 128, 150 + i * 40));
       this.board.tex.needsUpdate = true;
     }
@@ -413,9 +413,9 @@ export class Emigrants {
     g.fillStyle = "#e3cf94";
     g.textAlign = "center";
     g.textBaseline = "middle";
-    g.font = "bold 50px Georgia, 'Times New Roman', serif";
+    g.font = "bold 50px 'Scheldemist Print', Georgia, 'Times New Roman', serif";
     g.fillText(lines[0], 256, 48);
-    g.font = "bold 26px Georgia, 'Times New Roman', serif";
+    g.font = "bold 26px 'Scheldemist Print', Georgia, 'Times New Roman', serif";
     g.fillText(lines[1] ?? "", 256, 96);
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;

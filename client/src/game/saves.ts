@@ -12,6 +12,7 @@ import { onSystemPush } from "../net/api";
 import { pause, real } from "./pause";
 import { bootRestore, setRestore, type ClientState } from "./restoreData";
 import { esc } from "./runs";
+import { settings } from "./prefs";
 
 export interface SaveInfo {
   slot: string;
@@ -361,7 +362,10 @@ export class Saves {
     if (!this.d.playing() || pause.paused) return;
     const h = this.d.hour();
     if (!h) return;
-    const key = `${h.day}:${h.hour}`;
+    // menus: an autosave every 1, 2 or 4 game hours, or none but the one when the tab closes (Settings, Game)
+    const every = settings.get("autosave");
+    if (!every) return;
+    const key = `${h.day}:${Math.floor(h.hour / every)}`;
     if (!this.lastAuto) {
       this.lastAuto = key; // the hour we came in at: the next one saves
       return;

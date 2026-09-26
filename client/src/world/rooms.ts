@@ -252,7 +252,7 @@ function vogelpik(): THREE.CanvasTexture {
       g.fill();
     });
     g.fillStyle = "#e0d6c0";
-    g.font = "bold 7px Georgia";
+    g.font = "bold 7px 'Scheldemist Print', Georgia";
     g.textAlign = "center";
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;

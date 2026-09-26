@@ -201,7 +201,7 @@ export class Press {
     g.fillStyle = "#e3cf94";
     g.textAlign = "center";
     g.textBaseline = "middle";
-    g.font = "bold 44px Georgia, 'Times New Roman', serif";
+    g.font = "bold 44px 'Scheldemist Print', Georgia, 'Times New Roman', serif";
     lines.forEach((l, i) => g.fillText(l, 256, 64 + (i - (lines.length - 1) / 2) * 48));
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;

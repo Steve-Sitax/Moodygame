@@ -117,7 +117,7 @@ function chalkTex(): THREE.CanvasTexture {
     g.strokeStyle = "rgba(236, 230, 214, 0.92)";
     g.fillStyle = "rgba(236, 230, 214, 0.92)";
     g.lineWidth = 1.6;
-    g.font = "bold 11px serif";
+    g.font = "bold 11px 'Scheldemist Print', serif";
     g.fillText("71", 5, 14);
     g.beginPath();
     g.moveTo(18, 20);

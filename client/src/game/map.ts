@@ -183,7 +183,7 @@ export class CityMap {
       const cz = l.fp.reduce((a, p) => a + p[1], 0) / l.fp.length;
       const [u, v] = this.px(cx, cz);
       g.fillStyle = "#2a2420";
-      g.font = "bold 22px Georgia, serif";
+      g.font = "bold 22px 'Scheldemist Print', Georgia, serif";
       g.textAlign = "center";
       g.fillText(LANDMARK_NAMES[name] ?? name, u, v + 7);
       g.fillStyle = "#d8a45a";
@@ -194,7 +194,7 @@ export class CityMap {
       g.save();
       g.translate(u, v);
       g.rotate(rot);
-      g.font = name === name.toUpperCase() ? "bold 30px Georgia, serif" : "italic 24px Georgia, serif";
+      g.font = name === name.toUpperCase() ? "bold 30px 'Scheldemist Print', Georgia, serif" : "italic 24px 'Scheldemist Print', Georgia, serif";
       g.textAlign = "center";
       g.fillText(name, 0, 0);
       g.restore();
@@ -238,7 +238,7 @@ export class CityMap {
       return [W / 2 + (u - pu) * k, H / 2 + (v - pv) * k];
     };
     // marks
-    g.font = "15px 'Segoe Print', 'Bradley Hand', cursive";
+    g.font = "15px 'Scheldemist Hand', 'Segoe Print', 'Bradley Hand', cursive";
     g.textAlign = "left";
     for (const m of this.marks()) {
       const [u, v] = S(m.x, m.z);
@@ -282,11 +282,11 @@ export class CityMap {
     g.restore();
     // compass and scale
     g.fillStyle = "#2a2420";
-    g.font = "bold 16px Georgia, serif";
+    g.font = "bold 16px 'Scheldemist Print', Georgia, serif";
     g.fillText("N ↑", W - 44, 26);
     const bar = 100 * SCALE * k;
     g.fillRect(16, H - 22, bar, 4);
-    g.font = "13px Georgia, serif";
+    g.font = "13px 'Scheldemist Print', Georgia, serif";
     g.fillText("100 m", 16, H - 28);
   }
 
