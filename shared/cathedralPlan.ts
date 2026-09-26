@@ -103,6 +103,21 @@ export const SACRAMENT = { x: -NORTH * (A3 + OUT) / 2, z: CROSS0 - 1.2 };
 export const TRIPTYCH_X = 25.5;
 export const FONT = { x: -9.5, z: W0 + 2.6 };
 export const ORGAN = { z0: W0, z1: W0 + 4.6, y: 7 };
+/** The side altars against the outer aisles' walls, between the confessionals (their fronts toward the aisle). */
+export const SIDE_ALTARS: Array<{ x: number; z: number }> = [
+  ...[BAYS[2], BAYS[4]].map((z) => ({ x: NORTH * (OUT - 0.6), z })),
+  ...[BAYS[1], BAYS[3], BAYS[5]].map((z) => ({ x: -NORTH * (OUT - 0.6), z })),
+];
+/** The iron stands of votive candles beside the two triptychs' altars. */
+export const TRI_STANDS: Array<{ x: number; z: number }> = [1, -1].map((s) => ({ x: s * (TRIPTYCH_X + 3.6), z: CROSS1 - 1.0 }));
+/** The Resurrection triptych and its altar on the ambulatory's outer wall (its third face on the south side). */
+export const RESURRECTION = (() => {
+  const a = -Math.PI / 2 + (Math.PI / 10) * 2.5;
+  const r = 11.45;
+  return { x: NORTH * Math.sin(a) * r, z: AC + Math.cos(a) * r, a };
+})();
+/** The choir stalls (1840s, carved oak) along the choir's screens; a gap on the north side at the clergy's gate. */
+export const STALLS = { x0: 4.3, x1: 5.8, z0: 83.6, z1: 100.6 };
 
 // ---- walking
 
@@ -226,7 +241,16 @@ export function solids(): PlanRect[] {
     }
   }
   // the pulpit's trunk and stair
-  out.push({ minX: PULPIT.x - 0.6, maxX: PULPIT.x + 0.6, minZ: PULPIT.z - 1.8, maxZ: PULPIT.z + 0.6 });
+  out.push({ minX: PULPIT.x - 0.6, maxX: PULPIT.x + 1.25, minZ: PULPIT.z - 2.3, maxZ: PULPIT.z + 1.0 });
+  // the side altars, the stands by the triptychs, the Resurrection's altar in the ambulatory
+  for (const a of SIDE_ALTARS) out.push(around(a.x, a.z, 0.65, 1.7));
+  for (const t of TRI_STANDS) out.push(around(t.x, t.z, 0.4, 0.3));
+  out.push(around(RESURRECTION.x, RESURRECTION.z, 1.1));
+  // the choir stalls (people only walk the choir: its screens and the rail keep Jef out)
+  for (const s of [-1, 1]) {
+    const runs: Array<[number, number]> = s * NORTH > 0 ? [[STALLS.z0, GATE.z0 - 0.3], [GATE.z1 + 0.3, STALLS.z1]] : [[STALLS.z0, STALLS.z1]];
+    for (const [z0, z1] of runs) out.push({ minX: s > 0 ? STALLS.x0 : -STALLS.x1, maxX: s > 0 ? STALLS.x1 : -STALLS.x0, minZ: z0, maxZ: z1 });
+  }
   for (const c of CONFESSIONALS) out.push(around(c.x, c.z, 0.7, 1.8));
   // the Lady altar and its stand of candles; the Sacrament altar; the font
   out.push(around(LADY.x, LADY.z, 1.5, 0.5));

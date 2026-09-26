@@ -1,19 +1,20 @@
 import * as THREE from "three";
 import * as P from "../../../shared/cathedralPlan";
-import { buildCathedral, type LandmarkRoom } from "./landmarkRooms";
+import { buildCathedral } from "./cathedralHall";
+import type { LandmarkRoom } from "./landmarkRooms";
 import { boxGeo, lambert, tex } from "./rooms";
 import type { World } from "./rijnkaai";
 import type { InWorld, InWorldRoom } from "./inworld";
 
-// The cathedral in the world (M7): its hall (world/landmarkRooms.ts buildCathedral, from the plan
+// The cathedral in the world (M7): its hall (world/cathedralHall.ts buildCathedral, from the plan
 // in shared/cathedralPlan.ts) stands inside the Blender shell at the shell's own place; the west
 // door is a real opening (build_landmarks.py hangs no leaves there) with two oak leaves hung here
 // in the street's scene, standing open into the nave by day and shut at night. Jef and the
 // townspeople walk in from the Handschoenmarkt by the plan (World.addWalkArea); the renderer draws
 // the hall through the door and the square through it from inside (world/inworld.ts).
 
-/** The hall's own air inside: dark and far (candles, stone, incense). */
-const AIR = { color: new THREE.Color(0x1a1712), near: 16, far: 105 };
+/** The hall's own air inside: warm, a little hazy with incense, far (the pale stone carries the daylight). */
+const AIR = { color: new THREE.Color(0x2a2620), near: 22, far: 120 };
 
 export interface CathedralInWorld {
   room: LandmarkRoom;
