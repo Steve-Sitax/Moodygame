@@ -9,7 +9,8 @@ import { createJackdaws } from "./jackdaws";
 import { createSparrows } from "./sparrows";
 import { createBats, createEyes, createMoths, createOwl } from "./night";
 import { createBilge, createBuoys, createMist, createShipLights } from "./water";
-import { createBreath, createDrips, createStorm } from "./air";
+import { createBreath, createStorm } from "./air";
+import { createDrips, type Stream } from "./eaves";
 
 // M7 alive (Steve 2026-09-26: "more good ideas to make it all feel more alive"; docs/milestones/M7-alive.md):
 // the town's small life that is not people: the wind's gusts and the leaves and paper they blow
@@ -25,6 +26,8 @@ export interface Alive {
   setOn(on: boolean, name?: string): string[];
   wind: Wind;
   parts: Part[];
+  /** Dev: the broken gutters' streams against the eaves, the ground, the walls, the doors and the stalls (dev/guttercheck.ts); must list nothing. */
+  gutters(): Promise<{ streams: number; problems: unknown[] }>;
 }
 
 /** Dark outside (world/ambient.ts NIGHT_BY_HOUR): 0 by day, 1 at night. */
@@ -47,11 +50,12 @@ export function createAlive(scene: THREE.Scene, world: World, sound: () => Alive
       console.warn("[alive] a part failed to build", e);
     }
   };
+  let drips: ReturnType<typeof createDrips> | null = null;
   add(createLeaves);
   add(createLofts);
   add(createJackdaws);
   add(createSparrows);
-  for (const make of [createEyes, createBats, createMoths, createOwl, createBuoys, createShipLights, createBilge, createMist, createDrips, createStorm, createBreath]) add(make);
+  for (const make of [createEyes, createBats, createMoths, createOwl, createBuoys, createShipLights, createBilge, createMist, (c: Ctx) => (drips = createDrips(c)), createStorm, createBreath]) add(make);
 
   const errors = new Map<string, number>();
   const eye = new THREE.Vector3();
@@ -95,6 +99,10 @@ export function createAlive(scene: THREE.Scene, world: World, sound: () => Alive
       const out: Record<string, unknown> = { errors: Object.fromEntries(errors), wind: wind.info(), cold: +frame.cold.toFixed(2), night: +frame.night.toFixed(2) };
       for (const p of parts) out[p.name] = p.info();
       return out;
+    },
+    async gutters() {
+      const list: Stream[] = drips ? drips.streams() : [];
+      return (await import("../../dev/guttercheck")).checkGutters(world, list);
     },
     setOn(on, name) {
       const hit = parts.filter((p) => !name || p.name === name);

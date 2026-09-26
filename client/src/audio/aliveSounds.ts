@@ -114,6 +114,22 @@ export const drip = (): Make => (ctx, out, t0, noise) => {
   return 0.15;
 };
 
+/**
+ * Water off a broken gutter landing on the stones, `len` seconds of it: a soft patter of small splashes, more and
+ * a little louder when it pours (`strong` 0..1), a few separate drops when it only trickles.
+ */
+export const gutterSplash = (strong: number, len: number): Make => (ctx, out, t0, noise) => {
+  const n = Math.max(2, Math.round(len * (6 + 34 * strong)));
+  for (let i = 0; i < n; i++) {
+    const t = t0 + Math.random() * len;
+    noiseBurst(ctx, noise, out, t, "bandpass", rand(1400, 4200), 1.2, 0.002, rand(0.02, 0.045) * (0.6 + 0.4 * strong), rand(0.02, 0.05));
+    if (Math.random() < 0.25) tone(ctx, out, t, "sine", rand(700, 1500) * 1.5, rand(500, 900), 0.05, 0.002, rand(0.015, 0.035));
+  }
+  // under it, when it pours, a low soft rush
+  if (strong > 0.4) noiseBurst(ctx, noise, out, t0, "lowpass", 900, 0.5, len * 0.3, 0.025 * strong, len * 0.5);
+  return len + 0.15;
+};
+
 /** Thunder `km` off: a crack (near only), then the long roll, lower and softer far away. */
 export const thunder = (km: number): Make => (ctx, out, t0, noise) => {
   const near = Math.max(0, 1 - km / 2.5);
