@@ -131,7 +131,11 @@ export class Press {
 
   async load(): Promise<void> {
     try {
-      this.info = await call<PressInfo>("GET", "/api/press");
+      const inf = await call<PressInfo>("GET", "/api/press");
+      // (fix 2026-09-26: an answer without the paper, while the server starts, became this.info and
+      // update() threw on info.paper.printed every frame; such an answer is no answer: ask again)
+      if (!inf || typeof inf.paper !== "object" || !inf.paper || !Array.isArray(inf.corners)) throw new Error("press: no paper yet");
+      this.info = inf;
       this.buildSigns();
     } catch {
       setTimeout(() => void this.load(), 4000);
@@ -158,7 +162,7 @@ export class Press {
 
   update(dt: number): void {
     const inf = this.info;
-    if (!inf?.paper.printed || !inf.paper.cry) return;
+    if (!inf?.paper?.printed || !inf.paper.cry) return;
     for (const c of inf.corners) {
       let t = (this.shoutT.get(c.boy) ?? 1 + Math.random() * 3) - dt;
       if (t <= 0) {

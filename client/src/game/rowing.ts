@@ -296,6 +296,11 @@ export class Rowing {
 
   private apply(w: RowWorld): void {
     if (!w || !Array.isArray(w.landings) || !Array.isArray(w.boats)) return; // the server is restarting
+    // (fix 2026-09-26: a boat of no known kind, e.g. a hire kept in an older save without its kind, made
+    // objFor read this.pool[undefined] and rowing.update threw "reading 'pop'"; such a boat is a rowing boat)
+    for (const L of w.landings) if (!isSmallKind(L.kind)) L.kind = "rowboat";
+    for (const b of w.boats) if (!isSmallKind(b.kind)) b.kind = "rowboat";
+    if (w.hire && !isSmallKind(w.hire.kind)) w.hire.kind = w.landings.find((l) => l.id === w.hire!.landing)?.kind ?? "rowboat";
     const first = this.data === null;
     this.data = w;
     if (w.notice && w.notice.n !== this.notice) {
@@ -334,6 +339,7 @@ export class Rowing {
   private objFor(kind: Kind): THREE.Object3D | null {
     const b = this.world.boats();
     if (!b) return null;
+    if (!isSmallKind(kind)) return null; // (fix 2026-09-26: no pool, no model for it)
     const o = this.pool[kind].pop() ?? b.place(kind, 0, 0, 0, this.world.scene);
     o.visible = true;
     return o;

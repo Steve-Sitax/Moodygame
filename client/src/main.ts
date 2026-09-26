@@ -1026,17 +1026,18 @@ function frame(): void {
     const b = world.boats();
     if (b && sound) {
       sound.setMovingShips(b.moving());
-      if (!b.onSignal) b.onSignal = (ship, at) => sound?.shipSignal(ship, at);
+      if (!b.onSignal) b.onSignal = (ship, at) => safe("sound.shipSignal", () => sound?.shipSignal(ship, at));
     }
     const tr = world.traffic();
     // the goods train's horses and the omnibus: hooves and wheels (M3g); rail joints and crane work
     const rail = world.railway();
     const bus = world.omnibus();
     if (rail && sound && !rail.onClack) {
-      rail.onClack = (x, z) => sound?.railClack(x, z);
-      rail.onCrane = (x, z) => sound?.craneWork({ kind: "crane", x, z, y: 6 });
-      world.railGate().onBell = (x, z) => sound?.gateBell(x, z);
-      rail.onCraneTravel = (x, z) => sound?.gateBell(x, z); // the crane driver's warning bell
+      // (a sound never breaks the railway's own update: 2026-09-26, "non-finite AudioParam" at night)
+      rail.onClack = (x, z) => safe("sound.railClack", () => sound?.railClack(x, z));
+      rail.onCrane = (x, z) => safe("sound.craneWork", () => sound?.craneWork({ kind: "crane", x, z, y: 6 }));
+      world.railGate().onBell = (x, z) => safe("sound.gateBell", () => sound?.gateBell(x, z));
+      rail.onCraneTravel = (x, z) => safe("sound.gateBell", () => sound?.gateBell(x, z)); // the crane driver's warning bell
     }
     // the ridden velocipede rattles like a handcart: iron tyres on stone (M3h)
     if (sound && (tr || rail || bus || deeds.velos.ridden)) {
@@ -1494,8 +1495,8 @@ if (import.meta.env.DEV) {
       let tris = 0;
       for (let i = 0; i < n; i++) {
         renderer.info.reset();
-        world.update(elapsed, 1 / 60, player.camera);
-        lanternLights.redraw();
+        safe("perf: world.update", () => world.update(elapsed, 1 / 60, player.camera)); // (a part that throws never stops the timing)
+        safe("perf: lanternLights.redraw", () => lanternLights.redraw());
         retro.render(world.scene, player.camera, elapsed);
         gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
         calls = renderer.info.render.calls;
@@ -1516,52 +1517,52 @@ if (import.meta.env.DEV) {
       if (bus && !bus.eye) bus.eye = () => player.camera.position;
       for (let t = 0; t < seconds; t += dt) {
         elapsed += dt;
-        world.update(elapsed, dt);
-        ferry.update(dt);
-        player.update(dt);
-        handcarts.update(dt);
-        interiors.update(dt);
-        homes.update(dt);
-        landmarks.update(dt);
-        {
+        safe("step: world.update", () => world.update(elapsed, dt));
+        safe("step: ferry.update", () => ferry.update(dt));
+        safe("step: player.update", () => player.update(dt));
+        safe("step: handcarts.update", () => handcarts.update(dt));
+        safe("step: interiors.update", () => interiors.update(dt));
+        safe("step: homes.update", () => homes.update(dt));
+        safe("step: landmarks.update", () => landmarks.update(dt));
+        safe("step: carolus, gothic, prison", () => {
           const d = landmarks.daylight();
           carolus.update(elapsed, dt, jobs.day.hourF, d.day, d.sky);
           gothic.update(elapsed, dt, jobs.day.hourF, d.day, d.sky);
           prison.update(elapsed, dt, jobs.day.dayNum, jobs.day.hourF, d.day, d.sky); // M7 prison and squares
-        }
-        jobs.update(dt);
-        boxes.update(elapsed);
-        night.update(dt);
-        crowd.setHour(jobs.day.hour); // (as the frame does: the crowd's hour, its lanterns after dark)
-        crowd.update(dt, player, player.camera);
-        town.update(dt, player);
-        journeys.update(dt, player);
-        market.update(dt, player, jobs.day.dayNum, jobs.day.hourF);
-        setLitterClock(jobs.day.dayNum, jobs.day.hourF);
-        setClockHands(jobs.day.hourF); // the live hands of every clock (world/clockHands.ts)
-        trades.update(elapsed, dt, player.camera, crowd.fogDistance);
-        steenLife.update(dt, jobs.day.hourF, player.camera);
-        deeds.update(dt, jobs.day.hourF);
-        rowing.update(dt);
-        actions.update(dt);
-        steps.update(dt, routinesRun());
-        hands.update(dt, routinesRun());
-        meBody.update(dt); // M7 character
-        families.update(dt);
-        events.update(dt, player);
-        hearses.update(dt, player, events.list);
-        townLife.update(dt, player, jobs.day.hourF);
-        bubbles.update(dt, player.camera);
-        ballads.update(dt, player.camera);
-        press.update(dt);
-        ideas.update(dt);
-        emigrants.update(dt);
-        lively.update(dt, player, player.camera, crowd.fogDistance);
-        backLife.update(dt, player); // M7 back of town (hook)
-        animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7);
-        alive.update(elapsed, dt, player.camera, { day: jobs.day.dayNum, hour: jobs.day.hourF }, weatherNow); // M7 alive (hook)
-        lanternLights.update(dt, player.camera, lanternDark());
-        spill.update(dt, player.camera);
+        });
+        safe("step: jobs.update", () => jobs.update(dt));
+        safe("step: boxes.update", () => boxes.update(elapsed));
+        safe("step: night.update", () => night.update(dt));
+        safe("step: crowd.setHour", () => crowd.setHour(jobs.day.hour)); // (as the frame does: the crowd's hour, its lanterns after dark)
+        safe("step: crowd.update", () => crowd.update(dt, player, player.camera));
+        safe("step: town.update", () => town.update(dt, player));
+        safe("step: journeys.update", () => journeys.update(dt, player));
+        safe("step: market.update", () => market.update(dt, player, jobs.day.dayNum, jobs.day.hourF));
+        safe("step: setLitterClock", () => setLitterClock(jobs.day.dayNum, jobs.day.hourF));
+        safe("step: setClockHands", () => setClockHands(jobs.day.hourF)); // the live hands of every clock (world/clockHands.ts)
+        safe("step: trades.update", () => trades.update(elapsed, dt, player.camera, crowd.fogDistance));
+        safe("step: steenLife.update", () => steenLife.update(dt, jobs.day.hourF, player.camera));
+        safe("step: deeds.update", () => deeds.update(dt, jobs.day.hourF));
+        safe("step: rowing.update", () => rowing.update(dt));
+        safe("step: actions.update", () => actions.update(dt));
+        safe("step: steps.update", () => steps.update(dt, routinesRun()));
+        safe("step: hands.update", () => hands.update(dt, routinesRun()));
+        safe("step: meBody.update", () => meBody.update(dt)); // M7 character
+        safe("step: families.update", () => families.update(dt));
+        safe("step: events.update", () => events.update(dt, player));
+        safe("step: hearses.update", () => hearses.update(dt, player, events.list));
+        safe("step: townLife.update", () => townLife.update(dt, player, jobs.day.hourF));
+        safe("step: bubbles.update", () => bubbles.update(dt, player.camera));
+        safe("step: ballads.update", () => ballads.update(dt, player.camera));
+        safe("step: press.update", () => press.update(dt));
+        safe("step: ideas.update", () => ideas.update(dt));
+        safe("step: emigrants.update", () => emigrants.update(dt));
+        safe("step: lively.update", () => lively.update(dt, player, player.camera, crowd.fogDistance));
+        safe("step: backLife.update", () => backLife.update(dt, player)); // M7 back of town (hook)
+        safe("step: animals.update", () => animals.update(dt, player, player.camera, crowd.fogDistance, jobs.day.hour >= 19 || jobs.day.hour < 7));
+        safe("step: alive.update", () => alive.update(elapsed, dt, player.camera, { day: jobs.day.dayNum, hour: jobs.day.hourF }, weatherNow)); // M7 alive (hook)
+        safe("step: lanternLights.update", () => lanternLights.update(dt, player.camera, lanternDark()));
+        safe("step: spill.update", () => spill.update(dt, player.camera));
       }
     },
     info() {

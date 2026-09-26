@@ -8,6 +8,7 @@ import type { Surface } from "../world/rijnkaai";
 import { water } from "../world/tide";
 import { blockedMetres, cartRoutes, cityEmitters, nearestQuay, overWater, type Emitter, type EmitterKind } from "./emitters";
 import { CARILLON_SHORT, DOG_SPANS, PUDDLE_SPANS, SAMPLES, TOOT_SPANS, type SampleName } from "./samples";
+import { installSafeParams, paramSkips } from "./safeParams";
 
 // Web Audio soundscape. Recorded CC0 sounds wherever we have them (footsteps:
 // Kenney; gulls, bells, street and harbour sounds: BigSoundBank and Freesound;
@@ -23,6 +24,8 @@ import { CARILLON_SHORT, DOG_SPANS, PUDDLE_SPANS, SAMPLES, TOOT_SPANS, type Samp
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 const pick = <T>(a: readonly T[]): T => a[Math.floor(Math.random() * a.length)];
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+/** A place that is a place (fix 2026-09-26: a thing at NaN makes no sound, and never a NaN AudioParam). */
+const finite3 = (p: { x: number; y?: number; z: number }) => Number.isFinite(p.x) && Number.isFinite(p.z) && (p.y === undefined || Number.isFinite(p.y));
 const ramp = (v: number, a: number, b: number) => clamp01((v - a) / (b - a));
 
 // Parts of the gull recording (seconds) with clean calls and no boat noise.
@@ -267,6 +270,8 @@ export class Soundscape {
   private rainRoofGain: GainNode;
   private rainCobbleGain: GainNode;
   private listenerPos = new THREE.Vector3();
+  private readonly camAt = new THREE.Vector3();
+  private readonly warned = new Set<string>();
   private nextHorn: number;
   private nextGull: number;
   private nextLap = 0;
@@ -338,6 +343,7 @@ export class Soundscape {
     private readonly shipPositions: THREE.Vector3[],
     opts: SoundscapeOptions = {},
   ) {
+    installSafeParams(); // (fix 2026-09-26: a bad AudioParam value is skipped, never thrown into the frame)
     this.ctx = opts.ctx ?? new AudioContext();
     const comp = this.ctx.createDynamicsCompressor();
     comp.threshold.value = -18;
@@ -698,7 +704,8 @@ export class Soundscape {
       const on = d < def.radius && !capped;
       if (on && !slot.voice) slot.voice = this.startVoice({ x: v.x, z: v.z, y: 1 }, def);
       if (!slot.voice) return;
-      if ((!on && d > def.radius + 10) || capped) {
+      if ((!on && !(d <= def.radius + 10)) || capped) {
+        // (NaN: a vehicle at no place goes quiet)
         this.stopVoice(slot.voice);
         slot.voice = null;
         return;
@@ -768,9 +775,14 @@ export class Soundscape {
   update(cam: THREE.Camera): void {
     const ctx = this.ctx;
     const l = ctx.listener;
-    cam.getWorldPosition(this.listenerPos);
+    // (fix 2026-09-26: a camera at no place, NaN for a frame, made the listener NaN, and with it every
+    // distance, lowpass and gain of the sounds started then: the ear stays where it last was)
+    cam.getWorldPosition(this.camAt);
+    if (!finite3(this.camAt)) return this.warnOnce("the camera is at no place (NaN): the ear stays put");
+    this.listenerPos.copy(this.camAt);
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion);
+    if (!finite3(fwd) || !finite3(up)) fwd.set(0, 0, -1), up.set(0, 1, 0);
     l.positionX.value = this.listenerPos.x;
     l.positionY.value = this.listenerPos.y;
     l.positionZ.value = this.listenerPos.z;
@@ -938,7 +950,7 @@ export class Soundscape {
   private startVoice(e: { x: number; z: number; y?: number }, def: LoopDef): Voice | null {
     const ctx = this.ctx;
     const layers = def.layers.filter(([n]) => n === "hiss" || this.buf.has(n));
-    if (!layers.length) return null;
+    if (!layers.length || !finite3(e)) return null;
     const spot = this.spot(e, def.ref, def.rolloff, def.reach ?? 150, def.wet ?? 0, def.lowpass, this.street, def.radius, def.occl ?? 1);
     const panner = spot.pan;
     const gain = ctx.createGain();
@@ -1563,6 +1575,10 @@ export class Soundscape {
   eventCues(cues: CueSpec[], at: { x: number; z: number }, seconds: number): { move(x: number, z: number): void; stop(): void } {
     const ctx = this.ctx;
     const secs = Math.max(4, Math.min(180, seconds));
+    if (!finite3(at)) {
+      this.warnOnce("event cues at no place (NaN): not played");
+      return { move: () => {}, stop: () => {} };
+    }
     const spot = this.spot({ x: at.x, z: at.z, y: 1.5 }, 3, 1.15, 75, 0.3, 14000, this.bus("voices"), 100);
     const out = ctx.createGain();
     out.gain.value = 0.9;
@@ -1620,7 +1636,7 @@ export class Soundscape {
     make: (ctx: BaseAudioContext, out: AudioNode, t0: number, noise: AudioBuffer) => number,
   ): boolean {
     const d = this.distTo(at.x, at.y ?? 1, at.z);
-    if (d > o.max || (this.spots.size >= SPOT_CAP && d > 25)) return false;
+    if (!(d <= o.max) || (this.spots.size >= SPOT_CAP && d > 25)) return false; // (NaN: at no place, not played)
     const spot = this.spot({ x: at.x, y: at.y ?? 1, z: at.z }, o.ref, o.rolloff ?? 1, o.reach, o.wet ?? 0.3, 14000, this.bus("voices"), o.max, o.occl ?? 1);
     const out = this.ctx.createGain();
     out.gain.value = o.gain ?? 1;
@@ -1680,14 +1696,14 @@ export class Soundscape {
   /** The railway gate at the Werf store opens (M3g, world/railgate.ts): the keeper rings his hand bell. */
   gateBell(x: number, z: number): void {
     const bell = this.buf.get("handbell");
-    if (!bell || Math.hypot(x - this.listenerPos.x, z - this.listenerPos.z) > 110) return;
+    if (!bell || !(Math.hypot(x - this.listenerPos.x, z - this.listenerPos.z) <= 110)) return;
     this.slice(bell, { x, z, y: 3 }, 0, rand(1.8, 2.8), 0.6, rand(0.95, 1.05), 150, 3, 0, 110);
     this.log("railway gate bell");
   }
 
   /** An iron wheel over a rail joint (M3g, world/railway.ts): a knock and a short ring, made in code. */
   railClack(x: number, z: number): void {
-    if (Math.hypot(x - this.listenerPos.x, z - this.listenerPos.z) > 70) return;
+    if (!(Math.hypot(x - this.listenerPos.x, z - this.listenerPos.z) <= 70)) return; // (NaN: at no place)
     const spot = this.spot({ x, z, y: 0.4 }, 4, 1.2, 70, 0.25, 14000, this.bus("ambience"), 70);
     const t = this.ctx.currentTime + 0.01;
     this.burst(t, 0.07, "bandpass", rand(1700, 2300), 3, 0.45, spot.fog, 0.001);
@@ -1763,7 +1779,7 @@ export class Soundscape {
   ): void {
     const ctx = this.ctx;
     const d = this.distTo(at.x, at.y ?? 1, at.z);
-    if (d > max || (this.spots.size >= SPOT_CAP && d > 25)) return;
+    if (!(d <= max) || (this.spots.size >= SPOT_CAP && d > 25)) return; // (NaN: at no place, not played)
     const spot = this.spot(at, ref, 1, reach, 0.35, 14000, this.bus("ambience"), max, occl);
     const src = ctx.createBufferSource();
     src.buffer = b;
@@ -1779,6 +1795,13 @@ export class Soundscape {
     src.connect(env).connect(spot.fog);
     src.start(t, from, to - from);
     src.onended = () => this.dropSpot(spot);
+  }
+
+  /** Dev: a warning once per text (fix 2026-09-26). */
+  private warnOnce(what: string): void {
+    if (this.warned.has(what)) return;
+    this.warned.add(what);
+    console.warn(`[sound] ${what}`);
   }
 
   private log(what: string): void {
@@ -1847,6 +1870,7 @@ export class Soundscape {
   }
 
   private moveSpot(sp: Spot, x: number, z: number): void {
+    if (!Number.isFinite(x) || !Number.isFinite(z)) return; // (a thing at no place for a frame: the sound stays where it was)
     sp.x = x;
     sp.z = z;
     sp.pan.positionX.value = x;
@@ -1884,6 +1908,7 @@ export class Soundscape {
 
   private tuneSpot(sp: Spot, now: number, first: boolean): void {
     const d = this.distTo(sp.x, sp.y, sp.z);
+    if (!Number.isFinite(d)) return; // (never: the ear and the spots are places now; the net stays)
     const l = this.listenerPos;
     let occ = sp.occ;
     if (!occ || Math.abs(occ.lx - l.x) + Math.abs(occ.lz - l.z) > 1.5 || Math.abs(occ.sx - sp.x) + Math.abs(occ.sz - sp.z) > 1.5) {
@@ -1948,6 +1973,7 @@ export class Soundscape {
         weatherLowpass: this.weatherFar().lp,
         spots: this.spots.size,
       },
+      paramSkips: { ...paramSkips },
       clock: this.clock,
       dayness: +this.dayness.toFixed(2),
       weather: this.weather ?? "unknown",

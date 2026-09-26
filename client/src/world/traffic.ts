@@ -131,7 +131,12 @@ function roundedLoop(pts: V2[], radius: number): V2[] {
 }
 
 function makePath(route: TrafficRoute, half: number): Path {
-  let pts = route.pts;
+  // (fix 2026-09-26: a point given twice, like a loop closed on its first point, made a corner of
+  // length 0 there: 0/0 in roundedLoop, every point of the path NaN, the rijnkaai_back dray at NaN)
+  let pts = route.pts.filter((p, i, a) => {
+    const q = a[(i + a.length - 1) % a.length];
+    return (i > 0 || route.loop) && a.length > 1 ? Math.hypot(p[0] - q[0], p[1] - q[1]) > 0.01 : true;
+  });
   if (!route.loop) {
     // out on one side of the line, back on the other, turning round at the ends
     const off = half * 0.45;
@@ -555,6 +560,9 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
     const path = makePath(route, half);
     const body = route.vehicles.some((v) => v.kind === "dray") ? 1.0 : 0.75;
     let bad: V2 | null = null;
+    // (a path with a non-finite point is left out too: the walk map's flags do not see NaN as a wall)
+    for (let i = 0; i < path.x.length && !bad; i++) if (!Number.isFinite(path.x[i]) || !Number.isFinite(path.z[i])) bad = [path.x[i], path.z[i]];
+    if (!path.x.length || !(path.length > 0)) bad = [0, 0];
     for (let i = 0; i < path.x.length && !bad; i += 2) {
       const x = path.x[i];
       const z = path.z[i];
