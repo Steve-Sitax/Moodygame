@@ -30,6 +30,7 @@ import { installTalkHooks, reportAction, activeActions, actionRow, resetSync, sy
 import { installFamilies, listNews, scanNews, startReaction } from "../src/director/families.ts";
 import { remember } from "../src/npcs.ts";
 import { HOSTILE_LINES } from "./hostile-lines.ts";
+import { blankSave } from "./blank-save.ts";
 
 // M6 haggling in your own words, and talking your way out with the police. The model is a stub
 // (a Runner); every price, verdict and sum is the engine's.
@@ -46,8 +47,8 @@ const reply = (output: unknown): Runner => async () => ({ output });
 /** A talk answer as the client sees it (the gated form has no line). */
 const said = (o: unknown) => o as { npc_line?: string; note?: string; gated?: string | null; wares?: Array<{ kind: string; price_c: number }> };
 
-function fresh(day = 1, hour = 10): DB {
-  const db = openDb(":memory:");
+/** A new game; a loop over many lines passes blankSave() (a copy of one built once, test/blank-save.ts). */
+function fresh(day = 1, hour = 10, db: DB = openDb(":memory:")): DB {
   setClock(db, day, hour);
   return db;
 }
@@ -519,7 +520,7 @@ describe("talking your way out with the police", () => {
     let fenced = 0;
     let t = 0;
     for (const hostile of [...HOSTILE_LINES, ...extra]) {
-      const db = fresh(2, 10);
+      const db = fresh(2, 10, blankSave());
       setMoney(db, 200);
       setFood(db, 2);
       fishDeed(db);
@@ -557,7 +558,7 @@ describe("talking your way out with the police", () => {
     expect(gated + fenced).toBe(HOSTILE_LINES.length + extra.length);
     expect(gated).toBeGreaterThan(8);
     expect(t).toBe(33);
-  }, 60_000);
+  });
 });
 
 // ------------------------------------------------------------------ the police over a complaint (families)

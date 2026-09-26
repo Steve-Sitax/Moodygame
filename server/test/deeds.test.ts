@@ -43,6 +43,7 @@ import {
   type DeedFacts,
 } from "../src/town/police.ts";
 import { HOSTILE_LINES } from "./hostile-lines.ts";
+import { blankSave } from "./blank-save.ts";
 
 type DB = ReturnType<typeof openDb>;
 const setClock = (db: DB, day: number, hour: number, minute = 0) => db.prepare("UPDATE player SET day = ?, hour = ?, minute = ? WHERE id = 1").run(day, hour, minute);
@@ -53,8 +54,8 @@ const always = () => 0; // every roll comes up: everybody sees
 const never = () => 0.999; // no roll comes up: nobody sees, no rumour
 const reply = (output: unknown): Runner => async () => ({ output });
 
-function fresh(hour = 10): DB {
-  const db = openDb(":memory:");
+/** A new game; a loop over many lines passes blankSave() (a copy of one built once, test/blank-save.ts). */
+function fresh(hour = 10, db: DB = openDb(":memory:")): DB {
   setClock(db, 1, hour);
   return db;
 }
@@ -478,7 +479,7 @@ describe("hostile lines at the police talk", () => {
     let fenced = 0;
     let t = 0;
     for (const hostile of HOSTILE_LINES) {
-      const db = fresh(10);
+      const db = fresh(10, blankSave());
       setMoney(db, 200);
       seenHerring(db);
       const agent = agentArrives(db);
@@ -513,5 +514,5 @@ describe("hostile lines at the police talk", () => {
     }
     expect(gated + fenced).toBe(HOSTILE_LINES.length);
     expect(gated).toBeGreaterThan(5);
-  }, 30_000); // 30 fresh test saves: a bigger town (M6 population) takes longer than the 5 s default
+  });
 });

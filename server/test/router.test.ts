@@ -243,18 +243,26 @@ describe("the hard time limit", () => {
     const { killTree } = await import("../src/ai/codex.ts");
     const db = openDb(":memory:");
     let exited: Promise<number | null> | null = null;
+    let gone = false;
     // a stand-in model: a real process that would run for 30 s and never answer
     const proc: Runner = (r) =>
       new Promise((_res, rej) => {
         const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 30000)"], { stdio: "ignore", windowsHide: true });
         exited = new Promise((done) => child.once("exit", (code) => done(code)));
         r.signal.signal.addEventListener("abort", () => killTree(child.pid), { once: true });
-        child.once("exit", () => rej(new Error("killed")));
+        child.once("exit", () => {
+          gone = true;
+          rej(new Error("killed"));
+        });
       });
     const t0 = Date.now();
     const res = await callClaude(db, { hook: "test_proc", system: "s", prompt: "p", schema: Schema, timeoutMs: 500 }, proc);
     expect(res.error).toMatch(/timeout after 500 ms/);
-    expect(Date.now() - t0).toBeLessThan(800);
+    // the caller has its fallback at the limit, before the process is dead: it never waits for the kill
+    expect(gone).toBe(false);
+    // at the limit, not early; the slack is only for a late timer on a busy machine (the process runs 30 s)
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(490);
+    expect(Date.now() - t0).toBeLessThan(2_000);
     const t1 = Date.now();
     await exited;
     expect(Date.now() - t1).toBeLessThan(5_000);
