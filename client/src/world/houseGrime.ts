@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { wallRelief } from "../retro/psx"; // bump maps on the walls (2026-09-26)
 
 // M7 the grime pass (Steve, 2026-09-25, with a picture of a street at night: "make sure it is not too clean, more
 // like it was back then"). The house fronts get old: the plain wall of the facade atlas (the texels
@@ -202,6 +203,11 @@ function install(mat: THREE.Material, kind: "facade" | "stone"): void {
           }
         }
         diffuseColor.rgb = diffuse * pic * 1.08;
+        // --- bump maps on the walls (retro/psx.ts wallRelief, 2026-09-26): the picture's height map ---
+        #ifdef WALL_RELIEF
+        diffuseColor.rgb *= wallRelief(layer, gW, gN, uWallTile[int(layer)]);
+        #endif
+        // ---
       }
       if (gWallCell) {
         // under every sill a dark run of water, over every window soot (the upper and far-off cells: the window
@@ -274,6 +280,9 @@ export function houseGrime(facade: THREE.Material, trim: THREE.Material): void {
   U.uWallArr.value ??= wallPictures(() => (U.uWallPics.value = 1));
   install(facade, "facade");
   install(trim, "stone");
+  // --- bump maps on the walls (retro/psx.ts wallRelief, 2026-09-26) ---
+  wallRelief(facade, WALL_PICS.map(([name]) => name));
+  // ---
 }
 
 /**

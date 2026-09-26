@@ -86,6 +86,42 @@ Pictures: `data/shots/bm0_*` (before), `bm1_*` (the new shader, old maps), `bm3_
 x -31 z 21), quay_plain, cobble, flags, earth, grassdt, band, each `_eye`, `_low`, `_down`; `bm3_mist16_*`,
 `bm3_night_quay_lamp`, `bm3_night_street_lamp`, `bm3_ps1_*` (default settings), `bm3_walk_down`. `npm run build` passes.
 
+### Bump maps on the house walls (2026-09-26)
+Steve: "Also do bump mapping on all buildings and take pictures to see if it is right and adapt if needed."
+- Every wall picture of the texture array (houseGrime.ts WALL_PICS, all 13 final) has a height map made from it:
+  `tools/textures/wall_heights.py` writes `client/public/textures/wall_<name>_h.png` (512 px, the array's size) and
+  records the picture's SHA-256 and its kind in `wall_heights.json`. Brick and stone: the joints found where the colour
+  leaves the brick's own (Lab, against a median about a brick wide), kept only as horizontal and vertical lines; the
+  faces domed with 1 cm arrises and a little of the picture's own grain. Ashlar with a wider look (big blocks, thin
+  joints), the sooty old yellow brick with a looser one. Plaster, render and the limewashed brick: fine lumps and cracks,
+  and where the skin has come off to the red brick (Lab a* over 139) the brick lies lower. Roughcast: its small lumps
+  from the picture's light. `--check` lists height maps missing or made from another picture.
+- The game (`retro/psx.ts wallRelief`, hooked by one marked `#ifdef WALL_RELIEF` line and one call in houseGrime.ts)
+  loads a height map only if the json's hash is the picture's own (checked in the browser): a picture replaced without
+  running the tool again gets a flat wall, never the old bricks. The height tilts the wall's normal (the sky light, the
+  sun and the gas lamps pick out the courses as real light would), darkens the joints a little, and adds a little sky
+  light on the tops, so it reads in any light; it fades out from 10 to 28 m. Strength by kind: brick and stone 1,
+  roughcast 0.18, plaster and render 0.12 (houseGrime.ts flattens the plaster pictures' colour, so their relief is flat too).
+- Tuned from pictures and two reviews by a fresh agent: the first plaster and roughcast relief (0.45, 0.8, with big waves)
+  looked like hammered metal where the colour is flat, and the brick at 2.6 was pillowy close up (speklagen at night
+  had black outlines): now 2.0, plaster only fine lumps.
+- Frame time: no difference to measure (house meshes alone, 20 renders, bump on and off: 3.3-4.2 ms either way;
+  perf(60) with the hidden pane 45 ms either way).
+- The lead's review of all 13: the yellow brick embossed close up and striped like corrugated sheet at 6 m, the light
+  mortar of the speklagen and the yellow brick went dark, the smooth plaster was orange peel and the roughcast hammered
+  metal. Now each picture has its own strength (`wall_heights.py` KINDS, into the json: fine brick 0.8, yellow 0.4,
+  limewashed 0.4, smooth plaster 0.04, roughcast 0.1 with lumps of its grain only); light-mortar walls get shallow
+  joints (found by the tool: joints lighter than the bricks), so the shade in them stays a little under the mortar's own
+  tone; and the relief's step grows with the pixel's footprint on the map and fades where the joints get smaller than
+  two or three pixels, so small courses never stripe (also with the default PS1 settings). Pictures: `wc2_L<n>_*`,
+  `wc3_L6_*`, `wn3_spek_*`, `wc3_ps1_*`.
+- Not done: the plaster that houseGrime.ts knocks off in its own shader (worn houses) shows the brick picture's colour
+  but keeps the plaster's (faint) relief.
+Pictures: `data/shots/wc0_L<n>_*` (no bump) and `wc1_L<n>_*` (bump), n = the array layer 0..12, `_close` (1 m) and
+`_street` (6 m), 13:00 clear; at night under a gas lamp (22:00) `wn0_*` (no bump), `wn1_*` (first strength), `wn2_*`
+(now), for the clinker and the speklagen; `wb2_ps1_brick_*` the default PS1 settings; `wallh_<name>.jpg` what the tool
+found (the picture, the joints in red, the height).
+
 ## The air, darker and smokier (the lead, 2026-09-26)
 Steve: "The pictures were wrong: it is a misty, darker, grimy atmosphere, a bit dangerous at all times. So rust, soot,
 clutter, dirt."

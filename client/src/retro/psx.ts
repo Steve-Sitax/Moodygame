@@ -757,3 +757,139 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
   mat.customProgramCacheKey = () => `psx-${opts.water ? 2 : 0}-${opts.noSnap ? 1 : 0}-${opts.atlas ?? 0}-${opts.fogReach ?? 1}${opts.wet ? "-wet" : ""}${opts.puddles ? `-pud${opts.puddles}` : ""}${opts.relief ? `-rel${opts.relief.tile}${opts.relief.id ? `-id${opts.relief.holes ?? 0}` : ""}` : ""}${opts.vary ? `-v${opts.vary}` : ""}${opts.detile ? "-dt" : ""}`;
   return mat;
 }
+
+// --- Bump maps on the house walls (Steve, 2026-09-26: "do bump mapping on all buildings") ---
+// The plain wall of the houses is a picture per layer of a texture array (world/houseGrime.ts WALL_PICS). Each
+// picture has a height map made from it by tools/textures/wall_heights.py (brick and stone faces high with rounded
+// arrises, the joints sunk; plaster nearly flat with its lumps and cracks; roughcast small lumps). The wall's normal
+// is tilted by it, so the sky light, the sun and the gas lamps pick out the courses as real light does, and the joints
+// are darkened (they get less light). A height map is used only when wall_heights.json names it with the hash of the
+// picture it was made from: a picture replaced without running the tool again gets a flat wall, never old bricks.
+
+const WALL_H = 512;
+/** How hard each kind of wall stands out (plaster pictures are flattened in houseGrime.ts: their relief is too). */
+const WALL_KIND_BUMP: Record<string, number> = { brick: 1, plaster: 0.12, rough: 0.18 };
+
+const wallReliefU = {
+  uWallH: { value: null as THREE.DataArrayTexture | null },
+  /** Per layer: 0 = no height map (flat), else how strong. */
+  uWallHK: { value: [] as number[] },
+};
+
+async function sha256(url: string): Promise<string | null> {
+  if (!globalThis.crypto?.subtle) return null;
+  const buf = await (await fetch(url)).arrayBuffer();
+  return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", buf)), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function wallHeights(names: string[]): void {
+  const n = names.length;
+  const data = new Uint8Array(WALL_H * WALL_H * n);
+  const t = new THREE.DataArrayTexture(data, WALL_H, WALL_H, n);
+  t.format = THREE.RedFormat;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.generateMipmaps = true;
+  t.needsUpdate = true;
+  wallReliefU.uWallH.value = t;
+  wallReliefU.uWallHK.value = names.map(() => 0);
+  const c = document.createElement("canvas");
+  c.width = c.height = WALL_H;
+  const g = c.getContext("2d", { willReadFrequently: true })!;
+  const load = (url: string) =>
+    new Promise<HTMLImageElement>((ok, no) => {
+      const img = new Image();
+      img.onload = () => ok(img);
+      img.onerror = () => no(new Error(url));
+      img.src = url;
+    });
+  fetch("/textures/wall_heights.json")
+    .then((r) => r.json() as Promise<Record<string, { sha256: string; kind: string; bump?: number }>>)
+    .then(async (made) => {
+      const k = names.map(() => 0);
+      await Promise.all(
+        names.map(async (name, i) => {
+          const m = made[name];
+          if (!m) return;
+          const sha = await sha256(`/textures/wall_${name}.jpg`).catch(() => null);
+          if (sha && sha !== m.sha256) {
+            console.warn(`wall_${name}_h.png was made from another picture: that wall stays flat (run tools/textures/wall_heights.py ${name})`);
+            return;
+          }
+          const img = await load(`/textures/wall_${name}_h.png`);
+          g.drawImage(img, 0, 0, WALL_H, WALL_H);
+          const px = g.getImageData(0, 0, WALL_H, WALL_H).data;
+          const off = i * WALL_H * WALL_H;
+          for (let p = 0; p < WALL_H * WALL_H; p++) data[off + p] = px[p * 4];
+          k[i] = m.bump ?? WALL_KIND_BUMP[m.kind] ?? 1;
+        }),
+      );
+      t.needsUpdate = true;
+      wallReliefU.uWallHK.value = k;
+    })
+    .catch((e) => console.warn("wall height maps did not load: the walls stay flat", e));
+}
+
+/**
+ * The GLSL: `wallRelief(layer, w, wn, tile)` in the house material's colour code (houseGrime.ts, inside #ifdef
+ * WALL_RELIEF) returns the darkening of the joints and a little sky light on the tops, and leaves the tilt for the
+ * lights in gWallDN (world space), which the normal takes after normal_fragment_maps.
+ */
+const wallReliefGlsl = /* glsl */ `
+#define WALL_RELIEF
+uniform highp sampler2DArray uWallH;
+uniform float uWallHK[WALL_LAYERS];
+vec3 gWallDN = vec3(0.0);
+float wallH(vec2 uv, float layer) { return texture(uWallH, vec3(uv, layer)).r; }
+float wallRelief(float layer, vec2 w, vec3 wn, float tile) {
+  vec2 uv = w / tile;
+  // how many texels of the height map one pixel covers: the step grows with it (so the slope is the mip's, not the
+  // base map's: small courses at 5 to 10 m striped like corrugated sheet), and the relief fades where the joints get
+  // smaller than a pixel or two (the lead's review, 2026-09-26)
+  float fp = max(length(dFdx(uv)), length(dFdy(uv))) * ${WALL_H.toFixed(1)};
+  float k = uWallHK[int(layer)];
+  float fade = (1.0 - smoothstep(10.0, 28.0, length(vPsxWorld - cameraPosition))) * (1.0 - smoothstep(2.5, 5.0, fp));
+  if (k <= 0.0 || fade <= 0.0 || abs(wn.y) > 0.7) return 1.0;
+  // two texels of the 512 px map near (about 7 mm on a 1.9 m brick tile), a pixel's worth further off
+  float e = max(2.0, fp) / ${WALL_H.toFixed(1)};
+  float h = wallH(uv, layer);
+  float dU = wallH(uv + vec2(e, 0.0), layer) - wallH(uv - vec2(e, 0.0), layer);
+  float dV = wallH(uv + vec2(0.0, e), layer) - wallH(uv - vec2(0.0, e), layer);
+  // the wall's own frame, as houseGrime.ts gWallUv lays the picture: along (u) and up (v)
+  vec3 along = normalize(vec3(-wn.z, 0.0, wn.x));
+  vec3 up = vec3(0.0, 1.0, 0.0);
+  float b = 2.0 * k * fade;
+  vec3 nW = normalize(wn - along * dU * b - up * dV * b);
+  gWallDN = nW - wn;
+  // a little sky light on the tops (it reads in any light, as the ground's relief does), the joints in shade
+  vec3 L = normalize(up * 0.8 - along * 0.3 + wn * 0.5);
+  float lit = clamp(dot(nW, L), 0.0, 1.0) / max(dot(wn, L), 0.3);
+  float ao = (0.7 + 0.36 * h) / (0.7 + 0.36 * 0.8);
+  return mix(1.0, mix(1.0, lit, 0.35) * mix(1.0, ao, k), fade);
+}
+`;
+
+/**
+ * Put the wall relief on a house material that houseGrime.ts has dressed (its #ifdef WALL_RELIEF line calls it).
+ * `names` are the texture array's layers in order (houseGrime.ts WALL_PICS).
+ */
+export function wallRelief(mat: THREE.Material, names: string[]): void {
+  if (!wallReliefU.uWallH.value) wallHeights(names);
+  const prev = mat.onBeforeCompile;
+  const prevKey = mat.customProgramCacheKey.bind(mat);
+  mat.onBeforeCompile = (shader, renderer) => {
+    prev.call(mat, shader, renderer);
+    Object.assign(shader.uniforms, wallReliefU);
+    let fs = shader.fragmentShader;
+    // (before main: vPsxWorld is declared by then; the functions go before the first use in main)
+    fs = fs.replace("void main() {", wallReliefGlsl.replace("WALL_LAYERS", String(names.length)) + "\nvoid main() {");
+    fs = fs.replace(
+      "#include <normal_fragment_maps>",
+      "#include <normal_fragment_maps>\n  normal = normalize(normal + faceDirection * (viewMatrix * vec4(gWallDN, 0.0)).xyz);",
+    );
+    shader.fragmentShader = fs;
+  };
+  mat.customProgramCacheKey = () => `${prevKey()}-wallrelief`;
+  mat.needsUpdate = true;
+}
