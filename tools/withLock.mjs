@@ -62,7 +62,10 @@ const release = () => {
     /* gone */
   }
 };
-const child = spawn(cmd[0], cmd.slice(1), { stdio: "inherit", shell: process.platform === "win32" });
+// one command line with each argument quoted where needed (a Windows shell finds .cmd shims, but joins arguments
+// as they are)
+const q = (a) => (/[\s"&|<>^]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a);
+const child = spawn(cmd.map(q).join(" "), { stdio: "inherit", shell: true });
 child.on("close", (code) => {
   release();
   process.exit(code ?? 1);
