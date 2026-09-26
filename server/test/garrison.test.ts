@@ -178,7 +178,8 @@ describe("the garrison and the customs", () => {
     const added = ensureGarrison(db);
     expect(added).toBe(drop.length);
     const t = town(db).town;
-    expect(t.residents.filter((r) => isGarrison(r.trade)).map((r) => [r.id, r.name, r.trade])).toEqual(
+    // (M7 walk-up: the standing roles' customs men, ids "wu..", are not the garrison)
+    expect(t.residents.filter((r) => isGarrison(r.trade) && !/^wu\d+$/.test(r.id)).map((r) => [r.id, r.name, r.trade])).toEqual(
       T.residents.filter((r) => isGarrison(r.trade)).map((r) => [r.id, r.name, r.trade]),
     );
     expect(t.places.barracks).toBeTruthy();
@@ -198,7 +199,7 @@ describe("the garrison and the customs", () => {
 
   it("a new game has them from the start (ensureGarrison adds nothing)", () => {
     const db = openDb(":memory:");
-    expect(town(db).town.residents.filter((r) => isGarrison(r.trade)).length).toBe(G.length);
+    expect(town(db).town.residents.filter((r) => isGarrison(r.trade) && !/^wu\d+$/.test(r.id)).length).toBe(G.length);
     expect(ensureGarrison(db)).toBe(0);
   });
 });

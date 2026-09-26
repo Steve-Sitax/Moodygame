@@ -10,6 +10,8 @@ import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { rngFrom } from "../town/population.ts";
 import { town } from "../town/store.ts";
 import { noteOnRecord, policePost } from "../town/police.ts";
+import { jefAt } from "../director/actions.ts";
+import { callResponder, comings, pickResponder, type CallResult, type CallRole } from "../town/walkup.ts";
 import { canCallIdeas, clamp, d2, digitsOf, GIFTS, namesOk, now, numbersOk, OUT_OF_WORLD, round5 } from "./common.ts";
 
 // Jobs that go wrong (M6 AI ideas). Sometimes, on a running job, there is trouble:
@@ -119,8 +121,21 @@ export function fitting(j: JobRow, w: string): TroubleKind[] {
 
 const spotOf = (id: string) => (SPOTS as Record<string, { x: number; z: number; label: string }>)[id];
 
+/** M7 walk-up: where the job is now (Jef, else its first place), for the nearest fitting person. */
+function jobAt(j: JobRow): { x: number; z: number } | null {
+  const jef = jefAt();
+  if (jef) return jef;
+  const t = j.task as { from?: string; post?: string } | null;
+  const s = t ? spotOf(t.from ?? t.post ?? "") : null;
+  return s ? { x: s.x, z: s.z } : null;
+}
+function nearestFor(db: DB, j: JobRow, role: CallRole) {
+  const at = jobAt(j);
+  return at ? (pickResponder(db, role, at, { maxM: 2000 })?.r ?? null) : null;
+}
+
 /** The engine's trouble for a job: kind, cast and options with all their numbers. */
-export function planTrouble(db: DB, j: JobRow, rng: () => number, force?: TroubleKind): { kind: TroubleKind; cast: CastMember[]; options: TroubleOption[]; after_s: number } | null {
+export function planTrouble(db: DB, j: JobRow, rng: () => number, force?: TroubleKind, castAs?: { id: string; name: string }): { kind: TroubleKind; cast: CastMember[]; options: TroubleOption[]; after_s: number } | null {
   const w = weather(db);
   const kinds = fitting(j, w);
   const kind = force && kinds.includes(force) ? force : force ? null : kinds[Math.floor(rng() * kinds.length)];
@@ -184,8 +199,9 @@ export function planTrouble(db: DB, j: JobRow, rng: () => number, force?: Troubl
       break;
     }
     case "customs": {
+      // M7 walk-up: the officer on his beat nearest the job (the call may send another if he is busy by then)
       const officers = town(db).town.residents.filter((r) => r.trade === "customs");
-      const o = officers.length ? officers[Math.floor(rng() * officers.length)] : null;
+      const o = (castAs ? officers.find((x) => x.id === castAs.id) : null) ?? nearestFor(db, j, "customs") ?? (officers.length ? officers[Math.floor(rng() * officers.length)] : null);
       cast.push({ id: o?.id ?? null, name: o?.name ?? "a customs officer", role: "customs officer, suspicious of the load" });
       const bribe = 10;
       options = [
@@ -212,7 +228,7 @@ export function planTrouble(db: DB, j: JobRow, rng: () => number, force?: Troubl
     }
     case "rival": {
       const rivals = town(db).town.residents.filter((r) => (r.trade === "docker" || r.trade === "natie") && r.age >= 18);
-      const r = rivals.length ? rivals[Math.floor(rng() * rivals.length)] : null;
+      const r = nearestFor(db, j, "rival") ?? (rivals.length ? rivals[Math.floor(rng() * rivals.length)] : null);
       cast.push({ id: r?.id ?? null, name: r?.name ?? "a docker of another natie", role: "a rival docker who wants the load and the pay" });
       const share = 20;
       const oneLoad = round5(pay / Math.max(1, count));
@@ -394,7 +410,7 @@ export function troubleOf(db: DB, jobId: number): TroubleRow | null {
  * When a job is taken: maybe trouble (the engine rolls, at most two a day). The words come
  * later (the model), the engine's are there at once. Returns the row, or null.
  */
-export async function maybeTrouble(db: DB, jobId: number, opts: { runner?: Runner; timeoutMs?: number; rng?: () => number; force?: TroubleKind } = {}): Promise<TroubleRow | null> {
+export async function maybeTrouble(db: DB, jobId: number, opts: { runner?: Runner; timeoutMs?: number; rng?: () => number; force?: TroubleKind; who?: { id: string; name: string }; afterS?: number } = {}): Promise<TroubleRow | null> {
   const j = job(db, jobId);
   if (j.status !== "taken" || troubleOf(db, jobId)) return null;
   const { day } = now(db);
@@ -403,8 +419,9 @@ export async function maybeTrouble(db: DB, jobId: number, opts: { runner?: Runne
     const today = (db.prepare("SELECT COUNT(*) AS n FROM job_trouble WHERE day = ?").get(day) as { n: number }).n;
     if (today >= TROUBLES_A_DAY || rng() > TROUBLE_CHANCE) return null;
   }
-  const plan = planTrouble(db, j, rng, opts.force);
+  const plan = planTrouble(db, j, rng, opts.force, opts.who);
   if (!plan) return null;
+  if (opts.afterS !== undefined) plan.after_s = Math.max(0, Math.min(60, Math.round(opts.afterS)));
   const fb = engineWords(plan);
   const id = Number(
     db
@@ -517,3 +534,52 @@ export function settleTrouble(db: DB, j: JobRow, s: Settlement): void {
 }
 
 settleExtras.push(settleTrouble);
+
+// ------------------------------------------------------------------ M7 walk-up: the one it is about comes
+
+/** Who comes for each trouble (the stowaway is in the crate already: nobody walks up). */
+export const TROUBLE_ROLE: Record<TroubleKind, CallRole | null> = {
+  stowaway: null,
+  broken_crate: "hand",
+  customs: "customs",
+  rival: "rival",
+  weather: "hand",
+};
+
+/**
+ * The trouble is due: the ENGINE sends its person, the one cast if he is still free and near
+ * enough, else the nearest other who fits (his name then replaces the old one in the words).
+ * Nobody near: wait (the client asks again, and shows the scene when someone has come, or
+ * after its cap with a man who walks in from out of sight). The stowaway needs nobody.
+ */
+export function callTrouble(db: DB, id: number, at: { x: number; z: number }): CallResult | { ok: false; none: true } {
+  const t = db.prepare("SELECT * FROM job_trouble WHERE id = ?").get(id) as TroubleRow | undefined;
+  if (!t) throw new GameError("no such trouble", 404);
+  const role = TROUBLE_ROLE[t.kind];
+  if (!role) return { ok: false, none: true };
+  const j = job(db, t.job_id);
+  const cast = JSON.parse(t.cast_json) as CastMember[];
+  const ref = `job:${t.job_id}:trouble`;
+  // customs catching contraband (a load of Tuur's or a night giver's) come at a run
+  const shady = j.employer_npc === "tuur" || j.source === "night";
+  const why = role === "customs" && shady ? "contraband" : "trouble";
+  const first = cast[0]?.id ?? null;
+  // a follower of this job who closed in is the one (town/walkup.ts: a customs man shadowing the load)
+  const follow = first ? comings(db).find((a) => a.npc_id === first && (JSON.parse(a.data_json) as { ref?: string }).ref?.startsWith(`job:${t.job_id}:`)) : null;
+  if (follow) return { ok: true, npc: follow.npc_id, name: cast[0].name, action: follow.id, urgent: false, d: 0, again: true };
+  // the nearest free one who fits (the one cast at the start, when he is still that one)
+  const res = callResponder(db, { role, why, ref, at });
+  if (res.ok && res.npc !== first) {
+    const old = cast[0]?.name ?? "";
+    const named = !!first; // a named person in the words: the new one's name goes in
+    cast[0] = { id: res.npc, name: named ? res.name : (cast[0]?.name ?? res.name), role: cast[0]?.role ?? role };
+    let words = t.words_json;
+    if (named && old && old !== res.name) {
+      words = words.split(old).join(res.name);
+      const oldFirst = old.split(" ")[0];
+      if (oldFirst.length > 2) words = words.replace(new RegExp(`\\b${oldFirst.replace(/[^\p{L}'-]/gu, "")}\\b`, "gu"), res.name.split(" ")[0]);
+    }
+    db.prepare("UPDATE job_trouble SET cast_json = ?, words_json = ? WHERE id = ?").run(JSON.stringify(cast), words, id);
+  }
+  return res;
+}

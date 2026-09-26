@@ -21,6 +21,7 @@ import { ensureLandmarksTown } from "./landmarks/town.ts";
 import { ensureLively } from "./town/lively.ts";
 // M7 back of town: the households, groups and gangs of the back streets (town/backtown.ts)
 import { ensureBackTown } from "./town/backtown.ts";
+import { ensureStanding } from "./town/standing.ts";
 import { ARRIVAL_KEY, ARRIVAL_TEXT } from "./arrival.ts";
 import { shortenOffered } from "./hooks/jobBoard.ts";
 import { CLIENT_STATE_SQL } from "./save/schema.ts";
@@ -176,6 +177,8 @@ export function openDb(file: string): DB {
   ensureShopsTown(db);
   // M7 back of town: the poor quarter round the court pumps and corners, the better streets, the watch (town/backtown.ts); in place, once
   ensureBackTown(db);
+  // M7 walk-up: the standing roles (customs at the Entrepot, the lock and by night; a police patrol per beat day and night; thieves on the quays) (town/standing.ts); in place, once
+  ensureStanding(db);
   // M7 short jobs: open goods work of an older save to the new sizes (at most two by hand); in place, once
   shortenOffered(db);
   // a save from an older city map: homes whose door step lies off every path now get a house of this map
@@ -270,6 +273,7 @@ export function resetDb(db: DB): void {
   ensureNightTown(db);
   ensureShopsTown(db);
   ensureBackTown(db);
+  ensureStanding(db);
 }
 
 function seed(db: DB): void {

@@ -19,10 +19,30 @@ the client from the JSON below. **The shapes on this page are the contract: they
   hand-written talk lines and choices, the engine's paper, posters, ballads and sermon. The town's routines (people
   at their trades, stalls, carts, boats, the lamplighters) never needed a model and go on as before.
 - **"No AI" for one kind** (`provider: "none"`): the same, for the hooks of that kind only.
-- **The typed-lines wall** (CLAUDE.md: player text goes only to Claude): the hooks that can hold what the player
-  typed (`PLAYER_TEXT_HOOKS` in `config.ts`) run only on a Claude provider (`claude_local`, `anthropic_api`). If their
-  kind picks another AI, those hooks go to the default choice when that is Claude, else to Claude Opus 5.5 through
-  the local login; with no Claude on the machine the call fails and the hand-written answer comes.
+- **Typed lines** (`typedLines`, Steve 2026-09-26: "People should be able to let everything go to Codex or any AI.
+  Not everyone has Claude."). The hooks that can hold what the player typed (`PLAYER_TEXT_HOOKS` in `config.ts`):
+  - `"same"` (the default): they go to the AI of their kind, like any other game text.
+  - `"claude_only"`: they run only on a Claude provider (`claude_local`, `anthropic_api`). If their kind picks another
+    AI, they go to the default choice when that is Claude, else to Claude Opus 5.5 through the local login; with no
+    Claude on the machine the call fails and the hand-written answer comes.
+  - The Recommended mix keeps them on Claude either way (`MODEL_ROUTE` and the router's own wall).
+  - Every other guard holds for every provider: the regex gate before the call (a caught line reaches no AI), the
+    typed words fenced as a line of dialogue, tools off, the answer checked against the hook's Zod schema (keys it
+    has no field for are dropped; a wrong or non-JSON answer is retried once, then the hand-written line), the 20 s
+    limit, and the engine's clamps (trust at most 2 a meeting, no money, no items). A server without strict JSON
+    output (Ollama with a weak model, some OpenAI-compatible servers) is protected by the same check: its junk is
+    a failed call, never a change in the game.
+- **The daily call cap** (`callsPerDay`, Steve 2026-09-26, from the multiplayer answers): the most model calls in a
+  game day (midnight to midnight). Default 120, today's number, for single player; 0 = no limit (the multiplayer
+  plan will default to that later). It sets `CALLS_PER_DAY` in `config.ts`, a live binding every budget check reads;
+  each part's own share (director, conversations, paper, ...) still holds. A call over the cap is not made: the
+  hook's fallback.
+- **Who may change it**: only the host session. For now `PUT /api/ai/config` and `POST /api/ai/test` answer only
+  a request from this machine (the socket's address 127.0.0.1 or ::1; a request that says it was forwarded for
+  another address is refused): 403 `{ error: "Only the host may change the AI settings (a request from this
+  computer)." }`. `GET /api/ai/config` holds no secret and stays open to the game's pages. Once multiplayer exists,
+  a player marked admin may change it too; the vite proxy (which serves this machine only) must then pass on who
+  is asking.
 - **No file**: with no `ai-config.json` the game runs exactly as before this page: the recommended mix
   (`MODEL_ROUTE`: Opus 5.5 through the local login, GPT Luna through Codex for the paper, the posters, rumours,
   dreams, street talk and family news).
@@ -72,6 +92,8 @@ type KeyState = { set: boolean; last4: string | null };
 
 interface AiConfigView {
   mode: "ai" | "walk";
+  typedLines: "same" | "claude_only";              // added 2026-09-26; where the player's typed lines go
+  callsPerDay: number;                              // added 2026-09-26; 0 = no limit, default 120
   status: { title: string; text: string };          // ready to show on the menu, e.g. "Walk-around mode"
   default: Choice;                                  // never "default"
   kinds: Record<KindId, "default" | Choice>;        // "default" = same as default
@@ -105,14 +127,31 @@ interface AiOptions {
   efforts: Effort[];
   guide: { title: string; paragraphs: string[] };
   walk: { label: string; text: string };
+  typedLines: {                                     // added 2026-09-26: the switch for typed lines
+    label: string;                                  // "Where your typed lines go"
+    what: string;                                   // what it means, and the checks the game does anyway
+    privacy: string;                                // typed words are sent to the chosen AI
+    values: { id: "same" | "claude_only"; label: string; text: string }[];
+  };
+  callsPerDay: {                                    // added 2026-09-26: the daily call cap, a number field
+    label: string;                                  // "AI calls per game day"
+    what: string;                                   // what it does
+    cost: string;                                   // the cost warning
+    default: number;                                // 120
+    min: number;                                    // 0
+    max: number;                                    // 10000
+    zeroMeans: string;                              // "no limit"
+  };
 }
 ```
 
-### `PUT /api/ai/config` (body `AiConfigPatch`) -> `AiConfigView`, or 400 `{ error, issues: [{ path, message }] }`
+### `PUT /api/ai/config` (body `AiConfigPatch`) -> `AiConfigView`, or 400 `{ error, issues: [{ path, message }] }`, or 403 `{ error, issues: [] }` when not from the host
 Every field optional; what is left out stays.
 ```ts
 interface AiConfigPatch {
   mode?: "ai" | "walk";
+  typedLines?: "same" | "claude_only";                       // added 2026-09-26
+  callsPerDay?: number;                                      // added 2026-09-26: a whole number 0-10000, 0 = no limit
   default?: Choice;                                          // not "default"
   kinds?: Partial<Record<KindId, "default" | Choice>>;
   connections?: {
@@ -126,7 +165,7 @@ Checks: unknown keys refused; `model` 1-100 characters of `A-Z a-z 0-9 . _ : / @
 of at most 300 characters; `apiKey` 8-300 printable characters, no spaces. A model left out gets the provider's
 default; an effort on a model that takes none is dropped; a Claude model that needs one gets `medium`.
 
-### `POST /api/ai/test` -> `{ results: TestResult[] }`, or 409 `{ error }` while another test runs
+### `POST /api/ai/test` -> `{ results: TestResult[] }`, or 409 `{ error }` while another test runs, or 403 `{ error }` when not from the host
 Body, one of: `{ kind: KindId }` (that kind's choice; for `recommended` each model its hooks use),
 `{ choice: Choice }` (a choice before it is saved; the saved connections are used), `{ all: true }` (every kind's
 choice; the same model is tested once). One tiny call per model: a townsperson's one-line greeting, schema-checked,
@@ -154,10 +193,20 @@ interface TestResult {
 - **Connections**: the Anthropic key, the OpenAI-compatible base URL and key, the Ollama address. Show a key as
   "set, ends in abcd"; the field is empty and write-only.
 - **Help** per provider: `help.what`, `help.need`, `help.cost`, `help.privacy`, `typedLines`; and `options.guide`.
+- **Calls per day**: a number field from `options.callsPerDay` (`label`, `what`, the `cost` warning next to it,
+  "0 = no limit"), saved with `PUT { callsPerDay }`; the current value is `callsPerDay`.
+- **Only the host**: a 403 from PUT or test means this page is not on the host's computer: show the error and
+  keep the fields read-only.
+- **Typed lines**: a two-way switch from `options.typedLines` (`values[].label`, with `what` and `privacy` under it),
+  saved with `PUT { typedLines }`; the current value is `typedLines`.
 
 ## Tests
 `server/test/ai-setup.test.ts` (stubs and fake keys only, no live call): the settings' checks and clamps; the key
-never in a view, a log line or an error; the route per kind and the typed-lines wall; each HTTP adapter against a
+never in a view, a log line or an error; the route per kind; typed lines to Codex, Ollama and an OpenAI-compatible
+server with `"same"` and to Claude with `"claude_only"`; the 30 hostile lines through each non-Claude stub (gated
+or fenced, no money, no items, trust clamped), and a weak model's junk answer ending in the engine's line; the call cap
+(a set number stops the next call, 0 lets calls past 120, an old file reads 120); PUT and test refused from another
+address or a forwarded one, GET open; each HTTP adapter against a
 local stub server (request shape, no tools, schema, timeout); walk-around mode books no call and never reaches a
 runner; and a real server on a temp save driven through a whole game day of ticks: calls attempted with AI on,
 none in walk-around mode.

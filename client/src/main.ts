@@ -53,6 +53,8 @@ import { Events } from "./game/events";
 import { TownLife } from "./game/townlife";
 import { Press } from "./game/press";
 import { Ideas } from "./game/ideas";
+import { Walkup, walkupHooks } from "./game/walkup";
+import { PopWatch } from "./dev/popcheck";
 import { Emigrants } from "./game/emigrants";
 import { api } from "./net/api";
 import { Interiors } from "./game/interiors";
@@ -225,8 +227,16 @@ const press = new Press(world, player, jobs, town, bubbles);
     press.handlePush(m);
   };
 }
+// M7 walk-up: job and quest people come from the living town and walk up (game/walkup.ts); the popcheck watches (dev/popcheck.ts)
+const walkup = new Walkup(world, player, town, crowd);
+const popWatch = new PopWatch(crowd, town, player, () => actions.active.map((a) => a.npc));
+crowd.onFrame = () => {
+  popWatch.frame();
+  walkup.tick();
+};
 // M6 AI ideas: bills on the walls, letters of your own, trouble on a job, lost things and notebooks (game/ideas.ts)
 const ideas = new Ideas(world, player, jobs, town, press);
+walkupHooks.trouble = () => void ideas.load();
 {
   const onPush = jobs.onPush;
   jobs.onPush = (m) => {
@@ -1189,6 +1199,16 @@ if (import.meta.env.DEV) {
     signs: () => {
       const sl = world.streetLife();
       return sl ? checkSigns(world.scene, world.city.group, sl) : "street life not loaded yet";
+    },
+    /** M7 walk-up (dev/popcheck.ts): every job or quest figure that became visible within 20 m of Jef without walking in (`pops` must be empty); `true` resets. */
+    popcheck: (reset = false) => popWatch.report(reset),
+    /** M7 walk-up (game/walkup.ts): what was asked, who came, and the server's "come" rows. */
+    walkup: {
+      log: () => walkup.log.slice(-30),
+      /** Someone of a role comes up to Jef now, as a job would call them: come("police", "crime") runs. */
+      come: (role: string, why = "trouble") => walkup.devCome(role, why),
+      comers: () => walkup.devInfo(),
+      coming: async () => (await fetch("/api/walkup")).json(),
     },
     /** Stalls (hook, dev/stallcheck.ts): every stall, shop table, awning and goods pile against the house walls, doors and the walk map (should list nothing). */
     stallcheck: async (only?: string) => {

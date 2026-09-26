@@ -1,4 +1,4 @@
-import type { Hono } from "hono";
+import type { Context, Hono } from "hono";
 import { z } from "zod";
 import type { DB } from "../db.ts";
 import { plainEnglish } from "../text.ts";
@@ -52,6 +52,22 @@ const PROVIDER_OF: Record<string, ProviderId> = { claude: "claude_local", anthro
 
 let testing = false;
 
+/**
+ * Only the host may change the AI setup or spend calls on a test (Steve, 2026-09-26): for now a
+ * request from this machine (127.0.0.1 or ::1 on the socket). Once multiplayer exists, a player
+ * marked admin too (docs/ai-setup.md). A proxy that says it forwards someone else is not the host.
+ * Behind the vite proxy the socket is the proxy's (this machine); vite serves this machine only.
+ */
+const LOCAL_ADDRESSES = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
+export function fromHost(c: Context): boolean {
+  const addr = (c.env as { incoming?: { socket?: { remoteAddress?: string } } } | undefined)?.incoming?.socket?.remoteAddress;
+  if (!addr || !LOCAL_ADDRESSES.has(addr)) return false;
+  const fwd = c.req.header("x-forwarded-for") ?? c.req.header("forwarded");
+  if (fwd && fwd.split(",").some((a) => !LOCAL_ADDRESSES.has(a.trim().replace(/^for=/i, "").replace(/^"?\[?|\]?"?$/g, "")))) return false;
+  return true;
+}
+const HOST_ONLY = "Only the host may change the AI settings (a request from this computer).";
+
 export async function runTests(targets: { target: KindId | "choice"; label: string; choice: Choice }[]): Promise<TestResult[]> {
   // the same model is asked once, and all at once: "test all" takes 20 s at most
   const calls = new Map<string, Promise<{ ok: boolean; ms: number; line?: string; error?: string }>>();
@@ -97,16 +113,18 @@ export function mountAiSetup(app: Hono, _o: { db: DB }): void {
   app.get("/api/ai/config", (c) => c.json(view(available())));
 
   app.put("/api/ai/config", async (c) => {
+    if (!fromHost(c)) return c.json({ error: HOST_ONLY, issues: [] }, 403);
     const body = await c.req.json().catch(() => undefined);
     if (body === undefined) return c.json({ error: "send the settings as JSON", issues: [] }, 400);
     const r = applyPatch(body);
     if (!r.ok) return c.json({ error: r.error, issues: r.issues }, 400);
     const s = aiSetup();
-    console.log(`[ai] settings saved: ${s.mode === "walk" ? "walk-around mode (no AI)" : `default ${choiceLabel(s.default)}`}`);
+    console.log(`[ai] settings saved: ${s.mode === "walk" ? "walk-around mode (no AI)" : `default ${choiceLabel(s.default)}`}; ${s.callsPerDay === 0 ? "no daily call limit" : `${s.callsPerDay} calls a day`}`);
     return c.json(view(available()));
   });
 
   app.post("/api/ai/test", async (c) => {
+    if (!fromHost(c)) return c.json({ error: HOST_ONLY }, 403);
     const parsed = TestBody.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return c.json({ error: 'send { "kind": ... }, { "choice": ... } or { "all": true }' }, 400);
     if (testing) return c.json({ error: "a test is already running" }, 409);

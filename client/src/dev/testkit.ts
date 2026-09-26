@@ -271,6 +271,7 @@ export function makeTestKit(d: TestKitDeps) {
       const want = opts.at ? kit.at(opts.at) : ahead;
       const p = kit.free(want?.x ?? ahead.x, want?.z ?? ahead.z) ?? ahead;
       const f = new Figure(kind, p.x, p.z, d.world.scene);
+      f.origin = "dev"; // (M7 walk-up: the popcheck lists the kit's own figures apart)
       spawned.push(f);
       const to = opts.walkTo ? kit.at(opts.walkTo) : null;
       if (to) f.walkTo(to.x, to.z, opts.speed ?? 1.2);

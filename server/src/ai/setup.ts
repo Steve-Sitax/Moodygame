@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
-import { DB_FILE, MODELS } from "../config.ts";
+import { CALLS_PER_DAY_DEFAULT, DB_FILE, MODELS, setCallsPerDay } from "../config.ts";
 
 // The AI setup (docs/ai-setup.md): which AI writes which kind of work, the connections, and the
 // walk-around mode (no AI at all). Kept in a local file next to the save (data/ai-config.json,
@@ -16,6 +16,17 @@ export const KIND_IDS = ["talk", "director", "jobs", "press", "ballads", "town"]
 export type KindId = (typeof KIND_IDS)[number];
 export const EFFORTS = ["low", "medium", "high"] as const;
 export type Effort = (typeof EFFORTS)[number];
+/**
+ * Where the player's typed lines go (Steve, 2026-09-26: "People should be able to let everything go
+ * to Codex or any AI. Not everyone has Claude."): "same" = to the AI of the hook's kind, like any
+ * other game text; "claude_only" = only to Claude (Steve's own rule for his machine). The Recommended
+ * mix keeps them on Claude either way (MODEL_ROUTE, PLAYER_TEXT_HOOKS).
+ */
+export const TYPED_LINES = ["same", "claude_only"] as const;
+/** The daily call cap the player may set: 0 = no limit, else 1 to this many (Steve, 2026-09-26, multiplayer answers). */
+export const CALLS_PER_DAY_MAX = 10_000;
+const CallsPerDay = z.number().int("a whole number").min(0, "0 (no limit) or more").max(CALLS_PER_DAY_MAX, `at most ${CALLS_PER_DAY_MAX}`);
+export type TypedLines = (typeof TYPED_LINES)[number];
 
 /** The providers that are Claude: the only ones that may read what the player typed (CLAUDE.md). */
 export const CLAUDE_PROVIDERS: ReadonlySet<ProviderId> = new Set(["claude_local", "anthropic_api"]);
@@ -60,6 +71,10 @@ const KindValue = z.union([z.literal("default"), ChoiceSchema]);
 const FileSchema = z.object({
   version: z.literal(1),
   mode: z.enum(["ai", "walk"]),
+  // a file from before the setting has none: "same"
+  typedLines: z.enum(TYPED_LINES).default("same"),
+  // a file from before the setting has none: today's 120
+  callsPerDay: CallsPerDay.default(CALLS_PER_DAY_DEFAULT),
   default: ChoiceSchema,
   kinds: z.partialRecord(z.enum(KIND_IDS), KindValue),
   connections: z.object({
@@ -72,6 +87,8 @@ export type AiFile = z.infer<typeof FileSchema>;
 
 export const PatchSchema = z.strictObject({
   mode: z.enum(["ai", "walk"]).optional(),
+  typedLines: z.enum(TYPED_LINES).optional(),
+  callsPerDay: CallsPerDay.optional(),
   default: ChoiceSchema.optional(),
   kinds: z.partialRecord(z.enum(KIND_IDS), KindValue).optional(),
   connections: z
@@ -91,6 +108,8 @@ export function defaults(): AiFile {
   return {
     version: 1,
     mode: "ai",
+    typedLines: "same",
+    callsPerDay: CALLS_PER_DAY_DEFAULT,
     default: { provider: "recommended" },
     kinds: {},
     connections: { anthropic_api: {}, openai_compat: { baseUrl: OPENAI_URL }, ollama: { baseUrl: OLLAMA_URL } },
@@ -169,15 +188,22 @@ export function isSaved(): boolean {
 }
 
 /** Read the file at server start. A broken file is reported and left alone; the defaults run until a PUT. */
+/** The game's daily call cap follows the setting (config.ts CALLS_PER_DAY, a live binding every budget check reads). */
+function applyCap(): void {
+  setCallsPerDay(current.callsPerDay);
+}
+
 export function loadAiSetup(): { ok: boolean; note: string } {
   current = defaults();
   saved = false;
+  applyCap();
   if (!file || !fs.existsSync(file)) return { ok: true, note: "no AI settings file: the recommended mix" };
   try {
     const parsed = FileSchema.safeParse(JSON.parse(fs.readFileSync(file, "utf8")));
     if (!parsed.success) return { ok: false, note: `AI settings file not valid (${parsed.error.issues.length} problem(s)); the recommended mix until the settings are saved again` };
     current = cleanFile(parsed.data);
     saved = true;
+    applyCap();
     return { ok: true, note: current.mode === "walk" ? "walk-around mode: no AI calls" : "AI settings loaded" };
   } catch {
     return { ok: false, note: "AI settings file could not be read; the recommended mix until the settings are saved again" };
@@ -214,6 +240,8 @@ export function applyPatch(body: unknown): { ok: true } | { ok: false; error: st
     return n.choice;
   };
   if (d.mode) next.mode = d.mode;
+  if (d.typedLines) next.typedLines = d.typedLines;
+  if (d.callsPerDay !== undefined) next.callsPerDay = d.callsPerDay;
   if (d.default) {
     const c = take(d.default, "default");
     if (c) next.default = c;
@@ -238,6 +266,7 @@ export function applyPatch(body: unknown): { ok: true } | { ok: false; error: st
   if (cn?.ollama?.baseUrl !== undefined) next.connections.ollama.baseUrl = cn.ollama.baseUrl;
   if (issues.length) return { ok: false, error: "those settings were not accepted", issues };
   current = next;
+  applyCap();
   write();
   return { ok: true };
 }
@@ -256,6 +285,7 @@ export function setAiSetupForTest(f: Partial<AiFile> | null, filePath: string | 
   file = filePath;
   current = f ? { ...defaults(), ...structuredClone(f) } : defaults();
   saved = f !== null;
+  applyCap();
 }
 
 // ------------------------------------------------------------------ the choice for a hook
@@ -295,7 +325,30 @@ export function scrubKeys(s: string): string {
 
 const PRIVACY =
   "What is sent: the game's own text only (the scene, the made-up townsperson's character and memories, the day's events in the town). Nothing about you or your computer: no name, no files, no paths.";
-const TYPED_TO_CLAUDE = "What you type to people goes only to Claude (a game rule). With this AI chosen, typed lines go to Claude through your Claude login instead, or get the hand-written answers if there is no Claude on this PC.";
+const TYPED_HERE =
+  "What you type to people goes to this AI, fenced as a line of dialogue (never as orders), unless \"Typed lines only to Claude\" is on: then typed lines go to Claude, or get the hand-written answers if there is no Claude on this PC.";
+
+/** The daily call cap (data the menu shows). */
+export const CALLS_PER_DAY_OPTION = {
+  label: "AI calls per game day",
+  what: "The most AI calls the game makes in one game day (midnight to midnight). When they are used up, people and events use the game's hand-written lines until the next day. Each part of the game also keeps to its own share (the director, conversations, the paper), so a higher number is not used up all at once.",
+  cost: "With a paid AI (an API key, OpenAI, OpenRouter) every call costs money: 120 calls with Claude Opus 5.5 is roughly 1 to 3 US dollars a game day. 0 means no limit: then only each part's own share holds, so set a spending limit with the AI service too.",
+  default: CALLS_PER_DAY_DEFAULT,
+  min: 0,
+  max: CALLS_PER_DAY_MAX,
+  zeroMeans: "no limit",
+};
+
+/** The switch for typed lines (data the menu shows). */
+export const TYPED_LINES_OPTION = {
+  label: "Where your typed lines go",
+  what: "When you type your own words to someone (a line, a letter, a confession, haggling, the police), those words are sent to an AI so the person can answer. The game checks them first: lines that try to give the AI orders are stopped before any AI sees them, the rest go in as a line of dialogue only, and whatever comes back is checked and clamped by the game.",
+  privacy: "Your typed words are sent to the AI you choose. With a paid or online AI they leave this PC; with Ollama or a local server they stay on it. Type nothing personal.",
+  values: [
+    { id: "same" as TypedLines, label: "Same AI as the rest", text: "Typed lines go to the AI chosen for that kind of work (Conversations for most of them)." },
+    { id: "claude_only" as TypedLines, label: "Only to Claude", text: "Typed lines go only to Claude (your login or your API key), whatever AI the rest uses. Without Claude, people answer typed lines with hand-written lines." },
+  ],
+};
 
 export const PROVIDER_TEXT: Record<ProviderId, { label: string; short: string; help: { what: string; need: string; cost: string; privacy: string }; cost: "plan" | "paid" | "local" | "none" }> = {
   recommended: {
@@ -444,12 +497,14 @@ export function options() {
         effort: id === "claude_local" || id === "anthropic_api" || id === "codex_cli" || id === "openai_compat",
         cost: t.cost,
         help: t.help,
-        typedLines: CLAUDE_PROVIDERS.has(id) || id === "recommended" ? "What you type to people goes to this AI (Claude)." : id === "none" ? "What you type gets the hand-written answers." : TYPED_TO_CLAUDE,
+        typedLines: CLAUDE_PROVIDERS.has(id) ? "What you type to people goes to this AI (Claude), fenced as a line of dialogue." : id === "recommended" ? "The mix sends what you type to Claude Opus 5.5 only." : id === "none" ? "What you type gets the hand-written answers." : TYPED_HERE,
       };
     }),
     efforts: [...EFFORTS],
     guide: GUIDE,
     walk: WALK,
+    typedLines: TYPED_LINES_OPTION,
+    callsPerDay: CALLS_PER_DAY_OPTION,
   };
 }
 
@@ -480,6 +535,8 @@ export function view(available: { claude_local: boolean | null; codex_cli: boole
         : { title: "AI on", text: `Default: ${choiceLabel(current.default)}.${offKinds.length ? ` Hand-written: ${offKinds.join(", ")}.` : ""}` };
   return {
     mode: current.mode,
+    typedLines: current.typedLines,
+    callsPerDay: current.callsPerDay,
     status,
     default: current.default,
     kinds,

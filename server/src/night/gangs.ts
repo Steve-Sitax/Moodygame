@@ -9,6 +9,7 @@ import { tipsy } from "../interiors/tavern.ts";
 import { jefAt, peopleNear, syncFromClient } from "../director/actions.ts";
 import { writeEvent } from "../director/eventlog.ts";
 import { GANG_HOURS, inSpan } from "../../../shared/night.ts";
+import { callGang, endCallsFor } from "../town/walkup.ts";
 
 // M7 night (Steve 2026-09-25: "Nights are good for robbers and other shady events" ... "a risk of gangs
 // that steal"). A small gang of three may step out of the dark and rob Jef: his purse, a thing from his
@@ -106,6 +107,8 @@ export interface Gang {
   carrying: boolean;
   outcome?: GangOutcome;
   text?: string;
+  /** M7 walk-up: the town's thieves who make up the gang (they come from their haunts); the rest walk in from out of sight. */
+  lads?: string[];
 }
 export type GangHow = "run" | "fight" | "shout" | "pay" | "stand";
 export type GangOutcome = "escaped" | "fought_off" | "scattered" | "paid" | "robbed";
@@ -194,6 +197,7 @@ export function gangNow(db: DB): Gang | null {
   if (gameMinute(db) - g.at_min > GANG_WAIT_MIN) {
     s.gang = { ...g, status: "over" };
     save(db, s);
+    endCallsFor(db, `gang:${g.id}`);
     return null;
   }
   return g;
@@ -236,6 +240,8 @@ export function rollGang(db: DB, facts: GangFacts, now = Date.now(), force = fal
   const demand = Math.max(DEMAND_MIN_C, Math.min(DEMAND_MAX_C, Math.round((money * DEMAND_SHARE) / 5) * 5));
   const jef = jefAt() ?? { x: Number(facts.x) || 0, z: Number(facts.z) || 0 };
   const g: Gang = { id: s.next_id, night, at_min: min, x: jef.x, z: jef.z, demand_c: demand, members: 3, status: "menace", lit: !!facts.lit, carrying: !!facts.carrying };
+  // M7 walk-up: the lads are the town's thieves out in the dark near him (the engine picks, nearest first)
+  g.lads = callGang(db, `gang:${g.id}`, jef, g.members);
   s.gang = g;
   s.next_id++;
   s.tries++;
@@ -288,6 +294,8 @@ export function resolveGang(db: DB, id: number, how: GangHow, facts: GangFacts =
   } else res = rob(db, g, 1, "You stand there too long. They do not ask twice.");
 
   s.gang = { ...g, status: "over", outcome: res.outcome, text: res.text };
+  // M7 walk-up: the lads are free again (the client walks them off into the dark and lets them go)
+  endCallsFor(db, `gang:${g.id}`);
   save(db, s);
   writeEvent(db, {
     kind: "theft",

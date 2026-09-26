@@ -54,8 +54,16 @@ export const figureNav: {
   water: ((x: number, z: number) => boolean) | null;
 } = { path: null, water: null };
 
+/** M7 walk-up: every made figure alive now (dev/popcheck.ts watches where they first show). */
+export const LIVE_FIGURES = new Set<Figure>();
+
 export class Figure {
   readonly group = new THREE.Group();
+  /** M7 walk-up: how it came into the street ("walked in", "placed unseen", "crate", "dev", ...), for the popcheck. */
+  origin = "made";
+  /** M7 walk-up (JobFigure): a made figure is nobody of the town. */
+  readonly who: string | null = null;
+  motion: "idle" | "fold" | "talk" = "idle";
   readonly pos: THREE.Vector3;
   private target: THREE.Vector3 | null = null;
   /** The waypoints still to walk after `target` (the grid's corners). */
@@ -93,6 +101,18 @@ export class Figure {
     }
     this.group.position.copy(this.pos);
     scene.add(this.group);
+    LIVE_FIGURES.add(this);
+  }
+
+  /** M7 walk-up (JobFigure): a made figure is in the street while it lives. */
+  get present(): boolean {
+    return !this.gone;
+  }
+
+  /** Carry a thing (a crate from the pile, a parcel bought). */
+  hold(obj: THREE.Object3D): void {
+    this.group.add(obj);
+    obj.position.set(0, 0.9, 0.35);
   }
 
   walkTo(x: number, z: number, speed: number): void {
@@ -165,7 +185,7 @@ export class Figure {
       if (this.target) {
         h.play(carrying ? "carry" : "walk", 0.2);
         h.setPace(this.speed);
-      } else h.play(this.kind === "foreman" ? "fold" : "idle", 0.35);
+      } else h.play(this.kind === "foreman" || this.motion === "fold" ? "fold" : this.motion === "talk" ? "talk" : "idle", 0.35);
       h.update(dt);
       y += h.bob();
     } else y += Math.abs(Math.sin(this.phase)) * 0.03;
@@ -175,6 +195,7 @@ export class Figure {
 
   remove(): void {
     this.gone = true;
+    LIVE_FIGURES.delete(this);
     this.scene.remove(this.group);
     this.human?.dispose();
   }

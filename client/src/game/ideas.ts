@@ -11,6 +11,7 @@ import type { Jobs } from "./jobs";
 import type { Town } from "./town";
 import type { Press } from "./press";
 import { Figure } from "./figures";
+import { RUN, WALK, Walkup, type JobFigure } from "./walkup";
 import { makeAnimal, type Animal, type AnimalKind } from "./animals";
 import { dialogs } from "./dialogs";
 
@@ -189,8 +190,12 @@ export class Ideas {
   private pageOpen: null | { kind: string; keys: Record<string, () => void>; typing?: boolean } = null;
   private jobSeen: { id: number; t: number } | null = null;
   private shownTrouble = new Set<number>();
-  private cast: Figure | null = null;
+  private cast: JobFigure | null = null;
   private castT = 0;
+  /** M7 walk-up: the trouble's person on the way (the scene opens when he stands before Jef). */
+  private coming: { id: number; t: number; asked: number; busy: boolean; urgent: boolean; none: boolean; leaving: boolean } | null = null;
+  /** The game's own seconds (the kit's t.run steps them faster than real time). */
+  private clockS = 0;
   private activeCheck = 0;
   private loading = false;
   private again = false;
@@ -357,6 +362,7 @@ export class Ideas {
   // ------------------------------------------------------------------ per frame
 
   update(dt: number): void {
+    this.clockS += dt;
     const v = this.view;
     // a dog on Jef's belt trots along behind him
     for (const l of v?.lost ?? []) {
@@ -399,18 +405,107 @@ export class Ideas {
     }
     const tr = v?.trouble;
     if (tr && this.jobSeen?.id === tr.job_id && tr.status === "ready" && !this.shownTrouble.has(tr.id) && !this.pageOpen && !this.press.isOpen && !this.jobs.talk.isOpen) {
-      if ((performance.now() - this.jobSeen.t) / 1000 >= tr.after_s) this.showTrouble(tr);
+      if ((performance.now() - this.jobSeen.t) / 1000 >= tr.after_s) this.bringCast(tr);
     }
     const step = tr && this.jobSeen?.id === tr.job_id ? tr.step : null;
     this.stepMark.visible = !!step;
     if (step) this.stepMark.position.set(step.x, 0.03, step.z);
-    if (this.cast) {
+    // the job ended (or the trouble went) before he came: he goes back to his day
+    if (this.cast && this.coming && !this.shownTrouble.has(this.coming.id) && (!tr || tr.id !== this.coming.id || tr.status !== "ready" || this.jobSeen?.id !== tr.job_id)) {
+      this.shownTrouble.add(this.coming.id);
+      this.castT = 0;
+    }
+    if (this.cast && !this.cast.gone) {
       this.cast.update(dt);
-      this.castT -= dt;
-      if (this.castT <= 0 && !this.pageOpen) {
-        this.cast.remove();
-        this.cast = null;
-      }
+      if (this.shownTrouble.has(this.coming?.id ?? -1)) this.castT -= dt;
+      if (this.castT <= 0 && !this.pageOpen && this.shownTrouble.has(this.coming?.id ?? -1)) this.castLeaves();
+    }
+  }
+
+  /**
+   * M7 walk-up (Steve 2026-09-26: "a person always pops out of nowhere. Now it is customs"): the trouble's
+   * person comes from the town. The engine sends the nearest who fits (a customs officer on his beat, a
+   * docker of another natie, a natie man for the tally or the weather), unseen while far off, into the
+   * street out of Jef's sight, walking up (running when the engine says it is urgent); the scene opens
+   * when he stands before Jef. Nobody near within 40 s: a man walks in from out of sight. The stowaway
+   * climbs out of a crate of the job's.
+   */
+  private bringCast(t: TroubleV): void {
+    const w = Walkup.inst;
+    const now = this.clockS;
+    const { x, z } = this.player;
+    if (this.coming?.id !== t.id) {
+      if (this.cast && !this.cast.gone) this.cast.remove();
+      this.cast = null;
+      this.coming = { id: t.id, t: now, asked: -1e9, busy: false, urgent: false, none: false, leaving: false };
+    }
+    const c = this.coming;
+    if (!this.cast && !c.busy && now - c.asked > 3 && w) {
+      c.asked = now;
+      c.busy = true;
+      void w.trouble(t.id, { x, z }).then(({ fig, answer }) => {
+        c.busy = false;
+        if (this.coming !== c || this.cast) {
+          fig?.remove();
+          return;
+        }
+        if (fig) {
+          this.cast = fig;
+          c.urgent = !!answer.urgent;
+        } else if (answer.none) c.none = true;
+      });
+    }
+    // the stowaway: out of a crate of this job (the nearest lying one, else the one in Jef's hands)
+    if (!this.cast && c.none) {
+      const mine = this.jobs.goods.items.filter((it) => it.jobId === t.job_id);
+      const crate = mine.sort((a, b) => Math.hypot(a.obj.position.x - x, a.obj.position.z - z) - Math.hypot(b.obj.position.x - x, b.obj.position.z - z))[0];
+      const at = crate && Math.hypot(crate.obj.position.x - x, crate.obj.position.z - z) < 14 ? { x: crate.obj.position.x + 0.5, z: crate.obj.position.z + 0.5 } : { x: x + Math.sin(this.player.yaw) * -0.9, z: z + Math.cos(this.player.yaw) * -0.9 };
+      const boy = new Figure("thief", at.x, at.z, this.world.scene);
+      boy.origin = "crate";
+      boy.group.scale.setScalar(0.82);
+      this.cast = boy;
+    }
+    // nobody of the town near within the cap: a man walks in from out of sight
+    if (!this.cast && !c.none && now - c.t > 40 && w) {
+      const f = w.walkIn(t.kind === "customs" ? "foreman" : "stranger", { x, z });
+      if (f) this.cast = f;
+    }
+    const f = this.cast;
+    if (!f || f.gone) return;
+    const d = f.distTo(x, z);
+    // before him; or as near as he can come (Jef out on a pier's head: he waits at its foot and calls)
+    if (f.present && (d <= 2.6 || (!f.moving && d < 14 && now - c.t > 4))) {
+      if (f.moving) f.stop();
+      f.face(x, z);
+      this.showTrouble(t);
+      return;
+    }
+    // up to Jef (at a run when the engine said so); after a long while the scene opens where they are
+    const L = d || 1;
+    f.walkTo(x + ((f.pos.x - x) / L) * 1.8, z + ((f.pos.z - z) / L) * 1.8, c.urgent ? RUN : WALK);
+    if (now - c.t > 90) this.showTrouble(t);
+  }
+
+  /** After the scene: a townsperson goes back to his day from where he stands; a made one walks off out of sight. */
+  private castLeaves(): void {
+    const f = this.cast;
+    if (!f) return;
+    if (f.who) {
+      f.remove();
+      this.cast = null;
+      return;
+    }
+    const c = this.coming;
+    if (c && !c.leaving) {
+      c.leaving = true;
+      const { x, z } = this.player;
+      const L = f.distTo(x, z) || 1;
+      f.walkTo(f.pos.x + ((f.pos.x - x) / L) * 30, f.pos.z + ((f.pos.z - z) / L) * 30, WALK);
+      return;
+    }
+    if (!f.moving || Walkup.inst?.hidden(f.pos.x, f.pos.z)) {
+      f.remove();
+      this.cast = null;
     }
   }
 
@@ -516,12 +611,8 @@ export class Ideas {
 
   private showTrouble(t: TroubleV): void {
     this.shownTrouble.add(t.id);
-    // the one it is about, before you (a figure made in code)
-    this.cast?.remove();
-    const fx = this.player.x + Math.sin(this.player.yaw) * -1.8;
-    const fz = this.player.z + Math.cos(this.player.yaw) * -1.8;
-    this.cast = new Figure(t.kind === "customs" ? "foreman" : t.kind === "stowaway" ? "thief" : "stranger", fx, fz, this.world.scene);
-    this.cast.face(this.player.x, this.player.z);
+    // the one it is about stands before you now (M7 walk-up: bringCast walked him up from the town)
+    this.cast?.face(this.player.x, this.player.z);
     this.castT = 25;
     const keys: Record<string, () => void> = {};
     for (const o of t.options) keys[`Digit${o.n}`] = () => void this.choose(t, o.n);

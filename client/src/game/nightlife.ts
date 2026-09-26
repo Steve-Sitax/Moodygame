@@ -6,7 +6,7 @@ import { addLantern, removeLantern, type LanternSource } from "../world/lanternL
 import { lampFog } from "../world/lampFog";
 import { TICK_EVERY_MS } from "../../../shared/clock";
 import { GANG_HOURS, inSpan } from "../../../shared/night";
-import { Figure } from "./figures";
+import { RUN, WALK, Walkup, type JobFigure } from "./walkup";
 import type { Jobs } from "./jobs";
 import type { Town } from "./town";
 import { esc } from "./runs";
@@ -25,6 +25,8 @@ interface GangView {
   members: number;
   x: number;
   z: number;
+  /** M7 walk-up: the town's thieves who make up the gang (server night/gangs.ts); the rest walk in from out of sight. */
+  lads?: string[];
 }
 interface GangResult {
   outcome: "escaped" | "fought_off" | "scattered" | "paid" | "robbed";
@@ -58,7 +60,11 @@ const CSS = `
 
 export class Nightlife {
   private gang: GangView | null = null;
-  private figs: Figure[] = [];
+  private figs: JobFigure[] = [];
+  /** M7 walk-up: the gang came from their haunts and stands round Jef now (the panel and its clock start then). */
+  private arrived = false;
+  private comeT = 0;
+  private missing = 0;
   private lantern: LanternSource | null = null;
   private lanternMesh: THREE.Mesh | null = null;
   private answerT = 0;
@@ -143,6 +149,11 @@ export class Nightlife {
       return;
     }
     const { x, z } = this.player;
+    // M7 walk-up: on their way (at a run) from where they were, onto a ring round him; then the panel
+    if (!this.arrived) {
+      this.approach(dt);
+      return;
+    }
     for (const f of this.figs) if (!f.moving) f.face(x, z);
     if (this.sent || this.jobs.talk.isOpen || this.jobs.day.sheetOpen) return;
     this.answerT -= dt;
@@ -160,38 +171,72 @@ export class Nightlife {
     }
   }
 
-  /** Three men step out of the dark and close round Jef. */
+  /**
+   * A gang: the town's thieves who were out near Jef (the engine picked them, server night/gangs.ts) come
+   * at a run from where they were and close round him (M7 walk-up: never three men made in front of him).
+   * One the town could not give walks in from out of sight. The panel and its clock start when they stand
+   * round him.
+   */
   show(g: GangView): void {
     if (this.gang?.id === g.id) return;
     this.clearFigs();
     this.gang = g;
     this.sent = false;
+    this.arrived = false;
+    this.comeT = 0;
     this.answerT = GANG_ANSWER_S;
-    const { x, z, yaw } = this.player;
     const n = Math.max(2, Math.min(4, g.members || 3));
-    for (let i = 0; i < n; i++) {
-      // from the dark ahead and to the sides, 7 to 9 m off, onto a ring of 2.2 m round him
-      const a = -yaw + Math.PI + (i - (n - 1) / 2) * 0.9;
-      const from = this.freeNear(x + Math.sin(a) * 8, z + Math.cos(a) * 8) ?? { x: x + Math.sin(a) * 4, z: z + Math.cos(a) * 4 };
-      const f = new Figure(i === 0 ? "stranger" : "thief", from.x, from.z, this.world.scene);
-      const to = this.freeNear(x + Math.sin(a) * 2.2, z + Math.cos(a) * 2.2) ?? { x, z };
-      f.walkTo(to.x, to.z, 1.6);
-      this.figs.push(f);
+    const w = Walkup.inst;
+    for (const id of (g.lads ?? []).slice(0, n)) if (w) this.figs.push(w.figure(id, this.town.info(id)?.name ?? id, null));
+    this.missing = n - this.figs.length;
+    this.log.push(`gang ${g.id} demands ${g.demand_c}: ${this.figs.length} of the town, ${this.missing} to walk in`);
+  }
+
+  /** The ring point of the i-th man round Jef: in front of him and to the sides. */
+  private ringPoint(i: number, n: number): { x: number; z: number } {
+    const { x, z, yaw } = this.player;
+    const a = -yaw + Math.PI + (i - (n - 1) / 2) * 0.9;
+    return this.freeNear(x + Math.sin(a) * 2.2, z + Math.cos(a) * 2.2) ?? { x, z };
+  }
+
+  private approach(dt: number): void {
+    const g = this.gang!;
+    const w = Walkup.inst;
+    this.comeT += dt;
+    // one the town could not give: out of sight, then at a run
+    if (this.missing > 0 && w) {
+      const f = w.walkIn(this.figs.length ? "thief" : "stranger", { x: this.player.x, z: this.player.z }, RUN);
+      if (f) {
+        this.figs.push(f);
+        this.missing--;
+      }
     }
-    // the first carries a shaded lantern (you see them come)
+    const n = this.figs.length || 1;
+    let near = 0;
+    this.figs.forEach((f, i) => {
+      const to = this.ringPoint(i, n);
+      f.walkTo(to.x, to.z, f.distTo(this.player.x, this.player.z) > 6 ? RUN : WALK);
+      if (f.present && f.distTo(this.player.x, this.player.z) < 4.5) near++;
+    });
+    // the lead carries a shaded lantern (you see them come)
     const lead = this.figs[0];
-    const glass = new THREE.MeshBasicMaterial({ color: 0xffb060 });
-    lampFog(glass, 1.2); // M7 fog lamps: it fogs with the man who carries it
-    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.14, 4), glass);
-    mesh.position.set(0.28, 0.72, 0.12);
-    lead.group.add(mesh);
-    this.lanternMesh = mesh;
-    this.lantern = addLantern({ power: 0.7 });
-    this.lantern.on = 1;
-    this.render();
-    this.panel.style.display = "block";
-    this.log.push(`gang ${g.id} demands ${g.demand_c}`);
-    this.jobs.say(`Three men step out of the dark. "Evening, friend. That purse looks heavy. ${g.demand_c} centimes and you walk on."`);
+    if (lead?.present && !this.lanternMesh) {
+      const glass = new THREE.MeshBasicMaterial({ color: 0xffb060 });
+      lampFog(glass, 1.2); // M7 fog lamps: it fogs with the man who carries it
+      const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.14, 4), glass);
+      mesh.position.set(0.28, 0.72, 0.12);
+      lead.group.add(mesh);
+      this.lanternMesh = mesh;
+      this.lantern = addLantern({ power: 0.7 });
+      this.lantern.on = 1;
+    }
+    // they are round him (the first two), or they took too long: they speak
+    if (near >= Math.min(2, n) || this.comeT > 25) {
+      this.arrived = true;
+      this.render();
+      this.panel.style.display = "block";
+      this.jobs.say(`${n === 1 ? "A man steps" : `${n === 2 ? "Two" : n === 3 ? "Three" : "Four"} men step`} out of the dark. "Evening, friend. That purse looks heavy. ${g.demand_c} centimes and you walk on."`);
+    }
   }
 
   private render(): void {
@@ -254,6 +299,7 @@ export class Nightlife {
   }
 
   private clearFigs(): void {
+    this.lanternMesh?.removeFromParent();
     for (const f of this.figs) if (!f.gone) f.remove();
     this.figs = [];
     removeLantern(this.lantern);
@@ -262,7 +308,7 @@ export class Nightlife {
   }
 
   private onKey(e: KeyboardEvent): void {
-    if (!this.gang || this.sent || e.repeat || this.jobs.talk.isOpen || this.jobs.day.sheetOpen) return;
+    if (!this.gang || !this.arrived || this.sent || e.repeat || this.jobs.talk.isOpen || this.jobs.day.sheetOpen) return;
     const how = e.code === "KeyR" ? "run" : e.code === "KeyF" ? "fight" : e.code === "KeyH" ? "shout" : e.code === "KeyP" ? "pay" : null;
     if (!how) return;
     e.preventDefault();
@@ -276,7 +322,7 @@ export class Nightlife {
   }
 
   /** Dev: the gang's first man (a shot's target). */
-  get lead(): Figure | null {
+  get lead(): JobFigure | null {
     return this.figs.find((f) => !f.gone) ?? null;
   }
 }

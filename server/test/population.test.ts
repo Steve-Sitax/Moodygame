@@ -101,7 +101,8 @@ describe("town size: a new game", () => {
       expect(t.size ?? "normal").toBe(size);
       const all = t.residents;
       // about the size the panel promises
-      expect(Math.abs(all.length - TOWN_SIZES[size].about)).toBeLessThanOrEqual(35);
+      // (M7 walk-up: the standing roles, ids "wu..", come on top of the size: a patrol per beat whatever the size)
+      expect(Math.abs(all.filter((r) => !/^wu\d+$/.test(r.id)).length - TOWN_SIZES[size].about)).toBeLessThanOrEqual(35);
       const n = (trade: string) => all.filter((r) => r.trade === trade).length;
       const has = (id: string) => all.some((r) => r.id === id);
       // the garrison and the customs

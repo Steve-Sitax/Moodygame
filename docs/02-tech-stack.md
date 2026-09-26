@@ -80,7 +80,8 @@ with no AI at all. Its default, "Recommended mix", is this table; with no `data/
 
 Router rules:
 - Hooks that can hold the player's typed words (`PLAYER_TEXT_HOOKS`) go only to Claude, whatever the table says, unless
-  `CODEX_PLAYER_TEXT` is turned on. It is off.
+  `CODEX_PLAYER_TEXT` is turned on. It is off. (This is the Recommended mix. A player's own choice in the AI setup
+  sends typed lines to the kind's AI unless its `typedLines` setting is "claude_only"; docs/ai-setup.md.)
 - The "all Claude" switch: `SCHELDEMIST_ALL_CLAUDE=1` sends every GPT route to Opus 5.5.
 - A machine without the codex binary (the laptop may not have it) sends GPT routes to Opus 5.5.
 - If a GPT call breaks (not logged in, a tool used, a crash), the retry in the same call goes to Opus 5.5. A schema miss

@@ -11,6 +11,8 @@ import { api, type JobsPayload } from "../net/api";
 import { chest, type Target } from "./facing";
 import type { QuestBoxes } from "./questboxes";
 import { gameMin } from "../../../shared/clock";
+import { SNEAK, Summons, WALK, Walkup, type JobFigure } from "./walkup";
+import { Follower } from "./follower";
 
 // How each kind of job plays in 3D (M2b, M3). Goods live in the shared
 // GoodsWorld; a run tags its own goods with the job id and watches what
@@ -141,10 +143,25 @@ export class HaulRun implements Run {
   private t = 0;
   private late = false;
   private ended = false;
-  private stranger: Figure | null = null;
+  /**
+   * M7 walk-up: the stranger who buys (a thief of the town, as a fence) and the employer's man who
+   * watches (a natie man) come from where they are; the recipient waits at the place, there unseen or
+   * walked in. Nobody is made in Jef's sight.
+   */
+  private strangerCall: Summons | null = null;
+  private strangerAt: [number, number] | null = null;
   private strangerDone = false;
-  private foreman: Figure | null = null;
+  private foremanCall: Summons | null = null;
+  private foremanAt: [number, number] | null = null;
+  private foremanSeen = false;
   private recipient: Figure | null = null;
+  private recipientWait = 0;
+  private recipientFaced = false;
+  private follower: Follower;
+  private get stranger(): JobFigure | null {
+    const f = this.strangerCall?.fig;
+    return f && f.present && !f.gone ? f : null;
+  }
   /** Deliver: the parcel is still with the employer. Carry from the ship: the cargo is still aboard. */
   private waitingHandover: boolean;
   private lowering: Lowering[] = [];
@@ -204,32 +221,79 @@ export class HaulRun implements Run {
     this.mark.rotation.x = -Math.PI / 2;
     this.mark.position.set(to.x, 0.02, to.z);
     if (this.kind === "carry") world.scene.add(this.mark);
-    else {
-      // someone waiting for the delivery; on the ship they stand on deck at the top of the gangway
-      this.recipient =
-        task.to === "ship_gangway"
-          ? new Figure("recipient", RAMP.x - 0.6, RAMP.zHigh - 1.0, world.scene, () => DECK.y)
-          : new Figure("recipient", to.x, to.z, world.scene);
-      this.recipient.face(from.x, from.z);
-    }
+    // (the deliver's recipient: M7 walk-up, made in update(), unseen at the place or walked in)
 
     switch (task.twist) {
       case "stranger_offer": {
         const [sx, sz] = besideRoute(world, from.x, from.z, to.x, to.z, 3.5);
-        this.stranger = new Figure("stranger", sx, sz, world.scene);
+        this.strangerAt = [sx, sz];
+        this.strangerCall = new Summons(() => ({ role: "thief", why: "twist", ref: `job:${job.id}:stranger`, at: { x: sx, z: sz } }), {
+          capS: 45,
+          fallback: "stranger",
+          onCome: (f) => f.walkTo(sx, sz, WALK),
+        });
         break;
       }
       case "foreman_watches": {
         const [fx, fz] = besideRoute(world, to.x, to.z, to.x + to.dir[0], to.z + to.dir[1], 2.6);
-        this.foreman = new Figure("foreman", fx, fz, world.scene);
-        this.foreman.face(to.x, to.z);
-        ctx.toast(`A man from ${job.employer_name}'s side stands by ${to.label}, arms folded, watching.`);
+        this.foremanAt = [fx, fz];
+        this.foremanCall = new Summons(() => ({ role: "hand", why: "twist", ref: `job:${job.id}:foreman`, at: { x: fx, z: fz } }), {
+          capS: 40,
+          fallback: "foreman",
+          onCome: (f) => f.walkTo(fx, fz, WALK),
+        });
         break;
       }
       case "thick_fog":
         world.setThickFog(true);
         break;
     }
+    // M7 walk-up: a thief (or a customs man) who sees the load may follow Jef (the engine rolls, once)
+    this.follower = new Follower(job.id, {
+      player: ctx.player,
+      carrying: () => this.hasLoad,
+      inHands: () => {
+        const c = ctx.goods.carried;
+        return !!c && this.isMine(c);
+      },
+      snatched: () => {
+        const c = ctx.goods.carried;
+        if (!c || !this.isMine(c)) return;
+        ctx.goods.release();
+        c.obj.removeFromParent();
+        this.onLost(c, `He has the ${this.noun} out of your hands and is gone between the sheds.`);
+      },
+      toast: (t) => ctx.toast(t),
+    });
+  }
+
+  /** M7 walk-up: Jef has the load now (in his hands, in his pocket, on his cart). */
+  private get hasLoad(): boolean {
+    const c = this.ctx.goods.carried;
+    return (!!c && this.isMine(c)) || this.parcelInPocket || this.onCart > 0;
+  }
+
+  /** M7 walk-up: the deliver's recipient, at the place when Jef cannot see it, else walking in (on deck: when unseen). */
+  private makeRecipient(dt: number): void {
+    if (this.kind !== "deliver" || this.recipient || this.ended) return;
+    const w = Walkup.inst;
+    const to = SPOTS[this.task.to];
+    const from = SPOTS[this.task.from];
+    this.recipientWait += dt;
+    if (this.task.to === "ship_gangway") {
+      const [x, z] = [RAMP.x - 0.6, RAMP.zHigh - 1.0];
+      // the mate comes up from below deck: when Jef does not look, or up the companion after a while
+      if (!w || w.hidden(x, z) || this.recipientWait > 8) {
+        this.recipient = new Figure("recipient", x, z, this.ctx.world.scene, () => DECK.y);
+        this.recipient.origin = w && !w.hidden(x, z) ? "hatch" : "placed unseen";
+        this.recipient.face(from.x, from.z);
+      }
+      return;
+    }
+    const f = w ? w.placeOrWalkIn("recipient", to.x, to.z) : new Figure("recipient", to.x, to.z, this.ctx.world.scene);
+    if (!f) return;
+    this.recipient = f;
+    if (!f.moving) f.face(from.x, from.z);
   }
 
   private get noun(): string {
@@ -255,7 +319,7 @@ export class HaulRun implements Run {
     if (this.ended) return [];
     const { x, z } = this.ctx.player;
     if (this.parcelInPocket) {
-      const out: Action[] = [];
+      const out: Action[] = [...this.follower.actions()];
       if (this.recipient && this.recipient.distTo(x, z) < REACH_PERSON) {
         out.push({ key: "KeyE", text: `give the parcel to ${(this.task as DeliverTask).recipient}`, run: () => this.giveParcel(), at: chest(this.recipient.group) });
       }
@@ -342,7 +406,7 @@ export class HaulRun implements Run {
   carryActions(item: Item): Action[] {
     if (this.ended || !this.isMine(item)) return [];
     const { x, z } = this.ctx.player;
-    const out: Action[] = [];
+    const out: Action[] = [...this.follower.actions()];
     if (this.recipient && this.recipient.distTo(x, z) < REACH_PERSON) {
       out.push({ key: "KeyE", text: `hand it to ${(this.task as DeliverTask).recipient}`, run: () => this.handIn(item), at: chest(this.recipient.group) });
     }
@@ -400,8 +464,7 @@ export class HaulRun implements Run {
     this.ctx.sfx("coins");
     this.ctx.toast("He counts coins into your hand and is gone in the fog.");
     const s = this.stranger!;
-    s.group.add(item.obj);
-    item.obj.position.set(0, 0.9, 0.35);
+    s.hold(item.obj);
     const { x, z } = this.ctx.player;
     s.walkTo(s.pos.x + (s.pos.x - x) * 8, s.pos.z + (s.pos.z - z) * 8, 1.4);
     this.changed();
@@ -445,13 +508,42 @@ export class HaulRun implements Run {
       this.ctx.toast("A bell rings over the water. You are late.");
     }
     const { x, z } = this.ctx.player;
-    if (this.stranger) {
-      if (!this.strangerDone) this.stranger.face(x, z);
-      this.stranger.update(dt);
-      if (this.strangerDone && !this.stranger.moving && !this.stranger.gone) this.stranger.remove();
+    // M7 walk-up: the people of the twist come from where they are; the recipient waits at the place
+    this.strangerCall?.update(dt);
+    const s = this.strangerCall?.fig;
+    if (s && !s.gone) {
+      if (this.strangerDone) {
+        if (!s.moving) s.remove();
+      } else if (s.present) {
+        // to his place beside the way (the same place asked again changes nothing), then he watches Jef come
+        if (this.strangerAt && s.distTo(this.strangerAt[0], this.strangerAt[1]) > 1.2) s.walkTo(this.strangerAt[0], this.strangerAt[1], WALK);
+        if (!s.moving) s.face(x, z);
+      }
     }
-    this.foreman?.update(dt);
-    this.recipient?.update(dt);
+    this.foremanCall?.update(dt);
+    const fm = this.foremanCall?.fig;
+    // (at his place, or as near to it as the ground lets him come)
+    if (fm && !fm.gone && fm.present && !fm.moving && this.foremanAt && fm.distTo(this.foremanAt[0], this.foremanAt[1]) < 15) {
+      const to = SPOTS[this.task.to];
+      fm.face(to.x, to.z);
+      fm.motion = "fold";
+      if (!this.foremanSeen) {
+        this.foremanSeen = true;
+        this.ctx.toast(`A man from ${this.job.employer_name}'s side stands by ${to.label}, arms folded, watching.`);
+      }
+    }
+    this.makeRecipient(dt);
+    if (this.recipient) {
+      // walked in: at the place he turns to face the way the goods come
+      if (!this.recipient.moving && !this.recipientFaced) {
+        this.recipientFaced = true;
+        const from = SPOTS[this.task.from];
+        this.recipient.face(from.x, from.z);
+      }
+      this.recipient.update(dt);
+    }
+    if (this.hasLoad) this.follower.start();
+    this.follower.update(dt);
 
     // cargo swung down from the ship's rail, one at a time
     if (this.lowerTimer > 0) {
@@ -556,7 +648,7 @@ export class HaulRun implements Run {
     this.brokenSeen = s.brokenSeen === true;
     if (s.strangerDone === true && !this.strangerDone) {
       this.strangerDone = true;
-      if (this.stranger && !this.stranger.gone) this.stranger.remove();
+      this.strangerCall?.cancel();
     }
     // the cargo already swung down from the ship (or the parcel taken) stays that way
     if (s.waitingHandover === false) this.waitingHandover = false;
@@ -569,7 +661,10 @@ export class HaulRun implements Run {
     goods.clearJob(this.job.id);
     world.scene.remove(this.mark);
     for (const l of this.lowering) world.scene.remove(l.obj, l.rope);
-    for (const f of [this.stranger, this.foreman, this.recipient]) if (f && !f.gone) f.remove();
+    this.strangerCall?.cancel();
+    this.foremanCall?.cancel();
+    if (this.recipient && !this.recipient.gone) this.recipient.remove();
+    this.follower.dispose();
     world.setThickFog(false);
   }
 }
@@ -582,13 +677,21 @@ export class WatchRun implements Run {
   private t = 0;
   private away = 0;
   private ended = false;
-  private thief: Figure | null = null;
+  /**
+   * M7 walk-up: the thief (a thief of the town), the man with the bribe (one of them too) and the
+   * employer's man (a natie man) are called from where they are when the twist is due, and walk up; the
+   * twist plays when they are there. Nobody near within the cap: one walks in from out of sight.
+   */
+  private thiefCall: Summons | null = null;
+  private thief: JobFigure | null = null;
   private thiefState: "none" | "coming" | "chased" | "stole" = "none";
-  private briber: Figure | null = null;
+  private briberCall: Summons | null = null;
+  private briber: JobFigure | null = null;
   private briberState: "none" | "coming" | "waiting" | "paid" | "sent" = "none";
   private briberWait = 0;
   private bribeTaken = false;
-  private foreman: Figure | null = null;
+  private foremanCall: Summons | null = null;
+  private foreman: JobFigure | null = null;
   private foremanState: "none" | "coming" | "looking" | "leaving" = "none";
   private foremanLook = 0;
   private seenAway = false;
@@ -666,14 +769,13 @@ export class WatchRun implements Run {
   }
 
   /** Someone walks off with the top item of the pile. */
-  private takePileItem(by: Figure): void {
+  private takePileItem(by: JobFigure): void {
     const goods = this.ctx.goods;
     const it = [...this.pile].reverse().find((p) => goods.items.includes(p) && !goods.above(p));
     if (!it) return;
     this.pile = this.pile.filter((p) => p !== it);
     goods.remove(it);
-    by.group.add(it.obj);
-    it.obj.position.set(0, 0.9, 0.35);
+    by.hold(it.obj);
   }
 
   private takeBribe(): void {
@@ -704,16 +806,29 @@ export class WatchRun implements Run {
       }
     } else this.warnedAway = false;
 
-    if (this.task.twist === "thief" && this.thiefState === "none" && this.t > d * 0.3) {
-      const [sx, sz] = this.outInFog(17);
-      this.thief = new Figure("thief", sx, sz, this.ctx.world.scene);
-      this.thief.walkTo(this.post.x, this.post.z, 0.8);
+    // M7 walk-up: the thief is called early (he has to walk from his haunt); the twist plays when he is there
+    if (this.task.twist === "thief" && !this.thiefCall && this.t > d * 0.05) {
+      this.thiefCall = new Summons(() => ({ role: "thief", why: "twist", ref: `job:${this.job.id}:thief`, at: { x: this.post.x, z: this.post.z } }), { capS: d * 0.45, fallback: "thief" });
+    }
+    this.thiefCall?.update(dt);
+    if (this.thiefState === "none" && this.thiefCall?.fig?.present) {
+      this.thief = this.thiefCall.fig;
       this.thiefState = "coming";
     }
+    // not there by the last fifth of the watch: he did not come (back to his day)
+    if (this.thiefState === "none" && this.thiefCall && this.t > d * 0.8) this.thiefCall.cancel();
     if (this.thief) {
       if (this.thiefState === "coming") {
-        if (this.thief.distTo(x, z) < 3.2) this.chase();
-        else if (this.thief.distTo(this.post.x, this.post.z) < 1.3) {
+        // from afar at a walk, the last stretch creeping up on the goods
+        // (to the nearest of the goods: the post's middle may be where Jef stands, and people walk round him)
+        const pile = this.pile.filter((p) => this.ctx.goods.items.includes(p));
+        const th = this.thief;
+        const aim = pile.sort((a, b) => th.distTo(a.obj.position.x, a.obj.position.z) - th.distTo(b.obj.position.x, b.obj.position.z))[0]?.obj.position ?? this.post;
+        const far = th.distTo(aim.x, aim.z) > 18;
+        th.walkTo(aim.x, aim.z, far ? WALK : SNEAK);
+        // seen by the man at the post: he bolts (a figure walked straight up to 3 m; a townsperson goes round Jef)
+        if (th.distTo(x, z) < 3.2 || (th.who && th.distTo(x, z) < 5.5 && this.near())) this.chase();
+        else if (th.distTo(aim.x, aim.z) < 1.6) {
           this.thiefState = "stole";
           this.takePileItem(this.thief);
           const [ox, oz] = this.outInFog(30);
@@ -721,15 +836,19 @@ export class WatchRun implements Run {
           this.ctx.toast("Something moves by the goods, and then it is gone. One is missing.");
         }
       }
-      this.thief.update(dt);
+      // (the call walks him: Summons.update)
       if (this.thiefState !== "coming" && !this.thief.moving && !this.thief.gone) this.thief.remove();
     }
 
-    if (this.task.twist === "bribe" && this.briberState === "none" && this.t > d * 0.3) {
-      const [sx, sz] = this.outInFog(12);
-      this.briber = new Figure("stranger", sx, sz, this.ctx.world.scene);
+    if (this.task.twist === "bribe" && !this.briberCall && this.t > d * 0.1) {
+      this.briberCall = new Summons(() => ({ role: "thief", why: "twist", ref: `job:${this.job.id}:briber`, at: { x: this.post.x, z: this.post.z } }), { capS: d * 0.4, fallback: "stranger" });
+    }
+    this.briberCall?.update(dt);
+    if (this.briberState === "none" && this.briberCall?.fig?.present) {
+      this.briber = this.briberCall.fig;
       this.briberState = "coming";
     }
+    if (this.briberState === "none" && this.briberCall && this.t > d * 0.75) this.briberCall.cancel();
     if (this.briber) {
       const b = this.briber;
       if (this.briberState === "coming") {
@@ -738,7 +857,7 @@ export class WatchRun implements Run {
           b.face(x, z);
           this.briberState = "waiting";
           this.ctx.toast(`"${hello(this.ctx.hour?.() ?? 20)}, lad. Cold work. What if you looked at the river a while?"`);
-        } else b.walkTo(x, z, 1.1);
+        } else b.walkTo(x, z, b.distTo(x, z) > 15 ? WALK : 1.1);
       } else if (this.briberState === "waiting") {
         b.face(x, z);
         this.briberWait += dt;
@@ -749,22 +868,29 @@ export class WatchRun implements Run {
         b.walkTo(ox, oz, 1.3);
         this.briberState = "sent";
       }
-      b.update(dt);
       if (this.briberState === "sent" && !b.moving && !b.gone) b.remove();
     }
 
-    if (this.task.twist === "foreman_watches" && this.foremanState === "none" && this.t > d * 0.5) {
-      const [sx, sz] = this.outInFog(11);
-      this.foreman = new Figure("foreman", sx, sz, this.ctx.world.scene);
+    if (this.task.twist === "foreman_watches" && !this.foremanCall && this.t > d * 0.3) {
       const [px, pz] = this.outInFog(3);
-      this.foreman.walkTo(px, pz, 1.0);
+      this.foremanCall = new Summons(() => ({ role: "hand", why: "twist", ref: `job:${this.job.id}:foreman`, at: { x: this.post.x, z: this.post.z } }), {
+        capS: d * 0.35,
+        fallback: "foreman",
+        onCome: (f) => f.walkTo(px, pz, WALK),
+      });
+    }
+    this.foremanCall?.update(dt);
+    if (this.foremanState === "none" && this.foremanCall?.fig?.present) {
+      this.foreman = this.foremanCall.fig;
       this.foremanState = "coming";
     }
+    if (this.foremanState === "none" && this.foremanCall && this.t > d * 0.8) this.foremanCall.cancel();
     if (this.foreman) {
       const f = this.foreman;
       if (this.foremanState === "coming" && !f.moving) {
         this.foremanState = "looking";
         f.face(this.post.x, this.post.z);
+        f.motion = "fold";
         if (!this.near()) this.seenAway = true;
         else this.ctx.toast(`${this.job.employer_name}'s man looks you over, nods once, and says nothing.`);
       } else if (this.foremanState === "looking") {
@@ -775,7 +901,6 @@ export class WatchRun implements Run {
           this.foremanState = "leaving";
         }
       }
-      f.update(dt);
       if (this.foremanState === "leaving" && !f.moving && !f.gone) f.remove();
     }
 
@@ -835,6 +960,7 @@ export class WatchRun implements Run {
   dispose(): void {
     // the goods stay; they are the employer's, no longer part of a job
     for (const it of this.pile) it.jobId = null;
+    for (const c of [this.thiefCall, this.briberCall, this.foremanCall]) c?.cancel();
     for (const f of [this.thief, this.briber, this.foreman]) if (f && !f.gone) f.remove();
     this.ctx.world.setThickFog(false);
   }

@@ -260,6 +260,8 @@ export class Actions {
 
   /** The action is over on the server: let the person go (after a moment for a talk). */
   private end(r: Run): void {
+    // M7 walk-up: a "come" is walked by the job that called them (game/walkup.ts); it lets them go itself
+    if ((r.a.kind as string) === "come") return;
     const stillHeld = (id: string) => [...this.runs.values()].some((o) => o.a.npc === id || o.other === id);
     if (r.p && this.crowd.puppetFollowing(r.p)) this.crowd.puppetFollow(r.p, null);
     if (r.p) r.p.human.root.rotation.set(0, 0, 0);

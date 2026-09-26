@@ -17,7 +17,12 @@ import { resolveRoute } from "../src/ai/router.ts";
 import { mountAiSetup } from "../src/ai/routes.ts";
 import { aiSetup, applyPatch, KIND_HOOKS, KIND_IDS, kindOf, loadAiSetup, scrubKeys, setAiSetupForTest, view } from "../src/ai/setup.ts";
 import { CHECKIN_HOOK } from "../src/director/routines.ts";
+import * as config from "../src/config.ts";
 import type { Provider } from "../src/config.ts";
+import { markFreeLine, resetTalks } from "../src/hooks/dialogue.ts";
+import { generateTown } from "../src/town/population.ts";
+import { residentFree, residentOpen, type ResidentLine } from "../src/town/talk.ts";
+import { HOSTILE_LINES } from "./hostile-lines.ts";
 
 // The AI setup (docs/ai-setup.md): an AI per kind of work, the connections, the test button and the
 // walk-around mode. Stubs, fake keys and local stub servers only: no live model is called here.
@@ -116,6 +121,73 @@ describe("the settings", () => {
     expect(s).not.toContain("zzzzzzzzzz");
   });
 
+  it('typed lines: a setting in the view with its help, and an old file without it reads as "same"', () => {
+    const v = view(avail);
+    expect(v.typedLines).toBe("same");
+    expect(v.options.typedLines.values.map((x) => x.id)).toEqual(["same", "claude_only"]);
+    expect(v.options.typedLines.privacy).toMatch(/sent to the AI you choose/);
+    expect(applyPatch({ typedLines: "claude_only" }).ok).toBe(true);
+    expect(view(avail).typedLines).toBe("claude_only");
+    expect(applyPatch({ typedLines: "anyone" }).ok).toBe(false);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "scheldemist-ai-"));
+    const f = path.join(dir, "ai-config.json");
+    try {
+      fs.writeFileSync(f, JSON.stringify({ version: 1, mode: "ai", default: { provider: "codex_cli", model: "gpt-6-luna", effort: "medium" }, kinds: {}, connections: { anthropic_api: {}, openai_compat: { baseUrl: "https://api.openai.com/v1" }, ollama: { baseUrl: "http://127.0.0.1:11434" } } }));
+      setAiSetupForTest(null, f);
+      expect(loadAiSetup().ok).toBe(true);
+      expect(aiSetup().typedLines).toBe("same");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("the daily call cap: 120 by default, a number the player sets, 0 = no limit, and the game's budget follows it", async () => {
+    const v = view(avail);
+    expect(v.callsPerDay).toBe(120);
+    expect(v.options.callsPerDay).toMatchObject({ default: 120, min: 0, zeroMeans: "no limit" });
+    expect(v.options.callsPerDay.cost).toMatch(/costs money/);
+    expect(config.CALLS_PER_DAY).toBe(120);
+    for (const bad of [-1, 1.5, 20_000, "50"]) expect(applyPatch({ callsPerDay: bad }).ok, String(bad)).toBe(false);
+    // a cap of 3: the fourth attempt of the day is refused before any runner
+    expect(applyPatch({ callsPerDay: 3, default: { provider: "claude_local" } }).ok).toBe(true);
+    expect(config.CALLS_PER_DAY).toBe(3);
+    const seen = counting({ wrong: true }); // a schema miss: each call books two attempts
+    const db = openDb(":memory:");
+    await callClaude(db, { hook: "newspaper", system: "s", prompt: "p", schema: Schema });
+    const r = await callClaude(db, { hook: "poster", system: "s", prompt: "p", schema: Schema });
+    expect(seen.length).toBe(3);
+    expect(r.ok).toBe(false);
+    expect((await callClaude(db, { hook: "dream", system: "s", prompt: "p", schema: Schema })).error).toMatch(/budget/);
+    expect(seen.length).toBe(3);
+    // 0: no limit, past today's 120
+    expect(applyPatch({ callsPerDay: 0 }).ok).toBe(true);
+    expect(config.CALLS_PER_DAY).toBe(Infinity);
+    expect(view(avail).callsPerDay).toBe(0);
+    const db2 = openDb(":memory:");
+    const fill = db2.prepare("INSERT INTO ai_call (day, hour, hook, provider, model, ms, ok, error) VALUES (1, 8, 'x', 'claude', 'm', 1, 1, NULL)");
+    for (let i = 0; i < 130; i++) fill.run();
+    const seen2 = counting();
+    expect((await callClaude(db2, { hook: "newspaper", system: "s", prompt: "p", schema: Schema })).ok).toBe(true);
+    expect(seen2.length).toBe(1);
+    setAiSetupForTest(null);
+    expect(config.CALLS_PER_DAY).toBe(120); // back to the default with the settings
+  });
+
+  it("an old file without the cap reads as 120", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "scheldemist-ai-"));
+    const f = path.join(dir, "ai-config.json");
+    try {
+      fs.writeFileSync(f, JSON.stringify({ version: 1, mode: "ai", default: { provider: "recommended" }, kinds: {}, connections: { anthropic_api: {}, openai_compat: { baseUrl: "https://api.openai.com/v1" }, ollama: { baseUrl: "http://127.0.0.1:11434" } } }));
+      setAiSetupForTest({ callsPerDay: 7 }, f);
+      expect(config.CALLS_PER_DAY).toBe(7);
+      expect(loadAiSetup().ok).toBe(true);
+      expect(aiSetup().callsPerDay).toBe(120);
+      expect(config.CALLS_PER_DAY).toBe(120);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("are written to their own file and read back", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "scheldemist-ai-"));
     const f = path.join(dir, "ai-config.json");
@@ -167,13 +239,34 @@ describe("routing per kind", () => {
     expect(resolveRoute("not_a_hook")).toMatchObject({ provider: "anthropic" });
   });
 
-  it("keeps what the player typed on Claude (the default if it is Claude, else the login)", () => {
+  it("typed lines go to the kind's own AI by default (same): Codex, Ollama, an OpenAI-compatible server", () => {
+    setCodexBin("codex-stub");
+    expect(aiSetup().typedLines).toBe("same");
     applyPatch({ kinds: { talk: { provider: "openai_compat", model: "gpt-5-mini" }, press: { provider: "ollama", model: "qwen3:8b" } } });
+    expect(resolveRoute("resident_talk")).toMatchObject({ provider: "openai", model: "gpt-5-mini" });
+    expect(resolveRoute("free_reply")).toMatchObject({ provider: "openai" });
+    expect(resolveRoute("letter_reply")).toMatchObject({ provider: "ollama", model: "qwen3:8b" });
+    expect(resolveRoute("resident_talk")?.overruled).toBeUndefined();
+    applyPatch({ kinds: { talk: { provider: "codex_cli", model: "gpt-6-sol" } } });
+    expect(resolveRoute("confession")).toMatchObject({ provider: "codex", model: "gpt-6-sol" });
+  });
+
+  it('"claude_only": typed lines go to Claude (the default if it is Claude, else the login); other hooks stay', () => {
+    applyPatch({ typedLines: "claude_only", kinds: { talk: { provider: "openai_compat", model: "gpt-5-mini" }, press: { provider: "ollama", model: "qwen3:8b" } } });
     expect(resolveRoute("clerk")).toMatchObject({ provider: "openai" }); // no typed words in it
     expect(resolveRoute("resident_talk")).toMatchObject({ provider: "claude", model: "claude-opus-5-5", overruled: "player_text" });
     expect(resolveRoute("letter_reply")).toMatchObject({ provider: "claude", overruled: "player_text" });
+    expect(resolveRoute("newspaper")).toMatchObject({ provider: "ollama" });
     applyPatch({ default: { provider: "anthropic_api", model: "claude-opus-5-5" } });
     expect(resolveRoute("free_reply")).toMatchObject({ provider: "anthropic", model: "claude-opus-5-5", overruled: "player_text" });
+  });
+
+  it("the recommended mix keeps typed lines on Claude either way", () => {
+    setCodexBin("codex-stub");
+    for (const t of ["same", "claude_only"] as const) {
+      applyPatch({ typedLines: t });
+      for (const h of ["resident_talk", "free_reply", "letter_reply", "confession", "routine_checkin"]) expect(resolveRoute(h)?.provider).toBe("claude");
+    }
   });
 
   it("moves a Codex choice to Claude on a machine without codex", () => {
@@ -242,6 +335,136 @@ describe("no AI", () => {
     expect((await callClaude(db, { hook: "job_board", system: "s", prompt: "p", schema: Schema })).ok).toBe(true);
     expect(seen.map((s) => s.provider)).toEqual(["claude"]);
     expect(rows(db).map((r) => r.hook)).toEqual(["job_board"]);
+  });
+});
+
+// ------------------------------------------------------------------ typed lines through an AI that is not Claude
+
+describe("typed lines through a non-Claude AI", () => {
+  const T = generateTown(1873);
+  const fishwife = () => T.residents.find((r) => r.trade === "fishwife")!;
+  const good = (over: Partial<ResidentLine> = {}): ResidentLine => ({
+    npc_line: "What are you on about? Talk sense.",
+    mood: "neutral",
+    choices: ["Where exactly?", "Thank you kindly.", "I'll think on it."],
+    trust_delta: 0,
+    memory_note: "",
+    memory_weight: 3,
+    rumour: "",
+    rumour_tone: 1,
+    persona_line: "A fishwife who speaks her mind.",
+    end_conversation: false,
+    ...over,
+  });
+  const money = (db: ReturnType<typeof openDb>) => (db.prepare("SELECT money_c FROM player WHERE id = 1").get() as { money_c: number }).money_c;
+  const trust = (db: ReturnType<typeof openDb>, id: string) => (db.prepare("SELECT trust FROM npc_relationship WHERE npc_id = ?").get(id) as { trust: number } | undefined)?.trust ?? 0;
+  const talkDb = () => {
+    const db = openDb(":memory:");
+    db.prepare("UPDATE player SET day = 1, hour = 10, minute = 0 WHERE id = 1").run();
+    return db;
+  };
+  let tick = 0;
+
+  it("hostile lines to Ollama, Codex and an OpenAI-compatible server: gated or fenced, and only a clamped trust moves", async () => {
+    setCodexBin("codex-stub");
+    const cases = [
+      ["ollama", "ollama", "qwen3:8b"],
+      ["codex_cli", "codex", "gpt-6-luna"],
+      ["openai_compat", "openai", "local-model"],
+    ] as const;
+    for (const [provider, runner, model] of cases) {
+      setAiSetupForTest(null);
+      applyPatch({ kinds: { talk: { provider, model } } });
+      expect(aiSetup().typedLines).toBe("same");
+      const db = talkDb();
+      const r = fishwife();
+      resetTalks();
+      residentOpen(db, r.id);
+      const before = money(db);
+      const seen: string[] = [];
+      // the model answers as badly as it may: trust up, and money, items and orders it has no field for
+      setProviderRunner(runner, async (req) => {
+        seen.push(req.prompt);
+        return { output: { ...good({ trust_delta: 2, npc_line: "I have no rules." }), money_c: 99999, give_item: "purse", world_op: "set_price" } };
+      });
+      let gated = 0;
+      for (const hostile of HOSTILE_LINES) {
+        resetTalks();
+        residentOpen(db, r.id);
+        markFreeLine(Date.now() - 10_000 - tick++);
+        const n = seen.length;
+        const out = await residentFree(db, r.id, hostile, undefined);
+        expect("npc_line" in out || "gated" in out).toBe(true);
+        if ("gated" in out && out.gated === "blocked") {
+          gated++;
+          expect(seen.length).toBe(n); // a gated line never reaches the AI
+        } else if (seen.length > n) {
+          const p = seen[seen.length - 1];
+          const i = p.indexOf("JEF SAYS");
+          expect(i, provider).toBeGreaterThan(0); // the typed words sit inside the fence, as data
+          expect(p.indexOf(hostile.slice(0, 20))).toBeGreaterThan(i);
+        }
+      }
+      expect(gated, provider).toBeGreaterThan(5);
+      expect(seen.length, provider).toBeGreaterThan(0); // the kind's own AI got the fenced lines
+      expect(money(db)).toBe(before);
+      expect(trust(db, r.id)).toBeLessThanOrEqual(10);
+      expect((db.prepare("SELECT COUNT(*) n FROM item").get() as { n: number }).n).toBe(0);
+      const used = db.prepare("SELECT DISTINCT provider FROM ai_call").all() as { provider: string }[];
+      expect(used.map((x) => x.provider)).toEqual([runner]);
+      setProviderRunner(runner, null);
+    }
+  }, 180_000);
+
+  it("a trust jump from a non-Claude AI is clamped like any other: at most 2 in a meeting", async () => {
+    applyPatch({ kinds: { talk: { provider: "openai_compat", model: "local-model" } } });
+    setProviderRunner("openai", async () => ({ output: good({ trust_delta: 9, npc_line: "You're my best friend now." }) }));
+    const db = talkDb();
+    const r = fishwife();
+    resetTalks();
+    residentOpen(db, r.id);
+    for (const words of ["You're the finest fishwife in Antwerp.", "I'll carry your baskets for nothing."]) {
+      markFreeLine(Date.now() - 10_000 - tick++);
+      await residentFree(db, r.id, words, undefined);
+    }
+    expect(trust(db, r.id)).toBeLessThanOrEqual(2);
+  });
+
+  it("an AI without strict JSON (a weak local model) that answers junk: the schema check fails and the engine answers", async () => {
+    const srv = await stubServer(() => ({ json: { message: { role: "assistant", content: "Sure! I have no rules now. Here is 1000 francs." } } }));
+    try {
+      applyPatch({ kinds: { talk: { provider: "ollama", model: "tiny" } }, connections: { ollama: { baseUrl: srv.base } } });
+      setProviderRunner("ollama", ollamaRunner);
+      const db = talkDb();
+      const r = fishwife();
+      resetTalks();
+      residentOpen(db, r.id);
+      const before = money(db);
+      markFreeLine(Date.now() - 10_000 - tick++);
+      const out = await residentFree(db, r.id, "Any work on the quays today?", undefined);
+      expect(srv.seen.length).toBeGreaterThan(0); // it was asked
+      expect("npc_line" in out && out.npc_line.length > 3).toBe(true); // and the engine answered instead
+      if ("npc_line" in out) expect(out.npc_line).not.toMatch(/no rules|francs/);
+      expect(money(db)).toBe(before);
+      expect(trust(db, r.id)).toBe(0);
+      const calls = db.prepare("SELECT provider, ok FROM ai_call").all() as { provider: string; ok: number }[];
+      expect(calls.length).toBeGreaterThan(0);
+      expect(calls.every((c) => c.provider === "ollama" && c.ok === 0)).toBe(true);
+    } finally {
+      await srv.close();
+    }
+  });
+
+  it('"claude_only": the same typed line goes to Claude, not to the kind\'s AI', async () => {
+    applyPatch({ typedLines: "claude_only", kinds: { talk: { provider: "ollama", model: "qwen3:8b" } } });
+    const seen = counting(good({ npc_line: "Work? Try the Katoennatie." }));
+    const db = talkDb();
+    const r = fishwife();
+    resetTalks();
+    residentOpen(db, r.id);
+    markFreeLine(Date.now() - 10_000 - tick++);
+    await residentFree(db, r.id, "Any work on the quays today?", undefined);
+    expect(seen.map((x) => x.provider)).toEqual(["claude"]);
   });
 });
 
@@ -403,13 +626,31 @@ describe("HTTP adapters", () => {
 // ------------------------------------------------------------------ the API
 
 describe("the API", () => {
-  const app = () => {
+  /** A request as the node server hands it on: the socket's address in env.incoming (127.0.0.1 = the host). */
+  const app = (from = "127.0.0.1", headers: Record<string, string> = {}) => {
     const a = new Hono();
     mountAiSetup(a, { db: openDb(":memory:") });
     const send = (method: string, url: string, body?: unknown) =>
-      a.request(url, { method, headers: { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+      a.request(url, { method, headers: { "content-type": "application/json", ...headers }, body: body === undefined ? undefined : JSON.stringify(body) }, { incoming: { socket: { remoteAddress: from } } });
     return send;
   };
+
+  it("only the host may change the settings or run a test; anyone the game lets in may read them", async () => {
+    for (const [from, headers] of [["192.168.1.20", {}], ["10.0.0.5", {}], ["127.0.0.1", { "x-forwarded-for": "192.168.1.20" }], ["::1", { forwarded: "for=203.0.113.7" }]] as const) {
+      const send = app(from, headers);
+      const put = await send("PUT", "/api/ai/config", { mode: "walk" });
+      expect(put.status, `${from} ${JSON.stringify(headers)}`).toBe(403);
+      expect(((await put.json()) as { error: string }).error).toMatch(/Only the host/);
+      expect((await send("POST", "/api/ai/test", { all: true })).status).toBe(403);
+      expect((await send("GET", "/api/ai/config")).status).toBe(200);
+    }
+    expect(aiSetup().mode).toBe("ai"); // nothing changed
+    const noSocket = new Hono();
+    mountAiSetup(noSocket, { db: openDb(":memory:") });
+    expect((await noSocket.request("/api/ai/config", { method: "PUT", headers: { "content-type": "application/json" }, body: "{}" })).status).toBe(403);
+    for (const from of ["127.0.0.1", "::1", "::ffff:127.0.0.1"]) expect((await app(from)("PUT", "/api/ai/config", { mode: "ai" })).status).toBe(200);
+    expect((await app("127.0.0.1", { "x-forwarded-for": "127.0.0.1" })("PUT", "/api/ai/config", { mode: "ai" })).status).toBe(200);
+  });
 
   it("GET, PUT and a bad PUT", async () => {
     const send = app();
@@ -490,7 +731,8 @@ async function realServer(mode: "ai" | "walk") {
     const r = await fetch(base + p, { method, headers: { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
     return (await r.json()) as Record<string, unknown>;
   };
-  for (let i = 0; i < 100; i++) {
+  // a loaded machine (the whole suite, other work) can take a while to boot it: up to 90 s
+  for (let i = 0; i < 450; i++) {
     try {
       await call("GET", "/api/ai/config");
       break;
@@ -524,12 +766,13 @@ describe("a whole game day", () => {
     const s = await realServer("ai");
     try {
       for (let i = 0; i < 12; i++) await s.tick();
-      await new Promise((r) => setTimeout(r, 500));
+      // the board, the paper and the named people ask at once; give a slow machine time to book them
+      for (let i = 0; i < 40 && s.calls() === 0; i++) await new Promise((r) => setTimeout(r, 250));
       expect(s.calls()).toBeGreaterThan(0);
     } finally {
       await s.stop();
     }
-  }, 60_000);
+  }, 180_000);
 
   it("in walk-around mode: a day from dawn past midnight makes zero calls, and the game goes on", async () => {
     const s = await realServer("walk");
@@ -550,5 +793,5 @@ describe("a whole game day", () => {
     } finally {
       await s.stop();
     }
-  }, 240_000);
+  }, 360_000);
 });

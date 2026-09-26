@@ -45,8 +45,12 @@ export const RUNNER_OF: Record<Exclude<ProviderId, "recommended" | "none">, Prov
 /**
  * The model for a hook under the AI setup: null when no model may be called (walk-around mode, or
  * "no AI" for the hook's kind: the caller takes its fallback at once). The recommended mix is
- * routeFor above. A choice of the player's own keeps the same walls: what the player typed goes only
- * to Claude (CLAUDE.md), the "all Claude" switch and a machine without codex move a Codex choice to Claude.
+ * routeFor above (its typed-line hooks stay on Claude). A choice of the player's own: what the player
+ * typed goes to that AI like any game text, or only to Claude when the setting typedLines is
+ * "claude_only" (Steve, 2026-09-26: "Not everyone has Claude"); the "all Claude" switch and a machine
+ * without codex move a Codex choice to Claude. The other guards hold for every provider: the regex
+ * gate before the call, the typed words fenced as data, tools off, the schema check, the time limit,
+ * the fallback and the engine's clamps.
  */
 export function resolveRoute(hook: string, o: { codexOk?: boolean } = {}): Route | null {
   const c = choiceForHook(hook);
@@ -59,7 +63,7 @@ export function routeOfChoice(hook: string, c: Choice, o: { codexOk?: boolean } 
   if (c.provider === "none") return null;
   if (c.provider === "recommended") return routeFor(hook, { codexOk: o.codexOk });
   const r: Route = { key: `${c.provider}:${c.model}`, provider: RUNNER_OF[c.provider], model: c.model ?? "", ...(c.effort ? { effort: c.effort } : {}), chosen: true };
-  if (PLAYER_TEXT_HOOKS.has(hook) && !CLAUDE_PROVIDERS.has(c.provider) && !(c.provider === "codex_cli" && CODEX_PLAYER_TEXT)) return typedLinesRoute();
+  if (PLAYER_TEXT_HOOKS.has(hook) && aiSetup().typedLines === "claude_only" && !CLAUDE_PROVIDERS.has(c.provider) && !(c.provider === "codex_cli" && CODEX_PLAYER_TEXT)) return typedLinesRoute();
   if (c.provider === "codex_cli") {
     if (ALL_CLAUDE) return { ...claudeDefault(), overruled: "all_claude" };
     if (!(o.codexOk ?? codexBin() !== null)) return { ...claudeDefault(), overruled: "no_codex" };

@@ -47,6 +47,7 @@ import { mountTransport } from "./town/transportRoutes.ts";
 import { mountHandcart } from "./town/handcartRoutes.ts";
 import { mountLively } from "./town/livelyRoutes.ts";
 import { mountErrands } from "./town/handsRoutes.ts";
+import { mountWalkup } from "./town/walkupRoutes.ts";
 import { mountRoutines } from "./director/routineRoutes.ts";
 import { mountArrival } from "./arrival.ts";
 import { mountNight } from "./night/routes.ts";
@@ -148,6 +149,8 @@ mountHandcart(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadca
 mountLively(app, { db });
 // M6 gifts and hired hands: giving from the pockets, a drink at the tavern, hands paid to carry (town/gifts.ts, treat.ts, hire.ts; director/steps.ts)
 mountErrands(app, { db, payload: () => jobsPayload() });
+// M7 walk-up: job and quest people come from the living town (town/walkup.ts)
+mountWalkup(app, { db });
 // M6 AI-composed routines: errands the model plans from Jef's words and steers in check-ins (director/routines.ts)
 mountRoutines(app, { db, payload: () => jobsPayload() });
 // M7 ferry arrival: a new week begins with Jef on the ferry's deck at the Werf pontoon (arrival.ts)

@@ -137,8 +137,15 @@ export const CODEX = {
  * M7 clock (2026-09-24): still per GAME day, though a game day (6:00 to midnight) is now 36 real
  * minutes, not 6: the same calls are spread over six times the play, so the rate per real minute
  * falls to a sixth (about 3 a real minute at most).
+ * AI setup (2026-09-26, docs/ai-setup.md): the player's setting `callsPerDay` (0 = no limit) sets it
+ * through setCallsPerDay; every budget check reads this live binding. The shares below still hold.
  */
-export const CALLS_PER_DAY = 120;
+export const CALLS_PER_DAY_DEFAULT = 120;
+export let CALLS_PER_DAY: number = CALLS_PER_DAY_DEFAULT;
+/** Only the AI setup (ai/setup.ts) calls this. 0 = no daily limit (Infinity: every check `total < CALLS_PER_DAY - x` passes). */
+export function setCallsPerDay(n: number): void {
+  CALLS_PER_DAY = n === 0 ? Infinity : n;
+}
 
 /** Talk with the townspeople (M3e): at most this many model calls a day for them... */
 export const RESIDENT_CALLS_PER_DAY = 40;

@@ -641,6 +641,19 @@ export class Crowd {
     return this.stats_;
   }
 
+  /** M7 walk-up (dev/popcheck.ts): called in every update once the view is known. */
+  onFrame: (() => void) | null = null;
+
+  /** M7 walk-up: in Jef's view now (within the fog's reach and in the camera's frustum)? */
+  inView(x: number, z: number, r = 1.3): boolean {
+    return Math.hypot(x - this.player.x, z - this.player.z) < this.fogFar + 4 && this.inFrustum(x, z, r);
+  }
+
+  /** M7 walk-up (dev/popcheck.ts): everyone the crowd walks now. Read only. */
+  get walking(): readonly Puppet[] {
+    return this.people;
+  }
+
   update(dt: number, player: V, camera?: THREE.Camera): void {
     if (!this.ready) return;
     this.player.x = player.x;
@@ -667,6 +680,8 @@ export class Crowd {
       this.m4.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
       this.frustum.setFromProjectionMatrix(this.m4);
     }
+    // M7 walk-up (dev/popcheck.ts): who is in view now, once the view is known
+    this.onFrame?.();
     this.pathBudget = 3;
 
     // --- how many, by the hour
