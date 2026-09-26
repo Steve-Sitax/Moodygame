@@ -62,8 +62,9 @@ function grimeNoise(): THREE.DataTexture {
  * mipmaps. Loaded as world/quayStone.ts withPicture does: until all are in, the atlas's own paint shows (uWallPics).
  */
 const WALL_PICS: Array<[string, number]> = [
-  ["brick_fine", 1.9], ["brick", 1.9], ["brick_clinker", 2.2], ["speklagen", 2.5], ["brick_yellow", 1.9], ["brick_yellow_old", 1.9],
-  ["brick_white", 1.9], ["plaster_smooth", 3.0], ["plaster_rough", 2.5], ["plaster", 3.0], ["render", 3.0], ["ashlar_sand", 2.4], ["ashlar_blue", 2.4],
+  // (metres a tile: from the pictures' own courses, a brick course about 6.5 cm, a stone course 35 to 40 cm)
+  ["brick_fine", 2.1], ["brick", 1.9], ["brick_clinker", 2.2], ["speklagen", 2.5], ["brick_yellow", 1.7], ["brick_yellow_old", 1.1],
+  ["brick_white", 1.2], ["plaster_smooth", 3.0], ["plaster_rough", 2.5], ["plaster", 3.0], ["render", 3.0], ["ashlar_sand", 2.7], ["ashlar_blue", 3.2],
 ];
 const PIC = 512;
 

@@ -431,9 +431,8 @@ bluestone). Each class has its own set to pick from, each house picks by its own
 colour from a palette (fine: cream, ochre, pale grey, pale green, pale pink, white; worn: dingier). The
 picture's index and the paint ride in a UV layer (`Mat`, in the game `gmat`), as a second colour layer broke the
 export. GPU memory: 13 x 512 x 512 x 4 bytes = 13.6 MB, about 18 MB with mipmaps.
-Codex made the clinker, the roughcast and the speklagen; for the rest it answered 401 (its login), twice, so
-`tools/textures/wall_variants.py` made them from the Codex pictures (see `assets/ATTRIBUTION.md`). They should be
-redone with Codex once its login works.
+Codex made the clinker, the roughcast and the speklagen; the other seven stood in from a script while Codex was
+out of reach, and Codex made them the same day (below, "Codex wall pictures").
 
 **More in 3D** (near-only):
 - fine and good fronts: taller rusticated quoins (9 cm proud), a stone plinth on the piers, a bluestone step before
@@ -513,8 +512,8 @@ door, the north lane; St James' tower door through the square's mouth, the squar
   are flattened (60 % of it a far mip), and `houseGrime.ts` draws the weathering: soft stains, long and ragged,
   running down; the existing runs under the sills and streaks, the damp rising at the foot; and on a worn house
   (wear over 0.55) plaster fallen off in a few ragged holes with a hard edge, a light broken rim and a shadow under
-  the lip, most of them low on the wall. The limewash picture (`wall_variants.py`) keeps its wash but for a few
-  small places. Before `b14_back`, `ch3_mist16_j_in`; now `f2_back`, `f2_back_close`, `f4_mist16_back`.
+  the lip, most of them low on the wall. The limewash picture of that day kept its wash but for a few small places
+  (since replaced by Codex's, below). Before `b14_back`, `ch3_mist16_j_in`; now `f2_back`, `f2_back_close`, `f4_mist16_back`.
 - The bared party walls: old brick (the brick picture, unpainted) and the ghost of the house pulled down
   (`build_city.py ghost_marks`, `gone_along`): a thin film of its rooms' plaster up to its eaves and gable, a dark
   line along its roof and each floor, the soot of its flue and a fireplace's on every floor, scraps of wallpaper
@@ -524,3 +523,35 @@ door, the north lane; St James' tower door through the square's mouth, the squar
 - Church lanterns: above. Night shots `f4_n21_*`.
 Checks: `signs()` 1,554 things, 0 problems; `paths()` lists only 10 places inside the Carolus (its interior,
 another part's work in progress, not these squares); z-fight 272 visible house fights (269 before), none by the ghosts or lanterns (round the churches only the old plot overlaps); `npm run build` passes.
+
+### Codex wall pictures (2026-09-26)
+Codex back: the seven stand-ins made by Codex, one run at a time (parallel starts had broken its login), from the
+same prompts; each checked (the picture asked for, square, 1254 px) and tiled 2 x 2 (seamless: no seam to see; the
+brick bond and the ashlar courses run on). Saved at 1024 px under their old names, so the texture array keeps its
+order; the script that made the stand-ins is gone. Each tile's size in metres from its own courses (a brick course
+about 6.5 cm, a stone course 35 to 40 cm), in `houseGrime.ts WALL_PICS`. Rows in `assets/ATTRIBUTION.md`.
+
+The texture array's layers (`houseGrime.ts WALL_PICS`, `build_city.py WALL_LAYERS`; `client/public/textures/wall_<name>.jpg`),
+with the metres of one tile:
+
+| Layer | Picture | Tile | Made |
+|---|---|---|---|
+| 0 | brick_fine | 2.1 m | Codex, 2026-09-26 (this) |
+| 1 | brick | 1.9 m | Codex, the grime pass |
+| 2 | brick_clinker | 2.2 m | Codex, the districts pass |
+| 3 | speklagen | 2.5 m | Codex, the districts pass |
+| 4 | brick_yellow | 1.7 m | Codex (this) |
+| 5 | brick_yellow_old | 1.1 m | Codex (this) |
+| 6 | brick_white | 1.2 m | Codex (this) |
+| 7 | plaster_smooth | 3.0 m | Codex (this) |
+| 8 | plaster_rough | 2.5 m | Codex, the districts pass |
+| 9 | plaster | 3.0 m | Codex, the grime pass |
+| 10 | render | 3.0 m | Codex, the grime pass |
+| 11 | ashlar_sand | 2.7 m | Codex (this) |
+| 12 | ashlar_blue | 3.2 m | Codex (this) |
+
+Checks: `signs()` 1,554 things, 0 problems; `paths()` lists nothing; server tests 852 of 852; `npm run build`
+passes; no geometry changed (the z-fight check as before). Pictures, before (the stand-ins) and after, 13:00 clear,
+side by side: `data/shots/pair_codex_markt.jpg` and `pair_codex_markt_e.jpg` (the Grote Markt, both rows),
+`pair_codex_pil.jpg` (its fine fronts close), `pair_codex_row6.jpg` (a middling street), `pair_codex_hand.jpg`;
+in the mist `g1_mist16_markt`, `g1_mist16_row6`.
