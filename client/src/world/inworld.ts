@@ -83,6 +83,25 @@ export interface InWorldVisibility {
   rooms: Record<string, boolean>;
 }
 
+/**
+ * Every room is drawn with this many point lights (2026-09-26, the stutter): three.js builds a shader
+ * set for each light count, and with rooms of 2 to 9 lamps that was 7 sets, each built the first time
+ * its room came into view (up to 2 s of frozen game on Windows). The lamps a room does not have are
+ * filled up with lights at intensity 0: they add nothing to any pixel, so every room looks exactly as
+ * before, and all rooms share one set. A room may have at most this many lamps (docs/rendering.md).
+ */
+export const ROOM_POINT_LIGHTS = 10;
+
+/** A light is drawn when it and every parent up to its scene are visible. */
+function shownIn(o: THREE.Object3D, scene: THREE.Scene): boolean {
+  let p: THREE.Object3D | null = o;
+  while (p && p !== scene) {
+    if (!p.visible) return false;
+    p = p.parent;
+  }
+  return p === scene;
+}
+
 const corners = Array.from({ length: 8 }, () => new THREE.Vector3());
 const tmp = new THREE.Vector3();
 const frustum = new THREE.Frustum();
@@ -148,6 +167,52 @@ export class InWorld {
 
   add(room: InWorldRoom): void {
     this.rooms.push(room);
+    this.evenLights(room, true);
+  }
+
+  /** Every room (the shader warm-up in main.ts builds their shaders before they are seen). */
+  get all(): readonly InWorldRoom[] {
+    return this.rooms;
+  }
+
+  private readonly pads = new Map<InWorldRoom, { pads: THREE.PointLight[]; lamps: THREE.PointLight[]; scanned: number; warned: boolean }>();
+
+  /**
+   * Fill the room's point lights up to ROOM_POINT_LIGHTS with dark ones (see there). Its own lamps are
+   * looked for again at most once a second (a room may add or hide a lamp as it loads or by the hour).
+   */
+  evenLights(room: InWorldRoom, rescan = false): void {
+    let e = this.pads.get(room);
+    if (!e) {
+      const group = new THREE.Group();
+      group.name = "room light pads";
+      const pads: THREE.PointLight[] = [];
+      for (let i = 0; i < ROOM_POINT_LIGHTS; i++) {
+        const l = new THREE.PointLight(0x000000, 0, 1, 2);
+        l.position.set(0, -999, 0);
+        pads.push(l);
+        group.add(l);
+      }
+      room.scene.add(group);
+      e = { pads, lamps: [], scanned: -Infinity, warned: false };
+      this.pads.set(room, e);
+    }
+    const now = performance.now();
+    if (rescan || now - e.scanned > 1000) {
+      e.scanned = now;
+      e.lamps.length = 0;
+      const pads = e.pads;
+      room.scene.traverse((o) => {
+        if ((o as THREE.PointLight).isPointLight && !pads.includes(o as THREE.PointLight)) e.lamps.push(o as THREE.PointLight);
+      });
+    }
+    let n = 0;
+    for (const l of e.lamps) if (shownIn(l, room.scene)) n++;
+    if (n > ROOM_POINT_LIGHTS && !e.warned) {
+      e.warned = true;
+      console.warn(`[inworld] ${room.id} has ${n} lamps, more than ROOM_POINT_LIGHTS (${ROOM_POINT_LIGHTS}): its shaders are built apart`);
+    }
+    for (let i = 0; i < e.pads.length; i++) e.pads[i].visible = i < ROOM_POINT_LIGHTS - n;
   }
 
   /** Where the eye is (called each frame before drawing and by the game: the room Jef is in). */
@@ -235,6 +300,7 @@ export class InWorld {
       rect,
       before: () => {
         room.air(k, street);
+        this.evenLights(room);
         // the room's lamps glow in its air, not the street's gas lamps
         const slots = psxUniforms.uLamps.value;
         const lamps = room.lamps();

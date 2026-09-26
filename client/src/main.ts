@@ -18,6 +18,7 @@ import { BOARD_POS, DOSS_POS, RAMP, SPOTS, buildRijnkaai } from "./world/rijnkaa
 import { InWorld } from "./world/inworld";
 import { loadHousePlans } from "./world/houses";
 import { LanternLights } from "./world/lanternLights";
+import { ShaderWarmer } from "./world/warmup";
 import { FirstPerson } from "./player/firstPerson";
 import { Soundscape, type VehicleSound } from "./audio/soundscape";
 import { Jobs } from "./game/jobs";
@@ -829,6 +830,9 @@ function quayGoodsKeepClear(): void {
 function frame(): void {
   // the next frame first: an error below never stops the game (QA 2026-09-24: one throw froze it for good)
   requestAnimationFrame(frame);
+  const frameStart = real.now();
+  // the mouse moves after this one are the hand's again (see the end of the frame)
+  player.stalled = false;
   timer.update();
   const dt = Math.min(timer.getDelta(), 0.1);
   // M7 save and pause: paused, nothing moves; the picture stands (drawn again now and then: a resize)
@@ -954,14 +958,28 @@ function frame(): void {
     lanternLights.update(dt, player.camera, lanternDark());
   });
   // M7: every room stands in the world now (world/inworld.ts draws it through its openings)
-  retro.render(world.scene, player.camera, elapsed);
+  // (the first screen, while the shaders are built in the background: the picture holds, so the page
+  // does not stand still waiting for them; in the game it always draws)
+  if (started || !warmer.pending) retro.render(world.scene, player.camera, elapsed);
+  // a frame that hung: the mouse moves piled up meanwhile would turn the view in one jerk (player/firstPerson.ts)
+  player.stalled = real.now() - frameStart > 150;
   }
 requestAnimationFrame(frame);
 
-// Warm-up: once the city is in, send every house chunk and landmark to the GPU
-// and build every shader now, not the first time you walk up to them (that was
-// the stutter).
-world.city.ready.then(() => {
+// Warm-up (2026-09-26, the stutter; world/warmup.ts, docs/rendering.md): every shader is built in the
+// background before it is drawn, in the street and in every room; now, when the city is in, and twice
+// a second for what comes later (the town, the market, the houses' rooms). Then, once the city's
+// shaders are ready, one draw of everything sends every house chunk and texture to the GPU.
+const warmer = new ShaderWarmer(renderer, world.scene, player.camera, () => retro.target, inWorld);
+const warm = () =>
+  warmer.warm().catch((e) => {
+    if (!frameErrors.has(`warm-up: ${e}`)) console.warn("[warm-up]", e);
+    frameErrors.add(`warm-up: ${e}`);
+  });
+void warm();
+setInterval(() => void warm(), 500);
+world.city.ready.then(async () => {
+  await warm();
   const hidden: THREE.Object3D[] = [];
   // M7: each mesh gets its own frustumCulled back (it was set true on all, also on those that must not be culled)
   const culled = new Map<THREE.Object3D, boolean>();
@@ -975,7 +993,6 @@ world.city.ready.then(() => {
       o.frustumCulled = false;
     }
   });
-  renderer.compile(world.scene, player.camera);
   // M7: the warm-up draws everything, so the culler stands aside for it
   const culling = cull.enabled;
   cull.enabled = false;
@@ -1239,6 +1256,30 @@ if (import.meta.env.DEV) {
       cam.quaternion.copy(keep.q);
       const r = await fetch("/api/dev/shot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, url }) });
       return r.ok ? `data/shots/${name}.jpg` : `failed ${r.status}`;
+    },
+    /**
+     * Shaders (2026-09-26, the stutter; docs/rendering.md): how many, in which light settings, and
+     * `problems`, which must be empty: the street is one light setting and all rooms are one more;
+     * no scene material drawn straight to the screen (a second, sRGB set of shaders).
+     */
+    shaders() {
+      const sets: Record<string, number> = {};
+      const screen: string[] = [];
+      const MESH = ["basic", "lambert", "phong", "standard", "physical", "toon", "matcap", "sprite", "points"];
+      for (const p of renderer.info.programs ?? []) {
+        const k = p.cacheKey.split(",");
+        const i = k.findIndex((v) => v === "highp" || v === "mediump" || v === "lowp");
+        if (i < 0) continue;
+        if (k[i + 1] !== "srgb-linear" && MESH.includes(k[0])) screen.push(p.name || k[0]);
+        if (!["lambert", "phong", "standard", "physical", "toon"].includes(k[0])) continue;
+        // three.js's program key (WebGLPrograms.getProgramCacheKeyParameters), counted from the precision
+        const set = `dir ${k[i + 33]}, point ${k[i + 34]}, hemi ${k[i + 37]}, point shadows ${k[i + 41]}`;
+        sets[set] = (sets[set] ?? 0) + 1;
+      }
+      const problems: string[] = [];
+      if (Object.keys(sets).length > 2) problems.push(`${Object.keys(sets).length} light settings (the street and the rooms should be 2): a room over ROOM_POINT_LIGHTS, or street lights that come and go`);
+      if (screen.length) problems.push(`${screen.length} scene shaders drawn to the screen, not into the retro target: ${screen.slice(0, 8).join(", ")}`);
+      return { programs: renderer.info.programs?.length ?? 0, lightSettings: sets, warmer: { ...warmer.stats, pending: warmer.pending }, problems };
     },
     /** Time n frames with the GPU finished each frame; draw calls and triangles of one frame. */
     perf(n = 30) {

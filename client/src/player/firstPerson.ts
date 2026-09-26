@@ -18,6 +18,8 @@ const HURRY = 3.4;
 const RADIUS = 0.32;
 const STEP_LEN = 0.72; // metres per footstep
 const TURN_SENS = 0.0019;
+/** A single mouse move this big (px) that comes out of a calm hand is a browser mistake (see the mousemove handler). */
+const SPIKE = 250;
 const SWIM = 1.0; // m/s, heavy clothes in cold water
 const SWIM_FAST = 1.6; // Shift: a hard crawl, soon tiring; no faster than a brisk walk
 const SWIM_FEET = 1.45; // feet this far under the surface while you swim
@@ -136,6 +138,12 @@ export class FirstPerson {
   private lastStepSide = 0;
   private lookYaw = this.yaw;
   private lookPitch = this.pitch;
+  /** The mouse (see the mousemove handler): when the lock came, the size of the recent moves. */
+  private lockedAt = -Infinity;
+  private recentMove = 0;
+  private recentAt = 0;
+  /** The last frame hung (main.ts): the mouse moves until the next frame are dropped. */
+  stalled = false;
 
   constructor(
     private readonly world: World,
@@ -150,12 +158,24 @@ export class FirstPerson {
     });
     window.addEventListener("keyup", (e) => this.keys.delete(e.code));
     window.addEventListener("blur", () => this.keys.clear());
-    document.addEventListener("pointerlockchange", () => {
+    document.addEventListener("pointerlockchange", (e) => {
       this.locked = document.pointerLockElement === this.dom;
       if (!this.locked) this.keys.clear();
+      this.lockedAt = e.timeStamp;
     });
+    // The look follows the hand, not the browser's mistakes (2026-09-26, "the mouse jerks to a direction"):
+    //  - just after the lock the browser moves the hidden cursor itself: those first moves are not the hand's;
+    //  - after a frame that hung (main.ts sets `stalled`), the moves piled up meanwhile come at once: dropped;
+    //  - Chrome on Windows now and then reports one move far bigger than the ones round it: dropped. A real
+    //    flick grows over several moves, so only a lone jump is left out (its size is still remembered).
     document.addEventListener("mousemove", (e) => {
       if (!this.locked) return;
+      const m = Math.hypot(e.movementX, e.movementY);
+      const before = this.recentMove * Math.exp(-Math.max(0, e.timeStamp - this.recentAt) / 150);
+      this.recentMove = Math.max(m, before);
+      this.recentAt = e.timeStamp;
+      if (e.timeStamp - this.lockedAt < 100 || this.stalled) return;
+      if (m > SPIKE && m > 5 * Math.max(before, 20)) return;
       this.yaw -= e.movementX * TURN_SENS;
       this.pitch -= e.movementY * TURN_SENS;
       this.pitch = Math.max(-1.35, Math.min(1.35, this.pitch));

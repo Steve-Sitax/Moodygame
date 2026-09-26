@@ -13,6 +13,7 @@ Read `docs/README.md` first. Every design decision is in `docs/`. Do not re-ask 
 - Browser checks follow `docs/testing.md`: a copy of the save (`node tools/teststack.mjs start`), a good view (midday, clear), make things happen with the test kit (`__scheldemist.t`) instead of waiting, clean up after.
 - Bound every model call with a timeout (20 s) and a fallback line.
 - Third-party assets and packages enter only with a clear licence, noted in `assets/ATTRIBUTION.md`.
+- No stutter (Steve, 2026-09-26): anything that draws follows `docs/rendering.md`. Light counts never change at run time (dim with intensity 0), rooms keep at most `ROOM_POINT_LIGHTS` lamps, nothing is drawn straight to the screen, no new shader kinds without need. After a change to materials, lights or rooms, run `__scheldemist.shaders()` in the test tab; `problems` must be empty.
 - Always make sure there is a path (Steve, 2026-09-23): every place, person and goal a job or the player needs must be reachable on foot. Run the path check (`__scheldemist.paths()` in dev) in the browser before a milestone ends; it must list nothing.
 - Commit when a milestone is done, and after each batch of fixes Steve has checked in the browser. Steve gave standing approval (2026-09-23): no need to ask first. Commit only work that builds (`npm run build`). Never commit secrets or `.claude/`. Push to `origin` (github.com/Steve-Sitax/Moodygame, private) after each commit: Steve's standing OK, 2026-09-23.
 

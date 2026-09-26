@@ -78,7 +78,8 @@ jumps the server's clock on and ticks once, and the stages it passes are played.
 | `save("slot1", name?)`, `load("slot1")`, `saves()`, `capture()` | M7: save into a slot (`slot1`..`slot5`, or `"auto"`): the game pauses while the server waits for the model calls on their way; load one (the page reloads: wait, then `free(true)` and `const t = __scheldemist.t` again); the list; the browser's part of a save as it would be written now. Test save only. |
 
 Also still there: `__scheldemist.paths()` (must be `[]` before a milestone ends), `await __scheldemist.zfight()`
-(faces in one plane that flicker, by cause; the houses list 4 small ones, see M3c pass 5), `perf(n)`,
+(faces in one plane that flicker, by cause; the houses list 4 small ones, see M3c pass 5),
+`__scheldemist.shaders()` (the shaders and their light settings; `problems` must be empty, see rendering.md), `perf(n)`,
 `step(s)`, `shotFrom(name, from, to, fogFar)`, and each part's `info()` (`events`, `ballads`, `actions` ...).
 Server dev routes: `POST /api/dev/set {day, hour, minute, weather, food ...}` (sets the hands only: no date
 turns), `/api/dev/advance {minutes}` (M7 night: as the game moves the clock, midnight included), `/api/dev/job`,
