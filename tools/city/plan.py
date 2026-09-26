@@ -505,6 +505,11 @@ def walk_map(city, houses, backs, landmarks):
         hw = b["width"] / 2 - 0.1
         deck = Polygon([(fx - uz * hw, fz + ux * hw), (tx - uz * hw, tz + ux * hw), (tx + uz * hw, tz - ux * hw), (fx + uz * hw, fz - ux * hw)])
         solid = paint(solid, [ring_of(p) for p in pieces(pond.difference(deck))] + park["solids"])
+    # the park pass (2026-09-26, tools/city/park.py --plants -> client/public/models/park_plants.json): the trunks,
+    # the shrubs, the hedge inside the railing and the flower beds are wall
+    plants = park_plants_data()
+    if plants:
+        solid = paint(solid, plants["solids"])
     # M7 prison and squares (tools/city/places.py -> shared/townplaces.json): the prison's compound, the greens'
     # railings, the benches, the trunks, the fountain, the kiosk and the urinal are wall, cell by cell
     tp = townplaces()
@@ -534,6 +539,12 @@ def walk_map(city, houses, backs, landmarks):
 def townplaces():
     """M7 prison and squares: shared/townplaces.json (tools/city/places.py), or None."""
     path = os.path.join(ROOT, "shared", "townplaces.json")
+    return json.load(open(path)) if os.path.exists(path) else None
+
+
+def park_plants_data():
+    """The Stadspark's planting and own ground (client/public/models/park_plants.json, tools/city/park.py), or None."""
+    path = os.path.join(ROOT, "client", "public", "models", "park_plants.json")
     return json.load(open(path)) if os.path.exists(path) else None
 
 
@@ -696,6 +707,12 @@ def ground_zones(city, houses, landmarks):
         pond = Polygon(park["pond"]).buffer(0.1, join_style=2)
         land = land.difference(pond)
         earth, flags, grass, quay = earth.difference(pond), flags.difference(pond), grass.difference(pond), quay.difference(pond)
+        # the park pass (2026-09-26): inside the railing the park lays its own ground (lawn, gravel, muddy edges,
+        # the beds: park_plants.json "ground", world/parkNature.ts); the paths' thresholds outside the gates stay earth
+        if park_plants_data():
+            inside_park = Polygon(park["outline"]).buffer(0)
+            land = land.difference(inside_park)
+            earth, flags, grass, quay = (z.difference(inside_park) for z in (earth, flags, grass, quay))
     # M7 prison and squares (shared/townplaces.json, tools/city/places.py): the greens' lawns are grass and their
     # walks packed earth (gravel); the prison's compound is packed earth (its yards; the buildings stand on it);
     # the round square's disc has no zone ground: world/places.ts lays its own (pavement, setts in rings, island)

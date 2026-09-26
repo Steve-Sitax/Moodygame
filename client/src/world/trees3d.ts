@@ -41,16 +41,23 @@ function pick(list: Array<[string, number]>, r: number): string {
   return list[list.length - 1][0];
 }
 
-const swayGlsl = (leaf: boolean) => /* glsl */ `#include <begin_vertex>
+const swayGlsl = (leaf: boolean, merged: boolean) => /* glsl */ `#include <begin_vertex>
 {
-  #ifdef USE_INSTANCING
+  ${
+    merged
+      ? // (a merged mesh in world space, the park's plants: each vertex knows its plant's foot, aTreeAt)
+        `vec3 treeAt = aTreeAt;
+  float footY = aTreeAt.y;`
+      : `#ifdef USE_INSTANCING
   vec3 treeAt = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
   #else
   vec3 treeAt = vec3(0.0);
   #endif
+  float footY = 0.0;`
+  }
   float ph = treeAt.x * 0.21 + treeAt.z * 0.17;
   float wind = 0.55 + 0.45 * uSea;
-  float hh = max(transformed.y - 2.0, 0.0);
+  float hh = max(transformed.y - footY - 2.0, 0.0);
   float bend = hh * hh * 0.0011 * wind;
   float g = sin(uTime * 0.83 + ph) + 0.45 * sin(uTime * 2.07 + ph * 1.7);
   transformed.x += g * bend;
@@ -64,14 +71,18 @@ const swayGlsl = (leaf: boolean) => /* glsl */ `#include <begin_vertex>
   }
 }`;
 
-/** psx() plus the wind; leaves also keep their normal on the back face. */
-function treeMaterial<T extends THREE.Material>(mat: T, leaf: boolean): T {
+/**
+ * psx() plus the wind; leaves also keep their normal on the back face. `merged` (the park's plants, world/parkNature.ts):
+ * the plants are one mesh in world space, and an attribute aTreeAt gives each vertex its plant's foot.
+ */
+export function treeMaterial<T extends THREE.Material>(mat: T, leaf: boolean, merged = false): T {
   psx(mat, { affine: 0 });
   const base = mat.onBeforeCompile;
   const key = mat.customProgramCacheKey;
   mat.onBeforeCompile = (shader, renderer) => {
     base.call(mat, shader, renderer);
-    shader.vertexShader = shader.vertexShader.replace("#include <begin_vertex>", swayGlsl(leaf));
+    if (merged) shader.vertexShader = "attribute vec3 aTreeAt;\n" + shader.vertexShader;
+    shader.vertexShader = shader.vertexShader.replace("#include <begin_vertex>", swayGlsl(leaf, merged));
     if (leaf) {
       shader.fragmentShader = shader.fragmentShader.replace(
         "#include <normal_fragment_begin>",
@@ -79,11 +90,11 @@ function treeMaterial<T extends THREE.Material>(mat: T, leaf: boolean): T {
       );
     }
   };
-  mat.customProgramCacheKey = () => key.call(mat) + (leaf ? "-treeleaf" : "-treebark");
+  mat.customProgramCacheKey = () => key.call(mat) + (leaf ? "-treeleaf" : "-treebark") + (merged ? "-merged" : "");
   return mat;
 }
 
-function crisp(t: THREE.Texture | null): void {
+export function crisp(t: THREE.Texture | null): void {
   if (!t) return;
   t.magFilter = THREE.NearestFilter;
   t.minFilter = THREE.NearestFilter;
@@ -193,62 +204,77 @@ export async function buildTrees3D(
   }
 
   // falling leaves: small diamonds that drift and turn on their way down
-  const n = spots.length * FALLING_PER_TREE;
-  if (n) {
-    const leafGeo = new THREE.BufferGeometry();
-    leafGeo.setAttribute("position", new THREE.Float32BufferAttribute([0, -0.05, 0, 0.035, 0, 0, 0, 0.05, 0, -0.035, 0, 0], 3));
-    leafGeo.setAttribute("normal", new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1], 3));
-    leafGeo.setIndex([0, 1, 2, 0, 2, 3]);
-    const leafMat = psx(new THREE.MeshLambertMaterial({ side: THREE.DoubleSide }), { affine: 0 });
-    leafMat.name = "trees_falling";
-    const fall = new THREE.InstancedMesh(leafGeo, leafMat, n);
-    fall.name = "trees_falling";
-    fall.frustumCulled = false;
-    const cols = [0xc89a30, 0xa8541c, 0x7a4f22, 0xd0b048, 0x8a6a2a];
-    const drops = Array.from({ length: n }, (_, i) => {
-      const s = spots[Math.floor(i / FALLING_PER_TREE)];
-      const r = (k: number) => hash(s.x + i * 0.37, s.z, 10 + k);
-      fall.setColorAt(i, new THREE.Color(cols[Math.floor(r(0) * cols.length)]));
-      return {
-        x: s.x,
-        z: s.z,
-        y0: baseAt(s.x, s.z),
-        top: s.kind === "tree_willow" ? 4 : 7 + r(1) * 2,
-        rad: 0.6 + r(2) * 2.4,
-        a0: r(3) * Math.PI * 2,
-        speed: 0.35 + r(4) * 0.3,
-        phase: r(5),
-        spin: 1.5 + r(6) * 2.5,
-      };
-    });
-    if (fall.instanceColor) fall.instanceColor.needsUpdate = true;
-    const e = new THREE.Euler();
-    const pos = new THREE.Vector3();
-    const one = new THREE.Vector3(1, 1, 1);
-    let last = -1;
-    fall.onBeforeRender = () => {
-      const t = psxUniforms.uTime.value;
-      if (t === last) return; // the mirrors draw the scene too: once a frame is enough
-      last = t;
-      const wind = 0.55 + 0.45 * psxUniforms.uSea.value;
-      for (let i = 0; i < n; i++) {
-        const d = drops[i];
-        const life = d.top / d.speed; // seconds to fall
-        const f = (t / life + d.phase) % 1;
-        const y = d.top * (1 - f);
-        const a = d.a0 + f * 2.2;
-        const sway = Math.sin(t * 1.3 + i) * 0.5 * wind;
-        pos.set(d.x + Math.cos(a) * d.rad + sway + f * 1.5 * wind, d.y0 + y + 0.03, d.z + Math.sin(a) * d.rad + Math.cos(t * 1.1 + i) * 0.3);
-        e.set(t * d.spin + i, t * d.spin * 0.7, Math.sin(t * 2 + i) * 0.8);
-        q.setFromEuler(e);
-        m4.compose(pos, q, one);
-        fall.setMatrixAt(i, m4);
-      }
-      fall.instanceMatrix.needsUpdate = true;
-    };
+  const fall = fallingLeaves(
+    spots.map((s) => ({ x: s.x, z: s.z, y0: baseAt(s.x, s.z), top: s.kind === "tree_willow" ? 4 : 7 })),
+    FALLING_PER_TREE,
+  );
+  if (fall) {
     scene.add(fall);
     meshes.push(fall);
   }
 
   return { kinds: spots.map((s) => s.kind), meshes };
+}
+
+/**
+ * Leaves falling from trees: small diamonds that drift and turn on their way down, `per` a tree, one draw call.
+ * `top`: how high they start (m over the tree's foot, plus up to 2 m). Null when there are none.
+ */
+export function fallingLeaves(trees: Array<{ x: number; z: number; y0: number; top: number; spread?: number }>, per: number): THREE.InstancedMesh | null {
+  const n = trees.length * per;
+  if (!n) return null;
+  const leafGeo = new THREE.BufferGeometry();
+  leafGeo.setAttribute("position", new THREE.Float32BufferAttribute([0, -0.05, 0, 0.035, 0, 0, 0, 0.05, 0, -0.035, 0, 0], 3));
+  leafGeo.setAttribute("normal", new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1], 3));
+  leafGeo.setIndex([0, 1, 2, 0, 2, 3]);
+  const leafMat = psx(new THREE.MeshLambertMaterial({ side: THREE.DoubleSide }), { affine: 0 });
+  leafMat.name = "trees_falling";
+  const fall = new THREE.InstancedMesh(leafGeo, leafMat, n);
+  fall.name = "trees_falling";
+  fall.frustumCulled = false;
+  const cols = [0xc89a30, 0xa8541c, 0x7a4f22, 0xd0b048, 0x8a6a2a];
+  const drops = Array.from({ length: n }, (_, i) => {
+    const s = trees[Math.floor(i / per)];
+    const r = (k: number) => hash(s.x + i * 0.37, s.z, 10 + k);
+    fall.setColorAt(i, new THREE.Color(cols[Math.floor(r(0) * cols.length)]));
+    return {
+      x: s.x,
+      z: s.z,
+      y0: s.y0,
+      top: s.top + r(1) * 2,
+      rad: (0.6 + r(2) * 2.4) * (s.spread ?? 1),
+      a0: r(3) * Math.PI * 2,
+      speed: 0.35 + r(4) * 0.3,
+      phase: r(5),
+      spin: 1.5 + r(6) * 2.5,
+    };
+  });
+  if (fall.instanceColor) fall.instanceColor.needsUpdate = true;
+  const e = new THREE.Euler();
+  const pos = new THREE.Vector3();
+  const one = new THREE.Vector3(1, 1, 1);
+  const q = new THREE.Quaternion();
+  const m4 = new THREE.Matrix4();
+  let last = -1;
+  fall.onBeforeRender = () => {
+    const t = psxUniforms.uTime.value;
+    if (t === last) return; // the mirrors draw the scene too: once a frame is enough
+    last = t;
+    const wind = 0.55 + 0.45 * psxUniforms.uSea.value;
+    for (let i = 0; i < n; i++) {
+      const d = drops[i];
+      const life = d.top / d.speed; // seconds to fall
+      const f = (t / life + d.phase) % 1;
+      const y = d.top * (1 - f);
+      const a = d.a0 + f * 2.2;
+      const sway = Math.sin(t * 1.3 + i) * 0.5 * wind;
+      pos.set(d.x + Math.cos(a) * d.rad + sway + f * 1.5 * wind, d.y0 + y + 0.03, d.z + Math.sin(a) * d.rad + Math.cos(t * 1.1 + i) * 0.3);
+      e.set(t * d.spin + i, t * d.spin * 0.7, Math.sin(t * 2 + i) * 0.8);
+      q.setFromEuler(e);
+      m4.compose(pos, q, one);
+      fall.setMatrixAt(i, m4);
+    }
+    fall.instanceMatrix.needsUpdate = true;
+  };
+  return fall;
 }

@@ -28,9 +28,11 @@ churchyard and a sacristy at St James). Nothing but roof eaves and cornices reac
   church_stjacob  Sint-Jacobskerk (Brabant Gothic, 1491-1656): the great square west tower, never
                   finished, with its lantern; nave, aisles, chapels, transept, choir with an
                   ambulatory; a churchyard wall
-  park            the Stadspark (1867-69): the pond (a stone rim, the water at y -0.35, material
-                  park_water), a timber footbridge over its narrow waist, benches, park lanterns,
-                  the iron railing on a stone kerb with three openings toward the streets
+  park            the Stadspark (1867-69): the pond (a bank of earth and stones, the water at y -0.35,
+                  material park_water) with a small island, Keilig's iron suspension footbridge (1869,
+                  white, its ends in rocaille) over its narrow waist, benches and park lanterns along
+                  the gravel paths (decor.park.lines, tools/city/park.py), the iron railing on a stone
+                  kerb with three openings toward the streets
   pump            a cast-iron town pump on a stone base with a stone trough
 
 Materials (a small texture each, painted below, nearest filter; vertex colour "Col" carries the
@@ -39,7 +41,8 @@ shade: darker at the foot and in reveals):
   church_slate, church_lead (domes, bulbs, flat roofs), church_atlas (windows with their tracery,
   doors, louvres, niches with statues, the IHS medallion, clock faces; each opening maps one cell),
   park_stone (blue-grey stone), park_water, park_iron (drawn double-sided: the railing's pickets are
-  single faces), park_wood, park_lamp_glow (lantern glass: the game draws it bright).
+  single faces), park_wood, park_lamp_glow (lantern glass: the game draws it bright), park_bank (the
+  pond's earth bank and the island), park_rock (rocaille and bank stones), park_iron_white (the bridge).
 One texture scale per tiling material (TILE); atlas cells are fitted per opening.
 
 No two faces in one plane: where two masses meet, the one behind has no face there; relief (bands,
@@ -52,6 +55,7 @@ runs on the exported glb (it prints any pair it finds).
 import json
 import math
 import os
+import random
 import sys
 
 import bmesh
@@ -68,15 +72,16 @@ SHOTS = os.path.join(ROOT, "data", "shots")
 
 MATS = ["church_stone", "church_greystone", "church_brick", "church_slate", "church_lead", "church_atlas",
         "park_stone", "park_water", "park_iron", "park_wood", "park_lamp_glow",
-        "carolus_sand", "carolus_blue", "carolus_art", "church_gilt", "carolus_pale", "pj_brick", "pj_white", "pj_brabant"]
+        "carolus_sand", "carolus_blue", "carolus_art", "church_gilt", "carolus_pale", "pj_brick", "pj_white", "pj_brabant",
+        "park_bank", "park_rock", "park_iron_white"]
 (STONE, GREY, BRICK, SLATE, LEAD, ATLAS, PSTONE, WATER, IRON, WOOD, GLOW, SAND, BLUE, ART, GILT, PALE, PBRICK, PWHITE,
- PBRAB) = range(len(MATS))
+ PBRAB, BANK, ROCK, WIRON) = range(len(MATS))
 # metres per texture repeat (u, v); carolus_sand and carolus_blue take pictures in the game (world/churches.ts:
 # client/public/textures/carolus_sandstone.jpg, carolus_bluestone.jpg), one repeat each
 TILE = {STONE: (2.4, 2.4), GREY: (2.4, 2.4), BRICK: (2.4, 1.8), SLATE: (1.6, 1.6), LEAD: (0.8, 0.8), ATLAS: (1.0, 1.0),
         PSTONE: (1.2, 1.2), WATER: (2.0, 2.0), IRON: (1.0, 1.0), WOOD: (1.2, 1.2), GLOW: (1.0, 1.0),
         SAND: (3.6, 3.6), BLUE: (3.0, 3.0), ART: (1.0, 1.0), GILT: (0.6, 0.6), PALE: (1.2, 1.2),
-        PBRICK: (2.0, 2.0), PWHITE: (3.2, 3.2), PBRAB: (3.4, 3.4)}
+        PBRICK: (2.0, 2.0), PWHITE: (3.2, 3.2), PBRAB: (3.4, 3.4), BANK: (1.6, 1.6), ROCK: (1.4, 1.4), WIRON: (1.0, 1.0)}
 ART_DIR = os.path.join(ROOT, "tools", "blender", "art")
 
 SEG = 4.0  # longest face edge on walls and roofs (the game's textures swim on big faces)
@@ -311,7 +316,8 @@ def paint_water(rng, n=32):
     yy, xx = np.mgrid[0:n, 0:n]
     rip = np.sin((yy + 3 * nz * 4) * 2 * math.pi / 8)
     img *= (0.85 + 0.25 * nz)[..., None]
-    img[rip > 0.85] = C(0.24, 0.30, 0.29)
+    # the park pass (2026-09-26): still pond water shows its ripples faintly (they were bright bands)
+    img[rip > 0.9] = C(0.17, 0.23, 0.22)
     return img
 
 
@@ -329,6 +335,56 @@ def paint_wood(rng, n=64):
         img[b * 8:(b + 1) * 8] = col
         img[b * 8] = col * 0.45
     img *= (0.82 + 0.3 * grain)[..., None]
+    return img
+
+
+def paint_bank(rng, n=64):
+    """The pond's bank (the park pass, 2026-09-26): wet dark earth trodden by ducks, tufts of grass, a few
+    fallen leaves and pebbles."""
+    nz = noise2(rng, n, n, 6, 6)
+    fine = noise2(rng, n, n, 24, 24)
+    img = np.ones((n, n, 3)) * C(0.23, 0.19, 0.14)
+    img *= (0.8 + 0.35 * nz * (0.7 + 0.3 * fine))[..., None]
+    grass = (nz > 0.52) & (rng.random((n, n)) < 0.55)
+    img[grass] = C(0.26, 0.31, 0.15) * rng.uniform(0.75, 1.2, (int(grass.sum()), 1))
+    for _ in range(26):  # grass blades: short upright strokes (v up the bank)
+        x, y = int(rng.integers(0, n)), int(rng.integers(0, n))
+        for k in range(int(rng.integers(2, 5))):
+            img[(y + k) % n, x % n] = C(0.34, 0.38, 0.18) * rng.uniform(0.8, 1.15)
+    for _ in range(14):  # leaves: yellow, rust
+        x, y = int(rng.integers(0, n - 2)), int(rng.integers(0, n - 2))
+        col = [C(0.62, 0.45, 0.14), C(0.52, 0.26, 0.10), C(0.40, 0.28, 0.13)][int(rng.integers(0, 3))]
+        img[y:y + 2, x:x + 2] = col
+    for _ in range(18):  # pebbles
+        x, y = int(rng.integers(0, n)), int(rng.integers(0, n))
+        img[y, x] = C(0.46, 0.44, 0.40) * rng.uniform(0.8, 1.1)
+    return speckle(img, rng, 0.08, 0.7, 0.95)
+
+
+def paint_rock(rng, n=64):
+    """Artificial rock (rocaille): lumps of rough grey-brown stone with dark cracks, lichen and soot."""
+    big = noise2(rng, n, n, 5, 5)
+    mid = noise2(rng, n, n, 11, 11)
+    fine = noise2(rng, n, n, 32, 32)
+    img = np.ones((n, n, 3)) * C(0.43, 0.41, 0.37)
+    img *= (0.72 + 0.34 * big + 0.12 * fine)[..., None]
+    crack = np.abs(mid - 0.5) < 0.035
+    img[crack] *= 0.45
+    lich = (big > 0.62) & (fine > 0.45)
+    img[lich] = img[lich] * 0.5 + C(0.44, 0.47, 0.33) * 0.5
+    moss = (big < 0.3) & (fine > 0.5)
+    img[moss] = img[moss] * 0.45 + C(0.20, 0.26, 0.12) * 0.55
+    return speckle(img, rng, 0.1, 0.7, 1.1)
+
+
+def paint_iron_white(rng, n=32):
+    """Iron painted white in 1869, four winters of coal smoke on it: off-white, grey soot, rust at the joints."""
+    img = np.ones((n, n, 3)) * C(0.74, 0.73, 0.69)
+    img *= (0.8 + 0.25 * noise2(rng, n, n, 4, 4))[..., None]
+    soot = noise2(rng, n, n, 3, 8) > 0.62
+    img[soot] *= 0.72
+    rust = rng.random((n, n)) < 0.03
+    img[rust] = C(0.45, 0.28, 0.16)
     return img
 
 
@@ -910,6 +966,10 @@ def make_materials():
         "pj_brick": lambda: paint_brick(rng),
         "pj_white": lambda: paint_ashlar(rng, 128, C(0.80, 0.78, 0.74), C(0.66, 0.64, 0.60), 14, 24, 44),
         "pj_brabant": lambda: paint_ashlar(rng, 128, C(0.66, 0.62, 0.55), C(0.54, 0.51, 0.46), 12, 22, 46, streaks=0.1),
+        # the park pass (2026-09-26): a new generator each, so the older textures above stay as they were
+        "park_bank": lambda: paint_bank(np.random.default_rng(1868)),
+        "park_rock": lambda: paint_rock(np.random.default_rng(1869)),
+        "park_iron_white": lambda: paint_iron_white(np.random.default_rng(1870)),
     }
     for name in MATS:
         arr = np.clip(paint[name](), 0, 1)
@@ -930,7 +990,7 @@ def make_materials():
         if name.endswith("_glow"):
             nt.links.new(t.outputs["Color"], bsdf.inputs["Emission Color"])
             bsdf.inputs["Emission Strength"].default_value = 1.0
-        m.use_backface_culling = name != "park_iron"
+        m.use_backface_culling = name not in ("park_iron", "park_iron_white")
 
 
 # ------------------------------------------------------------------ geometry store
@@ -3581,6 +3641,9 @@ def park(g, city):
     N_, off = offsets(PV, True, 1 if area2(pond) > 0 else -1)
     at_wall = [on_line(PV[j]) and on_line(PV[(j + 1) % npd]) for j in range(npd)]
     outer = [PV[j] + off[j] * RIM for j in range(npd)]
+    # the bank's lip over the water: 3 to 8 cm over it, a little up and down (the water lies at -0.35)
+    BANK_TOP = 0.012
+    bank_y = [-0.32 + 0.05 * (0.5 + 0.5 * math.sin(j * 0.9) * math.cos(j * 0.37 + 1.3)) for j in range(npd)]
     wall_touch = []
     for j in range(npd):
         j2 = (j + 1) % npd
@@ -3603,9 +3666,13 @@ def park(g, city):
                 else:
                     b, c = e_, e_ + n_ * RIM
                 wall_touch.append(PV[idx])
-        g.face([(a.x, RY, a.y), (b.x, RY, b.y), (c.x, RY, c.y), (d.x, RY, d.y)], PSTONE, out=(0, 1, 0))
-        g.face([(d.x, -0.2, d.y), (c.x, -0.2, c.y), (c.x, RY, c.y), (d.x, RY, d.y)], PSTONE, out=(n_.x, 0, n_.y))
-        g.face([(a.x, -1.0, a.y), (b.x, -1.0, b.y), (b.x, RY, b.y), (a.x, RY, a.y)], PSTONE, out=(-n_.x, 0, -n_.y), floor=-0.35)
+        # the park pass (2026-09-26): a natural bank of trodden earth and grass sloping from the lawn (the
+        # rim's outer edge, a hair over the ground) down to a muddy lip over the water, as Keilig gave the old
+        # moat a soft, winding edge; stones and reeds on it here and there (the stones below, the reeds in the game)
+        ya, yb = bank_y[j], bank_y[j2]
+        g.face([(a.x, ya, a.y), (b.x, yb, b.y), (c.x, BANK_TOP, c.y)], BANK, out=(0, 1, 0), k=1.3)
+        g.face([(a.x, ya, a.y), (c.x, BANK_TOP, c.y), (d.x, BANK_TOP, d.y)], BANK, out=(0, 1, 0), k=1.3)
+        g.face([(a.x, -1.0, a.y), (b.x, -1.0, b.y), (b.x, yb, b.y), (a.x, ya, a.y)], BANK, out=(-n_.x, 0, -n_.y), shade=0.4)
     for y, mat, sh in ((-0.35, WATER, 0.95), (-1.0, PSTONE, 0.3)):
         for j in range(npd):
             j2 = (j + 1) % npd
@@ -3643,7 +3710,38 @@ def park(g, city):
                 best = t
         return best
 
-    solids = {"railing": [], "piers": [], "benches": [], "lanterns": [], "bridge_rails": []}
+    solids = {"railing": [], "piers": [], "benches": [], "lanterns": [], "bridge_rails": [], "rocks": []}
+
+    def rock(c, r, h, y0, seed, sides=7):
+        """A lump of rough stone (rocaille, or a stone on the bank): jittered rings narrowing to a crown."""
+        rr = random.Random(seed)
+        sq = rr.uniform(0.75, 1.0)
+        ca, sa_ = math.cos(rr.uniform(0, math.pi)), math.sin(rr.uniform(0, math.pi))
+        rings = [(1.0, 0.0), (1.08, 0.3), (0.9, 0.62), (0.55, 0.9)]
+        h = min(h, 1.35 * r)
+        R_ = []
+        for fr, fy in rings:
+            ring_ = []
+            for k_ in range(sides):
+                a_ = 2 * math.pi * (k_ + rr.uniform(-0.25, 0.25)) / sides
+                rad = r * fr * rr.uniform(0.82, 1.18)
+                dx, dz = math.cos(a_) * rad, math.sin(a_) * rad
+                u_, v_ = (dx * ca + dz * sa_) * sq, -dx * sa_ + dz * ca  # squashed along a random direction
+                dx, dz = u_ * ca - v_ * sa_, u_ * sa_ + v_ * ca
+                ring_.append(Vector((c[0] + dx, y0 + h * fy + rr.uniform(-0.06, 0.06) * h, c[1] + dz)))
+            R_.append(ring_)
+        apex = Vector((c[0] + rr.uniform(-0.15, 0.15) * r, y0 + h, c[1] + rr.uniform(-0.15, 0.15) * r))
+        ctr = Vector((c[0], y0 + h * 0.45, c[1]))
+        tris_ = []
+        for ra, rb in zip(R_, R_[1:]):
+            for k_ in range(sides):
+                a_, b_, c_, d_ = ra[k_], ra[(k_ + 1) % sides], rb[(k_ + 1) % sides], rb[k_]
+                tris_ += [(a_, b_, c_), (a_, c_, d_)]
+        for k_ in range(sides):
+            tris_.append((R_[-1][k_], R_[-1][(k_ + 1) % sides], apex))
+        for tri in tris_:
+            fc = sum(tri, Vector()) / 3
+            g.face([tuple(v) for v in tri], ROCK, out=tuple(fc - ctr), k=1.15)
 
     def orect(c, t, hl, hw):
         c, t = Vector(c), Vector(t).normalized()
@@ -3677,36 +3775,111 @@ def park(g, city):
             q = e0 + bdir * sv + nn * off
             return (q.x, y, q.y)
 
+        # the park pass (2026-09-26): Keilig's footbridge of 1869 is an iron suspension bridge, painted white,
+        # its ends set in masses of artificial rock (rocaille). The planks and the walk over them stay as they
+        # were (park.json deck: rijnkaai.ts walks on it); iron stringers, pylons, the chains, the hangers and a
+        # light iron railing replace the timber posts and rails; nothing stands in the water.
         for sa, sb in zip(st, st[1:]):
             ya, yb = ytop(sa), ytop(sb)
             g.face([pt(sa, -HW, ya), pt(sb, -HW, yb), pt(sb, HW, yb), pt(sa, HW, ya)], WOOD, out=(0, 1, 0))
             g.face([pt(sa, -HW, ya - 0.14), pt(sb, -HW, yb - 0.14), pt(sb, HW, yb - 0.14), pt(sa, HW, ya - 0.14)], WOOD, out=(0, -1, 0), k=0.5)
             for sg in (-1, 1):
-                g.face([pt(sa, sg * HW, ya - 0.14), pt(sb, sg * HW, yb - 0.14), pt(sb, sg * HW, yb), pt(sa, sg * HW, ya)], WOOD,
-                       out=(nn.x * sg, 0, nn.y * sg), k=0.8)
+                g.face([pt(sa, sg * HW, ya - 0.16), pt(sb, sg * HW, yb - 0.16), pt(sb, sg * HW, yb + 0.02), pt(sa, sg * HW, ya + 0.02)], WIRON,
+                       out=(nn.x * sg, 0, nn.y * sg), shade=0.8)
         for sv, sg in ((0.0, -1), (span, 1)):
             y = ytop(sv)
             g.face([pt(sv, -HW, y - 0.14), pt(sv, HW, y - 0.14), pt(sv, HW, y), pt(sv, -HW, y)], WOOD, out=(bdir.x * sg, 0, bdir.y * sg))
-        posts = [0.25, wA, wA + (wB - wA) / 3, wA + 2 * (wB - wA) / 3, wB, span - 0.25]
+        ROFF = HW + 0.07  # the railing, the hangers and the chains: just outside the deck's edge
+        pA, pB = wA - 0.2, wB + 0.2  # the pylons, on the bank at each end
+        PT = ytop(wA) + 2.3  # the pylons' tops
+        smid = (pA + pB) / 2
+        ymid = ytop(smid) + 1.06
+
+        def chain_y(sv):
+            if sv <= pA:
+                return 0.6 + (PT - 0.6) * (sv + 0.7) / (pA + 0.7)
+            if sv >= pB:
+                return 0.6 + (PT - 0.6) * (span + 0.7 - sv) / (span + 0.7 - pB)
+            u = (sv - smid) / (pB - smid)
+            return ymid + (PT - ymid) * u * u
+
+        def rail_y(sv):
+            x = min(max(sv, 0.0), span)
+            for k_ in range(len(st) - 1):
+                if st[k_] <= x <= st[k_ + 1]:
+                    f_ = (x - st[k_]) / (st[k_ + 1] - st[k_])
+                    return ytop(st[k_]) + (ytop(st[k_ + 1]) - ytop(st[k_])) * f_
+            return ytop(x)
+
+        # rocaille: a mass of artificial rock on each side of each end, where the chains are anchored
+        anchor = {}
+        for e_, sgn in ((e0, 1), (e1, -1)):
+            for sg in (-1, 1):
+                # beside the straight approach to the bridge (tools/city/park.py APPROACH: 2.2 m of gravel), 1.2 m back
+                # from the ramp's foot, clear of the gravel (the park check) and of the water
+                cc = e_ - bdir * sgn * 1.2 + nn * sg * (1.1 + 0.3 + 0.85)
+                for _ in range(30):  # back from the water (the waist's banks curve away beside the bridge)
+                    if not inside((cc.x, cc.y), pond) and poly_dist((cc.x, cc.y), pond) >= 1.05:
+                        break
+                    cc = cc - bdir * sgn * 0.12
+                anchor[(sgn, sg)] = cc
+                seed = int(abs(cc.x * 13.1 + cc.y * 7.7))
+                rock((cc.x, cc.y), 0.85, 1.2, -0.1, seed)
+                for off_, r_, h_, k_ in (((0.6, -0.55), 0.6, 0.7, 1), ((-0.05, -0.8), 0.5, 0.45, 2)):
+                    q = cc + nn * sg * off_[0] + bdir * sgn * off_[1]
+                    if not inside((q.x, q.y), pond) and poly_dist((q.x, q.y), pond) >= r_ + 0.2:
+                        rock((q.x, q.y), r_, h_, -0.1, seed + k_)
+                rc = cc + nn * sg * 0.3 - bdir * sgn * 0.35
+                solids["rocks"].append(orect((rc.x, rc.y), bdir, 1.3, 1.2))
         for sg in (-1, 1):
-            tops = []
-            for sv in posts:
-                y = ytop(sv)
-                bot = min(-0.95, y - 0.2) if wA < sv < wB else y - 0.3
-                if sv <= 0.3 or sv >= span - 0.3:
-                    bot = -0.2
-                base = pt(sv, sg * (HW + 0.06), 0)
-                bar(g, (base[0], bot, base[2]), (base[0], y + 1.0, base[2]), 0.1, WOOD, k=0.85)
-                tops.append((base, y))
-            for (pa, ya), (pb, yb) in zip(tops, tops[1:]):
-                # each rail from post to post, its ends inside the posts (the rails do not meet)
-                for dy, w_, h_ in ((0.97, 0.07, 0.06), (0.5, 0.05, 0.05)):
-                    A_ = Vector((pa[0], ya + dy, pa[2]))
-                    B_ = Vector((pb[0], yb + dy, pb[2]))
-                    t_ = (B_ - A_).normalized()
-                    bar(g, A_ + t_ * 0.03, B_ - t_ * 0.03, w_, WOOD, h=h_, k=0.9)
+            # the pylons: a square iron post with a cap and a ball
+            for sv in (pA, pB):
+                base = pt(sv, sg * (ROFF + 0.04), 0)
+                bar(g, (base[0], -0.1, base[2]), (base[0], PT, base[2]), 0.13, WIRON, shade=0.9)
+                q = 0.1
+                pyramid(g, [(base[0] - q, PT, base[2] - q), (base[0] + q, PT, base[2] - q), (base[0] + q, PT, base[2] + q),
+                            (base[0] - q, PT, base[2] + q)], (base[0], PT + 0.12, base[2]), WIRON, shade=0.9)
+                lathe(g, (base[0], PT + 0.1, base[2]), [(0.0, 0.0), (0.06, 0.03), (0.075, 0.09), (0.05, 0.15), (0.0, 0.17)], 6, WIRON, shade=0.9)
+            # the chain: from its anchor in the rock over the pylon, down in a curve to the middle and up again
+            ss = [pA + (pB - pA) * k_ / 14 for k_ in range(0, 15)]
+            for sa, sb in zip(ss, ss[1:]):
+                bar(g, pt(sa, sg * ROFF, chain_y(sa)), pt(sb, sg * ROFF, chain_y(sb)), 0.05, WIRON, h=0.075, shade=0.85)
+            for sv, key in ((pA, (1, sg)), (pB, (-1, sg))):
+                a_ = anchor[key]
+                bar(g, pt(sv, sg * ROFF, PT - 0.05), (a_.x, 0.85, a_.y), 0.05, WIRON, h=0.075, shade=0.85)
+            # the hangers: from the chain down to the deck's edge
+            k_n = int((pB - pA) / 0.48)
+            for k_ in range(1, k_n):
+                sv = pA + (pB - pA) * k_ / k_n
+                top = chain_y(sv) - 0.03
+                bot = ytop(sv) - 0.12
+                if top - bot > 0.15:
+                    b_ = pt(sv, sg * ROFF, 0)
+                    bar(g, (b_[0], bot, b_[2]), (b_[0], top, b_[2]), 0.022, WIRON, shade=0.85)
+            # the railing: a handrail and a middle rail along the deck, a newel at each end
+            rs = [0.18] + [x for x in st if 0.18 < x < span - 0.18] + [span - 0.18]
+            for sa, sb in zip(rs, rs[1:]):
+                for dy, w_ in ((0.93, 0.045), (0.48, 0.03)):
+                    bar(g, pt(sa, sg * ROFF, rail_y(sa) + dy), pt(sb, sg * ROFF, rail_y(sb) + dy), w_, WIRON, shade=0.85)
+            for sv in (0.18, span - 0.18):
+                b_ = pt(sv, sg * ROFF, 0)
+                y_ = rail_y(sv)
+                bar(g, (b_[0], y_ - 0.2, b_[2]), (b_[0], y_ + 1.0, b_[2]), 0.075, WIRON, skip_ends=True, shade=0.9)
+                lathe(g, (b_[0], y_ + 1.0, b_[2]), [(0.0, 0.0), (0.05, 0.02), (0.06, 0.07), (0.0, 0.12)], 6, WIRON, shade=0.9)
             c = e0 + bdir * (span / 2) + nn * sg * (HW + 0.06)
             solids["bridge_rails"].append(orect((c.x, c.y), bdir, span / 2, 0.08))
+        # an arch of iron over the walk between the pylons at each end, a bar under it
+        for sv in (pA, pB):
+            Lf, Rt = Vector(pt(sv, -(ROFF + 0.04), 0)), Vector(pt(sv, ROFF + 0.04, 0))
+            prev = None
+            for k_ in range(9):
+                f_ = k_ / 8
+                q = Lf.lerp(Rt, f_)
+                cur_ = (q.x, PT - 0.12 + 0.28 * math.sin(math.pi * f_), q.z)
+                if prev:
+                    bar(g, prev, cur_, 0.05, WIRON, h=0.07, shade=0.88)
+                prev = cur_
+            bar(g, (Lf.x, PT - 0.42, Lf.z), (Rt.x, PT - 0.42, Rt.z), 0.035, WIRON, shade=0.85)
         bridge = {"from": [round(e0.x, 3), round(e0.y, 3)], "to": [round(e1.x, 3), round(e1.y, 3)], "width": 2 * HW,
                   "deck": [[round(sv, 3), round(ytop(sv), 3)] for sv in st]}
     # ---- railing on a stone kerb, piers at the openings
@@ -3832,73 +4005,172 @@ def park(g, city):
             return False
         return True
 
+    # ---- the park pass (2026-09-26): benches and lanterns along the gravel paths (decor.park.lines and rounds,
+    # tools/city/park.py), stones on the bank, the little island in the west pond
+    PK_ = city["decor"]["park"]
+    plines = [([Vector(q) for q in L_["pts"]], L_["w"]) for L_ in PK_.get("lines", [])]
+    rounds = [(Vector(r_[:2]), r_[2]) for r_ in PK_.get("rounds", [])]
+
+    def path_edge(p):
+        """How far p is from the nearest gravel (negative on it)."""
+        d = 1e9
+        for pts_, w_ in plines:
+            for a_, b_ in zip(pts_, pts_[1:]):
+                d = min(d, seg_dist((p.x, p.y), (a_.x, a_.y), (b_.x, b_.y)) - w_ / 2)
+        for c_, r_ in rounds:
+            d = min(d, (p - c_).length - r_)
+        return d
+
+    def spot_ok(p, clear_edge=1.2):
+        q = (p.x, p.y)
+        if not inside(q, ring) or poly_dist(q, ring) < clear_edge or not off_stairs(q, 2.0):
+            return False
+        if inside(q, pond_outer) or poly_dist(q, pond_outer) < 0.9:
+            return False
+        if bridge and seg_dist(q, bridge["from"], bridge["to"]) < 2.6:
+            return False
+        return all(not inside(q, r_) and poly_dist(q, r_) >= 0.8 for r_ in solids["rocks"])
+
+    def along(pts_, step):
+        """Points every `step` metres along a polyline, with the unit tangent there: (s, point, tangent)."""
+        out_, acc_, nxt_ = [], 0.0, 0.0
+        for a_, b_ in zip(pts_, pts_[1:]):
+            L_ = (b_ - a_).length
+            if L_ < 1e-6:
+                continue
+            t_ = (b_ - a_) / L_
+            while nxt_ <= acc_ + L_:
+                out_.append((nxt_, a_ + t_ * (nxt_ - acc_), t_))
+                nxt_ += step
+            acc_ += L_
+        return out_, acc_
+
     placed = []
     lamp_at = []
+    # a lantern inside each gate
     for i, s, w in openings:
         a, b = Vector(ring[i]), Vector(ring[(i + 1) % n])
         t = (b - a).normalized()
         inw = Vector((-t.y, t.x)) if ccw else Vector((t.y, -t.x))
         for sg in (1, -1):
             c = a + t * (s + sg * (w / 2 + 0.2)) + inw * 1.3
-            if inside((c.x, c.y), ring) and poly_dist((c.x, c.y), pond_outer) > 2:
-                lamp_at.append((c.x, c.y))
+            if inside((c.x, c.y), ring) and poly_dist((c.x, c.y), pond_outer) > 2 and off_stairs((c.x, c.y), 1.5) and path_edge(c) >= 0.25:
+                lamp_at.append(Vector((c.x, c.y)))
                 break
-    if bridge:
-        e0, e1 = Vector(bridge["from"]), Vector(bridge["to"])
-        bd = (e1 - e0).normalized()
-        nn = Vector((-bd.y, bd.x))
-        for e, sg in ((e0, 1), (e1, -1)):
-            c = e + bd * sg * 0.4 + nn * 1.45
-            lamp_at.append((c.x, c.y))
-    lamp_at = [c for c in lamp_at if off_stairs(c, 1.5)]
-    for c in lamp_at:
-        lantern(c)
-        placed.append(Vector(c))
-    # benches round the pond, facing it
+    # benches: beside a path, facing across it, where the pond lies beyond (the view is what a bench is for)
     cands = []
-    for k in range(0, 360, 6):
-        th = math.radians(k)
-        d = Vector((math.cos(th), math.sin(th)))
-        for cen, r in ((cA, rA), (cB, rB)):
-            dist = ray_hit(cen, d, pond_outer)
-            if dist is None:
+    for li, (pts_, w_) in enumerate(plines):
+        pts_s, L_ = along(pts_, 1.0)
+        for s_, q, t_ in pts_s:
+            if s_ < 2.5 or s_ > L_ - 2.5:
                 continue
-            q = cen + d * (dist + 2.3)
-            if ok((q.x, q.y)) and poly_dist((q.x, q.y), pond_outer) > 1.9:
-                cands.append((q, -d))
+            for sg in (-1, 1):
+                nv = Vector((-t_.y, t_.x)) * sg
+                c = q + nv * (w_ / 2 + 0.62)
+                if not spot_ok(c) or path_edge(c) < 0.5 or min(path_edge(c + t_ * 1.05), path_edge(c - t_ * 1.05)) < 0.3:
+                    continue
+                hit = ray_hit(c, -nv, pond_outer)
+                view = 2.0 if hit is not None and hit < 16 else 0.0
+                cands.append((view + 0.2 * math.sin(li * 3.1 + s_ * 0.7), c, -nv))
+    cands.sort(key=lambda x: -x[0])
     chosen = []
-    while cands and len(chosen) < 4:
-        if not chosen:
-            pick = max(cands, key=lambda c: (c[0] - p0).length)
-        else:
-            pick = max(cands, key=lambda c: min((c[0] - o).length for o in [x[0] for x in chosen] + placed))
-        if chosen and min((pick[0] - o).length for o in [x[0] for x in chosen] + placed) < 6:
+    for sc, c, f in cands:
+        if len(chosen) >= 9:
             break
-        chosen.append(pick)
-        cands.remove(pick)
-    for q, f in chosen:
-        bench((q.x, q.y), (f.x, f.y))
-    # two more along the railing, facing into the park
-    runs_by_len = sorted(((sum((b - a).length for a, b in zip(r, r[1:])), r) for r in runs), key=lambda x: -x[0])
-    for L, run in runs_by_len[:2]:
-        acc = 0.0
-        for a, b in zip(run, run[1:]):
-            l = (b - a).length
-            if acc + l >= L / 2:
-                t = (b - a).normalized()
-                inw = Vector((-t.y, t.x)) if ccw else Vector((t.y, -t.x))
-                q = a + t * (L / 2 - acc) + inw * 1.5
-                if inside((q.x, q.y), ring) and poly_dist((q.x, q.y), pond_outer) > 2.5 and off_stairs((q.x, q.y), 3.5) and \
-                        min((q - o).length for o in placed + [x[0] for x in chosen]) > 3.0:
-                    bench((q.x, q.y), (inw.x, inw.y))
+        if any((c - o).length < 12.0 for o, _ in chosen) or any((c - o).length < 3.0 for o in lamp_at):
+            continue
+        chosen.append((c, f))
+    # and one at the round place by the wall, looking across it over the west pond
+    for c_, r_ in rounds:
+        u_ = (Vector((cA.x, cA.y)) - c_).normalized()
+        chosen.append((c_ - u_ * (r_ + 0.75), u_))  # (on the grass behind the round's rim: nothing on the gravel)
+    for c, f in chosen:
+        bench((c.x, c.y), (f.x, f.y))
+        placed.append(c)
+    # lanterns: along the paths about every 15 m, now on one side, now on the other
+    for li, (pts_, w_) in enumerate(plines):
+        pts_s, L_ = along(pts_, 1.0)
+        sg = 1 if li % 2 else -1
+        last = -1e9
+        for s_, q, t_ in pts_s:
+            if s_ - last < 15.0 or s_ < 4.0 or s_ > L_ - 2.0:
+                continue
+            for side in (sg, -sg):
+                c = q + Vector((-t_.y, t_.x)) * side * (w_ / 2 + 0.4)
+                if not spot_ok(c, 1.0) or path_edge(c) < 0.25:
+                    continue
+                if any((c - o).length < 9.0 for o in lamp_at) or any((c - o).length < 3.0 for o in placed):
+                    continue
+                lamp_at.append(c)
+                last = s_
+                sg = -side
                 break
-            acc += l
+    for c in lamp_at:
+        lantern((c.x, c.y))
+        placed.append(c)
+    # stones on the bank, in stretches (not where the water runs up to the wall, not under the bridge)
+    srng = random.Random(1869)
+    nstones = 0
+    for j in range(npd):
+        if at_wall[j] or at_wall[j - 1]:
+            continue
+        stretch = 0.5 + 0.5 * math.sin(j * 0.41 + 0.3) * math.cos(j * 0.23 + 0.7)
+        if stretch < 0.5 or srng.random() > 0.65:
+            continue
+        q = PV[j] + off[j] * srng.uniform(0.0, 0.3)
+        if bridge and seg_dist((q.x, q.y), bridge["from"], bridge["to"]) < 1.6:
+            continue
+        rock((q.x, q.y), srng.uniform(0.16, 0.34), srng.uniform(0.22, 0.42), bank_y[j] - 0.16, 500 + j)
+        nstones += 1
+    # the island (Keilig's pond had one): a low mound of earth and grass where the west pond is widest,
+    # a few stones round it; the game plants a young willow and reeds on it
+    best = None
+    xs_, zs_ = [p[0] for p in pond], [p[1] for p in pond]
+    for x_ in np.arange(min(xs_), max(xs_), 0.5):
+        for z_ in np.arange(min(zs_), max(zs_), 0.5):
+            if not inside((x_, z_), pond):
+                continue
+            if bridge and seg_dist((x_, z_), bridge["from"], bridge["to"]) < 7.0:
+                continue
+            d_ = poly_dist((x_, z_), pond)
+            if best is None or d_ > best[0]:
+                best = (d_, Vector((x_, z_)))
+    island = None
+    if best and best[0] > 5.0:
+        ic = best[1]
+        IR = min(2.6, best[0] * 0.32)
+        irng = random.Random(1870)
+        iax = Vector((cB.x - cA.x, cB.y - cA.y)).normalized()
+        iny = Vector((-iax.y, iax.x))
+        prof = [(1.45, -0.8), (1.12, -0.36), (1.0, -0.28), (0.82, 0.02), (0.55, 0.16), (0.25, 0.24)]
+        NS = 12
+        jit = [irng.uniform(0.85, 1.15) for _ in range(NS)]
+        R_ = []
+        for fr, y_ in prof:
+            R_.append([ic + (iax * math.cos(2 * math.pi * k_ / NS) * 1.35 + iny * math.sin(2 * math.pi * k_ / NS)) * IR * fr * jit[k_]
+                       for k_ in range(NS)])
+        for ri in range(len(prof) - 1):
+            for k_ in range(NS):
+                a_, b_ = R_[ri][k_], R_[ri][(k_ + 1) % NS]
+                c_, d_ = R_[ri + 1][(k_ + 1) % NS], R_[ri + 1][k_]
+                ya_, yb_ = prof[ri][1], prof[ri + 1][1]
+                g.face([(a_.x, ya_, a_.y), (b_.x, ya_, b_.y), (c_.x, yb_, c_.y)], BANK, out=(a_.x - ic.x, 0.6, a_.y - ic.y), k=1.3)
+                g.face([(a_.x, ya_, a_.y), (c_.x, yb_, c_.y), (d_.x, yb_, d_.y)], BANK, out=(a_.x - ic.x, 0.6, a_.y - ic.y), k=1.3)
+        top = R_[-1]
+        for k_ in range(NS):
+            a_, b_ = top[k_], top[(k_ + 1) % NS]
+            g.face([(a_.x, 0.24, a_.y), (b_.x, 0.24, b_.y), (ic.x, 0.27, ic.y)], BANK, out=(0, 1, 0), k=1.3)
+        for k_ in range(0, NS, 2):
+            q = R_[2][k_]
+            rock((q.x, q.y), irng.uniform(0.18, 0.3), irng.uniform(0.25, 0.4), -0.45, 900 + k_)
+        island = {"c": [round(ic.x, 3), round(ic.y, 3)], "r": round(IR, 3), "ax": [round(iax.x, 4), round(iax.y, 4)], "k": 1.35,
+                  "top": 0.27, "land": [[round(q.x, 3), round(q.y, 3)] for q in R_[3]]}
     info = {
         "about": "Stadspark furniture (tools/blender/build_churches.py -> churches.glb, object 'park'). World x, z. "
                  "Rects are 4 corners. Solid for the walk map: railing (the stone kerb under the iron railing), piers, "
                  "benches, lanterns, bridge_rails, and the pond (its rim's outer edge) except the bridge deck, which "
                  "is walked on: deck = [distance from 'from', y of the planks]. The grass is drawn by the game; cut "
-                 "the pond out of it (the water lies at water_y, the rim's top at rim_y). water = the water's own edge. water_wall = the two "
+                 "the pond out of it (the water lies at water_y; the rim is a bank of earth sloping from rim_y at its outer edge down to the water). water = the water's own edge. rocks = the rocaille at the bridge's ends. island = the mound in the west pond (c, r, its axis ax stretched k, top y, land = its edge at the ground's height). water_wall = the two "
                  "ends of the stretch of the wall's town face (decor.rampart.inner_line) the water runs up to: no rim there, "
                  "the water stops 0.05 m off the face.",
         "outline": [[round(x, 3), round(z, 3)] for x, z in ring],
@@ -3909,15 +4181,16 @@ def park(g, city):
         "water": [[round(x, 3), round(z, 3)] for x, z in pond],
         "water_wall": touch,
         "water_y": -0.35,
-        "rim_y": RY,
+        "rim_y": BANK_TOP,
         "bridge": bridge,
+        "island": island,
         **solids,
-        "solids": [r for k in ("railing", "piers", "benches", "lanterns", "bridge_rails") for r in solids[k]],
+        "solids": [r for k in ("railing", "piers", "benches", "lanterns", "bridge_rails", "rocks") for r in solids[k]],
     }
     # nothing of the park may stand in or over the water but the footbridge (its planks, posts, rails)
     wet = []
     for pts_, _, _, mat_ in g.groups.get("park", []):
-        if mat_ in (WATER, WOOD) or max(p_.y for p_ in pts_) < 0.3:
+        if mat_ in (WATER, WOOD, WIRON) or max(p_.y for p_ in pts_) < 0.3:
             continue
         cx_ = sum(p_.x for p_ in pts_) / len(pts_)
         cz_ = sum(p_.z for p_ in pts_) / len(pts_)
@@ -3927,7 +4200,8 @@ def park(g, city):
                   if any(inside(tuple(q_), pond) for q_ in r_) or inside((sum(q_[0] for q_ in r_) / 4, sum(q_[1] for q_ in r_) / 4), pond)]
     print(f"[build_churches] park parts over the water: {len(wet)} faces {wet[:5]}, solids {wet_solids}")
     stats = {"water_wall": touch, "rail_m": round(rail_len, 1), "benches": len(solids["benches"]), "lanterns": len(solids["lanterns"]),
-             "openings": len(openings), "bridge": bridge is not None}
+             "openings": len(openings), "bridge": bridge is not None, "rocks": len(solids["rocks"]), "bank_stones": nstones,
+             "island": island and island["c"]}
     return info, stats, ring, pond_outer
 
 

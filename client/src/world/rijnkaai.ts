@@ -7,6 +7,7 @@ import SPOT_TABLE from "../../../shared/spots.json";
 import { steenHeightAt, steenKeepOut } from "./steenramp";
 import { buildCountryside } from "./countryside";
 import { loadChurches, parkBridgeHeight, poortKeepOut, pumpColliders } from "./churches";
+import { loadParkNature } from "./parkNature";
 import { loadPrison } from "./prison"; // M7 prison and squares
 import { loadTownPlaces } from "./townplaces"; // M7 prison and squares
 import { frontFloor as carolusFloor, frontSolids as carolusSolids } from "../../../shared/carolusPlan";
@@ -511,6 +512,8 @@ export function buildRijnkaai(): World {
   const guards = wallGuards(scene, (x, z) => rampartHeightAt(x, z) ?? 0);
   // the churches of the angled streets, the Stadspark, the pumps of the alleys' courts (world/churches.ts)
   const churches = loadChurches(scene);
+  // the Stadspark planted: trees, shrubs, hedge, reeds, its own ground, ducks and swans (world/parkNature.ts)
+  const parkNature = loadParkNature(scene);
   // M7 prison and squares: the prison of 1855 on the wall street (world/prison.ts, tools/blender/build_prison.py)
   const prison = loadPrison(scene);
   // M7 prison and squares: the Sint-Jansplein and the greens (world/townplaces.ts)
@@ -1759,6 +1762,7 @@ export function buildRijnkaai(): World {
       wall.update(camera, fog.far, lampsLit);
       guards.update(dt, camera);
       churches.update(camera, fog.far);
+      parkNature.update(camera, fog.far);
       prison.update(camera, fog.far, lampsLit); // M7 prison and squares
       townPlaces.update(camera, fog.far);
     }

@@ -437,7 +437,10 @@ function makeBackTown(seed: number, places: Record<string, TownPlace>, residents
   // the park's gravel paths, a point every 6 m or so on free ground: the way the strollers walk
   const parkRoute: Pt[] = [];
   const PARK_PATHS = ((CITY as unknown as { decor: { park?: { paths?: Pt[][] } } }).decor.park?.paths ?? []) as Pt[][];
-  for (const path of PARK_PATHS)
+  // (the park pass, 2026-09-26: the paths' middle lines, tools/city/park.py, where there are: a point on the gravel's
+  // edge may lie a hand's breadth from a bench or the hedge)
+  const PARK_LINES = ((CITY as unknown as { decor: { park?: { lines?: Array<{ pts: Pt[] }> } } }).decor.park?.lines ?? []).map((l) => l.pts);
+  for (const path of PARK_LINES.length ? PARK_LINES : PARK_PATHS)
     for (const q of path) {
       if (parkRoute.length && D(parkRoute[parkRoute.length - 1], q) < 6) continue;
       if (standable(q[0], q[1], 0.5)) parkRoute.push([r1(q[0]), r1(q[1])]);

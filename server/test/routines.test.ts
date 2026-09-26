@@ -93,7 +93,10 @@ const outside = (db: Db, r: Resident) => !whereIs(db, r).indoors;
 function scene(db: Db, trust = 3) {
   const docks = people(db).filter((x) => x.trade === "docker" && x.age >= 20 && x.age <= 50 && outside(db, x));
   const runner = docks[0];
-  const other = docks.find((x) => x.id !== runner.id && Math.hypot(whereIs(db, x).x - whereIs(db, runner).x, whereIs(db, x).z - whereIs(db, runner).z) > 20)!;
+  // (another docker within a short walk: the errands' tests want a round the runner can make; the town's layout moves
+  // people about, so "the next one more than 20 m off" once was across the dock, 360 m away)
+  const near = (x: Resident) => Math.hypot(whereIs(db, x).x - whereIs(db, runner).x, whereIs(db, x).z - whereIs(db, runner).z);
+  const other = docks.find((x) => x.id !== runner.id && near(x) > 20 && near(x) < 150) ?? docks.find((x) => x.id !== runner.id && near(x) > 20)!;
   setStats(db, runner.id, { warmth: 6, temper: 4, honesty: 6, courage: 6, greed: 4, wealth: 1, piety: 4 });
   setStats(db, other.id, { warmth: 7, temper: 3 });
   setTrust(db, runner.id, trust);
