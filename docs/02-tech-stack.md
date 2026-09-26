@@ -74,6 +74,10 @@ Change the table, not the game. Every `ai_call` row records the provider and the
 GPT Sol (`gpt-6-sol`) is wired in (`MODELS.sol`) but routes no hook: it was slower than Opus here (median 12.8 s) and
 flatter. It held all 35 hostile lines.
 
+The AI setup (2026-09-26, `docs/ai-setup.md`) sits above this table: the player picks an AI per kind of work
+(Claude through the login or an API key, Codex, any OpenAI-compatible server, Ollama, or none) or walk-around mode
+with no AI at all. Its default, "Recommended mix", is this table; with no `data/ai-config.json` nothing changes.
+
 Router rules:
 - Hooks that can hold the player's typed words (`PLAYER_TEXT_HOOKS`) go only to Claude, whatever the table says, unless
   `CODEX_PLAYER_TEXT` is turned on. It is off.
@@ -114,3 +118,5 @@ That is a later step. Nothing in the design blocks it. The AI module is one file
 ## Not chosen
 - Unity or Godot web export. Heavier, slower to iterate, and the AI plumbing is easier in TypeScript.
 - Direct Anthropic API SDK with an API key. Faster and leaner per call. Steve asked for local Claude. Kept as plan B. See 08-open-questions.
+  Since 2026-09-26 a player can choose Claude with an API key in the AI setup (`docs/ai-setup.md`); it is a plain
+  `fetch` to the Messages API in `server/src/ai/http.ts` (no new package), like the OpenAI-compatible and Ollama adapters.

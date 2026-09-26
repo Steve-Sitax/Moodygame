@@ -5,12 +5,16 @@ import { z } from "zod";
 import { AI_CWD, CALLS_PER_DAY, CLAUDE, MODELS, ROUTE_DEFAULT, type Provider } from "../config.ts";
 import type { DB } from "../db.ts";
 import { codexRunner, killTree } from "./codex.ts";
-import { routeFor, type Route } from "./router.ts";
+import { anthropicRunner, ollamaRunner, openaiRunner } from "./http.ts";
+import { resolveRoute, type Route } from "./router.ts";
+import { scrubKeys } from "./setup.ts";
 import { callBegan, callEnded, holdResult, waitToStart } from "../save/gate.ts";
 
 // One way to call a model: no tools, our own system prompt, JSON schema output. docs/02 and docs/03.
 // The router (router.ts, MODEL_ROUTE in config.ts) picks the model per hook: Claude through the
-// local login and the Agent SDK, or GPT Sol through the Codex CLI (codex.ts). Every call is
+// local login and the Agent SDK, or GPT Sol through the Codex CLI (codex.ts). The AI setup
+// (setup.ts, docs/ai-setup.md) can pick another provider per kind of work (an Anthropic API key, an
+// OpenAI-compatible server, Ollama: http.ts), or no model at all: walk-around mode. Every call is
 // logged in ai_call with its provider and model.
 
 export interface CallResult<T> {
@@ -39,19 +43,38 @@ export type Runner = (req: { system: string; prompt: string; jsonSchema: Record<
 const offline: Runner = async () => {
   throw new Error("no live model under the tests");
 };
-const liveRunner = (p: Provider): Runner => (process.env.VITEST ? offline : p === "claude" ? (x) => sdkRunner(x) : (x) => codexRunner(x));
-const providers: Record<Provider, Runner> = { claude: liveRunner("claude"), codex: liveRunner("codex") };
+const LIVE: Record<Provider, Runner> = {
+  claude: (x) => sdkRunner(x),
+  codex: (x) => codexRunner(x),
+  anthropic: (x) => anthropicRunner(x),
+  openai: (x) => openaiRunner(x),
+  ollama: (x) => ollamaRunner(x),
+};
+const liveRunner = (p: Provider): Runner => (process.env.VITEST ? offline : LIVE[p]);
+const providers: Record<Provider, Runner> = {
+  claude: liveRunner("claude"),
+  codex: liveRunner("codex"),
+  anthropic: liveRunner("anthropic"),
+  openai: liveRunner("openai"),
+  ollama: liveRunner("ollama"),
+};
 export function setProviderRunner(p: Provider, r: Runner | null): void {
   providers[p] = r ?? liveRunner(p);
 }
 
 const inFlight = new Map<string, Promise<void>>();
 
+/** The error of a call that was never made: walk-around mode, or "no AI" for the hook's kind. */
+export const NO_AI = "no AI (walk-around mode or hand-written for this kind)";
+
 export async function callClaude<S extends z.ZodType>(
   db: DB,
   req: CallRequest<S>,
   runner?: Runner,
 ): Promise<CallResult<z.infer<S>>> {
+  // AI setup (docs/ai-setup.md): no model for this hook, so no call at all. The caller has its
+  // fallback at once: no wait for the pause gate, no row in the day's budget, no runner.
+  if (resolveRoute(req.hook) === null) return { ok: false, error: NO_AI, ms: 0 };
   // M7 save and pause (save/gate.ts): no call starts while the game is paused, saving or loading;
   // it waits, and its limit only begins once it may start. A call in flight counts until its caller
   // has the answer; while paused the answer waits here, and the caller applies it after the unpause.
@@ -137,8 +160,11 @@ async function run<S extends z.ZodType>(
   // the claude CLI rejects the draft 2020-12 "$schema" tag, so drop it
   const { $schema: _drop, ...jsonSchema } = z.toJSONSchema(req.schema) as Record<string, unknown>;
   let lastError = "no attempt";
-  // the model for this hook; a stub runner (tests) stands in for whatever it picks
-  let route: Route = routeFor(req.hook);
+  // the model for this hook; a stub runner (tests) stands in for whatever it picks. Resolved again
+  // here: the settings may have turned the AI off while this call waited for the pause.
+  const picked = resolveRoute(req.hook);
+  if (picked === null) return { ok: false, error: NO_AI, ms: Date.now() - started };
+  let route: Route = picked;
 
   // schema failure gets one retry, if time is left (docs/03 guardrails)
   for (let attempt = 0; attempt < 2 && Date.now() < deadline - Math.min(2_000, timeoutMs / 10); attempt++) {
@@ -177,8 +203,9 @@ async function run<S extends z.ZodType>(
     }
     logCall(db, booked, route, Date.now() - t0, usage, false, lastError);
     if (abort.signal.aborted) break;
-    // GPT Sol broke (not there, logged out, used a tool): the retry goes to Claude
-    if (route.provider === "codex" && !lastError.startsWith("schema:")) route = { key: ROUTE_DEFAULT, ...MODELS[ROUTE_DEFAULT], overruled: "no_codex" };
+    // GPT Sol broke (not there, logged out, used a tool): the retry goes to Claude. Only in the
+    // recommended mix: a provider the player chose keeps its calls (it may have no Claude at all).
+    if (route.provider === "codex" && !route.chosen && !lastError.startsWith("schema:")) route = { key: ROUTE_DEFAULT, ...MODELS[ROUTE_DEFAULT], overruled: "no_codex" };
   }
   return { ok: false, error: lastError, ms: Date.now() - started };
 }
@@ -214,7 +241,33 @@ function logCall(
 
 function errText(e: unknown): string {
   const s = e instanceof Error ? e.message : String(e);
-  return s.slice(0, 500);
+  // never a key in the log or on screen (an HTTP provider may echo it back in an error)
+  return scrubKeys(s).slice(0, 500);
+}
+
+/**
+ * The AI setup's test button (ai/routes.ts): one call on a route, schema-checked, within the limit,
+ * aborted at it. Not a game call: it does not wait for the pause (the menu pauses the game), books no
+ * row in the day's budget, and takes no retry.
+ */
+export async function testCall<S extends z.ZodType>(route: Route, req: { system: string; prompt: string; schema: S }, timeoutMs = CLAUDE.timeoutMs): Promise<CallResult<z.infer<S>>> {
+  const started = Date.now();
+  const limit = Math.min(timeoutMs, CLAUDE.timeoutMs);
+  const { $schema: _drop, ...jsonSchema } = z.toJSONSchema(req.schema) as Record<string, unknown>;
+  const abort = new AbortController();
+  try {
+    const res = await beforeDeadline(
+      Promise.resolve().then(() => providers[route.provider]({ system: req.system, prompt: req.prompt, jsonSchema, signal: abort, model: route.model, effort: route.effort })),
+      started + limit,
+      () => abort.abort(),
+    );
+    if (res === TIMED_OUT) return { ok: false, error: `No answer within ${Math.round(limit / 1000)} seconds.`, ms: Date.now() - started };
+    const parsed = req.schema.safeParse(res.output);
+    if (!parsed.success) return { ok: false, error: "The answer did not fit the game's format: " + parsed.error.issues.map((i) => `${i.path.join(".")} ${i.message}`).join("; ").slice(0, 200), ms: Date.now() - started };
+    return { ok: true, data: parsed.data, ms: Date.now() - started };
+  } catch (e) {
+    return { ok: false, error: abort.signal.aborted ? `No answer within ${Math.round(limit / 1000)} seconds.` : errText(e), ms: Date.now() - started };
+  }
 }
 
 /** The real call: local claude binary via the Agent SDK. */

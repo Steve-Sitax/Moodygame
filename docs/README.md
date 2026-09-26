@@ -18,6 +18,7 @@ Status: documentation phase. No game code yet. Written 2026-09-23.
 | [08-open-questions.md](08-open-questions.md) | Decisions, all answered 2026-09-23 |
 | [09-backlog.md](09-backlog.md) | Ideas not yet in a milestone (job interaction, ...) |
 | [testing.md](testing.md) | How to check a change in the browser: the test stack, the test kit, where and when things happen |
+| [ai-setup.md](ai-setup.md) | The AI setup: an AI per kind of work (Claude login or key, Codex, OpenAI-compatible, Ollama), the test button, walk-around mode with no AI; the API the menu uses |
 | [rendering.md](rendering.md) | No stutter: the shader warm-up, fixed light counts, the rules for anything that draws |
 | [milestones/](milestones/) | One note per finished milestone; [milestones/M6.md](milestones/M6.md) is the index of the M6 parts |
 

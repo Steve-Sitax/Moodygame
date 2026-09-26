@@ -55,7 +55,11 @@ export const CLAUDE = {
 
 // ------------------------------------------------------------------ the model router (M6, docs/milestones/M6-models.md)
 
-export type Provider = "claude" | "codex";
+/**
+ * The runner that makes a call: Claude through the local login (Agent SDK), GPT through the Codex CLI,
+ * and (the AI setup, docs/ai-setup.md) Claude through an API key, an OpenAI-compatible server, Ollama.
+ */
+export type Provider = "claude" | "codex" | "anthropic" | "openai" | "ollama";
 export interface ModelChoice {
   provider: Provider;
   model: string;

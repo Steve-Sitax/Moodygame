@@ -7,6 +7,8 @@ import { WebSocketServer, WebSocket } from "ws";
 import { allowedHost, allowedOrigin, DB_FILE, DEV, HOST, PORT } from "./config.ts";
 import { openDb, resetDb } from "./db.ts";
 import { closeStaleCalls } from "./ai/claude.ts";
+import { mountAiSetup } from "./ai/routes.ts"; // the AI setup: which AI per kind of work, the test, walk-around mode
+import { loadAiSetup } from "./ai/setup.ts";
 import { plainEnglish } from "./text.ts";
 import { BEDTIME, clock, DAWN, ending, fogDay, markDayStart, newDayOf, passTime, payRent, RENT_C, rentPaid, resetTickLimit, setEnding, setWeather, sleep, swim, tick, type Ending } from "./day.ts";
 import { writeEpilogue } from "./hooks/epilogue.ts";
@@ -58,6 +60,7 @@ import { reportWhere, whereNow } from "./warmth.ts"; // M7 warmth: where Jef is 
 const db = openDb(DB_FILE);
 const stale = closeStaleCalls(db);
 if (stale > 0) console.log(`closed ${stale} model call(s) cut off by the last restart`);
+console.log(`[ai] ${loadAiSetup().note}`); // docs/ai-setup.md: data/ai-config.json, before the first call
 const app = new Hono();
 // Only the game's own pages talk to the server (config.ts allowedHost/allowedOrigin): another site
 // in the browser, or a name that points at this machine (DNS rebinding), gets a 403. A body is
@@ -104,6 +107,8 @@ mountSaves(app, {
 });
 // M6 population: the event size and the town size for a new game (Settings)
 mountPopulation(app, db);
+// the AI setup (docs/ai-setup.md): GET/PUT /api/ai/config, POST /api/ai/test
+mountAiSetup(app, { db });
 // M6: emigrant families come and go with the clock (town/emigrants.ts); first, so its after-tick step wraps every tick route
 mountEmigrants(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 mountPrison(app, { db }); // M7 prison and squares: the prison in the Begijnenstraat (town/prison.ts)
