@@ -108,10 +108,11 @@ const tz = [0, 0, 0, 0];
 const ty = [0, 0, 0, 0];
 const tw = [0, 0, 0, 0];
 /**
- * The pose at `gait` 0..1 through the step cycle, `amp` 0 (standing) .. 1 (full stride), in a walk or a `trot`.
- * `stride`: metres the horse goes in one cycle (as its caller moves `gait`), so a planted hoof keeps still.
+ * Where the hooves go at `gait` (into tz, ty, tw) and the highest the body may be so every hoof on the ground (or about
+ * to be) can reach it. That height has sharp corners (a hoof landing far forward pulls the body down at once), so
+ * horsePose does not use it as it is: see bobCurve.
  */
-export function horsePose(out: HorsePose, gait: number, amp: number, trot = false, stride?: number): HorsePose {
+function reach(gait: number, amp: number, trot: boolean, stride: number | undefined): number {
   const g = trot ? GAITS.trot : GAITS.walk;
   const S = (stride ?? (trot ? TROT_STRIDE : WALK_STRIDE)) * g.stance * amp;
   LEGS.forEach((L, k) => {
@@ -144,6 +145,100 @@ export function horsePose(out: HorsePose, gait: number, amp: number, trot = fals
     const c = Math.sqrt(Math.max(0, Lr * Lr - dz * dz)) - L.rig.py + ty[k];
     off = Math.min(off, c + (1 - tw[k]) * 0.5);
   });
+  return off;
+}
+
+/**
+ * The body's height through one step cycle, smooth (Steve, 2026-09-27: the horses "jitter up and down, not natural
+ * movement": reach() drops 5 to 10 cm in a hundredth of a step where a hoof lands and climbs back, a saw). The lowest
+ * of reach() over an eighth of the cycle round each point, then that averaged over the same eighth (two box blurs of
+ * half of it): a smooth wave that is never higher than reach() anywhere, so a planted hoof still stands on the ground.
+ * Cached per gait, amp step and stride; horsePose reads it between two amp steps.
+ */
+const BOB_N = 240;
+const BOB_W = BOB_N / 8;
+const AMP_STEPS = 10;
+const bobCache = new Map<string, Float32Array>();
+function bobCurve(trot: boolean, a: number, stride: number | undefined): Float32Array {
+  const key = `${trot ? 1 : 0}|${a}|${stride === undefined ? "-" : Math.round(stride * 50)}`;
+  let c = bobCache.get(key);
+  if (c) return c;
+  const amp = a / AMP_STEPS;
+  const st = stride === undefined ? undefined : Math.round(stride * 50) / 50;
+  const env = new Float32Array(BOB_N);
+  for (let i = 0; i < BOB_N; i++) env[i] = reach(i / BOB_N, amp, trot, st);
+  const low = new Float32Array(BOB_N);
+  for (let i = 0; i < BOB_N; i++) {
+    let m = Infinity;
+    for (let d = -BOB_W; d <= BOB_W; d++) m = Math.min(m, env[(i + d + BOB_N) % BOB_N]);
+    low[i] = m;
+  }
+  const blur = (src: Float32Array, r: number): Float32Array => {
+    const out = new Float32Array(BOB_N);
+    for (let i = 0; i < BOB_N; i++) {
+      let s = 0;
+      for (let d = -r; d <= r; d++) s += src[(i + d + BOB_N) % BOB_N];
+      out[i] = s / (2 * r + 1);
+    }
+    return out;
+  };
+  c = blur(blur(low, BOB_W / 2), BOB_W / 2);
+  bobCache.set(key, c);
+  return c;
+}
+
+function smoothBob(gait: number, amp: number, trot: boolean, stride: number | undefined): number {
+  const x = Math.min(Math.max(amp, 0), 1) * AMP_STEPS;
+  const a0 = Math.floor(x);
+  const a1 = Math.min(a0 + 1, AMP_STEPS);
+  const t = x - a0;
+  const u = ((((gait % 1) + 1) % 1) * BOB_N) % BOB_N;
+  const i0 = Math.floor(u);
+  const i1 = (i0 + 1) % BOB_N;
+  const f = u - i0;
+  const at = (a: number) => {
+    const c = bobCurve(trot, a, stride);
+    return c[i0] + (c[i1] - c[i0]) * f;
+  };
+  return at(a0) + (at(a1) - at(a0)) * t;
+}
+
+/** The body's height at `gait` in one gait, the hooves' targets left in tz, ty: the smooth wave, and reach() only where
+ * the wave, read between its samples and amp steps, would still be a hair high. (smoothBob first: filling its cache
+ * runs reach() over the cycle; the reach() last sets this gait's hooves.) */
+function bodyAt(gait: number, amp: number, trot: boolean, stride: number | undefined): number {
+  const wave = smoothBob(gait, amp, trot, stride);
+  return Math.min(wave, reach(gait, amp, trot, stride));
+}
+
+const wz = [0, 0, 0, 0];
+const wy = [0, 0, 0, 0];
+/**
+ * The pose at `gait` 0..1 through the step cycle, `amp` 0 (standing) .. 1 (full stride), in a walk or a `trot`.
+ * `stride`: metres the horse goes in one cycle (as its caller moves `gait`), so a planted hoof keeps still.
+ * `trot` may be a number 0 (walk) .. 1 (trot): between them the hooves' targets and the body's height are blended, so
+ * a horse changing gait eases into the new one (Steve, 2026-09-27: the omnibus's horses jumped 7 cm at 1.9 m/s);
+ * `stride` is then the trot's and the walk's is its own (WALK_STRIDE).
+ */
+export function horsePose(out: HorsePose, gait: number, amp: number, trot: boolean | number = false, stride?: number): HorsePose {
+  const m = typeof trot === "number" ? Math.min(Math.max(trot, 0), 1) : trot ? 1 : 0;
+  let off: number;
+  if (m <= 0) off = bodyAt(gait, amp, false, stride);
+  else if (m >= 1 || typeof trot === "boolean") off = bodyAt(gait, amp, true, stride);
+  else {
+    const offW = bodyAt(gait, amp, false, undefined);
+    for (let k = 0; k < 4; k++) {
+      wz[k] = tz[k];
+      wy[k] = ty[k];
+    }
+    const offT = bodyAt(gait, amp, true, stride);
+    const e = m * m * (3 - 2 * m);
+    for (let k = 0; k < 4; k++) {
+      tz[k] = wz[k] + (tz[k] - wz[k]) * e;
+      ty[k] = wy[k] + (ty[k] - wy[k]) * e;
+    }
+    off = offW + (offT - offW) * e;
+  }
   out.bob = off;
   LEGS.forEach((L, k) => {
     const r = solve(L.rig, L.rig.py + off, tz[k], ty[k]);

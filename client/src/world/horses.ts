@@ -13,6 +13,9 @@ function part(props: Props, name: string): THREE.BufferGeometry {
   return geos.length === 1 ? geos[0] : (mergeGeometries(geos, false) ?? geos[0]);
 }
 
+/** Seconds a horse takes to go from the walk into the trot or back. */
+const TROT_EASE = 0.5;
+
 export class HorsePool {
   readonly group = new THREE.Group();
   private readonly body: THREE.InstancedMesh;
@@ -27,6 +30,10 @@ export class HorsePool {
   private readonly zero = new THREE.Matrix4().makeScale(0, 0, 0);
   /** Each horse's body height as last set (the train's trace chains hang from its hame tugs). */
   private readonly bobs: Float32Array;
+  /** Each horse's gait between walk (0) and trot (1), eased over TROT_EASE s when its caller switches, and when it last
+   * was set (s): a horse changing gait does not jump into the other (horseGait.ts horsePose). */
+  private readonly mixes: Float32Array;
+  private readonly setAt: Float64Array;
 
   constructor(
     parent: THREE.Object3D,
@@ -35,6 +42,8 @@ export class HorsePool {
     coat: Coat = "bay",
   ) {
     this.bobs = new Float32Array(count);
+    this.mixes = new Float32Array(count);
+    this.setAt = new Float64Array(count).fill(-1);
     const mat = teamMaterial(props);
     const inst = (g: THREE.BufferGeometry, n: number, name: string) => {
       const m = new THREE.InstancedMesh(coatGeometry(g, coat), mat, n);
@@ -65,7 +74,17 @@ export class HorsePool {
    * (default horseGait.ts WALK_STRIDE / TROT_STRIDE, as the omnibus and the train move `gait`).
    */
   set(i: number, x: number, z: number, yaw: number, gait: number, amp: number, trot = false, stride?: number): void {
-    const pose = horsePose(this.pose, gait, amp, trot, stride);
+    const now = performance.now() / 1000;
+    const since = now - this.setAt[i];
+    this.setAt[i] = now;
+    const want = trot ? 1 : 0;
+    // (a horse not set for a while, or never, is simply in its gait)
+    if (since < 0 || since > 0.5) this.mixes[i] = want;
+    else this.mixes[i] += Math.sign(want - this.mixes[i]) * Math.min(Math.abs(want - this.mixes[i]), since / TROT_EASE);
+    const mix = this.mixes[i];
+    // the caller's stride is its gait's; while the two are blended horsePose reads it as the trot's, so a walking
+    // caller's stride is left out then (both gaits their own)
+    const pose = horsePose(this.pose, gait, amp, mix, mix <= 0 || mix >= 1 || trot ? stride : undefined);
     this.bobs[i] = pose.bob;
     this.put(this.body, i, x, pose.bob, z, yaw);
     const cy = Math.cos(yaw);

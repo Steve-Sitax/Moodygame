@@ -6,6 +6,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import CITY from "../../../shared/city.json";
 import SPOT_TABLE from "../../../shared/spots.json";
 import { psx } from "../retro/psx";
+import { bumpTag } from "./bumps";
 import type { Rect } from "./geom";
 import { trafficLanes } from "./traffic";
 import { addPropObject, dropProps } from "./propSpots";
@@ -204,6 +205,10 @@ async function load(): Promise<Props> {
       map.colorSpace = THREE.SRGBColorSpace;
       map.wrapS = map.wrapT = THREE.RepeatWrapping;
       map.needsUpdate = true;
+      // the team atlas is the horse (and its harness): smooth, as every animal (world/bumps.ts). Its name read "goods",
+      // a mixed bump made from the whole atlas, and where the coat's uv wraps in its cell the height jumped to the
+      // neighbouring cell's: lines round the body and the legs (Steve, 2026-09-27: "weird lines ... robots pieced together")
+      if (name === "goods_team") bumpTag(map, "none");
     }
     const mat =
       name === "glass"
