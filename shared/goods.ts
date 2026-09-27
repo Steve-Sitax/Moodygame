@@ -6,6 +6,8 @@
 // No imports: both the server (node, .ts) and the client (vite) read this file. The town's data (the doors of
 // shared/city.json, the spots of shared/spots.json) is passed in by each side.
 
+import { HAUL_PILE_N, HAUL_ROUTES, haulPileSpot } from "./hauls.ts";
+
 export const GOODS_KINDS = ["crates", "sacks", "barrels", "hides", "rope", "parcel", "chests"] as const;
 export type GoodsKind = (typeof GOODS_KINDS)[number];
 export const isGoodsKind = (k: unknown): k is GoodsKind => typeof k === "string" && (GOODS_KINDS as readonly string[]).includes(k);
@@ -288,6 +290,16 @@ export function townGoods(doors: Record<string, Door>): GoodsItem[] {
     for (let i = 0; i < p.n; i++) {
       const [x, z] = pileSpot(p, i);
       put({ id: `pile:${p.id}:${i}`, kind: "barrels", look: "cask", owner: null, job: null, x: r3(x), z: r3(z), rot: pileRot(i) });
+    }
+  // the dockers' own piles of sacks and crates at their routes' ends (shared/hauls.ts, Steve 2026-09-27)
+  for (const r of HAUL_ROUTES)
+    for (const [tag, p] of [["a", r.pile], ["b", r.drop]] as const) {
+      if (!p) continue;
+      for (let i = 0; i < HAUL_PILE_N; i++) {
+        const [x, z] = haulPileSpot(p, i, tag === "a" ? r.a : r.b);
+        const id = `haul:${r.id}${tag}:${i}`;
+        put({ id, kind: p.kind, owner: null, job: null, x: r3(x), z: r3(z), rot: rotFor(id, 0) });
+      }
     }
   return out;
 }

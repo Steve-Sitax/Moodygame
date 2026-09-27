@@ -1409,10 +1409,12 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
       lp.at(nose + 3, pb);
       for (const p of folk) {
         if (Math.abs(p.x - pb.x) > 5 || Math.abs(p.z - pb.z) > 5) continue;
-        for (let dd = 0; dd <= 6; dd += 1) {
+        // (Steve 2026-09-27: walkers give way to the omnibus, crowd.ts giveWay: it stops only for one right before
+        // its horses, a last resort when he cannot get out of the way)
+        for (let dd = 0; dd <= 3; dd += 1) {
           lp.at(nose + dd, pa);
-          if (Math.hypot(p.x - pa.x, p.z - pa.z) < 1.5) {
-            lim = Math.min(lim, Math.max(0, dd - 3));
+          if (Math.hypot(p.x - pa.x, p.z - pa.z) < 1.1) {
+            lim = Math.min(lim, Math.max(0, dd - 1.5));
             b.waitWhy = "people";
             break;
           }

@@ -177,6 +177,8 @@ describe("who owns what (the migration)", () => {
         // (M7 shops: an old shop whose house holds no inside moves its front to its own house next door; shops/town.ts
         // owns where its keeper and his wife stand, work.at)
         if (o.work && typeof o.work === "object" && (o.work as Record<string, unknown>).kind === "shop") delete (o.work as Record<string, unknown>).at;
+        // (Steve 2026-09-27: the dockers onto the carrying routes, from a pile to a door; town/hauls.ts owns a haul's ends)
+        if (o.work && typeof o.work === "object" && (o.work as Record<string, unknown>).kind === "haul") for (const k of ["a", "b"]) delete (o.work as Record<string, unknown>)[k];
         if (moved.has(id)) plainHome(o, before.get(id)!);
         return JSON.stringify(o);
       };

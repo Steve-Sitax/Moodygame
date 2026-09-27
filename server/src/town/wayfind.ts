@@ -33,7 +33,7 @@ const cellOf = (g: WayGrid, x: number, z: number): number => {
 const centre = (g: WayGrid, i: number): Pt => [g.x0 + (Math.floor(i / g.w) + 0.5) * g.res, g.z0 + ((i % g.w) + 0.5) * g.res];
 
 /** The nearest cell a body can stand on, within `max` metres (a ring search), or -1. */
-export function nearestPass(g: WayGrid, x: number, z: number, max = 8): number {
+export function nearestPass(g: WayGrid, x: number, z: number, max = 20): number {
   const i0 = cellOf(g, x, z);
   if (i0 >= 0 && g.pass[i0]) return i0;
   const r0 = Math.floor((x - g.x0) / g.res);

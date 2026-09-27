@@ -787,6 +787,8 @@
       return { fill: C.live, stroke: C.paper, r: 3.4, alpha: 1 };
     }
     if (q.in) return { fill: null, stroke: C.indoor, r: 2.4, alpha: 0.55 };
+    // on his way by the day plan's sum (the same place a player finds him): blue with his heading, like a live one
+    if (q.mv) return { fill: C.live, stroke: C.paper, r: 3.1, alpha: 0.8 };
     return { fill: null, stroke: C.planned, r: 3, alpha: 0.75 };
   }
 
@@ -840,7 +842,7 @@
         ctx.setLineDash([]);
       }
       // which way a live one faces (yaw = atan2(dx, dz): forward is (sin, cos) in (x, z))
-      if (q.live && typeof q.yaw === "number" && s > 1.2) {
+      if ((q.live || q.mv) && typeof q.yaw === "number" && s > 1.2) {
         const fx = Math.sin(q.yaw);
         const fz = Math.cos(q.yaw);
         ctx.beginPath();
