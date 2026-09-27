@@ -106,7 +106,7 @@ EXTRA = ["tar", "clinker", "iron_hull", "iron_ports", "band", "copper", "redlead
          "tar_weed", "names4", "netting", "coal", "sand", "streaks", "bilge", "varnish", "hood",
          # the portal crane's detail pass (docs/milestones/vehicle-detail.md): riveted plate, chequer plate,
          # the cabin's upright boarding, the cast plate on the portal
-         "crane_plate", "chequer", "cabin_boards", "crane_board"]
+         "crane_plate", "chequer", "cabin_planks", "crane_board"]
 # the street-prop materials we use, painted with build_props' painters (our own list: props.glb may change)
 BASE = ["wood", "wood_dark", "iron", "rope", "sackcloth", "crate", "barrel", "stone", "glass"]
 WOOD, DARK, IRON, ROPE, SACK, CRATE, BARREL, STONE, GLASS = range(len(BASE))
@@ -637,7 +637,7 @@ def paint_chequer(seed, n=64):
     return speckle(img, rng, 0.04)
 
 
-def paint_cabin_boards(seed):
+def paint_cabin_planks(seed):
     """The crane cabin's boarding, standing upright (boards along v, 20 cm at 0.8 m a picture):
     painted a dull brown, weathered, worn to the wood in places."""
     rng = np.random.default_rng(seed)
@@ -731,7 +731,7 @@ def make_materials():
         "hood": lambda: paint_canvas(134, (0.44, 0.4, 0.33), gaskets=False),
         "crane_plate": lambda: paint_crane_plate(135),
         "chequer": lambda: paint_chequer(136),
-        "cabin_boards": lambda: paint_cabin_boards(137),
+        "cabin_planks": lambda: paint_cabin_planks(137),
         "crane_board": lambda: paint_crane_board(138),
     }
     for name in MATS:
