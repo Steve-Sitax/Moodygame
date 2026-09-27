@@ -411,7 +411,7 @@ describe("M8f goods pass 2: the rest of the quay's cargo, and the carts' rounds"
     const s = new GoodsStore();
     const m = byId(s);
     const rows = QUAY_CARGO;
-    expect(rows.length).toBeGreaterThan(500);
+    expect(rows.length).toBeGreaterThan(400); // (496 since the trade work's docker piles took some heaps' places)
     for (const [id, node, kind, x, y, z, rot, h, on, heavy] of rows) {
       const it = m.get(id)!;
       expect(it).toMatchObject({ kind, look: `q:${node}`, x, y, z, rot, h, on, by: null, owner: null, job: null });
@@ -434,7 +434,11 @@ describe("M8f goods pass 2: the rest of the quay's cargo, and the carts' rounds"
     const refused = s.ask(db, 1, { op: "lift", id: below });
     expect(refused.ok ? "" : refused.why).toMatch(/on top/);
     ok(s.ask(db, 1, { op: "lift", id: upper[0] }));
-    ok(s.ask(db, 1, { op: "put", id: upper[0], x: upper[3] + 3, z: upper[5] }));
+    // (set down on free ground near it: nothing within 1.2 m)
+    const free = [[3, 0], [-3, 0], [0, 3], [0, -3], [5, 0], [-5, 0], [0, 5], [0, -5]]
+      .map(([dx, dz]) => [upper[3] + dx, upper[5] + dz])
+      .find(([x, z]) => !s.list().some((o) => !o.by && Math.hypot(o.x - x, o.z - z) < 1.2))!;
+    ok(s.ask(db, 1, { op: "put", id: upper[0], x: free[0], z: free[1] }));
     // (the one below: free now, unless another upper cask still rests on it)
     const still = s.list().some((o) => !o.by && o.on.includes(below));
     expect(s.ask(db, 1, { op: "lift", id: below }).ok).toBe(!still);
