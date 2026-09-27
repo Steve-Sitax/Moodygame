@@ -44,7 +44,7 @@ jobs:
           mkdir -p "$try"
           case "$ARCHIVE" in
             *.tar.gz) tar -xzf "$ARCHIVE" -C "$try" ;;
-            *) if [ "$RUNNER_OS" = macOS ]; then ditto -x -k "$ARCHIVE" "$try"; else tar -xf "$ARCHIVE" -C "$try"; fi ;;
+            *) if [ "$RUNNER_OS" = macOS ]; then ditto -x -k "$ARCHIVE" "$try"; else /c/Windows/System32/tar.exe -xf "$ARCHIVE" -C "$try"; fi ;;
           esac
           dir="$(ls -d "$try"/Scheldemist-*)"
           export SCHELDEMIST_NO_BROWSER=1 SCHELDEMIST_PORT=8800
