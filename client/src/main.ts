@@ -18,6 +18,7 @@ import { mountSettings, STREET_LEVELS, type GameSettings } from "./game/settings
 import { wireSettings } from "./menu/apply"; // menus
 import { settings as prefs } from "./game/prefs";
 import { mountDevMenu } from "./game/devmenu";
+import { DEMO } from "./demo/demo";
 import { setAmbientViewHeight } from "./world/ambient";
 import { setFireViewHeight } from "./world/fire";
 import { setWallTown } from "./world/wallLife";
@@ -572,13 +573,14 @@ settings = mountSettings(startEl.querySelector(".paper") as HTMLElement, (s) => 
   town.maxPuppets = STREET_LEVELS[s.street].cap; // M6 population: people in the street
   resize();
 });
-// dev builds: a Dev button next to Settings (time, weather, events, jump to places)
-if (import.meta.env.DEV) {
+// dev builds: a Dev button next to Settings (time, weather, events, jump to places); the web demo too, without
+// the parts that need the server (demo/demo.ts answers the time and the weather)
+if (import.meta.env.DEV || DEMO) {
   mountDevMenu(startEl.querySelector(".paper") as HTMLElement, {
     place: (x, z) => player.place(x, z, 0),
     tide: world.tideDev,
     places: JUMPS,
-    events: [
+    events: DEMO ? world.devEvents() : [
       ...world.devEvents(),
       // M7 rendering: the culler off for comparison, occlusion alone off, and the view of what it hides
       { label: "Culling on/off", run: () => `culling ${(cull.enabled = !cull.enabled) ? "on" : "off: everything is drawn"}` },
@@ -1258,16 +1260,28 @@ void runBoot({
 // ---- end boot ----
 
 // Dev fly mode (F9): fly anywhere, no fog, noon light; a readout of where you are.
-if (import.meta.env.DEV) {
+// The web demo has it too (Steve 2026-09-27), in the time and weather you are in, with a key hint on screen.
+if (import.meta.env.DEV || DEMO) {
   const hud = document.createElement("div");
   hud.className = "devfly";
   hud.style.display = "none";
   document.body.appendChild(hud);
   let back: { x: number; z: number } | null = null;
+  // the demo: F9 always in sight, so nobody misses the flying
+  const flyHint = DEMO ? document.createElement("div") : null;
+  if (flyHint) {
+    flyHint.className = "demo-fly-hint";
+    flyHint.innerHTML = `<div class="demo-limited">Limited web demo, just a look</div><div><span class="demo-key">F9</span> <span data-fly>fly over the town</span></div><div class="demo-limited" data-keys hidden>WASD fly, mouse look<br>Space up, C down, Shift fast</div>`;
+    document.body.appendChild(flyHint);
+  }
   const toggleFly = () => {
     player.fly = !player.fly;
-    world.setDevView(player.fly);
-    hud.style.display = player.fly ? "block" : "none";
+    if (!DEMO) world.setDevView(player.fly);
+    hud.style.display = player.fly && !DEMO ? "block" : "none"; // the demo shows the keys in its own hint
+    const keysLine = flyHint?.querySelector<HTMLElement>("[data-keys]");
+    if (keysLine) keysLine.hidden = !player.fly;
+    const flyWord = flyHint?.querySelector("[data-fly]");
+    if (flyWord) flyWord.textContent = player.fly ? "walk again" : "fly over the town";
     if (player.fly) {
       back = { x: player.x, z: player.z };
       player.flyY = player.camera.position.y;
@@ -1286,7 +1300,9 @@ if (import.meta.env.DEV) {
   setInterval(() => {
     if (!player.fly) return;
     const p = player.camera.position;
-    hud.textContent = `DEV FLY  x ${p.x.toFixed(0)}  y ${p.y.toFixed(0)}  z ${p.z.toFixed(0)}   WASD fly, mouse look, Space up, C down, Shift fast, F9 land`;
+    hud.textContent = DEMO
+      ? "FLYING   WASD fly, mouse look, Space up, C down, Shift fast, F9 land"
+      : `DEV FLY  x ${p.x.toFixed(0)}  y ${p.y.toFixed(0)}  z ${p.z.toFixed(0)}   WASD fly, mouse look, Space up, C down, Shift fast, F9 land`;
   }, 200);
 }
 

@@ -376,6 +376,24 @@ body:has(.night[style*="block"]) #game { filter: brightness(0.35); }
   z-index: 9;
 }
 
+/* the web demo (demo/demo.ts): a limited look, and F9 always in sight (Steve 2026-09-27) */
+.demo-fly-hint {
+  position: fixed;
+  top: calc(10px * var(--ui, 1));
+  right: calc(12px * var(--ui, 1));
+  background: rgba(20, 16, 10, 0.72);
+  color: #efe6cc;
+  font: calc(12px * var(--ui, 1)) / 1.35 "Courier Prime", monospace;
+  padding: calc(5px * var(--ui, 1)) calc(10px * var(--ui, 1));
+  border: 1px solid rgba(239, 230, 204, 0.35);
+  text-align: right;
+  pointer-events: none;
+  z-index: 9;
+}
+.demo-fly-hint .demo-limited { opacity: 0.75; font-size: 0.85em; }
+.demo-fly-hint .demo-key { font-weight: 700; }
+.demo-note { margin-top: 0.8em; }
+
 /* ---- Readable HUD (Steve, 2026-09-23: "bigger, more readable menus, text, inventory") ----
    Everything on screen is scaled up with the window; long text is set in a print face,
    headings and labels keep the hand. */

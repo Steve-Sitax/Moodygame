@@ -3,6 +3,8 @@
 // pause paper opens it. Time and weather go through the server (it owns the clock and
 // the weather); events call the world directly. Changes Steve's own save: it is his tool.
 
+import { DEMO } from "../demo/demo";
+
 export interface DevMenuDeps {
   /** Jump the player to (x, z). */
   place(x: number, z: number): void;
@@ -41,9 +43,9 @@ export function mountDevMenu(pausePaper: HTMLElement, deps: DevMenuDeps): void {
     <p class="row"><b>Weather</b> ${weathers.map((w) => `<button data-weather="${w}">${w}</button>`).join("")}</p>
     ${deps.tide ? `<p class="row"><b>Tide</b> <button data-tide="now">now</button><button data-tide="high">high water</button><button data-tide="low">low water</button><button data-tide="clock">follow the clock</button></p>` : ""}
     <p class="row"><b>Events</b> ${deps.events.map((e, i) => `<button data-event="${i}">${e.label}</button>`).join("")}</p>
-    <p class="row"><b>Jef</b> <button data-needs="1">needs full</button><button data-money="100">+100 c</button></p>
+    ${DEMO ? "" : `<p class="row"><b>Jef</b> <button data-needs="1">needs full</button><button data-money="100">+100 c</button></p>`}
     <p class="row"><b>Go to</b> ${deps.places.map((p, i) => `<button data-place="${i}">${p.name}</button>`).join("")}</p>
-    <p class="note-small" data-out>Time and weather change the save. F9 flies.</p>
+    <p class="note-small" data-out>${DEMO ? "Pick a time and a weather, then F9 to fly over the town." : "Time and weather change the save. F9 flies."}</p>
     <button name="back">Back</button>`;
   const out = panel.querySelector("[data-out]") as HTMLElement;
   const say = (t: string) => (out.textContent = t);

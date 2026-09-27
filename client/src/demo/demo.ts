@@ -43,6 +43,7 @@ function baked(route: string): Promise<unknown> {
 
 // the clock: the server's day in the browser, TICK_MINUTES on at each tick the game sends while it plays
 const clock = { ...START, weather: "mist" as JobsPayload["clock"]["weather"] };
+let held = false;
 function stepClock(): void {
   let m = clock.hour * 60 + clock.minute + TICK_MINUTES;
   if (m >= 24 * 60) {
@@ -51,8 +52,8 @@ function stepClock(): void {
   }
   clock.hour = Math.floor(m / 60);
   clock.minute = m % 60;
-  // the sky turns now and then, as the director's weather would: mist, clear, fog, rain
-  if (clock.minute === 0 && clock.hour % 3 === 0) clock.weather = (["mist", "clear", "fog", "mist", "rain", "clear"] as const)[(clock.day + clock.hour / 3) % 6];
+  // the sky turns now and then, as the director's weather would: mist, clear, fog, rain (not one picked in the Dev menu)
+  if (!held && clock.minute === 0 && clock.hour % 3 === 0) clock.weather = (["mist", "clear", "fog", "mist", "rain", "clear"] as const)[(clock.day + clock.hour / 3) % 6];
 }
 async function jobsPayload(): Promise<JobsPayload> {
   const p = (await baked("jobs")) as JobsPayload;
@@ -65,8 +66,33 @@ async function jobsPayload(): Promise<JobsPayload> {
   };
 }
 
-async function answer(method: string, route: string): Promise<Response> {
+/** The game's push listener (net/api.ts connectPush hands it over in the demo): the Dev menu's time and weather show at once. */
+export const demoPush: { onJobs: ((p: JobsPayload) => void) | null } = { onJobs: null };
+const WEATHERS = ["fog", "mist", "clear", "rain", "storm"];
+
+async function answer(method: string, route: string, body: string | null): Promise<Response> {
   if (route === "jobs" && method === "GET") return json(await jobsPayload());
+  if (route === "dev/set" && method === "POST") {
+    // the Dev menu (game/devmenu.ts): the demo's own clock and sky; needs and money are not in the demo
+    const b = (() => {
+      try {
+        return JSON.parse(body ?? "{}") as { hour?: number; minute?: number; weather?: string };
+      } catch {
+        return {};
+      }
+    })();
+    if (typeof b.hour === "number" && b.hour >= 0 && b.hour < 24) {
+      clock.hour = Math.floor(b.hour);
+      clock.minute = typeof b.minute === "number" ? Math.max(0, Math.min(59, Math.floor(b.minute))) : 0;
+    }
+    if (typeof b.weather === "string" && WEATHERS.includes(b.weather)) {
+      clock.weather = b.weather as JobsPayload["clock"]["weather"];
+      held = true; // a sky picked by hand stays until the next pick
+    }
+    const p = await jobsPayload();
+    demoPush.onJobs?.(p);
+    return json(p);
+  }
   if (route === "tick" && method === "POST") {
     stepClock();
     return json({ ...(await jobsPayload()), advanced: true });
@@ -93,7 +119,7 @@ export function installDemo(): void {
     if (u.origin === location.origin) {
       if (u.pathname.startsWith("/api/")) {
         const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
-        return answer(method, u.pathname.slice(5).replace(/\/+$/, ""));
+        return answer(method, u.pathname.slice(5).replace(/\/+$/, ""), typeof init?.body === "string" ? init.body : null);
       }
       const b = withBase(u.pathname);
       if (b !== u.pathname) return real(b + u.search, init);

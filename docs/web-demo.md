@@ -14,7 +14,13 @@ public; GitHub Pages needs a public repo on the free plan).
 - The clock runs in the browser: it starts at 16:30 on Monday, 5 game minutes a tick as in the game; the sky turns
   every 3 game hours (mist, clear, fog, rain).
 - No E or F keys (no talking, jobs or shops), no saves, no AI setup, no play together. The
-  menu says so and links to the download.
+  menu says it is a limited demo, just to get a look, and links to the download.
+- F9 flies (Steve 2026-09-27), in the time and weather you are in (the dev build's fly also clears the fog and sets
+  noon; the demo does not). A box top right always says "Limited web demo, just a look" and "F9 fly over the
+  town"; while flying it shows the keys. Controls in Settings has a Fly part too.
+- The Dev button on the pause page (Esc) sets the time and the weather (the demo's own clock: `POST dev/set` in
+  `demo.ts`, pushed to the game at once), jumps to places, and has the world's own dev events. A sky picked by hand
+  stays until the next pick.
 
 ## How it works
 - `client/src/demo/demo.ts` (`DEMO` = `vite build --mode demo`), installed first by `boot/netboot.ts`:

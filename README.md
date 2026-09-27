@@ -9,8 +9,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Steve-Sitax/Moodygame/releases/latest"><b>Download for Windows, Mac and Linux</b></a>
-  &nbsp;·&nbsp; <a href="#play-it">How to play</a>
+  <a href="https://steve-sitax.github.io/Moodygame/"><b>Try it in your browser</b></a> (a limited demo, just a look)
+  &nbsp;·&nbsp; <a href="https://github.com/Steve-Sitax/Moodygame/releases/latest"><b>Download the full game</b></a>
+  <br><a href="#play-it">How to play</a>
   &nbsp;·&nbsp; <a href="docs/README.md">Design notes</a>
   &nbsp;·&nbsp; <a href="#made-with-ai">Made with AI</a>
 </p>
@@ -49,6 +50,12 @@ proposes their words and plans, and the game engine checks every proposal and ow
 </table>
 
 ## Play it
+
+**Just a look: [try the web demo in your browser](https://steve-sitax.github.io/Moodygame/).** It is a limited version: you walk about the
+town among its people, or press **F9** to fly over it, and the Dev button (Esc) sets the time and the
+weather. No talking, no jobs, no AI and no saves. About 80 MB loads the first time.
+
+**The whole game:** download it below.
 
 **[Download the latest version](https://github.com/Steve-Sitax/Moodygame/releases/latest)**. You need to
 install nothing.

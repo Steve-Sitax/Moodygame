@@ -144,7 +144,7 @@ function buildPaper(): void {
     saves.remove();
     const note = document.createElement("p");
     note.className = "fine demo-note";
-    note.innerHTML = `The web demo: walk about the town. To talk, work and play with an AI, <a href="https://github.com/Steve-Sitax/Moodygame/releases/latest" target="_blank" rel="noopener">download the game</a>.`;
+    note.innerHTML = `<b>A limited web demo, just to get a look.</b> Walk about the town, or press <b>F9</b> to fly over it. No talking, no jobs, no AI. For the whole game, <a href="https://github.com/Steve-Sitax/Moodygame/releases/latest" target="_blank" rel="noopener">download it</a>.`;
     nav.append(note);
   }
   head.after(nav);
@@ -338,7 +338,7 @@ function tabControls(p: Prefs): string {
         `</div>`,
     )
     .join("");
-  return `<h3>Mouse and view</h3>
+  return `${DEMO ? `<h3>Fly</h3><p class="fine"><b>F9</b> flies over the town (WASD, mouse, Space up, C down, Shift fast); F9 again to walk. The Dev button on the pause page sets the time and the weather.</p>` : ""}<h3>Mouse and view</h3>
     ${row("Mouse speed", range("sens", 0.25, 3, 0.05, p.sens, pct))}
     ${row("Turn the mouse's up and down round", toggle("invertY", p.invertY))}
     ${row("Field of view", range("fov", 55, 100, 1, p.fov, SHOWS.fov!), "How wide you see. 75° as made.")}
