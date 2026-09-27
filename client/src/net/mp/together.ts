@@ -11,7 +11,7 @@
 // - a small note in the corner of the host's screen while the house may join.
 
 import * as THREE from "three";
-import { BASE, baseId, baseIndex, baseKind, FLAG, MODES, type MpMode, type MpState, type MpText, type RosterEntry } from "../../../../shared/mpProtocol";
+import { BASE, baseId, baseIndex, baseKind, FLAG, GEAR, MODES, type MpMode, type MpState, type MpText, type RosterEntry } from "../../../../shared/mpProtocol";
 import type { FirstPerson } from "../../player/firstPerson";
 import type { Surface } from "../../world/rijnkaai";
 import { pause, real } from "../../game/pause";
@@ -21,6 +21,8 @@ import { secureOffer, trustSteps, type HouseInfo } from "./househelp";
 import { figureKit, RemoteFigure } from "./figures";
 import { Session } from "./session";
 import { Street } from "./street";
+import { Extras } from "./extras";
+import { share } from "../../game/share";
 import { WorldNet, type NetMover } from "./world";
 import type { Town } from "../../game/town";
 import type { Crowd } from "../../game/crowd";
@@ -77,6 +79,8 @@ export interface GearModel {
   /** Put it where he is: (x, y, z) his place, heading where it points, dt for the wheels. */
   place(x: number, y: number, z: number, heading: number, dt: number, shown: boolean): void;
   dispose(): void;
+  /** M8f goods pass 2: a handcart's bed, where its load is laid (game/goods.ts). */
+  pivot?: THREE.Object3D;
 }
 
 const RADIUS = 0.32;
@@ -92,6 +96,8 @@ export class Together {
   world: WorldNet | null = null;
   /** M8d: the figures of this player's job sent to the others, and theirs drawn here (null alone). */
   jobFigs: JobFigs | null = null;
+  /** M8f sync pass 3: the animals and the town's other walkers, one PC running each (null alone). */
+  extras: Extras | null = null;
   /** M8d: each other player's heading as drawn (for "out of his sight"). */
   private readonly looks = new Map<number, number>();
   private readonly tracks = new Map<number, RemoteTrack>();
@@ -116,6 +122,17 @@ export class Together {
   private lastCam = new THREE.Vector3(NaN, 0, 0);
 
   constructor(private readonly d: TogetherDeps) {}
+
+  /**
+   * M8f goods pass 2: the handcart another player pushes (drawn with him, net/mp/gear.ts), when it is the one his gear
+   * names by `sub` (game/goods.ts cartSub of its goods holder): game/goods.ts lays its load on its bed. Null: not that
+   * cart, or not drawn here.
+   */
+  gearCart(id: number, sub: number): THREE.Object3D | null {
+    const g = this.gears.get(id);
+    if (!g || !g.model?.pivot || (g.code & 3) !== GEAR.handcart || g.code >> 2 !== sub) return null;
+    return g.model.pivot;
+  }
 
   /** M8f: another player's figure (game/goods.ts draws what he carries on it), or null. */
   figureOf(id: number): { root: THREE.Object3D; shown: boolean; carrying: boolean } | null {
@@ -165,11 +182,18 @@ export class Together {
         this.drawPanel();
         this.drawCorner();
       },
-      onPuppets: (v, recv) => this.street?.onBatch(v, recv),
+      onPuppets: (v, recv) => {
+        this.street?.onBatch(v, recv);
+        this.extras?.onPuppets(v, recv); // (M8f sync pass 3: the market's shoppers, the Steen's visitors)
+      },
       onFigs: (v, recv) => this.jobFigs?.onBatch(v, recv),
+      onAnimals: (v, recv) => this.extras?.onAnimals(v, recv),
       onWelcome: (w) => {
         identity.playerId = w.id;
         this.street?.reset();
+        this.extras?.reset();
+        share.me = w.id;
+        share.on = !!this.extras;
         this.jobFigs?.reset();
         if (w.pose && !this.placedGuest) {
           this.placedGuest = true;
@@ -196,6 +220,20 @@ export class Together {
         forJob: (id) => heldForJobs.has(id), // (M8d: the people called for this player's job are his PC's)
       });
       town.net = this.street;
+      // M8f sync pass 3: the animals and the town's other walkers (game/share.ts is what the game reads)
+      const players = (): Array<{ x: number; z: number }> => [{ x: this.d.player.x, z: this.d.player.z }, ...this.positions()];
+      this.extras = new Extras({
+        crowd: this.d.crowd,
+        me: () => sess.id,
+        serverNow: () => sess.serverNow(),
+        players,
+        sendText: (m) => sess.sendText(m),
+        sendBinary: (b) => sess.sendBinary(b),
+      });
+      share.net = this.extras;
+      share.now = () => sess.serverNow();
+      share.players = players;
+      share.seenByOthers = (x, z) => this.seenByOthers(x, z);
     }
     // M8d: the figures of a job: this player's sent, the others' drawn; "out of sight" is out of everyone's
     this.jobFigs = new JobFigs({
@@ -232,11 +270,13 @@ export class Together {
   /** M8b: before the crowd moves and draws: the townspeople other PCs walk, where they had them. */
   streetApply(dt: number): void {
     this.street?.apply(dt);
+    this.extras?.apply(dt); // M8f sync pass 3
   }
 
   /** M8b: after the town moved its people: send the ones this PC walks. */
   streetSend(dt: number): void {
     this.street?.send(dt);
+    this.extras?.send(dt); // M8f sync pass 3
   }
 
   /** A guest with no place of his own starts beside the host (once, when the host is first heard of). */
@@ -269,7 +309,10 @@ export class Together {
   }
 
   private text(m: MpText): void {
-    if (m.type === "owners") this.street?.onOwners(m);
+    if (m.type === "owners") {
+      this.street?.onOwners(m);
+      this.extras?.onOwners(m); // M8f sync pass 3
+    }
     else if (m.type === "pins") this.street?.onPins(m.list); // M8d
     else if (m.type === "world") this.world?.onWorld(m, this.session?.serverNow() ?? 0);
     else if (m.type === "asked") this.world?.onAsked(m);
@@ -652,7 +695,7 @@ export class Together {
       const tr = this.tracks.get(id);
       return { id, frames: m.frames, pace: +med.toFixed(3), maxStep: +m.maxStep.toFixed(3), speedDevP95: +(d[Math.floor(d.length * 0.95)] ?? 0).toFixed(3), speedDevMax: +(d[d.length - 1] ?? 0).toFixed(3), jitterP95m: +((d[Math.floor(d.length * 0.95)] ?? 0) / 60).toFixed(4), delay: tr ? Math.round(tr.delay) : null, buffer: tr?.stats ?? null };
     });
-    return { frames: this.meter.frames, camSnaps: this.meter.camSnaps, maxCamStep: +this.meter.maxCamStep.toFixed(3), rtt: this.session?.rtt ?? null, offset: this.session ? Math.round(this.session.offset) : null, session: this.session?.stats ?? null, remotes, street: this.street?.report() ?? null, worldPc: this.worldPc, world: this.world?.report() ?? null, jobFigs: this.jobFigs?.report() ?? null };
+    return { frames: this.meter.frames, camSnaps: this.meter.camSnaps, maxCamStep: +this.meter.maxCamStep.toFixed(3), rtt: this.session?.rtt ?? null, offset: this.session ? Math.round(this.session.offset) : null, session: this.session?.stats ?? null, remotes, street: this.street?.report() ?? null, extras: this.extras?.report() ?? null, worldPc: this.worldPc, world: this.world?.report() ?? null, jobFigs: this.jobFigs?.report() ?? null };
   }
 
   resetMeter(): void {
@@ -721,13 +764,36 @@ export class Together {
   private soloMap(dt: number): void {
     if (!this.mapOn || !this.d.entered()) return;
     this.mapAcc += dt;
-    if (this.mapAcc < 1) return;
+    if (this.mapAcc < 0.25) return;
+    const span = this.mapAcc;
     this.mapAcc = 0;
     const p = this.d.player;
+    // (Steve 2026-09-27: the townspeople round Jef live on the map, blue with their heading, as when played together)
+    const people: Array<Record<string, unknown>> = [];
+    const town = this.d.town;
+    const crowd = this.d.crowd;
+    if (town && crowd) {
+      const seen = new Set<string>();
+      for (const s of town.netSims()) {
+        if (!s.p || s.remote) continue;
+        const q = s.p;
+        const look = crowd.puppetLook(q);
+        const was = this.soloWas.get(s.r.id);
+        const speed = was ? Math.min(8, Math.hypot(q.x - was[0], q.z - was[1]) / Math.max(0.05, span)) : 0;
+        this.soloWas.set(s.r.id, [q.x, q.z]);
+        seen.add(s.r.id);
+        const veh = look.veh as unknown;
+        people.push({ id: s.r.id, x: Math.round(q.x * 10) / 10, z: Math.round(q.z * 10) / 10, yaw: Math.round(q.yaw * 100) / 100, speed: Math.round(speed * 10) / 10, motion: look.motion, sit: look.sit, lantern: look.lantern, sack: look.sack, bought: look.bought, vehicle: veh == null ? null : typeof veh === "string" ? veh : ((veh as { kind?: string }).kind ?? null) });
+      }
+      for (const id of this.soloWas.keys()) if (!seen.has(id)) this.soloWas.delete(id);
+    }
     void real
-      .fetch("/api/map/me", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, mode: this.mode(), away: this.d.away() }) })
+      .fetch("/api/map/me", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, mode: this.mode(), away: this.d.away(), people }) })
       .catch(() => {});
   }
+
+  /** Where each townsperson was at the last solo report (for his speed on the map). */
+  private soloWas = new Map<string, [number, number]>();
 
   private mountMapButton(paper: HTMLElement): void {
     if (!identity.local || isGuest()) return;

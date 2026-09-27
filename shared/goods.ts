@@ -6,6 +6,8 @@
 // No imports: both the server (node, .ts) and the client (vite) read this file. The town's data (the doors of
 // shared/city.json, the spots of shared/spots.json) is passed in by each side.
 
+import { HAUL_PILE_N, HAUL_ROUTES, haulPileSpot } from "./hauls.ts";
+
 export const GOODS_KINDS = ["crates", "sacks", "barrels", "hides", "rope", "parcel", "chests"] as const;
 export type GoodsKind = (typeof GOODS_KINDS)[number];
 export const isGoodsKind = (k: unknown): k is GoodsKind => typeof k === "string" && (GOODS_KINDS as readonly string[]).includes(k);
@@ -29,8 +31,18 @@ export interface GoodsItem {
   /** Stable: own:<owner>:<n>, pile:<pile>:<n>, job:<job>:<n> (made in a fixed order), spawn:<n> for the rest. */
   id: string;
   kind: GoodsKind;
-  /** "cask": drawn with the quay's own barrel model (the piles). */
-  look?: "cask";
+  /**
+   * Its model, when not a job's plain goods: "cask" (props.glb barrel, the piles), "p:<model>" (a props.glb model,
+   * scaled by `sc`: the Rijnkaai's big crates and sacks), "q:<model>" (a quay heap's cask, crate or sack of
+   * quaygoods.glb: M8f goods pass 2).
+   */
+  look?: string;
+  /** Its height when stacked (m), when not its kind's (a model of the quay: shared/quaycargo.json). */
+  h?: number;
+  /** The scale of a "p:" model. */
+  sc?: number;
+  /** Too big to lift by hand: only a cart moves it (the Rijnkaai's big packing crates). */
+  cartOnly?: boolean;
   owner: string | null;
   job: number | null;
   x: number;
@@ -86,10 +98,10 @@ export function rotFor(id: string, n: number): number {
   return Math.round((hash32(`${id}#${n}`) / 4294967296) * 0.4 * 1000) / 1000;
 }
 
-export function heightOf(it: Pick<GoodsItem, "kind" | "look">): number {
-  return it.look === "cask" ? CASK_H : GOODS_H[it.kind];
+export function heightOf(it: Pick<GoodsItem, "kind" | "look" | "h">): number {
+  return it.h ?? (it.look === "cask" ? CASK_H : GOODS_H[it.kind]);
 }
-export const topOf = (it: Pick<GoodsItem, "kind" | "look" | "y">): number => it.y + heightOf(it);
+export const topOf = (it: Pick<GoodsItem, "kind" | "look" | "y" | "h">): number => it.y + heightOf(it);
 
 // ------------------------------------------------------------------ stacks and pyramids
 
@@ -128,7 +140,8 @@ export interface Placement {
  * same everywhere before the server's answer is in.
  */
 export function placeAt(list: readonly GoodsItem[], kind: GoodsKind, x: number, z: number, skip?: string): Placement | null {
-  const lying = list.filter((o) => !o.by && o.id !== skip);
+  // (only what lies near counts: what rests on a thing lies near it too; the town has hundreds of items now)
+  const lying = list.filter((o) => !o.by && o.id !== skip && Math.abs(o.x - x) < 3 && Math.abs(o.z - z) < 3);
   const tops = lying.filter((o) => !lying.some((a) => a.on.includes(o.id)));
   let under: GoodsItem | null = null;
   let underD = Infinity;
@@ -254,8 +267,8 @@ export const pileRot = (i: number): number => r3(i * 1.7);
 export const DRAY_RUN = {
   pile: "e",
   cart: "dray:hessenatie",
-  /** The pyramid's place (two below, one on top). */
-  to: [22.4, 14.2] as [number, number],
+  /** The pyramid's place (two below, one on top): by the lighter berth, beside the dray's way (goods pass 2: was 22.4, 14.2). */
+  to: [24.5, 13.0] as [number, number],
   out: 8 * 60,
   down: 9 * 60,
   back: 16 * 60,
@@ -271,8 +284,70 @@ export function pyramidSpots(x: number, z: number, n: number): Array<{ x: number
   return out;
 }
 
-/** Everything the town has lying about at the start of a week: owned goods and the quay's casks. */
-export function townGoods(doors: Record<string, Door>): GoodsItem[] {
+// ------------------------------------------------------------------ M8f goods pass 2: the rest of the quay's cargo
+
+/**
+ * The big packing crates standing on the Rijnkaai (were static props of client world/rijnkaai.ts crateStack): x, z,
+ * how many on the ground (two to a row, 1.4 m apart); two or more have one more crate across the first two. The
+ * props.glb crates at 1.1 times: 1.3 m across, too big to lift by hand (cart only).
+ */
+export const CRATE_STACKS: Array<[number, number, number]> = [
+  [-20, 14, 3],
+  [-14.6, 15.2, 2],
+  [12, 12.8, 2],
+  [36, 18, 3],
+  [41, 16.5, 1],
+  [-52, 12, 2],
+];
+/** The jute sacks lying on the Rijnkaai (were rijnkaai.ts sacks): six, three in a row and three on them. */
+export const SACK_PILES: Array<[number, number]> = [
+  [14, 19.5],
+  [-34, 17],
+];
+/** props.glb models at the scale they stand at: height when stacked (m). */
+export const PROP_H: Record<string, number> = { crate_big: 1.1, crate_open: 0.83, crate_broken: 0.88, sack: 0.25 };
+export const CRATE_S = 1.1;
+
+/** The Rijnkaai's crate stacks and sack piles as the server's items: the same places, turns and models as the props were. */
+export function rijnkaaiGoods(): GoodsItem[] {
+  const out: GoodsItem[] = [];
+  const add = (id: string, kind: GoodsKind, look: string, x: number, z: number, y: number, rot: number, on: string[], extra: Partial<GoodsItem> = {}) =>
+    out.push({ id, kind, look, owner: null, job: null, x: r3(x), z: r3(z), y: r3(y), rot: r3(rot), on, by: null, n: 0, rev: 1, home: [r3(x), r3(z), r3(rot)], ...extra });
+  CRATE_STACKS.forEach(([x, z, n], k) => {
+    const g = CRATE_S * 1.18 + 0.1;
+    for (let i = 0; i < n; i++) {
+      const name = n === 1 ? "crate_open" : n === 3 && i === 2 ? "crate_broken" : "crate_big";
+      add(`crate:${k}:${i}`, "crates", `p:${name}`, x + (i % 2) * g, z + Math.floor(i / 2) * g, 0, Math.sin(x * 3 + i) * 0.08, [], { sc: CRATE_S, h: PROP_H[name], cartOnly: true });
+    }
+    // one across the first two
+    if (n >= 2) add(`crate:${k}:${n}`, "crates", "p:crate_big", x + g / 2, z, CRATE_S, 0.2, [`crate:${k}:0`, `crate:${k}:1`], { sc: CRATE_S, h: PROP_H.crate_big, cartOnly: true });
+  });
+  SACK_PILES.forEach(([x, z], k) => {
+    for (let i = 0; i < 6; i++) {
+      const up = Math.floor(i / 3);
+      add(`sack:${k}:${i}`, "sacks", "p:sack", x + (i % 3) * 1.04, z, up * PROP_H.sack, Math.sin(i * 4.1) * 0.12, up ? [`sack:${k}:${i - 3}`] : [], { sc: 1, h: PROP_H.sack });
+    }
+  });
+  return out;
+}
+
+/**
+ * The cargo of the quays' heaps (client world/quaygoods.ts, baked into shared/quaycargo.json by
+ * tools/bake-quaycargo.mjs): [id, model, kind, x, y, z, turn, height, rests on, heavy].
+ */
+export type CargoRow = [string, string, string, number, number, number, number, number, string[], number];
+
+export function cargoGoods(rows: readonly CargoRow[]): GoodsItem[] {
+  const out: GoodsItem[] = [];
+  for (const [id, node, kind, x, y, z, rot, h, on, heavy] of rows) {
+    if (!isGoodsKind(kind)) continue;
+    out.push({ id, kind, look: `q:${node}`, owner: null, job: null, x, z, y, rot, h, on: [...on], by: null, n: 0, rev: 1, home: [x, z, rot], ...(heavy ? { heavy: true } : {}) });
+  }
+  return out;
+}
+
+/** Everything the town has lying about at the start of a week: owned goods, the quay's casks, crates and sacks, the heaps' cargo. */
+export function townGoods(doors: Record<string, Door>, cargo: readonly CargoRow[] = []): GoodsItem[] {
   const out: GoodsItem[] = [];
   const put = (it: Omit<GoodsItem, "y" | "on" | "n" | "rev" | "by"> & { rot: number }) => {
     const p = placeAt(out, it.kind, it.x, it.z) ?? { x: it.x, z: it.z, y: 0, on: [] };
@@ -289,8 +364,138 @@ export function townGoods(doors: Record<string, Door>): GoodsItem[] {
       const [x, z] = pileSpot(p, i);
       put({ id: `pile:${p.id}:${i}`, kind: "barrels", look: "cask", owner: null, job: null, x: r3(x), z: r3(z), rot: pileRot(i) });
     }
+  // the dockers' own piles of sacks and crates at their routes' ends (shared/hauls.ts, Steve 2026-09-27)
+  for (const r of HAUL_ROUTES)
+    for (const [tag, p] of [["a", r.pile], ["b", r.drop]] as const) {
+      if (!p) continue;
+      for (let i = 0; i < HAUL_PILE_N; i++) {
+        const [x, z] = haulPileSpot(p, i, tag === "a" ? r.a : r.b);
+        const id = `haul:${r.id}${tag}:${i}`;
+        put({ id, kind: p.kind, owner: null, job: null, x: r3(x), z: r3(z), rot: rotFor(id, 0) });
+      }
+    }
+  // (laid as they stood: a crate across two, a pyramid's cask on two below; not by the stacking rule)
+  out.push(...rijnkaaiGoods(), ...cargoGoods(cargo));
   return out;
 }
+
+// ------------------------------------------------------------------ the town's carts (M8f goods pass 2)
+
+/**
+ * A cart's round with a whole pile (the server moves the goods on the world's clock: store.ts runTick; the drawn
+ * cart, client world/goodsDrays.ts, goes the same round on the same clock): on a weekday at `out` it takes the pile
+ * (only whole and untouched), at `down` it sets it down at `to` in the same shape, at `back` it takes it again, at
+ * `home` it sets it down where it belongs.
+ */
+export interface CartRun {
+  id: string;
+  cart: string;
+  label: string;
+  /** A horse dray led by its carter, or a handcart pushed by a man. */
+  vehicle: "dray" | "handcart";
+  /** The pile's items, lower first. */
+  items: string[];
+  /** Where it goes: casks as a pyramid there, anything else in the same shape (its first item there). */
+  to: [number, number];
+  out: number;
+  down: number;
+  back: number;
+  home: number;
+  /**
+   * The way it goes, leg by leg (x, z): a dray's the carter's at the horse's head (the rig follows his trail), a
+   * handcart's its axle (the man pushes it from behind). Each leg starts where the last ended; a stop's last few
+   * metres come in straight. out: from the yard to the pile (there before `out`); deliver: on to `to`; back: to the
+   * yard; fetch: from the yard to `to` (there before `back`); bring: on home; home: to the yard.
+   */
+  legs: Record<"out" | "deliver" | "back" | "fetch" | "bring" | "home", Array<[number, number]>>;
+  /** On a dray's bed (its frame: x across, y up, z along from the rear axle; turn): each item, in `items` order. */
+  bed?: Array<[number, number, number, number]>;
+}
+
+/** Points on a circle round (cx, cz) of radius r from angle a0 to a1 (degrees: 0 +z, 90 +x), every 30 degrees. */
+function arc(cx: number, cz: number, r: number, a0: number, a1: number): Array<[number, number]> {
+  const out: Array<[number, number]> = [];
+  const n = Math.max(1, Math.round(Math.abs(a1 - a0) / 30));
+  for (let i = 0; i <= n; i++) {
+    const a = ((a0 + ((a1 - a0) * i) / n) * Math.PI) / 180;
+    out.push([r3(cx + r * Math.sin(a)), r3(cz + r * Math.cos(a))]);
+  }
+  return out;
+}
+
+// The Hessenatie's dray goes a loop on the open quay between the omnibus stop and the emigrants' camp: west along
+// z 15.3 (the bed on the water side of the carter, past pile "e" and the pyramid's place), round and back east along
+// z 22 (the bed on the camp side, 0.4 m short of where a family sets its chests down), round again. It waits in its
+// yard on the east-going line. (Checked: the rig's sweep against the walk map, the colliders and the keep-outs.)
+const DRAY_A = 15.3;
+const DRAY_B = 22.0;
+const DRAY_R = (DRAY_B - DRAY_A) / 2;
+const DRAY_E = 31.45;
+const DRAY_W = 20.22;
+const eastArc = () => arc(DRAY_E, DRAY_A + DRAY_R, DRAY_R, 0, 180);
+const westArc = () => arc(DRAY_W, DRAY_A + DRAY_R, DRAY_R, 180, 360);
+const DRAY_YARD: [number, number] = [27.5, DRAY_B];
+/** The carter where the bed stands beside pile "e" (its middle 4.28 m behind him) and beside the pyramid's place. */
+const DRAY_HOME: [number, number] = [26.47, DRAY_A];
+const DRAY_TO: [number, number] = [20.22, DRAY_A];
+
+// The sacks of the Rijnkaai (SACK_PILES[0]) go on a handcart to the lighter berth and back: out along z 20.6 with the
+// sacks on the right, round a tight turn, back along z 18.3 with them on the left; the handcart waits by its pile.
+const CART_E = 20.6;
+const CART_W = 18.3;
+const CART_R = (CART_E - CART_W) / 2;
+const cartEast = () => arc(27.6, CART_W + CART_R, CART_R, 0, 180);
+const cartWest = () => arc(11.5, CART_W + CART_R, CART_R, 180, 360);
+const CART_YARD: [number, number] = [12.4, CART_E];
+
+/** The Hessenatie's dray with pile "e" (DRAY_RUN), and the sacks of the Rijnkaai on a handcart. */
+export const CART_RUNS: CartRun[] = [
+  {
+    id: "casks",
+    cart: DRAY_RUN.cart,
+    label: "the Hessenatie's dray with the casks",
+    vehicle: "dray",
+    items: [0, 1, 2].map((i) => `pile:${DRAY_RUN.pile}:${i}`),
+    to: DRAY_RUN.to,
+    out: DRAY_RUN.out,
+    down: DRAY_RUN.down,
+    back: DRAY_RUN.back,
+    home: DRAY_RUN.home,
+    legs: {
+      out: [DRAY_YARD, ...eastArc(), DRAY_HOME],
+      deliver: [DRAY_HOME, DRAY_TO],
+      back: [DRAY_TO, ...westArc(), DRAY_YARD],
+      fetch: [DRAY_YARD, ...eastArc(), DRAY_TO],
+      bring: [DRAY_TO, ...westArc(), ...eastArc(), DRAY_HOME],
+      home: [DRAY_HOME, ...westArc(), DRAY_YARD],
+    },
+    bed: [
+      [0, 1.06, 0.3, 0],
+      [0, 1.06, 1.2, 1.7],
+      [0, 1.06, 2.1, 3.4],
+    ],
+  },
+  {
+    id: "sacks",
+    cart: "cart:sacks",
+    label: "the sacks of the Rijnkaai on a handcart to the lighter berth and back",
+    vehicle: "handcart",
+    items: [0, 1, 2, 3, 4, 5].map((i) => `sack:0:${i}`),
+    to: [24.0, 19.5],
+    out: 10 * 60,
+    down: 11 * 60,
+    back: 14 * 60,
+    home: 15 * 60,
+    legs: {
+      out: [CART_YARD, [15.06, CART_E]],
+      deliver: [[15.06, CART_E], [25.04, CART_E]],
+      back: [[25.04, CART_E], ...cartEast(), ...cartWest(), CART_YARD],
+      fetch: [CART_YARD, [25.04, CART_E]],
+      bring: [[25.04, CART_E], ...cartEast(), [15.06, CART_W]],
+      home: [[15.06, CART_W], ...cartWest(), CART_YARD],
+    },
+  },
+];
 
 // ------------------------------------------------------------------ the requests (HTTP POST /api/goods)
 

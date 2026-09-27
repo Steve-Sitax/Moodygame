@@ -105,11 +105,11 @@ describe("the day plan's places", () => {
     const tw = town(db).town;
     const r = tw.residents.find((q) => q.work.place !== "home" && q.sched.day.some((s) => s[2] === "work" && s[0] <= 11 && s[1] > 11))!;
     expect(r).toBeTruthy();
-    // at 3 in the night he is at home, indoors, at his door
+    // at 3 in the night he is at home, indoors, at the step before his door (the trade plan: ways start there)
     const night = plannedSpot(r, tw, { day: 2, hour: 3, minute: 0 });
     expect(night.act).toBe("home");
     expect(night.indoor).toBe(true);
-    expect([night.x, night.z]).toEqual([r.home.x, r.home.z]);
+    expect([night.x, night.z]).toEqual([r.home.sx, r.home.sz]);
     // at 11 he works (somewhere else than his door)
     const day = plannedSpot(r, tw, { day: 2, hour: 11, minute: 0 });
     expect(day.act).toBe("work");

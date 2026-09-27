@@ -9,6 +9,9 @@ import type { World } from "./rijnkaai";
 import type { InWorld, Opening } from "./inworld";
 import { lambert, tex } from "./rooms";
 
+/** The prison panes' sky sheen by full day (the houses' take the air's own colour: houseInWorld.ts). */
+const PANE_DAY = new THREE.Color(0x56646e);
+
 // The prison in the world (M7 prison and squares; made real in M7 prison real, 2026-09-26: docs/milestones/
 // M7-prison-real.md). Its rooms (world/prisonRooms.ts) stand inside the Blender shell (tools/blender/build_prison.py)
 // at its true size and are walked by the plan (shared/prisonPlan.ts), the halls' way (world/hallInWorld.ts): the
@@ -291,8 +294,9 @@ export function prisonInWorld(
       const kIn = Math.max(k, chapelHall.insideness(jef.x, jef.z));
       for (const g of [built.glass, governor.glass]) {
         // a little of the grey sky on the glass from outside by day, nearly clear from inside (as the houses' panes)
-        g.opacity = 0.12 + 0.28 * daylight * (1 - kIn);
-        g.color.setHex(daylight > 0.3 ? 0x56646e : 0x3a3834);
+        // (2026-09-27: fading with the square of the daylight, no switch at dusk: see houseInWorld.ts, the panes)
+        g.opacity = 0.12 + 0.28 * daylight * daylight * (1 - kIn);
+        g.color.setHex(0x3a3834).lerp(PANE_DAY, daylight);
       }
       const now = inside ? kIn > 0.35 : kIn > 0.55;
       if (now !== inside) {

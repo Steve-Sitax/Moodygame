@@ -6,7 +6,7 @@ import { bumpFromMap, psx, psxUniforms } from "../retro/psx";
 import { createMirror } from "./mirror";
 import { setPuddleScale } from "./puddlemask";
 import { TOWN } from "./townBox";
-import { cobblePaving, earthPaving, edgeStoneTexture, flagPaving, grassPaving, quayPaving, withPictures } from "./paving";
+import { cobblePaving, earthPaving, EDGE_BUMP, edgeStoneTextures, flagPaving, grassPaving, quayPaving, withPictures } from "./paving";
 import { copingTexture, quayWallTexture, withPicture } from "./quayStone";
 import { grimeDecalMaterial, houseGrime } from "./houseGrime";
 import { brickBandTexture, facadeAtlas, grimeDecals, glassTexture, leafTexture, roofAtlas, slateTexture, stoneTexture } from "./cityTextures";
@@ -128,11 +128,12 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
     const earthPave = earthPaving();
     // cobbles and flagstones with height maps (world/paving.ts): they stand up (psx relief)
     const cobPave = cobblePaving();
-    // "not too clean, as it was then" (Steve, 2026-09-25): the street cobbles a Codex picture of muddy setts with
-    // dung and straw (3 m a tile: stones of about 15 cm), its height from its own light and dark (the joints are too muddy to find the
-    // stones in): so no stone map, every stone rolls no dice of its own; the painted one shows until they load.
-    // (bump maps checked, 2026-09-26: colour and height swap in together, never one without the other)
-    withPictures(cobPave, { map: "/textures/street_cobble.jpg", height: "/textures/street_cobble_h.png", id: null });
+    // "not too clean, as it was then" (Steve, 2026-09-25): the street cobbles, muddy setts with dung and straw (3 m a
+    // tile). 2026-09-27 (Steve: "big strokes of stone that seem higher", "they repeat like texture mapping repeats"):
+    // the stones laid again from the Codex picture's own stone and mud (tools/textures/street_cobble_synth.py), so the
+    // height and the stone map are the same stones as the colour; each stone rolls its own dice (tone, sunk, gone) in
+    // each tile. The painted one shows until they load; colour, height and stones swap in together.
+    withPictures(cobPave, { map: "/textures/street_cobble.jpg", height: "/textures/street_cobble_h.png", id: "/textures/street_cobble_id.png" });
     const flagPave = flagPaving();
     const grassPave = grassPaving();
     const quayPave = quayPaving();
@@ -215,6 +216,9 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
   {
     const edges = ((data as unknown as { ground?: { edges?: Array<Array<[number, number]>> } }).ground?.edges ?? []) as Array<Array<[number, number]>>;
     const W = 0.34;
+    // (2026-09-27, Steve: the kerbs "should seem higher in bumpmapping") their own height map: slabs with rounded
+    // edges falling into the joints, lit on the side toward a light (world/paving.ts edgeStoneTextures)
+    const edge = edgeStoneTextures();
     const pos: number[] = [];
     const uv: number[] = [];
     for (const line of edges) {
@@ -254,11 +258,9 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
       g.computeVertexNormals();
       const mat = psx(
         // no depth written: where two runs of edge stones cross they would fight each other (z-fight check)
-        new THREE.MeshLambertMaterial({ map: edgeStoneTexture(), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8, depthWrite: false }),
+        new THREE.MeshLambertMaterial({ map: edge.map, bumpMap: edge.height, bumpScale: EDGE_BUMP, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8, depthWrite: false }),
         { noSnap: true, affine: 0, wet: true },
       );
-      // bump maps on every floor (2026-09-26): the edge stones' joints and worn tops, from their own colour
-      bumpFromMap(mat, 0.012);
       const seam = new THREE.Mesh(g, mat);
       seam.name = "ground_seams";
       group.add(seam);

@@ -84,6 +84,9 @@ export const GOODS: Record<Goods, GoodsInfo> = {
 };
 
 let extra: { hides: THREE.Material; parcel: THREE.Material; chest?: THREE.Material } | null = null;
+/** The sack's shapes, made once. */
+let sackGeo: THREE.BufferGeometry | null = null;
+let neckGeo: THREE.BufferGeometry | null = null;
 
 export function makeGoods(kind: Goods, m: Mats): THREE.Object3D {
   extra ??= {
@@ -96,10 +99,12 @@ export function makeGoods(kind: Goods, m: Mats): THREE.Object3D {
       g.add(box(0.7, 0.7, 0.7, m.crate, 0, 0.35, 0, 0.7));
       break;
     case "sacks": {
-      const s = box(0.8, 0.4, 0.5, m.sack, 0, 0.2, 0, 0.8);
-      s.scale.set(1, 1, 1);
+      // a filled sack lying down: a lumpy pillow (Steve 2026-09-27: the box read as a stone post), the tied neck at one end
+      sackGeo ??= new THREE.IcosahedronGeometry(0.5, 1).scale(0.8, 0.4, 0.5).translate(0, 0.2, 0);
+      const s = new THREE.Mesh(sackGeo, m.sack);
       g.add(s);
-      g.add(box(0.12, 0.3, 0.3, m.sack, 0.44, 0.2, 0, 0.3)); // tied end
+      neckGeo ??= new THREE.CylinderGeometry(0.05, 0.1, 0.16, 6).rotateZ(Math.PI / 2).translate(0.43, 0.2, 0);
+      g.add(new THREE.Mesh(neckGeo, m.sack));
       break;
     }
     case "barrels":

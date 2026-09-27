@@ -1,4 +1,5 @@
 import { FACTIONS, type Faction } from "./factions.ts";
+import { rerouteHauls } from "./town/hauls.ts";
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
@@ -196,6 +197,9 @@ export function openDb(file: string): DB {
   ensureMills(db);
   // M7 short jobs: open goods work of an older save to the new sizes (at most two by hand); in place, once
   shortenOffered(db);
+  // Steve 2026-09-27: the dockers onto the carrying routes of shared/hauls.ts (from a pile to a door); in place
+  const hauled = rerouteHauls(db);
+  if (hauled) console.log(`[town] ${hauled} docker(s) moved onto the carrying routes`);
   // a save from an older city map: homes whose door step lies off every path now get a house of this map
   const lost = rehomeLost(db);
   if (lost) console.log(`[town] ${lost} resident(s) of an older city map moved to houses of this one`);

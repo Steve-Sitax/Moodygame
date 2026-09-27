@@ -118,7 +118,9 @@ Every game quarter hour the server looks at every post:
 2. It picks the source with stock, nearest by the walk map.
 3. It picks the carrier: first the post's own man (the miller's man, the butcher's boy), then a free worker of a fitting
    trade from the town (a docker, a carter, a boatman who is at work and not on a run). The carrier must be awake, at work,
-   and within his work hours when the run ends.
+   and within his work hours when the run ends. Age sets the way of carrying (Steve 2026-09-27): an older carrier takes a
+   cart and a bigger load; a young one goes by hand with a unit or two, and may run. A load never slows anyone: the pace is
+   the person's own (`whereabouts.ts paceOf`).
 4. It makes the run (part A) and takes the goods off the source's ledger. They reach the target's ledger when the unload
    leg ends.
 5. No carrier free, or the run would end after closing time: the need becomes **a job for players** (below). If no player
@@ -237,6 +239,8 @@ A full town with every chain would have about 20 posts and 40 runs out at the bu
   once, as `stepStocks` does.
 
 ## Phases
+
+Status 2026-09-27: the core of T1 and T2 is built (`docs/milestones/T1-ways.md`): ways on foot for every day plan, the shared sum, the unseen walk it, the spawn wait, the town map at the sum. Still open from T1/T2: the mill carts and the dray as server runs, progress reports, the held-people deadline, the map's card and filters.
 
 | Phase | What | Done when |
 |---|---|---|

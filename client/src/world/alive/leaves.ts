@@ -3,6 +3,7 @@ import { psx } from "../../retro/psx";
 import CITY from "../../../../shared/city.json";
 import { leaves as leafSound } from "../../audio/aliveSounds";
 import { mulberry, openAt, type Ctx, type Frame, type Part } from "./common";
+import { dice, hash32, seeded, sharedSeconds } from "../../game/share";
 
 // M7 alive: autumn leaves and scraps of paper blown along the streets. Round Jef (within 26 m)
 // lie some ninety leaves and a few torn bills and wrappers, more near the trees of the quays, the
@@ -123,8 +124,17 @@ export function createLeaves(ctx: Ctx): Part {
   mat.customProgramCacheKey = () => "alive-leaves";
   ctx.scene.add(mesh);
 
-  const list: Leaf[] = [];
-  for (let i = 0; i < N; i++) list.push({ p: new THREE.Vector3(1e5, 0, 0), v: new THREE.Vector3(), yaw: 0, tilt: 0, spin: 0, paper: i >= N_LEAF, air: 0, s: 1 });
+  // M8f sync pass 3: the leaves and scraps are the town's, not laid round Jef by this PC's dice: each cell of the
+  // ground (6 m) has its own, where its dice put them (more near the trees), made when a player comes within reach
+  // of it; the same wind (alive/wind.ts: the shared clock) blows them the same way on every PC. The nearest are drawn.
+  const CELL = 6;
+  interface Lying extends Leaf {
+    key: string;
+    tint: THREE.Color;
+    seed: number;
+  }
+  const cells = new Map<string, Lying[]>();
+  let list: Lying[] = [];
   let on = true;
   let placed = false;
   const m4 = new THREE.Matrix4();
@@ -133,9 +143,9 @@ export function createLeaves(ctx: Ctx): Part {
   const sc = new THREE.Vector3();
   const w2 = new THREE.Vector2();
   const col = new THREE.Color();
-  const fwd = new THREE.Vector3();
   let soundWait = 0;
   let moving = 0;
+  const HIDE = new THREE.Matrix4().makeScale(0, 0, 0);
 
   /** More leaves near the trees: the chance a spot keeps a leaf. */
   const treeNear = (x: number, z: number) => {
@@ -147,30 +157,29 @@ export function createLeaves(ctx: Ctx): Part {
     return 0.3 + 0.7 * Math.exp(-Math.sqrt(d) / 22);
   };
 
-  function lay(l: Leaf, f: Frame, ahead: boolean): boolean {
-    for (let k = 0; k < 12; k++) {
-      let a = Math.random() * Math.PI * 2;
-      if (ahead) {
-        f.cam.getWorldDirection(fwd);
-        a = Math.atan2(fwd.z, fwd.x) + (Math.random() - 0.5) * 1.6;
-      }
-      const d = ahead ? R * (0.45 + Math.random() * 0.55) : Math.sqrt(Math.random()) * R;
-      const x = f.eye.x + Math.cos(a) * d;
-      const z = f.eye.z + Math.sin(a) * d;
+  /** The leaves of a cell, where its dice lay them. */
+  function cellLeaves(ci: number, cj: number): Lying[] {
+    const key = `${ci},${cj}`;
+    const r = seeded(hash32("leaves", ci, cj));
+    const out: Lying[] = [];
+    const T = treeNear((ci + 0.5) * CELL, (cj + 0.5) * CELL);
+    for (let k = 0; k < 17; k++) {
+      const paper = k === 16;
+      const x = (ci + r()) * CELL;
+      const z = (cj + r()) * CELL;
+      const keep = r();
+      const yaw = r() * Math.PI * 2;
+      const s = r();
+      const h = r(), sat = r(), lit = r();
+      if (keep > (paper ? T * 0.15 : T * 0.8)) continue;
       if (!openAt(ctx.flags, x, z, 0.3)) continue;
-      if (Math.random() > treeNear(x, z) * (l.paper ? 1.5 : 1)) continue;
       const y = ctx.world.baseAt(x, z);
-      if (!Number.isFinite(y) || Math.abs(y - (f.eye.y - 1.6)) > 3) continue;
-      l.p.set(x, y + 0.025, z);
-      l.v.set(0, 0, 0);
-      l.yaw = Math.random() * Math.PI * 2;
-      l.tilt = 0;
-      l.air = 0;
-      l.s = l.paper ? 0.28 + Math.random() * 0.12 : 0.17 + Math.random() * 0.13;
-      return true;
+      if (!Number.isFinite(y)) continue;
+      // (package 1: ochre, rust and brown, a little brighter than the drifts: the loose ones lie on top, dry)
+      const tint = paper ? new THREE.Color(0.8, 0.78, 0.72) : new THREE.Color().setHSL(0.05 + h * 0.07, 0.6 + sat * 0.3, 0.34 + lit * 0.2);
+      out.push({ key, p: new THREE.Vector3(x, y + 0.025, z), v: new THREE.Vector3(), yaw, tilt: 0, spin: 0, paper, air: 0, s: paper ? 0.28 + s * 0.12 : 0.17 + s * 0.13, tint, seed: hash32(key, k) });
     }
-    l.p.set(1e5, 0, 0);
-    return false;
+    return out;
   }
 
   const lastEye = new THREE.Vector3();
@@ -178,37 +187,46 @@ export function createLeaves(ctx: Ctx): Part {
     if (!on) return;
     lastEye.copy(f.eye);
     const dt = f.dt;
-    if (!placed) {
-      if (ctx.flags(f.eye.x, f.eye.z) === undefined) return;
-      for (const l of list) lay(l, f, false);
-      placed = true;
+    if (ctx.flags(f.eye.x, f.eye.z) === undefined) return;
+    placed = true;
+    // the cells within reach of this eye (dropped a little further out: no leaves coming and going at one distance)
+    const i0 = Math.floor((f.eye.x - R) / CELL), i1 = Math.floor((f.eye.x + R) / CELL);
+    const j0 = Math.floor((f.eye.z - R) / CELL), j1 = Math.floor((f.eye.z + R) / CELL);
+    for (let i = i0; i <= i1; i++)
+      for (let j = j0; j <= j1; j++) {
+        const key = `${i},${j}`;
+        if (cells.has(key)) continue;
+        if (Math.hypot((i + 0.5) * CELL - f.eye.x, (j + 0.5) * CELL - f.eye.z) > R + CELL) continue;
+        cells.set(key, cellLeaves(i, j));
+      }
+    for (const [key, l] of cells) {
+      const [ci, cj] = key.split(",").map(Number);
+      if (Math.hypot((ci + 0.5) * CELL - f.eye.x, (cj + 0.5) * CELL - f.eye.z) > R * 1.25 + CELL) cells.delete(key);
+      void l;
     }
+    list = [...cells.values()].flat();
     // wet leaves stick: it takes a gale to move them
     const stick = 0.9 + f.wet * 5;
+    const S = sharedSeconds();
     moving = 0;
     let mx = 0, mz = 0;
-    for (let i = 0; i < N; i++) {
+    for (let i = 0; i < list.length; i++) {
       const l = list[i];
-      const dx = l.p.x - f.eye.x;
-      const dz = l.p.z - f.eye.z;
-      const dd = Math.hypot(dx, dz);
-      if (dd > R * 1.25 || l.p.x > 1e4 || Math.abs(l.p.y - (f.eye.y - 1.6)) > 4) {
-        // walked away from it: ahead of Jef; a jump (the dev's go, a load): anywhere round him
-        lay(l, f, dd < R * 2);
-        continue;
-      }
+      const dd = Math.hypot(l.p.x - f.eye.x, l.p.z - f.eye.z);
+      if (dd > R * 1.25) continue;
       ctx.wind.at(l.p.x, l.p.z, w2);
       const ws = w2.length();
       const push = Math.max(0, ws - stick) * (l.paper ? 1.4 : 1);
       const ground = ctx.world.baseAt(l.p.x, l.p.z);
       const gy = Number.isFinite(ground) ? ground + 0.025 : l.p.y; // (over the flat street decals: straw, dung, puddles)
       if (push > 0.05) {
-        // the wind takes it: towards the wind speed, a hop now and then, spinning
+        // the wind takes it: towards the wind speed, a hop now and then, spinning (the leaf's own dice by the clock)
         const target = 0.8 * ws * (l.paper ? 1.1 : 0.9);
+        const n = Math.floor(S * 8);
         l.v.x += (w2.x / ws * target - l.v.x) * Math.min(1, dt * 2.5 * push);
         l.v.z += (w2.y / ws * target - l.v.z) * Math.min(1, dt * 2.5 * push);
-        if (l.air <= 0 && Math.random() < dt * push * (l.paper ? 1.2 : 0.8)) l.v.y = 0.6 + Math.random() * push * 0.9;
-        l.spin += (Math.random() - 0.5) * dt * 20 * push;
+        if (l.air <= 0 && dice("leafhop", l.seed, n) < 0.125 * push * (l.paper ? 1.2 : 0.8)) l.v.y = 0.6 + dice("leafhopv", l.seed, n) * push * 0.9;
+        l.spin += (dice("leafspin", l.seed, n) - 0.5) * dt * 20 * push;
       } else {
         // friction on the stones
         const k = Math.max(0, 1 - dt * 3);
@@ -243,13 +261,27 @@ export function createLeaves(ctx: Ctx): Part {
         mx += l.p.x;
         mz += l.p.z;
       }
+    }
+    // the nearest on this eye's level into the instances (leaves first, the scraps in their own)
+    const near = list.filter((l) => Math.hypot(l.p.x - f.eye.x, l.p.z - f.eye.z) <= R * 1.25 && Math.abs(l.p.y - (f.eye.y - 1.6)) <= 4);
+    // (the nearest first only when there are more than the instances hold; else in a fixed order: the same instances
+    // for two players in one place)
+    if (near.length > N_LEAF) near.sort((a, b) => Math.hypot(a.p.x - f.eye.x, a.p.z - f.eye.z) - Math.hypot(b.p.x - f.eye.x, b.p.z - f.eye.z));
+    else near.sort((a, b) => a.seed - b.seed);
+    let nl = 0;
+    let np = N_LEAF;
+    for (const l of near) {
+      const slot = l.paper ? (np < N ? np++ : -1) : nl < N_LEAF ? nl++ : -1;
+      if (slot < 0) continue;
       e.set(l.tilt, l.yaw, l.tilt * 0.6);
       q.setFromEuler(e);
       m4.compose(l.p, q, sc.set(l.s, l.s, l.s * (l.paper ? 0.75 : 1.2)));
-      mesh.setMatrixAt(i, m4);
-      col.copy(tints[i]).multiplyScalar(1 - 0.45 * f.wet);
-      mesh.setColorAt(i, col);
+      mesh.setMatrixAt(slot, m4);
+      col.copy(l.tint).multiplyScalar(1 - 0.45 * f.wet);
+      mesh.setColorAt(slot, col);
     }
+    for (let i = nl; i < N_LEAF; i++) mesh.setMatrixAt(i, HIDE);
+    for (let i = np; i < N; i++) mesh.setMatrixAt(i, HIDE);
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.visible = true;

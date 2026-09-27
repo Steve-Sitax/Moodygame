@@ -92,6 +92,10 @@ Pictures made with Codex image generation (quays pass 2, 2026-09-25; Steve's OK 
 `.claude/rule-overrides.md`). Made for this game from our own prompts (and, as the example to match, Steve's
 own augmented shots of the game); OpenAI's terms give the output to the user. No third-party images went in.
 Steps after generation: resized, and for the setts a height and stone map worked out by `tools/textures/setts_maps.py`.
+2026-09-27: the street cobbles and the quay setts are laid again from their pictures by `tools/textures/setts_synth.py`
+(new stone layout; each stone's face and the mud cut from the Codex picture; height and stone maps from the same layout).
+The Codex pictures as generated (after the steps above) are kept in `tools/textures/src/street_cobble_codex.jpg` and
+`tools/textures/src/quay_setts_codex.jpg`; `client/public/textures/street_cobble.jpg` and `quay_setts.jpg` are the laid ones.
 
 | Picture | Where in repo | Prompt, in short | Made | Original PNG SHA-256 |
 |---|---|---|---|---|

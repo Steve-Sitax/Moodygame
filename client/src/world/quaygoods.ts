@@ -7,8 +7,10 @@ import CITY from "../../../shared/city.json";
 import SPOT_TABLE from "../../../shared/spots.json";
 import { LANDMARK_DOORS } from "../../../shared/landmarks";
 import { psx } from "../retro/psx";
-import type { Rect } from "./geom";
-import { loadProps } from "./props3d";
+import { rectAround, type Rect } from "./geom";
+import { loadProps, type Props } from "./props3d";
+import { FOOT, heightOf, townGoods, type Door } from "../../../shared/goods";
+import BAKE from "../../../shared/quaycargo.json";
 import { TOWN_CLEAR } from "./quayfurniture";
 import { trackKeepOut, type TrackData } from "./tracks";
 import { trafficLanes } from "./traffic";
@@ -91,11 +93,45 @@ interface Proto {
   tris: number;
   /** How far it reaches from its origin on the ground plan (m). */
   reach?: number;
+  /** M8f goods pass 2: a cask, crate or sack you can lift (the server's item when it lies on a quay heap). */
+  goods?: { kind: "barrels" | "crates" | "sacks"; heavy: boolean };
+  /** Its own lowest and highest point (m), for what rests on what. */
+  minY?: number;
 }
+/**
+ * M8f goods pass 2: a heap model built of goods (a pyramid of casks, a block of crates, a pallet of sacks) comes as
+ * pieces (build_quaygoods.py PMesh): each cask, crate or sack in its own frame, and the rest (chocks, the pallet).
+ */
+interface Piece {
+  /** Its proto's key: "<model>.<k>". */
+  node: string;
+  /** Where it stands in the model: x, y (its foot), z, turn. */
+  frame: [number, number, number, number];
+}
+const pieces = new Map<string, { parts: Piece[]; rest: string | null }>();
 interface Put {
   name: string;
   m: THREE.Matrix4;
   shade: number;
+}
+/** M8f goods pass 2: a cask, crate or sack of a heap, the server's item `id` (shared/quaycargo.json). */
+export interface Cargo {
+  id: string;
+  /** Its model: "<heap model>.<k>" or a single model's name. */
+  node: string;
+  kind: "barrels" | "crates" | "sacks";
+  heavy: boolean;
+  x: number;
+  /** Its foot. */
+  y: number;
+  z: number;
+  rot: number;
+  shade: number;
+  heap: number;
+  /** Its ground held (a collider) until the server's item is drawn. */
+  hold: Rect | null;
+  /** What it rests on (ids of the same heap). */
+  on: string[];
 }
 
 const SOLID = 0;
@@ -796,16 +832,41 @@ export function quayGoodsAreas(): Rect[] {
 
 // ------------------------------------------------------------------ helpers
 
-function rng(seed: number): () => number {
+function rng(seed: number): (() => number) & { get(): number; set(v: number): void } {
   let s = seed >>> 0;
-  return () => {
+  const f = () => {
     s = (s + 0x6d2b79f5) >>> 0;
     let t = s;
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+  // (M8f: the bake keeps where the stream stood after the heaps, so the debris falls as it did)
+  return Object.assign(f, { get: () => s, set: (v: number) => void (s = v >>> 0) });
 }
+
+/**
+ * M8f goods pass 2: the heaps as baked (shared/quaycargo.json, tools/bake-quaycargo.mjs): each heap's kind, quay,
+ * frame, how it stands (open, against a wall, a row at the water), mirrored, taken away at the bake (gone), and every
+ * model as it was put down (name, x, z, turn, shade, lift) and its ground decals. Laid from this list, the heaps stand
+ * the same on every PC and after every load (the search for places looks at what moves: the drays, the trains, the
+ * stalls of the hour), and their cargo matches the server's list. `?quaybake` in the address searches afresh.
+ */
+interface BakedHeap {
+  k: string;
+  q: string;
+  x: number;
+  z: number;
+  yaw: number;
+  m: "open" | "wall" | "edge";
+  f: boolean;
+  g?: boolean;
+  items: Array<[string, number, number, number, number, number]>;
+  decals: Array<[string, number, number, number, number]>;
+}
+const bakeFile = BAKE as unknown as { heaps?: BakedHeap[]; rng?: number };
+/** The heaps as laid in this build (for the bake). */
+let recorded: { heaps: BakedHeap[]; rng: number } | null = null;
 function pick<T>(r: () => number, table: Array<[T, number]>): T {
   let sum = 0;
   for (const [, w] of table) sum += w;
@@ -849,15 +910,71 @@ class RectIndex {
 
 // ------------------------------------------------------------------ loading
 
-let loading: Promise<{ protos: Map<string, Proto>; solidMap: THREE.Texture; decalMap: THREE.Texture }> | null = null;
-function loadModels() {
-  if (!loading) loading = load();
-  return loading;
+const UP = new THREE.Vector3(0, 1, 0);
+const ONE = new THREE.Vector3(1, 1, 1);
+
+/** A part moved by M (normals by its normal matrix). */
+function transformPart(part: Part, M: THREE.Matrix4, nm: THREE.Matrix3): Part {
+  const n = part.pos.length / 3;
+  const out: Part = { slot: part.slot, pos: new Float32Array(n * 3), nor: new Float32Array(n * 3), uv: part.uv.slice(), col: part.col.slice() };
+  const v = new THREE.Vector3();
+  for (let i = 0; i < n; i++) {
+    v.set(part.pos[i * 3], part.pos[i * 3 + 1], part.pos[i * 3 + 2]).applyMatrix4(M);
+    out.pos[i * 3] = v.x;
+    out.pos[i * 3 + 1] = v.y;
+    out.pos[i * 3 + 2] = v.z;
+    v.set(part.nor[i * 3], part.nor[i * 3 + 1], part.nor[i * 3 + 2]).applyMatrix3(nm).normalize();
+    out.nor[i * 3] = v.x;
+    out.nor[i * 3 + 1] = v.y;
+    out.nor[i * 3 + 2] = v.z;
+  }
+  return out;
 }
 
-async function load(): Promise<{ protos: Map<string, Proto>; solidMap: THREE.Texture; decalMap: THREE.Texture }> {
+/** A proto's footprint, height and reach from its parts (as load() measures a model). */
+function boundsOf(proto: Proto): void {
+  for (const p of proto.parts) {
+    if (p.slot !== SOLID) continue;
+    for (let i = 0; i < p.pos.length; i += 3) {
+      const y = p.pos[i + 1];
+      proto.height = Math.max(proto.height, y);
+      proto.minY = Math.min(proto.minY ?? Infinity, y);
+      if (y < 1.6) {
+        proto.minX = Math.min(proto.minX, p.pos[i]);
+        proto.maxX = Math.max(proto.maxX, p.pos[i]);
+        proto.minZ = Math.min(proto.minZ, p.pos[i + 2]);
+        proto.maxZ = Math.max(proto.maxZ, p.pos[i + 2]);
+      }
+    }
+  }
+  if (!Number.isFinite(proto.minX))
+    for (const p of proto.parts)
+      for (let i = 0; i < p.pos.length; i += 3) {
+        proto.minX = Math.min(proto.minX, p.pos[i]);
+        proto.maxX = Math.max(proto.maxX, p.pos[i]);
+        proto.minZ = Math.min(proto.minZ, p.pos[i + 2]);
+        proto.maxZ = Math.max(proto.maxZ, p.pos[i + 2]);
+      }
+  proto.reach = Math.max(Math.hypot(proto.minX, proto.minZ), Math.hypot(proto.maxX, proto.minZ), Math.hypot(proto.maxX, proto.maxZ), Math.hypot(proto.minX, proto.maxZ));
+}
+
+let loading: Promise<{ protos: Map<string, Proto>; solidMap: THREE.Texture; decalMap: THREE.Texture }> | null = null;
+function loadModels() {
+  if (!loading)
+    loading = load().then((r) => {
+      models = r;
+      return r;
+    });
+  return loading;
+}
+/** The models once loaded (M8f: a carried piece is made at once, not after a wait). */
+let models: { protos: Map<string, Proto>; solidMap: THREE.Texture; decalMap: THREE.Texture } | null = null;
+
+async function load(url = "/models/quaygoods.glb"): Promise<{ protos: Map<string, Proto>; solidMap: THREE.Texture; decalMap: THREE.Texture }> {
   const draco = new DRACOLoader().setDecoderPath("/draco/");
-  const gltf = await new GLTFLoader().setDRACOLoader(draco).loadAsync("/models/quaygoods.glb");
+  const gltf = await new GLTFLoader().setDRACOLoader(draco).loadAsync(url);
+  // (M8f: the heap models made of pieces, in this file)
+  const found = new Map<string, { parts: Piece[]; rest: string | null }>();
   draco.dispose();
   let solidMap: THREE.Texture | null = null;
   let decalMap: THREE.Texture | null = null;
@@ -866,7 +983,17 @@ async function load(): Promise<{ protos: Map<string, Proto>; solidMap: THREE.Tex
   const nrm = new THREE.Matrix3();
   gltf.scene.updateMatrixWorld(true);
   for (const node of gltf.scene.children) {
-    const proto: Proto = { parts: [], minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity, height: 0, tris: 0 };
+    const proto: Proto = { parts: [], minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity, height: 0, tris: 0, minY: Infinity };
+    // (M8f: a piece of a heap model, or a single thing you can lift; the extras of build_quaygoods.py)
+    const ex = node.userData as { qg_of?: string; qg_k?: number; qg_frame?: number[]; qg_goods?: string; qg_heavy?: number };
+    const name = ex.qg_of !== undefined && ex.qg_k !== undefined ? `${ex.qg_of}.${ex.qg_k >= 0 ? ex.qg_k : "rest"}` : node.name;
+    if (ex.qg_goods === "barrels" || ex.qg_goods === "crates" || ex.qg_goods === "sacks") proto.goods = { kind: ex.qg_goods, heavy: ex.qg_heavy === 1 };
+    if (ex.qg_of !== undefined && ex.qg_k !== undefined) {
+      let pc = found.get(ex.qg_of);
+      if (!pc) found.set(ex.qg_of, (pc = { parts: [], rest: null }));
+      if (ex.qg_k < 0) pc.rest = name;
+      else pc.parts[ex.qg_k] = { node: name, frame: (ex.qg_frame ?? [0, 0, 0, 0]) as Piece["frame"] };
+    }
     const inv = new THREE.Matrix4().copy(node.matrixWorld).invert();
     node.traverse((o) => {
       const m = o as THREE.Mesh;
@@ -893,6 +1020,7 @@ async function load(): Promise<{ protos: Map<string, Proto>; solidMap: THREE.Tex
         part.pos[i * 3 + 2] = v.z;
         if (slot === SOLID) {
           proto.height = Math.max(proto.height, v.y);
+          proto.minY = Math.min(proto.minY!, v.y);
           if (v.y < 1.6) {
             proto.minX = Math.min(proto.minX, v.x);
             proto.maxX = Math.max(proto.maxX, v.x);
@@ -928,7 +1056,27 @@ async function load(): Promise<{ protos: Map<string, Proto>; solidMap: THREE.Tex
         }
     }
     proto.reach = Math.max(Math.hypot(proto.minX, proto.minZ), Math.hypot(proto.maxX, proto.minZ), Math.hypot(proto.maxX, proto.maxZ), Math.hypot(proto.minX, proto.maxZ));
-    protos.set(node.name, proto);
+    protos.set(name, proto);
+  }
+  // M8f goods pass 2: a heap model of pieces, put together again as it was built (its frame, its bounds, its height:
+  // the heaps are placed by them, so they stand where they stood)
+  for (const [name, pc] of found) {
+    if (url === "/models/quaygoods.glb") pieces.set(name, pc);
+    const proto: Proto = { parts: [], minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity, height: 0, tris: 0, minY: Infinity };
+    const M = new THREE.Matrix4();
+    const Q = new THREE.Quaternion();
+    for (const p of [...pc.parts.map((q) => q && { node: q.node, frame: q.frame }), pc.rest ? { node: pc.rest, frame: [0, 0, 0, 0] as Piece["frame"] } : null]) {
+      if (!p) continue;
+      const src = protos.get(p.node);
+      if (!src) continue;
+      const [fx, fy, fz, fyaw] = p.frame;
+      M.compose(v.set(fx, fy, fz), Q.setFromAxisAngle(UP, fyaw), ONE);
+      nrm.getNormalMatrix(M);
+      for (const part of src.parts) proto.parts.push(transformPart(part, M, nrm));
+      proto.tris += src.tris;
+    }
+    boundsOf(proto);
+    protos.set(name, proto);
   }
   if (!solidMap || !decalMap) throw new Error("quaygoods.glb: textures missing");
   for (const t of [solidMap as THREE.Texture, decalMap as THREE.Texture]) {
@@ -945,7 +1093,9 @@ let materials: { solid: THREE.Material; decal: THREE.Material } | null = null;
 function mats(solidMap: THREE.Texture, decalMap: THREE.Texture): { solid: THREE.Material; decal: THREE.Material } {
   if (materials) return materials;
   const solid = psx(new THREE.MeshLambertMaterial({ map: solidMap, vertexColors: true }), { affine: 0 });
-  propSurface(solid, new THREE.TextureLoader().load("/models/quaygoods_surface.png"));
+  // (0.4: the "mixed" kind's 1.0 read across the atlas's island edges as pale dashes on every stave and hoop, Steve
+  // 2026-09-27)
+  propSurface(solid, new THREE.TextureLoader().load("/models/quaygoods_surface.png"), 0.4);
   const decal = psx(
     new THREE.MeshLambertMaterial({ map: decalMap, vertexColors: true, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 }),
     { affine: 0, noSnap: true },
@@ -1019,6 +1169,290 @@ function mergePuts(puts: Put[], protos: Map<string, Proto>, m: { solid: THREE.Ma
   return { meshes, triangles };
 }
 
+// ------------------------------------------------------------------ M8f goods pass 2: the chunks with the cargo in them
+
+/** The vertices of one chunk's slot, ready for a geometry. */
+interface Arrays {
+  pos: Float32Array;
+  nor: Float32Array;
+  uv: Float32Array;
+  col: Float32Array;
+  n: number;
+}
+type Copy = { part: Part; m: THREE.Matrix4; shade: number };
+
+function arraysOf(items: Copy[]): Arrays {
+  let n = 0;
+  for (const it of items) n += it.part.pos.length / 3;
+  const a: Arrays = { pos: new Float32Array(n * 3), nor: new Float32Array(n * 3), uv: new Float32Array(n * 2), col: new Float32Array(n * 3), n };
+  const v = new THREE.Vector3();
+  const nm = new THREE.Matrix3();
+  let o = 0;
+  for (const { part, m: M, shade } of items) {
+    nm.getNormalMatrix(M);
+    const k = part.pos.length / 3;
+    for (let i = 0; i < k; i++) {
+      v.set(part.pos[i * 3], part.pos[i * 3 + 1], part.pos[i * 3 + 2]).applyMatrix4(M);
+      a.pos[(o + i) * 3] = v.x;
+      a.pos[(o + i) * 3 + 1] = v.y;
+      a.pos[(o + i) * 3 + 2] = v.z;
+      v.set(part.nor[i * 3], part.nor[i * 3 + 1], part.nor[i * 3 + 2]).applyMatrix3(nm).normalize();
+      a.nor[(o + i) * 3] = v.x;
+      a.nor[(o + i) * 3 + 1] = v.y;
+      a.nor[(o + i) * 3 + 2] = v.z;
+      a.uv[(o + i) * 2] = part.uv[i * 2];
+      a.uv[(o + i) * 2 + 1] = part.uv[i * 2 + 1];
+      a.col[(o + i) * 3] = part.col[i * 3] * shade;
+      a.col[(o + i) * 3 + 1] = part.col[i * 3 + 1] * shade;
+      a.col[(o + i) * 3 + 2] = part.col[i * 3 + 2] * shade;
+    }
+    o += k;
+  }
+  return a;
+}
+
+const chunkOf = (x: number, z: number) => `${Math.floor(x / CHUNK)},${Math.floor(z / CHUNK)}`;
+
+/**
+ * The cargo lying on the quays (game/goods.ts: the server's items with a quay look), by id: drawn inside the chunk
+ * meshes of the heaps (the same two draw calls a chunk, the same material), made again when one comes or goes.
+ */
+const loose = new Map<string, { node: string; m: THREE.Matrix4; shade: number; ck: string }>();
+const dirtyChunks = new Set<string>();
+/** The shade each cargo item had in its heap (this PC's own build: the same on every PC). */
+const cargoShade = new Map<string, number>();
+/** Time the last rebuild of chunks took (ms), for the checks. */
+export const cargoStats = { rebuilds: 0, ms: 0 };
+
+/** Every chunk's static copies (the heaps as laid, the debris) into arrays, and the meshes made again with the cargo. */
+function buildChunks(puts: Put[]): { meshes: number; triangles: number } {
+  const L = live!;
+  for (const b of L.buckets.values()) {
+    if (b.mesh) {
+      L.group.remove(b.mesh);
+      b.mesh.geometry.dispose();
+    }
+  }
+  L.buckets.clear();
+  L.chunks.length = 0;
+  const by = new Map<string, { ck: string; slot: number; items: Copy[] }>();
+  const p = new THREE.Vector3();
+  for (const put of puts) {
+    const proto = L.protos.get(put.name);
+    if (!proto) continue;
+    p.setFromMatrixPosition(put.m);
+    const ck = chunkOf(p.x, p.z);
+    for (const part of proto.parts) {
+      const k = `${ck}|${part.slot}`;
+      let b = by.get(k);
+      if (!b) by.set(k, (b = { ck, slot: part.slot, items: [] }));
+      b.items.push({ part, m: put.m, shade: put.shade });
+    }
+  }
+  for (const [k, b] of by) L.buckets.set(k, { ck: b.ck, slot: b.slot, stat: arraysOf(b.items), mesh: null });
+  const cks = new Set<string>([...[...L.buckets.values()].map((b) => b.ck), ...[...loose.values()].map((l) => l.ck)]);
+  let triangles = 0;
+  for (const ck of cks) for (const slot of [SOLID, DECAL]) triangles += rebuild(ck, slot);
+  dirtyChunks.clear();
+  return { meshes: L.chunks.length, triangles };
+}
+
+/** One chunk's slot again: its static copies and the cargo lying in it. Returns its triangles. */
+function rebuild(ck: string, slot: number): number {
+  const L = live!;
+  const key = `${ck}|${slot}`;
+  let b = L.buckets.get(key);
+  const extra: Copy[] = [];
+  for (const l of loose.values()) {
+    if (l.ck !== ck) continue;
+    for (const part of L.protos.get(l.node)?.parts ?? []) if (part.slot === slot) extra.push({ part, m: l.m, shade: l.shade });
+  }
+  const statN = b?.stat?.n ?? 0;
+  if (!extra.length && !statN) {
+    if (b?.mesh) {
+      L.group.remove(b.mesh);
+      b.mesh.geometry.dispose();
+      L.chunks.splice(L.chunks.indexOf(b.mesh), 1);
+      b.mesh = null;
+    }
+    return 0;
+  }
+  if (!b) L.buckets.set(key, (b = { ck, slot, stat: null, mesh: null }));
+  const s = b.stat;
+  const e = extra.length ? arraysOf(extra) : null;
+  const join = (a: Float32Array | undefined, c: Float32Array | undefined) => {
+    if (!c) return a!.slice();
+    if (!a) return c;
+    const out = new Float32Array(a.length + c.length);
+    out.set(a, 0);
+    out.set(c, a.length);
+    return out;
+  };
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(join(s?.pos, e?.pos), 3));
+  g.setAttribute("normal", new THREE.BufferAttribute(join(s?.nor, e?.nor), 3));
+  g.setAttribute("uv", new THREE.BufferAttribute(join(s?.uv, e?.uv), 2));
+  g.setAttribute("color", new THREE.BufferAttribute(join(s?.col, e?.col), 3));
+  g.computeBoundingSphere();
+  if (b.mesh) {
+    b.mesh.geometry.dispose();
+    b.mesh.geometry = g;
+  } else {
+    const mesh = new THREE.Mesh(g, slot === DECAL ? L.mats.decal : L.mats.solid);
+    mesh.name = slot === DECAL ? "quaygoods_decals" : "quaygoods";
+    if (slot === DECAL) mesh.renderOrder = 2;
+    L.group.add(mesh);
+    L.chunks.push(mesh);
+    b.mesh = mesh;
+  }
+  return (statN + (e?.n ?? 0)) / 3;
+}
+
+/** Each frame (game/goods.ts): the chunks whose cargo changed, made again. */
+export function flushQuayCargo(): void {
+  if (!live || !dirtyChunks.size) return;
+  const t0 = performance.now();
+  for (const ck of dirtyChunks) for (const slot of [SOLID, DECAL]) rebuild(ck, slot);
+  dirtyChunks.clear();
+  cargoStats.rebuilds++;
+  cargoStats.ms = +(performance.now() - t0).toFixed(2);
+}
+
+/** A cargo item lies at (x, y, z) turned rot (game/goods.ts lays the server's item): drawn in its chunk. */
+export function showQuayCargo(id: string, node: string, x: number, y: number, z: number, rot: number): void {
+  const old = loose.get(id);
+  const ck = chunkOf(x, z);
+  const m = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, rot), ONE);
+  if (old) dirtyChunks.add(old.ck);
+  loose.set(id, { node, m, shade: cargoShade.get(id) ?? 1, ck });
+  dirtyChunks.add(ck);
+  // its ground was held for it by the heap (its collider from the model now comes from game/goods.ts)
+  const c = byId.get(id);
+  if (c?.hold) {
+    c.hold.minX = c.hold.maxX = c.hold.minZ = c.hold.maxZ = 1e7;
+    c.hold.top = 0;
+    c.hold = null;
+  }
+}
+
+/** It is lifted, on a cart, gone: out of its chunk. */
+export function hideQuayCargo(id: string): void {
+  const old = loose.get(id);
+  if (!old) return;
+  loose.delete(id);
+  dirtyChunks.add(old.ck);
+}
+
+/** The cargo of this PC's heaps by id (for the holds and the check against the server's list). */
+const byId = new Map<string, Cargo>();
+
+/** The models of the quay goods, once loaded (game/goods.ts draws a carried piece with them). */
+export function quayModels(): Promise<Map<string, Proto>> {
+  return loadModels().then((r) => r.protos);
+}
+
+/**
+ * A piece of cargo as one mesh (in hands, on a shoulder, on a cart): its model in its own frame, the goods'
+ * material. Null while the models are not in (quayModels() resolves when they are).
+ */
+export function quayPieceMesh(node: string): THREE.Mesh | null {
+  if (!models) {
+    void loadModels();
+    return null;
+  }
+  const { protos, solidMap, decalMap } = models;
+  const p = protos.get(node);
+  if (!p) return null;
+  let g = pieceGeo.get(node);
+  if (!g) {
+    const a = arraysOf(p.parts.filter((q) => q.slot === SOLID).map((part) => ({ part, m: new THREE.Matrix4(), shade: 1 })));
+    g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(a.pos, 3));
+    g.setAttribute("normal", new THREE.BufferAttribute(a.nor, 3));
+    g.setAttribute("uv", new THREE.BufferAttribute(a.uv, 2));
+    g.setAttribute("color", new THREE.BufferAttribute(a.col, 3));
+    g.computeBoundingSphere();
+    pieceGeo.set(node, g);
+  }
+  const mesh = new THREE.Mesh(g, mats(solidMap, decalMap).solid);
+  mesh.name = `quaycargo ${node}`;
+  return mesh;
+}
+const pieceGeo = new Map<string, THREE.BufferGeometry>();
+
+/**
+ * M8f goods pass 2: colliders that come and go with the goods (the items, the drays, the placeholders of their
+ * ground): the heaps are placed without them (goodsHomes instead), so they stand the same on every PC.
+ */
+export const goodsRects = new WeakSet<Rect>();
+
+/** The colliders of the town's own goods where they belong (the owned goods, the casks, crates and sacks of the Rijnkaai). */
+function goodsHomes(props: Props): Rect[] {
+  const out: Rect[] = [];
+  for (const it of townGoods((CITYD as unknown as { doors: Record<string, Door> }).doors)) {
+    try {
+      if (it.look === "cask") out.push(...props.colliders("barrel", it.x, it.z, it.rot, it.y));
+      else if (it.look?.startsWith("p:")) out.push(...props.colliders(it.look.slice(2), it.x, it.z, it.rot, it.y, it.sc ?? 1));
+      else out.push(rectAround(it.x, it.z, FOOT, FOOT, it.y + heightOf(it)));
+    } catch {
+      // (a model props.glb does not have)
+    }
+  }
+  return out;
+}
+
+/** A lying piece's collider from its model (null until the models are in). */
+export function quayPieceCollider(protos: Map<string, Proto>, node: string, x: number, z: number, rot: number, y: number): Rect | null {
+  const p = protos.get(node);
+  if (!p) return null;
+  return modelCollider(modelShape(p, () => p.parts.filter((q) => q.slot === SOLID).map((q) => q.pos)), x, z, rot, y);
+}
+
+/** A piece's size: its height over its foot, its footprint (m). */
+export function quayPieceSize(protos: Map<string, Proto>, node: string): { h: number; w: number; d: number } | null {
+  const p = protos.get(node);
+  return p ? { h: p.height, w: p.maxX - p.minX, d: p.maxZ - p.minZ } : null;
+}
+
+/**
+ * Dev and the bake (tools/bake-quaycargo.mjs): the cargo of the heaps that stand, as the server's list has it
+ * (shared/quaycargo.json): id, model, kind, place, turn, height, what it rests on, heavy.
+ */
+export function quayCargo(): Array<[string, string, string, number, number, number, number, number, string[], number]> {
+  if (!last) return [];
+  const heaps = last.debug.heaps;
+  const r3 = (v: number) => Math.round(v * 1000) / 1000;
+  const out: Array<[string, string, string, number, number, number, number, number, string[], number]> = [];
+  for (const c of last.cargo) {
+    if (heaps[c.heap]?.gone) continue;
+    const p = live!.protos.get(c.node)!;
+    out.push([c.id, c.node, c.kind, r3(c.x), r3(c.y), r3(c.z), r3(c.rot), r3(p.height), c.on, c.heavy ? 1 : 0]);
+  }
+  return out;
+}
+
+/**
+ * The bake (tools/bake-quaycargo.mjs): the heaps as laid in this tab (a search afresh: `?quaybake`), with those taken
+ * away since marked gone, and where the random stream stood after them.
+ */
+export function quayHeapsBake(): { heaps: BakedHeap[]; rng: number } | null {
+  if (!recorded || !last) return null;
+  const r4 = (v: number) => Math.round(v * 1e4) / 1e4;
+  const heaps = recorded.heaps.map((h, i) => ({
+    k: h.k,
+    q: h.q,
+    x: r4(h.x),
+    z: r4(h.z),
+    yaw: r4(h.yaw),
+    m: h.m,
+    f: h.f,
+    ...(last!.debug.heaps[i]?.gone ? { g: true } : {}),
+    items: h.items.map(([n, x, z, y, s, l]) => [n, r4(x), r4(z), r4(y), r4(s), r4(l)] as BakedHeap["items"][number]),
+    decals: h.decals.map(([n, x, z, y, s]) => [n, r4(x), r4(z), r4(y), r4(s)] as BakedHeap["decals"][number]),
+  }));
+  return { heaps, rng: recorded.rng };
+}
+
 /** Before each render: hide the chunks beyond the fog (chained onto the scene's own hook). */
 function hideBeyondFog(scene: THREE.Scene, chunks: THREE.Mesh[]): void {
   const hideFar = (cam: THREE.Camera) => {
@@ -1081,7 +1515,7 @@ function quayZone(): (x: number, z: number) => boolean {
 
 // ------------------------------------------------------------------ building
 
-let last: { result: QuayGoods; debug: Debug } | null = null;
+let last: { result: QuayGoods; debug: Debug; cargo: Cargo[] } | null = null;
 interface Debug {
   flags: Flags;
   keep: Rect[];
@@ -1117,6 +1551,8 @@ interface Live {
   puts: Put[];
   /** Where the debris starts in `puts` (it is kept when a heap is taken away). */
   debrisStart: number;
+  /** M8f: per chunk and slot, its static copies merged, and its mesh (with the cargo lying in it). */
+  buckets: Map<string, { ck: string; slot: number; stat: Arrays | null; mesh: THREE.Mesh | null }>;
 }
 let live: Live | null = null;
 
@@ -1128,6 +1564,15 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
   const [{ protos, solidMap, decalMap }, props] = await Promise.all([loadModels(), loadProps()]);
   for (let i = 0; i < 600 && flags(0, 0) === undefined; i++) await sleep(100);
   const r = rng(opts.seed ?? 1873);
+  // (M8f goods pass 2: the baked heaps, unless asked to search afresh or a model of them is gone)
+  const search = typeof location !== "undefined" && /[?&]quaybake\b/.test(location.search);
+  let baked: BakedHeap[] | null = !search && bakeFile.heaps?.length ? bakeFile.heaps : null;
+  if (baked && baked.some((h) => !V[h.k] || h.items.some(([n]) => !protos.has(n)) || h.decals.some(([n]) => !protos.has(n)))) {
+    console.warn("[quaygoods] the baked heaps name a model or heap no longer built: searching afresh (run tools/bake-quaycargo.mjs)");
+    baked = null;
+  }
+  const rec: BakedHeap[] = [];
+  let lastMode: BakedHeap["m"] = "open";
   const at = (x: number, z: number) => flags(x, z) ?? 4;
   const onQuay = quayZone();
 
@@ -1208,7 +1653,10 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
     keep.push({ minX: Math.min(...xs), maxX: Math.max(...xs), minZ: Math.min(...zs), maxZ: Math.max(...zs) });
   }
   const keepIdx = new RectIndex(keep);
-  const avoid = opts.avoid ?? [];
+  // (M8f goods pass 2: the goods of the server, the drays of the town's rounds and the placeholders of their ground
+  // come and go with the list and the clock; the heaps are placed against the town's own goods where they belong,
+  // the same on every PC whenever the list came in)
+  const avoid = [...(opts.avoid ?? []).filter((q) => !goodsRects.has(q)), ...goodsHomes(props)];
   const avoidIdx = new RectIndex(avoid);
   // circles in 16 m buckets
   const clearB = new Map<number, Array<{ x: number; z: number; r: number }>>();
@@ -1344,7 +1792,8 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
    * ground if so.
    */
   const others = propIndex("quay goods");
-  function fits(kind: string, cx: number, cz: number, yaw: number, wall: boolean, commit: boolean, edge = false): boolean {
+  function fits(kind: string, cx: number, cz: number, yaw: number, wall: boolean, commit: boolean, edge = false, force = false): boolean {
+    if (commit) lastMode = edge ? "edge" : wall ? "wall" : "open";
     const f = frames.get(kind)!;
     const hl = (f.maxX - f.minX) / 2;
     const hs = (f.maxZ - f.minZ) / 2;
@@ -1363,7 +1812,7 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
     // not into a thing the other layers set down (a hawser coil, a bitt, a booth, a barrel): the heap's frame
     // against their models (the prop check; the colliders leave the low things out)
     if (!commit && others.hit({ cx, cz, ux: c, uz: -s, nx: s, nz: c, hu: hl + 0.05, hn: hs + 0.05, y0: 0, y1: 3 })) return no("prop");
-    for (let pass = 0; pass < 2; pass++) {
+    for (let pass = force ? 1 : 0; pass < 2; pass++) {
       for (let i = i0; i <= i1; i++)
         for (let j = j0; j <= j1; j++) {
           const x = i * 0.5 + 0.25;
@@ -1430,6 +1879,7 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
 
   // ---------------------------------------------------------------- placing
   const puts: Put[] = [];
+  const cargo: Cargo[] = [];
   const colliders: Rect[] = [];
   const placed: QuayGoods["placed"] = [];
   const byQuay: Record<string, number> = {};
@@ -1461,16 +1911,51 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
     });
   };
 
-  const put = (name: string, x: number, z: number, yaw: number, shade: number, y = 0) => {
+  const put = (name: string, x: number, z: number, yaw: number, shade: number, y = 0, count = true) => {
     Q.setFromAxisAngle(Y, yaw);
     puts.push({ name, m: new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), Q, new THREE.Vector3(1, 1, 1)), shade });
-    models[name] = (models[name] ?? 0) + 1;
+    if (count) models[name] = (models[name] ?? 0) + 1;
   };
   /** One broad-phase bound; actual solid triangles decide contact and the height to land on. */
   const collide = (name: string, x: number, z: number, yaw: number, y = 0) => {
     const p = protos.get(name)!;
     if ((p.maxX - p.minX) * (p.maxZ - p.minZ) < 0.06 || p.height < 0.12) return;
     colliders.push(modelCollider(modelShape(p, () => p.parts.filter(q => q.slot === SOLID).map(q => q.pos)), x, z, yaw, y));
+  };
+  /**
+   * M8f goods pass 2: a model of a heap. What you can lift in it (each cask, crate, sack) is the server's item
+   * (cargo, `qg:<heap>:<k>`): drawn by game/goods.ts from the server's list, merged into these same chunk meshes;
+   * its ground is held here until then. The rest (chocks, a pallet) and everything else stays put.
+   */
+  let cargoK = 0;
+  const putItem = (name: string, x: number, z: number, yaw: number, shade: number, y = 0) => {
+    const pc = pieces.get(name);
+    const single = !pc ? protos.get(name)?.goods : undefined;
+    if (!pc && !single) {
+      put(name, x, z, yaw, shade, y);
+      collide(name, x, z, yaw, y);
+      return;
+    }
+    models[name] = (models[name] ?? 0) + 1;
+    if (pc?.rest) {
+      put(pc.rest, x, z, yaw, shade, y, false);
+      collide(pc.rest, x, z, yaw, y);
+    }
+    const c = Math.cos(yaw);
+    const s = Math.sin(yaw);
+    for (const p of pc ? pc.parts : [{ node: name, frame: [0, 0, 0, 0] as Piece["frame"] }]) {
+      if (!p) continue;
+      const proto = protos.get(p.node);
+      if (!proto?.goods) continue;
+      const [fx, fy, fz, fyaw] = p.frame;
+      const wx = x + fx * c + fz * s;
+      const wz = z - fx * s + fz * c;
+      const wy = y + fy;
+      const rot = yaw + fyaw;
+      const hold = modelCollider(modelShape(proto, () => proto.parts.filter((q) => q.slot === SOLID).map((q) => q.pos)), wx, wz, rot, wy);
+      colliders.push(hold);
+      cargo.push({ id: `qg:${heaps.length}:${cargoK++}`, node: p.node, kind: proto.goods.kind, heavy: proto.goods.heavy, x: wx, y: wy, z: wz, rot, shade, heap: heaps.length, hold, on: [] });
+    }
   };
 
   /** Put heap `kind` down: frame centre (cx, cz), yaw; mirrored along its x if `flip`. */
@@ -1480,6 +1965,7 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
     if (!mirrorable.has(kind)) flip = false;
     const p0 = puts.length;
     const c0 = colliders.length;
+    cargoK = 0;
     const f = frames.get(kind)!;
     const ox = (f.minX + f.maxX) / 2;
     const oz = (f.minZ + f.maxZ) / 2;
@@ -1490,6 +1976,8 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
       const az = lz - oz;
       return [cx + ax * c + az * s, cz - ax * s + az * c];
     };
+    const hr: BakedHeap = { k: kind, q: area, x: cx, z: cz, yaw, m: lastMode, f: flip, items: [], decals: [] };
+    rec.push(hr);
     for (const [name, lx, lz, lyaw, opt, ly] of vg.items) {
       if (opt !== undefined && r() < opt) continue;
       const [x, z] = toWorld(lx + (r() - 0.5) * 0.06, lz + (r() - 0.5) * 0.06);
@@ -1498,14 +1986,17 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
       // A walk-map cell can hide a raised quay coping under one corner of a crate.
       // Check the model's actual feet, preserving the seeded layout of the other items.
       if (!ly && !grounded(name, x, z, wy)) continue;
-      put(name, x, z, wy, shade, ly ?? 0);
-      collide(name, x, z, wy, ly ?? 0);
+      putItem(name, x, z, wy, shade, ly ?? 0);
+      hr.items.push([name, x, z, wy, shade, ly ?? 0]);
     }
     for (const [name, lx, lz, lyaw] of vg.ground) {
       if (r() < 0.2) continue;
       const [x, z] = toWorld(lx, lz);
       if (at(x, z) !== OPEN) continue;
-      put(name, x, z, yaw + lyaw + (r() - 0.5) * 0.6, 0.85 + r() * 0.25, 0.012);
+      const dy = yaw + lyaw + (r() - 0.5) * 0.6;
+      const ds = 0.85 + r() * 0.25;
+      put(name, x, z, dy, ds, 0.012);
+      hr.decals.push([name, x, z, dy, ds]);
     }
     const hl = (f.maxX - f.minX) / 2;
     const hs = (f.maxZ - f.minZ) / 2;
@@ -1515,11 +2006,30 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
     byKind[kind] = (byKind[kind] ?? 0) + 1;
   }
 
+  /** A baked heap as it was laid (its ground marked as the search marked it, its models where they were put). */
+  function layBaked(h: BakedHeap): void {
+    fits(h.k, h.x, h.z, h.yaw, h.m === "wall", true, h.m === "edge", true);
+    const p0 = puts.length;
+    const c0 = colliders.length;
+    cargoK = 0;
+    const f = frames.get(h.k)!;
+    for (const [name, x, z, wy, shade, ly] of h.items) putItem(name, x, z, wy, shade, ly);
+    for (const [name, x, z, dy, ds] of h.decals) put(name, x, z, dy, ds, 0.012);
+    const hl = (f.maxX - f.minX) / 2;
+    const hs = (f.maxZ - f.minZ) / 2;
+    placed.push({ kind: h.k, quay: h.q, x: +h.x.toFixed(2), z: +h.z.toFixed(2), yaw: +h.yaw.toFixed(3), w: +(2 * hl).toFixed(1), d: +(2 * hs).toFixed(1), wall: h.m === "wall" });
+    heaps.push({ x: h.x, z: h.z, yaw: h.yaw, hl, hs, ox: (f.minX + f.maxX) / 2, oz: (f.minZ + f.maxZ) / 2, p0, p1: puts.length, c0, c1: colliders.length, gone: false });
+    byQuay[h.q] = (byQuay[h.q] ?? 0) + 1;
+    byKind[h.k] = (byKind[h.k] ?? 0) + 1;
+    rec.push(h);
+  }
+  if (baked) for (const h of baked) layBaked(h);
+
   // rows along the water edge of the busy quays (city.json quays): backs to the water, EDGE_GAP back
   // from it, 3 m or more between rows so the edge stays reachable for the boats' lines
   const edgeCount: Record<string, number> = {};
   phase = "edge: ";
-  for (const [ax, az, bx, bz] of CITYD.quays) {
+  for (const [ax, az, bx, bz] of baked ? [] : CITYD.quays) {
     const L = Math.hypot(bx - ax, bz - az);
     if (L < 4) continue;
     const tx = (bx - ax) / L;
@@ -1585,7 +2095,7 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
   // along the storehouse fronts (props.glb): heaps with their backs to the wall between the loading
   // gates, side by side where there is room, the passage in front of them
   const wallCount: Record<string, number> = {};
-  for (const fr of props.storeFronts) {
+  for (const fr of baked ? [] : props.storeFronts) {
     const [ax, az, bx, bz, ox, oz] = fr;
     const L = Math.hypot(bx - ax, bz - az);
     if (L < 3) continue;
@@ -1628,7 +2138,7 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
   }
 
   phase = "";
-  for (const area of AREAS) {
+  for (const area of baked ? [] : AREAS) {
     // candidates: open ground in the area, every 1.5 m, in a seeded order
     const cand: Array<[number, number, number]> = [];
     for (let x = area.rect.minX + 0.5; x < area.rect.maxX; x += 1.0)
@@ -1720,6 +2230,9 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
   // the rails and every place kept clear; only a bucket and a broken cask are solid, and those stand
   // close by a heap (never out in its passage).
   phase = "debris: ";
+  // (the stream where the search left it: baked, so the debris falls where it fell)
+  if (baked && typeof bakeFile.rng === "number") r.set(bakeFile.rng);
+  const rngAtDebris = r.get();
   const debrisStart = puts.length;
   const debris = { objects: 0, decals: 0 };
   const onGround = (x: number, z: number, solid: boolean, pad: number) => {
@@ -1834,20 +2347,28 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
   phase = "";
 
   // ---------------------------------------------------------------- into the scene
+  // M8f goods pass 2: what rests on what, in each heap (the server's "on": a thing is lifted top down)
+  restsOn(cargo, heaps, protos);
+  for (const c of cargo) {
+    byId.set(c.id, c);
+    cargoShade.set(c.id, c.shade);
+  }
   const group = new THREE.Group();
   group.name = "quaygoods";
   const m = mats(solidMap, decalMap);
-  const { meshes, triangles } = mergePuts(puts, protos, m, group, CHUNK);
-  const chunks = [...meshes];
+  const chunks: THREE.Mesh[] = [];
+  live = { scene, protos, mats: m, group, chunks, puts, debrisStart, buckets: new Map() };
+  // (cargo the server's list already brought: its shade from the heap now)
+  for (const [id, l] of loose) l.shade = cargoShade.get(id) ?? l.shade;
+  const { meshes, triangles } = buildChunks(puts);
   hideBeyondFog(scene, chunks);
   scene.add(group);
-  live = { scene, protos, mats: m, group, chunks, puts, debrisStart };
-  listQuayGoods(puts, protos, heaps, debrisStart);
+  listQuayGoods(puts, protos, heaps, debrisStart, cargo);
 
   const result: QuayGoods = {
     group,
     colliders,
-    stats: { byQuay, byKind, models, meshes: meshes.length, triangles: Math.round(triangles), rej, debris },
+    stats: { byQuay, byKind, models, meshes, triangles: Math.round(triangles), rej, debris },
     placed,
   };
   const why = (kind: string, x: number, z: number, yaw: number, mode: "open" | "wall" | "edge") => {
@@ -1858,12 +2379,68 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
     for (const [k, v] of Object.entries(rej)) if (v !== (before[k] ?? 0)) return k;
     return "?";
   };
-  last = { result, debug: { flags, keep, avoid, clear, heaps, onQuay, why } };
+  last = { result, debug: { flags, keep, avoid, clear, heaps, onQuay, why }, cargo };
+  recorded = { heaps: rec, rng: rngAtDebris };
+  // (the heaps the bake found too near a place people need: taken away here too, before anyone sees them)
+  if (baked) dropHeaps(baked.map((h, i) => (h.g ? i : -1)).filter((i) => i >= 0));
+  for (const f of readyHooks.splice(0)) f();
   return result;
 }
 
+/** Hooks run when the heaps (and their cargo) are built. */
+const readyHooks: Array<() => void> = [];
+/** Run `f` once the heaps are built (at once if they are). */
+export function whenQuayCargo(f: () => void): void {
+  if (last) f();
+  else readyHooks.push(f);
+}
+
+/**
+ * M8f goods pass 2: in each heap, what rests on what (the server's `on`): B rests on A when their footprints (in
+ * the heap's own frame) overlap and A's top reaches B's foot, A standing lower. A pyramid's upper cask rests on the
+ * two below, a sack laid across a layer on the two under it, the small crate on the long one.
+ */
+function restsOn(cargo: Cargo[], heaps: Heap[], protos: Map<string, Proto>): void {
+  const box = new Map<string, { minX: number; maxX: number; minZ: number; maxZ: number; top: number; foot: number }>();
+  for (const c of cargo) {
+    const p = protos.get(c.node)!;
+    const h = heaps[c.heap];
+    const hc = Math.cos(-h.yaw);
+    const hs = Math.sin(-h.yaw);
+    const cc = Math.cos(c.rot);
+    const cs = Math.sin(c.rot);
+    const b = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity, top: c.y + p.height, foot: c.y };
+    for (const lx of [p.minX, p.maxX])
+      for (const lz of [p.minZ, p.maxZ]) {
+        // the piece's corner in the world, then in the heap's frame
+        const wx = c.x + lx * cc + lz * cs - h.x;
+        const wz = c.z - lx * cs + lz * cc - h.z;
+        const ax = wx * hc + wz * hs;
+        const az = -wx * hs + wz * hc;
+        b.minX = Math.min(b.minX, ax);
+        b.maxX = Math.max(b.maxX, ax);
+        b.minZ = Math.min(b.minZ, az);
+        b.maxZ = Math.max(b.maxZ, az);
+      }
+    box.set(c.id, b);
+  }
+  for (const B of cargo) {
+    const bb = box.get(B.id)!;
+    if (bb.foot < 0.05) continue;
+    for (const A of cargo) {
+      if (A === B || A.heap !== B.heap) continue;
+      const ab = box.get(A.id)!;
+      if (ab.foot > bb.foot - 0.05) continue;
+      if (ab.top < bb.foot - 0.06 || ab.top > bb.foot + 0.3) continue;
+      const ox = Math.min(ab.maxX, bb.maxX) - Math.max(ab.minX, bb.minX);
+      const oz = Math.min(ab.maxZ, bb.maxZ) - Math.max(ab.minZ, bb.minZ);
+      if (ox > 0.04 && oz > 0.04) B.on.push(A.id);
+    }
+  }
+}
+
 /** The prop check's list (dev/propcheck.ts): every model of the heaps that stand, a heap one set; the debris alone. */
-function listQuayGoods(puts: Put[], protos: Map<string, Proto>, heaps: Array<{ p0: number; p1: number; gone: boolean }>, debrisStart: number): void {
+function listQuayGoods(puts: Put[], protos: Map<string, Proto>, heaps: Array<{ p0: number; p1: number; gone: boolean }>, debrisStart: number, cargo: Cargo[] = last?.cargo ?? []): void {
   dropProps("quay goods");
   const add = (p: Put, set?: string) => {
     const proto = protos.get(p.name);
@@ -1876,6 +2453,12 @@ function listQuayGoods(puts: Put[], protos: Map<string, Proto>, heaps: Array<{ p
   heaps.forEach((h, i) => {
     if (!h.gone) for (let k = h.p0; k < h.p1; k++) add(puts[k], `heap ${i}`);
   });
+  // (the cargo where it was laid with its heap: the server's items now, which move; the check sees them at home)
+  for (const c of cargo) {
+    if (heaps[c.heap]?.gone) continue;
+    const m = new THREE.Matrix4().compose(new THREE.Vector3(c.x, c.y, c.z), new THREE.Quaternion().setFromAxisAngle(UP, c.rot), ONE);
+    add({ name: c.node, m, shade: 1 }, `heap ${c.heap}`);
+  }
   for (let k = debrisStart; k < puts.length; k++) add(puts[k]);
 }
 
@@ -1890,7 +2473,7 @@ function listQuayGoods(puts: Put[], protos: Map<string, Proto>, heaps: Array<{ p
 export function pruneQuayGoods(points: Array<{ x: number; z: number; reach?: number }>, margin = 2): number {
   if (!last || !live) return 0;
   const { heaps } = last.debug;
-  let gone = 0;
+  const list: number[] = [];
   for (let h = 0; h < heaps.length; h++) {
     const hp = heaps[h];
     if (hp.gone) continue;
@@ -1904,7 +2487,19 @@ export function pruneQuayGoods(points: Array<{ x: number; z: number; reach?: num
       const b = dx * s + dz * c;
       return Math.hypot(Math.max(0, Math.abs(a) - hp.hl), Math.max(0, Math.abs(b) - hp.hs)) < margin;
     });
-    if (!hit) continue;
+    if (hit) list.push(h);
+  }
+  return dropHeaps(list);
+}
+
+/** Take these heaps away (their colliders out of the world) and merge the rest again. Returns how many went. */
+function dropHeaps(list: number[]): number {
+  if (!last || !live || !list.length) return 0;
+  const { heaps } = last.debug;
+  let gone = 0;
+  for (const h of list) {
+    const hp = heaps[h];
+    if (!hp || hp.gone) continue;
     hp.gone = true;
     gone++;
     // its colliders out of the world (the world files them by reference: moved far off, they stop nothing)
@@ -1925,14 +2520,10 @@ export function pruneQuayGoods(points: Array<{ x: number; z: number; reach?: num
   const keep: Put[] = [];
   for (const hp of heaps) if (!hp.gone) for (let i = hp.p0; i < hp.p1; i++) keep.push(live.puts[i]);
   for (let i = live.debrisStart; i < live.puts.length; i++) keep.push(live.puts[i]);
-  for (const m of live.chunks) {
-    live.group.remove(m);
-    m.geometry.dispose();
-  }
-  const { meshes, triangles } = mergePuts(keep, live.protos, live.mats, live.group, CHUNK);
-  live.chunks.length = 0;
-  live.chunks.push(...meshes);
-  last.result.stats.meshes = meshes.length;
+  // (M8f: the cargo of a heap taken away is the server's: it stays in its list and is drawn where it lies; the
+  // bake, tools/bake-quaycargo.mjs, leaves out the heaps taken away when it is made)
+  const { meshes, triangles } = buildChunks(keep);
+  last.result.stats.meshes = meshes;
   last.result.stats.triangles = Math.round(triangles);
   listQuayGoods(live.puts, live.protos, heaps, live.debrisStart);
   return gone;
@@ -1948,6 +2539,47 @@ export function quayGoodsKeepAt(x: number, z: number): Rect[] {
 /** Dev: why heap `kind` would not stand at (x, z) turned `yaw` (null: it would). */
 export function quayGoodsWhy(kind: string, x: number, z: number, yaw: number, mode: "open" | "wall" | "edge" = "open"): string | null {
   return last ? last.debug.why(kind, x, z, yaw, mode) : "not built";
+}
+
+/**
+ * Dev (M8f goods pass 2): the heap models put together from their pieces against the same models of another
+ * build (`url`, the glb before the pieces): for each, the largest distance from a vertex to the nearest of the
+ * other's (m) and the vertex counts. All near 0: the heaps look as before.
+ */
+export async function quayPiecesCompare(url: string): Promise<Record<string, [number, number, number]>> {
+  const [now, before] = await Promise.all([loadModels(), load(url)]);
+  const out: Record<string, [number, number, number]> = {};
+  for (const name of pieces.keys()) {
+    const a = now.protos.get(name);
+    const b = before.protos.get(name);
+    if (!a || !b) continue;
+    const pts = (p: Proto) => {
+      const l: number[][] = [];
+      for (const q of p.parts) for (let i = 0; i < q.pos.length; i += 3) l.push([q.pos[i], q.pos[i + 1], q.pos[i + 2]]);
+      return l;
+    };
+    const A = pts(a);
+    const B = pts(b);
+    // a grid of B for the nearest point
+    const cell = 0.05;
+    const grid = new Map<string, number[][]>();
+    for (const v of B) {
+      const k = `${Math.floor(v[0] / cell)},${Math.floor(v[1] / cell)},${Math.floor(v[2] / cell)}`;
+      (grid.get(k) ?? grid.set(k, []).get(k)!).push(v);
+    }
+    let worst = 0;
+    for (const v of A) {
+      let best = Infinity;
+      const i0 = Math.floor(v[0] / cell), j0 = Math.floor(v[1] / cell), k0 = Math.floor(v[2] / cell);
+      for (let i = i0 - 1; i <= i0 + 1; i++)
+        for (let j = j0 - 1; j <= j0 + 1; j++)
+          for (let k = k0 - 1; k <= k0 + 1; k++)
+            for (const w of grid.get(`${i},${j},${k}`) ?? []) best = Math.min(best, Math.hypot(v[0] - w[0], v[1] - w[1], v[2] - w[2]));
+      worst = Math.max(worst, best);
+    }
+    out[name] = [+worst.toFixed(4), A.length, B.length];
+  }
+  return out;
 }
 
 /** Dev: what was placed where (heaps per quay and kind, models, draw calls, triangles, rejections). */

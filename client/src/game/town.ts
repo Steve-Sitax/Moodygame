@@ -1,6 +1,9 @@
 import * as THREE from "three";
 import { api, type JobsPayload, type Pt, type TownData, type TownPlace, type TownResident } from "../net/api";
 import { activityAt, type Now } from "../../../server/src/town/schedule";
+import { paceOf as townPace, whereAt } from "../../../server/src/town/whereabouts";
+import { wayKey } from "../../../server/src/town/wayfind";
+import { haulRouteOf } from "../../../shared/hauls";
 import type { Crowd, Puppet } from "./crowd";
 import type { Animals } from "./animals";
 import type { Stalls } from "./stalls";
@@ -17,8 +20,10 @@ import { atPost, NIGHT_GIVER_IDS } from "../../../shared/night";
 
 // The town (M3e): the residents the server made (homes, families, trades,
 // schedules) living by the game clock. Everyone is simulated cheaply by
-// schedule: where they should be now, and a straight walk there at a brisk
-// pace while nobody sees them. Only those near Jef become people in the street:
+// schedule: where they should be now, and a walk there at a brisk pace while
+// nobody sees them: along the way on foot the server found (the trade plan,
+// docs/trade-plan.md part A: server town/whereabouts.ts, the same sum the town
+// map and every PC use), so a person unseen is on a street, never in a house. Only those near Jef become people in the street:
 // "puppets" of the crowd (crowd.ts), which walks them on its grid (A*, stuck
 // checks, keeping right, going round Jef). Here each one gets told what to do:
 // come out of their door, walk to work, sell at the stall, carry sacks between
@@ -38,6 +43,16 @@ import { atPost, NIGHT_GIVER_IDS } from "../../../shared/night";
 // anyone: the police alone come for a thief (deeds.ts).
 
 const SPAWN_R = 55;
+/** The trade plan: a person due in the street in Jef's view steps in at once beyond this (m), nearer after a wait. */
+const DUE_FAR = 40;
+/** A running townsperson seen in the street hurries at most this fast (m/s): the walk cycle, sped up, still reads. */
+const SEEN_RUN_MAX = 2.0;
+const DUE_WAIT_MS = 2500;
+/** Under this (m) he waits longer still: by then he has mostly walked out of view or behind someone. */
+const DUE_NEAR = 20;
+const DUE_NEAR_WAIT_MS = 8000;
+/** With the street full, someone due this much nearer (m) than the farthest drawn one takes his place. */
+const SWAP_GAP = 12;
 const DESPAWN_R = 68;
 /** How many townspeople walk in the street round Jef at once: Settings, "People in the street" (settings.ts). */
 const MAX_PUPPETS = 50;
@@ -113,6 +128,14 @@ export interface Sim {
   /** The day's errand they are on (a family boat, a dray). */
   errand?: string;
   /**
+   * The trade plan (part A): his goal is his day plan's own (no shop call, errand, mill, back-street or lively
+   * goal over it), so unseen he walks the shared sum (whereabouts.ts) on the way between his places.
+   */
+  plain?: boolean;
+  /** Since when (ms) he has been due in the street in Jef's view, and when that was last seen (the spawn's wait). */
+  dueAt?: number;
+  dueLast?: number;
+  /**
    * M8b: walked by another player's PC (net/mp/street.ts): `p` is drawn from its batches. The town goes on
    * planning their day (a handover knows where they were going) but never moves, dresses or directs them.
    */
@@ -157,7 +180,6 @@ const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const isNight = (h: number) => h >= 19 || h < 6.5;
 /** The garrison and the customs: no lanterns (a rifle, a book), a marching step. */
 const GARRISON = new Set(["soldier", "sentry", "corporal", "customs"]);
-const SOLDIERS = new Set(["soldier", "sentry", "corporal"]);
 const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
 /** The town's key of a place of the day ("home:home", "work:work") as the engine's (transport.ts placeKey: "home", "work:work"). */
 const plainKey = (k: string) => (k.startsWith("home:") ? "home" : k);
@@ -241,6 +263,10 @@ export class Town {
   /** M8b: played together, which residents this PC may walk (net/mp/street.ts); null alone. */
   net: TownNet | null = null;
   private player = { x: 0, z: 0, yaw: 0 };
+  /** The trade plan: the ways on foot by key (null: the server found none), and the keys to ask for. */
+  private ways = new Map<string, Pt[] | null>();
+  private wayAsk = new Set<string>();
+  private wayAskT = 0;
   private busyNet = false;
   private lastDay = 0;
 
@@ -265,6 +291,7 @@ export class Town {
     }
     this.data = d;
     this.crowd.anonymous = false;
+    void this.loadWays();
     for (const r of d.residents) {
       // the kind is checked against people.glb when they first step out (the models may still be loading now)
       const kind = r.kind as HumanKind;
@@ -301,8 +328,80 @@ export class Town {
       this.byId.delete(e.id);
       this.sims.splice(this.sims.indexOf(s), 1);
     }
-    this.animals.catSpots = d.residents.filter((_r, i) => i % 3 === 0).map((r) => ({ x: r.home.sx, z: r.home.sz }));
+    // (M8f sync pass 3: every doorstep; animals.ts puts the town's strays and cats on them, the same on every PC)
+    this.animals.catSpots = d.residents.map((r) => ({ x: r.home.sx, z: r.home.sz }));
     await this.stalls.build(d.stalls, d.shops);
+  }
+
+  // ------------------------------------------------------------------ the ways (the trade plan)
+
+  private async loadWays(): Promise<void> {
+    for (let wait = 2000; ; wait = Math.min(wait * 2, 30_000)) {
+      try {
+        const r = await api.ways();
+        for (const [k, w] of Object.entries(r.ways)) this.ways.set(k, w);
+        return;
+      } catch (e) {
+        console.warn(`the town's ways did not load; again in ${wait / 1000} s`, e);
+        await new Promise((res) => setTimeout(res, wait));
+      }
+    }
+  }
+
+  /** The way on foot for the sum (undefined until the server sent it; null: there is none, he is simply there). */
+  private readonly wayOf = (ax: number, az: number, bx: number, bz: number): Pt[] | null | undefined => {
+    const k = wayKey(ax, az, bx, bz);
+    const w = this.ways.get(k);
+    if (w === undefined) this.wayAsk.add(k);
+    return w;
+  };
+
+  private askWays(dt: number): void {
+    this.wayAskT -= dt;
+    if (this.wayAskT > 0 || !this.wayAsk.size) return;
+    this.wayAskT = 3;
+    const keys = [...this.wayAsk].slice(0, 60);
+    for (const k of keys) this.wayAsk.delete(k);
+    api.waysByKey(keys).then(
+      (r) => {
+        for (const k of keys) this.ways.set(k, r.ways[k] ?? null);
+      },
+      () => {
+        for (const k of keys) this.wayAsk.add(k);
+      },
+    );
+  }
+
+  /**
+   * The trade plan, part A (dev: `__scheldemist.findcheck()`): who is out in the street within `near` m of Jef
+   * but has not been drawn for over 3 s (must list nothing). Held, aboard, walked by another PC: left out.
+   */
+  findCheck(near = 40): Array<{ id: string; name: string; d: number; x: number; z: number; plain: boolean; moving: boolean; hidden: boolean; waitS: number }> {
+    const t = performance.now();
+    const out: ReturnType<Town["findCheck"]> = [];
+    for (const s of this.sims) {
+      const miss = !s.p && !s.inside && !s.aboard && !s.remote && !s.held;
+      const d = dist(s.x, s.z, this.player.x, this.player.z);
+      if (!miss || d > near) {
+        this.missSince.delete(s);
+        continue;
+      }
+      const since = this.missSince.get(s) ?? t;
+      this.missSince.set(s, since);
+      if (t - since < 3000) continue;
+      const on = this.whereNow(s);
+      out.push({ id: s.r.id, name: s.r.name, d: Math.round(d), x: Math.round(s.x * 10) / 10, z: Math.round(s.z * 10) / 10, plain: !!s.plain, moving: !!on && on.walked < on.total, hidden: this.crowd.isHidden(s.x, s.z), waitS: Math.round((t - since) / 100) / 10 });
+    }
+    return out.sort((a, b) => a.d - b.d);
+  }
+
+  private missSince = new Map<Sim, number>();
+
+  /** Where the shared sum puts a person now (whereabouts.ts), or null when his goal is not his plan's own. */
+  whereNow(s: Sim): ReturnType<typeof whereAt> | null {
+    if (!s.plain || !this.data) return null;
+    const { day, hour } = this.clock();
+    return whereAt(s.r, this.data, day, hour, this.wayOf);
   }
 
   // ------------------------------------------------------------------ per frame
@@ -315,6 +414,7 @@ export class Town {
       this.lastDay = day;
       this.robbed.clear();
     }
+    this.askWays(dt);
     this.thinkT -= dt;
     if (this.thinkT <= 0) {
       this.thinkT = 0.25;
@@ -355,7 +455,7 @@ export class Town {
     // M6 transport: the day's errand with a load (a family boat, a dray) comes first
     const err = !first ? (this.journeys?.errandFor(s.r.id, day, hour) ?? null) : null;
     if (err || s.errand) return this.errandStep(s, err, day, hour);
-    const now = activityAt(s.r.sched, day, hour);
+    const now = this.planNow(s, day, hour);
     // M7 shops: a call at a shop this hour (the engine's roll, shared/shops.ts): in at its door, out at the hour's end
     const call = this.shopCall(s.r, day, hour);
     const key = `${now.act}:${now.place}${call ? `|shop@${call[0]},${call[1]}` : ""}${this.lively?.key(s, now, day, hour) ?? ""}${this.mills?.key(s, now, day, hour) ?? ""}`;
@@ -375,12 +475,19 @@ export class Town {
     s.key = key;
     if (s.p) this.market?.forget(s.p);
     s.goal = call ? { mode: "inside", x: call[0], z: call[1] } : this.goalFor(s, now);
+    if (call) s.plain = false;
     s.step = 0;
     s.tries = 0;
     s.wait = 0;
     if (s.r.work.kind === "stall" || s.r.work.kind === "shop") this.stalls.setOpen(s.r.id, now.act === "work");
     const goesIn = s.goal.mode === "home" || s.goal.mode === "inside" || s.goal.mode === "church";
-    if (first) {
+    const on = first ? this.whereNow(s) : null;
+    if (on && on.walked < on.total) {
+      // the start, and he is on his way (the trade plan: where the town map has him too)
+      s.inside = false;
+      s.x = on.x;
+      s.z = on.z;
+    } else if (first) {
       // the start: everyone is where the clock says, no walking
       if (goesIn) {
         s.inside = true;
@@ -413,6 +520,7 @@ export class Town {
   private errandStep(s: Sim, err: { id: string; who: string[]; to: [number, number] } | null, day: number, hour: number): void {
     const j = this.journeys;
     if (err && s.errand !== err.id) {
+      s.plain = false;
       s.errand = err.id;
       s.key = `errand:${err.id}`;
       if (s.inside) {
@@ -433,7 +541,7 @@ export class Town {
     const was = j?.data?.errands.find((e) => e.id === s.errand) ?? null;
     s.errand = undefined;
     s.key = "";
-    const now = activityAt(s.r.sched, day, hour);
+    const now = this.planNow(s, day, hour);
     s.key = `${now.act}:${now.place}`;
     s.goal = this.goalFor(s, now);
     if (j && was && was.kind === "boat" && s.r.id === was.who[0] && !s.remote) j.beginErrand(s, was, true);
@@ -452,12 +560,15 @@ export class Town {
   }
 
   private goalFor(s: Sim, now: Now): Goal {
+    // (the trade plan: only a goal of the plan's own is walked by the shared sum unseen)
+    s.plain = false;
     const mill = this.mills?.goal(s, now); // M7 mills: the millers, the cart out at dawn and after dinner
     if (mill) return mill;
     const back = this.back?.goal(s, now); // M7 back of town
     if (back) return back;
     const lively = this.lively?.goal(s, now);
     if (lively) return lively;
+    s.plain = !this.mills?.own(s);
     const r = s.r;
     const w = r.work;
     const P = (id: string) => this.place(id);
@@ -555,10 +666,22 @@ export class Town {
     return [g.x, g.z];
   }
 
-  /** Nobody sees them: a straight walk to where they should be, briskly. */
+  /** Nobody sees them: a walk to where they should be, briskly, along the way on foot (the last steps straight). */
   private coarse(s: Sim, dt: number): void {
     // M6 transport: on a trip, the way of going sets the pace (journeys.ts)
     if (s.trip && this.journeys?.coarse(s, dt)) return;
+    // the trade plan: on the way between two places of his plan, or on his round, the shared sum has him (as the
+    // town map does): along the streets, and the puppet walks on to the round's next point when he is drawn
+    const on = s.trip ? null : this.whereNow(s);
+    if (on && (on.walked < on.total || on.leg !== undefined)) {
+      s.x = on.x;
+      s.z = on.z;
+      if (on.leg !== undefined) {
+        s.step = on.leg;
+        s.toB = on.leg === 1;
+      } else s.toB = false; // (on his way to work he comes empty-handed to where he takes the loads up)
+      return;
+    }
     // (M6 lively: the pairs on a round, the sweep and his boy, two Sisters, a man and his wife, keep together unseen too)
     const lead = s.goal.mode === "roam" || s.goal.mode === "patrol" ? this.leadOf(s) : null;
     if (lead) s.step = lead.step;
@@ -592,19 +715,41 @@ export class Town {
       for (const s of out) this.lose(s, true, true);
       return;
     }
-    if (alive >= this.maxPuppets) return;
     const px = this.player.x;
     const pz = this.player.z;
     const net = this.net;
     const want = this.sims
       .filter((s) => !s.p && !s.remote && !s.inside && !s.aboard && !(s.held && s.away) && dist(s.x, s.z, px, pz) < SPAWN_R && (!net || net.mayWalk(s.r.id)))
       .sort((a, b) => dist(a.x, a.z, px, pz) - dist(b.x, b.z, px, pz));
+    if (alive >= this.maxPuppets) {
+      // Full: the nearest who is due in the street takes the place of the farthest drawn one out of sight (Steve
+      // 2026-09-27: at the busy Rijnkaai 14 people within 21 m of Jef were not drawn while the 50 were spent
+      // further off). A couple a turn, and only for someone clearly nearer.
+      if (!want.length) return;
+      const near = dist(want[0].x, want[0].z, px, pz);
+      const out = this.sims
+        .filter((s) => s.p && !s.held && !s.remote && !s.inTrip && dist(s.x, s.z, px, pz) > near + SWAP_GAP && (this.crowd.isHidden(s.x, s.z) || dist(s.x, s.z, px, pz) > DUE_FAR))
+        .sort((a, b) => dist(b.x, b.z, px, pz) - dist(a.x, a.z, px, pz))
+        .slice(0, 2);
+      for (const s of out) this.lose(s, true, true);
+      alive -= out.length;
+      if (alive >= this.maxPuppets) return;
+    }
     for (const s of want) {
       if (alive >= this.maxPuppets) break;
       const d = dist(s.x, s.z, px, pz);
       const fresh = performance.now() - s.outAt < 4000;
       // people appear out of sight, or step out of their own door
-      if (!anywhere && !fresh && !this.crowd.isHidden(s.x, s.z)) continue;
+      if (!anywhere && !fresh && !this.crowd.isHidden(s.x, s.z)) {
+        // the trade plan (Steve 2026-09-27: "if I run to that place I never see the npc again"): nobody stays
+        // unseen for ever because Jef looks at his spot. Far off he steps in at once (small, in the haze); nearer
+        // after a moment of looking.
+        const t = performance.now();
+        if (s.dueAt === undefined || t - (s.dueLast ?? 0) > 1000) s.dueAt = t;
+        s.dueLast = t;
+        if (d < DUE_FAR && t - s.dueAt < (d < DUE_NEAR ? DUE_NEAR_WAIT_MS : DUE_WAIT_MS)) continue;
+      }
+      s.dueAt = undefined;
       if (!anywhere && d < 3) continue;
       // two soldiers walking out: the second appears at his comrade's side
       const lead = s.goal.mode === "roam" || s.goal.mode === "patrol" ? this.leadOf(s) : null;
@@ -630,7 +775,7 @@ export class Town {
       if (s.r.dog) {
         const sim = s;
         this.animals.addDog(s.r.id, s.r.dog.look, at, () =>
-          sim.p ? { x: sim.p.x, z: sim.p.z, yaw: sim.p.yaw, walking: this.crowd.puppetBusy(sim.p) } : null,
+          sim.p ? { x: sim.p.x, z: sim.p.z, yaw: sim.p.yaw, walking: this.crowd.puppetBusy(sim.p), remote: this.crowd.isRemote(sim.p) } : null,
         );
       }
       at = null;
@@ -662,15 +807,21 @@ export class Town {
     if (s.r.dog) this.animals.removeDog(s.r.id);
   }
 
+  /**
+   * His pace in the street: his own (whereabouts.ts paceOf, the same the sum walks him by unseen; a load does not
+   * slow him). On a leg the sum has him running he hurries, as fast as the walk can look until there is a run.
+   */
   private paceOf(s: Sim): number {
-    const r = s.r;
-    if (r.age < 13) return rnd(1.1, 1.5);
-    if (r.age >= 62) return rnd(0.8, 1.0);
-    if (r.trade === "police" || r.trade === "priest") return rnd(0.95, 1.05);
-    if (SOLDIERS.has(r.trade)) return rnd(1.25, 1.35); // the marching step
-    if (r.trade === "customs") return rnd(1.0, 1.1);
-    if (r.kind === "porter" || r.kind === "carter") return rnd(0.85, 1.0);
-    return r.sex === "f" ? rnd(1.0, 1.25) : rnd(1.15, 1.4);
+    const on = this.whereNow(s);
+    if (on?.run && on.walked < on.total) return Math.min(on.mps, SEEN_RUN_MAX);
+    return townPace(s.r).mps;
+  }
+
+  /** The part of his day he is at or walking to now: the day as he keeps it (whereabouts.ts dayRoute). */
+  private planNow(s: Sim, day: number, hour: number): Now {
+    if (!this.data) return activityAt(s.r.sched, day, hour);
+    const w = whereAt(s.r, this.data, day, hour, this.wayOf);
+    return { act: w.act, place: w.place, since: w.since, left: w.left };
   }
 
   /** Tell a puppet where to go for its goal. */
@@ -684,10 +835,13 @@ export class Town {
     this.crowd.puppetLoad(p, false);
     const pace = this.paceOf(s);
     switch (g.mode) {
-      case "haul":
-        s.toB = false;
-        this.crowd.puppetGo(p, g.a![0], g.a![1], pace);
+      case "haul": {
+        // (the trade plan: drawn where the sum has him, he walks on the way he was going; at first, to the quay end)
+        const q = s.toB ? g.b! : g.a!;
+        this.crowd.puppetLoad(p, s.toB && !["porter", "carter", "docker_sack"].includes(s.kind), haulRouteOf(g.a, g.b, 1)?.carry ?? "sack");
+        this.crowd.puppetGo(p, q[0], q[1], pace);
         break;
+      }
       case "patrol":
       case "roam":
       case "thief":
@@ -760,11 +914,29 @@ export class Town {
           s.arrived = false;
           return;
         }
+        // (Steve 2026-09-27: the load comes off a real pile and goes in at a door or onto a pile: shared/hauls.ts)
+        const route = haulRouteOf(g.a, g.b, 1);
+        const carry = route?.carry ?? "sack";
+        const bare = ["porter", "carter", "docker_sack"].includes(s.kind);
         if (!s.arrived) {
-          // at an end: a moment to take up or put down the load
+          // at an end: face the pile or the door, and take up or put down the load
           s.arrived = true;
           s.wait = rnd(1.5, 3.5);
-          this.crowd.puppetStand(p, "idle", null);
+          const nearA = at(g.a![0], g.a![1], 2.5);
+          const nearB = !nearA && at(g.b![0], g.b![1], 2.5);
+          let yaw: number | null = null;
+          let bend = false;
+          if (route && nearA) {
+            yaw = route.aYaw;
+            bend = true;
+          } else if (route && nearB) {
+            const to = route.door ?? (route.drop ? [route.drop.x, route.drop.z] : null);
+            yaw = to ? Math.atan2(to[0] - route.b[0], to[1] - route.b[1]) : null;
+            bend = route.into === "pile";
+            // set down: in at the door, onto the pile, at the fish bank
+            this.crowd.puppetLoad(p, false, carry);
+          }
+          this.crowd.puppetStand(p, bend ? "crouch" : "idle", yaw);
           return;
         }
         if ((s.wait -= dt) > 0) return;
@@ -776,10 +948,10 @@ export class Town {
           else this.retry(s);
           return;
         }
-        // loaded from the quay to the door, back empty
+        // loaded from the pile to the door, back empty
         s.toB = atA;
         s.tries = 0;
-        this.crowd.puppetLoad(p, s.toB && !["porter", "carter", "docker_sack"].includes(s.kind));
+        this.crowd.puppetLoad(p, s.toB && !bare, carry);
         const q = s.toB ? g.b! : g.a!;
         this.crowd.puppetGo(p, q[0], q[1]);
         return;
@@ -1264,7 +1436,12 @@ export class Town {
       const work = activityAt(r.sched, day, hour).act === "work";
       n.setPresent(work);
       const quest = this.openWork.has(id) || this.takenWork.has(id);
-      if (!work) continue;
+      if (!work) {
+        // (gone home: his lantern goes with him. It was left in the hand of the hidden figure, so a PC that loaded
+        // the game at night kept four lanterns another PC loaded by day never had: sync pass 2)
+        n.setLantern(false);
+        continue;
+      }
       // M7 night: a giver of night work keeps to his dark corner, a shaded lantern in his hand
       if ((NIGHT_GIVER_IDS as readonly string[]).includes(id)) {
         n.nightPost(null);
@@ -1693,7 +1870,7 @@ export class Town {
     s.z = at.z;
     if (s.r.dog) {
       const sim = s;
-      this.animals.addDog(s.r.id, s.r.dog.look, at, () => (sim.p ? { x: sim.p.x, z: sim.p.z, yaw: sim.p.yaw, walking: this.crowd.puppetBusy(sim.p) || this.crowd.isRemote(sim.p) } : null));
+      this.animals.addDog(s.r.id, s.r.dog.look, at, () => (sim.p ? { x: sim.p.x, z: sim.p.z, yaw: sim.p.yaw, walking: this.crowd.puppetBusy(sim.p) || this.crowd.isRemote(sim.p), remote: this.crowd.isRemote(sim.p) } : null));
     }
     return p;
   }

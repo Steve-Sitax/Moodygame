@@ -97,7 +97,7 @@
     { id: "players", label: "Players", colour: C.event, shape: "dot", on: true },
     { id: "live", label: "Townspeople, live", colour: C.live, shape: "dot", on: true },
     { id: "planned", label: "Townspeople, by day plan", colour: C.planned, shape: "ring", on: true },
-    { id: "indoor", label: "Indoors, by day plan", colour: C.indoor, shape: "ring", on: false },
+    { id: "indoor", label: "Indoors, by day plan", colour: C.indoor, shape: "ring", on: true },
     { id: "dogs", label: "Dogs", colour: C.dog, shape: "dot", on: true },
     { id: "cats", label: "Cats (their doorsteps)", colour: C.cat, shape: "dot", on: false },
     { id: "buses", label: "Omnibuses", colour: C.bus, shape: "sq", on: true, sep: true },
@@ -787,6 +787,8 @@
       return { fill: C.live, stroke: C.paper, r: 3.4, alpha: 1 };
     }
     if (q.in) return { fill: null, stroke: C.indoor, r: 2.4, alpha: 0.55 };
+    // on his way by the day plan's sum (the same place a player finds him): blue with his heading, like a live one
+    if (q.mv) return { fill: C.live, stroke: C.paper, r: 3.1, alpha: 0.8 };
     return { fill: null, stroke: C.planned, r: 3, alpha: 0.75 };
   }
 
@@ -840,7 +842,7 @@
         ctx.setLineDash([]);
       }
       // which way a live one faces (yaw = atan2(dx, dz): forward is (sin, cos) in (x, z))
-      if (q.live && typeof q.yaw === "number" && s > 1.2) {
+      if ((q.live || q.mv) && typeof q.yaw === "number" && s > 1.2) {
         const fx = Math.sin(q.yaw);
         const fz = Math.cos(q.yaw);
         ctx.beginPath();
@@ -1363,7 +1365,8 @@
       rows.push(["Now", `${q.m}${q.sit && q.m !== "sit" ? ", sitting" : ""}${q.s > 0.2 ? `, ${q.s} m/s` : ""}`]);
       if (q.veh) rows.push(["With", `a ${q.veh}`]);
       if (q.a) rows.push(["Plan", `${ACT[q.a] || q.a} ${q.p || ""}`]);
-    } else rows.push(["Now", `${ACT[q.a] || q.a || "?"} ${q.p || ""}${q.left ? ` (${q.left} min more)` : ""}`]);
+    } else if (q.mv && q.wl) rows.push(["Now", `on his way: ${ACT[q.a] || q.a || "?"} ${q.p || ""} (${q.wl} m to go)`]);
+    else rows.push(["Now", `${ACT[q.a] || q.a || "?"} ${q.p || ""}${q.left ? ` (${q.left} min more)` : ""}`]);
     if (q.act) rows.push(["Acting", q.act]);
     rows.push(["Goes", q.live ? q.p || "?" : q.n || "stays"]);
     if (q.live && q.n) rows.push(["Then", q.n]);

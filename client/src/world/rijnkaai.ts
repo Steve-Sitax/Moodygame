@@ -35,7 +35,7 @@ import { lampFog, type LampFog } from "./lampFog";
 import { createLitter, type Litter } from "./litter";
 import { createClutter } from "./clutter";
 import { createPosters, fetchAiSpots, type Posters } from "./posters";
-import { createQuayGoods, quayGoodsAreas } from "./quaygoods";
+import { createQuayGoods, goodsRects, quayGoodsAreas } from "./quaygoods";
 import { createStreetLife, type StreetLife } from "./streetlife";
 import { buildGroundProbe, buildingRoots, buildWallProbe } from "./wallprobe";
 import { tradeKeepOut } from "./trades";
@@ -52,7 +52,7 @@ import { createMirror } from "./mirror";
 import { BRIG_FLOOR, CHAMBER, DOCK, HW_MAX, LW_MIN, MID_Y, gateLine, levelAt, tideAt, tideDev, tideInfo, water as tideWater } from "./tide";
 import { buildTideMud } from "./tidemud";
 import { MOORINGS, mooringRect } from "../../../shared/smallBoats";
-import { PILES } from "../../../shared/goods"; // M8f: the casks on the quay are loose goods
+import { CRATE_STACKS, PILES, SACK_PILES, rijnkaaiGoods } from "../../../shared/goods"; // M8f: the casks, crates and sacks on the quay are loose goods
 import { landmarkDoorKeepOut } from "./doorKeep";
 import { tuning } from "../menu/tuning"; // menus: the view distance setting
 import { addPropObject } from "./propSpots";
@@ -522,6 +522,8 @@ export function buildRijnkaai(): World {
           // they keep off everything above; by the start only against the storehouses (its open
           // ground is the game's: jobs, emigrants, the brig)
           return createQuayGoods(scene, city.flags, {
+            // (M8f goods pass 2: this is the search, run once for the bake, tools/bake-quaycargo.mjs; the PCs lay the
+            // baked heaps, shared/quaycargo.json, so they stand the same everywhere whatever moves at the time)
             avoid: [...colliders, ...dynamic],
             keepOut: [
               ...railGate.colliders.map((r) => ({ minX: r.minX - 1, maxX: r.maxX + 4, minZ: r.minZ - 1, maxZ: r.maxZ + 1 })),
@@ -930,17 +932,26 @@ export function buildRijnkaai(): World {
     });
 
   // --- props
-  crateStack(scene, m, colliders, -20, 14, 3);
-  crateStack(scene, m, colliders, -14.6, 15.2, 2);
-  crateStack(scene, m, colliders, 12, 12.8, 2);
-  crateStack(scene, m, colliders, 36, 18, 3);
-  crateStack(scene, m, colliders, 41, 16.5, 1);
-  crateStack(scene, m, colliders, -52, 12, 2);
   // M8f: the casks standing on the quay are loose goods now, the server's (shared/goods.ts PILES, game/goods.ts draws
-  // them); until the list is in, their ground is held here (the placers of the street keep off it as before)
-  const pileHolds = PILES.map((p) => pileHold(colliders, p.x, p.z, p.n));
-  sacks(scene, m, colliders, 14, 19.5);
-  sacks(scene, m, colliders, -34, 17);
+  // them); until the list is in, their ground is held here (the placers of the street keep off it as before).
+  // M8f goods pass 2: the big crate stacks and the sack piles too (shared/goods.ts CRATE_STACKS, SACK_PILES)
+  const pileHolds = [
+    ...PILES.map((p) => pileHold(colliders, p.x, p.z, p.n)),
+    ...CRATE_STACKS.map(([x, z, n]) => crateHold(colliders, x, z, n)),
+    ...SACK_PILES.map(([x, z]) => sackHold(colliders, x, z)),
+  ];
+  // (the prop check and the placers after it knew the crates and sacks where they stand, as the props' batch told
+  // it: still so, at home; the server's items move, the check sees them where they belong)
+  loadProps()
+    .then((p) => {
+      for (const it of rijnkaaiGoods()) {
+        const o = p.place(it.look!.slice(2), it.x, it.z, it.rot);
+        o.position.y = it.y;
+        o.scale.setScalar(it.sc ?? 1);
+        addPropObject("props (batch)", o);
+      }
+    })
+    .catch(() => {});
   // on the Rijnkaai: a loaded handcart by the cart stand and a dray with its horse
   loadProps()
     .then((p) => {
@@ -2189,43 +2200,21 @@ function crane(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: num
   colliders.push(rectAround(x, z + 0.3, 1.7, 1.9));
 }
 
-function crateStack(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number, n: number): void {
+/**
+ * M8f goods pass 2: the ground of a stack of the big packing crates (shared/goods.ts CRATE_STACKS: two to a row, 1.4 m
+ * apart, one across the first two), held until the goods list is in: each crate is the server's item now
+ * (game/goods.ts draws it with props.glb's crate and its collider from the model).
+ */
+function crateHold(colliders: Rect[], x: number, z: number, n: number): Rect {
   const s = 1.1;
-  // (props.glb's crate_big is 1.18 m across at scale 1: 1.3 m at s, so the crates stand 1.4 m apart, a hand
-  // between them however they are turned; they went into each other at 1.14 m: the prop check)
   const g = s * 1.18 + 0.1;
-  let placed = 0;
-  const spots: Array<[number, number, number, number]> = []; // x, z, yaw, lift
-  for (let i = 0; i < n; i++) {
-    const cx = x + (i % 2) * g;
-    const cz = z + Math.floor(i / 2) * g;
-    spots.push([cx, cz, Math.sin(x * 3 + i) * 0.08, 0]);
-    placed++;
-  }
-  if (n >= 2) spots.push([x + g / 2, z, 0.2, s]);
-  // the packing crates of props.glb (all merged into one draw call); plain boxes if it will not load
-  loadProps()
-    .then((p) => {
-      placeholder.minX = placeholder.maxX = placeholder.minZ = placeholder.maxZ = 1e7;
-      placeholder.top = 0;
-      spots.forEach(([cx, cz, yaw, y], i) => {
-        const name = n === 1 ? "crate_open" : n === 3 && i === 2 ? "crate_broken" : "crate_big";
-        p.batch(scene, name, cx, cz, yaw, y, s);
-        colliders.push(...p.colliders(name, cx, cz, yaw, y, s));
-      });
-    })
-    .catch(() => {
-      for (const [cx, cz, yaw, y] of spots) {
-        const c = box(s, s, s, m.crate, cx, y + s / 2, cz, 1.1);
-        c.rotation.y = yaw;
-        scene.add(c);
-      }
-    });
   const h = (s * 1.18) / 2;
-  const w = placed > 1 ? g : 0;
-  const d = (Math.ceil(placed / 2) - 1) * g;
+  const w = n > 1 ? g : 0;
+  const d = (Math.ceil(n / 2) - 1) * g;
   const placeholder = { minX: x - h, maxX: x + w + h, minZ: z - h, maxZ: z + d + h, top: n >= 2 ? s * 2 : s };
   colliders.push(placeholder);
+  goodsRects.add(placeholder);
+  return placeholder;
 }
 
 /**
@@ -2237,31 +2226,16 @@ function pileHold(colliders: Rect[], x: number, z: number, n: number): Rect {
   const rows = Math.ceil(n / 3);
   const placeholder = { minX: x - 0.35, maxX: x + (cols - 1) * 0.75 + 0.35, minZ: z - 0.35, maxZ: z + (rows - 1) * 0.75 + 0.35, top: 0.95 };
   colliders.push(placeholder);
+  goodsRects.add(placeholder);
   return placeholder;
 }
 
-function sacks(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number): void {
-  // jute sacks of props.glb, two layers (merged); plain boxes if it will not load
-  loadProps()
-    .then((p) => {
-      // (a sack is 0.98 m long: a metre apart, turned a little, they touch; the upper layer lies on them)
-      placeholder.minX = placeholder.maxX = placeholder.minZ = placeholder.maxZ = 1e7;
-      placeholder.top = 0;
-      for (let i = 0; i < 6; i++) {
-        const sx = x + (i % 3) * 1.04, yaw = Math.sin(i * 4.1) * 0.12, y = Math.floor(i / 3) * 0.25;
-        p.batch(scene, "sack", sx, z, yaw, y);
-        colliders.push(...p.colliders("sack", sx, z, yaw, y));
-      }
-    })
-    .catch(() => {
-      for (let i = 0; i < 6; i++) {
-        const s = box(0.9, 0.35, 0.55, m.sack, x + (i % 3) * 0.92, 0.18 + Math.floor(i / 3) * 0.35, z, 0.9);
-        s.rotation.y = Math.sin(i * 4.1) * 0.12;
-        scene.add(s);
-      }
-    });
+/** M8f goods pass 2: the ground of a pile of six sacks (shared/goods.ts SACK_PILES), held until the goods list is in. */
+function sackHold(colliders: Rect[], x: number, z: number): Rect {
   const placeholder = { minX: x - 0.5, maxX: x + 2.6, minZ: z - 0.35, maxZ: z + 0.35, top: 0.7 };
   colliders.push(placeholder);
+  goodsRects.add(placeholder);
+  return placeholder;
 }
 
 function cart(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number): void {

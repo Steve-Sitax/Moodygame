@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { psx, psxUniforms } from "../retro/psx";
+import { dice, share, sharedSeconds } from "../game/share";
 import { TARGET_HEIGHT } from "../retro/retroPass";
 import { edgeZ, type CityOpenings, type CityWorld } from "./city";
 import { addSpill, setSpillClock, type SpillKind } from "./spill";
@@ -1230,6 +1231,7 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
   const scl = new THREE.Vector3();
   const vel = new THREE.Vector3();
   const tmp = new THREE.Vector3();
+  const tmp2 = new THREE.Vector3();
 
   function takeOff(b: Bird, D: number, loopR: number, loopH: number, awayFrom: THREE.Vector3, land: THREE.Vector3): void {
     b.air = 0;
@@ -1265,32 +1267,39 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
       return near;
     };
     const flushR = camSpeed > 2.2 ? 6.5 : 4;
+    // M8f sync pass 3: every player flushes them, and where they land, how they fly and what they do on the ground
+    // come from the clock every PC shares and the bird (were this PC's dice): the same birds on every screen
+    const S = sharedSeconds();
+    const others = share.on ? share.players().slice(1) : [];
+    const key = (b: Bird) => Math.floor(b.seed * 1e6);
     // pigeons: a flock goes up together when you come close
     for (const f of flocks) {
       f.up = Math.max(0, f.up - dt);
       const sitting = f.birds.filter((b) => b.air < 0);
       if (!sitting.length) continue;
-      const close = sitting.some((b) => Math.hypot(b.pos.x - cp.x, b.pos.z - cp.z) < flushR && cp.y < 4);
-      if (!close) continue;
+      let by: { x: number; z: number } | null = sitting.some((b) => Math.hypot(b.pos.x - cp.x, b.pos.z - cp.z) < flushR && cp.y < 4) ? cp : null;
+      for (const o of others) if (!by && sitting.some((b) => Math.hypot(b.pos.x - o.x, b.pos.z - o.z) < 4)) by = o;
+      if (!by) continue;
+      const slot = Math.floor(S / 3);
       for (const b of f.birds) {
         if (b.air >= 0) continue;
         // land again somewhere on the square away from you
         let best = b.p0.clone();
         let bestD = -1;
         for (let k = 0; k < 6; k++) {
-          const a = Math.random() * Math.PI * 2;
-          const d = Math.sqrt(Math.random()) * f.r;
+          const a = dice("pgland", key(b), slot, k) * Math.PI * 2;
+          const d = Math.sqrt(dice("pglandd", key(b), slot, k)) * f.r;
           const px = f.x + Math.cos(a) * d;
           const pz = f.z + Math.sin(a) * d;
           if (city.flags(px, pz) !== 0) continue;
-          const dd = Math.hypot(px - cp.x, pz - cp.z);
+          const dd = Math.hypot(px - by.x, pz - by.z);
           if (dd > bestD) {
             bestD = dd;
             best = new THREE.Vector3(px, 0.055, pz);
           }
         }
-        takeOff(b, 10 + Math.random() * 8, 5 + Math.random() * 5, 4 + Math.random() * 4, cp, best);
-        b.delay = Math.random() * 0.5;
+        takeOff(b, 10 + dice("pgD", key(b), slot) * 8, 5 + dice("pgR", key(b), slot) * 5, 4 + dice("pgH", key(b), slot) * 4, tmp2.set(by.x, 0, by.z), best);
+        b.delay = dice("pgdelay", key(b), slot) * 0.5;
       }
     }
 
@@ -1334,30 +1343,35 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
         fold = 1;
         if (b.kind === 0) {
           const d = Math.hypot(b.pos.x - cp.x, b.pos.z - cp.z);
-          if ((d < 5 && Math.abs(b.pos.y - cp.y) < 6) || Math.random() < dt / 90) {
-            takeOff(b, 22 + Math.random() * 14, 12 + Math.random() * 8, 7 + Math.random() * 6, d < 5 ? cp : tmp.set(b.p0.x, 0, b.p0.z + 5), b.p0);
+          let by: { x: number; z: number } | null = d < 5 && Math.abs(b.pos.y - cp.y) < 6 ? cp : null;
+          for (const o of others) if (!by && Math.hypot(b.pos.x - o.x, b.pos.z - o.z) < 5) by = o;
+          // (now and then on its own: about once in 90 s, at a time of the shared clock)
+          const n = Math.floor(S / 90 + b.seed);
+          const due = b.timer !== n && b.timer !== 0 && dice("gullgo", key(b), n) < 0.63;
+          b.timer = n;
+          if (by || due) {
+            takeOff(b, 22 + dice("gD", key(b), n) * 14, 12 + dice("gR", key(b), n) * 8, 7 + dice("gH", key(b), n) * 6, by ? tmp2.set(by.x, 0, by.z) : tmp.set(b.p0.x, 0, b.p0.z + 5), b.p0);
           }
         } else {
-          // pigeons walk and peck
-          b.timer -= dt;
-          if (b.timer <= 0) {
+          // pigeons walk and peck (M8f: a step of 2 s of the shared clock each, each bird its own; a walk goes to a
+          // spot round where it landed, so two PCs that saw it land there have it at the same spots)
+          const n = Math.floor(S / 2 + b.seed);
+          if (b.timer !== n) {
+            b.timer = n;
             const f = flocks[b.flock];
-            const roll = Math.random();
+            const roll = dice("pg", key(b), n);
             if (roll < 0.45) {
-              const a = Math.random() * Math.PI * 2;
-              const d = 0.4 + Math.random() * 1.2;
-              const nx = b.pos.x + Math.cos(a) * d;
-              const nz = b.pos.z + Math.sin(a) * d;
+              const a = dice("pga", key(b), n) * Math.PI * 2;
+              const d = dice("pgd", key(b), n) * 1.2;
+              const nx = b.p0.x + Math.cos(a) * d;
+              const nz = b.p0.z + Math.sin(a) * d;
               if (city.flags(nx, nz) === 0 && Math.hypot(nx - f.x, nz - f.z) < f.r) b.walk = new THREE.Vector3(nx, 0.055, nz);
-              b.timer = 1 + Math.random() * 2;
             } else if (roll < 0.8) {
               b.walk = null;
-              b.peck = 0.8 + Math.random() * 1.5;
-              b.timer = b.peck;
+              b.peck = 0.8 + dice("pgp", key(b), n) * 1.1;
             } else {
               b.walk = null;
-              b.yaw += (Math.random() - 0.5) * 2;
-              b.timer = 0.6 + Math.random() * 1.8;
+              b.yaw = dice("pgy", key(b), n) * 6.28;
             }
           }
           if (b.walk) {
@@ -1478,8 +1492,10 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
 
     // smoke and wind
     U.uSmoke.value = curve(SMOKE_BY_HOUR, hourNow) + (COLD[weather] ?? 0);
-    const wa = 0.35 + Math.sin(t * 0.013) * 0.25;
-    const ws = (WIND[weather] ?? 0.5) * (1 + 0.2 * Math.sin(t * 0.07));
+    // (M8f sync pass 3: by the clock every PC shares, as alive/wind.ts: the smoke leans the same way on every screen)
+    const ts = sharedSeconds() % 1e6;
+    const wa = 0.35 + Math.sin(ts * 0.013) * 0.25;
+    const ws = (WIND[weather] ?? 0.5) * (1 + 0.2 * Math.sin(ts * 0.07));
     U.uWind.value.set(Math.cos(wa) * ws, Math.sin(wa) * ws);
     const fog = scene.fog as THREE.Fog | null;
     if (fog) fogCol.copy(fog.color);

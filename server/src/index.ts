@@ -1,4 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
+import { planWays, warmWays, waysByKey } from "./town/ways.ts";
 import { dirname, join } from "node:path";
 import { serve } from "@hono/node-server";
 import { Hono, type MiddlewareHandler } from "hono";
@@ -142,6 +143,13 @@ app.post("/api/map/me", async (c) => {
   if (x === null || z === null) return c.json({ ok: false }, 400);
   const name = (db.prepare("SELECT name FROM player WHERE id = 1").get() as { name?: string } | undefined)?.name ?? "Jef";
   mapModel.players([{ id: 1, name, host: true, x, y: n(b?.y) ?? 0, z, yaw: n(b?.yaw) ?? 0, mode: typeof b?.mode === "string" ? b.mode.slice(0, 12) : "walk", away: b?.away === true, online: true }]);
+  // the townspeople the game draws round Jef, live on the map as when played together (Steve 2026-09-27)
+  const people = Array.isArray((b as { people?: unknown } | null)?.people) ? ((b as { people: unknown[] }).people.slice(0, 80) as Array<Record<string, unknown>>) : [];
+  const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : null);
+  const live = people
+    .map((q) => ({ id: str(q?.id, 24) ?? "", x: n(q?.x), z: n(q?.z), yaw: n(q?.yaw) ?? 0, speed: n(q?.speed) ?? 0, motion: str(q?.motion, 16) ?? "idle", sit: q?.sit === true, lantern: q?.lantern === true, sack: q?.sack === true, bought: str(q?.bought, 12), vehicle: str(q?.vehicle, 12) }))
+    .filter((q): q is typeof q & { x: number; z: number } => !!q.id && q.x !== null && q.z !== null);
+  if (live.length) mapModel.puppets(1, live);
   return c.json({ ok: true });
 });
 // M7 save and pause: saves, loads and the pause; first, so its gate sees every request (save/routes.ts)
@@ -526,6 +534,15 @@ app.get("/api/town", (c) => {
   });
 });
 
+// the trade plan (docs/trade-plan.md part A): the ways on foot of every day plan, so a PC walks the unseen along
+// streets (town/whereabouts.ts) and agrees with the town map; a PC asks for a way the plan did not have by key
+app.get("/api/town/ways", (c) => c.json({ ways: planWays(town(db).town) }));
+app.post("/api/town/ways", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { keys?: unknown };
+  const keys = Array.isArray(body.keys) ? body.keys.filter((k): k is string => typeof k === "string" && k.length < 40) : [];
+  return c.json({ ways: waysByKey(keys) });
+});
+
 app.post("/api/resident/:id/pick", (c) => {
   const r = pickPocket(db, c.req.param("id"));
   broadcast({ type: "jobs", ...jobsPayload() });
@@ -649,6 +666,8 @@ app.onError((err, c) => {
 
 const server = serve({ fetch: app.fetch, hostname: HOST, port: PORT }, (info) => {
   console.log(`[server] http://${HOST}:${info.port}  db: ${DB_FILE}`);
+  // the trade plan: find the day plans' ways a person at a time between other work (a few seconds in all)
+  warmWays(() => town(db).town);
 });
 
 // push channel: the game never waits on a call, results arrive here

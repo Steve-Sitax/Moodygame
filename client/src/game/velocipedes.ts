@@ -176,7 +176,12 @@ export class Velocipedes {
     player.bikeGround = (x, z) => this.groundAt(x, z);
     void loadModel().then((p) => {
       this.proto = p;
-      for (const b of this.bikes.values()) this.dress(b);
+      // (and stood again: a parked one's handlebar is turned as stand() turns it, not left straight until the next list:
+      // two PCs showed the same machine two ways; sync pass 2)
+      for (const b of this.bikes.values()) {
+        this.dress(b);
+        if (b !== this.ridden) this.stand(b);
+      }
     });
   }
 

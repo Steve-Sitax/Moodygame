@@ -5,7 +5,7 @@ import { devJob, jobById } from "../src/hooks/jobBoard.ts";
 import { takeJob } from "../src/game.ts";
 import { asPlayer, setPositionSource, setWalkerSource } from "../src/player/current.ts";
 import { ensurePlayerRow } from "../src/player/multi.ts";
-import { GoodsStore, goods as theStore, goodsHooks } from "../src/goods/store.ts";
+import { GoodsStore, goods as theStore, goodsHooks, QUAY_CARGO } from "../src/goods/store.ts";
 import { mountGoods, GOODS_RATE } from "../src/goods/routes.ts";
 import { carryBackTick, installCarryBack, startBack } from "../src/goods/carryBack.ts";
 import { activeRoutines, devRoutine, reportStep } from "../src/director/steps.ts";
@@ -15,7 +15,7 @@ import { buy } from "../src/trade.ts";
 import { cartAt, holdCart, jefCarts, loadCart, unloadedGoods, unloadedJobGoods, unloadJob, unloadOne, WHEELWRIGHT_ID } from "../src/town/handcart.ts";
 import { resetSync, syncFromClient } from "../src/director/actions.ts";
 import { town } from "../src/town/store.ts";
-import { DRAY_RUN, GOODS_BODY_MAX, PILES, pileSpot, placeAt, rotFor, townGoods, type GoodsItem, type GoodsPush } from "../../shared/goods.ts";
+import { CART_RUNS, CRATE_STACKS, DRAY_RUN, GOODS_BODY_MAX, PILES, pileSpot, placeAt, r3, rotFor, SACK_PILES, townGoods, type GoodsItem, type GoodsPush } from "../../shared/goods.ts";
 import CITY from "../../shared/city.json" with { type: "json" };
 
 // M8f shared goods (docs/milestones/M8f.md): the server owns every liftable item; the PCs ask. The ids and the turns
@@ -58,7 +58,7 @@ describe("M8f: the town's goods, the same on every PC", () => {
     const a = new GoodsStore().list();
     const b = new GoodsStore().list();
     expect(a).toEqual(b);
-    expect(a.map((i) => i.id)).toEqual(townGoods(doors).map((i) => i.id));
+    expect(a.map((i) => i.id)).toEqual(townGoods(doors, QUAY_CARGO).map((i) => i.id));
     expect(a.filter((i) => i.id.startsWith("own:")).length).toBe(11);
     expect(a.filter((i) => i.id.startsWith("pile:")).length).toBe(PILES.reduce((n, p) => n + p.n, 0));
     for (const it of a.filter((i) => i.id.startsWith("own:"))) {
@@ -401,5 +401,138 @@ describe("M8f: the route, a late joiner, the limits", () => {
     expect(pushes[0]).toMatchObject({ why: "reset", full: true });
     expect(pushes[0].items.length).toBe(s.list().length);
     expect(goodsHooks).toBeTruthy();
+  });
+});
+
+describe("M8f goods pass 2: the rest of the quay's cargo, and the carts' rounds", () => {
+  const byId = (s: GoodsStore) => new Map(s.list().map((i) => [i.id, i]));
+
+  it("the heaps' casks, crates and sacks are the server's items, laid as the bake has them (ids, places, turns, what rests on what)", () => {
+    const s = new GoodsStore();
+    const m = byId(s);
+    const rows = QUAY_CARGO;
+    expect(rows.length).toBeGreaterThan(400); // (496 since the trade work's docker piles took some heaps' places)
+    for (const [id, node, kind, x, y, z, rot, h, on, heavy] of rows) {
+      const it = m.get(id)!;
+      expect(it).toMatchObject({ kind, look: `q:${node}`, x, y, z, rot, h, on, by: null, owner: null, job: null });
+      expect(!!it.heavy).toBe(heavy === 1);
+      for (const u of on) expect(m.get(u)!.y).toBeLessThan(y);
+    }
+    // every kind is there, and some of each rests on another (a pyramid's upper casks on two, a layer of sacks, a crate on a crate)
+    for (const k of ["barrels", "crates", "sacks"]) {
+      expect(rows.filter((r) => r[2] === k).length).toBeGreaterThan(20);
+      expect(rows.filter((r) => r[2] === k && r[8].length).length).toBeGreaterThan(5);
+    }
+    expect(rows.some((r) => r[1].startsWith("casks_pyramid") && r[8].length === 2)).toBe(true);
+  });
+
+  it("taken top down: what something rests on is refused until that is off; a heavy one goes into both arms", () => {
+    const db = blankSave();
+    const s = new GoodsStore();
+    const upper = QUAY_CARGO.find((r) => r[1].startsWith("casks_pyramid") && r[8].length === 2 && !QUAY_CARGO.some((q) => q[8].includes(r[0])))!;
+    const [below] = upper[8];
+    const refused = s.ask(db, 1, { op: "lift", id: below });
+    expect(refused.ok ? "" : refused.why).toMatch(/on top/);
+    ok(s.ask(db, 1, { op: "lift", id: upper[0] }));
+    // (set down on free ground near it: nothing within 1.2 m)
+    const free = [[3, 0], [-3, 0], [0, 3], [0, -3], [5, 0], [-5, 0], [0, 5], [0, -5]]
+      .map(([dx, dz]) => [upper[3] + dx, upper[5] + dz])
+      .find(([x, z]) => !s.list().some((o) => !o.by && Math.hypot(o.x - x, o.z - z) < 1.2))!;
+    ok(s.ask(db, 1, { op: "put", id: upper[0], x: free[0], z: free[1] }));
+    // (the one below: free now, unless another upper cask still rests on it)
+    const still = s.list().some((o) => !o.by && o.on.includes(below));
+    expect(s.ask(db, 1, { op: "lift", id: below }).ok).toBe(!still);
+    const heavy = QUAY_CARGO.find((r) => r[9] === 1 && !QUAY_CARGO.some((q) => q[8].includes(r[0])))!;
+    expect(s.get(heavy[0])!.heavy).toBe(true);
+  });
+
+  it("the Rijnkaai's big crates: the same places and turns as the props were, one across two, too big to lift by hand (a cart's work); the sacks one on another", () => {
+    const db = blankSave();
+    const s = new GoodsStore();
+    const m = byId(s);
+    CRATE_STACKS.forEach(([x, z, n], k) => {
+      const g = 1.1 * 1.18 + 0.1;
+      for (let i = 0; i < n; i++) {
+        const it = m.get(`crate:${k}:${i}`)!;
+        expect([it.x, it.z, it.y]).toEqual([r3(x + (i % 2) * g), r3(z + Math.floor(i / 2) * g), 0]);
+        expect(it.rot).toBeCloseTo(Math.sin(x * 3 + i) * 0.08, 3);
+        expect(it).toMatchObject({ cartOnly: true, sc: 1.1 });
+      }
+      if (n >= 2) expect(m.get(`crate:${k}:${n}`)).toMatchObject({ y: 1.1, on: [`crate:${k}:0`, `crate:${k}:1`], rot: 0.2 });
+    });
+    const top = s.ask(db, 1, { op: "lift", id: "crate:0:3" });
+    expect(top.ok ? "" : top.why).toMatch(/cart's work/);
+    expect(s.ask(db, 1, { op: "npc_lift", npc: "karel", ids: ["crate:4:0"] }).ok).toBe(false);
+    SACK_PILES.forEach(([x, z], k) => {
+      for (let i = 0; i < 6; i++) expect(m.get(`sack:${k}:${i}`)).toMatchObject({ x: r3(x + (i % 3) * 1.04), z, y: i < 3 ? 0 : 0.25, on: i < 3 ? [] : [`sack:${k}:${i - 3}`], look: "p:sack" });
+    });
+    // a sack taken off the top and put back: it lies on the one below again
+    ok(s.ask(db, 1, { op: "lift", id: "sack:0:4" }));
+    ok(s.ask(db, 1, { op: "put", id: "sack:0:4", x: 15.04, z: 19.5 }));
+    expect(s.get("sack:0:4")).toMatchObject({ on: ["sack:0:1"], y: 0.25 });
+  });
+
+  it("the handcart's round with the sacks: the whole pile on at ten, down in the same shape by the berth at eleven, back at two, home at three", () => {
+    const db = blankSave();
+    const { s, pushes } = store();
+    const R = CART_RUNS.find((r) => r.id === "sacks")!;
+    const home = new Map(R.items.map((id) => [id, s.get(id)!]));
+    expect(s.runTick("sacks", 2, R.out - 5, db)).toBeNull();
+    expect(s.runTick("sacks", 2, R.out, db)).toBe("out");
+    for (const id of R.items) expect(s.get(id)!.by).toEqual({ cart: R.cart });
+    expect(s.onCart(R.cart).length).toBe(6);
+    expect(s.runTick("sacks", 2, R.down + 2, db)).toBe("down");
+    const dx = R.to[0] - home.get(R.items[0])!.x;
+    const dz = R.to[1] - home.get(R.items[0])!.z;
+    for (const id of R.items) {
+      const h = home.get(id)!;
+      expect(s.get(id)).toMatchObject({ by: null, x: r3(h.x + dx), z: r3(h.z + dz), y: h.y, on: h.on });
+    }
+    expect(s.runTick("sacks", 2, R.back, db)).toBe("back");
+    expect(s.runTick("sacks", 2, R.home, db)).toBe("home");
+    for (const id of R.items) {
+      const h = home.get(id)!;
+      expect(s.get(id)).toMatchObject({ by: null, x: h.x, z: h.z, y: h.y, on: h.on });
+    }
+    expect(pushes.filter((p) => p.who && "cart" in p.who && p.who.cart === R.cart).length).toBe(4);
+    // the casks' dray and the sacks' handcart on one tick of the world's clock
+    const t = new GoodsStore();
+    expect(t.cartRunsTick(3, 8 * 60, db)).toEqual({ casks: "out", sacks: null });
+    expect(t.cartRunsTick(3, 10 * 60, db)).toEqual({ casks: "down", sacks: "out" });
+  });
+
+  it("a pile touched, or with something of someone else's on it, stays; what is left on a cart comes home with the new day", () => {
+    const db = blankSave();
+    const R = CART_RUNS.find((r) => r.id === "sacks")!;
+    const a = new GoodsStore();
+    ok(a.ask(db, 1, { op: "lift", id: "sack:0:5" }));
+    expect(a.runTick("sacks", 2, R.out, db)).toBe("skip");
+    // someone's crate set on the pile: not taken with it
+    const b = new GoodsStore();
+    ok(b.ask(db, 1, { op: "lift", id: "own:sooi:3" }));
+    ok(b.ask(db, 1, { op: "put", id: "own:sooi:3", x: 14, z: 19.5 }));
+    expect(b.get("own:sooi:3")!.on).toEqual(["sack:0:3"]);
+    expect(b.runTick("sacks", 2, R.out, db)).toBe("skip");
+    // the day ends with the load still on the cart (a stage missed): the next day it is set down at home first
+    const c = new GoodsStore();
+    expect(c.runTick("sacks", 2, R.out, db)).toBe("out");
+    c.runs.get("sacks")!.state = "skip";
+    c.runTick("sacks", 3, 6 * 60, db);
+    expect(c.onCart(R.cart)).toEqual([]);
+    expect(c.get("sack:0:4")).toMatchObject({ by: null, y: 0.25, on: ["sack:0:1"] });
+  });
+
+  it("the drawn rounds: each leg starts where the last ended (the cart never jumps), the stages in order, the casks' place by the berth", () => {
+    const R = CART_RUNS.find((r) => r.id === "casks")!;
+    expect(R.to).toEqual(DRAY_RUN.to);
+    for (const r of CART_RUNS) {
+      const L = r.legs;
+      const chain: Array<keyof typeof L> = ["out", "deliver", "back", "fetch", "bring", "home"];
+      chain.forEach((k, i) => {
+        const prev = L[chain[(i + chain.length - 1) % chain.length]];
+        expect(L[k][0]).toEqual(prev[prev.length - 1]);
+      });
+      expect(r.out < r.down && r.down < r.back && r.back < r.home).toBe(true);
+    }
   });
 });

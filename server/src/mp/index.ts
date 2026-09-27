@@ -8,7 +8,7 @@ import { gateState, isPaused, setPaused } from "../save/gate.ts";
 import { reportWhere, whereNow } from "../warmth.ts";
 import { TICK_EVERY_MS } from "../../../shared/clock.ts";
 import { appearanceCode, defaultFor } from "../../../shared/character.ts";
-import { decodePuppets, decodeState, encodeBatch, figBatchOk, figSetSender, FLAG, MODES, MP_PROTOCOL, MSG_FIGS, MSG_PUPPETS, puppetBatchOk, puppetKeep, puppetNums, SEND_MS, type MpState, type MpText, type RosterEntry } from "../../../shared/mpProtocol.ts";
+import { animalBatchOk, animalKeep, animalNums, decodePuppets, decodeState, encodeBatch, figBatchOk, figSetSender, FLAG, MODES, MP_PROTOCOL, MSG_ANIMALS, MSG_FIGS, MSG_PUPPETS, puppetBatchOk, puppetKeep, puppetNums, SEND_MS, type MpState, type MpText, type RosterEntry } from "../../../shared/mpProtocol.ts";
 import { figHolders, jobPins } from "../town/walkup.ts";
 import { seekPins } from "../director/families.ts";
 import { handPins } from "../town/hire.ts";
@@ -541,7 +541,7 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
         if (!isBinary) kind = startsWith(data, WORLD_HEAD) ? "world" : "text";
         else {
           const b0 = (data as Buffer)[0];
-          kind = b0 === MSG_PUPPETS ? "puppets" : b0 === MSG_FIGS ? "figs" : "state";
+          kind = b0 === MSG_PUPPETS ? "puppets" : b0 === MSG_FIGS ? "figs" : b0 === MSG_ANIMALS ? "animals" : "state";
         }
         const say = seat.limits.message(kind, now);
         if (say === "drop") {
@@ -613,6 +613,24 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
         }
         return;
       }
+      // M8f sync pass 3: a batch of the animals he runs (and his townspeople's dogs): passed on, only the ones he owns
+      if (buf.length > 0 && buf[0] === MSG_ANIMALS) {
+        const v = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+        if (!animalBatchOk(v)) return;
+        // (its PC is alive: what it runs stays its own, as with a townspeople's batch; an empty batch says just that)
+        puppetsAt.set(seat.id, now);
+        const nums = animalNums(v);
+        const keep: number[] = [];
+        nums.forEach((n, i) => owners.owns(seat.id, n) && keep.push(i));
+        if (!keep.length) return;
+        const out = keep.length === nums.length ? buf : new Uint8Array(animalKeep(v, keep));
+        for (const k of conns) {
+          if (k === conn || k.ws.readyState !== WebSocket.OPEN || lagging(k)) continue;
+          k.bytesOut += out.byteLength;
+          k.ws.send(out);
+        }
+        return;
+      }
       // M8b: a batch of the townspeople he walks: passed on to the others (only the ones he owns)
       if (buf.length > 0 && buf[0] === MSG_PUPPETS) {
         const v = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
@@ -628,7 +646,8 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
           const b = decodePuppets(new DataView(out.buffer, out.byteOffset, out.byteLength));
           const list = (b?.list ?? []).flatMap(({ num, s }) => {
             const id = owners.idOf(num);
-            return id ? [{ id, x: s.x, z: s.z, yaw: s.yaw, speed: Math.hypot(s.vx, s.vz), motion: s.motion, sit: s.sit, lantern: s.lantern, sack: s.sack, bought: s.bought, vehicle: s.veh }] : [];
+            // (M8f sync pass 3: the town's other walkers, "x:" ids, are no residents: not on the map)
+            return id && !id.startsWith("x:") ? [{ id, x: s.x, z: s.z, yaw: s.yaw, speed: Math.hypot(s.vx, s.vz), motion: s.motion, sit: s.sit, lantern: s.lantern, sack: s.sack, bought: s.bought, vehicle: s.veh }] : [];
           });
           deps.map.puppets(seat.id, list);
         }
@@ -795,8 +814,17 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
 
   /** The town map: where the players are (4 times a second, from the relay's rounds). */
   let mapTick = 0;
+  let mapHadSeats = false;
   function feedMapPlayers(): void {
     if (!deps.map || ++mapTick % 5 !== 0) return;
+    // played alone the game says where Jef is itself (POST /api/map/me): an empty roster here wiped him a moment
+    // after each report, and he flashed on the map (Steve 2026-09-27). Clear once when the last seat goes.
+    if (!mpOn() || !seats.size) {
+      if (mapHadSeats) deps.map.players([]);
+      mapHadSeats = false;
+      return;
+    }
+    mapHadSeats = true;
     deps.map.players(
       [...seats.values()]
         .filter((s) => s.state)

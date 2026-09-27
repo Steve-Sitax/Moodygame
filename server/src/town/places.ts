@@ -3,6 +3,7 @@
 // river, z inland, water at z < 0). The generator snaps every point to open,
 // reachable ground (walkmap.ts), so a map change moves them, not breaks them.
 
+import { HAUL_ROUTES } from "../../../shared/hauls.ts";
 import type { Faction } from "../db.ts";
 
 /** How a trade is done at the workplace (the client plays each kind). */
@@ -118,46 +119,17 @@ export const STALLS: StallDef[] = [
 ];
 
 /** Haul routes: a quay point (a) and a door or store (b) per workplace. */
-export const HAULS: Record<string, Array<{ a: [number, number]; b: [number, number] }>> = {
-  rijnkaai: [
-    { a: [-12, 4], b: [-10, 40] },
-    { a: [26, 5], b: [40, 42] },
-    { a: [-40, 5], b: [-44, 40] },
-    { a: [45, 5], b: [56, 40] },
-  ],
-  hessenatie: [
-    { a: [12, 5], b: [11.2, 43.5] },
-    { a: [2, 5], b: [11.2, 43.5] },
-  ],
-  entrepot: [
-    { a: [173, 55], b: [173, 83] },
-    { a: [173, 108], b: [173, 88] },
-    { a: [160, 40], b: [173, 78] },
-  ],
-  bassin: [
-    { a: [90, 44], b: [96, 8] },
-    { a: [130, 44], b: [150, 10] },
-    { a: [66, 60], b: [70, 20] },
-  ],
-  bassin_south: [
-    { a: [90, 113], b: [100, 122] },
-    { a: [140, 113], b: [150, 122] },
-  ],
-  werf: [
-    { a: [-300, 3], b: [-306, 12] },
-    { a: [-262, 3], b: [-270, 12] },
-    { a: [-230, 3], b: [-226, 26] },
-  ],
-  vismarkt: [
-    // from the boats on the vliet to the backs of the fish banks (M3i)
-    { a: [-139, 22], b: [-123.2, 22.4] },
-    { a: [-139, 34], b: [-123.6, 33.2] },
-  ],
-  canal: [
-    { a: [-65, 90], b: [-65, 108] },
-    { a: [-87, 120], b: [-87, 84] },
-  ],
-};
+/**
+ * The dockers' carrying routes per place: from beside a pile of goods to a door, a pile or a fish bank
+ * (shared/hauls.ts, Steve 2026-09-27: they fetched loads from nowhere and dropped them in the street).
+ */
+export const HAULS: Record<string, Array<{ a: [number, number]; b: [number, number] }>> = HAUL_ROUTES.reduce(
+  (m, r) => {
+    (m[r.place] ??= []).push({ a: r.a, b: r.b });
+    return m;
+  },
+  {} as Record<string, Array<{ a: [number, number]; b: [number, number] }>>,
+);
 
 /** A round for the police agents and the lamplighter (the lamps come from city.json). */
 export const PATROLS: Record<string, Array<[number, number]>> = {

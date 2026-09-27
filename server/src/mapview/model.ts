@@ -1,5 +1,7 @@
 import { activityAt, type Act, type Schedule, type Seg } from "../town/schedule.ts";
 import type { Resident, Town } from "../town/population.ts";
+import { serverWay } from "../town/ways.ts";
+import { whereAt } from "../town/whereabouts.ts";
 
 // The town map (docs/mapview.md): what the host's observer map knows of the town, live and planned.
 //
@@ -73,6 +75,8 @@ export interface MapClock {
   day: number;
   hour: number;
   minute: number;
+  /** Game minutes past `minute` since the world's last tick (the map's own run of the clock between ticks). */
+  frac?: number;
   weekday?: string;
   weather?: string;
 }
@@ -445,80 +449,11 @@ export interface PlannedSpot {
   left: number;
   /** The next part of the day, if there is one today. */
   next: { act: Act; place: string; label: string; from: number } | null;
-}
-
-/** A small fixed number for an id (a spread over a place that stays put). */
-function hash(s: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
-  return h >>> 0;
-}
-
-/** A point `d` metres along a path (looped back to the start when closed). */
-function along(pts: ReadonlyArray<readonly [number, number]>, d: number, loop: boolean): { x: number; z: number } {
-  if (pts.length === 1) return { x: pts[0][0], z: pts[0][1] };
-  const legs: Array<[readonly [number, number], readonly [number, number], number]> = [];
-  for (let i = 0; i < pts.length - (loop ? 0 : 1); i++) {
-    const a = pts[i];
-    const b = pts[(i + 1) % pts.length];
-    legs.push([a, b, Math.hypot(b[0] - a[0], b[1] - a[1])]);
-  }
-  const total = legs.reduce((s, l) => s + l[2], 0);
-  if (total <= 0) return { x: pts[0][0], z: pts[0][1] };
-  // not looped: there and back
-  let t = loop ? ((d % total) + total) % total : (() => {
-    const u = ((d % (2 * total)) + 2 * total) % (2 * total);
-    return u > total ? 2 * total - u : u;
-  })();
-  for (const [a, b, len] of legs) {
-    if (t <= len) {
-      const f = len ? t / len : 0;
-      return { x: a[0] + (b[0] - a[0]) * f, z: a[1] + (b[1] - a[1]) * f };
-    }
-    t -= len;
-  }
-  const e = legs[legs.length - 1][1];
-  return { x: e[0], z: e[1] };
-}
-
-/** A walking pace for the plan's rounds: metres per game minute. */
-const ROUND_M_PER_MIN = 40;
-
-function workSpot(r: Resident, town: Town, minuteOfDay: number): { x: number; z: number; indoor: boolean } {
-  const w = r.work;
-  const home = { x: r.home.x, z: r.home.z, indoor: true };
-  if (w.place === "home") return home;
-  if (w.kind === "inside") {
-    const d = w.door ?? (town.places[w.place]?.door as [number, number] | undefined);
-    if (d) return { x: d[0], z: d[1], indoor: true };
-    const p = town.places[w.place];
-    return p ? { x: p.x, z: p.z, indoor: true } : home;
-  }
-  if (w.kind === "haul" && w.a && w.b) {
-    const p = along([w.a, w.b], (minuteOfDay + (hash(r.id) % 30)) * ROUND_M_PER_MIN * 0.5, false);
-    return { ...p, indoor: false };
-  }
-  if (w.route && w.route.length && (w.kind === "patrol" || w.kind === "roam" || w.kind === "inspect" || w.kind === "round")) {
-    const p = along(w.route, (minuteOfDay + (hash(r.id) % 60)) * ROUND_M_PER_MIN * 0.5, w.kind === "patrol");
-    return { ...p, indoor: false };
-  }
-  if (w.at) return { x: w.at[0], z: w.at[1], indoor: false };
-  if (typeof w.stall === "number" && town.stalls[w.stall]) return { x: town.stalls[w.stall].x, z: town.stalls[w.stall].z, indoor: false };
-  if (w.shop) {
-    const s = town.shops.find((q) => q.id === w.shop);
-    if (s) return { x: s.out?.[0] ?? s.door[0], z: s.out?.[1] ?? s.door[1], indoor: false };
-  }
-  if (w.door) return { x: w.door[0], z: w.door[1], indoor: false };
-  const p = town.places[w.place];
-  if (p) return { ...spread(r.id, p.x, p.z, p.r), indoor: false };
-  return home;
-}
-
-function spread(id: string, x: number, z: number, r: number): { x: number; z: number } {
-  const h = hash(id);
-  const a = ((h & 0xffff) / 0x10000) * Math.PI * 2;
-  const d = Math.sqrt(((h >>> 16) & 0xffff) / 0x10000) * Math.max(0, r) * 0.7;
-  return { x: x + Math.cos(a) * d, z: z + Math.sin(a) * d };
+  /** On the way to this part's place (the trade plan's sum), and the metres still to walk. */
+  moving: boolean;
+  walkLeft: number;
+  /** Which way he walks (yaw = atan2(dx, dz)). */
+  yaw: number;
 }
 
 /** The segments of a day (1 = Monday ... 7 = Sunday) of a schedule. */
@@ -528,32 +463,13 @@ export function segsOf(s: Schedule, day: number): Seg[] {
 
 /** Where the day plan puts a resident at this clock (his live place is the model's). */
 export function plannedSpot(r: Resident, town: Town, clock: MapClock): PlannedSpot {
-  const hour = clock.hour + clock.minute / 60;
+  const hour = clock.hour + (clock.minute + (clock.frac ?? 0)) / 60;
   const a = activityAt(r.sched, clock.day, hour);
-  let x: number;
-  let z: number;
-  let indoor = false;
-  if (a.act === "home" || a.place === "home") {
-    x = r.home.x;
-    z = r.home.z;
-    indoor = true;
-  } else if (a.act === "work" || a.place === "work") {
-    const w = workSpot(r, town, clock.hour * 60 + clock.minute);
-    x = w.x;
-    z = w.z;
-    indoor = w.indoor;
-  } else {
-    const p = town.places[a.place] ?? town.places[a.place.replace(/^[a-z]+:/, "")];
-    if (p) {
-      const pt = a.act === "tavern" && p.door ? { x: p.out?.[0] ?? p.door[0], z: p.out?.[1] ?? p.door[1] } : spread(r.id, p.x, p.z, p.r);
-      x = pt.x;
-      z = pt.z;
-    } else {
-      x = r.home.x;
-      z = r.home.z;
-      indoor = true;
-    }
-  }
+  // the trade plan (docs/trade-plan.md part A): the same sum every PC walks the unseen by, on the way between
+  // the part before and this one (town/whereabouts.ts), so the dot is where a player finds him
+  const w = whereAt(r, town, clock.day, hour, serverWay);
+  const { x, z, yaw } = w;
+  const indoor = w.indoor;
   // the next part of today
   let next: PlannedSpot["next"] = null;
   const h = ((hour % 24) + 24) % 24;
@@ -567,5 +483,5 @@ export function plannedSpot(r: Resident, town: Town, clock: MapClock): PlannedSp
     const place = where ?? (act === "work" ? "work" : "home");
     next = { act, place, label: placeLabel(r, town, act, place), from: upcoming.from };
   }
-  return { x, z, act: a.act, place: a.place, label: placeLabel(r, town, a.act, a.place), indoor, left: a.left, next };
+  return { x, z, act: a.act, place: a.place, label: placeLabel(r, town, a.act, a.place), indoor, left: a.left, next, moving: w.moving, walkLeft: Math.max(0, Math.round(w.total - w.walked)), yaw };
 }

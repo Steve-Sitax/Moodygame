@@ -418,6 +418,10 @@ export function snapshot(model: MapModel, town: Town | null, clock: MapClock | n
         a: s.act,
         p: s.label,
         left: Math.round(s.left * 60),
+        // the trade plan: on the way between two parts of his day (the sum every PC walks him by), metres to go
+        mv: s.moving ? 1 : undefined,
+        yaw: s.moving ? Math.round(s.yaw * 100) / 100 : undefined,
+        wl: s.moving && s.walkLeft > 0 ? s.walkLeft : undefined,
         n: s.next ? `${actText(s.next.act)} ${s.next.label} at ${hhmm(s.next.from)}` : undefined,
         act: dbNow?.actions.get(r.id),
       });
@@ -541,6 +545,8 @@ export function detail(v: ViewDeps, kind: string, id: string): Detail | null {
     } else now.push(["Seen", plan?.indoor ? "by the day plan, not seen live (indoors)" : "by the day plan, not seen live"]);
     if (plan) {
       now.push(["Day plan", `${actText(plan.act)} ${plan.label}${plan.left > 0 ? ` for ${Math.round(plan.left * 60)} min more` : ""}`]);
+      // the trade plan: on his way there (the sum every PC walks him by)
+      if (!live && plan.moving && plan.walkLeft > 0) now.push(["On the way", `to ${plan.label}, ${plan.walkLeft} m to go`]);
       if (plan.next) now.push(["Then", `${actText(plan.next.act)} ${plan.next.label} at ${hhmm(plan.next.from)}`]);
     }
     const action = one<{ kind: string; target: string; reason: string; source: string; phase: string; until: number }>(

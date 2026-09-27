@@ -1887,10 +1887,12 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       line.at(head + 3, pb);
       for (const p of folk) {
         if (Math.abs(p.x - pb.x) > 5 || Math.abs(p.z - pb.z) > 5) continue;
-        for (let d = 0; d <= 6; d += 1) {
+        // (Steve 2026-09-27: walkers give way to the train, crowd.ts giveWay: it stops only for one right before the
+        // horses, a last resort when he cannot get off the line)
+        for (let d = 0; d <= 3; d += 1) {
           line.at(head + d, pa);
-          if (Math.hypot(p.x - pa.x, p.z - pa.z) < 1.5) {
-            lim = Math.min(lim, Math.max(head, head + d - 3));
+          if (Math.hypot(p.x - pa.x, p.z - pa.z) < 1.1) {
+            lim = Math.min(lim, Math.max(head, head + d - 1.5));
             waitWhy = "people";
             break;
           }

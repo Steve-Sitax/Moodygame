@@ -32,6 +32,8 @@ export interface WalkMap {
   reachable(x: number, z: number): boolean;
   /** The nearest open, reachable point within `max` metres, or null. */
   nearestOpen(x: number, z: number, max?: number): { x: number; z: number } | null;
+  /** The trade plan's ways (ways.ts): 1 per cell a body fits in and can walk to from the start. */
+  readonly pass: Uint8Array;
 }
 
 /** Where the game starts (main.ts paths(): reachFrom(10, 12)). */
@@ -171,7 +173,7 @@ export function walkMap(): WalkMap {
     }
     return null;
   };
-  cached = { info, flags, open, reachable, nearestOpen };
+  cached = { info, flags, open, reachable, nearestOpen, pass: seen };
   return cached;
 }
 
@@ -191,6 +193,8 @@ export interface HouseDoor {
   storeys: number;
   /** A cottage in a back alley (tools/city/alleys.py): its lane is 2.4 m, no cart gets there. */
   alley?: boolean;
+  /** A warehouse's door (houseDoors({ stores: true }) only). */
+  store?: boolean;
 }
 
 interface House {
@@ -216,13 +220,15 @@ let doorsCache: HouseDoor[] | null = null;
  * (the middle 3 m bay of the street front), each with a reachable step outside.
  * Warehouses and the Entrepot are left out: nobody lives there.
  */
-export function houseDoors(): HouseDoor[] {
-  if (doorsCache) return doorsCache;
+export function houseDoors(opts: { stores?: boolean } = {}): HouseDoor[] {
+  if (!opts.stores && doorsCache) return doorsCache;
+  if (opts.stores && storeDoorsCache) return storeDoorsCache;
   const wm = walkMap();
   const build = JSON.parse(fs.readFileSync(path.join(ROOT, "shared", "city_build.json"), "utf8")) as { houses: House[] };
   const out: HouseDoor[] = [];
   build.houses.forEach((h, i) => {
-    if (h.store || h.gone) return;
+    // (the trade plan: with `stores`, the warehouses' doors too, where the dockers carry the goods in)
+    if ((h.store && !opts.stores) || h.gone) return;
     let a: [number, number];
     let b: [number, number];
     if (h.rect) {
@@ -264,14 +270,17 @@ export function houseDoors(): HouseDoor[] {
       const sx = x + o[0] * d;
       const sz = z + o[1] * d;
       if (wm.reachable(sx, sz)) {
-        out.push({ house: i, x: round1(x), z: round1(z), out: [round2(o[0]), round2(o[1])], sx: round1(sx), sz: round1(sz), storeys: h.st, ...(h.alley ? { alley: true } : {}) });
+        out.push({ house: i, x: round1(x), z: round1(z), out: [round2(o[0]), round2(o[1])], sx: round1(sx), sz: round1(sz), storeys: h.st, ...(h.alley ? { alley: true } : {}), ...(h.store ? { store: true } : {}) });
         return;
       }
     }
   });
-  doorsCache = out;
+  if (opts.stores) storeDoorsCache = out;
+  else doorsCache = out;
   return out;
 }
+
+let storeDoorsCache: HouseDoor[] | null = null;
 
 let goneCache: Set<number> | null = null;
 

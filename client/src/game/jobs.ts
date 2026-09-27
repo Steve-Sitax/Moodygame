@@ -146,6 +146,8 @@ export class Jobs {
     bindView(player);
 
     this.goods = new GoodsWorld(world, player);
+    // (M8f goods pass 2: the town's drays go their rounds on the game's clock)
+    this.goods.clock = () => ({ day: this.day.dayNum, hour: this.day.hourF });
     this.people = new People(world);
     this.talk = new Talk(player);
     this.pockets = new Pockets(player, this.el.hud);
@@ -259,7 +261,7 @@ export class Jobs {
   // ------------------------------------------------------------- per frame
 
   update(dt: number): void {
-    this.goods.update(); // M8f: what others carry, in their hands; the casks' instances
+    this.goods.update(dt); // M8f: what others carry, in their hands, on carts; the drays; the casks' merged meshes
     this.run?.update(dt);
     this.people.update(dt, this.player);
     this.updateSinking(dt);
@@ -345,12 +347,18 @@ export class Jobs {
       if (bossNear && !box) add({ key: "KeyE", text: `give the proof to ${boss.def.name}`, run: () => void this.finish(held, {}), at: { x: boss.pos.x, y: 1.3, z: boss.pos.z } });
     }
     // (M8f: another player's job goods are his: not offered to lift; anyone's own goods are, as ever)
-    const item = this.goods.nearest(REACH_ITEM, (it) => it.jobId === null || it.jobId === this.active?.id);
+    const item = this.goods.nearest(REACH_ITEM, (it) => !it.cartOnly && (it.jobId === null || it.jobId === this.active?.id));
+    // (M8f goods pass 2: the Rijnkaai's big packing crates are a cart's work: said, not lifted)
+    const big = item ? null : this.goods.nearest(REACH_ITEM, (it) => !!it.cartOnly);
     const near = this.people.nearestTalker(x, z);
     const npc = near?.npc ?? null;
     const board = Math.hypot(BOARD_POS.x - x, BOARD_POS.z - z);
     // E goes to what Jef looks at, nearest the crosshair: goods, a person, the board, a door
     const options: Array<[number, Action]> = [];
+    if (big) {
+      const d = Math.hypot(big.obj.position.x - x, big.obj.position.z - z);
+      options.push([d, { key: "KeyE", text: "too big to carry: a dray's work", run: () => this.toastMsg("That crate is too big for one man. The naties move it with a dray."), at: this.goods.middle(big) }]);
+    }
     if (item) {
       const d = Math.hypot(item.obj.position.x - x, item.obj.position.z - z);
       options.push([d, { key: "KeyE", text: `lift the ${GOODS[item.kind].one}`, run: () => this.lift(item), at: this.goods.middle(item) }]);
@@ -388,6 +396,11 @@ export class Jobs {
   private lift(item: Item): void {
     this.goods.lift(item, GOODS[item.kind].hold);
     this.player.speedFactor = GOODS[item.kind].speed;
+    // (M8f goods pass 2: a hogshead, a big crate, a long sack of the quay's heaps: both arms, slow)
+    if (item.heavy && item.jobId === null) {
+      this.player.speedFactor = 0.4;
+      this.toastMsg(`Heavy. You carry the ${GOODS[item.kind].one} in both arms, slowly.`);
+    }
     this.sfx("lift");
     if (this.run instanceof HaulRun) this.run.onLifted(item);
     // someone else's goods, and they are watching?
