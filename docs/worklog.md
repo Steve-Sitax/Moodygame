@@ -27,7 +27,7 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 2. Wave 2: done and live (yard windows 3D, picture round 1/4/5 + tuning).
    Why: both touch houses, walls and the ground; yard windows after the shop fronts (both rebuild
    city.glb). (Props in walls finished early and goes live first: others build on its checks.)
-3. Wave 3: multiplayer M8a is live and tried on the laptop (2026-09-27: they see each other). M8b (one street for all) started 2026-09-27.
+3. Wave 3: multiplayer M8a is live and tried on the laptop (2026-09-27: they see each other). M8b (one street for all) done 2026-09-27 on branch `m8b` (the play copy runs it); M8c next.
    Note: Edge 154 (auto-update 2026-09-26 23:27) makes the game a slideshow on PCX; Chrome is fast. The desktop icon opens Chrome.
    together), which builds on the menus, the loading screen and the character creator.
 4. Later: picture round 2 (wall lanterns, after the light spill) and 3 (goods along walls, after props).
@@ -36,7 +36,7 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 
 | Work | Scope and files | Started |
 |---|---|---|
-| Multiplayer M8b: one street for all | the same townspeople (owner per 64 m cell, remote puppets, handover), omnibus, river traffic, bridges, lock, cranes and drays (the world PC), platforms in their frame, shared doors; branch `m8b` in the worktree `D:\Code\MoodyGame-m8b`, merged when done | 2026-09-27 |
+| Multiplayer M8b-M8e (Steve: all phases back to back, https too, review rounds) | M8b DONE on branch `m8b` (63e4b95, `docs/milestones/M8b.md`): shared townspeople, the moving world from one PC, gear, doors, the town map (port 8790, "Town map" button), the guest build made by the server itself. The play copy runs it. **Merge into main waits**: main has uncommitted edits in `client/src/main.ts` and `client/src/world/rijnkaai.ts` (another session's quay goods/props work) that the merge would touch; commit those and M8b merges. Next: M8c (each his own man) in the same worktree | 2026-09-27 |
 | Codex: low-poly props and tight collisions | SAFE BATCH MERGED + PUSHED `abb6a21` (already live through `9aa9cd4`; reconciled main `98bdebe`): collision core, tree trunks and static stop benches; tree/vegetation design, matching bark bump/wet map. Seven collision tests, clean build, Chrome contact + dry/rain, paths/shaders empty. Test Chrome and isolated 5469/9069 stack cleaned up. HOLD barrels/crates/sacks and other prepared prop-loader changes until Props in walls/Picture round finishes; defer other active assets per Steve. Queue/scope and validation: `docs/milestones/M7-small-assets.md`; original cargo evidence `M7-tight-props.md`. Extra router check: 19 passed, two timeouts (first Codex stub and process-kill test); report to Flaky talk-down/AI owner, no edits to their files. | 2026-09-26 |
 
 ## Live (2026-09-26, after the away batch)
