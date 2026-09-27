@@ -3,6 +3,7 @@ import { psx } from "../../retro/psx";
 import { wings } from "../../audio/aliveSounds";
 import { Flight, birdShape, hours, mulberry, srgb, type Ctx, type Frame, type Part } from "./common";
 import { HOUSES, P, roofOf, roofY, type Roof } from "./roofs";
+import { dice, share, sharedSeconds } from "../../game/share";
 
 // M7 alive: racing pigeons (Antwerp was where pigeon racing began: the first society met in a tavern
 // from 1825, and by 1870 Belgium had some ten thousand lofts; FARO 2000/3, see M7-alive.md). A loft
@@ -241,40 +242,56 @@ export function createLofts(ctx: Ctx): Part {
     flying = 0;
     const dry = f.weather !== "rain" && f.weather !== "storm" && f.weather !== "fog" && f.rain < 0.1;
     const daylight = f.night < 0.4;
+    // M8f sync pass 3: by the clock every PC shares, and near any player: the same round of the same flock on every
+    // screen (a round's start and its flight from the game's clock; were this PC's own time and dice)
+    const S = sharedSeconds() % 1e6;
+    const people = share.on ? share.players() : [f.eye];
+    let li = 0;
     for (const L of lofts) {
+      li++;
       const d = Math.hypot(L.board.x - f.eye.x, L.board.z - f.eye.z);
-      const due = L.forced > 0 || (dry && daylight && L.rounds.some((h0) => hours(f.hour, h0, h0 + ROUND_H, 0.01) > 0));
+      let dAny = d;
+      for (const q of people) dAny = Math.min(dAny, Math.hypot(L.board.x - q.x, L.board.z - q.z));
+      const h0 = L.rounds.find((h) => hours(f.hour, h, h + ROUND_H, 0.01) > 0);
+      const due = L.forced > 0 || (dry && daylight && h0 !== undefined);
       if (L.forced > 0) L.forced -= dt;
-      if (due && L.state === "home" && d < NEAR) {
+      if (due && L.state === "home" && dAny < NEAR) {
         L.state = "out";
-        L.clock = 0;
+        // (seconds since the round began by the clock: a player who comes by in the middle of it finds them up)
+        const since = h0 !== undefined && !(L.forced > 0) ? ((((f.hour - h0) % 24) + 24) % 24) * 120 : 0;
+        L.clock = since;
         // out they go: off the board one after another
         L.birds.forEach((b, k) => {
           if (b.mode === 0) b.pos.copy(L.board);
-          b.mode = 2;
-          b.k = 0;
-          b.delay = k * 0.12 + Math.random() * 0.2;
+          b.mode = since > 8 ? 3 : 2;
+          b.k = since > 8 ? 1 : 0;
+          b.delay = since > 8 ? 0 : k * 0.12 + dice("loftgo", li, k) * 0.2;
+          if (since > 8) {
+            flockCentre(L, S, fc);
+            b.pos.copy(b.off).add(fc);
+          }
         });
         ctx.sound()?.placed({ x: L.board.x, y: L.board.y, z: L.board.z }, { ref: 3, reach: 30, max: 60, occl: 0.3 }, wings(L.birds.length));
       }
       if (L.state === "out") {
         L.clock += dt;
-        L.th += L.w * dt * (1 + 0.4 * Math.sin(f.t * 0.2 + L.seed * 4));
-        // now and then the flock turns the other way
-        if (Math.random() < dt / 25) L.w = -L.w;
+        // (round the loft at its own pace by the shared clock, its speed swelling and easing as before; it no longer
+        // turns the other way now and then: that was a dice roll of this PC's)
+        L.th = L.seed * 6.28 + L.w * (S + (0.4 / 0.2) * -Math.cos(S * 0.2 + L.seed * 4));
         const endS = ROUND_H * 120;
-        if ((!due && L.clock > 30) || L.clock > endS || d > NEAR * 1.3) {
+        if ((!due && L.clock > 30) || L.clock > endS || dAny > NEAR * 1.3) {
           // home: they come down onto the board and the roof
+          let k = 0;
           for (const b of L.birds) if (b.mode === 3 || b.mode === 2) {
             b.mode = 4;
             b.k = 0;
-            b.delay = Math.random() * 3;
+            b.delay = dice("lofthome", li, k++) * 3;
           }
           L.state = "home";
         }
       }
       if (d > NEAR * 1.3) continue;
-      flockCentre(L, f.t, fc);
+      flockCentre(L, S, fc);
       // the flock's heading, for the birds' yaw
       const vx = -Math.sin(L.th) * Math.sign(L.w);
       const vz = Math.cos(L.th) * Math.sign(L.w);
@@ -322,13 +339,18 @@ export function createLofts(ctx: Ctx): Part {
               b.mode = 1;
               b.k = 0;
               // most go in after a while
-              b.delay = 20 + Math.random() * 60;
+              b.delay = 20 + dice("loftin", Math.floor(b.seed * 1e6)) * 60;
             }
           }
         } else if (b.mode === 1) {
           // sitting: a turn now and then; after a round most go in
-          if (Math.random() < dt / 4) b.yaw += (Math.random() - 0.5) * 1.5;
-          if (b.delay <= 0 && L.state === "home" && L.birds.filter((q) => q.mode === 1).length > 4 && Math.random() < dt / 8) b.mode = 0;
+          const kb = Math.floor(b.seed * 1e6);
+          const w4 = Math.floor(S / 4 + b.seed);
+          if (b.k !== w4) {
+            b.k = w4;
+            if (dice("loftyaw", kb, w4) < 0.63) b.yaw = dice("loftyaw2", kb) * 6.28 + (dice("loftyaw3", kb, w4) - 0.5) * 1.5;
+            if (b.delay <= 0 && L.state === "home" && L.birds.filter((q) => q.mode === 1).length > 4 && dice("loftgoin", kb, w4) < 0.4) b.mode = 0;
+          }
         }
         const air = b.mode >= 2 && !(b.mode === 2 && b.delay > 0);
         if (air) {

@@ -301,7 +301,8 @@ export class Town {
       this.byId.delete(e.id);
       this.sims.splice(this.sims.indexOf(s), 1);
     }
-    this.animals.catSpots = d.residents.filter((_r, i) => i % 3 === 0).map((r) => ({ x: r.home.sx, z: r.home.sz }));
+    // (M8f sync pass 3: every doorstep; animals.ts puts the town's strays and cats on them, the same on every PC)
+    this.animals.catSpots = d.residents.map((r) => ({ x: r.home.sx, z: r.home.sz }));
     await this.stalls.build(d.stalls, d.shops);
   }
 
@@ -630,7 +631,7 @@ export class Town {
       if (s.r.dog) {
         const sim = s;
         this.animals.addDog(s.r.id, s.r.dog.look, at, () =>
-          sim.p ? { x: sim.p.x, z: sim.p.z, yaw: sim.p.yaw, walking: this.crowd.puppetBusy(sim.p) } : null,
+          sim.p ? { x: sim.p.x, z: sim.p.z, yaw: sim.p.yaw, walking: this.crowd.puppetBusy(sim.p), remote: this.crowd.isRemote(sim.p) } : null,
         );
       }
       at = null;
@@ -1264,7 +1265,12 @@ export class Town {
       const work = activityAt(r.sched, day, hour).act === "work";
       n.setPresent(work);
       const quest = this.openWork.has(id) || this.takenWork.has(id);
-      if (!work) continue;
+      if (!work) {
+        // (gone home: his lantern goes with him. It was left in the hand of the hidden figure, so a PC that loaded
+        // the game at night kept four lanterns another PC loaded by day never had: sync pass 2)
+        n.setLantern(false);
+        continue;
+      }
       // M7 night: a giver of night work keeps to his dark corner, a shaded lantern in his hand
       if ((NIGHT_GIVER_IDS as readonly string[]).includes(id)) {
         n.nightPost(null);
@@ -1693,7 +1699,7 @@ export class Town {
     s.z = at.z;
     if (s.r.dog) {
       const sim = s;
-      this.animals.addDog(s.r.id, s.r.dog.look, at, () => (sim.p ? { x: sim.p.x, z: sim.p.z, yaw: sim.p.yaw, walking: this.crowd.puppetBusy(sim.p) || this.crowd.isRemote(sim.p) } : null));
+      this.animals.addDog(s.r.id, s.r.dog.look, at, () => (sim.p ? { x: sim.p.x, z: sim.p.z, yaw: sim.p.yaw, walking: this.crowd.puppetBusy(sim.p) || this.crowd.isRemote(sim.p), remote: this.crowd.isRemote(sim.p) } : null));
     }
     return p;
   }

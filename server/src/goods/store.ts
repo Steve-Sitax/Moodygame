@@ -1,14 +1,13 @@
 import type { DB } from "../db.ts";
 import CITY from "../../../shared/city.json" with { type: "json" };
 import SPOT_TABLE from "../../../shared/spots.json" with { type: "json" };
+import CARGO_TABLE from "../../../shared/quaycargo.json" with { type: "json" };
 import {
-  DRAY_RUN,
+  CART_RUNS,
   GOODS_KINDS,
   hasAbove,
   isGoodsKind,
   levelOf,
-  PILES,
-  pileSpot,
   pileRot,
   placeAt,
   pyramidSpots,
@@ -17,6 +16,8 @@ import {
   slotAt,
   townGoods,
   freeAt,
+  type CargoRow,
+  type CartRun,
   type Door,
   type GoodsAsk,
   type GoodsItem,
@@ -36,6 +37,8 @@ import { positionOf, walkerOf } from "../player/current.ts";
 // from the job when its PC asks.
 
 const DOORS = (CITY as unknown as { doors: Record<string, Door> }).doors;
+/** M8f goods pass 2: the cargo of the quays' heaps (tools/bake-quaycargo.mjs). */
+export const QUAY_CARGO = (CARGO_TABLE as unknown as { items: CargoRow[] }).items;
 export const SPOTS = Object.fromEntries(Object.entries(SPOT_TABLE).filter(([k]) => !k.startsWith("_"))) as unknown as Record<string, Spot & { label: string }>;
 
 /** A lift or a put further than this from where his movement socket has him (m) is refused (only together: alone the tab's word is too old to check). */
@@ -81,8 +84,22 @@ export class GoodsStore {
   private orphan = new Map<string, number>();
   /** Owned goods off their place: since when (the world's game minute), for the man who carries them back. */
   private offSince = new Map<string, number>();
-  /** The dray's run today: "home", "out" (on the cart), "down" (the pyramid), "back" (on the cart), "skip". */
-  dray: { state: "home" | "out" | "down" | "back" | "skip"; day: number } = { state: "home", day: 0 };
+  /**
+   * Each cart's round today (shared/goods.ts CART_RUNS): "home", "out" (on the cart), "down" (set down at `to`), "back"
+   * (on the cart), "skip" (done, or the pile was touched).
+   */
+  runs = new Map<string, { state: "home" | "out" | "down" | "back" | "skip"; day: number }>();
+  /** The Hessenatie's dray with the casks (the first run). */
+  get dray(): { state: "home" | "out" | "down" | "back" | "skip"; day: number } {
+    return this.runOf("casks");
+  }
+  private runOf(id: string): { state: "home" | "out" | "down" | "back" | "skip"; day: number } {
+    let r = this.runs.get(id);
+    if (!r) this.runs.set(id, (r = { state: "home", day: 0 }));
+    return r;
+  }
+  /** Where the town's own goods lie at the start (their foot and what they rest on too), for the carts' rounds. */
+  private homes = new Map<string, { x: number; z: number; y: number; rot: number; on: string[] }>();
   /** Counts for the tests and the stats. */
   readonly stats = { asks: 0, refused: 0, pushes: 0 };
 
@@ -98,7 +115,11 @@ export class GoodsStore {
   /** A new week, a loaded save: the town's own goods, as at the start. */
   reset(push = true): void {
     this.items.clear();
-    for (const it of townGoods(DOORS)) this.items.set(it.id, it);
+    this.homes.clear();
+    for (const it of townGoods(DOORS, QUAY_CARGO)) {
+      this.items.set(it.id, it);
+      this.homes.set(it.id, { x: it.x, z: it.z, y: it.y, rot: it.rot, on: [...it.on] });
+    }
     this.made.clear();
     this.jobN.clear();
     this.lowered.clear();
@@ -106,7 +127,7 @@ export class GoodsStore {
     this.reporter.clear();
     this.orphan.clear();
     this.offSince.clear();
-    this.dray = { state: "home", day: 0 };
+    this.runs.clear();
     if (push) this.commit([...this.items.values()], [], "reset", undefined, { full: true, keepRev: true });
   }
 
@@ -247,6 +268,7 @@ export class GoodsStore {
       case "lift": {
         const it = item(a.id);
         if (it.by) return heldBy(it, { p }) ? done([it]) : no("Someone was quicker.");
+        if (it.cartOnly) no("Too big to carry: that is a cart's work.");
         if (this.carriedBy(p)) no("Your hands are full.");
         if (hasAbove(this.all(), it.id)) no("Something is on top of it.");
         if (it.job !== null && holderOf(db, it.job) !== p) no("That is another man's work.");
@@ -336,6 +358,7 @@ export class GoodsStore {
             no("Someone was quicker.");
           }
           if (hasAbove(this.all(), it.id)) no("Something is on top of it.");
+          if (it.cartOnly) no("Too big to carry: that is a cart's work.");
           if (!npcMay(db, npc, it)) no("That is not his to lift.");
           this.from.set(it.id, [it.x, it.z, it.rot]);
           it.by = { npc };
@@ -563,13 +586,33 @@ export class GoodsStore {
     return took.map(clone);
   }
 
-  /** A cart sets these down, in order (the lower row first): each where it comes to rest at its point. */
-  cartUnload(cart: string, list: Array<{ id: string; x: number; z: number; rot?: number }>, db: DB | null = null): GoodsItem[] {
+  /**
+   * A cart sets these down, in order (the lower row first): each where it comes to rest at its point; with `y` and
+   * `on` given (a pile set down in its own shape), exactly there when what it rests on lies there.
+   */
+  cartUnload(cart: string, list: Array<{ id: string; x: number; z: number; rot?: number; y?: number; on?: string[] }>, db: DB | null = null): GoodsItem[] {
     const put: GoodsItem[] = [];
     for (const u of list) {
       const it = this.items.get(u.id);
       if (!it || !heldBy(it, { cart })) continue;
-      if (!this.rest(it, u.x, u.z, db) && !this.restNear(it, u.x, u.z, db)) continue;
+      const exact =
+        u.y !== undefined &&
+        (u.on ?? []).every((id) => {
+          const b = this.items.get(id);
+          return !!b && !b.by;
+        }) &&
+        (u.on?.length || u.y < 0.05) &&
+        !this.all().some((o) => o !== it && !o.by && !(u.on ?? []).includes(o.id) && Math.hypot(o.x - u.x, o.z - u.z) < 0.3 && Math.abs(o.y - u.y!) < 0.2);
+      if (exact) {
+        it.x = r3(u.x);
+        it.z = r3(u.z);
+        it.y = r3(u.y!);
+        it.on = [...(u.on ?? [])];
+        it.by = null;
+        it.n++;
+        it.rot = rotFor(it.id, it.n);
+        this.from.delete(it.id);
+      } else if (!this.rest(it, u.x, u.z, db) && !this.restNear(it, u.x, u.z, db)) continue;
       if (u.rot !== undefined) it.rot = r3(u.rot);
       put.push(it);
     }
@@ -666,79 +709,108 @@ export class GoodsStore {
     this.commit(back, gone, "sweep", { world: true });
   }
 
-  /** The dray's day (DRAY_RUN), on the world's clock: `minute` of the day, `day` the date (7, 14: Sundays). */
+  /** The dray's day (DRAY_RUN, the casks), on the world's clock: `minute` of the day, `day` the date (7, 14: Sundays). */
   drayTick(day: number, minute: number, db: DB | null = null): string | null {
-    const R = DRAY_RUN;
-    const pile = PILES.find((p) => p.id === R.pile)!;
-    const ids = Array.from({ length: pile.n }, (_, i) => `pile:${pile.id}:${i}`);
-    if (this.dray.day !== day) {
-      // a new day: whatever is still on the dray comes home first
-      if (this.dray.state === "out" || this.dray.state === "back") this.drayHome(ids, db);
-      this.dray = { state: "home", day };
+    return this.runTick("casks", day, minute, db);
+  }
+
+  /** Every cart's round (CART_RUNS) on the world's clock (the tick): what each did now (null: nothing). */
+  cartRunsTick(day: number, minute: number, db: DB | null = null): Record<string, string | null> {
+    const out: Record<string, string | null> = {};
+    for (const R of CART_RUNS) out[R.id] = this.runTick(R.id, day, minute, db);
+    return out;
+  }
+
+  /** Where a run's items go down at its `to`: the casks as a pyramid; anything else in the pile's own shape, moved. */
+  private runSpots(R: CartRun): Array<{ id: string; x: number; z: number; rot: number; y?: number; on?: string[] }> {
+    if (R.id === "casks") {
+      const spots = pyramidSpots(R.to[0], R.to[1], R.items.length);
+      return R.items.map((id, i) => ({ id, x: spots[i].x, z: spots[i].z, rot: pileRot(i) }));
+    }
+    const h0 = this.homes.get(R.items[0])!;
+    const dx = R.to[0] - h0.x;
+    const dz = R.to[1] - h0.z;
+    return R.items.map((id) => {
+      const h = this.homes.get(id)!;
+      return { id, x: r3(h.x + dx), z: r3(h.z + dz), y: h.y, rot: h.rot, on: [...h.on] };
+    });
+  }
+
+  /** A run's items where they belong, in the pile's own shape (lower first, as the list is). */
+  private runHomes(R: CartRun): Array<{ id: string; x: number; z: number; rot: number; y?: number; on?: string[] }> {
+    return R.items.map((id) => {
+      const h = this.homes.get(id)!;
+      return { id, x: h.x, z: h.z, rot: h.rot, y: h.y, on: [...h.on] };
+    });
+  }
+
+  /** One cart's round (shared/goods.ts CartRun): the stage its clock has come to, once. */
+  runTick(runId: string, day: number, minute: number, db: DB | null = null): string | null {
+    const R = CART_RUNS.find((r) => r.id === runId);
+    if (!R || R.items.some((id) => !this.homes.has(id))) return null;
+    const st = this.runOf(R.id);
+    if (st.day !== day) {
+      // a new day: whatever is still on the cart comes home first
+      if (this.onCart(R.cart).length) this.cartUnload(R.cart, this.runHomes(R), db);
+      st.state = "home";
+      st.day = day;
     }
     const sunday = day % 7 === 0;
-    const s = this.dray.state;
+    const s = st.state;
     if (sunday || s === "skip") return null;
+    const pile = new Set(R.items);
     if (s === "home" && minute >= R.out && minute < R.down) {
-      const whole = ids.every((id, i) => {
+      // only a whole pile lying untouched where it belongs, nothing of anyone else's on it
+      const whole = R.items.every((id) => {
         const it = this.items.get(id);
-        const [hx, hz] = pileSpot(pile, i);
-        return !!it && !it.by && Math.hypot(it.x - hx, it.z - hz) < 0.05 && it.y === 0 && !hasAbove(this.all(), id);
+        const h = this.homes.get(id)!;
+        return !!it && !it.by && Math.hypot(it.x - h.x, it.z - h.z) < 0.05 && Math.abs(it.y - h.y) < 0.01;
       });
-      if (!whole) {
-        this.dray.state = "skip";
+      const burdened = this.all().some((o) => !o.by && !pile.has(o.id) && o.on.some((id) => pile.has(id)));
+      if (!whole || burdened) {
+        st.state = "skip";
         return "skip";
       }
-      this.cartTake(R.cart, ids);
-      this.dray.state = "out";
+      this.cartTake(R.cart, R.items);
+      st.state = "out";
       return "out";
     }
     if (s === "out" && minute >= R.down) {
-      const spots = pyramidSpots(R.to[0], R.to[1], ids.length);
-      this.cartUnload(R.cart, ids.map((id, i) => ({ id, x: spots[i].x, z: spots[i].z, rot: pileRot(i) })), db);
-      this.dray.state = "down";
+      this.cartUnload(R.cart, this.runSpots(R), db);
+      st.state = "down";
       return "down";
     }
     if (s === "down" && minute >= R.back) {
-      // only what still lies in the pyramid goes back (a barrel taken off it stays where it was put)
-      const spots = pyramidSpots(R.to[0], R.to[1], ids.length);
-      const there = ids.filter((id) => {
+      // only what still lies where it was set down goes back (a thing taken off stays where it was put)
+      const spots = this.runSpots(R);
+      const there = R.items.filter((id) => {
         const it = this.items.get(id);
-        return !!it && !it.by && spots.some((q) => Math.hypot(q.x - it.x, q.z - it.z) < 0.4);
+        const q = spots.find((x) => x.id === id)!;
+        return !!it && !it.by && (R.id === "casks" ? spots.some((p) => Math.hypot(p.x - it.x, p.z - it.z) < 0.4) : Math.hypot(q.x - it.x, q.z - it.z) < 0.4);
       });
       this.cartTake(R.cart, there);
-      this.dray.state = "back";
+      st.state = "back";
       return "back";
     }
     if (s === "back" && minute >= R.home) {
-      this.drayHome(ids, db);
-      this.dray.state = "skip";
+      this.cartUnload(R.cart, this.runHomes(R), db);
+      st.state = "skip";
       return "home";
     }
     return null;
   }
 
-  /** Dev and tests: one stage of the dray's run now, whatever the clock says (the same rules as drayTick). */
-  drayStage(stage: "out" | "down" | "back" | "home", day: number, db: DB | null = null): string | null {
-    const R = DRAY_RUN;
+  /** Dev and tests: one stage of a run now, whatever the clock says (the same rules as its tick). */
+  drayStage(stage: "out" | "down" | "back" | "home", day: number, db: DB | null = null, runId = "casks"): string | null {
+    const R = CART_RUNS.find((r) => r.id === runId);
+    if (!R) return null;
     const before = { out: "home", down: "out", back: "down", home: "back" } as const;
     const at = { out: R.out, down: R.down, back: R.back, home: R.home } as const;
-    this.dray = { state: before[stage], day };
     const weekday = day % 7 === 0 ? day + 1 : day;
-    this.dray.day = weekday;
-    return this.drayTick(weekday, at[stage], db);
-  }
-
-  private drayHome(ids: string[], db: DB | null): void {
-    const pile = PILES.find((p) => p.id === DRAY_RUN.pile)!;
-    this.cartUnload(
-      DRAY_RUN.cart,
-      ids.map((id, i) => {
-        const [x, z] = pileSpot(pile, i);
-        return { id, x, z, rot: pileRot(i) };
-      }),
-      db,
-    );
+    const st = this.runOf(R.id);
+    st.state = before[stage];
+    st.day = weekday;
+    return this.runTick(R.id, weekday, at[stage], db);
   }
 
   /** Owned goods lying off their place (more than 2.5 m) since this game minute; null: at home. */

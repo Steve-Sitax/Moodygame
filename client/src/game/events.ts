@@ -248,7 +248,9 @@ export class Events {
       if (!this.world.isFree(px, pz, 0.5)) continue;
       const o = this.prop(kind);
       o.position.set(px, this.world.groundAt(px, pz, 0.3, 0), pz);
-      o.rotation.y = Math.random() * Math.PI * 2;
+      // (its turn from its place: the same on every PC; sync pass 2)
+      const h = Math.sin(px * 12.9898 + pz * 78.233 + i * 37.719) * 43758.5453;
+      o.rotation.y = (h - Math.floor(h)) * Math.PI * 2;
       this.world.scene.add(o);
       out.push(o);
     }

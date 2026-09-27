@@ -132,8 +132,14 @@ export interface Omnibus {
  * waits. `_slots`: the last departure each line took from its terminus (a takeover goes on from them).
  */
 export interface OmnibusNet {
-  b: Array<{ id: number; s: number; v: number; at: boolean; _n: number; _dw: number; _dep: number | null; _bk: number; _w: string }>;
+  /**
+   * (sync pass 2) `_a`: the nameless passengers aboard, [net id, seat, kind (NET_KINDS index)]; `_r`: the townspeople
+   * aboard, [id, seat (-1, -2: standing on the platform), kind, their stop].
+   */
+  b: Array<{ id: number; s: number; v: number; at: boolean; _n: number; _dw: number; _dep: number | null; _bk: number; _w: string; _a?: number[][]; _r?: Array<Array<string | number>> }>;
   _slots: Array<[string, number]>;
+  /** (sync pass 2) The people waiting at the stops: [net id, post index, slot, kind (NET_KINDS index), omnibus they go to or -1]. */
+  _wt?: number[][];
 }
 
 /** All the omnibuses. */
@@ -164,6 +170,11 @@ export interface Omnibuses extends NetMover<OmnibusNet> {
   boardResident(bus: Omnibus, who: { id: string; kind: HumanKind }, alight: string): boolean;
   /** M6: a townsperson got off at their stop and stands at the foot of the step. */
   onResidentOff?: (bus: Omnibus, id: string, at: { x: number; z: number; yaw: number }) => void;
+  /**
+   * Sync pass 2, the world PC: another PC's trip puts townsperson `id` on omnibus `bus` (its index), to ride to
+   * `alight` (a stop of its round): he boards here, and every PC draws him from this PC's state.
+   */
+  netBoard(bus: number, id: string, kind: string, alight: string): void;
   /** M6: the townspeople riding now: who, on which omnibus, to which stop. */
   residents(): Array<{ id: string; bus: number; alight: string; seated: boolean }>;
   /** M6: no nameless passengers (the town's own people ride instead). */
@@ -172,6 +183,11 @@ export interface Omnibuses extends NetMover<OmnibusNet> {
   clock?: () => { day: number; hour: number };
   /** M7: where the player looks from (set by main; the kit's runs pass no camera): people wait at the stops near it. */
   eye?: () => { x: number; z: number };
+  /**
+   * Sync pass 2 (set by main when played together): where the other players stand. The world PC lets people wait
+   * at the stops near any player (the others show its waiters and passengers from its state).
+   */
+  others?: () => Array<{ x: number; z: number }>;
   /** M7: the lines at a stop and the next times their omnibuses are due there (the shared timetable, by the game clock). */
   timetable(stop: string): Array<{ line: LineDef; next: string[]; headwayMin: number }>;
   /** M7 dev: drive every round with the whole rig (body, wheels, horses) against the walls and fixed things; [] is clean. */
@@ -766,6 +782,12 @@ interface BusState extends Omnibus {
   departAt: number | null;
   /** M8b: a state from the world PC taken yet; placed by netApply this frame. */
   netSeen: boolean;
+  /**
+   * Sync pass 2, run by another PC: the townspeople this PC's own trips put on this omnibus (id: their stop). They
+   * ride here in the book only (journeys.ts asks residents()); the world PC boards them for all to see (netAsk
+   * "bus_board"), and they step off here at their stop.
+   */
+  riders: Map<string, string>;
   netPlaced: boolean;
 }
 
@@ -778,6 +800,12 @@ interface Passenger {
   t: number;
   /** M6: a townsperson of the town, riding to their stop (-1 seat: standing on the platform). */
   who?: { id: string; alight: string };
+  /** Sync pass 2: a nameless passenger's number, the same on every PC (the world PC's; see OmnibusNet). */
+  nid?: number;
+  /** Sync pass 2: drawn here from the world PC's list (his trip is another PC's: no step-off news from here). */
+  mirror?: boolean;
+  /** Sync pass 2, the world PC: boarded at another PC's asking (that PC's trip hears of his step off, not this one's). */
+  asked?: boolean;
 }
 
 export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnibuses {
@@ -831,7 +859,8 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         nextI: 0,
         rollR: 0,
         rollF: 0,
-        gait: Math.random(),
+        // (the horses' step: by the omnibus's number, the same on every PC)
+        gait: (buses.length * 0.618) % 1,
         waitWhy: "",
         rects: [0, 1].map(() => ({ minX: 1e6, maxX: 1e6, minZ: 1e6, maxZ: 1e6, top: 2.6 })),
         near: true,
@@ -853,6 +882,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         backM: 0,
         backs: 0,
         netSeen: false,
+        riders: new Map(),
         netPlaced: false,
         taken: SEATS.map(() => null),
         passengers: [],
@@ -1035,10 +1065,17 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     if (signs) scene.add(signs);
   }
 
-  // M8b: run by another PC, the passengers and the people at the stops (drawn here only) take their
-  // chances from a seeded row, not Math.random (the same every run; nothing the world PC decides)
-  let seed = 0x5eed1873;
-  const rand = (): number => (api.netRemote ? (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296 : Math.random());
+  // Sync pass 2: the nameless passengers and the people waiting at the stops are the world PC's (it rolls these
+  // dice); the others show them from its state (netApply: the same people, seats and looks on every PC). A
+  // townsperson's seat comes from his id (seatFor), so it is the same wherever his trip is run.
+  const rand = Math.random;
+  /** The next number for a nameless passenger or a waiter (the world PC's; a new world PC goes on after the last seen). */
+  let nextNid = 1;
+  const seatFor = (id: string, n: number): number => {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 0x01000193);
+    return (h >>> 0) % n;
+  };
 
   // --- passengers: townspeople who ride a stop or three, on the benches inside
   const PASSENGER_KINDS: HumanKind[] = ["gentleman", "clerk", "old_man", "priest", "sailor_b", "docker_a", "porter", "carter", "docker_b"];
@@ -1052,7 +1089,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     [0, seat.z],
     [seat.x * 0.75, seat.z],
   ];
-  function board(b: BusState, kind?: HumanKind): void {
+  function board(b: BusState, kind?: HumanKind, nid?: number): void {
     const free = insideSeats.filter((q) => !b.taken[q.i]);
     if (!free.length) return;
     const human = makeHuman(kind ?? PASSENGER_KINDS[Math.floor(rand() * PASSENGER_KINDS.length)]);
@@ -1062,11 +1099,37 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     g.add(human.root);
     b.frame.add(g);
     b.taken[q.i] = "passenger";
-    b.passengers.push({ human, g, seat: q.i, state: "in", path: pathTo(q.s), t: 0 });
+    b.passengers.push({ human, g, seat: q.i, state: "in", path: pathTo(q.s), t: 0, nid: nid ?? nextNid++ });
+  }
+  /** Seated now (the end of the walk in, or one who was aboard already when this PC first saw the omnibus). */
+  function sitDown(p: Passenger): void {
+    if (p.seat < 0) {
+      // standing on the platform, facing across it
+      p.state = "seated";
+      p.human.play("idle", 0.3);
+      p.g.rotation.y = Math.PI / 2;
+      return;
+    }
+    const s = SEATS[p.seat];
+    p.state = "seated";
+    p.human.play("sit", 0.3);
+    p.g.position.set(s.x, s.y + p.human.sitDrop(0) + 0.02, s.z);
+    p.g.rotation.y = s.face;
   }
   /** M6: a townsperson of the town gets on here, to ride to `alight`. */
-  function boardResident(b: BusState, who: { id: string; kind: HumanKind }, alight: string): boolean {
-    if (b.passengers.some((p) => p.who?.id === who.id)) return true;
+  function boardResident(b: BusState, who: { id: string; kind: HumanKind }, alight: string, asked = false): boolean {
+    // sync pass 2, run by another PC: aboard in the book here; the world PC puts him on for all to see
+    if (api.netRemote && !asked) {
+      if (!b.riders.has(who.id)) api.netAsk?.("bus_board", [b.index, who.id.slice(0, 40), who.kind, alight.slice(0, 40)]);
+      b.riders.set(who.id, alight);
+      return true;
+    }
+    const was = b.passengers.find((p) => p.who?.id === who.id);
+    if (was) {
+      // (this PC's own trip has him now too: its step off is this PC's news)
+      if (!asked) was.asked = false;
+      return true;
+    }
     const human = makeHuman(who.kind);
     if (!human) return false;
     const g = new THREE.Group();
@@ -1077,7 +1140,8 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         human.dispose();
         return false;
       }
-      const q = free[Math.floor(rand() * free.length)];
+      // (the seat by his id among the free ones: the same on every PC that runs his trip)
+      const q = free[seatFor(who.id, free.length)];
       b.frame.add(g);
       b.taken[q.i] = "passenger";
       b.passengers.push({ human, g, seat: q.i, state: "in", path: pathTo(q.s), t: 0, who: { id: who.id, alight } });
@@ -1097,6 +1161,12 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
 
   /** At a stop: some get off, some get on (one to four aboard). */
   function atStop(b: BusState): void {
+    // (sync pass 2: those riding in the book here step off at their stop)
+    for (const [id, alight] of [...b.riders]) {
+      if (b.at?.id !== alight) continue;
+      b.riders.delete(id);
+      api.onResidentOff?.(b, id, b.stepDown());
+    }
     for (const p of b.passengers) {
       // M6: the town's own get off at their stop, and only there
       if (p.who) {
@@ -1109,6 +1179,8 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         }
         continue;
       }
+      // (run by another PC: its list says who gets off: netApply)
+      if (api.netRemote) continue;
       if (p.state === "seated" && rand() < 0.4) {
         p.state = "out";
         p.path = pathTo(SEATS[p.seat]).reverse();
@@ -1117,7 +1189,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         p.human.setPace(1.1);
       }
     }
-    if (!api.anonymous) return;
+    if (!api.anonymous || api.netRemote) return;
     const want = 1 + Math.floor(rand() * 4);
     const aboard = b.passengers.filter((p) => p.state !== "out").length;
     for (let k = 0; k < Math.min(2, want - aboard); k++) board(b);
@@ -1150,18 +1222,8 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
       }
       if (d >= 0) {
         // the end of the walk: sit down, or step off and go
-        if (p.state === "in" && p.seat < 0) {
-          // standing on the platform, facing across it
-          p.state = "seated";
-          p.human.play("idle", 0.3);
-          p.g.rotation.y = Math.PI / 2;
-        } else if (p.state === "in") {
-          const s = SEATS[p.seat];
-          p.state = "seated";
-          p.human.play("sit", 0.3);
-          p.g.position.set(s.x, s.y + p.human.sitDrop(0) + 0.02, s.z);
-          p.g.rotation.y = s.face;
-        } else stepOff(b, p);
+        if (p.state === "in") sitDown(p);
+        else stepOff(b, p);
       }
     }
     b.passengers = b.passengers.filter((p) => (p.state as string) !== "gone");
@@ -1172,7 +1234,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     p.human.dispose();
     p.g.removeFromParent();
     p.state = "gone" as Passenger["state"];
-    if (p.who) api.onResidentOff?.(b, p.who.id, b.stepDown());
+    if (p.who && !p.mirror && !p.asked) api.onResidentOff?.(b, p.who.id, b.stepDown());
   }
 
   // --- M7: people waiting at the stops (near Jef only): they stand by the post or sit on the bench,
@@ -1186,10 +1248,39 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     bus: BusState | null;
     t: number;
     from: P;
+    /** Sync pass 2: the waiter's number (the world PC's), its place by the post, its look (NET_KINDS index). */
+    nid: number;
+    slot: number;
+    kindI: number;
   }
   const waiters: Waiter[] = [];
   const WAIT_KINDS: HumanKind[] = ["clerk", "old_man", "gentleman", "wife_a", "wife_b", "old_woman", "maid", "shopwife", "docker_b", "priest", "tourist", "girl_b"];
+  /** Sync pass 2: every look a nameless passenger or a waiter may have, by number (OmnibusNet). */
+  const NET_KINDS: HumanKind[] = [...PASSENGER_KINDS, ...WAIT_KINDS.filter((k) => !PASSENGER_KINDS.includes(k))];
   let waitT = 0;
+  /** Where this PC's camera was last (sync pass 2: a PC run by another draws the world PC's waiters near it only). */
+  let camAt: { x: number; z: number } | null = null;
+  /** A waiter by the post at `slot` (sitting on the bench when that is his place and he can). */
+  function addWaiter(pt: StopPost, slot: number, kind: HumanKind, nid: number): Waiter | null {
+    const human = makeHuman(kind);
+    if (!human) return null;
+    const spot = spotFor(pt, slot);
+    const g = new THREE.Group();
+    g.add(human.root);
+    group.add(g);
+    if (spot.sit && human.canSit) {
+      human.play("sit", 0);
+      g.position.set(spot.x, 0.46 + human.sitDrop(0), spot.z);
+    } else {
+      const s2 = spot.sit ? spotFor(pt, slot + 1) : spot;
+      human.play("idle", 0);
+      g.position.set(s2.x, 0, s2.z);
+    }
+    g.rotation.y = spot.yaw;
+    const w: Waiter = { human, g, post: pt, state: "wait", bus: null, t: 0, from: [g.position.x, g.position.z], nid, slot, kindI: NET_KINDS.indexOf(kind) };
+    waiters.push(w);
+    return w;
+  }
   /** How many wait at a post this hour (0 to 3, the same all hour; more on a market morning). */
   function wantAt(pt: StopPost, day: number, hour: number): number {
     const now = absMinute(day, 0) + hour * 60;
@@ -1213,11 +1304,16 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
   function updateWaiters(dt: number, camera?: THREE.Camera): void {
     const c = api.clock?.();
     const cam = camera?.position ?? api.eye?.();
+    if (cam) camAt = { x: cam.x, z: cam.z };
     waitT -= dt;
-    if (waitT <= 0 && c && cam && api.anonymous) {
+    // (run by another PC: its waiters come with its state: netApply)
+    if (waitT <= 0 && c && cam && api.anonymous && !api.netRemote) {
       waitT = 2;
+      // sync pass 2: near any player (the others draw these), new ones out of every player's arm's reach
+      const eyes = [cam, ...(api.others?.() ?? [])];
       for (const pt of posts) {
-        const d = Math.hypot(pt.x - cam.x, pt.z - cam.z);
+        let d = Infinity;
+        for (const e of eyes) d = Math.min(d, Math.hypot(pt.x - e.x, pt.z - e.z));
         const mine = waiters.filter((w) => w.post === pt);
         if (d > 60) {
           for (const w of mine) dropWaiter(w);
@@ -1226,24 +1322,8 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         const want = Math.max(0, wantAt(pt, c.day, c.hour));
         // new ones only out of arm's reach (they come while you are not looking closely)
         if (mine.filter((w) => w.state === "wait").length < want && d > 18 && waiters.length < 8) {
-          const i = mine.length;
           const kind = WAIT_KINDS[Math.floor(rand() * WAIT_KINDS.length)];
-          const human = makeHuman(kind);
-          if (!human) continue;
-          const spot = spotFor(pt, i);
-          const g = new THREE.Group();
-          g.add(human.root);
-          group.add(g);
-          if (spot.sit && human.canSit) {
-            human.play("sit", 0);
-            g.position.set(spot.x, 0.46 + human.sitDrop(0), spot.z);
-          } else {
-            const s2 = spot.sit ? spotFor(pt, i + 1) : spot;
-            human.play("idle", 0);
-            g.position.set(s2.x, 0, s2.z);
-          }
-          g.rotation.y = spot.yaw;
-          waiters.push({ human, g, post: pt, state: "wait", bus: null, t: 0, from: [g.position.x, g.position.z] });
+          addWaiter(pt, mine.length, kind, nextNid++);
         }
       }
     }
@@ -1256,9 +1336,15 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         const L = Math.hypot(dx, dz);
         w.t += dt;
         if (L < 0.35 || w.t > 20 || !w.bus.at) {
+          // (run by another PC: he waits at the step until its state has him aboard, or gone)
+          if (api.netRemote) {
+            if (w.human.motion !== "idle") w.human.play("idle", 0.2);
+            if (!cam || Math.hypot(w.g.position.x - cam.x, w.g.position.z - cam.z) < 70) w.human.update(dt);
+            continue;
+          }
           const kind = w.human.kind;
           dropWaiter(w);
-          if (w.bus.at) board(w.bus, kind);
+          if (w.bus.at) board(w.bus, kind, w.nid);
           continue;
         }
         const v = Math.min(L, 1.2 * dt);
@@ -1280,6 +1366,8 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
   }
   /** An omnibus stops at a post: those waiting for a line that calls there go to its step. */
   function callWaiters(b: BusState, stop: OmnibusStop): void {
+    // (run by another PC: who goes comes with its state)
+    if (api.netRemote) return;
     const pt = posts.find((q) => Math.hypot(q.x - stop.post[0], q.z - stop.post[1]) < 0.3);
     if (!pt) return;
     const room = insideSeats.filter((q) => !b.taken[q.i]).length;
@@ -1296,6 +1384,125 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     }
   }
   const waitersGoing = (b: BusState) => waiters.some((w) => w.bus === b && w.state === "go");
+
+  // --- sync pass 2: run by another PC, its nameless passengers and waiters are shown here as it has them
+  /** The world PC's nameless passengers of this omnibus ([net id, seat, kind]): new ones get on, gone ones get off. */
+  function syncPassengers(b: BusState, list: number[][]): void {
+    const want = new Map<number, number[]>();
+    for (const x of list) {
+      want.set(x[0], x);
+      nextNid = Math.max(nextNid, x[0] + 1);
+    }
+    for (const p of b.passengers) {
+      if (p.who || p.state === "out") continue;
+      const q = p.nid !== undefined ? want.get(p.nid) : undefined;
+      // (the same number, seat and look: kept. A number this PC gave out itself while it ran the omnibuses is
+      // another passenger: he goes)
+      if (q && q[1] === p.seat && NET_KINDS[q[2]] === p.human.kind) continue;
+      // off at a stop: down the step as the world PC's; else (a first look, a jump) gone at once
+      if (!q && b.at && b.netSeen && p.seat >= 0) {
+        p.state = "out";
+        p.path = pathTo(SEATS[p.seat]).reverse();
+        p.t = 0;
+        p.human.play("walk", 0.2);
+        p.human.setPace(1.1);
+      } else stepOff(b, p);
+    }
+    b.passengers = b.passengers.filter((p) => (p.state as string) !== "gone");
+    for (const [nid, seat, ki] of list) {
+      if (b.passengers.some((p) => p.nid === nid)) continue;
+      const kind = NET_KINDS[ki];
+      const s = SEATS[seat];
+      // (a seat this PC has given to its own player or a townsperson: he is not drawn here)
+      if (!kind || !s || s.roof || b.taken[seat]) continue;
+      // the waiter who walked to the step is aboard now
+      const w = waiters.find((q) => q.nid === nid);
+      if (w) dropWaiter(w);
+      const human = makeHuman(kind);
+      if (!human) continue;
+      const g = new THREE.Group();
+      g.add(human.root);
+      b.frame.add(g);
+      b.taken[seat] = "passenger";
+      const p: Passenger = { human, g, seat, state: "in", path: pathTo(s), t: 0, nid };
+      b.passengers.push(p);
+      // getting on at a stop: up the step; aboard already when first seen here: in his seat
+      if (!b.at || !b.netSeen) sitDown(p);
+    }
+  }
+  /** The world PC's townspeople aboard this omnibus ([id, seat, kind, stop]): drawn here as it has them. */
+  function syncResidents(b: BusState, list: Array<Array<string | number>>): void {
+    const want = new Map<string, Array<string | number>>();
+    for (const x of list) if (typeof x[0] === "string") want.set(x[0], x);
+    for (const p of b.passengers) {
+      if (!p.who || p.state === "out") continue;
+      const q = want.get(p.who.id);
+      if (q && q[1] === p.seat && q[2] === p.human.kind) continue;
+      // off at a stop: down the step (a seat) or off the platform; else gone at once
+      if (!q && b.at && b.netSeen) {
+        p.state = "out";
+        p.path = p.seat >= 0 ? pathTo(SEATS[p.seat]).reverse() : [[p.g.position.x, p.g.position.z], [0.15, Z0 - 1.3]];
+        p.t = 0;
+        p.human.play("walk", 0.2);
+        p.human.setPace(1.1);
+      } else stepOff(b, p);
+    }
+    b.passengers = b.passengers.filter((p) => (p.state as string) !== "gone");
+    for (const [id, seat, kind, alight] of list) {
+      if (typeof id !== "string" || typeof seat !== "number" || typeof kind !== "string" || typeof alight !== "string") continue;
+      if (b.passengers.some((p) => p.who?.id === id)) continue;
+      const s = seat >= 0 ? SEATS[seat] : null;
+      if (seat >= 0 ? !s || s.roof || b.taken[seat] : seat < -2) continue;
+      const human = makeHuman(kind as HumanKind);
+      if (!human) continue;
+      const g = new THREE.Group();
+      g.add(human.root);
+      b.frame.add(g);
+      if (seat >= 0) b.taken[seat] = "passenger";
+      const spot: P = [seat === -2 ? -0.35 : 0.3, Z0 - 0.55];
+      const p: Passenger = { human, g, seat, state: "in", path: s ? pathTo(s) : [[0.15, Z0 - 1.3], spot], t: 0, who: { id, alight }, mirror: true };
+      b.passengers.push(p);
+      if (!b.at || !b.netSeen) {
+        // aboard already when first seen here: in his seat, or standing on the platform
+        if (!s) p.g.position.set(spot[0], floorLocal(spot[0], spot[1]), spot[1]);
+        sitDown(p);
+      }
+    }
+  }
+  /** The world PC's waiters ([net id, post, slot, kind, omnibus or -1]), drawn near this PC's camera. */
+  function syncWaiters(list: number[][]): void {
+    const want = new Set<number>();
+    for (const x of list) {
+      want.add(x[0]);
+      nextNid = Math.max(nextNid, x[0] + 1);
+    }
+    for (const w of [...waiters]) if (!want.has(w.nid)) dropWaiter(w);
+    for (const [nid, pi, slot, ki, bi] of list) {
+      const pt = posts[pi];
+      const kind = NET_KINDS[ki];
+      if (!pt || !kind) continue;
+      let w = waiters.find((q) => q.nid === nid) ?? null;
+      // (a number this PC gave out itself while it ran the omnibuses: another waiter)
+      if (w && (w.post !== pt || w.slot !== slot || w.kindI !== ki)) {
+        dropWaiter(w);
+        w = null;
+      }
+      const far =!!camAt && Math.hypot(pt.x - camAt.x, pt.z - camAt.z) > 70;
+      if (far) {
+        if (w) dropWaiter(w);
+        continue;
+      }
+      w ??= addWaiter(pt, slot, kind, nid);
+      if (!w) continue;
+      const bus = bi >= 0 ? buses[bi] : undefined;
+      if (bus && w.state === "wait") {
+        w.state = "go";
+        w.bus = bus;
+        w.t = 0;
+        if (w.human.motion === "sit") w.g.position.y = 0;
+      }
+    }
+  }
 
   // --- moving
   function findNext(b: BusState): void {
@@ -1810,9 +2017,22 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
       return b ? boardResident(b, who, alight) : false;
     },
     residents() {
+      // (this PC's own riders: those its trips put on; not the ones only drawn here for another PC's trip)
       const out: Array<{ id: string; bus: number; alight: string; seated: boolean }> = [];
-      for (const b of buses) for (const p of b.passengers) if (p.who && (p.state as string) !== "gone") out.push({ id: p.who.id, bus: b.index, alight: p.who.alight, seated: p.state === "seated" });
+      for (const b of buses) {
+        for (const p of b.passengers) if (p.who && !p.mirror && !p.asked && (p.state as string) !== "gone") out.push({ id: p.who.id, bus: b.index, alight: p.who.alight, seated: p.state === "seated" });
+        for (const [id, alight] of b.riders) if (!out.some((q) => q.id === id)) out.push({ id, bus: b.index, alight, seated: true });
+      }
       return out;
+    },
+    netBoard(bus, id, kind, alight) {
+      const b = buses[bus];
+      if (!b || api.netRemote || !b.stopAt.some((x) => x.stop.id === alight)) return;
+      if (!boardResident(b, { id, kind: kind as HumanKind }, alight, true)) return;
+      const p = b.passengers.find((q) => q.who?.id === id);
+      if (!p) return;
+      // (asked for between stops: seated at once, as the world PC's own "unseen" boarding would be)
+      if (!b.at && p.state === "in") sitDown(p);
     },
     netRemote: false,
     netAsk: null,
@@ -1828,8 +2048,11 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
           _dep: b.departAt,
           _bk: r3(b.backM),
           _w: b.waitWhy,
+          _r: b.passengers.filter((p) => p.who && p.state !== "out").map((p) => [p.who!.id, p.seat, p.human.kind, p.who!.alight]),
+          _a: b.passengers.filter((p) => !p.who && p.nid !== undefined && p.state !== "out").map((p) => [p.nid!, p.seat, NET_KINDS.indexOf(p.human.kind)]),
         })),
         _slots: [...lastSlot],
+        _wt: waiters.map((w) => [w.nid, posts.indexOf(w.post), w.slot, w.kindI, w.state === "go" && w.bus ? w.bus.index : -1]),
       };
     },
     netApply(st, dt) {
@@ -1871,10 +2094,13 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
             api.onArrive?.(b, now);
           }
         }
+        if (q._a) syncPassengers(b, q._a);
+        if (q._r) syncResidents(b, q._r);
         b.netSeen = true;
         place(b, dt);
         b.netPlaced = true;
       }
+      if (st._wt) syncWaiters(st._wt);
     },
     netLerp(p, q, u) {
       // as lerpState, but along each round the short way (s wraps at the round's end)

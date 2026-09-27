@@ -65,6 +65,8 @@ export async function gearModel(world: World, kind: number, sub: number): Promis
     const props = await loadProps();
     const cart = new PushCart(world.scene, props, { load: false });
     return {
+      // (M8f goods pass 2: his load on it, game/goods.ts, when `sub` names the cart it lies on)
+      pivot: cart.pivot,
       place(x, _y, z, heading, _dt, shown) {
         cart.visible = shown;
         cart.place(x + Math.sin(heading) * CART_AHEAD, z + Math.cos(heading) * CART_AHEAD, heading);

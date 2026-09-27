@@ -60,6 +60,108 @@ move = sl.move
 rot = sl.rot
 vnoise = sl.vnoise
 
+
+class PMesh(sl.Mesh):
+    """M8f goods pass 2: a heap whose casks, crates and sacks are each liftable goods of the server. Built as one
+    mesh as before (the same faces, the same baked shade), every face tagged with the piece it belongs to; the
+    export (main) writes each piece as its own node in its own frame ("<name>.<k>", extras qg_of, qg_k, qg_frame,
+    qg_goods, qg_heavy) and what is not goods (chocks, a pallet) as "<name>.rest". The client puts the heap back
+    together from them (world/quaygoods.ts), so it stands exactly where and as it stood."""
+
+    def __init__(self, ao=0.0):
+        super().__init__(ao)
+        self.piece_layer = self.bm.faces.layers.int.new("piece")
+        self.cur = -1
+        self.pieces = []  # (goods kind, frame Matrix in the model's frame, heavy)
+
+    def face(self, pts, cell, uvs=None, mat=SOLID, shade=1.0, out=None):
+        f = super().face(pts, cell, uvs=uvs, mat=mat, shade=shade, out=out)
+        if f is not None:
+            f[self.piece_layer] = self.cur
+        return f
+
+    def piece(self, kind, M=None, heavy=False):
+        """Faces made inside belong to a new piece; its frame is the current transform times M (its foot, its
+        turn about Z): the piece is written in that frame."""
+        m = self
+
+        class Ctx:
+            def __enter__(self_):
+                self_.old = m.cur
+                m.pieces.append((kind, m.xf @ (M if M is not None else Matrix.Identity(4)), heavy))
+                m.cur = len(m.pieces) - 1
+                return m.cur
+
+            def __exit__(self_, *a):
+                m.cur = self_.old
+
+        return Ctx()
+
+    def into(self, k):
+        """Faces made inside go to piece k (-1: the rest, not goods)."""
+        m = self
+
+        class Ctx:
+            def __enter__(self_):
+                self_.old = m.cur
+                m.cur = k
+
+            def __exit__(self_, *a):
+                m.cur = self_.old
+
+        return Ctx()
+
+
+def rest_of(m):
+    """Chocks and pallets: the rest of a heap, not goods (a no-op for a plain Mesh)."""
+    return m.into(-1) if isinstance(m, PMesh) else sl.Mesh.at(m, Matrix.Identity(4))
+
+
+def as_piece(m, kind, M=None, heavy=False):
+    """A new piece of a PMesh (a no-op context for a plain Mesh)."""
+    return m.piece(kind, M, heavy) if isinstance(m, PMesh) else sl.Mesh.at(m, Matrix.Identity(4))
+
+
+def split_pieces(name, pm):
+    """Objects for a PMesh: one per piece in its own frame, and the rest. Returns [(object name, object)]."""
+    import bmesh
+    out = []
+    layer = pm.piece_layer
+    groups = list(range(len(pm.pieces))) + [-1]
+    for k in groups:
+        bm2 = pm.bm.copy()
+        lay2 = bm2.faces.layers.int.get("piece")
+        kill = [f for f in bm2.faces if f[lay2] != k]
+        bmesh.ops.delete(bm2, geom=kill, context="FACES")
+        loose = [v for v in bm2.verts if not v.link_faces]
+        if loose:
+            bmesh.ops.delete(bm2, geom=loose, context="VERTS")
+        if not bm2.faces:
+            bm2.free()
+            continue
+        if k >= 0:
+            kind, F, heavy = pm.pieces[k]
+            bmesh.ops.transform(bm2, matrix=F.inverted(), verts=bm2.verts)
+        bm2.faces.layers.int.remove(lay2)
+        sub = sl.Mesh()
+        sub.bm.free()
+        sub.bm = bm2
+        oname = f"{name}.{k}" if k >= 0 else f"{name}.rest"
+        ob = sub.to_object(oname)
+        ob["qg_of"] = name
+        ob["qg_k"] = k
+        if k >= 0:
+            t = F.to_translation()
+            yaw = math.atan2(F[1][0], F[0][0])
+            # Blender Z up -> the game's Y up (the export's +Y up: game x = x, y = z, z = -y); a turn about Z is the
+            # same turn about the game's Y
+            ob["qg_frame"] = [round(t.x, 5), round(t.z, 5), round(-t.y, 5), round(yaw, 6)]
+            ob["qg_goods"] = kind
+            ob["qg_heavy"] = 1 if heavy else 0
+        out.append((oname, ob))
+    pm.bm.free()
+    return out
+
 # ------------------------------------------------------------------ painting
 
 INK = (0.07, 0.06, 0.05)
@@ -1050,12 +1152,14 @@ def crate_geo(m, kind, lid=True, bottom_on_ground=True, shade=1.0, straw=False):
 def crate(kind):
     m = Mesh(ao=1.0)
     crate_geo(m, kind)
+    m.goods = ("crates", kind in ("a", "c"))
     return m
 
 
 def crate_roped():
     """A LIVERPOOL crate lashed both ways, the knot on top."""
     m = Mesh(ao=1.0)
+    m.goods = ("crates", False)
     W, D, H = crate_geo(m, "b")
     o = 0.03
     hx, hy = W / 2 + o, D / 2 + o
@@ -1099,31 +1203,39 @@ def crate_open():
 
 def crates_tied():
     """Two big crates side by side, a LIVERPOOL crate across them on top, two rope lashings over all."""
-    m = Mesh(ao=1.4)
+    m = PMesh(ao=1.4)
     Wa, Da, Ha = CRATES["a"]["size"]
-    with m.at(move(0, -Da / 2 - 0.015, 0)):
-        crate_geo(m, "a")
-    with m.at(move(0.03, Da / 2 + 0.015, 0) @ rot("Z", math.pi + 0.02)):
-        crate_geo(m, "a", shade=0.93)
-    with m.at(move(0.02, 0.0, Ha) @ rot("Z", math.pi / 2 + 0.07)):
+    for M, sh in ((move(0, -Da / 2 - 0.015, 0), 1.0), (move(0.03, Da / 2 + 0.015, 0) @ rot("Z", math.pi + 0.02), 0.93)):
+        with m.piece("crates", M, heavy=True), m.at(M):
+            crate_geo(m, "a", shade=sh)
+    M = move(0.02, 0.0, Ha) @ rot("Z", math.pi / 2 + 0.07)
+    with m.piece("crates", M) as top, m.at(M):
         crate_geo(m, "b", shade=1.05)
-    # lashings: over the top crate and down to the bottom rails, both sides
+    # lashings: over the top crate and down to the bottom rails, both sides (M8f: the loop over the top crate goes
+    # with it when it is lifted; the ends down the big crates stay, lying on them)
     Wb, Db, Hb = CRATES["b"]["size"]
     for x in (-0.22, 0.22):
         o = 0.035
         path = [(x, -Da - 0.03 - o, 0.1), (x, -Da - 0.03 - o, Ha + o), (x, -Wb / 2 - o, Ha + o), (x, -Wb / 2 - o, Ha + Hb + o),
                 (x, Wb / 2 + o, Ha + Hb + o), (x, Wb / 2 + o, Ha + o), (x, Da + 0.03 + o, Ha + o), (x, Da + 0.03 + o, 0.1)]
-        tube(m, path, 0.013, "rope")
+        with m.into(-1):
+            tube(m, path[:3], 0.013, "rope")
+            tube(m, path[5:], 0.013, "rope")
+        with m.into(top):
+            tube(m, path[2:6], 0.013, "rope")
     return m
 
 
 def crate_column():
     """Three crates one on the other, each turned a little: the big one, the long one, the small one."""
-    m = Mesh(ao=1.6)
-    _, _, Ha = crate_geo(m, "a")
-    with m.at(move(0.03, -0.02, Ha) @ rot("Z", 0.12)):
+    m = PMesh(ao=1.6)
+    with m.piece("crates", None, heavy=True):
+        _, _, Ha = crate_geo(m, "a")
+    M = move(0.03, -0.02, Ha) @ rot("Z", 0.12)
+    with m.piece("crates", M, heavy=True), m.at(M):
         _, _, Hc = crate_geo(m, "c", shade=0.95)
-    with m.at(move(-0.12, 0.04, Ha + Hc) @ rot("Z", -0.2)):
+    M = move(-0.12, 0.04, Ha + Hc) @ rot("Z", -0.2)
+    with m.piece("crates", M), m.at(M):
         crate_geo(m, "s", shade=1.06)
     return m
 
@@ -1185,12 +1297,14 @@ def cask_geo(m, r_end=0.27, r_belly=0.33, h=0.88, stave="stave_oak", headc="head
 def cask(stave="stave_oak", headc="head_oak", r_end=0.27, r_belly=0.33, h=0.88):
     m = Mesh(ao=0.9)
     cask_geo(m, r_end, r_belly, h, stave, headc)
+    m.goods = ("barrels", False)
     return m
 
 
 def cask_big():
     """A hogshead: bigger, six hoops (two at each chime, two at the bilge)."""
     m = Mesh(ao=1.1)
+    m.goods = ("barrels", True)
     cask_geo(m, 0.34, 0.42, 1.06, "stave_chalk2", "head_wine", sides=14, hoops=(0.07, 0.17, 0.4, 0.6, 0.83, 0.93))
     return m
 
@@ -1214,44 +1328,53 @@ def lying_cask(m, x, y, z, yaw=0.0, stave="stave_oak", headc="head_oak", r_end=0
     cask_geo(m, r_end, r_belly, h, stave, headc, M=M, standing=False, shade=shade, sides=sides)
     if chocks:
         c, s = math.cos(yaw), math.sin(yaw)
-        for sy in (-1, 1):
-            # a wedge each side against the bilge
-            px, py = x - s * sy * (R * 0.82), y + c * sy * (R * 0.82)
-            chock(m, px, py, z, yaw + (math.pi if sy > 0 else 0), 0.13)
+        with rest_of(m):
+            for sy in (-1, 1):
+                # a wedge each side against the bilge
+                px, py = x - s * sy * (R * 0.82), y + c * sy * (R * 0.82)
+                chock(m, px, py, z, yaw + (math.pi if sy > 0 else 0), 0.13)
 
 
 def cask_lying():
-    m = Mesh(ao=0.8)
-    lying_cask(m, 0, 0, 0)
+    m = PMesh(ao=0.8)
+    with as_piece(m, "barrels"):
+        lying_cask(m, 0, 0, 0)
     return m
 
 
 def casks_pyramid(stave="stave_oak", headc="head_oak"):
     """Six casks on their sides: three, two in the hollows, one on top; chocks at the ends of the
     bottom row."""
-    m = Mesh(ao=1.6)
+    m = PMesh(ao=1.6)
     rb = 0.33
     w = 2 * rb + 0.03  # side by side, 3 cm between the bellies
     # a cask in a hollow touches the two below it: its axis 2 rb from theirs
     dz = math.sqrt((2 * rb) ** 2 - (w / 2) ** 2) - 0.004
     for k in range(3):
         st = "stave_chalk" if (stave == "stave_oak" and k == 0) else stave
-        lying_cask(m, 0, (k - 1) * w, 0, 0, st, headc, chocks=(k != 1), shade=1.0 - 0.04 * k)
+        with m.piece("barrels", move(0, (k - 1) * w, 0)):
+            lying_cask(m, 0, (k - 1) * w, 0, 0, st, headc, chocks=(k != 1), shade=1.0 - 0.04 * k)
     for k in range(2):
-        lying_cask(m, 0.03, (k - 0.5) * w, dz, 0.02, stave, headc, chocks=False, shade=0.96 + 0.05 * k)
-    lying_cask(m, -0.02, 0, 2 * dz, -0.03, stave, headc, chocks=False, shade=1.04)
+        with m.piece("barrels", move(0.03, (k - 0.5) * w, dz) @ rot("Z", 0.02)):
+            lying_cask(m, 0.03, (k - 0.5) * w, dz, 0.02, stave, headc, chocks=False, shade=0.96 + 0.05 * k)
+    with m.piece("barrels", move(-0.02, 0, 2 * dz) @ rot("Z", -0.03)):
+        lying_cask(m, -0.02, 0, 2 * dz, -0.03, stave, headc, chocks=False, shade=1.04)
     return m
 
 
 def casks_group():
     """Four casks standing close, one a darker old one, a keg on top of one."""
-    m = Mesh(ao=1.0)
+    m = PMesh(ao=1.0)
     rs = 0.345
     pts = [(-rs, -rs * 0.9, "stave_chalk", "head_oak"), (rs + 0.02, -rs * 0.8, "stave_dark", "head_dark"),
            (-rs * 0.2, rs * 0.95, "stave_oak", "head_oak"), (rs * 1.5, rs * 1.0, "stave_oak", "head_oak")]
     for k, (x, y, st, hd) in enumerate(pts):
-        cask_geo(m, stave=st, headc=hd, M=move(x, y, 0) @ rot("Z", k * 0.7), shade=1.0 - 0.03 * k)
-    cask_geo(m, 0.18, 0.22, 0.55, "stave_dark", "head_dark", sides=10, M=move(-rs + 0.02, -rs * 0.9, 0.88 - 0.03 + 0.001) @ rot("Z", 0.4))
+        M = move(x, y, 0) @ rot("Z", k * 0.7)
+        with m.piece("barrels", M):
+            cask_geo(m, stave=st, headc=hd, M=M, shade=1.0 - 0.03 * k)
+    M = move(-rs + 0.02, -rs * 0.9, 0.88 - 0.03 + 0.001) @ rot("Z", 0.4)
+    with m.piece("barrels", M):
+        cask_geo(m, 0.18, 0.22, 0.55, "stave_dark", "head_dark", sides=10, M=M)
     return m
 
 
@@ -1273,12 +1396,14 @@ def sack_geo(m, x, y, z, yaw, cell, seed, L=0.92, Wd=0.52, Hh=0.3, pitch=0.0, fl
 def sack_lying():
     m = Mesh(ao=0.5)
     sack_geo(m, 0, 0, 0, 0, "sack_coffee", 1)
+    m.goods = ("sacks", False)
     return m
 
 
 def sack_standing():
     """A sack stood on end and slumped against itself: a squat blob, the top folded over, tied."""
     m = Mesh(ao=0.8)
+    m.goods = ("sacks", False)
     blob(m, 0.46, 0.42, 0.74, "sack_grain", 5, z0=0.0, e1=0.8, e2=0.85, nu=10, nv=6, slump=0.05, noise=0.018,
          M=rot("Z", 0.3))
     lathe(m, [(0.09, 0.66), (0.06, 0.74), (0.1, 0.8), (0.03, 0.84)], 6, "sack_grain", M=move(0.03, 0.02, 0) @ rot("Y", 0.25))
@@ -1288,13 +1413,16 @@ def sack_standing():
 
 def sacks_heap():
     """Five sacks thrown down: three below, two across them, one slumped off the end."""
-    m = Mesh(ao=0.8)
+    m = PMesh(ao=0.8)
     H = 0.28
     for k, (x, y, yaw) in enumerate([(-0.05, -0.55, 0.05), (0.0, 0.0, -0.04), (0.06, 0.55, 0.1)]):
-        sack_geo(m, x, y, 0, yaw, SACK_CELLS[k % 3], 10 + k)
+        with m.piece("sacks", move(x, y, 0) @ rot("Z", yaw)):
+            sack_geo(m, x, y, 0, yaw, SACK_CELLS[k % 3], 10 + k)
     for k, (x, y, yaw) in enumerate([(-0.22, -0.28, 1.5), (0.26, 0.26, 1.64)]):
-        sack_geo(m, x, y, H - 0.05, yaw, SACK_CELLS[(k + 1) % 3], 20 + k, flat=False, slump=0.25)
-    sack_geo(m, 0.75, -0.3, 0.0, 0.55, "sack_plain", 30, pitch=-0.12)
+        with m.piece("sacks", move(x, y, H - 0.05) @ rot("Z", yaw)):
+            sack_geo(m, x, y, H - 0.05, yaw, SACK_CELLS[(k + 1) % 3], 20 + k, flat=False, slump=0.25)
+    with m.piece("sacks", move(0.75, -0.3, 0.0) @ rot("Z", 0.55)):
+        sack_geo(m, 0.75, -0.3, 0.0, 0.55, "sack_plain", 30, pitch=-0.12)
     return m
 
 
@@ -1313,7 +1441,7 @@ def pallet_geo(m, W=1.2, D=1.0, H=0.13):
 
 def sacks_pallet(cells=("sack_coffee", "sack_coffee", "sack_red")):
     """A pallet of coffee: four layers laid crosswise, the top one short, a sack slumped over the edge."""
-    m = Mesh(ao=1.3)
+    m = PMesh(ao=1.3)
     z = pallet_geo(m, 1.2, 1.0)
     H = 0.26
     k = 0
@@ -1321,17 +1449,22 @@ def sacks_pallet(cells=("sack_coffee", "sack_coffee", "sack_red")):
         cross = layer % 2 == 1
         if not cross:
             for y in (-0.25, 0.25):
-                sack_geo(m, 0.02 * (layer - 1), y, z, 0.03 * (layer - 1.5), cells[k % len(cells)], 100 + k, L=1.1, Wd=0.5, Hh=H, flat=False)
+                x, yaw = 0.02 * (layer - 1), 0.03 * (layer - 1.5)
+                with m.piece("sacks", move(x, y, z) @ rot("Z", yaw)):
+                    sack_geo(m, x, y, z, yaw, cells[k % len(cells)], 100 + k, L=1.1, Wd=0.5, Hh=H, flat=False)
                 k += 1
         else:
             for x in (-0.3, 0.3):
                 if layer == 3 and x > 0:
                     continue
-                sack_geo(m, x, 0.0, z, math.pi / 2 + 0.05 * (layer - 2), cells[k % len(cells)], 100 + k, L=0.95, Wd=0.55, Hh=H, flat=False)
+                yaw = math.pi / 2 + 0.05 * (layer - 2)
+                with m.piece("sacks", move(x, 0.0, z) @ rot("Z", yaw)):
+                    sack_geo(m, x, 0.0, z, yaw, cells[k % len(cells)], 100 + k, L=0.95, Wd=0.55, Hh=H, flat=False)
                 k += 1
         z += H - 0.05
     # one slumped over the top edge
-    sack_geo(m, 0.52, 0.1, z - 0.18, math.pi / 2 - 0.2, "sack_plain", 199, pitch=0.5, flat=False, slump=0.3)
+    with m.piece("sacks", move(0.52, 0.1, z - 0.18) @ rot("Z", math.pi / 2 - 0.2)):
+        sack_geo(m, 0.52, 0.1, z - 0.18, math.pi / 2 - 0.2, "sack_plain", 199, pitch=0.5, flat=False, slump=0.3)
     return m
 
 
@@ -1860,7 +1993,7 @@ def rope_end():
 
 def casks_pyramid4(stave="stave_oak", headc="head_oak"):
     """Ten casks on their sides, 4-3-2-1, 2.3 m high; chocks at the ends of the bottom row."""
-    m = Mesh(ao=2.4)
+    m = PMesh(ao=2.4)
     rb = 0.33
     w = 2 * rb + 0.03
     dz = math.sqrt((2 * rb) ** 2 - (w / 2) ** 2) - 0.004
@@ -1869,14 +2002,16 @@ def casks_pyramid4(stave="stave_oak", headc="head_oak"):
         for k in range(n):
             y = (k - (n - 1) / 2) * w
             st = "stave_chalk" if (stave == "stave_oak" and rng.random() < 0.25) else stave
-            lying_cask(m, rng.uniform(-0.04, 0.04), y, row * dz, rng.uniform(-0.03, 0.03), st, headc,
-                       chocks=(row == 0 and k in (0, n - 1)), shade=0.94 + 0.1 * rng.random(), sides=10)
+            x, yaw = rng.uniform(-0.04, 0.04), rng.uniform(-0.03, 0.03)
+            with m.piece("barrels", move(x, y, row * dz) @ rot("Z", yaw)):
+                lying_cask(m, x, y, row * dz, yaw, st, headc,
+                           chocks=(row == 0 and k in (0, n - 1)), shade=0.94 + 0.1 * rng.random(), sides=10)
     return m
 
 
 def sacks_mountain(cells=("sack_coffee", "sack_red", "sack_coffee", "sack_plain")):
     """Sacks piled without a pallet, five layers laid crosswise and stepping in: 2.8 x 2.2 m, 1.4 m high."""
-    m = Mesh(ao=1.6)
+    m = PMesh(ao=1.6)
     H = 0.27
     z = 0.0
     k = 0
@@ -1889,21 +2024,28 @@ def sacks_mountain(cells=("sack_coffee", "sack_red", "sack_coffee", "sack_plain"
             for j in range(ny):
                 y = -span / 2 + span * (j + 0.5) / ny
                 for x in (-0.62 + inset * 0.3, 0.62 - inset * 0.3) if layer < 4 else (0.0,):
-                    sack_geo(m, x + rng.uniform(-0.05, 0.05), y, z, rng.uniform(-0.08, 0.08), cells[k % len(cells)], 400 + k,
-                             L=1.15, Wd=span / ny + 0.04, Hh=H, flat=(layer == 0))
+                    sx, syaw = x + rng.uniform(-0.05, 0.05), rng.uniform(-0.08, 0.08)
+                    with m.piece("sacks", move(sx, y, z) @ rot("Z", syaw)):
+                        sack_geo(m, sx, y, z, syaw, cells[k % len(cells)], 400 + k,
+                                 L=1.15, Wd=span / ny + 0.04, Hh=H, flat=(layer == 0))
                     k += 1
         else:
             nx = max(1, 5 - layer)
             span = 2.6 - 2 * inset
             for j in range(nx):
                 x = -span / 2 + span * (j + 0.5) / nx
-                sack_geo(m, x, rng.uniform(-0.05, 0.05), z, math.pi / 2 + rng.uniform(-0.08, 0.08), cells[k % len(cells)], 400 + k,
-                         L=2.0 - 2 * inset, Wd=span / nx + 0.04, Hh=H, flat=False)
+                sy, syaw = rng.uniform(-0.05, 0.05), math.pi / 2 + rng.uniform(-0.08, 0.08)
+                # (a long sack laid across, 1.1 to 2 m: heavy when over 1.5 m)
+                with m.piece("sacks", move(x, sy, z) @ rot("Z", syaw), heavy=(2.0 - 2 * inset) > 1.5):
+                    sack_geo(m, x, sy, z, syaw, cells[k % len(cells)], 400 + k,
+                             L=2.0 - 2 * inset, Wd=span / nx + 0.04, Hh=H, flat=False)
                 k += 1
         z += H - 0.06
     # two slumped off the side
-    sack_geo(m, 1.55, -0.4, 0.0, 1.3, "sack_plain", 480, pitch=-0.15, slump=0.3)
-    sack_geo(m, -1.4, 0.9, 0.0, 0.3, cells[0], 481, slump=0.3)
+    with m.piece("sacks", move(1.55, -0.4, 0.0) @ rot("Z", 1.3)):
+        sack_geo(m, 1.55, -0.4, 0.0, 1.3, "sack_plain", 480, pitch=-0.15, slump=0.3)
+    with m.piece("sacks", move(-1.4, 0.9, 0.0) @ rot("Z", 0.3)):
+        sack_geo(m, -1.4, 0.9, 0.0, 0.3, cells[0], 481, slump=0.3)
     return m
 
 
@@ -1925,23 +2067,26 @@ def bales_wall(rows=1):
 
 def crates_block():
     """A block of crates two deep and three high, the top ragged: 3.2 x 1.5 m, about 1.9 m high."""
-    m = Mesh(ao=2.2)
+    m = PMesh(ao=2.2)
     rng = rng_(700)
     Wa, Da, Ha = CRATES["a"]["size"]
     Wb, Db, Hb = CRATES["b"]["size"]
     # bottom: three big crates along x, two rows
     for row, y in enumerate((-0.37, 0.37)):
         for k in range(3):
-            with m.at(move((k - 1) * (Wa + 0.04), y, 0) @ rot("Z", math.pi * (row % 2) + rng.uniform(-0.02, 0.02))):
+            M = move((k - 1) * (Wa + 0.04), y, 0) @ rot("Z", math.pi * (row % 2) + rng.uniform(-0.02, 0.02))
+            with m.piece("crates", M, heavy=True), m.at(M):
                 crate_geo(m, "a", shade=0.92 + 0.12 * rng.random())
     # middle: long crates across
     for k, x in enumerate((-0.75, 0.75)):
-        with m.at(move(x + rng.uniform(-0.05, 0.05), rng.uniform(-0.04, 0.04), Ha) @ rot("Z", math.pi / 2 + rng.uniform(-0.03, 0.03))):
+        M = move(x + rng.uniform(-0.05, 0.05), rng.uniform(-0.04, 0.04), Ha) @ rot("Z", math.pi / 2 + rng.uniform(-0.03, 0.03))
+        with m.piece("crates", M, heavy=True), m.at(M):
             crate_geo(m, "c", shade=0.95 + 0.1 * rng.random())
     # top: two LIVERPOOL crates and a small one, not squared up
     Wc, Dc, Hc = CRATES["c"]["size"]
     for x, kind, yaw in ((-0.7, "b", 0.1), (0.55, "b", -0.08), (1.3, "s", 0.3)):
-        with m.at(move(x, rng.uniform(-0.1, 0.1), Ha + Wc * 0 + Hc) @ rot("Z", yaw)):
+        M = move(x, rng.uniform(-0.1, 0.1), Ha + Wc * 0 + Hc) @ rot("Z", yaw)
+        with m.piece("crates", M), m.at(M):
             crate_geo(m, kind, shade=1.0 + 0.06 * rng.random())
     return m
 
@@ -2036,8 +2181,20 @@ def main():
     make_materials()
     objs = {}
     counts = {}
+    pieces = 0
     for name, mesh in build_models():
+        if isinstance(mesh, PMesh) and mesh.pieces:
+            # M8f goods pass 2: each cask, crate and sack its own node in its own frame, and the rest
+            for oname, ob in split_pieces(name, mesh):
+                objs[oname] = ob
+                counts[oname] = sl.tris(ob)
+                pieces += 1
+            continue
+        goods = getattr(mesh, "goods", None)
         objs[name] = mesh.to_object(name)
+        if goods:
+            objs[name]["qg_goods"] = goods[0]
+            objs[name]["qg_heavy"] = 1 if goods[1] else 0
         counts[name] = sl.tris(objs[name])
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_yup=True, export_texcoords=True, export_normals=True,
@@ -2049,7 +2206,7 @@ def main():
     for n, c in counts.items():
         print(f"[build_quaygoods] {n:20s} {c:5d} tris")
     print(f"[build_quaygoods] atlas {sl.SOLID_ATLAS.W}x{sl.SOLID_ATLAS.H}, decals {sl.DECAL_ATLAS.W}x{sl.DECAL_ATLAS.H}")
-    print(f"[build_quaygoods] {len(objs)} models, {sum(counts.values())} tris -> {OUT} ({os.path.getsize(OUT) // 1024} KB)")
+    print(f"[build_quaygoods] {len(objs)} models ({pieces} pieces of heaps), {sum(counts.values())} tris -> {OUT} ({os.path.getsize(OUT) // 1024} KB)")
     if "--preview" in argv:
         preview(objs)
 

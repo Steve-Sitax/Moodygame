@@ -347,7 +347,9 @@ export class Ideas {
     const size: [number, number, number] = kind === "notebook" ? [0.13, 0.03, 0.19] : [0.28, 0.1, 0.2];
     const m = new THREE.Mesh(new THREE.BoxGeometry(...size), psx(new THREE.MeshLambertMaterial({ color: kind === "notebook" ? 0x3b2c22 : 0x8a8272 })));
     m.position.y = size[1] / 2 + 0.01;
-    m.rotation.y = Math.random() * Math.PI;
+    // (its turn from where it lies: the same on every PC; sync pass 2)
+    const h = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453;
+    m.rotation.y = (h - Math.floor(h)) * Math.PI;
     g.add(m);
     if (kind === "notebook") {
       // a pale page edge, so it catches the eye on the stones

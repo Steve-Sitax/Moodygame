@@ -3,6 +3,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { psx } from "../retro/psx";
+import { dice, hash32, runsHere, share, type SharedAnimal } from "./share";
 
 // Dogs and cats (M3e), from client/public/models/animals.glb
 // (tools/blender/build_animals.py): four dogs and four cats, rigged, with
@@ -220,8 +221,8 @@ interface Beast {
   x: number;
   z: number;
   yaw: number;
-  /** A person to follow (their dog), by a getter; null = a stray or a cat. */
-  owner: (() => { x: number; z: number; yaw: number; walking: boolean } | null) | null;
+  /** A person to follow (their dog), by a getter; null = a stray or a cat. `remote`: another PC walks the person. */
+  owner: (() => { x: number; z: number; yaw: number; walking: boolean; remote?: boolean } | null) | null;
   ownerId: string | null;
   goal: V | null;
   /** The corners still to pass on the way to the goal (the last one is the goal). */
@@ -236,7 +237,26 @@ interface Beast {
   lost: number;
   repath: number;
   hold: number;
+  /** M8f sync pass 3: its id among the players' PCs (a stray's or a cat's from the roster; a dog's `dog:<person>`). */
+  id: string | null;
+  /** Shown from the PC that runs it (not moved here). */
+  remote: boolean;
 }
+
+/** M8f sync pass 3: a stray or a cat of the town, fixed by its haunt (the same on every PC). */
+interface Haunt {
+  id: string;
+  kind: AnimalKind;
+  x: number;
+  z: number;
+  yaw: number;
+  /** A stray out only at night; a cat's pose. */
+  night: boolean;
+  pose: "sit" | "lie";
+}
+/** Made within this of this player, dropped beyond DROP_R (they were made 18-55 m off, dropped at 75). */
+const REACH_R = 60;
+const DROP_R = 75;
 
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const pick = <T>(xs: T[]): T => xs[Math.floor(Math.random() * xs.length)];
@@ -257,6 +277,8 @@ const beast = (a: Animal, x: number, z: number, yaw: number, extra: Partial<Beas
   lost: 0,
   repath: 0,
   hold: 0,
+  id: null,
+  remote: false,
   ...extra,
 });
 
@@ -266,12 +288,32 @@ export class Animals {
   private readonly frustum = new THREE.Frustum();
   private readonly m4 = new THREE.Matrix4();
   private readonly sphere = new THREE.Sphere();
-  /** Doorsteps and quay spots where cats like to sit (the town gives its doors). */
-  catSpots: Array<{ x: number; z: number }> = [];
+  /**
+   * The doorsteps of the town (the town gives its doors). M8f sync pass 3: the town's strays and cats are fixed by
+   * them, the same on every PC: a cat on about 9 doorsteps in 20 (its kind, pose and turn by the doorstep), a stray
+   * haunting about 1 in 3 of the rest (1 in 3 of those only at night): about as many round a player as before. Each is made when a player comes within 60 m of it; the
+   * PC of the nearest player runs it (game/share.ts), the others draw it from that PC's states.
+   */
+  set catSpots(spots: Array<{ x: number; z: number }>) {
+    const out: Haunt[] = [];
+    const seen = new Set<string>();
+    spots.forEach((s) => {
+      const key = `${Math.round(s.x * 10)},${Math.round(s.z * 10)}`;
+      if (seen.has(key)) return; // (a family's one door)
+      seen.add(key);
+      const i = hash32(key) % 100000;
+      if (dice("cat", i) < 0.45)
+        out.push({ id: `a:cat:${key}`, kind: CATS[Math.floor(dice("catkind", i) * 4)], x: s.x + (dice("catx", i) - 0.5) * 1.2, z: s.z + (dice("catz", i) - 0.5) * 1.2, yaw: dice("catyaw", i) * 6.28, night: false, pose: dice("catpose", i) < 0.34 ? "lie" : "sit" });
+      else if (dice("stray", i) < 0.6)
+        out.push({ id: `a:dog:${key}`, kind: DOGS[Math.floor(dice("dogkind", i) * 4)], x: s.x, z: s.z, yaw: dice("dogyaw", i) * 6.28, night: dice("dognight", i) < 0.33, pose: "sit" });
+    });
+    this.haunts = out;
+    this.hauntOf = new Map(out.map((h) => [h.id, h]));
+  }
+  private haunts: Haunt[] = [];
+  private hauntOf = new Map<string, Haunt>();
   /** M3i: fish scraps on the market stones (game/market.ts): strays go and sniff at them. */
   scraps: Array<{ x: number; z: number }> = [];
-  strays = 3;
-  cats = 6;
   private spawnT = 0;
 
   constructor(
@@ -281,8 +323,8 @@ export class Animals {
     void load().then((t) => (this.ready = !!t));
   }
 
-  get list(): ReadonlyArray<{ x: number; z: number; species: string; kind: string; motion: string | null; owner: string | null }> {
-    return this.beasts.map((b) => ({ x: b.x, z: b.z, species: b.a.species, kind: b.a.kind, motion: b.a.motion, owner: b.ownerId }));
+  get list(): ReadonlyArray<{ x: number; z: number; species: string; kind: string; motion: string | null; owner: string | null; id: string | null; remote: boolean }> {
+    return this.beasts.map((b) => ({ x: b.x, z: b.z, species: b.a.species, kind: b.a.kind, motion: b.a.motion, owner: b.ownerId, id: b.id, remote: b.remote }));
   }
 
   /** A townsperson's dog: it follows them while they are out. */
@@ -294,7 +336,7 @@ export class Animals {
     this.scene.add(a.group);
     // at her side if there is room, else where she stands (it steps out from there)
     const side = this.ground.isFree(at.x + 0.8, at.z + 0.8, 0.22) ? { x: at.x + 0.8, z: at.z + 0.8 } : { x: at.x, z: at.z };
-    this.beasts.push(beast(a, side.x, side.z, 0, { owner, ownerId, speed: 0 }));
+    this.beasts.push(beast(a, side.x, side.z, 0, { owner, ownerId, speed: 0, id: `dog:${ownerId}` }));
   }
 
   removeDog(ownerId: string): void {
@@ -303,6 +345,7 @@ export class Animals {
   }
 
   private drop(b: Beast): void {
+    if (b.id && !b.ownerId && !b.remote) share.net?.release(b.id);
     b.a.dispose();
     this.beasts.splice(this.beasts.indexOf(b), 1);
   }
@@ -312,34 +355,76 @@ export class Animals {
     camera.updateMatrixWorld();
     this.m4.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     this.frustum.setFromProjectionMatrix(this.m4);
+    const inView = (x: number, z: number) => {
+      this.sphere.center.set(x, 0.4, z);
+      this.sphere.radius = 1;
+      return this.frustum.intersectsSphere(this.sphere);
+    };
     const hidden = (x: number, z: number) => {
       const d = Math.hypot(x - player.x, z - player.z);
       if (d < 8) return false;
+      // (M8f: out of every player's sight)
+      if (share.on && share.seenByOthers(x, z)) return false;
       if (d > fogFar + 3) return true;
-      this.sphere.center.set(x, 0.4, z);
-      this.sphere.radius = 1;
-      return !this.frustum.intersectsSphere(this.sphere);
+      return !inView(x, z);
     };
-    // keep a few strays and cats about, out of sight
+    // M8f sync pass 3: every player (a cat runs from any of them; a stray trots over to any of them for a sniff)
+    const people = share.on ? share.players() : [player];
+    // the town's strays and cats near: made at their haunts (the PC of the nearest player runs each; another's are
+    // made when its first state comes)
     this.spawnT -= dt;
     if (this.spawnT <= 0) {
-      this.spawnT = 1.5;
-      const strays = this.beasts.filter((b) => !b.ownerId && b.a.species === "dog").length;
-      const cats = this.beasts.filter((b) => b.a.species === "cat").length;
-      if (strays < (night ? this.strays + 1 : this.strays)) this.spawnStray(player, hidden);
-      else if (cats < this.cats) this.spawnCat(player, hidden);
+      this.spawnT = 0.5;
+      for (const h of this.haunts) {
+        if (this.byId(h.id)) continue;
+        if (Math.hypot(h.x - player.x, h.z - player.z) > REACH_R) continue;
+        if (h.night && !night) continue;
+        if (!runsHere(h.id, h.x, h.z, REACH_R)) continue;
+        this.spawnHaunt(h, h.x, h.z, h.yaw, false);
+      }
+      if (share.on && share.net) {
+        for (const id of share.net.animalsHeard()) {
+          const h = this.hauntOf.get(id);
+          if (!h || this.byId(id)) continue;
+          const s = share.net.animal(id);
+          if (!s || Math.hypot(s.x - player.x, s.z - player.z) > REACH_R) continue;
+          if (share.net.owner(id) === share.me) continue;
+          this.spawnHaunt(h, s.x, s.z, s.yaw, true);
+        }
+      }
     }
     const dogs = this.beasts.filter((b) => b.a.species === "dog");
     for (const b of [...this.beasts]) {
       const d = Math.hypot(b.x - player.x, b.z - player.z);
-      if (!b.ownerId && d > 75) {
+      if (!b.ownerId && d > DROP_R) {
         this.drop(b);
         continue;
       }
-      if (b.owner) this.follow(b, dt, hidden);
-      else if (b.a.species === "dog") this.stray(b, dt, player);
-      else this.cat(b, dt, dogs, player);
-      const show = d < fogFar + 5;
+      // M8f sync pass 3: run here, or shown from the PC that runs it
+      const o = b.owner?.() ?? null;
+      const here = b.ownerId ? !o?.remote : runsHere(b.id!, b.x, b.z, DROP_R - 15);
+      const got = !here && share.net && b.id ? share.net.animal(b.id) : null;
+      b.remote = !here;
+      if (got) this.show(b, got);
+      else if (here || b.ownerId) {
+        // (a townsperson's dog not sent yet: at his heel as before)
+        if (b.owner) this.follow(b, dt, hidden);
+        else if (b.a.species === "dog") this.stray(b, dt, people);
+        else this.cat(b, dt, dogs, people);
+      }
+      if (here && share.on && b.id && share.net) {
+        const m = b.a.motion ?? "idle";
+        if (m !== "walk" && m !== "run" && !b.goal) {
+          // (standing: on the batch's own grid, 2 cm and 1/256 of a turn, so the others have it exactly here)
+          b.x = Math.round(b.x * 50) / 50;
+          b.z = Math.round(b.z * 50) / 50;
+          b.yaw = Math.round((((b.yaw % 6.283185307179586) + 6.283185307179586) % 6.283185307179586) * (256 / 6.283185307179586)) * (6.283185307179586 / 256);
+          b.yaw = Math.atan2(Math.sin(b.yaw), Math.cos(b.yaw));
+        }
+        share.net.putAnimal(b.id, { x: b.x, z: b.z, yaw: b.yaw, motion: m === "run" || m === "walk" ? (b.a.speed > 1.4 ? "run" : "walk") : m }, b.ownerId ?? undefined);
+      }
+      // (shown within the fog and in view: fewer skinned draws than before, when every one near was drawn)
+      const show = d < Math.min(fogFar + 5, 50) && (d < 4 || inView(b.x, b.z));
       b.a.group.visible = show;
       // placed first: the animal measures the ground it really covers and sets its legs by that
       // fixes 2026-09-25 (Steve: "dog walking in the air"): every animal stood at height 0, so on
@@ -522,7 +607,7 @@ export class Animals {
     }
   }
 
-  private stray(b: Beast, dt: number, player: { x: number; z: number }): void {
+  private stray(b: Beast, dt: number, people: Array<{ x: number; z: number }>): void {
     if (b.goal) {
       const r = this.go(b, b.speed, dt);
       if (r !== "going") {
@@ -534,7 +619,8 @@ export class Animals {
       return;
     }
     if ((b.timer -= dt) > 0) return;
-    // trot off somewhere it can get to, now and then over to Jef for a sniff
+    // trot off somewhere it can get to, now and then over to Jef (any player: M8f) for a sniff
+    const player = people.reduce((a, q) => (Math.hypot(q.x - b.x, q.z - b.z) < Math.hypot(a.x - b.x, a.z - b.z) ? q : a), people[0] ?? { x: 1e9, z: 1e9 });
     const toJef = Math.random() < 0.15 && Math.hypot(player.x - b.x, player.z - b.z) < 20;
     // fish scraps nearby: over there, nose down (the stop plays sniff)
     const scrap = !toJef && Math.random() < 0.5 ? this.scraps.find((q) => Math.hypot(q.x - b.x, q.z - b.z) < 30 && Math.hypot(q.x - b.x, q.z - b.z) > 1) : undefined;
@@ -560,7 +646,7 @@ export class Animals {
     return false;
   }
 
-  private cat(b: Beast, dt: number, dogs: Beast[], player: { x: number; z: number }): void {
+  private cat(b: Beast, dt: number, dogs: Beast[], people: Array<{ x: number; z: number }>): void {
     // what frightens a cat: a dog near, or Jef right on top of it
     let tx = 0;
     let tz = 0;
@@ -573,11 +659,13 @@ export class Animals {
         fear++;
       }
     }
-    const pd = Math.hypot(player.x - b.x, player.z - b.z);
-    if (pd < 1.6 && pd > 1e-3) {
-      tx += (b.x - player.x) / pd;
-      tz += (b.z - player.z) / pd;
-      fear++;
+    for (const player of people) {
+      const pd = Math.hypot(player.x - b.x, player.z - b.z);
+      if (pd < 1.6 && pd > 1e-3) {
+        tx += (b.x - player.x) / pd;
+        tz += (b.z - player.z) / pd;
+        fear++;
+      }
     }
     if (fear) {
       if (b.scared <= 0) {
@@ -629,44 +717,33 @@ export class Animals {
     }
   }
 
-  // ---- spawning
+  // ---- spawning (M8f sync pass 3: at the town's haunts, not round one player: see catSpots)
 
-  private free(x: number, z: number, r: number): boolean {
-    return this.ground.isFree(x, z, r) && !this.beasts.some((b) => Math.hypot(b.x - x, b.z - z) < 1.5);
+  private byId(id: string): Beast | undefined {
+    return this.beasts.find((b) => b.id === id);
   }
 
-  private spawnStray(player: { x: number; z: number }, hidden: (x: number, z: number) => boolean): void {
-    for (let i = 0; i < 12; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const d = rnd(18, 55);
-      const x = player.x + Math.cos(a) * d;
-      const z = player.z + Math.sin(a) * d;
-      // on the walk grid, so that it has somewhere to go from there
-      if (!hidden(x, z) || !this.free(x, z, 0.4) || (this.ground.canStand && !this.ground.canStand(x, z))) continue;
-      const an = makeAnimal(pick(DOGS));
-      if (!an) return;
-      this.scene.add(an.group);
-      this.beasts.push(beast(an, x, z, Math.random() * 6.28, { timer: rnd(0, 3) }));
-      return;
-    }
+  /** A stray or a cat of the roster, at its haunt (or where the PC that runs it has it: `remote`). */
+  private spawnHaunt(h: Haunt, x: number, z: number, yaw: number, remote: boolean): void {
+    const an = makeAnimal(h.kind);
+    if (!an) return;
+    this.scene.add(an.group);
+    if (an.species === "cat") {
+      an.play(h.pose, 0);
+      this.beasts.push(beast(an, x, z, yaw, { speed: 0, timer: 5 + dice("cattimer", x, z) * 15, id: h.id, remote }));
+    } else this.beasts.push(beast(an, x, z, yaw, { timer: dice("dogtimer", x, z) * 3, id: h.id, remote }));
   }
 
-  private spawnCat(player: { x: number; z: number }, hidden: (x: number, z: number) => boolean): void {
-    const near = this.catSpots.filter((s) => {
-      const d = Math.hypot(s.x - player.x, s.z - player.z);
-      return d > 10 && d < 55;
-    });
-    for (let i = 0; i < 10 && near.length; i++) {
-      const s = pick(near);
-      const x = s.x + rnd(-0.6, 0.6);
-      const z = s.z + rnd(-0.6, 0.6);
-      if (!hidden(x, z) || !this.free(x, z, 0.2)) continue;
-      const an = makeAnimal(pick(CATS));
-      if (!an) return;
-      this.scene.add(an.group);
-      an.play(pick(["sit", "lie", "sit"]), 0);
-      this.beasts.push(beast(an, x, z, Math.random() * 6.28, { speed: 0, timer: rnd(5, 20) }));
-      return;
-    }
+  /** One the PC that runs it has here now (about 200 ms behind): the legs follow the ground it covers. */
+  private show(b: Beast, s: SharedAnimal): void {
+    const jump = Math.hypot(s.x - b.x, s.z - b.z) > 3;
+    b.x = s.x;
+    b.z = s.z;
+    b.yaw = s.yaw;
+    if (jump) b.y = undefined;
+    b.goal = null;
+    b.route = [];
+    const m = s.motion === "peck" || s.motion === "graze" ? "idle" : s.motion;
+    b.a.play(m, 0.25);
   }
 }

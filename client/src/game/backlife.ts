@@ -466,8 +466,18 @@ export class BackLife {
     }
   }
 
-  /** Where a washing line can stand by a pump: 2.5-3.5 m off, room for its 2.4 m along. */
+  /**
+   * Where a washing line can stand by a pump: 2.5-3.5 m off, room for its 2.4 m along. M8f sync pass 3: once per
+   * pump, on the walk map (open ground, no walls) and the fixed things, not on the crowd's grid round one player: the
+   * same spot on every PC.
+   */
+  private lineSpots = new Map<string, { x: number; z: number; yaw: number } | null>();
   private lineSpot(x: number, z: number): { x: number; z: number; yaw: number } | null {
+    const key = `${x.toFixed(2)},${z.toFixed(2)}`;
+    if (!this.lineSpots.has(key)) this.lineSpots.set(key, this.findLineSpot(x, z));
+    return this.lineSpots.get(key)!;
+  }
+  private findLineSpot(x: number, z: number): { x: number; z: number; yaw: number } | null {
     for (let i = 0; i < 12; i++) {
       const a = (i / 12) * Math.PI * 2;
       for (const d of [3, 3.5, 2.6]) {
@@ -475,7 +485,7 @@ export class BackLife {
         const cz = z + Math.cos(a) * d;
         const ux = Math.cos(a);
         const uz = -Math.sin(a);
-        if ([-1.2, 0, 1.2].every((t) => this.world.isFree(cx + ux * t, cz + uz * t, 0.35) && this.crowd.canStand(cx + ux * t, cz + uz * t))) return { x: cx, z: cz, yaw: a + Math.PI / 2 };
+        if ([-1.2, 0, 1.2].every((t) => this.world.isFree(cx + ux * t, cz + uz * t, 0.35) && [-0.5, 0, 0.5].every((w) => this.world.city.flags(cx + ux * t - uz * w, cz + uz * t + ux * w) === 0))) return { x: cx, z: cz, yaw: a + Math.PI / 2 };
       }
     }
     return null;
@@ -483,6 +493,7 @@ export class BackLife {
 
   private tableAt(place: string): boolean {
     for (const k of this.kits.values()) if (k.place === place && k.props.some((o) => o.userData.table === place)) return true;
+    for (const k of this.remoteKits.values()) if (k.place === place && k.props.some((o) => o.userData.table === place)) return true;
     return false;
   }
 
@@ -939,7 +950,7 @@ export class BackLife {
         for (const [cx, w, h, mat] of cloths) {
           const c = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
           c.position.set(cx, 1.72 - h / 2, 0);
-          c.rotation.y = (Math.random() - 0.5) * 0.2;
+          c.rotation.y = (h01(`${table ?? ""}:${cx}`) - 0.5) * 0.2; // (M8f: the same on every PC)
           g.add(c);
         }
         g.userData.table = table;
@@ -1058,10 +1069,125 @@ export class BackLife {
 
   private static readonly TALK: Partial<Record<BackPlaceKind, TalkKind>> = { pump: "pump", corner: "corner", cards: "cards", gossip: "gossip", knot: "men", lovers: "lovers", park: "stroll", walk: "stroll" };
 
+  // ------------------------------------------------------------------ M8f sync pass 3: the props of people another PC walks
+
+  /**
+   * A townsperson another PC walks is drawn here from its states (net/mp/street.ts): his motions come, but the things
+   * this file sets about him did not (a washerwoman's tub and basket and the washing line by the pump, the card
+   * players' crates and their table, the old man's chair and pipe, the doctor's bag, the drunk's bottle). They are
+   * the result of where he is and what he does: set here the same way once his figure has settled at his place, from
+   * where it stands and the way it faces (what the PC that walks him had), and taken away when he leaves it.
+   */
+  private remoteKits = new Map<string, { place: string; kind: BackPlaceKind; x: number; z: number; yaw: number; px?: number; pz?: number; props: THREE.Object3D[]; hand: THREE.Object3D | null; wear: Wear | null; handName: string | null; p: Puppet; still: { x: number; z: number; yaw: number; t: number } }>();
+  private remoteProps(): void {
+    const now = performance.now();
+    const seen = new Set<string>();
+    for (const s of this.town.netSims()) {
+      const p = s.p;
+      if (!s.remote || !p) continue;
+      const id = s.r.id;
+      let rk = this.remoteKits.get(id);
+      if (rk && rk.p !== p) {
+        this.dropRemoteKit(id);
+        rk = undefined;
+      }
+      const place = s.goal.place ?? "";
+      const kind = backKind(place);
+      // the things he carries wherever he is
+      const hand = s.r.trade === "doctor" ? "bag" : null;
+      const drunk = s.r.trade === "drunkard";
+      const motion = p.human.motion ?? "idle";
+      if (!rk && kind) {
+        rk = { place: "", kind, x: p.x, z: p.z, yaw: p.yaw, props: [], hand: null, wear: null, handName: null, p, still: { x: p.x, z: p.z, yaw: p.yaw, t: now } };
+        this.remoteKits.set(id, rk);
+      }
+      if (!rk && (hand || drunk)) {
+        rk = { place: "", kind: "walk", x: p.x, z: p.z, yaw: p.yaw, props: [], hand: null, wear: null, handName: null, p, still: { x: p.x, z: p.z, yaw: p.yaw, t: now } };
+        this.remoteKits.set(id, rk);
+      }
+      if (!rk) continue;
+      seen.add(id);
+      // (where he stands still: the props go where his PC put them, from the place and the way he faces there once
+      // his figure has stood still a moment)
+      const st = rk.still;
+      if (dist(p.x, p.z, st.x, st.z) > 0.01 || Math.abs(Math.atan2(Math.sin(p.yaw - st.yaw), Math.cos(p.yaw - st.yaw))) > 0.01) rk.still = { x: p.x, z: p.z, yaw: p.yaw, t: now };
+      const settled = !!kind && dist(p.x, p.z, s.goal.x, s.goal.z) < 1.2 && motion !== "walk" && motion !== "pull" && now - rk.still.t > 600;
+      if (rk.place && (rk.place !== place || dist(p.x, p.z, rk.x, rk.z) > 4 || (settled && (dist(p.x, p.z, rk.px ?? rk.x, rk.pz ?? rk.z) > 0.05 || Math.abs(Math.atan2(Math.sin(p.yaw - rk.yaw), Math.cos(p.yaw - rk.yaw))) > 0.05)))) {
+        for (const o of rk.props) o.removeFromParent();
+        rk.props = [];
+        rk.place = "";
+      }
+      if (settled && rk.place !== place && kind) {
+        rk.place = place;
+        rk.kind = kind;
+        // (where his PC stood him: its goal's spot; the drawn figure may have been nudged a little by the crowd)
+        const atGoal = dist(p.x, p.z, s.goal.x, s.goal.z) < 0.3;
+        rk.x = atGoal ? s.goal.x : p.x;
+        rk.px = p.x;
+        rk.pz = p.z;
+        rk.z = atGoal ? s.goal.z : p.z;
+        // (the way his PC faced him: its goal's; the drawn figure is eased to it and may lack a hair)
+        const gy = s.goal.yaw;
+        rk.yaw = gy !== undefined && gy !== null && Math.abs(Math.atan2(Math.sin(p.yaw - gy), Math.cos(p.yaw - gy))) < 0.05 ? gy : p.yaw;
+        const yaw = rk.yaw;
+        const pl = this.placeOf(place);
+        if (kind === "pump") {
+          rk.props.push(this.prop("tub", rk.x + Math.sin(yaw) * 0.45, rk.z + Math.cos(yaw) * 0.45, yaw));
+          const bx = rk.x + Math.sin(yaw + Math.PI / 2) * 0.6 - Math.sin(yaw) * 0.05;
+          const bz = rk.z + Math.cos(yaw + Math.PI / 2) * 0.6 - Math.cos(yaw) * 0.05;
+          if (this.world.isFree(bx, bz, 0.2)) rk.props.push(this.prop("basket", bx, bz, yaw));
+          if (pl && !this.tableAt(place)) {
+            const line = this.lineSpot(pl.x, pl.z);
+            if (line) rk.props.push(this.prop("line", line.x, line.z, line.yaw, place));
+          }
+        } else if (kind === "cards" && motion === "sit") {
+          rk.props.push(this.prop("stool", rk.x - Math.sin(yaw) * 0.1, rk.z - Math.cos(yaw) * 0.1, yaw));
+          if (pl && !this.tableAt(place)) rk.props.push(this.prop("table", pl.x, pl.z, h01(place) * 6.28, place));
+        } else if (kind === "step" && motion === "sit") {
+          rk.props.push(this.prop("chair", rk.x - Math.sin(yaw) * 0.08, rk.z - Math.cos(yaw) * 0.08, yaw));
+        }
+      }
+      // a pipe on the old man's step and for the lad who smokes at the corner, the doctor's bag
+      const want = hand ?? ((rk.place && rk.kind === "step" && motion === "sit") || motion === "smoke" ? "pipe" : null);
+      if (want !== rk.handName) {
+        rk.hand?.removeFromParent();
+        rk.hand = null;
+        rk.handName = want;
+        const bone = want ? p.human.root.getObjectByName(want === "bag" ? "handL" : "handR") : null;
+        if (want && bone) {
+          const o = this.handProp(want as "pipe" | "bag");
+          o.userData.name = want;
+          p.group.updateMatrixWorld(true);
+          const ws = new THREE.Vector3();
+          bone.getWorldScale(ws);
+          o.scale.setScalar(1 / (ws.x || 1));
+          bone.add(o);
+          rk.hand = o;
+        }
+      }
+      if (drunk && !rk.wear) {
+        rk.wear = makeWear("drunkard", p.human.scale);
+        p.group.add(rk.wear.root);
+        holdInHands(rk.wear, p.human.root);
+      }
+    }
+    for (const id of [...this.remoteKits.keys()]) if (!seen.has(id)) this.dropRemoteKit(id);
+  }
+
+  private dropRemoteKit(id: string): void {
+    const rk = this.remoteKits.get(id);
+    if (!rk) return;
+    for (const o of rk.props) o.removeFromParent();
+    rk.hand?.removeFromParent();
+    if (rk.wear) dropWear(rk.wear);
+    this.remoteKits.delete(id);
+  }
+
   // ------------------------------------------------------------------ per frame
 
   update(dt: number, player: { x: number; z: number }): void {
     this.player = { x: player.x, z: player.z };
+    this.remoteProps();
     for (const g of this.groups.values()) g.menaceT -= dt;
     // the groups near Jef: talk now and then (one line at a time, the speaker's arms moving)
     const places = new Set<string>();
