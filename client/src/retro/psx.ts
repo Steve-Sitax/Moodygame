@@ -1600,6 +1600,16 @@ function heightFromColour(map: THREE.Texture, sharp = false): THREE.Texture {
       make(g.getImageData(0, 0, w, h));
     }
   };
+  /** The atlas cells kept level (lettering: world/bumps.ts flatLettering), as fractions of the picture from its top left. */
+  const level = (d: ImageData) => {
+    const cells = map.userData.flatCells as Array<[number, number, number, number]> | undefined;
+    if (!cells) return;
+    for (const [fx, fy, fw, fh] of cells) {
+      const x0 = Math.floor(fx * d.width), x1 = Math.min(d.width, Math.ceil((fx + fw) * d.width));
+      const y0 = Math.floor(fy * d.height), y1 = Math.min(d.height, Math.ceil((fy + fh) * d.height));
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) d.data.fill(128, (y * d.width + x) * 4, (y * d.width + x) * 4 + 3);
+    }
+  };
   const make = (px: ImageData) => {
     const w = px.width;
     const h = px.height;
@@ -1672,6 +1682,7 @@ function heightFromColour(map: THREE.Texture, sharp = false): THREE.Texture {
         pb.data[i * 4] = pb.data[i * 4 + 1] = pb.data[i * 4 + 2] = v;
         pb.data[i * 4 + 3] = 255;
       }
+      level(pb);
       g.putImageData(pb, 0, 0);
     } else {
       const fine = blur(hp, 1);
@@ -1680,6 +1691,7 @@ function heightFromColour(map: THREE.Texture, sharp = false): THREE.Texture {
         px.data[i * 4] = px.data[i * 4 + 1] = px.data[i * 4 + 2] = v;
         px.data[i * 4 + 3] = 255;
       }
+      level(px);
       g.putImageData(px, 0, 0);
     }
     t.flipY = map.flipY;

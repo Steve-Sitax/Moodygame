@@ -6,6 +6,7 @@ import { psx, psxUniforms } from "../retro/psx";
 import type { Rect } from "./geom";
 import { bedAt, draftOf, levelAt, levelOf, regionAt } from "./tide";
 import { addLantern, type LanternSource } from "./lanternLights";
+import { flatLettering } from "./bumps";
 
 // Boats, ships and quay cranes from Blender (tools/blender/build_boats.py ->
 // /models/boats.glb). Our own models, made by script. A vessel's origin is the
@@ -511,6 +512,8 @@ export async function loadModelSet(url: string): Promise<ModelSet> {
   atlas.minFilter = THREE.NearestFilter;
   atlas.generateMipmaps = false;
   atlas.colorSpace = THREE.SRGBColorSpace;
+  // (the ships' names, the ferry stage's notice boards: flat in the atlas's bump, world/bumps.ts)
+  flatLettering(atlas, [...cellOf].map(([name, [c, r]]) => [name, [c * CELL, r * CELL, CELL, CELL]] as [string, number[]]), N * CELL, N * CELL);
   for (const m of srcMats.values()) {
     m.map?.dispose();
     m.dispose();
