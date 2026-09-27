@@ -35,7 +35,7 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 
 | Work | Scope and files | Started |
 |---|---|---|
-| Relief that lights, on every texture | first try gave no measurable gain (checked at full resolution): redo the ground, then every textured surface: relief always changes the lighting normal for all lights; measured per surface | 2026-09-27 |
+| Relief that lights, on every other texture | ground done (d38dcd1); now walls, landmark shells, props, rooms: relief always lights the normal; measured per surface | 2026-09-27 |
 | Multiplayer M8b: one street for all | the same townspeople (owner per 64 m cell, remote puppets, handover), omnibus, river traffic, bridges, lock, cranes and drays (the world PC), platforms in their frame, shared doors; branch `m8b` in the worktree `D:\Code\MoodyGame-m8b`, merged when done | 2026-09-27 |
 | Codex: low-poly props and tight collisions | SAFE BATCH MERGED + PUSHED `abb6a21` (already live through `9aa9cd4`; reconciled main `98bdebe`): collision core, tree trunks and static stop benches; tree/vegetation design, matching bark bump/wet map. Seven collision tests, clean build, Chrome contact + dry/rain, paths/shaders empty. Test Chrome and isolated 5469/9069 stack cleaned up. HOLD barrels/crates/sacks and other prepared prop-loader changes until Props in walls/Picture round finishes; defer other active assets per Steve. Queue/scope and validation: `docs/milestones/M7-small-assets.md`; original cargo evidence `M7-tight-props.md`. Extra router check: 19 passed, two timeouts (first Codex stub and process-kill test); report to Flaky talk-down/AI owner, no edits to their files. | 2026-09-26 |
 
@@ -43,6 +43,7 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 
 | Commit | What |
 |---|---|
+| d38dcd1 | Cobbles read as stones: relief lights the ground in every light; puddle splash matches the drawn puddle |
 | 49ba07b | Window light in puddles: a soft band, not bright blocks; softer window bars |
 | d2c763c | Townspeople no longer walk in place against walls; `stuck()` check |
 | 1589435 | Puddles back as they were (stones poke out of the water) |
