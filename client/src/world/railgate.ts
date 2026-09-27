@@ -3,6 +3,7 @@ import { psx } from "../retro/psx";
 import { makeHuman, type Human } from "../game/humans";
 import type { Rect } from "./geom";
 import { Kit, type RGB } from "./kit";
+import type { NetMover } from "../net/mp/world";
 
 // The railway gate of the Werf store (M3g; Steve: "the goods train clips out of a building;
 // make nice opening gates where it enters and leaves the city; the player must not get
@@ -19,7 +20,12 @@ import { Kit, type RGB } from "./kit";
 // The gatehouse is one solid collider, opening and all: nobody walks in, open or shut.
 // The leaves do not move while the player stands in their sweep; open, they are solid too.
 
-export interface RailGate {
+/** M8b: the gate as the world PC sends it (net/mp/world.ts): how far the leaves stand open. */
+export interface RailGateNet {
+  amount: number;
+}
+
+export interface RailGate extends NetMover<RailGateNet> {
   /** x of the facade (the leaves hang there), and the track's z. */
   readonly x: number;
   readonly z: number;
@@ -30,6 +36,8 @@ export interface RailGate {
   /** The train asks for the gate (true) or is through (false). */
   want(open: boolean): void;
   update(dt: number, player: { x: number; z: number } | null, camera?: THREE.Camera): void;
+  /** M8b multiplayer: where the other players are (set by main): in the sweep, they hold the leaves too. */
+  others: () => Array<{ x: number; z: number }>;
   /** Static colliders: the gatehouse. Add them once. */
   colliders: Rect[];
   /** The keeper rings as the leaves start to open (soundscape.gateBell). */
@@ -214,18 +222,24 @@ export function createRailGate(scene: THREE.Scene, opts: RailGateOptions): RailG
 
   let amount = 0;
   let wantOpen = false;
+  // M8b: run by another PC, the leaves go as its state says (net/mp/world.ts); the first state rings no bell
+  let netRemote = false;
+  let netFresh = false;
   const api: RailGate = {
     x: FACE,
     z: 4,
     reach,
     amount: () => amount,
+    others: () => [],
     want(open) {
       wantOpen = open;
     },
     update(dt, player, camera) {
       const target = wantOpen ? 1 : 0;
-      const inSweep = !!player && player.x > sweep.minX - 0.3 && player.x < sweep.maxX && player.z > sweep.minZ && player.z < sweep.maxZ;
-      if (target !== amount && !inSweep) {
+      const at = (p: { x: number; z: number }) => p.x > sweep.minX - 0.3 && p.x < sweep.maxX && p.z > sweep.minZ && p.z < sweep.maxZ;
+      // (M8b: the other players in the sweep hold the leaves too)
+      const inSweep = (!!player && at(player)) || api.others().some(at);
+      if (!netRemote && target !== amount && !inSweep) {
         if (amount === 0 && target === 1) api.onBell?.(FACE + 0.35, OPEN_N + 0.95);
         // heavy leaves: slow at both ends, as when a man walks them round
         const ease = 0.3 + 0.7 * Math.sin(Math.PI * THREE.MathUtils.clamp(amount, 0.05, 0.95));
@@ -252,6 +266,24 @@ export function createRailGate(scene: THREE.Scene, opts: RailGateOptions): RailG
     },
     colliders: [house],
     group,
+    get netRemote() {
+      return netRemote;
+    },
+    set netRemote(on: boolean) {
+      if (on === netRemote) return;
+      netRemote = on;
+      netFresh = on;
+      // taking over: shut unless the train asks for it again (it does every frame while it comes)
+      if (!on) wantOpen = false;
+    },
+    netState: () => ({ amount: Math.round(amount * 1000) / 1000 }),
+    netApply(s) {
+      if (!netFresh && amount === 0 && s.amount > 0) api.onBell?.(FACE + 0.35, OPEN_N + 0.95);
+      netFresh = false;
+      if (s.amount === amount) return;
+      amount = s.amount;
+      place(amount);
+    },
   };
   return api;
 }

@@ -98,6 +98,10 @@ import { Mills } from "./game/mills";
 import { setAliveViewHeight } from "./world/alive/common";
 import { bootRestore, type ClientState } from "./game/restoreData";
 import { Together } from "./net/mp/together"; // M8a multiplayer: the others in the town, no pause together
+import { gearModel } from "./net/mp/gear"; // M8b: the others' boats, velocipedes and handcarts
+import { isGuest } from "./net/mp/identity";
+import { GEAR } from "../../shared/mpProtocol";
+import { SMALL_KINDS } from "../../shared/smallBoats";
 import type { JobSnap } from "./game/jobs";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
@@ -975,6 +979,7 @@ function frame(): void {
   pausedDraw = 0;
   elapsed += dt;
   safe("refreshFolk", refreshFolk);
+  safe("together.worldFrame", () => together.worldFrame(dt)); // M8b: the moving world run here or shown from the world PC
   safe("world.update", () => world.update(elapsed, dt, player.camera));
   safe("ferry.update", () => ferry.update(dt));
   safe("player.update", () => player.update(dt));
@@ -1241,8 +1246,32 @@ const together = new Together({
   cityReady: world.city.ready,
   town,
   crowd,
+  // M8b: the boat he rows, the velocipede he rides, the handcart he pushes go with him on the others' screens
+  gear: () => {
+    const boat = rowing.rowedKind;
+    if (player.rowing && boat) return { kind: GEAR.rowboat, sub: Math.max(0, SMALL_KINDS.indexOf(boat)), heading: player.rowHeading };
+    if (player.bikeRiding) return { kind: GEAR.velo, sub: 0, heading: player.bikeHeading };
+    const cart = handcarts.heldYaw();
+    return cart !== null ? { kind: GEAR.handcart, sub: 0, heading: cart } : null;
+  },
+  gearModel: (kind, sub) => gearModel(world, kind, sub),
+  // M8b: the moving world, run by one PC for all (net/mp/world.ts)
+  movers: () => ({
+    omnibus: world.omnibus(),
+    traffic: world.traffic(),
+    railway: world.railway(),
+    railGate: world.railGate(),
+    bridges: world.bridges(),
+    lock: world.lock(),
+    river: world.river(),
+  }),
 });
 together.start();
+// M8b: the rented home's door opens for its key holder on every screen (until M8c only the host rents)
+homes.ownKey = !isGuest();
+homes.keyNear = () => together.hostAt();
+world.railGate().others = () => together.positions(); // M8b: the gate's leaves wait for every player in their sweep
+world.setPlayers(() => together.positions()); // M8b: the lock's beams too
 
 // Dev hook for automated checks: teleport, hold keys, read state.
 if (import.meta.env.DEV) {
@@ -1569,6 +1598,7 @@ if (import.meta.env.DEV) {
       if (bus && !bus.eye) bus.eye = () => player.camera.position;
       for (let t = 0; t < seconds; t += dt) {
         elapsed += dt;
+        safe("step: together.worldFrame", () => together.worldFrame(dt)); // M8b
         safe("step: world.update", () => world.update(elapsed, dt));
         safe("step: ferry.update", () => ferry.update(dt));
         safe("step: player.update", () => player.update(dt));

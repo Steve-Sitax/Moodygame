@@ -20,6 +20,7 @@ import { RemoteTrack, type Pose } from "./remotes";
 import { figureKit, RemoteFigure } from "./figures";
 import { Session } from "./session";
 import { Street } from "./street";
+import { WorldNet, type NetMover } from "./world";
 import type { Town } from "../../game/town";
 import type { Crowd } from "../../game/crowd";
 
@@ -51,6 +52,22 @@ export interface TogetherDeps {
   /** M8b: the town and its crowd (the townspeople walked by one PC for all: street.ts). */
   town?: Town;
   crowd?: Crowd;
+  /**
+   * M8b: what this player rows, rides or pushes now (GEAR kind, `sub`: which boat of shared/smallBoats.ts
+   * SMALL_KINDS; `heading`: where it points), or null.
+   */
+  gear?(): { kind: number; sub: number; heading: number } | null;
+  /** M8b: a model of another player's gear (a boat of that kind, a velocipede, a handcart), and where to put it away. */
+  gearModel?(kind: number, sub: number): Promise<GearModel | null>;
+  /** M8b: the moving world's parts by key (net/mp/world.ts); null for one not loaded yet. */
+  movers?(): Record<string, NetMover | null>;
+}
+
+/** M8b: another player's boat, velocipede or handcart, drawn with him (figures.ts). */
+export interface GearModel {
+  /** Put it where he is: (x, y, z) his place, heading where it points, dt for the wheels. */
+  place(x: number, y: number, z: number, heading: number, dt: number, shown: boolean): void;
+  dispose(): void;
 }
 
 const RADIUS = 0.32;
@@ -62,9 +79,8 @@ export class Together {
   street: Street | null = null;
   /** M8b: who runs the moving world now (0: nobody yet). */
   worldPc = 0;
-  /** M8b: the moving world's state as the world PC last sent it (net/mp/world.ts reads it). */
-  onWorld: ((m: Extract<MpText, { type: "world" }>) => void) | null = null;
-  onWorldPc: ((id: number) => void) | null = null;
+  /** M8b: the moving world, run by one PC for all (null alone). */
+  world: WorldNet | null = null;
   private readonly tracks = new Map<number, RemoteTrack>();
   private readonly figs = new Map<number, RemoteFigure>();
   private roster: RosterEntry[] = [];
@@ -145,8 +161,17 @@ export class Together {
       });
       town.net = this.street;
     }
+    if (this.d.movers) {
+      const movers = this.d.movers;
+      this.world = new WorldNet({ me: () => sess.id, serverNow: () => sess.serverNow(), sendText: (m) => sess.sendText(m), movers });
+    }
     this.session.open();
     this.drawCorner();
+  }
+
+  /** M8b: before the world moves: its movers run here (the world PC) or shown from the world PC's state. */
+  worldFrame(dt: number): void {
+    this.world?.frame(dt);
   }
 
   /** M8b: before the crowd moves and draws: the townspeople other PCs walk, where they had them. */
@@ -188,10 +213,10 @@ export class Together {
 
   private text(m: MpText): void {
     if (m.type === "owners") this.street?.onOwners(m);
-    else if (m.type === "world") this.onWorld?.(m);
+    else if (m.type === "world") this.world?.onWorld(m, this.session?.serverNow() ?? 0);
     else if (m.type === "worldpc") {
       this.worldPc = m.id;
-      this.onWorldPc?.(m.id);
+      this.world?.setPc(m.id);
     } else if (m.type === "went") {
       this.drop(m.id);
       this.d.say(`${m.name} went home.`);
@@ -205,6 +230,7 @@ export class Together {
   }
 
   private drop(id: number): void {
+    this.dropGear(id);
     this.shown.delete(id);
     this.figs.get(id)?.dispose();
     this.figs.delete(id);
@@ -312,6 +338,12 @@ export class Together {
       s.ly = s.y - a.y;
       s.lyaw = s.yaw - a.yaw;
     }
+    // M8b: what he rows, rides or pushes: the others draw it with him; its heading goes in lyaw (no platform then)
+    const g = bus ? null : (this.d.gear?.() ?? null);
+    if (g) {
+      s.gear = (g.kind & 3) | ((g.sub & 63) << 2);
+      s.lyaw = g.heading;
+    }
     return s;
   }
 
@@ -321,7 +353,10 @@ export class Together {
   frame(dt: number): void {
     this.ownFrame(dt);
     this.meterCamera();
-    if (!this.session) return;
+    if (!this.session) {
+      this.soloMap(dt);
+      return;
+    }
     // the others are drawn on the same frame clock (frame by frame as the frames' dt says: no bunching)
     const sn = this.now.t;
     const p = this.d.player;
@@ -332,11 +367,13 @@ export class Together {
       const pose = tr.sample(sn);
       if (!f || !pose) {
         f?.hide();
+        this.gears.get(id)?.model?.place(0, 0, 0, 0, dt, false);
         continue;
       }
       this.onPlatform(pose);
       this.hideCorrection(id, pose, dt);
       f.place(pose, dt);
+      this.placeGear(id, pose, dt, f.shown);
       this.meterRemote(id, f, dt);
       if (f.stepped && snd) {
         const d = Math.hypot(f.at.x - p.x, f.at.z - p.z);
@@ -405,6 +442,33 @@ export class Together {
     p.z = out.z;
   }
 
+  /** M8b: each other player's boat, velocipede or handcart (made when he takes it, gone when he lets go). */
+  private readonly gears = new Map<number, { code: number; model: GearModel | null; asking: boolean }>();
+
+  private placeGear(id: number, p: Pose, dt: number, shown: boolean): void {
+    let g = this.gears.get(id);
+    if (!g || g.code !== p.gear) {
+      g?.model?.dispose();
+      g = { code: p.gear, model: null, asking: false };
+      this.gears.set(id, g);
+      if (p.gear && this.d.gearModel) {
+        const want = g;
+        want.asking = true;
+        void this.d.gearModel(p.gear & 3, p.gear >> 2).then((m) => {
+          want.asking = false;
+          if (this.gears.get(id) === want) want.model = m;
+          else m?.dispose();
+        });
+      }
+    }
+    g.model?.place(p.x, p.y, p.z, p.lyaw, dt, shown);
+  }
+
+  private dropGear(id: number): void {
+    this.gears.get(id)?.model?.dispose();
+    this.gears.delete(id);
+  }
+
   /** On a platform: put him on this PC's own copy of it. */
   private onPlatform(p: Pose): void {
     if (!p.base || baseKind(p.base) !== BASE.omnibus) return;
@@ -420,6 +484,13 @@ export class Together {
   }
 
   /** The others where they stand (the bridges do not open under them; the carts wait for them). */
+  /** M8b: where the host is drawn on a guest's screen ([] on the host's own, or when he is not in view). */
+  hostAt(): Array<{ x: number; z: number }> {
+    if (!isGuest()) return [];
+    const f = this.figs.get(1);
+    return f?.shown ? [{ x: f.at.x, z: f.at.z }] : [];
+  }
+
   positions(): Array<{ x: number; z: number }> {
     const out: Array<{ x: number; z: number }> = [];
     for (const f of this.figs.values()) if (f.shown) out.push({ x: f.at.x, z: f.at.z });
@@ -472,7 +543,7 @@ export class Together {
       const tr = this.tracks.get(id);
       return { id, frames: m.frames, pace: +med.toFixed(3), maxStep: +m.maxStep.toFixed(3), speedDevP95: +(d[Math.floor(d.length * 0.95)] ?? 0).toFixed(3), speedDevMax: +(d[d.length - 1] ?? 0).toFixed(3), jitterP95m: +((d[Math.floor(d.length * 0.95)] ?? 0) / 60).toFixed(4), delay: tr ? Math.round(tr.delay) : null, buffer: tr?.stats ?? null };
     });
-    return { frames: this.meter.frames, camSnaps: this.meter.camSnaps, maxCamStep: +this.meter.maxCamStep.toFixed(3), rtt: this.session?.rtt ?? null, offset: this.session ? Math.round(this.session.offset) : null, session: this.session?.stats ?? null, remotes, street: this.street?.report() ?? null, worldPc: this.worldPc };
+    return { frames: this.meter.frames, camSnaps: this.meter.camSnaps, maxCamStep: +this.meter.maxCamStep.toFixed(3), rtt: this.session?.rtt ?? null, offset: this.session ? Math.round(this.session.offset) : null, session: this.session?.stats ?? null, remotes, street: this.street?.report() ?? null, worldPc: this.worldPc, world: this.world?.report() ?? null };
   }
 
   resetMeter(): void {
@@ -535,6 +606,20 @@ export class Together {
    * The town map (docs/mapview.md): a button on the host's own PC (the page came from localhost) that opens the
    * map in a new tab. The map listens on this PC only, so a guest never gets the button.
    */
+  /** The town map is on (its button shown): played alone, Jef's place goes to it once a second. */
+  private mapOn = false;
+  private mapAcc = 0;
+  private soloMap(dt: number): void {
+    if (!this.mapOn || !this.d.entered()) return;
+    this.mapAcc += dt;
+    if (this.mapAcc < 1) return;
+    this.mapAcc = 0;
+    const p = this.d.player;
+    void real
+      .fetch("/api/map/me", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, mode: this.mode(), away: this.d.away() }) })
+      .catch(() => {});
+  }
+
   private mountMapButton(paper: HTMLElement): void {
     if (!identity.local || isGuest()) return;
     void real
@@ -543,6 +628,7 @@ export class Together {
         if (!r.ok) return;
         const { url } = (await r.json()) as { url?: string };
         if (!url || !/^http:\/\/(127\.0\.0\.1|localhost):\d+\/?$/.test(url)) return;
+        this.mapOn = true;
         const btn = document.createElement("button");
         btn.className = "settings-btn";
         btn.textContent = "Town map";

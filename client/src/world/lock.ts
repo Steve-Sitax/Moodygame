@@ -7,6 +7,7 @@ import { addMovingSource, isSteam, loadBoats, loadModelSet, newShipId, ropeMater
 import { createDrawBridge, type DrawBridge } from "./bridges";
 import type { Rect } from "./geom";
 import { chamberSpan, lockFit, trainOffsets, TOW_LINE, type LockFit } from "../../../shared/lockfit";
+import type { NetMover } from "../net/mp/world";
 
 // The lock of the Petit Bassin (Bonapartedok), as in 1873: a lifting bridge over the lock
 // (it was a swing bridge; a lifting bridge clears the quays and carries the railway), and two pairs of wooden mitre gates ("puntdeuren") that
@@ -29,6 +30,9 @@ import { chamberSpan, lockFit, trainOffsets, TOW_LINE, type LockFit } from "../.
 // a lighter or a Rhine barge on its line, 45 m and more) never fit the 35 m chamber and waited off the
 // gates for high water; they no longer come. A boat asks for the lock early enough that the gates
 // stand open when it gets there, and one that no longer qualifies (too big, or kept waiting) turns away.
+//
+// M8b: played together, the world PC runs the keeper and the traffic; the others take its state
+// (netApply: the bridge, the gates and their beams, the chamber's water, the boat, and its signal).
 
 export interface LockRect {
   minX: number;
@@ -106,7 +110,34 @@ export const LOCK_CANDIDATES: BoatName[][] = [
   ["schooner"],
 ];
 
-export interface Lock {
+/**
+ * M8b: the lock as the world PC sends it: the bridge's angle, each pair's opening, the chamber's
+ * level with both pairs shut; the boat (its names joined by "+", where along the route, its speed,
+ * its way, the way its hulls face going back, seconds into turning round); and (not eased) the
+ * traffic's state (index in LOCK_STATES), its wish for the lock, the mode (0 none, 1 locked,
+ * 2 level), whether it lies in the chamber, and the waits.
+ */
+export interface LockNet {
+  br: number;
+  g: [number, number];
+  fl: number;
+  _n: string;
+  s: number;
+  v: number;
+  tt: number;
+  _d: number;
+  _bf: number;
+  _st: number;
+  _wt: 0 | 1;
+  _md: 0 | 1 | 2;
+  _in: 0 | 1;
+  hd: number;
+  w: number;
+}
+const LOCK_STATES = ["river", "in", "dock", "out", "turn", "back"] as const;
+const q3 = (x: number) => Math.round(x * 1000) / 1000;
+
+export interface Lock extends NetMover<LockNet> {
   /** Every frame. With the camera, the tug turns round in the dock only when nobody is near to see it. */
   update(t: number, dt: number, camera?: THREE.Camera): void;
   /** True when the bridge lies across the lock and can be walked on. */
@@ -391,6 +422,8 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
   /** Kept waiting off the gates this long (s), a boat turns away and tries again later. */
   const HOLD_MAX = 45;
   const SPEED = 1.6;
+  /** Seconds a lone boat takes to turn round when it turns away. */
+  const TURN_S = 14;
 
   interface Train {
     names: BoatName[];
@@ -562,8 +595,74 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
     turnT = 0;
   }
 
+  /**
+   * The chamber's water (tide.ts levelAt reads its two ends: each end follows its open pair), and the
+   * bridge and the gates drawn as they stand, the balance beams' colliders with them.
+   */
+  function showLock(dt: number): void {
+    const ends: [number, number] = [gateOpen[0] > 0.02 ? water.river : flat, gateOpen[1] > 0.02 ? water.dock : flat];
+    const k = Math.min(1, dt * 2);
+    water.chamberA += (ends[0] - water.chamberA) * k;
+    water.chamberB += (ends[1] - water.chamberB) * k;
+    water.chamber = (water.chamberA + water.chamberB) / 2;
+    bridge?.set(smooth(bridgeAngle / OPEN_BRIDGE));
+    for (const gt of gates) {
+      gt.obj.rotation.y = gt.closed + gt.dir * GATE_OPEN * smooth(gateOpen[gt.pair]);
+      setBeam(gt);
+    }
+  }
+
+  /** The boat where the traffic's state puts it (as update() does). */
+  function showBoat(): void {
+    if (!cur) return;
+    if (state === "river") place(tailOff(), 1);
+    else if (state === "dock") place(LEN, 1);
+    else if (state === "turn") place(s, backFace, Math.PI * smooth(turnT / TURN_S));
+    else if (state === "back") place(s, backFace);
+    else place(s, dir);
+  }
+
+  let remote = false;
+  /** M8b: the first state after the world went to another PC sounds nothing (no edges to go by yet). */
+  let fresh = true;
+  function netApply(st: LockNet, dt: number): void {
+    bridgeAngle = THREE.MathUtils.clamp(st.br, OPEN_BRIDGE, 0);
+    gateOpen[0] = THREE.MathUtils.clamp(st.g[0], 0, 1);
+    gateOpen[1] = THREE.MathUtils.clamp(st.g[1], 0, 1);
+    flat = st.fl;
+    showLock(dt);
+    // the boat: another vessel or tow sets off
+    if (st._n && (!cur || cur.names.join("+") !== st._n)) {
+      const t = trainFor(st._n.split("+") as BoatName[]);
+      if (t) {
+        cur = t;
+        show(cur);
+      }
+    }
+    const was = state;
+    const wanted = want;
+    state = LOCK_STATES[st._st] ?? "river";
+    if ((state === "in" || state === "out") && (was === "river" || was === "dock")) ship.id = newShipId();
+    s = st.s;
+    lastV = st.v;
+    turnT = st.tt;
+    dir = st._d < 0 ? -1 : 1;
+    backFace = st._bf < 0 ? -1 : 1;
+    want = st._wt === 1;
+    mode = st._md === 1 ? "locked" : st._md === 2 ? "level" : null;
+    inside = st._in === 1;
+    held = st.hd;
+    wait = st.w;
+    // it asks for the lock: its whistle or a hail
+    if (want && !wanted && !fresh) signal(ship, "lock");
+    fresh = false;
+    showBoat();
+  }
+
   const berth = new THREE.Vector3(route[route.length - 1][0], 0, route[route.length - 1][1]);
   function update(_t: number, dt: number, camera?: THREE.Camera): void {
+    // M8b: run by another PC: netApply moves the bridge, the gates, the water and the boat
+    if (remote) return;
     clock += dt;
     // --- bridge and gates follow the wish, one after the other: open = bridge first, then gates
     const occupied = opts.occupied?.() ?? false;
@@ -618,17 +717,8 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
       const to = sideLevel(target ?? 0);
       flat += THREE.MathUtils.clamp(to - flat, -SLUICE * dt, SLUICE * dt);
     }
-    // the ends of the chamber (tide.ts levelAt reads them): each end follows its open pair
-    const ends: [number, number] = [gateOpen[0] > 0.02 ? water.river : flat, gateOpen[1] > 0.02 ? water.dock : flat];
-    const k = Math.min(1, dt * 2);
-    water.chamberA += (ends[0] - water.chamberA) * k;
-    water.chamberB += (ends[1] - water.chamberB) * k;
-    water.chamber = (water.chamberA + water.chamberB) / 2;
-    bridge?.set(smooth(bridgeAngle / OPEN_BRIDGE));
-    for (const gt of gates) {
-      gt.obj.rotation.y = gt.closed + gt.dir * GATE_OPEN * smooth(gateOpen[gt.pair]);
-      setBeam(gt);
-    }
+    // the ends of the chamber, the bridge and the gates
+    showLock(dt);
 
     // --- traffic
     if (!cur) return;
@@ -646,7 +736,6 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
     // turning away: a lone boat turns round on the spot, then goes back
     if (state === "turn") {
       turnT += dt;
-      const TURN_S = 14;
       place(s, backFace, Math.PI * smooth(turnT / TURN_S));
       lastV = 0.3;
       if (turnT >= TURN_S) {
@@ -756,6 +845,32 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
 
   return {
     update,
+    get netRemote() {
+      return remote;
+    },
+    set netRemote(on: boolean) {
+      if (on === remote) return;
+      remote = on;
+      fresh = true;
+    },
+    netState: () => ({
+      br: q3(bridgeAngle),
+      g: [q3(gateOpen[0]), q3(gateOpen[1])],
+      fl: q3(flat),
+      _n: cur ? cur.names.join("+") : "",
+      s: q3(s),
+      v: q3(lastV),
+      tt: q3(turnT),
+      _d: dir,
+      _bf: backFace,
+      _st: LOCK_STATES.indexOf(state),
+      _wt: want ? 1 : 0,
+      _md: mode === "locked" ? 1 : mode === "level" ? 2 : 0,
+      _in: inside ? 1 : 0,
+      hd: q3(held),
+      w: q3(wait),
+    }),
+    netApply,
     bridgeClosed: () => bridgeAngle >= -0.001,
     bridgeRect,
     gatesOpen: () => smooth(Math.min(gateOpen[0], gateOpen[1])),

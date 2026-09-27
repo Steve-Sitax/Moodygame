@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DRAWS_MS, HOST_BACK_MS, Owners, WORLD_STALE_MS, WorldPc, type WorldSeat } from "../src/mp/street.ts";
+import { DRAWS_MS, HOST_BACK_MS, Owners, WORLD_HOLD_MS, WORLD_STALE_MS, WorldPc, type WorldSeat } from "../src/mp/street.ts";
 import { MSG_PUPPETS, PUPPET_BYTES, puppetBatchOk, puppetKeep, puppetNums } from "../../shared/mpProtocol.ts";
 
 // M8b multiplayer (docs/milestones/M8b.md): who walks which townsperson, and which PC runs the moving world.
@@ -90,13 +90,13 @@ describe("the puppet batches", () => {
 });
 
 describe("the world PC", () => {
-  const seat = (id: number, stateAt: number, online = true): WorldSeat => ({ id, host: id === 1, online, stateAt });
+  const seat = (id: number, stateAt: number, online = true, rate?: number): WorldSeat => ({ id, host: id === 1, online, stateAt, rate });
 
   it("the host's PC while its tab draws; else the lowest player id whose tab draws", () => {
     const w = new WorldPc();
     expect(w.choose([seat(1, 1000), seat(2, 1000)], 1000)).toBe(1);
     const g = new WorldPc();
-    expect(g.choose([seat(1, 0), seat(3, 1000), seat(2, 1000)], 1000)).toBe(2);
+    expect(g.choose([seat(1, 0, true, 0), seat(3, 1000), seat(2, 1000)], 1000)).toBe(2);
   });
 
   it("keeps the world PC while its world comes; a hidden tab (no world) hands it on", () => {
@@ -106,21 +106,35 @@ describe("the world PC", () => {
     expect(w.choose([seat(1, 2000), seat(2, 2000)], 2000)).toBe(null);
     // the host's tab hidden: its state once a second, no world
     const t = 1900 + WORLD_STALE_MS + 1;
-    expect(w.choose([seat(1, t - 900), seat(2, t)], t)).toBe(2);
+    expect(w.choose([seat(1, t - 900, true, 1), seat(2, t, true, 20)], t)).toBe(2);
   });
 
   it("the host takes the world back only after drawing a while (no flapping)", () => {
     const w = new WorldPc();
-    w.choose([seat(1, 0), seat(2, 1000)], 1000);
+    w.choose([seat(1, 0, true, 0), seat(2, 1000)], 1000);
     expect(w.id).toBe(2);
+    // the host draws from 1000 on, but the world stays at least WORLD_HOLD_MS with the PC it went to
     let now = 1000;
-    for (; now < 1000 + HOST_BACK_MS - 100; now += 50) {
+    for (; now < 1000 + Math.max(HOST_BACK_MS, WORLD_HOLD_MS) - 100; now += 50) {
       w.lastWorldAt = now;
       expect(w.choose([seat(1, now), seat(2, now)], now)).toBe(null);
     }
-    now = 1000 + HOST_BACK_MS + 100;
+    now = 1000 + Math.max(HOST_BACK_MS, WORLD_HOLD_MS) + 100;
     w.lastWorldAt = now;
     expect(w.choose([seat(1, now), seat(2, now)], now)).toBe(1);
+  });
+
+  it("a slow host tab (a state every few hundred ms, 5 a second) keeps the world: no flapping", () => {
+    const w = new WorldPc();
+    w.choose([seat(1, 1000, true, 5), seat(2, 1000, true, 20)], 1000);
+    expect(w.id).toBe(1);
+    let changes = 0;
+    for (let now = 1000; now < 60_000; now += 50) {
+      if (now % 700 === 0) w.lastWorldAt = now; // (its world comes unevenly, but within the stale limit)
+      const hostAt = now - (now % 400);
+      if (w.choose([seat(1, hostAt, true, 5), seat(2, now, true, 20)], now) !== null) changes++;
+    }
+    expect(changes).toBe(0);
   });
 
   it("nobody draws: the current one keeps it while online (no flapping); gone, nobody; the first back takes it", () => {

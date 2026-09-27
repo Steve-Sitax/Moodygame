@@ -3,6 +3,7 @@ import { addMovingSource, isSteam, loadBoats, loadModelSet, newShipId, ropeMater
 import type { Lock, LockRect } from "./lock";
 import type { Rect } from "./geom";
 import { Route, placeTrain, rng, type TrainPart } from "./route";
+import type { NetMover } from "../net/mp/world";
 
 // The opening bridges over the Canal des Brasseurs and the Sint-Pietersvliet (1873): timber
 // lifting bridges with a balance on a gallows frame (the "hamei"). Their leaves rise in place,
@@ -16,6 +17,9 @@ import { Route, placeTrain, rng, type TrainPart } from "./route";
 //
 // One list for walkability: `list` holds every opening bridge (the lock bridge too, when you
 // pass the lock): walk on a bridge's rect only while it is closed().
+//
+// M8b: played together, the world PC runs the bridges and the passages; the others take its state
+// (netApply: the leaves, the boats, and the hail as a boat asks for a bridge).
 
 export interface OpeningBridge {
   key: string;
@@ -50,7 +54,7 @@ export interface BridgesOptions {
   seed?: number;
 }
 
-export interface Bridges {
+export interface Bridges extends NetMover<BridgesNet> {
   list: OpeningBridge[];
   update(t: number, dt: number, camera?: THREE.Camera): void;
   /** Send a boat up (or down, if one is up there) the canal or the vliet now (dev). */
@@ -65,6 +69,21 @@ export interface Bridges {
   /** M3j: world height of the underside of the bridge over (x, z) as it stands now, or null if none is over it. */
   undersideAt(x: number, z: number): number | null;
 }
+
+/**
+ * M8b: the bridges as the world PC sends them. Per bridge (in DEFS order): how far open, and (not
+ * eased) the passages asking and the rowing boats asking there. Per passage: where it is (index in
+ * PASSAGE_STATES), the boat's kind, its place and speed, the wait, the bridges it has asked (bits
+ * in DEFS order).
+ */
+export interface BridgesNet {
+  am: number[];
+  _w: number[];
+  _r: number[];
+  p: Record<"canal" | "vliet", { _st: number; _k: string; s: number; v: number; sp: number; w: number; _a: number }>;
+}
+const PASSAGE_STATES = ["river", "in", "up", "out"] as const;
+const q3 = (x: number) => Math.round(x * 1000) / 1000;
 
 /** The underside of a leaf below its deck top (bridges.glb: stringers and cross beams, measured 0.42 m). */
 export const DECK_UNDER = 0.42;
@@ -242,6 +261,8 @@ interface Ctl extends OpeningBridge {
   def: Def;
   /** M3j: rowing boats asking it to open. */
   boats: Set<string>;
+  /** M8b: rowing boats asking it on the world PC (while run by another PC). */
+  far: number;
   amount: number;
   want: number;
   speed: number;
@@ -268,11 +289,12 @@ export function createBridges(scene: THREE.Object3D, boats?: Boats | Promise<Boa
       amount: 0,
       want: 0,
       boats: new Set(),
+      far: 0,
       speed: 1 / 20,
       draw: null,
       closed: () => c.amount <= 1e-4,
       open: () => smooth(c.amount),
-      opening: () => c.want + c.boats.size > 0 || c.amount > 1e-4,
+      opening: () => c.want + c.boats.size + c.far > 0 || c.amount > 1e-4,
     };
     return c;
   });
@@ -452,7 +474,68 @@ export function createBridges(scene: THREE.Object3D, boats?: Boats | Promise<Boa
     }
   }
 
+  /** A passage's boat where it is now (river: hidden at the start; up: at the head of the water). */
+  function placePassage(p: Passage): void {
+    if (!p.part) return;
+    const obj = p.part.obj;
+    if (p.state === "river" || p.state === "up") {
+      placeTrain(p.route, p.state === "river" ? 0 : p.route.length, 1, [p.part], 0);
+      obj.visible = p.state === "up";
+      return;
+    }
+    obj.visible = true;
+    placeTrain(p.route, p.s, p.state === "in" ? 1 : -1, [p.part], 0);
+    p.ship.x = obj.position.x;
+    p.ship.z = obj.position.z;
+    p.ship.heading = obj.rotation.y;
+    p.ship.speed = p.v;
+  }
+
+  let remote = false;
+  /** M8b: the first state after the world went to another PC sounds nothing (no edges to go by yet). */
+  let fresh = true;
+  function netApply(st: BridgesNet): void {
+    ctls.forEach((c, i) => {
+      c.amount = THREE.MathUtils.clamp(st.am[i] ?? 0, 0, 1);
+      c.want = st._w[i] ?? 0;
+      c.far = st._r[i] ?? 0;
+      c.draw?.set(smooth(c.amount));
+    });
+    for (const key of ["canal", "vliet"] as const) {
+      const p = passages[key];
+      const x = st.p[key];
+      if (!x) continue;
+      const was = p.state;
+      const state = PASSAGE_STATES[x._st] ?? "river";
+      if (x._k && fleet && (!p.part || p.ship.kind !== x._k)) {
+        for (const b of p.boats.values()) b.obj.visible = false;
+        p.part = boatFor(p, x._k as BoatName);
+        p.ship.kind = x._k as BoatName;
+        p.ship.steam = isSteam(p.ship.kind);
+      }
+      // a new passage (in from the river, or out from the head of the water): a new ship for the sound
+      if ((state === "in" || state === "out") && state !== was) p.ship.id = newShipId();
+      p.state = state;
+      p.s = x.s;
+      p.v = x.v;
+      p.speed = x.sp;
+      p.wait = x.w;
+      // the bridges it asks for now: a hail or a horn for each new one
+      ctls.forEach((c, i) => {
+        const on = (x._a & (1 << i)) !== 0;
+        if (on && !p.asked.has(c.key)) {
+          p.asked.add(c.key);
+          if (!fresh) signal(p.ship, "bridge");
+        } else if (!on) p.asked.delete(c.key);
+      });
+      placePassage(p);
+    }
+    fresh = false;
+  }
+
   function update(_t: number, dt: number, camera?: THREE.Camera): void {
+    // M8b: run by another PC: netApply moves the leaves and the boats
+    if (remote) return;
     const pl = opts.player?.() ?? null;
     for (const c of ctls) {
       const occupied = (!!pl && pl.x > c.rect.minX && pl.x < c.rect.maxX && pl.z > c.rect.minZ && pl.z < c.rect.maxZ) || !!opts.busy?.(c.rect);
@@ -470,9 +553,34 @@ export function createBridges(scene: THREE.Object3D, boats?: Boats | Promise<Boa
     for (const p of Object.values(passages)) if (p.part && (p.state === "in" || p.state === "out")) out.push(p.ship);
   });
 
+  const netPassage = (p: Passage) => {
+    let a = 0;
+    ctls.forEach((c, i) => {
+      if (p.asked.has(c.key)) a |= 1 << i;
+    });
+    return { _st: PASSAGE_STATES.indexOf(p.state), _k: p.part ? p.ship.kind : "", s: q3(p.s), v: q3(p.v), sp: q3(p.speed), w: q3(p.wait), _a: a };
+  };
+
   return {
     list,
     update,
+    get netRemote() {
+      return remote;
+    },
+    set netRemote(on: boolean) {
+      if (on === remote) return;
+      remote = on;
+      fresh = true;
+      // back to running here: the other PC's rowing boats no longer ask (this PC's own still do)
+      if (!on) for (const c of ctls) c.far = 0;
+    },
+    netState: () => ({
+      am: ctls.map((c) => q3(c.amount)),
+      _w: ctls.map((c) => c.want),
+      _r: ctls.map((c) => c.boats.size),
+      p: { canal: netPassage(passages.canal), vliet: netPassage(passages.vliet) },
+    }),
+    netApply,
     passNow(where) {
       const p = passages[where];
       if (p.state === "up") start(p, "out");

@@ -159,6 +159,10 @@ export class Rowing {
   data: RowWorld | null = null;
   /** The boat being rowed: its model, what it is ("hire" or a loose boat's id), its kind. */
   private boat: { obj: THREE.Object3D; what: string; kind: Kind; oars: THREE.Group } | null = null;
+  /** M8b multiplayer: the kind of boat Jef rows now (the others draw one of that kind under him), or null. */
+  get rowedKind(): Kind | null {
+    return this.boat?.kind ?? null;
+  }
   /** Boats lying on the water, by key: "berth:<landing>", a loose boat's id, "mine" (the hired boat left out). */
   private lying = new Map<string, Lying>();
   private pool = Object.fromEntries(SMALL_KINDS.map((k) => [k, [] as THREE.Object3D[]])) as Record<Kind, THREE.Object3D[]>;

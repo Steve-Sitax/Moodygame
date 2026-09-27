@@ -275,6 +275,10 @@ export interface World {
   setPeople(fn: () => Iterable<{ x: number; z: number }>): void;
   /** Fixes 2026-09-24: where the handcarts stand (main.ts: game/handcart.ts), for the lock gates. */
   setCarts(fn: () => Iterable<{ x: number; z: number }>): void;
+  /** M8b multiplayer: where the other players are (main.ts: net/mp/together.ts), for the lock gates' beams. */
+  setPlayers(fn: () => Iterable<{ x: number; z: number }>): void;
+  /** M8b multiplayer: the ships on the river and the anchorage's tows (net/mp/world.ts); null until loaded. */
+  river(): River | null;
   /** Does a lock gate's balance beam swing over (x, z)? No cart is left standing there. */
   lockSweep(x: number, z: number, r: number): boolean;
   /** Must someone at (x, z) wait? True on (or right at) an opening bridge that is opening, open or shutting. */
@@ -757,6 +761,8 @@ export function buildRijnkaai(): World {
   let peopleFn: (() => Iterable<{ x: number; z: number }>) | null = null;
   /** Fixes 2026-09-24: where the handcarts stand (parked or pushed): the lock gates' beams keep off them. */
   let cartsFn: (() => Iterable<{ x: number; z: number }>) | null = null;
+  /** M8b multiplayer: where the other players are drawn (the lock's beams keep off them as off Jef). */
+  let playersFn: (() => Iterable<{ x: number; z: number }>) | null = null;
   const peopleOn = (r: { minX: number; maxX: number; minZ: number; maxZ: number }) => {
     if (!peopleFn) return false;
     // on the deck itself only: people waiting at the ends (bridgeWait) must not hold it shut
@@ -773,6 +779,7 @@ export function buildRijnkaai(): World {
         // fixes 2026-09-24: a gate waits while Jef or a cart stands where its balance beam swings
         sweepBusy: (inSweep) => {
           if (camera && inSweep(camera.position.x, camera.position.z, 0.32)) return true;
+          for (const p of playersFn?.() ?? []) if (inSweep(p.x, p.z, 0.32)) return true; // (M8b: the other players too)
           for (const c of cartsFn?.() ?? []) if (inSweep(c.x, c.z, 0.6)) return true;
           for (const m of movers) if (inSweep((m.minX + m.maxX) / 2, (m.minZ + m.maxZ) / 2, Math.max(m.maxX - m.minX, m.maxZ - m.minZ) / 2)) return true;
           return false;
@@ -1903,6 +1910,8 @@ export function buildRijnkaai(): World {
     quayFurniture: () => quayKit,
     setPeople: (fn) => (peopleFn = fn),
     setCarts: (fn) => (cartsFn = fn),
+    setPlayers: (fn) => (playersFn = fn),
+    river: () => riverTraffic,
     lockSweep: (x, z, r) => !!lock?.inSweep?.(x, z, r),
     bridgeWait: (x, z) => {
       const b = bridges?.list.find((q) => x > q.rect.minX - 0.4 && x < q.rect.maxX + 0.4 && z > q.rect.minZ - 0.4 && z < q.rect.maxZ + 0.4);

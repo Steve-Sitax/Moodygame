@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { addMovingSource, newShipId, ropeMaterial, type BoatName, type Boats, type MovingShip } from "./boats";
 import { water } from "./tide";
 import { rng, type TrainPart } from "./route";
+import { lerpState } from "../net/mp/world";
 
 // The ocean steamer at anchor in the Schelde, and the lighters that work her cargo (2026-09-24).
 //
@@ -33,6 +34,9 @@ import { rng, type TrainPart } from "./route";
 // other tow that holds its berth, that one takes the right of way at once.
 //
 // World frame: x along the river (down river = +x), water at z < 0, the quay line at z 0.
+//
+// M8b: played together, the world PC runs the tows (river.ts sends their state with its own); on the
+// other PCs `remote` is set, update() is not called, and netApply() places the liner and the tows.
 
 /** The liner's middle at rest, and her heading (bow toward -x). */
 const LINER = { x: 0, z: -140, yaw: -Math.PI / 2 };
@@ -165,7 +169,26 @@ export interface Anchorage {
   update(t: number, dt: number, traffic: readonly Traffic[]): void;
   /** The tows' hulls (tugs and lighters) as they are now. */
   obstacles(): readonly Obstacle[];
+  /** M8b: run by another PC (river.ts sets it): netApply places everything. */
+  remote: boolean;
+  netState(): AnchorageNet;
+  netApply(s: AnchorageNet): void;
+  /** Between two states: a tow's place on the loop wraps, so it goes the short way round. */
+  netLerp(a: AnchorageNet, b: AnchorageNet, u: number): AnchorageNet;
 }
+
+/**
+ * M8b: the tows as the world PC sends them. `sc`: the liner's sheer clock (her swing about the
+ * hawse); per tow (id: its index): place on the loop and speed, and (not eased) the stop it makes
+ * for, its phase (index in PHASES), the zone it is committed to; the dwell left, how far in to the
+ * wall, the seconds waited and blocked, the watchdog's metres astern and hold.
+ */
+export interface AnchorageNet {
+  sc: number;
+  t: Array<{ id: number; s: number; v: number; _st: 0 | 1; _ph: number; _cm: number; dw: number; c: number; wt: number; bl: number; bk: number; hd: number }>;
+}
+const PHASES: Array<Tow["phase"]> = ["run", "in", "dwell", "out"];
+const q3 = (x: number) => Math.round(x * 1000) / 1000;
 
 /** Where the loop runs through one lane: loop distances in and out, and the x of the crossing. */
 interface Strip {
@@ -682,9 +705,19 @@ export function createAnchorage(group: THREE.Group, fleet: Boats, scene: THREE.O
   }
 
   let lastTraffic: readonly Traffic[] = [];
+  // M8b: the sheer's clock is the game's t plus an offset: a PC that takes over the world goes on
+  // from the swing it was shown (0 in single player)
+  let clockOff = 0;
+  let sheerClock = 0;
+  let netClock: number | null = null;
   function update(t: number, dt: number, traffic: readonly Traffic[]): void {
+    if (netClock !== null) {
+      clockOff = netClock - t;
+      netClock = null;
+    }
     lastTraffic = traffic;
-    placeLiner(t);
+    sheerClock = t + clockOff;
+    placeLiner(sheerClock);
     if (t - rowersAt > 0.5 || rowersAt < 0 || t < rowersAt) {
       rowersAt = t;
       rowers = scene.children.filter((o) => o.visible && (o.name === "rowboat" || o.name === "punt"));
@@ -882,7 +915,11 @@ export function createAnchorage(group: THREE.Group, fleet: Boats, scene: THREE.O
         }
       } else tow.s = wrap(tow.s + tow.v * dt);
     }
-    // place the hulls and the lashings
+    placeTows();
+  }
+
+  /** Place the hulls and the lashings, and the crossings they hold (river.ts reads obstacles()). */
+  function placeTows(): void {
     obs.length = 0;
     let at = 0;
     for (const tow of tows) {
@@ -919,6 +956,30 @@ export function createAnchorage(group: THREE.Group, fleet: Boats, scene: THREE.O
       tow.ship.speed = Math.abs(tow.v);
     }
     lash.needsUpdate = true;
+  }
+
+  /** M8b: the world PC's state into the own fields, and the liner and the tows placed by it. */
+  function netApply(st: AnchorageNet): void {
+    netClock = st.sc;
+    sheerClock = st.sc; // (its own state says the swing it shows)
+    placeLiner(st.sc);
+    for (const x of st.t) {
+      const tow = tows[x.id];
+      if (!tow) continue;
+      tow.s = wrap(x.s);
+      tow.v = x.v;
+      tow.stop = x._st;
+      tow.phase = PHASES[x._ph] ?? "run";
+      tow.committed = x._cm < zones.length ? x._cm : -1;
+      tow.dwell = x.dw;
+      tow.crab = THREE.MathUtils.clamp(x.c, 0, 1);
+      tow.waited = x.wt;
+      tow.blocked = x.bl;
+      tow.back = x.bk;
+      tow.hold = x.hd;
+      tow.why = "";
+    }
+    placeTows();
   }
 
   addMovingSource((out) => {
@@ -1041,5 +1102,41 @@ export function createAnchorage(group: THREE.Group, fleet: Boats, scene: THREE.O
   }
 
   update(0, 0, []);
-  return { update, obstacles: () => obs };
+  return {
+    update,
+    obstacles: () => obs,
+    remote: false,
+    netState: () => ({
+      sc: q3(sheerClock),
+      t: tows.map((tow, id) => ({
+        id,
+        s: q3(tow.s),
+        v: q3(tow.v),
+        _st: tow.stop,
+        _ph: PHASES.indexOf(tow.phase),
+        _cm: tow.committed,
+        dw: q3(tow.dwell),
+        c: q3(tow.crab),
+        wt: q3(tow.waited),
+        bl: q3(tow.blocked),
+        bk: q3(tow.back),
+        hd: q3(tow.hold),
+      })),
+    }),
+    netApply,
+    netLerp(a, b, u) {
+      const out = lerpState(a, b, u);
+      for (const x of out.t) {
+        const p = a.t.find((o) => o.id === x.id);
+        const n = b.t.find((o) => o.id === x.id);
+        if (!p || !n) continue;
+        // the short way round the loop (s wraps at LEN)
+        let d = n.s - p.s;
+        if (d > LEN / 2) d -= LEN;
+        else if (d < -LEN / 2) d += LEN;
+        x.s = wrap(p.s + d * u);
+      }
+      return out;
+    },
+  };
 }

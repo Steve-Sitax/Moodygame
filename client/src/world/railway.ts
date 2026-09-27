@@ -24,6 +24,7 @@ import {
   type CranePose,
   type PartKind,
 } from "../../../shared/cranes";
+import { lerpState, type NetMover } from "../net/mp/world";
 
 // The quay railway at work (M3g). A short goods train, drawn by two heavy horses in tandem
 // with a shunter at their heads (horses moved the wagons on the quay lines of the 1860s-70s;
@@ -139,7 +140,23 @@ export interface CraneLadder {
   ready: boolean;
 }
 
-export interface Railway {
+/**
+ * M8b: the train and the cranes as the world PC sends them (net/mp/world.ts). Keys with "_" are not
+ * eased between two states: the train's state (0 shed, 1 run, 2 work), the goods in the wagons (six
+ * bits a wagon, front wagon lowest), what a crane carries (GOODS index, -1 nothing), its mode (0 berth,
+ * 1 swing in, 2 travel, 3 swing out), whether it is hoisting for the train, its pile's count.
+ */
+export interface RailNet {
+  _st: number;
+  head: number;
+  v: number;
+  _sh: number;
+  _wk: number;
+  _slots: number;
+  cranes: Array<{ id: number; pos: number; a: number; hy: number; _c: number; _m: number; _h?: number; _n?: number; _to?: number }>;
+}
+
+export interface Railway extends NetMover<RailNet> {
   /** Move the train and the cranes; the player's feet (the train stops for him). */
   update(t: number, dt: number, player: { x: number; z: number } | null, camera?: THREE.Camera): void;
   /** Walk colliders of the horses and wagons: stable objects moved in place, add them once. */
@@ -624,6 +641,8 @@ interface Crane {
   site: CraneSite;
   jib: THREE.Object3D;
   index: number;
+  /** Its place in the crane sites (the same on every PC: its id in the net state). */
+  sid: number;
   /** Jib angle in the crane's frame (0 = rest) and the hook's height. */
   a: number;
   hy: number;
@@ -825,6 +844,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       site,
       jib,
       index: cranes.length,
+      sid: i,
       a: 0,
       hy: HOOK_REST,
       carry: null,
@@ -1637,6 +1657,85 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
   let gait = 0;
   const axleS: number[] = wagons.flatMap(() => [0, 0]);
 
+  /** A clack for each wheel that has passed a rail joint since the last call (`sound` false: only note where they are). */
+  function railJoints(sound: boolean): void {
+    wagons.forEach((w, i) => {
+      const mid = head - w.front - L_BUF / 2;
+      for (const [j, o] of [[0, WB / 2], [1, -WB / 2]] as const) {
+        const s = mid + o;
+        const k = i * 2 + j;
+        if (sound && Math.floor(s / JOINT) !== Math.floor(axleS[k] / JOINT) && s > axleS[k]) {
+          line.at(s, pa);
+          if (pa.x > -345) api.onClack?.(pa.x, pa.z);
+        }
+        axleS[k] = s;
+      }
+    });
+  }
+
+  // --- M8b: run by another PC (net/mp/world.ts). The world PC sends the train and the cranes as they
+  // stand; here they are only drawn from that. Its own plans (the stops, the lifts, making way) are
+  // dropped meanwhile; taking over, it goes on from the last state shown with fresh plans.
+  const STATES = ["shed", "run", "work"] as const;
+  const MODES = ["berth", "swingIn", "travel", "swingOut"] as const;
+  const bySid = new Map(cranes.map((c) => [c.sid, c]));
+  let netRemote = false;
+  /** The first state after going remote: no sounds (what changed was never seen here). */
+  let netFresh = false;
+  /** The world PC's train stands at a crane stop (the shunter turns to it). */
+  let netWork = false;
+  function letGo(): void {
+    netFresh = true;
+    stops = [];
+    stopI = 0;
+    working = null;
+    waitWhy = "";
+    for (const c of cranes) {
+      c.ops = [];
+      c.opT = 0;
+      c.reserved = false;
+      c.parkFor = 0;
+      c.speed = 0;
+      c.blocked = false;
+      c.blockT = 0;
+      c.yieldT = 0;
+      c.yielding = false;
+      c.lend = 0;
+      c.awayX = c.awayZ = 0;
+      c.moveOn = false;
+    }
+  }
+  function takeOver(): void {
+    if (state === "work") state = "run";
+    working = null;
+    if (state !== "shed") {
+      // the stops still ahead on this trip (those behind are let go in limit())
+      planTrip();
+      stopI = 0;
+    }
+    for (const c of cranes) {
+      c.hoisting = false;
+      c.idleTo = c.a;
+      c.idle = 2 + c.r() * 6;
+      if (c.mode === "travel" || c.mode === "swingIn") {
+        if (c.target === null) c.mode = "swingOut";
+        else {
+          const [tx, tz] = siteAt(c, c.target);
+          c.nextA = holdAngle(c, tx, tz) ?? 0;
+          c.along = alongA(c);
+        }
+      }
+      if (c.mode === "swingOut" && c.shipA !== null) c.shipA = holdAngle(c, c.site.x, c.site.z) ?? c.shipA;
+      if (c.mode === "berth" && c.carry) {
+        // a load on the hook with no lift behind it: back where it came from
+        const src: Source = c.pile ? { kind: "pile" } : { kind: "ship" };
+        const srcA = c.shipA ?? angleTo(c, c.pile!.x, c.pile!.z);
+        const y = c.pile ? pileSlot(c.pile, Math.min(c.pile.cap - 1, c.pile.n)).y : levelAt(c.site.x, c.site.z) + (c.shipY - opts.waterY);
+        c.ops = [{ t: "hoist", y: TRAVEL }, { t: "slew", a: srcA }, { t: "hoist", y: y + UNIT_H[c.carry] + SLING }, { t: "wait", s: 1.2 }, { t: "drop", to: src }, { t: "hoist", y: TRAVEL }];
+      }
+    }
+  }
+
   function startTrip(): void {
     head = 0;
     v = 0;
@@ -2156,10 +2255,73 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     }
   }
 
+  /** The horses, the shunter and the wagons' colliders where the train stands now (run here or shown from the world PC). */
+  function placeTrain(dt: number): void {
+    const amp = Math.min(1, v / 0.8);
+    for (let i = 0; i < 2; i++) {
+      const s = head - 1.6 - i * HORSE_GAP;
+      line.at(s, pa);
+      const yaw = line.yaw(s);
+      const r = horseRects[i];
+      if (state === "shed") {
+        horses.hide(i);
+        r.minX = r.maxX = r.minZ = r.maxZ = 1e6;
+        continue;
+      }
+      if (pa.x < hideX - 1.6) horses.hide(i);
+      else horses.set(i, pa.x, pa.z, yaw, (gait + i * 0.37) % 1, amp);
+      const hs = Math.abs(Math.sin(yaw));
+      const hc = Math.abs(Math.cos(yaw));
+      r.minX = pa.x - hs * 1.5 - hc * 0.45;
+      r.maxX = pa.x + hs * 1.5 + hc * 0.45;
+      r.minZ = pa.z - hc * 1.5 - hs * 0.45;
+      r.maxZ = pa.z + hc * 1.5 + hs * 0.45;
+    }
+    horses.commit();
+    if (!shunter) {
+      shunter = makeHuman("carter");
+      if (shunter) shunterGroup.add(shunter.root);
+    }
+    if (shunter) {
+      const s = head - 1.2;
+      line.at(s, pa);
+      const yaw = line.yaw(s);
+      shunterGroup.position.set(pa.x - Math.cos(yaw) * 1.25, 0, pa.z + Math.sin(yaw) * 1.25);
+      shunterGroup.rotation.y = (netRemote ? netWork : working) ? yaw + 1.2 : yaw;
+      shunterGroup.visible = near && shunterGroup.position.x > hideX;
+      shunter.play(v > 0.08 ? "walk" : "idle");
+      shunter.setPace(Math.max(0.3, v));
+      if (near) shunter.update(dt);
+    }
+    // colliders of the wagons
+    for (const w of wagons) {
+      const r = w.rect;
+      if (state === "shed") {
+        r.minX = r.maxX = r.minZ = r.maxZ = 1e6;
+        continue;
+      }
+      const p = wagonAt(w, head, { x: 0, z: 0, yaw: 0 });
+      const hs = Math.abs(Math.sin(p.yaw));
+      const hc = Math.abs(Math.cos(p.yaw));
+      const hl = L_BUF / 2 - 0.1;
+      const hw = 1.32;
+      r.minX = p.x - hs * hl - hc * hw;
+      r.maxX = p.x + hs * hl + hc * hw;
+      r.minZ = p.z - hc * hl - hs * hw;
+      r.maxZ = p.z + hc * hl + hs * hw;
+    }
+  }
+
   // --- per frame
   const api: Railway = {
     update(_t, dt, player, camera) {
       dt = Math.min(dt, 0.1);
+      if (netRemote) {
+        // M8b: run by the world PC (netApply puts its state here): no trip, no waits, no lifts; drawn only
+        placeTrain(dt);
+        draw(camera);
+        return;
+      }
       if (state === "shed") {
         shedT -= dt;
         if (shedT <= 0) startTrip();
@@ -2183,19 +2345,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
           state = "work";
           working = st;
         }
-        // rail joints under the wheels
-        wagons.forEach((w, i) => {
-          const mid = head - w.front - L_BUF / 2;
-          for (const [j, o] of [[0, WB / 2], [1, -WB / 2]] as const) {
-            const s = mid + o;
-            const k = i * 2 + j;
-            if (Math.floor(s / JOINT) !== Math.floor(axleS[k] / JOINT) && s > axleS[k] && ds > 0) {
-              line.at(s, pa);
-              if (pa.x > -345) api.onClack?.(pa.x, pa.z);
-            }
-            axleS[k] = s;
-          }
-        });
+        railJoints(ds > 0);
         // off the line's end: back into the store; a new trip after a while
         if (head - trainLen > line.length - 60) {
           state = "shed";
@@ -2229,62 +2379,82 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
         c.stat.maxBlock = Math.max(c.stat.maxBlock, c.blockT);
       }
       if (watching) watchCranes(dt);
-
-      // horses and the shunter
-      const amp = Math.min(1, v / 0.8);
-      for (let i = 0; i < 2; i++) {
-        const s = head - 1.6 - i * HORSE_GAP;
-        line.at(s, pa);
-        const yaw = line.yaw(s);
-        const r = horseRects[i];
-        if (state === "shed") {
-          horses.hide(i);
-          r.minX = r.maxX = r.minZ = r.maxZ = 1e6;
-          continue;
-        }
-        if (pa.x < hideX - 1.6) horses.hide(i);
-        else horses.set(i, pa.x, pa.z, yaw, (gait + i * 0.37) % 1, amp);
-        const hs = Math.abs(Math.sin(yaw));
-        const hc = Math.abs(Math.cos(yaw));
-        r.minX = pa.x - hs * 1.5 - hc * 0.45;
-        r.maxX = pa.x + hs * 1.5 + hc * 0.45;
-        r.minZ = pa.z - hc * 1.5 - hs * 0.45;
-        r.maxZ = pa.z + hc * 1.5 + hs * 0.45;
-      }
-      horses.commit();
-      if (!shunter) {
-        shunter = makeHuman("carter");
-        if (shunter) shunterGroup.add(shunter.root);
-      }
-      if (shunter) {
-        const s = head - 1.2;
-        line.at(s, pa);
-        const yaw = line.yaw(s);
-        shunterGroup.position.set(pa.x - Math.cos(yaw) * 1.25, 0, pa.z + Math.sin(yaw) * 1.25);
-        shunterGroup.rotation.y = working ? yaw + 1.2 : yaw;
-        shunterGroup.visible = near && shunterGroup.position.x > hideX;
-        shunter.play(v > 0.08 ? "walk" : "idle");
-        shunter.setPace(Math.max(0.3, v));
-        if (near) shunter.update(dt);
-      }
-      // colliders of the wagons
-      for (const w of wagons) {
-        const r = w.rect;
-        if (state === "shed") {
-          r.minX = r.maxX = r.minZ = r.maxZ = 1e6;
-          continue;
-        }
-        const p = wagonAt(w, head, { x: 0, z: 0, yaw: 0 });
-        const hs = Math.abs(Math.sin(p.yaw));
-        const hc = Math.abs(Math.cos(p.yaw));
-        const hl = L_BUF / 2 - 0.1;
-        const hw = 1.32;
-        r.minX = p.x - hs * hl - hc * hw;
-        r.maxX = p.x + hs * hl + hc * hw;
-        r.minZ = p.z - hc * hl - hs * hw;
-        r.maxZ = p.z + hc * hl + hs * hw;
-      }
+      placeTrain(dt);
       draw(camera);
+    },
+    get netRemote() {
+      return netRemote;
+    },
+    set netRemote(on: boolean) {
+      if (on === netRemote) return;
+      netRemote = on;
+      if (on) letGo();
+      else takeOver();
+    },
+    netState() {
+      const r3 = (x: number) => Math.round(x * 1000) / 1000;
+      let bits = 0;
+      wagons.forEach((w, i) => w.slots.forEach((on, k) => on && (bits += 2 ** (i * 6 + k))));
+      return {
+        _st: STATES.indexOf(state),
+        head: r3(head),
+        v: r3(v),
+        _sh: r3(shedT),
+        _wk: working ? 1 : 0,
+        _slots: bits,
+        cranes: cranes.map((c) => {
+          const q: RailNet["cranes"][number] = { id: c.sid, pos: r3(c.pos), a: r3(c.a), hy: r3(c.hy), _c: c.carry ? GOODS.indexOf(c.carry) : -1, _m: MODES.indexOf(c.mode) };
+          if (c.hoisting) q._h = 1;
+          if (c.pile) q._n = c.pile.n;
+          if (c.target !== null) q._to = r3(c.target);
+          return q;
+        }),
+      };
+    },
+    netLerp(a, b, u) {
+      const s = lerpState(a, b, u);
+      // a new trip (the head back at the store) or a dev jump: no train drawn halfway between
+      if (Math.abs(b.head - a.head) > 10) s.head = u < 0.5 ? a.head : b.head;
+      return s;
+    },
+    netApply(s, dt) {
+      const quiet = netFresh;
+      netFresh = false;
+      const st = STATES[s._st] ?? "shed";
+      const ds = s.head - head;
+      // the same trip, a short step on: roll the wheels and clack over the joints (else just put it there)
+      const going = !quiet && st !== "shed" && state !== "shed" && ds >= 0 && ds < 3;
+      state = st;
+      head = s.head;
+      v = s.v;
+      shedT = s._sh;
+      netWork = s._wk === 1;
+      if (going) roll += ds / WHEEL_R;
+      gait = (gait + (v / 1.35) * Math.min(dt, 0.1) * 0.95) % 1;
+      railJoints(going && ds > 0);
+      wagons.forEach((w, i) => w.slots.forEach((_, k) => (w.slots[k] = Math.floor(s._slots / 2 ** (i * 6 + k)) % 2 === 1)));
+      for (const q of s.cranes) {
+        const c = bySid.get(q.id);
+        if (!c) continue;
+        const mode = MODES[q._m] ?? "berth";
+        if (!quiet && mode === "travel" && c.mode !== "travel") api.onCraneTravel?.(c.site.x, c.site.z);
+        if (!quiet && q._h && !c.hoisting) api.onCrane?.(c.site.x, c.site.z);
+        c.mode = mode;
+        c.hoisting = !!q._h;
+        c.target = q._to ?? null;
+        if (q.pos !== c.pos) {
+          if (!quiet && Math.abs(q.pos - c.pos) < 2) c.roll += Math.abs(q.pos - c.pos) / CRANE_WHEEL_R;
+          c.pos = q.pos;
+          placeCrane(c);
+        }
+        c.a = q.a;
+        c.hy = q.hy;
+        c.carry = GOODS[q._c] ?? null;
+        if (c.pile && q._n !== undefined && q._n !== c.pile.n) {
+          c.pile.n = q._n;
+          pileOn(c.pile);
+        }
+      }
     },
     colliders: () => [...horseRects, ...wagons.map((w) => w.rect), ...cranes.flatMap((c) => c.legs)],
     busy(r) {
@@ -2349,6 +2519,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       });
     },
     summon(i) {
+      if (netRemote) return; // (M8b: the world PC drives the cranes; craneclimb refuses on a remote PC)
       const c = cranes[i];
       if (c) c.parkFor = Math.max(c.parkFor, 0.6);
     },

@@ -113,14 +113,22 @@ export interface WorldSeat {
   online: boolean;
   /** Server ms of his last movement state: 20 a second from a tab that draws, once a second from a hidden one. */
   stateAt: number;
+  /**
+   * His states a second over the last two seconds (optional: without it, a single gap decides). A slow PC that
+   * draws at 10 frames a second still sends 5 or more; a hidden tab sends 1.
+   */
+  rate?: number;
 }
 
-/** A tab draws if its states come this close together. */
-export const DRAWS_MS = 600;
-/** The world PC's own state stopped this long: another takes over. */
-export const WORLD_STALE_MS = 1500;
+/** A tab draws if its last state is this recent (and, when known, its rate is at least DRAWS_RATE). */
+export const DRAWS_MS = 1500;
+export const DRAWS_RATE = 4;
+/** The world PC's own state stopped this long: another takes over (a slow tab still sends within this). */
+export const WORLD_STALE_MS = 3000;
 /** The host back and drawing this long: he takes the world back. */
 export const HOST_BACK_MS = 3000;
+/** After a change, the world stays with its new PC at least this long (unless it goes or falls silent). */
+export const WORLD_HOLD_MS = 10_000;
 /** A new world PC that draws but has sent no world yet (its town still loading) keeps it this long. */
 export const STARTING_MS = 20_000;
 
@@ -133,7 +141,7 @@ export class WorldPc {
 
   /** Choose again; returns the new id when it changed, else null. */
   choose(seats: WorldSeat[], now: number): number | null {
-    const draws = (s: WorldSeat) => s.online && now - s.stateAt < DRAWS_MS;
+    const draws = (s: WorldSeat) => s.online && now - s.stateAt < DRAWS_MS && (s.rate === undefined || s.rate >= DRAWS_RATE);
     const host = seats.find((s) => s.host);
     if (host && draws(host)) this.hostSince ||= now;
     else this.hostSince = 0;
@@ -146,7 +154,7 @@ export class WorldPc {
       const pick = host && draws(host) ? host : seats.filter(draws).sort((a, b) => a.id - b.id)[0];
       // nobody fit (every tab hidden): the current one keeps it while he is online (no flapping to nobody and back)
       want = pick?.id ?? (cur?.online ? this.id : 0);
-    } else if (host && cur && !cur.host && this.hostSince && now - this.hostSince >= HOST_BACK_MS) want = host.id;
+    } else if (host && cur && !cur.host && this.hostSince && now - this.hostSince >= HOST_BACK_MS && now - this.since >= WORLD_HOLD_MS) want = host.id;
     if (want === this.id) return null;
     this.id = want;
     this.lastWorldAt = now; // a fresh start: the new one has a moment to send

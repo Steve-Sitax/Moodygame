@@ -52,6 +52,12 @@ export class Homes {
   private t = 0;
   /** Jef is in his room now (by the threshold of its house and the room's own walls). */
   private inRoom = false;
+  /**
+   * M8b multiplayer: does this player hold the key of the rented home (played alone: always; until M8c only the
+   * host rents, so a guest does not), and where the other players who hold it are drawn here. Set by main.
+   */
+  ownKey = true;
+  keyNear: () => Array<{ x: number; z: number }> = () => [];
   say: (t: string) => void = () => {};
   /** The day's light (0 night .. 1 noon), set by main. */
   daylight: () => number = () => 1;
@@ -554,10 +560,14 @@ export class Homes {
     const day = this.daylight();
     const mineId = this.lease?.home ?? null;
     let inMine: HouseInWorld | null = null;
+    // (M8b multiplayer: the door opens for whoever holds the key, on every screen: this player if he does, the
+    // others as they are drawn here)
+    const keys = this.keyNear();
     for (const [id, house] of this.houses) {
       const mine = id === mineId;
-      const inside = house.insideness(this.player.x, this.player.z) > 0.3;
-      house.doorOpen = mine && (inside || house.near(this.player.x, this.player.z) < OPEN_M);
+      const inside = this.ownKey && house.insideness(this.player.x, this.player.z) > 0.3;
+      const byOther = mine && keys.some((k) => house.insideness(k.x, k.z) > 0.3 || house.near(k.x, k.z) < OPEN_M);
+      house.doorOpen = mine && (inside || (this.ownKey && house.near(this.player.x, this.player.z) < OPEN_M) || byOther);
       if (mine && house.insideness(this.player.x, this.player.z) > 0.5) inMine = house;
       const widowHome = id === "widow" && !!this.info?.widow?.home;
       house.glow = (mine && this.inRoom) || widowHome ? 1 : 0;

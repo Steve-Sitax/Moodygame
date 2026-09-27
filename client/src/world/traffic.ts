@@ -5,6 +5,7 @@ import { psx } from "../retro/psx";
 import type { Props } from "./props3d";
 import type { Rect } from "./geom";
 import { goRound, type GoRound } from "../game/cartPhysics";
+import { lerpState, type NetMover } from "../net/mp/world";
 
 // Traffic on the quays (props from tools/blender/build_props.py, the "tr_" parts):
 // one-horse drays and handcarts going round at walking pace, as in the period photos
@@ -456,7 +457,17 @@ export interface TrafficOptions {
   seed?: number;
 }
 
-export interface Traffic {
+/**
+ * M8b: the traffic's state as the world PC sends it (net/mp/world.ts). Per rig, by a key that is the
+ * same on every PC (the round's name and its place in the round's list): `s` along its round (it
+ * wraps: netLerp goes the short way), its speed, its side offset (going round), what it does; `_`
+ * keys are not eased (timers, counters). `away`: out on an errand on the world PC.
+ */
+export interface TrafficNet {
+  v: Array<{ id: string; s: number; v: number; off: number; st: "go" | "wait" | "stand"; away: boolean; _t: number; _ls: number; _go: [number, number, number]; _k: [number, number, number] }>;
+}
+
+export interface Traffic extends NetMover<TrafficNet> {
   /** Move everything; call every frame with the game time and where the player is. */
   update(t: number, dt: number, player: { x: number; z: number }): void;
   /** Walk colliders of the vehicles. Stable objects, moved in place every frame: add them once. */
@@ -518,6 +529,11 @@ interface Vehicle {
   stuckT: number;
   backM: number;
   backs: number;
+  /** M8b: its key on every PC; out on an errand on the world PC; a state taken yet; placed by netApply this frame. */
+  id: string;
+  netAway: boolean;
+  netSeen: boolean;
+  netPlaced: boolean;
 }
 
 /** M6 handcart: held up this long with no way round (another rig face to face), it backs off this far (m) at this pace. */
@@ -613,6 +629,10 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
         stuckT: 0,
         backM: 0,
         backs: 0,
+        id: `${route.name}.${route.vehicles.indexOf(v)}`,
+        netAway: false,
+        netSeen: false,
+        netPlaced: false,
       };
       if (veh.cart) veh.rects = veh.cart.rects;
       vehicles.push(veh);
@@ -673,7 +693,7 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
     let drays = false;
     for (const v of vehicles) {
       // (out on an errand: its carter is not left standing where the dray was)
-      const near = !v.away && Math.hypot(v.px - p.x, v.pz - p.z) < far;
+      const near = !gone(v) && Math.hypot(v.px - p.x, v.pz - p.z) < far;
       v.manGroup.visible = near;
       if (v.cart) v.cart.visible = near;
       if (near && v.kind === "dray") drays = true;
@@ -771,19 +791,31 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
     return ok;
   }
 
+  /** Out on an errand: here, or (M8b, run by another PC) on the world PC. */
+  const gone = (v: Vehicle) => !!v.away || (api.netRemote && v.netAway);
+  /** M8b: where the player was at the last update (netApply places the rigs between updates). */
+  let lastPlayer = { x: 0, z: 0 };
+
   function update(_t: number, dt: number, player: { x: number; z: number }): void {
     dt = Math.min(dt, 0.1);
-    const far = ((scene.fog as THREE.Fog | null)?.far ?? 40) + 15;
+    lastPlayer = player;
+    // M8b: run by another PC: no decisions here (netApply places the rigs); one not placed by a state
+    // this frame (none came yet) stands where it is
+    if (api.netRemote) {
+      for (const v of vehicles) {
+        if (!v.netPlaced) place(v, dt, 0, player);
+        v.netPlaced = false;
+      }
+      for (const m of instanced()) m.instanceMatrix.needsUpdate = true;
+      return;
+    }
     // the people walking (once a frame; M6 handcart)
     const folk: Array<{ x: number; z: number }> = [];
     if (api.people) for (const q of api.people()) folk.push(q);
     for (const v of vehicles) {
       // M6: out on an errand (led through the streets): not here at all
       if (v.away) {
-        v.shown = false;
-        v.manGroup.visible = false;
-        for (const r of v.rects) r.minX = r.maxX = r.minZ = r.maxZ = 1e6;
-        if (v.kind === "dray") hideDray(v.index);
+        place(v, dt, 0, player);
         continue;
       }
       // --- where to go
@@ -847,90 +879,104 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
       if (v.v < 0.01 && target === 0) v.v = 0;
       const ds = v.v * dt;
       v.s = wrap(v.s + ds, v.path.length);
-      atOff(v.path, v.s, v.go.off, a);
-      v.px = a.x;
-      v.pz = a.z;
-      // animate only what the player could see
-      v.shown = Math.hypot(player.x - a.x, player.z - a.z) < far;
-
-      // --- the carter (M6: the owner, in his own clothes)
-      if (v.owner && v.owner.kind !== v.manKind && v.kind === "dray") {
-        v.man?.dispose();
-        v.man = null;
-        v.manKind = v.owner.kind;
-      }
-      if (!v.man) {
-        v.man = makeHuman(v.manKind);
-        if (v.man) {
-          if (v.kind === "handcart") hideBakedCart(v.man.root);
-          v.manGroup.add(v.man.root);
-        }
-      }
-
-      if (v.kind === "dray") {
-        const i = v.index;
-        atOff(v.path, v.s + WHEELBASE, v.go.off, b);
-        atOff(v.path, v.s + WHEELBASE + HORSE_AHEAD, v.go.off, c);
-        const bedYaw = Math.atan2(b.x - a.x, b.z - a.z);
-        const foreYaw = Math.atan2(c.x - b.x, c.z - b.z);
-        const horseYaw = heading(v.path, v.s + WHEELBASE + HORSE_AHEAD);
-        v.roll[0] += ds / 0.52;
-        v.roll[1] += ds / 0.42;
-        v.gait = (v.gait + (v.v / 1.35) * dt) % 1;
-        const moving = v.v > 0.05;
-        set(parts.bed, i, a.x, 0, a.z, bedYaw);
-        set(parts.fore, i, b.x, 0, b.z, foreYaw);
-        set(parts.rear, i, a.x, 0.52, a.z, bedYaw, v.roll[0]);
-        set(parts.front, i, b.x, 0.42, b.z, foreYaw, v.roll[1]);
-        const ld = loads.get(v.load);
-        if (ld) set(ld.mesh, ld.who.indexOf(v), a.x, 0, a.z, bedYaw);
-        // the horse: a gentle rise and fall with each step, legs in a four-beat walk
-        const amp = Math.min(1, v.v / 0.8);
-        const bob = 0.025 * amp * Math.abs(Math.sin(v.gait * Math.PI * 4));
-        set(parts.horse, i, c.x, bob, c.z, horseYaw);
-        const cy = Math.cos(horseYaw);
-        const sy = Math.sin(horseYaw);
-        LEG_POS.forEach(([lx, ly, lz, leg, ph], k) => {
-          const phase = (v.gait + ph) % 1;
-          // foot forward (u = 1) to back (u = -1) on the ground for 60 % of the step, then swung forward
-          const u = phase < 0.6 ? 1 - (2 * phase) / 0.6 : -1 + 2 * THREE.MathUtils.smoothstep((phase - 0.6) / 0.4, 0, 1);
-          const lift = phase >= 0.6 ? 0.05 * Math.sin(((phase - 0.6) / 0.4) * Math.PI) : 0;
-          const swing = -0.36 * u * amp;
-          const wx = c.x + lx * cy + lz * sy;
-          const wz = c.z - lx * sy + lz * cy;
-          set(leg === "leg_front" ? parts.legF : parts.legH, i * 2 + (k % 2), wx, ly + bob + lift * amp, wz, horseYaw, swing);
-        });
-        if (!moving) v.gait = v.gait * Math.pow(0.98, dt * 60);
-        // colliders: the bed in two, the horse in two
-        boxAround(v.rects[0], a.x + Math.sin(bedYaw) * 0.25, a.z + Math.cos(bedYaw) * 0.25, bedYaw, 0.95, 0.95, 1.6);
-        boxAround(v.rects[1], a.x + Math.sin(bedYaw) * 2.1, a.z + Math.cos(bedYaw) * 2.1, bedYaw, 0.95, 0.95, 1.6);
-        boxAround(v.rects[2], c.x - Math.sin(horseYaw) * 0.5, c.z - Math.cos(horseYaw) * 0.5, horseYaw, 0.7, 0.4, 1.8);
-        boxAround(v.rects[3], c.x + Math.sin(horseYaw) * 0.9, c.z + Math.cos(horseYaw) * 0.9, horseYaw, 0.6, 0.35, 1.8);
-        // the carter at the horse's head, on its left
-        const hx = c.x + 0.85 * cy + 1.0 * sy;
-        const hz = c.z - 0.85 * sy + 1.0 * cy;
-        v.manGroup.position.set(hx, 0, hz);
-        v.manGroup.rotation.y = horseYaw;
-      } else {
-        // the handcart goes before its carter: he walks GRIP_Z + 0.5 behind the axle
-        const yaw = heading(v.path, v.s - GRIP_Z * 0.5);
-        atOff(v.path, v.s - GRIP_Z, v.go.off, b);
-        const mx = b.x - Math.sin(yaw) * 0.45;
-        const mz = b.z - Math.cos(yaw) * 0.45;
-        v.manGroup.position.set(mx, 0, mz);
-        v.manGroup.rotation.y = yaw;
-        const hands = handsOf(v.man, v.manGroup, mx, mz, yaw);
-        v.cart!.push(dt, hands.x, hands.z, hands.y, yaw, v.state === "stand" ? 0 : 1);
-      }
-      // --- the man walks when the rig moves
-      if (v.man) {
-        const walking = v.v > 0.08;
-        v.man.play(walking ? "walk" : "idle");
-        v.man.setPace(Math.max(0.3, v.v));
-        if (v.shown) v.man.update(dt);
-      }
+      place(v, dt, ds, player);
     }
     for (const m of instanced()) m.instanceMatrix.needsUpdate = true;
+  }
+
+  /** Put a rig where its fields say (models, the carter, the colliders), `ds` metres on since the last time. */
+  function place(v: Vehicle, dt: number, ds: number, player: { x: number; z: number }): void {
+    const far = ((scene.fog as THREE.Fog | null)?.far ?? 40) + 15;
+    // M6: out on an errand (led through the streets): not here at all
+    if (gone(v)) {
+      v.shown = false;
+      v.manGroup.visible = false;
+      for (const r of v.rects) r.minX = r.maxX = r.minZ = r.maxZ = 1e6;
+      if (v.kind === "dray") hideDray(v.index);
+      return;
+    }
+    atOff(v.path, v.s, v.go.off, a);
+    v.px = a.x;
+    v.pz = a.z;
+    // animate only what the player could see
+    v.shown = Math.hypot(player.x - a.x, player.z - a.z) < far;
+
+    // --- the carter (M6: the owner, in his own clothes)
+    if (v.owner && v.owner.kind !== v.manKind && v.kind === "dray") {
+      v.man?.dispose();
+      v.man = null;
+      v.manKind = v.owner.kind;
+    }
+    if (!v.man) {
+      v.man = makeHuman(v.manKind);
+      if (v.man) {
+        if (v.kind === "handcart") hideBakedCart(v.man.root);
+        v.manGroup.add(v.man.root);
+      }
+    }
+
+    if (v.kind === "dray") {
+      const i = v.index;
+      atOff(v.path, v.s + WHEELBASE, v.go.off, b);
+      atOff(v.path, v.s + WHEELBASE + HORSE_AHEAD, v.go.off, c);
+      const bedYaw = Math.atan2(b.x - a.x, b.z - a.z);
+      const foreYaw = Math.atan2(c.x - b.x, c.z - b.z);
+      const horseYaw = heading(v.path, v.s + WHEELBASE + HORSE_AHEAD);
+      v.roll[0] += ds / 0.52;
+      v.roll[1] += ds / 0.42;
+      v.gait = (v.gait + (v.v / 1.35) * dt) % 1;
+      const moving = v.v > 0.05;
+      set(parts.bed, i, a.x, 0, a.z, bedYaw);
+      set(parts.fore, i, b.x, 0, b.z, foreYaw);
+      set(parts.rear, i, a.x, 0.52, a.z, bedYaw, v.roll[0]);
+      set(parts.front, i, b.x, 0.42, b.z, foreYaw, v.roll[1]);
+      const ld = loads.get(v.load);
+      if (ld) set(ld.mesh, ld.who.indexOf(v), a.x, 0, a.z, bedYaw);
+      // the horse: a gentle rise and fall with each step, legs in a four-beat walk
+      const amp = Math.min(1, v.v / 0.8);
+      const bob = 0.025 * amp * Math.abs(Math.sin(v.gait * Math.PI * 4));
+      set(parts.horse, i, c.x, bob, c.z, horseYaw);
+      const cy = Math.cos(horseYaw);
+      const sy = Math.sin(horseYaw);
+      LEG_POS.forEach(([lx, ly, lz, leg, ph], k) => {
+        const phase = (v.gait + ph) % 1;
+        // foot forward (u = 1) to back (u = -1) on the ground for 60 % of the step, then swung forward
+        const u = phase < 0.6 ? 1 - (2 * phase) / 0.6 : -1 + 2 * THREE.MathUtils.smoothstep((phase - 0.6) / 0.4, 0, 1);
+        const lift = phase >= 0.6 ? 0.05 * Math.sin(((phase - 0.6) / 0.4) * Math.PI) : 0;
+        const swing = -0.36 * u * amp;
+        const wx = c.x + lx * cy + lz * sy;
+        const wz = c.z - lx * sy + lz * cy;
+        set(leg === "leg_front" ? parts.legF : parts.legH, i * 2 + (k % 2), wx, ly + bob + lift * amp, wz, horseYaw, swing);
+      });
+      if (!moving) v.gait = v.gait * Math.pow(0.98, dt * 60);
+      // colliders: the bed in two, the horse in two
+      boxAround(v.rects[0], a.x + Math.sin(bedYaw) * 0.25, a.z + Math.cos(bedYaw) * 0.25, bedYaw, 0.95, 0.95, 1.6);
+      boxAround(v.rects[1], a.x + Math.sin(bedYaw) * 2.1, a.z + Math.cos(bedYaw) * 2.1, bedYaw, 0.95, 0.95, 1.6);
+      boxAround(v.rects[2], c.x - Math.sin(horseYaw) * 0.5, c.z - Math.cos(horseYaw) * 0.5, horseYaw, 0.7, 0.4, 1.8);
+      boxAround(v.rects[3], c.x + Math.sin(horseYaw) * 0.9, c.z + Math.cos(horseYaw) * 0.9, horseYaw, 0.6, 0.35, 1.8);
+      // the carter at the horse's head, on its left
+      const hx = c.x + 0.85 * cy + 1.0 * sy;
+      const hz = c.z - 0.85 * sy + 1.0 * cy;
+      v.manGroup.position.set(hx, 0, hz);
+      v.manGroup.rotation.y = horseYaw;
+    } else {
+      // the handcart goes before its carter: he walks GRIP_Z + 0.5 behind the axle
+      const yaw = heading(v.path, v.s - GRIP_Z * 0.5);
+      atOff(v.path, v.s - GRIP_Z, v.go.off, b);
+      const mx = b.x - Math.sin(yaw) * 0.45;
+      const mz = b.z - Math.cos(yaw) * 0.45;
+      v.manGroup.position.set(mx, 0, mz);
+      v.manGroup.rotation.y = yaw;
+      const hands = handsOf(v.man, v.manGroup, mx, mz, yaw);
+      v.cart!.push(dt, hands.x, hands.z, hands.y, yaw, v.state === "stand" ? 0 : 1);
+    }
+    // --- the man walks when the rig moves
+    if (v.man) {
+      const walking = v.v > 0.08;
+      v.man.play(walking ? "walk" : "idle");
+      v.man.setPace(Math.max(0.3, v.v));
+      if (v.shown) v.man.update(dt);
+    }
   }
 
   const zeroM = new THREE.Matrix4().makeScale(0, 0, 0);
@@ -996,7 +1042,71 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
     }
   }
 
-  const api: Traffic = { update, colliders: () => colliders, group, info, sounds, setOwners, away, yards, people: null };
+  // --- M8b: run by one PC for all (net/mp/world.ts)
+  const r3 = (x: number) => Math.round(x * 1000) / 1000;
+  /** The short way from a to b along a round of length L. */
+  const along = (a: number, b: number, L: number) => {
+    const d = wrap(b - a, L);
+    return d > L / 2 ? d - L : d;
+  };
+  const byId = new Map(vehicles.map((v) => [v.id, v]));
+
+  function netState(): TrafficNet {
+    return {
+      v: vehicles.map((v) => ({
+        id: v.id,
+        s: r3(v.s),
+        v: r3(v.v),
+        off: r3(v.go.off),
+        st: v.state,
+        away: !!v.away,
+        _t: r3(v.timer),
+        _ls: v.lastStop,
+        _go: [r3(v.go.wait), r3(v.go.want), r3(v.go.gone)],
+        _k: [r3(v.stuckT), r3(v.backM), v.backs],
+      })),
+    };
+  }
+
+  /** The world PC's state: into the rigs' own fields (a takeover goes on from here), and the rigs placed. */
+  function netApply(st: TrafficNet, dt: number): void {
+    dt = Math.min(dt, 0.1);
+    for (const q of st.v) {
+      const v = byId.get(q.id);
+      if (!v) continue;
+      const L = v.path.length;
+      const ds = v.netSeen ? along(v.s, q.s, L) : 0;
+      v.s = wrap(q.s, L);
+      v.v = q.v;
+      v.go.off = q.off;
+      v.state = q.st;
+      v.timer = q._t;
+      v.lastStop = q._ls;
+      [v.go.wait, v.go.want, v.go.gone] = q._go;
+      [v.stuckT, v.backM, v.backs] = q._k;
+      v.netAway = q.away;
+      v.netSeen = true;
+      place(v, dt, ds, lastPlayer);
+      v.netPlaced = true;
+    }
+    for (const m of instanced()) m.instanceMatrix.needsUpdate = true;
+  }
+
+  /** Between two states: as lerpState, but along each round the short way (s wraps at the round's end). */
+  function netLerp(p: TrafficNet, q: TrafficNet, u: number): TrafficNet {
+    const out = lerpState(p, q, u);
+    const was = new Map(p.v.map((x) => [x.id, x.s]));
+    for (const x of out.v) {
+      const v = byId.get(x.id);
+      const s0 = was.get(x.id);
+      const s1 = q.v.find((y) => y.id === x.id)?.s;
+      if (!v || s0 === undefined || s1 === undefined) continue;
+      x.s = wrap(s0 + along(s0, s1, v.path.length) * u, v.path.length);
+    }
+    return out;
+  }
+
+  const api: Traffic = { update, colliders: () => colliders, group, info, sounds, setOwners, away, yards, people: null, netRemote: false, netState, netApply, netLerp };
   return api;
 }
 

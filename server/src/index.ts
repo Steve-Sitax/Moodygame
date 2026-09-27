@@ -123,6 +123,19 @@ app.get("/api/map", async (c) => {
   const url = await mapView.ready;
   return url ? c.json({ url }) : c.json({ error: "The town map is off (SCHELDEMIST_MAP_PORT=0) or its port is taken." }, 404);
 });
+// played alone there is no movement socket: the host's game says where Jef is, once a second, for the map
+app.post("/api/map/me", async (c) => {
+  const who = c.get("mpWho");
+  if (!who?.host) return c.json({ ok: false }, 403);
+  const b = (await c.req.json().catch(() => null)) as { x?: unknown; y?: unknown; z?: unknown; yaw?: unknown; mode?: unknown; away?: unknown } | null;
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  const x = n(b?.x);
+  const z = n(b?.z);
+  if (x === null || z === null) return c.json({ ok: false }, 400);
+  const name = (db.prepare("SELECT name FROM player WHERE id = 1").get() as { name?: string } | undefined)?.name ?? "Jef";
+  mapModel.players([{ id: 1, name, host: true, x, y: n(b?.y) ?? 0, z, yaw: n(b?.yaw) ?? 0, mode: typeof b?.mode === "string" ? b.mode.slice(0, 12) : "walk", away: b?.away === true, online: true }]);
+  return c.json({ ok: true });
+});
 // M7 save and pause: saves, loads and the pause; first, so its gate sees every request (save/routes.ts)
 mountSaves(app, {
   db,

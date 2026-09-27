@@ -62,6 +62,8 @@ interface Seat {
   /** When the state was last saved as his pose. */
   posedAt: number;
   conn: Conn | null;
+  /** M8b: when his last states came (the last two seconds): his rate, for choosing the world PC. */
+  times: number[];
   /** Server ms when his socket closed (null: online). */
   goneAt: number | null;
   bytesIn: number;
@@ -334,7 +336,7 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
         conn = { ws, who, sent: new Map(), bytesOut: 0 };
         let seat = seats.get(who.id);
         if (!seat) {
-          seat = { id: who.id, plaus: new Plausible(who.host), state: null, recent: [], at: 0, posedAt: 0, conn: null, goneAt: null, bytesIn: 0 };
+          seat = { id: who.id, plaus: new Plausible(who.host), state: null, recent: [], at: 0, posedAt: 0, conn: null, times: [], goneAt: null, bytesIn: 0 };
           seats.set(who.id, seat);
         }
         // one socket a player: a new tab of his takes over (the old one is told and closed)
@@ -443,6 +445,8 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
       seat.recent.push(s);
       if (seat.recent.length > 8) seat.recent.shift();
       seat.at = now;
+      seat.times.push(now);
+      while (seat.times.length && now - seat.times[0] > 2000) seat.times.shift();
       if (first || (s.flags & FLAG.away) !== 0 !== wasAway) sendRoster(true); // in the town now, or away
       // passed on at once to everyone near (no wait for the next round: up to 50 ms less behind)
       forward(seat, s, now);
@@ -568,7 +572,7 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
 
   function chooseWorld(): void {
     const now = Date.now();
-    const list = [...seats.values()].map((s) => ({ id: s.id, host: s.id === HOST_ID, online: s.goneAt === null && !!s.conn, stateAt: s.at }));
+    const list = [...seats.values()].map((s) => ({ id: s.id, host: s.id === HOST_ID, online: s.goneAt === null && !!s.conn, stateAt: s.at, rate: s.times.filter((x) => now - x <= 2000).length / 2 }));
     const id = world.choose(list, now);
     if (id === null) return;
     stStats.worldChanges++;

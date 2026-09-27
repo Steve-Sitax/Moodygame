@@ -10,6 +10,7 @@ import type { HorsePool } from "./horses";
 import { Kit, type RGB } from "./kit";
 import type { OpeningLike } from "./railway";
 import { addProp } from "./propSpots";
+import { lerpState, type NetMover } from "../net/mp/world";
 import {
   absMinute,
   clockText,
@@ -123,8 +124,20 @@ export interface Omnibus {
   info(): Record<string, unknown>;
 }
 
+/**
+ * M8b: the omnibuses' state as the world PC sends it (net/mp/world.ts). Per omnibus (by its index,
+ * the same on every PC): `s` along its round (it wraps: netLerp goes the short way), its speed,
+ * standing at a stop or not, and (not eased) the stop it stands at or goes to next (its index in
+ * the round's stops), the dwell left, the departure it waits for, the metres still to back, why it
+ * waits. `_slots`: the last departure each line took from its terminus (a takeover goes on from them).
+ */
+export interface OmnibusNet {
+  b: Array<{ id: number; s: number; v: number; at: boolean; _n: number; _dw: number; _dep: number | null; _bk: number; _w: string }>;
+  _slots: Array<[string, number]>;
+}
+
 /** All the omnibuses. */
-export interface Omnibuses {
+export interface Omnibuses extends NetMover<OmnibusNet> {
   buses: Omnibus[];
   update(t: number, dt: number, player: { x: number; z: number } | null, camera?: THREE.Camera): void;
   colliders(): Rect[];
@@ -749,6 +762,9 @@ interface BusState extends Omnibus {
   backs: number;
   /** M7 timetable: the departure it waits for at its terminus (absolute game minutes), or null. */
   departAt: number | null;
+  /** M8b: a state from the world PC taken yet; placed by netApply this frame. */
+  netSeen: boolean;
+  netPlaced: boolean;
 }
 
 interface Passenger {
@@ -834,6 +850,8 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         departAt: null,
         backM: 0,
         backs: 0,
+        netSeen: false,
+        netPlaced: false,
         taken: SEATS.map(() => null),
         passengers: [],
         pose: () => ({ x: b.frame.position.x, y: b.frame.position.y, z: b.frame.position.z, yaw: b.yaw, speed: b.v }),
@@ -1012,6 +1030,11 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     if (signs) scene.add(signs);
   }
 
+  // M8b: run by another PC, the passengers and the people at the stops (drawn here only) take their
+  // chances from a seeded row, not Math.random (the same every run; nothing the world PC decides)
+  let seed = 0x5eed1873;
+  const rand = (): number => (api.netRemote ? (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296 : Math.random());
+
   // --- passengers: townspeople who ride a stop or three, on the benches inside
   const PASSENGER_KINDS: HumanKind[] = ["gentleman", "clerk", "old_man", "priest", "sailor_b", "docker_a", "porter", "carter", "docker_b"];
   const floorLocal = (x: number, z: number) => (z < Z0 - 0.1 ? (Math.abs(x) < 0.8 && z > Z0 - 0.8 ? PLATFORM_Y : 0) : FLOOR_Y);
@@ -1027,9 +1050,9 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
   function board(b: BusState, kind?: HumanKind): void {
     const free = insideSeats.filter((q) => !b.taken[q.i]);
     if (!free.length) return;
-    const human = makeHuman(kind ?? PASSENGER_KINDS[Math.floor(Math.random() * PASSENGER_KINDS.length)]);
+    const human = makeHuman(kind ?? PASSENGER_KINDS[Math.floor(rand() * PASSENGER_KINDS.length)]);
     if (!human || !human.canSit) return;
-    const q = free[Math.floor(Math.random() * free.length)];
+    const q = free[Math.floor(rand() * free.length)];
     const g = new THREE.Group();
     g.add(human.root);
     b.frame.add(g);
@@ -1049,7 +1072,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         human.dispose();
         return false;
       }
-      const q = free[Math.floor(Math.random() * free.length)];
+      const q = free[Math.floor(rand() * free.length)];
       b.frame.add(g);
       b.taken[q.i] = "passenger";
       b.passengers.push({ human, g, seat: q.i, state: "in", path: pathTo(q.s), t: 0, who: { id: who.id, alight } });
@@ -1081,7 +1104,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         }
         continue;
       }
-      if (p.state === "seated" && Math.random() < 0.4) {
+      if (p.state === "seated" && rand() < 0.4) {
         p.state = "out";
         p.path = pathTo(SEATS[p.seat]).reverse();
         p.t = 0;
@@ -1090,7 +1113,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
       }
     }
     if (!api.anonymous) return;
-    const want = 1 + Math.floor(Math.random() * 4);
+    const want = 1 + Math.floor(rand() * 4);
     const aboard = b.passengers.filter((p) => p.state !== "out").length;
     for (let k = 0; k < Math.min(2, want - aboard); k++) board(b);
   }
@@ -1133,16 +1156,18 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
           p.human.play("sit", 0.3);
           p.g.position.set(s.x, s.y + p.human.sitDrop(0) + 0.02, s.z);
           p.g.rotation.y = s.face;
-        } else {
-          if (p.seat >= 0) b.taken[p.seat] = null;
-          p.human.dispose();
-          p.g.removeFromParent();
-          p.state = "gone" as Passenger["state"];
-          if (p.who) api.onResidentOff?.(b, p.who.id, b.stepDown());
-        }
+        } else stepOff(b, p);
       }
     }
     b.passengers = b.passengers.filter((p) => (p.state as string) !== "gone");
+  }
+  /** Down the step and gone (a townsperson stands at its foot). */
+  function stepOff(b: BusState, p: Passenger): void {
+    if (p.seat >= 0) b.taken[p.seat] = null;
+    p.human.dispose();
+    p.g.removeFromParent();
+    p.state = "gone" as Passenger["state"];
+    if (p.who) api.onResidentOff?.(b, p.who.id, b.stepDown());
   }
 
   // --- M7: people waiting at the stops (near Jef only): they stand by the post or sit on the bench,
@@ -1197,7 +1222,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         // new ones only out of arm's reach (they come while you are not looking closely)
         if (mine.filter((w) => w.state === "wait").length < want && d > 18 && waiters.length < 8) {
           const i = mine.length;
-          const kind = WAIT_KINDS[Math.floor(Math.random() * WAIT_KINDS.length)];
+          const kind = WAIT_KINDS[Math.floor(rand() * WAIT_KINDS.length)];
           const human = makeHuman(kind);
           if (!human) continue;
           const spot = spotFor(pt, i);
@@ -1257,7 +1282,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     for (const w of waiters) {
       if (w.post !== pt || w.state !== "wait" || n >= room) continue;
       // (not everyone waits for this line where two call)
-      if (linesAt(pt.id).length > 1 && Math.random() < 0.4) continue;
+      if (linesAt(pt.id).length > 1 && rand() < 0.4) continue;
       w.state = "go";
       w.bus = b;
       w.t = 0;
@@ -1547,6 +1572,12 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         api.onArrive?.(b, st.stop);
       }
     }
+    place(b, dt);
+  }
+
+  /** The pose from the fields (s, v): the frame, the gait, the colliders. */
+  function place(b: BusState, dt: number): void {
+    const lp = b.loop;
     const trot = b.v > 1.9;
     b.gait = (b.gait + (b.v / (trot ? 2.8 : 1.35)) * dt * (trot ? 1.0 : 0.95)) % 1;
     // pose: the body from the rear axle to the pivot, the fore-carriage toward the horses
@@ -1660,11 +1691,26 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     opts.horses.show("omnibus", anyNear);
   }
 
+  // M8b: run by one PC for all (net/mp/world.ts)
+  const r3 = (x: number) => Math.round(x * 1000) / 1000;
+  /** The short way from a to b along a round of length L. */
+  const along = (a: number, b: number, L: number) => {
+    const d = (((b - a) % L) + L) % L;
+    return d > L / 2 ? d - L : d;
+  };
+
   const api: Omnibuses = {
     buses,
     update(_t, dt, player, camera) {
       dt = Math.min(dt, 0.1);
-      for (const b of buses) move(b, dt, player);
+      // M8b: run by another PC: no decisions here (netApply moves them); one not placed by a state
+      // this frame (none came yet) stands where it is
+      if (api.netRemote) {
+        for (const b of buses) {
+          if (!b.netPlaced) place(b, dt);
+          b.netPlaced = false;
+        }
+      } else for (const b of buses) move(b, dt, player);
       buses.forEach((b, i) => {
         const cy = Math.cos(b.horseYaw);
         const sy = Math.sin(b.horseYaw);
@@ -1760,6 +1806,80 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     residents() {
       const out: Array<{ id: string; bus: number; alight: string; seated: boolean }> = [];
       for (const b of buses) for (const p of b.passengers) if (p.who && (p.state as string) !== "gone") out.push({ id: p.who.id, bus: b.index, alight: p.who.alight, seated: p.state === "seated" });
+      return out;
+    },
+    netRemote: false,
+    netState() {
+      return {
+        b: buses.map((b) => ({
+          id: b.index,
+          s: r3(b.s),
+          v: r3(b.v),
+          at: !!b.at,
+          _n: b.nextI,
+          _dw: r3(b.dwell),
+          _dep: b.departAt,
+          _bk: r3(b.backM),
+          _w: b.waitWhy,
+        })),
+        _slots: [...lastSlot],
+      };
+    },
+    netApply(st, dt) {
+      dt = Math.min(dt, 0.1);
+      for (const [line, slot] of st._slots) lastSlot.set(line, slot);
+      for (const q of st.b) {
+        const b = buses[q.id];
+        if (!b) continue;
+        const L = b.loop.length;
+        const ds = b.netSeen ? along(b.s, q.s, L) : 0;
+        b.s = b.loop.wrap(q.s);
+        b.v = q.v;
+        b.dwell = q._dw;
+        b.departAt = q._dep;
+        b.backM = q._bk;
+        b.waitWhy = q._w;
+        b.rollR += ds / R_REAR;
+        b.rollF += ds / R_FRONT;
+        // the stops: arriving and leaving as the world PC's omnibus does (the conductor's calls,
+        // the passengers and the people waiting here); the first state only puts it there
+        const was = b.at;
+        const wasI = b.nextI;
+        const n = Math.min(Math.max(0, q._n), b.stopAt.length - 1);
+        const now = q.at ? b.stopAt[n].stop : null;
+        b.nextI = n;
+        if (!b.netSeen) b.at = now;
+        else {
+          if (was && (!now || n !== wasI)) {
+            b.at = null;
+            // (those still stepping down are off before it rolls: here it waits for nobody)
+            for (const p of b.passengers) if (p.state === "out") stepOff(b, p);
+            b.passengers = b.passengers.filter((p) => (p.state as string) !== "gone");
+            api.onDepart?.(b, was, b.stopAt[n].stop);
+          }
+          if (now && (!was || n !== wasI)) {
+            b.at = now;
+            atStop(b);
+            callWaiters(b, now);
+            api.onArrive?.(b, now);
+          }
+        }
+        b.netSeen = true;
+        place(b, dt);
+        b.netPlaced = true;
+      }
+    },
+    netLerp(p, q, u) {
+      // as lerpState, but along each round the short way (s wraps at the round's end)
+      const out = lerpState(p, q, u);
+      const was = new Map(p.b.map((x) => [x.id, x.s]));
+      for (const x of out.b) {
+        const b = buses[x.id];
+        const s0 = was.get(x.id);
+        const s1 = q.b.find((y) => y.id === x.id)?.s;
+        if (!b || s0 === undefined || s1 === undefined) continue;
+        x.s = b.loop.wrap(s0 + along(s0, s1, b.loop.length) * u);
+      }
       return out;
     },
     jumpTo(i, stop, before = 20) {
