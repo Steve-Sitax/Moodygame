@@ -12,9 +12,10 @@
   <a href="https://github.com/Steve-Sitax/Moodygame/releases/latest"><b>Download for Windows, Mac and Linux</b></a>
   &nbsp;·&nbsp; <a href="#play-it">How to play</a>
   &nbsp;·&nbsp; <a href="docs/README.md">Design notes</a>
+  &nbsp;·&nbsp; <a href="#made-with-ai">Made with AI</a>
 </p>
 
-A 3D browser game in first person, with a PS1 look. You are Jef, new in town, with a few coins and
+A 3D browser game in first person. You are Jef, new in town, with a few coins and
 rent due by Sunday. You look for work on the quays. The townspeople talk, remember and act: an AI
 proposes their words and plans, and the game engine checks every proposal and owns every number.
 
@@ -89,6 +90,27 @@ Press **Test** next to your choice to see if it works. More in `docs/ai-setup.md
 
 `node tools/package.mjs` makes the player's download for your own system; `docs/release.md` says how a
 Release is made. The design notes start at `docs/README.md`.
+
+## Made with AI
+
+Scheldemist is an experiment: the whole game was made by AI, steered by one person. Steve (Sitax)
+designed it, played it and decided; Claude (Anthropic's Claude Code, mostly Claude Opus 5.5) wrote the
+code, the Blender scripts that build every model, the tests and the docs. Most textures and concept
+pictures were made with OpenAI's image tool through Codex. The sounds are CC0 recordings and the fonts
+are free fonts made by people (see `assets/ATTRIBUTION.md`); the street plan is traced from the 1873
+Vuillaume map.
+
+What it took, up to version 0.1.0 (counted from the Claude Code logs on the main PC):
+
+| | |
+|---|---|
+| Time | 5 days, 23 to 27 September 2026; about 70 hours with an AI at work |
+| Sessions | 37 Claude Code sessions, plus 238 helper agents they started |
+| Tokens | about 16 billion processed; most were re-read from the cache, about 190 million were new, and about 11 million were written out |
+| Commits | about 300 |
+
+Not counted: the work on the laptop, the Codex runs for the pictures, and the AI calls the game makes
+while you play.
 
 ## Licence
 
