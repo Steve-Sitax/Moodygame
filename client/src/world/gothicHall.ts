@@ -4,6 +4,7 @@ import { GOTHIC, pointedAt, type GothicHall, type GWindow } from "../../../share
 import { canvasTex, flicker, frameRoom, rand } from "./rooms";
 import { Flames, Kit, lmMat, marble, painting, type MatDef } from "./landmarkKit";
 import { glassMat, M, walkGraph, type LandmarkRoom } from "./landmarkRooms";
+import { buildHallSun } from "./hallSun";
 import { createHallInWorld, type HallInWorld } from "./hallInWorld";
 import { altar, C, chandelier, figure, PIC, planarUV } from "./carolusHall";
 import { psx } from "../retro/psx";
@@ -794,8 +795,50 @@ export function buildGothicHall(h: GothicHall): LandmarkRoom {
   k.finish();
 
   // ================= light: daylight through the windows, the candles, the chandeliers
+  // the sun through the south windows on the floor, the columns' and arcades' shadows across it, the shafts; the
+  // moon by night (world/hallSun.ts)
+  const floors = P.levels[0].floors.filter((f) => f.maxZ > 0.001);
+  const sunLight = buildHallSun(group, {
+    floor: {
+      minX: Math.min(...floors.map((f) => f.minX)),
+      maxX: Math.max(...floors.map((f) => f.maxX)),
+      minZ: Math.min(...floors.map((f) => Math.max(0, f.minZ))),
+      maxZ: Math.max(...floors.map((f) => f.maxZ)),
+    },
+    floors,
+    windows: h.windows.map((w) => ({
+      x: w.wall === "z" ? w.at : w.c,
+      z: w.wall === "z" ? w.c : w.at,
+      nx: w.wall === "z" ? w.inward : 0,
+      nz: w.wall === "x" ? w.inward : 0,
+      hw: w.w / 2,
+      y0: w.y0,
+      y1: w.y1,
+      spring: w.y1 - 0.742 * w.w,
+      lights: w.lights,
+      colour: !!w.colour,
+    })),
+    piers: [
+      ...colsZ.flatMap((zz) => [-1, 1].map((sg) => ({ x: sg * L.nave, z: zz, r: 0.5, h: H.cap }))),
+      ...L.tx.flatMap((zz) => [-1, 1].map((sg) => ({ x: sg * L.nave, z: zz, r: 0.62, h: H.naveSpring }))),
+    ],
+    screens: [-1, 1].map((sg) => ({ along: "z" as const, at: sg * L.nave, from: z0n, to: L.tx[0], open: H.cap + H.arcRise * 0.5 })),
+    // the arcades' walls over their arches, up to the clerestory's sills: lit across the nave
+    walls: [-1, 1].map((sg) => {
+      const sill = Math.min(...h.windows.filter((w) => w.wall === "z" && Math.abs(Math.abs(w.at) - L.nave) < 0.5).map((w) => w.y0), H.naveSpring);
+      const x = sg * (L.nave - 0.35);
+      return { a: [x, z0n + 0.3] as [number, number], b: [x, L.tx[0] - 0.7] as [number, number], y0: H.cap + H.arcRise + 0.15, y1: sill - 0.25, n: [-sg, 0] as [number, number] };
+    }),
+    power: 1.1,
+  });
   const hemi = new THREE.HemisphereLight(0xd8d4cc, 0x4a4036, 1.1);
   const amb = new THREE.AmbientLight(0x5a5048, 0.9);
+  const HEMI_DAY = new THREE.Color(0xd8d4cc);
+  const HEMI_NIGHT = new THREE.Color(0x56668c);
+  const GROUND_DAY = new THREE.Color(0x4a4036);
+  const GROUND_NIGHT = new THREE.Color(0x1a1612);
+  const AMB_DAY = new THREE.Color(0x5a5048);
+  const AMB_NIGHT = new THREE.Color(0x262c40);
   scene.add(hemi, amb);
   const pt = (c: number, x: number, y: number, zz: number, d: number) => {
     const l = new THREE.PointLight(c, 0, d, 1.5);
@@ -812,10 +855,19 @@ export function buildGothicHall(h: GothicHall): LandmarkRoom {
   let ambK = 1;
   const light = () => {
     const d = day * (0.55 + 0.45 * sky);
-    hemi.intensity = (1.5 + 2.2 * d) * ambK;
-    amb.intensity = (0.7 + 0.35 * day) * ambK;
-    dayFill.intensity = 14 * d;
-    for (const gm of [glassG, glassC]) gm.mat().color.setScalar(0.1 + 0.95 * day * sky);
+    // by day bright, the sun's patches and shafts on top, the shade kept; by night blue-black round the candles,
+    // the glass holding the moon
+    const night = 1 - THREE.MathUtils.smoothstep(day, 0, 0.35);
+    const moon = night * THREE.MathUtils.clamp((sky - 0.55) * 2.2, 0.25, 1);
+    hemi.intensity = (0.3 + 2.8 * d) * ambK;
+    hemi.color.copy(HEMI_DAY).lerp(HEMI_NIGHT, night);
+    hemi.groundColor.copy(GROUND_DAY).lerp(GROUND_NIGHT, night);
+    amb.intensity = (0.2 + 0.6 * day) * ambK;
+    amb.color.copy(AMB_DAY).lerp(AMB_NIGHT, night);
+    dayFill.intensity = 12 * d;
+    const g0 = 0.95 * day * sky;
+    for (const gm of [glassG, glassC]) gm.mat().color.setRGB(0.07 + g0 + 0.05 * moon, 0.08 + g0 + 0.08 * moon, 0.1 + g0 + 0.17 * moon);
+    sunLight.set(day, sky);
   };
   const free = (x: number, zz: number) => HP.freeAt(P, x, zz, 0.25, false);
   const path = walkGraph(P.nodes, free);
@@ -854,9 +906,11 @@ export function buildGothicHall(h: GothicHall): LandmarkRoom {
     },
     update(t) {
       flames.update(t);
-      altarL.intensity = 3.4 * flicker(t, 1.3);
-      naveL.intensity = (day < 0.4 ? 10 : 4) * flicker(t, 2.1);
-      crossL.intensity = (day < 0.4 ? 8 : 3) * flicker(t, 2.9);
+      // (all night, shut or not: the altar's lamp and candles, the nave's and the crossing's lamps)
+      const dark = 1 - THREE.MathUtils.smoothstep(day, 0.1, 0.45);
+      altarL.intensity = (3.4 + 2 * dark) * flicker(t, 1.3);
+      naveL.intensity = (4 + 9 * dark) * flicker(t, 2.1);
+      crossL.intensity = (3 + 7 * dark) * flicker(t, 2.9);
       room.lamps = [
         { p: toWorld(0, L.apse.z, 2.4), w: 0.25 * flicker(t, 1.3) },
         { p: toWorld(0, (z0n + L.tx[0]) / 2, 10), w: 0.2 * flicker(t, 2.1) },

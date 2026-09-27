@@ -78,11 +78,32 @@ const H = {
 const billMats = [0, 1, 2, 3].map((i) => lmMat(`lm_bill${i}`, { map: billTex(i), color: 0xd8d0c0 }, 0));
 const sign = (text: string, key: string) => lmBasic(key, { map: signTexture(text), color: 0xb8ab8a });
 
-function lights(scene: THREE.Scene, sky: number, ground: number, amb: number): { hemi: THREE.HemisphereLight; amb: THREE.AmbientLight } {
+type HallAir = { hemi: THREE.HemisphereLight; amb: THREE.AmbientLight; base: [THREE.Color, THREE.Color, THREE.Color] };
+function lights(scene: THREE.Scene, sky: number, ground: number, amb: number): HallAir {
   const hemi = new THREE.HemisphereLight(sky, ground, 1.1);
   const a = new THREE.AmbientLight(amb, 0.9);
   scene.add(hemi, a);
-  return { hemi, amb: a };
+  return { hemi, amb: a, base: [new THREE.Color(sky), new THREE.Color(ground), new THREE.Color(amb)] };
+}
+
+const MOON_SKY = new THREE.Color(0x56668c);
+const MOON_GROUND = new THREE.Color(0x1a1612);
+const MOON_AMB = new THREE.Color(0x262c40);
+/**
+ * The halls by night (Steve, 2026-09-27: "moody and cool"; the lamps burn all night, open or shut): the grey fill
+ * of the day sinks to a blue-black, so the lamps' warm pools carry the room; the glass holds the moon's cold blue.
+ * Call it last in a hall's light().
+ */
+function nightAir(L: HallAir, glasses: Array<{ mat: () => THREE.MeshBasicMaterial }>, day: number, sky: number): void {
+  const night = 1 - THREE.MathUtils.smoothstep(day, 0, 0.35);
+  const moon = night * THREE.MathUtils.clamp((sky - 0.55) * 2.2, 0.25, 1);
+  L.hemi.intensity *= 1 - 0.68 * night;
+  L.amb.intensity *= 1 - 0.6 * night;
+  L.hemi.color.copy(L.base[0]).lerp(MOON_SKY, night);
+  L.hemi.groundColor.copy(L.base[1]).lerp(MOON_GROUND, night);
+  L.amb.color.copy(L.base[2]).lerp(MOON_AMB, night);
+  const g0 = 0.9 * day * sky;
+  for (const g of glasses) g.mat().color.setRGB(0.07 + g0 + 0.05 * moon, 0.08 + g0 + 0.08 * moon, 0.1 + g0 + 0.17 * moon);
 }
 
 function point(group: THREE.Group, color: number, x: number, y: number, z: number, dist: number): THREE.PointLight {
@@ -516,6 +537,7 @@ export function buildTownhall(): LandmarkRoom {
     L.amb.intensity = (0.9 + 0.4 * day) * ambK;
     for (const g of glasses) g.mat().color.setScalar(0.12 + 0.95 * day * sky);
     shaftMat.opacity = Math.max(0, day - 0.3) * 0.22 * Math.max(0, sky - 0.55) * 2.2;
+    nightAir(L, glasses, day, sky);
   };
   const room: LandmarkRoom = {
     kind: "landmark",
@@ -555,7 +577,8 @@ export function buildTownhall(): LandmarkRoom {
       fires.update(t);
       candles.update(t);
       const f = flicker(t, 3.1);
-      const dusk = day < 0.4 ? 1 : 0.2;
+      // (the lamps burn all night, the hall shut or not: the porter's, the stair's, the offices')
+      const dusk = 0.2 + 1.1 * (1 - THREE.MathUtils.smoothstep(day, 0.2, 0.5));
       lampHall.intensity = 5 * dusk * f;
       lampVest.intensity = 3 * dusk * f;
       lampUp.intensity = 4 * dusk * f;
@@ -861,6 +884,7 @@ export function buildVleeshuis(): LandmarkRoom {
     dayFill.intensity = 6 * d;
     studioL.intensity = 5 * d;
     shaftMat.opacity = Math.max(0, day - 0.3) * 0.2 * Math.max(0, sky - 0.55) * 2.2;
+    nightAir(L, glasses, day, sky);
   };
   const room: LandmarkRoom = {
     kind: "landmark",
@@ -919,7 +943,7 @@ export function buildVleeshuis(): LandmarkRoom {
         ropeM.position.set(0, cy + 0.4, 0);
       }
       stageL.intensity = playing ? 6 * f : 0;
-      hallL.intensity = playing ? 3 : day < 0.4 ? 1.5 : 0.8;
+      hallL.intensity = playing ? 3 : day < 0.4 ? 2.4 : 0.8;
       room.lamps = [
         { p: toWorld(-10, AZ[1], 2.75), w: 0.3 * f },
         { p: toWorld(-2.5, AZ[1], 2.75), w: 0.3 * flicker(t, 2.7) },
@@ -1116,6 +1140,7 @@ export function buildSteen(): LandmarkRoom {
     win.mat().color.setScalar(0.12 + 0.9 * day * sky);
     dayFill.intensity = 6 * d;
     shaftMat.opacity = Math.max(0, day - 0.3) * 0.12 * Math.max(0, sky - 0.55) * 2.2;
+    nightAir(L, [win], day, sky);
   };
   const room: LandmarkRoom = {
     kind: "landmark",
@@ -1151,8 +1176,8 @@ export function buildSteen(): LandmarkRoom {
       light();
     },
     update(t) {
-      lampA.intensity = (day < 0.5 ? 5 : 3) * flicker(t, 2.3);
-      lampB.intensity = (day < 0.5 ? 4 : 2.5) * flicker(t, 4.1);
+      lampA.intensity = (day < 0.5 ? 7 : 3) * flicker(t, 2.3);
+      lampB.intensity = (day < 0.5 ? 5.5 : 2.5) * flicker(t, 4.1);
       cellL.intensity = 0.6 + 1.2 * day;
       room.lamps = [{ p: toWorld(-8.2, 4.2, 3.8), w: 0.25 * flicker(t, 2.3) }];
     },
@@ -1317,6 +1342,7 @@ export function buildOostershuis(): LandmarkRoom {
     fan.mat().color.setScalar(0.12 + 0.9 * day * sky);
     dayFill.intensity = 8 * d;
     shaftMat.opacity = Math.max(0, day - 0.3) * 0.25 * Math.max(0, sky - 0.55) * 2.2;
+    nightAir(L, [fan], day, sky);
   };
   const room: LandmarkRoom = {
     kind: "landmark",
@@ -1361,8 +1387,8 @@ export function buildOostershuis(): LandmarkRoom {
     update(t) {
       flames.update(t);
       lampA.intensity = 2.5 * flicker(t, 3.3);
-      lampW.intensity = (day < 0.4 ? 7 : 3) * flicker(t, 1.7);
-      lampE.intensity = (day < 0.4 ? 7 : 3) * flicker(t, 2.9);
+      lampW.intensity = (day < 0.4 ? 9.5 : 3) * flicker(t, 1.7);
+      lampE.intensity = (day < 0.4 ? 9.5 : 3) * flicker(t, 2.9);
       room.lamps = [{ p: toWorld(DESK.x - 0.4, DESK.z, 1.1), w: 0.2 * flicker(t, 3.3) }];
     },
   };

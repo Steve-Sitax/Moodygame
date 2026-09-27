@@ -4,6 +4,7 @@ import * as CP from "../../../shared/carolusPlan";
 import { canvasTex, flicker, frameRoom, rand } from "./rooms";
 import { Flames, Kit, lmMat, marble, matOf, painting, type MatDef } from "./landmarkKit";
 import { glassMat, M, paintMat, walkGraph, type LandmarkRoom } from "./landmarkRooms";
+import { buildHallSun, type SunWindow } from "./hallSun";
 import { createHallInWorld, type HallInWorld } from "./hallInWorld";
 import { withPicture } from "./quayStone";
 import type { World } from "./rijnkaai";
@@ -573,8 +574,48 @@ export function buildCarolusHall(): LandmarkRoom {
   k.finish();
 
   // ---- lights: daylight from the gallery windows, candles, the chandeliers
+  // the sun through the gallery windows over the galleries' floors into the nave, the Lady Chapel's and the apse's
+  // coloured glass; the columns' shadows; the moon by night (world/hallSun.ts)
+  const sunWins: SunWindow[] = [];
+  const gw2 = CP.GALLERY_WINDOWS;
+  for (const sg of [-1, 1]) for (const z of gw2.z) sunWins.push({ x: sg * (IN.aisle - 0.05), z, nx: -sg, nz: 0, hw: gw2.w / 2, y0: gw2.y0, y1: gw2.y1, spring: gw2.y1 - gw2.w / 2, lights: 2 });
+  for (const z of CHAPEL.windows) sunWins.push({ x: CHAPEL.x1 + 0.05, z, nx: -1, nz: 0, hw: 0.8, y0: 3.8, y1: 8.6, spring: 7.8, lights: 2, colour: true });
+  for (let i = 1; i <= 3; i++) {
+    const R0 = IN.apseR + 0.12;
+    const a0 = -Math.PI / 2 + (Math.PI * i) / 5;
+    const a1 = -Math.PI / 2 + (Math.PI * (i + 1)) / 5;
+    const mx = (-Math.sin(a0) * R0 - Math.sin(a1) * R0) / 2;
+    const mz = IN.apse + (Math.cos(a0) * R0 + Math.cos(a1) * R0) / 2;
+    const n = Math.hypot(mx, mz - IN.apse);
+    sunWins.push({ x: mx * 0.985, z: IN.apse + (mz - IN.apse) * 0.985, nx: -mx / n, nz: -(mz - IN.apse) / n, hw: 0.75, y0: 8.4, y1: 12.95, spring: 12.2, lights: 1, colour: true });
+  }
+  const sunLight = buildHallSun(group, {
+    floor: { minX: -IN.aisle, maxX: CHAPEL.x1, minZ: IN.west, maxZ: IN.east },
+    floors: [
+      { minX: -IN.aisle, maxX: IN.aisle, minZ: IN.west, maxZ: IN.east },
+      { minX: CHAPEL.x0, maxX: CHAPEL.x1, minZ: CHAPEL.z0, maxZ: CHAPEL.z1 },
+      { minX: IN.aisle, maxX: CHAPEL.x0, minZ: CHAPEL.door[0], maxZ: CHAPEL.door[1] },
+    ],
+    windows: sunWins,
+    piers: [-1, 1].flatMap((sg) => BAYS.slice(1, -1).map((z) => ({ x: sg * IN.arcade, z, r: 0.42, h: HT.cap }))),
+    screens: [
+      ...[-1, 1].map((sg) => ({ along: "z" as const, at: sg * IN.arcade, from: IN.west, to: IN.east, open: 0, solid: [[HT.cap + 1.0, HT.galleryTop + 0.1], [HT.upperCap + 1.2, 99]] as Array<[number, number]> })),
+      // the south aisle's wall between the Lady Chapel and the aisle: its arch the only way through
+      { along: "z" as const, at: IN.aisle + 0.12, from: CHAPEL.z0, to: CHAPEL.door[0], open: -1 },
+      { along: "z" as const, at: IN.aisle + 0.12, from: CHAPEL.door[0], to: CHAPEL.door[1], open: CHAPEL.doorSpring },
+      { along: "z" as const, at: IN.aisle + 0.12, from: CHAPEL.door[1], to: CHAPEL.z1, open: -1 },
+    ],
+    slabs: [-1, 1].map((sg) => ({ minX: sg < 0 ? -IN.aisle : IN.arcade + IN.arcadeHalf, maxX: sg < 0 ? -(IN.arcade + IN.arcadeHalf) : IN.aisle, minZ: IN.west, maxZ: IN.east, y: HT.galleryTop })),
+    power: 1.1,
+  });
   const hemi = new THREE.HemisphereLight(0xd8d4cc, 0x4a4036, 1.1);
   const amb = new THREE.AmbientLight(0x5a5048, 0.9);
+  const HEMI_DAY = new THREE.Color(0xd8d4cc);
+  const HEMI_NIGHT = new THREE.Color(0x56668c);
+  const GROUND_DAY = new THREE.Color(0x4a4036);
+  const GROUND_NIGHT = new THREE.Color(0x1a1612);
+  const AMB_DAY = new THREE.Color(0x5a5048);
+  const AMB_NIGHT = new THREE.Color(0x262c40);
   scene.add(hemi, amb);
   const pt = (c: number, x: number, y: number, z: number, d: number) => {
     const l = new THREE.PointLight(c, 0, d, 1.5);
@@ -591,10 +632,18 @@ export function buildCarolusHall(): LandmarkRoom {
   let ambK = 1;
   const light = () => {
     const d = day * (0.55 + 0.45 * sky);
-    hemi.intensity = (1.6 + 2.2 * d) * ambK;
-    amb.intensity = (0.7 + 0.35 * day) * ambK;
-    dayFill.intensity = 10 * d;
-    for (const g of [win, winC]) g.mat().color.setScalar(0.1 + 0.95 * day * sky);
+    // bright by day with the sun's patches on top; blue-black by night round the candles, the glass holding the moon
+    const night = 1 - THREE.MathUtils.smoothstep(day, 0, 0.35);
+    const moon = night * THREE.MathUtils.clamp((sky - 0.55) * 2.2, 0.25, 1);
+    hemi.intensity = (0.3 + 2.9 * d) * ambK;
+    hemi.color.copy(HEMI_DAY).lerp(HEMI_NIGHT, night);
+    hemi.groundColor.copy(GROUND_DAY).lerp(GROUND_NIGHT, night);
+    amb.intensity = (0.2 + 0.65 * day) * ambK;
+    amb.color.copy(AMB_DAY).lerp(AMB_NIGHT, night);
+    dayFill.intensity = 9 * d;
+    const g0 = 0.95 * day * sky;
+    for (const g of [win, winC]) g.mat().color.setRGB(0.07 + g0 + 0.05 * moon, 0.08 + g0 + 0.08 * moon, 0.1 + g0 + 0.17 * moon);
+    sunLight.set(day, sky);
   };
   const free = (x: number, z: number) => HP.freeAt(P, x, z, 0.25, false);
   const path = walkGraph(P.nodes, free);
@@ -633,9 +682,11 @@ export function buildCarolusHall(): LandmarkRoom {
     },
     update(t) {
       flames.update(t);
-      altarL.intensity = 3.2 * flicker(t, 1.3);
-      naveL.intensity = (day < 0.4 ? 9 : 4) * flicker(t, 2.1);
-      chapelL.intensity = 3.0 * flicker(t, 3.7);
+      // (all night, shut or not: the altar's candles, the chandeliers' lamps, the Lady Chapel's candles)
+      const dark = 1 - THREE.MathUtils.smoothstep(day, 0.1, 0.45);
+      altarL.intensity = (3.2 + 2 * dark) * flicker(t, 1.3);
+      naveL.intensity = (4 + 7 * dark) * flicker(t, 2.1);
+      chapelL.intensity = (3.0 + 1.5 * dark) * flicker(t, 3.7);
       room.lamps = [
         { p: toWorld(0, 29.0, 2.4), w: 0.25 * flicker(t, 1.3) },
         { p: toWorld(0, 14.5, 8.8), w: 0.2 * flicker(t, 2.1) },

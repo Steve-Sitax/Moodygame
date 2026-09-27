@@ -3,7 +3,8 @@ import * as P from "../../../shared/cathedralPlan";
 import { pointedAt } from "../../../shared/gothicPlan";
 import { canvasTex, flicker, frameRoom, rand, type Seat } from "./rooms";
 import { glowTexture } from "./textures";
-import { Flames, glass, Kit, lightShaft, lmBasic, lmMat, marble, matOf, pointedProfile, shaftMaterial, type MatDef, type PieceOpts } from "./landmarkKit";
+import { Flames, glass, Kit, lmBasic, lmMat, marble, matOf, pointedProfile, type MatDef, type PieceOpts } from "./landmarkKit";
+import { buildHallSun, type SunWindow } from "./hallSun";
 import { walkGraph, type LandmarkRoom, type Lookable, type Mark } from "./landmarkRooms";
 import { planarUV } from "./carolusHall";
 
@@ -112,28 +113,6 @@ const chairBackTex = () =>
       g.fillRect(0, 0, 3, 32);
       g.fillRect(13, 0, 3, 32);
       for (const y of [1, 8, 15]) g.fillRect(0, y, 16, 4);
-    },
-    false,
-  );
-
-/** A soft pool of coloured light on the floor (the glass by day). */
-const poolTex = () =>
-  canvasTex(
-    64,
-    64,
-    (g) => {
-      const r = rand(12);
-      g.clearRect(0, 0, 64, 64);
-      const cols = ["255,60,40", "60,90,255", "255,210,80", "80,200,120", "200,80,220"];
-      for (let i = 0; i < 18; i++) {
-        const x = 12 + r() * 40;
-        const y = 8 + r() * 48;
-        const gr = g.createRadialGradient(x, y, 0, x, y, 6 + r() * 8);
-        gr.addColorStop(0, `rgba(${cols[i % cols.length]},0.55)`);
-        gr.addColorStop(1, `rgba(${cols[i % cols.length]},0)`);
-        g.fillStyle = gr;
-        g.fillRect(0, 0, 64, 64);
-      }
     },
     false,
   );
@@ -1092,18 +1071,30 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
 
   // ================= windows: the aisles' tall lancets, the clerestory, the transept ends, the choir, apse, ambulatory, drum
   const glassDefs = [glassG.def, glassC.def, glassC2.def];
-  const shaftFrom: THREE.Vector3[] = [];
+  // (the windows the sun and the moon come through: world/hallSun.ts)
+  const sunWins: SunWindow[] = [];
+  const sunWin = (x: number, z: number, nx: number, nz: number, w: number, y0: number, y1: number, lights: number, colour: boolean) => {
+    const rise = Math.min(0.742 * w, (y1 - y0) * 0.45);
+    sunWins.push({ x, z, nx, nz, hw: w / 2, y0, y1, spring: y1 - rise, lights, colour });
+  };
   const mid = (list: number[]) => between(list).map(([a, b]) => (a + b) / 2);
   for (const s of [-1, 1]) {
     const face = (-s * Math.PI) / 2; // the wall at +x faces -x
-    mid([WO, ...BAYS, CROSS0 - 0.6]).forEach((z, i) => lancet(k, ST, (i + (s > 0 ? 1 : 0)) % 2 ? glassC.def : glassC2.def, s * (OUT - 0.001), z, face, 3.0, 3.2, 13.6, 3, m.iron));
+    mid([WO, ...BAYS, CROSS0 - 0.6]).forEach((z, i) => {
+      lancet(k, ST, (i + (s > 0 ? 1 : 0)) % 2 ? glassC.def : glassC2.def, s * (OUT - 0.001), z, face, 3.0, 3.2, 13.6, 3, m.iron);
+      sunWin(s * (OUT - 0.001), z, -s, 0, 3.0, 3.2, 13.6, 3, true);
+    });
     mid([W0, ...BAYS, CROSS0 - 0.45]).forEach((z, i) => {
       lancet(k, ST, i % 3 === 1 ? glassC.def : glassG.def, s * (NAVE - 0.45), z, face, 3.0, 16.4, 26.2, 3, m.iron);
-      if (s < 0 && i >= 1 && i <= 6) shaftFrom.push(new THREE.Vector3(-(NAVE - 0.5), 20, z));
+      sunWin(s * (NAVE - 0.45), z, -s, 0, 3.0, 16.4, 26.2, 3, i % 3 === 1);
     });
     lancet(k, ST, glassC.def, s * (TR - 0.001), XMID, face, 7.0, 7.6, 26.6, 4, m.iron);
+    sunWin(s * (TR - 0.001), XMID, -s, 0, 7.0, 7.6, 26.6, 4, true);
     mid([CROSS1 + 0.45, ...CHOIR_BAYS, AC]).forEach((z) => lancet(k, ST, glassC2.def, s * (NAVE - 0.45), z, face, 2.8, 16.4, 26.0, 2, m.iron));
-    mid([CROSS1 + 0.6, ...CHOIR_BAYS, CHOIR_E]).forEach((z, i) => lancet(k, ST, i % 2 ? glassC.def : glassG.def, s * (A3 - 0.001), z, face, 2.8, 3.2, 13.4, 2, m.iron));
+    mid([CROSS1 + 0.6, ...CHOIR_BAYS, CHOIR_E]).forEach((z, i) => {
+      lancet(k, ST, i % 2 ? glassC.def : glassG.def, s * (A3 - 0.001), z, face, 2.8, 3.2, 13.4, 2, m.iron);
+      sunWin(s * (A3 - 0.001), z, -s, 0, 2.8, 3.2, 13.4, 2, i % 2 === 1);
+    });
     // the transept arms' west walls: a high window over the aisles' ends
     lancet(k, ST, glassG.def, (s * (A3 + TR)) / 2, CROSS0 + 0.001, 0, 4.0, 17.0, 26.0, 3, m.iron);
   }
@@ -1347,17 +1338,6 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
   // brass chandeliers over the nave and the crossing (lit at dusk)
   for (const z of [24, 36, 48, XMID]) chandelier(F0, m, chand, 0, 9.6, z, z === XMID ? H - 0.3 : H - 0.5);
 
-  // pools of coloured light on the floor below the south glass (the sun comes from the south)
-  const poolMat = new THREE.MeshBasicMaterial({ map: poolTex(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0, fog: false });
-  const pools: THREE.Mesh[] = [];
-  for (const z of mid([WO, ...BAYS, CROSS0 - 0.6]).slice(1, 6)) {
-    const pm = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 2.2), poolMat);
-    pm.rotation.x = -Math.PI / 2;
-    pm.position.set(-(OUT - 3.2), 0.02, z + 1.2);
-    group.add(pm);
-    pools.push(pm);
-  }
-
   k.finish();
 
   const altarN = altarLit.count;
@@ -1372,6 +1352,12 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
   // ================= light: the day through the glass, the candles, the chandeliers at dusk
   const hemi = new THREE.HemisphereLight(0xdcd8d0, 0x4a4036, 1.2);
   const amb = new THREE.AmbientLight(0x5a5048, 0.8);
+  const HEMI_DAY = new THREE.Color(0xdcd8d0);
+  const HEMI_NIGHT = new THREE.Color(0x5a6a90);
+  const GROUND_DAY = new THREE.Color(0x4a4036);
+  const GROUND_NIGHT = new THREE.Color(0x1a1612);
+  const AMB_DAY = new THREE.Color(0x5a5048);
+  const AMB_NIGHT = new THREE.Color(0x283044);
   scene.add(hemi, amb);
   const pt = (c: number, x: number, y: number, z: number, d: number, decay = 1.5) => {
     const l = new THREE.PointLight(c, 0, d, decay);
@@ -1386,8 +1372,31 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
   const dayCross = pt(0xe4e2dc, 0, 30, XMID, 50, 1.0);
   const dayChoir = pt(0xe0dcd4, 0, 15, 96, 40, 1.0);
   const triL = [pt(0xffc890, NORTH * P.TRIPTYCH_X, 5, CROSS1 - 5, 12, 1.3), pt(0xffc890, -NORTH * P.TRIPTYCH_X, 5, CROSS1 - 5, 12, 1.3)];
-  const shaftMat = shaftMaterial();
-  for (const f of shaftFrom) lightShaft(group, f, new THREE.Vector3(-(1.2 + (f.z % 2)), 0, f.z + 3), 1.6, shaftMat);
+  // the sun through the south glass: patches on the floor in the glass's colours, the piers' and arcades' shadows
+  // across them, the shafts from the aisles' lancets and the clerestory (world/hallSun.ts); the moon by night
+  const piers = [...BAYS, ...CHOIR_BAYS].flatMap((z) => [-1, 1].flatMap((s) => [{ x: s * NAVE, z, r: 0.74, h: 8 }, { x: s * A2, z, r: 0.52, h: 8 }, ...(z > P.TOWER_E && z < CROSS0 ? [{ x: s * A3, z, r: 0.52, h: 8 }] : [])]));
+  for (const s of [-1, 1]) for (const z of [CROSS0, CROSS1]) piers.push({ x: s * NAVE, z, r: 1.12, h: 13 });
+  const sunLight = buildHallSun(group, {
+    floor: { minX: -TR, maxX: TR, minZ: W0, maxZ: CHOIR_E + 0.6 },
+    floors: [
+      { minX: -OUT, maxX: OUT, minZ: WO, maxZ: CROSS0 },
+      { minX: -TR, maxX: TR, minZ: CROSS0, maxZ: CROSS1 },
+      { minX: -(A3 - 0.4), maxX: A3 - 0.4, minZ: W0, maxZ: WO },
+      { minX: -A3, maxX: A3, minZ: CROSS1, maxZ: CHOIR_E + 0.6 },
+    ],
+    windows: sunWins,
+    piers,
+    screens: [-1, 1].flatMap((s) => [
+      { along: "z" as const, at: s * NAVE, from: W0, to: CROSS0, open: 10.5 },
+      { along: "z" as const, at: s * NAVE, from: CROSS1, to: AC, open: 10 },
+      { along: "z" as const, at: s * A2, from: W0, to: CROSS0, open: 10 },
+      { along: "z" as const, at: s * A3, from: P.TOWER_E, to: CROSS0, open: 10 },
+      { along: "z" as const, at: s * A2, from: CROSS1, to: CHOIR_E, open: 10 },
+    ]),
+    // the nave arcades' walls over their arches, up to the clerestory: lit across the nave
+    walls: [-1, 1].map((s) => ({ a: [s * (NAVE - 0.4), W0 + 0.3] as [number, number], b: [s * (NAVE - 0.4), CROSS0 - 1.3] as [number, number], y0: 12.35, y1: 16.2, n: [-s, 0] as [number, number] })),
+    power: 1.1,
+  });
 
   // walking: Jef (sitting and kneeling go through the room frame) and the people, by the plan
   const jefFree = (x: number, z: number) => P.freeAt(x, z, 0.3, true);
@@ -1417,16 +1426,23 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
   let sky = 1;
   const glassLight = () => {
     // the glass glows with the daylight outside, dimmer in fog and rain
-    for (const d of [glassG.def, glassC.def, glassC2.def]) (matOf(d) as THREE.MeshBasicMaterial).color.setScalar(0.12 + 0.95 * day * sky);
-    const clear = Math.max(0, sky - 0.55) * 2.2;
-    shaftMat.opacity = Math.max(0, day - 0.25) * 0.12 * clear;
-    poolMat.opacity = Math.max(0, day - 0.3) * 0.5 * clear;
+    // by night the glass holds the moon's cold blue; the air in the hall goes blue-black round the candles
+    const night = 1 - THREE.MathUtils.smoothstep(day, 0, 0.35);
+    const moon = night * THREE.MathUtils.clamp((sky - 0.55) * 2.2, 0.25, 1);
+    const g0 = 0.95 * day * sky;
+    for (const d of [glassG.def, glassC.def, glassC2.def]) (matOf(d) as THREE.MeshBasicMaterial).color.setRGB(0.07 + g0 + 0.05 * moon, 0.08 + g0 + 0.08 * moon, 0.1 + g0 + 0.17 * moon);
+    sunLight.set(day, sky);
     const d = day * (0.55 + 0.45 * sky);
-    hemi.intensity = (0.5 + 2.6 * d) * ambK;
-    amb.intensity = (0.45 + 0.4 * day) * ambK;
-    dayNave.intensity = 16 * d * ambK;
-    dayCross.intensity = 14 * d * ambK;
-    dayChoir.intensity = 10 * d * ambK;
+    // (by day a little less flat fill than before: the sun's patches and the shafts carry the brightness, the far
+    // sides of the piers and the aisles away from the sun keep their shade)
+    hemi.intensity = (0.32 + 2.2 * d) * ambK;
+    hemi.color.copy(HEMI_DAY).lerp(HEMI_NIGHT, night);
+    hemi.groundColor.copy(GROUND_DAY).lerp(GROUND_NIGHT, night);
+    amb.intensity = (0.22 + 0.4 * day) * ambK;
+    amb.color.copy(AMB_DAY).lerp(AMB_NIGHT, night);
+    dayNave.intensity = 13 * d * ambK;
+    dayCross.intensity = 12 * d * ambK;
+    dayChoir.intensity = 9 * d * ambK;
   };
   const room: LandmarkRoom = {
     kind: "landmark",
@@ -1475,9 +1491,11 @@ export function buildCathedral(opts: { origin: { x: number; z: number }; yaw: nu
       stand.update(t);
       chand.update(t);
       const f = flicker(t, 2.2);
-      altarL.intensity = lit ? 9 * f : 0;
-      ladyL.intensity = (3 + stand.count * 0.3) * flicker(t, 5.1);
-      naveL.intensity = day < 0.35 ? 6 * flicker(t, 7.7) : 0;
+      // (all night, shut or not: the sanctuary lamp and two candles at the high altar, the nave's lamps, the Lady altar)
+      const dark = 1 - THREE.MathUtils.smoothstep(day, 0.1, 0.4);
+      altarL.intensity = lit ? 9 * f : 3.2 * dark * f;
+      ladyL.intensity = (3 + stand.count * 0.3 + 1.5 * dark) * flicker(t, 5.1);
+      naveL.intensity = 12 * dark * flicker(t, 7.7);
       for (const [i, l] of triL.entries()) l.intensity = 2.2 * flicker(t, 3.3 + i);
       redGlow.material.opacity = 0.75 + Math.sin(t * 3.1) * 0.08;
       room.lamps = [

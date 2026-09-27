@@ -1564,10 +1564,12 @@ if (import.meta.env.DEV) {
       const houses = [...interiors.inWorldHouses, ...homes.inWorldHouses] as unknown as Parameters<typeof m.targetsFrom>[2];
       return m.checkInteriors(world.scene, inWorld, m.targetsFrom(inWorld, halls, houses, ["prison_governor"]), only);
     },
+    /** The landmarks' windows lit at night (world/landmarkWindows.ts): per building, its windows and their light on the street. */
+    litWindows: () => landmarks.windows?.info() ?? [],
     /** M7 halls: the checks of the halls in the world (dev/hallcheck.ts): pictures, the walk through a door (pops), holes in a hall. */
     halls: async () => {
       const d = (window as unknown as { __scheldemist: { step(s: number): void; shot(n: string): Promise<string> } }).__scheldemist;
-      return (await import("./dev/hallcheck")).makeHallCheck({ halls: () => landmarks.inWorldHalls, player, world, inWorld, renderer, render: (cam, t) => retro.render(world.scene, cam, t), update: (dt) => d.step(dt), shot: (n) => d.shot(n) });
+      return (await import("./dev/hallcheck")).makeHallCheck({ halls: () => [...landmarks.inWorldHalls, carolus.hall, ...gothic.halls, ...prison.halls()], player, world, inWorld, renderer, render: (cam, t) => retro.render(world.scene, cam, t), update: (dt) => d.step(dt), shot: (n) => d.shot(n) });
     },
     /** Empty fronts (world/emptyFronts.ts): every house cut open in the city and what stands behind its door and windows; `problems` must be empty. */
     emptyfronts: async () => (await import("./world/emptyFronts")).emptyFrontsReport(),
