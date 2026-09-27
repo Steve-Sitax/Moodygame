@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { DB } from "../db.ts";
+import { pid } from "./current.ts";
 import {
   JEF,
   AGE_MAX,
@@ -74,7 +75,7 @@ function hasTable(db: DB): boolean {
 }
 
 /** The row as stored, or null (no profile: today's Jef). */
-export function storedProfile(db: DB, id = PLAYER_ONE): Profile | null {
+export function storedProfile(db: DB, id = pid()): Profile | null {
   if (!hasTable(db)) return null;
   const row = db.prepare("SELECT profile_json FROM player_profile WHERE player_id = ?").get(id) as { profile_json: string } | undefined;
   if (!row) return null;
@@ -87,15 +88,15 @@ export function storedProfile(db: DB, id = PLAYER_ONE): Profile | null {
 }
 
 /** The player's profile: the stored one, or today's Jef. */
-export function profileOf(db: DB, id = PLAYER_ONE): Profile {
+export function profileOf(db: DB, id = pid()): Profile {
   return storedProfile(db, id) ?? JEF;
 }
 
 /** Is this game's player someone other than the old Jef (a profile was made)? */
-export const hasProfile = (db: DB, id = PLAYER_ONE): boolean => storedProfile(db, id) !== null;
+export const hasProfile = (db: DB, id = pid()): boolean => storedProfile(db, id) !== null;
 
 /** Store a checked profile; the player row's name follows (the job board's prompt reads it). */
-export function saveProfile(db: DB, p: Profile, id = PLAYER_ONE): { profile: Profile; code: string } {
+export function saveProfile(db: DB, p: Profile, id = pid()): { profile: Profile; code: string } {
   db.exec(PROFILE_SQL);
   const code = appearanceCode(p);
   db.prepare(
@@ -103,7 +104,8 @@ export function saveProfile(db: DB, p: Profile, id = PLAYER_ONE): { profile: Pro
      ON CONFLICT(player_id) DO UPDATE SET profile_json = excluded.profile_json, code = excluded.code, updated_at = excluded.updated_at`,
   ).run(id, JSON.stringify(p), code, new Date().toISOString());
   // the engine's row keeps the canonical "Jef" in its text; the name column is the shown name
-  if (id === PLAYER_ONE) db.prepare("UPDATE player SET name = ? WHERE id = 1").run(p.first);
+  // (M8c: every player's row takes his name)
+  db.prepare("UPDATE player SET name = ? WHERE id = ?").run(p.first, id);
   return { profile: p, code };
 }
 
@@ -113,10 +115,10 @@ export function seedName(db: DB): string {
 }
 
 /** He or she, lad or lass... for this game's player. */
-export const words = (db: DB, id = PLAYER_ONE): Words => wordsFor(profileOf(db, id));
+export const words = (db: DB, id = pid()): Words => wordsFor(profileOf(db, id));
 
 /** The look in words (for the models): "a woman of about 30, slight, ... and clogs". */
-export const look = (db: DB, id = PLAYER_ONE): string => lookLine(profileOf(db, id));
+export const look = (db: DB, id = pid()): string => lookLine(profileOf(db, id));
 
 /**
  * A hand-written line said TO the player: "lad" becomes "lass", "mister" "missus", "young man" "young

@@ -2,6 +2,8 @@ import { z } from "zod";
 import type { DB } from "./db.ts";
 import { ALL_EMPLOYERS, jobById, type JobRow, type Progress } from "./hooks/jobBoard.ts";
 import { remember } from "./npcs.ts";
+import { pid } from "./player/current.ts";
+import { storeText } from "./player/names.ts";
 
 // Engine rules. Numbers change here and nowhere else (docs/03 rule one).
 
@@ -17,22 +19,27 @@ export interface PlayerState {
   sleep: number;
 }
 
-export function player(db: DB): PlayerState {
+/**
+ * The player this request is for (M8c: pid(), player/current.ts; 1 alone). The day and hour are the world's
+ * (player 1's row keeps the world clock's copy for the older queries; a guest's row has only his own part).
+ */
+export function player(db: DB, id = pid()): PlayerState {
   return db
-    .prepare("SELECT name, money_c, day, hour, district, food, warmth, health, sleep FROM player WHERE id = 1")
-    .get() as PlayerState;
+    .prepare("SELECT p.name, p.money_c, w.day, w.hour, p.district, p.food, p.warmth, p.health, p.sleep FROM player p, player w WHERE p.id = ? AND w.id = 1")
+    .get(id) as PlayerState;
 }
 
 export function log(db: DB, verb: string, object: string | null, text: string, actor = "player"): void {
   const p = player(db);
-  db.prepare("INSERT INTO log (day, hour, place, actor, verb, object, text) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
+  db.prepare("INSERT INTO log (day, hour, place, actor, verb, object, text, player_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(
     p.day,
     p.hour,
     p.district,
     actor,
     verb,
     object,
-    text,
+    storeText(db, text), // (M8c: a guest's line with his name: the log is everyone's)
+    pid(),
   );
 }
 
@@ -64,10 +71,11 @@ export function takeJob(db: DB, id: number): JobRow {
   const j = job(db, id);
   if (j.status !== "offered") throw new GameError("that job is not open", 409);
   if (!j.playable) throw new GameError("that kind of work is not in the game yet", 409);
-  const busy = db.prepare("SELECT 1 FROM job WHERE status = 'taken'").get();
+  // (M8c: one job in hand per player; another player's job is taken off the board for him)
+  const busy = db.prepare("SELECT 1 FROM job WHERE status = 'taken' AND taken_by = ?").get(pid());
   if (busy) throw new GameError("finish the job you have first", 409);
   for (const check of takeChecks) check(db, j);
-  db.prepare("UPDATE job SET status = 'taken' WHERE id = ?").run(id);
+  db.prepare("UPDATE job SET status = 'taken', taken_by = ? WHERE id = ?").run(pid(), id);
   log(db, "took_job", String(id), `Jef took a job from ${j.employer_name}: ${j.title}.`);
   // M7 short jobs: what comes with a job once it is taken (town/handcart.ts: the employer's handcart lent for cart work)
   for (const f of takeHooks) f(db, job(db, id));

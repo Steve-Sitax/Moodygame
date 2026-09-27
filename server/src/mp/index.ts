@@ -10,6 +10,8 @@ import { TICK_EVERY_MS } from "../../../shared/clock.ts";
 import { appearanceCode, defaultFor } from "../../../shared/character.ts";
 import { decodePuppets, decodeState, encodeBatch, FLAG, MODES, MP_PROTOCOL, MSG_PUPPETS, puppetBatchOk, puppetKeep, puppetNums, SEND_MS, type MpState, type MpText, type RosterEntry } from "../../../shared/mpProtocol.ts";
 import { profileOf, saveProfile, storedProfile } from "../player/profile.ts";
+import { asPlayer } from "../player/current.ts";
+import { ensurePlayerRow } from "../player/multi.ts";
 import { TOKEN_HEADER, whoOf, whoOfUpgrade, type Who } from "./auth.ts";
 import { closeLan, lanOpen, lanUrls, openLan } from "./lan.ts";
 import { Plausible } from "./plausible.ts";
@@ -118,23 +120,28 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
         if (!ok) return c.json({ error: VISITOR }, 403);
       }
     }
-    if (mpOn() && m === "POST" && p === "/api/pause") {
-      // together a tab's pause (its menu, the loading screen) never stops the town; only "Pause all" does
-      return c.json(gateState());
-    }
-    if (mpOn() && m === "POST" && p === "/api/tick" && !who.internal) {
-      // together a tab's tick is its heartbeat: the server moves the clock itself (serverTick below)
-      const body = (await c.req.json().catch(() => null)) as { where?: unknown } | null;
-      if (who.host) {
-        hostWhere = body && typeof body === "object" ? body.where : undefined;
-        reportWhere(hostWhere);
+    // M8c: the rest of the request is this player's (player/current.ts): the engine's queries of the player's own
+    // things ask pid(); a guest's own row is made the first time (and again after a new game or a load)
+    if (who.guest) ensurePlayerRow(db, who.id, nameOf(who.id));
+    return asPlayer(who.id, async () => {
+      if (mpOn() && m === "POST" && p === "/api/pause") {
+        // together a tab's pause (its menu, the loading screen) never stops the town; only "Pause all" does
+        return c.json(gateState());
       }
-      const w = whereNow(db);
-      return c.json({ advanced: false, together: true, ...deps.payload(), where: { shelter: w.shelter, place: w.place, label: w.label, lantern: w.lantern } });
-    }
-    await next();
-    // a guest changed his look: the others dress his figure again
-    if (p === "/api/player/profile" && m === "PUT" && c.res.ok) sendRoster(true);
+      if (mpOn() && m === "POST" && p === "/api/tick" && !who.internal) {
+        // together a tab's tick is its heartbeat: the server moves the clock itself (serverTick below)
+        const body = (await c.req.json().catch(() => null)) as { where?: unknown } | null;
+        const where = body && typeof body === "object" ? body.where : undefined;
+        if (who.host) hostWhere = where;
+        // (M8c: where each player is, for his own cold)
+        reportWhere(where, Date.now(), who.id);
+        const w = whereNow(db, Date.now(), who.id);
+        return c.json({ advanced: false, together: true, ...deps.payload(), where: { shelter: w.shelter, place: w.place, label: w.label, lantern: w.lantern } });
+      }
+      await next();
+      // a guest changed his look: the others dress his figure again
+      if (p === "/api/player/profile" && m === "PUT" && c.res.ok) sendRoster(true);
+    });
   });
 
   // ------------------------------------------------------------------ the routes
