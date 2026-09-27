@@ -555,7 +555,7 @@ function resize(): void {
 }
 window.addEventListener("resize", resize);
 // the settings (Esc: the pause paper has a Settings button); applying them resizes
-let settings: GameSettings = { height: 270, psxColour: true, wobble: true, street: "normal" };
+let settings: GameSettings = { height: 720, psxColour: true, wobble: false, street: "normal" };
 settings = mountSettings(startEl.querySelector(".paper") as HTMLElement, (s) => {
   settings = s;
   retro.renderHeight = s.height;

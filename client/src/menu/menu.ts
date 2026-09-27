@@ -282,7 +282,7 @@ function tabGraphics(p: Prefs): string {
       <button class="btn small" data-act="bench">${benchmarkRunning() ? "Measuring..." : "Test this computer"}</button></div>
     ${row("Quality", presets, "Low for an older or small computer; High is the game as made. A change below makes it Custom.")}
     <h3>Picture</h3>
-    ${row("Lines drawn", select("height", HEIGHTS, p.height), "270 lines is the PS1 look the game is made for; more lines cost more of the graphics card.")}
+    ${row("Lines drawn", select("height", HEIGHTS, p.height), "720 lines by default; 270 lines is the old PS1 look. More lines cost more of the graphics card.")}
     ${row("Render scale", range("scale", 0.5, 1, 0.05, p.scale, pct), "Fewer pixels than the lines above: faster, coarser.")}
     ${row("PS1 colours", toggle("psxColour", p.psxColour), "Few colours and a fine dither.")}
     ${row("PS1 wobble", toggle("wobble", p.wobble), "Corners jump to the pixel grid.")}
