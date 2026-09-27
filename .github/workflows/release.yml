@@ -35,6 +35,33 @@ jobs:
         env:
           SCHELDEMIST_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || format('test-{0}', github.run_number) }}
         run: node tools/package.mjs
+      - name: Try the download (unpack into a folder with a space, start it, the game must answer)
+        shell: bash
+        env:
+          ARCHIVE: ${{ steps.pack.outputs.archive }}
+        run: |
+          try="$RUNNER_TEMP/try it"
+          mkdir -p "$try"
+          case "$ARCHIVE" in
+            *.tar.gz) tar -xzf "$ARCHIVE" -C "$try" ;;
+            *) if [ "$RUNNER_OS" = macOS ]; then ditto -x -k "$ARCHIVE" "$try"; else tar -xf "$ARCHIVE" -C "$try"; fi ;;
+          esac
+          dir="$(ls -d "$try"/Scheldemist-*)"
+          export SCHELDEMIST_NO_BROWSER=1 SCHELDEMIST_PORT=8800
+          case "$RUNNER_OS" in
+            Linux) "$dir/start-scheldemist.sh" > "$try/log.txt" 2>&1 & ;;
+            macOS) "$dir/Start Scheldemist.command" > "$try/log.txt" 2>&1 & ;;
+            *) "$dir/runtime/node" "$dir/launch.mjs" > "$try/log.txt" 2>&1 & ;;
+          esac
+          ok=""
+          for i in $(seq 1 90); do
+            if curl -sf http://127.0.0.1:8800/ | grep -q "<title>Scheldemist</title>" && curl -sf http://127.0.0.1:8800/api/ai/config > /dev/null; then ok=1; break; fi
+            sleep 1
+          done
+          cat "$try/log.txt"
+          [ -n "$ok" ] || { echo "The download did not start"; exit 1; }
+          [ -f "$dir/data/game.sqlite" ] || { echo "No save was made in data/"; exit 1; }
+          echo "The download starts and answers"
       - uses: actions/upload-artifact@v4
         with:
           name: download-${{ matrix.os }}
