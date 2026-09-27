@@ -971,7 +971,7 @@ export class Landmarks {
 
   update(dt: number): void {
     this.t += dt;
-    if (this.windows) this.windows.update(this.daylight().day, this.t, dt);
+    if (this.windows) this.windows.update(this.daylight().day, this.t, dt, this.jobs.day.hourF, this.jobs.day.dayNum);
     this.doorsT -= dt;
     if (this.doorsT <= 0) {
       this.doorsT = 12;

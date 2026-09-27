@@ -7,7 +7,12 @@ import { addSpill, type SpillSource } from "./spill";
 //
 // The cathedral, the three churches, the town hall, the Vleeshuis, the Steen and the Hanseatic House keep lamps and
 // candles burning inside after dark (world/cathedralHall.ts, landmarkHalls.ts, carolusHall.ts, gothicHall.ts). From
-// the street their windows glow with it: every face of the shells' glass (sh_glass, vh_glass, steen_glass, the
+// the street their windows glow with it (Steve, the same evening: "too many lights on ... not all on"; "churches have
+// less light at night inside than is coming out ... in towers, not all rooms there will be lit"). A church glows dim,
+// as its candles light it, brightest at the foot of a window, its towers dark. A building of rooms lights room by
+// room by the clock: clerks going home through the evening, a meeting or two lighting a room and its neighbours until
+// 0:00 or 1:00, the porter's lodge, a watchman's lamp going round, the first clerks before seven (NIGHTS). Its
+// windows: every face of the shells' glass (sh_glass, vh_glass, steen_glass, the
 // stand-ins' landmark_glass) and every face of the atlases that shows a window's glass (the churches' church_atlas,
 // the cathedral's cath_atlas) gets a copy 3 cm out, drawn additive with the glass's own picture: the leads and the
 // tracery stay dark, the stained panes keep their colour, amber lamplight in the plain ones. Each window its own
@@ -29,8 +34,8 @@ interface Rule {
   lattice?: boolean;
   /** strength at night */
   power: number;
-  /** many rooms behind the glass, each lit its own way (a hall of offices); else one hall, lit alike */
-  rooms?: boolean;
+  /** cells that are a tower's windows (dark at night: nobody lives up there) */
+  towerCells?: number[];
 }
 
 // build_churches.py CELL (y from the bottom of a 256 x 256 atlas; here from the top): goth4, goth2, round, rose, hwin
@@ -39,7 +44,7 @@ const churchCell = (x: number, y: number, w: number, h: number): Cell => [x, CH 
 // build_landmarks.py CELL (y from the top of 512 x 1024): the tower lancets, the great west window, the aisle lancets;
 // the stand-ins' town hall bays, cross windows, the Hanseatic House's bays, the Vleeshuis's upper windows, the Steen's
 const RULES: Rule[] = [
-  { mat: /^(sh_glass|vh_glass|steen_glass|landmark_glass|cath_glass)$/, stained: false, rooms: true, power: 1 },
+  { mat: /^(sh_glass|vh_glass|steen_glass|landmark_glass|cath_glass)$/, stained: false, power: 1 },
   {
     mat: /^church_atlas$/,
     size: [256, 256],
@@ -62,6 +67,7 @@ const RULES: Rule[] = [
     ],
     stained: true,
     lattice: true,
+    towerCells: [0],
     power: 1,
   },
 ];
@@ -135,20 +141,74 @@ function glowPicture(src: THREE.Texture, rule: Rule): THREE.Texture | null {
   return t;
 }
 
+/**
+ * Who works late in a building of rooms (Steve, 2026-09-27: "some lights can go out and on, but not all on ... more
+ * lights until 0:00 or 1:00 for meetings, and then lights would be on in all windows adjacent to meeting rooms"):
+ * shares of its rooms.
+ */
+interface Rooms {
+  /** clerks after dark, each going home between 19:00 and 23:30 */
+  evening: number;
+  /** meetings a night (not on Sunday): a room and its neighbours on the storey, lit until 0:00 or 1:00 */
+  meetings: number;
+  /** a watchman's or a caretaker's lamp going round: on and off by the half hour */
+  watch: number;
+  /** the porter's lodge on the ground floor: all night */
+  porter: number;
+  /** the first clerks and the cleaners before 7:00 */
+  dawn: number;
+  /** over this height (world y) a tower or the attics: only a watchman's lamp now and then */
+  roof: number;
+}
+
+/** A building's night: rooms by the clock, or a church (one hall, dim, its towers dark above `roof`). */
+type Night = { rooms: Rooms } | { church: true; roof: number };
+
+const NIGHTS: Array<{ test: RegExp; night: Night }> = [
+  { test: /stadhuis/, night: { rooms: { evening: 0.3, meetings: 2, watch: 0.06, porter: 0.08, dawn: 0.18, roof: 19 } } },
+  { test: /hanzehuis|oostershuis/, night: { rooms: { evening: 0.2, meetings: 1, watch: 0.05, porter: 0.06, dawn: 0.12, roof: 15 } } },
+  { test: /vleeshuis/, night: { rooms: { evening: 0.12, meetings: 0, watch: 0.05, porter: 0.05, dawn: 0.08, roof: 17 } } },
+  { test: /steen/, night: { rooms: { evening: 0.1, meetings: 0, watch: 0.07, porter: 0.06, dawn: 0.05, roof: 16 } } },
+  { test: /cathedral/, night: { church: true, roof: 29 } },
+  { test: /./, night: { church: true, roof: 21 } },
+];
+
+/** A window of a building of rooms: the room it lights, where that room is, its strength when lit. */
+interface Win {
+  /** the first vertex of each of its triangles in the light mesh */
+  tris: number[];
+  k: number;
+  lvl: number;
+  room: number;
+  storey: number;
+  /** in a tower or the attics */
+  high: boolean;
+  facade: string;
+  cell: number;
+  spill: SpillSource | null;
+}
+
 interface Built {
   building: string;
   mesh: THREE.Mesh;
-  windows: number;
-  spills: Array<{ s: SpillSource; k: number }>;
+  night: Night;
+  windows: Win[];
+  /** the colours at full light, per vertex (the mesh's colour is this times the window's level) */
+  full: Float32Array;
+  spills: Array<{ s: SpillSource; w: Win }>;
   /** drawn (its model not hidden) */
   shown: boolean;
+  /** the evening the meetings were chosen for, and their rooms */
+  meetDay: number;
+  meet: Set<number>;
+  meetEnd: number;
 }
 
 export interface LandmarkWindows {
-  /** Each frame: the dark outside (day 1 .. 0), the time for the flames' breath, the frame's seconds. */
-  update(day: number, t: number, dt: number): void;
-  /** Dev: what glows, per building. */
-  info(): Array<{ building: string; material: string; shown: boolean; windows: number; spills: number; triangles: number }>;
+  /** Each frame: the dark outside (day 1 .. 0), the time for the flames' breath, the frame's seconds, the clock. */
+  update(day: number, t: number, dt: number, hour: number, dayNum: number): void;
+  /** Dev: what glows, per building, and how many of its windows are lit now. */
+  info(): Array<{ building: string; material: string; shown: boolean; windows: number; lit: number; spills: number; triangles: number }>;
 }
 
 const hash = (a: number, b: number, c: number) => {
@@ -164,6 +224,8 @@ export function createLandmarkWindows(scene: THREE.Scene): LandmarkWindows {
   let level = 0;
   let scanT = 0;
   let scans = 0;
+  let clockT = 0;
+  let lastMin = -1;
 
   // (the stand-ins of landmarks.glb share the cathedral's atlas under a material without a name)
   const ruleOf = (m: THREE.Material) => {
@@ -221,6 +283,8 @@ export function createLandmarkWindows(scene: THREE.Scene): LandmarkWindows {
     const tri = idx ? idx.count / 3 : P.count / 3;
     const groups = g.groups.length ? g.groups : [{ start: 0, count: tri * 3, materialIndex: 0 }];
     const vi = (k: number) => (idx ? idx.getX(k) : k);
+    const building = buildingOf(mesh);
+    const night = NIGHTS.find((n) => n.test.test(`${building} ${mesh.name}`))!.night;
     for (let mi = 0; mi < list.length; mi++) {
       const src = list[mi] as THREE.MeshLambertMaterial;
       const rule = ruleOf(src);
@@ -229,19 +293,21 @@ export function createLandmarkWindows(scene: THREE.Scene): LandmarkWindows {
       const mat = matFor(src, rule);
       if (!mat) return false;
       const size = rule.size ?? [1, 1];
-      const inCell = (u: number, v: number) =>
-        !rule.cells || rule.cells.some(([x, y, w, h]) => u * size[0] >= x && u * size[0] <= x + w && v * size[1] >= y && v * size[1] <= y + h);
-      // the glass's triangles
+      const cellOf = (u: number, v: number) =>
+        !rule.cells ? 0 : rule.cells.findIndex(([x, y, w, h]) => u * size[0] >= x && u * size[0] <= x + w && v * size[1] >= y && v * size[1] <= y + h);
+      // the glass's triangles (and the atlas cell each shows)
       const tris: number[] = [];
+      const cells: number[] = [];
       for (const gr of groups) {
         if ((gr.materialIndex ?? 0) !== mi) continue;
         for (let k = gr.start; k < gr.start + gr.count; k += 3) {
           const a = vi(k);
           const b = vi(k + 1);
           const c = vi(k + 2);
-          const u = (UV.getX(a) + UV.getX(b) + UV.getX(c)) / 3;
-          const v = (UV.getY(a) + UV.getY(b) + UV.getY(c)) / 3;
-          if (inCell(u, v)) tris.push(a, b, c);
+          const cell = cellOf((UV.getX(a) + UV.getX(b) + UV.getX(c)) / 3, (UV.getY(a) + UV.getY(b) + UV.getY(c)) / 3);
+          if (cell < 0) continue;
+          tris.push(a, b, c);
+          cells.push(cell);
         }
       }
       if (!tris.length) continue;
@@ -271,15 +337,14 @@ export function createLandmarkWindows(scene: THREE.Scene): LandmarkWindows {
           if (a !== b) parent[b] = a;
         }
       }
-      // each window its own strength and a touch of its own warmth
       const pos = new Float32Array(tris.length * 3);
       const uv = new Float32Array(tris.length * 2);
-      const col = new Float32Array(tris.length * 3);
       const A = new THREE.Vector3();
       const B = new THREE.Vector3();
       const C = new THREE.Vector3();
       const N = new THREE.Vector3();
-      const win = new Map<number, { box: THREE.Box3; n: THREE.Vector3; area: number; k: number }>();
+      type W0 = { box: THREE.Box3; n: THREE.Vector3; area: number; tower: boolean; tris: number[] };
+      const win = new Map<number, W0>();
       const NRM = g.getAttribute("normal") as THREE.BufferAttribute | undefined;
       mesh.updateWorldMatrix(true, false);
       const nm = new THREE.Matrix3().getNormalMatrix(mesh.matrixWorld);
@@ -294,14 +359,11 @@ export function createLandmarkWindows(scene: THREE.Scene): LandmarkWindows {
         if (NRM) N.fromBufferAttribute(NRM, tris[t]).normalize();
         const r = find(tn[t]);
         let w = win.get(r);
-        if (!w) {
-          const cw = A.clone().applyMatrix4(mesh.matrixWorld);
-          // a church: one hall, its candles and lamps light every window alike, a little more here and there
-          const h = hash(Math.round(cw.x * 2), Math.round(cw.y * 2), Math.round(cw.z * 2));
-          win.set(r, (w = { box: new THREE.Box3(), n: new THREE.Vector3(), area: 0, k: 0.8 + 0.25 * h }));
-        }
+        if (!w) win.set(r, (w = { box: new THREE.Box3(), n: new THREE.Vector3(), area: 0, tower: false, tris: [] }));
         w.area += area;
         w.n.addScaledVector(N, area);
+        w.tris.push(t);
+        if (rule.towerCells?.includes(cells[t / 3])) w.tower = true;
         for (const [j, V] of [A, B, C].entries()) {
           // 3 cm out of the glass, toward the street
           const o = V.clone().addScaledVector(N, 0.03);
@@ -310,27 +372,41 @@ export function createLandmarkWindows(scene: THREE.Scene): LandmarkWindows {
           w.box.expandByPoint(V.clone().applyMatrix4(mesh.matrixWorld));
         }
       }
-      // a building of rooms: each room (about 2.8 m of front, a storey) its own lamp: most burn well, some a
-      // single candle's worth, a few brighter than the rest; all the panes of a room's windows alike
+      // each window: its room (a building of rooms: about 2.8 m of front on a storey of one face), its strength
       const Wv = new THREE.Vector3();
-      if (rule.rooms)
-        for (const w of win.values()) {
-          const c = w.box.getCenter(Wv);
-          const h = hash(Math.floor(c.x / 2.8), Math.floor(c.y / 3.8), Math.floor(c.z / 2.8));
-          w.k = h < 0.25 ? 0.15 + h : h < 0.85 ? 0.55 + 0.45 * hash(Math.floor(c.z / 2.8), Math.floor(c.x / 2.8), 3.1) : 1.3;
-        }
-      for (let t = 0; t < tris.length; t += 3) {
-        const w = win.get(find(tn[t]))!;
+      const minY = Math.min(...[...win.values()].map((w) => w.box.min.y));
+      const windows: Win[] = [];
+      const full = new Float32Array(tris.length * 3);
+      for (const w of win.values()) {
+        const c = w.box.getCenter(new THREE.Vector3());
+        const n = w.n.clone().applyMatrix3(nm);
+        n.y = 0;
+        if (n.lengthSq() > 1e-6) n.normalize();
+        const storey = Math.floor((c.y - minY + 0.5) / 3.8);
+        const facade = `${Math.round(Math.atan2(n.x, n.z) / (Math.PI / 8))}:${Math.round((c.x * n.x + c.z * n.z) / 1.5)}`;
+        const cell = Math.floor((c.x * -n.z + c.z * n.x) / 2.8);
+        const room = Math.floor(hash(cell, storey, facade.length * 13 + Math.round(c.x * n.x + c.z * n.z)) * 1e6);
+        const h = hash(Math.round(c.x * 2), Math.round(c.y * 2), Math.round(c.z * 2));
+        let k: number;
+        if ("rooms" in night) k = 0.6 + 0.4 * h;
+        // a church: one hall lit by its candles and a few lamps, dim through the glass; the towers dark over the roof
+        else k = w.tower || c.y > night.roof ? 0 : 0.24 + 0.08 * h;
+        const high = "rooms" in night && c.y > night.rooms.roof;
+        const ww: Win = { tris: w.tris, k, lvl: "rooms" in night ? 0 : 1, room, storey, high, facade, cell, spill: null };
+        windows.push(ww);
         const warm = 0.92 + 0.16 * hash(w.box.min.x, w.box.min.z, 7);
         const hgt = Math.max(0.5, w.box.max.y - w.box.min.y);
-        for (let j = 0; j < 3; j++) {
-          // the lamps stand low in the room: the foot of a window brighter than its head
-          Wv.fromBufferAttribute(P, tris[t + j]).applyMatrix4(mesh.matrixWorld);
-          const f = THREE.MathUtils.clamp((Wv.y - w.box.min.y) / hgt, 0, 1);
-          const k = w.k * (1.15 - 0.55 * f);
-          col.set([k * warm, k, k * (2 - warm)], (t + j) * 3);
-        }
+        for (const t of w.tris)
+          for (let j = 0; j < 3; j++) {
+            // the lamps stand low in the room: the foot of a window brighter than its head (in a church much more)
+            Wv.fromBufferAttribute(P, tris[t + j]).applyMatrix4(mesh.matrixWorld);
+            const f = THREE.MathUtils.clamp((Wv.y - w.box.min.y) / hgt, 0, 1);
+            const kk = k * ("rooms" in night ? 1.15 - 0.55 * f : 1.45 - 1.15 * f);
+            full.set([kk * warm, kk, kk * (2 - warm)], (t + j) * 3);
+          }
       }
+      const col = new Float32Array(full.length);
+      if (!("rooms" in night)) col.set(full);
       const og = new THREE.BufferGeometry();
       og.setAttribute("position", new THREE.BufferAttribute(pos, 3));
       og.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
@@ -340,25 +416,28 @@ export function createLandmarkWindows(scene: THREE.Scene): LandmarkWindows {
       o.onBeforeRender = fade(o);
       o.name = `${mesh.name}_window_light`;
       o.renderOrder = 2;
-      // (always drawn, at opacity 0 by day: its shader is built with the town's, not at the first dusk)
+      // (always drawn, black by day: its shader is built with the town's, not at the first dusk)
       mesh.add(o);
       // the light on the street: the biggest low windows of the building (up to 14 a mesh)
       const spills: Built["spills"] = [];
-      const cand = [...win.values()]
-        .filter((w) => w.area > 0.5 && w.box.min.y < 14)
-        .sort((a, b) => a.box.min.y - b.box.min.y || b.area - a.area)
+      const ws = [...win.values()];
+      const cand = ws
+        .map((w, i) => ({ w, ww: windows[i] }))
+        .filter(({ w, ww }) => w.area > 0.5 && w.box.min.y < 14 && ww.k > 0)
+        .sort((a, b) => a.w.box.min.y - b.w.box.min.y || b.w.area - a.w.area)
         .slice(0, 14);
-      for (const w of cand) {
+      for (const { w, ww } of cand) {
         const n = w.n.clone().applyMatrix3(nm);
         n.y = 0;
         if (n.lengthSq() < 1e-6) continue;
         n.normalize();
         const c = w.box.getCenter(new THREE.Vector3());
         const s = w.box.getSize(new THREE.Vector3());
-        const s0 = addSpill({ kind: "hall", label: `${buildingOf(mesh)} window`, x: c.x, y: c.y, z: c.z, nx: n.x, nz: n.z, hw: Math.max(0.3, Math.hypot(s.x, s.z) / 2), hh: Math.max(0.3, s.y / 2), power: 70 * w.k * rule.power, range: 11, bars: 0 });
-        spills.push({ s: s0, k: w.k });
+        const s0 = addSpill({ kind: "hall", label: `${building} window`, x: c.x, y: c.y, z: c.z, nx: n.x, nz: n.z, hw: Math.max(0.3, Math.hypot(s.x, s.z) / 2), hh: Math.max(0.3, s.y / 2), power: 70 * ww.k * rule.power, range: 11, bars: 0 });
+        ww.spill = s0;
+        spills.push({ s: s0, w: ww });
       }
-      built.push({ building: buildingOf(mesh), mesh: o, windows: win.size, spills, shown: true });
+      built.push({ building, mesh: o, night, windows, full, spills, shown: true, meetDay: -1, meet: new Set(), meetEnd: 12 });
     }
     return true;
   }
@@ -388,8 +467,39 @@ export function createLandmarkWindows(scene: THREE.Scene): LandmarkWindows {
     }
   }
 
+  /**
+   * A room's lamp now (0 dark .. 1.2 a meeting's chandelier): n hours from noon (6 = 18:00, 12 = midnight), `eve` the
+   * evening's day (the day before after midnight), its building's rooms and tonight's meetings.
+   */
+  function roomLevel(b: Built, R: Rooms, w: Win, n: number, eve: number): number {
+    const r = w.room;
+    // a tower's or an attic's window: dark but for a watchman's lamp going by now and then
+    if (w.high) return hash(r, Math.floor((n * 60) / 40), eve) < 0.04 ? 0.35 : 0;
+    if (w.storey === 0 && hash(r, 1, 5) < R.porter) return 0.5;
+    if (b.meet.has(r) && n < b.meetEnd) return 1.2;
+    if (hash(r, eve, 1) < R.evening && n < 7 + 4.5 * hash(r, eve, 2)) return w.k;
+    if (hash(r, 3, 3) < R.watch) {
+      const slot = Math.floor((n * 60) / 25 + hash(r, 4, 4) * 7);
+      if (hash(r, slot, eve) < 0.4) return 0.42;
+    }
+    if (n > 17.5 + 1.2 * hash(r, eve, 6) && n < 19.5 && hash(r, eve, 4) < R.dawn) return w.k * 0.9;
+    return 0;
+  }
+
+  /** Tonight's meetings in a building: a room off the ground floor and its neighbours along the storey (not on Sunday). */
+  function chooseMeetings(b: Built, R: Rooms, eve: number) {
+    b.meetDay = eve;
+    b.meet.clear();
+    b.meetEnd = hash(eve, b.windows.length, 8) < 0.5 ? 12 : 13;
+    if (eve % 7 === 0 || !R.meetings) return;
+    const upper = b.windows.filter((w) => w.storey > 0 && !w.high);
+    const pool = upper.length ? upper : b.windows;
+    const seeds = [...pool].sort((a, c) => hash(a.room, eve, 9) - hash(c.room, eve, 9)).slice(0, R.meetings);
+    for (const s of seeds) for (const w of b.windows) if (!w.high && w.facade === s.facade && w.storey === s.storey && Math.abs(w.cell - s.cell) <= 2) b.meet.add(w.room);
+  }
+
   return {
-    update(day, t, dt) {
+    update(day, t, dt, hour, dayNum) {
       scanT -= dt;
       // the models come in over the first minute: look again every so often until the last one is in
       if (scanT <= 0) {
@@ -397,6 +507,31 @@ export function createLandmarkWindows(scene: THREE.Scene): LandmarkWindows {
         scan();
       }
       level = THREE.MathUtils.clamp((0.5 - day) / 0.3, 0, 1);
+      // the rooms by the clock: looked at twice a second, the mesh's colours written only when a lamp changes
+      clockT -= dt;
+      const min = Math.floor(hour * 60);
+      if (clockT <= 0 || min !== lastMin) {
+        clockT = 0.5;
+        lastMin = min;
+        const n = (hour - 12 + 24) % 24;
+        const eve = hour < 12 ? dayNum - 1 : dayNum;
+        for (const b of built) {
+          if (!("rooms" in b.night)) continue;
+          const R = b.night.rooms;
+          if (b.meetDay !== eve) chooseMeetings(b, R, eve);
+          const col = b.mesh.geometry.getAttribute("color") as THREE.BufferAttribute;
+          let changed = false;
+          for (const w of b.windows) {
+            const lvl = roomLevel(b, R, w, n, eve);
+            if (lvl === w.lvl) continue;
+            w.lvl = lvl;
+            changed = true;
+            const arr = col.array as Float32Array;
+            for (const tt of w.tris) for (let q = tt * 3; q < tt * 3 + 9; q++) arr[q] = b.full[q] * (lvl / Math.max(0.01, w.k));
+          }
+          if (changed) col.needsUpdate = true;
+        }
+      }
       const breath = 0.94 + 0.04 * Math.sin(t * 1.3) + 0.02 * Math.sin(t * 3.7);
       for (const b of built) {
         const m = b.mesh.material as THREE.MeshBasicMaterial;
@@ -406,14 +541,23 @@ export function createLandmarkWindows(scene: THREE.Scene): LandmarkWindows {
         m.color.copy(c);
         // a stand-in hidden by its detailed model throws no light
         const on = b.shown ? level : 0;
-        for (const { s, k } of b.spills) {
+        for (const { s, w } of b.spills) {
+          const k = "rooms" in b.night ? w.lvl / Math.max(0.01, w.k) : 1;
           s.level = on * k;
           s.glow = () => on * k;
         }
       }
     },
     info() {
-      return built.map((b) => ({ building: b.building, material: b.mesh.name, shown: b.shown, windows: b.windows, spills: b.spills.length, triangles: (b.mesh.geometry.getAttribute("position").count / 3) | 0 }));
+      return built.map((b) => ({
+        building: b.building,
+        material: b.mesh.name,
+        shown: b.shown,
+        windows: b.windows.length,
+        lit: b.windows.filter((w) => w.lvl > 0 && w.k > 0).length,
+        spills: b.spills.length,
+        triangles: (b.mesh.geometry.getAttribute("position").count / 3) | 0,
+      }));
     },
   };
 }

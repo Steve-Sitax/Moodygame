@@ -22,6 +22,16 @@ bright but with shadow work, take pictures, send to codex for mood passes and im
   foot of a window is brighter than its head. From dusk (day 0.5) to dawn, open or shut. Each building fades with its
   own distance through the fog (to twice the fog's far): a soft glow, never a grey pane. The lowest windows (up to
   14 a mesh) throw their light on the street (`world/spill.ts`, kind `hall`). Dev: `__scheldemist.litWindows()`.
+- **Round 2** (Steve, the same evening: "too many lights on in Stadhuis or the house at the harbour ... some lights can go
+  out and on, but not all on ... more lights until 0:00 or 1:00 for meetings ... all windows adjacent to meeting
+  rooms"; "churches have less light at night inside than is coming out ... in towers, not all rooms there will be
+  lit"). A building of rooms (the town hall, the Hanseatic House, the Vleeshuis, the Steen) now lights room by room by
+  the game clock (`NIGHTS` in `landmarkWindows.ts`): clerks going home between 19:00 and 23:30, one or two meetings a
+  night (not on Sunday) lighting a room and its neighbours on the storey until 0:00 or 1:00, the porter's lodge all
+  night, a watchman's lamp going on and off by the half hour, the first clerks before 7:00. Towers and attics (over
+  the building's `roof`) stay dark but for a lamp going by. A church glows dim (about a quarter of before), brightest
+  at a window's foot where the candles stand, its tower windows dark. Measured: the town hall 137 of 579 windows lit
+  at 20:00, 40 at 23:30, 18 at 2:00; the Hanseatic House 2 of 26. The mesh's colours change only when a lamp does.
 - **Sun and moon inside** (`world/hallSun.ts`) in the cathedral, St Paul, St James and St Charles: the sun is traced
   once, when the hall is built, from every texel of the floor (4 a metre) and of the arcades' walls over their arches
   back toward the sun. Where the ray leaves through a window the surface is lit in the glass's colours; a pier or
