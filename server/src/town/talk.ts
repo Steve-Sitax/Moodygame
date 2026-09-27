@@ -8,6 +8,7 @@ import { DAY_NAMES, weather, WEATHER_TEXT, type Weather } from "../day.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { ALL_EMPLOYERS, SPOTS, SYSTEM, employerName, listJobs, type JobRow } from "../hooks/jobBoard.ts";
 import { MOODS, fenceTurns, gateText, markFreeLine, onResetTalks, type Line } from "../hooks/dialogue.ts";
+import { freeTalk, holdTalk } from "../player/talking.ts";
 import { applyTrust, relationship, remember, topMemories, trustText } from "../npcs.ts";
 import { ITEMS } from "../trade.ts";
 import { waresOf } from "../trade.ts";
@@ -537,6 +538,7 @@ function nextChoices(db: DB, r: Resident, sess: Session): string[] {
 
 /** Engine side of a line: clamp trust, keep memory and rumour, note the turn. */
 function apply(db: DB, r: Resident, sess: Session, line: ResidentLine): Line & { trust_applied: number } {
+  if (line.end_conversation) freeTalk(r.id); // (M8c: the talk is over: he is free for anyone at once)
   const applied = applyTrust(db, r.id, line.trust_delta, sess.trust);
   sess.trust += applied;
   if (line.persona_line.trim() && !sess.typed) setPersonaLine(db, r.id, plainEnglish(line.persona_line));
@@ -669,6 +671,7 @@ function need(db: DB, id: string): Resident {
 /** Jef walks up: an engine line at once, no model call. */
 export function residentOpen(db: DB, id: string) {
   const r = need(db, id);
+  holdTalk(db, id, r.name); // (M8c: one player's talk at a time)
   const sess = sessionFor(id);
   const rel = relationship(db, id);
   if (!sess.turns.length) {
@@ -684,6 +687,7 @@ export function residentOpen(db: DB, id: string) {
 /** Jef picks one of the offered lines. A line that was not offered is typed text: the gate and the fence (residentFree). */
 export async function residentChoice(db: DB, id: string, choice: string, runner?: Runner) {
   const r = need(db, id);
+  holdTalk(db, id, r.name); // (M8c: one player's talk at a time)
   const sess = sessionFor(id);
   // as offered, or as the client showed it (plainEnglish)
   const said = [...sess.offered.keys()].find((k) => k.slice(0, 120) === choice.slice(0, 120) || plainEnglish(k).slice(0, 120) === choice.slice(0, 120) || shownText(db, plainEnglish(k)).slice(0, 120) === choice.slice(0, 120));
@@ -701,7 +705,10 @@ export async function residentChoice(db: DB, id: string, choice: string, runner?
   }
   const topic = offered;
   if (topic) sess.used.add(topic);
-  if (topic === "bye") return apply(db, r, sess, engineLine(db, r, sess, engineReply(db, r, "bye", `${id}:${sess.turns.length}`), true));
+  if (topic === "bye") {
+    freeTalk(id); // (M8c: a goodbye frees him for anyone at once)
+    return apply(db, r, sess, engineLine(db, r, sess, engineReply(db, r, "bye", `${id}:${sess.turns.length}`), true));
+  }
   // the first real reply of a meeting, and lines Claude wrote, go to Claude (when the budget allows)
   const wantModel = topic === null || sess.calls === 0;
   if (wantModel) {
@@ -716,6 +723,7 @@ export async function residentChoice(db: DB, id: string, choice: string, runner?
 /** Jef says it in his own words: gate first (wall 4), then the fence (wall 2), or the engine. */
 export async function residentFree(db: DB, id: string, raw: string, runner?: Runner, force?: (typeof talkExtras.free)[number]) {
   const r = need(db, id);
+  holdTalk(db, id, r.name); // (M8c: one player's talk at a time)
   const sess = sessionFor(id);
   const g = gateText(raw);
   if (!g.ok) {

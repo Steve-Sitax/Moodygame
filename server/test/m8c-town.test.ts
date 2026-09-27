@@ -135,13 +135,19 @@ describe("M8c town: a guest's thefts, police, haggling and talk are his own", ()
     const r = town(db).town.residents.find((x) => x.age >= 20 && x.trade !== "thief" && x.trade !== "police")!;
     const a = residentOpen(db, r.id);
     const bye = a.choices[a.choices.length - 1];
-    await residentChoice(db, r.id, bye);
+    const byeR = await residentChoice(db, r.id, bye);
     expect(jefSaid(r.id)).toBe(bye);
     // the guest walks up to the same person: a meeting of his own, nothing the host said in it
     expect(as2(() => jefSaid(r.id))).toBe("");
     as2(() => residentOpen(db, r.id));
     expect(as2(() => jefSaid(r.id))).toBe("");
     expect(jefSaid(r.id)).toBe(bye);
+    // (M8c: while the guest talks with him, the host is told he is busy; the guest's goodbye frees him)
+    expect(() => residentOpen(db, r.id)).toThrow(/is talking with/);
+    const gb = as2(() => residentOpen(db, r.id));
+    await as2(() => residentChoice(db, r.id, gb.choices[gb.choices.length - 1]));
+    const hb = residentOpen(db, r.id);
+    await residentChoice(db, r.id, hb.choices[hb.choices.length - 1]);
     const met = (id: number) => (db.prepare("SELECT times_met FROM npc_relationship WHERE npc_id = ? AND player_id = ?").get(r.id, id) as { times_met: number }).times_met;
     expect(met(1)).toBe(1);
     expect(met(GUEST)).toBe(1);

@@ -1,3 +1,4 @@
+import { holdTalk, resetTalkHolds } from "../player/talking.ts";
 import { sexed, shownText } from "../player/profile.ts"; // M7 character: lines said to the player follow the profile
 import { z } from "zod";
 import { playNow } from "../save/gate.ts";
@@ -193,6 +194,7 @@ export function prefetchOpening(db: DB, id: string, runner?: Runner): void {
 
 export async function openTalk(db: DB, id: string, runner?: Runner) {
   const talk = talkFor(id);
+  holdTalk(db, id, npcRow(db, id)?.name ?? "They"); // (M8c: one player's talk at a time)
   if (!talk.turns.length) {
     const pl = db.prepare("SELECT day FROM player WHERE id = 1").get() as { day: number }; // (the world's day)
     relationship(db, id); // (M8c: his row with this townsperson, made if it is not there)
@@ -211,6 +213,7 @@ export async function openTalk(db: DB, id: string, runner?: Runner) {
 /** Jef picks one of the offered lines. A line that was not offered is typed text: the gate and the fence (freeReply). */
 export async function pickChoice(db: DB, id: string, choice: string, runner?: Runner) {
   const talk = talkFor(id);
+  holdTalk(db, id, npcRow(db, id)?.name ?? "They"); // (M8c: one player's talk at a time)
   const said = choice.slice(0, 160);
   if (!talk.offered.has(said)) {
     const own = await freeReply(db, id, choice, runner);
@@ -274,6 +277,7 @@ export function gateText(raw: string, now = Date.now(), last = lastFree()): { ok
 
 export async function freeReply(db: DB, id: string, raw: string, runner?: Runner) {
   const talk = talkFor(id);
+  holdTalk(db, id, npcRow(db, id)?.name ?? "They"); // (M8c: one player's talk at a time)
   const g = gateText(raw);
   if (!g.ok) {
     if (g.reason === "too fast" || g.reason === "empty" || g.reason === "too long") return { gated: g.reason };
@@ -315,6 +319,7 @@ function logAt(db: DB, verb: string, object: string, text: string): void {
 /** Test helper: forget meetings and the rate limit. */
 export function resetTalks(): void {
   talks.clear();
+  resetTalkHolds();
   lastFreeAt.clear();
   for (const f of onReset) f();
 }
