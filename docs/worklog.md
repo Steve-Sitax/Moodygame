@@ -7,6 +7,7 @@ Git history has the detail of each commit.
 
 ## Waiting for Steve
 
+- Landmark light (Steve 2026-09-27: "better lighting inside and also light coming through windows ... lights on all night ... moody and cool. Churches bright but with shadow work"): done on branch `claude/special-buildings-lighting-mood-72ceae` (31debb9, `docs/milestones/hall-light.md`), Codex mood passes as the target, before/after pictures sent. Waits for Steve's look, then merge into main and refresh the play copy. Found on the way: issue #10 (https://github.com/Steve-Sitax/Moodygame/issues/10, the landmarks' panes over their rooms are the shell's, not real windows).
 - Day fog, rain and storm: the skyline is still a little lighter than the cloud deck (18-35% at 13:00). A one-line sky.ts change would use the night rule by day too, at the cost of flatter fog-day skies. Steve's call.
 - Going public: the audit says safe. Steve flips the repo to public himself. Optional: an AGPL section 7 permission for the proprietary Claude Agent SDK (draft in `docs/public-release-check.md`). The commit email steve@sitax.be becomes public with the history.
 - The clockmaker's pocket watches and the junk-stall clocks: live hands too? (Steve did not pick it: no for now.)
