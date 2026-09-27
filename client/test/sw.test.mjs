@@ -117,3 +117,26 @@ test('a new version takes over at once: its cache and the one before stay, older
   assert.deepEqual(await w.caches.keys(), ['other-app', 'scheldemist-shell-v2', 'scheldemist-shell-v3']);
   assert.equal(w.self.claimed, true);
 });
+
+test('only the app page is kept as the offline page: another address opened in the tab never is', async () => {
+  let mode = 'up';
+  const w = load('v', (p) => {
+    if (mode === 'down') throw new TypeError('Failed to fetch');
+    return basic(`body of ${p}`);
+  });
+  const page = () => w.caches.all.get('scheldemist-shell-v')?.map.get('/index.html');
+  // the manifest, a boot picture, the house certificate, a model: opened as a page, none becomes the page
+  assert.equal(await (await w.fire('fetch', req('/manifest.json', { mode: 'navigate' }))).text(), 'body of /manifest.json');
+  assert.equal(await (await w.fire('fetch', req('/boot/loading.jpg', { mode: 'navigate' }))).text(), 'body of /boot/loading.jpg');
+  assert.equal(await w.fire('fetch', req('/house-ca.crt', { mode: 'navigate' })), null, 'the certificate: the network, untouched');
+  assert.equal(await w.fire('fetch', req('/models/city.glb', { mode: 'navigate' })), null, "the loader's file: the network");
+  assert.equal(await w.fire('fetch', req('/somewhere/else', { mode: 'navigate' })), null);
+  assert.equal(page(), undefined, 'nothing kept as the page yet');
+  // the page itself: /, /index.html, with a query
+  for (const p of ['/', '/index.html', '/?seat=3']) assert.equal(await (await w.fire('fetch', req(p, { mode: 'navigate' }))).text(), `body of ${new URL(p, ORIGIN).pathname}`);
+  assert.equal(await page().clone().text(), 'body of /', 'the page as the last navigation to it brought it');
+  // offline: the page from the cache; the manifest opened as a page is its own copy, never the page
+  mode = 'down';
+  assert.equal(await (await w.fire('fetch', req('/?seat=2', { mode: 'navigate' }))).text(), 'body of /');
+  assert.equal(await (await w.fire('fetch', req('/manifest.json', { mode: 'navigate' }))).text(), 'body of /manifest.json');
+});

@@ -2,8 +2,9 @@
 // the client shows them and reports what happened in 3D.
 
 import type { Goods } from "../game/props";
-import { clientId, pause, resendPause } from "../game/pause";
+import { clientId, pause, real, resendPause } from "../game/pause";
 import { identity } from "./mp/identity";
+import { CONNECT_MS, Liveness, PUSH_DEAD_MS, PUSH_PING_MS, retryDelay } from "./mp/link";
 
 export type Twist = "none" | "broken_goods" | "stranger_offer" | "foreman_watches" | "thick_fog" | "heavy_load" | "thief" | "bribe";
 
@@ -490,7 +491,8 @@ async function call<T>(method: string, url: string, body?: unknown, timeoutMs = 
     if (res.ok) throw new Error(`bad reply from ${url}`);
     data = {} as T & { error?: string };
   }
-  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+  // (M8e review 4: a 429 was tried again already, by the fetch hook in boot/netboot.ts; the host's words are shown)
+  if (!res.ok) throw new Error(data.error ?? (res.status === 429 ? "The host's game is busy: wait a moment and try again." : `HTTP ${res.status}`));
   return data;
 }
 
@@ -563,9 +565,21 @@ export interface OutcomeMsg {
   employer: string;
 }
 
+/**
+ * M8e review 4: the push socket's line, as the movement socket's (net/mp/link.ts): a ping every PUSH_PING_MS
+ * (the server answers "pong"); nothing heard for PUSH_DEAD_MS after a ping, or a connect not open after
+ * CONNECT_MS, and the socket is given up. A lost socket comes back after 1, 2, 4, 8, then every 15 s (at once when
+ * the browser is online again); back, it asks for the state again (the job board, and a "resync" push for the
+ * parts that keep their own: main.ts), since what was pushed meanwhile is lost. Alone on this PC the ping is
+ * one small message every 10 s and changes nothing.
+ */
 export function connectPush(onJobs: (p: JobsPayload) => void, onOutcome: (o: OutcomeMsg) => void = () => {}, onOther: (m: PushMsg) => void = () => {}): void {
-  let delay = 1000;
+  let attempt = 0;
   let dropped = false;
+  let current: WebSocket | null = null;
+  let retryTimer = 0;
+  let connectTimer = 0;
+  const live = new Liveness(PUSH_DEAD_MS);
   // M7 save and pause: what the server says while the game is paused is played after the unpause, in order
   const held: Array<{ type: string } & JobsPayload & OutcomeMsg> = [];
   const deliver = (msg: { type: string } & JobsPayload & OutcomeMsg) => {
@@ -581,26 +595,59 @@ export function connectPush(onJobs: (p: JobsPayload) => void, onOutcome: (o: Out
     if (paused) return;
     for (const m of held.splice(0)) deliver(m);
   });
+  /** The line is gone (closed, or given up): the next try after the next wait. */
+  const lost = (ws: WebSocket) => {
+    if (current !== ws) return; // (an old socket, given up already)
+    current = null;
+    real.clearTimeout(connectTimer);
+    dropped = true;
+    real.clearTimeout(retryTimer);
+    retryTimer = real.setTimeout(open, retryDelay(attempt++));
+  };
+  /** A socket that hangs (no answer to the pings, or a connect that does not come): dropped without a word. */
+  const giveUp = (ws: WebSocket) => {
+    ws.onopen = ws.onmessage = ws.onclose = null;
+    try {
+      ws.close();
+    } catch {
+      /* already gone */
+    }
+    lost(ws);
+  };
   const open = () => {
+    retryTimer = 0;
+    if (current) return;
     // this tab's name: the server lets go of its pause when the channel closes
     // (M8c: a guest's tab says whose it is in its first message; the host's on the host PC needs nothing)
     const guest = identity.token !== null;
     const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws?client=${encodeURIComponent(clientId)}${guest ? "&guest=1" : ""}`);
+    current = ws;
+    live.reset();
+    real.clearTimeout(connectTimer);
+    connectTimer = real.setTimeout(() => {
+      if (current === ws && ws.readyState !== WebSocket.OPEN) giveUp(ws);
+    }, CONNECT_MS);
     ws.onopen = () => {
+      real.clearTimeout(connectTimer);
       if (guest) ws.send(JSON.stringify({ type: "hello", token: identity.token }));
-      delay = 1000;
+      attempt = 0;
       // the server let go of our pause when the channel dropped: say it again
       if (pause.paused) resendPause();
-      // back after a drop: what was pushed meanwhile is lost, so the state is asked for once
+      // back after a drop: what was pushed meanwhile is lost, so the state is asked for again: the job board here,
+      // the rest by the parts that keep their own (a "resync" push: main.ts)
       if (dropped) {
         dropped = false;
         api
           .jobs()
           .then((p) => onJobs(p))
           .catch(() => {});
+        const resync = { type: "resync" } as { type: string } & JobsPayload & OutcomeMsg;
+        if (pause.paused) held.push(resync);
+        else deliver(resync);
       }
     };
     ws.onmessage = (e) => {
+      live.heard();
       // a bad message or a handler that throws must not take the channel's later messages with it
       let msg: { type: string } & JobsPayload & OutcomeMsg;
       try {
@@ -608,6 +655,7 @@ export function connectPush(onJobs: (p: JobsPayload) => void, onOutcome: (o: Out
       } catch {
         return;
       }
+      if (msg.type === "pong") return; // (M8e review 4: the line's sign of life only)
       if (msg.type === "gate" || msg.type === "loaded") {
         for (const f of systemListeners) {
           try {
@@ -624,11 +672,29 @@ export function connectPush(onJobs: (p: JobsPayload) => void, onOutcome: (o: Out
       }
       deliver(msg);
     };
-    ws.onclose = () => {
-      dropped = true;
-      setTimeout(open, delay);
-      delay = Math.min(delay * 2, 15000);
-    };
+    ws.onclose = () => lost(ws);
   };
+  // the pings (the untouched timers and clock of game/pause.ts: a paused tab's line is watched too)
+  real.setInterval(() => {
+    const ws = current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    const now = real.now();
+    if (live.dead(now)) {
+      giveUp(ws);
+      return;
+    }
+    try {
+      ws.send('{"type":"ping"}');
+    } catch {
+      return;
+    }
+    live.pinged(now);
+  }, PUSH_PING_MS);
+  // the browser is on the network again (a VPN back up): try now rather than at the next wait
+  window.addEventListener("online", () => {
+    if (current || !retryTimer) return;
+    real.clearTimeout(retryTimer);
+    open();
+  });
   open();
 }

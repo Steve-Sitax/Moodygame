@@ -22,9 +22,21 @@ export function retryDelay(attempt: number, rand: () => number = Math.random): n
   return Math.round(base * (0.9 + 0.2 * rand()));
 }
 
+/**
+ * M8e review 4: the push socket (/ws, net/api.ts connectPush) pings every PUSH_PING_MS; no answer (nothing at all
+ * came) for PUSH_DEAD_MS after a ping and the socket is given up and opened again. Its server pings every 10 s and
+ * closes one that missed the last pong.
+ */
+export const PUSH_PING_MS = 10_000;
+export const PUSH_DEAD_MS = 25_000;
+
 /** The first unanswered ping: set when one goes out and none is waiting, cleared by anything that comes in. */
 export class Liveness {
   private since: number | null = null;
+  private readonly deadMs: number;
+  constructor(deadMs: number = DEAD_MS) {
+    this.deadMs = deadMs;
+  }
   heard(): void {
     this.since = null;
   }
@@ -34,7 +46,7 @@ export class Liveness {
   }
   /** Before the next ping: has the line been silent too long? */
   dead(now: number): boolean {
-    return this.since !== null && now - this.since > DEAD_MS;
+    return this.since !== null && now - this.since > this.deadMs;
   }
   reset(): void {
     this.since = null;
@@ -75,4 +87,22 @@ export function showNote(text: string | null, brief = false): void {
   if (el.textContent !== text) el.textContent = text;
   el.style.opacity = "0.94";
   if (brief) hideTimer = window.setTimeout(() => el && (el.style.opacity = "0"), 3000);
+}
+
+// ------------------------------------------------------------------ M8e review 4: a 429 from the host
+
+/** Retries of a call the host answered 429 ("too many requests"): at most this many. */
+export const RETRY_429 = 2;
+/** The longest Retry-After waited for; a longer one (the join tries' minute) is not retried: the error is shown. */
+export const RETRY_AFTER_MAX_S = 5;
+
+/**
+ * How long to wait before trying a 429'd call again (ms), or null: not again (tried `tries` times already, or the
+ * host asks for a wait longer than RETRY_AFTER_MAX_S). `header`: the Retry-After in seconds (missing: 1 s).
+ */
+export function retryAfterMs(header: string | null, tries: number): number | null {
+  if (tries >= RETRY_429) return null;
+  const s = header === null || header.trim() === "" ? 1 : Number(header);
+  if (!Number.isFinite(s) || s < 0 || s > RETRY_AFTER_MAX_S) return null;
+  return Math.max(200, Math.round(s * 1000));
 }

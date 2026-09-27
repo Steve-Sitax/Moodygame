@@ -10,9 +10,13 @@ import { DB_FILE } from "../config.ts";
 // M8e "outside the house" (docs/milestones/M8e.md): the house certificate.
 //
 // - A house certificate authority, made once per host on first need (data/tls/house-ca.key + house-ca.crt): EC
-//   P-256, 10 years, with name constraints that permit only this PC's own names (hostname, hostname.local,
-//   localhost, the VPN name if known) and the private address ranges. A guest trusts it once; a leaked key still
-//   cannot sign for any site on the internet.
+//   P-256, 10 years, extended key usage serverAuth only (a guest who trusts it trusts it for websites only, never
+//   for code, mail or client logins), with name constraints that permit only this PC's own names (hostname,
+//   hostname.local, localhost, the VPN name if known) and this PC's own addresses (127.0.0.1, its home-network and
+//   VPN addresses, each a /32). A guest trusts it once; a leaked key still cannot sign for any other site, on the
+//   internet or on the guest's own network. Made again when a new address of this PC appears that it does not
+//   cover (one that goes away does not remake it), and once for a CA made before these rules (no EKU, or whole
+//   private ranges).
 // - A server certificate signed by it (data/tls/server.key + server.crt), 397 days, naming localhost, 127.0.0.1,
 //   the hostname, hostname.local, every home-network and VPN address and the VPN name. Made again when that set
 //   changes or it is within 30 days of its end.
@@ -28,7 +32,10 @@ const CA_DAYS = 3652;
 const SERVER_DAYS = 397;
 const RENEW_DAYS = 30;
 
-/** The private IPv4 ranges the house CA may sign for: home networks, the VPN's CGNAT range, this PC. */
+/**
+ * The private IPv4 ranges a server certificate may name at all (home networks, the VPN's CGNAT range, this PC). The
+ * house CA itself permits only this PC's own addresses inside them (caIps below), never a whole range.
+ */
 export const PRIVATE_RANGES: ReadonlyArray<readonly [string, number]> = [
   ["10.0.0.0", 8],
   ["172.16.0.0", 12],
@@ -42,11 +49,19 @@ export const CA_CRT = "house-ca.crt";
 export const SERVER_KEY = "server.key";
 export const SERVER_CRT = "server.crt";
 
-/** Where the certificates live: next to the save (data/tls), or SCHELDEMIST_TLS_DIR. */
-export function tlsDir(): string {
+/**
+ * Where the certificates live, per save: data/tls for the real save (game.sqlite), data/tls-<save name> for any other
+ * save file (a test stack's data/test-<name>.sqlite: data/tls-test-<name>), so a test stack never rewrites the real
+ * house certificate. SCHELDEMIST_TLS_DIR names the folder by hand.
+ */
+export function tlsDirFor(dbFile: string): string {
   if (process.env.SCHELDEMIST_TLS_DIR) return path.resolve(process.env.SCHELDEMIST_TLS_DIR);
-  return path.join(path.dirname(DB_FILE), "tls");
+  const base = path.basename(dbFile);
+  if (base.toLowerCase() === "game.sqlite") return path.join(path.dirname(dbFile), "tls");
+  const name = base.replace(/\.sqlite$/i, "").replace(/[^A-Za-z0-9._-]/g, "_") || "save";
+  return path.join(path.dirname(dbFile), `tls-${name}`);
 }
+export const tlsDir = (): string => tlsDirFor(DB_FILE);
 
 /** This PC's own name, as a DNS label (lower case). */
 export function hostName(): string {
@@ -162,8 +177,10 @@ function tighten(file: string): Promise<void> {
     return Promise.resolve();
   }
   const user = process.env.USERNAME ? (process.env.USERDOMAIN ? `${process.env.USERDOMAIN}\\${process.env.USERNAME}` : process.env.USERNAME) : os.userInfo().username;
+  // (the absolute program, never a bare name a folder could shadow)
+  const icacls = path.join(process.env.SystemRoot || process.env.windir || "C:\\Windows", "System32", "icacls.exe");
   return new Promise((ok) => {
-    execFile("icacls", [file, "/inheritance:r", "/grant:r", `${user}:F`], { timeout: 5000, windowsHide: true }, (e) => {
+    execFile(icacls, [file, "/inheritance:r", "/grant:r", `${user}:F`], { timeout: 5000, windowsHide: true }, (e) => {
       if (e) console.warn(`[tls] could not narrow the rights on ${path.basename(file)} (${e.message.split("\n")[0]})`);
       ok();
     });
@@ -243,28 +260,40 @@ interface Ca {
   node: NodeCert;
 }
 
+/** The CA's extended key usage: serverAuth and nothing else. */
+function serverAuthOnly(px: x509.X509Certificate): boolean {
+  const eku = px.getExtension(x509.ExtendedKeyUsageExtension);
+  return !!eku && eku.usages.length === 1 && String(eku.usages[0]) === x509.ExtendedKeyUsage.serverAuth;
+}
+
 function loadCa(dir: string, want: HouseWant): Ca | null {
   const certPem = read(path.join(dir, CA_CRT));
   const keyPem = read(path.join(dir, CA_KEY));
   if (!certPem || !keyPem) return null;
+  const again = (why: string) => {
+    console.log(`[tls] the house certificate authority ${why}: a new one is made (guests fetch /house-ca.crt again)`);
+    return null;
+  };
   try {
     const node = new NodeCert(certPem);
     if (!node.ca || !node.checkPrivateKey(createPrivateKey(keyPem))) return null;
     if (node.validToDate.getTime() - Date.now() < RENEW_DAYS * DAY) return null;
-    const nc = new x509.X509Certificate(certPem).getExtension("2.5.29.30");
+    const px = new x509.X509Certificate(certPem);
+    const nc = px.getExtension("2.5.29.30");
     if (!nc) return null;
-    const { dns } = readNameConstraints(Buffer.from(nc.value));
-    if (!want.dns.every((d) => dnsPermitted(d, dns))) {
-      console.log("[tls] the house certificate authority does not cover a new name of this PC: a new one is made (guests fetch /house-ca.crt again)");
-      return null;
-    }
+    // (made before the review-4 rules: no EKU, or whole private ranges: remade once)
+    if (!serverAuthOnly(px)) return again("is not limited to websites");
+    const { dns, ranges } = readNameConstraints(Buffer.from(nc.value));
+    if (ranges.some((r) => !r.endsWith("/32"))) return again("permits whole address ranges");
+    if (!want.dns.every((d) => dnsPermitted(d, dns))) return again("does not cover a new name of this PC");
+    if (!want.ips.every((ip) => ranges.includes(`${ip}/32`))) return again("does not cover a new address of this PC");
     return { pem: certPem, keyPem, node };
   } catch {
     return null;
   }
 }
 
-async function makeCa(dir: string, dns: string[]): Promise<Ca> {
+async function makeCa(dir: string, dns: string[], ips: string[]): Promise<Ca> {
   const keys = (await webcrypto.subtle.generateKey(EC, true, ["sign", "verify"])) as webcrypto.CryptoKeyPair;
   const now = Date.now();
   const cert = await x509.X509CertificateGenerator.createSelfSigned({
@@ -277,7 +306,16 @@ async function makeCa(dir: string, dns: string[]): Promise<Ca> {
     extensions: [
       new x509.BasicConstraintsExtension(true, 0, true),
       new x509.KeyUsagesExtension(x509.KeyUsageFlags.keyCertSign | x509.KeyUsageFlags.cRLSign, true),
-      new x509.Extension("2.5.29.30", true, nameConstraintsDer(dns, PRIVATE_RANGES)),
+      // (websites only: Windows, Chrome and OpenSSL hold every certificate under it to serverAuth)
+      new x509.ExtendedKeyUsageExtension([x509.ExtendedKeyUsage.serverAuth], false),
+      new x509.Extension(
+        "2.5.29.30",
+        true,
+        nameConstraintsDer(
+          dns,
+          ips.map((ip) => [ip, 32] as const),
+        ),
+      ),
       await x509.SubjectKeyIdentifierExtension.create(keys.publicKey),
     ],
   });
@@ -285,7 +323,7 @@ async function makeCa(dir: string, dns: string[]): Promise<Ca> {
   const certPem = cert.toString("pem").replace(/\r\n/g, "\n") + "\n";
   await writeKey(path.join(dir, CA_KEY), keyPem);
   fs.writeFileSync(path.join(dir, CA_CRT), certPem);
-  console.log(`[tls] a new house certificate authority: ${path.join(dir, CA_CRT)}`);
+  console.log(`[tls] a new house certificate authority for ${[...dns, ...ips].join(", ")}: ${path.join(dir, CA_CRT)}`);
   return { pem: certPem, keyPem, node: new NodeCert(certPem) };
 }
 
@@ -351,20 +389,29 @@ async function makeServer(dir: string, ca: Ca, want: HouseWant): Promise<{ key: 
 let busy: Promise<unknown> = Promise.resolve();
 let last: HouseCerts | null = null;
 
+/** Names and addresses the CA should permit besides the ones wanted now (e.g. the VPN's while it is off). */
+export interface CaExtra {
+  dns?: string[];
+  ips?: string[];
+}
+
 /**
- * The house's certificates for `want`: the CA made once (again only when it ends or does not cover a name of this
- * PC: `caNames` gives the names it should permit when it is made, e.g. the VPN name before the VPN is on), the
- * server certificate made again when its names change or it ends within 30 days.
+ * The house's certificates for `want`: the CA made once (again only when it ends or does not cover a name or an
+ * address of this PC: `caExtra` gives the names and addresses it should permit too when it is made, e.g. the VPN's
+ * before the VPN is on), the server certificate made again when its names change or it ends within 30 days.
  */
-export function ensureHouseCerts(dir: string, wantIn: HouseWant, caNames: () => Promise<string[]> = async () => []): Promise<HouseCerts> {
+export function ensureHouseCerts(dir: string, wantIn: HouseWant, caExtra: () => Promise<CaExtra> = async () => ({})): Promise<HouseCerts> {
   const run = async (): Promise<HouseCerts> => {
     const want = norm(wantIn);
     fs.mkdirSync(dir, { recursive: true });
     let madeCa = false;
     let ca = loadCa(dir, want);
     if (!ca) {
-      const extra = (await caNames().catch(() => [])).map((d) => d.toLowerCase()).filter(dnsName);
-      ca = await makeCa(dir, [...new Set(["localhost", hostName(), `${hostName()}.local`, ...want.dns, ...extra])]);
+      const extra = await caExtra().catch((): CaExtra => ({}));
+      const more = norm({ dns: extra.dns ?? [], ips: extra.ips ?? [] });
+      const dns = [...new Set(["localhost", hostName(), `${hostName()}.local`, ...want.dns, ...more.dns])];
+      const ips = [...new Set(["127.0.0.1", ...want.ips, ...more.ips])].sort();
+      ca = await makeCa(dir, dns, ips);
       madeCa = true;
     }
     let madeServer = false;

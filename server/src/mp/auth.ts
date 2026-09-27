@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import type { IncomingMessage } from "node:http";
+import { OWN_ADDRS } from "../config.ts";
 import type { DB } from "../db.ts";
 import { HOST_ID, playerOfToken } from "./players.ts";
 
@@ -31,10 +32,20 @@ declare module "hono" {
 
 const LOCAL_ADDRESSES = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 
-/** A socket address and forwarding headers that say: this computer. */
+/** One of this PC's addresses: loopback, or (M8e) a home-network or VPN address the server is bound to now. */
+function ownAddr(a: string): boolean {
+  if (LOCAL_ADDRESSES.has(a)) return true;
+  const v4 = a.replace(/^::ffff:/i, "");
+  return OWN_ADDRS.has(v4);
+}
+
+/**
+ * A socket address and forwarding headers that say: this computer. M8e: the host's browser on his own secure name
+ * (https://pcx:8788) reaches the server from his LAN or VPN address, not 127.0.0.1; that is this computer too.
+ */
 export function loopback(addr: string | undefined, forwarded: string | undefined): boolean {
-  if (!addr || !LOCAL_ADDRESSES.has(addr)) return false;
-  if (forwarded && forwarded.split(",").some((a) => !LOCAL_ADDRESSES.has(a.trim().replace(/^for=/i, "").replace(/^"?\[?|\]?"?$/g, "")))) return false;
+  if (!addr || !ownAddr(addr)) return false;
+  if (forwarded && forwarded.split(",").some((a) => !ownAddr(a.trim().replace(/^for=/i, "").replace(/^"?\[?|\]?"?$/g, "")))) return false;
   return true;
 }
 

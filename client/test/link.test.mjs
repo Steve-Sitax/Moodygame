@@ -97,3 +97,35 @@ test('a file is read whole with its bytes counted; a stalled one is given up (no
   assert.equal(n, 7);
   assert.equal(aborted, true);
 });
+
+test('review 4: the push socket is dead only 25 s after an unanswered ping, however seldom a hidden tab pings', async () => {
+  const { PUSH_DEAD_MS, PUSH_PING_MS } = await import('../src/net/mp/link.ts');
+  assert.equal(PUSH_PING_MS, 10_000);
+  const l = new Liveness(PUSH_DEAD_MS);
+  l.pinged(0);
+  assert.equal(l.dead(PUSH_DEAD_MS), false);
+  assert.equal(l.dead(PUSH_DEAD_MS + 1), true);
+  // the pong came: alive again; a hidden tab's once-a-minute timer with its pong 100 ms later never trips it
+  l.heard();
+  for (let t = 60_000; t < 900_000; t += 60_000) {
+    assert.equal(l.dead(t), false);
+    l.pinged(t);
+    l.heard();
+  }
+  // the movement socket's stays as it was
+  const m = new Liveness();
+  m.pinged(0);
+  assert.equal(m.dead(DEAD_MS + 1), true);
+});
+
+test('review 4: a 429 is tried again after its Retry-After (at most 5 s, twice); a longer wait or a third time is not', async () => {
+  const { retryAfterMs, RETRY_429 } = await import('../src/net/mp/link.ts');
+  assert.equal(retryAfterMs('1', 0), 1000);
+  assert.equal(retryAfterMs(null, 0), 1000, 'no header: a second');
+  assert.equal(retryAfterMs('0', 1), 200, 'never at once');
+  assert.equal(retryAfterMs('5', 1), 5000);
+  assert.equal(retryAfterMs('60', 0), null, "the join tries' minute: the error is shown");
+  assert.equal(retryAfterMs('soon', 0), null);
+  assert.equal(retryAfterMs('1', RETRY_429), null);
+  assert.equal(RETRY_429, 2);
+});

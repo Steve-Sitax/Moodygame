@@ -7,9 +7,13 @@ private VPN (NetBird) instead of an open router port. Plain http on the home net
 
 | Part | What | Where |
 |---|---|---|
-| The house CA | Made once per host, the first time the house or the VPN opens: `data/tls/house-ca.key` + `house-ca.crt`. EC P-256, 10 years, "Scheldemist house CA (<hostname>)", CA with path length 0, keyCertSign + cRLSign. **Name constraints** (critical) permit only this PC's names (hostname, hostname.local, localhost, and the VPN name if NetBird knows it then) and the private ranges 10/8, 172.16/12, 192.168/16, 100.64/10, 127/8. A leaked key cannot sign for any site on the internet (tested: a certificate it signs for another name or a public address is refused). Made again only when it ends or a new name of this PC is not covered; then every guest fetches it again. | `server/src/mp/tls.ts` |
+| The house CA | Made once per host, the first time the house or the VPN opens: `data/tls/house-ca.key` + `house-ca.crt`. EC P-256, 10 years, "Scheldemist house CA (<hostname>)", CA with path length 0, keyCertSign + cRLSign, **extended key usage serverAuth only** (a guest who trusts it trusts it for websites only, never for code signing, mail or client logins). **Name constraints** (critical) permit only this PC's names (hostname, hostname.local, localhost, and the VPN name if NetBird knows it then) and only this PC's own addresses, each a /32: 127.0.0.1, its home-network addresses and its VPN addresses (all it has when the CA is made, the VPN's too while the VPN is off). A leaked key cannot sign for any other site, on the internet or on the guest's own network (tested: a certificate it signs for another name, a public address, or another private address such as 10.0.0.1 is refused; a certificate under it used as a client login is refused). Made again when it ends, when a new name or a **new address** of this PC is not covered (an address that goes away does not remake it), and once for a CA made before these rules (no EKU, or whole private ranges): **every guest then fetches `/house-ca.crt` again and trusts it as below**. A home network that hands out a new address to the host (DHCP) therefore means a new CA; a fixed address (a DHCP reservation for PCX) avoids that. | `server/src/mp/tls.ts` |
 | The server certificate | `data/tls/server.key` + `server.crt`, signed by the house CA, 397 days, names: localhost, 127.0.0.1, the hostname, hostname.local, every home-network address and, with the VPN on, the VPN's name and addresses. Made again when that set changes or within 30 days of its end. | `tls.ts ensureHouseCerts` |
-| The keys | Never leave `data/tls` (`data/` is gitignored), never logged, never served. Each key file is readable by this Windows user only (`icacls /inheritance:r /grant:r <user>:F`; chmod 600 elsewhere). | `tls.ts` |
+| The keys | Never leave `data/tls` (`data/` is gitignored), never logged, never served. Each key file is readable by this Windows user only (`%SystemRoot%\System32\icacls.exe /inheritance:r /grant:r <user>:F`, the absolute program; chmod 600 elsewhere). | `tls.ts` |
+| The folder per save | `data/tls` for the real save `game.sqlite`; `data/tls-<save name>` for any other save file (a test stack's `data/test-<name>.sqlite`: `data/tls-test-<name>`, deleted by `teststack.mjs stop`); `SCHELDEMIST_TLS_DIR` names it by hand. A test stack never rewrites the real `data/tls`. | `tls.ts tlsDirFor` |
+| Addresses that change | While the house or the VPN is open, every 30 s the server looks at this PC's addresses (`os.networkInterfaces()`; the NetBird name kept 5 min, "no name" 60 s). When the home-network or VPN addresses or the VPN name change, the listeners are opened again (new addresses opened, gone ones closed, http and https) and the server certificate is made again (the CA too for a new address it does not cover). The watch stops when both are closed. | `lan.ts setAddressWatch`, `mp/index.ts applyLan` |
+| The host on his own secure name | A request or socket from one of this PC's own addresses the server is bound to (home network or VPN) is this PC, like 127.0.0.1: the host's browser on `https://pcx:8788` is the host, not a stranger. Host and Origin checks as before; a forwarding header naming another address is not the host. | `config.ts OWN_ADDRS`, `mp/auth.ts loopback`, `ai/routes.ts fromHost` |
+| netbird | Run by its absolute path only: the first `netbird.exe` in an absolute folder on the PATH (looked up once; never the working folder or a relative PATH entry), else `C:\Program Files\NetBird\netbird.exe`. None: no VPN name. | `lan.ts netbirdPath` |
 | The https port | While the house (or the VPN) is open, the same app on the next port: **8788** for 8787 (`config.ts TLS_PORT`), on 127.0.0.1 and the home-network addresses, both sockets as `wss://` (`/mp`, `/ws`). The https port takes exactly the names its certificate carries as Host and https Origin (`config.ts TLS_NAMES`); anything else gets 403. | `server/src/mp/lan.ts applySecure`, `config.ts` |
 | Open to my VPN | A new host-only setting `vpn` (off by default; menu, Together; or `SCHELDEMIST_VPN=1`), like "Open to the house": it turns playing together on. On: https only (never plain http) on this PC's VPN addresses (100.64.0.0/10: NetBird, Tailscale). The VPN name comes from `netbird status --json` (3 s at most; no netbird: none), or `SCHELDEMIST_VPN_FQDN` by hand. | `mp/settings.ts`, `lan.ts vpnAddresses, vpnName` |
 | The house certificate for guests | `GET /house-ca.crt`: the CA's public certificate only (`application/x-x509-ca-cert`), on the house's http and https ports while the house or VPN is open. | `mp/index.ts` |
@@ -17,10 +21,14 @@ private VPN (NetBird) instead of an open router port. Plain http on the home net
 | wss | The client picks `wss://` when the page is https (`session.ts`, `api.ts`: `location.protocol`). | client |
 | Facts | `/api/mp/info` has `house: { https, ca, sha256, sha1 }` (public). `/api/mp/host` (host only) has `vpn`, `secure: { house, vpn }`, `secureOpen`, and `tls: { sha256, sha1, spki, until }`: `spki` is the server key's SPKI hash for a test browser. | `mp/index.ts` |
 
-Tests: `server/test/m8e-tls.test.ts` (the CA once, its constraints, the server certificate's names and chain,
-made again on a new address, a forged certificate refused, the vpn setting, the Host check; a real server with
-https and wss trusted by the CA, `/house-ca.crt` without any key, a foreign name refused, the VPN https-only and
-host-only). Only fake VPN names in tests.
+Tests: `server/test/m8e-tls.test.ts` (the CA once, its EKU and constraints (/32 addresses), the server
+certificate's names and chain, made again on a new address (and the CA for an address it does not cover, not for
+one that went away), an old CA remade once, a forged certificate refused (another name, a public address, another
+private address), a client login under it refused, the TLS folder per save, the vpn setting, the Host check, the
+own addresses as this PC; the address watch moving the http and https listeners and the certificate to a new
+address and stopping when closed; a real server with https and wss trusted by the CA, `/house-ca.crt` without any
+key, a foreign name refused, the VPN https-only and host-only, the host from his own LAN address). Only fake VPN
+names in tests.
 
 ### A guest trusts the house certificate (once per device)
 
@@ -43,6 +51,10 @@ host-only). Only fake VPN names in tests.
    `https://<pcx's NetBird name>:8788` and the 100.x address.
 2. Restrict who may reach the port: in the NetBird dashboard, Access Control, a policy from a group of the
    players' peers to PCX only, TCP **8788** only; the default all-to-all policy must not cover these peers.
+   Mind network routes: if NetBird routes the host's home subnet (e.g. 192.168.1.0/24) to peers, those peers
+   reach the home-network addresses directly, including **plain http on 8787** ("Open to the house"). Give the
+   players' group no such route, or keep the access rule to TCP 8788 to PCX only (a routed subnet needs its own
+   rule for the route's resource; allow nothing but TCP 8788 to PCX there either).
 3. Windows firewall on the host (Steve's own step, like M8a): allow TCP 8788 in on the NetBird interface only,
    for example
    `New-NetFirewallRule -DisplayName "Scheldemist https (NetBird)" -Direction Inbound -Protocol TCP -LocalPort 8788 -InterfaceAlias "wt0" -RemoteAddress 100.64.0.0/10 -Action Allow`
@@ -102,6 +114,29 @@ It changes whenever the server certificate is made again.
   cache and network. `client/test/vpnLine.test.mjs` (9): the table above. Run with
   `node --test client/test/link.test.mjs client/test/sw.test.mjs client/test/vpnLine.test.mjs`.
 - `server/test/mp.test.ts` and `m8d-jobs.test.ts` pass as before.
+
+### Review round 4 fixes (sockets)
+
+| Finding | Fix | Where |
+|---|---|---|
+| The push socket `/ws` had no dead-line check (M3) | As on `/mp`: the server pings every push socket every 10 s and closes one that missed the last pong; it answers the page's `{type:"ping"}` with `{type:"pong"}` (a page cannot see a ws ping). The client pings every 10 s on the untouched timers, gives up a socket that heard nothing for 25 s after a ping (counted from the first unanswered one: a hidden tab never trips it) or a connect not open after 10 s, and comes back after 1, 2, 4, 8, then every 15 s (at once when the browser is online again). Back after a drop it asks again for the job board and sends a `resync` push: the actions and events, the hired hands' steps, the ballads, the ideas, the emigrants, the paper and a gang ask the server again. (The families' visit or menace pushed while the line was down is not asked again: its load builds the fortune teller's table a second time.) Alone on this PC: one small message every 10 s, nothing else changes. | `server/src/index.ts`, `client/src/net/api.ts connectPush`, `net/mp/link.ts` (`PUSH_PING_MS`, `PUSH_DEAD_MS`), `main.ts` |
+| A 429 reached the player as "HTTP 429" or not at all | The fetch hook (`boot/netboot.ts`) tries a 429'd `/api` call again after its `Retry-After` (at most twice, waits up to 5 s; a longer one, the join tries' minute, is not retried). Then the host's own words ("Too many requests from this PC at once...") reach the caller; `api.ts call` has a plain line if none came. The guests' limit already sent `Retry-After: 1`; the join's "Too many tries" now sends `Retry-After: 60`. | `netboot.ts`, `link.ts retryAfterMs`, `api.ts`, `mp/index.ts` |
+| The Service Worker kept any navigation as the offline page | Only `/` and `/index.html` (any query) are kept as the page; `/manifest.json` or `/boot/x.jpg` opened in a tab are their own shell files, anything else goes to the network untouched. | `client/public/sw.js`, `client/test/sw.test.mjs` |
+| Moving to the secure address lost the guest's man (M5) | The browser keeps a token per address, so the move carries one: a guest's click on "Safer: https://..." (join card, Together panel) asks `POST /api/mp/transfer` (guest token only) for a one-time code (128 random bits, 60 s, single use, only its SHA-256 kept, in memory; a newer code of his ends the older one) and opens `https://<host>:8788/#move=<code>` (with `?seat=N` for a test seat). The fragment never reaches a server or a log. The new page takes `#move=` out of the address at once (`history.replaceState`) and redeems it with `POST /api/mp/move {code}`: a new token of the same player. Wrong, used or old codes: 403 "That link to the secure address was used already or is too old...", counted with the join tries (5 a minute per address, then 429, `Retry-After: 60`). **The old token ends** (its sockets are closed: `/mp` 4005, `/ws` 4001): it went over plain http, where anyone on the line could read it, and kept valid it would go on playing his man after he moved. The price: back on the http address he joins again as a new man; the secure address is his home now. A middle click or a copied link is the plain address (no code): there he joins again. | `server/src/mp/players.ts` (`newMoveCode`, `takeMoveCode`, `rotateToken`), `mp/index.ts`, `client/src/net/mp/househelp.ts`, `boot/netboot.ts` |
+
+Tests: `server/test/m8e-move.test.ts` (5: a code once, its end after 60 s, a newer code ends the older; on a real
+server the same id after the move, the old token refused with its sockets closed, one roster entry, the code
+refused a second time, 5 wrong codes then 429 with `Retry-After: 60` shared with the join);
+`m8e-limits.test.ts` (+1: `/ws` answers a ping with a pong, a push socket that answers no ws ping is closed within
+20 s, the other stays); `client/test/sw.test.mjs` (+1), `client/test/link.test.mjs` (+2: the push liveness, the
+429 waits).
+
+To check in a browser (lead): (a) a guest on `http://pcx:8787` in the game clicks the secure address in the
+Together panel: the https page opens without `#move=` in the address bar, no join card, the same man at his place
+and money; the http tab's token no longer works. (b) The push line: a guest in the game, the host's server stopped
+for 30 s and started again: the job board and the events come back without a reload (DevTools, Network, WS:
+a `ping`/`pong` every 10 s). (c) `/manifest.json` opened in a tab on https, then the game offline: the page, not
+the manifest.
 
 ### To check in a browser (not done here: no browser in this part)
 

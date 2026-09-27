@@ -109,11 +109,13 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   const p = url.pathname;
   if (never(p)) return;
-  if (req.mode === "navigate") {
+  if (req.mode === "navigate" && (p === "/" || p === "/index.html")) {
     // the page, whatever its query (?seat=2): one copy
     event.respondWith(networkFirst(req, "/index.html"));
     return;
   }
+  // (M8e review 4: any other address opened in the tab, /manifest.json or /boot/x.jpg, is never kept as the page:
+  // it is the shell file it names, or the network's)
   if (!shell(p)) return; // (the loader's files: IndexedDB keeps them)
   if (hashed(p)) event.respondWith(cacheFirst(req, p));
   else event.respondWith(networkFirst(req, p === "/" ? "/index.html" : p));

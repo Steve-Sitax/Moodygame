@@ -316,3 +316,38 @@ describe("M8e limits on a real server", () => {
     }
   }, 120_000);
 });
+
+describe("M8e review 4: the push socket's line (/ws)", () => {
+  it("a ping is answered with a pong; a push socket that answers no ws ping is closed within 20 s, one that does stays", async () => {
+    const s = await realServer();
+    try {
+      const open = async (autoPong: boolean) => {
+        const ws = new WebSocket(`ws://127.0.0.1:${s.port}/ws?client=tab-${autoPong ? "a" : "b"}`, { headers: { origin: s.base }, autoPong });
+        const texts: Array<Record<string, unknown>> = [];
+        let closed: number | null = null;
+        ws.on("message", (d) => texts.push(JSON.parse(String(d))));
+        ws.on("close", (code) => (closed = code));
+        await new Promise<void>((ok, bad) => {
+          ws.once("open", () => ok());
+          ws.once("error", bad);
+        });
+        return { ws, texts, closed: () => closed };
+      };
+      const good = await open(true);
+      const dead = await open(false);
+      // (the host's tab on this PC: welcomed at once with the job board)
+      for (let i = 0; i < 50 && !good.texts.some((t) => t.type === "jobs"); i++) await wait(50);
+      expect(good.texts.some((t) => t.type === "jobs")).toBe(true);
+      good.ws.send(JSON.stringify({ type: "ping" }));
+      for (let i = 0; i < 40 && !good.texts.some((t) => t.type === "pong"); i++) await wait(50);
+      expect(good.texts.some((t) => t.type === "pong")).toBe(true);
+      // the silent one (a VPN that dropped without a word) is closed within two heartbeats
+      for (let i = 0; i < 230 && dead.closed() === null; i++) await wait(100);
+      expect(dead.closed()).not.toBe(null);
+      expect(good.closed()).toBe(null);
+      good.ws.close();
+    } finally {
+      await s.stop();
+    }
+  }, 120_000);
+});

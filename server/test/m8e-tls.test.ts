@@ -12,10 +12,11 @@ import { fileURLToPath } from "node:url";
 import * as x509 from "@peculiar/x509";
 import WebSocket from "ws";
 import { afterAll, describe, expect, it } from "vitest";
-import { allowedHost, allowedOrigin, PORT, TLS_NAMES, TLS_PORT } from "../src/config.ts";
-import { parseNetbird } from "../src/mp/lan.ts";
+import { allowedHost, allowedOrigin, OWN_ADDRS, PORT, TLS_NAMES, TLS_PORT } from "../src/config.ts";
+import { loopback } from "../src/mp/auth.ts";
+import { addressWatchOn, applySecure, closeLan, closeSecure, lanOpen, netbirdPath, openLan, parseNetbird, secureOpen, setAddressWatch } from "../src/mp/lan.ts";
 import { mpSettings, resetMpSettings, setMp } from "../src/mp/settings.ts";
-import { CA_CRT, CA_KEY, ensureHouseCerts, hostName, nameConstraintsDer, PRIVATE_RANGES, privateIp, readNameConstraints, SERVER_CRT, spkiHash, vpnIp } from "../src/mp/tls.ts";
+import { CA_CRT, CA_KEY, ensureHouseCerts, hostName, nameConstraintsDer, PRIVATE_RANGES, privateIp, readNameConstraints, SERVER_CRT, spkiHash, tlsDirFor, vpnIp } from "../src/mp/tls.ts";
 import { MP_PROTOCOL } from "../../shared/mpProtocol.ts";
 
 // M8e part A (docs/milestones/M8e.md): the house certificate authority (made once, name constraints: this PC's
@@ -33,6 +34,55 @@ afterAll(() => {
 });
 
 const want = (ips: string[] = ["127.0.0.1", "192.168.1.20"]) => ({ dns: ["localhost", "pcx-test", "pcx-test.local"], ips });
+const tmpDir = () => {
+  const d = tmp();
+  dirs.push(d);
+  return d;
+};
+
+const EC = { name: "ECDSA", namedCurve: "P-256" } as const;
+const keyPem = async (k: webcrypto.CryptoKey) => `-----BEGIN PRIVATE KEY-----\n${Buffer.from(await webcrypto.subtle.exportKey("pkcs8", k)).toString("base64")}\n-----END PRIVATE KEY-----\n`;
+
+/** A leaf certificate signed with the CA key in `dir` (what a thief with the key could make). */
+async function forgeLeaf(dir: string, names: Array<{ type: "dns" | "ip"; value: string }>): Promise<{ cert: string; key: string }> {
+  const caPem = fs.readFileSync(path.join(dir, CA_CRT), "utf8");
+  const caKey = await webcrypto.subtle.importKey("pkcs8", createPrivateKey(fs.readFileSync(path.join(dir, CA_KEY), "utf8")).export({ type: "pkcs8", format: "der" }), EC, false, ["sign"]);
+  const keys = (await webcrypto.subtle.generateKey(EC, true, ["sign", "verify"])) as webcrypto.CryptoKeyPair;
+  const cert = await x509.X509CertificateGenerator.create({
+    // (the CN a name the CA permits: OpenSSL checks a CN as a DNS name when there is no DNS SAN, and the IP checks
+    // below must fail on the address alone)
+    subject: [{ CN: ["pcx-test"] }],
+    issuer: new x509.X509Certificate(caPem).subject,
+    notBefore: new Date(Date.now() - 60_000),
+    notAfter: new Date(Date.now() + 86_400_000),
+    publicKey: keys.publicKey as never,
+    signingKey: caKey as never,
+    signingAlgorithm: { name: "ECDSA", hash: "SHA-256" },
+    extensions: [new x509.SubjectAlternativeNameExtension(names)],
+  });
+  return { cert: cert.toString("pem"), key: await keyPem(keys.privateKey) };
+}
+
+/** A house CA as the first M8e build made it: no EKU, the whole private ranges. */
+async function oldStyleCa(dir: string): Promise<void> {
+  const keys = (await webcrypto.subtle.generateKey(EC, true, ["sign", "verify"])) as webcrypto.CryptoKeyPair;
+  const cert = await x509.X509CertificateGenerator.createSelfSigned({
+    serialNumber: "01",
+    name: [{ CN: ["Scheldemist house CA (old)"] }],
+    notBefore: new Date(Date.now() - 60_000),
+    notAfter: new Date(Date.now() + 3650 * 86_400_000),
+    keys: keys as never,
+    signingAlgorithm: { name: "ECDSA", hash: "SHA-256" },
+    extensions: [
+      new x509.BasicConstraintsExtension(true, 0, true),
+      new x509.KeyUsagesExtension(x509.KeyUsageFlags.keyCertSign | x509.KeyUsageFlags.cRLSign, true),
+      new x509.Extension("2.5.29.30", true, nameConstraintsDer(["localhost", "pcx-test", "pcx-test.local", hostName(), `${hostName()}.local`], PRIVATE_RANGES)),
+    ],
+  });
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, CA_KEY), await keyPem(keys.privateKey));
+  fs.writeFileSync(path.join(dir, CA_CRT), cert.toString("pem"));
+}
 
 describe("the house certificate authority and the server certificate", () => {
   it("the CA is made once and used again; the key files stay in the folder", async () => {
@@ -54,10 +104,10 @@ describe("the house certificate authority and the server certificate", () => {
     expect(fs.readdirSync(dir).sort()).toEqual(["house-ca.crt", "house-ca.key", "server.crt", "server.key"]);
   });
 
-  it("the CA: EC P-256, 10 years, CA:true, keyCertSign + cRLSign, critical name constraints with this PC's names and the private ranges", async () => {
+  it("the CA: EC P-256, 10 years, CA:true, keyCertSign + cRLSign, EKU serverAuth only, critical name constraints with this PC's names and its own addresses (/32)", async () => {
     const dir = tmp();
     dirs.push(dir);
-    const c = await ensureHouseCerts(dir, want(), async () => [FAKE_VPN]);
+    const c = await ensureHouseCerts(dir, want(), async () => ({ dns: [FAKE_VPN], ips: ["100.90.1.2", "192.168.1.20", "8.8.8.8"] }));
     const ca = new X509Certificate(c.caPem);
     expect(ca.ca).toBe(true);
     expect(ca.subject).toContain(`Scheldemist house CA (${hostName()})`);
@@ -76,9 +126,26 @@ describe("the house certificate authority and the server certificate", () => {
     expect(nc.critical).toBe(true);
     const r = readNameConstraints(Buffer.from(nc.value));
     expect(r.dns.sort()).toEqual(["localhost", "pcx-test", "pcx-test.local", FAKE_VPN, hostName(), `${hostName()}.local`].filter((v, i, a) => a.indexOf(v) === i).sort());
-    expect(r.ranges).toEqual(["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10", "127.0.0.0/8"]);
+    // only this PC's own addresses, one each; never a whole range, never a public address
+    expect(r.ranges).toEqual(["100.90.1.2/32", "127.0.0.1/32", "192.168.1.20/32"]);
+    // websites only
+    const eku = px.getExtension(x509.ExtendedKeyUsageExtension)!;
+    expect(eku.usages).toEqual([x509.ExtendedKeyUsage.serverAuth]);
     // (what the encoder writes, the reader reads)
     expect(readNameConstraints(nameConstraintsDer(["a.b"], PRIVATE_RANGES)).ranges).toHaveLength(5);
+  });
+
+  it("a CA made before the review-4 rules (no EKU, whole private ranges) is made again once", async () => {
+    const dir = tmp();
+    dirs.push(dir);
+    await oldStyleCa(dir);
+    const oldSha = new X509Certificate(fs.readFileSync(path.join(dir, CA_CRT), "utf8")).fingerprint256;
+    const a = await ensureHouseCerts(dir, want());
+    expect(a.madeCa).toBe(true);
+    expect(new X509Certificate(a.caPem).fingerprint256).not.toBe(oldSha);
+    const b = await ensureHouseCerts(dir, want());
+    expect(b.madeCa).toBe(false);
+    expect(b.caSha256).toBe(a.caSha256);
   });
 
   it("the server certificate names exactly the wanted names and addresses, 397 days, and chains to the house CA", async () => {
@@ -100,46 +167,39 @@ describe("the house certificate authority and the server certificate", () => {
     expect(c.spki).toMatch(/^[A-Za-z0-9+/]{43}=$/);
   });
 
-  it("an address changes: a new server certificate, the same CA; the CA is made again only for a name it does not cover", async () => {
+  it("an address goes away: a new server certificate, the same CA; a new address or name it does not cover: a new CA", async () => {
     const dir = tmp();
     dirs.push(dir);
-    const a = await ensureHouseCerts(dir, want(["127.0.0.1", "192.168.1.20"]));
+    // the CA is made with every address this PC has (the VPN's too, while the VPN is off)
+    const a = await ensureHouseCerts(dir, want(["127.0.0.1", "192.168.1.20", "192.168.1.21"]), async () => ({ ips: ["100.99.0.7"] }));
+    expect(a.madeCa).toBe(true);
     const b = await ensureHouseCerts(dir, want(["127.0.0.1", "192.168.1.21"]));
     expect(b.madeCa).toBe(false);
     expect(b.madeServer).toBe(true);
     expect(b.caSha256).toBe(a.caSha256);
     expect(new X509Certificate(b.cert).subjectAltName).toContain("IP Address:192.168.1.21");
     expect(new X509Certificate(fs.readFileSync(path.join(dir, SERVER_CRT), "utf8")).subjectAltName).not.toContain("192.168.1.20");
-    // a VPN address in the CGNAT range is covered by the CA already
+    // the VPN turned on later: its address was covered when the CA was made
     const v = await ensureHouseCerts(dir, want(["127.0.0.1", "192.168.1.21", "100.99.0.7"]));
     expect(v.madeCa).toBe(false);
-    // a VPN name the CA did not permit: a new CA (the guests fetch it again)
+    expect(v.caSha256).toBe(a.caSha256);
+    // a new home-network address (DHCP): the CA does not cover it, a new CA (the guests fetch it again)
+    const d = await ensureHouseCerts(dir, want(["127.0.0.1", "192.168.1.30"]));
+    expect(d.madeCa).toBe(true);
+    expect(d.caSha256).not.toBe(a.caSha256);
+    expect(readNameConstraints(Buffer.from(new x509.X509Certificate(d.caPem).getExtension("2.5.29.30")!.value)).ranges).toContain("192.168.1.30/32");
+    // a VPN name the CA did not permit: a new CA
     const n = await ensureHouseCerts(dir, { ...want(["127.0.0.1"]), dns: [...want().dns, FAKE_VPN] });
     expect(n.madeCa).toBe(true);
-    expect(n.caSha256).not.toBe(a.caSha256);
+    expect(n.caSha256).not.toBe(d.caSha256);
   });
 
-  it("a leaked CA key cannot sign for the internet: a certificate for another name or a public address is refused", async () => {
+  it("a leaked CA key cannot sign for any other site: a certificate for another name, a public address or another private address is refused", async () => {
     const dir = tmp();
     dirs.push(dir);
     const c = await ensureHouseCerts(dir, want());
     const caPem = fs.readFileSync(path.join(dir, CA_CRT), "utf8");
-    const caKey = await webcrypto.subtle.importKey("pkcs8", createPrivateKey(fs.readFileSync(path.join(dir, CA_KEY), "utf8")).export({ type: "pkcs8", format: "der" }), { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
-    const forge = async (names: Array<{ type: "dns" | "ip"; value: string }>) => {
-      const keys = (await webcrypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"])) as webcrypto.CryptoKeyPair;
-      const cert = await x509.X509CertificateGenerator.create({
-        subject: [{ CN: ["bank.example"] }],
-        issuer: new x509.X509Certificate(caPem).subject,
-        notBefore: new Date(Date.now() - 60_000),
-        notAfter: new Date(Date.now() + 86_400_000),
-        publicKey: keys.publicKey as never,
-        signingKey: caKey as never,
-        signingAlgorithm: { name: "ECDSA", hash: "SHA-256" },
-        extensions: [new x509.SubjectAlternativeNameExtension(names)],
-      });
-      const der = Buffer.from(await webcrypto.subtle.exportKey("pkcs8", keys.privateKey));
-      return { cert: cert.toString("pem"), key: `-----BEGIN PRIVATE KEY-----\n${der.toString("base64")}\n-----END PRIVATE KEY-----\n` };
-    };
+    const forge = (names: Array<{ type: "dns" | "ip"; value: string }>) => forgeLeaf(dir, names);
     const tryWith = async (leaf: { cert: string; key: string }, servername: string) => {
       const srv = tls.createServer({ cert: leaf.cert, key: leaf.key }, (s) => s.end("ok"));
       await new Promise<void>((ok) => srv.listen(0, "127.0.0.1", ok));
@@ -155,7 +215,59 @@ describe("the house certificate authority and the server certificate", () => {
     expect(await tryWith(await forge([{ type: "dns", value: "pcx-test" }]), "pcx-test")).toBe("trusted");
     expect(await tryWith(await forge([{ type: "dns", value: "bank.example" }]), "bank.example")).toMatch(/permitted subtree violation/);
     expect(await tryWith(await forge([{ type: "ip", value: "8.8.8.8" }]), "x")).toMatch(/permitted subtree violation/);
+    // this PC's own address: trusted; any other private address (a router, a NAS, another PC): refused
+    expect(await tryWith(await forge([{ type: "ip", value: "192.168.1.20" }]), "x")).toBe("trusted");
+    expect(await tryWith(await forge([{ type: "ip", value: "10.0.0.1" }]), "x")).toMatch(/permitted subtree violation/);
+    expect(await tryWith(await forge([{ type: "ip", value: "192.168.1.1" }]), "x")).toMatch(/permitted subtree violation/);
+    expect(await tryWith(await forge([{ type: "ip", value: "100.64.0.1" }]), "x")).toMatch(/permitted subtree violation/);
     void c;
+  });
+
+  it("websites only: a certificate under the house CA used as a client login is refused (an old CA without EKU would pass)", async () => {
+    const tryLogin = async (dir: string) => {
+      const caPem = fs.readFileSync(path.join(dir, CA_CRT), "utf8");
+      const leaf = await forgeLeaf(dir, [{ type: "dns", value: "pcx-test" }]);
+      const own = await ensureHouseCerts(tmpDir(), want());
+      const srv = tls.createServer({ cert: own.cert, key: own.key, ca: caPem, requestCert: true, rejectUnauthorized: false });
+      const seen = new Promise<string>((ok) =>
+        srv.once("secureConnection", (s: tls.TLSSocket) => {
+          s.on("error", () => {});
+          ok(s.authorized ? "authorized" : String(s.authorizationError));
+          s.destroy();
+        }),
+      );
+      await new Promise<void>((ok) => srv.listen(0, "127.0.0.1", ok));
+      const port = (srv.address() as net.AddressInfo).port;
+      const cl = tls.connect({ host: "127.0.0.1", port, cert: leaf.cert, key: leaf.key, rejectUnauthorized: false });
+      cl.on("error", () => {});
+      const r = await seen;
+      cl.destroy();
+      srv.close();
+      return r;
+    };
+    const house = tmpDir();
+    await ensureHouseCerts(house, want());
+    expect(await tryLogin(house)).toMatch(/INVALID_PURPOSE|UNSUPPORTED_CERTIFICATE_PURPOSE|unsupported certificate purpose/i);
+    // (the control: the same leaf under a CA without EKU is taken as a client login)
+    const old = tmpDir();
+    await oldStyleCa(old);
+    expect(await tryLogin(old)).toBe("authorized");
+  });
+
+  it("the TLS folder per save: data/tls for the real save, data/tls-<name> for any other, SCHELDEMIST_TLS_DIR by hand", () => {
+    const keep = process.env.SCHELDEMIST_TLS_DIR;
+    delete process.env.SCHELDEMIST_TLS_DIR;
+    try {
+      const data = path.resolve("/x/data");
+      expect(tlsDirFor(path.join(data, "game.sqlite"))).toBe(path.join(data, "tls"));
+      expect(tlsDirFor(path.join(data, "test-check.sqlite"))).toBe(path.join(data, "tls-test-check"));
+      expect(tlsDirFor(path.join(data, "Other Save.sqlite"))).toBe(path.join(data, "tls-Other_Save"));
+      process.env.SCHELDEMIST_TLS_DIR = path.resolve("/y/tls");
+      expect(tlsDirFor(path.join(data, "game.sqlite"))).toBe(path.resolve("/y/tls"));
+    } finally {
+      if (keep === undefined) delete process.env.SCHELDEMIST_TLS_DIR;
+      else process.env.SCHELDEMIST_TLS_DIR = keep;
+    }
   });
 
   it("the private ranges, the VPN range, a DNS name", () => {
@@ -200,6 +312,113 @@ describe("the VPN setting and the https Host check", () => {
     expect(allowedOrigin(`https://localhost:${PORT}`)).toBe(false);
     TLS_NAMES.clear();
   });
+
+  it("this PC's own bound addresses are this PC (the host on his secure name); anything else, or forwarded for another, is not", () => {
+    OWN_ADDRS.clear();
+    expect(loopback("127.0.0.1", undefined)).toBe(true);
+    expect(loopback("192.168.1.20", undefined)).toBe(false);
+    OWN_ADDRS.add("192.168.1.20");
+    OWN_ADDRS.add("100.90.1.2");
+    expect(loopback("192.168.1.20", undefined)).toBe(true);
+    expect(loopback("::ffff:192.168.1.20", undefined)).toBe(true);
+    expect(loopback("100.90.1.2", undefined)).toBe(true);
+    expect(loopback("192.168.1.21", undefined)).toBe(false);
+    expect(loopback("10.0.0.1", undefined)).toBe(false);
+    expect(loopback("192.168.1.20", "192.168.1.55")).toBe(false);
+    expect(loopback("127.0.0.1", "for=192.168.1.20")).toBe(true);
+    OWN_ADDRS.clear();
+    expect(loopback("192.168.1.20", undefined)).toBe(false);
+  });
+
+  it("netbird is run by an absolute path only (or not at all)", () => {
+    const p = netbirdPath();
+    expect(p === null || (path.isAbsolute(p) && /netbird(\.exe)?$/i.test(p))).toBe(true);
+  });
+});
+
+// ------------------------------------------------------------------ this PC's addresses change
+
+describe("the address watch: a new address moves the listeners and the certificate", () => {
+  it("opens the new address (http and https), closes the gone one, remakes the certificate (the CA for a new address only), and stops when closed", async () => {
+    const dir = tmpDir();
+    const keep = { lan: process.env.SCHELDEMIST_TEST_LAN_ADDRS, vpn: process.env.SCHELDEMIST_TEST_VPN_ADDRS, tls: process.env.SCHELDEMIST_TLS_DIR };
+    process.env.SCHELDEMIST_TLS_DIR = dir;
+    process.env.SCHELDEMIST_TEST_VPN_ADDRS = "127.0.0.9"; // (a stand-in for the VPN's address: covered by the CA, the VPN stays off)
+    process.env.SCHELDEMIST_TEST_LAN_ADDRS = "127.0.0.4,127.0.0.6";
+    const port = await freePair();
+    const sport = port + 1;
+    const fetch = () => new Response("ok");
+    const upgrade = (_r: unknown, s: { destroy(): void }) => s.destroy();
+    const on = { lan: true, vpn: false };
+    let applied = 0;
+    const apply = async () => {
+      await openLan(fetch, upgrade, port);
+      await applySecure(fetch, upgrade, on, sport);
+      setAddressWatch(on, apply, 100);
+      applied++;
+    };
+    const ca = () => fs.readFileSync(path.join(dir, CA_CRT), "utf8");
+    const san = () => new X509Certificate(fs.readFileSync(path.join(dir, SERVER_CRT), "utf8")).subjectAltName ?? "";
+    const until = async (ok: () => boolean, what: string) => {
+      for (let i = 0; i < 100 && !ok(); i++) await new Promise((r) => setTimeout(r, 50));
+      expect(ok(), what).toBe(true);
+    };
+    const get = (secure: boolean, host: string) => req({ secure, host, port: secure ? sport : port, path: "/", ca: secure ? ca() : undefined }).then((g) => g.status);
+    try {
+      await apply();
+      expect(addressWatchOn()).toBe(true);
+      expect(lanOpen().sort()).toEqual(["127.0.0.4", "127.0.0.6"]);
+      expect(secureOpen().sort()).toEqual(["127.0.0.1", "127.0.0.4", "127.0.0.6"]);
+      expect([...OWN_ADDRS].sort()).toEqual(["127.0.0.4", "127.0.0.6"]);
+      const ca1 = new X509Certificate(ca()).fingerprint256;
+      expect(await get(true, "127.0.0.4")).toBe(200);
+      // nothing changed: nothing is applied again
+      const n = applied;
+      await new Promise((r) => setTimeout(r, 400));
+      expect(applied).toBe(n);
+
+      // an address goes away: closed there, a new server certificate, the same CA
+      process.env.SCHELDEMIST_TEST_LAN_ADDRS = "127.0.0.6";
+      await until(() => lanOpen().length === 1 && !secureOpen().includes("127.0.0.4"), "127.0.0.4 closed");
+      await until(() => !san().includes("127.0.0.4"), "a new server certificate without 127.0.0.4");
+      expect(lanOpen()).toEqual(["127.0.0.6"]);
+      expect(secureOpen().sort()).toEqual(["127.0.0.1", "127.0.0.6"]);
+      expect([...OWN_ADDRS]).toEqual(["127.0.0.6"]);
+      expect(new X509Certificate(ca()).fingerprint256).toBe(ca1);
+      await expect(get(false, "127.0.0.4")).rejects.toThrow();
+      expect(await get(true, "127.0.0.6")).toBe(200);
+
+      // a new address: opened on http and https, in the server certificate, and a new CA (it did not cover it)
+      process.env.SCHELDEMIST_TEST_LAN_ADDRS = "127.0.0.6,127.0.0.7";
+      await until(() => secureOpen().includes("127.0.0.7") && lanOpen().includes("127.0.0.7"), "127.0.0.7 opened");
+      expect(san()).toContain("IP Address:127.0.0.7");
+      expect(new X509Certificate(ca()).fingerprint256).not.toBe(ca1);
+      expect(await get(true, "127.0.0.7")).toBe(200);
+      expect(await get(true, "127.0.0.6")).toBe(200); // (the old listener serves the new certificate)
+      expect(await get(false, "127.0.0.7")).toBe(200);
+
+      // both closed: the watch stops, nothing is this PC but loopback
+      on.lan = false;
+      await closeLan();
+      await applySecure(fetch, upgrade, on, sport);
+      setAddressWatch(null);
+      expect(addressWatchOn()).toBe(false);
+      expect(secureOpen()).toEqual([]);
+      expect(OWN_ADDRS.size).toBe(0);
+    } finally {
+      setAddressWatch(null);
+      await closeLan();
+      await closeSecure();
+      for (const [k, v] of [
+        ["SCHELDEMIST_TEST_LAN_ADDRS", keep.lan],
+        ["SCHELDEMIST_TEST_VPN_ADDRS", keep.vpn],
+        ["SCHELDEMIST_TLS_DIR", keep.tls],
+      ] as const) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
+  }, 60_000);
 });
 
 // ------------------------------------------------------------------ a real server: https, wss, the certificate
@@ -230,7 +449,7 @@ interface Got {
   body: string;
 }
 
-function req(opts: { secure: boolean; host: string; port: number; path: string; hostHeader?: string; ca?: string; servername?: string; anyName?: boolean; method?: string; body?: unknown; headers?: Record<string, string> }): Promise<Got> {
+function req(opts: { secure: boolean; host: string; port: number; path: string; hostHeader?: string; ca?: string; servername?: string; anyName?: boolean; method?: string; body?: unknown; headers?: Record<string, string>; localAddress?: string }): Promise<Got> {
   return new Promise((ok, bad) => {
     const lib = opts.secure ? https : http;
     const data = opts.body === undefined ? undefined : JSON.stringify(opts.body);
@@ -241,6 +460,7 @@ function req(opts: { secure: boolean; host: string; port: number; path: string; 
         path: opts.path,
         method: opts.method ?? "GET",
         agent: false,
+        localAddress: opts.localAddress,
         ca: opts.ca,
         servername: opts.servername,
         // (a foreign Host header: the chain is still checked, not the name, so the server's answer is seen)
@@ -334,6 +554,12 @@ describe("M8e on a real server: https and wss with the house certificate", () =>
       const sInfo = await req({ secure: true, host: "127.0.0.1", port: sport, path: "/api/mp/info", ca });
       expect(sInfo.status).toBe(200);
       expect(JSON.parse(sInfo.body).you).toMatchObject({ host: true });
+      // the host's own browser on his home-network address (his secure name) is the host; another address is not
+      const own = await req({ secure: true, host: "127.0.0.2", port: sport, path: "/api/mp/host", ca, localAddress: "127.0.0.2" });
+      expect(own.status, own.body).toBe(200);
+      expect((await req({ secure: true, host: "127.0.0.2", port: sport, path: "/api/mp/host", ca, localAddress: "127.0.0.5" })).status).toBe(401);
+      expect((await req({ secure: false, host: "127.0.0.2", port, path: "/api/mp/host", localAddress: "127.0.0.2" })).status).toBe(200);
+      expect((await req({ secure: true, host: "127.0.0.2", port: sport, path: "/api/mp/host", ca, localAddress: "127.0.0.2", headers: { "x-forwarded-for": "127.0.0.5" } })).status).toBe(401);
       // the VPN's name, on the VPN's address, https
       const vpn = await req({ secure: true, host: "127.0.0.3", port: sport, path: "/api/mp/info", ca, servername: FAKE_VPN, hostHeader: `${FAKE_VPN}:${sport}` });
       expect(vpn.status).toBe(200);

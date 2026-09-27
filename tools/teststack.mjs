@@ -132,6 +132,8 @@ function stop() {
   for (const f of [db, `${db}-shm`, `${db}-wal`, logS, logV, cfg, aiCfg, mpCfg]) rmSync(f, { force: true });
   // M7 save and pause: the copy's own saves (server save/saves.ts: data/saves/<the copy's name>)
   rmSync(path.join(data, "saves", `test-${name}`), { recursive: true, force: true });
+  // M8e: the copy's own house certificate (server mp/tls.ts tlsDirFor: data/tls-test-<name>), never the real data/tls
+  rmSync(path.join(data, `tls-test-${name}`), { recursive: true, force: true });
   console.log(left.length ? `still listening: ${left.join(", ")}` : `test stack "${name}" stopped; copy, logs and config deleted`);
 }
 

@@ -484,6 +484,25 @@ jobs.day.where = () => {
   };
 }
 void night.load();
+{
+  // M8e review 4: the push socket came back after a drop (net/api.ts connectPush; the job board is asked for there):
+  // what was pushed meanwhile is lost, so the parts that keep their own state ask the server again, as a push of
+  // their kind would make them (the actions and events, the hired hands' steps, the ballads, the ideas, the
+  // emigrants, the paper, a gang in the street)
+  const onPush = jobs.onPush;
+  jobs.onPush = (m) => {
+    onPush(m);
+    if (m.type !== "resync") return;
+    actions.handlePush({ type: "events" });
+    townLife.handlePush({ type: "events" });
+    hands.handlePush({ type: "actions" });
+    void ballads.load();
+    void ideas.load();
+    void emigrants.refresh();
+    void press.load();
+    void night.load();
+  };
+}
 town
   .load()
   .then(() => {

@@ -14,11 +14,21 @@
 import * as THREE from "three";
 import { identity, TOKEN_HEADER, tokenKey } from "../net/mp/identity";
 import { secureOffer, type HouseInfo } from "../net/mp/househelp";
+import { retryAfterMs } from "../net/mp/link";
 import { plan, planProgress, planWords, readAll, RETRY_WAITS_MS, STALL_MS, TRIES, WHOLE_KEY } from "./files";
 
 const params = new URLSearchParams(location.search);
 identity.seat = Math.max(1, Math.min(8, Math.floor(Number(params.get("seat") ?? 1)) || 1));
 identity.local = ["127.0.0.1", "localhost", "[::1]"].includes(location.hostname);
+
+// M8e review 4: a guest moved here from another address of the host (the http page's secure link): #move=<code>.
+// Out of the address bar and the history at once (a code works once, but it is nobody's business); redeemed below.
+let moveCode: string | null = null;
+if (location.hash.startsWith("#move=")) {
+  const m = /^#move=([0-9a-f]{32})$/.exec(location.hash);
+  moveCode = m ? m[1] : "";
+  history.replaceState(history.state, "", location.pathname + location.search);
+}
 
 // ------------------------------------------------------------------ the boot card
 
@@ -67,6 +77,22 @@ const isApi = (url: string) => {
 
 {
   const orig = window.fetch.bind(window);
+  const wait = window.setTimeout.bind(window); // (the untouched timer: game/pause.ts patches the global one later)
+  /**
+   * M8e review 4: a call the host answered 429 (too many from this PC at once) is tried again after its
+   * Retry-After (at most RETRY_429 times, waits up to 5 s: net/mp/link.ts retryAfterMs); then the answer, with the
+   * host's plain English error, goes to the caller. Only a call whose body can be sent again.
+   */
+  const with429 = async (send: () => Promise<Response>, again: boolean): Promise<Response> => {
+    let r = await send();
+    for (let tries = 0; again && r.status === 429; tries++) {
+      const ms = retryAfterMs(r.headers.get("retry-after"), tries);
+      if (ms === null) break;
+      await new Promise((ok) => wait(ok, ms));
+      r = await send();
+    }
+    return r;
+  };
   window.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
@@ -74,12 +100,14 @@ const isApi = (url: string) => {
       const m = mapped(url);
       if (m !== url) return orig(m, init);
     }
-    if (identity.token && isApi(url)) {
+    if (!isApi(url)) return orig(input, init);
+    const again = !(input instanceof Request) && !(init?.body instanceof ReadableStream);
+    if (identity.token) {
       const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
       headers.set(TOKEN_HEADER, identity.token);
-      return orig(input, { ...init, headers });
+      return with429(() => orig(input, { ...init, headers }), again);
     }
-    return orig(input, init);
+    return with429(() => orig(input, init), again);
   };
   // a guest saves nothing of the host's: the autosave's beacon on leaving the tab is not sent
   const beacon = navigator.sendBeacon?.bind(navigator);
@@ -113,6 +141,17 @@ async function info(token: string | null): Promise<{ status: number; body: Info 
 async function join(code: string, name: string): Promise<{ token?: string; error?: string }> {
   try {
     const r = await fetch("/api/mp/join", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, name }), signal: AbortSignal.timeout(8000) });
+    const d = (await r.json().catch(() => ({}))) as { token?: string; error?: string };
+    return r.ok && d.token ? { token: d.token } : { error: d.error ?? `The host did not answer (${r.status}).` };
+  } catch {
+    return { error: "The host's PC does not answer. Is the game running there?" };
+  }
+}
+
+/** M8e review 4: a move code for a token of the same player (his old token ends: server mp/index.ts /api/mp/move). */
+async function move(code: string): Promise<{ token?: string; error?: string }> {
+  try {
+    const r = await fetch("/api/mp/move", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }), signal: AbortSignal.timeout(8000) });
     const d = (await r.json().catch(() => ({}))) as { token?: string; error?: string };
     return r.ok && d.token ? { token: d.token } : { error: d.error ?? `The host did not answer (${r.status}).` };
   } catch {
@@ -173,11 +212,20 @@ async function whoAmI(): Promise<void> {
     return;
   }
   let token: string | null = null;
-  try {
-    token = localStorage.getItem(tokenKey(identity.seat));
-  } catch {
-    /* no storage: a new join every time */
+  // M8e review 4: moved here with his man (#move=): the code's token wins over one kept for this address
+  let moveNote = "";
+  if (moveCode !== null) {
+    const r = moveCode ? await move(moveCode) : { error: "That link to the secure address is not whole." };
+    moveCode = null;
+    if (r.token) token = r.token;
+    else moveNote = `${(r.error ?? "The move did not work.").replace(/[&<>"']/g, " ")} `; // (the card's words are HTML)
   }
+  if (!token)
+    try {
+      token = localStorage.getItem(tokenKey(identity.seat));
+    } catch {
+      /* no storage: a new join every time */
+    }
   if (token) {
     const r = await info(token);
     if (r.status === 401 || (r.body && !r.body.you)) token = null; // the host removed him, or a new save: join again
@@ -200,7 +248,7 @@ async function whoAmI(): Promise<void> {
       await new Promise((ok) => setTimeout(ok, 4000));
       continue;
     }
-    token = await joinCard(r.status === 0 ? "The host's PC does not answer yet. Type the code when it does." : "Type the code on the host's screen, and your first name.", r.body?.house);
+    token = await joinCard(moveNote + (r.status === 0 ? "The host's PC does not answer yet. Type the code when it does." : "Type the code on the host's screen, and your first name."), r.body?.house);
   }
   try {
     localStorage.setItem(tokenKey(identity.seat), token);

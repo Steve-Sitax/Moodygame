@@ -110,7 +110,7 @@ function moneyNow(): number | null {
 // a guest by his token) and keeps guests to walking; together, a tab's pause and tick do not move the town
 // The town map (mapview/, docs/mapview.md): its own page on this PC only (port 8790), fed by the multiplayer code
 const mapModel = new MapModel();
-const mp = mountMultiplayer(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m), map: mapModel });
+const mp = mountMultiplayer(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m), map: mapModel, closePush: (id) => closePushOf(id) });
 const mapView = mountMapView({ model: mapModel, db });
 // Every paid action refreshes the money on screen (QA 2026-09-24: 5 c behind after the fortune,
 // paid in a talk choice): a POST that changed the player's money pushes the new payload to him.
@@ -655,10 +655,34 @@ const clientOf = new WeakMap<WebSocket, string>();
 // M8c: whose tab it is. The host's tab on this PC is the host at once; a guest's tab (?guest=1) says its token in its
 // first message ({ type: "hello", token }); until then it gets nothing
 const playerOfWs = new WeakMap<WebSocket, number>();
+// M8e review 4: a dead line (a VPN that dropped without a word) is found as on /mp: a ws ping every 10 s (the
+// browser answers it by itself, even in a hidden tab); a socket that did not answer the last one is closed. The
+// client's own { type: "ping" } is answered with { type: "pong" } (a page cannot see a ws ping): its sign of life.
+const PUSH_HEARTBEAT_MS = 10_000;
+const pushAlive = new WeakMap<WebSocket, boolean>();
+const pushHeartbeat = setInterval(() => {
+  for (const c of wss.clients) {
+    if (c.readyState !== WebSocket.OPEN) continue;
+    if (pushAlive.get(c) === false) {
+      c.terminate();
+      continue;
+    }
+    pushAlive.set(c, false);
+    c.ping();
+  }
+}, PUSH_HEARTBEAT_MS);
+pushHeartbeat.unref();
+/** M8e review 4: a player's push sockets end (he moved to another address: his old token no longer counts). */
+function closePushOf(pid: number): void {
+  for (const c of wss.clients) if (playerOfWs.get(c) === pid) c.close(4001, "moved");
+}
 wss.on("connection", (ws, req) => {
   const q = new URL(req.url ?? "/ws", "http://x").searchParams;
   const id = q.get("client")?.slice(0, 40);
   if (id) clientOf.set(ws, id);
+  pushAlive.set(ws, true);
+  ws.on("pong", () => pushAlive.set(ws, true));
+  ws.on("error", () => {});
   ws.on("close", () => {
     if (id && ![...wss.clients].some((o) => o !== ws && clientOf.get(o) === id)) setPaused(id, false);
   });
@@ -674,13 +698,18 @@ wss.on("connection", (ws, req) => {
   const host = q.get("guest") !== "1" ? whoOfUpgrade(db, req, null) : null;
   if (host?.host) welcome(1);
   ws.on("message", (data) => {
-    if (playerOfWs.has(ws)) return;
+    pushAlive.set(ws, true); // (any message says the line is up)
     let m: { type?: string; token?: unknown } | null = null;
     try {
-      m = JSON.parse(String(data)) as { type?: string; token?: unknown };
+      m = JSON.parse(String(data).slice(0, 1000)) as { type?: string; token?: unknown };
     } catch {
       return;
     }
+    if (m?.type === "ping") {
+      if (ws.readyState === WebSocket.OPEN) ws.send('{"type":"pong"}');
+      return;
+    }
+    if (playerOfWs.has(ws)) return;
     if (m?.type !== "hello") return;
     const who = whoOfUpgrade(db, req, typeof m.token === "string" ? m.token : null);
     if (who) welcome(who.id);

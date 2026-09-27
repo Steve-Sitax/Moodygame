@@ -1,11 +1,13 @@
 import { execFile } from "node:child_process";
+import fs from "node:fs";
 import os from "node:os";
+import path from "node:path";
 import https from "node:https";
 import type { Server } from "node:http";
 import type { Duplex } from "node:stream";
 import type { IncomingMessage } from "node:http";
 import { createAdaptorServer } from "@hono/node-server";
-import { LAN_NAMES, PORT, TLS_NAMES, TLS_PORT } from "../config.ts";
+import { LAN_NAMES, OWN_ADDRS, PORT, TLS_NAMES, TLS_PORT } from "../config.ts";
 import { dnsName, ensureHouseCerts, hostName, tlsDir, vpnIp, type HouseCerts } from "./tls.ts";
 
 // M8a "Open to the house" (docs/multiplayer-plan.md 2.1): besides 127.0.0.1 the server listens on the
@@ -78,7 +80,44 @@ function run(cmd: string, args: string[]): Promise<string | null> {
   });
 }
 
+const isFile = (f: string) => {
+  try {
+    return fs.statSync(f).isFile();
+  } catch {
+    return false;
+  }
+};
+
+let netbirdExe: string | null | undefined;
+
+/**
+ * M8e: the netbird program as an absolute path, looked up once: the absolute folders on the PATH (never the working
+ * folder, never a relative PATH entry), then the standard install folder. Null: no netbird on this PC.
+ */
+export function netbirdPath(): string | null {
+  if (netbirdExe !== undefined) return netbirdExe;
+  const win = process.platform === "win32";
+  const exe = win ? "netbird.exe" : "netbird";
+  const onPath = (process.env.PATH ?? process.env.Path ?? "")
+    .split(path.delimiter)
+    .map((d) => d.trim().replace(/^"(.*)"$/, "$1"))
+    .filter((d) => d && path.isAbsolute(d));
+  const standard = win ? ["C:\\Program Files\\NetBird", path.join(process.env.ProgramFiles || "C:\\Program Files", "NetBird")] : ["/usr/bin", "/usr/local/bin", "/opt/homebrew/bin"];
+  netbirdExe = null;
+  for (const d of [...onPath, ...standard]) {
+    const f = path.join(d, exe);
+    if (isFile(f)) {
+      netbirdExe = f;
+      break;
+    }
+  }
+  return netbirdExe;
+}
+
 let nameCache: { at: number; v: string | null } | null = null;
+/** How long a found VPN name is kept (5 min), and how long "no name" is (60 s: NetBird may come up any moment). */
+const NAME_KEEP_MS = 5 * 60_000;
+const NO_NAME_KEEP_MS = 60_000;
 
 /**
  * M8e: the VPN's name for this PC (NetBird: `netbird status`, 3 s at most; none: null). SCHELDEMIST_VPN_FQDN
@@ -88,13 +127,16 @@ export async function vpnName(): Promise<string | null> {
   const env = process.env.SCHELDEMIST_VPN_FQDN;
   if (env) return parseNetbird(`FQDN: ${env}`);
   if (process.env.VITEST) return null;
-  if (nameCache && Date.now() - nameCache.at < 5 * 60_000) return nameCache.v;
-  let out = await run("netbird", ["status", "--json"]);
-  if (out === null && process.platform === "win32") out = await run("C:\\Program Files\\NetBird\\netbird.exe", ["status", "--json"]);
-  let v = out ? parseNetbird(out) : null;
-  if (!v && out !== null) {
-    const plain = await run("netbird", ["status"]);
-    v = plain ? parseNetbird(plain) : null;
+  if (nameCache && Date.now() - nameCache.at < (nameCache.v ? NAME_KEEP_MS : NO_NAME_KEEP_MS)) return nameCache.v;
+  const exe = netbirdPath();
+  let v: string | null = null;
+  if (exe) {
+    const out = await run(exe, ["status", "--json"]);
+    v = out ? parseNetbird(out) : null;
+    if (!v && out !== null) {
+      const plain = await run(exe, ["status"]);
+      v = plain ? parseNetbird(plain) : null;
+    }
   }
   nameCache = { at: Date.now(), v };
   return v;
@@ -114,12 +156,25 @@ const closeServer = (s: Server) =>
 
 const open = new Map<string, Server>();
 
-/** Listen on every home-network address (again). Returns the addresses now open. */
+/** M8e: the addresses the server is bound to now (plain http and https), besides loopback: this PC (config.ts OWN_ADDRS). */
+function syncOwn(): void {
+  OWN_ADDRS.clear();
+  for (const a of [...open.keys(), ...secure.keys()]) if (a !== "127.0.0.1") OWN_ADDRS.add(a);
+}
+
+/** Listen on every home-network address (again): new ones opened, ones this PC no longer has closed. Returns the addresses now open. */
 export async function openLan(fetch: Fetch, upgrade: Upgrade, port = PORT): Promise<string[]> {
   const want = lanAddresses();
   const name = os.hostname().toLowerCase();
   LAN_NAMES.add(name);
   LAN_NAMES.add(`${name}.local`);
+  for (const [addr, s] of [...open]) {
+    if (want.includes(addr)) continue;
+    open.delete(addr);
+    LAN_NAMES.delete(addr);
+    await closeServer(s);
+    console.log(`[mp] this PC no longer has ${addr}: closed there`);
+  }
   for (const addr of want) {
     LAN_NAMES.add(addr);
     if (open.has(addr)) continue;
@@ -137,6 +192,7 @@ export async function openLan(fetch: Fetch, upgrade: Upgrade, port = PORT): Prom
       });
     });
   }
+  syncOwn();
   return [...open.keys()];
 }
 
@@ -144,6 +200,7 @@ export async function closeLan(): Promise<void> {
   const all = [...open.values()];
   open.clear();
   LAN_NAMES.clear();
+  syncOwn();
   await Promise.all(all.map(closeServer));
   if (all.length) console.log("[mp] closed to the house");
 }
@@ -172,10 +229,11 @@ export async function applySecure(fetch: Fetch, upgrade: Upgrade, want: { lan: b
   const addrs = [...new Set(["127.0.0.1", ...lanAddrs, ...vpnAddrs])];
   let certs: HouseCerts;
   try {
-    // (the CA, made once, also permits the VPN's name when it is known, so turning the VPN on later keeps it)
+    // (the CA, made once, also permits the VPN's name when it is known and every home-network and VPN address this PC
+    // has now, so turning the house or the VPN on later keeps it; a new address it does not cover remakes it)
     certs = await ensureHouseCerts(tlsDir(), { dns: ["localhost", host, `${host}.local`, ...(fqdn ? [fqdn] : [])], ips: addrs }, async () => {
       const f = fqdn ?? (await vpnName());
-      return f ? [f] : [];
+      return { dns: f ? [f] : [], ips: [...lanAddresses(), ...vpnAddresses()] };
     });
   } catch (e) {
     console.warn(`[tls] no house certificate, the https port stays closed: ${(e as Error).message}`);
@@ -211,6 +269,7 @@ export async function applySecure(fetch: Fetch, upgrade: Upgrade, want: { lan: b
     });
   }
   secureState = { lan: want.lan, vpn: want.vpn, lanAddrs, vpnAddrs, fqdn, certs };
+  syncOwn();
   return [...secure.keys()];
 }
 
@@ -220,6 +279,7 @@ export async function closeSecure(): Promise<void> {
   TLS_NAMES.clear();
   secureCert = "";
   secureState = { lan: false, vpn: false, lanAddrs: [], vpnAddrs: [], fqdn: null, certs: null };
+  syncOwn();
   await Promise.all(all.map((s) => closeServer(s as unknown as Server)));
   if (all.length) console.log("[mp] the https port is closed");
 }
@@ -250,3 +310,58 @@ export function secureUrlFor(host: string | undefined, port = TLS_PORT): string 
 
 /** What the house certificate is now (null: the https port is closed). */
 export const secureCerts = (): HouseCerts | null => (secure.size ? secureState.certs : null);
+
+// ------------------------------------------------------------------ M8e: this PC's addresses change
+
+/** How often the addresses are looked at while the house or the VPN is open (os.networkInterfaces: cheap). */
+export const ADDR_WATCH_MS = 30_000;
+
+let watch: { timer: NodeJS.Timeout; on: { lan: boolean; vpn: boolean }; apply: () => Promise<unknown>; tried: string; busy: boolean } | null = null;
+
+const sig = (lanAddrs: string[], vpnAddrs: string[], fqdn: string | null) => JSON.stringify([[...lanAddrs].sort(), [...vpnAddrs].sort(), fqdn]);
+
+async function watchTick(): Promise<void> {
+  const w = watch;
+  if (!w || w.busy) return;
+  w.busy = true;
+  try {
+    // what the listeners were opened with, against what this PC has now (the VPN name: cached, lan.ts vpnName)
+    const s = secureState;
+    const applied = sig(s.lanAddrs, s.vpnAddrs, s.fqdn);
+    const now = sig(w.on.lan ? lanAddresses() : [], w.on.vpn ? vpnAddresses() : [], w.on.vpn ? await vpnName() : null);
+    const httpStale = w.on.lan && JSON.stringify(lanAddresses().sort()) !== JSON.stringify([...open.keys()].sort());
+    if (now === applied && !httpStale) return;
+    if (now === w.tried) return; // (tried once for exactly these addresses and it did not take: not every 30 s again)
+    w.tried = now;
+    console.log("[mp] this PC's addresses changed: the house's listeners and certificate follow");
+    await w.apply();
+  } catch (e) {
+    console.warn("[mp] the address watch", e);
+  } finally {
+    w.busy = false;
+  }
+}
+
+/**
+ * M8e: while the house or the VPN is open, look at this PC's addresses every 30 s; when the home-network or VPN
+ * addresses (or the VPN name) change, `apply` opens the listeners again and remakes the server certificate (and the
+ * CA, for a new address it does not cover). `on` null (or both off): the watch stops.
+ */
+export function setAddressWatch(on: { lan: boolean; vpn: boolean } | null, apply?: () => Promise<unknown>, everyMs = ADDR_WATCH_MS): void {
+  if (!on || (!on.lan && !on.vpn) || !apply) {
+    if (watch) clearInterval(watch.timer);
+    watch = null;
+    return;
+  }
+  if (watch) {
+    watch.on = on;
+    watch.apply = apply;
+    return;
+  }
+  const timer = setInterval(() => void watchTick(), everyMs);
+  timer.unref();
+  watch = { timer, on, apply, tried: "", busy: false };
+}
+
+/** Is the address watch running? (for the tests and /api/mp/host) */
+export const addressWatchOn = (): boolean => watch !== null;

@@ -17,11 +17,11 @@ import { asPlayer, setOnlineIds, setPositionSource, setWalkerSource } from "../p
 import { ackRest, allAsleep, reportPos, restAcked, restOf, takeWoke, wakeRest } from "../rest.ts";
 import { ensurePlayerRow } from "../player/multi.ts";
 import { TOKEN_HEADER, whoOf, whoOfUpgrade, type Who } from "./auth.ts";
-import { applySecure, closeLan, closeSecure, lanOpen, lanUrls, openLan, secureCerts, secureOpen, secureUrlFor, secureUrls } from "./lan.ts";
+import { applySecure, closeLan, closeSecure, lanOpen, lanUrls, openLan, secureCerts, secureOpen, secureUrlFor, secureUrls, setAddressWatch } from "./lan.ts";
 import { houseCaPem } from "./tls.ts";
 import { Plausible } from "./plausible.ts";
 import { FLOOD_CODE, FLOOD_S, FLOOD_WHY, HTTP_WHY, HttpLimiter, SeatLimiter, type SocketKind } from "./limits.ts";
-import { addGuest, cleanGuestName, countTry, HOST_ID, listPlayers, mayTry, MAX_PLAYERS, playerById, poseOf, removeGuest, sameCode, savePose, setAdmin } from "./players.ts";
+import { addGuest, cleanGuestName, countTry, HOST_ID, listPlayers, mayTry, MAX_PLAYERS, MOVE_MS, newMoveCode, playerById, poseOf, removeGuest, rotateToken, sameCode, savePose, setAdmin, takeMoveCode } from "./players.ts";
 import { mpOn, mpSettings, newCode, setMp } from "./settings.ts";
 import { autoBuild, currentManifest, mountStatic, reloadManifest } from "./static.ts";
 import { Owners, WorldPc, type OwnerRow } from "./street.ts";
@@ -49,6 +49,8 @@ export interface MpDeps {
   broadcast: (m: unknown) => void;
   /** The town map (mapview/, docs/mapview.md): fed with the players, the townspeople, their owners and the world. */
   map?: MapModel;
+  /** M8e review 4: close a player's push sockets (/ws), e.g. when he moved and his old token ended. */
+  closePush?: (playerId: number) => void;
 }
 
 interface Conn {
@@ -169,7 +171,7 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
     const p = c.req.path;
     const m = c.req.method;
     if (!who) {
-      if ((m === "GET" && p === "/api/mp/info") || (m === "POST" && p === "/api/mp/join")) return next();
+      if ((m === "GET" && p === "/api/mp/info") || (m === "POST" && (p === "/api/mp/join" || p === "/api/mp/move"))) return next();
       return c.json({ error: "Join the game first: the join code is on the host's screen.", join: true }, 401);
     }
     if (who.guest) {
@@ -267,7 +269,7 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
   app.post("/api/mp/join", async (c) => {
     const addr = (c.env as { incoming?: { socket?: { remoteAddress?: string } } } | undefined)?.incoming?.socket?.remoteAddress ?? "internal";
     if (!mpOn()) return c.json({ error: "The host is playing alone now. Ask him to open the game to the house." }, 409);
-    if (!mayTry(addr)) return c.json({ error: "Too many tries. Wait a minute and try again." }, 429);
+    if (!mayTry(addr)) return c.json({ error: "Too many tries. Wait a minute and try again." }, 429, { "retry-after": "60" });
     const b = (await c.req.json().catch(() => ({}))) as { code?: unknown; name?: unknown };
     if (!sameCode(mpSettings().code, b.code)) {
       countTry(addr); // wrong codes: 5 a minute per address
@@ -285,6 +287,36 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
     console.log(`[mp] player ${g.id} joined: ${name}`);
     sendRoster(true);
     return c.json({ id: g.id, token: g.token, name });
+  });
+
+  // M8e review 4: moving to another address of the host (the http page to the secure one) keeps a guest's man. The
+  // browser keeps a token per address, so the old page asks for a one-time code (players.ts newMoveCode: random,
+  // 60 s, single use, kept hashed in memory) and puts it in the new address's #fragment (never sent to a server,
+  // never in a log); the new page redeems it at once.
+  app.post("/api/mp/transfer", (c) => {
+    const who = c.get("mpWho");
+    if (!who?.guest) return c.json({ error: "Only a guest moves to another address: the host plays on his own PC." }, 403);
+    return c.json({ code: newMoveCode(who.id), ttl_s: MOVE_MS / 1000 });
+  });
+
+  // The new page redeems the code for a new token of the same player; his old token ends here (players.ts
+  // rotateToken: it went over plain http). Wrong or old codes count like wrong join codes: 5 a minute per address.
+  app.post("/api/mp/move", async (c) => {
+    const addr = (c.env as { incoming?: { socket?: { remoteAddress?: string } } } | undefined)?.incoming?.socket?.remoteAddress ?? "internal";
+    if (!mayTry(addr)) return c.json({ error: "Too many tries. Wait a minute and try again." }, 429, { "retry-after": "60" });
+    const b = (await c.req.json().catch(() => ({}))) as { code?: unknown };
+    const id = takeMoveCode(b.code);
+    const token = id !== null && playerById(db, id) ? rotateToken(db, id) : null;
+    if (id === null || !token) {
+      countTry(addr);
+      return c.json({ error: "That link to the secure address was used already or is too old (it works once, for a minute). Open the secure address again from the old page, or join with the code." }, 403);
+    }
+    // his sockets on the old token end (his old page, or anyone who read the token on the plain line); his seat
+    // waits the grace for the new page's socket as after any drop
+    for (const k of conns) if (k.who.id === id) k.ws.close(4005, "moved");
+    deps.closePush?.(id);
+    console.log(`[mp] player ${id} moved to another address (a new token)`);
+    return c.json({ id, token, name: nameOf(id) });
   });
 
   app.get("/api/mp/host", (c) => {
@@ -845,6 +877,7 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
       else await closeLan();
       // M8e: https on the next port (the house's addresses, the VPN's), with the house certificate (tls.ts)
       await applySecure(app.fetch, upgrade, { lan, vpn });
+      setAddressWatch(lan || vpn ? { lan, vpn } : null, applyLan); // (M8e: a new address opens the listeners and the certificate again)
       if (lan || vpn) void autoBuild.ensure(); // (the house plays the built game: built now if it is missing or old, autobuild.ts)
     });
     return lanBusy;
@@ -881,6 +914,7 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
       autoBuild.stop();
       for (const k of conns) k.ws.close();
       mpWss.close();
+      setAddressWatch(null);
       return Promise.all([closeLan(), closeSecure()]).then(() => {});
     },
     stats,

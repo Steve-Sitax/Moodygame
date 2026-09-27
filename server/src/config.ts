@@ -38,6 +38,12 @@ export const TLS_PORT = PORT + 1;
  * plain http port.
  */
 export const TLS_NAMES = new Set<string>();
+/**
+ * M8e (mp/lan.ts fills it): this PC's own home-network and VPN addresses the server is bound to now (plain http or
+ * https). A request or socket from one of them is this PC, like 127.0.0.1 (mp/auth.ts loopback): the host on his
+ * own secure name. The Host and Origin checks still apply.
+ */
+export const OWN_ADDRS = new Set<string>();
 const tlsName = (u: URL) => TLS_NAMES.has(u.hostname.toLowerCase()) && Number(u.port) === TLS_PORT;
 
 /** A Host header naming this machine on one of the game's ports (no DNS rebinding). */
