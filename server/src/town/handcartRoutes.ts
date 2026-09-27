@@ -1,7 +1,7 @@
 import type { Hono } from "hono";
 import type { DB } from "../db.ts";
 import { GameError } from "../game.ts";
-import { ackDropped, cartAt, cartHour, cartSeen, cartView, holdCart, loadCart, placeLent, unloadJob, unloadOne, type CartItem } from "./handcart.ts";
+import { ackDropped, cartAt, cartHour, cartSeen, cartView, holdCart, loadCart, placeLent, unloadedGoods, unloadedJobGoods, unloadJob, unloadOne, type CartItem } from "./handcart.ts";
 import { forEachOnline } from "../player/current.ts";
 
 // The HTTP side of Jef's handcart (M6): what carts he has and what is on them, taking hold and
@@ -76,11 +76,15 @@ export function mountHandcart(app: Hono, deps: CartDeps): void {
   app.post("/api/cart/:id/unload", async (c) => {
     const b = await body(c);
     if (b.job !== undefined && b.job !== null) {
-      const r = unloadJob(db, id(c.req.param("id")), Number(b.job), Number(b.x), Number(b.z));
-      return c.json({ ...view(), items: r.items });
+      const cart = id(c.req.param("id"));
+      const r = unloadJob(db, cart, Number(b.job), Number(b.x), Number(b.z));
+      // M8f: the server sets them down on the goal's slots (goods store); the PC counts them for the job
+      const placed = unloadedJobGoods(db, cart, Number(b.job), r.items);
+      return c.json({ ...view(), items: r.items, goods: placed });
     }
-    const r = unloadOne(db, id(c.req.param("id")), Number(b.x), Number(b.z), b.index === undefined ? undefined : Number(b.index));
-    return c.json({ ...view(), item: r.item });
+    const cart = id(c.req.param("id"));
+    const r = unloadOne(db, cart, Number(b.x), Number(b.z), b.index === undefined ? undefined : Number(b.index));
+    return c.json({ ...view(), item: r.item, goods: unloadedGoods(db, cart, r.item) });
   });
 
   app.post("/api/cart/dropped", async (c) => {

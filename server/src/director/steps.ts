@@ -56,6 +56,8 @@ export interface Step {
   why?: string;
   /** M6 routines: the purpose's own mark on a step (which plan step it belongs to). Never sent to the client. */
   tag?: string;
+  /** M8f: pick_up, carry: the one item of the server's goods list (goods/store.ts), by its id. */
+  gid?: string;
 }
 
 export interface StepResult {
@@ -453,7 +455,7 @@ export function listRoutines(db: DB) {
       purpose: r.purpose,
       i: r.i,
       n: r.steps.length,
-      step: s ? { kind: s.kind, x: s.x ?? null, z: s.z ?? null, label: s.label ?? null, place: s.place ?? null, job: s.job ?? null, item: s.item ?? null, count: s.count ?? 1, off: !!s.off, inside: s.inside ?? null, who: s.who ?? null } : null,
+      step: s ? { kind: s.kind, x: s.x ?? null, z: s.z ?? null, label: s.label ?? null, place: s.place ?? null, job: s.job ?? null, item: s.item ?? null, count: s.count ?? 1, off: !!s.off, inside: s.inside ?? null, who: s.who ?? null, gid: s.gid ?? null } : null,
       holding: Number(r.state.holding ?? 0),
       strong: r.state.strong !== false,
       // the purpose's cart lent to them, once they have it (town/hire.ts): the client draws it on them

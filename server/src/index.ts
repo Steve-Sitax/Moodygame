@@ -67,6 +67,8 @@ import { MapModel, mountMapView } from "./mapview/index.ts"; // the town map for
 import { asPlayer, inPlayer, pid } from "./player/current.ts"; // M8c: each request as its player
 import { ensurePlayerRow, playerIds } from "./player/multi.ts";
 import { whoOfUpgrade } from "./mp/auth.ts";
+import { mountGoods } from "./goods/routes.ts"; // M8f shared goods
+import { goods } from "./goods/store.ts";
 
 const db = openDb(DB_FILE);
 const stale = closeStaleCalls(db);
@@ -148,6 +150,7 @@ mountSaves(app, {
   payload: () => jobsPayload(),
   broadcast: (m) => broadcast(m),
   afterLoad: () => {
+    goods.reset(); // (M8f: the town's goods as at the start; the PCs lay their jobs' goods out again from the save)
     board = { state: "ready" };
     boardAgain = false;
     if (listJobs(db, player(db).day).length === 0) void writeBoard();
@@ -197,6 +200,8 @@ mountHaggle(app, { db, payload: () => jobsPayload() });
 mountTransport(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 // M6 handcart: Jef's handcart, bought, hired or taken; loads by size and weight (town/handcart.ts)
 mountHandcart(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
+// M8f shared goods: every liftable crate, barrel and sack is the server's; the PCs ask, the server tells all (goods/)
+mountGoods(app, { db, broadcast: (m) => broadcast(m) });
 // M6 lively: door life by the clock (who scrubs the step, sits with her lace, leans out of the window), the cathedral quarter (town/lively.ts, doorlife.ts)
 mountLively(app, { db });
 // M6 gifts and hired hands: giving from the pockets, a drink at the tavern, hands paid to carry (town/gifts.ts, treat.ts, hire.ts; director/steps.ts)
@@ -283,6 +288,7 @@ app.post("/api/jobs/:id/done", async (c) => {
   const parsed = ReportSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) throw new GameError("bad report", 400);
   const res = finishJob(db, Number(c.req.param("id")), parsed.data);
+  goods.endJob(res.job.id); // (M8f: its goods go with it; a watch's pile stays, the employer's)
   broadcast({ type: "jobs", ...jobsPayload() });
   // the words come later; the game never waits for them
   void narrate(res.job.id, res.settlement);
@@ -294,6 +300,7 @@ app.post("/api/jobs/:id/hold", async (c) => {
   const parsed = ReportSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) throw new GameError("bad report", 400);
   const job = holdJob(db, Number(c.req.param("id")), parsed.data, gameMinute(db));
+  goods.endJob(job.id); // (M8f: the work is done; the proof waits, the goods do not)
   broadcast({ type: "jobs", ...jobsPayload() });
   return c.json({ job, ...jobsPayload() });
 });
@@ -417,6 +424,7 @@ app.post("/api/new-game", async (c) => {
     dropGameWords(db);
   });
   resetTalks();
+  goods.reset(); // (M8f: a new week: the town's own goods where they belong)
   markDayStart(db);
   void ensurePersonas(db).then((r) => console.log(`[persona] ${r.join(", ")}`));
   void writeBoard();

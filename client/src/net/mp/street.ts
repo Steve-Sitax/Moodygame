@@ -161,7 +161,9 @@ export class Street implements TownNet {
 
   take(id: string): boolean {
     // M8d: the man called for this player's own job: his PC walks him, from whoever did (the server agrees: pins)
-    if (this.d.forJob?.(id)) {
+    // (M8f: and one pinned to this player by the server: his hired hand, the man carrying goods back for him; the
+    // server gives a pinned player his man from whoever walks him, street.ts Owners.claim)
+    if (this.d.forJob?.(id) || (this.pins.get(id) === this.d.me() && this.d.me() > 0)) {
       this.claim(id, true);
       return true;
     }

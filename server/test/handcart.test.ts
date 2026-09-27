@@ -33,6 +33,7 @@ import {
 import { CART_FETCH_FEE_C, CART_HIRE_HOURS, CART_LIMIT, CART_PRICE, canLoad, loadOf, pushSpeed, unloadAllAllowed } from "../../shared/handcart.ts";
 import { cartFits, footprint, goRound, misfit, stepCart, GO_ROUND_AFTER_S, type CartWorld } from "../../client/src/game/cartPhysics.ts";
 import SPOTS from "../../shared/spots.json" with { type: "json" };
+import { goods } from "../src/goods/store.ts";
 
 type DB = ReturnType<typeof openDb>;
 const setClock = (db: DB, day: number, hour: number, minute = 0) => db.prepare("UPDATE player SET day = ?, hour = ?, minute = ? WHERE id = 1").run(day, hour, minute);
@@ -194,10 +195,10 @@ describe("the wheelwright: his door, buying, hiring", () => {
     expect(jefCarts(db).list).toEqual([]);
     const v = cartView(db);
     expect(v.notice?.text).toMatch(/boy fetched/);
-    expect(v.dropped.length).toBe(1);
-    expect(v.dropped[0].items.map((i) => i.kind)).toEqual(["sacks"]);
-    ackDropped(db, [v.dropped[0].id]);
-    expect(cartView(db).dropped).toEqual([]);
+    // (M8f: the load is left on the stones as goods of the server's list, for every PC, where the cart stood)
+    expect(v.dropped).toEqual([]);
+    expect(goods.list().filter((i) => i.kind === "sacks" && !i.by && Math.hypot(i.x - quiet.x, i.z - quiet.z) < 3).length).toBe(1);
+    ackDropped(db, []);
   });
 });
 
@@ -379,8 +380,9 @@ describe("taking a household's handcart (the M3h rules), and Jef's own taken fro
     returnThing(db, r.deed!, "gave");
     expect(jefCarts(db).list.some((c) => c.id === v.id)).toBe(false);
     expect(transportView(db, veloStates(db)).vehicles.find((q) => q.id === v.id)!.gone).toBe(false);
-    // what he had put on it is left on the ground
-    expect(cartView(db).dropped[0].items.map((i) => i.kind)).toEqual(["sacks"]);
+    // what he had put on it is left on the ground (M8f: as goods of the server's list)
+    expect(cartView(db).dropped).toEqual([]);
+    expect(goods.list().filter((i) => i.kind === "sacks" && !i.by && Math.hypot(i.x - (mine.x + 1), i.z - mine.z) < 3).length).toBe(1);
     void x;
     void z;
   });

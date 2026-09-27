@@ -6,7 +6,7 @@
 // "pause all", a new version) is JSON text.
 
 /** Bumped when the frames change: a client of another build is sent to download the new version first. */
-export const MP_PROTOCOL = 3; // (M8d: the figures of a job, the pins)
+export const MP_PROTOCOL = 4; // (M8d: the figures of a job, the pins; M8f: the goods are the server's, shared/goods.ts)
 /** Own state sent this often (and the batches of the others). */
 export const SEND_HZ = 20;
 export const SEND_MS = 1000 / SEND_HZ;

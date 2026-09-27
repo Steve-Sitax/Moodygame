@@ -4,7 +4,7 @@ import type { Crowd, Puppet } from "./crowd";
 import type { Town } from "./town";
 import type { Jobs } from "./jobs";
 import type { Item } from "./goods";
-import { GOODS, type Goods } from "./props";
+import { GOODS } from "./props";
 import { HaulRun, slot } from "./runs";
 import type { CarryTask } from "../net/api";
 
@@ -26,6 +26,8 @@ export interface RoutineStep {
   item: string | null;
   /** pick_up: how many to take (with a cart, several). */
   count?: number;
+  /** M8f: pick_up, carry: the one item of the server's goods (a man carrying goods back where they belong). */
+  gid?: string | null;
   off: boolean;
   inside: string | null;
   who: string | null;
@@ -189,9 +191,10 @@ export class Steps {
     const load = w.load;
     this.showLoad(w, null);
     w.load = [];
+    // (M8f: the server's goods, set down by his PC's word; or back where they came from, the server's own sweep)
     load.forEach((it, k) => {
       const q = at ? (this.crowd.openNear(at.x + (k % 2) * 0.9, at.z + Math.floor(k / 2) * 0.9) ?? at) : null;
-      if (q) this.jobs.goods.spawn(it.kind as Goods, q.x, q.z, { jobId: it.jobId, owner: it.owner, heavy: it.heavy, broken: it.broken });
+      if (q && it.by && "npc" in it.by && it.by.npc === w.r.npc) this.jobs.goods.npcPut(w.r.npc, it, q.x, q.z);
     });
   }
 
@@ -279,12 +282,15 @@ export class Steps {
 
   private walkTo(w: Walk, s: RoutineStep, dt: number, carrying: boolean): void {
     // a reload while they carried: the server says they hold goods; the goods lie at the pile again, so they take them up
-    if (carrying && !w.load.length && w.r.holding > 0 && s.job !== null) {
-      const from = this.town.position(w.r.npc) ?? { x: this.player.x, z: this.player.z };
-      const pile = this.freeGoods(w, s.job).sort((a, b) => Math.hypot(a.obj.position.x - from.x, a.obj.position.z - from.z) - Math.hypot(b.obj.position.x - from.x, b.obj.position.z - from.z));
-      for (const it of pile.slice(0, w.r.holding)) {
-        this.jobs.goods.remove(it);
-        w.load.push(it);
+    // (M8f: the server still has them in his arms; only after its restart do they lie at the pile again)
+    if (carrying && !w.load.length && w.r.holding > 0) {
+      for (const it of this.jobs.goods.all.values()) if (it.by && "npc" in it.by && it.by.npc === w.r.npc) w.load.push(it);
+      if (!w.load.length && s.job !== null) {
+        const from = this.town.position(w.r.npc) ?? { x: this.player.x, z: this.player.z };
+        const pile = this.freeGoods(w, s.job).sort((a, b) => Math.hypot(a.obj.position.x - from.x, a.obj.position.z - from.z) - Math.hypot(b.obj.position.x - from.x, b.obj.position.z - from.z));
+        const take = pile.slice(0, w.r.holding);
+        this.jobs.goods.npcLift(w.r.npc, take);
+        w.load.push(...take);
       }
     }
     // M6 routines: a walk up to a person, or back to Jef, goes to where they are now (looked up each second)
@@ -373,11 +379,17 @@ export class Steps {
     w.load = [];
     this.keepLoad(w);
     if (s.off) {
-      // the engine's roll: he walks off with it (with Jef's cart, the cart too); the job loses them
+      // the engine's roll: he walks off with it (with Jef's cart, the cart too); the job loses them (gone from every PC)
       const what = load.length ? GOODS[load[0].kind].one : "load";
+      for (const it of load) if (it.by && "npc" in it.by) this.jobs.goods.npcDrop(w.r.npc, it);
       if (haul) load.forEach((it, i) => haul.onLost(it, i ? "" : `${first} walked off with the ${load.length > 1 ? `${load.length} ${what}s on your cart` : what}.`));
       else if (load.length) this.say(`${first} walked off with the ${what}.`);
       return void this.report(w, true, "gone");
+    }
+    // M8f: goods carried back where they belong (the server puts them at their place)
+    if (s.gid) {
+      for (const it of load) this.jobs.goods.npcPut(w.r.npc, it, s.x ?? it.obj.position.x, s.z ?? it.obj.position.z);
+      return void this.report(w, load.length > 0, load.length ? "delivered" : "empty_hands");
     }
     if (!load.length || !haul) return void this.report(w, false, load.length ? "no_job" : "empty_hands");
     const task = run!.job.task as CarryTask;
@@ -385,8 +397,9 @@ export class Steps {
     const n = this.jobs.goods.items.filter((g) => g.owner === run!.job.employer_npc && Math.hypot(g.obj.position.x - (s.x ?? 0), g.obj.position.z - (s.z ?? 0)) < 4).length;
     load.forEach((it, k) => {
       const [x, z] = slot(task.to, (n + k) % 6, 0.8);
-      const placed = this.jobs.goods.spawn(it.kind as Goods, x, z, { jobId: run!.job.id, owner: run!.job.employer_npc, heavy: it.heavy, broken: it.broken });
-      haul.onPlaced(placed);
+      // (M8f: set down by his PC's word, the server's then; it counts for the job here as before)
+      this.jobs.goods.npcPut(w.r.npc, it, x, z);
+      haul.onPlaced(it);
     });
     void this.report(w, true, "delivered");
   }
@@ -446,13 +459,15 @@ export class Steps {
   }
 
   private pickUp(w: Walk, s: RoutineStep, dt: number): void {
-    if (s.job === null) return void this.report(w, false, "no_job");
+    if (s.job === null && !s.gid) return void this.report(w, false, "no_job");
     const near = { x: s.x ?? this.player.x, z: s.z ?? this.player.z };
     const p = this.ensure(w, near, dt);
     if (!w.target || !this.jobs.goods.items.includes(w.target) || this.jobs.goods.above(w.target)) {
       if (w.target) this.reserved.delete(w.target);
       const from = p ?? this.town.position(w.r.npc) ?? near;
-      const list = this.freeGoods(w, s.job).sort((a, b) => Math.hypot(a.obj.position.x - from.x, a.obj.position.z - from.z) - Math.hypot(b.obj.position.x - from.x, b.obj.position.z - from.z));
+      // M8f: one item by its id (the man carrying goods back), else the job's goods lying about
+      const one = s.gid ? this.jobs.goods.byId(s.gid) : null;
+      const list = s.gid ? (one && this.jobs.goods.items.includes(one) && !this.jobs.goods.above(one) ? [one] : []) : this.freeGoods(w, s.job!).sort((a, b) => Math.hypot(a.obj.position.x - from.x, a.obj.position.z - from.z) - Math.hypot(b.obj.position.x - from.x, b.obj.position.z - from.z));
       w.target = list[0] ?? null;
       if (!w.target) {
         // nothing lying about: the goods are carried (by Jef, the crew) or on a cart
@@ -493,8 +508,9 @@ export class Steps {
             .filter((o) => o !== it && Math.hypot(o.obj.position.x - it.obj.position.x, o.obj.position.z - it.obj.position.z) < 4)
             .slice(0, want - 1)
         : [];
+    // M8f: into his arms on every PC (the server's word; this PC walks him)
+    this.jobs.goods.npcLift(w.r.npc, [it, ...more]);
     for (const o of [it, ...more]) {
-      this.jobs.goods.remove(o);
       this.reserved.delete(o);
       w.load.push(o);
     }
@@ -513,12 +529,11 @@ export class Steps {
   }
 
   private showLoad(w: Walk, p: Puppet | null): void {
-    // off the old puppet (the shoulder load, the cart)
+    // off the old puppet (the cart; M8f: the shoulder load is the goods world's: game/goods.ts draws what a
+    // townsperson carries on whichever PC)
     const old = w.shownOn;
-    for (const it of w.load) it.obj.removeFromParent();
     if (old && this.crowd.alive(old)) {
       if (w.cartItems >= 0) this.crowd.puppetVehicle(old, null);
-      this.crowd.puppetLoad(old, false);
     }
     w.shownOn = null;
     w.cartItems = -1;
@@ -530,17 +545,8 @@ export class Steps {
       w.shownOn = p;
       return;
     }
-    const it = w.load[0];
-    if (!it) return;
-    // on the shoulder like the dockers' sacks: the walk becomes the carry clip
-    this.crowd.puppetLoad(p, true);
-    if (p.sack) p.sack.visible = false;
-    const k = p.human.scale || 1;
-    it.obj.position.set(0, 1.12 * k, 0.28 * k);
-    it.obj.rotation.set(0.1, 0, 0);
-    it.obj.scale.setScalar(0.85);
-    p.group.add(it.obj);
-    w.shownOn = p;
+    // (on the shoulder like the dockers' sacks: game/goods.ts, from the server's list, on every PC)
+    if (w.load.length) w.shownOn = p;
   }
 
   private waitHere(w: Walk, s: RoutineStep, dt: number): void {

@@ -6,8 +6,9 @@ import { api, connectPush, type Job, type JobsPayload, type OutcomeMsg, type Pro
 import { BOARD_POS, DOSS_POS, SPOTS, type World } from "../world/rijnkaai";
 import type { FirstPerson } from "../player/firstPerson";
 import { glowTexture } from "../world/textures";
-import { GOODS, type Goods } from "./props";
+import { GOODS } from "./props";
 import { GoodsWorld, ahead, type Item } from "./goods";
+import type { GoodsPush } from "../../../shared/goods";
 import { People } from "./people";
 import { Talk } from "./talk";
 import { Pockets } from "./pockets";
@@ -45,19 +46,8 @@ const DOSS_DOOR: Target = (() => {
   return { x: p.x, z: p.z };
 })();
 
-/** A point by a door of the city, as [x, z]. */
-function ds(door: string, out: number, side: number): [number, number] {
-  const p = doorSpot(door, out, side);
-  return [p.x, p.z];
-}
-
-/** Goods that belong to people, lying about the quay from the start. */
-const OWNED: Array<{ kind: Goods; owner: string; at: Array<[number, number]> }> = [
-  { kind: "crates", owner: "sooi", at: [ds("hessenatie", 3.5, -5), ds("hessenatie", 3.5, -6), ds("hessenatie", 3.5, -5), ds("hessenatie", 4.4, -5.5)] },
-  { kind: "barrels", owner: "peeters", at: [ds("peeters", 3.2, 3.5), ds("peeters", 3.2, 4.3), ds("peeters", 4.0, 3.9)] },
-  { kind: "barrels", owner: "tuur", at: [[7.7, -5.2], [6.9, -5.2]] },
-  { kind: "sacks", owner: "fientje", at: [[44.3, 12.4], [44.3, 13.1]] },
-];
+// (M8f: the goods that belong to people lying about the quay, were OWNED here: the server's now, shared/goods.ts
+// OWNED_GOODS, laid out by server/src/goods/store.ts with fixed ids and turns, and drawn by game/goods.ts)
 
 /** What an owner shouts when Jef lifts their goods under their nose. */
 const OWNER_SHOUT: Record<string, string> = {
@@ -185,7 +175,22 @@ export class Jobs {
       if (this.pockets.open) this.pockets.toggle();
       if (this.map.open) this.map.toggle();
     };
-    for (const o of OWNED) for (const [x, z] of o.at) this.goods.spawn(o.kind, x, z, { owner: o.owner });
+    // M8f: the goods are the server's; what the server says of this player's hands and of the others' deeds
+    this.goods.onLost = (it, why) => {
+      if (why) this.toastMsg(why);
+      if (this.watched?.item === it) this.watched = null;
+    };
+    this.goods.onOther = (it, why, at) => {
+      const d = Math.hypot(it.obj.position.x - this.player.x, it.obj.position.z - this.player.z);
+      if (why === "sunk" && at) {
+        // another man let it go into the Schelde: it goes down here too
+        const obj = it.obj;
+        obj.removeFromParent();
+        obj.position.set(at[0], 0.2, at[1]);
+        this.world.scene.add(obj);
+        this.sinking.push({ obj, t: 0, splashed: false });
+      } else if (why === "put" && d < 20) this.sfx(`thud_${GOODS[it.kind].thud}`, new THREE.Vector3(it.obj.position.x, it.y, it.obj.position.z));
+    };
 
     this.glow = new THREE.Sprite(
       new THREE.SpriteMaterial({
@@ -208,7 +213,12 @@ export class Jobs {
     connectPush(
       (p) => this.apply(p),
       (o) => this.showOutcome(o),
-      (m) => this.onPush(m),
+      (m) => {
+        // M8f: the goods' own push; after the line came back, the whole list again
+        if (m.type === "goods") return this.goods.onServer(m as unknown as GoodsPush);
+        if (m.type === "resync") void this.goods.load();
+        this.onPush(m);
+      },
     );
     api
       .jobs()
@@ -249,6 +259,7 @@ export class Jobs {
   // ------------------------------------------------------------- per frame
 
   update(dt: number): void {
+    this.goods.update(); // M8f: what others carry, in their hands; the casks' instances
     this.run?.update(dt);
     this.people.update(dt, this.player);
     this.updateSinking(dt);
@@ -333,7 +344,8 @@ export class Jobs {
       const bossNear = boss && boss.present && boss.distTo(x, z) < 2.6;
       if (bossNear && !box) add({ key: "KeyE", text: `give the proof to ${boss.def.name}`, run: () => void this.finish(held, {}), at: { x: boss.pos.x, y: 1.3, z: boss.pos.z } });
     }
-    const item = this.goods.nearest(REACH_ITEM);
+    // (M8f: another player's job goods are his: not offered to lift; anyone's own goods are, as ever)
+    const item = this.goods.nearest(REACH_ITEM, (it) => it.jobId === null || it.jobId === this.active?.id);
     const near = this.people.nearestTalker(x, z);
     const npc = near?.npc ?? null;
     const board = Math.hypot(BOARD_POS.x - x, BOARD_POS.z - z);
@@ -411,8 +423,7 @@ export class Jobs {
     const item = this.goods.carried;
     if (!item) return;
     if (taken) {
-      this.goods.release();
-      item.obj.removeFromParent();
+      this.goods.dropCarried("taken");
       const jobItem = item.jobId !== null && item.jobId === this.active?.id;
       this.run?.onLost(item, `The gang takes the ${GOODS[item.kind].one} too.`);
       if (!jobItem) this.toastMsg(`The gang takes the ${GOODS[item.kind].one} too.`);
@@ -424,7 +435,7 @@ export class Jobs {
   }
 
   private drown(x: number, z: number): void {
-    const item = this.goods.release();
+    const item = this.goods.dropCarried("sunk", [+x.toFixed(2), +z.toFixed(2)]);
     if (!item) return;
     item.obj.position.set(x, 0.2, z);
     this.world.scene.add(item.obj);
@@ -817,37 +828,23 @@ export class Jobs {
 
   /** Back to a snapshot: the goods where they lay, the one in his hands, the run's clock. */
   restoreSnapshot(s: JobSnap): void {
-    const g = this.goods;
     const j = s.job;
+    let job: number | null = null;
+    let lying: Array<{ kind: string; x: number; z: number; rot: number; broken?: boolean; heavy?: boolean }> = [];
     if (j && this.active?.id === j.id && this.run) {
+      // M8f: the run's goods as they lay (the server lays them out again: its fresh start is replaced)
       if (j.lying && this.run instanceof HaulRun) {
-        // the run laid its goods out as a fresh start: put them where they were instead
-        for (let guard = 0; guard < 50; guard++) {
-          const top = g.items.find((it) => it.jobId === j.id && !g.above(it));
-          if (!top) break;
-          g.remove(top);
-        }
-        for (const it of [...j.lying].sort((a, b) => a.y - b.y)) {
-          if (!(it.kind in GOODS)) continue;
-          g.spawn(it.kind as Goods, it.x, it.z, { jobId: j.id, owner: this.active.employer_npc, broken: it.broken, heavy: it.heavy, rot: it.rot });
-        }
+        job = j.id;
+        lying = [...j.lying].sort((a, b) => a.y - b.y).filter((it) => it.kind in GOODS);
       }
       if (j.run) this.run.restore?.(j.run);
     }
     const c = s.carried;
-    if (c && !g.carried && c.kind in GOODS) {
-      const kind = c.kind as Goods;
-      if (c.jobId !== null && c.jobId !== this.active?.id) return; // that job is over now
-      if (c.jobId === null) {
-        // someone's own goods: lifted from where they lie, not made twice
-        const mine = g.items.find((it) => it.kind === kind && it.jobId === null && it.owner === c.owner && !g.above(it));
-        if (mine) g.remove(mine);
-      }
-      const it = g.receive(kind, GOODS[kind].hold, { jobId: c.jobId, owner: c.owner });
-      it.broken = c.broken || undefined;
-      it.heavy = c.heavy || undefined;
-      this.player.speedFactor = Math.max(0.2, Math.min(1, s.speed || 1));
-    }
+    const held = c && !this.goods.carried && c.kind in GOODS && (c.jobId === null || c.jobId === this.active?.id) ? c : null;
+    if (job === null && !held) return;
+    void this.goods.restore(job, lying, held ? { kind: held.kind, job: held.jobId, owner: held.owner, broken: held.broken, heavy: held.heavy } : null).then(() => {
+      if (held && this.goods.carried) this.player.speedFactor = Math.max(0.2, Math.min(1, s.speed || 1));
+    });
   }
 
   /** Dev hook: state for scripted checks. */

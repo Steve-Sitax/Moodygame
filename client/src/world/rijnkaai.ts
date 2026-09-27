@@ -51,6 +51,7 @@ import { createMirror } from "./mirror";
 import { BRIG_FLOOR, CHAMBER, DOCK, HW_MAX, LW_MIN, MID_Y, gateLine, levelAt, tideAt, tideDev, tideInfo, water as tideWater } from "./tide";
 import { buildTideMud } from "./tidemud";
 import { MOORINGS, mooringRect } from "../../../shared/smallBoats";
+import { PILES } from "../../../shared/goods"; // M8f: the casks on the quay are loose goods
 import { landmarkDoorKeepOut } from "./doorKeep";
 import { tuning } from "../menu/tuning"; // menus: the view distance setting
 import { addPropObject } from "./propSpots";
@@ -213,6 +214,8 @@ export interface World {
   quayInfo(): { flights: Array<{ top: [number, number]; end: [number, number] }>; ladders: Array<{ x: number; z: number; top: number }> };
   /** Colliders that come and go (job crates). */
   addCollider(r: Rect): void;
+  /** M8f: the ground of the quay's piles of casks, held until the goods list is in (game/goods.ts lets it go). */
+  pileHolds?: Rect[];
   /**
    * M7 interiors in the world (world/inworld.ts): inside a building's area its own floor, walls and
    * solids count instead of the walk map (which marks the footprint as wall). For Jef, the crowd
@@ -930,9 +933,9 @@ export function buildRijnkaai(): World {
   crateStack(scene, m, colliders, 36, 18, 3);
   crateStack(scene, m, colliders, 41, 16.5, 1);
   crateStack(scene, m, colliders, -52, 12, 2);
-  barrels(scene, m, colliders, -44, 18, 5);
-  barrels(scene, m, colliders, 30, 13, 3);
-  barrels(scene, m, colliders, -6, 12.8, 2);
+  // M8f: the casks standing on the quay are loose goods now, the server's (shared/goods.ts PILES, game/goods.ts draws
+  // them); until the list is in, their ground is held here (the placers of the street keep off it as before)
+  const pileHolds = PILES.map((p) => pileHold(colliders, p.x, p.z, p.n));
   sacks(scene, m, colliders, 14, 19.5);
   sacks(scene, m, colliders, -34, 17);
   // on the Rijnkaai: a loaded handcart by the cart stand and a dray with its horse
@@ -1888,6 +1891,7 @@ export function buildRijnkaai(): World {
   return {
     scene,
     mats: m,
+    pileHolds,
     groundAt,
     addCollider: (r) => dynamic.add(r),
     removeCollider: (r) => dynamic.delete(r),
@@ -2221,30 +2225,16 @@ function crateStack(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z
   colliders.push(placeholder);
 }
 
-function barrels(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number, n: number): void {
-  const at = (i: number): [number, number] => [x + (i % 3) * 0.75, z + Math.floor(i / 3) * 0.75];
-  // the casks of props.glb (merged); plain cylinders if it will not load
-  loadProps()
-    .then((p) => {
-      placeholder.minX = placeholder.maxX = placeholder.minZ = placeholder.maxZ = 1e7;
-      placeholder.top = 0;
-      for (let i = 0; i < n; i++) {
-        p.batch(scene, "barrel", ...at(i), i * 1.7);
-        colliders.push(...p.colliders("barrel", ...at(i), i * 1.7));
-      }
-    })
-    .catch(() => {
-      for (let i = 0; i < n; i++) {
-        const [bx, bz] = at(i);
-        scene.add(cyl(0.3, 0.3, 0.95, 8, m.darkWood, bx, 0.475, bz));
-        scene.add(cyl(0.335, 0.335, 0.06, 8, m.ironDecal, bx, 0.2, bz));
-        scene.add(cyl(0.335, 0.335, 0.06, 8, m.ironDecal, bx, 0.75, bz));
-      }
-    });
+/**
+ * M8f: the ground of a pile of casks (three to a row, 0.75 m apart), held until the goods list is in (game/goods.ts
+ * lets it go and draws each cask, the server's item, with its own collider from the model).
+ */
+function pileHold(colliders: Rect[], x: number, z: number, n: number): Rect {
   const cols = Math.min(n, 3);
   const rows = Math.ceil(n / 3);
   const placeholder = { minX: x - 0.35, maxX: x + (cols - 1) * 0.75 + 0.35, minZ: z - 0.35, maxZ: z + (rows - 1) * 0.75 + 0.35, top: 0.95 };
   colliders.push(placeholder);
+  return placeholder;
 }
 
 function sacks(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number): void {

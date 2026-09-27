@@ -29,6 +29,8 @@ import {
 } from "../../../shared/handcart.ts";
 import SPOTS from "../../../shared/spots.json" with { type: "json" };
 import CITY from "../../../shared/city.json" with { type: "json" };
+import { goods, goodsHooks } from "../goods/store.ts";
+import { isGoodsKind, slotAt, type GoodsItem, type GoodsKind } from "../../../shared/goods.ts";
 
 // Jef's handcart (M6 transport, Steve 2026-09-24): "I should be able to push a handcart and put
 // multiple items on it, so I can deliver all crates at once, or other items."
@@ -75,7 +77,40 @@ export interface CartItem {
   heavy?: boolean;
   /** A piece of furniture of Jef's (home_item id): on the cart it is out of his arms (state 'gone'). */
   piece?: number;
+  /** M8f: the goods item (goods/store.ts) that is on the cart ("carried by" the cart there). */
+  gid?: string;
 }
+
+/** M8f: a handcart as a holder of goods (goods/store.ts): the player's and the cart's ids. */
+export const cartRef = (player: number, id: string) => `hc:${player}:${id}`;
+
+/** M8f: a load's goods set down round (x, z) on open ground (the goods store's items; new ones for a load from before M8f). */
+function goodsDown(db: DB, ref: string, x: number, z: number, items: CartItem[], spots?: Array<[number, number]>): GoodsItem[] {
+  const wm = walkMap();
+  const out: GoodsItem[] = [];
+  items.forEach((it, i) => {
+    if (it.piece !== undefined || !isGoodsKind(it.kind)) return;
+    let at: [number, number] | undefined = spots?.[i];
+    if (!at) {
+      const a = (i / Math.max(1, items.length)) * Math.PI * 2;
+      at = [x + Math.cos(a) * 1.2, z + Math.sin(a) * 1.2];
+      for (let k = 0; k < 8 && !wm.open(at[0], at[1], 0.3); k++) at = [x + Math.cos(a + k * 0.8) * (1.2 + k * 0.3), z + Math.sin(a + k * 0.8) * (1.2 + k * 0.3)];
+    }
+    const put = it.gid ? goods.cartUnload(ref, [{ id: it.gid, x: at[0], z: at[1] }], db) : [];
+    if (put.length) out.push(...put);
+    else out.push(...goods.spawnGoods({ p: pid() }, [{ kind: it.kind as GoodsKind, owner: it.owner, job: it.job, x: at[0], z: at[1], broken: it.broken, heavy: it.heavy }]));
+  });
+  return out;
+}
+
+// M8f: the goods store asks how many of a job's goods are on the holder's carts, and whether a cart still has one
+goodsHooks.onCarts = (db, j) => asPlayer(j.taken_by ?? 1, () => jefCarts(db).list.reduce((n, c) => n + c.load.filter((it) => it.job === j.id).length, 0));
+goodsHooks.cartHas = (db, ref, id) => {
+  const m = /^hc:(\d+):(.+)$/.exec(ref);
+  if (!m) return null;
+  const c = asPlayer(Number(m[1]), () => jefCarts(db)).list.find((q) => q.id === m[2]);
+  return !!c && c.load.some((it) => it.gid === id);
+};
 
 export interface JefCart {
   id: string;
@@ -329,7 +364,13 @@ function cleanJobs(db: DB, s: CartsState): boolean {
 
 export function cartView(db: DB) {
   const s = jefCarts(db);
-  if (cleanJobs(db, s)) save(db, s);
+  let dirty = cleanJobs(db, s);
+  // M8f: loads left on the ground before the goods were the server's: set down as goods now (the store's)
+  for (const d of s.dropped.splice(0)) {
+    goodsDown(db, "", d.x, d.z, d.items);
+    dirty = true;
+  }
+  if (dirty) save(db, s);
   const now = minuteNow(db);
   return {
     list: s.list.map((c) => ({ ...c, minutes_left: c.until !== undefined ? Math.max(0, c.until - now) : null, ...loadOf(c.load) })),
@@ -402,8 +443,13 @@ export function loadCart(db: DB, id: string, raw: Partial<CartItem>, x: number, 
   const c = cartOf(s, id);
   near(c, x, z);
   if (c.held) throw new GameError("let go of the shafts first", 409);
+  // M8f: goods in his hands are the goods store's: what they are is the store's word, not the PC's
+  const held = typeof raw.gid === "string" ? goods.get(raw.gid) : null;
+  if (typeof raw.gid === "string" && (!held || !held.by || !("p" in held.by) || held.by.p !== pid())) throw new GameError("you are not carrying that", 409);
+  if (held) raw = { kind: held.kind, job: held.job, owner: held.owner, broken: held.broken, heavy: held.heavy };
   const kind = String(raw.kind ?? "");
   const item: CartItem = { kind, job: null, owner: typeof raw.owner === "string" ? raw.owner.slice(0, 24) : null };
+  if (held) item.gid = held.id;
   if (raw.broken === true) item.broken = true;
   if (raw.heavy === true) item.heavy = true;
   if (raw.piece !== undefined && raw.piece !== null) {
@@ -439,7 +485,34 @@ export function loadCart(db: DB, id: string, raw: Partial<CartItem>, x: number, 
     c.load.push(item);
     save(db, s);
   })();
+  if (item.gid) goods.toCart(pid(), item.gid, cartRef(pid(), c.id));
   return { cart: c, item };
+}
+
+/** M8f: the thing taken off a cart into his hands, as a goods item (the store's own, or a new one for a load from before). */
+export function unloadedGoods(_db: DB, cart: string, item: CartItem): GoodsItem | null {
+  if (item.piece !== undefined || !isGoodsKind(item.kind)) return null;
+  const ref = cartRef(pid(), cart);
+  if (item.gid) {
+    const got = goods.fromCart(item.gid, ref, pid());
+    if (got) return got;
+  }
+  return goods.giveTo(pid(), { kind: item.kind as GoodsKind, owner: item.owner, job: item.job, broken: item.broken, heavy: item.heavy });
+}
+
+/** M8f: a job's goods tipped off at its goal: set down on the goal's slots by the server (as the client did). */
+export function unloadedJobGoods(db: DB, cart: string, jobId: number, items: CartItem[]): GoodsItem[] {
+  let j;
+  try {
+    j = jobRow(db, jobId);
+  } catch {
+    return [];
+  }
+  const t = j.task as { to?: string; progress?: { delivered: number } } | null;
+  if (!t?.to) return [];
+  const p = t.progress?.delivered ?? 0;
+  const spots = items.map((_, i) => slotAt(SPOTS as never, t.to!, (p + i) % 6, 0.8));
+  return goodsDown(db, cartRef(pid(), cart), spots[0]?.[0] ?? 0, spots[0]?.[1] ?? 0, items, spots);
 }
 
 /** One thing off a parked cart into Jef's hands (the top one unless `index` says). */
@@ -497,7 +570,7 @@ export function ackDropped(db: DB, ids: number[]): void {
 }
 
 /** A load left on the ground where the cart stood: goods for the client; furniture to Jef's room (or gone). */
-function dropLoad(db: DB, s: CartsState, c: JefCart, piecesTo: "home" | "gone"): void {
+function dropLoad(db: DB, _s: CartsState, c: JefCart, piecesTo: "home" | "gone"): void {
   const goods = c.load.filter((it) => it.piece === undefined);
   const pieces = c.load.filter((it) => it.piece !== undefined);
   const l = piecesTo === "home" ? lease(db) : null;
@@ -505,7 +578,8 @@ function dropLoad(db: DB, s: CartsState, c: JefCart, piecesTo: "home" | "gone"):
     if (l) db.prepare("UPDATE home_item SET state = 'stored', home = ?, gx = NULL, gz = NULL WHERE id = ? AND player_id = ?").run(l.home, p.piece, pid());
     // else it stays 'gone' (it went with the cart)
   }
-  if (goods.length) s.dropped.push({ id: ++s.dn, x: c.x, z: c.z, items: goods });
+  // M8f: the goods are set down round where the cart stood by the server (the goods store), for every PC to see
+  if (goods.length) goodsDown(db, cartRef(pid(), c.id), c.x, c.z, goods);
   c.load = [];
 }
 

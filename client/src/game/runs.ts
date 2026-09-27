@@ -102,11 +102,6 @@ export function slot(spot: string, i: number, gap = 0.95): [number, number] {
   return [s.x + dx * along - dz * side, s.z + dz * along + dx * side];
 }
 
-/** No goods lying within half a metre of (x, z)? */
-function freeSlot(goods: GoodsWorld, x: number, z: number): boolean {
-  return !goods.items.some((it) => Math.hypot(it.obj.position.x - x, it.obj.position.z - z) < 0.55);
-}
-
 /** A point near the middle of a->b, about d metres to the side, on free ground. */
 function besideRoute(world: World, ax: number, az: number, bx: number, bz: number, d: number): [number, number] {
   const mx = (ax + bx) / 2;
@@ -130,6 +125,8 @@ interface Lowering {
   rope: THREE.Mesh;
   from: THREE.Vector3;
   to: [number, number];
+  /** Its slot at the gangway (the server puts it there: shared/goods.ts slotAt). */
+  i: number;
   t: number;
   broken: boolean;
   heavy: boolean;
@@ -199,22 +196,14 @@ export class HaulRun implements Run {
     this.waitingHandover =
       left > 0 && ((task.kind === "deliver" && !!employer && !(this.pocketed_ && ctx.pockets.hasJobParcel(job.id))) || fromShip);
     if (fromShip) this.toLower = flags;
-    else if (!this.waitingHandover) {
-      // M7 quest tests: the goods of an earlier job delivered here lie on the same slots (an emigrant's
-      // lost chest came up inside Tuur's crates at the cart stand, and E lifted a crate): the next free slots
-      let k = 0;
-      flags.forEach((f) => {
-        let [x, z] = slot(task.from, k);
-        while (k < 40 && freeSlot(goods, x, z) === false) [x, z] = slot(task.from, ++k);
-        k++;
-        goods.spawn(this.goods, x, z, { jobId: job.id, owner: job.employer_npc, ...f });
-      });
-    }
-    // goods already delivered before a reload lie at the drop spot
-    for (let i = 0; i < this.delivered && this.kind === "carry"; i++) {
-      const [x, z] = slot(task.to, i, 0.8);
-      goods.spawn(this.goods, x, z, { owner: job.employer_npc });
-    }
+    // M8f: the goods are the server's: it lays them out once (on the free slots at the place they are fetched from,
+    // M7 quest tests: never inside an earlier job's goods; the goods delivered before a reload at the drop place) and
+    // keeps them; after a reload the same goods come back, some maybe in his hands or a hand's
+    void goods.jobGoods(job.id, !fromShip && !this.waitingHandover).then((have) => {
+      if (this.ended || !have.length) return;
+      if (fromShip) this.toLower.splice(0, have.length);
+      if (this.waitingHandover && (!fromShip || !this.toLower.length) && !this.lowering.length) this.waitingHandover = false;
+    });
 
     const to = SPOTS[task.to];
     const from = SPOTS[task.from];
@@ -260,8 +249,7 @@ export class HaulRun implements Run {
       snatched: () => {
         const c = ctx.goods.carried;
         if (!c || !this.isMine(c)) return;
-        ctx.goods.release();
-        c.obj.removeFromParent();
+        ctx.goods.dropCarried("snatched");
         this.onLost(c, `He has the ${this.noun} out of your hands and is gone between the sheds.`);
       },
       toast: (t) => ctx.toast(t),
@@ -360,8 +348,10 @@ export class HaulRun implements Run {
         .then((p) => this.ctx.refresh(p))
         .catch((err: Error) => this.ctx.toast(err.message));
     } else {
-      this.ctx.goods.receive(this.goods, GOODS[this.goods].hold, { jobId: this.job.id, owner: this.job.employer_npc });
-      this.ctx.player.speedFactor = GOODS[this.goods].speed;
+      // M8f: the server hands it over (the employer's goods into his hands, on every PC)
+      void this.ctx.goods.handover(this.job.id).then((it) => {
+        if (it && this.ctx.goods.carried === it) this.ctx.player.speedFactor = GOODS[this.goods].speed;
+      });
     }
     this.waitingHandover = false;
     this.ctx.sfx("lift");
@@ -435,6 +425,13 @@ export class HaulRun implements Run {
     this.changed();
   }
 
+  /** M8f: goods of this job tipped off a cart at the goal by the server (already the employer's there): they count. */
+  countDelivered(n: number): void {
+    if (this.kind !== "carry" || n <= 0) return;
+    this.delivered += n;
+    this.changed();
+  }
+
   /** Lost: into the Schelde, or (M6 handcart) gone with a cart someone wheeled off (`why`: what to say, or "" for nothing). */
   onLost(item: Item, why?: string): void {
     if (!this.isMine(item)) return;
@@ -450,8 +447,7 @@ export class HaulRun implements Run {
   }
 
   private handIn(item: Item): void {
-    this.ctx.goods.release();
-    item.obj.removeFromParent();
+    if (this.ctx.goods.carried === item) this.ctx.goods.dropCarried("handed");
     this.recipient?.face(this.ctx.player.x, this.ctx.player.z);
     this.ctx.toast(`${cap((this.task as DeliverTask).recipient)} takes it without a word and turns away.`);
     this.delivered++;
@@ -459,7 +455,7 @@ export class HaulRun implements Run {
   }
 
   private sell(item: Item): void {
-    this.ctx.goods.release();
+    if (this.ctx.goods.carried === item) this.ctx.goods.dropCarried("sold");
     this.strangerDone = true;
     this.sold++;
     this.ctx.sfx("coins");
@@ -557,7 +553,7 @@ export class HaulRun implements Run {
         obj.position.copy(from);
         const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1, 4), this.ctx.world.mats.rope);
         this.ctx.world.scene.add(obj, rope);
-        this.lowering.push({ obj, rope, from, to: slot("ship_gangway", i), t: 0, ...f });
+        this.lowering.push({ obj, rope, from, to: slot("ship_gangway", i), i, t: 0, ...f });
         if (this.toLower.length) this.lowerTimer = 2.2;
       }
     }
@@ -575,7 +571,8 @@ export class HaulRun implements Run {
       l.rope.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), top.clone().sub(l.obj.position).normalize());
       if (k >= 1) {
         this.ctx.world.scene.remove(l.obj, l.rope);
-        this.ctx.goods.spawn(this.goods, tx, tz, { jobId: this.job.id, owner: this.job.employer_npc, broken: l.broken, heavy: l.heavy });
+        // M8f: on the quay it is the server's (at the same slot); here when it answers
+        void this.ctx.goods.lower(this.job.id, l.i, { broken: l.broken, heavy: l.heavy });
         this.ctx.sfx(`thud_${GOODS[this.goods].thud}`, new THREE.Vector3(tx, 0, tz));
       }
     }
@@ -705,10 +702,11 @@ export class WatchRun implements Run {
     private readonly ctx: RunCtx,
   ) {
     this.post = SPOTS[task.post];
-    for (let i = 0; i < 3; i++) {
-      const [x, z] = slot(task.post, i, 0.9);
-      this.pile.push(ctx.goods.spawn(task.goods, x, z, { jobId: job.id, owner: job.employer_npc, rot: i * 0.4 }));
-    }
+    // M8f: the three at the post are the server's (laid out once: shared/goods.ts slotAt, turned 0, 0.4, 0.8)
+    void ctx.goods.jobGoods(job.id, true).then((items) => {
+      this.pile = items.filter((it) => !it.by);
+      this.trimPile();
+    });
     if (task.twist === "thick_fog") ctx.world.setThickFog(true);
     ctx.toast(`Stand by the ${task.goods} at ${this.post.label} until the bell.`);
   }
@@ -775,7 +773,7 @@ export class WatchRun implements Run {
     const it = [...this.pile].reverse().find((p) => goods.items.includes(p) && !goods.above(p));
     if (!it) return;
     this.pile = this.pile.filter((p) => p !== it);
-    goods.remove(it);
+    goods.take(it);
     by.hold(it.obj);
   }
 
@@ -950,12 +948,20 @@ export class WatchRun implements Run {
     if (s.thiefState === "chased" || s.thiefState === "stole") this.thiefState = s.thiefState;
     if (s.briberState === "paid" || s.briberState === "sent") this.briberState = "sent";
     if (s.foremanState === "looking" || s.foremanState === "leaving") this.foremanState = "leaving";
-    // goods taken from the pile stay taken
-    const left = Math.max(0, Math.floor(n(s.pile, this.pile.length)));
-    while (this.pile.length > left) {
+    // goods taken from the pile stay taken (M8f: the pile may still be on its way from the server)
+    this.pileKeep = Math.max(0, Math.floor(n(s.pile, 3)));
+    this.trimPile();
+  }
+
+  /** After a load: the pile as it was (the server's fresh three trimmed to what was left). */
+  private pileKeep: number | null = null;
+  private trimPile(): void {
+    if (this.pileKeep === null || !this.pile.length) return;
+    while (this.pile.length > this.pileKeep) {
       const it = this.pile.pop()!;
-      this.ctx.goods.remove(it);
+      this.ctx.goods.take(it);
     }
+    this.pileKeep = null;
   }
 
   dispose(): void {

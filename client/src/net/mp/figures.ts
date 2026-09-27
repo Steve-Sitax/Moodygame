@@ -34,6 +34,12 @@ export class RemoteFigure {
   private lastZ = NaN;
   /** A footstep this frame (the caller plays it where he is). */
   stepped = false;
+  /** M8f: goods in his arms (game/goods.ts puts them on his shoulder and sets this): the carry walk. */
+  carrying = false;
+  /** The figure's root, for what he carries (game/goods.ts). */
+  get root(): THREE.Object3D | null {
+    return this.figure?.root ?? null;
+  }
   hurry = false;
 
   constructor(
@@ -87,7 +93,8 @@ export class RemoteFigure {
     const inAir = !grounded && (mode === "walk" || mode === "crouch");
     const motion =
       mode === "row" ? "row" : mode === "bike" || mode === "sit" ? "ride" : crouch ? "crouch" : mode === "swim" ? "walk" : inAir ? "idle" : speed > 0.35 && mode !== "ladder" && mode !== "climb" && mode !== "ride" ? "walk" : "idle";
-    f.play(motion);
+    // (M8f: goods on his shoulder: the dockers' carry clip, walking or standing)
+    f.play(this.carrying && (motion === "walk" || motion === "idle") && mode === "walk" ? "carry" : motion);
     f.setPace(mode === "swim" ? Math.max(0.4, speed * 0.6) : speed);
     f.update(dt);
     // footsteps by the distance walked on the ground (as the own body's)
