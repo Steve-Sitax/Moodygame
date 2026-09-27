@@ -36,6 +36,8 @@ export class Talk {
   private readonly el: HTMLDivElement;
   private readonly input: HTMLInputElement;
   private typing = false;
+  /** M9: his own words may be typed (false: the server has no AI to read them now; the choices only). */
+  private freeOk = true;
   private shopping = false;
   private working = false;
   /** Set by Jobs: open work this person offers, and how to take it. */
@@ -94,6 +96,7 @@ export class Talk {
     this.onOpen(npc.id);
     this.lines = [];
     this.choices = [];
+    this.freeOk = true;
     this.ended = shopOnly;
     this.shopping = shopOnly;
     this.working = false;
@@ -158,11 +161,12 @@ export class Talk {
     if (my !== this.req) return; // walked away or turned to someone else meanwhile
     this.busy = false;
     if (this.npc !== npc) return;
+    if (r.free !== undefined) this.freeOk = r.free;
     if (!r.npc_line) {
-      // gated without a line: too fast, too long or empty
+      // gated without a line: too fast, too long or empty; M9: no AI to read his own words now
       if (text) this.lines.pop();
-      this.flash(r.gated === "too fast" ? "Catch your breath first." : r.gated === "too long" ? "Too many words at once." : "");
-      this.choices = this.lastChoices;
+      this.flash(r.gated === "too fast" ? "Catch your breath first." : r.gated === "too long" ? "Too many words at once." : r.gated === "no_ai" ? "No AI to hear your own words now. Pick an answer." : "");
+      this.choices = r.choices?.length ? r.choices : this.lastChoices;
       this.render();
       return;
     }
@@ -294,7 +298,7 @@ export class Talk {
           ? `E  step away${shop}`
           : this.busy
             ? ""
-            : `1-3  answer &middot; T  say it your way${shop} &middot; E  step away`;
+            : `1-${Math.max(1, this.choices.length)}  answer${this.freeOk ? " &middot; T  say it your way" : ""}${shop} &middot; E  step away`;
     const list = this.shopping
       ? `<ol class="wares">${this.stock
           .map((w, i) => `<li><span class="n">${i + 1}</span> ${esc(w.name)}<span class="price">${w.price_c} c</span></li>`)
@@ -393,6 +397,11 @@ export class Talk {
     if (n >= 1 && n <= this.choices.length) return void this.send("choice", this.choices[n - 1]);
     if (e.code === "KeyT") {
       e.preventDefault();
+      // M9: no AI to read his own words: the choices only
+      if (!this.freeOk) {
+        this.flash("No AI to hear your own words now. Pick an answer.");
+        return this.render();
+      }
       this.typing = true;
       this.render();
     }

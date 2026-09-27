@@ -40,6 +40,11 @@ const faction = (db: DB, id: number, f: string) => (db.prepare("SELECT trust FRO
 
 function fishStall(db: DB) {
   const f = stealables(db).food.find((f) => f.item === "herring")!;
+  // M9: the keeper runs for the police (no fighter) rather than have it out with Jef (town/confront.ts)
+  const k = town(db).byId.get(f.keeper)!;
+  k.stats.courage = 3;
+  k.stats.honesty = 6;
+  db.prepare("UPDATE resident SET data_json = json_set(data_json, '$.stats.courage', 3, '$.stats.honesty', 6) WHERE id = ?").run(f.keeper);
   return { f, keeper: resident(db, f.keeper)! };
 }
 

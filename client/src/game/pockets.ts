@@ -265,7 +265,16 @@ export class Pockets {
           )
           .join("")
       : `<li class="empty">Your pockets are empty. Lint, and a button.</li>`;
-    this.panel.innerHTML = `<h3>Pockets</h3><ol>${rows}</ol><p class="keys">1-6 eat, drink or read &middot; I to close</p>`;
+    const name = this.nameWords ? `<p class="what" style="margin:0.4em 0 0">${esc(this.nameWords)}</p>` : "";
+    this.panel.innerHTML = `<h3>Pockets</h3><ol>${rows}</ol>${name}<p class="keys">1-6 eat, drink or read &middot; I to close</p>`;
+  }
+
+  /** M9 theft: his good name in the town, in words (the server's; never a number). */
+  nameWords = "";
+  setName(words: string): void {
+    if (words === this.nameWords) return;
+    this.nameWords = words;
+    if (this.open) this.renderPanel();
   }
 
   toggle(): void {

@@ -7,6 +7,8 @@ Git history has the detail of each commit.
 
 ## Waiting for Steve
 
+- Stealing, confronts and pickpocketing (M9, `docs/milestones/M9-theft.md`): built and tested on branch `claude/stealing-interactions-mechanics-5944aa`, not yet in main. Steve tries it on the test stack; then merge. Note: his own save reads as a known thief (two fines, ~70 people talking), so every theft there goes straight to the police.
+
 - Day fog, rain and storm: the skyline is still a little lighter than the cloud deck (18-35% at 13:00). A one-line sky.ts change would use the night rule by day too, at the cost of flatter fog-day skies. Steve's call.
 - Going public: the audit says safe. Steve flips the repo to public himself. Optional: an AGPL section 7 permission for the proprietary Claude Agent SDK (draft in `docs/public-release-check.md`). The commit email steve@sitax.be becomes public with the history.
 - The clockmaker's pocket watches and the junk-stall clocks: live hands too? (Steve did not pick it: no for now.)

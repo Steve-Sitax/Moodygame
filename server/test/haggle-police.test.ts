@@ -347,6 +347,11 @@ describe("haggling: lies, rudeness and the talk", () => {
 
 function fishDeed(db: DB, seen = true) {
   const f = stealables(db).food.find((f) => f.item === "herring")!;
+  // M9: the keeper runs for the police (no fighter) rather than have it out with Jef (town/confront.ts)
+  const k = town(db).byId.get(f.keeper)!;
+  k.stats.courage = 3;
+  k.stats.honesty = 6;
+  db.prepare("UPDATE resident SET data_json = json_set(data_json, '$.stats.courage', 3, '$.stats.honesty', 6) WHERE id = ?").run(f.keeper);
   const keeper = resident(db, f.keeper)!;
   const r = takeThing(db, { ref: f.id, x: f.x, z: f.z + 1.3, witnesses: seen ? [{ id: keeper.id, d: 2.5, los: true, facing: 1 }] : [] }, seen ? always : never);
   if (r.police && r.deed) scheduleVisit(db, r.deed);

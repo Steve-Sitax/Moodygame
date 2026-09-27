@@ -6,6 +6,7 @@ import { resident } from "../town/store.ts";
 import { writeEvent } from "../director/eventlog.ts";
 import { pressTown, setMedal, BERG_LABEL, type PressTown } from "./town.ts";
 import { asPlayer, pid } from "../player/current.ts";
+import { stolenItem } from "../town/deeds.ts";
 
 // The Berg van Barmhartigheid (M6): the town's pawn office, the Antwerp
 // Mont-de-Piete (founded 1620 by Wenceslas Cobergher; in the real town in the
@@ -23,9 +24,9 @@ import { asPlayer, pid } from "../player/current.ts";
 // The clerk's remark is the model's (with a fallback); it changes nothing.
 
 /** What the Berg lends on, and what it is worth to them (centimes). */
-export const PAWN_WORTH: Record<string, number> = { medal: 90, lantern: 40 };
+export const PAWN_WORTH: Record<string, number> = { medal: 90, lantern: 40, pocket_watch: 80, handkerchief: 10 };
 /** Silver and gold: four fifths. */
-const PRECIOUS = new Set(["medal"]);
+const PRECIOUS = new Set(["medal", "pocket_watch"]);
 export const INTEREST_PER_DAY = 0.05;
 export const TERM_DAYS = 3;
 export const WEEK_END = 7;
@@ -51,6 +52,11 @@ export function loanFor(kind: string): number {
   if (!worth) return 0;
   const share = PRECIOUS.has(kind) ? 4 / 5 : 2 / 3;
   return Math.floor((worth * share) / 5) * 5;
+}
+
+/** M9 theft: what the Berg lends on a thing it thinks stolen (half the loan). */
+export function hotLoan(kind: string): number {
+  return Math.floor(loanFor(kind) / 2 / 5) * 5;
 }
 
 /** Interest a day: 5 in the hundred of the loan, at least 1 centime. */
@@ -103,7 +109,8 @@ export function bergView(db: DB) {
   const { day } = today(db);
   const clerk = bergClerk(db);
   const items = db.prepare("SELECT id, kind FROM item WHERE job_id IS NULL AND player_id = ? ORDER BY id").all(pid()) as Array<{ id: number; kind: string }>;
-  const offers = items.filter((i) => PAWN_WORTH[i.kind]).map((i) => ({ item: i.id, kind: i.kind, name: ITEMS[i.kind]?.name ?? i.kind, loan_c: loanFor(i.kind) }));
+  // M9 theft: hot goods: the clerk lends half, no questions asked
+  const offers = items.filter((i) => PAWN_WORTH[i.kind]).map((i) => ({ item: i.id, kind: i.kind, name: ITEMS[i.kind]?.name ?? i.kind, loan_c: stolenItem(db, i.id) ? hotLoan(i.kind) : loanFor(i.kind) }));
   if (medalOf(db) === "owned") offers.unshift({ item: 0, kind: "medal", name: ITEMS.medal.name, loan_c: loanFor("medal") });
   const tickets = pawns(db, "held").map((p) => ({ id: p.id, name: p.item_name, loan_c: p.loan_c, rate_c: p.rate_c, due_day: p.due_day, redeem_c: redeemCost(p, day) }));
   return {
@@ -136,7 +143,8 @@ export function pawn(db: DB, item: number): { text: string; pawn: PawnRow } {
     if (row.job_id !== null) throw new GameError("that is not yours to pawn", 409);
     kind = row.kind;
   }
-  const loan = loanFor(kind);
+  const hot = item !== 0 && !!stolenItem(db, item);
+  const loan = hot ? hotLoan(kind) : loanFor(kind);
   if (!loan) throw new GameError(`the Berg lends on goods that keep, not on ${ITEMS[kind]?.name ?? kind}`, 409);
   const rate = rateFor(loan);
   const due = dueDay(day);
@@ -157,7 +165,9 @@ export function pawn(db: DB, item: number): { text: string; pawn: PawnRow } {
   const clerk = bergClerk(db);
   if (clerk) remember(db, clerk, `Jef pawned ${name.replace(/^your /, "his ")} with me for ${loan} centimes.`, 3);
   const p = db.prepare("SELECT * FROM pawn WHERE id = ?").get(id) as PawnRow;
-  return { text: `The clerk writes a ticket, No. ${1000 + id}, and counts out ${loan} centimes. Redeem by ${dayName(due)}.`, pawn: p };
+  if (hot && clerk) remember(db, clerk, `Jef brought me ${name.replace(/^a /, "a ")} that was not his, by the look of it.`, 4);
+  const hotWords = hot ? "The clerk turns it over, looks at you, and halves the sum. \"No questions.\" " : "";
+  return { text: `${hotWords}The clerk writes a ticket, No. ${1000 + id}, and counts out ${loan} centimes. Redeem by ${dayName(due)}.`, pawn: p };
 }
 
 /** Redeem a ticket: the loan and the interest, and the thing comes back. */

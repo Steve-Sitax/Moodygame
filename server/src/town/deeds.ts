@@ -6,7 +6,7 @@ import { asPlayer, pid } from "../player/current.ts";
 import { nameOf } from "../player/names.ts";
 import { applyTrust, remember } from "../npcs.ts";
 import { POCKET_SLOTS, atWork } from "../trade.ts";
-import { weather, type Weather } from "../day.ts";
+import { fogDay, weather, type Weather } from "../day.ts";
 import { activityAt } from "./schedule.ts";
 import { TOWN_EMPLOYER_IDS, resident, town } from "./store.ts";
 import { cityHouses, houseDoors, walkMap, WALL } from "./walkmap.ts";
@@ -15,6 +15,9 @@ import type { Resident } from "./population.ts";
 import { rowBoatHome, rowBoatStates, rowBoats, rowOn, rowState, setRowBoat, takePrompt, type LooseBoat } from "../rowing.ts";
 import { HULLS } from "../../../shared/smallBoats.ts";
 import { wantedFactor } from "../ideas/wanted.ts";
+import { lampLit } from "./lampround.ts";
+import { allLamps, lampRounds } from "./lamplighters.ts";
+import { CHARISMA_LOW, charisma } from "./charisma.ts";
 import SPOTS from "../../../shared/spots.json" with { type: "json" };
 import CITY from "../../../shared/city.json" with { type: "json" };
 
@@ -32,7 +35,7 @@ import CITY from "../../../shared/city.json" with { type: "json" };
 // it gone, and a suspicion may start to go round a while later.
 
 /** M3j: "boat" a rowing boat taken from its steps (rowing.ts); "boat_lost" one taken and wrecked; "boat_debt" a hired boat lost and never paid for. */
-export type Thing = "velocipede" | "lantern" | "food" | "boat" | "boat_lost" | "boat_debt" | "handcart";
+export type Thing = "velocipede" | "lantern" | "food" | "boat" | "boat_lost" | "boat_debt" | "handcart" | "purse";
 
 /** Engine numbers per kind of thing: how bad it is (police points) and the fine. */
 export const THINGS: Record<Thing, { severity: number; fine_c: number; noun: string }> = {
@@ -44,6 +47,8 @@ export const THINGS: Record<Thing, { severity: number; fine_c: number; noun: str
   boat_debt: { severity: 2, fine_c: 30, noun: "boat" },
   // M6 handcart (town/handcart.ts): a household's handcart, taken from their door or their stall
   handcart: { severity: 2, fine_c: 40, noun: "handcart" },
+  // M9 theft: a pocket picked (town/pickpocket.ts); took_c on the deed is the money, item_id a thing from it
+  purse: { severity: 2, fine_c: 30, noun: "purse" },
 };
 
 /**
@@ -92,13 +97,21 @@ export function deedTables(db: DB): void {
   if (ready.has(db)) return;
   db.exec(DEED_SCHEMA);
   addPlayerColumn(db, "deed"); // M8c: whose deed
+  deedColumns(db);
   ready.add(db);
+}
+/** M9 theft: took_c (money from a picked pocket), quiet (seen, but the talk is held back while someone has it out with him). */
+function deedColumns(db: DB): void {
+  const cols = (db.prepare("PRAGMA table_info(deed)").all() as Array<{ name: string }>).map((c) => c.name);
+  if (!cols.includes("took_c")) db.exec("ALTER TABLE deed ADD COLUMN took_c INTEGER NOT NULL DEFAULT 0");
+  if (!cols.includes("quiet")) db.exec("ALTER TABLE deed ADD COLUMN quiet INTEGER NOT NULL DEFAULT 0");
 }
 /** Is there a deed table yet? Reading never makes one. */
 export function hasDeeds(db: DB): boolean {
   if (ready.has(db)) return true;
   if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'deed'").get()) return false;
   addPlayerColumn(db, "deed");
+  deedColumns(db);
   ready.add(db);
   return true;
 }
@@ -119,8 +132,12 @@ export interface DeedRow {
   witnesses: string;
   item_id: number | null;
   /** M6: "let_off": the police believed his story; the thing went back all the same. */
-  status: "open" | "returned" | "warned" | "fined" | "arrested" | "let_off";
+  status: "open" | "returned" | "warned" | "fined" | "arrested" | "let_off" | "forgiven";
   rumour_at: number | null;
+  /** M9: money from a picked pocket (a purse deed). */
+  took_c?: number;
+  /** M9: 1 while someone who saw it has it out with him (town/confront.ts): no talk, no police yet. */
+  quiet?: number;
   /** M8c: whose deed (the player who took it). */
   player_id?: number;
 }
@@ -474,6 +491,8 @@ export interface SeeCtx {
   /** Jef's lantern is lit in his hand: the dark does not hide him. */
   lantern: boolean;
   crouch: boolean;
+  /** M9: how lit the spot of the deed is, 0-1 (lightAt: the day, a burning street lamp, his lantern). Missing: by the hour alone. */
+  light?: number;
 }
 
 /** Light in the street, 0-1: night hides, dusk and dawn half hide. */
@@ -484,9 +503,55 @@ export function daylight(hour: number): number {
   return 1;
 }
 
+/**
+ * M9 theft (Steve 2026-09-27: "we are better visible in light than in dark; in the dark people need to
+ * be really close by and looking at us"; "pickpocketing under a street light can be seen from quite far").
+ * The light at the spot: a dark street is NIGHT_LIGHT (sight a few metres), a burning gas lamp lights
+ * LAMP_LIGHT at its foot and less out to LAMP_REACH_M, his own lit lantern LANTERN_LIGHT.
+ */
+export const NIGHT_LIGHT = 0.1;
+export const LAMP_LIGHT = 0.85;
+export const LAMP_REACH_M = 13;
+export const LANTERN_LIGHT = 0.9;
+/** Below this the street is dark: only a face turned his way sees anything. */
+export const DARK_LIGHT = 0.4;
+
+/** Light from one gas lamp at d metres (pure): full to 3 m, gone at LAMP_REACH_M. */
+export function lampLight(d: number): number {
+  if (d <= 3) return LAMP_LIGHT;
+  if (d >= LAMP_REACH_M) return 0;
+  return LAMP_LIGHT * (1 - (d - 3) / (LAMP_REACH_M - 3));
+}
+
+/** The light by the hour alone (0-1), no lamp: NIGHT_LIGHT at night, full by day. */
+export function hourLight(hour: number): number {
+  return NIGHT_LIGHT + (1 - NIGHT_LIGHT) * daylight(hour);
+}
+
+/** The strongest light of a burning street lamp at (x, z) at this hour (lamplighters' rounds; 0 by day). */
+export function lampLightAt(db: DB, x: number, z: number, hour: number): number {
+  if (daylight(hour) >= 1) return 0;
+  let best = 0;
+  const rounds = lampRounds(db)?.rounds ?? [];
+  if (rounds.length) {
+    const fog = fogDay(db);
+    for (const r of rounds)
+      r.lamps.forEach((l, k) => {
+        const d = Math.hypot(l.x - x, l.z - z);
+        if (d < LAMP_REACH_M && lampLight(d) > best && lampLit(r, k, hour, fog)) best = lampLight(d);
+      });
+  } else for (const l of allLamps()) best = Math.max(best, lampLight(Math.hypot(l.x - x, l.z - z)));
+  return best;
+}
+
+/** How lit the spot is now, 0-1: the day, a burning street lamp near, his own lit lantern. */
+export function lightAt(db: DB, x: number, z: number, hour: number, lantern = false): number {
+  return Math.max(hourLight(hour), lampLightAt(db, x, z, hour), lantern ? LANTERN_LIGHT : 0);
+}
+
 /** The chance (0-1) that this person saw it. Pure: the numbers of the theft system. */
 export function seeChance(w: Witness, c: SeeCtx, trade?: string, age = 30): number {
-  const light = c.lantern ? 0.9 : 0.45 + 0.55 * daylight(c.hour);
+  const light = c.light ?? Math.max(hourLight(c.hour), c.lantern ? LANTERN_LIGHT : 0);
   const R = (SIGHT_M[c.weather] ?? 13) * light;
   const s = Math.max(0, Math.min(1, 1 - w.d / R));
   let p = w.los ? Math.pow(s, 0.6) : w.d < 4 ? 0.25 : 0; // no clear line: only a sound close by
@@ -497,15 +562,17 @@ export function seeChance(w: Witness, c: SeeCtx, trade?: string, age = 30): numb
   if (trade === "police") att = 1;
   // a sentry on duty watches the street (but never lays hands on anyone: garrison.ts)
   if (trade === "sentry" || trade === "corporal") att = Math.max(att, 0.8);
+  // in the dark only a face turned his way makes anything out
+  const dark = light < DARK_LIGHT;
   const f = Math.max(-1, Math.min(1, w.facing));
-  att *= f > 0.3 ? 1 : f > -0.3 ? 0.6 : 0.25;
+  att *= f > 0.3 ? 1 : f > -0.3 ? (dark ? 0.3 : 0.6) : dark ? 0.05 : 0.25;
   p *= att;
   if (c.crouch) p *= 0.75;
   return Math.max(0, Math.min(1, p));
 }
 
 /** Can this person see anything at all now (out in the street, per the engine's clock)? */
-function isOutNow(db: DB, id: string): boolean {
+export function isOutNow(db: DB, id: string): boolean {
   const r = resident(db, id);
   if (!r) return true; // the named people of the quay stand at their posts
   const p = db.prepare("SELECT day, hour, minute FROM player WHERE id = 1").get() as { day: number; hour: number; minute: number };
@@ -548,7 +615,20 @@ export function cleanWitnesses(db: DB, raw: DeedRequest["witnesses"], owner: str
 
 // ------------------------------------------------------------------ the deed
 
-export type Reaction = "shout" | "chase" | "ask";
+/**
+ * What a witness does (M9 theft, Steve 2026-09-27: "if they are brave enough they come to confront, or
+ * otherwise they go look for police and shout them over"). "confront": walks up to have it out with him
+ * (town/confront.ts); "fetch": runs for the nearest agent, shouting; "shout": shouts and stays; "police":
+ * an agent saw it himself. M7 boats keep "chase" and "ask" (their owner runs for the quay or asks).
+ */
+export type Reaction = "shout" | "chase" | "ask" | "confront" | "fetch" | "police";
+
+export interface ReactionOut {
+  who: string;
+  name: string;
+  kind: Reaction;
+  line: string;
+}
 
 export interface DeedResult {
   deed: number | null;
@@ -558,13 +638,29 @@ export interface DeedResult {
   owner_saw: boolean;
   seen_by: Array<{ id: string; name: string }>;
   owner: { id: string; name: string };
-  reaction: { who: string; name: string; kind: Reaction; line: string } | null;
+  /** The first of `reactions` (the one the client plays first; M7 boats: the owner's). */
+  reaction: ReactionOut | null;
+  /** M9: everyone who does something about it (a confronter, a runner for the police, shouters). */
+  reactions?: ReactionOut[];
+  /** M9: who half saw it and looks your way ("Hm?"): run now and they are sure (town/confront.ts noticed). */
+  suspects?: Array<{ id: string; name: string }>;
   text: string;
   police: boolean;
+  /** M9: game minutes until the agent sets out (0: an agent saw it; FETCH_MIN: someone ran for one). */
+  police_in?: number;
+  /** M9: the agent who saw it himself. */
+  police_agent?: string | null;
   item_id: number | null;
   /** M8d: other players who saw it (each is told, and the police may ask him). */
   players_saw?: Array<{ id: number; name: string }>;
 }
+
+/** M9: game minutes before the agent comes when a witness ran to fetch him (a game minute is two real seconds). */
+export const FETCH_MIN = 6;
+/** M9: a roll this much over the chance to see makes a suspect (half saw it) instead of nobody. */
+export const SUSPECT_SPAN = 1.8;
+/** M9: game minutes a suspect keeps looking (run while he does and he is sure). */
+export const SUSPECT_MIN = 10;
 
 // ------------------------------------------------------------------ M8d: players as witnesses
 
@@ -589,7 +685,7 @@ export function clearLine(ax: number, az: number, bx: number, bz: number): boole
  * saw it). Pure but for the walk map.
  */
 export function playerEyes(others: OtherPlayer[], at: { x: number; z: number }, c: SeeCtx): Array<OtherPlayer & { d: number }> {
-  const R = (SIGHT_M[c.weather] ?? 13) * (c.lantern ? 0.9 : 0.45 + 0.55 * daylight(c.hour)) * (c.crouch ? 0.75 : 1);
+  const R = (SIGHT_M[c.weather] ?? 13) * (c.light ?? Math.max(hourLight(c.hour), c.lantern ? LANTERN_LIGHT : 0)) * (c.crouch ? 0.75 : 1);
   return others
     .map((o) => ({ ...o, d: Math.hypot(o.x - at.x, o.z - at.z) }))
     .filter((o) => Number.isFinite(o.d) && o.d <= R && clearLine(o.x, o.z, at.x, at.z))
@@ -742,18 +838,24 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random,
     if ((tableTakes(db, p.day)[req.ref] ?? 0) >= TAKES_PER_TABLE) throw new GameError("nothing left within reach", 409);
   }
 
-  // who saw it
+  // who saw it (M9: by the light at the spot: the day, a burning street lamp, his lantern)
   const ws = cleanWitnesses(db, req.witnesses, t.owner, { x: t.x, z: t.z, at: t.at });
-  const ctx: SeeCtx = { weather: weather(db), hour: p.hour, lantern: req.lantern, crouch: req.crouch };
+  const ctx: SeeCtx = { weather: weather(db), hour: p.hour, lantern: req.lantern, crouch: req.crouch, light: lightAt(db, t.x, t.z, p.hour, req.lantern) };
   const saw: Witness[] = [];
+  const suspects: Witness[] = [];
   let nearMiss = false;
   // M6 ideas: a wanted bill with Jef's name on a wall: the town watches him (ideas/wanted.ts)
   const eyes = wantedFactor(db);
   for (const w of ws) {
     const r = resident(db, w.id);
     const chance = Math.min(1, seeChance(w, ctx, r?.trade, r?.age ?? 40) * eyes);
-    if (rng() < chance) saw.push(w);
-    else if (w.d < 12) nearMiss = true;
+    const u = rng();
+    if (u < chance) saw.push(w);
+    else {
+      if (w.d < 12) nearMiss = true;
+      // M9: half saw it: he looks your way, and makes up his mind by what you do next
+      if (chance > 0.02 && u < chance * SUSPECT_SPAN && w.d < 25 && r?.trade !== "thief") suspects.push(w);
+    }
   }
   // the owner at home by his door may look out of the window
   let windowSaw = false;
@@ -817,48 +919,38 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random,
   for (const o of eyes2) noteSeen(db, o.id, deedId, `You saw ${thiefName} take ${what}.`);
   const playersSaw = eyes2.map((o) => ({ id: o.id, name: playerName(db, o.id) }));
   const gist = t.thing === "food" ? `Jef stole ${FOOD_NAME[t.item]} from ${t.where}` : `Jef stole ${ownerName}'s ${t.noun}`;
-  if (seen) {
-    // the owner, and each witness: a memory, trust lost, a rumour that travels
-    if (ownerSaw) {
-      remember(db, t.owner, windowSaw ? `From my window I saw Jef take my ${t.noun}.` : `Jef took my ${t.noun} ${t.where.replace("his house", "my house")}, in front of my eyes.`, 8, "seen", null, { gist, tone: -2 });
-      applyTrust(db, t.owner, -2, 0);
-    }
-    for (const w of tellers.filter((w) => !w.owner).slice(0, 5)) {
-      remember(db, w.id, `I saw Jef take ${what}.`, 6, "seen", null, { gist, tone: -2 });
-      applyTrust(db, w.id, -1, 0);
-    }
-    const faction = (db.prepare("SELECT faction FROM npc WHERE id = ?").get(t.owner) as { faction: string | null } | undefined)?.faction;
-    if (faction) db.prepare("UPDATE faction_trust SET trust = MAX(-5, trust - 1) WHERE faction = ? AND player_id = ?").run(faction, pid());
-  } else {
+  const info: SeenInfo = {
+    owner: t.owner,
+    noun: t.noun,
+    what,
+    gist,
+    ownerText: windowSaw ? `From my window I saw Jef take my ${t.noun}.` : `Jef took my ${t.noun} ${t.where.replace("his house", "my house")}, in front of my eyes.`,
+  };
+  const out = seen ? witnessed(db, deedId, tellers, info, { windowSaw }) : null;
+  if (!seen) {
     // the owner finds it gone, sooner or later; nobody knows who
     remember(db, t.owner, t.thing === "food" ? `Somebody lifted ${FOOD_NAME[t.item]} off my table while I looked the other way.` : `Somebody took my ${t.noun} ${t.where}.`, 4);
   }
+  const sus = seen ? [] : noteSuspects(db, deedId, suspects);
 
-  // what the owner does, and who shouts
-  let reaction: DeedResult["reaction"] = null;
-  const ownerW = tellers.find((w) => w.owner);
-  if (ownerW && !windowSaw && ownerW.d < 30) {
-    const kind = reactionOf(db, t.owner);
-    reaction = { who: t.owner, name: ownerName, kind, line: reactionLine(db, t.owner, kind, t.noun, true) };
-  } else if (tellers.length) {
-    const loud = tellers.map((w) => ({ w, r: resident(db, w.id) })).find(({ r }) => !r || r.stats.courage >= 4);
-    if (loud) reaction = { who: loud.w.id, name: npcName(db, loud.w.id), kind: "shout", line: reactionLine(db, loud.w.id, "shout", t.noun, false) };
-  }
+  const reaction = out?.reactions[0] ?? null;
   const text = seen
     ? windowSaw
       ? `A curtain moves in a window. Someone saw you.`
       : reaction
         ? reaction.line
         : `Somebody saw you. You can feel their eyes on your back.`
-    : t.thing === "velocipede"
-      ? "Nobody seems to have seen. The velocipede is yours now, for what that is worth."
-      : t.thing === "boat"
-        ? "Nobody seems to have seen. You cast off: the boat is yours now, for what that is worth."
-      : t.thing === "handcart"
-        ? "Nobody seems to have seen. You take the shafts: the handcart is yours now, for what that is worth."
-      : t.thing === "lantern"
-        ? "Nobody saw. The lantern is yours now."
-        : `Nobody saw. ${FOOD_NAME[t.item][0].toUpperCase() + FOOD_NAME[t.item].slice(1)} goes into your pocket.`;
+    : sus.length
+      ? `${sus[0].name.split(" ")[0]} looks your way. Did ${resident(db, sus[0].id)?.sex === "f" ? "she" : "he"} see? Walk, don't run.`
+      : t.thing === "velocipede"
+        ? "Nobody seems to have seen. The velocipede is yours now, for what that is worth."
+        : t.thing === "boat"
+          ? "Nobody seems to have seen. You cast off: the boat is yours now, for what that is worth."
+          : t.thing === "handcart"
+            ? "Nobody seems to have seen. You take the shafts: the handcart is yours now, for what that is worth."
+            : t.thing === "lantern"
+              ? "Nobody saw. The lantern is yours now."
+              : `Nobody saw. ${FOOD_NAME[t.item][0].toUpperCase() + FOOD_NAME[t.item].slice(1)} goes into your pocket.`;
   const watched = playersSaw.length ? ` ${playersSaw.map((p) => p.name).join(" and ")} saw it too.` : "";
   return {
     deed: deedId,
@@ -868,11 +960,169 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random,
     seen_by: tellers.map((w) => ({ id: w.id, name: npcName(db, w.id) })),
     owner: { id: t.owner, name: ownerName },
     reaction,
+    reactions: out?.reactions ?? [],
+    suspects: sus,
     text: text + watched,
-    police: seen,
+    police: out?.police ?? false,
+    police_in: out?.police_in,
+    police_agent: out?.police_agent ?? null,
     item_id: itemId,
     players_saw: playersSaw,
   };
+}
+
+// ------------------------------------------------------------------ M9: who does what about it
+
+/** What a deed was, for the words of those who saw it. */
+export interface SeenInfo {
+  owner: string;
+  noun: string;
+  /** "Anna's lantern by the Hessenatie door", "a herring off Mie's stall". */
+  what: string;
+  /** The rumour: "Jef stole Anna's lantern". */
+  gist: string;
+  /** What the owner keeps of it, in her own words. */
+  ownerText: string;
+}
+
+/** M9: what this witness does about a theft, by their stats (engine). "silent": says nothing, and remembers. */
+export function roleOf(db: DB, id: string, owner: boolean): Reaction | "silent" {
+  const r = resident(db, id);
+  // the quay's own people and the board's employers keep their posts: they shout, and remember
+  if (!r || TOWN_EMPLOYER_IDS.includes(id)) return "shout";
+  if (r.trade === "police") return "police";
+  // a sentry on duty never leaves his post (garrison.ts)
+  if (r.trade === "sentry" || r.trade === "corporal") return "shout";
+  if (r.age < 12) return "fetch";
+  if (r.age >= 65) return "shout";
+  if (r.stats.courage >= (owner ? 5 : 6)) return "confront";
+  if (owner || r.stats.honesty >= 4) return "fetch";
+  return "silent";
+}
+
+function roleLine(db: DB, who: string, kind: Reaction, info: SeenInfo, owner: boolean): string {
+  const n = firstName(db, who);
+  if (kind === "confront") return owner ? `${n} comes straight at you: "Hey! That's my ${info.noun}! What do you think you're doing?"` : `${n} steps up to you: "I saw that. That's not yours."`;
+  if (kind === "fetch") return (resident(db, who)?.age ?? 30) < 12 ? `A child shrieks "Thief!" and runs off to fetch the police.` : `${n} shouts "Thief! Police! Police!" and runs off to fetch an agent.`;
+  if (kind === "police") return `${n} of the police: "Halt! I saw that. Stay where you are."`;
+  return reactionLine(db, who, "shout", info.noun, owner);
+}
+
+export interface Witnessed {
+  reactions: ReactionOut[];
+  /** Someone has it out with him first: no talk, no police yet (town/confront.ts decides). */
+  quiet: boolean;
+  police: boolean;
+  police_in?: number;
+  police_agent: string | null;
+  /** His good name was too low: the police and the paper, whatever comes of it. */
+  low: boolean;
+}
+
+/** One who has it out with Jef (M9; town/confront.ts reads and settles these). */
+export interface Confront {
+  deed: number;
+  npc: string;
+  owner: boolean;
+  /** Game minute it began. */
+  at: number;
+  /** His good name was too low: sorry is not enough (the police come anyway). */
+  low: boolean;
+  stage: "open" | "bribe";
+  /** The sum asked to say no more (stage "bribe"). */
+  ask_c?: number;
+  offered?: Record<string, string>;
+  /** Model calls this talk has had (his own words read: town/confront.ts). */
+  calls?: number;
+}
+
+export function confronts(db: DB): Confront[] {
+  return pstate<Confront[]>(db, "confronts") ?? [];
+}
+export function setConfronts(db: DB, list: Confront[]): void {
+  setPstate(db, "confronts", list);
+}
+
+/**
+ * M9 theft: someone saw the deed. Who does what (roleOf): one brave witness (the owner first) comes to have
+ * it out with him; one runs for the police; the rest shout or keep quiet. While someone has it out with
+ * him, the talk and the police wait for how it ends (quiet): sorry and the thing back may settle it
+ * (town/confront.ts). With a bad name (charisma at or below CHARISMA_LOW), or when an agent saw it, nothing
+ * waits: the police are called and the paper hears of it, whatever he says.
+ */
+export function witnessed(db: DB, deedId: number, tellers: Witness[], info: SeenInfo, opts: { windowSaw?: boolean } = {}): Witnessed {
+  const roles = tellers.map((w) => ({ w, role: roleOf(db, w.id, w.owner) }));
+  const agent = roles.find((x) => x.role === "police")?.w.id ?? null;
+  const low = charisma(db) <= CHARISMA_LOW;
+  const confronter = opts.windowSaw || agent ? undefined : roles.filter((x) => x.role === "confront" && x.w.d < 30).sort((a, b) => Number(b.w.owner) - Number(a.w.owner) || a.w.d - b.w.d)[0];
+  const fetcher = roles.filter((x) => x.role === "fetch" && x !== confronter).sort((a, b) => a.w.d - b.w.d)[0];
+  const quiet = !!confronter && !low;
+  if (quiet) {
+    // they know, but it is between him and them for now: no rumour, no trust lost yet
+    if (tellers.some((w) => w.owner)) remember(db, info.owner, info.ownerText, 5);
+    for (const w of tellers.filter((w) => !w.owner).slice(0, 5)) remember(db, w.id, `I saw Jef take ${info.what}.`, 5);
+    db.prepare("UPDATE deed SET quiet = 1 WHERE id = ?").run(deedId);
+  } else spreadSeen(db, deedId, tellers, info);
+  if (low) log(db, "caught_stealing", info.owner, `Jef was seen stealing ${info.what}; the town has had enough of him.`);
+  if (confronter) {
+    const list = confronts(db).filter((c) => c.npc !== confronter.w.id);
+    setConfronts(db, [...list, { deed: deedId, npc: confronter.w.id, owner: confronter.w.owner, at: gameMinute(db), low, stage: "open" }]);
+  }
+  const reactions: ReactionOut[] = [];
+  const add = (id: string, kind: Reaction, owner: boolean) => reactions.push({ who: id, name: npcName(db, id), kind, line: roleLine(db, id, kind, info, owner) });
+  if (confronter) add(confronter.w.id, "confront", confronter.w.owner);
+  // while one has it out with him the others watch how it goes (escalate sends the runner: town/confront.ts)
+  if (quiet) return { reactions, quiet, police: false, police_agent: null, low };
+  if (agent) add(agent, "police", false);
+  if (fetcher && !agent) add(fetcher.w.id, "fetch", fetcher.w.owner);
+  // one more who only shouts (the owner shouts first)
+  const shouter = roles.filter((x) => x.role === "shout" && !reactions.some((r) => r.who === x.w.id)).sort((a, b) => Number(b.w.owner) - Number(a.w.owner) || a.w.d - b.w.d)[0];
+  if (shouter && (!opts.windowSaw || !shouter.w.owner)) add(shouter.w.id, "shout", shouter.w.owner);
+  const police = !quiet && roles.some((x) => x.role !== "silent");
+  return { reactions, quiet, police, police_in: agent ? 0 : fetcher ? FETCH_MIN : undefined, police_agent: agent, low };
+}
+
+/** The deed is out: the owner and each witness remember it as a rumour, trust falls, the owner's people think less of him. */
+export function spreadSeen(db: DB, deedId: number, tellers: Witness[] | string[], info: SeenInfo): void {
+  const ids = tellers.map((w) => (typeof w === "string" ? w : w.id));
+  if (ids.includes(info.owner)) {
+    remember(db, info.owner, info.ownerText, 8, "seen", null, { gist: info.gist, tone: -2 });
+    applyTrust(db, info.owner, -2, 0);
+  }
+  for (const id of ids.filter((id) => id !== info.owner).slice(0, 5)) {
+    remember(db, id, `I saw Jef take ${info.what}.`, 6, "seen", null, { gist: info.gist, tone: -2 });
+    applyTrust(db, id, -1, 0);
+  }
+  const faction = (db.prepare("SELECT faction FROM npc WHERE id = ?").get(info.owner) as { faction: string | null } | undefined)?.faction;
+  if (faction) db.prepare("UPDATE faction_trust SET trust = MAX(-5, trust - 1) WHERE faction = ? AND player_id = ?").run(faction, pid());
+  db.prepare("UPDATE deed SET quiet = 0 WHERE id = ?").run(deedId);
+}
+
+/** M9: the ones who half saw it (a few), kept a short while: run now and they are sure (town/confront.ts noticed). */
+export function noteSuspects(db: DB, deedId: number, sus: Witness[]): Array<{ id: string; name: string }> {
+  const pick = sus.sort((a, b) => a.d - b.d).slice(0, 3);
+  if (!pick.length) return [];
+  const now = gameMinute(db);
+  const list = (pstate<Array<{ deed: number; ids: string[]; until: number }>>(db, "deed_suspects") ?? []).filter((s) => s.until > now);
+  setPstate(db, "deed_suspects", [...list, { deed: deedId, ids: pick.map((w) => w.id), until: now + SUSPECT_MIN }].slice(-4));
+  return pick.map((w) => ({ id: w.id, name: npcName(db, w.id) }));
+}
+
+/** M9: what the deed was, from its row (for a later witness, the confront, the police). */
+export function seenInfoOf(db: DB, d: DeedRow): SeenInfo {
+  const name = npcName(db, d.owner);
+  const s = stealables(db);
+  if (d.thing === "purse") {
+    return { owner: d.owner, noun: "purse", what: `${name}'s purse`, gist: `Jef picked ${name}'s pocket`, ownerText: `Jef put his hand in my pocket, bold as brass.` };
+  }
+  if (d.thing === "food") {
+    const where = s.food.find((f) => f.id === d.ref)?.where ?? `${name}'s stall`;
+    const food = FOOD_NAME[d.item] ?? d.item;
+    return { owner: d.owner, noun: d.item === "herring" ? "fish" : d.item, what: `${food} off ${where}`, gist: `Jef stole ${food} from ${where}`, ownerText: `Jef took ${food} off my table, in front of my eyes.` };
+  }
+  const noun = THINGS[d.thing]?.noun ?? d.thing;
+  const where = d.thing === "velocipede" ? (s.velos.find((v) => v.id === d.ref)?.where ?? "") : d.thing === "lantern" ? (s.lamps.find((l) => l.id === d.ref)?.where ?? "") : "";
+  return { owner: d.owner, noun, what: `${name}'s ${noun}${where ? ` ${where}` : ""}`, gist: `Jef stole ${name}'s ${noun}`, ownerText: `Jef took my ${noun}${where ? ` ${where.replace("his house", "my house")}` : ""}, in front of my eyes.` };
 }
 
 // ------------------------------------------------------------------ M7 boats: taking a boat
@@ -997,48 +1247,82 @@ function takeBoat(db: DB, req: DeedRequest, b: LooseBoat): DeedResult {
  * The thing goes back to its owner: Jef gave it when asked, or the owner caught
  * him and took it. Only an open deed; the thing must still be with Jef.
  */
-export function returnThing(db: DB, id: number, how: "gave" | "caught"): { text: string } {
+/**
+ * how: "gave" (asked for it back), "caught" (the owner took it off him), M9 "forgiven" (sorry was
+ * enough: no rumour, status forgiven), M9 "handed" (handed back while it goes to the police anyway: no
+ * memory here, town/confront.ts has them remember).
+ */
+export function returnThing(db: DB, id: number, how: "gave" | "caught" | "forgiven" | "handed"): { text: string } {
   const d = deedRow(db, id);
   // (M8c: only his own deed)
   if (!d || d.status !== "open" || (d.player_id ?? 1) !== pid()) throw new GameError("nothing to give back", 409);
   if (d.thing === "boat_lost" || d.thing === "boat_debt") throw new GameError("there is nothing to give back", 409);
   if (d.thing === "handcart" && !cartHooks.held(db, d)) throw new GameError("you have not got it any more", 409);
-  if (d.thing !== "velocipede" && d.thing !== "boat" && d.thing !== "handcart") {
+  if (d.thing !== "velocipede" && d.thing !== "boat" && d.thing !== "handcart" && d.thing !== "purse") {
     const has = db.prepare("SELECT 1 FROM item WHERE id = ? AND player_id = ?").get(d.item_id ?? -1, pid());
     if (!has) throw new GameError("you have not got it any more", 409);
   }
   const name = npcName(db, d.owner);
-  const noun = d.thing === "food" ? FOOD_NAME[d.item] : `the ${d.thing}`;
+  const noun = d.thing === "food" ? FOOD_NAME[d.item] : d.thing === "purse" ? "the money" : `the ${d.thing}`;
   const trustBack = db.transaction((): boolean => {
-    if (d.item_id !== null) db.prepare("DELETE FROM item WHERE id = ? AND player_id = ?").run(d.item_id, pid());
-    db.prepare("UPDATE deed SET status = 'returned', rumour_at = NULL WHERE id = ?").run(id);
-    log(db, "gave_back", d.ref, how === "gave" ? `Jef gave ${noun} back to ${name}.` : `${name} caught Jef and took ${noun} back.`);
+    undoTake(db, d);
+    db.prepare("UPDATE deed SET status = ?, rumour_at = NULL WHERE id = ?").run(how === "forgiven" ? "forgiven" : "returned", id);
+    log(db, "gave_back", d.ref, how === "caught" ? `${name} caught Jef and took ${noun} back.` : `Jef gave ${noun} back to ${name}.`);
     return how === "gave" && giveBackTrust(db, d);
   })();
-  if (d.thing === "velocipede") veloHome(db, d.ref);
-  if (d.thing === "boat") rowBoatHome(db, d.ref);
-  if (d.thing === "handcart") cartHooks.home(db, d.ref);
+  thingHome(db, d);
+  const mine = d.thing === "food" ? d.item : d.thing === "purse" ? "money" : d.thing;
   if (how === "gave") {
-    remember(db, d.owner, `Jef gave my ${d.thing === "food" ? d.item : d.thing} back when I asked. Still, he took it.`, 4, "seen", null, {
-      gist: `Jef took ${name}'s ${d.thing === "food" ? d.item : d.thing} and gave it back when asked`,
+    remember(db, d.owner, `Jef gave my ${mine} back when I asked. Still, he took it.`, 4, "seen", null, {
+      gist: `Jef took ${name}'s ${mine} and gave it back when asked`,
       tone: -1,
     });
     if (trustBack) applyTrust(db, d.owner, 1, 0);
-  } else {
-    remember(db, d.owner, `I caught Jef with my ${d.thing === "food" ? d.item : d.thing} and took it back off him.`, 6, "seen", null, {
-      gist: `Jef was caught with ${name}'s ${d.thing === "food" ? d.item : d.thing} and had to hand it back`,
+  } else if (how === "caught") {
+    remember(db, d.owner, `I caught Jef with my ${mine} and took it back off him.`, 6, "seen", null, {
+      gist: `Jef was caught with ${name}'s ${mine} and had to hand it back`,
       tone: -2,
     });
   }
   const first = firstName(db, d.owner);
   return {
     text:
-      how === "gave"
+      how !== "caught"
         ? `You hand ${noun} back. ${first} takes it without a word of thanks.`
         : d.thing === "velocipede"
           ? `${first} grabs the handlebars and pulls. You are off, and the velocipede is ${first}'s again.`
           : `${first} catches your sleeve and takes ${noun} back off you.`,
   };
+}
+
+/**
+ * M9: what he took leaves him (inside a transaction): the pocket item, the money of a picked pocket (as
+ * much as he still has), a lantern back on its spot, a lift off a table back on the table.
+ */
+/** M9: is this pocket item stolen (a deed not yet settled)? The Berg lends half on it (paper/pawn.ts). */
+export function stolenItem(db: DB, itemId: number): DeedRow | null {
+  if (!hasDeeds(db)) return null;
+  return (db.prepare("SELECT * FROM deed WHERE item_id = ? AND status = 'open'").get(itemId) as DeedRow | undefined) ?? null;
+}
+
+export function undoTake(db: DB, d: DeedRow): void {
+  if (d.item_id !== null) db.prepare("DELETE FROM item WHERE id = ? AND player_id = ?").run(d.item_id, d.player_id ?? pid());
+  if (d.thing === "purse" && (d.took_c ?? 0) > 0) db.prepare("UPDATE player SET money_c = MAX(0, money_c - ?) WHERE id = ?").run(d.took_c, d.player_id ?? pid());
+  if (d.thing === "lantern") setState(db, `lamps_taken:${d.day}`, lampsTaken(db, d.day).filter((r) => r !== d.ref));
+  if (d.thing === "food") {
+    const tt = tableTakes(db, d.day);
+    if (tt[d.ref]) {
+      tt[d.ref] = Math.max(0, tt[d.ref] - 1);
+      setState(db, `table_takes:${d.day}`, tt);
+    }
+  }
+}
+
+/** M9: a velocipede, boat or handcart back where it belongs (after undoTake, outside its transaction). */
+export function thingHome(db: DB, d: DeedRow): void {
+  if (d.thing === "velocipede") veloHome(db, d.ref);
+  if (d.thing === "boat") rowBoatHome(db, d.ref);
+  if (d.thing === "handcart") cartHooks.home(db, d.ref);
 }
 
 /**

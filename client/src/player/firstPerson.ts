@@ -113,6 +113,8 @@ export class FirstPerson {
   /** Feet height above the quay. */
   y = 0;
   crouching = false;
+  /** M9 theft: running now (Shift and moving): no pocket is picked at a run, and one who half saw a theft is sure. */
+  hurrying = false;
   private vy = 0;
   private grounded = true;
   private eye = EYE;
@@ -244,6 +246,7 @@ export class FirstPerson {
     this.crouching = k("KeyC") || k("ControlLeft");
     const hurry = (k("ShiftLeft") || k("ShiftRight")) && !this.crouching;
     const len = Math.hypot(fx, fz);
+    this.hurrying = hurry && len > 0;
     const speed = (hurry ? HURRY : WALK) * this.speedFactor * this.fatigue * (this.crouching ? 0.5 : 1);
 
     // jump and fall
@@ -329,6 +332,7 @@ export class FirstPerson {
     this.swimming = true;
     this.grounded = false;
     this.crouching = false;
+    this.hurrying = false;
     this.vy = Math.max(this.vy, -7); // the plunge, then you come up
     this.vel.multiplyScalar(0.3);
     // clear of the wall you fell from
@@ -492,6 +496,7 @@ export class FirstPerson {
     this.vy = 0;
     this.vel.set(0, 0);
     this.crouching = false;
+    this.hurrying = false;
     this.yaw = this.lookYaw = l.face;
     this.pitch = Math.max(-0.4, Math.min(0.6, this.pitch));
     this.climbLadderRung = this.y;
@@ -573,6 +578,7 @@ export class FirstPerson {
     this.swimming = false;
     this.climb = null;
     this.crouching = false;
+    this.hurrying = false;
     this.vel.set(0, 0);
     this.vy = 0;
     if (faceYaw !== undefined) this.yaw = this.lookYaw = faceYaw;
@@ -705,6 +711,7 @@ export class FirstPerson {
     this.y = this.world.groundAt(x, z, RADIUS, this.world.baseAt(x, z));
     this.yaw = this.lookYaw = heading;
     this.crouching = false;
+    this.hurrying = false;
     this.swimming = false;
     this.climb = null;
     this.vel.set(0, 0);
@@ -926,6 +933,7 @@ export class FirstPerson {
     this.swimming = false;
     this.climb = null;
     this.crouching = false;
+    this.hurrying = false;
     this.vel.set(0, 0);
     this.vy = 0;
   }
@@ -947,6 +955,7 @@ export class FirstPerson {
     this.climbThen = then;
     this.swimming = false;
     this.crouching = false;
+    this.hurrying = false;
     this.vel.set(0, 0);
     this.vy = 0;
   }

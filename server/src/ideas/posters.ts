@@ -224,7 +224,7 @@ export function wantedPlans(db: DB): PosterPlan[] {
   const { day } = now(db);
   const out: PosterPlan[] = [];
   if (hasDeeds(db)) {
-    const deeds = db.prepare("SELECT * FROM deed WHERE status = 'open' AND day >= ? ORDER BY id").all(day - 1) as Array<DeedRow & { player_id?: number }>;
+    const deeds = db.prepare("SELECT * FROM deed WHERE status = 'open' AND quiet = 0 AND day >= ? ORDER BY id").all(day - 1) as Array<DeedRow & { player_id?: number }>;
     for (const d of deeds) {
       const reward = WANTED_REWARD[d.thing];
       if (!reward || hasRef(db, `deed:${d.id}`)) continue;

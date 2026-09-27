@@ -251,6 +251,8 @@ export interface TalkLine {
   note?: string;
   /** M6: the seller's prices after a haggle (a price agreed today shows here). */
   wares?: Ware[];
+  /** M9 (Steve 2026-09-27: "if no AI, no custom answer possible"): false: the choices only, no typing. */
+  free?: boolean;
 }
 
 // ---- the town (M3e). The server made it; the client walks it by the game clock.

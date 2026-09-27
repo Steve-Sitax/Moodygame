@@ -1,14 +1,15 @@
 import { z } from "zod";
 import type { DB } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
+import { resolveRoute } from "../ai/router.ts";
 import { DAWN, DAY_NAMES, WEATHER_TEXT, clock, countNight, passTime, weather, type Ending } from "../day.ts";
 import { GameError, log, player } from "../game.ts";
 import { MOODS, gateText, markFreeLine } from "../hooks/dialogue.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
-import { applyTrust, remember } from "../npcs.ts";
+import { applyTrust, relationship, remember } from "../npcs.ts";
 import { asPlayer, pid } from "../player/current.ts";
 import { pstate, setPstate } from "../player/multi.ts";
-import { nameOf, storeText } from "../player/names.ts";
+import { nameOf } from "../player/names.ts";
 import { mpOn } from "../mp/settings.ts";
 import { cellHooks, cellRest, inCell } from "../rest.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
@@ -16,8 +17,10 @@ import { activityAt } from "./schedule.ts";
 import { resident, town } from "./store.ts";
 import { houseDoors } from "./walkmap.ts";
 import { canCall } from "./talk.ts";
-import { FOOD_NAME, THINGS, cartHooks, gameMinute, hasDeeds, npcName, openDeeds, seenNotices, stealables, veloHome, type DeedRow } from "./deeds.ts";
-import { rowBoatHome, rowBoatStates, rowBoats } from "../rowing.ts";
+import { FOOD_NAME, THINGS, cartHooks, gameMinute, hasDeeds, npcName, openDeeds, seenNotices, stealables, thingHome, undoTake, type DeedRow } from "./deeds.ts";
+import { theftTalkCount } from "./charisma.ts";
+import { gateStep } from "./prison.ts";
+import { rowBoatStates, rowBoats } from "../rowing.ts";
 import { STORY_RULES, StorySchema, evidenceOf, judgeStory, statementWords, storyNote, supportedClaims, type Statement, type StoryClaim, type StoryJudgement, type StoryRating } from "./story.ts";
 
 // The police (M3h). Engine first: after a deed someone saw, or when the town
@@ -42,7 +45,7 @@ export const FINE_MAX_C = 150;
 /** M6: "let_off" only after a believable true story in Jef's own words (story.ts); no mark on the record. */
 export type Verdict = "let_off" | "warning" | "fine" | "arrest";
 /** M8d: "tell" / "silent": a witness's answer (he tells what he saw of another player's theft, or says nothing). */
-export type Stance = "confess" | "deny" | "return" | "excuse" | "other" | "tell" | "silent";
+export type Stance = "confess" | "deny" | "return" | "excuse" | "other" | "tell" | "silent" | "refuse";
 
 export interface PoliceRecord {
   warnings: number;
@@ -74,6 +77,11 @@ export interface Visit {
   calls: number;
   /** Date.now() when a model call for Jef's answer began; cleared when it ends. */
   answering?: number;
+}
+
+/** Steve 2026-09-27: his own words only while an AI can read them (a model for the talk, and a call left). */
+function policeFree(db: DB, calls: number): boolean {
+  return resolveRoute("resident_police") !== null && canCall(db, { calls });
 }
 
 /** A mark older than this is from a request that died: the 20 s model bound, and room to spare. */
@@ -253,11 +261,19 @@ export function decide(input: { deeds: DeedFacts[]; record: PoliceRecord; fledNo
   points = Math.max(0, raw);
   const trueStory = !!story?.trueStory;
 
-  let verdict: Verdict = "warning";
-  if (points >= 8 || (input.fledNow > 0 && points >= 5) || (rec.fines >= 2 && points >= 4)) verdict = "arrest";
+  // M9 theft (Steve 2026-09-27: "if police, they issue a fine also"): a theft someone saw is at least a fine;
+  // only the town's talk alone may end in a warning. Several times before (fines and arrests), or he will
+  // not pay: the prison.
+  let verdict: Verdict = input.reason === "deed" ? "fine" : "warning";
+  const before = rec.fines + rec.arrests;
+  if (points >= 8 || (input.fledNow > 0 && points >= 5) || before >= 2) verdict = "arrest";
   else if (points >= 3 || (rec.warnings >= 1 && !trueStory) || rec.fines >= 1) verdict = "fine";
-  if (input.reason === "talk" && verdict === "arrest" && input.fledNow === 0 && rec.fines < 2) verdict = "fine"; // talk alone never jails a man
-  if (verdict === "warning" && trueStory && raw <= 0 && rec.fines === 0 && rec.arrests === 0 && rec.fled === 0 && input.fledNow === 0) {
+  if (input.stance === "refuse" && verdict !== "arrest") {
+    verdict = "arrest";
+    why.push("he will not pay");
+  }
+  if (input.reason === "talk" && verdict === "arrest" && input.fledNow === 0 && before < 2 && input.stance !== "refuse") verdict = "fine"; // talk alone never jails a man
+  if ((verdict === "warning" || (verdict === "fine" && points < 3)) && trueStory && raw <= 0 && rec.fines === 0 && rec.arrests === 0 && rec.fled === 0 && input.fledNow === 0) {
     verdict = "let_off";
     why.push("a true story, believed: let off");
   }
@@ -276,6 +292,7 @@ export function decide(input: { deeds: DeedFacts[]; record: PoliceRecord; fledNo
 /** Jef's own words -> how the engine takes them. The words never set the verdict, only this. */
 export function stanceOf(text: string): Stance {
   const t = text.toLowerCase();
+  if (/\b(won'?t pay|will not pay|not paying|refuse to pay|i refuse|not a centime|not a cent|pay nothing|never pay)\b/.test(t)) return "refuse";
   if (/\b(give it back|giving it back|return it|bring it back|put it back|hand it back|take it back)\b/.test(t)) return "return";
   if (/\b(sorry|i took|i did it|forgive|my fault|i confess|i admit|guilty|i stole|it was me)\b/.test(t)) return "confess";
   if (/\b(not me|wasn'?t me|didn'?t|never|a lie|liar|lying|innocent|no idea|don'?t know what)\b/.test(t)) return "deny";
@@ -292,10 +309,10 @@ export function stanceOf(text: string): Stance {
  * minutes. The one entry point for "call the police about this deed"; logged as
  * `police_called`.
  */
-export function policeRespond(db: DB, deedId: number): void {
+export function policeRespond(db: DB, deedId: number, opts: { delay?: number; agent?: string | null } = {}): void {
   const had = policeState(db).visit;
-  scheduleVisit(db, deedId);
-  if (!had || had.reason === "witness") log(db, "police_called", String(deedId), "Someone went for the police about a theft.");
+  scheduleVisit(db, deedId, opts.delay ?? VISIT_DELAY_MIN, opts.agent ?? null);
+  if (!had || had.reason === "witness") log(db, "police_called", String(deedId), opts.agent ? `${npcName(db, opts.agent)} of the police saw a theft himself.` : "Someone went for the police about a theft.");
 }
 
 /**
@@ -340,7 +357,7 @@ export function policeEvents(db: DB, sinceId = 0): Array<{ id: number; day: numb
     .all(sinceId, pid(), ...POLICE_VERBS) as Array<{ id: number; day: number; hour: number; verb: string; object: string | null; text: string }>;
 }
 
-export function scheduleVisit(db: DB, deedId: number): void {
+export function scheduleVisit(db: DB, deedId: number, delay = VISIT_DELAY_MIN, agent: string | null = null): void {
   const s = policeState(db);
   const now = gameMinute(db);
   // (M8d review 3: asked as a witness now, face to face: that talk runs to its answer; his own deed waits for it)
@@ -356,7 +373,16 @@ export function scheduleVisit(db: DB, deedId: number): void {
   if (s.visit) {
     if (!s.visit.deeds.includes(deedId)) s.visit.deeds.push(deedId);
     s.visit.reason = "deed";
-  } else s.visit = { id: s.nextId++, reason: "deed", deeds: [deedId], due: now + VISIT_DELAY_MIN, state: "due", agent: null, fled: 0, offered: {}, calls: 0 };
+    // M9: someone ran for an agent, or one saw it: he comes sooner than the one already due
+    if (s.visit.state === "due") s.visit.due = Math.min(s.visit.due, now + delay);
+  } else s.visit = { id: s.nextId++, reason: "deed", deeds: [deedId], due: now + delay, state: "due", agent: null, fled: 0, offered: {}, calls: 0 };
+  // M9: an agent who saw it himself comes at once (not one out on another player's case)
+  if (agent && s.visit.state === "due" && !agentsOnCases(db).has(agent)) {
+    s.visit.state = "coming";
+    s.visit.agent = agent;
+    s.visit.due = now;
+    log(db, "police_sent", agent, `${npcName(db, agent)} of the police saw it himself and came for Jef.`);
+  }
   save(db, s);
 }
 
@@ -412,15 +438,7 @@ function policeOnDuty(db: DB): Array<{ id: string; route: Array<[number, number]
 
 /** How many townspeople are talking about Jef's thieving (M8c: this player's; a guest's gists carry his name). */
 export function theftTalk(db: DB): number {
-  const like = ["Jef stole%", "Jef was about when%", "Jef was caught with%", "Jef ran from the police%", "Jef took % and gave it back%"].map((g) => storeText(db, g));
-  return (
-    db
-      .prepare(
-        `SELECT COUNT(DISTINCT npc_id) AS n FROM npc_memory WHERE tone < 0 AND gist IS NOT NULL AND COALESCE(about_player, 1) = ? AND
-         (gist LIKE ? OR gist LIKE ? OR gist LIKE ? OR gist LIKE ? OR gist LIKE ?)`,
-      )
-      .get(pid(), ...like) as { n: number }
-  ).n;
+  return theftTalkCount(db);
 }
 
 /** Every tick, for each player (M8c: pid()'s visit): start a visit from the talk, send an agent out when one is due. */
@@ -478,6 +496,8 @@ export function policeView(db: DB) {
     last: s.last,
     cell: !!s.cell,
     post: policePost(),
+    // M9: where he comes out of the prison (the path check)
+    prison: prisonGate(),
     // M8d: what he saw of other players' thefts ("You saw Anna take the lantern."), newest last; the client says each once
     seen: seenNotices(db),
     // M8d played together: held in the cell now (the night goes at the world's pace; the sheet comes at dawn)
@@ -528,6 +548,35 @@ export function policeFled(db: DB): { text: string; chase?: boolean } {
   return { text: `Behind you ${r?.first ?? "the agent"} shouts: "Stop! In the name of the law!" He will not forget your face.` };
 }
 
+/**
+ * M9 (Steve 2026-09-27: "we cannot get away if spoken to"): the agent had called out to him, or was talking
+ * with him, and he ran. More agents cut him off at the next corner: it is the prison, no talk. Before an
+ * agent speaks to him he may still slip away (policeFled). A witness who walks off is only let go.
+ */
+export function policeSeize(db: DB): { text: string; chase?: boolean; verdict?: LastVerdict; night?: CellNight } {
+  const s = policeState(db);
+  const v = s.visit;
+  if (!v || !v.agent || v.state === "due") throw new GameError("nobody is after you", 409);
+  if (v.reason === "witness") return policeFled(db);
+  const agent = v.agent;
+  v.state = "talking";
+  v.fled++;
+  s.record.fled++;
+  save(db, s);
+  remember(db, agent, "Jef ran when I spoke to him. We had him at the next corner.", 7, "seen", null, { gist: "Jef ran from the police", tone: -2 });
+  log(db, "fled_police", agent, `Jef ran from ${npcName(db, agent)} of the police after he was spoken to, and was taken.`);
+  const s1 = policeState(db);
+  const p = player(db);
+  const dec = decide({ deeds: visitDeeds(db, v).map(factsOf), record: s1.record, fledNow: v.fled, stance: "other", money_c: p.money_c, reason: caseOf(v) });
+  dec.verdict = "arrest";
+  dec.fine_c = dec.fine_if_c;
+  dec.why.push("ran after he was spoken to");
+  const first = resident(db, agent)?.first ?? "the agent";
+  const text = `Two more agents step out at the corner ahead. There is nowhere to go. ${first} takes you by the collar: "You were told to stay. Now it is the prison."`;
+  const out = applyVerdict(db, agent, v.id, dec, "other", text);
+  return { text, verdict: out.last, night: out.night };
+}
+
 // ------------------------------------------------------------------ the talk
 
 export const PoliceLineSchema = z.object({
@@ -544,6 +593,8 @@ export interface PublicLine {
   gated: string | null;
   /** M6: how his story went down, in words ("He seems to believe you"); never a number. */
   note?: string;
+  /** Steve 2026-09-27: his own words only while the AI can read them (false: the choices only). */
+  free?: boolean;
 }
 
 /**
@@ -574,6 +625,7 @@ function describeDeed(db: DB, d: DeedRow): string {
   // M3j: boats (rowing.ts): taken, taken and wrecked, or hired, lost and never paid for
   const boat = d.thing === "boat" || d.thing === "boat_lost" ? `${rowBoats(db).find((b) => b.id === d.ref)?.where ?? ""}${d.thing === "boat_lost" ? ", and wrecked it" : ""}` : d.thing === "boat_debt" ? "that Jef hired, lost and never paid for" : null;
   const where = boat ?? (d.thing === "food" ? s.food.find((f) => f.id === d.ref)?.where ?? `${owner}'s stall` : d.thing === "velocipede" ? s.velos.find((v) => v.id === d.ref)?.where ?? "" : s.lamps.find((l) => l.id === d.ref)?.where ?? "");
+  if (d.thing === "purse") return `money from ${owner}'s pocket`;
   const what = d.thing === "food" ? `${FOOD_NAME[d.item] ?? d.item} from ${where}` : `${owner}'s ${THINGS[d.thing]?.noun ?? d.thing} ${where}`;
   return what.trim();
 }
@@ -599,6 +651,8 @@ function stillHeld(db: DB, deeds: DeedRow[]): DeedRow[] {
     if (d.thing === "velocipede") return true;
     // M6: a household's handcart, while Jef still has it for this deed
     if (d.thing === "handcart") return cartHooks.held(db, d);
+    // M9: a picked pocket: the money (he has it while he has any), or what came out of it
+    if (d.thing === "purse") return (d.took_c ?? 0) > 0 || !!db.prepare("SELECT 1 FROM item WHERE id = ? AND player_id = ?").get(d.item_id ?? -1, pid());
     // a boat by where it really lies (QA 2026-09-24: "in your hands still" while it lay back at its
     // steps): his only while its state still carries this deed and it is not home, or he sits in it
     if (d.thing === "boat") {
@@ -637,6 +691,7 @@ export function policeOpen(db: DB, id: string): PublicLine {
       choices: Object.keys(offered),
       end: false,
       gated: null,
+      free: policeFree(db, v.calls),
     };
   }
   let ask: string;
@@ -656,9 +711,11 @@ export function policeOpen(db: DB, id: string): PublicLine {
   if (held.length) offered["I'll give it back. I only borrowed it."] = "return";
   else if (food) offered["I was hungry, sir. That's all it was."] = "excuse";
   else offered["I don't know what they told you."] = "other";
+  // M9: he may refuse outright (it is the prison)
+  if (v.reason !== "talk") offered["I won't pay you a centime."] = "refuse";
   v.offered = offered;
   save(db, s);
-  return { npc_line: `${who}. ${ask}`, mood: v.fled ? "angry" : "suspicious", choices: Object.keys(offered), end: false, gated: null };
+  return { npc_line: `${who}. ${ask}`, mood: v.fled ? "angry" : "suspicious", choices: Object.keys(offered), end: false, gated: null, free: policeFree(db, v.calls) };
 }
 
 /** Jef answers: a choice, or his own words (gated and fenced). Then the engine decides. */
@@ -679,6 +736,8 @@ export async function policeAnswer(db: DB, id: string, kind: "choice" | "free", 
     said = raw.slice(0, 120);
     stance = v.offered[said];
   } else {
+    // Steve 2026-09-27: "if no AI, no custom answer possible"
+    if (!policeFree(db, v.calls)) return { npc_line: "", mood: "suspicious", choices: Object.keys(v.offered), end: false, gated: "no_ai", free: false };
     const g0 = gateText(raw);
     const g = g0.ok && POLICE_BLOCK.some((re) => re.test(g0.text)) ? { ok: false as const, reason: "blocked" } : g0;
     if (!g.ok) {
@@ -719,6 +778,7 @@ function witnessAnswer(db: DB, id: string, kind: "choice" | "free", raw: string)
   let stance: Stance;
   if (kind === "choice" && Object.hasOwn(v.offered, raw.slice(0, 120))) stance = v.offered[raw.slice(0, 120)];
   else {
+    if (!policeFree(db, v.calls)) return { npc_line: "", mood: "neutral", choices: Object.keys(v.offered), end: false, gated: "no_ai", free: false };
     const g0 = gateText(raw);
     const g = g0.ok && POLICE_BLOCK.some((re) => re.test(g0.text)) ? { ok: false as const, reason: "blocked" } : g0;
     if (!g.ok) {
@@ -1002,17 +1062,22 @@ function applyVerdict(db: DB, agent: string, visit: number, dec: Decision, stanc
   const s = policeState(db);
   const v = s.visit!;
   const deeds = visitDeeds(db, v);
-  const p = player(db);
   const V = dec.verdict;
-  const paid = V === "warning" || V === "let_off" ? 0 : Math.min(dec.fine_c, p.money_c);
   const agentName = npcName(db, agent);
+  let paid = 0;
+  let goods = 0;
   db.transaction(() => {
-    if (paid) db.prepare("UPDATE player SET money_c = MAX(0, money_c - ?) WHERE id = ?").run(paid, pid());
-    // what he took goes back to its owners (let off too: the thing is not his)
+    // what he took goes back to its owners (let off too: the thing is not his; a picked pocket's money first)
     for (const d of deeds) {
-      if (d.item_id !== null) db.prepare("DELETE FROM item WHERE id = ? AND player_id = ?").run(d.item_id, pid());
-      db.prepare("UPDATE deed SET status = ?, rumour_at = NULL WHERE id = ?").run(V === "let_off" ? "let_off" : V === "warning" ? "warned" : V === "fine" ? "fined" : "arrested", d.id);
+      if (d.status === "open") undoTake(db, d);
+      else if (d.item_id !== null) db.prepare("DELETE FROM item WHERE id = ? AND player_id = ?").run(d.item_id, pid());
+      db.prepare("UPDATE deed SET status = ?, rumour_at = NULL, quiet = 0 WHERE id = ?").run(V === "let_off" ? "let_off" : V === "warning" ? "warned" : V === "fine" ? "fined" : "arrested", d.id);
     }
+    const money = (db.prepare("SELECT money_c FROM player WHERE id = ?").get(pid()) as { money_c: number }).money_c;
+    // M9 (Steve 2026-09-27): the prison takes all he has, money and goods; a fine is paid as far as it goes
+    paid = V === "arrest" ? money : V === "fine" ? Math.min(dec.fine_c, money) : 0;
+    if (paid) db.prepare("UPDATE player SET money_c = MAX(0, money_c - ?) WHERE id = ?").run(paid, pid());
+    if (V === "arrest") goods = Number(db.prepare("DELETE FROM item WHERE player_id = ? AND job_id IS NULL AND kind != 'pawn_ticket'").run(pid()).changes);
     log(
       db,
       V === "let_off" ? "police_let_off" : V === "warning" ? "police_warning" : V === "fine" ? "police_fine" : "arrested",
@@ -1023,12 +1088,10 @@ function applyVerdict(db: DB, agent: string, visit: number, dec: Decision, stanc
           ? `${agentName} of the police warned Jef about theft.`
           : V === "fine"
             ? `${agentName} of the police fined Jef ${paid} centimes for theft.`
-            : `${agentName} of the police arrested Jef for theft${paid ? ` and took ${paid} centimes` : ""}.`,
+            : `${agentName} of the police arrested Jef for theft${paid ? ` and took ${paid} centimes` : ""}${goods ? " and all he carried" : ""}.`,
     );
   })();
-  for (const d of deeds) if (d.thing === "velocipede") veloHome(db, d.ref);
-  for (const d of deeds) if (d.thing === "boat") rowBoatHome(db, d.ref);
-  for (const d of deeds) if (d.thing === "handcart") cartHooks.home(db, d.ref);
+  for (const d of deeds) thingHome(db, d);
   if (V === "warning") s.record.warnings++;
   if (V === "fine") s.record.fines++;
   if (V === "arrest") s.record.arrests++;
@@ -1047,7 +1110,8 @@ function applyVerdict(db: DB, agent: string, visit: number, dec: Decision, stanc
   s.visit = null;
   save(db, s);
   if (dec.verdict !== "arrest") return { last };
-  const night = cellNight(db, paid);
+  townHears(db, agent);
+  const night = cellNight(db, paid, goods);
   // (M8d played together: he sits the night out at the world's pace; the sheet comes when the door opens: cellHooks)
   if (night.pending) return { last, night };
   const s2 = policeState(db);
@@ -1061,10 +1125,10 @@ function applyVerdict(db: DB, agent: string, visit: number, dec: Decision, stanc
  * the date turns at midnight on the way, with the night's other work). The job in hand is lost, the
  * needs as on a plank bed, and the morning starts at the post. The week may end in the cell.
  */
-export function cellNight(db: DB, paid: number): CellNight {
+export function cellNight(db: DB, paid: number, goods = 0): CellNight {
   const c = clock(db);
-  const summary = [`${DAY_NAMES[(c.day - 1) % 7]} ends in the cell of ${policePost().label}.`];
-  if (paid) summary.push(`The agent took ${paid} centimes for the fine.`);
+  const summary = [`${DAY_NAMES[(c.day - 1) % 7]} ends behind the gate of ${PRISON_LABEL}.`];
+  if (paid || goods) summary.push(`At the gate they empty your pockets: ${[paid ? `${paid} centimes` : "", goods ? `${goods === 1 ? "the one thing" : goods === 2 ? "both things" : `all ${goods} things`} you carried` : ""].filter(Boolean).join(" and ")}. All of it goes for the fine.`);
   db.transaction(() => {
     const open = db.prepare("SELECT id, title, employer_npc FROM job WHERE status = 'taken' AND COALESCE(taken_by, 1) = ?").all(pid()) as Array<{ id: number; title: string; employer_npc: string }>;
     for (const j of open) {
@@ -1078,8 +1142,8 @@ export function cellNight(db: DB, paid: number): CellNight {
     }
     if (open.length) summary.push(`Your job is lost: "${open[0].title}". Nobody pays a man in a cell.`);
     db.prepare("UPDATE player SET sleep = MAX(sleep, 6), food = MAX(0, food - 2), warmth = MAX(0, warmth - 2) WHERE id = ?").run(pid());
-    summary.push("A plank bed, a bucket, a barred window onto the square. A drunk sings in the next cell until the bells ring three.");
-    log(db, "cell", null, "Jef spent the night in the cell at the police post.");
+    summary.push("A plank bed, a bucket, a barred window onto the yard. A drunk sings in the next cell until the bells ring three.");
+    log(db, "cell", null, "Jef spent the night in the prison in the Begijnenstraat.");
     countNight(db);
   })();
   // held until the next 6:00; the night's other work goes on without him at midnight (the rent owed on
@@ -1089,17 +1153,40 @@ export function cellNight(db: DB, paid: number): CellNight {
   if (mpOn()) {
     // M8d played together: the clock is everyone's; he sits it out at the world's pace, like a sleep (rest.ts
     // cellRest), while the others play on; the sheet of the night comes when the door is unlocked
-    const post = policePost();
+    const post = prisonGate();
     cellRest(db, pid(), until, { x: post.x, z: post.z, yaw: post.yaw }, summary);
     return { summary, day: c.day, post, pending: true };
   }
   const passed = passTime(db, until);
   summary.push(...passed.lines);
-  const post = policePost();
+  const post = prisonGate();
   const w = clock(db);
   if (passed.ended) return { summary, day: w.day, ended: passed.ended, post };
-  summary.push("At dawn the door is unlocked. \"Out. And keep your hands to yourself.\"");
+  summary.push("At dawn the warder unlocks the gate. \"Out. And keep your hands to yourself.\"");
   return { summary, day: w.day, post, turned: passed.turned };
+}
+
+/** M9: where a man comes out in the morning (Steve 2026-09-27: "spawn us to prison"): the step before the prison gate. */
+export const PRISON_LABEL = "the prison in the Begijnenstraat";
+export function prisonGate(): PolicePost {
+  const [x, z] = gateStep();
+  const post = policePost();
+  // facing the town (towards the police post by the town hall); the step itself is open ground
+  return { x, z, yaw: Math.atan2(post.x - x, post.z - z), door: [x, z], label: PRISON_LABEL };
+}
+
+/** M9 (Steve 2026-09-27: "we are talked about, people have less trust for us"): the town hears he went to prison. */
+export const PRISON_TELLS = 10;
+function townHears(db: DB, agent: string): void {
+  const known = (db.prepare("SELECT npc_id FROM npc_relationship WHERE player_id = ? AND npc_id != ? ORDER BY times_met DESC LIMIT ?").all(pid(), agent, PRISON_TELLS) as Array<{ npc_id: string }>).map((r) => r.npc_id);
+  // and some of the town who did not know him yet: news of the prison travels
+  const more = (db.prepare("SELECT id FROM npc WHERE id != ? ORDER BY RANDOM() LIMIT ?").all(agent, PRISON_TELLS) as Array<{ id: string }>).map((r) => r.id);
+  for (const id of [...new Set([...known.slice(0, PRISON_TELLS / 2), ...more, ...known])].slice(0, PRISON_TELLS)) {
+    remember(db, id, "They say Jef was taken to the prison in the Begijnenstraat for thieving.", 5, "heard", agent, { gist: "Jef was taken to the prison for thieving", tone: -2 });
+    relationship(db, id);
+    applyTrust(db, id, -1, 0);
+  }
+  db.prepare("UPDATE faction_trust SET trust = MAX(-5, trust - 1) WHERE player_id = ?").run(pid());
 }
 
 /** M8d played together: the door is unlocked (rest.ts endCell, as the player): the sheet of the night, kept till he is out. */

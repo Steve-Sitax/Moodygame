@@ -30,7 +30,7 @@ import {
   policeArrived,
   policeFled,
   policeOpen,
-  policePost,
+  prisonGate,
   policeState,
   policeTick,
   policeView,
@@ -60,9 +60,21 @@ function fresh(hour = 10, db: DB = openDb(":memory:")): DB {
   return db;
 }
 
-/** A food spot on a fish stall and its keeper. */
-function fishStall(db: DB) {
+/** Set a resident's stats (the town's cache and the save). */
+const setStats = (db: DB, id: string, stats: Record<string, number>) => {
+  const r = town(db).byId.get(id)!;
+  Object.assign(r.stats, stats);
+  const json = Object.entries(stats).flatMap(([k, v]) => [`$.stats.${k}`, v]);
+  db.prepare(`UPDATE resident SET data_json = json_set(data_json, ${Object.keys(stats).map(() => "?, ?").join(", ")}) WHERE id = ?`).run(...json, id);
+};
+
+/**
+ * A food spot on a fish stall and its keeper. M9: the keeper is no fighter (courage 3, honest): she runs
+ * for the police rather than have it out with Jef (town/confront.ts has its own tests for that).
+ */
+function fishStall(db: DB, stats: Record<string, number> = { courage: 3, honesty: 6 }) {
   const f = stealables(db).food.find((f) => f.item === "herring")!;
+  setStats(db, f.keeper, stats);
   return { f, keeper: resident(db, f.keeper)! };
 }
 
@@ -237,7 +249,8 @@ describe("deeds", () => {
     const r = takeThing(db, { ref: f.id, x: f.x, z: f.z + 1.3, witnesses: [] }, () => rolls.shift() ?? 0.99);
     expect(r.seen).toBe(false);
     expect(r.police).toBe(false);
-    expect(r.text).toMatch(/Nobody saw/);
+    // (M9: the keeper right there half saw it: she looks his way; walk, don't run)
+    expect(r.text).toMatch(/Nobody saw|looks your way/);
     expect(topMemories(db, keeper.id)[0].text).toMatch(/Somebody lifted/);
     expect(rumoursOf(db, keeper.id)).toHaveLength(0);
     const d = deedRow(db, r.deed!)!;
@@ -323,8 +336,15 @@ describe("police rules", () => {
   const go = (deeds: DeedFacts[], o: Partial<Parameters<typeof decide>[0]> = {}) =>
     decide({ deeds, record: rec(), fledNow: 0, stance: "other", money_c: 500, reason: "deed", ...o });
 
-  it("a first small theft owned up to is a warning", () => {
-    expect(go([deed({ owner_saw: true })], { stance: "confess" })).toMatchObject({ verdict: "warning", fine_c: 0 });
+  it("M9: a first small theft owned up to is still a fine (the police always fine a theft someone saw); talk alone may be a warning", () => {
+    expect(go([deed({ owner_saw: true })], { stance: "confess" })).toMatchObject({ verdict: "fine", fine_c: 10 });
+    expect(go([deed({ seen: false })], { stance: "confess", reason: "talk" })).toMatchObject({ verdict: "warning", fine_c: 0 });
+  });
+  it("M9: he will not pay: the prison; several times before (fines and arrests): the prison", () => {
+    expect(go([deed()], { stance: "refuse" }).verdict).toBe("arrest");
+    expect(go([deed()], { record: rec({ fines: 1, arrests: 1 }) }).verdict).toBe("arrest");
+    expect(go([deed()], { record: rec({ fines: 1 }) }).verdict).toBe("fine");
+    expect(stanceOf("I won't pay you a centime.")).toBe("refuse");
   });
   it("lying against good witnesses costs a fine", () => {
     expect(go([deed({ owner_saw: true })], { stance: "deny" })).toMatchObject({ verdict: "fine", fine_c: 10 });
@@ -351,7 +371,7 @@ describe("police rules", () => {
     expect(go([deed({ thing: "velocipede", owner_saw: true })], { money_c: 20 }).verdict).toBe("arrest");
   });
   it("given back halves it; talk alone never jails a man who did not run", () => {
-    expect(go([deed({ thing: "lantern", returned: true })]).verdict).toBe("warning");
+    expect(go([deed({ thing: "lantern", returned: true })])).toMatchObject({ verdict: "fine", fine_c: 15 });
     const t = go([deed({ thing: "velocipede", seen: false }), deed({ thing: "velocipede", seen: false }), deed({ thing: "lantern", seen: false })], { reason: "talk", record: rec({ warnings: 1, fines: 1 }) });
     expect(t.verdict).toBe("fine");
   });
@@ -381,23 +401,26 @@ describe("police visits and talk", () => {
     expect(resident(db, agent)!.trade).toBe("police");
     const open = policeOpen(db, agent);
     expect(open.npc_line).toMatch(/police/);
-    expect(open.choices).toHaveLength(3);
+    // (M9: a fourth choice: refuse to pay)
+    expect(open.choices).toHaveLength(4);
     expect(open.choices).toContain("I'll give it back. I only borrowed it.");
+    expect(open.choices).toContain("I won't pay you a centime.");
     let calls = 0;
     const out = await policeAnswer(db, agent, "choice", "Yes. I took it. I'm sorry.", async () => {
       calls++;
-      return { output: { npc_line: "Owned up like a man. A warning, then. Keep your hands to yourself.", mood: "neutral" } };
+      return { output: { npc_line: "Owned up like a man. Still, that's 10 centimes. Keep your hands to yourself.", mood: "neutral" } };
     });
     expect(calls).toBe(1);
-    expect(out.verdict?.verdict).toBe("warning");
+    // M9: a theft someone saw is at least a fine
+    expect(out.verdict?.verdict).toBe("fine");
     expect(out.end).toBe(true);
-    expect(out.npc_line).toMatch(/warning/);
-    expect(money(db)).toBe(50);
+    expect(out.npc_line).toMatch(/10 centimes/);
+    expect(money(db)).toBe(40);
     expect(pockets(db).find((p) => p.kind === "herring")).toBeUndefined();
-    expect(deedRow(db, r.deed!)!.status).toBe("warned");
-    expect(policeState(db).record.warnings).toBe(1);
+    expect(deedRow(db, r.deed!)!.status).toBe("fined");
+    expect(policeState(db).record.fines).toBe(1);
     expect(policeState(db).visit).toBeNull();
-    expect(rumoursOf(db, agent)[0].gist).toMatch(/warned by the police/);
+    expect(rumoursOf(db, agent)[0].gist).toMatch(/fined by the police/);
   });
 
   it("the model's words never change the sum: a wrong number falls back to the engine line", async () => {
@@ -437,13 +460,16 @@ describe("police visits and talk", () => {
     const p = db.prepare("SELECT day, hour, money_c FROM player").get() as { day: number; hour: number; money_c: number };
     expect(p.day).toBe(2);
     expect(p.hour).toBe(6);
-    expect(p.money_c).toBe(50 - out.verdict!.paid_c);
+    // M9: the prison takes all he has
+    expect(out.verdict!.paid_c).toBe(50);
+    expect(p.money_c).toBe(0);
     expect((db.prepare("SELECT status FROM job").get() as { status: string }).status).toBe("failed");
     expect(pockets(db).find((i) => i.kind === "lantern")).toBeUndefined();
     expect(cellNightView(db)).toBeTruthy(); // shown again after a reload, until Jef walks out
     const night = takeCellNight(db)!;
-    expect(night.summary.join(" ")).toMatch(/cell/);
-    expect(night.post).toEqual(policePost());
+    expect(night.summary.join(" ")).toMatch(/prison in the Begijnenstraat/);
+    // M9: he comes out at the prison gate
+    expect(night.post).toEqual(prisonGate());
     expect(walkMap().reachable(night.post.x, night.post.z)).toBe(true);
     expect(takeCellNight(db)).toBeNull();
     expect(policeState(db).record.arrests).toBe(1);
@@ -508,7 +534,8 @@ describe("hostile lines at the police talk", () => {
       // the engine's verdict for the stance its own regex read, and the money by that alone
       const expected = decide({ deeds: [{ thing: "food", seen: true, owner_saw: true, witnesses: 1, returned: false }], record: { warnings: 0, fines: 0, arrests: 0, fled: 0 }, fledNow: 0, stance: stanceOf(hostile), money_c: before, reason: "deed" });
       expect(out.verdict?.verdict).toBe(expected.verdict);
-      expect(money(db)).toBe(before - (expected.verdict === "warning" ? 0 : expected.fine_c));
+      // (M9: the prison takes all he has)
+      expect(money(db)).toBe(expected.verdict === "arrest" ? 0 : before - (expected.verdict === "warning" || expected.verdict === "let_off" ? 0 : expected.fine_c));
       // the model named a sum the engine did not: its words are thrown away
       expect(out.npc_line).not.toMatch(/99999/);
     }

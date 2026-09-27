@@ -54,6 +54,9 @@ export const ITEMS: Record<string, ItemDef> = {
   letter: { name: "a letter", use: "read", note: "Folded and sealed with a blob of wax." },
   letters: { name: "a bundle of letters", note: "Tied with string. Each goes to its own door." },
   pawn_ticket: { name: "a pawn ticket", use: "read", note: "Printed card from the Berg van Barmhartigheid. Keep it safe." },
+  // M9 theft: what comes out of a picked pocket (town/pickpocket.ts)
+  pocket_watch: { name: "a silver pocket watch", note: "Not yours. Somebody's initials on the lid." },
+  handkerchief: { name: "a linen handkerchief", note: "Good linen, a stranger's initials stitched in the corner." },
   medal: { name: "your mother's silver medal", note: "Our Lady, on a worn blue ribbon. She pressed it into your hand the day you left." },
   // M6 transport: the velocipede maker's machines (town/bikeshop.ts); they stand at his door, never in a pocket
   velocipede_new: { name: "a new velocipede", note: "Iron backbone, oak wheels with iron tyres, a leather saddle. Yours." },

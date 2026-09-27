@@ -33,7 +33,7 @@ export const CLAUDE_PROVIDERS: ReadonlySet<ProviderId> = new Set(["claude_local"
 
 /** Hook -> kind. A hook in no kind uses the default choice (a test checks every hook in the source is here). */
 export const KIND_HOOKS: Record<KindId, readonly string[]> = {
-  talk: ["dialogue", "free_reply", "resident_talk", "resident_talkdown", "resident_haggle", "resident_police", "resident_fortune", "confession", "clerk", "home_remark", "hands_lines", "tavern_dice"],
+  talk: ["dialogue", "free_reply", "resident_talk", "resident_talkdown", "resident_haggle", "resident_police", "resident_confront", "resident_fortune", "confession", "clerk", "home_remark", "hands_lines", "tavern_dice"],
   director: ["director_think", "stranger_arrive", "dream", "epilogue"],
   jobs: ["job_board", "night_board", "job_outcome", "trouble"],
   press: ["newspaper", "poster", "letter", "letter_reply", "diary"],

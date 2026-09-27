@@ -45,15 +45,34 @@ interface DeedsWorld {
   lamps: Lamp[];
   food: Food[];
 }
+/** M9: what one witness does: confront (walks up to have it out), fetch (runs for an agent), shout, police (an agent saw it). */
+type ReactionKind = "shout" | "chase" | "ask" | "confront" | "fetch" | "police";
+interface Reaction {
+  who: string;
+  name: string;
+  kind: ReactionKind;
+  line: string;
+}
 interface DeedReply extends JobsPayload {
   deed: number | null;
-  again: boolean;
-  seen: boolean;
-  owner_saw: boolean;
-  seen_by: Array<{ id: string; name: string }>;
-  owner: { id: string; name: string };
-  reaction: { who: string; name: string; kind: "shout" | "chase" | "ask"; line: string } | null;
+  again?: boolean;
+  seen?: boolean;
+  owner_saw?: boolean;
+  seen_by?: Array<{ id: string; name: string }>;
+  owner?: { id: string; name: string };
+  reaction: Reaction | null;
+  /** M9: everyone who does something about it. */
+  reactions?: Reaction[];
+  /** M9: who half saw it: run while they look and they are sure. */
+  suspects?: Array<{ id: string; name: string }>;
   text: string;
+}
+interface PickReply extends DeedReply {
+  felt: boolean;
+  took_c: number;
+  item: string | null;
+  /** Real seconds until the mark finds his pocket light. */
+  discover_s: number | null;
 }
 interface PoliceView {
   visit: { id: number; agent: string; name: string; state: "coming" | "talking"; reason: string } | null;
@@ -64,6 +83,14 @@ interface PoliceView {
   seen?: Array<{ n: number; deed: number; text: string }>;
   /** M8d played together: held in the cell now (the sleep screen shows it; the sheet comes at dawn). */
   held?: boolean;
+  /** M9: where he comes out of the prison. */
+  prison?: { x: number; z: number; yaw: number; label: string };
+  /** M9: who saw him steal and could point him out (faces stick). */
+  watchers?: string[];
+  /** M9: who has it out with him now (after a reload they come again). */
+  confronts?: Array<{ npc: string; deed: number }>;
+  /** M9: his good name in words. */
+  name?: string;
 }
 interface CellNight {
   summary: string[];
@@ -85,6 +112,8 @@ async function net<T>(method: string, url: string, body?: unknown): Promise<T> {
 }
 
 const WITNESS_R = 45;
+/** M9: how close he walks up to pick a pocket (m; the server allows a little more). */
+const PICK_REACH = 1.5;
 const BIKE_SAY: Record<BikeEvent, string> = {
   wobble: "The front wheel bucks under you. You wobble and pull it straight.",
   fall: "The wheel catches and throws you. You land on the stones with the velocipede on top of you.",
@@ -93,16 +122,25 @@ const BIKE_SAY: Record<BikeEvent, string> = {
   bump: "You ride straight into it. The iron rings and your teeth rattle.",
 };
 
-/** Someone after Jef: an owner (chase or ask), or the police agent. */
+/**
+ * Someone after Jef: an owner (chase or ask: M7 boats), the police agent, or (M9) one who comes to have
+ * it out with him (confront) or runs for an agent (fetch).
+ */
 interface Pursuer {
   id: string;
   name: string;
   p: Puppet;
-  kind: "chase" | "ask" | "police" | "police_chase";
+  kind: "chase" | "ask" | "police" | "police_chase" | "confront" | "fetch";
   deed: number | null;
   t: number;
   goT: number;
   called?: boolean;
+  /** M9 confront: the talk window was opened with them. */
+  opened?: boolean;
+  /** M9 fetch: where they run to (an agent in the street, or away out of sight). */
+  to?: { x: number; z: number };
+  /** M9 confront: this far off, he got away from them (they started some way off). Police: 6 m more than where the agent called out. */
+  far?: number;
 }
 
 export class Deeds {
@@ -118,6 +156,15 @@ export class Deeds {
   /** M8d: the last witness notice said (-1: none heard yet; the first poll after a load says none of the old ones). */
   private lastSeen = -1;
   private talking: string | null = null;
+  /** M9: confronts settled in the talk (forgiven, bribed, police), by who. */
+  private confrontDone = new Map<string, string>();
+  /** M9: who half saw his last deed, and until when they look (performance.now()). */
+  private suspects: { deed: number; ids: string[]; until: number } | null = null;
+  /** M9: a picked pocket its mark will find light, and when. */
+  private discovers: Array<{ deed: number; id: string; at: number }> = [];
+  /** M9: faces stick: when each watcher was last looked at (performance.now()). */
+  private recogAsked = new Map<string, number>();
+  private recogT = 0;
   /** The agent's talk closed before he had his answer: where Jef was then. */
   private walkedOff: { agent: string; x: number; z: number; t: number } | null = null;
   private sheet: HTMLDivElement;
@@ -166,6 +213,18 @@ export class Deeds {
       close(id);
       this.talking = null;
       void this.afterTalk(id);
+    };
+    // M9: how a confront ended (the server's reply to his answer): the pockets, the things back, a runner for the police
+    const reply = jobs.talk.onReply;
+    jobs.talk.onReply = (id, r) => {
+      reply(id, r);
+      const c = (r as { confront?: { deed: number; outcome: string } }).confront;
+      if (!c || !["forgiven", "bribed", "police"].includes(c.outcome)) return;
+      this.confrontDone.set(id, c.outcome);
+      if ((r as Partial<JobsPayload>).player) this.jobs.refresh(r as unknown as JobsPayload);
+      if (this.velos.ridden) void this.checkRiding();
+      this.onBack?.();
+      void this.load();
     };
     window.addEventListener("keydown", (e) => this.onKey(e));
     this.sheet = document.createElement("div");
@@ -237,7 +296,126 @@ export class Deeds {
       const f = food.it;
       extra.push({ key: "KeyG", text: `take ${f.name}`, run: () => void this.take(f.id), at: food.at });
     }
+    // M9: walk (not run) up to someone in the street: G picks their pocket (the one Jef looks at)
+    else if (!this.player.hurrying && !this.jobs.talk.isOpen) {
+      const mark = pick(
+        this.town.inStreet(x, z, PICK_REACH).filter((r) => !this.pursuers.has(r.id)),
+        (r) => ({ d: Math.hypot(r.x - x, r.z - z), at: { x: r.x, y: this.world.groundAt(r.x, r.z, 0.1, this.player.y) + 1.0, z: r.z } }),
+      );
+      const who = mark ? this.town.info(mark.it.id) : null;
+      if (mark && who) extra.push({ key: "KeyG", text: `pick ${who.first}'s pocket`, run: () => void this.pickPocket(mark.it.id), at: mark.at });
+    }
     return { options, extra };
+  }
+
+  // ------------------------------------------------------------------ M9: picking a pocket
+
+  private async pickPocket(id: string): Promise<void> {
+    if (this.busy) return;
+    const { x, z } = this.player;
+    const t = this.town.inStreet(x, z, PICK_REACH + 0.5).find((r) => r.id === id);
+    if (!t) return;
+    if (this.player.hurrying) return this.jobs.say("Not at a run. Walk up to them, easy.");
+    this.busy = true;
+    try {
+      const d = Math.hypot(t.x - x, t.z - z);
+      const facing = d > 0.05 ? (Math.sin(t.yaw) * (x - t.x) + Math.cos(t.yaw) * (z - t.z)) / d : 1;
+      const r = await net<PickReply>("POST", "/api/pickpocket", {
+        id,
+        x: +x.toFixed(2),
+        z: +z.toFixed(2),
+        d: +d.toFixed(2),
+        facing: +facing.toFixed(2),
+        witnesses: this.witnesses(x, z).filter((w) => w.id !== id),
+        crouch: this.player.crouching,
+        lantern: this.lantern.lit,
+        hurry: this.player.hurrying,
+        crowd: Math.max(0, this.town.inStreet(t.x, t.z, 5).length - 1),
+        busy: false,
+      });
+      this.jobs.refresh(r);
+      this.jobs.say(r.text);
+      if (r.took_c) this.sfx("coins", new THREE.Vector3(x, 1.2, z));
+      if (r.reactions?.length || r.reaction) this.react(r);
+      if (r.suspects?.length) this.watchSuspects(r.deed!, r.suspects);
+      if (r.discover_s && r.deed !== null) this.discovers.push({ deed: r.deed, id, at: performance.now() + r.discover_s * 1000 });
+    } catch (e) {
+      this.jobs.say(`${(e as Error).message[0].toUpperCase()}${(e as Error).message.slice(1)}.`);
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  /** The mark finds his pocket light: if he makes Jef out near, he knows (the server decides). */
+  private async discover(p: { deed: number; id: string }): Promise<void> {
+    const at = this.town.position(p.id);
+    const { x, z } = this.player;
+    const d = at && at.shown ? Math.hypot(at.x - x, at.z - z) : 99;
+    try {
+      const r = await net<DeedReply & { hit: boolean }>("POST", `/api/pocket/${p.deed}/discover`, { d: +d.toFixed(2), los: at ? this.los(at.x, at.z, x, z) : false, x: +x.toFixed(2), z: +z.toFixed(2) });
+      if (r.text && d < 20) this.jobs.say(r.text);
+      if (r.hit) {
+        this.jobs.refresh(r);
+        this.react({ ...r, deed: p.deed });
+      }
+    } catch {
+      // the server did not answer: he never noticed
+    }
+  }
+
+  // ------------------------------------------------------------------ M9: half seen; faces that stick
+
+  /** Those who half saw it look his way; run while they do, and they are sure. */
+  private watchSuspects(deed: number, list: Array<{ id: string; name: string }>): void {
+    this.suspects = { deed, ids: list.map((s) => s.id), until: performance.now() + 18_000 };
+    for (const s of list) this.town.gesture(s.id, this.player.x, this.player.z, 5);
+  }
+
+  private async noticed(deed: number, who: string): Promise<void> {
+    try {
+      const r = await net<DeedReply & { hit: boolean }>("POST", `/api/deed/${deed}/noticed`, { who });
+      if (!r.hit) return;
+      this.jobs.refresh(r);
+      this.jobs.say(r.text);
+      this.react({ ...r, deed });
+    } catch {
+      // nothing came of it
+    }
+  }
+
+  /** Every couple of seconds: a watcher near, in the street, who may point him out. */
+  private faces(): void {
+    const w = new Set(this.police?.watchers ?? []);
+    if (!w.size || this.jobs.talk.isOpen || this.cell) return;
+    const { x, z } = this.player;
+    const now = performance.now();
+    for (const r of this.town.inStreet(x, z, 8)) {
+      if (!w.has(r.id) || this.pursuers.has(r.id) || now - (this.recogAsked.get(r.id) ?? -1e9) < 90_000) continue;
+      this.recogAsked.set(r.id, now);
+      const d = Math.hypot(r.x - x, r.z - z);
+      const facing = d > 0.05 ? (Math.sin(r.yaw) * (x - r.x) + Math.cos(r.yaw) * (z - r.z)) / d : 1;
+      void net<{ hit: boolean; text?: string }>("POST", "/api/deed/recognise", { id: r.id, d: +d.toFixed(2), los: this.los(r.x, r.z, x, z), facing: +facing.toFixed(2), x: +x.toFixed(2), z: +z.toFixed(2) })
+        .then((res) => {
+          if (!res.hit) return;
+          this.jobs.say(res.text ?? "");
+          this.sfx("bell", new THREE.Vector3(x, 1.6, z));
+          this.town.gesture(r.id, this.player.x, this.player.z, 6);
+        })
+        .catch(() => {});
+      break; // one a time
+    }
+  }
+
+  /** Is the velocipede he sits on still his (a confront may have sent it home)? */
+  private async checkRiding(): Promise<void> {
+    const id = this.velos.ridden?.info.id;
+    if (!id) return;
+    const w = await net<Partial<DeedsWorld> | null>("GET", "/api/deeds/world").catch(() => null);
+    const v = w?.velos?.find((q) => q.id === id);
+    if (v && !v.ridden) {
+      this.velos.forget();
+      this.jobs.say("You get off. The velocipede goes back where it belongs.");
+    }
   }
 
   private onKey(e: KeyboardEvent): void {
@@ -308,13 +486,14 @@ export class Deeds {
         else this.jobs.say("You get back on. W pedal, S brake, E get off.");
       } else if (ref.startsWith("cart:")) {
         // M6 handcart: a household's cart; game/handcart.ts puts Jef's hands on the shafts
-        this.onCart?.(ref, r.again);
+        this.onCart?.(ref, !!r.again);
         if (r.text) this.jobs.say(r.text);
       } else {
         if (ref.startsWith("lamp:")) this.lantern.removeStanding(ref);
         this.jobs.say(r.text);
       }
-      if (r.reaction) this.react(r);
+      if (r.reaction || r.reactions?.length) this.react(r);
+      if (r.suspects?.length && r.deed !== null) this.watchSuspects(r.deed, r.suspects);
     } catch (e) {
       this.jobs.say(`${(e as Error).message[0].toUpperCase()}${(e as Error).message.slice(1)}.`);
     } finally {
@@ -324,18 +503,84 @@ export class Deeds {
 
   /** The owner (or a witness) answers the theft, as the server said. M7 boats: game/rowing.ts calls it for a boat's owner. */
   react(r: DeedReply): void {
-    const rc = r.reaction!;
+    const list = r.reactions?.length ? r.reactions : r.reaction ? [r.reaction] : [];
+    if (!list.length) return;
     this.sfx("bell", new THREE.Vector3(this.player.x, 1.6, this.player.z));
+    // the first one's words are said by the caller; the others' follow, a moment apart
+    list.forEach((rc, i) => {
+      if (i > 0) setTimeout(() => this.jobs.say(rc.line), 1600 * i);
+      this.reactOne(rc, r.deed);
+    });
+  }
+
+  private reactOne(rc: Reaction, deed: number | null): void {
     const n = this.jobs.people.get(rc.who);
     if (n) {
       n.lookAt(this.player.x, this.player.z);
       return; // the quay's own people keep their posts: they shout, and remember
     }
-    if (rc.kind === "shout" || r.deed === null) return;
-    const p = this.town.claim(rc.who);
-    if (!p) return;
-    const pu: Pursuer = { id: rc.who, name: rc.name, p, kind: rc.kind, deed: r.deed, t: rc.kind === "chase" ? 22 : 25, goT: 0 };
-    this.pursuers.set(rc.who, pu);
+    // an agent who saw it is sent by the server (the visit): poll() walks him up
+    if (rc.kind === "shout" || rc.kind === "police" || deed === null) {
+      this.town.gesture(rc.who, this.player.x, this.player.z, 5);
+      return;
+    }
+    if (this.pursuers.has(rc.who)) this.release(rc.who);
+    const at = this.town.position(rc.who);
+    // M9: a runner out of view runs off unseen (the server sends the agent all the same)
+    if (rc.kind === "fetch" && !at?.shown) return;
+    const p = rc.kind === "confront" ? this.claimConfronter(rc.who) : this.town.claim(rc.who);
+    if (!p) {
+      this.town.release(rc.who);
+      return;
+    }
+    if (rc.kind === "fetch") return this.startFetch(rc.who, rc.name, p, deed);
+    const t = rc.kind === "chase" ? 22 : rc.kind === "confront" ? 30 : 25;
+    const d0 = Math.hypot(p.x - this.player.x, p.z - this.player.z);
+    this.pursuers.set(rc.who, { id: rc.who, name: rc.name, p, kind: rc.kind, deed, t, goT: 0, far: Math.max(18, d0 + 8) });
+  }
+
+  /**
+   * M9: one who comes to have it out with him. In view: from where they stand. Out of view (frozen there, or
+   * indoors): they step out round a corner near him.
+   */
+  private claimConfronter(id: string): Puppet | null {
+    const at = this.town.position(id);
+    if (at?.shown) return this.town.claim(id);
+    const from = this.spotNear(8, 14);
+    if (!from) return null;
+    if (this.town.puppet(id)) this.town.hideAway(id);
+    return this.town.claim(id, from);
+  }
+
+  /** M9: open ground rMin-rMax m from Jef, out of his view if it can be (else in view). */
+  private spotNear(rMin: number, rMax: number): { x: number; z: number } | null {
+    let seen: { x: number; z: number } | null = null;
+    for (let i = 0; i < 20; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = rMin + Math.random() * (rMax - rMin);
+      const q = this.crowd.openNear(this.player.x + Math.cos(a) * r, this.player.z + Math.sin(a) * r);
+      if (!q) continue;
+      if (this.crowd.isHidden(q.x, q.z)) return q;
+      seen ??= q;
+    }
+    return seen;
+  }
+
+  /** M9: a witness runs for the police: to the nearest agent in the street, else away round a corner. */
+  private startFetch(id: string, name: string, p: Puppet, deed: number | null): void {
+    const { x, z } = this.player;
+    const agent = this.town
+      .inStreet(p.x, p.z, 160)
+      .filter((r) => r.trade === "police")
+      .sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0];
+    let to: { x: number; z: number } | null = agent ? { x: agent.x, z: agent.z } : null;
+    if (!to) {
+      const dx = p.x - x;
+      const dz = p.z - z;
+      const L = Math.hypot(dx, dz) || 1;
+      to = this.crowd.openNear(p.x + (dx / L) * 30, p.z + (dz / L) * 30) ?? { x: p.x + (dx / L) * 30, z: p.z + (dz / L) * 30 };
+    }
+    this.pursuers.set(id, { id, name, p, kind: "fetch", deed, t: 22, goT: 0, to });
   }
 
   private async giveBack(pu: Pursuer): Promise<void> {
@@ -391,6 +636,7 @@ export class Deeds {
     this.lantern.busy = !!this.jobs.goods.carried || this.player.swimming || this.player.climbing;
     this.lantern.update(dt);
     this.pursue(dt);
+    this.watch(dt);
     this.pollT -= dt;
     if (this.pollT <= 0) {
       this.pollT = 2;
@@ -432,6 +678,44 @@ export class Deeds {
         }
         continue;
       }
+      // M9: one who comes to have it out with him: up to him, then the talk; got away from: the police
+      if (pu.kind === "confront") {
+        if (this.talking === pu.id || pu.opened) continue;
+        // close enough to talk; or a stall or a cart keeps them a few steps off and they have tried a while
+        const near = d < 3.2 || (d < 6 && pu.t < 22 && this.los(pu.p.x, pu.p.z, px, pz));
+        if (near && !this.jobs.talk.isOpen && !this.jobs.day.sheetOpen && !this.cell) {
+          pu.opened = true;
+          this.crowd.puppetStand(pu.p, "talk", Math.atan2(px - pu.p.x, pz - pu.p.z));
+          if (this.velos.ridden && this.player.bikeRiding) this.player.bikeSpeed = 0;
+          this.faceTo(pu.p.x, pu.p.z);
+          this.jobs.talk.open({ id: pu.id, def: { name: pu.name, title: "who saw you" } });
+          continue;
+        }
+        if (pu.t <= 0 || d > (pu.far ?? 18)) {
+          void this.brokeOff(pu);
+          continue;
+        }
+        if (pu.goT <= 0) {
+          pu.goT = 0.4;
+          this.moveToward(pu.p, px + ((pu.p.x - px) / (d || 1)) * 1.2, pz + ((pu.p.z - pz) / (d || 1)) * 1.2, d > 6 ? 2.6 : 1.5);
+        }
+        continue;
+      }
+      // M9: a runner for the police, shouting, to the agent (or off round a corner)
+      if (pu.kind === "fetch") {
+        const to = pu.to!;
+        const left = Math.hypot(pu.p.x - to.x, pu.p.z - to.z);
+        if (pu.t <= 0 || left < 2.5) {
+          if (left < 2.5 && d < 45) this.jobs.say(`${pu.name.split(" ")[0]} is talking fast to an agent, and pointing your way.`);
+          this.release(pu.id);
+          continue;
+        }
+        if (pu.goT <= 0) {
+          pu.goT = 0.5;
+          this.moveToward(pu.p, to.x, to.z, 2.9);
+        }
+        continue;
+      }
       if (pu.kind === "ask") {
         if (pu.t <= 0 || d > 14) {
           this.jobs.say(`"Thief!" ${pu.name.split(" ")[0]} shouts after you. "Thief!"`);
@@ -449,10 +733,12 @@ export class Deeds {
       if (this.talking === pu.id) continue;
       if (!pu.called && (d < 6 || (d < 16 && this.los(pu.p.x, pu.p.z, px, pz)))) {
         pu.called = true;
+        pu.far = d + 6;
         this.jobs.say(`${pu.name}: "You there! Police. Stay where you are, I want a word."`);
       }
-      if (pu.called && d > 30) {
-        void this.fled(pu);
+      // M9 (Steve 2026-09-27: "we cannot get away if spoken to"): called out to, and he runs: taken all the same
+      if (pu.called && d > (pu.far ?? 22)) {
+        void this.seize(pu);
         continue;
       }
       if (d < 2.4 && !this.jobs.talk.isOpen && !this.jobs.day.sheetOpen) {
@@ -470,7 +756,8 @@ export class Deeds {
       if (Math.hypot(px - w.x, pz - w.z) > 8) {
         this.walkedOff = null;
         const pu = this.pursuers.get(w.agent) ?? { id: w.agent, name: "The agent", p: null as unknown as Puppet, kind: "police" as const, deed: null, t: 0, goT: 0 };
-        void this.fled(pu);
+        // (M9: he was spoken to: walking off is no escape)
+        void this.seize(pu);
       } else if ((w.t -= dt) <= 0) this.walkedOff = null;
     }
   }
@@ -486,6 +773,14 @@ export class Deeds {
     }
     if (!v || typeof v !== "object") return;
     this.police = v;
+    if (typeof v.name === "string") this.jobs.pockets.setName(v.name);
+    // M9: one who has it out with him, after a reload: they come up again
+    for (const c of v.confronts ?? []) {
+      if (this.pursuers.has(c.npc) || this.jobs.talk.isOpen || this.cell) continue;
+      const p = this.claimConfronter(c.npc);
+      if (!p) this.town.release(c.npc);
+      else this.pursuers.set(c.npc, { id: c.npc, name: this.town.info(c.npc)?.name ?? "Someone", p, kind: "confront", deed: c.deed, t: 30, goT: 0 });
+    }
     if (!this.postSign && v.post) this.postSign = this.signAt(v.post);
     if (v.last && v.last.visit !== this.lastVerdict) {
       const first = this.lastVerdict === 0;
@@ -584,6 +879,7 @@ export class Deeds {
     if (this.jobs.talk.isOpen) return;
     this.crowd.puppetStand(pu.p, "talk", Math.atan2(this.player.x - pu.p.x, this.player.z - pu.p.z));
     if (this.velos.ridden && this.player.bikeRiding) this.player.bikeSpeed = 0;
+    this.faceTo(pu.p.x, pu.p.z);
     this.jobs.talk.open({ id: pu.id, def: { name: pu.name, title: "police agent" } });
   }
 
@@ -603,9 +899,83 @@ export class Deeds {
     } else this.release(pu.id);
   }
 
+  /** M9: Jef turns to the one who has come to talk to him (on foot; the view looks along -sin, -cos of yaw). */
+  private faceTo(x: number, z: number): void {
+    if (this.player.bikeRiding || this.player.rowing) return;
+    this.player.yaw = Math.atan2(this.player.x - x, this.player.z - z);
+  }
+
+  /** M9: he closed the talk, walked off or ran before it was settled: they shout and run for the police. */
+  private async brokeOff(pu: Pursuer): Promise<void> {
+    if (pu.kind !== "confront") return;
+    pu.kind = "fetch"; // (at once: the next frame must not ask again)
+    try {
+      const r = await net<JobsPayload & { left: boolean; text: string }>("POST", "/api/confront/leave", { id: pu.id });
+      this.jobs.refresh(r);
+      if (r.text) this.jobs.say(r.text);
+    } catch {
+      // nothing settled on the server: they give up
+    }
+    if (this.crowd.alive(pu.p)) this.startFetch(pu.id, pu.name, pu.p, pu.deed);
+    else this.release(pu.id);
+  }
+
+  /** M9: spoken to by an agent, and he ran: more agents cut him off; it is the prison. */
+  private async seize(pu: Pursuer): Promise<void> {
+    this.release(pu.id);
+    let r: PoliceView & JobsPayload & { text: string; chase?: boolean; verdict?: NonNullable<PoliceView["last"]> };
+    try {
+      r = await net("POST", "/api/police/seize");
+    } catch {
+      return;
+    }
+    this.jobs.refresh(r);
+    // a witness who walks off is only let go
+    if (r.chase === false || !r.verdict) return this.jobs.say(r.text);
+    this.lastVerdict = r.verdict.visit;
+    this.verdict(r.verdict);
+    this.jobs.say(r.text);
+    if (r.cell) await this.showCell();
+    else if (r.held) void this.jobs.day.tick();
+  }
+
+  /** Per frame (M9): the ones who half saw it, a picked pocket found light, faces that stick. */
+  private watch(dt: number): void {
+    const now = performance.now();
+    const s = this.suspects;
+    if (s && now > s.until) this.suspects = null;
+    else if (s && this.player.hurrying) {
+      const { x, z } = this.player;
+      for (const id of [...s.ids]) {
+        const at = this.town.position(id);
+        if (!at?.shown || Math.hypot(at.x - x, at.z - z) > 25 || !this.los(at.x, at.z, x, z)) continue;
+        s.ids = s.ids.filter((i) => i !== id);
+        void this.noticed(s.deed, id);
+      }
+      if (!s.ids.length) this.suspects = null;
+    }
+    for (const p of this.discovers.filter((p) => now >= p.at)) {
+      this.discovers = this.discovers.filter((q) => q !== p);
+      void this.discover(p);
+    }
+    this.recogT -= dt;
+    if (this.recogT <= 0) {
+      this.recogT = 2;
+      this.faces();
+    }
+  }
+
   /** The talk window closed. After the verdict: the night in the cell, if it came to that. */
   private async afterTalk(id: string): Promise<void> {
     const pu = this.pursuers.get(id);
+    // M9: the talk with one who caught him closed: settled, or he broke it off
+    if (pu?.kind === "confront") {
+      const how = this.confrontDone.get(id);
+      this.confrontDone.delete(id);
+      if (!how) return void this.brokeOff(pu);
+      if (how === "police") return this.startFetch(pu.id, pu.name, pu.p, pu.deed);
+      return this.release(id);
+    }
     if (!pu || pu.kind !== "police") return;
     let v: PoliceView;
     try {
@@ -636,7 +1006,7 @@ export class Deeds {
     if (l.verdict === "let_off") this.jobs.say("The agent believes you and lets you go. What you took goes back where it belongs, and that is the end of it.");
     else if (l.verdict === "warning") this.jobs.say("A warning from the police. What you took goes back.");
     else if (l.verdict === "fine") this.jobs.say(`You pay the police a fine of ${l.paid_c} centimes. What you took goes back.`);
-    else this.jobs.say(`The agent takes you by the arm${l.paid_c ? ` and ${l.paid_c} centimes for the fine` : ""}. To the police post.`);
+    else this.jobs.say(`The agent takes you by the arm${l.paid_c ? `, and ${l.paid_c} centimes with it` : ""}. To the prison in the Begijnenstraat.`);
   }
 
   private async showCell(): Promise<void> {
@@ -669,7 +1039,7 @@ export class Deeds {
     this.player.frozen = false;
     this.player.place(post.x, post.z, post.yaw);
     void net("POST", "/api/police/cell/done").catch(() => {});
-    this.jobs.say(`The door of the police post shuts behind you. The Grote Markt is grey and cold${lost ? ", and your job is gone" : ""}.`);
+    this.jobs.say(`The prison gate shuts behind you. The Begijnenstraat is grey and cold, your pockets are empty${lost ? ", and your job is gone" : ""}.`);
   }
 
   /** For the path check (CLAUDE.md): every velocipede, lantern, food table and the police post. */
@@ -679,6 +1049,7 @@ export class Deeds {
     for (const l of this.lantern.standingList()) out.push({ label: `lantern ${l.id}`, x: l.x, z: l.z, reach: l.y > 0.5 ? 2.2 : 1.8 });
     for (const f of this.food) out.push({ label: `food ${f.id}`, x: f.x, z: f.z, reach: 2.2 });
     if (this.police?.post) out.push({ label: "the police post", x: this.police.post.x, z: this.police.post.z, reach: 1.5 });
+    if (this.police?.prison) out.push({ label: "the prison gate (where he comes out)", x: this.police.prison.x, z: this.police.prison.z, reach: 1.5 });
     return out;
   }
 
@@ -692,6 +1063,8 @@ export class Deeds {
       lantern: this.lantern.info(),
       pursuers: [...this.pursuers.values()].map((p) => ({ id: p.id, kind: p.kind, d: +Math.hypot(p.p.x - this.player.x, p.p.z - this.player.z).toFixed(1), called: !!p.called })),
       police: this.police,
+      suspects: this.suspects,
+      discovers: this.discovers.map((p) => ({ ...p, in_s: +((p.at - performance.now()) / 1000).toFixed(1) })),
       velos: this.velos.list(),
       food: this.food.length,
     };

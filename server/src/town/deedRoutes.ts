@@ -7,7 +7,11 @@ import { restOf } from "../rest.ts";
 import { GameError } from "../game.ts";
 import { plainEnglish } from "../text.ts";
 import { clearDeeds, deedRow, deedRumours, deedWorld, leaveVelo, returnThing, takeThing } from "./deeds.ts";
-import { deedSettled, isPoliceTalk, policeEvents, policeAnswer, policeArrived, policeFled, policeOpen, policeTick, policeView, policeRespond, policeWitness, resetPolice, takeCellNight, cellNightView } from "./police.ts";
+import { deedSettled, isPoliceTalk, policeEvents, policeAnswer, policeArrived, policeFled, policeOpen, policeSeize, policeTick, policeView, policeRespond, policeWitness, resetPolice, takeCellNight, cellNightView } from "./police.ts";
+import { confrontAnswer, confrontLeave, confrontOpen, confrontTick, isConfront, noticed, recognise, watchers } from "./confront.ts";
+import { discover, pickPocketOf } from "./pickpocket.ts";
+import { charisma, charismaWords } from "./charisma.ts";
+import { confronts } from "./deeds.ts";
 import { isResident } from "./store.ts";
 
 // The HTTP side of theft and the police (M3h). Mounted by index.ts before the
@@ -39,7 +43,10 @@ export function mountDeeds(app: Hono, deps: DeedDeps): void {
     try {
       deedRumours(db);
       // (M8c: the police come for each player in the game who is wanted)
-      forEachOnline(() => policeTick(db));
+      forEachOnline(() => {
+        confrontTick(db);
+        policeTick(db);
+      });
     } catch (e) {
       console.error("[deeds] tick", e);
     }
@@ -54,7 +61,8 @@ export function mountDeeds(app: Hono, deps: DeedDeps): void {
     const others = playersAt().filter((o) => o.id !== me && !restOf(db, o.id) && !asPlayer(o.id, () => ending(db)));
     const r = takeThing(db, body, Math.random, others);
     if (r.police && r.deed !== null) {
-      policeRespond(db, r.deed);
+      // M9: an agent who saw it comes at once; one a witness ran for, soon
+      policeRespond(db, r.deed, { delay: r.police_in, agent: r.police_agent });
       // the police ask the players who saw it, each by his own agent (police.ts policeWitness)
       for (const w of r.players_saw ?? []) asPlayer(w.id, () => policeWitness(db, r.deed!, me));
     }
@@ -78,7 +86,57 @@ export function mountDeeds(app: Hono, deps: DeedDeps): void {
     return c.json(s);
   });
 
-  app.get("/api/police", (c) => c.json(policeView(db)));
+  // M9: the police view, and who could point him out, who has it out with him, and his good name in words
+  app.get("/api/police", (c) => c.json({ ...policeView(db), watchers: watchers(db), confronts: confronts(db).map((x) => ({ npc: x.npc, deed: x.deed })), name: charismaWords(charisma(db)) }));
+
+  // M9 theft: picking a pocket (town/pickpocket.ts)
+  app.post("/api/pickpocket", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const r = pickPocketOf(db, body);
+    if (r.police) policeRespond(db, r.deed, { delay: r.police_in, agent: r.police_agent });
+    push();
+    return c.json({ ...r, ...payload() });
+  });
+  /** The mark finds his pocket light: does he see Jef still near? */
+  app.post("/api/pocket/:deed/discover", async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+    const id = Number(c.req.param("deed"));
+    const r = discover(db, id, body);
+    if (r.hit && r.police) policeRespond(db, id, { delay: r.police_in, agent: r.police_agent });
+    if (r.hit) push();
+    return c.json({ ...r, ...payload() });
+  });
+  /** One who half saw it sees him run: now he is sure. */
+  app.post("/api/deed/:id/noticed", async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as { who?: unknown };
+    const id = Number(c.req.param("id"));
+    const r = noticed(db, id, String(body.who ?? ""));
+    if (!r) return c.json({ hit: false });
+    if (r.police) policeRespond(db, id, { delay: r.police_in, agent: r.police_agent });
+    push();
+    return c.json({ hit: true, ...r, deed: id, ...payload() });
+  });
+  /** He broke off the talk with one who had it out with him (closed it, walked or ran off). */
+  app.post("/api/confront/leave", async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as { id?: unknown };
+    const r = confrontLeave(db, String(body.id ?? ""));
+    push();
+    return c.json({ left: !!r, text: r?.text ?? "", ...payload() });
+  });
+  /** Faces stick: he passes someone who saw him steal. */
+  app.post("/api/deed/recognise", async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+    const r = recognise(db, body);
+    if (r.hit) push();
+    return c.json(r);
+  });
+  /** Spoken to by an agent, and he ran: taken all the same (the prison). */
+  app.post("/api/police/seize", (c) => {
+    const r = policeSeize(db);
+    if (r.night && (r.night.turned || r.night.ended)) afterNight(r.night.ended);
+    push();
+    return c.json({ ...r, ...policeView(db), ...payload() });
+  });
   /** The deeds and police steps from the log, after an id (for other layers, M4). */
   app.get("/api/police/events", (c) => c.json(policeEvents(db, Number(c.req.query("since")) || 0)));
 
@@ -104,6 +162,20 @@ export function mountDeeds(app: Hono, deps: DeedDeps): void {
     return c.json({ night: n, ...payload() });
   });
 
+  // M9: one who has it out with him about a theft talks through the ordinary talk route too
+  app.post("/api/npc/:id/talk", async (c, next) => {
+    const id = c.req.param("id");
+    if (!isResident(db, id) || !isConfront(db, id) || isPoliceTalk(db, id)) return next();
+    const body = (await c.req.json().catch(() => ({}))) as { kind?: string; text?: unknown };
+    if ((body.kind === "choice" || body.kind === "free") && typeof body.text === "string") {
+      const r = await confrontAnswer(db, id, body.kind, body.text);
+      if (!r.npc_line) return c.json({ gated: r.gated, ...(r.free === false ? { free: false, choices: r.choices } : {}) });
+      if (r.end) push();
+      return c.json({ ...r, npc_line: plainEnglish(r.npc_line), ...(r.end ? payload() : {}) });
+    }
+    return c.json(confrontOpen(db, id));
+  });
+
   // the agent who came for Jef talks through the ordinary talk route
   app.post("/api/npc/:id/talk", async (c, next) => {
     const id = c.req.param("id");
@@ -116,7 +188,7 @@ export function mountDeeds(app: Hono, deps: DeedDeps): void {
         if (r.night && (r.night.turned || r.night.ended)) afterNight(r.night.ended);
         push();
       }
-      if (!r.npc_line) return c.json({ gated: r.gated });
+      if (!r.npc_line) return c.json({ gated: r.gated, ...(r.gated === "no_ai" ? { free: false, choices: r.choices } : {}) });
       // M6: note: how his story went down, in words (story.ts); never a number
       return c.json({ npc_line: plainEnglish(r.npc_line), mood: r.mood, choices: r.choices, end: r.end, gated: r.gated, police: r.verdict ?? null, ...(r.note ? { note: r.note } : {}) });
     }

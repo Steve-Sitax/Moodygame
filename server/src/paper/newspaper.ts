@@ -212,9 +212,12 @@ function factOf(db: DB, e: EvRow): Omit<Fact, "n"> | null {
     case "police_fine":
       return { kind: "police", text: "The police fined Jef, a day labourer new to the town, over a theft.", weight: 7, ref };
     case "arrested":
-      return { kind: "police", text: "The police took Jef, a day labourer new to the town, to the post for theft.", weight: 9, ref };
+      return { kind: "police", text: "The police took Jef, a day labourer new to the town, to the prison in the Begijnenstraat for theft.", weight: 9, ref };
     case "cell":
-      return { kind: "police", text: "Jef, a day labourer, spent the night in the cell at the police post.", weight: 8, ref };
+      return { kind: "police", text: "Jef, a day labourer, spent the night in the prison in the Begijnenstraat; all he had went for the fine.", weight: 8, ref };
+    // M9 theft: caught at it, and would not settle it with the one who caught him (town/confront.ts), or a bad name
+    case "caught_stealing":
+      return { kind: "theft", text: `${e.text.replace(/^Jef\b/,"Jef, a day labourer new to the town,").replace(/\.$/, "")}.`, weight: 7, ref };
     case "police_search":
       return { kind: "police", text: "An agent of the police is looking into a robbery on the quays.", weight: 4, ref };
     case "rumour":

@@ -141,6 +141,8 @@ export const PLAYER_TEXT_HOOKS: ReadonlySet<string> = new Set([
   "resident_talkdown",
   "resident_haggle",
   "resident_police",
+  // M9 theft: what he says to one who caught him stealing (town/confront.ts)
+  "resident_confront",
   "letter_reply",
   "confession",
   // M6 routines (director/routines.ts): the check-in sees the errand the model planned from Jef's words

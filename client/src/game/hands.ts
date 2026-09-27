@@ -137,7 +137,12 @@ export class Hands {
     readonly steps: Steps,
   ) {
     // the talk's reply: a thing handed over shows as Jef's hand and their take
-    jobs.talk.onReply = (id, r) => this.onReply(id, r);
+    // (M9: after the hook before it: game/deeds.ts reads how a confront ended from the same reply)
+    const before = jobs.talk.onReply;
+    jobs.talk.onReply = (id, r) => {
+      before(id, r);
+      this.onReply(id, r);
+    };
     // in and out of a room: the treat's guest follows Jef in (the server's word), and goes home after
     const room = interiors.roomSound;
     interiors.roomSound = (k) => {
