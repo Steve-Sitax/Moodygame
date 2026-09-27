@@ -14,6 +14,7 @@ import { pause, real } from "./pause";
 import { bootRestore, setRestore, type ClientState } from "./restoreData";
 import { esc } from "./runs";
 import { settings } from "./prefs";
+import { DEMO } from "../demo/demo";
 
 export interface SaveInfo {
   slot: string;
@@ -100,6 +101,7 @@ export class Saves {
     this.saveBtn.style.display = "none";
     this.loadBtn = btn("Load");
     row.append(this.contBtn, this.saveBtn, this.loadBtn);
+    if (DEMO) row.style.display = "none"; // the web demo saves nothing (demo/demo.ts)
     // M8e: a guest keeps his own part (Save); loading a save is the host's
     if (isGuest()) {
       this.contBtn.style.display = "none";

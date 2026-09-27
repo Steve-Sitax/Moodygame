@@ -20,6 +20,7 @@ import { topLeft } from "./corner";
 import { auditShown, best, bindView, inView, type Target } from "./facing";
 import type { QuestBoxes } from "./questboxes";
 import { dialogs } from "./dialogs";
+import { DEMO } from "../demo/demo";
 
 // The hands and the job (M2, M2b, M3). Everything you do with E and F goes
 // through here: lift, set down, stack, drop in the Schelde, talk, read the
@@ -306,6 +307,7 @@ export class Jobs {
   }
 
   private findAll(): Action[] {
+    if (DEMO) return []; // the web demo: walk about, no E or F (demo/demo.ts)
     if (this.boardOpen || this.talk.isOpen || this.pockets.open || this.day.sheetOpen || this.map.open || this.day.rest.busy) return [];
     const { x, z } = this.player;
     const out: Action[] = [];

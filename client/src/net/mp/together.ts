@@ -29,6 +29,7 @@ import type { Crowd } from "../../game/crowd";
 import { Figure, figureNav, LIVE_FIGURES } from "../../game/figures";
 import { heldForJobs } from "../../game/walkup";
 import { JobFigs } from "./jobfigs";
+import { DEMO } from "../../demo/demo";
 import { ferryAsked } from "../../game/ferryArrival"; // M8d: a guest's first arrival is by the ferry
 
 interface BusLike {
@@ -730,6 +731,7 @@ export class Together {
   // ------------------------------------------------------------------ the menu: Together
 
   private mountButton(): void {
+    if (DEMO) return; // the web demo plays alone (demo/demo.ts)
     const paper = this.d.paper;
     if (!paper) return;
     const btn = document.createElement("button");

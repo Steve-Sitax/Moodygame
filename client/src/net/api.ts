@@ -5,6 +5,7 @@ import type { Goods } from "../game/props";
 import { clientId, pause, real, resendPause } from "../game/pause";
 import { identity } from "./mp/identity";
 import { CONNECT_MS, Liveness, PUSH_DEAD_MS, PUSH_PING_MS, retryDelay } from "./mp/link";
+import { DEMO } from "../demo/demo";
 
 export type Twist = "none" | "broken_goods" | "stranger_offer" | "foreman_watches" | "thick_fog" | "heavy_load" | "thief" | "bribe";
 
@@ -577,6 +578,7 @@ export interface OutcomeMsg {
  * one small message every 10 s and changes nothing.
  */
 export function connectPush(onJobs: (p: JobsPayload) => void, onOutcome: (o: OutcomeMsg) => void = () => {}, onOther: (m: PushMsg) => void = () => {}): void {
+  if (DEMO) return; // the web demo has no server to push (demo/demo.ts)
   let attempt = 0;
   let dropped = false;
   let current: WebSocket | null = null;

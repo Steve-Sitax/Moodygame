@@ -33,3 +33,6 @@ __pycache__/
 
 # player downloads made by tools/package.mjs
 /release/
+
+# the web demo made by tools/demo/build.mjs
+client/dist-demo/

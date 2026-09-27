@@ -23,9 +23,11 @@ CREATE TABLE IF NOT EXISTS resident (
 CREATE INDEX IF NOT EXISTS resident_household ON resident(household);
 `;
 
-/** A new town's seed: random for a real game, fixed under test. */
+/** A new town's seed: random for a real game, fixed under test and for the web demo's bake (SCHELDEMIST_TOWN_SEED). */
 function newSeed(): number {
   if (process.env.VITEST) return 1873;
+  const fixed = Number(process.env.SCHELDEMIST_TOWN_SEED);
+  if (Number.isInteger(fixed) && fixed > 0) return fixed;
   return Math.floor(Math.random() * 2 ** 31);
 }
 

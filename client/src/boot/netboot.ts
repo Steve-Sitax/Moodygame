@@ -16,6 +16,10 @@ import { identity, TOKEN_HEADER, tokenKey } from "../net/mp/identity";
 import { secureOffer, type HouseInfo } from "../net/mp/househelp";
 import { retryAfterMs } from "../net/mp/link";
 import { plan, planProgress, planWords, readAll, RETRY_WAITS_MS, STALL_MS, TRIES, WHOLE_KEY } from "./files";
+import { DEMO, installDemo } from "../demo/demo";
+
+// the web demo (demo/demo.ts): its own answers to /api and the site's base path, before the fetch hook below
+installDemo();
 
 const params = new URLSearchParams(location.search);
 identity.seat = Math.max(1, Math.min(8, Math.floor(Number(params.get("seat") ?? 1)) || 1));
@@ -456,7 +460,7 @@ async function assetStore(): Promise<void> {
 
 void (async () => {
   try {
-    await whoAmI();
+    if (!DEMO) await whoAmI(); // the web demo has no host to join
   } catch (e) {
     console.warn("[mp] who am I", e);
   }

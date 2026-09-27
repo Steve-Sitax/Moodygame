@@ -1,0 +1,48 @@
+# The web demo on GitHub Pages (docs/web-demo.md): walk about the town in the browser, no server, no AI.
+# A tag like v0.2.0 (with the downloads, release.yml) or "Run workflow" by hand builds it
+# (tools/demo/build.mjs) and puts it on https://steve-sitax.github.io/Moodygame/.
+name: Web demo
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install
+        run: |
+          npm --prefix client ci --no-audit --no-fund
+          npm --prefix server ci --no-audit --no-fund
+      - name: Build the demo and bake the town
+        run: node tools/demo/build.mjs --base /Moodygame/ --out client/dist-demo
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: client/dist-demo
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

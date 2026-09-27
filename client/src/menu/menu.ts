@@ -16,6 +16,7 @@ import { benchmarkRunning, frameStats, onBenchmark, runBenchmark } from "./apply
 import { real } from "../game/pause";
 import { isGuest } from "../net/mp/identity";
 import { drawAi, aiMenuNote } from "./ai";
+import { DEMO } from "../demo/demo";
 
 const esc = (s: unknown) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
@@ -137,6 +138,15 @@ function buildPaper(): void {
   nav.append(item("play", "Walk into town"), saves, item("new", "New game"), item("settings", "Settings"), item("ai", "AI setup"), item("controls", "Controls"), item("help", "Help"), item("credits", "Credits"), dev, item("quit", "Quit to title"));
   // M8e: a guest's menu has no host things (a new week, the AI setup: the host's PC keeps them)
   if (isGuest()) for (const go of ["new", "ai"]) nav.querySelector(`[data-go="${go}"]`)?.remove();
+  // the web demo (demo/demo.ts): walking only, so no saves, no new week, no AI
+  if (DEMO) {
+    for (const go of ["new", "ai"]) nav.querySelector(`[data-go="${go}"]`)?.remove();
+    saves.remove();
+    const note = document.createElement("p");
+    note.className = "fine demo-note";
+    note.innerHTML = `The web demo: walk about the town. To talk, work and play with an AI, <a href="https://github.com/Steve-Sitax/Moodygame/releases/latest" target="_blank" rel="noopener">download the game</a>.`;
+    nav.append(note);
+  }
   head.after(nav);
   const note = document.createElement("p");
   note.className = "ai-note";
