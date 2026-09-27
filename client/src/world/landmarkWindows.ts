@@ -462,12 +462,14 @@ export function createLandmarkWindows(scene: THREE.Scene): LandmarkWindows {
       o.renderOrder = 2;
       // (always drawn, black by day: its shader is built with the town's, not at the first dusk)
       mesh.add(o);
-      // the light on the street: the biggest low windows of the building (up to 14 a mesh)
+      // the light on the street: the biggest low windows of the building (up to 14 a mesh). Only the ground floor's
+      // and a church's low glass: an upper window's light, thrown per pixel, lit the pilasters beside it in bright
+      // streaks (Steve's picture of the town hall, 2026-09-27)
       const spills: Built["spills"] = [];
       const ws = [...win.values()];
       const cand = ws
         .map((w, i) => ({ w, ww: windows[i] }))
-        .filter(({ w, ww }) => w.area > 0.5 && w.box.min.y < 14 && ww.k > 0)
+        .filter(({ w, ww }) => w.area > 0.5 && w.box.min.y < ("rooms" in night ? minY + 3 : 14) && ww.k > 0)
         .sort((a, b) => a.w.box.min.y - b.w.box.min.y || b.w.area - a.w.area)
         .slice(0, 14);
       for (const { w, ww } of cand) {
@@ -481,7 +483,9 @@ export function createLandmarkWindows(scene: THREE.Scene): LandmarkWindows {
         ww.spill = s0;
         spills.push({ s: s0, w: ww });
       }
-      built.push({ building, mesh: o, night, windows, full, spills, shown: true, meetDay: -1, meet: new Set(), meetEnd: 12 });
+      let shown = true;
+      for (let q: THREE.Object3D | null = mesh; q; q = q.parent) if (!q.visible) shown = false;
+      built.push({ building, mesh: o, night, windows, full, spills, shown, meetDay: -1, meet: new Set(), meetEnd: 12 });
     }
     return true;
   }
