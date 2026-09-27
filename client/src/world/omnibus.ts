@@ -128,6 +128,8 @@ export interface Omnibuses {
   buses: Omnibus[];
   update(t: number, dt: number, player: { x: number; z: number } | null, camera?: THREE.Camera): void;
   colliders(): Rect[];
+  /** The path check (rijnkaai.ts reachFrom): the rects of omnibuses on their round, which pass a door by; one standing at its terminus on the timetable is left out. */
+  rolling(): Rect[];
   busy(r: { minX: number; maxX: number; minZ: number; maxZ: number }): boolean;
   onArrive?: (bus: Omnibus, stop: OmnibusStop) => void;
   onDepart?: (bus: Omnibus, stop: OmnibusStop, next: OmnibusStop) => void;
@@ -1686,6 +1688,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
       }
     },
     colliders: () => buses.flatMap((b) => b.rects),
+    rolling: () => buses.filter((b) => !b.due()).flatMap((b) => b.rects),
     busy(r) {
       for (const b of buses) {
         // the rig from its tail to 10 m before the horses' noses, against the bridge's stretch

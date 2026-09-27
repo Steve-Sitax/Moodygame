@@ -1581,6 +1581,14 @@ export function buildRijnkaai(): World {
    * Path check (CLAUDE.md: always make sure there is a path). Flood-fills the
    * walkable ground from a start point on a 0.5 m grid, with the colliders
    * as they are now. Returns a test: can you get within `reach` of (x, z)?
+   * Vehicles on their rounds (the drays and handcarts, the goods train, the
+   * omnibuses) are left out: they pass a door by and stop for people. The red
+   * omnibus line runs 1 m off doorsteps on the cathedral's south street, so a
+   * check taken while one rolled past listed those homes (2026-09-27). An
+   * omnibus standing at its terminus on the timetable still counts. The
+   * opening bridges and the lock's bridge count as shut: they open for a
+   * passing boat and shut after it (the soldiers' round on the lock bridge
+   * was listed while a sloop locked through).
    */
   function reachFrom(sx: number, sz: number): (x: number, z: number, reach: number) => boolean {
     // a 0.5 m grid over the whole city; walls and water from the walk map, then
@@ -1596,11 +1604,13 @@ export function buildRijnkaai(): World {
     for (let j = 0; j < H; j++)
       for (let i = 0; i < W; i++) {
         const [x, z] = at(i, j);
-        pass[j * W + i] = isWalkable(x, z) && !wallNear(x, z, 0.45) && !areaHits(x, z, 0.3) ? 1 : 0;
+        pass[j * W + i] = (isWalkable(x, z) || !!onOpening(x, z)) && !wallNear(x, z, 0.45) && !areaHits(x, z, 0.3) ? 1 : 0;
       }
     const R = 0.3;
+    const rolling = new Set<Rect>([...(traffic?.colliders() ?? []), ...(railway?.rolling() ?? []), ...(omnibus?.rolling() ?? [])]);
     for (const c of [...colliders, ...dynamic]) {
       if (c.top !== undefined && c.top <= STEP) continue;
+      if (rolling.has(c)) continue;
       const i0 = Math.max(0, Math.floor((c.minX - R - X0) / C));
       const i1 = Math.min(W - 1, Math.ceil((c.maxX + R - X0) / C));
       const j0 = Math.max(0, Math.floor((c.minZ - R - Z0) / C));

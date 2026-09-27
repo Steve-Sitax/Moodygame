@@ -144,6 +144,8 @@ export interface Railway {
   update(t: number, dt: number, player: { x: number; z: number } | null, camera?: THREE.Camera): void;
   /** Walk colliders of the horses and wagons: stable objects moved in place, add them once. */
   colliders(): Rect[];
+  /** The path check (rijnkaai.ts reachFrom): the horses' and wagons' rects, which pass by (the cranes' legs stay). */
+  rolling(): Rect[];
   /** Is the train on (or just at) this rectangle? A bridge must not open under it. */
   busy(r: { minX: number; maxX: number; minZ: number; maxZ: number }): boolean;
   /** The horse instances: two for the train, then `spareHorses` for the omnibuses. */
@@ -2287,6 +2289,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       draw(camera);
     },
     colliders: () => [...horseRects, ...wagons.map((w) => w.rect), ...cranes.flatMap((c) => c.legs)],
+    rolling: () => [...horseRects, ...wagons.map((w) => w.rect)],
     busy(r) {
       if (state === "shed") return false;
       for (const [s0, s1] of spanOf(r)) if (head + 10 > s0 - 1 && head - trainLen < s1 + 1) return true;
