@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { Culler } from "../world/cull";
 import { drawPlan, type InWorld } from "../world/inworld";
+import { psxUniforms } from "./psx";
 
 // Renders the scene into a small target (270 px high, 480x270 on 16:9),
 // then draws it full screen with nearest upscale, 5-bit colour and a
@@ -112,6 +113,8 @@ export class RetroPass {
     this.target.setSize(this.width, this.height);
     (this.mat.uniforms.uRes.value as THREE.Vector2).set(this.width, this.height);
     (this.mat.uniforms.uFxRes.value as THREE.Vector2).set(Math.round(TARGET_HEIGHT * aspect), TARGET_HEIGHT);
+    // bump maps as strong at every render height as at the 270 lines they were set up at (retro/psx.ts uBumpRes)
+    psxUniforms.uBumpRes.value = this.height / TARGET_HEIGHT;
   }
 
   /** PS1 colour (5-bit with dither) or full colour. */

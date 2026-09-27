@@ -4,6 +4,8 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import CITY from "../../../shared/city.json";
 import { bumpFromMap, psx, psxUniforms } from "../retro/psx";
 import { createMirror } from "./mirror";
+import { setPuddleScale } from "./puddlemask";
+import { TOWN } from "./townBox";
 import { cobblePaving, earthPaving, edgeStoneTexture, flagPaving, grassPaving, quayPaving, withPictures } from "./paving";
 import { copingTexture, quayWallTexture, withPicture } from "./quayStone";
 import { grimeDecalMaterial, houseGrime } from "./houseGrime";
@@ -151,6 +153,38 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
       // grass round the town wall and in the back alleys' gardens (tools/city/rampart.py, alleys.py)
       grass: [psx(new THREE.MeshLambertMaterial({ map: grassPave.map }), { noSnap: true, affine: 0, wet: true, puddles: 0.4, detile: true, relief: { height: grassPave.height, depth: 0.03, tile: 4, bump: 2.4 } }), 4],
     };
+    // the puddles (2026-09-27): each kind's own puddle factor on a 1 m grid of the town, so a step splashes in the
+    // puddles the ground shows there (world/puddlemask.ts); the same factors as the materials' `puddles` above
+    const PUD: Record<string, number> = { cobble: 1, earth: 1.3, flags: 0.75, quay: 1.15, grass: 0.4 };
+    const pudKinds = [0, ...Object.values(PUD)];
+    const pudGrid = new Uint8Array(TOWN.w * TOWN.h);
+    for (const [zone, tris] of Object.entries(zones)) {
+      if (zone === "edges") continue;
+      const k = Object.keys(PUD).indexOf(zone in PUD ? zone : "cobble") + 1;
+      for (const [ax, az, bx, bz, cx, cz] of tris) {
+        const i0 = Math.max(0, Math.floor(Math.min(ax, bx, cx) - TOWN.x0));
+        const i1 = Math.min(TOWN.w - 1, Math.ceil(Math.max(ax, bx, cx) - TOWN.x0));
+        const j0 = Math.max(0, Math.floor(Math.min(az, bz, cz) - TOWN.z0));
+        const j1 = Math.min(TOWN.h - 1, Math.ceil(Math.max(az, bz, cz) - TOWN.z0));
+        const side = (px: number, pz: number, qx: number, qz: number, x: number, z: number) => (qx - px) * (z - pz) - (qz - pz) * (x - px);
+        for (let j = j0; j <= j1; j++) {
+          for (let i = i0; i <= i1; i++) {
+            const x = TOWN.x0 + i + 0.5;
+            const z = TOWN.z0 + j + 0.5;
+            const d0 = side(ax, az, bx, bz, x, z);
+            const d1 = side(bx, bz, cx, cz, x, z);
+            const d2 = side(cx, cz, ax, az, x, z);
+            if ((d0 >= 0 && d1 >= 0 && d2 >= 0) || (d0 <= 0 && d1 <= 0 && d2 <= 0)) pudGrid[j * TOWN.w + i] = k;
+          }
+        }
+      }
+    }
+    setPuddleScale((x, z) => {
+      const i = Math.floor(x - TOWN.x0);
+      const j = Math.floor(z - TOWN.z0);
+      if (i < 0 || j < 0 || i >= TOWN.w || j >= TOWN.h) return undefined;
+      return pudKinds[pudGrid[j * TOWN.w + i]] || undefined;
+    });
     for (const [zone, tris] of Object.entries(zones)) {
       if (zone === "edges") continue;
       const [mat, tile] = zoneMat[zone] ?? zoneMat.cobble;

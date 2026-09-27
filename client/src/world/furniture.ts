@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { canvasTex, lambert, mat, tex } from "./rooms";
 import { glowTexture } from "./textures";
+import { psx } from "../retro/psx";
 import { addDial } from "./clockHands";
 
 // Furniture for the rented rooms (M6 homes), made in code the PS1 way: a few boxes, painted
@@ -24,6 +25,8 @@ function flat(color: number): THREE.Material {
   return lambert(`f_col_${color.toString(16)}`, { color });
 }
 
+// (the bumps everywhere, 2026-09-27: the painted cloths, straw and books are psx materials as the rest of the room,
+// so their bumps are drawn at every render height and keep the room's brightness: retro/psx.ts uBumpRes, psxBumpK)
 function clothTex(key: string, base: string, stripe: string, every = 6): THREE.Material {
   return mat(`f_cloth_${key}`, () => {
     const t = canvasTex(32, 32, (g) => {
@@ -36,7 +39,7 @@ function clothTex(key: string, base: string, stripe: string, every = 6): THREE.M
         g.fillRect(Math.random() * 32, Math.random() * 32, 2, 1);
       }
     });
-    return new THREE.MeshLambertMaterial({ map: t });
+    return psx(new THREE.MeshLambertMaterial({ map: t }), { affine: 0.4 });
   });
 }
 
@@ -51,7 +54,7 @@ function straw(): THREE.Material {
         g.fillRect(Math.random() * 32, Math.random() * 32, 3 + Math.random() * 5, 1);
       }
     });
-    return new THREE.MeshLambertMaterial({ map: t });
+    return psx(new THREE.MeshLambertMaterial({ map: t }), { affine: 0.4 });
   });
 }
 
@@ -66,7 +69,7 @@ function rag(): THREE.Material {
       g.strokeStyle = "#2a1a12";
       g.strokeRect(1, 1, 30, 30);
     }, false);
-    return new THREE.MeshLambertMaterial({ map: t });
+    return psx(new THREE.MeshLambertMaterial({ map: t }), { affine: 0.4 });
   });
 }
 
@@ -86,7 +89,7 @@ function printTex(): THREE.Material {
       g.fill();
       for (let x = 4; x < 28; x += 4) g.fillRect(x, 28 - ((x * 3) % 7), 3, 8 + ((x * 3) % 7));
     }, false);
-    return new THREE.MeshLambertMaterial({ map: t });
+    return psx(new THREE.MeshLambertMaterial({ map: t }), { affine: 0.4 });
   });
 }
 
@@ -106,7 +109,7 @@ function dialTex(): THREE.Material {
         g.fillRect(16 + Math.sin(a) * 10 - 0.5, 16 - Math.cos(a) * 10 - 0.5, 1.5, 1.5);
       }
     }, false);
-    return new THREE.MeshLambertMaterial({ map: t });
+    return psx(new THREE.MeshLambertMaterial({ map: t }), { affine: 0.4 });
   });
 }
 
@@ -123,7 +126,7 @@ function tiles(): THREE.Material {
           g.fillRect(x + 3, y + 3, 2, 2);
         }
     });
-    return new THREE.MeshLambertMaterial({ map: t });
+    return psx(new THREE.MeshLambertMaterial({ map: t }), { affine: 0.4 });
   });
 }
 
@@ -153,7 +156,7 @@ function booksTex(): THREE.Material {
         g.fillRect(0, y0 + 11, 32, 2);
       }
     }, false);
-    return new THREE.MeshLambertMaterial({ map: t });
+    return psx(new THREE.MeshLambertMaterial({ map: t }), { affine: 0.4 });
   });
 }
 

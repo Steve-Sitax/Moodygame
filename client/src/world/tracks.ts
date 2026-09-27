@@ -246,10 +246,12 @@ export function buildTracks(scene: THREE.Scene, data: TrackData, bridges: Rect[]
   // uneven setts with a height map, like the streets (world/paving.ts settsPaving)
   const setts = settsPaving();
   const bandMat = psx(
-    // no depth written: where two tracks cross or join their bands overlap and would fight (z-fight check)
-    new THREE.MeshLambertMaterial({ map: setts.map, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4, depthWrite: false }),
+    // no depth written: where two tracks cross or join their bands overlap and would fight (z-fight check).
+    // The quay sheen (2026-09-27): wet in the rain and with the quay's puddles, as the quay round it (it stayed dry
+    // and pale between the rails in the rain); dry it is as matte as the quay (retro/psx.ts: the sheen comes with the wet)
+    new THREE.MeshPhongMaterial({ map: setts.map, color: 0xffffff, specular: 0x363636, shininess: 22, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4, depthWrite: false }),
     // relief light from the height map (no parallax: the band's uv runs along the line, not north)
-    { noSnap: true, affine: 0, vary: 0.8, relief: { height: setts.height, id: setts.id, holes: 0.3, depth: 0, tile: 2.5, bump: 3.4 } },
+    { noSnap: true, affine: 0, wet: true, puddles: 1.15, vary: 0.8, relief: { height: setts.height, id: setts.id, holes: 0.3, depth: 0, tile: 2.5, bump: 3.4 } },
   );
   const railMat = psx(
     new THREE.MeshPhongMaterial({ color: 0x8a8680, vertexColors: true, specular: 0x6a6a6a, shininess: 40, side: THREE.DoubleSide }),

@@ -81,6 +81,8 @@ let mirrorQuality = 1;
 let mirrorsOff = false;
 export function setMirrorQuality(q: "off" | "coarse" | "full"): void {
   mirrorsOff = q === "off";
+  // (the puddles: dark water with reflections off, not a sheet of the air's colour)
+  psxUniforms.uMirrorOn.value = mirrorsOff ? 0 : 1;
   mirrorQuality = q === "coarse" ? 0.5 : 1;
   setMirrorScale(mirrorScale);
 }

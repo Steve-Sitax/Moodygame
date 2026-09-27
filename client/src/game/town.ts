@@ -1077,8 +1077,24 @@ export class Town {
       };
       if (d < 6) {
         const L = d || 1;
-        const [fx, fz] = inside(p.x + ((p.x - it.x) / L) * 4 + rnd(-1.5, 1.5), p.z + ((p.z - it.z) / L) * 4 + rnd(-1.5, 1.5));
-        this.crowd.puppetGo(p, fx, fz, 2.2);
+        // away from it; cornered (a wall or a house that way), off to one side instead of running on the spot
+        // at the wall (fixes 2026-09-27, the stuck check)
+        const ax = (p.x - it.x) / L;
+        const az = (p.z - it.z) / L;
+        const jx = rnd(-1.5, 1.5);
+        const jz = rnd(-1.5, 1.5);
+        let to: [number, number] | null = null;
+        for (const turn of [0, 0.8, -0.8, 1.6, -1.6]) {
+          const c = Math.cos(turn);
+          const sn = Math.sin(turn);
+          const q = inside(p.x + (ax * c - az * sn) * 4 + jx, p.z + (ax * sn + az * c) * 4 + jz);
+          if (this.crowd.canStand(q[0], q[1]) && dist(q[0], q[1], p.x, p.z) > 1.5) {
+            to = q;
+            break;
+          }
+        }
+        if (to) this.crowd.puppetGo(p, to[0], to[1], 2.2);
+        else if (!this.crowd.puppetBusy(p)) this.crowd.puppetStand(p, "idle", Math.atan2(it.x - p.x, it.z - p.z));
       } else if (!this.crowd.puppetBusy(p)) {
         if (Math.random() < 0.5) {
           // skip about near where they are, keeping an eye on it
@@ -1129,14 +1145,17 @@ export class Town {
       const bz0 = this.player.z + Math.cos(this.player.yaw) * 0.8;
       const db = dist(p.x, p.z, bx0, bz0);
       if (d < 4.5 && db > 0.3) {
-        if (this.crowd.puppetBusy(p)) this.crowd.puppetStand(p, "walk", null);
         const k = Math.min(1, (1.1 * dt) / db);
         const nx = p.x + (bx0 - p.x) * k;
         const nz = p.z + (bz0 - p.z) * k;
         if (this.world.isFree(nx, nz, 0.25) && dist(nx, nz, this.player.x, this.player.z) > 0.55) {
+          if (p.human.motion !== "walk" || this.crowd.puppetBusy(p)) this.crowd.puppetStand(p, "walk", null);
           p.x = nx;
           p.z = nz;
           p.yaw = Math.atan2(bx0 - p.x, bz0 - p.z);
+        } else if (p.human.motion === "walk" || this.crowd.puppetBusy(p)) {
+          // right behind him, or a wall between: wait there (fixes 2026-09-27: he walked on the spot)
+          this.crowd.puppetStand(p, "idle", null);
         }
       } else if (t.t <= 0) {
         // up close behind him
