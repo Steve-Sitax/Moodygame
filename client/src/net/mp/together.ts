@@ -666,7 +666,7 @@ export class Together {
       const host = this.roster.find((r) => r.host);
       panel.innerHTML = `<h2>Together</h2>
         <p>You are a guest in ${esc(host?.name ?? "the host")}'s town.</p>
-        <p class="note-small">For now guests walk, jump, swim and look. Work, talk and buying come in a later version. Only the host changes the town's settings.</p>
+        <p class="note-small">You play your own man: your own money, needs, pockets, work, room and name in the town. The town, its people and its clock are the same for everyone. Only the host starts a new week, loads a save or changes the town's settings.</p>
         <p class="row"><b>Here now</b> ${this.roster.filter((r) => r.online).map((r) => esc(r.name) + (r.away ? " (away)" : "")).join(", ") || "only you"}</p>
         <p class="row"><button data-mp="look">Your look</button></p>
         <button name="back">Back</button>`;
