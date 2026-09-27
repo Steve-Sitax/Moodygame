@@ -237,8 +237,10 @@ function spillAt(s: SpillSource, power: number, x: number, y: number, z: number,
     const wz = lz + (dz - lz) * k;
     const ws = (wx * ux + wz * uz) / s.hw;
     const wt = wy / s.hh;
-    const sw = 0.1 + 0.08 * Math.max(o, 0);
-    const m = (1 - smooth(Math.abs(ws), 1 - sw, 1 + sw)) * (1 - smooth(Math.abs(wt), 1 - sw, 1 + sw));
+    // [spill2] the penumbra in metres in the opening's plane, growing with the distance out (psx.ts spillOne)
+    const oo = Math.max(o, 0);
+    const pw = 0.1 + (0.9 * oo) / (s.depth + oo);
+    const m = (1 - smooth(Math.abs(ws), 1 - pw / s.hw, 1 + pw / s.hw)) * (1 - smooth(Math.abs(wt), 1 - pw / s.hh, 1 + pw / s.hh));
     pat = 0.5 + 0.5 * m;
   }
   return power * lobe * cr * fall * fade * pat;
@@ -465,6 +467,8 @@ export function createSpill(scene: THREE.Scene, walkGround: (x: number, z: numbe
       const uz = s.nx;
       const reach = Math.min(s.range, 8);
       let far = reach;
+      // ([spill2] a pavement narrower than 0.4 m: its top at the foot counts too, so the pool is not laid under it)
+      for (const d of [0.15, 0.3]) onLevel(s.x + s.nx * d, s.z + s.nz * d);
       for (const d of [0.4, 1, 2, 3, 4.5, 6, 8]) {
         if (d > reach) break;
         let ok = true;

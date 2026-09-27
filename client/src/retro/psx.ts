@@ -99,26 +99,42 @@ vec3 spillOne(vec3 P, vec3 N, vec4 A, vec4 B, vec4 C, vec4 D) {
   float lobe = (under + (1.0 - under) * max(dot(-L1, n), 0.0)) * smoothstep(-0.08, 0.1, o);
   float cr = 0.5 * (max(dot(N, L1), 0.0) + max(dot(N, L2), 0.0));
   float fall = 0.5 * (1.0 / (pow(l1 * l1, D.y * 0.5) + D.w) + 1.0 / (pow(l2 * l2, D.y * 0.5) + D.w));
-  // the opening's shape thrown by the lamp inside (D.z behind the glass, a little over the middle), its bars
+  // the opening's shape thrown by the lamp inside (D.z behind the glass, a little over the middle), its bars.
+  // [spill2, 2026-09-27] Soft (Steve: "here more ugly lighting": the shape and its bars lay on the setts as hard
+  // stepped blocks). A room's light is broad (the lamp, the lit walls and ceiling, about 1.8 m across), so its
+  // penumbra grows with the distance out: a hand's width at the glass, over a metre 2 m out, the shape melted into
+  // the pool beyond. Worked out in metres in the opening's plane (pw), so a small window and a big shop front soften
+  // alike. The bars' shadows blur the same way and fade out by 2.5 m; no hard step at the frame.
   float pat = 1.0;
   if (D.z > 0.0) {
     vec3 lamp = vec3(0.0, B.w * 0.35, 0.0) - n * D.z;
     vec3 rel = d - lamp;
+    float oo = max(o, 0.0);
     float k = D.z / max(D.z + o, 0.05);
     vec3 w = lamp + rel * k;
     float ws = dot(w, u) / B.z;
     float wt = w.y / B.w;
-    float sw = 0.1 + 0.08 * max(o, 0.0);
-    float m = (1.0 - smoothstep(1.0 - sw, 1.0 + sw, abs(ws))) * (1.0 - smoothstep(1.0 - sw, 1.0 + sw, abs(wt)));
+    float pw = 0.1 + 0.9 * oo / (D.z + oo);
+    float swS = pw / B.z;
+    float swT = pw / B.w;
+    float m = (1.0 - smoothstep(1.0 - swS, 1.0 + swS, abs(ws))) * (1.0 - smoothstep(1.0 - swT, 1.0 + swT, abs(wt)));
     if (C.w > 0.5) {
       float cols = floor(C.w / 10.0 + 0.01);
       float rows = C.w - cols * 10.0;
       float fx = (ws * 0.5 + 0.5) * cols;
       float fy = (wt * 0.5 + 0.5) * rows;
-      float bw = 0.05 + 0.05 * max(o, 0.0);
-      float bx = (1.0 - smoothstep(bw, bw + 0.12, abs(fx - floor(fx + 0.5)))) * step(0.5, fx) * step(fx, cols - 0.5);
-      float by = (1.0 - smoothstep(bw, bw + 0.12, abs(fy - floor(fy + 0.5)))) * step(0.5, fy) * step(fy, rows - 0.5);
-      m *= 1.0 - 0.5 * max(bx, by);
+      // the nearest inner bar (1 .. cols - 1), its shadow blurred by the penumbra (in panes)
+      float bx = 0.0;
+      float by = 0.0;
+      if (cols > 1.5) {
+        float pb = 0.06 + pw * cols / (2.0 * B.z);
+        bx = 1.0 - smoothstep(0.03, 0.03 + pb, abs(fx - clamp(floor(fx + 0.5), 1.0, cols - 1.0)));
+      }
+      if (rows > 1.5) {
+        float pb = 0.06 + pw * rows / (2.0 * B.w);
+        by = 1.0 - smoothstep(0.03, 0.03 + pb, abs(fy - clamp(floor(fy + 0.5), 1.0, rows - 1.0)));
+      }
+      m *= 1.0 - 0.4 * max(bx, by) * (1.0 - smoothstep(0.6, 2.5, oo));
     }
     pat = 0.5 + 0.5 * m;
   }
@@ -144,9 +160,13 @@ vec3 psxSpill(vec3 P, vec3 N) {
 }
 `;
 
-/** Wet stone and puddles: the spill sources mirrored as streaks (needs wetStreak and spillSumGlsl). */
+/**
+ * Wet stone and puddles: the spill sources mirrored as streaks (needs wetStreak and spillSumGlsl). `pud` 1: in a
+ * puddle (a still mirror, the street's own mirror picture already shows the opening), 0: wet stone (rain).
+ */
 const spillWetGlsl = /* glsl */ `
-vec3 psxSpillWet(vec3 P, vec3 rr) {
+#define SPILL_WET_OPEN 0.1
+vec3 psxSpillWet(vec3 P, vec3 rr, float pud) {
   vec3 E = vec3(0.0);
   for (int i = 0; i < MAX_SPILL; i++) {
     vec4 A = uSpillA[i];
@@ -156,8 +176,27 @@ vec3 psxSpillWet(vec3 P, vec3 rr) {
     float dd = dot(d, d);
     if (dd > r * r) continue;
     // (a window's glow sits a little out of its wall, so the streak is not cut by it)
-    vec3 c = A.xyz + vec3(uSpillB[i].x, 0.0, uSpillB[i].y) * 0.3;
-    E += uSpillC[i].rgb * A.w * wetStreak(P, rr, c) * (1.0 - dd / (r * r));
+    vec2 nb = uSpillB[i].xy;
+    vec3 c = A.xyz + vec3(nb.x, 0.0, nb.y) * 0.3;
+    float s;
+    if (pud > 0.5 && dot(nb, nb) > 0.01) {
+      // [spill2, 2026-09-27] a lit window or door in a puddle: a soft band as wide and tall as the opening. A flame's
+      // needle streak times the window's power lit whole puddles before a shop as hard-edged plates brighter than
+      // the window itself (Steve: "here more ugly lighting", blocks floating on the setts). As bright as its glass at
+      // most: its power is spread over the opening (SPILL_WET_OPEN), where a lamp's is in its flame. (Wet stone in
+      // the rain keeps the streak: there it is a soft glow down the street.)
+      vec3 q = c - P;
+      float t0 = dot(q, rr);
+      if (t0 < 0.0) continue;
+      vec3 perp = q - rr * t0;
+      vec3 across = normalize(vec3(-rr.z, 0.0, rr.x) + 1e-5);
+      float da = dot(perp, across);
+      float dv = length(perp - across * da);
+      float ea = max(abs(da) - uSpillB[i].z * abs(dot(vec3(-nb.y, 0.0, nb.x), across)), 0.0);
+      float ev = max(dv - uSpillB[i].w, 0.0);
+      s = SPILL_WET_OPEN / (1.0 + ea * ea * 3.0 + ev * ev * 0.35) / (1.0 + t0 * 0.08);
+    } else s = wetStreak(P, rr, c);
+    E += uSpillC[i].rgb * A.w * s * (1.0 - dd / (r * r));
   }
   return E;
 }
@@ -1031,7 +1070,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
             wrefl += uLamps[i].w * wetStreak(vPsxWorld, rr, uLamps[i].xyz);
           }
           gl_FragColor.rgb += uLampColor * wrefl * wetK * stone * (0.15 + 0.85 * glint) * 0.4;
-          ${spillOn ? "gl_FragColor.rgb += psxSpillWet(vPsxWorld, rr) * wetK * (0.35 + 0.65 * stone) * (0.55 + 0.45 * glint) * 0.02;" : ""}
+          ${spillOn ? "gl_FragColor.rgb += psxSpillWet(vPsxWorld, rr, 0.0) * wetK * (0.35 + 0.65 * stone) * (0.55 + 0.45 * glint) * 0.02;" : ""}
           if (uRain > 0.001) gl_FragColor.rgb += fogColor * rainRings(vPsxWorld.xz * 1.6, uTime * 1.3, uRain * 0.6) * 0.18 * wetK;
         }`
             : ""
@@ -1073,7 +1112,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
             float lamp = 0.0;
             for (int i = 0; i < MAX_LAMPS; i++) lamp += uLamps[i].w * wetStreak(vPsxWorld, rr, uLamps[i].xyz);
             refl += uLampColor * lamp * 0.8;
-            ${spillOn && opts.wet ? "refl += psxSpillWet(vPsxWorld, rr) * 0.05;" : ""}
+            ${spillOn && opts.wet ? "refl += psxSpillWet(vPsxWorld, rr, 1.0) * 0.05;" : ""}
             // shallow, a little brown: the ground under it, darker
             vec3 under = gl_FragColor.rgb * vec3(0.52, 0.48, 0.42);
             gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(under, refl, F), water);
