@@ -74,6 +74,21 @@ const mirrorCams = new WeakSet<THREE.Camera>();
  */
 export const mirrorsFirst = { on: true };
 if (import.meta.env.DEV) Object.assign(window, { __mirrorsFirst: mirrorsFirst });
+/**
+ * Mirrors take turns (Steve, 2026-09-27, "1 for the mirror effects"): facing the river on the Rijnkaai the two
+ * mirrors (the river, the puddles) each drew the town again every frame, 26 frames a second against 52 with them off.
+ * Now each is drawn every second frame, one on the even frames, the other on the odd ones; in between the water reads
+ * the picture of the frame before (with that frame's matrix, so the reflection stays where it was in the world). A
+ * mirror is drawn at once when it was not drawn the frame before (it just came into view), when the eye moved more
+ * than half a metre or turned more than 4 degrees, or when the plane moved more than 5 mm (the tide moves it a hair
+ * every frame) or the lens changed: no stale picture after a
+ * jump, and no edge of the old picture showing in a quick turn. `mirrorTurns.on` off draws every mirror every frame.
+ */
+export const mirrorTurns = { on: true };
+if (import.meta.env.DEV) Object.assign(window, { __mirrorTurns: mirrorTurns });
+const TURN_COS = Math.cos(THREE.MathUtils.degToRad(4));
+/** Frames drawn with the mirrors first (drawMirrorsFirst): the mirrors' turns count them. */
+let mirrorFrame = 0;
 const firstPasses: Array<(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera, view: THREE.Frustum) => void> = [];
 const viewFrustum = new THREE.Frustum();
 const viewMatrix = new THREE.Matrix4();
@@ -84,6 +99,7 @@ export function drawMirrorsFirst(renderer: THREE.WebGLRenderer, scene: THREE.Sce
   camera.updateWorldMatrix(true, false);
   viewMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
   viewFrustum.setFromProjectionMatrix(viewMatrix);
+  mirrorFrame++;
   for (const pass of firstPasses) pass(renderer, scene, camera, viewFrustum);
 }
 
@@ -157,6 +173,13 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
   const surfaces: THREE.Object3D[] = [];
   let busy = false;
   let drawn = false;
+  // the last picture drawn: its frame, and the eye, look, plane and lens it was drawn for (mirrorTurns)
+  let lastFrame = -10;
+  let lastPlane = NaN;
+  let lastFov = 0;
+  const lastEye = new THREE.Vector3();
+  const lastLook = new THREE.Vector3();
+  const lookNow = new THREE.Vector3();
   const dev = { planeY, rt, baseW, baseH, renderer: null as THREE.WebGLRenderer | null, renders: 0, calls: 0, error: "", why: "" };
   mirrorsForDev.push(dev);
 
@@ -190,6 +213,23 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
     if (drawn) return void (dev.why = "drawn this frame");
     drawn = true;
     queueMicrotask(() => (drawn = false));
+    // its turn? (mirrorTurns) the other frame keeps the picture drawn the frame before
+    lookNow.set(0, 0, -1).transformDirection(camera.matrixWorld);
+    if (
+      mirrorTurns.on &&
+      lastFrame === mirrorFrame - 1 &&
+      (mirrorFrame + index) % 2 === 1 &&
+      Math.abs(lastPlane - planeY) < 0.005 &&
+      lastFov === camera.fov &&
+      lastEye.distanceToSquared(eye) < 0.25 &&
+      lastLook.dot(lookNow) > TURN_COS
+    )
+      return void (dev.why = "its turn next frame");
+    lastFrame = mirrorFrame;
+    lastPlane = planeY;
+    lastFov = camera.fov;
+    lastEye.copy(eye);
+    lastLook.copy(lookNow);
     busy = true;
     // mirror the eye, the point it looks at, and its up in the plane
     rot.extractRotation(camera.matrixWorld);
