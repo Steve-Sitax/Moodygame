@@ -37,6 +37,16 @@ const SNAP_M = 3;
 
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 
+/**
+ * The delay a line asks for: the 95th percentile of how late the batches came, plus 110 ms (a batch every 100 ms
+ * and a little), 200 to 350 ms. M8e: checked for a VPN (60-120 ms round trips, 30 ms jitter; client/test/vpnLine
+ * .test.mjs): it asks 200-280 ms there and no frame waits on a batch, so the range stays.
+ */
+export function puppetDelayWanted(late: readonly number[]): number {
+  const sorted = [...late].sort((a, b) => a - b);
+  return Math.max(PUPPET_DELAY_MIN, Math.min(PUPPET_DELAY_MAX, sorted[Math.floor(sorted.length * 0.95)] + 110));
+}
+
 // ------------------------------------------------------------------ one remote townsperson's jitter buffer
 
 function hermite(p0: number, v0: number, p1: number, v1: number, dt: number, u: number): number {
@@ -136,7 +146,11 @@ export class Street implements TownNet {
   readonly meter = { batchesIn: 0, batchesOut: 0, entriesOut: 0, handovers: 0, handoverJump: [] as number[], pingPong: 0, drops: 0 };
   private readonly handedAt = new Map<string, number>();
 
-  constructor(private readonly d: StreetDeps) {}
+  private readonly d: StreetDeps;
+  // (a plain field, not a parameter property: node runs this file in the client tests)
+  constructor(d: StreetDeps) {
+    this.d = d;
+  }
 
   // ---- TownNet (town.ts asks)
 
@@ -275,8 +289,7 @@ export class Street implements TownNet {
   apply(dt: number): void {
     // the delay follows how late the batches come (95th percentile plus a little), 5% of the time passing at most
     if (this.late.length >= 10) {
-      const sorted = [...this.late].sort((a, b) => a - b);
-      const want = Math.max(PUPPET_DELAY_MIN, Math.min(PUPPET_DELAY_MAX, sorted[Math.floor(sorted.length * 0.95)] + 110));
+      const want = puppetDelayWanted(this.late);
       const step = dt * 1000 * 0.05;
       this.delay += Math.max(-step, Math.min(step, want - this.delay));
     }

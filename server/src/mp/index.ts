@@ -17,8 +17,10 @@ import { asPlayer, setOnlineIds, setPositionSource, setWalkerSource } from "../p
 import { ackRest, allAsleep, reportPos, restAcked, restOf, takeWoke, wakeRest } from "../rest.ts";
 import { ensurePlayerRow } from "../player/multi.ts";
 import { TOKEN_HEADER, whoOf, whoOfUpgrade, type Who } from "./auth.ts";
-import { closeLan, lanOpen, lanUrls, openLan } from "./lan.ts";
+import { applySecure, closeLan, closeSecure, lanOpen, lanUrls, openLan, secureCerts, secureOpen, secureUrlFor, secureUrls } from "./lan.ts";
+import { houseCaPem } from "./tls.ts";
 import { Plausible } from "./plausible.ts";
+import { FLOOD_CODE, FLOOD_S, FLOOD_WHY, HTTP_WHY, HttpLimiter, SeatLimiter, type SocketKind } from "./limits.ts";
 import { addGuest, cleanGuestName, countTry, HOST_ID, listPlayers, mayTry, MAX_PLAYERS, playerById, poseOf, removeGuest, sameCode, savePose, setAdmin } from "./players.ts";
 import { mpOn, mpSettings, newCode, setMp } from "./settings.ts";
 import { autoBuild, currentManifest, mountStatic, reloadManifest } from "./static.ts";
@@ -55,6 +57,8 @@ interface Conn {
   /** The sent-to state of each other player (their seq), and when each was last sent. */
   sent: Map<number, { seq: number; at: number }>;
   bytesOut: number;
+  /** M8e: the socket answered the last ws ping (the browser answers by itself, even in a hidden tab). */
+  alive: boolean;
 }
 
 interface Seat {
@@ -73,6 +77,8 @@ interface Seat {
   /** Server ms when his socket closed (null: online). */
   goneAt: number | null;
   bytesIn: number;
+  /** M8e: his rate limits on the movement socket (limits.ts); kept across a reconnect. */
+  limits: SeatLimiter;
 }
 
 const GRACE_MS = 30_000;
@@ -84,6 +90,16 @@ const PUPPETS_STALE_MS = 3_000;
 const FIG_RATE = 15;
 /** M8d: after his job or call is over, his figures may still be sent this long (they walk off, then go). */
 const FIG_HELD_GRACE_MS = 10_000;
+/**
+ * M8e: a ws ping to every movement socket this often; one that did not answer the last one is closed. Over a VPN
+ * a line can die without a word (no FIN): without this his seat stayed "online" and his figure stood there.
+ * The browser answers a ping itself (not the page's code), so a hidden tab never misses one. Two missed pings
+ * (up to 20 s) end the socket; his seat then waits GRACE_MS for his reconnect as after any close.
+ */
+const HEARTBEAT_MS = 10_000;
+/** M8e: the moving world's state as world.ts writes it (JSON.stringify keeps the key order): sorted before parsing. */
+const WORLD_HEAD = Buffer.from('{"type":"world"');
+const startsWith = (d: RawData, head: Buffer): boolean => Buffer.isBuffer(d) && d.length >= head.length && d.subarray(0, head.length).equals(head);
 
 const VISITOR = "Visitors can walk, jump, swim and look for now. Work, talk and buying come later (M8c).";
 
@@ -101,6 +117,9 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
   let lastWorld: string | null = null;
   const puppetsAt = new Map<number, number>();
   const stStats = { puppetBatches: 0, puppetsIn: 0, worldChanges: 0, skipped: 0, figBatches: 0, figDropped: 0 };
+  // M8e (limits.ts): what the rate limits dropped, the seats closed for a flood, the guests' HTTP calls refused
+  const limStats = { limitDropped: 0, floodClosed: 0, deadClosed: 0 };
+  const httpLimits = new HttpLimiter();
   // M8d: the townspeople called for a player's job or quest are his PC's to walk (town/walkup.ts jobPins): asked
   // fresh for a claim (at most every 250 ms), sent to everyone when they change
   let pins = new Map<string, number>();
@@ -154,6 +173,8 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
       return c.json({ error: "Join the game first: the join code is on the host's screen.", join: true }, 401);
     }
     if (who.guest) {
+      // M8e (limits.ts): a guest's calls per token; the host and the server's own calls never wait
+      if (!httpLimits.take(who.id, Date.now())) return c.json({ error: HTTP_WHY }, 429, { "retry-after": "1" });
       if (p.startsWith("/api/dev/")) return c.json({ error: VISITOR }, 403);
       // M8c: a guest plays his own man: he works, buys, talks, rents, sleeps like the host. The world's own
       // things stay the host's (and an admin guest's for the settings): a new week, loading a save, the server's
@@ -222,7 +243,25 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
       version: man?.version ?? (DEV ? "dev" : "unbuilt"),
       you: who ? { id: who.id, host: who.host, guest: who.guest, admin: who.admin, name: nameOf(who.id) } : null,
       pausedAll: isPaused() && gateState().holders.includes("host:all"),
+      // M8e: the secure address for the name he came by, the house certificate and its fingerprints (to compare)
+      house: houseInfo(c.req.header("host")),
     });
+  });
+
+  /** M8e: what a guest needs to trust the house (all public: the CA's certificate, never a key). */
+  function houseInfo(host: string | undefined) {
+    const certs = secureCerts();
+    if (!certs) return null;
+    return { https: secureUrlFor(host), ca: "/house-ca.crt", sha256: certs.caSha256, sha1: certs.caSha1 };
+  }
+
+  // M8e: the house certificate for the guests (the CA's public certificate only), on every port of the open house
+  app.get("/house-ca.crt", (c) => {
+    const s = mpSettings();
+    if (!(s.lan || s.vpn) || !allowedHost(c.req.header("host"))) return c.text("not found", 404);
+    const pem = houseCaPem();
+    if (!pem) return c.text("The house certificate is being made: a moment.", 503);
+    return c.body(pem, 200, { "content-type": "application/x-x509-ca-cert", "content-disposition": 'attachment; filename="scheldemist-house.crt"', "cache-control": "no-cache", "x-content-type-options": "nosniff" });
   });
 
   app.post("/api/mp/join", async (c) => {
@@ -252,21 +291,39 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
     const who = c.get("mpWho");
     if (!who || !hostOnly(who)) return c.json({ error: "Only the host sees this." }, 403);
     const s = mpSettings();
-    return c.json({ multiplayer: s.multiplayer, lan: s.lan, open: lanOpen(), code: s.code, urls: s.lan ? lanUrls() : [], players: roster(), pausedAll: gateState().holders.includes("host:all") });
+    return c.json({ ...houseView(), code: s.code, players: roster(), pausedAll: gateState().holders.includes("host:all") });
   });
+
+  /** The house as the host's Together panel shows it (M8e: the secure addresses, the VPN, the certificate). */
+  function houseView() {
+    const s = mpSettings();
+    const certs = secureCerts();
+    return {
+      multiplayer: s.multiplayer,
+      lan: s.lan,
+      vpn: s.vpn,
+      open: lanOpen(),
+      urls: s.lan ? lanUrls() : [],
+      secureOpen: secureOpen(),
+      secure: secureUrls(),
+      // (spki: the server key's hash, for a test browser's --ignore-certificate-errors-spki-list)
+      tls: certs ? { ca: "/house-ca.crt", sha256: certs.caSha256, sha1: certs.caSha1, spki: certs.spki, until: certs.serverUntil } : null,
+    };
+  }
 
   app.post("/api/mp/config", async (c) => {
     const who = c.get("mpWho");
     if (!who || !hostOnly(who)) return c.json({ error: "Only the host may change this." }, 403);
-    const b = (await c.req.json().catch(() => ({}))) as { multiplayer?: unknown; lan?: unknown };
-    const patch: { multiplayer?: boolean; lan?: boolean } = {};
+    const b = (await c.req.json().catch(() => ({}))) as { multiplayer?: unknown; lan?: unknown; vpn?: unknown };
+    const patch: { multiplayer?: boolean; lan?: boolean; vpn?: boolean } = {};
     if (typeof b.multiplayer === "boolean") patch.multiplayer = b.multiplayer;
     if (typeof b.lan === "boolean") patch.lan = b.lan;
+    if (typeof b.vpn === "boolean") patch.vpn = b.vpn; // M8e "Open to my VPN"
     const s = setMp(patch);
     await applyLan();
     if (!s.multiplayer && gateState().holders.includes("host:all")) setPaused("host:all", false);
     deps.broadcast({ type: "mp", multiplayer: s.multiplayer });
-    return c.json({ multiplayer: s.multiplayer, lan: s.lan, open: lanOpen(), code: s.code, urls: s.lan ? lanUrls() : [] });
+    return c.json({ ...houseView(), code: s.code });
   });
 
   app.post("/api/mp/code", (c) => {
@@ -287,6 +344,7 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
       seat.conn.ws.close(4003, "removed by the host");
     }
     seats.delete(id);
+    httpLimits.forget(id);
     const ok = removeGuest(db, id);
     sendRoster(true);
     return c.json({ ok });
@@ -383,6 +441,7 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
     }, 5000);
     ws.on("message", (data: RawData, isBinary: boolean) => {
       const now = Date.now();
+      if (conn) conn.alive = true; // (M8e: any message says the line is up)
       if (!conn) {
         if (isBinary) return;
         let m: MpText;
@@ -409,10 +468,10 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
           ws.close(4001, "who");
           return;
         }
-        conn = { ws, who, sent: new Map(), bytesOut: 0 };
+        conn = { ws, who, sent: new Map(), bytesOut: 0, alive: true };
         let seat = seats.get(who.id);
         if (!seat) {
-          seat = { id: who.id, plaus: new Plausible(who.host), state: null, recent: [], at: 0, posedAt: 0, conn: null, times: [], goneAt: null, bytesIn: 0 };
+          seat = { id: who.id, plaus: new Plausible(who.host), state: null, recent: [], at: 0, posedAt: 0, conn: null, times: [], goneAt: null, bytesIn: 0, limits: new SeatLimiter() };
           seats.set(who.id, seat);
         }
         // one socket a player: a new tab of his takes over (the old one is told and closed)
@@ -440,6 +499,30 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
       }
       const seat = seats.get(conn.who.id);
       if (!seat) return;
+      // M8e (limits.ts): a guest's messages per kind; over the limit dropped and counted, a flood closes his socket
+      // (the host's PC is never limited). Sorted before parsing: the world's state starts as world.ts writes it.
+      if (!conn.who.host) {
+        if (ws.readyState !== WebSocket.OPEN) return; // (closing: what still comes is not read)
+        let kind: SocketKind;
+        if (!isBinary) kind = startsWith(data, WORLD_HEAD) ? "world" : "text";
+        else {
+          const b0 = (data as Buffer)[0];
+          kind = b0 === MSG_PUPPETS ? "puppets" : b0 === MSG_FIGS ? "figs" : "state";
+        }
+        const say = seat.limits.message(kind, now);
+        if (say === "drop") {
+          limStats.limitDropped++;
+          return;
+        }
+        if (say === "flood") {
+          limStats.floodClosed++;
+          console.log(`[mp] player ${seat.id}: far too many ${kind} messages for ${FLOOD_S} s: the socket is closed`);
+          send(conn, { type: "refused", why: FLOOD_WHY });
+          ws.close(FLOOD_CODE, "flood");
+          setTimeout(() => ws.terminate(), 1000).unref(); // (one that does not answer the close)
+          return;
+        }
+      }
       if (!isBinary) {
         const text = String(data);
         let m: MpText;
@@ -536,6 +619,9 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
         s.flags |= FLAG.snap; // taken as a new place: the others see him there without an in-between
         console.log(`[mp] player ${seat.id}: taken at a new place after 2 s (${v.dist.toFixed(1)} m)`);
       }
+      // M8e: back on a new socket (a reconnect): his PC moved him while the line was down; the others see him at
+      // his new place at once, not sliding there from where he stood
+      if (seat.state && seat.plaus.stats.accepted === 1) s.flags |= FLAG.snap;
       const first = !seat.state;
       const wasAway = !!seat.state && (seat.state.flags & FLAG.away) !== 0;
       seat.state = s;
@@ -566,8 +652,27 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
         chooseWorld();
       }
     });
+    ws.on("pong", () => {
+      if (conn) conn.alive = true;
+    });
     ws.on("error", () => {});
   });
+
+  // M8e: a dead line (a VPN that dropped without a word) is found and closed: see HEARTBEAT_MS
+  const heartbeat = setInterval(() => {
+    for (const k of conns) {
+      if (k.ws.readyState !== WebSocket.OPEN) continue;
+      if (!k.alive) {
+        limStats.deadClosed++;
+        console.log(`[mp] player ${k.who.id}: no answer to the ping: the line is closed (he may come back)`);
+        k.ws.terminate();
+        continue;
+      }
+      k.alive = false;
+      k.ws.ping();
+    }
+  }, HEARTBEAT_MS);
+  heartbeat.unref();
 
   /** A new state of `seat` to every other player near him, now. */
   function forward(seat: Seat, s: MpState, now: number): void {
@@ -640,8 +745,8 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
   relay.unref();
 
   function stats() {
-    const players = [...seats.values()].map((s) => ({ id: s.id, name: nameOf(s.id), online: s.goneAt === null, bytesIn: s.bytesIn, bytesOut: s.conn?.bytesOut ?? 0, ...s.plaus.stats, walks: owners.count(s.id) }));
-    return { corrections: 0, players, worldPc: world.id, ...stStats };
+    const players = [...seats.values()].map((s) => ({ id: s.id, name: nameOf(s.id), online: s.goneAt === null, bytesIn: s.bytesIn, bytesOut: s.conn?.bytesOut ?? 0, ...s.plaus.stats, walks: owners.count(s.id), limited: { ...s.limits.dropped }, http429: httpLimits.refused.get(s.id) ?? 0 }));
+    return { corrections: 0, players, worldPc: world.id, ...stStats, ...limStats, http429: httpLimits.total };
   }
 
   // ------------------------------------------------------------------ M8b: the street and the world
@@ -735,11 +840,12 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
   let lanBusy: Promise<void> = Promise.resolve();
   function applyLan(): Promise<void> {
     lanBusy = lanBusy.then(async () => {
-      if (mpSettings().lan) {
-        await openLan(app.fetch, upgrade);
-        void autoBuild.ensure(); // (the house plays the built game: built now if it is missing or old, autobuild.ts)
-      }
+      const { lan, vpn } = mpSettings();
+      if (lan) await openLan(app.fetch, upgrade);
       else await closeLan();
+      // M8e: https on the next port (the house's addresses, the VPN's), with the house certificate (tls.ts)
+      await applySecure(app.fetch, upgrade, { lan, vpn });
+      if (lan || vpn) void autoBuild.ensure(); // (the house plays the built game: built now if it is missing or old, autobuild.ts)
     });
     return lanBusy;
   }
@@ -761,20 +867,21 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
     attach(server: Server, push: WebSocketServer): void {
       pushWss = push;
       server.on("upgrade", upgrade);
-      mountStatic(app, () => mpSettings().lan || !DEV);
-      if (mpSettings().lan) void applyLan();
+      mountStatic(app, () => mpSettings().lan || mpSettings().vpn || !DEV);
+      if (mpSettings().lan || mpSettings().vpn) void applyLan();
       if (mpOn()) console.log(`[mp] played together; join code ${mpSettings().code}`);
     },
     close(): Promise<void> {
       clearInterval(relay);
       clearInterval(clockLoop);
+      clearInterval(heartbeat);
       setOnlineIds(null);
       setPositionSource(null);
       setWalkerSource(null);
       autoBuild.stop();
       for (const k of conns) k.ws.close();
       mpWss.close();
-      return closeLan();
+      return Promise.all([closeLan(), closeSecure()]).then(() => {});
     },
     stats,
     /** The header a guest's requests carry (for the docs and the tests). */

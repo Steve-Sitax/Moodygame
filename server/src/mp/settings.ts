@@ -7,13 +7,16 @@ import { newJoinCode } from "./players.ts";
 // whether the server listens on the home network ("Open to the house"), and the join code on the host's
 // screen. Kept in data/mp-config.json next to the save (a test save data/test-<name>.sqlite gets
 // data/test-<name>.mp-config.json, deleted by teststack.mjs stop). SCHELDEMIST_MP_CONFIG overrides the path.
-// SCHELDEMIST_LAN=1 opens the house at start (npm run host); SCHELDEMIST_MP=1 plays together without the LAN.
+// SCHELDEMIST_LAN=1 opens the house at start (npm run host); SCHELDEMIST_MP=1 plays together without the LAN;
+// SCHELDEMIST_VPN=1 opens it to the VPN (M8e).
 
 export interface MpSettings {
   /** Played together: no pause, the server moves the clock, guests may join. */
   multiplayer: boolean;
   /** "Open to the house": the server also listens on the home network and serves the built game. */
   lan: boolean;
+  /** M8e "Open to my VPN": the server also listens (https only) on the VPN's address (NetBird, Tailscale: 100.64.0.0/10). */
+  vpn: boolean;
   /** The join code on the host's screen. */
   code: string;
 }
@@ -31,12 +34,13 @@ const file: string | null = process.env.VITEST && !process.env.SCHELDEMIST_MP_CO
 let current: MpSettings = read();
 
 function read(): MpSettings {
-  const d: MpSettings = { multiplayer: false, lan: false, code: newJoinCode() };
+  const d: MpSettings = { multiplayer: false, lan: false, vpn: false, code: newJoinCode() };
   if (file && fs.existsSync(file)) {
     try {
       const j = JSON.parse(fs.readFileSync(file, "utf8")) as Partial<MpSettings>;
       if (typeof j.multiplayer === "boolean") d.multiplayer = j.multiplayer;
       if (typeof j.lan === "boolean") d.lan = j.lan;
+      if (typeof j.vpn === "boolean") d.vpn = j.vpn;
       if (typeof j.code === "string" && /^[A-Z]{4}-[0-9]{2}$/.test(j.code)) d.code = j.code;
     } catch (e) {
       console.warn(`[mp] ${file} could not be read; defaults`, e);
@@ -44,7 +48,8 @@ function read(): MpSettings {
   }
   if (process.env.SCHELDEMIST_LAN === "1") d.lan = true;
   if (process.env.SCHELDEMIST_MP === "1") d.multiplayer = true;
-  if (d.lan) d.multiplayer = true;
+  if (process.env.SCHELDEMIST_VPN === "1") d.vpn = true;
+  if (d.lan || d.vpn) d.multiplayer = true;
   return d;
 }
 
@@ -64,10 +69,11 @@ export const mpSettings = (): Readonly<MpSettings> => current;
 /** Played together now? */
 export const mpOn = (): boolean => current.multiplayer;
 
-export function setMp(patch: Partial<Pick<MpSettings, "multiplayer" | "lan">>): MpSettings {
+export function setMp(patch: Partial<Pick<MpSettings, "multiplayer" | "lan" | "vpn">>): MpSettings {
   if (typeof patch.multiplayer === "boolean") current.multiplayer = patch.multiplayer;
   if (typeof patch.lan === "boolean") current.lan = patch.lan;
-  if (current.lan) current.multiplayer = true;
+  if (typeof patch.vpn === "boolean") current.vpn = patch.vpn;
+  if (current.lan || current.vpn) current.multiplayer = true;
   write();
   return current;
 }
@@ -80,5 +86,5 @@ export function newCode(): string {
 
 /** Test helper: settings without a file. */
 export function resetMpSettings(s: Partial<MpSettings> = {}): void {
-  current = { multiplayer: false, lan: false, code: newJoinCode(), ...s };
+  current = { multiplayer: false, lan: false, vpn: false, code: newJoinCode(), ...s };
 }

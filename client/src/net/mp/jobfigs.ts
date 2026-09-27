@@ -12,8 +12,24 @@
 // (".js": the server's tests read this file too, as the shared plans do)
 import { decodeFigs, encodeFigs, FIG_HZ, FIG_MAX, type FigKind, type FigMotion, type FigState } from "../../../../shared/mpProtocol.js";
 
-/** Drawn this far in the past (two batches of margin at 10 a second). */
+/** Drawn this far in the past to start (two batches of margin at 10 a second). */
 export const FIG_DELAY_MS = 200;
+/**
+ * M8e: then from how late the batches come, as the townspeople's (street.ts: the 95th percentile plus 110 ms,
+ * 200 to 350 ms). A fixed 200 ms was enough on the house's Wi-Fi, but over a VPN (60-120 ms round trips, 30 ms
+ * jitter) a batch comes 90-180 ms after its time: past 100 ms the figure stood still on its newest state and
+ * then jumped, ten times a second (client/test/vpnLine.test.mjs).
+ */
+export const FIG_DELAY_MAX = 350;
+
+/** M8e: the delay a line asks for (the late times sorted in `scratch`, no allocation): the 95th percentile plus 110 ms. */
+export function figDelayWanted(late: readonly number[], scratch: number[]): number {
+  if (late.length < 10) return FIG_DELAY_MS;
+  scratch.length = 0;
+  for (const x of late) scratch.push(x);
+  scratch.sort((a, b) => a - b);
+  return Math.max(FIG_DELAY_MS, Math.min(FIG_DELAY_MAX, scratch[Math.floor(scratch.length * 0.95)] + 110));
+}
 /** A holder whose batches stopped this long: his figures go. */
 export const FIG_SILENT_MS = 2500;
 /** Standing figures are sent this often (a second over this many). */
@@ -129,6 +145,11 @@ export class JobFigs {
   private readonly tracks = new Map<number, Track>();
   private readonly heard = new Map<number, number>();
   private batchNo = 0;
+  /** M8e: how late the batches came (the last 50), the delay they ask for, and the delay drawn now. */
+  private readonly late: number[] = [];
+  private readonly lateSorted: number[] = [];
+  private delayWanted = FIG_DELAY_MS;
+  delay = FIG_DELAY_MS;
   private readonly sample = { ...blankState(), t: 0 } as Timed;
   readonly meter = { batchesOut: 0, bytesOut: 0, batchesIn: 0, drawn: 0, made: 0, removed: 0 };
 
@@ -212,6 +233,9 @@ export class JobFigs {
     if (!b || !b.sender) return;
     this.meter.batchesIn++;
     this.heard.set(b.sender, recvNow);
+    this.late.push(recvNow - b.t);
+    if (this.late.length > 50) this.late.shift();
+    this.delayWanted = figDelayWanted(this.late, this.lateSorted);
     const no = ++this.batchNo;
     for (const s of b.list) {
       const k = trackKey(b.sender, s.id);
@@ -236,7 +260,10 @@ export class JobFigs {
 
   private draw(dt: number): void {
     const now = this.d.serverNow();
-    const t = now - FIG_DELAY_MS;
+    // (M8e: toward what the line asks, 5% of the time passing at most: the figures never jump when it changes)
+    const step = dt * 1000 * 0.05;
+    this.delay += Math.max(-step, Math.min(step, this.delayWanted - this.delay));
+    const t = now - this.delay;
     const me = this.d.player();
     let drawn = 0;
     for (const tr of this.tracks.values()) {
@@ -293,6 +320,6 @@ export class JobFigs {
 
   /** For the kit and the harness. */
   report() {
-    return { ...this.meter, tracks: [...this.tracks.values()].map((tr) => ({ from: tr.sender, id: tr.id, kind: tr.kind, shown: !!tr.fig })) };
+    return { ...this.meter, delay: Math.round(this.delay), tracks: [...this.tracks.values()].map((tr) => ({ from: tr.sender, id: tr.id, kind: tr.kind, shown: !!tr.fig })) };
   }
 }

@@ -17,6 +17,7 @@ import type { Surface } from "../../world/rijnkaai";
 import { pause, real } from "../../game/pause";
 import { identity, isGuest } from "./identity";
 import { RemoteTrack, type Pose } from "./remotes";
+import { secureOffer, trustSteps, type HouseInfo } from "./househelp";
 import { figureKit, RemoteFigure } from "./figures";
 import { Session } from "./session";
 import { Street } from "./street";
@@ -731,18 +732,41 @@ export class Together {
       .catch(() => {});
   }
 
-  private hostView: { multiplayer: boolean; lan: boolean; open: string[]; code: string; urls: string[]; players: RosterEntry[]; pausedAll: boolean } | null = null;
+  private hostView: {
+    multiplayer: boolean;
+    lan: boolean;
+    /** M8e: "Open to my VPN", the secure addresses, the house certificate. */
+    vpn?: boolean;
+    open: string[];
+    code: string;
+    urls: string[];
+    secure?: { house: string[]; vpn: string[] };
+    tls?: { ca: string; sha256: string; sha1: string; spki: string } | null;
+    players: RosterEntry[];
+    pausedAll: boolean;
+  } | null = null;
+  /** M8e: the house's https for a guest's panel (GET /api/mp/info). */
+  private guestHouse: HouseInfo | null | undefined = undefined;
 
   private async drawPanel(fetchNow = false): Promise<void> {
     const panel = this.panel;
     if (!panel || panel.style.display === "none") return;
     const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
     if (isGuest()) {
+      if (this.guestHouse === undefined || fetchNow) {
+        try {
+          this.guestHouse = ((await (await real.fetch("/api/mp/info")).json()) as { house?: HouseInfo | null }).house ?? null;
+        } catch {
+          this.guestHouse = null;
+        }
+      }
+      const gh = this.guestHouse;
       const host = this.roster.find((r) => r.host);
       panel.innerHTML = `<h2>Together</h2>
         <p>You are a guest in ${esc(host?.name ?? "the host")}'s town.</p>
         <p class="note-small">You play your own man: your own money, needs, pockets, work, room and name in the town. The town, its people and its clock are the same for everyone. Only the host starts a new week, loads a save or changes the town's settings.</p>
         <p class="row"><b>Here now</b> ${this.roster.filter((r) => r.online).map((r) => esc(r.name) + (r.away ? " (away)" : "")).join(", ") || "only you"}</p>
+        ${gh ? (location.protocol === "https:" ? `<p class="note-small">A secure address: the house certificate is trusted on this device.</p>` : secureOffer(gh)) : ""}
         <p class="row"><button data-mp="look">Your look</button></p>
         <button name="back">Back</button>`;
       return;
@@ -766,6 +790,11 @@ export class Together {
       <p class="row"><b>Open to the house</b> <button data-mp="lan">${h.lan ? "On" : "Off"}</button>
         <span class="note-small">${h.lan ? (h.open.length ? "Others in the house can join." : "Could not listen on the home network (see docs/milestones/M8a.md).") : "Off: only this PC."}</span></p>
       ${h.lan ? `<p class="row"><b>Address</b> ${h.urls.map((u) => `<code>${esc(u)}</code>`).join(" or ")}</p>` : ""}
+      ${h.lan && h.secure?.house.length ? `<p class="row"><b>Secure address</b> ${h.secure.house.map((u) => `<code>${esc(u)}</code>`).join(" or ")}</p>` : ""}
+      <p class="row"><b>Open to my VPN</b> <button data-mp="vpn">${h.vpn ? "On" : "Off"}</button>
+        <span class="note-small">${h.vpn ? (h.secure?.vpn.length ? "Players on your VPN (NetBird) can join, over https only." : "No VPN address found on this PC. Is NetBird connected?") : "Off: not on the VPN."}</span></p>
+      ${h.vpn && h.secure?.vpn.length ? `<p class="row"><b>VPN address</b> ${h.secure.vpn.map((u) => `<code>${esc(u)}</code>`).join(" or ")}</p>` : ""}
+      ${h.tls ? `<div class="row"><b>House certificate</b> <span class="note-small">Each guest trusts it once, for the secure address. Compare the fingerprint with the one on his device.</span>${trustSteps({ https: null, ca: h.tls.ca, sha256: h.tls.sha256, sha1: h.tls.sha1 })}</div>` : ""}
       ${h.multiplayer ? `<p class="row"><b>Join code</b> <code style="font-size:1.4em;letter-spacing:0.1em">${esc(h.code)}</code> <button data-mp="code">New code</button></p>` : ""}
       ${
         players.length
@@ -803,13 +832,13 @@ export class Together {
     }
     if (!h) return;
     if (act === "together") {
-      await post("/api/mp/config", { multiplayer: !h.multiplayer, lan: h.multiplayer ? false : h.lan });
+      await post("/api/mp/config", { multiplayer: !h.multiplayer, lan: h.multiplayer ? false : h.lan, vpn: h.multiplayer ? false : !!h.vpn });
       location.reload();
       return;
     }
-    if (act === "lan") {
+    if (act === "lan" || act === "vpn") {
       const was = h.multiplayer;
-      await post("/api/mp/config", { lan: !h.lan });
+      await post("/api/mp/config", act === "lan" ? { lan: !h.lan } : { vpn: !h.vpn });
       if (!was) {
         location.reload();
         return;
@@ -832,7 +861,7 @@ export class Together {
     void real
       .fetch("/api/mp/host")
       .then((r) => r.json())
-      .then((h: { lan: boolean; urls: string[]; code: string; multiplayer: boolean }) => {
+      .then((h: { lan: boolean; vpn?: boolean; urls: string[]; secure?: { house: string[]; vpn: string[] }; code: string; multiplayer: boolean }) => {
         if (!h.multiplayer) return;
         if (!this.corner) {
           const c = document.createElement("div");
@@ -842,7 +871,7 @@ export class Together {
           this.corner = c;
         }
         const n = this.roster.filter((r) => r.online && !r.host).length;
-        this.corner.textContent = `${h.lan ? `Open to the house: ${h.urls[0] ?? ""}` : "Together (this PC only)"} · code ${h.code}${n ? ` · ${n} guest${n > 1 ? "s" : ""}` : ""}`;
+        this.corner.textContent = `${h.lan ? `Open to the house: ${h.urls[0] ?? ""}` : h.vpn ? `Open to the VPN: ${h.secure?.vpn[0] ?? ""}` : "Together (this PC only)"} · code ${h.code}${n ? ` · ${n} guest${n > 1 ? "s" : ""}` : ""}`;
       })
       .catch(() => {});
   }

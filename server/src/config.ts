@@ -29,23 +29,35 @@ const LOCAL_NAMES = new Set(["127.0.0.1", "localhost", "[::1]"]);
  */
 export const LAN_NAMES = new Set<string>();
 const lanName = (u: URL) => LAN_NAMES.has(u.hostname.toLowerCase()) && Number(u.port) === PORT;
+/** M8e: the house's https port (the game port + 1: 8788), open while the house or the VPN is (mp/lan.ts). */
+export const TLS_PORT = PORT + 1;
+/**
+ * M8e (mp/lan.ts fills it while the https port is open): every name and address the server certificate carries
+ * (localhost, 127.0.0.1, the computer's name, the home-network addresses; with "Open to my VPN" the VPN's name and
+ * address too), accepted as a Host or an https Origin on the https port only. The VPN's names never reach the
+ * plain http port.
+ */
+export const TLS_NAMES = new Set<string>();
+const tlsName = (u: URL) => TLS_NAMES.has(u.hostname.toLowerCase()) && Number(u.port) === TLS_PORT;
 
 /** A Host header naming this machine on one of the game's ports (no DNS rebinding). */
 export function allowedHost(host: string | undefined, ports: ReadonlySet<number> = CLIENT_PORTS): boolean {
   if (!host) return false;
   try {
     const u = new URL(`http://${host}`);
-    return (LOCAL_NAMES.has(u.hostname) && ports.has(Number(u.port))) || lanName(u); // M8a: or a home-network name
+    return (LOCAL_NAMES.has(u.hostname) && ports.has(Number(u.port))) || lanName(u) || tlsName(u); // M8a: or a home-network name; M8e: or the https port's
   } catch {
     return false;
   }
 }
 
-/** An Origin header of one of the game's own pages (http, this machine, a game port). */
+/** An Origin header of one of the game's own pages (http on this machine or the house; https on the https port). */
 export function allowedOrigin(origin: string, ports: ReadonlySet<number> = CLIENT_PORTS): boolean {
   try {
     const u = new URL(origin);
-    return u.protocol === "http:" && u.origin === origin && ((LOCAL_NAMES.has(u.hostname) && ports.has(Number(u.port))) || lanName(u)); // M8a: or a home-network name
+    if (u.origin !== origin) return false;
+    if (u.protocol === "https:") return tlsName(u); // M8e
+    return u.protocol === "http:" && ((LOCAL_NAMES.has(u.hostname) && ports.has(Number(u.port))) || lanName(u)); // M8a: or a home-network name
   } catch {
     return false;
   }
