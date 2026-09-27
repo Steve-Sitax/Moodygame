@@ -5,7 +5,7 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import TP from "../../../shared/townplaces.json";
 import { psx } from "../retro/psx";
-import { earthPaving, edgeStoneTexture, flagPaving, quayPaving, withPictures } from "./paving";
+import { earthPaving, EDGE_BUMP, edgeStoneTextures, flagPaving, quayPaving, withPictures } from "./paving";
 import { rectAround, type Rect } from "./geom";
 import { buildTrees3D } from "./trees3d";
 import { addProp } from "./propSpots";
@@ -165,8 +165,8 @@ function rondGround(group: THREE.Group): void {
   const ringPath = new THREE.Mesh(annulus(c, R.r_path_in, R.r_path_out, 0.8, 1.2, 0, world(4)), flagMat);
   ringPath.name = "rond_path";
   // the kerbs: bluestone edge stones on both edges of the carriageway, and round the fountain's walk
-  const edge = edgeStoneTexture();
-  const kerbMat = psx(new THREE.MeshLambertMaterial({ map: edge, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), { noSnap: true, affine: 0, wet: true });
+  const edge = edgeStoneTextures();
+  const kerbMat = psx(new THREE.MeshLambertMaterial({ map: edge.map, bumpMap: edge.height, bumpScale: EDGE_BUMP, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), { noSnap: true, affine: 0, wet: true });
   const kerb = (r: number, w: number) =>
     annulus(c, r - w / 2, r + w / 2, w, 0.9, 0.004, (_x, _z, _r, a, _b) => {
       const n = Math.round((2 * Math.PI * r) / 2);

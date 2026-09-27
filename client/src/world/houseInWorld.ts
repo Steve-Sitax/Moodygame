@@ -426,9 +426,13 @@ export function createHouseInWorld(world: World, inWorld: InWorld, plan: HousePl
       fogK.far = THREE.MathUtils.lerp(streetFog.far, AIR.far, k);
       // from the bright street by day a room looks dim through its windows
       room.setAmbient?.(1 - 0.45 * (1 - k) * dayNow);
-      // the glass: a little of the day's sky on it from outside, nearly clear from inside
-      pane.opacity = 0.08 + 0.24 * dayNow * (1 - k);
-      pane.color.setHex(dayNow > 0.3 ? 0xa8b4bc : 0x5a5650);
+      // the glass: a little of the sky on it from outside, nearly clear from inside. (2026-09-27, Steve: "when looking
+      // at windows, the shine is still there", "gone after some time": from 15:30 to 17:35 a fixed pale day grey lay
+      // over the lit room while the street was already dim, then switched off at once.) Now the sky's own colour at
+      // this hour (the street's air), fading with the square of the daylight: no sheet at dusk, no jump.
+      const sheen = dayNow * dayNow;
+      pane.opacity = 0.06 + 0.22 * sheen * (1 - k);
+      pane.color.copy(streetFog.color).multiplyScalar(2.2);
       doorPunchMesh.visible = isOpen();
     },
     lamps: () => room.lamps,
