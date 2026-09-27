@@ -17,7 +17,10 @@ import { footDirt, psx } from "../retro/psx";
 interface Pic {
   map?: string;
   height?: string;
-  /** three.js bumpScale (per screen pixel, as three.js r186 counts it). */
+  /**
+   * three.js bumpScale (per screen pixel, as three.js r186 counts it). About half the first values since retro/psx.ts
+   * psxBumpGain draws bumps up to 2.5 times as strong up close (Steve, 2026-09-27: too much bump; the stone read as grit).
+   */
   bump: number;
   /** How much darker the lowest parts of the height map are drawn: 0 none. */
   joint: number;
@@ -31,13 +34,13 @@ interface Pic {
 
 const T = "/textures/stadhuis_";
 const PICS: Record<string, Pic> = {
-  sh_white: { map: `${T}limestone.jpg`, height: `${T}limestone_h.png`, bump: 1.3, joint: 0.3, lift: 1.0, tint: [1.0, 0.95, 0.86] },
-  sh_carved: { map: `${T}carved.jpg`, height: `${T}carved_h.png`, bump: 0.8, joint: 0.12, lift: 0.98, tint: [1.0, 0.95, 0.86] },
-  sh_blue: { map: `${T}bluestone.jpg`, height: `${T}bluestone_h.png`, bump: 0.9, joint: 0.15, lift: 1.3 },
-  sh_slate: { map: `${T}slate.jpg`, height: `${T}slate_h.png`, bump: 1.3, joint: 0.3, lift: 1.25 },
-  sh_glass: { map: `${T}glass.jpg`, height: `${T}glass_h.png`, bump: 1.0, joint: 0.15, lift: 1.15 },
-  sh_oak: { map: `${T}oak.jpg`, height: `${T}oak_h.png`, bump: 1.2, joint: 0.25, lift: 1.3 },
-  sh_arms: { map: `${T}arms.png`, height: `${T}arms_h.png`, bump: 1.4, joint: 0.15, lift: 1.2, repeat: false },
+  sh_white: { map: `${T}limestone.jpg`, height: `${T}limestone_h.png`, bump: 0.7, joint: 0.3, lift: 1.0, tint: [1.0, 0.95, 0.86] },
+  sh_carved: { map: `${T}carved.jpg`, height: `${T}carved_h.png`, bump: 0.6, joint: 0.12, lift: 0.98, tint: [1.0, 0.95, 0.86] },
+  sh_blue: { map: `${T}bluestone.jpg`, height: `${T}bluestone_h.png`, bump: 0.45, joint: 0.15, lift: 1.3 },
+  sh_slate: { map: `${T}slate.jpg`, height: `${T}slate_h.png`, bump: 0.8, joint: 0.3, lift: 1.25 },
+  sh_glass: { map: `${T}glass.jpg`, height: `${T}glass_h.png`, bump: 0.6, joint: 0.15, lift: 1.15 },
+  sh_oak: { map: `${T}oak.jpg`, height: `${T}oak_h.png`, bump: 0.8, joint: 0.25, lift: 1.3 },
+  sh_arms: { map: `${T}arms.png`, height: `${T}arms_h.png`, bump: 0.9, joint: 0.15, lift: 1.2, repeat: false },
   sh_lead: { bump: 0, joint: 0, lift: 1, color: 0x4c5054 },
   sh_gilt: { bump: 0, joint: 0, lift: 1, color: 0xd0a444 },
   sh_cloth: { bump: 0, joint: 0, lift: 1, color: 0xffffff },

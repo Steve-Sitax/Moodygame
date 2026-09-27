@@ -1093,7 +1093,9 @@ let materials: { solid: THREE.Material; decal: THREE.Material } | null = null;
 function mats(solidMap: THREE.Texture, decalMap: THREE.Texture): { solid: THREE.Material; decal: THREE.Material } {
   if (materials) return materials;
   const solid = psx(new THREE.MeshLambertMaterial({ map: solidMap, vertexColors: true }), { affine: 0 });
-  propSurface(solid, new THREE.TextureLoader().load("/models/quaygoods_surface.png"));
+  // (0.4: the "mixed" kind's 1.0 read across the atlas's island edges as pale dashes on every stave and hoop, Steve
+  // 2026-09-27)
+  propSurface(solid, new THREE.TextureLoader().load("/models/quaygoods_surface.png"), 0.4);
   const decal = psx(
     new THREE.MeshLambertMaterial({ map: decalMap, vertexColors: true, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 }),
     { affine: 0, noSnap: true },
