@@ -86,6 +86,21 @@ export function bumpKindOf(label: string): BumpKind | null {
   return null;
 }
 
+/** An atlas cell with lettering: a sign, a shop's name board, a bill, a notice, a ship's name, a house number. */
+const LETTERED = /\b(names?|signs?|boards?|plates?|numbers?|letters?|notices?|posters?|bills?|labels?|placards?)\b/;
+
+/**
+ * Keep the lettered cells of an atlas flat (Steve, 2026-09-27: "text/posters should not be bump-mapped, they are
+ * flat"). A whole atlas gets one bump from its picture (a "mixed" kind), so the letters of a notice or a name board
+ * stood out as relief; the cells named here are left level in its height map (retro/psx.ts heightFromColour reads
+ * `flatCells`). `cells`: name to [x, y, w, h] in pixels from the picture's top left, on a W x H picture.
+ */
+export function flatLettering(tex: THREE.Texture, cells: Iterable<[string, readonly number[]]>, W: number, H: number): void {
+  const flat: Array<[number, number, number, number]> = [];
+  for (const [name, [x, y, w, h]] of cells) if (LETTERED.test(words(name))) flat.push([x / W, y / H, w / W, h / H]);
+  if (flat.length) tex.userData.flatCells = flat;
+}
+
 /** Tag a painted texture with what it shows, for a material that has no telling name. */
 export function bumpTag<T extends THREE.Texture>(t: T, kind: BumpKind): T {
   t.userData.bumpKind = kind;

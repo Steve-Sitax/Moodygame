@@ -6,6 +6,7 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import CITY from "../../../shared/city.json";
 import SPOT_TABLE from "../../../shared/spots.json";
 import { psx } from "../retro/psx";
+import { flatLettering } from "./bumps";
 import { lampFog } from "./lampFog";
 import type { Rect } from "./geom";
 import { trackKeepOut, type TrackData } from "./tracks";
@@ -217,6 +218,8 @@ async function loadModels(): Promise<{ protos: Map<string, Proto>; meta: Meta; s
   const solidMap = maps.solid;
   const decalMap = maps.decal;
   if (!meta || !solidMap || !decalMap) throw new Error("quayfurniture.glb: meta or textures missing");
+  // (the quay signs and the quays' name boards: flat in the atlas's bump, world/bumps.ts)
+  flatLettering(solidMap, Object.entries(meta.solid.cells), meta.solid.size[0], meta.solid.size[1]);
   for (const t of [solidMap, decalMap]) {
     t.magFilter = THREE.NearestFilter;
     t.minFilter = THREE.NearestFilter;
