@@ -49,6 +49,8 @@ export const psxUniforms = {
   /** The ground mirror (world/mirror.ts): the street seen from under the paving. */
   uMirror: { value: null as THREE.Texture | null },
   uMirrorMat: { value: new THREE.Matrix4() },
+  /** 1 while the ground mirror draws the street (world/mirror.ts), 0 with reflections off: the puddles dark water. */
+  uMirrorOn: { value: 1 },
   /** Where water lies: a soft tiling noise (low spots fill first). */
   uPudNoise: { value: null as THREE.Texture | null },
   /** The spill sources (world/spill.ts; see MAX_SPILL). */
@@ -285,6 +287,38 @@ float foulVal(vec2 p) {
 `;
 
 /** Value noise from a hash of the cell corners: no texture, so no tiling (the puddles). */
+/**
+ * The ground bump (Steve, 2026-09-27: "I think you also took out the bump mapping?"): the relief of the paving
+ * (psx `relief` and `slabs`) was only a darkening of the colour by a light painted from one side, so every real light
+ * (the sun, the sky, the gas lamps, the lantern, the spilt light) saw a flat plane. The same slope of the same height
+ * map, at the same uv (after the parallax, with detile's turned sample turned back), now tilts the normal the lights
+ * see, in world space (gGroundDN; the normal takes it after normal_fragment_maps, as the house walls take gWallDN).
+ * The uv's own direction on the ground comes from the screen derivatives, so it holds for any uv: the world's axes,
+ * the rail band along its line, the rings of the Rond, the wall walk. PSX_TILT: how far a slope of the relief light
+ * tilts it; PSX_PAINTED: how much of the painted one-sided light stays.
+ */
+const groundBumpGlsl = /* glsl */ `
+#define PSX_TILT 1.2
+#define PSX_DOME 2.5
+#define PSX_PAINTED 1.0
+vec3 gGroundDN = vec3(0.0);
+// the tilted normal's height (1 flat): the colour is divided by it and the sky's light multiplied by it, so a bumped
+// ground is as bright as a flat one on average and only the lights that come from one side draw the stones
+float gGroundAmb = 1.0;
+vec3 psxGroundTilt(vec2 uv, vec2 slope) {
+  vec3 dpx = dFdx(vPsxWorld);
+  vec3 dpy = dFdy(vPsxWorld);
+  vec2 dux = dFdx(uv);
+  vec2 duy = dFdy(uv);
+  float det = dux.x * duy.y - dux.y * duy.x;
+  if (abs(det) < 1e-12) return vec3(0.0);
+  // where u and v run on the ground (world space)
+  vec3 tu = normalize((dpx * duy.y - dpy * dux.y) * sign(det));
+  vec3 tv = normalize((dpy * dux.x - dpx * duy.x) * sign(det));
+  return normalize(vec3(0.0, 1.0, 0.0) - tu * slope.x - tv * slope.y) - vec3(0.0, 1.0, 0.0);
+}
+`;
+
 const pudNoiseGlsl = /* glsl */ `
 float pudHash(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
@@ -606,6 +640,7 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
       shader.uniforms.uPuddle = psxUniforms.uPuddle;
       shader.uniforms.uMirror = psxUniforms.uMirror;
       shader.uniforms.uMirrorMat = psxUniforms.uMirrorMat;
+      shader.uniforms.uMirrorOn = psxUniforms.uMirrorOn;
       shader.uniforms.uPudNoise = psxUniforms.uPudNoise;
     }
     if (opts.water) {
@@ -707,11 +742,12 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         (opts.wet || opts.water ? wetFragment : "") +
         (spillOn ? spillSumGlsl : "") +
         (spillOn && opts.wet ? spillWetGlsl : "") +
-        (opts.puddles ? "uniform float uPuddle;\nuniform sampler2D uMirror;\nuniform mat4 uMirrorMat;\nuniform sampler2D uPudNoise;\n" : "") +
+        (opts.puddles ? "uniform float uPuddle;\nuniform sampler2D uMirror;\nuniform mat4 uMirrorMat;\nuniform float uMirrorOn;\nuniform sampler2D uPudNoise;\n" : "") +
         (opts.wet || opts.puddles || opts.vary || opts.foot || opts.mottle ? pudNoiseGlsl : "") +
         (opts.vary || opts.foot || opts.mottle ? "uniform sampler2D uDirt;\nuniform vec4 uDirtBox;\n" : "") +
         (opts.foot || opts.mottle ? footGlsl : "") +
         (opts.slabs ? "uniform sampler2D uSlabMap;\nuniform sampler2D uSlabH;\n" : "") +
+        (opts.relief || opts.slabs ? groundBumpGlsl : "") +
         (opts.relief ? "uniform sampler2D uHeight;\nuniform float uReliefDepth;\nuniform float uReliefTile;\nuniform float uReliefBump;\n" : "") +
         (opts.relief?.id
           ? /* glsl */ `uniform sampler2D uStoneId;
@@ -735,24 +771,42 @@ float psxRelH(vec2 uv, float wear) {
   float top = mix(0.35 + 0.65 * fract(r * 53.7), 0.22, ms.y) * (1.0 - 0.3 * wear);
   return mix(h * top, 0.02, ms.x);
 }
+// the same from a softer mip of the height map (the ground bump's dome: the shape of the whole stone)
+float psxRelHS(vec2 uv, float wear) {
+  float h = texture2D(uHeight, uv, 2.0).r;
+  vec3 s = texture2D(uStoneId, uv).rgb;
+  if (s.g < 0.5) return h;
+  float r = psxStoneR(uv, s);
+  vec2 ms = psxStoneMS(r, wear);
+  float top = mix(0.35 + 0.65 * fract(r * 53.7), 0.22, ms.y) * (1.0 - 0.3 * wear);
+  return mix(h * top, 0.02, ms.x);
+}
 `
           : opts.relief
-            ? "float psxRelH(vec2 uv, float wear) { return texture2D(uHeight, uv).r; }\n"
+            ? "float psxRelH(vec2 uv, float wear) { return texture2D(uHeight, uv).r; }\nfloat psxRelHS(vec2 uv, float wear) { return texture2D(uHeight, uv, 2.0).r; }\n"
             : "") +
         (opts.relief
           ? /* glsl */ `
 // the relief light at uv (lit tops from the sky, dark joints; worn by the wheels: smoother, the tops polished a
 // little lighter). The step is two texels of a picture's 512 px map (1 cm) and one of the painted 128 px maps:
 // a step of 4 texels on the pictures drew the lit edge and the dark joint 2 cm wider than the stones in the colour.
-float psxReliefLight(vec2 uv, float wear, out float hC) {
+float psxReliefLight(vec2 uv, float wear, out float hC, out vec2 slope) {
   float e = 2.0 / max(float(textureSize(uHeight, 0).x), 256.0);
   hC = psxRelH(uv, wear);
   float hX = psxRelH(uv + vec2(e, 0.0), wear) - psxRelH(uv - vec2(e, 0.0), wear);
   float hZ = psxRelH(uv + vec2(0.0, e), wear) - psxRelH(uv - vec2(0.0, e), wear);
   vec3 rn = normalize(vec3(-hX * uReliefBump, 1.0, -hZ * uReliefBump));
+  // (the ground bump, 2026-09-27) the slope tilts the normal the lights see (psxGroundTilt), worn a little smoother:
+  // the sharp edges at this step, and the dome of the whole stone from a softer mip over three times the step (the
+  // height maps have flat tops and steep sides: the edges alone lit thin lines and each stone still read flat)
+  float E = e * 3.0;
+  float dX = psxRelHS(uv + vec2(E, 0.0), wear) - psxRelHS(uv - vec2(E, 0.0), wear);
+  float dZ = psxRelHS(uv + vec2(0.0, E), wear) - psxRelHS(uv - vec2(0.0, E), wear);
+  slope = (vec2(hX, hZ) * PSX_TILT + vec2(dX, dZ) * PSX_DOME) * uReliefBump * (1.0 - wear * 0.3);
   float lit = clamp(dot(rn, normalize(vec3(-0.45, 0.8, -0.35))), 0.0, 1.0);
-  // a stone that stands high catches the light; a sunk one lies in its own shade
-  float relief = mix(0.6, 1.12, lit) * (0.55 + 0.45 * hC);
+  // a stone that stands high catches the light; a sunk one lies in its own shade. The light painted from one side
+  // stays in part (PSX_PAINTED), so the stones still read on a dull day; the real lights do the rest.
+  float relief = mix(1.024, mix(0.6, 1.12, lit), PSX_PAINTED) * (0.55 + 0.45 * hC);
   return mix(relief, 1.0 + 0.12 * hC, wear * 0.45);
 }
 `
@@ -851,8 +905,19 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
             float sz = texture2D(uSlabH, suv + vec2(0.0, e)).r - texture2D(uSlabH, suv - vec2(0.0, e)).r;
             vec3 rn = normalize(vec3(-sx * 1.6, 1.0, -sz * 1.6));
             float lit = clamp(dot(rn, normalize(vec3(-0.45, 0.8, -0.35))), 0.0, 1.0);
-            float rel = mix(0.6, 1.12, lit) * (0.55 + 0.45 * sh);
-            diffuseColor.rgb *= mix(rel, 0.86, smoothstep(8.0, 22.0, length(vPsxWorld - cameraPosition)));
+            float rel = mix(1.024, mix(0.6, 1.12, lit), PSX_PAINTED) * (0.55 + 0.45 * sh);
+            float farS = smoothstep(8.0, 22.0, length(vPsxWorld - cameraPosition));
+            diffuseColor.rgb *= mix(rel, 0.86, farS);
+            // (the ground bump) the slabs' own slope for the lights, in world metres (suv runs along x and z)
+            // the edges and the dome of each slab, as the ground's relief (psxReliefLight)
+            float E2 = 3.0 / 128.0;
+            float bx = texture2D(uSlabH, suv + vec2(E2, 0.0), 2.0).r - texture2D(uSlabH, suv - vec2(E2, 0.0), 2.0).r;
+            float bz = texture2D(uSlabH, suv + vec2(0.0, E2), 2.0).r - texture2D(uSlabH, suv - vec2(0.0, E2), 2.0).r;
+            float fps = max(length(dFdx(suv)), length(dFdy(suv))) * 128.0;
+            vec2 ss = (vec2(sx, sz) * PSX_TILT + vec2(bx, bz) * PSX_DOME) * 1.6 * (1.0 - smoothstep(12.0, 28.0, length(vPsxWorld - cameraPosition))) * (1.0 - smoothstep(6.0, 14.0, fps));
+            gGroundDN = normalize(vec3(-ss.x, 1.0, -ss.y)) - vec3(0.0, 1.0, 0.0);
+            gGroundAmb = max(gGroundDN.y + 1.0, 0.4);
+            diffuseColor.rgb /= gGroundAmb;
           }
         }`
             : ""
@@ -884,21 +949,35 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
           // relief light from the height map: the tops lit from the sky, the joints dark;
           // it melts into an even tone further off (no shimmer)
           float hC;
-          float relief = psxReliefLight(psxUv, psxWear, hC);
+          vec2 psxSl;
+          float relief = psxReliefLight(psxUv, psxWear, hC, psxSl);
           ${
             opts.detile
               ? `if (psxDm > 0.001) {
             // where the colour is the turned sample, so is the relief: the lit tops and dark joints on its stones
             float hC2;
-            float relief2 = psxReliefLight(psxUv2, psxWear, hC2);
+            vec2 sl2;
+            float relief2 = psxReliefLight(psxUv2, psxWear, hC2, sl2);
             relief = mix(relief, relief2, psxDm);
             hC = mix(hC, hC2, psxDm);
+            // (its slope turned back from the turned sample's uv into this uv: the same stones, no second grid)
+            psxSl = mix(psxSl, 0.77 * vec2(0.8 * sl2.x - 0.6 * sl2.y, 0.6 * sl2.x + 0.8 * sl2.y), psxDm);
           }`
               : ""
           }
           psxH = hC;
           float far = smoothstep(${(8 * (opts.relief.reach ?? 1)).toFixed(1)}, ${(22 * (opts.relief.reach ?? 1)).toFixed(1)}, length(vPsxWorld - cameraPosition));
           diffuseColor.rgb *= mix(relief, 0.86, far);
+          // the stones for the lights: each sett lit on the side that faces a light, shaded on the other; it melts
+          // away with the relief light further off
+          // (from 2 to about 15 m, further than the painted light: the stones read in their own light)
+          float farT = smoothstep(${(12 * (opts.relief.reach ?? 1)).toFixed(1)}, ${(28 * (opts.relief.reach ?? 1)).toFixed(1)}, length(vPsxWorld - cameraPosition));
+          // (and where one pixel covers a stone's worth of the height map, about 40 texels, the stones are a pixel or
+          // two: the tilt melts away there, or it sparkles at 270 lines)
+          float fpx = max(length(dFdx(vMapUv)), length(dFdy(vMapUv))) * float(textureSize(uHeight, 0).x);
+          gGroundDN = psxGroundTilt(vMapUv, psxSl * (1.0 - farT) * (1.0 - smoothstep(16.0, 40.0, fpx)));
+          gGroundAmb = max(gGroundDN.y + 1.0, 0.4);
+          diffuseColor.rgb /= gGroundAmb;
           ${
             opts.relief.id
               ? `{
@@ -949,6 +1028,18 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
         vec3 spillN = normalize((vec4(geometryNormal, 0.0) * viewMatrix).xyz);
         reflectedLight.directDiffuse += psxSpill(vPsxWorld, spillN) * BRDF_Lambert(diffuseColor.rgb);
       }`,
+      );
+    }
+    if (opts.relief || opts.slabs) {
+      // the ground bump: the lights (sun, sky, lamps, the lantern, the spilt light) see the stones' own normal
+      fs = fs.replace(
+        "#include <normal_fragment_maps>",
+        "#include <normal_fragment_maps>\n      normal = normalize(normal + faceDirection * (viewMatrix * vec4(gGroundDN, 0.0)).xyz);",
+      );
+      // (the sky's and the ambient light back to a flat ground's: the colour was divided by the tilt, see gGroundAmb)
+      fs = fs.replace(
+        "#include <lights_fragment_begin>",
+        "#include <lights_fragment_begin>\n      #if defined( RE_IndirectDiffuse )\n      irradiance *= gGroundAmb;\n      #endif",
       );
     }
     if (opts.wet && fs.includes("#include <lights_phong_fragment>")) {
@@ -1063,6 +1154,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
           float grazing = pow(1.0 - clamp(-rd.y, 0.0, 1.0), 3.0);
           // half-metre faces: big enough to show at the game's picture size
           float glint = step(0.6, pudHash(floor(vPsxWorld.xz * 2.2)));
+          ${opts.relief || opts.slabs ? "// (the ground bump) the wet tops of the stones glint, the joints stay dark\n          glint = smoothstep(0.3, 0.65, psxH) * (0.45 + 0.55 * glint);" : ""}
           gl_FragColor.rgb += fogColor * grazing * 0.2 * wetK * stone * (0.25 + 0.75 * glint);
           vec3 rr = vec3(rd.x, -rd.y, rd.z);
           float wrefl = 0.0;
@@ -1089,6 +1181,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
           pn = clamp((pn - 0.5) * 2.4 + 0.5, 0.0, 1.0);
           float lvl = clamp(uPuddle * ${(opts.puddles ?? 1).toFixed(2)}, 0.0, 1.0);
           // at most about a quarter of the ground is puddle, even in a storm: the rest is wet stone
+          // (world/puddlemask.ts works out the same shape and level for the splash)
           float th = 0.97 - lvl * 0.22;
           float water = smoothstep(th, th + 0.018, pn);
           // broken into puddles a few metres across (QA 2026-09-24: in a narrow lane one big patch of
@@ -1107,7 +1200,8 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
             ${opts.wet ? "if (uRain > 0.001) wob += vec2(rainRings(vPsxWorld.xz * 1.4, uTime * 1.2, uRain)) * 0.012;" : ""}
             vec4 mr = uMirrorMat * vec4(vPsxWorld, 1.0);
             mr.xy += wob * mr.w;
-            vec3 refl = texture2DProj(uMirror, mr).rgb * 1.1;
+            // (reflections off: no street in it, dark water with a little of the sky's grey at a slant)
+            vec3 refl = uMirrorOn > 0.5 ? texture2DProj(uMirror, mr).rgb * 1.1 : fogColor * 0.3;
             vec3 rr = vec3(rd.x, -rd.y, rd.z);
             float lamp = 0.0;
             for (int i = 0; i < MAX_LAMPS; i++) lamp += uLamps[i].w * wetStreak(vPsxWorld, rr, uLamps[i].xyz);
