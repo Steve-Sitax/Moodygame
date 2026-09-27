@@ -241,15 +241,127 @@ A full town with every chain would have about 20 posts and 40 runs out at the bu
 | Phase | What | Done when |
 |---|---|---|
 | T1 | Part A for the runs that exist: server path search and cache, `runPlace`, the mill carts and the dray as server runs, spawn on the way with the dither fade, the town map draws runs | Steve runs to a far mill cart seen on the map and finds it there, loaded, still going. `findcheck()` and `popcheck()` empty |
-| T2 | Part A for every schedule move; the held-people deadline | No resident slides through walls; the map dot and the man agree for everyone |
-| T3 | The ledger and the dispatcher; chains 1-4 (grain, flour, animals and meat, fish); the butcher's yard | A game week with no player near keeps bread, meat and fish in the shops; a player's big buy shows up as a new run |
-| T4 | The small jobs at every post; prices and talk from shortage | Each of the six job kinds taken and paid in the browser |
-| T5 onward | New chains, one or two at a time, in the order Steve picks | Per chain: its posts, runs and jobs seen in the browser |
+| T2 | Part A for every schedule move; the held-people deadline; the town map shows every resident with his "doing" line, the card and the filters | No resident slides through walls; the map dot and the man agree for everyone; every dot on the town map says what he is doing |
+| T3 | The ledger and the dispatcher; chains 1-4 (grain, flour, animals and meat, fish); the butcher's yard; the food floor for players; the goods models for these chains (stencilled stand-ins first) | A game week with no player near keeps bread, meat and fish in the shops; a player's big buy shows up as a new run; a hungry player can always buy food |
+| T4 | The quest book (J), up to 3 jobs, the HUD lines, the map's numbered marks, legend and way line; mixed cart loads; the small jobs at every post; "on your way" offers; prices and talk from shortage | Two jobs taken at once, both carried in one cart, each paid at its own goal, in the browser |
+| T5 | Beer and coal (chains 5 and 6): the brewery yard, the coal yard, the cellar hatches of the taverns, their models | A tavern out of beer gets a dray; a bakery out of coal does not bake until the coalman comes |
+| T6 onward | More chains, one or two at a time, in the order Steve picks | Per chain: its posts, runs, jobs and models seen in the browser |
 
-## Open questions for Steve
+**Pace.** A game hour is two real minutes. A run goes at walking or cart pace, as the mill carts do today (a long run takes
+the morning), so a player on foot can always catch up with it. A plain schedule move keeps a faster unseen pace (so people
+still get to work in a compressed day) and slows to walking pace inside the spawn ring; the progress report moves its
+clock back by the time lost, so the dot on the map never jumps.
 
-1. **Can players ruin the supply?** Recommended yes: buying, theft and help all move the ledgers, so a player can empty the
-   baker's shelf, and the town reacts (a run, a price, a complaint). The other choice is a town that refills by itself,
-   and a player's deeds touch only prices.
-2. **Which new chains first, after the four you named?** Recommended: beer (5) and coal (6), because they feed places that
-   exist (the taverns, the bakeries' ovens) and give the most small jobs.
+## Decided (Steve, 2026-09-27)
+
+1. **Players move the stock, but food never runs out for a player.** Buying, theft and help all move the ledgers, and the
+   town reacts (a run, a price, a complaint). But a hungry player can always buy something to eat: the ledger's last units
+   of food are a **floor** kept for players. Below the order level the price climbs (the clamped band), and at the floor
+   the shop still sells, dear: "The last loaf, and it costs you." Townspeople stop buying at the floor; players do not.
+   Stalls packing up early keep one seller of cheap food open (a bread stall, the mussel seller) until the market's
+   `lateGone`. What can run out for players: goods that are not food for hunger (coffee, tobacco, beer at one tavern: the
+   next tavern has it).
+2. **Beer and coal come next** after the four chains Steve named (phase T5).
+3. **Every good looks like what it is**: its own model, or at least a box, sack or barrel with a stencil and a picture of
+   what is in it. Goods that look like what they are, below.
+4. **A cart takes several loads, and a player can hold several jobs at once** (grain to the mill and coal for a bakery on
+   the way): the quest book, below.
+5. **Where to go is clear** on the paper map and on the HUD: the quest book, below.
+6. **The server's town map shows every townsperson, always, where he is and what he is doing** (Steve's question,
+   2026-09-27): the town map shows everyone, below.
+
+## The town map shows everyone
+
+The host's town map (`docs/mapview.md`, port 8790) today draws a live dot only for people a PC walks near a player, and
+guesses the rest from the schedule. After T1 and T2 it draws **every resident, at the place the sum gives, moving**:
+
+- **Where.** A man on a run or a schedule move: `runPlace(run, now)`, on the street, never through a house. A man who
+  stands (at work, at a stall, in the tavern): his spot. A man inside a building: a small dot at that building's door,
+  hollow, with the room ("in the bakery, at the oven"). The "Indoors" layer is on by default.
+- **Doing what.** Each dot has a line from the engine, in plain English, no model call:
+  "Taking 3 sacks of flour from the Kipdorp mill to the Steenplein bakery (2 left to walk: 180 m)",
+  "Selling fish at the Vismarkt", "Asleep at home", "Waiting for the grain barge", "Walking home from work".
+  The line comes from the run's leg or the schedule's act, with the goods from the M8f store.
+- **A card on click:** name, trade, home, the day's plan (the schedule's parts, the current one marked), the run's way
+  drawn on the map as a line, what he carries, and, for a post, its stock.
+- **Filters:** by trade, by "on a run", by chain (all the flour runs), by post. A list beside the map: every run now out,
+  with its man, load, from, to and time to go.
+- **Live and sum agree.** Near a player the dot is the live position from the walker PC, as now. Away from players it is
+  the sum. Because the progress reports move the run's clock, the dot does not jump when a player walks away.
+
+Not on the map: the nameless decoration (market shoppers, the crowd's porters). They are not townspeople and have no
+plan. If Steve wants them on the map, they must become townspeople first (a later choice).
+
+## The quest book: several jobs, a cart with several loads, clear goals
+
+Today a player holds one job (`server/src/game.ts takeJob`: "finish the job you have first"; client `game/jobs.ts`
+one `active` slot). The handcart's data already tags each item with its job (`server/src/town/handcart.ts`), so mixed
+loads need only the rule changed.
+
+**Several jobs.** A player may hold **up to 3 jobs** at once (an engine number, `MAX_JOBS_IN_HAND`). Each keeps its own
+time limit, twists and pay. A fourth is refused in talk: "You have your hands full already." Giving one up works as
+today (trust cost with that employer only).
+
+**One followed job.** One job is **followed** at a time. It drives the HUD: the task card, the glow over its goal, the ink
+tick at the screen edge. The others show smaller. Switch the followed job with the book or with **J** twice.
+
+**The quest book (key J, a new action in `menu/keys.ts`).** A notebook in the same paper look as the map. One page per job:
+
+| On the page | Example |
+|---|---|
+| Title and employer | "Grain for the Kipdorp mill", for Miller Wouters |
+| What to carry, and how far along | 3 sacks of grain: 1 at the mill, 2 in your cart |
+| From and to, with the distance from you | From the canal quay (60 m) to the Kipdorp mill store (410 m) |
+| Pay and time | 120 c; before 17:00 (in 2 hours 10) |
+| Twists you know of | "The foreman is watching" |
+| Buttons | Follow, Show on the map, Give up |
+
+A last page lists the cart: every item in it, and which job it is for.
+
+**The HUD.** The task card shows the followed job in two lines: what to do next, and where, with a distance
+("Set the sacks down at the Kipdorp mill store - 410 m"). Under it, one short line per other job ("and: coal for the
+Kipdorp baker - 380 m"). The glow and the tick point only at the followed job's goal. The other goals get a small, dim ink
+mark in the world when within 60 m.
+
+**The paper map.** Each job gets a numbered mark: the followed job a red cross with its number, the others brown crosses
+with theirs, the source of each job a small circle with the same number. The followed job's way from the player is drawn as
+a dotted ink line, from the same path search T1 builds. A **legend** in the corner explains every mark (goal, source, work,
+shop, bed, you).
+
+**Mixed cart loads.** The handcart takes goods from all the jobs in hand, within its limits (`CART_LIMIT`: size 6,
+260 kg). Each item stays tagged with its job. An item set down by its own job's goal counts for that job only; an item set
+down by the wrong goal does not count, and the book says so ("That coal is for the baker, not the miller"). Unloading all
+at once tips only the items of the goal's job.
+
+**On your way.** When a player holds a job, the dispatcher looks for open needs whose source or goal lies within 60 m of
+that job's way, and the keeper or the board offers them: "Going to the Kipdorp mill? Take two baskets of coal to the baker
+by the gate; it is on your way." A job taken this way pays 10% more. This is how "grain to the mill and coal for a
+bakery on the way" happens by itself.
+
+**Multiplayer.** The book and the jobs are per player (M8c). The cart may be pushed by one player at a time, as now.
+
+## Goods that look like what they are
+
+Every good in a chain gets a model from a Blender builder (as `tools/blender/build_quaygoods.py`, with its `stencil()`),
+in a new `tools/blender/build_tradegoods.py` to `client/public/models/tradegoods.glb`. Our own models, no third-party
+assets. The stencil is the maker's name (a name, so Dutch is fine: "MOLEN KIPDORP", "BROUWERIJ DE HOORN") and a picture
+mark (a wheat sheaf, a fish, a lump of coal, a barrel), so the contents read at a glance without words. The look-at hint
+and the book say the contents in English ("a sack of flour from the Kipdorp mill").
+
+| Good | Model | Carried as |
+|---|---|---|
+| Grain | Jute sack, tied at the neck, a wheat-sheaf stencil and the farm's name | Sack (exists as a kind) |
+| Flour | Pale cotton sack, dusted white, the mill's name and a sheaf | Sack |
+| Coal | Wicker coal basket, heaped black lumps; coal sacks for the coalman | New kind `coal`: size 0.6, 35 kg |
+| Beer | Oak cask with iron hoops, the brewery's mark burnt in the head; a smaller keg for estaminets | Barrel (exists); empties are lighter |
+| Fish | Wooden fish box with ice and straw; a round fish basket for the fishwives | New kind `fish`: size 0.5, 20 kg |
+| Meat | Covered butcher's basket; a half pig in cloth on the shoulder | New kind `meat`: size 0.5, 25 kg |
+| Live animals | A pig on a rope, a calf, sheep, geese and hens in wicker cages | Pigs, calves and sheep are **led** (they follow, as the M4 follow does); caged birds are carried |
+| Eggs, butter, milk | Egg basket, butter crock, milk churn (the milk woman's cart has them) | New kind `dairy`: size 0.4, 15 kg |
+| Coffee, sugar, tobacco | Coffee sack with a port stencil (RIO, SANTOS), sugar loaves in blue paper in a crate, tobacco bales in matting | Sack, crate, a new kind `bale` |
+| Hides | Folded, salted hides tied with cord | Hides (exists) |
+| Empties | Empty cask (lighter, rolls), empty basket, empty fish box | Same kinds, a flag `empty` |
+
+Until a good's model is built, it is the existing box, sack or barrel **with the stencil decal and the picture mark** on
+it, so a player never carries an unnamed box. Every model goes through the prop check, the close-shot loop and the shader
+check (`__scheldemist.shaders()` empty) before it goes live.

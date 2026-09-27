@@ -7,10 +7,11 @@ Git history has the detail of each commit.
 
 ## Waiting for Steve
 
-- The town's trade (`docs/trade-plan.md`, plan only): (1) may players empty the shops (buying, theft and help move stock)? Recommended yes. (2) Which new chains after grain, flour, meat and fish? Recommended beer and coal. Then T1 (far townspeople keep going) can start.
 - Day fog, rain and storm: the skyline is still a little lighter than the cloud deck (18-35% at 13:00). A one-line sky.ts change would use the night rule by day too, at the cost of flatter fog-day skies. Steve's call.
 - Going public: the audit says safe. Steve flips the repo to public himself. Optional: an AGPL section 7 permission for the proprietary Claude Agent SDK (draft in `docs/public-release-check.md`). The commit email steve@sitax.be becomes public with the history.
 - The clockmaker's pocket watches and the junk-stall clocks: live hands too? (Steve did not pick it: no for now.)
+
+Decided 2026-09-27 (the town's trade, `docs/trade-plan.md`): players move the stock but food never runs out for a player (dear, never gone); beer and coal next; every good its own model or a stencilled box; up to 3 jobs in a quest book (J), mixed cart loads, clear marks on the map and HUD; the town map shows every townsperson and what he is doing. T1 started.
 
 Decided 2026-09-26: licence AGPL-3.0 (being added, with a public-release check); picture-round
 jobs 1, 4, 5 now (2 and 3 after light spill and props); yard windows 3D; stronger gutter streams
