@@ -35,7 +35,7 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 
 | Work | Scope and files | Started |
 |---|---|---|
-| Ground bumps for light + puddles back | the ground relief only darkened colour, so light saw a flat plane: a real lighting normal from the height maps; dry-day puddles visible again where the splash sounds | 2026-09-27 |
+| Relief that lights, on every texture | first try gave no measurable gain (checked at full resolution): redo the ground, then every textured surface: relief always changes the lighting normal for all lights; measured per surface | 2026-09-27 |
 | Soft window light on the street | the window light on the cobbles showed as hard blocky diamonds: soft bars, smooth falloff | 2026-09-27 |
 | Multiplayer M8b: one street for all | the same townspeople (owner per 64 m cell, remote puppets, handover), omnibus, river traffic, bridges, lock, cranes and drays (the world PC), platforms in their frame, shared doors; branch `m8b` in the worktree `D:\Code\MoodyGame-m8b`, merged when done | 2026-09-27 |
 | People walking against walls | townspeople walking in place against walls in the alleys: a `stuck()` detector, root cause, fix | 2026-09-27 |
