@@ -10,7 +10,7 @@ import { TICK_EVERY_MS } from "../../../shared/clock.ts";
 import { appearanceCode, defaultFor } from "../../../shared/character.ts";
 import { decodePuppets, decodeState, encodeBatch, FLAG, MODES, MP_PROTOCOL, MSG_PUPPETS, puppetBatchOk, puppetKeep, puppetNums, SEND_MS, type MpState, type MpText, type RosterEntry } from "../../../shared/mpProtocol.ts";
 import { profileOf, saveProfile, storedProfile } from "../player/profile.ts";
-import { asPlayer, setOnlineIds } from "../player/current.ts";
+import { asPlayer, setOnlineIds, setPositionSource } from "../player/current.ts";
 import { ackRest, allAsleep, reportPos, restAcked, restOf, takeWoke, wakeRest } from "../rest.ts";
 import { ensurePlayerRow } from "../player/multi.ts";
 import { TOKEN_HEADER, whoOf, whoOfUpgrade, type Who } from "./auth.ts";
@@ -621,6 +621,12 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
   // is back): online, and in the town (his movement state has come)
   const onlineNow = () => [...seats.values()].filter((s) => s.goneAt === null && s.conn && s.state && Date.now() - s.at < 30_000).map((s) => s.id);
   setOnlineIds(() => (mpOn() ? onlineNow() : [1]));
+  // M8d: where each player stands, by his movement socket (fresh: 5 s), for the director and the events
+  setPositionSource((id) => {
+    if (!mpOn()) return null;
+    const s = seats.get(id);
+    return s && s.state && s.goneAt === null && Date.now() - s.at < 5_000 ? { x: s.state.x, z: s.state.z } : null;
+  });
   let tickBusy = false;
   const clockLoop = setInterval(() => {
     if (!mpOn() || !inGame() || tickBusy) return;
@@ -684,6 +690,8 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
     close(): Promise<void> {
       clearInterval(relay);
       clearInterval(clockLoop);
+      setOnlineIds(null);
+      setPositionSource(null);
       autoBuild.stop();
       for (const k of conns) k.ws.close();
       mpWss.close();

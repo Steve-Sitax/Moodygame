@@ -3,7 +3,7 @@ import type { DB } from "../db.ts";
 import type { Runner } from "../ai/claude.ts";
 import { clock } from "../day.ts";
 import { log } from "../game.ts";
-import { pid } from "../player/current.ts";
+import { onlineIds, pid, positionOf } from "../player/current.ts";
 import { SPOTS } from "../hooks/jobBoard.ts";
 import { relationship, remember } from "../npcs.ts";
 import { ITEMS, waresOf } from "../trade.ts";
@@ -117,7 +117,12 @@ interface Known {
   at: number;
 }
 const KNOWN_TTL_MS = 15_000;
-const sync = { x: NaN, z: NaN, at: 0, people: new Map<string, Known>() };
+/**
+ * Who stood where in the street (every tab's word: shared), and where each player is by his own tab's word
+ * (M8d: per player; the movement socket's place comes first when played together: player/current.ts positionOf).
+ */
+const sync = { people: new Map<string, Known>() };
+const jefs = new Map<number, { x: number; z: number; at: number }>();
 
 /** A point the client sent: finite numbers only, kept inside the map (+-2000 m); else null. */
 export function clampXZ(x: unknown, z: unknown): { x: number; z: number } | null {
@@ -132,11 +137,7 @@ export function clampXZ(x: unknown, z: unknown): { x: number; z: number } | null
 export function syncFromClient(body: unknown, now = Date.now(), db?: DB): { ok: boolean } {
   const b = (body ?? {}) as { x?: unknown; z?: unknown; people?: unknown };
   const jef = clampXZ(b.x, b.z);
-  if (jef) {
-    sync.x = jef.x;
-    sync.z = jef.z;
-    sync.at = now;
-  }
+  if (jef) jefs.set(pid(), { x: jef.x, z: jef.z, at: now }); // (M8d: the asking player's own place)
   if (Array.isArray(b.people)) {
     for (const [id, k] of sync.people) if (now - k.at > KNOWN_TTL_MS) sync.people.delete(id);
     for (const p of b.people.slice(0, 60) as Array<{ id?: unknown; x?: unknown; z?: unknown }>) {
@@ -150,8 +151,23 @@ export function syncFromClient(body: unknown, now = Date.now(), db?: DB): { ok: 
   return { ok: true };
 }
 
-export function jefAt(now = Date.now()): { x: number; z: number } | null {
-  return Number.isFinite(sync.x) && now - sync.at < KNOWN_TTL_MS * 4 ? { x: sync.x, z: sync.z } : null;
+/**
+ * Where the player is (M8d: `id`, the player the work is for; played together his movement socket's place, fresh,
+ * else his tab's last word), or null when nobody knows.
+ */
+export function jefAt(now = Date.now(), id = pid()): { x: number; z: number } | null {
+  const live = positionOf(id);
+  if (live) return live;
+  const k = jefs.get(id);
+  return k && now - k.at < KNOWN_TTL_MS * 4 ? { x: k.x, z: k.z } : null;
+}
+
+/** M8d: every player in the game and where he is (the ones nobody knows the place of are left out). */
+export function playersAt(now = Date.now()): Array<{ id: number; x: number; z: number }> {
+  return onlineIds().flatMap((id) => {
+    const at = jefAt(now, id);
+    return at ? [{ id, ...at }] : [];
+  });
 }
 
 /**
@@ -185,9 +201,7 @@ export const actionHooks = {
 
 /** Test helper. */
 export function resetSync(): void {
-  sync.x = NaN;
-  sync.z = NaN;
-  sync.at = 0;
+  jefs.clear();
   sync.people.clear();
 }
 

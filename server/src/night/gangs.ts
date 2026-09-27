@@ -152,9 +152,10 @@ export function clearGangs(db: DB): void {
 /** The walk-up calls of a gang (the host's as before; a guest's apart, so two players' gang 1 are not one). */
 const gangRef = (id: number) => (pid() === 1 ? `gang:${id}` : `gang:p${pid()}-${id}`);
 
-/** Where the player stands: the host's is the actions' sync; a guest's what his client says (M8c: the sync is the host's). */
+/** Where the player stands: his own place (M8d: per player), else what his client says with the call. */
 function standing(facts: GangFacts = {}): { x: number; z: number } | null {
-  if (pid() === 1) return jefAt();
+  const at = jefAt();
+  if (at) return at;
   const x = Number(facts.x);
   const z = Number(facts.z);
   return facts.x !== undefined && facts.z !== undefined && Number.isFinite(x) && Number.isFinite(z) ? { x, z } : null;

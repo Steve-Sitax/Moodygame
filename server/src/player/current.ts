@@ -49,3 +49,20 @@ export function onlineIds(): number[] {
 export function forEachOnline(fn: (id: number) => void): void {
   for (const id of onlineIds()) asPlayer(id, () => fn(id));
 }
+
+// ------------------------------------------------------------------ where each player is (M8d)
+
+/**
+ * Where player `id` stands now by the movement socket (played together: the multiplayer side keeps every seat's
+ * last pose, mp/index.ts), or null (played alone, gone, or no fresh pose): the director and the events then use the
+ * player's own tab's word (director/actions.ts jefAt).
+ */
+let position: (id: number) => { x: number; z: number } | null = () => null;
+
+export function setPositionSource(f: ((id: number) => { x: number; z: number } | null) | null): void {
+  position = f ?? (() => null);
+}
+
+export function positionOf(id: number): { x: number; z: number } | null {
+  return position(id);
+}
