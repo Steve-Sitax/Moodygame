@@ -1255,10 +1255,10 @@ def fore(m):
     m.beam(tuple(heel), tuple(tip), 0.085, 0.09, WHEEL, side=(1, 0, 0), w2=0.055, h2=0.06)
     d = (tip - heel).normalized()
     m.beam(tuple(tip - d * 0.15), tuple(tip + d * 0.05), 0.07, 0.075, IRON, side=(1, 0, 0), w2=0.05, h2=0.05)
-    # the pole chains, link by link, to the bottom of each collar
+    # the pole chains, link by link, to the kidney link under each collar (build_props.py KIDNEY)
     for s in (-1, 1):
         a = tip + Vector((s * 0.03, 0, 0))
-        b = Vector((s * 0.45, 1.44, HORSES + 1.05))
+        b = Vector((s * 0.55, 1.385, HORSES + 1.2))
         n = 7
         for i in range(n):
             p0 = a + (b - a) * (i / n)

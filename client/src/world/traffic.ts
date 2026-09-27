@@ -3,6 +3,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { makeHuman, type Human, type HumanKind } from "../game/humans";
 import { psx } from "../retro/psx";
 import type { Props } from "./props3d";
+import { LEG_PARTS, coatGeometry, horsePose, legPart, newHorsePose, teamMaterial, type Coat } from "./horseGait";
 import type { Rect } from "./geom";
 import { goRound, type GoRound } from "../game/cartPhysics";
 import { lerpState, type NetMover } from "../net/mp/world";
@@ -544,13 +545,8 @@ const BACK_V = 0.6;
 // dray layout along the path (metres ahead of the rear axle)
 const WHEELBASE = 2.4;
 const HORSE_AHEAD = 2.05; // front axle to the horse's middle
-const LEG_POS: Array<[number, number, number, "leg_front" | "leg_hind", number]> = [
-  // x (left +), y (hip height), z (ahead +), leg, phase in the walk (left hind, left fore, right hind, right fore)
-  [0.19, 1.05, 0.62, "leg_front", 0.25],
-  [-0.19, 1.05, 0.62, "leg_front", 0.75],
-  [0.2, 1.1, -0.62, "leg_hind", 0.0],
-  [-0.2, 1.1, -0.62, "leg_hind", 0.5],
-];
+/** Metres a dray goes in one step cycle of its horse (its gait moves v / 1.35 a second). */
+const DRAY_STRIDE = 1.35;
 const LOADS: DrayLoad[] = ["casks", "sacks", "bales", "tarp"];
 
 /**
@@ -642,10 +638,11 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
   // --- the drays: one InstancedMesh per part
   const drays = vehicles.filter((v) => v.kind === "dray");
   drays.forEach((d, i) => (d.index = i));
-  const inst = (name: string, count: number): THREE.InstancedMesh | null => {
+  const team = teamMaterial(props);
+  const inst = (name: string, count: number, horse = false): THREE.InstancedMesh | null => {
     if (!count) return null;
     const g = mergedPart(props, [name]);
-    const m = new THREE.InstancedMesh(g, mat, count);
+    const m = new THREE.InstancedMesh(g, horse ? team : mat, count);
     m.name = name;
     m.frustumCulled = false;
     m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -658,10 +655,11 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
     fore: inst("tr_dray_fore", nD),
     rear: inst("tr_wheels_rear", nD),
     front: inst("tr_wheels_front", nD),
-    horse: inst("tr_horse_body", nD),
-    legF: inst("tr_leg_front", nD * 2),
-    legH: inst("tr_leg_hind", nD * 2),
+    horse: inst("tr_horse_body", nD, true),
   };
+  // the horses' legs: front upper, front lower, hind upper, hind lower (horseGait.ts LEG_PARTS), two per horse
+  const legs = LEG_PARTS.map((n) => inst(n, nD * 2, true));
+  const pose = newHorsePose();
   const loads = new Map<DrayLoad, { mesh: THREE.InstancedMesh; who: Vehicle[] }>();
   for (const l of LOADS) {
     const who = drays.filter((d) => d.load === l);
@@ -683,7 +681,7 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
     m.setMatrixAt(i, M);
   };
   const instanced = (): THREE.InstancedMesh[] =>
-    [...Object.values(parts), ...[...loads.values()].map((l) => l.mesh)].filter((m): m is THREE.InstancedMesh => !!m);
+    [...Object.values(parts), ...legs, ...[...loads.values()].map((l) => l.mesh)].filter((m): m is THREE.InstancedMesh => !!m);
 
   // What is drawn follows the camera that draws (before three.js sorts out the frame, so a
   // picture from anywhere shows what is there): nothing beyond the fog.
@@ -932,21 +930,16 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
       set(parts.front, i, b.x, 0.42, b.z, foreYaw, v.roll[1]);
       const ld = loads.get(v.load);
       if (ld) set(ld.mesh, ld.who.indexOf(v), a.x, 0, a.z, bedYaw);
-      // the horse: a gentle rise and fall with each step, legs in a four-beat walk
+      // the horse: legs in a four-beat walk, bent at the knees and hocks, the hooves still on the ground (horseGait.ts)
       const amp = Math.min(1, v.v / 0.8);
-      const bob = 0.025 * amp * Math.abs(Math.sin(v.gait * Math.PI * 4));
-      set(parts.horse, i, c.x, bob, c.z, horseYaw);
+      horsePose(pose, v.gait, amp, false, DRAY_STRIDE);
+      set(parts.horse, i, c.x, pose.bob, c.z, horseYaw);
       const cy = Math.cos(horseYaw);
       const sy = Math.sin(horseYaw);
-      LEG_POS.forEach(([lx, ly, lz, leg, ph], k) => {
-        const phase = (v.gait + ph) % 1;
-        // foot forward (u = 1) to back (u = -1) on the ground for 60 % of the step, then swung forward
-        const u = phase < 0.6 ? 1 - (2 * phase) / 0.6 : -1 + 2 * THREE.MathUtils.smoothstep((phase - 0.6) / 0.4, 0, 1);
-        const lift = phase >= 0.6 ? 0.05 * Math.sin(((phase - 0.6) / 0.4) * Math.PI) : 0;
-        const swing = -0.36 * u * amp;
-        const wx = c.x + lx * cy + lz * sy;
-        const wz = c.z - lx * sy + lz * cy;
-        set(leg === "leg_front" ? parts.legF : parts.legH, i * 2 + (k % 2), wx, ly + bob + lift * amp, wz, horseYaw, swing);
+      pose.legs.forEach((L, k) => {
+        const j = i * 2 + (k % 2);
+        set(legs[legPart(k, false)], j, c.x + L.x * cy + L.uz * sy, L.uy, c.z - L.x * sy + L.uz * cy, horseYaw, L.up);
+        set(legs[legPart(k, true)], j, c.x + L.x * cy + L.lz * sy, L.ly, c.z - L.x * sy + L.lz * cy, horseYaw, L.lp);
       });
       if (!moving) v.gait = v.gait * Math.pow(0.98, dt * 60);
       // colliders: the bed in two, the horse in two
@@ -982,10 +975,7 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
   const zeroM = new THREE.Matrix4().makeScale(0, 0, 0);
   function hideDray(i: number): void {
     for (const m of [parts.bed, parts.fore, parts.rear, parts.front, parts.horse]) m?.setMatrixAt(i, zeroM);
-    for (const k of [0, 1]) {
-      parts.legF?.setMatrixAt(i * 2 + k, zeroM);
-      parts.legH?.setMatrixAt(i * 2 + k, zeroM);
-    }
+    for (const m of legs) for (const k of [0, 1]) m?.setMatrixAt(i * 2 + k, zeroM);
     const d = drays[i];
     const ld = loads.get(d.load);
     if (ld) ld.mesh.setMatrixAt(ld.who.indexOf(d), zeroM);
@@ -1118,14 +1108,21 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
  * (a trail of his steps), so the rig keeps to his way round the corners. Its own meshes (a rig
  * or two at a time, near Jef only), the parts of props.glb the quay drays use.
  */
+/** The led drays' horses take these coats in turn. */
+const LED_COATS: Coat[] = ["chestnut", "bay", "roan"];
+
 export class LedDray {
+  /** How many were made (the next one's coat). */
+  static made = 0;
   readonly root = new THREE.Group();
   private readonly bed: THREE.Mesh;
   private readonly fore: THREE.Mesh;
   private readonly rear: THREE.Mesh;
   private readonly front: THREE.Mesh;
   private readonly horse: THREE.Mesh;
-  private readonly legs: THREE.Mesh[];
+  /** Per leg (left fore, right fore, left hind, right hind): the upper and the lower part. */
+  private readonly legs: Array<[THREE.Mesh, THREE.Mesh]>;
+  private readonly pose = newHorsePose();
   private readonly load: THREE.Mesh | null;
   /** The man's steps, newest first (every 0.2 m). */
   private trail: Array<[number, number]> = [];
@@ -1137,14 +1134,18 @@ export class LedDray {
   constructor(parent: THREE.Object3D, props: Props, load: DrayLoad | null = "sacks") {
     const mat = props.materials.goods;
     const mesh = (n: string) => new THREE.Mesh(mergedPart(props, [n]), mat);
+    // each led dray's horse in a coat of its own, in turn
+    const coat = LED_COATS[LedDray.made++ % LED_COATS.length];
+    const team = teamMaterial(props);
+    const horse = (n: string) => new THREE.Mesh(coatGeometry(mergedPart(props, [n]), coat), team);
     this.bed = mesh("tr_dray_bed");
     this.fore = mesh("tr_dray_fore");
     this.rear = mesh("tr_wheels_rear");
     this.front = mesh("tr_wheels_front");
-    this.horse = mesh("tr_horse_body");
-    this.legs = [mesh("tr_leg_front"), mesh("tr_leg_front"), mesh("tr_leg_hind"), mesh("tr_leg_hind")];
+    this.horse = horse("tr_horse_body");
+    this.legs = [0, 1, 2, 3].map((k) => [horse(LEG_PARTS[legPart(k, false)]), horse(LEG_PARTS[legPart(k, true)])]);
     this.load = load ? mesh(`tr_load_${load}`) : null;
-    for (const m of [this.bed, this.fore, this.rear, this.front, this.horse, ...this.legs]) this.root.add(m);
+    for (const m of [this.bed, this.fore, this.rear, this.front, this.horse, ...this.legs.flat()]) this.root.add(m);
     if (this.load) this.root.add(this.load);
     this.root.name = "led_dray";
     parent.add(this.root);
@@ -1222,15 +1223,14 @@ export class LedDray {
     put(this.rear, A.x, 0.52, A.z, bedYaw, this.roll[0]);
     put(this.front, B.x, 0.42, B.z, foreYaw, this.roll[1]);
     const amp = Math.min(1, speed / 0.8);
-    const bob = 0.025 * amp * Math.abs(Math.sin(this.gait * Math.PI * 4));
-    put(this.horse, H.x, bob, H.z, H.yaw);
+    const pose = horsePose(this.pose, this.gait, amp, false, DRAY_STRIDE);
+    put(this.horse, H.x, pose.bob, H.z, H.yaw);
     const cy = Math.cos(H.yaw);
     const sy = Math.sin(H.yaw);
-    LEG_POS.forEach(([lx, ly, lz, , ph], k) => {
-      const phase = (this.gait + ph) % 1;
-      const u = phase < 0.6 ? 1 - (2 * phase) / 0.6 : -1 + 2 * THREE.MathUtils.smoothstep((phase - 0.6) / 0.4, 0, 1);
-      const lift = phase >= 0.6 ? 0.05 * Math.sin(((phase - 0.6) / 0.4) * Math.PI) : 0;
-      put(this.legs[k], H.x + lx * cy + lz * sy, ly + bob + lift * amp, H.z - lx * sy + lz * cy, H.yaw, -0.36 * u * amp);
+    pose.legs.forEach((L, k) => {
+      const [up, lo] = this.legs[k];
+      put(up, H.x + L.x * cy + L.uz * sy, L.uy, H.z - L.x * sy + L.uz * cy, H.yaw, L.up);
+      put(lo, H.x + L.x * cy + L.lz * sy, L.ly, H.z - L.x * sy + L.lz * cy, H.yaw, L.lp);
     });
     boxAround(this.rects[0], A.x + Math.sin(bedYaw) * 0.25, A.z + Math.cos(bedYaw) * 0.25, bedYaw, 0.95, 0.95, 1.6);
     boxAround(this.rects[1], A.x + Math.sin(bedYaw) * 2.1, A.z + Math.cos(bedYaw) * 2.1, bedYaw, 0.95, 0.95, 1.6);

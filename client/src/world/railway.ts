@@ -225,6 +225,13 @@ const HORSE_GAP = 3.0;
 /** The rear horse's trace chain is drawn as pieces of the coupling about this long (m), at most TRACE_PIECES. */
 const TRACE_LINK = 0.36;
 const TRACE_PIECES = 7;
+/** The horses' trace chains (the wheeler's to its spreader, the leader's to the wheeler's hame tugs): at most so many pieces. */
+const HARNESS_PIECES = 40;
+/** In a horse's frame (x, up, ahead): where a trace starts (build_props.py TRACE_END, the hame tug's buckle), the point
+ * it passes outside the quarters, the spreader's end behind the wheeler's hocks. */
+const TUG: [number, number, number] = [0.31, 1.52, 0.8];
+const PAST: [number, number, number] = [0.41, 1.22, -0.62];
+const SPREAD: [number, number, number] = [0.42, 0.98, -1.4];
 const TRACES = 3.1; // lead horse's middle to the rear horse's middle is HORSE_GAP; rear horse to the first wagon's buffers
 
 // the portal crane in its own frame (three.js: build_boats.py portal_crane, blender y = -z here)
@@ -882,14 +889,15 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     bodies.set(k, inst(W ? W.wagon[k] : wagonGeometry(k), W ? W.material : woodMat, wagons.filter((w) => w.kind === k).length, `wagon_${k}`));
   const wheels = inst(W ? W.wheelset : wheelsetGeometry(), W ? W.material : woodMat, wagons.length * 2, "wagon_wheels");
   // the couplings between the wagons (one each), then the rear horse's trace chain in pieces of about TRACE_LINK
-  const links = inst(W ? W.coupling : linkGeometry(), W ? W.material : woodMat, wagons.length + TRACE_PIECES, "wagon_chains");
+  const links = inst(W ? W.coupling : linkGeometry(), W ? W.material : woodMat, wagons.length + TRACE_PIECES + HARNESS_PIECES, "wagon_chains");
   const goodsMesh = new Map<GoodsKind, THREE.InstancedMesh>();
   for (const g of GOODS)
     goodsMesh.set(
       g,
       inst(W && goodsMat ? W.goods[g] : unitGeometry(g), W && goodsMat ? goodsMat : g === "crates" ? crateMat : g === "casks" ? woodMat : sackMat, 48, `goods_${g}`),
     );
-  const horses = new HorsePool(scene, opts.props, 2 + (opts.spareHorses ?? 2));
+  // the train's two and the omnibuses' pairs: red roans, the Brabant's own colour (horseGait.ts coats)
+  const horses = new HorsePool(scene, opts.props, 2 + (opts.spareHorses ?? 2), "roan");
   const horseRects: Rect[] = [0, 1].map(() => ({ minX: 1e6, maxX: 1e6, minZ: 1e6, maxZ: 1e6, top: 2.2 }));
   let shunter: Human | null = null;
   const shunterGroup = new THREE.Group();
@@ -2167,11 +2175,11 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     M.compose(V.set(x, y, z), Q, S.set(sx, sy, sz));
     m.setMatrixAt(i, M);
   };
-  const linkBetween = (i: number, ax: number, ay: number, az: number, bx: number, by: number, bz: number) => {
+  const linkBetween = (i: number, ax: number, ay: number, az: number, bx: number, by: number, bz: number, thick = 1) => {
     const d = V.set(bx - ax, by - ay, bz - az);
     const len = Math.max(0.05, d.length());
     Q.setFromUnitVectors(Z, d.normalize());
-    M.compose(V.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2), Q, S.set(1, 1, len));
+    M.compose(V.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2), Q, S.set(thick, thick, len));
     links.setMatrixAt(i, M);
   };
   /** The trace chain from the rear horse's collar (a) to the first wagon's hook (b): pieces with a little sag. */
@@ -2192,7 +2200,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       const qx = ax + (bx - ax) * t;
       const qy = ay + (by - ay) * t - sag * Math.sin(Math.PI * t);
       const qz = az + (bz - az) * t;
-      linkBetween(traceAt(k - 1), px, py, pz, qx, qy, qz);
+      linkBetween(traceAt(k - 1), px, py, pz, qx, qy, qz, 0.7);
       px = qx;
       py = qy;
       pz = qz;
@@ -2258,10 +2266,10 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       const front: [number, number, number] = [wp.x + s * e, 0.98, wp.z + c * e];
       if (prevRear) linkBetween(i, prevRear[0], prevRear[1], prevRear[2], front[0], front[1], front[2]);
       else {
-        // traces from the rear horse's collar to the first wagon's hook
-        const hs = head - 1.6 - HORSE_GAP;
-        line.at(hs - 0.9, pa);
-        trace(pa.x, 1.25, pa.z, front[0], front[1], front[2]);
+        // the main chain from the spreader behind the rear horse to the first wagon's hook
+        const f1 = horseFrame(1);
+        horseToWorld(f1, 0, SPREAD[1] + horses.bob(1), SPREAD[2], hv);
+        trace(hv.x, hv.y, hv.z, front[0], front[1], front[2]);
       }
       prevRear = [wp.x - s * e, 0.98, wp.z - c * e];
       if (w.goods) {
@@ -2308,7 +2316,84 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       m.visible = m.count > 0; // no draw call for goods nobody sees
       m.instanceMatrix.needsUpdate = true;
     }
+    harness(hidden || !near);
     for (const m of [...bodies.values(), wheels, links, hooks, ropes, slings, craneWheels]) m.instanceMatrix.needsUpdate = true;
+  }
+
+  // The horses' trace chains (the draught horse's detail pass, 2026-09-27): from each horse's hame tugs; the rear
+  // horse's run past its quarters to the ends of a spreader behind its hocks (the spreader a piece of chain across),
+  // the lead horse's back to the rear horse's hame tugs. Pieces of the coupling, like the main chain: no draw call more.
+  const hv = new THREE.Vector3();
+  const hFrames = [0, 1].map(() => ({ x: 0, z: 0, yaw: 0 }));
+  function horseFrame(i: number): { x: number; z: number; yaw: number } {
+    const s = head - 1.6 - i * HORSE_GAP;
+    line.at(s, pa);
+    const f = hFrames[i];
+    f.x = pa.x;
+    f.z = pa.z;
+    f.yaw = line.yaw(s);
+    return f;
+  }
+  function horseToWorld(f: { x: number; z: number; yaw: number }, lx: number, ly: number, lz: number, out: THREE.Vector3): THREE.Vector3 {
+    const c = Math.cos(f.yaw);
+    const s = Math.sin(f.yaw);
+    return out.set(f.x + lx * c + lz * s, ly, f.z - lx * s + lz * c);
+  }
+  let hUsed = 0;
+  /** A chain from a to b in pieces of about TRACE_LINK, hanging a little. */
+  function chain(a: THREE.Vector3, b: THREE.Vector3): void {
+    const len = a.distanceTo(b);
+    const n = Math.max(1, Math.round(len / TRACE_LINK));
+    const sag = Math.min(0.06, len * 0.03);
+    let px = a.x;
+    let py = a.y;
+    let pz = a.z;
+    for (let k = 1; k <= n && hUsed < HARNESS_PIECES; k++) {
+      const t = k / n;
+      const qx = a.x + (b.x - a.x) * t;
+      const qy = a.y + (b.y - a.y) * t - sag * Math.sin(Math.PI * t);
+      const qz = a.z + (b.z - a.z) * t;
+      linkBetween(wagons.length + TRACE_PIECES + hUsed++, px, py, pz, qx, qy, qz, 0.5);
+      px = qx;
+      py = qy;
+      pz = qz;
+    }
+  }
+  const hpA = new THREE.Vector3();
+  const hpB = new THREE.Vector3();
+  const hpC = new THREE.Vector3();
+  function harness(off: boolean): void {
+    hUsed = 0;
+    const shown = [0, 1].map((i) => !off && horseFrame(i).x >= hideX - 1.6);
+    const f0 = { ...horseFrame(0) };
+    const f1 = { ...horseFrame(1) };
+    const b0 = horses.bob(0);
+    const b1 = horses.bob(1);
+    for (const sx of [1, -1]) {
+      if (shown[1]) {
+        // the rear horse: its tug, past its quarters, the spreader's end
+        horseToWorld(f1, sx * TUG[0], TUG[1] + b1, TUG[2], hpA);
+        horseToWorld(f1, sx * PAST[0], PAST[1] + b1, PAST[2], hpB);
+        horseToWorld(f1, sx * SPREAD[0], SPREAD[1] + b1, SPREAD[2], hpC);
+        chain(hpA, hpB);
+        chain(hpB, hpC);
+      }
+      if (shown[0] && shown[1]) {
+        // the lead horse: its tug, past its quarters, the rear horse's tug
+        horseToWorld(f0, sx * TUG[0], TUG[1] + b0, TUG[2], hpA);
+        horseToWorld(f0, sx * PAST[0], PAST[1] + b0, PAST[2], hpB);
+        horseToWorld(f1, sx * TUG[0], TUG[1] + b1, TUG[2], hpC);
+        chain(hpA, hpB);
+        chain(hpB, hpC);
+      }
+    }
+    if (shown[1]) {
+      // the spreader across behind the rear horse
+      horseToWorld(f1, SPREAD[0], SPREAD[1] + b1, SPREAD[2], hpA);
+      horseToWorld(f1, -SPREAD[0], SPREAD[1] + b1, SPREAD[2], hpB);
+      chain(hpA, hpB);
+    }
+    for (let k = hUsed; k < HARNESS_PIECES; k++) links.setMatrixAt(wagons.length + TRACE_PIECES + k, zero);
   }
 
   // --- dev (M6 cranes): the closest approaches, measured on the poses as they stand after each update

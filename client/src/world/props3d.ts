@@ -71,7 +71,8 @@ export const PROP_NAMES = [
   "crate_big",
 ] as const;
 
-/** Parts the traffic moves (traffic.ts): the dray, its wheels, loads, the horse and its legs, the handcart. */
+/** Parts the traffic moves (traffic.ts): the dray, its wheels, loads, the horse and its legs (each split at the knee
+ * or hock: horseGait.ts), the handcart. */
 export const TRAFFIC_PARTS = [
   "tr_dray_bed",
   "tr_dray_fore",
@@ -83,7 +84,9 @@ export const TRAFFIC_PARTS = [
   "tr_load_tarp",
   "tr_horse_body",
   "tr_leg_front",
+  "tr_leg_front_lo",
   "tr_leg_hind",
+  "tr_leg_hind_lo",
   "tr_handcart",
   "tr_handcart_wheels",
   "tr_handcart_load",
@@ -154,7 +157,7 @@ export interface Props {
   footprint(name: string): Footprint;
   /** Walk colliders for a prop placed at (x, z, yaw): a few boxes along its length. */
   colliders(name: string, x: number, z: number, yaw: number, y?: number, scale?: number): Rect[];
-  /** The PS1 materials by name: wood, wood_dark, iron, rope, sackcloth, crate, barrel, stone, glass, horse, horsehair, leather, goods (the atlas). */
+  /** The PS1 materials by name: wood, wood_dark, iron, rope, sackcloth, crate, barrel, stone, glass, leather, goods (the atlas), goods_team (the horses' atlas). */
   materials: Record<string, THREE.Material>;
   /** Front doors of the city's houses as x, z pairs (from the city build, carried in props.glb). */
   houseDoors: number[];
@@ -206,8 +209,9 @@ async function load(): Promise<Props> {
       name === "glass"
         ? // M7 fog lamps: glass fogs like the rest of the prop (a gas lamp's own: world/gaslamps.ts, lampFog.ts)
           new THREE.MeshBasicMaterial({ map, color: 0xffc070 })
-        : name === "goods"
-          ? psx(new THREE.MeshLambertMaterial({ map, vertexColors: true }), { affine: 0.6, atlas: 4 })
+        : name === "goods" || name === "goods_team"
+          ? // the goods atlas and the team atlas (the horses and their harness): the same settings, one shader
+            psx(new THREE.MeshLambertMaterial({ map, vertexColors: true }), { affine: 0.6, atlas: 4 })
           : psx(new THREE.MeshLambertMaterial({ map, vertexColors: true }), { affine: 0.6 });
     mat.name = name;
     materials[name] = mat;

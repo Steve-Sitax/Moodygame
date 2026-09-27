@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { psx } from "../retro/psx";
 import { HorsePool } from "./horses";
+import { WALK_STRIDE } from "./horseGait";
 import type { Props } from "./props3d";
 
 // The pompiers' fire pump (M6 town life), built in code: a hand pump of the 1860s-70s on a
@@ -32,6 +33,15 @@ function m(): Record<string, THREE.Material> {
     hose: psx(new THREE.MeshLambertMaterial({ color: 0x4a3222 })),
   };
   return mats;
+}
+
+/** A pole from its heel (y, z) up to its head between the horses' collars (the kidney links, build_props.py KIDNEY:
+ * 1.385 m up, 1.2 m ahead of the horses' middles). */
+function pole(mat: THREE.Material, y0: number, z0: number, y1: number, z1: number): THREE.Mesh {
+  const len = Math.hypot(y1 - y0, z1 - z0);
+  const m = box(0.07, 0.07, len, mat, 0, (y0 + y1) / 2, (z0 + z1) / 2);
+  m.rotation.x = -Math.atan2(y1 - y0, z1 - z0);
+  return m;
 }
 
 function box(w: number, h: number, d: number, mat: THREE.Material, x: number, y: number, z: number): THREE.Mesh {
@@ -98,7 +108,10 @@ export function createPumpCart(scene: THREE.Scene, props: Props | null): PumpCar
   const dome = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2), k.brass);
   dome.position.set(0, 1.93, -0.1);
   body.add(dome);
-  body.add(cyl(0.04, 0.3, k.brass, 0.45, 1.0, -0.4, 6)).rotation.z = Math.PI / 2;
+  // (the brass cylinder turned, not the body: add() gives back the parent, and the pump lay on its side)
+  const outlet = cyl(0.04, 0.3, k.brass, 0.45, 1.0, -0.4, 6);
+  outlet.rotation.z = Math.PI / 2;
+  body.add(outlet);
   // the brakes: a long handle each side on a rocking beam over the pump
   const brakes: THREE.Group[] = [];
   for (const side of [-1, 1]) {
@@ -123,7 +136,7 @@ export function createPumpCart(scene: THREE.Scene, props: Props | null): PumpCar
   }
   body.add(reel);
   // the pole and the bar the horses pull on
-  body.add(box(0.07, 0.07, 2.6, k.wood, 0, 0.72, 2.45));
+  body.add(pole(k.wood, 0.72, 1.15, 1.33, 4.75));
   body.add(box(1.3, 0.06, 0.06, k.wood, 0, 0.72, 2.0));
   // the brigade's lantern on an iron stalk at the front corner, and its glow
   body.add(box(0.04, 0.9, 0.04, k.iron, 0.42, 1.2, 0.55));
@@ -136,7 +149,7 @@ export function createPumpCart(scene: THREE.Scene, props: Props | null): PumpCar
   scene.add(group);
 
   // two horses side by side in front
-  const horses = props ? new HorsePool(scene, props, 2) : null;
+  const horses = props ? new HorsePool(scene, props, 2, "chestnut") : null;
   let hose: THREE.Mesh | null = null;
   let gait = 0;
   let lastX = NaN;
@@ -150,7 +163,10 @@ export function createPumpCart(scene: THREE.Scene, props: Props | null): PumpCar
       const moved = Number.isFinite(lastX) ? Math.hypot(x - lastX, z - lastZ) : 0;
       lastX = x;
       lastZ = z;
-      gait = (gait + moved / 2.6) % 1;
+      // a step cycle every 2.6 m at the trot, WALK_STRIDE at the walk (the hooves stay put: horseGait.ts)
+      const trotting = trot > 0.3;
+      const stride = trotting ? 2.6 : WALK_STRIDE;
+      gait = (gait + moved / stride) % 1;
       for (const w of wheels) w.w.rotation.x += moved / w.r;
       // the men work the brakes up and down, about once a second
       const rock = pumping ? Math.sin(t * 6.3) * 0.2 : 0;
@@ -162,7 +178,7 @@ export function createPumpCart(scene: THREE.Scene, props: Props | null): PumpCar
           const lx = i ? 0.55 : -0.55;
           const lz = 3.6;
           // local (x across, z along) to world: x' = x cos + z sin, z' = -x sin + z cos
-          horses.set(i, x + lx * c + lz * s, z - lx * s + lz * c, yaw, gait, Math.min(1, trot), trot > 0.3);
+          horses.set(i, x + lx * c + lz * s, z - lx * s + lz * c, yaw, gait, Math.min(1, trot), trotting, stride);
         }
         horses.show("pump", true);
         horses.commit();

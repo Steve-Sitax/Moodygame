@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { psx } from "../retro/psx";
 import { HorsePool } from "./horses";
+import { WALK_STRIDE } from "./horseGait";
 import type { Props } from "./props3d";
 
 // The hearse of a town funeral (M7 funeral), built in code: a black four-wheeled funeral carriage of
@@ -31,6 +32,15 @@ function m(): Record<string, THREE.Material> {
     plume: psx(new THREE.MeshLambertMaterial({ color: 0x0e0d10 })),
   };
   return mats;
+}
+
+/** A pole from its heel (y, z) up to its head between the horses' collars (the kidney links, build_props.py KIDNEY:
+ * 1.385 m up, 1.2 m ahead of the horses' middles). */
+function pole(mat: THREE.Material, y0: number, z0: number, y1: number, z1: number): THREE.Mesh {
+  const len = Math.hypot(y1 - y0, z1 - z0);
+  const m = box(0.07, 0.07, len, mat, 0, (y0 + y1) / 2, (z0 + z1) / 2);
+  m.rotation.x = -Math.atan2(y1 - y0, z1 - z0);
+  return m;
 }
 
 function box(w: number, h: number, d: number, mat: THREE.Material, x: number, y: number, z: number): THREE.Mesh {
@@ -130,7 +140,7 @@ export function createHearse(scene: THREE.Scene, props: Props | null, coffin: TH
   }
   body.add(man);
   // the pole and the bar the horses pull on
-  body.add(box(0.07, 0.07, 2.4, k.wood, 0, 0.72, 2.9));
+  body.add(pole(k.wood, 0.72, 1.7, 1.33, 5.15));
   body.add(box(1.3, 0.06, 0.06, k.wood, 0, 0.72, 2.2));
   // the coffin on the bed (foot forward), under the canopy
   coffin.position.set(0, 1.16, -0.1);
@@ -138,7 +148,8 @@ export function createHearse(scene: THREE.Scene, props: Props | null, coffin: TH
   body.add(coffin);
   scene.add(group);
 
-  const horses = props ? new HorsePool(scene, props, 2) : null;
+  // a pair of blacks (horseGait.ts coats), walking slow: a step cycle every WALK_STRIDE metres
+  const horses = props ? new HorsePool(scene, props, 2, "black") : null;
   let gait = 0;
   let lastX = NaN;
   let lastZ = NaN;
@@ -151,7 +162,7 @@ export function createHearse(scene: THREE.Scene, props: Props | null, coffin: TH
       const moved = Number.isFinite(lastX) ? Math.hypot(x - lastX, z - lastZ) : 0;
       lastX = x;
       lastZ = z;
-      gait = (gait + moved / 1.9) % 1;
+      gait = (gait + moved / WALK_STRIDE) % 1;
       for (const w of wheels) w.w.rotation.x += moved / w.r;
       // the reins: the coachman nods a little with the walk
       man.rotation.x = Math.sin(gait * Math.PI * 4) * 0.03 * walk;

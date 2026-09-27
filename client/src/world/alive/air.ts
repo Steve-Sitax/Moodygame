@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { snort, thunder } from "../../audio/aliveSounds";
 import { FCOMMON, VCOMMON, pointMat, rand, type Ctx, type Frame, type Part } from "./common";
+import { HORSE_NOSE } from "../horseGait";
 
 // M7 alive: the air and what falls through it.
 // (The water off the eaves, drops and broken gutters' streams: eaves.ts.)
@@ -211,8 +212,6 @@ export function createBreath(ctx: Ctx): Part {
       for (const m of horseMeshes) {
         if (!m.visible) continue;
         m.updateMatrixWorld();
-        if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
-        const bb = m.geometry.boundingBox!;
         for (let i = 0; i < m.count; i++) {
           m.getMatrixAt(i, m4);
           m4.premultiply(m.matrixWorld);
@@ -227,8 +226,8 @@ export function createBreath(ctx: Ctx): Part {
             continue;
           }
           horseNext.set(key, f.t + rand(2.6, 4.2));
-          // the nose: the front and low end of the body's box (the head hangs forward)
-          head.set(0, bb.min.y + (bb.max.y - bb.min.y) * 0.66, bb.max.z - 0.3).applyMatrix4(m4);
+          // the nose (horseGait.ts HORSE_NOSE, in the body's frame)
+          head.set(HORSE_NOSE[0], HORSE_NOSE[1], HORSE_NOSE[2]).applyMatrix4(m4);
           fwd.set(0, -0.3, 1).transformDirection(m4);
           emit(head, fwd, 7, 0.14, 1.8 * cold, 2.2);
           lastHorse = head.toArray().map((v) => +v.toFixed(2));

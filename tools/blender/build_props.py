@@ -3,6 +3,7 @@
     blender -b --factory-startup -P tools/blender/build_props.py
     blender -b --factory-startup -P tools/blender/build_props.py -- --preview
     blender -b --factory-startup -P tools/blender/build_props.py -- --closeup dray_hitched,horse out.png [azimuth]
+    blender -b --factory-startup -P tools/blender/build_props.py -- --horse out_dir
 
 Writes client/public/models/props.glb (Draco). One node per prop, origin at the
 centre of its footprint on the ground, real scale in metres. The front of a
@@ -20,6 +21,10 @@ An empty node "house_doors" carries the city's house front doors (x, z pairs, in
 extras) so the game keeps props out of doorways.
 
 --preview renders all props in two rows to data/shots/props_preview.png.
+--horse renders the draught horse close up (side, front, back, head, harness, legs) and a walk and a trot,
+8 frames each, posed as the game poses it (horse_pose), into out_dir.
+
+The draught horse and its harness are on their own atlas, "goods_team" (the team atlas, TEAM_CELLS).
 """
 
 import json
@@ -38,8 +43,9 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 OUT = os.path.join(ROOT, "client", "public", "models", "props.glb")
 SHOT = os.path.join(ROOT, "data", "shots", "props_preview.png")
 
-MATS = ["wood", "wood_dark", "iron", "rope", "sackcloth", "crate", "barrel", "stone", "glass", "horse", "horsehair", "leather", "goods"]
-WOOD, DARK, IRON, ROPE, SACK, CRATE, BARREL, STONE, GLASS, HORSE, HAIR, LEATHER, GOODS = range(len(MATS))
+MATS = ["wood", "wood_dark", "iron", "rope", "sackcloth", "crate", "barrel", "stone", "glass", "horse", "horsehair", "leather", "goods",
+        "goods_team"]
+WOOD, DARK, IRON, ROPE, SACK, CRATE, BARREL, STONE, GLASS, HORSE, HAIR, LEATHER, GOODS, TEAM = range(len(MATS))
 
 S = 64
 
@@ -56,6 +62,17 @@ CELLS = ["wood", "wood_dark", "iron", "rope", "horse", "horsehair", "leather", "
 # the ordinary materials, as drawn in an atlas mesh
 TO_CELL = {WOOD: A_WOOD, DARK: A_DARK, IRON: A_IRON, ROPE: A_ROPE, HORSE: A_HORSE, HAIR: A_HAIR, LEATHER: A_LEATHER,
            SACK: A_GRAIN, BARREL: A_CASK, CRATE: A_CRATE, STONE: A_STONE}
+
+# The team atlas (2026-09-27, the draught horse's detail pass): the horse and its harness have their own 4 x 4 atlas of
+# 64 px cells, material "goods_team" (in the game the goods atlas's psx settings: no new shader kind). A face of a
+# team mesh names its cell as 200 + k. The mesh is painted bay; the game makes the other coats by pointing the coat
+# cells elsewhere (client/src/world/horseGait.ts COATS): chestnut with a flaxen mane, black (the hearse), red roan.
+TEAM_CELLS = ["bay", "chestnut", "black", "roan", "hair_black", "hair_flaxen", "hoof", "iron", "brass", "leather",
+              "collar", "hame", "eye", "muzzle", "white", "cloth"]
+(H_BAY, H_CHESTNUT, H_BLACK, H_ROAN, H_HAIR, H_FLAXEN, H_HOOF, H_IRON, H_BRASS, H_LEATHER, H_COLLAR, H_HAME,
+ H_EYE, H_MUZZLE, H_WHITE, H_CLOTH) = range(200, 200 + len(TEAM_CELLS))
+# what the coat cells mean: the coat, the mane and tail (and feathers), the points (lower legs), the white markings
+H_COAT, H_MANE, H_POINTS, H_MARK = H_BAY, H_HAIR, H_BLACK, H_WHITE
 
 # ------------------------------------------------------------------ textures
 
@@ -404,6 +421,181 @@ def paint_atlas():
     return out
 
 
+
+
+
+# ---- the team atlas: coats, hair, hoof and the harness
+
+
+def paint_coat(seed, base, roan=0.0, sheen=0.0):
+    """Short hair lying along v (the length of the body and the legs): fine streaks, soft light and dark patches.
+    roan: the share of white hairs mixed in (a red roan); sheen: a pale gloss on the streaks (a black coat)."""
+    rng = np.random.default_rng(seed)
+    hair = vnoise(rng, S, 32, 8) * 0.5 + vnoise(rng, S, 64, 16) * 0.5
+    img = col(base) * (0.93 + 0.13 * hair)[..., None]
+    img *= (0.88 + 0.24 * vnoise(rng, S, 3, 3))[..., None]  # soft dapples of light and shade
+    if roan:
+        # white hairs through the coloured ones: an even grey-pink blend, a little patchy, a few whiter hairs
+        k = roan * (0.8 + 0.4 * vnoise(rng, S, 5, 5)) + 0.12 * (hair - 0.5)
+        img = img * (1 - k[..., None]) + col((0.74, 0.71, 0.67)) * k[..., None]
+        white = rng.random((S, S)) < 0.06
+        img[white] = img[white] * 0.6 + col((0.8, 0.78, 0.74)) * 0.4
+    if sheen:
+        gloss = np.clip((hair - 0.55) * 3, 0, 1)[..., None]
+        img = img + col((0.3, 0.32, 0.36)) * sheen * gloss
+    return speckle(img, rng, 0.03, 0.8, 0.95)
+
+
+def paint_long_hair(seed, base):
+    """Mane, tail and feathers: long strands along v, dark gaps between them, a few light ones."""
+    rng = np.random.default_rng(seed)
+    n = vnoise(rng, S, 40, 2) * 0.55 + vnoise(rng, S, 20, 3) * 0.45
+    img = col(base) * (0.5 + 0.8 * n)[..., None]
+    gaps = np.clip((0.42 - vnoise(rng, S, 24, 2)) * 4, 0, 1)[..., None]
+    img *= 1 - 0.55 * gaps
+    light = vnoise(rng, S, 48, 3) > 0.8
+    img[light] = img[light] * 1.35 + 0.03
+    return speckle(img, rng, 0.03, 0.7, 0.9)
+
+
+def paint_hoof(seed):
+    """Horn: dark grey-brown with the growth lines running down (along v), a lighter streak or two, worn at the ground."""
+    rng = np.random.default_rng(seed)
+    lines = vnoise(rng, S, 40, 2) * 0.7 + vnoise(rng, S, 12, 2) * 0.3
+    img = col((0.21, 0.18, 0.15)) * (0.7 + 0.5 * lines)[..., None]
+    pale = np.clip((vnoise(rng, S, 5, 1) - 0.62) * 4, 0, 1)[..., None]
+    img = img * (1 - pale) + col((0.42, 0.37, 0.30)) * pale * (0.8 + 0.3 * lines[..., None])
+    img[:4] *= 0.8  # mud at the ground
+    return speckle(img, rng, 0.05, 0.6, 0.9)
+
+
+def paint_team_iron(seed):
+    """Harness iron: bits, chains, the shoes. Dark, rubbed bright on the edges, a little rust."""
+    rng = np.random.default_rng(seed)
+    n = vnoise(rng, S, 8, 8) * 0.6 + vnoise(rng, S, 24, 24) * 0.4
+    img = col((0.19, 0.19, 0.20)) * (0.8 + 0.4 * n)[..., None]
+    rust = np.clip((vnoise(rng, S, 6, 6) - 0.7) * 4, 0, 1)[..., None]
+    img = img * (1 - rust) + col((0.32, 0.19, 0.11)) * rust
+    bright = rng.random((S, S)) < 0.05
+    img[bright] = col((0.46, 0.46, 0.47))
+    return img
+
+
+def paint_brass(seed):
+    """Brass fittings: warm yellow, tarnished darker in the hollows, polished spots."""
+    rng = np.random.default_rng(seed)
+    n = vnoise(rng, S, 6, 6) * 0.6 + vnoise(rng, S, 20, 20) * 0.4
+    img = col((0.80, 0.62, 0.27)) * (0.78 + 0.35 * n)[..., None]
+    tarnish = np.clip((0.4 - vnoise(rng, S, 5, 5)) * 3, 0, 1)[..., None]
+    img = img * (1 - 0.55 * tarnish) + col((0.30, 0.25, 0.12)) * 0.55 * tarnish
+    shine = vnoise(rng, S, 10, 10) > 0.78
+    img[shine] = img[shine] * 0.4 + col((1.0, 0.9, 0.62)) * 0.6
+    return img
+
+
+def paint_harness(seed):
+    """Black harness leather along v, stitched a little in from both edges (u 0 and 1 are the strap's edges)."""
+    rng = np.random.default_rng(seed)
+    n = vnoise(rng, S, 8, 16) * 0.6 + vnoise(rng, S, 32, 32) * 0.4
+    img = col((0.085, 0.072, 0.063)) * (0.8 + 0.5 * n)[..., None]
+    gloss = np.clip((vnoise(rng, S, 3, 12) - 0.6) * 3, 0, 1)[..., None]
+    img = img + col((0.12, 0.11, 0.1)) * gloss
+    for u in (6, 57):
+        img[:, u] *= 0.6
+        img[::4, u + (1 if u < 32 else -1)] = col((0.30, 0.27, 0.22))
+    img[:, :2] *= 0.7
+    img[:, -2:] *= 0.7
+    return speckle(img, rng, 0.04, 0.7, 0.95)
+
+
+def paint_collar(seed):
+    """The collar: black leather stuffed hard with straw, the stitching round it in rows (across v)."""
+    rng = np.random.default_rng(seed)
+    n = vnoise(rng, S, 12, 12)
+    img = col((0.11, 0.09, 0.075)) * (0.78 + 0.45 * n)[..., None]
+    for v in range(0, S, 8):
+        img[v] *= 0.55
+        img[(v + 1) % S] *= 1.25
+        img[v, ::3] = col((0.28, 0.25, 0.2))
+    worn = np.clip((vnoise(rng, S, 4, 4) - 0.65) * 4, 0, 1)[..., None]
+    img = img * (1 - worn * 0.5) + col((0.27, 0.19, 0.12)) * worn * 0.5
+    return speckle(img, rng, 0.04, 0.7, 0.95)
+
+
+def paint_hame(seed):
+    """The hames: oak, varnished dark, the grain along v, rubbed pale at the edges."""
+    rng = np.random.default_rng(seed)
+    grain = vnoise(rng, S, 24, 2) * 0.6 + vnoise(rng, S, 48, 4) * 0.4
+    img = col((0.33, 0.19, 0.09)) * (0.75 + 0.45 * grain)[..., None]
+    img[:, :3] = img[:, :3] * 1.3 + 0.03
+    img[:, -3:] = img[:, -3:] * 1.3 + 0.03
+    return speckle(img, rng, 0.04, 0.7, 0.9)
+
+
+def paint_eye(seed):
+    """An eye fitted to the whole cell: the dark eye with a brown rim, the lids, a light caught in it."""
+    rng = np.random.default_rng(seed)
+    uu, vv = np.meshgrid((np.arange(S) + 0.5) / S, (np.arange(S) + 0.5) / S)
+    d = np.hypot((uu - 0.5) / 1.15, vv - 0.5)
+    img = np.zeros((S, S, 3))
+    img[:] = col((0.11, 0.085, 0.07))
+    img[d < 0.40] = col((0.13, 0.075, 0.04))
+    img[d < 0.33] = col((0.035, 0.028, 0.025))
+    img[(d > 0.40) & (d < 0.46)] = col((0.05, 0.04, 0.035))
+    img[np.hypot(uu - 0.6, vv - 0.62) < 0.08] = col((0.75, 0.75, 0.72))
+    img[np.hypot(uu - 0.42, vv - 0.38) < 0.04] = col((0.3, 0.3, 0.3))
+    return speckle(img, rng, 0.02, 0.8, 0.95)
+
+
+def paint_muzzle(seed):
+    """The muzzle's skin: dark grey, soft pink-grey mottles, the whiskers' dark dots."""
+    rng = np.random.default_rng(seed)
+    n = vnoise(rng, S, 8, 8)
+    img = col((0.16, 0.14, 0.13)) * (0.8 + 0.4 * n)[..., None]
+    pink = np.clip((vnoise(rng, S, 5, 5) - 0.6) * 4, 0, 1)[..., None]
+    img = img * (1 - 0.6 * pink) + col((0.38, 0.29, 0.27)) * 0.6 * pink
+    dots = rng.random((S, S)) < 0.03
+    img[dots] = col((0.05, 0.045, 0.04))
+    return img
+
+
+def paint_team_cloth(seed):
+    """The wool under the collar and the saddle: red with a dark check, felted."""
+    rng = np.random.default_rng(seed)
+    img = col((0.42, 0.11, 0.08)) * (0.8 + 0.35 * vnoise(rng, S, 16, 16))[..., None]
+    for k in range(0, S, 16):
+        img[k:k + 2] = img[k:k + 2] * 0.4 + col((0.12, 0.12, 0.17)) * 0.6
+        img[:, k:k + 2] = img[:, k:k + 2] * 0.4 + col((0.12, 0.12, 0.17)) * 0.6
+    return speckle(img, rng, 0.08, 0.75, 0.95)
+
+
+def paint_team_atlas():
+    """The team atlas, in Blender's order (row 0 of the array = the bottom of the picture), cells as TEAM_CELLS."""
+    cells = {
+        "bay": paint_coat(201, (0.40, 0.21, 0.11)),
+        "chestnut": paint_coat(202, (0.56, 0.30, 0.13)),
+        "black": paint_coat(203, (0.075, 0.068, 0.066), sheen=0.35),
+        "roan": paint_coat(204, (0.50, 0.24, 0.14), roan=0.34),
+        "hair_black": paint_long_hair(205, (0.075, 0.063, 0.056)),
+        "hair_flaxen": paint_long_hair(206, (0.76, 0.64, 0.43)),
+        "hoof": paint_hoof(207),
+        "iron": paint_team_iron(208),
+        "brass": paint_brass(209),
+        "leather": paint_harness(210),
+        "collar": paint_collar(211),
+        "hame": paint_hame(212),
+        "eye": paint_eye(213),
+        "muzzle": paint_muzzle(214),
+        "white": paint_coat(215, (0.78, 0.76, 0.7)),
+        "cloth": paint_team_cloth(216),
+    }
+    N = ATLAS_N
+    out = np.zeros((S * N, S * N, 3))
+    for k, name in enumerate(TEAM_CELLS):
+        c, r = k % N, k // N
+        out[(N - 1 - r) * S:(N - r) * S, c * S:(c + 1) * S] = cells[name]
+    return out
+
 def image(name, arr):
     h, w, _ = arr.shape
     img = bpy.data.images.new(name, w, h, alpha=False)
@@ -429,6 +621,7 @@ def make_materials():
         "horsehair": lambda: paint_hide(11, (0.09, 0.07, 0.055), stretch=True),
         "leather": lambda: paint_hide(12, (0.21, 0.13, 0.08)),
         "goods": paint_atlas,
+        "goods_team": paint_team_atlas,
     }
     for name in MATS:
         img = image(f"{name}_tex", paint[name]())
@@ -511,8 +704,9 @@ class Mesh:
             a = TO_CELL.get(mat, mat)
             if a < 100:
                 raise ValueError(f"material {MATS[mat]} has no cell in the goods atlas")
-            k = a - 100
-            f.material_index = GOODS
+            # a team cell (200 + k) is drawn from the team atlas, a goods cell (100 + k) from the goods atlas
+            k = a - 200 if a >= 200 else a - 100
+            f.material_index = TEAM if a >= 200 else GOODS
             for loop in f.loops:
                 loop[self.cell].uv = (k % ATLAS_N, k // ATLAS_N)
         else:
@@ -860,6 +1054,7 @@ def handcart_parts(m, loaded, part, R, zf):
 
 
 DRAY_HORSE_Y = -3.2  # where the horse stands in front of the hitched dray (Blender y)
+DRAY_SHAFT_TIP_Z = 1.26  # the hitched shafts end at the horse's point of shoulder, through the tugs on its back band
 
 
 DRAY_REAR_Y, DRAY_FRONT_Y = 1.25, -1.15  # the axles (Blender y); wheel radii 0.52 and 0.42
@@ -898,7 +1093,7 @@ def dray_parts(m, hitched, part):
         with m.at(move(0, -1.15, 0)):
             m.lathe([(0.38, 0.64), (0.38, 0.70)], 10, IRON, smooth=False, cap1=True)
         # shafts: resting on the ground, or up at a horse's shoulders
-        tip_z, tip_y = (1.12, -3.95) if hitched else (0.05, -3.85)
+        tip_z, tip_y = (DRAY_SHAFT_TIP_Z, -3.95) if hitched else (0.05, -3.85)
         for sx in (-1, 1):
             m.beam((sx * 0.52, -1.2, 0.56), (sx * 0.43, tip_y, tip_z), 0.075, 0.09, DARK, w2=0.05, h2=0.06)
             if hitched:
@@ -930,67 +1125,741 @@ def dray_parts(m, hitched, part):
     m.box((0, -1.55, 1.58), (1.3, 0.38, 0.05), WOOD)
 
 
-# where the legs hang from (Blender): front at the shoulder, hind at the hip
-HORSE_FRONT_HIP = (0.19, -0.62, 1.05)
-HORSE_HIND_HIP = (0.2, 0.62, 1.10)
+# ------------------------------------------------------------------ the draught horse
+# (the detail pass of 2026-09-27, docs/milestones/vehicle-detail.md)
+# A heavy Brabant (Flemish) draught horse of 1873 at true size, in full harness: the collar with its rim, hames,
+# hame tugs, terrets and the kidney link; the bridle with browband, blinkers, noseband, bit and reins; the back pad
+# with its terrets, back band, tugs and belly band; the crupper, the hip straps and the breeching. Built in the horse's
+# own frame (x across, f forward, h up; HP() puts it into Blender, y = -f), on the team atlas. The game moves the body
+# and eight leg parts: each leg is split at the knee (front) or the hock (hind); the upper part hangs from its pivot in
+# the shoulder or the hip, the lower part from the joint. client/src/world/horseGait.ts has the same rig and bends
+# the legs with two-bone IK, so a hoof on the ground stays where it stands (horse_pose below is the same, for the
+# previews).
 
 
-def horse_leg(m, pts):
-    m.tube([(x, y, z) for x, y, z, _ in pts], [r for *_, r in pts], 6, HORSE, side=(0, 1, 0),
-           mats=[HORSE, HORSE, HAIR, HAIR, HAIR], cap0=True, cap1=True, cap_mat=HAIR, vscale=0.7)
+def HP(x, f, h):
+    return Vector((x, -f, h))
 
 
-def horse(part="all", atlas=False):
-    """A heavy draught horse (Brabant type), standing, in a leather collar.
-    part: "all", or for the traffic "body" (no legs), "leg_front" and "leg_hind" (one leg,
-    hanging from its hip at the origin; the game swings it)."""
-    m = Mesh(ao=0.0, atlas=atlas)
-    if part == "leg_front":
-        horse_leg(m, [(0, 0.0, 0.0, 0.12), (0, -0.02, -0.33, 0.09), (0, -0.02, -0.53, 0.075),
-                      (0, -0.02, -0.83, 0.055), (0, -0.03, -0.95, 0.085), (0, -0.04, -1.05, 0.09)])
-        return m
-    if part == "leg_hind":
-        horse_leg(m, [(0, 0.0, 0.0, 0.15), (0, 0.12, -0.32, 0.10), (0, 0.18, -0.55, 0.075),
-                      (0, 0.12, -0.88, 0.055), (0, 0.10, -1.0, 0.085), (0, 0.08, -1.10, 0.09)])
-        return m
-    body = [(0.98, 1.30, 0.10, 0.14), (0.90, 1.32, 0.26, 0.30), (0.65, 1.34, 0.34, 0.37), (0.25, 1.28, 0.36, 0.40),
-            (-0.15, 1.26, 0.36, 0.42), (-0.50, 1.30, 0.33, 0.42), (-0.78, 1.34, 0.26, 0.38), (-0.93, 1.30, 0.14, 0.24)]
-    m.shadefn = lambda p: 0.72 + 0.28 * min(1.0, max(0.0, (p.z - 0.85) / 0.6))
-    m.tube([(0, y, z) for y, z, _, _ in body], [(w, h) for _, _, w, h in body], 8, HORSE, cap0=True, cap1=True, vscale=0.7)
-    m.shadefn = lambda p: 0.85 + 0.15 * min(1.0, max(0.0, (p.z - 1.4) / 0.5))
-    neck = [(-0.60, 1.48, 0.20, 0.30), (-0.88, 1.70, 0.17, 0.26), (-1.08, 1.92, 0.14, 0.20), (-1.20, 2.08, 0.12, 0.15)]
-    m.tube([(0, y, z) for y, z, _, _ in neck], [(w, h) for _, _, w, h in neck], 8, HORSE, cap1=True, vscale=0.7)
-    head = [(-1.14, 2.14, 0.10, 0.12), (-1.27, 2.02, 0.125, 0.17), (-1.40, 1.84, 0.10, 0.12), (-1.51, 1.66, 0.085, 0.10), (-1.54, 1.59, 0.065, 0.07)]
-    m.shadefn = lambda p: 0.55 + 0.45 * min(1.0, max(0.0, (p.z - 1.5) / 0.35))
-    m.tube([(0, y, z) for y, z, _, _ in head], [(w, h) for _, _, w, h in head], 8, HORSE, cap0=True, cap1=True, vscale=0.7)
-    m.shadefn = None
-    for sx in (-1, 1):
-        m.tube([(sx * 0.06, -1.13, 2.14), (sx * 0.075, -1.11, 2.25), (sx * 0.085, -1.10, 2.33)], [0.035, 0.025, 0.006], 3, HORSE,
-               cap0=True, cap1=True, shade=0.8)
-    # legs: hide above, black points and feathered fetlocks below
-    legs = []
-    for sx in (-1, 1):
-        legs.append([(sx * 0.19, -0.62, 1.05, 0.12), (sx * 0.19, -0.64, 0.72, 0.09), (sx * 0.19, -0.64, 0.52, 0.075),
-                     (sx * 0.19, -0.64, 0.22, 0.055), (sx * 0.19, -0.65, 0.10, 0.085), (sx * 0.19, -0.66, 0.0, 0.09)])
-        legs.append([(sx * 0.2, 0.62, 1.10, 0.15), (sx * 0.2, 0.74, 0.78, 0.10), (sx * 0.2, 0.80, 0.55, 0.075),
-                     (sx * 0.2, 0.74, 0.22, 0.055), (sx * 0.2, 0.72, 0.10, 0.085), (sx * 0.2, 0.70, 0.0, 0.09)])
-    if part == "all":
-        for leg in legs:
-            horse_leg(m, leg)
-    m.tube([(0, 0.99, 1.47), (0, 1.09, 1.33), (0, 1.13, 1.0), (0, 1.11, 0.66)], [0.06, 0.085, 0.10, 0.05], 5, HAIR,
-           cap0=True, cap1=True, vscale=1)
-    m.tube([(0, -0.58, 1.84), (0, -0.84, 2.0), (0, -1.04, 2.15), (0, -1.14, 2.24)], [(0.03, 0.07)] * 4, 4, HAIR,
-           cap0=True, cap1=True, vscale=1)
-    # the collar round the base of the neck
-    c = Vector((0, -0.84, 1.66))
-    t = Vector((0, -0.6, 0.8)).normalized()
-    s = Vector((1, 0, 0))
+# the leg rig, (f, h) in the horse's frame: the pivot (hidden in the shoulder or the hip), the joint (knee or hock),
+# the middle of the sole; the leg's x; the sole's toe and heel from its middle. KEEP IN STEP with horseGait.ts RIG.
+HORSE_RIG = {
+    "front": {"x": 0.19, "pivot": (0.62, 1.40), "joint": (0.645, 0.50), "sole": (0.67, 0.0), "toe": 0.11, "heel": 0.08},
+    "hind": {"x": 0.20, "pivot": (-0.62, 1.38), "joint": (-0.76, 0.58), "sole": (-0.67, 0.0), "toe": 0.11, "heel": 0.08},
+}
+# The collar, where the omnibus's traces and pole chains, the dray's shafts and the train's trace chain meet the horse
+# (the same place as the horse of before): its middle and axis (f, h), the half-width and half-height of the roll's
+# middle line, the roll's radius; the hames' middle line.
+COLLAR_C = (0.84, 1.66)
+COLLAR_T = (0.6, 0.8)
+COLLAR_A, COLLAR_B, COLLAR_R = 0.25, 0.36, 0.07
+HAME_A, HAME_B = 0.31, 0.42
+TRACE_END = (0.31, 0.80, 1.52)  # x, f, h: the buckle at the end of each hame tug, where a trace starts
+KIDNEY = (0.0, 1.20, 1.385)  # x, f, h: the ring under the collar where the pole chains hook on
+SHAFT_TUG = (0.445, 0.30, 1.145)  # x, f, h: the middle of the tug each dray shaft rests in (where dray() hitched runs it)
+
+
+def _cr(table, f):
+    """Catmull-Rom through rows (key, values...) sorted by key: the values at f."""
+    keys = [r[0] for r in table]
+    if f <= keys[0]:
+        return list(table[0][1:])
+    if f >= keys[-1]:
+        return list(table[-1][1:])
+    i = max(k for k in range(len(keys) - 1) if keys[k] <= f)
+    t = (f - keys[i]) / (keys[i + 1] - keys[i])
+    p0, p1, p2, p3 = table[max(i - 1, 0)], table[i], table[i + 1], table[min(i + 2, len(table) - 1)]
+    out = []
+    for c in range(1, len(p1)):
+        a, b, cc, d = p0[c], p1[c], p2[c], p3[c]
+        out.append(0.5 * (2 * b + (-a + cc) * t + (2 * a - 5 * b + 4 * cc - d) * t * t + (-a + 3 * b - 3 * cc + d) * t ** 3))
+    return out
+
+
+def _se(v, n):
+    return math.copysign(abs(v) ** (2.0 / n), v)
+
+
+# the body: f, top, bottom, half-width, squareness (a Brabant: deep, wide, a round double rump)
+BODY = [
+    (-1.03, 1.42, 1.19, 0.06, 2.2),
+    (-1.00, 1.53, 1.08, 0.19, 2.3),
+    (-0.93, 1.63, 1.00, 0.30, 2.4),
+    (-0.78, 1.705, 0.975, 0.36, 2.5),
+    (-0.58, 1.72, 0.99, 0.375, 2.5),
+    (-0.38, 1.695, 0.975, 0.36, 2.4),
+    (-0.18, 1.66, 0.915, 0.365, 2.3),
+    (0.03, 1.645, 0.885, 0.375, 2.3),
+    (0.24, 1.665, 0.895, 0.37, 2.3),
+    (0.42, 1.70, 0.93, 0.35, 2.3),
+    (0.58, 1.715, 0.98, 0.33, 2.3),
+    (0.74, 1.64, 1.03, 0.31, 2.3),
+    (0.87, 1.52, 1.03, 0.275, 2.3),
+    (0.97, 1.43, 1.10, 0.215, 2.2),
+    (1.035, 1.37, 1.18, 0.11, 2.2),
+]
+
+
+def body_sec(f):
+    top, bot, W, n = _cr(BODY, f)
+    hw = bot + 0.55 * (top - bot)  # the widest a little above the middle (the ribs spring high)
+    return hw, top - hw, hw - bot, W, n
+
+
+def body_pt(f, a, off=0.0):
+    hw, T, B, W, n = body_sec(f)
+    c, s = math.cos(a), math.sin(a)
+    # the croup is split along the spine (a Brabant's double rump)
+    groove = 0.018 * max(0.0, 1 - abs(f + 0.62) / 0.36) * max(0.0, 1 - abs(a - math.pi / 2) / 0.35)
+    return HP((W + off) * _se(c, n), f, hw + ((T + off - groove) if s > 0 else (B + off)) * _se(s, n))
+
+
+def body_out(f, a):
+    return (body_pt(f, a, 0.02) - body_pt(f, a, 0.0)).normalized()
+
+
+def body_half_width(f, h):
+    hw, T, B, W, n = body_sec(f)
+    q = abs(h - hw) / (T if h > hw else B)
+    return 0.0 if q >= 1 else W * (1 - q ** n) ** (1 / n)
+
+
+def body_angle_at(f, h, side=1):
+    """The angle round the body's ring at f where its side is at height h."""
+    hw, T, B, W, n = body_sec(f)
+    q = max(-1.0, min(1.0, (h - hw) / (T if h > hw else B)))
+    s = math.copysign(abs(q) ** (n / 2), q)
+    a = math.asin(max(-1.0, min(1.0, s)))
+    return a if side > 0 else math.pi - a
+
+
+# the neck by its crest and throat lines: crest (f, h), throat (f, h), half-width
+NECK = [
+    (0.35, 1.70, 0.80, 1.05, 0.30),
+    (0.52, 1.745, 0.93, 1.25, 0.25),
+    (0.605, 1.812, 1.065, 1.495, 0.19),  # in the collar's plane: inside its roll
+    (0.78, 1.93, 1.09, 1.62, 0.165),
+    (0.93, 2.06, 1.10, 1.78, 0.145),
+    (1.06, 2.17, 1.11, 1.93, 0.13),
+    (1.14, 2.235, 1.13, 2.03, 0.12),
+]
+
+
+def neck_sec(u):
+    """u 0 (the withers) .. 1 (the poll): the middle, the ring's axis, half-width and half-height (Blender)."""
+    k = u * (len(NECK) - 1)
+    cf, ch, tf, th, W = _cr([(i,) + r for i, r in enumerate(NECK)], k)
+    crest, throat = HP(0, cf, ch), HP(0, tf, th)
+    d = crest - throat
+    C = (crest + throat) / 2
+    t = Vector((0.0, d.z, -d.y)).normalized()  # square to crest-throat in the f-h plane, toward the head
+    if t.y > 0:
+        t = -t
+    return C, t, W, d.length / 2
+
+
+def neck_pt(u, a, off=0.0):
+    C, t, W, R = neck_sec(u)
+    s = Vector((1.0, 0.0, 0.0))
     b = t.cross(s)
-    ring = [c + s * 0.25 * math.cos(2 * math.pi * i / 10) + b * 0.36 * math.sin(2 * math.pi * i / 10) for i in range(10)]
-    m.tube(ring, [0.07] * 10, 5, LEATHER, side=tuple(t), closed_path=True, vscale=2)
-    for sx in (-1, 1):
-        m.beam(c + s * sx * 0.3 + b * -0.3, c + s * sx * 0.3 + b * 0.3, 0.035, 0.035, IRON)
+    c, sn = math.cos(a), math.sin(a)
+    w = (W + off) * (1 - 0.22 * max(0.0, sn))  # the crest narrower than the throat
+    return C + s * w * _se(c, 2.2) + b * (R + off) * _se(sn, 2.2)
+
+
+# the head along its axis from the poll to the lips: t, half-width, face side, jaw side
+HEAD0, HEAD1 = (1.155, 2.16), (1.56, 1.61)
+HEAD = [
+    (0.0, 0.115, 0.075, 0.13),
+    (0.10, 0.14, 0.095, 0.18),
+    (0.25, 0.15, 0.095, 0.20),
+    (0.40, 0.13, 0.085, 0.15),
+    (0.55, 0.105, 0.08, 0.105),
+    (0.70, 0.093, 0.075, 0.087),
+    (0.84, 0.098, 0.074, 0.084),
+    (0.94, 0.09, 0.063, 0.074),
+    (1.0, 0.055, 0.035, 0.045),
+]
+
+
+def head_sec(t):
+    a, b = HP(0, *HEAD0), HP(0, *HEAD1)
+    W, T, B = _cr(HEAD, t)
+    return a + (b - a) * t, (b - a).normalized(), W, T, B
+
+
+def head_pt(t, a, off=0.0):
+    C, ax, W, T, B = head_sec(t)
+    s = Vector((1.0, 0.0, 0.0))
+    b = ax.cross(s)  # the face side (forward and up)
+    c, sn = math.cos(a), math.sin(a)
+    return C + s * (W + off) * _se(c, 2.2) + b * ((T if sn > 0 else B) + off) * _se(sn, 2.2)
+
+
+def head_out(t, a):
+    return (head_pt(t, a, 0.02) - head_pt(t, a, 0.0)).normalized()
+
+
+def neck_out(u, a):
+    return (neck_pt(u, a, 0.02) - neck_pt(u, a, 0.0)).normalized()
+
+
+def collar_frame():
+    C = HP(0, *COLLAR_C)
+    t = Vector((0.0, -COLLAR_T[0], COLLAR_T[1])).normalized()
+    s = Vector((1.0, 0.0, 0.0))
+    return C, t, s, t.cross(s)  # the last one points up and back along the collar
+
+
+def collar_pt(th, A, B, dt=0.0):
+    C, t, s, b = collar_frame()
+    return C + t * dt + s * A * math.cos(th) + b * B * math.sin(th)
+
+
+# ---- building blocks
+
+
+def band(m, pts, outs, width, thick, cell, vscale=4.0, shade=1.0, closed=False, faces="strap"):
+    """A flat strap along pts, its inner face on them and its outer face along outs (a surface's normals):
+    `width` across (a number or one per point), `thick` outward. u runs across it (0 and 1 are the edges), v along.
+    faces: "full" (a strap in the air: the reins), "strap" (on the body: no face underneath), "decal" (the outer face)."""
+    n = len(pts)
+    widths = width if isinstance(width, (list, tuple)) else [width] * n
+    rings = []
+    for i in range(n):
+        if closed:
+            t = pts[(i + 1) % n] - pts[(i - 1) % n]
+        else:
+            t = pts[min(i + 1, n - 1)] - pts[max(i - 1, 0)]
+        t.normalize()
+        o = Vector(outs[i]) - t * Vector(outs[i]).dot(t)
+        o = o.normalized() if o.length > 1e-6 else t.orthogonal().normalized()
+        w = o.cross(t).normalized()
+        hw = widths[i] / 2
+        p = Vector(pts[i])
+        rings.append([m.vert(p + w * hw + o * thick), m.vert(p - w * hw + o * thick), m.vert(p - w * hw), m.vert(p + w * hw)])
+    vv = [0.0]
+    for i in range(1, n + (1 if closed else 0)):
+        vv.append(vv[-1] + (Vector(pts[i % n]) - Vector(pts[i - 1])).length * vscale)
+    us = [1.0, 0.0, 0.0, 1.0]
+    segs = n if closed else n - 1
+    ks = {"full": (0, 1, 2, 3), "strap": (0, 1, 3), "decal": (0,)}[faces]
+    for j in range(segs):
+        ra, rb = rings[j], rings[(j + 1) % n]
+        for k in ks:
+            k1 = (k + 1) % 4
+            m.face([ra[k], ra[k1], rb[k1], rb[k]], [(us[k], vv[j]), (us[k1], vv[j]), (us[k1], vv[j + 1]), (us[k], vv[j + 1])],
+                   cell, shade, smooth=False)
+    if not closed and faces != "decal":
+        m.face(rings[0][::-1], [(1, 0), (0, 0), (0, 0.1), (1, 0.1)], cell, shade, smooth=False)
+        m.face(rings[-1], [(1, 0), (0, 0), (0, 0.1), (1, 0.1)], cell, shade, smooth=False)
+
+
+def torus(m, C, axis, R, r, cell, seg=6, sides=3, shade=1.0):
+    axis = Vector(axis).normalized()
+    u = axis.orthogonal().normalized()
+    v = axis.cross(u)
+    path = [Vector(C) + (u * math.cos(2 * math.pi * k / seg) + v * math.sin(2 * math.pi * k / seg)) * R for k in range(seg)]
+    m.tube(path, [r] * seg, sides, cell, side=tuple(axis), closed_path=True, smooth=False, shade=shade, urep=1, vscale=4)
+
+
+def disc(m, C, n, r, h, cell, sides=6, shade=1.0):
+    """A boss or rosette: a low round dome on a surface at C, looking along n."""
+    q = Vector(n).normalized().to_track_quat("Z", "Y").to_matrix().to_4x4()
+    with m.at(Matrix.Translation(Vector(C)) @ q):
+        m.lathe([(r, -0.004), (r, h * 0.5), (r * 0.6, h)], sides, cell, smooth=False, cap1=True, shade=shade)
+
+
+def sagged(pts, sag):
+    """The points with each span split in three and its middle let down by `sag` (a hanging rein or chain)."""
+    out = [Vector(pts[0])]
+    for a, b in zip(pts, pts[1:]):
+        a, b = Vector(a), Vector(b)
+        for k in (1, 2):
+            t = k / 2
+            p = a + (b - a) * t
+            p.z -= sag * math.sin(math.pi * t) * min(1.0, (b - a).length / 0.4)
+            out.append(p)
+    return out
+
+
+def sheet(m, rings, cell, uscale=4.0, shade=1.0, closed_ring=True):
+    """Quads between rings with u along the rings' order (in metres x uscale) and v round each ring (0..1): for hair
+    that hangs down across the rings (the mane)."""
+    V = [[m.vert(p) for p in r] for r in rings]
+    uu = [0.0]
+    for a, b in zip(rings, rings[1:]):
+        uu.append(uu[-1] + (Vector(a[0]) - Vector(b[0])).length * uscale)
+    n = len(rings[0])
+    for j in range(len(rings) - 1):
+        for i in range(n if closed_ring else n - 1):
+            i1 = (i + 1) % n
+            m.face([V[j][i], V[j][i1], V[j + 1][i1], V[j + 1][i]],
+                   [(uu[j], i / n), (uu[j], (i + 1) / n), (uu[j + 1], (i + 1) / n), (uu[j + 1], i / n)], cell, shade, smooth=True)
+    for r, out in ((rings[0], 0), (rings[-1], -1)):
+        pts = [Vector(p) for p in r]
+        c0 = sum(pts, Vector()) / n
+        c1 = sum((Vector(p) for p in rings[1 if out == 0 else -2]), Vector()) / n
+        m.poly(pts, cell, out=c0 - c1, shade=shade)
+
+
+# ---- the body, neck and head
+
+
+def horse_hide(m):
+    # the body: rings from the rump to the breast
+    fs = [-1.03, -1.0, -0.95, -0.87, -0.75, -0.6, -0.43, -0.25, -0.07, 0.11, 0.29, 0.45, 0.59, 0.72, 0.84, 0.94, 1.0, 1.03]
+    sides = 16
+    rings = [[body_pt(f, 2 * math.pi * i / sides) for i in range(sides)] for f in fs]
+    m.shadefn = lambda p: 0.6 + 0.4 * min(1.0, max(0.0, (p.z - 0.9) / 0.75))
+    m.grid(rings, H_COAT, cap0=True, cap1=True, urep=4, vscale=1.6)
+    # the neck, from inside the shoulders to the poll
+    us = [0.0, 0.17, 0.34, 0.5, 0.66, 0.83, 1.0]
+    rings = [[neck_pt(u, 2 * math.pi * i / 12) for i in range(12)] for u in us]
+    m.shadefn = lambda p: 0.66 + 0.34 * min(1.0, max(0.0, (p.z - 1.2) / 0.8))
+    m.grid(rings, H_COAT, cap1=True, urep=3, vscale=1.6)
+    # the head: broad forehead, round jowls, a straight face, the muzzle
+    ts = [0.0, 0.1, 0.2, 0.3, 0.42, 0.56, 0.7, 0.82, 0.9, 0.96, 1.0]
+    rings = [[head_pt(t, 2 * math.pi * i / 12) for i in range(12)] for t in ts]
+    mats = [H_COAT] * 6 + [H_MUZZLE] * 4
+    m.shadefn = lambda p: 0.62 + 0.38 * min(1.0, max(0.0, (p.z - 1.55) / 0.55))
+    m.grid(rings, H_COAT, mats=mats, cap0=True, cap1=True, cap_mat=H_MUZZLE, urep=3, vscale=1.8)
+    m.shadefn = None
+    # a blaze down the face (white on the bay, chestnut and roan; the black horse's is black)
+    ts = [0.08, 0.2, 0.35, 0.5, 0.65, 0.78, 0.86]
+    band(m, [head_pt(t, math.pi / 2, 0.002) for t in ts], [head_out(t, math.pi / 2) for t in ts],
+         [0.036, 0.03, 0.022, 0.02, 0.024, 0.034, 0.042], 0.002, H_MARK, vscale=2, faces="decal")
+    # nostrils, the lips' line
+    for sx in (1, -1):
+        a = math.radians(52) if sx > 0 else math.radians(128)
+        c = head_pt(0.875, a, 0.003)
+        o = head_out(0.875, a)
+        ax = head_sec(0.875)[1]
+        w = o.cross(ax).normalized()
+        pts = [c + ax * 0.024 * math.cos(2 * math.pi * k / 6) + w * 0.013 * math.sin(2 * math.pi * k / 6) for k in range(6)]
+        m.poly(pts, H_HAIR, out=o, shade=0.35)
+    lip = [head_pt(0.955, math.radians(a), 0.002) for a in range(-15, -170, -22)]
+    band(m, lip, [head_out(0.955, math.radians(a)) for a in range(-15, -170, -22)], 0.008, 0.002, H_HAIR, shade=0.4, faces="decal")
+    # the eyes
+    for sx in (1, -1):
+        a = math.radians(28) if sx > 0 else math.radians(152)
+        c = head_pt(0.235, a, -0.004)
+        q = head_out(0.235, a).to_track_quat("Z", "Y").to_matrix().to_4x4()
+        with m.at(Matrix.Translation(c) @ q):
+            m.lathe([(0.032, 0.0), (0.028, 0.01), (0.016, 0.018)], 8, H_EYE, smooth=True, cap1=True,
+                    uvfn=lambda p: (p.x / 0.066 + 0.5, p.y / 0.066 + 0.5))
+    # the ears, pricked, cupped forward
+    for sx in (1, -1):
+        base = HP(sx * 0.07, 1.175, 2.225)
+        tip = HP(sx * 0.105, 1.205, 2.41)
+        mid = base * 0.45 + tip * 0.55 + HP(sx * 0.006, 0.02, 0)
+        m.tube([base, mid, tip], [(0.042, 0.03), (0.036, 0.024), (0.004, 0.003)], 6, H_COAT, side=(1, 0, 0),
+               cap0=True, cap1=True, shade=0.85, vscale=2)
+        m.poly([base + HP(sx * 0.0, 0.034, 0.01), mid + HP(0, 0.03, 0), tip + HP(0, 0.006, -0.01)], H_HAIR, out=HP(0, 1, 0.2),
+               shade=0.5)
+
+
+def horse_hair(m):
+    # the mane, full, falling to the off side (away from the man at its head)
+    us = [0.1 + 0.08 * k for k in range(11)]
+    rings = []
+    for k, u in enumerate(us):
+        jag = (0.0, 0.18, -0.12, 0.1, -0.05, 0.16, -0.1, 0.06, 0.14, -0.08, 0.0)[k]
+        end = math.radians(150 + 18 * jag)
+        top = [neck_pt(u, math.radians(a), o) for a, o in ((72, 0.02), (90, 0.05), (112, 0.055), (135, 0.045))]
+        tip = neck_pt(u, end, 0.035) + Vector((0, 0, -0.05 - 0.05 * max(0.0, jag)))
+        inner = [neck_pt(u, math.radians(a), -0.01) for a in (140, 105, 72)]
+        rings.append(top + [tip] + inner)
+    sheet(m, rings, H_MANE, uscale=3.0, shade=0.9)
+    # the forelock between the ears, down the forehead
+    ts = [-0.06, 0.02, 0.1, 0.18]
+    band(m, [head_pt(t, math.pi / 2 + 0.05, 0.012 if t > 0 else 0.03) for t in ts],
+         [head_out(max(t, 0.0), math.pi / 2) for t in ts], [0.1, 0.09, 0.07, 0.03], 0.02, H_MANE, vscale=3, shade=0.9)
+    # the tail, thick, to the hocks
+    path = [HP(0, -0.95, 1.6), HP(0, -1.035, 1.55), HP(0, -1.09, 1.42), HP(0, -1.115, 1.2), HP(0, -1.115, 0.96),
+            HP(0, -1.1, 0.76), HP(0, -1.09, 0.68)]
+    radii = [(0.05, 0.055), (0.058, 0.065), (0.075, 0.08), (0.09, 0.09), (0.1, 0.092), (0.09, 0.075), (0.05, 0.04)]
+    m.shadefn = lambda p: 0.62 + 0.38 * min(1.0, max(0.0, (p.z - 0.7) / 0.8))
+    m.tube(path, radii, 8, H_MANE, side=(1, 0, 0), cap1=True, vscale=1.4, urep=2)
+    m.shadefn = None
+
+
+# ---- the harness
+
+
+def horse_collar(m):
+    C, t, s, b = collar_frame()
+    n = 14
+    th = [2 * math.pi * k / n for k in range(n)]
+    # the collar's body, stuffed, narrower at the top; the rim in front of it
+    body = [collar_pt(a, COLLAR_A * (1 - 0.12 * max(0.0, math.sin(a))), COLLAR_B) for a in th]
+    m.tube(body, [COLLAR_R] * n, 6, H_COLLAR, side=tuple(t), closed_path=True, vscale=3, urep=1)
+    rim = [collar_pt(a, COLLAR_A * (1 - 0.12 * max(0.0, math.sin(a))) + 0.05, COLLAR_B + 0.05, 0.03) for a in th]
+    m.tube(rim, [(0.03, 0.036)] * n, 4, H_COLLAR, side=tuple(t), closed_path=True, vscale=3, urep=1, shade=0.8)
+    # the wool lining where it lies on the shoulders
+    lin = [collar_pt(a, COLLAR_A * (1 - 0.12 * max(0.0, math.sin(a))) - 0.045, COLLAR_B - 0.045, -0.03) for a in th]
+    m.tube(lin, [(0.028, 0.02)] * n, 3, H_CLOTH, side=tuple(t), closed_path=True, vscale=3, urep=1, shade=0.7)
+    for sx in (1, -1):
+        # the hame: oak, in the groove, rising above the collar to a brass knob
+        a0, a1 = math.radians(-68), math.radians(70)
+        path = []
+        for k in range(9):
+            a = a0 + (a1 - a0) * k / 8
+            p = collar_pt(a, HAME_A, HAME_B, -0.005)
+            path.append(Vector((sx * p.x, p.y, p.z)))
+        top = path[-1]
+        up = (collar_pt(math.radians(78), HAME_A, HAME_B) - collar_pt(math.radians(62), HAME_A, HAME_B)).normalized()
+        up = Vector((sx * up.x, up.y, up.z))
+        path += [top + up * 0.07 + Vector((sx * 0.004, 0, 0.02)), top + up * 0.12 + Vector((sx * 0.012, 0.015, 0.06))]
+        m.tube(path, [(0.02, 0.026)] * (len(path) - 1) + [(0.016, 0.02)], 4, H_HAME, side=tuple(t), rot=math.pi / 4,
+               cap0=True, cap1=True, vscale=2.5, urep=1, smooth=False)
+        knob = path[-1] + (path[-1] - path[-2]).normalized() * 0.02
+        with m.at(Matrix.Translation(knob)):
+            m.lathe([(0.012, -0.03), (0.03, -0.005), (0.022, 0.022), (0.008, 0.032)], 6, H_BRASS, smooth=True, cap0=True, cap1=True)
+        # brass plates where the tug and the terret are fixed
+        for a in (math.radians(-34), math.radians(48)):
+            p = collar_pt(a, HAME_A + 0.024, HAME_B + 0.024, -0.005)
+            disc(m, Vector((sx * p.x, p.y, p.z)), Vector((sx, 0, 0)) + (b * math.sin(a)) * 0.5, 0.024, 0.008, H_BRASS, sides=4)
+        # the terret the rein runs through
+        p = collar_pt(math.radians(48), HAME_A + 0.05, HAME_B + 0.05, -0.005)
+        torus(m, Vector((sx * p.x, p.y, p.z)), (0, 1, 0), 0.026, 0.006, H_BRASS)
+        # the hame tug back to its buckle, where the trace starts
+        p = collar_pt(math.radians(-34), HAME_A + 0.01, HAME_B + 0.01, -0.005)
+        a = Vector((sx * p.x, p.y, p.z))
+        e = HP(sx * TRACE_END[0], TRACE_END[1], TRACE_END[2])
+        mid = (a + e) / 2 + Vector((sx * 0.012, 0, 0))
+        band(m, [a, mid, e], [Vector((sx, 0, 0))] * 3, 0.05, 0.012, H_LEATHER, vscale=3)
+        torus(m, e + Vector((sx * 0.006, 0.02, 0)), (1, 0, 0), 0.03, 0.007, H_BRASS, seg=4)
+        # the hame chain from the foot of the hame to the kidney link
+        foot = path[0]
+        k = HP(*KIDNEY)
+        for i in range(2):
+            p0 = foot + (k - foot) * (i / 2)
+            p1 = foot + (k - foot) * ((i + 1) / 2)
+            m.beam(tuple(p0), tuple(p1), 0.016 if i % 2 else 0.006, 0.006 if i % 2 else 0.016, H_IRON, caps=True)
+    # the top hame strap across the collar's top
+    pa = collar_pt(math.radians(66), HAME_A + 0.01, HAME_B + 0.01, -0.005)
+    pb = Vector((-pa.x, pa.y, pa.z))
+    top = collar_pt(math.pi / 2, 0, HAME_B + 0.035, -0.005)
+    band(m, [pa, top, pb], [b, b, b], 0.035, 0.01, H_LEATHER, vscale=3)
+    torus(m, HP(*KIDNEY), (1, 0, 0), 0.04, 0.009, H_IRON, seg=8)
+
+
+def horse_bridle(m):
+    L = H_LEATHER
+    # the headpiece behind the ears and the throatlatch under the throat
+    angs = [2 * math.pi * k / 10 for k in range(10)]
+    band(m, [neck_pt(0.965, a, 0.012) for a in angs], [neck_out(0.965, a) for a in angs], 0.03, 0.008, L, closed=True)
+    # the browband across the forehead, a brass rosette at each end
+    angs = [math.radians(a) for a in range(18, 163, 24)]
+    band(m, [head_pt(0.07, a, 0.012) for a in angs], [head_out(0.07, a) for a in angs], 0.026, 0.008, L)
+    for a in (math.radians(14), math.radians(166)):
+        disc(m, head_pt(0.07, a, 0.018), head_out(0.07, a), 0.022, 0.012, H_BRASS)
+    # a brass face piece hanging on the forehead
+    disc(m, head_pt(0.16, math.pi / 2, 0.016), head_out(0.16, math.pi / 2), 0.03, 0.01, H_BRASS, sides=8)
+    band(m, [head_pt(0.07, math.pi / 2, 0.02), head_pt(0.13, math.pi / 2, 0.018)], [head_out(0.1, math.pi / 2)] * 2, 0.018,
+         0.006, L)
+    # the noseband
+    angs = [2 * math.pi * k / 10 for k in range(10)]
+    band(m, [head_pt(0.69, a, 0.012) for a in angs], [head_out(0.69, a) for a in angs], 0.03, 0.008, L, closed=True)
+    for sx in (1, -1):
+        def A(deg):
+            return math.radians(deg if sx > 0 else 180 - deg)
+
+        # the cheekpiece from the headpiece down past the blinker to the bit
+        ts = [0.02, 0.12, 0.3, 0.45, 0.6, 0.69, 0.8, 0.9, 0.93]
+        angs = [A(d) for d in (8, 6, 2, -4, -10, -12, -18, -24, -28)]
+        band(m, [head_pt(t, a, 0.012) for t, a in zip(ts, angs)], [head_out(t, a) for t, a in zip(ts, angs)], 0.028, 0.008, L)
+        # the blinker: a cupped leather square standing off the eye, its back edge further out; a brass boss on it
+        c = head_pt(0.235, A(22), 0.0)
+        o = head_out(0.235, A(22))
+        ax = head_sec(0.235)[1]
+        up = o.cross(ax).normalized() * sx
+        quad = []
+        for da, du in ((-0.07, -0.05), (0.055, -0.05), (0.055, 0.05), (-0.07, 0.05)):
+            lift = 0.035 + (0.035 if da < 0 else 0.0)
+            quad.append(c + ax * da + up * du + o * lift)
+        m.slab(quad, 0.012, L, out=o, mode="fit")
+        disc(m, (quad[0] + quad[2]) / 2 + o * 0.0, o, 0.022, 0.01, H_BRASS)
+        # the bit's ring at the corner of the mouth
+        C, ax, W, T, B = head_sec(0.935)
+        mouth = head_pt(0.935, A(-35), 0.0)
+        ring = Vector((sx * (W + 0.045), mouth.y, mouth.z))
+        torus(m, ring, (1, 0, 0), 0.036, 0.007, H_IRON, seg=7)
+    C, ax, W, T, B = head_sec(0.935)
+    mouth = head_pt(0.935, math.radians(-35), 0.0)
+    m.beam((-(W + 0.045), mouth.y, mouth.z), ((W + 0.045), mouth.y, mouth.z), 0.014, 0.014, H_IRON, side=(0, 1, 0))
+    # the reins: from the bit up beside the neck, through the hame's terret and the pad's terret, back to the crupper
+    for sx in (1, -1):
+        def A(deg):
+            return math.radians(deg if sx > 0 else 180 - deg)
+
+        C, ax, W, T, B = head_sec(0.935)
+        ring = Vector((sx * (W + 0.045), mouth.y, mouth.z)) + Vector((0, 0.03, -0.02))
+        hp = collar_pt(math.radians(48), HAME_A + 0.05, HAME_B + 0.05, -0.005)
+        hame = Vector((sx * hp.x, hp.y, hp.z))
+        pad = body_pt(0.30, A(72), 0.085)
+        way = [ring, neck_pt(0.8, A(35), 0.07), neck_pt(0.55, A(40), 0.07), hame]
+        pts = sagged(way, 0.05) + sagged([hame, pad], 0.03)[1:] + sagged([pad, body_pt(0.0, A(55), 0.03),
+                                                                           body_pt(-0.45, A(62), 0.02)], 0.04)[1:]
+        band(m, pts, [Vector((0, 0, 1))] * len(pts), 0.022, 0.006, L, vscale=3, faces="full")
+
+
+def horse_pad(m):
+    L = H_LEATHER
+    # the back pad (the cart saddle): leather over a felted pad, a brass crest and two terrets
+    fs = [0.17, 0.22, 0.38, 0.43]
+    rings = []
+    for f in fs:
+        e = 0.55 if f in (0.17, 0.43) else 1.0
+        outer = [body_pt(f, math.radians(a), 0.012 + e * 0.042 * math.sin(math.pi * (a - 28) / 124))
+                 for a in range(28, 153, 20)]
+        inner = [body_pt(f, math.radians(a), -0.02) for a in (148, 90, 32)]
+        rings.append(outer + inner)
+    m.grid(rings, L, cap0=True, cap1=True, smooth=False, urep=2, vscale=3)
+    rings = [[body_pt(f, math.radians(a), o) for a, o in ((24, 0.008), (60, 0.016), (90, 0.018), (120, 0.016), (156, 0.008),
+                                                          (150, -0.01), (90, -0.01), (30, -0.01))] for f in (0.15, 0.45)]
+    m.grid(rings, H_CLOTH, cap0=True, cap1=True, smooth=False, urep=2, vscale=3)
+    band(m, [body_pt(f, math.pi / 2, 0.056) for f in (0.2, 0.3, 0.4)], [Vector((0, 0, 1))] * 3, 0.03, 0.006, H_BRASS)
+    for a in (72, 108):
+        p = body_pt(0.30, math.radians(a), 0.06)
+        disc(m, p, body_out(0.3, math.radians(a)), 0.016, 0.01, H_BRASS, sides=6)
+        torus(m, p + body_out(0.3, math.radians(a)) * 0.034, (0, 1, 0), 0.026, 0.006, H_BRASS)
+    for sx in (1, -1):
+        # the back band down to the tug, the tug the shaft rests in, the belly band under to the other tug
+        angs = [math.radians(a if sx > 0 else 180 - a) for a in (30, 15, 0, -12)]
+        pts = [body_pt(0.30, a, 0.012) for a in angs]
+        tug = HP(sx * SHAFT_TUG[0], SHAFT_TUG[1], SHAFT_TUG[2])
+        pts.append(tug + Vector((sx * -0.025, 0, 0.055)))
+        band(m, pts, [body_out(0.3, a) for a in angs] + [Vector((sx, 0, 0))], 0.06, 0.01, L, vscale=3)
+        torus(m, tug, (0, 1, 0), 0.05, 0.012, L, seg=6, sides=4)
+        disc(m, pts[-1] + Vector((sx * 0.012, 0, 0)), Vector((sx, 0, 0)), 0.02, 0.008, H_BRASS, sides=4)
+    angs = [math.radians(a) for a in range(-22, -159, -17)]
+    under = [body_pt(0.34, a, 0.012) for a in angs]
+    band(m, under, [body_out(0.34, a) for a in angs], 0.07, 0.01, L, vscale=3)
+    # the crupper down the spine to the dock, a brass ring where the hip straps meet it
+    fs = [0.17, 0.0, -0.2, -0.4, -0.6, -0.78, -0.9, -0.97]
+    band(m, [body_pt(f, math.pi / 2, 0.01) for f in fs], [body_out(f, math.pi / 2) for f in fs], 0.04, 0.008, L, vscale=3)
+    dock = HP(0, -1.035, 1.55)
+    ax = (HP(0, -1.09, 1.42) - HP(0, -0.95, 1.6)).normalized()
+    torus(m, dock, ax, 0.074, 0.012, L, seg=8)
+    band(m, [body_pt(-0.97, math.pi / 2, 0.01), dock + Vector((0, -0.01, 0.075))], [Vector((0, 0.3, 1))] * 2, 0.04, 0.008, L)
+    torus(m, body_pt(-0.45, math.pi / 2, 0.02), (0, 0, 1), 0.035, 0.008, H_BRASS)
+    # the breeching round the quarters, the hip straps holding it up
+    hb = 1.19
+    side = [(-0.4, 0), (-0.6, 0), (-0.8, 0), (-0.93, 0), (-0.99, 0)]
+    pts = []
+    for f, _ in side:
+        pts.append(HP(body_half_width(f, hb) + 0.016, f, hb))
+    wr = body_half_width(-1.0, hb) + 0.016
+    back = [HP(wr * 0.6, -1.02, hb), HP(0.0, -1.035, hb)]
+    right = pts + back
+    ring = right + [Vector((-p.x, p.y, p.z)) for p in reversed(right[:-1])]
+    ctr = HP(0, -0.55, hb)
+    outs = [Vector((p.x - ctr.x, p.y - ctr.y, 0)).normalized() for p in ring]
+    band(m, ring, outs, 0.085, 0.012, L, vscale=3)
+    for f in (-0.5, -0.8):
+        for sx in (1, -1):
+            a1 = body_angle_at(f, hb + 0.03, sx)
+            angs = [math.pi / 2 + (a1 - math.pi / 2) * k / 3 for k in range(4)]
+            band(m, [body_pt(f, a, 0.012) for a in angs], [body_out(f, a) for a in angs], 0.035, 0.008, L, vscale=3)
+    for sx in (1, -1):
+        p = ring[0] if sx > 0 else ring[-1]
+        torus(m, p + Vector((sx * 0.015, 0, 0)), (1, 0, 0), 0.03, 0.007, H_BRASS, seg=4)
+
+
+def horse_body(m):
+    horse_hide(m)
+    horse_hair(m)
+    horse_collar(m)
+    horse_bridle(m)
+    horse_pad(m)
+
+
+# ---- the legs (built where they stand; horse() moves each part's origin to its pivot or joint)
+
+
+def _leg(m, pts, cells, cap0=True, cap1=True):
+    m.tube([HP(0, f, h) for f, h, _, _ in pts], [(w, d) for *_, w, d in pts], 8, cells[0], side=(1, 0, 0), mats=cells,
+           cap0=cap0, cap1=cap1, vscale=1.6, urep=2)
+
+
+def _hoof(m, f0):
+    """The hoof round the sole's middle f0: horn sloping to the toe, the coronet high in front and low at the heels,
+    the sole, the iron shoe open at the heels, and the feather falling over the back of the pastern."""
+    sides = 10
+
+    def ring(h_front, h_back, hw, fr, bk, df):
+        pts = []
+        for i in range(sides):
+            a = 2 * math.pi * i / sides
+            c, s = math.cos(a), math.sin(a)
+            y = -(f0 + df) + (bk if s > 0 else fr) * s  # s > 0: back (Blender +y)
+            pts.append(Vector((hw * c, y, h_back + (h_front - h_back) * (0.5 - 0.5 * s))))
+        return pts
+
+    bottom = ring(0.014, 0.014, 0.1, 0.112, 0.082, 0.004)
+    rings = [bottom, ring(0.065, 0.038, 0.093, 0.092, 0.074, -0.002), ring(0.118, 0.058, 0.08, 0.07, 0.066, -0.008)]
+    m.shadefn = lambda p: 0.75 + 0.25 * min(1.0, p.z / 0.1)
+    m.grid(rings, H_HOOF, urep=2, vscale=5)
+    m.shadefn = None
+    m.poly([p + Vector((0, 0, -0.002)) for p in bottom], H_HOOF, out=(0, 0, -1), shade=0.35)
+    # the shoe
+    outer = [p * 1.0 for p in ring(0.0, 0.0, 0.103, 0.116, 0.084, 0.004)]
+    inner = [p * 1.0 for p in ring(0.0, 0.0, 0.07, 0.082, 0.054, 0.004)]
+    for i in range(sides):
+        i1 = (i + 1) % sides
+        am = 2 * math.pi * (i + 0.5) / sides
+        if math.sin(am) > 0.8:
+            continue  # open at the heels
+        o0, o1, n0, n1 = outer[i], outer[i1], inner[i], inner[i1]
+        up = Vector((0, 0, 0.015))
+        m.face([m.vert(o0), m.vert(n0), m.vert(n1), m.vert(o1)], [(0, 0), (0, 1), (1, 1), (1, 0)], H_IRON, 0.7)
+        m.face([m.vert(o0), m.vert(o1), m.vert(o1 + up), m.vert(o0 + up)], [(0, 0), (1, 0), (1, 0.2), (0, 0.2)], H_IRON, 0.9)
+        m.face([m.vert(n1), m.vert(n0), m.vert(n0 + up), m.vert(n1 + up)], [(0, 0), (1, 0), (1, 0.2), (0, 0.2)], H_IRON, 0.6)
+
+
+def _feather(m, f0, top_h, fa):
+    """The feather: long hair from the fetlock falling over the pastern, heaviest behind, ragged at the ends."""
+    sides = 12
+
+    def ring(h, hw, fr, bk, df, jag=0.0):
+        pts = []
+        for i in range(sides):
+            a = 2 * math.pi * i / sides
+            c, s = math.cos(a), math.sin(a)
+            y = -(f0 + df) + (bk if s > 0 else fr) * s
+            hh = h + (jag if i % 2 else 0.0) + (0.02 if s < -0.5 else 0.0)
+            pts.append(Vector((hw * c, y, hh)))
+        return pts
+
+    rings = [ring(0.045, 0.088, 0.074, 0.122, fa - 0.03, 0.03), ring(0.15, 0.08, 0.07, 0.1, fa - 0.02),
+             ring(top_h, 0.07, 0.066, 0.08, fa - 0.008)]
+    m.shadefn = lambda p: 0.55 + 0.45 * min(1.0, p.z / 0.25)
+    m.grid(rings, H_MANE, urep=3, vscale=4)
+    m.shadefn = None
+
+
+def leg_front_upper(m):
+    m.shadefn = lambda p: 0.66 + 0.34 * min(1.0, max(0.0, (p.z - 0.4) / 0.8))
+    _leg(m, [(0.62, 1.40, 0.05, 0.06), (0.622, 1.2, 0.066, 0.08), (0.612, 1.06, 0.102, 0.126), (0.622, 0.9, 0.098, 0.112),
+             (0.632, 0.75, 0.082, 0.09), (0.64, 0.635, 0.071, 0.073), (0.644, 0.57, 0.081, 0.079), (0.645, 0.5, 0.076, 0.075),
+             (0.645, 0.455, 0.05, 0.05)], [H_COAT] * 5 + [H_POINTS] * 3)
+    m.shadefn = None
+
+
+def leg_front_lower(m):
+    m.shadefn = lambda p: 0.62 + 0.38 * min(1.0, max(0.0, p.z / 0.55))
+    _leg(m, [(0.645, 0.55, 0.055, 0.055), (0.645, 0.505, 0.08, 0.077), (0.645, 0.445, 0.075, 0.072), (0.638, 0.4, 0.063, 0.071),
+             (0.634, 0.3, 0.061, 0.071), (0.638, 0.235, 0.073, 0.085), (0.652, 0.18, 0.066, 0.071), (0.668, 0.135, 0.064, 0.065),
+             (0.674, 0.108, 0.073, 0.07)], [H_POINTS] * 8, cap1=False)
+    m.shadefn = None
+    _hoof(m, 0.67)
+    _feather(m, 0.67, 0.26, -0.02)
+
+
+def leg_hind_upper(m):
+    m.shadefn = lambda p: 0.64 + 0.36 * min(1.0, max(0.0, (p.z - 0.45) / 0.8))
+    _leg(m, [(-0.62, 1.38, 0.10, 0.16), (-0.63, 1.2, 0.13, 0.2), (-0.66, 1.03, 0.12, 0.19), (-0.70, 0.88, 0.1, 0.14),
+             (-0.725, 0.75, 0.083, 0.106), (-0.745, 0.65, 0.082, 0.09), (-0.76, 0.58, 0.078, 0.082), (-0.765, 0.535, 0.05, 0.05)],
+         [H_COAT] * 5 + [H_POINTS] * 2)
+    # the point of the hock
+    m.tube([HP(0, -0.79, 0.71), HP(0, -0.83, 0.645), HP(0, -0.835, 0.6)], [(0.03, 0.03), (0.034, 0.034), (0.018, 0.018)], 6,
+           H_POINTS, side=(1, 0, 0), cap0=True, cap1=True, vscale=2)
+    m.shadefn = None
+
+
+def leg_hind_lower(m):
+    m.shadefn = lambda p: 0.62 + 0.38 * min(1.0, max(0.0, p.z / 0.6))
+    _leg(m, [(-0.762, 0.625, 0.055, 0.055), (-0.76, 0.58, 0.08, 0.088), (-0.752, 0.51, 0.072, 0.082), (-0.735, 0.44, 0.062, 0.075),
+             (-0.715, 0.32, 0.061, 0.073), (-0.703, 0.25, 0.073, 0.085), (-0.69, 0.185, 0.066, 0.071), (-0.678, 0.135, 0.064, 0.065),
+             (-0.674, 0.108, 0.073, 0.07)], [H_POINTS] * 8, cap1=False)
+    m.shadefn = None
+    _hoof(m, -0.67)
+    _feather(m, -0.67, 0.27, -0.03)
+
+
+LEG_PARTS = {"leg_front": ("front", False, leg_front_upper), "leg_front_lo": ("front", True, leg_front_lower),
+             "leg_hind": ("hind", False, leg_hind_upper), "leg_hind_lo": ("hind", True, leg_hind_lower)}
+
+
+def horse(part="all", atlas=True):
+    """The draught horse on the team atlas. part: "all" (standing, legs and all: the prop), "body" (no legs), or a
+    leg part for the game to move: "leg_front", "leg_hind" (the upper part, origin at its pivot), "leg_front_lo",
+    "leg_hind_lo" (the lower part, origin at the knee or hock). Leg parts stand at x 0; the game puts them at +-x."""
+    m = Mesh(ao=0.0, atlas=True)
+    if part in LEG_PARTS:
+        key, lower, fn = LEG_PARTS[part]
+        f0, h0 = HORSE_RIG[key]["joint" if lower else "pivot"]
+        with m.at(move(0, f0, -h0)):
+            fn(m)
+        return m
+    horse_body(m)
+    if part == "all":
+        for sx in (1, -1):
+            for key, lower, fn in LEG_PARTS.values():
+                with m.at(move(sx * HORSE_RIG[key]["x"], 0, 0)):
+                    fn(m)
     return m
+
+
+# ---- the gait (the same as client/src/world/horseGait.ts, for the previews)
+
+HORSE_GAITS = {"walk": (0.62, 0.16, 0.12, 0.0), "trot": (0.38, 0.26, 0.2, 0.03)}  # stance, front lift, hind lift, body lift
+HORSE_LEGS = [("front", 1, 0.25, 0.0), ("front", -1, 0.75, 0.5), ("hind", 1, 0.0, 0.5), ("hind", -1, 0.5, 0.0)]
+
+
+def _rig(key):
+    r = dict(HORSE_RIG[key])
+    (pf, ph), (jf, jh), (sf, sh) = r["pivot"], r["joint"], r["sole"]
+    r["L1"], r["L2"] = math.hypot(jf - pf, jh - ph), math.hypot(sf - jf, sh - jh)
+    r["rest1"], r["rest2"] = math.atan2(jf - pf, ph - jh), math.atan2(sf - jf, jh - sh)
+    r["bend"] = 1 if key == "front" else -1
+    return r
+
+
+def _ik(pf, ph, tf, th, L1, L2, bend):
+    df, dh = tf - pf, th - ph
+    D = min(max(math.hypot(df, dh), abs(L1 - L2) + 1e-4), L1 + L2 - 1e-5)
+    a = math.acos(max(-1.0, min(1.0, (L1 * L1 + D * D - L2 * L2) / (2 * L1 * D))))
+    a1 = math.atan2(df, -dh) + bend * a
+    jf, jh = pf + L1 * math.sin(a1), ph - L1 * math.cos(a1)
+    return a1, jf, jh, math.atan2(tf - jf, jh - th)
+
+
+def horse_pose(gait, amp=1.0, trot=False, stride=None):
+    """The body's lift and, per leg, (x, f, h, pitch) of the upper and the lower part (pitch > 0 swings it back)."""
+    st, lf, lh, lift = HORSE_GAITS["trot" if trot else "walk"]
+    S = (stride or (2.8 if trot else 1.42)) * st * amp
+    legs = []
+    for key, side, pw, pt in HORSE_LEGS:
+        r = _rig(key)
+        p = (gait + (pt if trot else pw)) % 1.0
+        n = r["sole"][0]
+        if p < st:
+            ft, ht, w = n + S * (0.5 - p / st), 0.0, 1.0
+        else:
+            q = (p - st) / (1 - st)
+            ft = n - S / 2 + S * q * q * (3 - 2 * q)
+            ht = (lf if key == "front" else lh) * amp * math.sin(math.pi * q)
+            w = max(0.0, 1 - q / 0.14, (q - 0.86) / 0.14)
+        legs.append([key, side, r, ft, ht, w])
+    off = lift * amp
+    for L in legs:
+        key, side, r, ft, ht, w = L
+        a1, jf, jh, a2 = _ik(r["pivot"][0], r["pivot"][1] + off, ft, ht, r["L1"], r["L2"], r["bend"])
+        d = a2 - r["rest2"]
+        L[4] = ht + (r["heel"] if d > 0 else r["toe"]) * math.sin(abs(d)) * w
+    for key, side, r, ft, ht, w in legs:
+        Lr = (r["L1"] + r["L2"]) * 0.9995
+        c = math.sqrt(max(0.0, Lr * Lr - (ft - r["pivot"][0]) ** 2)) - r["pivot"][1] + ht
+        off = min(off, c + (1 - w) * 0.5)
+    out = []
+    for key, side, r, ft, ht, w in legs:
+        pf, ph = r["pivot"]
+        a1, jf, jh, a2 = _ik(pf, ph + off, ft, ht, r["L1"], r["L2"], r["bend"])
+        out.append((key, side, (side * r["x"], pf, ph + off, -(a1 - r["rest1"])), (side * r["x"], jf, jh, -(a2 - r["rest2"]))))
+    return off, out
 
 
 def wheelbarrow():
@@ -1796,6 +2665,8 @@ BUILDERS = [
     ("tr_horse_body", lambda: horse("body", atlas=True)),
     ("tr_leg_front", lambda: horse("leg_front", atlas=True)),
     ("tr_leg_hind", lambda: horse("leg_hind", atlas=True)),
+    ("tr_leg_front_lo", lambda: horse("leg_front_lo", atlas=True)),
+    ("tr_leg_hind_lo", lambda: horse("leg_hind_lo", atlas=True)),
     ("tr_handcart", lambda: handcart(False, "body", atlas=True)),
     ("tr_handcart_wheels", lambda: handcart(False, "wheels", atlas=True)),
     ("tr_handcart_load", lambda: handcart(True, "load", atlas=True)),
@@ -1919,7 +2790,7 @@ def preview_materials():
         nt.links.new(vc.outputs["Color"], mix.inputs[7])
         nt.links.new(mix.outputs[2], bsdf.inputs["Base Color"])
         mt.use_backface_culling = True
-        if mt.name == "goods":
+        if mt.name in ("goods", "goods_team"):
             # the atlas as the game reads it: (cell + fract(uv)) / N, rows counted from the top
             uv = nt.nodes.new("ShaderNodeUVMap")
             uv.uv_map = "UVMap"
@@ -2104,9 +2975,7 @@ def preview_goods(objs):
         put("tr_dray_fore", x0, front, 0)
         put("tr_wheels_front", x0, front, 0.42, rx=0.5 * k)
         hy = front + (DRAY_HORSE_Y - DRAY_FRONT_Y)
-        put("tr_horse_body", x0, hy, 0)
-        for sx, (lx, ly, lz), ph in ((-1, HORSE_FRONT_HIP, 0.25), (1, HORSE_FRONT_HIP, 0.75), (-1, HORSE_HIND_HIP, 0.0), (1, HORSE_HIND_HIP, 0.5)):
-            put("tr_leg_front" if ly < 0 else "tr_leg_hind", x0 + sx * lx, hy + ly, lz, rx=0.35 * math.sin(2 * math.pi * (ph + 0.1 * k)))
+        put_horse(objs, x0, hy, gait=0.13 * k, amp=1.0, parts=parts)
     put("tr_handcart", 8.2, 0.0, 0)
     put("tr_handcart_wheels", 8.2, 0.0, HANDCART_R, rx=0.4)
     put("tr_handcart_load", 8.2, 0.0, 0)
@@ -2120,6 +2989,74 @@ def preview_goods(objs):
                      ("hides_pile", 35.0)):
         closeup(objs, [name], os.path.join(ROOT, "data", "shots", f"goods_{name}.png"), az)
 
+
+def put_horse(objs, x, y, gait=0.0, amp=0.0, trot=False, rz=0.0, parts=None):
+    """Copies of the horse's parts posed as the game poses them (horse_pose), the horse's middle at (x, y) (Blender),
+    turned by rz about z. Returns the copies."""
+    out = []
+
+    def put(name, loc, rx):
+        o = objs[name].copy()
+        bpy.context.scene.collection.objects.link(o)
+        o.hide_render = False
+        R = Matrix.Rotation(rz, 4, "Z")
+        o.location = Vector((x, y, 0)) + R @ Vector(loc)
+        o.rotation_euler = (0, 0, 0)
+        o.matrix_world = Matrix.Translation(o.location) @ R @ Matrix.Rotation(rx, 4, "X")
+        out.append(o)
+
+    off, legs = horse_pose(gait, amp, trot)
+    put("tr_horse_body", (0, 0, off), 0.0)
+    for key, side, up, lo in legs:
+        name = "tr_leg_front" if key == "front" else "tr_leg_hind"
+        put(name, tuple(HP(up[0], up[1], up[2])), up[3])
+        put(name + "_lo", tuple(HP(lo[0], lo[1], lo[2])), lo[3])
+    if parts is not None:
+        parts.extend(out)
+    return out
+
+
+def horse_sheets(objs, out_dir):
+    """The horse close up (side, front, back, head, harness) and a walk and a trot in 8 frames each (one sheet each)."""
+    for o in objs.values():
+        o.hide_render = True
+    cam = stage()
+    sc = bpy.context.scene
+    os.makedirs(out_dir, exist_ok=True)
+    std = objs["horse"]
+    std.hide_render = False
+    std.location = (0, 0, 0)
+    views = {"side": ((-4.6, 0.2, 1.6), (0, 0.1, 1.15), 35), "front": ((-2.2, -3.6, 1.9), (0, -0.4, 1.3), 35),
+             "back": ((2.4, 3.8, 2.0), (0, 0.3, 1.1), 35), "head": ((-1.3, -2.3, 2.2), (0, -1.25, 1.85), 50),
+             "harness": ((-2.3, -0.6, 2.4), (0, -0.2, 1.45), 40), "legs": ((-2.6, -1.0, 0.6), (0, 0.0, 0.45), 35)}
+    for name, (loc, target, lens) in views.items():
+        aim(cam, loc, target, lens)
+        render(os.path.join(out_dir, f"horse_{name}.png"), (960, 720))
+    std.hide_render = True
+    for trot in (False, True):
+        tiles = []
+        for k in range(8):
+            parts = []
+            put_horse(objs, 0, 0, gait=k / 8, amp=1.0, trot=trot, parts=parts)
+            aim(cam, (-5.2, 0.0, 1.0), (0, 0.0, 0.85), 35)
+            p = os.path.join(out_dir, f"_frame{k}.png")
+            render(p, (480, 360))
+            img = bpy.data.images.load(p)
+            a = np.array(img.pixels[:], dtype=np.float32).reshape(360, 480, 4)
+            bpy.data.images.remove(img)
+            os.remove(p)
+            tiles.append(a)
+            for o in parts:
+                bpy.data.objects.remove(o)
+        rows = [np.concatenate(tiles[r * 4:(r + 1) * 4], axis=1) for r in (1, 0)]
+        sheet = np.concatenate(rows, axis=0)
+        im = bpy.data.images.new("sheet", sheet.shape[1], sheet.shape[0], alpha=True)
+        im.pixels.foreach_set(sheet.ravel())
+        im.filepath_raw = os.path.join(out_dir, "horse_trot.png" if trot else "horse_walk.png")
+        im.file_format = "PNG"
+        im.save()
+        print(f"[build_props] sheet -> {im.filepath_raw}")
+    del sc
 
 def closeup(objs, names, path, az=-35.0):
     cam = stage()
@@ -2167,12 +3104,14 @@ def main():
     print(f"[build_props] {len(json.loads(doors['doors'])) // 2} house doors kept for the game")
     print(f"[build_props] {len(json.loads(stores['fronts']))} storehouse walls for the goods")
     print(f"[build_props] {len(objs)} props, {sum(counts.values())} tris -> {OUT} ({os.path.getsize(OUT) // 1024} KB)")
-    if "--preview" in argv or "--closeup" in argv or "--goods" in argv:
+    if "--preview" in argv or "--closeup" in argv or "--goods" in argv or "--horse" in argv:
         preview_materials()
     if "--goods" in argv:
         preview_goods(objs)
     if "--preview" in argv:
         preview_rows(objs)
+    if "--horse" in argv:
+        horse_sheets(objs, argv[argv.index("--horse") + 1])
     if "--closeup" in argv:
         i = argv.index("--closeup")
         names = argv[i + 1].split(",")

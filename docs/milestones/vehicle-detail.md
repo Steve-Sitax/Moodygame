@@ -58,6 +58,7 @@ sides); the frame time near each vehicle before and after.
 |---|---|
 | 2026-09-27 | Worktree set up, before pictures, this plan. Three helpers: crane, omnibus, wagons. |
 | 2026-09-27 | All three done and checked together (build, 1239/1240 server tests: `m8e-limits` times out only in the full run and passes alone, no server code changed; `shaders()` no problems, 208 programs against 214 before; `paths()` empty; no console errors; every part loads from its model, none falls back). |
+| 2026-09-27 | The draught horse (helper): a new model on its own atlas, legs that bend at the knee and hock, full harness, four coats; the omnibus pole chains, the dray shafts, the train's traces and the hearse's and pump's poles meet it (below). |
 
 ## Result
 | Vehicle | Triangles before -> after | Draw calls | What it has now |
@@ -71,7 +72,63 @@ Both Blender vehicles keep the old code-built parts as a fallback if their model
 ## Still open
 - The omnibus driver stands on his box: his figure (a carter) has no sit pose. A seated figure changes his look: Steve's call.
 - Omnibus traces can sit up to 20 cm off the collars for a moment on 5 m bends; the lamp glow is large up close at night.
-- Wagon buffers overlap on the 10 m bends (as before); the horse's trace chain is thin; the small lettering reads only up close.
+- Wagon buffers overlap on the 10 m bends (as before); the small lettering reads only up close.
 - The crane's hand travelling gear does not turn; about 1,000 rivets and angle irons sit 1-1.5 cm over their plates (dark on dark, may shimmer far off); the rail guards stand 5 mm past `PORTAL_HALF_X`.
 - `zfight()` skips the omnibus, railway and crane groups (they hold moving or skinned parts); each Blender script has its own overlap check instead.
 - Test kit: after a reload in a hidden tab the railway does not move until one `world.update(0, 0.016, player.camera)`.
+
+## The draught horse (2026-09-27, second pass)
+Steve: the horses were missed. The horse that pulls the drays, the omnibuses, the goods train, the hearse and the fire
+pump (and stands in the Rijnkaai's `dray_horse`) got the same treatment. Built in `tools/blender/build_props.py`
+(`horse()`, the section "the draught horse"), into `props.glb` under the same names.
+
+**What it has.** A Brabant at true size (1.72 m at the withers, the old size, hips and collar): a body of 16-sided rings
+with a deep chest, a split double rump, withers and a crested neck set by its crest and throat lines; a head with a
+broad forehead, round jowls, a straight face, muzzle, nostrils, eyes and cupped ears; a full mane falling to the off
+side, forelock, thick tail. Heavy legs split at the knee and hock (forearm, knee, cannon, fetlock, pastern, gaskin,
+point of hock), feathers at the fetlocks, big hooves with iron shoes open at the heel. Harness: a stuffed collar with its
+rim and wool lining, oak hames with brass knobs, hame tugs ending in brass buckles (the traces' start), terrets, the hame
+chains and kidney link under the collar (the pole chains' hook); a bridle with browband and brass rosettes, face brass,
+blinkers with bosses, noseband, bit and rings; reins through the hame and pad terrets, tied back at the crupper; a back
+pad with a red wool pad, brass crest and terrets, the back band down to the shaft tugs and the belly band; the crupper
+with its dock and ring, hip straps and a breeching round the quarters.
+
+**The team atlas.** The horse has its own 4 x 4 atlas of 64 px cells, material `goods_team` (props3d.ts makes it with the
+goods atlas's psx settings: in the game it is the same shader program as `goods`, checked). The goods atlas is unchanged.
+Coats: the mesh is painted bay; `horseGait.ts coatGeometry()` makes the others by moving the coat cells (a cached copy of
+the geometry per coat, no shader change): the drays bay, the train and omnibuses red roan, the hearse black (no white),
+the fire pump chestnut with a flaxen mane, the led drays of the errands chestnut, bay and roan in turn.
+
+**The legs.** `client/src/world/horseGait.ts` (the same rig as `HORSE_RIG`/`horse_pose` in the script) bends each leg
+with two-bone IK: the upper part hangs from a pivot hidden in the shoulder (1.40 m) or the hip (1.38 m), at the old
+hips' x and z; the lower from the knee or hock. A hoof on the ground stays where it stands (measured: 0.000 m slide in
+the stance of every leg, walk and trot) and rolls from heel to toe; the body sinks a few cm where the legs spread
+(walk -6 cm, trot -10 to +3 cm); a lifted hoof folds under. Four-beat walk, trot in diagonal pairs, as before. The callers
+say how far one step cycle goes (`stride`): the drays 1.35 m, the omnibus and train 1.42 m walking and 2.8 m trotting,
+the hearse now 1.42 m (was 1.9: too long a step at the walk), the pump 2.6 m trotting and 1.42 m walking. About 2 us of
+script per horse per frame. `horses.ts` (the pools) and `traffic.ts` (the drays, instanced and led) use it; `alive/air.ts`
+takes the breath from `HORSE_NOSE`, not the body's box.
+
+**Where the harness meets the vehicles.**
+- Omnibus: the traces end at the hame-tug buckles (the same point as before). The pole chains now end at the kidney link
+  (`build_omnibus.py`: only `omnibus_fore` changed).
+- Dray: the hitched shafts end at 1.26 m (was 1.12) at the point of the shoulder and pass through the tugs of the back
+  band (`DRAY_SHAFT_TIP_Z`, `SHAFT_TUG`; `tr_dray_fore` and `dray_hitched` changed).
+- Train: trace chains from each horse's hame tugs; the rear horse's run past its quarters to a spreader behind its
+  hocks, the main chain goes from there to the wagon's hook (it used to go into the tail); the lead horse's go back to
+  the rear horse's tugs. Pieces of the coupling in the same InstancedMesh, thinner (`railway.ts harness()`).
+- Hearse and fire pump: their code-built poles now rise to between the collars. The fire pump lay on its side
+  (`body.add(cyl(...)).rotation.z` turned the whole body since it was made): fixed.
+
+**Numbers.** Triangles per whole horse 742 -> 5,678 (body 470 -> 3,998; legs 4 x 68 -> front 140 + 272, hind 156 + 272
+each). Draw calls: 3 -> 5 per pool of horses (body and four leg parts; the drays, the train and omnibuses, the hearse,
+the pump), 5 -> 9 meshes per led dray. `props.glb`: only the horse meshes, `tr_dray_fore`, `dray_hitched`, the new
+`tr_leg_front_lo`, `tr_leg_hind_lo` and the team atlas changed (`glbhash.mjs`; the unused `horse` and `horsehair`
+pictures went). `shaders()` no problems, 204 programs on the check's route (the horse adds none); `paths()` empty; no
+console errors; build; 1240/1240 server tests. Pictures: `data/shots/horse_*.jpg` (test save, not in git);
+`--horse out_dir` renders the Blender close-ups and walk and trot sheets.
+
+**Still open (horse).** From very low in front the chest shows two round lobes; the roan reads light pinkish-grey in dull
+light; shaft horses have no traces to the shafts, pole horses carry empty shaft tugs; the farrier's horse
+(`build_trades.py tr_horse`, trades.glb) is still the old simple one; the omnibus pair shares the train's roan coat
+(one pool).
