@@ -18,6 +18,13 @@ public; GitHub Pages needs a public repo on the free plan).
 - F9 flies (Steve 2026-09-27), in the time and weather you are in (the dev build's fly also clears the fog and sets
   noon; the demo does not). A box top right always says "Limited web demo, just a look" and "F9 fly over the
   town"; while flying it shows the keys. Controls in Settings has a Fly part too.
+- Time, weather and events (Steve 2026-09-27: "make it all available"): F8 anywhere, or "Time, weather, events" in
+  the menu, opens the Dev panel. The 14 director templates play there as recorded when the demo was built: at the
+  build, a throwaway server (dev mode) starts each template, ticks the clock and keeps every tick's GET /api/actions
+  (and the cathedral's room for the wedding and the funeral) as a frame in `demo/events/<template>.json` (about
+  3.7 MB for all). A button loads one, jumps the clock to its hour, puts Jef on free ground near it facing it, and
+  the demo plays one frame per tick. The people's reports (`POST actions/sync`, `actions/:id/report`) get an empty yes.
+  A template the engine refuses at its hour is tried two and four hours later.
 - The Dev button on the pause page (Esc) sets the time and the weather (the demo's own clock: `POST dev/set` in
   `demo.ts`, pushed to the game at once), jumps to places, and has the world's own dev events. A sky picked by hand
   stays until the next pick.

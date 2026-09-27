@@ -84,7 +84,16 @@ export function mountDevMenu(pausePaper: HTMLElement, deps: DevMenuDeps): void {
   });
   window.addEventListener("keydown", (e) => {
     if (e.code === "Escape" && panel.style.display !== "none") panel.style.display = "none";
+    // the web demo: F8 opens it from anywhere, also while walking (the mouse is let go so it can click)
+    if (DEMO && e.code === "F8") {
+      e.preventDefault();
+      if (panel.style.display === "none") {
+        if (document.pointerLockElement) document.exitPointerLock();
+        panel.style.display = "block";
+      } else panel.style.display = "none";
+    }
   });
+  if (DEMO) window.addEventListener("scheldemist:devmenu", () => (panel.style.display = "block"));
   document.addEventListener("pointerlockchange", () => {
     if (document.pointerLockElement) panel.style.display = "none";
   });

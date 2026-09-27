@@ -141,7 +141,7 @@ function buildPaper(): void {
   // the web demo (demo/demo.ts): walking only, so no saves, no new week, no AI
   if (DEMO) {
     for (const go of ["new", "ai"]) nav.querySelector(`[data-go="${go}"]`)?.remove();
-    saves.remove();
+    saves.replaceWith(item("devmenu", "Time, weather, events", "F8, also while you walk"));
     const note = document.createElement("p");
     note.className = "fine demo-note";
     note.innerHTML = `<b>A limited web demo, just to get a look.</b> Walk about the town, or press <b>F9</b> to fly over it. No talking, no jobs, no AI. For the whole game, <a href="https://github.com/Steve-Sitax/Moodygame/releases/latest" target="_blank" rel="noopener">download it</a>.`;
@@ -166,6 +166,10 @@ function buildPaper(): void {
     // "Go on": the click goes on to #start, which starts the game (main.ts)
     if (go === "play" || !go) return;
     e.stopPropagation();
+    if (go === "devmenu") {
+      window.dispatchEvent(new CustomEvent("scheldemist:devmenu")); // game/devmenu.ts opens its panel
+      return;
+    }
     if (go === "controls") {
       tab = "controls";
       open("settings");

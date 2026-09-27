@@ -66,6 +66,53 @@ async function jobsPayload(): Promise<JobsPayload> {
   };
 }
 
+// ---- the director's events, recorded when the demo was built (tools/demo/build.mjs) and played back here: one
+// frame (what GET /api/actions said then) per tick of the clock, from the Dev menu's event buttons
+interface Recording {
+  template: string;
+  title: string;
+  where: string;
+  start: { day: number; hour: number; minute: number };
+  weather: JobsPayload["clock"]["weather"];
+  at: { x: number; z: number } | null;
+  frames: Array<{ events: unknown[]; actions: unknown[]; convos: Array<{ id: number; at: number }>; landmark?: unknown }>;
+}
+let replay: { rec: Recording; i: number } | null = null;
+/** A talk line shows once per id and only while fresh: stamped with the time it is first played back. */
+const convoAt = new Map<number, number>();
+async function actionsNow(): Promise<unknown> {
+  const base = (await baked("actions")) as { closed?: unknown[] };
+  if (!replay) return { actions: [], convos: [], events: [], closed: base.closed ?? [] };
+  const f = replay.rec.frames[Math.min(replay.i, replay.rec.frames.length - 1)];
+  const now = Date.now();
+  const convos = f.convos.map((c) => {
+    if (!convoAt.has(c.id)) convoAt.set(c.id, now);
+    return { ...c, at: convoAt.get(c.id)! };
+  });
+  return { actions: f.actions, convos, events: f.events, closed: base.closed ?? [] };
+}
+async function startRecording(template: string): Promise<Response> {
+  let rec: Recording;
+  try {
+    const r = await orig(`${BASE}demo/events/${template}.json`);
+    if (!r.ok) throw new Error(String(r.status));
+    rec = (await r.json()) as Recording;
+  } catch {
+    return json({ ok: false, why: "this event is not in the web demo" });
+  }
+  replay = { rec, i: 0 };
+  convoAt.clear();
+  // its own hour and sky, so the light and the town fit what was recorded
+  clock.day = rec.start.day;
+  clock.hour = rec.start.hour;
+  clock.minute = rec.start.minute;
+  clock.weather = rec.weather;
+  held = true;
+  demoPush.onJobs?.(await jobsPayload());
+  const id = (rec.frames[0]?.events[0] as { id?: number } | undefined)?.id ?? 0;
+  return json({ ok: true, id, title: rec.title, where: rec.where, x: rec.at?.x, z: rec.at?.z });
+}
+
 /** The game's push listener (net/api.ts connectPush hands it over in the demo): the Dev menu's time and weather show at once. */
 export const demoPush: { onJobs: ((p: JobsPayload) => void) | null } = { onJobs: null };
 const WEATHERS = ["fog", "mist", "clear", "rain", "storm"];
@@ -93,8 +140,26 @@ async function answer(method: string, route: string, body: string | null): Promi
     demoPush.onJobs?.(p);
     return json(p);
   }
+  if (route === "dev/director" && method === "POST") {
+    const t = (() => {
+      try {
+        return (JSON.parse(body ?? "{}") as { template?: string }).template;
+      } catch {
+        return undefined;
+      }
+    })();
+    return t && /^[a-z_]+$/.test(t) ? startRecording(t) : json({ ok: false, why: "the web demo plays the recorded events only" });
+  }
+  if (route === "actions" && method === "GET") return json(await actionsNow());
+  if (route === "landmark/cathedral" && method === "GET") {
+    const l = replay?.rec.frames[Math.min(replay.i, replay.rec.frames.length - 1)].landmark;
+    return l ? json(l) : json({ error: "not in the demo" }, 404);
+  }
+  // an event's people report where they are: nothing to keep, but a yes, or they ask again and again
+  if (method === "POST" && (route === "actions/sync" || /^actions\/\d+\/report$/.test(route))) return json({});
   if (route === "tick" && method === "POST") {
     stepClock();
+    if (replay && ++replay.i >= replay.rec.frames.length) replay = null; // the event is over
     return json({ ...(await jobsPayload()), advanced: true });
   }
   if (route === "town/ways" && method === "POST") return json({ ways: {} });

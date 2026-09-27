@@ -573,6 +573,37 @@ settings = mountSettings(startEl.querySelector(".paper") as HTMLElement, (s) => 
   town.maxPuppets = STREET_LEVELS[s.street].cap; // M6 population: people in the street
   resize();
 });
+/**
+ * The web demo's event buttons (Steve 2026-09-27: "make it all available"): demo/demo.ts plays each event back as it
+ * was recorded when the demo was built, at its own hour; Jef is put on free ground near it, facing it.
+ */
+function demoEvents(): Array<{ label: string; run: () => Promise<string> }> {
+  const all = ["musicians", "fish_auction", "quarrel", "scuffle", "house_fire", "hiring", "wedding", "funeral", "emigrant_ship", "street_robbery", "tavern_brawl", "night_watch", "burglary", "smuggling"];
+  return all.map((t) => ({
+    label: `Event: ${t.replace(/_/g, " ")}`,
+    run: () =>
+      api
+        .devDirector({ template: t })
+        .then((r) => {
+          if (!r.ok) return `not here: ${String(r.why ?? "")}`;
+          const x = Number(r.x);
+          const z = Number(r.z);
+          if (Number.isFinite(x) && Number.isFinite(z))
+            for (const d of [10, 14, 18, 24, 7])
+              for (let k = 0; k < 12; k++) {
+                const a = (k * Math.PI) / 6;
+                const px = x + Math.sin(a) * d;
+                const pz = z + Math.cos(a) * d;
+                if (!world.isFree(px, pz, 0.35) || world.isWater(px, pz)) continue;
+                player.place(px, pz, Math.atan2(x - px, z - pz) - Math.PI, 0);
+                return `${String(r.title)} at ${String(r.where)}: it starts now, right in front of you. Close this and watch.`;
+              }
+          return `${String(r.title)} at ${String(r.where)}: it starts now.`;
+        })
+        .catch((e) => String(e)),
+  }));
+}
+
 // dev builds: a Dev button next to Settings (time, weather, events, jump to places); the web demo too, without
 // the parts that need the server (demo/demo.ts answers the time and the weather)
 if (import.meta.env.DEV || DEMO) {
@@ -580,7 +611,7 @@ if (import.meta.env.DEV || DEMO) {
     place: (x, z) => player.place(x, z, 0),
     tide: world.tideDev,
     places: JUMPS,
-    events: DEMO ? world.devEvents() : [
+    events: DEMO ? [...world.devEvents(), ...demoEvents()] : [
       ...world.devEvents(),
       // M7 rendering: the culler off for comparison, occlusion alone off, and the view of what it hides
       { label: "Culling on/off", run: () => `culling ${(cull.enabled = !cull.enabled) ? "on" : "off: everything is drawn"}` },
@@ -1271,7 +1302,7 @@ if (import.meta.env.DEV || DEMO) {
   const flyHint = DEMO ? document.createElement("div") : null;
   if (flyHint) {
     flyHint.className = "demo-fly-hint";
-    flyHint.innerHTML = `<div class="demo-limited">Limited web demo, just a look</div><div><span class="demo-key">F9</span> <span data-fly>fly over the town</span></div><div class="demo-limited" data-keys hidden>WASD fly, mouse look<br>Space up, C down, Shift fast</div>`;
+    flyHint.innerHTML = `<div class="demo-limited">Limited web demo, just a look</div><div><span class="demo-key">F9</span> <span data-fly>fly over the town</span></div><div><span class="demo-key">F8</span> time, weather, events</div><div class="demo-limited" data-keys hidden>WASD fly, mouse look<br>Space up, C down, Shift fast</div>`;
     document.body.appendChild(flyHint);
   }
   const toggleFly = () => {

@@ -52,8 +52,8 @@ proposes their words and plans, and the game engine checks every proposal and ow
 ## Play it
 
 **Just a look: [try the web demo in your browser](https://steve-sitax.github.io/Moodygame/).** It is a limited version: you walk about the
-town among its people, or press **F9** to fly over it, and the Dev button (Esc) sets the time and the
-weather. No talking, no jobs, no AI and no saves. About 80 MB loads the first time.
+town among its people, press **F9** to fly over it, and **F8** to set the time and the weather or start
+one of the town's events (a wedding, a house fire, street musicians, the night watch and ten more). No talking, no jobs, no AI and no saves. About 80 MB loads the first time.
 
 **The whole game:** download it below.
 
