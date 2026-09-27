@@ -192,7 +192,7 @@ vec3 psxSpillWet(vec3 P, vec3 rr, float pud) {
       // needle streak times the window's power lit whole puddles before a shop as hard-edged plates brighter than
       // the window itself (Steve: "here more ugly lighting", blocks floating on the setts). As bright as its glass at
       // most: its power is spread over the opening (SPILL_WET_OPEN), where a lamp's is in its flame. (Wet stone in
-      // the rain keeps the streak: there it is a soft glow down the street.)
+      // the rain keeps the streak, broken into glints on the stones' tops by the caller.)
       vec3 q = c - P;
       float t0 = dot(q, rr);
       if (t0 < 0.0) continue;
@@ -1199,7 +1199,10 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
             wrefl += uLamps[i].w * wetStreak(vPsxWorld, rr, uLamps[i].xyz);
           }
           gl_FragColor.rgb += uLampColor * wrefl * wetK * stone * (0.15 + 0.85 * glint) * 0.4;
-          ${spillOn ? "gl_FragColor.rgb += psxSpillWet(vPsxWorld, rr, 0.0) * wetK * (0.35 + 0.65 * stone) * (0.55 + 0.45 * glint) * 0.02;" : ""}
+          // (the lit windows and doors: only on the wet tops of the stones, the joints dark. Steve 2026-09-27, 20:40 in
+          // the rain before a shop: "the flatness in front", the streak laid over joints and stones alike, one smooth
+          // pale sheet that hid the setts, the barrels' old rain sheen on the ground)
+          ${spillOn ? "gl_FragColor.rgb += psxSpillWet(vPsxWorld, rr, 0.0) * wetK * stone * (0.1 + 0.9 * glint) * 0.15;" : ""}
           if (uRain > 0.001) gl_FragColor.rgb += fogColor * rainRings(vPsxWorld.xz * 1.6, uTime * 1.3, uRain * 0.6) * 0.18 * wetK;
         }`
             : ""
