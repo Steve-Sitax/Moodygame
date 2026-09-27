@@ -639,7 +639,7 @@ export function collapseRest(db: DB, playerId = pid()): RestView {
   const c = clock(db);
   const planned = Math.max(4 * 60, Math.min(SLEEP.maxH * 60, toMorning(c)));
   const rest: Rest = {
-    player: playerId, kind: "bench", label: "the cobbles where you dropped", planned, slept: 0, acc: { sleep: 0, food: 0, warmth: 0, health: 0 },
+    player: playerId, kind: "bench", label: "the cobbles", planned, slept: 0, acc: { sleep: 0, food: 0, warmth: 0, health: 0 },
     lines: ["You were dead on your feet: your legs gave way and you slept where you fell."], turned: false, robRolled: false, lastStepAt: 0, from: { hour: c.hour, minute: c.minute },
     acked: false,
   };
