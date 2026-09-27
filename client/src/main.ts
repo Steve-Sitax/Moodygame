@@ -1307,6 +1307,22 @@ const together = new Together({
   },
 });
 together.start();
+// M8f shared goods (game/goods.ts): what another player carries goes on his figure, what a townsperson carries on
+// his shoulder (whichever PC walks him)
+jobs.goods.figureOf = (id) => together.figureOf(id);
+jobs.goods.npcHands = (npc) => {
+  const p = town.puppet(npc);
+  if (!p || !crowd.alive(p)) return null;
+  return {
+    group: p.group,
+    scale: p.human.scale || 1,
+    cart: p.veh?.spec.kind === "cart",
+    load: (on) => {
+      crowd.puppetLoad(p, on);
+      if (p.sack) p.sack.visible = !on;
+    },
+  };
+};
 // M8d: a follow or a seek goes to the player it is about; only the PC that owns the townsperson walks him
 if (together.session) actions.mp = { me: () => together.meId(), playerAt: (id) => together.playerAt(id), mayWalk: (id) => town.net?.mayWalk(id) ?? true };
 steps.me = () => together.meId(); // M8d: an errand's steps are walked by its player's PC (0 alone: all)

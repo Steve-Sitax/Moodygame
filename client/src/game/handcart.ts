@@ -12,7 +12,8 @@ import type { Jobs } from "./jobs";
 import type { Deeds } from "./deeds";
 import type { Journeys } from "./journeys";
 import type { Homes } from "./homes";
-import { HaulRun, slot, type Action, type Sfx } from "./runs";
+import { HaulRun, type Action, type Sfx } from "./runs";
+import type { GoodsItem } from "../../../shared/goods";
 import { nearestAim, pick, type Target } from "./facing";
 import { canLoad, LOAD, loadOf, pushSpeed, unloadAllAllowed, UNLOAD_NEAR_M, type CartThing } from "../../../shared/handcart";
 import { cartFits, cartPoints, footprint, stepCart, GRIP_AHEAD, REACH, type CartPose, type CartWorld } from "./cartPhysics";
@@ -224,57 +225,16 @@ export class Handcarts {
       const gone = vanished.filter((it) => it.job === run.job.id).length - dropped.filter((it) => it.job === run.job.id).length;
       for (let i = 0; i < gone; i++) run.run.onLost({ jobId: run.job.id, kind: run.job.task?.goods } as unknown as Item, "");
     }
-    // loads left on the ground (a hired cart fetched, a taken cart gone back): set down as goods
-    if (v.dropped.length) this.putDropped(v.dropped);
+    // (loads left on the ground, a hired cart fetched, a taken cart gone back: M8f the server sets them down as goods)
     if (v.notice && v.notice.n !== this.notice) {
       if (this.notice >= 0 || !this.first) this.say(v.notice.text);
       this.notice = v.notice.n;
     } else if (this.notice < 0) this.notice = v.notice?.n ?? 0;
-    if (this.first) this.reconcile();
     this.first = false;
   }
 
-  /** A job taken before a reload may have laid out goods that are on the cart: take the extra ones away. */
-  private reconcile(): void {
-    const r = this.jobs.running;
-    const t = r?.job.task;
-    if (!r || !t || t.kind !== "carry") return;
-    const on = this.onCart(r.job.id);
-    if (!on) return;
-    const p = t.progress ?? { delivered: 0, lost: 0, sold: 0 };
-    const goods = this.jobs.goods;
-    const lying = goods.items.filter((it) => it.jobId === r.job.id);
-    const carried = goods.carried?.jobId === r.job.id ? 1 : 0;
-    let extra = lying.length + carried + on + p.delivered + p.lost + p.sold - t.count;
-    const from = SPOTS[t.from];
-    lying.sort((a, b) => Math.hypot(a.obj.position.x - from.x, a.obj.position.z - from.z) - Math.hypot(b.obj.position.x - from.x, b.obj.position.z - from.z));
-    for (const it of lying.reverse()) {
-      if (extra <= 0) break;
-      if (goods.above(it)) continue;
-      goods.remove(it);
-      extra--;
-    }
-  }
-
-  private putDropped(list: CartView["dropped"]): void {
-    const goods = this.jobs.goods;
-    const ids: number[] = [];
-    for (const d of list) {
-      d.items.forEach((it, i) => {
-        if (!GOODS[it.kind as Goods]) return;
-        const a = (i / Math.max(1, d.items.length)) * Math.PI * 2;
-        let x = d.x + Math.cos(a) * 1.2;
-        let z = d.z + Math.sin(a) * 1.2;
-        for (let k = 0; k < 8 && !goods.canPlace(x, z); k++) {
-          x = d.x + Math.cos(a + k * 0.8) * (1.2 + k * 0.3);
-          z = d.z + Math.sin(a + k * 0.8) * (1.2 + k * 0.3);
-        }
-        goods.spawn(it.kind as Goods, x, z, { jobId: it.job, owner: it.owner, broken: it.broken, heavy: it.heavy });
-      });
-      ids.push(d.id);
-    }
-    void net("POST", "/api/cart/dropped", { ids }).catch(() => {});
-  }
+  // (M8f: a job's goods laid out before a reload are the server's, which counts the cart's load when it lays them
+  // out: nothing to take away here any more; a load left on the ground is set down by the server)
 
   /** How many of a job's goods are on Jef's carts. */
   onCart(jobId: number): number {
@@ -666,9 +626,10 @@ export class Handcarts {
       const v = await net<JobsPayload & { carts: CartView }>("POST", `/api/cart/${d.info.id.split(":")[1]}/load`, {
         x: +this.player.x.toFixed(2),
         z: +this.player.z.toFixed(2),
-        item: { kind: item.kind, job: item.jobId, owner: item.owner, broken: !!item.broken, heavy: !!item.heavy },
+        // (M8f: the goods' id: the server takes what they are from its own list)
+        item: { kind: item.kind, job: item.jobId, owner: item.owner, broken: !!item.broken, heavy: !!item.heavy, gid: item.id },
       });
-      if (this.jobs.goods.carried === item) this.jobs.goods.release();
+      this.jobs.goods.toCart(item, `hc:${this.jobs.goods.me}:${d.info.id}`);
       this.sfx(`thud_${GOODS[item.kind].thud}`, new THREE.Vector3(d.info.x, 0.6, d.info.z));
       this.jobs.refresh(v);
       this.apply(v.carts);
@@ -701,16 +662,15 @@ export class Handcarts {
     if (this.busy) return;
     this.busy = true;
     try {
-      const v = await net<JobsPayload & { carts: CartView; item: CartItem }>("POST", `/api/cart/${d.info.id.split(":")[1]}/unload`, { x: +this.player.x.toFixed(2), z: +this.player.z.toFixed(2) });
+      const v = await net<JobsPayload & { carts: CartView; item: CartItem; goods: GoodsItem | null }>("POST", `/api/cart/${d.info.id.split(":")[1]}/unload`, { x: +this.player.x.toFixed(2), z: +this.player.z.toFixed(2) });
       this.jobs.refresh(v);
       this.apply(v.carts);
       const it = v.item;
       if (it.piece !== undefined) await this.homes.load();
-      else if (GOODS[it.kind as Goods]) {
+      else if (GOODS[it.kind as Goods] && v.goods) {
+        // M8f: off the cart into his hands, the server's goods item (on every PC)
         const kind = it.kind as Goods;
-        const got = this.jobs.goods.receive(kind, GOODS[kind].hold, { jobId: it.job, owner: it.owner });
-        got.broken = it.broken;
-        got.heavy = it.heavy;
+        const got = this.jobs.goods.fromServer(v.goods);
         this.player.speedFactor = it.heavy ? 0.4 : GOODS[kind].speed;
         const r = this.jobs.running;
         if (r?.run instanceof HaulRun) r.run.onLifted(got);
@@ -731,23 +691,18 @@ export class Handcarts {
     this.busy = true;
     try {
       // (he keeps hold of the shafts: the goods come off the back of the cart)
-      const v = await net<JobsPayload & { carts: CartView; items: CartItem[] }>("POST", `/api/cart/${d.info.id.split(":")[1]}/unload`, {
+      const v = await net<JobsPayload & { carts: CartView; items: CartItem[]; goods: GoodsItem[] }>("POST", `/api/cart/${d.info.id.split(":")[1]}/unload`, {
         x: +this.player.x.toFixed(2),
         z: +this.player.z.toFixed(2),
         job: r.job.id,
       });
       this.jobs.refresh(v);
       this.apply(v.carts);
-      const p = t.progress?.delivered ?? 0;
-      const goods = this.jobs.goods;
-      const placed: Item[] = [];
-      v.items.forEach((it, i) => {
-        const [x, z] = slot(t.to, (p + i) % 6, 0.8);
-        placed.push(goods.spawn(it.kind as Goods, x, z, { jobId: it.job, owner: it.owner, broken: it.broken, heavy: it.heavy }));
-      });
+      // M8f: the server set them down on the goal's slots (they are the employer's now); here they count for the job
+      for (const g of v.goods ?? []) this.jobs.goods.fromServer(g);
       this.sfx(`thud_${GOODS[t.goods].thud}`, new THREE.Vector3(SPOTS[t.to].x, 0.3, SPOTS[t.to].z));
       this.say(`You tip the ${t.goods} off the cart, one after another, and stack them at ${SPOTS[t.to].label}.`);
-      for (const it of placed) r.run.onPlaced(it);
+      if (r.run instanceof HaulRun) r.run.countDelivered(v.items.length);
     } catch (e) {
       this.say(`${cap((e as Error).message)}.`);
     } finally {

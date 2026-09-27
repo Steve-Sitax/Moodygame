@@ -560,3 +560,49 @@ describe("played together on a real server", () => {
     }
   }, 120_000);
 });
+
+describe("M8f: shared goods, on a real server", () => {
+  it("a lift by the host reaches the guest's push; her lift of the same crate is refused; a late list has it in his hands; his put down reaches her", async () => {
+    const s = await realServer(true);
+    try {
+      const token = String((await s.call("POST", "/api/mp/join", { code: "KADE-47", name: "Anna" })).body.token);
+      const g = { "x-scheldemist-player": token };
+      const hostPush = await s.push();
+      const annaPush = await s.push(token);
+      const goods = (m: Array<Record<string, unknown>>) => m.filter((x) => x.type === "goods") as Array<{ v: number; why: string; items: Array<{ id: string; by: unknown; x: number; z: number; rot: number }> }>;
+      const until = async (f: () => boolean) => {
+        for (let i = 0; i < 60 && !f(); i++) await new Promise((r) => setTimeout(r, 50));
+      };
+      // the same list on both (ids, places and turns fixed)
+      const a0 = (await s.call("GET", "/api/goods", undefined, g)).body as { you: number; items: Array<{ id: string; x: number; rot: number }> };
+      const h0 = (await s.call("GET", "/api/goods")).body as { you: number; items: Array<{ id: string; x: number; rot: number }> };
+      expect(a0.you).not.toBe(1);
+      expect(h0.you).toBe(1);
+      expect(a0.items).toEqual(h0.items);
+      // the host lifts Tuur's cask: Anna's push has it in his hands
+      expect((await s.call("POST", "/api/goods", { op: "lift", id: "own:tuur:0" })).status).toBe(200);
+      await until(() => goods(annaPush.msgs).length > 0);
+      expect(goods(annaPush.msgs)[0]).toMatchObject({ why: "lift", items: [{ id: "own:tuur:0", by: { p: 1 } }] });
+      // hers is refused, and the answer says where it is
+      const no = await s.call("POST", "/api/goods", { op: "lift", id: "own:tuur:0" }, g);
+      expect(no.status).toBe(409);
+      expect(no.body.error).toBe("Someone was quicker.");
+      // a late list (a PC that joins now) has it in his hands
+      const late = (await s.call("GET", "/api/goods", undefined, g)).body as { items: Array<{ id: string; by: unknown }> };
+      expect(late.items.find((i) => i.id === "own:tuur:0")?.by).toEqual({ p: 1 });
+      // he sets it down 3 m on: she hears where, and its turn
+      const it = h0.items.find((i) => i.id === "own:tuur:0") as unknown as { x: number; z: number };
+      expect((await s.call("POST", "/api/goods", { op: "put", id: "own:tuur:0", x: it.x + 3, z: it.z })).status).toBe(200);
+      await until(() => goods(annaPush.msgs).length > 1);
+      const put = goods(annaPush.msgs)[1].items[0];
+      expect(put).toMatchObject({ id: "own:tuur:0", by: null });
+      expect(put.x).toBeCloseTo(it.x + 3, 3);
+      expect(goods(hostPush.msgs).map((m) => m.v)).toEqual(goods(annaPush.msgs).map((m) => m.v));
+      // now it is hers to take
+      expect((await s.call("POST", "/api/goods", { op: "lift", id: "own:tuur:0" }, g)).status).toBe(200);
+      for (const w of [hostPush.ws, annaPush.ws]) w.close();
+    } finally {
+      await s.stop();
+    }
+  }, 120_000);
+});

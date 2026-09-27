@@ -731,7 +731,7 @@ export function handPins(db: DB, online: readonly number[]): Map<string, number>
   const on = new Set(online);
   const out = new Map<string, number>();
   for (const { row, r } of activeRoutines(db)) {
-    if (r.purpose !== "hire" && r.purpose !== "treat") continue;
+    if (r.purpose !== "hire" && r.purpose !== "treat" && r.purpose !== "goods_back") continue; // (M8f: a man carrying goods back)
     const who = (r.state as { player?: number }).player ?? r.player ?? 1;
     if (on.has(who)) out.set(row.npc_id, who);
   }

@@ -117,6 +117,25 @@ export class Together {
 
   constructor(private readonly d: TogetherDeps) {}
 
+  /** M8f: another player's figure (game/goods.ts draws what he carries on it), or null. */
+  figureOf(id: number): { root: THREE.Object3D; shown: boolean; carrying: boolean } | null {
+    const f = this.figs.get(id);
+    const root = f?.root;
+    if (!f || !root) return null;
+    return {
+      root,
+      get shown() {
+        return f.shown;
+      },
+      get carrying() {
+        return f.carrying;
+      },
+      set carrying(v: boolean) {
+        f.carrying = v;
+      },
+    };
+  }
+
   /** Played together (the server's setting at the page's start, or since). */
   get on(): boolean {
     return identity.together;

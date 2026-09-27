@@ -203,7 +203,7 @@ function textureOf(canvas: HTMLCanvasElement): THREE.CanvasTexture {
 /** The body's width by build (the skeleton's height stays: the clips fit it). */
 const BUILD: Record<string, [number, number]> = { slight: [0.93, 0.94], middling: [1, 1], stout: [1.1, 1.12] };
 
-export type PlayerMotion = "idle" | "walk" | "talk" | "row" | "ride" | "crouch";
+export type PlayerMotion = "idle" | "walk" | "talk" | "row" | "ride" | "crouch" | "carry";
 
 /**
  * One player's figure: the body of its cut in its colours, the hat and the hair on the head bone, a
@@ -256,7 +256,8 @@ export class PlayerFigure {
     this.mixer = new THREE.AnimationMixer(this.body);
     const clips = peopleClips();
     const pick = (m: PlayerMotion): string[] => (this.woman ? [`${m}_f`, m] : [m]);
-    for (const m of ["idle", "walk", "talk", "row", "ride", "crouch"] as PlayerMotion[]) {
+    // (M8f: "carry", the dockers' walk with a load on the shoulder: another player carrying a crate)
+    for (const m of ["idle", "walk", "talk", "row", "ride", "crouch", "carry"] as PlayerMotion[]) {
       const clip = pick(m).map((n) => clips?.get(n)).find(Boolean);
       if (clip) this.actions.set(m, this.mixer.clipAction(clip));
     }
@@ -278,6 +279,7 @@ export class PlayerFigure {
   /** The walk clip covers 1.2 m a loop: the feet keep to the ground's speed. */
   setPace(speed: number): void {
     this.actions.get("walk")?.setEffectiveTimeScale(Math.max(0.3, speed / 1.2));
+    this.actions.get("carry")?.setEffectiveTimeScale(Math.max(0.3, speed / 1.2));
   }
 
   update(dt: number): void {

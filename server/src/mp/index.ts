@@ -26,6 +26,7 @@ import { mpOn, mpSettings, newCode, setMp } from "./settings.ts";
 import { autoBuild, currentManifest, mountStatic, reloadManifest } from "./static.ts";
 import { Owners, WorldPc, type OwnerRow } from "./street.ts";
 import type { MapModel } from "../mapview/model.ts";
+import { goods } from "../goods/store.ts"; // M8f: a player gone for good sets down what he carried
 
 // M8a multiplayer: "two in the fog" (docs/multiplayer-plan.md, phase M8a; docs/milestones/M8a.md).
 //
@@ -375,6 +376,7 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
       send(seat.conn, { type: "kicked" });
       seat.conn.ws.close(4003, "removed by the host");
     }
+    goods.playerLeft(id, seat?.state ? { x: seat.state.x, z: seat.state.z } : null, db); // (M8f: his load where he stood)
     seats.delete(id);
     httpLimits.forget(id);
     const ok = removeGuest(db, id);
@@ -768,6 +770,8 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
     for (const seat of [...seats.values()]) {
       if (seat.goneAt !== null && now - seat.goneAt > GRACE_MS) {
         seats.delete(seat.id);
+        // M8f: what he carried is set down where he last stood (goods/store.ts playerLeft says why)
+        goods.playerLeft(seat.id, seat.state ? { x: seat.state.x, z: seat.state.z } : null, db);
         const msg: MpText = { type: "went", id: seat.id, name: nameOf(seat.id) };
         for (const k of conns) send(k, msg);
         sendRoster(true);

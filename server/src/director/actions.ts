@@ -440,6 +440,8 @@ function describeStart(name: string, a: ActionRow): string {
     case "seek":
       return `${name} went to find Jef${a.reason ? ` (${a.reason})` : ""}.`;
     case "routine":
+      // (M8f: the quay's own work, for nobody: a man carrying goods back where they belong)
+      if (a.target === "goods_back") return `${name} went to carry some goods back where they belong.`;
       return `${name} set off with Jef${a.reason ? `: ${a.reason}` : ""}.`;
     default:
       return `${name} did something for Jef.`;
