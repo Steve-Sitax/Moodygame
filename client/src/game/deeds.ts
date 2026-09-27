@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { JobsPayload } from "../net/api";
 import type { FirstPerson, BikeEvent } from "../player/firstPerson";
 import type { World } from "../world/rijnkaai";
+import { identity } from "../net/mp/identity";
 import { WALL } from "../world/city";
 import type { Action, Sfx } from "./runs";
 import type { Jobs } from "./jobs";
@@ -178,9 +179,12 @@ export class Deeds {
       // a bad or empty answer (QA 2026-09-24: "w.velos is not iterable"): keep what is shown, try again next time
       if (Array.isArray(w.food)) this.food = w.food;
       if (Array.isArray(w.velos)) {
-        // a velocipede the server has as ridden, but nobody here is on it (a reload): leave it where it was
+        // a velocipede the server has as ridden by this player, but he is not on it here (a reload): leave it where
+        // it was (M8c: another player's is his; `by` is the rider, missing from an older server: this player)
         for (const v of w.velos) {
-          if (v && v.ridden && this.velos.ridden?.info.id !== v.id) {
+          const by = (v as { by?: number | null }).by;
+          const mine = by === undefined || by === null || by === identity.playerId;
+          if (v && v.ridden && mine && this.velos.ridden?.info.id !== v.id) {
             await net("POST", `/api/velo/${v.id.split(":")[1]}/leave`, { x: v.x, z: v.z, yaw: v.yaw }).catch(() => {});
             v.ridden = false;
           }

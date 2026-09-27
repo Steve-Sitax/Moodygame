@@ -64,6 +64,8 @@ import { auditCounts, auditSave } from "./town/audit.ts";
 import { reportWhere, whereNow } from "./warmth.ts"; // M7 warmth: where Jef is for the cold
 import { mountMultiplayer } from "./mp/index.ts"; // M8a multiplayer: who asks, the join code, the movement socket, the server's own clock
 import { MapModel, mountMapView } from "./mapview/index.ts"; // the town map for the host (docs/mapview.md)
+import { asPlayer, inPlayer, pid } from "./player/current.ts"; // M8c: each request as its player
+import { whoOfUpgrade } from "./mp/auth.ts";
 
 const db = openDb(DB_FILE);
 const stale = closeStaleCalls(db);
@@ -88,24 +90,17 @@ app.use("/api/*", (c, next) => (c.req.path === "/api/dev/shot" ? shotLimit : api
 // farm boy", "a young man on the quays" follow the profile (player/prompt.ts shownJson). No profile: as it was.
 app.use("/api/*", async (c, next) => {
   await next();
-  if (c.req.path.startsWith("/api/player/") || !/json/i.test(c.res.headers.get("content-type") ?? "") || !hasProfile(db)) return;
+  // (M8c: the name and words of the player who asked: mp/index.ts has put him in the context by now)
+  const id = c.get("mpWho")?.id ?? 1;
+  if (c.req.path.startsWith("/api/player/") || !/json/i.test(c.res.headers.get("content-type") ?? "") || !hasProfile(db, id)) return;
   const text = await c.res.text();
   const headers = new Headers(c.res.headers);
   headers.delete("content-length");
-  c.res = new Response(shownJson(db, text), { status: c.res.status, headers });
-});
-// Every paid action refreshes the money on screen (QA 2026-09-24: 5 c behind after the fortune,
-// paid in a talk choice): a POST that changed Jef's money pushes the new payload to the client.
-app.use("/api/*", async (c, next) => {
-  if (c.req.method !== "POST") return next();
-  const before = moneyNow();
-  await next();
-  const after = moneyNow();
-  if (before !== null && after !== null && after !== before) broadcast({ type: "jobs", ...jobsPayload() });
+  c.res = new Response(asPlayer(id, () => shownJson(db, text)), { status: c.res.status, headers });
 });
 function moneyNow(): number | null {
   try {
-    return (db.prepare("SELECT money_c FROM player WHERE id = 1").get() as { money_c: number } | undefined)?.money_c ?? null;
+    return (db.prepare("SELECT money_c FROM player WHERE id = ?").get(pid()) as { money_c: number } | undefined)?.money_c ?? null;
   } catch {
     return null;
   }
@@ -116,6 +111,16 @@ function moneyNow(): number | null {
 const mapModel = new MapModel();
 const mp = mountMultiplayer(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m), map: mapModel });
 const mapView = mountMapView({ model: mapModel, db });
+// Every paid action refreshes the money on screen (QA 2026-09-24: 5 c behind after the fortune,
+// paid in a talk choice): a POST that changed the player's money pushes the new payload to him.
+// (M8c: after the multiplayer part, so it runs as the player who asks)
+app.use("/api/*", async (c, next) => {
+  if (c.req.method !== "POST") return next();
+  const before = moneyNow();
+  await next();
+  const after = moneyNow();
+  if (before !== null && after !== null && after !== before) broadcast({ type: "jobs", ...jobsPayload() });
+});
 // the game's "Town map" button: the map's address, for the host's own browser only (the map listens on 127.0.0.1)
 app.get("/api/map", async (c) => {
   const who = c.get("mpWho");
@@ -212,9 +217,11 @@ let board: { state: "writing" | "ready"; source?: string; error?: string } = { s
 
 function jobsPayload() {
   const p = player(db);
+  // (M8c: a job another player has in hand is gone from this player's board)
+  const others = new Set((db.prepare("SELECT id FROM job WHERE status = 'taken' AND COALESCE(taken_by, 1) <> ?").all(pid()) as Array<{ id: number }>).map((r) => r.id));
   return {
     board,
-    jobs: listJobs(db, p.day),
+    jobs: listJobs(db, p.day).filter((j) => !others.has(j.id)),
     player: p,
     pockets: pockets(db),
     clock: clock(db),
@@ -623,20 +630,57 @@ const wss = new WebSocketServer({
 });
 // M7 save and pause: a tab says who it is (?client=): its pause ends when it goes away
 const clientOf = new WeakMap<WebSocket, string>();
+// M8c: whose tab it is. The host's tab on this PC is the host at once; a guest's tab (?guest=1) says its token in its
+// first message ({ type: "hello", token }); until then it gets nothing
+const playerOfWs = new WeakMap<WebSocket, number>();
 wss.on("connection", (ws, req) => {
-  const id = new URL(req.url ?? "/ws", "http://x").searchParams.get("client")?.slice(0, 40);
+  const q = new URL(req.url ?? "/ws", "http://x").searchParams;
+  const id = q.get("client")?.slice(0, 40);
   if (id) clientOf.set(ws, id);
   ws.on("close", () => {
     if (id && ![...wss.clients].some((o) => o !== ws && clientOf.get(o) === id)) setPaused(id, false);
   });
-  ws.send(shownJson(db, JSON.stringify({ type: "jobs", ...jobsPayload() })));
+  const welcome = (pid: number) => {
+    playerOfWs.set(ws, pid);
+    ws.send(asPlayer(pid, () => shownJson(db, JSON.stringify({ type: "jobs", ...jobsPayload() }))));
+  };
+  const host = q.get("guest") !== "1" ? whoOfUpgrade(db, req, null) : null;
+  if (host?.host) welcome(1);
+  ws.on("message", (data) => {
+    if (playerOfWs.has(ws)) return;
+    let m: { type?: string; token?: unknown } | null = null;
+    try {
+      m = JSON.parse(String(data)) as { type?: string; token?: unknown };
+    } catch {
+      return;
+    }
+    if (m?.type !== "hello") return;
+    const who = whoOfUpgrade(db, req, typeof m.token === "string" ? m.token : null);
+    if (who) welcome(who.id);
+    else ws.close(4001, "who");
+  });
 });
 mp.attach(server as import("node:http").Server, wss); // M8a
 setInterval(() => sweepHolders(new Set([...wss.clients].map((o) => clientOf.get(o)).filter((x): x is string => !!x))), 30_000).unref();
 
+/**
+ * News about one player (his job's outcome, his trouble, his letters and pawn tickets, his gang, his family's
+ * visits, his hired hands): sent while working for him, it goes to him only (M8c). Sent by the server's own work
+ * for the world (the tick, the director), and every other kind, it goes to everyone.
+ */
+const PERSONAL = new Set(["outcome", "trouble", "press", "gang", "families", "hands", "ending", "rent"]);
+
 function broadcast(msg: unknown): void {
-  const s = shownJson(db, JSON.stringify(msg)); // M7 character: the player's name in every push
-  for (const c of wss.clients) if (c.readyState === WebSocket.OPEN) c.send(s);
+  const m = msg as { type?: string } | null;
+  const only = inPlayer() && m?.type && PERSONAL.has(m.type) ? pid() : null;
+  for (const c of wss.clients) {
+    if (c.readyState !== WebSocket.OPEN) continue;
+    const who = playerOfWs.get(c);
+    if (who === undefined || (only !== null && who !== only)) continue;
+    // the job board and the player's own part: each player's own (M8c); the rest as it came
+    const out = m?.type === "jobs" ? { ...(msg as object), ...asPlayer(who, () => jobsPayload()) } : msg;
+    c.send(asPlayer(who, () => shownJson(db, JSON.stringify(out)))); // M7 character: the player's name in every push
+  }
 }
 
 // first run of the day: no board yet, so write one now in the background

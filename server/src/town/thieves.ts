@@ -1,6 +1,7 @@
 import type { DB } from "../db.ts";
 import { GameError, log, player } from "../game.ts";
 import { remember } from "../npcs.ts";
+import { pid } from "../player/current.ts";
 import { resident } from "./store.ts";
 
 // Pickpockets (M3e). Thieves come out at night; the client walks one up
@@ -20,7 +21,8 @@ interface Pending {
   at: number;
   day: number;
 }
-let pending: Pending | null = null;
+/** The pocket just picked, per player (M8c: a guest's thief is his to catch). */
+const pending = new Map<number, Pending>();
 
 function picksToday(db: DB, day: number): Record<string, number> {
   const row = db.prepare("SELECT value_json FROM world_state WHERE key = ?").get(`picks:${day}`) as { value_json: string } | undefined;
@@ -57,14 +59,14 @@ export function pickPocket(db: DB, id: string, rng: () => number = Math.random, 
     took = Math.min(MAX_TAKE_C, p.money_c, Math.max(5, Math.round((p.money_c * (0.2 + rng() * 0.25)) / 5) * 5));
     text = "Someone brushes past you in the dark. A moment later your pocket is lighter.";
     db.transaction(() => {
-      db.prepare("UPDATE player SET money_c = MAX(0, money_c - ?) WHERE id = 1").run(took);
+      db.prepare("UPDATE player SET money_c = MAX(0, money_c - ?) WHERE id = ?").run(took, pid());
       log(db, "robbed", id, `Someone picked Jef's pocket at night and took ${took} centimes.`);
     })();
     remember(db, id, `I lifted ${took} centimes from Jef's pocket in the dark. He never saw me.`, 5, "seen", null, {
       gist: "Jef had his pocket picked in the dark, and never saw who",
       tone: -1,
     });
-    pending = { thief: id, amount: took, at: now, day: p.day };
+    pending.set(pid(), { thief: id, amount: took, at: now, day: p.day });
   }
   done[id] = took;
   savePicks(db, p.day, done);
@@ -75,13 +77,14 @@ export function pickPocket(db: DB, id: string, rng: () => number = Math.random, 
 export function catchThief(db: DB, id: string, now = Date.now()): { back_c: number; text: string } {
   const r = resident(db, id);
   if (!r) throw new GameError("nobody by that name", 404);
-  if (!pending || pending.thief !== id || now - pending.at > CATCH_MS || pending.day !== player(db).day) {
+  const pend = pending.get(pid());
+  if (!pend || pend.thief !== id || now - pend.at > CATCH_MS || pend.day !== player(db).day) {
     throw new GameError("nothing to get back from this one", 409);
   }
-  const back = pending.amount;
-  pending = null;
+  const back = pend.amount;
+  pending.delete(pid());
   db.transaction(() => {
-    db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = 1").run(back);
+    db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = ?").run(back, pid());
     log(db, "caught_thief", id, `Jef caught the pickpocket ${r.name} and took back his ${back} centimes.`);
   })();
   remember(db, id, "Jef caught me by the collar and took his money back. I'll remember his face.", 7, "seen", null, {
@@ -93,5 +96,5 @@ export function catchThief(db: DB, id: string, now = Date.now()): { back_c: numb
 
 /** Test helper. */
 export function resetThieves(): void {
-  pending = null;
+  pending.clear();
 }

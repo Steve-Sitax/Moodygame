@@ -7,6 +7,7 @@ import { clock, WEATHER_TEXT } from "../day.ts";
 import { ALL_EMPLOYERS, SYSTEM, clampBoard, maxTier, taskFor, type Board } from "../hooks/jobBoard.ts";
 import { cartWorkOpen } from "../hooks/loads.ts";
 import { remember } from "../npcs.ts";
+import { asPlayer, pid } from "../player/current.ts";
 import { plainEnglish } from "../text.ts";
 import { gameMinute } from "../town/deeds.ts";
 import type { Resident } from "../town/population.ts";
@@ -51,7 +52,8 @@ export interface HiringSpot {
   men: string[];
   want: number;
   picked: string[];
-  jef: { stood: number } | null;
+  /** `player`: who stood (M8c: his chance at the call; none in an older save: the host). */
+  jef: { stood: number; player?: number } | null;
   jef_result: { picked: boolean; text: string; job: number | null } | null;
   call: string | null;
   remarks: string[];
@@ -214,10 +216,11 @@ function gatherMen(db: DB, ev: EventRow): void {
 
 /** Jef's chance to be taken on: his trust with the naties and the foreman, and how strong he looks (his needs). */
 export function jefHireChance(db: DB, foreman: string | null): number {
-  const trust = (db.prepare("SELECT trust FROM faction_trust WHERE faction = 'naties'").get() as { trust: number } | undefined)?.trust ?? 0;
-  const p = db.prepare("SELECT food, health, sleep FROM player WHERE id = 1").get() as { food: number; health: number; sleep: number };
+  // (M8c: this player's trust and needs)
+  const trust = (db.prepare("SELECT trust FROM faction_trust WHERE player_id = ? AND faction = 'naties'").get(pid()) as { trust: number } | undefined)?.trust ?? 0;
+  const p = db.prepare("SELECT food, health, sleep FROM player WHERE id = ?").get(pid()) as { food: number; health: number; sleep: number };
   const strength = (p.food + p.health + p.sleep) / 3;
-  const own = foreman ? ((db.prepare("SELECT trust FROM npc_relationship WHERE npc_id = ?").get(foreman) as { trust: number } | undefined)?.trust ?? 0) : 0;
+  const own = foreman ? ((db.prepare("SELECT trust FROM npc_relationship WHERE npc_id = ? AND player_id = ?").get(foreman, pid()) as { trust: number } | undefined)?.trust ?? 0) : 0;
   return Math.max(0.05, Math.min(0.9, 0.2 + trust * 0.08 + own * 0.05 + (strength - 5) * 0.05));
 }
 
@@ -253,7 +256,8 @@ function callNames(db: DB, ev: EventRow): void {
       const there = !jef || Math.hypot(jef.x - sp.x, jef.z - sp.z) <= HIRE_STAND_M * 1.8;
       if (!there) sp.jef_result = { picked: false, text: "The names were called while you were away.", job: null };
       else {
-        const p = jefHireChance(db, sp.foreman);
+        // (M8c: the names are called in the tick; the chance is his who stood there)
+        const p = asPlayer(sp.jef.player ?? 1, () => jefHireChance(db, sp.foreman));
         const picked = roll(`${ev.id}:jef:${sp.id}`) < p;
         if (picked) {
           const job = postHireJob(db, ev, sp);
@@ -459,7 +463,7 @@ export function standForHire(db: DB, x: number, z: number): StandResult {
   const sp = h.spots.find((s) => Math.hypot(s.x - x, s.z - z) <= HIRE_STAND_M);
   if (!sp) return { ok: false, why: "Stand with the men at the gate." };
   if (h.spots.some((s) => s.jef)) return { ok: false, why: "You are standing for hire already." };
-  sp.jef = { stood: gameMinute(db) };
+  sp.jef = { stood: gameMinute(db), player: pid() };
   save(db, ev, h);
   writeEvent(db, { kind: "job", verb: "stood_for_hire", actor: "player", text: `Jef stood with the day men at ${sp.label}.`, ref_type: "town_event", ref_id: ev.id, weight: 2 });
   notify("events");

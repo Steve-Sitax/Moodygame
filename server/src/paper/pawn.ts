@@ -4,7 +4,8 @@ import { remember } from "../npcs.ts";
 import { atWork, ITEMS, POCKET_SLOTS } from "../trade.ts";
 import { resident } from "../town/store.ts";
 import { writeEvent } from "../director/eventlog.ts";
-import { pressTown, setMedal, BERG_LABEL } from "./town.ts";
+import { pressTown, setMedal, BERG_LABEL, type PressTown } from "./town.ts";
+import { asPlayer, pid } from "../player/current.ts";
 
 // The Berg van Barmhartigheid (M6): the town's pawn office, the Antwerp
 // Mont-de-Piete (founded 1620 by Wenceslas Cobergher; in the real town in the
@@ -81,17 +82,29 @@ function openNow(db: DB): void {
   if (!atWork(db, clerk)) throw new GameError("the Berg's counter is shut; it opens in the morning", 409);
 }
 
+/** The player's own pledges (M8c: pawn.player_id). */
 export function pawns(db: DB, status?: PawnRow["status"]): PawnRow[] {
-  return (status ? db.prepare("SELECT * FROM pawn WHERE status = ? ORDER BY id").all(status) : db.prepare("SELECT * FROM pawn ORDER BY id").all()) as PawnRow[];
+  return (status
+    ? db.prepare("SELECT * FROM pawn WHERE status = ? AND player_id = ? ORDER BY id").all(status, pid())
+    : db.prepare("SELECT * FROM pawn WHERE player_id = ? ORDER BY id").all(pid())) as PawnRow[];
+}
+
+/** Jef's mother's medal is the host's (sewn in Jef's coat); a guest has none. */
+export function medalOf(db: DB): PressTown["medal"] | "none" {
+  return pid() === 1 ? (pressTown(db)?.medal ?? "owned") : "none";
+}
+
+function pocketsUsed(db: DB): number {
+  return (db.prepare("SELECT COUNT(*) AS n FROM item WHERE player_id = ?").get(pid()) as { n: number }).n;
 }
 
 /** What the counter can show: what Jef could pawn, and his tickets with today's price. */
 export function bergView(db: DB) {
   const { day } = today(db);
   const clerk = bergClerk(db);
-  const items = db.prepare("SELECT id, kind FROM item WHERE job_id IS NULL ORDER BY id").all() as Array<{ id: number; kind: string }>;
+  const items = db.prepare("SELECT id, kind FROM item WHERE job_id IS NULL AND player_id = ? ORDER BY id").all(pid()) as Array<{ id: number; kind: string }>;
   const offers = items.filter((i) => PAWN_WORTH[i.kind]).map((i) => ({ item: i.id, kind: i.kind, name: ITEMS[i.kind]?.name ?? i.kind, loan_c: loanFor(i.kind) }));
-  if (pressTown(db)?.medal === "owned") offers.unshift({ item: 0, kind: "medal", name: ITEMS.medal.name, loan_c: loanFor("medal") });
+  if (medalOf(db) === "owned") offers.unshift({ item: 0, kind: "medal", name: ITEMS.medal.name, loan_c: loanFor("medal") });
   const tickets = pawns(db, "held").map((p) => ({ id: p.id, name: p.item_name, loan_c: p.loan_c, rate_c: p.rate_c, due_day: p.due_day, redeem_c: redeemCost(p, day) }));
   return {
     label: BERG_LABEL,
@@ -114,12 +127,11 @@ export function pawn(db: DB, item: number): { text: string; pawn: PawnRow } {
   const { day, hour } = today(db);
   let kind: string;
   if (item === 0) {
-    if (pressTown(db)?.medal !== "owned") throw new GameError("you have no medal to pawn", 409);
+    if (medalOf(db) !== "owned") throw new GameError("you have no medal to pawn", 409);
     kind = "medal";
-    const n = (db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n;
-    if (n >= POCKET_SLOTS) throw new GameError("your pockets are full; there is no room for the ticket", 409);
+    if (pocketsUsed(db) >= POCKET_SLOTS) throw new GameError("your pockets are full; there is no room for the ticket", 409);
   } else {
-    const row = db.prepare("SELECT id, kind, job_id FROM item WHERE id = ?").get(item) as { id: number; kind: string; job_id: number | null } | undefined;
+    const row = db.prepare("SELECT id, kind, job_id FROM item WHERE id = ? AND player_id = ?").get(item, pid()) as { id: number; kind: string; job_id: number | null } | undefined;
     if (!row) throw new GameError("not in your pockets", 404);
     if (row.job_id !== null) throw new GameError("that is not yours to pawn", 409);
     kind = row.kind;
@@ -132,14 +144,14 @@ export function pawn(db: DB, item: number): { text: string; pawn: PawnRow } {
   let id = 0;
   db.transaction(() => {
     if (item === 0) setMedal(db, "pawned");
-    else db.prepare("DELETE FROM item WHERE id = ?").run(item);
+    else db.prepare("DELETE FROM item WHERE id = ? AND player_id = ?").run(item, pid());
     id = Number(
       db
-        .prepare("INSERT INTO pawn (item_kind, item_name, worth_c, loan_c, rate_c, day, hour, due_day, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'held')")
-        .run(kind, name, PAWN_WORTH[kind], loan, rate, day, hour, due).lastInsertRowid,
+        .prepare("INSERT INTO pawn (item_kind, item_name, worth_c, loan_c, rate_c, day, hour, due_day, status, player_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'held', ?)")
+        .run(kind, name, PAWN_WORTH[kind], loan, rate, day, hour, due, pid()).lastInsertRowid,
     );
-    db.prepare("INSERT INTO item (kind, job_id, ref) VALUES ('pawn_ticket', NULL, ?)").run(id);
-    db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = 1").run(loan);
+    db.prepare("INSERT INTO item (kind, job_id, ref, player_id) VALUES ('pawn_ticket', NULL, ?, ?)").run(id, pid());
+    db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = ?").run(loan, pid());
     log(db, "pawned", kind, `Jef pawned ${name} at the Berg van Barmhartigheid for ${loan} centimes.`);
   })();
   const clerk = bergClerk(db);
@@ -152,17 +164,17 @@ export function pawn(db: DB, item: number): { text: string; pawn: PawnRow } {
 export function redeem(db: DB, pawnId: number): { text: string; paid_c: number } {
   openNow(db);
   const { day } = today(db);
-  const p = db.prepare("SELECT * FROM pawn WHERE id = ?").get(pawnId) as PawnRow | undefined;
+  const p = db.prepare("SELECT * FROM pawn WHERE id = ? AND player_id = ?").get(pawnId, pid()) as PawnRow | undefined;
   if (!p || p.status !== "held") throw new GameError("no such pledge at the Berg", 404);
-  const ticket = db.prepare("SELECT id FROM item WHERE kind = 'pawn_ticket' AND ref = ?").get(pawnId) as { id: number } | undefined;
+  const ticket = db.prepare("SELECT id FROM item WHERE kind = 'pawn_ticket' AND ref = ? AND player_id = ?").get(pawnId, pid()) as { id: number } | undefined;
   if (!ticket) throw new GameError("no ticket, no pledge", 409);
   const cost = redeemCost(p, day);
   if (player(db).money_c < cost) throw new GameError(`not enough money: ${cost} c to redeem it`, 409);
   db.transaction(() => {
-    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(cost);
+    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(cost, pid());
     db.prepare("DELETE FROM item WHERE id = ?").run(ticket.id);
     if (p.item_kind === "medal") setMedal(db, "owned");
-    else db.prepare("INSERT INTO item (kind, job_id) VALUES (?, NULL)").run(p.item_kind);
+    else db.prepare("INSERT INTO item (kind, job_id, player_id) VALUES (?, NULL, ?)").run(p.item_kind, pid());
     db.prepare("UPDATE pawn SET status = 'redeemed', paid_c = ?, closed_day = ? WHERE id = ?").run(cost, day, p.id);
     log(db, "redeemed", p.item_kind, `Jef redeemed ${p.item_name} at the Berg van Barmhartigheid for ${cost} centimes.`);
   })();
@@ -172,18 +184,21 @@ export function redeem(db: DB, pawnId: number): { text: string; paid_c: number }
 /**
  * The night (and the start of a day): pledges past their day are sold at the Berg's sale.
  * The ticket goes from the pocket. Returns what was sold.
+ * M8c: every player's pledges at once (the Berg's sale is the world's); each line is its owner's (asPlayer).
  */
-export function forfeitPawns(db: DB): PawnRow[] {
+export function forfeitPawns(db: DB): Array<PawnRow & { player_id: number }> {
   const { day } = today(db);
-  const late = (db.prepare("SELECT * FROM pawn WHERE status = 'held' AND due_day < ?").all(day) as PawnRow[]);
+  const late = db.prepare("SELECT * FROM pawn WHERE status = 'held' AND due_day < ?").all(day) as Array<PawnRow & { player_id: number }>;
   if (!late.length) return [];
   db.transaction(() => {
     for (const p of late) {
-      db.prepare("UPDATE pawn SET status = 'forfeit', closed_day = ? WHERE id = ?").run(day, p.id);
-      db.prepare("DELETE FROM item WHERE kind = 'pawn_ticket' AND ref = ?").run(p.id);
-      if (p.item_kind === "medal") setMedal(db, "sold");
-      log(db, "pawn_sold", p.item_kind, `The Berg van Barmhartigheid sold ${p.item_name.replace(/^your /, "Jef's ")} at its sale; the ticket had run out.`);
-      writeEvent(db, { kind: "log", verb: "pawn_sold", text: `A pledge of Jef's (${p.item_name.replace(/^your /, "his ")}) went to the Berg's sale.`, weight: 3 });
+      asPlayer(p.player_id, () => {
+        db.prepare("UPDATE pawn SET status = 'forfeit', closed_day = ? WHERE id = ?").run(day, p.id);
+        db.prepare("DELETE FROM item WHERE kind = 'pawn_ticket' AND ref = ? AND player_id = ?").run(p.id, p.player_id);
+        if (p.item_kind === "medal") setMedal(db, "sold");
+        log(db, "pawn_sold", p.item_kind, `The Berg van Barmhartigheid sold ${p.item_name.replace(/^your /, "Jef's ")} at its sale; the ticket had run out.`);
+        writeEvent(db, { kind: "log", verb: "pawn_sold", text: `A pledge of Jef's (${p.item_name.replace(/^your /, "his ")}) went to the Berg's sale.`, weight: 3 });
+      });
     }
   })();
   return late;
@@ -195,7 +210,7 @@ function dayName(d: number): string {
 
 /** A ticket, to read in the pockets. */
 export function ticketView(db: DB, pawnId: number) {
-  const has = db.prepare("SELECT 1 FROM item WHERE kind = 'pawn_ticket' AND ref = ?").get(pawnId);
+  const has = db.prepare("SELECT 1 FROM item WHERE kind = 'pawn_ticket' AND ref = ? AND player_id = ?").get(pawnId, pid());
   if (!has) throw new GameError("not in your pockets", 404);
   const p = db.prepare("SELECT * FROM pawn WHERE id = ?").get(pawnId) as PawnRow;
   const { day } = today(db);

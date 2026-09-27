@@ -2,7 +2,8 @@ import type { DB } from "../db.ts";
 import CITY from "../../../shared/city.json" with { type: "json" };
 import { clock } from "../day.ts";
 import { log } from "../game.ts";
-import { remember } from "../npcs.ts";
+import { relationship, remember } from "../npcs.ts";
+import { asPlayer, pid } from "../player/current.ts";
 import { walkPath } from "../town/lamplighters.ts";
 import type { Resident } from "../town/population.ts";
 import { resident, town, TOWN_EMPLOYER_IDS } from "../town/store.ts";
@@ -57,7 +58,8 @@ export interface FireScene {
   pumpAt: [number, number, number];
   firemen: string[];
   chainIds: string[];
-  jef: { joined: number; left: number | null; slot: number } | null;
+  /** `player`: who stands in it (M8c: settled as him; none in an older save: the host). */
+  jef: { joined: number; left: number | null; slot: number; player?: number } | null;
   settled: { minutes: number; paid_c: number; trust: number; text: string } | null;
   place: string;
   started: number;
@@ -531,7 +533,7 @@ export function joinChain(db: DB, x: number, z: number): ChainResult {
   if (best < 0) return { ok: false, why: "Stand by the line to take a bucket." };
   // back in after stepping out: the time already done counts on
   const before = f.jef && f.jef.left !== null ? f.jef.left - f.jef.joined : 0;
-  f.jef = { joined: gameMinute(db) - before, left: null, slot: best };
+  f.jef = { joined: gameMinute(db) - before, left: null, slot: best, player: pid() };
   saveFire(db, c.ev, f);
   writeEvent(db, { kind: "deed", verb: "chain_join", actor: "player", target: f.owner, text: `Jef took a place in the bucket chain at ${f.place}.`, place: c.ev.place, x, z, ref_type: "town_event", ref_id: c.ev.id, weight: 3, who: f.family });
   notify("events");
@@ -557,6 +559,9 @@ export function leaveChain(db: DB): ChainResult {
  */
 export function settleJef(db: DB, ev: EventRow, f: FireScene): FireScene["settled"] {
   if (!f.jef || f.settled) return f.settled;
+  // (M8c: the stage that ends it runs in the tick; the pay and the trust are his who stood in the chain)
+  const who = f.jef.player ?? 1;
+  if (who !== pid()) return asPlayer(who, () => settleJef(db, ev, f));
   const end = Math.min(chainEnd(ev), gameMinute(db));
   const minutes = Math.max(0, Math.min(f.jef.left ?? end, end) - f.jef.joined);
   const owner = resident(db, f.owner);
@@ -569,13 +574,14 @@ export function settleJef(db: DB, ev: EventRow, f: FireScene): FireScene["settle
     text = "You were hardly in the chain long enough to count.";
   } else if (wealth >= FIRE_PAY_WEALTH) {
     paid = Math.max(CHAIN_PAY_MIN_C, Math.min(CHAIN_PAY_MAX_C, Math.round((minutes / 30) * CHAIN_PAY_PER_30_MIN_C / 5) * 5));
-    db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = 1").run(paid);
+    db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = ?").run(paid, pid());
     text = `${owner?.first ?? "The owner"} presses ${paid} centimes into your black hand. "For the buckets."`;
     log(db, "fire_chain_paid", f.owner, `Jef stood in the bucket chain at ${f.place} and was paid ${paid} centimes.`);
     remember(db, f.owner, `Jef stood in the bucket chain when our house burned. I paid him ${paid} centimes for it.`, 6, "seen", null, { gist: `Jef stood in the bucket chain when ${owner?.name ?? "a house"} burned`, tone: 1 });
   } else {
     trust = 1;
-    for (const r of fam) db.prepare("UPDATE npc_relationship SET trust = MIN(10, trust + 1) WHERE npc_id = ?").run(r.id);
+    // (M8c: what they think of this player; his row made first)
+    for (const r of fam) if (relationship(db, r.id)) db.prepare("UPDATE npc_relationship SET trust = MIN(10, trust + 1) WHERE npc_id = ? AND player_id = ?").run(r.id, pid());
     text = `${owner?.first ?? "The owner"} has nothing to give. "We won't forget it, Jef."`;
     log(db, "fire_chain_helped", f.owner, `Jef stood in the bucket chain at ${f.place}; the family could not pay and owe him.`);
     for (const r of fam.filter((x) => x.age >= 12))

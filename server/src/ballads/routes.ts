@@ -3,6 +3,7 @@ import type { DB } from "../db.ts";
 import { DEV } from "../config.ts";
 import { clock } from "../day.ts";
 import { GameError } from "../game.ts";
+import { pid } from "../player/current.ts";
 import { hourNow } from "../interiors/state.ts";
 import { TAVERN_GUESTS } from "../interiors/tavern.ts";
 import { isSunday } from "../../../shared/landmarks.ts";
@@ -54,7 +55,7 @@ export function mountBallads(app: Hono, deps: BalladDeps): void {
       writing: balladWriting(),
       singer: s ? { id: s.id, name: s.name, first: s.first, sex: s.sex, age: s.age, kind: s.kind } : null,
       singing: singingNow(db),
-      have_sheet: !!db.prepare("SELECT 1 FROM item WHERE kind = 'ballad' AND ref = ?").get(day),
+      have_sheet: !!db.prepare("SELECT 1 FROM item WHERE kind = 'ballad' AND ref = ? AND player_id = ?").get(day, pid()),
       // where he may stand (for the path check)
       corners: CORNERS.map((id) => resolvePlace(db, id)).filter((p) => !!p).map((p) => ({ id: p!.id, label: p!.label, x: p!.x, z: p!.z })),
     };

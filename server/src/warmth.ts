@@ -11,6 +11,8 @@ import { CLASSES } from "../../shared/homes.ts";
 import { shopTrade, type ShopTrade } from "../../shared/shops.ts";
 import { LANDMARK_IDS, LANDMARK_LABEL, landmarkOpen, type LandmarkId } from "../../shared/landmarks.ts";
 import { prisonVisiting } from "../../shared/prisonPlan.ts";
+import { pid } from "./player/current.ts";
+import { pstate } from "./player/multi.ts";
 
 // M7 warmth (docs/milestones/M7-warmth.md): where Jef is, for the cold. With each /api/tick the client
 // says where Jef stands (outside, or inside a named room) and whether his lantern is lit in his hand.
@@ -18,7 +20,7 @@ import { prisonVisiting } from "../../shared/prisonPlan.ts";
 // is at work, a shop whose keeper is at work, his own rented room, a church or hall in its hours, the
 // prison in visiting hours), and a lantern he has in his pockets. Anything else counts as outside, and so
 // does a report older than WHERE_TTL_MS. The rules themselves are day.ts applyHour's.
-// Multiplayer later: the report is kept by player id (one player now, id 1).
+// M8c: the report is kept by player id (the player who asks: pid()).
 
 /** A report counts this long (real ms): two and a half ticks. Older, Jef is outside. */
 export const WHERE_TTL_MS = 25_000;
@@ -47,7 +49,7 @@ interface Kept {
 const kept = new Map<number, Kept>();
 
 /** The client's word with a tick (or none). A report that does not parse is kept as "outside, no lantern". */
-export function reportWhere(body: unknown, now = Date.now(), playerId = 1): void {
+export function reportWhere(body: unknown, now = Date.now(), playerId = pid()): void {
   const r = WhereReport.safeParse(body);
   kept.set(playerId, r.success ? { at: r.data.at ?? null, lantern: r.data.lantern === true, ms: now } : { at: null, lantern: false, ms: now });
 }
@@ -68,13 +70,12 @@ function minuteNow(db: DB): number {
 export function wetNow(db: DB): boolean {
   const w = weather(db);
   if (w === "rain" || w === "storm") return true;
-  const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'swam_at'").get() as { value_json: string } | undefined;
-  const at = row ? Number(JSON.parse(row.value_json)) : NaN;
+  const at = Number(pstate<number>(db, "swam_at") ?? NaN); // (M8c: his own swim)
   return Number.isFinite(at) && minuteNow(db) - at < WET_AFTER_SWIM_MIN;
 }
 
 function hasLantern(db: DB): boolean {
-  return !!db.prepare("SELECT 1 FROM item WHERE kind = 'lantern' LIMIT 1").get();
+  return !!db.prepare("SELECT 1 FROM item WHERE kind = 'lantern' AND player_id = ? LIMIT 1").get(pid());
 }
 
 /** The room the client names, checked against the town now; null: no such room, or shut. */
@@ -130,7 +131,7 @@ export function roomNow(db: DB, at: string): Omit<JefWhere, "lantern"> | null {
  * Where Jef is now, as far as the engine believes it: the last report if it is fresh and checks out,
  * else outside. The lantern counts only if he has one, and only outside and dry.
  */
-export function whereNow(db: DB, now = Date.now(), playerId = 1): JefWhere {
+export function whereNow(db: DB, now = Date.now(), playerId = pid()): JefWhere {
   const k = kept.get(playerId);
   if (!k || now - k.ms > WHERE_TTL_MS || now < k.ms - 1000) return OUTSIDE(false);
   const room = k.at ? roomNow(db, k.at) : null;

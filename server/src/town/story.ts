@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { DB } from "../db.ts";
 import { MOODS } from "../hooks/dialogue.ts";
 import { LANGUAGE_RULE } from "../text.ts";
+import { storeText } from "../player/names.ts";
 import { PLACES } from "./places.ts";
 import type { DeedRow } from "./deeds.ts";
 
@@ -98,9 +99,11 @@ export function districtAt(x: number, z: number): string {
 
 /** What the log says about a deed, for the story check. */
 export function evidenceOf(db: DB, d: DeedRow, reason: "deed" | "talk", heldIds: Set<number>): Evidence {
+  // (M8c: the deed's own player bought there; a guest's memories carry his name)
+  const who = d.player_id ?? 1;
   const bought = !!db
-    .prepare("SELECT 1 FROM npc_memory WHERE npc_id = ? AND day = ? AND text LIKE 'Jef bought %from me%' LIMIT 1")
-    .get(d.owner, d.day);
+    .prepare("SELECT 1 FROM npc_memory WHERE npc_id = ? AND day = ? AND text LIKE ? AND COALESCE(about_player, 1) = ? LIMIT 1")
+    .get(d.owner, d.day, storeText(db, "Jef bought %from me%", who), who);
   return {
     seen: d.seen === 1,
     owner_saw: d.owner_saw === 1,

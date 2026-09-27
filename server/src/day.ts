@@ -10,12 +10,18 @@ import { fogAt, type FogDay } from "./town/lampround.ts";
 import { gateMode, isPaused } from "./save/gate.ts";
 import { setWorldClock, worldClock } from "./mp/worldClock.ts"; // M8a: the clock is the world's (world_state), not player 1's row
 import type { RestEnd, RestView } from "./rest.ts";
+import { pid } from "./player/current.ts";
+import { pstate, setPstate } from "./player/multi.ts";
 
 // The day and the week (M5). The engine owns time and needs (docs/01, docs/03).
 // A client says "time passed while I played" with a tick; the server decides how
 // much and applies needs hour by hour. M7 night (Steve 2026-09-25): the clock runs on
 // through the night; the date turns at midnight (turnDay); sleep is Jef's own choice and
 // lasts seven to eight game hours (sleep); dead tired, he drops where he stands.
+// M8c: the clock, the weather and the date's turn are the world's; the needs, the end, the day's money mark,
+// the nights slept and the swim are each player's own (pid(); player_state). The hour's part of one player is
+// playerHour, his part of a new day playerDayStart: the tick runs them for the player who asks; the multiplayer
+// side runs them as each other player in the game (asPlayer).
 
 /**
  * The tick (M7 clock, shared/clock.ts): 5 game minutes every 10 real seconds; a game hour is two
@@ -105,19 +111,17 @@ export function clock(db: DB): Clock {
   return { ...p, weekday: DAY_NAMES[(p.day - 1) % 7], weather: weather(db) };
 }
 
+/** How the week ended for this player (M8c: each his own; the host's older world_state key until written). */
 export function ending(db: DB): Ending | null {
-  const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'ending'").get() as { value_json: string } | undefined;
-  return row ? (JSON.parse(row.value_json) as Ending) : null;
+  return pstate<Ending>(db, "ending");
 }
 
 export function setEnding(db: DB, e: Ending): void {
-  db.prepare("INSERT INTO world_state (key, value_json) VALUES ('ending', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(
-    JSON.stringify(e),
-  );
+  setPstate(db, "ending", e);
 }
 
 export function rentPaid(db: DB): boolean {
-  return (db.prepare("SELECT rent_paid_until FROM player WHERE id = 1").get() as { rent_paid_until: number }).rent_paid_until >= WEEK_DAYS;
+  return (db.prepare("SELECT rent_paid_until FROM player WHERE id = ?").get(pid()) as { rent_paid_until: number }).rent_paid_until >= WEEK_DAYS;
 }
 
 const clamp = (n: number) => Math.max(0, Math.min(10, n));
@@ -202,17 +206,18 @@ export function applyHour(db: DB, hour: number): { healthZero: boolean } {
     if (hour % 3 === 0) health--;
   } else if (food >= 4 && warmth >= 4 && sleep >= 4 && hour % 4 === 0) health++;
   health = clamp(health);
-  db.prepare("UPDATE player SET food = ?, warmth = ?, sleep = ?, health = ? WHERE id = 1").run(food, warmth, sleep, health);
+  db.prepare("UPDATE player SET food = ?, warmth = ?, sleep = ?, health = ? WHERE id = ?").run(food, warmth, sleep, health, pid());
   return { healthZero: health === 0 };
 }
 
 let lastTickAt = 0;
-let lastSwimAt = -Infinity;
+/** When each player last fell in (real ms): a dip counts once a minute (M8c: per player). */
+const lastSwimAt = new Map<number, number>();
 
 /** Test helper. */
 export function resetTickLimit(): void {
   lastTickAt = 0;
-  lastSwimAt = -Infinity;
+  lastSwimAt.clear();
 }
 
 /** A dip counts once however long you are in: a new one only after this long. */
@@ -224,14 +229,12 @@ export const SWIM_EVERY_MS = 60_000;
  */
 export function swim(db: DB, now = Date.now()): { cold: boolean } {
   if (ending(db)) return { cold: false };
-  if (now - lastSwimAt < SWIM_EVERY_MS) return { cold: false };
-  lastSwimAt = now;
-  db.prepare("UPDATE player SET warmth = MAX(0, warmth - 1) WHERE id = 1").run();
+  if (now - (lastSwimAt.get(pid()) ?? -Infinity) < SWIM_EVERY_MS) return { cold: false };
+  lastSwimAt.set(pid(), now);
+  db.prepare("UPDATE player SET warmth = MAX(0, warmth - 1) WHERE id = ?").run(pid());
   // M7 warmth: his coat is wet for a while (warmth.ts wetNow: the lantern does not help then)
   const c = clock(db);
-  db.prepare("INSERT INTO world_state (key, value_json) VALUES ('swam_at', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(
-    JSON.stringify(c.day * 1440 + c.hour * 60 + c.minute),
-  );
+  setPstate(db, "swam_at", c.day * 1440 + c.hour * 60 + c.minute);
   return { cold: true };
 }
 
@@ -280,9 +283,20 @@ export function turnDay(db: DB): DayTurn {
   })();
   if (c.day >= WEEK_DAYS) return { day: c.day, lines, ended: endGame(db, "week") };
   setWorldClock(db, { day: c.day + 1, hour: 0, minute: 0 }); // M8a
-  markDayStart(db);
+  playerDayStart(db, false);
   rollWeather(db);
   return { day: c.day + 1, lines };
+}
+
+/**
+ * M8c: one player's part of the date's turn, for pid(): the new day's money mark, or (`weekOver`: Sunday is
+ * past) the end of his week. turnDay does it for the player who asks; run it as each other player in the game
+ * after turnDay (asPlayer), with `weekOver` = `!!turn.ended`. Returns his end when the week is over.
+ */
+export function playerDayStart(db: DB, weekOver: boolean): Ending | undefined {
+  if (weekOver) return ending(db) ?? endGame(db, "week");
+  markDayStart(db);
+  return undefined;
 }
 
 /**
@@ -341,13 +355,25 @@ export function tick(db: DB, now = Date.now(), opts: { asleep?: boolean } = {}):
     hour -= 24;
   }
   setWorldClock(db, { day: clock(db).day, hour, minute }); // M8a (the date may have turned above)
-  const { healthZero } = applyHour(db, hour);
   // M3e: an hour of talk in the town; rumours about Jef pass on
   spreadRumours(db);
-  if (healthZero) return { advanced: true, ended: endGame(db, "health"), ...(turned ? { turned } : {}) };
+  const mine = playerHour(db, hour);
+  return { advanced: true, ...mine, ...(turned ? { turned } : {}) };
+}
+
+/**
+ * M8c: one player's part of a game hour that just began (`hour`: the world clock's new hour), for pid(): the
+ * needs (applyHour), his end when his health is gone, and his drop where he stands when he is dead on his feet.
+ * The tick runs it for the player who asks; run it as each other player in the game who is awake (asPlayer).
+ * Nothing for a player whose week has ended.
+ */
+export function playerHour(db: DB, hour: number): { ended?: Ending; night?: SleepResult } {
+  if (ending(db)) return {};
+  const { healthZero } = applyHour(db, hour);
+  if (healthZero) return { ended: endGame(db, "health") };
   // M7 night: dead on his feet, Jef drops where he stands and sleeps there (a gang may find him)
-  if (player(db).sleep <= COLLAPSE_AT) return { advanced: true, night: sleep(db, "rough", undefined, { collapsed: true }), ...(turned ? { turned } : {}) };
-  return { advanced: true, ...(turned ? { turned } : {}) };
+  if (player(db).sleep <= COLLAPSE_AT) return { night: sleep(db, "rough", undefined, { collapsed: true }) };
+  return {};
 }
 
 /** Did this tick or night turn the date (a new board is due), or end the week? */
@@ -408,25 +434,23 @@ export interface SleepInfo {
 }
 export const SLEEP_HOOKS: Array<(db: DB, s: SleepInfo) => { lines: string[]; robbed?: { money_c: number; things: string[] } } | null> = [];
 
+// (M8c: the day's money mark and the nights slept are each player's own)
 function startOfDayMoney(db: DB): number {
-  const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'day_start_money'").get() as { value_json: string } | undefined;
-  return row ? Number(JSON.parse(row.value_json)) : 50;
+  const v = pstate<number>(db, "day_start_money");
+  return v === null ? 50 : Number(v);
 }
 
 export function markDayStart(db: DB): void {
-  db.prepare("INSERT INTO world_state (key, value_json) VALUES ('day_start_money', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(
-    JSON.stringify(player(db).money_c),
-  );
+  setPstate(db, "day_start_money", player(db).money_c);
 }
 
 /** M7 night: how many times Jef has slept (the dream comes after a sleep, not at midnight). */
 export function nightsSlept(db: DB): number {
-  const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'nights_slept'").get() as { value_json: string } | undefined;
-  return row ? Number(JSON.parse(row.value_json)) || 0 : 0;
+  return Number(pstate<number>(db, "nights_slept")) || 0;
 }
 
 export function countNight(db: DB): void {
-  db.prepare("INSERT INTO world_state (key, value_json) VALUES ('nights_slept', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(JSON.stringify(nightsSlept(db) + 1));
+  setPstate(db, "nights_slept", nightsSlept(db) + 1);
 }
 
 const hhmm = (h: number, m: number) => `${h}:${String(m).padStart(2, "0")}`;
@@ -456,9 +480,9 @@ export function sleep(db: DB, want: "bed" | "rough" | "home", home?: HomeNight, 
   else summary.push(`You lie down at ${hhmm(c.hour, c.minute)}.`);
   // the day behind him, when he lies down in the evening (after midnight the new date has barely begun)
   if (c.hour >= 12) {
-    const jobsDone = (db.prepare("SELECT COUNT(*) n FROM log WHERE day = ? AND verb = 'finished_job'").get(c.day) as { n: number }).n;
+    const jobsDone = (db.prepare("SELECT COUNT(*) n FROM log WHERE day = ? AND verb = 'finished_job' AND player_id = ?").get(c.day, pid()) as { n: number }).n;
     // every meal: from the pocket, at a counter (ate), at a family's table (supper)
-    const meals = (db.prepare("SELECT COUNT(*) n FROM log WHERE day = ? AND verb IN ('ate', 'supper')").get(c.day) as { n: number }).n;
+    const meals = (db.prepare("SELECT COUNT(*) n FROM log WHERE day = ? AND verb IN ('ate', 'supper') AND player_id = ?").get(c.day, pid()) as { n: number }).n;
     const earned = p.money_c - startOfDayMoney(db);
     summary.push(
       jobsDone ? `You worked ${jobsDone} job${jobsDone > 1 ? "s" : ""} today.` : "You found no work today.",
@@ -474,14 +498,14 @@ export function sleep(db: DB, want: "bed" | "rough" | "home", home?: HomeNight, 
     if (where === "home" && home) {
       // M6 homes: your own room; the old food value decides the health, as in the doss house
       db.prepare(
-        "UPDATE player SET sleep = 10, food = MAX(0, food - ?), warmth = MIN(10, warmth + ?), health = MIN(10, health + CASE WHEN food >= 3 THEN ? ELSE ? END) WHERE id = 1",
-      ).run(home.food, home.warmth, home.healthFed, home.healthHungry);
+        "UPDATE player SET sleep = 10, food = MAX(0, food - ?), warmth = MIN(10, warmth + ?), health = MIN(10, health + CASE WHEN food >= 3 THEN ? ELSE ? END) WHERE id = ?",
+      ).run(home.food, home.warmth, home.healthFed, home.healthHungry, pid());
       summary.push(home.text);
     } else if (where === "bed") {
-      db.prepare("UPDATE player SET sleep = 10, food = MAX(0, food - 2), warmth = MIN(10, warmth + 3), health = MIN(10, health + CASE WHEN food >= 3 THEN 1 ELSE 0 END) WHERE id = 1").run();
+      db.prepare("UPDATE player SET sleep = 10, food = MAX(0, food - 2), warmth = MIN(10, warmth + 3), health = MIN(10, health + CASE WHEN food >= 3 THEN 1 ELSE 0 END) WHERE id = ?").run(pid());
       summary.push("You sleep in a bed of straw in the doss house, six men to the room. It is warm enough.");
     } else {
-      db.prepare("UPDATE player SET sleep = 6, food = MAX(0, food - 2), warmth = MAX(0, warmth - 3), health = MAX(0, health - 2) WHERE id = 1").run();
+      db.prepare("UPDATE player SET sleep = 6, food = MAX(0, food - 2), warmth = MAX(0, warmth - 3), health = MAX(0, health - 2) WHERE id = ?").run(pid());
       summary.push(
         turnedAway
           ? "The landlady will not open the door. No rent, no bed. You sleep on the quay under a tarpaulin, and the fog gets into your bones."
@@ -533,7 +557,7 @@ export function payRent(db: DB): { paid: boolean; text: string } {
   const p = player(db);
   if (p.money_c < RENT_C) return { paid: false, text: sexed(db, `"${RENT_C} centimes for the week, lad, and you have ${p.money_c}. Sunday is Sunday."`) };
   db.transaction(() => {
-    db.prepare("UPDATE player SET money_c = money_c - ?, rent_paid_until = ? WHERE id = 1").run(RENT_C, WEEK_DAYS);
+    db.prepare("UPDATE player SET money_c = money_c - ?, rent_paid_until = ? WHERE id = ?").run(RENT_C, WEEK_DAYS, pid());
     log(db, "paid_rent", null, `Jef paid the week's rent at the doss house, ${RENT_C} centimes.`);
   })();
   return { paid: true, text: "The landlady counts it twice and bites one coin. \"Your bed till Sunday.\"" };

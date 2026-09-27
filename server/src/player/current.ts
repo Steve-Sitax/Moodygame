@@ -18,6 +18,11 @@ export function pid(): number {
   return ctx.getStore() ?? 1;
 }
 
+/** Is this work for one player (a request, or asPlayer), not the server's own work for the world? */
+export function inPlayer(): boolean {
+  return ctx.getStore() !== undefined;
+}
+
 /** Run `fn` as player `id` (everything it calls, and everything it awaits, asks pid() and gets id). */
 export function asPlayer<T>(id: number, fn: () => T): T {
   return ctx.run(id, fn);

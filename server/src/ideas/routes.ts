@@ -10,6 +10,7 @@ import { morningPlans, pickLost, posterSpots, posterView, putUp, returnLost, tak
 import { answerLetters, meet, meetingsOpen, missMeetings, postLetter, STAMP_C, LETTER_MAX_CHARS, writeTo } from "./letters.ts";
 import { chooseTrouble, maybeTrouble, troubleStep, troubleView, TROUBLE_KINDS, type TroubleKind } from "./trouble.ts";
 import { diaryWorld, maybeDiary, pickDiary, readDiary, returnDiary, sellDiary, squeeze, unstickDiaries } from "./diaries.ts";
+import { asPlayer, pid } from "../player/current.ts";
 
 // The HTTP side of the M6 AI ideas (mounted by index.ts, after the paper): the morning
 // (bills up and down, replies to Jef's letters, a lost notebook), the tick (a wanted
@@ -45,14 +46,15 @@ export function mountIdeas(app: Hono, deps: IdeasDeps): void {
   const check = () => {
     const { day } = now(db);
     if (running || !boardUp(day) || db.prepare("SELECT 1 FROM world_state WHERE key = 'ending'").get()) return;
+    // (M8c: the morning and the day's bills are the world's work, whoever's request set them off: the host's)
     if (flag(db, "ideas_morning") === day) {
-      running = during()
+      running = asPlayer(1, () => during())
         .catch((e) => console.error("[ideas] during", e))
         .finally(() => (running = null));
       return;
     }
     if (!paperOf(db, day)) return;
-    running = morning(day)
+    running = asPlayer(1, () => morning(day))
       .catch((e) => console.error("[ideas] morning", e))
       .finally(() => (running = null));
   };
@@ -62,8 +64,10 @@ export function mountIdeas(app: Hono, deps: IdeasDeps): void {
     const down = takeDown(db);
     missMeetings(db);
     for (const r of await answerLetters(db)) {
-      console.log(`[letter_reply] ${r.from}: ${r.effect.kind} (${r.source})`);
-      say(`A reply to your letter, from ${r.from}. (I to read it.)${r.effect.kind === "invite" ? ` ${r.from.split(" ")[0]} asks you to come by the door today.` : r.effect.kind === "gift" ? ` Something came with it: ${r.effect.name}.` : ""}`);
+      console.log(`[letter_reply] ${r.from} to player ${r.player}: ${r.effect.kind} (${r.source})`);
+      // (M8c: every player's replies; the toast is the host's, a guest finds his in his pockets)
+      if (r.player === 1)
+        say(`A reply to your letter, from ${r.from}. (I to read it.)${r.effect.kind === "invite" ? ` ${r.from.split(" ")[0]} asks you to come by the door today.` : r.effect.kind === "gift" ? ` Something came with it: ${r.effect.name}.` : ""}`);
     }
     const d = await maybeDiary(db);
     if (d) console.log(`[diary] ${d.owner} lost a notebook (${d.source})`);
@@ -80,7 +84,7 @@ export function mountIdeas(app: Hono, deps: IdeasDeps): void {
     const unstuck = await unstickDiaries(db).catch((e) => (console.error("[diary]", e), [] as number[]));
     if (unstuck.length) pushWorld();
     const down = takeDown(db);
-    for (const x of down) if (x.paid_c) say(`The police paid you the ${x.paid_c} centimes reward on the bill: the pickpocket you named was found.`);
+    for (const x of down) if (x.paid_c && x.player === 1) say(`The police paid you the ${x.paid_c} centimes reward on the bill: the pickpocket you named was found.`);
     missMeetings(db);
     const up = (db.prepare("SELECT COUNT(*) AS n FROM poster WHERE status = 'up'").get() as { n: number }).n;
     const plans = up < POSTERS_UP_MAX ? wantedPlans(db).slice(0, 2) : [];
@@ -118,7 +122,8 @@ export function mountIdeas(app: Hono, deps: IdeasDeps): void {
   });
 
   // ---- what the client needs to place things
-  const takenJob = () => (db.prepare("SELECT id FROM job WHERE status = 'taken'").get() as { id: number } | undefined)?.id ?? null;
+  // (M8c: the job in this player's hand)
+  const takenJob = () => (db.prepare("SELECT id FROM job WHERE status = 'taken' AND taken_by = ?").get(pid()) as { id: number } | undefined)?.id ?? null;
   app.get("/api/ideas", (c) => {
     const j = takenJob();
     return c.json({ ...posterView(db), diaries: diaryWorld(db), meetings: meetingsOpen(db), trouble: j ? troubleView(db, j) : null, news: newsRow(db, now(db).day) });
@@ -207,7 +212,7 @@ export function mountIdeas(app: Hono, deps: IdeasDeps): void {
         out.diary = d ? { id: d.id, owner: d.owner, x: d.x, z: d.z, source: d.source } : null;
       }
       if (b.replies) {
-        db.prepare("UPDATE jef_letter SET reply_day = ? WHERE status = 'sent'").run(day);
+        db.prepare("UPDATE jef_letter SET reply_day = ? WHERE status = 'sent' AND player_id = ?").run(day, pid());
         out.replies = await answerLetters(db);
       }
       if (b.trouble) {

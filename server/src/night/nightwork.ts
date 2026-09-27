@@ -8,6 +8,7 @@ import { ALL_EMPLOYERS, GOODS, maxTier, PLAYABLE, SPOT_IDS, SPOTS, SYSTEM, TIER_
 import { carryBand, HAND_MAX } from "../hooks/loads.ts";
 import { gameMin } from "../../../shared/clock.ts";
 import { remember } from "../npcs.ts";
+import { asPlayer } from "../player/current.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { NIGHT_GIVERS } from "../town/places.ts";
 import { gameMinute } from "../town/deeds.ts";
@@ -329,7 +330,7 @@ takeChecks.push((db, j) => {
  */
 export function expireNightWork(db: DB): number {
   const now = gameMinute(db);
-  const rows = db.prepare("SELECT id, status, title, employer_npc, task_json FROM job WHERE source = 'night' AND status IN ('offered', 'taken')").all() as Array<{ id: number; status: string; title: string; employer_npc: string; task_json: string }>;
+  const rows = db.prepare("SELECT id, status, title, employer_npc, task_json, taken_by FROM job WHERE source = 'night' AND status IN ('offered', 'taken')").all() as Array<{ id: number; status: string; title: string; employer_npc: string; task_json: string; taken_by: number | null }>;
   let n = 0;
   for (const r of rows) {
     const task = JSON.parse(r.task_json) as Task & { until_min?: number };
@@ -342,12 +343,15 @@ export function expireNightWork(db: DB): number {
       db.prepare("UPDATE job SET status = 'expired' WHERE id = ?").run(r.id);
       continue;
     }
-    db.transaction(() => {
-      db.prepare("UPDATE job SET status = 'failed' WHERE id = ?").run(r.id);
-      db.prepare("DELETE FROM item WHERE job_id = ?").run(r.id);
-      log(db, "failed_job", String(r.id), `Dawn came with the night's job "${r.title}" not done; ${employerName(db, r.employer_npc)} was gone.`);
-    })();
-    remember(db, r.employer_npc, `Jef took my night's work "${r.title}" and did not have it done by five. I will not ask him twice.`, 5, "seen", null, { gist: `Jef let a man down on night work`, tone: -1 });
+    // (M8c: the job in hand is his who took it: his log line, and the giver remembers him)
+    asPlayer(r.taken_by ?? 1, () => {
+      db.transaction(() => {
+        db.prepare("UPDATE job SET status = 'failed' WHERE id = ?").run(r.id);
+        db.prepare("DELETE FROM item WHERE job_id = ?").run(r.id);
+        log(db, "failed_job", String(r.id), `Dawn came with the night's job "${r.title}" not done; ${employerName(db, r.employer_npc)} was gone.`);
+      })();
+      remember(db, r.employer_npc, `Jef took my night's work "${r.title}" and did not have it done by five. I will not ask him twice.`, 5, "seen", null, { gist: `Jef let a man down on night work`, tone: -1 });
+    });
   }
   return n;
 }

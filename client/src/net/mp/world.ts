@@ -33,7 +33,15 @@ export interface NetMover<S = unknown> {
    * nearer state, and lists of objects with an `id` are matched by id (else by place in the list).
    */
   netLerp?(a: S, b: S, u: number): S;
+  /**
+   * Set by world.ts on a PC where another runs the world: a player here who asks this mover for something (hold
+   * the omnibus while he boards, open a bridge or the lock for his boat) asks the world PC through it.
+   */
+  netAsk?: ((what: string, args: unknown[]) => void) | null;
 }
+
+/** What a player may ask the world PC's movers for (the world PC does it as if he were there). */
+export const ASKS = ["bus_hold", "bridge", "lock"] as const;
 
 /** Drawn this far in the past to start (ms); then from how late the states come. */
 export const WORLD_DELAY_START = 220;
@@ -87,6 +95,8 @@ export interface WorldNetDeps {
    * for the host's map (the other PCs do not read them).
    */
   mapPoints?(): Record<string, unknown[]>;
+  /** Where another player is drawn here (for the lock waiting for his boat), or null. */
+  playerAt?(id: number): { x: number; z: number } | null;
 }
 
 export class WorldNet {
@@ -99,7 +109,7 @@ export class WorldNet {
   private sends = 0;
   private remoteNow = false;
   /** The harness's and the kit's numbers. */
-  readonly meter = { sent: 0, bytesSent: 0, received: 0, starved: 0, takeovers: 0 };
+  readonly meter = { sent: 0, bytesSent: 0, received: 0, starved: 0, takeovers: 0, asked: 0 };
 
   constructor(private readonly d: WorldNetDeps) {}
 
@@ -132,7 +142,11 @@ export class WorldNet {
     const movers = this.d.movers();
     const remote = this.remote;
     if (remote !== this.remoteNow) this.remoteNow = remote;
-    for (const m of Object.values(movers)) if (m && m.netRemote !== remote) m.netRemote = remote;
+    for (const m of Object.values(movers)) {
+      if (!m) continue;
+      if (m.netRemote !== remote) m.netRemote = remote;
+      if (!m.netAsk) m.netAsk = (what, args) => this.d.sendText({ type: "ask", what, args });
+    }
     if (remote) this.show(movers, dt);
     else if (this.pc !== 0 && this.pc === this.d.me()) this.send(movers, dt);
   }
@@ -179,6 +193,33 @@ export class WorldNet {
     if (this.d.sendText(msg)) {
       this.meter.sent++;
       this.meter.bytesSent += JSON.stringify(msg).length;
+    }
+  }
+
+  /**
+   * The world PC: another player asks one of its movers for something (only the few things of ASKS; the
+   * arguments are checked by the mover's own code as if the player were here).
+   */
+  onAsked(m: Extract<MpText, { type: "asked" }>): void {
+    if (this.remote || !(ASKS as readonly string[]).includes(m.what) || !Array.isArray(m.args)) return;
+    const mv = this.d.movers() as Record<string, { hold?: unknown } & Record<string, unknown> & NetMover | null>;
+    const a = m.args;
+    try {
+      if (m.what === "bus_hold" && typeof a[0] === "number" && typeof a[1] === "boolean") {
+        const bus = (mv.omnibus as unknown as { buses: Array<{ index: number; hold(on: boolean): void }> } | null)?.buses.find((b) => b.index === a[0]);
+        bus?.hold(a[1]);
+      } else if (m.what === "bridge" && typeof a[0] === "string" && typeof a[1] === "boolean") {
+        // (each player's boat is its own asker: "rower:<id>")
+        (mv.bridges as unknown as { request(k: string, who: string, on: boolean): void } | null)?.request(a[0].slice(0, 40), `rower:${m.from}`, a[1]);
+      } else if (m.what === "lock" && typeof a[0] === "boolean") {
+        // (the lock waits for his boat where he is drawn here)
+        const from = m.from;
+        const where = this.d.playerAt?.(from) ? () => this.d.playerAt!(from) ?? { x: 0, z: 0 } : undefined;
+        (mv.lock as unknown as { request(on: boolean, where?: () => { x: number; z: number }): void } | null)?.request(a[0], where);
+      }
+      this.meter.asked++;
+    } catch {
+      /* a mover not loaded yet: the player asks again */
     }
   }
 

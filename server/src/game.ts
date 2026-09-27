@@ -72,7 +72,8 @@ export function takeJob(db: DB, id: number): JobRow {
   if (j.status !== "offered") throw new GameError("that job is not open", 409);
   if (!j.playable) throw new GameError("that kind of work is not in the game yet", 409);
   // (M8c: one job in hand per player; another player's job is taken off the board for him)
-  const busy = db.prepare("SELECT 1 FROM job WHERE status = 'taken' AND taken_by = ?").get(pid());
+  // (a taken job with no taker named is the host's: older rows)
+  const busy = db.prepare("SELECT 1 FROM job WHERE status = 'taken' AND (taken_by = ? OR (taken_by IS NULL AND ? = 1))").get(pid(), pid());
   if (busy) throw new GameError("finish the job you have first", 409);
   for (const check of takeChecks) check(db, j);
   db.prepare("UPDATE job SET status = 'taken', taken_by = ? WHERE id = ?").run(pid(), id);

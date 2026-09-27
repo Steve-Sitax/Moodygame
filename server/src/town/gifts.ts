@@ -12,7 +12,8 @@ import { resident } from "./store.ts";
 import type { Resident } from "./population.ts";
 import { nowOf } from "./talk.ts";
 import { stepGive } from "../director/steps.ts";
-import { getState, setState } from "../interiors/state.ts";
+import { pid } from "../player/current.ts";
+import { pstate, setPstate } from "../player/multi.ts";
 
 // Giving from Jef's pockets (M6, Steve 2026-09-24): "If I say I want to give you a fish, and I have
 // a fish in my inventory, make the AI take it out of my inventory ... In reality, remove the fish
@@ -71,11 +72,11 @@ export interface Held {
 
 /** What Jef has on him that could be given: his pockets and the piece in his arms. */
 export function heldThings(db: DB): Held[] {
-  const rows = db.prepare("SELECT id, kind, job_id, ref FROM item ORDER BY id").all() as Array<{ id: number; kind: string; job_id: number | null; ref: number | null }>;
+  const rows = db.prepare("SELECT id, kind, job_id, ref FROM item WHERE player_id = ? ORDER BY id").all(pid()) as Array<{ id: number; kind: string; job_id: number | null; ref: number | null }>;
   const out: Held[] = rows.map((r) => ({ from: "pocket", id: r.id, kind: r.kind, name: ITEMS[r.kind]?.name ?? FURNITURE[r.kind]?.name ?? r.kind, job_id: r.job_id, ref: r.ref }));
   const hasHomes = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'home_item'").get();
   if (hasHomes) {
-    const arms = db.prepare("SELECT id, kind FROM home_item WHERE state = 'arms'").get() as { id: number; kind: string } | undefined;
+    const arms = db.prepare("SELECT id, kind FROM home_item WHERE state = 'arms' AND player_id = ?").get(pid()) as { id: number; kind: string } | undefined;
     if (arms) out.push({ from: "arms", id: arms.id, kind: arms.kind, name: FURNITURE[arms.kind]?.name ?? arms.kind, job_id: null, ref: arms.id });
   }
   return out;
@@ -212,12 +213,13 @@ interface GiftLedger {
   days: Record<string, GiftDay>;
   week: number;
 }
+// (M8c: each player's own ledger, pstate; the host's older world_state key until written)
 const LEDGER = "gifts:ledger";
 const weekOf = (day: number) => Math.floor((day - 1) / 7);
 
 export function ledger(db: DB): GiftLedger {
   const day = clock(db).day;
-  const l = getState<GiftLedger>(db, LEDGER, { gained: {}, credit: {}, days: {}, week: weekOf(day) });
+  const l = pstate<GiftLedger>(db, LEDGER) ?? { gained: {}, credit: {}, days: {}, week: weekOf(day) };
   if (l.week !== weekOf(day)) return { gained: {}, credit: {}, days: {}, week: weekOf(day) };
   // keep the day rows of the last two days only
   for (const k of Object.keys(l.days)) if (Number(k.split(":")[0]) < day - 1) delete l.days[k];
@@ -254,16 +256,16 @@ export function giftTrust(db: DB, r: Resident, felt: number, food: boolean, mood
     l.credit[r.id] = points < whole ? 0 : credit - whole;
     if (points) {
       l.gained[r.id] = (l.gained[r.id] ?? 0) + points;
-      db.prepare(`UPDATE npc_relationship SET trust = MAX(${TRUST_MIN}, MIN(${TRUST_MAX}, trust + ?)) WHERE npc_id = ?`).run(points, r.id);
+      db.prepare(`UPDATE npc_relationship SET trust = MAX(${TRUST_MIN}, MIN(${TRUST_MAX}, trust + ?)) WHERE npc_id = ? AND player_id = ?`).run(points, r.id, pid());
     }
   }
-  setState(db, LEDGER, l);
+  setPstate(db, LEDGER, l);
   return points;
 }
 
 /** Trust lost over a gift (a bribe to an honest man, a stolen thing, an insult): the engine's, at most 1. */
 function trustDown(db: DB, id: string): number {
-  db.prepare(`UPDATE npc_relationship SET trust = MAX(${TRUST_MIN}, trust - 1) WHERE npc_id = ?`).run(id);
+  db.prepare(`UPDATE npc_relationship SET trust = MAX(${TRUST_MIN}, trust - 1) WHERE npc_id = ? AND player_id = ?`).run(id, pid());
   return -1;
 }
 
@@ -288,7 +290,7 @@ const her = (r: Resident) => (r.sex === "f" ? "her" : "his");
 /** The open deed (a theft of Jef's) this pocket row is, if any. */
 function stolenDeed(db: DB, h: Held): DeedRow | null {
   if (h.from !== "pocket" || !hasDeeds(db)) return null;
-  const d = db.prepare("SELECT id FROM deed WHERE item_id = ? AND status = 'open' ORDER BY id DESC LIMIT 1").get(h.id) as { id: number } | undefined;
+  const d = db.prepare("SELECT id FROM deed WHERE item_id = ? AND status = 'open' AND player_id = ? ORDER BY id DESC LIMIT 1").get(h.id, pid()) as { id: number } | undefined;
   return d ? (deedRow(db, d.id) ?? null) : null;
 }
 
@@ -356,9 +358,9 @@ function applyGiftNow(db: DB, r: Resident, v: GiftVerdict): GiftVerdict {
   const h = v.held!;
   if (h.from === "pocket") {
     stepGive(db, r.id, h.kind, h.id);
-    if (FURNITURE[h.kind] && h.ref !== null) db.prepare("UPDATE home_item SET state = 'gone' WHERE id = ?").run(h.ref);
+    if (FURNITURE[h.kind] && h.ref !== null) db.prepare("UPDATE home_item SET state = 'gone' WHERE id = ? AND player_id = ?").run(h.ref, pid());
   } else {
-    db.prepare("UPDATE home_item SET state = 'gone' WHERE id = ?").run(h.id);
+    db.prepare("UPDATE home_item SET state = 'gone' WHERE id = ? AND player_id = ?").run(h.id, pid());
     log(db, "gave", r.id, `Jef gave ${r.name} ${h.name}.`);
   }
   const trust = relationship(db, r.id)?.trust ?? 0;

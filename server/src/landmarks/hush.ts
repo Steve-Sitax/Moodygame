@@ -5,6 +5,7 @@ import { log } from "../game.ts";
 import { getState, setState } from "../interiors/state.ts";
 import { landmarkOpen, massAt } from "../../../shared/landmarks.ts";
 import { jefInside } from "./life.ts";
+import { pid } from "../player/current.ts";
 
 // Running in the cathedral (M7, Steve 2026-09-24: "maybe people shouting where running is
 // inappropriate"). The client sees Jef run with people near and says how many are near; the
@@ -60,19 +61,21 @@ const SECOND: Array<{ who: HushSpeaker; text: string }> = [
 const LEAVE_LINE = "That is enough. Out you go, and come back when you can walk like a Christian.";
 
 const absMin = (c: { day: number; hour: number; minute: number }) => c.day * 1440 + c.hour * 60 + c.minute;
-const kerkTrust = (db: DB) => (db.prepare("SELECT trust FROM faction_trust WHERE faction = 'kerk'").get() as { trust: number } | undefined)?.trust ?? 0;
+const kerkTrust = (db: DB) => (db.prepare("SELECT trust FROM faction_trust WHERE faction = 'kerk' AND player_id = ?").get(pid()) as { trust: number } | undefined)?.trust ?? 0;
+/** M8c: each player's own strikes, day's loss and bar (the host keeps the older keys). */
+const mine = (key: string) => (pid() === 1 ? key : `${key}:p${pid()}`);
 
 /** Is Jef barred from the cathedral now (put out for running)? Until which game minute. */
 export function hushBarred(db: DB): { barred: boolean; until: number } {
   const c = clock(db);
-  const until = getState<number>(db, "hush:barred", 0);
+  const until = getState<number>(db, mine("hush:barred"), 0);
   return { barred: until > absMin(c), until };
 }
 
 /** Today's strikes and trust lost (for the tests and the dev panel). */
 export function hushToday(db: DB): { strikes: number; lost: number } {
   const c = clock(db);
-  return { strikes: getState<number>(db, `hush:strikes:${c.day}`, 0), lost: getState<number>(db, `hush:lost:${c.day}`, 0) };
+  return { strikes: getState<number>(db, mine(`hush:strikes:${c.day}`), 0), lost: getState<number>(db, mine(`hush:lost:${c.day}`), 0) };
 }
 
 /** Jef ran in the cathedral with `witnesses` people near (the client's count, clamped). */
@@ -83,11 +86,11 @@ export function ranInChurch(db: DB, witnesses: unknown): HushResult {
   const hour = c.hour + c.minute / 60;
   if (n < 1 || jefInside() !== "cathedral" || !landmarkOpen("cathedral", c.day, hour)) return none;
   const now = absMin(c);
-  const last = getState<number>(db, "hush:last", -1e9);
+  const last = getState<number>(db, mine("hush:last"), -1e9);
   if (now - last < HUSH.COOLDOWN_MIN) return none;
-  setState(db, "hush:last", now);
-  const strikesKey = `hush:strikes:${c.day}`;
-  const lostKey = `hush:lost:${c.day}`;
+  setState(db, mine("hush:last"), now);
+  const strikesKey = mine(`hush:strikes:${c.day}`);
+  const lostKey = mine(`hush:lost:${c.day}`);
   const strike = getState<number>(db, strikesKey, 0) + 1;
   setState(db, strikesKey, strike);
   const mass = !!massAt(c.day, hour);
@@ -101,12 +104,12 @@ export function ranInChurch(db: DB, witnesses: unknown): HushResult {
     if (step) {
       // what it really costs (the trust stops at -5): that is what counts against the day's cap
       const before = kerkTrust(db);
-      db.prepare("UPDATE faction_trust SET trust = MAX(-5, MIN(10, trust - ?)) WHERE faction = 'kerk'").run(step);
+      db.prepare("UPDATE faction_trust SET trust = MAX(-5, MIN(10, trust - ?)) WHERE faction = 'kerk' AND player_id = ?").run(step, pid());
       delta = kerkTrust(db) - before;
       if (delta) setState(db, lostKey, lost - delta);
     }
     if (leave) {
-      setState(db, "hush:barred", now + HUSH.BAR_MIN);
+      setState(db, mine("hush:barred"), now + HUSH.BAR_MIN);
       log(db, "put_out", "kerk", "The beadle put Jef out of the cathedral for running in the church.");
     } else if (delta) log(db, "ran_in_church", "kerk", mass ? "Jef ran in the cathedral during mass; the beadle hissed at him." : "Jef ran in the cathedral; people hissed at him.");
   })();

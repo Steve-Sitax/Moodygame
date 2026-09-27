@@ -875,7 +875,9 @@ export function createLock(scene: THREE.Object3D, boats?: Boats | Promise<Boats>
     bridgeRect,
     gatesOpen: () => smooth(Math.min(gateOpen[0], gateOpen[1])),
     gateOpen: (which) => smooth(gateOpen[which]),
-    request: (on, where) => {
+    request(on, where) {
+      // (M8b/M8c: the world PC runs the lock: it is asked for this player's boat; this copy keeps the request too)
+      if (remote) (this as unknown as NetMover).netAsk?.("lock", [on]);
       boatWant = on;
       if (where) boatWhere = where;
       if (!on) {

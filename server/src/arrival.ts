@@ -1,5 +1,6 @@
 import type { Hono } from "hono";
 import type { DB } from "./db.ts";
+import { pstate, setPstate } from "./player/multi.ts";
 
 // M7 ferry arrival (Steve, 2026-09-24: "The start of the game is: we step off a ferry and so enter
 // the city. The ferry takes off when we are off."). A new game begins with Jef on the deck of the
@@ -8,6 +9,8 @@ import type { DB } from "./db.ts";
 // client says "ashore" once he is off the gangway. A save without the key (made before this) is
 // ashore: loading a game in progress is unchanged. Reloading before he stepped off plays the
 // opening again.
+// M8c: each player's own (player_state; the host's older world_state key, as the seed writes it, until written).
+// A guest has none: he is ashore.
 
 export const ARRIVAL_KEY = "arrival";
 export type ArrivalStage = "ferry" | "ashore";
@@ -16,10 +19,8 @@ export type ArrivalStage = "ferry" | "ashore";
 export const ARRIVAL_TEXT = "Jef came off the ferry at the Werf at dawn, with 50 centimes and no name.";
 
 export function arrivalStage(db: DB): ArrivalStage {
-  const row = db.prepare("SELECT value_json FROM world_state WHERE key = ?").get(ARRIVAL_KEY) as { value_json: string } | undefined;
-  if (!row) return "ashore";
   try {
-    const v = JSON.parse(row.value_json) as { stage?: unknown };
+    const v = pstate<{ stage?: unknown }>(db, ARRIVAL_KEY);
     return v?.stage === "ferry" ? "ferry" : "ashore";
   } catch {
     return "ashore";
@@ -27,10 +28,7 @@ export function arrivalStage(db: DB): ArrivalStage {
 }
 
 export function setArrivalStage(db: DB, stage: ArrivalStage): void {
-  db.prepare("INSERT INTO world_state (key, value_json) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(
-    ARRIVAL_KEY,
-    JSON.stringify({ stage }),
-  );
+  setPstate(db, ARRIVAL_KEY, { stage });
 }
 
 /** GET /api/arrival: where the opening stands. POST /api/arrival/ashore: Jef stepped off (once; again is harmless). */

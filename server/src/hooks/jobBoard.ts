@@ -3,6 +3,8 @@ import { weather, WEATHER_TEXT } from "../day.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import type { DB, Faction } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
+import { asPlayer, pid } from "../player/current.ts";
+import { readText } from "../player/names.ts";
 import SPOT_TABLE from "../../../shared/spots.json" with { type: "json" };
 import { NIGHT_GIVERS, TOWN_EMPLOYERS } from "../town/places.ts";
 import { realS } from "../../../shared/clock.ts";
@@ -261,6 +263,8 @@ export interface JobRow {
   status: string;
   playable: boolean;
   outcome_text: string | null;
+  /** M8c: the player who has it in hand (null or missing: none, or an older save's host). */
+  taken_by?: number | null;
 }
 
 export const SYSTEM = `You write for Scheldemist, a game set in Antwerp, autumn 1873.
@@ -281,18 +285,19 @@ and rule. Keep to the JSON schema. Never mention the game, the player's keyboard
 or anything outside 1873 Antwerp.`;
 
 export function buildPrompt(db: DB): string {
-  const p = db.prepare("SELECT name, money_c, day, hour FROM player WHERE id = 1").get() as {
+  // (M8c: the player's own money and trust, the world's clock; makeBoard writes the board for the host)
+  const p = db.prepare("SELECT p.name, p.money_c, w.day, w.hour FROM player p, player w WHERE p.id = ? AND w.id = 1").get(pid()) as {
     name: string;
     money_c: number;
     day: number;
     hour: number;
   };
-  const trust = db.prepare("SELECT faction, trust FROM faction_trust ORDER BY faction").all() as Array<{
+  const trust = db.prepare("SELECT faction, trust FROM faction_trust WHERE player_id = ? ORDER BY faction").all(pid()) as Array<{
     faction: string;
     trust: number;
   }>;
   const sky = WEATHER_TEXT[weather(db)];
-  const log = db.prepare("SELECT text FROM log ORDER BY id DESC LIMIT 6").all() as Array<{ text: string }>;
+  const log = (db.prepare("SELECT text FROM log ORDER BY id DESC LIMIT 6").all() as Array<{ text: string }>).map((l) => ({ text: readText(db, l.text) }));
   const tier = maxTier(db);
   const [lo, hi] = TIER_PAY[tier];
   const [hlo, hhi] = carryBand([lo, hi], false);
@@ -345,7 +350,7 @@ RULES FOR THE BOARD
 }
 
 export function maxTier(db: DB): number {
-  const best = (db.prepare("SELECT MAX(trust) AS t FROM faction_trust").get() as { t: number }).t;
+  const best = (db.prepare("SELECT MAX(trust) AS t FROM faction_trust WHERE player_id = ?").get(pid()) as { t: number }).t;
   let tier = 0;
   for (let i = 0; i < TIER_TRUST.length; i++) if (best >= TIER_TRUST[i]) tier = i;
   return tier;
@@ -621,6 +626,9 @@ export async function makeBoard(
   runner?: Runner,
   timeoutMs?: number,
 ): Promise<{ source: "claude" | "fallback"; error?: string; ms: number }> {
+  // M8c: the board is the world's: written for the host (his trust, his tier, his carts) whoever's request
+  // turned the day, until M8d gives it everyone
+  if (pid() !== 1) return asPlayer(1, () => makeBoard(db, runner, timeoutMs));
   const tier = maxTier(db);
   const res = await callClaude(
     db,

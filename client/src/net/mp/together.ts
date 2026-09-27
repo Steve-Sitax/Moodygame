@@ -137,6 +137,7 @@ export class Together {
       },
       onPuppets: (v, recv) => this.street?.onBatch(v, recv),
       onWelcome: (w) => {
+        identity.playerId = w.id;
         this.street?.reset();
         if (w.pose && !this.placedGuest) {
           this.placedGuest = true;
@@ -165,7 +166,17 @@ export class Together {
     }
     if (this.d.movers) {
       const movers = this.d.movers;
-      this.world = new WorldNet({ me: () => sess.id, serverNow: () => sess.serverNow(), sendText: (m) => sess.sendText(m), movers, mapPoints: this.d.mapPoints });
+      this.world = new WorldNet({
+        me: () => sess.id,
+        serverNow: () => sess.serverNow(),
+        sendText: (m) => sess.sendText(m),
+        movers,
+        mapPoints: this.d.mapPoints,
+        playerAt: (id) => {
+          const f = this.figs.get(id);
+          return f?.shown ? { x: f.at.x, z: f.at.z } : null;
+        },
+      });
     }
     this.session.open();
     this.drawCorner();
@@ -216,6 +227,7 @@ export class Together {
   private text(m: MpText): void {
     if (m.type === "owners") this.street?.onOwners(m);
     else if (m.type === "world") this.world?.onWorld(m, this.session?.serverNow() ?? 0);
+    else if (m.type === "asked") this.world?.onAsked(m);
     else if (m.type === "worldpc") {
       this.worldPc = m.id;
       this.world?.setPc(m.id);

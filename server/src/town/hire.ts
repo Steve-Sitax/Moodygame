@@ -7,6 +7,7 @@ import { clock } from "../day.ts";
 import { GameError, log, player } from "../game.ts";
 import { SPOTS, SYSTEM, listJobs, type JobRow } from "../hooks/jobBoard.ts";
 import { relationship, remember, trustText } from "../npcs.ts";
+import { asPlayer, pid } from "../player/current.ts";
 import { LANGUAGE_RULE } from "../text.ts";
 import { resident, TOWN_EMPLOYER_IDS } from "./store.ts";
 import type { Resident } from "./population.ts";
@@ -82,7 +83,8 @@ export const KEPT_DAYS = 1;
 
 /** What a hand kept of Jef's wage from a hire that fell through: centimes, the kind of work, the day. */
 export interface Kept { c: number; task: "carry" | "watch"; day: number }
-const keptKey = (npc: string) => `hands:kept:${npc}`;
+// (M8c: what a hand kept is of one player's wage: a guest's under his own key, the host's as before)
+const keptKey = (npc: string) => (pid() === 1 ? `hands:kept:${npc}` : `hands:kept:${pid()}:${npc}`);
 /** The kept part that still counts for a new hire of this kind (0 when none, another kind, or too old). */
 export function keptFor(db: DB, npc: string, task: "carry" | "watch"): number {
   const k = getState<Kept | null>(db, keptKey(npc), null);
@@ -123,9 +125,13 @@ interface HireState {
   to: { x: number; z: number; label: string } | null;
   /** Jef's handcart, lent to the hand: where it stood, how many go on it a trip, taken yet, the cart itself while lent. */
   cart: { id: string; x: number; z: number; yaw: number; per_trip: number; taken: boolean; data?: JefCart } | null;
+  /** M8c: the player who hired him (none: the host). His wage, his job, his cart. */
+  player?: number;
   [k: string]: unknown;
 }
 const st = (r: Routine) => r.state as HireState;
+/** M8c: whose hand this is. */
+const hirer = (s: HireState) => s.player ?? 1;
 
 // ------------------------------------------------------------------ words
 
@@ -209,14 +215,17 @@ export function askFor(db: DB, r: Resident, loads: number): number {
 export function crewCap(db: DB): number {
   let n = CREW_BASE;
   if (player(db).money_c >= 200) n++;
-  const best = (db.prepare("SELECT MAX(trust) AS t FROM faction_trust").get() as { t: number | null }).t ?? 0;
+  const best = (db.prepare("SELECT MAX(trust) AS t FROM faction_trust WHERE player_id = ?").get(pid()) as { t: number | null }).t ?? 0;
   if (best >= 3) n++;
   if (best >= 5) n++;
   return Math.min(CREW_MAX, n);
 }
 
+/** The player's own hands (M8c: the ones pid() hired). */
 export function crew(db: DB): Array<{ id: number; npc: string; state: HireState }> {
-  return activeRoutines(db, "hire").map(({ row, r }) => ({ id: row.id, npc: row.npc_id, state: st(r) }));
+  return activeRoutines(db, "hire")
+    .filter(({ r }) => hirer(st(r)) === pid())
+    .map(({ row, r }) => ({ id: row.id, npc: row.npc_id, state: st(r) }));
 }
 
 /** Strong enough for a heavy load: a grown man or woman in their working years. */
@@ -235,7 +244,7 @@ export function dishonestPlan(r: Resident, trust: number, plan: PayPlan, expecte
 }
 
 function jefJob(db: DB): JobRow | null {
-  return listJobs(db, player(db).day).find((j) => j.status === "taken") ?? null;
+  return listJobs(db, player(db).day).find((j) => j.status === "taken" && (j.taken_by ?? 1) === pid()) ?? null;
 }
 function spotOf(id: string): { x: number; z: number; label: string } | null {
   const s = (SPOTS as Record<string, { x: number; z: number; label: string }>)[id];
@@ -329,6 +338,7 @@ export function proposeHire(db: DB, r: Resident, p: ActionProposal, words: strin
     from,
     to,
     cart,
+    player: pid(),
   };
   // the first half (or all) up front: the engine's money
   if (cash) stepPay(db, r.id, cash, plan === "now" ? "a wage, all up front" : "half a wage up front");
@@ -537,7 +547,8 @@ function askMore(db: DB, who: Resident, extra: number): void {
 export function answerAsk(db: DB, npc: string, pay: boolean, rng: () => number = Math.random): { text: string; quit: boolean } {
   const g = routineFor(db, npc, "hire");
   const who = resident(db, npc);
-  if (!g || !who) throw new GameError("nobody is asking you for anything", 409);
+  // (M8c: only his own hand asks him)
+  if (!g || !who || hirer(st(g.r)) !== pid()) throw new GameError("nobody is asking you for anything", 409);
   const s = st(g.r);
   if (!(s.asking > 0) || g.r.steps[g.r.i]?.kind !== "wait") throw new GameError("nobody is asking you for anything", 409);
   const extra = s.asking;
@@ -566,7 +577,7 @@ export function answerAsk(db: DB, npc: string, pay: boolean, rng: () => number =
 /** The talk's engine topics for a hand who stands asking for more. */
 function askTopics(db: DB, r: Resident): ExtraTopic[] {
   const g = routineFor(db, r.id, "hire");
-  if (!g || !(st(g.r).asking > 0)) return [];
+  if (!g || !(st(g.r).asking > 0) || hirer(st(g.r)) !== pid()) return [];
   const extra = st(g.r).asking;
   return [
     { choice: `All right, ${extra} more. Now get on with it.`, answer: (d, who) => answerAsk(d, who.id, true) },
@@ -589,7 +600,7 @@ function settleWage(db: DB, npc: string, s: HireState, finished: boolean): { pai
   s.paid_c += pay;
   if (pay < owed) {
     const who = resident(db, npc);
-    db.prepare("UPDATE npc_relationship SET trust = MAX(-5, trust - 2) WHERE npc_id = ?").run(npc);
+    db.prepare("UPDATE npc_relationship SET trust = MAX(-5, trust - 2) WHERE npc_id = ? AND player_id = ?").run(npc, pid());
     remember(db, npc, `Jef owes me ${owed - pay} centimes of my wage. He had not got it.`, 6, "seen", null, { gist: `Jef did not pay ${who?.name ?? "a hand"} all his wage`, tone: -2 });
   }
   return { paid: pay, owed: owed - pay };
@@ -670,8 +681,9 @@ export async function writeHandLines(db: DB, r: Resident, runner?: Runner): Prom
 
 let installed = false;
 export function installHire(): void {
-  stepHooks.after.hire = (db, row, r, res) => afterStep(db, row.id, row.npc_id, r, res);
-  stepHooks.ended.hire = (db, row, r, status, outcome) => ended(db, row, r, status, outcome);
+  // (M8c: a hand's steps and his end are his hirer's business, whoever's client reports them or whatever tick ends them)
+  stepHooks.after.hire = (db, row, r, res) => asPlayer(hirer(st(r)), () => afterStep(db, row.id, row.npc_id, r, res));
+  stepHooks.ended.hire = (db, row, r, status, outcome) => asPlayer(hirer(st(r)), () => ended(db, row, r, status, outcome));
   stepHooks.timeUp.hire = (db, row) => {
     endRoutine(db, row.id, "failed", "home", "That's my day done. I'm off home.");
     return true;
@@ -682,6 +694,8 @@ export function installHire(): void {
   cartGuards.push((db, x, z) => watchedBy(db, x, z));
   talkExtras.context.push((db, r) => {
     const g = routineFor(db, r.id, "hire");
+    // (M8c: working for another player: nothing of that for this one's talk)
+    if (g && hirer(st(g.r)) !== pid()) return "";
     if (!g) {
       // a hire that fell through: say only what the engine will really do with the coin he kept
       const kc = keptFor(db, r.id, "carry");

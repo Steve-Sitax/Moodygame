@@ -6,6 +6,8 @@ import { clock, WEATHER_TEXT } from "../day.ts";
 import { GameError, log, player } from "../game.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
 import { relationship, remember, topMemories, trustText } from "../npcs.ts";
+import { pid } from "../player/current.ts";
+import { pstate, setPstate } from "../player/multi.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { TRADES } from "../town/places.ts";
 import { personaLine, resident } from "../town/store.ts";
@@ -120,12 +122,14 @@ function needPatron(db: DB, place: string, id: string): Resident {
  */
 export function tipsy(db: DB): number {
   const now = minuteNow(db);
+  // (M8c: his own drinks: the event comes from his log line)
   const rows = db
     .prepare(
-      `SELECT target, day * 1440 + hour * 60 + minute AS m FROM world_event
-       WHERE verb IN ('bought', 'drank') AND target IN ('beer', 'jenever') AND day >= ?`,
+      `SELECT e.target, e.day * 1440 + e.hour * 60 + e.minute AS m FROM world_event e
+       JOIN log l ON e.ref_type = 'log' AND l.id = e.ref_id
+       WHERE e.verb IN ('bought', 'drank') AND e.target IN ('beer', 'jenever') AND e.day >= ? AND l.player_id = ?`,
     )
-    .all(clock(db).day - 1) as Array<{ target: string; m: number }>;
+    .all(clock(db).day - 1, pid()) as Array<{ target: string; m: number }>;
   let t = 0;
   for (const r of rows) {
     const age = now - r.m;
@@ -140,11 +144,12 @@ export function tipsy(db: DB): number {
 export function warmByFire(db: DB, place: string): { text: string; warmed: boolean } {
   needOpen(db, place);
   const now = minuteNow(db);
-  const last = getState<number>(db, "interior:fire", -1e9);
+  // (M8c: his own warmth, and his own time at the fire)
+  const last = pstate<number>(db, "interior:fire") ?? -1e9;
   if (now - last < FIRE_EVERY_MIN) return { text: "You hold your hands to the fire. You are as warm as it will make you for now.", warmed: false };
   db.transaction(() => {
-    db.prepare("UPDATE player SET warmth = MIN(10, warmth + ?) WHERE id = 1").run(FIRE_WARMTH);
-    setState(db, "interior:fire", now);
+    db.prepare("UPDATE player SET warmth = MIN(10, warmth + ?) WHERE id = ?").run(FIRE_WARMTH, pid());
+    setPstate(db, "interior:fire", now);
     log(db, "warmed", place, `Jef warmed himself at the fire in ${tavernLabel(db, place)}.`);
   })();
   return { text: "The heat gets into your hands, then your coat. You stop shivering.", warmed: true };
@@ -196,7 +201,8 @@ interface DiceLedger {
   /** Per patron: what Jef has won off them today (net, may be negative). */
   won: Record<string, number>;
 }
-const ledger = (db: DB) => getState<DiceLedger>(db, `interior:dice:${clock(db).day}`, { games: 0, net: 0, won: {} });
+// (M8c: each player's own day at dice)
+const ledger = (db: DB) => pstate<DiceLedger>(db, `interior:dice:${clock(db).day}`) ?? { games: 0, net: 0, won: {} };
 
 export function diceLeft(db: DB): { games: number; loss_c: number } {
   const l = ledger(db);
@@ -324,11 +330,11 @@ export function throwDice(db: DB, place: string, patronId: string, stake: number
   const net = result * stake;
   const label = tavernLabel(db, place);
   db.transaction(() => {
-    if (net) db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = 1").run(net);
+    if (net) db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = ?").run(net, pid());
     l.games++;
     l.net += net;
     l.won[r.id] = (l.won[r.id] ?? 0) + net;
-    setState(db, `interior:dice:${clock(db).day}`, l);
+    setPstate(db, `interior:dice:${clock(db).day}`, l);
     const what = result > 0 ? `won ${stake} centimes off ${r.name}` : result < 0 ? `lost ${stake} centimes to ${r.name}` : `threw even with ${r.name}`;
     log(db, "diced", r.id, `Jef ${what} at dice in ${label}.`);
   })();

@@ -21,6 +21,8 @@ import { roundDoing } from "./lively.ts";
 import { backDoing } from "./backtown.ts";
 import { ActionProposalSchema } from "../director/vocab.ts";
 import { GameError } from "../game.ts";
+import { pid } from "../player/current.ts";
+import { storeText } from "../player/names.ts";
 
 // Talk with any townsperson (M3e). Everyone answers by their own stats, job,
 // family, mood and the hour, and by what they have heard about Jef.
@@ -503,15 +505,17 @@ function extraTopics(db: DB, r: Resident, sess: Session): ExtraTopic[] {
   const said = new Set(sess.turns);
   return talkExtras.topics.flatMap((f) => f(db, r)).filter((t) => !said.has(`- Jef: ${t.choice}`));
 }
+/** Each player's meeting with a townsperson (M8c: keyed `${player}:${npc}`). */
 const sessions = new Map<string, Session>();
 const TTL_MS = 90_000;
 onResetTalks(() => sessions.clear());
+const sessionKey = (id: string) => `${pid()}:${id}`;
 
 function sessionFor(id: string): Session {
-  let s = sessions.get(id);
+  let s = sessions.get(sessionKey(id));
   if (!s || playNow() - s.lastAt > TTL_MS) {
     s = { turns: [], trust: 0, calls: 0, lastAt: playNow(), used: new Set(), offered: new Map(), typed: false };
-    sessions.set(id, s);
+    sessions.set(sessionKey(id), s);
   }
   return s;
 }
@@ -580,7 +584,8 @@ export function residentPrompt(db: DB, r: Resident, scene: string, turns: string
   const persona = personaLine(db, r.id);
   const mem = topMemories(db, r.id, 6);
   const work = nearbyWork(db, r);
-  const mine = listJobs(db, c.day).filter((j) => j.employer_npc === r.id && (j.status === "offered" || j.status === "taken"));
+  // (M8c: his own job in hand; another player's is not his to talk of)
+  const mine = listJobs(db, c.day).filter((j) => j.employer_npc === r.id && (j.status === "offered" || (j.status === "taken" && (j.taken_by ?? 1) === pid())));
   const wares = waresOf(db, r.id);
   return `PERSON
 ${r.name}, ${r.age}, ${r.sex === "f" ? "woman" : "man"}${r.age < 15 ? " (a child)" : ""}. ${TRADES[r.trade].label}, works at ${placeLabel(db, r.work.place)}.${r.origin ? ` From ${r.origin}.` : ""}
@@ -668,7 +673,7 @@ export function residentOpen(db: DB, id: string) {
   const rel = relationship(db, id);
   if (!sess.turns.length) {
     const day = clockOf(db).day;
-    db.prepare("UPDATE npc_relationship SET times_met = times_met + 1, last_seen_day = ?, last_place = ? WHERE npc_id = ?").run(day, r.work.place, id);
+    db.prepare("UPDATE npc_relationship SET times_met = times_met + 1, last_seen_day = ?, last_place = ? WHERE npc_id = ? AND player_id = ?").run(day, r.work.place, id, pid());
     if (!rel || rel.times_met === 0) remember(db, id, `A young man called Jef, new in town, stopped me to talk while I was ${doing(db, r).replace(/\byour\b/g, "my").replace(/\byou\b/g, "I")}.`, 2);
   }
   const met = relationship(db, id)?.times_met ?? 1;
@@ -716,10 +721,12 @@ export async function residentFree(db: DB, id: string, raw: string, runner?: Run
   if (!g.ok) {
     if (g.reason === "too fast" || g.reason === "empty" || g.reason === "too long") return { gated: g.reason };
     markFreeLine();
-    db.prepare("INSERT INTO log (day, hour, place, actor, verb, object, text) SELECT day, hour, ?, 'player', 'said_strange', ?, ? FROM player WHERE id = 1").run(
+    // (M8c: the player's own line of the log, a guest's with his name)
+    db.prepare("INSERT INTO log (day, hour, place, actor, verb, object, text, player_id) SELECT day, hour, ?, 'player', 'said_strange', ?, ?, ? FROM player WHERE id = 1").run(
       r.work.place,
       id,
-      "Jef said something strange that made no sense.",
+      storeText(db, "Jef said something strange that made no sense."),
+      pid(),
     );
     remember(db, id, "Jef talked strange at me, words that made no sense.", 4, "seen", null, { gist: "Jef talked strange, about things nobody understands", tone: -1 });
     const text = sexed(db, r.stats.temper >= 7 ? "Talk sense or clear off." : r.age < 13 ? "You talk funny, mister." : "Hm? Are you ill? You're not making sense.");
@@ -765,7 +772,7 @@ function modelLine(db: DB, r: Resident, sess: Session, raw: ResidentLine) {
 
 /** M6 gifts, the treat, hired hands: what Jef last said in this meeting (his own words or a line he picked). */
 export function jefSaid(id: string): string {
-  const s = sessions.get(id);
+  const s = sessions.get(sessionKey(id));
   if (!s || playNow() - s.lastAt > TTL_MS * 2) return "";
   for (let i = s.turns.length - 1; i >= 0; i--) {
     const m = /^- Jef(?: \(in his own words\))?: (.*)$/.exec(s.turns[i]);

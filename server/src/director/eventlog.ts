@@ -1,5 +1,6 @@
 import type { DB } from "../db.ts";
 import { DAY_NAMES } from "../day.ts";
+import { readText, storeText } from "../player/names.ts";
 import { EVENTLOG_SCHEMA } from "./schema.ts";
 
 // The event log for AI context (M4). Everything that happens on the server
@@ -77,7 +78,7 @@ export function writeEvent(db: DB, e: NewEvent): number {
       e.place ?? null,
       e.x ?? null,
       e.z ?? null,
-      e.text.slice(0, 300),
+      storeText(db, e.text).slice(0, 300), // (M8c: a guest's line with his name: the event log is everyone's)
       e.outcome ?? null,
       e.ref_type ?? null,
       e.ref_id ?? null,
@@ -128,7 +129,8 @@ export function eventSlice(db: DB, opts: { about?: string; limit?: number; maxCh
     const i = kept.findIndex((k) => k.e.weight < 6);
     kept.splice(i >= 0 ? i : 0, 1);
   }
-  return kept.map((k) => k.line);
+  // (M8c: read for a guest, the host's "Jef" in them is the host)
+  return kept.map((k) => readText(db, k.line));
 }
 
 /** Test and dev helper: how many events of a kind. */

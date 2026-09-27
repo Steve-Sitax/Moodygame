@@ -5,6 +5,8 @@ import { CALLS_PER_DAY, CALLS_RESERVE, FAMILY_CALLS_PER_DAY, RESIDENT_CALLS_PER_
 import { callClaude, type Runner } from "../ai/claude.ts";
 import { clock, WEATHER_TEXT } from "../day.ts";
 import { log, player } from "../game.ts";
+import { pid } from "../player/current.ts";
+import { pstate, setPstate } from "../player/multi.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
 import { gateText, markFreeLine } from "../hooks/dialogue.ts";
 import { applyTrust, relationship, remember, topMemories, trustText } from "../npcs.ts";
@@ -203,6 +205,18 @@ function saveFam(db: DB, s: FamState): void {
 }
 
 /**
+ * M8c: the day the player last ate supper with a family is his own (player_state 'supper_day'); the host's
+ * older one is still in the world's 'families' until he eats again.
+ */
+function supperDay(db: DB): number {
+  const own = pstate<number>(db, "supper_day");
+  return own ?? (pid() === 1 ? famState(db).supperDay : 0);
+}
+function setSupperDay(db: DB, day: number): void {
+  setPstate(db, "supper_day", day);
+}
+
+/**
  * New notable memories of Jef, first hand, become news for the rest of the household.
  * Returns how many rows were made.
  */
@@ -251,7 +265,8 @@ export interface Allowed {
 /** How much the listener holds against Jef now (0-10): the news, the temper, the trust, what else they know. */
 export function grudgeOf(db: DB, r: Resident, tone: number): number {
   const trust = relationship(db, r.id)?.trust ?? 0;
-  const bad = (db.prepare("SELECT COUNT(*) AS n FROM npc_memory WHERE npc_id = ? AND tone < 0").get(r.id) as { n: number }).n;
+  // (M8c: what else they hold against this player: an empty about_player is the host)
+  const bad = (db.prepare("SELECT COUNT(*) AS n FROM npc_memory WHERE npc_id = ? AND tone < 0 AND COALESCE(about_player, 1) = ?").get(r.id, pid()) as { n: number }).n;
   const g = -tone * 2 + (r.stats.temper - 5) + (trust <= 1 ? 1 : 0) + Math.min(3, bad);
   return Math.max(0, Math.min(10, g));
 }
@@ -284,7 +299,7 @@ export function allowedReactions(db: DB, r: Resident, news: { gist: string; tone
   } else if (news.tone > 0) {
     if (s.gossip >= 4) add("warn_others", 0.4 + s.gossip / 10);
     if (day) add("thank", 0.6 + s.warmth / 10);
-    const supperToday = famState(db).supperDay === c.day;
+    const supperToday = supperDay(db) === c.day;
     if (day && r.age >= 20 && s.warmth >= 6 && !supperToday && c.hour >= 11) add("invite_supper", 0.4 + s.warmth / 20);
     if (day && s.warmth >= 5 && s.greed <= 6 && waresOf(db, r.id).length) add("gift", 0.4 + s.warmth / 20);
   }
@@ -463,9 +478,9 @@ export async function shareNews(db: DB, id: number, opts: { runner?: Runner; rng
   const w = (db.prepare("SELECT weight FROM npc_memory WHERE id = ?").get(n.memory_id) as { weight: number } | undefined)?.weight ?? 5;
   // from one's own family it counts, even if the street had it first (then it is not passed on again)
   db.prepare(
-    `INSERT INTO npc_memory (npc_id, text, source, heard_from, weight, day, spread, gist, tone, origin, town_spread)
-     VALUES (?, ?, 'heard', ?, ?, ?, 1, ?, ?, ?, ?)`,
-  ).run(b.id, `${kin} told me: ${n.gist}`.slice(0, 200), a.id, Math.max(2, Math.min(10, w)), clock(db).day, n.gist, n.tone, n.origin, already ? 1 : 0);
+    `INSERT INTO npc_memory (npc_id, text, source, heard_from, weight, day, spread, gist, tone, origin, town_spread, about_player)
+     VALUES (?, ?, 'heard', ?, ?, ?, 1, ?, ?, ?, ?, (SELECT about_player FROM npc_memory WHERE id = ?))`,
+  ).run(b.id, `${kin} told me: ${n.gist}`.slice(0, 200), a.id, Math.max(2, Math.min(10, w)), clock(db).day, n.gist, n.tone, n.origin, already ? 1 : 0, n.memory_id); // (M8c: about whom the first one was)
   const allowed = allowedReactions(db, b, n);
   let out: ShareOut | null = null;
   if (allowed.length > 1 && canCallFamily(db)) {
@@ -509,9 +524,10 @@ function applyDecision(db: DB, id: number, b: Resident, d: Decision, opening: st
 /** Warn (or praise to) the listener's circle: up to three who have not heard it yet. */
 export function warnOthers(db: DB, b: Resident, n: { gist: string; tone: number; origin: number }): number {
   const day = clock(db).day;
+  // (M8c: about whom the first memory was)
   const ins = db.prepare(
-    `INSERT INTO npc_memory (npc_id, text, source, heard_from, weight, day, spread, gist, tone, origin, town_spread)
-     VALUES (?, ?, 'heard', ?, ?, ?, 1, ?, ?, ?, 0)`,
+    `INSERT INTO npc_memory (npc_id, text, source, heard_from, weight, day, spread, gist, tone, origin, town_spread, about_player)
+     VALUES (?, ?, 'heard', ?, ?, ?, 1, ?, ?, ?, 0, (SELECT about_player FROM npc_memory WHERE id = ?))`,
   );
   let told = 0;
   for (const id of circleOf(db, b.id)) {
@@ -520,7 +536,7 @@ export function warnOthers(db: DB, b: Resident, n: { gist: string; tone: number;
     const o = resident(db, id);
     if (o && (o.household === b.household || isAwayVisitor(o))) continue;
     if (!db.prepare("SELECT 1 FROM npc WHERE id = ?").get(id)) continue;
-    ins.run(id, `${b.name} ${n.tone < 0 ? "warned me about Jef" : "spoke well of Jef"}: ${n.gist}`.slice(0, 200), b.id, 5, day, n.gist, n.tone, n.origin);
+    ins.run(id, `${b.name} ${n.tone < 0 ? "warned me about Jef" : "spoke well of Jef"}: ${n.gist}`.slice(0, 200), b.id, 5, day, n.gist, n.tone, n.origin, n.origin);
     told++;
   }
   writeEvent(db, { kind: "rumour", verb: n.tone < 0 ? "warned_others" : "praised", actor: b.id, text: `${b.name} ${n.tone < 0 ? "warned" : "told"} ${told} neighbours about Jef: ${n.gist}`, weight: 3, who: [b.id] });
@@ -681,9 +697,9 @@ function giveGift(db: DB, r: Resident): string | null {
   const wares = waresOf(db, r.id).filter((w) => ITEMS[w.kind]?.use === "eat");
   const w = wares.sort((x, y) => x.price_c - y.price_c)[0];
   if (!w) return null;
-  const n = (db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n;
+  const n = (db.prepare("SELECT COUNT(*) AS n FROM item WHERE player_id = ?").get(pid()) as { n: number }).n;
   if (n >= POCKET_SLOTS) return null;
-  db.prepare("INSERT INTO item (kind, job_id) VALUES (?, NULL)").run(w.kind);
+  db.prepare("INSERT INTO item (kind, job_id, player_id) VALUES (?, NULL, ?)").run(w.kind, pid());
   log(db, "given", w.kind, `${r.name} gave Jef ${ITEMS[w.kind].name}, for his kindness.`, r.id);
   return w.kind;
 }
@@ -744,7 +760,7 @@ export function visitTopics(db: DB, r: Resident): ExtraTopic[] {
         answer: (db2) => {
           const money = player(db2).money_c;
           if (money < amt) return { text: `You haven't got ${amt} centimes. Come back when you have.` };
-          db2.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(amt);
+          db2.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(amt, pid());
           log(db2, "paid", r.id, `Jef paid ${r.name} ${amt} centimes to put right what ${kin} complained of.`);
           remember(db2, r.id, `Jef paid me ${amt} centimes to put it right. Fair's fair.`, 5, "seen", null, { gist: `Jef paid ${name} what he owed`, tone: 1 });
           endVisit(db2, a, "paid");
@@ -781,10 +797,9 @@ export function visitTopics(db: DB, r: Resident): ExtraTopic[] {
           choice: "I'd be glad to. Thank you.",
           answer: (db2) => {
             const fam = town(db2).town.residents.filter((o) => o.household === r.household);
-            db2.prepare("UPDATE player SET food = MIN(10, food + ?), warmth = MIN(10, warmth + ?) WHERE id = 1").run(SUPPER_FOOD, SUPPER_WARMTH);
+            db2.prepare("UPDATE player SET food = MIN(10, food + ?), warmth = MIN(10, warmth + ?) WHERE id = ?").run(SUPPER_FOOD, SUPPER_WARMTH, pid());
             log(db2, "supper", r.id, `Jef ate supper with the ${r.surname} family.`);
-            const s = famState(db2);
-            saveFam(db2, { ...s, supperDay: clock(db2).day });
+            setSupperDay(db2, clock(db2).day);
             for (const o of fam) remember(db2, o.id, `Jef ate supper with us. He has manners, for a quay man.`, 5, "seen", null, o.id === r.id ? { gist: `Jef ate supper with the ${r.surname} family`, tone: 1 } : null);
             endVisit(db2, a, "supper");
             veil(`You eat with the ${r.surname} family: stew, dark bread, weak beer. ${fam.length > 2 ? "The children stare at you the whole time." : "They ask where you come from, and you tell them."} You leave warm and full.`);
@@ -949,7 +964,7 @@ export function resolveMenace(db: DB, actionId: number, how: MenaceHow, talked?:
     const money = player(db).money_c;
     const amt = Math.min(d.demand ?? 0, money);
     if (amt > 0) {
-      db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(amt);
+      db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(amt, pid());
       log(db, "paid_off", r.id, `Jef paid ${r.name} ${amt} centimes to let it go.`);
       remember(db, r.id, `Jef paid me ${amt} centimes to let it go. That'll do, for now.`, 6, "seen", null, { gist: `Jef paid ${r.name} off in the street`, tone: 0 });
       writeEvent(db, { kind: "action", verb: "menace_paid", actor: r.id, text: `Jef paid ${r.name} ${amt} centimes to leave him be.`, weight: 5, who: [r.id], data: { amount_c: amt } });
@@ -978,7 +993,7 @@ export function resolveMenace(db: DB, actionId: number, how: MenaceHow, talked?:
     return jef ? peopleNear(jef.x, jef.z, 20).filter((x) => x.id !== r.id && resident(db, x.id)).slice(0, 5).map((x) => x.id) : [];
   })();
   db.transaction(() => {
-    db.prepare("UPDATE player SET health = MAX(?, health - ?), money_c = MAX(0, money_c - ?) WHERE id = 1").run(HEALTH_FLOOR, hl, ml);
+    db.prepare("UPDATE player SET health = MAX(?, health - ?), money_c = MAX(0, money_c - ?) WHERE id = ?").run(HEALTH_FLOOR, hl, ml, pid());
     if (ml > 0) log(db, "robbed", r.id, `${r.name} knocked Jef down in the street and took ${ml} centimes from him.`);
     else log(db, "assaulted", r.id, `${r.name} knocked Jef down in the street.`);
   })();
@@ -1195,4 +1210,5 @@ export function installFamilies(): void {
 export function clearFamilies(db: DB): void {
   db.prepare("DELETE FROM family_news").run();
   db.prepare("DELETE FROM world_state WHERE key = 'families'").run();
+  db.prepare("DELETE FROM player_state WHERE key = 'supper_day'").run();
 }

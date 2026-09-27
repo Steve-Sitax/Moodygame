@@ -3,6 +3,7 @@ import type { Hono } from "hono";
 import type { DB } from "../db.ts";
 import { log } from "../game.ts";
 import { remember } from "../npcs.ts";
+import { pid } from "../player/current.ts";
 import { dropTownCache, resident, town } from "./store.ts";
 import { talkExtras } from "./talk.ts";
 import { INWORLD_HOUSES } from "./kept.ts";
@@ -199,7 +200,7 @@ export function visitAt(db: DB, want?: string): { ok: boolean; id?: string; name
   if (!v.visiting) return { ok: false, text: "The warder shakes his head: visiting hours are nine to twelve and two to five, Sundays two to four." };
   if (!v.inmates.length) return { ok: false, text: "The warder looks in his book: nobody here for you today." };
   // the one asked for, or the one Jef knows best, or the first in the book
-  const known = (id: string) => (db.prepare("SELECT times_met FROM npc_relationship WHERE npc_id = ?").get(id) as { times_met: number } | undefined)?.times_met ?? 0;
+  const known = (id: string) => (db.prepare("SELECT times_met FROM npc_relationship WHERE npc_id = ? AND player_id = ?").get(id, pid()) as { times_met: number } | undefined)?.times_met ?? 0;
   const pick = v.inmates.find((m) => m.id === want) ?? [...v.inmates].sort((a, b) => known(b.id) - known(a.id))[0];
   return { ok: true, id: pick.id, name: pick.name, text: `The warder unlocks the far door. ${pick.name} is brought to the grille.` };
 }

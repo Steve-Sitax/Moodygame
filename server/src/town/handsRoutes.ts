@@ -175,7 +175,8 @@ export function mountErrands(app: Hono, deps: ErrandDeps): void {
   });
   app.post("/api/treat/leave", (c) => c.json({ ended: jefLeaves(db) }));
   app.get("/api/treat", (c) => {
-    const list = listRoutines(db).filter((x) => x.purpose === "treat");
+    // (M8c: the treats the player who asks is standing)
+    const list = listRoutines(db).filter((x) => x.purpose === "treat" && !!treatOf(db, x.npc));
     return c.json({
       treats: list.map((x) => {
         const t = treatOf(db, x.npc);

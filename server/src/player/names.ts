@@ -21,7 +21,9 @@ export function nameOf(db: DB, id = pid()): string {
   if (p?.first) return p.first;
   if (id === 1) return "Jef";
   const r = db.prepare("SELECT name FROM mp_player WHERE id = ?").get(id) as { name?: string } | undefined;
-  return r?.name || "the visitor";
+  if (r?.name) return r.name;
+  const row = db.prepare("SELECT name FROM player WHERE id = ?").get(id) as { name?: string } | undefined;
+  return row?.name || "the visitor";
 }
 
 /** Words about the player to keep in a shared place: a guest's with his own name; the host's as they are. */

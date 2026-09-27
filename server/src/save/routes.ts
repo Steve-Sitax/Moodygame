@@ -1,14 +1,17 @@
 import type { Hono } from "hono";
 import type { DB } from "../db.ts";
 import { GameError } from "../game.ts";
+import { pid } from "../player/current.ts";
 import { gateMode, gateState, isPaused, onGateChange, setPaused, waitOpen, type GateState } from "./gate.ts";
-import { isSlot, listSaves, loadGame, readClientState, saveGame } from "./saves.ts";
+import { isSlot, listSaves, loadGame, readClientState, saveGame, writeClientState } from "./saves.ts";
 
 // M7 save and pause: the routes (docs/milestones/M7-save-pause.md). Mounted first in index.ts, so
 // its middleware sees every request before the other parts' tick wrappers:
 // - paused: a tick does nothing (the other parts' after-tick work never runs either);
 // - saving or loading: a request that changes the game waits for the gate to open again (a tick
 //   included), so nothing is written between the last model answer and the copy.
+// M8c: a save file is the whole world, the host's to write and load. A guest's save (his autosave too) keeps
+// only his own client_state (where he stands, what is in his hands); a guest cannot load a save.
 
 interface Deps {
   db: DB;
@@ -60,6 +63,10 @@ export function mountSaves(app: Hono, d: Deps): void {
     const b = (await c.req.json().catch(() => ({}))) as { slot?: unknown; label?: unknown; client?: unknown; quiet?: unknown };
     const slot = b.slot === "auto" ? "auto" : isSlot(b.slot) ? b.slot : null;
     if (!slot) throw new GameError("no such slot", 400);
+    if (pid() !== 1) {
+      const client = b.client !== undefined ? writeClientState(db, b.client) : readClientState(db);
+      return c.json({ ok: true, guest: true, client: !!client });
+    }
     const r = await saveGame(db, { slot, label: typeof b.label === "string" ? b.label : undefined, client: b.client, quiet: b.quiet === true });
     if (!r.ok) return c.json(r, r.deferred ? 202 : 500);
     console.log(`[save] ${r.info.slot} ${r.info.weekday} ${r.info.hour}:${String(r.info.minute).padStart(2, "0")} in ${r.ms} ms${r.drained ? "" : " (a model call ran past the wait)"}`);
@@ -70,6 +77,7 @@ export function mountSaves(app: Hono, d: Deps): void {
   app.post("/api/load", async (c) => {
     const b = (await c.req.json().catch(() => ({}))) as { slot?: unknown };
     if (!isSlot(b.slot)) throw new GameError("no such slot", 400);
+    if (pid() !== 1) return c.json({ error: "only the host loads a save" }, 403);
     const r = await loadGame(db, b.slot);
     if (!r.ok) return c.json({ error: r.error }, r.error === "no such save" ? 404 : 500);
     console.log(`[load] ${r.info.slot} ${r.info.weekday} ${r.info.hour}:${String(r.info.minute).padStart(2, "0")} in ${r.ms} ms`);

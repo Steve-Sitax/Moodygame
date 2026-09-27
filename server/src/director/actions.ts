@@ -3,6 +3,7 @@ import type { DB } from "../db.ts";
 import type { Runner } from "../ai/claude.ts";
 import { clock } from "../day.ts";
 import { log } from "../game.ts";
+import { pid } from "../player/current.ts";
 import { SPOTS } from "../hooks/jobBoard.ts";
 import { relationship, remember } from "../npcs.ts";
 import { ITEMS, waresOf } from "../trade.ts";
@@ -286,7 +287,8 @@ export interface Crime {
 
 /** The last time Jef was robbed, if the money is not back yet (the engine fact the police case needs). */
 export function crimeOpen(db: DB): Crime | null {
-  const rows = db.prepare("SELECT id, day, verb, object, text FROM log WHERE verb IN ('robbed', 'caught_thief', 'restitution') ORDER BY id DESC LIMIT 6").all() as Array<{
+  // (M8c: the player's own robbery, not another player's)
+  const rows = db.prepare("SELECT id, day, verb, object, text FROM log WHERE verb IN ('robbed', 'caught_thief', 'restitution') AND player_id = ? ORDER BY id DESC LIMIT 6").all(pid()) as Array<{
     id: number;
     day: number;
     verb: string;
@@ -693,7 +695,7 @@ function payBackInTalk(db: DB, r: Resident, crime: Crime): boolean {
   const paid = db.transaction(() => {
     const c = crimeOpen(db);
     if (!c || c.logId !== crime.logId || c.thief !== r.id) return false;
-    db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = 1").run(crime.amount_c);
+    db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = ?").run(crime.amount_c, pid());
     log(db, "restitution", r.id, `${r.name} gave Jef back the ${crime.amount_c} centimes he had lifted, when Jef asked him straight.`, r.id);
     return true;
   })();

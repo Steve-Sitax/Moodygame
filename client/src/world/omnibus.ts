@@ -879,6 +879,9 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
         atStop: () => b.at,
         nextStop: () => b.stopAt[b.nextI].stop,
         hold(on) {
+          // (M8b: run by the world PC: it is asked to hold its bus for this rider; this copy holds too, so the
+          // rider's own view does not run on)
+          if (api.netRemote) api.netAsk?.("bus_hold", [b.index, on]);
           b.held = on;
           if (!on && b.at) b.dwell = Math.max(b.dwell, 2.5);
         },
@@ -1809,6 +1812,7 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
       return out;
     },
     netRemote: false,
+    netAsk: null,
     netState() {
       return {
         b: buses.map((b) => ({

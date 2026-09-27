@@ -6,6 +6,8 @@ import { clock, WEATHER_TEXT } from "../day.ts";
 import { GameError, log, player } from "../game.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
 import { remember } from "../npcs.ts";
+import { pid } from "../player/current.ts";
+import { pstate, setPstate } from "../player/multi.ts";
 import { LANGUAGE_RULE } from "../text.ts";
 import { activityAt } from "../town/schedule.ts";
 import { town } from "../town/store.ts";
@@ -252,12 +254,13 @@ export function admit(db: DB): { paid_c: number; line: string } {
   if (!doorOpen(db)) throw new GameError("the cellar door is shut; the Poesje plays from seven in the evening", 409);
   const day = clock(db).day;
   const paidKey = `poesje:paid:${day}`;
-  if (getState(db, paidKey, false)) return { paid_c: 0, line: "The woman at the door knows your face and waves you down the steps." };
+  // (M8c: each player pays at the door once an evening)
+  if (pstate(db, paidKey)) return { paid_c: 0, line: "The woman at the door knows your face and waves you down the steps." };
   if (player(db).money_c < POESJE.price_c) throw new GameError(`not enough money: ${POESJE.price_c} c to go down`, 409);
   const show = showToday(db);
   db.transaction(() => {
-    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(POESJE.price_c);
-    setState(db, paidKey, true);
+    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(POESJE.price_c, pid());
+    setPstate(db, paidKey, true);
     log(db, "paid_show", "poesje", `Jef paid ${POESJE.price_c} centimes to see the Poesje.`);
   })();
   if (show) {

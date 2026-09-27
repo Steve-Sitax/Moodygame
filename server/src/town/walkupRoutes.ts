@@ -3,6 +3,7 @@ import type { DB } from "../db.ts";
 import { job } from "../game.ts";
 import { DEV } from "../config.ts";
 import { remember } from "../npcs.ts";
+import { pid } from "../player/current.ts";
 import { writeEvent } from "../director/eventlog.ts";
 import { resident } from "./store.ts";
 import { NIGHT_GIVERS } from "./places.ts";
@@ -83,7 +84,8 @@ export function mountWalkup(app: Hono, deps: Deps): void {
     const id = Number(b.job_id);
     if (!p || !Number.isInteger(id)) return c.json({ ok: false }, 400);
     const j = job(db, id);
-    if (j.status !== "taken" || !j.task) return c.json({ ok: false });
+    // (M8c: his own job in hand)
+    if (j.status !== "taken" || (j.taken_by ?? 1) !== pid() || !j.task) return c.json({ ok: false });
     const goods = (j.task as { goods?: string }).goods ?? "";
     const r = mayShadow(db, { ref: `job:${id}`, goods, shady: shadyJob(j), at: p });
     return c.json(r ?? { ok: false });

@@ -12,6 +12,8 @@ import { writeEvent } from "../director/eventlog.ts";
 import { within } from "../ideas/common.ts";
 import { canCallPress, dateLine } from "./newspaper.ts";
 import { POST_LABEL, pressTown } from "./town.ts";
+import { pid } from "../player/current.ts";
+import { readText } from "../player/names.ts";
 
 // The post and the telegraph (M6). The ENGINE decides everything with a number
 // or a consequence: the post office's round (which doors, what it pays, within
@@ -35,6 +37,10 @@ const STRANGER_SIGNS = ["V.", "A friend of your late father", "M. de B.", "One w
 
 function now(db: DB): { day: number; hour: number } {
   return db.prepare("SELECT day, hour FROM player WHERE id = 1").get() as { day: number; hour: number };
+}
+/** How many of the player's pocket slots are taken (M8c: his own pockets). */
+function pocketsUsed(db: DB): number {
+  return (db.prepare("SELECT COUNT(*) AS n FROM item WHERE player_id = ?").get(pid()) as { n: number }).n;
 }
 const round5 = (n: number) => Math.round(n / 5) * 5;
 const d2 = (a: { x: number; z: number }, b: { x: number; z: number }) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -153,7 +159,9 @@ export function ensureLetterRound(db: DB, rng?: () => number): number | null {
 
 function takenLetters(db: DB, jobId: number): { j: JobRow; t: LettersTask } {
   const j = listJobs(db, now(db).day).find((r) => r.id === jobId);
-  if (!j || j.status !== "taken" || j.task?.kind !== "letters") throw new GameError("no round of letters in hand", 409);
+  // (M8c: in this player's hand, not another's)
+  const mine = !!db.prepare("SELECT 1 FROM job WHERE id = ? AND taken_by = ?").get(jobId, pid());
+  if (!j || j.status !== "taken" || !mine || j.task?.kind !== "letters") throw new GameError("no round of letters in hand", 409);
   return { j, t: j.task };
 }
 
@@ -169,11 +177,10 @@ export function pickUp(db: DB, jobId: number, at: { x: number; z: number }): { t
   if (!within(at, t.from, REACH_M + 2)) throw new GameError("you are not there yet", 409);
   const fromPost = t.from.label === POST_LABEL;
   if (fromPost && !postOpen(db)) throw new GameError("the post office is shut", 409);
-  const n = (db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n;
-  if (n >= POCKET_SLOTS) throw new GameError("your pockets are full; eat something or leave it", 409);
+  if (pocketsUsed(db) >= POCKET_SLOTS) throw new GameError("your pockets are full; eat something or leave it", 409);
   const tele = t.stops.some((s) => s.what === "telegraph");
   db.transaction(() => {
-    db.prepare("INSERT INTO item (kind, job_id) VALUES (?, ?)").run(tele || t.stops.length === 1 ? "letter" : "letters", jobId);
+    db.prepare("INSERT INTO item (kind, job_id, player_id) VALUES (?, ?, ?)").run(tele || t.stops.length === 1 ? "letter" : "letters", jobId, pid());
     saveTask(db, jobId, { ...t, picked: true });
   })();
   const who = j.employer_name;
@@ -216,7 +223,7 @@ export function sendTelegram(db: DB, jobId: number, at: { x: number; z: number }
   if (player(db).money_c < t.fee_c) throw new GameError(`the wire costs ${t.fee_c} centimes and you have ${player(db).money_c}`, 409);
   t.stops[i].done = true;
   db.transaction(() => {
-    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(t.fee_c);
+    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(t.fee_c, pid());
     saveTask(db, jobId, t);
     log(db, "sent_telegram", j.employer_npc, `Jef sent a telegram to ${t.city ?? "another town"} for ${j.employer_name}, ${t.fee_c} centimes.`);
   })();
@@ -277,8 +284,8 @@ export interface LetterText {
 export function letterDue(db: DB, rng: () => number = Math.random): boolean {
   const { day } = now(db);
   if (day < 2) return false;
-  // M6 ideas: replies to Jef's own letters (ideas/letters.ts) do not count against these
-  const all = db.prepare("SELECT day FROM letter WHERE kind <> 'reply'").all() as Array<{ day: number }>;
+  // M6 ideas: replies to Jef's own letters (ideas/letters.ts) do not count against these (M8c: this player's letters)
+  const all = db.prepare("SELECT day FROM letter WHERE kind <> 'reply' AND player_id = ?").all(pid()) as Array<{ day: number }>;
   if (all.some((l) => l.day === day)) return false;
   if (all.length >= LETTERS_PER_WEEK) return false;
   if (!all.length && day >= 3) return true;
@@ -296,24 +303,25 @@ interface Cand {
 /** Who might write: people Jef wronged, helped or talked to (from their memories), or a stranger. */
 export function letterCandidates(db: DB): Cand[] {
   const { day } = now(db);
-  const wrote = new Set((db.prepare("SELECT sender FROM letter").all() as Array<{ sender: string }>).map((r) => r.sender));
+  // (M8c: who wrote to this player, what they saw of him, how often they met him; an empty about_player is the host)
+  const wrote = new Set((db.prepare("SELECT sender FROM letter WHERE player_id = ?").all(pid()) as Array<{ sender: string }>).map((r) => r.sender));
   const ok = (id: string) => {
     const r = resident(db, id);
     return !!r && r.age >= 16 && r.trade !== "thief" && !wrote.has(id);
   };
   const out: Cand[] = [];
   const mem = db
-    .prepare("SELECT npc_id, text, tone, weight FROM npc_memory WHERE source = 'seen' AND tone <> 0 AND weight >= 3 AND day >= ? ORDER BY weight DESC, id DESC LIMIT 40")
-    .all(day - 3) as Array<{ npc_id: string; text: string; tone: number; weight: number }>;
+    .prepare("SELECT npc_id, text, tone, weight FROM npc_memory WHERE source = 'seen' AND tone <> 0 AND weight >= 3 AND day >= ? AND COALESCE(about_player, 1) = ? ORDER BY weight DESC, id DESC LIMIT 40")
+    .all(day - 3, pid()) as Array<{ npc_id: string; text: string; tone: number; weight: number }>;
   const seen = new Set<string>();
   for (const m of mem) {
     if (!ok(m.npc_id) || seen.has(m.npc_id)) continue;
     seen.add(m.npc_id);
-    out.push({ why: m.tone < 0 ? "wronged" : "helped", id: m.npc_id, fact: m.text, w: 3 });
+    out.push({ why: m.tone < 0 ? "wronged" : "helped", id: m.npc_id, fact: readText(db, m.text), w: 3 });
   }
   const met = db
-    .prepare("SELECT npc_id, times_met, view_of_player, last_seen_day FROM npc_relationship WHERE times_met >= 1 ORDER BY last_seen_day DESC LIMIT 30")
-    .all() as Array<{ npc_id: string; times_met: number; view_of_player: string; last_seen_day: number | null }>;
+    .prepare("SELECT npc_id, times_met, view_of_player, last_seen_day FROM npc_relationship WHERE times_met >= 1 AND player_id = ? ORDER BY last_seen_day DESC LIMIT 30")
+    .all(pid()) as Array<{ npc_id: string; times_met: number; view_of_player: string; last_seen_day: number | null }>;
   for (const m of met) {
     if (!ok(m.npc_id) || seen.has(m.npc_id)) continue;
     seen.add(m.npc_id);
@@ -593,8 +601,8 @@ export async function maybeLetter(db: DB, opts: { runner?: Runner; timeoutMs?: n
   const { day, hour } = now(db);
   const id = Number(
     db
-      .prepare("INSERT INTO letter (day, hour, sender, sender_name, why, kind, facts_json, offer_json, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'writing')")
-      .run(day, hour, plan.sender, plan.sender_name, plan.why, plan.kind, JSON.stringify(plan.facts), JSON.stringify(plan.offer)).lastInsertRowid,
+      .prepare("INSERT INTO letter (day, hour, sender, sender_name, why, kind, facts_json, offer_json, status, player_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'writing', ?)")
+      .run(day, hour, plan.sender, plan.sender_name, plan.why, plan.kind, JSON.stringify(plan.facts), JSON.stringify(plan.offer), pid()).lastInsertRowid,
   );
   let text: LetterText = fallbackLetter(plan);
   let source = "engine";
@@ -616,24 +624,24 @@ export async function maybeLetter(db: DB, opts: { runner?: Runner; timeoutMs?: n
       const row = db.prepare("SELECT task_json FROM job WHERE id = ?").get(job) as { task_json: string };
       db.prepare("UPDATE job SET task_json = ? WHERE id = ?").run(JSON.stringify({ ...(JSON.parse(row.task_json) as LettersTask), words: text.telegram }), job);
     }
-    const n = (db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n;
-    const status = n < POCKET_SLOTS ? "given" : "waiting";
+    const status = pocketsUsed(db) < POCKET_SLOTS ? "given" : "waiting";
     db.prepare("UPDATE letter SET text_json = ?, source = ?, status = ?, job_id = ? WHERE id = ?").run(JSON.stringify(text), source, status, job, id);
-    if (status === "given") db.prepare("INSERT INTO item (kind, job_id, ref) VALUES ('letter', NULL, ?)").run(id);
+    if (status === "given") db.prepare("INSERT INTO item (kind, job_id, ref, player_id) VALUES ('letter', NULL, ?, ?)").run(id, pid());
     log(db, "letter_came", plan.why === "stranger" ? null : plan.sender, `A letter came for Jef from ${plan.sender_name}.`, "world");
   })();
   writeEvent(db, { kind: "log", verb: "letter", text: `A letter came for Jef from ${plan.sender_name} (${plan.kind.replace("_", " ")}).`, actor: plan.why === "stranger" ? null : plan.sender, weight: 3 });
   return letterRow(db, id);
 }
 
+/** A letter of the player's (M8c: another player's letter is not his to read). */
 export function letterRow(db: DB, id: number): LetterRow | null {
-  return (db.prepare("SELECT * FROM letter WHERE id = ?").get(id) as LetterRow | undefined) ?? null;
+  return (db.prepare("SELECT * FROM letter WHERE id = ? AND player_id = ?").get(id, pid()) as LetterRow | undefined) ?? null;
 }
 
 /** A letter to read: only one Jef holds (in a pocket) or has read. */
 export function letterView(db: DB, id: number) {
   const l = letterRow(db, id);
-  const held = db.prepare("SELECT 1 FROM item WHERE kind = 'letter' AND ref = ?").get(id);
+  const held = db.prepare("SELECT 1 FROM item WHERE kind = 'letter' AND ref = ? AND player_id = ?").get(id, pid());
   if (!l || (!held && l.status !== "read")) throw new GameError("no such letter in your pockets", 404);
   if (l.status === "given") db.prepare("UPDATE letter SET status = 'read' WHERE id = ?").run(id);
   const text = JSON.parse(l.text_json) as LetterText;
@@ -652,13 +660,12 @@ export function letterView(db: DB, id: number) {
 /** Letters that wait at the post office (Jef's pockets were full): take them at the counter. */
 export function collectWaiting(db: DB): { text: string; n: number } {
   if (!postOpen(db)) throw new GameError("the post office is shut", 409);
-  const waiting = db.prepare("SELECT id, sender_name FROM letter WHERE status = 'waiting' ORDER BY id").all() as Array<{ id: number; sender_name: string }>;
+  const waiting = db.prepare("SELECT id, sender_name FROM letter WHERE status = 'waiting' AND player_id = ? ORDER BY id").all(pid()) as Array<{ id: number; sender_name: string }>;
   let n = 0;
   db.transaction(() => {
     for (const w of waiting) {
-      const used = (db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n;
-      if (used >= POCKET_SLOTS) break;
-      db.prepare("INSERT INTO item (kind, job_id, ref) VALUES ('letter', NULL, ?)").run(w.id);
+      if (pocketsUsed(db) >= POCKET_SLOTS) break;
+      db.prepare("INSERT INTO item (kind, job_id, ref, player_id) VALUES ('letter', NULL, ?, ?)").run(w.id, pid());
       db.prepare("UPDATE letter SET status = 'given' WHERE id = ?").run(w.id);
       n++;
     }
@@ -679,7 +686,7 @@ export function postView(db: DB) {
     clerk_name: clerk ? (resident(db, clerk)?.name ?? null) : null,
     open: postOpen(db),
     at: c,
-    waiting: (db.prepare("SELECT COUNT(*) AS n FROM letter WHERE status = 'waiting'").get() as { n: number }).n,
+    waiting: (db.prepare("SELECT COUNT(*) AS n FROM letter WHERE status = 'waiting' AND player_id = ?").get(pid()) as { n: number }).n,
     telegram_fee_c: TELEGRAM_FEE_C,
     telegram_words: TELEGRAM_WORDS,
     round: jobs.find((j) => j.employer_npc === clerk && j.status === "offered") ?? null,
@@ -688,10 +695,10 @@ export function postView(db: DB) {
 
 /** Throw away a paper or a letter you have read (a pawn ticket or a job's letters: no). */
 export function discard(db: DB, itemId: number): void {
-  const row = db.prepare("SELECT kind, job_id FROM item WHERE id = ?").get(itemId) as { kind: string; job_id: number | null } | undefined;
+  const row = db.prepare("SELECT kind, job_id FROM item WHERE id = ? AND player_id = ?").get(itemId, pid()) as { kind: string; job_id: number | null } | undefined;
   if (!row) throw new GameError("not in your pockets", 404);
   if (row.job_id !== null || (row.kind !== "newspaper" && row.kind !== "letter")) throw new GameError("you had better keep that", 409);
-  db.prepare("DELETE FROM item WHERE id = ?").run(itemId);
+  db.prepare("DELETE FROM item WHERE id = ? AND player_id = ?").run(itemId, pid());
 }
 
 // ------------------------------------------------------------------ the clerks' remarks

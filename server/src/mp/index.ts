@@ -389,6 +389,10 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
         } else if (m.type === "release" && Array.isArray(m.ids)) {
           const ch = owners.release(seat.id, m.ids, Array.isArray(m.gone) ? m.gone : []);
           if (ch.length) sendAll({ type: "owners", list: ch });
+        } else if (m.type === "ask" && typeof m.what === "string" && Array.isArray(m.args) && m.args.length <= 4) {
+          // M8c: to the world PC, with who asks (it checks the rest as if he were there)
+          const wpc = [...conns].find((k) => k.who.id === world.id);
+          if (wpc && wpc !== conn) send(wpc, { type: "asked", from: seat.id, what: m.what.slice(0, 20), args: m.args });
         } else if (m.type === "world" && typeof m.t === "number" && m.d && typeof m.d === "object") {
           // only the world PC's; passed on as it came
           if (seat.id !== world.id) return;

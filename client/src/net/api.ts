@@ -3,6 +3,7 @@
 
 import type { Goods } from "../game/props";
 import { clientId, pause, resendPause } from "../game/pause";
+import { identity } from "./mp/identity";
 
 export type Twist = "none" | "broken_goods" | "stranger_offer" | "foreman_watches" | "thick_fog" | "heavy_load" | "thief" | "bribe";
 
@@ -577,8 +578,11 @@ export function connectPush(onJobs: (p: JobsPayload) => void, onOutcome: (o: Out
   });
   const open = () => {
     // this tab's name: the server lets go of its pause when the channel closes
-    const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws?client=${encodeURIComponent(clientId)}`);
+    // (M8c: a guest's tab says whose it is in its first message; the host's on the host PC needs nothing)
+    const guest = identity.token !== null;
+    const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws?client=${encodeURIComponent(clientId)}${guest ? "&guest=1" : ""}`);
     ws.onopen = () => {
+      if (guest) ws.send(JSON.stringify({ type: "hello", token: identity.token }));
       delay = 1000;
       // the server let go of our pause when the channel dropped: say it again
       if (pause.paused) resendPause();

@@ -591,6 +591,8 @@ export function createBridges(scene: THREE.Object3D, boats?: Boats | Promise<Boa
     },
     group,
     request(key, who, on) {
+      // (M8b/M8c: the world PC runs the bridges: it is asked for this player's boat; this copy keeps the request too)
+      if (remote && who === "rower") (this as unknown as NetMover).netAsk?.("bridge", [key, on]);
       const c = ctls.find((q) => q.key === key);
       if (c) {
         if (on) c.boats.add(who);

@@ -3,6 +3,8 @@ import { town } from "./store.ts";
 import type { Resident } from "./population.ts";
 import { isAwayVisitor } from "./visitors.ts";
 import { VIOLENCE_RE } from "../director/vocab.ts";
+import { pid } from "../player/current.ts";
+import { nameOf as playerName } from "../player/names.ts";
 
 // Rumours (M3e): what the town has heard about Jef. A rumour is an npc_memory
 // row with a gist (one line others may repeat, "Jef ..."), a tone (-2 bad to
@@ -61,17 +63,17 @@ function nameOf(db: DB, id: string): string {
 export function spreadRumours(db: DB, rng: () => number = Math.random, maxRows = 60): number {
   const rows = db
     .prepare(
-      `SELECT id, npc_id, weight, gist, tone, COALESCE(origin, id) AS origin, source, told_as
+      `SELECT id, npc_id, weight, gist, tone, COALESCE(origin, id) AS origin, source, told_as, about_player
        FROM npc_memory WHERE gist IS NOT NULL AND gist <> '' AND town_spread = 0 AND weight >= 3
        ORDER BY weight DESC, id LIMIT ?`,
     )
-    .all(maxRows) as Array<{ id: number; npc_id: string; weight: number; gist: string; tone: number; origin: number; source: string; told_as: string | null }>;
+    .all(maxRows) as Array<{ id: number; npc_id: string; weight: number; gist: string; tone: number; origin: number; source: string; told_as: string | null; about_player: number | null }>;
   if (!rows.length) return 0;
   const day = (db.prepare("SELECT day FROM player WHERE id = 1").get() as { day: number }).day;
   const knows = db.prepare("SELECT 1 FROM npc_memory WHERE npc_id = ? AND (origin = ? OR id = ?) LIMIT 1");
   const ins = db.prepare(
-    `INSERT INTO npc_memory (npc_id, text, source, heard_from, weight, day, spread, gist, tone, origin, town_spread, told_as)
-     VALUES (?, ?, 'heard', ?, ?, ?, 1, ?, ?, ?, 0, ?)`,
+    `INSERT INTO npc_memory (npc_id, text, source, heard_from, weight, day, spread, gist, tone, origin, town_spread, told_as, about_player)
+     VALUES (?, ?, 'heard', ?, ?, ?, 1, ?, ?, ?, 0, ?, ?)`,
   );
   const done = db.prepare("UPDATE npc_memory SET town_spread = 1 WHERE id = ?");
   const hh = (id: string) => town(db).byId.get(id)?.household ?? null;
@@ -85,7 +87,8 @@ export function spreadRumours(db: DB, rng: () => number = Math.random, maxRows =
       if (!k) continue;
       // M6 families: what someone saw of Jef themselves reaches their own household at home, when they
       // are together (director/families.ts), not through the street's gossip
-      const firstHand = r.source === "seen" && r.tone !== 0 && /^Jef\b/.test(r.gist);
+      // (M8c: a guest's gist starts with his own name)
+      const firstHand = r.source === "seen" && r.tone !== 0 && (/^Jef\b/.test(r.gist) || (r.about_player ?? 1) !== 1);
       const mine = firstHand ? hh(r.npc_id) : null;
       const circle = circleOf(db, r.npc_id).filter((id) => !knows.get(id, r.origin, r.origin) && exists.get(id) && (mine === null || hh(id) !== mine));
       // closest ties first, with a little chance in who is around to hear it
@@ -98,7 +101,8 @@ export function spreadRumours(db: DB, rng: () => number = Math.random, maxRows =
         const [who] = pickFrom.splice(Math.floor(rng() * pickFrom.length), 1);
         // M6: the wording may drift a little at each telling; the fact (gist) stays the engine's
         const told = driftWording(r.told_as ?? r.gist, r.gist, rng);
-        ins.run(who, `${teller} told me: ${told}`, r.npc_id, w, day, r.gist, r.tone, r.origin, told === r.gist ? null : told);
+        // (M8c: the telling is about the same player as the memory it came from)
+        ins.run(who, `${teller} told me: ${told}`, r.npc_id, w, day, r.gist, r.tone, r.origin, told === r.gist ? null : told, r.about_player);
         heard++;
       }
     }
@@ -118,15 +122,26 @@ export interface Rumour {
   from: string | null;
 }
 
+/** M8c: what they know of the player who asks (pid()); the older rows, about nobody in particular, are the host's. */
 export function rumoursOf(db: DB, id: string, n = 5): Rumour[] {
   const rows = db
     .prepare(
       `SELECT gist, told_as, tone, weight, source, heard_from FROM npc_memory
-       WHERE npc_id = ? AND gist IS NOT NULL AND gist <> '' ORDER BY weight DESC, id DESC LIMIT ?`,
+       WHERE npc_id = ? AND gist IS NOT NULL AND gist <> '' AND COALESCE(about_player, 1) = ? ORDER BY weight DESC, id DESC LIMIT ?`,
     )
-    .all(id, n) as Array<{ gist: string; told_as: string | null; tone: number; weight: number; source: "seen" | "heard"; heard_from: string | null }>;
+    .all(id, pid(), n) as Array<{ gist: string; told_as: string | null; tone: number; weight: number; source: "seen" | "heard"; heard_from: string | null }>;
   // M6: they say it as they heard it (the told wording); the engine's fact stays in `fact`
-  return rows.map((r) => ({ gist: mended(r.told_as ?? r.gist), fact: mended(r.gist), tone: r.tone, weight: r.weight, source: r.source, from: r.heard_from ? nameOf(db, r.heard_from) : null }));
+  return rows.map((r) => ({ gist: asJef(db, mended(r.told_as ?? r.gist)), fact: asJef(db, mended(r.gist)), tone: r.tone, weight: r.weight, source: r.source, from: r.heard_from ? nameOf(db, r.heard_from) : null }));
+}
+
+/**
+ * M8c: a guest's own rumour is kept with his name (storeText); read for him it is in the engine's words again
+ * ("Jef" for the player who asks), so toYou and whoYou read it and his own edge puts his name back in.
+ */
+function asJef(db: DB, text: string): string {
+  if (pid() === 1) return text;
+  const name = playerName(db).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return text.replace(new RegExp(`(?<![\\p{L}\\p{M}])${name}(?![\\p{L}\\p{M}])`, "gu"), "Jef");
 }
 
 /** Older saves' wordings, said right: "told Anna a lie to get her eel cheaper" (whose eel?) is "lied to Anna to get eel cheaper". */

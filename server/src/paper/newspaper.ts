@@ -11,6 +11,7 @@ import { ITEM_REF, ITEMS, marketOf, waresOf } from "../trade.ts";
 import { rngFrom } from "../town/population.ts";
 import { resident, town } from "../town/store.ts";
 import { rollNews } from "../ideas/abroad.ts";
+import { pid } from "../player/current.ts";
 
 // The morning paper (M6). Every game morning the ENGINE picks the day's facts
 // from the world_event log (yesterday's events, thefts, arrests, what people saw
@@ -489,11 +490,11 @@ export async function makePaper(db: DB, runner?: Runner, timeoutMs?: number): Pr
   return { paper, error };
 }
 
-/** Buying a paper (trade.ts ITEM_REF): today's, once; yesterday's is left on a bench. */
+/** Buying a paper (trade.ts ITEM_REF): today's, once; yesterday's is left on a bench. (M8c: the player's own pockets) */
 export function paperRef(db: DB): number {
   const day = (db.prepare("SELECT day FROM player WHERE id = 1").get() as { day: number }).day;
   if (!paperOf(db, day)) throw new GameError("the papers are not in yet; wait a little", 409);
-  const mine = db.prepare("SELECT id, ref FROM item WHERE kind = 'newspaper'").all() as Array<{ id: number; ref: number | null }>;
+  const mine = db.prepare("SELECT id, ref FROM item WHERE kind = 'newspaper' AND player_id = ?").all(pid()) as Array<{ id: number; ref: number | null }>;
   if (mine.some((m) => m.ref === day)) throw new GameError("you have today's paper already", 409);
   for (const m of mine) db.prepare("DELETE FROM item WHERE id = ?").run(m.id);
   return day;

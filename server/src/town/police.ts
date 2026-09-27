@@ -6,6 +6,9 @@ import { GameError, log, player } from "../game.ts";
 import { MOODS, gateText, markFreeLine } from "../hooks/dialogue.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
 import { applyTrust, remember } from "../npcs.ts";
+import { pid } from "../player/current.ts";
+import { pstate, setPstate } from "../player/multi.ts";
+import { storeText } from "../player/names.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { activityAt } from "./schedule.ts";
 import { resident, town } from "./store.ts";
@@ -108,12 +111,13 @@ interface PoliceState {
 
 const EMPTY: PoliceState = { record: { warnings: 0, fines: 0, arrests: 0, fled: 0 }, visit: null, last: null, cell: null, nextId: 1, talkDay: 0 };
 
+/** The player's own record, visit and cell (M8c: each player's; pstate 'police'). */
 export function policeState(db: DB): PoliceState {
-  const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'police'").get() as { value_json: string } | undefined;
-  return row ? { ...EMPTY, ...(JSON.parse(row.value_json) as PoliceState) } : structuredClone(EMPTY);
+  const v = pstate<PoliceState>(db, "police");
+  return v ? { ...EMPTY, ...v } : structuredClone(EMPTY);
 }
 function save(db: DB, s: PoliceState): void {
-  db.prepare("INSERT INTO world_state (key, value_json) VALUES ('police', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(JSON.stringify(s));
+  setPstate(db, "police", s);
 }
 
 /**
@@ -292,12 +296,12 @@ export function policeDispatch(db: DB, place: { x: number; z: number }): string 
   return best?.p.id ?? null;
 }
 
-/** The police steps as they happened, from the log (oldest first): called, sent, fled, warning, fine, arrest, cell. */
+/** The police steps as they happened, from the player's own log lines (oldest first): called, sent, fled, warning, fine, arrest, cell. */
 export const POLICE_VERBS = ["stole", "gave_back", "police_called", "police_sent", "fled_police", "police_let_off", "police_warning", "police_fine", "arrested", "cell"] as const;
 export function policeEvents(db: DB, sinceId = 0): Array<{ id: number; day: number; hour: number; verb: string; object: string | null; text: string }> {
   return db
-    .prepare(`SELECT id, day, hour, verb, object, text FROM log WHERE id > ? AND verb IN (${POLICE_VERBS.map(() => "?").join(",")}) ORDER BY id`)
-    .all(sinceId, ...POLICE_VERBS) as Array<{ id: number; day: number; hour: number; verb: string; object: string | null; text: string }>;
+    .prepare(`SELECT id, day, hour, verb, object, text FROM log WHERE id > ? AND player_id = ? AND verb IN (${POLICE_VERBS.map(() => "?").join(",")}) ORDER BY id`)
+    .all(sinceId, pid(), ...POLICE_VERBS) as Array<{ id: number; day: number; hour: number; verb: string; object: string | null; text: string }>;
 }
 
 export function scheduleVisit(db: DB, deedId: number): void {
@@ -326,20 +330,20 @@ function policeOnDuty(db: DB): Array<{ id: string; route: Array<[number, number]
     .map((r) => ({ id: r.id, route: r.work.route ?? [[r.home.sx, r.home.sz]] }));
 }
 
-/** How many townspeople are talking about Jef's thieving. */
+/** How many townspeople are talking about Jef's thieving (M8c: this player's; a guest's gists carry his name). */
 export function theftTalk(db: DB): number {
+  const like = ["Jef stole%", "Jef was about when%", "Jef was caught with%", "Jef ran from the police%", "Jef took % and gave it back%"].map((g) => storeText(db, g));
   return (
     db
       .prepare(
-        `SELECT COUNT(DISTINCT npc_id) AS n FROM npc_memory WHERE tone < 0 AND gist IS NOT NULL AND
-         (gist LIKE 'Jef stole%' OR gist LIKE 'Jef was about when%' OR gist LIKE 'Jef was caught with%' OR gist LIKE 'Jef ran from the police%'
-          OR gist LIKE 'Jef took % and gave it back%')`,
+        `SELECT COUNT(DISTINCT npc_id) AS n FROM npc_memory WHERE tone < 0 AND gist IS NOT NULL AND COALESCE(about_player, 1) = ? AND
+         (gist LIKE ? OR gist LIKE ? OR gist LIKE ? OR gist LIKE ? OR gist LIKE ?)`,
       )
-      .get() as { n: number }
+      .get(pid(), ...like) as { n: number }
   ).n;
 }
 
-/** Every tick: start a visit from the talk, send an agent out when one is due. */
+/** Every tick, for each player (M8c: pid()'s visit): start a visit from the talk, send an agent out when one is due. */
 export function policeTick(db: DB): Visit | null {
   if (!hasDeeds(db)) return null; // nothing ever taken: nothing to do, nothing written
   const s = policeState(db);
@@ -422,7 +426,7 @@ export function policeFled(db: DB): { text: string } {
   save(db, s);
   remember(db, agent, "Jef ran from me when I called him. A guilty man runs.", 7, "seen", null, { gist: "Jef ran from the police", tone: -2 });
   applyTrust(db, agent, -2, 0);
-  db.prepare("UPDATE faction_trust SET trust = MAX(-5, trust - 1) WHERE faction = 'politie'").run();
+  db.prepare("UPDATE faction_trust SET trust = MAX(-5, trust - 1) WHERE faction = 'politie' AND player_id = ?").run(pid());
   log(db, "fled_police", agent, `Jef ran from ${npcName(db, agent)} of the police.`);
   const r = resident(db, agent);
   return { text: `Behind you ${r?.first ?? "the agent"} shouts: "Stop! In the name of the law!" He will not forget your face.` };
@@ -502,7 +506,7 @@ function stillHeld(db: DB, deeds: DeedRow[]): DeedRow[] {
       if (!b || !st || st.deed !== d.id) return false;
       return st.ridden || Math.hypot(st.x - b.x, st.z - b.z) > 3;
     }
-    return !!db.prepare("SELECT 1 FROM item WHERE id = ?").get(d.item_id ?? -1);
+    return !!db.prepare("SELECT 1 FROM item WHERE id = ? AND player_id = ?").get(d.item_id ?? -1, pid());
   });
 }
 
@@ -619,7 +623,7 @@ async function storyAndReply(db: DB, id: string, said: string, runner?: Runner):
   const v = s.visit!;
   const deeds = visitDeeds(db, v);
   const p = player(db);
-  const needs = db.prepare("SELECT food FROM player WHERE id = 1").get() as { food: number };
+  const needs = db.prepare("SELECT food FROM player WHERE id = ?").get(pid()) as { food: number };
   const facts = deeds.map(factsOf);
   const guess = decide({ deeds: facts, record: s.record, fledNow: v.fled, stance: stanceOf(said), money_c: p.money_c, reason: v.reason });
   const held = new Set(stillHeld(db, deeds).map((d) => d.id));
@@ -774,7 +778,7 @@ Tell him, in character.`;
 }
 
 function jobInHand(db: DB): string | null {
-  return (db.prepare("SELECT title FROM job WHERE status = 'taken' LIMIT 1").get() as { title: string } | undefined)?.title ?? null;
+  return (db.prepare("SELECT title FROM job WHERE status = 'taken' AND COALESCE(taken_by, 1) = ? LIMIT 1").get(pid()) as { title: string } | undefined)?.title ?? null;
 }
 
 const UNITS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, fifteen: 15, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90, hundred: 100 };
@@ -833,10 +837,10 @@ function applyVerdict(db: DB, agent: string, visit: number, dec: Decision, stanc
   const paid = V === "warning" || V === "let_off" ? 0 : Math.min(dec.fine_c, p.money_c);
   const agentName = npcName(db, agent);
   db.transaction(() => {
-    if (paid) db.prepare("UPDATE player SET money_c = MAX(0, money_c - ?) WHERE id = 1").run(paid);
+    if (paid) db.prepare("UPDATE player SET money_c = MAX(0, money_c - ?) WHERE id = ?").run(paid, pid());
     // what he took goes back to its owners (let off too: the thing is not his)
     for (const d of deeds) {
-      if (d.item_id !== null) db.prepare("DELETE FROM item WHERE id = ?").run(d.item_id);
+      if (d.item_id !== null) db.prepare("DELETE FROM item WHERE id = ? AND player_id = ?").run(d.item_id, pid());
       db.prepare("UPDATE deed SET status = ?, rumour_at = NULL WHERE id = ?").run(V === "let_off" ? "let_off" : V === "warning" ? "warned" : V === "fine" ? "fined" : "arrested", d.id);
     }
     log(
@@ -866,7 +870,7 @@ function applyVerdict(db: DB, agent: string, visit: number, dec: Decision, stanc
     tone: V === "let_off" ? 0 : V === "warning" ? -1 : -2,
   });
   applyTrust(db, agent, V === "warning" || V === "let_off" ? 0 : -1, 0);
-  if (V === "fine" || V === "arrest") db.prepare("UPDATE faction_trust SET trust = MAX(-5, trust - ?) WHERE faction = 'politie'").run(V === "arrest" ? 2 : 1);
+  if (V === "fine" || V === "arrest") db.prepare("UPDATE faction_trust SET trust = MAX(-5, trust - ?) WHERE faction = 'politie' AND player_id = ?").run(V === "arrest" ? 2 : 1, pid());
   const last: LastVerdict = { visit: v.id, verdict: dec.verdict, fine_c: dec.fine_c, paid_c: paid, agent, text };
   s.last = last;
   s.settledAt = gameMinute(db);
@@ -890,10 +894,10 @@ export function cellNight(db: DB, paid: number): CellNight {
   const summary = [`${DAY_NAMES[(c.day - 1) % 7]} ends in the cell of ${policePost().label}.`];
   if (paid) summary.push(`The agent took ${paid} centimes for the fine.`);
   db.transaction(() => {
-    const open = db.prepare("SELECT id, title, employer_npc FROM job WHERE status = 'taken'").all() as Array<{ id: number; title: string; employer_npc: string }>;
+    const open = db.prepare("SELECT id, title, employer_npc FROM job WHERE status = 'taken' AND COALESCE(taken_by, 1) = ?").all(pid()) as Array<{ id: number; title: string; employer_npc: string }>;
     for (const j of open) {
       db.prepare("UPDATE job SET status = 'failed' WHERE id = ?").run(j.id);
-      db.prepare("DELETE FROM item WHERE job_id = ?").run(j.id);
+      db.prepare("DELETE FROM item WHERE job_id = ? AND player_id = ?").run(j.id, pid());
       log(db, "abandoned_job", String(j.id), `Jef was taken by the police and the job "${j.title}" was left undone.`);
       remember(db, j.employer_npc, `Jef took my job "${j.title}" and then the police took him. The work was left undone.`, 6, "seen", null, {
         gist: `Jef was taken by the police in the middle of a job`,
@@ -901,7 +905,7 @@ export function cellNight(db: DB, paid: number): CellNight {
       });
     }
     if (open.length) summary.push(`Your job is lost: "${open[0].title}". Nobody pays a man in a cell.`);
-    db.prepare("UPDATE player SET sleep = MAX(sleep, 6), food = MAX(0, food - 2), warmth = MAX(0, warmth - 2) WHERE id = 1").run();
+    db.prepare("UPDATE player SET sleep = MAX(sleep, 6), food = MAX(0, food - 2), warmth = MAX(0, warmth - 2) WHERE id = ?").run(pid());
     summary.push("A plank bed, a bucket, a barred window onto the square. A drunk sings in the next cell until the bells ring three.");
     log(db, "cell", null, "Jef spent the night in the cell at the police post.");
     countNight(db);
@@ -935,7 +939,8 @@ export function takeCellNight(db: DB): CellNight | null {
   return n;
 }
 
-/** Test helper / new game. */
+/** Test helper / new game: every player's record goes. */
 export function resetPolice(db: DB): void {
   db.prepare("DELETE FROM world_state WHERE key = 'police'").run();
+  db.prepare("DELETE FROM player_state WHERE key = 'police'").run();
 }
