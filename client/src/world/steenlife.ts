@@ -3,6 +3,7 @@ import { psx } from "../retro/psx";
 import { makeHuman, whenHumans, type Human, type HumanKind, type Motion } from "../game/humans";
 import type { Crowd, Puppet } from "../game/crowd";
 import { glowTexture } from "./textures";
+import { addLantern, type LanternSource } from "./lanternLights";
 import type { Rect } from "./geom";
 import { water } from "./tide";
 import { loadSteenModel, type SteenModel } from "./steenModel";
@@ -20,7 +21,7 @@ import { nearestPlayer, runsHere, share } from "../game/share";
 // on; some only look and walk on. Round it: a painter at his easel on the promontory, sketching
 // the Steen from the river side; an old man fishing over the railing at the tip; children and
 // a couple at the railings watching the ships; two benches. At night: the museum shut, nobody
-// at the door, only the lantern on the Steenpoort lit.
+// at the door, only the lanterns lit: on the Steenpoort, under it, and by the museum door.
 //
 // Cheap: the figures exist only within 90 m; one mesh each for the easel, the benches, the rod
 // and line, the open doorway; one glow sprite. The visitors are crowd puppets (crowd.ts) and are
@@ -34,6 +35,11 @@ export const STEEN_DOOR = { x: -183.5, z: -23.0 };
 const TY = 2.2;
 const OPEN: P = [10, 16]; // the board: OPEN 10 - 4
 const LANTERN = new THREE.Vector3(-194.42, 6.53, -17.65); // on the Steenpoort's outer face, over the landing
+/** Under the Steenpoort: the middle of its passage (tools/blender/build_steen.py, u -16.75..-13, v 8.45..12.95). */
+const PASSAGE_LAMP: P = [-191.9, -20.55];
+/** The gatehouse's courtyard face (the museum door's plane), the lanterns either side of the door (over its small windows). */
+const STEEN_WALL_Z = -23.25;
+const DOOR_LAMPS = [-185.6, -181.4];
 const WATER_Y = -2.8;
 
 interface Figure {
@@ -260,16 +266,71 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
     group.add(kerb);
   }
 
-  // --- the lantern on the Steenpoort: a warm glow after dusk
+  // --- the lanterns after dusk: the one on the Steenpoort (in the model), and three of our own: one hung in the
+  // passage under the gate, two by the museum door. Each lights the world (Steve 2026-09-27: "there is a light but
+  // it does not shine"): a lantern source of world/lanternLights.ts, so the nearest get a real light and the rest
+  // spill (world/spill.ts); no light of their own is added (docs/rendering.md).
   const glowMat = new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffc47a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
-  const glow = new THREE.Sprite(glowMat);
-  glow.position.copy(LANTERN);
-  glow.scale.setScalar(1.6);
-  group.add(glow);
-  // the lit glass: a hair larger than the model's dark lantern glass, so it covers it
-  const flame = new THREE.Mesh(new THREE.BoxGeometry(0.37, 0.47, 0.37), new THREE.MeshBasicMaterial({ color: 0xffd08a }));
-  flame.position.copy(LANTERN);
-  group.add(flame);
+  const flameMat = new THREE.MeshBasicMaterial({ color: 0xffd08a });
+  const lanterns: Array<{ glow: THREE.Sprite; flame: THREE.Mesh; src: LanternSource }> = [];
+  const lantern = (at: THREE.Vector3, size: [number, number], halo = 1.6) => {
+    const glow = new THREE.Sprite(glowMat);
+    glow.position.copy(at);
+    glow.scale.setScalar(halo);
+    group.add(glow);
+    const flame = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[0]), flameMat);
+    flame.position.copy(at);
+    group.add(flame);
+    const src = addLantern({ power: 2.2 });
+    src.pos.copy(at);
+    src.ground = TY;
+    lanterns.push({ glow, flame, src });
+  };
+  // the Steenpoort's: the lit glass a hair larger than the model's dark lantern glass, so it covers it
+  lantern(LANTERN, [0.37, 0.47]);
+  // an iron lantern of our own: its frame (cap, base, corner bars) round the lit glass at `at`
+  const ironLantern = (at: THREE.Vector3) => {
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.2, 4, 1), iron);
+    cap.position.set(at.x, at.y + 0.3, at.z);
+    cap.rotation.y = Math.PI / 4;
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.06, 0.28), iron);
+    base.position.set(at.x, at.y - 0.23, at.z);
+    group.add(cap, base);
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.44, 0.03), iron);
+      bar.position.set(at.x + sx * 0.14, at.y, at.z + sz * 0.14);
+      group.add(bar);
+    }
+    // the glass by day (the lit glass, a hair larger, covers it at night)
+    const glass = new THREE.Mesh(new THREE.BoxGeometry(0.23, 0.37, 0.23), dark);
+    glass.position.copy(at);
+    group.add(glass);
+    lantern(at, [0.24, 0.38], 1.1);
+  };
+  // hung on an iron rod from the crown of the passage's vault (the pointed arch's top at 7.8)
+  {
+    const at = new THREE.Vector3(PASSAGE_LAMP[0], 5.7, PASSAGE_LAMP[1]);
+    ironLantern(at);
+    const rod = new THREE.Mesh(new THREE.BoxGeometry(0.03, 7.8 - at.y - 0.38, 0.03), iron);
+    rod.position.set(at.x, (7.8 + at.y + 0.38) / 2, at.z);
+    group.add(rod);
+  }
+  // on iron brackets out of the gatehouse's courtyard face, either side of the museum door, over its small windows
+  for (const x of DOOR_LAMPS) {
+    const at = new THREE.Vector3(x, 5.75, STEEN_WALL_Z + 0.55);
+    ironLantern(at);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.6), iron);
+    arm.position.set(x, at.y + 0.5, STEEN_WALL_Z + 0.3);
+    // the stay from the wall up to the arm, under it
+    const stay = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.6), iron);
+    stay.position.set(x, at.y + 0.3, STEEN_WALL_Z + 0.225);
+    stay.rotation.x = -Math.atan2(0.4, 0.45);
+    const hook = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.12, 0.02), iron);
+    hook.position.set(x, at.y + 0.44, at.z);
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.5, 0.03), iron);
+    plate.position.set(x, at.y + 0.3, STEEN_WALL_Z + 0.015);
+    group.add(arm, stay, hook, plate);
+  }
 
   // (the gate's east tower, the calvary, the courtyard's and the ramp's balustrades are walls in the walk map: design.py DECOR)
   const colliders: Rect[] = [
@@ -489,8 +550,11 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
     }
     rod.visible = hour >= 7 && hour < 17.5;
     doorway.visible = open;
-    glow.visible = night;
-    flame.visible = night;
+    for (const l of lanterns) {
+      l.glow.visible = night;
+      l.flame.visible = night;
+      l.src.on = night ? 1 : 0;
+    }
     if (night) glowMat.opacity = 0.85 + 0.15 * Math.sin(t * 7.3) * Math.sin(t * 2.9);
     visitorsUpdate(dt, open, d < 75, cx, cz);
   }
@@ -510,7 +574,8 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
       figures: figs.filter((f) => f.h).map((f) => f.kind),
       visitors: visitors.map((v) => ({ kind: v.kind, state: v.state, x: v.p ? +v.p.x.toFixed(1) : null, z: v.p ? +v.p.z.toFixed(1) : null, t: +v.t.toFixed(1) })),
       doorOpen: doorway.visible,
-      lantern: glow.visible,
+      lantern: lanterns[0].glow.visible,
+      lanterns: lanterns.map((l) => ({ at: l.src.pos.toArray().map((v) => +v.toFixed(2)), on: l.src.on, level: +l.src.level.toFixed(2) })),
     }),
   };
 }
