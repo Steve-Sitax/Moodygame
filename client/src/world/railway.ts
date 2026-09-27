@@ -1029,6 +1029,12 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     const si = Math.sin(c.site.yaw);
     return [cx + lx * co + lz * si, cz - lx * si + lz * co];
   };
+  /**
+   * The bogie wheels' turn for a move of `dp` along the runway: they roll along the crane's own x, so the move is
+   * taken along that axis (a crane turned half round rolls the other way); signed, so they turn back when it backs.
+   */
+  const rollOf = (c: Crane, dp: number): number =>
+    ((c.axis === "x" ? dp * Math.cos(c.site.yaw) : c.axis === "z" ? -dp * Math.sin(c.site.yaw) : 0) / CRANE_WHEEL_R);
   const rectAt = (c: Crane, r: { minX: number; maxX: number; minZ: number; maxZ: number }, out: { minX: number; maxX: number; minZ: number; maxZ: number }) => {
     const [ax, az] = toWorld(c, r.minX, r.minZ);
     const [bx, bz] = toWorld(c, r.maxX, r.maxZ);
@@ -1496,7 +1502,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       c.speed += THREE.MathUtils.clamp(want - c.speed, -0.4 * dt, 0.15 * dt);
       if (c.speed < 0.002 && want === 0) c.speed = 0;
       const step = Math.min(c.speed * dt, dist);
-      if (step > 0 && tryMove(c, c.pos + dir * step, c.a, c.hy)) c.roll += step / CRANE_WHEEL_R;
+      if (step > 0 && tryMove(c, c.pos + dir * step, c.a, c.hy)) c.roll += rollOf(c, dir * step);
       else if (step > 0) {
         // another crane (or a mast) in the way: it stands. Held up by a crane 2 s, it turns back
         // (the other may stand there a long while, a load on its hook, waiting for the train);
@@ -2623,7 +2629,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
         c.hoisting = !!q._h;
         c.target = q._to ?? null;
         if (q.pos !== c.pos) {
-          if (!quiet && Math.abs(q.pos - c.pos) < 2) c.roll += Math.abs(q.pos - c.pos) / CRANE_WHEEL_R;
+          if (!quiet && Math.abs(q.pos - c.pos) < 2) c.roll += rollOf(c, q.pos - c.pos);
           c.pos = q.pos;
           placeCrane(c);
         }
