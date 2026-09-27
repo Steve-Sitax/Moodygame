@@ -8,6 +8,7 @@ import { water } from "./tide";
 import { loadSteenModel, type SteenModel } from "./steenModel";
 import { addPropObject } from "./propSpots";
 import { STEEN_BENCHES } from "../../../shared/sleep";
+import { nearestPlayer, runsHere, share } from "../game/share";
 
 // Life round Het Steen (M3i, docs/milestones/M3i-steen.md). In 1873 the Steen was the city's
 // Museum of Antiquities (decided 1862, open from 1864), in the old castle gate and prison.
@@ -105,6 +106,8 @@ interface Visitor {
   t: number;
   goesIn: boolean;
   look: P;
+  /** M8f sync pass 3: the figure's id among the players' PCs (a new one each time it comes out of a door). */
+  id?: string;
 }
 
 export interface SteenLife {
@@ -302,14 +305,25 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
     }
   }
 
-  function drop(v: Visitor): void {
+  /** The figure goes: in at the door or out of the game (`gone`), or let go for the PC of a player near it. */
+  function drop(v: Visitor, gone = true): void {
+    if (v.id && share.net) {
+      if (gone) share.net.personGone(v.id);
+      else share.net.release(v.id);
+    }
+    v.id = undefined;
     if (v.p && crowd?.alive(v.p)) crowd.removePuppet(v.p);
     v.p = null;
   }
+  /** M8f sync pass 3: a new figure of this PC: its id (played together). */
+  const netId = (v: Visitor): void => {
+    if (share.on && share.net) v.id = share.net.newId("sv", v.kind);
+  };
+  let adoptWired = false;
 
   function spawnVisitor(cx: number, cz: number): void {
     if (!crowd) return;
-    const ends = ENDS.filter(([x, z]) => crowd.isHidden(x, z) && Math.hypot(x - cx, z - cz) > 8);
+    const ends = ENDS.filter(([x, z]) => crowd.isHidden(x, z) && !share.seenByOthers(x, z) && Math.hypot(x - cx, z - cz) > 8);
     if (!ends.length) return;
     const [x, z] = ends[Math.floor(Math.random() * ends.length)];
     const kind = VISITORS[Math.floor(Math.random() * VISITORS.length)];
@@ -318,7 +332,9 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
     const free = LOOK.filter((l) => !visitors.some((v) => v.look === l));
     const look = (free.length ? free : LOOK)[Math.floor(Math.random() * (free.length || LOOK.length))];
     crowd.puppetGo(p, look[0], look[1]);
-    visitors.push({ kind, p, state: "coming", t: 0, goesIn: Math.random() < 0.7, look, to: [0, 0] });
+    const v: Visitor = { kind, p, state: "coming", t: 0, goesIn: Math.random() < 0.7, look, to: [0, 0] };
+    netId(v);
+    visitors.push(v);
   }
 
   /** Move a standing puppet a step towards a point (the walk clip plays); true when there. */
@@ -335,12 +351,25 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
 
   function visitorsUpdate(dt: number, open: boolean, near: boolean, cx: number, cz: number): void {
     if (!crowd) return;
+    if (share.net && !adoptWired) {
+      adoptWired = true;
+      // M8f sync pass 3: a visitor another PC ran and let go near this player: this PC walks it off
+      share.net.onAdopt("x:sv:", (id, o) => {
+        const p = o as Puppet;
+        const [x, z] = ENDS[Math.floor(Math.random() * ENDS.length)];
+        crowd.puppetGo(p, x, z);
+        visitors.push({ kind: id.split(":")[2] as HumanKind, p, state: "leaving", t: 0, goesIn: false, look: [x, z], to: [0, 0], id });
+        return true;
+      });
+    }
+    for (const v of visitors) if (v.p && v.id && share.net) share.net.person(v.id, v.p);
     // too far or shut: the ones outside go (dropped at once when Jef is far), the ones inside come out at closing
     for (let i = visitors.length - 1; i >= 0; i--) {
       const v = visitors[i];
       if (v.p && !crowd.alive(v.p)) v.p = null;
       if (!near) {
-        drop(v);
+        // (one still near another player is his PC's to walk on)
+        drop(v, !(v.p && share.on && nearestPlayer(v.p.x, v.p.z) < 60));
         visitors.splice(i, 1);
         continue;
       }
@@ -399,6 +428,7 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
             const q = crowd.addPuppet(v.kind, STEEN_DOOR.x, STEEN_DOOR.z + 0.3, 0, 1.1);
             if (!q) break; // try again next frame
             v.p = q;
+            netId(v);
             crowd.puppetStand(q, "walk", 0);
             v.to = [STEEN_DOOR.x + (Math.random() - 0.5) * 1.2, STEEN_DOOR.z + 3.0];
             v.state = "stepOut";
@@ -424,6 +454,8 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
       }
     }
     if (!near || !open) return;
+    // (the PC of the player nearest the Steen brings the visitors for all: game/share.ts)
+    if (!runsHere("g:st", -185, -12, 75)) return;
     spawnT -= dt;
     const outside = visitors.filter((v) => v.state !== "inside").length;
     if (spawnT <= 0 && outside < 3 && visitors.length < 5) {

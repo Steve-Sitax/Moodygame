@@ -2,6 +2,7 @@ import * as THREE from "three";
 import CITY from "../../../../shared/city.json";
 import { hiss, owl } from "../../audio/aliveSounds";
 import { FCOMMON, Flight, VCOMMON, birdShape, hours, openAt, pointMat, type Ctx, type Frame, type Part } from "./common";
+import { dice, hash32, seeded, share, sharedSeconds } from "../../game/share";
 
 // M7 alive: the dark's small life, for "a bit dangerous".
 // - Cats' eyes: in the dark lanes and yards at night, a pair of green-gold points low by a wall
@@ -54,18 +55,33 @@ export function createEyes(ctx: Ctx): Part {
   pts.renderOrder = 3;
   ctx.scene.add(pts);
   let on = true;
-  interface Cat { at: THREE.Vector3; on: number; blink: number; gone: number }
-  const cats: Cat[] = Array.from({ length: PAIRS }, () => ({ at: new THREE.Vector3(1e5, 0, 0), on: 0, blink: 2 + Math.random() * 4, gone: Math.random() * 5 }));
+  // M8f sync pass 3: the cats' spots are the town's (a spot by a wall in each cell of 10 m that has one, by the cell's
+  // own dice), and a cat is there in a stretch of the shared clock by the same dice; a player within 5 m sends it off
+  // for the rest of the stretch, on every PC. Each PC shows the nearest ones 7-26 m from its own eye (they were placed
+  // round Jef by this PC's dice).
+  const CELL = 10;
+  const SLOT = 40;
+  interface Cat { key: string; at: THREE.Vector3; on: number; seed: number }
+  const cats: Array<Cat | null> = Array.from({ length: PAIRS }, () => null);
+  const spots = new Map<string, THREE.Vector3 | null>();
+  const fade = new Map<string, number>();
+  const spooked = new Map<string, number>();
   const side = new THREE.Vector3();
   const lamps = () => ctx.world.gasLamps.lamps();
 
-  function spot(f: Frame): THREE.Vector3 | null {
+  /** The cell's spot: open ground by a wall, most in a narrow lane or a yard, away from lit lamps (null: none). */
+  function spotOf(ci: number, cj: number): THREE.Vector3 | null {
+    const key = `${ci},${cj}`;
+    if (spots.has(key)) return spots.get(key)!;
+    let out: THREE.Vector3 | null = null;
+    const r = seeded(hash32("cateyes", ci, cj));
     const L = lamps();
-    for (let k = 0; k < 16; k++) {
-      const a = Math.random() * Math.PI * 2;
-      const d = 7 + Math.random() * 14;
-      const x = f.eye.x + Math.cos(a) * d;
-      const z = f.eye.z + Math.sin(a) * d;
+    for (let k = 0; k < 16 && !out; k++) {
+      const x = (ci + r()) * CELL;
+      const z = (cj + r()) * CELL;
+      const narrowRoll = r();
+      const up = r();
+      const upH = r();
       if (!openAt(ctx.flags, x, z, 0.3)) continue;
       // by a wall (a cat keeps to the foot of the wall) or in a narrow lane
       let wall = 0;
@@ -75,59 +91,74 @@ export function createEyes(ctx: Ctx): Part {
       let narrow = false;
       for (const [dx, dz] of [[1, 0], [0, 1]]) {
         let a = false, b = false;
-        for (let k = 0.5; k <= 4; k += 0.5) {
-          a ||= ctx.flags(x + dx * k, z + dz * k) === 1;
-          b ||= ctx.flags(x - dx * k, z - dz * k) === 1;
+        for (let q = 0.5; q <= 4; q += 0.5) {
+          a ||= ctx.flags(x + dx * q, z + dz * q) === 1;
+          b ||= ctx.flags(x - dx * q, z - dz * q) === 1;
         }
         narrow ||= a && b;
       }
-      if (!narrow && Math.random() < 0.75) continue;
+      if (!narrow && narrowRoll < 0.75) continue;
       if (L.some((l) => Math.hypot(l.x - x, l.z - z) < 11)) continue;
       const y = ctx.world.baseAt(x, z);
-      if (!Number.isFinite(y) || Math.abs(y - (f.eye.y - 1.6)) > 2) continue;
+      if (!Number.isFinite(y)) continue;
       // most on the ground, some up on a sill or a wall's coping
-      return new THREE.Vector3(x, y + (Math.random() < 0.75 ? 0.24 : 0.9 + Math.random() * 0.6), z);
+      out = new THREE.Vector3(x, y + (up < 0.75 ? 0.24 : 0.9 + upH * 0.6), z);
     }
-    return null;
+    if (L.length) spots.set(key, out); // (the lamps are in: the spot is for good)
+    return out;
   }
 
   function update(f: Frame): void {
     if (!on) return;
     const dark = f.night > 0.75 && f.weather !== "storm" && f.rain < 0.6;
-    for (let i = 0; i < PAIRS; i++) {
-      const c = cats[i];
-      const d = Math.hypot(c.at.x - f.eye.x, c.at.z - f.eye.z);
-      if (c.on > 0 && (d < 5 || d > 26 || !dark)) {
-        // gone: slunk off (sometimes with a hiss, when Jef came close)
-        if (d < 5 && Math.random() < 0.35) ctx.sound()?.placed({ x: c.at.x, y: c.at.y, z: c.at.z }, { ref: 1, reach: 5, max: 7 }, hiss());
-        c.on = 0;
-        c.gone = 4 + Math.random() * 10;
-      }
-      if (c.on <= 0 && dark) {
-        c.gone -= f.dt;
-        if (c.gone <= 0) {
-          const s = spot(f);
-          if (s) {
-            c.at.copy(s);
-            c.on = 0.001;
-          } else c.gone = 2;
+    const S = sharedSeconds();
+    const people = share.on ? share.players() : [f.eye];
+    const found: Cat[] = [];
+    if (dark) {
+      const ci0 = Math.floor((f.eye.x - 26) / CELL), ci1 = Math.floor((f.eye.x + 26) / CELL);
+      const cj0 = Math.floor((f.eye.z - 26) / CELL), cj1 = Math.floor((f.eye.z + 26) / CELL);
+      for (let i = ci0; i <= ci1; i++)
+        for (let j = cj0; j <= cj1; j++) {
+          const key = `${i},${j}`;
+          const slot = Math.floor(S / SLOT + dice("cateyephase", i, j));
+          if (dice("cateye", i, j, slot) > 0.5) continue;
+          const at = spotOf(i, j);
+          if (!at) continue;
+          if (Math.abs(at.y - (f.eye.y - 1.6)) > 3) continue;
+          // gone: slunk off when a player came within 5 m (sometimes with a hiss); back in the next stretch
+          if (spooked.get(key) === slot) continue;
+          if (people.some((q) => Math.hypot(q.x - at.x, q.z - at.z) < 5)) {
+            spooked.set(key, slot);
+            if ((fade.get(key) ?? 0) > 0 && Math.hypot(f.eye.x - at.x, f.eye.z - at.z) < 6 && dice("hiss", i, j, slot) < 0.35) ctx.sound()?.placed({ x: at.x, y: at.y, z: at.z }, { ref: 1, reach: 5, max: 7 }, hiss());
+            continue;
+          }
+          const d = Math.hypot(at.x - f.eye.x, at.z - f.eye.z);
+          if (d < 7 || d > 26) continue;
+          found.push({ key, at, on: 0, seed: dice("cateyeseed", i, j) });
         }
-      }
+    }
+    found.sort((a, b) => Math.hypot(a.at.x - f.eye.x, a.at.z - f.eye.z) - Math.hypot(b.at.x - f.eye.x, b.at.z - f.eye.z));
+    const keep = new Set<string>();
+    for (let i = 0; i < PAIRS; i++) {
+      const c = found[i] ?? null;
+      cats[i] = c;
       let v = 0;
-      if (c.on > 0) {
-        c.on = Math.min(1, c.on + f.dt * 1.5);
-        c.blink -= f.dt;
-        if (c.blink < 0) {
-          if (c.blink < -0.15) c.blink = 2.5 + Math.random() * 5;
-        } else v = c.on;
+      if (c) {
+        keep.add(c.key);
+        const o = Math.min(1, (fade.get(c.key) ?? 0) + f.dt * 1.5);
+        fade.set(c.key, o);
+        // a blink now and then (by the clock)
+        const bw = (S + c.seed * 7) % 5;
+        v = bw < 0.15 ? 0 : o;
+        // two eyes 7 cm apart, square to the line to Jef
+        side.set(f.eye.z - c.at.z, 0, -(f.eye.x - c.at.x)).normalize().multiplyScalar(0.035);
+        pos.set([c.at.x + side.x, c.at.y, c.at.z + side.z], i * 6);
+        pos.set([c.at.x - side.x, c.at.y, c.at.z - side.z], i * 6 + 3);
       }
-      // two eyes 7 cm apart, square to the line to Jef
-      side.set(f.eye.z - c.at.z, 0, -(f.eye.x - c.at.x)).normalize().multiplyScalar(0.035);
-      pos.set([c.at.x + side.x, c.at.y, c.at.z + side.z], i * 6);
-      pos.set([c.at.x - side.x, c.at.y, c.at.z - side.z], i * 6 + 3);
       vis[i * 2] = v;
       vis[i * 2 + 1] = v;
     }
+    for (const k of [...fade.keys()]) if (!keep.has(k)) fade.delete(k);
     g.attributes.position.needsUpdate = true;
     g.attributes.aVis.needsUpdate = true;
   }
@@ -135,7 +166,7 @@ export function createEyes(ctx: Ctx): Part {
   return {
     name: "eyes",
     update,
-    info: () => ({ shown: cats.filter((c) => c.on > 0).length, at: cats.filter((c) => c.on > 0).map((c) => c.at.toArray().map((v) => +v.toFixed(2))) }),
+    info: () => ({ shown: cats.filter((c) => c).length, at: cats.filter((c): c is Cat => !!c).map((c) => c.at.toArray().map((v) => +v.toFixed(2))) }),
     setOn: (v) => {
       on = v;
       pts.visible = v;
@@ -156,21 +187,42 @@ export function createBats(ctx: Ctx): Part {
   const bats: Bat[] = Array.from({ length: BATS }, () => ({ c: new THREE.Vector3(1e5, 0, 0), pos: new THREE.Vector3(), prev: new THREE.Vector3(), seed: Math.random() * 100, yaw: 0 }));
   const vel = new THREE.Vector3();
 
-  /** Over water or by trees near Jef: where bats hunt. */
-  function haunt(f: Frame): THREE.Vector3 | null {
-    for (let k = 0; k < 20; k++) {
-      const a = Math.random() * Math.PI * 2;
-      const d = 8 + Math.random() * 18;
-      const x = f.eye.x + Math.cos(a) * d;
-      const z = f.eye.z + Math.sin(a) * d;
-      const fl = ctx.flags(x, z);
-      const water = fl !== undefined && (fl & 2) !== 0;
-      const tree = TREES.some((t) => Math.abs(t[0] - x) < 12 && Math.abs(t[1] - z) < 12);
-      if (!water && !tree && k < 14) continue;
-      if (fl === 1) continue;
-      return new THREE.Vector3(x, f.eye.y - 1.6 + 3.5 + Math.random() * 4, z);
+  /**
+   * Over water or by trees: where bats hunt. M8f sync pass 3: the town's own (one in a cell of 20 m that has water or
+   * trees, by the cell's dice); each PC shows the nearest to its eye, flying by the shared clock: the same bats
+   * for two players in one place (they were placed round Jef by this PC's dice).
+   */
+  const haunts = new Map<string, THREE.Vector3 | null>();
+  function hauntOf(ci: number, cj: number): THREE.Vector3 | null {
+    const key = `${ci},${cj}`;
+    if (haunts.has(key)) return haunts.get(key)!;
+    let out: THREE.Vector3 | null = null;
+    const r = seeded(hash32("bathaunt", ci, cj));
+    if (r() < 0.5) {
+      for (let k = 0; k < 20 && !out; k++) {
+        const x = (ci + r()) * 20;
+        const z = (cj + r()) * 20;
+        const hy = r();
+        const fl = ctx.flags(x, z);
+        if (fl === undefined || fl === 1) continue;
+        const water = (fl & 2) !== 0;
+        const tree = TREES.some((t) => Math.abs(t[0] - x) < 12 && Math.abs(t[1] - z) < 12);
+        if (!water && !tree) continue;
+        const y = ctx.world.baseAt(x, z);
+        out = new THREE.Vector3(x, (Number.isFinite(y) ? y : 0) + 3.5 + hy * 4, z);
+      }
     }
-    return null;
+    haunts.set(key, out);
+    return out;
+  }
+  function nearHaunts(f: Frame): THREE.Vector3[] {
+    const out: THREE.Vector3[] = [];
+    for (let i = Math.floor((f.eye.x - 30) / 20); i <= Math.floor((f.eye.x + 30) / 20); i++)
+      for (let j = Math.floor((f.eye.z - 30) / 20); j <= Math.floor((f.eye.z + 30) / 20); j++) {
+        const h = hauntOf(i, j);
+        if (h && Math.hypot(h.x - f.eye.x, h.z - f.eye.z) < 30 && Math.abs(h.y - f.eye.y) < 12) out.push(h);
+      }
+    return out.sort((a, b) => Math.hypot(a.x - f.eye.x, a.z - f.eye.z) - Math.hypot(b.x - f.eye.x, b.z - f.eye.z));
   }
 
   function update(f: Frame): void {
@@ -180,27 +232,29 @@ export function createBats(ctx: Ctx): Part {
     const when = Math.max(hours(f.hour, 17.4, 19.9, 0.4), hours(f.hour, 4.9, 6.4, 0.4));
     const ok = when > 0 && f.rain < 0.15 && f.weather !== "storm" && ctx.wind.speed < 1.3;
     const n = ok ? Math.round(BATS * when * (f.weather === "fog" ? 0.5 : 1)) : 0;
+    const hs = n ? nearHaunts(f) : [];
+    const t = sharedSeconds() % 1e5;
     for (let i = 0; i < BATS; i++) {
       const b = bats[i];
-      if (i >= n) {
+      const h = i < n ? hs[i] : undefined;
+      if (!h) {
         b.c.set(1e5, 0, 0);
         continue;
       }
-      if (b.c.x > 1e4 || Math.hypot(b.c.x - f.eye.x, b.c.z - f.eye.z) > 35) {
-        const h = haunt(f);
-        if (!h) continue;
+      if (!b.c.equals(h)) {
         b.c.copy(h);
-        b.pos.copy(h);
+        b.seed = (h.x * 0.37 + h.z * 0.71) % 100;
+        b.pos.set(NaN, 0, 0);
       }
       b.prev.copy(b.pos);
       // a beat of loops and sudden turns (a bat hunting moths): several sines, one fast
       const s = b.seed;
-      const t = f.t;
       b.pos.set(
         b.c.x + Math.sin(t * 0.9 + s) * 5 + Math.sin(t * 2.7 + s * 3) * 1.6 + Math.sin(t * 7.3 + s * 5) * 0.35,
         b.c.y + Math.sin(t * 1.3 + s * 2) * 1.2 + Math.sin(t * 5.1 + s) * 0.3,
         b.c.z + Math.cos(t * 0.7 + s * 1.7) * 5 + Math.cos(t * 3.1 + s * 2.3) * 1.4 + Math.cos(t * 6.7 + s * 4) * 0.35,
       );
+      if (Number.isNaN(b.prev.x)) b.prev.copy(b.pos);
       vel.subVectors(b.pos, b.prev);
       if (vel.lengthSq() > 1e-8) b.yaw = Math.atan2(vel.x, vel.z);
       if (Math.hypot(b.pos.x - f.eye.x, b.pos.z - f.eye.z) > f.fogFar * 1.1) continue;

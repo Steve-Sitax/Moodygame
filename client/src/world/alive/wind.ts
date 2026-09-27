@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { clamp01, rand, type Weather } from "./common";
+import { dice, sharedSeconds } from "../../game/share";
 
 // M7 alive: the wind over the town, with gusts. The steady wind is world/ambient.ts's own (the
 // same formula, so the leaves go the way the chimney smoke goes): a slow turn of its direction and
@@ -32,34 +33,48 @@ export class Wind {
   private weather: Weather = "fog";
   private t = 0;
   private gusts: Gust[] = [];
-  private next = 5;
   /** Dev: a gust now. */
   force = false;
 
-  update(t: number, weather: Weather, eye: { x: number; z: number }): void {
+  update(_t: number, weather: Weather, eye: { x: number; z: number }): void {
+    // M8f sync pass 3: the wind and its gusts by the clock every PC shares (were this PC's own time and dice): the
+    // same leaves lift on every screen, the smoke leans the same way
+    const t = sharedSeconds() % 1e6;
     this.t = t;
     this.weather = weather;
     const wa = 0.35 + Math.sin(t * 0.013) * 0.25;
     const ws = (BASE[weather] ?? 0.5) * (1 + 0.2 * Math.sin(t * 0.07));
     this.base.set(Math.cos(wa) * ws, Math.sin(wa) * ws);
     this.dir.set(Math.cos(wa), Math.sin(wa));
-    if (this.force || t >= this.next) {
-      const g = GAP[weather] ?? [20, 50];
+    if (this.force) {
+      // (the dev's gust: here, now, on this PC only)
       const k = GUST[weather] ?? [1, 2];
       const a0 = eye.x * this.dir.x + eye.z * this.dir.y;
       this.gusts.push({ t0: t + 1.5, len: rand(2, 6), k: rand(k[0], k[1]), speed: 8 + BASE[weather] * 3, a0 });
-      this.next = t + rand(g[0], g[1]);
       this.force = false;
     }
     this.gusts = this.gusts.filter((q) => t < q.t0 + q.len + 60);
+    // the town's gusts: one in each window of the shared clock (the window as long as the weather's middle gap), its
+    // front passing the town's middle (0, 0) at its time and sweeping on along the wind
+    const g = GAP[weather] ?? [20, 50];
+    const W = (g[0] + g[1]) / 2;
+    const k = GUST[weather] ?? [1, 2];
+    const speed = 8 + BASE[weather] * 3;
+    this.town.length = 0;
+    const w0 = Math.floor((t - 60) / W);
+    for (let w = w0; w <= w0 + Math.ceil(120 / W) + 1; w++) {
+      const len = 2 + dice(`gust:${weather}`, w, 1) * 4;
+      this.town.push({ t0: w * W + dice(`gust:${weather}`, w, 2) * Math.max(1, W - len), len, k: k[0] + (k[1] - k[0]) * dice(`gust:${weather}`, w, 3), speed, a0: 0 });
+    }
   }
+  private town: Gust[] = [];
 
   /** The gust at a place now, 0.. (times the base wind). */
   gustAt(x: number, z: number): number {
     let g = 0;
     // the front moves along the wind: a place further downwind feels it later
     const along = x * this.dir.x + z * this.dir.y;
-    for (const q of this.gusts) {
+    for (const q of this.gusts.length ? [...this.town, ...this.gusts] : this.town) {
       const local = this.t - q.t0 - (along - q.a0) / q.speed;
       if (local < -0.5 || local > q.len + 1) continue;
       const env = clamp01((local + 0.5) / 0.8) * clamp01((q.len + 1 - local) / 1.5);
@@ -80,6 +95,6 @@ export class Wind {
   }
 
   info(): Record<string, unknown> {
-    return { base: +this.speed.toFixed(2), dir: +Math.atan2(this.dir.y, this.dir.x).toFixed(2), gusts: this.gusts.length, weather: this.weather };
+    return { base: +this.speed.toFixed(2), dir: +Math.atan2(this.dir.y, this.dir.x).toFixed(2), gusts: this.gusts.length + this.town.length, weather: this.weather };
   }
 }

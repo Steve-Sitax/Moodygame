@@ -24,7 +24,11 @@ export const SOCKET_LIMITS = {
   state: { normal: 20, rate: 40, burst: 120 },
   // townspeople batches: street.ts sends at PUPPET_HZ (10) at most, one batch per 150 people (PUPPET_MAX); one
   // PC walks at most about 190 residents, so 2 batches a tick is the most there is.
-  puppets: { normal: 10, rate: 30, burst: 60 },
+  // (M8f sync pass 3: and extras.ts's own batch of the town's other walkers, the market's shoppers and the Steen's
+  // visitors, at the same rate: two senders)
+  puppets: { normal: 20, rate: 50, burst: 100 },
+  // M8f sync pass 3: the animals a PC runs (extras.ts): 10 a second while one moves, one every 2 s while all stand
+  animals: { normal: 10, rate: 30, burst: 60 },
   // the moving world (JSON, about 3 KB): world.ts sends at WORLD_HZ (10), from the world PC only.
   world: { normal: 10, rate: 20, burst: 40 },
   // job figures: jobfigs.ts sends at FIG_HZ (10) while one walks. Their own cap (FIG_RATE 15 a second, M8d) in
@@ -85,7 +89,7 @@ export type Say = "ok" | "drop" | "flood";
 export class SeatLimiter {
   private readonly buckets = new Map<SocketKind, Bucket>();
   private readonly win = new Map<SocketKind, { t0: number; n: number; strikes: number }>();
-  readonly dropped: Record<SocketKind, number> = { state: 0, puppets: 0, world: 0, figs: 0, text: 0 };
+  readonly dropped: Record<SocketKind, number> = { state: 0, puppets: 0, animals: 0, world: 0, figs: 0, text: 0 };
 
   message(kind: SocketKind, now: number): Say {
     const lim = SOCKET_LIMITS[kind];

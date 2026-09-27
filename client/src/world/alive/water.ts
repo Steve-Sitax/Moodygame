@@ -2,6 +2,8 @@ import * as THREE from "three";
 import { psx, psxUniforms } from "../../retro/psx";
 import { bilge, buoyBell } from "../../audio/aliveSounds";
 import { FCOMMON, VCOMMON, hours, pointMat, srgb, type Ctx, type Frame, type Part } from "./common";
+import { REAL_S_PER_GAME_MIN } from "../../../../shared/clock";
+import { dice, sharedSeconds } from "../../game/share";
 
 // M7 alive: the river's own life.
 // - Buoys along the far edge of the fairway (below the lanes at z -84 and -100, clear of the liner at
@@ -221,7 +223,11 @@ export function createShipLights(ctx: Ctx): Part {
     if (!on) return;
     lit.value += ((f.night > 0.55 || (f.weather === "fog" && f.night > 0.25) ? 1 : 0) - lit.value) * Math.min(1, f.dt);
     pts.visible = lit.value > 0.01;
-    if (!pts.visible) return;
+    if (!pts.visible) {
+      // (by day: nothing left in it from the night: M8f)
+      if (g.drawRange.count) g.setDrawRange(0, 0);
+      return;
+    }
     n = 0;
     const lvl = (x: number, z: number) => {
       const y = ctx.world.waterLevel(x, z);
@@ -326,8 +332,18 @@ export function createBilge(ctx: Ctx): Part {
   ctx.scene.add(pts);
   interface Drop { p: THREE.Vector3; v: THREE.Vector3; on: boolean }
   const drops: Drop[] = Array.from({ length: N }, () => ({ p: new THREE.Vector3(), v: new THREE.Vector3(), on: false }));
-  const state = PUMPS.map((_, i) => ({ strokes: 0, clock: 0, wait: 20 + i * 37 + Math.random() * 60, soundAt: 0 }));
+  // (sync pass 2: when a pump works comes from the game's clock, so two players by one ship see the same spout; was a
+  // dice roll of 90 to 290 s between runs of 14 to 33 strokes, which the clock's rounds keep)
+  const state = PUMPS.map(() => ({ strokes: 0, clock: 0, soundAt: 0, force: false }));
   const PERIOD = 1.7;
+  /** One round of a pump (real seconds): a run of 14 to 33 strokes somewhere in it, idle the rest. */
+  const ROUND = 240;
+  const dice = (i: number, k: number, salt: number): number => {
+    let h = Math.imul(i + 1, 0x9e3779b1) ^ Math.imul(k, 0x85ebca6b) ^ Math.imul(salt, 0xc2b2ae35);
+    h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d);
+    h = Math.imul(h ^ (h >>> 12), 0x297a2d39);
+    return ((h ^ (h >>> 15)) >>> 0) / 4294967296;
+  };
   let on = true;
   let working = 0;
 
@@ -355,17 +371,29 @@ export function createBilge(ctx: Ctx): Part {
     for (let i = 0; i < PUMPS.length; i++) {
       const s = state[i];
       const near = Math.hypot(PUMPS[i].x - f.eye.x, PUMPS[i].z - f.eye.z) < 90;
-      if (s.strokes <= 0) {
-        s.wait -= dt;
-        if (s.wait <= 0 && near && f.night < 0.9) {
-          s.strokes = 14 + Math.floor(Math.random() * 20);
+      if (s.force) {
+        // (the dev's pumpNow: a run from now)
+        if (s.strokes <= 0) {
+          s.strokes = 20;
           s.clock = 0;
           s.soundAt = 0;
         }
-        continue;
+        s.clock += dt;
+      } else {
+        const now = (f.day * 1440 + f.hour * 60) * REAL_S_PER_GAME_MIN + i * 37;
+        const k = Math.floor(now / ROUND);
+        const strokes = 14 + Math.floor(dice(i, k, 1) * 20);
+        const start = dice(i, k, 2) * (ROUND - strokes * PERIOD);
+        const at = now - k * ROUND - start;
+        if (!near || f.night >= 0.9 || at < 0 || at >= strokes * PERIOD) {
+          s.strokes = 0;
+          continue;
+        }
+        if (s.strokes <= 0) s.soundAt = at;
+        s.strokes = strokes;
+        s.clock = at;
       }
       working++;
-      s.clock += dt;
       const phase = (s.clock % PERIOD) / PERIOD;
       outlet(i, o);
       const side = [Math.cos(PUMPS[i].yaw) * PUMPS[i].side, -Math.sin(PUMPS[i].yaw) * PUMPS[i].side];
@@ -386,9 +414,9 @@ export function createBilge(ctx: Ctx): Part {
         s.soundAt = s.clock + PERIOD * 6;
         ctx.sound()?.placed({ x: o.x, y: o.y, z: o.z }, { ref: 2, reach: 25, max: 45 }, bilge(6, PERIOD));
       }
-      if (s.clock > s.strokes * PERIOD) {
+      if (s.force && s.clock > s.strokes * PERIOD) {
         s.strokes = 0;
-        s.wait = 90 + Math.random() * 200;
+        s.force = false;
       }
     }
     for (let j = 0; j < N; j++) {
@@ -416,7 +444,7 @@ export function createBilge(ctx: Ctx): Part {
       pts.visible = v;
     },
     // dev: every pump near Jef works now
-    ...{ pumpNow: () => state.forEach((s) => (s.wait = 0)) },
+    ...{ pumpNow: () => state.forEach((s) => (s.force = true)) },
   } as Part;
 }
 
@@ -479,22 +507,49 @@ export function createMist(ctx: Ctx): Part {
   let on = true;
   const w2 = new THREE.Vector2();
 
-  function spawn(w: Wisp, f: Frame): void {
-    for (let k = 0; k < 10; k++) {
-      const a = Math.random() * Math.PI * 2;
-      const d = 6 + Math.sqrt(Math.random()) * 70;
-      const x = f.eye.x + Math.cos(a) * d;
-      const z = f.eye.z + Math.sin(a) * d;
-      if (!ctx.world.isWater(x, z) || !ctx.world.swimFree(x, z, 3)) continue;
-      const y = ctx.world.waterLevel(x, z);
-      if (!Number.isFinite(y)) continue;
-      w.p.set(x, y + 0.25 + Math.random() * 0.9, z);
-      w.life = 0;
-      w.speed = 1 / (25 + Math.random() * 25);
-      w.size = 3 + Math.random() * 5;
-      return;
+  // M8f sync pass 3: the wisps are the river's, not laid round Jef by this PC's dice: in each cell of the water (16 m)
+  // three may rise, each in its own round of 25-50 s of the shared clock, where the round's dice put it, drifting
+  // with the (shared) wind; each PC shows the nearest to its eye
+  const CELL = 16;
+  const found: Array<{ x: number; y: number; z: number; life: number; size: number; d: number }> = [];
+  const water = new Map<string, boolean>();
+  function isWater(x: number, z: number): boolean {
+    const key = `${Math.round(x)},${Math.round(z)}`;
+    let v = water.get(key);
+    if (v === undefined) {
+      v = ctx.world.isWater(x, z) && ctx.world.swimFree(x, z, 3);
+      if (water.size > 20000) water.clear();
+      water.set(key, v);
     }
-    w.life = -1;
+    return v;
+  }
+  function gather(f: Frame): void {
+    found.length = 0;
+    const S = sharedSeconds();
+    ctx.wind.at(f.eye.x, f.eye.z, w2);
+    for (let i = Math.floor((f.eye.x - 76) / CELL); i <= Math.floor((f.eye.x + 76) / CELL); i++)
+      for (let j = Math.floor((f.eye.z - 76) / CELL); j <= Math.floor((f.eye.z + 76) / CELL); j++) {
+        if (!isWater((i + 0.5) * CELL, (j + 0.5) * CELL) && !isWater(i * CELL + 2, j * CELL + 2) && !isWater((i + 1) * CELL - 2, (j + 1) * CELL - 2)) continue;
+        for (let k = 0; k < 3; k++) {
+          const P = 25 + dice("mistP", i, j, k) * 25;
+          const u = S / P + dice("mistph", i, j, k);
+          const c = Math.floor(u);
+          const life = u - c;
+          if (dice("mistok", i, j, k, c) > 0.8) continue;
+          const x0 = (i + dice("mistx", i, j, k, c)) * CELL;
+          const z0 = (j + dice("mistz", i, j, k, c)) * CELL;
+          if (!isWater(x0, z0)) continue;
+          const y = ctx.world.waterLevel(x0, z0);
+          if (!Number.isFinite(y)) continue;
+          const age = life * P;
+          const x = x0 + w2.x * 0.35 * age;
+          const z = z0 + w2.y * 0.35 * age;
+          const d = Math.hypot(x - f.eye.x, z - f.eye.z);
+          if (d < 6 || d > 76) continue;
+          found.push({ x, y: y + 0.25 + dice("misty", i, j, k, c) * 0.9, z, life, size: 3 + dice("mists", i, j, k, c) * 5, d });
+        }
+      }
+    found.sort((a, b) => a.d - b.d);
   }
 
   function update(f: Frame): void {
@@ -508,16 +563,26 @@ export function createMist(ctx: Ctx): Part {
     const fog = ctx.scene.fog as THREE.Fog | null;
     if (fog) tint.value.copy(fog.color).lerp(new THREE.Color(0.85, 0.87, 0.9), 0.35 * (1 - f.night));
     pts.visible = amt.value > 0.01;
-    if (!pts.visible) return;
+    if (!pts.visible) {
+      // (none out: nothing left in it from before: M8f)
+      if (wisps.some((w) => w.life >= 0)) {
+        for (const w of wisps) w.life = -1;
+        pos.fill(0);
+        data.fill(-1);
+        g.attributes.position.needsUpdate = true;
+        g.attributes.aData.needsUpdate = true;
+      }
+      return;
+    }
+    gather(f);
     for (let i = 0; i < WISPS; i++) {
       const w = wisps[i];
-      if (w.life < 0 || w.life >= 1 || Math.hypot(w.p.x - f.eye.x, w.p.z - f.eye.z) > 85) spawn(w, f);
-      else {
-        w.life += f.dt * w.speed;
-        ctx.wind.at(w.p.x, w.p.z, w2);
-        w.p.x += w2.x * 0.35 * f.dt;
-        w.p.z += w2.y * 0.35 * f.dt;
-      }
+      const q = found[i];
+      if (q) {
+        w.p.set(q.x, q.y, q.z);
+        w.life = q.life;
+        w.size = q.size;
+      } else w.life = -1;
       pos.set([w.p.x, w.p.y, w.p.z], i * 3);
       data[i * 2] = w.life;
       data[i * 2 + 1] = w.size;

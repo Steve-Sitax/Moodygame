@@ -1196,13 +1196,24 @@ export class LedDray {
       this.trail.unshift([x, z]);
       if (this.trail.length > 60) this.trail.length = 60;
     }
+    this.pose(dt, speed, (d, out) => this.back(d, out));
+  }
+
+  /**
+   * M8f goods pass 2 (world/goodsDrays.ts): the rig on a way given as the point `d` metres behind the man and the
+   * heading there (the same on every PC: a way worked out from the clock, not from the steps one PC saw).
+   * Things laid on the bed hang on `bedFrame` (x across, y up, z along from the rear axle).
+   */
+  readonly bedFrame = new THREE.Group();
+  pose(dt: number, speed: number, back: (d: number, out: { x: number; z: number; yaw: number }) => void): void {
+    if (!this.bedFrame.parent) this.root.add(this.bedFrame);
     const H = { x: 0, z: 0, yaw: 0 };
     const B = { x: 0, z: 0, yaw: 0 };
     const A = { x: 0, z: 0, yaw: 0 };
     // the horse's middle a metre behind him, to his right (he walks at its head on its left)
-    this.back(1.0, H);
-    this.back(1.0 + HORSE_AHEAD, B);
-    this.back(1.0 + HORSE_AHEAD + WHEELBASE, A);
+    back(1.0, H);
+    back(1.0 + HORSE_AHEAD, B);
+    back(1.0 + HORSE_AHEAD + WHEELBASE, A);
     for (const p of [H, B, A]) {
       p.x -= Math.cos(p.yaw) * 0.85;
       p.z += Math.sin(p.yaw) * 0.85;
@@ -1218,6 +1229,7 @@ export class LedDray {
       m.rotation.set(pitch, yw, 0, "YXZ");
     };
     put(this.bed, A.x, 0, A.z, bedYaw);
+    put(this.bedFrame, A.x, 0, A.z, bedYaw);
     if (this.load) put(this.load, A.x, 0, A.z, bedYaw);
     put(this.fore, B.x, 0, B.z, foreYaw);
     put(this.rear, A.x, 0.52, A.z, bedYaw, this.roll[0]);

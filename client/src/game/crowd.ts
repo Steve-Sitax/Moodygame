@@ -855,11 +855,15 @@ export class Crowd {
     return n;
   }
 
-  /** A resident appears at (x, z); null while the models load. */
-  addPuppet(kind: HumanKind, x: number, z: number, yaw = 0, pace = 1.3): Puppet | null {
+  /** A resident appears at (x, z); null while the models load. `size`: his size (else a roll of the dice). */
+  addPuppet(kind: HumanKind, x: number, z: number, yaw = 0, pace = 1.3, size?: number): Puppet | null {
     if (!this.ready) return null;
     const p = this.make(kind, x, z, "puppet");
     if (!p) return null;
+    if (size !== undefined) {
+      p.size = size;
+      p.group.scale.setScalar(size);
+    }
     p.yaw = yaw;
     p.pace = pace;
     p.state = "stand";

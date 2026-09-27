@@ -41,7 +41,8 @@ export interface NetMover<S = unknown> {
 }
 
 /** What a player may ask the world PC's movers for (the world PC does it as if he were there). */
-export const ASKS = ["bus_hold", "bridge", "lock"] as const;
+/** (sync pass 2: "bus_board", a townsperson another PC's trip puts on an omnibus: [omnibus, id, kind, stop].) */
+export const ASKS = ["bus_hold", "bridge", "lock", "bus_board"] as const;
 
 /** Drawn this far in the past to start (ms); then from how late the states come. */
 export const WORLD_DELAY_START = 220;
@@ -208,6 +209,9 @@ export class WorldNet {
       if (m.what === "bus_hold" && typeof a[0] === "number" && typeof a[1] === "boolean") {
         const bus = (mv.omnibus as unknown as { buses: Array<{ index: number; hold(on: boolean): void }> } | null)?.buses.find((b) => b.index === a[0]);
         bus?.hold(a[1]);
+      } else if (m.what === "bus_board" && typeof a[0] === "number" && typeof a[1] === "string" && typeof a[2] === "string" && typeof a[3] === "string") {
+        // (the omnibus checks the rest: its round's stop, a seat, the look)
+        (mv.omnibus as unknown as { netBoard(bus: number, id: string, kind: string, alight: string): void } | null)?.netBoard(a[0], a[1].slice(0, 40), a[2].slice(0, 20), a[3].slice(0, 40));
       } else if (m.what === "bridge" && typeof a[0] === "string" && typeof a[1] === "boolean") {
         // (each player's boat is its own asker: "rower:<id>")
         (mv.bridges as unknown as { request(k: string, who: string, on: boolean): void } | null)?.request(a[0].slice(0, 40), `rower:${m.from}`, a[1]);
