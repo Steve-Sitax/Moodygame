@@ -554,6 +554,32 @@ float lampScatter(vec3 ro, vec3 rd, float len, vec3 p) {
 }
 `;
 
+/**
+ * The lamps' glow in the air between the eye and a point, as the psx fog adds it, for shaders of their own (smoke:
+ * world/ambient.ts, boats.ts, works.ts, fire.ts). `airGlow(worldPos, fogFar)` in a vertex shader gives the light to
+ * add over the fogged colour: `col + glow * (0.35 + 0.65 * fog)`, as psx.ts does. Without it a puff in the fog is the
+ * bare fog colour in front of a sky that glows, a dark blue spot at night (2026-09-27, Steve's pictures).
+ * Uniforms: airGlowUniforms().
+ */
+export const AIR_GLOW_GLSL = /* glsl */ `
+uniform vec4 uLamps[${MAX_LAMPS}];
+uniform vec3 uLampColor;
+uniform float uScatter;
+${LAMP_SCATTER_GLSL}
+vec3 airGlow(vec3 wp, float far) {
+  vec3 toP = wp - cameraPosition;
+  float len = length(toP);
+  vec3 rd = toP / max(len, 1e-4);
+  float reach = glowReach(len, far, rd);
+  float g = 0.0;
+  for (int i = 0; i < ${MAX_LAMPS}; i++) g += uLamps[i].w * lampScatter(cameraPosition, rd, reach, uLamps[i].xyz);
+  return uLampColor * g * uScatter;
+}
+`;
+export function airGlowUniforms(): { uLamps: typeof psxUniforms.uLamps; uLampColor: typeof psxUniforms.uLampColor; uScatter: typeof psxUniforms.uScatter } {
+  return { uLamps: psxUniforms.uLamps, uLampColor: psxUniforms.uLampColor, uScatter: psxUniforms.uScatter };
+}
+
 const commonFragment = /* glsl */ `
 #define MAX_LAMPS ${MAX_LAMPS}
 uniform vec4 uLamps[MAX_LAMPS];

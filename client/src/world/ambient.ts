@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { psx, psxUniforms } from "../retro/psx";
+import { psx, psxUniforms, AIR_GLOW_GLSL } from "../retro/psx";
 import { dice, share, sharedSeconds } from "../game/share";
 import { TARGET_HEIGHT } from "../retro/retroPass";
 import { edgeZ, type CityOpenings, type CityWorld } from "./city";
@@ -154,6 +154,7 @@ function shaderMat(p: {
       uSnapRes: psxUniforms.uSnapRes,
       uLamps: psxUniforms.uLamps,
       uLampColor: psxUniforms.uLampColor,
+      uScatter: psxUniforms.uScatter,
       ...U,
     },
     vertexShader: p.vertexShader,
@@ -256,9 +257,11 @@ function buildSmoke(chimneys: Chimney[]): THREE.Points {
       uniform vec2 uWind;
       uniform float uViewH;
       uniform float fogFar;
+      ${AIR_GLOW_GLSL}
       attribute vec4 aSeed;
       varying float vAlpha;
       varying float vSeed;
+      varying vec3 vGlow;
       void main() {
         float act = smoothstep(aSeed.x - 0.03, aSeed.x + 0.03, uSmoke);
         // Steve: the smoke read as standing still; a quicker rise and more curl, so it is seen to move
@@ -281,12 +284,15 @@ function buildSmoke(chimneys: Chimney[]): THREE.Points {
         vAlpha = act * smoothstep(0.0, 0.08, age) * (1.0 - age) * (0.75 + 0.5 * uSmoke);
         vSeed = aSeed.w;
         if (vAlpha < 0.005 || vFogDepth > fogFar * 1.15) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+        // the gas lamps' glow in the air in front of the puff, as in front of the sky behind it (retro/psx.ts)
+        else vGlow = airGlow((modelMatrix * vec4(p, 1.0)).xyz, fogFar);
       }`,
     fragmentShader: /* glsl */ `
       ${FCOMMON}
       uniform vec3 uSmokeCol;
       varying float vAlpha;
       varying float vSeed;
+      varying vec3 vGlow;
       void main() {
         vec2 c = gl_PointCoord - 0.5;
         float d = dot(c, c) * 4.0;
@@ -296,7 +302,7 @@ function buildSmoke(chimneys: Chimney[]): THREE.Points {
         float f = fogK();
         float a = min(vAlpha * (1.0 - d * d) * mottle * 1.5, 0.7) * (1.0 - f * 0.9);
         if (a < 0.008) discard;
-        gl_FragColor = vec4(mix(uSmokeCol, fogColor, f), a);
+        gl_FragColor = vec4(mix(uSmokeCol, fogColor, f) + vGlow * (0.35 + 0.65 * f), a);
         #include <colorspace_fragment>
       }`,
   });
