@@ -62,6 +62,35 @@ Played alone, the movement socket is not open: no player is drawn and every town
 
 Several cards can be pinned (tabs at the top of the panel, up to 8).
 
+## Home, workplace and family
+
+When a townsperson is hovered, or his card is the open one, the map shows his ties:
+
+- **Home** (green): the outline of his house filled, and a ring on its door (seen at any zoom), with a dotted
+  line from him to it.
+- **Workplace** (ochre): a diamond at the spot he works (his stall, shop table, tavern door, post, the place
+  of his trade), with a dashed line. Nobody who works at home, plays or waits has one.
+- **Family** (claret): a ring round everyone of his household and his mate (the garrison's), with a line from
+  him to where each is now: live where a PC walks them, else by the day plan (also when "Indoors" is off).
+
+A small key at the bottom left names them. Nothing is drawn when nothing is hovered or pinned.
+
+On his card, **Home and work** has two links: **Home** pins the house's card and takes the map there;
+**Workplace** pins the place's card if the town has one for it (else the map only goes there and rings the
+spot a few seconds). **Family** holds the links to his household.
+
+A home is also a thing on the map itself: hover a house somebody lives in for "Home of the Peeters family (5
+people)", near what it stands and how many are inside by the plan; click it to pin its card. The **house
+card** shows where it is (near which square, quay, church or shop; the tavern or shop it is when it is one of
+the game's buildings), its households, **Living here** (each a link, with where they are now: seen live, or
+what the plan has them do) and **Inside now, by the day plan** (they, and anyone else the plan puts inside
+at this door). Its **History** tab reads the save for the household: `world_event` rows that name one of them,
+their `family_news`, and goods taken from them (`deed`). A house has no day plan tab.
+
+Homes come with `/people` once per town: the house of `shared/city_build.json` (its outline), or for a home
+in one of the game's buildings with no house number (a tavern) the in-world house at its door, or else the
+door alone. Home ids are `h<house>` or `d<x*10>_<z*10>`.
+
 ## The history kept
 
 In memory, since the server started (gone on a restart):
@@ -80,11 +109,13 @@ for a place the events that happened there.
 
 - `server/src/mapview/index.ts`: `mountMapView({ model, db })`, its own http server and the `/feed` socket.
   Routes: `/` (the page), `/city` (the drawing, from `shared/city.json`, `city_build.json`,
-  `townplaces.json`), `/people` (residents, places, stalls, cats), `/feed`, `/detail?kind=&id=`,
-  `/history?kind=&id=`. Kinds: `player`, `resident`, `dog` (by its owner's id), `world` (`key:id`),
-  `place`, `event`.
+  `townplaces.json`), `/people` (residents with their home id, mate and workplace; places, stalls, homes,
+  cats), `/feed`, `/detail?kind=&id=`, `/history?kind=&id=`. Kinds: `player`, `resident`, `dog` (by its
+  owner's id), `world` (`key:id`), `place`, `event`, `house` (a home id). A card's links may carry a
+  `group` (the heading) and `at` (where the map goes); kind `spot` (`x,z`) only moves the map.
 - `server/src/mapview/model.ts`: `MapModel`, fed by the multiplayer code: `players(list)`,
   `puppets(ownerId, entries)`, `world(t, d)`, `owners(rows, full)`; `plannedSpot` for the day plan.
-- `server/src/mapview/views.ts`: the snapshot, the details and the history.
+- `server/src/mapview/views.ts`: the snapshot, the details and the history; `homesOf(town)` (the homes,
+  made once per town) and `workplaceOf(resident, town)`.
 - `server/src/mapview/public/`: the page (plain JS, canvas 2D, no library, no CDN).
 - Tests: `server/test/mapview.test.ts`.

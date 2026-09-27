@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
 import { allowedMapHost, allowedMapOrigin, mapPortFromEnv, mountMapView, type MapView } from "../src/mapview/index.ts";
 import { LIVE_STALE_MS, MapModel, plannedSpot, Ring, TRAIL_CAP, TRAIL_KEEP_MS, type PuppetIn } from "../src/mapview/model.ts";
-import { snapshot } from "../src/mapview/views.ts";
+import { detail, history, homesOf, peopleJson, snapshot, workplaceOf } from "../src/mapview/views.ts";
 import { town } from "../src/town/store.ts";
 import { blankSave } from "./blank-save.ts";
 
@@ -124,6 +124,101 @@ describe("the day plan's places", () => {
     const b = snapshot(m, tw, clock, null) as typeof a;
     expect(b.people.filter((p) => p.id === r.id)).toEqual([expect.objectContaining({ live: 1, x: 12.3, z: 56.8 })]);
     expect(b.people.length).toBe(tw.residents.length);
+    db.close();
+  });
+});
+
+describe("homes, households and workplaces", () => {
+  it("/people gives every resident a home that exists, with its outline, and one home per household", () => {
+    const db = blankSave();
+    const tw = town(db).town;
+    const p = JSON.parse(peopleJson(tw)) as {
+      residents: Array<{ id: string; household: number; home: string | null; work: [number, number] | null; wl: string | null; wp: string | null; mate: string | null }>;
+      homes: Array<{ id: string; fp: Array<[number, number]> | null; door: [number, number]; n: number; name: string; near: string | null; hh: number[] }>;
+    };
+    const homes = new Map(p.homes.map((h) => [h.id, h]));
+    expect(p.homes.length).toBeGreaterThan(50);
+    for (const r of p.residents) expect(homes.has(r.home ?? "")).toBe(true);
+    // the people counted in each home are the residents that name it
+    const counted = new Map<string, number>();
+    for (const r of p.residents) counted.set(r.home!, (counted.get(r.home!) ?? 0) + 1);
+    for (const h of p.homes) expect(h.n).toBe(counted.get(h.id));
+    // a household lives under one roof
+    const hhHome = new Map<number, string>();
+    for (const r of p.residents) {
+      if (hhHome.has(r.household)) expect(r.home).toBe(hhHome.get(r.household));
+      else hhHome.set(r.household, r.home!);
+    }
+    // nearly every home is a house of the map with an outline, a name and a place it is near
+    const drawn = p.homes.filter((h) => h.fp && h.fp.length >= 3);
+    expect(drawn.length / p.homes.length).toBeGreaterThan(0.9);
+    const family = p.homes.find((h) => h.n >= 3 && h.hh.length === 1)!;
+    expect(family.name).toMatch(/^the \S.* family$/);
+    expect(p.homes.filter((h) => h.near).length / p.homes.length).toBeGreaterThan(0.8);
+    // a shopkeeper's workplace is his shop, pinnable; work at home is no workplace
+    const keeper = tw.residents.find((r) => r.work.kind === "shop" && r.work.shop)!;
+    const kw = p.residents.find((r) => r.id === keeper.id)!;
+    expect(kw.wp).toBe(keeper.work.shop);
+    expect(kw.work).toEqual([expect.any(Number), expect.any(Number)]);
+    const athome = tw.residents.find((r) => r.work.place === "home")!;
+    expect(workplaceOf(athome, tw)).toBe(null);
+    expect(p.residents.find((r) => r.id === athome.id)!.work).toBe(null);
+    db.close();
+  });
+
+  it("a resident's card links his home and workplace; the house card lists who lives there and who is inside", () => {
+    const db = blankSave();
+    const tw = town(db).town;
+    const hs = homesOf(tw);
+    const home = [...hs.byId.values()].find((h) => h.members.length >= 3 && h.households.length === 1 && h.fp)!;
+    const head = home.members.find((r) => r.family_role === "head") ?? home.members[0];
+    const model = new MapModel();
+    const night = { day: 2, hour: 3, minute: 0 };
+    const v = { model, db, town: tw, clock: night };
+
+    const d = detail(v, "resident", head.id)!;
+    const homeLink = d.links.find((l) => l.kind === "house")!;
+    expect(homeLink).toMatchObject({ id: home.id, name: "Home", group: "Home and work", at: { x: home.step[0], z: home.step[1] } });
+    const family = d.links.filter((l) => l.group === "Family" && l.kind === "resident").map((l) => l.id);
+    for (const r of home.members) if (r.id !== head.id && r.household === head.household) expect(family).toContain(r.id);
+
+    const keeper = tw.residents.find((r) => r.work.kind === "shop" && r.work.shop)!;
+    const kd = detail(v, "resident", keeper.id)!;
+    expect(kd.links.find((l) => l.name === "Workplace")).toMatchObject({ kind: "place", id: keeper.work.shop, group: "Home and work" });
+
+    // at 3 in the night the household is at home, inside
+    const hd = detail(v, "house", home.id)!;
+    expect(hd.title).toBe(`Home of ${home.name}`);
+    expect(hd.at).toEqual({ x: home.step[0], z: home.step[1] });
+    const living = hd.links.filter((l) => l.group === "Living here");
+    expect(living.map((l) => l.id).sort()).toEqual(home.members.map((r) => r.id).sort());
+    const inside = hd.links.filter((l) => l.group === "Inside now, by the day plan").map((l) => l.id);
+    expect(inside.filter((id) => home.members.some((r) => r.id === id)).length).toBeGreaterThanOrEqual(home.members.length - 1);
+    // one walked live is in the street, not inside
+    model.puppets(1, [puppet(head.id, home.step[0] + 5, home.step[1])]);
+    const hd2 = detail(v, "house", home.id)!;
+    expect(hd2.links.find((l) => l.id === head.id && l.group === "Living here")?.why).toMatch(/seen live/);
+    expect(hd2.links.some((l) => l.id === head.id && l.group === "Inside now, by the day plan")).toBe(false);
+    expect(detail(v, "house", "h-nothing")).toBe(null);
+    db.close();
+  });
+
+  it("the house's history holds its people's family news and events from the save, read only", () => {
+    const db = blankSave();
+    const tw = town(db).town;
+    const home = [...homesOf(tw).byId.values()].find((h) => h.members.length >= 2 && h.households.length === 1)!;
+    const [a, b] = home.members;
+    db.prepare("INSERT INTO family_news (day, minute, teller, listener, memory_id, origin, gist, tone, status) VALUES (3, 600, ?, ?, 1, 1, 'the baker cheated her', -2, 'heard')").run(a.id, b.id);
+    const ev = db.prepare("INSERT INTO world_event (day, hour, minute, kind, verb, text) VALUES (3, 11, 0, 'talk', 'talked', 'a quarrel at the door')").run();
+    db.prepare("INSERT INTO world_event_who (event_id, who) VALUES (?, ?)").run(ev.lastInsertRowid, b.id);
+    const other = tw.residents.find((r) => homesOf(tw).byResident.get(r.id) !== home.id)!;
+    db.prepare("INSERT INTO family_news (day, minute, teller, listener, memory_id, origin, gist, tone, status) VALUES (3, 610, ?, ?, 1, 1, 'none of this house', 0, 'heard')").run(other.id, other.id);
+    const hist = history({ model: new MapModel(), db, town: tw, clock: { day: 3, hour: 12, minute: 0 } }, "house", home.id);
+    const texts = hist.db.map((e) => e.text);
+    expect(texts).toContain(`${a.name} to ${b.name}: the baker cheated her`);
+    expect(texts).toContain("a quarrel at the door");
+    expect(texts.some((t) => t.includes("none of this house"))).toBe(false);
+    expect(hist.trail).toEqual([]);
     db.close();
   });
 });

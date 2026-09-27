@@ -83,6 +83,10 @@
     other: "#556b2f",
     event: "#8e2f1d",
     place: "#6b5238",
+    // the selected person's home, workplace and family
+    home: "#2f6b4f",
+    work: "#b8780f",
+    family: "#a3285e",
   };
   const PLAYER_COLOURS = ["#a3311f", "#2b62a0", "#3d7a3a", "#7a3d8a", "#c07a14", "#1f7f7f"];
   const playerColour = (id) => (id === 1 ? PLAYER_COLOURS[0] : PLAYER_COLOURS[1 + ((id - 2) % (PLAYER_COLOURS.length - 1))]);
@@ -138,8 +142,9 @@
   let staticKey = "";
   let city = null;
   let P = null; // the Path2D shapes
-  let people = { key: null, byId: new Map(), residents: [], places: [], cats: [] };
+  let people = { key: null, byId: new Map(), residents: [], places: [], cats: [], homes: new Map(), byHh: new Map(), members: new Map() };
   let snap = null;
+  let snapById = new Map();
   let snapAt = 0;
   const things = new Map(); // key -> { fx, fz, tx, tz, t0, yaw }
   const trails = new Map(); // key -> [[t, x, z]...] (the page's own, 2 minutes)
@@ -553,6 +558,7 @@
   function onSnap(m) {
     const now = performance.now();
     snap = m;
+    snapById = new Map(m.people.map((q) => [q.id, q]));
     snapAt = now;
     if (m.key && m.key !== people.key) loadPeople();
     const sec = Math.floor(Date.now() / 1000);
@@ -609,10 +615,14 @@
       if (show.trails) drawTrails();
       drawServerTrail();
       drawBridgesState();
+      const sel = selection();
+      drawHomeUnder(sel);
       drawPeople(now);
       drawWorld(now);
       drawPlayers(now);
+      drawTies(sel, now);
       drawMarks(now);
+      renderTies(sel);
     }
     drawCompass();
     drawScale();
@@ -964,6 +974,176 @@
     }
   }
 
+  // ------------------------------------------------------------------ a person's home, workplace and family
+
+  /** Whose ties the map shows: the hovered person or home, else the open card's. Null: nothing. */
+  function selection() {
+    const of = (r) => {
+      if (!r) return null;
+      if ((r.kind === "resident" || r.kind === "dog") && people.byId.has(r.id)) return { rid: r.id, hid: people.byId.get(r.id).home };
+      if (r.kind === "house" && people.homes.has(r.id)) return { rid: null, hid: r.id };
+      return null;
+    };
+    return of(hover) || of(pins[active]);
+  }
+
+  /** The home's outline, under the people. */
+  function drawHomeUnder(sel) {
+    const hm = sel && sel.hid && people.homes.get(sel.hid);
+    if (!hm || !hm.path) return;
+    worldTransform(ctx);
+    ctx.fillStyle = "rgba(47, 107, 79, 0.3)";
+    ctx.fill(hm.path);
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = C.home;
+    ctx.lineWidth = 2.5 / view.s;
+    ctx.stroke(hm.path);
+    screenTransform(ctx);
+  }
+
+  /** A place the map was sent to from a card (a workplace with no card of its own): a ring for a few seconds. */
+  let flash = null;
+
+  /** Lines from the person to his home, his workplace and his family where they are now; rings round them. */
+  function drawTies(sel, now) {
+    if (flash) {
+      if (now > flash.until) flash = null;
+      else {
+        const [sx, sy] = toScreen(flash.x, flash.z);
+        ctx.beginPath();
+        ctx.arc(sx, sy, 10 + 6 * Math.abs(Math.sin(now / 250)), 0, Math.PI * 2);
+        ctx.strokeStyle = C.work;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+      }
+    }
+    if (!sel) return;
+    const hm = sel.hid ? people.homes.get(sel.hid) : null;
+    const info = sel.rid ? people.byId.get(sel.rid) : null;
+    const me = info ? whereIs("resident", info.id, now) : hm ? hm.door : null;
+    if (!me) return;
+    const [mx, my] = toScreen(me[0], me[1]);
+    const line = (sx, sy, colour, dash, w) => {
+      ctx.beginPath();
+      ctx.moveTo(mx, my);
+      ctx.lineTo(sx, sy);
+      ctx.setLineDash(dash);
+      ctx.strokeStyle = colour;
+      ctx.lineWidth = w;
+      ctx.stroke();
+      ctx.setLineDash([]);
+    };
+    const named = view.s > 1.5;
+    // the family: his household and his mate; for a house, everyone who lives there
+    const fam = [];
+    const seen = new Set(info ? [info.id] : []);
+    const add = (id) => {
+      if (seen.has(id)) return;
+      seen.add(id);
+      const at = whereIs("resident", id, now);
+      if (at) fam.push([id, ...toScreen(at[0], at[1])]);
+    };
+    if (info) {
+      for (const id of people.byHh.get(info.household) || []) add(id);
+      if (info.mate) add(info.mate);
+    } else if (hm) for (const id of people.members.get(hm.id) || []) add(id);
+    ctx.globalAlpha = 0.75;
+    for (const [, sx, sy] of fam) line(sx, sy, C.family, [], 1.4);
+    ctx.globalAlpha = 1;
+    for (const [id, sx, sy] of fam) {
+      ctx.beginPath();
+      ctx.arc(sx, sy, 8, 0, Math.PI * 2);
+      ctx.strokeStyle = C.family;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      const r = people.byId.get(id);
+      if (r && view.s > 2.5) label2(ctx, r.name, sx, sy + 15, `11px ${SERIF}`, C.family);
+    }
+    // the workplace
+    if (info && info.work) {
+      const [wx, wy] = toScreen(info.work[0], info.work[1]);
+      line(wx, wy, C.work, [7, 4], 1.8);
+      ctx.beginPath();
+      ctx.moveTo(wx, wy - 8);
+      ctx.lineTo(wx + 8, wy);
+      ctx.lineTo(wx, wy + 8);
+      ctx.lineTo(wx - 8, wy);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(184, 120, 15, 0.25)";
+      ctx.fill();
+      ctx.strokeStyle = C.work;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      if (named) label2(ctx, "work", wx, wy - 16, `italic 11px ${SERIF}`, C.work);
+    }
+    // the home: its door, ringed, whatever the zoom
+    if (hm) {
+      const [dx, dy] = toScreen(hm.door[0], hm.door[1]);
+      if (info) line(dx, dy, C.home, [3, 4], 1.8);
+      ctx.beginPath();
+      ctx.arc(dx, dy, 9, 0, Math.PI * 2);
+      ctx.strokeStyle = C.home;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(dx, dy, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = C.home;
+      ctx.fill();
+      if (named) label2(ctx, "home", dx, dy - 17, `italic 11px ${SERIF}`, C.home);
+    }
+  }
+
+  /** The key to the ties on the map (one small card, made again only when the selection changes). */
+  let tiesKey = "";
+  function renderTies(sel) {
+    const key = sel ? `${sel.rid}|${sel.hid}|${people.key}` : "";
+    if (key === tiesKey) return;
+    tiesKey = key;
+    const box = $("ties");
+    box.hidden = !sel;
+    if (!sel) return;
+    const info = sel.rid ? people.byId.get(sel.rid) : null;
+    const hm = sel.hid ? people.homes.get(sel.hid) : null;
+    const item = (colour, shape, k, v) => {
+      const sw = h("span", `sw ${shape}`);
+      sw.style.borderColor = colour;
+      return h("div", "ti", sw, h("span", "k", k), h("span", "v", v));
+    };
+    let famN = 0;
+    if (info) famN = new Set([...(people.byHh.get(info.household) || []), ...(info.mate ? [info.mate] : [])].filter((id) => id !== info.id)).size;
+    else if (hm) famN = (people.members.get(hm.id) || []).length;
+    box.replaceChildren(
+      ...[
+        h("div", "tt", info ? info.name : `Home of ${hm.name}`),
+        hm ? item(C.home, "sq", info ? "Home" : "House", hm.in || hm.near || "a house of the town") : null,
+        info ? item(C.work, "dia", "Workplace", info.work ? info.wl : "at home, or none") : null,
+        item(C.family, "ring", info ? "Family" : "Living here", famN ? `${famN} ${famN === 1 ? "person" : "people"}` : "nobody else"),
+        h("div", "tn", "Lines run to where each is now (live, or by the day plan)."),
+      ].filter(Boolean),
+    );
+  }
+
+  /** The home under a point of the screen (its outline, or near its door when the map has no house for it). */
+  function houseAt(sx, sy) {
+    if (!people.homes.size) return null;
+    const [x, z] = toWorld(sx, sy);
+    const slack = 2 / view.s;
+    for (const hm of people.homes.values()) {
+      if (x < hm.x0 - slack || x > hm.x1 + slack || z < hm.z0 - slack || z > hm.z1 + slack) continue;
+      if (hm.path ? inside(hm.fp, x, z) : Math.hypot(x - hm.door[0], z - hm.door[1]) < Math.max(3, 6 / view.s)) return { kind: "house", id: hm.id };
+    }
+    return null;
+  }
+  function inside(pts, x, z) {
+    let c = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const [xi, zi] = pts[i];
+      const [xj, zj] = pts[j];
+      if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) c = !c;
+    }
+    return c;
+  }
+
   /** A ring round what is hovered and what is pinned. */
   function drawMarks(now) {
     const mark = (kind, id, colour, r) => {
@@ -996,6 +1176,14 @@
     if (kind === "bridge" && city) {
       const b = city.bridges.find((q) => q.id === id);
       return b ? [b.cx, b.cz] : null;
+    }
+    if (kind === "house") {
+      const hm = people.homes.get(id);
+      return hm ? [hm.door[0], hm.door[1]] : null;
+    }
+    if (kind === "spot") {
+      const [x, z] = id.split(",").map(Number);
+      return Number.isFinite(x) && Number.isFinite(z) ? [x, z] : null;
     }
     return null;
   }
@@ -1104,9 +1292,9 @@
       }
     }
     const h0 = nearest(e.offsetX, e.offsetY);
-    hover = h0 ? h0.ref : null;
-    canvas.classList.toggle("hot", !!h0);
-    if (h0) showTip(h0.ref, e.offsetX, e.offsetY);
+    hover = h0 ? h0.ref : houseAt(e.offsetX, e.offsetY);
+    canvas.classList.toggle("hot", !!hover);
+    if (hover) showTip(hover, e.offsetX, e.offsetY);
     else hideTip();
   });
   canvas.addEventListener("pointerup", (e) => {
@@ -1115,7 +1303,8 @@
     canvas.classList.remove("drag");
     if (was && !was.moved) {
       const h0 = nearest(e.offsetX, e.offsetY);
-      if (h0 && h0.ref.kind !== "cat") pin(h0.ref.kind, h0.ref.id);
+      const ref = h0 && h0.ref.kind !== "cat" ? h0.ref : houseAt(e.offsetX, e.offsetY);
+      if (ref) pin(ref.kind, ref.id);
     }
   });
   canvas.addEventListener("pointerleave", () => {
@@ -1156,7 +1345,8 @@
     tip.hidden = false;
     const tw = tip.offsetWidth;
     const th = tip.offsetHeight;
-    tip.style.left = `${sx + 16 + tw > W ? sx - tw - 14 : sx + 16}px`;
+    // (never past the left edge: on a narrow map it would slide under the side bar)
+    tip.style.left = `${Math.max(6, sx + 16 + tw > W ? sx - tw - 14 : sx + 16)}px`;
     tip.style.top = `${clamp(sy - 10, 6, H - th - 6)}px`;
   }
 
@@ -1236,6 +1426,24 @@
       ];
     }
     if (ref.kind === "cat") return [h("div", "t", "A cat's doorstep"), h("div", "k", "where the game puts a cat now and then")];
+    if (ref.kind === "house") {
+      const hm = people.homes.get(ref.id);
+      if (!hm) return null;
+      let indoors = 0;
+      let live = 0;
+      for (const id of people.members.get(hm.id) || []) {
+        const q = snapById.get(id);
+        if (!q) continue;
+        if (q.live) live++;
+        else if (q.in && Math.hypot(q.x - hm.door[0], q.z - hm.door[1]) < 3) indoors++;
+      }
+      return [
+        h("div", "t", `Home of ${hm.name} (${hm.n} ${hm.n === 1 ? "person" : "people"})`),
+        h("div", "k", hm.in || hm.near || "a house of the town"),
+        row("Inside", `${indoors} by the day plan`),
+        live ? row("Live", `${live} in the street`) : null,
+      ].filter(Boolean);
+    }
     return null;
   }
   const prettyId = (id) => id.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
@@ -1273,7 +1481,7 @@
   /** The active card's details from the server (every 2 s), its history (every 5 s while open). */
   async function refresh(force = false) {
     const p = pins[active];
-    if (!p || !["resident", "player", "world", "place", "event", "dog"].includes(p.kind)) return;
+    if (!p || !["resident", "player", "world", "place", "event", "dog", "house"].includes(p.kind)) return;
     const now = Date.now();
     const q = `kind=${encodeURIComponent(p.kind)}&id=${encodeURIComponent(p.id)}`;
     try {
@@ -1301,6 +1509,10 @@
     if (p.kind === "player") return ((snap && snap.players.find((q) => String(q.id) === p.id)) || {}).name || `Player ${p.id}`;
     if (p.kind === "place") return ((people.places.find((q) => q.id === p.id) || {}).label || p.id).replace(/^the /, "");
     if (p.kind === "bridge") return prettyId(p.id);
+    if (p.kind === "house") {
+      const hm = people.homes.get(p.id);
+      if (hm) return `Home: ${hm.name.replace(/^the /, "")}`;
+    }
     if (p.detail) return p.detail.title;
     return p.id;
   }
@@ -1311,6 +1523,7 @@
       return q && q.live ? C.live : C.planned;
     }
     if (p.kind === "dog") return C.dog;
+    if (p.kind === "house") return C.home;
     if (p.kind === "event") return C.event;
     return C.place;
   }
@@ -1353,6 +1566,19 @@
   }
   function sec(title, ...kids) {
     return h("div", "sec", h("h3", null, title), ...kids);
+  }
+
+  /** A link of a card: pin what it names (a person, a house, a place) and go there if it says where. */
+  function goLink(k) {
+    if (k.kind !== "spot") pin(k.kind, k.id);
+    if (k.at) {
+      view.cx = k.at.x;
+      view.cz = k.at.z;
+      view.s = Math.max(view.s, 3);
+      for (const q of pins) q.follow = false;
+      if (k.kind === "spot") flash = { x: k.at.x, z: k.at.z, until: performance.now() + 4000 };
+      renderPins();
+    }
   }
 
   /** The "Live" block from the feed (four times a second). */
@@ -1417,11 +1643,14 @@
     close.type = "button";
     close.onclick = () => unpin(active);
     const subs = h("div", "subtabs");
+    // a house has no day plan of its own (its people's are on their cards)
+    if (p.kind === "house" && p.sub === "plan") p.sub = "now";
     for (const [k, t] of [
       ["now", "Now"],
       ["plan", "Day plan"],
       ["history", "History"],
     ]) {
+      if (k === "plan" && p.kind === "house") continue;
       const b = h("button", p.sub === k ? "on" : "", t);
       b.type = "button";
       b.onclick = () => {
@@ -1453,14 +1682,18 @@
       if (d) {
         for (const s of d.sections) if (!(live && s.title === "Now")) out.push(sec(s.title, rowsEl(s.rows)));
         if (d.links && d.links.length) {
-          const l = h("div", "links");
+          // the links under their headings, in the order they come ("Home and work", "Family"; "Living here", "Inside now")
+          const groups = new Map();
           for (const k of d.links) {
-            const b = h("button", "linkbtn", k.name, k.why ? h("span", "why", k.why) : null);
+            const g = k.group || (p.kind === "place" ? "Here now" : p.kind === "event" ? "People in it" : "People");
+            if (!groups.has(g)) groups.set(g, h("div", "links"));
+            const cls = k.kind === "house" ? "linkbtn home" : k.name === "Workplace" ? "linkbtn work" : "linkbtn";
+            const b = h("button", cls, k.name, k.why ? h("span", "why", k.why) : null);
             b.type = "button";
-            b.onclick = () => pin(k.kind, k.id);
-            l.append(b);
+            b.onclick = () => goLink(k);
+            groups.get(g).append(b);
           }
-          out.push(sec(p.kind === "place" ? "Here now" : p.kind === "event" ? "People in it" : "People", l));
+          for (const [g, l] of groups) out.push(sec(g, l));
         }
       } else if (!live) out.push(h("div", "empty", "Nothing more is known of it."));
     } else if (p.sub === "plan") {
@@ -1473,7 +1706,12 @@
     } else {
       const hs = p.hist;
       if (!hs) out.push(h("div", "empty", "Loading..."));
-      else {
+      else if (p.kind === "house") {
+        const db = h("ul", "hist");
+        for (const e of hs.db) db.append(h("li", null, h("span", "w", e.when), h("span", "kd", e.kind), e.text));
+        out.push(sec("The household in the save", hs.db.length ? db : h("div", "empty", "The save holds nothing about the people of this house yet.")));
+        out.push(h("div", "empty", "Events that name one of them, their family news and goods taken from them. Each person's own card has the rest."));
+      } else {
         const span = hs.trail.length > 1 ? Math.round((hs.trail[hs.trail.length - 1][0] - hs.trail[0][0]) / 60000) : 0;
         out.push(sec("Trail", h("div", "small", hs.trail.length ? `${hs.trail.length} points over the last ${span} min, drawn on the map in red (older is paler).` : "No trail kept: not seen moving live in the last 15 minutes.")));
         const ch = h("ul", "hist");
@@ -1593,6 +1831,36 @@
 
   // ------------------------------------------------------------------ loading and the feed
 
+  /** The homes with their outline as a shape and a box (for the hover), the households and who lives where. */
+  function homesFrom(d) {
+    const homes = new Map();
+    for (const hm of d.homes || []) {
+      const o = { ...hm, path: null, x0: hm.door[0] - 3, x1: hm.door[0] + 3, z0: hm.door[1] - 3, z1: hm.door[1] + 3 };
+      if (hm.fp && hm.fp.length >= 3) {
+        o.path = new Path2D();
+        ring(o.path, hm.fp);
+        for (const [x, z] of hm.fp) {
+          o.x0 = Math.min(o.x0, x);
+          o.x1 = Math.max(o.x1, x);
+          o.z0 = Math.min(o.z0, z);
+          o.z1 = Math.max(o.z1, z);
+        }
+      }
+      homes.set(hm.id, o);
+    }
+    const byHh = new Map();
+    const members = new Map();
+    for (const r of d.residents) {
+      if (!byHh.has(r.household)) byHh.set(r.household, []);
+      byHh.get(r.household).push(r.id);
+      if (r.home) {
+        if (!members.has(r.home)) members.set(r.home, []);
+        members.get(r.home).push(r.id);
+      }
+    }
+    return { homes, byHh, members };
+  }
+
   let peopleBusy = false;
   async function loadPeople() {
     if (peopleBusy) return;
@@ -1600,7 +1868,7 @@
     try {
       const d = await getJson("/people");
       if (d) {
-        people = { key: d.key, byId: new Map(d.residents.map((r) => [r.id, r])), residents: d.residents, places: d.places, cats: d.cats };
+        people = { key: d.key, byId: new Map(d.residents.map((r) => [r.id, r])), residents: d.residents, places: d.places, cats: d.cats, ...homesFrom(d) };
         renderPins();
       }
     } catch {

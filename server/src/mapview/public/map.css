@@ -118,6 +118,21 @@ kbd { font: 11px var(--serif); border: 1px solid var(--ink-3); border-radius: 3p
 #zoomctl button:last-child { border-bottom: 0; font-size: 12px; font-variant: small-caps; }
 #zoomctl button:hover { background: var(--paper-3); }
 
+/* the key to a person's home, workplace and family on the map */
+#ties { left: 12px; bottom: 62px; padding: 6px 10px 7px; min-width: 190px; max-width: 290px; font-size: 13px; pointer-events: none; }
+#ties[hidden] { display: none; }
+#ties .tt { font-weight: bold; margin-bottom: 2px; }
+#ties .ti { display: grid; grid-template-columns: 14px 70px 1fr; gap: 6px; align-items: center; }
+#ties .k { color: var(--ink-3); font-variant: small-caps; }
+#ties .v { overflow-wrap: anywhere; }
+#ties .tn { margin-top: 3px; font-size: 11.5px; font-style: italic; color: var(--ink-3); }
+#ties .sw { display: inline-block; width: 12px; height: 12px; border: 2.5px solid; }
+#ties .sw.sq { border-radius: 2px; background: rgba(47, 107, 79, 0.3); }
+#ties .sw.dia { width: 10px; height: 10px; transform: rotate(45deg); background: rgba(184, 120, 15, 0.25); margin-left: 1px; }
+#ties .sw.ring { border-radius: 50%; border-width: 2px; }
+.linkbtn.home { border-color: #2f6b4f; border-left-width: 4px; }
+.linkbtn.work { border-color: #b8780f; border-left-width: 4px; }
+
 .tip {
   position: absolute;
   pointer-events: none;

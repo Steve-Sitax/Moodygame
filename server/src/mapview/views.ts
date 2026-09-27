@@ -1,11 +1,13 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import CITY from "../../../shared/city.json" with { type: "json" };
+import INWORLD from "../../../shared/inworld_houses.json" with { type: "json" };
 import TOWNPLACES from "../../../shared/townplaces.json" with { type: "json" };
 import type { DB } from "../db.ts";
 import { shownTrade } from "../town/places.ts";
 import type { Resident, Town } from "../town/population.ts";
 import { activityAt } from "../town/schedule.ts";
+import { cityHouses } from "../town/walkmap.ts";
 import { actText, keyOf, moverId, moverPos, placeLabel, plannedSpot, segsOf, type MapClock, type MapModel } from "./model.ts";
 
 // The town map's answers (docs/mapview.md): the drawing of the town (/city), the people and places that
@@ -129,28 +131,199 @@ export function townKey(town: Town): string {
   return `${town.seed}:${town.residents.length}:${town.residents[town.residents.length - 1]?.id ?? ""}`;
 }
 
-/** The residents, the places, the stalls and the cats' doorsteps: what changes only with the town. */
+/** The residents, the places, the stalls, the homes and the cats' doorsteps: what changes only with the town. */
 export function peopleJson(town: Town): string {
   const places = Object.entries(town.places)
     .filter(([id]) => !id.startsWith("play:") && !id.startsWith("market:"))
     .map(([id, p]) => ({ id, label: p.label, x: r1(p.x), z: r1(p.z), r: r1(p.r), district: p.district, kind: id.startsWith("tavern:") ? "tavern" : p.door ? "shop" : "place" }));
+  const hs = homesOf(town);
   return JSON.stringify({
     key: townKey(town),
-    residents: town.residents.map((r) => ({
-      id: r.id,
-      name: r.name,
-      label: shownTrade(r),
-      age: r.age,
-      sex: r.sex,
-      household: r.household,
-      role: r.family_role,
-      dog: r.dog ? r.dog.name : null,
-    })),
+    residents: town.residents.map((r) => {
+      const w = workplaceOf(r, town);
+      return {
+        id: r.id,
+        name: r.name,
+        label: shownTrade(r),
+        age: r.age,
+        sex: r.sex,
+        household: r.household,
+        role: r.family_role,
+        dog: r.dog ? r.dog.name : null,
+        home: hs.byResident.get(r.id) ?? null,
+        mate: r.mate ?? null,
+        // the workplace: where, its name, and the place to pin if the town has one
+        work: w ? [r1(w.x), r1(w.z)] : null,
+        wl: w?.label ?? null,
+        wp: w?.place ?? null,
+      };
+    }),
     places,
     stalls: town.stalls.map((s, i) => ({ i, x: r1(s.x), z: r1(s.z), goods: s.goods, keeper: s.keeper })),
+    homes: [...hs.byId.values()].map((h) => ({ id: h.id, fp: h.fp, door: h.step, n: h.members.length, name: h.name, near: h.near, in: h.inworld, hh: h.households })),
     // the cats of the game sit on these doorsteps (client game/town.ts: every third resident's step)
     cats: town.residents.filter((_r, i) => i % 3 === 0).map((r) => [r1(r.home.sx), r1(r.home.sz)]),
   });
+}
+
+// ------------------------------------------------------------------ homes and workplaces
+
+/** A house somebody lives in: its outline, its door and who lives there (one household or several). */
+export interface HomeInfo {
+  /** "h696" (a house of shared/city_build.json) or "d-548_451" (a door with no house on the map). */
+  id: string;
+  /** The index in shared/city_build.json, or -1. */
+  house: number;
+  /** Its outline (world metres), or null when there is no house to draw (a door only). */
+  fp: Pt[] | null;
+  /** The door in the wall and the step in front of it. */
+  wall: Pt;
+  step: Pt;
+  members: Resident[];
+  /** The households that live in it, the biggest first. */
+  households: number[];
+  /** "the Dens family", "Jan Dens", "the Dens family and 2 more households". */
+  name: string;
+  /** "near the Vismarkt", or null. */
+  near: string | null;
+  /** The building of the game it is (a tavern, the barracks), if one. */
+  inworld: string | null;
+}
+
+interface Homes {
+  byId: Map<string, HomeInfo>;
+  byResident: Map<string, string>;
+}
+
+const homesMemo = new WeakMap<Town, Homes>();
+const INWORLD_ENTRIES = (INWORLD as unknown as { houses: Array<{ id: string; house: number; door: Pt }> }).houses;
+
+/** A proper name for a place of the map: "the Vismarkt", "the Sint-Jansplein", but "Het Steen" as it is. */
+const properName = (n: string) => (/^(the|het|de|den|'t)\b/i.test(n) ? n : `the ${n}`);
+
+/** The names worth saying "near" of: the squares, quays and buildings, and the town's own places. */
+function namedSpots(town: Town): Array<{ name: string; x: number; z: number }> {
+  const out: Array<{ name: string; x: number; z: number }> = [];
+  const tp = TOWNPLACES as unknown as { places?: Record<string, { x: number; z: number; kind: string }> };
+  for (const [name, p] of [...Object.entries((CITY as unknown as CityJson).places), ...Object.entries(tp.places ?? {})]) {
+    if (p.kind === "water") continue;
+    out.push({ name: properName(LANDMARK_NAMES[name] ?? name), x: p.x, z: p.z });
+  }
+  for (const [id, p] of Object.entries(town.places)) {
+    const main = !id.includes(":") || /^(tavern|church|landmark):/.test(id);
+    if (!main || /^an? /i.test(p.label) || p.r > 35) continue;
+    out.push({ name: p.label, x: p.x, z: p.z });
+  }
+  return out;
+}
+
+/** "De Vliet", "the bakery behind the Rijnkaai", "the Poesje", "rooms to let (garret)". */
+function inworldLabel(town: Town, id: string): string {
+  const bare = id.replace(/^[a-z]+:/, "");
+  const p = town.places[id] ?? town.places[bare];
+  if (p) return p.label;
+  if (id.startsWith("home:")) return `rooms to let (${bare})`;
+  return properName(bare.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()));
+}
+
+/** The household(s) of a house in a few words. */
+function familyName(members: Resident[], households: number[]): string {
+  const first = members.filter((r) => r.household === households[0]);
+  const head = first.find((r) => r.family_role === "head") ?? first[0];
+  const one = first.length === 1 ? head.name : `the ${head.surname} family`;
+  const more = households.length - 1;
+  return more ? `${one} and ${more} more household${more > 1 ? "s" : ""}` : one;
+}
+
+/** The homes of the town, made once per town: every resident's house, with its outline if the map has one. */
+export function homesOf(town: Town): Homes {
+  const memo = homesMemo.get(town);
+  if (memo) return memo;
+  let houses: Array<{ fp: number[][]; gone?: boolean }> = [];
+  try {
+    houses = cityHouses();
+  } catch {
+    // no houses file: doors only
+  }
+  const inworldByHouse = new Map(INWORLD_ENTRIES.map((e) => [e.house, e]));
+  const byId = new Map<string, HomeInfo>();
+  const byResident = new Map<string, string>();
+  for (const r of town.residents) {
+    let house = r.home.house;
+    // a home in a building of the game (a tavern, the barracks) that the town gave no house number: its door says which
+    if (house < 0) {
+      const e = INWORLD_ENTRIES.find((q) => Math.hypot(q.door[0] - r.home.x, q.door[1] - r.home.z) < 3 || Math.hypot(q.door[0] - r.home.sx, q.door[1] - r.home.sz) < 3);
+      if (e) house = e.house;
+    }
+    const fpRaw = house >= 0 ? houses[house] : undefined;
+    const id = house >= 0 ? `h${house}` : `d${Math.round(r.home.sx * 10)}_${Math.round(r.home.sz * 10)}`;
+    byResident.set(r.id, id);
+    let h = byId.get(id);
+    if (!h) {
+      const iw = house >= 0 ? inworldByHouse.get(house) : undefined;
+      h = {
+        id,
+        house,
+        fp: fpRaw && !fpRaw.gone && Array.isArray(fpRaw.fp) ? poly(fpRaw.fp) : null,
+        wall: pt([r.home.x, r.home.z]),
+        step: pt([r.home.sx, r.home.sz]),
+        members: [],
+        households: [],
+        name: "",
+        near: null,
+        inworld: iw ? inworldLabel(town, iw.id) : null,
+      };
+      byId.set(id, h);
+    }
+    h.members.push(r);
+  }
+  const spots = namedSpots(town);
+  for (const h of byId.values()) {
+    const size = new Map<number, number>();
+    for (const r of h.members) size.set(r.household, (size.get(r.household) ?? 0) + 1);
+    h.households = [...size.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map((e) => e[0]);
+    h.name = familyName(h.members, h.households);
+    let best: string | null = null;
+    let bestD = 90;
+    for (const s of spots) {
+      const d = Math.hypot(s.x - h.step[0], s.z - h.step[1]);
+      if (d < bestD) ((bestD = d), (best = s.name));
+    }
+    h.near = best ? `near ${best}` : null;
+  }
+  const out = { byId, byResident };
+  homesMemo.set(town, out);
+  return out;
+}
+
+export function homeOf(town: Town, r: Resident): HomeInfo | undefined {
+  const hs = homesOf(town);
+  const id = hs.byResident.get(r.id);
+  return id ? hs.byId.get(id) : undefined;
+}
+
+/** Where a resident works, if somewhere else than at home: the spot, its name, and the town's place to pin if one. */
+export function workplaceOf(r: Resident, town: Town): { x: number; z: number; label: string; place: string | null } | null {
+  const w = r.work;
+  // at home, a child's play, an emigrant's waiting: no workplace
+  if (w.place === "home" || w.place.startsWith("play:") || w.kind === "wait") return null;
+  const place = town.places[w.place] ? w.place : w.shop && town.places[w.shop] ? w.shop : null;
+  const label = placeLabel(r, town, "work", "work");
+  const p = place ? town.places[place] : undefined;
+  let at: readonly number[] | undefined;
+  if (w.at) at = w.at;
+  else if (typeof w.stall === "number" && town.stalls[w.stall]) at = [town.stalls[w.stall].x, town.stalls[w.stall].z];
+  else if (w.shop) {
+    const s = town.shops.find((q) => q.id === w.shop);
+    at = s ? (s.out ?? s.door) : undefined;
+  }
+  if (!at && w.kind === "inside" && w.door) at = w.door;
+  if (!at && p) at = [p.x, p.z];
+  if (!at && w.door) at = w.door;
+  if (!at && w.kind === "haul" && w.a) at = w.a;
+  if (!at && w.route?.length) at = w.route[0];
+  if (!at || !fin(at[0]) || !fin(at[1])) return null;
+  return { x: at[0], z: at[1], label, place };
 }
 
 // ------------------------------------------------------------------ what the database says now (once a second)
@@ -288,10 +461,15 @@ interface Section {
   rows: Row[];
 }
 interface Link {
+  /** What a click pins (resident, dog, house, place...); "spot": nothing to pin, the map only goes there. */
   kind: string;
   id: string;
   name: string;
   why?: string;
+  /** The heading the page puts it under ("Family", "Home and work"); none: the card's usual one. */
+  group?: string;
+  /** Where the map goes on a click (a home, a workplace). */
+  at?: { x: number; z: number };
 }
 export interface Detail {
   kind: string;
@@ -378,11 +556,13 @@ export function detail(v: ViewDeps, kind: string, id: string): Detail | null {
     if (owner && !live) now.push(["Owner", `${model.ownerName(owner)} (no batch lately)`]);
 
     const trade = shownTrade(r);
+    const home = homeOf(town, r);
+    const work = workplaceOf(r, town);
     const who: Row[] = [
       ["Trade", trade === r.trade.replace(/_/g, " ") ? trade : `${trade} (engine: ${r.trade})`],
       ["Age", `${r.age}, ${r.sex === "f" ? "woman" : "man"}`],
       ["Household", `no. ${r.household}, ${r.family_role}`],
-      ["Home", `house ${r.home.house} (x ${r.home.x.toFixed(0)}, z ${r.home.z.toFixed(0)})`],
+      ["Home", `${home?.inworld ? `${home.inworld}, ` : r.home.house >= 0 ? `house ${r.home.house}, ` : ""}${home?.near ?? ""} (x ${r.home.x.toFixed(0)}, z ${r.home.z.toFixed(0)})`],
       ["Work", `${r.work.kind} at ${placeLabel(r, town, "work", "work")}`],
     ];
     if (r.faction) who.push(["Faction", r.faction]);
@@ -408,12 +588,15 @@ export function detail(v: ViewDeps, kind: string, id: string): Detail | null {
       if (rel.view_of_player) rows.push(["Thinks", rel.view_of_player]);
       sections.push({ title: "With the host's player", rows });
     }
-    const links: Link[] = town.residents.filter((o) => o.household === r.household && o.id !== r.id).map((o) => ({ kind: "resident", id: o.id, name: o.name, why: o.family_role }));
+    const links: Link[] = [];
+    if (home) links.push({ kind: "house", id: home.id, name: "Home", why: home.inworld ?? home.near ?? home.name, group: "Home and work", at: { x: home.step[0], z: home.step[1] } });
+    if (work) links.push({ kind: work.place ? "place" : "spot", id: work.place ?? `${r1(work.x)},${r1(work.z)}`, name: "Workplace", why: work.label, group: "Home and work", at: { x: r1(work.x), z: r1(work.z) } });
+    for (const o of town.residents) if (o.household === r.household && o.id !== r.id) links.push({ kind: "resident", id: o.id, name: o.name, why: o.family_role, group: "Family" });
     if (r.mate) {
       const m = residentOf(town, r.mate);
-      if (m) links.push({ kind: "resident", id: m.id, name: m.name, why: "mate" });
+      if (m) links.push({ kind: "resident", id: m.id, name: m.name, why: "mate", group: "Family" });
     }
-    if (r.dog) links.push({ kind: "dog", id: r.id, name: r.dog.name, why: "dog" });
+    if (r.dog) links.push({ kind: "dog", id: r.id, name: r.dog.name, why: "dog", group: "Family" });
     let planOut: Detail["plan"];
     if (clock) {
       const h = clock.hour + clock.minute / 60;
@@ -429,6 +612,61 @@ export function detail(v: ViewDeps, kind: string, id: string): Detail | null {
       };
     }
     return { kind, id, title: r.name, sub: `${trade}, ${r.age}`, sections, links, plan: planOut, at: pos ? { x: pos.x, z: pos.z } : null };
+  }
+
+  if (kind === "house") {
+    const h = town ? homesOf(town).byId.get(id) : undefined;
+    if (!h || !town) return null;
+    const near = (x: number, z: number) => Math.hypot(x - h.wall[0], z - h.wall[1]) < 3 || Math.hypot(x - h.step[0], z - h.step[1]) < 3;
+    const living: Link[] = [];
+    const inside: Link[] = [];
+    let nIn = 0;
+    let nLive = 0;
+    for (const r of h.members) {
+      const live = model.live(r.id);
+      const plan = clock ? plannedSpot(r, town, clock) : null;
+      let where = "?";
+      if (live) {
+        nLive++;
+        where = "in the street, seen live";
+      } else if (plan) {
+        const home = plan.act === "home" || plan.place === "home" || (plan.indoor && near(plan.x, plan.z));
+        if (home) {
+          nIn++;
+          inside.push({ kind: "resident", id: r.id, name: r.name, why: r.family_role, group: "Inside now, by the day plan" });
+        }
+        where = home ? (plan.act === "work" ? "working inside, by the plan" : "at home, by the plan") : `${actText(plan.act)} ${plan.label}, by the plan`;
+      }
+      living.push({ kind: "resident", id: r.id, name: r.name, why: `${r.family_role}: ${where}`, group: "Living here" });
+    }
+    // others the plan has inside at this door (a servant, the tavern's help)
+    if (clock) {
+      for (const r of town.residents) {
+        if (h.members.includes(r) || model.live(r.id)) continue;
+        const plan = plannedSpot(r, town, clock);
+        if (plan.indoor && near(plan.x, plan.z)) inside.push({ kind: "resident", id: r.id, name: r.name, why: `${actText(plan.act)}, lives elsewhere`, group: "Inside now, by the day plan" });
+      }
+    }
+    const hhRows = h.households.map((hh) => {
+      const m = h.members.filter((r) => r.household === hh);
+      const head = m.find((r) => r.family_role === "head") ?? m[0];
+      return m.length === 1 ? `${head.name} (${head.family_role})` : `the ${head.surname} family (${m.length}, head ${head.name})`;
+    });
+    const rows: Row[] = [];
+    if (h.near) rows.push(["Near", h.near.replace(/^near /, "")]);
+    rows.push(["Building", h.inworld ? h.inworld : h.house >= 0 ? `house no. ${h.house} of the map` : "a door with no house on the map"]);
+    rows.push(["Households", hhRows.join("; ")]);
+    rows.push(["Now", clock ? `${nIn} of ${h.members.length} inside by the day plan, ${nLive} seen live in the street, ${h.members.length - nIn - nLive} out` : `${h.members.length} live here`]);
+    rows.push(["Door", `x ${h.step[0].toFixed(1)}, z ${h.step[1].toFixed(1)}`]);
+    return {
+      kind,
+      id,
+      title: `Home of ${h.name}`,
+      sub: `${h.members.length} ${h.members.length === 1 ? "person" : "people"}${h.near ? `, ${h.near}` : ""}`,
+      sections: [{ title: "The house", rows }],
+      links: [...living, ...inside],
+      at: { x: h.step[0], z: h.step[1] },
+    };
   }
 
   if (kind === "player") {
@@ -591,6 +829,40 @@ export function history(v: ViewDeps, kind: string, id: string): History {
       push(when(d.day, d.hour, d.minute), "taken from him", `${d.item} from ${d.thing} (${d.status}${d.seen ? ", seen" : ""})`);
     for (const e of all<{ day: number; title: string; status: string }>(db, "town_event", "SELECT day, title, status FROM town_event WHERE people_json LIKE ? ORDER BY id DESC LIMIT 8", `%"${id.replace(/[%_"]/g, "")}"%`))
       push(`day ${e.day}`, `town event (${e.status})`, e.title);
+  } else if (kind === "house") {
+    const h = v.town ? homesOf(v.town).byId.get(id) : undefined;
+    if (h) {
+      const ids = h.members.map((r) => r.id);
+      const name = new Map(h.members.map((r) => [r.id, r.name]));
+      const who = (rid: string) => name.get(rid) ?? (v.town ? residentOf(v.town, rid)?.name : undefined) ?? rid;
+      const q = ids.map(() => "?").join(", ");
+      for (const e of all<{ day: number; hour: number; minute: number; kind: string; verb: string; text: string }>(
+        db,
+        "world_event",
+        `SELECT day, hour, minute, kind, verb, text FROM world_event
+          WHERE id IN (SELECT event_id FROM world_event_who WHERE who IN (${q})) OR actor IN (${q}) OR target IN (${q})
+          ORDER BY id DESC LIMIT 30`,
+        ...ids,
+        ...ids,
+        ...ids,
+      ))
+        push(when(e.day, e.hour, e.minute), e.kind === e.verb ? e.kind : `${e.kind}: ${e.verb}`, e.text);
+      for (const f of all<{ day: number; minute: number; teller: string; listener: string; gist: string; status: string; reaction: string | null }>(
+        db,
+        "family_news",
+        `SELECT day, minute, teller, listener, gist, status, reaction FROM family_news WHERE teller IN (${q}) OR listener IN (${q}) ORDER BY id DESC LIMIT 15`,
+        ...ids,
+        ...ids,
+      ))
+        push(when(f.day, Math.floor(f.minute / 60) % 24, f.minute % 60), `family news (${f.status})`, `${who(f.teller)} to ${who(f.listener)}: ${f.gist}${f.reaction ? ` (${f.reaction})` : ""}`);
+      for (const d of all<{ day: number; hour: number; minute: number; owner: string; thing: string; item: string; status: string }>(
+        db,
+        "deed",
+        `SELECT day, hour, minute, owner, thing, item, status FROM deed WHERE owner IN (${q}) ORDER BY id DESC LIMIT 10`,
+        ...ids,
+      ))
+        push(when(d.day, d.hour, d.minute), "taken from the house", `${d.item} from ${d.thing}, ${who(d.owner)}'s (${d.status})`);
+    }
   } else if (kind === "player" && id === "1") {
     for (const e of all<{ day: number; hour: number; minute: number; kind: string; verb: string; text: string }>(
       db,
