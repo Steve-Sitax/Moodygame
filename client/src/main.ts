@@ -240,6 +240,11 @@ journeys.onJefVelos = () => void deeds.load();
 // M4: townspeople who act (game/actions.ts), the director's events (game/events.ts) and the
 // conversations shown over their heads (game/bubbles.ts); the server decides all of it
 const events = new Events(world, town, stalls);
+{
+  // the paper map and the corner map: what goes on in town (game/map.ts)
+  const marks = jobs.map.marks;
+  jobs.map.marks = () => [...marks(), ...events.mapMarks(player)];
+}
 const bubbles = new Bubbles(town);
 const actions = new Actions(world, player, town, crowd, events);
 // M7 funeral: the hearse of a funeral's departure (game/hearses.ts); the column walks after it

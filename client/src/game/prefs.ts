@@ -75,6 +75,8 @@ export interface Prefs extends GameSettings {
   bubbles: number;
   /** An autosave every this many game hours (0: only when the tab closes). */
   autosave: number;
+  /** The round map in the top right corner while you play (Steve, 2026-09-27: off by default). */
+  miniMap: "off" | "small" | "large";
   language: "en";
   // ---- accessibility
   /** All text on screen, times its size. */
@@ -128,6 +130,7 @@ export const DEFAULTS: Prefs = {
   headBob: true,
   bubbles: 1,
   autosave: 1,
+  miniMap: "off",
   language: "en",
   textSize: 1,
   contrast: false,
@@ -188,6 +191,7 @@ function read(): Prefs {
     headBob: bool(raw.headBob, d.headBob),
     bubbles: num(raw.bubbles, 0.7, 1.8, d.bubbles),
     autosave: [0, 1, 2, 4].includes(raw.autosave as number) ? (raw.autosave as number) : d.autosave,
+    miniMap: one(raw.miniMap, ["off", "small", "large"] as const, d.miniMap),
     language: "en",
     textSize: num(raw.textSize, 0.8, 1.6, d.textSize),
     contrast: bool(raw.contrast, d.contrast),

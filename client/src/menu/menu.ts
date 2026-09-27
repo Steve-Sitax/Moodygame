@@ -342,6 +342,7 @@ function tabControls(p: Prefs): string {
 function tabGame(p: Prefs): string {
   return `${row("Speech bubbles", range("bubbles", 0.7, 1.8, 0.05, p.bubbles, pct), "The size of the words over the heads of people talking.")}
     ${row("Autosave", seg("autosave", [[1, "Each hour"], [2, "2 hours"], [4, "4 hours"], [0, "On leaving"]], p.autosave), "In game hours. The game also saves when you close the tab or quit to the title.")}
+    ${row("Map in the corner", seg("miniMap", [["off", "Off"], ["small", "Small"], ["large", "Large"]] as Array<[Prefs["miniMap"], string]>, p.miniMap), "A round map in the top right corner, turned the way you look, with your work on it. M still opens the big map.")}
     ${row("Language", select("language", [["en", "English"]], p.language), "More languages later. Names stay Dutch.")}
     ${row("The clock", `<span class="fixed">A game hour is two real minutes</span>`, "The town's clock runs on the server and is the same for everyone.")}
     <h3>The town</h3>
@@ -359,7 +360,7 @@ const TAB_KEYS: Record<Tab, Array<keyof Prefs>> = {
   graphics: ["preset", "height", "scale", "psxColour", "wobble", "view", "rooms", "street", "reflections", "shadows", "lightBudget", "particles", "frameCap", "showFps"],
   sound: ["master", "music", "ambience", "voices", "effects"],
   controls: ["sens", "invertY", "fov", "headBob"],
-  game: ["bubbles", "autosave", "language"],
+  game: ["bubbles", "autosave", "miniMap", "language"],
   access: ["textSize", "contrast", "reduceMotion", "colourSafe"],
 };
 

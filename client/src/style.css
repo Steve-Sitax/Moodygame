@@ -155,16 +155,21 @@ html, body {
 .note.waiting { opacity: 0 !important; }
 .tick {
   position: fixed;
-  top: 6px;
+  top: 4px;
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   color: #e8d8b0;
-  font-size: 22px;
-  text-shadow: 0 0 6px #000;
+  text-shadow: 0 0 6px #000, 0 0 2px #000;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.6s;
 }
+/* 2026-09-27 (Steve: "the quest arrow a bit bigger and a distance") */
+.tick .arr { font-size: calc(34px * var(--ui, 1)); line-height: 1; }
+.tick .dist { font-family: "Scheldemist Hand", "Segoe Print", "Bradley Hand", cursive; font-size: calc(14px * var(--ui, 1)); line-height: 1; margin-top: -2px; }
 .board .note-text { font-size: 16px; }
 .task { max-width: 380px; }
 
@@ -279,6 +284,32 @@ html, body {
   z-index: 6;
 }
 .citymap canvas { display: block; box-shadow: inset 0 0 40px rgba(60, 40, 20, 0.4); }
+.citymap-row { display: flex; gap: 12px; }
+.citymap-side { width: 250px; overflow-y: auto; font-family: "Scheldemist Hand", "Segoe Print", "Bradley Hand", cursive; color: #2a2420; }
+.citymap-side h3 { margin: 4px 0 4px; font-size: 17px; border-bottom: 1px solid rgba(42, 36, 32, 0.4); }
+.citymap-side ol { list-style: none; margin: 0 0 10px; padding: 0; }
+.citymap-side li { padding: 3px 0 5px; font-size: 15px; line-height: 1.25; border-bottom: 1px dashed rgba(42, 36, 32, 0.25); }
+.citymap-side li .n { font-weight: bold; margin-right: 4px; }
+.citymap-side li i, .citymap-side li small { display: block; margin-left: 18px; color: #2a2420; }
+.citymap-side li i { font-size: 13px; opacity: 0.85; }
+.citymap-side li small { font-size: 13px; opacity: 0.7; }
+.citymap-side .none { font-size: 15px; opacity: 0.8; }
+/* the round map in the corner (setting "Map in the corner", off by default) */
+.minimap {
+  position: fixed;
+  right: 14px;
+  top: 14px;
+  width: calc(170px * var(--ui, 1));
+  height: calc(170px * var(--ui, 1));
+  border-radius: 50%;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  filter: sepia(0.25);
+  pointer-events: none;
+  z-index: 2;
+}
+.minimap.large { width: calc(240px * var(--ui, 1)); height: calc(240px * var(--ui, 1)); }
+.minimap.below-fps { top: 38px; }
+.minimap canvas { display: block; width: 100%; height: 100%; }
 .citymap .keys { text-align: right; margin: 6px 0 0; font-family: "Scheldemist Hand", "Segoe Print", "Bradley Hand", cursive; }
 
 /* ---- The top-left column: the clock, then the task card under it (game/corner.ts) ---- */

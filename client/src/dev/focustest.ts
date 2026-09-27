@@ -323,11 +323,18 @@ export async function snap(name: string): Promise<string> {
     return cs.display !== "none" && cs.visibility !== "hidden" && (el as HTMLElement).offsetWidth > 0;
   });
   const html = shown.map((el) => new XMLSerializer().serializeToString(el)).join("");
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" class="${document.body.className}"><style>${css.replace(/<\/style/g, "")}</style>${html}</div></foreignObject></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" class="${document.body.className}" style="${(document.documentElement.getAttribute("style") ?? "").replace(/"/g, "'")}"><style>${css.replace(/<\/style/g, "")}</style>${html}</div></foreignObject></svg>`;
   try {
     g.drawImage(await load("data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg)), 0, 0);
   } catch {
     /* the papers did not draw: the picture alone */
+  }
+  // the drawn papers (the city map, the round map in the corner): an SVG picture leaves a canvas blank
+  for (const el of shown) {
+    for (const c of Array.from(el.querySelectorAll("canvas"))) {
+      const r = c.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0 && c.width > 0) g.drawImage(c, r.left, r.top, r.width, r.height);
+    }
   }
   const url = out.toDataURL("image/jpeg", 0.92);
   const r = await fetch("/api/dev/shot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, url }) });

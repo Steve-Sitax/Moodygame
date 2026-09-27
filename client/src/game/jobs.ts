@@ -13,7 +13,7 @@ import { People } from "./people";
 import { Talk } from "./talk";
 import { Pockets } from "./pockets";
 import { Day } from "./day";
-import { CityMap, type MapMark } from "./map";
+import { CityMap, metres, type MapMark } from "./map";
 import { esc, HaulRun, makeRun, type Action, type Run, type RunCtx, type Sfx } from "./runs";
 import type { Town } from "./town";
 import { topLeft } from "./corner";
@@ -140,7 +140,8 @@ export class Jobs {
     // the task card goes under the clock, in the top-left column (game/corner.ts)
     topLeft().appendChild(this.el.task);
     this.el.board.style.display = "none";
-    this.el.tick.textContent = "▾";
+    // the ink tick (2026-09-27, Steve: "the quest arrow a bit bigger and a distance"): the arrow, the metres under it
+    this.el.tick.innerHTML = `<span class="arr">▾</span><span class="dist"></span>`;
     // carried goods hang in front of the camera, so the camera joins the scene
     world.scene.add(player.camera);
     bindView(player);
@@ -284,6 +285,7 @@ export class Jobs {
     this.el.prompt.style.display = text ? "block" : "none";
     this.renderTask();
     this.updatePointer(dt);
+    this.map.update(dt);
   }
 
   private actsT = 0;
@@ -511,9 +513,17 @@ export class Jobs {
     const ang = Math.atan2(goal.x - this.player.x, goal.z - this.player.z) - Math.atan2(fwd.x, fwd.z);
     const a = Math.atan2(Math.sin(ang), Math.cos(ang)); // -pi..pi, + is to the left
     const x = THREE.MathUtils.clamp(-a / (Math.PI / 2), -1, 1);
-    tick.style.left = `${50 + x * 42}%`;
-    tick.style.opacity = d > 6 ? String(0.28 + 0.2 * Math.min(1, Math.abs(a))) : "0";
-    tick.style.transform = `translateX(-50%) rotate(${Math.abs(a) > Math.PI / 2 ? (a > 0 ? 90 : -90) : 0}deg)`;
+    // it keeps clear of the round map in the top right corner (game/map.ts), when that is on
+    const mini = this.map.miniWidth();
+    const span = mini ? Math.min(42, ((window.innerWidth / 2 - mini - 60) / window.innerWidth) * 100) : 42;
+    tick.style.left = `${50 + x * span}%`;
+    tick.style.opacity = d > 6 ? String(0.55 + 0.25 * Math.min(1, Math.abs(a))) : "0";
+    const arr = tick.firstElementChild as HTMLElement;
+    const turn = `rotate(${Math.abs(a) > Math.PI / 2 ? (a > 0 ? 90 : -90) : 0}deg)`;
+    if (arr.style.transform !== turn) arr.style.transform = turn;
+    const words = metres(d);
+    const dist = tick.lastElementChild as HTMLElement;
+    if (dist.textContent !== words) dist.textContent = words;
   }
 
   // ------------------------------------------------------------- input
@@ -667,13 +677,26 @@ export class Jobs {
   private mapMarks(): MapMark[] {
     const out: MapMark[] = [];
     const goal = this.run?.goal();
-    if (goal && this.active) out.push({ x: goal.x, z: goal.z, label: `your job: ${this.active.title}`, kind: "goal" });
+    if (goal && this.active) {
+      // named as the task card names the step now ("Fetch the crate at the pier head")
+      const lines = (this.run?.hud() ?? "").split(/<br\s*\/?>/i).map((l) => l.replace(/<[^>]*>/g, "").replace(/&amp;/g, "&").trim());
+      const step = lines[1] && lines[1].length <= 60 ? lines[1] : this.active.title;
+      out.push({ x: goal.x, z: goal.z, label: step, kind: "goal", detail: `${this.active.title}, for ${this.active.employer_name}` });
+    }
     const t = this.active?.task;
-    if (t && "to" in t && SPOTS[t.to]) out.push({ x: SPOTS[t.to].x, z: SPOTS[t.to].z, label: SPOTS[t.to].label, kind: "goal" });
-    const offered = new Set((this.payload?.jobs ?? []).filter((j) => j.status === "offered" && j.playable).map((j) => j.employer_npc));
-    for (const id of offered) {
+    const end = t && "to" in t ? SPOTS[t.to] : undefined;
+    if (end && this.active && !(goal && Math.hypot(goal.x - end.x, goal.z - end.z) < 4)) out.push({ x: end.x, z: end.z, label: `then: ${end.label}`, kind: "goal", detail: `where ${this.active.title} ends` });
+    // M7 night: the work is done and its man is back at his post: the proof goes into his hand
+    const hb = this.heldBox();
+    const boss = this.held && !hb ? this.people.get(this.held.employer_npc) : null;
+    if (boss && this.held) out.push({ x: boss.pos.x, z: boss.pos.z, label: `back to ${boss.def.name}`, kind: "goal", detail: `for the pay: ${this.held.title}` });
+    // the work offered, one mark a man, with what he offers (the list beside the map shows it)
+    const offers = new Map<string, string[]>();
+    for (const j of this.payload?.jobs ?? []) if (j.status === "offered" && j.playable) offers.set(j.employer_npc, [...(offers.get(j.employer_npc) ?? []), j.title]);
+    const offered = new Set(offers.keys());
+    for (const [id, titles] of offers) {
       const n = this.people.get(id);
-      if (n) out.push({ x: n.pos.x, z: n.pos.z, label: `work: ${n.def.name}`, kind: "work" });
+      if (n) out.push({ x: n.pos.x, z: n.pos.z, label: `work: ${n.def.name}`, kind: "work", detail: titles.join("; ") });
     }
     out.push({ x: BOARD_POS.x, z: BOARD_POS.z, label: "hiring board", kind: "place" });
     // M7 night: the employers' boxes; the one for the proof in hand is the goal

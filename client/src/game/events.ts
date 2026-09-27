@@ -5,6 +5,7 @@ import { psx } from "../retro/psx";
 import { makeGoods } from "./props";
 import type { Stalls } from "./stalls";
 import type { Town } from "./town";
+import type { MapMark } from "./map";
 import { GAME_MIN_PER_REAL_S, gameMin, realS } from "../../../shared/clock";
 
 // Town events on the client (M4). The server plans and runs them
@@ -295,6 +296,26 @@ export class Events {
       g.add(t);
     }
     return g;
+  }
+
+  /**
+   * The paper map (game/map.ts): what goes on in town now, at its stage's place; the twelve nearest to Jef.
+   * Only what the town would know of: a stage that is not tense, or a tense one people have gathered to (the
+   * police, a crowd), or one Jef was told of. The quiet tense work of a few (a break-in, goods landed by night,
+   * the first blows of a scuffle) stays off the map until people gather.
+   */
+  mapMarks(player: { x: number; z: number }): MapMark[] {
+    const out: MapMark[] = [];
+    for (const ev of this.list) {
+      if (ev.status !== "running") continue;
+      const st = ev.stages[ev.stage];
+      if ((!st || (st.mood === "tense" && st.count < 2)) && !this.told.has(ev.id)) continue;
+      const x = st?.x ?? ev.x;
+      const z = st?.z ?? ev.z;
+      out.push({ x, z, label: ev.title, kind: "event", detail: st?.label ? `at ${st.label}` : undefined });
+    }
+    const d = (m: MapMark) => Math.hypot(m.x - player.x, m.z - player.z);
+    return out.sort((a, b) => d(a) - d(b)).slice(0, 12);
   }
 
   /** Dev: what runs and what plays. */
