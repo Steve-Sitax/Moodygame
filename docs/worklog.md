@@ -7,7 +7,6 @@ Git history has the detail of each commit.
 
 ## Waiting for Steve
 
-- Landmark light (Steve 2026-09-27: "better lighting inside and also light coming through windows ... lights on all night ... moody and cool. Churches bright but with shadow work"): done on branch `claude/special-buildings-lighting-mood-72ceae` (31debb9, `docs/milestones/hall-light.md`), Codex mood passes as the target, before/after pictures sent. Waits for Steve's look, then merge into main and refresh the play copy. Found on the way: issue #10 (https://github.com/Steve-Sitax/Moodygame/issues/10, the landmarks' panes over their rooms are the shell's, not real windows).
 - Day fog, rain and storm: the skyline is still a little lighter than the cloud deck (18-35% at 13:00). A one-line sky.ts change would use the night rule by day too, at the cost of flatter fog-day skies. Steve's call.
 - Going public: the audit says safe. Steve flips the repo to public himself. Optional: an AGPL section 7 permission for the proprietary Claude Agent SDK (draft in `docs/public-release-check.md`). The commit email steve@sitax.be becomes public with the history.
 - The clockmaker's pocket watches and the junk-stall clocks: live hands too? (Steve did not pick it: no for now.)
@@ -46,6 +45,7 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 
 | Commit | What |
 |---|---|
+| 31debb9 | Landmark light (Steve 2026-09-27: "better lighting inside and also light coming through windows ... lights on all night ... moody and cool. Churches bright but with shadow work"; then "commit and merge"): windows of the landmarks and churches lit all night, sun and moon traced into the churches, blue-black nights with warm lamps in the halls (`docs/milestones/hall-light.md`). Play copy refreshed to main. Web demo built and checked locally (the cathedral's windows glow at 22:00), Pages redeployed. Issue #10 filed. Rule in CLAUDE.md (6cc4275): keep the web demo in sync |
 | ab3fd71 | Web demo pass 3 (Steve 2026-09-27: "in that streaming demo we cannot change time, weather.. events, make it all available"): F8 and a menu line open the Dev panel; all 14 event templates recorded at build and played back in the browser (`docs/web-demo.md`) |
 | 8e8595a | Repo public and the web demo live (Steve 2026-09-27: "you make it public"): secret scan of every commit and branch since the audit (clean), repo public, Pages on, demo at https://steve-sitax.github.io/Moodygame/ (checked: the menu, the limited-demo note, the F9 hint). Commit check (Steve: "check for no personal data, secrets, anything not needed in git"): pre-commit hook `tools/commit-check.mjs`, private words in `.claude/private-words.txt`; the laptop needs `node tools/install-hooks.mjs` once |
 | 78e01bf | Web demo pass 2 (Steve 2026-09-27: "dev tools should be there and F9 to fly, but fly in the weather/time mode you are ... make it clear that F9 is fly ... a limited version just to get a look ... put it in the description to click and test"): Dev menu and F9 in the demo, the hint box, README and repo website link to the demo. The link works once the repo is public |
