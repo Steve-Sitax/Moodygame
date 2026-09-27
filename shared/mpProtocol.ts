@@ -6,7 +6,7 @@
 // "pause all", a new version) is JSON text.
 
 /** Bumped when the frames change: a client of another build is sent to download the new version first. */
-export const MP_PROTOCOL = 4; // (M8d: the figures of a job, the pins; M8f: the goods are the server's, shared/goods.ts)
+export const MP_PROTOCOL = 5; // (M8d: the figures of a job, the pins; M8f: the goods are the server's, shared/goods.ts; 5: the animals and the town's other walkers are shared, net/mp/extras.ts; the heaps' cargo is the server's, M8f goods pass 2)
 /** Own state sent this often (and the batches of the others). */
 export const SEND_HZ = 20;
 export const SEND_MS = 1000 / SEND_HZ;
@@ -341,6 +341,96 @@ export function decodePuppets(v: DataView): { t: number; list: Array<{ num: numb
 // take over from the last state if the world PC changes.
 
 export const WORLD_HZ = 10;
+
+// ------------------------------------------------------------------ M8f sync pass 3: the animals
+//
+// Stray dogs, street cats, the hens and goats of the courts, a townsperson's dog: each has a fixed id (the strays'
+// and cats' from their haunt, the hens' and goats' from their court; the server numbers them as it numbers the
+// townspeople, and the same claims say who runs each). The PC that runs one sends it in a small batch: 10 a second
+// while it moves, every 2 s while it stands. A townsperson's dog goes with him: sent by the PC that walks him, under
+// his number (flag DOG). The others draw them from it (net/mp/extras.ts).
+
+export const MSG_ANIMALS = 5;
+/** One animal: number u16, x and z i16 (2 cm), yaw u8, motion and flags u8. */
+export const ANIMAL_BYTES = 8;
+export const ANIMAL_MAX = 200;
+export const ANIMAL_MOTIONS = ["idle", "walk", "run", "sit", "lie", "sniff", "peck", "graze"] as const;
+export type AnimalNetMotion = (typeof ANIMAL_MOTIONS)[number];
+/** The motion's flags: a jump of place (no in-between); the number is a townsperson's (his dog). */
+export const ANIMAL_SNAP = 16;
+export const ANIMAL_DOG = 32;
+
+export interface AnimalState {
+  num: number;
+  x: number;
+  z: number;
+  yaw: number;
+  motion: AnimalNetMotion;
+  snap: boolean;
+  dog: boolean;
+}
+
+export function animalBatchOk(v: DataView): boolean {
+  if (v.byteLength < 10 || v.getUint8(0) !== MSG_ANIMALS) return false;
+  const n = v.getUint8(1);
+  return n <= ANIMAL_MAX && v.byteLength === 10 + n * ANIMAL_BYTES && Number.isFinite(v.getFloat64(2, true));
+}
+/** The numbers in an animal batch. */
+export function animalNums(v: DataView): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < v.getUint8(1); i++) out.push(v.getUint16(10 + i * ANIMAL_BYTES, true));
+  return out;
+}
+/** The batch with only the entries at these indexes, the same time. */
+export function animalKeep(v: DataView, keep: number[]): ArrayBuffer {
+  const out = new ArrayBuffer(10 + keep.length * ANIMAL_BYTES);
+  const o = new Uint8Array(out);
+  const src = new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
+  o.set(src.subarray(0, 10), 0);
+  o[1] = keep.length;
+  keep.forEach((i, k) => o.set(src.subarray(10 + i * ANIMAL_BYTES, 10 + (i + 1) * ANIMAL_BYTES), 10 + k * ANIMAL_BYTES));
+  return out;
+}
+
+const q2 = (m: number) => Math.max(-32767, Math.min(32767, Math.round(m * 50)));
+
+export function encodeAnimals(t: number, list: AnimalState[]): ArrayBuffer {
+  const n = Math.min(ANIMAL_MAX, list.length);
+  const b = new ArrayBuffer(10 + n * ANIMAL_BYTES);
+  const v = new DataView(b);
+  v.setUint8(0, MSG_ANIMALS);
+  v.setUint8(1, n);
+  v.setFloat64(2, t, true);
+  for (let i = 0; i < n; i++) {
+    const s = list[i];
+    const o = 10 + i * ANIMAL_BYTES;
+    v.setUint16(o, s.num, true);
+    v.setInt16(o + 2, q2(s.x), true);
+    v.setInt16(o + 4, q2(s.z), true);
+    v.setUint8(o + 6, Math.round((((s.yaw % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) * (256 / (Math.PI * 2))) & 0xff);
+    v.setUint8(o + 7, Math.max(0, ANIMAL_MOTIONS.indexOf(s.motion)) | (s.snap ? ANIMAL_SNAP : 0) | (s.dog ? ANIMAL_DOG : 0));
+  }
+  return b;
+}
+
+export function decodeAnimals(v: DataView): { t: number; list: AnimalState[] } | null {
+  if (!animalBatchOk(v)) return null;
+  const list: AnimalState[] = [];
+  for (let i = 0; i < v.getUint8(1); i++) {
+    const o = 10 + i * ANIMAL_BYTES;
+    const f = v.getUint8(o + 7);
+    list.push({
+      num: v.getUint16(o, true),
+      x: v.getInt16(o + 2, true) / 50,
+      z: v.getInt16(o + 4, true) / 50,
+      yaw: wrapAngle((v.getUint8(o + 6) * Math.PI * 2) / 256),
+      motion: ANIMAL_MOTIONS[f & 15] ?? "idle",
+      snap: (f & ANIMAL_SNAP) !== 0,
+      dog: (f & ANIMAL_DOG) !== 0,
+    });
+  }
+  return { t: v.getFloat64(2, true), list };
+}
 
 // ------------------------------------------------------------------ M8d: the figures of a job (plan 9, "Twists and job figures")
 //

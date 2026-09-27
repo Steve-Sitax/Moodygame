@@ -482,7 +482,12 @@ export function createDrips(ctx: Ctx): Part & { streams(): Stream[]; nearStreams
   /** What the plan depends on that comes in late: the stalls, street life's signs and awnings. */
   const planKey = () => stallThings.length + 1 + (ctx.world.streetLife()?.wallItems.length ?? -1) * 10000;
 
+  // (sync pass 2: the houses' wear is read once the houses are all in. Read while only the landmarks were, it
+  // gave no house a wear and no broken gutter, for good: one PC had the stains, another none)
+  let cityIn = false;
+  ctx.world.city.ready.then(() => (cityIn = true)).catch(() => {});
   function plan(): void {
+    if (!cityIn) return;
     if (!wear) wear = wearReader(ctx.world.city.group);
     if (!wear) return;
     const sl = ctx.world.streetLife();

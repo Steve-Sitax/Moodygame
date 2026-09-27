@@ -9,7 +9,7 @@
 // found by the pings, and the player sees a small note instead of an error.
 
 import { real } from "../../game/pause";
-import { decodeBatch, encodeState, MP_PROTOCOL, MSG_FIGS, MSG_PUPPETS, SEND_MS, type MpState, type MpText, type RosterEntry } from "../../../../shared/mpProtocol";
+import { decodeBatch, encodeState, MP_PROTOCOL, MSG_ANIMALS, MSG_FIGS, MSG_PUPPETS, SEND_MS, type MpState, type MpText, type RosterEntry } from "../../../../shared/mpProtocol";
 import { identity } from "./identity";
 import { CONNECT_MS, Liveness, noteText, retryDelay, showNote } from "./link";
 
@@ -21,6 +21,8 @@ export interface SessionHooks {
   onPuppets?(v: DataView, recvServerNow: number): void;
   /** M8d: a batch of another player's job figures (net/mp/jobfigs.ts reads it). */
   onFigs?(v: DataView, recvServerNow: number): void;
+  /** M8f sync pass 3: a batch of the animals another PC runs (net/mp/extras.ts reads it). */
+  onAnimals?(v: DataView, recvServerNow: number): void;
   onRoster(list: RosterEntry[]): void;
   onWelcome(w: Extract<MpText, { type: "welcome" }>): void;
   onText(m: MpText): void;
@@ -117,6 +119,10 @@ export class Session {
       }
       if (buf.byteLength && new Uint8Array(buf, 0, 1)[0] === MSG_FIGS) {
         this.hooks.onFigs?.(new DataView(buf), this.serverNow());
+        return;
+      }
+      if (buf.byteLength && new Uint8Array(buf, 0, 1)[0] === MSG_ANIMALS) {
+        this.hooks.onAnimals?.(new DataView(buf), this.serverNow());
         return;
       }
       const b = decodeBatch(buf);

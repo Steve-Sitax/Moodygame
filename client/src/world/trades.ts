@@ -7,6 +7,16 @@ import { lampFog } from "./lampFog";
 import type { Rect } from "./geom";
 import { makeHuman, whenHumans, type Human, type HumanKind, type Motion } from "../game/humans";
 import { addPropObject } from "./propSpots";
+import { REAL_S_PER_GAME_MIN } from "../../../shared/clock";
+
+/** A worker with two places stays this long at his own (real seconds), then the alt's seconds at the other. */
+const MAIN_S = 20;
+/** Where in his round a worker starts (0..1): by the site and his number, the same on every PC. */
+function offOf(site: string, i: number): number {
+  let h = 0x811c9dc5 ^ i;
+  for (let k = 0; k < site.length; k++) h = Math.imul(h ^ site.charCodeAt(k), 0x01000193);
+  return (h >>> 0) / 4294967296;
+}
 
 // Working trades (M3i; Steve: "boat repair shops (small boats), horse shoe fitter, rope
 // maker, ..."). Small scenes from tools/blender/build_trades.py -> /models/trades.glb, each
@@ -470,7 +480,8 @@ export interface Trades {
 interface Placed {
   site: Site;
   group: THREE.Group;
-  people: Array<{ w: Worker; h: Human | null; root: THREE.Group; t: number; atAlt: boolean }>;
+  /** `off`: where in his round of the two places a worker is (0..1, by the site and his number: sync pass 2). */
+  people: Array<{ w: Worker; h: Human | null; root: THREE.Group; t: number; atAlt: boolean; off: number }>;
 }
 
 const working = (day: number, hour: number) => day % 7 !== 0 && hour >= 7 && hour < 18.5;
@@ -520,7 +531,7 @@ export function createTrades(scene: THREE.Scene, _flags: (x: number, z: number) 
         const [wx, wz] = toWorld(s, x, z);
         smokeSrc.push(new THREE.Vector3(wx, y, wz));
       }
-      placed.push({ site: s, group: g, people: s.workers.map((w) => ({ w, h: null, root: new THREE.Group(), t: Math.random() * 10, atAlt: false })) });
+      placed.push({ site: s, group: g, people: s.workers.map((w, i) => ({ w, h: null, root: new THREE.Group(), t: 0, atAlt: false, off: offOf(s.id, i) })) });
       if (s.id === "ropewalk") {
         // the wheel turns on its axle (along the scene's z), 1.2 m up
         const sp = new Batch();
@@ -619,20 +630,24 @@ export function createTrades(scene: THREE.Scene, _flags: (x: number, z: number) 
           w.root.removeFromParent();
         }
         if (!w.h) continue;
-        w.t -= dt;
         if (p.site.id === "ropewalk" && w.w.kind === "sailor") continue; // the spinner: below
-        if (w.w.alt && w.t <= 0) {
-          // now and then to the other place (the farrier to the anvil, the caulker to his pot)
-          w.atAlt = !w.atAlt;
+        if (w.w.alt) {
+          // now and then to the other place (the farrier to the anvil, the caulker to his pot): by the game's clock,
+          // MAIN_S at his place then the alt's seconds at the other, so every PC has him at the same one (sync pass 2;
+          // was a dice roll of 14 to 26 s)
           const [ax, az, ayaw, am, secs] = w.w.alt;
-          if (w.atAlt) {
-            place(w, ax, az, ayaw);
-            w.h.play(am, 0.3);
-            w.t = secs;
-          } else {
-            place(w, w.w.at[0], w.w.at[1], w.w.yaw);
-            w.h.play(w.w.motion, 0.3);
-            w.t = 14 + Math.random() * 12;
+          const cyc = MAIN_S + secs;
+          const now = (day * 1440 + hour * 60) * REAL_S_PER_GAME_MIN;
+          const alt = (((now + w.off * cyc) % cyc) + cyc) % cyc >= MAIN_S;
+          if (alt !== w.atAlt) {
+            w.atAlt = alt;
+            if (alt) {
+              place(w, ax, az, ayaw);
+              w.h.play(am, 0.3);
+            } else {
+              place(w, w.w.at[0], w.w.at[1], w.w.yaw);
+              w.h.play(w.w.motion, 0.3);
+            }
           }
         }
         if (d < 30 || Math.floor(t * 15) !== Math.floor((t - dt) * 15)) w.h.update(d < 30 ? dt : 1 / 15);

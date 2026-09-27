@@ -12,6 +12,7 @@ import type { HumanKind } from "./humans";
 import { stallProtos, type Stalls } from "./stalls";
 import { addStallThing, dropStallThings } from "./stallSpots";
 import type { Town } from "./town";
+import { nearestPlayer, runsHere, share as shared } from "./share";
 
 // Market days (M3i). Steve: "vismarkt can be way fuller when markt is going on. stalls are
 // too ordered. People browsing stalls and buy goods. no stalls on tracks."
@@ -344,6 +345,9 @@ export class Market {
   private colT = 0;
   private browsing = new Map<Puppet, Browse>();
   private openKeepers = new Set<string>();
+  /** M8f sync pass 3: each shopper's id among the players' PCs (net/mp/extras.ts), and whether the hook is set. */
+  private netIds = new Map<Puppet, string>();
+  private adoptWired = false;
   /** Dev: how the last layout went. */
   layoutInfo: Record<string, { items: number; tried: number; byKind: Record<string, number>; why: Record<string, number> }> = {};
 
@@ -757,6 +761,20 @@ export class Market {
   update(dt: number, player: { x: number; z: number }, day: number, hour: number): void {
     if (!this.ready) return;
     this.player = { x: player.x, z: player.z };
+    if (shared.net && !this.adoptWired) {
+      this.adoptWired = true;
+      // M8f sync pass 3: a shopper another PC ran and let go near this player: this PC walks her on
+      shared.net.onAdopt("x:ms:", (id, o) => {
+        const p = o as Puppet;
+        const m = [...this.built].sort((a, b) => dist(p.x, p.z, a.def.centre[0], a.def.centre[1]) - dist(p.x, p.z, b.def.centre[0], b.def.centre[1]))[0];
+        if (!m) return false;
+        m.shoppers.push(p);
+        this.netIds.set(p, id);
+        this.browsing.set(p, { place: m.def.place, phase: m.on ? "pick" : "gone", t: 1, target: null, visits: 0, want: 1 + Math.floor(Math.random() * 2), tries: 0, own: true });
+        if (!m.on) this.leave(p, this.browsing.get(p)!, m);
+        return true;
+      });
+    }
     this.colT -= dt;
     this.thinkT -= dt;
     const think = this.thinkT <= 0;
@@ -829,7 +847,9 @@ export class Market {
       if (it.p) continue;
       if (alive >= MAX_SELLERS) break;
       alive++;
-      const p = this.crowd.addPuppet(it.sellerKind, it.seller.x, it.seller.z, it.seller.yaw, 1);
+      // (his size from his place, 0.95 to 1.05: the same seller on every PC; sync pass 2)
+      const h = Math.sin(it.seller.x * 12.9898 + it.seller.z * 78.233) * 43758.5453;
+      const p = this.crowd.addPuppet(it.sellerKind, it.seller.x, it.seller.z, it.seller.yaw, 1, 0.95 + (h - Math.floor(h)) * 0.1);
       if (!p) return;
       it.p = p;
       if (it.sits) this.crowd.puppetSit(p, it.seller.yaw);
@@ -862,36 +882,54 @@ export class Market {
 
   private shoppers(m: Built, d: number): void {
     // nameless shoppers while the market is on and Jef is about; they leave when it packs up
+    // (M8f sync pass 3: played together, the PC of the player nearest the market runs its shoppers for all: it
+    // brings new ones in, where no player sees; each is sent to the others as the townspeople are)
+    for (const p of m.shoppers) if (!this.crowd.alive(p)) this.dropShopper(p, true);
     m.shoppers = m.shoppers.filter((p) => this.crowd.alive(p));
-    const want = m.on && d < SHOPPER_R ? MAX_SHOPPERS : 0;
+    const lead = runsHere(`g:mk:${m.def.place}`, m.def.centre[0], m.def.centre[1], SHOPPER_R);
+    const want = m.on && d < SHOPPER_R && lead ? MAX_SHOPPERS : 0;
     if (m.shoppers.length < want) {
-      const entries = m.def.entries.filter(([x, z]) => this.crowd.isHidden(x, z) && this.crowd.onGrid(x, z));
+      const entries = m.def.entries.filter(([x, z]) => this.crowd.isHidden(x, z) && !shared.seenByOthers(x, z) && this.crowd.onGrid(x, z));
       const e = entries.length ? pickOf(entries) : null;
       if (e) {
         const at = this.crowd.canStand(e[0], e[1]) ? { x: e[0], z: e[1] } : this.crowd.openNear(e[0], e[1]);
-        const p = at && this.crowd.addPuppet(pickOf(SHOPPERS), at.x, at.z, 0, rnd(0.95, 1.2));
+        const kind = pickOf(SHOPPERS);
+        const p = at && this.crowd.addPuppet(kind, at.x, at.z, 0, rnd(0.95, 1.2));
         if (p) {
           m.shoppers.push(p);
           this.browsing.set(p, { place: m.def.place, phase: "pick", t: rnd(0, 1), target: null, visits: 0, want: 2 + Math.floor(Math.random() * 3), tries: 0, own: true });
+          if (shared.on && shared.net) this.netIds.set(p, shared.net.newId("ms", kind));
         }
       }
     }
     for (const p of m.shoppers) {
+      const id = this.netIds.get(p);
+      if (id && shared.net) shared.net.person(id, p);
       const b = this.browsing.get(p);
       if (!b) continue;
       if (!m.on && b.phase !== "leave" && b.phase !== "gone") this.leave(p, b, m);
-      if ((b.phase === "gone" || b.phase === "leave") && (this.crowd.isHidden(p.x, p.z) || b.t < -40)) {
-        this.browsing.delete(p);
-        this.crowd.removePuppet(p);
+      if ((b.phase === "gone" || b.phase === "leave") && ((this.crowd.isHidden(p.x, p.z) && !shared.seenByOthers(p.x, p.z)) || b.t < -40)) {
+        this.dropShopper(p, true);
       }
     }
     if (d > SHOPPER_R + 20) {
-      for (const p of m.shoppers) {
-        this.browsing.delete(p);
-        this.crowd.removePuppet(p);
-      }
+      // (walked off: one still near another player is his PC's to walk on)
+      for (const p of m.shoppers) this.dropShopper(p, !(shared.on && nearestPlayer(p.x, p.z) < SHOPPER_R));
       m.shoppers = [];
     }
+    m.shoppers = m.shoppers.filter((p) => this.crowd.alive(p));
+  }
+
+  /** A shopper of this PC goes: gone for good, or (`gone` false) let go for the PC of the player near her. */
+  private dropShopper(p: Puppet, gone: boolean): void {
+    const id = this.netIds.get(p);
+    if (id && shared.net) {
+      if (gone) shared.net.personGone(id);
+      else shared.net.release(id);
+    }
+    this.netIds.delete(p);
+    this.browsing.delete(p);
+    if (this.crowd.alive(p)) this.crowd.removePuppet(p);
   }
 
   private leave(p: Puppet, b: Browse, m: Built): void {

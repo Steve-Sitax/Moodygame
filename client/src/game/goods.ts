@@ -6,7 +6,9 @@ import { loadProps, type Props } from "../world/props3d";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { GOODS, makeGoods, type Goods } from "./props";
 import { pick, type Target } from "./facing";
-import { FOOT, heightOf, placeAt, rotFor, type GoodsAsk, type GoodsItem, type GoodsPush, type Holder } from "../../../shared/goods";
+import { FOOT, hash32, heightOf, placeAt, rotFor, type GoodsAsk, type GoodsItem, type GoodsPush, type Holder } from "../../../shared/goods";
+import { createGoodsDrays, type GoodsDrays } from "../world/goodsDrays";
+import { goodsRects, hideQuayCargo, quayModels, quayPieceCollider, quayPieceMesh, quayPieceSize, showQuayCargo, flushQuayCargo, quayCargo, whenQuayCargo, cargoStats } from "../world/quaygoods";
 
 // Every liftable thing on the quay (M3): job goods and goods that belong to someone. Goods rest on the ground or on
 // top of other goods (M8f: on two barrels too, a pyramid); you can lift the top one, set it down anywhere, and stack.
@@ -15,15 +17,44 @@ import { FOOT, heightOf, placeAt, rotFor, type GoodsAsk, type GoodsItem, type Go
 // server says (GET /api/goods, then every change pushed as {type: "goods"}) and asks it for every lift, put down and
 // hand-over (POST /api/goods). It shows its own lift and put down at once and undoes them if the server says no,
 // so played alone (the same path) nothing feels slower. What another player carries is drawn in his hands, what a
-// townsperson carries on his shoulder; what lies on a cart is not drawn here (the cart draws its load).
+// townsperson carries on his shoulder.
+//
+// M8f goods pass 2: what lies on a cart is drawn on it, on every PC: on a dray of the town's rounds (its bed,
+// world/goodsDrays.ts), on another player's handcart (the one he pushes: net/mp/gear.ts), on this player's own
+// handcart (game/handcart.ts lays the items there itself). The quay's cargo has its own models: the props' crates
+// and sacks ("p:"), the heaps' casks, crates and sacks ("q:", merged into the heaps' own chunk meshes while they lie).
+
+/** Jef's handcart: where the things lie on the bed (its pivot frame: x across, z toward the grips, y up from the axle), two by two, two layers. */
+export const HANDCART_SLOTS: Array<[number, number]> = [
+  [-0.26, -0.42],
+  [0.26, -0.42],
+  [-0.26, 0.3],
+  [0.26, 0.3],
+];
+export const HANDCART_BED_Y = 0.2;
+/** Things on a handcart are drawn at this size (M6: the cart is small). */
+export const ON_HANDCART = 0.6;
+/** The number a player's gear carries for the cart he pushes (1..63): the others find its load by it (net/mp/gear.ts). */
+export const cartSub = (ref: string): number => (hash32(ref) % 63) + 1;
+/** A cart as the goods need it: where the load hangs and where each thing on it lies. */
+export interface CartFrame {
+  frame: THREE.Object3D;
+  /** The i-th thing's place on it: x, y, z, turn (tops: the height each handcart slot has reached). */
+  spot(i: number, it: Item, tops: number[]): [number, number, number, number];
+  scale: number;
+}
 
 export interface Item {
   /** The server's id: own:<owner>:<n>, pile:<pile>:<n>, job:<job>:<n>, spawn:<n>. */
   id: string;
   obj: THREE.Object3D;
   kind: Goods;
-  /** "cask": the quay's own barrel model (the piles), drawn instanced while it lies. */
-  look?: "cask";
+  /** "cask", "p:<props model>", "q:<quay goods model>": the quay's own models (shared/goods.ts GoodsItem.look). */
+  look?: string;
+  /** Its height when stacked, the scale of a "p:" model, too big to lift by hand (shared/goods.ts). */
+  h?: number;
+  sc?: number;
+  cartOnly?: boolean;
   /** Who it belongs to (an NPC id), if anyone. */
   owner: string | null;
   /** The job it is part of, while that job runs. */
@@ -89,6 +120,16 @@ export class GoodsWorld {
   onLost: (it: Item, why: string) => void = () => {};
   /** M8f: something another did (put down, sunk): for the sounds and the splash. */
   onOther: (it: Item, why: string, at?: [number, number]) => void = () => {};
+  /** M8f goods pass 2: another player's handcart on this PC (net/mp/gear.ts, the one he pushes), or null: not drawn here. */
+  remoteCart: (cart: string) => CartFrame | null = () => null;
+  /** M8f goods pass 2: the town's drays that move a whole pile (world/goodsDrays.ts; a mover of the world PC). */
+  drays: GoodsDrays | null = null;
+  /** The clock (game/day.ts): the date and the hour with its fraction, for the drays' rounds. */
+  clock: () => { day: number; hour: number } = () => ({ day: 1, hour: 6 });
+  /** The quay's models, once loaded (for the heaps' cargo). */
+  private quay: Awaited<ReturnType<typeof quayModels>> | null = null;
+  /** The heaps stand (world/quaygoods.ts): their cargo may have its own colliders now. */
+  private heapsUp = false;
   /** Resolves when the server's list is in (the loading screen counts the fetch). */
   ready: Promise<void>;
   /** The server's list is in: the pile placeholders (world/rijnkaai.ts) have been let go. */
@@ -99,9 +140,12 @@ export class GoodsWorld {
   private loading: Promise<void> | null = null;
   private props: Props | null = null;
   private casks: THREE.Mesh[] = [];
-  /** Time the last rebuild of the lying casks took (ms), for the checks. */
+  /** Time the last rebuild of the lying casks, crates and sacks of props.glb took (ms), for the checks. */
   caskMs = 0;
   private casksDirty = true;
+  /** Ids of the lying items something rests on (kept up to date: `above` is asked every frame). */
+  private under = new Set<string>();
+  private underDirty = true;
   /** Held by others, drawn on them each frame. */
   private shownOn = new Map<string, THREE.Object3D>();
   private carriers = new Map<THREE.Object3D, CarrierFigure>();
@@ -118,10 +162,22 @@ export class GoodsWorld {
       .then((p) => {
         this.props = p;
         this.casksDirty = true;
-        // colliders of the casks from their model, now it is here
-        for (const it of this.items) if (it.look === "cask") this.collide(it);
+        this.drays = createGoodsDrays(world.scene, p, { add: (r) => world.addCollider(r) });
+        // colliders of the casks, crates and sacks from their model, now it is here
+        for (const it of this.items) if (it.look === "cask" || it.look?.startsWith("p:")) this.collide(it);
       })
       .catch(() => {});
+    quayModels()
+      .then((m) => {
+        this.quay = m;
+        for (const it of this.items) if (it.look?.startsWith("q:")) this.collide(it);
+      })
+      .catch(() => {});
+    // (the heaps' cargo from the server's list is drawn in the heaps' chunks: once they stand, and checked against them)
+    whenQuayCargo(() => {
+      this.heapsUp = true;
+      for (const it of [...this.items]) if (it.look?.startsWith("q:")) this.lay(it, it.obj.position.x, it.y, it.obj.position.z, it.obj.rotation.y, it.on);
+    });
     this.ready = this.load();
   }
 
@@ -175,7 +231,7 @@ export class GoodsWorld {
     for (const s of [...list].sort((a, b) => a.y - b.y)) this.apply(s, true);
     if (!this.loaded) {
       this.loaded = true;
-      // the quay's piles are drawn from the list now: their placeholders let go
+      // the quay's piles and stacks are drawn from the list now: their placeholders let go
       for (const r of this.world.pileHolds ?? []) {
         r.minX = r.maxX = r.minZ = r.maxZ = 1e7;
         r.top = 0;
@@ -190,9 +246,12 @@ export class GoodsWorld {
     if (!it) {
       it = {
         id: s.id,
-        obj: s.look === "cask" ? new THREE.Group() : makeGoods(s.kind as Goods, this.world.mats),
+        obj: s.look ? new THREE.Group() : makeGoods(s.kind as Goods, this.world.mats),
         kind: s.kind as Goods,
         look: s.look,
+        h: s.h,
+        sc: s.sc,
+        cartOnly: s.cartOnly || undefined,
         owner: s.owner,
         jobId: s.job,
         rect: null,
@@ -227,6 +286,7 @@ export class GoodsWorld {
         this.player.speedFactor = it.heavy ? 0.4 : GOODS[it.kind].speed;
       }
     } else this.toHeld(it, s.by);
+    this.underDirty = true;
     if (wasMine && !mine) {
       this.carried = null;
       this.player.laden = false;
@@ -281,12 +341,15 @@ export class GoodsWorld {
   // ------------------------------------------------------------------ where things are drawn
 
   private detach(it: Item): void {
-    this.items = this.items.filter((i) => i !== it);
+    const i = this.items.indexOf(it);
+    if (i >= 0) this.items.splice(i, 1);
     if (it.rect) this.world.removeCollider(it.rect);
     it.rect = null;
-    if (it.look === "cask") this.casksDirty = true;
+    if (it.look === "cask" || it.look?.startsWith("p:")) this.casksDirty = true;
+    else if (it.look?.startsWith("q:")) hideQuayCargo(it.id);
     it.obj.removeFromParent();
     this.shownOn.delete(it.id);
+    this.underDirty = true;
   }
 
   private lay(it: Item, x: number, y: number, z: number, rot: number, on: string[]): void {
@@ -297,11 +360,15 @@ export class GoodsWorld {
     it.obj.position.set(x, y, z);
     it.obj.rotation.set(0, rot, 0);
     it.obj.scale.setScalar(1);
-    if (it.look === "cask") {
-      for (const c of [...it.obj.children]) c.removeFromParent(); // (lying, the instances draw it)
+    if (it.look === "cask" || it.look?.startsWith("p:")) {
+      for (const c of [...it.obj.children]) c.removeFromParent(); // (lying, the merged meshes draw it)
       this.casksDirty = true;
+    } else if (it.look?.startsWith("q:")) {
+      for (const c of [...it.obj.children]) c.removeFromParent(); // (lying, the heaps' chunk meshes draw it)
+      showQuayCargo(it.id, it.look.slice(2), x, y, z, rot);
     } else this.world.scene.add(it.obj);
     this.items.push(it);
+    this.underDirty = true;
     this.collide(it);
   }
 
@@ -310,17 +377,51 @@ export class GoodsWorld {
     if (it.rect) this.world.removeCollider(it.rect);
     const { x, z } = it.obj.position;
     const top = it.y + heightOf(it);
-    it.rect = it.look === "cask" && this.props ? (this.props.colliders("barrel", x, z, it.obj.rotation.y, it.y)[0] ?? null) : rectAround(x, z, FOOT, FOOT, top);
-    if (it.rect) this.world.addCollider(it.rect);
+    const rot = it.obj.rotation.y;
+    if (it.look === "cask") it.rect = this.props ? (this.props.colliders("barrel", x, z, rot, it.y)[0] ?? null) : null;
+    else if (it.look?.startsWith("p:")) it.rect = this.props ? (this.props.colliders(it.look.slice(2), x, z, rot, it.y, it.sc ?? 1)[0] ?? null) : null;
+    else if (it.look?.startsWith("q:")) {
+      // (not before the heaps stand: they are placed against what is down, and hold their cargo's ground themselves)
+      if (!this.heapsUp) return;
+      it.rect = this.quay ? quayPieceCollider(this.quay, it.look.slice(2), x, z, rot, it.y) : null;
+    } else it.rect = rectAround(x, z, FOOT, FOOT, top);
+    // (a model not in yet: a box of its height until it is, so nothing walks into it)
+    if (!it.rect && it.look) it.rect = rectAround(x, z, FOOT, FOOT, top);
+    if (it.rect) {
+      goodsRects.add(it.rect);
+      this.world.addCollider(it.rect);
+    }
   }
 
-  /** The model of an item that is carried (a cask gets its barrel now). */
+  /** The model of an item that is carried or on a cart (a quay's cask, crate or sack gets its own model now). */
   private body(it: Item): THREE.Object3D {
-    if (it.look === "cask" && !it.obj.children.length) {
-      const m = this.props ? this.props.place("barrel", 0, 0, 0) : makeGoods("barrels", this.world.mats);
-      it.obj.add(m);
+    if (it.look && !it.obj.children.length) {
+      let m: THREE.Object3D | null = null;
+      if (it.look === "cask") m = this.props ? this.props.place("barrel", 0, 0, 0) : null;
+      else if (it.look.startsWith("p:") && this.props) {
+        m = this.props.place(it.look.slice(2), 0, 0, 0);
+        m.scale.setScalar(it.sc ?? 1);
+      } else if (it.look.startsWith("q:")) m = quayPieceMesh(it.look.slice(2));
+      // (the model not in yet: the plain goods of its kind, made again when it is)
+      it.obj.add(m ?? Object.assign(makeGoods(it.kind, this.world.mats), { name: "stand-in" }));
+    } else if (it.look && it.obj.children[0]?.name === "stand-in" && (this.props || this.quay)) {
+      it.obj.children[0].removeFromParent();
+      return this.body(it);
     }
     return it.obj;
+  }
+
+  /** The largest footprint of its model (m): a big crate is held a little smaller before the eyes. */
+  private sizeOf(it: Item): number {
+    if (it.look?.startsWith("q:") && this.quay) {
+      const s = quayPieceSize(this.quay, it.look.slice(2));
+      if (s) return Math.max(s.w, s.d);
+    }
+    if (it.look?.startsWith("p:") && this.props) {
+      const f = this.props.footprint(it.look.slice(2));
+      return Math.max(f.maxX - f.minX, f.maxZ - f.minZ) * (it.sc ?? 1);
+    }
+    return 0.7;
   }
 
   private toHands(it: Item): void {
@@ -330,7 +431,8 @@ export class GoodsWorld {
     const o = this.body(it);
     o.position.set(...GOODS[it.kind].hold);
     o.rotation.set(0.05, 0.08, 0);
-    o.scale.setScalar(1);
+    // (a long crate or sack of the quay held before the eyes: no bigger than the arms can hold, 0.95 m)
+    o.scale.setScalar(Math.min(1, 0.95 / Math.max(0.3, this.sizeOf(it))));
     this.player.camera.add(o);
     this.carried = it;
     this.player.laden = true;
@@ -342,11 +444,67 @@ export class GoodsWorld {
     it.on = [];
   }
 
-  /** Each frame: what others carry, in their hands; the lying casks' instances. */
-  update(): void {
+  /** A cart's frame on this PC: a dray's bed (its load in the places of its round), another player's handcart. */
+  private cartFrame(cart: string): CartFrame | null {
+    const bed = this.drays?.bedOf(cart);
+    const run = bed ? this.drays!.runOf(cart) : null;
+    if (bed && run?.bed) {
+      const places = run.bed;
+      return {
+        frame: bed,
+        scale: 1,
+        spot: (_i, it) => {
+          const k = run.items.indexOf(it.id);
+          const b = places[k >= 0 ? k : 0];
+          return [b[0], b[1], b[2], b[3]];
+        },
+      };
+    }
+    // (a handcart of the town's rounds: two by two, two layers, as Jef's)
+    if (bed && run) return handcartFrame(bed, run.items);
+    return this.remoteCart(cart);
+  }
+
+  /** Each frame: what others carry, in their hands; what lies on carts; the lying casks' merged meshes; the drays. */
+  update(dt = 0): void {
+    if (this.drays) {
+      const c = this.clock();
+      const far = ((this.world.scene.fog as THREE.Fog | null)?.far ?? 60) + 10;
+      this.drays.update(dt, c.day, c.hour, this.player.camera, far);
+    }
     // other players' and townspeople's loads
     const figs = new Map<THREE.Object3D, CarrierFigure>();
     const npcs = new Map<string, CarrierPuppet>();
+    // (M8f goods pass 2: what lies on a cart, on its bed; this player's own handcart lays its load itself)
+    const onCarts = new Map<string, Item[]>();
+    for (const it of this.all.values()) {
+      const by = it.by;
+      if (!by || !("cart" in by) || by.cart.startsWith(`hc:${this.me}:`)) continue;
+      let l = onCarts.get(by.cart);
+      if (!l) onCarts.set(by.cart, (l = []));
+      l.push(it);
+    }
+    for (const [cart, list] of onCarts) {
+      const f = this.cartFrame(cart);
+      list.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+      const tops = HANDCART_SLOTS.map(() => HANDCART_BED_Y);
+      list.forEach((it, i) => {
+        if (!f) {
+          it.obj.removeFromParent();
+          this.shownOn.delete(it.id);
+          return;
+        }
+        const o = this.body(it);
+        const [x, y, z, rot] = f.spot(i, it, tops);
+        if (o.parent !== f.frame || o.position.x !== x || o.position.y !== y || o.position.z !== z) {
+          o.position.set(x, y, z);
+          o.rotation.set(0, rot, 0);
+          o.scale.setScalar(f.scale);
+          f.frame.add(o);
+          this.shownOn.set(it.id, f.frame);
+        }
+      });
+    }
     for (const it of this.all.values()) {
       const by = it.by;
       if (!by || ("p" in by && by.p === this.me) || "cart" in by) continue;
@@ -402,13 +560,14 @@ export class GoodsWorld {
     for (const [id, h] of npcs) if (this.loadedNpcs.get(id) !== h) h.load(true);
     this.loadedNpcs = npcs;
     if (this.casksDirty && this.props) this.drawCasks();
+    flushQuayCargo();
   }
 
   /**
-   * The lying casks: all of them merged into one mesh per part of the barrel model (the props' own batch did the
-   * same for the static piles: the same two draw calls, the same materials, so no new shader), made again when one
-   * moves (a few times a minute; well under a millisecond for the quay's casks). An InstancedMesh would be a new
-   * shader of each material (docs/rendering.md rule 3); a merge is not.
+   * The lying casks, crates and sacks of props.glb (the piles, the Rijnkaai's crate stacks and sacks): all of them
+   * merged into one mesh per material (the props' own batch did the same for the static ones: the same draw calls,
+   * the same materials, so no new shader), made again when one moves (a few times a minute; about a millisecond).
+   * An InstancedMesh would be a new shader of each material (docs/rendering.md rule 3); a merge is not.
    */
   private drawCasks(): void {
     this.casksDirty = false;
@@ -418,19 +577,28 @@ export class GoodsWorld {
       m.geometry.dispose();
     }
     this.casks = [];
-    const list = this.items.filter((it) => it.look === "cask");
+    const list = this.items.filter((it) => it.look === "cask" || it.look?.startsWith("p:"));
     if (!list.length) return;
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
-    const one = new THREE.Vector3(1, 1, 1);
+    const sc = new THREE.Vector3();
     const up = new THREE.Vector3(0, 1, 0);
-    for (const { geometry, material } of this.props!.parts("barrel")) {
-      const geos = list.map((it) => {
+    const byMat = new Map<THREE.Material, THREE.BufferGeometry[]>();
+    for (const it of list) {
+      const name = it.look === "cask" ? "barrel" : it.look!.slice(2);
+      q.setFromAxisAngle(up, it.obj.rotation.y);
+      sc.setScalar(it.look === "cask" ? 1 : (it.sc ?? 1));
+      m.compose(it.obj.position, q, sc);
+      for (const { geometry, material } of this.props!.parts(name)) {
         const g = geometry.clone();
         for (const a of Object.keys(g.attributes)) if (!KEEP.includes(a)) g.deleteAttribute(a);
-        q.setFromAxisAngle(up, it.obj.rotation.y);
-        return g.applyMatrix4(m.compose(it.obj.position, q, one));
-      });
+        g.applyMatrix4(m);
+        let l = byMat.get(material);
+        if (!l) byMat.set(material, (l = []));
+        l.push(g);
+      }
+    }
+    for (const [material, geos] of byMat) {
       const merged = mergeGeometries(geos, false);
       for (const g of geos) if (g !== merged) g.dispose();
       if (!merged) continue;
@@ -443,6 +611,30 @@ export class GoodsWorld {
     this.caskMs = +(performance.now() - t0).toFixed(2);
   }
 
+  /**
+   * Dev (M8f goods pass 2): the heaps' cargo in the server's list against this PC's own heaps (world/quaygoods.ts):
+   * how many, and any whose place differs (more than 2 cm or 0.01 rad) or that one side lacks. Empty `off`: the
+   * list (shared/quaycargo.json) is baked from these heaps; else run tools/bake-quaycargo.mjs again.
+   */
+  cargoCheck(): { server: number; heaps: number; off: Array<[string, string]>; rebuilds: number; ms: number } {
+    const mine = new Map(quayCargo().map((c) => [c[0], c]));
+    const off: Array<[string, string]> = [];
+    let server = 0;
+    for (const it of this.all.values()) {
+      if (!it.id.startsWith("qg:")) continue;
+      server++;
+      const c = mine.get(it.id);
+      if (!c) {
+        off.push([it.id, "no such heap here"]);
+        continue;
+      }
+      const h = it.home ?? [it.obj.position.x, it.obj.position.z, it.obj.rotation.y];
+      if (Math.hypot(h[0] - c[3], h[1] - c[5]) > 0.02 || Math.abs(h[2] - c[6]) > 0.01 || `q:${c[1]}` !== it.look) off.push([it.id, `list ${h.join(",")} ${it.look}, heap ${c[3]},${c[5]},${c[6]} q:${c[1]}`]);
+    }
+    for (const id of mine.keys()) if (!this.all.has(id)) off.push([id, "not in the server's list"]);
+    return { server, heaps: mine.size, off: off.slice(0, 20), rebuilds: cargoStats.rebuilds, ms: cargoStats.ms };
+  }
+
   // ------------------------------------------------------------------ stacks
 
   private lyingState(skip?: string): GoodsItem[] {
@@ -451,9 +643,14 @@ export class GoodsWorld {
       .map((it) => ({ id: it.id, kind: it.kind, look: it.look, owner: it.owner, job: it.jobId, x: it.obj.position.x, z: it.obj.position.z, y: it.y, rot: it.obj.rotation.y, on: it.on, by: null, n: it.n, rev: it.rev }));
   }
 
-  /** The item resting right on top of this one, if any. */
-  above(it: Item): Item | undefined {
-    return this.items.find((o) => o.on.includes(it.id));
+  /** Is anything resting on this one? (asked every frame for what can be lifted: a set, kept up to date) */
+  above(it: Item): boolean {
+    if (this.underDirty) {
+      this.under.clear();
+      for (const o of this.items) for (const id of o.on) this.under.add(id);
+      this.underDirty = false;
+    }
+    return this.under.has(it.id);
   }
 
   /** Top-most item whose footprint covers (x, z). */
@@ -502,6 +699,7 @@ export class GoodsWorld {
 
   /** Lift it: in his hands at once; the server's no puts it back (`onLost` says why). */
   lift(it: Item, hold: [number, number, number]): void {
+    if (it.cartOnly) return;
     it.liftedFrom = { x: it.obj.position.x, z: it.obj.position.z, t: performance.now() };
     this.toHands(it);
     it.obj.position.set(...hold);
@@ -541,10 +739,16 @@ export class GoodsWorld {
     return it;
   }
 
-  /** Onto Jef's cart (game/handcart.ts: the server's cart route moved it): out of his hands, not drawn. */
+  /** Onto Jef's cart (game/handcart.ts: the server's cart route moved it): out of his hands, drawn on the cart by it. */
   toCart(it: Item, cart: string): void {
     if (this.carried === it) this.release();
     this.toHeld(it, { cart });
+  }
+
+  /** The model of an item on this player's own handcart (game/handcart.ts lays it on its bed). */
+  cartBody(id: string): THREE.Object3D | null {
+    const it = this.all.get(id);
+    return it && it.by && "cart" in it.by ? this.body(it) : null;
   }
 
   /** A lying item of his job taken off (a thief at the watch, a briber's man): gone for every PC. */
@@ -647,3 +851,22 @@ export function ahead(player: FirstPerson, d: number): [number, number] {
 }
 
 export const worldPos = (it: Item) => new THREE.Vector3(it.obj.position.x, it.y, it.obj.position.z);
+
+/**
+ * A handcart's load (Jef's, another player's, the town's): on its pivot, two by two, two layers (HANDCART_SLOTS), at
+ * the handcart's size; `order` puts the things in a fixed order (the town's run), else they come as listed (by id).
+ */
+export function handcartFrame(pivot: THREE.Object3D, order?: string[]): CartFrame {
+  return {
+    frame: pivot,
+    scale: ON_HANDCART,
+    spot: (i, it, tops) => {
+      const n = order ? Math.max(0, order.indexOf(it.id)) : i;
+      const k = n % HANDCART_SLOTS.length;
+      const [x, z] = HANDCART_SLOTS[k];
+      const y = tops[k];
+      tops[k] += heightOf(it) * ON_HANDCART;
+      return [x, y, z, ((n * 0.37) % 0.3) - 0.15];
+    },
+  };
+}

@@ -100,6 +100,7 @@ import { setAliveViewHeight } from "./world/alive/common";
 import { bootRestore, type ClientState } from "./game/restoreData";
 import { Together } from "./net/mp/together"; // M8a multiplayer: the others in the town, no pause together
 import { gearModel } from "./net/mp/gear"; // M8b: the others' boats, velocipedes and handcarts
+import { cartSub, handcartFrame } from "./game/goods"; // M8f goods pass 2: another player's handcart load
 import { isGuest } from "./net/mp/identity";
 import { GEAR } from "../../shared/mpProtocol";
 import { SMALL_KINDS } from "../../shared/smallBoats";
@@ -1119,6 +1120,8 @@ function frame(): void {
     if (bus && !bus.people) bus.people = () => folkNow;
     // M6 transport: the town's own people ride the omnibus (no fare), and step off at their stop
     if (bus && !bus.onResidentOff) bus.onResidentOff = (_b, id, at) => journeys.offBus(id, at);
+    // (sync pass 2: people wait at the stops near every player; the other PCs show the world PC's)
+    if (bus && !bus.others) bus.others = () => together.positions();
     // M7 omnibus routes: the timetable runs by the game clock (shared/omnibusLines.ts)
     if (bus && !bus.clock) bus.clock = () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF });
   }
@@ -1285,7 +1288,8 @@ const together = new Together({
     if (player.rowing && boat) return { kind: GEAR.rowboat, sub: Math.max(0, SMALL_KINDS.indexOf(boat)), heading: player.rowHeading };
     if (player.bikeRiding) return { kind: GEAR.velo, sub: 0, heading: player.bikeHeading };
     const cart = handcarts.heldYaw();
-    return cart !== null ? { kind: GEAR.handcart, sub: 0, heading: cart } : null;
+    // (M8f goods pass 2: `sub` names the cart he pushes, so the others lay its load on it)
+    return cart !== null ? { kind: GEAR.handcart, sub: handcarts.heldSub(), heading: cart } : null;
   },
   gearModel: (kind, sub) => gearModel(world, kind, sub),
   // M8b: the moving world, run by one PC for all (net/mp/world.ts)
@@ -1297,6 +1301,7 @@ const together = new Together({
     bridges: world.bridges(),
     lock: world.lock(),
     river: world.river(),
+    goodsCarts: jobs.goods.drays, // M8f goods pass 2: the dray and the handcart that move a pile (world/goodsDrays.ts)
   }),
   // the host's town map: the movers as points (twice a second, with the world)
   mapPoints: () => {
@@ -1318,6 +1323,12 @@ together.start();
 // M8f shared goods (game/goods.ts): what another player carries goes on his figure, what a townsperson carries on
 // his shoulder (whichever PC walks him)
 jobs.goods.figureOf = (id) => together.figureOf(id);
+// M8f goods pass 2: another player's handcart load on the cart he pushes (the one his gear names)
+jobs.goods.remoteCart = (cart) => {
+  const m = /^hc:(\d+):/.exec(cart);
+  const pivot = m && Number(m[1]) !== jobs.goods.me ? together.gearCart(Number(m[1]), cartSub(cart)) : null;
+  return pivot ? handcartFrame(pivot) : null;
+};
 jobs.goods.npcHands = (npc) => {
   const p = town.puppet(npc);
   if (!p || !crowd.alive(p)) return null;

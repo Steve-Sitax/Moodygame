@@ -7,7 +7,8 @@ import { loadProps, type Props } from "../world/props3d";
 import { makePiece } from "../world/furniture";
 import type { JobsPayload } from "../net/api";
 import { GOODS, makeGoods, type Goods } from "./props";
-import type { Item } from "./goods";
+import { cartSub, HANDCART_BED_Y, HANDCART_SLOTS, ON_HANDCART, type Item } from "./goods";
+import { heightOf } from "../../../shared/goods";
 import type { Jobs } from "./jobs";
 import type { Deeds } from "./deeds";
 import type { Journeys } from "./journeys";
@@ -39,6 +40,8 @@ interface CartItem {
   broken?: boolean;
   heavy?: boolean;
   piece?: number;
+  /** M8f: the server's goods item it is (shared goods). */
+  gid?: string;
 }
 interface JefCart {
   id: string;
@@ -100,7 +103,6 @@ const SLOTS: Array<[number, number]> = [
   [-0.26, 0.3],
   [0.26, 0.3],
 ];
-const BED_Y = 0.2;
 const ON_CART = 0.6;
 
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
@@ -122,6 +124,10 @@ export class Handcarts {
   heldYaw(): number | null {
     const d = this.held ? this.drawn.get(this.held) : null;
     return d?.cart ? d.cart.axle.yaw : null;
+  }
+  /** M8f goods pass 2: which of his carts he pushes, as his gear tells the others (game/goods.ts cartSub): they draw its load. */
+  heldSub(): number {
+    return this.held ? cartSub(`hc:${this.jobs.goods.me}:${this.held}`) : 0;
   }
   private dir = 0;
   private lastSent = { x: 0, z: 0 };
@@ -278,18 +284,29 @@ export class Handcarts {
     d.solid = on;
   }
 
-  /** The things on the bed, stacked two by two in two layers. */
+  /**
+   * The things on the bed, stacked two by two in two layers. M8f goods pass 2: the server's goods first, in the order
+   * of their ids, each its own model (a quay's cask, crate or sack as it looks), as the other PCs draw this cart's load.
+   */
   private showLoad(d: Drawn): void {
-    const key = d.info.load.map((i) => i.kind).join(",");
+    const key = d.info.load.map((i) => i.gid ?? i.kind).join(",");
     if (!d.cart || key === d.loadKey) return;
-    for (const o of d.items) o.removeFromParent();
+    // (an item's own model may have left the cart for his hands already: only what still lies on it comes off)
+    for (const o of d.items) if (o.parent === d.cart.pivot) o.removeFromParent();
     d.items = [];
     d.loadKey = key;
-    const tops = SLOTS.map(() => BED_Y);
-    d.info.load.forEach((it, i) => {
+    const tops = HANDCART_SLOTS.map(() => HANDCART_BED_Y);
+    const load = [...d.info.load].sort((a, b) => (a.gid && b.gid ? (a.gid < b.gid ? -1 : 1) : a.gid ? -1 : b.gid ? 1 : 0));
+    load.forEach((it, i) => {
       let obj: THREE.Object3D;
       let h: number;
-      if (FURNITURE_KINDS.has(it.kind)) {
+      const body = it.gid ? this.jobs.goods.cartBody(it.gid) : null;
+      const gi = it.gid ? this.jobs.goods.byId(it.gid) : null;
+      if (body && gi) {
+        obj = body;
+        obj.scale.setScalar(ON_HANDCART);
+        h = heightOf(gi) * ON_HANDCART;
+      } else if (FURNITURE_KINDS.has(it.kind)) {
         obj = makePiece(it.kind, 2.6).group;
         obj.scale.setScalar(0.5);
         h = new THREE.Box3().setFromObject(obj).getSize(new THREE.Vector3()).y;
@@ -301,7 +318,7 @@ export class Handcarts {
       const k = i % SLOTS.length;
       const [x, z] = SLOTS[k];
       obj.position.set(x, tops[k], z);
-      obj.rotation.y = ((i * 0.37) % 0.3) - 0.15;
+      obj.rotation.set(0, ((i * 0.37) % 0.3) - 0.15, 0);
       tops[k] += h;
       d.cart!.pivot.add(obj);
       d.items.push(obj);

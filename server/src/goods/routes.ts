@@ -62,9 +62,9 @@ export function mountGoods(app: Hono, d: GoodsDeps) {
     return c.json({ ok: true, v: goods.v, items: r.items, gone: r.gone });
   });
 
-  // dev (the test kit): the dray's next stage now, a man for the goods off their place now, the town's goods afresh
+  // dev (the test kit): a cart's next stage now (`dray`, and `run` for which), a man for the goods off their place now, the town's goods afresh
   app.post("/api/dev/goods", async (c) => {
-    const b = (await c.req.json().catch(() => ({}))) as { dray?: unknown; back?: unknown; reset?: unknown; move?: unknown };
+    const b = (await c.req.json().catch(() => ({}))) as { dray?: unknown; run?: unknown; back?: unknown; reset?: unknown; move?: unknown };
     const out: Record<string, unknown> = {};
     if (b.reset === true) {
       goods.reset();
@@ -72,8 +72,10 @@ export function mountGoods(app: Hono, d: GoodsDeps) {
     }
     if (typeof b.dray === "string") {
       if (!["out", "down", "back", "home"].includes(b.dray)) return c.json({ error: "dray: out, down, back or home" }, 400);
-      out.dray = goods.drayStage(b.dray as "out" | "down" | "back" | "home", clock(db).day, db);
-      out.state = goods.dray.state;
+      // (M8f goods pass 2: `run` picks the cart's round, shared/goods.ts CART_RUNS: "casks" (the default), "sacks")
+      const run = typeof b.run === "string" ? b.run : "casks";
+      out.dray = goods.drayStage(b.dray as "out" | "down" | "back" | "home", clock(db).day, db, run);
+      out.state = goods.runs.get(run)?.state ?? null;
     }
     if (Array.isArray(b.move) && typeof b.move[0] === "string") {
       // an owned item off its place (as a player would leave it), for the carry-back
@@ -93,7 +95,7 @@ export function mountGoods(app: Hono, d: GoodsDeps) {
       try {
         goods.sweep(db, Date.now(), (cart, id) => goodsHooks.cartHas(db, cart, id));
         const c = clock(db);
-        goods.drayTick(c.day, c.hour * 60 + c.minute, db);
+        goods.cartRunsTick(c.day, c.hour * 60 + c.minute, db);
         carryBackTick(db);
       } catch (e) {
         console.warn("[goods] tick", e);

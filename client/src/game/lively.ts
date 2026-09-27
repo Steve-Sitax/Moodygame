@@ -8,6 +8,7 @@ import type { World } from "../world/rijnkaai";
 import type { Crowd, Puppet } from "./crowd";
 import type { Goal, Sim, Town } from "./town";
 import { makeAnimal, type Animal, type AnimalKind } from "./animals";
+import { dice, runsHere, share } from "./share";
 import { makeHuman, type Human, type HumanKind, type Motion } from "./humans";
 import type { Now } from "../../../server/src/town/schedule";
 import { activityAt } from "../../../server/src/town/schedule";
@@ -233,8 +234,9 @@ export class Lively {
   private wets: Wet[] = [];
   private windows = new Map<string, { h: Human; g: THREE.Group }>();
   private cats: Array<{ a: Animal; x: number; z: number; y: number; yaw: number; house: number; shown: boolean }> = [];
-  private hens: Array<{ body: THREE.Group; head: THREE.Object3D; legs: THREE.Object3D[]; hx: number; hz: number; x: number; z: number; yaw: number; t: number; tx: number; tz: number; peck: number }> = [];
-  private goats: Array<{ body: THREE.Group; head: THREE.Object3D; legs: THREE.Object3D[]; hx: number; hz: number; x: number; z: number; yaw: number; t: number; tx: number; tz: number; gait: number }> = [];
+  // (M8f sync pass 3: `id` among the players' PCs; the PC of the nearest player runs each, the others draw it)
+  private hens: Array<{ id: string; body: THREE.Group; head: THREE.Object3D; legs: THREE.Object3D[]; hx: number; hz: number; x: number; z: number; yaw: number; t: number; tx: number; tz: number; peck: number }> = [];
+  private goats: Array<{ id: string; body: THREE.Group; head: THREE.Object3D; legs: THREE.Object3D[]; hx: number; hz: number; x: number; z: number; yaw: number; t: number; tx: number; tz: number; gait: number }> = [];
   private sparks: THREE.Points | null = null;
   private sparkAt: { x: number; y: number; z: number; t: number } | null = null;
   private ready = false;
@@ -246,6 +248,7 @@ export class Lively {
   private points: Array<{ label: string; x: number; z: number; reach: number }> = [];
   /** Dev: where the goods before the shops were set out (kind, place, the way the wall faces). */
   readonly goodsAt: Array<{ kind: string; x: number; z: number; yaw: number }> = [];
+  private remoteDressT = 0;
   private stats_ = { stalls: 0, goods: 0, pots: 0, chalk: 0, madonnas: 0, cats: 0, hens: 0, goats: 0 };
 
   constructor(
@@ -625,7 +628,7 @@ export class Lively {
       }
       // a cat on the sill of the other window, now and then
       const w1 = wins.length > 1 ? wins[(Math.floor(u * 97) + 1) % wins.length] : null;
-      if (cat && w1) this.cats.push({ a: null as unknown as Animal, x: w1.x + hd.ox * 0.14, z: w1.z + hd.oz * 0.14, y: SILL_GROUND + 0.02, yaw: yaw + rnd(-0.6, 0.6), house, shown: false });
+      if (cat && w1) this.cats.push({ a: null as unknown as Animal, x: w1.x + hd.ox * 0.14, z: w1.z + hd.oz * 0.14, y: SILL_GROUND + 0.02, yaw: yaw + (h01(`catyaw:${house}`) - 0.5) * 1.2, house, shown: false }); // (its turn by the house: the same on every PC)
     }
 
     // --- the children's pitches: a spot with room on each square they play on; hopscotch and a ring drawn there
@@ -655,10 +658,11 @@ export class Lively {
       const cz = q.hd.z + q.hd.oz * Math.min(1.6, q.w / 2) + q.hd.ox * 2.6;
       if (!open(cx, cz) || !this.world.isFree(cx, cz, 0.5) || !isClear(cx, cz, 0.4) || [...this.hens, ...this.goats].some((a) => dist(a.hx, a.hz, cx, cz) < 30)) continue;
       if (goatsAt < 2 && h01(`goat:${q.house}`) < 0.4) {
-        this.addGoat(cx, cz);
+        this.addGoat(cx, cz, `a:goat:${q.house}`);
         goatsAt++;
       } else if (hensAt < 6) {
-        for (let k = 0; k < 3; k++) this.addHen(cx + rnd(-0.8, 0.8), cz + rnd(-0.8, 0.8), cx, cz);
+        // (M8f: their places by the court, the same on every PC)
+        for (let k = 0; k < 3; k++) this.addHen(cx + (dice("henx", q.house, k) - 0.5) * 1.6, cz + (dice("henz", q.house, k) - 0.5) * 1.6, cx, cz, `a:hen:${q.house}:${k}`);
         hensAt++;
       }
       if (hensAt >= 6 && goatsAt >= 2) break;
@@ -710,7 +714,7 @@ export class Lively {
     return null;
   }
 
-  private addHen(x: number, z: number, hx: number, hz: number): void {
+  private addHen(x: number, z: number, hx: number, hz: number, id: string): void {
     const body = new THREE.Group();
     body.add(this.mesh("hen_body"));
     const head = this.mesh("hen_head");
@@ -724,10 +728,10 @@ export class Lively {
     });
     body.visible = false;
     this.group.add(body);
-    this.hens.push({ body, head, legs, hx, hz, x, z, yaw: rnd(0, 6.28), t: rnd(0, 3), tx: x, tz: z, peck: 0 });
+    this.hens.push({ id, body, head, legs, hx, hz, x, z, yaw: dice(id, 1) * 6.28, t: dice(id, 2) * 3, tx: x, tz: z, peck: 0 });
   }
 
-  private addGoat(x: number, z: number): void {
+  private addGoat(x: number, z: number, id: string): void {
     const body = new THREE.Group();
     body.add(this.mesh("goat_body"));
     const head = this.mesh("goat_head");
@@ -741,7 +745,7 @@ export class Lively {
     });
     body.visible = false;
     this.group.add(body);
-    this.goats.push({ body, head, legs, hx: x, hz: z, x, z, yaw: rnd(0, 6.28), t: 0, tx: x, tz: z, gait: 0 });
+    this.goats.push({ id, body, head, legs, hx: x, hz: z, x, z, yaw: dice(id, 1) * 6.28, t: 0, tx: x, tz: z, gait: 0 });
   }
 
   // ------------------------------------------------------------------ the town's hook
@@ -1097,12 +1101,13 @@ export class Lively {
     }
     if (act === "scrub") {
       if (!k.placed.length) {
+        // (by her spot at the door, not where she stood on arriving: the same on the PCs that draw her, M8f)
         const b = this.mesh("bucket");
-        b.position.set(p.x + Math.cos(g.yaw ?? 0) * 0.55, 0, p.z - Math.sin(g.yaw ?? 0) * 0.55);
+        b.position.set(g.x + Math.cos(g.yaw ?? 0) * 0.55, 0, g.z - Math.sin(g.yaw ?? 0) * 0.55);
         this.world.scene.add(b);
         k.placed.push(b);
         this.setHand(p, k, "brush");
-        k.wet = this.addWet(p.x + Math.sin(g.yaw ?? 0) * 0.3, p.z + Math.cos(g.yaw ?? 0) * 0.3, g.yaw ?? 0);
+        k.wet = this.addWet(g.x + Math.sin(g.yaw ?? 0) * 0.3, g.z + Math.cos(g.yaw ?? 0) * 0.3, g.yaw ?? 0);
       }
       if (p.human.motion !== "scrub") {
         p.x = g.x;
@@ -1140,6 +1145,55 @@ export class Lively {
       return true;
     }
     return false;
+  }
+
+  /**
+   * M8f sync pass 3: a townsperson another PC walks, at her door: what she sets out there (the bucket, the brush and
+   * the wet step while she scrubs it; the chair and the lace pillow's stand), as her own PC sets it, from her day and
+   * her spot; taken away when she is done.
+   */
+  private remoteDoor(s: Sim): void {
+    const p = s.p!;
+    const k = this.kit(s);
+    const g = s.goal;
+    const act = s.key.split("|door:")[1] ?? "";
+    const at = dist(p.x, p.z, g.x, g.z) < 1.2;
+    const m = p.human.motion ?? "";
+    const want = at && ((act === "scrub" && m === "scrub") || ((act === "lace" || act === "knit") && m === "lace")) ? act : "";
+    const had = (k.placed[0]?.userData.door as string | undefined) ?? "";
+    if (had && had !== want && !(want === "" && at && act === had)) {
+      for (const o of k.placed) o.removeFromParent();
+      k.placed = [];
+      if (had === "scrub") this.setHand(p, k, null);
+      k.wet = null;
+    }
+    if (!want) return;
+    const yaw = g.yaw ?? 0;
+    if (!k.placed.length) {
+      if (want === "scrub") {
+        const b = this.mesh("bucket");
+        b.position.set(g.x + Math.cos(yaw) * 0.55, 0, g.z - Math.sin(yaw) * 0.55);
+        this.world.scene.add(b);
+        k.placed.push(b);
+        this.setHand(p, k, "brush");
+        k.wet = this.addWet(g.x + Math.sin(yaw) * 0.3, g.z + Math.cos(yaw) * 0.3, yaw);
+      } else {
+        const c = this.mesh("chair");
+        c.position.set(g.x, 0, g.z);
+        c.rotation.y = yaw;
+        this.world.scene.add(c);
+        k.placed.push(c);
+        if (want === "lace") {
+          const st = this.mesh("lace_stand");
+          st.position.set(g.x + Math.sin(yaw) * 0.5, 0, g.z + Math.cos(yaw) * 0.5);
+          st.rotation.y = yaw;
+          this.world.scene.add(st);
+          k.placed.push(st);
+        }
+      }
+      k.placed[0].userData.door = want;
+    }
+    if (k.wet) k.wet.born = performance.now() / 1000;
   }
 
   private addWet(x: number, z: number, yaw: number): Wet {
@@ -1903,6 +1957,16 @@ export class Lively {
       const s = m.geometry.boundingSphere!;
       m.visible = s.center.distanceTo(camera.position) - s.radius < far;
     }
+    // M8f sync pass 3: a townsperson another PC walks carries here what he carries there (the dog cart and its dogs,
+    // the grinder's barrow, the broom bundle, the flowers for the Madonna): the same dress from his day, twice a second
+    if ((this.remoteDressT -= dt) <= 0) {
+      this.remoteDressT = 0.5;
+      for (const s of this.town.netSims()) {
+        if (!s.remote || !s.p) continue;
+        this.dress(s);
+        this.remoteDoor(s);
+      }
+    }
     // the moving things of the rounds
     for (const [id, k] of this.kits) {
       const p = this.town.puppet(id);
@@ -2055,13 +2119,39 @@ export class Lively {
       const d = dist(h.x, h.z, player.x, player.z);
       h.body.visible = d < NEAR;
       if (!h.body.visible) continue;
+      // M8f sync pass 3: run here (the nearest player's PC), or where the PC that runs it has it
+      if (!runsHere(h.id, h.x, h.z, NEAR)) {
+        const s = share.net?.animal(h.id);
+        if (s) {
+          h.x = s.x;
+          h.z = s.z;
+          h.yaw = s.yaw;
+        }
+        const walking = s?.motion === "walk";
+        h.peck += dt;
+        const peck = !walking ? Math.max(0, Math.sin(h.peck * 5)) ** 3 : 0;
+        h.head.rotation.x = peck * 1.2;
+        const step = walking ? Math.sin(performance.now() / 70) * 0.5 : 0;
+        h.legs[0].rotation.x = step;
+        h.legs[1].rotation.x = -step;
+        h.body.position.set(h.x, walking ? Math.abs(step) * 0.02 : 0, h.z);
+        h.body.rotation.y = h.yaw;
+        continue;
+      }
       h.t -= dt;
-      // away from Jef when he comes close, else a few steps, a peck
-      if (d < 2) {
-        const L = d || 1;
-        h.tx = h.x + ((h.x - player.x) / L) * 2;
-        h.tz = h.z + ((h.z - player.z) / L) * 2;
+      // away from Jef (any player: M8f) when he comes close, else a few steps, a peck
+      let fled = false;
+      for (const q of share.on ? share.players() : [player]) {
+        const dq = dist(h.x, h.z, q.x, q.z);
+        if (dq >= 2 || fled) continue;
+        const L = dq || 1;
+        h.tx = h.x + ((h.x - q.x) / L) * 2;
+        h.tz = h.z + ((h.z - q.z) / L) * 2;
         h.t = 1;
+        fled = true;
+      }
+      if (fled) {
+        /* running */
       } else if (h.t <= 0) {
         h.tx = h.hx + rnd(-2, 2);
         h.tz = h.hz + rnd(-2, 2);
@@ -2073,7 +2163,7 @@ export class Lively {
       const L = Math.hypot(dx, dz);
       let walking = false;
       if (L > 0.1) {
-        const sp = d < 2 ? 2.2 : 0.5;
+        const sp = fled ? 2.2 : 0.5;
         const nx = h.x + (dx / L) * Math.min(L, sp * dt);
         const nz = h.z + (dz / L) * Math.min(L, sp * dt);
         if (this.world.isFree(nx, nz, 0.12)) {
@@ -2087,6 +2177,13 @@ export class Lively {
       const peck = !walking ? Math.max(0, Math.sin(h.peck * 5)) ** 3 : 0;
       h.head.rotation.x = peck * 1.2;
       const step = walking ? Math.sin(performance.now() / 70) * 0.5 : 0;
+      if (!walking) {
+        // (standing: on the batch's own grid, so the others have her exactly here)
+        h.x = Math.round(h.x * 50) / 50;
+        h.z = Math.round(h.z * 50) / 50;
+        h.yaw = Math.round(h.yaw * (256 / 6.283185307179586)) * (6.283185307179586 / 256);
+      }
+      if (share.on) share.net?.putAnimal(h.id, { x: h.x, z: h.z, yaw: h.yaw, motion: walking ? "walk" : "peck" });
       h.legs[0].rotation.x = step;
       h.legs[1].rotation.x = -step;
       h.body.position.set(h.x, walking ? Math.abs(step) * 0.02 : 0, h.z);
@@ -2099,6 +2196,19 @@ export class Lively {
       const d = dist(g.x, g.z, player.x, player.z);
       g.body.visible = d < NEAR;
       if (!g.body.visible) continue;
+      // M8f sync pass 3: run here (the nearest player's PC), or where the PC that runs it has it
+      const here = runsHere(g.id, g.x, g.z, NEAR);
+      const s = here ? null : share.net?.animal(g.id);
+      if (s) {
+        g.tx = s.x;
+        g.tz = s.z;
+        g.t = 1;
+        if (Math.hypot(s.x - g.x, s.z - g.z) > 2) {
+          g.x = s.x;
+          g.z = s.z;
+        }
+      }
+      if (!here) g.t = Math.max(g.t, 1);
       g.t -= dt;
       if (g.t <= 0) {
         // tethered: a slow step within its rope, then grazing
@@ -2125,6 +2235,17 @@ export class Lively {
       g.legs.forEach((l, i) => (l.rotation.x = (i === 0 || i === 3 ? 1 : -1) * sw));
       // head down to graze when standing, up now and then (and when Jef comes near)
       g.head.rotation.x = walking || d < 4 ? 0 : 0.9 + Math.sin(performance.now() / 900) * 0.15;
+      if (here && !walking) {
+        g.x = Math.round(g.x * 50) / 50;
+        g.z = Math.round(g.z * 50) / 50;
+        g.yaw = Math.round(g.yaw * (256 / 6.283185307179586)) * (6.283185307179586 / 256);
+      }
+      if (here && share.on) share.net?.putAnimal(g.id, { x: g.x, z: g.z, yaw: g.yaw, motion: walking ? "walk" : "graze" });
+      if (s && !walking && s.motion !== "walk") {
+        g.x = s.x;
+        g.z = s.z;
+        g.yaw = s.yaw;
+      }
       g.body.position.set(g.x, 0, g.z);
       g.body.rotation.y = g.yaw;
     }
