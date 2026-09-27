@@ -155,3 +155,21 @@ the manifest.
 4. The first download resumed: a guest with an empty store (a new browser profile), reload in the middle of
    "Downloading x of 66 MB": after the reload "Downloading 29 of 63 MB" (on from what was kept) and "Going on
    where the last visit stopped"; `__scheldemistCache` shows `resumed: true`, the downloaded count only the rest.
+
+## Checked in the browser (2026-09-27)
+
+Test stack (a copy of the save, ports 8948/8949), the house open on the LAN, a headless Chrome in a fresh profile that
+trusts only the test server's key (`--ignore-certificate-errors-spki-list`, the SPKI from `/api/mp/host`):
+- `https://<lan address>:8949/` is a secure context; the first download (73 MB) went on after a reload in the middle
+  ("resumed": true); the game came up.
+- The Service Worker is active on https (`sw.js?v=<version>`), one `scheldemist-shell-<version>` cache with 25 entries
+  and no models or pictures.
+- A guest's sockets cut with the network off: "Connection lost, trying again..." at the top; the server shows him
+  gone; back online he is in again within 4 s, one figure.
+- Three players (one over https, two on the dev tabs) through a theft, a job and a twist: 0 dropped messages, 0
+  refused requests (`limitDropped`, `http429`).
+- A guest on plain http moves to https with the one-time code: the same man (player 4), `#move=` gone from the
+  address bar; his old http token no longer knows him; the same code a second time: 403.
+- A guest's menu has no New game, AI setup, Continue or Load (fixed in this run).
+- Not checked in a real browser: the name constraints on Windows/Chrome/phones with a real installed CA (Steve's
+  step), the VPN listener over NetBird (needs a peer), the offline page after `/manifest.json`.
