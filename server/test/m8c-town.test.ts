@@ -135,7 +135,7 @@ describe("M8c town: a guest's thefts, police, haggling and talk are his own", ()
     const r = town(db).town.residents.find((x) => x.age >= 20 && x.trade !== "thief" && x.trade !== "police")!;
     const a = residentOpen(db, r.id);
     const bye = a.choices[a.choices.length - 1];
-    const byeR = await residentChoice(db, r.id, bye);
+    await residentChoice(db, r.id, bye);
     expect(jefSaid(r.id)).toBe(bye);
     // the guest walks up to the same person: a meeting of his own, nothing the host said in it
     expect(as2(() => jefSaid(r.id))).toBe("");
