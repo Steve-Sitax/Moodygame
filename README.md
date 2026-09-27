@@ -1,8 +1,51 @@
-# Scheldemist
+<p align="center">
+  <img src="docs/media/hero.jpg" alt="Tall ships and a dock crane in the morning mist on the Rijnkaai" width="100%">
+</p>
 
-A 3D browser game. Antwerp, autumn 1873: first person, a PS1 look, fog on the Scheldt. You are Jef,
-new in town, looking for work on the quays. The townspeople talk, remember and act; an AI proposes
-their words and plans, and the game engine checks every proposal and owns every number.
+<h1 align="center">Scheldemist</h1>
+
+<p align="center">
+  <i>Antwerp, autumn 1873. Fog on the Scheldt, work on the quays, and a town that remembers you.</i>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Steve-Sitax/Moodygame/releases/latest"><b>Download for Windows, Mac and Linux</b></a>
+  &nbsp;·&nbsp; <a href="#play-it">How to play</a>
+  &nbsp;·&nbsp; <a href="docs/README.md">Design notes</a>
+</p>
+
+A 3D browser game in first person, with a PS1 look. You are Jef, new in town, with a few coins and
+rent due by Sunday. You look for work on the quays. The townspeople talk, remember and act: an AI
+proposes their words and plans, and the game engine checks every proposal and owns every number.
+
+- **A real town.** The streets are traced from the 1873 Vuillaume map. About 190 townspeople have
+  homes, trades, families and a day of their own.
+- **Talk to anyone, in your own words.** Ask the fishwife for work, haggle at a stall, lie to the
+  police. The town answers in its own voice, and the engine decides what it costs you.
+- **Work the quays.** Carry, watch and deliver. A job can turn: a thief, a bribe, a load that breaks.
+- **Things happen.** A director plans the town's events every game hour: fires, auctions, strangers,
+  ballads on the corners, a sermon on Sunday.
+- **Weather and night.** Mist, fog, rain and storms; gas lamps and lit windows after dark; tides,
+  tall ships, cranes, opening bridges and a working lock.
+- **Real rooms.** Every building you can enter is built inside, at its true size. You see the street
+  from inside and the room from the street.
+- **Play alone, or with the people in your house.** And with no AI at all, if you like: then it is a
+  walk through 1873.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/media/alley-night.jpg" alt="A back alley at night, lanterns and a cat"><br><sub>A back alley after dark</sub></td>
+    <td width="50%"><img src="docs/media/cathedral-fog.jpg" alt="The cathedral in night fog over the Handschoenmarkt"><br><sub>The cathedral in the night fog</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/media/het-steen.jpg" alt="Het Steen and the fish market by the river"><br><sub>Het Steen and the fish market</sub></td>
+    <td width="50%"><img src="docs/media/talk.jpg" alt="Talking with a fishwife about work"><br><sub>"Where does a stranger find honest work in this fog?"</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/media/quay-morning.jpg" alt="A handcart with barrels on the quay in the morning mist"><br><sub>Morning on the Rijnkaai</sub></td>
+    <td width="50%"><img src="docs/media/rain.jpg" alt="Rain at dusk under a dock crane"><br><sub>Rain at dusk</sub></td>
+  </tr>
+</table>
 
 ## Play it
 
