@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Hono } from "hono";
 import { allowedHost, ROOT } from "../config.ts";
+import { AutoBuild, buildingPage } from "./autobuild.ts";
 
 // M8a (docs/multiplayer-plan.md 3.2): the built game (client/dist) served by the game server itself, on one
 // port, for the guests of "Open to the house" (and the host with npm run host). Only the files the manifest
@@ -24,6 +25,12 @@ export interface Manifest {
 }
 
 export const DIST = process.env.SCHELDEMIST_DIST ? path.resolve(process.env.SCHELDEMIST_DIST) : path.join(ROOT, "client", "dist");
+
+/**
+ * The server builds the game for the house itself when the build is missing or older than the code
+ * (autobuild.ts): not for a dist that is not this checkout's own, not under the tests unless they ask.
+ */
+export const autoBuild = new AutoBuild(ROOT, DIST, !process.env.SCHELDEMIST_DIST && (!process.env.VITEST || process.env.SCHELDEMIST_AUTOBUILD === "1"));
 
 const TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -109,13 +116,20 @@ export function mountStatic(app: Hono, enabled: () => boolean): void {
     const p = c.req.path;
     if (p.startsWith("/api/") || p === "/ws" || p === "/mp" || !enabled()) return next();
     if (!allowedHost(c.req.header("host"))) return c.text("forbidden", 403);
+    // the build older than the code: a new one in the background (the guests keep the old one until it is
+    // ready, then they are told: the version push); none at all: the guest waits on a page that reloads itself
+    if (autoBuild.enabled && (p === "/" || p === "/index.html" || p === "/manifest.json") && autoBuild.stale()) void autoBuild.ensure();
     if (p === "/manifest.json") {
       reloadManifest();
-      if (!manifest) return c.json({ error: "no build: run npm run host" }, 404);
+      if (!manifest) return c.json({ error: autoBuild.enabled ? "The game is being built on the host's PC: a moment." : "no build: run npm run host", building: autoBuild.building }, autoBuild.enabled ? 503 : 404);
       return c.json(manifest, 200, { "cache-control": "no-cache" });
     }
     if (!manifest) reloadManifest();
-    if (!manifest) return c.text("The game is not built on this PC: run npm run host.", 404);
+    if (!manifest) {
+      if (!autoBuild.enabled) return c.text("The game is not built on this PC: run npm run host.", 404);
+      void autoBuild.ensure();
+      return p === "/" || p === "/index.html" ? c.html(buildingPage(autoBuild.status), 503, { "cache-control": "no-store" }) : c.text("The game is being built on the host's PC: a moment.", 503);
+    }
     const accept = c.req.header("accept-encoding") ?? "";
     const m = /^\/a\/([0-9a-f]{64})$/.exec(p);
     if (m) {

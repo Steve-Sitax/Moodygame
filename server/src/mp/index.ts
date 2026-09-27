@@ -15,7 +15,7 @@ import { closeLan, lanOpen, lanUrls, openLan } from "./lan.ts";
 import { Plausible } from "./plausible.ts";
 import { addGuest, cleanGuestName, countTry, HOST_ID, listPlayers, mayTry, MAX_PLAYERS, playerById, poseOf, removeGuest, sameCode, savePose, setAdmin } from "./players.ts";
 import { mpOn, mpSettings, newCode, setMp } from "./settings.ts";
-import { currentManifest, mountStatic, reloadManifest } from "./static.ts";
+import { autoBuild, currentManifest, mountStatic, reloadManifest } from "./static.ts";
 import { Owners, WorldPc, type OwnerRow } from "./street.ts";
 import type { MapModel } from "../mapview/model.ts";
 
@@ -605,7 +605,10 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
   let lanBusy: Promise<void> = Promise.resolve();
   function applyLan(): Promise<void> {
     lanBusy = lanBusy.then(async () => {
-      if (mpSettings().lan) await openLan(app.fetch, upgrade);
+      if (mpSettings().lan) {
+        await openLan(app.fetch, upgrade);
+        void autoBuild.ensure(); // (the house plays the built game: built now if it is missing or old, autobuild.ts)
+      }
       else await closeLan();
     });
     return lanBusy;
@@ -635,6 +638,7 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
     close(): Promise<void> {
       clearInterval(relay);
       clearInterval(clockLoop);
+      autoBuild.stop();
       for (const k of conns) k.ws.close();
       mpWss.close();
       return closeLan();
