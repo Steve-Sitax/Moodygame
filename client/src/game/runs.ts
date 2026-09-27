@@ -12,7 +12,7 @@ import { api, type JobsPayload } from "../net/api";
 import { chest, type Target } from "./facing";
 import type { QuestBoxes } from "./questboxes";
 import { gameMin } from "../../../shared/clock";
-import { SNEAK, Summons, WALK, Walkup, type JobFigure } from "./walkup";
+import { mayVanish, SNEAK, Summons, WALK, Walkup, type JobFigure } from "./walkup";
 import { Follower } from "./follower";
 
 // How each kind of job plays in 3D (M2b, M3). Goods live in the shared
@@ -514,7 +514,7 @@ export class HaulRun implements Run {
     const s = this.strangerCall?.fig;
     if (s && !s.gone) {
       if (this.strangerDone) {
-        if (!s.moving) s.remove();
+        if (!s.moving && mayVanish(s)) s.remove();
       } else if (s.present) {
         // to his place beside the way (the same place asked again changes nothing), then he watches Jef come
         if (this.strangerAt && s.distTo(this.strangerAt[0], this.strangerAt[1]) > 1.2) s.walkTo(this.strangerAt[0], this.strangerAt[1], WALK);
@@ -838,7 +838,7 @@ export class WatchRun implements Run {
         }
       }
       // (the call walks him: Summons.update)
-      if (this.thiefState !== "coming" && !this.thief.moving && !this.thief.gone) this.thief.remove();
+      if (this.thiefState !== "coming" && !this.thief.moving && !this.thief.gone && mayVanish(this.thief)) this.thief.remove();
     }
 
     if (this.task.twist === "bribe" && !this.briberCall && this.t > d * 0.1) {
@@ -869,7 +869,7 @@ export class WatchRun implements Run {
         b.walkTo(ox, oz, 1.3);
         this.briberState = "sent";
       }
-      if (this.briberState === "sent" && !b.moving && !b.gone) b.remove();
+      if (this.briberState === "sent" && !b.moving && !b.gone && mayVanish(b)) b.remove();
     }
 
     if (this.task.twist === "foreman_watches" && !this.foremanCall && this.t > d * 0.3) {
@@ -902,7 +902,7 @@ export class WatchRun implements Run {
           this.foremanState = "leaving";
         }
       }
-      if (this.foremanState === "leaving" && !f.moving && !f.gone) f.remove();
+      if (this.foremanState === "leaving" && !f.moving && !f.gone && mayVanish(f)) f.remove();
     }
 
     if (this.t >= d) {

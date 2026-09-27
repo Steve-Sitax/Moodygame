@@ -1,14 +1,15 @@
 import { z } from "zod";
 import type { DB } from "../db.ts";
 import { GameError, log, player } from "../game.ts";
-import { addPlayerColumn, pstate, setPstate } from "../player/multi.ts";
+import { addPlayerColumn, pstate, RESET_HOOKS, setPstate } from "../player/multi.ts";
 import { asPlayer, pid } from "../player/current.ts";
+import { nameOf } from "../player/names.ts";
 import { applyTrust, remember } from "../npcs.ts";
 import { POCKET_SLOTS, atWork } from "../trade.ts";
 import { weather, type Weather } from "../day.ts";
 import { activityAt } from "./schedule.ts";
 import { TOWN_EMPLOYER_IDS, resident, town } from "./store.ts";
-import { cityHouses, houseDoors, walkMap } from "./walkmap.ts";
+import { cityHouses, houseDoors, walkMap, WALL } from "./walkmap.ts";
 import { shopTableSpot } from "../../../shared/shopFront.ts";
 import type { Resident } from "./population.ts";
 import { rowBoatHome, rowBoatStates, rowBoats, rowOn, rowState, setRowBoat, takePrompt, type LooseBoat } from "../rowing.ts";
@@ -561,6 +562,62 @@ export interface DeedResult {
   text: string;
   police: boolean;
   item_id: number | null;
+  /** M8d: other players who saw it (each is told, and the police may ask him). */
+  players_saw?: Array<{ id: number; name: string }>;
+}
+
+// ------------------------------------------------------------------ M8d: players as witnesses
+
+/** Another player in the game and where he stands (director/actions.ts playersAt; the thief himself left out). */
+export interface OtherPlayer {
+  id: number;
+  x: number;
+  z: number;
+}
+
+/** No house wall on the line between two points (the walk map's walls; the client's own check, game/deeds.ts los). */
+export function clearLine(ax: number, az: number, bx: number, bz: number): boolean {
+  const wm = walkMap();
+  const n = Math.ceil(Math.hypot(bx - ax, bz - az) / 0.5);
+  for (let i = 1; i < n; i++) if (wm.flags(ax + ((bx - ax) * i) / n, az + ((bz - az) * i) / n) & WALL) return false;
+  return true;
+}
+
+/**
+ * The other players who saw a deed at `at`: within the street's sight by the weather and the light (a crouching
+ * thief a quarter less), with a clear line. A player takes in what happens round him (no dice: the engine says he
+ * saw it). Pure but for the walk map.
+ */
+export function playerEyes(others: OtherPlayer[], at: { x: number; z: number }, c: SeeCtx): Array<OtherPlayer & { d: number }> {
+  const R = (SIGHT_M[c.weather] ?? 13) * (c.lantern ? 0.9 : 0.45 + 0.55 * daylight(c.hour)) * (c.crouch ? 0.75 : 1);
+  return others
+    .map((o) => ({ ...o, d: Math.hypot(o.x - at.x, o.z - at.z) }))
+    .filter((o) => Number.isFinite(o.d) && o.d <= R && clearLine(o.x, o.z, at.x, at.z))
+    .sort((a, b) => a.d - b.d)
+    .slice(0, 6);
+}
+
+/** Another player's name as a player is told it (a plain "Jef", the host, kept from the teller's own edge). */
+function playerName(db: DB, id: number): string {
+  const n = nameOf(db, id);
+  return n === "Jef" ? "Je‍f" : n;
+}
+
+export interface SeenNotice {
+  n: number;
+  deed: number;
+  text: string;
+}
+
+/** What player `who` saw ("You saw Anna take the lantern."): kept a short while in his own keys; the client says each once. */
+export function noteSeen(db: DB, who: number, deed: number, text: string): void {
+  const list = pstate<SeenNotice[]>(db, "deeds_seen", who) ?? [];
+  const n = (list[list.length - 1]?.n ?? 0) + 1;
+  setPstate(db, "deeds_seen", [...list, { n, deed, text }].slice(-6), who);
+}
+
+export function seenNotices(db: DB): SeenNotice[] {
+  return pstate<SeenNotice[]>(db, "deeds_seen") ?? [];
 }
 
 /** How the owner answers a theft under their nose: by their stats (engine). */
@@ -623,7 +680,7 @@ function freeSlots(db: DB): number {
  * Jef takes a thing that is not his. The engine decides who saw it and what
  * it costs him. `rng` is a test seam.
  */
-export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random): DeedResult {
+export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random, others: OtherPlayer[] = []): DeedResult {
   deedTables(db);
   const parsed = DeedRequestSchema.safeParse(raw);
   if (!parsed.success) throw new GameError("bad report", 400);
@@ -754,6 +811,11 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
   })();
 
   const what = t.thing === "food" ? `${FOOD_NAME[t.item]} off ${t.where}` : `${ownerName}'s ${t.noun} ${t.where}`;
+  // M8d: the other players who saw it are told (and the police may ask them: deedRoutes.ts, police.ts policeWitness)
+  const eyes2 = playerEyes(others.filter((o) => o.id !== pid()), { x: t.x, z: t.z }, ctx);
+  const thiefName = playerName(db, pid());
+  for (const o of eyes2) noteSeen(db, o.id, deedId, `You saw ${thiefName} take ${what}.`);
+  const playersSaw = eyes2.map((o) => ({ id: o.id, name: playerName(db, o.id) }));
   const gist = t.thing === "food" ? `Jef stole ${FOOD_NAME[t.item]} from ${t.where}` : `Jef stole ${ownerName}'s ${t.noun}`;
   if (seen) {
     // the owner, and each witness: a memory, trust lost, a rumour that travels
@@ -797,6 +859,7 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
       : t.thing === "lantern"
         ? "Nobody saw. The lantern is yours now."
         : `Nobody saw. ${FOOD_NAME[t.item][0].toUpperCase() + FOOD_NAME[t.item].slice(1)} goes into your pocket.`;
+  const watched = playersSaw.length ? ` ${playersSaw.map((p) => p.name).join(" and ")} saw it too.` : "";
   return {
     deed: deedId,
     again: false,
@@ -805,9 +868,10 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
     seen_by: tellers.map((w) => ({ id: w.id, name: npcName(db, w.id) })),
     owner: { id: t.owner, name: ownerName },
     reaction,
-    text,
+    text: text + watched,
     police: seen,
     item_id: itemId,
+    players_saw: playersSaw,
   };
 }
 
@@ -1011,6 +1075,17 @@ export function deedRumours(db: DB): number {
   }
   return due.length;
 }
+
+/** M8d: a player's man retires (player/multi.ts resetPlayer): what he took and still has goes back to its owners. */
+RESET_HOOKS.push((db, id) => {
+  if (!hasDeeds(db)) return;
+  const open = db.prepare("SELECT * FROM deed WHERE status = 'open' AND player_id = ?").all(id) as DeedRow[];
+  for (const d of open) {
+    if (d.thing === "velocipede") veloHome(db, d.ref);
+    if (d.thing === "boat") rowBoatHome(db, d.ref);
+    if (d.thing === "handcart") asPlayer(id, () => cartHooks.home(db, d.ref));
+  }
+});
 
 /** A new game: no deeds, no taken things. */
 export function clearDeeds(db: DB): void {

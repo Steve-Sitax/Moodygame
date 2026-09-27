@@ -3,7 +3,7 @@ import { weather, WEATHER_TEXT } from "../day.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import type { DB, Faction } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
-import { asPlayer, pid } from "../player/current.ts";
+import { asPlayer, onlineIds, pid } from "../player/current.ts";
 import { readText } from "../player/names.ts";
 import SPOT_TABLE from "../../../shared/spots.json" with { type: "json" };
 import { NIGHT_GIVERS, TOWN_EMPLOYERS } from "../town/places.ts";
@@ -135,32 +135,43 @@ const TIER_TRUST = [0, 3, 5, 7, 9];
 
 const enumOf = <T extends string>(xs: readonly T[]) => z.enum(xs as [T, ...T[]]);
 
+/**
+ * M8d (plan 9, "Jobs"): the board's size by the players in the game: 4 to 7 jobs alone (the schema takes 3), two
+ * more for each other player, counted up to BOARD_PLAYERS_MAX. The engine's number: the model is asked for it and
+ * the schema holds it.
+ */
+export const BOARD_PLAYERS_MAX = 6;
+export function boardSize(players: number): { min: number; max: number; schemaMin: number } {
+  const n = Math.max(1, Math.min(BOARD_PLAYERS_MAX, Math.floor(Number.isFinite(players) ? players : 1)));
+  const extra = 2 * (n - 1);
+  return { min: 4 + extra, max: 7 + extra, schemaMin: 3 };
+}
+
 // What the model may return. Anything else is rejected.
-export const BoardSchema = z.object({
-  jobs: z
-    .array(
-      z.object({
-        title: z.string().min(3).max(70),
-        employer: enumOf(EMPLOYER_IDS),
-        task_type: z.enum(TASK_TYPES),
-        goods: z.enum(GOODS),
-        from: enumOf(SPOT_IDS),
-        to: enumOf(SPOT_IDS),
-        twist: z.enum(TWISTS),
-        urgent: z.boolean(),
-        recipient: z.string().max(60),
-        pay_c: z.number().int(),
-        risk: z.enum(["low", "medium", "high"]),
-        pitch: z.string().min(10).max(360),
-        // M7 short jobs: carry only. How many things (by hand 1 or 2; with a cart 3 to 8), and cart work
-        // (the employer lends his handcart). Proposals: the engine clamps both (hooks/loads.ts).
-        items: z.number().int().optional(),
-        cart: z.boolean().optional(),
-      }),
-    )
-    .min(3)
-    .max(7),
+const BoardJobSchema = z.object({
+  title: z.string().min(3).max(70),
+  employer: enumOf(EMPLOYER_IDS),
+  task_type: z.enum(TASK_TYPES),
+  goods: z.enum(GOODS),
+  from: enumOf(SPOT_IDS),
+  to: enumOf(SPOT_IDS),
+  twist: z.enum(TWISTS),
+  urgent: z.boolean(),
+  recipient: z.string().max(60),
+  pay_c: z.number().int(),
+  risk: z.enum(["low", "medium", "high"]),
+  pitch: z.string().min(10).max(360),
+  // M7 short jobs: carry only. How many things (by hand 1 or 2; with a cart 3 to 8), and cart work
+  // (the employer lends his handcart). Proposals: the engine clamps both (hooks/loads.ts).
+  items: z.number().int().optional(),
+  cart: z.boolean().optional(),
 });
+/** M8d: the board's schema for this many players (3 to 7 jobs alone, as ever). */
+export function boardSchemaFor(players: number) {
+  const size = boardSize(players);
+  return z.object({ jobs: z.array(BoardJobSchema).min(size.schemaMin).max(size.max) });
+}
+export const BoardSchema = boardSchemaFor(1);
 export type Board = z.infer<typeof BoardSchema>;
 type BoardJob = Board["jobs"][number];
 
@@ -284,7 +295,8 @@ You only write text and pick from the lists you are given. The game engine owns 
 and rule. Keep to the JSON schema. Never mention the game, the player's keyboard,
 or anything outside 1873 Antwerp.`;
 
-export function buildPrompt(db: DB): string {
+export function buildPrompt(db: DB, players = 1): string {
+  const size = boardSize(players);
   // (M8c: the player's own money and trust, the world's clock; makeBoard writes the board for the host)
   const p = db.prepare("SELECT p.name, p.money_c, w.day, w.hour FROM player p, player w WHERE p.id = ? AND w.id = 1").get(pid()) as {
     name: string;
@@ -340,7 +352,7 @@ ${
 - recipient: empty string unless the job is deliver.
 
 RULES FOR THE BOARD
-- 4 to 7 jobs. At least one carry, one watch and one deliver. Vary employers, goods and places.
+- ${size.min} to ${size.max} jobs. At least one carry, one watch and one deliver. Vary employers, goods and places.
 - At least two jobs from employers away from the Rijnkaai (katoen, vishandel, waterschout, brouwer, koster).
 - Each job uses only its employer's own places.
 - task_type may also be row, find or talk, but those cannot be played yet; use them at most once.
@@ -630,9 +642,11 @@ export async function makeBoard(
   // turned the day, until M8d gives it everyone
   if (pid() !== 1) return asPlayer(1, () => makeBoard(db, runner, timeoutMs));
   const tier = maxTier(db);
+  // M8d: two more jobs for each other player in the game (boardSize); alone the board is as it always was
+  const players = onlineIds().length;
   const res = await callClaude(
     db,
-    { hook: "job_board", system: SYSTEM, prompt: buildPrompt(db), schema: BoardSchema, timeoutMs },
+    { hook: "job_board", system: SYSTEM, prompt: buildPrompt(db, players), schema: boardSchemaFor(players), timeoutMs },
     runner,
   );
   // M7 short jobs: cart work only once it is open (the gate), one on a board at most

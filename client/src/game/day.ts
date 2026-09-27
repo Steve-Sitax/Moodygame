@@ -9,6 +9,7 @@ import { GAME_MIN_PER_REAL_S, TICK_EVERY_MS, TICK_MINUTES } from "../../../share
 import { TIRED_AT } from "../../../shared/night";
 import { pause } from "./pause";
 import { dialogs } from "./dialogs";
+import { identity, isGuest } from "../net/mp/identity";
 
 // The day and the week (M5). The server owns the clock; this side asks for a
 // tick every 10 s while you play (shared/clock.ts: 5 game minutes; a game hour is 2 real minutes), shows the time, turns the light, and shows
@@ -336,7 +337,29 @@ export class Day {
     const body = e.epilogue
       ? `<h2>${esc(e.epilogue.title)}</h2>${e.epilogue.paragraphs.map((p) => `<p>${esc(p)}</p>`).join("")}`
       : `<h2>${e.kind === "health" ? aboutMe("The end of Jef") : "Sunday night"}</h2><p class="wait">Somebody is writing down what became of ${me().sex === "woman" ? "her" : "him"} &hellip;</p>`;
-    this.sheet.innerHTML = `${body}<p class="keys">${e.epilogue ? "N  start a new week" : ""}</p>`;
+    this.sheet.innerHTML = `${body}<p class="keys">${e.epilogue ? this.endKeys(e) : ""}</p>`;
+  }
+
+  /**
+   * M8d played together: after his own end (his body gave out) a player starts a new man, who comes by the ferry
+   * while the world goes on; the world's week end is the host's to follow with a new week. Played alone: as ever.
+   */
+  private endKeys(e: Ending): string {
+    if (!identity.together) return "N  start a new week";
+    if (e.kind === "health") return "N  a new man on the ferry";
+    return isGuest() ? "The host starts the next week." : "N  start a new week";
+  }
+
+  private async newMan(): Promise<void> {
+    try {
+      const r = await fetch("/api/player/new-man", { method: "POST", signal: AbortSignal.timeout(15000) });
+      const b = (await r.json().catch(() => ({}))) as { error?: string };
+      if (!r.ok) throw new Error(b.error ?? `HTTP ${r.status}`);
+      // the ferry brings him in (game/ferryArrival.ts): the character sheet first, then the deck
+      location.reload();
+    } catch (err) {
+      this.toast((err as Error).message);
+    }
   }
 
   private wake(): void {
@@ -384,6 +407,10 @@ export class Day {
     e.stopPropagation(); // while a sheet is up, keys belong to it
     if (e.repeat) return;
     if (this.shown === "night" && (e.code === "KeyE" || e.code === "Enter")) this.wake();
-    else if (this.shown === "end" && e.code === "KeyN" && this.payload?.ending?.epilogue) void this.newWeek();
+    else if (this.shown === "end" && e.code === "KeyN" && this.payload?.ending?.epilogue) {
+      const end = this.payload.ending;
+      if (identity.together && end.kind === "health") void this.newMan();
+      else if (!identity.together || !isGuest()) void this.newWeek();
+    }
   }
 }

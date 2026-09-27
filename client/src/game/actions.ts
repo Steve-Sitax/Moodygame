@@ -150,6 +150,12 @@ export class Actions {
   hearses: Hearses | null = null;
   /** M7 funeral: those leaving town who walk on out of Jef's sight after the event has ended. */
   private walkOn = new Map<string, { p: Puppet; x: number; z: number; until: number; goT: number }>();
+  /**
+   * M8d, set by main when played together (null alone): this PC's player id, where a player stands (this one, or
+   * another as drawn here: net/mp/together.ts), and whether this PC may walk a townsperson (the M8b owners,
+   * net/mp/street.ts). A follow or a seek goes to the player it is about; only the PC that owns the person walks him.
+   */
+  mp: { me(): number; playerAt(id: number): { x: number; z: number } | null; mayWalk(id: string): boolean } | null = null;
 
   constructor(
     private readonly world: World,
@@ -163,11 +169,13 @@ export class Actions {
   handlePush(m: PushMsg): void {
     if (m.type === "actions" || m.type === "events") {
       this.dirty = true;
-      const ended = m.ended as { npc: string; name: string; kind: string; status: string; line: string } | undefined;
+      const ended = m.ended as { npc: string; name: string; kind: string; status: string; line: string; for_player?: number | null } | undefined;
       if (ended?.line) {
         const at = this.town.position(ended.npc);
         const near = at && Math.hypot(at.x - this.player.x, at.z - this.player.z) < 40;
-        if (near || ended.kind === "follow" || ended.kind === "wait") this.say(`${ended.name.split(" ")[0]}: "${ended.line}"`);
+        // (M8d: a follower's or a waiter's last word from afar only to the player it was for)
+        const mine = this.forMe(ended.for_player);
+        if (near || (mine && (ended.kind === "follow" || ended.kind === "wait"))) this.say(`${ended.name.split(" ")[0]}: "${ended.line}"`);
       }
     }
   }
@@ -176,9 +184,46 @@ export class Actions {
     return this.list;
   }
 
-  /** Is this person following Jef right now (the police visit may ask)? */
+  /** Is this person following Jef right now (the police visit may ask)? (M8d: this PC's player.) */
   following(id: string): boolean {
-    return this.list.some((a) => a.npc === id && a.kind === "follow");
+    return this.list.some((a) => a.npc === id && a.kind === "follow" && this.forMe(a.for_player));
+  }
+
+  // ------------------------------------------------------------------ M8d: the player an action is about
+
+  /** Is an action about this PC's player? (Alone always; an older row or none: the host.) */
+  private forMe(forPlayer: number | null | undefined): boolean {
+    const me = this.mp?.me() ?? 0;
+    return !me || (forPlayer ?? 1) === me;
+  }
+
+  /** Where the player an action is about stands, and whether it is this PC's own (null: not in view here). */
+  private target(a: PublicAction): { x: number; z: number; own: boolean } | null {
+    if (this.forMe(a.for_player)) return { x: this.player.x, z: this.player.z, own: true };
+    const at = this.mp?.playerAt(a.for_player ?? 1) ?? null;
+    return at ? { ...at, own: false } : null;
+  }
+
+  /** Another PC walks this person (M8b): this one only watches. */
+  private walkedElsewhere(id: string): boolean {
+    return !!this.mp && !this.mp.mayWalk(id);
+  }
+
+  /**
+   * M8d: a follower or a seeker walked by another PC toward this PC's player: only judge from where he is drawn (the
+   * follower lost 40 m off for 5 s; the seeker arrived at 2.2 m). Nothing to do for another player's.
+   */
+  private watchFromHere(r: Run, dt: number, own: boolean): void {
+    if (!own) return;
+    const pos = this.town.position(r.a.npc);
+    const d = pos ? this.jefD(pos.x, pos.z) : Infinity;
+    if (r.a.kind === "follow") {
+      if (d > (r.a.max_m || 40)) r.lostT += dt;
+      else r.lostT = 0;
+      if (r.lostT > LOST_S) void this.report(r, "lost");
+      return;
+    }
+    if (r.a.phase === "going" && d <= 2.2) void this.report(r, "arrived");
   }
 
   /** This frame's step in seconds, for go()'s re-aim timer (it counted frames, not seconds). */
@@ -568,11 +613,15 @@ export class Actions {
    * so running (the server's RAN_M) is a real way out. Never a blow here: the server narrates.
    */
   private seek(r: Run, dt: number): void {
-    const px = this.player.x;
-    const pz = this.player.z;
+    // M8d: the player sought (maybe another, as drawn here); walked only by the PC that owns the person
+    const t = this.target(r.a);
+    if (!t) return;
+    if (this.walkedElsewhere(r.a.npc)) return this.watchFromHere(r, dt, t.own);
+    const px = t.x;
+    const pz = t.z;
     const p = this.ensure(r, { x: px, z: pz }, dt, CLAIM_M);
     if (!p) return;
-    const d = this.jefD(p.x, p.z);
+    const d = Math.hypot(p.x - px, p.z - pz);
     const face = Math.atan2(px - p.x, pz - p.z);
     const phase = r.a.phase;
     if (phase === "going") {
@@ -583,7 +632,9 @@ export class Actions {
         return;
       }
       this.crowd.puppetStand(p, "talk", face);
-      return void this.report(r, "arrived");
+      // (M8d: at another player: his own PC sees him there and says so)
+      if (t.own) void this.report(r, "arrived");
+      return;
     }
     // a menace keeps on Jef's heels; a visitor waiting to talk stays by him (also after a reload).
     // Far off: the same walk as going (a path re-asked too often never gets anywhere); close: brisk.
@@ -600,20 +651,30 @@ export class Actions {
   }
 
   private follow(r: Run, dt: number): void {
-    const p = this.ensure(r, null, dt, CLAIM_M);
+    // M8d: the player followed (maybe another, as drawn here); walked only by the PC that owns the person, and
+    // lost, blocked or at the water only by the followed player's own PC
+    const t = this.target(r.a);
+    if (!t) return;
+    if (this.walkedElsewhere(r.a.npc)) return this.watchFromHere(r, dt, t.own);
+    const p = this.ensure(r, t.own ? null : { x: t.x, z: t.z }, dt, CLAIM_M);
     if (!p) {
+      if (!t.own) return;
       r.lostT += dt;
       if (r.lostT > LOST_S) void this.report(r, "lost");
       return;
     }
-    const px = this.player.x;
-    const pz = this.player.z;
-    const d = this.jefD(p.x, p.z);
+    const px = t.x;
+    const pz = t.z;
+    const d = Math.hypot(p.x - px, p.z - pz);
     if (d > (r.a.max_m || 40)) r.lostT += dt;
     else r.lostT = 0;
-    if (r.lostT > LOST_S) return void this.report(r, "lost");
+    if (r.lostT > LOST_S) {
+      if (t.own) void this.report(r, "lost");
+      return;
+    }
     // the water's edge: a swimming Jef, or Jef on the water
-    if (this.player.swimming || this.world.isWater(px, pz)) {
+    if (t.own ? this.player.swimming || this.world.isWater(px, pz) : this.world.isWater(px, pz)) {
+      if (!t.own) return this.crowd.puppetStand(p, "idle", Math.atan2(px - p.x, pz - p.z));
       this.crowd.puppetStand(p, "idle", Math.atan2(px - p.x, pz - p.z));
       return void this.report(r, "blocked", { why: "water" });
     }
@@ -622,7 +683,7 @@ export class Actions {
       const tx = px + ((p.x - px) / L) * 1.8;
       const tz = pz + ((p.z - pz) / L) * 1.8;
       this.go(r, p, tx, tz, d > 10 ? 2.3 : d > 4.5 ? 1.75 : 1.35);
-      if (d > 7 && this.stuck(r, d, dt)) void this.report(r, "blocked", { why: "wall" });
+      if (t.own && d > 7 && this.stuck(r, d, dt)) void this.report(r, "blocked", { why: "wall" });
       return;
     }
     r.bestD = Infinity;

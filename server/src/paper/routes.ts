@@ -2,6 +2,7 @@ import type { Hono } from "hono";
 import type { DB } from "../db.ts";
 import { DEV } from "../config.ts";
 import { GameError } from "../game.ts";
+import { everyoneEnded } from "../day.ts";
 import { boardExtras } from "../hooks/jobBoard.ts";
 import { resident } from "../town/store.ts";
 import { factsOf, makePaper, paperOf, PAPER_NAME, PAPER_PRICE_C } from "./newspaper.ts";
@@ -46,7 +47,8 @@ export function mountPress(app: Hono, deps: PressDeps): void {
       if (ensureLetterRound(db)) pushJobs();
       return;
     }
-    if (db.prepare("SELECT 1 FROM world_state WHERE key = 'ending'").get()) return;
+    // (M8d: the world's week is over, or every player in the game has his own end: no morning; one player's own end is not the world's)
+    if (everyoneEnded(db)) return;
     // (M8c: the morning is the world's work, whoever's request set it off: the host's, as outside any request)
     running = asPlayer(1, () => morning(day))
       .catch((e) => console.error("[press] morning", e))

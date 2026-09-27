@@ -7,7 +7,7 @@
 // Nothing that comes back ever moves this player or his camera.
 
 import { real } from "../../game/pause";
-import { decodeBatch, encodeState, MP_PROTOCOL, MSG_PUPPETS, SEND_MS, type MpState, type MpText, type RosterEntry } from "../../../../shared/mpProtocol";
+import { decodeBatch, encodeState, MP_PROTOCOL, MSG_FIGS, MSG_PUPPETS, SEND_MS, type MpState, type MpText, type RosterEntry } from "../../../../shared/mpProtocol";
 import { identity } from "./identity";
 
 export interface SessionHooks {
@@ -16,6 +16,8 @@ export interface SessionHooks {
   onBatch(list: Array<{ id: number; s: MpState }>, serverNow: number, recvServerNow: number): void;
   /** M8b: a batch of townspeople from their owner (net/mp/street.ts reads it). */
   onPuppets?(v: DataView, recvServerNow: number): void;
+  /** M8d: a batch of another player's job figures (net/mp/jobfigs.ts reads it). */
+  onFigs?(v: DataView, recvServerNow: number): void;
   onRoster(list: RosterEntry[]): void;
   onWelcome(w: Extract<MpText, { type: "welcome" }>): void;
   onText(m: MpText): void;
@@ -80,6 +82,10 @@ export class Session {
       this.stats.down += buf.byteLength;
       if (buf.byteLength && new Uint8Array(buf, 0, 1)[0] === MSG_PUPPETS) {
         this.hooks.onPuppets?.(new DataView(buf), this.serverNow());
+        return;
+      }
+      if (buf.byteLength && new Uint8Array(buf, 0, 1)[0] === MSG_FIGS) {
+        this.hooks.onFigs?.(new DataView(buf), this.serverNow());
         return;
       }
       const b = decodeBatch(buf);

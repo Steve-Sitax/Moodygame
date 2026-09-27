@@ -124,7 +124,7 @@ const spotOf = (id: string) => (SPOTS as Record<string, { x: number; z: number; 
 
 /** M7 walk-up: where the job is now (Jef, else its first place), for the nearest fitting person. */
 function jobAt(j: JobRow): { x: number; z: number } | null {
-  const jef = jefAt();
+  const jef = jefAt(Date.now(), j.taken_by ?? pid()); // (M8d: where the man who has the job is, not the host)
   if (jef) return jef;
   const t = j.task as { from?: string; post?: string } | null;
   const s = t ? spotOf(t.from ?? t.post ?? "") : null;
@@ -422,7 +422,8 @@ export async function maybeTrouble(db: DB, jobId: number, opts: { runner?: Runne
   const { day } = now(db);
   const rng = opts.rng ?? rngFrom(((town(db).town.seed || 1873) * 41 + jobId * 7717) >>> 0);
   if (!opts.force) {
-    const today = (db.prepare("SELECT COUNT(*) AS n FROM job_trouble WHERE day = ?").get(day) as { n: number }).n;
+    // (M8d: at most TROUBLES_A_DAY for each player: another player's troubles do not use up his)
+    const today = (db.prepare("SELECT COUNT(*) AS n FROM job_trouble t JOIN job jb ON jb.id = t.job_id WHERE t.day = ? AND COALESCE(jb.taken_by, 1) = ?").get(day, j.taken_by ?? 1) as { n: number }).n;
     if (today >= TROUBLES_A_DAY || rng() > TROUBLE_CHANCE) return null;
   }
   const plan = planTrouble(db, j, rng, opts.force, opts.who);

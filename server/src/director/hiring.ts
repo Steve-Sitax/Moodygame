@@ -59,6 +59,21 @@ export interface HiringSpot {
   remarks: string[];
   to_jef: string | null;
   source: "engine" | "claude" | null;
+  /** M8d: the other players who stood here (the first one is `jef`), each with his own result and the foreman's word to him. */
+  more?: Array<{ player: number; stood: number; result: HiringSpot["jef_result"]; to: string | null }>;
+}
+
+// M8d: every player may stand for hire (one gate each). The first at a gate is `jef`, as the one player was.
+const standPlayer = (j: { player?: number }) => j.player ?? 1;
+/** Does this player stand at this gate? */
+function standsAt(sp: HiringSpot, id: number): boolean {
+  return (!!sp.jef && standPlayer(sp.jef) === id) || !!sp.more?.some((m) => m.player === id);
+}
+/** This player's result and the foreman's word to him at this gate. */
+function resultAt(sp: HiringSpot, id: number): { result: HiringSpot["jef_result"]; to: string | null } | null {
+  if (sp.jef && standPlayer(sp.jef) === id) return { result: sp.jef_result, to: sp.to_jef };
+  const m = sp.more?.find((x) => x.player === id);
+  return m ? { result: m.result, to: m.to } : null;
 }
 
 export interface HiringScene {
@@ -228,7 +243,6 @@ function callNames(db: DB, ev: EventRow): void {
   const h = sceneOf(eventRow(db, ev.id) ?? ev);
   if (!h || h.called) return;
   h.called = true;
-  const jef = jefAt();
   for (const sp of h.spots) {
     const foreman = sp.foreman ? resident(db, sp.foreman) ?? null : null;
     const men = sp.men.map((id) => resident(db, id)).filter((r): r is Resident => !!r);
@@ -251,8 +265,28 @@ function callNames(db: DB, ev: EventRow): void {
       }),
       "drift",
     );
+    // M8d: the other players who stood here, each as himself (his place, his chance, his word from the foreman)
+    for (const m of sp.more ?? []) {
+      asPlayer(m.player, () => {
+        const at = jefAt(Date.now(), m.player);
+        if (at && Math.hypot(at.x - sp.x, at.z - sp.z) > HIRE_STAND_M * 1.8) {
+          m.result = { picked: false, text: "The names were called while you were away.", job: null };
+          return;
+        }
+        const p = jefHireChance(db, sp.foreman);
+        const picked = roll(`${ev.id}:jef${m.player}:${sp.id}`) < p;
+        const job = picked ? postHireJob(db, ev, sp) : null;
+        m.result = picked
+          ? { picked: true, text: `${foreman?.first ?? "The foreman"} points at you: taken on for ${sp.ship}.${job ? ` The day's work is on the board: "${job.title}", ${job.pay_c} centimes.` : ""}`, job: job?.id ?? null }
+          : { picked: false, text: `${foreman?.first ?? "The foreman"}'s eye passes over you. Not today.`, job: null };
+        const to = picked ? TO_JEF.yes : TO_JEF.no;
+        m.to = sexed(db, to[Math.floor(roll(`${sp.id}:j${m.player}:${clock(db).day}`) * 1000) % to.length]);
+        writeEvent(db, { kind: "job", verb: picked ? "hired_jef" : "not_hired_jef", actor: sp.foreman, target: "player", text: `At ${sp.label} ${foreman?.name ?? "the foreman"} ${picked ? "took Jef on for the day" : "passed Jef over"}.`, ref_type: "town_event", ref_id: ev.id, weight: 4, data: { chance: +p.toFixed(2) } });
+      });
+    }
     // Jef: only if he stood there and is still about when the names are called
     if (sp.jef) {
+      const jef = jefAt(Date.now(), standPlayer(sp.jef)); // (M8d: where the one who stood is)
       const there = !jef || Math.hypot(jef.x - sp.x, jef.z - sp.z) <= HIRE_STAND_M * 1.8;
       if (!there) sp.jef_result = { picked: false, text: "The names were called while you were away.", job: null };
       else {
@@ -263,7 +297,8 @@ function callNames(db: DB, ev: EventRow): void {
           const job = postHireJob(db, ev, sp);
           sp.jef_result = { picked: true, text: `${foreman?.first ?? "The foreman"} points at you: taken on for ${sp.ship}.${job ? ` The day's work is on the board: "${job.title}", ${job.pay_c} centimes.` : ""}`, job: job?.id ?? null };
         } else sp.jef_result = { picked: false, text: `${foreman?.first ?? "The foreman"}'s eye passes over you. Not today.`, job: null };
-        writeEvent(db, { kind: "job", verb: picked ? "hired_jef" : "not_hired_jef", actor: sp.foreman, target: "player", text: `At ${sp.label} ${foreman?.name ?? "the foreman"} ${picked ? "took Jef on for the day" : "passed Jef over"}.`, ref_type: "town_event", ref_id: ev.id, weight: 4, data: { chance: +p.toFixed(2) } });
+        // (M8d: the log names the one who stood there)
+        asPlayer(standPlayer(sp.jef), () => writeEvent(db, { kind: "job", verb: picked ? "hired_jef" : "not_hired_jef", actor: sp.foreman, target: "player", text: `At ${sp.label} ${foreman?.name ?? "the foreman"} ${picked ? "took Jef on for the day" : "passed Jef over"}.`, ref_type: "town_event", ref_id: ev.id, weight: 4, data: { chance: +p.toFixed(2) } }));
       }
     }
     // the engine's words now; the model's replace them if they come in time
@@ -284,7 +319,7 @@ function callNames(db: DB, ev: EventRow): void {
     });
   }
   save(db, ev, h);
-  notify("events", { jobs: h.spots.some((s) => s.jef_result?.job) });
+  notify("events", { jobs: h.spots.some((s) => s.jef_result?.job || s.more?.some((m) => m.result?.job)) });
   pending = wordCall(db, ev.id).catch((e) => console.warn("[hiring] call", e));
 }
 
@@ -462,8 +497,10 @@ export function standForHire(db: DB, x: number, z: number): StandResult {
   if (h.called) return { ok: false, why: "The names have been called. Try again tomorrow." };
   const sp = h.spots.find((s) => Math.hypot(s.x - x, s.z - z) <= HIRE_STAND_M);
   if (!sp) return { ok: false, why: "Stand with the men at the gate." };
-  if (h.spots.some((s) => s.jef)) return { ok: false, why: "You are standing for hire already." };
-  sp.jef = { stood: gameMinute(db), player: pid() };
+  // (M8d: each player stands for himself; the first at a gate is its `jef`, the others with him)
+  if (h.spots.some((s) => standsAt(s, pid()))) return { ok: false, why: "You are standing for hire already." };
+  if (!sp.jef) sp.jef = { stood: gameMinute(db), player: pid() };
+  else (sp.more ??= []).push({ player: pid(), stood: gameMinute(db), result: null, to: null });
   save(db, ev, h);
   writeEvent(db, { kind: "job", verb: "stood_for_hire", actor: "player", text: `Jef stood with the day men at ${sp.label}.`, ref_type: "town_event", ref_id: ev.id, weight: 2 });
   notify("events");
@@ -493,11 +530,12 @@ export function hiringForClient(stages: StoredStage[]) {
       ship: s.ship,
       men: s.men.length,
       picked: s.picked,
-      jef: !!s.jef,
-      jef_result: s.jef_result ? { picked: s.jef_result.picked, text: s.jef_result.text } : null,
+      // (M8d: the asking player's own stand, result and word from the foreman)
+      jef: standsAt(s, pid()),
+      jef_result: ((r) => (r ? { picked: r.picked, text: r.text } : null))(resultAt(s, pid())?.result ?? null),
       call: s.call,
       remarks: s.remarks,
-      to_jef: s.to_jef,
+      to_jef: resultAt(s, pid())?.to ?? null,
       source: s.source,
     })),
   };

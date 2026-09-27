@@ -436,6 +436,8 @@ export function listRoutines(db: DB) {
       // the purpose's cart lent to them, once they have it (town/hire.ts): the client draws it on them
       cart: (r.state.cart as { id?: string; taken?: boolean } | null | undefined)?.taken ? ((r.state.cart as { id: string }).id ?? null) : null,
       minutes_left: Math.max(0, row.until - gameMinute(db)),
+      /** M8d: whose errand it is (his PC walks it: "Jef" in its steps is he). */
+      player: r.player ?? 1,
     };
   });
 }

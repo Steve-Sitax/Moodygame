@@ -232,8 +232,8 @@ export function resetGangRoll(): void {
  * not. At most once per 9 real seconds (a tick), whatever the client sends.
  */
 export function rollGang(db: DB, facts: GangFacts, now = Date.now(), force = false): Gang | null {
-  // (M8c: the host's client keeps the one sync; a guest's facts stand for him alone)
-  if (pid() === 1) syncFromClient({ x: facts.x, z: facts.z, people: facts.people }, now, db);
+  // (M8d: each player's own place in the sync, the people he sees for all)
+  syncFromClient({ x: facts.x, z: facts.z, people: facts.people }, now, db);
   const open = gangNow(db);
   if (open) return open;
   if (!force && now - (lastRollAt.get(pid()) ?? 0) < 9000) return null;
@@ -272,7 +272,7 @@ export function rollGang(db: DB, facts: GangFacts, now = Date.now(), force = fal
 
 /** Jef answers the gang: the engine rolls, the purse and the health move, the town will talk. */
 export function resolveGang(db: DB, id: number, how: GangHow, facts: GangFacts = {}): GangResult {
-  if (facts.x !== undefined && pid() === 1) syncFromClient({ x: facts.x, z: facts.z, people: facts.people }, Date.now(), db);
+  if (facts.x !== undefined) syncFromClient({ x: facts.x, z: facts.z, people: facts.people }, Date.now(), db); // (M8d: every player's)
   const s = load(db);
   const g = s.gang;
   if (!g || g.id !== id || g.status !== "menace") throw new GameError("nobody is stopping you now", 409);

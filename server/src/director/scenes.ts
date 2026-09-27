@@ -5,7 +5,9 @@ import { policeDispatch } from "../town/police.ts";
 import { activityAt } from "../town/schedule.ts";
 import { resident, town } from "../town/store.ts";
 import { walkMap } from "../town/walkmap.ts";
-import { actionOf, activeActions, endAction, isReserved, jefAt, posOf } from "./actions.ts";
+import { actionOf, activeActions, endAction, isReserved, playersAt, posOf } from "./actions.ts";
+import { pid } from "../player/current.ts";
+import { nameOf } from "../player/names.ts";
 import { runConvo } from "./convo.ts";
 import { writeEvent } from "./eventlog.ts";
 import { castAgent, eventRow, leadsOf, type EventRow, type StoredStage } from "./scheduler.ts";
@@ -37,7 +39,10 @@ export interface Scene {
   amount_c?: number;
   caught?: boolean;
   flee?: { x: number; z: number };
+  /** Some player saw it (the host alone: he did). */
   witnessed?: boolean;
+  /** M8d: the players near enough to see it when it began (each may tell the police what he saw). */
+  witnessedBy?: number[];
   /** The engine's words the client shows at the right moment: the shout, the agent's line, the loser's. */
   lines: { shout?: string; agent?: string; sorry?: string };
   about: string;
@@ -98,6 +103,30 @@ function saveScene(db: DB, ev: EventRow, i: number, scene: Scene): void {
   db.prepare("UPDATE town_event SET stages_json = ? WHERE id = ?").run(JSON.stringify(stages), ev.id);
 }
 
+/** M8d: the players within sight of a spot now (WITNESS_M), by the movement socket or their own tab's word. */
+export function witnessesAt(spot: { x: number; z: number }, now = Date.now()): number[] {
+  return playersAt(now)
+    .filter((p) => Math.hypot(p.x - spot.x, p.z - spot.z) <= WITNESS_M)
+    .map((p) => p.id);
+}
+
+/**
+ * " Jef saw it happen." for the record: the host as "Jef" (as ever), a guest by his name; nobody: "".
+ * `saw` is the verb phrase ("saw it happen", "saw it").
+ */
+export function sawLine(db: DB, ids: number[], saw: string): string {
+  if (!ids.length) return "";
+  const names = ids.map((id) => (id === 1 ? "Jef" : nameOf(db, id)));
+  const who = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  return ` ${who} ${saw}.`;
+}
+
+/** Did player `id` see this scene? (An older save's scene: only the host could have.) */
+export function sawScene(sc: { witnessed?: boolean; witnessedBy?: number[] }, id = pid()): boolean {
+  if (Array.isArray(sc.witnessedBy)) return sc.witnessedBy.includes(id);
+  return id === 1 && !!sc.witnessed;
+}
+
 /** A scene's stage begins: the engine sets it up (who, the sum, the chase, the verdict). */
 export function applyScene(db: DB, ev: EventRow, s: StoredStage, i: number): Scene | null {
   const leads = leadsOf(ev);
@@ -117,6 +146,8 @@ export function applyScene(db: DB, ev: EventRow, s: StoredStage, i: number): Sce
     const wrong = la.role === "drunkard" ? a.id : lb.role === "drunkard" ? b.id : a.stats.temper !== b.stats.temper ? (a.stats.temper > b.stats.temper ? a.id : b.id) : roll(`${ev.id}:wrong`) < 0.5 ? a.id : b.id;
     const agent = agentFor(db, at, [a.id, b.id]);
     if (agent) castAgent(db, eventRow(db, ev.id)!, agent, { x: at.x, z: at.z + 1.3 });
+    // (M8d: the players near when it began, for each one's own account)
+    const seenBy = witnessesAt(at);
     const started = writeEvent(db, {
       kind: "event",
       verb: "scuffle",
@@ -137,6 +168,8 @@ export function applyScene(db: DB, ev: EventRow, s: StoredStage, i: number): Sce
       b: b.id,
       agent,
       wrong,
+      witnessed: seenBy.length > 0,
+      witnessedBy: seenBy,
       lines: { agent: agent ? pick(SCENE_LINES.part, `${ev.id}:part`) : undefined, sorry: forSex(pick(SCENE_LINES.sorry, `${ev.id}:sorry`), (wrong === a.id ? b : a).sex) },
       about,
       place,
@@ -174,8 +207,9 @@ export function applyScene(db: DB, ev: EventRow, s: StoredStage, i: number): Sce
       break;
     }
   }
-  const jef = jefAt();
-  const witnessed = !!jef && Math.hypot(jef.x - at.x, jef.z - at.z) <= WITNESS_M;
+  // M8d: every player near enough to see it (played alone: the host, as before)
+  const witnessedBy = witnessesAt(at);
+  const witnessed = witnessedBy.length > 0;
   // the agent is about on his beat, ten metres off: close enough to give chase, not at her elbow
   if (agent) castAgent(db, eventRow(db, ev.id)!, agent, walkMap().nearestOpen(at.x + 9, at.z - 6, 4) ?? { x: at.x + 3, z: at.z - 2 });
   const started = writeEvent(db, {
@@ -186,11 +220,11 @@ export function applyScene(db: DB, ev: EventRow, s: StoredStage, i: number): Sce
     place: ev.place,
     x: at.x,
     z: at.z,
-    text: `A pickpocket lifted ${victim.name}'s purse (${amount_c} centimes) at ${place} and ran.${witnessed ? " Jef saw it happen." : ""}`,
+    text: `A pickpocket lifted ${victim.name}'s purse (${amount_c} centimes) at ${place} and ran.${sawLine(db, witnessedBy, "saw it happen")}`,
     ref_type: "town_event",
     ref_id: ev.id,
     weight: 7,
-    data: { thief: thief.id, victim: victim.id, amount_c, witnessed, place },
+    data: { thief: thief.id, victim: victim.id, amount_c, witnessed, witnessed_by: witnessedBy, place },
     who: [thief.id, victim.id, ...(agent ? [agent] : [])],
   });
   const scene: Scene = {
@@ -202,6 +236,7 @@ export function applyScene(db: DB, ev: EventRow, s: StoredStage, i: number): Sce
     caught,
     flee,
     witnessed,
+    witnessedBy,
     lines: { shout: forSex(pick(SCENE_LINES.shout, `${ev.id}:shout`), thief.sex), agent: agent ? forSex(pick(caught ? SCENE_LINES.caught : SCENE_LINES.escaped, `${ev.id}:agent`), thief.sex) : undefined },
     about,
     place,
@@ -277,12 +312,12 @@ export function resolveScene(db: DB, ev: EventRow, i: number): void {
     actor: a.id,
     target: b.id,
     place: ev.place,
-    text: `${text}${sc.witnessed ? " Jef saw it." : ""}`,
+    text: `${text}${Array.isArray(sc.witnessedBy) ? sawLine(db, sc.witnessedBy, "saw it") : sc.witnessed ? " Jef saw it." : ""}`,
     outcome: "escaped",
     ref_type: "world_event",
     ref_id: sc.started,
     weight: 7,
-    data: { thief: a.id, victim: b.id, amount_c: amount, witnessed: !!sc.witnessed, place: sc.place },
+    data: { thief: a.id, victim: b.id, amount_c: amount, witnessed: !!sc.witnessed, ...(Array.isArray(sc.witnessedBy) ? { witnessed_by: sc.witnessedBy } : {}), place: sc.place },
     who: [a.id, b.id, ...(agent ? [agent.id] : [])],
   });
 }
@@ -302,19 +337,26 @@ export interface StreetCrime {
   thief: string;
   victim: string;
   amount_c: number;
+  /** M8d: the player asking (pid) saw it. */
   witnessed: boolean;
+  /** M8d: every player who saw it. */
+  witnessedBy: number[];
   place: string;
   day: number;
 }
 
-/** The newest robbery in the street the thief got away with, not yet settled, of the last two days. */
-export function streetCrimeOpen(db: DB): StreetCrime | null {
+/**
+ * The newest robbery in the street the thief got away with, not yet settled, of the last two days. `witnessed`: the
+ * player this work is for (pid) saw it (M8d: each player his own; an older row: the host).
+ */
+export function streetCrimeOpen(db: DB, who = pid()): StreetCrime | null {
   const day = clock(db).day;
   const row = db.prepare("SELECT id, day, data_json FROM world_event WHERE verb = 'robbery_escaped' AND day >= ? ORDER BY id DESC LIMIT 1").get(day - 1) as { id: number; day: number; data_json: string } | undefined;
   if (!row) return null;
   const solved = db.prepare("SELECT 1 FROM world_event WHERE verb = 'robbery_solved' AND ref_type = 'world_event' AND ref_id = ?").get(row.id);
   if (solved) return null;
-  const d = JSON.parse(row.data_json) as { thief?: string; victim?: string; amount_c?: number; witnessed?: boolean; place?: string };
+  const d = JSON.parse(row.data_json) as { thief?: string; victim?: string; amount_c?: number; witnessed?: boolean; witnessed_by?: number[]; place?: string };
   if (!d.thief || !d.victim) return null;
-  return { id: row.id, thief: d.thief, victim: d.victim, amount_c: d.amount_c ?? 0, witnessed: !!d.witnessed, place: d.place ?? "the street", day: row.day };
+  const by = Array.isArray(d.witnessed_by) ? d.witnessed_by.filter((x) => Number.isInteger(x)) : d.witnessed ? [1] : [];
+  return { id: row.id, thief: d.thief, victim: d.victim, amount_c: d.amount_c ?? 0, witnessed: by.includes(who), witnessedBy: by, place: d.place ?? "the street", day: row.day };
 }

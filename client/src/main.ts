@@ -1283,6 +1283,9 @@ const together = new Together({
   },
 });
 together.start();
+// M8d: a follow or a seek goes to the player it is about; only the PC that owns the townsperson walks him
+if (together.session) actions.mp = { me: () => together.meId(), playerAt: (id) => together.playerAt(id), mayWalk: (id) => town.net?.mayWalk(id) ?? true };
+steps.me = () => together.meId(); // M8d: an errand's steps are walked by its player's PC (0 alone: all)
 // M8b: the rented home's door opens for its key holder on every screen (until M8c only the host rents)
 homes.ownKey = !isGuest();
 homes.keyNear = () => together.hostAt();

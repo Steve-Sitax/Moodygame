@@ -13,12 +13,12 @@ import { plainEnglish } from "./text.ts";
 import { mountPlayer } from "./player/routes.ts"; // M7 character: the player's profile
 import { hasProfile } from "./player/profile.ts";
 import { shownJson } from "./player/prompt.ts";
-import { BEDTIME, clock, ending, fogDay, markDayStart, newDayOf, passTime, payRent, RENT_C, rentPaid, resetTickLimit, setEnding, setWeather, swim, tick, type Ending } from "./day.ts";
+import { BEDTIME, clock, ending, ENDING_HOOKS, fogDay, markDayStart, newDayOf, passTime, payRent, RENT_C, rentPaid, resetTickLimit, setEnding, setWeather, swim, tick, type Ending } from "./day.ts";
 import { writeEpilogue } from "./hooks/epilogue.ts";
 import { resetTalks } from "./hooks/dialogue.ts";
 import { devJob, jobById, listJobs, makeBoard } from "./hooks/jobBoard.ts";
 import { writeOutcome } from "./hooks/jobOutcome.ts";
-import { finishJob, GameError, holdJob, jobRumour, player, ReportSchema, saveOutcome, saveProgress, takeJob } from "./game.ts";
+import { finishJob, GameError, holdJob, inHand, jobRumour, player, ReportSchema, saveOutcome, saveProgress, takeJob } from "./game.ts";
 import { gameMinute } from "./town/deeds.ts";
 import { ensurePersonas, PLACED, npcRow } from "./npcs.ts";
 import { buy, handOverParcel, ITEMS, pockets, useItem, WARES, waresOf } from "./trade.ts";
@@ -65,7 +65,7 @@ import { reportWhere, whereNow } from "./warmth.ts"; // M7 warmth: where Jef is 
 import { mountMultiplayer } from "./mp/index.ts"; // M8a multiplayer: who asks, the join code, the movement socket, the server's own clock
 import { MapModel, mountMapView } from "./mapview/index.ts"; // the town map for the host (docs/mapview.md)
 import { asPlayer, inPlayer, pid } from "./player/current.ts"; // M8c: each request as its player
-import { ensurePlayerRow } from "./player/multi.ts";
+import { ensurePlayerRow, playerIds } from "./player/multi.ts";
 import { whoOfUpgrade } from "./mp/auth.ts";
 
 const db = openDb(DB_FILE);
@@ -151,8 +151,11 @@ mountSaves(app, {
     board = { state: "ready" };
     boardAgain = false;
     if (listJobs(db, player(db).day).length === 0) void writeBoard();
-    const e = ending(db);
-    if (e && !e.epilogue) void epilogue(e);
+    // (M8d: every player's end that has no epilogue yet)
+    for (const id of playerIds(db)) {
+      const e = asPlayer(id, () => ending(db));
+      if (e && !e.epilogue) asPlayer(id, () => void epilogue(e));
+    }
   },
 });
 // M6 population: the event size and the town size for a new game (Settings)
@@ -354,12 +357,30 @@ function afterNight(ended?: Ending): void {
   else void writeBoard();
 }
 
+/** M8d: the players whose epilogue is being written now (one at a time each; a second call for him is a no-op). */
+const writingEpilogue = new Set<number>();
+/** The epilogue of the player it runs as (pid()): written once, from his own week. */
 async function epilogue(e: Ending): Promise<void> {
-  const r = await writeEpilogue(db, e);
-  setEnding(db, { ...e, epilogue: r.epilogue });
-  console.log(`[epilogue] ${r.source}${r.error ? " (" + r.error + ")" : ""}`);
-  broadcast({ type: "jobs", ...jobsPayload() });
+  const me = pid();
+  if (writingEpilogue.has(me) || ending(db)?.epilogue) return;
+  writingEpilogue.add(me);
+  try {
+    const r = await writeEpilogue(db, e);
+    // (M8d: his end still stands: a new man on the ferry meanwhile has none to write it on)
+    const now = ending(db);
+    if (!now || now.kind !== e.kind || now.day !== e.day) return;
+    setEnding(db, { ...now, epilogue: r.epilogue });
+    console.log(`[epilogue] player ${me}: ${r.source}${r.error ? " (" + r.error + ")" : ""}`);
+    broadcast({ type: "jobs", ...jobsPayload() });
+  } finally {
+    writingEpilogue.delete(me);
+  }
 }
+// M8d: every player's end as it comes (the world's week end: each player in the game; his body gone: him alone,
+// while the world goes on): his own epilogue, written after the work that ended it
+ENDING_HOOKS.push((_db, id, e) => {
+  setImmediate(() => asPlayer(id, () => void epilogue(e).catch((err: unknown) => console.error("[epilogue]", err))));
+});
 
 app.post("/api/tick", async (c) => {
   // M7 warmth: where Jef is and whether his lantern is lit in his hand; checked in warmth.ts, fresh a short while only
@@ -459,7 +480,7 @@ app.post("/api/ride", async (c) => {
 app.post("/api/jobs/:id/handover", (c) => {
   const id = Number(c.req.param("id"));
   const j = listJobs(db, player(db).day).find((r) => r.id === id);
-  if (!j || j.status !== "taken" || j.task?.kind !== "deliver") throw new GameError("nothing to hand over", 409);
+  if (!j || !inHand(j) || j.task?.kind !== "deliver") throw new GameError("nothing to hand over", 409); // (M8d: his own job)
   handOverParcel(db, id);
   broadcast({ type: "jobs", ...jobsPayload() });
   return c.json(jobsPayload());
@@ -698,8 +719,10 @@ if (listJobs(db, player(db).day).length === 0) void writeBoard();
 if (!db.prepare("SELECT 1 FROM world_state WHERE key = 'day_start_money'").get()) markDayStart(db);
 // the server stopped while the epilogue was being written: write it again
 {
-  const e = ending(db);
-  if (e && !e.epilogue) void epilogue(e);
+  for (const id of playerIds(db)) {
+    const e = asPlayer(id, () => ending(db));
+    if (e && !e.epilogue) asPlayer(id, () => void epilogue(e));
+  }
 }
 
 function shutdown(): void {

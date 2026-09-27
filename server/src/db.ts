@@ -6,7 +6,7 @@ import { RESIDENT_SCHEMA, dropTownCache, ensureGarrison, ensureTown, rehomeLost,
 import { ensureTransport, dropTransport } from "./town/possessions.ts";
 import { ensureBikeShop } from "./town/bikeshop.ts";
 import { ensureCartwright } from "./town/handcart.ts";
-import { ACTION_SCHEMA, EVENT_SCHEMA, EVENTLOG_SCHEMA, FAMILY_TABLES, familyMigrate } from "./director/schema.ts";
+import { ACTION_SCHEMA, EVENT_SCHEMA, EVENTLOG_SCHEMA, FAMILY_TABLES, directorMigrate, familyMigrate } from "./director/schema.ts";
 import { PRESS_SCHEMA, PRESS_TABLES } from "./paper/schema.ts";
 import { IDEAS_SCHEMA, IDEAS_TABLES } from "./ideas/schema.ts";
 import { ensurePressTown } from "./paper/town.ts";
@@ -253,6 +253,8 @@ function migrate(db: DB): void {
   db.exec(MP_PLAYER_SQL);
   // M8c multiplayer: every player's own part (player/multi.ts): more than one player row, player_id on his things
   multiMigrate(db, WORLD_CLOCK_SQL);
+  // M8d: whom an action or an event is for, whose share a model call came out of (director/schema.ts)
+  directorMigrate(db);
 }
 
 /**

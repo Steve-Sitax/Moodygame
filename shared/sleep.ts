@@ -11,7 +11,8 @@ export const SLEEP_HOURS = [1, 2, 4, 8] as const;
 export const MORNING_HOUR = 6;
 
 /** Where Jef may lie down: his own rented bed, the doss house bed (paid by the week), a bench. */
-export type RestKind = "home" | "doss" | "bench";
+export type RestKind = "home" | "doss" | "bench" | "cell";
+// ("cell": M8d played together, the night in the police cell sits out at the world's pace like a sleep; never chosen)
 
 /** A bench in town, as both sides name it. `fine`: a fine square or the park, where the police move sleepers on at night. */
 export interface Bench {

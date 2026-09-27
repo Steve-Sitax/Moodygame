@@ -2,6 +2,7 @@ import type { Hono } from "hono";
 import type { DB } from "../db.ts";
 import { GameError } from "../game.ts";
 import { MOODS } from "../hooks/dialogue.ts";
+import { asWorld, pid } from "../player/current.ts";
 import { resident } from "./store.ts";
 import type { Resident } from "./population.ts";
 import { jefSaid, talkExtras, talkHooks, type FreeAnswer, type ResidentLine } from "./talk.ts";
@@ -84,7 +85,8 @@ export function installErrands(): void {
   // "stop" to someone on a routine: its own end (a hand is paid for what he carried)
   proposeHooks.stop = (db, r) => {
     const g = routineFor(db, r.id);
-    if (!g) return null;
+    // (M8d: another player's hand or guest is his to stop)
+    if (!g || (g.r.player ?? 1) !== pid()) return null;
     const line = endRoutine(db, g.row.id, "failed", "stopped");
     return { ok: true, action: null, instant: true, line: line || END_LINE.stopped, patch: { trust_delta: 0 } };
   };
@@ -128,9 +130,12 @@ export function mountErrands(app: Hono, deps: ErrandDeps): void {
   app.use("/api/tick", async (_c, next) => {
     await next();
     try {
-      stepsTick(db);
-      treatTick(db);
-      hireTick(db);
+      // (M8d: the world's work, whichever player's tick sets it off: each routine ends as its own player's)
+      asWorld(() => {
+        stepsTick(db);
+        treatTick(db);
+        hireTick(db);
+      });
     } catch (e) {
       console.error("[errands] tick", e);
     }
@@ -146,6 +151,8 @@ export function mountErrands(app: Hono, deps: ErrandDeps): void {
     const row = actionRow(db, id);
     const r = routineOf(row);
     if (!row || !r) throw new GameError("no such errand", 404);
+    // (M8d: a routine is walked by its own player's PC; another PC's word on it is not taken)
+    if ((r.player ?? 1) !== pid()) return c.json({ ok: false, routine: listRoutines(db).find((x) => x.id === id) ?? null });
     const i = Number(b.i);
     const step = r.steps[i];
     // only the client's own steps, the one now running; the engine's steps are the engine's

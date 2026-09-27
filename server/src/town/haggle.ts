@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { DB } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
+import { callsToday } from "../ai/budget.ts";
 import { CALLS_PER_DAY, CALLS_RESERVE, RESIDENT_CALLS_PER_DAY } from "../config.ts";
 import { DAY_NAMES, WEATHER_TEXT, weather } from "../day.ts";
 import { GameError, log, player } from "../game.ts";
@@ -573,7 +574,7 @@ export interface HaggleOut {
 function shareLeft(db: DB): boolean {
   const day = player(db).day;
   const total = (db.prepare("SELECT COUNT(*) AS n FROM ai_call WHERE day = ?").get(day) as { n: number }).n;
-  const mine = (db.prepare("SELECT COUNT(*) AS n FROM ai_call WHERE day = ? AND hook LIKE 'resident%'").get(day) as { n: number }).n;
+  const mine = callsToday(db, day, "resident%"); // (M8d: played together, each player's own talk share)
   return mine < RESIDENT_CALLS_PER_DAY && total < CALLS_PER_DAY - CALLS_RESERVE;
 }
 

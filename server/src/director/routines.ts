@@ -7,7 +7,7 @@ import { log, player } from "../game.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
 import { gateText } from "../hooks/dialogue.ts";
 import { relationship, remember, trustText } from "../npcs.ts";
-import { forEachOnline, pid } from "../player/current.ts";
+import { asPlayer, forEachOnline, pid } from "../player/current.ts";
 import { pstate, setPstate } from "../player/multi.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { ITEMS, POCKET_SLOTS, atWork, waresOf } from "../trade.ts";
@@ -1414,6 +1414,9 @@ export function finishCheckin(db: DB, id: number, trig: Trigger, out: Checkin | 
   const row = actionRow(db, id);
   const r = routineOf(row);
   if (!row || !r || row.status !== "active") return;
+  // M8d: the answer comes back outside anyone's request (or the tick finds it stale): it is the errand's player's
+  // business (his place for "back to Jef", his coins, his pockets)
+  if ((r.player ?? 1) !== pid()) return asPlayer(r.player ?? 1, () => finishCheckin(db, id, trig, out));
   const i = r.i;
   if (tagRole(r.steps[i]) !== "checkin") return;
   const runner = resident(db, row.npc_id);

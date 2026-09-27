@@ -42,6 +42,8 @@ export interface PublicRoutine {
   strong: boolean;
   cart: string | null;
   minutes_left: number;
+  /** M8d: whose errand it is (the host's in an older save). */
+  player?: number;
 }
 
 const CLAIM_M = 58;
@@ -98,6 +100,11 @@ export class Steps {
   /** M7 quest tests: the street door of the room Jef is in (a guest coming after him walks to it). */
   doorOf: () => { x: number; z: number } | null = () => null;
   say: (t: string) => void = () => {};
+  /**
+   * M8d, set by main when played together: this PC's player id (0 alone). An errand's steps ("follow Jef", "back to
+   * Jef", his pockets) are its player's: only his PC walks and reports them.
+   */
+  me: () => number = () => 0;
   /** Dev: what was reported. */
   readonly reports: string[] = [];
   /** Items reserved by a walk (nobody else, and not Jef's own pointer, takes them). */
@@ -151,7 +158,9 @@ export class Steps {
   private apply(list: PublicRoutine[]): void {
     this.list = list;
     const seen = new Set<number>();
+    const me = this.me();
     for (const r of list) {
+      if (me && (r.player ?? 1) !== me) continue; // (M8d: another player's errand: his PC walks it)
       seen.add(r.id);
       const w = this.walks.get(r.id);
       if (!w) this.walks.set(r.id, this.fresh(r));

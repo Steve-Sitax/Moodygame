@@ -6,7 +6,7 @@
 // "pause all", a new version) is JSON text.
 
 /** Bumped when the frames change: a client of another build is sent to download the new version first. */
-export const MP_PROTOCOL = 2;
+export const MP_PROTOCOL = 3; // (M8d: the figures of a job, the pins)
 /** Own state sent this often (and the batches of the others). */
 export const SEND_HZ = 20;
 export const SEND_MS = 1000 / SEND_HZ;
@@ -342,6 +342,107 @@ export function decodePuppets(v: DataView): { t: number; list: Array<{ num: numb
 
 export const WORLD_HZ = 10;
 
+// ------------------------------------------------------------------ M8d: the figures of a job (plan 9, "Twists and job figures")
+//
+// A figure a job makes in code (the thief of a watch, the stranger who buys, the foreman, the man a parcel is for,
+// the lads of a gang, a stowaway) lives on the job holder's PC; it sends all of them in one small binary batch (10 a
+// second while one moves, 2 a second while all stand, one empty batch when the last is gone). The server writes
+// the sender's id in and passes it on; the others draw them (net/mp/jobfigs.ts). A townsperson called for a job is
+// no figure: he is streamed as a townsperson (the "pins" above keep him the holder's).
+
+export const MSG_FIGS = 4;
+/** Header: type u8, count u8, sender u16 (the server's word), t f64 (server ms). */
+export const FIG_HEAD = 12;
+/** One figure: id u16, kind u8, motion u8, flags u8, spare u8, x y z f32, yaw u16, speed u16 (cm/s). */
+export const FIG_BYTES = 22;
+export const FIG_MAX = 32;
+export const FIG_HZ = 10;
+export const FIG_KINDS = ["stranger", "thief", "foreman", "recipient"] as const;
+export const FIG_MOTIONS = ["idle", "walk", "carry", "fold", "talk"] as const;
+export type FigKind = (typeof FIG_KINDS)[number];
+export type FigMotion = (typeof FIG_MOTIONS)[number];
+
+export interface FigState {
+  /** The figure's number on its holder's PC. */
+  id: number;
+  kind: FigKind;
+  motion: FigMotion;
+  /** A jump of place (placed, or a new one): no in-between. */
+  snap: boolean;
+  /** Something in his arms (a crate off the pile). */
+  carrying: boolean;
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+  speed: number;
+}
+
+export function figBatchOk(v: DataView): boolean {
+  if (v.byteLength < FIG_HEAD || v.getUint8(0) !== MSG_FIGS) return false;
+  const n = v.getUint8(1);
+  return n <= FIG_MAX && v.byteLength === FIG_HEAD + n * FIG_BYTES && Number.isFinite(v.getFloat64(4, true));
+}
+
+/** The holder's batch (sender 0: the server writes it in). */
+export function encodeFigs(t: number, list: FigState[], sender = 0): ArrayBuffer {
+  const n = Math.min(FIG_MAX, list.length);
+  const b = new ArrayBuffer(FIG_HEAD + n * FIG_BYTES);
+  const v = new DataView(b);
+  v.setUint8(0, MSG_FIGS);
+  v.setUint8(1, n);
+  v.setUint16(2, sender & 0xffff, true);
+  v.setFloat64(4, t, true);
+  for (let i = 0; i < n; i++) {
+    const s = list[i];
+    const o = FIG_HEAD + i * FIG_BYTES;
+    v.setUint16(o, s.id & 0xffff, true);
+    v.setUint8(o + 2, Math.max(0, FIG_KINDS.indexOf(s.kind)));
+    v.setUint8(o + 3, Math.max(0, FIG_MOTIONS.indexOf(s.motion)));
+    v.setUint8(o + 4, (s.snap ? 1 : 0) | (s.carrying ? 2 : 0));
+    v.setUint8(o + 5, 0);
+    v.setFloat32(o + 6, s.x, true);
+    v.setFloat32(o + 10, s.y, true);
+    v.setFloat32(o + 14, s.z, true);
+    v.setUint16(o + 18, Math.round((((s.yaw % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) * Q_YAW) & 0xffff, true);
+    v.setUint16(o + 20, Math.max(0, Math.min(65535, Math.round(s.speed * 100))), true);
+  }
+  return b;
+}
+
+export function decodeFigs(v: DataView): { sender: number; t: number; list: FigState[] } | null {
+  if (!figBatchOk(v)) return null;
+  const n = v.getUint8(1);
+  const list: FigState[] = [];
+  for (let i = 0; i < n; i++) {
+    const o = FIG_HEAD + i * FIG_BYTES;
+    const x = v.getFloat32(o + 6, true);
+    const y = v.getFloat32(o + 10, true);
+    const z = v.getFloat32(o + 14, true);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
+    const f = v.getUint8(o + 4);
+    list.push({
+      id: v.getUint16(o, true),
+      kind: FIG_KINDS[v.getUint8(o + 2)] ?? "stranger",
+      motion: FIG_MOTIONS[v.getUint8(o + 3)] ?? "idle",
+      snap: (f & 1) !== 0,
+      carrying: (f & 2) !== 0,
+      x,
+      y,
+      z,
+      yaw: wrapAngle(v.getUint16(o + 18, true) / Q_YAW),
+      speed: v.getUint16(o + 20, true) / 100,
+    });
+  }
+  return { sender: v.getUint16(2, true), t: v.getFloat64(4, true), list };
+}
+
+/** The server: the sender's id written into a batch (never the client's own word). */
+export function figSetSender(bytes: Uint8Array, sender: number): void {
+  bytes[2] = sender & 0xff;
+  bytes[3] = (sender >> 8) & 0xff;
+}
+
 /** JSON messages (text frames). */
 export type MpText =
   | { type: "hello"; token?: string; seat?: number; protocol: number; version?: string }
@@ -359,6 +460,9 @@ export type MpText =
   // lock for his boat): "ask" to the server, "asked" (with who asked) to the world PC
   | { type: "ask"; what: string; args: unknown[] }
   | { type: "asked"; from: number; what: string; args: unknown[] }
+  // M8d: townspeople called for a player's job or quest (a "come" row of the engine): only that player's PC walks
+  // them while he is in the game (the host does not take them from him). The whole list, when it changes.
+  | { type: "pins"; list: Array<[id: string, player: number]> }
   | { type: "ping"; c: number }
   | { type: "pong"; c: number; s: number }
   | { type: "welcome"; id: number; host: boolean; name: string; pose: { x: number; y: number; z: number; yaw: number } | null; serverNow: number; protocol: number }

@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
-import { AI_CWD, CALLS_PER_DAY, CLAUDE, MODELS, ROUTE_DEFAULT, type Provider } from "../config.ts";
+import { AI_CWD, CLAUDE, MODELS, ROUTE_DEFAULT, type Provider } from "../config.ts";
 import type { DB } from "../db.ts";
 import { codexRunner, killTree } from "./codex.ts";
 import { anthropicRunner, ollamaRunner, openaiRunner } from "./http.ts";
@@ -10,6 +10,8 @@ import { resolveRoute, type Route } from "./router.ts";
 import { scrubKeys } from "./setup.ts";
 import { callBegan, callEnded, holdResult, waitToStart } from "../save/gate.ts";
 import { playerIn, playerOut } from "../player/prompt.ts";
+import { pid } from "../player/current.ts";
+import { budgetStop, callSlot, isPlayerHook } from "./budget.ts";
 
 // One way to call a model: no tools, our own system prompt, JSON schema output. docs/02 and docs/03.
 // The router (router.ts, MODEL_ROUTE in config.ts) picks the model per hook: Claude through the
@@ -96,23 +98,33 @@ async function callModel<S extends z.ZodType>(db: DB, req: CallRequest<S>, runne
   // waiting for the hook's last call included, and no caller may set it higher than 20 s.
   const started = Date.now();
   const timeoutMs = Math.min(req.timeoutMs ?? CLAUDE.timeoutMs, CLAUDE.timeoutMs);
-  const deadline = started + timeoutMs;
+  let deadline = started + timeoutMs;
 
   // One call in flight per hook, in the order asked: each caller waits for the one before it
   // (never past its own limit). The chain is set before any await, so two waiting callers
-  // can never start together.
-  const before = inFlight.get(req.hook) ?? Promise.resolve();
+  // can never start together. M8d: a player's own hooks (his talk) chain per player, so two
+  // players may talk at once; played alone every call is the host's, as before.
+  const key = isPlayerHook(req.hook) ? `${req.hook}:${pid()}` : req.hook;
+  const before = inFlight.get(key) ?? Promise.resolve();
   let release!: () => void;
   const mine = new Promise<void>((r) => (release = r));
   const tail = before.then(() => mine);
-  inFlight.set(req.hook, tail);
+  inFlight.set(key, tail);
+  let slot: (() => void) | null = null;
   try {
     const free = await beforeDeadline(before.then(() => true), deadline);
     if (free === TIMED_OUT) return { ok: false, error: `timeout after ${timeoutMs} ms (the last ${req.hook} call was still running)`, ms: Date.now() - started };
+    // M8d, the queue (ai/budget.ts): played together at most three calls run at once, talk first. The wait for a
+    // place is bounded on its own and does not eat the call's 20 s: the limit counts from the start of the call.
+    const queued = Date.now();
+    slot = await callSlot(req.hook);
+    if (!slot) return { ok: false, error: `no free place for a model call (${req.hook} waited in the queue)`, ms: Date.now() - started };
+    deadline += Date.now() - queued;
     return await run(db, req, runner, started, deadline, timeoutMs);
   } finally {
+    slot?.();
     release();
-    if (inFlight.get(req.hook) === tail) inFlight.delete(req.hook);
+    if (inFlight.get(key) === tail) inFlight.delete(key);
   }
 }
 
@@ -173,8 +185,8 @@ async function run<S extends z.ZodType>(
     // Check the budget and book the attempt in one step, before any await: calls from other
     // hooks that start in the same moment then see this one, and the retry is counted too.
     const booked = book(db, day, hour, req.hook, route);
-    if (booked === null) {
-      if (attempt === 0) return { ok: false, error: `call budget for day ${day} used up`, ms: 0 };
+    if (typeof booked !== "number") {
+      if (attempt === 0) return { ok: false, error: booked === "share" ? `this player's share of calls for day ${day} used up` : `call budget for day ${day} used up`, ms: 0 };
       break;
     }
     const t0 = Date.now();
@@ -212,13 +224,16 @@ async function run<S extends z.ZodType>(
   return { ok: false, error: lastError, ms: Date.now() - started };
 }
 
-/** Books one attempt if the day's budget allows it: the row id, or null when the budget is used up. */
-function book(db: DB, day: number, hour: number, hook: string, route: Route): number | null {
-  const used = (db.prepare("SELECT COUNT(*) AS n FROM ai_call WHERE day = ?").get(day) as { n: number }).n;
-  if (used >= CALLS_PER_DAY) return null;
+/**
+ * Books one attempt if the day's budget allows it: the row id, or why not ("day": the day's calls are used up;
+ * "share": M8d, played together, this player's own share of the day is).
+ */
+function book(db: DB, day: number, hour: number, hook: string, route: Route): number | "day" | "share" {
+  const stop = budgetStop(db, day, hook);
+  if (stop) return stop;
   const r = db
-    .prepare("INSERT INTO ai_call (day, hour, hook, provider, model, ms, ok, error) VALUES (?, ?, ?, ?, ?, 0, 0, 'running')")
-    .run(day, hour, hook, route.provider, route.model);
+    .prepare("INSERT INTO ai_call (day, hour, hook, provider, model, ms, ok, error, player_id) VALUES (?, ?, ?, ?, ?, 0, 0, 'running', ?)")
+    .run(day, hour, hook, route.provider, route.model, pid());
   return Number(r.lastInsertRowid);
 }
 

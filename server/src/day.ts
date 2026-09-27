@@ -276,7 +276,9 @@ export const RESTING: {
   turned: (lines: string[]) => void;
   /** M8c together: is everyone in the game asleep (the night passes fast)? */
   allAsleep: () => boolean;
-} = { step: () => null, piece: () => false, collapse: () => null, turned: () => {}, allAsleep: () => false };
+  /** M8d together: the world's week ended: every sleeper's sleep ends in his end. */
+  weekOver: (db: DB) => void;
+} = { step: () => null, piece: () => false, collapse: () => null, turned: () => {}, allAsleep: () => false, weekOver: () => {} };
 
 /**
  * Midnight: the date turns. The week's end, the rent of a room, the memories fading, a night of
@@ -447,7 +449,11 @@ export function worldTick(db: DB, now = Date.now()): TickResult {
     if (hourEnded && c.hour >= 23) {
       turned = turnDay(db);
       RESTING.turned(turned.lines);
-      if (turned.ended) return { advanced: true, ended: turned.ended, turned };
+      if (turned.ended) {
+        // M8d: the week is over in their sleep (or in the cell): every sleeper wakes to his end
+        RESTING.weekOver(db);
+        return { advanced: true, ended: turned.ended, turned };
+      }
     } else {
       const t = c.hour * 60 + c.minute + piece;
       setWorldClock(db, { day: c.day, hour: Math.floor(t / 60), minute: t % 60 });
@@ -659,5 +665,38 @@ export function endGame(db: DB, kind: "week" | "health"): Ending {
   const e: Ending = { kind, day: clock(db).day };
   setEnding(db, e);
   log(db, kind === "health" ? "collapsed" : "week_over", null, kind === "health" ? "Jef's body gave out." : "The week is over.");
+  // M8d: every player's end as it comes (index.ts writes his own epilogue, whoever's request or tick it was)
+  const id = pid();
+  for (const h of ENDING_HOOKS) h(db, id, e);
   return e;
+}
+
+/**
+ * M8d: each player's end, when it comes (`id`: whose; the world's week end gives one to every player in the game,
+ * a body that gives out one to him alone while the world goes on). index.ts writes his epilogue.
+ */
+export const ENDING_HOOKS: Array<(db: DB, id: number, e: Ending) => void> = [];
+
+/** M8d: the world's own week is over (Sunday is past for everyone): only a new week goes on from here. */
+export function worldWeekOver(db: DB): boolean {
+  const rows = [
+    ...(db.prepare("SELECT value_json FROM player_state WHERE key = 'ending'").all() as Array<{ value_json: string }>),
+    ...(db.prepare("SELECT value_json FROM world_state WHERE key = 'ending'").all() as Array<{ value_json: string }>),
+  ];
+  return rows.some((r) => {
+    try {
+      return (JSON.parse(r.value_json) as Ending).kind === "week";
+    } catch {
+      return false;
+    }
+  });
+}
+
+/**
+ * M8d: nothing more of the world's own daily work (the paper's morning, the day's bills): every player in the game
+ * has his end (played alone: the one player's week is over, as before; together: the world's week, or everyone's
+ * own end).
+ */
+export function everyoneEnded(db: DB): boolean {
+  return worldWeekOver(db) || onlineIds().every((id) => asPlayer(id, () => !!ending(db)));
 }

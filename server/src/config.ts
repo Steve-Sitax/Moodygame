@@ -148,10 +148,65 @@ export const CODEX = {
  */
 export const CALLS_PER_DAY_DEFAULT = 120;
 export let CALLS_PER_DAY: number = CALLS_PER_DAY_DEFAULT;
+/** The host's setting (Infinity: no limit); CALLS_PER_DAY is this, grown by the players in the game (M8d). */
+let CALLS_BASE: number = CALLS_PER_DAY_DEFAULT;
+let CALL_PLAYERS = 1;
 /** Only the AI setup (ai/setup.ts) calls this. 0 = no daily limit (Infinity: every check `total < CALLS_PER_DAY - x` passes). */
 export function setCallsPerDay(n: number): void {
-  CALLS_PER_DAY = n === 0 ? Infinity : n;
+  CALLS_BASE = n === 0 ? Infinity : n;
+  CALLS_PER_DAY = CALLS_BASE + (CALL_PLAYERS - 1) * playerCallShare();
 }
+
+/**
+ * M8d multiplayer (docs/multiplayer-plan.md 8, Steve 2026-09-26: the host pays; a limit only when set): the host's
+ * day of calls grows by one player's share for every player past the first (120 + 60 per extra player), and each
+ * player's own hooks (PLAYER_HOOKS) may use at most that share a day, so one chatty player cannot use up the day;
+ * the world's hooks keep their shares once. Played alone nothing moves: the day is the setting, no share is counted.
+ */
+export const PLAYER_SHARE_OF_DAY = 0.5;
+/** One player's share of the day (0 with no limit set: nothing is counted then). */
+export function playerCallShare(): number {
+  return Number.isFinite(CALLS_BASE) ? Math.max(10, Math.round(CALLS_BASE * PLAYER_SHARE_OF_DAY)) : 0;
+}
+/** The number of players in the game now (ai/budget.ts keeps it); CALLS_PER_DAY follows it. */
+export function setCallPlayers(n: number): void {
+  CALL_PLAYERS = Math.max(1, Math.floor(n) || 1);
+  CALLS_PER_DAY = CALLS_BASE + (CALL_PLAYERS - 1) * playerCallShare();
+}
+export function callPlayers(): number {
+  return CALL_PLAYERS;
+}
+/**
+ * M8d: the hooks that write for one player (his talk and typed lines, his job's outcome and twist, his letters, the
+ * diary he found, his dream, his epilogue, the look at his room at night, his confession). Every other hook is the
+ * world's (the director, the board, the paper, the ballads, the town's routines and conversations).
+ */
+export const PLAYER_HOOKS: ReadonlySet<string> = new Set([
+  "dialogue",
+  "free_reply",
+  "resident_talk",
+  "resident_talkdown",
+  "resident_haggle",
+  "resident_police",
+  "resident_fortune",
+  "routine_checkin",
+  "job_outcome",
+  "trouble",
+  "letter",
+  "letter_reply",
+  "diary",
+  "dream",
+  "epilogue",
+  "home_remark",
+  "confession",
+]);
+/**
+ * M8d, the call queue: played together at most this many model calls run at once; the others wait, talk first, the
+ * world's hooks last. A call waits at most CALL_QUEUE_WAIT_MS for its turn (then the hand-written lines); its own 20 s
+ * limit counts from the start of the call, not from the queue. Played alone there is no queue, as before.
+ */
+export const CALLS_AT_ONCE = 3;
+export const CALL_QUEUE_WAIT_MS = 20_000;
 
 /** Talk with the townspeople (M3e): at most this many model calls a day for them... */
 export const RESIDENT_CALLS_PER_DAY = 40;

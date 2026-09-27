@@ -3,7 +3,8 @@ import type { DB } from "../db.ts";
 import type { Runner } from "../ai/claude.ts";
 import { clock } from "../day.ts";
 import { log } from "../game.ts";
-import { onlineIds, pid, positionOf } from "../player/current.ts";
+import { asPlayer, inPlayer, onlineIds, pid, positionOf } from "../player/current.ts";
+import { nameOf, readText, storeText } from "../player/names.ts";
 import { SPOTS } from "../hooks/jobBoard.ts";
 import { relationship, remember } from "../npcs.ts";
 import { ITEMS, waresOf } from "../trade.ts";
@@ -77,6 +78,21 @@ export interface ActionRow {
   z: number | null;
   outcome: string | null;
   data_json: string;
+  /** M8d: the player it is about (who asked, the one followed or sought); null: the host (an older row) or nobody's (an event's). */
+  for_player?: number | null;
+}
+
+/** M8d: the player an action is about (an older row, or an event's: the host). */
+export const forOf = (a: Pick<ActionRow, "for_player">): number => a.for_player ?? 1;
+
+/**
+ * M8d: how a townsperson's words name player `id` for the player `viewer` (the one whose prompt or screen it is):
+ * "Jef" for himself (his own edge puts his name in); another player by his name (the host, still "Jef", so that the
+ * viewer's edge does not take him for the viewer: player/names.ts readText).
+ */
+export function playerWord(db: DB, id: number, viewer = pid()): string {
+  if (id === viewer) return "Jef";
+  return id === 1 ? readText(db, "Jef", viewer) : nameOf(db, id);
 }
 
 interface ActionData {
@@ -354,6 +370,11 @@ export interface NewAction {
   max_m?: number;
   phase?: string;
   data?: ActionData;
+  /**
+   * M8d: the player it is about. Left out: asked in talk, or started in a player's own work (his request, asPlayer),
+   * that player; the world's own work (an event, the director): nobody's.
+   */
+  for_player?: number | null;
 }
 
 /** Start an action (already checked). Writes the row and the event; tells the client. */
@@ -361,12 +382,13 @@ export function startAction(db: DB, a: NewAction): ActionRow {
   const now = gameMinute(db);
   const r = resident(db, a.npc_id);
   const pos = r ? posOf(db, a.npc_id) : null;
+  const forP = a.for_player !== undefined ? a.for_player : a.source === "talk" || (inPlayer() && a.source !== "event" && a.source !== "director") ? pid() : null;
   const res = db
     .prepare(
-      `INSERT INTO npc_action (npc_id, kind, target, target_x, target_z, reason, source, event_id, status, started, until, max_m, phase, x, z, data_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO npc_action (npc_id, kind, target, target_x, target_z, reason, source, event_id, status, started, until, max_m, phase, x, z, data_json, for_player)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(a.npc_id, a.kind, a.target ?? "", a.target_x ?? null, a.target_z ?? null, (a.reason ?? "").slice(0, 120), a.source, a.event_id ?? null, now, now + a.minutes, a.max_m ?? 0, a.phase ?? "going", pos?.x ?? null, pos?.z ?? null, JSON.stringify(a.data ?? {}));
+    .run(a.npc_id, a.kind, a.target ?? "", a.target_x ?? null, a.target_z ?? null, (a.reason ?? "").slice(0, 120), a.source, a.event_id ?? null, now, now + a.minutes, a.max_m ?? 0, a.phase ?? "going", pos?.x ?? null, pos?.z ?? null, JSON.stringify(a.data ?? {}), forP);
   const row = actionRow(db, Number(res.lastInsertRowid))!;
   const name = r?.name ?? a.npc_id;
   writeEvent(db, {
@@ -374,7 +396,8 @@ export function startAction(db: DB, a: NewAction): ActionRow {
     verb: `action_${a.kind}`,
     actor: a.npc_id,
     target: a.target ?? null,
-    text: describeStart(name, { ...row, target: targetLabel(db, row.target) }),
+    // (M8d: the event log is everyone's: a guest's errand keeps his name)
+    text: storeText(db, describeStart(name, { ...row, target: targetLabel(db, row.target) }), forOf(row)),
     x: a.target_x ?? null,
     z: a.target_z ?? null,
     ref_type: "npc_action",
@@ -429,7 +452,9 @@ export function endAction(db: DB, id: number, status: "done" | "failed" | "stopp
   db.prepare("UPDATE npc_action SET status = ?, outcome = ?, data_json = ? WHERE id = ?").run(status, outcome, JSON.stringify({ ...parseData(row), line }), id);
   const r = resident(db, row.npc_id);
   const name = r?.name ?? row.npc_id;
-  rememberErrand(db, row, status, outcome);
+  // (M8d: what they did for a guest is remembered of him, whoever ends it: the tick, another player's PC)
+  if (forOf(row) === pid()) rememberErrand(db, row, status, outcome);
+  else asPlayer(forOf(row), () => rememberErrand(db, row, status, outcome));
   if (row.kind !== "attend") {
     writeEvent(db, {
       kind: "action",
@@ -444,7 +469,7 @@ export function endAction(db: DB, id: number, status: "done" | "failed" | "stopp
       who: [row.npc_id],
     });
   }
-  notify("actions", { ended: { id, npc: row.npc_id, name, kind: row.kind, status, outcome, line } });
+  notify("actions", { ended: { id, npc: row.npc_id, name, kind: row.kind, status, outcome, line, for_player: row.for_player ?? null } });
   return actionRow(db, id);
 }
 
@@ -574,6 +599,8 @@ export function validateProposal(db: DB, r: Resident, raw: unknown): Accepted | 
   if (p.kind === "stop") {
     const a = actionOf(db, r.id);
     if (!a || a.source !== "talk") return refuse("nothing_to_stop");
+    // (M8d: what another player asked of them is his to stop)
+    if (forOf(a) !== pid()) return refuse("busy");
     endAction(db, a.id, "stopped", "asked to stop", END_LINE.stopped);
     return { ok: true, action: null, line: END_LINE.stopped, instant: true };
   }
@@ -599,7 +626,8 @@ export function validateProposal(db: DB, r: Resident, raw: unknown): Accepted | 
     if (busy.source !== "talk") return refuse("reserved");
     return refuse("busy", busy.kind === p.kind ? "I'm on it already. Give me a moment." : REFUSE_LINE.busy);
   }
-  if (activeActions(db).filter((a) => a.source === "talk").length >= MAX_TALK_ACTIONS) return refuse("too_many");
+  // (M8d: three asked in talk per player: another player's errands do not use up his)
+  if (activeActions(db).filter((a) => a.source === "talk" && forOf(a) === pid()).length >= MAX_TALK_ACTIONS) return refuse("too_many");
   if (isReserved(db, r.id)) return refuse("reserved");
   if (TOWN_EMPLOYER_IDS.includes(r.id)) return refuse("post");
 
@@ -764,6 +792,12 @@ export async function reportAction(db: DB, id: number, rep: Report, runner?: Run
   if (!a || a.status !== "active") return a;
   // a second report while the words are being written: the first one runs the chain
   if (a.phase === "talking") return a;
+  // M8d: the report comes from the PC that walks the person (M8b owners), not always the player it is about: the
+  // chain (his robbery, his police, his errand's memory) runs as that player
+  if (a.for_player != null && a.for_player !== pid()) {
+    const who = a.for_player;
+    return asPlayer(who, () => reportAction(db, id, rep, runner));
+  }
   const at = clampXZ(rep.x, rep.z);
   if (at) db.prepare("UPDATE npc_action SET x = ?, z = ? WHERE id = ?").run(at.x, at.z, id);
   const data = parseData(a);
@@ -815,6 +849,7 @@ export async function reportAction(db: DB, id: number, rep: Report, runner?: Run
               target_x: at.x,
               target_z: at.z,
               source: "engine",
+              for_player: a.for_player ?? null,
               minutes: TALK_TO_MIN,
               reason: a.reason,
               data: { purpose: (data.purpose ?? (police ? "question" : "chat")) as Purpose, about: data.about },
@@ -873,11 +908,11 @@ export async function reportAction(db: DB, id: number, rep: Report, runner?: Run
       endAction(db, id, "done", "fetched", "");
       // M6 families: a complaint about Jef: the agent goes to find Jef for a word (director/families.ts)
       if (data.complaint) {
-        startAction(db, { npc_id: agent.id, kind: "seek", target: "Jef", source: "engine", minutes: 60, reason: "a complaint about Jef", data: { reaction: "police_word", news: data.complaint } });
+        startAction(db, { npc_id: agent.id, kind: "seek", target: "Jef", source: "engine", minutes: 60, reason: "a complaint about Jef", data: { reaction: "police_word", news: data.complaint }, for_player: a.for_player ?? null });
         return actionRow(db, id);
       }
       // the agent comes to where Jef was, then looks for the thief the log knows of, else waits for Jef there
-      const jef = data.jef ?? jefAt() ?? whereIs(db, r);
+      const jef = data.jef ?? jefAt(Date.now(), forOf(a)) ?? whereIs(db, r);
       const spot = walkMap().nearestOpen(jef.x, jef.z, 6) ?? { x: jef.x, z: jef.z };
       const d = Math.hypot(spot.x - (posOf(db, agent.id)?.x ?? spot.x), spot.z - (posOf(db, agent.id)?.z ?? spot.z));
       const street = streetCrimeOpen(db);
@@ -885,7 +920,7 @@ export async function reportAction(db: DB, id: number, rep: Report, runner?: Run
       const then: ActionData["then"] = thief
         ? { kind: "look_for", target: thief, minutes: LOOK_FOR_MIN, data: { purpose: "question", about: "a robbery" } }
         : { kind: "wait", target: "Jef", minutes: WAIT_MAX_MIN };
-      startAction(db, { npc_id: agent.id, kind: "go_to", target: "where Jef was robbed", target_x: spot.x, target_z: spot.z, source: "engine", minutes: walkMinutes(d, 5), reason: "fetched for Jef", data: { then } });
+      startAction(db, { npc_id: agent.id, kind: "go_to", target: "where Jef was robbed", target_x: spot.x, target_z: spot.z, source: "engine", minutes: walkMinutes(d, 5), reason: "fetched for Jef", data: { then }, for_player: a.for_player ?? null });
       return actionRow(db, id);
     }
     default:
@@ -912,6 +947,7 @@ function startNext(db: DB, prev: ActionRow, next: NonNullable<ActionData["then"]
     max_m: next.kind === "look_for" ? LOOK_FOR_RADIUS_M : 0,
     reason: prev.reason,
     data: next.data ?? {},
+    for_player: prev.for_player ?? null,
   });
 }
 
@@ -966,6 +1002,8 @@ export function listActions(db: DB) {
       n: data.n ?? 0,
       reaction: data.reaction ?? null,
       minutes_left: Math.max(0, a.until - gameMinute(db)),
+      /** M8d: the player it is about (null: the host's older row, or an event's). */
+      for_player: a.for_player ?? null,
     };
   });
 }
@@ -983,19 +1021,21 @@ function taskLine(db: DB, r: Resident): string {
   if (!a) return "nothing for Jef";
   const left = Math.max(0, a.until - gameMinute(db));
   const t = a.target && resident(db, a.target)?.name;
+  // (M8d: for the player talking to them "Jef"; for another player, his name)
+  const J = a.source === "event" ? "Jef" : playerWord(db, forOf(a));
   switch (a.kind) {
     case "follow":
-      return `following Jef (about ${left} minutes left)`;
+      return `following ${J} (about ${left} minutes left)`;
     case "go_to":
-      return `on your way to ${a.target} for Jef`;
+      return `on your way to ${a.target} for ${J}`;
     case "wait":
-      return `waiting here for Jef (about ${left} minutes left)`;
+      return `waiting here for ${J} (about ${left} minutes left)`;
     case "talk_to":
-      return `going to speak with ${t ?? a.target} for Jef`;
+      return `going to speak with ${t ?? a.target} for ${J}`;
     case "look_for":
-      return t ? `looking for ${t} for Jef` : `looking about ${parseData(a).place ?? "the place"} for Jef`;
+      return t ? `looking for ${t} for ${J}` : `looking about ${parseData(a).place ?? "the place"} for ${J}`;
     case "fetch_police":
-      return "fetching the police for Jef";
+      return `fetching the police for ${J}`;
     case "attend":
       return `at ${a.target}`;
     default:

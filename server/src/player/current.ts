@@ -28,6 +28,14 @@ export function asPlayer<T>(id: number, fn: () => T): T {
   return ctx.run(id, fn);
 }
 
+/**
+ * M8d: run `fn` as the server's own work for the world, outside the player context it was called from (a tick
+ * one player's request set off: its news goes to everyone, its per-player parts use asPlayer themselves).
+ */
+export function asWorld<T>(fn: () => T): T {
+  return ctx.exit(fn);
+}
+
 // ------------------------------------------------------------------ who is in the game
 
 /**

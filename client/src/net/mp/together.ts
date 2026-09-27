@@ -23,6 +23,10 @@ import { Street } from "./street";
 import { WorldNet, type NetMover } from "./world";
 import type { Town } from "../../game/town";
 import type { Crowd } from "../../game/crowd";
+import { Figure, figureNav, LIVE_FIGURES } from "../../game/figures";
+import { heldForJobs } from "../../game/walkup";
+import { JobFigs } from "./jobfigs";
+import { ferryAsked } from "../../game/ferryArrival"; // M8d: a guest's first arrival is by the ferry
 
 interface BusLike {
   index: number;
@@ -83,6 +87,10 @@ export class Together {
   worldPc = 0;
   /** M8b: the moving world, run by one PC for all (null alone). */
   world: WorldNet | null = null;
+  /** M8d: the figures of this player's job sent to the others, and theirs drawn here (null alone). */
+  jobFigs: JobFigs | null = null;
+  /** M8d: each other player's heading as drawn (for "out of his sight"). */
+  private readonly looks = new Map<number, number>();
   private readonly tracks = new Map<number, RemoteTrack>();
   private readonly figs = new Map<number, RemoteFigure>();
   private roster: RosterEntry[] = [];
@@ -136,9 +144,11 @@ export class Together {
         this.drawCorner();
       },
       onPuppets: (v, recv) => this.street?.onBatch(v, recv),
+      onFigs: (v, recv) => this.jobFigs?.onBatch(v, recv),
       onWelcome: (w) => {
         identity.playerId = w.id;
         this.street?.reset();
+        this.jobFigs?.reset();
         if (w.pose && !this.placedGuest) {
           this.placedGuest = true;
           void this.d.cityReady.then(() => {
@@ -161,9 +171,19 @@ export class Together {
         player: () => this.d.player,
         sendText: (m) => sess.sendText(m),
         sendBinary: (b) => sess.sendBinary(b),
+        forJob: (id) => heldForJobs.has(id), // (M8d: the people called for this player's job are his PC's)
       });
       town.net = this.street;
     }
+    // M8d: the figures of a job: this player's sent, the others' drawn; "out of sight" is out of everyone's
+    this.jobFigs = new JobFigs({
+      own: () => LIVE_FIGURES,
+      make: (kind, x, y, z) => new Figure(kind, x, z, this.d.scene, y, { remote: true }),
+      serverNow: () => sess.serverNow(),
+      player: () => this.d.player,
+      sendBinary: (b) => sess.sendBinary(b),
+    });
+    figureNav.othersSee = (x, z) => this.seenByOthers(x, z);
     if (this.d.movers) {
       const movers = this.d.movers;
       this.world = new WorldNet({
@@ -203,7 +223,9 @@ export class Together {
     const host = list.find((e) => e.id === 1);
     if (!host) return;
     this.placedGuest = true;
-    void this.d.cityReady.then(() => {
+    // (M8d: a guest who comes in by the ferry, his first time or a new man, starts on her deck: game/ferryArrival.ts)
+    void Promise.all([this.d.cityReady, ferryAsked]).then(([, onFerry]) => {
+      if (onFerry) return;
       const h = host.s;
       for (const [ox, oz] of [
         [1.6, 0],
@@ -226,6 +248,7 @@ export class Together {
 
   private text(m: MpText): void {
     if (m.type === "owners") this.street?.onOwners(m);
+    else if (m.type === "pins") this.street?.onPins(m.list); // M8d
     else if (m.type === "world") this.world?.onWorld(m, this.session?.serverNow() ?? 0);
     else if (m.type === "asked") this.world?.onAsked(m);
     else if (m.type === "worldpc") {
@@ -233,6 +256,7 @@ export class Together {
       this.world?.setPc(m.id);
     } else if (m.type === "went") {
       this.drop(m.id);
+      this.jobFigs?.dropSender(m.id); // (M8d: his job's figures go with him)
       this.d.say(`${m.name} went home.`);
     } else if (m.type === "pause_all") this.pauseAll(m.on);
     else if (m.type === "version") this.d.say(`A new version of the game is ready (${m.files} files). Reload the page (F5) at a quiet moment: only what changed is downloaded.`);
@@ -246,6 +270,7 @@ export class Together {
   private drop(id: number): void {
     this.dropGear(id);
     this.shown.delete(id);
+    this.looks.delete(id);
     this.figs.get(id)?.dispose();
     this.figs.delete(id);
     this.tracks.delete(id);
@@ -387,6 +412,7 @@ export class Together {
       this.onPlatform(pose);
       this.hideCorrection(id, pose, dt);
       f.place(pose, dt);
+      this.looks.set(id, pose.yaw);
       this.placeGear(id, pose, dt, f.shown);
       this.meterRemote(id, f, dt);
       if (f.stepped && snd) {
@@ -423,6 +449,30 @@ export class Together {
       this.d.camera.updateMatrixWorld(); // (the picture of this frame is drawn after: the tags go with it)
       for (const f of this.figs.values()) f.drawTag(this.d.camera, this.v);
     }
+    this.jobFigs?.frame(dt); // M8d: this player's job figures out, the others' drawn
+  }
+
+  /**
+   * M8d: could another player see this point now? Within 10 m of him, or within the fog in front of him (his view
+   * as a cone of 65 degrees each side of where he looks: the camera's width with a margin). Walls are not counted
+   * (as the crowd's own test for this player: game/crowd.ts hidden).
+   */
+  seenByOthers(x: number, z: number): boolean {
+    const fog = (this.d.scene.fog as THREE.Fog | null)?.far ?? 40;
+    for (const [id, f] of this.figs) {
+      if (!f.shown) continue;
+      const dx = x - f.at.x;
+      const dz = z - f.at.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 10) return true;
+      if (d > fog + 3) continue;
+      const yaw = this.looks.get(id);
+      if (yaw === undefined) return true;
+      // (he looks along (-sin yaw, -cos yaw): player/firstPerson.ts); a margin for the figure's own width
+      const cos = (-Math.sin(yaw) * dx - Math.cos(yaw) * dz) / d;
+      if (cos > Math.cos((65 * Math.PI) / 180) - 1.5 / d) return true;
+    }
+    return false;
   }
 
   /**
@@ -505,6 +555,18 @@ export class Together {
     return f?.shown ? [{ x: f.at.x, z: f.at.z }] : [];
   }
 
+  /** M8d: this player's id (0 alone or before the welcome). */
+  meId(): number {
+    return this.session?.id ?? 0;
+  }
+
+  /** M8d: where player `id` stands: this PC's own player, or another as drawn here (null: not in view, or gone). */
+  playerAt(id: number): { x: number; z: number } | null {
+    if (id === this.meId()) return { x: this.d.player.x, z: this.d.player.z };
+    const f = this.figs.get(id);
+    return f?.shown ? { x: f.at.x, z: f.at.z } : null;
+  }
+
   positions(): Array<{ x: number; z: number }> {
     const out: Array<{ x: number; z: number }> = [];
     for (const f of this.figs.values()) if (f.shown) out.push({ x: f.at.x, z: f.at.z });
@@ -557,7 +619,7 @@ export class Together {
       const tr = this.tracks.get(id);
       return { id, frames: m.frames, pace: +med.toFixed(3), maxStep: +m.maxStep.toFixed(3), speedDevP95: +(d[Math.floor(d.length * 0.95)] ?? 0).toFixed(3), speedDevMax: +(d[d.length - 1] ?? 0).toFixed(3), jitterP95m: +((d[Math.floor(d.length * 0.95)] ?? 0) / 60).toFixed(4), delay: tr ? Math.round(tr.delay) : null, buffer: tr?.stats ?? null };
     });
-    return { frames: this.meter.frames, camSnaps: this.meter.camSnaps, maxCamStep: +this.meter.maxCamStep.toFixed(3), rtt: this.session?.rtt ?? null, offset: this.session ? Math.round(this.session.offset) : null, session: this.session?.stats ?? null, remotes, street: this.street?.report() ?? null, worldPc: this.worldPc, world: this.world?.report() ?? null };
+    return { frames: this.meter.frames, camSnaps: this.meter.camSnaps, maxCamStep: +this.meter.maxCamStep.toFixed(3), rtt: this.session?.rtt ?? null, offset: this.session ? Math.round(this.session.offset) : null, session: this.session?.stats ?? null, remotes, street: this.street?.report() ?? null, worldPc: this.worldPc, world: this.world?.report() ?? null, jobFigs: this.jobFigs?.report() ?? null };
   }
 
   resetMeter(): void {

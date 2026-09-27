@@ -722,6 +722,22 @@ export function hireTick(db: DB): number {
   return n;
 }
 
+/**
+ * M8d: the hired hands and the treat's guests (town/treat.ts), for the players in the game: each is walked by his
+ * employer's (his host's) PC only, so he follows and carries for the one who hired him, not for whoever's PC has
+ * the street (to be merged with the job figures' pins, town/walkup.ts jobPins). A player who is gone pins nobody.
+ */
+export function handPins(db: DB, online: readonly number[]): Map<string, number> {
+  const on = new Set(online);
+  const out = new Map<string, number>();
+  for (const { row, r } of activeRoutines(db)) {
+    if (r.purpose !== "hire" && r.purpose !== "treat") continue;
+    const who = (r.state as { player?: number }).player ?? r.player ?? 1;
+    if (on.has(who)) out.set(row.npc_id, who);
+  }
+  return out;
+}
+
 /** A hand watching this spot keeps thieves off Jef's cart (town/handcart.ts asks). */
 export function watchedBy(db: DB, x: number, z: number): boolean {
   return crew(db).some((c) => c.state.task === "watch" && c.state.from && Math.hypot(c.state.from.x - x, c.state.from.z - z) < 20);

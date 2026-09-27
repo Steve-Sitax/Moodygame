@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { api, type Convo, type JobsPayload, type PublicAction, type PushMsg, type TownEvent } from "../net/api";
+import { identity } from "../net/mp/identity";
 import type { FogDay, LampRound } from "../../../server/src/town/lampround";
 import { psx } from "../retro/psx";
 import { createFires, type Fires, type FireSpot } from "../world/fire";
@@ -197,7 +198,9 @@ export class TownLife {
   handlePush(m: PushMsg): void {
     if (m.type !== "events") return;
     const settled = (m as { fire_settled?: string }).fire_settled;
-    if (settled && this.inChainOrWas) this.say(settled);
+    // (M8d: fire_for: whose time in the chain it settles; another player's words are his)
+    const forWho = (m as { fire_for?: number }).fire_for;
+    if (settled && this.inChainOrWas && (forWho == null || forWho === identity.playerId)) this.say(settled);
     this.pollT = Math.min(this.pollT, 1);
   }
   private inChainOrWas = false;

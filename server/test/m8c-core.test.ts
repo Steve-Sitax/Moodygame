@@ -170,7 +170,11 @@ describe("M8c core: a guest's own things", () => {
     expect(as2(() => whereNow(db, now)).shelter).toBe("sheltered");
     expect(whereNow(db, now).shelter).toBe("outside");
     expect(arrivalStage(db)).toBe("ferry");
+    // (M8d: a guest's first time in the game comes by the ferry too)
+    expect(as2(() => arrivalStage(db))).toBe("ferry");
+    as2(() => setArrivalStage(db, "ashore"));
     expect(as2(() => arrivalStage(db))).toBe("ashore");
+    expect(arrivalStage(db)).toBe("ferry");
     as2(() => setArrivalStage(db, "ferry"));
     setArrivalStage(db, "ashore");
     expect(as2(() => arrivalStage(db))).toBe("ferry");

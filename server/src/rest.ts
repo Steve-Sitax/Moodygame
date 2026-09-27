@@ -26,6 +26,7 @@ import { endRowNight } from "./rowing.ts";
 import { spreadRumours } from "./town/rumours.ts";
 import { homeBed } from "./homes/homes.ts";
 import { asPlayer, onlineIds, pid, setOnlineIds } from "./player/current.ts";
+import { RESET_HOOKS } from "./player/multi.ts";
 import { TICK_EVERY_MS, TICK_MINUTES } from "../../shared/clock.ts";
 import { inSpan, type Span } from "../../shared/night.ts";
 import { doorBenchAt, fixedBenches, MORNING_HOUR, type Bench, type RestKind } from "../../shared/sleep.ts";
@@ -106,6 +107,8 @@ interface Rest {
   robbed?: { money_c: number; things: string[] };
   /** M8c: his tab shows the sleep (a sleep the server began, when he dropped, waits for it before a key can wake him). */
   acked?: boolean;
+  /** M8d: where he is held (the cell at the police post): his figure is put there. */
+  at?: { x: number; z: number; yaw: number };
 }
 
 /** What the client shows while he sleeps. */
@@ -118,6 +121,8 @@ export interface RestView {
   slept_min: number;
   from: { hour: number; minute: number };
   now: { day: number; hour: number; minute: number; weekday: string };
+  /** M8d: the cell: where he is held (the client puts him there under the fade). */
+  at?: { x: number; z: number; yaw: number };
 }
 
 /** How a sleep ended. */
@@ -310,6 +315,8 @@ function needsOf(db: DB, pid: number): Needs {
 
 /** The needs for `min` minutes asleep: sleep by the place, food slower than awake, a bed's warmth and health. */
 function restNeeds(db: DB, r: Rest, min: number): void {
+  // (M8d: the cell's needs are taken once when the door shuts, as the night in the cell always was: police.ts cellNight)
+  if (r.kind === "cell") return;
   const h = min / 60;
   const n = needsOf(db, r.player);
   const rate = r.kind === "bench" ? SLEEP.bench : SLEEP.bed;
@@ -421,7 +428,8 @@ export function restStep(db: DB, now: number, asleep: boolean, playerId = pid())
 /** He wakes (a key: POST /api/sleep/wake): only the time slept counts. Null when he was not asleep. */
 export function wakeRest(db: DB, playerId = pid()): RestEnd | null {
   const r = rests.get(playerId);
-  if (!r) return null;
+  // (M8d: nobody walks out of the cell before the door is unlocked)
+  if (!r || r.kind === "cell") return null;
   return playerId === pid() ? endRest(db, r, "up") : asPlayer(playerId, () => endRest(db, r, "up"));
 }
 
@@ -436,6 +444,7 @@ function lasted(min: number): string {
 function endRest(db: DB, r: Rest, reason: RestEnd["reason"], ended?: Ending): RestEnd {
   rests.delete(r.player);
   const c = clock(db);
+  if (r.kind === "cell") return endCell(db, r, reason, ended);
   const long = r.slept >= SLEEP.nightMin;
   const lines: string[] = [];
   if (r.kind === "home") lines.push(long && r.night ? r.night.text : `You doze on your own bed in ${r.label}.`);
@@ -476,8 +485,75 @@ function viewOf(db: DB, r: Rest): RestView {
     slept_min: r.slept,
     from: r.from,
     now: { day: now.day, hour: now.hour, minute: now.minute, weekday: now.weekday },
+    ...(r.at ? { at: r.at } : {}),
   };
 }
+
+// ------------------------------------------------------------------ M8d: the cell, played together
+
+/**
+ * The police's say when a night in the cell is over (police.ts sets it): the sheet of the night, with the lines of
+ * the cell (its summary and what the night brought) and his end if it came in there.
+ */
+export const cellHooks: { done: (db: DB, lines: string[], ended?: Ending) => void } = { done: () => {} };
+
+/**
+ * Played together, a night in the cell (police.ts cellNight): he sits it out at the world's pace, like a sleep
+ * (docs/multiplayer-plan.md 6.1: no fast night for one), until `minutes` of the world's time have passed (the next
+ * dawn). No key lets him out; the others play on; when everyone in the game is asleep or held the night passes
+ * fast. `lines`: the cell's summary so far (the sheet at the end). The sleep screen comes to him with his next heartbeat.
+ */
+export function cellRest(db: DB, playerId: number, minutes: number, at: { x: number; z: number; yaw: number }, lines: string[]): RestView {
+  const c = clock(db);
+  const had = rests.get(playerId);
+  if (had) endRest(db, had, "up");
+  const rest: Rest = {
+    player: playerId, kind: "cell", label: "the cell at the police post", planned: Math.max(1, Math.round(minutes)), slept: 0, acc: { sleep: 0, food: 0, warmth: 0, health: 0 },
+    lines: [...lines], turned: false, robRolled: true, lastStepAt: 0, from: { hour: c.hour, minute: c.minute }, acked: false, at,
+  };
+  rests.set(playerId, rest);
+  woken.delete(playerId);
+  return viewOf(db, rest);
+}
+
+/** Is this player held in the cell now? */
+export function inCell(playerId = pid()): boolean {
+  return rests.get(playerId)?.kind === "cell";
+}
+
+function endCell(db: DB, r: Rest, reason: RestEnd["reason"], ended?: Ending): RestEnd {
+  const c = clock(db);
+  const lines = [...r.lines];
+  if (!ended) lines.push("At dawn the door is unlocked. \"Out. And keep your hands to yourself.\"");
+  asPlayer(r.player, () => cellHooks.done(db, lines, ended));
+  return {
+    place: "cell",
+    label: r.label,
+    reason,
+    slept_min: r.slept,
+    planned_min: r.planned,
+    lines,
+    wake: { day: c.day, hour: c.hour, minute: c.minute, weekday: c.weekday },
+    turned: r.turned,
+    ...(ended ? { ended } : {}),
+  };
+}
+
+/** M8d: the world's week ended: every sleeper (and every man in the cell) wakes to his own end. */
+export function restsWeekOver(db: DB): void {
+  for (const r of [...rests.values()]) {
+    const e = asPlayer(r.player, () => ending(db));
+    woken.set(r.player, asPlayer(r.player, () => endRest(db, r, "ended", e ?? undefined)));
+  }
+}
+
+/** M8d: a new man (player/multi.ts resetPlayer): nothing of the old man's sleep is kept. */
+export function forgetRest(playerId: number): void {
+  rests.delete(playerId);
+  woken.delete(playerId);
+  seen.delete(playerId);
+}
+RESET_HOOKS.push((_db, id) => forgetRest(id));
 
 // ------------------------------------------------------------------ M8c: played together
 
@@ -499,7 +575,7 @@ export function restPiece(db: DB, playerId: number, min: number, hourEnded: bool
     const piece = Math.min(min, Math.max(0, r.planned - r.slept));
     r.slept += piece;
     restNeeds(db, r, piece);
-    if (hourEnded) {
+    if (hourEnded && r.kind !== "cell") {
       const h = clock(db).hour;
       restHour(db, r, h);
       if (r.bench?.fine && inSpan(h, SLEEP.policeHours) && dice() < SLEEP.police) {
@@ -586,3 +662,4 @@ RESTING.piece = (db, id, min, hourEnded) => {
 RESTING.collapse = (db, id) => collapseRest(db, id);
 RESTING.turned = (lines) => restTurned(lines);
 RESTING.allAsleep = () => allAsleep();
+RESTING.weekOver = (db) => restsWeekOver(db);

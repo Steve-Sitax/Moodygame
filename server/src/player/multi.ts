@@ -129,7 +129,105 @@ export function ensurePlayerRow(db: DB, id: number, name: string): void {
     const ft = db.prepare("INSERT OR IGNORE INTO faction_trust (player_id, faction, trust) VALUES (?, ?, 0)");
     for (const f of FACTIONS) ft.run(id, f);
     db.prepare("INSERT OR IGNORE INTO npc_relationship (npc_id, player_id) SELECT id, ? FROM npc WHERE id IN (SELECT npc_id FROM npc_relationship WHERE player_id = 1)").run(id);
+    // M8d: a guest's first arrival is by the ferry at the Werf, his man made in the character sheet first
+    // (arrival.ts; the host's new week writes its own key in the seed)
+    setPstate(db, "arrival", { stage: "ferry", creator: true, log: true }, id);
   })();
+}
+
+// ------------------------------------------------------------------ M8d: a new man on the ferry
+
+/**
+ * The keys of player_state that are one player's (docs/milestones/M8c-rules.md): a new man starts without any of
+ * them. For the host the older world_state keys of the same names go too.
+ */
+export const PLAYER_KEYS = [
+  "ending", "day_start_money", "nights_slept", "swam_at", "ride", "police", "haggle", "gang", "jef_carts", "jef_velos", "row", "row_boats",
+  "row_missed", "boat_asked", "boat_home_trust", "deed_trust_back", "arrival", "errand_queue", "fortune_promise", "dream", "deeds_seen",
+];
+
+/**
+ * Other parts' say when a player's man retires (town/deeds.ts: the things he took go back to their owners; rest.ts:
+ * no sleep of his is kept). Run before his rows move to the retired man; `retired` is the retired man's id.
+ */
+export const RESET_HOOKS: Array<(db: DB, id: number, retired: number) => void> = [];
+
+export interface RetiredMan {
+  /** The retired man's id (negative: never a player's), in log.player_id, npc_memory.about_player, deed.player_id ... */
+  id: number;
+  /** The player who played him. */
+  player: number;
+  name: string;
+  day: number;
+}
+
+/** Every man retired this week (world_state 'retired_men'). */
+export function retiredMen(db: DB): RetiredMan[] {
+  const r = db.prepare("SELECT value_json FROM world_state WHERE key = 'retired_men'").get() as { value_json: string } | undefined;
+  try {
+    return r ? (JSON.parse(r.value_json) as RetiredMan[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+const JEF_WORD = /(?<![\p{L}\p{M}])Jef(?![\p{L}\p{M}])/gu;
+
+/**
+ * M8d "a new man on the ferry" (docs/multiplayer-plan.md 7.3, 11.3): player `id`'s man is done (his body gave out);
+ * he starts again as a new man, who comes into the town by the ferry. His own things start afresh: money and needs
+ * as on a first day, empty pockets, no job, no room, no trust with the factions and no standing with anyone, no
+ * police record, no keys of his own. The old man retires: what the town remembers of him and his lines in the log
+ * stay, under a retired id, with his old name in them (the host's "Jef" there becomes his old name, so the
+ * townspeople's memories stay about him and not the new man). The world is not touched: never a new week.
+ */
+export function resetPlayer(db: DB, id: number, oldName: string): RetiredMan {
+  const list = retiredMen(db);
+  const man: RetiredMan = { id: Math.min(-1, ...list.map((m) => m.id - 1)), player: id, name: oldName, day: (db.prepare("SELECT day FROM player WHERE id = 1").get() as { day: number } | undefined)?.day ?? 1 };
+  const has = (t: string) => hasTable(db, t) && cols(db, t).includes("player_id");
+  db.transaction(() => {
+    for (const h of RESET_HOOKS) h(db, id, man.id);
+    // the host's own words say "Jef": they are the old man's now (a zero-width joiner keeps a plain "Jef" his)
+    const named = oldName === "Jef" ? "Je‍f" : oldName;
+    if (id === 1) {
+      const fix = (s: string | null) => (s === null ? null : s.replace(JEF_WORD, named));
+      const logRows = db.prepare("SELECT id, text FROM log WHERE player_id = 1 AND actor = 'player' AND text LIKE '%Jef%'").all() as Array<{ id: number; text: string }>;
+      const ul = db.prepare("UPDATE log SET text = ? WHERE id = ?");
+      for (const r of logRows) ul.run(fix(r.text), r.id);
+      const memRows = db
+        .prepare("SELECT id, text, gist, told_as FROM npc_memory WHERE COALESCE(about_player, 1) = 1 AND (text LIKE '%Jef%' OR gist LIKE '%Jef%' OR told_as LIKE '%Jef%')")
+        .all() as Array<{ id: number; text: string; gist: string | null; told_as: string | null }>;
+      const um = db.prepare("UPDATE npc_memory SET text = ?, gist = ?, told_as = ?, about_player = ? WHERE id = ?");
+      for (const r of memRows) um.run(fix(r.text), fix(r.gist), fix(r.told_as), man.id, r.id);
+    } else db.prepare("UPDATE npc_memory SET about_player = ? WHERE about_player = ?").run(man.id, id);
+    // his things: the pockets go; the rest is closed and goes with the old man
+    if (has("item")) db.prepare("DELETE FROM item WHERE player_id = ?").run(id);
+    if (has("home_lease")) db.prepare("UPDATE home_lease SET ended = 'moved' WHERE player_id = ? AND ended IS NULL").run(id);
+    if (has("home_item")) db.prepare("UPDATE home_item SET state = 'gone' WHERE player_id = ?").run(id);
+    if (has("letter")) db.prepare("UPDATE letter SET status = 'read' WHERE player_id = ? AND status <> 'read'").run(id);
+    if (has("jef_letter")) db.prepare("UPDATE jef_letter SET status = 'answered' WHERE player_id = ? AND status = 'sent'").run(id);
+    if (has("pawn")) db.prepare("UPDATE pawn SET status = 'forfeit', closed_day = ? WHERE player_id = ? AND status = 'held'").run(man.day, id);
+    if (has("meeting")) db.prepare("UPDATE meeting SET status = 'missed' WHERE player_id = ? AND status = 'open'").run(id);
+    if (has("deed")) db.prepare("UPDATE deed SET status = 'returned', rumour_at = NULL WHERE player_id = ? AND status = 'open'").run(id);
+    // (the log: his own lines; the world's work logged in no player's name stays where it is)
+    for (const t of PLAYER_TABLES) if (t !== "item" && has(t)) db.prepare(`UPDATE ${t} SET player_id = ? WHERE player_id = ?${t === "log" ? " AND actor = 'player'" : ""}`).run(man.id, id);
+    // no job in hand
+    db.prepare("UPDATE job SET status = 'failed' WHERE status = 'taken' AND COALESCE(taken_by, 1) = ?").run(id);
+    // a first day's purse and needs (the clock's columns stay: player 1's row keeps the world's clock)
+    db.prepare("UPDATE player SET money_c = 50, food = 7, warmth = 7, health = 8, sleep = 7, district = 'rijnkaai', rent_paid_until = 0 WHERE id = ?").run(id);
+    db.prepare("UPDATE faction_trust SET trust = 0 WHERE player_id = ?").run(id);
+    db.prepare(
+      "UPDATE npc_relationship SET trust = 0, affection = 0, respect = 0, fear = 0, times_met = 0, last_seen_day = NULL, last_place = NULL, favours_json = '[]', grudges_json = '[]', view_of_player = '' WHERE player_id = ?",
+    ).run(id);
+    db.prepare("DELETE FROM player_state WHERE player_id = ?").run(id);
+    if (id === 1) for (const k of PLAYER_KEYS) db.prepare("DELETE FROM world_state WHERE key = ?").run(k);
+    if (hasTable(db, "client_state")) db.prepare("DELETE FROM client_state WHERE player_id = ?").run(id);
+    // he comes by the ferry, his new man made in the character sheet first
+    setPstate(db, "day_start_money", 50, id);
+    setPstate(db, "arrival", { stage: "ferry", creator: true, log: true }, id);
+    db.prepare("INSERT INTO world_state (key, value_json) VALUES ('retired_men', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(JSON.stringify([...list, man]));
+  })();
+  return man;
 }
 
 // ------------------------------------------------------------------ a player's own keys (were world_state)

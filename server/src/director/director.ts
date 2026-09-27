@@ -9,10 +9,14 @@ import { gameMinute } from "../town/deeds.ts";
 import { policeDispatch } from "../town/police.ts";
 import { resident } from "../town/store.ts";
 import { walkMap } from "../town/walkmap.ts";
-import { activeActions, crimeOpen, posOf, startAction, listActions } from "./actions.ts";
+import { activeActions, crimeOpen, posOf, startAction, listActions, playersAt } from "./actions.ts";
 import { eventSlice, writeEvent } from "./eventlog.ts";
 import { streetCrimeOpen } from "./scenes.ts";
-import { eventPlaces, eventsToday, liveEvents, planEvent, type EventPlan, type PlanResult } from "./scheduler.ts";
+import { eventPlaces, eventsToday, liveEvents, planEvent, type EventPlan, type EventRow, type PlanResult } from "./scheduler.ts";
+import { notify } from "./bus.ts";
+import { asPlayer, onlineIds } from "../player/current.ts";
+import { nameOf, storeText } from "../player/names.ts";
+import { together } from "../ai/budget.ts";
 import { enginePick, planFromTemplate, ROUTINE_TEMPLATES } from "./templates.ts";
 import { EVENTS_AT_ONCE, EVENTS_PER_DAY, LOOK_FOR_MIN, LOOK_FOR_RADIUS_M, PRIMITIVES_FOR_MODEL, StageSchema, walkMinutes } from "./vocab.ts";
 import { keepPromise, promiseThread, strangersHere } from "./surprises.ts";
@@ -82,8 +86,12 @@ interface DirectorState {
   lastDay: number;
   lastEventId: number;
   thinks: number;
-  /** The robbery (log id) the engine already searched for. */
+  /** The robbery (log id) the engine already searched for (the host's). */
   searched: number;
+  /** M8d: the same for each guest (by player id). */
+  searchedBy?: Record<string, number>;
+  /** M8d: the players who had a lead this round (no player gets two before each online player has one). */
+  leadRound?: number[];
 }
 const EMPTY: DirectorState = { lastThinkMin: -1e9, lastHour: -1, lastDay: 0, lastEventId: 0, thinks: 0, searched: 0 };
 
@@ -139,6 +147,8 @@ let thinking: Promise<unknown> | null = null;
 
 /** Every tick: think if due (fire and forget, one at a time). */
 export function directorTick(db: DB, runner?: Runner): void {
+  // (M8d: the day's calls grow with the players in the game: ai/budget.ts)
+  together();
   if (thinking) return;
   if (!dueNow(db)) return;
   thinking = think(db, runner)
@@ -153,25 +163,129 @@ export async function directorIdle(): Promise<void> {
 
 // ------------------------------------------------------------------ the prompt
 
+/** M8d: a player as the director's prompt names him: the host "Jef" (as every line of the engine), a guest by his name. */
+export function playerName(db: DB, id: number): string {
+  return id === 1 ? "Jef" : nameOf(db, id);
+}
+
 export function openThreads(db: DB): string[] {
   const out: string[] = [];
-  const crime = crimeOpen(db);
-  if (crime) {
+  // (M8d: every player in the game his own robbery; played alone the host's, as before)
+  for (const id of onlineIds()) {
+    const crime = asPlayer(id, () => crimeOpen(db));
+    if (!crime) continue;
     const thief = resident(db, crime.thief);
-    out.push(`Jef was robbed of ${crime.amount_c} centimes in the dark (day ${crime.day}); the money is not back. The engine knows who did it (${thief?.name ?? "a pickpocket"}); the town does not.`);
+    out.push(`${playerName(db, id)} was robbed of ${crime.amount_c} centimes in the dark (day ${crime.day}); the money is not back. The engine knows who did it (${thief?.name ?? "a pickpocket"}); the town does not.`);
   }
   const street = streetCrimeOpen(db);
   if (street) {
     const v = resident(db, street.victim);
-    out.push(`A pickpocket took ${v?.name ?? "someone"}'s purse at ${street.place} and got away${street.witnessed ? "; Jef saw it" : ""}. Unsolved.`);
+    const saw = street.witnessedBy.map((id) => playerName(db, id));
+    out.push(`A pickpocket took ${v?.name ?? "someone"}'s purse at ${street.place} and got away${saw.length ? `; ${saw.length === 1 ? saw[0] : `${saw.slice(0, -1).join(", ")} and ${saw[saw.length - 1]}`} saw it` : ""}. Unsolved.`);
   }
   for (const e of liveEvents(db)) out.push(`${e.status === "running" ? "Running" : "Planned"}: ${e.title} at ${e.place}, ${e.status === "running" ? `stage ${e.stage + 1}` : `in ${Math.max(0, e.start_m - gameMinute(db))} minutes`}.`);
   // M6 surprises: the cards' promise to bring about, and a stranger in town the director may use
-  const promise = promiseThread(db);
-  if (promise) out.push(promise);
+  // (M8d: each player's own promise, named when played together)
+  const ids = onlineIds();
+  for (const id of ids) {
+    const promise = asPlayer(id, () => promiseThread(db));
+    if (promise) out.push(ids.length > 1 ? promise.replaceAll("Jef", playerName(db, id)) : promise);
+  }
   for (const v of strangersHere(db)) out.push(`A stranger is in town: ${v.name} from ${v.visitor?.origin ?? "abroad"}, ${v.visitor?.label ?? ""}. Wants ${v.visitor?.goal ?? "something"}.`);
-  for (const a of listActions(db)) if (a.source !== "event") out.push(`${a.name} is ${a.kind.replace("_", " ")}${a.target_name ? ` ${a.target_name}` : a.target && a.kind !== "follow" ? ` ${a.target}` : " Jef"} (${a.minutes_left} min left).`);
+  for (const a of listActions(db)) if (a.source !== "event") out.push(`${a.name} is ${a.kind.replace("_", " ")}${a.target_name ? ` ${a.target_name}` : a.target && a.kind !== "follow" ? ` ${a.target}` : ` ${playerName(db, a.for_player ?? 1)}`} (${a.minutes_left} min left).`);
   return out;
+}
+
+// ------------------------------------------------------------------ M8d: the players, and a fair share of leads
+
+/** A lead (an event meant for a player) is his only when it is this near him when planned (metres). */
+export const LEAD_NEAR_M = 250;
+/** The places the prompt names near the player the next lead is for. */
+const LEAD_PLACES = 6;
+
+/** The online players still without a lead this round (everyone again once each has had one). */
+export function leadCandidates(db: DB, s = directorState(db)): number[] {
+  const online = onlineIds();
+  const round = (s.leadRound ?? []).filter((id) => online.includes(id));
+  const left = online.filter((id) => !round.includes(id));
+  return left.length ? left : online;
+}
+
+/** A running or planned event that is a player's lead. */
+function leadOf(db: DB, id: number): EventRow | null {
+  return liveEvents(db).find((e) => (e as EventRow & { for_player?: number | null }).for_player === id) ?? null;
+}
+
+/** The player the next lead is for: still without one this round, known where he is, no lead running; then the lowest id. */
+export function nextLeadFor(db: DB, now = Date.now()): number {
+  const where = new Set(playersAt(now).map((p) => p.id));
+  const c = leadCandidates(db);
+  return [...c].sort((a, b) => Number(!where.has(a)) - Number(!where.has(b)) || Number(!!leadOf(db, a)) - Number(!!leadOf(db, b)) || a - b)[0] ?? 1;
+}
+
+/**
+ * A planned event becomes a player's lead (played together only): the candidate of this round nearest its place,
+ * within LEAD_NEAR_M, the one the prompt named first. None near: it is the town's, nobody's lead, and the round
+ * stays as it was. Returns the player, or null.
+ */
+export function assignLead(db: DB, ev: EventRow, prefer?: number, now = Date.now()): number | null {
+  if (onlineIds().length < 2) return null;
+  const s = directorState(db);
+  const cands = new Set(leadCandidates(db, s));
+  const near = playersAt(now)
+    .filter((p) => cands.has(p.id))
+    .map((p) => ({ id: p.id, d: Math.hypot(p.x - ev.x, p.z - ev.z) }))
+    .filter((p) => p.d <= LEAD_NEAR_M)
+    .sort((a, b) => Number(b.id === prefer) - Number(a.id === prefer) || a.d - b.d);
+  const who = near[0]?.id ?? null;
+  if (who === null) return null;
+  db.prepare("UPDATE town_event SET for_player = ? WHERE id = ?").run(who, ev.id);
+  const online = onlineIds();
+  let round = [...(s.leadRound ?? []).filter((id) => online.includes(id)), who];
+  if (online.every((id) => round.includes(id))) round = [];
+  save(db, { ...directorState(db), leadRound: round });
+  writeEvent(db, { kind: "director", verb: "lead", text: storeText(db, `The director meant "${ev.title}" for Jef to come upon.`, who), ref_type: "town_event", ref_id: ev.id, weight: 1 });
+  notify("events");
+  return who;
+}
+
+/**
+ * The PLAYERS block of the director's prompt (played together only; alone the prompt is as it was): one short line per
+ * player in the game (where he is, a job in hand or not, a lead or not), and whom the next event is for, with the
+ * places near him.
+ */
+export function playersBlock(db: DB, now = Date.now()): string {
+  const online = onlineIds();
+  if (online.length < 2) return "";
+  const at = new Map(playersAt(now).map((p) => [p.id, p]));
+  const places = eventPlaces(db);
+  const nearest = (x: number, z: number) => places.reduce<{ p: (typeof places)[number] | null; d: number }>((b, p) => { const d = Math.hypot(p.x - x, p.z - z); return d < b.d ? { p, d } : b; }, { p: null, d: Infinity }).p;
+  const s = directorState(db);
+  const round = new Set(s.leadRound ?? []);
+  const next = nextLeadFor(db, now);
+  const lines = online.map((id) => {
+    const p = at.get(id);
+    const where = p ? `near ${nearest(p.x, p.z)?.label ?? "the quays"}` : "somewhere in town";
+    const job = db.prepare("SELECT title FROM job WHERE status = 'taken' AND (taken_by = ? OR (taken_by IS NULL AND ? = 1)) LIMIT 1").get(id, id) as { title: string } | undefined;
+    const lead = leadOf(db, id);
+    const leadText = lead ? `a lead running: ${lead.title}` : round.has(id) ? "had a lead lately" : "no lead yet";
+    return `- ${playerName(db, id)}: ${where}; ${job ? `on a job (${job.title})` : "no job in hand"}; ${leadText}.`;
+  });
+  const p = at.get(next);
+  const close = p
+    ? places
+        .map((q) => ({ q, d: Math.hypot(q.x - p.x, q.z - p.z) }))
+        .filter((o) => o.d <= LEAD_NEAR_M)
+        .sort((a, b) => a.d - b.d)
+        .slice(0, LEAD_PLACES)
+        .map((o) => o.q.id)
+    : [];
+  const target = `THE NEXT EVENT IS FOR ${playerName(db, next)}: hold it where ${playerName(db, next)} can come upon it${close.length ? `, at one of the places near: ${close.join(", ")}` : ""}.`;
+  return `
+PLAYERS (newcomers in town, each playing on their own; the lines above name them the same way)
+${lines.join("\n")}
+${target}
+`;
 }
 
 export function directorPrompt(db: DB, invent = false): string {
@@ -195,7 +309,7 @@ ${eventSlice(db, { limit: 20, maxChars: 1500 }).join("\n") || "- quiet"}
 
 PLACES (ids)
 ${places}
-${PRIMITIVES_FOR_MODEL}
+${playersBlock(db)}${PRIMITIVES_FOR_MODEL}
 
 ${invent ? "Invent an event now: decision \"event\", made by you from the stages and the leads." : "Decide."}`;
 }
@@ -229,6 +343,8 @@ export async function think(db: DB, runner?: Runner, force = false, invent = fal
 
   let out: DirectorOut | null = null;
   let error: string | undefined;
+  // M8d: whom the next event is for (played together; the prompt names him)
+  const leadFor = onlineIds().length > 1 ? nextLeadFor(db) : undefined;
   if (!force && !roomForEvent(db)) {
     // no event could be planned now: no call spent
     return { source: "engine", decision: "nothing", why: "no room for an event now", planned: null };
@@ -255,6 +371,7 @@ export async function think(db: DB, runner?: Runner, force = false, invent = fal
     }
     const plan = planFromModel(out);
     const planned = planEvent(db, plan, { dev: invent });
+    if (planned.ok) assignLead(db, planned.event, leadFor);
     writeEvent(db, { kind: "director", verb: planned.ok ? "event" : "rejected", text: planned.ok ? `The director set up "${plan.title}": ${why}` : `The director's "${plan.title}" was refused: ${planned.why}`, weight: planned.ok ? 3 : 2 });
     return { source: "claude", decision: "event", why, planned };
   }
@@ -262,9 +379,11 @@ export async function think(db: DB, runner?: Runner, force = false, invent = fal
   // the engine's pick: now and then, in daylight (never for the invent button: that shows the model's miss)
   if (invent) return { source: "engine", decision: "nothing", why: error ?? "", planned: null, error };
   // M6: the engine keeps the fortune teller's promise itself when the model did not (now and then; surely on its last day)
-  const kept = await keepPromise(db, { runner });
+  let kept: string | null = null;
+  for (const id of onlineIds()) if (!kept) kept = await asPlayer(id, () => keepPromise(db, { runner })); // (M8d: each player's)
   if (kept) return { source: "engine", decision: "follow_up", why: `the cards' promise: ${kept}`, planned: null, error };
   const planned = enginePickNow(db);
+  if (planned?.ok) assignLead(db, planned.event, leadFor);
   return { source: "engine", decision: planned ? "event" : "nothing", why: error ?? "", planned, error };
 }
 
@@ -294,10 +413,24 @@ export function enginePickNow(db: DB, rng: () => number = Math.random, always = 
  * the thief (the police search). Once per robbery.
  */
 export function followUp(db: DB): string | null {
+  // M8d: every player's own robbery, the host's first (played alone: his only, as before)
+  for (const id of onlineIds()) {
+    const done = asPlayer(id, () => followUpFor(db, id));
+    if (done) return done;
+  }
+  return null;
+}
+
+/** The robbery (log id) the engine last searched for, for player `id`. */
+export function searchedFor(s: DirectorState, id: number): number {
+  return id === 1 ? s.searched : (s.searchedBy?.[String(id)] ?? 0);
+}
+
+function followUpFor(db: DB, id: number): string | null {
   const crime = crimeOpen(db);
   if (!crime) return null;
   const s = directorState(db);
-  if (s.searched === crime.logId) return null;
+  if (searchedFor(s, id) === crime.logId) return null;
   const c = clock(db);
   if (c.hour < 6 || c.hour >= 22) return null;
   const where = (db.prepare("SELECT x, z FROM world_event WHERE ref_type = 'log' AND ref_id = ? AND x IS NOT NULL").get(crime.logId) as { x: number; z: number } | undefined) ?? null;
@@ -319,10 +452,12 @@ export function followUp(db: DB): string | null {
     minutes: walkMinutes(d, 5),
     reason: "a robbery reported",
     data: { then: { kind: "look_for", target: crime.thief, minutes: LOOK_FOR_MIN, data: { purpose: "question", about: "the robbery" } } },
+    for_player: id,
   });
-  save(db, { ...directorState(db), searched: crime.logId });
+  const now = directorState(db);
+  save(db, id === 1 ? { ...now, searched: crime.logId } : { ...now, searchedBy: { ...(now.searchedBy ?? {}), [String(id)]: crime.logId } });
   const name = resident(db, agent)?.name ?? "an agent";
-  writeEvent(db, { kind: "director", verb: "police_search", text: `${name} of the police went to look into Jef's robbery.`, actor: agent, weight: 4, who: [agent] });
+  writeEvent(db, { kind: "director", verb: "police_search", text: storeText(db, `${name} of the police went to look into Jef's robbery.`, id), actor: agent, weight: 4, who: [agent] });
   return `police search by ${name}`;
 }
 

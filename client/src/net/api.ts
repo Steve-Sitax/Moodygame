@@ -182,7 +182,8 @@ export interface Night {
 
 /** M7 sleep (server/src/rest.ts): asleep now, how far. */
 export interface RestView {
-  place: "home" | "doss" | "bench";
+  /** (M8d: "cell": played together, a night in the police cell sat out at the world's pace) */
+  place: "home" | "doss" | "bench" | "cell";
   label: string;
   bench?: string;
   home?: string;
@@ -190,10 +191,12 @@ export interface RestView {
   slept_min: number;
   from: { hour: number; minute: number };
   now: { day: number; hour: number; minute: number; weekday: string };
+  /** M8d: the cell: where he is held (put there under the fade). */
+  at?: { x: number; z: number; yaw: number };
 }
 /** M7 sleep: how a sleep ended (rested: the hours chosen; up: a key; police: moved on; robbed; ended: the week or his body). */
 export interface RestEnd {
-  place: "home" | "doss" | "bench";
+  place: "home" | "doss" | "bench" | "cell";
   label: string;
   home?: string;
   bench?: string;
@@ -357,6 +360,8 @@ export interface PublicAction {
   /** M4b bearers: which of the four. */
   n: number;
   minutes_left: number;
+  /** M8d: the player it is about (who asked, the one followed or sought); null: the host, or an event's. */
+  for_player?: number | null;
 }
 export interface ConvoLine {
   who: string;

@@ -1,11 +1,13 @@
 import type { Hono } from "hono";
 import type { DB } from "../db.ts";
-import { forEachOnline } from "../player/current.ts";
-import type { Ending } from "../day.ts";
+import { asPlayer, forEachOnline, pid } from "../player/current.ts";
+import { ending, type Ending } from "../day.ts";
+import { playersAt } from "../director/actions.ts";
+import { restOf } from "../rest.ts";
 import { GameError } from "../game.ts";
 import { plainEnglish } from "../text.ts";
 import { clearDeeds, deedRow, deedRumours, deedWorld, leaveVelo, returnThing, takeThing } from "./deeds.ts";
-import { deedSettled, isPoliceTalk, policeEvents, policeAnswer, policeArrived, policeFled, policeOpen, policeTick, policeView, policeRespond, resetPolice, takeCellNight, cellNightView } from "./police.ts";
+import { deedSettled, isPoliceTalk, policeEvents, policeAnswer, policeArrived, policeFled, policeOpen, policeTick, policeView, policeRespond, policeWitness, resetPolice, takeCellNight, cellNightView } from "./police.ts";
 import { isResident } from "./store.ts";
 
 // The HTTP side of theft and the police (M3h). Mounted by index.ts before the
@@ -47,8 +49,15 @@ export function mountDeeds(app: Hono, deps: DeedDeps): void {
 
   app.post("/api/deed", async (c) => {
     const body = await c.req.json().catch(() => ({}));
-    const r = takeThing(db, body);
-    if (r.police && r.deed !== null) policeRespond(db, r.deed);
+    // M8d: the other players in the game who are up and about may see it (deeds.ts playerEyes)
+    const me = pid();
+    const others = playersAt().filter((o) => o.id !== me && !restOf(db, o.id) && !asPlayer(o.id, () => ending(db)));
+    const r = takeThing(db, body, Math.random, others);
+    if (r.police && r.deed !== null) {
+      policeRespond(db, r.deed);
+      // the police ask the players who saw it, each by his own agent (police.ts policeWitness)
+      for (const w of r.players_saw ?? []) asPlayer(w.id, () => policeWitness(db, r.deed!, me));
+    }
     push();
     return c.json({ ...r, ...payload() });
   });

@@ -8,7 +8,10 @@ import { gateState, isPaused, setPaused } from "../save/gate.ts";
 import { reportWhere, whereNow } from "../warmth.ts";
 import { TICK_EVERY_MS } from "../../../shared/clock.ts";
 import { appearanceCode, defaultFor } from "../../../shared/character.ts";
-import { decodePuppets, decodeState, encodeBatch, FLAG, MODES, MP_PROTOCOL, MSG_PUPPETS, puppetBatchOk, puppetKeep, puppetNums, SEND_MS, type MpState, type MpText, type RosterEntry } from "../../../shared/mpProtocol.ts";
+import { decodePuppets, decodeState, encodeBatch, figBatchOk, figSetSender, FLAG, MODES, MP_PROTOCOL, MSG_FIGS, MSG_PUPPETS, puppetBatchOk, puppetKeep, puppetNums, SEND_MS, type MpState, type MpText, type RosterEntry } from "../../../shared/mpProtocol.ts";
+import { jobPins } from "../town/walkup.ts";
+import { seekPins } from "../director/families.ts";
+import { handPins } from "../town/hire.ts";
 import { profileOf, saveProfile, storedProfile } from "../player/profile.ts";
 import { asPlayer, setOnlineIds, setPositionSource } from "../player/current.ts";
 import { ackRest, allAsleep, reportPos, restAcked, restOf, takeWoke, wakeRest } from "../rest.ts";
@@ -93,7 +96,27 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
   const world = new WorldPc();
   let lastWorld: string | null = null;
   const puppetsAt = new Map<number, number>();
-  const stStats = { puppetBatches: 0, puppetsIn: 0, worldChanges: 0, skipped: 0 };
+  const stStats = { puppetBatches: 0, puppetsIn: 0, worldChanges: 0, skipped: 0, figBatches: 0 };
+  // M8d: the townspeople called for a player's job or quest are his PC's to walk (town/walkup.ts jobPins): asked
+  // fresh for a claim (at most every 250 ms), sent to everyone when they change
+  let pins = new Map<string, number>();
+  let pinsAt = 0;
+  let pinsKey = "[]";
+  let pinTick = 0;
+  const pinsNow = (now = Date.now()): Map<string, number> => {
+    if (now - pinsAt >= 250) {
+      pinsAt = now;
+      try {
+        // (a visit or the police's word to a player, his hired hands and treat guests, his job's people: the job wins)
+        const on = onlineNow();
+        pins = new Map([...seekPins(db, on), ...handPins(db, on), ...jobPins(db, on)]);
+      } catch (e) {
+        console.warn("[mp] pins", e);
+      }
+    }
+    return pins;
+  };
+  const pinsMsg = (): MpText => ({ type: "pins", list: [...pinsNow()].sort((a, b) => (a[0] < b[0] ? -1 : 1)) });
 
   // ------------------------------------------------------------------ who asks, and what he may do
 
@@ -385,6 +408,7 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
         // M8b: who walks whom, who runs the world, and the world as it last was
         send(conn, { type: "owners", full: true, list: owners.list() });
         send(conn, { type: "worldpc", id: world.id });
+        send(conn, pinsMsg()); // (M8d: whose job each called townsperson is)
         if (lastWorld && world.id !== who.id) {
           conn.bytesOut += lastWorld.length;
           ws.send(lastWorld);
@@ -403,7 +427,8 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
         }
         if (m.type === "ping" && typeof m.c === "number") send(conn, { type: "pong", c: m.c, s: Date.now() });
         else if (m.type === "claim" && Array.isArray(m.ids)) {
-          const r = owners.claim(seat.id, m.ids, !!m.steal, (pid) => pid === HOST_ID);
+          const pinned = pinsNow(now);
+          const r = owners.claim(seat.id, m.ids, !!m.steal, (pid) => pid === HOST_ID, (id) => pinned.get(id) ?? null);
           if (r.changes.length) {
             puppetsAt.set(seat.id, puppetsAt.get(seat.id) ?? now); // (a fresh owner has a moment to send them)
             sendAll({ type: "owners", list: r.changes });
@@ -433,6 +458,20 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
       }
       const buf = data as Buffer;
       seat.bytesIn += buf.length;
+      // M8d: the figures of his job (the thief, the stranger, the foreman ...): passed on with his id written in
+      if (buf.length > 0 && buf[0] === MSG_FIGS) {
+        const v = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+        if (!figBatchOk(v)) return;
+        const out = new Uint8Array(buf); // (a copy: the sender's id is the server's word)
+        figSetSender(out, seat.id);
+        stStats.figBatches++;
+        for (const k of conns) {
+          if (k === conn || k.ws.readyState !== WebSocket.OPEN || lagging(k)) continue;
+          k.bytesOut += out.byteLength;
+          k.ws.send(out);
+        }
+        return;
+      }
       // M8b: a batch of the townspeople he walks: passed on to the others (only the ones he owns)
       if (buf.length > 0 && buf[0] === MSG_PUPPETS) {
         const v = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
@@ -555,6 +594,15 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
     }
     chooseWorld();
     feedMapPlayers();
+    // M8d: whose job each called townsperson is, when it changes (a look twice a second)
+    if (conns.size && ++pinTick % 10 === 0) {
+      const m = pinsMsg();
+      const key = JSON.stringify(m.type === "pins" ? m.list : []);
+      if (key !== pinsKey) {
+        pinsKey = key;
+        for (const k of conns) send(k, m);
+      }
+    }
     // gone for good after the grace: "Piet went home"
     for (const seat of [...seats.values()]) {
       if (seat.goneAt !== null && now - seat.goneAt > GRACE_MS) {

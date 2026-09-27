@@ -102,6 +102,8 @@ export interface StreetDeps {
   player(): { x: number; z: number };
   sendText(m: MpText): boolean;
   sendBinary(b: ArrayBuffer): boolean;
+  /** M8d: is he called for this player's own job or quest (game/walkup.ts heldForJobs)? Then this PC walks him. */
+  forJob?(id: string): boolean;
 }
 
 interface Drawn {
@@ -144,9 +146,28 @@ export class Street implements TownNet {
   }
 
   take(id: string): boolean {
-    if (!this.d.host()) return false;
+    // M8d: the man called for this player's own job: his PC walks him, from whoever did (the server agrees: pins)
+    if (this.d.forJob?.(id)) {
+      this.claim(id, true);
+      return true;
+    }
+    if (!this.d.host() || this.pinnedToOther(id)) return false;
     this.claim(id, true);
     return true;
+  }
+
+  // ---- M8d: the townspeople called for a player's job (the server's "pins"): his PC walks them, nobody takes them
+
+  private pins = new Map<string, number>();
+
+  onPins(list: Array<[id: string, player: number]>): void {
+    this.pins = new Map(list.filter((e) => Array.isArray(e) && typeof e[0] === "string" && typeof e[1] === "number"));
+  }
+
+  /** Called for another player's job (not to be taken from him, not by the host either). */
+  pinnedToOther(id: string): boolean {
+    const p = this.pins.get(id);
+    return p !== undefined && p !== this.d.me();
   }
 
   spawned(id: string): void {
@@ -351,6 +372,7 @@ export class Street implements TownNet {
       if (!s?.remote || !s.p || s.inTrip || s.aboard) continue;
       const o = this.owner.get(id) ?? 0;
       if (o === me || o === 0) continue;
+      if (this.pinnedToOther(id)) continue; // (M8d: walking up for another player's job)
       if (Math.hypot(s.p.x - pl.x, s.p.z - pl.z) > TAKE_R) continue;
       // (the research: a minimum hold after a handover, no ping-pong)
       const at = this.handedAt.get(id);

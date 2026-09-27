@@ -60,6 +60,10 @@ interface PoliceView {
   last: { visit: number; verdict: "let_off" | "warning" | "fine" | "arrest"; fine_c: number; paid_c: number; agent: string; text: string } | null;
   cell: boolean;
   post: { x: number; z: number; yaw: number; label: string };
+  /** M8d: what he saw of other players' thefts ("You saw Anna take the lantern."), each said once. */
+  seen?: Array<{ n: number; deed: number; text: string }>;
+  /** M8d played together: held in the cell now (the sleep screen shows it; the sheet comes at dawn). */
+  held?: boolean;
 }
 interface CellNight {
   summary: string[];
@@ -111,6 +115,8 @@ export class Deeds {
   private worldT = 0;
   private police: PoliceView | null = null;
   private lastVerdict = 0;
+  /** M8d: the last witness notice said (-1: none heard yet; the first poll after a load says none of the old ones). */
+  private lastSeen = -1;
   private talking: string | null = null;
   /** The agent's talk closed before he had his answer: where Jef was then. */
   private walkedOff: { agent: string; x: number; z: number; t: number } | null = null;
@@ -486,7 +492,15 @@ export class Deeds {
       this.lastVerdict = v.last.visit;
       if (!first) this.verdict(v.last);
     }
+    // M8d: another player's theft he saw: said once
+    if (Array.isArray(v.seen)) {
+      const top = v.seen.reduce((m, x) => Math.max(m, x.n), 0);
+      if (this.lastSeen >= 0) for (const x of v.seen) if (x.n > this.lastSeen) this.jobs.say(x.text);
+      this.lastSeen = Math.max(this.lastSeen, top);
+    }
     if (v.cell && !this.cell && !this.jobs.talk.isOpen) return void this.showCell();
+    // M8d played together: in the cell the night goes on at the world's pace (game/sleep.ts shows it)
+    if (v.held) return;
     const visit = v.visit;
     // "talking" with nobody here (a reload in the middle of it): he comes up again
     if (!visit || this.pursuers.has(visit.agent) || this.cell || this.walkedOff) return;
@@ -575,13 +589,16 @@ export class Deeds {
 
   /** Jef ran from the agent (or walked off in the middle of it). */
   private async fled(pu: Pursuer): Promise<void> {
+    let chase = true;
     try {
-      const r = await net<{ text: string }>("POST", "/api/police/fled");
+      const r = await net<{ text: string; chase?: boolean }>("POST", "/api/police/fled");
       this.jobs.say(r.text);
+      chase = r.chase !== false;
     } catch {
       // nobody was after him after all
     }
-    if (pu.p && this.crowd.alive(pu.p)) {
+    // (M8d: a witness who walks off is let go)
+    if (chase && pu.p && this.crowd.alive(pu.p)) {
       this.pursuers.set(pu.id, { ...pu, kind: "police_chase", t: 12, goT: 0 });
     } else this.release(pu.id);
   }
@@ -608,6 +625,8 @@ export class Deeds {
       this.verdict(v.last);
     }
     if (v.cell) await this.showCell();
+    // M8d played together: taken to the cell: the heartbeat now, so the cell's screen comes at once
+    else if (v.held) void this.jobs.day.tick();
   }
 
   private verdict(l: NonNullable<PoliceView["last"]>): void {

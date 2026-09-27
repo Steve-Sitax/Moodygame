@@ -7,6 +7,7 @@ import type { TradeId } from "./places.ts";
 import { resident, town } from "./store.ts";
 import { nowOf } from "./talk.ts";
 import { walkMap } from "./walkmap.ts";
+import { pid } from "../player/current.ts";
 
 // M7 walk-up (Steve, 2026-09-26: "when doing fetching jobs, a person always pops out of nowhere. Now it
 // is customs. Those people should always be around and walk up, or run if they think it is urgent ...
@@ -169,6 +170,8 @@ interface ComeData {
   why?: CallWhy;
   ref?: string;
   urgent?: boolean;
+  /** M8d: the player the call is for (older rows: from the job's holder, else the host). */
+  pid?: number;
 }
 const comeData = (a: ActionRow): ComeData => {
   try {
@@ -183,6 +186,36 @@ export function comings(db: DB): ActionRow[] {
   return activeActions(db).filter((a) => a.kind === ("come" as ActionRow["kind"]));
 }
 
+/**
+ * M8d: whose call a "come" row is: the player it was made for; an older row's by its job's holder ("job:12:thief"),
+ * else the host.
+ */
+export function comeHolder(db: DB, a: ActionRow): number {
+  const d = comeData(a);
+  if (typeof d.pid === "number" && Number.isInteger(d.pid) && d.pid > 0) return d.pid;
+  const job = /^job:(\d+):/.exec(d.ref ?? "")?.[1];
+  if (job) {
+    const r = db.prepare("SELECT taken_by FROM job WHERE id = ?").get(Number(job)) as { taken_by: number | null } | undefined;
+    if (r?.taken_by) return r.taken_by;
+  }
+  return 1;
+}
+
+/**
+ * M8d (plan 9, "Twists and job figures"): the townspeople walking up for a player's job or quest, and whose they
+ * are, for the players in the game (`online`). Only his PC walks them (mp/index.ts pins them to him); a call of a
+ * player who is gone pins nobody (the others' PCs walk the man on as a townsperson until he is back).
+ */
+export function jobPins(db: DB, online: readonly number[]): Map<string, number> {
+  const on = new Set(online);
+  const out = new Map<string, number>();
+  for (const a of comings(db)) {
+    const who = comeHolder(db, a);
+    if (on.has(who)) out.set(a.npc_id, who);
+  }
+  return out;
+}
+
 export function comingFor(db: DB, ref: string): ActionRow[] {
   return comings(db).filter((a) => comeData(a).ref === ref);
 }
@@ -191,7 +224,9 @@ export function comingFor(db: DB, ref: string): ActionRow[] {
 export function callResponder(db: DB, req: CallReq): CallResult {
   if (!CALL_ROLES.includes(req.role) || !CALL_WHYS.includes(req.why)) return { ok: false, wait: true, why: "no such role" };
   const ref = String(req.ref).slice(0, 60);
-  const had = comingFor(db, ref)[0];
+  // (M8d: a repeat of this player's own call; another player's call of the same ref is his)
+  const me = pid();
+  const had = comingFor(db, ref).find((a) => comeHolder(db, a) === me);
   if (had) {
     const r = resident(db, had.npc_id);
     return { ok: true, npc: had.npc_id, name: r?.name ?? had.npc_id, action: had.id, urgent: !!comeData(had).urgent, d: 0, again: true };
@@ -208,7 +243,7 @@ export function callResponder(db: DB, req: CallReq): CallResult {
     source: "engine",
     minutes: COME_MIN,
     reason: reasonFor(req.role, req.why),
-    data: { role: req.role, why: req.why, ref, urgent } as never,
+    data: { role: req.role, why: req.why, ref, urgent, pid: pid() } as never,
   });
   return { ok: true, npc: c.r.id, name: c.r.name, action: row.id, urgent, d: Math.round(c.d) };
 }
@@ -330,7 +365,9 @@ export function mayShadow(
   const st = rolledState(db);
   if (st.includes(ref)) return null;
   saveRolled(db, [...st, ref].slice(-40));
-  if (comings(db).filter((a) => comeData(a).why === "shadow").length >= SHADOW_AT_ONCE) return null;
+  // (M8d: at most one follower at a time for each player: another player's follower does not stop this one)
+  const me = pid();
+  if (comings(db).filter((a) => comeData(a).why === "shadow" && comeHolder(db, a) === me).length >= SHADOW_AT_ONCE) return null;
   const night = isDark(clock(db).hour);
   const role: CallRole = req.shady && night ? "customs" : "thief";
   const worth = req.shady || VALUABLE.has(req.goods);
@@ -360,7 +397,8 @@ function saveRolled(db: DB, rolled: string[]): void {
 export function shadowFacts(db: DB, actionId: number, jef: { moving: boolean; carrying: boolean }): ShadowFacts | null {
   const a = comings(db).find((x) => x.id === actionId);
   if (!a) return null;
-  const at = jefAt();
+  // (M8d: the man he follows is the one whose load it is, not the host)
+  const at = jefAt(Date.now(), comeHolder(db, a));
   const me = posOf(db, a.npc_id);
   if (!at || !me) return null;
   const others = peopleNear(at.x, at.z, QUIET_M).filter((p) => p.id !== a.npc_id).length;

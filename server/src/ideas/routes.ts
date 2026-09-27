@@ -2,6 +2,7 @@ import type { Hono } from "hono";
 import type { DB } from "../db.ts";
 import { DEV } from "../config.ts";
 import { boardExtras } from "../hooks/jobBoard.ts";
+import { everyoneEnded } from "../day.ts";
 import { talkHooks } from "../town/talk.ts";
 import { paperOf } from "../paper/newspaper.ts";
 import { flag, now, setFlag } from "./common.ts";
@@ -45,7 +46,8 @@ export function mountIdeas(app: Hono, deps: IdeasDeps): void {
   const boardUp = (day: number) => !!db.prepare("SELECT 1 FROM log WHERE verb = 'job_board' AND day = ?").get(day);
   const check = () => {
     const { day } = now(db);
-    if (running || !boardUp(day) || db.prepare("SELECT 1 FROM world_state WHERE key = 'ending'").get()) return;
+    // (M8d: the world's week is over, or every player in the game has his own end; one player's own end is not the world's)
+    if (running || !boardUp(day) || everyoneEnded(db)) return;
     // (M8c: the morning and the day's bills are the world's work, whoever's request set them off: the host's)
     if (flag(db, "ideas_morning") === day) {
       running = asPlayer(1, () => during())

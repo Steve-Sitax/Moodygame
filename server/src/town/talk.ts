@@ -4,6 +4,7 @@ import { playNow } from "../save/gate.ts";
 import type { DB } from "../db.ts";
 import { CALLS_PER_DAY, CALLS_RESERVE, RESIDENT_CALLS_PER_DAY, RESIDENT_CALLS_PER_MEETING } from "../config.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
+import { callsToday } from "../ai/budget.ts";
 import { DAY_NAMES, weather, WEATHER_TEXT, type Weather } from "../day.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { ALL_EMPLOYERS, SPOTS, SYSTEM, employerName, listJobs, type JobRow } from "../hooks/jobBoard.ts";
@@ -575,7 +576,7 @@ export function canCall(db: DB, sess: { calls: number }): boolean {
   if (sess.calls >= RESIDENT_CALLS_PER_MEETING) return false;
   const day = clockOf(db).day;
   const total = (db.prepare("SELECT COUNT(*) AS n FROM ai_call WHERE day = ?").get(day) as { n: number }).n;
-  const mine = (db.prepare("SELECT COUNT(*) AS n FROM ai_call WHERE day = ? AND hook LIKE 'resident%'").get(day) as { n: number }).n;
+  const mine = callsToday(db, day, "resident%"); // (M8d: played together, each player's own talk share)
   return mine < RESIDENT_CALLS_PER_DAY && total < CALLS_PER_DAY - CALLS_RESERVE;
 }
 

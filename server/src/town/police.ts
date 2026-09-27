@@ -6,15 +6,17 @@ import { GameError, log, player } from "../game.ts";
 import { MOODS, gateText, markFreeLine } from "../hooks/dialogue.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
 import { applyTrust, remember } from "../npcs.ts";
-import { pid } from "../player/current.ts";
+import { asPlayer, pid } from "../player/current.ts";
 import { pstate, setPstate } from "../player/multi.ts";
-import { storeText } from "../player/names.ts";
+import { nameOf, storeText } from "../player/names.ts";
+import { mpOn } from "../mp/settings.ts";
+import { cellHooks, cellRest, inCell } from "../rest.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { activityAt } from "./schedule.ts";
 import { resident, town } from "./store.ts";
 import { houseDoors } from "./walkmap.ts";
 import { canCall } from "./talk.ts";
-import { FOOD_NAME, THINGS, cartHooks, gameMinute, hasDeeds, npcName, openDeeds, stealables, veloHome, type DeedRow } from "./deeds.ts";
+import { FOOD_NAME, THINGS, cartHooks, gameMinute, hasDeeds, npcName, openDeeds, seenNotices, stealables, veloHome, type DeedRow } from "./deeds.ts";
 import { rowBoatHome, rowBoatStates, rowBoats } from "../rowing.ts";
 import { STORY_RULES, StorySchema, evidenceOf, judgeStory, statementWords, storyNote, supportedClaims, type Statement, type StoryClaim, type StoryJudgement, type StoryRating } from "./story.ts";
 
@@ -39,7 +41,8 @@ export const FINE_MAX_C = 150;
 
 /** M6: "let_off" only after a believable true story in Jef's own words (story.ts); no mark on the record. */
 export type Verdict = "let_off" | "warning" | "fine" | "arrest";
-export type Stance = "confess" | "deny" | "return" | "excuse" | "other";
+/** M8d: "tell" / "silent": a witness's answer (he tells what he saw of another player's theft, or says nothing). */
+export type Stance = "confess" | "deny" | "return" | "excuse" | "other" | "tell" | "silent";
 
 export interface PoliceRecord {
   warnings: number;
@@ -55,8 +58,11 @@ export const STATEMENTS_KEPT = 6;
 
 export interface Visit {
   id: number;
-  reason: "deed" | "talk";
+  /** M8d "witness": the agent comes to ask this player what he saw of another player's theft (`about`). */
+  reason: "deed" | "talk" | "witness";
   deeds: number[];
+  /** M8d: a witness visit: whose theft (the player), and which deed. */
+  about?: { player: number; deed: number };
   /** Game minute from which the agent sets out. */
   due: number;
   state: "due" | "coming" | "talking";
@@ -89,6 +95,8 @@ export interface CellNight {
   post: PolicePost;
   /** M7 night: the date turned while he was held (a new board is due). */
   turned?: boolean;
+  /** M8d played together: he sits the night out at the world's pace (rest.ts cellRest); the sheet comes when it is over. */
+  pending?: boolean;
 }
 
 interface PoliceState {
@@ -288,9 +296,35 @@ export function policeRespond(db: DB, deedId: number): void {
   if (!had) log(db, "police_called", String(deedId), "Someone went for the police about a theft.");
 }
 
-/** Which agent on duty goes: the one whose beat runs nearest the place. null: nobody on duty. */
+/**
+ * M8d: the agents out on another player's case now (on their way to him, or talking with him): one agent to a
+ * case, so two players' cases never share one constable. Every player's police state (player_state; the host's
+ * older world_state key until written).
+ */
+export function agentsOnCases(db: DB, except = pid()): Set<string> {
+  const out = new Set<string>();
+  const add = (json: string) => {
+    try {
+      const v = (JSON.parse(json) as Partial<PoliceState>).visit;
+      if (v?.agent && v.state !== "due") out.add(v.agent);
+    } catch {
+      /* a broken record: nobody on it */
+    }
+  };
+  const rows = db.prepare("SELECT player_id, value_json FROM player_state WHERE key = 'police'").all() as Array<{ player_id: number; value_json: string }>;
+  for (const r of rows) if (r.player_id !== except) add(r.value_json);
+  if (except !== 1 && !rows.some((r) => r.player_id === 1)) {
+    const w = db.prepare("SELECT value_json FROM world_state WHERE key = 'police'").get() as { value_json: string } | undefined;
+    if (w) add(w.value_json);
+  }
+  return out;
+}
+
+/** Which agent on duty goes: the one whose beat runs nearest the place (M8d: and not out on another player's case). null: nobody free. */
 export function policeDispatch(db: DB, place: { x: number; z: number }): string | null {
+  const busy = agentsOnCases(db);
   const best = policeOnDuty(db)
+    .filter((p) => !busy.has(p.id))
     .map((p) => ({ p, d: Math.min(...p.route.map(([x, z]) => Math.hypot(x - place.x, z - place.z))) }))
     .sort((a, b) => a.d - b.d)[0];
   return best?.p.id ?? null;
@@ -307,6 +341,8 @@ export function policeEvents(db: DB, sinceId = 0): Array<{ id: number; day: numb
 export function scheduleVisit(db: DB, deedId: number): void {
   const s = policeState(db);
   const now = gameMinute(db);
+  // (M8d: wanted himself, the question he was to be asked as a witness waits for another day)
+  if (s.visit?.reason === "witness") s.visit = null;
   if (s.visit) {
     if (!s.visit.deeds.includes(deedId)) s.visit.deeds.push(deedId);
     s.visit.reason = "deed";
@@ -321,6 +357,29 @@ export function deedSettled(db: DB, deedId: number, thing: string): void {
   if (THINGS[thing as keyof typeof THINGS]?.severity <= 2) s.visit.deeds = s.visit.deeds.filter((d) => d !== deedId);
   if (!s.visit.deeds.length && !s.visit.fled) s.visit = null;
   save(db, s);
+}
+
+/** M8d: game minutes after the thief's agent sets out that another agent comes to ask a witness. */
+export const WITNESS_DELAY_MIN = VISIT_DELAY_MIN + 10;
+
+/**
+ * M8d: this player (pid()) saw another player (`thief`) take something, and the police are on that case: an agent
+ * will come and ask him what he saw (town/deeds.ts takeThing found who saw it; deedRoutes.ts calls this as the
+ * witness). Not while the police want him himself, or he is in the cell. True when the visit is set.
+ */
+export function policeWitness(db: DB, deedId: number, thief: number): boolean {
+  if (thief === pid()) return false;
+  const s = policeState(db);
+  if (s.visit || s.cell || inCell()) return false;
+  s.visit = { id: s.nextId++, reason: "witness", deeds: [deedId], about: { player: thief, deed: deedId }, due: gameMinute(db) + WITNESS_DELAY_MIN, state: "due", agent: null, fled: 0, offered: {}, calls: 0 };
+  save(db, s);
+  return true;
+}
+
+/** Another player's name as this player sees it (a plain "Jef", the host, kept from this player's own edge). */
+function otherName(db: DB, id: number): string {
+  const n = nameOf(db, id);
+  return n === "Jef" ? "Je‍f" : n;
 }
 
 function policeOnDuty(db: DB): Array<{ id: string; route: Array<[number, number]> }> {
@@ -358,6 +417,11 @@ export function policeTick(db: DB): Visit | null {
       s.talkDay = day;
     }
   }
+  // (M8d: a witness is not asked about a theft the police have settled already)
+  if (s.visit?.reason === "witness" && s.visit.state !== "talking") {
+    const d = db.prepare("SELECT status FROM deed WHERE id = ?").get(s.visit.about?.deed ?? -1) as { status: string } | undefined;
+    if (!d || (d.status !== "open" && d.status !== "returned")) s.visit = null;
+  }
   const v = s.visit;
   if (v && v.state !== "talking") {
     // an agent whose shift is over hands it on
@@ -371,7 +435,7 @@ export function policeTick(db: DB): Visit | null {
       if (agent) {
         v.state = "coming";
         v.agent = agent;
-        log(db, "police_sent", agent, `${npcName(db, agent)} of the police set out to find Jef.`);
+        log(db, "police_sent", agent, `${npcName(db, agent)} of the police set out to find Jef${v.reason === "witness" ? ", to ask what he saw" : ""}.`);
       } else v.due = now + 30;
     }
   }
@@ -393,6 +457,10 @@ export function policeView(db: DB) {
     last: s.last,
     cell: !!s.cell,
     post: policePost(),
+    // M8d: what he saw of other players' thefts ("You saw Anna take the lantern."), newest last; the client says each once
+    seen: seenNotices(db),
+    // M8d played together: held in the cell now (the night goes at the world's pace; the sheet comes at dawn)
+    held: inCell(),
   };
 }
 
@@ -412,11 +480,18 @@ export function isPoliceTalk(db: DB, id: string): boolean {
 }
 
 /** Jef ran from the agent. It makes things worse. */
-export function policeFled(db: DB): { text: string } {
+export function policeFled(db: DB): { text: string; chase?: boolean } {
   const s = policeState(db);
   const v = s.visit;
   if (!v || !v.agent || v.state === "due") throw new GameError("nobody is after you", 409);
   const agent = v.agent;
+  // M8d: a witness who walks off is no criminal: the agent lets him go, and remembers it
+  if (v.reason === "witness") {
+    s.visit = null;
+    save(db, s);
+    remember(db, agent, "I wanted a word with Jef about a theft he saw, and he walked off.", 3);
+    return { text: `Behind you ${resident(db, agent)?.first ?? "the agent"} calls: "Only a question! Suit yourself."`, chase: false };
+  }
   v.fled++;
   s.record.fled++;
   v.state = "due";
@@ -482,6 +557,11 @@ function describeDeed(db: DB, d: DeedRow): string {
   return what.trim();
 }
 
+/** A thief's case: from a deed, or from the town's talk (a witness visit never comes to a verdict). */
+function caseOf(v: Visit): "deed" | "talk" {
+  return v.reason === "talk" ? "talk" : "deed";
+}
+
 function visitDeeds(db: DB, v: Visit): DeedRow[] {
   if (!hasDeeds(db)) return [];
   return v.deeds.map((id) => db.prepare("SELECT * FROM deed WHERE id = ?").get(id) as DeedRow | undefined).filter((d): d is DeedRow => !!d);
@@ -524,6 +604,20 @@ export function policeOpen(db: DB, id: string): PublicLine {
   const deeds = visitDeeds(db, v);
   const d = deeds[deeds.length - 1];
   const who = r ? `${r.name}, police` : "Police";
+  // M8d: a witness: what did he see of another player's theft?
+  if (v.reason === "witness") {
+    const thief = v.about ? otherName(db, v.about.player) : "a man";
+    const offered: Record<string, Stance> = { [`I saw ${thief} take it.`]: "tell", "I saw nothing.": "silent" };
+    v.offered = offered;
+    save(db, s);
+    return {
+      npc_line: `${who}. A word, if you please. You were near when ${thief} took ${d ? describeDeed(db, d) : "something that was not his"}. What did you see?`,
+      mood: "neutral",
+      choices: Object.keys(offered),
+      end: false,
+      gated: null,
+    };
+  }
   let ask: string;
   if (v.fled) ask = `You ran from me. That was foolish. Now: ${d ? describeDeed(db, d) : "what you took"}. Well?`;
   else if (v.reason === "talk") ask = "Half the quay is talking about you. Things go missing where you walk. Well?";
@@ -549,6 +643,7 @@ export function policeOpen(db: DB, id: string): PublicLine {
 /** Jef answers: a choice, or his own words (gated and fenced). Then the engine decides. */
 export async function policeAnswer(db: DB, id: string, kind: "choice" | "free", raw: string, runner?: Runner): Promise<PublicLine & { verdict?: LastVerdict; night?: CellNight }> {
   const { v, s } = need(db, id);
+  if (v.reason === "witness") return witnessAnswer(db, id, kind, raw);
   // one answer at a time: while the model writes the reply to the first, a second is refused
   if (v.answering && Date.now() - v.answering < ANSWERING_MS) throw new GameError("he is still speaking", 409);
   if (v.state !== "talking") {
@@ -582,6 +677,60 @@ export async function policeAnswer(db: DB, id: string, kind: "choice" | "free", 
     return storyAndReply(db, id, said, runner);
   }
   return verdictAndReply(db, id, stance, said, free, runner);
+}
+
+/** M8d: a witness's own words: "yes, I saw him" tells; anything else says nothing. Pure. */
+export function witnessStance(text: string): Stance {
+  const t = text.toLowerCase();
+  if (/\b(nothing|no idea|didn'?t see|did not see|never saw|saw no|not a thing|can'?t say|don'?t know)\b/.test(t)) return "silent";
+  if (/\b(yes|i saw|saw (him|her|it|them)|took it|he did|she did|it was (him|her))\b/.test(t)) return "tell";
+  return "silent";
+}
+
+/**
+ * M8d: the witness answers (a choice, or his own words through the gate). No model call: the engine's words. He
+ * tells: the deed has one witness more (the thief's case is the stronger for it, police.ts decide), the agent
+ * remembers who told him, and thinks the better of him. He says nothing: the agent notes it, and that is all.
+ */
+function witnessAnswer(db: DB, id: string, kind: "choice" | "free", raw: string): PublicLine {
+  const s = policeState(db);
+  const v = s.visit!;
+  let stance: Stance;
+  if (kind === "choice" && Object.hasOwn(v.offered, raw.slice(0, 120))) stance = v.offered[raw.slice(0, 120)];
+  else {
+    const g0 = gateText(raw);
+    const g = g0.ok && POLICE_BLOCK.some((re) => re.test(g0.text)) ? { ok: false as const, reason: "blocked" } : g0;
+    if (!g.ok) {
+      if (g.reason === "too fast" || g.reason === "empty" || g.reason === "too long") return { npc_line: "", mood: "neutral", choices: [], end: false, gated: g.reason };
+      markFreeLine();
+      return { npc_line: "Have you been at the jenever? A plain answer, if you please: what did you see?", mood: "suspicious", choices: Object.keys(v.offered), end: false, gated: "blocked" };
+    }
+    markFreeLine();
+    stance = witnessStance(g.text);
+  }
+  const d = visitDeeds(db, v)[0];
+  const thief = v.about?.player ?? null;
+  const what = d ? describeDeed(db, d) : "something that was not his";
+  if (stance === "tell" && d && thief !== null) {
+    const w = JSON.parse(d.witnesses || "[]") as string[];
+    const me = `player:${pid()}`;
+    if (!w.includes(me)) db.prepare("UPDATE deed SET witnesses = ?, seen = 1 WHERE id = ?").run(JSON.stringify([...w, me]), d.id);
+    // the agent's memory is of the thief (about him, with his name); the witness's standing with him goes up
+    const told = otherName(db, pid());
+    asPlayer(thief, () => remember(db, id, `${told} told me he saw Jef take ${what}.`, 6, "heard"));
+    applyTrust(db, id, 1, 0);
+    log(db, "told_police", id, `Jef told ${npcName(db, id)} of the police what he saw: ${otherName(db, thief)} took ${what}.`);
+  } else {
+    remember(db, id, `I asked Jef about a theft he was near, and he said he saw nothing.`, 3);
+    log(db, "told_police", id, `Jef told ${npcName(db, id)} of the police he saw nothing.`);
+  }
+  s.visit = null;
+  save(db, s);
+  const line =
+    stance === "tell"
+      ? "Good. That is what I needed to hear. You did right to tell me. Good day."
+      : "Nothing, is it? Hm. If it comes back to you, you know where the post is. Good day.";
+  return { npc_line: line, mood: stance === "tell" ? "neutral" : "suspicious", choices: ["Good day, sir."], end: true, gated: null };
 }
 
 const DISTRICT_LABEL: Record<string, string> = {
@@ -625,9 +774,9 @@ async function storyAndReply(db: DB, id: string, said: string, runner?: Runner):
   const p = player(db);
   const needs = db.prepare("SELECT food FROM player WHERE id = ?").get(pid()) as { food: number };
   const facts = deeds.map(factsOf);
-  const guess = decide({ deeds: facts, record: s.record, fledNow: v.fled, stance: stanceOf(said), money_c: p.money_c, reason: v.reason });
+  const guess = decide({ deeds: facts, record: s.record, fledNow: v.fled, stance: stanceOf(said), money_c: p.money_c, reason: caseOf(v) });
   const held = new Set(stillHeld(db, deeds).map((d) => d.id));
-  const ev = deeds.map((d) => evidenceOf(db, d, v.reason, held));
+  const ev = deeds.map((d) => evidenceOf(db, d, caseOf(v), held));
   const before = s.said ?? [];
   const r = resident(db, id);
 
@@ -684,7 +833,7 @@ Rate his story and write your four lines.`;
   const strong = facts.some((d) => d.owner_saw || d.witnesses >= 2);
   const s1 = policeState(db);
   const j: StoryJudgement = judgeStory(rating, ev, { food: needs.food, money_c: p.money_c }, before, v.deeds, s1.record.lies ?? 0, stance === "deny" && strong);
-  const dec = decide({ deeds: facts, record: s1.record, fledNow: v.fled, stance, money_c: p.money_c, reason: v.reason, story: { points: j.points, trueStory: j.trueStory } });
+  const dec = decide({ deeds: facts, record: s1.record, fledNow: v.fled, stance, money_c: p.money_c, reason: caseOf(v), story: { points: j.points, trueStory: j.trueStory } });
   const paid = dec.verdict === "fine" || dec.verdict === "arrest" ? Math.min(dec.fine_c, p.money_c) : 0;
   const pick = { let_off: rating.line_let_off, warning: rating.line_warning, fine: rating.line_fine, arrest: rating.line_arrest }[dec.verdict];
   let text = fallbackLine(dec.verdict, dec.fine_c, paid);
@@ -719,7 +868,7 @@ async function verdictAndReply(db: DB, id: string, stance: Stance, said: string,
   const v = s.visit!;
   const deeds = visitDeeds(db, v);
   const p = player(db);
-  const dec = decide({ deeds: deeds.map(factsOf), record: s.record, fledNow: v.fled, stance, money_c: p.money_c, reason: v.reason });
+  const dec = decide({ deeds: deeds.map(factsOf), record: s.record, fledNow: v.fled, stance, money_c: p.money_c, reason: caseOf(v) });
   const r = resident(db, id);
 
   // the model writes the words (if the budget allows), the engine has already decided
@@ -878,6 +1027,8 @@ function applyVerdict(db: DB, agent: string, visit: number, dec: Decision, stanc
   save(db, s);
   if (dec.verdict !== "arrest") return { last };
   const night = cellNight(db, paid);
+  // (M8d played together: he sits the night out at the world's pace; the sheet comes when the door opens: cellHooks)
+  if (night.pending) return { last, night };
   const s2 = policeState(db);
   s2.cell = night;
   save(db, s2);
@@ -914,6 +1065,13 @@ export function cellNight(db: DB, paid: number): CellNight {
   // his room, a note; QA 2026-09-24)
   const now = c.hour * 60 + c.minute;
   const until = (now < DAWN * 60 ? DAWN * 60 : DAWN * 60 + 24 * 60) - now;
+  if (mpOn()) {
+    // M8d played together: the clock is everyone's; he sits it out at the world's pace, like a sleep (rest.ts
+    // cellRest), while the others play on; the sheet of the night comes when the door is unlocked
+    const post = policePost();
+    cellRest(db, pid(), until, { x: post.x, z: post.z, yaw: post.yaw }, summary);
+    return { summary, day: c.day, post, pending: true };
+  }
   const passed = passTime(db, until);
   summary.push(...passed.lines);
   const post = policePost();
@@ -922,6 +1080,13 @@ export function cellNight(db: DB, paid: number): CellNight {
   summary.push("At dawn the door is unlocked. \"Out. And keep your hands to yourself.\"");
   return { summary, day: w.day, post, turned: passed.turned };
 }
+
+/** M8d played together: the door is unlocked (rest.ts endCell, as the player): the sheet of the night, kept till he is out. */
+cellHooks.done = (db, lines, ended) => {
+  const s = policeState(db);
+  s.cell = { summary: lines, day: clock(db).day, post: policePost(), ...(ended ? { ended } : {}) };
+  save(db, s);
+};
 
 /** The night in the cell, for the sheet (kept until the client says Jef is out: a reload shows it again). */
 export function cellNightView(db: DB): CellNight | null {

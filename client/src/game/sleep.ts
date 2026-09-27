@@ -200,7 +200,8 @@ export class Sleep {
     this.state = "lying";
     this.place = place;
     this.player.frozen = true;
-    const ask: RestAsk = { place: place.kind, hours, pos: { x: this.player.x, z: this.player.z, y: this.player.y } };
+    // (the cell is never chosen: it is the police's, game/deeds.ts)
+    const ask: RestAsk = { place: place.kind === "cell" ? "bench" : place.kind, hours, pos: { x: this.player.x, z: this.player.z, y: this.player.y } };
     if (place.bench) ask.bench = place.bench.id;
     try {
       // where he stands now (after a ride, a jump of the dev menu): the server holds the sleep's place against it
@@ -228,6 +229,8 @@ export class Sleep {
     this.state = "asleep";
     this.place = { kind: v.place, label: v.label };
     this.player.frozen = true;
+    // M8d: the cell at the police post: he is taken there under the fade (the others see him at the post)
+    if (v.at) this.player.place(v.at.x, v.at.z, v.at.yaw);
     this.show(v);
     this.fade.classList.add("on");
     void this.loop();
@@ -235,9 +238,11 @@ export class Sleep {
 
   private show(v: RestView | undefined): void {
     if (!v) return;
-    const where = v.place === "bench" ? "On the bench" : v.place === "doss" ? "In the doss house" : "In your own bed";
+    const where = v.place === "cell" ? "In the cell at the police post" : v.place === "bench" ? "On the bench" : v.place === "doss" ? "In the doss house" : "In your own bed";
+    // M8d: the cell's door opens at dawn, not at a key; the town goes on outside
+    const small = v.place === "cell" ? "the door is unlocked at dawn; the town goes on outside" : "any key: wake up";
     const el = this.fade.querySelector(".line")!;
-    el.innerHTML = `${where} &middot; ${hhmm(v.now.hour, v.now.minute)} &middot; ${span(v.slept_min)} of ${span(v.planned_min)}<small>any key: wake up</small>`;
+    el.innerHTML = `${where} &middot; ${hhmm(v.now.hour, v.now.minute)} &middot; ${span(v.slept_min)} of ${span(v.planned_min)}<small>${small}</small>`;
   }
 
   private async loop(): Promise<void> {
@@ -278,7 +283,8 @@ export class Sleep {
       this.state = "up";
       this.player.frozen = false;
     }, 900);
-    if (woke && !woke.ended) this.host.toast(woke.lines.join(" "));
+    // (M8d: out of the cell: the police's sheet of the night says it, game/deeds.ts)
+    if (woke && !woke.ended && place?.kind !== "cell") this.host.toast(woke.lines.join(" "));
   }
 
   private onKey(e: KeyboardEvent): void {
@@ -297,6 +303,8 @@ export class Sleep {
     if (e.code === "Escape" || e.code === "KeyP") return;
     e.stopPropagation();
     if (e.repeat || /^(Shift|Control|Alt|Meta)/.test(e.code)) return;
+    // M8d: no key opens the cell
+    if (this.place?.kind === "cell") return;
     void this.wake();
   }
 

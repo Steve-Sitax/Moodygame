@@ -56,7 +56,14 @@ export class Owners {
    * A player asks for these. `changes` go to everyone; `denied` (who has them now) only to him, so his PC
    * shows them from the owner's batches instead of walking them itself.
    */
-  claim(pid: number, ids: string[], steal: boolean, isHost: (pid: number) => boolean): { changes: OwnerRow[]; denied: OwnerRow[] } {
+  claim(
+    pid: number,
+    ids: string[],
+    steal: boolean,
+    isHost: (pid: number) => boolean,
+    /** M8d: the player a townsperson is called for (a job's or a quest's "come"), or null: only his PC walks him. */
+    pinOf: (id: string) => number | null = () => null,
+  ): { changes: OwnerRow[]; denied: OwnerRow[] } {
     const changes: OwnerRow[] = [];
     const denied: OwnerRow[] = [];
     for (const id of ids.slice(0, 200)) {
@@ -65,7 +72,11 @@ export class Owners {
       if (num === null) continue;
       const cur = this.owner.get(num) ?? 0;
       if (cur === pid) continue;
-      if (cur === 0 || (steal && isHost(pid) && !isHost(cur))) {
+      const pin = pinOf(id);
+      // (called for his job: his, from whoever walks him; called for another's job and walked by him: nobody takes
+      // him, not the host either)
+      const take = pin === pid || (!(pin !== null && cur === pin) && (cur === 0 || (steal && isHost(pid) && !isHost(cur))));
+      if (take) {
         this.owner.set(num, pid);
         changes.push([num, id, pid]);
       } else denied.push([num, id, cur]);

@@ -4,11 +4,11 @@ import { callClaude, type Runner } from "../ai/claude.ts";
 import { CALLS_PER_DAY, CALLS_RESERVE, NIGHT_BOARD_CALLS_PER_DAY } from "../config.ts";
 import { clock, WEATHER_TEXT } from "../day.ts";
 import { GameError, log, settleExtras, takeChecks, type Settlement } from "../game.ts";
-import { ALL_EMPLOYERS, GOODS, maxTier, PLAYABLE, SPOT_IDS, SPOTS, SYSTEM, TIER_PAY, TWISTS, employerName, fitCarry, taskFor, type JobRow, type Task } from "../hooks/jobBoard.ts";
+import { ALL_EMPLOYERS, BOARD_PLAYERS_MAX, GOODS, maxTier, PLAYABLE, SPOT_IDS, SPOTS, SYSTEM, TIER_PAY, TWISTS, employerName, fitCarry, taskFor, type JobRow, type Task } from "../hooks/jobBoard.ts";
 import { carryBand, HAND_MAX } from "../hooks/loads.ts";
 import { gameMin } from "../../../shared/clock.ts";
 import { remember } from "../npcs.ts";
-import { asPlayer } from "../player/current.ts";
+import { asPlayer, onlineIds } from "../player/current.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { NIGHT_GIVERS } from "../town/places.ts";
 import { gameMinute } from "../town/deeds.ts";
@@ -36,27 +36,31 @@ export const NIGHT_PAY_MIN_C = 120;
 export const WATCH_CATCH_CHANCE = 0.15;
 export const RIVAL_CHANCE = 0.12;
 
-export const NightBoardSchema = z.object({
-  jobs: z
-    .array(
-      z.object({
-        title: z.string().min(3).max(70),
-        giver: z.enum(NIGHT_IDS),
-        task_type: z.enum(["carry", "watch", "deliver"]),
-        goods: z.enum(GOODS),
-        from: z.enum(SPOT_IDS as [(typeof SPOT_IDS)[number], ...(typeof SPOT_IDS)[number][]]),
-        to: z.enum(SPOT_IDS as [(typeof SPOT_IDS)[number], ...(typeof SPOT_IDS)[number][]]),
-        twist: z.enum(TWISTS),
-        recipient: z.string().max(60),
-        pay_c: z.number().int(),
-        pitch: z.string().min(10).max(300),
-        // M7 short jobs: carry only, by hand: 1 or 2 things (the engine clamps; no cart work at night)
-        items: z.number().int().optional(),
-      }),
-    )
-    .min(2)
-    .max(4),
+const NightJobSchema = z.object({
+  title: z.string().min(3).max(70),
+  giver: z.enum(NIGHT_IDS),
+  task_type: z.enum(["carry", "watch", "deliver"]),
+  goods: z.enum(GOODS),
+  from: z.enum(SPOT_IDS as [(typeof SPOT_IDS)[number], ...(typeof SPOT_IDS)[number][]]),
+  to: z.enum(SPOT_IDS as [(typeof SPOT_IDS)[number], ...(typeof SPOT_IDS)[number][]]),
+  twist: z.enum(TWISTS),
+  recipient: z.string().max(60),
+  pay_c: z.number().int(),
+  pitch: z.string().min(10).max(300),
+  // M7 short jobs: carry only, by hand: 1 or 2 things (the engine clamps; no cart work at night)
+  items: z.number().int().optional(),
 });
+
+/** M8d: the night's work by the players in the game: 2 to 4 jobs alone, two more for each other player (as the day board). */
+export function nightSize(players: number): { min: number; max: number } {
+  const n = Math.max(1, Math.min(BOARD_PLAYERS_MAX, Math.floor(Number.isFinite(players) ? players : 1)));
+  return { min: 2 + 2 * (n - 1), max: 4 + 2 * (n - 1) };
+}
+/** M8d: the night board's schema for this many players (2 to 4 jobs alone, as ever). */
+export function nightSchemaFor(players: number) {
+  return z.object({ jobs: z.array(NightJobSchema).min(2).max(nightSize(players).max) });
+}
+export const NightBoardSchema = nightSchemaFor(1);
 export type NightBoard = z.infer<typeof NightBoardSchema>;
 type NightJob = NightBoard["jobs"][number];
 
@@ -152,7 +156,8 @@ export function nightBoardDue(db: DB): boolean {
   return state(db).night !== nightOf(c.day, c.hour);
 }
 
-export function nightPrompt(db: DB): string {
+export function nightPrompt(db: DB, players = 1): string {
+  const size = nightSize(players);
   const c = clock(db);
   const tier = maxTier(db);
   const [lo, hi] = nightBand(tier);
@@ -181,7 +186,7 @@ KINDS OF WORK
 - goods: one of ${GOODS.join(", ")}.
 
 RULES
-- 2 to 4 jobs, from at least two different men. Each job uses only its man's own places.
+- ${size.min} to ${size.max} jobs, from at least two different men. Each job uses only its man's own places.
 - pay_c between ${lo} and ${hi}: night work pays better than day work, because it is riskier.
 - pitch: 1 or 2 short sentences in the man's own voice; shady, never spelled out; hint at the risk (the watch, rivals, the water police).
   No weapons, nobody hurt: the game has no combat.
@@ -235,8 +240,11 @@ export async function writeNightBoard(db: DB, runner?: Runner, opts: { force?: b
   let jobs: NightJob[] = [];
   let source: "claude" | "fallback" = "fallback";
   let error: string | undefined;
+  // M8d: two more for each other player in the game (nightSize); alone as ever
+  const players = onlineIds().length;
+  const most = nightSize(players).max;
   if (opts.force || canCallNightBoard(db)) {
-    const res = await callClaude(db, { hook: "night_board", system: `${SYSTEM}\n${LANGUAGE_RULE}`, prompt: nightPrompt(db), schema: NightBoardSchema }, runner);
+    const res = await callClaude(db, { hook: "night_board", system: `${SYSTEM}\n${LANGUAGE_RULE}`, prompt: nightPrompt(db, players), schema: nightSchemaFor(players) }, runner);
     if (res.ok && res.data) {
       jobs = clampNight(res.data, tier);
       source = "claude";
@@ -245,7 +253,7 @@ export async function writeNightBoard(db: DB, runner?: Runner, opts: { force?: b
   // at least two jobs from two givers: the hand-written ones fill in
   if (jobs.length < 2 || new Set(jobs.map((j) => j.giver)).size < 2) {
     const have = new Set(jobs.map((j) => j.giver));
-    for (const f of clampNight(FALLBACK_NIGHT, tier)) if (!have.has(f.giver) && jobs.length < 4) jobs.push(f);
+    for (const f of clampNight(FALLBACK_NIGHT, tier)) if (!have.has(f.giver) && jobs.length < most) jobs.push(f);
     if (source === "claude") error = "the model's night was too thin; hand-written work filled it";
   }
   // the clock may have moved while the model wrote: the night is still the same one?
