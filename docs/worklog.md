@@ -7,6 +7,7 @@ Git history has the detail of each commit.
 
 ## Waiting for Steve
 
+- Plaster in raking light now shows the ripple of its height map (a little wavy). Keep, or make plaster fainter?
 - Day fog, rain and storm: the skyline is still a little lighter than the cloud deck (18-35% at 13:00). A one-line sky.ts change would use the night rule by day too, at the cost of flatter fog-day skies. Steve's call.
 - Going public: the audit says safe. Steve flips the repo to public himself. Optional: an AGPL section 7 permission for the proprietary Claude Agent SDK (draft in `docs/public-release-check.md`). The commit email steve@sitax.be becomes public with the history.
 - The clockmaker's pocket watches and the junk-stall clocks: live hands too? (Steve did not pick it: no for now.)
@@ -35,7 +36,6 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 
 | Work | Scope and files | Started |
 |---|---|---|
-| Relief that lights, on every other texture | ground done (d38dcd1); now walls, landmark shells, props, rooms: relief always lights the normal; measured per surface | 2026-09-27 |
 | Multiplayer M8b: one street for all | the same townspeople (owner per 64 m cell, remote puppets, handover), omnibus, river traffic, bridges, lock, cranes and drays (the world PC), platforms in their frame, shared doors; branch `m8b` in the worktree `D:\Code\MoodyGame-m8b`, merged when done | 2026-09-27 |
 | Codex: low-poly props and tight collisions | SAFE BATCH MERGED + PUSHED `abb6a21` (already live through `9aa9cd4`; reconciled main `98bdebe`): collision core, tree trunks and static stop benches; tree/vegetation design, matching bark bump/wet map. Seven collision tests, clean build, Chrome contact + dry/rain, paths/shaders empty. Test Chrome and isolated 5469/9069 stack cleaned up. HOLD barrels/crates/sacks and other prepared prop-loader changes until Props in walls/Picture round finishes; defer other active assets per Steve. Queue/scope and validation: `docs/milestones/M7-small-assets.md`; original cargo evidence `M7-tight-props.md`. Extra router check: 19 passed, two timeouts (first Codex stub and process-kill test); report to Flaky talk-down/AI owner, no edits to their files. | 2026-09-26 |
 
@@ -43,6 +43,7 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 
 | Commit | What |
 |---|---|
+| 9caabb9 | Relief lights every surface, at any resolution (bump strength follows the render height) |
 | d38dcd1 | Cobbles read as stones: relief lights the ground in every light; puddle splash matches the drawn puddle |
 | 49ba07b | Window light in puddles: a soft band, not bright blocks; softer window bars |
 | d2c763c | Townspeople no longer walk in place against walls; `stuck()` check |
