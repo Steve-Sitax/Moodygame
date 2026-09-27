@@ -531,6 +531,9 @@ export const api = {
   devSet: (v: Partial<Record<"day" | "hour" | "minute" | "food" | "warmth" | "health" | "sleep" | "money_c", number>>) =>
     call<JobsPayload>("POST", "/api/dev/set", v),
   town: () => call<TownData>("GET", "/api/town", undefined, 15_000),
+  /** The trade plan (docs/trade-plan.md part A): the ways on foot of the town's day plans, and more by key. */
+  ways: () => call<{ ways: Record<string, Pt[]> }>("GET", "/api/town/ways", undefined, 30_000),
+  waysByKey: (keys: string[]) => call<{ ways: Record<string, Pt[] | null> }>("POST", "/api/town/ways", { keys }, 15_000),
   pick: (id: string) => call<JobsPayload & { took_c: number; felt: boolean; text: string }>("POST", `/api/resident/${id}/pick`),
   catchThief: (id: string) => call<JobsPayload & { back_c: number; text: string }>("POST", `/api/resident/${id}/catch`),
   done: (id: number, report: Report) =>

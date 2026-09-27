@@ -1405,6 +1405,11 @@ if (import.meta.env.DEV) {
     },
     /** M7 walk-up (dev/popcheck.ts): every job or quest figure that became visible within 20 m of Jef without walking in (`pops` must be empty); `true` resets. */
     popcheck: (reset = false) => popWatch.report(reset),
+    /**
+     * The trade plan, part A (game/town.ts findCheck): townspeople out in the street within `near` m of Jef (40)
+     * who have not been drawn for over 3 s. Must list nothing (the M8b ones another PC walks are left out).
+     */
+    findcheck: (near = 40) => town.findCheck(near),
     /** The stuck check (dev/stuckcheck.ts): runs the game `seconds` and lists whoever plays a walk but stays on the spot or goes to and fro (must list nothing). */
     stuck: (opts: { seconds?: number; near?: number } = {}) =>
       stuckCheck({ crowd, town, world, player, narrow: rampartStairAt, step: (s) => (window as unknown as { __scheldemist: { step(s: number): void } }).__scheldemist.step(s) }, opts),

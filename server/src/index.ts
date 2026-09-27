@@ -1,4 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
+import { planWays, warmWays, waysByKey } from "./town/ways.ts";
 import { dirname, join } from "node:path";
 import { serve } from "@hono/node-server";
 import { Hono, type MiddlewareHandler } from "hono";
@@ -526,6 +527,15 @@ app.get("/api/town", (c) => {
   });
 });
 
+// the trade plan (docs/trade-plan.md part A): the ways on foot of every day plan, so a PC walks the unseen along
+// streets (town/whereabouts.ts) and agrees with the town map; a PC asks for a way the plan did not have by key
+app.get("/api/town/ways", (c) => c.json({ ways: planWays(town(db).town) }));
+app.post("/api/town/ways", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { keys?: unknown };
+  const keys = Array.isArray(body.keys) ? body.keys.filter((k): k is string => typeof k === "string" && k.length < 40) : [];
+  return c.json({ ways: waysByKey(keys) });
+});
+
 app.post("/api/resident/:id/pick", (c) => {
   const r = pickPocket(db, c.req.param("id"));
   broadcast({ type: "jobs", ...jobsPayload() });
@@ -649,6 +659,8 @@ app.onError((err, c) => {
 
 const server = serve({ fetch: app.fetch, hostname: HOST, port: PORT }, (info) => {
   console.log(`[server] http://${HOST}:${info.port}  db: ${DB_FILE}`);
+  // the trade plan: find the day plans' ways a person at a time between other work (a few seconds in all)
+  warmWays(() => town(db).town);
 });
 
 // push channel: the game never waits on a call, results arrive here
