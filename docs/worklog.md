@@ -54,6 +54,7 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 
 | Commit | What |
 |---|---|
+| d1825a1 | Softer bumps (Steve 2026-09-27: the Steen's foot too heavily bumped; more places): since 9caabb9 bumps are up to 2.5x stronger up close, so the Steen's own maps and the town hall's are about halved; quay barrels and crates 1.0 -> 0.4 (their atlas edges drew pale dashes); the props' rain sheen removed, wet wood only darkens. Looked at close up at 720 lines: cathedral, Vleeshuis, town wall, gates, houses, park, quay goods fine as they are. Not refreshed in the play copy (it runs the trade branch) |
 | b07a956 | Mirrors take turns: each water mirror drawn every second frame (Rijnkaai river view 31 -> 42 fps); checked by Steve 2026-09-27 |
 | 9162927 | Street cobbles and quay setts laid again (`tools/textures/setts_synth.py`): every bump is one stone, each stone its own tone; kerbs with their own height map; house and prison glass follow the sky (no pale sheet 15:30-17:35). Side finds: [issue #3](https://github.com/Steve-Sitax/Moodygame/issues/3) the wall walk setts, [issue #4](https://github.com/Steve-Sitax/Moodygame/issues/4) a flaky m8e-limits test |
 | 5b9d485 | No stutter facing the quays (Steve saw 12 fps on the Rijnkaai at night): mirrors drawn before the main pass, flat decals in one pass, the warm-up no longer rebuilds its own work; same pixels. Next if needed: materials shared by instanced and plain meshes (about 20 program look-ups a frame), fewer objects in the mirror passes (would change pixels: ask Steve) |
