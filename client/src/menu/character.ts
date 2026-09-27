@@ -79,7 +79,7 @@ let previewNow: Preview | null = null;
  * Open "Your character". `onDone` runs once the server has the profile (the menu then starts the new
  * week); Back or Esc closes the sheet without it.
  */
-export function openCharacterCreator(onDone: (p: Profile) => void, opts: { onCancel?: () => void } = {}): void {
+export function openCharacterCreator(onDone: (p: Profile) => void, opts: { onCancel?: () => void; kicker?: string } = {}): void {
   open?.close();
   if (!document.getElementById("char-style")) {
     const st = document.createElement("style");
@@ -96,7 +96,7 @@ export function openCharacterCreator(onDone: (p: Profile) => void, opts: { onCan
   sheet.setAttribute("role", "dialog");
   sheet.setAttribute("aria-label", "Your character");
   sheet.innerHTML = `
-    <div class="sheet-head"><p class="kicker">A new week in Antwerp</p><h2>Your character</h2><div class="rule">${RULE}</div></div>
+    <div class="sheet-head"><p class="kicker">${opts.kicker ?? "A new week in Antwerp"}</p><h2>Your character</h2><div class="rule">${RULE}</div></div>
     <div class="sheet-body">
       <div class="char-left">
         <canvas class="char-view" width="180" height="253" title="Drag to turn"></canvas>

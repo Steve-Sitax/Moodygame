@@ -292,7 +292,7 @@ export class FerryArrival {
     const done = () => this.creatorDone();
     void import("../menu/character")
       .then((m) => {
-        m.openCharacterCreator(() => done(), { onCancel: done });
+        m.openCharacterCreator(() => done(), { onCancel: done, kicker: "Off the ferry to Antwerp" }); // (M8d: no new week for him)
         this.creatorShown = true;
       })
       .catch(done);
@@ -1074,7 +1074,9 @@ export class FerryArrival {
     if (this.stage === "waiting") {
       // (M8d: the character sheet first, when the server asks for it)
       if (this.set && this.creator) {
-        if (!this.creatorOpen) this.openCreator();
+        // (opened once the game is in his hand: behind the title menu no click reaches it)
+        const p = this.d.player;
+        if (!this.creatorOpen && (p.locked || p.freeInput || p.testInput)) this.openCreator();
         // (Esc hides the sheet without a word: gone is done)
         else if (this.creatorShown && !document.querySelector(".char-sheet")) this.creatorDone();
         return;

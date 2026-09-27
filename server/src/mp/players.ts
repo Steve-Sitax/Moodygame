@@ -99,7 +99,11 @@ export function playerById(db: DB, id: number): MpPlayer | null {
 export function addGuest(db: DB, name: string): { id: number; token: string } | null {
   const n = (db.prepare("SELECT COUNT(*) AS n FROM mp_player").get() as { n: number }).n;
   if (n >= 64) return null; // stale rows are removed by the host; 64 keeps a runaway loop small
-  const id = ((db.prepare("SELECT MAX(id) AS m FROM mp_player").get() as { m: number | null }).m ?? HOST_ID) + 1;
+  // M8d: a number is never given twice: a removed guest's man, his look and his things stay under his own
+  // number (the townspeople remember him), so a new guest gets a number no player row or profile has
+  const top = (sql: string) => ((db.prepare(sql).get() as { m: number | null } | undefined)?.m ?? HOST_ID);
+  const has = (t: string) => !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(t);
+  const id = Math.max(top("SELECT MAX(id) AS m FROM mp_player"), has("player") ? top("SELECT MAX(id) AS m FROM player") : HOST_ID, has("player_profile") ? top("SELECT MAX(player_id) AS m FROM player_profile") : HOST_ID) + 1;
   const token = randomBytes(16).toString("hex");
   db.prepare("INSERT INTO mp_player (id, name, token_hash, admin, created_at) VALUES (?, ?, ?, 0, ?)").run(id, name, hashOf(token), new Date().toISOString());
   return { id, token };
