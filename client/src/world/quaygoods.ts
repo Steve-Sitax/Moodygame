@@ -1,3 +1,5 @@
+import { modelCollider, modelShape } from "./modelCollision";
+import { propSurface } from "./propSurface";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
@@ -943,6 +945,7 @@ let materials: { solid: THREE.Material; decal: THREE.Material } | null = null;
 function mats(solidMap: THREE.Texture, decalMap: THREE.Texture): { solid: THREE.Material; decal: THREE.Material } {
   if (materials) return materials;
   const solid = psx(new THREE.MeshLambertMaterial({ map: solidMap, vertexColors: true }), { affine: 0 });
+  propSurface(solid, new THREE.TextureLoader().load("/models/quaygoods_surface.png"));
   const decal = psx(
     new THREE.MeshLambertMaterial({ map: decalMap, vertexColors: true, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 }),
     { affine: 0, noSnap: true },
@@ -1435,36 +1438,39 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
   const heaps: Debug["heaps"] = [];
   const Q = new THREE.Quaternion();
   const Y = new THREE.Vector3(0, 1, 0);
+  const feet = new Map<Proto, Array<[number, number, number]>>();
+  const grounded = (name: string, x: number, z: number, yaw: number) => {
+    if (!opts.ground) return true;
+    const p = protos.get(name)!;
+    let samples = feet.get(p);
+    if (!samples) {
+      const parts = p.parts.filter(q => q.slot === SOLID);
+      let low = Infinity;
+      for (const q of parts) for (let i = 1; i < q.pos.length; i += 3) low = Math.min(low, q.pos[i]);
+      const unique = new Map<string, [number, number, number]>();
+      for (const q of parts) for (let i = 0; i < q.pos.length; i += 3) if (q.pos[i + 1] <= low + 0.025) {
+        const v: [number, number, number] = [q.pos[i], q.pos[i + 1], q.pos[i + 2]];
+        unique.set(`${v[0].toFixed(3)},${v[2].toFixed(3)}`, v);
+      }
+      feet.set(p, samples = [...unique.values()]);
+    }
+    const c = Math.cos(yaw), s = Math.sin(yaw);
+    return samples.every(([px, py, pz]) => {
+      const g = opts.ground!(x + px * c + pz * s, z - px * s + pz * c, 0.4);
+      return g === null || Math.abs(py - g) <= 0.07;
+    });
+  };
 
   const put = (name: string, x: number, z: number, yaw: number, shade: number, y = 0) => {
     Q.setFromAxisAngle(Y, yaw);
     puts.push({ name, m: new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), Q, new THREE.Vector3(1, 1, 1)), shade });
     models[name] = (models[name] ?? 0) + 1;
   };
-  /** Walk colliders for a model at (x, z, yaw): boxes along its long side (props3d colliders). */
+  /** One broad-phase bound; actual solid triangles decide contact and the height to land on. */
   const collide = (name: string, x: number, z: number, yaw: number, y = 0) => {
-    const f = protos.get(name)!;
-    const w = f.maxX - f.minX;
-    const d = f.maxZ - f.minZ;
-    if (w * d < 0.06 || f.height < 0.12) return;
-    const along = d >= w;
-    const long = along ? d : w;
-    const short = along ? w : d;
-    const n = Math.max(1, Math.round(long / Math.max(short, 0.6)));
-    const c = Math.cos(yaw);
-    const s = Math.sin(yaw);
-    for (let i = 0; i < n; i++) {
-      const t = (i + 0.5) / n;
-      const lx = along ? (f.minX + f.maxX) / 2 : f.minX + w * t;
-      const lz = along ? f.minZ + d * t : (f.minZ + f.maxZ) / 2;
-      const hx = along ? w / 2 : w / n / 2;
-      const hz = along ? d / n / 2 : d / 2;
-      const wx = x + lx * c + lz * s;
-      const wz = z - lx * s + lz * c;
-      const ex = hx * Math.abs(c) + hz * Math.abs(s);
-      const ez = hx * Math.abs(s) + hz * Math.abs(c);
-      colliders.push({ minX: wx - ex, maxX: wx + ex, minZ: wz - ez, maxZ: wz + ez, top: f.height + y });
-    }
+    const p = protos.get(name)!;
+    if ((p.maxX - p.minX) * (p.maxZ - p.minZ) < 0.06 || p.height < 0.12) return;
+    colliders.push(modelCollider(modelShape(p, () => p.parts.filter(q => q.slot === SOLID).map(q => q.pos)), x, z, yaw, y));
   };
 
   /** Put heap `kind` down: frame centre (cx, cz), yaw; mirrored along its x if `flip`. */
@@ -1488,7 +1494,11 @@ export async function createQuayGoods(scene: THREE.Scene, flags: Flags, opts: Qu
       if (opt !== undefined && r() < opt) continue;
       const [x, z] = toWorld(lx + (r() - 0.5) * 0.06, lz + (r() - 0.5) * 0.06);
       const wy = yaw + (flip ? -lyaw : lyaw) + (r() - 0.5) * 0.08;
-      put(name, x, z, wy, 0.9 + r() * 0.16, ly ?? 0);
+      const shade = 0.9 + r() * 0.16;
+      // A walk-map cell can hide a raised quay coping under one corner of a crate.
+      // Check the model's actual feet, preserving the seeded layout of the other items.
+      if (!ly && !grounded(name, x, z, wy)) continue;
+      put(name, x, z, wy, shade, ly ?? 0);
       collide(name, x, z, wy, ly ?? 0);
     }
     for (const [name, lx, lz, lyaw] of vg.ground) {

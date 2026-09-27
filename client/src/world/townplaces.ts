@@ -1,3 +1,4 @@
+import { modelCollider, modelShape } from "./modelCollision";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
@@ -359,6 +360,12 @@ export function loadTownPlaces(scene: THREE.Scene, ready: Promise<unknown>): Tow
       const place = (grp: THREE.Group, name: string, x: number, z: number, yaw: number, scale = 1) => {
         const parts = models.get(name);
         if (!parts) return;
+        if (["fountain", "kiosk", "urinal", "bench", "calvary"].includes(name)) {
+          const shape = modelShape(parts, () => parts.filter(p => p.mat.name !== "pl_water").map(p => (p.geo.index ? p.geo.toNonIndexed() : p.geo).getAttribute("position").array));
+          const exact = modelCollider(shape, x, z, yaw, 0, scale, 1, scale);
+          const rect = colliders.find(r => Math.abs((r.minX + r.maxX) / 2 - x) < 0.01 && Math.abs((r.minZ + r.maxZ) / 2 - z) < 0.01);
+          if (rect) { rect.surface = exact.surface; rect.top = exact.top; }
+        }
         const m4 = new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(scale, 1, scale));
         // (the prop check: dev/propcheck.ts)
         addProp({ src: "town places", name, x, y: 0, z, yaw, s: [scale, 1, scale], pts: parts.map((q) => q.geo.getAttribute("position").array) });

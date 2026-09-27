@@ -1,3 +1,4 @@
+import { modelCollider, modelShape } from "./modelCollision";
 import { TOWN } from "./townBox";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -662,7 +663,7 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
     const p = protos.get(name)!;
     const r = box(p, x, z, yaw);
     taken.push(r);
-    if (solid) colliders.push({ ...r, minX: r.minX - 0.04, maxX: r.maxX + 0.04, minZ: r.minZ - 0.04, maxZ: r.maxZ + 0.04, top: p.height });
+    if (solid) colliders.push(modelCollider(modelShape(p, () => p.parts.filter(q => q.slot === SOLID).map(q => q.pos)), x, z, yaw));
   }
 
   /**

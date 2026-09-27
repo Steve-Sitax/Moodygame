@@ -1,3 +1,4 @@
+import { modelCollider, modelShape } from "./modelCollision";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
@@ -152,7 +153,7 @@ export interface Props {
   /** Footprint of a prop (parts under 1.5 m, so a crane's jib does not count). */
   footprint(name: string): Footprint;
   /** Walk colliders for a prop placed at (x, z, yaw): a few boxes along its length. */
-  colliders(name: string, x: number, z: number, yaw: number): Rect[];
+  colliders(name: string, x: number, z: number, yaw: number, y?: number, scale?: number): Rect[];
   /** The PS1 materials by name: wood, wood_dark, iron, rope, sackcloth, crate, barrel, stone, glass, horse, horsehair, leather, goods (the atlas). */
   materials: Record<string, THREE.Material>;
   /** Front doors of the city's houses as x, z pairs (from the city build, carried in props.glb). */
@@ -309,32 +310,14 @@ async function load(): Promise<Props> {
     return o;
   }
 
-  function colliders(name: string, x: number, z: number, yaw: number): Rect[] {
-    const f = footprint(name);
-    const w = f.maxX - f.minX;
-    const d = f.maxZ - f.minZ;
-    const along = d >= w; // split along the long side into near-square boxes
-    const long = along ? d : w;
-    const short = along ? w : d;
-    const n = Math.max(1, Math.round(long / Math.max(short, 0.6)));
-    const c = Math.cos(yaw);
-    const s = Math.sin(yaw);
-    const top = f.height;
-    const out: Rect[] = [];
-    for (let i = 0; i < n; i++) {
-      const t = (i + 0.5) / n;
-      const lx = along ? (f.minX + f.maxX) / 2 : f.minX + w * t;
-      const lz = along ? f.minZ + d * t : (f.minZ + f.maxZ) / 2;
-      const hx = along ? w / 2 : w / n / 2;
-      const hz = along ? d / n / 2 : d / 2;
-      // local -> world: rotation about +y by yaw
-      const wx = x + lx * c + lz * s;
-      const wz = z - lx * s + lz * c;
-      const ex = hx * Math.abs(c) + hz * Math.abs(s);
-      const ez = hx * Math.abs(s) + hz * Math.abs(c);
-      out.push({ minX: wx - ex, maxX: wx + ex, minZ: wz - ez, maxZ: wz + ez, top });
-    }
-    return out;
+  function colliders(name: string, x: number, z: number, yaw: number, y = 0, scale = 1): Rect[] {
+    const proto = protos.get(name);
+    if (!proto) throw new Error(`no prop ${name}`);
+    const shape = modelShape(proto, () => parts(name).map(({ geometry }) => {
+      const g = geometry.index ? geometry.toNonIndexed() : geometry;
+      return g.getAttribute("position").array;
+    }));
+    return [modelCollider(shape, x, z, yaw, y, scale, scale, scale)];
   }
 
   const partCache = new Map<string, Array<{ geometry: THREE.BufferGeometry; material: THREE.Material }>>();

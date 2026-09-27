@@ -52,8 +52,8 @@ import { BRIG_FLOOR, CHAMBER, DOCK, HW_MAX, LW_MIN, MID_Y, gateLine, levelAt, ti
 import { buildTideMud } from "./tidemud";
 import { MOORINGS, mooringRect } from "../../../shared/smallBoats";
 import { landmarkDoorKeepOut } from "./doorKeep";
-import { addPropObject } from "./propSpots";
 import { tuning } from "../menu/tuning"; // menus: the view distance setting
+import { addPropObject } from "./propSpots";
 
 // The Rijnkaai in the real 1873 city (world/city.ts). Water is at z < 0, the
 // quay edge runs along x (the world is turned 19 deg so it does). Quay top is
@@ -596,7 +596,6 @@ export function buildRijnkaai(): World {
   buildCountryside(scene, WATER_Y);
   // wheel ruts down the cart roads (world/ruts.ts)
   city.ready.then(() => buildRuts(scene, city.flags)).catch(() => {});
-
   // --- water: one sheet that goes where you go, under the land; it moves in
   // whole texture tiles (4 m), so the ripples stay put on the water
   const WATER_SIZE = 1200;
@@ -943,7 +942,7 @@ export function buildRijnkaai(): World {
         const lamp = p.place("gas_lamp", x, z, 0, scene);
         addPropObject("gas lamps", lamp);
         gasLamps.addDecor(i, lamp, x, z);
-        colliders.push(rectAround(x, z, 0.2, 0.2));
+        colliders.push(...p.colliders("gas_lamp", x, z, 0));
       });
     })
     .catch(() => cart(scene, m, colliders, 47, 11));
@@ -2190,7 +2189,15 @@ function crateStack(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z
   if (n >= 2) spots.push([x + g / 2, z, 0.2, s]);
   // the packing crates of props.glb (all merged into one draw call); plain boxes if it will not load
   loadProps()
-    .then((p) => spots.forEach(([cx, cz, yaw, y], i) => p.batch(scene, n === 1 ? "crate_open" : n === 3 && i === 2 ? "crate_broken" : "crate_big", cx, cz, yaw, y, s)))
+    .then((p) => {
+      placeholder.minX = placeholder.maxX = placeholder.minZ = placeholder.maxZ = 1e7;
+      placeholder.top = 0;
+      spots.forEach(([cx, cz, yaw, y], i) => {
+        const name = n === 1 ? "crate_open" : n === 3 && i === 2 ? "crate_broken" : "crate_big";
+        p.batch(scene, name, cx, cz, yaw, y, s);
+        colliders.push(...p.colliders(name, cx, cz, yaw, y, s));
+      });
+    })
     .catch(() => {
       for (const [cx, cz, yaw, y] of spots) {
         const c = box(s, s, s, m.crate, cx, y + s / 2, cz, 1.1);
@@ -2201,7 +2208,8 @@ function crateStack(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z
   const h = (s * 1.18) / 2;
   const w = placed > 1 ? g : 0;
   const d = (Math.ceil(placed / 2) - 1) * g;
-  colliders.push({ minX: x - h, maxX: x + w + h, minZ: z - h, maxZ: z + d + h, top: n >= 2 ? s * 2 : s });
+  const placeholder = { minX: x - h, maxX: x + w + h, minZ: z - h, maxZ: z + d + h, top: n >= 2 ? s * 2 : s };
+  colliders.push(placeholder);
 }
 
 function barrels(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number, n: number): void {
@@ -2209,7 +2217,12 @@ function barrels(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: n
   // the casks of props.glb (merged); plain cylinders if it will not load
   loadProps()
     .then((p) => {
-      for (let i = 0; i < n; i++) p.batch(scene, "barrel", ...at(i), i * 1.7);
+      placeholder.minX = placeholder.maxX = placeholder.minZ = placeholder.maxZ = 1e7;
+      placeholder.top = 0;
+      for (let i = 0; i < n; i++) {
+        p.batch(scene, "barrel", ...at(i), i * 1.7);
+        colliders.push(...p.colliders("barrel", ...at(i), i * 1.7));
+      }
     })
     .catch(() => {
       for (let i = 0; i < n; i++) {
@@ -2221,7 +2234,8 @@ function barrels(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: n
     });
   const cols = Math.min(n, 3);
   const rows = Math.ceil(n / 3);
-  colliders.push({ minX: x - 0.35, maxX: x + (cols - 1) * 0.75 + 0.35, minZ: z - 0.35, maxZ: z + (rows - 1) * 0.75 + 0.35, top: 0.95 });
+  const placeholder = { minX: x - 0.35, maxX: x + (cols - 1) * 0.75 + 0.35, minZ: z - 0.35, maxZ: z + (rows - 1) * 0.75 + 0.35, top: 0.95 };
+  colliders.push(placeholder);
 }
 
 function sacks(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number): void {
@@ -2229,7 +2243,13 @@ function sacks(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: num
   loadProps()
     .then((p) => {
       // (a sack is 0.98 m long: a metre apart, turned a little, they touch; the upper layer lies on them)
-      for (let i = 0; i < 6; i++) p.batch(scene, "sack", x + (i % 3) * 1.04, z, Math.sin(i * 4.1) * 0.12, Math.floor(i / 3) * 0.25);
+      placeholder.minX = placeholder.maxX = placeholder.minZ = placeholder.maxZ = 1e7;
+      placeholder.top = 0;
+      for (let i = 0; i < 6; i++) {
+        const sx = x + (i % 3) * 1.04, yaw = Math.sin(i * 4.1) * 0.12, y = Math.floor(i / 3) * 0.25;
+        p.batch(scene, "sack", sx, z, yaw, y);
+        colliders.push(...p.colliders("sack", sx, z, yaw, y));
+      }
     })
     .catch(() => {
       for (let i = 0; i < 6; i++) {
@@ -2238,7 +2258,8 @@ function sacks(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: num
         scene.add(s);
       }
     });
-  colliders.push({ minX: x - 0.5, maxX: x + 2.6, minZ: z - 0.35, maxZ: z + 0.35, top: 0.7 });
+  const placeholder = { minX: x - 0.5, maxX: x + 2.6, minZ: z - 0.35, maxZ: z + 0.35, top: 0.7 };
+  colliders.push(placeholder);
 }
 
 function cart(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number): void {

@@ -1,3 +1,4 @@
+import { modelCollider, modelShape } from "./modelCollision";
 import { TOWN } from "./townBox";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -968,8 +969,8 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
       const set = `heap at ${c.x.toFixed(0)}, ${c.z.toFixed(0)}`;
       puts.push({ layer: "solid", name: c.kind, x: c.x, y: 0, z: c.z, yaw, sx: 1, sz: 1, shade: 1, set });
       count(c.kind);
-      const h = c.kind === "manure_heap" ? 1.05 : 0.85;
-      colliders.push({ minX: c.x - h, maxX: c.x + h, minZ: c.z - h, maxZ: c.z + h, top: c.kind === "manure_heap" ? 0.95 : 0.7 });
+      const proto = protos.get(c.kind)!;
+      colliders.push(modelCollider(modelShape(proto, () => [proto.geo.getAttribute("position").array]), c.x, c.z, yaw));
       stamps.push([c.x, c.z, 3.4, 0.95]);
       sites.push({ kind: c.kind.replace("_", " "), x: +c.x.toFixed(1), z: +c.z.toFixed(1) });
       // round the foot: what fell off, the wet run from it, rats' work
@@ -989,7 +990,8 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
         if (open(bx, bz, 0.9) && !avoid.some((q) => inR(q, bx, bz, 1))) {
           puts.push({ layer: "solid", name: "dung_barrow", x: bx, y: 0, z: bz, yaw: yaw + 1.2, sx: 1, sz: 1, shade: 1, set });
           count("dung_barrow");
-          colliders.push({ minX: bx - 0.6, maxX: bx + 0.6, minZ: bz - 0.6, maxZ: bz + 0.6, top: 0.7 });
+          const barrow = protos.get("dung_barrow")!;
+          colliders.push(modelCollider(modelShape(barrow, () => [barrow.geo.getAttribute("position").array]), bx, bz, yaw + 1.2));
         }
       } else if (R() < 0.8) {
         solidAt("rat_dead", c.x + Math.cos(yaw) * 2, c.z - Math.sin(yaw) * 2, { lane: false });

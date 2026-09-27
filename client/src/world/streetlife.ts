@@ -1,3 +1,4 @@
+import { modelCollider, modelShape } from "./modelCollision";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
@@ -773,20 +774,9 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
     (wallEnds.get(endKey(x, z)) ?? []).find((w) => w.kind === 0 && w.ox * ox + w.oz * oz > 0.98) ?? null;
 
   const colliders: Rect[] = [];
-  function collide(name: string, x: number, z: number, yaw: number, pad = 0): void {
+  function collide(name: string, x: number, z: number, yaw: number, _pad = 0): void {
     const p = protos.get(name)!;
-    const c = Math.cos(yaw);
-    const s = Math.sin(yaw);
-    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    for (const [lx, lz] of [[p.minX, p.minZ], [p.maxX, p.minZ], [p.maxX, p.maxZ], [p.minX, p.maxZ]]) {
-      const wx = x + lx * c + lz * s;
-      const wz = z - lx * s + lz * c;
-      minX = Math.min(minX, wx);
-      maxX = Math.max(maxX, wx);
-      minZ = Math.min(minZ, wz);
-      maxZ = Math.max(maxZ, wz);
-    }
-    colliders.push({ minX: minX - pad, maxX: maxX + pad, minZ: minZ - pad, maxZ: maxZ + pad, top: p.height });
+    colliders.push(modelCollider(modelShape(p, () => p.parts.filter(q => q.slot === SOLID).map(q => q.pos)), x, z, yaw));
   }
 
   // ================================================================ pumps, the well, troughs
@@ -919,7 +909,7 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
           }
           if (!ok) continue;
           put("well", x, 0, z, 0);
-          colliders.push({ minX: x - 0.95, maxX: x + 0.95, minZ: z - 0.95, maxZ: z + 0.95, top: 1.0 });
+          collide("well", x, z, 0);
           taken.push([x, z, 1.6]);
           done = true;
         }

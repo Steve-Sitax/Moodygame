@@ -243,6 +243,18 @@ def head(seed, w, h, rgb, brand=None, ink=INK):
     return img
 
 
+def cargo_head(seed, rgb, owner, cargo, lot, ink=INK):
+    """Worn shipping marks on the actual wood, shared atlas (no floating labels/materials).
+
+    Art reference: assets/concepts/quay-props.png. Owner, contents and lot are distinct lines;
+    the blue petroleum and wine variants carry only the cargo they are modeled for.
+    """
+    img = head(seed, 64, 64, rgb)
+    for text, cy in ((owner, 19), (cargo, 32), (lot, 45)):
+        stencil(img, text, 32, cy, ink, 1, alpha=0.86, seed=seed + cy, drop=0.08)
+    return img
+
+
 def jute(seed, w, h, rgb, text=None, ink=INK, star=False, coarse=1):
     """Jute weave (over-under threads), a seam down one side, a stencilled mark on the top."""
     rng = rng_(seed)
@@ -543,10 +555,10 @@ def stain_decal(seed, w, h, rgb=(0.05, 0.05, 0.04), alpha=0.55):
 CRATES = {
     "a": dict(size=(1.0, 0.7, 0.62), wood=(0.46, 0.38, 0.27),
               front=[("text", "ANTWERPEN", 0.5, 0.42, 1, INK), ("text", "NO 17", 0.5, 0.7, 1, INK)],
-              back=[("diamond", 0.5, 0.45, 10, INK), ("text", "HV", 0.5, 0.45, 1, INK)]),
+              back=[("text", "H&V", 0.5, 0.25, 1, INK), ("text", "GLASS", 0.5, 0.50, 1, INK), ("text", "FRAGILE", 0.5, 0.75, 1, INK)]),
     "b": dict(size=(0.82, 0.6, 0.56), wood=(0.42, 0.32, 0.23),
               front=[("text", "LIVERPOOL", 0.5, 0.4, 1, INK_BLUE), ("text", "23", 0.5, 0.7, 1, INK_BLUE)],
-              back=[("ring", 0.5, 0.45, 9, INK), ("text", "K", 0.5, 0.45, 1, INK)]),
+              back=[("text", "K & CO", 0.5, 0.3, 1, INK), ("text", "TOOLS", 0.5, 0.65, 1, INK)]),
     "c": dict(size=(1.36, 0.62, 0.5), wood=(0.40, 0.37, 0.32),
               front=[("text", "H&V", 0.28, 0.48, 2, INK), ("text", "RIO", 0.75, 0.48, 2, INK_RED)],
               back=[("text", "MACHINES", 0.5, 0.45, 1, INK)]),
@@ -716,9 +728,10 @@ def build_atlases():
     A.add("stave_oak", staves(2000, 128, 64, (0.40, 0.28, 0.17), n=18))
     A.add("stave_dark", staves(2001, 128, 64, (0.30, 0.21, 0.13), n=18))
     A.add("stave_blue", staves(2002, 128, 64, (0.36, 0.28, 0.18), n=18, paint=(0.20, 0.29, 0.40)))
-    A.add("head_oak", head(2010, 32, 32, (0.44, 0.32, 0.20), "A"))
-    A.add("head_dark", head(2011, 32, 32, (0.34, 0.25, 0.16), "M"))
-    A.add("head_blue", head(2012, 32, 32, (0.26, 0.32, 0.40), "P", (0.46, 0.46, 0.42)))
+    A.add("head_oak", cargo_head(2010, (0.44, 0.32, 0.20), "H&V", "ANTWERPEN", "NO 17"))
+    A.add("head_dark", cargo_head(2011, (0.34, 0.25, 0.16), "M & CO", "ANTWERPEN", "NO 40"))
+    A.add("head_blue", cargo_head(2012, (0.26, 0.32, 0.40), "H&V", "PETROLEUM", "NO 23", (0.70, 0.68, 0.60)))
+    A.add("head_wine", cargo_head(2013, (0.40, 0.29, 0.18), "BORDEAUX", "VIN", "NO 12"))
     A.add("hoop", iron(2020, 16, 8, (0.10, 0.09, 0.08), 0.6))
     A.add("stave_chalk", chalk(staves(2003, 128, 64, (0.42, 0.30, 0.18), n=18), 2004))
     A.add("stave_chalk2", chalk(staves(2005, 128, 64, (0.36, 0.26, 0.16), n=18), 2006, ("40", "II")))
@@ -789,6 +802,46 @@ def make_materials():
         if img is decal:
             nt.links.new(t.outputs["Alpha"], bsdf.inputs["Alpha"])
         bsdf.inputs["Roughness"].default_value = 1.0
+
+
+def save_surface_atlas():
+    """R: shallow matching relief, G: rain absorption, B: sheen. Shipping ink is never a hole.
+
+    Same cells and UVs as the colour atlas. Height is normalized within each material, not across
+    unrelated atlas cells. Packed GLTF UVs are used directly (no psx atlas-cell remapping).
+    """
+    A = sl.SOLID_ATLAS
+    image = np.ones_like(A.img)
+    image[..., :3] = (0.5, 0.0, 0.0)
+    for name, arr in A.items:
+        x, y, w, h = A.cells[name]
+        raw = arr
+        if name.startswith("head_"):
+            raw = head(2010 + ["oak", "dark", "blue", "wine"].index(name[5:]), w, h, (0.44, 0.32, 0.20))
+        elif name.startswith("crate_") and name.split("_")[-1] in ("front", "back", "end"):
+            kind, face = name.split("_")[1:]
+            seed = {"front": 1000, "back": 1100, "end": 1200}[face] + ord(kind)
+            raw = crate_side(seed, w, h, CRATES[kind]["wood"], [])
+        elif name in ("stave_chalk", "stave_chalk2"):
+            raw = staves(2003 if name == "stave_chalk" else 2005, w, h, (0.40, 0.28, 0.17), n=18)
+        lum = raw[..., :3].mean(axis=2)
+        lo, hi = np.quantile(lum, [0.08, 0.92])
+        height = np.clip((lum - lo) / max(hi - lo, 0.03), 0, 1) * 0.4 + 0.3
+        cloth = name.startswith(("sack", "bale", "rope", "coil", "tarp", "wicker"))
+        metal = name in ("hoop", "strap", "band", "iron", "brass", "scale_plate")
+        # Cloth's printed shipping marks are pigment. Its fine weave stays shallow and matte.
+        if cloth:
+            yy, xx = np.mgrid[0:h, 0:w]
+            height = 0.5 + 0.035 * ((xx + yy) % 2)
+        cell = image[y:y+h, x:x+w]
+        cell[..., 0] = height
+        cell[..., 1] = 0.25 if metal else 1.0 if cloth else 0.8
+        cell[..., 2] = 0.65 if metal else 0.02 if cloth else 0.16
+    img = sl.bl_image("quaygoods_surface", image, False)
+    img.colorspace_settings.name = "Non-Color"
+    img.filepath_raw = os.path.join(ROOT, "client", "public", "models", "quaygoods_surface.png")
+    img.file_format = "PNG"
+    img.save()
 
 
 # ------------------------------------------------------------------ geometry helpers
@@ -1138,7 +1191,7 @@ def cask(stave="stave_oak", headc="head_oak", r_end=0.27, r_belly=0.33, h=0.88):
 def cask_big():
     """A hogshead: bigger, six hoops (two at each chime, two at the bilge)."""
     m = Mesh(ao=1.1)
-    cask_geo(m, 0.34, 0.42, 1.06, "stave_chalk2", "head_dark", sides=14, hoops=(0.07, 0.17, 0.4, 0.6, 0.83, 0.93))
+    cask_geo(m, 0.34, 0.42, 1.06, "stave_chalk2", "head_wine", sides=14, hoops=(0.07, 0.17, 0.4, 0.6, 0.83, 0.93))
     return m
 
 
@@ -1575,7 +1628,9 @@ def handcart_geo(m, loaded=False, paint="cart_red"):
     Bed 1.4 x 0.85 with side boards; spoked wheels 0.9 m."""
     R = 0.47
     Lb, Wb = 1.4, 0.85
-    tip = math.atan2(R + 0.05 - 0.04, 1.15)  # from the axle to the shaft tips on the ground
+    # The shafts extend 1.65 m from the axle, not 1.15 m. The old angle buried their
+    # tips 14 cm into the setts. Rest the tips on the stones without lifting the wheels.
+    tip = math.asin((R + 0.03 - 0.005) / (Lb / 2 + 0.95))
     axle = Vector((0, 0.25, R + 0.03))
     Mt = move(*axle) @ rot("X", tip)  # the cart's frame, turned about the axle
     with m.at(Mt):
@@ -1977,6 +2032,7 @@ def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     bpy.ops.wm.read_factory_settings(use_empty=True)
     build_atlases()
+    save_surface_atlas()
     make_materials()
     objs = {}
     counts = {}

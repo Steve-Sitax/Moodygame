@@ -1,3 +1,4 @@
+import { modelCollider, modelShape } from "./modelCollision";
 import { TOWN } from "./townBox";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -816,25 +817,11 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
     count(name);
     if (PROP.test(name)) addProp({ src: "clutter", name, x, y, z, yaw, s: [sx, sy, sz], pts: proto.parts.filter((q) => q.slot === SOLID).map((q) => q.pos) });
   };
-  /** A box collider from a model's footprint at (x, z, yaw), scaled. */
-  const collide = (name: string, x: number, z: number, yaw: number, pad = 0.03, sx = 1, sz = 1, top?: number) => {
+  /** Collision follows the same placed/scaled solid geometry as the visible prop. */
+  const collide = (name: string, x: number, z: number, yaw: number, _pad = 0.03, sx = 1, sz = 1, top?: number) => {
     const p = protos.get(name);
     if (!p || !isFinite(p.minX)) return;
-    const c = Math.cos(yaw);
-    const s = Math.sin(yaw);
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let minZ = Infinity;
-    let maxZ = -Infinity;
-    for (const [lx, lz] of [[p.minX * sx, p.minZ * sz], [p.maxX * sx, p.minZ * sz], [p.maxX * sx, p.maxZ * sz], [p.minX * sx, p.maxZ * sz]]) {
-      const wx = x + lx * c + lz * s;
-      const wz = z - lx * s + lz * c;
-      minX = Math.min(minX, wx);
-      maxX = Math.max(maxX, wx);
-      minZ = Math.min(minZ, wz);
-      maxZ = Math.max(maxZ, wz);
-    }
-    colliders.push({ minX: minX - pad, maxX: maxX + pad, minZ: minZ - pad, maxZ: maxZ + pad, top: top ?? p.height });
+    colliders.push(modelCollider(modelShape(p, () => p.parts.filter(q => q.slot === SOLID).map(q => q.pos)), x, z, yaw, (top ?? p.height) - p.height, sx, 1, sz));
   };
 
   /**

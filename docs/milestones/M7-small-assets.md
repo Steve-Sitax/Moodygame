@@ -1,5 +1,10 @@
 # Small assets: safe collision and design batch, 2026-09-26
 
+Update 2026-09-27: Props in walls and Picture round are complete. The prepared cargo and static-prop
+changes have now been reconciled against main and verified for integration; see the final checks in
+`M7-tight-props.md`. The original deferral table below records the first batch's scope, not a new hold
+on the cargo merge. Boats, buildings, room and character collision remain outside these two batches.
+
 Steve requested a merge of the completed work, then clarified: consult `docs/worklog.md`, work
 only on assets outside the active list, and return to the listed assets later. Small assets also
 need a visual pass. This batch therefore enables model collision for street/quay trees and

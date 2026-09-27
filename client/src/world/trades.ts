@@ -1,3 +1,4 @@
+import { modelCollider, modelShape } from "./modelCollision";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
@@ -507,6 +508,14 @@ export function createTrades(scene: THREE.Scene, _flags: (x: number, z: number) 
       group.add(g);
       // (the prop check, dev/propcheck.ts: the whole workplace as one thing)
       addPropObject("trades", g, undefined, g.name);
+      const solidParts = partsOf(g).filter(p => p.mat === m.mats.solid);
+      const exact = modelCollider(modelShape(g, () => solidParts.map(p => p.pos)), s.x, s.z, s.yaw);
+      // Keep the original rectangles as stable references already registered by the world.
+      const siteBounds = s.boxes.map(b => worldBox(s, [b[0], b[1], b[2], b[3]], b[4]));
+      for (const rect of colliders) if (siteBounds.some(b => b.minX === rect.minX && b.maxX === rect.maxX && b.minZ === rect.minZ && b.maxZ === rect.maxZ)) {
+        rect.surface = exact.surface;
+      }
+
       for (const [x, y, z] of s.smoke ?? []) {
         const [wx, wz] = toWorld(s, x, z);
         smokeSrc.push(new THREE.Vector3(wx, y, wz));

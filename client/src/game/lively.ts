@@ -1,3 +1,4 @@
+import { modelCollider, modelShape } from "../world/modelCollision";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
@@ -435,7 +436,8 @@ export class Lively {
         minZ = Math.min(minZ, wz);
         maxZ = Math.max(maxZ, wz);
       }
-      return { minX: minX - pad, maxX: maxX + pad, minZ: minZ - pad, maxZ: maxZ + pad, top: p.height };
+      return { minX: minX - pad, maxX: maxX + pad, minZ: minZ - pad, maxZ: maxZ + pad, top: p.height,
+        surface: modelCollider(modelShape(p, () => p.parts.filter(q => q.slot === 0).map(q => q.pos)), x, z, yaw).surface };
     };
     const flags = (x: number, z: number) => this.world.city.flags(x, z) ?? 1;
     const open = (x: number, z: number) => flags(x, z) === 0;

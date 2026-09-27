@@ -11,6 +11,17 @@ colour and relief use the same seeded fissure/flaking masks; lichen is colour on
 grass/flower/bush textures in `client/src/world/vegetation.ts` are original canvas artwork.
 The review picture is a Blender render of those models, not an imported asset.
 
+## Quay prop reference and surface maps (2026-09-26)
+
+`assets/concepts/quay-props.png` was generated with the built-in imagegen tool from an original
+prompt, without third-party input images. Full prompt, research links and use are in
+`assets/concepts/README.md`. PNG SHA-256: `a545859fa449e329b3e29aca56f3f50406e08b2b1aec465eb8f4fb8ec0e82956`.
+The revised cargo lettering and `client/public/models/quaygoods_surface.png` are original
+procedural artwork from `tools/blender/build_quaygoods.py`. The latter shares the colour atlas's
+layout and grain seeds; lettering is flat ink, excluded from height. Kenney's Pirate Kit and
+Quaternius's Fantasy Props MegaKit (both CC0) were researched as references; no pack files imported.
+
+
 ## Sound
 
 | Asset | Where in repo | Source | Licence | Checked |
