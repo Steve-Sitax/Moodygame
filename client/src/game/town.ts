@@ -1827,6 +1827,12 @@ export class Town {
   }
 
   /** M7 back of town (game/backlife.ts): a resident's walk through the day. */
+  /** The name of the resident this puppet draws (dev checks), or null for the nameless crowd. */
+  puppetName(p: Puppet): string | null {
+    for (const s of this.sims) if (s.p === p) return s.r.name;
+    return null;
+  }
+
   simOf(id: string): Sim | undefined {
     return this.byId.get(id);
   }
