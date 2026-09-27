@@ -23,6 +23,7 @@ Status: documentation phase. No game code yet. Written 2026-09-23.
 | [trade-plan.md](trade-plan.md) | Plan (not built): townspeople far away keep going on real ways (runs owned by the server, seen the same by every PC and the map); the town's trade (stock per place, a dispatcher that sends workers, small jobs at every place); 18 goods chains |
 | [rendering.md](rendering.md) | No stutter: the shader warm-up, fixed light counts, the rules for anything that draws |
 | [building-with-interior.md](building-with-interior.md) | A building with an inside: the real shell, the plan, the rooms at true size, every window an opening, the checks; the template in `tools/templates/interior/` |
+| [learnings-for-next-game.md](learnings-for-next-game.md) | Rules and lessons from this project for the next game: process, AI, rendering, world building, testing, saves, multiplayer, releases |
 | [milestones/](milestones/) | One note per finished milestone; [milestones/M6.md](milestones/M6.md) is the index of the M6 parts |
 
 Reference game: Foghorns Drown (Studio Laaya, 2026). First person, PS1-style, foggy lake town, a ferryman.
