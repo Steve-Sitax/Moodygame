@@ -406,7 +406,8 @@ describe("played together on a real server", () => {
       expect(st.corrections).toBe(0);
       expect(st.players.find((p) => p.id === 2)!.refused).toBe(11);
       // the mover heard nothing back about it: no correction, no pull
-      expect(anna.texts.map((m) => m.type).filter((k) => k !== "roster" && k !== "welcome")).toEqual([]);
+      // (M8b: who walks the townspeople and who runs the world are news for everyone, not corrections)
+      expect(anna.texts.map((m) => m.type).filter((k) => k !== "roster" && k !== "welcome" && k !== "owners" && k !== "worldpc")).toEqual([]);
       expect(s.log()).toMatch(/player 2: move refused \(speed/);
       host.ws.close();
       anna.ws.close();

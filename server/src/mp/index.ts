@@ -8,7 +8,7 @@ import { gateState, isPaused, setPaused } from "../save/gate.ts";
 import { reportWhere, whereNow } from "../warmth.ts";
 import { TICK_EVERY_MS } from "../../../shared/clock.ts";
 import { appearanceCode, defaultFor } from "../../../shared/character.ts";
-import { decodeState, encodeBatch, FLAG, MP_PROTOCOL, SEND_MS, type MpState, type MpText, type RosterEntry } from "../../../shared/mpProtocol.ts";
+import { decodePuppets, decodeState, encodeBatch, FLAG, MODES, MP_PROTOCOL, MSG_PUPPETS, puppetBatchOk, puppetKeep, puppetNums, SEND_MS, type MpState, type MpText, type RosterEntry } from "../../../shared/mpProtocol.ts";
 import { profileOf, saveProfile, storedProfile } from "../player/profile.ts";
 import { TOKEN_HEADER, whoOf, whoOfUpgrade, type Who } from "./auth.ts";
 import { closeLan, lanOpen, lanUrls, openLan } from "./lan.ts";
@@ -16,6 +16,8 @@ import { Plausible } from "./plausible.ts";
 import { addGuest, cleanGuestName, countTry, HOST_ID, listPlayers, mayTry, MAX_PLAYERS, playerById, poseOf, removeGuest, sameCode, savePose, setAdmin } from "./players.ts";
 import { mpOn, mpSettings, newCode, setMp } from "./settings.ts";
 import { currentManifest, mountStatic, reloadManifest } from "./static.ts";
+import { Owners, WorldPc, type OwnerRow } from "./street.ts";
+import type { MapModel } from "../mapview/model.ts";
 
 // M8a multiplayer: "two in the fog" (docs/multiplayer-plan.md, phase M8a; docs/milestones/M8a.md).
 //
@@ -37,6 +39,8 @@ export interface MpDeps {
   db: DB;
   payload: () => Record<string, unknown>;
   broadcast: (m: unknown) => void;
+  /** The town map (mapview/, docs/mapview.md): fed with the players, the townspeople, their owners and the world. */
+  map?: MapModel;
 }
 
 interface Conn {
@@ -66,6 +70,8 @@ interface Seat {
 const GRACE_MS = 30_000;
 const FAR_M = 150;
 const KEEP_MS = 1_000;
+/** M8b: a PC that walks townspeople sends them at least once a second; silent this long, it loses them. */
+const PUPPETS_STALE_MS = 3_000;
 
 const VISITOR = "Visitors can walk, jump, swim and look for now. Work, talk and buying come later (M8c).";
 
@@ -76,6 +82,13 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
   let lastWorldTick = 0;
   let hostWhere: unknown = undefined;
   let rosterKey = "";
+  // M8b (street.ts): who walks which townsperson, who runs the moving world, the world's last state (for a PC
+  // that joins), when each owner last sent his people
+  const owners = new Owners();
+  const world = new WorldPc();
+  let lastWorld: string | null = null;
+  const puppetsAt = new Map<number, number>();
+  const stStats = { puppetBatches: 0, puppetsIn: 0, worldChanges: 0, skipped: 0 };
 
   // ------------------------------------------------------------------ who asks, and what he may do
 
@@ -280,7 +293,8 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
   const mpWss = new WebSocketServer({
     noServer: true,
     path: "/mp",
-    maxPayload: 4096,
+    // (M8b: the world's state is JSON and a few KB)
+    maxPayload: 64 * 1024,
     verifyClient: (info: { origin: string; req: IncomingMessage }) => allowedHost(info.req.headers.host) && (!info.req.headers.origin || allowedOrigin(info.origin)),
   });
 
@@ -336,22 +350,81 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
         conns.add(conn);
         send(conn, { type: "welcome", id: who.id, host: who.host, name: nameOf(who.id), pose: who.host ? null : poseOf(db, who.id), serverNow: now, protocol: MP_PROTOCOL });
         sendRoster(true);
+        // M8b: who walks whom, who runs the world, and the world as it last was
+        send(conn, { type: "owners", full: true, list: owners.list() });
+        send(conn, { type: "worldpc", id: world.id });
+        if (lastWorld && world.id !== who.id) {
+          conn.bytesOut += lastWorld.length;
+          ws.send(lastWorld);
+        }
         return;
       }
       const seat = seats.get(conn.who.id);
       if (!seat) return;
       if (!isBinary) {
+        const text = String(data);
         let m: MpText;
         try {
-          m = JSON.parse(String(data)) as MpText;
+          m = JSON.parse(text) as MpText;
         } catch {
           return;
         }
         if (m.type === "ping" && typeof m.c === "number") send(conn, { type: "pong", c: m.c, s: Date.now() });
+        else if (m.type === "claim" && Array.isArray(m.ids)) {
+          const r = owners.claim(seat.id, m.ids, !!m.steal, (pid) => pid === HOST_ID);
+          if (r.changes.length) {
+            puppetsAt.set(seat.id, puppetsAt.get(seat.id) ?? now); // (a fresh owner has a moment to send them)
+            sendAll({ type: "owners", list: r.changes });
+          }
+          if (r.denied.length) send(conn, { type: "owners", list: r.denied });
+        } else if (m.type === "release" && Array.isArray(m.ids)) {
+          const ch = owners.release(seat.id, m.ids);
+          if (ch.length) sendAll({ type: "owners", list: ch });
+        } else if (m.type === "world" && typeof m.t === "number" && m.d && typeof m.d === "object") {
+          // only the world PC's; passed on as it came
+          if (seat.id !== world.id) return;
+          world.heard(now);
+          deps.map?.world(m.t, m.d);
+          lastWorld = text;
+          seat.bytesIn += text.length;
+          for (const k of conns) {
+            if (k === conn || k.ws.readyState !== WebSocket.OPEN || lagging(k)) continue;
+            k.bytesOut += text.length;
+            k.ws.send(text);
+          }
+        }
         return;
       }
       const buf = data as Buffer;
       seat.bytesIn += buf.length;
+      // M8b: a batch of the townspeople he walks: passed on to the others (only the ones he owns)
+      if (buf.length > 0 && buf[0] === MSG_PUPPETS) {
+        const v = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+        if (!puppetBatchOk(v)) return;
+        puppetsAt.set(seat.id, now);
+        const nums = puppetNums(v);
+        const keep: number[] = [];
+        nums.forEach((n, i) => owners.owns(seat.id, n) && keep.push(i));
+        if (!keep.length) return;
+        const out = keep.length === nums.length ? buf : new Uint8Array(puppetKeep(v, keep));
+        if (deps.map) {
+          // the town map: these people, live, and who walks them
+          const b = decodePuppets(new DataView(out.buffer, out.byteOffset, out.byteLength));
+          const list = (b?.list ?? []).flatMap(({ num, s }) => {
+            const id = owners.idOf(num);
+            return id ? [{ id, x: s.x, z: s.z, yaw: s.yaw, speed: Math.hypot(s.vx, s.vz), motion: s.motion, sit: s.sit, lantern: s.lantern, sack: s.sack, bought: s.bought, vehicle: s.veh }] : [];
+          });
+          deps.map.puppets(seat.id, list);
+        }
+        stStats.puppetBatches++;
+        stStats.puppetsIn += keep.length;
+        for (const k of conns) {
+          if (k === conn || k.ws.readyState !== WebSocket.OPEN || lagging(k)) continue;
+          k.bytesOut += out.byteLength;
+          k.ws.send(out);
+        }
+        return;
+      }
       const s = decodeState(buf);
       if (!s) return;
       const v = seat.plaus.check(s, now);
@@ -386,6 +459,10 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
       if (seat && seat.conn === conn) {
         seat.conn = null;
         seat.goneAt = Date.now();
+        // M8b: his townspeople go to whoever is near them now; the world to another PC
+        const ch = owners.dropAll(seat.id);
+        if (ch.length) sendAll({ type: "owners", list: ch });
+        chooseWorld();
       }
     });
     ws.on("error", () => {});
@@ -430,6 +507,16 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
       k.bytesOut += b.byteLength;
       k.ws.send(b);
     }
+    // M8b: a PC that walks townspeople but stopped sending them (its tab is hidden, or hangs): they go to the
+    // next PC near; and who runs the world
+    for (const [pid, at] of puppetsAt) {
+      if (now - at < PUPPETS_STALE_MS) continue;
+      puppetsAt.delete(pid);
+      const ch = owners.dropAll(pid);
+      if (ch.length) sendAll({ type: "owners", list: ch });
+    }
+    chooseWorld();
+    feedMapPlayers();
     // gone for good after the grace: "Piet went home"
     for (const seat of [...seats.values()]) {
       if (seat.goneAt !== null && now - seat.goneAt > GRACE_MS) {
@@ -443,8 +530,50 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
   relay.unref();
 
   function stats() {
-    const players = [...seats.values()].map((s) => ({ id: s.id, name: nameOf(s.id), online: s.goneAt === null, bytesIn: s.bytesIn, bytesOut: s.conn?.bytesOut ?? 0, ...s.plaus.stats }));
-    return { corrections: 0, players };
+    const players = [...seats.values()].map((s) => ({ id: s.id, name: nameOf(s.id), online: s.goneAt === null, bytesIn: s.bytesIn, bytesOut: s.conn?.bytesOut ?? 0, ...s.plaus.stats, walks: owners.count(s.id) }));
+    return { corrections: 0, players, worldPc: world.id, ...stStats };
+  }
+
+  // ------------------------------------------------------------------ M8b: the street and the world
+
+  function sendAll(m: MpText): void {
+    for (const k of conns) send(k, m);
+    // the town map follows who walks whom
+    if (m.type === "owners") deps.map?.owners(m.list as OwnerRow[], !!m.full);
+  }
+
+  /** The town map: where the players are (4 times a second, from the relay's rounds). */
+  let mapTick = 0;
+  function feedMapPlayers(): void {
+    if (!deps.map || ++mapTick % 5 !== 0) return;
+    deps.map.players(
+      [...seats.values()]
+        .filter((s) => s.state)
+        .map((s) => {
+          const st = s.state!;
+          return { id: s.id, name: nameOf(s.id), host: s.id === HOST_ID, x: st.x, y: st.y, z: st.z, yaw: st.yaw, vx: st.vx, vz: st.vz, mode: MODES[st.mode] ?? st.mode, away: (st.flags & FLAG.away) !== 0, online: s.goneAt === null };
+        }),
+    );
+  }
+
+  /**
+   * A player whose line cannot keep up (the socket's queue over 64 KB): the next state replaces this one, so a
+   * stale one is skipped rather than queued (the owners and other news always go).
+   */
+  function lagging(k: Conn): boolean {
+    if (k.ws.bufferedAmount <= 64 * 1024) return false;
+    stStats.skipped++;
+    return true;
+  }
+
+  function chooseWorld(): void {
+    const now = Date.now();
+    const list = [...seats.values()].map((s) => ({ id: s.id, host: s.id === HOST_ID, online: s.goneAt === null && !!s.conn, stateAt: s.at }));
+    const id = world.choose(list, now);
+    if (id === null) return;
+    stStats.worldChanges++;
+    console.log(`[mp] the world is run by player ${id || "nobody"} now`);
+    sendAll({ type: "worldpc", id });
   }
 
   // ------------------------------------------------------------------ the server's own clock

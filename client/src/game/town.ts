@@ -112,6 +112,26 @@ export interface Sim {
   aboard?: boolean;
   /** The day's errand they are on (a family boat, a dray). */
   errand?: string;
+  /**
+   * M8b: walked by another player's PC (net/mp/street.ts): `p` is drawn from its batches. The town goes on
+   * planning their day (a handover knows where they were going) but never moves, dresses or directs them.
+   */
+  remote?: boolean;
+}
+
+/**
+ * M8b multiplayer (net/mp/street.ts): which townspeople this PC may walk. Played alone there is none and every
+ * resident is this PC's.
+ */
+export interface TownNet {
+  /** May this PC walk him (nobody else does, or he is this PC's already)? */
+  mayWalk(id: string): boolean;
+  /** The host takes him from the PC that walks him (an action, the police): true if this PC may. */
+  take(id: string): boolean;
+  /** This PC walks him now (it asks the server for him). */
+  spawned(id: string): void;
+  /** This PC let him go (out of range, in at a door). */
+  lost(id: string): void;
 }
 
 /** A person you can talk to, for the talk window (people.ts Npc has the same shape). */
@@ -218,6 +238,8 @@ export class Town {
     /** One of the mill's people: no velocipede, handcart or omnibus of the town's for them. */
     own(s: Sim): boolean;
   } | null = null;
+  /** M8b: played together, which residents this PC may walk (net/mp/street.ts); null alone. */
+  net: TownNet | null = null;
   private player = { x: 0, z: 0, yaw: 0 };
   private busyNet = false;
   private lastDay = 0;
@@ -302,6 +324,14 @@ export class Town {
     for (const g of this.games.values()) g.frozen -= dt;
     for (const s of this.sims) {
       if (s.p && !this.crowd.alive(s.p)) this.lose(s);
+      if (s.remote) {
+        // M8b: another PC walks him: only where he is (net/mp/street.ts places and lets go of him)
+        if (s.p) {
+          s.x = s.p.x;
+          s.z = s.p.z;
+        }
+        continue;
+      }
       if (s.p) {
         s.x = s.p.x;
         s.z = s.p.z;
@@ -370,8 +400,8 @@ export class Town {
     }
     // M6 transport: how they go (a velocipede, the cart with the goods, the omnibus): journeys.ts
     // (M7 mills: the mill's people walk, and the man goes with the mill's own cart: game/mills.ts)
-    if (!first && !s.held && prevKey && !this.mills?.own(s)) this.journeys?.begin(s, plainKey(prevKey), prevPt);
-    if (s.p) this.direct(s);
+    if (!first && !s.held && !s.remote && prevKey && !this.mills?.own(s)) this.journeys?.begin(s, plainKey(prevKey), prevPt);
+    if (s.p && !s.remote) this.direct(s);
     this.lanterns(s, hour);
   }
 
@@ -392,8 +422,8 @@ export class Town {
         s.outAt = performance.now();
       }
       s.goal = { mode: "stand", x: err.to[0], z: err.to[1], motion: "idle" };
-      if (j && s.r.id === err.who[0]) j.beginErrand(s, err as never, false);
-      if (s.p && !s.trip) this.direct(s);
+      if (j && s.r.id === err.who[0] && !s.remote) j.beginErrand(s, err as never, false);
+      if (s.p && !s.trip && !s.remote) this.direct(s);
       return;
     }
     if (err) return;
@@ -406,8 +436,8 @@ export class Town {
     const now = activityAt(s.r.sched, day, hour);
     s.key = `${now.act}:${now.place}`;
     s.goal = this.goalFor(s, now);
-    if (j && was && was.kind === "boat" && s.r.id === was.who[0]) j.beginErrand(s, was, true);
-    if (s.p && !s.trip) this.direct(s);
+    if (j && was && was.kind === "boat" && s.r.id === was.who[0] && !s.remote) j.beginErrand(s, was, true);
+    if (s.p && !s.trip && !s.remote) this.direct(s);
   }
 
   private place(id: string): TownPlace | null {
@@ -565,8 +595,9 @@ export class Town {
     if (alive >= this.maxPuppets) return;
     const px = this.player.x;
     const pz = this.player.z;
+    const net = this.net;
     const want = this.sims
-      .filter((s) => !s.p && !s.inside && !s.aboard && !(s.held && s.away) && dist(s.x, s.z, px, pz) < SPAWN_R)
+      .filter((s) => !s.p && !s.remote && !s.inside && !s.aboard && !(s.held && s.away) && dist(s.x, s.z, px, pz) < SPAWN_R && (!net || net.mayWalk(s.r.id)))
       .sort((a, b) => dist(a.x, a.z, px, pz) - dist(b.x, b.z, px, pz));
     for (const s of want) {
       if (alive >= this.maxPuppets) break;
@@ -590,6 +621,7 @@ export class Town {
       s.tries = 0;
       s.wait = 0;
       alive++;
+      net?.spawned(s.r.id);
       this.direct(s);
       this.lanterns(s, this.clock().hour);
       this.lively?.spawned(s);
@@ -607,6 +639,15 @@ export class Town {
 
   /** Back to the schedule only (out of range, or in at the door). */
   private lose(s: Sim, remove = false): void {
+    if (s.remote) {
+      // M8b: one another PC walked: only the figure goes
+      if (s.p && remove) this.crowd.removePuppet(s.p);
+      s.p = null;
+      s.remote = false;
+      if (s.r.dog) this.animals.removeDog(s.r.id);
+      return;
+    }
+    if (s.p) this.net?.lost(s.r.id);
     if (s.p) this.lively?.lost(s);
     if (s.p) this.back?.lost(s); // M7 back of town
     if (s.p) this.mills?.lost(s); // M7 mills
@@ -1150,7 +1191,7 @@ export class Town {
   thiefInReach(x: number, z: number, reach = 3.2): { who: Speaker; at: Target } | null {
     for (const [id, at] of this.robbed) {
       const s = this.byId.get(id);
-      if (!s?.p || performance.now() - at > 25_000) continue;
+      if (!s?.p || s.remote || performance.now() - at > 25_000) continue;
       if (dist(s.p.x, s.p.z, x, z) < reach) return { who: this.speaker(s), at: chest(s.p.group, 1.3 * s.p.size) };
     }
     return null;
@@ -1180,7 +1221,7 @@ export class Town {
   // ---- lanterns and the employers' night posts
 
   private lanterns(s: Sim, hour: number): void {
-    if (!s.p) return;
+    if (!s.p || s.remote) return; // (M8b: a remote one's lantern comes with him)
     const on =
       isNight(hour) &&
       s.r.age >= 14 &&
@@ -1269,7 +1310,7 @@ export class Town {
   /** The townsperson in the street within reach that Jef looks at, nearest the crosshair (E: talk to them; game/facing.ts). */
   nearestTalker(x: number, z: number, reach = 2.4, skip?: string): { who: Speaker; d: number; at: Target } | null {
     const r = pick(this.sims, (s) => {
-      if (!s.p || !s.p.shown || s.r.id === skip) return null;
+      if (!s.p || !s.p.shown || s.remote || s.r.id === skip) return null;
       const d = dist(s.p.x, s.p.z, x, z);
       return d < reach ? { d, at: chest(s.p.group, 1.3 * s.p.size) } : null;
     });
@@ -1292,6 +1333,10 @@ export class Town {
   claim(id: string, from?: { x: number; z: number }): Puppet | null {
     const s = this.byId.get(id);
     if (!s) return null;
+    // M8b: another PC walks him: only the host may take him (his actions and his police are the game's), and
+    // then he is walked here from where he stands; a guest's PC leaves him be
+    if ((s.remote || (!s.p && this.net && !this.net.mayWalk(id))) && !this.net?.take(id)) return null;
+    if (s.remote) this.remoteHandover(s);
     // M6 transport: an action or the police take them off their trip (the vehicle goes back to its spot)
     if (s.trip) this.journeys?.end(s, false);
     if (s.inTrip || s.aboard) return null;
@@ -1304,6 +1349,7 @@ export class Town {
       s.inside = false;
       s.x = from.x;
       s.z = from.z;
+      this.net?.spawned(id);
       this.lanterns(s, this.clock().hour);
     }
     if (!s.p) return null;
@@ -1356,6 +1402,7 @@ export class Town {
   claimNear(id: string, near: { x: number; z: number }, rMin = 26): Puppet | null {
     const s = this.byId.get(id);
     if (!s) return null;
+    if (s.remote) return this.claim(id); // (M8b: the host takes him where he is; a guest does not)
     if (s.p) return this.claim(id);
     let from: { x: number; z: number } | null = null;
     if (this.crowd.isHidden(s.x, s.z) && this.crowd.canStand(s.x, s.z)) from = { x: s.x, z: s.z };
@@ -1382,7 +1429,7 @@ export class Town {
     if (!s) return;
     // in a boat on the water, or on someone's trip: the trip has them (fixes 2026-09-24: the
     // afternoon's ballad crowd took Karel Van Loock out of his boat in mid-river); they come after
-    if (s.inTrip || s.aboard) return;
+    if (s.inTrip || s.aboard || s.remote) return;
     if (s.p) {
       // still in the street but off the walk grid: the crowd cannot path them; they go on unseen
       if (this.crowd.onGrid(s.p.x, s.p.z)) return;
@@ -1405,7 +1452,7 @@ export class Town {
    */
   hideAway(id: string): boolean {
     const s = this.byId.get(id);
-    if (!s?.p || s.p.shown || s.trip || s.aboard || s.inTrip) return false;
+    if (!s?.p || s.p.shown || s.trip || s.aboard || s.inTrip || s.remote) return false;
     s.x = s.p.x;
     s.z = s.p.z;
     this.lose(s, true);
@@ -1422,13 +1469,13 @@ export class Town {
     s.held = false;
     s.away = false;
     s.wait = 0;
-    if (s.p) this.direct(s);
+    if (s.p && !s.remote) this.direct(s);
   }
 
   /** Hold still and face Jef while he talks to them; let go after. */
   hold(id: string, on: boolean): void {
     const s = this.byId.get(id);
-    if (!s?.p) return;
+    if (!s?.p || s.remote) return;
     this.crowd.puppetFollow(s.p, null);
     s.held = on;
     if (on) this.crowd.puppetStand(s.p, "talk", Math.atan2(this.player.x - s.p.x, this.player.z - s.p.z));
@@ -1583,6 +1630,80 @@ export class Town {
   /** M7 back of town (game/backlife.ts): a resident's walk through the day. */
   simOf(id: string): Sim | undefined {
     return this.byId.get(id);
+  }
+
+  // ---- M8b multiplayer (net/mp/street.ts): the townspeople other PCs walk
+
+  /** Every resident (read only): where they are, in the street or not, walked here or by another PC. */
+  netSims(): readonly Sim[] {
+    return this.sims;
+  }
+
+  /**
+   * Another PC walks him now: he is drawn from its batches. One walked here until now is handed over as he
+   * stands (the same figure: no jump); one not in the street here appears where the owner has him.
+   */
+  remoteAttach(id: string, at: { x: number; z: number; yaw: number; size: number }): Puppet | null {
+    const s = this.byId.get(id);
+    if (!s) return null;
+    if (s.remote && s.p) return s.p;
+    if (s.p) {
+      if (s.trip) this.journeys?.end(s, false);
+      this.lively?.lost(s);
+      this.back?.lost(s);
+      this.mills?.lost(s);
+      this.market?.forget(s.p);
+      this.crowd.puppetRemote(s.p, true);
+      s.remote = true;
+      s.held = false;
+      s.away = false;
+      return s.p;
+    }
+    if (!isHumanKind(s.kind)) s.kind = KIND_FALLBACK[s.kind] ?? "docker_a";
+    const p = this.crowd.addRemote(s.kind, at.x, at.z, at.yaw, at.size);
+    if (!p) return null;
+    s.p = p;
+    s.remote = true;
+    s.inside = false;
+    s.held = false;
+    s.away = false;
+    s.x = at.x;
+    s.z = at.z;
+    if (s.r.dog) {
+      const sim = s;
+      this.animals.addDog(s.r.id, s.r.dog.look, at, () => (sim.p ? { x: sim.p.x, z: sim.p.z, yaw: sim.p.yaw, walking: this.crowd.puppetBusy(sim.p) || this.crowd.isRemote(sim.p) } : null));
+    }
+    return p;
+  }
+
+  /** He is this PC's to walk now (his owner let him go near us, or the host took him): on from where he stands. */
+  remoteTake(id: string): boolean {
+    const s = this.byId.get(id);
+    if (!s?.remote || !s.p) return false;
+    this.remoteHandover(s);
+    return true;
+  }
+
+  /** Nobody sends him any more (the owner went, or he is out of our range): the figure goes; his day goes on unseen. */
+  remoteDrop(id: string): void {
+    const s = this.byId.get(id);
+    if (s?.remote) this.lose(s, true);
+  }
+
+  private remoteHandover(s: Sim): void {
+    if (!s.p) return;
+    this.crowd.puppetRemote(s.p, false);
+    s.remote = false;
+    s.inside = false;
+    s.x = s.p.x;
+    s.z = s.p.z;
+    s.tries = 0;
+    s.wait = 0;
+    this.lively?.spawned(s);
+    this.back?.spawned(s);
+    this.mills?.spawned(s);
+    this.direct(s);
+    this.lanterns(s, this.clock().hour);
   }
 
   /** Dev: one resident's state. */

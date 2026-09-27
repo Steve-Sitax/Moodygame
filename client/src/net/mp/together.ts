@@ -19,6 +19,9 @@ import { identity, isGuest } from "./identity";
 import { RemoteTrack, type Pose } from "./remotes";
 import { figureKit, RemoteFigure } from "./figures";
 import { Session } from "./session";
+import { Street } from "./street";
+import type { Town } from "../../game/town";
+import type { Crowd } from "../../game/crowd";
 
 interface BusLike {
   index: number;
@@ -45,6 +48,9 @@ export interface TogetherDeps {
   /** The menu's paper (the Together button goes on it) and the city's readiness. */
   paper: HTMLElement | null;
   cityReady: Promise<unknown>;
+  /** M8b: the town and its crowd (the townspeople walked by one PC for all: street.ts). */
+  town?: Town;
+  crowd?: Crowd;
 }
 
 const RADIUS = 0.32;
@@ -52,6 +58,13 @@ const PUSH_M = 0.55;
 
 export class Together {
   session: Session | null = null;
+  /** M8b: the townspeople, one PC walking each for all (null alone). */
+  street: Street | null = null;
+  /** M8b: who runs the moving world now (0: nobody yet). */
+  worldPc = 0;
+  /** M8b: the moving world's state as the world PC last sent it (net/mp/world.ts reads it). */
+  onWorld: ((m: Extract<MpText, { type: "world" }>) => void) | null = null;
+  onWorldPc: ((id: number) => void) | null = null;
   private readonly tracks = new Map<number, RemoteTrack>();
   private readonly figs = new Map<number, RemoteFigure>();
   private roster: RosterEntry[] = [];
@@ -104,7 +117,9 @@ export class Together {
         this.drawPanel();
         this.drawCorner();
       },
+      onPuppets: (v, recv) => this.street?.onBatch(v, recv),
       onWelcome: (w) => {
+        this.street?.reset();
         if (w.pose && !this.placedGuest) {
           this.placedGuest = true;
           void this.d.cityReady.then(() => {
@@ -115,8 +130,33 @@ export class Together {
       },
       onText: (m) => this.text(m),
     });
+    const sess = this.session;
+    if (this.d.town && this.d.crowd) {
+      const town = this.d.town;
+      this.street = new Street({
+        town,
+        crowd: this.d.crowd,
+        me: () => sess.id,
+        host: () => !isGuest(),
+        serverNow: () => sess.serverNow(),
+        player: () => this.d.player,
+        sendText: (m) => sess.sendText(m),
+        sendBinary: (b) => sess.sendBinary(b),
+      });
+      town.net = this.street;
+    }
     this.session.open();
     this.drawCorner();
+  }
+
+  /** M8b: before the crowd moves and draws: the townspeople other PCs walk, where they had them. */
+  streetApply(dt: number): void {
+    this.street?.apply(dt);
+  }
+
+  /** M8b: after the town moved its people: send the ones this PC walks. */
+  streetSend(dt: number): void {
+    this.street?.send(dt);
   }
 
   /** A guest with no place of his own starts beside the host (once, when the host is first heard of). */
@@ -147,7 +187,12 @@ export class Together {
   }
 
   private text(m: MpText): void {
-    if (m.type === "went") {
+    if (m.type === "owners") this.street?.onOwners(m);
+    else if (m.type === "world") this.onWorld?.(m);
+    else if (m.type === "worldpc") {
+      this.worldPc = m.id;
+      this.onWorldPc?.(m.id);
+    } else if (m.type === "went") {
       this.drop(m.id);
       this.d.say(`${m.name} went home.`);
     } else if (m.type === "pause_all") this.pauseAll(m.on);
@@ -427,7 +472,7 @@ export class Together {
       const tr = this.tracks.get(id);
       return { id, frames: m.frames, pace: +med.toFixed(3), maxStep: +m.maxStep.toFixed(3), speedDevP95: +(d[Math.floor(d.length * 0.95)] ?? 0).toFixed(3), speedDevMax: +(d[d.length - 1] ?? 0).toFixed(3), jitterP95m: +((d[Math.floor(d.length * 0.95)] ?? 0) / 60).toFixed(4), delay: tr ? Math.round(tr.delay) : null, buffer: tr?.stats ?? null };
     });
-    return { frames: this.meter.frames, camSnaps: this.meter.camSnaps, maxCamStep: +this.meter.maxCamStep.toFixed(3), rtt: this.session?.rtt ?? null, offset: this.session ? Math.round(this.session.offset) : null, session: this.session?.stats ?? null, remotes };
+    return { frames: this.meter.frames, camSnaps: this.meter.camSnaps, maxCamStep: +this.meter.maxCamStep.toFixed(3), rtt: this.session?.rtt ?? null, offset: this.session ? Math.round(this.session.offset) : null, session: this.session?.stats ?? null, remotes, street: this.street?.report() ?? null, worldPc: this.worldPc };
   }
 
   resetMeter(): void {
@@ -483,6 +528,32 @@ export class Together {
       void this.panelClick(e.target as HTMLElement);
     });
     panel.addEventListener("mousedown", (e) => e.stopPropagation());
+    this.mountMapButton(paper);
+  }
+
+  /**
+   * The town map (docs/mapview.md): a button on the host's own PC (the page came from localhost) that opens the
+   * map in a new tab. The map listens on this PC only, so a guest never gets the button.
+   */
+  private mountMapButton(paper: HTMLElement): void {
+    if (!identity.local || isGuest()) return;
+    void real
+      .fetch("/api/map")
+      .then(async (r) => {
+        if (!r.ok) return;
+        const { url } = (await r.json()) as { url?: string };
+        if (!url || !/^http:\/\/(127\.0\.0\.1|localhost):\d+\/?$/.test(url)) return;
+        const btn = document.createElement("button");
+        btn.className = "settings-btn";
+        btn.textContent = "Town map";
+        btn.title = "The whole town from above, live, in a new tab";
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          window.open(url, "scheldemist-map", "noopener");
+        });
+        paper.appendChild(btn);
+      })
+      .catch(() => {});
   }
 
   private hostView: { multiplayer: boolean; lan: boolean; open: string[]; code: string; urls: string[]; players: RosterEntry[]; pausedAll: boolean } | null = null;

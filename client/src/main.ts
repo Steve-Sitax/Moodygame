@@ -998,8 +998,10 @@ function frame(): void {
   safe("night.update", () => night.update(dt));
   safe("craneClimb.update", () => craneClimb.update(dt));
   safe("crowd.setHour", () => crowd.setHour(jobs.day.hour));
+  safe("together.streetApply", () => together.streetApply(dt)); // M8b: the townspeople other PCs walk
   safe("crowd.update", () => crowd.update(dt, player, player.camera));
   safe("town.update", () => town.update(dt, player));
+  safe("together.streetSend", () => together.streetSend(dt)); // M8b: the ones this PC walks, to the others
   safe("journeys.update", () => journeys.update(dt, player));
   safe("market.update", () => market.update(dt, player, jobs.day.dayNum, jobs.day.hourF));
   setLitterClock(jobs.day.dayNum, jobs.day.hourF);
@@ -1237,6 +1239,8 @@ const together = new Together({
   sound: () => sound,
   paper: startEl.querySelector(".paper"),
   cityReady: world.city.ready,
+  town,
+  crowd,
 });
 together.start();
 
@@ -1583,8 +1587,10 @@ if (import.meta.env.DEV) {
         safe("step: boxes.update", () => boxes.update(elapsed));
         safe("step: night.update", () => night.update(dt));
         safe("step: crowd.setHour", () => crowd.setHour(jobs.day.hour)); // (as the frame does: the crowd's hour, its lanterns after dark)
+        safe("step: together.streetApply", () => together.streetApply(dt)); // M8b
         safe("step: crowd.update", () => crowd.update(dt, player, player.camera));
         safe("step: town.update", () => town.update(dt, player));
+        safe("step: together.streetSend", () => together.streetSend(dt)); // M8b
         safe("step: journeys.update", () => journeys.update(dt, player));
         safe("step: market.update", () => market.update(dt, player, jobs.day.dayNum, jobs.day.hourF));
         safe("step: setLitterClock", () => setLitterClock(jobs.day.dayNum, jobs.day.hourF));

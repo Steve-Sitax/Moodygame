@@ -63,6 +63,7 @@ import { dropGameWords } from "./ballads/guard.ts";
 import { auditCounts, auditSave } from "./town/audit.ts";
 import { reportWhere, whereNow } from "./warmth.ts"; // M7 warmth: where Jef is for the cold
 import { mountMultiplayer } from "./mp/index.ts"; // M8a multiplayer: who asks, the join code, the movement socket, the server's own clock
+import { MapModel, mountMapView } from "./mapview/index.ts"; // the town map for the host (docs/mapview.md)
 
 const db = openDb(DB_FILE);
 const stale = closeStaleCalls(db);
@@ -111,7 +112,17 @@ function moneyNow(): number | null {
 }
 // M8a multiplayer (mp/index.ts, docs/milestones/M8a.md): before every other part, so it knows who asks (the host or
 // a guest by his token) and keeps guests to walking; together, a tab's pause and tick do not move the town
-const mp = mountMultiplayer(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
+// The town map (mapview/, docs/mapview.md): its own page on this PC only (port 8790), fed by the multiplayer code
+const mapModel = new MapModel();
+const mp = mountMultiplayer(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m), map: mapModel });
+const mapView = mountMapView({ model: mapModel, db });
+// the game's "Town map" button: the map's address, for the host's own browser only (the map listens on 127.0.0.1)
+app.get("/api/map", async (c) => {
+  const who = c.get("mpWho");
+  if (!who?.host) return c.json({ error: "The town map is on the host's PC." }, 403);
+  const url = await mapView.ready;
+  return url ? c.json({ url }) : c.json({ error: "The town map is off (SCHELDEMIST_MAP_PORT=0) or its port is taken." }, 404);
+});
 // M7 save and pause: saves, loads and the pause; first, so its gate sees every request (save/routes.ts)
 mountSaves(app, {
   db,
@@ -626,6 +637,7 @@ if (!db.prepare("SELECT 1 FROM world_state WHERE key = 'day_start_money'").get()
 
 function shutdown(): void {
   void mp.close(); // M8a: the house's listeners
+  void mapView.close(); // the town map's port
   wss.close();
   server.close();
   db.close();

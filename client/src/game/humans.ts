@@ -3,6 +3,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { psx } from "../retro/psx";
+import { PUPPET_MOTIONS } from "../../../shared/mpProtocol";
 import { addCaster, removeCaster } from "../world/lanternLights";
 
 // The people of 1873 as rigged, textured low-poly models (tools/blender/build_people.py,
@@ -39,7 +40,11 @@ export type Motion = "idle" | "walk" | "talk" | "fold" | "carry" | "sit" | "behi
  * M6 transport: ride (pedalling a velocipede: the body is raised by rideLift, the loop set from the
  * front wheel by setPhase), row (on a thwart facing the stern), push (behind a handcart, anyone).
  */
-const MOTIONS: Motion[] = ["idle", "walk", "talk", "fold", "carry", "sit", "behind", "lean", "write", "ride", "row", "push", "scrub", "lace", "cross", "point", "beg", "call", "crouch", "hop", "rope", "grind", "pull", "wash", "wall", "pockets", "smoke"];
+/** Every motion (M8b: its place in the list is its number in a puppet batch: shared/mpProtocol.ts PUPPET_MOTIONS, the same list). */
+export const MOTIONS: Motion[] = [...PUPPET_MOTIONS];
+// (the shared list and this type name the same motions: a motion added here must be added there, and the other way round)
+const _sameMotions: (typeof PUPPET_MOTIONS)[number] extends Motion ? (Motion extends (typeof PUPPET_MOTIONS)[number] ? true : false) : false = true;
+void _sameMotions;
 /** M6 lively: how far the hips come down (a 1.74 m body) kneeling or crouched (build_people.py KNEEL_DROP, CROUCH_DROP). */
 const KNEEL_DROP = 0.44;
 const CROUCH_DROP = 0.4;

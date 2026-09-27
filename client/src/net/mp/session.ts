@@ -7,13 +7,15 @@
 // Nothing that comes back ever moves this player or his camera.
 
 import { real } from "../../game/pause";
-import { decodeBatch, encodeState, MP_PROTOCOL, SEND_MS, type MpState, type MpText, type RosterEntry } from "../../../../shared/mpProtocol";
+import { decodeBatch, encodeState, MP_PROTOCOL, MSG_PUPPETS, SEND_MS, type MpState, type MpText, type RosterEntry } from "../../../../shared/mpProtocol";
 import { identity } from "./identity";
 
 export interface SessionHooks {
   /** Own state now with the time it was true (server clock), or null (not in the game yet). */
   sample(serverNow: number): Omit<MpState, "seq"> | null;
   onBatch(list: Array<{ id: number; s: MpState }>, serverNow: number, recvServerNow: number): void;
+  /** M8b: a batch of townspeople from their owner (net/mp/street.ts reads it). */
+  onPuppets?(v: DataView, recvServerNow: number): void;
   onRoster(list: RosterEntry[]): void;
   onWelcome(w: Extract<MpText, { type: "welcome" }>): void;
   onText(m: MpText): void;
@@ -32,7 +34,7 @@ export class Session {
   private retry = 1000;
   closed = false;
   /** Bytes each way, frames sent (the harness reads these). */
-  stats = { up: 0, down: 0, sent: 0, batches: 0, reconnects: 0 };
+  stats = { up: 0, down: 0, sent: 0, batches: 0, reconnects: 0, skipped: 0 };
 
   constructor(private readonly hooks: SessionHooks) {}
 
@@ -76,6 +78,10 @@ export class Session {
       }
       const buf = e.data as ArrayBuffer;
       this.stats.down += buf.byteLength;
+      if (buf.byteLength && new Uint8Array(buf, 0, 1)[0] === MSG_PUPPETS) {
+        this.hooks.onPuppets?.(new DataView(buf), this.serverNow());
+        return;
+      }
       const b = decodeBatch(buf);
       if (!b) return;
       this.stats.batches++;
@@ -132,6 +138,32 @@ export class Session {
     if (this.sendTimer) clearInterval(this.sendTimer);
     if (this.pingTimer) clearInterval(this.pingTimer);
     this.sendTimer = this.pingTimer = 0;
+  }
+
+  /** M8b: a text message (claim, release, the world), if the socket is open. */
+  sendText(m: MpText): boolean {
+    const ws = this.ws;
+    if (!ws || ws.readyState !== WebSocket.OPEN || !this.id) return false;
+    const s = JSON.stringify(m);
+    this.stats.up += s.length;
+    ws.send(s);
+    return true;
+  }
+
+  /**
+   * M8b: a binary frame (the townspeople this PC walks). A line that cannot keep up (over 64 KB waiting) skips
+   * it: the next one replaces it (the research: never queue stale states).
+   */
+  sendBinary(b: ArrayBuffer): boolean {
+    const ws = this.ws;
+    if (!ws || ws.readyState !== WebSocket.OPEN || !this.id) return false;
+    if (ws.bufferedAmount > 64 * 1024) {
+      this.stats.skipped++;
+      return false;
+    }
+    this.stats.up += b.byteLength;
+    ws.send(b);
+    return true;
   }
 
   sendNow(): void {
