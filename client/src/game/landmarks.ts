@@ -21,6 +21,7 @@ import { createCathedralInWorld, type CathedralInWorld } from "../world/cathedra
 import { loadCathedralOutside } from "../world/cathedralOutside";
 import { loadVleeshuisShell } from "../world/vleeshuisShell"; // the Vleeshuis in detail (vleeshuis.glb)
 import { loadStadhuisShell } from "../world/stadhuisShell"; // the town hall in detail (stadhuis.glb)
+import { createLandmarkWindows, type LandmarkWindows } from "../world/landmarkWindows"; // lit all night
 import * as PLAN from "../../../shared/cathedralPlan";
 import * as HP from "../../../shared/hallPlan";
 import { makeCoffin, makeWear, type WardrobeRole } from "./wardrobe";
@@ -272,6 +273,8 @@ export class Landmarks {
   private cath: CathedralInWorld | null = null;
   /** `here` is a building in the world (the cathedral, or a hall of M7 halls), not an instanced hall. */
   private inWorldHere = false;
+  /** The landmarks' lit windows at night (world/landmarkWindows.ts). */
+  windows: LandmarkWindows | null = null;
   /** M7 halls: the town hall, the Vleeshuis, the Oostershuis and the Steen in the world (world/hallInWorld.ts). */
   private halls: HallInWorld[] = [];
   /** The hall whose life runs now (null: none, or the cathedral's). */
@@ -336,6 +339,8 @@ export class Landmarks {
     this.halls = hallsInWorld(world, inWorld);
     loadVleeshuisShell(world.scene); // the Vleeshuis in detail: its own model, the old one of landmarks.glb hidden
     loadStadhuisShell(world.scene); // the town hall in detail: its own model, the old one of landmarks.glb hidden
+    // the landmarks' and churches' windows glow all night, open or shut (world/landmarkWindows.ts)
+    this.windows = createLandmarkWindows(world.scene);
   }
 
   /** M7 funeral: is this person's figure in the hall now (a townsperson of an event walks out of the street only once it has walked out)? */
@@ -966,6 +971,7 @@ export class Landmarks {
 
   update(dt: number): void {
     this.t += dt;
+    if (this.windows) this.windows.update(this.daylight().day, this.t, dt, this.jobs.day.hourF, this.jobs.day.dayNum);
     this.doorsT -= dt;
     if (this.doorsT <= 0) {
       this.doorsT = 12;

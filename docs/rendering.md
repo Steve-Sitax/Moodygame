@@ -81,6 +81,14 @@ the spilt light), so a stone is lit on the side toward a light and shaded on the
   night, at the full window and at 270 lines, the stone-scale contrast (the std of the picture blurred 3 px minus
   blurred 14 px) against the same view without.
 
+## Light in the halls (2026-09-27, milestones/hall-light.md)
+- The landmarks' and churches' windows glow all night from outside (`world/landmarkWindows.ts`): a copy of the glass
+  3 cm out, additive, one material per building (all one shader), faded by the building's distance in the fog on its
+  own (no three.js fog on an additive light). Their low windows register spill sources (kind `hall`).
+- The sun and the moon inside the churches (`world/hallSun.ts`): traced once at build onto the floor and the arcades'
+  walls, drawn as quads that multiply what is under them (`dst * (1 + src)`), plus additive shafts. No light, no shadow
+  map. A new hall with windows gives its windows, piers, arcade walls and galleries to `buildHallSun`.
+
 ## Still open
 - The water mirror draws the town a second time when water is in view: about 12 ms more per frame on
   the quays (not a stutter, a steady cost). Cheaper options change the picture, so none is taken yet.
