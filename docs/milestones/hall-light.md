@@ -32,6 +32,9 @@ bright but with shadow work, take pictures, send to codex for mood passes and im
   the building's `roof`) stay dark but for a lamp going by. A church glows dim (about a quarter of before), brightest
   at a window's foot where the candles stand, its tower windows dark. Measured: the town hall 137 of 579 windows lit
   at 20:00, 40 at 23:30, 18 at 2:00; the Hanseatic House 2 of 26. The mesh's colours change only when a lamp does.
+  A window is whole (Steve: "a window is a complete window and not a small part ... always completely off or on"): the
+  panes of one face whose outlines meet within 0.3 m are one window, lit or dark together (the town hall: 579 panes,
+  210 windows).
 - **Sun and moon inside** (`world/hallSun.ts`) in the cathedral, St Paul, St James and St Charles: the sun is traced
   once, when the hall is built, from every texel of the floor (4 a metre) and of the arcades' walls over their arches
   back toward the sun. Where the ray leaves through a window the surface is lit in the glass's colours; a pier or

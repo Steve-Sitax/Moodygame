@@ -374,6 +374,50 @@ export function createLandmarkWindows(scene: THREE.Scene): LandmarkWindows {
       }
       // each window: its room (a building of rooms: about 2.8 m of front on a storey of one face), its strength
       const Wv = new THREE.Vector3();
+      // whole windows (Steve: "a window is a complete window ... always completely off or on"): the panes of one
+      // window are not always joined (a cross window's four lights, the sashes): panes in one face's plane whose
+      // outlines meet within 0.3 m are one window, lit and dark together
+      const panes = [...win.values()];
+      const pn = panes.map((w) => {
+        const n = w.n.clone().applyMatrix3(nm);
+        n.y = 0;
+        if (n.lengthSq() > 1e-6) n.normalize();
+        const c = w.box.getCenter(new THREE.Vector3());
+        const sz = w.box.getSize(new THREE.Vector3());
+        const along = c.x * -n.z + c.z * n.x;
+        const half = Math.abs(sz.x * n.z) / 2 + Math.abs(sz.z * n.x) / 2;
+        return { n, d: c.x * n.x + c.z * n.z, s0: along - half, s1: along + half, y0: w.box.min.y, y1: w.box.max.y };
+      });
+      const up = panes.map((_, i) => i);
+      const top = (i: number): number => {
+        while (up[i] !== i) i = up[i] = up[up[i]];
+        return i;
+      };
+      for (let i = 0; i < panes.length; i++)
+        for (let j = i + 1; j < panes.length; j++) {
+          const a = pn[i];
+          const b = pn[j];
+          if (a.n.dot(b.n) < 0.9 || Math.abs(a.d - b.d) > 0.4) continue;
+          if (a.s0 > b.s1 + 0.3 || b.s0 > a.s1 + 0.3 || a.y0 > b.y1 + 0.3 || b.y0 > a.y1 + 0.3) continue;
+          const ra = top(i);
+          const rb = top(j);
+          if (ra !== rb) up[rb] = ra;
+        }
+      const whole = new Map<number, W0>();
+      panes.forEach((w, i) => {
+        const r = top(i);
+        const m = whole.get(r);
+        if (!m) whole.set(r, { box: w.box.clone(), n: w.n.clone(), area: w.area, tower: w.tower, tris: [...w.tris] });
+        else {
+          m.box.union(w.box);
+          m.n.add(w.n);
+          m.area += w.area;
+          m.tower ||= w.tower;
+          m.tris.push(...w.tris);
+        }
+      });
+      win.clear();
+      for (const [k, w] of whole) win.set(k, w);
       const minY = Math.min(...[...win.values()].map((w) => w.box.min.y));
       const windows: Win[] = [];
       const full = new Float32Array(tris.length * 3);
