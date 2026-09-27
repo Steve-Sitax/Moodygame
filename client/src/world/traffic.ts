@@ -1123,7 +1123,7 @@ export class LedDray {
   private readonly horse: THREE.Mesh;
   /** Per leg (left fore, right fore, left hind, right hind): the upper and the lower part. */
   private readonly legs: Array<[THREE.Mesh, THREE.Mesh]>;
-  private readonly pose = newHorsePose();
+  private readonly gaitPose = newHorsePose();
   private readonly load: THREE.Mesh | null;
   /** The man's steps, newest first (every 0.2 m). */
   private trail: Array<[number, number]> = [];
@@ -1236,7 +1236,7 @@ export class LedDray {
     put(this.rear, A.x, 0.52, A.z, bedYaw, this.roll[0]);
     put(this.front, B.x, 0.42, B.z, foreYaw, this.roll[1]);
     const amp = Math.min(1, speed / 0.8);
-    const pose = horsePose(this.pose, this.gait, amp, false, DRAY_STRIDE);
+    const pose = horsePose(this.gaitPose, this.gait, amp, false, DRAY_STRIDE);
     put(this.horse, H.x, pose.bob, H.z, H.yaw);
     const cy = Math.cos(H.yaw);
     const sy = Math.sin(H.yaw);
