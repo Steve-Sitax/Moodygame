@@ -1,0 +1,49 @@
+SCHELDEMIST - Antwerp, autumn 1873
+==================================
+
+HOW TO PLAY
+
+1. Start the game:
+   - Windows: double-click "Start Scheldemist.bat".
+     If Windows says "Windows protected your PC", click "More info", then "Run anyway".
+   - Mac: double-click "Start Scheldemist.command".
+     If the Mac says it cannot open it: open System Settings, then Privacy & Security.
+     Scroll down and click "Open Anyway". Then double-click the file again.
+   - Linux: run ./start-scheldemist.sh in a terminal.
+
+2. A black window opens. Then the game opens in your web browser.
+   Keep the black window open while you play. Close it to stop the game.
+
+3. Use Chrome for the best speed.
+
+You need nothing else. Node (the program that runs the game) is inside this folder.
+
+
+THE TOWN'S VOICE (AI)
+
+The game works without AI. The townspeople then use written lines.
+To let an AI speak for the town, open the menu (Esc), then "AI setup". Choose one:
+  - Claude, with your Claude login: install Claude Code, run "claude" once and log in.
+  - Claude, with an API key from console.anthropic.com (you pay per call).
+  - Codex, with your ChatGPT login: install Codex and log in.
+  - Ollama: a free AI that runs on your own computer (https://ollama.com).
+  - Any OpenAI-compatible server, with its address and key.
+  - No AI: just walk around.
+Use the "Test" button to see if your choice works.
+
+
+YOUR SAVE
+
+Your save and settings are in the "data" folder next to this file.
+To move to a new version: copy the "data" folder into the new version's folder.
+
+
+PLAY TOGETHER
+
+Play together is off. To let people in your house join, open the menu, then "Together".
+
+
+MORE
+
+Source code, help and bug reports: https://github.com/Steve-Sitax/Moodygame
+Licence: GNU AGPL 3.0 or later (see LICENSE). Credits for sounds, fonts and maps: ATTRIBUTION.md.

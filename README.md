@@ -4,14 +4,48 @@ A 3D browser game. Antwerp, autumn 1873: first person, a PS1 look, fog on the Sc
 new in town, looking for work on the quays. The townspeople talk, remember and act; an AI proposes
 their words and plans, and the game engine checks every proposal and owns every number.
 
-## Run it
+## Play it
 
-1. Install a current Node.js.
+**[Download the latest version](https://github.com/Steve-Sitax/Moodygame/releases/latest)**. You need to
+install nothing.
+
+1. On the download page, pick the file for your computer: Windows (`windows-x64.zip`), Mac with an Apple
+   M1 or newer (`mac-arm64.zip`), or Linux (`linux-x64.tar.gz`).
+2. Unzip it.
+3. Start it:
+   - **Windows:** double-click `Start Scheldemist.bat`. If Windows says "Windows protected your PC",
+     click **More info**, then **Run anyway**.
+   - **Mac:** double-click `Start Scheldemist.command`. If the Mac says it cannot open it, open
+     **System Settings > Privacy & Security**, scroll down, click **Open Anyway**, and double-click the
+     file again.
+   - **Linux:** run `./start-scheldemist.sh`.
+4. The game opens in your browser. Keep the small black window open while you play. Close it to stop.
+
+Chrome gives the best speed. Your save is in the `data` folder; to move to a new version, copy `data`
+into the new folder. `PLAY.txt` in the download says the same.
+
+**The town's voice (AI).** The game works with no AI at all: the townspeople then use written lines. To let
+an AI speak for the town, open the menu (Esc), then **AI setup**, and pick one:
+
+| Choice | What you need |
+|---|---|
+| Claude, your Claude login | [Claude Code](https://claude.com/claude-code) installed; run `claude` once and log in |
+| Claude, API key | a key from console.anthropic.com (paid per call) |
+| Codex (GPT) | the Codex CLI installed and logged in |
+| Ollama | [Ollama](https://ollama.com) on your computer with a model pulled (free) |
+| Any OpenAI-compatible server | its address, model name and key |
+| No AI | nothing: walk around |
+
+Press **Test** next to your choice to see if it works. More in `docs/ai-setup.md`.
+
+## Run it from the source (developers)
+
+1. Install Node.js 24 or newer.
 2. `npm run setup` once, then `npm run dev` in this folder.
 3. Open http://localhost:5173. The server runs on 127.0.0.1:8787; the save is `data/game.sqlite`.
 
-The game works with no AI at all. To let an AI speak for the town, pick one in the game's AI setup
-(see `docs/ai-setup.md`). The design notes start at `docs/README.md`.
+`node tools/package.mjs` makes the player's download for your own system; `docs/release.md` says how a
+Release is made. The design notes start at `docs/README.md`.
 
 ## Licence
 
