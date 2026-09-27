@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -6,6 +7,11 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.resolve(here, "..", "..");
 /** The save. SCHELDEMIST_DB points a second server at a test save (M3e checks), never at the real one by accident. */
 export const DB_FILE = process.env.SCHELDEMIST_DB ? path.resolve(process.env.SCHELDEMIST_DB) : path.join(ROOT, "data", "game.sqlite");
+/**
+ * The game's own files the server reads too (the walk map, park.json, wall.glb): client/public in a checkout.
+ * The player's download has only the build (tools/package.mjs), where vite copied them under the same names.
+ */
+export const PUBLIC_DIR = fs.existsSync(path.join(ROOT, "client", "public")) ? path.join(ROOT, "client", "public") : path.join(ROOT, "client", "dist");
 /** Empty folder the Claude subprocess runs in. Nothing of ours is in it. */
 export const AI_CWD = path.join(ROOT, "data", "ai-cwd");
 

@@ -1,13 +1,13 @@
 // The settings' store (Steve, 2026-09-23: "change resolution so we can try higher res"; 2026-09-26:
 // "Changeable controls, graphic settings possible for worse hardware systems? Other menu stuff you can
 // think of?"). Kept in the browser (localStorage), applied at once. The menu that shows it is
-// menu/menu.ts, mounted by game/settings.ts. The PS1 look stays the default.
+// menu/menu.ts, mounted by game/settings.ts. Default (Steve, 2026-09-27): 720 lines, no wobble.
 //
 // Other parts read a setting with `settings.get("lightBudget")` and hear changes with
 // `settings.onChange(fn)`; nothing outside the menu writes them.
 
 export interface GameSettings {
-  /** Render height in pixels: 270 is the PS1 look; 0 = the full window. */
+  /** Render height in pixels: 720 by default, 270 is the PS1 look; 0 = the full window. */
   height: number;
   /** 5-bit colour with ordered dither (the PS1 colour). */
   psxColour: boolean;
@@ -85,7 +85,7 @@ export interface Prefs extends GameSettings {
 }
 
 export const HEIGHTS: Array<[number, string]> = [
-  [270, "270 lines (PS1, the look)"],
+  [270, "270 lines (the old PS1 look)"],
   [360, "360 lines"],
   [540, "540 lines"],
   [720, "720 lines"],
@@ -96,15 +96,15 @@ export const HEIGHTS: Array<[number, string]> = [
 /** What each preset sets. "high" is the game as it was before presets. */
 export const PRESETS: Record<Exclude<Preset, "custom">, Partial<Prefs>> = {
   low: { height: 270, scale: 0.75, view: 0.7, rooms: 1, street: "few", reflections: "off", shadows: false, lightBudget: "low", particles: "off", frameCap: 30 },
-  medium: { height: 270, scale: 1, view: 0.85, rooms: 2, street: "normal", reflections: "coarse", shadows: true, lightBudget: "medium", particles: "some", frameCap: 60 },
-  high: { height: 270, scale: 1, view: 1, rooms: 4, street: "normal", reflections: "full", shadows: true, lightBudget: "high", particles: "all", frameCap: 0 },
+  medium: { height: 540, scale: 1, view: 0.85, rooms: 2, street: "normal", reflections: "coarse", shadows: true, lightBudget: "medium", particles: "some", frameCap: 60 },
+  high: { height: 720, scale: 1, view: 1, rooms: 4, street: "normal", reflections: "full", shadows: true, lightBudget: "high", particles: "all", frameCap: 0 },
 };
 export const PRESET_KEYS = Object.keys(PRESETS.high) as Array<keyof Prefs>;
 
 export const DEFAULTS: Prefs = {
-  height: 270,
+  height: 720,
   psxColour: true,
-  wobble: true,
+  wobble: false,
   street: "normal",
   preset: "high",
   scale: 1,
@@ -136,6 +136,8 @@ export const DEFAULTS: Prefs = {
 };
 
 const KEY = "scheldemist.settings";
+/** Set once the old defaults (270 lines, wobble on) were moved to the new ones (Steve, 2026-09-27). */
+const LOOK_KEY = "scheldemist.settings.look720";
 const num = (v: unknown, lo: number, hi: number, d: number) => (typeof v === "number" && Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d);
 const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
 const one = <T extends string>(v: unknown, list: readonly T[], d: T): T => (list.includes(v as T) ? (v as T) : d);
@@ -148,6 +150,17 @@ function read(): Prefs {
     /* a broken store: the defaults */
   }
   const d = DEFAULTS;
+  try {
+    // once: a store from before 2026-09-27 still holds the old defaults; move it to the new ones
+    if (!localStorage.getItem(LOOK_KEY)) {
+      if (raw.height === 270 && raw.preset !== "low") raw.height = 720;
+      raw.wobble = false;
+      localStorage.setItem(LOOK_KEY, "1");
+      if (localStorage.getItem(KEY)) localStorage.setItem(KEY, JSON.stringify(raw));
+    }
+  } catch {
+    /* private mode: the defaults */
+  }
   return {
     height: HEIGHTS.some(([h]) => h === raw.height) ? (raw.height as number) : d.height,
     psxColour: bool(raw.psxColour, d.psxColour),

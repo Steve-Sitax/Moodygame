@@ -1827,8 +1827,8 @@ def _ik(pf, ph, tf, th, L1, L2, bend):
     return a1, jf, jh, math.atan2(tf - jf, jh - th)
 
 
-def horse_pose(gait, amp=1.0, trot=False, stride=None):
-    """The body's lift and, per leg, (x, f, h, pitch) of the upper and the lower part (pitch > 0 swings it back)."""
+def _horse_reach(gait, amp, trot, stride):
+    """The hooves' targets at gait and the highest the body may be so every hoof on the ground can reach it."""
     st, lf, lh, lift = HORSE_GAITS["trot" if trot else "walk"]
     S = (stride or (2.8 if trot else 1.42)) * st * amp
     legs = []
@@ -1854,6 +1854,38 @@ def horse_pose(gait, amp=1.0, trot=False, stride=None):
         Lr = (r["L1"] + r["L2"]) * 0.9995
         c = math.sqrt(max(0.0, Lr * Lr - (ft - r["pivot"][0]) ** 2)) - r["pivot"][1] + ht
         off = min(off, c + (1 - w) * 0.5)
+    return off, legs
+
+
+BOB_N = 240
+BOB_W = BOB_N // 8
+_bob_cache = {}
+
+
+def _horse_bob(gait, amp, trot, stride):
+    """The body's smooth wave (horseGait.ts bobCurve): the lowest reach over an eighth of the cycle round each point,
+    blurred twice over half of it; never higher than the reach, so a planted hoof stays on the ground."""
+    key = (trot, round(amp, 3), stride)
+    c = _bob_cache.get(key)
+    if c is None:
+        env = [_horse_reach(i / BOB_N, amp, trot, stride)[0] for i in range(BOB_N)]
+        low = [min(env[(i + d) % BOB_N] for d in range(-BOB_W, BOB_W + 1)) for i in range(BOB_N)]
+
+        def blur(src, r):
+            return [sum(src[(i + d) % BOB_N] for d in range(-r, r + 1)) / (2 * r + 1) for i in range(BOB_N)]
+
+        c = _bob_cache[key] = blur(blur(low, BOB_W // 2), BOB_W // 2)
+    u = (gait % 1.0) * BOB_N
+    i0 = int(u) % BOB_N
+    f = u - int(u)
+    return c[i0] + (c[(i0 + 1) % BOB_N] - c[i0]) * f
+
+
+def horse_pose(gait, amp=1.0, trot=False, stride=None):
+    """The body's lift and, per leg, (x, f, h, pitch) of the upper and the lower part (pitch > 0 swings it back)."""
+    wave = _horse_bob(gait, amp, trot, stride)
+    env, legs = _horse_reach(gait, amp, trot, stride)
+    off = min(wave, env)
     out = []
     for key, side, r, ft, ht, w in legs:
         pf, ph = r["pivot"]

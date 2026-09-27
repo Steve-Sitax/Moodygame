@@ -1560,6 +1560,9 @@ def build():
     wall(m, CW, rect(cu0, tu1, -0.3, TY), mats=((1e9, TOUR),))
     batter(m, CW, cu0, tu1, y_top=0.7, out=0.25, ends="")
     m.box(cu0, tu1, V1, tv1 + 0.4, TY - 0.05, TY, BLUE, 1.0, "t")
+    # the passage's floor under the Steenpoort, from where the ramp's floor ends (its first point) to the courtyard's
+    # (Steve 2026-09-27: without it the passage was 3 m of open air over the ground)
+    m.box(RD["line"][0][0] - cx, cu0, pc - phw, pc + phw, TY - 0.05, TY, BLUE, 1.0, "t")
     wbox(m, CW, cu0, tu1, 0.0, 0.08, TY - 0.2, TY + 0.03, BLUE, 1.05, "otd")
     balustrade(m, (cu0 + 0.8, tv1 + 0.2, TY), (tu1 - 0.9, tv1 + 0.2, TY), (0, 1))
     for u in (cu0 + 0.4, -5.0, 2.0, tu1 - 0.5):

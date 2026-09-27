@@ -1,8 +1,10 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
-import { AI_CWD, CLAUDE, MODELS, ROUTE_DEFAULT, type Provider } from "../config.ts";
+import { AI_CWD, CLAUDE, MODELS, ROOT, ROUTE_DEFAULT, type Provider } from "../config.ts";
 import type { DB } from "../db.ts";
 import { codexRunner, killTree } from "./codex.ts";
 import { anthropicRunner, ollamaRunner, openaiRunner } from "./http.ts";
@@ -287,12 +289,43 @@ export async function testCall<S extends z.ZodType>(route: Route, req: { system:
   }
 }
 
+/**
+ * Which Claude Code program the SDK runs. A checkout has the SDK's own copy (its platform package,
+ * about 230 MB); the release download leaves that out (tools/package.mjs), so there the player's own
+ * Claude Code is used: SCHELDEMIST_CLAUDE_PATH, else `claude` on the PATH or in ~/.local/bin.
+ * undefined = the SDK's own copy, or none found (the call then fails and the hook's fallback holds).
+ */
+let claudeExeFound: string | undefined | null = null;
+export function claudeExe(): string | undefined {
+  if (claudeExeFound !== null) return claudeExeFound;
+  claudeExeFound = undefined;
+  if (process.env.SCHELDEMIST_CLAUDE_PATH) return (claudeExeFound = process.env.SCHELDEMIST_CLAUDE_PATH);
+  let own: string[] = [];
+  try {
+    own = fs.readdirSync(path.join(ROOT, "server", "node_modules", "@anthropic-ai")).filter((d) => d.startsWith("claude-agent-sdk-"));
+  } catch {
+    // no node_modules next to the server: look on the PATH
+  }
+  if (own.length > 0) return claudeExeFound;
+  const names = process.platform === "win32" ? ["claude.exe"] : ["claude"];
+  const dirs = [...(process.env.PATH ?? "").split(path.delimiter), path.join(os.homedir(), ".local", "bin")];
+  for (const dir of dirs) {
+    for (const name of names) {
+      const p = dir && path.join(dir, name);
+      if (p && fs.existsSync(p) && fs.statSync(p).isFile()) return (claudeExeFound = p);
+    }
+  }
+  return claudeExeFound;
+}
+
 /** The real call: local claude binary via the Agent SDK. */
 export const sdkRunner: Runner = async ({ system, prompt, jsonSchema, signal, model, effort }) => {
   fs.mkdirSync(AI_CWD, { recursive: true });
+  const exe = claudeExe();
   const q = query({
     prompt,
     options: {
+      ...(exe ? { pathToClaudeCodeExecutable: exe } : {}),
       model: model ?? CLAUDE.model,
       // Haiku 4.5 takes no effort setting: its route leaves effort out, and thinking goes off
       // (the CLI's default thinking budget made Haiku take 40-60 s a call, M6-models.md)
