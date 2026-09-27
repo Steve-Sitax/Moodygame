@@ -16,6 +16,7 @@ import { RetroPass } from "./retro/retroPass";
 import { psxUniforms } from "./retro/psx";
 import { mountSettings, STREET_LEVELS, type GameSettings } from "./game/settings";
 import { wireSettings } from "./menu/apply"; // menus
+import { settings as prefs } from "./game/prefs";
 import { mountDevMenu } from "./game/devmenu";
 import { setAmbientViewHeight } from "./world/ambient";
 import { setFireViewHeight } from "./world/fire";
@@ -535,6 +536,8 @@ player.onSplash = (x, z) => {
 };
 player.onStroke = () => sound?.swimStroke();
 
+/** Paused: the picture wants drawing again (a resize, a setting changed). The menu first: see MENU_QUIET_MS. */
+let standDirty = false;
 function resize(): void {
   const w = window.innerWidth;
   const h = window.innerHeight;
@@ -552,6 +555,7 @@ function resize(): void {
   setFireViewHeight(retro.height);
   setAliveViewHeight(retro.height); // M7 alive (hook)
   setMirrorScale(retro.height / 270);
+  standDirty = true;
 }
 window.addEventListener("resize", resize);
 // the settings (Esc: the pause paper has a Settings button); applying them resizes
@@ -946,7 +950,28 @@ const vehicleSounds: VehicleSound[] = [];
 const timer = new THREE.Timer();
 timer.connect(document);
 let elapsed = 0;
-let pausedDraw = 0;
+/**
+ * The menu first (2026-09-27, Steve: "switching tabs takes time ... in multiplayer, give the menu priority
+ * and skip frames if needed"). A draw of the town can build shaders and send textures, and the page's own
+ * paint (the menu) waits behind that on the GPU, up to seconds. So:
+ * - paused, the picture stands: drawn again only when it must be (a resize, a setting changed), and only once
+ *   the menu has been left alone a moment;
+ * - the town running behind a menu (the first page; played together the menu does not pause): the world
+ *   moves on every frame, but it is drawn at most 20 times a second, and not just after a click or key.
+ */
+const MENU_QUIET_MS = 300;
+let menuTouchedAt = -1e9;
+let menuDrawAt = -1e9;
+for (const ev of ["pointerdown", "keydown", "wheel", "input"]) document.addEventListener(ev, () => (menuTouchedAt = real.now()), { capture: true, passive: true });
+prefs.onChange(() => (standDirty = true));
+/** Whether this frame draws the town: always in play; behind a menu, only when the menu leaves room. */
+function menuLetsDraw(): boolean {
+  if (startEl.classList.contains("hidden") && !panelsOpen().length) return true;
+  const now = real.now();
+  if (now - menuTouchedAt < MENU_QUIET_MS || now - menuDrawAt < 50) return false;
+  menuDrawAt = now;
+  return true;
+}
 /**
  * M7 quays: the goods heaps (world/quaygoods.ts) keep 2 m off every place of the paths() check. Those
  * places come in with the town (from the server) after the heaps may stand, so every few seconds, when
@@ -997,15 +1022,15 @@ function frame(): void {
   player.stalled = false;
   timer.update();
   const dt = Math.min(timer.getDelta(), 0.1);
-  // M7 save and pause: paused, nothing moves; the picture stands (drawn again now and then: a resize)
+  // M7 save and pause: paused, nothing moves; the picture stands (drawn again after a resize or a setting: the menu first, above)
   if (pause.paused) {
-    if (pausedDraw-- <= 0) {
-      pausedDraw = 30;
+    if (standDirty && real.now() - menuTouchedAt > MENU_QUIET_MS) {
+      standDirty = false;
       retro.render(world.scene, player.camera, elapsed);
     }
     return;
   }
-  pausedDraw = 0;
+  standDirty = false;
   elapsed += dt;
   safe("refreshFolk", refreshFolk);
   safe("together.worldFrame", () => together.worldFrame(dt)); // M8b: the moving world run here or shown from the world PC
@@ -1134,7 +1159,8 @@ function frame(): void {
   // (the first screen, while the shaders are built in the background: the picture holds, so the page
   // does not stand still waiting for them; in the game it always draws)
   // (boot: not while the loading screen builds and warms everything; boot/loader.ts draws then)
-  if (started || (!warmer.pending && !booting())) retro.render(world.scene, player.camera, elapsed);
+  // (behind a menu: the menu first, menuLetsDraw above)
+  if ((started || (!warmer.pending && !booting())) && menuLetsDraw()) retro.render(world.scene, player.camera, elapsed);
   // a frame that hung: the mouse moves piled up meanwhile would turn the view in one jerk (player/firstPerson.ts)
   player.stalled = real.now() - frameStart > 150;
   }
