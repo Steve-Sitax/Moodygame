@@ -45,6 +45,7 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 
 | Commit | What |
 |---|---|
+| v0.1.0 (bd93cd8) | First player Release (Steve 2026-09-27: "Push current version as 0.1.0"): https://github.com/Steve-Sitax/Moodygame/releases/tag/v0.1.0, Windows, Mac and Linux downloads, each started and checked by the Action. The README's "Download the latest version" link works now |
 | (this) | T1 rounds 2-3 (`docs/milestones/T1-ways.md`): the town map steady and live when played alone; real walking paces (young run, old slower, a load slows nobody) with a day route that sets off in time; rounds along the streets; smaller gives way to bigger (the train and the omnibus not held up); the dockers from a real pile to a door or a pile (`shared/hauls.ts`, `carrycheck()`); tavern and back-town places off the river and out of the blocks; the bridges in the ways. Issue #5 filed |
 | d0ab548 | T1 far townspeople keep going (`docs/milestones/T1-ways.md`): ways on foot for every day plan, one shared sum puts the unseen on their way (game and town map agree to 7 cm), nobody waits for ever to appear in view, `findcheck()`. Issues filed on the way: #1 (Steen museum spots unreachable), #2 (lock files lack the licence field). Main's `server/node_modules` reinstalled (reflect-metadata was missing after M8e). Play copy not refreshed. |
 | e7193de | Rule in CLAUDE.md: finds outside your task go to a GitHub issue |
