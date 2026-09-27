@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
-import { ROOT } from "../config.ts";
+import { PUBLIC_DIR, ROOT } from "../config.ts";
 import CITY from "../../../shared/city.json" with { type: "json" };
 
 // The walk map on the server (M3e). The same picture the client walks on
@@ -95,7 +95,7 @@ export function readPng(file: string): { w: number; h: number; ch: number; px: U
 export function walkMap(): WalkMap {
   if (cached) return cached;
   const info = (CITY as unknown as { walk: WalkInfo }).walk;
-  const png = readPng(path.join(ROOT, "client", "public", info.file.replace(/^\//, "")));
+  const png = readPng(path.join(PUBLIC_DIR, info.file.replace(/^\//, "")));
   const cells = new Uint8Array(info.w * info.h);
   for (let i = 0; i < cells.length; i++) {
     const r = png.px[i * png.ch];

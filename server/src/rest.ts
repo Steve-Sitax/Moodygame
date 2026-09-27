@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import type { DB } from "./db.ts";
-import { ROOT } from "./config.ts";
+import { PUBLIC_DIR } from "./config.ts";
 import { GameError, log } from "./game.ts";
 import {
   clock,
@@ -206,7 +206,7 @@ function wallBenches(file: string): Array<{ x: number; z: number; y: number }> {
 /** Every public bench with a fixed place (shared/sleep.ts fixedBenches), read once. */
 export function benches(): Bench[] {
   if (registry) return registry;
-  const models = path.join(ROOT, "client", "public", "models");
+  const models = path.join(PUBLIC_DIR, "models");
   const park = readJson<{ benches?: Array<Array<[number, number]>> }>(path.join(models, "park.json"))?.benches ?? [];
   registry = fixedBenches({ townplaces: TOWNPLACES as never, stops: STOPS, park, wall: wallBenches(path.join(models, "wall.glb")) });
   return registry;

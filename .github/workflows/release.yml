@@ -1,0 +1,89 @@
+# The player's downloads (docs/release.md). A tag like v0.2.0 builds the game on Windows, macOS and Linux
+# (tools/package.mjs) and puts the three downloads on a GitHub Release. "Run workflow" by hand builds them
+# as test downloads on the run's page only, with no Release.
+name: Release downloads
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  pack:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install
+        run: |
+          npm ci --no-audit --no-fund
+          npm --prefix client ci --no-audit --no-fund
+          npm --prefix server ci --no-audit --no-fund
+      - name: Build and pack
+        id: pack
+        shell: bash
+        env:
+          SCHELDEMIST_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || format('test-{0}', github.run_number) }}
+        run: node tools/package.mjs
+      - name: Try the download (unpack into a folder with a space, start it, the game must answer)
+        shell: bash
+        env:
+          ARCHIVE: ${{ steps.pack.outputs.archive }}
+        run: |
+          try="$RUNNER_TEMP/try it"
+          mkdir -p "$try"
+          case "$ARCHIVE" in
+            *.tar.gz) tar -xzf "$ARCHIVE" -C "$try" ;;
+            *) if [ "$RUNNER_OS" = macOS ]; then ditto -x -k "$ARCHIVE" "$try"; else /c/Windows/System32/tar.exe -xf "$ARCHIVE" -C "$try"; fi ;;
+          esac
+          dir="$(ls -d "$try"/Scheldemist-*)"
+          export SCHELDEMIST_NO_BROWSER=1 SCHELDEMIST_PORT=8800
+          case "$RUNNER_OS" in
+            Linux) "$dir/start-scheldemist.sh" > "$try/log.txt" 2>&1 & ;;
+            macOS) "$dir/Start Scheldemist.command" > "$try/log.txt" 2>&1 & ;;
+            *) "$dir/runtime/node" "$dir/launch.mjs" > "$try/log.txt" 2>&1 & ;;
+          esac
+          ok=""
+          for i in $(seq 1 90); do
+            if curl -sf http://127.0.0.1:8800/ | grep -q "<title>Scheldemist</title>" && curl -sf http://127.0.0.1:8800/api/ai/config > /dev/null; then ok=1; break; fi
+            sleep 1
+          done
+          cat "$try/log.txt"
+          [ -n "$ok" ] || { echo "The download did not start"; exit 1; }
+          [ -f "$dir/data/game.sqlite" ] || { echo "No save was made in data/"; exit 1; }
+          echo "The download starts and answers"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: download-${{ matrix.os }}
+          path: ${{ steps.pack.outputs.archive }}
+          compression-level: 0
+          retention-days: 14
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: pack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: downloads
+          merge-multiple: true
+      - name: Make the Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          pre=""
+          case "$TAG" in *-*) pre="--prerelease" ;; esac
+          gh release create "$TAG" downloads/* --title "Scheldemist $TAG" --notes-file tools/release/notes.md --generate-notes $pre

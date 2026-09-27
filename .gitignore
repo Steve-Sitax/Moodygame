@@ -30,3 +30,6 @@ client/public/draco/
 # Python bytecode (Blender scripts)
 __pycache__/
 *.pyc
+
+# player downloads made by tools/package.mjs
+/release/
