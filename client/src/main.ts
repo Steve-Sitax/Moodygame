@@ -1431,6 +1431,15 @@ if (import.meta.env.DEV) {
     findcheck: (near = 40) => town.findCheck(near),
     /** The carrying check (dev/carrycheck.ts): every docker from a real pile to a door, a pile or a fish bank. Must list no problems. */
     carrycheck: async () => (await import("./dev/carrycheck")).carryCheck({ town, quayPiles: () => quayGoodsInfo()?.placed ?? [], flags: (x: number, z: number) => world.city.flags(x, z) }),
+    /** The overlap check (2026-09-27): townspeople within `near` m of Jef standing in one another (middles nearer than `min` m). Must list nothing. */
+    overlaps: (near = 40, min = 0.45) =>
+      crowd.overlaps(player.x, player.z, near, min).map((o) => ({
+        a: town.puppetName(o.a) ?? o.a.kind,
+        b: town.puppetName(o.b) ?? o.b.kind,
+        d: o.d,
+        at: [Math.round(o.a.x * 10) / 10, Math.round(o.a.z * 10) / 10],
+        what: o.what,
+      })),
     /** The stuck check (dev/stuckcheck.ts): runs the game `seconds` and lists whoever plays a walk but stays on the spot or goes to and fro (must list nothing). */
     stuck: (opts: { seconds?: number; near?: number } = {}) =>
       stuckCheck({ crowd, town, world, player, narrow: rampartStairAt, step: (s) => (window as unknown as { __scheldemist: { step(s: number): void } }).__scheldemist.step(s) }, opts),

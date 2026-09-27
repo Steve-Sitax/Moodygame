@@ -288,6 +288,11 @@ const pick = <T>(xs: T[]): T => xs[Math.floor(Math.random() * xs.length)];
 /** The clips of a body on the move (the stuck check, dev/stuckcheck.ts, watches the same). */
 const WALK_CLIPS = new Set<Motion>(["walk", "carry", "push", "ride"]);
 const angDiff = (a: number, b: number) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
+/** Two bodies keep this far apart, middle to middle (m; shoulders about half a metre), eased apart at up to BODY_SHOVE m/s (keepApart). */
+const BODY_GAP = 0.6;
+const BODY_SHOVE = 1.2;
+/** A townsperson standing in one of these may be eased aside; any other pose is a task on its spot (scrub, lace, rope, wash ...). */
+const FREE_POSES = new Set<Motion>(["idle", "fold", "talk", "walk", "carry", "behind", "pockets", "smoke"]);
 
 // ------------------------------------------------------------------ walk grid
 
@@ -699,6 +704,22 @@ export class Crowd {
     return Math.hypot(x - this.player.x, z - this.player.z) < this.fogFar + 4 && this.inFrustum(x, z, r);
   }
 
+  /**
+   * The overlap check (2026-09-27, `__scheldemist.overlaps()`): pairs within `near` m of (x, z) whose middles are
+   * nearer than `min` m, with what each is doing. Should list nothing but a couple arm in arm.
+   */
+  overlaps(x: number, z: number, near = 40, min = 0.45): Array<{ a: Puppet; b: Puppet; d: number; what: string }> {
+    const out: Array<{ a: Puppet; b: Puppet; d: number; what: string }> = [];
+    const doing = (p: Person) => `${p.kind} ${p.role}/${p.state}/${p.human.motion}${this.shoveWeight(p) ? "" : " (held)"}`;
+    const ps = this.people.filter((p) => Math.hypot(p.x - x, p.z - z) < near && p.role !== "remote");
+    for (let i = 0; i < ps.length; i++)
+      for (let j = i + 1; j < ps.length; j++) {
+        const d = Math.hypot(ps[i].x - ps[j].x, ps[i].z - ps[j].z);
+        if (d < min) out.push({ a: ps[i], b: ps[j], d: Math.round(d * 100) / 100, what: `${doing(ps[i])} + ${doing(ps[j])}` });
+      }
+    return out;
+  }
+
   /** M7 walk-up (dev/popcheck.ts): everyone the crowd walks now. Read only. */
   get walking(): readonly Puppet[] {
     return this.people;
@@ -806,6 +827,9 @@ export class Crowd {
     for (const p of this.people) {
       p.chatCd -= dt;
       if (!this.giveWay(p, dt)) this.think(p, dt);
+    }
+    this.keepApart(dt);
+    for (const p of this.people) {
       const d = Math.hypot(p.x - player.x, p.z - player.z);
       const inView = d < this.fogFar + 4 && this.inFrustum(p.x, p.z, 1.3 * p.size);
       p.shown = inView;
@@ -1518,6 +1542,77 @@ export class Crowd {
     return !this.ground.isFree(p.x, p.z, r) && this.ground.isFree(x, z, 0.1);
   }
 
+  // ---------------------------------------------------------------- bodies keep apart
+
+  /**
+   * Nobody stands in someone else (Steve 2026-09-27: four townspeople in one another at a door). Steering
+   * round others (walk) is only a lean: two sent to one spot, or one walking up to where another stands,
+   * ended in the same place. Every frame, two bodies nearer than BODY_GAP are eased apart onto free ground,
+   * the one on the move more than the one standing. Not moved: a body another layer holds on its spot (sat,
+   * on a vehicle, at a task of lively or the back streets), another PC's townsperson, and a couple walking
+   * side by side (the follower keeps its own 0.62 m).
+   */
+  private keepApart(dt: number): void {
+    const list = this.people;
+    const n = list.length;
+    if (n < 2) return;
+    const cap = BODY_SHOVE * dt;
+    for (let i = 0; i < n; i++) {
+      const p = list[i];
+      const wp = this.shoveWeight(p);
+      for (let j = i + 1; j < n; j++) {
+        const q = list[j];
+        let dx = q.x - p.x;
+        let dz = q.z - p.z;
+        if (dx > BODY_GAP || dx < -BODY_GAP || dz > BODY_GAP || dz < -BODY_GAP) continue;
+        const gap = BODY_GAP * Math.min(1, (p.size + q.size) / 2);
+        let d = Math.hypot(dx, dz);
+        if (d >= gap || p.lead === q || q.lead === p) continue;
+        const wq = this.shoveWeight(q);
+        if (wp + wq === 0) continue;
+        if (d < 1e-3) {
+          // on the very same spot: apart in a way of their own (the same on every PC)
+          const a = ((p.id * 7 + q.id * 13) % 360) * (Math.PI / 180);
+          dx = Math.sin(a);
+          dz = Math.cos(a);
+          d = 1;
+        } else {
+          dx /= d;
+          dz /= d;
+        }
+        const over = gap - Math.min(d, gap);
+        const mp = Math.min(cap, (over * wp) / (wp + wq));
+        const mq = Math.min(cap, (over * wq) / (wp + wq));
+        if (mp > 0 && this.stepFree(p, p.x - dx * mp, p.z - dz * mp)) {
+          p.x -= dx * mp;
+          p.z -= dz * mp;
+        }
+        if (mq > 0 && this.stepFree(q, q.x + dx * mq, q.z + dz * mq)) {
+          q.x += dx * mq;
+          q.z += dz * mq;
+        }
+      }
+    }
+  }
+
+  /** Does someone other than p stand (not walk) on this spot? */
+  private spotTaken(p: Person, x: number, z: number): boolean {
+    for (const q of this.people) {
+      if (q === p || q.state === "walk" || q.lead === p || p.lead === q) continue;
+      const dx = q.x - x;
+      const dz = q.z - z;
+      if (dx * dx + dz * dz < BODY_GAP * BODY_GAP) return true;
+    }
+    return false;
+  }
+
+  /** How readily a body is eased aside: 0 held on its spot by another layer, a little when standing, most when walking. */
+  private shoveWeight(p: Person): number {
+    if (p.role === "remote" || p.veh || p.seat || p.state === "sit" || p.kind === "carter") return 0;
+    if (p.role === "puppet" && p.state !== "walk" && p.pmotion && !FREE_POSES.has(p.pmotion)) return 0;
+    return p.state === "walk" ? 1 : 0.4;
+  }
+
   // ---------------------------------------------------------------- giving way to vehicles
 
   private lanes: Lane[] = [];
@@ -1711,6 +1806,11 @@ export class Crowd {
       p.bestD = Infinity;
       p.stuckT = 0;
       if (p.pi >= p.path.length) this.arrive(p);
+      return;
+    }
+    // the spot itself taken by someone standing there: this near is there (else he walked into them, 2026-09-27)
+    if (len < 1 && p.pi === p.path.length - 1 && this.spotTaken(p, t.x, t.z)) {
+      this.arrive(p);
       return;
     }
     // no closer to the next waypoint for a while (pushed aside, or something in the
