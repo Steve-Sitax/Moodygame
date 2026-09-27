@@ -218,6 +218,21 @@ export class Sleep {
     }
   }
 
+  /**
+   * M8c played together: the server has him asleep without his asking (dead on his feet, he dropped where he
+   * stood): the sleep comes to him with his heartbeat, and goes on at the world's pace like any other.
+   */
+  joinFromServer(v: RestView): void {
+    if (this.state !== "up") return;
+    this.closeChooser();
+    this.state = "asleep";
+    this.place = { kind: v.place, label: v.label };
+    this.player.frozen = true;
+    this.show(v);
+    this.fade.classList.add("on");
+    void this.loop();
+  }
+
   private show(v: RestView | undefined): void {
     if (!v) return;
     const where = v.place === "bench" ? "On the bench" : v.place === "doss" ? "In the doss house" : "In your own bed";

@@ -6,7 +6,7 @@ import { clock, DAY_NAMES, WEATHER_TEXT } from "../day.ts";
 import { log, player } from "../game.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
 import { applyTrust, remember } from "../npcs.ts";
-import { pid } from "../player/current.ts";
+import { asPlayer, onlineIds, pid } from "../player/current.ts";
 import { pstate, setPstate } from "../player/multi.ts";
 import { nameOf } from "../player/names.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
@@ -855,7 +855,8 @@ export async function surprisesTick(db: DB, opts: { runner?: Runner; rng?: () =>
   if (s.hour === c.hour && s.day === c.day) return;
   setSt(db, "surprises", { hour: c.hour, day: c.day });
   await strangerTick(db, opts);
-  await keepPromise(db, opts);
+  // (M8c: the fortune teller's promise to each player in the game)
+  for (const id of onlineIds()) await asPlayer(id, () => keepPromise(db, opts));
   await twistRumours(db, opts.runner);
 }
 

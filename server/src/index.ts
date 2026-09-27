@@ -65,6 +65,7 @@ import { reportWhere, whereNow } from "./warmth.ts"; // M7 warmth: where Jef is 
 import { mountMultiplayer } from "./mp/index.ts"; // M8a multiplayer: who asks, the join code, the movement socket, the server's own clock
 import { MapModel, mountMapView } from "./mapview/index.ts"; // the town map for the host (docs/mapview.md)
 import { asPlayer, inPlayer, pid } from "./player/current.ts"; // M8c: each request as its player
+import { ensurePlayerRow } from "./player/multi.ts";
 import { whoOfUpgrade } from "./mp/auth.ts";
 
 const db = openDb(DB_FILE);
@@ -642,7 +643,12 @@ wss.on("connection", (ws, req) => {
   });
   const welcome = (pid: number) => {
     playerOfWs.set(ws, pid);
-    ws.send(asPlayer(pid, () => shownJson(db, JSON.stringify({ type: "jobs", ...jobsPayload() }))));
+    try {
+      if (pid !== 1) ensurePlayerRow(db, pid, (db.prepare("SELECT name FROM mp_player WHERE id = ?").get(pid) as { name?: string } | undefined)?.name ?? "Visitor");
+      ws.send(asPlayer(pid, () => shownJson(db, JSON.stringify({ type: "jobs", ...jobsPayload() }))));
+    } catch (e) {
+      console.error("[push] welcome", e);
+    }
   };
   const host = q.get("guest") !== "1" ? whoOfUpgrade(db, req, null) : null;
   if (host?.host) welcome(1);
@@ -678,8 +684,12 @@ function broadcast(msg: unknown): void {
     const who = playerOfWs.get(c);
     if (who === undefined || (only !== null && who !== only)) continue;
     // the job board and the player's own part: each player's own (M8c); the rest as it came
-    const out = m?.type === "jobs" ? { ...(msg as object), ...asPlayer(who, () => jobsPayload()) } : msg;
-    c.send(asPlayer(who, () => shownJson(db, JSON.stringify(out)))); // M7 character: the player's name in every push
+    try {
+      const out = m?.type === "jobs" ? { ...(msg as object), ...asPlayer(who, () => jobsPayload()) } : msg;
+      c.send(asPlayer(who, () => shownJson(db, JSON.stringify(out)))); // M7 character: the player's name in every push
+    } catch (e) {
+      console.error(`[push] to player ${who}`, e);
+    }
   }
 }
 

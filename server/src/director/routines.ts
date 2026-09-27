@@ -7,7 +7,7 @@ import { log, player } from "../game.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
 import { gateText } from "../hooks/dialogue.ts";
 import { relationship, remember, trustText } from "../npcs.ts";
-import { pid } from "../player/current.ts";
+import { forEachOnline, pid } from "../player/current.ts";
 import { pstate, setPstate } from "../player/multi.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { ITEMS, POCKET_SLOTS, atWork, waresOf } from "../trade.ts";
@@ -1681,7 +1681,10 @@ export function errandTick(db: DB): number {
       n++;
     }
   }
-  n += startQueued(db);
+  // (M8c: each player's queue of errands in the game)
+  forEachOnline(() => {
+    n += startQueued(db);
+  });
   return n;
 }
 

@@ -10,7 +10,8 @@ import { TICK_EVERY_MS } from "../../../shared/clock.ts";
 import { appearanceCode, defaultFor } from "../../../shared/character.ts";
 import { decodePuppets, decodeState, encodeBatch, FLAG, MODES, MP_PROTOCOL, MSG_PUPPETS, puppetBatchOk, puppetKeep, puppetNums, SEND_MS, type MpState, type MpText, type RosterEntry } from "../../../shared/mpProtocol.ts";
 import { profileOf, saveProfile, storedProfile } from "../player/profile.ts";
-import { asPlayer } from "../player/current.ts";
+import { asPlayer, setOnlineIds } from "../player/current.ts";
+import { ackRest, allAsleep, reportPos, restAcked, restOf, takeWoke, wakeRest } from "../rest.ts";
 import { ensurePlayerRow } from "../player/multi.ts";
 import { TOKEN_HEADER, whoOf, whoOfUpgrade, type Who } from "./auth.ts";
 import { closeLan, lanOpen, lanUrls, openLan } from "./lan.ts";
@@ -108,16 +109,20 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
     }
     if (who.guest) {
       if (p.startsWith("/api/dev/")) return c.json({ error: VISITOR }, 403);
-      // the host's own saves and his man's browser part are his
-      if (m === "GET" && p === "/api/client-state") return c.json({ client: null });
+      // M8c: a guest plays his own man: he works, buys, talks, rents, sleeps like the host. The world's own
+      // things stay the host's (and an admin guest's for the settings): a new week, loading a save, the server's
+      // settings, the house, the join code, pause all
       if (m !== "GET" && m !== "HEAD") {
-        const ok =
-          p.startsWith("/api/mp/") ||
-          p === "/api/tick" ||
-          p === "/api/pause" ||
-          (p === "/api/player/profile" && m === "PUT") ||
-          (who.admin && (p === "/api/ai/config" || p === "/api/ai/test" || p.startsWith("/api/settings/")));
-        if (!ok) return c.json({ error: VISITOR }, 403);
+        const hostThing =
+          p === "/api/new-game" ||
+          p === "/api/load" ||
+          p.startsWith("/api/saves") ||
+          (p.startsWith("/api/mp/") && p !== "/api/mp/join") ||
+          p === "/api/ai/config" ||
+          p === "/api/ai/test" ||
+          p.startsWith("/api/settings/");
+        const adminOk = who.admin && (p === "/api/ai/config" || p === "/api/ai/test" || p.startsWith("/api/settings/"));
+        if (hostThing && !adminOk && !p.startsWith("/api/mp/")) return c.json({ error: "Only the host may do that." }, 403);
       }
     }
     // M8c: the rest of the request is this player's (player/current.ts): the engine's queries of the player's own
@@ -130,13 +135,29 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
       }
       if (mpOn() && m === "POST" && p === "/api/tick" && !who.internal) {
         // together a tab's tick is its heartbeat: the server moves the clock itself (serverTick below)
-        const body = (await c.req.json().catch(() => null)) as { where?: unknown } | null;
+        const body = (await c.req.json().catch(() => null)) as { where?: unknown; asleep?: unknown; pos?: unknown } | null;
         const where = body && typeof body === "object" ? body.where : undefined;
         if (who.host) hostWhere = where;
-        // (M8c: where each player is, for his own cold)
+        // (M8c: where each player is, for his own cold and the place of his sleep)
         reportWhere(where, Date.now(), who.id);
+        if (body?.pos) reportPos(body.pos, Date.now(), who.id);
+        // M8c: his sleep goes at the world's pace (day.ts worldTick): how it stands, or how it ended, is told here.
+        // Up in his tab (a key, a reload) while the server has him asleep: he wakes; a sleep the server began (he
+        // dropped where he stood) waits till his tab has shown it.
+        const asleep = body?.asleep === true;
+        if (asleep) ackRest(who.id);
+        let woke = takeWoke(who.id);
+        if (!woke && !asleep && restAcked(who.id)) woke = wakeRest(db, who.id);
+        const rest = restOf(db, who.id);
         const w = whereNow(db, Date.now(), who.id);
-        return c.json({ advanced: false, together: true, ...deps.payload(), where: { shelter: w.shelter, place: w.place, label: w.label, lantern: w.lantern } });
+        return c.json({
+          advanced: asleep && !rest && !woke, // (his tab thinks him asleep, the server does not: he gets up)
+          together: true,
+          ...deps.payload(),
+          ...(rest ? { rest } : {}),
+          ...(woke ? { woke } : {}),
+          where: { shelter: w.shelter, place: w.place, label: w.label, lantern: w.lantern },
+        });
       }
       await next();
       // a guest changed his look: the others dress his figure again
@@ -173,6 +194,8 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
     const g = addGuest(db, name);
     if (!g) return c.json({ error: "No room for another player." }, 409);
     // his own man: today's look for a man, with his name (he may change it in the character sheet)
+    // M8c: his own row and starting things (the host's of a new week), then his look with his name
+    ensurePlayerRow(db, g.id, name);
     if (!storedProfile(db, g.id)) saveProfile(db, { ...defaultFor("man"), first: name, last: "" } as ReturnType<typeof defaultFor>, g.id);
     console.log(`[mp] player ${g.id} joined: ${name}`);
     sendRoster(true);
@@ -594,18 +617,26 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
   // ------------------------------------------------------------------ the server's own clock
 
   const inGame = () => [...seats.values()].some((s) => s.goneAt === null && s.conn && Date.now() - s.at < 30_000);
+  // M8c: the players in the game now (their needs move with the world's hours; one who is gone is frozen till he
+  // is back): online, and in the town (his movement state has come)
+  const onlineNow = () => [...seats.values()].filter((s) => s.goneAt === null && s.conn && s.state && Date.now() - s.at < 30_000).map((s) => s.id);
+  setOnlineIds(() => (mpOn() ? onlineNow() : [1]));
+  let tickBusy = false;
   const clockLoop = setInterval(() => {
-    if (!mpOn() || !inGame()) return;
+    if (!mpOn() || !inGame() || tickBusy) return;
     const now = Date.now();
-    if (now - lastWorldTick < TICK_EVERY_MS) return;
+    // (everyone in the game asleep: the night passes fast, a step every 300 ms: day.ts worldTick)
+    if (now - lastWorldTick < (allAsleep() ? 300 : TICK_EVERY_MS)) return;
     lastWorldTick = now;
+    tickBusy = true;
     // (the game's own origin rule wants a Host naming this machine)
     void Promise.resolve(app.request("/api/tick", { method: "POST", headers: { host: `127.0.0.1:${PORT}`, "content-type": "application/json" }, body: JSON.stringify({ where: hostWhere }) }))
       .then(async (r) => {
         if (!r.ok) console.warn(`[mp] the world's tick: ${r.status} ${(await r.text()).slice(0, 200)}`);
       })
-      .catch((e) => console.warn("[mp] the world's tick failed", e));
-  }, 1000);
+      .catch((e) => console.warn("[mp] the world's tick failed", e))
+      .finally(() => (tickBusy = false));
+  }, 250);
   clockLoop.unref();
 
   // ------------------------------------------------------------------ the house

@@ -1,5 +1,6 @@
 import type { Hono } from "hono";
 import type { DB } from "../db.ts";
+import { forEachOnline } from "../player/current.ts";
 import type { Ending } from "../day.ts";
 import { GameError } from "../game.ts";
 import { plainEnglish } from "../text.ts";
@@ -35,7 +36,8 @@ export function mountDeeds(app: Hono, deps: DeedDeps): void {
     await next();
     try {
       deedRumours(db);
-      policeTick(db);
+      // (M8c: the police come for each player in the game who is wanted)
+      forEachOnline(() => policeTick(db));
     } catch (e) {
       console.error("[deeds] tick", e);
     }

@@ -1,5 +1,6 @@
 import type { Hono } from "hono";
 import type { DB } from "../db.ts";
+import { forEachOnline } from "../player/current.ts";
 import { GameError, log, player } from "../game.ts";
 import { applyTrust, remember } from "../npcs.ts";
 import { pid } from "../player/current.ts";
@@ -210,10 +211,17 @@ export function mountRowing(app: Hono, deps: RowDeps): void {
     app.use(path, async (_c, next) => {
       await next();
       try {
-        const fetched = rowTick(db);
-        const police = rowDebtToPolice(db);
-        const boats = boatTick(db);
-        if (fetched || police || boats) push();
+        // (M8c: the world's tick does it for every player in the game; a player's own sleep for him)
+        let any = false;
+        const one = () => {
+          const fetched = rowTick(db);
+          const police = rowDebtToPolice(db);
+          const boats = boatTick(db);
+          if (fetched || police || boats) any = true;
+        };
+        if (path === "/api/tick") forEachOnline(one);
+        else one();
+        if (any) push();
       } catch (e) {
         console.error("[rowing] tick", e);
       }

@@ -239,6 +239,9 @@ export class Day {
       if (!this.fresh(seq)) return;
       this.apply(r);
       this.warmRoom(r.where);
+      // M8c played together: asleep on the server's word (he dropped where he stood): the sleep screen comes to him
+      const rest = (r as { rest?: RestView }).rest;
+      if (rest) this.rest.joinFromServer(rest);
       if (r.night) this.showNight(r.night);
       else if (r.turned && !r.turned.ended) this.midnight(r.turned);
     } catch {

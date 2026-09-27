@@ -232,6 +232,8 @@ async function realServer(together: boolean) {
     try {
       return {
         clock: JSON.parse((db.prepare("SELECT value_json FROM world_state WHERE key = 'clock'").get() as { value_json: string }).value_json) as { day: number; hour: number; minute: number },
+        // (M8c: the host's purse)
+        money_c: (db.prepare("SELECT money_c FROM player WHERE id = 1").get() as { money_c: number }).money_c,
       };
     } finally {
       db.close();
@@ -259,8 +261,69 @@ async function realServer(together: boolean) {
     await new Promise((r) => child.once("exit", r));
     fs.rmSync(dir, { recursive: true, force: true });
   };
-  return { call, row, socket, stop, log: () => log, base, port };
+  /** M8c: the push channel (/ws): a guest's tab says its token in its first message. */
+  const push = async (token?: string) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?client=t${Math.random().toString(36).slice(2, 8)}${token ? "&guest=1" : ""}`, { headers: { origin: base } });
+    const msgs: Array<Record<string, unknown>> = [];
+    ws.on("message", (d) => msgs.push(JSON.parse(String(d))));
+    await new Promise<void>((ok, bad) => {
+      ws.once("open", () => ok());
+      ws.once("error", bad);
+    });
+    if (token) ws.send(JSON.stringify({ type: "hello", token }));
+    for (let i = 0; i < 50 && !msgs.length; i++) await new Promise((r) => setTimeout(r, 50));
+    return { ws, msgs };
+  };
+  return { call, row, socket, push, stop, log: () => log, base, port };
 }
+
+describe("M8c: each his own man, on a real server", () => {
+  it("a guest's purse, job, news and pushes are his; the host's are untouched; each gets his own board", async () => {
+    const s = await realServer(true);
+    try {
+      const token = String((await s.call("POST", "/api/mp/join", { code: "KADE-47", name: "Anna" })).body.token);
+      const g = { "x-scheldemist-player": token };
+      // both in the game (the movement sockets), and both on the push channel
+      const host = await s.socket();
+      const anna = await s.socket(token);
+      const hostPush = await s.push();
+      const annaPush = await s.push(token);
+      const st = async (h: Record<string, string> = {}) => (await s.call("GET", "/api/state", undefined, h)).body as { player: { money_c: number; name: string }; jobs: Array<{ id: number; status: string }> };
+      const h0 = await st();
+      const a0 = await st(g);
+      expect(a0.player.money_c).toBe(50);
+      expect(a0.player.name).toBe("Anna");
+      // his first push is his own
+      const firstAnna = annaPush.msgs.find((m) => m.type === "jobs") as { player?: { money_c: number } } | undefined;
+      expect(firstAnna?.player?.money_c).toBe(50);
+      // she buys: her purse moves, the host's does not
+      const b = await s.call("POST", "/api/buy", { npc: "fientje", kind: "herring" }, g);
+      expect(b.status).toBe(200);
+      expect((await st(g)).player.money_c).toBeLessThan(50);
+      expect((await st()).player.money_c).toBe(h0.player.money_c);
+      // she takes a job: gone from the host's board, in her hand
+      const offered = a0.jobs.find((j) => j.status === "offered");
+      if (offered) {
+        const t = await s.call("POST", `/api/jobs/${offered.id}/take`, {}, g);
+        expect(t.status).toBe(200);
+        expect((await st()).jobs.some((j) => j.id === offered.id)).toBe(false);
+        expect((await st(g)).jobs.find((j) => j.id === offered.id)?.status).toBe("taken");
+        // the host may take another one: one job in hand per player
+        const other = h0.jobs.find((j) => j.status === "offered" && j.id !== offered.id);
+        if (other) expect((await s.call("POST", `/api/jobs/${other.id}/take`, {})).status).toBe(200);
+      }
+      // the pushes after her buy: each tab its own purse
+      await new Promise((r) => setTimeout(r, 200));
+      const lastOf = (m: Array<Record<string, unknown>>) => [...m].reverse().find((x) => x.type === "jobs") as { player: { money_c: number; name: string } };
+      expect(lastOf(annaPush.msgs).player.name).toBe("Anna");
+      expect(lastOf(hostPush.msgs).player.money_c).toBe((await st()).player.money_c);
+      expect(lastOf(annaPush.msgs).player.money_c).toBe((await st(g)).player.money_c);
+      for (const w of [host.ws, anna.ws, hostPush.ws, annaPush.ws]) w.close();
+    } finally {
+      await s.stop();
+    }
+  }, 120_000);
+});
 
 describe("played together on a real server", () => {
   it("join: the right code gives a token; a wrong one does not; 5 tries a minute; the token speaks for him", async () => {
@@ -302,23 +365,29 @@ describe("played together on a real server", () => {
       expect((await s.call("POST", "/api/mp/code", {}, guest)).status).toBe(403);
       expect((await s.call("POST", "/api/mp/pause-all", { on: true }, guest)).status).toBe(403);
       expect((await s.call("POST", "/api/settings/population", { eventSize: 20 }, guest)).status).toBe(403);
-      expect((await s.call("POST", "/api/save", { slot: "slot1" }, guest)).status).toBe(403);
+      // (M8c: a guest's "save" keeps only his own part, never a save file of the world)
+      const gs = await s.call("POST", "/api/save", { slot: "slot1" }, guest);
+      expect(gs.status).toBe(200);
+      expect(gs.body).toMatchObject({ guest: true });
       expect((await s.call("POST", "/api/load", { slot: "slot1" }, guest)).status).toBe(403);
       expect((await s.call("POST", "/api/new-game", {}, guest)).status).toBe(403);
       expect((await s.call("POST", "/api/dev/set", { hour: 3 }, guest)).status).toBe(403);
       // he may walk and look: the town, the state, the heartbeat
       expect((await s.call("GET", "/api/town", undefined, guest)).status).toBe(200);
       expect((await s.call("POST", "/api/tick", {}, guest)).body).toMatchObject({ advanced: false, together: true });
-      // but not buy, take work or talk yet (M8c)
-      expect((await s.call("POST", "/api/buy", { npc: "fientje", kind: "herring" }, guest)).status).toBe(403);
-      expect((await s.call("POST", "/api/rent", {}, guest)).status).toBe(403);
+      // M8c: and he plays his own man: he buys with his own money, pays his own rent (the host's purse is untouched)
+      const hostMoney = s.row().money_c;
+      const bought = await s.call("POST", "/api/buy", { npc: "fientje", kind: "herring" }, guest);
+      expect(bought.status).not.toBe(403);
+      expect((await s.call("POST", "/api/rent", {}, guest)).status).not.toBe(403);
+      expect(s.row().money_c).toBe(hostMoney);
       // a PC in the house without a token, and a request that says it was forwarded for one
       expect((await s.call("GET", "/api/state", undefined, { "x-forwarded-for": "192.168.1.23" })).status).toBe(401);
       expect((await s.call("PUT", "/api/ai/config", { mode: "walk" }, { "x-forwarded-for": "192.168.1.23" })).status).toBe(401);
       // the host may; a guest he marks admin may change the settings too, but never save or load
       expect((await s.call("POST", "/api/mp/admin", { id: 2, on: true })).status).toBe(200);
       expect((await s.call("PUT", "/api/ai/config", { callsPerDay: 100 }, guest)).status).toBe(200);
-      expect((await s.call("POST", "/api/save", { slot: "slot1" }, guest)).status).toBe(403);
+      expect((await s.call("POST", "/api/load", { slot: "slot1" }, guest)).status).toBe(403);
       expect((await s.call("PUT", "/api/ai/config", { callsPerDay: 120 })).status).toBe(200);
     } finally {
       await s.stop();

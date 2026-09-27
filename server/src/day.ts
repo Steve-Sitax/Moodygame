@@ -10,8 +10,9 @@ import { fogAt, type FogDay } from "./town/lampround.ts";
 import { gateMode, isPaused } from "./save/gate.ts";
 import { setWorldClock, worldClock } from "./mp/worldClock.ts"; // M8a: the clock is the world's (world_state), not player 1's row
 import type { RestEnd, RestView } from "./rest.ts";
-import { pid } from "./player/current.ts";
+import { asPlayer, forEachOnline, onlineIds, pid } from "./player/current.ts";
 import { pstate, setPstate } from "./player/multi.ts";
+import { mpOn } from "./mp/settings.ts"; // M8c: played together, the server's own tick moves the world
 
 // The day and the week (M5). The engine owns time and needs (docs/01, docs/03).
 // A client says "time passed while I played" with a tick; the server decides how
@@ -265,7 +266,17 @@ export type TickResult = {
  * M7 sleep (rest.ts sets it): while Jef is asleep in a bed or on a bench, the tick is a step of his sleep
  * (the time passes faster while all players sleep) instead of the waking hour. Null: he is not asleep.
  */
-export const RESTING: { step: (db: DB, now: number, asleep: boolean) => TickResult | null } = { step: () => null };
+export const RESTING: {
+  step: (db: DB, now: number, asleep: boolean) => TickResult | null;
+  /** M8c together: a piece of the world's time for this player if he is asleep (true), else nothing (false). */
+  piece: (db: DB, id: number, min: number, hourEnded: boolean) => boolean;
+  /** M8c together: dead on his feet, he sleeps where he dropped while the world goes on. */
+  collapse: (db: DB, id: number) => unknown;
+  /** M8c together: the date turned while these slept (their wake lines). */
+  turned: (lines: string[]) => void;
+  /** M8c together: is everyone in the game asleep (the night passes fast)? */
+  allAsleep: () => boolean;
+} = { step: () => null, piece: () => false, collapse: () => null, turned: () => {}, allAsleep: () => false };
 
 /**
  * Midnight: the date turns. The week's end, the rent of a room, the memories fading, a night of
@@ -275,15 +286,30 @@ export const RESTING: { step: (db: DB, now: number, asleep: boolean) => TickResu
 export function turnDay(db: DB): DayTurn {
   const c = clock(db);
   const lines: string[] = [];
+  const me = pid();
   db.transaction(() => {
-    for (const h of NIGHT_HOOKS) lines.push(...h(db, c.day));
+    // (M8c: the night's rent and such for every player in the game; the lines are the asking player's)
+    forEachOnline((id) => {
+      for (const h of NIGHT_HOOKS) {
+        const got = h(db, c.day);
+        if (id === me) lines.push(...got);
+      }
+    });
     consolidate(db);
     // a night of talk in the taverns and over the back walls (M3e)
     for (let i = 0; i < 3; i++) spreadRumours(db);
   })();
-  if (c.day >= WEEK_DAYS) return { day: c.day, lines, ended: endGame(db, "week") };
+  if (c.day >= WEEK_DAYS) {
+    // (M8c: the world's week is over for everyone in the game)
+    let mine: Ending | undefined;
+    forEachOnline((id) => {
+      const e = id === me ? endGame(db, "week") : playerDayStart(db, true);
+      if (id === me) mine = e;
+    });
+    return { day: c.day, lines, ended: mine ?? endGame(db, "week") };
+  }
   setWorldClock(db, { day: c.day + 1, hour: 0, minute: 0 }); // M8a
-  playerDayStart(db, false);
+  forEachOnline(() => playerDayStart(db, false));
   rollWeather(db);
   return { day: c.day + 1, lines };
 }
@@ -304,6 +330,9 @@ export function playerDayStart(db: DB, weekOver: boolean): Ending | undefined {
  * minutes, the date turns at each midnight on the way. Stops when the week ends.
  */
 export function passTime(db: DB, minutes: number): { lines: string[]; turned: boolean; ended?: Ending } {
+  // (M8c: played together the world's clock moves only on the server's own ticks: one player's night in a cell
+  // or a bed does not carry everyone to the morning; his own sleep is paced by the world's time, rest.ts)
+  if (mpOn()) return { lines: [], turned: false };
   let left = Math.max(0, Math.round(minutes));
   const lines: string[] = [];
   let turned = false;
@@ -330,6 +359,8 @@ export function passTime(db: DB, minutes: number): { lines: string[]; turned: bo
  * `asleep`: the client is in its sleep (M7 sleep, rest.ts: the tick is a step of the sleep then).
  */
 export function tick(db: DB, now = Date.now(), opts: { asleep?: boolean } = {}): TickResult {
+  // M8c: played together, the server's own tick moves the world and every player in it (worldTick)
+  if (mpOn()) return worldTick(db, now);
   if (ending(db)) return { advanced: false };
   // M7 save and pause: nothing moves while the game is paused, saving or loading (save/gate.ts)
   if (isPaused() || gateMode() !== "open") return { advanced: false };
@@ -371,9 +402,70 @@ export function playerHour(db: DB, hour: number): { ended?: Ending; night?: Slee
   if (ending(db)) return {};
   const { healthZero } = applyHour(db, hour);
   if (healthZero) return { ended: endGame(db, "health") };
-  // M7 night: dead on his feet, Jef drops where he stands and sleeps there (a gang may find him)
-  if (player(db).sleep <= COLLAPSE_AT) return { night: sleep(db, "rough", undefined, { collapsed: true }) };
+  // M7 night: dead on his feet, Jef drops where he stands and sleeps there (a gang may find him); played
+  // together he sleeps there while the world goes on (M8c: rest.ts collapseRest)
+  if (player(db).sleep <= COLLAPSE_AT) {
+    if (mpOn()) {
+      RESTING.collapse(db, pid());
+      return {};
+    }
+    return { night: sleep(db, "rough", undefined, { collapsed: true }) };
+  }
   return {};
+}
+
+/** M8c together: a sleep step every so often when everyone in the game is asleep (the night passes fast). */
+const FAST_EVERY_MS = 300;
+const FAST_MINUTES = 30;
+
+/**
+ * M8c: the world's tick, played together (docs/multiplayer-plan.md 5.3, 6.1). Only the server's own tick comes
+ * here (mp/index.ts calls /api/tick itself; a tab's tick is its heartbeat). The world's clock moves by
+ * TICK_MINUTES (every 10 s), or by FAST_MINUTES often when everyone in the game is asleep; for each piece of it
+ * up to the next hour, every player in the game has his part: a sleeper his sleep (rest.ts restPiece), anyone
+ * awake his hour when it turns (needs, his end, his drop). A player who is gone is frozen till he is back. The
+ * result is the host's (the caller's) part.
+ */
+export function worldTick(db: DB, now = Date.now()): TickResult {
+  if (isPaused() || gateMode() !== "open") return { advanced: false };
+  const fast = RESTING.allAsleep();
+  if (now - lastTickAt < (fast ? FAST_EVERY_MS : TICK_EVERY_MS - 1000)) return { advanced: false };
+  const ids = onlineIds();
+  // the world's week is over (every player in the game has his end): nothing moves any more
+  if (ids.every((id) => asPlayer(id, () => !!ending(db)))) return { advanced: false };
+  lastTickAt = now;
+  const me = pid();
+  let left = fast ? FAST_MINUTES : TICK_MINUTES;
+  let turned: DayTurn | undefined;
+  const mine: { ended?: Ending; night?: SleepResult } = {};
+  while (left > 0) {
+    const c = clock(db);
+    const toHour = 60 - c.minute;
+    const piece = Math.min(left, toHour);
+    left -= piece;
+    const hourEnded = piece === toHour;
+    if (hourEnded && c.hour >= 23) {
+      turned = turnDay(db);
+      RESTING.turned(turned.lines);
+      if (turned.ended) return { advanced: true, ended: turned.ended, turned };
+    } else {
+      const t = c.hour * 60 + c.minute + piece;
+      setWorldClock(db, { day: c.day, hour: Math.floor(t / 60), minute: t % 60 });
+    }
+    const hour = clock(db).hour;
+    for (const id of ids) {
+      asPlayer(id, () => {
+        if (ending(db)) return;
+        if (RESTING.piece(db, id, piece, hourEnded)) return;
+        if (!hourEnded) return;
+        const r = playerHour(db, hour);
+        if (id === me) Object.assign(mine, r);
+      });
+    }
+    // M3e: an hour of talk in the town; rumours about the players pass on
+    if (hourEnded) spreadRumours(db);
+  }
+  return { advanced: true, ...mine, ...(turned ? { turned } : {}) };
 }
 
 /** Did this tick or night turn the date (a new board is due), or end the week? */

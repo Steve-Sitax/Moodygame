@@ -355,6 +355,10 @@ export type MpText =
   // M8b: the moving world: its state from the world PC (t: server ms when it was true), and who the world PC is
   | { type: "world"; t: number; d: Record<string, unknown> }
   | { type: "worldpc"; id: number }
+  // M8c: a player asks the world PC's movers for something (hold the omnibus while he boards, a bridge or the
+  // lock for his boat): "ask" to the server, "asked" (with who asked) to the world PC
+  | { type: "ask"; what: string; args: unknown[] }
+  | { type: "asked"; from: number; what: string; args: unknown[] }
   | { type: "ping"; c: number }
   | { type: "pong"; c: number; s: number }
   | { type: "welcome"; id: number; host: boolean; name: string; pose: { x: number; y: number; z: number; yaw: number } | null; serverNow: number; protocol: number }

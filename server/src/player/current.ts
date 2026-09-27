@@ -27,3 +27,25 @@ export function inPlayer(): boolean {
 export function asPlayer<T>(id: number, fn: () => T): T {
   return ctx.run(id, fn);
 }
+
+// ------------------------------------------------------------------ who is in the game
+
+/**
+ * The players in the game now (their needs move with the world's hours; a player who is gone is frozen until he
+ * is back: docs/multiplayer-plan.md 7.3). Played alone: the host. The multiplayer side says who else (mp/index.ts).
+ */
+let online: () => number[] = () => [1];
+
+export function setOnlineIds(f: (() => number[]) | null): void {
+  online = f ?? (() => [1]);
+}
+
+export function onlineIds(): number[] {
+  const ids = online();
+  return ids.length ? ids : [1];
+}
+
+/** Run `fn` as each player in the game (the hour's needs, the night's rent, the day's money mark ...). */
+export function forEachOnline(fn: (id: number) => void): void {
+  for (const id of onlineIds()) asPlayer(id, () => fn(id));
+}
