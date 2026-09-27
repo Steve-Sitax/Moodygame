@@ -44,6 +44,8 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 
 | Commit | What |
 |---|---|
+| d0ab548 | T1 far townspeople keep going (`docs/milestones/T1-ways.md`): ways on foot for every day plan, one shared sum puts the unseen on their way (game and town map agree to 7 cm), nobody waits for ever to appear in view, `findcheck()`. Issues filed on the way: #1 (Steen museum spots unreachable), #2 (lock files lack the licence field). Main's `server/node_modules` reinstalled (reflect-metadata was missing after M8e). Play copy not refreshed. |
+| e7193de | Rule in CLAUDE.md: finds outside your task go to a GitHub issue |
 | d1915e7 | Multiplayer M8b-M8e merged into main (the tested tree: build, 1222 server tests, 32 client tests); the other session's open ATTRIBUTION.md edit kept on top, uncommitted |
 | 8355450 | Codex remaining cargo/static props: barrel-pyramid and model-shaped prop collision, merchant/content marks, matching cargo bump/wet atlas, handcart shaft correction. Reconciled after Props in walls and Picture round finished. Build and 9 tests pass; Chrome jump crossed the pyramid (feet 2.302 m); 5,223 registered props / 0 placement issues (411 quay goods); paths and shaders empty, including rain. Test Chrome and copied-save stack 5469/9069 cleaned up. Scope/evidence: `docs/milestones/M7-tight-props.md`. All prepared changes from this session are committed; broader boat/building/room/character collision audits remain outside this batch. |
 
