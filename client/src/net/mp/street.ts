@@ -108,6 +108,8 @@ interface Drawn {
   track: PuppetTrack;
   /** Handed over from this PC: the first drawn state is measured against where the figure stood. */
   fresh?: boolean;
+  /** Gone in at a door: the figure goes at this server time (its last states drawn first). */
+  endAt?: number;
   /** A handover's difference, fading out (drawn at the track's place plus this). */
   ex: number;
   ez: number;
@@ -122,6 +124,7 @@ export class Street implements TownNet {
   private claims = new Set<string>();
   private steals = new Set<string>();
   private releases = new Set<string>();
+  private gone = new Set<string>();
   private delay = PUPPET_DELAY_START;
   private late: number[] = [];
   private sendAcc = 0;
@@ -150,12 +153,13 @@ export class Street implements TownNet {
     this.claim(id, this.d.host());
   }
 
-  lost(id: string): void {
+  lost(id: string, street: boolean): void {
     if ((this.owner.get(id) ?? 0) !== this.d.me()) return;
     this.owner.delete(id);
     this.claims.delete(id);
     this.steals.delete(id);
-    this.releases.add(id);
+    // (only one still in the street may be walked on by another PC; one gone in at a door is nobody's: no ping-pong)
+    (street ? this.releases : this.gone).add(id);
     this.sent.delete(id);
   }
 
@@ -181,15 +185,22 @@ export class Street implements TownNet {
       this.idOf.set(num, id);
       this.numOf.set(id, num);
       const was = this.owner.get(id) ?? 0;
-      if (o === 0) this.owner.delete(id);
+      if (o <= 0) this.owner.delete(id);
       else this.owner.set(id, o);
       const s = this.d.town.simOf(id);
+      if (o < 0) {
+        // gone from the street (in at a door): nobody walks him; the figure goes once its last states are drawn
+        const dr = this.drawn.get(id);
+        if (dr) dr.endAt = now + this.delay + 300;
+        else if (s?.remote) this.drop(id);
+        continue;
+      }
       if (!s) continue;
       if (o === me) {
         // ours now: one drawn from another PC goes on from where he stands
         this.claims.delete(id);
         this.steals.delete(id);
-        if (s.remote) this.handover(s, now);
+        if (s.remote) this.handover(s, now, `to me (was ${was})`);
       } else if (o !== 0) {
         // another PC walks him: one we walked is drawn from its batches from now on (the same figure)
         this.claims.delete(id);
@@ -197,14 +208,14 @@ export class Street implements TownNet {
         if (s.p && !s.remote) {
           this.d.town.remoteAttach(id, { x: s.p.x, z: s.p.z, yaw: s.p.yaw, size: s.p.size });
           this.drawn.set(id, { track: new PuppetTrack(), ex: 0, ez: 0, fresh: true });
-          this.noteHand(id, now);
+          this.noteHand(id, now, `to ${o} (was ${was})`);
         }
       } else if (was !== 0 && was !== me && s.remote && s.p) {
         // his owner let him go: near us and in the street, we walk him on from where he stands; else he goes
         const pl = this.d.player();
         if (Math.hypot(s.p.x - pl.x, s.p.z - pl.z) < 55) {
           this.claim(id, this.d.host());
-          this.handover(s, now);
+          this.handover(s, now, `free, near me (was ${was})`);
         } else this.drop(id);
       }
     }
@@ -258,7 +269,7 @@ export class Street implements TownNet {
         this.drawn.delete(id);
         continue;
       }
-      if (now - dr.track.heardAt > SILENT_MS || Math.hypot(s.p.x - pl.x, s.p.z - pl.z) > DRAW_R + 10) {
+      if (now - dr.track.heardAt > SILENT_MS || Math.hypot(s.p.x - pl.x, s.p.z - pl.z) > DRAW_R + 10 || (dr.endAt !== undefined && now > dr.endAt)) {
         this.drop(id);
         continue;
       }
@@ -294,7 +305,12 @@ export class Street implements TownNet {
     }
     if (this.claims.size) this.d.sendText({ type: "claim", ids: [...this.claims] }) && this.claims.clear();
     if (this.steals.size) this.d.sendText({ type: "claim", ids: [...this.steals], steal: true }) && this.steals.clear();
-    if (this.releases.size) this.d.sendText({ type: "release", ids: [...this.releases] }) && this.releases.clear();
+    if (this.releases.size || this.gone.size) {
+      if (this.d.sendText({ type: "release", ids: [...this.releases], gone: [...this.gone] })) {
+        this.releases.clear();
+        this.gone.clear();
+      }
+    }
     if (this.sendAcc < 1 / PUPPET_HZ) return;
     const span = this.sendAcc;
     this.sendAcc = 0;
@@ -341,12 +357,12 @@ export class Street implements TownNet {
       if (at !== undefined && this.d.serverNow() - at < MIN_HOLD_MS) continue;
       void dr;
       this.claim(id, true);
-      this.handover(s, this.d.serverNow());
+      this.handover(s, this.d.serverNow(), `host takes (was ${o})`);
     }
   }
 
   /** A remote one becomes ours: the same figure walked on from where it is drawn. */
-  private handover(s: Sim, now: number): void {
+  private handover(s: Sim, now: number, why = ""): void {
     const id = s.r.id;
     const dr = this.drawn.get(id);
     // (where the owner last had him against where he is drawn here: the jump the others see, for the numbers)
@@ -355,15 +371,19 @@ export class Street implements TownNet {
     if (this.meter.handoverJump.length > 200) this.meter.handoverJump.shift();
     this.drawn.delete(id);
     this.d.town.remoteTake(id);
-    this.noteHand(id, now);
+    this.noteHand(id, now, why);
   }
 
-  private noteHand(id: string, now: number): void {
+  private noteHand(id: string, now: number, why = ""): void {
     this.meter.handovers++;
     const at = this.handedAt.get(id);
     if (at !== undefined && now - at < 10_000) this.meter.pingPong++;
     this.handedAt.set(id, now);
+    this.handLog.push(`${Math.round(now / 100) / 10} ${id} ${why}`);
+    if (this.handLog.length > 60) this.handLog.shift();
   }
+  /** The last handovers (time in s, who, why), for the kit and the harness. */
+  readonly handLog: string[] = [];
 
   private drop(id: string): void {
     this.drawn.delete(id);
@@ -400,6 +420,7 @@ export class Street implements TownNet {
       handoverJumpP95: +(jumps[Math.floor(jumps.length * 0.95)] ?? 0).toFixed(3),
       ...this.meter,
       handoverJump: undefined,
+      lastHandovers: this.handLog.slice(-25),
     };
   }
 

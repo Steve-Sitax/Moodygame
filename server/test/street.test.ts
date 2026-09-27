@@ -49,6 +49,14 @@ describe("the owners of the townspeople", () => {
     expect(o.list()).toEqual([]);
   });
 
+  it("one let go in the street is free (0); one gone in at a door is nobody's to take (-1)", () => {
+    const o = new Owners();
+    o.claim(2, ["r1", "r2"], false, host);
+    const ch = o.release(2, ["r1"], ["r2"]);
+    expect(ch.map((c) => [c[1], c[2]])).toEqual([["r1", 0], ["r2", -1]]);
+    expect(o.list()).toEqual([]);
+  });
+
   it("junk ids are ignored", () => {
     const o = new Owners();
     const r = o.claim(2, [42 as never, "", "x".repeat(65), "ok"], false, host);

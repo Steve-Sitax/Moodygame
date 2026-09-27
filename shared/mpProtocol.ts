@@ -348,7 +348,9 @@ export type MpText =
   // M8b: townspeople: ask to walk these (steal: the host takes them from a guest near him), let them go; the
   // server's answer to all: who walks whom (full: the whole list, else changes; owner 0: nobody)
   | { type: "claim"; ids: string[]; steal?: boolean }
-  | { type: "release"; ids: string[] }
+  // (release: `ids` are still in the street, only out of the owner's range: another PC near walks them on; `gone`
+  // left the street, in at a door: nobody takes them, owner -1 in the answer)
+  | { type: "release"; ids: string[]; gone?: string[] }
   | { type: "owners"; full?: boolean; list: Array<[num: number, id: string, owner: number]> }
   // M8b: the moving world: its state from the world PC (t: server ms when it was true), and who the world PC is
   | { type: "world"; t: number; d: Record<string, unknown> }

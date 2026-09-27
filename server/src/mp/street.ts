@@ -73,15 +73,20 @@ export class Owners {
     return { changes, denied };
   }
 
-  /** He lets these go (only his own). */
-  release(pid: number, ids: string[]): OwnerRow[] {
+  /**
+   * He lets these go (only his own). `gone`: they left the street (in at a door): the row says owner -1, so no
+   * other PC takes them on (the ones in `ids` are still in the street: owner 0, the next PC near walks them on).
+   */
+  release(pid: number, ids: string[], gone: string[] = []): OwnerRow[] {
     const changes: OwnerRow[] = [];
-    for (const id of ids.slice(0, 200)) {
+    const one = (id: unknown, to: number) => {
       const num = typeof id === "string" ? this.nums.get(id) : undefined;
-      if (num === undefined || this.owner.get(num) !== pid) continue;
+      if (num === undefined || this.owner.get(num) !== pid) return;
       this.owner.delete(num);
-      changes.push([num, id, 0]);
-    }
+      changes.push([num, id as string, to]);
+    };
+    for (const id of ids.slice(0, 200)) one(id, 0);
+    for (const id of (Array.isArray(gone) ? gone : []).slice(0, 200)) one(id, -1);
     return changes;
   }
 

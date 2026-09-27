@@ -380,7 +380,7 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
           }
           if (r.denied.length) send(conn, { type: "owners", list: r.denied });
         } else if (m.type === "release" && Array.isArray(m.ids)) {
-          const ch = owners.release(seat.id, m.ids);
+          const ch = owners.release(seat.id, m.ids, Array.isArray(m.gone) ? m.gone : []);
           if (ch.length) sendAll({ type: "owners", list: ch });
         } else if (m.type === "world" && typeof m.t === "number" && m.d && typeof m.d === "object") {
           // only the world PC's; passed on as it came

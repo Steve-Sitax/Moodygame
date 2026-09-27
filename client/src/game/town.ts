@@ -130,8 +130,8 @@ export interface TownNet {
   take(id: string): boolean;
   /** This PC walks him now (it asks the server for him). */
   spawned(id: string): void;
-  /** This PC let him go (out of range, in at a door). */
-  lost(id: string): void;
+  /** This PC let him go: still in the street (only out of its range: another PC near walks him on), or not (in at a door). */
+  lost(id: string, street: boolean): void;
 }
 
 /** A person you can talk to, for the talk window (people.ts Npc has the same shape). */
@@ -336,7 +336,7 @@ export class Town {
         s.x = s.p.x;
         s.z = s.p.z;
         if (!s.held) this.behave(s, dt, hour);
-        if (s.p && dist(s.x, s.z, player.x, player.z) > DESPAWN_R) this.lose(s, true);
+        if (s.p && dist(s.x, s.z, player.x, player.z) > DESPAWN_R) this.lose(s, true, true);
       } else if (!s.inside && !s.held) this.coarse(s, dt);
     }
     this.spawnT -= dt;
@@ -589,7 +589,7 @@ export class Town {
         .filter((s) => s.p && !s.held && this.crowd.isHidden(s.x, s.z))
         .sort((a, b) => dist(b.x, b.z, px, pz) - dist(a.x, a.z, px, pz))
         .slice(0, Math.min(4, alive - this.maxPuppets));
-      for (const s of out) this.lose(s, true);
+      for (const s of out) this.lose(s, true, true);
       return;
     }
     if (alive >= this.maxPuppets) return;
@@ -637,8 +637,11 @@ export class Town {
     }
   }
 
-  /** Back to the schedule only (out of range, or in at the door). */
-  private lose(s: Sim, remove = false): void {
+  /**
+   * Back to the schedule only (out of range, or in at the door). `street`: he is still in the street, only out of
+   * this PC's range (M8b: another PC near may walk him on); else he is gone from it (a door, a boat, an action).
+   */
+  private lose(s: Sim, remove = false, street = false): void {
     if (s.remote) {
       // M8b: one another PC walked: only the figure goes
       if (s.p && remove) this.crowd.removePuppet(s.p);
@@ -647,7 +650,7 @@ export class Town {
       if (s.r.dog) this.animals.removeDog(s.r.id);
       return;
     }
-    if (s.p) this.net?.lost(s.r.id);
+    if (s.p) this.net?.lost(s.r.id, street);
     if (s.p) this.lively?.lost(s);
     if (s.p) this.back?.lost(s); // M7 back of town
     if (s.p) this.mills?.lost(s); // M7 mills
