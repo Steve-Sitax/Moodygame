@@ -7,6 +7,7 @@ import SPOT_TABLE from "../../../shared/spots.json";
 import INWORLD from "../../../shared/inworld_houses.json";
 import { TRAFFIC_ROUTES } from "./traffic";
 import { psx } from "../retro/psx";
+import { flatLettering } from "./bumps";
 import { lampFog } from "./lampFog";
 import type { Rect } from "./geom";
 import { facadeOpenings } from "./cityTextures";
@@ -355,6 +356,8 @@ async function loadModels(): Promise<{ protos: Map<string, Proto>; meta: Meta; s
   const solidMap = maps.solid;
   const decalMap = maps.decal;
   if (!meta || !solidMap || !decalMap) throw new Error("streetlife.glb: meta or textures missing");
+  // (the shop boards, the name and number plates: flat in the atlas's bump, world/bumps.ts)
+  flatLettering(solidMap, Object.entries(meta.solid.cells), meta.solid.size[0], meta.solid.size[1]);
   for (const t of [solidMap, decalMap]) {
     t.magFilter = THREE.NearestFilter;
     t.minFilter = THREE.NearestFilter;
@@ -415,6 +418,7 @@ export async function createStreetLife(scene: THREE.Scene, flags: Flags, opts: S
   plateTex.generateMipmaps = false;
   plateTex.colorSpace = THREE.SRGBColorSpace;
   plateTex.flipY = false;
+  plateTex.name = "numbers"; // (the bump audit: lettering stays flat, world/bumps.ts)
   mats[NUMBER] = psx(new THREE.MeshLambertMaterial({ map: plateTex, vertexColors: true, side: DS, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), { affine: 0 });
   const plateCells = new Map<number, number>();
   const paintPlate = (cell: number, n: number | null) => {
