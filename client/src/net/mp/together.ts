@@ -61,6 +61,8 @@ export interface TogetherDeps {
   gearModel?(kind: number, sub: number): Promise<GearModel | null>;
   /** M8b: the moving world's parts by key (net/mp/world.ts); null for one not loaded yet. */
   movers?(): Record<string, NetMover | null>;
+  /** M8b: the movers as points for the host's town map (net/mp/world.ts WorldNetDeps.mapPoints). */
+  mapPoints?(): Record<string, unknown[]>;
 }
 
 /** M8b: another player's boat, velocipede or handcart, drawn with him (figures.ts). */
@@ -163,7 +165,7 @@ export class Together {
     }
     if (this.d.movers) {
       const movers = this.d.movers;
-      this.world = new WorldNet({ me: () => sess.id, serverNow: () => sess.serverNow(), sendText: (m) => sess.sendText(m), movers });
+      this.world = new WorldNet({ me: () => sess.id, serverNow: () => sess.serverNow(), sendText: (m) => sess.sendText(m), movers, mapPoints: this.d.mapPoints });
     }
     this.session.open();
     this.drawCorner();

@@ -1265,6 +1265,21 @@ const together = new Together({
     lock: world.lock(),
     river: world.river(),
   }),
+  // the host's town map: the movers as points (twice a second, with the world)
+  mapPoints: () => {
+    const r = (v: number) => Math.round(v * 10) / 10;
+    const drays: VehicleSound[] = [];
+    world.traffic()?.sounds(drays);
+    return {
+      buses: (world.omnibus()?.buses ?? []).map((b) => {
+        const p = b.pose();
+        return { id: b.index, name: `omnibus ${b.index + 1}`, x: r(p.x), z: r(p.z), yaw: r(p.yaw) };
+      }),
+      ships: (world.boats()?.moving() ?? []).map((s) => ({ id: s.id, name: s.kind, x: r(s.x), z: r(s.z), yaw: r(s.heading) })),
+      drays: drays.map((v, i) => ({ id: i, name: v.kind, x: r(v.x), z: r(v.z), state: v.state })),
+      trains: (world.railway()?.vehicles() ?? []).map((v, i) => ({ id: i, name: "goods train", x: r(v.x), z: r(v.z), state: v.state })),
+    };
+  },
 });
 together.start();
 // M8b: the rented home's door opens for its key holder on every screen (until M8c only the host rents)

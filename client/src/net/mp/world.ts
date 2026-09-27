@@ -82,6 +82,11 @@ export interface WorldNetDeps {
   sendText(m: MpText): boolean;
   /** Every mover by its key; null for one not loaded yet (asked again every frame). */
   movers(): Record<string, NetMover | null>;
+  /**
+   * The movers as points on the town map (lists of { id, x, z, ... } by kind), sent twice a second with the world
+   * for the host's map (the other PCs do not read them).
+   */
+  mapPoints?(): Record<string, unknown[]>;
 }
 
 export class WorldNet {
@@ -91,6 +96,7 @@ export class WorldNet {
   private delay = WORLD_DELAY_START;
   private late: number[] = [];
   private acc = 0;
+  private sends = 0;
   private remoteNow = false;
   /** The harness's and the kit's numbers. */
   readonly meter = { sent: 0, bytesSent: 0, received: 0, starved: 0, takeovers: 0 };
@@ -168,6 +174,7 @@ export class WorldNet {
     this.acc = 0;
     const d: Record<string, unknown> = {};
     for (const [key, m] of Object.entries(movers)) if (m) d[key] = m.netState();
+    if (++this.sends % 5 === 0 && this.d.mapPoints) Object.assign(d, this.d.mapPoints());
     const msg: MpText = { type: "world", t: this.d.serverNow(), d };
     if (this.d.sendText(msg)) {
       this.meter.sent++;

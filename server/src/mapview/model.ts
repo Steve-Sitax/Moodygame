@@ -233,7 +233,9 @@ export class MapModel {
   world(t: number, d: Record<string, unknown>): void {
     if (!d || typeof d !== "object") return;
     const now = this.now();
-    this.worldNow = { t: fin(t) ? t : now, at: now, d };
+    // (the map's points come with every fifth state only: the last ones are kept until new ones come)
+    const kept = this.worldNow?.d ?? {};
+    this.worldNow = { t: fin(t) ? t : now, at: now, d: { ...kept, ...d } };
     for (const [key, list] of Object.entries(d)) {
       if (!Array.isArray(list)) continue;
       list.forEach((o, i) => {
