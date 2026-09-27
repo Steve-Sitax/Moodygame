@@ -9,11 +9,11 @@ import { reportWhere, whereNow } from "../warmth.ts";
 import { TICK_EVERY_MS } from "../../../shared/clock.ts";
 import { appearanceCode, defaultFor } from "../../../shared/character.ts";
 import { decodePuppets, decodeState, encodeBatch, figBatchOk, figSetSender, FLAG, MODES, MP_PROTOCOL, MSG_FIGS, MSG_PUPPETS, puppetBatchOk, puppetKeep, puppetNums, SEND_MS, type MpState, type MpText, type RosterEntry } from "../../../shared/mpProtocol.ts";
-import { jobPins } from "../town/walkup.ts";
+import { figHolders, jobPins } from "../town/walkup.ts";
 import { seekPins } from "../director/families.ts";
 import { handPins } from "../town/hire.ts";
 import { profileOf, saveProfile, storedProfile } from "../player/profile.ts";
-import { asPlayer, setOnlineIds, setPositionSource } from "../player/current.ts";
+import { asPlayer, setOnlineIds, setPositionSource, setWalkerSource } from "../player/current.ts";
 import { ackRest, allAsleep, reportPos, restAcked, restOf, takeWoke, wakeRest } from "../rest.ts";
 import { ensurePlayerRow } from "../player/multi.ts";
 import { TOKEN_HEADER, whoOf, whoOfUpgrade, type Who } from "./auth.ts";
@@ -80,6 +80,10 @@ const FAR_M = 150;
 const KEEP_MS = 1_000;
 /** M8b: a PC that walks townspeople sends them at least once a second; silent this long, it loses them. */
 const PUPPETS_STALE_MS = 3_000;
+/** M8d: job figure batches a seat may send a second (its PC sends 10 while one walks); the rest are dropped. */
+const FIG_RATE = 15;
+/** M8d: after his job or call is over, his figures may still be sent this long (they walk off, then go). */
+const FIG_HELD_GRACE_MS = 10_000;
 
 const VISITOR = "Visitors can walk, jump, swim and look for now. Work, talk and buying come later (M8c).";
 
@@ -96,7 +100,7 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
   const world = new WorldPc();
   let lastWorld: string | null = null;
   const puppetsAt = new Map<number, number>();
-  const stStats = { puppetBatches: 0, puppetsIn: 0, worldChanges: 0, skipped: 0, figBatches: 0 };
+  const stStats = { puppetBatches: 0, puppetsIn: 0, worldChanges: 0, skipped: 0, figBatches: 0, figDropped: 0 };
   // M8d: the townspeople called for a player's job or quest are his PC's to walk (town/walkup.ts jobPins): asked
   // fresh for a claim (at most every 250 ms), sent to everyone when they change
   let pins = new Map<string, number>();
@@ -110,11 +114,30 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
         // (a visit or the police's word to a player, his hired hands and treat guests, his job's people: the job wins)
         const on = onlineNow();
         pins = new Map([...seekPins(db, on), ...handPins(db, on), ...jobPins(db, on)]);
+        // (who may send job figures: a job in hand or a walk-up call, and a moment after, for the figures to go)
+        for (const id of figHolders(db)) figHeldAt.set(id, now);
       } catch (e) {
         console.warn("[mp] pins", e);
       }
     }
     return pins;
+  };
+  // M8d: a figure batch is passed on only from a player with a job or a call (or one a moment ago: his last
+  // figures walk off and his empty batches end them on the others' screens), at most FIG_RATE a second a seat
+  const figHeldAt = new Map<number, number>();
+  const figRate = new Map<number, { t0: number; n: number }>();
+  const figOk = (seatId: number, empty: boolean, now: number): boolean => {
+    const r = figRate.get(seatId);
+    if (!r || now - r.t0 >= 1000) figRate.set(seatId, { t0: now, n: 1 });
+    else if (++r.n > FIG_RATE) {
+      stStats.figDropped++;
+      return false;
+    }
+    if (empty) return true;
+    pinsNow(now);
+    if (now - (figHeldAt.get(seatId) ?? -Infinity) <= FIG_HELD_GRACE_MS) return true;
+    stStats.figDropped++;
+    return false;
   };
   const pinsMsg = (): MpText => ({ type: "pins", list: [...pinsNow()].sort((a, b) => (a[0] < b[0] ? -1 : 1)) });
 
@@ -462,6 +485,7 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
       if (buf.length > 0 && buf[0] === MSG_FIGS) {
         const v = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
         if (!figBatchOk(v)) return;
+        if (!figOk(seat.id, buf[1] === 0, now)) return;
         const out = new Uint8Array(buf); // (a copy: the sender's id is the server's word)
         figSetSender(out, seat.id);
         stStats.figBatches++;
@@ -670,6 +694,12 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
   const onlineNow = () => [...seats.values()].filter((s) => s.goneAt === null && s.conn && s.state && Date.now() - s.at < 30_000).map((s) => s.id);
   setOnlineIds(() => (mpOn() ? onlineNow() : [1]));
   // M8d: where each player stands, by his movement socket (fresh: 5 s), for the director and the events
+  // M8d: whose PC walks a townsperson (a report on his errand is taken only from that PC or the player it is for)
+  setWalkerSource((npcId) => {
+    if (!mpOn()) return null;
+    const n = owners.numOf(npcId);
+    return n === null ? 0 : owners.ownerOf(n);
+  });
   setPositionSource((id) => {
     if (!mpOn()) return null;
     const s = seats.get(id);
@@ -740,6 +770,7 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
       clearInterval(clockLoop);
       setOnlineIds(null);
       setPositionSource(null);
+      setWalkerSource(null);
       autoBuild.stop();
       for (const k of conns) k.ws.close();
       mpWss.close();

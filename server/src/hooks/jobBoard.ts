@@ -626,6 +626,35 @@ export const FALLBACK_CART_JOB: BoardJob = {
   cart: true,
 };
 
+/**
+ * M8d: more hand-written jobs for a fallback board played together (two for each other player, as the model's
+ * board: boardSize). The Rijnkaai three and their own ground only; alone none of these is used.
+ */
+export const FALLBACK_EXTRA_JOBS: BoardJob[] = [
+  { title: "Two sacks off the gangway", employer: "sooi", task_type: "carry", goods: "sacks", from: "ship_gangway", to: "hessenatie_door", twist: "none", urgent: false, recipient: "", pay_c: 80, risk: "low", pitch: "Two sacks of grain off the gangway, in at the Hessenatie door. Keep them dry.", items: 2, cart: false },
+  { title: "Candles for the ship's cook", employer: "peeters", task_type: "deliver", goods: "parcel", from: "peeters_dock", to: "ship_gangway", twist: "none", urgent: false, recipient: "the cook at the gangway", pay_c: 70, risk: "low", pitch: "Candles and matches for the cook at the gangway. He has paid. Into his hands and nobody else's." },
+  { title: "Mind the carts at the east end", employer: "tuur", task_type: "watch", goods: "barrels", from: "east_carts", to: "east_carts", twist: "bribe", urgent: false, recipient: "", pay_c: 80, risk: "medium", pitch: "Stand by the carts at the east end till the bell. Nobody touches the barrels, whatever they offer you." },
+  { title: "Hides to the west sheds", employer: "sooi", task_type: "carry", goods: "hides", from: "pier_head", to: "west_sheds", twist: "heavy_load", urgent: false, recipient: "", pay_c: 90, risk: "low", pitch: "Two bundles of hides from the pier head to the west sheds. They stink, and they are heavier than they look.", items: 2, cart: false },
+  { title: "Rope back to the chandler", employer: "peeters", task_type: "carry", goods: "rope", from: "west_sheds", to: "peeters_dock", twist: "foreman_watches", urgent: false, recipient: "", pay_c: 80, risk: "low", pitch: "Two coils of my rope were left at the west sheds. Bring them back to my door. I shall be watching from the window.", items: 2, cart: false },
+  { title: "A parcel for the carter", employer: "tuur", task_type: "deliver", goods: "parcel", from: "pier_head", to: "east_carts", twist: "stranger_offer", urgent: false, recipient: "the carter at the east end", pay_c: 90, risk: "medium", pitch: "A small parcel for the carter at the east end. Ask him no questions and he will ask you none." },
+  { title: "Watch the crates by the crane", employer: "sooi", task_type: "watch", goods: "crates", from: "crane_foot", to: "crane_foot", twist: "foreman_watches", urgent: false, recipient: "", pay_c: 70, risk: "low", pitch: "The crates under the crane want watching till the lighter comes back. Stay put and keep awake." },
+  { title: "A barrel of tar", employer: "peeters", task_type: "carry", goods: "barrels", from: "katoen_door", to: "peeters_dock", twist: "broken_goods", urgent: false, recipient: "", pay_c: 70, risk: "low", pitch: "One barrel of tar from the Katoen door to my loading door. Roll it gently: it leaks.", items: 1, cart: false },
+  { title: "Crates to the crane", employer: "sooi", task_type: "carry", goods: "crates", from: "east_carts", to: "crane_foot", twist: "none", urgent: false, recipient: "", pay_c: 80, risk: "low", pitch: "Two crates from the carts at the east end to the foot of the crane. Mind the rails.", items: 2, cart: false },
+  { title: "Back to the pier head", employer: "tuur", task_type: "deliver", goods: "parcel", from: "ship_gangway", to: "pier_head", twist: "thick_fog", urgent: true, recipient: "Tuur's boy at the pier head", pay_c: 90, risk: "medium", pitch: "Bring this from the gangway to my boy at the pier head before the ferry goes. Don't dawdle." },
+];
+
+/**
+ * The hand-written board when the model is late or wrong: alone as it always was (the cart job added when cart
+ * work is open, 7 at most); M8d: two more for each other player, sized as the model's board (boardSize).
+ */
+export function fallbackBoard(players: number, carts: boolean): Board {
+  const base = carts ? [...FALLBACK_BOARD.jobs, FALLBACK_CART_JOB].slice(0, 7) : FALLBACK_BOARD.jobs;
+  const size = boardSize(players);
+  const more = size.min - 4;
+  if (more <= 0) return carts ? { jobs: base } : FALLBACK_BOARD;
+  return { jobs: [...base, ...FALLBACK_EXTRA_JOBS.slice(0, more)].slice(0, size.max) };
+}
+
 /** M6: run after every new board (paper/routes.ts adds the post round and the morning paper). */
 export const boardExtras: Array<(db: DB) => void> = [];
 
@@ -651,7 +680,7 @@ export async function makeBoard(
   );
   // M7 short jobs: cart work only once it is open (the gate), one on a board at most
   const carts = cartWorkOpen(db);
-  let board = res.ok && res.data ? res.data : carts ? { jobs: [...FALLBACK_BOARD.jobs, FALLBACK_CART_JOB].slice(0, 7) } : FALLBACK_BOARD;
+  let board = res.ok && res.data ? res.data : fallbackBoard(players, carts);
   const source: "claude" | "fallback" = res.ok ? "claude" : "fallback";
   board = gateCarts(board, carts);
   board = clampBoard(board, tier);

@@ -115,6 +115,8 @@ interface PoliceState {
    * the same afternoon over an old deed and "the town's talk").
    */
   settledAt?: number;
+  /** M8d review 3: his own deeds that came while an agent was asking him as a witness: their visit follows that talk. */
+  queued?: number[];
 }
 
 const EMPTY: PoliceState = { record: { warnings: 0, fines: 0, arrests: 0, fled: 0 }, visit: null, last: null, cell: null, nextId: 1, talkDay: 0 };
@@ -293,7 +295,7 @@ export function stanceOf(text: string): Stance {
 export function policeRespond(db: DB, deedId: number): void {
   const had = policeState(db).visit;
   scheduleVisit(db, deedId);
-  if (!had) log(db, "police_called", String(deedId), "Someone went for the police about a theft.");
+  if (!had || had.reason === "witness") log(db, "police_called", String(deedId), "Someone went for the police about a theft.");
 }
 
 /**
@@ -341,6 +343,14 @@ export function policeEvents(db: DB, sinceId = 0): Array<{ id: number; day: numb
 export function scheduleVisit(db: DB, deedId: number): void {
   const s = policeState(db);
   const now = gameMinute(db);
+  // (M8d review 3: asked as a witness now, face to face: that talk runs to its answer; his own deed waits for it)
+  if (s.visit?.reason === "witness" && s.visit.state === "talking") {
+    const q = s.queued ?? [];
+    if (!q.includes(deedId)) q.push(deedId);
+    s.queued = q;
+    save(db, s);
+    return;
+  }
   // (M8d: wanted himself, the question he was to be asked as a witness waits for another day)
   if (s.visit?.reason === "witness") s.visit = null;
   if (s.visit) {
@@ -350,9 +360,20 @@ export function scheduleVisit(db: DB, deedId: number): void {
   save(db, s);
 }
 
+/** M8d review 3: the witness talk is over (answered, or he walked off): the deeds that came during it get their visit. */
+function afterWitness(db: DB, s: PoliceState): void {
+  const q = s.queued ?? [];
+  delete s.queued;
+  s.visit = q.length ? { id: s.nextId++, reason: "deed", deeds: q, due: gameMinute(db) + VISIT_DELAY_MIN, state: "due", agent: null, fled: 0, offered: {}, calls: 0 } : null;
+}
+
 /** A deed was given back before the police came: small things are then forgotten by them. */
 export function deedSettled(db: DB, deedId: number, thing: string): void {
   const s = policeState(db);
+  if (s.queued?.length && THINGS[thing as keyof typeof THINGS]?.severity <= 2) {
+    s.queued = s.queued.filter((d) => d !== deedId);
+    save(db, s);
+  }
   if (!s.visit || s.visit.state === "talking") return;
   if (THINGS[thing as keyof typeof THINGS]?.severity <= 2) s.visit.deeds = s.visit.deeds.filter((d) => d !== deedId);
   if (!s.visit.deeds.length && !s.visit.fled) s.visit = null;
@@ -487,7 +508,7 @@ export function policeFled(db: DB): { text: string; chase?: boolean } {
   const agent = v.agent;
   // M8d: a witness who walks off is no criminal: the agent lets him go, and remembers it
   if (v.reason === "witness") {
-    s.visit = null;
+    afterWitness(db, s);
     save(db, s);
     remember(db, agent, "I wanted a word with Jef about a theft he saw, and he walked off.", 3);
     return { text: `Behind you ${resident(db, agent)?.first ?? "the agent"} calls: "Only a question! Suit yourself."`, chase: false };
@@ -724,7 +745,7 @@ function witnessAnswer(db: DB, id: string, kind: "choice" | "free", raw: string)
     remember(db, id, `I asked Jef about a theft he was near, and he said he saw nothing.`, 3);
     log(db, "told_police", id, `Jef told ${npcName(db, id)} of the police he saw nothing.`);
   }
-  s.visit = null;
+  afterWitness(db, s);
   save(db, s);
   const line =
     stance === "tell"

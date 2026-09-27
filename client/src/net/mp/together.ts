@@ -67,6 +67,8 @@ export interface TogetherDeps {
   movers?(): Record<string, NetMover | null>;
   /** M8b: the movers as points for the host's town map (net/mp/world.ts WorldNetDeps.mapPoints). */
   mapPoints?(): Record<string, unknown[]>;
+  /** M8d: a wall of the walk map here (the city's flags, as the server's clear line); undefined while loading. */
+  wallAt?(x: number, z: number): boolean | undefined;
 }
 
 /** M8b: another player's boat, velocipede or handcart, drawn with him (figures.ts). */
@@ -454,8 +456,8 @@ export class Together {
 
   /**
    * M8d: could another player see this point now? Within 10 m of him, or within the fog in front of him (his view
-   * as a cone of 65 degrees each side of where he looks: the camera's width with a margin). Walls are not counted
-   * (as the crowd's own test for this player: game/crowd.ts hidden).
+   * as a cone of 65 degrees each side of where he looks: the camera's width with a margin). Beyond 10 m a wall of
+   * the walk map between him and the point hides it (the server's clear line for witnesses, town/deeds.ts).
    */
   seenByOthers(x: number, z: number): boolean {
     const fog = (this.d.scene.fog as THREE.Fog | null)?.far ?? 40;
@@ -467,12 +469,23 @@ export class Together {
       if (d < 10) return true;
       if (d > fog + 3) continue;
       const yaw = this.looks.get(id);
-      if (yaw === undefined) return true;
       // (he looks along (-sin yaw, -cos yaw): player/firstPerson.ts); a margin for the figure's own width
-      const cos = (-Math.sin(yaw) * dx - Math.cos(yaw) * dz) / d;
-      if (cos > Math.cos((65 * Math.PI) / 180) - 1.5 / d) return true;
+      if (yaw !== undefined && (-Math.sin(yaw) * dx - Math.cos(yaw) * dz) / d <= Math.cos((65 * Math.PI) / 180) - 1.5 / d) continue;
+      if (this.clearLine(f.at.x, f.at.z, x, z)) return true;
     }
     return false;
+  }
+
+  /**
+   * M8d: no wall of the walk map between two points (every half metre, as the server's clearLine; the ends not
+   * counted). Unsure (the map loading, or he stands on a wall's cell: indoors, in a doorway) counts as clear.
+   */
+  private clearLine(ax: number, az: number, bx: number, bz: number): boolean {
+    const wall = this.d.wallAt;
+    if (!wall || wall(ax, az) !== false) return true;
+    const n = Math.ceil(Math.hypot(bx - ax, bz - az) / 0.5);
+    for (let i = 1; i < n; i++) if (wall(ax + ((bx - ax) * i) / n, az + ((bz - az) * i) / n)) return false;
+    return true;
   }
 
   /**

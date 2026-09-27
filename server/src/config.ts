@@ -199,6 +199,9 @@ export const PLAYER_HOOKS: ReadonlySet<string> = new Set([
   "epilogue",
   "home_remark",
   "confession",
+  "clerk",
+  "tavern_dice",
+  "hands_lines",
 ]);
 /**
  * M8d, the call queue: played together at most this many model calls run at once; the others wait, talk first, the
@@ -206,7 +209,7 @@ export const PLAYER_HOOKS: ReadonlySet<string> = new Set([
  * limit counts from the start of the call, not from the queue. Played alone there is no queue, as before.
  */
 export const CALLS_AT_ONCE = 3;
-export const CALL_QUEUE_WAIT_MS = 20_000;
+export const CALL_QUEUE_WAIT_MS = 8_000; // (8 s wait + the 20 s call: inside the client's 30 s for talk)
 
 /** Talk with the townspeople (M3e): at most this many model calls a day for them... */
 export const RESIDENT_CALLS_PER_DAY = 40;

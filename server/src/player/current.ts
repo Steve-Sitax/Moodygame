@@ -74,3 +74,17 @@ export function setPositionSource(f: ((id: number) => { x: number; z: number } |
 export function positionOf(id: number): { x: number; z: number } | null {
   return position(id);
 }
+
+/**
+ * M8d: whose PC walks townsperson `npcId` now (M8b owners: a player's id, 0 nobody), or null when not played
+ * together. A report on a townsperson's errand is taken only from the PC that walks him or the player it is for.
+ */
+let walker: (npcId: string) => number | null = () => null;
+
+export function setWalkerSource(f: ((npcId: string) => number | null) | null): void {
+  walker = f ?? (() => null);
+}
+
+export function walkerOf(npcId: string): number | null {
+  return walker(npcId);
+}

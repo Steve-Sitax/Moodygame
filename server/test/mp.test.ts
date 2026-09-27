@@ -336,10 +336,23 @@ describe("M8d: shared work, on a real server", () => {
       expect(host.texts.some((t) => t.type === "pins")).toBe(true);
       const raw: Buffer[] = [];
       host.ws.on("message", (d, bin) => bin && raw.push(d as Buffer));
+      const figs = () => raw.filter((b) => b[0] === MSG_FIGS);
+      const thief = () => encodeFigs(Date.now(), [{ id: 3, kind: "thief", motion: "walk", snap: true, carrying: false, x: 4, y: 0, z: 6, yaw: 1, speed: 1.35 }], 1);
+      // (review 3: no job in hand, no call: her figures are not passed on)
+      anna.ws.send(thief());
+      await new Promise((r) => setTimeout(r, 300));
+      expect(figs().length).toBe(0);
+      const st = async (h: Record<string, string> = {}) => (await s.call("GET", "/api/state", undefined, h)).body as { player: { money_c: number }; jobs: Array<{ id: number; status: string; task_type: string }> };
+      const offered = (await st(g)).jobs.filter((j) => j.status === "offered");
+      const watch = offered.find((j) => j.task_type === "watch");
+      const job = watch ?? offered.find((j) => ["carry", "deliver"].includes(j.task_type));
+      expect(job).toBeTruthy();
+      expect((await s.call("POST", `/api/jobs/${job!.id}/take`, {}, g)).status).toBe(200);
+      await new Promise((r) => setTimeout(r, 300)); // (the server's pins are asked fresh every 250 ms)
       // her PC sends her thief (the sender's id in the batch is the server's word, not hers)
-      anna.ws.send(encodeFigs(Date.now(), [{ id: 3, kind: "thief", motion: "walk", snap: true, carrying: false, x: 4, y: 0, z: 6, yaw: 1, speed: 1.35 }], 1));
-      for (let i = 0; i < 40 && !raw.some((b) => b[0] === MSG_FIGS); i++) await new Promise((r) => setTimeout(r, 50));
-      const got = raw.find((b) => b[0] === MSG_FIGS)!;
+      anna.ws.send(thief());
+      for (let i = 0; i < 40 && !figs().length; i++) await new Promise((r) => setTimeout(r, 50));
+      const got = figs()[0];
       const d = decodeFigs(new DataView(got.buffer, got.byteOffset, got.byteLength))!;
       const you = (await s.call("GET", "/api/mp/info", undefined, g)).body.you as { id: number };
       expect(d.sender).toBe(you.id);
@@ -349,12 +362,15 @@ describe("M8d: shared work, on a real server", () => {
       raw.length = 0;
       anna.ws.send(new Uint8Array([MSG_FIGS, 5, 0, 0]));
       await new Promise((r) => setTimeout(r, 200));
-      expect(raw.some((b) => b[0] === MSG_FIGS)).toBe(false);
+      expect(figs().length).toBe(0);
+      // (review 3: a flood is cut to 15 batches a second a seat)
+      await new Promise((r) => setTimeout(r, 1000));
+      for (let i = 0; i < 60; i++) anna.ws.send(thief());
+      await new Promise((r) => setTimeout(r, 400));
+      expect(figs().length).toBeGreaterThan(0);
+      expect(figs().length).toBeLessThanOrEqual(15);
       // her watch: paid into her purse; the host's purse stays
-      const st = async (h: Record<string, string> = {}) => (await s.call("GET", "/api/state", undefined, h)).body as { player: { money_c: number }; jobs: Array<{ id: number; status: string; task_type: string }> };
-      const watch = (await st(g)).jobs.find((j) => j.status === "offered" && j.task_type === "watch");
       if (watch) {
-        expect((await s.call("POST", `/api/jobs/${watch.id}/take`, {}, g)).status).toBe(200);
         const h0 = (await st()).player.money_c;
         const a0 = (await st(g)).player.money_c;
         // the host cannot settle her job

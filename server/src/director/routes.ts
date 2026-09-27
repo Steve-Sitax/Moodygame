@@ -3,7 +3,8 @@ import type { DB } from "../db.ts";
 import { DEV } from "../config.ts";
 import { GameError } from "../game.ts";
 import { isResident, resident } from "../town/store.ts";
-import { actionsTick, applyProposal, clearActions, installTalkHooks, listActions, reportAction, syncFromClient } from "./actions.ts";
+import { actionRow, actionsTick, applyProposal, clearActions, installTalkHooks, listActions, reportAction, syncFromClient } from "./actions.ts";
+import { asWorld, pid, walkerOf } from "../player/current.ts";
 import { bus } from "./bus.ts";
 import { recentConvos } from "./convo.ts";
 import { clearDirector, directorTick, think } from "./director.ts";
@@ -45,9 +46,12 @@ export function mountDirector(app: Hono, deps: DirectorDeps): void {
   app.use("/api/tick", async (_c, next) => {
     await next();
     try {
-      actionsTick(db);
-      eventsTick(db);
-      directorTick(db);
+      // (M8d: the world's own work, whichever player's tick set it off: its prompt and its log name nobody's "Jef")
+      asWorld(() => {
+        actionsTick(db);
+        eventsTick(db);
+        directorTick(db);
+      });
     } catch (e) {
       console.error("[director] tick", e);
     }
@@ -81,6 +85,13 @@ export function mountDirector(app: Hono, deps: DirectorDeps): void {
     const body = (await c.req.json().catch(() => ({}))) as { phase?: unknown; x?: unknown; z?: unknown; found?: unknown; why?: unknown };
     const phase = body.phase;
     if (phase !== "arrived" && phase !== "lost" && phase !== "blocked" && phase !== "done") throw new GameError("bad phase", 400);
+    // M8d played together: only the PC that walks the townsperson, or the player the errand is for, reports on it
+    const a = actionRow(db, id);
+    if (a) {
+      const walks = walkerOf(a.npc_id);
+      const me = pid();
+      if (walks !== null && walks !== me && a.for_player !== me && !(walks === 0 && me === 1)) throw new GameError("not yours to report", 409);
+    }
     const row = await reportAction(db, id, {
       phase,
       x: typeof body.x === "number" ? body.x : undefined,

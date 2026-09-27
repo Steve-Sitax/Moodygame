@@ -5,6 +5,7 @@ import { clock } from "../day.ts";
 import { log } from "../game.ts";
 import { asPlayer, inPlayer, onlineIds, pid, positionOf } from "../player/current.ts";
 import { nameOf, readText, storeText } from "../player/names.ts";
+import { RESET_HOOKS } from "../player/multi.ts";
 import { SPOTS } from "../hooks/jobBoard.ts";
 import { relationship, remember } from "../npcs.ts";
 import { ITEMS, waresOf } from "../trade.ts";
@@ -1013,6 +1014,22 @@ export function clearActions(db: DB): void {
   db.prepare("DELETE FROM npc_action").run();
   resetSync();
 }
+
+/**
+ * M8d: a player's man retires (player/multi.ts resetPlayer): what the townspeople were doing for him or about him
+ * (follow, seek, fetch the police, walk up) stops, and they go back to their day. Routines end in steps.ts (their
+ * own end settles a wage, a cart); the families, the walk-ups and the hands add their own rows (data, not for_player).
+ */
+export function endActionsFor(db: DB, player: number, outcome = "he is gone"): number {
+  let n = 0;
+  for (const a of activeActions(db)) {
+    if (a.for_player !== player || a.kind === "routine") continue;
+    endAction(db, a.id, "stopped", outcome, "");
+    n++;
+  }
+  return n;
+}
+RESET_HOOKS.push((db, id) => void endActionsFor(db, id));
 
 // ------------------------------------------------------------------ the talk hooks (talk.ts calls these)
 

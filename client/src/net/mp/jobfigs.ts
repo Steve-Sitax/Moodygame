@@ -25,9 +25,21 @@ export const FIG_DRAW_R = 120;
 /** A jump of place larger than this between two states is not walked. */
 const SNAP_M = 4;
 
-/** A made figure of this PC, as figures.ts gives it. */
+/** What a made figure shows the others now. */
+export interface NetLook {
+  kind: FigKind;
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+  speed: number;
+  motion: FigMotion;
+  carrying: boolean;
+}
+
+/** A made figure of this PC, as figures.ts gives it (`out`: an object to fill instead of a new one). */
 export interface OwnFigure {
-  netLook(): { kind: FigKind; x: number; y: number; z: number; yaw: number; speed: number; motion: FigMotion; carrying: boolean };
+  netLook(out?: NetLook): NetLook;
 }
 
 /** A figure drawn here from another player's job (figures.ts Figure made with { remote: true }). */
@@ -54,8 +66,9 @@ const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 /**
  * Where a figure is drawn at `t` (server ms, less the delay): between the two states round it, the newest when
  * `t` is past it (a standing one is sent twice a second), the first before it. A jump (snap) is not walked.
+ * `out`: filled with an in-between state instead of a new object (a state of `buf` itself is returned as it is).
  */
-export function sampleFig(buf: readonly Timed[], t: number): Timed | null {
+export function sampleFig(buf: readonly Timed[], t: number, out?: Timed): Timed | null {
   if (!buf.length) return null;
   let i = 0;
   while (i + 1 < buf.length && buf[i + 1].t <= t) i++;
@@ -64,7 +77,20 @@ export function sampleFig(buf: readonly Timed[], t: number): Timed | null {
   if (!b || t <= a.t) return a;
   if (b.snap || Math.hypot(b.x - a.x, b.z - a.z) > SNAP_M) return a;
   const u = (t - a.t) / Math.max(1, b.t - a.t);
-  return { ...(u < 0.5 ? a : b), t, x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, z: a.z + (b.z - a.z) * u, yaw: a.yaw + wrap(b.yaw - a.yaw) * u, speed: a.speed + (b.speed - a.speed) * u };
+  const o = out ?? ({} as Timed);
+  const near = u < 0.5 ? a : b;
+  o.id = near.id;
+  o.kind = near.kind;
+  o.motion = near.motion;
+  o.snap = near.snap;
+  o.carrying = near.carrying;
+  o.t = t;
+  o.x = a.x + (b.x - a.x) * u;
+  o.y = a.y + (b.y - a.y) * u;
+  o.z = a.z + (b.z - a.z) * u;
+  o.yaw = a.yaw + wrap(b.yaw - a.yaw) * u;
+  o.speed = a.speed + (b.speed - a.speed) * u;
+  return o;
 }
 
 interface Track {
@@ -75,18 +101,35 @@ interface Track {
   fig: DrawnFigure | null;
   /** Missing from the holder's batch of this time: goes once that is drawn. */
   endAt: number | null;
+  /** The number of the holder's last batch that had him. */
+  seen: number;
 }
+
+/** A track's key: the holder and his number for the figure (no string per figure per batch). */
+const trackKey = (sender: number, id: number) => sender * 0x10000 + (id & 0xffff);
+
+const blankState = (): FigState => ({ id: 0, kind: "thief", motion: "idle", snap: false, carrying: false, x: 0, y: 0, z: 0, yaw: 0, speed: 0 });
 
 export class JobFigs {
   // ---- sending
   private readonly ids = new WeakMap<object, number>();
   private next = 1;
-  private sentIds = "";
+  /** The ids of the last batch sent, in order. */
+  private readonly sentIds: number[] = [];
   private acc = 0;
   private emptyLeft = 0;
+  // (kept from frame to frame: nothing is made while no batch is due)
+  private readonly figs: Array<OwnFigure | null> = [];
+  private readonly figIds: number[] = [];
+  private readonly figFresh: boolean[] = [];
+  private readonly states: FigState[] = [];
+  private readonly list: FigState[] = [];
+  private readonly look: NetLook = { kind: "thief", x: 0, y: 0, z: 0, yaw: 0, speed: 0, motion: "idle", carrying: false };
   // ---- drawing
-  private readonly tracks = new Map<string, Track>();
+  private readonly tracks = new Map<number, Track>();
   private readonly heard = new Map<number, number>();
+  private batchNo = 0;
+  private readonly sample = { ...blankState(), t: 0 } as Timed;
   readonly meter = { batchesOut: 0, bytesOut: 0, batchesIn: 0, drawn: 0, made: 0, removed: 0 };
 
   private readonly d: JobFigsDeps;
@@ -103,35 +146,62 @@ export class JobFigs {
 
   private send(dt: number): void {
     this.acc += dt;
-    const now = this.d.serverNow();
-    const list: FigState[] = [];
-    let moving = false;
-    const fresh: number[] = [];
+    // first which figures there are (their ids: a new one is a change), without asking where they are
+    let n = 0;
+    let changed = false;
     for (const f of this.d.own()) {
-      if (list.length >= FIG_MAX) break;
+      if (n >= FIG_MAX) break;
       let id = this.ids.get(f);
+      let fresh = false;
       if (id === undefined) {
         id = this.next;
         this.next = this.next >= 0xfffe ? 1 : this.next + 1;
         this.ids.set(f, id);
-        fresh.push(id);
+        fresh = true;
       }
-      const l = f.netLook();
-      if (l.speed > 0) moving = true;
-      list.push({ id, kind: l.kind, motion: l.motion, snap: fresh.includes(id), carrying: l.carrying, x: l.x, y: l.y, z: l.z, yaw: l.yaw, speed: l.speed });
+      this.figs[n] = f;
+      this.figIds[n] = id;
+      this.figFresh[n] = fresh;
+      if (this.sentIds[n] !== id) changed = true;
+      n++;
     }
-    const key = list.map((s) => s.id).join(",");
-    const changed = key !== this.sentIds;
-    if (!list.length && !changed && this.emptyLeft <= 0) return;
+    if (n !== this.sentIds.length) changed = true;
+    // (a figure no longer here is not held on to)
+    for (let i = n; i < this.figs.length && this.figs[i]; i++) this.figs[i] = null;
+    if (!changed) {
+      if (!n && this.emptyLeft <= 0) return;
+      // (sooner than the walking rate nothing is due, moving or not)
+      if (this.acc < 1 / FIG_HZ) return;
+    }
+    let moving = false;
+    const list = this.list;
+    list.length = n;
+    for (let i = 0; i < n; i++) {
+      const l = this.figs[i]!.netLook(this.look);
+      if (l.speed > 0) moving = true;
+      const s = (this.states[i] ??= blankState());
+      s.id = this.figIds[i];
+      s.kind = l.kind;
+      s.motion = l.motion;
+      s.snap = this.figFresh[i];
+      s.carrying = l.carrying;
+      s.x = l.x;
+      s.y = l.y;
+      s.z = l.z;
+      s.yaw = l.yaw;
+      s.speed = l.speed;
+      list[i] = s;
+    }
     const due = this.acc >= 1 / (moving ? FIG_HZ : STAND_HZ);
     if (!changed && !due) return;
-    const b = encodeFigs(now, list);
+    const b = encodeFigs(this.d.serverNow(), list);
     if (!this.d.sendBinary(b)) return;
     this.acc = 0;
-    this.sentIds = key;
+    this.sentIds.length = n;
+    for (let i = 0; i < n; i++) this.sentIds[i] = this.figIds[i];
     this.meter.batchesOut++;
     this.meter.bytesOut += b.byteLength;
-    if (list.length) this.emptyLeft = EMPTY_SENDS;
+    if (n) this.emptyLeft = EMPTY_SENDS;
     else if (!changed) this.emptyLeft--;
     else this.emptyLeft = EMPTY_SENDS - 1;
   }
@@ -142,23 +212,26 @@ export class JobFigs {
     if (!b || !b.sender) return;
     this.meter.batchesIn++;
     this.heard.set(b.sender, recvNow);
-    const here = new Set<string>();
+    const no = ++this.batchNo;
     for (const s of b.list) {
-      const k = `${b.sender}:${s.id}`;
-      here.add(k);
+      const k = trackKey(b.sender, s.id);
       let tr = this.tracks.get(k);
       if (!tr || tr.kind !== s.kind) {
         if (tr) this.end(k, tr);
-        tr = { sender: b.sender, id: s.id, kind: s.kind, buf: [], fig: null, endAt: null };
+        tr = { sender: b.sender, id: s.id, kind: s.kind, buf: [], fig: null, endAt: null, seen: no };
         this.tracks.set(k, tr);
       }
+      tr.seen = no;
       const last = tr.buf[tr.buf.length - 1];
       if (last && b.t <= last.t) continue;
-      tr.buf.push({ ...s, t: b.t });
+      // (the decoded state is this batch's own: it is kept as it is, with its time)
+      const st = s as Timed;
+      st.t = b.t;
+      tr.buf.push(st);
       if (tr.buf.length > 30) tr.buf.splice(0, tr.buf.length - 30);
       tr.endAt = null;
     }
-    for (const [k, tr] of this.tracks) if (tr.sender === b.sender && !here.has(k) && tr.endAt === null) tr.endAt = b.t;
+    for (const tr of this.tracks.values()) if (tr.sender === b.sender && tr.seen !== no && tr.endAt === null) tr.endAt = b.t;
   }
 
   private draw(dt: number): void {
@@ -166,13 +239,13 @@ export class JobFigs {
     const t = now - FIG_DELAY_MS;
     const me = this.d.player();
     let drawn = 0;
-    for (const [k, tr] of this.tracks) {
+    for (const tr of this.tracks.values()) {
       const heard = this.heard.get(tr.sender) ?? 0;
       if (now - heard > FIG_SILENT_MS || (tr.endAt !== null && t >= tr.endAt)) {
-        this.end(k, tr);
+        this.end(trackKey(tr.sender, tr.id), tr);
         continue;
       }
-      const s = sampleFig(tr.buf, t);
+      const s = sampleFig(tr.buf, t, this.sample);
       if (!s) continue;
       // (only the states still needed: the one before the drawn time and after)
       while (tr.buf.length > 2 && tr.buf[1].t <= t) tr.buf.shift();
@@ -197,7 +270,7 @@ export class JobFigs {
     this.meter.drawn = drawn;
   }
 
-  private end(k: string, tr: Track): void {
+  private end(k: number, tr: Track): void {
     if (tr.fig) {
       tr.fig.remove();
       this.meter.removed++;
@@ -215,7 +288,7 @@ export class JobFigs {
   reset(): void {
     for (const [k, tr] of this.tracks) this.end(k, tr);
     this.heard.clear();
-    this.sentIds = "";
+    this.sentIds.length = 0;
   }
 
   /** For the kit and the harness. */

@@ -8,6 +8,7 @@ import { resident, town } from "./store.ts";
 import { nowOf } from "./talk.ts";
 import { walkMap } from "./walkmap.ts";
 import { pid } from "../player/current.ts";
+import { RESET_HOOKS } from "../player/multi.ts";
 
 // M7 walk-up (Steve, 2026-09-26: "when doing fetching jobs, a person always pops out of nowhere. Now it
 // is customs. Those people should always be around and walk up, or run if they think it is urgent ...
@@ -216,6 +217,17 @@ export function jobPins(db: DB, online: readonly number[]): Map<string, number> 
   return out;
 }
 
+/**
+ * M8d: the players whose PC may have job figures now (mp/index.ts passes their batches on): a job in hand (the
+ * night's work too), or a townsperson walking up for his call (a trouble, a follower).
+ */
+export function figHolders(db: DB): Set<number> {
+  const out = new Set<number>();
+  for (const r of db.prepare("SELECT DISTINCT COALESCE(taken_by, 1) AS p FROM job WHERE status = 'taken'").all() as Array<{ p: number }>) out.add(r.p);
+  for (const a of comings(db)) out.add(comeHolder(db, a));
+  return out;
+}
+
 export function comingFor(db: DB, ref: string): ActionRow[] {
   return comings(db).filter((a) => comeData(a).ref === ref);
 }
@@ -286,6 +298,14 @@ export function endCallsFor(db: DB, refPrefix: string): number {
 
 // a job's calls end with it (the thief, the customs man, the tally man go back to their day)
 settleExtras.push((db, j) => void endCallsFor(db, `job:${j.id}:`));
+
+/** M8d: a player's man retires (player/multi.ts resetPlayer): everyone walking up for his job or quest goes back to his day. */
+export function endCallsOf(db: DB, player: number): number {
+  let n = 0;
+  for (const a of comings(db)) if (comeHolder(db, a) === player) n += endCall(db, a.id, "he is gone") ? 1 : 0;
+  return n;
+}
+RESET_HOOKS.push((db, id) => void endCallsOf(db, id));
 
 // a "come" row that outlives the client's run (a reload): it ends quietly when its time is up
 actionHooks.timeUp.come = (db, a) => {

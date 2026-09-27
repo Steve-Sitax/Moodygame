@@ -3,6 +3,7 @@ import { GameError, log, player } from "../game.ts";
 import { listJobs } from "../hooks/jobBoard.ts";
 import { remember } from "../npcs.ts";
 import { asPlayer, pid } from "../player/current.ts";
+import { RESET_HOOKS } from "../player/multi.ts";
 import { ITEMS, atWork, buy, waresOf } from "../trade.ts";
 import { gameMinute } from "../town/deeds.ts";
 import { resident } from "../town/store.ts";
@@ -306,6 +307,28 @@ export function endRoutine(db: DB, id: number, status: "done" | "failed", outcom
   endAction(db, id, status, outcome, said);
   return said;
 }
+
+/** M8d: whose routine this is: its purpose's own word (a hand's hirer, a treat's host), else who started it. */
+export function routineOwner(row: ActionRow, r: Routine): number {
+  const p = (r.state as { player?: unknown }).player;
+  return typeof p === "number" ? p : (r.player ?? row.for_player ?? 1);
+}
+
+/**
+ * M8d: a player's man retires (player/multi.ts resetPlayer): his hired hands, the guests he stood a drink and any
+ * other routine of his end through their own end (the wage for what was carried, his cart put down), and they go
+ * back to their day.
+ */
+export function endRoutinesFor(db: DB, player: number, outcome = "he is gone"): number {
+  let n = 0;
+  for (const { row, r } of activeRoutines(db)) {
+    if (routineOwner(row, r) !== player) continue;
+    endRoutine(db, row.id, "failed", outcome, "");
+    n++;
+  }
+  return n;
+}
+RESET_HOOKS.push((db, id) => void endRoutinesFor(db, id));
 
 function runEngineStep(db: DB, row: ActionRow, r: Routine, s: Step): { ok: boolean; why: string } {
   try {

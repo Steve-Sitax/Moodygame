@@ -6,7 +6,7 @@ import { callClaude, type Runner } from "../ai/claude.ts";
 import { clock, WEATHER_TEXT } from "../day.ts";
 import { log, player } from "../game.ts";
 import { asPlayer, pid } from "../player/current.ts";
-import { pstate, setPstate } from "../player/multi.ts";
+import { pstate, RESET_HOOKS, setPstate } from "../player/multi.ts";
 import { nameOf, storeText } from "../player/names.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
 import { gateText, markFreeLine } from "../hooks/dialogue.ts";
@@ -1293,3 +1293,23 @@ export function seekPins(db: DB, online: readonly number[]): Map<string, number>
   }
   return out;
 }
+
+/**
+ * M8d: a player's man retires (player/multi.ts resetPlayer): nobody comes to him any more (a visit, the police's
+ * word, a menace: they go back to their day), and the news about him that was still to be told or acted on is
+ * closed ("he is gone"). What was told stays told.
+ */
+export function endFamiliesFor(db: DB, player: number): number {
+  let n = 0;
+  for (const a of activeActions(db)) {
+    const mine =
+      (a.kind === "seek" && seekPlayer(db, a) === player) ||
+      (a.kind === "talk_to" && seekData(a).news !== undefined && newsPlayer(newsRow(db, seekData(a).news!)) === player);
+    if (!mine) continue;
+    endAction(db, a.id, "stopped", "he is gone", "");
+    n++;
+  }
+  db.prepare("UPDATE family_news SET status = 'lapsed', outcome = 'he is gone', action_id = NULL WHERE COALESCE(player_id, 1) = ? AND status IN ('waiting', 'heard', 'pending', 'acting')").run(player);
+  return n;
+}
+RESET_HOOKS.push((db, id) => void endFamiliesFor(db, id));

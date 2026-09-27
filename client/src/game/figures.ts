@@ -133,13 +133,22 @@ export class Figure {
   private netCarry = false;
   private netCrate: THREE.Mesh | null = null;
 
-  /** What the other players are sent of this figure now (its feet, heading, pace and what it does). */
-  netLook(): FigureLook {
+  /** What the other players are sent of this figure now (its feet, heading, pace and what it does); `out` is filled when given. */
+  netLook(out?: FigureLook): FigureLook {
     const carrying = this.group.children.length > 1;
     const moving = this.target !== null;
     const y = typeof this.baseY === "function" ? this.baseY() : this.baseY;
     const motion = moving ? (carrying ? "carry" : "walk") : this.kind === "foreman" || this.motion === "fold" ? "fold" : this.motion === "talk" ? "talk" : "idle";
-    return { kind: this.kind, x: this.pos.x, y, z: this.pos.z, yaw: this.facing, speed: moving ? this.speed : 0, motion, carrying };
+    const o = out ?? ({} as FigureLook);
+    o.kind = this.kind;
+    o.x = this.pos.x;
+    o.y = y;
+    o.z = this.pos.z;
+    o.yaw = this.facing;
+    o.speed = moving ? this.speed : 0;
+    o.motion = motion;
+    o.carrying = carrying;
+    return o;
   }
 
   /** A remote figure where the holder's PC had it (between two of its states). */

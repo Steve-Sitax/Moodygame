@@ -1247,6 +1247,11 @@ const together = new Together({
   cityReady: world.city.ready,
   town,
   crowd,
+  // M8d: walls on the walk map (another player's view of a job figure is cut by them)
+  wallAt: (x, z) => {
+    const f = world.city.flags(x, z);
+    return f === undefined ? undefined : (f & 1) !== 0;
+  },
   // M8b: the boat he rows, the velocipede he rides, the handcart he pushes go with him on the others' screens
   gear: () => {
     const boat = rowing.rowedKind;
