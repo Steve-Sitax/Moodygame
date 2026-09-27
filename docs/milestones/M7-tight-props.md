@@ -1,7 +1,7 @@
 # Tight prop collisions and quay cargo, 2026-09-26
 
 Integration update 2026-09-27: the previously deferred cargo and static-prop batch is now
-ready to merge after Props in walls and Picture round were logged complete. The final checks
+merged into main as `8355450` after Props in walls and Picture round were logged complete. The final checks
 below supersede the original coordination hold at the end of this note.
 
 Requested by Steve: low-poly assets that fit the game, collision matching their models (especially
