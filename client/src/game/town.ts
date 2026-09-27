@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { api, type JobsPayload, type Pt, type TownData, type TownPlace, type TownResident } from "../net/api";
 import { activityAt, type Now } from "../../../server/src/town/schedule";
+import { whereAt } from "../../../server/src/town/whereabouts";
+import { wayKey } from "../../../server/src/town/wayfind";
 import type { Crowd, Puppet } from "./crowd";
 import type { Animals } from "./animals";
 import type { Stalls } from "./stalls";
@@ -17,8 +19,10 @@ import { atPost, NIGHT_GIVER_IDS } from "../../../shared/night";
 
 // The town (M3e): the residents the server made (homes, families, trades,
 // schedules) living by the game clock. Everyone is simulated cheaply by
-// schedule: where they should be now, and a straight walk there at a brisk
-// pace while nobody sees them. Only those near Jef become people in the street:
+// schedule: where they should be now, and a walk there at a brisk pace while
+// nobody sees them: along the way on foot the server found (the trade plan,
+// docs/trade-plan.md part A: server town/whereabouts.ts, the same sum the town
+// map and every PC use), so a person unseen is on a street, never in a house. Only those near Jef become people in the street:
 // "puppets" of the crowd (crowd.ts), which walks them on its grid (A*, stuck
 // checks, keeping right, going round Jef). Here each one gets told what to do:
 // come out of their door, walk to work, sell at the stall, carry sacks between
@@ -38,6 +42,12 @@ import { atPost, NIGHT_GIVER_IDS } from "../../../shared/night";
 // anyone: the police alone come for a thief (deeds.ts).
 
 const SPAWN_R = 55;
+/** The trade plan: a person due in the street in Jef's view steps in at once beyond this (m), nearer after a wait. */
+const DUE_FAR = 40;
+const DUE_WAIT_MS = 2500;
+/** Under this (m) he waits longer still: by then he has mostly walked out of view or behind someone. */
+const DUE_NEAR = 20;
+const DUE_NEAR_WAIT_MS = 8000;
 const DESPAWN_R = 68;
 /** How many townspeople walk in the street round Jef at once: Settings, "People in the street" (settings.ts). */
 const MAX_PUPPETS = 50;
@@ -112,6 +122,14 @@ export interface Sim {
   aboard?: boolean;
   /** The day's errand they are on (a family boat, a dray). */
   errand?: string;
+  /**
+   * The trade plan (part A): his goal is his day plan's own (no shop call, errand, mill, back-street or lively
+   * goal over it), so unseen he walks the shared sum (whereabouts.ts) on the way between his places.
+   */
+  plain?: boolean;
+  /** Since when (ms) he has been due in the street in Jef's view, and when that was last seen (the spawn's wait). */
+  dueAt?: number;
+  dueLast?: number;
   /**
    * M8b: walked by another player's PC (net/mp/street.ts): `p` is drawn from its batches. The town goes on
    * planning their day (a handover knows where they were going) but never moves, dresses or directs them.
@@ -241,6 +259,10 @@ export class Town {
   /** M8b: played together, which residents this PC may walk (net/mp/street.ts); null alone. */
   net: TownNet | null = null;
   private player = { x: 0, z: 0, yaw: 0 };
+  /** The trade plan: the ways on foot by key (null: the server found none), and the keys to ask for. */
+  private ways = new Map<string, Pt[] | null>();
+  private wayAsk = new Set<string>();
+  private wayAskT = 0;
   private busyNet = false;
   private lastDay = 0;
 
@@ -265,6 +287,7 @@ export class Town {
     }
     this.data = d;
     this.crowd.anonymous = false;
+    void this.loadWays();
     for (const r of d.residents) {
       // the kind is checked against people.glb when they first step out (the models may still be loading now)
       const kind = r.kind as HumanKind;
@@ -305,6 +328,80 @@ export class Town {
     await this.stalls.build(d.stalls, d.shops);
   }
 
+  // ------------------------------------------------------------------ the ways (the trade plan)
+
+  private async loadWays(): Promise<void> {
+    for (let wait = 2000; ; wait = Math.min(wait * 2, 30_000)) {
+      try {
+        const r = await api.ways();
+        for (const [k, w] of Object.entries(r.ways)) this.ways.set(k, w);
+        return;
+      } catch (e) {
+        console.warn(`the town's ways did not load; again in ${wait / 1000} s`, e);
+        await new Promise((res) => setTimeout(res, wait));
+      }
+    }
+  }
+
+  /** The way on foot for the sum (null until the server sent it: the sum then goes straight, as before). */
+  private readonly wayOf = (ax: number, az: number, bx: number, bz: number): Pt[] | null => {
+    const k = wayKey(ax, az, bx, bz);
+    const w = this.ways.get(k);
+    if (w === undefined) {
+      this.wayAsk.add(k);
+      return null;
+    }
+    return w;
+  };
+
+  private askWays(dt: number): void {
+    this.wayAskT -= dt;
+    if (this.wayAskT > 0 || !this.wayAsk.size) return;
+    this.wayAskT = 3;
+    const keys = [...this.wayAsk].slice(0, 60);
+    for (const k of keys) this.wayAsk.delete(k);
+    api.waysByKey(keys).then(
+      (r) => {
+        for (const k of keys) this.ways.set(k, r.ways[k] ?? null);
+      },
+      () => {
+        for (const k of keys) this.wayAsk.add(k);
+      },
+    );
+  }
+
+  /**
+   * The trade plan, part A (dev: `__scheldemist.findcheck()`): who is out in the street within `near` m of Jef
+   * but has not been drawn for over 3 s (must list nothing). Held, aboard, walked by another PC: left out.
+   */
+  findCheck(near = 40): Array<{ id: string; name: string; d: number; x: number; z: number; plain: boolean; moving: boolean; hidden: boolean; waitS: number }> {
+    const t = performance.now();
+    const out: ReturnType<Town["findCheck"]> = [];
+    for (const s of this.sims) {
+      const miss = !s.p && !s.inside && !s.aboard && !s.remote && !s.held;
+      const d = dist(s.x, s.z, this.player.x, this.player.z);
+      if (!miss || d > near) {
+        this.missSince.delete(s);
+        continue;
+      }
+      const since = this.missSince.get(s) ?? t;
+      this.missSince.set(s, since);
+      if (t - since < 3000) continue;
+      const on = this.whereNow(s);
+      out.push({ id: s.r.id, name: s.r.name, d: Math.round(d), x: Math.round(s.x * 10) / 10, z: Math.round(s.z * 10) / 10, plain: !!s.plain, moving: !!on && on.walked < on.total, hidden: this.crowd.isHidden(s.x, s.z), waitS: Math.round((t - since) / 100) / 10 });
+    }
+    return out.sort((a, b) => a.d - b.d);
+  }
+
+  private missSince = new Map<Sim, number>();
+
+  /** Where the shared sum puts a person now (whereabouts.ts), or null when his goal is not his plan's own. */
+  whereNow(s: Sim): ReturnType<typeof whereAt> | null {
+    if (!s.plain || !this.data) return null;
+    const { day, hour } = this.clock();
+    return whereAt(s.r, this.data, day, hour, this.wayOf);
+  }
+
   // ------------------------------------------------------------------ per frame
 
   update(dt: number, player: { x: number; z: number; yaw: number }): void {
@@ -315,6 +412,7 @@ export class Town {
       this.lastDay = day;
       this.robbed.clear();
     }
+    this.askWays(dt);
     this.thinkT -= dt;
     if (this.thinkT <= 0) {
       this.thinkT = 0.25;
@@ -375,12 +473,19 @@ export class Town {
     s.key = key;
     if (s.p) this.market?.forget(s.p);
     s.goal = call ? { mode: "inside", x: call[0], z: call[1] } : this.goalFor(s, now);
+    if (call) s.plain = false;
     s.step = 0;
     s.tries = 0;
     s.wait = 0;
     if (s.r.work.kind === "stall" || s.r.work.kind === "shop") this.stalls.setOpen(s.r.id, now.act === "work");
     const goesIn = s.goal.mode === "home" || s.goal.mode === "inside" || s.goal.mode === "church";
-    if (first) {
+    const on = first ? this.whereNow(s) : null;
+    if (on && on.walked < on.total) {
+      // the start, and he is on his way (the trade plan: where the town map has him too)
+      s.inside = false;
+      s.x = on.x;
+      s.z = on.z;
+    } else if (first) {
       // the start: everyone is where the clock says, no walking
       if (goesIn) {
         s.inside = true;
@@ -413,6 +518,7 @@ export class Town {
   private errandStep(s: Sim, err: { id: string; who: string[]; to: [number, number] } | null, day: number, hour: number): void {
     const j = this.journeys;
     if (err && s.errand !== err.id) {
+      s.plain = false;
       s.errand = err.id;
       s.key = `errand:${err.id}`;
       if (s.inside) {
@@ -452,12 +558,15 @@ export class Town {
   }
 
   private goalFor(s: Sim, now: Now): Goal {
+    // (the trade plan: only a goal of the plan's own is walked by the shared sum unseen)
+    s.plain = false;
     const mill = this.mills?.goal(s, now); // M7 mills: the millers, the cart out at dawn and after dinner
     if (mill) return mill;
     const back = this.back?.goal(s, now); // M7 back of town
     if (back) return back;
     const lively = this.lively?.goal(s, now);
     if (lively) return lively;
+    s.plain = !this.mills?.own(s);
     const r = s.r;
     const w = r.work;
     const P = (id: string) => this.place(id);
@@ -555,10 +664,17 @@ export class Town {
     return [g.x, g.z];
   }
 
-  /** Nobody sees them: a straight walk to where they should be, briskly. */
+  /** Nobody sees them: a walk to where they should be, briskly, along the way on foot (the last steps straight). */
   private coarse(s: Sim, dt: number): void {
     // M6 transport: on a trip, the way of going sets the pace (journeys.ts)
     if (s.trip && this.journeys?.coarse(s, dt)) return;
+    // the trade plan: on the way between two places of his plan, the shared sum has him (as the town map does)
+    const on = s.trip ? null : this.whereNow(s);
+    if (on && on.walked < on.total) {
+      s.x = on.x;
+      s.z = on.z;
+      return;
+    }
     // (M6 lively: the pairs on a round, the sweep and his boy, two Sisters, a man and his wife, keep together unseen too)
     const lead = s.goal.mode === "roam" || s.goal.mode === "patrol" ? this.leadOf(s) : null;
     if (lead) s.step = lead.step;
@@ -604,7 +720,16 @@ export class Town {
       const d = dist(s.x, s.z, px, pz);
       const fresh = performance.now() - s.outAt < 4000;
       // people appear out of sight, or step out of their own door
-      if (!anywhere && !fresh && !this.crowd.isHidden(s.x, s.z)) continue;
+      if (!anywhere && !fresh && !this.crowd.isHidden(s.x, s.z)) {
+        // the trade plan (Steve 2026-09-27: "if I run to that place I never see the npc again"): nobody stays
+        // unseen for ever because Jef looks at his spot. Far off he steps in at once (small, in the haze); nearer
+        // after a moment of looking.
+        const t = performance.now();
+        if (s.dueAt === undefined || t - (s.dueLast ?? 0) > 1000) s.dueAt = t;
+        s.dueLast = t;
+        if (d < DUE_FAR && t - s.dueAt < (d < DUE_NEAR ? DUE_NEAR_WAIT_MS : DUE_WAIT_MS)) continue;
+      }
+      s.dueAt = undefined;
       if (!anywhere && d < 3) continue;
       // two soldiers walking out: the second appears at his comrade's side
       const lead = s.goal.mode === "roam" || s.goal.mode === "patrol" ? this.leadOf(s) : null;

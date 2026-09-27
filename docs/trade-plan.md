@@ -238,6 +238,8 @@ A full town with every chain would have about 20 posts and 40 runs out at the bu
 
 ## Phases
 
+Status 2026-09-27: the core of T1 and T2 is built (`docs/milestones/T1-ways.md`): ways on foot for every day plan, the shared sum, the unseen walk it, the spawn wait, the town map at the sum. Still open from T1/T2: the mill carts and the dray as server runs, progress reports, the held-people deadline, the map's card and filters.
+
 | Phase | What | Done when |
 |---|---|---|
 | T1 | Part A for the runs that exist: server path search and cache, `runPlace`, the mill carts and the dray as server runs, spawn on the way with the dither fade, the town map draws runs | Steve runs to a far mill cart seen on the map and finds it there, loaded, still going. `findcheck()` and `popcheck()` empty |

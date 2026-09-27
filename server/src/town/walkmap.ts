@@ -32,6 +32,8 @@ export interface WalkMap {
   reachable(x: number, z: number): boolean;
   /** The nearest open, reachable point within `max` metres, or null. */
   nearestOpen(x: number, z: number, max?: number): { x: number; z: number } | null;
+  /** The trade plan's ways (ways.ts): 1 per cell a body fits in and can walk to from the start. */
+  readonly pass: Uint8Array;
 }
 
 /** Where the game starts (main.ts paths(): reachFrom(10, 12)). */
@@ -171,7 +173,7 @@ export function walkMap(): WalkMap {
     }
     return null;
   };
-  cached = { info, flags, open, reachable, nearestOpen };
+  cached = { info, flags, open, reachable, nearestOpen, pass: seen };
   return cached;
 }
 
