@@ -94,6 +94,8 @@ turns), `/api/dev/advance {minutes}` (M7 night: as the game moves the clock, mid
 `/api/dev/director {template | invent | think}`, `/api/dev/ballad {corner}`, `/api/dev/new-board`,
 `/api/dev/gang`, `/api/dev/gang-chance`, `/api/dev/night-work {fallback}`.
 
+`__scheldemist.stuck({ seconds: 12 })` (dev/stuckcheck.ts, 2026-09-27): runs the game and lists everyone near Jef who plays a walk but stays on the spot (3 s within 0.3 m) or goes to and fro, with who, what they try and what is just ahead (walk map, grid, colliders); `stuck` must be `[]` in the alleys and squares at 8, 13, 18 and 22.
+
 ## Pause and saves (M7 save and pause)
 `docs/milestones/M7-save-pause.md`. What a check must know:
 

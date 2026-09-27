@@ -65,6 +65,7 @@ import { Press } from "./game/press";
 import { Ideas } from "./game/ideas";
 import { Walkup, walkupHooks } from "./game/walkup";
 import { PopWatch } from "./dev/popcheck";
+import { stuckCheck } from "./dev/stuckcheck";
 import { Emigrants } from "./game/emigrants";
 import { api } from "./net/api";
 import { Interiors } from "./game/interiors";
@@ -1313,6 +1314,9 @@ if (import.meta.env.DEV) {
     },
     /** M7 walk-up (dev/popcheck.ts): every job or quest figure that became visible within 20 m of Jef without walking in (`pops` must be empty); `true` resets. */
     popcheck: (reset = false) => popWatch.report(reset),
+    /** The stuck check (dev/stuckcheck.ts): runs the game `seconds` and lists whoever plays a walk but stays on the spot or goes to and fro (must list nothing). */
+    stuck: (opts: { seconds?: number; near?: number } = {}) =>
+      stuckCheck({ crowd, town, world, player, narrow: rampartStairAt, step: (s) => (window as unknown as { __scheldemist: { step(s: number): void } }).__scheldemist.step(s) }, opts),
     /** M7 walk-up (game/walkup.ts): what was asked, who came, and the server's "come" rows. */
     walkup: {
       log: () => walkup.log.slice(-30),

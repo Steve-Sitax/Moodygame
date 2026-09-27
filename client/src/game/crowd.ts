@@ -246,6 +246,8 @@ const isNight = (h: number) => h < 6.5 || h >= 19.5;
 
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const pick = <T>(xs: T[]): T => xs[Math.floor(Math.random() * xs.length)];
+/** The clips of a body on the move (the stuck check, dev/stuckcheck.ts, watches the same). */
+const WALK_CLIPS = new Set<Motion>(["walk", "carry", "push", "ride"]);
 const angDiff = (a: number, b: number) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 
 // ------------------------------------------------------------------ walk grid
@@ -448,8 +450,13 @@ class NavGrid {
     return true;
   }
 
-  /** A* over the open cells, straightened into a few waypoints. Null if there is no way. */
-  path(sx: number, sz: number, tx: number, tz: number, maxExpand = 9000): V[] | null {
+  /**
+   * A* over the open cells, straightened into a few waypoints. Null if there is no way. The way ends on
+   * the target itself, or (fixes 2026-09-27) where the target is off the grid and `standAt` says no body
+   * stands there (in a house, a thing on it), on the open cell nearest to it: they walked on the spot
+   * against the wall before it.
+   */
+  path(sx: number, sz: number, tx: number, tz: number, maxExpand = 9000, standAt?: (x: number, z: number) => boolean): V[] | null {
     const s0 = this.nearestOpen(sx, sz, 2);
     const t0 = this.nearestOpen(tx, tz, 2);
     if (!s0 || !t0) return null;
@@ -534,7 +541,7 @@ class NavGrid {
     const cells: V[] = [];
     for (let c = t; c !== -1; c = from[c]) cells.push({ x: this.x0 + (c % n) + 0.5, z: this.z0 + ((c / n) | 0) + 0.5 });
     cells.reverse();
-    cells[cells.length - 1] = { x: tx, z: tz };
+    if (this.isOpen(tx, tz) || !standAt || standAt(tx, tz)) cells[cells.length - 1] = { x: tx, z: tz };
     // string pulling: keep only the corners
     const out: V[] = [];
     let anchor: V = { x: sx, z: sz };
@@ -825,8 +832,6 @@ export class Crowd {
   /** Walk there on the grid; the way is worked out over the next frames. */
   puppetGo(p: Puppet, x: number, z: number, pace?: number): void {
     if (pace) p.pace = pace;
-    p.replans = 0;
-    p.held = 0;
     let tx = x;
     let tz = z;
     if (this.grid.built && !this.grid.inside(x, z, 4)) {
@@ -846,7 +851,10 @@ export class Crowd {
     // (the town and the followers send them every half second or so)
     const walking = p.state === "walk" && p.pi < p.path.length;
     // the same goal while on the way there: keep the way (a new one each time made them stutter)
+    // (and its count of tries: sent again every frame, a way that failed was tried for ever, fixes 2026-09-27)
     if (walking && p.dest && Math.hypot(p.dest.x - tx, p.dest.z - tz) < 0.5) return;
+    p.replans = 0;
+    p.held = 0;
     // no way can be worked out this frame: walk on the old one, change over when one can
     if (walking && this.pathBudget <= 0) {
       p.dest = { x: tx, z: tz };
@@ -944,6 +952,8 @@ export class Crowd {
       p.repath = false;
       p.state = "stand";
       p.pmotion = "idle";
+      // let go mid-stride: stand (the walk clip went on till the town gave a new pose, fixes 2026-09-27)
+      p.human.play(p.veh ? this.vehMotion(p, false) : "idle", 0.3);
     }
   }
 
@@ -1281,12 +1291,14 @@ export class Crowd {
       p.role = "puppet";
       p.state = "stand";
       p.pmotion = "idle";
+      p.human.play(p.veh ? this.vehMotion(p, false) : "idle", 0.3);
       return;
     }
     if (!l) {
       p.role = "wander";
       p.state = "pause";
       p.timer = rnd(0.5, 2);
+      p.human.play(this.standMotion(p), 0.3);
       return;
     }
     if (p.state === "walk" && p.path.length) {
@@ -1299,8 +1311,14 @@ export class Crowd {
       this.goTo(p, p.dest);
       return;
     }
-    const tx = l.x - Math.cos(l.yaw) * 0.62;
-    const tz = l.z + Math.sin(l.yaw) * 0.62;
+    // at the lead's side; where that is in a wall (a narrow alley, a house front), a step behind them
+    // (fixes 2026-09-27: the side spot in a wall had the follower walking in place against it)
+    let tx = l.x - Math.cos(l.yaw) * 0.62;
+    let tz = l.z + Math.sin(l.yaw) * 0.62;
+    if (!this.ground.isFree(tx, tz, 0.25)) {
+      tx = l.x - Math.sin(l.yaw) * 0.9;
+      tz = l.z - Math.cos(l.yaw) * 0.9;
+    }
     const dx = tx - p.x;
     const dz = tz - p.z;
     const d = Math.hypot(dx, dz);
@@ -1310,7 +1328,7 @@ export class Crowd {
       const step = Math.min(d, sp * dt);
       const nx = p.x + (dx / d) * step;
       const nz = p.z + (dz / d) * step;
-      if (this.ground.isFree(nx, nz, 0.22)) {
+      if (this.stepFree(p, nx, nz)) {
         p.x = nx;
         p.z = nz;
         p.held = 0;
@@ -1321,6 +1339,11 @@ export class Crowd {
         return;
       }
       this.face(p, walking ? l.yaw : Math.atan2(dx, dz), dt);
+      if (p.held > 0) {
+        // held up by a wall or a thing: stand and wait for the lead to move on, never walk on the spot
+        p.human.play(this.stillMotion(p), 0.3);
+        return;
+      }
       p.human.play("walk", 0.25);
       p.human.setPace(sp / p.size);
     } else {
@@ -1339,6 +1362,27 @@ export class Crowd {
 
   private face(p: Person, yaw: number, dt: number): void {
     p.yaw += angDiff(yaw, p.yaw) * Math.min(1, dt * 5);
+  }
+
+  /** What someone plays while not moving: the vehicle's rest, a townsperson's own pose (never a walk), or a stand. */
+  private stillMotion(p: Person): Motion {
+    if (p.veh) return this.vehMotion(p, false);
+    if (p.role === "puppet") return p.pmotion && !WALK_CLIPS.has(p.pmotion) ? p.pmotion : "idle";
+    return this.standMotion(p);
+  }
+
+  /**
+   * May this body step to (x, z)? Where the colliders let it (a body of 0.25 m). Someone already standing
+   * where that does not hold (put there by a layer, pushed by a cart, a follower at a wall) may still step
+   * to ground where a thinner body fits, so they walk out instead of walking on the spot (fixes 2026-09-27).
+   */
+  private stepFree(p: Person, x: number, z: number): boolean {
+    // on the narrow ways (the wall's stairs) the grid keeps 0.3 m off the walls: so does the body there (the
+    // world's test keeps r + 0.15; with 0.25 they stopped half way up, walking on the spot)
+    if (this.ground.isFree(x, z, 0.25)) return true;
+    const r = this.ground.narrow?.(x, z) ? 0.15 : 0.25;
+    if (r < 0.25 && this.ground.isFree(x, z, r)) return true;
+    return !this.ground.isFree(p.x, p.z, r) && this.ground.isFree(x, z, 0.1);
   }
 
   /** Standing people step aside when the player walks into them. */
@@ -1380,6 +1424,7 @@ export class Crowd {
     } else if ((p.stuckT += dt) > 2.5) {
       p.stuckT = 0;
       p.bestD = Infinity;
+      p.human.play(this.stillMotion(p), 0.3);
       this.grid.block(p.x + (dx / len) * (0.8 + p.nose), p.z + (dz / len) * (0.8 + p.nose));
       p.replans++;
       if (p.replans > 3 || !p.dest) this.next(p, true);
@@ -1441,7 +1486,8 @@ export class Crowd {
         }
       }
     }
-    side = Math.max(-1.2, Math.min(1.2, side));
+    // (the last metre to a waypoint straight in: steered aside there, they circled it, to and fro, fixes 2026-09-27)
+    side = Math.max(-1.2, Math.min(1.2, side)) * Math.min(1, len);
     let mx = ux + rx * side;
     let mz = uz + rz * side;
     const ml = Math.hypot(mx, mz);
@@ -1456,11 +1502,15 @@ export class Crowd {
       p.human.play(this.standMotion(p), 0.3);
       return;
     }
+    // the last leg may leave the grid (it keeps half a metre off the walls) for a spot the colliders
+    // allow: a doorstep, a corner, a bench by a wall (fixes 2026-09-27: they walked on the spot before it)
+    const lastLeg = p.pi === p.path.length - 1;
     const tryMove = (x: number, z: number) =>
-      this.ground.isFree(x, z, 0.25) &&
-      (this.grid.isOpen(x, z) || !this.grid.isOpen(p.x, p.z)) &&
+      this.stepFree(p, x, z) &&
+      (lastLeg || this.grid.isOpen(x, z) || !this.grid.isOpen(p.x, p.z)) &&
       // a cart before the man: its front must fit too
       (p.nose === 0 || this.ground.isFree(x + ux * p.nose, z + uz * p.nose, p.reach));
+    let slid: V | null = null;
     if (tryMove(p.x + mx * step, p.z + mz * step)) {
       p.x += mx * step;
       p.z += mz * step;
@@ -1469,8 +1519,19 @@ export class Crowd {
       p.z += uz * step;
       mx = ux;
       mz = uz;
+    } else if ((slid = this.slide(p, ux, uz, step, tryMove))) {
+      // a wall's corner the grid rounds too tightly (a cell is open by its middle only): along the wall
+      // instead of giving up the way (fixes 2026-09-27: the night watch turned back at an alley corner)
+      mx = slid.x;
+      mz = slid.z;
+    } else if (lastLeg && len < 1.2) {
+      // the spot itself cannot be stood on (in a wall's berth, a thing on it): this near is there
+      this.arrive(p);
+      return;
     } else {
-      // something the walk map does not know: remember it and find another way
+      // something the walk map does not know: remember it and find another way; stand while it is
+      // worked out (fixes 2026-09-27: the walk clip went on while the body did not move)
+      p.human.play(this.stillMotion(p), 0.3);
       this.grid.block(p.x + ux * (0.6 + p.nose), p.z + uz * (0.6 + p.nose));
       p.replans++;
       if (p.replans > 3 || !p.dest) this.next(p, true);
@@ -1481,6 +1542,22 @@ export class Crowd {
     const motion: Motion = p.veh ? this.vehMotion(p, true) : p.loaded && p.handCarry ? "carry" : "walk";
     p.human.play(motion, 0.25);
     if (motion !== "ride") p.human.setPace(p.pace / p.size);
+  }
+
+  /** Blocked straight on: a step turned up to 70 degrees either way, if one is free (the body moved; the way it went). */
+  private slide(p: Person, ux: number, uz: number, step: number, tryMove: (x: number, z: number) => boolean): V | null {
+    for (const a of [0.6, -0.6, 1.2, -1.2]) {
+      const c = Math.cos(a);
+      const sn = Math.sin(a);
+      const x = ux * c - uz * sn;
+      const z = ux * sn + uz * c;
+      if (tryMove(p.x + x * step, p.z + z * step)) {
+        p.x += x * step;
+        p.z += z * step;
+        return { x, z };
+      }
+    }
+    return null;
   }
 
   /** A way round the player (right first, as on the street), put in front of the path. */
@@ -1532,7 +1609,8 @@ export class Crowd {
       }
       p.dest = null;
       p.state = "stand";
-      p.human.play(p.veh ? this.vehMotion(p, false) : (p.pmotion ?? "idle"), 0.3);
+      // (never a walk clip left from a layer's own steps: they would stand walking on the spot)
+      p.human.play(this.stillMotion(p), 0.3);
       return;
     }
     if (p.role === "haul") {
@@ -1557,7 +1635,7 @@ export class Crowd {
       else {
         p.dest = null;
         p.state = "stand";
-        p.human.play(p.pmotion ?? "idle", 0.3);
+        p.human.play(this.stillMotion(p), 0.3);
       }
       return;
     }
@@ -1601,7 +1679,7 @@ export class Crowd {
       return;
     }
     this.pathBudget--;
-    const path = this.grid.path(p.x, p.z, dest.x, dest.z);
+    const path = this.grid.path(p.x, p.z, dest.x, dest.z, 9000, (x, z) => this.ground.isFree(x, z, this.ground.narrow?.(x, z) ? 0.15 : 0.25));
     if (path && path.length) {
       p.path = path;
       p.pi = 0;
@@ -1613,6 +1691,8 @@ export class Crowd {
       p.state = "pause";
       p.timer = rnd(1, 3);
       if (p.replans > 3) p.dest = null;
+      // no way there now: stand while waiting to try again (fixes 2026-09-27: the watch walked on the spot)
+      p.human.play(this.stillMotion(p), 0.3);
     }
   }
 
