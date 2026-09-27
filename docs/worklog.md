@@ -42,6 +42,7 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 
 | Commit | What |
 |---|---|
+| 1520251 | Path check: passing omnibuses, carts and the train and opening bridges no longer count as walls ("home of Father Norbert Stessens" was a bus at the door) |
 | 9caabb9 | Relief lights every surface, at any resolution (bump strength follows the render height) |
 | d38dcd1 | Cobbles read as stones: relief lights the ground in every light; puddle splash matches the drawn puddle |
 | 49ba07b | Window light in puddles: a soft band, not bright blocks; softer window bars |
