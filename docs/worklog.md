@@ -38,13 +38,14 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 | Relief that lights, on every texture | first try gave no measurable gain (checked at full resolution): redo the ground, then every textured surface: relief always changes the lighting normal for all lights; measured per surface | 2026-09-27 |
 | Soft window light on the street | the window light on the cobbles showed as hard blocky diamonds: soft bars, smooth falloff | 2026-09-27 |
 | Multiplayer M8b: one street for all | the same townspeople (owner per 64 m cell, remote puppets, handover), omnibus, river traffic, bridges, lock, cranes and drays (the world PC), platforms in their frame, shared doors; branch `m8b` in the worktree `D:\Code\MoodyGame-m8b`, merged when done | 2026-09-27 |
-| People walking against walls | townspeople walking in place against walls in the alleys: a `stuck()` detector, root cause, fix | 2026-09-27 |
 | Codex: low-poly props and tight collisions | SAFE BATCH MERGED + PUSHED `abb6a21` (already live through `9aa9cd4`; reconciled main `98bdebe`): collision core, tree trunks and static stop benches; tree/vegetation design, matching bark bump/wet map. Seven collision tests, clean build, Chrome contact + dry/rain, paths/shaders empty. Test Chrome and isolated 5469/9069 stack cleaned up. HOLD barrels/crates/sacks and other prepared prop-loader changes until Props in walls/Picture round finishes; defer other active assets per Steve. Queue/scope and validation: `docs/milestones/M7-small-assets.md`; original cargo evidence `M7-tight-props.md`. Extra router check: 19 passed, two timeouts (first Codex stub and process-kill test); report to Flaky talk-down/AI owner, no edits to their files. | 2026-09-26 |
 
 ## Live (2026-09-26, after the away batch)
 
 | Commit | What |
 |---|---|
+| d2c763c | Townspeople no longer walk in place against walls; `stuck()` check |
+| 1589435 | Puddles back as they were (stones poke out of the water) |
 | 6f346c9 | Dry cobbles are matte: no plastic sheen toward the sun or a lamp |
 | af87e6e | The town wall walk: real setts, 1873 brick, bluestone coping, lawns, demolition works, guards and wall folk |
 | 223c486 | The mills at work: millers, flour and grain carts, three mill jobs |
