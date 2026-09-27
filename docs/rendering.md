@@ -60,6 +60,27 @@ Every textured surface has relief from its own picture, never a second pattern:
 - Check: `bumpaudit()` (docs/testing.md). Cost: no measurable frame time (the same view with and without, in one tab),
   about 5 more shader programs.
 
+**Relief always means a lit normal** (Steve, 2026-09-27: "it must look like the ground has relief and not all parts
+are equally lit ... and that needs to be done with all textures"). A relief that only darkens the colour looks flat
+toward a light. Every relief tilts the normal that all the lights see (the sun, the sky, the gas lamps, the lantern,
+the spilt light), so a stone is lit on the side toward a light and shaded on the other:
+- **The ground** (psx `relief`, `slabs`): the slope of its height map at the relief's own uv (after the parallax,
+  detile's turned sample turned back) tilts the normal in world space (`gGroundDN`, `psxGroundTilt`): the sharp edges
+  (`PSX_TILT`) and the dome of each stone from a softer mip (`PSX_DOME`). The painted one-sided light stays as it was.
+  It melts away from 12 to 28 m and where a pixel covers a stone's worth of texels (no sparkle at 270 lines).
+- **The house walls** (`wallRelief`): `gWallDN`, the same way, in the wall's frame.
+- **Bump maps** (three.js `bumpMap`: landmarks, the town wall, props, rooms): three.js counts the height's change from
+  one screen pixel to the next, so at the full window a bump was 3.3 times flatter than at the 270 lines it was set up
+  at. The psx bump chunk multiplies it by `uBumpRes` (render height / 270, set by `retro/retroPass.ts`) and up close by
+  `PSX_BUMP_GAIN` (2.5 where a 270-line pixel covers up to two texels, back to 1 by eight: no sparkle far off).
+  A material with a bump map is a psx material, or its bump stays per pixel.
+- **Brightness stays**: every lit psx material divides its colour by how far the normal was tilted (the cosine to the
+  flat normal, `psxBumpK`) and multiplies the sky's and the ambient light by it. A bumped surface is as bright as a flat
+  one on average; only the lights from one side draw the relief.
+- Check with the lights in view: toward the sun (in mist, toward the cathedral from the streets) and toward a lamp at
+  night, at the full window and at 270 lines, the stone-scale contrast (the std of the picture blurred 3 px minus
+  blurred 14 px) against the same view without.
+
 ## Still open
 - The water mirror draws the town a second time when water is in view: about 12 ms more per frame on
   the quays (not a stutter, a steady cost). Cheaper options change the picture, so none is taken yet.

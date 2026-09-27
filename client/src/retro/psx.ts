@@ -51,6 +51,12 @@ export const psxUniforms = {
   uMirrorMat: { value: new THREE.Matrix4() },
   /** 1 while the ground mirror draws the street (world/mirror.ts), 0 with reflections off: the puddles dark water. */
   uMirrorOn: { value: 1 },
+  /**
+   * The render height over 270 (retro/retroPass.ts): three.js's bumpMap tilts the normal by the height's change from one
+   * screen pixel to the next, so at the full window (900 lines) every bump was drawn 3.3 times flatter than at the 270
+   * lines it was set up at. The psx bump chunk multiplies it back (the bumps everywhere, 2026-09-27).
+   */
+  uBumpRes: { value: 1 },
   /** Where water lies: a soft tiling noise (low spots fill first). */
   uPudNoise: { value: null as THREE.Texture | null },
   /** The spill sources (world/spill.ts; see MAX_SPILL). */
@@ -302,9 +308,6 @@ const groundBumpGlsl = /* glsl */ `
 #define PSX_DOME 2.5
 #define PSX_PAINTED 1.0
 vec3 gGroundDN = vec3(0.0);
-// the tilted normal's height (1 flat): the colour is divided by it and the sky's light multiplied by it, so a bumped
-// ground is as bright as a flat one on average and only the lights that come from one side draw the stones
-float gGroundAmb = 1.0;
 vec3 psxGroundTilt(vec2 uv, vec2 slope) {
   vec3 dpx = dFdx(vPsxWorld);
   vec3 dpy = dFdy(vPsxWorld);
@@ -616,6 +619,7 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
     shader.uniforms.uLampColor = psxUniforms.uLampColor;
     shader.uniforms.uScatter = psxUniforms.uScatter;
     shader.uniforms.uAffine = { value: affine };
+    shader.uniforms.uBumpRes = psxUniforms.uBumpRes;
     if (opts.vary || opts.foot || opts.mottle) {
       shader.uniforms.uDirt = psxUniforms.uDirt;
       shader.uniforms.uDirtBox = psxUniforms.uDirtBox;
@@ -916,8 +920,6 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
             float fps = max(length(dFdx(suv)), length(dFdy(suv))) * 128.0;
             vec2 ss = (vec2(sx, sz) * PSX_TILT + vec2(bx, bz) * PSX_DOME) * 1.6 * (1.0 - smoothstep(12.0, 28.0, length(vPsxWorld - cameraPosition))) * (1.0 - smoothstep(6.0, 14.0, fps));
             gGroundDN = normalize(vec3(-ss.x, 1.0, -ss.y)) - vec3(0.0, 1.0, 0.0);
-            gGroundAmb = max(gGroundDN.y + 1.0, 0.4);
-            diffuseColor.rgb /= gGroundAmb;
           }
         }`
             : ""
@@ -976,8 +978,6 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
           // two: the tilt melts away there, or it sparkles at 270 lines)
           float fpx = max(length(dFdx(vMapUv)), length(dFdy(vMapUv))) * float(textureSize(uHeight, 0).x);
           gGroundDN = psxGroundTilt(vMapUv, psxSl * (1.0 - farT) * (1.0 - smoothstep(16.0, 40.0, fpx)));
-          gGroundAmb = max(gGroundDN.y + 1.0, 0.4);
-          diffuseColor.rgb /= gGroundAmb;
           ${
             opts.relief.id
               ? `{
@@ -1026,7 +1026,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
       {
         // the spill sources light this face as point lights would (world/spill.ts), by its own normal
         vec3 spillN = normalize((vec4(geometryNormal, 0.0) * viewMatrix).xyz);
-        reflectedLight.directDiffuse += psxSpill(vPsxWorld, spillN) * BRDF_Lambert(diffuseColor.rgb);
+        reflectedLight.directDiffuse += psxSpill(vPsxWorld, spillN) * BRDF_Lambert(material.diffuseColor);
       }`,
       );
     }
@@ -1036,10 +1036,21 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
         "#include <normal_fragment_maps>",
         "#include <normal_fragment_maps>\n      normal = normalize(normal + faceDirection * (viewMatrix * vec4(gGroundDN, 0.0)).xyz);",
       );
-      // (the sky's and the ambient light back to a flat ground's: the colour was divided by the tilt, see gGroundAmb)
+    }
+    if (fs.includes("#include <lights_fragment_begin>")) {
+      // Every bump keeps the surface's brightness (the bumps everywhere, 2026-09-27; docs/rendering.md, Bumps): how far
+      // the normal was tilted (the ground's relief, the walls' relief, a bump map), as the cosine to the flat normal:
+      // the colour is divided by it and the sky's and the ambient light multiplied by it. A tilted pixel takes as much
+      // light from the sky as a flat one, and only the lights that come from one side (the sun, the lamps, the
+      // lantern, the spilt light) draw the relief: lit on the side toward them, shaded on the other.
       fs = fs.replace(
         "#include <lights_fragment_begin>",
-        "#include <lights_fragment_begin>\n      #if defined( RE_IndirectDiffuse )\n      irradiance *= gGroundAmb;\n      #endif",
+        /* glsl */ `float psxBumpK = clamp(dot(normal, nonPerturbedNormal), 0.4, 1.0);
+      material.diffuseColor /= psxBumpK;
+      #include <lights_fragment_begin>
+      #if defined( RE_IndirectDiffuse )
+      irradiance *= psxBumpK;
+      #endif`,
       );
     }
     if (opts.wet && fs.includes("#include <lights_phong_fragment>")) {
@@ -1222,7 +1233,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
       #endif`,
     );
     // (bump part, the bump audit 2026-09-26) an atlas material's bump map is read in its cell, as its colour is
-    if (opts.atlas) fs = fs.replace("#include <bumpmap_pars_fragment>", atlasBumpGlsl(opts.atlas));
+    fs = fs.replace("#include <bumpmap_pars_fragment>", opts.atlas ? atlasBumpGlsl(opts.atlas) : bumpParsGlsl);
     shader.fragmentShader = fs;
   };
   // M7 rendering (world/cull.ts): how far the fog lets this material show, and water (waves reach over the sheet)
@@ -1418,7 +1429,8 @@ float wallRelief(float layer, vec2 uv, float flip, vec3 wn) {
   // the wall's own frame, as houseGrime.ts gWallUv lays the picture: along (u) and up (v)
   vec3 along = normalize(vec3(-wn.z, 0.0, wn.x));
   vec3 up = vec3(0.0, 1.0, 0.0);
-  float b = 2.0 * k * fade;
+  // (the bumps everywhere, 2026-09-27: 3.5, was 2; the walls' lights read the courses toward a lamp or the sun)
+  float b = 3.5 * k * fade;
   vec3 nW = normalize(wn - along * dU * b - up * dV * b);
   gWallDN = nW - wn;
   // a little sky light on the tops (it reads in any light, as the ground's relief does), the joints in shade
@@ -1693,12 +1705,43 @@ function heightFromColour(map: THREE.Texture, sharp = false): THREE.Texture {
  * cell). This reads the height map (made from the whole atlas picture) in the same cell, the neighbours one screen pixel
  * over wrapped inside it too, so the bumps lie under the picture drawn and no cell bleeds into the next.
  */
+/**
+ * How much stronger a bump map is drawn up close (the bumps everywhere, 2026-09-27; Steve: "it must look like the ground
+ * has relief and not all parts are equally lit", for all textures): the bump audit's strengths drew a brick's joint or
+ * a board's grain too faint to read toward a light. PSX_BUMP_GAIN near, where a pixel (at 270 lines) covers up to two
+ * texels of the height map; back to the audit's strength by eight, where the change from one pixel to the next is
+ * already large and a stronger bump would only sparkle.
+ */
+const bumpGainGlsl = /* glsl */ `
+#define PSX_BUMP_GAIN 2.5
+float psxBumpGain(vec2 dx, vec2 dy, vec2 size) {
+  float tpp = max(length(dx * size), length(dy * size)) * uBumpRes;
+  return mix(PSX_BUMP_GAIN, 1.0, smoothstep(2.0, 8.0, tpp));
+}
+`;
+
+/**
+ * three.js's bump chunk with the height's change per pixel counted at 270 lines (uBumpRes), so a bump map is as strong
+ * at the full window as at the PS1 size it was set up at (every psx material; atlas materials: atlasBumpGlsl), and
+ * stronger up close (psxBumpGain).
+ */
+const bumpParsGlsl = (() => {
+  const src = THREE.ShaderChunk.bumpmap_pars_fragment;
+  const out = src
+    .replace("uniform float bumpScale;", "uniform float bumpScale;\n\tuniform float uBumpRes;\n" + bumpGainGlsl)
+    .replace("return vec2( dBx, dBy );", "return vec2( dBx, dBy ) * uBumpRes * psxBumpGain(dSTdx, dSTdy, vec2(textureSize(bumpMap, 0)));");
+  if (out === src || !out.includes("* uBumpRes;")) console.warn("psx: three.js's bump chunk changed; bumps stay per pixel");
+  return out;
+})();
+
 function atlasBumpGlsl(n: number): string {
   const N = n.toFixed(1);
   return /* glsl */ `
 #ifdef USE_BUMPMAP
   uniform sampler2D bumpMap;
   uniform float bumpScale;
+  uniform float uBumpRes;
+  ${bumpGainGlsl}
   vec2 dHdxy_fwd() {
     vec2 raw = vBumpMapUv;
     vec2 dx = dFdx(raw);
@@ -1708,7 +1751,7 @@ function atlasBumpGlsl(n: number): string {
     float Hll = bumpScale * textureGrad(bumpMap, (vCell + fract(raw)) / ${N}, gx, gy).x;
     float dBx = bumpScale * textureGrad(bumpMap, (vCell + fract(raw + dx)) / ${N}, gx, gy).x - Hll;
     float dBy = bumpScale * textureGrad(bumpMap, (vCell + fract(raw + dy)) / ${N}, gx, gy).x - Hll;
-    return vec2(dBx, dBy);
+    return vec2(dBx, dBy) * uBumpRes * psxBumpGain(gx, gy, vec2(textureSize(bumpMap, 0)));
   }
   vec3 perturbNormalArb(vec3 surf_pos, vec3 surf_norm, vec2 dHdxy, float faceDirection) {
     vec3 vSigmaX = normalize(dFdx(surf_pos.xyz));

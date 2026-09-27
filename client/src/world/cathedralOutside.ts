@@ -213,7 +213,9 @@ function tameBump<T extends THREE.Material>(m: T, texels = 512): T {
 		float cathFp = max( length( dSTdx ), length( dSTdy ) ) * ${texels.toFixed(1)};
 		float cathBf = 1.0 - smoothstep( 1.2, 3.5, cathFp );`,
       )
-      .replace("return vec2( dBx, dBy );", "return vec2( dBx, dBy ) * cathBf;");
+      // (retro/psx.ts puts three.js's bump chunk in place before this runs: its return scales the bump for the render
+      // height; the fade goes in front of it. Before, the chunk was not yet in the shader and this did nothing.)
+      .replace("return vec2( dBx, dBy )", "return cathBf * vec2( dBx, dBy )");
   };
   m.customProgramCacheKey = () => `${prevKey()}-tamebump${texels}`;
   return m;
