@@ -42,6 +42,7 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 
 | Commit | What |
 |---|---|
+| 5b9d485 | No stutter facing the quays (Steve saw 12 fps on the Rijnkaai at night): mirrors drawn before the main pass, flat decals in one pass, the warm-up no longer rebuilds its own work; same pixels. Next if needed: materials shared by instanced and plain meshes (about 20 program look-ups a frame), fewer objects in the mirror passes (would change pixels: ask Steve) |
 | 1520251 | Path check: passing omnibuses, carts and the train and opening bridges no longer count as walls ("home of Father Norbert Stessens" was a bus at the door) |
 | 9caabb9 | Relief lights every surface, at any resolution (bump strength follows the render height) |
 | d38dcd1 | Cobbles read as stones: relief lights the ground in every light; puddle splash matches the drawn puddle |
