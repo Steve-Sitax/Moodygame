@@ -31,11 +31,30 @@ type Drawn = THREE.Mesh | THREE.Points | THREE.Line | THREE.Sprite;
  * What of an object its shader depends on and may change after it is made: its material (and that
  * material's version: needsUpdate after a new map), per-instance colours added later, vertex colours.
  */
+/** A material's version as the warm-up sees it: its own compile's bump (three.js, two-sided see-through) is no change. */
+const ownBump = new WeakMap<THREE.Material, { from: number; to: number }>();
+function versionOf(m: THREE.Material): number {
+  const b = ownBump.get(m);
+  return b && b.from === m.version ? b.to : m.version;
+}
+const materialsOf = (o: Drawn): THREE.Material[] => (Array.isArray(o.material) ? o.material : [o.material]);
+
 function signature(o: Drawn): number {
   let v = 0;
-  for (const m of Array.isArray(o.material) ? o.material : [o.material]) v = v * 31 + m.version;
+  for (const m of materialsOf(o)) v = v * 31 + versionOf(m);
   const im = o as unknown as THREE.InstancedMesh;
   return v * 4 + (im.isInstancedMesh && im.instanceColor ? 2 : 0) + (o.geometry?.attributes?.color ? 1 : 0);
+}
+
+/**
+ * Flat decals (stains, marks, signs: materials named "...decal") drawn in one pass. three.js draws a see-through
+ * two-sided material twice (back faces, then front) and marks it changed for each half, every frame: every object
+ * with it had its program looked up again in every pass, and the warm-up built it again twice a second
+ * (2026-09-27, the quay stutter). A flat decal's back and front never overlap on screen: the same picture (proven
+ * with a pixel diff in four views).
+ */
+function singlePassDecals(o: Drawn): void {
+  for (const m of materialsOf(o)) if (m.transparent && m.side === THREE.DoubleSide && !m.forceSinglePass && m.name.endsWith("decal")) m.forceSinglePass = true;
 }
 
 export class ShaderWarmer {
@@ -70,6 +89,7 @@ export class ShaderWarmer {
       // (the bump audit, 2026-09-26: a flat picture gets its bump before its shader is built, world/bumps.ts; the
       // signature again, as a bump map given here is part of it)
       autoBumpObject(o);
+      singlePassDecals(d);
       this.seen.get(o)!.sig = signature(d);
       list.push(o);
     });
@@ -88,7 +108,14 @@ export class ShaderWarmer {
         const list = this.fresh(scene);
         if (!list.length) return;
         objects += list.length;
+        const before = new Map<THREE.Material, number>();
+        for (const o of list) for (const m of materialsOf(o as Drawn)) before.set(m, versionOf(m));
         jobs.push(this.renderer.compileAsync(bag(list), this.camera, scene));
+        // compiling a see-through two-sided material bumps its version (three.js builds both sides: needsUpdate
+        // twice). That bump is the warm-up's own, not a change: every object with the material (in this list or
+        // not) keeps the version it was signed with, or the next run builds them again, twice a second, forever
+        // (2026-09-27, the quay stutter: the decals' programs looked up again in every pass)
+        for (const [m, v] of before) if (m.version !== v) ownBump.set(m, { from: m.version, to: v });
       };
       add(this.scene);
       for (const r of this.inWorld.all) {

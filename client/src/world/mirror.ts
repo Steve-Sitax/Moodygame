@@ -64,6 +64,34 @@ if (import.meta.env.DEV) Object.assign(window, { __mirrors: mirrorsForDev, __psx
 
 /** The mirrors' own cameras: a mirror is not drawn again inside another mirror's picture. */
 const mirrorCams = new WeakSet<THREE.Camera>();
+
+/**
+ * Mirrors drawn before the main pass, not inside it (2026-09-27, the quay stutter). three.js keeps one light setup
+ * per nesting level of render(); a mirror drawn from its surface's onBeforeRender is one level down, so every lit
+ * material met a "new" light setup twice a frame and looked its program up again (getParameters for each object:
+ * 30+ ms a frame facing the quays). Drawn first at the top level, the mirror shares the main pass's light setup.
+ * The picture is the same: the same cameras, the same frame (`mirrorsFirst` off draws them the old way, for a diff).
+ */
+export const mirrorsFirst = { on: true };
+if (import.meta.env.DEV) Object.assign(window, { __mirrorsFirst: mirrorsFirst });
+const firstPasses: Array<(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera, view: THREE.Frustum) => void> = [];
+const viewFrustum = new THREE.Frustum();
+const viewMatrix = new THREE.Matrix4();
+
+/** Draw every mirror whose surface is in this camera's view, before its main pass (retro/retroPass.ts). */
+export function drawMirrorsFirst(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera): void {
+  if (!mirrorsFirst.on || !(camera instanceof THREE.PerspectiveCamera) || mirrorCams.has(camera)) return;
+  camera.updateWorldMatrix(true, false);
+  viewMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+  viewFrustum.setFromProjectionMatrix(viewMatrix);
+  for (const pass of firstPasses) pass(renderer, scene, camera, viewFrustum);
+}
+
+/** Is this object shown (it and every parent visible)? */
+function shown(o: THREE.Object3D): boolean {
+  for (let x: THREE.Object3D | null = o; x; x = x.parent) if (!x.visible) return false;
+  return true;
+}
 /** M7 character: is this camera a mirror's (the player's own body draws only there: player/body.ts)? */
 export const isMirrorCamera = (cam: THREE.Camera): boolean => mirrorCams.has(cam);
 
@@ -211,6 +239,18 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
       busy = false;
     }
   }
+
+  // drawn first (see mirrorsFirst): when a surface of it is in the view; its surface's own call then finds it drawn
+  firstPasses.push((renderer, scene, camera, view) => {
+    if (drawn || busy) return;
+    if (!surfaces.some((o) => shown(o) && (o.frustumCulled === false || view.intersectsObject(o)))) return;
+    try {
+      render(renderer, scene, camera);
+    } catch (e) {
+      dev.error = String((e as Error)?.stack ?? e).slice(0, 400);
+      busy = false;
+    }
+  });
 
   return {
     texture: rt.texture,

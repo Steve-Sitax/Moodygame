@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { Culler } from "../world/cull";
 import { drawPlan, type InWorld } from "../world/inworld";
+import { drawMirrorsFirst } from "../world/mirror";
 import { psxUniforms } from "./psx";
 
 // Renders the scene into a small target (270 px high, 480x270 on 16:9),
@@ -138,6 +139,8 @@ export class RetroPass {
     const auto = scene.matrixWorldAutoUpdate;
     if (fresh) scene.matrixWorldAutoUpdate = false;
     try {
+      // the mirrors first, at the top level: inside the main pass they cost every material a program look-up (world/mirror.ts)
+      drawMirrorsFirst(this.renderer, scene, camera);
       this.renderer.setRenderTarget(this.target);
       if (plan) drawPlan(this.renderer, this.target, plan, scene, camera as THREE.PerspectiveCamera, () => cull?.drawHidden(this.renderer, camera));
       else {
