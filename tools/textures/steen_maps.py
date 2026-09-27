@@ -31,14 +31,16 @@ TEX = os.path.join(ROOT, "client", "public", "textures")
 SHOTS = os.path.join(ROOT, "data", "shots")
 
 # name: (tiled?, size in px of the game's picture, kind of relief, its parameters, bump strength in the game: three.js's
-# bumpScale, which tilts the normal by the height's change from one screen pixel to the next)
+# bumpScale, which tilts the normal by the height's change from one screen pixel to the next; up close retro/psx.ts
+# psxBumpGain draws it up to 2.5 times as strong, so these are about half the first ones: Steve, 2026-09-27, the stone
+# was too heavily bumped, the foot of the walls most)
 KINDS = {
-    "tournai": (True, 1024, "masonry", {"size": 35, "pct": 71, "floor": 0.12, "rough": 0.16, "arris": 4.0}, 2.0),
-    "sand": (True, 1024, "courses", {"course": 40, "head": 40, "floor": 0.15, "rough": 0.14}, 1.6),
-    "blue": (True, 1024, "courses", {"course": 60, "head": 60, "floor": 0.3, "rough": 0.1, "arris": 2.0, "head_k": 2.6}, 0.8),
-    "slate": (True, 1024, "slates", {"course": 30, "head": 22, "head_k": 1.0, "amp": 0.55}, 0.9),
-    "brick": (True, 1024, "masonry", {"size": 25, "pct": 72, "floor": 0.12, "rough": 0.12, "arris": 2.5, "min_joint": 30}, 1.0),
-    "carve": (False, 1024, "relief", {}, 1.3),
+    "tournai": (True, 1024, "masonry", {"size": 35, "pct": 71, "floor": 0.12, "rough": 0.16, "arris": 4.0}, 0.7),
+    "sand": (True, 1024, "courses", {"course": 40, "head": 40, "floor": 0.15, "rough": 0.14}, 0.8),
+    "blue": (True, 1024, "courses", {"course": 60, "head": 60, "floor": 0.3, "rough": 0.1, "arris": 2.0, "head_k": 2.6}, 0.5),
+    "slate": (True, 1024, "slates", {"course": 30, "head": 22, "head_k": 1.0, "amp": 0.55}, 0.6),
+    "brick": (True, 1024, "masonry", {"size": 25, "pct": 72, "floor": 0.12, "rough": 0.12, "arris": 2.5, "min_joint": 30}, 0.6),
+    "carve": (False, 1024, "relief", {}, 0.9),
 }
 # the carvings sheet (build_steen.py CCELL): x, y, w, h from the top left of a 1024 px sheet
 SHEET = {"semini": (0, 0, 384, 640), "arms": (384, 0, 640, 480), "saltire": (384, 480, 640, 480), "saltire_n": (0, 640, 272, 384)}
