@@ -749,7 +749,8 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
     for (const d of [1.3, 2.4]) {
       atOff(v.path, v.s + v.front + d, off, tmp);
       if (opts.isFree && !opts.isFree(tmp.x, tmp.z, 0.45)) return "thing";
-      for (const q of folk) if (Math.abs(q.x - tmp.x) < 0.9 && Math.abs(q.z - tmp.z) < 0.9) return "thing";
+      // (Steve 2026-09-27: walkers give way to a dray, crowd.ts giveWay: it stops only for one right at the horse)
+      if (d === 1.3) for (const q of folk) if (Math.abs(q.x - tmp.x) < 0.7 && Math.abs(q.z - tmp.z) < 0.7) return "thing";
     }
     return null;
   }

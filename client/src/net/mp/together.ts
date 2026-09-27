@@ -721,13 +721,36 @@ export class Together {
   private soloMap(dt: number): void {
     if (!this.mapOn || !this.d.entered()) return;
     this.mapAcc += dt;
-    if (this.mapAcc < 1) return;
+    if (this.mapAcc < 0.25) return;
+    const span = this.mapAcc;
     this.mapAcc = 0;
     const p = this.d.player;
+    // (Steve 2026-09-27: the townspeople round Jef live on the map, blue with their heading, as when played together)
+    const people: Array<Record<string, unknown>> = [];
+    const town = this.d.town;
+    const crowd = this.d.crowd;
+    if (town && crowd) {
+      const seen = new Set<string>();
+      for (const s of town.netSims()) {
+        if (!s.p || s.remote) continue;
+        const q = s.p;
+        const look = crowd.puppetLook(q);
+        const was = this.soloWas.get(s.r.id);
+        const speed = was ? Math.min(8, Math.hypot(q.x - was[0], q.z - was[1]) / Math.max(0.05, span)) : 0;
+        this.soloWas.set(s.r.id, [q.x, q.z]);
+        seen.add(s.r.id);
+        const veh = look.veh as unknown;
+        people.push({ id: s.r.id, x: Math.round(q.x * 10) / 10, z: Math.round(q.z * 10) / 10, yaw: Math.round(q.yaw * 100) / 100, speed: Math.round(speed * 10) / 10, motion: look.motion, sit: look.sit, lantern: look.lantern, sack: look.sack, bought: look.bought, vehicle: veh == null ? null : typeof veh === "string" ? veh : ((veh as { kind?: string }).kind ?? null) });
+      }
+      for (const id of this.soloWas.keys()) if (!seen.has(id)) this.soloWas.delete(id);
+    }
     void real
-      .fetch("/api/map/me", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, mode: this.mode(), away: this.d.away() }) })
+      .fetch("/api/map/me", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, mode: this.mode(), away: this.d.away(), people }) })
       .catch(() => {});
   }
+
+  /** Where each townsperson was at the last solo report (for his speed on the map). */
+  private soloWas = new Map<string, [number, number]>();
 
   private mountMapButton(paper: HTMLElement): void {
     if (!identity.local || isGuest()) return;

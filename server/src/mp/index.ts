@@ -795,8 +795,17 @@ export function mountMultiplayer(app: Hono, deps: MpDeps) {
 
   /** The town map: where the players are (4 times a second, from the relay's rounds). */
   let mapTick = 0;
+  let mapHadSeats = false;
   function feedMapPlayers(): void {
     if (!deps.map || ++mapTick % 5 !== 0) return;
+    // played alone the game says where Jef is itself (POST /api/map/me): an empty roster here wiped him a moment
+    // after each report, and he flashed on the map (Steve 2026-09-27). Clear once when the last seat goes.
+    if (!mpOn() || !seats.size) {
+      if (mapHadSeats) deps.map.players([]);
+      mapHadSeats = false;
+      return;
+    }
+    mapHadSeats = true;
     deps.map.players(
       [...seats.values()]
         .filter((s) => s.state)

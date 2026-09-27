@@ -143,6 +143,13 @@ app.post("/api/map/me", async (c) => {
   if (x === null || z === null) return c.json({ ok: false }, 400);
   const name = (db.prepare("SELECT name FROM player WHERE id = 1").get() as { name?: string } | undefined)?.name ?? "Jef";
   mapModel.players([{ id: 1, name, host: true, x, y: n(b?.y) ?? 0, z, yaw: n(b?.yaw) ?? 0, mode: typeof b?.mode === "string" ? b.mode.slice(0, 12) : "walk", away: b?.away === true, online: true }]);
+  // the townspeople the game draws round Jef, live on the map as when played together (Steve 2026-09-27)
+  const people = Array.isArray((b as { people?: unknown } | null)?.people) ? ((b as { people: unknown[] }).people.slice(0, 80) as Array<Record<string, unknown>>) : [];
+  const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : null);
+  const live = people
+    .map((q) => ({ id: str(q?.id, 24) ?? "", x: n(q?.x), z: n(q?.z), yaw: n(q?.yaw) ?? 0, speed: n(q?.speed) ?? 0, motion: str(q?.motion, 16) ?? "idle", sit: q?.sit === true, lantern: q?.lantern === true, sack: q?.sack === true, bought: str(q?.bought, 12), vehicle: str(q?.vehicle, 12) }))
+    .filter((q): q is typeof q & { x: number; z: number } => !!q.id && q.x !== null && q.z !== null);
+  if (live.length) mapModel.puppets(1, live);
   return c.json({ ok: true });
 });
 // M7 save and pause: saves, loads and the pause; first, so its gate sees every request (save/routes.ts)

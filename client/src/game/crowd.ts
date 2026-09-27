@@ -59,7 +59,40 @@ export interface CrowdGround {
   /** Optional (M6 handcart): the carts people push and the drays they lead, solid for the player and the vehicles (World.addMover). */
   addMover?(r: Rect): void;
   removeMover?(r: Rect): void;
+  /**
+   * Optional (Steve 2026-09-27: "smaller will get out of the way of the bigger ones; the omnibus and the train
+   * should not be blocked"): the town's moving vehicles as their ground boxes (stable objects moved in place), with
+   * a rank: 3 the train, 2.5 an omnibus, 2 a dray. The crowd works out how each moves and gives way (giveWay).
+   */
+  vehicles?(): ReadonlyArray<{ r: Rect; rank: number }>;
 }
+
+/** A vehicle's path just ahead, in which nobody smaller may stand (giveWay). */
+interface Lane {
+  cx: number;
+  cz: number;
+  /** Which way it goes (unit), and its right hand. */
+  ux: number;
+  uz: number;
+  rx: number;
+  rz: number;
+  /** Half its length along the way, half its width across. */
+  hl: number;
+  hw: number;
+  /** How far ahead of its front the way must be clear (m). */
+  look: number;
+  rank: number;
+  /** The walker's own cart or dray (not a lane for himself). */
+  own?: Person;
+}
+
+/** Only a vehicle going at least this fast (m/s) is given way to. */
+const LANE_MIN_SPEED = 0.35;
+/** Room kept beside a vehicle's side (m), and how far beyond it a walker steps. */
+const LANE_BERTH = 0.55;
+const LANE_STEP_OUT = 0.9;
+/** A walker hurries aside at this pace (m/s). */
+const GIVE_WAY_PACE = 1.7;
 
 export interface CrowdOptions {
   /** Most people alive at once, at the busiest hour (default 32). */
@@ -139,6 +172,8 @@ interface Person {
   /** Dockers who pick up and put down a sack at each end (the others always carry). */
   handCarry: boolean;
   sack: THREE.Object3D | null;
+  /** What the load in his hands is (puppetLoad). */
+  loadKind?: "sack" | "crate";
   cluster: Cluster | null;
   partner: Person | null;
   /** No new chat before this runs out. */
@@ -174,6 +209,8 @@ interface Person {
   bought?: THREE.Object3D | null;
   /** M6 transport: riding a velocipede, pushing a handcart, leading a dray (puppetVehicle). */
   veh?: Vehicle | null;
+  /** Where he stood before he stepped aside for a vehicle (giveWay): he steps back once it has gone by. */
+  wayHome?: { x: number; z: number } | null;
   /** puppetGo gave a new goal (dest) when no way could be worked out this frame: the old way is walked till then. */
   repath?: boolean;
 }
@@ -763,11 +800,12 @@ export class Crowd {
     }
 
     // --- everyone
+    this.lanes = this.vehicleLanes(dt);
     let drawn = 0;
     let animated = 0;
     for (const p of this.people) {
       p.chatCd -= dt;
-      this.think(p, dt);
+      if (!this.giveWay(p, dt)) this.think(p, dt);
       const d = Math.hypot(p.x - player.x, p.z - player.z);
       const inView = d < this.fogFar + 4 && this.inFrustum(p.x, p.z, 1.3 * p.size);
       p.shown = inView;
@@ -889,8 +927,11 @@ export class Crowd {
   }
 
   /** A sack on the shoulder while walking (dockers between the quay and the door). */
-  puppetLoad(p: Puppet, on: boolean): void {
+  /** A load in the hands: a sack on the shoulder, or (the dockers of shared/hauls.ts at a pile of crates) a crate held before him. */
+  puppetLoad(p: Puppet, on: boolean, kind: "sack" | "crate" = "sack"): void {
     p.handCarry = true;
+    if (on && p.sack && p.sack.userData.kind !== kind) this.setLoad(p, false);
+    p.loadKind = kind;
     this.setLoad(p, on);
   }
 
@@ -1473,6 +1514,170 @@ export class Crowd {
     return !this.ground.isFree(p.x, p.z, r) && this.ground.isFree(x, z, 0.1);
   }
 
+  // ---------------------------------------------------------------- giving way to vehicles
+
+  private lanes: Lane[] = [];
+  private readonly laneWas = new WeakMap<Rect, { x: number; z: number; vx: number; vz: number }>();
+
+  /** The lanes of this frame: every vehicle going at a pace, from how its box moved since the last frame. */
+  private vehicleLanes(dt: number): Lane[] {
+    const out: Lane[] = [];
+    const add = (cx: number, cz: number, vx: number, vz: number, ex: number, ez: number, rank: number, own?: Person) => {
+      const sp = Math.hypot(vx, vz);
+      if (sp < LANE_MIN_SPEED) return;
+      const ux = vx / sp;
+      const uz = vz / sp;
+      const rx = -uz;
+      const rz = ux;
+      out.push({ cx, cz, ux, uz, rx, rz, hl: Math.abs(ex * ux) + Math.abs(ez * uz), hw: Math.abs(ex * rx) + Math.abs(ez * rz), look: Math.min(12, Math.max(3, sp * 3.5)), rank, own });
+    };
+    const list = this.ground.vehicles?.() ?? [];
+    for (const { r, rank } of list) {
+      const cx = (r.minX + r.maxX) / 2;
+      const cz = (r.minZ + r.maxZ) / 2;
+      const was = this.laneWas.get(r);
+      let vx = 0;
+      let vz = 0;
+      if (was && dt > 0) {
+        // smoothed: a box set down in place (a new frame of a stop) is not a sudden rush
+        const k = Math.min(1, dt * 6);
+        vx = was.vx + ((cx - was.x) / dt - was.vx) * k;
+        vz = was.vz + ((cz - was.z) / dt - was.vz) * k;
+        if (Math.hypot(cx - was.x, cz - was.z) > 3) vx = vz = 0; // (put somewhere else: no pace)
+      }
+      this.laneWas.set(r, { x: cx, z: cz, vx, vz });
+      add(cx, cz, vx, vz, (r.maxX - r.minX) / 2, (r.maxZ - r.minZ) / 2, rank);
+    }
+    // the townspeople's own carts and drays: bigger than a walker
+    for (const p of this.people) {
+      const v = p.veh;
+      if (!v || p.state !== "walk" || p.role === "remote") continue;
+      const rank = v.spec.kind === "dray" ? 2 : 1;
+      const fx = Math.sin(p.yaw);
+      const fz = Math.cos(p.yaw);
+      const hl = Math.max(0.6, p.nose / 2 + 0.4);
+      add(p.x + fx * p.nose * 0.5, p.z + fz * p.nose * 0.5, fx * p.pace, fz * p.pace, 0, 0, rank, p);
+      const l = out[out.length - 1];
+      if (l && l.own === p) {
+        l.hl = hl;
+        l.hw = Math.max(0.45, p.reach);
+      }
+    }
+    return out;
+  }
+
+  /** His own rank: a walker 0, with a handcart or on a velocipede 1, leading a dray 2. */
+  private rankOf(p: Person): number {
+    const k = p.veh?.spec.kind;
+    return k === "dray" ? 2 : k ? 1 : 0;
+  }
+
+  /**
+   * Smaller gives way to bigger (Steve 2026-09-27). In a vehicle's lane (its path and a few seconds ahead), he
+   * steps out sideways, to the nearer side that is free, and stands until it has gone by; walking, he does not
+   * step into one; standing at his place, he goes back to it afterwards. True when he was busy with that.
+   */
+  private giveWay(p: Person, dt: number): boolean {
+    if (p.role === "remote" || !this.lanes.length) return false;
+    const mine = this.rankOf(p);
+    let hit: { l: Lane; lat: number } | null = null;
+    let near: Lane | null = null;
+    for (const l of this.lanes) {
+      if (l.own === p || l.rank <= mine) continue;
+      const dx = p.x - l.cx;
+      const dz = p.z - l.cz;
+      if (Math.abs(dx) > 20 || Math.abs(dz) > 20) continue;
+      const along = dx * l.ux + dz * l.uz;
+      if (along < -l.hl - 0.4 || along > l.hl + l.look) continue;
+      const lat = dx * l.rx + dz * l.rz;
+      const room = l.hw + LANE_BERTH + p.reach * 0.5;
+      if (Math.abs(lat) < room) {
+        hit = { l, lat };
+        break;
+      }
+      if (Math.abs(lat) < room + 1.2) near = l;
+    }
+    if (hit) {
+      const { l, lat } = hit;
+      if (p.state !== "walk" && !p.wayHome) p.wayHome = { x: p.x, z: p.z };
+      // out to the side he is on (the other if that is shut), across the lane
+      const want = l.hw + LANE_BERTH + LANE_STEP_OUT;
+      const step = GIVE_WAY_PACE * dt;
+      const sides = Math.abs(lat) < 0.15 ? [1, -1] : [Math.sign(lat), -Math.sign(lat)];
+      for (const sd of sides) {
+        if (sd === -Math.sign(lat) && Math.abs(lat) > want * 0.5) continue; // (past the middle: no crossing back)
+        const nx = p.x + l.rx * sd * step;
+        const nz = p.z + l.rz * sd * step;
+        if (this.ground.isFree(nx, nz, 0.25) && this.grid.isOpen(nx, nz) && (p.nose === 0 || this.ground.isFree(nx + Math.sin(p.yaw) * p.nose, nz + Math.cos(p.yaw) * p.nose, p.reach))) {
+          p.x = nx;
+          p.z = nz;
+          this.face(p, Math.atan2(l.rx * sd, l.rz * sd), dt * 3);
+          p.human.play(p.veh ? this.vehMotion(p, true) : "walk", 0.2);
+          p.human.setPace(GIVE_WAY_PACE / p.size);
+          p.stuckT = 0;
+          return true;
+        }
+      }
+      // shut in on both sides: back along the way, out of the front of it
+      const bx = p.x - l.ux * step;
+      const bz = p.z - l.uz * step;
+      if (this.ground.isFree(bx, bz, 0.25) && this.grid.isOpen(bx, bz)) {
+        p.x = bx;
+        p.z = bz;
+      }
+      p.human.play(this.stillMotion(p), 0.3);
+      return true;
+    }
+    if (near && p.state === "walk") {
+      // at the edge of a lane: wait, facing it, until it has gone by (never step into it)
+      const t = p.path[p.pi];
+      if (t) {
+        const dx = t.x - p.x;
+        const dz = t.z - p.z;
+        const len = Math.hypot(dx, dz) || 1;
+        const ax = p.x + (dx / len) * 0.6 - near.cx;
+        const az = p.z + (dz / len) * 0.6 - near.cz;
+        const lat = ax * near.rx + az * near.rz;
+        const along = ax * near.ux + az * near.uz;
+        if (Math.abs(lat) < near.hw + LANE_BERTH + p.reach * 0.5 && along > -near.hl - 0.4 && along < near.hl + near.look) {
+          p.human.play(p.veh ? this.vehMotion(p, false) : this.standMotion(p), 0.3);
+          this.face(p, Math.atan2(near.cx - p.x, near.cz - p.z), dt);
+          p.stuckT = 0;
+          return true;
+        }
+      }
+    }
+    if (p.wayHome && !near) {
+      // gone by: back to his place
+      const dx = p.wayHome.x - p.x;
+      const dz = p.wayHome.z - p.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 0.1 || p.state === "walk") {
+        p.wayHome = null;
+        return false;
+      }
+      const step = Math.min(d, 1.1 * dt);
+      const nx = p.x + (dx / d) * step;
+      const nz = p.z + (dz / d) * step;
+      if (!this.ground.isFree(nx, nz, 0.25)) {
+        p.wayHome = null;
+        return false;
+      }
+      p.x = nx;
+      p.z = nz;
+      this.face(p, Math.atan2(dx, dz), dt * 3);
+      p.human.play("walk", 0.2);
+      p.human.setPace(1.1 / p.size);
+      if (d - step < 0.1) {
+        p.wayHome = null;
+        p.human.play(this.stillMotion(p), 0.3);
+        if (p.pyaw != null) this.face(p, p.pyaw, 1);
+      }
+      return true;
+    }
+    return false;
+  }
+
   /** Standing people step aside when the player walks into them. */
   private shoo(p: Person, dt: number): void {
     const dx = p.x - this.player.x;
@@ -1788,10 +1993,20 @@ export class Crowd {
     p.loaded = on;
     if (!p.handCarry) return;
     if (on && !p.sack) {
-      const s = new THREE.Mesh(this.sackGeo, this.sackMat);
       const k = p.human.scale;
-      s.position.set(0, 1.1 * k, 0.3 * k);
-      s.rotation.set(0.15, 0.2, 0.1);
+      let s: THREE.Mesh;
+      if (p.loadKind === "crate") {
+        // a crate held before the chest in both arms (the crate geometry stands on its base)
+        s = new THREE.Mesh(this.crateGeo, this.crateMat);
+        s.scale.setScalar(0.82);
+        s.position.set(0, 0.78 * k, 0.34 * k);
+        s.userData.kind = "crate";
+      } else {
+        s = new THREE.Mesh(this.sackGeo, this.sackMat);
+        s.position.set(0, 1.1 * k, 0.3 * k);
+        s.rotation.set(0.15, 0.2, 0.1);
+        s.userData.kind = "sack";
+      }
       p.group.add(s);
       p.sack = s;
     } else if (!on && p.sack) {

@@ -5,6 +5,7 @@ import type { Duplex } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { WebSocket, WebSocketServer } from "ws";
 import type { DB } from "../db.ts";
+import { REAL_S_PER_GAME_MIN, TICK_MINUTES } from "../../../shared/clock.ts";
 import { clock as dayClock } from "../day.ts";
 import type { Town } from "../town/population.ts";
 import { town as townOf } from "../town/store.ts";
@@ -98,9 +99,18 @@ export function mountMapView(deps: MapViewDeps): MapView {
   const port = deps.port === undefined ? mapPortFromEnv() : deps.port;
   if (port === null) return { url: "", ready: Promise.resolve(""), close: () => Promise.resolve() };
   const { model, db } = deps;
+  // The world's clock moves in ticks (5 game minutes every 10 s): the dots walked by the day plan's sum would jump
+  // 60 m a tick. Between ticks the map runs the clock on by the real time since the last one (at most one tick),
+  // so they glide (Steve 2026-09-27).
+  let lastTick = { key: "", at: 0 };
   const clockNow = (): MapClock | null => {
     try {
-      return deps.clock ? deps.clock() : dayClock(db);
+      const c = deps.clock ? deps.clock() : dayClock(db);
+      const key = `${c.day}:${c.hour}:${c.minute}`;
+      const now = Date.now();
+      if (key !== lastTick.key) lastTick = { key, at: now };
+      const frac = Math.min(TICK_MINUTES, (now - lastTick.at) / (REAL_S_PER_GAME_MIN * 1000));
+      return { ...c, frac };
     } catch {
       return null;
     }

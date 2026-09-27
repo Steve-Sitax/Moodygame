@@ -75,6 +75,8 @@ export interface MapClock {
   day: number;
   hour: number;
   minute: number;
+  /** Game minutes past `minute` since the world's last tick (the map's own run of the clock between ticks). */
+  frac?: number;
   weekday?: string;
   weather?: string;
 }
@@ -450,6 +452,8 @@ export interface PlannedSpot {
   /** On the way to this part's place (the trade plan's sum), and the metres still to walk. */
   moving: boolean;
   walkLeft: number;
+  /** Which way he walks (yaw = atan2(dx, dz)). */
+  yaw: number;
 }
 
 /** The segments of a day (1 = Monday ... 7 = Sunday) of a schedule. */
@@ -459,12 +463,12 @@ export function segsOf(s: Schedule, day: number): Seg[] {
 
 /** Where the day plan puts a resident at this clock (his live place is the model's). */
 export function plannedSpot(r: Resident, town: Town, clock: MapClock): PlannedSpot {
-  const hour = clock.hour + clock.minute / 60;
+  const hour = clock.hour + (clock.minute + (clock.frac ?? 0)) / 60;
   const a = activityAt(r.sched, clock.day, hour);
   // the trade plan (docs/trade-plan.md part A): the same sum every PC walks the unseen by, on the way between
   // the part before and this one (town/whereabouts.ts), so the dot is where a player finds him
   const w = whereAt(r, town, clock.day, hour, serverWay);
-  const { x, z } = w;
+  const { x, z, yaw } = w;
   const indoor = w.indoor;
   // the next part of today
   let next: PlannedSpot["next"] = null;
@@ -479,5 +483,5 @@ export function plannedSpot(r: Resident, town: Town, clock: MapClock): PlannedSp
     const place = where ?? (act === "work" ? "work" : "home");
     next = { act, place, label: placeLabel(r, town, act, place), from: upcoming.from };
   }
-  return { x, z, act: a.act, place: a.place, label: placeLabel(r, town, a.act, a.place), indoor, left: a.left, next, moving: w.moving, walkLeft: Math.max(0, Math.round(w.total - w.walked)) };
+  return { x, z, act: a.act, place: a.place, label: placeLabel(r, town, a.act, a.place), indoor, left: a.left, next, moving: w.moving, walkLeft: Math.max(0, Math.round(w.total - w.walked)), yaw };
 }

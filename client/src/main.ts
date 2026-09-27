@@ -178,6 +178,14 @@ const crowd = new Crowd(
     baseAt: (x: number, z: number) => world.baseAt(x, z),
     // (the look pass: the wall's stairs are narrower than a walker's berth; up them all the same)
     narrow: rampartStairAt,
+    // Steve 2026-09-27: smaller gives way to bigger; the train and the omnibus are not held up (crowd.ts giveWay)
+    vehicles: () => {
+      const out: Array<{ r: { minX: number; maxX: number; minZ: number; maxZ: number }; rank: number }> = [];
+      for (const r of world.railway()?.rolling() ?? []) out.push({ r, rank: 3 });
+      for (const r of world.omnibus()?.rolling() ?? []) out.push({ r, rank: 2.5 });
+      for (const r of world.traffic()?.colliders() ?? []) out.push({ r, rank: 2 });
+      return out;
+    },
   },
   placesFromCity((CITY as unknown as { places: Record<string, { x: number; z: number; kind: string }> }).places),
   { mats: { sack: world.mats.sack, crate: world.mats.crate } },
@@ -1410,6 +1418,8 @@ if (import.meta.env.DEV) {
      * who have not been drawn for over 3 s. Must list nothing (the M8b ones another PC walks are left out).
      */
     findcheck: (near = 40) => town.findCheck(near),
+    /** The carrying check (dev/carrycheck.ts): every docker from a real pile to a door, a pile or a fish bank. Must list no problems. */
+    carrycheck: async () => (await import("./dev/carrycheck")).carryCheck({ town, quayPiles: () => quayGoodsInfo()?.placed ?? [], flags: (x: number, z: number) => world.city.flags(x, z) }),
     /** The stuck check (dev/stuckcheck.ts): runs the game `seconds` and lists whoever plays a walk but stays on the spot or goes to and fro (must list nothing). */
     stuck: (opts: { seconds?: number; near?: number } = {}) =>
       stuckCheck({ crowd, town, world, player, narrow: rampartStairAt, step: (s) => (window as unknown as { __scheldemist: { step(s: number): void } }).__scheldemist.step(s) }, opts),
