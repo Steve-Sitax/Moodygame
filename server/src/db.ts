@@ -31,13 +31,14 @@ import { CLIENT_STATE_SQL } from "./save/schema.ts";
 import { WORLD_CLOCK_SQL } from "./mp/worldClock.ts"; // M8a
 import { MP_PLAYER_SQL } from "./mp/players.ts"; // M8a
 import { PROFILE_SQL, seedName } from "./player/profile.ts";
+import { multiMigrate } from "./player/multi.ts"; // M8c
 
 // SQLite schema from docs/04-data-model.md. Only the server writes.
 // Delete data/game.sqlite to start over.
 
 const SCHEMA = /* sql */ `
 CREATE TABLE IF NOT EXISTS player (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
+  id INTEGER PRIMARY KEY,
   name TEXT NOT NULL,
   money_c INTEGER NOT NULL,
   food INTEGER NOT NULL, warmth INTEGER NOT NULL, health INTEGER NOT NULL, sleep INTEGER NOT NULL,
@@ -46,8 +47,10 @@ CREATE TABLE IF NOT EXISTS player (
   rent_paid_until INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS faction_trust (
-  faction TEXT PRIMARY KEY,
-  trust INTEGER NOT NULL CHECK (trust BETWEEN -5 AND 10)
+  player_id INTEGER NOT NULL DEFAULT 1,
+  faction TEXT NOT NULL,
+  trust INTEGER NOT NULL CHECK (trust BETWEEN -5 AND 10),
+  PRIMARY KEY (player_id, faction)
 );
 CREATE TABLE IF NOT EXISTS npc (
   id TEXT PRIMARY KEY,
@@ -57,13 +60,15 @@ CREATE TABLE IF NOT EXISTS npc (
   active INTEGER NOT NULL DEFAULT 1
 );
 CREATE TABLE IF NOT EXISTS npc_relationship (
-  npc_id TEXT PRIMARY KEY REFERENCES npc(id),
+  npc_id TEXT NOT NULL REFERENCES npc(id),
+  player_id INTEGER NOT NULL DEFAULT 1,
   trust INTEGER NOT NULL DEFAULT 0, affection INTEGER NOT NULL DEFAULT 0,
   respect INTEGER NOT NULL DEFAULT 0, fear INTEGER NOT NULL DEFAULT 0,
   times_met INTEGER NOT NULL DEFAULT 0,
   last_seen_day INTEGER, last_place TEXT,
   favours_json TEXT NOT NULL DEFAULT '[]', grudges_json TEXT NOT NULL DEFAULT '[]',
-  view_of_player TEXT NOT NULL DEFAULT ''
+  view_of_player TEXT NOT NULL DEFAULT '',
+  PRIMARY KEY (npc_id, player_id)
 );
 CREATE TABLE IF NOT EXISTS npc_memory (
   id INTEGER PRIMARY KEY,
@@ -246,6 +251,8 @@ function migrate(db: DB): void {
   // M8a multiplayer: the world's clock in world_state (mp/worldClock.ts), the players who joined (mp/players.ts)
   db.exec(WORLD_CLOCK_SQL);
   db.exec(MP_PLAYER_SQL);
+  // M8c multiplayer: every player's own part (player/multi.ts): more than one player row, player_id on his things
+  multiMigrate(db, WORLD_CLOCK_SQL);
 }
 
 /**
@@ -265,7 +272,7 @@ export function bumpGeneration(): void {
 export function resetDb(db: DB): void {
   generation++;
   db.transaction(() => {
-    for (const t of ["client_state", ...FAMILY_TABLES, ...IDEAS_TABLES, ...HOMES_TABLES, ...PRESS_TABLES, "world_event_who", "world_event", "npc_action", "town_event", "ai_call", "item", "event", "world_state", "job", "log", "world_fact", "npc_memory", "npc_relationship", "resident", "npc", "faction_trust", "player"]) {
+    for (const t of ["player_state", "client_state", ...FAMILY_TABLES, ...IDEAS_TABLES, ...HOMES_TABLES, ...PRESS_TABLES, "world_event_who", "world_event", "npc_action", "town_event", "ai_call", "item", "event", "world_state", "job", "log", "world_fact", "npc_memory", "npc_relationship", "resident", "npc", "faction_trust", "player"]) {
       db.prepare(`DELETE FROM ${t}`).run();
     }
   })();

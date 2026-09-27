@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { DB } from "../db.ts";
 import { GameError, log, player } from "../game.ts";
+import { addPlayerColumn } from "../player/multi.ts";
 import { applyTrust, remember } from "../npcs.ts";
 import { POCKET_SLOTS, atWork } from "../trade.ts";
 import { weather, type Weather } from "../day.ts";
@@ -88,12 +89,14 @@ const ready = new WeakSet<DB>();
 export function deedTables(db: DB): void {
   if (ready.has(db)) return;
   db.exec(DEED_SCHEMA);
+  addPlayerColumn(db, "deed"); // M8c: whose deed
   ready.add(db);
 }
 /** Is there a deed table yet? Reading never makes one. */
 export function hasDeeds(db: DB): boolean {
   if (ready.has(db)) return true;
   if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'deed'").get()) return false;
+  addPlayerColumn(db, "deed");
   ready.add(db);
   return true;
 }
