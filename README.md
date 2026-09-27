@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/media/hero.jpg" alt="Tall ships and a dock crane in the morning mist on the Rijnkaai" width="100%">
+  <img src="docs/media/hero.jpg" alt="Tall ships at night by the Rijnkaai, a gas lamp mirrored in a puddle" width="100%">
 </p>
 
 <h1 align="center">Scheldemist</h1>
@@ -34,16 +34,16 @@ proposes their words and plans, and the game engine checks every proposal and ow
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/media/alley-night.jpg" alt="A back alley at night, lanterns and a cat"><br><sub>A back alley after dark</sub></td>
-    <td width="50%"><img src="docs/media/cathedral-fog.jpg" alt="The cathedral in night fog over the Handschoenmarkt"><br><sub>The cathedral in the night fog</sub></td>
+    <td width="50%"><img src="docs/media/alley-night.jpg" alt="A back alley at night: a woman with a lantern, men carrying loads, wet cobbles"><br><sub>A back alley at eight in the evening</sub></td>
+    <td width="50%"><img src="docs/media/cathedral-night.jpg" alt="The cathedral at night, gentlemen in top hats under a gas lamp"><br><sub>The cathedral from the Handschoenmarkt</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/media/het-steen.jpg" alt="Het Steen and the fish market by the river"><br><sub>Het Steen and the fish market</sub></td>
+    <td width="50%"><img src="docs/media/vleeshuis.jpg" alt="The Vleeshuis over the canal, lit windows around it"><br><sub>The Vleeshuis over the canal</sub></td>
+    <td width="50%"><img src="docs/media/quay-night.jpg" alt="A dock crane and a gas lamp on the wet quay, a man mirrored in a puddle"><br><sub>After the rain on the Rijnkaai</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/media/het-steen.jpg" alt="Het Steen at night beyond the fish market stalls"><br><sub>Het Steen beyond the fish market</sub></td>
     <td width="50%"><img src="docs/media/talk.jpg" alt="Talking with a fishwife about work"><br><sub>"Where does a stranger find honest work in this fog?"</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/media/quay-morning.jpg" alt="A handcart with barrels on the quay in the morning mist"><br><sub>Morning on the Rijnkaai</sub></td>
-    <td width="50%"><img src="docs/media/rain.jpg" alt="Rain at dusk under a dock crane"><br><sub>Rain at dusk</sub></td>
   </tr>
 </table>
 
