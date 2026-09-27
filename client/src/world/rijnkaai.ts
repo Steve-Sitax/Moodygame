@@ -15,6 +15,7 @@ import { loadWall, rampartHeightAt, rampartKeepOut, wallColliders, wallGuards, w
 import CITY_DATA from "../../../shared/city.json";
 import { buildCity, doorSpot, edgeZ, WALL, WATER, OUTSIDE, type CityWorld } from "./city";
 import { dressCity, loadProps } from "./props3d";
+import { loadWagons } from "./wagons3d";
 import { dockWaterStencil, loadBoats, waterStencil, type Boats } from "./boats";
 import { createAmbient, type Ambient } from "./ambient";
 import { createLock, type Lock } from "./lock";
@@ -43,7 +44,7 @@ import { createQuayFurniture, type QuayFurniture } from "./quayfurniture";
 import { createTraffic, type Traffic } from "./traffic";
 import { createRailway, type CraneSite, type RaisedDeck, type Railway } from "./railway";
 import { createRailGate, type RailGate } from "./railgate";
-import { createOmnibuses, OMNIBUS_HORSES, omnibusKeepOut, STOPS as OMNIBUS_STOPS, stopSolids, type Omnibuses } from "./omnibus";
+import { createOmnibuses, loadOmnibusModel, OMNIBUS_HORSES, omnibusKeepOut, STOPS as OMNIBUS_STOPS, stopSolids, type Omnibuses } from "./omnibus";
 import { quaySteps, shoreTexture, frameAt, type Exit } from "./quaysteps";
 import { buildPier, PIER_BOLLARD } from "./pier";
 import { waveAt } from "../retro/psx";
@@ -878,13 +879,14 @@ export function buildRijnkaai(): World {
       // ladders on the free stretches of wall, now that the boats lie where they lie
       city.ready.then(placeLadders).catch((e) => console.warn("ladders", e));
       // the goods train on the quay railway, the cranes at work (world/railway.ts, M3g)
-      Promise.all([city.ready, loadProps()])
-        .then(([, p]) => {
+      Promise.all([city.ready, loadProps(), loadWagons(), loadOmnibusModel()])
+        .then(([, p, wagonModels, omnibusModel]) => {
           railway = createRailway(scene, {
             tracks: trackData,
             cranes: craneSites,
             props: p,
             tex: { planks: m.planks.map!, sack: m.sack.map!, crate: m.crate.map! },
+            wagons: wagonModels,
             bridges: () => bridges?.list ?? [],
             isFree: freeOfMovers,
             hullAt: (x, z) => swimSolids.some((c) => inRect(c, x, z)),
@@ -913,6 +915,7 @@ export function buildRijnkaai(): World {
             // M6 handcart: where its round crosses the rails the goods train has the right of way
             onRails: (x: number, z: number) => railBand.some((r) => inRect(r, x, z, 1.0)),
             trainBusy: (r) => !!railway?.busy(r),
+            model: omnibusModel,
           });
           for (const r of omnibus.colliders()) dynamic.add(r);
           for (const st of OMNIBUS_STOPS) colliders.push(rectAround(st.post[0], st.post[1], 0.12, 0.12));

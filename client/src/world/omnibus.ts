@@ -1,5 +1,7 @@
 import { modelCollider, ModelCollision } from "./modelCollision";
 import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { psx } from "../retro/psx";
 import { makeHuman, type Human, type HumanKind } from "../game/humans";
@@ -191,6 +193,76 @@ export interface OmnibusOptions {
   onRails?: (x: number, z: number) => boolean;
   /** M6 handcart: is the goods train on or coming up to this stretch (railway.ts busy)? The train has the right of way. */
   trainBusy?: (r: { minX: number; maxX: number; minZ: number; maxZ: number }) => boolean;
+  /** The Blender model (loadOmnibusModel); without it the code-built parts below are drawn. */
+  model?: OmnibusModel | null;
+}
+
+// ------------------------------------------------------------------ the model (Blender)
+
+/** The parts the omnibuses instance (tools/blender/build_omnibus.py -> /models/omnibus.glb), in the same frames as the code-built ones. */
+const MODEL_PARTS = ["body", "paint", "interior", "far_glass", "rear_wheels", "front_wheels", "fore"] as const;
+type ModelPart = (typeof MODEL_PARTS)[number];
+
+/** omnibus.glb: one geometry per part, all on one atlas material (4 x 4 cells of 64 px, psx `atlas`). */
+export interface OmnibusModel {
+  parts: Record<ModelPart, THREE.BufferGeometry>;
+  material: THREE.Material;
+}
+
+let modelLoading: Promise<OmnibusModel | null> | null = null;
+
+/**
+ * Load omnibus.glb once (three's loader: the loading screen counts it). Resolves null if it does not
+ * load or a part is missing: the omnibuses are then drawn with the code-built parts.
+ */
+export function loadOmnibusModel(): Promise<OmnibusModel | null> {
+  modelLoading ??= (async () => {
+    const draco = new DRACOLoader().setDecoderPath("/draco/");
+    try {
+      const gltf = await new GLTFLoader().setDRACOLoader(draco).loadAsync("/models/omnibus.glb");
+      let map: THREE.Texture | null = null;
+      const parts: Partial<Record<ModelPart, THREE.BufferGeometry>> = {};
+      gltf.scene.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh) return;
+        const part = MODEL_PARTS.find((p) => m.name === `omnibus_${p}` || o.parent?.name === `omnibus_${p}`);
+        if (!part) return;
+        map ??= ((Array.isArray(m.material) ? m.material[0] : m.material) as THREE.MeshStandardMaterial).map ?? null;
+        const g = m.geometry;
+        // the second uv set is the atlas cell (column, row); glTF turned v over, so turn it back (as props3d.ts)
+        const cell = g.getAttribute("uv1") as THREE.BufferAttribute | undefined;
+        if (cell) {
+          const c = new Float32Array(cell.count * 2);
+          for (let i = 0; i < cell.count; i++) {
+            c[i * 2] = Math.round(cell.getX(i));
+            c[i * 2 + 1] = Math.round(1 - cell.getY(i));
+          }
+          g.setAttribute("cell", new THREE.BufferAttribute(c, 2));
+        }
+        for (const a of Object.keys(g.attributes)) if (!["position", "normal", "uv", "color", "cell"].includes(a)) g.deleteAttribute(a);
+        g.computeBoundingSphere();
+        parts[part] = g;
+      });
+      const tex = map as THREE.Texture | null;
+      if (!tex || MODEL_PARTS.some((p) => !parts[p])) throw new Error("omnibus.glb: a part or the picture is missing");
+      tex.magFilter = THREE.NearestFilter;
+      tex.minFilter = THREE.NearestFilter;
+      tex.generateMipmaps = false;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.needsUpdate = true;
+      // the props' atlas settings (props3d.ts "goods"): no new shader kind
+      const material = psx(new THREE.MeshLambertMaterial({ map: tex, vertexColors: true }), { affine: 0.6, atlas: 4 });
+      material.name = "omnibus";
+      return { parts: parts as Record<ModelPart, THREE.BufferGeometry>, material };
+    } catch (e) {
+      console.warn("omnibus.glb did not load: the omnibuses are drawn from code", e);
+      return null;
+    } finally {
+      draco.dispose();
+    }
+  })();
+  return modelLoading;
 }
 
 /** M6 handcart: held up this long by another vehicle, an omnibus backs off (s); face to face with the train in its lane, sooner. */
@@ -929,9 +1001,12 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
 
   // --- drawing: one InstancedMesh per part for every bus, one mesh for all the boards
   const wood = psx(new THREE.MeshLambertMaterial({ map: opts.tex.planks, vertexColors: true }));
+  // the Blender model's parts on its atlas, or (it did not load) the code-built ones on the planks
+  const model = opts.model ?? null;
+  const partMat = model?.material ?? wood;
   const zero = new THREE.Matrix4().makeScale(0, 0, 0);
   const inst = (g: THREE.BufferGeometry, n: number, name: string) => {
-    const m = new THREE.InstancedMesh(g, wood, n);
+    const m = new THREE.InstancedMesh(g, partMat, n);
     m.name = name;
     m.frustumCulled = false;
     m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -940,14 +1015,14 @@ export function createOmnibuses(scene: THREE.Scene, opts: OmnibusOptions): Omnib
     return m;
   };
   const n = buses.length;
-  const bodyM = inst(bodyGeometry(false), n, "omnibus_body");
-  const paintM = inst(bodyGeometry(true), n, "omnibus_paint");
-  const rearM = inst(wheelsGeometry(R_REAR, 1.98), n, "omnibus_rear_wheels");
-  const foreM = inst(foreGeometry(), n, "omnibus_fore");
-  const frontM = inst(wheelsGeometry(R_FRONT, 1.62), n, "omnibus_front_wheels");
+  const bodyM = inst(model?.parts.body ?? bodyGeometry(false), n, "omnibus_body");
+  const paintM = inst(model?.parts.paint ?? bodyGeometry(true), n, "omnibus_paint");
+  const rearM = inst(model?.parts.rear_wheels ?? wheelsGeometry(R_REAR, 1.98), n, "omnibus_rear_wheels");
+  const foreM = inst(model?.parts.fore ?? foreGeometry(), n, "omnibus_fore");
+  const frontM = inst(model?.parts.front_wheels ?? wheelsGeometry(R_FRONT, 1.62), n, "omnibus_front_wheels");
   // the saloon inside: drawn only for an omnibus you are in or near
-  const interiorM = inst(interiorGeometry(), n, "omnibus_interior");
-  const farGlassM = inst(farGlassGeometry(), n, "omnibus_far_glass");
+  const interiorM = inst(model?.parts.interior ?? interiorGeometry(), n, "omnibus_interior");
+  const farGlassM = inst(model?.parts.far_glass ?? farGlassGeometry(), n, "omnibus_far_glass");
   const col = new THREE.Color();
   buses.forEach((b, i) => paintM.setColorAt(i, col.setRGB(...b.line.colour)));
   if (paintM.instanceColor) paintM.instanceColor.needsUpdate = true;

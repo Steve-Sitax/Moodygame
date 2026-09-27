@@ -25,6 +25,7 @@ import {
   type PartKind,
 } from "../../../shared/cranes";
 import { lerpState, type NetMover } from "../net/mp/world";
+import type { WagonModels } from "./wagons3d";
 
 // The quay railway at work (M3g). A short goods train, drawn by two heavy horses in tandem
 // with a shunter at their heads (horses moved the wagons on the quay lines of the 1860s-70s;
@@ -68,6 +69,8 @@ export interface RailwayOptions {
   props: Props;
   /** Textures: planks (wood, iron), sack cloth, crate boards. */
   tex: { planks: THREE.Texture; sack: THREE.Texture; crate: THREE.Texture };
+  /** The wagons, wheel sets, coupling and goods units from wagons.glb (world/wagons3d.ts); null: the code-built parts. */
+  wagons?: WagonModels | null;
   /** The opening bridges (world/bridges.ts list, the lock bridge included). */
   bridges: () => OpeningLike[];
   /** Is (x, z) free for a body of radius r (walls, water, things, people)? */
@@ -219,6 +222,9 @@ const L_BODY = 5.4;
 const L_BUF = 6.3; // over the buffers
 const WB = 3.0; // wheelbase
 const HORSE_GAP = 3.0;
+/** The rear horse's trace chain is drawn as pieces of the coupling about this long (m), at most TRACE_PIECES. */
+const TRACE_LINK = 0.36;
+const TRACE_PIECES = 7;
 const TRACES = 3.1; // lead horse's middle to the rear horse's middle is HORSE_GAP; rear horse to the first wagon's buffers
 
 // the portal crane in its own frame (three.js: build_boats.py portal_crane, blender y = -z here)
@@ -483,30 +489,62 @@ function unitGeometry(kind: GoodsKind): THREE.BufferGeometry {
   return k.build();
 }
 
+/** The hook block's sheave pin over the hook's throat: the falls (ropeGeometry) end there, either side of the sheave. */
+const HOOK_BLOCK = 0.66;
+/** The falls hang this far either side of the jib's line (the block's sheave, the crosshead at the jib head in boats.glb). */
+const FALL_X = 0.115;
+
+/** Bars through the points (a bent forged bar), each a little longer so the bends close; sizes per segment. */
+function bentBar(k: Kit, pts: Array<[number, number, number]>, sizes: number[], col: RGB): void {
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const a = new THREE.Vector3(...pts[i]);
+    const b = new THREE.Vector3(...pts[i + 1]);
+    const d = b.clone().sub(a).normalize().multiplyScalar(sizes[i] * 0.4);
+    k.bar(a.sub(d), b.add(d), sizes[i], col);
+  }
+}
+
 function hookGeometry(): THREE.BufferGeometry {
-  // origin at the hook's throat, where the sling hangs
+  // origin at the hook's throat, where the sling hangs (the crane detail pass, 2026-09-27): the block is
+  // a sheave between two cheek plates (the falls come down either side of it into the block), its pin,
+  // a crosshead under it that holds the hook's shank with a nut; below, a forged hook with its point up
   const k = new Kit();
-  k.box(0.26, 0.48, 0.34, 0, 0.62, 0, IRON);
-  k.cyl(0.13, 0.13, 0.3, 8, 0, 0.62, 0, IRON_LIGHT, 0, 0, Math.PI / 2);
-  k.box(0.05, 0.36, 0.05, 0, 0.22, 0, IRON);
-  k.box(0.05, 0.05, 0.24, 0, 0.03, 0.1, IRON);
-  k.box(0.05, 0.14, 0.05, 0, 0.1, 0.2, IRON);
+  for (const z of [-0.062, 0.062]) {
+    k.box(0.3, 0.26, 0.022, 0, HOOK_BLOCK - 0.13, z, IRON); // cheek plate: its square foot...
+    k.cyl(0.15, 0.15, 0.022, 12, 0, HOOK_BLOCK, z, IRON, Math.PI / 2); // ...and its round head
+  }
+  k.cyl(0.12, 0.12, 0.08, 14, 0, HOOK_BLOCK, 0, IRON_LIGHT, Math.PI / 2); // the sheave
+  k.cyl(0.035, 0.035, 0.2, 6, 0, HOOK_BLOCK, 0, IRON, Math.PI / 2); // its pin, the ends proud of the cheeks
+  k.box(0.28, 0.07, 0.17, 0, 0.44, 0, IRON); // the crosshead between the cheeks' feet
+  k.cyl(0.055, 0.055, 0.06, 6, 0, 0.5, 0, IRON_LIGHT); // the shank's nut on it
+  // the hook, in the y-z plane: the shank comes down over the throat, the back swings out, round
+  // under the throat and up to the point
+  const R = 0.0975;
+  const at = (deg: number): [number, number, number] => [0, 0.07 + R * Math.sin((deg * Math.PI) / 180), R * Math.cos((deg * Math.PI) / 180)];
+  bentBar(k, [[0, 0.42, 0], [0, 0.2, 0], at(150), at(185), at(220), at(255), at(290), at(325), at(360), at(25)],
+    [0.06, 0.06, 0.06, 0.058, 0.055, 0.052, 0.047, 0.04, 0.032], IRON_LIGHT); // worn bright where the slings run
   return k.build();
 }
 
 function slingGeometry(): THREE.BufferGeometry {
-  // four ropes from the hook down to the corners of a load whose top is SLING below
+  // an iron ring in the hook's throat, and four rope legs from it down to the corners of a load whose top is SLING below
   const k = new Kit();
+  const ring: Array<[number, number, number]> = [];
+  for (let i = 0; i <= 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    ring.push([0.055 * Math.sin(a), -0.05 + 0.055 * Math.cos(a), 0]);
+  }
+  bentBar(k, ring, new Array(8).fill(0.018), IRON);
   for (const [x, z] of [[-0.42, -0.38], [0.42, -0.38], [-0.42, 0.38], [0.42, 0.38]]) {
-    k.bar(new THREE.Vector3(0, 0, 0), new THREE.Vector3(x, -SLING, z), 0.03, ROPE);
+    k.bar(new THREE.Vector3(x * 0.06, -0.1, z * 0.06), new THREE.Vector3(x, -SLING, z), 0.034, ROPE);
   }
   return k.build();
 }
 
 function ropeGeometry(): THREE.BufferGeometry {
-  // a unit rope from y 0 down to y -1: scaled in y to the length; two falls
+  // a unit rope from y 0 down to y -1: scaled in y to the length; two falls of wire rope, either side of the block's sheave
   const k = new Kit();
-  k.box(0.03, 1, 0.03, -0.07, -0.5, 0, IRON_LIGHT).box(0.03, 1, 0.03, 0.07, -0.5, 0, IRON_LIGHT);
+  for (const x of [-FALL_X, FALL_X]) k.cyl(0.016, 0.016, 1, 6, x, -0.5, 0, IRON_LIGHT);
   return k.build();
 }
 
@@ -567,10 +605,19 @@ function foldPortal(crane: THREE.Object3D): void {
 }
 
 function craneWheelGeometry(): THREE.BufferGeometry {
-  // axle along z; spokes to see it turn
+  // axle along z (the crane detail pass, 2026-09-27): a double-flanged tyre (a travelling crane's wheel
+  // keeps to its rail both ways), six spokes to see it turn, the hub, the axle's ends in the bogie's
+  // axle boxes (build_boats.py bogie; tools/blender preview_wheel is the same wheel)
   const k = new Kit();
-  k.cyl(CRANE_WHEEL_R, CRANE_WHEEL_R, 0.12, 10, 0, 0, 0, IRON, Math.PI / 2);
-  for (let i = 0; i < 3; i++) k.box(0.05, CRANE_WHEEL_R * 1.9, 0.14, 0, 0, 0, IRON_LIGHT, 0, 0, (i * Math.PI) / 3);
+  const R = CRANE_WHEEL_R;
+  const tyre: Array<[number, number]> = [[R + 0.025, -0.062], [R, -0.045], [R, 0.045], [R + 0.025, 0.062], [R - 0.05, 0.062], [R - 0.05, -0.062], [R + 0.025, -0.062]];
+  k.lathe(tyre, 12, 0, 0, 0, IRON_LIGHT, Math.PI / 2);
+  k.cyl(0.075, 0.075, 0.12, 6, 0, 0, 0, IRON, Math.PI / 2);
+  k.cyl(0.035, 0.035, 0.4, 5, 0, 0, 0, IRON, Math.PI / 2);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    k.box(0.04, 0.19, 0.03, 0.165 * Math.sin(a), 0.165 * Math.cos(a), 0, IRON, 0, 0, -a);
+  }
   return k.build();
 }
 
@@ -581,9 +628,14 @@ function foldHook(jib: THREE.Object3D): void {
     if (!(m.isMesh || (o as THREE.LineSegments).isLineSegments) || folded.has(m.geometry)) return;
     folded.add(m.geometry);
     const pos = m.geometry.getAttribute("position") as THREE.BufferAttribute;
+    const out = (i: number) => pos.getZ(i) > 10.6 && Math.abs(pos.getX(i)) < 0.65 && pos.getY(i) < 7.9;
+    // a rigging line (the model's falls) folds whole when one end is out there: its top stays by the head
+    // sheave otherwise, a stub of rope beside the one drawn here (build_boats.py fold_check checks the model)
+    const lines = (o as THREE.LineSegments).isLineSegments;
+    const flag = Array.from({ length: pos.count }, (_, i) => out(i));
     let n = 0;
     for (let i = 0; i < pos.count; i++) {
-      if (pos.getZ(i) > 10.6 && Math.abs(pos.getX(i)) < 0.65 && pos.getY(i) < 7.9) {
+      if (flag[i] || (lines && flag[i ^ 1])) {
         pos.setXYZ(i, 0, TIP[1] - 0.05, TIP[2] - 0.1);
         n++;
       }
@@ -820,13 +872,23 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     }
   };
   fillRandom();
+  // the wagons, wheel sets, couplings and goods from wagons.glb (tools/blender/build_wagons.py) when it loaded, else
+  // the code-built parts; the same InstancedMeshes either way (one draw call per part)
+  const W = opts.wagons ?? null;
+  const goodsMat = W ? (opts.props.materials.goods ?? null) : null;
   const kinds: WagonKind[] = ["open", "flat", "van"];
   const bodies = new Map<WagonKind, THREE.InstancedMesh>();
-  for (const k of kinds) bodies.set(k, inst(wagonGeometry(k), woodMat, wagons.filter((w) => w.kind === k).length, `wagon_${k}`));
-  const wheels = inst(wheelsetGeometry(), woodMat, wagons.length * 2, "wagon_wheels");
-  const links = inst(linkGeometry(), woodMat, wagons.length + 1, "wagon_chains");
+  for (const k of kinds)
+    bodies.set(k, inst(W ? W.wagon[k] : wagonGeometry(k), W ? W.material : woodMat, wagons.filter((w) => w.kind === k).length, `wagon_${k}`));
+  const wheels = inst(W ? W.wheelset : wheelsetGeometry(), W ? W.material : woodMat, wagons.length * 2, "wagon_wheels");
+  // the couplings between the wagons (one each), then the rear horse's trace chain in pieces of about TRACE_LINK
+  const links = inst(W ? W.coupling : linkGeometry(), W ? W.material : woodMat, wagons.length + TRACE_PIECES, "wagon_chains");
   const goodsMesh = new Map<GoodsKind, THREE.InstancedMesh>();
-  for (const g of GOODS) goodsMesh.set(g, inst(unitGeometry(g), g === "crates" ? crateMat : g === "casks" ? woodMat : sackMat, 48, `goods_${g}`));
+  for (const g of GOODS)
+    goodsMesh.set(
+      g,
+      inst(W && goodsMat ? W.goods[g] : unitGeometry(g), W && goodsMat ? goodsMat : g === "crates" ? crateMat : g === "casks" ? woodMat : sackMat, 48, `goods_${g}`),
+    );
   const horses = new HorsePool(scene, opts.props, 2 + (opts.spareHorses ?? 2));
   const horseRects: Rect[] = [0, 1].map(() => ({ minX: 1e6, maxX: 1e6, minZ: 1e6, maxZ: 1e6, top: 2.2 }));
   let shunter: Human | null = null;
@@ -2112,6 +2174,34 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     M.compose(V.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2), Q, S.set(1, 1, len));
     links.setMatrixAt(i, M);
   };
+  /** The trace chain from the rear horse's collar (a) to the first wagon's hook (b): pieces with a little sag. */
+  const traceAt = (i: number) => (i === 0 ? 0 : wagons.length - 1 + i);
+  const trace = (ax: number, ay: number, az: number, bx: number, by: number, bz: number) => {
+    if (!opts.wagons) {
+      linkBetween(0, ax, ay, az, bx, by, bz);
+      return;
+    }
+    const len = Math.hypot(bx - ax, by - ay, bz - az);
+    const n = Math.max(1, Math.min(TRACE_PIECES, Math.round(len / TRACE_LINK)));
+    const sag = Math.min(0.12, len * 0.04);
+    let px = ax;
+    let py = ay;
+    let pz = az;
+    for (let k = 1; k <= n; k++) {
+      const t = k / n;
+      const qx = ax + (bx - ax) * t;
+      const qy = ay + (by - ay) * t - sag * Math.sin(Math.PI * t);
+      const qz = az + (bz - az) * t;
+      linkBetween(traceAt(k - 1), px, py, pz, qx, qy, qz);
+      px = qx;
+      py = qy;
+      pz = qz;
+    }
+    for (let k = n; k < TRACE_PIECES; k++) links.setMatrixAt(traceAt(k), zero);
+  };
+  const hideTrace = () => {
+    for (let k = 0; k < TRACE_PIECES; k++) links.setMatrixAt(traceAt(k), zero);
+  };
   const gcount = new Map<GoodsKind, number>();
   const unit = (g: GoodsKind, x: number, y: number, z: number, yaw: number) => {
     const m = goodsMesh.get(g)!;
@@ -2150,7 +2240,8 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
         body.setMatrixAt(k, zero);
         wheels.setMatrixAt(i * 2, zero);
         wheels.setMatrixAt(i * 2 + 1, zero);
-        links.setMatrixAt(i, zero);
+        if (i === 0) hideTrace();
+        else links.setMatrixAt(i, zero);
         const e = L_BODY / 2 + 0.3;
         prevRear = [wp.x - Math.sin(wp.yaw) * e, 0.98, wp.z - Math.cos(wp.yaw) * e];
         return;
@@ -2170,7 +2261,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
         // traces from the rear horse's collar to the first wagon's hook
         const hs = head - 1.6 - HORSE_GAP;
         line.at(hs - 0.9, pa);
-        linkBetween(i, pa.x, 1.25, pa.z, front[0], front[1], front[2]);
+        trace(pa.x, 1.25, pa.z, front[0], front[1], front[2]);
       }
       prevRear = [wp.x - s * e, 0.98, wp.z - c * e];
       if (w.goods) {
@@ -2196,7 +2287,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       c.jib.updateWorldMatrix(true, false);
       tip.set(TIP[0], TIP[1], TIP[2]).applyMatrix4(c.jib.matrixWorld);
       const wa = c.site.yaw + c.a;
-      const len = Math.max(0.1, tip.y - (hk.y + 0.86));
+      const len = Math.max(0.1, tip.y - (hk.y + HOOK_BLOCK));
       put(ropes, i, tip.x, tip.y, tip.z, wa, 0, 1, len, 1);
       put(hooks, i, hk.x, hk.y, hk.z, wa);
       if (c.carry) {
