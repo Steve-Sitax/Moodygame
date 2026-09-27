@@ -313,14 +313,29 @@ export class InWorld {
       before: () => {
         room.air(k, street);
         this.evenLights(room);
-        // the room's lamps glow in its air, not the street's gas lamps
+        // the room's lamps glow in its air. Seen from the street the street's air lies between the eye and the
+        // window, so the gas lamps' glow in it stays; they fade as the eye goes in (2026-09-27, Steve: "indoor
+        // places show dark in the fog": at night every room seen from outside lost the lamps' glow and stood as a
+        // dark block in the lit fog). Inside, the room's lamps take the slots first; from outside, the street's.
         const slots = psxUniforms.uLamps.value;
         const lamps = room.lamps();
         for (let i = 0; i < MAX_LAMPS; i++) {
           this.keepLamps[i].copy(slots[i]);
-          const l = lamps[i];
-          if (l) slots[i].set(l.p.x, l.p.y, l.p.z, l.w);
-          else slots[i].set(0, -999, 0, 0);
+          slots[i].set(0, -999, 0, 0);
+        }
+        let n = 0;
+        const putRoom = () => {
+          for (const l of lamps) if (n < MAX_LAMPS && l.w > 0.002) slots[n++].set(l.p.x, l.p.y, l.p.z, l.w);
+        };
+        const putStreet = () => {
+          for (const s of this.keepLamps) if (n < MAX_LAMPS && s.w * (1 - k) > 0.002) slots[n++].set(s.x, s.y, s.z, s.w * (1 - k));
+        };
+        if (k >= 0.5) {
+          putRoom();
+          putStreet();
+        } else {
+          putStreet();
+          putRoom();
         }
         this.keepScatter = psxUniforms.uScatter.value;
         psxUniforms.uScatter.value = THREE.MathUtils.lerp(this.keepScatter, room.scatter, k);

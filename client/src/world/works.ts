@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import CITY from "../../../shared/city.json";
 import INWORLD from "../../../shared/inworld_houses.json";
-import { psx } from "../retro/psx";
+import { psx, AIR_GLOW_GLSL, airGlowUniforms } from "../retro/psx";
 
 // Works chimneys on the skyline (picture round 2026-09-26, package 5: "two or three brewery or works chimneys beyond
 // the canal and the Entrepot"). Antwerp in 1873 had its industry inside and just outside the walls:
@@ -248,7 +248,7 @@ export function createWorks(scene: THREE.Scene, flags: Flags, ready: Promise<unk
     g.setAttribute("position", new THREE.BufferAttribute(P, 3));
     g.setAttribute("aSeed", new THREE.BufferAttribute(A, 4));
     const smat = new THREE.ShaderMaterial({
-      uniforms: { ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog), ...U },
+      uniforms: { ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog), ...U, ...airGlowUniforms() },
       fog: true,
       transparent: true,
       depthWrite: false,
@@ -257,10 +257,12 @@ export function createWorks(scene: THREE.Scene, flags: Flags, ready: Promise<unk
         uniform vec2 uWind;
         uniform float uScale;
         uniform float fogFar;
+        ${AIR_GLOW_GLSL}
         attribute vec4 aSeed;
         varying float vAlpha;
         varying float vFogDepth;
         varying float vSeed;
+        varying vec3 vGlow;
         void main() {
           float life = 26.0 + aSeed.y * 8.0;
           float age = fract(uTime / life + aSeed.x);
@@ -278,6 +280,8 @@ export function createWorks(scene: THREE.Scene, flags: Flags, ready: Promise<unk
           vAlpha = aSeed.w * smoothstep(0.0, 0.05, age) * pow(1.0 - age, 1.3);
           vSeed = aSeed.y;
           if (vAlpha < 0.005 || vFogDepth > fogFar * 2.3) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+          // the gas lamps' glow in the air in front of the plume, as in front of the sky behind it (retro/psx.ts)
+          else vGlow = airGlow((modelMatrix * vec4(p, 1.0)).xyz, fogFar);
         }`,
       fragmentShader: /* glsl */ `
         uniform vec3 uCol;
@@ -287,6 +291,7 @@ export function createWorks(scene: THREE.Scene, flags: Flags, ready: Promise<unk
         varying float vAlpha;
         varying float vFogDepth;
         varying float vSeed;
+        varying vec3 vGlow;
         float h12(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         void main() {
           vec2 c = gl_PointCoord - 0.5;
@@ -296,7 +301,7 @@ export function createWorks(scene: THREE.Scene, flags: Flags, ready: Promise<unk
           float f = smoothstep(fogNear, fogFar * 2.2, vFogDepth);
           float a = min(vAlpha * (1.0 - d * d) * mottle, 0.75) * (1.0 - f * 0.85);
           if (a < 0.008) discard;
-          gl_FragColor = vec4(mix(uCol, fogColor * 0.8, f), a);
+          gl_FragColor = vec4(mix(uCol, fogColor * 0.8, f) + vGlow * (0.35 + 0.65 * smoothstep(fogNear, fogFar, vFogDepth)), a);
           #include <colorspace_fragment>
         }`,
     });

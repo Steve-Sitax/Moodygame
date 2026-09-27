@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { psx, psxUniforms } from "../retro/psx";
+import { psx, psxUniforms, AIR_GLOW_GLSL, airGlowUniforms } from "../retro/psx";
 import type { Rect } from "./geom";
 import { bedAt, draftOf, levelAt, levelOf, regionAt } from "./tide";
 import { addLantern, type LanternSource } from "./lanternLights";
@@ -853,27 +853,36 @@ async function load(): Promise<Boats> {
   const emitters: Array<{ at: (out: THREE.Vector3) => void; strength: number; phase: number; root: () => THREE.Object3D | null }> = [];
   let smoke: THREE.Points | null = null;
   const smokeMat = new THREE.ShaderMaterial({
-    uniforms: THREE.UniformsUtils.merge([
-      THREE.UniformsLib.fog,
-      { map: { value: puffTexture() }, color: { value: new THREE.Color(0x4a4744) }, scale: { value: 150 } },
-    ]),
+    uniforms: {
+      ...THREE.UniformsUtils.merge([
+        THREE.UniformsLib.fog,
+        { map: { value: puffTexture() }, color: { value: new THREE.Color(0x4a4744) }, scale: { value: 150 } },
+      ]),
+      ...airGlowUniforms(),
+    },
     vertexShader: /* glsl */ `
       attribute float size;
       attribute float alpha;
       uniform float scale;
+      uniform float fogFar;
       varying float vAlpha;
+      varying vec3 vGlow;
+      ${AIR_GLOW_GLSL}
       #include <fog_pars_vertex>
       void main() {
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
         gl_Position = projectionMatrix * mvPosition;
         gl_PointSize = size * scale / max(0.5, -mvPosition.z);
         vAlpha = alpha;
+        // the gas lamps' glow in the air in front of the puff, as in front of the sky behind it (retro/psx.ts)
+        vGlow = alpha > 0.0 ? airGlow((modelMatrix * vec4(position, 1.0)).xyz, fogFar) : vec3(0.0);
         #include <fog_vertex>
       }`,
     fragmentShader: /* glsl */ `
       uniform sampler2D map;
       uniform vec3 color;
       varying float vAlpha;
+      varying vec3 vGlow;
       #include <fog_pars_fragment>
       void main() {
         vec4 t = texture2D(map, gl_PointCoord);
@@ -881,6 +890,9 @@ async function load(): Promise<Boats> {
         if (a < 0.03) discard;
         gl_FragColor = vec4(color * t.rgb, a);
         #include <fog_fragment>
+        #ifdef USE_FOG
+        gl_FragColor.rgb += vGlow * (0.35 + 0.65 * smoothstep(fogNear, fogFar, vFogDepth));
+        #endif
       }`,
     transparent: true,
     depthWrite: false,

@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { snort, thunder } from "../../audio/aliveSounds";
 import { FCOMMON, VCOMMON, pointMat, rand, type Ctx, type Frame, type Part } from "./common";
 import { HORSE_NOSE } from "../horseGait";
+import { AIR_GLOW_GLSL, airGlowUniforms } from "../../retro/psx";
 
 // M7 alive: the air and what falls through it.
 // (The water off the eaves, drops and broken gutters' streams: eaves.ts.)
@@ -107,13 +108,16 @@ export function createBreath(ctx: Ctx): Part {
   g.setAttribute("aSize", new THREE.BufferAttribute(size, 1));
   const tint = { value: new THREE.Color() };
   const mat = pointMat({
-    uniforms: { uTint: tint },
+    uniforms: { uTint: tint, ...airGlowUniforms() },
     vertexShader: /* glsl */ `
       ${VCOMMON}
+      uniform float fogFar;
+      ${AIR_GLOW_GLSL}
       attribute float aAge;
       attribute float aSize;
       varying float vA;
       varying float vS;
+      varying vec3 vGlow;
       void main() {
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         vFogDepth = -mv.z;
@@ -122,12 +126,16 @@ export function createBreath(ctx: Ctx): Part {
         vA = aAge < 0.0 ? 0.0 : smoothstep(0.0, 0.12, aAge) * (1.0 - aAge) * (0.7 + 0.3 * aSize);
         vS = position.x * 3.1 + position.z * 1.7;
         if (aAge < 0.0 || -mv.z < 0.12) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+        // a breath is a little mist lit as the fog round it is: the gas lamps' glow of the whole air behind it
+        // (else, a hand from the eye, it is the bare fog colour: a dark blue spot on the lit night fog; 2026-09-27)
+        else vGlow = airGlow(cameraPosition + normalize((modelMatrix * vec4(position, 1.0)).xyz - cameraPosition) * 1e4, fogFar);
       }`,
     fragmentShader: /* glsl */ `
       ${FCOMMON}
       uniform vec3 uTint;
       varying float vA;
       varying float vS;
+      varying vec3 vGlow;
       void main() {
         vec2 c = gl_PointCoord - 0.5;
         float d = dot(c, c) * 4.0;
@@ -135,7 +143,7 @@ export function createBreath(ctx: Ctx): Part {
         float mottle = 0.6 + 0.4 * hash12(floor(gl_PointCoord * 4.0) + vS);
         float a = vA * (1.0 - d) * (1.0 - d) * mottle * 0.2;
         if (a < 0.004) discard;
-        gl_FragColor = vec4(mix(uTint, fogColor, fogK()), a);
+        gl_FragColor = vec4(mix(uTint, fogColor, fogK()) + vGlow, a);
       }`,
   });
   const pts = new THREE.Points(g, mat);

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { psxUniforms } from "../retro/psx";
+import { psxUniforms, AIR_GLOW_GLSL, airGlowUniforms } from "../retro/psx";
 
 // Open fires (Steve: "more realistic fire in fire basket"): the tar-barrel fires on the quays,
 // and any brazier or forge that wants one. Each fire is a few dozen particles worked out on the
@@ -70,17 +70,21 @@ export function createFires(scene: THREE.Scene, spots: FireSpot[], opts: { smoke
     uViewH: { value: 270 },
     uLevel: { value: 1 },
     uSmoke: { value: 1 },
+    ...airGlowUniforms(),
   };
   const vs = /* glsl */ `
     uniform float uTime;
     uniform float uViewH;
     uniform float uLevel;
+    uniform float fogFar;
+    ${AIR_GLOW_GLSL}
     attribute vec2 aSeed;
     attribute float aSize;
     varying float vLife;
     varying float vKind;
     varying float vFogDepth;
     varying float vSeed;
+    varying vec3 vGlow;
     float hash(float n) { return fract(sin(n * 91.345) * 47453.5453); }
     void main() {
       float sd = aSeed.x;
@@ -116,6 +120,8 @@ export function createFires(scene: THREE.Scene, spots: FireSpot[], opts: { smoke
       // (fixes 2026-09-24: flames drawn as tongues, taller than wide, so they are bigger points)
       float px = kind < 0.5 ? (0.46 - 0.26 * age) * aSize * uLevel : kind < 1.5 ? 0.035 * step(0.05, uLevel) : (0.35 + 0.9 * age) * aSize;
       gl_PointSize = clamp(px * projectionMatrix[1][1] * uViewH * 0.5 / max(-mv.z, 0.1), 1.0, 64.0);
+      // the smoke: the gas lamps' glow in the air in front of it, as in front of the sky behind it (retro/psx.ts)
+      vGlow = kind > 1.5 ? airGlow((modelMatrix * vec4(p, 1.0)).xyz, fogFar) : vec3(0.0);
     }`;
   const fs = /* glsl */ `
     uniform vec3 fogColor;
@@ -177,6 +183,7 @@ export function createFires(scene: THREE.Scene, spots: FireSpot[], opts: { smoke
       varying float vLife;
       varying float vKind;
       varying float vFogDepth;
+      varying vec3 vGlow;
       void main() {
         if (vKind < 1.5 || uSmoke < 0.01) discard;
         vec2 c = gl_PointCoord - 0.5;
@@ -185,7 +192,7 @@ export function createFires(scene: THREE.Scene, spots: FireSpot[], opts: { smoke
         float a = min(0.85, (1.0 - d) * smoothstep(0.0, 0.15, vLife) * (1.0 - vLife) * 0.35 * min(uSmoke, 2.5));
         vec3 col = mix(vec3(0.16, 0.15, 0.14), fogColor, 0.4 + 0.5 * vLife);
         float fog = smoothstep(fogNear, fogFar, vFogDepth);
-        gl_FragColor = vec4(mix(col, fogColor, fog), a * (1.0 - fog));
+        gl_FragColor = vec4(mix(col, fogColor, fog) + vGlow * (0.35 + 0.65 * fog), a * (1.0 - fog));
       }`,
     transparent: true,
     depthWrite: false,
