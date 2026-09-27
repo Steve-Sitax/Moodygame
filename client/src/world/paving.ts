@@ -156,15 +156,35 @@ function stones(
 /**
  * Long granite edge stones laid along a seam where two pavings meet: u along the seam
  * (one tile = 2 m), v across (0..1 = the band). Stones of 40-80 cm, a lit top edge.
+ * `height` (2026-09-27, Steve: the kerbs "should seem higher in bumpmapping"): the same stones as a height map, each a
+ * slab with a flat worn top and its long edges and ends rounded down into the dark joints, for the bump (bumpMap).
  */
-export function edgeStoneTexture(): THREE.CanvasTexture {
+/** The kerbs' bump (three.js bumpScale, per 270-line pixel): the stone kinds' 1.4 read flat beside the cobbles' relief. */
+export const EDGE_BUMP = 6;
+let edgeStones: { map: THREE.CanvasTexture; height: THREE.CanvasTexture } | null = null;
+export function edgeStoneTextures(): { map: THREE.CanvasTexture; height: THREE.CanvasTexture } {
+  if (edgeStones) return edgeStones;
   const n = 64;
   const c = document.createElement("canvas");
   c.width = c.height = n;
   const g = c.getContext("2d")!;
+  const hc = document.createElement("canvas");
+  hc.width = hc.height = n;
+  const hg = hc.getContext("2d")!;
+  const hImg = hg.createImageData(n, n);
   const r = rand(1875);
-  g.fillStyle = "rgb(34,31,27)";
-  g.fillRect(0, 0, n, n);
+  // the dirt beside the kerb, darkest against the stone: its shadow on the lower ground (it reads as standing up)
+  for (let yy = 0; yy < 6; yy++) {
+    const k = 34 - 3 * yy;
+    g.fillStyle = `rgb(${k},${k - 3},${k - 7})`;
+    g.fillRect(0, yy, n, 1);
+    g.fillRect(0, n - 1 - yy, n, 1);
+  }
+  // the slab's rise from its edge: steep for 4 px, then a flat top (the long sides at v 6 and n - 6)
+  const rise = (d: number) => {
+    const e = Math.max(0, Math.min(1, d / 4));
+    return Math.sqrt(1 - (1 - e) * (1 - e));
+  };
   let x = 0;
   while (x < n) {
     const w = 13 + Math.floor(r() * 14);
@@ -176,21 +196,49 @@ export function edgeStoneTexture(): THREE.CanvasTexture {
     g.fillRect(x + 1, 14, w - 1, n - 28);
     g.fillStyle = "rgba(0,0,0,0.25)";
     g.fillRect(x + 1, n - 9, w - 1, 3);
+    // the arrises: a worn light edge on one long side, the other rounded into shade, the ends a little dark
+    g.fillStyle = "rgba(255,248,235,0.22)";
+    g.fillRect(x + 1, 6, w - 1, 2);
+    g.fillStyle = "rgba(0,0,0,0.3)";
+    g.fillRect(x + 1, n - 8, w - 1, 2);
+    g.fillStyle = "rgba(0,0,0,0.18)";
+    g.fillRect(x + 1, 6, 1, n - 12);
+    g.fillRect(x + w - 1, 6, 1, n - 12);
+    const top = 0.85 + 0.15 * r();
+    for (let yy = 6; yy < n - 6; yy++) {
+      for (let xx = x + 1; xx < Math.min(n, x + w); xx++) {
+        const d = Math.min(yy - 6 + 0.5, n - 6 - yy - 0.5, xx - x - 0.5, x + w - xx - 0.5);
+        const i = (yy * n + xx) * 4;
+        hImg.data[i] = hImg.data[i + 1] = hImg.data[i + 2] = Math.round(255 * (0.12 + 0.88 * top * rise(d)));
+      }
+    }
     x += w;
+  }
+  for (let i = 0; i < n * n; i++) {
+    hImg.data[i * 4 + 3] = 255;
+    if (hImg.data[i * 4] === 0) hImg.data[i * 4] = hImg.data[i * 4 + 1] = hImg.data[i * 4 + 2] = 18; // the joints and the dirt beside
   }
   for (let i = 0; i < 180; i++) {
     const a = (r() - 0.5) * 0.18;
     g.fillStyle = a > 0 ? `rgba(255,255,255,${a})` : `rgba(0,0,0,${-a})`;
     g.fillRect(Math.floor(r() * n), 6 + Math.floor(r() * (n - 12)), 1, 1);
   }
+  hg.putImageData(hImg, 0, 0);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   t.magFilter = THREE.NearestFilter;
   t.minFilter = THREE.LinearMipmapLinearFilter;
   t.wrapS = THREE.RepeatWrapping;
   t.wrapT = THREE.ClampToEdgeWrapping;
-  return t;
+  const h = new THREE.CanvasTexture(hc);
+  h.magFilter = THREE.LinearFilter;
+  h.minFilter = THREE.LinearMipmapLinearFilter;
+  h.wrapS = THREE.RepeatWrapping;
+  h.wrapT = THREE.ClampToEdgeWrapping;
+  edgeStones = { map: t, height: h };
+  return edgeStones;
 }
+export const edgeStoneTexture = (): THREE.CanvasTexture => edgeStoneTextures().map;
 
 /**
  * Packed earth of the working quays (Steve: "the dirt texture is very blocky; make it more
