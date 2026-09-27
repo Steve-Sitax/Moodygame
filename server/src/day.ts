@@ -10,12 +10,19 @@ import { fogAt, type FogDay } from "./town/lampround.ts";
 import { gateMode, isPaused } from "./save/gate.ts";
 import { setWorldClock, worldClock } from "./mp/worldClock.ts"; // M8a: the clock is the world's (world_state), not player 1's row
 import type { RestEnd, RestView } from "./rest.ts";
+import { asPlayer, forEachOnline, onlineIds, pid } from "./player/current.ts";
+import { pstate, setPstate } from "./player/multi.ts";
+import { mpOn } from "./mp/settings.ts"; // M8c: played together, the server's own tick moves the world
 
 // The day and the week (M5). The engine owns time and needs (docs/01, docs/03).
 // A client says "time passed while I played" with a tick; the server decides how
 // much and applies needs hour by hour. M7 night (Steve 2026-09-25): the clock runs on
 // through the night; the date turns at midnight (turnDay); sleep is Jef's own choice and
 // lasts seven to eight game hours (sleep); dead tired, he drops where he stands.
+// M8c: the clock, the weather and the date's turn are the world's; the needs, the end, the day's money mark,
+// the nights slept and the swim are each player's own (pid(); player_state). The hour's part of one player is
+// playerHour, his part of a new day playerDayStart: the tick runs them for the player who asks; the multiplayer
+// side runs them as each other player in the game (asPlayer).
 
 /**
  * The tick (M7 clock, shared/clock.ts): 5 game minutes every 10 real seconds; a game hour is two
@@ -105,19 +112,17 @@ export function clock(db: DB): Clock {
   return { ...p, weekday: DAY_NAMES[(p.day - 1) % 7], weather: weather(db) };
 }
 
+/** How the week ended for this player (M8c: each his own; the host's older world_state key until written). */
 export function ending(db: DB): Ending | null {
-  const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'ending'").get() as { value_json: string } | undefined;
-  return row ? (JSON.parse(row.value_json) as Ending) : null;
+  return pstate<Ending>(db, "ending");
 }
 
 export function setEnding(db: DB, e: Ending): void {
-  db.prepare("INSERT INTO world_state (key, value_json) VALUES ('ending', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(
-    JSON.stringify(e),
-  );
+  setPstate(db, "ending", e);
 }
 
 export function rentPaid(db: DB): boolean {
-  return (db.prepare("SELECT rent_paid_until FROM player WHERE id = 1").get() as { rent_paid_until: number }).rent_paid_until >= WEEK_DAYS;
+  return (db.prepare("SELECT rent_paid_until FROM player WHERE id = ?").get(pid()) as { rent_paid_until: number }).rent_paid_until >= WEEK_DAYS;
 }
 
 const clamp = (n: number) => Math.max(0, Math.min(10, n));
@@ -202,17 +207,18 @@ export function applyHour(db: DB, hour: number): { healthZero: boolean } {
     if (hour % 3 === 0) health--;
   } else if (food >= 4 && warmth >= 4 && sleep >= 4 && hour % 4 === 0) health++;
   health = clamp(health);
-  db.prepare("UPDATE player SET food = ?, warmth = ?, sleep = ?, health = ? WHERE id = 1").run(food, warmth, sleep, health);
+  db.prepare("UPDATE player SET food = ?, warmth = ?, sleep = ?, health = ? WHERE id = ?").run(food, warmth, sleep, health, pid());
   return { healthZero: health === 0 };
 }
 
 let lastTickAt = 0;
-let lastSwimAt = -Infinity;
+/** When each player last fell in (real ms): a dip counts once a minute (M8c: per player). */
+const lastSwimAt = new Map<number, number>();
 
 /** Test helper. */
 export function resetTickLimit(): void {
   lastTickAt = 0;
-  lastSwimAt = -Infinity;
+  lastSwimAt.clear();
 }
 
 /** A dip counts once however long you are in: a new one only after this long. */
@@ -224,14 +230,12 @@ export const SWIM_EVERY_MS = 60_000;
  */
 export function swim(db: DB, now = Date.now()): { cold: boolean } {
   if (ending(db)) return { cold: false };
-  if (now - lastSwimAt < SWIM_EVERY_MS) return { cold: false };
-  lastSwimAt = now;
-  db.prepare("UPDATE player SET warmth = MAX(0, warmth - 1) WHERE id = 1").run();
+  if (now - (lastSwimAt.get(pid()) ?? -Infinity) < SWIM_EVERY_MS) return { cold: false };
+  lastSwimAt.set(pid(), now);
+  db.prepare("UPDATE player SET warmth = MAX(0, warmth - 1) WHERE id = ?").run(pid());
   // M7 warmth: his coat is wet for a while (warmth.ts wetNow: the lantern does not help then)
   const c = clock(db);
-  db.prepare("INSERT INTO world_state (key, value_json) VALUES ('swam_at', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(
-    JSON.stringify(c.day * 1440 + c.hour * 60 + c.minute),
-  );
+  setPstate(db, "swam_at", c.day * 1440 + c.hour * 60 + c.minute);
   return { cold: true };
 }
 
@@ -262,7 +266,19 @@ export type TickResult = {
  * M7 sleep (rest.ts sets it): while Jef is asleep in a bed or on a bench, the tick is a step of his sleep
  * (the time passes faster while all players sleep) instead of the waking hour. Null: he is not asleep.
  */
-export const RESTING: { step: (db: DB, now: number, asleep: boolean) => TickResult | null } = { step: () => null };
+export const RESTING: {
+  step: (db: DB, now: number, asleep: boolean) => TickResult | null;
+  /** M8c together: a piece of the world's time for this player if he is asleep (true), else nothing (false). */
+  piece: (db: DB, id: number, min: number, hourEnded: boolean) => boolean;
+  /** M8c together: dead on his feet, he sleeps where he dropped while the world goes on. */
+  collapse: (db: DB, id: number) => unknown;
+  /** M8c together: the date turned while these slept (their wake lines). */
+  turned: (lines: string[]) => void;
+  /** M8c together: is everyone in the game asleep (the night passes fast)? */
+  allAsleep: () => boolean;
+  /** M8d together: the world's week ended: every sleeper's sleep ends in his end. */
+  weekOver: (db: DB) => void;
+} = { step: () => null, piece: () => false, collapse: () => null, turned: () => {}, allAsleep: () => false, weekOver: () => {} };
 
 /**
  * Midnight: the date turns. The week's end, the rent of a room, the memories fading, a night of
@@ -272,17 +288,43 @@ export const RESTING: { step: (db: DB, now: number, asleep: boolean) => TickResu
 export function turnDay(db: DB): DayTurn {
   const c = clock(db);
   const lines: string[] = [];
+  const me = pid();
   db.transaction(() => {
-    for (const h of NIGHT_HOOKS) lines.push(...h(db, c.day));
+    // (M8c: the night's rent and such for every player in the game; the lines are the asking player's)
+    forEachOnline((id) => {
+      for (const h of NIGHT_HOOKS) {
+        const got = h(db, c.day);
+        if (id === me) lines.push(...got);
+      }
+    });
     consolidate(db);
     // a night of talk in the taverns and over the back walls (M3e)
     for (let i = 0; i < 3; i++) spreadRumours(db);
   })();
-  if (c.day >= WEEK_DAYS) return { day: c.day, lines, ended: endGame(db, "week") };
+  if (c.day >= WEEK_DAYS) {
+    // (M8c: the world's week is over for everyone in the game)
+    let mine: Ending | undefined;
+    forEachOnline((id) => {
+      const e = id === me ? endGame(db, "week") : playerDayStart(db, true);
+      if (id === me) mine = e;
+    });
+    return { day: c.day, lines, ended: mine ?? endGame(db, "week") };
+  }
   setWorldClock(db, { day: c.day + 1, hour: 0, minute: 0 }); // M8a
-  markDayStart(db);
+  forEachOnline(() => playerDayStart(db, false));
   rollWeather(db);
   return { day: c.day + 1, lines };
+}
+
+/**
+ * M8c: one player's part of the date's turn, for pid(): the new day's money mark, or (`weekOver`: Sunday is
+ * past) the end of his week. turnDay does it for the player who asks; run it as each other player in the game
+ * after turnDay (asPlayer), with `weekOver` = `!!turn.ended`. Returns his end when the week is over.
+ */
+export function playerDayStart(db: DB, weekOver: boolean): Ending | undefined {
+  if (weekOver) return ending(db) ?? endGame(db, "week");
+  markDayStart(db);
+  return undefined;
 }
 
 /**
@@ -290,6 +332,9 @@ export function turnDay(db: DB): DayTurn {
  * minutes, the date turns at each midnight on the way. Stops when the week ends.
  */
 export function passTime(db: DB, minutes: number): { lines: string[]; turned: boolean; ended?: Ending } {
+  // (M8c: played together the world's clock moves only on the server's own ticks: one player's night in a cell
+  // or a bed does not carry everyone to the morning; his own sleep is paced by the world's time, rest.ts)
+  if (mpOn()) return { lines: [], turned: false };
   let left = Math.max(0, Math.round(minutes));
   const lines: string[] = [];
   let turned = false;
@@ -316,6 +361,8 @@ export function passTime(db: DB, minutes: number): { lines: string[]; turned: bo
  * `asleep`: the client is in its sleep (M7 sleep, rest.ts: the tick is a step of the sleep then).
  */
 export function tick(db: DB, now = Date.now(), opts: { asleep?: boolean } = {}): TickResult {
+  // M8c: played together, the server's own tick moves the world and every player in it (worldTick)
+  if (mpOn()) return worldTick(db, now);
   if (ending(db)) return { advanced: false };
   // M7 save and pause: nothing moves while the game is paused, saving or loading (save/gate.ts)
   if (isPaused() || gateMode() !== "open") return { advanced: false };
@@ -341,13 +388,90 @@ export function tick(db: DB, now = Date.now(), opts: { asleep?: boolean } = {}):
     hour -= 24;
   }
   setWorldClock(db, { day: clock(db).day, hour, minute }); // M8a (the date may have turned above)
-  const { healthZero } = applyHour(db, hour);
   // M3e: an hour of talk in the town; rumours about Jef pass on
   spreadRumours(db);
-  if (healthZero) return { advanced: true, ended: endGame(db, "health"), ...(turned ? { turned } : {}) };
-  // M7 night: dead on his feet, Jef drops where he stands and sleeps there (a gang may find him)
-  if (player(db).sleep <= COLLAPSE_AT) return { advanced: true, night: sleep(db, "rough", undefined, { collapsed: true }), ...(turned ? { turned } : {}) };
-  return { advanced: true, ...(turned ? { turned } : {}) };
+  const mine = playerHour(db, hour);
+  return { advanced: true, ...mine, ...(turned ? { turned } : {}) };
+}
+
+/**
+ * M8c: one player's part of a game hour that just began (`hour`: the world clock's new hour), for pid(): the
+ * needs (applyHour), his end when his health is gone, and his drop where he stands when he is dead on his feet.
+ * The tick runs it for the player who asks; run it as each other player in the game who is awake (asPlayer).
+ * Nothing for a player whose week has ended.
+ */
+export function playerHour(db: DB, hour: number): { ended?: Ending; night?: SleepResult } {
+  if (ending(db)) return {};
+  const { healthZero } = applyHour(db, hour);
+  if (healthZero) return { ended: endGame(db, "health") };
+  // M7 night: dead on his feet, Jef drops where he stands and sleeps there (a gang may find him); played
+  // together he sleeps there while the world goes on (M8c: rest.ts collapseRest)
+  if (player(db).sleep <= COLLAPSE_AT) {
+    if (mpOn()) {
+      RESTING.collapse(db, pid());
+      return {};
+    }
+    return { night: sleep(db, "rough", undefined, { collapsed: true }) };
+  }
+  return {};
+}
+
+/** M8c together: a sleep step every so often when everyone in the game is asleep (the night passes fast). */
+const FAST_EVERY_MS = 300;
+const FAST_MINUTES = 30;
+
+/**
+ * M8c: the world's tick, played together (docs/multiplayer-plan.md 5.3, 6.1). Only the server's own tick comes
+ * here (mp/index.ts calls /api/tick itself; a tab's tick is its heartbeat). The world's clock moves by
+ * TICK_MINUTES (every 10 s), or by FAST_MINUTES often when everyone in the game is asleep; for each piece of it
+ * up to the next hour, every player in the game has his part: a sleeper his sleep (rest.ts restPiece), anyone
+ * awake his hour when it turns (needs, his end, his drop). A player who is gone is frozen till he is back. The
+ * result is the host's (the caller's) part.
+ */
+export function worldTick(db: DB, now = Date.now()): TickResult {
+  if (isPaused() || gateMode() !== "open") return { advanced: false };
+  const fast = RESTING.allAsleep();
+  if (now - lastTickAt < (fast ? FAST_EVERY_MS : TICK_EVERY_MS - 1000)) return { advanced: false };
+  const ids = onlineIds();
+  // the world's week is over (every player in the game has his end): nothing moves any more
+  if (ids.every((id) => asPlayer(id, () => !!ending(db)))) return { advanced: false };
+  lastTickAt = now;
+  const me = pid();
+  let left = fast ? FAST_MINUTES : TICK_MINUTES;
+  let turned: DayTurn | undefined;
+  const mine: { ended?: Ending; night?: SleepResult } = {};
+  while (left > 0) {
+    const c = clock(db);
+    const toHour = 60 - c.minute;
+    const piece = Math.min(left, toHour);
+    left -= piece;
+    const hourEnded = piece === toHour;
+    if (hourEnded && c.hour >= 23) {
+      turned = turnDay(db);
+      RESTING.turned(turned.lines);
+      if (turned.ended) {
+        // M8d: the week is over in their sleep (or in the cell): every sleeper wakes to his end
+        RESTING.weekOver(db);
+        return { advanced: true, ended: turned.ended, turned };
+      }
+    } else {
+      const t = c.hour * 60 + c.minute + piece;
+      setWorldClock(db, { day: c.day, hour: Math.floor(t / 60), minute: t % 60 });
+    }
+    const hour = clock(db).hour;
+    for (const id of ids) {
+      asPlayer(id, () => {
+        if (ending(db)) return;
+        if (RESTING.piece(db, id, piece, hourEnded)) return;
+        if (!hourEnded) return;
+        const r = playerHour(db, hour);
+        if (id === me) Object.assign(mine, r);
+      });
+    }
+    // M3e: an hour of talk in the town; rumours about the players pass on
+    if (hourEnded) spreadRumours(db);
+  }
+  return { advanced: true, ...mine, ...(turned ? { turned } : {}) };
 }
 
 /** Did this tick or night turn the date (a new board is due), or end the week? */
@@ -408,25 +532,23 @@ export interface SleepInfo {
 }
 export const SLEEP_HOOKS: Array<(db: DB, s: SleepInfo) => { lines: string[]; robbed?: { money_c: number; things: string[] } } | null> = [];
 
+// (M8c: the day's money mark and the nights slept are each player's own)
 function startOfDayMoney(db: DB): number {
-  const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'day_start_money'").get() as { value_json: string } | undefined;
-  return row ? Number(JSON.parse(row.value_json)) : 50;
+  const v = pstate<number>(db, "day_start_money");
+  return v === null ? 50 : Number(v);
 }
 
 export function markDayStart(db: DB): void {
-  db.prepare("INSERT INTO world_state (key, value_json) VALUES ('day_start_money', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(
-    JSON.stringify(player(db).money_c),
-  );
+  setPstate(db, "day_start_money", player(db).money_c);
 }
 
 /** M7 night: how many times Jef has slept (the dream comes after a sleep, not at midnight). */
 export function nightsSlept(db: DB): number {
-  const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'nights_slept'").get() as { value_json: string } | undefined;
-  return row ? Number(JSON.parse(row.value_json)) || 0 : 0;
+  return Number(pstate<number>(db, "nights_slept")) || 0;
 }
 
 export function countNight(db: DB): void {
-  db.prepare("INSERT INTO world_state (key, value_json) VALUES ('nights_slept', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(JSON.stringify(nightsSlept(db) + 1));
+  setPstate(db, "nights_slept", nightsSlept(db) + 1);
 }
 
 const hhmm = (h: number, m: number) => `${h}:${String(m).padStart(2, "0")}`;
@@ -456,9 +578,9 @@ export function sleep(db: DB, want: "bed" | "rough" | "home", home?: HomeNight, 
   else summary.push(`You lie down at ${hhmm(c.hour, c.minute)}.`);
   // the day behind him, when he lies down in the evening (after midnight the new date has barely begun)
   if (c.hour >= 12) {
-    const jobsDone = (db.prepare("SELECT COUNT(*) n FROM log WHERE day = ? AND verb = 'finished_job'").get(c.day) as { n: number }).n;
+    const jobsDone = (db.prepare("SELECT COUNT(*) n FROM log WHERE day = ? AND verb = 'finished_job' AND player_id = ?").get(c.day, pid()) as { n: number }).n;
     // every meal: from the pocket, at a counter (ate), at a family's table (supper)
-    const meals = (db.prepare("SELECT COUNT(*) n FROM log WHERE day = ? AND verb IN ('ate', 'supper')").get(c.day) as { n: number }).n;
+    const meals = (db.prepare("SELECT COUNT(*) n FROM log WHERE day = ? AND verb IN ('ate', 'supper') AND player_id = ?").get(c.day, pid()) as { n: number }).n;
     const earned = p.money_c - startOfDayMoney(db);
     summary.push(
       jobsDone ? `You worked ${jobsDone} job${jobsDone > 1 ? "s" : ""} today.` : "You found no work today.",
@@ -474,14 +596,14 @@ export function sleep(db: DB, want: "bed" | "rough" | "home", home?: HomeNight, 
     if (where === "home" && home) {
       // M6 homes: your own room; the old food value decides the health, as in the doss house
       db.prepare(
-        "UPDATE player SET sleep = 10, food = MAX(0, food - ?), warmth = MIN(10, warmth + ?), health = MIN(10, health + CASE WHEN food >= 3 THEN ? ELSE ? END) WHERE id = 1",
-      ).run(home.food, home.warmth, home.healthFed, home.healthHungry);
+        "UPDATE player SET sleep = 10, food = MAX(0, food - ?), warmth = MIN(10, warmth + ?), health = MIN(10, health + CASE WHEN food >= 3 THEN ? ELSE ? END) WHERE id = ?",
+      ).run(home.food, home.warmth, home.healthFed, home.healthHungry, pid());
       summary.push(home.text);
     } else if (where === "bed") {
-      db.prepare("UPDATE player SET sleep = 10, food = MAX(0, food - 2), warmth = MIN(10, warmth + 3), health = MIN(10, health + CASE WHEN food >= 3 THEN 1 ELSE 0 END) WHERE id = 1").run();
+      db.prepare("UPDATE player SET sleep = 10, food = MAX(0, food - 2), warmth = MIN(10, warmth + 3), health = MIN(10, health + CASE WHEN food >= 3 THEN 1 ELSE 0 END) WHERE id = ?").run(pid());
       summary.push("You sleep in a bed of straw in the doss house, six men to the room. It is warm enough.");
     } else {
-      db.prepare("UPDATE player SET sleep = 6, food = MAX(0, food - 2), warmth = MAX(0, warmth - 3), health = MAX(0, health - 2) WHERE id = 1").run();
+      db.prepare("UPDATE player SET sleep = 6, food = MAX(0, food - 2), warmth = MAX(0, warmth - 3), health = MAX(0, health - 2) WHERE id = ?").run(pid());
       summary.push(
         turnedAway
           ? "The landlady will not open the door. No rent, no bed. You sleep on the quay under a tarpaulin, and the fog gets into your bones."
@@ -533,7 +655,7 @@ export function payRent(db: DB): { paid: boolean; text: string } {
   const p = player(db);
   if (p.money_c < RENT_C) return { paid: false, text: sexed(db, `"${RENT_C} centimes for the week, lad, and you have ${p.money_c}. Sunday is Sunday."`) };
   db.transaction(() => {
-    db.prepare("UPDATE player SET money_c = money_c - ?, rent_paid_until = ? WHERE id = 1").run(RENT_C, WEEK_DAYS);
+    db.prepare("UPDATE player SET money_c = money_c - ?, rent_paid_until = ? WHERE id = ?").run(RENT_C, WEEK_DAYS, pid());
     log(db, "paid_rent", null, `Jef paid the week's rent at the doss house, ${RENT_C} centimes.`);
   })();
   return { paid: true, text: "The landlady counts it twice and bites one coin. \"Your bed till Sunday.\"" };
@@ -543,5 +665,38 @@ export function endGame(db: DB, kind: "week" | "health"): Ending {
   const e: Ending = { kind, day: clock(db).day };
   setEnding(db, e);
   log(db, kind === "health" ? "collapsed" : "week_over", null, kind === "health" ? "Jef's body gave out." : "The week is over.");
+  // M8d: every player's end as it comes (index.ts writes his own epilogue, whoever's request or tick it was)
+  const id = pid();
+  for (const h of ENDING_HOOKS) h(db, id, e);
   return e;
+}
+
+/**
+ * M8d: each player's end, when it comes (`id`: whose; the world's week end gives one to every player in the game,
+ * a body that gives out one to him alone while the world goes on). index.ts writes his epilogue.
+ */
+export const ENDING_HOOKS: Array<(db: DB, id: number, e: Ending) => void> = [];
+
+/** M8d: the world's own week is over (Sunday is past for everyone): only a new week goes on from here. */
+export function worldWeekOver(db: DB): boolean {
+  const rows = [
+    ...(db.prepare("SELECT value_json FROM player_state WHERE key = 'ending'").all() as Array<{ value_json: string }>),
+    ...(db.prepare("SELECT value_json FROM world_state WHERE key = 'ending'").all() as Array<{ value_json: string }>),
+  ];
+  return rows.some((r) => {
+    try {
+      return (JSON.parse(r.value_json) as Ending).kind === "week";
+    } catch {
+      return false;
+    }
+  });
+}
+
+/**
+ * M8d: nothing more of the world's own daily work (the paper's morning, the day's bills): every player in the game
+ * has his end (played alone: the one player's week is over, as before; together: the world's week, or everyone's
+ * own end).
+ */
+export function everyoneEnded(db: DB): boolean {
+  return worldWeekOver(db) || onlineIds().every((id) => asPlayer(id, () => !!ending(db)));
 }

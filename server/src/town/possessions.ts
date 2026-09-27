@@ -2,6 +2,7 @@ import type { DB } from "../db.ts";
 import { LINES as OMNIBUS_LINES } from "../../../shared/omnibusLines.ts";
 import { log } from "../game.ts";
 import { remember } from "../npcs.ts";
+import { asPlayer } from "../player/current.ts";
 import { dropTownCache, town, TOWN_EMPLOYER_IDS } from "./store.ts";
 import { houseDoors, walkMap } from "./walkmap.ts";
 import type { Resident, TownPlace } from "./population.ts";
@@ -537,8 +538,11 @@ export function ownerMissed(db: DB, veloId: string, states: Record<string, VeloS
   const key = `missed:${veloId}:${st.deed}`;
   if (db.prepare("SELECT 1 FROM world_state WHERE key = ?").get(key)) return false;
   db.prepare("INSERT INTO world_state (key, value_json) VALUES (?, 'true')").run(key);
-  remember(db, v.owner, "I went to take my velocipede and it was gone. I had to walk, and I was late.", 4);
-  log(db, "walked", v.owner, `${town(db).byId.get(v.owner)?.name ?? "Someone"} found the velocipede gone and had to walk.`);
+  // (M8c: about the player who took it, whoever asks)
+  asPlayer(d.player_id ?? 1, () => {
+    remember(db, v.owner, "I went to take my velocipede and it was gone. I had to walk, and I was late.", 4);
+    log(db, "walked", v.owner, `${town(db).byId.get(v.owner)?.name ?? "Someone"} found the velocipede gone and had to walk.`);
+  });
   return true;
 }
 

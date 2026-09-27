@@ -2,7 +2,7 @@ import type { Context, Hono } from "hono";
 import { z } from "zod";
 import type { DB } from "../db.ts";
 import { plainEnglish } from "../text.ts";
-import { mpHostRule } from "../mp/auth.ts"; // M8a
+import { loopback, mpHostRule } from "../mp/auth.ts"; // M8a
 import { testCall } from "./claude.ts";
 import { codexBin } from "./codex.ts";
 import { routeOfChoice, type Route } from "./router.ts";
@@ -59,15 +59,12 @@ let testing = false;
  * marked admin too (docs/ai-setup.md). A proxy that says it forwards someone else is not the host.
  * Behind the vite proxy the socket is the proxy's (this machine); vite serves this machine only.
  */
-const LOCAL_ADDRESSES = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 export function fromHost(c: Context): boolean {
   const mp = mpHostRule(c); // M8a multiplayer: a guest's token is never the host; a player the host marked admin is
   if (mp !== null) return mp;
   const addr = (c.env as { incoming?: { socket?: { remoteAddress?: string } } } | undefined)?.incoming?.socket?.remoteAddress;
-  if (!addr || !LOCAL_ADDRESSES.has(addr)) return false;
-  const fwd = c.req.header("x-forwarded-for") ?? c.req.header("forwarded");
-  if (fwd && fwd.split(",").some((a) => !LOCAL_ADDRESSES.has(a.trim().replace(/^for=/i, "").replace(/^"?\[?|\]?"?$/g, "")))) return false;
-  return true;
+  // (the same rule as the game's host: loopback, or M8e this PC's own bound LAN/VPN address; no forwarding for another)
+  return loopback(addr, c.req.header("x-forwarded-for") ?? c.req.header("forwarded"));
 }
 const HOST_ONLY = "Only the host may change the AI settings (a request from this computer).";
 

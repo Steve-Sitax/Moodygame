@@ -29,23 +29,41 @@ const LOCAL_NAMES = new Set(["127.0.0.1", "localhost", "[::1]"]);
  */
 export const LAN_NAMES = new Set<string>();
 const lanName = (u: URL) => LAN_NAMES.has(u.hostname.toLowerCase()) && Number(u.port) === PORT;
+/** M8e: the house's https port (the game port + 1: 8788), open while the house or the VPN is (mp/lan.ts). */
+export const TLS_PORT = PORT + 1;
+/**
+ * M8e (mp/lan.ts fills it while the https port is open): every name and address the server certificate carries
+ * (localhost, 127.0.0.1, the computer's name, the home-network addresses; with "Open to my VPN" the VPN's name and
+ * address too), accepted as a Host or an https Origin on the https port only. The VPN's names never reach the
+ * plain http port.
+ */
+export const TLS_NAMES = new Set<string>();
+/**
+ * M8e (mp/lan.ts fills it): this PC's own home-network and VPN addresses the server is bound to now (plain http or
+ * https). A request or socket from one of them is this PC, like 127.0.0.1 (mp/auth.ts loopback): the host on his
+ * own secure name. The Host and Origin checks still apply.
+ */
+export const OWN_ADDRS = new Set<string>();
+const tlsName = (u: URL) => TLS_NAMES.has(u.hostname.toLowerCase()) && Number(u.port) === TLS_PORT;
 
 /** A Host header naming this machine on one of the game's ports (no DNS rebinding). */
 export function allowedHost(host: string | undefined, ports: ReadonlySet<number> = CLIENT_PORTS): boolean {
   if (!host) return false;
   try {
     const u = new URL(`http://${host}`);
-    return (LOCAL_NAMES.has(u.hostname) && ports.has(Number(u.port))) || lanName(u); // M8a: or a home-network name
+    return (LOCAL_NAMES.has(u.hostname) && ports.has(Number(u.port))) || lanName(u) || tlsName(u); // M8a: or a home-network name; M8e: or the https port's
   } catch {
     return false;
   }
 }
 
-/** An Origin header of one of the game's own pages (http, this machine, a game port). */
+/** An Origin header of one of the game's own pages (http on this machine or the house; https on the https port). */
 export function allowedOrigin(origin: string, ports: ReadonlySet<number> = CLIENT_PORTS): boolean {
   try {
     const u = new URL(origin);
-    return u.protocol === "http:" && u.origin === origin && ((LOCAL_NAMES.has(u.hostname) && ports.has(Number(u.port))) || lanName(u)); // M8a: or a home-network name
+    if (u.origin !== origin) return false;
+    if (u.protocol === "https:") return tlsName(u); // M8e
+    return u.protocol === "http:" && ((LOCAL_NAMES.has(u.hostname) && ports.has(Number(u.port))) || lanName(u)); // M8a: or a home-network name
   } catch {
     return false;
   }
@@ -148,10 +166,68 @@ export const CODEX = {
  */
 export const CALLS_PER_DAY_DEFAULT = 120;
 export let CALLS_PER_DAY: number = CALLS_PER_DAY_DEFAULT;
+/** The host's setting (Infinity: no limit); CALLS_PER_DAY is this, grown by the players in the game (M8d). */
+let CALLS_BASE: number = CALLS_PER_DAY_DEFAULT;
+let CALL_PLAYERS = 1;
 /** Only the AI setup (ai/setup.ts) calls this. 0 = no daily limit (Infinity: every check `total < CALLS_PER_DAY - x` passes). */
 export function setCallsPerDay(n: number): void {
-  CALLS_PER_DAY = n === 0 ? Infinity : n;
+  CALLS_BASE = n === 0 ? Infinity : n;
+  CALLS_PER_DAY = CALLS_BASE + (CALL_PLAYERS - 1) * playerCallShare();
 }
+
+/**
+ * M8d multiplayer (docs/multiplayer-plan.md 8, Steve 2026-09-26: the host pays; a limit only when set): the host's
+ * day of calls grows by one player's share for every player past the first (120 + 60 per extra player), and each
+ * player's own hooks (PLAYER_HOOKS) may use at most that share a day, so one chatty player cannot use up the day;
+ * the world's hooks keep their shares once. Played alone nothing moves: the day is the setting, no share is counted.
+ */
+export const PLAYER_SHARE_OF_DAY = 0.5;
+/** One player's share of the day (0 with no limit set: nothing is counted then). */
+export function playerCallShare(): number {
+  return Number.isFinite(CALLS_BASE) ? Math.max(10, Math.round(CALLS_BASE * PLAYER_SHARE_OF_DAY)) : 0;
+}
+/** The number of players in the game now (ai/budget.ts keeps it); CALLS_PER_DAY follows it. */
+export function setCallPlayers(n: number): void {
+  CALL_PLAYERS = Math.max(1, Math.floor(n) || 1);
+  CALLS_PER_DAY = CALLS_BASE + (CALL_PLAYERS - 1) * playerCallShare();
+}
+export function callPlayers(): number {
+  return CALL_PLAYERS;
+}
+/**
+ * M8d: the hooks that write for one player (his talk and typed lines, his job's outcome and twist, his letters, the
+ * diary he found, his dream, his epilogue, the look at his room at night, his confession). Every other hook is the
+ * world's (the director, the board, the paper, the ballads, the town's routines and conversations).
+ */
+export const PLAYER_HOOKS: ReadonlySet<string> = new Set([
+  "dialogue",
+  "free_reply",
+  "resident_talk",
+  "resident_talkdown",
+  "resident_haggle",
+  "resident_police",
+  "resident_fortune",
+  "routine_checkin",
+  "job_outcome",
+  "trouble",
+  "letter",
+  "letter_reply",
+  "diary",
+  "dream",
+  "epilogue",
+  "home_remark",
+  "confession",
+  "clerk",
+  "tavern_dice",
+  "hands_lines",
+]);
+/**
+ * M8d, the call queue: played together at most this many model calls run at once; the others wait, talk first, the
+ * world's hooks last. A call waits at most CALL_QUEUE_WAIT_MS for its turn (then the hand-written lines); its own 20 s
+ * limit counts from the start of the call, not from the queue. Played alone there is no queue, as before.
+ */
+export const CALLS_AT_ONCE = 3;
+export const CALL_QUEUE_WAIT_MS = 8_000; // (8 s wait + the 20 s call: inside the client's 30 s for talk)
 
 /** Talk with the townspeople (M3e): at most this many model calls a day for them... */
 export const RESIDENT_CALLS_PER_DAY = 40;

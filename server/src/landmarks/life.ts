@@ -20,6 +20,8 @@ import {
 } from "../../../shared/landmarks.ts";
 import { LANDMARK_PLACE, newcomerLandmark } from "./town.ts";
 import { getState, setState } from "../interiors/state.ts";
+import { pid } from "../player/current.ts";
+import { readText } from "../player/names.ts";
 
 // Who is inside a landmark now, and what goes on there (M6 landmark interiors). ENGINE only:
 // everything follows from the residents' schedules, the clock and the town's events; no model
@@ -480,7 +482,8 @@ export function boardPosters(db: DB): LandmarkNow["posters"] {
     return rows
       .map((r) => {
         const t = JSON.parse(r.text_json || "{}") as { heading?: string; body?: string; footer?: string };
-        return { kind: r.kind, heading: String(t.heading ?? ""), body: String(t.body ?? ""), footer: String(t.footer ?? "") };
+        // (M8c: the town's bills, read for a guest: "Jef" on them is the host)
+        return { kind: r.kind, heading: readText(db, String(t.heading ?? "")), body: readText(db, String(t.body ?? "")), footer: readText(db, String(t.footer ?? "")) };
       })
       .filter((p) => p.heading || p.body);
   } catch {
@@ -646,13 +649,14 @@ export function landmarkDoors(db: DB) {
 
 // ------------------------------------------------------------------ talk: where they are (talkExtras.context)
 
-/** Which landmark Jef is in (the client says so as he goes in and out); null in the street. */
-let jefIn: LandmarkId | null = null;
+/** Which landmark each player is in (his client says so as he goes in and out); none: in the street. (M8c: by player) */
+const jefIn = new Map<number, LandmarkId>();
 export function setJefIn(id: LandmarkId | null): void {
-  jefIn = id;
+  if (id) jefIn.set(pid(), id);
+  else jefIn.delete(pid());
 }
 export function jefInside(): LandmarkId | null {
-  return jefIn;
+  return jefIn.get(pid()) ?? null;
 }
 
 const ROLE_WORDS: Record<string, string> = {
@@ -707,11 +711,12 @@ const ROLE_WORDS: Record<string, string> = {
 
 /** For the talk prompt: when Jef talks to someone inside the landmark he is in, where they are and what they do. */
 export function landmarkTalkContext(db: DB, r: Resident): string {
-  if (!jefIn) return "";
-  const now = landmarkNow(db, jefIn);
+  const inside = jefInside();
+  if (!inside) return "";
+  const now = landmarkNow(db, inside);
   const me = now.people.find((p) => p.id === r.id);
   if (!me) return "";
   const what = ROLE_WORDS[me.role] ?? "inside";
-  const quiet = jefIn === "cathedral" ? " Speak low: it is a church." : "";
-  return `WHERE YOU ARE: inside ${LANDMARK_LABEL[jefIn]}, ${what}. Jef has come in and speaks to you here.${quiet}`;
+  const quiet = inside === "cathedral" ? " Speak low: it is a church." : "";
+  return `WHERE YOU ARE: inside ${LANDMARK_LABEL[inside]}, ${what}. Jef has come in and speaks to you here.${quiet}`;
 }

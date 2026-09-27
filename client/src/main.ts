@@ -99,6 +99,10 @@ import { Mills } from "./game/mills";
 import { setAliveViewHeight } from "./world/alive/common";
 import { bootRestore, type ClientState } from "./game/restoreData";
 import { Together } from "./net/mp/together"; // M8a multiplayer: the others in the town, no pause together
+import { gearModel } from "./net/mp/gear"; // M8b: the others' boats, velocipedes and handcarts
+import { isGuest } from "./net/mp/identity";
+import { GEAR } from "../../shared/mpProtocol";
+import { SMALL_KINDS } from "../../shared/smallBoats";
 import type { JobSnap } from "./game/jobs";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
@@ -480,6 +484,25 @@ jobs.day.where = () => {
   };
 }
 void night.load();
+{
+  // M8e review 4: the push socket came back after a drop (net/api.ts connectPush; the job board is asked for there):
+  // what was pushed meanwhile is lost, so the parts that keep their own state ask the server again, as a push of
+  // their kind would make them (the actions and events, the hired hands' steps, the ballads, the ideas, the
+  // emigrants, the paper, a gang in the street)
+  const onPush = jobs.onPush;
+  jobs.onPush = (m) => {
+    onPush(m);
+    if (m.type !== "resync") return;
+    actions.handlePush({ type: "events" });
+    townLife.handlePush({ type: "events" });
+    hands.handlePush({ type: "actions" });
+    void ballads.load();
+    void ideas.load();
+    void emigrants.refresh();
+    void press.load();
+    void night.load();
+  };
+}
 town
   .load()
   .then(() => {
@@ -976,6 +999,7 @@ function frame(): void {
   pausedDraw = 0;
   elapsed += dt;
   safe("refreshFolk", refreshFolk);
+  safe("together.worldFrame", () => together.worldFrame(dt)); // M8b: the moving world run here or shown from the world PC
   safe("world.update", () => world.update(elapsed, dt, player.camera));
   safe("ferry.update", () => ferry.update(dt));
   safe("player.update", () => player.update(dt));
@@ -999,8 +1023,10 @@ function frame(): void {
   safe("night.update", () => night.update(dt));
   safe("craneClimb.update", () => craneClimb.update(dt));
   safe("crowd.setHour", () => crowd.setHour(jobs.day.hour));
+  safe("together.streetApply", () => together.streetApply(dt)); // M8b: the townspeople other PCs walk
   safe("crowd.update", () => crowd.update(dt, player, player.camera));
   safe("town.update", () => town.update(dt, player));
+  safe("together.streetSend", () => together.streetSend(dt)); // M8b: the ones this PC walks, to the others
   safe("journeys.update", () => journeys.update(dt, player));
   safe("market.update", () => market.update(dt, player, jobs.day.dayNum, jobs.day.hourF));
   setLitterClock(jobs.day.dayNum, jobs.day.hourF);
@@ -1238,8 +1264,57 @@ const together = new Together({
   sound: () => sound,
   paper: startEl.querySelector(".paper"),
   cityReady: world.city.ready,
+  town,
+  crowd,
+  // M8d: walls on the walk map (another player's view of a job figure is cut by them)
+  wallAt: (x, z) => {
+    const f = world.city.flags(x, z);
+    return f === undefined ? undefined : (f & 1) !== 0;
+  },
+  // M8b: the boat he rows, the velocipede he rides, the handcart he pushes go with him on the others' screens
+  gear: () => {
+    const boat = rowing.rowedKind;
+    if (player.rowing && boat) return { kind: GEAR.rowboat, sub: Math.max(0, SMALL_KINDS.indexOf(boat)), heading: player.rowHeading };
+    if (player.bikeRiding) return { kind: GEAR.velo, sub: 0, heading: player.bikeHeading };
+    const cart = handcarts.heldYaw();
+    return cart !== null ? { kind: GEAR.handcart, sub: 0, heading: cart } : null;
+  },
+  gearModel: (kind, sub) => gearModel(world, kind, sub),
+  // M8b: the moving world, run by one PC for all (net/mp/world.ts)
+  movers: () => ({
+    omnibus: world.omnibus(),
+    traffic: world.traffic(),
+    railway: world.railway(),
+    railGate: world.railGate(),
+    bridges: world.bridges(),
+    lock: world.lock(),
+    river: world.river(),
+  }),
+  // the host's town map: the movers as points (twice a second, with the world)
+  mapPoints: () => {
+    const r = (v: number) => Math.round(v * 10) / 10;
+    const drays: VehicleSound[] = [];
+    world.traffic()?.sounds(drays);
+    return {
+      buses: (world.omnibus()?.buses ?? []).map((b) => {
+        const p = b.pose();
+        return { id: b.index, name: `omnibus ${b.index + 1}`, x: r(p.x), z: r(p.z), yaw: r(p.yaw) };
+      }),
+      ships: (world.boats()?.moving() ?? []).map((s) => ({ id: s.id, name: s.kind, x: r(s.x), z: r(s.z), yaw: r(s.heading) })),
+      drays: drays.map((v, i) => ({ id: i, name: v.kind, x: r(v.x), z: r(v.z), state: v.state })),
+      trains: (world.railway()?.vehicles() ?? []).map((v, i) => ({ id: i, name: "goods train", x: r(v.x), z: r(v.z), state: v.state })),
+    };
+  },
 });
 together.start();
+// M8d: a follow or a seek goes to the player it is about; only the PC that owns the townsperson walks him
+if (together.session) actions.mp = { me: () => together.meId(), playerAt: (id) => together.playerAt(id), mayWalk: (id) => town.net?.mayWalk(id) ?? true };
+steps.me = () => together.meId(); // M8d: an errand's steps are walked by its player's PC (0 alone: all)
+// M8b: the rented home's door opens for its key holder on every screen (until M8c only the host rents)
+homes.ownKey = !isGuest();
+homes.keyNear = () => together.hostAt();
+world.railGate().others = () => together.positions(); // M8b: the gate's leaves wait for every player in their sweep
+world.setPlayers(() => together.positions()); // M8b: the lock's beams too
 
 // Dev hook for automated checks: teleport, hold keys, read state.
 if (import.meta.env.DEV) {
@@ -1569,6 +1644,7 @@ if (import.meta.env.DEV) {
       if (bus && !bus.eye) bus.eye = () => player.camera.position;
       for (let t = 0; t < seconds; t += dt) {
         elapsed += dt;
+        safe("step: together.worldFrame", () => together.worldFrame(dt)); // M8b
         safe("step: world.update", () => world.update(elapsed, dt));
         safe("step: ferry.update", () => ferry.update(dt));
         safe("step: player.update", () => player.update(dt));
@@ -1587,8 +1663,10 @@ if (import.meta.env.DEV) {
         safe("step: boxes.update", () => boxes.update(elapsed));
         safe("step: night.update", () => night.update(dt));
         safe("step: crowd.setHour", () => crowd.setHour(jobs.day.hour)); // (as the frame does: the crowd's hour, its lanterns after dark)
+        safe("step: together.streetApply", () => together.streetApply(dt)); // M8b
         safe("step: crowd.update", () => crowd.update(dt, player, player.camera));
         safe("step: town.update", () => town.update(dt, player));
+        safe("step: together.streetSend", () => together.streetSend(dt)); // M8b
         safe("step: journeys.update", () => journeys.update(dt, player));
         safe("step: market.update", () => market.update(dt, player, jobs.day.dayNum, jobs.day.hourF));
         safe("step: setLitterClock", () => setLitterClock(jobs.day.dayNum, jobs.day.hourF));

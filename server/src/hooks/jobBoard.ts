@@ -3,6 +3,8 @@ import { weather, WEATHER_TEXT } from "../day.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import type { DB, Faction } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
+import { asPlayer, onlineIds, pid } from "../player/current.ts";
+import { readText } from "../player/names.ts";
 import SPOT_TABLE from "../../../shared/spots.json" with { type: "json" };
 import { NIGHT_GIVERS, TOWN_EMPLOYERS } from "../town/places.ts";
 import { realS } from "../../../shared/clock.ts";
@@ -133,32 +135,43 @@ const TIER_TRUST = [0, 3, 5, 7, 9];
 
 const enumOf = <T extends string>(xs: readonly T[]) => z.enum(xs as [T, ...T[]]);
 
+/**
+ * M8d (plan 9, "Jobs"): the board's size by the players in the game: 4 to 7 jobs alone (the schema takes 3), two
+ * more for each other player, counted up to BOARD_PLAYERS_MAX. The engine's number: the model is asked for it and
+ * the schema holds it.
+ */
+export const BOARD_PLAYERS_MAX = 6;
+export function boardSize(players: number): { min: number; max: number; schemaMin: number } {
+  const n = Math.max(1, Math.min(BOARD_PLAYERS_MAX, Math.floor(Number.isFinite(players) ? players : 1)));
+  const extra = 2 * (n - 1);
+  return { min: 4 + extra, max: 7 + extra, schemaMin: 3 };
+}
+
 // What the model may return. Anything else is rejected.
-export const BoardSchema = z.object({
-  jobs: z
-    .array(
-      z.object({
-        title: z.string().min(3).max(70),
-        employer: enumOf(EMPLOYER_IDS),
-        task_type: z.enum(TASK_TYPES),
-        goods: z.enum(GOODS),
-        from: enumOf(SPOT_IDS),
-        to: enumOf(SPOT_IDS),
-        twist: z.enum(TWISTS),
-        urgent: z.boolean(),
-        recipient: z.string().max(60),
-        pay_c: z.number().int(),
-        risk: z.enum(["low", "medium", "high"]),
-        pitch: z.string().min(10).max(360),
-        // M7 short jobs: carry only. How many things (by hand 1 or 2; with a cart 3 to 8), and cart work
-        // (the employer lends his handcart). Proposals: the engine clamps both (hooks/loads.ts).
-        items: z.number().int().optional(),
-        cart: z.boolean().optional(),
-      }),
-    )
-    .min(3)
-    .max(7),
+const BoardJobSchema = z.object({
+  title: z.string().min(3).max(70),
+  employer: enumOf(EMPLOYER_IDS),
+  task_type: z.enum(TASK_TYPES),
+  goods: z.enum(GOODS),
+  from: enumOf(SPOT_IDS),
+  to: enumOf(SPOT_IDS),
+  twist: z.enum(TWISTS),
+  urgent: z.boolean(),
+  recipient: z.string().max(60),
+  pay_c: z.number().int(),
+  risk: z.enum(["low", "medium", "high"]),
+  pitch: z.string().min(10).max(360),
+  // M7 short jobs: carry only. How many things (by hand 1 or 2; with a cart 3 to 8), and cart work
+  // (the employer lends his handcart). Proposals: the engine clamps both (hooks/loads.ts).
+  items: z.number().int().optional(),
+  cart: z.boolean().optional(),
 });
+/** M8d: the board's schema for this many players (3 to 7 jobs alone, as ever). */
+export function boardSchemaFor(players: number) {
+  const size = boardSize(players);
+  return z.object({ jobs: z.array(BoardJobSchema).min(size.schemaMin).max(size.max) });
+}
+export const BoardSchema = boardSchemaFor(1);
 export type Board = z.infer<typeof BoardSchema>;
 type BoardJob = Board["jobs"][number];
 
@@ -261,6 +274,8 @@ export interface JobRow {
   status: string;
   playable: boolean;
   outcome_text: string | null;
+  /** M8c: the player who has it in hand (null or missing: none, or an older save's host). */
+  taken_by?: number | null;
 }
 
 export const SYSTEM = `You write for Scheldemist, a game set in Antwerp, autumn 1873.
@@ -280,19 +295,21 @@ You only write text and pick from the lists you are given. The game engine owns 
 and rule. Keep to the JSON schema. Never mention the game, the player's keyboard,
 or anything outside 1873 Antwerp.`;
 
-export function buildPrompt(db: DB): string {
-  const p = db.prepare("SELECT name, money_c, day, hour FROM player WHERE id = 1").get() as {
+export function buildPrompt(db: DB, players = 1): string {
+  const size = boardSize(players);
+  // (M8c: the player's own money and trust, the world's clock; makeBoard writes the board for the host)
+  const p = db.prepare("SELECT p.name, p.money_c, w.day, w.hour FROM player p, player w WHERE p.id = ? AND w.id = 1").get(pid()) as {
     name: string;
     money_c: number;
     day: number;
     hour: number;
   };
-  const trust = db.prepare("SELECT faction, trust FROM faction_trust ORDER BY faction").all() as Array<{
+  const trust = db.prepare("SELECT faction, trust FROM faction_trust WHERE player_id = ? ORDER BY faction").all(pid()) as Array<{
     faction: string;
     trust: number;
   }>;
   const sky = WEATHER_TEXT[weather(db)];
-  const log = db.prepare("SELECT text FROM log ORDER BY id DESC LIMIT 6").all() as Array<{ text: string }>;
+  const log = (db.prepare("SELECT text FROM log ORDER BY id DESC LIMIT 6").all() as Array<{ text: string }>).map((l) => ({ text: readText(db, l.text) }));
   const tier = maxTier(db);
   const [lo, hi] = TIER_PAY[tier];
   const [hlo, hhi] = carryBand([lo, hi], false);
@@ -335,7 +352,7 @@ ${
 - recipient: empty string unless the job is deliver.
 
 RULES FOR THE BOARD
-- 4 to 7 jobs. At least one carry, one watch and one deliver. Vary employers, goods and places.
+- ${size.min} to ${size.max} jobs. At least one carry, one watch and one deliver. Vary employers, goods and places.
 - At least two jobs from employers away from the Rijnkaai (katoen, vishandel, waterschout, brouwer, koster).
 - Each job uses only its employer's own places.
 - task_type may also be row, find or talk, but those cannot be played yet; use them at most once.
@@ -345,7 +362,7 @@ RULES FOR THE BOARD
 }
 
 export function maxTier(db: DB): number {
-  const best = (db.prepare("SELECT MAX(trust) AS t FROM faction_trust").get() as { t: number }).t;
+  const best = (db.prepare("SELECT MAX(trust) AS t FROM faction_trust WHERE player_id = ?").get(pid()) as { t: number }).t;
   let tier = 0;
   for (let i = 0; i < TIER_TRUST.length; i++) if (best >= TIER_TRUST[i]) tier = i;
   return tier;
@@ -609,6 +626,35 @@ export const FALLBACK_CART_JOB: BoardJob = {
   cart: true,
 };
 
+/**
+ * M8d: more hand-written jobs for a fallback board played together (two for each other player, as the model's
+ * board: boardSize). The Rijnkaai three and their own ground only; alone none of these is used.
+ */
+export const FALLBACK_EXTRA_JOBS: BoardJob[] = [
+  { title: "Two sacks off the gangway", employer: "sooi", task_type: "carry", goods: "sacks", from: "ship_gangway", to: "hessenatie_door", twist: "none", urgent: false, recipient: "", pay_c: 80, risk: "low", pitch: "Two sacks of grain off the gangway, in at the Hessenatie door. Keep them dry.", items: 2, cart: false },
+  { title: "Candles for the ship's cook", employer: "peeters", task_type: "deliver", goods: "parcel", from: "peeters_dock", to: "ship_gangway", twist: "none", urgent: false, recipient: "the cook at the gangway", pay_c: 70, risk: "low", pitch: "Candles and matches for the cook at the gangway. He has paid. Into his hands and nobody else's." },
+  { title: "Mind the carts at the east end", employer: "tuur", task_type: "watch", goods: "barrels", from: "east_carts", to: "east_carts", twist: "bribe", urgent: false, recipient: "", pay_c: 80, risk: "medium", pitch: "Stand by the carts at the east end till the bell. Nobody touches the barrels, whatever they offer you." },
+  { title: "Hides to the west sheds", employer: "sooi", task_type: "carry", goods: "hides", from: "pier_head", to: "west_sheds", twist: "heavy_load", urgent: false, recipient: "", pay_c: 90, risk: "low", pitch: "Two bundles of hides from the pier head to the west sheds. They stink, and they are heavier than they look.", items: 2, cart: false },
+  { title: "Rope back to the chandler", employer: "peeters", task_type: "carry", goods: "rope", from: "west_sheds", to: "peeters_dock", twist: "foreman_watches", urgent: false, recipient: "", pay_c: 80, risk: "low", pitch: "Two coils of my rope were left at the west sheds. Bring them back to my door. I shall be watching from the window.", items: 2, cart: false },
+  { title: "A parcel for the carter", employer: "tuur", task_type: "deliver", goods: "parcel", from: "pier_head", to: "east_carts", twist: "stranger_offer", urgent: false, recipient: "the carter at the east end", pay_c: 90, risk: "medium", pitch: "A small parcel for the carter at the east end. Ask him no questions and he will ask you none." },
+  { title: "Watch the crates by the crane", employer: "sooi", task_type: "watch", goods: "crates", from: "crane_foot", to: "crane_foot", twist: "foreman_watches", urgent: false, recipient: "", pay_c: 70, risk: "low", pitch: "The crates under the crane want watching till the lighter comes back. Stay put and keep awake." },
+  { title: "A barrel of tar", employer: "peeters", task_type: "carry", goods: "barrels", from: "katoen_door", to: "peeters_dock", twist: "broken_goods", urgent: false, recipient: "", pay_c: 70, risk: "low", pitch: "One barrel of tar from the Katoen door to my loading door. Roll it gently: it leaks.", items: 1, cart: false },
+  { title: "Crates to the crane", employer: "sooi", task_type: "carry", goods: "crates", from: "east_carts", to: "crane_foot", twist: "none", urgent: false, recipient: "", pay_c: 80, risk: "low", pitch: "Two crates from the carts at the east end to the foot of the crane. Mind the rails.", items: 2, cart: false },
+  { title: "Back to the pier head", employer: "tuur", task_type: "deliver", goods: "parcel", from: "ship_gangway", to: "pier_head", twist: "thick_fog", urgent: true, recipient: "Tuur's boy at the pier head", pay_c: 90, risk: "medium", pitch: "Bring this from the gangway to my boy at the pier head before the ferry goes. Don't dawdle." },
+];
+
+/**
+ * The hand-written board when the model is late or wrong: alone as it always was (the cart job added when cart
+ * work is open, 7 at most); M8d: two more for each other player, sized as the model's board (boardSize).
+ */
+export function fallbackBoard(players: number, carts: boolean): Board {
+  const base = carts ? [...FALLBACK_BOARD.jobs, FALLBACK_CART_JOB].slice(0, 7) : FALLBACK_BOARD.jobs;
+  const size = boardSize(players);
+  const more = size.min - 4;
+  if (more <= 0) return carts ? { jobs: base } : FALLBACK_BOARD;
+  return { jobs: [...base, ...FALLBACK_EXTRA_JOBS.slice(0, more)].slice(0, size.max) };
+}
+
 /** M6: run after every new board (paper/routes.ts adds the post round and the morning paper). */
 export const boardExtras: Array<(db: DB) => void> = [];
 
@@ -621,15 +667,20 @@ export async function makeBoard(
   runner?: Runner,
   timeoutMs?: number,
 ): Promise<{ source: "claude" | "fallback"; error?: string; ms: number }> {
+  // M8c: the board is the world's: written for the host (his trust, his tier, his carts) whoever's request
+  // turned the day, until M8d gives it everyone
+  if (pid() !== 1) return asPlayer(1, () => makeBoard(db, runner, timeoutMs));
   const tier = maxTier(db);
+  // M8d: two more jobs for each other player in the game (boardSize); alone the board is as it always was
+  const players = onlineIds().length;
   const res = await callClaude(
     db,
-    { hook: "job_board", system: SYSTEM, prompt: buildPrompt(db), schema: BoardSchema, timeoutMs },
+    { hook: "job_board", system: SYSTEM, prompt: buildPrompt(db, players), schema: boardSchemaFor(players), timeoutMs },
     runner,
   );
   // M7 short jobs: cart work only once it is open (the gate), one on a board at most
   const carts = cartWorkOpen(db);
-  let board = res.ok && res.data ? res.data : carts ? { jobs: [...FALLBACK_BOARD.jobs, FALLBACK_CART_JOB].slice(0, 7) } : FALLBACK_BOARD;
+  let board = res.ok && res.data ? res.data : fallbackBoard(players, carts);
   const source: "claude" | "fallback" = res.ok ? "claude" : "fallback";
   board = gateCarts(board, carts);
   board = clampBoard(board, tier);

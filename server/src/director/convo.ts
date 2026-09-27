@@ -4,6 +4,7 @@ import { CALLS_PER_DAY, CALLS_RESERVE, CONVO_CALLS_PER_DAY } from "../config.ts"
 import { callClaude, type Runner } from "../ai/claude.ts";
 import { clock, WEATHER_TEXT } from "../day.ts";
 import { log } from "../game.ts";
+import { pid } from "../player/current.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
 import { applyTrust, relationship, remember, topMemories, trustText } from "../npcs.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
@@ -184,7 +185,7 @@ function payBack(db: DB, thief: Resident, amount: number, logId?: number): boole
   return db.transaction(() => {
     const c = crimeOpen(db);
     if (!c || c.thief !== thief.id || (logId !== undefined && c.logId !== logId)) return false;
-    db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = 1").run(amount);
+    db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = ?").run(amount, pid());
     log(db, "restitution", thief.id, `The police made ${thief.name} give Jef back his ${amount} centimes.`, "world");
     return true;
   })();
@@ -214,7 +215,7 @@ export async function runConvo(db: DB, o: ConvoOpts, runner?: Runner): Promise<C
     const v = resident(db, o.fixed.victim);
     if (o.fixed.guilty && v) {
       const text = `${a.name} of the police made ${b.name} give ${v.name} back the ${o.fixed.amount_c} centimes he took in the street; Jef had seen it.`;
-      writeEvent(db, { kind: "theft", verb: "robbery_solved", actor: a.id, target: b.id, text, outcome: "guilty", ref_type: "world_event", ref_id: o.fixed.crime_event ?? null, weight: 7, data: { thief: b.id, victim: v.id, amount_c: o.fixed.amount_c }, who: [a.id, b.id, v.id] });
+      writeEvent(db, { kind: "theft", verb: "robbery_solved", actor: a.id, target: b.id, text, outcome: "guilty", ref_type: "world_event", ref_id: o.fixed.crime_event ?? null, weight: 7, data: { thief: b.id, victim: v.id, amount_c: o.fixed.amount_c, player: pid() }, who: [a.id, b.id, v.id] }); // (M8c: the witness, for the poster's reward)
       remember(db, a.id, `On Jef's word I made ${b.name} give ${v.name} back the ${o.fixed.amount_c} centimes he lifted.`, 6);
       remember(db, b.id, `Jef saw me take ${v.name}'s purse and set the police on me. I had to give it back.`, 8, "seen", null, { gist: `Jef told the police who took ${v.name}'s purse`, tone: 0 });
       remember(db, v.id, `Jef saw who took my purse and told the police. I have my ${o.fixed.amount_c} centimes back.`, 7, "seen", null, { gist: `Jef helped ${v.name} get her purse back through the police`.replace(" her ", v.sex === "m" ? " his " : " her "), tone: 1 });
@@ -281,18 +282,18 @@ export async function runConvo(db: DB, o: ConvoOpts, runner?: Runner): Promise<C
 export function passRumour(db: DB, from: string, to: string): boolean {
   const rows = db
     .prepare(
-      `SELECT id, gist, tone, weight, COALESCE(origin, id) AS origin FROM npc_memory
+      `SELECT id, gist, tone, weight, COALESCE(origin, id) AS origin, about_player FROM npc_memory
        WHERE npc_id = ? AND gist IS NOT NULL AND gist <> '' AND weight >= 2 ORDER BY weight DESC, id DESC LIMIT 5`,
     )
-    .all(from) as Array<{ id: number; gist: string; tone: number; weight: number; origin: number }>;
+    .all(from) as Array<{ id: number; gist: string; tone: number; weight: number; origin: number; about_player: number | null }>;
   const knows = db.prepare("SELECT 1 FROM npc_memory WHERE npc_id = ? AND (origin = ? OR id = ?) LIMIT 1");
   const r = rows.find((x) => !knows.get(to, x.origin, x.origin));
   if (!r) return false;
   const day = clock(db).day;
   const teller = (db.prepare("SELECT name FROM npc WHERE id = ?").get(from) as { name: string } | undefined)?.name ?? "someone";
   db.prepare(
-    `INSERT INTO npc_memory (npc_id, text, source, heard_from, weight, day, spread, gist, tone, origin, town_spread)
-     VALUES (?, ?, 'heard', ?, ?, ?, 1, ?, ?, ?, 0)`,
-  ).run(to, `${teller} told me: ${r.gist}`, from, Math.max(1, r.weight - 1), day, r.gist, r.tone, r.origin);
+    `INSERT INTO npc_memory (npc_id, text, source, heard_from, weight, day, spread, gist, tone, origin, town_spread, about_player)
+     VALUES (?, ?, 'heard', ?, ?, ?, 1, ?, ?, ?, 0, ?)`,
+  ).run(to, `${teller} told me: ${r.gist}`, from, Math.max(1, r.weight - 1), day, r.gist, r.tone, r.origin, r.about_player); // (M8c: about whom the first one was)
   return true;
 }

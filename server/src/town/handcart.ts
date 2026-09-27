@@ -3,6 +3,8 @@ import { GameError, job as jobRow, log, player, takeHooks } from "../game.ts";
 import { ALL_EMPLOYERS, employerName, type JobRow } from "../hooks/jobBoard.ts";
 import { CART_LEFT_FEE_C, CART_LOST_C, CART_RETURN_MIN, OWN_CART_NEAR_M } from "../hooks/loads.ts";
 import { remember } from "../npcs.ts";
+import { asPlayer, pid } from "../player/current.ts";
+import { playerIds, pstate, setPstate } from "../player/multi.ts";
 import { ITEM_BUY, ITEM_REF, ITEMS } from "../trade.ts";
 import { dropTownCache, town } from "./store.ts";
 import { walkMap } from "./walkmap.ts";
@@ -40,7 +42,7 @@ import CITY from "../../../shared/city.json" with { type: "json" };
 // of the velocipede maker's or less). Sources: nl.wikipedia.org/wiki/Handkar ;
 // nl.wikipedia.org/wiki/Wagenmaker ; collectiebulskampveld.be (wagenmakerij in Vlaanderen).
 //
-// The ENGINE keeps every cart of Jef's (world_state 'jef_carts'): where it stands, whether he has
+// The ENGINE keeps every cart of Jef's (his own 'jef_carts', M8c pstate): where it stands, whether he has
 // hold of it, and what is on it, checked by size and weight (shared/handcart.ts). Bought or hired
 // at the wheelwright's, or taken from a household (a deed of M3h: deeds.ts, `cart:<household>`,
 // the police and the owner's memory as for a velocipede). His own cart left alone in a busy place
@@ -129,8 +131,9 @@ function putState(db: DB, key: string, v: unknown): void {
 export function cartShop(db: DB): CartShop | null {
   return getState<CartShop>(db, "cartshop");
 }
+/** The player's carts (M8c: each player's own, pstate 'jef_carts'). */
 export function jefCarts(db: DB): CartsState {
-  const s = getState<Partial<CartsState>>(db, "jef_carts");
+  const s = pstate<Partial<CartsState>>(db, "jef_carts");
   return {
     n: s?.n ?? 0,
     list: Array.isArray(s?.list) ? s!.list : [],
@@ -141,7 +144,16 @@ export function jefCarts(db: DB): CartsState {
   };
 }
 function save(db: DB, s: CartsState): void {
-  putState(db, "jef_carts", s);
+  setPstate(db, "jef_carts", s);
+}
+
+/** M8c: a cart's id that is his alone (the carts stand in one world): the host's as before, a guest's with his id. */
+const cartId = (kind: "jef" | "lent", n: number) => (pid() === 1 ? `cart:${kind}${n}` : `cart:${kind}${pid()}x${n}`);
+
+/** M8c: the player who has a household's cart now (taken, not yet back), or null. */
+export function cartHolder(db: DB, ref: string): number | null {
+  for (const who of playerIds(db)) if (asPlayer(who, () => jefCarts(db)).list.some((c) => c.id === ref && c.kind === "taken")) return who;
+  return null;
 }
 function notice(s: CartsState, text: string): void {
   s.notice = { n: (s.notice?.n ?? 0) + 1, text };
@@ -254,7 +266,7 @@ function give(db: DB, kind: "new" | "used" | "hire"): void {
   const shop = cartShop(db)!;
   const now = minuteNow(db);
   const spot = shop.show[kind === "hire" ? 1 : 0] ?? shop.show[0];
-  const id = `cart:jef${++s.n}`;
+  const id = cartId("jef", ++s.n);
   s.list.push({
     id,
     kind,
@@ -396,7 +408,7 @@ export function loadCart(db: DB, id: string, raw: Partial<CartItem>, x: number, 
   if (raw.heavy === true) item.heavy = true;
   if (raw.piece !== undefined && raw.piece !== null) {
     // furniture from his arms
-    const it = db.prepare("SELECT id, kind, state FROM home_item WHERE id = ?").get(Number(raw.piece)) as { id: number; kind: string; state: string } | undefined;
+    const it = db.prepare("SELECT id, kind, state FROM home_item WHERE id = ? AND player_id = ?").get(Number(raw.piece), pid()) as { id: number; kind: string; state: string } | undefined;
     if (!it || it.state !== "arms") throw new GameError("you are not carrying that", 409);
     item.kind = it.kind;
     item.piece = it.id;
@@ -411,7 +423,7 @@ export function loadCart(db: DB, id: string, raw: Partial<CartItem>, x: number, 
       } catch {
         throw new GameError("no such job", 404);
       }
-      if (j.status !== "taken" || !j.task || (j.task.kind !== "carry" && j.task.kind !== "deliver")) throw new GameError("that job is not in hand", 409);
+      if (j.status !== "taken" || (j.taken_by ?? 1) !== pid() || !j.task || (j.task.kind !== "carry" && j.task.kind !== "deliver")) throw new GameError("that job is not in hand", 409);
       if (j.task.goods !== kind) throw new GameError("those are not the job's goods", 409);
       const count = j.task.kind === "carry" ? j.task.count : 1;
       const p = j.task.progress ?? { delivered: 0, lost: 0, sold: 0 };
@@ -423,7 +435,7 @@ export function loadCart(db: DB, id: string, raw: Partial<CartItem>, x: number, 
   const why = canLoad(c.load, item);
   if (why) throw new GameError(why, 409);
   db.transaction(() => {
-    if (item.piece !== undefined) db.prepare("UPDATE home_item SET state = 'gone' WHERE id = ?").run(item.piece);
+    if (item.piece !== undefined) db.prepare("UPDATE home_item SET state = 'gone' WHERE id = ? AND player_id = ?").run(item.piece, pid());
     c.load.push(item);
     save(db, s);
   })();
@@ -440,9 +452,9 @@ export function unloadOne(db: DB, id: string, x: number, z: number, index?: numb
   const i = index === undefined || !Number.isInteger(index) ? c.load.length - 1 : index;
   const item = c.load[i];
   if (!item) throw new GameError("nothing like that on the cart", 404);
-  if (item.piece !== undefined && db.prepare("SELECT 1 FROM home_item WHERE state = 'arms'").get()) throw new GameError("your arms are full", 409);
+  if (item.piece !== undefined && db.prepare("SELECT 1 FROM home_item WHERE state = 'arms' AND player_id = ?").get(pid())) throw new GameError("your arms are full", 409);
   db.transaction(() => {
-    if (item.piece !== undefined) db.prepare("UPDATE home_item SET state = 'arms' WHERE id = ?").run(item.piece);
+    if (item.piece !== undefined) db.prepare("UPDATE home_item SET state = 'arms' WHERE id = ? AND player_id = ?").run(item.piece, pid());
     c.load.splice(i, 1);
     save(db, s);
   })();
@@ -463,7 +475,7 @@ export function unloadJob(db: DB, id: string, jobId: number, x: number, z: numbe
   } catch {
     throw new GameError("no such job", 404);
   }
-  if (j.status !== "taken" || !j.task || j.task.kind === "letters") throw new GameError("that job is not in hand", 409);
+  if (j.status !== "taken" || (j.taken_by ?? 1) !== pid() || !j.task || j.task.kind === "letters") throw new GameError("that job is not in hand", 409);
   if (!unloadAllAllowed(j.task)) throw new GameError("this job wants them one by one", 409);
   const to = (SPOTS as unknown as Record<string, { x: number; z: number }>)[(j.task as { to: string }).to];
   if (!to || !finite(x, z)) throw new GameError("bad place", 400);
@@ -490,7 +502,7 @@ function dropLoad(db: DB, s: CartsState, c: JefCart, piecesTo: "home" | "gone"):
   const pieces = c.load.filter((it) => it.piece !== undefined);
   const l = piecesTo === "home" ? lease(db) : null;
   for (const p of pieces) {
-    if (l) db.prepare("UPDATE home_item SET state = 'stored', home = ?, gx = NULL, gz = NULL WHERE id = ?").run(l.home, p.piece);
+    if (l) db.prepare("UPDATE home_item SET state = 'stored', home = ?, gx = NULL, gz = NULL WHERE id = ? AND player_id = ?").run(l.home, p.piece, pid());
     // else it stays 'gone' (it went with the cart)
   }
   if (goods.length) s.dropped.push({ id: ++s.dn, x: c.x, z: c.z, items: goods });
@@ -499,10 +511,13 @@ function dropLoad(db: DB, s: CartsState, c: JefCart, piecesTo: "home" | "gone"):
 
 // ------------------------------------------------------------------ each game hour: hires that run out, thieves
 
-const lastJef = new WeakMap<DB, { x: number; z: number; at: number }>();
-/** Where Jef was last seen by the client (every few seconds while he has a cart). */
+const lastJef = new WeakMap<DB, Map<number, { x: number; z: number; at: number }>>();
+/** Where Jef was last seen by the client (every few seconds while he has a cart). Per player (M8c). */
 export function cartSeen(db: DB, x: number, z: number, at = Date.now()): void {
-  if (finite(x, z)) lastJef.set(db, { x, z, at });
+  if (!finite(x, z)) return;
+  const m = lastJef.get(db) ?? new Map<number, { x: number; z: number; at: number }>();
+  m.set(pid(), { x, z, at });
+  lastJef.set(db, m);
 }
 
 /** M6 hired hands (town/hire.ts): a hand Jef pays to watch his things keeps thieves off a cart near him. */
@@ -542,8 +557,8 @@ function safeAt(db: DB, x: number, z: number): boolean {
 }
 
 /**
- * The hour's work (from the tick): a hire that ran out is fetched (a fee; the load is left where
- * it stood), an unwatched cart of his own in a busy place may be wheeled off, load and all.
+ * The hour's work (from the tick; M8c: for each player, his own carts): a hire that ran out is fetched
+ * (a fee; the load is left where it stood), an unwatched cart of his own in a busy place may be wheeled off, load and all.
  * `rng` and `now` are test seams. Returns what happened.
  */
 export function cartHour(db: DB, rng: () => number = Math.random, now = Date.now()): string[] {
@@ -572,7 +587,7 @@ function cartHourNow(db: DB, rng: () => number, now: number): string[] {
       const shop = cartShop(db);
       const back = !!shop && Math.hypot(shop.step[0] - c.x, shop.step[1] - c.z) < 10;
       const fee = back ? 0 : Math.min(p.money_c, CART_FETCH_FEE_C);
-      if (fee) db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(fee);
+      if (fee) db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(fee, pid());
       const had = c.load.length;
       dropLoad(db, s, c, "home");
       s.list = s.list.filter((q) => q.id !== c.id);
@@ -586,7 +601,7 @@ function cartHourNow(db: DB, rng: () => number, now: number): string[] {
     }
     // a cart of his own (bought or hired) left alone in a busy place, Jef not by it
     if (c.kind === "taken" || safeAt(db, c.x, c.z) || !busyAt(db, c.x, c.z) || cartGuards.some((g) => g(db, c.x, c.z))) continue;
-    const seen = lastJef.get(db);
+    const seen = lastJef.get(db)?.get(pid());
     if (seen && now - seen.at < 30_000 && Math.hypot(seen.x - c.x, seen.z - c.z) < CART_WATCHED_M) continue;
     const night = p.hour >= 20 || p.hour < 6;
     if (rng() >= (night ? CART_THEFT_PER_HOUR.night : CART_THEFT_PER_HOUR.day)) continue;
@@ -737,7 +752,7 @@ export function lendForJob(db: DB, j: JobRow): JefCart | null {
   if (!at) return null;
   const name = employerName(db, j.employer_npc);
   const c: JefCart = {
-    id: `cart:lent${++s.n}`,
+    id: cartId("lent", ++s.n),
     kind: "lent",
     since: minuteNow(db),
     paid_c: 0,
@@ -798,9 +813,9 @@ function lentTick(db: DB, s: CartsState, minute: number): string[] {
     // still in his hands: on its way back (the hour runs on; he is fetched from where he lets go)
     if (minute < c.until || c.held) continue;
     const fee = Math.min(player(db).money_c, CART_LEFT_FEE_C);
-    if (fee) db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(fee);
+    if (fee) db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(fee, pid());
     const faction = ALL_EMPLOYERS[c.lender ?? ""]?.faction;
-    if (faction) db.prepare("UPDATE faction_trust SET trust = MAX(-5, MIN(10, trust - 1)) WHERE faction = ?").run(faction);
+    if (faction) db.prepare("UPDATE faction_trust SET trust = MAX(-5, MIN(10, trust - 1)) WHERE faction = ? AND player_id = ?").run(faction, pid());
     dropLoad(db, s, c, "home");
     s.list = s.list.filter((q) => q.id !== c.id);
     const name = employerName(db, c.lender ?? "");
@@ -815,9 +830,9 @@ function lentTick(db: DB, s: CartsState, minute: number): string[] {
 /** The lent cart wheeled off by a thief: Jef pays for it (CART_LOST_C, or what he has), trust -2 with the lender. */
 function lentLost(db: DB, c: JefCart): void {
   const cost = Math.min(player(db).money_c, CART_LOST_C);
-  if (cost) db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(cost);
+  if (cost) db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(cost, pid());
   const faction = ALL_EMPLOYERS[c.lender ?? ""]?.faction;
-  if (faction) db.prepare("UPDATE faction_trust SET trust = MAX(-5, MIN(10, trust - 2)) WHERE faction = ?").run(faction);
+  if (faction) db.prepare("UPDATE faction_trust SET trust = MAX(-5, MIN(10, trust - 2)) WHERE faction = ? AND player_id = ?").run(faction, pid());
   const name = employerName(db, c.lender ?? "");
   log(db, "lost_lent_cart", c.id, `${capital(c.label)} was stolen while Jef had it; he paid ${cost} centimes for it.`);
   if (c.lender) remember(db, c.lender, `I lent Jef my handcart and he let a thief wheel it off. He paid ${cost} centimes of what it was worth.`, 6, "seen", null, { gist: `Jef lost ${name}'s handcart to a thief`, tone: -2 });
@@ -842,6 +857,12 @@ cartHooks.find = (db, ref) => {
   if (!v || v.kind !== "handcart") return null;
   const mine = jefCarts(db).list.find((c) => c.id === ref && c.kind === "taken") ?? null;
   if (mine) return { owner: v.owner, x: mine.x, z: mine.z, where: "", mine: { deed: mine.deed ?? null, held: mine.held } };
+  // (M8c: another player has it: not there to take)
+  const other = cartHolder(db, ref);
+  if (other !== null) {
+    const c = asPlayer(other, () => jefCarts(db)).list.find((q) => q.id === ref)!;
+    return { owner: v.owner, x: c.x, z: c.z, where: "", mine: null, by: other };
+  }
   const { day, hour } = clockNow(db);
   const now = vehicleNow(db, v, day, hour);
   const where = now.key === "home" ? "from outside their house" : "from beside their stall";
@@ -863,19 +884,23 @@ cartHooks.again = (db, ref) => {
   if (c) c.held = true;
   save(db, s);
 };
-/** Back to its household (given back, or the police): whatever is on it is left on the ground. */
-cartHooks.home = (db, ref) => {
-  const s = jefCarts(db);
-  const c = s.list.find((q) => q.id === ref && q.kind === "taken");
-  if (!c) return;
-  dropLoad(db, s, c, "home");
-  s.list = s.list.filter((q) => q.id !== ref);
-  save(db, s);
-};
-cartHooks.held = (db, d: DeedRow) => jefCarts(db).list.some((c) => c.id === d.ref && c.kind === "taken" && c.deed === d.id);
-cartHooks.gone = (db, id) => jefCarts(db).list.some((c) => c.id === id && c.kind === "taken");
+/** Back to its household (given back, or the police): whatever is on it is left on the ground (M8c: by whoever has it). */
+cartHooks.home = (db, ref) =>
+  asPlayer(cartHolder(db, ref) ?? pid(), () => {
+    const s = jefCarts(db);
+    const c = s.list.find((q) => q.id === ref && q.kind === "taken");
+    if (!c) return;
+    dropLoad(db, s, c, "home");
+    s.list = s.list.filter((q) => q.id !== ref);
+    save(db, s);
+  });
+/** (M8c: the deed's own player still has it) */
+cartHooks.held = (db, d: DeedRow) => asPlayer(d.player_id ?? 1, () => jefCarts(db).list.some((c) => c.id === d.ref && c.kind === "taken" && c.deed === d.id));
+/** (M8c: away from its household with any player) */
+cartHooks.gone = (db, id) => cartHolder(db, id) !== null;
 
-/** A new game: no carts. */
+/** A new game: no carts, for any player. */
 export function clearJefCarts(db: DB): void {
   db.prepare("DELETE FROM world_state WHERE key = 'jef_carts'").run();
+  db.prepare("DELETE FROM player_state WHERE key = 'jef_carts'").run();
 }

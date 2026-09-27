@@ -15,7 +15,10 @@ import { FLAG, type MpState } from "../../../../shared/mpProtocol";
 
 export const DELAY_START = 100;
 export const DELAY_MIN = 80;
-/** The plan said 150; measured (docs/milestones/M8a.md): a line with 100 ms round trips needs about 220, so up to 250. */
+/**
+ * The plan said 150; measured (docs/milestones/M8a.md): a line with 100 ms round trips needs about 220, so up to 250.
+ * M8e: a VPN (60-120 ms round trips, 30 ms jitter a leg) asks 140-230, nothing guessed (client/test/vpnLine.test.mjs).
+ */
 export const DELAY_MAX = 250;
 export const EXTRAPOLATE_MS = 250;
 
@@ -32,6 +35,8 @@ export interface Pose {
   mode: number;
   flags: number;
   base: number;
+  /** M8b: GEAR kind (low 2 bits) and which boat (the rest); its heading in lyaw. */
+  gear: number;
   lx: number;
   ly: number;
   lz: number;
@@ -116,7 +121,8 @@ export class RemoteTrack {
     const p = pose(u < 0.5 ? a : c, x, y, z, yaw, pitch, vx, vz, false);
     // one-off flags (a jump, a step) belong to the state they came with: only the newer carries them
     p.flags = c.flags & ~(FLAG.jumped | FLAG.landed | FLAG.step);
-    if (a.base && a.base === c.base) {
+    // (a platform's frame, or M8b the heading of his gear: eased between the two states)
+    if ((a.base && a.base === c.base) || (!a.base && a.gear && a.gear === c.gear)) {
       p.lx = a.lx + (c.lx - a.lx) * u;
       p.ly = a.ly + (c.ly - a.ly) * u;
       p.lz = a.lz + (c.lz - a.lz) * u;
@@ -140,5 +146,5 @@ export class RemoteTrack {
 }
 
 function pose(s: MpState, x: number, y: number, z: number, yaw: number, pitch: number, vx: number, vz: number, stale: boolean): Pose {
-  return { x, y, z, yaw, pitch, vx, vz, speed: Math.hypot(vx, vz), mode: s.mode, flags: s.flags, base: s.base, lx: s.lx, ly: s.ly, lz: s.lz, lyaw: s.lyaw, stale };
+  return { x, y, z, yaw, pitch, vx, vz, speed: Math.hypot(vx, vz), mode: s.mode, flags: s.flags, base: s.base, gear: s.gear ?? 0, lx: s.lx, ly: s.ly, lz: s.lz, lyaw: s.lyaw, stale };
 }

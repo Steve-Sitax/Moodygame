@@ -17,8 +17,17 @@ import type { Surface } from "../../world/rijnkaai";
 import { pause, real } from "../../game/pause";
 import { identity, isGuest } from "./identity";
 import { RemoteTrack, type Pose } from "./remotes";
+import { secureOffer, trustSteps, type HouseInfo } from "./househelp";
 import { figureKit, RemoteFigure } from "./figures";
 import { Session } from "./session";
+import { Street } from "./street";
+import { WorldNet, type NetMover } from "./world";
+import type { Town } from "../../game/town";
+import type { Crowd } from "../../game/crowd";
+import { Figure, figureNav, LIVE_FIGURES } from "../../game/figures";
+import { heldForJobs } from "../../game/walkup";
+import { JobFigs } from "./jobfigs";
+import { ferryAsked } from "../../game/ferryArrival"; // M8d: a guest's first arrival is by the ferry
 
 interface BusLike {
   index: number;
@@ -45,6 +54,29 @@ export interface TogetherDeps {
   /** The menu's paper (the Together button goes on it) and the city's readiness. */
   paper: HTMLElement | null;
   cityReady: Promise<unknown>;
+  /** M8b: the town and its crowd (the townspeople walked by one PC for all: street.ts). */
+  town?: Town;
+  crowd?: Crowd;
+  /**
+   * M8b: what this player rows, rides or pushes now (GEAR kind, `sub`: which boat of shared/smallBoats.ts
+   * SMALL_KINDS; `heading`: where it points), or null.
+   */
+  gear?(): { kind: number; sub: number; heading: number } | null;
+  /** M8b: a model of another player's gear (a boat of that kind, a velocipede, a handcart), and where to put it away. */
+  gearModel?(kind: number, sub: number): Promise<GearModel | null>;
+  /** M8b: the moving world's parts by key (net/mp/world.ts); null for one not loaded yet. */
+  movers?(): Record<string, NetMover | null>;
+  /** M8b: the movers as points for the host's town map (net/mp/world.ts WorldNetDeps.mapPoints). */
+  mapPoints?(): Record<string, unknown[]>;
+  /** M8d: a wall of the walk map here (the city's flags, as the server's clear line); undefined while loading. */
+  wallAt?(x: number, z: number): boolean | undefined;
+}
+
+/** M8b: another player's boat, velocipede or handcart, drawn with him (figures.ts). */
+export interface GearModel {
+  /** Put it where he is: (x, y, z) his place, heading where it points, dt for the wheels. */
+  place(x: number, y: number, z: number, heading: number, dt: number, shown: boolean): void;
+  dispose(): void;
 }
 
 const RADIUS = 0.32;
@@ -52,6 +84,16 @@ const PUSH_M = 0.55;
 
 export class Together {
   session: Session | null = null;
+  /** M8b: the townspeople, one PC walking each for all (null alone). */
+  street: Street | null = null;
+  /** M8b: who runs the moving world now (0: nobody yet). */
+  worldPc = 0;
+  /** M8b: the moving world, run by one PC for all (null alone). */
+  world: WorldNet | null = null;
+  /** M8d: the figures of this player's job sent to the others, and theirs drawn here (null alone). */
+  jobFigs: JobFigs | null = null;
+  /** M8d: each other player's heading as drawn (for "out of his sight"). */
+  private readonly looks = new Map<number, number>();
   private readonly tracks = new Map<number, RemoteTrack>();
   private readonly figs = new Map<number, RemoteFigure>();
   private roster: RosterEntry[] = [];
@@ -104,7 +146,12 @@ export class Together {
         this.drawPanel();
         this.drawCorner();
       },
+      onPuppets: (v, recv) => this.street?.onBatch(v, recv),
+      onFigs: (v, recv) => this.jobFigs?.onBatch(v, recv),
       onWelcome: (w) => {
+        identity.playerId = w.id;
+        this.street?.reset();
+        this.jobFigs?.reset();
         if (w.pose && !this.placedGuest) {
           this.placedGuest = true;
           void this.d.cityReady.then(() => {
@@ -115,8 +162,62 @@ export class Together {
       },
       onText: (m) => this.text(m),
     });
+    const sess = this.session;
+    if (this.d.town && this.d.crowd) {
+      const town = this.d.town;
+      this.street = new Street({
+        town,
+        crowd: this.d.crowd,
+        me: () => sess.id,
+        host: () => !isGuest(),
+        serverNow: () => sess.serverNow(),
+        player: () => this.d.player,
+        sendText: (m) => sess.sendText(m),
+        sendBinary: (b) => sess.sendBinary(b),
+        forJob: (id) => heldForJobs.has(id), // (M8d: the people called for this player's job are his PC's)
+      });
+      town.net = this.street;
+    }
+    // M8d: the figures of a job: this player's sent, the others' drawn; "out of sight" is out of everyone's
+    this.jobFigs = new JobFigs({
+      own: () => LIVE_FIGURES,
+      make: (kind, x, y, z) => new Figure(kind, x, z, this.d.scene, y, { remote: true }),
+      serverNow: () => sess.serverNow(),
+      player: () => this.d.player,
+      sendBinary: (b) => sess.sendBinary(b),
+    });
+    figureNav.othersSee = (x, z) => this.seenByOthers(x, z);
+    if (this.d.movers) {
+      const movers = this.d.movers;
+      this.world = new WorldNet({
+        me: () => sess.id,
+        serverNow: () => sess.serverNow(),
+        sendText: (m) => sess.sendText(m),
+        movers,
+        mapPoints: this.d.mapPoints,
+        playerAt: (id) => {
+          const f = this.figs.get(id);
+          return f?.shown ? { x: f.at.x, z: f.at.z } : null;
+        },
+      });
+    }
     this.session.open();
     this.drawCorner();
+  }
+
+  /** M8b: before the world moves: its movers run here (the world PC) or shown from the world PC's state. */
+  worldFrame(dt: number): void {
+    this.world?.frame(dt);
+  }
+
+  /** M8b: before the crowd moves and draws: the townspeople other PCs walk, where they had them. */
+  streetApply(dt: number): void {
+    this.street?.apply(dt);
+  }
+
+  /** M8b: after the town moved its people: send the ones this PC walks. */
+  streetSend(dt: number): void {
+    this.street?.send(dt);
   }
 
   /** A guest with no place of his own starts beside the host (once, when the host is first heard of). */
@@ -125,7 +226,9 @@ export class Together {
     const host = list.find((e) => e.id === 1);
     if (!host) return;
     this.placedGuest = true;
-    void this.d.cityReady.then(() => {
+    // (M8d: a guest who comes in by the ferry, his first time or a new man, starts on her deck: game/ferryArrival.ts)
+    void Promise.all([this.d.cityReady, ferryAsked]).then(([, onFerry]) => {
+      if (onFerry) return;
       const h = host.s;
       for (const [ox, oz] of [
         [1.6, 0],
@@ -147,8 +250,16 @@ export class Together {
   }
 
   private text(m: MpText): void {
-    if (m.type === "went") {
+    if (m.type === "owners") this.street?.onOwners(m);
+    else if (m.type === "pins") this.street?.onPins(m.list); // M8d
+    else if (m.type === "world") this.world?.onWorld(m, this.session?.serverNow() ?? 0);
+    else if (m.type === "asked") this.world?.onAsked(m);
+    else if (m.type === "worldpc") {
+      this.worldPc = m.id;
+      this.world?.setPc(m.id);
+    } else if (m.type === "went") {
       this.drop(m.id);
+      this.jobFigs?.dropSender(m.id); // (M8d: his job's figures go with him)
       this.d.say(`${m.name} went home.`);
     } else if (m.type === "pause_all") this.pauseAll(m.on);
     else if (m.type === "version") this.d.say(`A new version of the game is ready (${m.files} files). Reload the page (F5) at a quiet moment: only what changed is downloaded.`);
@@ -160,7 +271,9 @@ export class Together {
   }
 
   private drop(id: number): void {
+    this.dropGear(id);
     this.shown.delete(id);
+    this.looks.delete(id);
     this.figs.get(id)?.dispose();
     this.figs.delete(id);
     this.tracks.delete(id);
@@ -267,6 +380,12 @@ export class Together {
       s.ly = s.y - a.y;
       s.lyaw = s.yaw - a.yaw;
     }
+    // M8b: what he rows, rides or pushes: the others draw it with him; its heading goes in lyaw (no platform then)
+    const g = bus ? null : (this.d.gear?.() ?? null);
+    if (g) {
+      s.gear = (g.kind & 3) | ((g.sub & 63) << 2);
+      s.lyaw = g.heading;
+    }
     return s;
   }
 
@@ -276,7 +395,10 @@ export class Together {
   frame(dt: number): void {
     this.ownFrame(dt);
     this.meterCamera();
-    if (!this.session) return;
+    if (!this.session) {
+      this.soloMap(dt);
+      return;
+    }
     // the others are drawn on the same frame clock (frame by frame as the frames' dt says: no bunching)
     const sn = this.now.t;
     const p = this.d.player;
@@ -287,11 +409,14 @@ export class Together {
       const pose = tr.sample(sn);
       if (!f || !pose) {
         f?.hide();
+        this.gears.get(id)?.model?.place(0, 0, 0, 0, dt, false);
         continue;
       }
       this.onPlatform(pose);
       this.hideCorrection(id, pose, dt);
       f.place(pose, dt);
+      this.looks.set(id, pose.yaw);
+      this.placeGear(id, pose, dt, f.shown);
       this.meterRemote(id, f, dt);
       if (f.stepped && snd) {
         const d = Math.hypot(f.at.x - p.x, f.at.z - p.z);
@@ -327,6 +452,41 @@ export class Together {
       this.d.camera.updateMatrixWorld(); // (the picture of this frame is drawn after: the tags go with it)
       for (const f of this.figs.values()) f.drawTag(this.d.camera, this.v);
     }
+    this.jobFigs?.frame(dt); // M8d: this player's job figures out, the others' drawn
+  }
+
+  /**
+   * M8d: could another player see this point now? Within 10 m of him, or within the fog in front of him (his view
+   * as a cone of 65 degrees each side of where he looks: the camera's width with a margin). Beyond 10 m a wall of
+   * the walk map between him and the point hides it (the server's clear line for witnesses, town/deeds.ts).
+   */
+  seenByOthers(x: number, z: number): boolean {
+    const fog = (this.d.scene.fog as THREE.Fog | null)?.far ?? 40;
+    for (const [id, f] of this.figs) {
+      if (!f.shown) continue;
+      const dx = x - f.at.x;
+      const dz = z - f.at.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 10) return true;
+      if (d > fog + 3) continue;
+      const yaw = this.looks.get(id);
+      // (he looks along (-sin yaw, -cos yaw): player/firstPerson.ts); a margin for the figure's own width
+      if (yaw !== undefined && (-Math.sin(yaw) * dx - Math.cos(yaw) * dz) / d <= Math.cos((65 * Math.PI) / 180) - 1.5 / d) continue;
+      if (this.clearLine(f.at.x, f.at.z, x, z)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * M8d: no wall of the walk map between two points (every half metre, as the server's clearLine; the ends not
+   * counted). Unsure (the map loading, or he stands on a wall's cell: indoors, in a doorway) counts as clear.
+   */
+  private clearLine(ax: number, az: number, bx: number, bz: number): boolean {
+    const wall = this.d.wallAt;
+    if (!wall || wall(ax, az) !== false) return true;
+    const n = Math.ceil(Math.hypot(bx - ax, bz - az) / 0.5);
+    for (let i = 1; i < n; i++) if (wall(ax + ((bx - ax) * i) / n, az + ((bz - az) * i) / n)) return false;
+    return true;
   }
 
   /**
@@ -360,6 +520,33 @@ export class Together {
     p.z = out.z;
   }
 
+  /** M8b: each other player's boat, velocipede or handcart (made when he takes it, gone when he lets go). */
+  private readonly gears = new Map<number, { code: number; model: GearModel | null; asking: boolean }>();
+
+  private placeGear(id: number, p: Pose, dt: number, shown: boolean): void {
+    let g = this.gears.get(id);
+    if (!g || g.code !== p.gear) {
+      g?.model?.dispose();
+      g = { code: p.gear, model: null, asking: false };
+      this.gears.set(id, g);
+      if (p.gear && this.d.gearModel) {
+        const want = g;
+        want.asking = true;
+        void this.d.gearModel(p.gear & 3, p.gear >> 2).then((m) => {
+          want.asking = false;
+          if (this.gears.get(id) === want) want.model = m;
+          else m?.dispose();
+        });
+      }
+    }
+    g.model?.place(p.x, p.y, p.z, p.lyaw, dt, shown);
+  }
+
+  private dropGear(id: number): void {
+    this.gears.get(id)?.model?.dispose();
+    this.gears.delete(id);
+  }
+
   /** On a platform: put him on this PC's own copy of it. */
   private onPlatform(p: Pose): void {
     if (!p.base || baseKind(p.base) !== BASE.omnibus) return;
@@ -375,6 +562,25 @@ export class Together {
   }
 
   /** The others where they stand (the bridges do not open under them; the carts wait for them). */
+  /** M8b: where the host is drawn on a guest's screen ([] on the host's own, or when he is not in view). */
+  hostAt(): Array<{ x: number; z: number }> {
+    if (!isGuest()) return [];
+    const f = this.figs.get(1);
+    return f?.shown ? [{ x: f.at.x, z: f.at.z }] : [];
+  }
+
+  /** M8d: this player's id (0 alone or before the welcome). */
+  meId(): number {
+    return this.session?.id ?? 0;
+  }
+
+  /** M8d: where player `id` stands: this PC's own player, or another as drawn here (null: not in view, or gone). */
+  playerAt(id: number): { x: number; z: number } | null {
+    if (id === this.meId()) return { x: this.d.player.x, z: this.d.player.z };
+    const f = this.figs.get(id);
+    return f?.shown ? { x: f.at.x, z: f.at.z } : null;
+  }
+
   positions(): Array<{ x: number; z: number }> {
     const out: Array<{ x: number; z: number }> = [];
     for (const f of this.figs.values()) if (f.shown) out.push({ x: f.at.x, z: f.at.z });
@@ -427,7 +633,7 @@ export class Together {
       const tr = this.tracks.get(id);
       return { id, frames: m.frames, pace: +med.toFixed(3), maxStep: +m.maxStep.toFixed(3), speedDevP95: +(d[Math.floor(d.length * 0.95)] ?? 0).toFixed(3), speedDevMax: +(d[d.length - 1] ?? 0).toFixed(3), jitterP95m: +((d[Math.floor(d.length * 0.95)] ?? 0) / 60).toFixed(4), delay: tr ? Math.round(tr.delay) : null, buffer: tr?.stats ?? null };
     });
-    return { frames: this.meter.frames, camSnaps: this.meter.camSnaps, maxCamStep: +this.meter.maxCamStep.toFixed(3), rtt: this.session?.rtt ?? null, offset: this.session ? Math.round(this.session.offset) : null, session: this.session?.stats ?? null, remotes };
+    return { frames: this.meter.frames, camSnaps: this.meter.camSnaps, maxCamStep: +this.meter.maxCamStep.toFixed(3), rtt: this.session?.rtt ?? null, offset: this.session ? Math.round(this.session.offset) : null, session: this.session?.stats ?? null, remotes, street: this.street?.report() ?? null, worldPc: this.worldPc, world: this.world?.report() ?? null, jobFigs: this.jobFigs?.report() ?? null };
   }
 
   resetMeter(): void {
@@ -483,20 +689,84 @@ export class Together {
       void this.panelClick(e.target as HTMLElement);
     });
     panel.addEventListener("mousedown", (e) => e.stopPropagation());
+    this.mountMapButton(paper);
   }
 
-  private hostView: { multiplayer: boolean; lan: boolean; open: string[]; code: string; urls: string[]; players: RosterEntry[]; pausedAll: boolean } | null = null;
+  /**
+   * The town map (docs/mapview.md): a button on the host's own PC (the page came from localhost) that opens the
+   * map in a new tab. The map listens on this PC only, so a guest never gets the button.
+   */
+  /** The town map is on (its button shown): played alone, Jef's place goes to it once a second. */
+  private mapOn = false;
+  private mapAcc = 0;
+  private soloMap(dt: number): void {
+    if (!this.mapOn || !this.d.entered()) return;
+    this.mapAcc += dt;
+    if (this.mapAcc < 1) return;
+    this.mapAcc = 0;
+    const p = this.d.player;
+    void real
+      .fetch("/api/map/me", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, mode: this.mode(), away: this.d.away() }) })
+      .catch(() => {});
+  }
+
+  private mountMapButton(paper: HTMLElement): void {
+    if (!identity.local || isGuest()) return;
+    void real
+      .fetch("/api/map")
+      .then(async (r) => {
+        if (!r.ok) return;
+        const { url } = (await r.json()) as { url?: string };
+        if (!url || !/^http:\/\/(127\.0\.0\.1|localhost):\d+\/?$/.test(url)) return;
+        this.mapOn = true;
+        const btn = document.createElement("button");
+        btn.className = "settings-btn";
+        btn.textContent = "Town map";
+        btn.title = "The whole town from above, live, in a new tab";
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          window.open(url, "scheldemist-map", "noopener");
+        });
+        paper.appendChild(btn);
+      })
+      .catch(() => {});
+  }
+
+  private hostView: {
+    multiplayer: boolean;
+    lan: boolean;
+    /** M8e: "Open to my VPN", the secure addresses, the house certificate. */
+    vpn?: boolean;
+    open: string[];
+    code: string;
+    urls: string[];
+    secure?: { house: string[]; vpn: string[] };
+    tls?: { ca: string; sha256: string; sha1: string; spki: string } | null;
+    players: RosterEntry[];
+    pausedAll: boolean;
+  } | null = null;
+  /** M8e: the house's https for a guest's panel (GET /api/mp/info). */
+  private guestHouse: HouseInfo | null | undefined = undefined;
 
   private async drawPanel(fetchNow = false): Promise<void> {
     const panel = this.panel;
     if (!panel || panel.style.display === "none") return;
     const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
     if (isGuest()) {
+      if (this.guestHouse === undefined || fetchNow) {
+        try {
+          this.guestHouse = ((await (await real.fetch("/api/mp/info")).json()) as { house?: HouseInfo | null }).house ?? null;
+        } catch {
+          this.guestHouse = null;
+        }
+      }
+      const gh = this.guestHouse;
       const host = this.roster.find((r) => r.host);
       panel.innerHTML = `<h2>Together</h2>
         <p>You are a guest in ${esc(host?.name ?? "the host")}'s town.</p>
-        <p class="note-small">For now guests walk, jump, swim and look. Work, talk and buying come in a later version. Only the host changes the town's settings.</p>
+        <p class="note-small">You play your own man: your own money, needs, pockets, work, room and name in the town. The town, its people and its clock are the same for everyone. Only the host starts a new week, loads a save or changes the town's settings.</p>
         <p class="row"><b>Here now</b> ${this.roster.filter((r) => r.online).map((r) => esc(r.name) + (r.away ? " (away)" : "")).join(", ") || "only you"}</p>
+        ${gh ? (location.protocol === "https:" ? `<p class="note-small">A secure address: the house certificate is trusted on this device.</p>` : secureOffer(gh)) : ""}
         <p class="row"><button data-mp="look">Your look</button></p>
         <button name="back">Back</button>`;
       return;
@@ -520,6 +790,11 @@ export class Together {
       <p class="row"><b>Open to the house</b> <button data-mp="lan">${h.lan ? "On" : "Off"}</button>
         <span class="note-small">${h.lan ? (h.open.length ? "Others in the house can join." : "Could not listen on the home network (see docs/milestones/M8a.md).") : "Off: only this PC."}</span></p>
       ${h.lan ? `<p class="row"><b>Address</b> ${h.urls.map((u) => `<code>${esc(u)}</code>`).join(" or ")}</p>` : ""}
+      ${h.lan && h.secure?.house.length ? `<p class="row"><b>Secure address</b> ${h.secure.house.map((u) => `<code>${esc(u)}</code>`).join(" or ")}</p>` : ""}
+      <p class="row"><b>Open to my VPN</b> <button data-mp="vpn">${h.vpn ? "On" : "Off"}</button>
+        <span class="note-small">${h.vpn ? (h.secure?.vpn.length ? "Players on your VPN (NetBird) can join, over https only." : "No VPN address found on this PC. Is NetBird connected?") : "Off: not on the VPN."}</span></p>
+      ${h.vpn && h.secure?.vpn.length ? `<p class="row"><b>VPN address</b> ${h.secure.vpn.map((u) => `<code>${esc(u)}</code>`).join(" or ")}</p>` : ""}
+      ${h.tls ? `<div class="row"><b>House certificate</b> <span class="note-small">Each guest trusts it once, for the secure address. Compare the fingerprint with the one on his device.</span>${trustSteps({ https: null, ca: h.tls.ca, sha256: h.tls.sha256, sha1: h.tls.sha1 })}</div>` : ""}
       ${h.multiplayer ? `<p class="row"><b>Join code</b> <code style="font-size:1.4em;letter-spacing:0.1em">${esc(h.code)}</code> <button data-mp="code">New code</button></p>` : ""}
       ${
         players.length
@@ -557,13 +832,13 @@ export class Together {
     }
     if (!h) return;
     if (act === "together") {
-      await post("/api/mp/config", { multiplayer: !h.multiplayer, lan: h.multiplayer ? false : h.lan });
+      await post("/api/mp/config", { multiplayer: !h.multiplayer, lan: h.multiplayer ? false : h.lan, vpn: h.multiplayer ? false : !!h.vpn });
       location.reload();
       return;
     }
-    if (act === "lan") {
+    if (act === "lan" || act === "vpn") {
       const was = h.multiplayer;
-      await post("/api/mp/config", { lan: !h.lan });
+      await post("/api/mp/config", act === "lan" ? { lan: !h.lan } : { vpn: !h.vpn });
       if (!was) {
         location.reload();
         return;
@@ -586,7 +861,7 @@ export class Together {
     void real
       .fetch("/api/mp/host")
       .then((r) => r.json())
-      .then((h: { lan: boolean; urls: string[]; code: string; multiplayer: boolean }) => {
+      .then((h: { lan: boolean; vpn?: boolean; urls: string[]; secure?: { house: string[]; vpn: string[] }; code: string; multiplayer: boolean }) => {
         if (!h.multiplayer) return;
         if (!this.corner) {
           const c = document.createElement("div");
@@ -596,7 +871,7 @@ export class Together {
           this.corner = c;
         }
         const n = this.roster.filter((r) => r.online && !r.host).length;
-        this.corner.textContent = `${h.lan ? `Open to the house: ${h.urls[0] ?? ""}` : "Together (this PC only)"} · code ${h.code}${n ? ` · ${n} guest${n > 1 ? "s" : ""}` : ""}`;
+        this.corner.textContent = `${h.lan ? `Open to the house: ${h.urls[0] ?? ""}` : h.vpn ? `Open to the VPN: ${h.secure?.vpn[0] ?? ""}` : "Together (this PC only)"} · code ${h.code}${n ? ` · ${n} guest${n > 1 ? "s" : ""}` : ""}`;
       })
       .catch(() => {});
   }

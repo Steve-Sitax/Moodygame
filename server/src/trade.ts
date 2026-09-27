@@ -1,6 +1,7 @@
 import type { DB } from "./db.ts";
 import { GameError, log, player } from "./game.ts";
 import { remember } from "./npcs.ts";
+import { pid } from "./player/current.ts";
 import { activityAt } from "./town/schedule.ts";
 import { resident, town } from "./town/store.ts";
 import { closedByEvent, state } from "./director/state.ts";
@@ -224,7 +225,7 @@ export interface Needs {
 }
 
 export function pockets(db: DB): PocketItem[] {
-  const rows = db.prepare("SELECT id, kind, job_id, ref FROM item ORDER BY id").all() as Array<{ id: number; kind: string; job_id: number | null; ref: number | null }>;
+  const rows = db.prepare("SELECT id, kind, job_id, ref FROM item WHERE player_id = ? ORDER BY id").all(pid()) as Array<{ id: number; kind: string; job_id: number | null; ref: number | null }>;
   return rows.map((r) => ({
     ...r,
     name: ITEMS[r.kind]?.name ?? r.kind,
@@ -234,11 +235,11 @@ export function pockets(db: DB): PocketItem[] {
 }
 
 export function needs(db: DB): Needs {
-  return db.prepare("SELECT food, warmth, health, sleep FROM player WHERE id = 1").get() as Needs;
+  return db.prepare("SELECT food, warmth, health, sleep FROM player WHERE id = ?").get(pid()) as Needs;
 }
 
 function freeSlots(db: DB): number {
-  return POCKET_SLOTS - (db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n;
+  return POCKET_SLOTS - (db.prepare("SELECT COUNT(*) AS n FROM item WHERE player_id = ?").get(pid()) as { n: number }).n;
 }
 
 /**
@@ -273,11 +274,11 @@ export function buy(db: DB, npc: string, kind: string): { line: string; bought: 
   const special = ITEM_BUY[kind];
   if (!drinkNow && !inArms && !special && freeSlots(db) < 1) throw new GameError("your pockets are full", 409);
   db.transaction(() => {
-    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(ware.price_c);
+    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(ware.price_c, pid());
     // a drink is taken on the spot; food goes into your pocket
     if (special) special(db);
     else if (drinkNow) applyNeeds(db, ITEMS[kind]);
-    else if (!inArms) db.prepare("INSERT INTO item (kind, job_id, ref) VALUES (?, NULL, ?)").run(kind, ref);
+    else if (!inArms) db.prepare("INSERT INTO item (kind, job_id, ref, player_id) VALUES (?, NULL, ?, ?)").run(kind, ref, pid());
     log(db, "bought", kind, `Jef bought ${ITEMS[kind].name} for ${ware.price_c} centimes.`);
     // food eaten at the counter (the tavern's pea soup) is a meal too (QA 2026-09-24: the night sheet said "You ate nothing")
     if (drinkNow && !special && ITEMS[kind].use === "eat") log(db, "ate", kind, `Jef ate ${ITEMS[kind].name} at the counter.`);
@@ -295,19 +296,19 @@ function applyNeeds(db: DB, d: ItemDef): void {
        food = MAX(0, MIN(10, food + ?)),
        warmth = MAX(0, MIN(10, warmth + ?)),
        health = MAX(0, MIN(10, health + ?))
-     WHERE id = 1`,
-  ).run(d.food ?? 0, d.warmth ?? 0, d.health ?? 0);
+     WHERE id = ?`,
+  ).run(d.food ?? 0, d.warmth ?? 0, d.health ?? 0, pid());
 }
 
 /** Eat or drink something from your pockets. */
 export function useItem(db: DB, id: number): { text: string } {
-  const row = db.prepare("SELECT id, kind FROM item WHERE id = ?").get(id) as { id: number; kind: string } | undefined;
+  const row = db.prepare("SELECT id, kind FROM item WHERE id = ? AND player_id = ?").get(id, pid()) as { id: number; kind: string } | undefined;
   if (!row) throw new GameError("not in your pockets", 404);
   const def = ITEMS[row.kind];
   if (!def?.use) throw new GameError("that is not yours to use", 409);
   if (def.use === "read") throw new GameError("open your pockets to read it", 409);
   db.transaction(() => {
-    db.prepare("DELETE FROM item WHERE id = ?").run(id);
+    db.prepare("DELETE FROM item WHERE id = ? AND player_id = ?").run(id, pid());
     applyNeeds(db, def);
     // M7 shops: worn (put on) and smoked too
     const verb = def.use === "eat" ? "ate" : def.use === "wear" ? "put on" : def.use === "smoke" ? "smoked" : "drank";
@@ -329,10 +330,10 @@ export function useItem(db: DB, id: number): { text: string } {
 
 /** Deliver jobs: the employer hands over the parcel; it goes in your pocket. */
 export function handOverParcel(db: DB, jobId: number): void {
-  const has = db.prepare("SELECT 1 FROM item WHERE job_id = ?").get(jobId);
+  const has = db.prepare("SELECT 1 FROM item WHERE job_id = ? AND player_id = ?").get(jobId, pid());
   if (has) return;
   if (freeSlots(db) < 1) throw new GameError("your pockets are full; eat something or leave it", 409);
-  db.prepare("INSERT INTO item (kind, job_id) VALUES ('parcel', ?)").run(jobId);
+  db.prepare("INSERT INTO item (kind, job_id, player_id) VALUES ('parcel', ?, ?)").run(jobId, pid());
 }
 
 /** A job is over: its parcel leaves your pocket (delivered, sold, or given back). */

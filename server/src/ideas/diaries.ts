@@ -16,6 +16,7 @@ import { noteOnRecord } from "../town/police.ts";
 import { pressTown } from "../paper/town.ts";
 import { canCallIdeas, clamp, d2, digitsOf, now, numbersOk, OUT_OF_WORLD, round5 } from "./common.ts";
 import { dogWords, nearLabel } from "./posters.ts";
+import { pid } from "../player/current.ts";
 
 // Lost diaries (M6 AI ideas). Now and then a townsperson drops a small notebook in
 // the street by their door. Reading it shows 3 to 5 entries in their hand. The ENGINE
@@ -286,9 +287,11 @@ export function diaryRow(db: DB, id: number): DiaryRow | null {
   return (db.prepare("SELECT * FROM diary WHERE id = ?").get(id) as DiaryRow | undefined) ?? null;
 }
 
+/** A notebook in this player's pocket (M8c: diary.player_id is who picked it up). */
 function held(db: DB, id: number): { d: DiaryRow; r: Resident } {
   const d = diaryRow(db, id);
-  if (!d || d.status !== "held" || !db.prepare("SELECT 1 FROM item WHERE kind = 'diary' AND ref = ?").get(id)) throw new GameError("you do not have that notebook", 409);
+  const mine = !!db.prepare("SELECT 1 FROM diary WHERE id = ? AND player_id = ?").get(id, pid());
+  if (!d || d.status !== "held" || !mine || !db.prepare("SELECT 1 FROM item WHERE kind = 'diary' AND ref = ? AND player_id = ?").get(id, pid())) throw new GameError("you do not have that notebook", 409);
   const r = resident(db, d.owner);
   if (!r) throw new GameError("nobody owns it", 409);
   return { d, r };
@@ -296,9 +299,9 @@ function held(db: DB, id: number): { d: DiaryRow; r: Resident } {
 
 const atDoor = (r: Resident, at: { x: number; z: number }) => Number.isFinite(at.x) && Number.isFinite(at.z) && d2(at, { x: r.home.sx, z: r.home.sz }) <= REACH_M + 0.5;
 
-/** What the client needs: notebooks lying about, the ones Jef has (with the owner's door). */
+/** What the client needs: notebooks lying about, the ones Jef has (with the owner's door). (M8c: another player's are his) */
 export function diaryWorld(db: DB) {
-  const rows = db.prepare("SELECT * FROM diary WHERE status IN ('lying', 'held')").all() as DiaryRow[];
+  const rows = db.prepare("SELECT * FROM diary WHERE status = 'lying' OR (status = 'held' AND player_id = ?)").all(pid()) as DiaryRow[];
   return rows.map((d) => {
     const r = resident(db, d.owner);
     return { id: d.id, status: d.status, x: d.x, z: d.z, owner: d.owner, owner_name: r?.name ?? "", door: r ? [r.home.sx, r.home.sz] : null };
@@ -310,11 +313,11 @@ export function pickDiary(db: DB, id: number, at: { x: number; z: number }): { t
   const d = diaryRow(db, id);
   if (!d || d.status !== "lying") throw new GameError("it is not there any more", 409);
   if (!Number.isFinite(at.x) || !Number.isFinite(at.z) || d2(at, d) > REACH_M) throw new GameError("you are not there yet", 409);
-  if ((db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n >= POCKET_SLOTS) throw new GameError("your pockets are full", 409);
+  if ((db.prepare("SELECT COUNT(*) AS n FROM item WHERE player_id = ?").get(pid()) as { n: number }).n >= POCKET_SLOTS) throw new GameError("your pockets are full", 409);
   const r = resident(db, d.owner);
   db.transaction(() => {
-    db.prepare("UPDATE diary SET status = 'held' WHERE id = ?").run(id);
-    db.prepare("INSERT INTO item (kind, job_id, ref) VALUES ('diary', NULL, ?)").run(id);
+    db.prepare("UPDATE diary SET status = 'held', player_id = ? WHERE id = ?").run(pid(), id);
+    db.prepare("INSERT INTO item (kind, job_id, ref, player_id) VALUES ('diary', NULL, ?, ?)").run(id, pid());
     log(db, "found_diary", d.owner, `Jef picked up a small notebook in the street; the name inside is ${r?.name ?? "somebody's"}.`);
   })();
   return { text: `A small notebook in oilcloth covers. Inside the cover: ${r?.name ?? "a name"}. (I to read it.)` };
@@ -341,8 +344,8 @@ export function returnDiary(db: DB, id: number, at: { x: number; z: number }): {
   const reward = r.stats.greed >= 8 ? 0 : round5(clamp(5 + r.stats.wealth * 2 + (r.stats.warmth >= 7 ? 5 : 0), 5, 20));
   db.transaction(() => {
     db.prepare("UPDATE diary SET status = 'returned', closed_day = ? WHERE id = ?").run(now(db).day, id);
-    db.prepare("DELETE FROM item WHERE kind = 'diary' AND ref = ?").run(id);
-    if (reward) db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = 1").run(reward);
+    db.prepare("DELETE FROM item WHERE kind = 'diary' AND ref = ? AND player_id = ?").run(id, pid());
+    if (reward) db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = ?").run(reward, pid());
     log(db, "returned_diary", r.id, `Jef brought ${r.name}'s lost notebook back to the door${reward ? ` and was given ${reward} centimes` : ""}.`);
   })();
   applyTrust(db, r.id, 1, 0);
@@ -360,8 +363,8 @@ export function sellDiary(db: DB, id: number, at: { x: number; z: number }, rng:
   const heard = rng() < 0.4;
   db.transaction(() => {
     db.prepare("UPDATE diary SET status = 'sold', closed_day = ? WHERE id = ?").run(now(db).day, id);
-    db.prepare("DELETE FROM item WHERE kind = 'diary' AND ref = ?").run(id);
-    db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = 1").run(DIARY_SELL_C);
+    db.prepare("DELETE FROM item WHERE kind = 'diary' AND ref = ? AND player_id = ?").run(id, pid());
+    db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = ?").run(DIARY_SELL_C, pid());
     log(db, "sold_diary", r.id, `Jef sold ${r.name}'s lost notebook to the clerk of the Berg for ${DIARY_SELL_C} centimes.`);
   })();
   if (heard) {
@@ -385,8 +388,8 @@ export function squeeze(db: DB, id: number, at: { x: number; z: number }, rng: (
   const police = !pays || rng() < 0.5;
   db.transaction(() => {
     db.prepare("UPDATE diary SET status = 'squeezed', closed_day = ? WHERE id = ?").run(now(db).day, id);
-    db.prepare("DELETE FROM item WHERE kind = 'diary' AND ref = ?").run(id);
-    if (amount) db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = 1").run(amount);
+    db.prepare("DELETE FROM item WHERE kind = 'diary' AND ref = ? AND player_id = ?").run(id, pid());
+    if (amount) db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = ?").run(amount, pid());
     log(db, "squeezed", r.id, pays ? `Jef made ${r.name} pay ${amount} centimes for their lost notebook and his silence.` : `Jef tried to make ${r.name} pay for their lost notebook; they refused and went to the police.`);
   })();
   applyTrust(db, r.id, -2, 0);

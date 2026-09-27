@@ -1,6 +1,8 @@
 import type { DB } from "./db.ts";
 import { GameError, log, player } from "./game.ts";
 import { applyTrust, remember } from "./npcs.ts";
+import { pid } from "./player/current.ts";
+import { pstate, setPstate } from "./player/multi.ts";
 import { town } from "./town/store.ts";
 import { HULLS, MOORINGS, SMALL_KINDS, possessive, type Mooring, type OwnerRule, type SmallKind } from "../../shared/smallBoats.ts";
 
@@ -93,17 +95,26 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 
 // ------------------------------------------------------------------ state
 
+// (M8c: row and row_missed are each player's own: player_state, the host's older world_state key until written;
+// row_boats, where the town's boats lie and who has one, is the world's: one list for everyone)
+const WORLD_KEYS = new Set(["row_boats"]);
 function state<T>(db: DB, key: string, fallback: T): T {
-  const row = db.prepare("SELECT value_json FROM world_state WHERE key = ?").get(key) as { value_json: string } | undefined;
-  if (!row) return fallback;
   try {
-    return JSON.parse(row.value_json) as T;
+    if (WORLD_KEYS.has(key)) {
+      const r = db.prepare("SELECT value_json FROM world_state WHERE key = ?").get(key) as { value_json: string } | undefined;
+      return r ? (JSON.parse(r.value_json) as T) : fallback;
+    }
+    return pstate<T>(db, key) ?? fallback;
   } catch {
     return fallback;
   }
 }
 function setState(db: DB, key: string, v: unknown): void {
-  db.prepare("INSERT INTO world_state (key, value_json) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(key, JSON.stringify(v));
+  if (WORLD_KEYS.has(key)) {
+    db.prepare("INSERT INTO world_state (key, value_json) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(key, JSON.stringify(v));
+    return;
+  }
+  setPstate(db, key, v);
 }
 
 /** Game minutes since Monday 0:00. */
@@ -352,7 +363,7 @@ function charge(db: DB, s: RowState, sum: number, to: string | null): { paid: nu
   sum = Math.max(0, Math.round(sum));
   const money = player(db).money_c;
   const paid = Math.min(money, sum);
-  if (paid) db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(paid);
+  if (paid) db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(paid, pid());
   const owed = sum - paid;
   if (owed) {
     if (!s.debt_c) s.debt_day = player(db).day;
@@ -419,7 +430,7 @@ export function hireBoat(db: DB, landing: unknown, x: number, z: number): { fee_
     throw new GameError(s.debt_c ? `${who} wants the ${s.debt_c} c you owe the watermen first, and ${ROW_HIRE_C} c for the boat` : `not enough money: the boat is ${ROW_HIRE_C} c`, 409);
   const debt = s.debt_c;
   db.transaction(() => {
-    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(need);
+    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(need, pid());
     s.debt_c = 0;
     s.debt_to = null;
     s.debt_day = null;
@@ -583,14 +594,14 @@ export function loseHired(db: DB, cause: unknown): { lost_c: number; paid_c: num
   };
 }
 
-/** Shift strokes, counted by the client, clamped by the clock (at most ROW_STROKES_PER_S a real second). */
-let lastStrokeAt = 0;
+/** Shift strokes, counted by the client, clamped by the clock (at most ROW_STROKES_PER_S a real second). Per player (M8c). */
+const lastStrokeAt = new Map<number, number>();
 export function rowEffort(db: DB, hard: unknown, now = Date.now()): number {
   const s = rowState(db);
   if (!s.on) return 0;
   const n = Math.max(0, Math.floor(Number(hard) || 0));
-  const allowed = Math.floor(Math.max(0, Math.min(30, (now - lastStrokeAt) / 1000)) * ROW_STROKES_PER_S);
-  lastStrokeAt = now;
+  const allowed = Math.floor(Math.max(0, Math.min(30, (now - (lastStrokeAt.get(pid()) ?? 0)) / 1000)) * ROW_STROKES_PER_S);
+  lastStrokeAt.set(pid(), now);
   const add = Math.min(n, allowed);
   s.effort = Math.min(2 * ROW_EFFORT_PER_FOOD, s.effort + add);
   saveRow(db, s);
@@ -598,7 +609,7 @@ export function rowEffort(db: DB, hard: unknown, now = Date.now()): number {
 }
 /** Test helper. */
 export function resetRowClock(): void {
-  lastStrokeAt = 0;
+  lastStrokeAt.clear();
 }
 
 // ------------------------------------------------------------------ needs (day.ts applyHour)

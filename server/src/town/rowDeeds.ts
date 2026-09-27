@@ -1,7 +1,10 @@
 import type { Hono } from "hono";
 import type { DB } from "../db.ts";
+import { forEachOnline } from "../player/current.ts";
 import { GameError, log, player } from "../game.ts";
 import { applyTrust, remember } from "../npcs.ts";
+import { pid } from "../player/current.ts";
+import { pstate, setPstate } from "../player/multi.ts";
 import { atMooring, boardHired, hireBoat, leaveBoat, loseHired, missedBy, notice, rowBoatStates, rowBoats, rowEffort, rowHooks, rowMinute, rowState, rowTick, rowWorld, saveRow, setMissed, setRowBoat } from "../rowing.ts";
 import { BOAT_GRACE_MIN, deedRow, deedTables, gameMinute, npcName } from "./deeds.ts";
 import { deedSettled, policeRespond, policeState } from "./police.ts";
@@ -56,26 +59,25 @@ export function loseStolen(db: DB, id: string): { text: string } {
 
 // ------------------------------------------------------------------ M7 boats: brought back, missed, the police
 
+// (M8c: the owners who asked for a boat back, and the day's trust given back, are each player's own: pstate)
 function asked(db: DB): Record<string, number> {
-  const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'boat_asked'").get() as { value_json: string } | undefined;
   try {
-    return row ? (JSON.parse(row.value_json) as Record<string, number>) : {};
+    return pstate<Record<string, number>>(db, "boat_asked") ?? {};
   } catch {
     return {};
   }
 }
 function setAsked(db: DB, v: Record<string, number>): void {
-  db.prepare("INSERT INTO world_state (key, value_json) VALUES ('boat_asked', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(JSON.stringify(v));
+  setPstate(db, "boat_asked", v);
 }
 
 /** A day's trust given back for a boat brought home, at most once a game day per owner (no trust farm). */
 function trustBack(db: DB, owner: string): boolean {
   const day = Math.floor(gameMinute(db) / 1440) + 1;
-  const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'boat_home_trust'").get() as { value_json: string } | undefined;
-  const ledger = row ? (JSON.parse(row.value_json) as Record<string, number>) : {};
+  const ledger = pstate<Record<string, number>>(db, "boat_home_trust") ?? {};
   if (ledger[owner] === day) return false;
   ledger[owner] = day;
-  db.prepare("INSERT INTO world_state (key, value_json) VALUES ('boat_home_trust', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(JSON.stringify(ledger));
+  setPstate(db, "boat_home_trust", ledger);
   return true;
 }
 
@@ -123,7 +125,7 @@ rowHooks.home = boatHome;
 export const BOAT_MISS_MIN = 45;
 
 /**
- * Every tick (M7 boats): an owner finds his boat gone from her mooring once it has been away a while
+ * Every tick, for each player (M7 boats; M8c: his boats and deeds): an owner finds his boat gone from her mooring once it has been away a while
  * (he grumbles: a memory, no name to it; the client shows him at the quay looking for her), and an
  * owner who asked for his boat back and did not get her goes to the police.
  */
@@ -146,23 +148,25 @@ export function boatTick(db: DB): boolean {
     changed = true;
   }
   const a = asked(db);
+  const had = Object.keys(a).length;
   for (const [k, since] of Object.entries(a)) {
     if (now - since < BOAT_GRACE_MIN) continue;
     delete a[k];
     const d = deedRow(db, Number(k));
-    if (!d || d.status !== "open") continue;
+    if (!d || d.status !== "open" || (d.player_id ?? 1) !== pid()) continue;
     const b = rowBoats(db).find((q) => q.id === d.ref);
     remember(db, d.owner, `Jef took my ${b ? HULLS[b.kind].noun : "boat"} and did not bring her back when I asked. I went to the police.`, 6, "seen", null, { gist: "Jef took a boat and would not bring it back", tone: -2 });
     log(db, "police_called_boat", d.ref, `${npcName(db, d.owner)} went to the police about the boat Jef took.`);
     policeRespond(db, d.id);
     changed = true;
   }
-  setAsked(db, a);
+  // (nothing asked: nothing written, so the host's older key is read as it was)
+  if (had) setAsked(db, a);
   return changed;
 }
 
 /**
- * A debt for a lost boat still owed after a night: the waterman goes to the police. The debt
+ * A debt for a lost boat still owed after a night (each player's own; the tick runs it per player): the waterman goes to the police. The debt
  * becomes a deed ("boat_debt", seen by the owner); the police take it from there (M3h).
  */
 export function rowDebtToPolice(db: DB): number | null {
@@ -183,10 +187,10 @@ export function rowDebtToPolice(db: DB): number | null {
   db.transaction(() => {
     const r = db
       .prepare(
-        `INSERT INTO deed (day, hour, minute, thing, item, ref, owner, x, z, seen, owner_saw, witnesses, item_id, status, rumour_at)
-         VALUES (?, ?, ?, 'boat_debt', 'boat', ?, ?, 0, 0, 1, 1, '[]', NULL, 'open', NULL)`,
+        `INSERT INTO deed (day, hour, minute, thing, item, ref, owner, x, z, seen, owner_saw, witnesses, item_id, status, rumour_at, player_id)
+         VALUES (?, ?, ?, 'boat_debt', 'boat', ?, ?, 0, 0, 1, 1, '[]', NULL, 'open', NULL, ?)`,
       )
-      .run(p.day, p.hour, p.minute, `debt:${who}`, who);
+      .run(p.day, p.hour, p.minute, `debt:${who}`, who, pid());
     id = Number(r.lastInsertRowid);
     notice(s, `${npcName(db, who).split(" ")[0]} the waterman has gone to the police about the ${owed} c you owe him for his boat.`);
     saveRow(db, s);
@@ -207,10 +211,17 @@ export function mountRowing(app: Hono, deps: RowDeps): void {
     app.use(path, async (_c, next) => {
       await next();
       try {
-        const fetched = rowTick(db);
-        const police = rowDebtToPolice(db);
-        const boats = boatTick(db);
-        if (fetched || police || boats) push();
+        // (M8c: the world's tick does it for every player in the game; a player's own sleep for him)
+        let any = false;
+        const one = () => {
+          const fetched = rowTick(db);
+          const police = rowDebtToPolice(db);
+          const boats = boatTick(db);
+          if (fetched || police || boats) any = true;
+        };
+        if (path === "/api/tick") forEachOnline(one);
+        else one();
+        if (any) push();
       } catch (e) {
         console.error("[rowing] tick", e);
       }

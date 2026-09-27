@@ -12,7 +12,7 @@ import { setWorldClock, worldClock } from "../src/mp/worldClock.ts";
 import { loopback, whoFrom } from "../src/mp/auth.ts";
 import { Plausible } from "../src/mp/plausible.ts";
 import { addGuest, codeKey, newJoinCode, playerOfToken, sameCode } from "../src/mp/players.ts";
-import { decodeBatch, decodeState, encodeBatch, encodeState, FLAG, MODES, MP_PROTOCOL, type MpState } from "../../shared/mpProtocol.ts";
+import { decodeBatch, decodeFigs, decodeState, encodeBatch, encodeFigs, encodeState, FLAG, MODES, MP_PROTOCOL, MSG_FIGS, type MpState } from "../../shared/mpProtocol.ts";
 import { blankSave } from "./blank-save.ts";
 
 // M8a multiplayer (docs/milestones/M8a.md): join tokens, the join code, the plausibility checks (a
@@ -232,6 +232,8 @@ async function realServer(together: boolean) {
     try {
       return {
         clock: JSON.parse((db.prepare("SELECT value_json FROM world_state WHERE key = 'clock'").get() as { value_json: string }).value_json) as { day: number; hour: number; minute: number },
+        // (M8c: the host's purse)
+        money_c: (db.prepare("SELECT money_c FROM player WHERE id = 1").get() as { money_c: number }).money_c,
       };
     } finally {
       db.close();
@@ -259,8 +261,133 @@ async function realServer(together: boolean) {
     await new Promise((r) => child.once("exit", r));
     fs.rmSync(dir, { recursive: true, force: true });
   };
-  return { call, row, socket, stop, log: () => log, base, port };
+  /** M8c: the push channel (/ws): a guest's tab says its token in its first message. */
+  const push = async (token?: string) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?client=t${Math.random().toString(36).slice(2, 8)}${token ? "&guest=1" : ""}`, { headers: { origin: base } });
+    const msgs: Array<Record<string, unknown>> = [];
+    ws.on("message", (d) => msgs.push(JSON.parse(String(d))));
+    await new Promise<void>((ok, bad) => {
+      ws.once("open", () => ok());
+      ws.once("error", bad);
+    });
+    if (token) ws.send(JSON.stringify({ type: "hello", token }));
+    for (let i = 0; i < 50 && !msgs.length; i++) await new Promise((r) => setTimeout(r, 50));
+    return { ws, msgs };
+  };
+  return { call, row, socket, push, stop, log: () => log, base, port };
 }
+
+describe("M8c: each his own man, on a real server", () => {
+  it("a guest's purse, job, news and pushes are his; the host's are untouched; each gets his own board", async () => {
+    const s = await realServer(true);
+    try {
+      const token = String((await s.call("POST", "/api/mp/join", { code: "KADE-47", name: "Anna" })).body.token);
+      const g = { "x-scheldemist-player": token };
+      // both in the game (the movement sockets), and both on the push channel
+      const host = await s.socket();
+      const anna = await s.socket(token);
+      const hostPush = await s.push();
+      const annaPush = await s.push(token);
+      const st = async (h: Record<string, string> = {}) => (await s.call("GET", "/api/state", undefined, h)).body as { player: { money_c: number; name: string }; jobs: Array<{ id: number; status: string }> };
+      const h0 = await st();
+      const a0 = await st(g);
+      expect(a0.player.money_c).toBe(50);
+      expect(a0.player.name).toBe("Anna");
+      // his first push is his own
+      const firstAnna = annaPush.msgs.find((m) => m.type === "jobs") as { player?: { money_c: number } } | undefined;
+      expect(firstAnna?.player?.money_c).toBe(50);
+      // she buys: her purse moves, the host's does not
+      const b = await s.call("POST", "/api/buy", { npc: "fientje", kind: "herring" }, g);
+      expect(b.status).toBe(200);
+      expect((await st(g)).player.money_c).toBeLessThan(50);
+      expect((await st()).player.money_c).toBe(h0.player.money_c);
+      // she takes a job: gone from the host's board, in her hand
+      const offered = a0.jobs.find((j) => j.status === "offered");
+      if (offered) {
+        const t = await s.call("POST", `/api/jobs/${offered.id}/take`, {}, g);
+        expect(t.status).toBe(200);
+        expect((await st()).jobs.some((j) => j.id === offered.id)).toBe(false);
+        expect((await st(g)).jobs.find((j) => j.id === offered.id)?.status).toBe("taken");
+        // the host may take another one: one job in hand per player
+        const other = h0.jobs.find((j) => j.status === "offered" && j.id !== offered.id);
+        if (other) expect((await s.call("POST", `/api/jobs/${other.id}/take`, {})).status).toBe(200);
+      }
+      // the pushes after her buy: each tab its own purse
+      await new Promise((r) => setTimeout(r, 200));
+      const lastOf = (m: Array<Record<string, unknown>>) => [...m].reverse().find((x) => x.type === "jobs") as { player: { money_c: number; name: string } };
+      expect(lastOf(annaPush.msgs).player.name).toBe("Anna");
+      expect(lastOf(hostPush.msgs).player.money_c).toBe((await st()).player.money_c);
+      expect(lastOf(annaPush.msgs).player.money_c).toBe((await st(g)).player.money_c);
+      for (const w of [host.ws, anna.ws, hostPush.ws, annaPush.ws]) w.close();
+    } finally {
+      await s.stop();
+    }
+  }, 120_000);
+});
+
+describe("M8d: shared work, on a real server", () => {
+  it("a guest's job figures reach the host with her id; the pins come on joining; her finished job pays her, not the host", async () => {
+    const s = await realServer(true);
+    try {
+      const token = String((await s.call("POST", "/api/mp/join", { code: "KADE-47", name: "Anna" })).body.token);
+      const g = { "x-scheldemist-player": token };
+      const host = await s.socket();
+      const anna = await s.socket(token);
+      expect(host.texts.some((t) => t.type === "pins")).toBe(true);
+      const raw: Buffer[] = [];
+      host.ws.on("message", (d, bin) => bin && raw.push(d as Buffer));
+      const figs = () => raw.filter((b) => b[0] === MSG_FIGS);
+      const thief = () => encodeFigs(Date.now(), [{ id: 3, kind: "thief", motion: "walk", snap: true, carrying: false, x: 4, y: 0, z: 6, yaw: 1, speed: 1.35 }], 1);
+      // (review 3: no job in hand, no call: her figures are not passed on)
+      anna.ws.send(thief());
+      await new Promise((r) => setTimeout(r, 300));
+      expect(figs().length).toBe(0);
+      const st = async (h: Record<string, string> = {}) => (await s.call("GET", "/api/state", undefined, h)).body as { player: { money_c: number }; jobs: Array<{ id: number; status: string; task_type: string }> };
+      const offered = (await st(g)).jobs.filter((j) => j.status === "offered");
+      const watch = offered.find((j) => j.task_type === "watch");
+      const job = watch ?? offered.find((j) => ["carry", "deliver"].includes(j.task_type));
+      expect(job).toBeTruthy();
+      expect((await s.call("POST", `/api/jobs/${job!.id}/take`, {}, g)).status).toBe(200);
+      await new Promise((r) => setTimeout(r, 300)); // (the server's pins are asked fresh every 250 ms)
+      // her PC sends her thief (the sender's id in the batch is the server's word, not hers)
+      anna.ws.send(thief());
+      for (let i = 0; i < 40 && !figs().length; i++) await new Promise((r) => setTimeout(r, 50));
+      const got = figs()[0];
+      const d = decodeFigs(new DataView(got.buffer, got.byteOffset, got.byteLength))!;
+      const you = (await s.call("GET", "/api/mp/info", undefined, g)).body.you as { id: number };
+      expect(d.sender).toBe(you.id);
+      expect(d.sender).not.toBe(1);
+      expect(d.list[0]).toMatchObject({ id: 3, kind: "thief", motion: "walk" });
+      // junk is not passed on
+      raw.length = 0;
+      anna.ws.send(new Uint8Array([MSG_FIGS, 5, 0, 0]));
+      await new Promise((r) => setTimeout(r, 200));
+      expect(figs().length).toBe(0);
+      // (review 3: a flood is cut to 15 batches a second a seat)
+      await new Promise((r) => setTimeout(r, 1000));
+      for (let i = 0; i < 60; i++) anna.ws.send(thief());
+      await new Promise((r) => setTimeout(r, 400));
+      expect(figs().length).toBeGreaterThan(0);
+      expect(figs().length).toBeLessThanOrEqual(15);
+      // her watch: paid into her purse; the host's purse stays
+      if (watch) {
+        const h0 = (await st()).player.money_c;
+        const a0 = (await st(g)).player.money_c;
+        // the host cannot settle her job
+        expect((await s.call("POST", `/api/jobs/${watch.id}/done`, { left_post_s: 0 })).status).toBe(409);
+        const done = await s.call("POST", `/api/jobs/${watch.id}/done`, { left_post_s: 0 }, g);
+        expect(done.status).toBe(200);
+        const paid = (done.body.settlement as { pay_c: number; extra_c: number }).pay_c;
+        expect(paid).toBeGreaterThan(0);
+        expect((await st(g)).player.money_c).toBeGreaterThanOrEqual(a0 + paid);
+        expect((await st()).player.money_c).toBe(h0);
+      }
+      for (const w of [host.ws, anna.ws]) w.close();
+    } finally {
+      await s.stop();
+    }
+  }, 120_000);
+});
 
 describe("played together on a real server", () => {
   it("join: the right code gives a token; a wrong one does not; 5 tries a minute; the token speaks for him", async () => {
@@ -302,23 +429,29 @@ describe("played together on a real server", () => {
       expect((await s.call("POST", "/api/mp/code", {}, guest)).status).toBe(403);
       expect((await s.call("POST", "/api/mp/pause-all", { on: true }, guest)).status).toBe(403);
       expect((await s.call("POST", "/api/settings/population", { eventSize: 20 }, guest)).status).toBe(403);
-      expect((await s.call("POST", "/api/save", { slot: "slot1" }, guest)).status).toBe(403);
+      // (M8c: a guest's "save" keeps only his own part, never a save file of the world)
+      const gs = await s.call("POST", "/api/save", { slot: "slot1" }, guest);
+      expect(gs.status).toBe(200);
+      expect(gs.body).toMatchObject({ guest: true });
       expect((await s.call("POST", "/api/load", { slot: "slot1" }, guest)).status).toBe(403);
       expect((await s.call("POST", "/api/new-game", {}, guest)).status).toBe(403);
       expect((await s.call("POST", "/api/dev/set", { hour: 3 }, guest)).status).toBe(403);
       // he may walk and look: the town, the state, the heartbeat
       expect((await s.call("GET", "/api/town", undefined, guest)).status).toBe(200);
       expect((await s.call("POST", "/api/tick", {}, guest)).body).toMatchObject({ advanced: false, together: true });
-      // but not buy, take work or talk yet (M8c)
-      expect((await s.call("POST", "/api/buy", { npc: "fientje", kind: "herring" }, guest)).status).toBe(403);
-      expect((await s.call("POST", "/api/rent", {}, guest)).status).toBe(403);
+      // M8c: and he plays his own man: he buys with his own money, pays his own rent (the host's purse is untouched)
+      const hostMoney = s.row().money_c;
+      const bought = await s.call("POST", "/api/buy", { npc: "fientje", kind: "herring" }, guest);
+      expect(bought.status).not.toBe(403);
+      expect((await s.call("POST", "/api/rent", {}, guest)).status).not.toBe(403);
+      expect(s.row().money_c).toBe(hostMoney);
       // a PC in the house without a token, and a request that says it was forwarded for one
       expect((await s.call("GET", "/api/state", undefined, { "x-forwarded-for": "192.168.1.23" })).status).toBe(401);
       expect((await s.call("PUT", "/api/ai/config", { mode: "walk" }, { "x-forwarded-for": "192.168.1.23" })).status).toBe(401);
       // the host may; a guest he marks admin may change the settings too, but never save or load
       expect((await s.call("POST", "/api/mp/admin", { id: 2, on: true })).status).toBe(200);
       expect((await s.call("PUT", "/api/ai/config", { callsPerDay: 100 }, guest)).status).toBe(200);
-      expect((await s.call("POST", "/api/save", { slot: "slot1" }, guest)).status).toBe(403);
+      expect((await s.call("POST", "/api/load", { slot: "slot1" }, guest)).status).toBe(403);
       expect((await s.call("PUT", "/api/ai/config", { callsPerDay: 120 })).status).toBe(200);
     } finally {
       await s.stop();
@@ -406,7 +539,9 @@ describe("played together on a real server", () => {
       expect(st.corrections).toBe(0);
       expect(st.players.find((p) => p.id === 2)!.refused).toBe(11);
       // the mover heard nothing back about it: no correction, no pull
-      expect(anna.texts.map((m) => m.type).filter((k) => k !== "roster" && k !== "welcome")).toEqual([]);
+      // (M8b: who walks the townspeople and who runs the world are news for everyone, not corrections)
+      // (M8d: nor whose job each called townsperson is)
+      expect(anna.texts.map((m) => m.type).filter((k) => k !== "roster" && k !== "welcome" && k !== "owners" && k !== "worldpc" && k !== "pins")).toEqual([]);
       expect(s.log()).toMatch(/player 2: move refused \(speed/);
       host.ws.close();
       anna.ws.close();

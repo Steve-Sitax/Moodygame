@@ -4,6 +4,8 @@ import { SERMON_CALLS_PER_DAY } from "../config.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
 import { clock, WEATHER_TEXT } from "../day.ts";
 import { log } from "../game.ts";
+import { pid } from "../player/current.ts";
+import { pstate, setPstate } from "../player/multi.ts";
 import { writeEvent } from "../director/eventlog.ts";
 import { callTimeout, canCallShare, getState, hourNow, setState } from "../interiors/state.ts";
 import { resident } from "../town/store.ts";
@@ -191,7 +193,7 @@ export function sermonView(db: DB, s: Sermon): SermonView {
     hint: s.hint?.kind ?? null,
     gossip: g ? { id: g.p.id, name: g.p.first, to, text } : null,
     nodders,
-    heard: !!getState(db, `sermon:heard:${s.day}`, false),
+    heard: !!pstate(db, `sermon:heard:${s.day}`),
   };
 }
 
@@ -210,11 +212,12 @@ export function hearSermon(db: DB): { delta: number; text: string } {
   const inHigh = (mass?.kind === "high") || (isSunday(c.day) && h >= 9 && h < 11.5);
   if (!s || !isSunday(c.day) || !inHigh) return { delta: 0, text: "" };
   if (jefInside() !== "cathedral") return { delta: 0, text: "" };
+  // (M8c: each player hears it once a Sunday, and the kerk's trust is his own)
   const k = `sermon:heard:${c.day}`;
-  if (getState(db, k, false)) return { delta: 0, text: "" };
-  setState(db, k, true);
+  if (pstate(db, k)) return { delta: 0, text: "" };
+  setPstate(db, k, true);
   const delta = s.hint?.kind === "warn" ? -1 : 1;
-  db.prepare("UPDATE faction_trust SET trust = MAX(-5, MIN(10, trust + ?)) WHERE faction = 'kerk'").run(delta);
+  db.prepare("UPDATE faction_trust SET trust = MAX(-5, MIN(10, trust + ?)) WHERE player_id = ? AND faction = 'kerk'").run(delta, pid());
   const text =
     delta < 0
       ? "Heads turn along the rows toward you. Somebody tuts. The church will remember that you were here, and what was said."

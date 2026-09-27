@@ -13,6 +13,7 @@ import { noteOnRecord, policePost } from "../town/police.ts";
 import { jefAt } from "../director/actions.ts";
 import { callResponder, comings, pickResponder, type CallResult, type CallRole } from "../town/walkup.ts";
 import { canCallIdeas, clamp, d2, digitsOf, GIFTS, namesOk, now, numbersOk, OUT_OF_WORLD, round5 } from "./common.ts";
+import { pid } from "../player/current.ts";
 
 // Jobs that go wrong (M6 AI ideas). Sometimes, on a running job, there is trouble:
 // a stowaway in a crate, a crate that breaks, a suspicious customs officer, a rival
@@ -123,7 +124,7 @@ const spotOf = (id: string) => (SPOTS as Record<string, { x: number; z: number; 
 
 /** M7 walk-up: where the job is now (Jef, else its first place), for the nearest fitting person. */
 function jobAt(j: JobRow): { x: number; z: number } | null {
-  const jef = jefAt();
+  const jef = jefAt(Date.now(), j.taken_by ?? pid()); // (M8d: where the man who has the job is, not the host)
   if (jef) return jef;
   const t = j.task as { from?: string; post?: string } | null;
   const s = t ? spotOf(t.from ?? t.post ?? "") : null;
@@ -406,6 +407,11 @@ export function troubleOf(db: DB, jobId: number): TroubleRow | null {
   return (db.prepare("SELECT * FROM job_trouble WHERE job_id = ?").get(jobId) as TroubleRow | undefined) ?? null;
 }
 
+/** A trouble by its id, on a job in this player's hand (M8c: it follows the job's taken_by; an older job's is the host's). */
+function ownTrouble(db: DB, id: number): TroubleRow | undefined {
+  return db.prepare("SELECT t.* FROM job_trouble t JOIN job j ON j.id = t.job_id WHERE t.id = ? AND COALESCE(j.taken_by, 1) = ?").get(id, pid()) as TroubleRow | undefined;
+}
+
 /**
  * When a job is taken: maybe trouble (the engine rolls, at most two a day). The words come
  * later (the model), the engine's are there at once. Returns the row, or null.
@@ -416,7 +422,8 @@ export async function maybeTrouble(db: DB, jobId: number, opts: { runner?: Runne
   const { day } = now(db);
   const rng = opts.rng ?? rngFrom(((town(db).town.seed || 1873) * 41 + jobId * 7717) >>> 0);
   if (!opts.force) {
-    const today = (db.prepare("SELECT COUNT(*) AS n FROM job_trouble WHERE day = ?").get(day) as { n: number }).n;
+    // (M8d: at most TROUBLES_A_DAY for each player: another player's troubles do not use up his)
+    const today = (db.prepare("SELECT COUNT(*) AS n FROM job_trouble t JOIN job jb ON jb.id = t.job_id WHERE t.day = ? AND COALESCE(jb.taken_by, 1) = ?").get(day, j.taken_by ?? 1) as { n: number }).n;
     if (today >= TROUBLES_A_DAY || rng() > TROUBLE_CHANCE) return null;
   }
   const plan = planTrouble(db, j, rng, opts.force, opts.who);
@@ -465,7 +472,7 @@ export function troubleView(db: DB, jobId: number) {
 
 /** Jef picks an option: the engine rolls and applies what happens now. */
 export function chooseTrouble(db: DB, id: number, n: number, rng: () => number = Math.random): { text: string; money_c: number } {
-  const t = db.prepare("SELECT * FROM job_trouble WHERE id = ?").get(id) as TroubleRow | undefined;
+  const t = ownTrouble(db, id);
   if (!t) throw new GameError("no such trouble", 404);
   if (t.status !== "ready") throw new GameError("that is settled already", 409);
   const j = job(db, t.job_id);
@@ -482,7 +489,7 @@ export function chooseTrouble(db: DB, id: number, n: number, rng: () => number =
   db.transaction(() => {
     db.prepare("UPDATE job_trouble SET status = 'chosen', choice = ?, result_json = ? WHERE id = ?").run(n, JSON.stringify({ bad, text, step: o.step ?? null }), id);
     const delta = (o.now_in_c ?? 0) - out;
-    if (delta) db.prepare("UPDATE player SET money_c = MAX(0, money_c + ?) WHERE id = 1").run(delta);
+    if (delta) db.prepare("UPDATE player SET money_c = MAX(0, money_c + ?) WHERE id = ?").run(delta, pid());
     log(db, "job_trouble", String(t.job_id), `${o.fact}${bad && o.roll ? ` ${o.roll.what}` : ""}`);
   })();
   if (bad && o.roll?.police) noteOnRecord(db, o.roll.what);
@@ -495,7 +502,7 @@ export function chooseTrouble(db: DB, id: number, n: number, rng: () => number =
 
 /** The extra step: Jef is at the place. */
 export function troubleStep(db: DB, id: number, at: { x: number; z: number }): { text: string } {
-  const t = db.prepare("SELECT * FROM job_trouble WHERE id = ?").get(id) as TroubleRow | undefined;
+  const t = ownTrouble(db, id);
   if (!t || t.status !== "chosen") throw new GameError("nothing to do there", 409);
   const r = JSON.parse(t.result_json) as { step?: Step | null };
   if (!r.step || t.step_done) throw new GameError("nothing to do there", 409);
@@ -553,7 +560,7 @@ export const TROUBLE_ROLE: Record<TroubleKind, CallRole | null> = {
  * after its cap with a man who walks in from out of sight). The stowaway needs nobody.
  */
 export function callTrouble(db: DB, id: number, at: { x: number; z: number }): CallResult | { ok: false; none: true } {
-  const t = db.prepare("SELECT * FROM job_trouble WHERE id = ?").get(id) as TroubleRow | undefined;
+  const t = ownTrouble(db, id);
   if (!t) throw new GameError("no such trouble", 404);
   const role = TROUBLE_ROLE[t.kind];
   if (!role) return { ok: false, none: true };

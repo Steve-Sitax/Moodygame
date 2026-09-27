@@ -10,6 +10,7 @@ import { plainEnglish } from "../text.ts";
 import { resident } from "../town/store.ts";
 import { callTimeout, canCallShare } from "../interiors/state.ts";
 import { landmarkNow } from "./life.ts";
+import { pid } from "../player/current.ts";
 
 // The confessional (M6 landmark interiors). Jef kneels at the grille of the curate's box in
 // the cathedral and says what he likes, in his own words. The priest answers: advice and a
@@ -89,7 +90,8 @@ const AGAIN = "The shutter slides open. A sigh. \"You again? Well, the Lord keep
 const LUST_WOMAN = ["The heart wanders like a dog in the fog. Call it home; a man who means it will ask your father first.", "Keep your eyes on your work and your good name in your pocket. A good man waits, a bad one hurries."];
 const GATED = "Those are not sins, those are riddles. Tell me plainly what you have done, in words a Christian can follow.";
 
-const countKey = (day: number) => `confession:count:${day}`;
+// (M8c: each player's own count, so the priest says "again?" to the one who came before; the host keeps the older key)
+const countKey = (day: number) => `confession:count:${day}${pid() === 1 ? "" : `:p${pid()}`}`;
 function countToday(db: DB): number {
   const row = db.prepare("SELECT value_json FROM world_state WHERE key = ?").get(countKey(clock(db).day)) as { value_json: string } | undefined;
   return row ? Number(JSON.parse(row.value_json)) || 0 : 0;

@@ -13,12 +13,12 @@ import { plainEnglish } from "./text.ts";
 import { mountPlayer } from "./player/routes.ts"; // M7 character: the player's profile
 import { hasProfile } from "./player/profile.ts";
 import { shownJson } from "./player/prompt.ts";
-import { BEDTIME, clock, ending, fogDay, markDayStart, newDayOf, passTime, payRent, RENT_C, rentPaid, resetTickLimit, setEnding, setWeather, swim, tick, type Ending } from "./day.ts";
+import { BEDTIME, clock, ending, ENDING_HOOKS, fogDay, markDayStart, newDayOf, passTime, payRent, RENT_C, rentPaid, resetTickLimit, setEnding, setWeather, swim, tick, type Ending } from "./day.ts";
 import { writeEpilogue } from "./hooks/epilogue.ts";
 import { resetTalks } from "./hooks/dialogue.ts";
 import { devJob, jobById, listJobs, makeBoard } from "./hooks/jobBoard.ts";
 import { writeOutcome } from "./hooks/jobOutcome.ts";
-import { finishJob, GameError, holdJob, jobRumour, player, ReportSchema, saveOutcome, saveProgress, takeJob } from "./game.ts";
+import { finishJob, GameError, holdJob, inHand, jobRumour, player, ReportSchema, saveOutcome, saveProgress, takeJob } from "./game.ts";
 import { gameMinute } from "./town/deeds.ts";
 import { ensurePersonas, PLACED, npcRow } from "./npcs.ts";
 import { buy, handOverParcel, ITEMS, pockets, useItem, WARES, waresOf } from "./trade.ts";
@@ -63,6 +63,10 @@ import { dropGameWords } from "./ballads/guard.ts";
 import { auditCounts, auditSave } from "./town/audit.ts";
 import { reportWhere, whereNow } from "./warmth.ts"; // M7 warmth: where Jef is for the cold
 import { mountMultiplayer } from "./mp/index.ts"; // M8a multiplayer: who asks, the join code, the movement socket, the server's own clock
+import { MapModel, mountMapView } from "./mapview/index.ts"; // the town map for the host (docs/mapview.md)
+import { asPlayer, inPlayer, pid } from "./player/current.ts"; // M8c: each request as its player
+import { ensurePlayerRow, playerIds } from "./player/multi.ts";
+import { whoOfUpgrade } from "./mp/auth.ts";
 
 const db = openDb(DB_FILE);
 const stale = closeStaleCalls(db);
@@ -87,14 +91,30 @@ app.use("/api/*", (c, next) => (c.req.path === "/api/dev/shot" ? shotLimit : api
 // farm boy", "a young man on the quays" follow the profile (player/prompt.ts shownJson). No profile: as it was.
 app.use("/api/*", async (c, next) => {
   await next();
-  if (c.req.path.startsWith("/api/player/") || !/json/i.test(c.res.headers.get("content-type") ?? "") || !hasProfile(db)) return;
+  // (M8c: the name and words of the player who asked: mp/index.ts has put him in the context by now)
+  const id = c.get("mpWho")?.id ?? 1;
+  if (c.req.path.startsWith("/api/player/") || !/json/i.test(c.res.headers.get("content-type") ?? "") || !hasProfile(db, id)) return;
   const text = await c.res.text();
   const headers = new Headers(c.res.headers);
   headers.delete("content-length");
-  c.res = new Response(shownJson(db, text), { status: c.res.status, headers });
+  c.res = new Response(asPlayer(id, () => shownJson(db, text)), { status: c.res.status, headers });
 });
+function moneyNow(): number | null {
+  try {
+    return (db.prepare("SELECT money_c FROM player WHERE id = ?").get(pid()) as { money_c: number } | undefined)?.money_c ?? null;
+  } catch {
+    return null;
+  }
+}
+// M8a multiplayer (mp/index.ts, docs/milestones/M8a.md): before every other part, so it knows who asks (the host or
+// a guest by his token) and keeps guests to walking; together, a tab's pause and tick do not move the town
+// The town map (mapview/, docs/mapview.md): its own page on this PC only (port 8790), fed by the multiplayer code
+const mapModel = new MapModel();
+const mp = mountMultiplayer(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m), map: mapModel, closePush: (id) => closePushOf(id) });
+const mapView = mountMapView({ model: mapModel, db });
 // Every paid action refreshes the money on screen (QA 2026-09-24: 5 c behind after the fortune,
-// paid in a talk choice): a POST that changed Jef's money pushes the new payload to the client.
+// paid in a talk choice): a POST that changed the player's money pushes the new payload to him.
+// (M8c: after the multiplayer part, so it runs as the player who asks)
 app.use("/api/*", async (c, next) => {
   if (c.req.method !== "POST") return next();
   const before = moneyNow();
@@ -102,16 +122,26 @@ app.use("/api/*", async (c, next) => {
   const after = moneyNow();
   if (before !== null && after !== null && after !== before) broadcast({ type: "jobs", ...jobsPayload() });
 });
-function moneyNow(): number | null {
-  try {
-    return (db.prepare("SELECT money_c FROM player WHERE id = 1").get() as { money_c: number } | undefined)?.money_c ?? null;
-  } catch {
-    return null;
-  }
-}
-// M8a multiplayer (mp/index.ts, docs/milestones/M8a.md): before every other part, so it knows who asks (the host or
-// a guest by his token) and keeps guests to walking; together, a tab's pause and tick do not move the town
-const mp = mountMultiplayer(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
+// the game's "Town map" button: the map's address, for the host's own browser only (the map listens on 127.0.0.1)
+app.get("/api/map", async (c) => {
+  const who = c.get("mpWho");
+  if (!who?.host) return c.json({ error: "The town map is on the host's PC." }, 403);
+  const url = await mapView.ready;
+  return url ? c.json({ url }) : c.json({ error: "The town map is off (SCHELDEMIST_MAP_PORT=0) or its port is taken." }, 404);
+});
+// played alone there is no movement socket: the host's game says where Jef is, once a second, for the map
+app.post("/api/map/me", async (c) => {
+  const who = c.get("mpWho");
+  if (!who?.host) return c.json({ ok: false }, 403);
+  const b = (await c.req.json().catch(() => null)) as { x?: unknown; y?: unknown; z?: unknown; yaw?: unknown; mode?: unknown; away?: unknown } | null;
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  const x = n(b?.x);
+  const z = n(b?.z);
+  if (x === null || z === null) return c.json({ ok: false }, 400);
+  const name = (db.prepare("SELECT name FROM player WHERE id = 1").get() as { name?: string } | undefined)?.name ?? "Jef";
+  mapModel.players([{ id: 1, name, host: true, x, y: n(b?.y) ?? 0, z, yaw: n(b?.yaw) ?? 0, mode: typeof b?.mode === "string" ? b.mode.slice(0, 12) : "walk", away: b?.away === true, online: true }]);
+  return c.json({ ok: true });
+});
 // M7 save and pause: saves, loads and the pause; first, so its gate sees every request (save/routes.ts)
 mountSaves(app, {
   db,
@@ -121,8 +151,11 @@ mountSaves(app, {
     board = { state: "ready" };
     boardAgain = false;
     if (listJobs(db, player(db).day).length === 0) void writeBoard();
-    const e = ending(db);
-    if (e && !e.epilogue) void epilogue(e);
+    // (M8d: every player's end that has no epilogue yet)
+    for (const id of playerIds(db)) {
+      const e = asPlayer(id, () => ending(db));
+      if (e && !e.epilogue) asPlayer(id, () => void epilogue(e));
+    }
   },
 });
 // M6 population: the event size and the town size for a new game (Settings)
@@ -188,9 +221,11 @@ let board: { state: "writing" | "ready"; source?: string; error?: string } = { s
 
 function jobsPayload() {
   const p = player(db);
+  // (M8c: a job another player has in hand is gone from this player's board)
+  const others = new Set((db.prepare("SELECT id FROM job WHERE status = 'taken' AND COALESCE(taken_by, 1) <> ?").all(pid()) as Array<{ id: number }>).map((r) => r.id));
   return {
     board,
-    jobs: listJobs(db, p.day),
+    jobs: listJobs(db, p.day).filter((j) => !others.has(j.id)),
     player: p,
     pockets: pockets(db),
     clock: clock(db),
@@ -322,12 +357,30 @@ function afterNight(ended?: Ending): void {
   else void writeBoard();
 }
 
+/** M8d: the players whose epilogue is being written now (one at a time each; a second call for him is a no-op). */
+const writingEpilogue = new Set<number>();
+/** The epilogue of the player it runs as (pid()): written once, from his own week. */
 async function epilogue(e: Ending): Promise<void> {
-  const r = await writeEpilogue(db, e);
-  setEnding(db, { ...e, epilogue: r.epilogue });
-  console.log(`[epilogue] ${r.source}${r.error ? " (" + r.error + ")" : ""}`);
-  broadcast({ type: "jobs", ...jobsPayload() });
+  const me = pid();
+  if (writingEpilogue.has(me) || ending(db)?.epilogue) return;
+  writingEpilogue.add(me);
+  try {
+    const r = await writeEpilogue(db, e);
+    // (M8d: his end still stands: a new man on the ferry meanwhile has none to write it on)
+    const now = ending(db);
+    if (!now || now.kind !== e.kind || now.day !== e.day) return;
+    setEnding(db, { ...now, epilogue: r.epilogue });
+    console.log(`[epilogue] player ${me}: ${r.source}${r.error ? " (" + r.error + ")" : ""}`);
+    broadcast({ type: "jobs", ...jobsPayload() });
+  } finally {
+    writingEpilogue.delete(me);
+  }
 }
+// M8d: every player's end as it comes (the world's week end: each player in the game; his body gone: him alone,
+// while the world goes on): his own epilogue, written after the work that ended it
+ENDING_HOOKS.push((_db, id, e) => {
+  setImmediate(() => asPlayer(id, () => void epilogue(e).catch((err: unknown) => console.error("[epilogue]", err))));
+});
 
 app.post("/api/tick", async (c) => {
   // M7 warmth: where Jef is and whether his lantern is lit in his hand; checked in warmth.ts, fresh a short while only
@@ -427,7 +480,7 @@ app.post("/api/ride", async (c) => {
 app.post("/api/jobs/:id/handover", (c) => {
   const id = Number(c.req.param("id"));
   const j = listJobs(db, player(db).day).find((r) => r.id === id);
-  if (!j || j.status !== "taken" || j.task?.kind !== "deliver") throw new GameError("nothing to hand over", 409);
+  if (!j || !inHand(j) || j.task?.kind !== "deliver") throw new GameError("nothing to hand over", 409); // (M8d: his own job)
   handOverParcel(db, id);
   broadcast({ type: "jobs", ...jobsPayload() });
   return c.json(jobsPayload());
@@ -599,20 +652,95 @@ const wss = new WebSocketServer({
 });
 // M7 save and pause: a tab says who it is (?client=): its pause ends when it goes away
 const clientOf = new WeakMap<WebSocket, string>();
+// M8c: whose tab it is. The host's tab on this PC is the host at once; a guest's tab (?guest=1) says its token in its
+// first message ({ type: "hello", token }); until then it gets nothing
+const playerOfWs = new WeakMap<WebSocket, number>();
+// M8e review 4: a dead line (a VPN that dropped without a word) is found as on /mp: a ws ping every 10 s (the
+// browser answers it by itself, even in a hidden tab); a socket that did not answer the last one is closed. The
+// client's own { type: "ping" } is answered with { type: "pong" } (a page cannot see a ws ping): its sign of life.
+const PUSH_HEARTBEAT_MS = 10_000;
+const pushAlive = new WeakMap<WebSocket, boolean>();
+const pushHeartbeat = setInterval(() => {
+  for (const c of wss.clients) {
+    if (c.readyState !== WebSocket.OPEN) continue;
+    if (pushAlive.get(c) === false) {
+      c.terminate();
+      continue;
+    }
+    pushAlive.set(c, false);
+    c.ping();
+  }
+}, PUSH_HEARTBEAT_MS);
+pushHeartbeat.unref();
+/** M8e review 4: a player's push sockets end (he moved to another address: his old token no longer counts). */
+function closePushOf(pid: number): void {
+  for (const c of wss.clients) if (playerOfWs.get(c) === pid) c.close(4001, "moved");
+}
 wss.on("connection", (ws, req) => {
-  const id = new URL(req.url ?? "/ws", "http://x").searchParams.get("client")?.slice(0, 40);
+  const q = new URL(req.url ?? "/ws", "http://x").searchParams;
+  const id = q.get("client")?.slice(0, 40);
   if (id) clientOf.set(ws, id);
+  pushAlive.set(ws, true);
+  ws.on("pong", () => pushAlive.set(ws, true));
+  ws.on("error", () => {});
   ws.on("close", () => {
     if (id && ![...wss.clients].some((o) => o !== ws && clientOf.get(o) === id)) setPaused(id, false);
   });
-  ws.send(shownJson(db, JSON.stringify({ type: "jobs", ...jobsPayload() })));
+  const welcome = (pid: number) => {
+    playerOfWs.set(ws, pid);
+    try {
+      if (pid !== 1) ensurePlayerRow(db, pid, (db.prepare("SELECT name FROM mp_player WHERE id = ?").get(pid) as { name?: string } | undefined)?.name ?? "Visitor");
+      ws.send(asPlayer(pid, () => shownJson(db, JSON.stringify({ type: "jobs", ...jobsPayload() }))));
+    } catch (e) {
+      console.error("[push] welcome", e);
+    }
+  };
+  const host = q.get("guest") !== "1" ? whoOfUpgrade(db, req, null) : null;
+  if (host?.host) welcome(1);
+  ws.on("message", (data) => {
+    pushAlive.set(ws, true); // (any message says the line is up)
+    let m: { type?: string; token?: unknown } | null = null;
+    try {
+      m = JSON.parse(String(data).slice(0, 1000)) as { type?: string; token?: unknown };
+    } catch {
+      return;
+    }
+    if (m?.type === "ping") {
+      if (ws.readyState === WebSocket.OPEN) ws.send('{"type":"pong"}');
+      return;
+    }
+    if (playerOfWs.has(ws)) return;
+    if (m?.type !== "hello") return;
+    const who = whoOfUpgrade(db, req, typeof m.token === "string" ? m.token : null);
+    if (who) welcome(who.id);
+    else ws.close(4001, "who");
+  });
 });
 mp.attach(server as import("node:http").Server, wss); // M8a
 setInterval(() => sweepHolders(new Set([...wss.clients].map((o) => clientOf.get(o)).filter((x): x is string => !!x))), 30_000).unref();
 
+/**
+ * News about one player (his job's outcome, his trouble, his letters and pawn tickets, his gang, his family's
+ * visits, his hired hands): sent while working for him, it goes to him only (M8c). Sent by the server's own work
+ * for the world (the tick, the director), and every other kind, it goes to everyone.
+ */
+const PERSONAL = new Set(["outcome", "trouble", "press", "gang", "families", "hands", "ending", "rent"]);
+
 function broadcast(msg: unknown): void {
-  const s = shownJson(db, JSON.stringify(msg)); // M7 character: the player's name in every push
-  for (const c of wss.clients) if (c.readyState === WebSocket.OPEN) c.send(s);
+  const m = msg as { type?: string } | null;
+  const only = inPlayer() && m?.type && PERSONAL.has(m.type) ? pid() : null;
+  for (const c of wss.clients) {
+    if (c.readyState !== WebSocket.OPEN) continue;
+    const who = playerOfWs.get(c);
+    if (who === undefined || (only !== null && who !== only)) continue;
+    // the job board and the player's own part: each player's own (M8c); the rest as it came
+    try {
+      const out = m?.type === "jobs" ? { ...(msg as object), ...asPlayer(who, () => jobsPayload()) } : msg;
+      c.send(asPlayer(who, () => shownJson(db, JSON.stringify(out)))); // M7 character: the player's name in every push
+    } catch (e) {
+      console.error(`[push] to player ${who}`, e);
+    }
+  }
 }
 
 // first run of the day: no board yet, so write one now in the background
@@ -620,12 +748,15 @@ if (listJobs(db, player(db).day).length === 0) void writeBoard();
 if (!db.prepare("SELECT 1 FROM world_state WHERE key = 'day_start_money'").get()) markDayStart(db);
 // the server stopped while the epilogue was being written: write it again
 {
-  const e = ending(db);
-  if (e && !e.epilogue) void epilogue(e);
+  for (const id of playerIds(db)) {
+    const e = asPlayer(id, () => ending(db));
+    if (e && !e.epilogue) asPlayer(id, () => void epilogue(e));
+  }
 }
 
 function shutdown(): void {
   void mp.close(); // M8a: the house's listeners
+  void mapView.close(); // the town map's port
   wss.close();
   server.close();
   db.close();

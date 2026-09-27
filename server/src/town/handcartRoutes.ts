@@ -2,6 +2,7 @@ import type { Hono } from "hono";
 import type { DB } from "../db.ts";
 import { GameError } from "../game.ts";
 import { ackDropped, cartAt, cartHour, cartSeen, cartView, holdCart, loadCart, placeLent, unloadJob, unloadOne, type CartItem } from "./handcart.ts";
+import { forEachOnline } from "../player/current.ts";
 
 // The HTTP side of Jef's handcart (M6): what carts he has and what is on them, taking hold and
 // letting go, loading and unloading, and the hour's work (a hire run out, a cart wheeled off).
@@ -18,7 +19,12 @@ export function mountHandcart(app: Hono, deps: CartDeps): void {
   app.use("/api/tick", async (_c, next) => {
     await next();
     try {
-      if (cartHour(db).length) broadcast({ type: "jobs", ...payload() });
+      // (M8c: each player's carts in the game)
+      let any = false;
+      forEachOnline(() => {
+        if (cartHour(db).length) any = true;
+      });
+      if (any) broadcast({ type: "jobs", ...payload() });
     } catch (e) {
       console.error("[handcart] tick", e);
     }

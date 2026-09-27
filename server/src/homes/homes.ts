@@ -6,7 +6,10 @@ import { resident } from "../town/store.ts";
 import { STILL_TRUE } from "../town/rumours.ts";
 import { activityAt } from "../town/schedule.ts";
 import { ITEM_REF, ITEMS, POCKET_SLOTS } from "../trade.ts";
-import { getState, minuteNow, setState } from "../interiors/state.ts";
+import { minuteNow } from "../interiors/state.ts";
+import { pid } from "../player/current.ts";
+import { playerIds, pstate, setPstate } from "../player/multi.ts";
+import { nameOf } from "../player/names.ts";
 import {
   CLASSES,
   canPlace,
@@ -53,8 +56,14 @@ export interface Lease {
   ended: string | null;
 }
 
-export function lease(db: DB): Lease | null {
-  return (db.prepare("SELECT * FROM home_lease WHERE ended IS NULL ORDER BY id DESC LIMIT 1").get() as Lease | undefined) ?? null;
+/** The room a player rents now (M8c: each player his own lease; `who` for another than the one asking). */
+export function lease(db: DB, who = pid()): Lease | null {
+  return (db.prepare("SELECT * FROM home_lease WHERE ended IS NULL AND player_id = ? ORDER BY id DESC LIMIT 1").get(who) as Lease | undefined) ?? null;
+}
+
+/** M8c: a room is let to one player at a time. Is it let to another player than the one asking? */
+export function letToOther(db: DB, home: string): boolean {
+  return !!db.prepare("SELECT 1 FROM home_lease WHERE ended IS NULL AND home = ? AND player_id != ?").get(home, pid());
 }
 
 /** Days of rent owed today (today counts: Jef has the room today). */
@@ -87,17 +96,18 @@ export function takeKey(db: DB, homeId: unknown, plan: unknown): { text: string;
   const c = clock(db);
   const old = lease(db);
   if (old?.home === h.id) throw new GameError("you have the key already", 409);
+  if (letToOther(db, h.id)) throw new GameError(`the room is let: ${landlordName(db, h)} has no other to give`, 409);
   if (old && owedDays(db, old) > 0) throw new GameError(`first pay what you owe on ${homeDef(db, old.home)?.label ?? "your room"}`, 409);
   const days = plan === "day" ? 1 : weekEnd(c.day) - c.day + 1;
   const cost = rentFor(h.cls, days);
   if (player(db).money_c < cost) throw new GameError(`not enough money: ${cost} c needed`, 409);
   db.transaction(() => {
-    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(cost);
+    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(cost, pid());
     if (old) {
       db.prepare("UPDATE home_lease SET ended = 'moved' WHERE id = ?").run(old.id);
       moveThings(db, old.home as HomeClass, h.cls);
     }
-    db.prepare("INSERT INTO home_lease (home, since_day, paid_through, warned_day, ended) VALUES (?, ?, ?, 0, NULL)").run(h.id, c.day, c.day + days - 1);
+    db.prepare("INSERT INTO home_lease (home, since_day, paid_through, warned_day, ended, player_id) VALUES (?, ?, ?, 0, NULL, ?)").run(h.id, c.day, c.day + days - 1, pid());
     log(db, "took_home", h.id, `Jef took ${h.label} from ${landlordName(db, h)}, ${cost} centimes for ${days === 1 ? "one night" : `${days} days`}.`);
   })();
   remember(db, h.landlord, `Jef took my ${OWNER_NOUN[h.cls]} and paid ${cost} centimes rent in advance.`, 4, "seen", null, { gist: `Jef rents a room from ${landlordName(db, h)}`, tone: 1 });
@@ -121,7 +131,7 @@ export function payRent(db: DB, plan: unknown): { text: string; paid_c: number }
   const cost = rentFor(h.cls, days);
   if (player(db).money_c < cost) throw new GameError(`not enough money: ${cost} c needed`, 409);
   db.transaction(() => {
-    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(cost);
+    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(cost, pid());
     db.prepare("UPDATE home_lease SET paid_through = ?, warned_day = 0 WHERE id = ?").run(to, l.id);
     log(db, "paid_home_rent", h.id, `Jef paid ${landlordName(db, h)} ${cost} centimes rent for ${h.label}.`);
   })();
@@ -133,6 +143,7 @@ export function payRent(db: DB, plan: unknown): { text: string; paid_c: number }
  * The night's rent work (a day.ts night hook): a day not paid for is owed. The first night
  * something is owed brings a warning; owed at the week's end, after a warning, and the
  * landlord takes the key back and keeps the things in the room for the rent.
+ * M8c: the lease of the player the work is for (pid); run once per player (asPlayer), each his own note.
  */
 export function rentNight(db: DB, day: number): string[] {
   const l = lease(db);
@@ -144,7 +155,7 @@ export function rentNight(db: DB, day: number): string[] {
   const who = landlordName(db, h);
   if (day >= weekEnd(day) && l.warned_day > 0 && l.warned_day < day) {
     db.prepare("UPDATE home_lease SET ended = 'evicted' WHERE id = ?").run(l.id);
-    const kept = db.prepare("UPDATE home_item SET state = 'gone' WHERE home = ? AND state IN ('placed', 'stored')").run(h.id).changes;
+    const kept = db.prepare("UPDATE home_item SET state = 'gone' WHERE home = ? AND state IN ('placed', 'stored') AND player_id = ?").run(h.id, pid()).changes;
     log(db, "lost_home", h.id, `${who} took back the key of ${h.label}: Jef owed ${owed_c} centimes rent.`);
     remember(db, h.landlord, `Jef owed me ${owed_c} centimes rent and never paid. I took my key back${kept ? " and kept his things" : ""}.`, 6, "seen", null, { gist: `Jef did not pay his rent to ${who}`, tone: -2 });
     return [`${who} has taken back the key of ${h.label}. You owed ${owed_c} centimes.${kept ? " Your things stay with him for the rent." : ""}`];
@@ -159,12 +170,15 @@ export function rentNight(db: DB, day: number): string[] {
 NIGHT_HOOKS.push(rentNight);
 
 // "Jef rents a room from X" is true only while that lease runs (QA 2026-09-24: said after it ended)
+// (M8c: a guest's rumour has his own name: "Anna rents a room from X" holds while Anna's lease runs)
 STILL_TRUE.push((db, fact) => {
-  const m = /^Jef rents a room from (.+?)\.?$/.exec(fact);
+  const m = /^(\S+) rents a room from (.+?)\.?$/.exec(fact);
   if (!m) return true;
-  const l = lease(db);
+  const who = m[1] === "Jef" ? 1 : playerIds(db).find((id) => id !== 1 && nameOf(db, id) === m[1]);
+  if (who === undefined) return true;
+  const l = lease(db, who);
   const h = l ? homeDef(db, l.home) : null;
-  return !!h && landlordName(db, h) === m[1];
+  return !!h && landlordName(db, h) === m[2];
 });
 
 // ---------------------------------------------------------------- the night at home
@@ -229,11 +243,12 @@ export function warmAtStove(db: DB): { text: string; warmed: boolean } {
   const has = CLASSES[h.cls].fire || placedIn(db, h.id).some((p) => p.kind === "stove");
   if (!has) throw new GameError("there is no stove here", 409);
   const now = minuteNow(db);
-  if (now - getState<number>(db, "home:stove", -1e9) < STOVE_EVERY_MIN)
+  // (M8c: each player's own stove hour)
+  if (now - (pstate<number>(db, "home:stove") ?? -1e9) < STOVE_EVERY_MIN)
     return { text: "The iron ticks. You are as warm as it will make you for now.", warmed: false };
   db.transaction(() => {
-    db.prepare("UPDATE player SET warmth = MIN(10, warmth + ?) WHERE id = 1").run(STOVE_WARMTH);
-    setState(db, "home:stove", now);
+    db.prepare("UPDATE player SET warmth = MIN(10, warmth + ?) WHERE id = ?").run(STOVE_WARMTH, pid());
+    setPstate(db, "home:stove", now);
     log(db, "warmed", h.id, `Jef warmed himself at his own stove in ${h.label}.`);
   })();
   return { text: "You feed the fire a little and hold your hands to it. The cold goes out of your fingers.", warmed: true };
@@ -252,17 +267,19 @@ export interface HomeItem {
   day: number;
 }
 
+/** The player's own pieces (M8c: home_item.player_id). */
 export function items(db: DB): HomeItem[] {
-  return db.prepare("SELECT * FROM home_item WHERE state != 'gone' ORDER BY id").all() as HomeItem[];
+  return db.prepare("SELECT * FROM home_item WHERE state != 'gone' AND player_id = ? ORDER BY id").all(pid()) as HomeItem[];
 }
 
+/** The player's pieces standing in a room (a room is let to one player at a time: the ones in it are his). */
 export function placedIn(db: DB, home: string): Placed[] {
-  return (db.prepare("SELECT id, kind, gx, gz, rot FROM home_item WHERE home = ? AND state = 'placed'").all(home) as Placed[]).filter((p) => FURNITURE[p.kind]);
+  return (db.prepare("SELECT id, kind, gx, gz, rot FROM home_item WHERE home = ? AND state = 'placed' AND player_id = ?").all(home, pid()) as Placed[]).filter((p) => FURNITURE[p.kind]);
 }
 
 /** Moving house: the carter takes everything; each piece is set where it fits, or left stacked by the door. */
 function moveThings(db: DB, from: HomeClass, to: HomeClass): void {
-  const rows = db.prepare("SELECT * FROM home_item WHERE home = ? AND state IN ('placed', 'stored') ORDER BY id").all(from) as HomeItem[];
+  const rows = db.prepare("SELECT * FROM home_item WHERE home = ? AND state IN ('placed', 'stored') AND player_id = ? ORDER BY id").all(from, pid()) as HomeItem[];
   const placed: Placed[] = placedIn(db, to);
   for (const r of rows) {
     const at = firstFit(to, placed, r.kind);
@@ -281,11 +298,11 @@ for (const kind of FURNITURE_KINDS) {
   ITEMS[kind] = { name: f.name, note: f.note, carry: f.carry === "arms" ? "arms" : undefined };
   ITEM_REF[kind] = (db) => {
     if (!lease(db)) throw new GameError("\"And where would you put it? Rent a room first, then come back.\"", 409);
-    if (f.carry === "arms" && db.prepare("SELECT 1 FROM home_item WHERE state = 'arms'").get())
+    if (f.carry === "arms" && db.prepare("SELECT 1 FROM home_item WHERE state = 'arms' AND player_id = ?").get(pid()))
       throw new GameError("your arms are full: carry the other piece home first", 409);
-    if (f.carry === "pocket" && (db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n >= POCKET_SLOTS) throw new GameError("your pockets are full", 409);
+    if (f.carry === "pocket" && (db.prepare("SELECT COUNT(*) AS n FROM item WHERE player_id = ?").get(pid()) as { n: number }).n >= POCKET_SLOTS) throw new GameError("your pockets are full", 409);
     const day = clock(db).day;
-    return Number(db.prepare("INSERT INTO home_item (kind, state, home, rot, day) VALUES (?, ?, NULL, 0, ?)").run(kind, f.carry, day).lastInsertRowid);
+    return Number(db.prepare("INSERT INTO home_item (kind, state, home, rot, day, player_id) VALUES (?, ?, NULL, 0, ?, ?)").run(kind, f.carry, day, pid()).lastInsertRowid);
   };
 }
 
@@ -297,14 +314,14 @@ for (const kind of FURNITURE_KINDS) {
 export function placeItem(db: DB, id: unknown, gx: unknown, gz: unknown, rot: unknown): { placed: Placed; why: null } {
   const l = lease(db);
   if (!l) throw new GameError("you rent no room", 409);
-  const it = db.prepare("SELECT * FROM home_item WHERE id = ? AND state != 'gone'").get(Number(id)) as HomeItem | undefined;
+  const it = db.prepare("SELECT * FROM home_item WHERE id = ? AND state != 'gone' AND player_id = ?").get(Number(id), pid()) as HomeItem | undefined;
   if (!it) throw new GameError("you have no such thing", 404);
   if (it.home && it.home !== l.home) throw new GameError("that is in another house", 409);
   const [x, z, r] = [Number(gx), Number(gz), Number(rot)];
   const why = canPlace(l.home as HomeClass, placedIn(db, l.home), it.kind, x, z, r, it.id);
   if (why) throw new GameError(why, 409);
   db.transaction(() => {
-    if (it.state === "pocket") db.prepare("DELETE FROM item WHERE kind = ? AND ref = ?").run(it.kind, it.id);
+    if (it.state === "pocket") db.prepare("DELETE FROM item WHERE kind = ? AND ref = ? AND player_id = ?").run(it.kind, it.id, pid());
     db.prepare("UPDATE home_item SET state = 'placed', home = ?, gx = ?, gz = ?, rot = ? WHERE id = ?").run(l.home, x, z, r, it.id);
     if (it.state !== "placed") log(db, "furnished", it.kind, `Jef put ${FURNITURE[it.kind].name} in his room.`);
   })();
@@ -314,7 +331,7 @@ export function placeItem(db: DB, id: unknown, gx: unknown, gz: unknown, rot: un
 /** Pick a placed piece up again (to move it): it goes to the pile by the door until put down. */
 export function liftItem(db: DB, id: unknown): HomeItem {
   const l = lease(db);
-  const it = db.prepare("SELECT * FROM home_item WHERE id = ? AND state = 'placed'").get(Number(id)) as HomeItem | undefined;
+  const it = db.prepare("SELECT * FROM home_item WHERE id = ? AND state = 'placed' AND player_id = ?").get(Number(id), pid()) as HomeItem | undefined;
   if (!l || !it || it.home !== l.home) throw new GameError("nothing of yours stands there", 404);
   db.prepare("UPDATE home_item SET state = 'stored', gx = NULL, gz = NULL WHERE id = ?").run(it.id);
   return { ...it, state: "stored", gx: null, gz: null };
@@ -322,7 +339,7 @@ export function liftItem(db: DB, id: unknown): HomeItem {
 
 /** Leave the piece in your arms in the street: it is gone. */
 export function abandonArms(db: DB): { text: string } {
-  const it = db.prepare("SELECT * FROM home_item WHERE state = 'arms'").get() as HomeItem | undefined;
+  const it = db.prepare("SELECT * FROM home_item WHERE state = 'arms' AND player_id = ?").get(pid()) as HomeItem | undefined;
   if (!it) throw new GameError("your arms are empty", 409);
   db.prepare("UPDATE home_item SET state = 'gone' WHERE id = ?").run(it.id);
   log(db, "left_furniture", it.kind, `Jef left ${FURNITURE[it.kind].name} in the street.`);
@@ -349,6 +366,8 @@ export function homesInfo(db: DB) {
       day_c: dayRate(h.cls),
       to_sunday_c: rentFor(h.cls, weekEnd(c.day) - c.day + 1),
       notice: cls.notice,
+      /** M8c: let to another player now (its landlord has no key to give). */
+      let: letToOther(db, h.id),
       landlord: lord ? { id: lord.id, name: lord.name, first: lord.first } : null,
     };
   });

@@ -4,10 +4,12 @@ import { playNow } from "../save/gate.ts";
 import type { DB } from "../db.ts";
 import { CALLS_PER_DAY, CALLS_RESERVE, RESIDENT_CALLS_PER_DAY, RESIDENT_CALLS_PER_MEETING } from "../config.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
+import { callsToday } from "../ai/budget.ts";
 import { DAY_NAMES, weather, WEATHER_TEXT, type Weather } from "../day.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { ALL_EMPLOYERS, SPOTS, SYSTEM, employerName, listJobs, type JobRow } from "../hooks/jobBoard.ts";
 import { MOODS, fenceTurns, gateText, markFreeLine, onResetTalks, type Line } from "../hooks/dialogue.ts";
+import { freeTalk, holdTalk } from "../player/talking.ts";
 import { applyTrust, relationship, remember, topMemories, trustText } from "../npcs.ts";
 import { ITEMS } from "../trade.ts";
 import { waresOf } from "../trade.ts";
@@ -21,6 +23,8 @@ import { roundDoing } from "./lively.ts";
 import { backDoing } from "./backtown.ts";
 import { ActionProposalSchema } from "../director/vocab.ts";
 import { GameError } from "../game.ts";
+import { pid } from "../player/current.ts";
+import { storeText } from "../player/names.ts";
 
 // Talk with any townsperson (M3e). Everyone answers by their own stats, job,
 // family, mood and the hour, and by what they have heard about Jef.
@@ -503,15 +507,17 @@ function extraTopics(db: DB, r: Resident, sess: Session): ExtraTopic[] {
   const said = new Set(sess.turns);
   return talkExtras.topics.flatMap((f) => f(db, r)).filter((t) => !said.has(`- Jef: ${t.choice}`));
 }
+/** Each player's meeting with a townsperson (M8c: keyed `${player}:${npc}`). */
 const sessions = new Map<string, Session>();
 const TTL_MS = 90_000;
 onResetTalks(() => sessions.clear());
+const sessionKey = (id: string) => `${pid()}:${id}`;
 
 function sessionFor(id: string): Session {
-  let s = sessions.get(id);
+  let s = sessions.get(sessionKey(id));
   if (!s || playNow() - s.lastAt > TTL_MS) {
     s = { turns: [], trust: 0, calls: 0, lastAt: playNow(), used: new Set(), offered: new Map(), typed: false };
-    sessions.set(id, s);
+    sessions.set(sessionKey(id), s);
   }
   return s;
 }
@@ -533,6 +539,7 @@ function nextChoices(db: DB, r: Resident, sess: Session): string[] {
 
 /** Engine side of a line: clamp trust, keep memory and rumour, note the turn. */
 function apply(db: DB, r: Resident, sess: Session, line: ResidentLine): Line & { trust_applied: number } {
+  if (line.end_conversation) freeTalk(r.id); // (M8c: the talk is over: he is free for anyone at once)
   const applied = applyTrust(db, r.id, line.trust_delta, sess.trust);
   sess.trust += applied;
   if (line.persona_line.trim() && !sess.typed) setPersonaLine(db, r.id, plainEnglish(line.persona_line));
@@ -569,7 +576,7 @@ export function canCall(db: DB, sess: { calls: number }): boolean {
   if (sess.calls >= RESIDENT_CALLS_PER_MEETING) return false;
   const day = clockOf(db).day;
   const total = (db.prepare("SELECT COUNT(*) AS n FROM ai_call WHERE day = ?").get(day) as { n: number }).n;
-  const mine = (db.prepare("SELECT COUNT(*) AS n FROM ai_call WHERE day = ? AND hook LIKE 'resident%'").get(day) as { n: number }).n;
+  const mine = callsToday(db, day, "resident%"); // (M8d: played together, each player's own talk share)
   return mine < RESIDENT_CALLS_PER_DAY && total < CALLS_PER_DAY - CALLS_RESERVE;
 }
 
@@ -580,7 +587,8 @@ export function residentPrompt(db: DB, r: Resident, scene: string, turns: string
   const persona = personaLine(db, r.id);
   const mem = topMemories(db, r.id, 6);
   const work = nearbyWork(db, r);
-  const mine = listJobs(db, c.day).filter((j) => j.employer_npc === r.id && (j.status === "offered" || j.status === "taken"));
+  // (M8c: his own job in hand; another player's is not his to talk of)
+  const mine = listJobs(db, c.day).filter((j) => j.employer_npc === r.id && (j.status === "offered" || (j.status === "taken" && (j.taken_by ?? 1) === pid())));
   const wares = waresOf(db, r.id);
   return `PERSON
 ${r.name}, ${r.age}, ${r.sex === "f" ? "woman" : "man"}${r.age < 15 ? " (a child)" : ""}. ${TRADES[r.trade].label}, works at ${placeLabel(db, r.work.place)}.${r.origin ? ` From ${r.origin}.` : ""}
@@ -664,11 +672,12 @@ function need(db: DB, id: string): Resident {
 /** Jef walks up: an engine line at once, no model call. */
 export function residentOpen(db: DB, id: string) {
   const r = need(db, id);
+  holdTalk(db, id, r.name); // (M8c: one player's talk at a time)
   const sess = sessionFor(id);
   const rel = relationship(db, id);
   if (!sess.turns.length) {
     const day = clockOf(db).day;
-    db.prepare("UPDATE npc_relationship SET times_met = times_met + 1, last_seen_day = ?, last_place = ? WHERE npc_id = ?").run(day, r.work.place, id);
+    db.prepare("UPDATE npc_relationship SET times_met = times_met + 1, last_seen_day = ?, last_place = ? WHERE npc_id = ? AND player_id = ?").run(day, r.work.place, id, pid());
     if (!rel || rel.times_met === 0) remember(db, id, `A young man called Jef, new in town, stopped me to talk while I was ${doing(db, r).replace(/\byour\b/g, "my").replace(/\byou\b/g, "I")}.`, 2);
   }
   const met = relationship(db, id)?.times_met ?? 1;
@@ -679,6 +688,7 @@ export function residentOpen(db: DB, id: string) {
 /** Jef picks one of the offered lines. A line that was not offered is typed text: the gate and the fence (residentFree). */
 export async function residentChoice(db: DB, id: string, choice: string, runner?: Runner) {
   const r = need(db, id);
+  holdTalk(db, id, r.name); // (M8c: one player's talk at a time)
   const sess = sessionFor(id);
   // as offered, or as the client showed it (plainEnglish)
   const said = [...sess.offered.keys()].find((k) => k.slice(0, 120) === choice.slice(0, 120) || plainEnglish(k).slice(0, 120) === choice.slice(0, 120) || shownText(db, plainEnglish(k)).slice(0, 120) === choice.slice(0, 120));
@@ -696,7 +706,10 @@ export async function residentChoice(db: DB, id: string, choice: string, runner?
   }
   const topic = offered;
   if (topic) sess.used.add(topic);
-  if (topic === "bye") return apply(db, r, sess, engineLine(db, r, sess, engineReply(db, r, "bye", `${id}:${sess.turns.length}`), true));
+  if (topic === "bye") {
+    freeTalk(id); // (M8c: a goodbye frees him for anyone at once)
+    return apply(db, r, sess, engineLine(db, r, sess, engineReply(db, r, "bye", `${id}:${sess.turns.length}`), true));
+  }
   // the first real reply of a meeting, and lines Claude wrote, go to Claude (when the budget allows)
   const wantModel = topic === null || sess.calls === 0;
   if (wantModel) {
@@ -711,15 +724,18 @@ export async function residentChoice(db: DB, id: string, choice: string, runner?
 /** Jef says it in his own words: gate first (wall 4), then the fence (wall 2), or the engine. */
 export async function residentFree(db: DB, id: string, raw: string, runner?: Runner, force?: (typeof talkExtras.free)[number]) {
   const r = need(db, id);
+  holdTalk(db, id, r.name); // (M8c: one player's talk at a time)
   const sess = sessionFor(id);
   const g = gateText(raw);
   if (!g.ok) {
     if (g.reason === "too fast" || g.reason === "empty" || g.reason === "too long") return { gated: g.reason };
     markFreeLine();
-    db.prepare("INSERT INTO log (day, hour, place, actor, verb, object, text) SELECT day, hour, ?, 'player', 'said_strange', ?, ? FROM player WHERE id = 1").run(
+    // (M8c: the player's own line of the log, a guest's with his name)
+    db.prepare("INSERT INTO log (day, hour, place, actor, verb, object, text, player_id) SELECT day, hour, ?, 'player', 'said_strange', ?, ?, ? FROM player WHERE id = 1").run(
       r.work.place,
       id,
-      "Jef said something strange that made no sense.",
+      storeText(db, "Jef said something strange that made no sense."),
+      pid(),
     );
     remember(db, id, "Jef talked strange at me, words that made no sense.", 4, "seen", null, { gist: "Jef talked strange, about things nobody understands", tone: -1 });
     const text = sexed(db, r.stats.temper >= 7 ? "Talk sense or clear off." : r.age < 13 ? "You talk funny, mister." : "Hm? Are you ill? You're not making sense.");
@@ -765,7 +781,7 @@ function modelLine(db: DB, r: Resident, sess: Session, raw: ResidentLine) {
 
 /** M6 gifts, the treat, hired hands: what Jef last said in this meeting (his own words or a line he picked). */
 export function jefSaid(id: string): string {
-  const s = sessions.get(id);
+  const s = sessions.get(sessionKey(id));
   if (!s || playNow() - s.lastAt > TTL_MS * 2) return "";
   for (let i = s.turns.length - 1; i >= 0; i--) {
     const m = /^- Jef(?: \(in his own words\))?: (.*)$/.exec(s.turns[i]);

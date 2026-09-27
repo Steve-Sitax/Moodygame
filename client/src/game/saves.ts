@@ -9,6 +9,7 @@
 // from the save's browser part (restoreData.ts).
 
 import { onSystemPush } from "../net/api";
+import { isGuest } from "../net/mp/identity";
 import { pause, real } from "./pause";
 import { bootRestore, setRestore, type ClientState } from "./restoreData";
 import { esc } from "./runs";
@@ -99,6 +100,11 @@ export class Saves {
     this.saveBtn.style.display = "none";
     this.loadBtn = btn("Load");
     row.append(this.contBtn, this.saveBtn, this.loadBtn);
+    // M8e: a guest keeps his own part (Save); loading a save is the host's
+    if (isGuest()) {
+      this.contBtn.style.display = "none";
+      this.loadBtn.style.display = "none";
+    }
     // above Settings, Restart and Dev: the first thing on the paper after the keys
     const first = paper.querySelector(".settings-btn");
     if (first) paper.insertBefore(row, first);

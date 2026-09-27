@@ -2,10 +2,10 @@
 // Headless players against a test stack's server, and a delay/jitter proxy between the players and the
 // server, to prove the others are drawn smoothly and nobody's own man is ever pulled back.
 //
-//   node tools/mp-harness.mjs proxy  --listen 8952 --to 8951 [--delay 40] [--jitter 40] [--stall 0.2:300]
+//   node tools/mp-harness.mjs proxy  --listen 8961 --to 8951 [--delay 40] [--jitter 40] [--stall 0.2:300]
 //        a TCP proxy: every chunk each way waits delay + 0..jitter ms (in order, as TCP keeps it); now and
 //        then (stall P:MS: P stalls a second on average) the line holds for MS ms. Runs until stopped.
-//   node tools/mp-harness.mjs vite   --vite 5352 --server 8952 [--name m8a]
+//   node tools/mp-harness.mjs vite   --vite 5352 --server 8961 [--name m8a]
 //        a second test vite whose /api, /ws and /mp go to that port (the proxy): a tab through the bad line.
 //   node tools/mp-harness.mjs smooth --server 8951 [--secs 20] [--name smooth]
 //        two headless players: one walks a circle with jumps, the other draws him with the game's own jitter
@@ -15,7 +15,9 @@
 //        one headless player who walks a circle there (for a tab to watch).
 //   node tools/mp-harness.mjs crowd  --server 8951 --at x,z --players 5 [--secs 60]
 //        several at once (the frame time with 6 players).
-//   node tools/mp-harness.mjs stop   [--vite 5352] [--listen 8952]
+//   node tools/mp-harness.mjs stop   [--vite 5352] [--listen 8961]
+//
+// (The proxy's port is 8961, not 8952: a stack on 8951 opens its https port on 8952, M8e config.ts TLS_PORT.)
 //
 // The players join with the host's code (read from /api/mp/host: this computer is the host), so the stack
 // must be played together (POST /api/mp/config {"multiplayer":true}). Never Steve's ports.
@@ -37,7 +39,7 @@ const opt = (k, d) => {
   return i >= 0 ? args[i + 1] : d;
 };
 const num = (k, d) => Number(opt(k, d));
-for (const p of [num("server", 8951), num("listen", 8952), num("to", 8951), num("vite", 5352)]) if ([8787, 5173].includes(p)) throw new Error("8787 and 5173 are Steve's own game: pick other ports");
+for (const p of [num("server", 8951), num("listen", 8961), num("to", 8951), num("vite", 5352)]) if ([8787, 5173].includes(p)) throw new Error("8787 and 5173 are Steve's own game: pick other ports");
 
 // the game's own TypeScript (the codec, the jitter buffer): node strips the types; extensionless imports get ".ts"
 register(
@@ -54,7 +56,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // ------------------------------------------------------------------ the proxy
 
 function proxy() {
-  const listen = num("listen", 8952);
+  const listen = num("listen", 8961);
   const to = num("to", 8951);
   const delay = num("delay", 40);
   const jitter = num("jitter", 40);
@@ -325,7 +327,7 @@ function listeners(port) {
 
 async function vite() {
   const port = num("vite", 5352);
-  const server = num("server", 8952);
+  const server = num("server", 8961);
   const cfg = path.join(root, "data", `vite-mp-harness-${port}.config.mjs`);
   writeFileSync(
     cfg,
@@ -355,7 +357,7 @@ export default { root: path.join(here, "..", "client"), server: { port: ${port},
 }
 
 function stop() {
-  for (const p of [num("vite", 5352), num("listen", 8952)])
+  for (const p of [num("vite", 5352), num("listen", 8961)])
     for (const pid of listeners(p))
       try {
         execSync(`taskkill /PID ${pid} /F /T`, { stdio: "ignore", timeout: 10_000 });

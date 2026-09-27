@@ -16,6 +16,7 @@ import { resetConvos } from "../director/convo.ts";
 import { resetThieves } from "../town/thieves.ts";
 import { resetGangRoll } from "../night/gangs.ts";
 import { resetRowClock } from "../rowing.ts";
+import { pid } from "../player/current.ts";
 import { CLIENT_STATE_SQL, SAVE_META_SQL } from "./schema.ts";
 import { callsInFlight, withGate } from "./gate.ts";
 
@@ -31,8 +32,9 @@ import { callsInFlight, withGate } from "./gate.ts";
 // the save is first opened on a copy of its own (db.ts openDb brings an older save up to this build),
 // then every table is emptied and filled from it in one transaction, and the server's caches of the
 // town and the talk are dropped. The browser then reloads and puts Jef back from client_state.
+// M8c: client_state is each player's own (pid()); a save file holds the whole world, so only the host saves
+// and loads one (save/routes.ts: a guest's save keeps only his own client_state).
 
-export const PLAYER_ID = 1;
 export const SLOTS = ["slot1", "slot2", "slot3", "slot4", "slot5"] as const;
 export const AUTOS = ["auto1", "auto2"] as const;
 export type SlotId = (typeof SLOTS)[number] | (typeof AUTOS)[number];
@@ -88,23 +90,23 @@ const MAX_STATE = 64 * 1024;
 const cleanPlace = (s: unknown) => (typeof s === "string" ? s.replace(/[<>&"\u0000-\u001f]/g, "").trim().slice(0, 60) : "");
 const cleanLabel = (s: unknown) => (typeof s === "string" ? s.replace(/[<>&"\u0000-\u001f]/g, "").replace(/\s+/g, " ").trim().slice(0, 30) : "");
 
-export function writeClientState(db: DB, state: unknown): ClientState | null {
+export function writeClientState(db: DB, state: unknown, who = pid()): ClientState | null {
   const parsed = ClientStateSchema.safeParse(state);
   if (!parsed.success) return null;
   const json = JSON.stringify(parsed.data);
   if (json.length > MAX_STATE) return null;
   db.exec(CLIENT_STATE_SQL);
   db.prepare("INSERT INTO client_state (player_id, state_json, saved_at) VALUES (?, ?, ?) ON CONFLICT(player_id) DO UPDATE SET state_json = excluded.state_json, saved_at = excluded.saved_at").run(
-    PLAYER_ID,
+    who,
     json,
     new Date().toISOString(),
   );
   return parsed.data;
 }
 
-export function readClientState(db: DB): ClientState | null {
+export function readClientState(db: DB, who = pid()): ClientState | null {
   try {
-    const row = db.prepare("SELECT state_json FROM client_state WHERE player_id = ?").get(PLAYER_ID) as { state_json: string } | undefined;
+    const row = db.prepare("SELECT state_json FROM client_state WHERE player_id = ?").get(who) as { state_json: string } | undefined;
     if (!row) return null;
     const p = ClientStateSchema.safeParse(JSON.parse(row.state_json));
     return p.success ? p.data : null;

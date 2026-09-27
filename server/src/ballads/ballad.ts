@@ -6,6 +6,7 @@ import { clock, WEATHER_TEXT } from "../day.ts";
 import { GameError, log, player } from "../game.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
 import { remember } from "../npcs.ts";
+import { pid } from "../player/current.ts";
 import { LANGUAGE_RULE } from "../text.ts";
 import { POCKET_SLOTS, ITEMS } from "../trade.ts";
 import { activityAt } from "../town/schedule.ts";
@@ -417,13 +418,14 @@ export function buySheet(db: DB): { paid_c: number; text: string } {
   const b = balladToday(db);
   const n = singingNow(db);
   if (!b || !n || n.status !== "running") throw new GameError("the ballad singer is not selling now", 409);
-  if (db.prepare("SELECT 1 FROM item WHERE kind = 'ballad' AND ref = ?").get(day)) throw new GameError("you have today's sheet already", 409);
+  // (M8c: his own pockets and purse)
+  if (db.prepare("SELECT 1 FROM item WHERE kind = 'ballad' AND ref = ? AND player_id = ?").get(day, pid())) throw new GameError("you have today's sheet already", 409);
   if (player(db).money_c < SHEET_C) throw new GameError("not enough money: a sheet is a centime", 409);
-  if ((db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n >= POCKET_SLOTS) throw new GameError("your pockets are full", 409);
+  if ((db.prepare("SELECT COUNT(*) AS n FROM item WHERE player_id = ?").get(pid()) as { n: number }).n >= POCKET_SLOTS) throw new GameError("your pockets are full", 409);
   const singer = balladSinger(db);
   db.transaction(() => {
-    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(SHEET_C);
-    db.prepare("INSERT INTO item (kind, job_id, ref) VALUES ('ballad', NULL, ?)").run(day);
+    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(SHEET_C, pid());
+    db.prepare("INSERT INTO item (kind, job_id, ref, player_id) VALUES ('ballad', NULL, ?, ?)").run(day, pid());
     log(db, "bought_ballad", "ballad", `Jef bought a ballad sheet, "${b.text.title}", from the ballad singer for ${SHEET_C} centime.`);
   })();
   return { paid_c: SHEET_C, text: `You give ${singer?.first ?? "the singer"} a centime. He licks his thumb, peels a sheet off the sheaf: "${b.text.title}". (I to read it.)` };
@@ -431,7 +433,7 @@ export function buySheet(db: DB): { paid_c: number; text: string } {
 
 /** Reading: only a sheet Jef holds. */
 export function sheetView(db: DB, day: number): { day: number; title: string; verses: string[][]; chorus: string[]; weekday: string } {
-  if (!db.prepare("SELECT 1 FROM item WHERE kind = 'ballad' AND ref = ?").get(day)) throw new GameError("you have no such sheet", 404);
+  if (!db.prepare("SELECT 1 FROM item WHERE kind = 'ballad' AND ref = ? AND player_id = ?").get(day, pid())) throw new GameError("you have no such sheet", 404);
   const b = balladOf(db, day);
   if (!b) throw new GameError("the print has run: nothing to read", 404);
   const names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];

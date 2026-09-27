@@ -88,6 +88,20 @@ CREATE TABLE IF NOT EXISTS npc_action (
 CREATE INDEX IF NOT EXISTS npc_action_status ON npc_action(status, npc_id);
 `;
 
+/**
+ * M8d "shared work" (docs/multiplayer-plan.md 8): whom a townsperson's action is about (npc_action.for_player: the
+ * player who asked, the one sought or followed; empty: the host, as every older row) and whom an event is a lead
+ * for (town_event.for_player; empty: nobody's, the town's); ai_call.player_id, whose share a call came out of.
+ * Idempotent, safe on an old save (db.ts migrate calls it after the tables are made).
+ */
+export function directorMigrate(db: import("../db.ts").DB): void {
+  const cols = (t: string) => (db.prepare(`PRAGMA table_info(${t})`).all() as Array<{ name: string }>).map((c) => c.name);
+  const has = (t: string) => !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(t);
+  if (has("npc_action") && !cols("npc_action").includes("for_player")) db.exec("ALTER TABLE npc_action ADD COLUMN for_player INTEGER");
+  if (has("town_event") && !cols("town_event").includes("for_player")) db.exec("ALTER TABLE town_event ADD COLUMN for_player INTEGER");
+  if (has("ai_call") && !cols("ai_call").includes("player_id")) db.exec("ALTER TABLE ai_call ADD COLUMN player_id INTEGER NOT NULL DEFAULT 1");
+}
+
 export const EVENT_SCHEMA = /* sql */ `
 CREATE TABLE IF NOT EXISTS town_event (
   id INTEGER PRIMARY KEY,
@@ -156,4 +170,7 @@ export function familyMigrate(db: import("../db.ts").DB): void {
   db.exec(FAMILY_SCHEMA);
   const cols = (db.prepare("PRAGMA table_info(npc_memory)").all() as Array<{ name: string }>).map((c) => c.name);
   if (!cols.includes("told_as")) db.exec("ALTER TABLE npc_memory ADD COLUMN told_as TEXT");
+  // M8d: whose news it is (the player the first memory was about; 1, the host, for an older save's rows)
+  const fcols = (db.prepare("PRAGMA table_info(family_news)").all() as Array<{ name: string }>).map((c) => c.name);
+  if (!fcols.includes("player_id")) db.exec("ALTER TABLE family_news ADD COLUMN player_id INTEGER NOT NULL DEFAULT 1");
 }

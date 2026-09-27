@@ -2,10 +2,13 @@ import type { Hono } from "hono";
 import type { DB } from "../db.ts";
 import { DEV } from "../config.ts";
 import { GameError } from "../game.ts";
+import { everyoneEnded } from "../day.ts";
 import { boardExtras } from "../hooks/jobBoard.ts";
 import { resident } from "../town/store.ts";
 import { factsOf, makePaper, paperOf, PAPER_NAME, PAPER_PRICE_C } from "./newspaper.ts";
-import { bergClerk, bergView, forfeitPawns, pawn, redeem, ticketView } from "./pawn.ts";
+import { asPlayer, pid } from "../player/current.ts";
+import { playerIds } from "../player/multi.ts";
+import { bergClerk, bergView, forfeitPawns, medalOf, pawn, redeem, ticketView } from "./pawn.ts";
 import { clerkRemark, collectWaiting, deliverAt, discard, ensureLetterRound, letterView, maybeLetter, pickUp, postClerk, postCounter, postView, sendTelegram } from "./post.ts";
 import { pressTown } from "./town.ts";
 
@@ -44,16 +47,19 @@ export function mountPress(app: Hono, deps: PressDeps): void {
       if (ensureLetterRound(db)) pushJobs();
       return;
     }
-    if (db.prepare("SELECT 1 FROM world_state WHERE key = 'ending'").get()) return;
-    running = morning(day)
+    // (M8d: the world's week is over, or every player in the game has his own end: no morning; one player's own end is not the world's)
+    if (everyoneEnded(db)) return;
+    // (M8c: the morning is the world's work, whoever's request set it off: the host's, as outside any request)
+    running = asPlayer(1, () => morning(day))
       .catch((e) => console.error("[press] morning", e))
       .finally(() => (running = null));
   };
 
   async function morning(day: number): Promise<void> {
     // pledges past their day went to the Berg's sale in the night
+    // (M8c: every player's pledges; the toast is the host's, a guest finds his ticket gone)
     const sold = forfeitPawns(db);
-    for (const p of sold) broadcast({ type: "press", text: `The ticket ran out: the Berg van Barmhartigheid sold ${p.item_name} at its sale.` });
+    for (const p of sold) if (p.player_id === 1) broadcast({ type: "press", text: `The ticket ran out: the Berg van Barmhartigheid sold ${p.item_name} at its sale.` });
     if (sold.length) pushJobs();
     // the post office's round goes up with the board
     if (ensureLetterRound(db)) pushJobs();
@@ -68,10 +74,13 @@ export function mountPress(app: Hono, deps: PressDeps): void {
     broadcast({ type: "paper", day, cry: paper.cry, headline: paper.headline });
     if (flag("press_letter") !== day) {
       setFlag("press_letter", day);
-      const l = await maybeLetter(db);
-      if (l) {
-        console.log(`[letter] ${l.kind} from ${l.sender_name}: ${l.source}`);
-        broadcast({ type: "press", text: l.status === "given" ? `A boy brings you a letter from ${l.sender_name}. (I to read it.)` : `A letter for you waits at the post office.` });
+      // (M8c: each player his own letters; the toast is the host's, a guest finds his letter in his pockets or
+      // at the post office)
+      for (const who of playerIds(db)) {
+        const l = await asPlayer(who, () => maybeLetter(db));
+        if (!l) continue;
+        console.log(`[letter] ${l.kind} from ${l.sender_name} for player ${who}: ${l.source}`);
+        if (who === 1) broadcast({ type: "press", text: l.status === "given" ? `A boy brings you a letter from ${l.sender_name}. (I to read it.)` : `A letter for you waits at the post office.` });
         pushJobs();
       }
     }
@@ -109,14 +118,14 @@ export function mountPress(app: Hono, deps: PressDeps): void {
       corners: p?.corners ?? [],
       post: p?.post ? { ...p.post, at: postCounter(db) } : null,
       berg: p?.berg ?? null,
-      medal: p?.medal ?? "owned",
+      medal: medalOf(db),
     });
   });
 
   // ---- reading: only what Jef holds
   app.get("/api/paper/:day", (c) => {
     const day = Number(c.req.param("day"));
-    if (!db.prepare("SELECT 1 FROM item WHERE kind = 'newspaper' AND ref = ?").get(day)) throw new GameError("you have no such paper", 404);
+    if (!db.prepare("SELECT 1 FROM item WHERE kind = 'newspaper' AND ref = ? AND player_id = ?").get(day, pid())) throw new GameError("you have no such paper", 404);
     const p = paperOf(db, day);
     if (!p) throw new GameError("no such paper", 404);
     // the small notices: the day's work, in the engine's words, always in the paper

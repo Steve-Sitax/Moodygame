@@ -18,6 +18,8 @@ import { hasDeeds, THINGS, type DeedRow } from "../town/deeds.ts";
 import { policePost } from "../town/police.ts";
 import { pressTown } from "../paper/town.ts";
 import { canCallIdeas, clamp, d2, digitsOf, GIFTS, namesOk, now, numbersOk, OUT_OF_WORLD, round5, within } from "./common.ts";
+import { asPlayer, pid } from "../player/current.ts";
+import { readText, storeText } from "../player/names.ts";
 
 // Wall posters (M6 AI ideas). Printed bills pasted on the walls at busy spots.
 // The ENGINE picks what goes up, from the log and the calendar, and owns every
@@ -42,6 +44,8 @@ export interface LostThing {
   x: number;
   z: number;
   state: "lying" | "held" | "returned" | "gone";
+  /** M8c: the player who picked it up (none: the host). */
+  by?: number;
 }
 
 export interface PosterRow {
@@ -202,6 +206,8 @@ export interface PosterPlan {
   facts: string[];
   names: string[];
   names_jef: boolean;
+  /** M8c: the player a wanted bill names (none: the host), and his name as the town's words keep it. */
+  named?: { id: number; name: string };
   reward_c: number;
   owner: string | null;
   days: number;
@@ -218,7 +224,7 @@ export function wantedPlans(db: DB): PosterPlan[] {
   const { day } = now(db);
   const out: PosterPlan[] = [];
   if (hasDeeds(db)) {
-    const deeds = db.prepare("SELECT * FROM deed WHERE status = 'open' AND day >= ? ORDER BY id").all(day - 1) as DeedRow[];
+    const deeds = db.prepare("SELECT * FROM deed WHERE status = 'open' AND day >= ? ORDER BY id").all(day - 1) as Array<DeedRow & { player_id?: number }>;
     for (const d of deeds) {
       const reward = WANTED_REWARD[d.thing];
       if (!reward || hasRef(db, `deed:${d.id}`)) continue;
@@ -226,6 +232,8 @@ export function wantedPlans(db: DB): PosterPlan[] {
       const ownerName = owner?.name ?? (db.prepare("SELECT name FROM npc WHERE id = ?").get(d.owner) as { name: string } | undefined)?.name ?? "a townsman";
       const noun = THINGS[d.thing]?.noun ?? d.thing;
       const seen = d.seen === 1;
+      // (M8c: the thief is the player whose deed it was: a guest's bill has his own name)
+      const thief = d.player_id ?? 1;
       const facts = [
         `Taken: the ${noun} of ${ownerName}, near ${nearLabel(d.x, d.z)}, on ${weekday(d.day)} at about ${hourWords(d.hour)}.`,
         `Reward: ${reward} centimes, paid by ${ownerName}, for its return or for the thief's name at the police post.`,
@@ -235,7 +243,18 @@ export function wantedPlans(db: DB): PosterPlan[] {
       ];
       const spot = freeSpot(db, { x: d.x, z: d.z }, seen ? ["police"] : []);
       if (!spot) break;
-      out.push({ kind: "wanted", ref: `deed:${d.id}`, spot, facts, names: [ownerName], names_jef: seen, reward_c: reward, owner: d.owner, days: 3 });
+      out.push({
+        kind: "wanted",
+        ref: `deed:${d.id}`,
+        spot,
+        facts: facts.map((f) => storeText(db, f, thief)),
+        names: [ownerName],
+        names_jef: seen,
+        named: seen ? { id: thief, name: storeText(db, "Jef", thief) } : undefined,
+        reward_c: reward,
+        owner: d.owner,
+        days: 3,
+      });
     }
   }
   const esc = db.prepare("SELECT id, day, hour, data_json FROM world_event WHERE verb = 'robbery_escaped' AND day >= ? ORDER BY id").all(day - 1) as Array<{ id: number; day: number; hour: number; data_json: string }>;
@@ -448,7 +467,7 @@ WRITE for each bill: n; heading (a few words, capitals); body (2 or 3 short sent
 /** The engine's own words for a bill. */
 export function engineText(p: PosterPlan): PosterText {
   const heads: Record<PosterKind, string> = {
-    wanted: p.names_jef ? "WANTED: JEF" : "THEFT. REWARD",
+    wanted: p.names_jef ? `WANTED: ${(p.named?.name ?? "Jef").toUpperCase()}` : "THEFT. REWARD",
     lost: p.thing?.dog ? "LOST DOG. REWARD" : "LOST. REWARD",
     sailing: p.ref.startsWith("sail:kempenland") ? "RED STAR LINE" : "SAILINGS",
     auction: "PUBLIC SALE",
@@ -473,7 +492,8 @@ export function cleanPoster(db: DB, p: PosterPlan, out: { heading: string; body:
   const footer = plainEnglish(out.footer).slice(0, 100);
   const all = `${heading} ${body} ${footer}`;
   if (!numbersOk(all, digitsOf(...p.facts))) return null;
-  if (!namesOk(db, all, p.names, p.names_jef)) return null;
+  // (M8c: "Jef" only on a bill that names the host; a guest's bill names him by his own name)
+  if (!namesOk(db, all, p.names, p.names_jef && (p.named?.id ?? 1) === 1)) return null;
   if (GIFTS.test(all) || OUT_OF_WORLD.test(all)) return null;
   // the reward, when there is one, must be on the bill as the engine set it
   if (p.reward_c && !all.includes(String(p.reward_c))) return null;
@@ -492,7 +512,8 @@ function insertPoster(db: DB, p: PosterPlan, text: PosterText, source: string): 
         `INSERT INTO poster (kind, spot, day, hour, down_day, status, ref, facts_json, text_json, source, names_jef, reward_c, owner, thing_json)
          VALUES (?, ?, ?, ?, ?, 'up', ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(p.kind, p.spot.id, day, hour, day + Math.max(1, p.days) - 1, p.ref, JSON.stringify(p.facts), JSON.stringify(text), source, p.names_jef ? 1 : 0, p.reward_c, p.owner, JSON.stringify(p.thing ?? {})).lastInsertRowid,
+      // (M8c: names_jef keeps the id of the player the bill names: 1 the host, as before; 0 nobody)
+      .run(p.kind, p.spot.id, day, hour, day + Math.max(1, p.days) - 1, p.ref, JSON.stringify(p.facts), JSON.stringify(text), source, p.names_jef ? (p.named?.id ?? 1) : 0, p.reward_c, p.owner, JSON.stringify(p.thing ?? {})).lastInsertRowid,
   );
   writeEvent(db, {
     kind: "log",
@@ -503,7 +524,10 @@ function insertPoster(db: DB, p: PosterPlan, text: PosterText, source: string): 
     data: { poster: id, kind: p.kind },
   });
   if (p.kind === "wanted" && p.names_jef) {
-    db.prepare("INSERT INTO world_fact (text, weight, day, tags) VALUES (?, 6, ?, 'notice,poster')").run(`A bill at ${p.spot.label} says Jef, the new day labourer, is wanted for a theft; ${p.reward_c} centimes reward.`, day);
+    db.prepare("INSERT INTO world_fact (text, weight, day, tags) VALUES (?, 6, ?, 'notice,poster')").run(
+      storeText(db, `A bill at ${p.spot.label} says Jef, the new day labourer, is wanted for a theft; ${p.reward_c} centimes reward.`, p.named?.id ?? 1),
+      day,
+    );
   }
   return id;
 }
@@ -580,10 +604,13 @@ export function morningPlans(db: DB, rng?: () => number): PosterPlan[] {
   return picks;
 }
 
-/** Bills whose day is over, or whose matter is settled, come down; a reward is paid when a robbery Jef named is solved. */
-export function takeDown(db: DB): Array<{ id: number; why: string; paid_c?: number }> {
+/**
+ * Bills whose day is over, or whose matter is settled, come down; a reward is paid when a robbery Jef named is solved.
+ * M8c: the reward goes to the player who named the thief (the solved event's data.player; none: the host).
+ */
+export function takeDown(db: DB): Array<{ id: number; why: string; paid_c?: number; player?: number }> {
   const { day } = now(db);
-  const out: Array<{ id: number; why: string; paid_c?: number }> = [];
+  const out: Array<{ id: number; why: string; paid_c?: number; player?: number }> = [];
   const down = (id: number, why: string) => db.prepare("UPDATE poster SET status = 'down', why_down = ? WHERE id = ?").run(why, id);
   for (const p of db.prepare("SELECT * FROM poster WHERE status = 'up'").all() as PosterRow[]) {
     if (p.ref.startsWith("deed:") && hasDeeds(db)) {
@@ -595,17 +622,18 @@ export function takeDown(db: DB): Array<{ id: number; why: string; paid_c?: numb
       }
     }
     if (p.ref.startsWith("we:")) {
-      const solved = db.prepare("SELECT id FROM world_event WHERE verb = 'robbery_solved' AND ref_id = ?").get(Number(p.ref.slice(3))) as { id: number } | undefined;
+      const solved = db.prepare("SELECT id, data_json FROM world_event WHERE verb = 'robbery_solved' AND ref_id = ?").get(Number(p.ref.slice(3))) as { id: number; data_json: string } | undefined;
       if (solved) {
+        const who = Number((JSON.parse(solved.data_json || "{}") as { player?: unknown }).player) || 1;
         // Jef told the police and the thief was found: the police pay the bill's reward, once
         // (the bill comes down in the same transaction as the pay, and only if it was still up)
         const paid = db.transaction(() => {
           if (db.prepare("UPDATE poster SET status = 'down', why_down = 'solved' WHERE id = ? AND status = 'up'").run(p.id).changes !== 1) return false;
-          db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = 1").run(p.reward_c);
-          log(db, "reward_paid", String(p.id), `The police paid Jef the ${p.reward_c} centimes reward on the bill: the pickpocket he named was found.`);
+          db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = ?").run(p.reward_c, who);
+          asPlayer(who, () => log(db, "reward_paid", String(p.id), `The police paid Jef the ${p.reward_c} centimes reward on the bill: the pickpocket he named was found.`));
           return true;
         })();
-        if (paid) out.push({ id: p.id, why: "solved", paid_c: p.reward_c });
+        if (paid) out.push({ id: p.id, why: "solved", paid_c: p.reward_c, player: who });
         continue;
       }
     }
@@ -632,17 +660,23 @@ export function posterView(db: DB) {
   const lost = db.prepare("SELECT * FROM poster WHERE kind = 'lost' ORDER BY id").all() as PosterRow[];
   return {
     posters: rows
-      .map((p) => ({ id: p.id, kind: p.kind, spot: spots.get(p.spot) ?? null, day: p.day, text: JSON.parse(p.text_json) as PosterText, names_jef: !!p.names_jef, reward_c: p.reward_c, source: p.source }))
+      // (M8c: names_jef: the bill names the player who asks; the town's words read for a guest: "Jef" on them is the host)
+      .map((p) => ({ id: p.id, kind: p.kind, spot: spots.get(p.spot) ?? null, day: p.day, text: readPoster(db, JSON.parse(p.text_json) as PosterText), names_jef: p.names_jef === pid(), reward_c: p.reward_c, source: p.source }))
       .filter((p) => p.spot),
     /** Lost things lying about, or following Jef (a dog), and where each goes back. */
     lost: lost
       .map((p) => {
         const t = JSON.parse(p.thing_json) as LostThing;
         const o = p.owner ? resident(db, p.owner) : undefined;
-        return { poster: p.id, what: t.what, dog: t.dog ?? null, x: t.x, z: t.z, state: t.state, owner: p.owner, owner_name: o?.name ?? null, door: o ? [o.home.sx, o.home.sz] : null, reward_c: p.reward_c };
+        return { poster: p.id, what: t.what, dog: t.dog ?? null, x: t.x, z: t.z, state: t.state, by: t.by ?? 1, owner: p.owner, owner_name: o?.name ?? null, door: o ? [o.home.sx, o.home.sz] : null, reward_c: p.reward_c };
       })
-      .filter((l) => l.state === "lying" || l.state === "held"),
+      // (M8c: a thing another player holds is his)
+      .filter((l) => l.state === "lying" || (l.state === "held" && l.by === pid())),
   };
+}
+
+function readPoster(db: DB, t: PosterText): PosterText {
+  return { ...t, heading: readText(db, t.heading), body: readText(db, t.body), footer: readText(db, t.footer) };
 }
 
 function lostRow(db: DB, posterId: number): { p: PosterRow; t: LostThing } {
@@ -656,10 +690,10 @@ export function pickLost(db: DB, posterId: number, at: { x: number; z: number })
   const { p, t } = lostRow(db, posterId);
   if (t.state !== "lying") throw new GameError("it is not there any more", 409);
   if (!within(at, t, REACH_M)) throw new GameError("you are not there yet", 409);
-  if (!t.dog && (db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n >= POCKET_SLOTS) throw new GameError("your pockets are full", 409);
+  if (!t.dog && (db.prepare("SELECT COUNT(*) AS n FROM item WHERE player_id = ?").get(pid()) as { n: number }).n >= POCKET_SLOTS) throw new GameError("your pockets are full", 409);
   db.transaction(() => {
-    db.prepare("UPDATE poster SET thing_json = ? WHERE id = ?").run(JSON.stringify({ ...t, state: "held" }), p.id);
-    if (!t.dog) db.prepare("INSERT INTO item (kind, job_id, ref) VALUES ('found', NULL, ?)").run(p.id);
+    db.prepare("UPDATE poster SET thing_json = ? WHERE id = ?").run(JSON.stringify({ ...t, state: "held", by: pid() }), p.id);
+    if (!t.dog) db.prepare("INSERT INTO item (kind, job_id, ref, player_id) VALUES ('found', NULL, ?, ?)").run(p.id, pid());
     log(db, "found_lost", p.owner, t.dog ? `Jef found ${t.what}, the lost dog on the bill.` : `Jef found ${t.what}, lost by ${resident(db, p.owner ?? "")?.name ?? "someone"}.`);
   })();
   return { text: t.dog ? `${t.dog.name} sniffs your hand and lets you tie your belt to the collar.` : `You pick up ${t.what}. The bill said: back to the door of its owner.` };
@@ -668,14 +702,14 @@ export function pickLost(db: DB, posterId: number, at: { x: number; z: number })
 /** E at the owner's door with the thing: the engine pays the bill's reward, trust +1, a memory. */
 export function returnLost(db: DB, posterId: number, at: { x: number; z: number }): { text: string; paid_c: number } {
   const { p, t } = lostRow(db, posterId);
-  if (t.state !== "held") throw new GameError("you do not have it", 409);
+  if (t.state !== "held" || (t.by ?? 1) !== pid()) throw new GameError("you do not have it", 409);
   const o = p.owner ? resident(db, p.owner) : undefined;
   if (!o) throw new GameError("nobody to give it to", 409);
   if (!within(at, { x: o.home.sx, z: o.home.sz }, REACH_M)) throw new GameError("this is not their door", 409);
   db.transaction(() => {
     db.prepare("UPDATE poster SET thing_json = ?, status = 'down', why_down = 'found' WHERE id = ?").run(JSON.stringify({ ...t, state: "returned" }), p.id);
-    db.prepare("DELETE FROM item WHERE kind = 'found' AND ref = ?").run(p.id);
-    db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = 1").run(p.reward_c);
+    db.prepare("DELETE FROM item WHERE kind = 'found' AND ref = ? AND player_id = ?").run(p.id, pid());
+    db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = ?").run(p.reward_c, pid());
     log(db, "returned_lost", o.id, `Jef brought ${t.what} back to ${o.name} and had the ${p.reward_c} centimes on the bill.`);
   })();
   applyTrust(db, o.id, 1, 0);

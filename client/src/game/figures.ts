@@ -52,7 +52,24 @@ function greyBox(kind: FigureKind): THREE.Group {
 export const figureNav: {
   path: ((ax: number, az: number, bx: number, bz: number) => Array<{ x: number; z: number }> | null) | null;
   water: ((x: number, z: number) => boolean) | null;
-} = { path: null, water: null };
+  /**
+   * M8d: does another player in the game see this point now (net/mp/together.ts sets it when played together)?
+   * "Out of sight" for a job's figure means out of every player's sight (game/walkup.ts). Null alone.
+   */
+  othersSee: ((x: number, z: number) => boolean) | null;
+} = { path: null, water: null, othersSee: null };
+
+/** M8d: what the job holder's PC sends of a made figure (net/mp/jobfigs.ts). */
+export interface FigureLook {
+  kind: FigureKind;
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+  speed: number;
+  motion: "idle" | "walk" | "carry" | "fold" | "talk";
+  carrying: boolean;
+}
 
 /** M7 walk-up: every made figure alive now (dev/popcheck.ts watches where they first show). */
 export const LIVE_FIGURES = new Set<Figure>();
@@ -83,7 +100,10 @@ export class Figure {
     private readonly scene: THREE.Scene,
     /** Height they stand at (the mate stands on the ship's deck: M6 tides, give a function, it moves). */
     private readonly baseY: number | (() => number) = 0,
+    /** M8d: drawn from another player's job (net/mp/jobfigs.ts): placed by his PC's states, never walked here. */
+    opts: { remote?: boolean } = {},
   ) {
+    this.remote = opts.remote === true;
     this.pos = new THREE.Vector3(x, typeof baseY === "function" ? baseY() : baseY, z);
     this.human = makeHuman(MODEL[kind]);
     this.body = this.human ? this.human.root : greyBox(kind);
@@ -101,7 +121,51 @@ export class Figure {
     }
     this.group.position.copy(this.pos);
     scene.add(this.group);
-    LIVE_FIGURES.add(this);
+    if (!this.remote) LIVE_FIGURES.add(this);
+  }
+
+  // ---- M8d: a made figure seen by the other players (net/mp/jobfigs.ts)
+
+  /** Drawn from another player's job: his PC's states place it (no walking, no grid here). */
+  readonly remote: boolean;
+  private netSpeed = 0;
+  private netY = 0;
+  private netCarry = false;
+  private netCrate: THREE.Mesh | null = null;
+
+  /** What the other players are sent of this figure now (its feet, heading, pace and what it does); `out` is filled when given. */
+  netLook(out?: FigureLook): FigureLook {
+    const carrying = this.group.children.length > 1;
+    const moving = this.target !== null;
+    const y = typeof this.baseY === "function" ? this.baseY() : this.baseY;
+    const motion = moving ? (carrying ? "carry" : "walk") : this.kind === "foreman" || this.motion === "fold" ? "fold" : this.motion === "talk" ? "talk" : "idle";
+    const o = out ?? ({} as FigureLook);
+    o.kind = this.kind;
+    o.x = this.pos.x;
+    o.y = y;
+    o.z = this.pos.z;
+    o.yaw = this.facing;
+    o.speed = moving ? this.speed : 0;
+    o.motion = motion;
+    o.carrying = carrying;
+    return o;
+  }
+
+  /** A remote figure where the holder's PC had it (between two of its states). */
+  netPlace(x: number, y: number, z: number, yaw: number, speed: number, motion: FigureLook["motion"], carrying: boolean): void {
+    this.pos.set(x, y, z);
+    this.netY = y;
+    this.facing = yaw;
+    this.netSpeed = motion === "walk" || motion === "carry" ? Math.max(0.3, speed) : 0;
+    this.motion = motion === "fold" || motion === "talk" ? motion : "idle";
+    if (carrying !== this.netCarry) {
+      this.netCarry = carrying;
+      if (carrying) {
+        // (a crate in his arms: the grey box's own kind of material, no new shader)
+        this.netCrate ??= new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.4), mat(0x6b5236));
+        this.hold(this.netCrate);
+      } else this.netCrate?.removeFromParent();
+    }
   }
 
   /** M7 walk-up (JobFigure): a made figure is in the street while it lives. */
@@ -178,13 +242,17 @@ export class Figure {
         }
       }
     }
-    let y = typeof this.baseY === "function" ? this.baseY() : this.baseY;
+    // (M8d: a remote one walks at the pace its holder's PC sent, at the height it sent)
+    const walking = this.remote ? this.netSpeed > 0 : this.target !== null;
+    const pace = this.remote ? this.netSpeed : this.speed;
+    if (this.remote && walking) this.phase += dt * pace * 4.5;
+    let y = this.remote ? this.netY : typeof this.baseY === "function" ? this.baseY() : this.baseY;
     if (this.human) {
       const h = this.human;
       const carrying = this.group.children.length > 1;
-      if (this.target) {
+      if (walking) {
         h.play(carrying ? "carry" : "walk", 0.2);
-        h.setPace(this.speed);
+        h.setPace(pace);
       } else h.play(this.kind === "foreman" || this.motion === "fold" ? "fold" : this.motion === "talk" ? "talk" : "idle", 0.35);
       h.update(dt);
       y += h.bob();
@@ -198,5 +266,6 @@ export class Figure {
     LIVE_FIGURES.delete(this);
     this.scene.remove(this.group);
     this.human?.dispose();
+    this.netCrate?.geometry.dispose();
   }
 }

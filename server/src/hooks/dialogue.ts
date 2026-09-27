@@ -1,3 +1,4 @@
+import { holdTalk, resetTalkHolds } from "../player/talking.ts";
 import { sexed, shownText } from "../player/profile.ts"; // M7 character: lines said to the player follow the profile
 import { z } from "zod";
 import { playNow } from "../save/gate.ts";
@@ -8,7 +9,9 @@ import { callClaude, type Runner } from "../ai/claude.ts";
 import { SYSTEM, SPOTS, listJobs, type JobRow } from "./jobBoard.ts";
 import { applyTrust, npcRow, persona, relationship, remember, topMemories, trustText } from "../npcs.ts";
 import { ITEMS, WARES } from "../trade.ts";
-import { GameError } from "../game.ts";
+import { GameError, player } from "../game.ts";
+import { pid } from "../player/current.ts";
+import { readText, storeText } from "../player/names.ts";
 
 // dialogue and free_reply hooks (docs/03). The NPC talks; the engine applies
 // a clamped trust change and stores one memory. Typed text is data, never orders.
@@ -57,14 +60,16 @@ interface Talk {
   /** The last line said, for a talk window opened again within the meeting. */
   last: Line | null;
 }
+/** Meetings by `${player}:${npc}` (M8c: each player's own talk with a townsperson). */
 const talks = new Map<string, Talk>();
 const TALK_TTL_MS = 90_000;
 
 function talkFor(id: string): Talk {
-  let t = talks.get(id);
+  const key = `${pid()}:${id}`;
+  let t = talks.get(key);
   if (!t || playNow() - t.lastAt > TALK_TTL_MS) {
     t = { turns: [], trust: 0, lastAt: playNow(), opening: null, offered: new Set(), last: null };
-    talks.set(id, t);
+    talks.set(key, t);
   }
   return t;
 }
@@ -74,9 +79,11 @@ export function buildPrompt(db: DB, id: string, scene: string, turns: string[]):
   const p = persona(db, id);
   const r = relationship(db, id);
   const mem = topMemories(db, id);
-  const pl = db.prepare("SELECT name, money_c, day, hour FROM player WHERE id = 1").get() as { name: string; money_c: number; day: number; hour: number };
-  const log = db.prepare("SELECT text FROM log ORDER BY id DESC LIMIT 5").all() as Array<{ text: string }>;
-  const jobs = listJobs(db, pl.day).filter((j) => j.employer_npc === id && (j.status === "taken" || j.status === "offered"));
+  const pl = player(db); // (M8c: the player who talks; the world's day and hour)
+  // the kaai's latest lines, everyone's (read for a guest: the host's "Jef" is the host)
+  const log = (db.prepare("SELECT text FROM log ORDER BY id DESC LIMIT 5").all() as Array<{ text: string }>).map((l) => ({ text: readText(db, l.text) }));
+  // (M8c: open work, and the work he has in hand himself; another player's job in hand is not his to talk about)
+  const jobs = listJobs(db, pl.day).filter((j) => j.employer_npc === id && (j.status === "offered" || (j.status === "taken" && (j.taken_by ?? 1) === pid())));
   const t = p.traits;
   return `PERSON
 ${n.name}, ${n.role}. ${p.look}
@@ -157,7 +164,10 @@ export function fallbackLine(id: string): Line {
 function apply(db: DB, id: string, talk: Talk, line: Line): Line & { trust_applied: number } {
   const applied = applyTrust(db, id, line.trust_delta, talk.trust);
   talk.trust += applied;
-  if (line.view_of_player.trim()) db.prepare("UPDATE npc_relationship SET view_of_player = ? WHERE npc_id = ?").run(line.view_of_player.trim(), id);
+  if (line.view_of_player.trim()) {
+    relationship(db, id); // (M8c: his row with this townsperson, made if it is not there)
+    db.prepare("UPDATE npc_relationship SET view_of_player = ? WHERE npc_id = ? AND player_id = ?").run(line.view_of_player.trim(), id, pid());
+  }
   if (line.memory_note.trim()) {
     const w = Math.min(line.memory_weight, 8);
     const name = npcRow(db, id)!.name;
@@ -184,9 +194,11 @@ export function prefetchOpening(db: DB, id: string, runner?: Runner): void {
 
 export async function openTalk(db: DB, id: string, runner?: Runner) {
   const talk = talkFor(id);
+  holdTalk(db, id, npcRow(db, id)?.name ?? "They"); // (M8c: one player's talk at a time)
   if (!talk.turns.length) {
-    const pl = db.prepare("SELECT day FROM player WHERE id = 1").get() as { day: number };
-    db.prepare("UPDATE npc_relationship SET times_met = times_met + 1, last_seen_day = ?, last_place = 'rijnkaai' WHERE npc_id = ?").run(pl.day, id);
+    const pl = db.prepare("SELECT day FROM player WHERE id = 1").get() as { day: number }; // (the world's day)
+    relationship(db, id); // (M8c: his row with this townsperson, made if it is not there)
+    db.prepare("UPDATE npc_relationship SET times_met = times_met + 1, last_seen_day = ?, last_place = 'rijnkaai' WHERE npc_id = ? AND player_id = ?").run(pl.day, id, pid());
   }
   prefetchOpening(db, id, runner);
   // opened again within the meeting (after a choice): no new opening is made, so the last line
@@ -201,6 +213,7 @@ export async function openTalk(db: DB, id: string, runner?: Runner) {
 /** Jef picks one of the offered lines. A line that was not offered is typed text: the gate and the fence (freeReply). */
 export async function pickChoice(db: DB, id: string, choice: string, runner?: Runner) {
   const talk = talkFor(id);
+  holdTalk(db, id, npcRow(db, id)?.name ?? "They"); // (M8c: one player's talk at a time)
   const said = choice.slice(0, 160);
   if (!talk.offered.has(said)) {
     const own = await freeReply(db, id, choice, runner);
@@ -216,7 +229,9 @@ export async function pickChoice(db: DB, id: string, choice: string, runner?: Ru
 
 const MAX_CHARS = 300;
 const FREE_EVERY_MS = 5_000;
-let lastFreeAt = 0;
+/** When each player last typed a line (M8c: the 5 s wait is his own). */
+const lastFreeAt = new Map<number, number>();
+const lastFree = () => lastFreeAt.get(pid()) ?? 0;
 
 /** Wall 4 (docs/03): cheap gate before any model call. */
 const BLOCK = [
@@ -244,7 +259,7 @@ const CANNED: Record<string, string> = {
   fientje: "\"Listen to him! Jef talks strange today. Wait till the Vismarkt hears this.\"",
 };
 
-export function gateText(raw: string, now = Date.now(), last = lastFreeAt): { ok: true; text: string } | { ok: false; reason: string } {
+export function gateText(raw: string, now = Date.now(), last = lastFree()): { ok: true; text: string } | { ok: false; reason: string } {
   // one form for look-alikes (full-width letters, ligatures), then no control, format (zero-width,
   // direction marks), private-use or line and paragraph separator characters
   const text = raw
@@ -262,20 +277,18 @@ export function gateText(raw: string, now = Date.now(), last = lastFreeAt): { ok
 
 export async function freeReply(db: DB, id: string, raw: string, runner?: Runner) {
   const talk = talkFor(id);
+  holdTalk(db, id, npcRow(db, id)?.name ?? "They"); // (M8c: one player's talk at a time)
   const g = gateText(raw);
   if (!g.ok) {
     if (g.reason === "too fast" || g.reason === "empty" || g.reason === "too long") return { gated: g.reason };
     // caught: canned in-character reply, logged, no model call
-    lastFreeAt = Date.now();
-    db.prepare("INSERT INTO log (day, hour, place, actor, verb, object, text) SELECT day, hour, 'rijnkaai', 'player', 'said_strange', ?, ? FROM player WHERE id = 1").run(
-      id,
-      "Jef said something strange that made no sense on the kaai.",
-    );
+    lastFreeAt.set(pid(), Date.now());
+    logAt(db, "said_strange", id, "Jef said something strange that made no sense on the kaai.");
     remember(db, id, "Jef talked strange at me, words that made no sense.", 4, "seen", null, { gist: "Jef talked strange, about things nobody understands", tone: -1 });
     const line: Line = { ...fallbackLine(id), npc_line: sexed(db, CANNED[id] ?? "They stare at you."), mood: "suspicious", end_conversation: false };
     return { ...apply(db, id, talk, line), gated: "blocked" };
   }
-  lastFreeAt = Date.now();
+  lastFreeAt.set(pid(), Date.now());
   talk.turns.push(`- Jef (in his own words): ${g.text}`);
   // Wall 2: the typed line is fenced and labelled as dialogue, never as instructions
   const scene = `Jef speaks in his own words. His exact words follow in the fenced block.
@@ -290,13 +303,24 @@ Answer him in character.`;
 
 /** A typed line was let through or caught: start the 5 s wait (shared with the residents' talk, M3e). */
 export function markFreeLine(now = Date.now()): void {
-  lastFreeAt = now;
+  lastFreeAt.set(pid(), now);
+}
+
+/** A line of the log on the Rijnkaai, the player's own (M8c: his id, a guest's words with his name). */
+function logAt(db: DB, verb: string, object: string, text: string): void {
+  db.prepare("INSERT INTO log (day, hour, place, actor, verb, object, text, player_id) SELECT day, hour, 'rijnkaai', 'player', ?, ?, ?, ? FROM player WHERE id = 1").run(
+    verb,
+    object,
+    storeText(db, text),
+    pid(),
+  );
 }
 
 /** Test helper: forget meetings and the rate limit. */
 export function resetTalks(): void {
   talks.clear();
-  lastFreeAt = 0;
+  resetTalkHolds();
+  lastFreeAt.clear();
   for (const f of onReset) f();
 }
 const onReset: Array<() => void> = [];
@@ -317,10 +341,7 @@ export function witness(db: DB, id: string, event: "took" | "returned"): { trust
       tone: -2,
     });
     const applied = applyTrust(db, id, -1, 0);
-    db.prepare("INSERT INTO log (day, hour, place, actor, verb, object, text) SELECT day, hour, 'rijnkaai', 'player', 'took_goods', ?, ? FROM player WHERE id = 1").run(
-      id,
-      `Jef picked up goods that belong to ${n.name}, and ${n.name} saw it.`,
-    );
+    logAt(db, "took_goods", id, `Jef picked up goods that belong to ${n.name}, and ${n.name} saw it.`);
     return { trust_applied: applied };
   }
   remember(db, id, "Jef put my goods back when I shouted. Maybe just clumsy.", 3);

@@ -5,6 +5,7 @@ import { SYSTEM } from "./jobBoard.ts";
 import { PLACED, npcRow, relationship, topMemories, trustText } from "../npcs.ts";
 import type { Ending } from "../day.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
+import { pid } from "../player/current.ts";
 
 // epilogue hook (docs/03). Written once, from the whole week. Numbers and facts
 // come from the engine; Claude only tells what became of Jef.
@@ -15,9 +16,10 @@ export const EpilogueSchema = z.object({
 });
 
 export function buildPrompt(db: DB, e: Ending): string {
-  const p = db.prepare("SELECT name, money_c, food, warmth, health, sleep, day, rent_paid_until FROM player WHERE id = 1").get() as Record<string, number | string>;
-  const trust = db.prepare("SELECT faction, trust FROM faction_trust ORDER BY trust DESC").all() as Array<{ faction: string; trust: number }>;
-  const log = (db.prepare("SELECT day, hour, text FROM log ORDER BY id DESC LIMIT 80").all() as Array<{ day: number; hour: number; text: string }>).reverse();
+  // (M8c: the week of the player it is written for: his row, his trust, his own lines of the log)
+  const p = db.prepare("SELECT name, money_c, food, warmth, health, sleep, day, rent_paid_until FROM player WHERE id = ?").get(pid()) as Record<string, number | string>;
+  const trust = db.prepare("SELECT faction, trust FROM faction_trust WHERE player_id = ? ORDER BY trust DESC").all(pid()) as Array<{ faction: string; trust: number }>;
+  const log = (db.prepare("SELECT day, hour, text FROM log WHERE player_id = ? ORDER BY id DESC LIMIT 80").all(pid()) as Array<{ day: number; hour: number; text: string }>).reverse();
   const people = Object.keys(PLACED)
     .map((id) => {
       const n = npcRow(db, id)!;

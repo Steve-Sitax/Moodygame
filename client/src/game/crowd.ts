@@ -81,7 +81,9 @@ const WALL = 1;
 const WATER = 2;
 
 /** puppet: a resident of the town (M3e, town.ts) says where to go and what to do; the crowd walks them on its grid. */
-type Role = "wander" | "haul" | "group" | "follow" | "puppet";
+// M8b "remote": a townsperson another player's PC walks (net/mp/street.ts); drawn and animated here from its
+// batches, never walked or turned by this crowd.
+type Role = "wander" | "haul" | "group" | "follow" | "puppet" | "remote";
 type State = "walk" | "pause" | "chat" | "stand" | "sit" | "wait" | "blocked";
 
 interface Lantern {
@@ -702,7 +704,7 @@ export class Crowd {
     // (backwards: recycle takes out only the one it is given)
     for (let i = this.people.length - 1; i >= 0; i--) {
       const p = this.people[i];
-      if (p.role !== "puppet" && !p.townFollow && Math.hypot(p.x - player.x, p.z - player.z) > this.radius + 8) this.recycle(p);
+      if (p.role !== "puppet" && p.role !== "remote" && !p.townFollow && Math.hypot(p.x - player.x, p.z - player.z) > this.radius + 8) this.recycle(p);
     }
     if (!this.filled) {
       // the first fill may put people anywhere (the start screen is up)
@@ -720,7 +722,7 @@ export class Crowd {
         this.cullT = this.anonymous ? 1.5 : 0.3;
         // out of sight, and the ones who least belong at this hour first
         const out = this.people
-          .filter((p) => !p.shown && !p.cluster && !p.lead && p.role !== "puppet")
+          .filter((p) => !p.shown && !p.cluster && !p.lead && p.role !== "puppet" && p.role !== "remote")
           .sort((a, b) => this.belongs(a) - this.belongs(b))[0];
         if (out) this.recycle(out);
       }
@@ -731,7 +733,7 @@ export class Crowd {
       this.turnoverT = 4;
       if (isNight(this.hour)) {
         for (const p of this.people) {
-          if (p.shown || p.cluster || p.lead || p.role === "puppet") continue;
+          if (p.shown || p.cluster || p.lead || p.role === "puppet" || p.role === "remote") continue;
           if (this.belongs(p) < 0.35) {
             this.recycle(p);
             break;
@@ -743,7 +745,7 @@ export class Crowd {
         }
       } else {
         for (const p of this.people) if (!p.shown) p.lanternRoll = false;
-        const lit = this.people.find((p) => p.lantern && !p.shown && p.role !== "puppet");
+        const lit = this.people.find((p) => p.lantern && !p.shown && p.role !== "puppet" && p.role !== "remote");
         if (lit) this.dropLantern(lit);
       }
     }
@@ -811,7 +813,7 @@ export class Crowd {
   anonymous = true;
   private get puppetCount(): number {
     let n = 0;
-    for (const p of this.people) if (p.role === "puppet" || p.townFollow) n++;
+    for (const p of this.people) if (p.role === "puppet" || p.role === "remote" || p.townFollow) n++;
     return n;
   }
 
@@ -911,6 +913,7 @@ export class Crowd {
     }
     if (!what || !p.hand) return;
     const m = new THREE.Mesh(...this.boughtParts(what));
+    m.userData.what = what; // (M8b: sent with him to the other PCs)
     p.group.updateMatrixWorld(true);
     const s = new THREE.Vector3();
     p.hand.getWorldScale(s);
@@ -1089,6 +1092,90 @@ export class Crowd {
     return p.role === "follow" && !!p.lead;
   }
 
+  // ---------------------------------------------------------------- M8b: townspeople another PC walks
+
+  /** A townsperson walked by another player's PC appears here (net/mp/street.ts); null while the models load. */
+  addRemote(kind: HumanKind, x: number, z: number, yaw: number, size: number): Puppet | null {
+    if (!this.ready) return null;
+    const p = this.make(kind, x, z, "remote");
+    if (!p) return null;
+    p.yaw = yaw;
+    p.size = size;
+    p.group.scale.setScalar(size);
+    p.state = "stand";
+    p.pyaw = null;
+    p.pmotion = "idle";
+    p.lanternRoll = true;
+    return p;
+  }
+
+  /**
+   * A puppet this PC walked goes to another PC (on), or one another PC walked comes to this one (off): the same
+   * figure, where it stands, so there is no jump (the handover goes on from the last state: docs/milestones/M8b.md).
+   */
+  puppetRemote(p: Puppet, on: boolean): void {
+    if (on) {
+      if (p.role === "remote") return;
+      this.puppetFollow(p, null);
+      p.role = "remote";
+    } else {
+      if (p.role !== "remote") return;
+      p.role = "puppet";
+      p.pmotion = !p.human.motion || p.human.motion === "walk" ? "idle" : p.human.motion;
+    }
+    p.path = [];
+    p.pi = 0;
+    p.dest = null;
+    p.repath = false;
+    p.held = 0;
+    if (p.state !== "sit") p.state = "stand";
+  }
+
+  /** Is this one walked by another PC? */
+  isRemote(p: Puppet): boolean {
+    return p.role === "remote";
+  }
+
+  /** M8b: what an owner sends of a puppet (read by net/mp/street.ts). */
+  puppetLook(p: Puppet): { motion: Motion; sit: boolean; lantern: boolean; sack: boolean; bought: "parcel" | "fish" | "sack" | "basket" | null; veh: PuppetVehicle | null } {
+    return {
+      motion: p.human.motion ?? "idle",
+      sit: p.state === "sit",
+      lantern: !!p.lantern,
+      sack: p.handCarry && p.loaded && !!p.sack,
+      bought: (p.bought?.userData.what as "parcel" | "fish" | "sack" | "basket" | undefined) ?? null,
+      veh: p.veh?.spec ?? null,
+    };
+  }
+
+  /** M8b: a remote townsperson as his owner drew him (interpolated by net/mp/street.ts). */
+  applyRemote(
+    p: Puppet,
+    a: { x: number; z: number; yaw: number; speed: number; motion: Motion; size: number; sit: boolean; lantern: boolean; sack: boolean; bought: "parcel" | "fish" | "sack" | "basket" | null; veh: PuppetVehicle | null },
+  ): void {
+    if (p.role !== "remote") return;
+    p.x = a.x;
+    p.z = a.z;
+    p.yaw = a.yaw;
+    if (Math.abs(a.size - p.size) > 0.004 && !p.veh) {
+      p.size = a.size;
+      p.group.scale.setScalar(a.size);
+    }
+    const moving = a.speed > 0.15;
+    p.state = a.sit && p.human.canSit ? "sit" : moving ? "walk" : "stand";
+    // the walk's pace from the speed he is drawn at (the research: no sliding feet)
+    const motion = a.motion === "walk" && !moving ? "idle" : a.motion;
+    p.human.play(motion, 0.25);
+    if (moving && motion !== "ride") p.human.setPace(a.speed / p.size);
+    p.pace = Math.max(0.3, a.speed);
+    if (a.lantern !== !!p.lantern) this.puppetLantern(p, a.lantern);
+    if (a.sack !== !!p.sack) this.puppetLoad(p, a.sack);
+    const had = (p.bought?.userData.what as string | undefined) ?? null;
+    if (had !== a.bought) this.puppetCarry(p, a.bought);
+    const v = p.veh?.spec ?? null;
+    if (JSON.stringify(v) !== JSON.stringify(a.veh)) this.puppetVehicle(p, a.veh);
+  }
+
   private boughtGeo: Partial<Record<string, [THREE.BufferGeometry, THREE.Material]>> = {};
   private boughtParts(what: "parcel" | "fish" | "sack" | "basket"): [THREE.BufferGeometry, THREE.Material] {
     const had = this.boughtGeo[what];
@@ -1198,6 +1285,7 @@ export class Crowd {
 
   private think(p: Person, dt: number): void {
     p.sinceDetour += dt;
+    if (p.role === "remote") return; // M8b: another PC walks him
     if (p.role === "puppet") {
       this.puppetThink(p, dt);
       return;

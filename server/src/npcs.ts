@@ -4,6 +4,8 @@ import type { DB } from "./db.ts";
 import { FACTIONS } from "./factions.ts";
 import { callClaude, type Runner } from "./ai/claude.ts";
 import { SYSTEM } from "./hooks/jobBoard.ts";
+import { pid } from "./player/current.ts";
+import { readText, storeText } from "./player/names.ts";
 
 // NPCs as three records (docs/03): persona, relationship with Jef, memories.
 // Only one NPC's slice ever goes into a prompt.
@@ -142,10 +144,15 @@ export interface Relationship {
   view_of_player: string;
 }
 
+/** What this townsperson thinks of the player who asks (M8c: each player his own row, made when first needed). */
 export function relationship(db: DB, id: string): Relationship {
-  return db
-    .prepare("SELECT trust, affection, respect, fear, times_met, last_seen_day, last_place, view_of_player FROM npc_relationship WHERE npc_id = ?")
-    .get(id) as Relationship;
+  const q = db.prepare("SELECT trust, affection, respect, fear, times_met, last_seen_day, last_place, view_of_player FROM npc_relationship WHERE npc_id = ? AND player_id = ?");
+  let r = q.get(id, pid()) as Relationship | undefined;
+  if (!r && db.prepare("SELECT 1 FROM npc WHERE id = ?").get(id)) {
+    db.prepare("INSERT OR IGNORE INTO npc_relationship (npc_id, player_id) VALUES (?, ?)").run(id, pid());
+    r = q.get(id, pid()) as Relationship;
+  }
+  return r as Relationship;
 }
 
 /**
@@ -166,7 +173,7 @@ export function trustText(t: number): string {
 export function applyTrust(db: DB, id: string, delta: number, soFar: number): number {
   const clamped = Math.max(-2 - soFar, Math.min(2 - soFar, Math.round(delta)));
   const d = Math.max(-2, Math.min(2, clamped));
-  if (d) db.prepare("UPDATE npc_relationship SET trust = MAX(-5, MIN(10, trust + ?)) WHERE npc_id = ?").run(d, id);
+  if (d) db.prepare("UPDATE npc_relationship SET trust = MAX(-5, MIN(10, trust + ?)) WHERE npc_id = ? AND player_id = ?").run(d, id, pid());
   return d;
 }
 
@@ -182,9 +189,11 @@ export interface Memory {
 }
 
 export function topMemories(db: DB, id: string, n = 8): Memory[] {
-  return db
+  const rows = db
     .prepare("SELECT id, text, source, heard_from, weight, day FROM npc_memory WHERE npc_id = ? ORDER BY weight DESC, id DESC LIMIT ?")
     .all(id, n) as Memory[];
+  // (M8c: read for a guest, the host's "Jef" in them is the host)
+  return rows.map((m) => ({ ...m, text: readText(db, m.text) }));
 }
 
 /**
@@ -204,15 +213,17 @@ export function remember(
   const gist = rumour?.gist.trim().slice(0, 160) || null;
   const tone = Math.max(-2, Math.min(2, Math.round(rumour?.tone ?? 0)));
   const w = Math.max(1, Math.min(10, Math.round(weight)));
-  db.prepare("INSERT INTO npc_memory (npc_id, text, source, heard_from, weight, day, gist, tone) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(
+  // (M8c: whom it is about, and a guest's with his own name: the town keeps one memory for everyone)
+  db.prepare("INSERT INTO npc_memory (npc_id, text, source, heard_from, weight, day, gist, tone, about_player) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
     id,
-    text.trim().slice(0, 200),
+    storeText(db, text.trim()).slice(0, 200),
     source,
     from,
     w,
     day,
-    gist,
+    gist ? storeText(db, gist) : null,
     tone,
+    pid(),
   );
   // only a memory that can spread starts the gossip (the scan reads every unspread row)
   if (source === "seen" && w >= 6 && id !== "fientje") spreadGossip(db);

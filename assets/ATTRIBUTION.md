@@ -265,6 +265,8 @@ example picture, no third-party images); turned grey and resized to 880 px:
 | ws | 8.21.3 | MIT |
 | better-sqlite3 | 13.0.3 | MIT |
 | zod | 4.6.5 | MIT |
+| @peculiar/x509 | 2.1.0 | MIT. M8e: makes the house certificate (server/src/mp/tls.ts). Brings @peculiar/asn1-* (MIT), tsyringe (MIT), pvtsutils (MIT), pvutils (MIT), asn1js (BSD-3-Clause), tslib (0BSD). |
+| reflect-metadata | 0.2.2 | Apache-2.0. The Reflect polyfill @peculiar/x509 (tsyringe) needs. |
 | @anthropic-ai/claude-agent-sdk | 0.3.280 | Proprietary, (c) Anthropic PBC. Use under Anthropic's legal agreements (https://code.claude.com/docs/en/legal-and-compliance). Declared dependency, not copied into our source. Chosen in docs/02. |
 | vitest | 5.0.1 | MIT |
 | typescript | 7.0.2 | Apache-2.0 |

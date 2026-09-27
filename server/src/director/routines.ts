@@ -7,6 +7,8 @@ import { log, player } from "../game.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
 import { gateText } from "../hooks/dialogue.ts";
 import { relationship, remember, trustText } from "../npcs.ts";
+import { asPlayer, forEachOnline, pid } from "../player/current.ts";
+import { pstate, setPstate } from "../player/multi.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { ITEMS, POCKET_SLOTS, atWork, waresOf } from "../trade.ts";
 import { gameMinute } from "../town/deeds.ts";
@@ -19,7 +21,7 @@ import { askFor, isKeeperAtWork, MAX_WAGE_C, offerFrom, planFrom, sumsIn, type P
 import { jefCarts, lendCart, returnCart, type JefCart } from "../town/handcart.ts";
 import { lease } from "../homes/homes.ts";
 import { homeDef } from "../homes/town.ts";
-import { getState, keeperAtWork, setState, tavernPlace } from "../interiors/state.ts";
+import { keeperAtWork, tavernPlace } from "../interiors/state.ts";
 import { cleanLine } from "../interiors/tavern.ts";
 import { bus } from "./bus.ts";
 import { actionOf, actionRow, findPerson, findPlace, isReserved, jefAt, posOf, proposeHooks, whereIs, type Accepted, type ActionRow, type Refused, type Where } from "./actions.ts";
@@ -333,7 +335,7 @@ export function sellersOf(db: DB, kind: string): Seller[] {
 
 /** Jef's things in his pockets he may send (not a job's, not a letter or a ticket). */
 function jefHas(db: DB, kind: string): boolean {
-  return !!db.prepare("SELECT 1 FROM item WHERE kind = ? AND job_id IS NULL").get(kind) && !["parcel", "letters", "letter", "pawn_ticket", "diary", "found", "medal"].includes(kind);
+  return !!db.prepare("SELECT 1 FROM item WHERE kind = ? AND job_id IS NULL AND player_id = ?").get(kind, pid()) && !["parcel", "letters", "letter", "pawn_ticket", "diary", "found", "medal"].includes(kind);
 }
 
 // ------------------------------------------------------------------ one plan step into executor steps
@@ -855,12 +857,13 @@ interface Waiting {
   jef: { x: number; z: number } | null;
   at: number;
 }
+// (M8c: the player's own queue: player_state; the host's older world_state key until written)
 const QUEUE_KEY = "errand_queue";
 export function queued(db: DB): Waiting[] {
-  return getState<Waiting[]>(db, QUEUE_KEY, []);
+  return pstate<Waiting[]>(db, QUEUE_KEY) ?? [];
 }
 function setQueue(db: DB, q: Waiting[]): void {
-  setState(db, QUEUE_KEY, q);
+  setPstate(db, QUEUE_KEY, q);
 }
 
 /** Errands running in the town, and waiting. */
@@ -1047,7 +1050,7 @@ function runErrandStep(db: DB, row: ActionRow, r: Routine, s: Step): { ok: boole
     case "give": {
       if (role === "take") {
         // from Jef's pockets into their hand: gone from his list, carried for him
-        const it = db.prepare("SELECT id FROM item WHERE kind = ? AND job_id IS NULL ORDER BY id LIMIT 1").get(s.item!) as { id: number } | undefined;
+        const it = db.prepare("SELECT id FROM item WHERE kind = ? AND job_id IS NULL AND player_id = ? ORDER BY id LIMIT 1").get(s.item!, pid()) as { id: number } | undefined;
         if (!it) return { ok: false, why: "no_item" };
         db.transaction(() => {
           db.prepare("DELETE FROM item WHERE id = ?").run(it.id);
@@ -1337,12 +1340,12 @@ function arriveAtJef(db: DB, row: ActionRow, e: ErrandState): void {
 
 /** The things they carry for Jef, into his pockets (as many as fit). */
 function handBack(db: DB, e: ErrandState): string[] {
-  const free = POCKET_SLOTS - (db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n;
+  const free = POCKET_SLOTS - (db.prepare("SELECT COUNT(*) AS n FROM item WHERE player_id = ?").get(pid()) as { n: number }).n;
   const out: string[] = [];
   const keep: Carried[] = [];
   for (const c of e.carried) {
     if (out.length < free) {
-      db.prepare("INSERT INTO item (kind, job_id, ref) VALUES (?, NULL, NULL)").run(c.kind);
+      db.prepare("INSERT INTO item (kind, job_id, ref, player_id) VALUES (?, NULL, NULL, ?)").run(c.kind, pid());
       out.push(c.kind);
     } else keep.push(c);
   }
@@ -1411,6 +1414,9 @@ export function finishCheckin(db: DB, id: number, trig: Trigger, out: Checkin | 
   const row = actionRow(db, id);
   const r = routineOf(row);
   if (!row || !r || row.status !== "active") return;
+  // M8d: the answer comes back outside anyone's request (or the tick finds it stale): it is the errand's player's
+  // business (his place for "back to Jef", his coins, his pockets)
+  if ((r.player ?? 1) !== pid()) return asPlayer(r.player ?? 1, () => finishCheckin(db, id, trig, out));
   const i = r.i;
   if (tagRole(r.steps[i]) !== "checkin") return;
   const runner = resident(db, row.npc_id);
@@ -1609,7 +1615,7 @@ function errandEnded(db: DB, row: ActionRow, r: Routine, status: "done" | "faile
   const change = Math.max(0, e.purse_c - e.spent_c);
   if (change > 0) {
     db.transaction(() => {
-      db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = 1").run(change);
+      db.prepare("UPDATE player SET money_c = money_c + ? WHERE id = ?").run(change, pid());
       log(db, "errand_change", runner?.id ?? null, `${runner?.name ?? "Someone"} gave Jef back ${change} centimes of his coins from an errand.`);
     })();
     const spent = e.spent_c;
@@ -1623,7 +1629,7 @@ function errandEnded(db: DB, row: ActionRow, r: Routine, status: "done" | "faile
     if (pay > 0 && runner) stepPay(db, runner.id, pay, "the rest of an errand's wage");
     e.paid_c += pay;
     if (pay < owed && runner) {
-      db.prepare("UPDATE npc_relationship SET trust = MAX(-5, trust - 1) WHERE npc_id = ?").run(runner.id);
+      if (relationship(db, runner.id)) db.prepare("UPDATE npc_relationship SET trust = MAX(-5, trust - 1) WHERE npc_id = ? AND player_id = ?").run(runner.id, pid());
       remember(db, runner.id, `Jef still owes me ${owed - pay} centimes for an errand.`, 5, "seen", null, { gist: `Jef did not pay ${runner.name} for an errand`, tone: -1 });
       parts.push(`You owe me ${owed - pay} more, mind.`);
     } else if (pay > 0) parts.push(`And ${pay} for my trouble, as agreed.`);
@@ -1678,7 +1684,10 @@ export function errandTick(db: DB): number {
       n++;
     }
   }
-  n += startQueued(db);
+  // (M8c: each player's queue of errands in the game)
+  forEachOnline(() => {
+    n += startQueued(db);
+  });
   return n;
 }
 
@@ -1722,7 +1731,9 @@ export function installRoutines(): void {
 
 /** A new game: nothing waiting. */
 export function clearErrands(db: DB): void {
-  setQueue(db, []);
+  // (every player's queue, and the host's older one)
+  db.prepare("DELETE FROM player_state WHERE key = ?").run(QUEUE_KEY);
+  db.prepare("DELETE FROM world_state WHERE key = ?").run(QUEUE_KEY);
   pending.clear();
 }
 

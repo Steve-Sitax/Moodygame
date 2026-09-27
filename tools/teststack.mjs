@@ -99,7 +99,7 @@ export default {
   );
   const server = spawn(process.execPath, ["src/index.ts"], {
     cwd: path.join(root, "server"),
-    env: { ...process.env, SCHELDEMIST_DB: db, SCHELDEMIST_PORT: String(SERVER), SCHELDEMIST_CLIENT_PORT: String(VITE) },
+    env: { ...process.env, SCHELDEMIST_DB: db, SCHELDEMIST_PORT: String(SERVER), SCHELDEMIST_CLIENT_PORT: String(VITE), SCHELDEMIST_MAP_PORT: String(SERVER + 1000) },
     detached: true,
     windowsHide: true,
     stdio: ["ignore", openSync(logS, "w"), openSync(logS, "a")],
@@ -132,6 +132,8 @@ function stop() {
   for (const f of [db, `${db}-shm`, `${db}-wal`, logS, logV, cfg, aiCfg, mpCfg]) rmSync(f, { force: true });
   // M7 save and pause: the copy's own saves (server save/saves.ts: data/saves/<the copy's name>)
   rmSync(path.join(data, "saves", `test-${name}`), { recursive: true, force: true });
+  // M8e: the copy's own house certificate (server mp/tls.ts tlsDirFor: data/tls-test-<name>), never the real data/tls
+  rmSync(path.join(data, `tls-test-${name}`), { recursive: true, force: true });
   console.log(left.length ? `still listening: ${left.join(", ")}` : `test stack "${name}" stopped; copy, logs and config deleted`);
 }
 

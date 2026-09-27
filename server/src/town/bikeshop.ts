@@ -1,6 +1,8 @@
 import type { DB } from "../db.ts";
 import { GameError, log, player } from "../game.ts";
 import { remember } from "../npcs.ts";
+import { asPlayer, pid } from "../player/current.ts";
+import { playerIds, pstate, setPstate } from "../player/multi.ts";
 import { ITEM_BUY, ITEM_REF } from "../trade.ts";
 import { dropTownCache, town } from "./store.ts";
 import { houseDoors, walkMap, type HouseDoor } from "./walkmap.ts";
@@ -29,8 +31,8 @@ import { BUSY_M, VELO_FETCH_FEE_C, VELO_HIRE_HOURS, VELO_PRICE, VELO_THEFT_PER_H
 // second-hand one is a hard week's saving, the new one two. A hire runs VELO_HIRE_HOURS game
 // hours; not back at his door by then, his boy fetches it and the maker asks VELO_FETCH_FEE_C.
 //
-// Jef's own machine is saved on the server (world_state 'jef_velos' and the M3h velocipede
-// states, deeds.ts): it stands where he left it and he rides it with the ordinary controls.
+// Jef's own machine is saved on the server (the player's own 'jef_velos', M8c pstate, and the M3h
+// velocipede states, deeds.ts): it stands where he left it and he rides it with the ordinary controls.
 // Left alone in a busy place (a market, a quay, a tavern door) with Jef not by it, someone may
 // ride off on it: VELO_THEFT_PER_HOUR each game hour. Then it is gone, the town talks, and the
 // police can be asked: the theft is a robbery of Jef on the record (log 'robbed', the thief a
@@ -88,12 +90,13 @@ function putState(db: DB, key: string, v: unknown): void {
 export function veloShop(db: DB): VeloShop | null {
   return getState<VeloShop>(db, "veloshop");
 }
+/** The player's own machines (M8c: each player's, pstate 'jef_velos'). */
 export function jefVelos(db: DB): JefVelos {
-  const s = getState<JefVelos>(db, "jef_velos");
+  const s = pstate<JefVelos>(db, "jef_velos");
   return { n: s?.n ?? 0, list: Array.isArray(s?.list) ? s!.list : [], notice: s?.notice ?? null, rolled: s?.rolled ?? -1 };
 }
 function saveJef(db: DB, s: JefVelos): void {
-  putState(db, "jef_velos", s);
+  setPstate(db, "jef_velos", s);
 }
 function notice(s: JefVelos, text: string): void {
   s.notice = { n: (s.notice?.n ?? 0) + 1, text };
@@ -238,11 +241,12 @@ function give(db: DB, kind: "new" | "used" | "hire"): void {
   const s = jefVelos(db);
   const shop = veloShop(db)!;
   const now = minuteNow(db);
-  const id = `velo:jef${++s.n}`;
+  // (M8c: the velocipedes are the world's: a guest's machine has his id in its own)
+  const id = pid() === 1 ? `velo:jef${++s.n}` : `velo:jef${pid()}x${++s.n}`;
   s.list.push({ id, kind, since: now, until: kind === "hire" ? now + VELO_HIRE_HOURS * 60 : undefined, paid_c: kind === "new" ? VELO_PRICE.new_c : kind === "used" ? VELO_PRICE.used_c : VELO_PRICE.hire_c });
   saveJef(db, s);
   const spot = shop.show[kind === "hire" ? 1 : 0] ?? shop.show[0];
-  setVeloState(db, id, { x: spot[0], z: spot[1], yaw: spot[2], ridden: false, deed: null, own: true });
+  setVeloState(db, id, { x: spot[0], z: spot[1], yaw: spot[2], ridden: false, deed: null, own: true, by: pid() });
   log(db, kind === "hire" ? "hired_velo" : "bought_velo", id, kind === "hire" ? "Jef hired a velocipede for the day from the velocipede maker." : `Jef bought a ${kind === "new" ? "new" : "second-hand"} velocipede from the velocipede maker.`);
 }
 
@@ -262,10 +266,13 @@ function dropJef(db: DB, s: JefVelos, id: string): void {
 
 // ------------------------------------------------------------------ each game hour: hires that run out, thieves
 
-/** Where Jef was last seen by the client (for "watched"); set by the route. */
-const lastJef = new WeakMap<DB, { x: number; z: number; at: number }>();
+/** Where Jef was last seen by the client (for "watched"); set by the route. Per player (M8c). */
+const lastJef = new WeakMap<DB, Map<number, { x: number; z: number; at: number }>>();
 export function jefSeen(db: DB, x: number, z: number, at = Date.now()): void {
-  if (Number.isFinite(x) && Number.isFinite(z)) lastJef.set(db, { x, z, at });
+  if (!Number.isFinite(x) || !Number.isFinite(z)) return;
+  const m = lastJef.get(db) ?? new Map<number, { x: number; z: number; at: number }>();
+  m.set(pid(), { x, z, at });
+  lastJef.set(db, m);
 }
 
 const BUSY_IDS = new Set(["rijnkaai", "werf", "vismarkt", "grote_markt", "steenplein", "bassin", "bassin_south", "canal", "handschoenmarkt", "canal_quay"]);
@@ -283,7 +290,7 @@ function safeAt(db: DB, x: number, z: number): boolean {
   const shop = veloShop(db);
   if (shop && Math.hypot(shop.step[0] - x, shop.step[1] - z) < 8) return true;
   const lease = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'home_lease'").get()
-    ? (db.prepare("SELECT home FROM home_lease WHERE ended IS NULL ORDER BY id DESC LIMIT 1").get() as { home: string } | undefined)
+    ? (db.prepare("SELECT home FROM home_lease WHERE ended IS NULL AND player_id = ? ORDER BY id DESC LIMIT 1").get(pid()) as { home: string } | undefined)
     : undefined;
   if (!lease) return false;
   const home = getState<{ homes: Array<{ id: string; step: Pt }> }>(db, "homes")?.homes.find((h) => h.id === lease.home);
@@ -291,8 +298,8 @@ function safeAt(db: DB, x: number, z: number): boolean {
 }
 
 /**
- * The hour's work (from the tick): a hire that ran out is fetched (a fee), an unwatched
- * machine in a busy place may be ridden off. `rng` and `now` are test seams. Returns what happened.
+ * The hour's work (from the tick; M8c: for each player, his own machines): a hire that ran out is
+ * fetched (a fee), an unwatched machine in a busy place may be ridden off. `rng` and `now` are test seams. Returns what happened.
  */
 export function bikeHour(db: DB, rng: () => number = Math.random, now = Date.now()): string[] {
   // one transaction: a fee taken and the machine gone, or neither
@@ -318,7 +325,7 @@ function bikeHourNow(db: DB, rng: () => number, now: number): string[] {
       const shop = veloShop(db);
       const back = !!shop && Math.hypot(shop.step[0] - vs.x, shop.step[1] - vs.z) < 10;
       const fee = back ? 0 : Math.min(p.money_c, VELO_FETCH_FEE_C);
-      if (fee) db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(fee);
+      if (fee) db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(fee, pid());
       dropJef(db, s, v.id);
       const text = back
         ? "The day's hire is over; the velocipede is back at the maker's."
@@ -330,7 +337,7 @@ function bikeHourNow(db: DB, rng: () => number, now: number): string[] {
     }
     // left alone in a busy place, Jef not by it: someone may ride off on it
     if (vs.ridden || safeAt(db, vs.x, vs.z) || !busyAt(db, vs.x, vs.z)) continue;
-    const seen = lastJef.get(db);
+    const seen = lastJef.get(db)?.get(pid());
     if (seen && now - seen.at < 30_000 && Math.hypot(seen.x - vs.x, seen.z - vs.z) < WATCHED_M) continue;
     const night = p.hour >= 20 || p.hour < 6;
     if (rng() >= (night ? VELO_THEFT_PER_HOUR.night : VELO_THEFT_PER_HOUR.day)) continue;
@@ -375,9 +382,9 @@ function nearestPlaceLabel(db: DB, x: number, z: number): string {
   return best;
 }
 
-/** A new game: Jef has no machine. */
+/** A new game: no player has a machine. */
 export function clearJefVelos(db: DB): void {
-  const s = jefVelos(db);
-  for (const v of s.list) setVeloState(db, v.id, null);
+  for (const who of playerIds(db)) for (const v of asPlayer(who, () => jefVelos(db)).list) setVeloState(db, v.id, null);
   db.prepare("DELETE FROM world_state WHERE key = 'jef_velos'").run();
+  db.prepare("DELETE FROM player_state WHERE key = 'jef_velos'").run();
 }

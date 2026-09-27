@@ -1,12 +1,15 @@
 import { z } from "zod";
 import type { DB } from "../db.ts";
 import { GameError, log, player } from "../game.ts";
+import { addPlayerColumn, pstate, RESET_HOOKS, setPstate } from "../player/multi.ts";
+import { asPlayer, pid } from "../player/current.ts";
+import { nameOf } from "../player/names.ts";
 import { applyTrust, remember } from "../npcs.ts";
 import { POCKET_SLOTS, atWork } from "../trade.ts";
 import { weather, type Weather } from "../day.ts";
 import { activityAt } from "./schedule.ts";
 import { TOWN_EMPLOYER_IDS, resident, town } from "./store.ts";
-import { cityHouses, houseDoors, walkMap } from "./walkmap.ts";
+import { cityHouses, houseDoors, walkMap, WALL } from "./walkmap.ts";
 import { shopTableSpot } from "../../../shared/shopFront.ts";
 import type { Resident } from "./population.ts";
 import { rowBoatHome, rowBoatStates, rowBoats, rowOn, rowState, setRowBoat, takePrompt, type LooseBoat } from "../rowing.ts";
@@ -50,7 +53,7 @@ export const THINGS: Record<Thing, { severity: number; fine_c: number; noun: str
  * this deed; gone: is it away from its household (the family cannot use it).
  */
 export const cartHooks = {
-  find: (_db: DB, _ref: string): { owner: string; x: number; z: number; yaw?: number; where: string; mine: { deed: number | null; held: boolean } | null } | null => null,
+  find: (_db: DB, _ref: string): { owner: string; x: number; z: number; yaw?: number; where: string; mine: { deed: number | null; held: boolean } | null; by?: number } | null => null,
   taken: (_db: DB, _ref: string, _deed: number, _at: { x: number; z: number; yaw: number }): void => {},
   again: (_db: DB, _ref: string): void => {},
   home: (_db: DB, _ref: string): void => {},
@@ -88,12 +91,14 @@ const ready = new WeakSet<DB>();
 export function deedTables(db: DB): void {
   if (ready.has(db)) return;
   db.exec(DEED_SCHEMA);
+  addPlayerColumn(db, "deed"); // M8c: whose deed
   ready.add(db);
 }
 /** Is there a deed table yet? Reading never makes one. */
 export function hasDeeds(db: DB): boolean {
   if (ready.has(db)) return true;
   if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'deed'").get()) return false;
+  addPlayerColumn(db, "deed");
   ready.add(db);
   return true;
 }
@@ -116,8 +121,11 @@ export interface DeedRow {
   /** M6: "let_off": the police believed his story; the thing went back all the same. */
   status: "open" | "returned" | "warned" | "fined" | "arrested" | "let_off";
   rumour_at: number | null;
+  /** M8c: whose deed (the player who took it). */
+  player_id?: number;
 }
 
+/** A deed by its id, whoever's (the world's work reads it; a player's own route checks player_id). */
 export function deedRow(db: DB, id: number): DeedRow | undefined {
   if (!hasDeeds(db)) return undefined;
   return db.prepare("SELECT * FROM deed WHERE id = ?").get(id) as DeedRow | undefined;
@@ -343,6 +351,13 @@ export interface VeloState {
   down?: boolean;
   /** M6: Jef's own machine (bought, or hired for the day): no deed, no owner to miss it. */
   own?: boolean;
+  /** M8c: the player who has it (rides it, took it, or owns it); none: the host. */
+  by?: number;
+}
+
+/** M8c: whose it is now (the rider, the taker, the owner), for a velocipede that is anyone's. */
+export function veloBy(s: VeloState): number {
+  return s.by ?? 1;
 }
 
 export function veloStates(db: DB): Record<string, VeloState> {
@@ -355,11 +370,12 @@ export function veloStates(db: DB): Record<string, VeloState> {
     out[v.id] = at ? { ...s, x: at.x, z: at.z, yaw: at.yaw, down: false } : s;
   }
   // M6: Jef's own machines stand where he left them
-  for (const v of veloHooks.jef(db)) out[v.id] = saved[v.id] ?? { x: v.x, z: v.z, yaw: v.yaw, ridden: false, deed: null, own: true };
+  for (const v of veloHooks.jef(db)) out[v.id] = saved[v.id] ?? { x: v.x, z: v.z, yaw: v.yaw, ridden: false, deed: null, own: true, by: pid() };
   return out;
 }
 function saveVelo(db: DB, id: string, s: VeloState): void {
-  const all = veloStates(db);
+  // (M8c: over the saved states, so the other players' own machines keep theirs)
+  const all = { ...state<Record<string, VeloState>>(db, "velos", {}), ...veloStates(db) };
   all[id] = s;
   setState(db, "velos", all);
 }
@@ -384,11 +400,13 @@ export function leaveVelo(db: DB, id: string, x: number, z: number, yaw: number,
   const s = all[id];
   if (!s) throw new GameError("no such velocipede", 404);
   if (!s.ridden) throw new GameError("you are not on it", 409);
+  // (M8c: only the rider gets off)
+  if (veloBy(s) !== pid()) throw new GameError("someone else rides it", 409);
   if (!Number.isFinite(x) || !Number.isFinite(z)) throw new GameError("bad place", 400);
   const wm = walkMap();
   const q = wm.open(x, z, 0.25) ? { x, z } : wm.nearestOpen(x, z, 4);
   if (!q) throw new GameError("you cannot leave it there", 409);
-  const next: VeloState = { x: r1(q.x), z: r1(q.z), yaw: Number.isFinite(yaw) ? +yaw.toFixed(3) : s.yaw, ridden: false, deed: s.deed, down, ...(s.own ? { own: true } : {}) };
+  const next: VeloState = { x: r1(q.x), z: r1(q.z), yaw: Number.isFinite(yaw) ? +yaw.toFixed(3) : s.yaw, ridden: false, deed: s.deed, down, ...(s.own ? { own: true } : {}), ...(s.by !== undefined ? { by: s.by } : {}) };
   saveVelo(db, id, next);
   return next;
 }
@@ -409,9 +427,10 @@ export function deedWorld(db: DB) {
   const vs = veloStates(db);
   return {
     velos: [
-      ...s.velos.map((v) => ({ id: v.id, owner: v.owner, owner_name: npcName(db, v.owner), ...vs[v.id], mine: vs[v.id].deed !== null })),
+      // (M8c: mine: taken by the player who asks; by: who rides it now, null when nobody does)
+      ...s.velos.map((v) => ({ id: v.id, owner: v.owner, owner_name: npcName(db, v.owner), ...vs[v.id], mine: vs[v.id].deed !== null && veloBy(vs[v.id]) === pid(), by: vs[v.id].ridden ? veloBy(vs[v.id]) : null })),
       // M6: Jef's own (bought, or hired for the day)
-      ...veloHooks.jef(db).filter((v) => vs[v.id]).map((v) => ({ id: v.id, owner: v.owner, owner_name: "you", ...vs[v.id], mine: true, own: true })),
+      ...veloHooks.jef(db).filter((v) => vs[v.id]).map((v) => ({ id: v.id, owner: v.owner, owner_name: "you", ...vs[v.id], mine: true, own: true, by: vs[v.id].ridden ? veloBy(vs[v.id]) : null })),
     ],
     lamps: s.lamps.filter((l) => !taken.has(l.id)).map((l) => ({ ...l, owner_name: npcName(db, l.owner) })),
     food: s.food.map((f) => ({ ...f, name: FOOD_NAME[f.item] })),
@@ -543,6 +562,62 @@ export interface DeedResult {
   text: string;
   police: boolean;
   item_id: number | null;
+  /** M8d: other players who saw it (each is told, and the police may ask him). */
+  players_saw?: Array<{ id: number; name: string }>;
+}
+
+// ------------------------------------------------------------------ M8d: players as witnesses
+
+/** Another player in the game and where he stands (director/actions.ts playersAt; the thief himself left out). */
+export interface OtherPlayer {
+  id: number;
+  x: number;
+  z: number;
+}
+
+/** No house wall on the line between two points (the walk map's walls; the client's own check, game/deeds.ts los). */
+export function clearLine(ax: number, az: number, bx: number, bz: number): boolean {
+  const wm = walkMap();
+  const n = Math.ceil(Math.hypot(bx - ax, bz - az) / 0.5);
+  for (let i = 1; i < n; i++) if (wm.flags(ax + ((bx - ax) * i) / n, az + ((bz - az) * i) / n) & WALL) return false;
+  return true;
+}
+
+/**
+ * The other players who saw a deed at `at`: within the street's sight by the weather and the light (a crouching
+ * thief a quarter less), with a clear line. A player takes in what happens round him (no dice: the engine says he
+ * saw it). Pure but for the walk map.
+ */
+export function playerEyes(others: OtherPlayer[], at: { x: number; z: number }, c: SeeCtx): Array<OtherPlayer & { d: number }> {
+  const R = (SIGHT_M[c.weather] ?? 13) * (c.lantern ? 0.9 : 0.45 + 0.55 * daylight(c.hour)) * (c.crouch ? 0.75 : 1);
+  return others
+    .map((o) => ({ ...o, d: Math.hypot(o.x - at.x, o.z - at.z) }))
+    .filter((o) => Number.isFinite(o.d) && o.d <= R && clearLine(o.x, o.z, at.x, at.z))
+    .sort((a, b) => a.d - b.d)
+    .slice(0, 6);
+}
+
+/** Another player's name as a player is told it (a plain "Jef", the host, kept from the teller's own edge). */
+function playerName(db: DB, id: number): string {
+  const n = nameOf(db, id);
+  return n === "Jef" ? "Je‍f" : n;
+}
+
+export interface SeenNotice {
+  n: number;
+  deed: number;
+  text: string;
+}
+
+/** What player `who` saw ("You saw Anna take the lantern."): kept a short while in his own keys; the client says each once. */
+export function noteSeen(db: DB, who: number, deed: number, text: string): void {
+  const list = pstate<SeenNotice[]>(db, "deeds_seen", who) ?? [];
+  const n = (list[list.length - 1]?.n ?? 0) + 1;
+  setPstate(db, "deeds_seen", [...list, { n, deed, text }].slice(-6), who);
+}
+
+export function seenNotices(db: DB): SeenNotice[] {
+  return pstate<SeenNotice[]>(db, "deeds_seen") ?? [];
 }
 
 /** How the owner answers a theft under their nose: by their stats (engine). */
@@ -598,14 +673,14 @@ function findThing(db: DB, ref: string) {
 }
 
 function freeSlots(db: DB): number {
-  return POCKET_SLOTS - (db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n;
+  return POCKET_SLOTS - (db.prepare("SELECT COUNT(*) AS n FROM item WHERE player_id = ?").get(pid()) as { n: number }).n;
 }
 
 /**
  * Jef takes a thing that is not his. The engine decides who saw it and what
  * it costs him. `rng` is a test seam.
  */
-export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random): DeedResult {
+export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random, others: OtherPlayer[] = []): DeedResult {
   deedTables(db);
   const parsed = DeedRequestSchema.safeParse(raw);
   if (!parsed.success) throw new GameError("bad report", 400);
@@ -630,11 +705,14 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
 
   // can it be taken now?
   if (t.velo) {
+    // (M8c: another player's, ridden or taken and not given back, is not there to take)
+    if (t.velo.ridden && veloBy(t.velo) !== pid()) throw new GameError("someone else rides it", 409);
+    if (t.velo.deed !== null && veloBy(t.velo) !== pid()) throw new GameError("someone else has that one", 409);
     if (t.velo.ridden) throw new GameError("you are already on it", 409);
-    if (Object.values(veloStates(db)).some((s) => s.ridden)) throw new GameError("you are already riding one", 409);
+    if (Object.values(veloStates(db)).some((s) => s.ridden && veloBy(s) === pid())) throw new GameError("you are already riding one", 409);
     if (t.velo.deed !== null || t.velo.own) {
       // his already (taken before and not given back, or his own): up he gets, no new deed
-      saveVelo(db, req.ref, { ...t.velo, ridden: true, down: false });
+      saveVelo(db, req.ref, { ...t.velo, ridden: true, down: false, by: pid() });
       return { deed: t.velo.deed, again: true, seen: false, owner_saw: false, seen_by: [], owner: { id: t.owner, name: ownerName }, reaction: null, text: "", police: false, item_id: null };
     }
   } else if (t.thing === "boat") {
@@ -650,6 +728,8 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
   } else if (t.thing === "handcart") {
     // M6: a household's handcart: no pocket; his already (taken before): hold of it again, no new deed
     const c = (t as { cart?: ReturnType<typeof cartHooks.find> }).cart;
+    // (M8c: another player has it)
+    if (c?.by !== undefined && c.by !== pid()) throw new GameError("someone else has that one", 409);
     if (c?.mine) {
       if (c.mine.held) throw new GameError("you have hold of it already", 409);
       cartHooks.again(db, req.ref);
@@ -696,17 +776,17 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
   const pm = db.prepare("SELECT minute FROM player WHERE id = 1").get() as { minute: number };
   db.transaction(() => {
     if (t.thing !== "velocipede" && t.thing !== "boat" && t.thing !== "handcart") {
-      const r = db.prepare("INSERT INTO item (kind, job_id) VALUES (?, NULL)").run(t.item);
+      const r = db.prepare("INSERT INTO item (kind, job_id, player_id) VALUES (?, NULL, ?)").run(t.item, pid());
       itemId = Number(r.lastInsertRowid);
     }
     const ins = db
       .prepare(
-        `INSERT INTO deed (day, hour, minute, thing, item, ref, owner, x, z, seen, owner_saw, witnesses, item_id, status, rumour_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)`,
+        `INSERT INTO deed (day, hour, minute, thing, item, ref, owner, x, z, seen, owner_saw, witnesses, item_id, status, rumour_at, player_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)`,
       )
-      .run(p.day, p.hour, pm.minute, t.thing, t.item, req.ref, t.owner, t.x, t.z, seen ? 1 : 0, ownerSaw ? 1 : 0, JSON.stringify(tellers.map((w) => w.id)), itemId, rumourAt);
+      .run(p.day, p.hour, pm.minute, t.thing, t.item, req.ref, t.owner, t.x, t.z, seen ? 1 : 0, ownerSaw ? 1 : 0, JSON.stringify(tellers.map((w) => w.id)), itemId, rumourAt, pid());
     deedId = Number(ins.lastInsertRowid);
-    if (t.velo) saveVelo(db, req.ref, { ...t.velo, ridden: true, deed: deedId, down: false });
+    if (t.velo) saveVelo(db, req.ref, { ...t.velo, ridden: true, deed: deedId, down: false, by: pid() });
     if (t.thing === "boat") {
       setRowBoat(db, req.ref, { ...rowBoatStates(db)[req.ref], ridden: true, deed: deedId });
       rowOn(db, req.ref);
@@ -731,6 +811,11 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
   })();
 
   const what = t.thing === "food" ? `${FOOD_NAME[t.item]} off ${t.where}` : `${ownerName}'s ${t.noun} ${t.where}`;
+  // M8d: the other players who saw it are told (and the police may ask them: deedRoutes.ts, police.ts policeWitness)
+  const eyes2 = playerEyes(others.filter((o) => o.id !== pid()), { x: t.x, z: t.z }, ctx);
+  const thiefName = playerName(db, pid());
+  for (const o of eyes2) noteSeen(db, o.id, deedId, `You saw ${thiefName} take ${what}.`);
+  const playersSaw = eyes2.map((o) => ({ id: o.id, name: playerName(db, o.id) }));
   const gist = t.thing === "food" ? `Jef stole ${FOOD_NAME[t.item]} from ${t.where}` : `Jef stole ${ownerName}'s ${t.noun}`;
   if (seen) {
     // the owner, and each witness: a memory, trust lost, a rumour that travels
@@ -743,7 +828,7 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
       applyTrust(db, w.id, -1, 0);
     }
     const faction = (db.prepare("SELECT faction FROM npc WHERE id = ?").get(t.owner) as { faction: string | null } | undefined)?.faction;
-    if (faction) db.prepare("UPDATE faction_trust SET trust = MAX(-5, trust - 1) WHERE faction = ?").run(faction);
+    if (faction) db.prepare("UPDATE faction_trust SET trust = MAX(-5, trust - 1) WHERE faction = ? AND player_id = ?").run(faction, pid());
   } else {
     // the owner finds it gone, sooner or later; nobody knows who
     remember(db, t.owner, t.thing === "food" ? `Somebody lifted ${FOOD_NAME[t.item]} off my table while I looked the other way.` : `Somebody took my ${t.noun} ${t.where}.`, 4);
@@ -774,6 +859,7 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
       : t.thing === "lantern"
         ? "Nobody saw. The lantern is yours now."
         : `Nobody saw. ${FOOD_NAME[t.item][0].toUpperCase() + FOOD_NAME[t.item].slice(1)} goes into your pocket.`;
+  const watched = playersSaw.length ? ` ${playersSaw.map((p) => p.name).join(" and ")} saw it too.` : "";
   return {
     deed: deedId,
     again: false,
@@ -782,9 +868,10 @@ export function takeThing(db: DB, raw: unknown, rng: () => number = Math.random)
     seen_by: tellers.map((w) => ({ id: w.id, name: npcName(db, w.id) })),
     owner: { id: t.owner, name: ownerName },
     reaction,
-    text,
+    text: text + watched,
     police: seen,
     item_id: itemId,
+    players_saw: playersSaw,
   };
 }
 
@@ -874,10 +961,10 @@ function takeBoat(db: DB, req: DeedRequest, b: LooseBoat): DeedResult {
   db.transaction(() => {
     const ins = db
       .prepare(
-        `INSERT INTO deed (day, hour, minute, thing, item, ref, owner, x, z, seen, owner_saw, witnesses, item_id, status, rumour_at)
-         VALUES (?, ?, ?, 'boat', ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'open', NULL)`,
+        `INSERT INTO deed (day, hour, minute, thing, item, ref, owner, x, z, seen, owner_saw, witnesses, item_id, status, rumour_at, player_id)
+         VALUES (?, ?, ?, 'boat', ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'open', NULL, ?)`,
       )
-      .run(p.day, p.hour, pm.minute, b.kind, b.id, owner, st.x, st.z, saw ? 1 : 0, saw ? 1 : 0, JSON.stringify(saw ? [owner] : []));
+      .run(p.day, p.hour, pm.minute, b.kind, b.id, owner, st.x, st.z, saw ? 1 : 0, saw ? 1 : 0, JSON.stringify(saw ? [owner] : []), pid());
     deedId = Number(ins.lastInsertRowid);
     setRowBoat(db, b.id, { ...st, ridden: true, deed: deedId });
     rowOn(db, b.id);
@@ -886,9 +973,9 @@ function takeBoat(db: DB, req: DeedRequest, b: LooseBoat): DeedResult {
       remember(db, owner, `Jef took my ${noun} ${b.where}, in front of my eyes, and rowed off in her.`, 8, "seen", null, { gist: `Jef took ${ownerName}'s ${noun}`, tone: -2 });
       applyTrust(db, owner, -2, 0);
       const faction = (db.prepare("SELECT faction FROM npc WHERE id = ?").get(owner) as { faction: string | null } | undefined)?.faction;
-      if (faction) db.prepare("UPDATE faction_trust SET trust = MAX(-5, trust - 1) WHERE faction = ?").run(faction);
-      // one who only asked goes to the police if she is not back in time (rowDeeds.ts boatTick)
-      if (kind === "ask") setState(db, "boat_asked", { ...state<Record<string, number>>(db, "boat_asked", {}), [String(deedId)]: gameMinute(db) });
+      if (faction) db.prepare("UPDATE faction_trust SET trust = MAX(-5, trust - 1) WHERE faction = ? AND player_id = ?").run(faction, pid());
+      // one who only asked goes to the police if she is not back in time (rowDeeds.ts boatTick; M8c: the player's own)
+      if (kind === "ask") setPstate(db, "boat_asked", { ...(pstate<Record<string, number>>(db, "boat_asked") ?? {}), [String(deedId)]: gameMinute(db) });
     }
   })();
   const reaction = saw ? { who: owner, name: ownerName, kind, line: boatLine(db, owner, kind, noun) } : null;
@@ -912,17 +999,18 @@ function takeBoat(db: DB, req: DeedRequest, b: LooseBoat): DeedResult {
  */
 export function returnThing(db: DB, id: number, how: "gave" | "caught"): { text: string } {
   const d = deedRow(db, id);
-  if (!d || d.status !== "open") throw new GameError("nothing to give back", 409);
+  // (M8c: only his own deed)
+  if (!d || d.status !== "open" || (d.player_id ?? 1) !== pid()) throw new GameError("nothing to give back", 409);
   if (d.thing === "boat_lost" || d.thing === "boat_debt") throw new GameError("there is nothing to give back", 409);
   if (d.thing === "handcart" && !cartHooks.held(db, d)) throw new GameError("you have not got it any more", 409);
   if (d.thing !== "velocipede" && d.thing !== "boat" && d.thing !== "handcart") {
-    const has = db.prepare("SELECT 1 FROM item WHERE id = ?").get(d.item_id ?? -1);
+    const has = db.prepare("SELECT 1 FROM item WHERE id = ? AND player_id = ?").get(d.item_id ?? -1, pid());
     if (!has) throw new GameError("you have not got it any more", 409);
   }
   const name = npcName(db, d.owner);
   const noun = d.thing === "food" ? FOOD_NAME[d.item] : `the ${d.thing}`;
   const trustBack = db.transaction((): boolean => {
-    if (d.item_id !== null) db.prepare("DELETE FROM item WHERE id = ?").run(d.item_id);
+    if (d.item_id !== null) db.prepare("DELETE FROM item WHERE id = ? AND player_id = ?").run(d.item_id, pid());
     db.prepare("UPDATE deed SET status = 'returned', rumour_at = NULL WHERE id = ?").run(id);
     log(db, "gave_back", d.ref, how === "gave" ? `Jef gave ${noun} back to ${name}.` : `${name} caught Jef and took ${noun} back.`);
     return how === "gave" && giveBackTrust(db, d);
@@ -956,19 +1044,19 @@ export function returnThing(db: DB, id: number, how: "gave" | "caught"): { text:
 /**
  * Giving a stolen thing back earns the owner's +1 at most once a game day, and only for a deed
  * somebody saw (an unseen one the owner never knew of): take and give back is no trust farm.
- * The ledger (owner: the day it was granted) lives in world_state and goes with a new game.
+ * The ledger (owner: the day it was granted) is the player's own (M8c: pstate) and goes with a new game.
  */
 function giveBackTrust(db: DB, d: DeedRow): boolean {
   if (!d.seen) return false;
   const day = Math.floor(gameMinute(db) / 1440) + 1;
-  const ledger = state<Record<string, number>>(db, "deed_trust_back", {});
+  const ledger = pstate<Record<string, number>>(db, "deed_trust_back") ?? {};
   if (ledger[d.owner] === day) return false;
   ledger[d.owner] = day;
-  setState(db, "deed_trust_back", ledger);
+  setPstate(db, "deed_trust_back", ledger);
   return true;
 }
 
-/** Unseen deeds that start to be talked about, when their hour comes (every tick). */
+/** Unseen deeds that start to be talked about, when their hour comes (every tick; M8c: every player's, each about its own man). */
 export function deedRumours(db: DB): number {
   if (!hasDeeds(db)) return 0;
   const now = gameMinute(db);
@@ -978,13 +1066,26 @@ export function deedRumours(db: DB): number {
     const name = npcName(db, d.owner);
     const where = stealables(db).food.find((f) => f.id === d.ref)?.where ?? `${name}'s stall`;
     const gone = d.thing === "food" ? `${FOOD_NAME[d.item] ?? d.item} went missing from ${where}` : `${name}'s ${THINGS[d.thing]?.noun ?? d.thing} went missing`;
-    remember(db, d.owner, `Someone says the new man, Jef, was about when ${gone.replace(`${name}'s`, "my")}.`, 5, "heard", null, {
-      gist: `Jef was about when ${gone}`,
-      tone: -1,
-    });
+    asPlayer(d.player_id ?? 1, () =>
+      remember(db, d.owner, `Someone says the new man, Jef, was about when ${gone.replace(`${name}'s`, "my")}.`, 5, "heard", null, {
+        gist: `Jef was about when ${gone}`,
+        tone: -1,
+      }),
+    );
   }
   return due.length;
 }
+
+/** M8d: a player's man retires (player/multi.ts resetPlayer): what he took and still has goes back to its owners. */
+RESET_HOOKS.push((db, id) => {
+  if (!hasDeeds(db)) return;
+  const open = db.prepare("SELECT * FROM deed WHERE status = 'open' AND player_id = ?").all(id) as DeedRow[];
+  for (const d of open) {
+    if (d.thing === "velocipede") veloHome(db, d.ref);
+    if (d.thing === "boat") rowBoatHome(db, d.ref);
+    if (d.thing === "handcart") asPlayer(id, () => cartHooks.home(db, d.ref));
+  }
+});
 
 /** A new game: no deeds, no taken things. */
 export function clearDeeds(db: DB): void {
@@ -998,10 +1099,10 @@ export function listDeeds(db: DB, limit = 50): DeedRow[] {
   return db.prepare("SELECT * FROM deed ORDER BY id DESC LIMIT ?").all(limit) as DeedRow[];
 }
 
-/** Deeds still open or talked about, for the police (police.ts). */
+/** The player's deeds still open or talked about, for the police (police.ts). */
 export function openDeeds(db: DB): DeedRow[] {
   if (!hasDeeds(db)) return [];
-  return db.prepare("SELECT * FROM deed WHERE status IN ('open', 'returned') ORDER BY id").all() as DeedRow[];
+  return db.prepare("SELECT * FROM deed WHERE status IN ('open', 'returned') AND player_id = ? ORDER BY id").all(pid()) as DeedRow[];
 }
 
 export { FOOD_NAME };

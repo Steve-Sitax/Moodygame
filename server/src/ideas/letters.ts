@@ -15,6 +15,7 @@ import { dateLine } from "../paper/newspaper.ts";
 import { postClerk, postCounter } from "../paper/post.ts";
 import { canCallIdeas, clamp, d2, digitsOf, GIFTS, namesOk, now, numbersOk, OUT_OF_WORLD, within } from "./common.ts";
 import { nearLabel } from "./posters.ts";
+import { asPlayer, pid } from "../player/current.ts";
 
 // Jef's own letters, with replies (M6 AI ideas). At the post office counter Jef writes,
 // in his own words, to a townsperson he has met. A stamp costs 10 centimes (the inland
@@ -69,11 +70,11 @@ export interface JefLetterRow {
   reply_letter: number | null;
 }
 
-/** Who Jef can write to: townspeople he has talked to (grown or nearly), newest first. */
+/** Who Jef can write to: townspeople he has talked to (grown or nearly), newest first. (M8c: this player has) */
 export function writeTo(db: DB): Array<{ id: string; name: string; trade: string; near: string }> {
   const rows = db
-    .prepare("SELECT npc_id FROM npc_relationship WHERE times_met >= 1 ORDER BY COALESCE(last_seen_day, 0) DESC, times_met DESC LIMIT 30")
-    .all() as Array<{ npc_id: string }>;
+    .prepare("SELECT npc_id FROM npc_relationship WHERE times_met >= 1 AND player_id = ? ORDER BY COALESCE(last_seen_day, 0) DESC, times_met DESC LIMIT 30")
+    .all(pid()) as Array<{ npc_id: string }>;
   const out: Array<{ id: string; name: string; trade: string; near: string }> = [];
   for (const r of rows) {
     const p = resident(db, r.npc_id);
@@ -96,16 +97,16 @@ export function postLetter(db: DB, to: string, raw: unknown, at: { x: number; z:
   const g = gateLetter(String(raw ?? ""));
   if (!g.ok && g.reason !== "blocked") throw new GameError(g.reason === "empty" ? "the page is empty" : `a letter of at most ${LETTER_MAX_CHARS} letters`, 400);
   const { day, hour } = now(db);
-  const sent = (db.prepare("SELECT COUNT(*) AS n FROM jef_letter WHERE day = ?").get(day) as { n: number }).n;
+  const sent = (db.prepare("SELECT COUNT(*) AS n FROM jef_letter WHERE day = ? AND player_id = ?").get(day, pid()) as { n: number }).n;
   if (sent >= LETTERS_A_DAY) throw new GameError("two letters a day is enough; the clerk will not take a third", 409);
   if (player(db).money_c < STAMP_C) throw new GameError(`a stamp is ${STAMP_C} centimes and you have ${player(db).money_c}`, 409);
   let id = 0;
   db.transaction(() => {
-    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(STAMP_C);
+    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(STAMP_C, pid());
     id = Number(
       db
-        .prepare("INSERT INTO jef_letter (day, hour, to_id, to_name, text, gated, stamp_c, reply_day, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'sent')")
-        .run(day, hour, r.id, r.name, g.text.slice(0, LETTER_MAX_CHARS), g.ok ? null : g.reason, STAMP_C, day + 1).lastInsertRowid,
+        .prepare("INSERT INTO jef_letter (day, hour, to_id, to_name, text, gated, stamp_c, reply_day, status, player_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'sent', ?)")
+        .run(day, hour, r.id, r.name, g.text.slice(0, LETTER_MAX_CHARS), g.ok ? null : g.reason, STAMP_C, day + 1, pid()).lastInsertRowid,
     );
     // the log keeps the engine's words, never Jef's own (eventlog.ts: typed words never land there)
     log(db, "posted_letter", r.id, `Jef posted a letter to ${r.name} (${STAMP_C} centimes for the stamp).`);
@@ -114,7 +115,12 @@ export function postLetter(db: DB, to: string, raw: unknown, at: { x: number; z:
 }
 
 export function jefLetter(db: DB, id: number): JefLetterRow | null {
-  return (db.prepare("SELECT * FROM jef_letter WHERE id = ?").get(id) as JefLetterRow | undefined) ?? null;
+  return (db.prepare("SELECT * FROM jef_letter WHERE id = ? AND player_id = ?").get(id, pid()) as JefLetterRow | undefined) ?? null;
+}
+
+/** How many of the player's pocket slots are taken (M8c: his own pockets). */
+function pocketsUsed(db: DB): number {
+  return (db.prepare("SELECT COUNT(*) AS n FROM item WHERE player_id = ?").get(pid()) as { n: number }).n;
 }
 
 // ------------------------------------------------------------------ the engine decides
@@ -153,7 +159,7 @@ export function planEffect(db: DB, l: JefLetterRow, rng: () => number): ReplyEff
   const rel = relationship(db, r.id);
   const tone = toneOf(l.text);
   if (tone < 0) return rng() < 0.3 + r.stats.temper / 20 ? { kind: "trust", delta: -1 } : { kind: "none" };
-  const free = POCKET_SLOTS - (db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n;
+  const free = POCKET_SLOTS - pocketsUsed(db);
   const gift = giftFrom(db, r.id);
   if (gift && free >= 2 && r.stats.warmth >= 6 && r.stats.greed <= 6 && rng() < 0.45) return { kind: "gift", ...gift };
   if ((rel?.trust ?? 0) >= 1 || r.stats.warmth >= 7) {
@@ -287,56 +293,64 @@ export function cleanReply(db: DB, l: JefLetterRow, e: ReplyEffect, out: ReplyOu
 /**
  * The morning: every letter of Jef's whose day has come gets its reply (the effect, the
  * words, the letter in his pocket or at the post office, the gift, the invitation).
+ * M8c: every player's letters at once (the morning post is the world's), each answered as its writer (asPlayer).
  */
-export async function answerLetters(db: DB, opts: { runner?: Runner; timeoutMs?: number; rng?: () => number } = {}): Promise<Array<{ letter: number; reply: number; from: string; effect: ReplyEffect; source: string }>> {
+export async function answerLetters(db: DB, opts: { runner?: Runner; timeoutMs?: number; rng?: () => number } = {}): Promise<Array<{ letter: number; reply: number; from: string; effect: ReplyEffect; source: string; player: number }>> {
   const { day } = now(db);
-  const due = db.prepare("SELECT * FROM jef_letter WHERE status = 'sent' AND reply_day <= ? ORDER BY id").all(day) as JefLetterRow[];
-  const out: Array<{ letter: number; reply: number; from: string; effect: ReplyEffect; source: string }> = [];
+  const due = db.prepare("SELECT * FROM jef_letter WHERE status = 'sent' AND reply_day <= ? ORDER BY id").all(day) as Array<JefLetterRow & { player_id: number }>;
+  const out: Array<{ letter: number; reply: number; from: string; effect: ReplyEffect; source: string; player: number }> = [];
   for (const l of due) {
-    const r = resident(db, l.to_id);
-    if (!r) {
-      db.prepare("UPDATE jef_letter SET status = 'answered' WHERE id = ?").run(l.id);
-      continue;
-    }
-    // claim it first: a second morning check must not answer it twice
-    const claimed = db.prepare("UPDATE jef_letter SET status = 'answered' WHERE id = ? AND status = 'sent'").run(l.id).changes;
-    if (!claimed) continue;
-    const rng = opts.rng ?? rngFrom(((town(db).town.seed || 1873) * 29 + l.id * 613) >>> 0);
-    const e = planEffect(db, l, rng);
-    let words = engineReply(l, e, r);
-    let source = "engine";
-    if (!l.gated && canCallIdeas(db)) {
-      const res = await callClaude(db, { hook: "letter_reply", system: REPLY_SYSTEM, prompt: replyPrompt(db, l, e), schema: ReplySchema, timeoutMs: opts.timeoutMs }, opts.runner);
-      if (res.ok && res.data) {
-        const c = cleanReply(db, l, e, res.data);
-        if (c) {
-          words = c;
-          source = "claude";
-        }
-      }
-    }
-    const reply = deliverReply(db, l, r, e, words, source);
-    out.push({ letter: l.id, reply, from: r.name, effect: e, source });
+    const one = await asPlayer(l.player_id, () => answerOne(db, l, opts));
+    if (one) out.push({ ...one, player: l.player_id });
   }
   return out;
+}
+
+/** One letter's reply, as the player who wrote it. */
+async function answerOne(db: DB, l: JefLetterRow, opts: { runner?: Runner; timeoutMs?: number; rng?: () => number }): Promise<{ letter: number; reply: number; from: string; effect: ReplyEffect; source: string } | null> {
+  const r = resident(db, l.to_id);
+  if (!r) {
+    db.prepare("UPDATE jef_letter SET status = 'answered' WHERE id = ?").run(l.id);
+    return null;
+  }
+  // claim it first: a second morning check must not answer it twice
+  const claimed = db.prepare("UPDATE jef_letter SET status = 'answered' WHERE id = ? AND status = 'sent'").run(l.id).changes;
+  if (!claimed) return null;
+  const rng = opts.rng ?? rngFrom(((town(db).town.seed || 1873) * 29 + l.id * 613) >>> 0);
+  const e = planEffect(db, l, rng);
+  let words = engineReply(l, e, r);
+  let source = "engine";
+  if (!l.gated && canCallIdeas(db)) {
+    const res = await callClaude(db, { hook: "letter_reply", system: REPLY_SYSTEM, prompt: replyPrompt(db, l, e), schema: ReplySchema, timeoutMs: opts.timeoutMs }, opts.runner);
+    if (res.ok && res.data) {
+      const c = cleanReply(db, l, e, res.data);
+      if (c) {
+        words = c;
+        source = "claude";
+      }
+    }
+  }
+  const reply = deliverReply(db, l, r, e, words, source);
+  return { letter: l.id, reply, from: r.name, effect: e, source };
 }
 
 function deliverReply(db: DB, l: JefLetterRow, r: Resident, e: ReplyEffect, words: { salutation: string; body: string; closing: string; signature: string }, source: string): number {
   const { day, hour } = now(db);
   let id = 0;
   db.transaction(() => {
-    const used = (db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n;
+    const used = pocketsUsed(db);
     const status = used < POCKET_SLOTS ? "given" : "waiting";
     id = Number(
       db
-        .prepare("INSERT INTO letter (day, hour, sender, sender_name, why, kind, facts_json, offer_json, text_json, source, status, job_id) VALUES (?, ?, ?, ?, 'reply', 'reply', '[]', '{}', ?, ?, ?, NULL)")
-        .run(day, hour, r.id, r.name, JSON.stringify({ ...words, telegram: "" }), source, status).lastInsertRowid,
+        .prepare("INSERT INTO letter (day, hour, sender, sender_name, why, kind, facts_json, offer_json, text_json, source, status, job_id, player_id) VALUES (?, ?, ?, ?, 'reply', 'reply', '[]', '{}', ?, ?, ?, NULL, ?)")
+        .run(day, hour, r.id, r.name, JSON.stringify({ ...words, telegram: "" }), source, status, pid()).lastInsertRowid,
     );
-    if (status === "given") db.prepare("INSERT INTO item (kind, job_id, ref) VALUES ('letter', NULL, ?)").run(id);
+    if (status === "given") db.prepare("INSERT INTO item (kind, job_id, ref, player_id) VALUES ('letter', NULL, ?, ?)").run(id, pid());
     // the effect, by the engine
     if (e.kind === "trust") applyTrust(db, r.id, e.delta, 0);
-    if (e.kind === "gift" && used + 1 < POCKET_SLOTS) db.prepare("INSERT INTO item (kind, job_id) VALUES (?, NULL)").run(e.item);
-    if (e.kind === "invite") db.prepare("INSERT INTO meeting (who, day, from_h, to_h, x, z, label, status, letter) VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?)").run(r.id, day, e.from_h, e.to_h, e.x, e.z, e.label, id);
+    if (e.kind === "gift" && used + 1 < POCKET_SLOTS) db.prepare("INSERT INTO item (kind, job_id, player_id) VALUES (?, NULL, ?)").run(e.item, pid());
+    if (e.kind === "invite")
+      db.prepare("INSERT INTO meeting (who, day, from_h, to_h, x, z, label, status, letter, player_id) VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)").run(r.id, day, e.from_h, e.to_h, e.x, e.z, e.label, id, pid());
     db.prepare("UPDATE jef_letter SET effect_json = ?, reply_letter = ? WHERE id = ?").run(JSON.stringify(e), id, l.id);
     log(db, "letter_reply", r.id, `A reply came for Jef from ${r.name}.`, "world");
   })();
@@ -347,7 +361,7 @@ function deliverReply(db: DB, l: JefLetterRow, r: Resident, e: ReplyEffect, word
 
 /** E at their door within the hours: the meeting happens (trust +1, a memory). */
 export function meet(db: DB, id: number, at: { x: number; z: number }): { text: string } {
-  const m = db.prepare("SELECT * FROM meeting WHERE id = ?").get(id) as { id: number; who: string; day: number; from_h: number; to_h: number; x: number; z: number; label: string; status: string } | undefined;
+  const m = db.prepare("SELECT * FROM meeting WHERE id = ? AND player_id = ?").get(id, pid()) as { id: number; who: string; day: number; from_h: number; to_h: number; x: number; z: number; label: string; status: string } | undefined;
   if (!m || m.status !== "open") throw new GameError("nobody expects you", 409);
   const { day, hour } = now(db);
   if (day !== m.day || hour < m.from_h || hour >= m.to_h) throw new GameError(`they said between ${m.from_h}:00 and ${m.to_h}:00`, 409);
@@ -360,18 +374,18 @@ export function meet(db: DB, id: number, at: { x: number; z: number }): { text: 
   return { text: `${r?.first ?? "They"} opens the door and steps out. You talk a while on the step, about the town and the weather. It went well.` };
 }
 
-/** Meetings not kept by the end of the day are missed (a small memory, no trust change). */
+/** Meetings not kept by the end of the day are missed (a small memory, no trust change). M8c: every player's. */
 export function missMeetings(db: DB): number {
   const { day, hour } = now(db);
-  const late = db.prepare("SELECT id, who FROM meeting WHERE status = 'open' AND (day < ? OR (day = ? AND to_h <= ?))").all(day, day, hour) as Array<{ id: number; who: string }>;
+  const late = db.prepare("SELECT id, who, player_id FROM meeting WHERE status = 'open' AND (day < ? OR (day = ? AND to_h <= ?))").all(day, day, hour) as Array<{ id: number; who: string; player_id: number }>;
   for (const m of late) {
     db.prepare("UPDATE meeting SET status = 'missed' WHERE id = ?").run(m.id);
-    remember(db, m.who, "I asked Jef to come by my door, and he never came.", 3);
+    asPlayer(m.player_id, () => remember(db, m.who, "I asked Jef to come by my door, and he never came.", 3));
   }
   return late.length;
 }
 
 export function meetingsOpen(db: DB): Array<{ id: number; who: string; name: string; from_h: number; to_h: number; x: number; z: number; label: string; day: number }> {
   const { day } = now(db);
-  return (db.prepare("SELECT * FROM meeting WHERE status = 'open' AND day = ?").all(day) as Array<{ id: number; who: string; from_h: number; to_h: number; x: number; z: number; label: string; day: number }>).map((m) => ({ ...m, name: resident(db, m.who)?.name ?? m.who }));
+  return (db.prepare("SELECT * FROM meeting WHERE status = 'open' AND day = ? AND player_id = ?").all(day, pid()) as Array<{ id: number; who: string; from_h: number; to_h: number; x: number; z: number; label: string; day: number }>).map((m) => ({ ...m, name: resident(db, m.who)?.name ?? m.who }));
 }

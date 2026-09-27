@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { addMovingSource, isSteam, loadBoats, newShipId, ropeMaterial, type BoatName, type Boats, type MovingShip } from "./boats";
 import { Route, placeTrain, rng, trainLength, type TrainPart } from "./route";
-import { createAnchorage, type Anchorage } from "./anchorage";
+import { createAnchorage, type Anchorage, type AnchorageNet } from "./anchorage";
+import { lerpState, type NetMover } from "../net/mp/world";
 
 // Shipping on the Schelde, 1873: always something on the move. Big ships in the fairway (a
 // barque under sail or towed by a tug, a screw steamer, a paddle steamer, a topsail schooner)
@@ -10,6 +11,8 @@ import { createAnchorage, type Anchorage } from "./anchorage";
 // other, along lanes that keep clear of the moored rows, the ships at anchor, the Steen's
 // bastion (x -218..-160, down to z -41) and the ferry pontoon (x -251..-247, z -58..0).
 // At most `maxShips` trains move at once (default 8); boats are pooled and reused.
+// M8b: played together, one PC (the world PC) runs the traffic and the tows; the others show them
+// from its state (netState / netApply, net/mp/world.ts).
 // Out beyond the fairway an ocean steamer lies at anchor, and two tows of lighters work her
 // cargo to the Rijnkaai and back (world/anchorage.ts); the ships here give way to them.
 
@@ -21,11 +24,23 @@ export interface RiverOptions {
   interval?: [number, number];
 }
 
-export interface River {
+export interface River extends NetMover<RiverNet> {
   update(t: number, dt: number): void;
   /** Trains now moving. */
   count(): number;
   group: THREE.Group;
+}
+
+/**
+ * M8b: the river's state for the other PCs. `n`: the next train's id; `w`: seconds to the next
+ * arrival; `m`: the trains (id, kind index in KINDS, lane index in LANE_KEYS, where, speed now, own
+ * speed); `anc`: the tows at the liner (world/anchorage.ts).
+ */
+export interface RiverNet {
+  n: number;
+  w: number;
+  m: Array<{ id: number; _k: number; _l: number; s: number; v: number; sp: number }>;
+  anc?: AnchorageNet;
 }
 
 /**
@@ -57,8 +72,16 @@ const SMALL: Array<[Kind, number]> = [
   [{ parts: ["schooner"], speed: 2.4 }, 1],
 ];
 const GAP = 8; // hawser between a tug and its tow, and between tows
+/** M8b: every kind and every lane by a number that is the same on every PC. */
+const KINDS: Kind[] = [...BIG, ...SMALL].map(([k]) => k);
+const LANE_KEYS = Object.keys(LANES);
+const q3 = (x: number) => Math.round(x * 1000) / 1000;
 
 interface Mover {
+  /** M8b: the same on every PC (the world PC's count, sent with the state). */
+  id: number;
+  /** Its kind, as an index in KINDS. */
+  k: number;
   route: Route;
   lane: string;
   parts: TrainPart[];
@@ -98,6 +121,7 @@ export function createRiver(scene: THREE.Object3D, boats?: Boats | Promise<Boats
   let fleet: Boats | null = null;
   let anchorage: Anchorage | null = null;
   let wait = 3;
+  let serial = 0;
 
   // hawsers of all tows in one line set
   const hawser = new THREE.BufferAttribute(new Float32Array(maxShips * 4 * 2 * 3), 3);
@@ -131,18 +155,32 @@ export function createRiver(scene: THREE.Object3D, boats?: Boats | Promise<Boats
     l.push(p);
   }
 
+  /** The models for a train of this kind (null before the boats are loaded). */
+  function partsFor(kind: Kind): TrainPart[] | null {
+    const parts: TrainPart[] = [];
+    for (const n of kind.parts) {
+      const p = take(n, kind.scale ?? 1);
+      if (!p) return null;
+      parts.push(p);
+    }
+    return parts;
+  }
+  function makeMover(id: number, k: number, lane: string, parts: TrainPart[], s: number, speed: number): Mover {
+    const kind = KINDS[k];
+    const beam = Math.max(...kind.parts.map((n) => fleet!.dims(n).beam)) * (kind.scale ?? 1);
+    const lead = kind.parts[0];
+    const ship: MovingShip = { id: newShipId(), kind: lead, x: 0, z: 0, heading: 0, speed: kind.speed, steam: isSteam(lead) };
+    return { id, k, route: routes[lane], lane, parts, names: kind.parts, s, v: kind.speed, speed, len: trainLength(parts, GAP), beam, x: 0, z: 0, hx: 0, hz: 1, ship };
+  }
+
   function spawn(atStart: boolean): boolean {
     if (!fleet || movers.length >= maxShips) return false;
     const roll = r();
     const lane = roll < 0.4 ? "near" : roll < 0.7 ? "down" : "up";
     const kind = lane === "near" || r() < 0.45 ? pick(r, SMALL) : pick(r, BIG);
     const route = routes[lane];
-    const parts: TrainPart[] = [];
-    for (const n of kind.parts) {
-      const p = take(n, kind.scale ?? 1);
-      if (!p) return false;
-      parts.push(p);
-    }
+    const parts = partsFor(kind);
+    if (!parts) return false;
     const len = trainLength(parts, GAP);
     // a new arrival waits till the start of its lane is clear; others start anywhere (at load)
     const s = atStart ? parts[0].len / 2 : len + r() * (route.length - len - 40);
@@ -152,11 +190,7 @@ export function createRiver(scene: THREE.Object3D, boats?: Boats | Promise<Boats
         return false;
       }
     }
-    const beam = Math.max(...kind.parts.map((n) => fleet!.dims(n).beam)) * (kind.scale ?? 1);
-    const lead = kind.parts[0];
-    const ship: MovingShip = { id: newShipId(), kind: lead, x: 0, z: 0, heading: 0, speed: kind.speed, steam: isSteam(lead) };
-    const m: Mover = { route, lane, parts, names: kind.parts, s, v: kind.speed, speed: kind.speed * (0.9 + r() * 0.2), len, beam, x: 0, z: 0, hx: 0, hz: 1, ship };
-    movers.push(m);
+    movers.push(makeMover(serial++, KINDS.indexOf(kind), lane, parts, s, kind.speed * (0.9 + r() * 0.2)));
     return true;
   }
 
@@ -164,20 +198,15 @@ export function createRiver(scene: THREE.Object3D, boats?: Boats | Promise<Boats
     .then((b) => {
       fleet = b;
       anchorage = createAnchorage(group, b, scene, opts.seed ?? 1873);
+      anchorage.remote = remote;
       // the river is never empty: a few ships already under way
       for (let i = 0, n = 0; i < 20 && n < Math.min(5, maxShips); i++) if (spawn(false)) n++;
     })
     .catch((e) => console.warn("no boats for the river", e));
 
   const pose = { x: 0, z: 0, yaw: 0 };
-  function update(t: number, dt: number): void {
-    if (!fleet) return;
-    wait -= dt;
-    if (wait <= 0) {
-      spawn(true);
-      wait = interval[0] + r() * (interval[1] - interval[0]);
-    }
-    // where each train's head is and which way it goes
+  /** Where each train's head is and which way it goes. */
+  function heads(): void {
     for (const m of movers) {
       m.route.pose(m.s, 1, pose);
       m.x = pose.x;
@@ -189,6 +218,28 @@ export function createRiver(scene: THREE.Object3D, boats?: Boats | Promise<Boats
       m.ship.heading = pose.yaw;
       m.ship.speed = m.v;
     }
+  }
+  /** Put every train on its lane, with its hawsers. */
+  function lay(): void {
+    let at = 0;
+    for (let i = movers.length - 1; i >= 0; i--) {
+      const m = movers[i];
+      at = placeTrain(m.route, m.s, 1, m.parts, GAP, hawser, at);
+    }
+    hg.setDrawRange(0, at);
+    hawser.needsUpdate = true;
+  }
+
+  function update(t: number, dt: number): void {
+    if (!fleet) return;
+    // M8b: run by another PC: netApply moves and draws the trains and the tows
+    if (remote) return;
+    wait -= dt;
+    if (wait <= 0) {
+      spawn(true);
+      wait = interval[0] + r() * (interval[1] - interval[0]);
+    }
+    heads();
     // keep station: never run into the stern of a slower ship ahead, on any lane
     for (const m of movers) {
       let v = m.speed;
@@ -225,24 +276,77 @@ export function createRiver(scene: THREE.Object3D, boats?: Boats | Promise<Boats
       }
       m.v += (v - m.v) * Math.min(1, dt * 0.5);
     }
-    let at = 0;
     for (let i = movers.length - 1; i >= 0; i--) {
       const m = movers[i];
       m.s += m.v * dt;
       if (m.s - m.len > m.route.length) {
         m.parts.forEach(give);
         movers.splice(i, 1);
-        continue;
       }
-      at = placeTrain(m.route, m.s, 1, m.parts, GAP, hawser, at);
     }
-    hg.setDrawRange(0, at);
-    hawser.needsUpdate = true;
+    lay();
     anchorage?.update(t, dt, movers);
+  }
+
+  /** M8b: the world PC's state into the own fields; the trains it names are made here, the others let go. */
+  function netApply(st: RiverNet): void {
+    if (!fleet) return;
+    serial = st.n;
+    wait = st.w;
+    const want = new Map(st.m.map((x) => [x.id, x]));
+    for (let i = movers.length - 1; i >= 0; i--) {
+      const m = movers[i];
+      const x = want.get(m.id);
+      if (x && x._k === m.k && LANE_KEYS[x._l] === m.lane) continue;
+      m.parts.forEach(give);
+      movers.splice(i, 1);
+    }
+    for (const x of st.m) {
+      let m = movers.find((o) => o.id === x.id);
+      if (!m) {
+        const kind = KINDS[x._k];
+        const lane = LANE_KEYS[x._l];
+        const parts = kind && lane ? partsFor(kind) : null;
+        if (!parts) continue;
+        m = makeMover(x.id, x._k, lane, parts, x.s, x.sp);
+        movers.push(m);
+      }
+      m.s = x.s;
+      m.v = x.v;
+      m.speed = x.sp;
+    }
+    heads();
+    lay();
+    if (st.anc) anchorage?.netApply(st.anc);
   }
 
   addMovingSource((out) => {
     for (const m of movers) out.push(m.ship);
   });
-  return { update, count: () => movers.length, group };
+  let remote = false;
+  return {
+    update,
+    count: () => movers.length,
+    group,
+    get netRemote() {
+      return remote;
+    },
+    set netRemote(on: boolean) {
+      remote = on;
+      if (anchorage) anchorage.remote = on;
+    },
+    netState: () => ({
+      n: serial,
+      w: q3(wait),
+      m: movers.map((m) => ({ id: m.id, _k: m.k, _l: LANE_KEYS.indexOf(m.lane), s: q3(m.s), v: q3(m.v), sp: q3(m.speed) })),
+      anc: anchorage?.netState(),
+    }),
+    netApply,
+    netLerp(a, b, u) {
+      const out = lerpState(a, b, u);
+      // the tows go round a loop: their place wraps (world/anchorage.ts)
+      if (a.anc && b.anc && anchorage) out.anc = anchorage.netLerp(a.anc, b.anc, u);
+      return out;
+    },
+  };
 }

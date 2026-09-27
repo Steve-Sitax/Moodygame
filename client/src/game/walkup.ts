@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { FirstPerson } from "../player/firstPerson";
 import type { World } from "../world/rijnkaai";
 import type { Crowd, Puppet } from "./crowd";
-import { Figure, type FigureKind } from "./figures";
+import { Figure, figureNav, type FigureKind } from "./figures";
 import type { Motion } from "./humans";
 import type { Town } from "./town";
 
@@ -28,6 +28,19 @@ const HIDDEN_RUN = 6;
 const CLAIM_M = 50;
 /** Out of sight means at least this far when it is in front of him (the fog, a corner, behind him). */
 export const OUT_OF_SIGHT_M = 28;
+
+/**
+ * M8d: played together, "out of sight" is out of every player's sight: no other player sees the point either
+ * (net/mp/together.ts seenByOthers). Alone, always true.
+ */
+export function unseenByOthers(x: number, z: number): boolean {
+  return !figureNav.othersSee?.(x, z);
+}
+
+/** M8d: a made figure may go now (out of every other player's sight; a townsperson just goes back to his day). */
+export function mayVanish(f: { who: string | null; pos: { x: number; z: number } }): boolean {
+  return f.who !== null || unseenByOthers(f.pos.x, f.pos.z);
+}
 
 export interface CallAnswer {
   ok: boolean;
@@ -101,6 +114,8 @@ export class TownFigure implements JobFigure {
   private readonly none = new THREE.Group();
   /** The server was told (done): once. */
   private told = false;
+  /** M8d: when to ask again for one another PC still walks. */
+  private retryT = 0;
 
   constructor(
     private readonly c: Ctx,
@@ -161,6 +176,14 @@ export class TownFigure implements JobFigure {
     const { town, crowd, player } = this.c;
     let p = town.puppet(this.who);
     if (p && !crowd.alive(p)) p = null;
+    // M8d: drawn from another player's PC (the claim was early, or refused): ask for him again now and then
+    if (p && p === this.p && crowd.isRemote(p)) {
+      this.retryT -= dt;
+      if (this.retryT <= 0) {
+        this.retryT = 1;
+        town.claim(this.who);
+      }
+    }
     if (p && p !== this.p) {
       // in the street (theirs already, or just stepped out of sight): ours now
       p = town.claim(this.who) ?? p;
@@ -178,7 +201,13 @@ export class TownFigure implements JobFigure {
       if (at && d <= CLAIM_M) {
         // near: out into the street, where Jef cannot see them step out (their own spot, or round a corner on
         // their side; else the nearest point out of his sight on their side that has a way to him)
-        let q = town.claimNear(this.who, { x: player.x, z: player.z }, OUT_OF_SIGHT_M);
+        // (M8d: played together the spot must be out of every player's sight: their own spot when nobody sees it,
+        // else the walk-up's point out of everyone's sight; alone as before)
+        let q = figureNav.othersSee
+          ? Walkup.inst?.hidden(at.x, at.z) && crowd.canStand(at.x, at.z)
+            ? town.claim(this.who, { x: at.x, z: at.z })
+            : null
+          : town.claimNear(this.who, { x: player.x, z: player.z }, OUT_OF_SIGHT_M);
         if (!q) {
           const from = Walkup.inst?.outOfSight({ x: at.x, z: at.z }) ?? null;
           if (from) q = town.claim(this.who, from);
@@ -314,7 +343,7 @@ export class Walkup {
       const a = (i / 48) * Math.PI * 2 + (i % 2) * 0.07;
       const r = OUT_OF_SIGHT_M + (i % 4) * 5;
       const q = crowd.openNear(player.x + Math.cos(a) * r, player.z + Math.sin(a) * r);
-      if (!q || !crowd.isHidden(q.x, q.z) || this.c.world.isWater(q.x, q.z)) continue;
+      if (!q || !this.hidden(q.x, q.z) || this.c.world.isWater(q.x, q.z)) continue;
       if (Math.hypot(q.x - player.x, q.z - player.z) < OUT_OF_SIGHT_M - 1) continue;
       const d = Math.hypot(q.x - goal.x, q.z - goal.z);
       if (d >= bestD) continue;
@@ -341,8 +370,8 @@ export class Walkup {
 
   /** A made figure that waits at a place: there when Jef cannot see the place, else it walks in. */
   placeOrWalkIn(kind: FigureKind, x: number, z: number): Figure | null {
-    const { crowd, player } = this.c;
-    if (crowd.isHidden(x, z) && Math.hypot(x - player.x, z - player.z) >= 10) {
+    const { player } = this.c;
+    if (this.hidden(x, z) && Math.hypot(x - player.x, z - player.z) >= 10) {
       const f = new Figure(kind, x, z, this.c.world.scene);
       f.origin = "placed unseen";
       return f;
@@ -350,9 +379,9 @@ export class Walkup {
     return this.walkIn(kind, { x, z });
   }
 
-  /** Is this point out of Jef's sight now? */
+  /** Is this point out of Jef's sight now (M8d: and out of every other player's)? */
   hidden(x: number, z: number): boolean {
-    return this.c.crowd.isHidden(x, z);
+    return this.c.crowd.isHidden(x, z) && unseenByOthers(x, z);
   }
 
   // ---- dev: someone of a role comes up to Jef now (the police to a crime run), as a job would call them

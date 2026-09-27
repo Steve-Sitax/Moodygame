@@ -2,6 +2,8 @@ import { sexed } from "../player/profile.ts"; // M7 character: lines said to the
 import type { DB } from "../db.ts";
 import { clock } from "../day.ts";
 import { remember, applyTrust } from "../npcs.ts";
+import { pid } from "../player/current.ts";
+import { storeText } from "../player/names.ts";
 import { listJobs } from "../hooks/jobBoard.ts";
 import { actionOf, endAction } from "../director/actions.ts";
 import { dropTownCache, town } from "./store.ts";
@@ -822,9 +824,10 @@ export interface TickResult {
   scam: string | null;
 }
 
-function logRow(db: DB, actor: string, verb: string, object: string | null, text: string): void {
+/** A line of the log (M8c: `who`, the player it is about; the town's own lines are the host's, as before). */
+function logRow(db: DB, actor: string, verb: string, object: string | null, text: string, who = 1): void {
   const c = clock(db);
-  db.prepare("INSERT INTO log (day, hour, place, actor, verb, object, text) VALUES (?, ?, 'rijnkaai', ?, ?, ?, ?)").run(c.day, c.hour, actor, verb, object, text);
+  db.prepare("INSERT INTO log (day, hour, place, actor, verb, object, text, player_id) VALUES (?, ?, 'rijnkaai', ?, ?, ?, ?, ?)").run(c.day, c.hour, actor, verb, object, storeText(db, text, who), who);
 }
 
 /** Bring a family into town: its people become residents, at the Logement. */
@@ -862,11 +865,13 @@ function board(db: DB, e: EmigrantTown, fam: Family, by: "lighter" | "engine"): 
     for (const er of e.errands.filter((x) => x.family === fam.n)) {
       db.prepare("UPDATE job SET status = 'expired' WHERE id = ? AND status = 'offered'").run(er.job);
       // an errand still in Jef's hands when the ship took them: it comes to nothing (no job left orphaned)
-      const j = db.prepare("SELECT title FROM job WHERE id = ? AND status = 'taken'").get(er.job) as { title: string } | undefined;
+      const j = db.prepare("SELECT title, taken_by FROM job WHERE id = ? AND status = 'taken'").get(er.job) as { title: string; taken_by: number | null } | undefined;
       if (!j) continue;
+      // (M8c: whoever of the players had it in hand)
+      const who = j.taken_by ?? 1;
       db.prepare("UPDATE job SET status = 'failed' WHERE id = ?").run(er.job);
-      db.prepare("DELETE FROM item WHERE job_id = ?").run(er.job);
-      logRow(db, "player", "abandoned_job", String(er.job), `The ${fam.surname} family went out to the ship before Jef finished "${j.title}".`);
+      db.prepare("DELETE FROM item WHERE job_id = ? AND player_id = ?").run(er.job, who);
+      logRow(db, "player", "abandoned_job", String(er.job), `The ${fam.surname} family went out to the ship before Jef finished "${j.title}".`, who);
     }
   })();
   if (e.scam?.family === fam.n && e.scam.state === "working") e.scam.state = "sold"; // they went with his paper in their pocket
@@ -1024,7 +1029,7 @@ export function reportRunner(db: DB, agent: string): { ok: boolean; returned: bo
   s.state = "reported";
   s.by = agent;
   e.runner_jailed = true;
-  db.prepare("UPDATE faction_trust SET trust = MAX(-5, MIN(10, trust + 1)) WHERE faction = 'politie'").run();
+  db.prepare("UPDATE faction_trust SET trust = MAX(-5, MIN(10, trust + 1)) WHERE faction = 'politie' AND player_id = ?").run(pid());
   remember(db, agent, "Jef told me a runner was selling false tickets to the emigrants on the Rijnkaai. We took the man in.", 6, "seen", null, { gist: "Jef reported the ticket runner on the Rijnkaai to the police", tone: 1 });
   remember(db, e.runner, "The police took me in off the Rijnkaai. Somebody talked: that lad Jef.", 7, "seen", null, { gist: "Jef went to the police about honest men's business on the quay", tone: -2 });
   if (f && f.status === "here") {

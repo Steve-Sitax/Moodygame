@@ -5,6 +5,9 @@ import { CALLS_PER_DAY, CALLS_RESERVE, FAMILY_CALLS_PER_DAY, RESIDENT_CALLS_PER_
 import { callClaude, type Runner } from "../ai/claude.ts";
 import { clock, WEATHER_TEXT } from "../day.ts";
 import { log, player } from "../game.ts";
+import { asPlayer, pid } from "../player/current.ts";
+import { pstate, RESET_HOOKS, setPstate } from "../player/multi.ts";
+import { nameOf, storeText } from "../player/names.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
 import { gateText, markFreeLine } from "../hooks/dialogue.ts";
 import { applyTrust, relationship, remember, topMemories, trustText } from "../npcs.ts";
@@ -135,7 +138,12 @@ interface NewsRow {
   outcome: string | null;
   action_id: number | null;
   not_before: number;
+  /** M8d: whose news it is (the player the first memory was about; 1 for an older save's rows). */
+  player_id: number;
 }
+
+/** M8d: the player a news row is about (the host for an older row). */
+export const newsPlayer = (n: { player_id?: number | null } | null | undefined): number => n?.player_id ?? 1;
 
 export function newsRow(db: DB, id: number): NewsRow | null {
   return (db.prepare("SELECT * FROM family_news WHERE id = ?").get(id) as NewsRow | undefined) ?? null;
@@ -188,7 +196,7 @@ export function together(db: DB, a: Resident, b: Resident): "home" | "street" | 
 
 interface FamState {
   lastMem: number;
-  /** Day and count of menaces (at most MENACE_PER_DAY). */
+  /** Day and count of menaces (at most MENACE_PER_DAY). M8d: the host's older count; each player's own in player_state 'menaces'. */
   menaceDay: number;
   menaces: number;
   supperDay: number;
@@ -203,6 +211,18 @@ function saveFam(db: DB, s: FamState): void {
 }
 
 /**
+ * M8c: the day the player last ate supper with a family is his own (player_state 'supper_day'); the host's
+ * older one is still in the world's 'families' until he eats again.
+ */
+function supperDay(db: DB): number {
+  const own = pstate<number>(db, "supper_day");
+  return own ?? (pid() === 1 ? famState(db).supperDay : 0);
+}
+function setSupperDay(db: DB, day: number): void {
+  setPstate(db, "supper_day", day);
+}
+
+/**
  * New notable memories of Jef, first hand, become news for the rest of the household.
  * Returns how many rows were made.
  */
@@ -210,31 +230,48 @@ export function scanNews(db: DB): number {
   const s = famState(db);
   const rows = db
     .prepare(
-      `SELECT id, npc_id, gist, tone, COALESCE(origin, id) AS origin FROM npc_memory
+      `SELECT id, npc_id, gist, tone, COALESCE(origin, id) AS origin, COALESCE(about_player, 1) AS player FROM npc_memory
        WHERE id > ? AND source = 'seen' AND gist IS NOT NULL AND gist <> '' AND tone <> 0 ORDER BY id`,
     )
-    .all(s.lastMem) as Array<{ id: number; npc_id: string; gist: string; tone: number; origin: number }>;
+    .all(s.lastMem) as Array<{ id: number; npc_id: string; gist: string; tone: number; origin: number; player: number }>;
   const maxId = (db.prepare("SELECT COALESCE(MAX(id), 0) AS m FROM npc_memory").get() as { m: number }).m;
   const now = gameMinute(db);
   const day = clock(db).day;
-  const ins = db.prepare("INSERT INTO family_news (day, minute, teller, listener, memory_id, origin, gist, tone, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'waiting')");
+  const ins = db.prepare("INSERT INTO family_news (day, minute, teller, listener, memory_id, origin, gist, tone, status, player_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'waiting', ?)");
   const had = db.prepare("SELECT 1 FROM family_news WHERE listener = ? AND origin = ?");
   let made = 0;
   for (const m of rows) {
     const teller = resident(db, m.npc_id);
     if (!teller || teller.age < 6 || isAwayVisitor(teller)) continue;
     // only a real meeting with Jef (the town's own gossip about a pocket picked in the dark is not news of him at home)
-    if (!/^Jef\b/.test(m.gist)) continue;
+    // (M8d: a guest's memory is kept with his own name; the news keeps the engine's "Jef" and whose it is)
+    const gist = engineGist(db, m.gist, m.player);
+    if (!gist) continue;
     for (const o of town(db).town.residents) {
       if (o.household !== teller.household || o.id === teller.id || o.age < 13 || o.trade === "infant") continue;
       if (had.get(o.id, m.origin)) continue;
-      ins.run(day, now, teller.id, o.id, m.id, m.origin, m.gist, Math.max(-2, Math.min(2, m.tone)));
+      ins.run(day, now, teller.id, o.id, m.id, m.origin, gist, Math.max(-2, Math.min(2, m.tone)), m.player);
       made++;
     }
   }
   saveFam(db, { ...s, lastMem: maxId });
   return made;
 }
+
+/**
+ * M8d: a memory's gist in the engine's words, when it tells of a meeting with that player: the host's start with
+ * "Jef"; a guest's were kept with his own name (player/names.ts storeText), which becomes "Jef" again. null: not
+ * a meeting with him.
+ */
+export function engineGist(db: DB, gist: string, player: number): string | null {
+  if (player === 1) return /^Jef\b/.test(gist) ? gist : null;
+  const name = nameOf(db, player).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`^${name}(?![\\p{L}\\p{M}])`, "u");
+  return name && re.test(gist) ? gist.replace(re, "Jef") : null;
+}
+
+/** M8d: the lines of a street talk, for every screen: a guest's name kept in them (the host's "Jef" as before). */
+const forAll = (db: DB, lines: ConvoLine[]): ConvoLine[] => (pid() === 1 ? lines : lines.map((l) => ({ ...l, text: storeText(db, l.text) })));
 
 /** Does this listener already know this news (from the street's gossip, or at home)? */
 function knows(db: DB, id: string, origin: number): boolean {
@@ -251,7 +288,8 @@ export interface Allowed {
 /** How much the listener holds against Jef now (0-10): the news, the temper, the trust, what else they know. */
 export function grudgeOf(db: DB, r: Resident, tone: number): number {
   const trust = relationship(db, r.id)?.trust ?? 0;
-  const bad = (db.prepare("SELECT COUNT(*) AS n FROM npc_memory WHERE npc_id = ? AND tone < 0").get(r.id) as { n: number }).n;
+  // (M8c: what else they hold against this player: an empty about_player is the host)
+  const bad = (db.prepare("SELECT COUNT(*) AS n FROM npc_memory WHERE npc_id = ? AND tone < 0 AND COALESCE(about_player, 1) = ?").get(r.id, pid()) as { n: number }).n;
   const g = -tone * 2 + (r.stats.temper - 5) + (trust <= 1 ? 1 : 0) + Math.min(3, bad);
   return Math.max(0, Math.min(10, g));
 }
@@ -284,7 +322,7 @@ export function allowedReactions(db: DB, r: Resident, news: { gist: string; tone
   } else if (news.tone > 0) {
     if (s.gossip >= 4) add("warn_others", 0.4 + s.gossip / 10);
     if (day) add("thank", 0.6 + s.warmth / 10);
-    const supperToday = famState(db).supperDay === c.day;
+    const supperToday = supperDay(db) === c.day;
     if (day && r.age >= 20 && s.warmth >= 6 && !supperToday && c.hour >= 11) add("invite_supper", 0.4 + s.warmth / 20);
     if (day && s.warmth >= 5 && s.greed <= 6 && waresOf(db, r.id).length) add("gift", 0.4 + s.warmth / 20);
   }
@@ -450,6 +488,9 @@ export interface ShareResult {
 export async function shareNews(db: DB, id: number, opts: { runner?: Runner; rng?: () => number; show?: boolean; where?: "home" | "street" } = {}): Promise<ShareResult | null> {
   const n = newsRow(db, id);
   if (!n || n.status !== "waiting") return null;
+  // (M8d: the news is about one player: his trust, his name, his reaction; whoever's tick tells it)
+  const who = newsPlayer(n);
+  if (who !== pid()) return asPlayer(who, () => shareNews(db, id, opts));
   const a = resident(db, n.teller);
   const b = resident(db, n.listener);
   if (!a || !b) {
@@ -463,9 +504,9 @@ export async function shareNews(db: DB, id: number, opts: { runner?: Runner; rng
   const w = (db.prepare("SELECT weight FROM npc_memory WHERE id = ?").get(n.memory_id) as { weight: number } | undefined)?.weight ?? 5;
   // from one's own family it counts, even if the street had it first (then it is not passed on again)
   db.prepare(
-    `INSERT INTO npc_memory (npc_id, text, source, heard_from, weight, day, spread, gist, tone, origin, town_spread)
-     VALUES (?, ?, 'heard', ?, ?, ?, 1, ?, ?, ?, ?)`,
-  ).run(b.id, `${kin} told me: ${n.gist}`.slice(0, 200), a.id, Math.max(2, Math.min(10, w)), clock(db).day, n.gist, n.tone, n.origin, already ? 1 : 0);
+    `INSERT INTO npc_memory (npc_id, text, source, heard_from, weight, day, spread, gist, tone, origin, town_spread, about_player)
+     VALUES (?, ?, 'heard', ?, ?, ?, 1, ?, ?, ?, ?, (SELECT about_player FROM npc_memory WHERE id = ?))`,
+  ).run(b.id, storeText(db, `${kin} told me: ${n.gist}`).slice(0, 200), a.id, Math.max(2, Math.min(10, w)), clock(db).day, storeText(db, n.gist), n.tone, n.origin, already ? 1 : 0, n.memory_id); // (M8c: about whom the first one was; M8d: a guest's with his name)
   const allowed = allowedReactions(db, b, n);
   let out: ShareOut | null = null;
   if (allowed.length > 1 && canCallFamily(db)) {
@@ -490,7 +531,7 @@ export async function shareNews(db: DB, id: number, opts: { runner?: Runner; rng
     who: [a.id, b.id],
   });
   if (decision.refused) writeEvent(db, { kind: "action", verb: "reaction_refused", actor: b.id, text: `${b.name}'s proposed reaction was refused (${decision.refused}); the engine chose ${decision.reaction}.`, weight: 2, who: [b.id] });
-  if (opts.show) publishConvo({ id: eid, a: a.id, b: b.id, a_name: a.name, b_name: b.name, purpose: "share", lines, source: out ? "claude" : "engine", outcome: decision.reaction, event_id: null });
+  if (opts.show) publishConvo({ id: eid, a: a.id, b: b.id, a_name: a.name, b_name: b.name, purpose: "share", lines: forAll(db, lines), source: out ? "claude" : "engine", outcome: decision.reaction, event_id: null });
   applyDecision(db, n.id, b, decision, opening);
   return { news: n.id, where, shown: !!opts.show, lines, decision };
 }
@@ -509,9 +550,10 @@ function applyDecision(db: DB, id: number, b: Resident, d: Decision, opening: st
 /** Warn (or praise to) the listener's circle: up to three who have not heard it yet. */
 export function warnOthers(db: DB, b: Resident, n: { gist: string; tone: number; origin: number }): number {
   const day = clock(db).day;
+  // (M8c: about whom the first memory was)
   const ins = db.prepare(
-    `INSERT INTO npc_memory (npc_id, text, source, heard_from, weight, day, spread, gist, tone, origin, town_spread)
-     VALUES (?, ?, 'heard', ?, ?, ?, 1, ?, ?, ?, 0)`,
+    `INSERT INTO npc_memory (npc_id, text, source, heard_from, weight, day, spread, gist, tone, origin, town_spread, about_player)
+     VALUES (?, ?, 'heard', ?, ?, ?, 1, ?, ?, ?, 0, (SELECT about_player FROM npc_memory WHERE id = ?))`,
   );
   let told = 0;
   for (const id of circleOf(db, b.id)) {
@@ -520,7 +562,7 @@ export function warnOthers(db: DB, b: Resident, n: { gist: string; tone: number;
     const o = resident(db, id);
     if (o && (o.household === b.household || isAwayVisitor(o))) continue;
     if (!db.prepare("SELECT 1 FROM npc WHERE id = ?").get(id)) continue;
-    ins.run(id, `${b.name} ${n.tone < 0 ? "warned me about Jef" : "spoke well of Jef"}: ${n.gist}`.slice(0, 200), b.id, 5, day, n.gist, n.tone, n.origin);
+    ins.run(id, storeText(db, `${b.name} ${n.tone < 0 ? "warned me about Jef" : "spoke well of Jef"}: ${n.gist}`).slice(0, 200), b.id, 5, day, storeText(db, n.gist), n.tone, n.origin, n.origin); // (M8d: a guest's with his name)
     told++;
   }
   writeEvent(db, { kind: "rumour", verb: n.tone < 0 ? "warned_others" : "praised", actor: b.id, text: `${b.name} ${n.tone < 0 ? "warned" : "told"} ${told} neighbours about Jef: ${n.gist}`, weight: 3, who: [b.id] });
@@ -529,15 +571,31 @@ export function warnOthers(db: DB, b: Resident, n: { gist: string; tone: number;
 
 // ------------------------------------------------------------------ 3. the reaction starts
 
-function menacesToday(db: DB): number {
+/** M8d: the menaces a player met today (his own, player_state 'menaces'; the host's older count in 'families'). */
+function menaceCount(db: DB): { day: number; n: number } {
+  const own = pstate<{ day: number; n: number }>(db, "menaces");
+  if (own) return own;
+  if (pid() !== 1) return { day: 0, n: 0 };
   const s = famState(db);
-  return s.menaceDay === clock(db).day ? s.menaces : 0;
+  return { day: s.menaceDay, n: s.menaces };
+}
+function menacesToday(db: DB): number {
+  const m = menaceCount(db);
+  return m.day === clock(db).day ? m.n : 0;
+}
+
+/** M8d: the seeks under way for this player (each player his own visitors). */
+function seeksFor(db: DB, who = pid()): ActionRow[] {
+  return activeActions(db).filter((a) => a.kind === "seek" && seekPlayer(db, a) === who);
 }
 
 /** A pending reaction: the listener sets out when they can (free, Jef near, the hour right). Returns the action id or null. */
 export function startReaction(db: DB, id: number): number | null {
   const n = newsRow(db, id);
   if (!n || n.status !== "pending" || !n.reaction) return null;
+  // (M8d: the player the news is about: his place, his visits, his menaces today)
+  const who = newsPlayer(n);
+  if (who !== pid()) return asPlayer(who, () => startReaction(db, id));
   const now = gameMinute(db);
   if (now < n.not_before) return null;
   if (now - n.not_before > PENDING_TTL_MIN) {
@@ -574,26 +632,24 @@ export function startReaction(db: DB, id: number): number | null {
   const jef = jefAt();
   const me = posOf(db, b.id) ?? { x: b.home.sx, z: b.home.sz, indoors: true };
   if (!jef || Math.hypot(jef.x - me.x, jef.z - me.z) > SEEK_MAX_M) return null;
-  const seeking = activeActions(db).filter((a) => a.kind === "seek");
+  const seeking = seeksFor(db);
   if (seeking.length >= VISITS_AT_ONCE) return null;
   if (menace && (menacesToday(db) >= MENACE_PER_DAY || seeking.some((a) => MENACE.has((JSON.parse(a.data_json) as { reaction?: VisitKind }).reaction ?? "none")))) return null;
   const row = startSeek(db, b.id, n.reaction, { news: n.id, reason: menace ? "a grudge" : n.tone < 0 ? "a word about what Jef did" : "to thank Jef" });
-  if (menace) {
-    const s = famState(db);
-    saveFam(db, { ...s, menaceDay: c.day, menaces: (s.menaceDay === c.day ? s.menaces : 0) + 1 });
-  }
+  if (menace) setPstate(db, "menaces", { day: c.day, n: menacesToday(db) + 1 });
   setNews(db, id, { status: "acting", action_id: row.id });
   return row.id;
 }
 
-/** Someone sets out to find Jef (a family visit, the police's word, the fortune's meeting). */
-export function startSeek(db: DB, npc: string, reaction: VisitKind, opts: { news?: number; reason?: string; minutes?: number } = {}): ActionRow {
-  return startAction(db, { npc_id: npc, kind: "seek", target: "Jef", source: "engine", minutes: opts.minutes ?? SEEK_MIN, max_m: 60, reason: opts.reason ?? "", data: { reaction, ...(opts.news ? { news: opts.news } : {}) } });
+/** Someone sets out to find Jef (a family visit, the police's word, the fortune's meeting). M8d: `player` (pid()): whom. */
+export function startSeek(db: DB, npc: string, reaction: VisitKind, opts: { news?: number; reason?: string; minutes?: number; player?: number } = {}): ActionRow {
+  const player = opts.player ?? pid();
+  return startAction(db, { npc_id: npc, kind: "seek", target: "Jef", source: "engine", minutes: opts.minutes ?? SEEK_MIN, max_m: 60, reason: opts.reason ?? "", data: { reaction, ...(opts.news ? { news: opts.news } : {}), player } as never, for_player: player });
 }
 
 // ------------------------------------------------------------------ 4. at Jef: a visit or a menace
 
-type SeekData = { reaction?: VisitKind; news?: number; line?: string; demand?: number; opened?: boolean };
+type SeekData = { reaction?: VisitKind; news?: number; line?: string; demand?: number; opened?: boolean; player?: number };
 const seekData = (a: ActionRow): SeekData => {
   try {
     return JSON.parse(a.data_json) as SeekData;
@@ -601,6 +657,17 @@ const seekData = (a: ActionRow): SeekData => {
     return {};
   }
 };
+
+/** M8d: whom a seek is for: its own word, else its news row's player (the police's word on a complaint), else the host. */
+export function seekPlayer(db: DB, a: ActionRow): number {
+  if (a.for_player != null) return a.for_player;
+  const d = seekData(a);
+  if (typeof d.player === "number") return d.player;
+  return d.news ? newsPlayer(newsRow(db, d.news)) : 1;
+}
+
+/** M8d: is this seek for the player the work is for? */
+const forMe = (db: DB, a: ActionRow) => seekPlayer(db, a) === pid();
 function setSeek(db: DB, a: ActionRow, phase: string, until: number, patch: Partial<SeekData> = {}): void {
   db.prepare("UPDATE npc_action SET phase = ?, until = ?, data_json = ? WHERE id = ?").run(phase, until, JSON.stringify({ ...seekData(actionRow(db, a.id)!), ...patch }), a.id);
 }
@@ -681,19 +748,19 @@ function giveGift(db: DB, r: Resident): string | null {
   const wares = waresOf(db, r.id).filter((w) => ITEMS[w.kind]?.use === "eat");
   const w = wares.sort((x, y) => x.price_c - y.price_c)[0];
   if (!w) return null;
-  const n = (db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n;
+  const n = (db.prepare("SELECT COUNT(*) AS n FROM item WHERE player_id = ?").get(pid()) as { n: number }).n;
   if (n >= POCKET_SLOTS) return null;
-  db.prepare("INSERT INTO item (kind, job_id) VALUES (?, NULL)").run(w.kind);
+  db.prepare("INSERT INTO item (kind, job_id, player_id) VALUES (?, NULL, ?)").run(w.kind, pid());
   log(db, "given", w.kind, `${r.name} gave Jef ${ITEMS[w.kind].name}, for his kindness.`, r.id);
   return w.kind;
 }
 
 // ---- the talk (talk.ts talkExtras): the opening and the lines Jef may say, answered by the engine
 
-/** The visit at Jef now, of this person (phase at_jef). */
+/** The visit at Jef now, of this person (phase at_jef). M8d: only for the player he came to; another player talks with him as ever. */
 export function visitOf(db: DB, id: string): ActionRow | null {
   const a = actionOf(db, id);
-  return a && a.kind === "seek" && a.phase === "at_jef" ? a : null;
+  return a && a.kind === "seek" && a.phase === "at_jef" && forMe(db, a) ? a : null;
 }
 
 function endVisit(db: DB, a: ActionRow, outcome: string): void {
@@ -727,7 +794,7 @@ export function visitTopics(db: DB, r: Resident): ExtraTopic[] {
       // a hot head may come back rougher: a new pending reaction if his stats allow a menace
       if (n) {
         const allow = allowedReactions(db2, r, { gist: n.gist, tone: -2 }).find((x) => MENACE.has(x.reaction));
-        if (allow) db2.prepare("INSERT INTO family_news (day, minute, teller, listener, memory_id, origin, gist, tone, status, reaction, amount_c, source, not_before) VALUES (?, ?, ?, ?, ?, ?, ?, -2, 'pending', ?, ?, 'engine', ?)").run(clock(db2).day, gameMinute(db2), n.teller, r.id, n.memory_id, n.origin, n.gist, allow.reaction, clampAmount(db2, allow.reaction, 0), gameMinute(db2) + 120);
+        if (allow) db2.prepare("INSERT INTO family_news (day, minute, teller, listener, memory_id, origin, gist, tone, status, reaction, amount_c, source, not_before, player_id) VALUES (?, ?, ?, ?, ?, ?, ?, -2, 'pending', ?, ?, 'engine', ?, ?)").run(clock(db2).day, gameMinute(db2), n.teller, r.id, n.memory_id, n.origin, n.gist, allow.reaction, clampAmount(db2, allow.reaction, 0), gameMinute(db2) + 120, pid());
       }
       return { text: r.stats.temper >= 7 ? "Is that so. We'll see about that, you and me." : "Then you're not the man I hoped. Good day.", trust: -1, end: true };
     },
@@ -744,7 +811,7 @@ export function visitTopics(db: DB, r: Resident): ExtraTopic[] {
         answer: (db2) => {
           const money = player(db2).money_c;
           if (money < amt) return { text: `You haven't got ${amt} centimes. Come back when you have.` };
-          db2.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(amt);
+          db2.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(amt, pid());
           log(db2, "paid", r.id, `Jef paid ${r.name} ${amt} centimes to put right what ${kin} complained of.`);
           remember(db2, r.id, `Jef paid me ${amt} centimes to put it right. Fair's fair.`, 5, "seen", null, { gist: `Jef paid ${name} what he owed`, tone: 1 });
           endVisit(db2, a, "paid");
@@ -757,7 +824,7 @@ export function visitTopics(db: DB, r: Resident): ExtraTopic[] {
           remember(db2, r.id, `Jef would not pay for what ${kin} lost. We'll see.`, 7, "seen", null, { gist: `Jef would not pay ${name} what he owed`, tone: -1 });
           endVisit(db2, a, "refused to pay");
           if (n && r.stats.honesty >= 5 && policeDispatch(db2, { x: r.home.sx, z: r.home.sz }))
-            db2.prepare("INSERT INTO family_news (day, minute, teller, listener, memory_id, origin, gist, tone, status, reaction, source, not_before) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'call_police', 'engine', ?)").run(clock(db2).day, gameMinute(db2), n.teller, r.id, n.memory_id, n.origin, n.gist, n.tone, gameMinute(db2) + 60);
+            db2.prepare("INSERT INTO family_news (day, minute, teller, listener, memory_id, origin, gist, tone, status, reaction, source, not_before, player_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'call_police', 'engine', ?, ?)").run(clock(db2).day, gameMinute(db2), n.teller, r.id, n.memory_id, n.origin, n.gist, n.tone, gameMinute(db2) + 60, pid());
           return { text: "Then it's the police, and let them sort it.", trust: -1, end: true };
         },
       };
@@ -781,10 +848,9 @@ export function visitTopics(db: DB, r: Resident): ExtraTopic[] {
           choice: "I'd be glad to. Thank you.",
           answer: (db2) => {
             const fam = town(db2).town.residents.filter((o) => o.household === r.household);
-            db2.prepare("UPDATE player SET food = MIN(10, food + ?), warmth = MIN(10, warmth + ?) WHERE id = 1").run(SUPPER_FOOD, SUPPER_WARMTH);
+            db2.prepare("UPDATE player SET food = MIN(10, food + ?), warmth = MIN(10, warmth + ?) WHERE id = ?").run(SUPPER_FOOD, SUPPER_WARMTH, pid());
             log(db2, "supper", r.id, `Jef ate supper with the ${r.surname} family.`);
-            const s = famState(db2);
-            saveFam(db2, { ...s, supperDay: clock(db2).day });
+            setSupperDay(db2, clock(db2).day);
             for (const o of fam) remember(db2, o.id, `Jef ate supper with us. He has manners, for a quay man.`, 5, "seen", null, o.id === r.id ? { gist: `Jef ate supper with the ${r.surname} family`, tone: 1 } : null);
             endVisit(db2, a, "supper");
             veil(`You eat with the ${r.surname} family: stew, dark bread, weak beer. ${fam.length > 2 ? "The children stare at you the whole time." : "They ask where you come from, and you tell them."} You leave warm and full.`);
@@ -879,7 +945,7 @@ function startMenace(db: DB, a: ActionRow, _runner?: Runner): ActionRow | null {
   const det = deterrence(db, r.id);
   if (det.police || det.crowd >= CROWD_DETER) {
     const text = det.police ? "Not with the police stood there. Another time, Jef." : "Too many eyes about. Another time, Jef. When you're alone.";
-    publishConvo({ a: r.id, b: r.id, a_name: r.name, b_name: r.name, purpose: "menace", lines: [{ who: r.id, name: r.first, text: line }, { who: r.id, name: r.first, text }], source: "engine", outcome: "deterred", event_id: null });
+    publishConvo({ a: r.id, b: r.id, a_name: r.name, b_name: r.name, purpose: "menace", lines: forAll(db, [{ who: r.id, name: r.first, text: line }, { who: r.id, name: r.first, text }]), source: "engine", outcome: "deterred", event_id: null });
     writeEvent(db, { kind: "action", verb: "menace_deterred", actor: r.id, text: `${r.name} came for Jef with a grudge, but ${det.police ? "a police agent" : "a crowd"} stood by; he went off.`, weight: 5, who: [r.id] });
     remember(db, r.id, "I went for Jef but there were too many about. Another time.", 6);
     finishNews(db, d.news, "deterred");
@@ -887,7 +953,7 @@ function startMenace(db: DB, a: ActionRow, _runner?: Runner): ActionRow | null {
   }
   const demand = clampAmount(db, kind, n?.amount_c ?? 0);
   setSeek(db, a, "menace", gameMinute(db) + MENACE_MIN, { line, demand });
-  publishConvo({ a: r.id, b: r.id, a_name: r.name, b_name: r.name, purpose: "menace", lines: [{ who: r.id, name: r.first, text: line }], source: own ? "claude" : "engine", outcome: "", event_id: null });
+  publishConvo({ a: r.id, b: r.id, a_name: r.name, b_name: r.name, purpose: "menace", lines: forAll(db, [{ who: r.id, name: r.first, text: line }]), source: own ? "claude" : "engine", outcome: "", event_id: null });
   writeEvent(db, { kind: "action", verb: "menace", actor: r.id, text: `${r.name} came up to Jef in the street with a grudge (${kind === "mug" ? "after his money" : "to knock him down"}).`, weight: 6, who: [r.id] });
   const view: MenaceView = { action: a.id, npc: r.id, name: r.name, kind, demand_c: demand, line };
   bus.broadcast({ type: "families", menace: view });
@@ -896,14 +962,20 @@ function startMenace(db: DB, a: ActionRow, _runner?: Runner): ActionRow | null {
 
 /** A visit waiting at Jef whose talk has not opened yet (the client opens it; also after a reload). */
 export function visitNow(db: DB): { action: number; npc: string; name: string; title: string; reaction: VisitKind | null } | null {
-  const a = activeActions(db).find((x) => x.kind === "seek" && x.phase === "at_jef" && !seekData(x).opened);
+  const a = seeksFor(db).find((x) => x.phase === "at_jef" && !seekData(x).opened); // (M8d: this player's own)
   const r = a ? resident(db, a.npc_id) : null;
   return a && r ? { action: a.id, npc: r.id, name: r.name, title: shownTrade(r), reaction: seekData(a).reaction ?? null } : null;
 }
 
+/** M8d: is this seek (a menace, a visit) one that came to the player asking? (The routes: only he answers it.) */
+export function menaceMine(db: DB, actionId: number): boolean {
+  const a = actionRow(db, actionId);
+  return !!a && a.kind === "seek" && forMe(db, a);
+}
+
 /** The menace that stands before Jef now, if any. */
 export function menaceNow(db: DB): MenaceView | null {
-  const a = activeActions(db).find((x) => x.kind === "seek" && x.phase === "menace");
+  const a = seeksFor(db).find((x) => x.phase === "menace"); // (M8d: this player's own)
   if (!a) return null;
   const d = seekData(a);
   const r = resident(db, a.npc_id);
@@ -926,6 +998,10 @@ export interface MenaceResult {
 export function resolveMenace(db: DB, actionId: number, how: MenaceHow, talked?: { ok: boolean; line: string }): MenaceResult | null {
   const a = actionRow(db, actionId);
   if (!a || a.status !== "active" || a.kind !== "seek" || a.phase !== "menace") return null;
+  // (M8d: the man stands before one player: his health and purse, his place, whoever's tick ends it; the routes
+  // let only that player answer: menaceMine)
+  const who = seekPlayer(db, a);
+  if (who !== pid()) return asPlayer(who, () => resolveMenace(db, actionId, how, talked));
   const d = seekData(a);
   const r = resident(db, a.npc_id);
   if (!r) return null;
@@ -949,7 +1025,7 @@ export function resolveMenace(db: DB, actionId: number, how: MenaceHow, talked?:
     const money = player(db).money_c;
     const amt = Math.min(d.demand ?? 0, money);
     if (amt > 0) {
-      db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(amt);
+      db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(amt, pid());
       log(db, "paid_off", r.id, `Jef paid ${r.name} ${amt} centimes to let it go.`);
       remember(db, r.id, `Jef paid me ${amt} centimes to let it go. That'll do, for now.`, 6, "seen", null, { gist: `Jef paid ${r.name} off in the street`, tone: 0 });
       writeEvent(db, { kind: "action", verb: "menace_paid", actor: r.id, text: `Jef paid ${r.name} ${amt} centimes to leave him be.`, weight: 5, who: [r.id], data: { amount_c: amt } });
@@ -978,7 +1054,7 @@ export function resolveMenace(db: DB, actionId: number, how: MenaceHow, talked?:
     return jef ? peopleNear(jef.x, jef.z, 20).filter((x) => x.id !== r.id && resident(db, x.id)).slice(0, 5).map((x) => x.id) : [];
   })();
   db.transaction(() => {
-    db.prepare("UPDATE player SET health = MAX(?, health - ?), money_c = MAX(0, money_c - ?) WHERE id = 1").run(HEALTH_FLOOR, hl, ml);
+    db.prepare("UPDATE player SET health = MAX(?, health - ?), money_c = MAX(0, money_c - ?) WHERE id = ?").run(HEALTH_FLOOR, hl, ml, pid());
     if (ml > 0) log(db, "robbed", r.id, `${r.name} knocked Jef down in the street and took ${ml} centimes from him.`);
     else log(db, "assaulted", r.id, `${r.name} knocked Jef down in the street.`);
   })();
@@ -1049,7 +1125,7 @@ function canCallResident(db: DB): boolean {
 /** Jef's own words to the man: gate, fence, the model's reading, the engine's roll. */
 export async function talkDown(db: DB, actionId: number, raw: string, opts: { runner?: Runner; rng?: () => number } = {}): Promise<{ gated?: string; stance?: Stance; result?: MenaceResult | null }> {
   const a = actionRow(db, actionId);
-  if (!a || a.status !== "active" || a.phase !== "menace") return { result: null };
+  if (!a || a.status !== "active" || a.phase !== "menace" || !forMe(db, a)) return { result: null }; // (M8d: only the one he stands before)
   const r = resident(db, a.npc_id)!;
   const g = gateText(raw);
   let stance: Stance;
@@ -1099,8 +1175,9 @@ export async function familyTick(db: DB, opts: { runner?: Runner; rng?: () => nu
   let shared = 0;
   let started = 0;
   const now = gameMinute(db);
-  const jef = jefAt();
   for (const n of listNews(db, "waiting")) {
+    // (M8d: the player the news is about: near him it plays in bubbles; whoever's tick runs this)
+    const jef = jefAt(Date.now(), newsPlayer(n));
     if (now - n.minute > NEWS_TTL_MIN) {
       setNews(db, n.id, { status: "lapsed", outcome: "never told" });
       continue;
@@ -1118,7 +1195,7 @@ export async function familyTick(db: DB, opts: { runner?: Runner; rng?: () => nu
       // Jef is near: the teller walks up to the listener and it plays in bubbles (an M4 talk_to)
       if (actionOf(db, a.id) || isReserved(db, a.id) || actionOf(db, b.id)) continue;
       const pb = posOf(db, b.id)!;
-      startAction(db, { npc_id: a.id, kind: "talk_to", target: b.id, target_x: pb.x, target_z: pb.z, source: "engine", minutes: SHARE_MIN, reason: "family news", data: { purpose: "share", news: n.id } });
+      startAction(db, { npc_id: a.id, kind: "talk_to", target: b.id, target_x: pb.x, target_z: pb.z, source: "engine", minutes: SHARE_MIN, reason: "family news", data: { purpose: "share", news: n.id }, for_player: newsPlayer(n) });
       setNews(db, n.id, { action_id: -1 });
       continue;
     }
@@ -1149,7 +1226,8 @@ export function installFamilies(): void {
   if (installed) return;
   installed = true;
   actionHooks.reserved.push((db, id) => isAwayVisitor(resident(db, id)));
-  actionHooks.report.seek = (db, a, rep, runner) => seekReport(db, a, rep, runner);
+  // (M8d: the seek is its player's business, whichever PC walks the seeker and reports it)
+  actionHooks.report.seek = (db, a, rep, runner) => asPlayer(seekPlayer(db, a), () => seekReport(db, a, rep, runner));
   actionHooks.talkTo.share = async (db, a, runner) => {
     const id = seekData(a).news;
     if (!id) return "nothing to tell";
@@ -1164,17 +1242,19 @@ export function installFamilies(): void {
     endAction(db, a.id, "done", "time", "");
     return true;
   };
-  actionHooks.timeUp.seek = (db, a) => {
-    const d = seekData(a);
-    if (a.phase === "menace") {
-      // Jef stood there and said nothing: the engine resolves it as standing
-      resolveMenace(db, a.id, "time");
+  actionHooks.timeUp.seek = (db, a) =>
+    // (M8d: as the player the seek was for, whoever's tick ends it)
+    asPlayer(seekPlayer(db, a), () => {
+      const d = seekData(a);
+      if (a.phase === "menace") {
+        // Jef stood there and said nothing: the engine resolves it as standing
+        resolveMenace(db, a.id, "time");
+        return true;
+      }
+      finishNews(db, d.news, a.phase === "at_jef" ? "Jef would not talk" : "never found Jef");
+      endAction(db, a.id, "failed", "time", a.phase === "at_jef" ? "Suit yourself." : "");
       return true;
-    }
-    finishNews(db, d.news, a.phase === "at_jef" ? "Jef would not talk" : "never found Jef");
-    endAction(db, a.id, "failed", "time", a.phase === "at_jef" ? "Suit yourself." : "");
-    return true;
-  };
+    });
   talkExtras.greet.push((db, r) => {
     const a = visitOf(db, r.id);
     if (!a) return null;
@@ -1195,4 +1275,41 @@ export function installFamilies(): void {
 export function clearFamilies(db: DB): void {
   db.prepare("DELETE FROM family_news").run();
   db.prepare("DELETE FROM world_state WHERE key = 'families'").run();
+  db.prepare("DELETE FROM player_state WHERE key IN ('supper_day', 'menaces')").run();
 }
+
+/**
+ * M8d: the townspeople on their way to one player or standing before him (a family visit, the police's word, a
+ * menace), for the players in the game: only his PC walks them, so they walk up to him and not to whoever's PC
+ * has the street (to be merged with the job figures' pins, town/walkup.ts jobPins). A player who is gone pins nobody.
+ */
+export function seekPins(db: DB, online: readonly number[]): Map<string, number> {
+  const on = new Set(online);
+  const out = new Map<string, number>();
+  for (const a of activeActions(db)) {
+    if (a.kind !== "seek") continue;
+    const who = seekPlayer(db, a);
+    if (on.has(who)) out.set(a.npc_id, who);
+  }
+  return out;
+}
+
+/**
+ * M8d: a player's man retires (player/multi.ts resetPlayer): nobody comes to him any more (a visit, the police's
+ * word, a menace: they go back to their day), and the news about him that was still to be told or acted on is
+ * closed ("he is gone"). What was told stays told.
+ */
+export function endFamiliesFor(db: DB, player: number): number {
+  let n = 0;
+  for (const a of activeActions(db)) {
+    const mine =
+      (a.kind === "seek" && seekPlayer(db, a) === player) ||
+      (a.kind === "talk_to" && seekData(a).news !== undefined && newsPlayer(newsRow(db, seekData(a).news!)) === player);
+    if (!mine) continue;
+    endAction(db, a.id, "stopped", "he is gone", "");
+    n++;
+  }
+  db.prepare("UPDATE family_news SET status = 'lapsed', outcome = 'he is gone', action_id = NULL WHERE COALESCE(player_id, 1) = ? AND status IN ('waiting', 'heard', 'pending', 'acting')").run(player);
+  return n;
+}
+RESET_HOOKS.push((db, id) => void endFamiliesFor(db, id));

@@ -2,6 +2,8 @@ import type { DB } from "../db.ts";
 import { GameError, log, player } from "../game.ts";
 import { listJobs } from "../hooks/jobBoard.ts";
 import { remember } from "../npcs.ts";
+import { asPlayer, pid } from "../player/current.ts";
+import { RESET_HOOKS } from "../player/multi.ts";
 import { ITEMS, atWork, buy, waresOf } from "../trade.ts";
 import { gameMinute } from "../town/deeds.ts";
 import { resident } from "../town/store.ts";
@@ -74,6 +76,17 @@ export interface Routine {
   state: Record<string, unknown>;
   /** When the step now running began (game minute). */
   since: number;
+  /** M8c: whom it is for (his coins, his pockets); none in an older save: the host. */
+  player?: number;
+}
+
+/**
+ * M8c: a routine's steps are its player's business, whoever moves them on (his request, the client's report,
+ * the tick): run as him.
+ */
+function asOwner<T>(r: Routine, fn: () => T): T {
+  const who = r.player ?? 1;
+  return who === pid() ? fn() : asPlayer(who, fn);
 }
 
 /** Who runs a step: the engine at once, the client walking it, or the engine on an event (a follow ends when Jef goes in). */
@@ -179,7 +192,7 @@ export function checkStep(db: DB, r: Routine, s: Step, id = -1): string | null {
       return player(db).money_c >= ware.price_c * Math.max(1, s.count ?? 1) ? null : "no_money";
     }
     case "give":
-      return s.item && db.prepare("SELECT 1 FROM item WHERE kind = ? AND job_id IS NULL").get(s.item) ? null : "no_item";
+      return s.item && db.prepare("SELECT 1 FROM item WHERE kind = ? AND job_id IS NULL AND player_id = ?").get(s.item, pid()) ? null : "no_item";
     case "pay":
       return player(db).money_c >= Math.max(0, s.amount_c ?? 0) ? null : "no_money";
     case "talk_to":
@@ -199,7 +212,7 @@ export function stepPay(db: DB, to: string, amount_c: number, why: string): numb
   if (p.money_c < amount) throw new GameError(`not enough money: ${amount} c needed`, 409);
   const r = resident(db, to);
   db.transaction(() => {
-    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(amount);
+    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(amount, pid());
     log(db, "paid_wage", to, `Jef paid ${r?.name ?? "someone"} ${amount} centimes (${why}).`);
   })();
   return amount;
@@ -209,8 +222,8 @@ export function stepPay(db: DB, to: string, amount_c: number, why: string): numb
 export function stepGive(db: DB, to: string, kind: string, itemId?: number): number {
   const row = (
     itemId !== undefined
-      ? db.prepare("SELECT id, kind FROM item WHERE id = ? AND job_id IS NULL").get(itemId)
-      : db.prepare("SELECT id, kind FROM item WHERE kind = ? AND job_id IS NULL ORDER BY id LIMIT 1").get(kind)
+      ? db.prepare("SELECT id, kind FROM item WHERE id = ? AND job_id IS NULL AND player_id = ?").get(itemId, pid())
+      : db.prepare("SELECT id, kind FROM item WHERE kind = ? AND job_id IS NULL AND player_id = ? ORDER BY id LIMIT 1").get(kind, pid())
   ) as { id: number; kind: string } | undefined;
   if (!row) throw new GameError("you have no such thing on you", 409);
   const r = resident(db, to);
@@ -238,7 +251,7 @@ export function stepBuy(db: DB, seller: string, kind: string, count: number, for
     const rest = price * (n - 1);
     if (rest > 0) {
       if (player(db).money_c < rest) throw new GameError(`not enough money: ${rest} c more needed`, 409);
-      db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(rest);
+      db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(rest, pid());
       const who = forWhom ? resident(db, forWhom) : null;
       log(db, "treated", forWhom ?? null, `Jef bought ${who ? `${who.name} ` : ""}${ITEMS[kind]?.name ?? kind} as well, ${rest} centimes.`);
     }
@@ -263,7 +276,7 @@ export interface NewRoutine {
 
 /** Start a routine (already checked by its module): the row, then the engine's first steps at once. */
 export function startRoutine(db: DB, n: NewRoutine): ActionRow {
-  const r: Routine = { purpose: n.purpose, steps: n.steps, i: 0, results: [], state: n.state ?? {}, since: gameMinute(db) };
+  const r: Routine = { purpose: n.purpose, steps: n.steps, i: 0, results: [], state: n.state ?? {}, since: gameMinute(db), player: pid() };
   const row = startAction(db, {
     npc_id: n.npc,
     kind: "routine",
@@ -288,11 +301,34 @@ export function endRoutine(db: DB, id: number, status: "done" | "failed", outcom
   const row = actionRow(db, id);
   const r = routineOf(row);
   if (!row || !r || row.status !== "active") return "";
+  if ((r.player ?? 1) !== pid()) return asOwner(r, () => endRoutine(db, id, status, outcome, line));
   const own = stepHooks.ended[r.purpose]?.(db, row, r, status, outcome) ?? "";
   const said = line ?? own;
   endAction(db, id, status, outcome, said);
   return said;
 }
+
+/** M8d: whose routine this is: its purpose's own word (a hand's hirer, a treat's host), else who started it. */
+export function routineOwner(row: ActionRow, r: Routine): number {
+  const p = (r.state as { player?: unknown }).player;
+  return typeof p === "number" ? p : (r.player ?? row.for_player ?? 1);
+}
+
+/**
+ * M8d: a player's man retires (player/multi.ts resetPlayer): his hired hands, the guests he stood a drink and any
+ * other routine of his end through their own end (the wage for what was carried, his cart put down), and they go
+ * back to their day.
+ */
+export function endRoutinesFor(db: DB, player: number, outcome = "he is gone"): number {
+  let n = 0;
+  for (const { row, r } of activeRoutines(db)) {
+    if (routineOwner(row, r) !== player) continue;
+    endRoutine(db, row.id, "failed", outcome, "");
+    n++;
+  }
+  return n;
+}
+RESET_HOOKS.push((db, id) => void endRoutinesFor(db, id));
 
 function runEngineStep(db: DB, row: ActionRow, r: Routine, s: Step): { ok: boolean; why: string } {
   try {
@@ -342,6 +378,8 @@ function settleStep(db: DB, id: number, r: Routine, ok: boolean, why: string): "
 
 /** Run what the engine can run now: checks, engine steps, until a client step or the end. */
 export function advance(db: DB, id: number): void {
+  const r0 = routineOf(actionRow(db, id));
+  if (r0 && (r0.player ?? 1) !== pid()) return asOwner(r0, () => advance(db, id));
   for (let guard = 0; guard < 60; guard++) {
     const row = actionRow(db, id);
     const r = routineOf(row);
@@ -375,6 +413,7 @@ export function reportStep(db: DB, id: number, i: number, ok: boolean, why: stri
   const row = actionRow(db, id);
   const r = routineOf(row);
   if (!row || !r || row.status !== "active" || r.i !== i || !r.steps[i]) return r;
+  if ((r.player ?? 1) !== pid()) return asOwner(r, () => reportStep(db, id, i, ok, why, patch));
   patch?.(r);
   if (settleStep(db, id, r, ok, why) !== "end") advance(db, id);
   return routineOf(actionRow(db, id));
@@ -420,6 +459,8 @@ export function listRoutines(db: DB) {
       // the purpose's cart lent to them, once they have it (town/hire.ts): the client draws it on them
       cart: (r.state.cart as { id?: string; taken?: boolean } | null | undefined)?.taken ? ((r.state.cart as { id: string }).id ?? null) : null,
       minutes_left: Math.max(0, row.until - gameMinute(db)),
+      /** M8d: whose errand it is (his PC walks it: "Jef" in its steps is he). */
+      player: r.player ?? 1,
     };
   });
 }
@@ -429,10 +470,12 @@ export function installSteps(): void {
   actionHooks.timeUp.routine = (db, a) => {
     const r = routineOf(a);
     if (!r) return false;
-    const own = stepHooks.timeUp[r.purpose];
-    if (own && own(db, a, r)) return true;
-    endRoutine(db, a.id, "failed", "time");
-    return true;
+    return asOwner(r, () => {
+      const own = stepHooks.timeUp[r.purpose];
+      if (own && own(db, a, r)) return true;
+      endRoutine(db, a.id, "failed", "time");
+      return true;
+    });
   };
   // a routine's person may be asked to stop in talk: the purpose's end line, not the plain one
   actionHooks.report.routine = async (_db, a) => a;

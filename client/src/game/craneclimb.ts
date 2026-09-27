@@ -11,6 +11,10 @@ import type { Action } from "./runs";
 // again; E at the ladder head climbs down. Nothing up there works the crane. While you stand at the
 // foot, climb, or are anywhere up there, the crane stands still with its jib at rest
 // (world/railway.ts summon / occupy). Not with goods in your arms.
+//
+// M8b: played together, another PC (the world PC) may drive the cranes; it does not know you are at
+// the ladder, so there the crane cannot wait for you and the climb is refused with a word (M8c will
+// ask the world PC to hold the crane for you).
 
 const REACH_FOOT = 1.4;
 const REACH_HEAD = 1.3;
@@ -44,9 +48,12 @@ export class CraneClimb {
     }
     const l = this.nearFoot(x, z);
     if (!l) return {};
+    const at = { x: l.hang.x - Math.sin(l.face) * 0.3, y: 1.4, z: l.hang.z - Math.cos(l.face) * 0.3 };
+    const d = Math.hypot(x - l.foot.x, z - l.foot.z);
+    if (rail.netRemote) return { options: [[d, { key: "KeyE", text: "climb the crane's ladder", run: () => this.say("The crane is at work. The driver waves you off the ladder."), at }]] };
     rail.summon(l.crane);
     if (!l.ready) return {};
-    return { options: [[Math.hypot(x - l.foot.x, z - l.foot.z), { key: "KeyE", text: "climb the crane's ladder", run: () => this.up(l), at: { x: l.hang.x - Math.sin(l.face) * 0.3, y: 1.4, z: l.hang.z - Math.cos(l.face) * 0.3 } }]] };
+    return { options: [[d, { key: "KeyE", text: "climb the crane's ladder", run: () => this.up(l), at }]] };
   }
 
   private nearFoot(x: number, z: number): CraneLadder | null {
@@ -95,7 +102,7 @@ export class CraneClimb {
       this.push = 0;
       return;
     }
-    const l = this.nearFoot(p.x, p.z);
+    const l = this.world.railway()?.netRemote ? null : this.nearFoot(p.x, p.z);
     const facing = l && Math.abs(Math.atan2(Math.sin(p.yaw - l.face), Math.cos(p.yaw - l.face))) < 0.6;
     if (l && l.ready && facing && (p.pressing("KeyW") || p.pressing("ArrowUp")) && Math.hypot(p.x - l.foot.x, p.z - l.foot.z) < 0.8) {
       this.push += dt;

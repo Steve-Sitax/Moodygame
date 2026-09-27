@@ -1,5 +1,7 @@
 import type { DB } from "./db.ts";
 import { GameError, log, player } from "./game.ts";
+import { pid } from "./player/current.ts";
+import { dropPstate, pstate, setPstate } from "./player/multi.ts";
 import { clockText, departures, inService, LINES, lineTiming, STOPS } from "../../shared/omnibusLines.ts";
 
 // The horse omnibuses (M3g, client/src/world/omnibus.ts; M7: three lines, shared/omnibusLines.ts):
@@ -80,10 +82,10 @@ export function calls(line: RideLine, stop: RideStop): boolean {
 }
 
 function read(db: DB): Ticket | null {
-  const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'ride'").get() as { value_json: string } | undefined;
-  if (!row) return null;
+  // (M8c: each player's own ticket)
   try {
-    const t = JSON.parse(row.value_json) as Ticket;
+    const t = pstate<Ticket>(db, "ride");
+    if (!t) return null;
     if (typeof t.since !== "number" || !isLine(t.line) || !isStop(t.from)) return null;
     return { since: t.since, line: t.line, from: t.from, on: t.on !== false, changes: Number(t.changes) || 0, roof: t.roof === true };
   } catch {
@@ -92,9 +94,7 @@ function read(db: DB): Ticket | null {
 }
 
 function write(db: DB, t: Ticket): void {
-  db.prepare("INSERT INTO world_state (key, value_json) VALUES ('ride', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(
-    JSON.stringify(t),
-  );
+  setPstate(db, "ride", t);
 }
 
 /** The ticket, if it still runs. */
@@ -156,7 +156,7 @@ export function board(db: DB, stop: RideStop, line: RideLine): { fare_c: number;
   const p = player(db);
   if (p.money_c < RIDE_FARE_C) throw new GameError(`not enough money: the fare is ${RIDE_FARE_C} c`, 409);
   db.transaction(() => {
-    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(RIDE_FARE_C);
+    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(RIDE_FARE_C, pid());
     write(db, { since: now, line, from: stop, on: true, changes: 0 });
     log(db, "rode_omnibus", stop, `Jef took ${LINE_NAMES[line]} at ${STOP_NAMES[stop]} for ${RIDE_FARE_C} centimes.`);
   })();
@@ -173,7 +173,7 @@ export function alight(db: DB): { text: string } {
 
 /** The night ends every ride and every ticket (day.ts sleep). */
 export function endRide(db: DB): void {
-  db.prepare("DELETE FROM world_state WHERE key = 'ride'").run();
+  dropPstate(db, "ride");
 }
 
 /**

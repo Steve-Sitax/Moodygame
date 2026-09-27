@@ -3,6 +3,7 @@ import type { DB } from "../db.ts";
 import { job } from "../game.ts";
 import { DEV } from "../config.ts";
 import { remember } from "../npcs.ts";
+import { pid } from "../player/current.ts";
 import { writeEvent } from "../director/eventlog.ts";
 import { resident } from "./store.ts";
 import { NIGHT_GIVERS } from "./places.ts";
@@ -11,6 +12,7 @@ import {
   CALL_ROLES,
   CALL_WHYS,
   callResponder,
+  comeHolder,
   comings,
   endCall,
   mayShadow,
@@ -50,6 +52,11 @@ export function shadyJob(j: { employer_npc: string; source: string }): boolean {
 
 export function mountWalkup(app: Hono, deps: Deps): void {
   const { db } = deps;
+  /** M8d: a "come" row of this player's own call (one player's twist never ends or steers another's). */
+  const mine = (id: number) => {
+    const a = comings(db).find((x) => x.id === id);
+    return !a || comeHolder(db, a) === pid();
+  };
 
   app.get("/api/walkup", (c) =>
     c.json({
@@ -66,6 +73,10 @@ export function mountWalkup(app: Hono, deps: Deps): void {
     if (!p || !CALL_ROLES.includes(role) || !CALL_WHYS.includes(why)) return c.json({ ok: false, wait: true, why: "bad call" }, 400);
     const ref = String(b.ref ?? "").slice(0, 60);
     if (!/^(job|gang|quest):[\w:-]+$/.test(ref)) return c.json({ ok: false, wait: true, why: "bad ref" }, 400);
+    // (M8d: people for a job only for the man who has it in hand)
+    const jobId = /^job:(\d+)(?::|$)/.exec(ref)?.[1];
+    const held = jobId ? (db.prepare("SELECT taken_by FROM job WHERE id = ? AND status = 'taken'").get(Number(jobId)) as { taken_by: number | null } | undefined) : undefined;
+    if (held && (held.taken_by ?? 1) !== pid()) return c.json({ ok: false, wait: true, why: "not your job" });
     return c.json(callResponder(db, { role, why, ref, at: p }));
   });
 
@@ -83,7 +94,8 @@ export function mountWalkup(app: Hono, deps: Deps): void {
     const id = Number(b.job_id);
     if (!p || !Number.isInteger(id)) return c.json({ ok: false }, 400);
     const j = job(db, id);
-    if (j.status !== "taken" || !j.task) return c.json({ ok: false });
+    // (M8c: his own job in hand)
+    if (j.status !== "taken" || (j.taken_by ?? 1) !== pid() || !j.task) return c.json({ ok: false });
     const goods = (j.task as { goods?: string }).goods ?? "";
     const r = mayShadow(db, { ref: `job:${id}`, goods, shady: shadyJob(j), at: p });
     return c.json(r ?? { ok: false });
@@ -93,7 +105,7 @@ export function mountWalkup(app: Hono, deps: Deps): void {
   app.post("/api/walkup/shadow/:id/step", async (c) => {
     const b = await body(c);
     const id = Number(c.req.param("id"));
-    const f = shadowFacts(db, id, { moving: b.moving === true, carrying: b.carrying === true });
+    const f = mine(id) ? shadowFacts(db, id, { moving: b.moving === true, carrying: b.carrying === true }) : null;
     if (!f) return c.json({ move: { kind: "break_off", why: "lost him" } });
     const move = shadowStep(f);
     let trouble: number | null = null;
@@ -117,7 +129,7 @@ export function mountWalkup(app: Hono, deps: Deps): void {
     const id = Number(c.req.param("id"));
     const a = comings(db).find((x) => x.id === id);
     const p = at(b);
-    if (!a || !p) return c.json({ taken: false, why: "gone" });
+    if (!a || !p || !mine(id)) return c.json({ taken: false, why: "gone" });
     const r = resident(db, a.npc_id);
     const police = policeWithin(db, p);
     const inHands = b.hands === true;
@@ -148,6 +160,8 @@ export function mountWalkup(app: Hono, deps: Deps): void {
   // the job is done with them
   app.post("/api/walkup/:id/done", async (c) => {
     const b = await body(c);
-    return c.json({ ok: endCall(db, Number(c.req.param("id")), String(b.outcome ?? "done")) });
+    const id = Number(c.req.param("id"));
+    if (!mine(id)) return c.json({ ok: false });
+    return c.json({ ok: endCall(db, id, String(b.outcome ?? "done")) });
   });
 }

@@ -4,6 +4,7 @@ import { GameError } from "../game.ts";
 import { veloStates } from "./deeds.ts";
 import { ownerMissed, transportView } from "./possessions.ts";
 import { bikeHour, jefSeen, jefVeloView } from "./bikeshop.ts";
+import { forEachOnline } from "../player/current.ts";
 
 // The HTTP side of M6 transport: what the households own and where it stands, the day's
 // errands with a load, Jef's own velocipede (bought or hired at the maker's), and the hour's
@@ -20,7 +21,12 @@ export function mountTransport(app: Hono, deps: TransportDeps): void {
   app.use("/api/tick", async (_c, next) => {
     await next();
     try {
-      if (bikeHour(db).length) broadcast({ type: "jobs", ...payload() });
+      // (M8c: each player's velocipedes in the game)
+      let any = false;
+      forEachOnline(() => {
+        if (bikeHour(db).length) any = true;
+      });
+      if (any) broadcast({ type: "jobs", ...payload() });
     } catch (e) {
       console.error("[transport] tick", e);
     }

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scheldemist town map</title>
+<link rel="stylesheet" href="map.css">
+</head>
+<body>
+<aside id="side">
+  <header>
+    <div class="kicker">Antwerp, autumn 1873</div>
+    <h1>The town map</h1>
+    <div class="subtitle">Everyone and everything, as the host sees it</div>
+  </header>
+  <div class="searchbox">
+    <input id="search" type="search" placeholder="Find a person or a place" autocomplete="off" spellcheck="false">
+    <ul id="results"></ul>
+  </div>
+  <section>
+    <h2>Show on the map</h2>
+    <ul id="cats"></ul>
+  </section>
+  <section id="worldsec">
+    <h2>The moving world</h2>
+    <div id="worldinfo" class="small">Nothing sent yet: the world PC sends it while a game is played together.</div>
+  </section>
+  <section>
+    <h2>How to use it</h2>
+    <p class="small">Drag to move, wheel to zoom, <kbd>F</kbd> fits the town. Hover a thing to see what it is; click to pin its card on the right. Pinned cards follow the town live.</p>
+  </section>
+  <footer id="status">Connecting...</footer>
+</aside>
+<main id="stage">
+  <canvas id="map" aria-label="Map of the town"></canvas>
+  <div id="clock" class="card"><div id="clockTime">--:--</div><div id="clockDay" class="small"></div></div>
+  <div id="zoomctl" class="card">
+    <button id="zin" type="button" title="Zoom in">+</button>
+    <button id="zout" type="button" title="Zoom out">&minus;</button>
+    <button id="zfit" type="button" title="Fit the town (F)">Fit</button>
+  </div>
+  <div id="ties" class="card" hidden></div>
+  <div id="tip" class="tip" hidden></div>
+</main>
+<aside id="pins" hidden>
+  <div id="pintabs"></div>
+  <div id="pinbody"></div>
+</aside>
+<script src="map.js"></script>
+</body>
+</html>

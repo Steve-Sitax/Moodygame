@@ -3,6 +3,7 @@ import type { DB } from "../db.ts";
 import { clock } from "../day.ts";
 import { GameError, player } from "../game.ts";
 import { relationship, remember } from "../npcs.ts";
+import { asPlayer, pid } from "../player/current.ts";
 import { waresOf } from "../trade.ts";
 import { gameMinute } from "./deeds.ts";
 import { family, resident, town, TOWN_EMPLOYER_IDS } from "./store.ts";
@@ -47,9 +48,15 @@ interface TreatState {
   fact: string | null;
   told: boolean;
   inside?: string | null;
+  /** M8c: the player who stands the drink (none: the host). */
+  player?: number;
   [k: string]: unknown;
 }
 const st = (r: Routine) => r.state as TreatState;
+/** M8c: whose treat it is. */
+const host = (s: TreatState) => s.player ?? 1;
+/** The treats the player who asks is standing (M8c). */
+const mine = (db: DB) => activeRoutines(db, "treat").filter(({ r }) => host(st(r)) === pid());
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z\s']/g, " ").replace(/\s+/g, " ").trim();
 
@@ -73,7 +80,8 @@ export function pickTavern(db: DB, words: string, near: { x: number; z: number }
   return all.filter((t) => keeperAtWork(db, t.place)).sort((a, b) => Math.hypot(a.x - near.x, a.z - near.z) - Math.hypot(b.x - near.x, b.z - near.z))[0] ?? null;
 }
 
-const treatedKey = (db: DB, npc: string) => `treat:${clock(db).day}:${npc}`;
+// (M8c: one drink a day from each player: a guest's under his own key)
+const treatedKey = (db: DB, npc: string) => (pid() === 1 ? `treat:${clock(db).day}:${npc}` : `treat:${clock(db).day}:${pid()}:${npc}`);
 
 // ------------------------------------------------------------------ the engine's yes or no
 
@@ -98,7 +106,7 @@ export function judgeTreat(db: DB, r: Resident, words: string, at: { jef: { x: n
   if (trust < 0) return no("Drink with you? I'd sooner not.");
   if (trust < 1 && r.stats.warmth < 6 && r.stats.gossip < 7) return no("I don't know you well enough to drink with you.");
   if (getState<boolean>(db, treatedKey(db, r.id), false)) return no("You stood me one already today. Another time.");
-  if (activeRoutines(db, "treat").length) return no("You've company for the tavern already.");
+  if (mine(db).length) return no("You've company for the tavern already.");
   if (actionOf(db, r.id)) return no("I've my hands full already. Ask me when I'm done.");
   const tv = pickTavern(db, words, at.jef ?? at.mine);
   if (!tv) return no("There's nowhere open at this hour.");
@@ -113,7 +121,7 @@ export function proposeTreat(db: DB, r: Resident, p: ActionProposal, words: stri
   const v = judgeTreat(db, r, `${words} ${p.target}`, at);
   if (!v.ok) return { ok: false, reason: "treat", line: v.line, patch: { trust_delta: 0 } };
   const tv = v.tavern;
-  const state: TreatState = { place: tv.place, label: tv.label, rounds: 0, tipsy: 0, fact: null, told: false };
+  const state: TreatState = { place: tv.place, label: tv.label, rounds: 0, tipsy: 0, fact: null, told: false, player: pid() };
   const row = startRoutine(db, {
     npc: r.id,
     purpose: "treat",
@@ -151,7 +159,7 @@ export function jefEnters(db: DB, place: string): Array<{ id: string; name: stri
   const out: Array<{ id: string; name: string }> = [];
   const door = taverns(db).find((t) => t.place === place);
   if (!door) return out;
-  for (const { row, r } of activeRoutines(db, "treat")) {
+  for (const { row, r } of mine(db)) {
     if (r.steps[r.i]?.kind !== "follow") continue;
     const at = posOf(db, row.npc_id);
     if (!at || Math.hypot(at.x - door.x, at.z - door.z) > TREAT_DOOR_M) continue;
@@ -173,7 +181,7 @@ export function jefEnters(db: DB, place: string): Array<{ id: string; name: stri
 /** Jef left the tavern: the treat is over; they go back to their day. */
 export function jefLeaves(db: DB): number {
   let n = 0;
-  for (const { row, r } of activeRoutines(db, "treat")) {
+  for (const { row, r } of mine(db)) {
     if (r.steps[r.i]?.kind === "wait") {
       reportStep(db, row.id, r.i, true, "Jef left");
       n++;
@@ -212,7 +220,7 @@ export function standRound(db: DB, place: string, kind: string): RoundResult {
 
 function standRoundNow(db: DB, place: string, kind: string): RoundResult {
   if (kind !== "beer" && kind !== "jenever") throw new GameError("a round is beer or jenever", 400);
-  const g = activeRoutines(db, "treat").find(({ r }) => st(r).inside === place);
+  const g = mine(db).find(({ r }) => st(r).inside === place);
   if (!g) throw new GameError("you have nobody here to stand a drink", 409);
   const keeper = keeperOf(db, place);
   if (!keeper || !keeperAtWork(db, place)) throw new GameError(`${tavernLabel(db, place)} is shut`, 409);
@@ -290,16 +298,16 @@ export function secretOf(db: DB, r: Resident): string | null {
   return f ? f.text : null;
 }
 
-/** The treat now running with this person, and its state. */
+/** The treat the player who asks is standing this person now, and its state (M8c: another player's is none of his). */
 export function treatOf(db: DB, npc: string): { id: number; state: TreatState; step: string } | null {
   const g = routineFor(db, npc, "treat");
-  return g ? { id: g.row.id, state: st(g.r), step: g.r.steps[g.r.i]?.kind ?? "done" } : null;
+  return g && host(st(g.r)) === pid() ? { id: g.row.id, state: st(g.r), step: g.r.steps[g.r.i]?.kind ?? "done" } : null;
 }
 
 /** The fact was told (by the model's words or the engine's): it is not told twice. */
 export function markTold(db: DB, npc: string): void {
   const g = routineFor(db, npc, "treat");
-  if (!g || !st(g.r).fact || st(g.r).told) return;
+  if (!g || host(st(g.r)) !== pid() || !st(g.r).fact || st(g.r).told) return;
   st(g.r).told = true;
   saveRoutine(db, g.row.id, g.r);
 }
@@ -349,7 +357,8 @@ function ended(db: DB, row: { npc_id: string }, r: Routine, status: "done" | "fa
 
 let installed = false;
 export function installTreat(): void {
-  stepHooks.ended.treat = (db, row, r, status) => ended(db, row, r, status);
+  // (M8c: the end is about the player who stood the drink)
+  stepHooks.ended.treat = (db, row, r, status) => asPlayer(host(st(r)), () => ended(db, row, r, status));
   stepHooks.after.treat = (db, row, _r, res) => {
     // lost on the way (the client's follow), or the tavern shut before they got in: over
     if (!res.ok && (res.kind === "follow" || res.kind === "enter" || res.kind === "sit")) {

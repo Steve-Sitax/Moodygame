@@ -5,6 +5,8 @@ import { remember } from "../npcs.ts";
 import { plainEnglish } from "../text.ts";
 import { newsRow, visitOf, visitTopics } from "../director/families.ts";
 import { player } from "../game.ts";
+import { pid } from "../player/current.ts";
+import { readText } from "../player/names.ts";
 import { rememberStatement, policeState } from "./police.ts";
 import { STORY_RULES, StorySchema, judgeStory, statementWords, storyByWords, storyNote, supportedClaims, type Evidence, type StoryRating } from "./story.ts";
 import { resident } from "./store.ts";
@@ -46,7 +48,8 @@ export async function complaintStory(db: DB, r: Resident, text: string, meeting:
   if (!well || !denied) return null;
   const n = data.news ? newsRow(db, data.news) : null;
   const teller = n ? resident(db, n.teller) : undefined;
-  const complaint = n ? n.gist : "Jef made trouble on the agent's beat";
+  // (M8c: kept words, read for the player who asks)
+  const complaint = n ? readText(db, n.gist) : "Jef made trouble on the agent's beat";
   const before = policeState(db).said ?? [];
 
   let rating: StoryRating | null = null;
@@ -74,7 +77,7 @@ Rate his story and write your lines (let off: you let it go with a word; warning
   const read = rating ?? storyByWords(text);
   // the complaint is first-hand: the teller saw it; a denial is a lie the log shows
   const ev: Evidence[] = [{ seen: true, owner_saw: true, on_him: false, returned: false, district: "", talk_only: false, bought_there: false, thing: "words" }];
-  const food = (db.prepare("SELECT food FROM player WHERE id = 1").get() as { food: number }).food;
+  const food = (db.prepare("SELECT food FROM player WHERE id = ?").get(pid()) as { food: number }).food;
   const j = judgeStory(read, ev, { food, money_c: player(db).money_c }, before, [], 0, false);
   const letOff = j.trueStory;
   const claims = [...new Set(read.claims.filter((c) => c !== "none"))];

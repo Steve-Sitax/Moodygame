@@ -74,6 +74,14 @@ const ASHORE_HINT = "Day work is given out at the Hessenatie's board on the Rijn
 
 type Stage = "waiting" | "moored" | "hauling" | "leaving" | "gone";
 
+/**
+ * M8d: whether this player comes in by the ferry (the server's word, asked once at the start): a guest's first
+ * time in the game and a new man do. Played together, the guest is not put beside the host while it is so
+ * (net/mp/together.ts). Resolves false when the server never answers.
+ */
+let askedDone: (onFerry: boolean) => void = () => {};
+export const ferryAsked: Promise<boolean> = new Promise((ok) => (askedDone = ok));
+
 interface Passenger {
   kind: HumanKind;
   human: Human | null;
@@ -188,6 +196,10 @@ class TriGrid {
 export class FerryArrival {
   private stage: Stage = "gone";
   private set: ModelSet | null = null;
+  /** M8d: his man is made in the character sheet before the ferry comes in (a guest's first time, a new man). */
+  private creator = false;
+  private creatorOpen = false;
+  private creatorShown = false;
   private outer: THREE.Object3D | null = null;
   private inner: THREE.Object3D | null = null;
   /** Seconds the opening has run with the game in hand (not behind the menu). */
@@ -251,9 +263,11 @@ export class FerryArrival {
         const f = this.d.fetch ?? fetch;
         const r = await f("/api/arrival", { signal: AbortSignal.timeout(15000) });
         if (r.ok) {
-          const v = (await r.json()) as { stage?: string };
+          const v = (await r.json()) as { stage?: string; creator?: boolean };
+          askedDone(v.stage === "ferry");
           if (v.stage !== "ferry") return;
           this.stage = "waiting";
+          this.creator = v.creator === true;
           // keep him still where he is until the ferry is in the water
           this.d.player.frozen = true;
           return;
@@ -264,6 +278,33 @@ export class FerryArrival {
       await new Promise((r) => setTimeout(r, 2000));
     }
     // no answer: the game starts as before
+    askedDone(false);
+  }
+
+  /**
+   * M8d: "Your character" before the ferry comes in (a guest's first time, a new man after his end): the sheet
+   * saves his look and name on the server; done or put away, the server hears he is made and the deck is set.
+   */
+  private openCreator(): void {
+    this.creatorOpen = true;
+    this.creatorShown = false;
+    document.exitPointerLock?.();
+    const done = () => this.creatorDone();
+    void import("../menu/character")
+      .then((m) => {
+        m.openCharacterCreator(() => done(), { onCancel: done, kicker: "Off the ferry to Antwerp" }); // (M8d: no new week for him)
+        this.creatorShown = true;
+      })
+      .catch(done);
+  }
+
+  /** The sheet is done with (Start, Back, or Esc put it away): the server hears it, the ferry comes in. */
+  private creatorDone(): void {
+    if (!this.creatorOpen) return;
+    this.creator = false;
+    this.creatorOpen = false;
+    const f = this.d.fetch ?? fetch;
+    void f("/api/arrival/made", { method: "POST", signal: AbortSignal.timeout(8000) }).catch(() => {});
   }
 
   // ------------------------------------------------------------------ setting the scene
@@ -1031,6 +1072,15 @@ export class FerryArrival {
       return;
     }
     if (this.stage === "waiting") {
+      // (M8d: the character sheet first, when the server asks for it)
+      if (this.set && this.creator) {
+        // (opened once the game is in his hand: behind the title menu no click reaches it)
+        const p = this.d.player;
+        if (!this.creatorOpen && (p.locked || p.freeInput || p.testInput)) this.openCreator();
+        // (Esc hides the sheet without a word: gone is done)
+        else if (this.creatorShown && !document.querySelector(".char-sheet")) this.creatorDone();
+        return;
+      }
       if (this.set) this.setup(this.set);
       return;
     }

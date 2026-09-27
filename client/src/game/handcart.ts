@@ -117,6 +117,11 @@ export class Handcarts {
   private first = true;
   /** The cart in Jef's hands, and the way it points. */
   private held: string | null = null;
+  /** M8b multiplayer: the way the cart Jef pushes points (the others draw one before him), or null. */
+  heldYaw(): number | null {
+    const d = this.held ? this.drawn.get(this.held) : null;
+    return d?.cart ? d.cart.axle.yaw : null;
+  }
   private dir = 0;
   private lastSent = { x: 0, z: 0 };
   private moving = 0;

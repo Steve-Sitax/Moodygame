@@ -13,10 +13,22 @@
 
 import * as THREE from "three";
 import { identity, TOKEN_HEADER, tokenKey } from "../net/mp/identity";
+import { secureOffer, type HouseInfo } from "../net/mp/househelp";
+import { retryAfterMs } from "../net/mp/link";
+import { plan, planProgress, planWords, readAll, RETRY_WAITS_MS, STALL_MS, TRIES, WHOLE_KEY } from "./files";
 
 const params = new URLSearchParams(location.search);
 identity.seat = Math.max(1, Math.min(8, Math.floor(Number(params.get("seat") ?? 1)) || 1));
 identity.local = ["127.0.0.1", "localhost", "[::1]"].includes(location.hostname);
+
+// M8e review 4: a guest moved here from another address of the host (the http page's secure link): #move=<code>.
+// Out of the address bar and the history at once (a code works once, but it is nobody's business); redeemed below.
+let moveCode: string | null = null;
+if (location.hash.startsWith("#move=")) {
+  const m = /^#move=([0-9a-f]{32})$/.exec(location.hash);
+  moveCode = m ? m[1] : "";
+  history.replaceState(history.state, "", location.pathname + location.search);
+}
 
 // ------------------------------------------------------------------ the boot card
 
@@ -65,6 +77,22 @@ const isApi = (url: string) => {
 
 {
   const orig = window.fetch.bind(window);
+  const wait = window.setTimeout.bind(window); // (the untouched timer: game/pause.ts patches the global one later)
+  /**
+   * M8e review 4: a call the host answered 429 (too many from this PC at once) is tried again after its
+   * Retry-After (at most RETRY_429 times, waits up to 5 s: net/mp/link.ts retryAfterMs); then the answer, with the
+   * host's plain English error, goes to the caller. Only a call whose body can be sent again.
+   */
+  const with429 = async (send: () => Promise<Response>, again: boolean): Promise<Response> => {
+    let r = await send();
+    for (let tries = 0; again && r.status === 429; tries++) {
+      const ms = retryAfterMs(r.headers.get("retry-after"), tries);
+      if (ms === null) break;
+      await new Promise((ok) => wait(ok, ms));
+      r = await send();
+    }
+    return r;
+  };
   window.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
@@ -72,12 +100,14 @@ const isApi = (url: string) => {
       const m = mapped(url);
       if (m !== url) return orig(m, init);
     }
-    if (identity.token && isApi(url)) {
+    if (!isApi(url)) return orig(input, init);
+    const again = !(input instanceof Request) && !(init?.body instanceof ReadableStream);
+    if (identity.token) {
       const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
       headers.set(TOKEN_HEADER, identity.token);
-      return orig(input, { ...init, headers });
+      return with429(() => orig(input, { ...init, headers }), again);
     }
-    return orig(input, init);
+    return with429(() => orig(input, init), again);
   };
   // a guest saves nothing of the host's: the autosave's beacon on leaving the tab is not sent
   const beacon = navigator.sendBeacon?.bind(navigator);
@@ -95,6 +125,8 @@ interface Info {
   protocol: number;
   version: string;
   you: { id: number; host: boolean; guest: boolean; name: string } | null;
+  /** M8e: the house's secure address and certificate (null: no https). */
+  house?: HouseInfo | null;
 }
 
 async function info(token: string | null): Promise<{ status: number; body: Info | null }> {
@@ -116,8 +148,19 @@ async function join(code: string, name: string): Promise<{ token?: string; error
   }
 }
 
+/** M8e review 4: a move code for a token of the same player (his old token ends: server mp/index.ts /api/mp/move). */
+async function move(code: string): Promise<{ token?: string; error?: string }> {
+  try {
+    const r = await fetch("/api/mp/move", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }), signal: AbortSignal.timeout(8000) });
+    const d = (await r.json().catch(() => ({}))) as { token?: string; error?: string };
+    return r.ok && d.token ? { token: d.token } : { error: d.error ?? `The host did not answer (${r.status}).` };
+  } catch {
+    return { error: "The host's PC does not answer. Is the game running there?" };
+  }
+}
+
 /** The join card over the loading screen: the code, a first name. Resolves with the token. */
-function joinCard(why: string): Promise<string> {
+function joinCard(why: string, house?: HouseInfo | null): Promise<string> {
   return new Promise((resolve) => {
     hold(false); // the boot screen holds keys and clicks; the card needs them
     const card = document.createElement("form");
@@ -130,7 +173,7 @@ function joinCard(why: string): Promise<string> {
         <label style="flex:1">Code <input name="code" autocomplete="off" spellcheck="false" maxlength="9" placeholder="KADE-47" style="width:7.5em;font:inherit;text-transform:uppercase;letter-spacing:0.08em"></label>
         <label style="flex:1">Your first name <input name="name" autocomplete="given-name" maxlength="20" placeholder="Anna" style="width:8em;font:inherit"></label>
       </p>
-      <p class="save" style="margin-top:10px"><button type="submit" style="font:inherit;padding:2px 14px">Join</button> <span class="mp-join-out" style="font-style:italic"></span></p>`;
+      <p class="save" style="margin-top:10px"><button type="submit" style="font:inherit;padding:2px 14px">Join</button> <span class="mp-join-out" style="font-style:italic"></span></p>${secureOffer(house)}`;
     document.getElementById("boot")?.appendChild(card);
     const code = card.querySelector<HTMLInputElement>("input[name=code]")!;
     const name = card.querySelector<HTMLInputElement>("input[name=name]")!;
@@ -169,11 +212,20 @@ async function whoAmI(): Promise<void> {
     return;
   }
   let token: string | null = null;
-  try {
-    token = localStorage.getItem(tokenKey(identity.seat));
-  } catch {
-    /* no storage: a new join every time */
+  // M8e review 4: moved here with his man (#move=): the code's token wins over one kept for this address
+  let moveNote = "";
+  if (moveCode !== null) {
+    const r = moveCode ? await move(moveCode) : { error: "That link to the secure address is not whole." };
+    moveCode = null;
+    if (r.token) token = r.token;
+    else moveNote = `${(r.error ?? "The move did not work.").replace(/[&<>"']/g, " ")} `; // (the card's words are HTML)
   }
+  if (!token)
+    try {
+      token = localStorage.getItem(tokenKey(identity.seat));
+    } catch {
+      /* no storage: a new join every time */
+    }
   if (token) {
     const r = await info(token);
     if (r.status === 401 || (r.body && !r.body.you)) token = null; // the host removed him, or a new save: join again
@@ -196,7 +248,7 @@ async function whoAmI(): Promise<void> {
       await new Promise((ok) => setTimeout(ok, 4000));
       continue;
     }
-    token = await joinCard(r.status === 0 ? "The host's PC does not answer yet. Type the code when it does." : "Type the code on the host's screen, and your first name.");
+    token = await joinCard(moveNote + (r.status === 0 ? "The host's PC does not answer yet. Type the code when it does." : "Type the code on the host's screen, and your first name."), r.body?.house);
   }
   try {
     localStorage.setItem(tokenKey(identity.seat), token);
@@ -224,11 +276,14 @@ interface Manifest {
 }
 
 /** What the store did at this start (the kit and the tests read it: __scheldemistCache). */
-export const cacheReport = { manifest: false, files: 0, stored: 0, downloaded: 0, bytes: 0, bad: 0, removed: 0, ms: 0, firstVisit: false, version: "" };
+export const cacheReport = { manifest: false, files: 0, stored: 0, downloaded: 0, bytes: 0, bad: 0, removed: 0, ms: 0, firstVisit: false, version: "", resumed: false, retries: 0 };
 (window as unknown as { __scheldemistCache: typeof cacheReport }).__scheldemistCache = cacheReport;
 
-/** The page and the code bundle stay in the browser's normal cache (their names carry Vite's hash). */
-const cacheable = (p: string) => !(p === "index.html" || p === "manifest.json" || p.startsWith("assets/") || p.startsWith("boot/"));
+/**
+ * The page and the code bundle stay in the browser's normal cache (their names carry Vite's hash), and on https
+ * in the Service Worker's (M8e, public/sw.js); so does the Service Worker itself.
+ */
+const cacheable = (p: string) => !(p === "index.html" || p === "manifest.json" || p === "sw.js" || p.startsWith("assets/") || p.startsWith("boot/"));
 
 function idb(): Promise<IDBDatabase | null> {
   return new Promise((resolve) => {
@@ -286,38 +341,50 @@ async function assetStore(): Promise<void> {
   const db = await idb();
   if (!db) return; // no store (a private window): the files come over the network as usual
   const have = new Set((await req(db.transaction("files").objectStore("files").getAllKeys())) as string[]);
-  const missing = files.filter((f) => !have.has(f.sha256));
-  const firstVisit = ![...have].length;
+  // M8e (boot/files.ts): every file is stored as soon as it is whole and checked, so a reload (or a line that
+  // dropped) goes on with the rest; the screen shows the bytes, and a file is given up only when it stalls
+  let whole: string | null = null;
+  try {
+    whole = localStorage.getItem(WHOLE_KEY);
+  } catch {
+    /* no storage */
+  }
+  const pl = plan(files, have, man.version, whole);
+  const { missing } = pl;
+  const firstVisit = pl.kind === "first";
   cacheReport.firstVisit = firstVisit;
-  const total = missing.reduce((n, f) => n + f.size, 0);
+  cacheReport.resumed = pl.kind === "resume";
   const mb = (n: number) => (n / 1048576).toFixed(n < 10 * 1048576 ? 1 : 0);
   let done = 0;
-  const label = () => (firstVisit ? `Downloading ${mb(done)} of ${mb(total)} MB` : `New version: downloading ${mb(total)} MB`);
+  let filesDone = 0;
+  const say = (now?: boolean) => {
+    const w = planWords(pl, done, man.version);
+    show(w.step, `${filesDone} of ${missing.length} files`, planProgress(pl, done), now ? w.now : undefined);
+  };
   if (missing.length) {
-    console.info(`[files] ${label()} (${missing.length} files)`);
-    show(label(), `${missing.length} files`, 0, firstVisit ? "The first visit copies the game from the host's PC. Later visits start at once." : `A new version (${man.version}): only the files that changed.`);
+    console.info(`[files] ${planWords(pl, 0, man.version).step} (${missing.length} files, ${pl.kind})`);
+    say(true);
     let next = 0;
     const one = async (f: ManFile) => {
-      for (let attempt = 0; attempt < 2; attempt++) {
+      for (let attempt = 0; attempt < TRIES; attempt++) {
+        if (attempt) await new Promise((ok) => setTimeout(ok, RETRY_WAITS_MS[attempt - 1] ?? 4000));
+        let got = 0;
         try {
-          const r = await fetch(`/a/${f.sha256}`, { signal: AbortSignal.timeout(120_000) });
+          const ctl = new AbortController();
+          const r = await fetch(`/a/${f.sha256}`, { signal: ctl.signal });
           if (!r.ok || !r.body) throw new Error(String(r.status));
-          const reader = r.body.getReader();
-          const parts: Uint8Array[] = [];
-          let got = 0;
-          for (;;) {
-            const { done: end, value } = await reader.read();
-            if (end) break;
-            parts.push(value);
-            got += value.length;
-            done += value.length;
-            show(label(), `${missing.length} files`, total ? done / total : 1);
-          }
-          const buf = new Uint8Array(got);
-          let o = 0;
-          for (const p of parts) (buf.set(p, o), (o += p.length));
-          const blob = new Blob([buf], { type: typeOf(f.path) });
-          const sha = got === f.size ? await hashOf(buf.buffer) : "size";
+          const buf = await readAll(
+            r.body,
+            (n) => {
+              got += n;
+              done += n;
+              say();
+            },
+            STALL_MS,
+            () => ctl.abort(),
+          );
+          const blob = new Blob([buf as BlobPart], { type: typeOf(f.path) });
+          const sha = buf.length === f.size ? await hashOf(buf.buffer as ArrayBuffer) : "size";
           if (sha !== f.sha256) {
             cacheReport.bad++;
             done -= got;
@@ -326,9 +393,13 @@ async function assetStore(): Promise<void> {
           await req(db.transaction("files", "readwrite").objectStore("files").put({ sha: f.sha256, path: f.path, size: f.size, blob }));
           cacheReport.downloaded++;
           cacheReport.bytes += got;
+          filesDone++;
+          say();
           return;
         } catch {
-          /* once more, then the network at play time */
+          // (a stall or a dropped line: what came of this file does not count; tried again, then the network at play time)
+          done -= got;
+          cacheReport.retries++;
         }
       }
     };
@@ -339,11 +410,16 @@ async function assetStore(): Promise<void> {
     );
     // a whole, checked download: what no manifest names any more goes
     if (cacheReport.downloaded === missing.length) {
-      const keep = new Set(man.files.map((f) => f.sha256));
       const store = db.transaction("files", "readwrite").objectStore("files");
-      for (const k of have) if (!keep.has(k)) (store.delete(k), cacheReport.removed++);
+      for (const k of pl.stale) (store.delete(k), cacheReport.removed++);
     }
   }
+  if (cacheReport.downloaded === missing.length)
+    try {
+      localStorage.setItem(WHOLE_KEY, man.version);
+    } catch {
+      /* no storage */
+    }
   // every stored file as a blob: URL, by its path
   const rows = (await req(db.transaction("files").objectStore("files").getAll())) as Array<{ sha: string; path: string; blob: Blob }>;
   const bySha = new Map(rows.map((r) => [r.sha, r.blob]));
@@ -389,5 +465,6 @@ void (async () => {
   } catch (e) {
     console.warn("[files] the store failed; the files come over the network", e);
   }
+  void import("./sw").then((m) => m.registerSw(identity.version)); // M8e: the page and the code kept on https (boot/sw.ts)
   await import("../main");
 })();

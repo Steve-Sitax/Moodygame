@@ -6,6 +6,9 @@ import { clock, DAY_NAMES, WEATHER_TEXT } from "../day.ts";
 import { log, player } from "../game.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
 import { applyTrust, remember } from "../npcs.ts";
+import { asPlayer, onlineIds, pid } from "../player/current.ts";
+import { pstate, setPstate } from "../player/multi.ts";
+import { nameOf } from "../player/names.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
 import { gameMinute } from "../town/deeds.ts";
 import { shownTrade, TRADES } from "../town/places.ts";
@@ -15,7 +18,7 @@ import type { Seg } from "../town/schedule.ts";
 import { resident, town } from "../town/store.ts";
 import { nowOf, talkExtras, type ExtraTopic } from "../town/talk.ts";
 import { AWAY, FORTUNE_ID, isAwayVisitor, saveVisitor, STRANGER_KINDS, strangerId, visitorOf, type StrangerKind, type VisitorResident } from "../town/visitors.ts";
-import { actionHooks, actionOf, activeActions, isReserved, jefAt, posOf, reserveSnap, startAction, type ActionRow, type ReserveSnap } from "./actions.ts";
+import { actionHooks, actionOf, activeActions, isReserved, jefAt, playersAt, posOf, reserveSnap, startAction, type ActionRow, type ReserveSnap } from "./actions.ts";
 import { bus } from "./bus.ts";
 import { publishConvo, type ConvoLine } from "./convo.ts";
 import { eventSlice, writeEvent } from "./eventlog.ts";
@@ -67,6 +70,12 @@ function st<T>(db: DB, key: string, fallback: T): T {
 function setSt(db: DB, key: string, v: unknown): void {
   db.prepare("INSERT INTO world_state (key, value_json) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(key, JSON.stringify(v));
 }
+/** M8c: the player's own keys (the cards' promise, the last dream): player_state, the host's older world_state key until written. */
+function pst<T>(db: DB, key: string, fallback: T): T {
+  const v = pstate<T>(db, key);
+  if (v === null || typeof v !== "object") return fallback;
+  return fallback && typeof fallback === "object" ? ({ ...fallback, ...v } as T) : v;
+}
 
 /** Model words that must not stand: a weapon, a killing, a sum of money. */
 function clean(t: string, max = 300): string | null {
@@ -78,8 +87,10 @@ function clean(t: string, max = 300): string | null {
 
 /** What Jef lived through lately, engine words (for the cards and the dream). */
 function jefsDays(db: DB, limit = 12): string[] {
+  // (M8c: a guest's own lines are kept with his name; for him the host's "Jef" reads as the host)
+  const me = pid() === 1 ? null : nameOf(db);
   return eventSlice(db, { limit: 40, maxChars: 4000 })
-    .filter((l) => /\bJef\b/.test(l) && !/\[director\]/.test(l))
+    .filter((l) => (me ? l.includes(me) : /\bJef\b/.test(l)) && !/\[director\]/.test(l))
     .slice(-limit);
 }
 
@@ -102,7 +113,7 @@ export interface Promise_ {
   how?: string;
 }
 export function promiseOf(db: DB): Promise_ | null {
-  const p = st<Promise_ | null>(db, "fortune_promise", null);
+  const p = pst<Promise_ | null>(db, "fortune_promise", null);
   return p && p.kind ? p : null;
 }
 
@@ -146,9 +157,9 @@ export async function tellFortune(db: DB, runner?: Runner, rng: () => number = M
     const had = promiseOf(db);
     if (had && had.day === today) return "done";
     if (player(db).money_c < FORTUNE_C) return "poor";
-    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(FORTUNE_C);
+    db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(FORTUNE_C, pid());
     log(db, "fortune", FORTUNE_ID, `Jef paid Madame Zelie ${FORTUNE_C} centimes to read his fortune.`);
-    setSt(db, "fortune_promise", { day: today, kind, text, due: today + 2, status: "pending" } satisfies Promise_);
+    setPstate(db, "fortune_promise", { day: today, kind, text, due: today + 2, status: "pending" } satisfies Promise_);
     return "ok";
   })();
   if (paid === "poor") return { text: "No coin, no cards, my dear. The cards are hungry too." };
@@ -173,7 +184,7 @@ ${p.money_c < 20 ? "thin purse" : "a few coins"}, ${p.health <= 4 ? "pale and wo
     }
   }
   const day = promiseOf(db)?.day ?? clock(db).day;
-  setSt(db, "fortune_promise", { day, kind, text, due: day + 2, status: "open" } satisfies Promise_);
+  setPstate(db, "fortune_promise", { day, kind, text, due: day + 2, status: "open" } satisfies Promise_);
   writeEvent(db, { kind: "talk", verb: "fortune", actor: FORTUNE_ID, target: "player", text: `Madame Zelie read Jef's cards (${source}); she foretold ${kind === "meeting" ? "a meeting" : kind === "loss" ? "a small loss" : kind === "gift" ? "a gift" : "a stranger"}.`, weight: 4, data: { promise: kind, text }, who: [FORTUNE_ID] });
   remember(db, FORTUNE_ID, "I read the cards for Jef, the new man. They had something to say.", 4, "seen", null, { gist: "Jef had his fortune told by Madame Zelie", tone: 0 });
   return { text: `She lays out the cards, one by one. ${text}` };
@@ -196,7 +207,7 @@ export async function keepPromise(db: DB, opts: { rng?: () => number; runner?: R
   if (!p || p.status !== "open") return null;
   const c = clock(db);
   if (c.day > p.due) {
-    setSt(db, "fortune_promise", { ...p, status: "lapsed" });
+    setPstate(db, "fortune_promise", { ...p, status: "lapsed" });
     return null;
   }
   if (c.hour < 8 || c.hour >= 20) return null;
@@ -205,17 +216,17 @@ export async function keepPromise(db: DB, opts: { rng?: () => number; runner?: R
   const last = c.day === p.due && c.hour >= 14;
   if (!opts.force && !last && !(soon && rng() < 0.3)) return null;
   // marked before any await: a second tick meanwhile finds it not open and leaves it be
-  setSt(db, "fortune_promise", { ...p, status: "keeping" } satisfies Promise_);
+  setPstate(db, "fortune_promise", { ...p, status: "keeping" } satisfies Promise_);
   let how: string | null = null;
   try {
     how = await bringAbout(db, p, rng, opts.runner);
   } finally {
     const now = promiseOf(db);
-    if (!how && now?.status === "keeping" && now.day === p.day) setSt(db, "fortune_promise", p);
+    if (!how && now?.status === "keeping" && now.day === p.day) setPstate(db, "fortune_promise", p);
   }
   const cur = promiseOf(db);
   if (!how || cur?.status !== "keeping" || cur.day !== p.day) return null;
-  setSt(db, "fortune_promise", { ...p, status: "kept", how });
+  setPstate(db, "fortune_promise", { ...p, status: "kept", how });
   writeEvent(db, { kind: "director", verb: "promise_kept", text: `The cards' promise came true: ${how}.`, weight: 3 });
   return how;
 }
@@ -244,7 +255,7 @@ async function bringAbout(db: DB, p: Promise_, rng: () => number, runner?: Runne
       const money = player(db).money_c;
       const lost = Math.min(PROMISE_LOSS_C, money);
       if (lost > 0) {
-        db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(lost);
+        db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(lost, pid());
         log(db, "lost", null, `A coin slipped through a hole in Jef's coat pocket: ${lost} centimes.`);
         bus.broadcast({ type: "families", say: `Your pocket feels lighter. A coin has slipped through a hole in the lining: ${lost} centimes gone.`, jobs: true });
         how = `lost ${lost} centimes`;
@@ -411,11 +422,11 @@ async function arriveNow(db: DB, opts: { kind?: StrangerKind; runner?: Runner; r
   };
   // a new face: nobody in town knows this one (the place's old memories and trust go)
   db.prepare("DELETE FROM npc_memory WHERE npc_id = ?").run(r.id);
-  db.prepare("UPDATE npc_relationship SET trust = 0, affection = 0, respect = 0, fear = 0, times_met = 0, view_of_player = '' WHERE npc_id = ?").run(r.id);
+  db.prepare("UPDATE npc_relationship SET trust = 0, affection = 0, respect = 0, fear = 0, times_met = 0, view_of_player = '' WHERE npc_id = ?").run(r.id); // (every player's: a new face to all)
   db.prepare("UPDATE resident SET persona = '' WHERE id = ?").run(r.id);
   saveVisitor(db, upd);
   setSt(db, "strangers", { last: kind, next: day + stay + 1 } satisfies StrangerState);
-  setSt(db, `errand:${r.id}`, null);
+  dropErrands(db, r.id);
   writeEvent(db, { kind: "event", verb: "stranger_arrived", actor: r.id, text: `A stranger came to town: ${upd.name} from ${words.origin}, ${upd.visitor!.label.replace(/^a stranger( off the ships)?,? ?/, "")}. ${words.story}`, weight: 4, data: { kind, source, stay }, who: [r.id] });
   bus.broadcast({ type: "families", visitor: publicVisitor(upd) });
   return resident(db, r.id) as VisitorResident;
@@ -460,13 +471,25 @@ interface Errand {
   yes?: boolean;
   pay: number;
 }
+// (M8d: each player his own errand for a stranger: player_state 'errand:<id>', the host's older world_state key
+// until written; two players may each run one for the same stranger)
 function errandOf(db: DB, strangerId_: string): Errand | null {
-  return st<Errand | null>(db, `errand:${strangerId_}`, null);
+  return pst<Errand | null>(db, `errand:${strangerId_}`, null);
 }
+function setErrand(db: DB, strangerId_: string, e: Errand): void {
+  setPstate(db, `errand:${strangerId_}`, e);
+}
+/** A stranger's errand is gone for every player (he came anew). */
+function dropErrands(db: DB, strangerId_: string): void {
+  db.prepare("DELETE FROM world_state WHERE key = ?").run(`errand:${strangerId_}`);
+  db.prepare("DELETE FROM player_state WHERE key = ?").run(`errand:${strangerId_}`);
+}
+/** Did any player bring him his answer? */
 function errandDone(db: DB, id: string): boolean {
-  return errandOf(db, id)?.stage === "done";
+  const rows = db.prepare("SELECT value_json FROM player_state WHERE key = ? UNION ALL SELECT value_json FROM world_state WHERE key = ?").all(`errand:${id}`, `errand:${id}`) as Array<{ value_json: string }>;
+  return rows.some((r) => (JSON.parse(r.value_json) as Errand | null)?.stage === "done");
 }
-/** An open errand whose target is this person. */
+/** An open errand (this player's) whose target is this person. */
 function errandFor(db: DB, target: string): Errand | null {
   for (const s of strangersHere(db)) {
     const e = errandOf(db, s.id);
@@ -504,7 +527,7 @@ function strangerTopics(db: DB, r: Resident): ExtraTopic[] {
         answer: (db2) => {
           const t = pickTarget(db2, kind, Math.random);
           if (!t) return { text: "Kind of you. But I'll manage on my own." };
-          setSt(db2, `errand:${r.id}`, { stranger: r.id, target: t.id, stage: "asked", pay: ERRAND_PAY_C } satisfies Errand);
+          setErrand(db2, r.id, { stranger: r.id, target: t.id, stage: "asked", pay: ERRAND_PAY_C } satisfies Errand);
           writeEvent(db2, { kind: "action", verb: "errand_given", actor: r.id, target: t.id, text: `${r.name} asked Jef to find ${t.name} and ask ${errandAsk(kind, r)}.`, weight: 3, who: [r.id, t.id] });
           return { text: `Would you? Find ${t.name}, the ${shownTrade(t)}, about ${placeOf(db2, t)}. Ask ${t.sex === "f" ? "her" : "him"} ${errandAsk(kind, r)}. Come back and tell me. ${ERRAND_PAY_C} centimes for your trouble.` };
         },
@@ -514,9 +537,9 @@ function strangerTopics(db: DB, r: Resident): ExtraTopic[] {
       out.push({
         choice: `${t?.first ?? "They"} says ${e.yes ? ERRAND[kind].yes : ERRAND[kind].no}.`,
         answer: (db2) => {
-          db2.prepare("UPDATE player SET money_c = money_c + ? WHERE id = 1").run(e.pay);
+          db2.prepare("UPDATE player SET money_c = money_c + ? WHERE id = ?").run(e.pay, pid());
           log(db2, "errand_paid", r.id, `${r.name} paid Jef ${e.pay} centimes for an errand.`, r.id);
-          setSt(db2, `errand:${r.id}`, { ...e, stage: "done" });
+          setErrand(db2, r.id, { ...e, stage: "done" });
           remember(db2, r.id, `Jef ran my errand in this strange town. An honest lad.`, 6, "seen", null, { gist: `Jef ran an errand for the stranger ${r.name}`, tone: 1 });
           writeEvent(db2, { kind: "job", verb: "errand_done", actor: r.id, text: `Jef brought ${r.name} the answer (${e.yes ? "yes" : "no"}) and was paid ${e.pay} centimes.`, weight: 4, who: [r.id] });
           bus.broadcast({ type: "families", jobs: true });
@@ -535,7 +558,7 @@ function strangerTopics(db: DB, r: Resident): ExtraTopic[] {
         choice: `A stranger, ${s.name}, sent me. ${cap(errandAsk(kind, s))}?`,
         answer: (db2) => {
           const yes = r.stats.warmth + (10 - r.stats.greed) / 2 + Math.random() * 6 >= 9;
-          setSt(db2, `errand:${s.id}`, { ...mine, stage: "answered", yes });
+          setErrand(db2, s.id, { ...mine, stage: "answered", yes });
           remember(db2, r.id, `Jef came asking on behalf of a stranger, ${s.name}.`, 3);
           return { text: yes ? `Tell ${s.first}: ${ERRAND[kind].yes.replace(/^they /, "I ").replace(/^he /, "I ")}.` : `Tell ${s.first}: no. ${ERRAND[kind].no.replace(/^they /, "We ").replace(/^he /, "I ")}.` };
         },
@@ -640,7 +663,8 @@ export function schemeTick(db: DB): number {
       db.prepare("UPDATE town_scheme SET tries = tries + 1 WHERE id = ?").run(s.id);
       continue;
     }
-    startAction(db, { npc_id: a.id, kind: "talk_to", target: b.id, target_x: pb.x, target_z: pb.z, source: "engine", minutes: 50, reason: s.kind.replace("_", " "), data: { purpose: "scheme", scheme: s.id } });
+    // (M8d: the town's own business: the player who offered to help, else nobody's, whoever's tick starts it)
+    startAction(db, { npc_id: a.id, kind: "talk_to", target: b.id, target_x: pb.x, target_z: pb.z, source: "engine", minutes: 50, reason: s.kind.replace("_", " "), data: { purpose: "scheme", scheme: s.id }, for_player: s.jef_helped || null });
     db.prepare("UPDATE town_scheme SET status = 'running' WHERE id = ?").run(s.id);
     started++;
   }
@@ -681,9 +705,9 @@ export async function runScheme(db: DB, id: number, runner?: Runner, rng: () => 
   const set = SCHEME_LINES[s.kind][ok ? "ok" : "no"];
   let lines: ConvoLine[] = set.map((t, i) => ({ who: i % 2 === 0 ? a.id : b.id, name: i % 2 === 0 ? a.first : b.first, text: t.replace("{B}", b.first).replace("{dog}", data.dog ?? "the dog") }));
   let source: "claude" | "engine" = "engine";
-  const jef = jefAt();
   const pa = posOf(db, a.id);
-  if (jef && pa && Math.hypot(pa.x - jef.x, pa.z - jef.z) < 45 && canCallConvo(db)) {
+  // (M8d: any player near hears it)
+  if (pa && playersAt().some((j) => Math.hypot(pa.x - j.x, pa.z - j.z) < 45) && canCallConvo(db)) {
     const res = await callClaude(
       db,
       {
@@ -705,8 +729,11 @@ export async function runScheme(db: DB, id: number, runner?: Runner, rng: () => 
   const eid = writeEvent(db, { kind: "talk", verb: "scheme_done", actor: a.id, target: b.id, text: `${s.text} It ${outcome}.`, outcome, weight: 3, data: { kind: s.kind, lines: lines.map((l) => `${l.name}: ${l.text}`), source, helped: !!s.jef_helped }, who: [a.id, b.id] });
   publishConvo({ id: eid, a: a.id, b: b.id, a_name: a.name, b_name: b.name, purpose: "scheme", lines, source, outcome, event_id: null });
   if (s.jef_helped && ok) {
-    applyTrust(db, a.id, 1, 0);
-    remember(db, a.id, `Jef helped me when I needed it. ${s.kind === "lost_dog" ? `${data.dog} is home.` : ""}`.trim(), 6, "seen", null, { gist: `Jef helped ${a.name} ${s.kind === "lost_dog" ? "find a lost dog" : s.kind === "court" ? "win a sweetheart" : s.kind === "grudge" ? "make peace with a neighbour" : "settle a debt"}`, tone: 1 });
+    // (M8d: jef_helped is the player who offered to help (1: the host, as in an older save): the thanks are his)
+    asPlayer(s.jef_helped, () => {
+      applyTrust(db, a.id, 1, 0);
+      remember(db, a.id, `Jef helped me when I needed it. ${s.kind === "lost_dog" ? `${data.dog} is home.` : ""}`.trim(), 6, "seen", null, { gist: `Jef helped ${a.name} ${s.kind === "lost_dog" ? "find a lost dog" : s.kind === "court" ? "win a sweetheart" : s.kind === "grudge" ? "make peace with a neighbour" : "settle a debt"}`, tone: 1 });
+    });
   }
   return outcome;
 }
@@ -726,7 +753,8 @@ function schemeTopics(db: DB, r: Resident): ExtraTopic[] {
     {
       choice: "You look troubled. Can I help?",
       answer: (db2) => {
-        db2.prepare("UPDATE town_scheme SET jef_helped = 1 WHERE id = ?").run(s.id);
+        // (M8d: who helped: this player's id; one helper a scheme)
+        db2.prepare("UPDATE town_scheme SET jef_helped = ? WHERE id = ? AND jef_helped = 0").run(pid(), s.id);
         writeEvent(db2, { kind: "action", verb: "scheme_helped", actor: r.id, text: `Jef offered to help ${r.name}: ${s.text}`, weight: 3, who: [r.id] });
         return { text: say[s.kind].replace(/\s+/g, " ").trim() };
       },
@@ -781,7 +809,8 @@ export const DreamSchema = z.object({ dream: z.string().min(20).max(420) });
 
 /** The engine's dream from the day's facts (the fallback). */
 export function engineDream(db: DB, day: number): string {
-  const rows = db.prepare("SELECT verb, text FROM log WHERE day = ? ORDER BY id").all(day) as Array<{ verb: string; text: string }>;
+  // (M8c: the player's own day)
+  const rows = db.prepare("SELECT verb, text FROM log WHERE day = ? AND player_id = ? ORDER BY id").all(day, pid()) as Array<{ verb: string; text: string }>;
   const has = (v: string) => rows.some((r) => r.verb === v);
   const bits: string[] = [];
   if (has("robbed") || has("assaulted")) bits.push("A hand reaches into your coat, and when you turn there is only fog, and the fog is laughing.");
@@ -798,12 +827,12 @@ export function engineDream(db: DB, day: number): string {
 export async function dreamOf(db: DB, runner?: Runner): Promise<{ text: string; source: "claude" | "engine" }> {
   const c = clock(db);
   const day = Math.max(1, c.hour <= 6 ? c.day - 1 : c.day);
-  const had = st<{ day: number; text: string; source: "claude" | "engine" } | null>(db, "dream", null);
+  const had = pst<{ day: number; text: string; source: "claude" | "engine" } | null>(db, "dream", null);
   if (had && had.day === day) return { text: had.text, source: had.source };
   let text = engineDream(db, day);
   let source: "claude" | "engine" = "engine";
   if (canCallSurprise(db)) {
-    const facts = (db.prepare("SELECT text FROM log WHERE day = ? ORDER BY id DESC LIMIT 12").all(day) as Array<{ text: string }>).map((r) => `- ${r.text}`).reverse();
+    const facts = (db.prepare("SELECT text FROM log WHERE day = ? AND player_id = ? ORDER BY id DESC LIMIT 12").all(day, pid()) as Array<{ text: string }>).map((r) => `- ${r.text}`).reverse();
     const res = await callClaude(
       db,
       {
@@ -820,7 +849,7 @@ export async function dreamOf(db: DB, runner?: Runner): Promise<{ text: string; 
       source = "claude";
     }
   }
-  setSt(db, "dream", { day, text, source });
+  setPstate(db, "dream", { day, text, source });
   writeEvent(db, { kind: "log", verb: "dream", text: `Jef dreamt (${source}): ${text.slice(0, 200)}`, weight: 1 });
   bus.broadcast({ type: "families", dream: text });
   return { text, source };
@@ -843,7 +872,8 @@ export async function surprisesTick(db: DB, opts: { runner?: Runner; rng?: () =>
   if (s.hour === c.hour && s.day === c.day) return;
   setSt(db, "surprises", { hour: c.hour, day: c.day });
   await strangerTick(db, opts);
-  await keepPromise(db, opts);
+  // (M8c: the fortune teller's promise to each player in the game)
+  for (const id of onlineIds()) await asPlayer(id, () => keepPromise(db, opts));
   await twistRumours(db, opts.runner);
 }
 
@@ -900,7 +930,9 @@ export function installSurprises(): void {
 /** A new game: nothing of this stays. */
 export function clearSurprises(db: DB): void {
   for (const k of ["fortune_promise", "strangers", "twist", "dream", "surprises"]) db.prepare("DELETE FROM world_state WHERE key = ?").run(k);
+  db.prepare("DELETE FROM player_state WHERE key IN ('fortune_promise', 'dream')").run();
   db.prepare("DELETE FROM world_state WHERE key LIKE 'errand:%'").run();
+  db.prepare("DELETE FROM player_state WHERE key LIKE 'errand:%'").run(); // (M8d: each player's own errands)
   db.prepare("DELETE FROM town_scheme").run();
 }
 
@@ -912,7 +944,7 @@ export function surprisesState(db: DB) {
     visitors: STRANGER_KINDS.map((k) => resident(db, strangerId(k)) as VisitorResident | undefined)
       .filter((r): r is VisitorResident => !!r)
       .map(publicVisitor),
-    dream: st<{ day: number; text: string } | null>(db, "dream", null),
+    dream: pst<{ day: number; text: string } | null>(db, "dream", null),
     schemes: schemesToday(db).map((s) => ({ id: s.id, kind: s.kind, a: s.a, b: s.b, hour: s.hour, status: s.status, outcome: s.outcome })),
   };
 }

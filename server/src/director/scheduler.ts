@@ -156,6 +156,8 @@ export interface EventRow {
   notice: string;
   rumour: string;
   why: string;
+  /** M8d: the player this event is a lead for (director.ts assignLead); null: the town's, nobody's. */
+  for_player?: number | null;
 }
 
 export interface EventPlan {
@@ -1368,6 +1370,8 @@ export function publicEvent(db: DB, ev: EventRow) {
     starts_in: Math.max(0, ev.start_m - now),
     ends_in: Math.max(0, ev.end_m - now),
     source: ev.source,
+    /** M8d: the player it is a lead for (null: nobody's). */
+    for_player: ev.for_player ?? null,
   };
 }
 

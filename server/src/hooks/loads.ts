@@ -3,6 +3,8 @@ import { canLoad, CART_LIMIT, pushSpeed, LOAD, type CartThing } from "../../../s
 import { gameMin } from "../../../shared/clock.ts";
 import SPOT_TABLE from "../../../shared/spots.json" with { type: "json" };
 import { walkMap } from "../town/walkmap.ts";
+import { pid } from "../player/current.ts";
+import { pstate } from "../player/multi.ts";
 
 // M7 short jobs (Steve 2026-09-25): "Shorter jobs if it is fetching stuff. Fetching is boring, so no
 // more than 2 items. Maybe sometimes a job with more, further in the game, if we own a cart or if we
@@ -261,21 +263,20 @@ export function sayCount(text: string, count: number): string {
 
 // ---------------------------------------------------------------- the gate
 
-/** Does Jef have a handcart of his own (bought: new or second-hand)? */
+/** Does Jef have a handcart of his own (bought: new or second-hand)? (M8c: the player's own carts) */
 export function ownsCart(db: DB): boolean {
-  const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'jef_carts'").get() as { value_json: string } | undefined;
-  if (!row) return false;
   try {
-    const s = JSON.parse(row.value_json) as { list?: Array<{ kind: string }> };
+    const s = pstate<{ list?: Array<{ kind: string }> }>(db, "jef_carts");
+    if (!s) return false;
     return (s.list ?? []).some((c) => c.kind === "new" || c.kind === "used");
   } catch {
     return false;
   }
 }
 
-/** Jobs Jef has finished (done), any employer, any source. */
+/** Jobs Jef has finished (done), any employer, any source (M8c: his own; an older save's without a taker are the host's). */
 export function jobsDone(db: DB): number {
-  return (db.prepare("SELECT COUNT(*) AS n FROM job WHERE status = 'done'").get() as { n: number }).n;
+  return (db.prepare("SELECT COUNT(*) AS n FROM job WHERE status = 'done' AND (taken_by = ? OR (taken_by IS NULL AND ? = 1))").get(pid(), pid()) as { n: number }).n;
 }
 
 /** Is cart work open (the board may carry it)? Jef owns a handcart, or he has finished CART_AFTER_DONE jobs. */

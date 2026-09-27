@@ -2,6 +2,8 @@ import { z } from "zod";
 import type { DB } from "./db.ts";
 import { ALL_EMPLOYERS, jobById, type JobRow, type Progress } from "./hooks/jobBoard.ts";
 import { remember } from "./npcs.ts";
+import { pid } from "./player/current.ts";
+import { storeText } from "./player/names.ts";
 
 // Engine rules. Numbers change here and nowhere else (docs/03 rule one).
 
@@ -17,22 +19,27 @@ export interface PlayerState {
   sleep: number;
 }
 
-export function player(db: DB): PlayerState {
+/**
+ * The player this request is for (M8c: pid(), player/current.ts; 1 alone). The day and hour are the world's
+ * (player 1's row keeps the world clock's copy for the older queries; a guest's row has only his own part).
+ */
+export function player(db: DB, id = pid()): PlayerState {
   return db
-    .prepare("SELECT name, money_c, day, hour, district, food, warmth, health, sleep FROM player WHERE id = 1")
-    .get() as PlayerState;
+    .prepare("SELECT p.name, p.money_c, w.day, w.hour, p.district, p.food, p.warmth, p.health, p.sleep FROM player p, player w WHERE p.id = ? AND w.id = 1")
+    .get(id) as PlayerState;
 }
 
 export function log(db: DB, verb: string, object: string | null, text: string, actor = "player"): void {
   const p = player(db);
-  db.prepare("INSERT INTO log (day, hour, place, actor, verb, object, text) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
+  db.prepare("INSERT INTO log (day, hour, place, actor, verb, object, text, player_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(
     p.day,
     p.hour,
     p.district,
     actor,
     verb,
     object,
-    text,
+    storeText(db, text), // (M8c: a guest's line with his name: the log is everyone's)
+    pid(),
   );
 }
 
@@ -64,10 +71,12 @@ export function takeJob(db: DB, id: number): JobRow {
   const j = job(db, id);
   if (j.status !== "offered") throw new GameError("that job is not open", 409);
   if (!j.playable) throw new GameError("that kind of work is not in the game yet", 409);
-  const busy = db.prepare("SELECT 1 FROM job WHERE status = 'taken'").get();
+  // (M8c: one job in hand per player; another player's job is taken off the board for him)
+  // (a taken job with no taker named is the host's: older rows)
+  const busy = db.prepare("SELECT 1 FROM job WHERE status = 'taken' AND (taken_by = ? OR (taken_by IS NULL AND ? = 1))").get(pid(), pid());
   if (busy) throw new GameError("finish the job you have first", 409);
   for (const check of takeChecks) check(db, j);
-  db.prepare("UPDATE job SET status = 'taken' WHERE id = ?").run(id);
+  db.prepare("UPDATE job SET status = 'taken', taken_by = ? WHERE id = ?").run(pid(), id);
   log(db, "took_job", String(id), `Jef took a job from ${j.employer_name}: ${j.title}.`);
   // M7 short jobs: what comes with a job once it is taken (town/handcart.ts: the employer's handcart lent for cart work)
   for (const f of takeHooks) f(db, job(db, id));
@@ -77,10 +86,15 @@ export function takeJob(db: DB, id: number): JobRow {
 /** Run when a job has been taken (after its status is 'taken'). */
 export const takeHooks: Array<(db: DB, j: JobRow) => void> = [];
 
+/** M8d: the job is in this player's hand (another player's job is not his to report on; an older row's is the host's). */
+export function inHand(j: JobRow): boolean {
+  return j.status === "taken" && (j.taken_by ?? 1) === pid();
+}
+
 /** Save carry/deliver progress so a reload does not make Jef carry twice. */
 export function saveProgress(db: DB, id: number, p: Progress): JobRow {
   const j = job(db, id);
-  if (j.status !== "taken" || !j.task || j.task.kind === "watch" || j.task.kind === "mill") throw new GameError("no progress to save", 409);
+  if (!inHand(j) || !j.task || j.task.kind === "watch" || j.task.kind === "mill") throw new GameError("no progress to save", 409);
   const count = j.task.kind === "carry" ? j.task.count : j.task.kind === "letters" ? j.task.stops.length : 1;
   const clean = (n: unknown) => Math.max(0, Math.min(count, Math.floor(Number(n) || 0)));
   const progress = { delivered: clean(p.delivered), lost: clean(p.lost), sold: clean(p.sold) };
@@ -119,7 +133,7 @@ type Held = { held?: Report; held_min?: number };
  */
 export function holdJob(db: DB, id: number, report: Report, gameMin: number): JobRow {
   const j = job(db, id);
-  if (j.status !== "taken" || !j.task) throw new GameError("that job is not in hand", 409);
+  if (!inHand(j) || !j.task) throw new GameError("that job is not in hand", 409);
   if (j.source === "night") throw new GameError("night work is paid by the man who gave it", 409);
   const held: Report = { ...report, box: false };
   db.prepare("UPDATE job SET task_json = ? WHERE id = ?").run(JSON.stringify({ ...j.task, held, held_min: gameMin }), id);
@@ -268,7 +282,7 @@ export const settleExtras: Array<(db: DB, j: JobRow, s: Settlement) => void> = [
 
 export function finishJob(db: DB, id: number, report: Report, rng?: () => number) {
   const j = job(db, id);
-  if (j.status !== "taken") throw new GameError("that job is not in hand", 409);
+  if (!inHand(j)) throw new GameError("that job is not in hand", 409);
   // M7 night: the facts held when the work was done (the client sends only where it is paid: the box, or his hand)
   const held = (j.task as unknown as Held | null)?.held;
   if (held) report = { ...held, box: report.box === true };
@@ -281,9 +295,10 @@ export function finishJob(db: DB, id: number, report: Report, rng?: () => number
   db.transaction(() => {
     db.prepare("UPDATE job SET status = ? WHERE id = ?").run(s.status, id);
     // time passes while the job is played (M5 clock), so no extra hour here
-    db.prepare("UPDATE player SET money_c = MAX(0, money_c + ?) WHERE id = 1").run(s.pay_c + s.extra_c);
+    // (M8d: the pay and the trust are his who did the work)
+    db.prepare("UPDATE player SET money_c = MAX(0, money_c + ?) WHERE id = ?").run(s.pay_c + s.extra_c, pid());
     if (faction && s.trust_delta) {
-      db.prepare("UPDATE faction_trust SET trust = MAX(-5, MIN(10, trust + ?)) WHERE faction = ?").run(s.trust_delta, faction);
+      db.prepare("UPDATE faction_trust SET trust = MAX(-5, MIN(10, trust + ?)) WHERE faction = ? AND player_id = ?").run(s.trust_delta, faction, pid());
     }
     log(db, s.status === "done" ? "finished_job" : "failed_job", String(id), s.facts.join(" "));
     // a parcel for this job leaves your pocket, whatever happened to it

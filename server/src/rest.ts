@@ -25,6 +25,8 @@ import { endRide } from "./ride.ts";
 import { endRowNight } from "./rowing.ts";
 import { spreadRumours } from "./town/rumours.ts";
 import { homeBed } from "./homes/homes.ts";
+import { asPlayer, onlineIds, pid, setOnlineIds } from "./player/current.ts";
+import { RESET_HOOKS } from "./player/multi.ts";
 import { TICK_EVERY_MS, TICK_MINUTES } from "../../shared/clock.ts";
 import { inSpan, type Span } from "../../shared/night.ts";
 import { doorBenchAt, fixedBenches, MORNING_HOUR, type Bench, type RestKind } from "../../shared/sleep.ts";
@@ -38,7 +40,7 @@ import CITY from "../../shared/city.json" with { type: "json" };
 // lie down with how long; the ENGINE checks the place (his lease, the doss house's rent, a bench that exists,
 // near where he stands, nobody else on it) and clamps the hours. The time then passes in steps on the
 // client's ticks (the town, the events and the date go on as they always do), the needs by the hours slept.
-// Any key wakes him: the server counts only the time slept. Kept by player id (multiplayer later).
+// Any key wakes him: the server counts only the time slept. Kept by player id (M8c: the player who asks, pid()).
 
 /** The engine's numbers for a sleep. */
 export const SLEEP = {
@@ -75,9 +77,15 @@ export const SLEEP = {
   policeHours: [22, 29] as Span,
 } as const;
 
-/** One player now; multiplayer later: the players online (docs/multiplayer-plan.md 6.1). */
-const PLAYER = 1;
-const online = (): number[] => [PLAYER];
+/**
+ * The players online (docs/multiplayer-plan.md 6.1): the host alone until the multiplayer side says who else is
+ * in the game (setOnline).
+ */
+const online = (): number[] => onlineIds();
+/** M8c: the multiplayer side tells the sleep who is in the game now (for allAsleep). Null: the host alone again. */
+export function setOnline(f: (() => number[]) | null): void {
+  setOnlineIds(f);
+}
 
 type Needs = { sleep: number; food: number; warmth: number; health: number };
 
@@ -97,6 +105,10 @@ interface Rest {
   lastStepAt: number;
   from: { hour: number; minute: number };
   robbed?: { money_c: number; things: string[] };
+  /** M8c: his tab shows the sleep (a sleep the server began, when he dropped, waits for it before a key can wake him). */
+  acked?: boolean;
+  /** M8d: where he is held (the cell at the police post): his figure is put there. */
+  at?: { x: number; z: number; yaw: number };
 }
 
 /** What the client shows while he sleeps. */
@@ -109,6 +121,8 @@ export interface RestView {
   slept_min: number;
   from: { hour: number; minute: number };
   now: { day: number; hour: number; minute: number; weekday: string };
+  /** M8d: the cell: where he is held (the client puts him there under the fade). */
+  at?: { x: number; z: number; yaw: number };
 }
 
 /** How a sleep ended. */
@@ -131,7 +145,7 @@ export interface RestEnd {
 const rests = new Map<number, Rest>();
 
 /** Is this player asleep now (the pause, the kit and the tick ask)? */
-export function restOf(db: DB, playerId = PLAYER): RestView | null {
+export function restOf(db: DB, playerId = pid()): RestView | null {
   const r = rests.get(playerId);
   return r ? viewOf(db, r) : null;
 }
@@ -157,7 +171,7 @@ const seen = new Map<number, { x: number; z: number; ms: number }>();
 const Pos = z.object({ x: z.number().finite(), z: z.number().finite(), y: z.number().finite().optional() });
 
 /** The client's word for where Jef stands, with each tick (for the plausibility check of a sleep's place). */
-export function reportPos(body: unknown, now = Date.now(), playerId = PLAYER): void {
+export function reportPos(body: unknown, now = Date.now(), playerId = pid()): void {
   const r = Pos.safeParse(body);
   if (r.success) seen.set(playerId, { x: r.data.x, z: r.data.z, ms: now });
 }
@@ -243,7 +257,9 @@ const near = (a: { x: number; z: number }, b: { x: number; z: number }, r: numbe
  * Jef lies down (POST /api/sleep): the place checked, the hours clamped. A bench takes his warmth down to 1
  * at once. Returns what the client shows while the time passes (rest steps on the ticks).
  */
-export function startRest(db: DB, body: unknown, now = Date.now(), playerId = PLAYER): RestView {
+export function startRest(db: DB, body: unknown, now = Date.now(), playerId = pid()): RestView {
+  // (M8c: his own ending, room, rent, ride and boat: the work runs as the sleeper)
+  if (playerId !== pid()) return asPlayer(playerId, () => startRest(db, body, now, playerId));
   if (ending(db)) throw new GameError("the week is over", 409);
   const b = Start.safeParse(body);
   if (!b.success) throw new GameError("place must be home, doss or bench, with hours 1 to 12 or morning", 400);
@@ -256,7 +272,7 @@ export function startRest(db: DB, body: unknown, now = Date.now(), playerId = PL
   const c = clock(db);
   const planned = plannedMinutes(q.hours, c);
   let rest: Rest;
-  const base = { player: playerId, planned, slept: 0, acc: { sleep: 0, food: 0, warmth: 0, health: 0 }, lines: [], turned: false, robRolled: false, lastStepAt: 0, from: { hour: c.hour, minute: c.minute } };
+  const base = { player: playerId, planned, slept: 0, acc: { sleep: 0, food: 0, warmth: 0, health: 0 }, lines: [], turned: false, robRolled: false, lastStepAt: 0, from: { hour: c.hour, minute: c.minute }, acked: true };
   if (q.place === "home") {
     const { home, night } = homeBed(db);
     // his own room: the server's word for where he is (the tick's report, checked in warmth.ts)
@@ -299,6 +315,8 @@ function needsOf(db: DB, pid: number): Needs {
 
 /** The needs for `min` minutes asleep: sleep by the place, food slower than awake, a bed's warmth and health. */
 function restNeeds(db: DB, r: Rest, min: number): void {
+  // (M8d: the cell's needs are taken once when the door shuts, as the night in the cell always was: police.ts cellNight)
+  if (r.kind === "cell") return;
   const h = min / 60;
   const n = needsOf(db, r.player);
   const rate = r.kind === "bench" ? SLEEP.bench : SLEEP.bed;
@@ -340,9 +358,10 @@ function restHour(db: DB, r: Rest, hour: number): void {
  * One step of a sleep, on a tick (day.ts tick calls it through RESTING). `asleep`: the client is in its sleep
  * (the fade); a tick without it means he is up (a reload, another tab): the sleep ends there.
  */
-export function restStep(db: DB, now: number, asleep: boolean, playerId = PLAYER): TickResult | null {
+export function restStep(db: DB, now: number, asleep: boolean, playerId = pid()): TickResult | null {
   const r = rests.get(playerId);
   if (!r) return null;
+  if (playerId !== pid()) return asPlayer(playerId, () => restStep(db, now, asleep, playerId));
   if (!asleep) return { advanced: false, woke: endRest(db, r, "up") };
   // all asleep: the night passes fast; otherwise (multiplayer later) at the world's pace, as a tick
   const fast = allAsleep();
@@ -407,9 +426,11 @@ export function restStep(db: DB, now: number, asleep: boolean, playerId = PLAYER
 }
 
 /** He wakes (a key: POST /api/sleep/wake): only the time slept counts. Null when he was not asleep. */
-export function wakeRest(db: DB, playerId = PLAYER): RestEnd | null {
+export function wakeRest(db: DB, playerId = pid()): RestEnd | null {
   const r = rests.get(playerId);
-  return r ? endRest(db, r, "up") : null;
+  // (M8d: nobody walks out of the cell before the door is unlocked)
+  if (!r || r.kind === "cell") return null;
+  return playerId === pid() ? endRest(db, r, "up") : asPlayer(playerId, () => endRest(db, r, "up"));
 }
 
 const hhmm = (h: number, m: number) => `${h}:${String(m).padStart(2, "0")}`;
@@ -423,6 +444,7 @@ function lasted(min: number): string {
 function endRest(db: DB, r: Rest, reason: RestEnd["reason"], ended?: Ending): RestEnd {
   rests.delete(r.player);
   const c = clock(db);
+  if (r.kind === "cell") return endCell(db, r, reason, ended);
   const long = r.slept >= SLEEP.nightMin;
   const lines: string[] = [];
   if (r.kind === "home") lines.push(long && r.night ? r.night.text : `You doze on your own bed in ${r.label}.`);
@@ -463,8 +485,181 @@ function viewOf(db: DB, r: Rest): RestView {
     slept_min: r.slept,
     from: r.from,
     now: { day: now.day, hour: now.hour, minute: now.minute, weekday: now.weekday },
+    ...(r.at ? { at: r.at } : {}),
   };
+}
+
+// ------------------------------------------------------------------ M8d: the cell, played together
+
+/**
+ * The police's say when a night in the cell is over (police.ts sets it): the sheet of the night, with the lines of
+ * the cell (its summary and what the night brought) and his end if it came in there.
+ */
+export const cellHooks: { done: (db: DB, lines: string[], ended?: Ending) => void } = { done: () => {} };
+
+/**
+ * Played together, a night in the cell (police.ts cellNight): he sits it out at the world's pace, like a sleep
+ * (docs/multiplayer-plan.md 6.1: no fast night for one), until `minutes` of the world's time have passed (the next
+ * dawn). No key lets him out; the others play on; when everyone in the game is asleep or held the night passes
+ * fast. `lines`: the cell's summary so far (the sheet at the end). The sleep screen comes to him with his next heartbeat.
+ */
+export function cellRest(db: DB, playerId: number, minutes: number, at: { x: number; z: number; yaw: number }, lines: string[]): RestView {
+  const c = clock(db);
+  const had = rests.get(playerId);
+  if (had) endRest(db, had, "up");
+  const rest: Rest = {
+    player: playerId, kind: "cell", label: "the cell at the police post", planned: Math.max(1, Math.round(minutes)), slept: 0, acc: { sleep: 0, food: 0, warmth: 0, health: 0 },
+    lines: [...lines], turned: false, robRolled: true, lastStepAt: 0, from: { hour: c.hour, minute: c.minute }, acked: false, at,
+  };
+  rests.set(playerId, rest);
+  woken.delete(playerId);
+  return viewOf(db, rest);
+}
+
+/** Is this player held in the cell now? */
+export function inCell(playerId = pid()): boolean {
+  return rests.get(playerId)?.kind === "cell";
+}
+
+function endCell(db: DB, r: Rest, reason: RestEnd["reason"], ended?: Ending): RestEnd {
+  const c = clock(db);
+  const lines = [...r.lines];
+  if (!ended) lines.push("At dawn the door is unlocked. \"Out. And keep your hands to yourself.\"");
+  asPlayer(r.player, () => cellHooks.done(db, lines, ended));
+  return {
+    place: "cell",
+    label: r.label,
+    reason,
+    slept_min: r.slept,
+    planned_min: r.planned,
+    lines,
+    wake: { day: c.day, hour: c.hour, minute: c.minute, weekday: c.weekday },
+    turned: r.turned,
+    ...(ended ? { ended } : {}),
+  };
+}
+
+/** M8d: the world's week ended: every sleeper (and every man in the cell) wakes to his own end. */
+export function restsWeekOver(db: DB): void {
+  for (const r of [...rests.values()]) {
+    const e = asPlayer(r.player, () => ending(db));
+    woken.set(r.player, asPlayer(r.player, () => endRest(db, r, "ended", e ?? undefined)));
+  }
+}
+
+/** M8d: a new man (player/multi.ts resetPlayer): nothing of the old man's sleep is kept. */
+export function forgetRest(playerId: number): void {
+  rests.delete(playerId);
+  woken.delete(playerId);
+  seen.delete(playerId);
+}
+RESET_HOOKS.push((_db, id) => forgetRest(id));
+
+// ------------------------------------------------------------------ M8c: played together
+
+/**
+ * Played together (docs/multiplayer-plan.md 6.1): the world's clock moves on the server's own ticks, never for one
+ * player's sleep. A sleeper sleeps at the world's pace (or fast, when everyone in the game is asleep: the server's
+ * tick then moves the clock in bigger steps); each piece of the world's time is a piece of his sleep. How his sleep
+ * ended waits here until his tab asks (its heartbeat: mp/index.ts).
+ */
+const woken = new Map<number, RestEnd>();
+
+/** A piece of the world's time, `min` minutes, for one sleeper (as that player); `hourEnded`: the hour turned. */
+export function restPiece(db: DB, playerId: number, min: number, hourEnded: boolean): void {
+  const r = rests.get(playerId);
+  if (!r || min <= 0) return;
+  let why: RestEnd["reason"] | null = null;
+  let ended: Ending | undefined;
+  db.transaction(() => {
+    const piece = Math.min(min, Math.max(0, r.planned - r.slept));
+    r.slept += piece;
+    restNeeds(db, r, piece);
+    if (hourEnded && r.kind !== "cell") {
+      const h = clock(db).hour;
+      restHour(db, r, h);
+      if (r.bench?.fine && inSpan(h, SLEEP.policeHours) && dice() < SLEEP.police) {
+        r.lines.push("A policeman taps your boots with his stick. \"Not here, friend. The benches are for the day. Move along.\"");
+        why = "police";
+      }
+    }
+    if (!why && needsOf(db, r.player).health === 0) {
+      ended = ending(db) ?? endGame(db, "health");
+      why = "ended";
+    }
+    if (!why && !r.robRolled && r.slept * 2 >= r.planned) {
+      r.robRolled = true;
+      const where = r.kind === "bench" ? "rough" : r.kind === "home" ? "home" : "bed";
+      for (const hook of SLEEP_HOOKS) {
+        const got = hook(db, { where, collapsed: false, hour: clock(db).hour });
+        if (!got) continue;
+        r.lines.push(...got.lines);
+        if (got.robbed) {
+          r.robbed = got.robbed;
+          why = "robbed";
+        }
+      }
+    }
+  })();
+  if (!why && r.slept >= r.planned) why = "rested";
+  if (why) woken.set(playerId, endRest(db, r, why, ended));
+}
+
+/** A night's date turned for everyone asleep (it goes into their wake lines). */
+export function restTurned(lines: string[]): void {
+  for (const r of rests.values()) {
+    r.turned = true;
+    r.lines.push(...lines);
+  }
+}
+
+/** His tab shows his sleep now. */
+export function ackRest(playerId: number): void {
+  const r = rests.get(playerId);
+  if (r) r.acked = true;
+}
+
+/** Has his tab shown his sleep (so a heartbeat of his that says "up" means he got up)? */
+export function restAcked(playerId: number): boolean {
+  return rests.get(playerId)?.acked ?? false;
+}
+
+/** How this player's sleep ended since his tab last asked (once), or null. */
+export function takeWoke(playerId = pid()): RestEnd | null {
+  const w = woken.get(playerId) ?? null;
+  woken.delete(playerId);
+  return w;
+}
+
+/**
+ * Played together, dead on his feet: he drops where he stands and sleeps there till morning (at least a few
+ * hours), on the cobbles in his coat, while the world goes on; the sleep screen comes to him with his next heartbeat.
+ */
+export function collapseRest(db: DB, playerId = pid()): RestView {
+  const c = clock(db);
+  const planned = Math.max(4 * 60, Math.min(SLEEP.maxH * 60, toMorning(c)));
+  const rest: Rest = {
+    player: playerId, kind: "bench", label: "the cobbles", planned, slept: 0, acc: { sleep: 0, food: 0, warmth: 0, health: 0 },
+    lines: ["You were dead on your feet: your legs gave way and you slept where you fell."], turned: false, robRolled: false, lastStepAt: 0, from: { hour: c.hour, minute: c.minute },
+    acked: false,
+  };
+  db.transaction(() => {
+    endRide(db);
+    endRowNight(db);
+    db.prepare("UPDATE player SET warmth = MIN(warmth, ?) WHERE id = ?").run(SLEEP.benchWarmth, playerId);
+  })();
+  rests.set(playerId, rest);
+  return viewOf(db, rest);
 }
 
 /** Wire the rest into the tick (day.ts RESTING). */
 RESTING.step = (db, now, asleep) => restStep(db, now, asleep);
+RESTING.piece = (db, id, min, hourEnded) => {
+  if (!rests.has(id)) return false;
+  restPiece(db, id, min, hourEnded);
+  return true;
+};
+RESTING.collapse = (db, id) => collapseRest(db, id);
+RESTING.turned = (lines) => restTurned(lines);
+RESTING.allAsleep = () => allAsleep();
+RESTING.weekOver = (db) => restsWeekOver(db);

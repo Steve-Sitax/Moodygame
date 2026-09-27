@@ -99,7 +99,11 @@ export function playerById(db: DB, id: number): MpPlayer | null {
 export function addGuest(db: DB, name: string): { id: number; token: string } | null {
   const n = (db.prepare("SELECT COUNT(*) AS n FROM mp_player").get() as { n: number }).n;
   if (n >= 64) return null; // stale rows are removed by the host; 64 keeps a runaway loop small
-  const id = ((db.prepare("SELECT MAX(id) AS m FROM mp_player").get() as { m: number | null }).m ?? HOST_ID) + 1;
+  // M8d: a number is never given twice: a removed guest's man, his look and his things stay under his own
+  // number (the townspeople remember him), so a new guest gets a number no player row or profile has
+  const top = (sql: string) => ((db.prepare(sql).get() as { m: number | null } | undefined)?.m ?? HOST_ID);
+  const has = (t: string) => !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(t);
+  const id = Math.max(top("SELECT MAX(id) AS m FROM mp_player"), has("player") ? top("SELECT MAX(id) AS m FROM player") : HOST_ID, has("player_profile") ? top("SELECT MAX(player_id) AS m FROM player_profile") : HOST_ID) + 1;
   const token = randomBytes(16).toString("hex");
   db.prepare("INSERT INTO mp_player (id, name, token_hash, admin, created_at) VALUES (?, ?, ?, 0, ?)").run(id, name, hashOf(token), new Date().toISOString());
   return { id, token };
@@ -120,8 +124,51 @@ export function setAdmin(db: DB, id: number, on: boolean): void {
   db.prepare("UPDATE mp_player SET admin = ? WHERE id = ?").run(on ? 1 : 0, id);
 }
 
+/**
+ * M8e review 4 (docs/milestones/M8e.md): a new token for the same player; the old one stops working at once (only
+ * one token a player). Used when he moves to the secure address: the old token went over plain http, where anyone
+ * on the line could have read it; kept valid, a copy of it would go on playing his man after he moved.
+ */
+export function rotateToken(db: DB, id: number): string | null {
+  const token = randomBytes(16).toString("hex");
+  return db.prepare("UPDATE mp_player SET token_hash = ? WHERE id = ?").run(hashOf(token), id).changes > 0 ? token : null;
+}
+
+// ------------------------------------------------------------------ moving to another address (M8e review 4)
+
+/** A move code lives this long (the new page redeems it at once). */
+export const MOVE_MS = 60_000;
+/** code hash -> the player and when the code ends. In memory only: a restart ends every code. */
+const moves = new Map<string, { id: number; until: number }>();
+
+/**
+ * A one-time code that moves a guest's man to another address of the host (http to https, another name): 128
+ * random bits, 60 s, single use, kept only as its SHA-256. A new code for the same player ends his older one.
+ */
+export function newMoveCode(id: number, now = Date.now()): string {
+  for (const [k, v] of moves) if (v.id === id || v.until <= now) moves.delete(k);
+  const code = randomBytes(16).toString("hex");
+  moves.set(hashOf(code), { id, until: now + MOVE_MS });
+  return code;
+}
+
+/** The player a move code is for, once (a used, unknown or expired code: null). */
+export function takeMoveCode(code: unknown, now = Date.now()): number | null {
+  if (typeof code !== "string" || !/^[0-9a-f]{32}$/.test(code)) return null;
+  const k = hashOf(code);
+  const m = moves.get(k);
+  moves.delete(k);
+  return m && m.until > now ? m.id : null;
+}
+
+/** Test helper. */
+export function forgetMoveCodes(): void {
+  moves.clear();
+}
+
 /** The host removes a player: his token stops working. */
 export function removeGuest(db: DB, id: number): boolean {
+  for (const [k, v] of moves) if (v.id === id) moves.delete(k); // (and a move code he had)
   return db.prepare("DELETE FROM mp_player WHERE id = ?").run(id).changes > 0;
 }
 

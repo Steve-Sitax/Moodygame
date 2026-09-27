@@ -8,6 +8,8 @@ export const identity = {
   /** This computer (127.0.0.1, localhost): the host's own PC. */
   local: true,
   token: null as string | null,
+  /** M8c: this player's id (the server's welcome says it; 1, the host, until then and played alone). */
+  playerId: 1,
   /** Played together (the server said so at the start; a push may change it). */
   together: false,
   /** The server's build version (the manifest's), and whether files came from the browser's store. */

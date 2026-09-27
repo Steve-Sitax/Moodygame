@@ -4,6 +4,7 @@ import { DEV } from "../config.ts";
 import { GameError } from "../game.ts";
 import { nightsSlept } from "../day.ts";
 import { remember } from "../npcs.ts";
+import { asWorld } from "../player/current.ts";
 import { resident, town } from "../town/store.ts";
 import { STRANGER_KINDS, type StrangerKind } from "../town/visitors.ts";
 import { activeActions, jefAt } from "./actions.ts";
@@ -12,6 +13,7 @@ import {
   familyTickAsync,
   installFamilies,
   listNews,
+  menaceMine,
   menaceNow,
   visitNow,
   resolveMenace,
@@ -49,8 +51,9 @@ export function mountFamilies(app: Hono, deps: FamilyDeps): void {
   app.use("/api/tick", async (_c, next) => {
     await next();
     try {
-      familyTickAsync(db);
-      surprisesTickAsync(db);
+      // (M8d: the world's work, whichever player's tick sets it off: each news, promise and visit runs as its own player)
+      asWorld(() => familyTickAsync(db));
+      asWorld(() => surprisesTickAsync(db));
     } catch (e) {
       console.error("[families] tick", e);
     }
@@ -72,7 +75,8 @@ export function mountFamilies(app: Hono, deps: FamilyDeps): void {
     const body = (await c.req.json().catch(() => ({}))) as { how?: unknown };
     const how = body.how;
     if (how !== "ran" && how !== "pay" && how !== "stand") throw new GameError("how must be ran, pay or stand", 400);
-    const r = resolveMenace(db, id, how as MenaceHow);
+    // (M8d: only the player the man stands before answers him)
+    const r = menaceMine(db, id) ? resolveMenace(db, id, how as MenaceHow) : null;
     return c.json({ result: r, ...payload() });
   });
 

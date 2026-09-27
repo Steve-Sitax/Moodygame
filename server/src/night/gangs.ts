@@ -4,6 +4,8 @@ import { clock, SLEEP_HOOKS, type SleepInfo } from "../day.ts";
 import { GameError, log, player } from "../game.ts";
 import { ITEMS } from "../trade.ts";
 import { remember } from "../npcs.ts";
+import { pid } from "../player/current.ts";
+import { pstate, setPstate } from "../player/multi.ts";
 import { resident } from "../town/store.ts";
 import { gameMinute } from "../town/deeds.ts";
 import { tipsy } from "../interiors/tavern.ts";
@@ -134,15 +136,29 @@ interface GangState {
 }
 const EMPTY: GangState = { gang: null, night: 0, tries: 0, last_min: -1e9, next_id: 1 };
 
+// (M8c: each player's own gang, tries and night: player_state 'gang'; the host's older world_state key until written)
 function load(db: DB): GangState {
-  const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'gang'").get() as { value_json: string } | undefined;
-  return row ? { ...EMPTY, ...(JSON.parse(row.value_json) as GangState) } : { ...EMPTY };
+  const v = pstate<GangState>(db, "gang");
+  return v ? { ...EMPTY, ...v } : { ...EMPTY };
 }
 function save(db: DB, s: GangState): void {
-  db.prepare("INSERT INTO world_state (key, value_json) VALUES ('gang', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(JSON.stringify(s));
+  setPstate(db, "gang", s);
 }
 export function clearGangs(db: DB): void {
   db.prepare("DELETE FROM world_state WHERE key = 'gang'").run();
+  db.prepare("DELETE FROM player_state WHERE key = 'gang'").run();
+}
+
+/** The walk-up calls of a gang (the host's as before; a guest's apart, so two players' gang 1 are not one). */
+const gangRef = (id: number) => (pid() === 1 ? `gang:${id}` : `gang:p${pid()}-${id}`);
+
+/** Where the player stands: his own place (M8d: per player), else what his client says with the call. */
+function standing(facts: GangFacts = {}): { x: number; z: number } | null {
+  const at = jefAt();
+  if (at) return at;
+  const x = Number(facts.x);
+  const z = Number(facts.z);
+  return facts.x !== undefined && facts.z !== undefined && Number.isFinite(x) && Number.isFinite(z) ? { x, z } : null;
 }
 
 let dice: () => number = Math.random;
@@ -154,9 +170,9 @@ export function setGangDice(f: (() => number) | null): void {
 /** The night a moment belongs to (after midnight, the day before). */
 const nightOf = (day: number, hour: number) => (hour < 5 ? day - 1 : day);
 
-/** Who is round Jef now: an agent near, and how many grown people (the client's last sync). */
-export function around(db: DB): { police: boolean; people: number } {
-  const jef = jefAt();
+/** Who is round Jef now: an agent near, and how many grown people (the client's last sync). `at`: where he stands (a guest's). */
+export function around(db: DB, at?: { x: number; z: number } | null): { police: boolean; people: number } {
+  const jef = at === undefined ? standing() : at;
   if (!jef) return { police: false, people: 0 };
   let police = false;
   let people = 0;
@@ -170,13 +186,13 @@ export function around(db: DB): { police: boolean; people: number } {
 }
 
 function jobParcels(db: DB): Array<{ id: number; job_id: number; kind: string }> {
-  return db.prepare("SELECT id, job_id, kind FROM item WHERE job_id IS NOT NULL").all() as Array<{ id: number; job_id: number; kind: string }>;
+  return db.prepare("SELECT id, job_id, kind FROM item WHERE job_id IS NOT NULL AND player_id = ?").all(pid()) as Array<{ id: number; job_id: number; kind: string }>;
 }
 
 /** The chance per game hour now (the engine's formula; exported for the tests and the kit). */
-export function gangChancePerHour(db: DB, f: { lit: boolean; quay: boolean; carrying: boolean }): number {
+export function gangChancePerHour(db: DB, f: { lit: boolean; quay: boolean; carrying: boolean }, at?: { x: number; z: number } | null): number {
   const p = player(db);
-  const near = around(db);
+  const near = around(db, at);
   const t = tipsy(db);
   let c = GANG_BASE_PER_HOUR;
   if (f.lit) c *= GANG_MULT.lit;
@@ -198,16 +214,17 @@ export function gangNow(db: DB): Gang | null {
   if (gameMinute(db) - g.at_min > GANG_WAIT_MIN) {
     s.gang = { ...g, status: "over" };
     save(db, s);
-    endCallsFor(db, `gang:${g.id}`);
+    endCallsFor(db, gangRef(g.id));
     return null;
   }
   return g;
 }
 
-let lastRollAt = 0;
+/** When each player's client last rolled (real ms). */
+const lastRollAt = new Map<number, number>();
 /** Test helper. */
 export function resetGangRoll(): void {
-  lastRollAt = 0;
+  lastRollAt.clear();
 }
 
 /**
@@ -215,11 +232,12 @@ export function resetGangRoll(): void {
  * not. At most once per 9 real seconds (a tick), whatever the client sends.
  */
 export function rollGang(db: DB, facts: GangFacts, now = Date.now(), force = false): Gang | null {
+  // (M8d: each player's own place in the sync, the people he sees for all)
   syncFromClient({ x: facts.x, z: facts.z, people: facts.people }, now, db);
   const open = gangNow(db);
   if (open) return open;
-  if (!force && now - lastRollAt < 9000) return null;
-  lastRollAt = now;
+  if (!force && now - (lastRollAt.get(pid()) ?? 0) < 9000) return null;
+  lastRollAt.set(pid(), now);
   const c = clock(db);
   const h = c.hour + c.minute / 60;
   if (!force && (!inSpan(h, GANG_HOURS) || facts.indoors)) return null;
@@ -234,15 +252,15 @@ export function rollGang(db: DB, facts: GangFacts, now = Date.now(), force = fal
     save(db, s);
     return null;
   }
-  const perHour = gangChancePerHour(db, { lit: !!facts.lit, quay: !!facts.quay, carrying: !!facts.carrying });
+  const perHour = gangChancePerHour(db, { lit: !!facts.lit, quay: !!facts.quay, carrying: !!facts.carrying }, standing(facts));
   const perTick = 1 - Math.pow(1 - perHour, 5 / 60);
   if (!force && dice() >= perTick) return null;
   const money = player(db).money_c;
   const demand = Math.max(DEMAND_MIN_C, Math.min(DEMAND_MAX_C, Math.round((money * DEMAND_SHARE) / 5) * 5));
-  const jef = jefAt() ?? { x: Number(facts.x) || 0, z: Number(facts.z) || 0 };
+  const jef = standing(facts) ?? { x: Number(facts.x) || 0, z: Number(facts.z) || 0 };
   const g: Gang = { id: s.next_id, night, at_min: min, x: jef.x, z: jef.z, demand_c: demand, members: 3, status: "menace", lit: !!facts.lit, carrying: !!facts.carrying };
   // M7 walk-up: the lads are the town's thieves out in the dark near him (the engine picks, nearest first)
-  g.lads = callGang(db, `gang:${g.id}`, jef, g.members);
+  g.lads = callGang(db, gangRef(g.id), jef, g.members);
   s.gang = g;
   s.next_id++;
   s.tries++;
@@ -254,13 +272,13 @@ export function rollGang(db: DB, facts: GangFacts, now = Date.now(), force = fal
 
 /** Jef answers the gang: the engine rolls, the purse and the health move, the town will talk. */
 export function resolveGang(db: DB, id: number, how: GangHow, facts: GangFacts = {}): GangResult {
-  if (facts.x !== undefined) syncFromClient({ x: facts.x, z: facts.z, people: facts.people }, Date.now(), db);
+  if (facts.x !== undefined) syncFromClient({ x: facts.x, z: facts.z, people: facts.people }, Date.now(), db); // (M8d: every player's)
   const s = load(db);
   const g = s.gang;
   if (!g || g.id !== id || g.status !== "menace") throw new GameError("nobody is stopping you now", 409);
   const p = player(db);
   const t = tipsy(db);
-  const near = around(db);
+  const near = around(db, standing(facts) ?? (pid() === 1 ? undefined : { x: g.x, z: g.z }));
   const carrying = facts.carrying ?? g.carrying;
   const lit = facts.lit ?? g.lit;
   const tired = p.sleep <= 2;
@@ -268,7 +286,7 @@ export function resolveGang(db: DB, id: number, how: GangHow, facts: GangFacts =
   const roll = dice();
   if (how === "pay") {
     if (p.money_c >= g.demand_c) {
-      db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = 1").run(g.demand_c);
+      db.prepare("UPDATE player SET money_c = money_c - ? WHERE id = ?").run(g.demand_c, pid());
       log(db, "paid_off", null, `Jef paid a gang ${g.demand_c} centimes in the street at night to leave him be.`);
       res = { outcome: "paid", text: sexed(db, `You count ${g.demand_c} centimes into a dirty palm. "Sensible lad." They melt back into the dark.`), money_c: g.demand_c, health_lost: 0, things: [], hands: "keep" };
     } else res = rob(db, g, 0, "Not enough in your purse. They go through your coat for the rest.");
@@ -282,7 +300,7 @@ export function resolveGang(db: DB, id: number, how: GangHow, facts: GangFacts =
     const odds = ODDS.fight + (p.health >= 7 ? ODDS.fightStrong : 0) + t * ODDS.fightTipsy + (tired ? ODDS.fightTired : 0);
     if (roll < odds) {
       const hl = Math.max(0, Math.min(1, p.health - HEALTH_FLOOR));
-      db.prepare("UPDATE player SET health = MAX(?, health - ?) WHERE id = 1").run(HEALTH_FLOOR, hl);
+      db.prepare("UPDATE player SET health = MAX(?, health - ?) WHERE id = ?").run(HEALTH_FLOOR, hl, pid());
       log(db, "fought_off_gang", null, "Jef stood his ground against a gang in the street at night; they thought better of it.");
       res = { outcome: "fought_off", text: "You square up and shove the first one back hard. They did not come for a man who pushes back: a curse, and they are gone. Your knuckles smart.", money_c: 0, health_lost: hl, things: [], hands: "keep" };
     } else res = rob(db, g, 2, "You shove the first one, but there are three. They put you down on the wet stones.");
@@ -296,7 +314,7 @@ export function resolveGang(db: DB, id: number, how: GangHow, facts: GangFacts =
 
   s.gang = { ...g, status: "over", outcome: res.outcome, text: res.text };
   // M7 walk-up: the lads are free again (the client walks them off into the dark and lets them go)
-  endCallsFor(db, `gang:${g.id}`);
+  endCallsFor(db, gangRef(g.id));
   save(db, s);
   writeEvent(db, {
     kind: "theft",
@@ -329,9 +347,9 @@ function rob(db: DB, g: Gang, blow: number, lead: string): GangResult {
   const things: string[] = [];
   let failed: number | undefined;
   db.transaction(() => {
-    db.prepare("UPDATE player SET money_c = MAX(0, money_c - ?), health = MAX(?, health - ?) WHERE id = 1").run(taken, HEALTH_FLOOR, hl);
+    db.prepare("UPDATE player SET money_c = MAX(0, money_c - ?), health = MAX(?, health - ?) WHERE id = ?").run(taken, HEALTH_FLOOR, hl, pid());
     // one thing of his own from the pockets (the engine's pick: the first they find)
-    const mine = db.prepare("SELECT id, kind FROM item WHERE job_id IS NULL ORDER BY id").all() as Array<{ id: number; kind: string }>;
+    const mine = db.prepare("SELECT id, kind FROM item WHERE job_id IS NULL AND player_id = ? ORDER BY id").all(pid()) as Array<{ id: number; kind: string }>;
     const thing = mine.find((i) => !NOT_TAKEN.has(i.kind));
     if (thing) {
       db.prepare("DELETE FROM item WHERE id = ?").run(thing.id);
@@ -376,9 +394,9 @@ export function robbedAsleep(db: DB, s: SleepInfo): { lines: string[]; robbed?: 
   const p = player(db);
   const taken = Math.min(ROB_MAX_C, Math.round((p.money_c * 0.6) / 5) * 5);
   const things: string[] = [];
-  const mine = db.prepare("SELECT id, kind FROM item WHERE job_id IS NULL ORDER BY id").all() as Array<{ id: number; kind: string }>;
+  const mine = db.prepare("SELECT id, kind FROM item WHERE job_id IS NULL AND player_id = ? ORDER BY id").all(pid()) as Array<{ id: number; kind: string }>;
   const thing = mine.find((i) => !NOT_TAKEN.has(i.kind));
-  db.prepare("UPDATE player SET money_c = MAX(0, money_c - ?) WHERE id = 1").run(taken);
+  db.prepare("UPDATE player SET money_c = MAX(0, money_c - ?) WHERE id = ?").run(taken, pid());
   if (thing) {
     db.prepare("DELETE FROM item WHERE id = ?").run(thing.id);
     things.push(ITEMS[thing.kind]?.name ?? thing.kind);

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { DB } from "../db.ts";
 import { callClaude, type Runner } from "../ai/claude.ts";
+import { callsToday } from "../ai/budget.ts";
 import { CALLS_PER_DAY, CALLS_RESERVE, RESIDENT_CALLS_PER_DAY } from "../config.ts";
 import { DAY_NAMES, WEATHER_TEXT, weather } from "../day.ts";
 import { GameError, log, player } from "../game.ts";
@@ -8,6 +9,9 @@ import { gateText, markFreeLine, type MOODS } from "../hooks/dialogue.ts";
 import { SYSTEM } from "../hooks/jobBoard.ts";
 import { applyTrust, relationship, remember, topMemories, trustText } from "../npcs.ts";
 import { LANGUAGE_RULE, plainEnglish } from "../text.ts";
+import { pid } from "../player/current.ts";
+import { pstate, setPstate } from "../player/multi.ts";
+import { storeText } from "../player/names.ts";
 import { ITEMS, POCKET_SLOTS, WARES, atWork, haggleHooks, priceFloor, waresOf } from "../trade.ts";
 import { priceFactor } from "../director/state.ts";
 import { newsFactor } from "../ideas/prices.ts";
@@ -133,16 +137,22 @@ interface HaggleState {
 }
 const EMPTY: HaggleState = { deals: {}, refused: {}, lies: {}, tries: {} };
 
+/**
+ * The player's own deals, grudges and tries (M8c: each player's). The host's stays in world_state 'haggle'
+ * as before (older saves and the tests keep it there); a guest's is his own key in player_state.
+ */
 export function haggleState(db: DB): HaggleState {
-  const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'haggle'").get() as { value_json: string } | undefined;
-  return row ? { ...structuredClone(EMPTY), ...(JSON.parse(row.value_json) as HaggleState) } : structuredClone(EMPTY);
+  const row = pid() === 1 ? (db.prepare("SELECT value_json FROM world_state WHERE key = 'haggle'").get() as { value_json: string } | undefined) : undefined;
+  const v = pid() === 1 ? (row ? (JSON.parse(row.value_json) as HaggleState) : null) : pstate<HaggleState>(db, "haggle");
+  return v ? { ...structuredClone(EMPTY), ...v } : structuredClone(EMPTY);
 }
 function save(db: DB, s: HaggleState): void {
   const day = player(db).day;
   // keep it small: only today's tries and deals
   for (const k of Object.keys(s.tries)) if (!k.startsWith(`${day}:`)) delete s.tries[k];
   for (const [k, d] of Object.entries(s.deals)) if (d.day !== day || d.left <= 0) delete s.deals[k];
-  db.prepare("INSERT INTO world_state (key, value_json) VALUES ('haggle', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(JSON.stringify(s));
+  if (pid() === 1) db.prepare("INSERT INTO world_state (key, value_json) VALUES ('haggle', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(JSON.stringify(s));
+  else setPstate(db, "haggle", s);
 }
 
 /** The price agreed today with this seller for this ware (null: none). */
@@ -255,9 +265,11 @@ export function goodsFact(npc: string, kind: string, day: number, hour: number):
   }
 }
 
-/** Jef's buying from this seller: from the seller's own memories (trade.ts buy writes them). */
+/** Jef's buying from this seller: from the seller's own memories (trade.ts buy writes them; M8c: this player's). */
 export function purchasesFrom(db: DB, npc: string): { times: number; days: number } {
-  const r = db.prepare("SELECT COUNT(*) AS n, COUNT(DISTINCT day) AS d FROM npc_memory WHERE npc_id = ? AND text LIKE 'Jef bought %from me%'").get(npc) as { n: number; d: number };
+  const r = db
+    .prepare("SELECT COUNT(*) AS n, COUNT(DISTINCT day) AS d FROM npc_memory WHERE npc_id = ? AND text LIKE ? AND COALESCE(about_player, 1) = ?")
+    .get(npc, storeText(db, "Jef bought %from me%"), pid()) as { n: number; d: number };
   return { times: r.n, days: r.d };
 }
 
@@ -304,12 +316,15 @@ export interface Facts {
 const PERISHABLE = new Set(["herring", "eel", "bread", "apple", "newspaper", "soup"]);
 
 export function factsFor(db: DB, s: Seller, kind: string): Facts {
-  const p = db.prepare("SELECT day, hour, minute, money_c, food FROM player WHERE id = 1").get() as { day: number; hour: number; minute: number; money_c: number; food: number };
+  // (M8c: the world's clock, the player's own purse and hunger)
+  const p = db
+    .prepare("SELECT w.day, w.hour, w.minute, p.money_c, p.food FROM player p, player w WHERE p.id = ? AND w.id = 1")
+    .get(pid()) as { day: number; hour: number; minute: number; money_c: number; food: number };
   const list = waresOf(db, s.id).find((w) => w.kind === kind)!.price_c;
   const g = goodsFact(s.id, kind, p.day, p.hour);
   const bought = purchasesFrom(db, s.id);
   const cheap = cheapestElsewhere(db, s.id, kind);
-  const free = POCKET_SLOTS - (db.prepare("SELECT COUNT(*) AS n FROM item").get() as { n: number }).n;
+  const free = POCKET_SLOTS - (db.prepare("SELECT COUNT(*) AS n FROM item WHERE player_id = ?").get(pid()) as { n: number }).n;
   const onSpot = ITEMS[kind]?.use === "drink" || !!ITEMS[kind]?.atCounter;
   const r = resident(db, s.id);
   let hoursLeft: number | null = null;
@@ -559,7 +574,7 @@ export interface HaggleOut {
 function shareLeft(db: DB): boolean {
   const day = player(db).day;
   const total = (db.prepare("SELECT COUNT(*) AS n FROM ai_call WHERE day = ?").get(day) as { n: number }).n;
-  const mine = (db.prepare("SELECT COUNT(*) AS n FROM ai_call WHERE day = ? AND hook LIKE 'resident%'").get(day) as { n: number }).n;
+  const mine = callsToday(db, day, "resident%"); // (M8d: played together, each player's own talk share)
   return mine < RESIDENT_CALLS_PER_DAY && total < CALLS_PER_DAY - CALLS_RESERVE;
 }
 
@@ -724,7 +739,8 @@ export async function haggle(db: DB, npc: string, kind: string, raw: string, opt
   return { npc_line: out.npc_line, mood: out.mood, choices: [], end_conversation: out.outcome === "refuse", gated: null, note: out.note, wares: out.wares };
 }
 
-/** A new game: no deals, no grudges over prices. */
+/** A new game: no deals, no grudges over prices, for any player. */
 export function resetHaggle(db: DB): void {
   db.prepare("DELETE FROM world_state WHERE key = 'haggle'").run();
+  db.prepare("DELETE FROM player_state WHERE key = 'haggle'").run();
 }
