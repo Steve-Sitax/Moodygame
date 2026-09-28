@@ -742,11 +742,15 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
           ? ""
           : `{
         // snap only past arm's length: up close the jitter just looks broken
+        // (settings "PS1 wobble" off sets a grid of 1e5: then no snap at all, not a rounding to a very fine grid;
+        // 2026-09-28, Steve: off is off)
         vec2 grid = uSnapRes;
-        vec2 ndc = gl_Position.xy / gl_Position.w;
-        vec2 snapped = floor(ndc * grid + 0.5) / grid;
-        float k = smoothstep(1.5, 4.0, gl_Position.w);
-        gl_Position.xy = mix(ndc, snapped, k) * gl_Position.w;
+        if (grid.x < 5e4) {
+          vec2 ndc = gl_Position.xy / gl_Position.w;
+          vec2 snapped = floor(ndc * grid + 0.5) / grid;
+          float k = smoothstep(1.5, 4.0, gl_Position.w);
+          gl_Position.xy = mix(ndc, snapped, k) * gl_Position.w;
+        }
       }`
       }
       #ifdef USE_MAP

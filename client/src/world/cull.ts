@@ -49,6 +49,8 @@ export interface CullStats {
   fresh: boolean;
   /** Things beyond the fog at the last full evaluation (the fog step runs from Culler.fogMin). */
   far?: number;
+  /** Why the last full evaluation was made at once (not staged). */
+  why?: string;
 }
 
 interface Info {
@@ -224,17 +226,48 @@ export class Culler {
     let turn = L ? Math.abs(az - L.az) : 0;
     if (turn > Math.PI) turn = 2 * Math.PI - turn;
     const rectKey = rect ? `${rect.x.toFixed(3)},${rect.w.toFixed(3)}` : "";
-    const fresh =
-      !L ||
-      Math.hypot(eye.x - L.x, eye.y - L.y, eye.z - L.z) > EYE_SLACK ||
-      turn > TURN ||
-      Math.abs(pitch - L.pitch) > TURN ||
-      Math.abs(fogFar - L.fog) > Math.max(0.5, L.fog * 0.02) ||
-      passKey !== L.passes ||
-      Math.abs(lamps - L.lamps) > 0.01 ||
-      (this.occlusion && !this.opts.noOcclusion?.()) !== L.occ ||
-      this.frameNo - L.frame >= EVERY ||
-      rectKey !== L.rect;
+    // (why a full evaluation at once, for the dev readout: the first reason that holds)
+    const why = !L
+      ? "first"
+      : Math.hypot(eye.x - L.x, eye.y - L.y, eye.z - L.z) > EYE_SLACK
+        ? "moved"
+        : turn > TURN
+          ? "turned"
+          : Math.abs(pitch - L.pitch) > TURN
+            ? "pitch"
+            : Math.abs(fogFar - L.fog) > Math.max(0.5, L.fog * 0.02)
+              ? "fog"
+              : passKey !== L.passes
+                ? "mirrors"
+                : Math.abs(lamps - L.lamps) > 0.01
+                  ? "lamps"
+                  : (this.occlusion && !this.opts.noOcclusion?.()) !== L.occ
+                    ? "occlusion"
+                    : this.frameNo - L.frame >= EVERY
+                      ? "every"
+                      : rectKey !== L.rect
+                        ? "rect"
+                        : "";
+    // (2026-09-28: only the lamps changed, ~20 times in 300 frames on the move as the nearest lit lamps change: a new
+    // lamp can only show more through the fog. So everything left out for the fog in the main view is drawn again
+    // now, and a staged evaluation starts; the mirrors keep theirs for its three frames)
+    if (why === "lamps" && Culler.staged && L) {
+      this.unhideFog();
+      L.lamps = lamps;
+      if (!this.staged) {
+        this.staged = this.evaluate(camera, eye, az, pitch, fogFar, passes, t0, rect);
+        this.stagedEval = { x: eye.x, y: eye.y, z: eye.z, az, pitch, fog: fogFar, passes: passKey, lamps, frame: this.frameNo, occ: this.occlusion && !this.opts.noOcclusion?.(), rect: rectKey };
+        this.staged.next();
+        this.refresh();
+        this.active = true;
+        this.chainHook();
+        this.stats.ms = performance.now() - t0;
+        this.stats.fresh = false;
+        return true;
+      }
+    }
+    const fresh = why !== "" && why !== "lamps";
+    if (fresh) this.stats.why = why;
     const made = () => ({ x: eye.x, y: eye.y, z: eye.z, az, pitch, fog: fogFar, passes: passKey, lamps, frame: this.frameNo, occ: this.occlusion && !this.opts.noOcclusion?.(), rect: rectKey });
     let done = false;
     if (fresh) {
@@ -276,6 +309,21 @@ export class Culler {
   static staged = true;
   private staged: Generator<void, void, void> | null = null;
   private stagedEval: Culler["lastEval"] = null;
+
+  /** Everything left out of the main view for the fog is drawn there again (its mirror bits stay). */
+  private unhideFog(): void {
+    const items = this.items;
+    let kept = 0;
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      if (it.why === H_FOG && it.hide & 1) {
+        it.hide &= ~1;
+        it.why = 0;
+      }
+      if (it.hide) items[kept++] = it;
+    }
+    items.length = kept;
+  }
 
   /** Between evaluations: a hidden thing that has moved more than MOVE_SLACK is drawn again. */
   private refresh(): void {
