@@ -16,7 +16,7 @@ import { doorAt, gamesAt, h01, type ChildGame, type DoorSeg, type Weather } from
 import { CRIES, type StreetWork } from "../audio/cries";
 import type { Note } from "../audio/ballad";
 import { omnibusKeepOut } from "../world/omnibus";
-import { trafficLanes } from "../world/traffic";
+import { trafficLanes, trailBack } from "../world/traffic";
 import { WELL_AT } from "../world/streetlife";
 import SPOT_TABLE from "../../../shared/spots.json";
 import { sackPuts, type SackRow } from "./sackModel";
@@ -2380,6 +2380,7 @@ class DogCart {
   private readonly wheels: THREE.Object3D[];
   private readonly dogs: Animal[] = [];
   private trail: Array<[number, number]> = [];
+  private head: [number, number] = [0, 0];
   private roll = 0;
   private lx = 0;
   private lz = 0;
@@ -2420,30 +2421,17 @@ class DogCart {
 
   private place(x: number, z: number, yaw: number): void {
     this.trail = [];
+    this.head = [x, z];
     for (let d = 0; d <= 5; d += 0.2) this.trail.push([x - Math.sin(yaw) * d, z - Math.cos(yaw) * d]);
   }
 
   private back(d: number, out: { x: number; z: number; yaw: number }): void {
-    const t = this.trail;
-    let acc = 0;
-    for (let i = 0; i + 1 < t.length; i++) {
-      const L = Math.hypot(t[i][0] - t[i + 1][0], t[i][1] - t[i + 1][1]);
-      if (acc + L >= d) {
-        const f = (d - acc) / (L || 1);
-        out.x = t[i][0] + (t[i + 1][0] - t[i][0]) * f;
-        out.z = t[i][1] + (t[i + 1][1] - t[i][1]) * f;
-        out.yaw = Math.atan2(t[i][0] - t[i + 1][0], t[i][1] - t[i + 1][1]);
-        return;
-      }
-      acc += L;
-    }
-    const n = t.length - 1;
-    out.yaw = Math.atan2(t[Math.max(0, n - 1)][0] - t[n][0], t[Math.max(0, n - 1)][1] - t[n][1]);
-    out.x = t[n][0] - Math.sin(out.yaw) * (d - acc);
-    out.z = t[n][1] - Math.cos(out.yaw) * (d - acc);
+    trailBack(this.head, this.trail, d, out);
   }
 
   update(dt: number, p: Puppet, fogFar: number): void {
+    // (measured back from where she is now, not from her last kept step: it went in 0.2 m jumps, Steve 2026-09-28)
+    this.head = [p.x, p.z];
     const [hx, hz] = this.trail[0];
     if (Math.hypot(p.x - hx, p.z - hz) >= 0.2) {
       this.trail.unshift([p.x, p.z]);
@@ -2457,10 +2445,12 @@ class DogCart {
     const A = { x: 0, z: 0, yaw: 0 };
     this.back(0.5, D);
     this.back(2.0, A);
-    // she walks at the dogs' left: the rig a little to her right
+    // she walks at the dogs' left: the rig a little to her right (across the way from dogs to cart, not across one
+    // kept step, which swayed it)
+    const way = Math.atan2(D.x - A.x, D.z - A.z);
     for (const q of [D, A]) {
-      q.x -= Math.cos(q.yaw) * 0.55;
-      q.z += Math.sin(q.yaw) * 0.55;
+      q.x -= Math.cos(way) * 0.55;
+      q.z += Math.sin(way) * 0.55;
     }
     const yaw = Math.atan2(D.x - A.x, D.z - A.z);
     this.body.position.set(A.x, 0, A.z);

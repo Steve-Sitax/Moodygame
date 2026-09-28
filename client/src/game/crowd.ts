@@ -300,6 +300,9 @@ const FREE_POSES = new Set<Motion>(["idle", "fold", "talk", "walk", "carry", "be
 
 // ------------------------------------------------------------------ walk grid
 
+/** A dray's rig goes this far to the right of the man at the horse's head (world/traffic.ts LedDray). */
+const DRAY_SIDE = 0.85;
+
 /** A straightened way keeps this far off the solids (a body 0.25 m, and the 0.35 m between the samples of a line). */
 const NEAR_M = 0.4;
 
@@ -318,6 +321,11 @@ class NavGrid {
    * line through its corner could cut the stack (a hired hand with a crate stuck there, twice).
    */
   private readonly near: Uint8Array;
+  /**
+   * How many cells each open cell is from the nearest closed one (0: closed). A dray's way keeps to the
+   * middle of the street by it (Steve 2026-09-28: the rig went into the walls round the corners).
+   */
+  private readonly clear: Uint8Array;
   private readonly nearList = new Map<number, Rect[]>();
   /** Found on the grid: open ground by the water, wide open ground, other open ground. */
   quay: V[] = [];
@@ -336,6 +344,7 @@ class NavGrid {
     const N = this.n * this.n;
     this.open = new Uint8Array(N);
     this.near = new Uint8Array(N);
+    this.clear = new Uint8Array(N);
     this.g = new Float32Array(N);
     this.f = new Float32Array(N);
     this.from = new Int32Array(N);
@@ -434,6 +443,7 @@ class NavGrid {
         else this.street.push({ x, z });
       }
     }
+    this.measureClear();
     this.built = true;
     return true;
   }
@@ -453,7 +463,47 @@ class NavGrid {
   /** Someone bumped into something the walk map does not know (a cart, a crate): close the cell. */
   block(x: number, z: number): void {
     const c = this.cell(x, z);
-    if (c >= 0) this.open[c] = 0;
+    if (c >= 0) this.open[c] = this.clear[c] = 0;
+  }
+
+  /** The cells to the nearest closed one, counted in steps of eight ways (two sweeps). */
+  private measureClear(): void {
+    const { n, open, clear } = this;
+    for (let k = 0; k < n * n; k++) clear[k] = open[k] ? 255 : 0;
+    for (let iz = 0; iz < n; iz++) {
+      for (let ix = 0; ix < n; ix++) {
+        const k = iz * n + ix;
+        if (!clear[k]) continue;
+        let m = clear[k];
+        if (ix > 0) m = Math.min(m, clear[k - 1] + 1);
+        if (iz > 0) {
+          m = Math.min(m, clear[k - n] + 1);
+          if (ix > 0) m = Math.min(m, clear[k - n - 1] + 1);
+          if (ix < n - 1) m = Math.min(m, clear[k - n + 1] + 1);
+        }
+        clear[k] = m;
+      }
+    }
+    for (let iz = n - 1; iz >= 0; iz--) {
+      for (let ix = n - 1; ix >= 0; ix--) {
+        const k = iz * n + ix;
+        if (!clear[k]) continue;
+        let m = clear[k];
+        if (ix < n - 1) m = Math.min(m, clear[k + 1] + 1);
+        if (iz < n - 1) {
+          m = Math.min(m, clear[k + n] + 1);
+          if (ix < n - 1) m = Math.min(m, clear[k + n + 1] + 1);
+          if (ix > 0) m = Math.min(m, clear[k + n - 1] + 1);
+        }
+        clear[k] = m;
+      }
+    }
+  }
+
+  /** How many cells from the nearest closed one (0: closed or off the grid). */
+  clearAt(x: number, z: number): number {
+    const c = this.cell(x, z);
+    return c >= 0 ? this.clear[c] : 0;
   }
 
   inside(x: number, z: number, margin = 2): boolean {
@@ -481,7 +531,7 @@ class NavGrid {
   }
 
   /** Is the straight line from a to b open all the way? */
-  lineOpen(ax: number, az: number, bx: number, bz: number): boolean {
+  lineOpen(ax: number, az: number, bx: number, bz: number, wide?: (cell: number) => boolean): boolean {
     const L = Math.hypot(bx - ax, bz - az);
     const steps = Math.max(1, Math.ceil(L / 0.35));
     for (let i = 1; i <= steps; i++) {
@@ -489,6 +539,7 @@ class NavGrid {
       const x = ax + (bx - ax) * t;
       const z = az + (bz - az) * t;
       if (!this.isOpen(x, z)) return false;
+      if (wide && !wide(this.cell(x, z))) return false;
       // near a solid: clear of it by a body's width (the cell may be open while its corner is not)
       const k = this.cell(x, z);
       if (k >= 0 && this.near[k]) {
@@ -504,7 +555,7 @@ class NavGrid {
    * stands there (in a house, a thing on it), on the open cell nearest to it: they walked on the spot
    * against the wall before it.
    */
-  path(sx: number, sz: number, tx: number, tz: number, maxExpand = 9000, standAt?: (x: number, z: number) => boolean): V[] | null {
+  path(sx: number, sz: number, tx: number, tz: number, maxExpand = 9000, standAt?: (x: number, z: number) => boolean, minClear = 0): V[] | null {
     const s0 = this.nearestOpen(sx, sz, 2);
     const t0 = this.nearestOpen(tx, tz, 2);
     if (!s0 || !t0) return null;
@@ -513,6 +564,17 @@ class NavGrid {
     const n = this.n;
     const tix = t % n;
     const tiz = (t / n) | 0;
+    const six = s % n;
+    const siz = (s / n) | 0;
+    // with `minClear` (a dray): only cells that far from a wall, but for the few by the start and the end
+    const wideOk = (c: number) => {
+      if (c < 0) return false;
+      if (this.clear[c] >= minClear) return true;
+      const cx = c % n;
+      const cz = (c / n) | 0;
+      const r = minClear + 1;
+      return (Math.abs(cx - six) <= r && Math.abs(cz - siz) <= r) || (Math.abs(cx - tix) <= r && Math.abs(cz - tiz) <= r);
+    };
     const h = (c: number) => {
       const dx = Math.abs((c % n) - tix);
       const dz = Math.abs(((c / n) | 0) - tiz);
@@ -573,6 +635,7 @@ class NavGrid {
           if (nx < 0 || nz < 0 || nx >= n || nz >= n) continue;
           const nc = nz * n + nx;
           if (!open[nc] || closed[nc] === id) continue;
+          if (minClear && !wideOk(nc)) continue;
           // no cutting corners past a wall
           if (dx && dz && (!open[cz * n + nx] || !open[nz * n + cx])) continue;
           const ng = g[c] + (dx && dz ? 1.4142 : 1);
@@ -594,7 +657,7 @@ class NavGrid {
     const out: V[] = [];
     let anchor: V = { x: sx, z: sz };
     for (let i = 1; i < cells.length; i++) {
-      if (!this.lineOpen(anchor.x, anchor.z, cells[i].x, cells[i].z)) {
+      if (!this.lineOpen(anchor.x, anchor.z, cells[i].x, cells[i].z, minClear ? wideOk : undefined)) {
         out.push(cells[i - 1]);
         anchor = cells[i - 1];
       }
@@ -2087,7 +2150,8 @@ export class Crowd {
       return;
     }
     this.pathBudget--;
-    const path = this.grid.path(p.x, p.z, dest.x, dest.z, 9000, (x, z) => this.ground.isFree(x, z, this.ground.narrow?.(x, z) ? 0.15 : 0.25));
+    const standAt = (x: number, z: number) => this.ground.isFree(x, z, this.ground.narrow?.(x, z) ? 0.15 : 0.25);
+    const path = p.veh?.spec.kind === "dray" ? this.drayWay(p, dest, standAt) : this.grid.path(p.x, p.z, dest.x, dest.z, 9000, standAt);
     if (path && path.length) {
       p.path = path;
       p.pi = 0;
@@ -2102,6 +2166,55 @@ export class Crowd {
       // no way there now: stand while waiting to try again (fixes 2026-09-27: the watch walked on the spot)
       p.human.play(this.stillMotion(p), 0.3);
     }
+  }
+
+  /**
+   * A dray's way (Steve 2026-09-28: the rig went into the walls round the corners). The rig goes at his right
+   * (traffic.ts LedDray), so the way is found for the rig's middle, as far from the walls as the streets allow
+   * (3 cells, else 2; a lane too narrow for that: the walkers' way), and he walks it DRAY_SIDE to its left.
+   */
+  private drayWay(p: Person, dest: V, standAt: (x: number, z: number) => boolean): V[] | null {
+    const sx = p.x - Math.cos(p.yaw) * DRAY_SIDE;
+    const sz = p.z + Math.sin(p.yaw) * DRAY_SIDE;
+    for (const wide of [3, 2]) {
+      const mid = this.grid.path(this.grid.isOpen(sx, sz) ? sx : p.x, this.grid.isOpen(sx, sz) ? sz : p.z, dest.x, dest.z, 9000, standAt, wide);
+      if (!mid || !mid.length) continue;
+      // each corner moved to his side of the rig's way (a mitre, so both legs keep the distance), the goal kept
+      const way: V[] = [];
+      let prev: V = { x: sx, z: sz };
+      for (let i = 0; i < mid.length; i++) {
+        const q = mid[i];
+        const next = mid[i + 1];
+        if (!next) {
+          way.push(q);
+          break;
+        }
+        const ax = q.x - prev.x;
+        const az = q.z - prev.z;
+        const bx = next.x - q.x;
+        const bz = next.z - q.z;
+        const al = Math.hypot(ax, az) || 1;
+        const bl = Math.hypot(bx, bz) || 1;
+        // (left of a heading (ux, uz) is (uz, -ux))
+        let lx = az / al + bz / bl;
+        let lz = -ax / al - bx / bl;
+        const ll = Math.hypot(lx, lz);
+        if (ll < 0.2) {
+          lx = bz / bl;
+          lz = -bx / bl;
+        } else {
+          lx /= ll;
+          lz /= ll;
+        }
+        const cosHalf = Math.max(0.55, lx * (az / al) - lz * (ax / al));
+        const off = DRAY_SIDE / cosHalf;
+        const m = { x: q.x + lx * off, z: q.z + lz * off };
+        way.push(this.grid.isOpen(m.x, m.z) && this.ground.isFree(m.x, m.z, 0.25) ? m : q);
+        prev = q;
+      }
+      return way;
+    }
+    return this.grid.path(p.x, p.z, dest.x, dest.z, 9000, standAt);
   }
 
   private setLoad(p: Person, on: boolean): void {
