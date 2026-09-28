@@ -7,6 +7,9 @@ import CITY from "../../../shared/city.json";
 import SPOT_TABLE from "../../../shared/spots.json";
 import { LANDMARK_DOORS } from "../../../shared/landmarks";
 import { psx } from "../retro/psx";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { pickSack, sackMesh } from "../game/sackModel";
+import QG_SACKS from "./quaygoods_sack_sockets.json";
 import { rectAround, type Rect } from "./geom";
 import { loadProps, type Props } from "./props3d";
 import { FOOT, heightOf, townGoods, type Door } from "../../../shared/goods";
@@ -1106,8 +1109,57 @@ function mats(solidMap: THREE.Texture, decalMap: THREE.Texture): { solid: THREE.
   return materials;
 }
 
+// ------------------------------------------------------------------ the one sack model (2026-09-28)
+
+/**
+ * CLAUDE.md, one model per thing: a model that holds sacks that are not goods of the server (the loaded handcart, the
+ * sack truck, the scale) is drawn as its "_bare" copy, and the one sack model (game/sackModel.ts) lies in each sack's
+ * place (quaygoods_sack_sockets.json, written by tools/blender/build_quaygoods.py), its goods picked by where it stands.
+ */
+type SackRow = { k: string; m: number[]; L: number; W: number; H: number };
+function withoutSacks(puts: Put[], protos: Map<string, Proto>): { puts: Put[]; sacks: THREE.Mesh[] } {
+  const out: Put[] = [];
+  const each = new Map<string, THREE.BufferGeometry[]>();
+  const matOf = new Map<string, THREE.Material>();
+  const p = new THREE.Vector3();
+  for (const put of puts) {
+    const rows = (QG_SACKS as Record<string, SackRow[]>)[put.name];
+    if (!rows || !protos.get(`${put.name}_bare`)) {
+      out.push(put);
+      continue;
+    }
+    out.push({ ...put, name: `${put.name}_bare` });
+    p.setFromMatrixPosition(put.m);
+    const lot = pickSack(`qg-static:${put.name}:${Math.round(p.x * 2)},${Math.round(p.z * 2)}`, "quay");
+    const ck = `${Math.floor(p.x / CHUNK)},${Math.floor(p.z / CHUNK)}`;
+    for (const r of rows) {
+      const s = sackMesh(lot, { fit: [r.L, r.H, r.W] });
+      const M = put.m.clone().multiply(new THREE.Matrix4().fromArray(r.m)).multiply(new THREE.Matrix4().makeScale(s.scale.x, s.scale.y, s.scale.z));
+      const key = `${ck}|${(s.material as THREE.Material).uuid}`;
+      matOf.set(key, s.material as THREE.Material);
+      let l = each.get(key);
+      if (!l) each.set(key, (l = []));
+      l.push(s.geometry.clone().applyMatrix4(M));
+    }
+  }
+  const sacks: THREE.Mesh[] = [];
+  for (const [key, geos] of each) {
+    const g = mergeGeometries(geos, false);
+    for (const q of geos) if (q !== g) q.dispose();
+    if (!g) continue;
+    g.computeBoundingSphere();
+    const mesh = new THREE.Mesh(g, matOf.get(key)!);
+    mesh.name = "quaygoods_sacks";
+    sacks.push(mesh);
+  }
+  return { puts: out, sacks };
+}
+let staticSacks: THREE.Mesh[] = [];
+
 /** Merge copies into one mesh per chunk and slot. */
-function mergePuts(puts: Put[], protos: Map<string, Proto>, m: { solid: THREE.Material; decal: THREE.Material }, group: THREE.Group, chunk: number): { meshes: THREE.Mesh[]; triangles: number } {
+function mergePuts(all: Put[], protos: Map<string, Proto>, m: { solid: THREE.Material; decal: THREE.Material }, group: THREE.Group, chunk: number): { meshes: THREE.Mesh[]; triangles: number } {
+  const { puts, sacks } = withoutSacks(all, protos);
+  for (const s of sacks) group.add(s);
   const buckets = new Map<string, { slot: number; n: number; items: Array<{ part: Part; m: THREE.Matrix4; shade: number }> }>();
   const p = new THREE.Vector3();
   for (const put of puts) {
@@ -1225,8 +1277,15 @@ const cargoShade = new Map<string, number>();
 export const cargoStats = { rebuilds: 0, ms: 0 };
 
 /** Every chunk's static copies (the heaps as laid, the debris) into arrays, and the meshes made again with the cargo. */
-function buildChunks(puts: Put[]): { meshes: number; triangles: number } {
+function buildChunks(all: Put[]): { meshes: number; triangles: number } {
   const L = live!;
+  for (const s of staticSacks) {
+    s.removeFromParent();
+    s.geometry.dispose();
+  }
+  const { puts, sacks } = withoutSacks(all, L.protos);
+  staticSacks = sacks;
+  for (const s of sacks) L.group.add(s);
   for (const b of L.buckets.values()) {
     if (b.mesh) {
       L.group.remove(b.mesh);

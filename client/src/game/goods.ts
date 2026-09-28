@@ -5,8 +5,9 @@ import type { FirstPerson } from "../player/firstPerson";
 import { loadProps, type Props } from "../world/props3d";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { GOODS, makeGoods, type Goods } from "./props";
+import { sackLabelFor, sackMesh } from "./sackModel";
 import { pick, type Target } from "./facing";
-import { FOOT, hash32, heightOf, placeAt, rotFor, type GoodsAsk, type GoodsItem, type GoodsPush, type Holder } from "../../../shared/goods";
+import { FOOT, hash32, heightOf, placeAt, rotFor, SACK_LIE, type GoodsAsk, type GoodsItem, type GoodsPush, type Holder } from "../../../shared/goods";
 import { createGoodsDrays, type GoodsDrays } from "../world/goodsDrays";
 import { goodsRects, hideQuayCargo, quayModels, quayPieceCollider, quayPieceMesh, quayPieceSize, showQuayCargo, flushQuayCargo, quayCargo, whenQuayCargo, cargoStats } from "../world/quaygoods";
 
@@ -171,6 +172,13 @@ export class GoodsWorld {
       .then((m) => {
         this.quay = m;
         for (const it of this.items) if (it.look?.startsWith("q:")) this.collide(it);
+        // (the heaps' sacks at their old models' size, now that those are here)
+        this.sackFitCache.clear();
+        for (const ck of this.sackChunks.keys()) this.sackChunksDirty.add(ck);
+        for (const it of this.all.values()) if (it.kind === "sacks" && it.obj.children.length) {
+          for (const c of [...it.obj.children]) c.removeFromParent();
+          it.obj.add(this.sackOf(it));
+        }
       })
       .catch(() => {});
     // (the heaps' cargo from the server's list is drawn in the heaps' chunks: once they stand, and checked against them)
@@ -246,7 +254,7 @@ export class GoodsWorld {
     if (!it) {
       it = {
         id: s.id,
-        obj: s.look ? new THREE.Group() : makeGoods(s.kind as Goods, this.world.mats, s.id),
+        obj: s.look || s.kind === "sacks" ? new THREE.Group() : makeGoods(s.kind as Goods, this.world.mats, s.id),
         kind: s.kind as Goods,
         look: s.look,
         h: s.h,
@@ -345,7 +353,8 @@ export class GoodsWorld {
     if (i >= 0) this.items.splice(i, 1);
     if (it.rect) this.world.removeCollider(it.rect);
     it.rect = null;
-    if (it.look === "cask" || it.look?.startsWith("p:")) this.casksDirty = true;
+    if (it.kind === "sacks") this.sackGone(it);
+    else if (it.look === "cask" || it.look?.startsWith("p:")) this.casksDirty = true;
     else if (it.look?.startsWith("q:")) hideQuayCargo(it.id);
     it.obj.removeFromParent();
     this.shownOn.delete(it.id);
@@ -360,7 +369,11 @@ export class GoodsWorld {
     it.obj.position.set(x, y, z);
     it.obj.rotation.set(0, rot, 0);
     it.obj.scale.setScalar(1);
-    if (it.look === "cask" || it.look?.startsWith("p:")) {
+    if (it.kind === "sacks") {
+      // (2026-09-28: every sack is the one sack model, drawn merged while it lies: drawSacks)
+      for (const c of [...it.obj.children]) c.removeFromParent();
+      this.sackLies(it);
+    } else if (it.look === "cask" || it.look?.startsWith("p:")) {
       for (const c of [...it.obj.children]) c.removeFromParent(); // (lying, the merged meshes draw it)
       this.casksDirty = true;
     } else if (it.look?.startsWith("q:")) {
@@ -395,6 +408,11 @@ export class GoodsWorld {
 
   /** The model of an item that is carried or on a cart (a quay's cask, crate or sack gets its own model now). */
   private body(it: Item): THREE.Object3D {
+    if (it.kind === "sacks") {
+      // one model for every sack, its own stencil by its id, wherever it is (pile, hands, cart, ground)
+      if (!it.obj.children.length) it.obj.add(this.sackOf(it));
+      return it.obj;
+    }
     if (it.look && !it.obj.children.length) {
       let m: THREE.Object3D | null = null;
       if (it.look === "cask") m = this.props ? this.props.place("barrel", 0, 0, 0) : null;
@@ -560,7 +578,107 @@ export class GoodsWorld {
     for (const [id, h] of npcs) if (this.loadedNpcs.get(id) !== h) h.load(true);
     this.loadedNpcs = npcs;
     if (this.casksDirty && this.props) this.drawCasks();
+    if (this.sackChunksDirty.size) this.drawSacks();
     flushQuayCargo();
+  }
+
+  // ------------------------------------------------------------------ the sacks (one model: game/sackModel.ts)
+
+  /** Lying sacks by 64 m chunk, their merged meshes, and the chunks to make again. */
+  private sackChunks = new Map<string, Set<Item>>();
+  private sackMeshes = new Map<string, THREE.Mesh[]>();
+  private sackChunksDirty = new Set<string>();
+  private sackAt = new Map<string, string>();
+  /** Time the last rebuild of lying sacks took (ms), for the checks. */
+  sackMs = 0;
+  private readonly sackFitCache = new Map<string, [number, number, number] | null>();
+
+  /** The size a quay heap's sack had (its old model's box), so the one sack model takes its place exactly. */
+  private sackFit(it: Item): [number, number, number] | null {
+    const node = it.look?.startsWith("q:") ? it.look.slice(2) : null;
+    if (!node) return null;
+    if (this.sackFitCache.has(node)) return this.sackFitCache.get(node)!;
+    const m = quayPieceMesh(node);
+    if (!m) return null; // (the heap models not in yet: its own size for now)
+    m.geometry.computeBoundingBox();
+    const b = m.geometry.boundingBox!;
+    // (the height as the heap stacks them; the length and width at most 15% over a real sack's: the old "mountain"
+    // sacks were 1.32 m long and stretched to that they read as flat bricks, Steve 2026-09-28)
+    const standing = node.includes("standing");
+    const cap = (v: number, real: number) => Math.min(v, real * 1.15);
+    const h = b.max.y - Math.max(0, b.min.y);
+    const fit: [number, number, number] = standing
+      ? [cap(b.max.x - b.min.x, SACK_LIE.w), h, cap(b.max.z - b.min.z, SACK_LIE.w)]
+      : [cap(b.max.x - b.min.x, SACK_LIE.l), h, cap(b.max.z - b.min.z, SACK_LIE.w)];
+    this.sackFitCache.set(node, fit);
+    return fit;
+  }
+
+  private sackOf(it: Item): THREE.Mesh {
+    return sackMesh(sackLabelFor(it.id), { standing: !!it.look?.includes("standing"), fit: this.sackFit(it) ?? undefined });
+  }
+
+  private sackLies(it: Item): void {
+    this.sackGone(it);
+    const { x, z } = it.obj.position;
+    const ck = `${Math.floor(x / 64)},${Math.floor(z / 64)}`;
+    let set = this.sackChunks.get(ck);
+    if (!set) this.sackChunks.set(ck, (set = new Set()));
+    set.add(it);
+    this.sackAt.set(it.id, ck);
+    this.sackChunksDirty.add(ck);
+  }
+
+  private sackGone(it: Item): void {
+    const ck = this.sackAt.get(it.id);
+    if (!ck) return;
+    this.sackChunks.get(ck)?.delete(it);
+    this.sackAt.delete(it.id);
+    this.sackChunksDirty.add(ck);
+  }
+
+  /**
+   * The lying sacks merged, one mesh per stencil in each 64 m chunk (the same few draw calls however many lie there;
+   * the same material as a carried one, so no new shader), made again for a chunk when one comes or goes.
+   */
+  private drawSacks(): void {
+    const t0 = performance.now();
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const sc = new THREE.Vector3();
+    const up = new THREE.Vector3(0, 1, 0);
+    for (const ck of this.sackChunksDirty) {
+      for (const old of this.sackMeshes.get(ck) ?? []) {
+        old.removeFromParent();
+        old.geometry.dispose();
+      }
+      this.sackMeshes.delete(ck);
+      const byMat = new Map<THREE.Material, THREE.BufferGeometry[]>();
+      for (const it of this.sackChunks.get(ck) ?? []) {
+        const s = this.sackOf(it);
+        q.setFromAxisAngle(up, it.obj.rotation.y);
+        sc.copy(s.scale);
+        m.compose(it.obj.position, q, sc);
+        const g = s.geometry.clone().applyMatrix4(m);
+        let l = byMat.get(s.material as THREE.Material);
+        if (!l) byMat.set(s.material as THREE.Material, (l = []));
+        l.push(g);
+      }
+      const meshes: THREE.Mesh[] = [];
+      for (const [material, geos] of byMat) {
+        const merged = mergeGeometries(geos, false);
+        for (const g of geos) if (g !== merged) g.dispose();
+        if (!merged) continue;
+        merged.computeBoundingSphere();
+        const mesh = new THREE.Mesh(merged, material);
+        mesh.name = "goods_sacks";
+        this.world.scene.add(mesh);
+        meshes.push(mesh);
+      }
+      if (meshes.length) this.sackMeshes.set(ck, meshes);
+    }
+    this.sackChunksDirty.clear();
+    this.sackMs = +(performance.now() - t0).toFixed(2);
   }
 
   /**

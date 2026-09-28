@@ -287,6 +287,8 @@ def track(m, name, where, fn, on=()):
     fn()
     m.bm.verts.ensure_lookup_table()
     vs = [m.bm.verts[i].co for i in range(n0, len(m.bm.verts))]
+    if not vs:
+        return  # (a sack left out of a "_bare" copy: the game draws the one sack model there)
     lo = Vector((min(v.x for v in vs), min(v.y for v in vs), min(v.z for v in vs)))
     hi = Vector((max(v.x for v in vs), max(v.y for v in vs), max(v.z for v in vs)))
     PARTS.append((name, where, lo, hi, tuple(on)))
@@ -963,10 +965,26 @@ def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     bpy.ops.wm.read_factory_settings(use_empty=True)
     make_materials()
+    # (2026-09-28: the sacks' places recorded, and the ferry and the stage built again without them: the game draws the
+    # one sack model there, client game/sackModel.ts; client/src/game/ferry_sack_sockets.json)
+    bb.CUR[0] = "ferry"
     fm, hull = ferry()
     fo = bb.to_object(fm, "ferry")
     bb.cap_object(hull, "ferry_cap", fo)
+    bb.CUR[0] = "landing_stage"
     so = bb.to_object(stage(), "landing_stage")
+    bb.CUR[0] = None
+    n_parts = len(PARTS)
+    bb.NO_SACKS[0] = True
+    try:
+        fb, _ = ferry()
+        bb.to_object(fb, "ferry_bare")
+        bb.to_object(stage(), "landing_stage_bare")
+    finally:
+        bb.NO_SACKS[0] = False
+    del PARTS[n_parts:]
+    with open(os.path.join(bb.ROOT, "client", "src", "game", "ferry_sack_sockets.json"), "w", encoding="utf-8") as f:
+        json.dump(bb.SACK_SOCKETS, f, separators=(",", ":"))
     bb.OUT = OUT
     bb.export()
     for ob in (fo, so):

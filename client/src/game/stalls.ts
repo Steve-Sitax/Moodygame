@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { OPEN_SACK, openSackGeometry, pickSack, SACK_W, sackMaterial, sackMesh } from "./sackModel";
+import STALL_SACKS from "./stalls_sack_sockets.json";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { psx } from "../retro/psx";
@@ -74,6 +76,37 @@ function load(): Promise<Parts | null> {
         node.rotation.set(0, 0, 0);
         protos.set(node.name, node);
       }
+      // 2026-09-28 (CLAUDE.md, one model per thing): a model with sacks is its "_bare" copy and the one sack model
+      // (game/sackModel.ts) in each sack's place, lying, standing or open (stalls_sack_sockets.json, written by
+      // tools/blender/build_stalls.py); the goods picked from the goods list, the open sacks' by what is heaped in them
+      for (const [name, rows] of Object.entries(STALL_SACKS as Record<string, StallSackRow[]>)) {
+        // (no "_bare" copy: a model of sacks only, whose empty copy the export left out: only the sacks)
+        const bare = protos.get(`${name}_bare`);
+        if (!protos.has(name)) continue;
+        const g = new THREE.Group();
+        g.name = name;
+        if (bare) g.add(bare.clone());
+        rows.forEach((r, i) => {
+          const lot = pickSack(`stall:${name}:${i}`, r.goods ? [[r.goods, 1]] : "market");
+          let m: THREE.Mesh;
+          if (r.k === "open") {
+            m = new THREE.Mesh(openSackGeometry(lot.goods), sackMaterial(lot));
+            const s = r.h! / (OPEN_SACK.top + 0.02);
+            m.scale.set((r.r! * 2) / SACK_W, s, (r.r! * 2) / SACK_W);
+          } else m = sackMesh(lot, { standing: r.k === "standing", fit: [r.L!, r.H!, r.W!] });
+          const M = new THREE.Matrix4().fromArray(r.m);
+          const pp = new THREE.Vector3();
+          const q = new THREE.Quaternion();
+          const sc = new THREE.Vector3();
+          M.decompose(pp, q, sc);
+          m.position.copy(pp);
+          m.quaternion.copy(q);
+          m.scale.multiply(sc);
+          g.add(m);
+        });
+        g.updateMatrixWorld(true);
+        protos.set(name, g);
+      }
       return { protos, mats: materials };
     })
     .catch((e: unknown) => {
@@ -82,6 +115,18 @@ function load(): Promise<Parts | null> {
       return null;
     });
   return loading;
+}
+
+/** A sack of a stalls.glb model (tools/blender/build_stalls.py): lying, standing or open, its matrix and size. */
+interface StallSackRow {
+  k: "lying" | "standing" | "open";
+  m: number[];
+  L?: number;
+  W?: number;
+  H?: number;
+  r?: number;
+  h?: number;
+  goods?: string;
 }
 
 /** M3i (game/market.ts): the stall parts of stalls.glb (frame, awnings, goods, tables, the mk2_* kinds), psx materials already on them. */

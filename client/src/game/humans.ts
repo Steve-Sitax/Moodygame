@@ -5,6 +5,8 @@ import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { psx } from "../retro/psx";
 import { PUPPET_MOTIONS } from "../../../shared/mpProtocol";
 import { addCaster, removeCaster } from "../world/lanternLights";
+import { hangSack, sackLabelFor, sackMaterial, type SackLabel, type SackSocket } from "./sackModel";
+import SOCKETS from "./people_sockets.json";
 
 // The people of 1873 as rigged, textured low-poly models (tools/blender/build_people.py,
 // client/public/models/people.glb). Loaded once; each person is a clone with its own
@@ -180,6 +182,13 @@ export class Human {
   private current: THREE.AnimationAction | null = null;
   private readonly stride = new Map<Motion, number>();
   motion: Motion | null = null;
+  /** The sack this figure carries by its build (a docker's on the shoulder, a porter's on the sack truck), or null. */
+  sack: THREE.Mesh | null = null;
+
+  /** What the sack it carries says (the pile it came from, the mill's flour). */
+  setSackLabel(label: SackLabel): void {
+    if (this.sack) this.sack.material = sackMaterial(label);
+  }
 
   constructor(
     readonly kind: HumanKind,
@@ -190,6 +199,10 @@ export class Human {
   ) {
     this.root = cloneSkinned(src);
     this.root.userData.human = kind; // M7 sleep: a bench with someone on it is taken (game/sleep.ts)
+    // 2026-09-28: the docker's shoulder sack and the porter's sack-truck sack are the one sack model (game/sackModel.ts),
+    // hung where people.glb had its own (people_sockets.json, written by tools/blender/build_people.py)
+    const socket = (SOCKETS as Record<string, SackSocket>)[kind];
+    if (socket) this.sack = hangSack(this.root, socket, sackLabelFor(`figure:${kind}`));
     // a lantern near them throws their shadow (world/lanternLights.ts picks the ones near a light)
     addCaster(this.root);
     this.mixer = new THREE.AnimationMixer(this.root);

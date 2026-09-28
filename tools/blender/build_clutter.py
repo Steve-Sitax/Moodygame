@@ -409,13 +409,30 @@ def handcart():
     return m
 
 
-def sacks():
-    """Three sacks slumped against the wall, one lying."""
+# Where the sacks are (2026-09-28: one sack model, client game/sackModel.ts): written to
+# client/src/world/clutter_sack_sockets.json; "sacks_bare" is the model without them (the game draws the one sack there).
+SACK_SOCKETS = {}
+_C = Matrix(((1, 0, 0, 0), (0, 0, 1, 0), (0, -1, 0, 0), (0, 0, 0, 1)))  # Blender (x, y, z) -> glTF (x, z, -y)
+
+
+def _socket(name, m, M, kind, L, W, H):
+    g = _C @ (m.xf @ M) @ _C.inverted()
+    SACK_SOCKETS.setdefault(name, []).append(dict(k=kind, m=[round(g[r][c], 4) for c in range(4) for r in range(4)], L=L, W=W, H=H))
+
+
+def sacks(bare=False):
+    """Three sacks slumped against the wall, one lying (bare: none; their places recorded)."""
     m = Mesh(ao=0.7)
     for x, s in ((-0.28, 1.0), (0.2, 0.9)):
+        if bare:
+            _socket("sacks", m, move(x, -0.28, 0) @ rot("X", 0.12) @ rot("Z", math.pi / 2), "standing", 0.5 * s, 0.5 * s, 0.68 * s)
+            continue
         m.lathe([(0.2 * s, 0), (0.25 * s, 0.1), (0.24 * s, 0.48 * s), (0.15 * s, 0.6 * s), (0.04, 0.68 * s)], 6, "sack",
                 M=move(x, -0.28, 0) @ rot("X", 0.12))
         m.lathe([(0.05, 0.6 * s), (0.05, 0.66 * s)], 5, "rope", M=move(x, -0.28, 0) @ rot("X", 0.12))
+    if bare:
+        _socket("sacks", m, move(0.0, -0.68, -0.02) @ rot("Z", 0.25), "lying", 0.72, 0.36, 0.36)
+        return m
     with m.at(move(0.0, -0.68, 0.16) @ rot("Z", 0.25) @ rot("Y", math.pi / 2)):
         m.lathe([(0.12, -0.36), (0.18, -0.25), (0.18, 0.25), (0.12, 0.36)], 6, "sack_dark", cap0=True, cap1=True)
     return m
@@ -711,7 +728,7 @@ def poster(key):
 def build_models():
     B = [("barrel", barrel()), ("keg", keg()), ("crate", crate()), ("crates", crates()), ("crate_broken", crate_broken()),
          ("rain_butt", rain_butt()), ("downpipe", downpipe()), ("rain_head", rain_head()), ("broom", broom()), ("shovel", shovel()),
-         ("handcart", handcart()), ("sacks", sacks()), ("baskets", baskets()), ("rubbish", rubbish()), ("rope_unit", rope_unit()),
+         ("handcart", handcart()), ("sacks", sacks()), ("sacks_bare", sacks(bare=True)), ("baskets", baskets()), ("rubbish", rubbish()), ("rope_unit", rope_unit()),
          ("cat_grey", cat("cat_grey")), ("cat_black", cat("cat_black", "cat_white")), ("cat_ginger", cat("cat_ginger", "cat_white")),
          ("door_ledged", door_ledged()), ("door_green", door_green()), ("gate_double", gate_double()), ("window_small", window_small()),
          ("coping_unit", coping_unit()),
@@ -780,7 +797,10 @@ def main():
     make_materials()
     objs = {}
     counts = {}
-    for name, mesh in build_models():
+    models = build_models()
+    with open(os.path.join(ROOT, "client", "src", "world", "clutter_sack_sockets.json"), "w", encoding="utf-8") as f:
+        json.dump(SACK_SOCKETS, f, separators=(",", ":"))
+    for name, mesh in models:
         objs[name] = mesh.to_object(name)
         counts[name] = sl.tris(objs[name])
     node = bpy.data.objects.new("clutter_meta", None)

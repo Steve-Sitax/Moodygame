@@ -1535,8 +1535,21 @@ def coal_heap():
     return m
 
 
+# Where the sacks are (2026-09-28: one sack model, client game/sackModel.ts): written to
+# client/src/world/quayfurniture_sack_sockets.json; "grain_pallet_bare" is the pallet without them.
+SACK_SOCKETS = {}
+SACK_CUR = [None]
+SACK_NO = [False]
+_C = Matrix(((1, 0, 0, 0), (0, 0, 1, 0), (0, -1, 0, 0), (0, 0, 0, 1)))  # Blender (x, y, z) -> glTF (x, z, -y)
+
+
 def sack(m, x, y, z, a, L=0.9, W=0.5, T=0.28, cell="jute"):
     """A filled sack lying flat: a pillow of 3 x 2 panels, tied ear at one end."""
+    if SACK_CUR[0] is not None:
+        g = _C @ (m.xf @ move(x, y, z) @ rot("Z", a)) @ _C.inverted()
+        SACK_SOCKETS.setdefault(SACK_CUR[0], []).append(dict(k="lying", m=[round(g[r][c], 4) for c in range(4) for r in range(4)], L=L, W=W, H=T))
+    if SACK_NO[0]:
+        return
     with m.at(move(x, y, z) @ rot("Z", a)):
         xs = (-L / 2, -L / 6, L / 6, L / 2)
         ys = (-W / 2, 0, W / 2)
@@ -1744,7 +1757,12 @@ def build_models():
     B.append(("eel_pots", eel_pots()))
     B.append(("fish_baskets", fish_baskets()))
     B.append(("coal_heap", coal_heap()))
+    SACK_CUR[0] = "grain_pallet"
     B.append(("grain_pallet", grain_pallet()))
+    SACK_CUR[0] = None
+    SACK_NO[0] = True
+    B.append(("grain_pallet_bare", grain_pallet()))
+    SACK_NO[0] = False
     B.append(("timber_baulks", timber_baulks()))
     B.append(("tar_fire", tar_fire()))
     B.append(("boat_trestles", boat_trestles()))
@@ -1894,6 +1912,8 @@ def main():
     build_atlases()
     make_materials()
     models, meta = build_models()
+    with open(os.path.join(ROOT, "client", "src", "world", "quayfurniture_sack_sockets.json"), "w", encoding="utf-8") as f:
+        json.dump(SACK_SOCKETS, f, separators=(",", ":"))
     objs = {}
     for name, mesh in models:
         objs[name] = mesh.to_object(name)

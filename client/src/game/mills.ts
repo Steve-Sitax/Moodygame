@@ -353,11 +353,12 @@ export class Mills {
       rig.dray.place(x, z, yaw);
       rig.dray.follow(0, x, z, yaw, 0);
       rig.dray.loaded = rig.sacks > 0;
+      rig.dray.setSacks(rig.sacks, this.rigLabel(rig));
     }
     if (rig.cart) {
       rig.cart.place(x + Math.sin(yaw) * 0.5, z + Math.cos(yaw) * 0.5, yaw);
       rig.cart.push(0.1, x, z, 0.75, yaw, 0);
-      rig.cart.setItems(Math.min(6, rig.sacks), "sacks");
+      rig.cart.setItems(Math.min(6, rig.sacks), "sacks", this.rigLabel(rig));
     }
   }
 
@@ -392,8 +393,10 @@ export class Mills {
     this.showRig(rig, false);
     rig.out = true;
     rig.sacks = loaded;
-    if (rig.m.cart === "dray") this.crowd.puppetVehicle(p, { kind: "dray", loaded: loaded > 0 });
-    else this.crowd.puppetVehicle(p, { kind: "cart", items: Math.min(6, loaded), what: "sacks" });
+    // (the sacks on it as many as there are, stencilled with what the run takes: the one sack model)
+    const label = this.rigLabel(rig);
+    if (rig.m.cart === "dray") this.crowd.puppetVehicle(p, { kind: "dray", loaded: loaded > 0, sacks: loaded, label });
+    else this.crowd.puppetVehicle(p, { kind: "cart", items: Math.min(6, loaded), what: "sacks", label });
   }
 
   /** He lets go where he stands: the cart stands there still. */
@@ -458,7 +461,7 @@ export class Mills {
         return true;
       case "at_door":
         if ((h.wait -= dt) > 0) return true;
-        this.crowd.puppetLoad(p, true);
+        this.crowd.puppetLoad(p, true, "sack", MILL_LABELS[m.id]?.flour);
         h.stage = "to_pile";
         return true;
       case "to_pile":
@@ -925,7 +928,8 @@ export class Mills {
     if (!k.toB) {
       // at A: take up a sack
       this.crowd.puppetStand(who, "idle", null);
-      this.crowd.puppetLoad(who, true);
+      // (flour or the dock's grain, as the run takes: the one sack model)
+      this.crowd.puppetLoad(who, true, "sack", kind === "grain" ? MILL_LABELS[k.m.id]?.grain : MILL_LABELS[k.m.id]?.flour);
       if (kind === "flour" && phase === "unload") this.setRigSacks(rig, rig.sacks - 1);
       if (kind === "grain" && phase === "store") this.setRigSacks(rig, rig.sacks - 1);
       k.toB = true;
@@ -944,8 +948,25 @@ export class Mills {
 
   private setRigSacks(rig: Rig, n: number): void {
     rig.sacks = Math.max(0, n);
-    if (rig.dray) rig.dray.loaded = rig.sacks > 0;
-    if (rig.cart) rig.cart.setItems(Math.min(6, rig.sacks), "sacks");
+    if (rig.dray) {
+      rig.dray.loaded = rig.sacks > 0;
+      rig.dray.setSacks(rig.sacks, this.rigLabel(rig));
+    }
+    if (rig.cart) rig.cart.setItems(Math.min(6, rig.sacks), "sacks", this.rigLabel(rig));
+    // (and on the man's cart while he leads it)
+    const man = [...this.men.entries()].find(([, k]) => k.m === rig.m)?.[0];
+    const p = man ? this.town.puppet(man) : null;
+    if (p && rig.out) {
+      if (rig.m.cart === "dray") this.crowd.puppetVehicle(p, { kind: "dray", loaded: rig.sacks > 0, sacks: rig.sacks, label: this.rigLabel(rig) });
+      else this.crowd.puppetVehicle(p, { kind: "cart", items: Math.min(6, rig.sacks), what: "sacks", label: this.rigLabel(rig) });
+    }
+  }
+
+  /** What the sacks on the mill's cart say: flour from this mill on the dawn run, the dock's grain after dinner. */
+  private rigLabel(rig: Rig) {
+    const run = this.runOf(rig.m);
+    const labels = MILL_LABELS[rig.m.id];
+    return run?.run.kind === "grain" ? labels?.grain : labels?.flour;
   }
 
   // ------------------------------------------------------------------ the miller

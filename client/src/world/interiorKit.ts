@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { OPEN_SACK, openSackGeometry, pickSack, sackMaterial } from "../game/sackModel";
 import { psx, bumpFromMap } from "../retro/psx";
 import { withPicture } from "./quayStone";
 import { Builder, canvasTex, lambert, mat, rand, tex } from "./rooms";
@@ -380,6 +381,17 @@ export const M = {
 // ------------------------------------------------------------------ pieces
 
 /** The pieces, built into one group (the room's still things). Local frame of the room, y up from its floor. */
+/** The goods an open sack in a room holds, by the colour of what is heaped in it (flour white, peas green ...). */
+function goodsOfColour(c: number): string {
+  const r = (c >> 16) & 255;
+  const g = (c >> 8) & 255;
+  const b = c & 255;
+  if (r + g + b > 560) return r > b + 20 ? "flour" : "salt";
+  if (g > r) return "beans";
+  if (r + g + b < 200) return "coffee";
+  return r - b > 60 ? "oats" : "barley";
+}
+
 export class Kit {
   constructor(readonly b: Builder) {}
 
@@ -456,11 +468,14 @@ export class Kit {
 
   /** A sack standing on the floor, open at the top with its goods showing. */
   sack(x: number, z: number, y: number, goods = 0x5a3a20, solid = true): void {
-    const g = new THREE.CylinderGeometry(0.22, 0.27, 0.62, 7);
-    const m = new THREE.Mesh(g, lambert("ik_sack", { map: tex().sack, color: 0xc8b89a }));
-    m.position.set(x, y + 0.31, z);
+    // (2026-09-28: the one sack model, opened: game/sackModel.ts; what is in it by the colour of the goods heaped in it)
+    const lot = pickSack(`room:${x.toFixed(1)},${z.toFixed(1)}`, [[goodsOfColour(goods), 1]]);
+    const m = new THREE.Mesh(openSackGeometry(lot.goods), sackMaterial(lot));
+    m.scale.setScalar(0.62 / (OPEN_SACK.top + 0.05));
+    m.position.set(x, y, z);
+    m.rotation.y = (x * 7 + z * 3) % 6.28;
     this.b.group.add(m);
-    this.b.cyl(0.2, 0.04, x, y + 0.62, z, lambert(`ik_goods_${goods.toString(16)}`, { color: goods }, 0), false, 7);
+    this.b.cyl(0.2, 0.04, x, y + 0.6, z, lambert(`ik_goods_${goods.toString(16)}`, { color: goods }, 0), false, 7);
     if (solid) this.b.boxes.push({ minX: x - 0.28, maxX: x + 0.28, minZ: z - 0.28, maxZ: z + 0.28 });
   }
 

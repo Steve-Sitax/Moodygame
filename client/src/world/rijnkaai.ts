@@ -1,5 +1,6 @@
 import { TOWN } from "./townBox";
 import * as THREE from "three";
+import { pickSack, sackMesh } from "../game/sackModel";
 import { psx, psxUniforms } from "../retro/psx";
 import { makeTextures, signTexture, glowTexture, type Textures } from "./textures";
 import { box, cyl, rod, rectAround, inRect, type Rect } from "./geom";
@@ -2257,7 +2258,11 @@ function cart(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: numb
   }
   g.add(rod(new THREE.Vector3(-0.5, 0.7, 1.2), new THREE.Vector3(-0.5, 0.35, 2.8), 0.05, m.darkWood));
   g.add(rod(new THREE.Vector3(0.5, 0.7, 1.2), new THREE.Vector3(0.5, 0.35, 2.8), 0.05, m.darkWood));
-  g.add(box(0.7, 0.35, 0.5, m.sack, 0.1, 0.93, 0.3, 0.9));
+  // (the one sack model, game/sackModel.ts, lying across the bed)
+  const sk = sackMesh(pickSack("rijnkaai:fallback-cart", "rijnkaai"));
+  sk.position.set(0.1, 0.75, 0.3);
+  sk.rotation.y = 0.9;
+  g.add(sk);
   scene.add(g);
   colliders.push(rectAround(x + 0.4, z + 0.6, 1.3, 1.6));
 }

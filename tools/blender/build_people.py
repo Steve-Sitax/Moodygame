@@ -441,6 +441,11 @@ class Body:
                 self.face(q, uv)
 
 
+# Where the game hangs the one sack model on a figure (2026-09-28): by figure name, the bone, the sack's two ends and
+# its thickness, in the model's own space at rest (written to client/src/game/people_sockets.json)
+SOCKETS = {}
+
+
 def ring(x, y, z, ra, rb, rbb=None, **kw):
     r = dict(c=(x, y, z), ra=ra, rb=rb)
     if rbb is not None:
@@ -852,13 +857,11 @@ def clothes(b, s):
         b.loft([ring(x, 0.6, 0.035, 0.085, 0.014), ring(x, 0.84, 0.035, 0.085, 0.014)], "handL", "prop", 4,
                p=12, phase=math.pi / 4, cap0=(0, 0, 0), cap1=(0, 0, 0), sub=(0.0, 0.5, 0.0, 1.0))
     if "sack_shoulder" in props:
-        # a full grain sack lying front to back over the left shoulder
+        # a full grain sack lying front to back over the left shoulder: not built here any more (2026-09-28: one sack
+        # model for every sack, client game/sackModel.ts); its place goes to the game (people_sockets.json), which hangs
+        # the one sack on the spine bone there
         x = sh + 0.01
-        rs = [ring(x, y, z, r, r * 0.78) for z, y, r in
-              ((-0.31, 1.47, 0.05), (-0.25, 1.52, 0.1), (-0.08, 1.575, 0.118), (0.1, 1.565, 0.115),
-               (0.22, 1.52, 0.095), (0.28, 1.49, 0.045))]
-        b.loft(rs, "spine", "prop", 8, side=(1, 0, 0), fwd=(0, 1, 0), cap0=(0, 0, -0.012), cap1=(0, 0, 0.012),
-               sub=(0.0, 0.5, 0.0, 1.0))
+        SOCKETS[s["name"]] = dict(bone="spine", a=[x, 1.49, -0.31], b=[x, 1.49, 0.28], top=1.575, r=0.118)
     if "sacktruck" in props:
         sack_truck(b, s)
     if "handcart" in props:
@@ -951,13 +954,11 @@ def sack_truck(b, s):
         x0, x1 = sg * (w + 0.03), sg * (w + 0.075)
         b.loft([ring(x0, 0.15, az, 0.15, 0.15), ring(x1, 0.15, az, 0.15, 0.15)], "hips", "prop", 6,
                side=(0, 0, 1), fwd=(0, 1, 0), cap0=(0, 0, 0), cap1=(0, 0, 0), sub=IRON)
-    # the sack, leaning on the frame
-    rs = []
-    for f, r in ((0.04, 0.09), (0.18, 0.16), (0.5, 0.16), (0.64, 0.08)):
-        c = nose + (top - nose) * f + n * (0.11 + 0.04 * min(1.0, r / 0.15))
-        rs.append(ring(0, c.y, c.z, r * 1.05, r * 0.72))
-    b.loft(rs, "hips", "prop", 6, side=(1, 0, 0), fwd=tuple(n), cap0=(0, 0, 0), cap1=(0, 0, 0),
-           sub=(0.0, 0.5, 0.0, 1.0))
+    # the sack, leaning on the frame: not built here any more (2026-09-28: one sack model for every sack, client
+    # game/sackModel.ts); its place goes to the game (people_sockets.json), which hangs the one sack on the hips bone
+    a = nose + (top - nose) * 0.02 + n * 0.14
+    c = nose + (top - nose) * 0.66 + n * 0.14
+    SOCKETS[s["name"]] = dict(bone="hips", a=[0, a.y, a.z], b=[0, c.y, c.z], up=[0, n.y, n.z], r=0.16)
 
 
 def hand_cart(b, s):
@@ -2933,6 +2934,9 @@ def main():
                               export_materials="EXPORT", use_selection=False, export_skins=True, export_animations=True,
                               export_animation_mode="ACTIONS", export_force_sampling=True, export_image_format="AUTO",
                               export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=7)
+    import json
+    with open(os.path.join(ROOT, "client", "src", "game", "people_sockets.json"), "w", encoding="utf-8") as f:
+        json.dump({k: {kk: ([round(x, 4) for x in vv] if isinstance(vv, list) else (round(vv, 4) if isinstance(vv, float) else vv)) for kk, vv in v.items()} for k, v in SOCKETS.items()}, f, indent=1)
     print(f"[build_people] {', '.join(report)} triangles; clips {', '.join(a.name for a in actions)} -> {OUT} "
           f"({os.path.getsize(OUT) // 1024} KB)")
     if PREVIEW:

@@ -14,6 +14,8 @@ import { trafficLanes } from "./traffic";
 import { loadProps } from "./props3d";
 import { wallBox, type WallBox } from "./wallprobe";
 import { addProp, dropProps } from "./propSpots";
+import { sackPuts, type SackRow } from "../game/sackModel";
+import QF_SACKS from "./quayfurniture_sack_sockets.json";
 import type { GroundProbe, WallProbe } from "./wallprobe";
 
 // Quay furniture (tools/blender/build_quayfurniture.py -> /models/quayfurniture.glb): the
@@ -411,6 +413,10 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
   /** The things that stand on the quay (the prop check reads them: dev/propcheck.ts). */
   const PROP = /^(capstan|lantern_post|sign_|bollard_|bitt_|post_timber|harbour_hut|customs_booth|toll_shed|notice_board|boat_trestles|timber_baulks|tar_fire|anchor|cable_reel|oars_rack|sail_drying|hawser_coil|fish_baskets|eel_pots|nets_drying|coal_heap|grain_pallet)/;
   dropProps("quay furniture");
+  // (2026-09-28, CLAUDE.md one model per thing: the sacks on the grain pallets are the one sack model,
+  // game/sackModel.ts; the pallet draws bare and the sacks go on after the merge)
+  const sackRows = QF_SACKS as Record<string, SackRow[]>;
+  const sackCopies: Array<{ name: string; m: THREE.Matrix4 }> = [];
   function put(name: string, x: number, y: number, z: number, yaw: number, snap = false): void {
     const p = protos.get(name);
     if (!p) return;
@@ -419,7 +425,12 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
     nm.getNormalMatrix(M);
     const e = M.elements;
     const n = nm.elements;
-    for (const part of p.parts) {
+    let drawn = p;
+    if (sackRows[name]) {
+      sackCopies.push({ name, m: M.clone() });
+      drawn = protos.get(`${name}_bare`) ?? p;
+    }
+    for (const part of drawn.parts) {
       const slot = part.slot === FLAT_DECAL && snap ? SNAP_DECAL : part.slot;
       const b = bucket(x, z, slot);
       const { pos, nor, uv, col } = part;
@@ -1095,6 +1106,9 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
   // ================================================================ merge and show
   const group = new THREE.Group();
   group.name = "quayfurniture";
+  const GRAIN: Array<[string, number]> = [["rye", 2], ["wheat", 2], ["oats", 1], ["barley", 1]];
+  const sackMeshes = sackPuts(sackCopies, sackRows, () => false, GRAIN, "quayfurniture", CHUNK).meshes;
+  for (const m of sackMeshes) group.add(m);
   const chunks: THREE.Mesh[] = [];
   let triangles = 0;
   for (const [k, b] of buckets) {
@@ -1123,7 +1137,7 @@ export async function createQuayFurniture(scene: THREE.Scene, flags: Flags, opts
   const cull = (cam: THREE.Camera) => {
     const far = ((scene.fog as THREE.Fog | null)?.far ?? 60) + 8;
     const p = cam.position;
-    for (const m of chunks) {
+    for (const list of [chunks, sackMeshes]) for (const m of list) {
       const s = m.geometry.boundingSphere!;
       m.visible = s.center.distanceTo(p) - s.radius < far;
     }

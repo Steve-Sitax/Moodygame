@@ -20,6 +20,16 @@ Newest on top. Each item says who raised it and when.
   nearby for some food and drink. Especially if no job or already a few jobs done." A docker's day gets breaks at the
   nearest tavern or coffee house, more of them when there is no ship to work or after a run of loads.
 - **Goods look like what they are** (done for sacks, T1 round 4): crates, casks and bales next, with stencils.
+- **A goods kit on the sacks' pattern** (Steve 2026-09-28: "can this also be a good base upon varying crates, baskets"):
+  one model per container (crate, cask, bale, basket) with a look per kind of goods (size, shape, material, wear), a
+  label or brand painted by one shared code (what and where from), the label kept with the item wherever it goes,
+  Blender models recording where their containers stand so the game draws the one model there, merged drawing per
+  area. Order: crates (tea chests, coffee and sugar crates, gin and wine cases, soap boxes), casks (brands burnt on the
+  head: Schiedam jenever, Bordeaux wine, Philadelphia petroleum, herring), bales (New Orleans cotton, Buenos Aires wool,
+  hides), baskets (fish, vegetables, peat, wicker bottles).
+- **Sacks by what is in them** (Steve 2026-09-28: "are there visible differences in coffee sacks, grain sacks"): the one
+  sack model with a look per goods: coffee coarse and lumpy, grain full and smooth, flour pale and dusted, rice light
+  gunny, salt stiff with a white crust, sugar in matting.
 
 ## Multiplayer on the home network (Steve, 2026-09-26)
 - **Planned, not built:** `docs/multiplayer-plan.md`. 2-6 players on the LAN, assets cached by SHA-256, own movement local and never pulled back, no pause, per-player saves, drop in and out. Phases M8a (walk together) to M8d (shared work); six open questions for Steve at the end.
