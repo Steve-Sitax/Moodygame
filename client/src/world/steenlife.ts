@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { mergePartsTree } from "./staticMerge";
 import { psx } from "../retro/psx";
 import { makeHuman, whenHumans, type Human, type HumanKind, type Motion } from "../game/humans";
 import type { Crowd, Puppet } from "../game/crowd";
@@ -331,6 +332,10 @@ export function createSteenLife(scene: THREE.Scene, crowd: Crowd | null): SteenL
     plate.position.set(x, at.y + 0.3, STEEN_WALL_Z + 0.015);
     group.add(arm, stay, hook, plate);
   }
+
+  // the still wooden and iron parts (lantern frames, brackets, bench legs, the easel) drawn as one mesh per material
+  // under each parent (world/staticMerge.ts): the flames, the float and the sketch keep their own
+  mergePartsTree(group, (m) => m.material === wood || m.material === dark || m.material === iron);
 
   // (the gate's east tower, the calvary, the courtyard's and the ramp's balustrades are walls in the walk map: design.py DECOR)
   const colliders: Rect[] = [

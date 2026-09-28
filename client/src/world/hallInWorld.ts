@@ -5,6 +5,7 @@ import type { HallPlan } from "../../../shared/hallPlan";
 import type { LandmarkId } from "../../../shared/landmarks";
 import type { LandmarkRoom } from "./landmarkRooms";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { mergeParts } from "./staticMerge";
 import { boxGeo, lambert, tex } from "./rooms";
 import { glass } from "./landmarkKit";
 import type { World } from "./rijnkaai";
@@ -60,6 +61,8 @@ function leaf(side: number, w: number, h: number, oak: THREE.Material, iron: THR
       hinge.add(strap);
     }
   }
+  // the six straps one mesh (world/staticMerge.ts): they turn with the leaf, never on their own
+  mergeParts(hinge);
   return hinge;
 }
 

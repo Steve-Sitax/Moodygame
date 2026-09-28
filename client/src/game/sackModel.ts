@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { psx } from "../retro/psx";
+import { mergeParts } from "../world/staticMerge";
 import { SACK_LIE } from "../../../shared/goods";
 import { pickSack, SACK_GOODS, sackOf, type SackLabel, type SackLook } from "../../../shared/goodsCatalog";
 
@@ -579,6 +580,8 @@ export function swapSacks(protos: Map<string, THREE.Object3D>, rows: Record<stri
     if (bare) g.add(bare.clone());
     const lot = pickSack(`${seed}:${name}`, place);
     list.forEach((r) => g.add(sackFromRow(r, r.goods ? pickSack(`${seed}:${name}:${r.goods}`, [[r.goods, 1]]) : lot)));
+    // the sacks of a lot drawn as one mesh (world/staticMerge.ts: a loaded lighter was 28 draw calls of sacks)
+    mergeParts(g, (m) => m.userData.sack !== undefined, { tagged: true });
     g.updateMatrixWorld(true);
     protos.set(name, g);
   }

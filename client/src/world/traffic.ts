@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { sackGeometry, sackLabelFor, sackLoadGeometry, sackMaterial, sackMesh, type SackLabel } from "../game/sackModel";
+import { mergeParts } from "./staticMerge";
 import SACK_SOCKETS from "./props_sack_sockets.json";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { makeHuman, type Human, type HumanKind } from "../game/humans";
@@ -314,6 +315,8 @@ export class PushCart {
         sk.scale.multiply(sc);
         bm.add(sk);
       }
+      // the load's sacks one mesh (world/staticMerge.ts): they ride on the bed and never come off one by one
+      mergeParts(bm);
     }
     this.wheels = new THREE.Mesh(wheels, mat);
     this.wheels.position.y = CART_R;

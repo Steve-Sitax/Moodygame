@@ -3,6 +3,7 @@ import type { JobsPayload, PushMsg } from "../net/api";
 import type { FirstPerson } from "../player/firstPerson";
 import type { World } from "../world/rijnkaai";
 import type { Jobs } from "./jobs";
+import { mergeParts } from "../world/staticMerge";
 import type { Town } from "./town";
 import { esc } from "./runs";
 import { dialogs } from "./dialogs";
@@ -373,6 +374,8 @@ export class Families {
     const tz = z + fz * 0.75;
     g.position.set(tx, this.world.groundAt(tx, tz, 0.3, 0), tz);
     g.rotation.y = yaw;
+    // one mesh per material (world/staticMerge.ts): the table never moves in parts
+    mergeParts(g);
     this.world.scene.add(g);
     this.world.addCollider({ minX: tx - 0.36, maxX: tx + 0.36, minZ: tz - 0.36, maxZ: tz + 0.36 });
     this.table = g;

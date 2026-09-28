@@ -6,6 +6,7 @@ import { drawAudit, pixelDiff, prof, profTable, pt, quantiles } from "./dev/fram
 import { uniformCache } from "./retro/uniformCache";
 import { matrixSkip } from "./retro/matrixSkip";
 import { mirrorView } from "./world/mirror";
+import { materialShare, staticMerge } from "./world/staticMerge";
 import { routeStats } from "../../server/src/town/whereabouts";
 // boot: the loading screen's numbers (boot/probe.ts): from the first moment on
 import { bootMark, bootNote, bootProbe } from "./boot/probe";
@@ -153,6 +154,8 @@ retro.cull = cull;
 // M7: interiors in the world, drawn through their doors (world/inworld.ts): the cathedral first
 const inWorld = new InWorld(world.scene);
 retro.inWorld = inWorld;
+// dev: where the merged still parts are looked for by the A/B switch (world/staticMerge.ts)
+staticMerge.roots = () => [world.scene, ...inWorld.all.map((r) => r.scene)];
 let sound: Soundscape | null = null;
 // the soundscape hears the clock and the weather the Day sets on the world (audio/soundscape.ts)
 // null until the server has said: no foghorn before the weather is known
@@ -1905,7 +1908,7 @@ if (import.meta.env.DEV) {
      * Dev (2026-09-28): the same moment drawn two ways, the pictures compared (dev/frameProf.ts pixelDiff). `what`:
      * "uniforms" (the array uniform cache on, then off), "same" (twice the same: the noise floor).
      */
-    pixelDiff(what: "uniforms" | "matrices" | "water" | "same" = "same", frames = 3) {
+    pixelDiff(what: "uniforms" | "matrices" | "water" | "merge" | "share" | "same" = "same", frames = 3) {
       const draw = () => retro.render(world.scene, player.camera, elapsed);
       // ("water": a mirror whose surfaces the culler hides is left out; off, it draws as before)
       const keepHid = mirrorView.hiddenInMain;
@@ -1917,9 +1920,11 @@ if (import.meta.env.DEV) {
           mirrorView.hiddenInMain = v ? keepHid : null;
         },
       };
-      const sw = what === "uniforms" ? uniformCache : what === "matrices" ? matrixSkip : what === "water" ? water : null;
-      const on = () => sw && (sw.on = true);
-      const off = () => sw && (sw.on = false);
+      const sw =
+        what === "uniforms" ? uniformCache : what === "matrices" ? matrixSkip : what === "water" ? water : what === "merge" ? staticMerge : what === "share" ? materialShare : null;
+      // (a switch that swaps things in the scene: the culler judges the new ones at once)
+      const on = () => sw && ((sw.on = true), cull.invalidate());
+      const off = () => sw && ((sw.on = false), cull.invalidate());
       try {
         return pixelDiff(renderer, retro.target, draw, on, sw ? off : on, frames);
       } finally {

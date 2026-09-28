@@ -9,6 +9,7 @@ import type { People } from "./people";
 import type { Town } from "./town";
 import type { Target } from "./facing";
 import { landmarkDoorKeepOut } from "../world/doorKeep";
+import { mergeParts } from "../world/staticMerge";
 
 // M7 night (Steve 2026-09-25: "Sooi is not standing there but went home. We can still get paid by
 // completing a quest and going to a quest sign/box at their door."). Every employer of the day board
@@ -199,6 +200,8 @@ export class QuestBoxes {
     hs.scale.set(0.8, 0.8, 1);
     hs.position.copy(flame.position);
     g.add(hs);
+    // the post and chest, the iron fittings: one mesh each (world/staticMerge.ts; the flame is lit on its own)
+    mergeParts(g);
     this.world.scene.add(g);
     const lamp = addLantern({ power: 0.8 });
     g.updateMatrixWorld(true);

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { addDial } from "./clockHands";
 import { psx } from "../retro/psx";
+import { mergePartsTree, sharedMaterial } from "./staticMerge";
 import { SHOP_LOOK, type ShopTrade } from "../../../shared/shops";
 
 // M7 shops (docs/milestones/M7-shops.md): each shop's board over its door, flat on the wall in the band between
@@ -57,8 +58,11 @@ function boardCanvas(lines: string[], bg: string, fg: string): THREE.CanvasTextu
   return t;
 }
 
-const gilt = () => psx(new THREE.MeshLambertMaterial({ color: 0xb08a3a }), { affine: 0 });
-const ironM = () => psx(new THREE.MeshLambertMaterial({ color: 0x161412 }), { affine: 0 });
+// one gilt and one iron for every sign (2026-09-28, draw calls: a material per sign was a material set-up per sign)
+let giltMat: THREE.Material | null = null;
+let ironMat: THREE.Material | null = null;
+const gilt = () => (giltMat ??= sharedMaterial(psx(new THREE.MeshLambertMaterial({ color: 0xb08a3a }), { affine: 0 })));
+const ironM = () => (ironMat ??= sharedMaterial(psx(new THREE.MeshLambertMaterial({ color: 0x161412 }), { affine: 0 })));
 
 /** The trade's sign, hanging from the bracket's end (local: hanging down from the origin, facing along x). */
 function symbol(kind: NonNullable<(typeof SHOP_LOOK)[ShopTrade]["hang"]>): THREE.Object3D {
@@ -196,6 +200,8 @@ export function hangShopSigns(scene: THREE.Scene, shops: ShopDoor[], fronts: Map
     scene.add(g);
     g.updateMatrixWorld(true);
     plate.userData.wallSign = { kind: "shop bracket", name: s.trade, flat: false };
+    // (the tagged plate and a clock's live hands stay their own meshes: world/staticMerge.ts leaves tagged ones)
+    mergePartsTree(g);
     out.push(g);
   }
   return out;

@@ -5,6 +5,7 @@ import type { FirstPerson } from "../player/firstPerson";
 import { addLantern, removeLantern, type LanternSource } from "../world/lanternLights";
 import { lampFog } from "../world/lampFog";
 import { pick, type Target } from "./facing";
+import { mergeParts } from "../world/staticMerge";
 
 // A lantern to carry (M3h). A tin hand lantern with horn panes and a tallow
 // candle: bought from a chandler, or taken from where people work (a dock gang's
@@ -71,6 +72,8 @@ export function makeLantern(): { group: THREE.Group; glass: THREE.Mesh; halo: TH
     bar.position.set(Math.cos(a) * 0.062, 0, Math.sin(a) * 0.062);
     group.add(bar);
   }
+  // the tin (base, cap, vent, ring, bars) one mesh (world/staticMerge.ts)
+  mergeParts(group, (m) => m.material === P.tin);
   const halo = new THREE.Sprite(P.halo);
   halo.scale.set(0.8, 0.8, 1);
   halo.position.y = 0.11;

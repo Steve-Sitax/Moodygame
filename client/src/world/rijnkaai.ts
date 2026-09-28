@@ -5,6 +5,7 @@ import { pickSack, sackMesh } from "../game/sackModel";
 import { psx, psxUniforms } from "../retro/psx";
 import { makeTextures, signTexture, glowTexture, type Textures } from "./textures";
 import { box, cyl, rod, rectAround, inRect, type Rect } from "./geom";
+import { mergeParts } from "./staticMerge";
 import SPOT_TABLE from "../../../shared/spots.json";
 import { steenHeightAt, steenKeepOut } from "./steenramp";
 import { buildCountryside } from "./countryside";
@@ -2111,6 +2112,8 @@ function pontoonGangway(scene: THREE.Scene, m: Mats): THREE.Object3D {
     g.add(rod(new THREE.Vector3(x, 1.0, 0.2), new THREE.Vector3(x, 1.0, -L), 0.04, m.darkWood));
     for (const k of [0, 0.5, 1]) g.add(box(0.08, 1.0, 0.08, m.darkWood, x, 0.5, -L * k + (k === 0 ? 0.2 : 0), 1));
   }
+  // the cleats, rails and posts one mesh (they tilt with the plank, never on their own)
+  mergeParts(g);
   scene.add(g);
   return g;
 }
@@ -2159,6 +2162,8 @@ function gasLamp(
   cap.position.set(0, 4.05, 0);
   cap.rotation.y = Math.PI / 4;
   g.add(cap);
+  // the iron (foot, post, bar, cap) one mesh: world/staticMerge.ts (the glass is lit on its own)
+  mergeParts(g);
   scene.add(g);
 
   const pos = new THREE.Vector3(x, 3.65, z);
@@ -2240,6 +2245,7 @@ function noticeBoard(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, 
     p.rotation.set(0, Math.PI, (px * 7) % 0.12);
     g.add(p);
   }
+  mergeParts(g);
   scene.add(g);
   colliders.push(rectAround(x, z, 1.0, 0.2));
 }
@@ -2267,6 +2273,7 @@ function crane(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: num
   g.add(rod(tip, new THREE.Vector3(0, 2.4, -8.5), 0.03, m.rope));
   g.add(box(0.2, 0.5, 0.08, m.iron, 0, 2.2, -8.5, 1));
   g.add(box(0.8, 0.8, 0.8, m.crate, 0, 1.55, -8.5, 1));
+  mergeParts(g);
   scene.add(g);
   colliders.push(rectAround(x, z + 0.3, 1.7, 1.9));
 }
@@ -2338,18 +2345,29 @@ function cart(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: numb
 }
 
 function bollard(scene: THREE.Scene, m: Mats, colliders: Rect[], x: number, z: number): void {
-  scene.add(cyl(0.2, 0.24, 0.7, 7, m.iron, x, 0.35, z));
-  scene.add(cyl(0.3, 0.2, 0.12, 7, m.iron, x, 0.74, z));
+  // its body and its head one mesh (world/staticMerge.ts)
+  const g = new THREE.Group();
+  g.name = "bollard";
+  g.position.set(x, 0, z);
+  g.add(cyl(0.2, 0.24, 0.7, 7, m.iron, 0, 0.35, 0), cyl(0.3, 0.2, 0.12, 7, m.iron, 0, 0.74, 0));
+  mergeParts(g);
+  scene.add(g);
   colliders.push(rectAround(x, z, 0.28, 0.28, 0.8));
 }
 
 function ropeCoil(scene: THREE.Scene, m: Mats, x: number, z: number): void {
+  // the three turns one mesh (world/staticMerge.ts)
+  const g = new THREE.Group();
+  g.name = "rope_coil";
+  g.position.set(x, 0, z);
   for (let i = 0; i < 3; i++) {
     const t = new THREE.Mesh(new THREE.TorusGeometry(0.34 - i * 0.04, 0.06, 4, 8), m.rope);
     t.rotation.x = Math.PI / 2;
-    t.position.set(x, 0.06 + i * 0.1, z);
-    scene.add(t);
+    t.position.set(0, 0.06 + i * 0.1, 0);
+    g.add(t);
   }
+  mergeParts(g);
+  scene.add(g);
 }
 
 
