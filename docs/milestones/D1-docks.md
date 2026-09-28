@@ -30,9 +30,19 @@ A docker whose pile stayed empty three times, or who carried his run of loads (6
 tavern nearest his route (within 160 m): 20 to 35 minutes when there was no work, 30 to 45 after a run. The town map
 shows him off his plan: "A break at the tavern: food and a drink".
 
+## Part 2: the foreman's book (done)
+
+- **The book.** Sooi, the Hessenatie's foreman at his post by its door, keeps the natie's book of day men. F near him:
+  "ask Sooi for his book". He writes you in on a weekday between 6:00 and 19:00, unless he has no trust in you
+  (below 0). The book holds for the week (`world_state` key `dockbook:<player>`; GET/POST `/api/docks/book`).
+- **The work.** Only a man in the book may lift the natie's loads (the dockers' piles): the server refuses the others
+  ("That is the natie's load. Ask the foreman..."). Lifted, the game says where it goes and what it pays.
+- **The pay.** At the route's end E "set it in (N c)": in at the door or onto the drop pile, like the dockers, paid at
+  once by the piece (`haul_deliver`). `haulPay` (shared/hauls.ts): the way on foot and the load, 2 to 12 c (a crate
+  1.4 times a sack), well below a carry job's 50 c and up.
+
 ## Still to do
 
-- Part 2: the foreman's book, pay per piece.
 - Part 4: the goods kit (crates, casks, bales, baskets on the sack pattern).
 
 ## Checks

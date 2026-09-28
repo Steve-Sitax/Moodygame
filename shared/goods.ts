@@ -563,9 +563,11 @@ export type GoodsAsk =
   | { op: "npc_drop"; npc: string; id: string }
   /** A docker sets the load of his route's pile down at its other end: in at the door, onto the drop pile, at the bank. */
   | { op: "haul_in"; npc: string; id: string }
+  /** The player, written in the foreman's book, sets a load of a route's pile in at its end: paid by the piece. */
+  | { op: "haul_deliver"; id: string }
   /** A crane sets a load from the ship on a docker route's pile (the PC that runs the cranes reports it). */
   | { op: "crane_put"; route: string; n?: number };
 
-export const GOODS_OPS = ["lift", "put", "drop", "take", "job", "lower", "handover", "end", "restore", "npc_lift", "npc_put", "npc_drop", "haul_in", "crane_put"] as const;
+export const GOODS_OPS = ["lift", "put", "drop", "take", "job", "lower", "handover", "end", "restore", "npc_lift", "npc_put", "npc_drop", "haul_in", "haul_deliver", "crane_put"] as const;
 /** A request's body at most this long (bytes). */
 export const GOODS_BODY_MAX = 8 * 1024;

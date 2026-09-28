@@ -10,6 +10,7 @@ import { glowTexture } from "../world/textures";
 import { GOODS } from "./props";
 import { GoodsWorld, ahead, type Item } from "./goods";
 import type { GoodsPush } from "../../../shared/goods";
+import { haulPay, haulRouteOfItem, type HaulRoute } from "../../../shared/hauls";
 import { People } from "./people";
 import { Talk } from "./talk";
 import { Pockets } from "./pockets";
@@ -153,6 +154,11 @@ export class Jobs {
     this.goods.clock = () => ({ day: this.day.dayNum, hour: this.day.hourF });
     this.people = new People(world);
     this.talk = new Talk(player);
+    // D1 docks: in the foreman's book already this week (a reload, a save)?
+    void fetch("/api/docks/book")
+      .then((q) => q.json())
+      .then((q: { book?: boolean }) => (this.dockBook = !!q.book))
+      .catch(() => {});
     this.pockets = new Pockets(player, this.el.hud);
     this.pockets.toast = (t) => this.toastMsg(t);
     this.pockets.onChange = (p) => this.apply(p);
@@ -324,6 +330,9 @@ export class Jobs {
     }
 
     if (carried) {
+      // D1 docks: a load of the natie's piles, at its route's end: set in, paid by the piece
+      const hr = this.dockBook ? haulRouteOfItem(carried.id) : null;
+      if (hr && Math.hypot(hr.b[0] - x, hr.b[1] - z) < 2.6) add({ key: "KeyE", text: `set it in (${haulPay(hr)} c)`, run: () => void this.deliverHaul(hr), self: true });
       for (const a of this.run?.carryActions(carried) ?? []) add(a);
       // M6 handcart: put it on the cart
       for (const f of this.carryExtra) for (const a of f(carried, x, z)) add(a);
@@ -379,6 +388,9 @@ export class Jobs {
       if (this.talk.sells(who.id) && !(npc && this.talk.sells(npc.id))) add({ key: "KeyF", text: `buy from ${who.def.name}`, run: () => this.talk.open(who, true), at: res.at });
     }
     if (board < REACH_BOARD) options.push([board, { key: "KeyE", text: "read the hiring board", run: () => this.openBoard(), at: { x: BOARD_POS.x, y: 1.55, z: BOARD_POS.z } }]);
+    // D1 docks: Sooi keeps the natie's book of day men (work by the piece at the dockers' piles)
+    const sooi = this.people.get("sooi");
+    if (sooi && sooi.present && sooi.distTo(x, z) < 3 && !this.dockBook) add({ key: "KeyF", text: "ask Sooi for his book (dock work by the piece)", run: () => void this.askBook(), at: { x: sooi.pos.x, y: 1.3, z: sooi.pos.z } });
     const doss = Math.hypot(DOSS_POS.x - x, DOSS_POS.z - z);
     // M7 sleep: the doss house bed, paid by the week, at any hour and for as long as he chooses (game/sleep.ts)
     if (doss < REACH_DOSS)
@@ -399,6 +411,13 @@ export class Jobs {
   // ------------------------------------------------------------- hands
 
   private lift(item: Item): void {
+    // D1 docks: the dockers' piles are the natie's work: for a man in the foreman's book
+    const hr = haulRouteOfItem(item.id);
+    if (hr && !this.dockBook) {
+      this.toastMsg("That is the natie's load. Ask Sooi, the foreman at the Hessenatie door, to write you in his book.");
+      return;
+    }
+    if (hr) this.toastMsg(`Take it ${this.haulEnd(hr)}: ${haulPay(hr)} c when it is in.`);
     this.goods.lift(item, GOODS[item.kind].hold);
     this.player.speedFactor = GOODS[item.kind].speed;
     // (M8f goods pass 2: a hogshead, a big crate, a long sack of the quay's heaps: both arms, slow)
@@ -819,6 +838,46 @@ export class Jobs {
   }
 
   private toastTimer = 0;
+  // ------------------------------------------------------------- D1 docks: the foreman's book
+
+  /** Written in Sooi's book this week: may carry from the natie's piles, paid by the piece. */
+  dockBook = false;
+
+  /** Ask Sooi, the Hessenatie's foreman, to write him in his book. */
+  private async askBook(): Promise<void> {
+    try {
+      const r = (await fetch("/api/docks/book", { method: "POST" }).then((q) => q.json())) as { ok: boolean; line: string };
+      this.dockBook = r.ok;
+      this.toastMsg(toMe(r.line));
+    } catch {
+      this.toastMsg("Sooi is busy with a barge. Try again in a moment.");
+    }
+  }
+
+  /** Where a load of this route goes, in plain words. */
+  private haulEnd(r: HaulRoute): string {
+    return r.into === "door" ? "in at the store's door" : r.into === "pile" ? "onto the pile at the other end" : "to the back of the fish bank";
+  }
+
+  /** The load set in at its end: paid by the piece. */
+  private async deliverHaul(r: HaulRoute): Promise<void> {
+    const pay = haulPay(r);
+    this.player.laden = false;
+    this.player.speedFactor = 1;
+    const res = await this.goods.deliverHaul();
+    if (!res.ok) {
+      this.toastMsg(res.why ?? "It did not go in.");
+      return;
+    }
+    this.sfx("coins");
+    // (the purse as the server has it now: the push may have brought it already)
+    void api
+      .jobs()
+      .then((p) => this.apply(p))
+      .catch(() => {});
+    this.toastMsg(`In. ${pay} c for the piece.`);
+  }
+
   private toastMsg(text: string): void {
     this.el.toast.textContent = text;
     this.el.toast.style.opacity = "1";

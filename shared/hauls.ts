@@ -64,6 +64,24 @@ export const HAUL_ROUTES: HaulRoute[] = [
 /** Sacks or crates in a route's own pile. */
 export const HAUL_PILE_N = 5;
 
+/** The route of a load of a route's own pile (`haul:<route>a:<i>`), or null. */
+export function haulRouteOfItem(id: string): HaulRoute | null {
+  const m = /^haul:(.+)a:\d+$/.exec(id);
+  return m ? (HAUL_ROUTES.find((r) => r.id === m[1]) ?? null) : null;
+}
+
+/**
+ * D1 docks, the foreman's book (Steve 2026-09-28: "earn money per delivered piece, but money is less than quests and
+ * depends on distance and type of good"): what one load of a route pays, set in at its end. By the way on foot (the
+ * straight line and a third for the streets) and the load (a crate is heavier than a sack of grain): 2 to 12 c,
+ * where a carry job pays 50 c and more (server hooks/loads.ts).
+ */
+export function haulPay(r: HaulRoute): number {
+  const way = Math.hypot(r.b[0] - r.a[0], r.b[1] - r.a[1]) * 1.3;
+  const weight = r.carry === "crate" ? 1.4 : 1;
+  return Math.max(2, Math.min(12, Math.round((2 + way / 12) * weight)));
+}
+
 /**
  * The routes whose own pile a quay crane can reach from somewhere on its runway (the pile on the hook circle, 11.5 m
  * from the slewing axis; client world/railway.ts finds the place and the hold): the crane keeps these piles filled

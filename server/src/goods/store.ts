@@ -27,7 +27,7 @@ import {
   type Holder,
   type Spot,
 } from "../../../shared/goods.ts";
-import { CRANE_FED, HAUL_PILE_N, HAUL_ROUTES, type HaulRoute } from "../../../shared/hauls.ts";
+import { CRANE_FED, HAUL_PILE_N, HAUL_ROUTES, haulPay, haulRouteOfItem, type HaulRoute } from "../../../shared/hauls.ts";
 import { jobById, type JobRow } from "../hooks/jobBoard.ts";
 import { positionOf, walkerOf } from "../player/current.ts";
 
@@ -277,6 +277,8 @@ export class GoodsStore {
         if (this.carriedBy(p)) no("Your hands are full.");
         if (hasAbove(this.all(), it.id)) no("Something is on top of it.");
         if (it.job !== null && holderOf(db, it.job) !== p) no("That is another man's work.");
+        // (D1 docks: the dockers' piles are the natie's work: for a man in the foreman's book only)
+        if (haulRouteOfItem(it.id) && !goodsHooks.hasBook(db, p)) no("That is the natie's load. Ask the foreman at the Hessenatie for his book first.");
         this.reach(p, it.x, it.z);
         this.from.set(it.id, [it.x, it.z, it.rot]);
         it.by = { p };
@@ -410,6 +412,19 @@ export class GoodsStore {
         if (!route || !it.id.startsWith(`haul:${route.id}a:`)) no("That is not his route's load.");
         const made = route!.into === "pile" ? this.haulSlot(route!, "b") : null;
         this.commit(made ? [made] : [], [it.id], made ? "haul" : "taken", { npc });
+        return done(made ? [made] : [], [it.id]);
+      }
+      case "haul_deliver": {
+        // (D1 docks) a load of a route's pile, set in at its end by a man in the foreman's book: paid by the piece
+        const it = item(a.id);
+        if (!heldBy(it, { p })) no("You are not carrying that.");
+        const route = haulRouteOfItem(it.id);
+        if (!route) no("That is not the natie's load.");
+        if (!goodsHooks.hasBook(db, p)) no("You are not in the foreman's book.");
+        this.reach(p, route!.b[0], route!.b[1]);
+        const made = route!.into === "pile" ? this.haulSlot(route!, "b") : null;
+        goodsHooks.payPiece(db, p, haulPay(route!), route!.id);
+        this.commit(made ? [made] : [], [it.id], "delivered", { p });
         return done(made ? [made] : [], [it.id]);
       }
       case "crane_put": {
@@ -951,6 +966,10 @@ export const goodsHooks = {
   goodsBack: (_db: DB, _npc: string): string | null => null,
   /** The docker route of townsperson npc (shared/hauls.ts id), or null (goods/haulFlow.ts fills it in). */
   haulRoute: (_db: DB, _npc: string): string | null => null,
+  /** Is player p in the foreman's book this week (goods/haulFlow.ts)? */
+  hasBook: (_db: DB, _p: number): boolean => false,
+  /** Pay player p for a piece set in (goods/haulFlow.ts). */
+  payPiece: (_db: DB, _p: number, _c: number, _route: string): void => {},
   /** Is this item still on that handcart (null: not a handcart of the players, or not known)? */
   cartHas: (_db: DB, _cart: string, _id: string): boolean | null => null,
 };

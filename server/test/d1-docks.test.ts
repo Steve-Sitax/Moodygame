@@ -117,3 +117,46 @@ describe("D1: the boats fill the piles nobody watches", () => {
     goods.reset(false);
   });
 });
+
+describe("D1: the foreman's book, paid by the piece", () => {
+  it("without the book the natie's loads are not his; in the book he lifts, sets in at the end and is paid by the piece", async () => {
+    const { askBook, hasBook } = await import("../src/goods/haulFlow.ts");
+    const { haulPay } = await import("../../shared/hauls.ts");
+    const { setPositionSource } = await import("../src/player/current.ts");
+    const db = blankSave();
+    const s = new GoodsStore();
+    const route = HAUL_ROUTES[0];
+    const top = `haul:${route.id}a:${HAUL_PILE_N - 1}`;
+    setPositionSource(() => ({ x: route.pile.x, z: route.pile.z + 1 }));
+    try {
+      expect(s.ask(db, 1, { op: "lift", id: top })).toMatchObject({ ok: false });
+      expect(hasBook(db, 1)).toBe(false);
+      // a Sunday or at night: no book
+      expect(askBook(db, 1, 7, 10).ok).toBe(false);
+      expect(askBook(db, 1, 2, 22).ok).toBe(false);
+      // a Monday morning: written in
+      expect(askBook(db, 1, 2, 9).ok).toBe(true);
+      expect(hasBook(db, 1)).toBe(true);
+      expect(s.ask(db, 1, { op: "lift", id: top }).ok).toBe(true);
+      // not at the end yet: too far to set it in
+      expect(s.ask(db, 1, { op: "haul_deliver", id: top }).ok).toBe(false);
+      setPositionSource(() => ({ x: route.b[0], z: route.b[1] }));
+      const before = (db.prepare("SELECT money_c FROM player WHERE id = 1").get() as { money_c: number }).money_c;
+      expect(s.ask(db, 1, { op: "haul_deliver", id: top }).ok).toBe(true);
+      const after = (db.prepare("SELECT money_c FROM player WHERE id = 1").get() as { money_c: number }).money_c;
+      expect(after - before).toBe(haulPay(route));
+      expect(s.get(top)).toBeNull();
+    } finally {
+      setPositionSource(null);
+    }
+  });
+
+  it("a piece pays less than any job: 2 to 12 c by the way and the load", async () => {
+    const { haulPay } = await import("../../shared/hauls.ts");
+    for (const r of HAUL_ROUTES) {
+      const c = haulPay(r);
+      expect(c).toBeGreaterThanOrEqual(2);
+      expect(c).toBeLessThanOrEqual(12);
+    }
+  });
+});

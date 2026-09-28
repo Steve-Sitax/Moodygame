@@ -7,7 +7,7 @@ import { RESET_HOOKS } from "../player/multi.ts";
 import { Bucket } from "../mp/limits.ts";
 import { gameMinute } from "../town/deeds.ts";
 import { carryBackTick, installCarryBack, pickHand, startBack } from "./carryBack.ts";
-import { haulDawnTick, haulSupplyTick, installHaulFlow } from "./haulFlow.ts";
+import { askBook, hasBook, haulDawnTick, haulSupplyTick, installHaulFlow } from "./haulFlow.ts";
 import { goods, goodsHooks } from "./store.ts";
 
 // M8f shared goods (docs/milestones/M8f.md): the PCs' requests. HTTP, not the movement socket: played alone there is
@@ -40,6 +40,12 @@ export function mountGoods(app: Hono, d: GoodsDeps) {
   const limited = { n: 0 };
 
   app.get("/api/goods", (c) => c.json({ v: goods.v, you: pid(), items: goods.list() }));
+  // D1 docks: the foreman's book (dock work by the piece)
+  app.get("/api/docks/book", (c) => c.json({ book: hasBook(db, pid()) }));
+  app.post("/api/docks/book", (c) => {
+    const k = clock(db);
+    return c.json(askBook(db, pid(), k.day, k.hour));
+  });
 
   app.post("/api/goods", async (c) => {
     const me = pid();

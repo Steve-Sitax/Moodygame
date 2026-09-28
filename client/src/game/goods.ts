@@ -966,6 +966,18 @@ export class GoodsWorld {
     void this.ask({ op: "haul_in", npc, id });
   }
 
+  /** D1 docks, the foreman's book: the carried load of a route's pile set in at its end (the server pays the piece). */
+  async deliverHaul(): Promise<{ ok: boolean; why?: string }> {
+    const it = this.release();
+    if (!it) return { ok: false, why: "You are not carrying anything." };
+    this.detach(it);
+    this.all.delete(it.id);
+    const r = await this.ask({ op: "haul_deliver", id: it.id });
+    // (refused: the server's list puts it back where it is)
+    if (!r.ok) void this.load();
+    return { ok: r.ok, why: r.why };
+  }
+
   /** A crane set a sling of n loads from the ship on a route's pile (world/railway.ts): the server makes them. */
   cranePut(route: string, n = 1): void {
     void this.ask({ op: "crane_put", route, n });
