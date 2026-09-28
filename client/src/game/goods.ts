@@ -534,7 +534,8 @@ export class GoodsWorld {
           f.carrying = true;
           parent = f.root;
         }
-      } else if ("npc" in by) {
+      } else if ("npc" in by && !it.id.startsWith("haul:")) {
+        // (a docker's load off his route's pile is the sack or crate his own figure carries: game/town.ts, D1 docks)
         const h = this.npcHands(by.npc);
         if (h && !h.cart && !npcs.has(by.npc)) {
           npcs.set(by.npc, h);
@@ -936,6 +937,60 @@ export class GoodsWorld {
     if (p) this.lay(it, p.x, p.y, p.z, rotFor(it.id, it.n + 1), p.on);
     void this.ask({ op: "npc_put", npc, id: it.id, x: +x.toFixed(3), z: +z.toFixed(3) });
   }
+
+  // ------------------------------------------------------------------ the dockers' piles (D1 docks)
+
+  /** The loads lying on a docker route's pile (`a` his own at the quay end, `b` the drop pile), free to lift first. */
+  pileLoads(route: string, tag: "a" | "b"): Item[] {
+    const pre = `haul:${route}${tag}:`;
+    const out: Item[] = [];
+    for (const it of this.all.values()) if (!it.by && it.id.startsWith(pre)) out.push(it);
+    // the top ones first (nothing on them), the highest of those first
+    return out.sort((p, q) => Number(this.above(p)) - Number(this.above(q)) || q.y - p.y || (p.id < q.id ? 1 : -1));
+  }
+
+  /** A docker takes the top load of his route's pile up (on every PC; his figure carries it). */
+  haulLift(npc: string, route: string): Item | null {
+    const it = this.pileLoads(route, "a").find((q) => !this.above(q)) ?? null;
+    this.need.delete(route);
+    if (it) this.npcLift(npc, [it]);
+    return it;
+  }
+
+  /** He sets it down at his route's other end (in at the door, onto the drop pile: the server lays it). */
+  haulIn(npc: string, id: string): void {
+    const it = this.all.get(id);
+    if (!it || !it.by || !("npc" in it.by) || it.by.npc !== npc) return;
+    this.detach(it);
+    this.all.delete(it.id);
+    void this.ask({ op: "haul_in", npc, id });
+  }
+
+  /** A crane set a sling of n loads from the ship on a route's pile (world/railway.ts): the server makes them. */
+  cranePut(route: string, n = 1): void {
+    void this.ask({ op: "crane_put", route, n });
+  }
+
+  /** How many loads a route's own pile lacks (the cranes fill the ones they reach; asked every frame: kept till a change). */
+  pileNeed(route: string): number {
+    if (this.needV !== this.v || this.needN !== this.all.size) {
+      this.need.clear();
+      this.needV = this.v;
+      this.needN = this.all.size;
+    }
+    let n = this.need.get(route);
+    if (n === undefined) {
+      const pre = `haul:${route}a:`;
+      let have = 0;
+      for (const it of this.all.values()) if (it.id.startsWith(pre) && !it.by) have++;
+      n = Math.max(0, 5 - have);
+      this.need.set(route, n);
+    }
+    return n;
+  }
+  private need = new Map<string, number>();
+  private needV = -1;
+  private needN = -1;
 
   /** He walked off with it (the engine's roll): gone. */
   npcDrop(npc: string, it: Item): void {

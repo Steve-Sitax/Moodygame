@@ -124,6 +124,13 @@ export interface Sim {
   step: number;
   wait: number;
   toB: boolean;
+  /** D1 docks: the load off his route's pile he carries (a goods id), and how often he found the pile empty. */
+  load?: string;
+  emptyPile?: number;
+  /** D1 docks: loads carried since his last break; a break at a tavern (its place) till this game minute. */
+  loadsDone?: number;
+  breakAt?: string;
+  breakTil?: number;
   /** The last walk has ended and the pause there has begun. */
   arrived: boolean;
   tries: number;
@@ -211,6 +218,12 @@ const isNight = (h: number) => h >= 19 || h < 6.5;
 /** The garrison and the customs: no lanterns (a rifle, a book), a marching step. */
 const GARRISON = new Set(["soldier", "sentry", "corporal", "customs"]);
 const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
+/** A small fixed number from an id (the same on every PC). */
+const hashId = (id: string): number => {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  return h >>> 0;
+};
 /** The town's key of a place of the day ("home:home", "work:work") as the engine's (transport.ts placeKey: "home", "work:work"). */
 const plainKey = (k: string) => (k.startsWith("home:") ? "home" : k);
 
@@ -294,6 +307,12 @@ export class Town {
   } | null = null;
   /** M8b: played together, which residents this PC may walk (net/mp/street.ts); null alone. */
   net: TownNet | null = null;
+  /**
+   * D1 docks (game/goods.ts): the dockers' piles are real goods. lift: the top load of his route's pile, up (its id; null:
+   * the pile is empty); putIn: set down at the route's other end. Null: the loads are only drawn (a PC that does not
+   * walk the town's people).
+   */
+  docks: { lift(npc: string, route: string): string | null; putIn(npc: string, id: string): void } | null = null;
   private player = { x: 0, z: 0, yaw: 0 };
   /** The trade plan: the ways on foot by key (null: the server found none), and the keys to ask for. */
   private ways = new Map<string, Pt[] | null>();
@@ -575,6 +594,7 @@ export class Town {
     if (s.inTrip) return "Going along on someone else's trip";
     if (s.trip) return s.trip.mode === "walk" ? "On the way on foot" : `On the way by ${s.trip.mode}`;
     if (s.errand) return "On an errand of the household";
+    if (s.breakAt) return `A break at ${this.place(s.breakAt)?.label ?? "the tavern"}: food and a drink`;
     if (s.held) return s.away ? "Sent across town for something (an action)" : "Held by an action or an event";
     if (s.key.includes("|shop@")) return s.inside ? "In a shop, buying" : "Going to a shop";
     const g = s.goal;
@@ -663,7 +683,10 @@ export class Town {
     // M6 transport: the day's errand with a load (a family boat, a dray) comes first
     const err = !first && !storm ? (this.journeys?.errandFor(s.r.id, day, hour) ?? null) : null;
     if (err || s.errand) return this.errandStep(s, err, day, hour);
-    const now = this.planNow(s, day, hour);
+    let now = this.planNow(s, day, hour);
+    // D1 docks: a docker on a break: at the tavern nearest his route till it is over (then the day goes on)
+    const brk = storm ? null : this.dockBreak(s, now);
+    if (brk) now = { ...now, act: "tavern", place: brk };
     s.shelter = storm ? shelterFor(s.r, now, this.data!.places, (this.taverns ??= tavernIds(this.data!.places)), tempest.event) : null;
     const sheltered = !!s.shelter && s.shelter.kind !== "stay";
     // M7 shops: a call at a shop this hour (the engine's roll, shared/shops.ts): in at its door, out at the hour's end
@@ -687,7 +710,7 @@ export class Town {
     s.key = key;
     if (s.p) this.market?.forget(s.p);
     s.goal = call ? { mode: "inside", x: call[0], z: call[1] } : this.goalFor(s, now);
-    if (call) s.plain = false;
+    if (call || brk) s.plain = false;
     s.step = 0;
     s.tries = 0;
     s.wait = 0;
@@ -851,6 +874,49 @@ export class Town {
     return { shelter, inside, out, outNear: outNear.slice(0, 12) };
   }
   private taverns: string[] | null = null;
+
+  /**
+   * D1 docks (Steve 2026-09-28: "dockworkers are also getting hungry and thirsty so they are more likely to go to cafes
+   * nearby for some food and drink. Especially if no job or already a few jobs done"): a docker whose pile stayed empty
+   * a few times, or who carried his run of loads, takes a break at the tavern nearest his route: 20 to 45 game
+   * minutes, then back to the pile. The place of the break while it lasts, else null.
+   */
+  private dockBreak(s: Sim, now: Now): string | null {
+    const t = this.gameMin();
+    if (s.breakAt && (s.breakTil ?? 0) > t && now.act === "work") return s.breakAt;
+    if (s.breakAt) {
+      s.breakAt = undefined;
+      s.breakTil = undefined;
+    }
+    return null;
+  }
+
+  /** D1 docks: send a docker on his break now (no loads on his pile, or his run of loads done). */
+  private startBreak(s: Sim, why: "empty" | "tired"): boolean {
+    if (!this.data || s.breakAt || s.held || s.trip || s.remote) return false;
+    const w = s.r.work;
+    if (w.kind !== "haul" || !w.a) return false;
+    const taverns = (this.taverns ??= tavernIds(this.data.places));
+    let best: string | null = null;
+    let bd = Infinity;
+    for (const id of taverns) {
+      const p = this.place(id);
+      if (!p) continue;
+      const d = dist(p.x, p.z, w.a[0], w.a[1]);
+      if (d < bd) {
+        bd = d;
+        best = id;
+      }
+    }
+    // (only a tavern within a few minutes' walk: a docker does not cross the town for a drink)
+    if (!best || bd > 160) return false;
+    s.breakAt = best;
+    s.breakTil = this.gameMin() + (why === "empty" ? 20 : 30) + Math.floor(rnd(0, 16));
+    s.loadsDone = 0;
+    s.emptyPile = 0;
+    s.key = ""; // (the next turn sets his goal: the tavern)
+    return true;
+  }
 
   private goalFor(s: Sim, now: Now): Goal {
     // (the trade plan: only a goal of the plan's own is walked by the shared sum unseen)
@@ -1151,6 +1217,11 @@ export class Town {
     if (s.p) this.lively?.lost(s);
     if (s.p) this.back?.lost(s); // M7 back of town
     if (s.p) this.mills?.lost(s); // M7 mills
+    // D1 docks: out of sight with a load of his route's pile, he takes it on in: set down at the other end
+    if (s.load) {
+      this.docks?.putIn(s.r.id, s.load);
+      s.load = undefined;
+    }
     if (s.p && remove) this.crowd.removePuppet(s.p);
     s.p = null;
     s.held = false;
@@ -1197,6 +1268,7 @@ export class Town {
         const hr = haulRouteOf(g.a, g.b, 1);
         // (the sack says what his route's pile says: game/sackModel.ts)
         const hl = hr ? sackLabelFor(`haul:${hr.id}a:0`) : undefined;
+        // (D1 docks: drawn on his way in, he carries what he took up unseen; the pile's loads are real from here on)
         this.crowd.puppetLoad(p, s.toB && !["porter", "carter", "docker_sack"].includes(s.kind), hr?.carry ?? "sack", hl);
         if (hl) p.human.setSackLabel(hl);
         this.crowd.puppetGo(p, q[0], q[1], pace);
@@ -1291,7 +1363,25 @@ export class Town {
           if (route && nearA) {
             yaw = route.aYaw;
             bend = true;
+            // D1 docks: the top load of his route's pile, for real; none there: he waits for the crane or the boats
+            if (this.docks && !s.load) {
+              const id = this.docks.lift(s.r.id, route.id);
+              if (id) {
+                s.load = id;
+                s.emptyPile = 0;
+              } else {
+                s.emptyPile = (s.emptyPile ?? 0) + 1;
+                bend = false;
+                s.wait = rnd(8, 16);
+              }
+            }
           } else if (route && nearB) {
+            // D1 docks: in at the door, onto the drop pile
+            if (this.docks && s.load) {
+              this.docks.putIn(s.r.id, s.load);
+              s.load = undefined;
+              s.loadsDone = (s.loadsDone ?? 0) + 1;
+            }
             const to = route.door ?? (route.drop ? [route.drop.x, route.drop.z] : null);
             yaw = to ? Math.atan2(to[0] - route.b[0], to[1] - route.b[1]) : null;
             bend = route.into === "pile";
@@ -1309,6 +1399,20 @@ export class Town {
           if (s.tries++ < 3) this.crowd.puppetGo(p, q[0], q[1]);
           else this.retry(s);
           return;
+        }
+        // D1 docks: nothing on his pile: he stays by it (a look round, a word) and tries again, never carries air;
+        // after a few empty waits, or his run of loads, a break at the tavern
+        if (atA && this.docks && route && ((s.emptyPile ?? 0) >= 3 || (s.loadsDone ?? 0) >= 6 + (hashId(s.r.id) % 6)) && this.startBreak(s, (s.emptyPile ?? 0) >= 3 ? "empty" : "tired")) return;
+        if (atA && this.docks && route && !s.load) {
+          const id = this.docks.lift(s.r.id, route.id);
+          if (!id) {
+            s.emptyPile = (s.emptyPile ?? 0) + 1;
+            s.wait = rnd(8, 16);
+            this.crowd.puppetStand(p, Math.random() < 0.4 ? "talk" : "idle", route.aYaw);
+            return;
+          }
+          s.load = id;
+          s.emptyPile = 0;
         }
         // loaded from the pile to the door, back empty
         s.toB = atA;

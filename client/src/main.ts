@@ -216,6 +216,11 @@ const animals = new Animals(world.scene, {
 });
 const stalls = new Stalls({ scene: world.scene, addCollider: world.addCollider });
 const town = new Town(world, crowd, jobs.people, animals, stalls);
+// D1 docks: the dockers lift the loads of their routes' piles for real and set them down at the other end
+town.docks = {
+  lift: (npc, route) => jobs.goods.haulLift(npc, route)?.id ?? null,
+  putIn: (npc, id) => jobs.goods.haulIn(npc, id),
+};
 setWallTown((x, z, r) => town.inStreet(x, z, r)); // (the look pass: the kite on the wall flies from a child's hand, world/wallLife.ts)
 // M3i: market days on the Vismarkt and the Grote Markt (game/market.ts), and the working
 // trades: boat yard, farrier, rope walk, cooper, sailmaker, net menders (world/trades.ts)
@@ -1234,6 +1239,8 @@ function tick(dt: number): void {
   {
     // the goods train and the omnibus stop for the people walking in front of them
     const rail = world.railway();
+    // D1 docks: the cranes keep the dockers' piles they reach filled from the ships (the server makes the loads)
+    if (rail && !rail.feed) rail.feed = { need: (r) => jobs.goods.pileNeed(r), put: (r, n) => jobs.goods.cranePut(r, n) };
     // (M6 handcart: and for the cart Jef pushes; the drays of the quay traffic too)
     if (rail && !rail.people) rail.people = () => folkNow;
     const trf = world.traffic();
@@ -2014,7 +2021,8 @@ if (import.meta.env.DEV) {
       for (let t = 0; t < seconds; t += dt) {
         elapsed += dt;
         safe("step: together.worldFrame", () => together.worldFrame(dt)); // M8b
-        safe("step: world.update", () => world.update(elapsed, dt));
+        // (with the camera, as a frame does: the railway, its cranes and the train only run with one; D1 docks tests)
+        safe("step: world.update", () => world.update(elapsed, dt, player.camera));
         safe("step: ferry.update", () => ferry.update(dt));
         safe("step: player.update", () => player.update(dt));
         safe("step: together.frame", () => together.frame(dt)); // M8a

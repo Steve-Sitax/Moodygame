@@ -16,6 +16,7 @@ import {
   slotAt,
   townGoods,
   freeAt,
+  haulPileItem,
   type CargoRow,
   type CartRun,
   type Door,
@@ -26,6 +27,7 @@ import {
   type Holder,
   type Spot,
 } from "../../../shared/goods.ts";
+import { CRANE_FED, HAUL_PILE_N, HAUL_ROUTES, type HaulRoute } from "../../../shared/hauls.ts";
 import { jobById, type JobRow } from "../hooks/jobBoard.ts";
 import { positionOf, walkerOf } from "../player/current.ts";
 
@@ -76,6 +78,8 @@ export class GoodsStore {
   /** Ship cargo swung down already (job:i). */
   private lowered = new Set<string>();
   private spawnN = 0;
+  /** When a crane last set a load on each route's pile (real ms: one swing at a time). */
+  private craneAt = new Map<string, number>();
   /** Where an item was when it was lifted (x, z, turn): back there if its carrier goes and nobody knows where he stood. */
   private from = new Map<string, [number, number, number]>();
   /** A townsperson's goods: the player whose PC reported the lift (it may still set them down after the errand ended). */
@@ -128,6 +132,7 @@ export class GoodsStore {
     this.orphan.clear();
     this.offSince.clear();
     this.runs.clear();
+    this.craneAt.clear();
     if (push) this.commit([...this.items.values()], [], "reset", undefined, { full: true, keepRev: true });
   }
 
@@ -395,9 +400,88 @@ export class GoodsStore {
         this.commit([], [it.id], "taken", { npc });
         return done([], [it.id]);
       }
+      case "haul_in": {
+        // (D1 docks) the docker's load of his route's pile, set down at the route's other end
+        const npc = cleanNpc(a.npc);
+        const it = item(a.id);
+        if (!heldBy(it, { npc })) no("He is not carrying that.");
+        if (!this.mayReport(db, p, npc) && this.reporter.get(it.id) !== p) no("That townsperson is walked by another PC.");
+        const route = HAUL_ROUTES.find((r) => r.id === goodsHooks.haulRoute(db, npc));
+        if (!route || !it.id.startsWith(`haul:${route.id}a:`)) no("That is not his route's load.");
+        const made = route!.into === "pile" ? this.haulSlot(route!, "b") : null;
+        this.commit(made ? [made] : [], [it.id], made ? "haul" : "taken", { npc });
+        return done(made ? [made] : [], [it.id]);
+      }
+      case "crane_put": {
+        // (D1 docks) a load from the ship on a route's own pile: only a pile a crane can reach, one at a time
+        const route = HAUL_ROUTES.find((r) => r.id === a.route);
+        if (!route || !CRANE_FED.has(route.id)) no("No crane reaches that pile.");
+        const now = Date.now();
+        if (now - (this.craneAt.get(route!.id) ?? 0) < CRANE_EVERY_MS) no("The crane is still swinging.");
+        // (a sling of up to three sacks, or one crate)
+        const n = Math.max(1, Math.min(route!.pile.kind === "sacks" ? 3 : 1, Math.floor(Number(a.n) || 1)));
+        const made: GoodsItem[] = [];
+        for (let k = 0; k < n; k++) {
+          const it = this.haulSlot(route!, "a");
+          if (!it) break;
+          made.push(it);
+        }
+        if (!made.length) no("The pile is whole.");
+        this.craneAt.set(route!.id, now);
+        this.commit(made, [], "spawn", { world: true });
+        return done(made);
+      }
       default:
         return no("bad request");
     }
+  }
+
+  /** The route's pile at `tag` with a load more: its first free place whose supports lie there (null: whole). */
+  private haulSlot(route: HaulRoute, tag: "a" | "b"): GoodsItem | null {
+    for (let i = 0; i < HAUL_PILE_N; i++) {
+      const id = `haul:${route.id}${tag}:${i}`;
+      if (this.items.has(id)) continue;
+      const it = haulPileItem(route, tag, i, this.all());
+      if (!it || it.on.some((o) => !this.items.get(o) || this.items.get(o)!.by)) continue;
+      it.rev = 0;
+      this.items.set(it.id, it);
+      return it;
+    }
+    return null;
+  }
+
+  /** D1 docks: one load more on a route's own pile (the boats' men brought it; nobody saw them come). */
+  haulSupply(routeId: string): GoodsItem | null {
+    const route = HAUL_ROUTES.find((r) => r.id === routeId);
+    const it = route ? this.haulSlot(route, "a") : null;
+    if (it) this.commit([it], [], "spawn", { world: true });
+    return it;
+  }
+
+  /**
+   * Dawn (D1 docks): the night's lighters brought the quay's goods and the drop piles went into the stores: every
+   * route's own pile whole again, every drop pile as at the start. Loads in someone's hands stay where they are.
+   */
+  haulDawn(): number {
+    const changed: GoodsItem[] = [];
+    const gone: string[] = [];
+    for (const route of HAUL_ROUTES) {
+      for (let i = 0; i < HAUL_PILE_N; i++) {
+        const id = `haul:${route.id}b:${i}`;
+        const it = this.items.get(id);
+        if (it && !it.by && route.drop) {
+          const home = this.homes.get(id);
+          if (home && (Math.abs(it.x - home.x) > 0.01 || Math.abs(it.z - home.z) > 0.01)) gone.push(id);
+        }
+      }
+      for (const id of gone) this.items.delete(id);
+      for (const tag of ["a", "b"] as const) {
+        let it: GoodsItem | null;
+        while ((it = this.haulSlot(route, tag))) changed.push(it);
+      }
+    }
+    if (changed.length || gone.length) this.commit(changed, gone, "dawn", { world: true });
+    return changed.length;
   }
 
   /** The job, in player p's hand. */
@@ -847,6 +931,9 @@ function progressOf(j: JobRow): number {
   return p ? p.delivered + p.lost + p.sold : 0;
 }
 
+/** A crane swings at most one load a route this often (real ms; a swing takes ~25 s, world/railway.ts). */
+const CRANE_EVERY_MS = 6000;
+
 const cleanNpc = (v: unknown): string => {
   if (typeof v !== "string" || !/^[a-z0-9_:-]{1,40}$/i.test(v)) no("bad townsperson");
   return v as string;
@@ -862,6 +949,8 @@ export const goodsHooks = {
   errandOwner: (_db: DB, _npc: string): number | null => null,
   npcMay: (_db: DB, _npc: string, _it: GoodsItem): boolean => false,
   goodsBack: (_db: DB, _npc: string): string | null => null,
+  /** The docker route of townsperson npc (shared/hauls.ts id), or null (goods/haulFlow.ts fills it in). */
+  haulRoute: (_db: DB, _npc: string): string | null => null,
   /** Is this item still on that handcart (null: not a handcart of the players, or not known)? */
   cartHas: (_db: DB, _cart: string, _id: string): boolean | null => null,
 };

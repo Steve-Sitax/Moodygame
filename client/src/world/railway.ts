@@ -28,6 +28,7 @@ import {
 } from "../../../shared/cranes";
 import { lerpState, type NetMover } from "../net/mp/world";
 import type { WagonModels } from "./wagons3d";
+import { CRANE_FED, HAUL_ROUTES } from "../../../shared/hauls";
 
 // The quay railway at work (M3g). A short goods train, drawn by two heavy horses in tandem
 // with a shunter at their heads (horses moved the wagons on the quay lines of the 1860s-70s;
@@ -180,6 +181,11 @@ export interface Railway extends NetMover<RailNet> {
   onCrane?: (x: number, z: number) => void;
   /** A crane starts to travel along its runway: the driver rings his bell (soundscape). */
   onCraneTravel?: (x: number, z: number) => void;
+  /**
+   * D1 docks (game/goods.ts): the dockers' piles the cranes keep filled. need: how many loads a route's pile lacks;
+   * put: the crane set n loads from the ship on it (the server makes them). Unset: the cranes only work the trains.
+   */
+  feed?: { need(route: string): number; put(route: string, n: number): void };
   /** The cranes' ladders (game/craneclimb.ts). */
   ladders(): CraneLadder[];
   /** The player at a crane's ladder: it stands still and swings its jib to rest (call every frame while near). */
@@ -711,11 +717,22 @@ type Op =
   | { t: "slew"; a: number }
   | { t: "wait"; s: number }
   | { t: "gate" }
-  | { t: "take"; from: Source }
+  | { t: "take"; from: Source; as?: GoodsKind }
   | { t: "drop"; to: Source }
   | { t: "done" };
 
-type Source = { kind: "ship" } | { kind: "pile" } | { kind: "wagon"; w: number; slot: number };
+type Source = { kind: "ship" } | { kind: "pile" } | { kind: "wagon"; w: number; slot: number } | { kind: "feed"; route: string; n: number };
+
+/**
+ * D1 docks: a place on the runway where a docker route's own pile (shared/hauls.ts CRANE_FED) lies on the hook circle
+ * and a hold is under the hook on the water side: from there the crane swings loads from the ship onto the pile.
+ */
+interface Feed {
+  route: string;
+  kind: GoodsKind;
+  x: number;
+  z: number;
+}
 
 interface Crane {
   site: CraneSite;
@@ -752,7 +769,9 @@ interface Crane {
   /** Seconds before it moves on to another boat. */
   stay: number;
   /** Places along the runway with a hold under the hook, and the jib angle there. */
-  berths: Array<{ p: number; a: number }>;
+  berths: Array<{ p: number; a: number; feed?: Feed }>;
+  /** D1 docks: when it may start the next swing onto a pile (seconds, counted down). */
+  feedT: number;
   nextA: number;
   stuck: number;
   roll: number;
@@ -795,6 +814,8 @@ interface Crane {
 
 interface CraneStat {
   lifts: number;
+  /** D1 docks: slings set on a docker's pile. */
+  feeds?: number;
   trips: number;
   swings: number;
   yields: number;
@@ -988,6 +1009,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       yielding: false,
       noAway: 0,
       stat: newStat(),
+      feedT: 0,
     };
     // a hold under the hook on the water side, nearest the jib's rest; else a pile on the quay
     const worldA = (ca: number) => site.yaw + ca;
@@ -1335,6 +1357,19 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       else run.push({ p, a });
     }
     flush();
+    // D1 docks: the places where a docker route's pile lies on the hook circle, with a hold on the water side
+    for (const r of HAUL_ROUTES) {
+      if (!CRANE_FED.has(r.id)) continue;
+      let best: { p: number; a: number; d: number } | null = null;
+      for (let p = c.lo; p <= c.hi; p += 0.25) {
+        const [cx, cz] = siteAt(c, p);
+        const d = Math.abs(Math.hypot(r.pile.x - cx, r.pile.z - cz) - R_HOOK);
+        if (d > 0.35 || (best && d >= best.d)) continue;
+        const a = holdAngle(c, cx, cz, 9);
+        if (a !== null) best = { p, a, d };
+      }
+      if (best) c.berths.push({ p: best.p, a: best.a, feed: { route: r.id, kind: r.pile.kind, x: r.pile.x, z: r.pile.z } });
+    }
   }
   // survey the runways once: where the walk map (walls, the quay edge) closes the bogies' lines already
   const runKey = (x: number, z: number) => `${Math.round(x * 2)},${Math.round(z * 2)}`;
@@ -1390,7 +1425,55 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       const away = ok.filter((b) => (b.p - c.pos) * push > 3);
       return pick(away.length ? away.reduce((m, b) => ((b.p - c.pos) * push > (m.p - c.pos) * push ? b : m)) : null);
     }
+    // D1 docks: a docker's pile that lacks loads comes first (the dockers wait for it); else any boat
+    const hungry = api.feed ? ok.filter((b) => b.feed && api.feed!.need(b.feed.route) > 0) : [];
+    if (hungry.length && c.r() < 0.8) return pick(hungry[Math.floor(c.r() * hungry.length)]);
     return pick(ok.length ? ok[Math.floor(c.r() * ok.length)] : null);
+  }
+
+  /** D1 docks: the pile this crane stands at to feed (its berth here has one), or null. */
+  const feedHere = (c: Crane): Feed | null => {
+    if (!api.feed || c.mode !== "berth") return null;
+    for (const b of c.berths) if (b.feed && Math.abs(b.p - c.pos) < 0.3) return b.feed;
+    return null;
+  };
+
+  /**
+   * D1 docks: idle at a berth with a docker's pile on its hook circle that lacks loads: a sling from the hold onto the
+   * pile (three sacks, or a crate), the train's lifts first. True when it started.
+   */
+  function startFeed(c: Crane, f: Feed): boolean {
+    if (c.reserved || c.ops.length || c.feedT > 0 || withTrain(c)) return false;
+    const need = api.feed!.need(f.route);
+    if (need <= 0) return false;
+    const n = f.kind === "sacks" ? Math.min(3, need) : 1;
+    const shipA = c.berths.find((b) => b.feed === f)?.a ?? c.shipA;
+    if (shipA === null) return false;
+    const pileA = angleTo(c, f.x, f.z);
+    const shipY = levelAt(c.site.x, c.site.z) + (c.shipY - opts.waterY);
+    const unit = UNIT_H[f.kind];
+    const hookFor = (bottom: number) => bottom + unit + SLING;
+    // (the pile's top: a low heap of five, the upper row on the lower)
+    const have = 5 - need;
+    const top = have >= 3 ? (f.kind === "sacks" ? SACK_H - SACK_NEST : 0.72) : 0;
+    c.ops = [
+      { t: "hoist", y: TRAVEL },
+      { t: "slew", a: shipA },
+      { t: "hoist", y: hookFor(shipY) },
+      { t: "wait", s: 1.6 },
+      { t: "take", from: { kind: "ship" }, as: f.kind },
+      { t: "hoist", y: TRAVEL },
+      { t: "slew", a: pileA },
+      { t: "hoist", y: hookFor(top) },
+      { t: "wait", s: 1.2 },
+      { t: "drop", to: { kind: "feed", route: f.route, n } },
+      { t: "hoist", y: TRAVEL },
+      { t: "done" },
+    ];
+    c.opT = 0;
+    c.feedT = 4 + c.r() * 4;
+    c.stat.feeds = (c.stat.feeds ?? 0) + 1;
+    return true;
   }
 
   const ownOut = (c: Crane, fn: () => boolean): boolean => {
@@ -1472,6 +1555,9 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     if (!c.axis) return false;
     if (c.mode === "berth") {
       if (c.reserved || c.ops.length) return false;
+      // D1 docks: a pile here still lacks loads: it stays and works it
+      const f = feedHere(c);
+      if (f && api.feed!.need(f.route) > 0) c.stay = Math.max(c.stay, 6);
       c.stay -= dt;
       if (c.stay <= 0 && c.berths.length) {
         const b = nextBerth(c);
@@ -2083,7 +2169,11 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
     // travelling from boat to boat (the lifts wait till it stands at its berth)
     if (travelStep(c, dt, player)) return;
     const op = c.ops[0];
+    c.feedT -= dt;
     if (!op) {
+      // D1 docks: a docker's pile here that lacks loads: fill it from the ship
+      const f = feedHere(c);
+      if (f && startFeed(c, f)) return;
       // idle: now and then a slow swing about its rest over the water (or the pile); never over the
       // masts, and a swing that runs into another crane stops there for a while
       c.idle -= dt;
@@ -2162,7 +2252,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
           c.pile.n = Math.max(0, c.pile.n - 1);
           pileOn(c.pile);
         }
-        c.carry = f.kind === "wagon" ? wagons[f.w].goods : c.goods;
+        c.carry = f.kind === "wagon" ? wagons[f.w].goods : (op.as ?? c.goods);
         c.ops.shift();
         c.stat.lifts++;
         break;
@@ -2174,6 +2264,8 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
           c.pile.n = Math.min(c.pile.cap, c.pile.n + 1);
           pileOn(c.pile);
         }
+        // D1 docks: the sling is on the docker's pile: the server makes the loads
+        if (to.kind === "feed") api.feed?.put(to.route, to.n);
         c.carry = null;
         c.ops.shift();
         break;
@@ -2691,7 +2783,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
         working: working ? working.crane.index : null,
         bridges: opts.bridges().map((b) => ({ x: (b.rect.minX + b.rect.maxX) / 2, shut: b.closed(), busy: api.busy(b.rect) })),
         wagons: wagons.map((w) => ({ kind: w.kind, goods: w.goods, slots: w.slots.map((x) => (x ? 1 : 0)).join("") })),
-        cranes: cranes.map((c) => ({ at: [+c.site.x.toFixed(2), +c.site.z.toFixed(2)], move: c.mode, blocked: c.blockT > 0 ? `${c.blockedBy} ${c.blockT.toFixed(1)} s` : "", yielding: c.yieldT > 0, to: c.target === null ? null : +c.target.toFixed(1), berths: c.berths.length, range: c.axis ? [c.lo, c.hi] : null, reserved: c.reserved, occupied: c.occupied, stay: +c.stay.toFixed(0), goods: c.goods, mode: c.shipA !== null ? "ship" : "quay", a: +c.a.toFixed(2), hy: +c.hy.toFixed(2), carry: c.carry, ops: c.ops.length, pile: c.pile ? [+c.pile.x.toFixed(1), +c.pile.z.toFixed(1), c.pile.n] : null })),
+        cranes: cranes.map((c) => ({ at: [+c.site.x.toFixed(2), +c.site.z.toFixed(2)], move: c.mode, blocked: c.blockT > 0 ? `${c.blockedBy} ${c.blockT.toFixed(1)} s` : "", yielding: c.yieldT > 0, to: c.target === null ? null : +c.target.toFixed(1), berths: c.berths.length, range: c.axis ? [c.lo, c.hi] : null, reserved: c.reserved, occupied: c.occupied, stay: +c.stay.toFixed(0), goods: c.goods, mode: c.shipA !== null ? "ship" : "quay", a: +c.a.toFixed(2), hy: +c.hy.toFixed(2), carry: c.carry, ops: c.ops.length, pile: c.pile ? [+c.pile.x.toFixed(1), +c.pile.z.toFixed(1), c.pile.n] : null, feeds: c.berths.filter((b) => b.feed).map((b) => `${b.feed!.route}@${b.p.toFixed(1)}`), fed: c.stat.feeds ?? 0 })),
       };
     },
     jump(s) {

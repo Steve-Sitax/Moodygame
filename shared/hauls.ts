@@ -65,6 +65,13 @@ export const HAUL_ROUTES: HaulRoute[] = [
 export const HAUL_PILE_N = 5;
 
 /**
+ * The routes whose own pile a quay crane can reach from somewhere on its runway (the pile on the hook circle, 11.5 m
+ * from the slewing axis; client world/railway.ts finds the place and the hold): the crane keeps these piles filled
+ * from the ships. The others are filled by the night's lighters (whole again at dawn). docs/milestones/D1-docks.md.
+ */
+export const CRANE_FED = new Set(["rk-m", "hn-1", "en-1", "en-2", "wf-1", "wf-2", "wf-3"]);
+
+/**
  * Where item i of a route's own pile lies: a low heap, three in a row across the way to `from` (the docker's stand),
  * then two more: crates straight on the first two (shared/goods.ts placeAt), sacks in the dips between the three.
  */

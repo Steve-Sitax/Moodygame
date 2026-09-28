@@ -385,27 +385,38 @@ export function townGoods(doors: Record<string, Door>, cargo: readonly CargoRow[
     }
   // the dockers' own piles of sacks and crates at their routes' ends (shared/hauls.ts, Steve 2026-09-27)
   for (const r of HAUL_ROUTES)
-    for (const [tag, p] of [["a", r.pile], ["b", r.drop]] as const) {
-      if (!p) continue;
-      for (let i = 0; i < HAUL_PILE_N; i++) {
-        const from = tag === "a" ? r.a : r.b;
-        const [x, z] = haulPileSpot(p, i, from);
-        const id = `haul:${r.id}${tag}:${i}`;
-        if (p.kind === "sacks") {
-          // (2026-09-28) lying sacks, their length toward the docker who pulls them off: three side by side, two
-          // pressed into the dips between them (haulPileSpot); each rests on the two below
-          const level = i < 3 ? 0 : 1;
-          const on = level ? [`haul:${r.id}${tag}:${i - 3}`, `haul:${r.id}${tag}:${i - 2}`] : [];
-          const rot = sackRot(from[0] - p.x, from[1] - p.z) + (rotFor(id, 0) - 0.2) * 0.2;
-          out.push({ id, kind: "sacks", owner: null, job: null, x: r3(x), z: r3(z), y: r3(level * (SACK_LIE.h - SACK_LIE.nest)), rot: r3(rot), on, by: null, n: 0, rev: 1, home: [r3(x), r3(z), r3(rot)] });
-          continue;
-        }
-        put({ id, kind: p.kind, owner: null, job: null, x: r3(x), z: r3(z), rot: rotFor(id, 0) });
-      }
+    for (const tag of ["a", "b"] as const) for (let i = 0; i < HAUL_PILE_N; i++) {
+      const it = haulPileItem(r, tag, i, out);
+      if (it) out.push(it);
     }
   // (laid as they stood: a crate across two, a pyramid's cask on two below; not by the stacking rule)
   out.push(...rijnkaaiGoods(), ...cargoGoods(cargo));
   return out;
+}
+
+/**
+ * Item i of a docker route's pile (`a` his own at the quay end, `b` the drop pile at the other), as it lies when the pile
+ * is whole; `present` are the items lying about (crates stack on what is there by the stacking rule). Null: the route
+ * has no such pile. The server lays the piles with it at the start and at dawn, and when a crane sets a load on one
+ * (docs/milestones/D1-docks.md).
+ */
+export function haulPileItem(r: (typeof HAUL_ROUTES)[number], tag: "a" | "b", i: number, present: readonly GoodsItem[] = []): GoodsItem | null {
+  const p = tag === "a" ? r.pile : r.drop;
+  if (!p) return null;
+  const from = tag === "a" ? r.a : r.b;
+  const [x, z] = haulPileSpot(p, i, from);
+  const id = `haul:${r.id}${tag}:${i}`;
+  if (p.kind === "sacks") {
+    // (2026-09-28) lying sacks, their length toward the docker who pulls them off: three side by side, two
+    // pressed into the dips between them (haulPileSpot); each rests on the two below
+    const level = i < 3 ? 0 : 1;
+    const on = level ? [`haul:${r.id}${tag}:${i - 3}`, `haul:${r.id}${tag}:${i - 2}`] : [];
+    const rot = sackRot(from[0] - p.x, from[1] - p.z) + (rotFor(id, 0) - 0.2) * 0.2;
+    return { id, kind: "sacks", owner: null, job: null, x: r3(x), z: r3(z), y: r3(level * (SACK_LIE.h - SACK_LIE.nest)), rot: r3(rot), on, by: null, n: 0, rev: 1, home: [r3(x), r3(z), r3(rot)] };
+  }
+  const rot = rotFor(id, 0);
+  const q = placeAt(present, p.kind, r3(x), r3(z)) ?? { x: r3(x), z: r3(z), y: 0, on: [] };
+  return { id, kind: p.kind, owner: null, job: null, x: q.x, z: q.z, y: q.y, on: q.on, rot, by: null, n: 0, rev: 1, home: [q.x, q.z, rot] };
 }
 
 // ------------------------------------------------------------------ the town's carts (M8f goods pass 2)
@@ -549,8 +560,12 @@ export type GoodsAsk =
   // a townsperson's goods, reported by the PC that walks him (his hired hand, the man who carries a crate back)
   | { op: "npc_lift"; npc: string; ids: string[] }
   | { op: "npc_put"; npc: string; id: string; x: number; z: number }
-  | { op: "npc_drop"; npc: string; id: string };
+  | { op: "npc_drop"; npc: string; id: string }
+  /** A docker sets the load of his route's pile down at its other end: in at the door, onto the drop pile, at the bank. */
+  | { op: "haul_in"; npc: string; id: string }
+  /** A crane sets a load from the ship on a docker route's pile (the PC that runs the cranes reports it). */
+  | { op: "crane_put"; route: string; n?: number };
 
-export const GOODS_OPS = ["lift", "put", "drop", "take", "job", "lower", "handover", "end", "restore", "npc_lift", "npc_put", "npc_drop"] as const;
+export const GOODS_OPS = ["lift", "put", "drop", "take", "job", "lower", "handover", "end", "restore", "npc_lift", "npc_put", "npc_drop", "haul_in", "crane_put"] as const;
 /** A request's body at most this long (bytes). */
 export const GOODS_BODY_MAX = 8 * 1024;

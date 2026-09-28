@@ -7,6 +7,7 @@ import { RESET_HOOKS } from "../player/multi.ts";
 import { Bucket } from "../mp/limits.ts";
 import { gameMinute } from "../town/deeds.ts";
 import { carryBackTick, installCarryBack, pickHand, startBack } from "./carryBack.ts";
+import { haulDawnTick, haulSupplyTick, installHaulFlow } from "./haulFlow.ts";
 import { goods, goodsHooks } from "./store.ts";
 
 // M8f shared goods (docs/milestones/M8f.md): the PCs' requests. HTTP, not the movement socket: played alone there is
@@ -27,6 +28,7 @@ export function mountGoods(app: Hono, d: GoodsDeps) {
   const { db } = d;
   goods.onPush((m) => d.broadcast(m));
   installCarryBack();
+  installHaulFlow();
   // a new man on the ferry (M8d resetPlayer): what the old one held is set down where he was
   RESET_HOOKS.push((hdb, id) => void goods.playerLeft(id, positionOf(id), hdb));
   // after each tick of the world (alone the tab's; together the server's own: mp/index.ts answers a tab's tick itself)
@@ -97,6 +99,8 @@ export function mountGoods(app: Hono, d: GoodsDeps) {
         const c = clock(db);
         goods.cartRunsTick(c.day, c.hour * 60 + c.minute, db);
         carryBackTick(db);
+        haulDawnTick(c.day, c.hour);
+        haulSupplyTick(c.day, c.hour * 60 + c.minute);
       } catch (e) {
         console.warn("[goods] tick", e);
       }

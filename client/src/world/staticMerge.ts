@@ -71,7 +71,7 @@ export const staticMerge = {
     return { merges, savedPerCopy: savedEach, on: mergedOn, swapped: swapped.length };
   },
 };
-if (import.meta.env.DEV) Object.assign(window, { __staticMerge: staticMerge });
+if (import.meta.env.DEV && typeof window !== "undefined") Object.assign(window, { __staticMerge: staticMerge });
 
 /** Dev: materials made shared (one for many things that each had their own with the same settings). */
 const sharedMats = new WeakSet<THREE.Material>();
@@ -113,7 +113,7 @@ export const materialShare = {
     }
   },
 };
-if (import.meta.env.DEV) Object.assign(window, { __materialShare: materialShare });
+if (import.meta.env.DEV && typeof window !== "undefined") Object.assign(window, { __materialShare: materialShare });
 
 const defaultBeforeRender = THREE.Object3D.prototype.onBeforeRender;
 
