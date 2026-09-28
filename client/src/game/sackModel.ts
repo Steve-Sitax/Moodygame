@@ -84,10 +84,12 @@ export function sackGeometry(goods?: string): THREE.BufferGeometry {
     y = y * (SACK_H / 1.8) * look.fullness * (1 + k);
     z = z * (SACK_W / 2) * (0.96 + 0.04 * look.fullness) * (1 + k * 0.6);
     pos.setXYZ(i, x, y, z);
-    // the picture goes on along the length (u) and round it (v: 0.5 on top), so the stencil sits on the top
+    // the picture goes on along the length (u: 0 at the sewn end -x, 1 at the mouth) and round it (v: 0.5 on top), so
+    // the stencil sits on the top and reads the right way (the sphere's v is 1 at -x after the turn; swapping u and v
+    // alone mirrors the picture: the sheet of sack types, 2026-09-28)
     const u0 = uv.getX(i);
     const v0 = uv.getY(i);
-    uv.setXY(i, v0, u0);
+    uv.setXY(i, 1 - v0, u0);
   }
   // flat on the ground: the lowest point at y = 0
   body.computeBoundingBox();
