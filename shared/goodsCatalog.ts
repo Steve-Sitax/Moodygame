@@ -22,8 +22,8 @@ export interface SackLook {
   /** The cloth: its colour (r, g, b 0-255) and weave. */
   cloth: [number, number, number];
   weave: "jute" | "hessian" | "gunny" | "linen" | "mat";
-  /** Dust on it: flour white, a crust of salt, none. */
-  dust?: "flour" | "salt";
+  /** Dust on it: flour white, a crust of salt, coal black, none. */
+  dust?: "flour" | "salt" | "coal";
   /** The weight stencilled on it. */
   kg: number;
 }
@@ -131,6 +131,12 @@ export const SACK_GOODS: Record<string, SackGoods> = {
     what: "ONIONS",
     look: { fullness: 0.95, lump: 0.8, slump: 0.4, cloth: [168, 146, 104], weave: "gunny", kg: 40 },
     origins: [{ from: "ZEELAND", marks: ["MV", "ZL"] }],
+  },
+  coal: {
+    id: "coal",
+    what: "COAL",
+    look: { fullness: 1.05, lump: 0.9, slump: 0.2, cloth: [74, 68, 60], weave: "hessian", dust: "coal", kg: 50 },
+    origins: [{ from: "CHARLEROI", marks: ["CH", "SM"] }, { from: "LIEGE", marks: ["LG"] }],
   },
   flour: {
     id: "flour",

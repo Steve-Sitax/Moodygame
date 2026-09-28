@@ -1,6 +1,8 @@
 import { modelCollider, modelShape } from "./modelCollision";
 import { TOWN } from "./townBox";
 import * as THREE from "three";
+import { sackPuts, type SackRow } from "../game/sackModel";
+import CLUTTER_SACKS from "./clutter_sack_sockets.json";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import CITY from "../../../shared/city.json";
@@ -1804,7 +1806,9 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
   solidMat.name = "clutter_solid";
   decalMat.name = "clutter_decal";
   const buckets = new Map<string, { slot: number; n: number; items: Array<{ part: Part; m: THREE.Matrix4; shade: number }> }>();
-  for (const p of puts) {
+  // (2026-09-28, CLAUDE.md one model per thing: the sacks against the walls are the one sack model, game/sackModel.ts)
+  const withSacks = sackPuts(puts, CLUTTER_SACKS as Record<string, SackRow[]>, (n) => protos.has(n), "quay", "clutter", CHUNK);
+  for (const p of withSacks.puts) {
     const proto = protos.get(p.name)!;
     const e = p.m.elements;
     const key0 = `${Math.floor(e[12] / CHUNK)},${Math.floor(e[14] / CHUNK)}`;
@@ -1818,6 +1822,7 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
   }
   const group = new THREE.Group();
   group.name = "clutter";
+  for (const m of withSacks.meshes) group.add(m);
   const chunks: THREE.Mesh[] = [];
   const v = new THREE.Vector3();
   const nm = new THREE.Matrix3();
@@ -1884,7 +1889,7 @@ export async function createClutter(scene: THREE.Scene, flags: Flags, opts: Clut
   const hideFar = (cam: THREE.Camera) => {
     const far = ((scene.fog as THREE.Fog | null)?.far ?? 60) + 10;
     const p = cam.position;
-    for (const m of chunks) {
+    for (const list of [chunks, withSacks.meshes]) for (const m of list) {
       const s = m.geometry.boundingSphere!;
       m.visible = s.center.distanceTo(p) - s.radius < far;
     }

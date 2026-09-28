@@ -1,4 +1,7 @@
 import * as THREE from "three";
+import { swapSacks, type SackRow } from "../game/sackModel";
+import BOAT_SACKS from "./boats_sack_sockets.json";
+import FERRY_SACKS from "../game/ferry_sack_sockets.json";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
@@ -471,6 +474,9 @@ export interface ModelSet {
  * picture goes into one texture atlas, and each model is merged into two meshes, solid and
  * thin (double-sided, cut-out), so a model costs two draw calls, three with its rigging lines.
  */
+/** The sacks the builders recorded, by model file (tools/blender/build_boats.py, build_ferry.py). */
+const SACK_ROWS = { "/models/boats.glb": BOAT_SACKS, "/models/ferry.glb": FERRY_SACKS };
+
 export async function loadModelSet(url: string): Promise<ModelSet> {
   const draco = new DRACOLoader().setDecoderPath("/draco/");
   const gltf = await new GLTFLoader().setDRACOLoader(draco).loadAsync(url);
@@ -620,6 +626,10 @@ export async function loadModelSet(url: string): Promise<ModelSet> {
     protos.set(node.name, node);
     extras.set(node.name, node.userData ?? {});
   }
+  // 2026-09-28 (CLAUDE.md, one model per thing): the boats' and the ferry's sacks are the one sack model
+  // (game/sackModel.ts), in the places their builders recorded; each model with sacks is its "_bare" copy and those
+  const rows = (SACK_ROWS as Record<string, Record<string, SackRow[]>>)[url];
+  if (rows) swapSacks(protos, rows, "quay", url);
   return { protos, extras, materials };
 }
 

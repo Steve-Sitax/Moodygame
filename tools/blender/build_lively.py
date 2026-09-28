@@ -332,7 +332,19 @@ def basket(m, x, y, z, r, h, fill):
             m.box((x + rr * math.cos(a), y + rr * math.sin(a), z + h + 0.02), (0.07, 0.07, 0.07), fill)
 
 
-def spill(kind):
+# Where the sacks are (2026-09-28: one sack model, client game/sackModel.ts): written to
+# client/src/game/lively_sack_sockets.json; "spill_<kind>_bare" is the model without them (the goods heaped in the open
+# sacks stay).
+SACK_SOCKETS = {}
+_C = Matrix(((1, 0, 0, 0), (0, 0, 1, 0), (0, -1, 0, 0), (0, 0, 0, 1)))  # Blender (x, y, z) -> glTF (x, z, -y)
+
+
+def _socket(name, m, M, **row):
+    g = _C @ (m.xf @ M) @ _C.inverted()
+    SACK_SOCKETS.setdefault(name, []).append(dict(m=[round(g[r][c], 4) for c in range(4) for r in range(4)], **row))
+
+
+def spill(kind, bare=False):
     m = Mesh(ao=1.2)
     if kind == "baskets":
         basket(m, -0.45, -0.3, 0.0, 0.22, 0.3, "apple")
@@ -371,7 +383,10 @@ def spill(kind):
         m.lathe([(0.12, 0.0), (0.14, 0.4), (0.1, 0.9)], 6, "birch", cap0=True, M=move(0.75, -0.25, 0))
     elif kind == "sacks":
         for i, x in enumerate((-0.5, 0.0, 0.5)):
-            m.lathe([(0.2, 0.0), (0.25, 0.2), (0.24, 0.45), (0.23, 0.52), (0.27, 0.58), (0.24, 0.6)], 8, "sack", cap0=True, M=move(x, -0.32, 0))
+            if bare:
+                _socket("spill_sacks", m, move(x, -0.32, 0), k="open", r=0.25, h=0.6)
+            else:
+                m.lathe([(0.2, 0.0), (0.25, 0.2), (0.24, 0.45), (0.23, 0.52), (0.27, 0.58), (0.24, 0.6)], 8, "sack", cap0=True, M=move(x, -0.32, 0))
             m.face([(x + 0.23 * math.cos(a), -0.32 + 0.23 * math.sin(a), 0.55) for a in np.linspace(0, 2 * math.pi, 8, endpoint=False)], "grain", out=(0, 0, 1))
         m.box((0.1, -0.5, 0.58), (0.08, 0.18, 0.05), "wood_light")
     elif kind == "meat":
@@ -399,7 +414,10 @@ def spill(kind):
         basket(m, 0.8, -0.35, 0.0, 0.22, 0.34, "bread")
     elif kind == "coal":
         for i, x in enumerate((-0.45, 0.05)):
-            m.lathe([(0.2, 0.0), (0.24, 0.3), (0.22, 0.6), (0.14, 0.72)], 8, "coal_sack", cap0=True, M=move(x, -0.3, 0))
+            if bare:
+                _socket("spill_coal", m, move(x, -0.3, 0) @ sl.rot("Z", math.pi / 2), k="standing", L=0.48, W=0.48, H=0.72, goods="coal")
+            else:
+                m.lathe([(0.2, 0.0), (0.24, 0.3), (0.22, 0.6), (0.14, 0.72)], 8, "coal_sack", cap0=True, M=move(x, -0.3, 0))
         m.lathe([(0.45, 0.0), (0.3, 0.12), (0.0, 0.2)], 7, "coal", M=move(0.6, -0.5, 0))
     elif kind == "cloth":
         m.box((0, -0.3, 0.72), (1.2, 0.5, 0.04), "wood_light")
@@ -702,6 +720,8 @@ def build_models():
         B.append((f"stall_{g}", stall(g)))
     for k in ("baskets", "crockery", "clogs", "brooms", "sacks", "meat", "bread", "coal", "cloth", "casks"):
         B.append((f"spill_{k}", spill(k)))
+        if k in ("sacks", "coal"):
+            B.append((f"spill_{k}_bare", spill(k, bare=True)))
     B.append(("pots_sill", pots("sill")))
     B.append(("pots_door", pots("door")))
     B.append(("chalk_hop", chalk("chalk_hop", 1.2, 3.0)))
@@ -775,11 +795,14 @@ def main():
     make_materials()
     objs = {}
     counts = {}
-    for name, mesh in build_models():
+    import json
+    models = build_models()
+    with open(os.path.join(ROOT, "client", "src", "game", "lively_sack_sockets.json"), "w", encoding="utf-8") as f:
+        json.dump(SACK_SOCKETS, f, separators=(",", ":"))
+    for name, mesh in models:
         objs[name] = mesh.to_object(name)
         counts[name] = sl.tris(objs[name])
     node = bpy.data.objects.new("lively_meta", None)
-    import json
     node["meta"] = json.dumps({"solid": {"size": [sl.SOLID_ATLAS.W, sl.SOLID_ATLAS.H]}, "decal": {"size": [sl.DECAL_ATLAS.W, sl.DECAL_ATLAS.H]}}, separators=(",", ":"))
     bpy.context.scene.collection.objects.link(node)
     os.makedirs(os.path.dirname(OUT), exist_ok=True)

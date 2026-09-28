@@ -19,6 +19,8 @@ import { omnibusKeepOut } from "../world/omnibus";
 import { trafficLanes } from "../world/traffic";
 import { WELL_AT } from "../world/streetlife";
 import SPOT_TABLE from "../../../shared/spots.json";
+import { sackPuts, type SackRow } from "./sackModel";
+import LIVELY_SACKS from "./lively_sack_sockets.json";
 import BUILD from "../../../shared/city_build.json";
 import { SHOP_END_CLEAR, shopTableSpot, type FrontHouse } from "../../../shared/shopFront";
 import { addStallThing } from "./stallSpots";
@@ -402,10 +404,18 @@ export class Lively {
     const Pv = new THREE.Vector3();
     const up = new THREE.Vector3(0, 1, 0);
     const nm = new THREE.Matrix3();
+    // (2026-09-28, CLAUDE.md one model per thing: the spilled sacks are the one sack model, game/sackModel.ts; the model
+    // draws without them and the sacks go on after the merge)
+    const sackRows = LIVELY_SACKS as Record<string, SackRow[]>;
+    const sackCopies: Array<{ name: string; m: THREE.Matrix4 }> = [];
     const put = (name: string, x: number, y: number, z: number, yaw: number) => {
-      const p = this.protos.get(name);
+      let p = this.protos.get(name);
       if (!p) return false;
       M.compose(Pv.set(x, y, z), Q.setFromAxisAngle(up, yaw), S);
+      if (sackRows[name]) {
+        sackCopies.push({ name, m: M.clone() });
+        p = this.protos.get(`${name}_bare`) ?? p;
+      }
       nm.getNormalMatrix(M);
       const e = M.elements;
       const n = nm.elements;
@@ -685,6 +695,11 @@ export class Lively {
       mesh.renderOrder = slot === DECAL ? 1 : 0;
       this.group.add(mesh);
       this.chunks.push(mesh);
+    }
+    const LIVELY_GOODS: Array<[string, number]> = [["oats", 2], ["barley", 2], ["beans", 1], ["rice", 1], ["coffee", 1]];
+    for (const m of sackPuts(sackCopies, sackRows, () => false, LIVELY_GOODS, "lively", CHUNK).meshes) {
+      this.group.add(m);
+      this.chunks.push(m);
     }
     for (const m of this.madonnas) this.points.push({ label: "before a corner Madonna", x: m.sx, z: m.sz, reach: 1.8 });
     for (const b of this.view.beggars) this.points.push({ label: "a beggar's place at the church", x: b[0], z: b[1], reach: 2 });

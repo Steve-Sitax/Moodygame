@@ -295,12 +295,12 @@ function paint(label: SackLabel): HTMLCanvasElement {
   g.restore();
   // dust: flour white over it all, thickest at the seams and ends; salt as a white crust low down and on the seams
   if (look.dust) {
-    const n = look.dust === "flour" ? 900 : 500;
+    const n = look.dust === "flour" || look.dust === "coal" ? 900 : 500;
     for (let i = 0; i < n; i++) {
       const low = look.dust === "salt";
       const y = low ? (r() < 0.5 ? r() * H * 0.25 : H - r() * H * 0.25) : r() * H;
       const x = r() < 0.3 ? (r() < 0.5 ? r() * W * 0.12 : W - r() * W * 0.12) : r() * W;
-      g.fillStyle = `rgba(245,242,232,${(low ? 0.25 : 0.12) + r() * 0.3})`;
+      g.fillStyle = look.dust === "coal" ? `rgba(18,16,14,${0.18 + r() * 0.35})` : `rgba(245,242,232,${(low ? 0.25 : 0.12) + r() * 0.3})`;
       g.fillRect(x | 0, y | 0, 1 + ((r() * (low ? 4 : 3)) | 0), 1 + ((r() * 2) | 0));
     }
   }
@@ -497,4 +497,111 @@ export function openSackGeometry(goods?: string): THREE.BufferGeometry {
   merged.name = `sack open ${goods ?? ""}`;
   openGeos.set(goods ?? "", merged);
   return merged;
+}
+
+// ------------------------------------------------------------------ Blender models' sacks, swapped in one place
+
+/**
+ * A sack a Blender model had (its builder records them: tools/blender/build_*.py): lying, standing or open; its
+ * matrix in the model's frame (column-major); its size (L, W, H; or r, h for an open one); what an open one holds.
+ */
+export interface SackRow {
+  k: "lying" | "standing" | "open";
+  m: number[];
+  L?: number;
+  W?: number;
+  H?: number;
+  r?: number;
+  h?: number;
+  goods?: string;
+}
+
+/** The one sack model in a recorded sack's place (in its model's frame). */
+export function sackFromRow(r: SackRow, lot: SackLabel): THREE.Mesh {
+  let m: THREE.Mesh;
+  if (r.k === "open") {
+    m = new THREE.Mesh(openSackGeometry(lot.goods), sackMaterial(lot));
+    m.scale.set(((r.r ?? 0.2) * 2) / SACK_W, (r.h ?? 0.45) / (OPEN_SACK.top + 0.02), ((r.r ?? 0.2) * 2) / SACK_W);
+  } else m = sackMesh(lot, { standing: r.k === "standing", fit: [r.L ?? SACK_L, r.H ?? SACK_H, r.W ?? SACK_W] });
+  const M = new THREE.Matrix4().fromArray(r.m);
+  const p = new THREE.Vector3();
+  const q = new THREE.Quaternion();
+  const sc = new THREE.Vector3();
+  M.decompose(p, q, sc);
+  m.position.copy(p);
+  m.quaternion.copy(q);
+  m.scale.multiply(sc);
+  m.userData.sack = r.k;
+  return m;
+}
+
+/**
+ * CLAUDE.md, one model per thing: every model of a set with recorded sacks becomes its "_bare" copy (the same model
+ * built without them) and the one sack model in each sack's place; the goods picked by `place` (a place of the goods
+ * list, or a list of goods) and the model's name, the open ones' by what is heaped in them.
+ */
+export function swapSacks(protos: Map<string, THREE.Object3D>, rows: Record<string, SackRow[]>, place: string | Array<[string, number]>, seed: string): void {
+  for (const [name, list] of Object.entries(rows)) {
+    // (no "_bare" copy: a model of sacks only, whose empty copy the export left out: only the sacks)
+    const bare = protos.get(`${name}_bare`);
+    if (!protos.has(name)) continue;
+    const g = new THREE.Group();
+    g.name = name;
+    g.userData = { ...(protos.get(name)!.userData ?? {}) };
+    if (bare) g.add(bare.clone());
+    const lot = pickSack(`${seed}:${name}`, place);
+    list.forEach((r) => g.add(sackFromRow(r, r.goods ? pickSack(`${seed}:${name}:${r.goods}`, [[r.goods, 1]]) : lot)));
+    g.updateMatrixWorld(true);
+    protos.set(name, g);
+  }
+}
+
+/**
+ * For a set drawn by merging copies of its models (clutter, quay furniture, the lively streets): a copy of a model with
+ * recorded sacks uses its "_bare" model, and its sacks come back as the one sack model, merged per chunk and label
+ * (a few draw calls; each copy its own lot by where it stands). Returns the copies to merge and the sack meshes.
+ */
+export function sackPuts<T extends { name: string; m: THREE.Matrix4 }>(
+  puts: T[],
+  rows: Record<string, SackRow[]>,
+  has: (name: string) => boolean,
+  place: string | Array<[string, number]>,
+  seed: string,
+  chunk = 64,
+): { puts: T[]; meshes: THREE.Mesh[] } {
+  const out: T[] = [];
+  const each = new Map<string, { mat: THREE.Material; geos: THREE.BufferGeometry[] }>();
+  const p = new THREE.Vector3();
+  for (const put of puts) {
+    const list = rows[put.name];
+    if (!list) {
+      out.push(put);
+      continue;
+    }
+    // (no "_bare" copy: a model of sacks only, whose empty copy the export left out: only the sacks)
+    if (has(`${put.name}_bare`)) out.push({ ...put, name: `${put.name}_bare` });
+    p.setFromMatrixPosition(put.m);
+    const lot = pickSack(`${seed}:${put.name}:${Math.round(p.x * 2)},${Math.round(p.z * 2)}`, place);
+    const ck = `${Math.floor(p.x / chunk)},${Math.floor(p.z / chunk)}`;
+    for (const r of list) {
+      const s = sackFromRow(r, r.goods ? pickSack(`${seed}:${put.name}:${r.goods}:${Math.round(p.x)}`, [[r.goods, 1]]) : lot);
+      s.updateMatrix();
+      const mat = s.material as THREE.Material;
+      const key = `${ck}|${mat.uuid}`;
+      let e = each.get(key);
+      if (!e) each.set(key, (e = { mat, geos: [] }));
+      e.geos.push(s.geometry.clone().applyMatrix4(put.m.clone().multiply(s.matrix)));
+    }
+  }
+  const meshes: THREE.Mesh[] = [];
+  for (const { mat, geos } of each.values()) {
+    const g = mergeGeometries(geos, false);
+    for (const q of geos) if (q !== g) q.dispose();
+    if (!g) continue;
+    g.computeBoundingSphere();
+    const mesh = new THREE.Mesh(g, mat);
+    mesh.name = `${seed}_sacks`;
+    meshes.push(mesh);
+  }
+  return { puts: out, meshes };
 }

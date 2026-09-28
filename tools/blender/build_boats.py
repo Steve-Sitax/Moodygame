@@ -1230,9 +1230,25 @@ def barrel_lo(m, c, lying=False, yaw=0.0):
             m.lathe([(0.312, z), (0.312, z + 0.05)], 8, IRON, smooth=False, urep=2)
 
 
+# Where each model's sacks are (2026-09-28: one sack model, client game/sackModel.ts): by model name, the sack's
+# matrix in the model's glTF frame and its size; written to client/src/world/boats_sack_sockets.json (build_ferry.py
+# writes its own). A model with sacks gets a "_bare" copy without them; the game draws the one sack model there.
+SACK_SOCKETS = {}
+CUR = [None]
+NO_SACKS = [False]
+
+
 def sack_lo(m, c, yaw=0.0, lift=0.0):
     c = Vector(c)
-    with m.at(move(c.x, c.y, c.z) @ rot_z(yaw) @ Matrix.Rotation(lift, 4, "X")):
+    M = move(c.x, c.y, c.z) @ rot_z(yaw) @ Matrix.Rotation(lift, 4, "X")
+    if CUR[0] is not None and not NO_SACKS[0]:
+        C = Matrix(((1, 0, 0, 0), (0, 0, 1, 0), (0, -1, 0, 0), (0, 0, 0, 1)))
+        g = C @ (m.xf @ M) @ C.inverted()
+        SACK_SOCKETS.setdefault(CUR[0], []).append(dict(k="lying", m=[round(g[r][cc], 4) for cc in range(4) for r in range(4)],
+                                                       L=0.9, W=0.52, H=0.26))
+    if NO_SACKS[0]:
+        return
+    with m.at(M):
         path = [V(-0.45, 0, 0.12), V(-0.3, 0, 0.13), V(0.3, 0, 0.13), V(0.45, 0, 0.12)]
         radii = [(0.06, 0.17), (0.13, 0.26), (0.13, 0.26), (0.06, 0.17)]
         m.tube(path, radii, 6, SACK, side=(0, 0, 1), smooth=False, cap0=True, cap1=True, urep=1, vscale=1.0)
@@ -4812,7 +4828,15 @@ def tris(ob):
 def build_all():
     objs, counts = {}, {}
     for name, fn in BUILDERS:
+        CUR[0] = name
         m = fn()
+        CUR[0] = None
+        if name in SACK_SOCKETS:
+            NO_SACKS[0] = True
+            try:
+                objs[name + "_bare"] = to_object(fn(), name + "_bare")
+            finally:
+                NO_SACKS[0] = False
         crane_checks(m, name)
         hull = m.hulls[0] if getattr(m, "hulls", None) else None
         ob = to_object(m, name)
@@ -4837,6 +4861,8 @@ def build_all():
     p["deck_top"] = PONTOON_DECK
     p["half_width"] = PONTOON_HALF
     p["length"] = PONTOON_LEN
+    with open(os.path.join(ROOT, "client", "src", "world", "boats_sack_sockets.json"), "w", encoding="utf-8") as f:
+        json.dump(SACK_SOCKETS, f, separators=(",", ":"))
     return objs, counts
 
 

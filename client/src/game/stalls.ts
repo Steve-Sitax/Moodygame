@@ -80,11 +80,12 @@ function load(): Promise<Parts | null> {
       // (game/sackModel.ts) in each sack's place, lying, standing or open (stalls_sack_sockets.json, written by
       // tools/blender/build_stalls.py); the goods picked from the goods list, the open sacks' by what is heaped in them
       for (const [name, rows] of Object.entries(STALL_SACKS as Record<string, StallSackRow[]>)) {
+        // (no "_bare" copy: a model of sacks only, whose empty copy the export left out: only the sacks)
         const bare = protos.get(`${name}_bare`);
-        if (!protos.has(name) || !bare) continue;
+        if (!protos.has(name)) continue;
         const g = new THREE.Group();
         g.name = name;
-        g.add(bare.clone());
+        if (bare) g.add(bare.clone());
         rows.forEach((r, i) => {
           const lot = pickSack(`stall:${name}:${i}`, r.goods ? [[r.goods, 1]] : "market");
           let m: THREE.Mesh;
