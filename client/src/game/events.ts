@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { tempestFromEvents, tempestUpdate } from "../world/tempest";
 import type { ActionsPayload, EventCue, EventScene, TownEvent } from "../net/api";
 import type { World } from "../world/rijnkaai";
 import { psx } from "../retro/psx";
@@ -92,6 +93,7 @@ export class Events {
       this.live.delete(id);
     }
     this.applyClosed(p.closed);
+    tempestFromEvents(p.events); // the great storm (world/tempest.ts)
   }
 
   private clear(l: Live): void {
@@ -166,6 +168,7 @@ export class Events {
   }
 
   update(dt: number, player: { x: number; z: number }): void {
+    tempestUpdate(dt);
     for (const l of this.live.values()) {
       const ev = l.ev;
       if (ev.status !== "running") continue;

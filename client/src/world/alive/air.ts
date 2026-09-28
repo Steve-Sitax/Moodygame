@@ -3,6 +3,7 @@ import { snort, thunder } from "../../audio/aliveSounds";
 import { FCOMMON, VCOMMON, pointMat, rand, type Ctx, type Frame, type Part } from "./common";
 import { HORSE_NOSE } from "../horseGait";
 import { AIR_GLOW_GLSL, airGlowUniforms } from "../../retro/psx";
+import { tempest } from "../tempest";
 
 // M7 alive: the air and what falls through it.
 // (The water off the eaves, drops and broken gutters' streams: eaves.ts.)
@@ -50,8 +51,10 @@ export function createStorm(ctx: Ctx): Part {
     const heavy = f.weather === "rain" && f.rain > 0.8;
     wait -= f.dt;
     if (forced >= 0 || ((storm || heavy) && wait <= 0)) {
-      wait = storm ? rand(15, 55) : rand(150, 400);
-      const km = forced >= 0 ? forced : rand(0.8, 6);
+      // (the great storm, world/tempest.ts: strike on strike, some right over the roofs)
+      const fury = storm ? tempest.level : 0;
+      wait = storm ? rand(15, 55) * (1 - 0.8 * fury) : rand(150, 400);
+      const km = forced >= 0 ? forced : fury > 0.5 && Math.random() < 0.35 * fury ? rand(0.25, 1.2) : rand(0.8, 6) * (1 - 0.5 * fury);
       forced = -1;
       flash = 0;
       // two or three flickers over half a second, weaker far away

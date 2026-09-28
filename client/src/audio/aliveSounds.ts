@@ -135,6 +135,11 @@ export const thunder = (km: number): Make => (ctx, out, t0, noise) => {
   const near = Math.max(0, 1 - km / 2.5);
   const len = 4 + km * 1.6 + Math.random() * 3;
   if (near > 0.2) noiseBurst(ctx, noise, out, t0, "lowpass", 3500, 0.4, 0.01, 0.35 * near, 0.35);
+  // right over the roofs (the great storm): the air tears first, a ripping crackle, then the blast
+  if (near > 0.5) {
+    for (let i = 0; i < 9; i++) noiseBurst(ctx, noise, out, t0 + Math.random() * 0.22, "highpass", rand(1800, 4000), 0.8, 0.001, rand(0.15, 0.35) * near, rand(0.02, 0.06));
+    noiseBurst(ctx, noise, out, t0 + 0.18, "lowpass", 900, 0.6, 0.004, 0.7 * near, 0.6);
+  }
   // the roll: a few swells of low noise
   const swells = 3 + Math.floor(Math.random() * 4);
   for (let i = 0; i < swells; i++) {
@@ -241,4 +246,102 @@ export const snort = (): Make => (ctx, out, t0, noise) => {
   noiseBurst(ctx, noise, out, t0, "bandpass", rand(500, 800), 1.2, 0.02, 0.08, 0.25);
   noiseBurst(ctx, noise, out, t0 + 0.05, "lowpass", 300, 1, 0.01, 0.05, 0.2);
   return 0.7;
+};
+
+// ------------------------------------------------------------------ the great storm (world/alive/gale.ts)
+
+/** A shutter or a loose door slammed by the wind against its frame: one to four hard wooden knocks, the last ones weaker. */
+export const shutterBang = (knocks: number): Make => (ctx, out, t0, noise) => {
+  let t = t0;
+  for (let i = 0; i < knocks; i++) {
+    const k = i === 0 ? 1 : rand(0.35, 0.8);
+    // the slam: a dull thud of the board and the rattle of the frame
+    noiseBurst(ctx, noise, out, t, "lowpass", rand(500, 900), 0.8, 0.002, 0.5 * k, 0.09);
+    noiseBurst(ctx, noise, out, t, "bandpass", rand(1400, 2600), 1.5, 0.001, 0.22 * k, 0.05);
+    tone(ctx, out, t, "triangle", rand(140, 210), rand(90, 120), 0.12, 0.002, 0.18 * k);
+    t += rand(0.12, 0.55);
+  }
+  return t - t0 + 0.4;
+};
+
+/** A slate off a roof: a scrape down the tiles, then it breaks on the stones in pieces. */
+export const slateCrash = (): Make => (ctx, out, t0, noise) => {
+  const slide = rand(0.25, 0.7);
+  noiseBurst(ctx, noise, out, t0, "bandpass", rand(2200, 3400), 2.5, slide * 0.6, 0.05, slide * 0.4);
+  const t = t0 + slide + rand(0.35, 0.6); // (the fall from the eaves)
+  noiseBurst(ctx, noise, out, t, "highpass", 2500, 0.7, 0.001, 0.5, 0.12);
+  tone(ctx, out, t, "square", rand(1800, 2600), rand(1200, 1600), 0.05, 0.001, 0.05);
+  const bits = 5 + Math.floor(Math.random() * 7);
+  for (let i = 0; i < bits; i++) {
+    const tt = t + 0.03 + Math.pow(Math.random(), 1.5) * 0.6;
+    noiseBurst(ctx, noise, out, tt, "bandpass", rand(3000, 7000), rand(2, 5), 0.001, rand(0.05, 0.16), rand(0.015, 0.04));
+    if (Math.random() < 0.4) tone(ctx, out, tt, "sine", rand(2500, 4800), rand(2000, 3500), 0.03, 0.001, 0.03);
+  }
+  return t - t0 + 1;
+};
+
+/** A shop sign swinging on its iron bracket: the hinge's squeal as it goes, and back. */
+export const signCreak = (): Make => (ctx, out, t0) => {
+  const swings = 2 + Math.floor(Math.random() * 3);
+  let t = t0;
+  const f = rand(380, 620);
+  for (let i = 0; i < swings; i++) {
+    const d = rand(0.35, 0.7);
+    const up = i % 2 === 0;
+    tone(ctx, out, t, "sawtooth", up ? f : f * 1.35, up ? f * 1.4 : f * 0.95, d, d * 0.3, 0.018);
+    tone(ctx, out, t, "sine", up ? f * 2.02 : f * 2.7, up ? f * 2.8 : f * 1.9, d, d * 0.3, 0.02);
+    t += d + rand(0.1, 0.4);
+  }
+  return t - t0 + 0.2;
+};
+
+/** A gust of the great storm coming down the street: a rising roar with a howl in it, `k` 0..1 how hard, `secs` long. */
+export const gustRoar = (k: number, secs: number): Make => (ctx, out, t0, noise) => {
+  // the roar: low noise swelling and falling with the gust
+  const src = ctx.createBufferSource();
+  src.buffer = noise;
+  src.loop = true;
+  const lp = ctx.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.setValueAtTime(300, t0);
+  lp.frequency.linearRampToValueAtTime(900 + 900 * k, t0 + secs * 0.45);
+  lp.frequency.linearRampToValueAtTime(350, t0 + secs);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0, t0);
+  g.gain.linearRampToValueAtTime(0.35 * k, t0 + secs * 0.4);
+  g.gain.linearRampToValueAtTime(0, t0 + secs);
+  src.connect(lp).connect(g).connect(out);
+  src.start(t0, Math.random() * 2);
+  src.stop(t0 + secs + 0.1);
+  // the howl round the corners: a narrow band that bends up and down
+  const src2 = ctx.createBufferSource();
+  src2.buffer = noise;
+  src2.loop = true;
+  const bp = ctx.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.Q.value = 14;
+  const f = rand(420, 700);
+  bp.frequency.setValueAtTime(f, t0);
+  bp.frequency.linearRampToValueAtTime(f * rand(1.4, 1.9), t0 + secs * 0.5);
+  bp.frequency.linearRampToValueAtTime(f * rand(0.9, 1.2), t0 + secs);
+  const g2 = ctx.createGain();
+  g2.gain.setValueAtTime(0, t0);
+  g2.gain.linearRampToValueAtTime(0.5 * k, t0 + secs * 0.5);
+  g2.gain.linearRampToValueAtTime(0, t0 + secs);
+  src2.connect(bp).connect(g2).connect(out);
+  src2.start(t0, Math.random() * 2);
+  src2.stop(t0 + secs + 0.1);
+  return secs + 0.2;
+};
+
+/** Something rolling and knocking over the stones in the wind: an empty cask, a bucket. */
+export const rollingCask = (secs: number): Make => (ctx, out, t0, noise) => {
+  noiseBurst(ctx, noise, out, t0, "lowpass", 220, 0.7, secs * 0.2, 0.18, secs * 0.6);
+  const knocks = Math.round(secs * rand(3, 6));
+  for (let i = 0; i < knocks; i++) {
+    const t = t0 + Math.random() * secs;
+    tone(ctx, out, t, "triangle", rand(110, 170), rand(70, 100), 0.08, 0.002, rand(0.08, 0.2));
+    noiseBurst(ctx, noise, out, t, "bandpass", rand(600, 1100), 1.2, 0.002, rand(0.05, 0.12), 0.05);
+  }
+  return secs + 0.4;
 };

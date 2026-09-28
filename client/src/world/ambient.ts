@@ -8,6 +8,7 @@ import { sharedFacadeProbe, type FacadeProbe } from "./facadeProbe";
 import INWORLD from "../../../shared/inworld_houses.json";
 import YARDS from "../../../shared/city_yard_windows.json";
 import { YARD_PANE_OFF, yardPanes } from "./yardWindows";
+import { tempest } from "./tempest";
 
 /**
  * M7 taverns and homes: the houses whose insides stand in the world light their own windows (the room itself
@@ -135,6 +136,8 @@ const U = {
   uWind: { value: new THREE.Vector2(0.9, 0.35) },
   uRainAmt: psxUniforms.uRain,
   uWetAmt: psxUniforms.uWet,
+  /** The great storm, 0..1 (world/tempest.ts). */
+  uTempest: { value: 0 },
   uCam: { value: new THREE.Vector3() },
   uViewH: { value: TARGET_HEIGHT },
 };
@@ -949,7 +952,8 @@ function windowMaterials(): { win: THREE.ShaderMaterial } {
 // ------------------------------------------------------------------ 3. rain and puddles
 
 function buildRain(): THREE.LineSegments {
-  const N = 1600;
+  // (the great storm, world/tempest.ts: up to 4000 streaks; an ordinary full rain draws 1600 of them, as before)
+  const N = 4000;
   const pos = new Float32Array(N * 2 * 3);
   const seg = new Float32Array(N * 2);
   const seed = new Float32Array(N * 2);
@@ -978,6 +982,7 @@ function buildRain(): THREE.LineSegments {
       uniform vec3 uCam;
       uniform vec2 uWind;
       uniform float uRainAmt;
+      uniform float uTempest;
       uniform vec3 fogColor;
       attribute float aSeg;
       attribute float aSeed;
@@ -987,12 +992,13 @@ function buildRain(): THREE.LineSegments {
         vec3 box = vec3(28.0, 14.0, 28.0);
         // each drop a little its own way in the wind
         float jit = fract(aSeed * 13.7) - 0.5;
-        vec3 vel = vec3(uWind.x * (1.6 + jit * 0.5), -8.5 - aSeed * 2.5, uWind.y * (1.6 - jit * 0.5));
+        // (the great storm: it drives down harder, and the wind lays it over)
+        vec3 vel = vec3(uWind.x * (1.6 + jit * 0.5), (-8.5 - aSeed * 2.5) * (1.0 + 0.45 * uTempest), uWind.y * (1.6 - jit * 0.5));
         vec3 lo = uCam - vec3(14.0, 5.0, 14.0);
         vec3 p = lo + mod(position + vel * uTime - lo, box);
         // a streak as long as the drop falls in 1/20 s; both ends in front of the eye, or none
         // a streak is the fall during a short exposure: 1/40 to 1/25 s, drop by drop
-        float expo = 0.025 + 0.015 * fract(aSeed * 5.31);
+        float expo = (0.025 + 0.015 * fract(aSeed * 5.31)) * (1.0 + 0.6 * uTempest);
         float za = -(modelViewMatrix * vec4(p, 1.0)).z;
         float zb = -(modelViewMatrix * vec4(p - vel * expo, 1.0)).z;
         p -= vel * expo * aSeg;
@@ -1001,15 +1007,16 @@ function buildRain(): THREE.LineSegments {
         gl_Position = projectionMatrix * mv;
         // rain barely shows in grey daylight (a little lighter than the air); a drop by a
         // gas lamp catches its glow and shows clearly
-        vec3 col = fogColor * 1.3 + 0.01;
+        vec3 col = fogColor * (1.3 + 0.5 * uTempest) + 0.01 + 0.05 * uTempest;
         for (int i = 0; i < AMB_LAMPS; i++) {
           vec3 d = p - uLamps[i].xyz;
           col += uLampColor * uLamps[i].w * 1.3 / (1.0 + dot(d, d) * 0.3);
         }
         vCol = col;
         // close drops only: far off, rain is thicker air (the weather's fog), not streaks
-        float near = smoothstep(0.4, 1.2, vFogDepth) * (1.0 - smoothstep(3.0, 7.0, vFogDepth));
-        vA = step(aSeed, uRainAmt) * near * (0.08 + 0.2 * fract(aSeed * 7.3)) * (0.5 + 0.5 * uRainAmt) * step(0.7, min(za, zb));
+        // (the great storm: sheets of it, seen farther off: the whole box)
+        float near = smoothstep(0.4, 1.2, vFogDepth) * (1.0 - smoothstep(3.0 + 5.0 * uTempest, 7.0 + 6.0 * uTempest, vFogDepth));
+        vA = step(aSeed, uRainAmt * (0.4 + 0.6 * uTempest)) * near * (0.08 + 0.2 * fract(aSeed * 7.3)) * (0.5 + 0.5 * uRainAmt) * (1.0 + 1.6 * uTempest) * step(0.7, min(za, zb));
         if (vA < 0.004) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
       }`,
     fragmentShader: /* glsl */ `
@@ -1475,11 +1482,14 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
     if (weather === "storm") {
       // a gale: heavy rain in squalls, never quite stopping
       auto = 0.65 + 0.35 * (0.5 + 0.5 * Math.sin(hourNow * 2.3) * Math.sin(hourNow * 0.9 + 1.0));
+      // the great storm: it never lets up
+      auto = Math.max(auto, Math.min(1, 0.7 + 0.5 * tempest.level));
     } else if (weather === "rain") {
       const n = 0.5 + 0.5 * Math.sin(hourNow * 1.7) * Math.sin(hourNow * 0.63 + 2.0);
       auto = 0.2 + 0.8 * THREE.MathUtils.smoothstep(n, 0.3, 0.75);
     }
     const target = Math.max(manualRain, auto);
+    U.uTempest.value = weather === "storm" ? tempest.level : 0;
     rainNow += (target - rainNow) * Math.min(1, dt * 0.3);
     if (rainNow < 0.002 && target === 0) rainNow = 0;
     // the ground gets wet fast and dries slowly
@@ -1501,7 +1511,7 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
     // (M8f sync pass 3: by the clock every PC shares, as alive/wind.ts: the smoke leans the same way on every screen)
     const ts = sharedSeconds() % 1e6;
     const wa = 0.35 + Math.sin(ts * 0.013) * 0.25;
-    const ws = (WIND[weather] ?? 0.5) * (1 + 0.2 * Math.sin(ts * 0.07));
+    const ws = (WIND[weather] ?? 0.5) * (1 + 0.2 * Math.sin(ts * 0.07)) * (1 + 0.9 * U.uTempest.value);
     U.uWind.value.set(Math.cos(wa) * ws, Math.sin(wa) * ws);
     const fog = scene.fog as THREE.Fog | null;
     if (fog) fogCol.copy(fog.color);

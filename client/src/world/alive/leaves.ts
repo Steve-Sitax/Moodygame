@@ -4,6 +4,7 @@ import CITY from "../../../../shared/city.json";
 import { leaves as leafSound } from "../../audio/aliveSounds";
 import { mulberry, openAt, type Ctx, type Frame, type Part } from "./common";
 import { dice, hash32, seeded, sharedSeconds } from "../../game/share";
+import { tempest } from "../tempest";
 
 // M7 alive: autumn leaves and scraps of paper blown along the streets. Round Jef (within 26 m)
 // lie some ninety leaves and a few torn bills and wrappers, more near the trees of the quays, the
@@ -206,7 +207,9 @@ export function createLeaves(ctx: Ctx): Part {
     }
     list = [...cells.values()].flat();
     // wet leaves stick: it takes a gale to move them
-    const stick = 0.9 + f.wet * 5;
+    // (the great storm, world/tempest.ts: even wet, they are torn off the stones and fly)
+    const fury = f.weather === "storm" ? tempest.level : 0;
+    const stick = 0.9 + f.wet * 5 * (1 - 0.7 * fury);
     const S = sharedSeconds();
     moving = 0;
     let mx = 0, mz = 0;
@@ -225,7 +228,7 @@ export function createLeaves(ctx: Ctx): Part {
         const n = Math.floor(S * 8);
         l.v.x += (w2.x / ws * target - l.v.x) * Math.min(1, dt * 2.5 * push);
         l.v.z += (w2.y / ws * target - l.v.z) * Math.min(1, dt * 2.5 * push);
-        if (l.air <= 0 && dice("leafhop", l.seed, n) < 0.125 * push * (l.paper ? 1.2 : 0.8)) l.v.y = 0.6 + dice("leafhopv", l.seed, n) * push * 0.9;
+        if (l.air <= 0 && dice("leafhop", l.seed, n) < 0.125 * push * (l.paper ? 1.2 : 0.8)) l.v.y = (0.6 + dice("leafhopv", l.seed, n) * push * 0.9) * (1 + 1.5 * fury);
         l.spin += (dice("leafspin", l.seed, n) - 0.5) * dt * 20 * push;
       } else {
         // friction on the stones
@@ -233,7 +236,7 @@ export function createLeaves(ctx: Ctx): Part {
         l.v.x *= k;
         l.v.z *= k;
       }
-      l.v.y -= 3.2 * dt; // leaves fall slowly (the air)
+      l.v.y -= 3.2 * (1 - 0.45 * fury) * dt; // leaves fall slowly (the air; a great storm holds them up)
       l.v.y = Math.max(l.v.y, l.paper ? -0.6 : -0.9);
       const nx = l.p.x + l.v.x * dt;
       const nz = l.p.z + l.v.z * dt;

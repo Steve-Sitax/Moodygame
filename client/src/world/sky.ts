@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { AIR_DECK, LAMP_SCATTER_GLSL, MAX_LAMPS, psxUniforms } from "../retro/psx";
+import { tempest } from "./tempest";
 
 // The sky (picture round 2026-09-26, package 4: "the game's sky is flat fog colour"). A dome over the town that is
 // not the flat colour of the air: a low grey autumn overcast, darker cloud masses and a few lighter breaks, drifting
@@ -183,7 +184,9 @@ export function createCloudSky(radius = 560): CloudSky {
   const cur = { cover: 0.7, dark: 0, speed: 0.4 };
   const drift = new THREE.Vector2();
   function update(dt: number, t: number, air: THREE.Color, hour: number, weather: string, clear: number, sunXZ: THREE.Vector2): void {
-    const [cv, dk, sp] = DECK[weather] ?? DECK.fog;
+    const [cv, dk, sp0] = DECK[weather] ?? DECK.fog;
+    // the great storm (world/tempest.ts): the deck races over
+    const sp = sp0 * (1 + 1.6 * tempest.level);
     const k = Math.min(1, dt * 0.3);
     cur.cover += (cv - cur.cover) * k;
     cur.dark += (dk - cur.dark) * k;

@@ -4,7 +4,7 @@ import { remember } from "./npcs.ts";
 import { pid } from "./player/current.ts";
 import { activityAt } from "./town/schedule.ts";
 import { resident, town } from "./town/store.ts";
-import { closedByEvent, state } from "./director/state.ts";
+import { closedByEvent, state, tempestPhase } from "./director/state.ts";
 import { newsFactors } from "./ideas/prices.ts";
 import { FURNITURE, FURNITURE_KINDS } from "../../shared/homes.ts";
 import { VELO_PRICE } from "./town/transport.ts";
@@ -198,6 +198,8 @@ export function atWork(db: DB, id: string): boolean {
   if (!r) return true;
   // M4: an event may shut a shop, a stall's place or a tavern until it ends
   if (closedByEvent(db, r.work.place) || (r.work.shop && closedByEvent(db, r.work.shop))) return false;
+  // the great storm: the taverns open up whatever the hour, the town comes in out of it (shared/tempest.ts)
+  if (r.work.kind === "tavern" && r.work.place.startsWith("tavern:") && r.age >= 14 && tempestPhase(db)) return true;
   const p = db.prepare("SELECT day, hour, minute FROM player WHERE id = 1").get() as { day: number; hour: number; minute: number };
   return activityAt(r.sched, p.day, p.hour + p.minute / 60).act === "work";
 }

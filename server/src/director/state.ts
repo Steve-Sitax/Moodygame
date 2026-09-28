@@ -23,6 +23,15 @@ export function closedByEvent(db: DB, placeId: string): boolean {
   return placeId in state<Record<string, number>>(db, "m4_closed", {});
 }
 
+/**
+ * The great storm now (director/tempest.ts; shared/tempest.ts): the part it is in, or null. Kept in world_state
+ * "tempest" while its event runs; the event's end clears it.
+ */
+export function tempestPhase(db: DB): "coming" | "peak" | "easing" | null {
+  const t = state<{ phase?: string } | null>(db, "tempest", null);
+  return t && (t.phase === "coming" || t.phase === "peak" || t.phase === "easing") ? t.phase : null;
+}
+
 export function closedPlaces(db: DB): string[] {
   return Object.keys(state<Record<string, number>>(db, "m4_closed", {}));
 }

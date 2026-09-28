@@ -480,6 +480,8 @@ export interface TownEvent {
   acts?: Array<string | null>;
   fire?: import("../game/townlife").FireView | null;
   hiring?: import("../game/townlife").HiringView | null;
+  /** The great storm (server director/tempest.ts): the part it is in now. */
+  tempest?: { phase: "coming" | "peak" | "easing" | null } | null;
 }
 export interface ActionsPayload {
   actions: PublicAction[];

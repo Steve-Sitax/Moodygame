@@ -8,6 +8,7 @@ import { Figure, type FigureKind } from "../game/figures";
 import { GAME_MIN_PER_REAL_S, REAL_S_PER_GAME_MIN } from "../../../shared/clock";
 import type { QuestBoxes } from "../game/questboxes";
 import type { Nightlife } from "../game/nightlife";
+import { tempest } from "../world/tempest";
 
 // The test kit (Steve, 2026-09-24: "write good testing routines: where to go, what time and how;
 // searching or spawning figures for quick tests instead of waiting"). Dev builds only, in the tab
@@ -329,6 +330,26 @@ export function makeTestKit(d: TestKitDeps) {
         await new Promise((res) => setTimeout(res, 500));
       }
       return `"${r.title}" (${r.id}) planned at ${r.where}; not in the client's list yet, try go('${r.where}')`;
+    },
+
+    /**
+     * The great storm (server director/tempest.ts, world/tempest.ts). `start`: plan it now (the dev director; it comes a
+     * game minute later). `hold`: hold its look at a level 0..1 (null: back to the event's). Returns where it is and
+     * where the town is: the shelters, who is indoors, who is still out near Jef, the storm noises heard.
+     */
+    async tempest(o: { start?: boolean; hold?: number | null } = {}): Promise<Record<string, unknown>> {
+      if (o.start) {
+        kit.guard("tempest()");
+        const r = await post<{ ok?: boolean; id?: number; why?: string }>("/api/dev/director", { template: "tempest" });
+        if (!r.ok) return { started: false, why: r.why };
+        for (let i = 0; i < 6; i++) {
+          await fetch("/api/actions").catch(() => null);
+          d.step(0.5);
+        }
+      }
+      if (o.hold !== undefined) tempest.hold = o.hold;
+      const alive = (window as unknown as { __scheldemist?: { alive?: { info(): Record<string, unknown> } } }).__scheldemist?.alive?.info?.();
+      return { phase: tempest.phase, level: +tempest.level.toFixed(2), hold: tempest.hold, closed: d.events.closed.length, town: d.town.stormInfo(), gale: alive?.gale, storm: alive?.storm, wind: alive?.wind };
     },
 
     run(seconds: number): string {

@@ -266,6 +266,11 @@ export class Soundscape {
   readonly speaker: GainNode;
   private windGain: GainNode;
   private windRec: GainNode;
+  /** The great storm (setTempest): the howl round the corners and the whistle in the gaps, made in code. */
+  private howlGain: GainNode;
+  private howlBands: BiquadFilterNode[] = [];
+  private tempest = 0;
+  private tempestGust = 0;
   private murmurGain: GainNode;
   private rainRoofGain: GainNode;
   private rainCobbleGain: GainNode;
@@ -401,6 +406,24 @@ export class Soundscape {
     this.windRec = this.ctx.createGain();
     this.windRec.gain.value = 0;
     this.windRec.connect(this.bus("ambience"));
+    // the great storm: a low roar and two narrow howling bands whose pitch wanders (setTempest; silent on any other day)
+    this.howlGain = this.ctx.createGain();
+    this.howlGain.gain.value = 0;
+    this.howlGain.connect(this.bus("ambience"));
+    for (const [type, f, q, vol] of [["lowpass", 260, 0.6, 0.55], ["bandpass", 520, 11, 0.5], ["bandpass", 1150, 16, 0.22]] as const) {
+      const src = this.ctx.createBufferSource();
+      src.buffer = f < 300 ? this.brown : this.noise;
+      src.loop = true;
+      const flt = this.ctx.createBiquadFilter();
+      flt.type = type;
+      flt.frequency.value = f;
+      flt.Q.value = q;
+      const g = this.ctx.createGain();
+      g.gain.value = vol;
+      src.connect(flt).connect(g).connect(this.howlGain);
+      src.start(0, Math.random() * 2);
+      if (type === "bandpass") this.howlBands.push(flt);
+    }
 
     // crowd murmur: follows how many people are near (setCrowd)
     this.murmurGain = this.ctx.createGain();
@@ -664,6 +687,22 @@ export class Soundscape {
     return n;
   }
 
+  /**
+   * The great storm (world/tempest.ts): `level` 0..1 how hard it blows, `gust` the gust at the ear now (world/alive/wind.ts
+   * gustAt). The wind roars and howls with the gusts, the rain drums harder; 0 leaves every bed as it was.
+   */
+  setTempest(level: number, gust: number): void {
+    this.tempest = clamp01(level);
+    this.tempestGust = Math.max(0, Math.min(3, gust));
+    if (this.tempest > 0 && this.howlBands.length) {
+      // the howl bends up with the gust and wanders on its own
+      const now = this.ctx.currentTime;
+      const w = Math.sin(now * 0.37) * 0.5 + Math.sin(now * 0.13 + 1) * 0.5;
+      this.howlBands[0].frequency.setTargetAtTime(480 * (1 + 0.25 * w + 0.35 * this.tempestGust), now, 0.4);
+      this.howlBands[1].frequency.setTargetAtTime(1050 * (1 + 0.2 * w + 0.3 * this.tempestGust), now, 0.4);
+    }
+  }
+
   /** Rain 0-1: on roofs and cobbles; dampens gulls, market and dogs. */
   setRain(a: number): void {
     this.rain = clamp01(a);
@@ -884,7 +923,9 @@ export class Soundscape {
     // this low wind rumble (about -30 dB, above everything near him), and low noise reads as
     // rushing water. Now about 10 dB down in the streets, a little more by open water.
     const byWater = 1 - ramp(this.quayDist, 15, 120);
-    this.windGain.gain.setTargetAtTime((0.3 + 0.15 * night) * (0.65 + 0.35 * byWater), now, tau);
+    this.windGain.gain.setTargetAtTime((0.3 + 0.15 * night) * (0.65 + 0.35 * byWater) * (1 + 1.6 * this.tempest), now, tau);
+    // the great storm: the howl, harder in each gust
+    this.howlGain.gain.setTargetAtTime(0.16 * this.tempest * (0.45 + 0.35 * this.tempestGust), now, 0.35);
     // wind in the rigging: by the ships (the canals have no masts), gone a street or two inland
     let dShip = Infinity;
     for (const sp of this.shipPositions) dShip = Math.min(dShip, Math.hypot(sp.x - this.listenerPos.x, sp.z - this.listenerPos.z));
@@ -896,8 +937,9 @@ export class Soundscape {
     for (const b of this.roomBedGains) b.g.gain.setTargetAtTime(b.base * this.roomLevel(b.name), now, 1.2);
     // an event's murmur follows the people standing near it
     for (const c of this.crowdSpots) c.g.gain.setTargetAtTime(chatter(this.peopleNear(c.spot.x, c.spot.z, 15)), now, 1.2);
-    this.rainRoofGain.gain.setTargetAtTime(0.4 * this.rain, now, 1.5);
-    this.rainCobbleGain.gain.setTargetAtTime(1.1 * this.rain, now, 1.5);
+    // (the great storm: it drums on every roof and runs in the street)
+    this.rainRoofGain.gain.setTargetAtTime(0.4 * this.rain * (1 + 1.4 * this.tempest), now, 1.5);
+    this.rainCobbleGain.gain.setTargetAtTime(1.1 * this.rain * (1 + 0.7 * this.tempest), now, 1.5);
 
     if (now > this.smithyNext) {
       this.smithyOn = !this.smithyOn;
