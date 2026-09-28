@@ -7,7 +7,7 @@ import { RESET_HOOKS } from "../player/multi.ts";
 import { Bucket } from "../mp/limits.ts";
 import { gameMinute } from "../town/deeds.ts";
 import { carryBackTick, installCarryBack, pickHand, startBack } from "./carryBack.ts";
-import { askBook, hasBook, haulDawnTick, haulSupplyTick, installHaulFlow } from "./haulFlow.ts";
+import { askBook, hasBook, haulDawnTick, haulSupplyTick, haulUnseenTick, installHaulFlow } from "./haulFlow.ts";
 import { goods, goodsHooks } from "./store.ts";
 
 // M8f shared goods (docs/milestones/M8f.md): the PCs' requests. HTTP, not the movement socket: played alone there is
@@ -107,6 +107,7 @@ export function mountGoods(app: Hono, d: GoodsDeps) {
         carryBackTick(db);
         haulDawnTick(c.day, c.hour);
         haulSupplyTick(c.day, c.hour * 60 + c.minute);
+        haulUnseenTick(db, c.day, c.hour * 60 + c.minute);
       } catch (e) {
         console.warn("[goods] tick", e);
       }

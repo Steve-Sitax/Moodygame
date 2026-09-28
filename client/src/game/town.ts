@@ -1,3 +1,4 @@
+import { runAt, type TradeRun } from "../../../shared/trade";
 import * as THREE from "three";
 import { api, type JobsPayload, type Pt, type TownData, type TownPlace, type TownResident } from "../net/api";
 import { activityAt, type Now } from "../../../server/src/town/schedule";
@@ -131,6 +132,8 @@ export interface Sim {
   loadsDone?: number;
   breakAt?: string;
   breakTil?: number;
+  /** T3 trade: the dispatcher's run he is on (its id). */
+  tradeRun?: string;
   /** The last walk has ended and the pause there has begun. */
   arrived: boolean;
   tries: number;
@@ -313,6 +316,36 @@ export class Town {
    * walk the town's people).
    */
   docks: { lift(npc: string, route: string): string | null; putIn(npc: string, id: string): void } | null = null;
+
+  /** T3 trade: the dispatcher's runs out now (GET /api/trade), asked every few seconds; a man on one walks it. */
+  private tradeRuns: TradeRun[] = [];
+  private tradeAsk = 0;
+  private tradeBusy = false;
+  private askTrade(dt: number): void {
+    if ((this.tradeAsk -= dt) > 0 || this.tradeBusy) return;
+    this.tradeAsk = 3;
+    this.tradeBusy = true;
+    fetch("/api/trade")
+      .then((r) => r.json())
+      .then((b: { runs?: TradeRun[] }) => (this.tradeRuns = Array.isArray(b.runs) ? b.runs : []))
+      .catch(() => {})
+      .finally(() => (this.tradeBusy = false));
+  }
+
+  /** T3 trade: the run this townsperson is on now, its part and where he stands for it (the doors' steps). */
+  private tradeRunOf(s: Sim, day: number, hour: number): { run: TradeRun; phase: "load" | "go" | "unload" | "back"; x: number; z: number; yaw: number } | null {
+    const run = this.tradeRuns.find((r) => r.man === s.r.id);
+    if (!run || run.way.length < 2) return null;
+    const at = runAt(run, (day - 1) * 1440 + hour * 60);
+    if (at.phase === "over") return null;
+    const [ax, az] = run.way[0];
+    const [bx, bz] = run.way[run.way.length - 1];
+    const atB = at.phase === "go" || at.phase === "unload";
+    const [x, z] = atB ? [bx, bz] : [ax, az];
+    // (facing the door he loads or unloads at: back along the way's first or last step)
+    const [px, pz] = atB ? run.way[run.way.length - 2] : run.way[1];
+    return { run, phase: at.phase, x, z, yaw: Math.atan2(x - px, z - pz) };
+  }
   private player = { x: 0, z: 0, yaw: 0 };
   /** The trade plan: the ways on foot by key (null: the server found none), and the keys to ask for. */
   private ways = new Map<string, Pt[] | null>();
@@ -594,6 +627,10 @@ export class Town {
     if (s.inTrip) return "Going along on someone else's trip";
     if (s.trip) return s.trip.mode === "walk" ? "On the way on foot" : `On the way by ${s.trip.mode}`;
     if (s.errand) return "On an errand of the household";
+    if (s.tradeRun) {
+      const r = this.tradeRuns.find((q) => q.id === s.tradeRun);
+      if (r) return `Taking ${r.good} from ${this.place(r.from)?.label ?? r.from} to ${this.place(r.to)?.label ?? r.to}`;
+    }
     if (s.breakAt) return `A break at ${this.place(s.breakAt)?.label ?? "the tavern"}: food and a drink`;
     if (s.held) return s.away ? "Sent across town for something (an action)" : "Held by an action or an event";
     if (s.key.includes("|shop@")) return s.inside ? "In a shop, buying" : "Going to a shop";
@@ -627,6 +664,7 @@ export class Town {
       this.robbed.clear();
     }
     this.askWays(dt);
+    this.askTrade(dt);
     this.progress(dt, day, hour);
     this.thinkT -= dt;
     if (this.thinkT <= 0) {
@@ -684,8 +722,10 @@ export class Town {
     const err = !first && !storm ? (this.journeys?.errandFor(s.r.id, day, hour) ?? null) : null;
     if (err || s.errand) return this.errandStep(s, err, day, hour);
     let now = this.planNow(s, day, hour);
+    // T3 trade: a run the dispatcher sent him on (from his post's door to the other's and back)
+    const tr = storm ? null : this.tradeRunOf(s, day, hour);
     // D1 docks: a docker on a break: at the tavern nearest his route till it is over (then the day goes on)
-    const brk = storm ? null : this.dockBreak(s, now);
+    const brk = storm || tr ? null : this.dockBreak(s, now);
     if (brk) now = { ...now, act: "tavern", place: brk };
     s.shelter = storm ? shelterFor(s.r, now, this.data!.places, (this.taverns ??= tavernIds(this.data!.places)), tempest.event) : null;
     const sheltered = !!s.shelter && s.shelter.kind !== "stay";
@@ -693,7 +733,7 @@ export class Town {
     const call = storm ? null : this.shopCall(s.r, day, hour);
     const key = sheltered
       ? `storm${tempest.event}:${s.shelter!.kind}${s.shelter!.kind === "tavern" ? `:${s.shelter!.place}` : ""}`
-      : `${now.act}:${now.place}${call ? `|shop@${call[0]},${call[1]}` : ""}${storm ? `|storm${tempest.event}` : `${this.lively?.key(s, now, day, hour) ?? ""}${this.mills?.key(s, now, day, hour) ?? ""}`}`;
+      : `${now.act}:${now.place}${tr ? `|trade:${tr.run.id}:${tr.phase === "go" || tr.phase === "unload" ? "there" : "back"}` : ""}${call ? `|shop@${call[0]},${call[1]}` : ""}${storm ? `|storm${tempest.event}` : `${this.lively?.key(s, now, day, hour) ?? ""}${this.mills?.key(s, now, day, hour) ?? ""}`}`;
     // East walkthrough 2026-09-25: a publican (or a drinker) whose goal was set while his tavern's house
     // was not open yet (at load, before the in-world rooms are attached) stood 1.7 m before the door and
     // blocked it. The tavern opening or shutting sets the goal again, the key unchanged.
@@ -711,6 +751,13 @@ export class Town {
     if (s.p) this.market?.forget(s.p);
     s.goal = call ? { mode: "inside", x: call[0], z: call[1] } : this.goalFor(s, now);
     if (call || brk) s.plain = false;
+    if (tr) {
+      // T3 trade: to the door he loads or unloads at, the baskets on his arm on the way there
+      s.goal = { mode: "stand", x: tr.x, z: tr.z, yaw: tr.yaw, motion: "idle" };
+      s.plain = false;
+      s.tradeRun = tr.run.id;
+    } else s.tradeRun = undefined;
+    if (s.p && (tr || prevKey.includes("|trade:"))) this.crowd.puppetCarry(s.p, tr && (tr.phase === "go" || tr.phase === "unload") ? "basket" : null);
     s.step = 0;
     s.tries = 0;
     s.wait = 0;
@@ -1255,6 +1302,12 @@ export class Town {
   private direct(s: Sim): void {
     const p = s.p!;
     const g = s.goal;
+    // T3 trade: drawn on the way out of a run, the baskets are on his arm
+    if (s.tradeRun) {
+      const c = this.clock();
+      const tr = this.tradeRunOf(s, c.day, c.hour);
+      if (tr) this.crowd.puppetCarry(p, tr.phase === "go" || tr.phase === "unload" ? "basket" : null);
+    }
     if (s.trip && this.journeys) {
       this.journeys.direct(s);
       return;

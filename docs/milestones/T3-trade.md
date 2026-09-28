@@ -31,6 +31,25 @@ after M7". Decided 2026-09-27: players move the stock, but food never runs out f
   piles, in the dockers' arms and in the player's hands (one model wherever it shows).
 - **GET `/api/trade`**: every post's shelf, order level, floor and today's sales.
 
+## Part 2: the dispatcher (done)
+
+- Every quarter hour (`trade/ledger.ts dispatch`): a post under its order level in its open hours, with nothing on the
+  way to it, gets a run from another post of the same good with plenty (well over its own order level). One of the
+  source's people at work carries it on foot with two baskets (up to 24 loaves), along the server's way between the
+  shop doors. The goods leave the source's shelf when it is sent and reach the target's at the end of the unloading.
+  Today only bread has two posts; fish and meat have one each (their shortage is the dockers' boxes, the kill, and
+  work for players in the book).
+- **The run's clock** (`shared/trade.ts runAt`): load 6 min at the source's door, the walk at 1.2 m/s (a game minute
+  is two real seconds), unload 4 min, back the same way.
+- **In the game** (`game/town.ts`): the town asks `/api/trade` every 3 s; a man on a run walks to the target's door
+  with a basket on his arm, stands while he unloads, walks back. Unseen he goes along the server's way (T2).
+- **The town map**: the runs list and the dots (`town/runs.ts tradeRunNow`, chain "bread", "on foot with baskets"),
+  with the plain line ("Taking 14 loaves from the bakery on the Steenplein to the bakery behind the Rijnkaai (120 m
+  to go)"), and the chain filter "Bread".
+- **The fish with nobody near**: the Vismarkt's dockers, unseen, take a box in every 6 minutes of the morning while no
+  player is within 45 m (`haulUnseenTick`); in sight the drawn dockers do it.
+- Dev: `POST /api/dev/trade {post, stock}` sets a shelf (the test kit); GET `/api/trade` lists the runs too.
+
 ## Checks
 
 - `server/test/t3-trade.test.ts` (6): the town down to the floor, Sunday, the kill, the price band, buying at the
@@ -40,7 +59,6 @@ after M7". Decided 2026-09-27: players move the stock, but food never runs out f
 
 ## Next
 
-- The dispatcher: runs sent by need (a cart of bread to the other bakery, fish boxes onward to the grocers).
 - Chain 3 in the open: farmers with animals through the gates at dawn to the butcher's yard (animal models).
 - The map's card: a post's shelf; the runs list by chain.
 - Jobs from shortage beyond the book: a rush fetch when a shelf is empty in the morning.

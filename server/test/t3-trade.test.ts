@@ -106,3 +106,73 @@ describe("T3: the food posts' ledger", () => {
     expect(after - before).toBeGreaterThanOrEqual(FISH_PER_BOX - 1);
   });
 });
+
+describe("T3: the dispatcher", () => {
+  it("a bakery short in its hours gets a run of bread from the other; it arrives at the unload, not before", async () => {
+    const { runAt, runLegs } = await import("../../shared/trade.ts");
+    const db = blankSave();
+    setClock(db, 2, 10, 1);
+    const l = tradeLedger(db);
+    l.stock.bakery_rijn = 8;
+    l.stock.bakery_steen = 80;
+    l.looked = undefined;
+    l.runs = [];
+    db.prepare("INSERT INTO world_state (key, value_json) VALUES ('trade', ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(JSON.stringify(l));
+    const l2 = tradeLedger(db);
+    expect(l2.runs?.length).toBe(1);
+    const r = l2.runs![0];
+    expect(r.from).toBe("bakery_steen");
+    expect(r.to).toBe("bakery_rijn");
+    expect(r.n).toBeGreaterThanOrEqual(6);
+    expect(town(db).byId.get(r.man)?.work.shop).toBe("bakery_steen");
+    expect(r.len).toBeGreaterThan(20);
+    // the source's shelf gave them at once
+    expect(l2.stock.bakery_steen).toBeLessThanOrEqual(80 - r.n + 1e-9);
+    // halfway on the way: not there yet
+    const legs = runLegs(r);
+    const mid = r.t0 + (legs.load + legs.go) / 2;
+    expect(runAt(r, mid).phase).toBe("go");
+    // after the unload: on the target's shelf, and the run goes when he is back
+    const end = r.t0 + Math.ceil(legs.back) + 1;
+    const day = Math.floor(end / 1440) + 1;
+    const min = end % 1440;
+    setClock(db, day, Math.floor(min / 60), min % 60);
+    const l3 = tradeLedger(db);
+    expect(l3.runs?.some((q) => q.id === r.id)).toBe(false);
+    expect(tradeView(db).find((p) => p.id === "bakery_rijn")!.soldTown).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("T3: the fish reach the stalls with nobody near", () => {
+  it("unseen, the Vismarkt's dockers take a box in every few minutes of the morning; never while a player is near", async () => {
+    const { goods } = await import("../src/goods/store.ts");
+    const { haulUnseenTick, UNSEEN_CARRY_MIN } = await import("../src/goods/haulFlow.ts");
+    goods.reset(false);
+    const db = blankSave();
+    setClock(db, 2, 7, 0);
+    const before = tradeView(db).find((p) => p.id === "vismarkt")!.stock;
+    const pile = goods.list().filter((it) => it.id.startsWith("haul:vm-1a:")).length;
+    haulUnseenTick(db, 2, 7 * 60, [{ x: -139, z: 22 }]);
+    expect(goods.list().filter((it) => it.id.startsWith("haul:vm-1a:")).length).toBe(pile);
+    haulUnseenTick(db, 2, 7 * 60 + UNSEEN_CARRY_MIN, [{ x: 100, z: 100 }]);
+    expect(goods.list().filter((it) => it.id.startsWith("haul:vm-1a:")).length).toBe(pile - 1);
+    expect(tradeView(db).find((p) => p.id === "vismarkt")!.stock).toBeGreaterThanOrEqual(before + FISH_PER_BOX - 1);
+    goods.reset(false);
+  });
+});
+
+describe("T3: the map shows the dispatcher's runs", () => {
+  it("a run is on the town map's list with its man, its load and a plain line, by its own clock", async () => {
+    const { runsNow } = await import("../src/town/runs.ts");
+    const run = { id: "trade:bakery_steen>bakery_rijn:540", good: "bread" as const, from: "bakery_steen", to: "bakery_rijn", n: 14, man: "r010", t0: 540, way: [[-200, 40], [-100, 50], [0, 75]] as Array<[number, number]>, len: 210, done: false };
+    const load = runsNow(1, 9.05, { trade: [run], names: { bakery_steen: "the bakery on the Steenplein", bakery_rijn: "the bakery behind the Rijnkaai" } }).find((r) => r.id === run.id)!;
+    expect(load.phase).toBe("load");
+    expect(load.doing).toContain("Filling two baskets with 14 loaves");
+    const go = runsNow(1, 10, { trade: [run] }).find((r) => r.id === run.id)!;
+    expect(go.phase).toBe("go");
+    expect(go.moving).toBe(true);
+    expect(go.chain).toBe("bread");
+    expect(go.man).toBe("r010");
+    expect(runsNow(1, 16, { trade: [run] }).some((r) => r.id === run.id)).toBe(false);
+  });
+});

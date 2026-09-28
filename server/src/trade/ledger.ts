@@ -2,7 +2,10 @@ import type { DB } from "../db.ts";
 import { clock } from "../day.ts";
 import { resident, town } from "../town/store.ts";
 import { MILLS, type StockEvent } from "../../../shared/mills.ts";
-import { FISH_PER_BOX, KILL_AT, LAST_LINE, LOAVES_PER_SACK, POSTS, POST_BY_ID, WARE_GOOD, demandFactor, killPortions, postOpen, stockPrice, type Post } from "../../../shared/trade.ts";
+import { DISPATCH_EVERY_MIN, FISH_PER_BOX, KILL_AT, LAST_LINE, LOAVES_PER_SACK, POSTS, POST_BY_ID, RUN_MAX, WARE_GOOD, demandFactor, killPortions, postOpen, runAt, stockPrice, type Post, type TradeRun } from "../../../shared/trade.ts";
+import { wayBetween } from "../town/ways.ts";
+import { wayLength } from "../town/wayfind.ts";
+import { activityAt } from "../town/schedule.ts";
 
 // T3, the town's trade (docs/milestones/T3-trade.md): the ledger of the posts that keep food. Stepped with the clock in
 // five-minute steps (as the mills' stepStocks; at most three days of a gap), saved in world_state "trade". The town
@@ -19,6 +22,9 @@ export interface Ledger {
   stock: Record<string, number>;
   /** Units sold to the town and to players today (for the map and the talk). */
   sold: Record<string, { town: number; players: number; day: number }>;
+  /** T3 part 2: the dispatcher's runs out now, and the game minute it last looked. */
+  runs?: TradeRun[];
+  looked?: number;
 }
 
 const absMin = (day: number, hour: number, minute: number) => (day - 1) * 1440 + hour * 60 + minute;
@@ -39,6 +45,10 @@ function read(db: DB): Ledger | null {
   } catch {
     return null;
   }
+}
+/** Save the ledger (the dev menu). */
+export function writeLedger(db: DB, l: Ledger): void {
+  write(db, l);
 }
 function write(db: DB, l: Ledger): void {
   db.prepare("INSERT INTO world_state (key, value_json) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(KEY, JSON.stringify(l));
@@ -77,14 +87,85 @@ export function stepLedger(l: Ledger, to: number): void {
   l.at = Math.max(l.at, t);
 }
 
-/** The ledger now: moved on with the clock (a new week, or a clock set back: afresh). */
+/** The ledger now: moved on with the clock (a new week, or a clock set back: afresh); the runs settled and sent. */
 export function tradeLedger(db: DB): Ledger {
   const now = nowMin(db);
   let l = read(db);
   if (!l || now < l.at - STEP || !POSTS.every((p) => l!.stock[p.id] !== undefined)) l = fresh(now);
   stepLedger(l, now);
+  settleRuns(l, now);
+  if (l.looked === undefined || Math.floor(now / DISPATCH_EVERY_MIN) !== Math.floor(l.looked / DISPATCH_EVERY_MIN)) {
+    l.looked = now;
+    dispatch(db, l, now);
+  }
   write(db, l);
   return l;
+}
+
+// ------------------------------------------------------------------ the dispatcher (T3 part 2)
+
+/** Where a post's goods go in and out: the step before its shop door. */
+function postDoor(db: DB, id: string): [number, number] | null {
+  const s = town(db).town.shops.find((q) => q.id === id);
+  if (!s) return null;
+  return [s.door[0] + s.out[0] * 1.4, s.door[1] + s.out[1] * 1.4];
+}
+
+/** A run's goods reach the target's shelf at the end of the unloading; a run that is over goes. */
+export function settleRuns(l: Ledger, now: number): void {
+  if (!l.runs?.length) return;
+  for (const r of l.runs) {
+    const at = runAt(r, now);
+    if (!r.done && (at.phase === "back" || at.phase === "over")) {
+      const p = POST_BY_ID[r.to];
+      if (p) l.stock[r.to] = Math.min(p.room, (l.stock[r.to] ?? 0) + r.n);
+      r.done = true;
+    }
+  }
+  l.runs = l.runs.filter((r) => runAt(r, now).phase !== "over");
+}
+
+/** The source post's man for a run: one of its people at work now, not its master (he bakes), not out already. */
+function carrierFor(db: DB, from: string, day: number, hour: number, busy: Set<string>): string | null {
+  const people = town(db).town.residents.filter((r) => r.work.shop === from && !busy.has(r.id) && r.age >= 12 && activityAt(r.sched, day, hour).act === "work");
+  const pick = people.find((r) => r.trade !== "baker") ?? people[0];
+  return pick?.id ?? null;
+}
+
+/**
+ * Every quarter hour: a post under its order level in its open hours, with nothing on the way to it, gets a run from
+ * another post of the same good that has plenty (its shelf well over its own order level): one of that post's people
+ * takes it over on foot. The goods leave the source's shelf now. (Fish and meat have one post each: their shortage is
+ * work for players, the dockers' boxes and the morning's kill.)
+ */
+export function dispatch(db: DB, l: Ledger, now: number): TradeRun[] {
+  const made: TradeRun[] = [];
+  const day = Math.floor(now / 1440) + 1;
+  const hour = (now % 1440) / 60;
+  l.runs ??= [];
+  const busy = new Set(l.runs.map((r) => r.man));
+  for (const p of POSTS) {
+    if (!postOpen(p, day, hour) || hour > p.open[1] - 1.5) continue;
+    const coming = l.runs.filter((r) => r.to === p.id && !r.done).reduce((a, r) => a + r.n, 0);
+    const have = l.stock[p.id] ?? p.start;
+    if (have + coming >= p.order || coming > 0) continue;
+    const src = POSTS.filter((q) => q.id !== p.id && q.good === p.good && (l.stock[q.id] ?? q.start) > q.order + 10).sort((a, b) => (l.stock[b.id] ?? 0) - (l.stock[a.id] ?? 0))[0];
+    if (!src) continue;
+    const n = Math.floor(Math.min(RUN_MAX[p.good], (l.stock[src.id] ?? 0) - src.order - 5, p.room - have));
+    if (n < 6) continue;
+    const man = carrierFor(db, src.id, day, hour, busy);
+    const a = postDoor(db, src.id);
+    const b = postDoor(db, p.id);
+    if (!man || !a || !b) continue;
+    const way = wayBetween(a[0], a[1], b[0], b[1]);
+    if (!way || way.length < 2) continue;
+    const run: TradeRun = { id: `trade:${src.id}>${p.id}:${now}`, good: p.good, from: src.id, to: p.id, n, man, t0: now, way: way.map(([x, z]) => [Math.round(x * 10) / 10, Math.round(z * 10) / 10]), len: Math.round(wayLength(way)), done: false };
+    l.stock[src.id] = (l.stock[src.id] ?? 0) - n;
+    l.runs.push(run);
+    busy.add(man);
+    made.push(run);
+  }
+  return made;
 }
 
 /** Add units to a post (the bake, the fish boxes), up to its room. */

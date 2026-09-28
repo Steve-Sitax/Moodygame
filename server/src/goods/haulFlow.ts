@@ -97,3 +97,27 @@ export function installBook(): void {
   goodsHooks.hasBook = (db, p) => hasBook(db, p);
   goodsHooks.payPiece = (db, p, c) => payPiece(db, p, c);
 }
+
+/** Game minutes between two loads the unseen dockers of a dawn-only route take in (the fish boxes to the stalls). */
+export const UNSEEN_CARRY_MIN = 6;
+const carried = new Map<string, number>();
+
+/**
+ * T3 trade: on a weekday from 6:00 to 12:00, the dockers of a dawn-only route (the Vismarkt's fish boxes) take a box in
+ * every UNSEEN_CARRY_MIN minutes while no player is within SUPPLY_UNSEEN_M of the pile: the stalls get their fish with
+ * nobody near. In sight, the drawn dockers do it (client game/town.ts).
+ */
+export function haulUnseenTick(db: DB, day: number, minuteOfDay: number, players: Array<{ x: number; z: number }> = playersAt()): number {
+  if (day % 7 === 0 || minuteOfDay < 6 * 60 || minuteOfDay > 12 * 60) return 0;
+  const t = day * 1440 + minuteOfDay;
+  let n = 0;
+  for (const r of HAUL_ROUTES) {
+    if (!r.dawnOnly) continue;
+    const last = carried.get(r.id);
+    if (last !== undefined && t - last < UNSEEN_CARRY_MIN && t >= last) continue;
+    carried.set(r.id, t);
+    if (players.some((p) => Math.hypot(p.x - r.pile.x, p.z - r.pile.z) < SUPPLY_UNSEEN_M)) continue;
+    if (goods.haulUnseen(db, r.id)) n++;
+  }
+  return n;
+}

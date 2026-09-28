@@ -1057,7 +1057,7 @@
     const trades = [...new Set(people.residents.map((r) => r.label))].sort();
     sel("fTrade", [["", "Every trade"], ...trades.map((t) => [t, t])], "trade");
     sel("fOnly", [["", "Everyone"], ["street", "Out in the street"], ["way", "On their way"], ["run", "On a run"], ["off", "Off their day plan"], ["late", "Late by a hold-up"]], "only");
-    sel("fChain", [["", "Every chain"], ["flour", "Flour (mill to bakery)"], ["grain", "Grain (dock to mill)"], ["casks", "Casks (the Hessenatie)"], ["sacks", "Sacks (the Rijnkaai)"]], "chain");
+    sel("fChain", [["", "Every chain"], ["flour", "Flour (mill to bakery)"], ["grain", "Grain (dock to mill)"], ["casks", "Casks (the Hessenatie)"], ["sacks", "Sacks (the Rijnkaai)"], ["bread", "Bread (bakery to bakery, on foot)"]], "chain");
     sel("fPost", [["", "Every post"], ...Object.entries(POSTS)], "post");
   }
   let runsKey = "";
@@ -1069,7 +1069,7 @@
     const key = list.map((r) => `${r.id}|${r.doing}|${r.minLeft}`).join(";");
     if (key === runsKey) return;
     runsKey = key;
-    if (!list.length) return box.replaceChildren(h("div", "small", "No cart is out now. The mills send flour at dawn and fetch grain after dinner; the quay's carts go out at 8 and 10 and back at 14 and 16."));
+    if (!list.length) return box.replaceChildren(h("div", "small", "No cart is out now. The mills send flour at dawn and fetch grain after dinner; the quay's carts go out at 8 and 10 and back at 14 and 16; a bakery short of bread gets a run from the other on foot."));
     box.replaceChildren(
       ...list.map((r) => {
         const b = h("button", "linkbtn", r.label.replace(/^./, (c) => c.toUpperCase()), h("span", "why", `${r.doing}; ${r.minLeft} min left`));

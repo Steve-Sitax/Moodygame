@@ -1,3 +1,4 @@
+import type { TradeRun } from "../../../shared/trade.ts";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import CITY from "../../../shared/city.json" with { type: "json" };
@@ -340,6 +341,8 @@ export interface DbNow {
   events: Array<{ id: number; title: string; place: string; x: number; z: number; r: number; status: string; stage: number }>;
   /** Sacks on each mill's cart, as the engine last counted (town/mills.ts, world_state "mills"). */
   sacks?: Record<string, number>;
+  /** T3: the dispatcher's runs out now (trade/ledger.ts, world_state "trade"). */
+  trade?: TradeRun[];
 }
 
 function hasTable(db: DB, name: string): boolean {
@@ -366,6 +369,9 @@ export function readDbNow(db: DB, day: number): DbNow {
       const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'mills'").get() as { value_json: string } | undefined;
       const carts = row ? (JSON.parse(row.value_json) as { carts?: Record<string, unknown> }).carts : undefined;
       if (carts) now.sacks = Object.fromEntries(Object.entries(carts).filter((e): e is [string, number] => fin(e[1])));
+      const tr = db.prepare("SELECT value_json FROM world_state WHERE key = 'trade'").get() as { value_json: string } | undefined;
+      const runs = tr ? (JSON.parse(tr.value_json) as { runs?: TradeRun[] }).runs : undefined;
+      if (Array.isArray(runs)) now.trade = runs;
     }
   } catch {
     /* a save being loaded or closed: nothing this second */
@@ -479,7 +485,7 @@ export function runsAt(town: Town | null, clock: MapClock | null, dbNow: DbNow |
   for (const [mill, [, man]] of Object.entries(MILL_PEOPLE)) if (!town || residentOf(town, man)) men[mill] = man;
   const names: Record<string, string> = {};
   for (const s of town?.shops ?? []) names[s.id] = s.label;
-  return runsNow(clock.day, hour, { men, sacks: dbNow?.sacks, names });
+  return runsNow(clock.day, hour, { men, sacks: dbNow?.sacks, names, trade: dbNow?.trade });
 }
 
 /** The run a resident is on now: the mill's man while his sum has him with the cart. */

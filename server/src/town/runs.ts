@@ -12,8 +12,9 @@ import { CART_RUNS, PILES, type CartRun } from "../../../shared/goods.ts";
 import { along, CART_LEG_NAMES, cartAt, dayPlan, type CartLeg } from "../../../shared/cartRuns.ts";
 import { CART_SACKS, GRAIN_SACKS, MILLS, runNow, type MillDef } from "../../../shared/mills.ts";
 import { pointAlong, wayLength, type Pt } from "./wayfind.ts";
+import { runAt, wayPoint, type TradeRun } from "../../../shared/trade.ts";
 
-export type Chain = "flour" | "grain" | "casks" | "sacks";
+export type Chain = "flour" | "grain" | "casks" | "sacks" | "bread" | "meat" | "fish";
 
 export interface RunNow {
   /** "mill_mid:flour", "cart:casks". */
@@ -21,7 +22,7 @@ export interface RunNow {
   chain: Chain;
   /** "the Kipdorp mill's dray". */
   label: string;
-  vehicle: "dray" | "handcart";
+  vehicle: "dray" | "handcart" | "baskets";
   /** The townsperson who leads it (the mill's man), or null (the quay's carters are not townspeople). */
   man: string | null;
   /** Where the goods come from and go to. */
@@ -54,6 +55,53 @@ export interface RunsOpts {
   sacks?: Record<string, number>;
   /** Places' names (town.places / shops): a bakery's shop id to "the bakery on the Steenplein". */
   names?: Record<string, string>;
+  /** T3: the dispatcher's runs (trade/ledger.ts), placed by their own clock. */
+  trade?: TradeRun[];
+}
+
+const GOODS_WORDS: Record<string, [string, string]> = { bread: ["loaf", "loaves"], meat: ["portion of meat", "portions of meat"], fish: ["fish", "fish"] };
+
+/** T3: a dispatcher's run on foot now (its man with baskets), or null when it is over. */
+function tradeRunNow(r: TradeRun, day: number, hour: number, o: RunsOpts): RunNow | null {
+  const t = (day - 1) * 1440 + hour * 60;
+  const at = runAt(r, t);
+  if (at.phase === "over") return null;
+  const [x, z] = wayPoint(r.way, at.f);
+  const from = o.names?.[r.from] ?? r.from;
+  const to = o.names?.[r.to] ?? r.to;
+  const [one, many] = GOODS_WORDS[r.good] ?? [r.good, r.good];
+  const goods = plural(r.n, one, many);
+  const moving = at.phase === "go" || at.phase === "back";
+  const togoM = at.phase === "go" ? r.len * (1 - at.f) : at.phase === "back" ? r.len * at.f : 0;
+  const doing =
+    at.phase === "load" ? `Filling two baskets with ${goods} at ${from}, for ${to}`
+      : at.phase === "go" ? `Taking ${goods} from ${from} to ${to}${togo(togoM)}`
+        : at.phase === "unload" ? `Setting ${goods} out at ${to}`
+          : `Walking back to ${from} with the empty baskets${togo(togoM)}`;
+  // (the heading along the way here)
+  const [x2, z2] = wayPoint(r.way, Math.min(1, at.f + 0.01));
+  const yaw = at.phase === "back" ? Math.atan2(x - x2, z - z2) : Math.atan2(x2 - x, z2 - z);
+  return {
+    id: r.id,
+    chain: r.good,
+    label: `a run of ${r.good} from ${from}`,
+    vehicle: "baskets",
+    man: r.man,
+    from,
+    to,
+    phase: at.phase,
+    doing,
+    x: Math.round(x * 10) / 10,
+    z: Math.round(z * 10) / 10,
+    yaw,
+    moving,
+    load: at.phase === "back" ? 0 : r.n,
+    goods: many,
+    left: Math.round(togoM),
+    minLeft: Math.round(at.minLeft),
+    way: moving ? (at.phase === "go" ? r.way.slice(Math.floor(at.f * (r.way.length - 1))) : r.way.slice(0, Math.ceil(at.f * (r.way.length - 1)) + 1).reverse()) : null,
+    posts: [r.from, r.to],
+  };
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -234,6 +282,10 @@ export function runsNow(day: number, hour: number, o: RunsOpts = {}): RunNow[] {
   }
   for (const r of CART_RUNS) {
     const c = cartRunNow(r, day, hour);
+    if (c) out.push(c);
+  }
+  for (const r of o.trade ?? []) {
+    const c = tradeRunNow(r, day, hour, o);
     if (c) out.push(c);
   }
   return out;

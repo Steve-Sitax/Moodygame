@@ -29,8 +29,8 @@ export interface Post {
 }
 
 export const POSTS: Post[] = [
-  { id: "bakery_rijn", label: "the bakery by the Rijnkaai", good: "bread", room: 90, order: 25, floor: 4, open: [5.5, 18.5], sunday: false, perHour: 5, start: 66 },
-  { id: "bakery_steen", label: "the bakery on the Steenplein", good: "bread", room: 90, order: 25, floor: 4, open: [5.5, 18.5], sunday: false, perHour: 6, start: 66 },
+  { id: "bakery_rijn", label: "the bakery by the Rijnkaai", good: "bread", room: 90, order: 20, floor: 4, open: [5.5, 18.5], sunday: false, perHour: 4, start: 66 },
+  { id: "bakery_steen", label: "the bakery on the Steenplein", good: "bread", room: 90, order: 20, floor: 4, open: [5.5, 18.5], sunday: false, perHour: 4.5, start: 66 },
   { id: "butcher_vlees", label: "the butcher by the Vleeshuis", good: "meat", room: 40, order: 10, floor: 3, open: [6.5, 18.5], sunday: false, perHour: 2.5, start: 20 },
   { id: "vismarkt", label: "the fish stalls of the Vismarkt", good: "fish", room: 80, order: 15, floor: 4, open: [6, 17], sunday: false, perHour: 5, start: 14 },
 ];
@@ -102,3 +102,74 @@ export const LAST_LINE: Record<TradeGood, string> = {
   meat: "\"The last of this morning's. Dearer now.\"",
   fish: "\"That is the last of the boxes. You pay for it.\"",
 };
+
+// ------------------------------------------------------------------ the dispatcher's runs (T3 part 2)
+
+/**
+ * A run the dispatcher sent: `man` takes `n` units of `good` from post `from` to post `to` on foot, with baskets. Its
+ * parts follow from the clock (as the mills' carts): load at the source's door, go along `way`, unload at the target's
+ * door, back the same way. The goods leave the source's shelf when it is sent and reach the target's at the unload.
+ */
+export interface TradeRun {
+  id: string;
+  good: TradeGood;
+  from: string;
+  to: string;
+  n: number;
+  man: string;
+  /** Game minute it was sent (the loading starts). */
+  t0: number;
+  /** The way on foot from the source's door to the target's (points, m), and its length. */
+  way: Array<[number, number]>;
+  len: number;
+  /** Delivered to the target's shelf yet. */
+  done: boolean;
+}
+
+/** Load and unload (game minutes), and the carrier's pace (m/s of real time, as whereabouts.ts paceOf; a game minute is two real seconds). */
+export const RUN_LOAD_MIN = 6;
+export const RUN_UNLOAD_MIN = 4;
+export const RUN_PACE = 1.2;
+const REAL_S_PER_MIN = 2;
+
+/** A run's parts: when each ends (game minutes from t0). */
+export function runLegs(r: Pick<TradeRun, "len">): { load: number; go: number; unload: number; back: number } {
+  const walk = r.len / (RUN_PACE * REAL_S_PER_MIN);
+  const load = RUN_LOAD_MIN;
+  const go = load + walk;
+  const unload = go + RUN_UNLOAD_MIN;
+  return { load, go, unload, back: unload + walk };
+}
+
+/** Where the run is at game minute t: its part, and the share of the way walked (0 at the source, 1 at the target). */
+export function runAt(r: TradeRun, t: number): { phase: "load" | "go" | "unload" | "back" | "over"; f: number; minLeft: number } {
+  const k = runLegs(r);
+  const dt = t - r.t0;
+  if (dt < k.load) return { phase: "load", f: 0, minLeft: k.load - dt };
+  if (dt < k.go) return { phase: "go", f: (dt - k.load) / Math.max(1e-6, k.go - k.load), minLeft: k.go - dt };
+  if (dt < k.unload) return { phase: "unload", f: 1, minLeft: k.unload - dt };
+  if (dt < k.back) return { phase: "back", f: 1 - (dt - k.unload) / Math.max(1e-6, k.back - k.unload), minLeft: k.back - dt };
+  return { phase: "over", f: 0, minLeft: 0 };
+}
+
+/** A point `f` of the way along (0 the start, 1 the end). */
+export function wayPoint(way: ReadonlyArray<readonly [number, number]>, f: number): [number, number] {
+  if (!way.length) return [0, 0];
+  let total = 0;
+  for (let i = 1; i < way.length; i++) total += Math.hypot(way[i][0] - way[i - 1][0], way[i][1] - way[i - 1][1]);
+  let d = Math.max(0, Math.min(1, f)) * total;
+  for (let i = 1; i < way.length; i++) {
+    const s = Math.hypot(way[i][0] - way[i - 1][0], way[i][1] - way[i - 1][1]);
+    if (d <= s) {
+      const k = s > 0 ? d / s : 0;
+      return [way[i - 1][0] + (way[i][0] - way[i - 1][0]) * k, way[i - 1][1] + (way[i][1] - way[i - 1][1]) * k];
+    }
+    d -= s;
+  }
+  return [way[way.length - 1][0], way[way.length - 1][1]];
+}
+
+/** When a post sends for more from another of the same good: short (under its order level, nothing on the way), in its open hours. */
+export const DISPATCH_EVERY_MIN = 15;
+/** The most a run carries (two big baskets of bread: 24 loaves). */
+export const RUN_MAX: Record<TradeGood, number> = { bread: 24, meat: 10, fish: 12 };

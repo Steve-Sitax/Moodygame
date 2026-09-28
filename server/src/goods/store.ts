@@ -467,6 +467,23 @@ export class GoodsStore {
     return null;
   }
 
+  /**
+   * T3 trade: the route's dockers, unseen, take the top load of its pile in at the other end (the fish boxes to the
+   * stalls while no player watches). True when one went in.
+   */
+  haulUnseen(db: DB, routeId: string): boolean {
+    const route = HAUL_ROUTES.find((r) => r.id === routeId);
+    if (!route) return false;
+    const pre = `haul:${route.id}a:`;
+    const all = this.all();
+    const top = all.filter((it) => it.id.startsWith(pre) && !it.by && !hasAbove(all, it.id)).sort((a, b) => b.y - a.y)[0];
+    if (!top) return false;
+    const made = route.into === "pile" ? this.haulSlot(route, "b") : null;
+    goodsHooks.hauledIn(db, route.id);
+    this.commit(made ? [made] : [], [top.id], "haul", { world: true });
+    return true;
+  }
+
   /** D1 docks: one load more on a route's own pile (the boats' men brought it; nobody saw them come). */
   haulSupply(routeId: string): GoodsItem | null {
     const route = HAUL_ROUTES.find((r) => r.id === routeId);
