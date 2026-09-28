@@ -87,6 +87,10 @@
     home: "#2f6b4f",
     work: "#b8780f",
     family: "#a3285e",
+    // T1/T2 (2026-09-28): the runs of the town's trade, people the host's game has off their plan, a way ahead
+    run: "#6b3d12",
+    off: "#7a3d8a",
+    way: "#b8780f",
   };
   const PLAYER_COLOURS = ["#a3311f", "#2b62a0", "#3d7a3a", "#7a3d8a", "#c07a14", "#1f7f7f"];
   const playerColour = (id) => (id === 1 ? PLAYER_COLOURS[0] : PLAYER_COLOURS[1 + ((id - 2) % (PLAYER_COLOURS.length - 1))]);
@@ -104,6 +108,7 @@
     { id: "boats", label: "Boats and ships", colour: C.boat, shape: "sq", on: true },
     { id: "trains", label: "Train and cranes", colour: C.train, shape: "sq", on: true },
     { id: "carts", label: "Carts and drays", colour: C.cart, shape: "sq", on: true },
+    { id: "runs", label: "Runs of the town's trade", colour: C.run, shape: "sq", on: true },
     { id: "bridges", label: "Bridges and lock", colour: C.bridgeCat, shape: "sq", on: true },
     { id: "other", label: "Other moving things", colour: C.other, shape: "sq", on: true },
     { id: "events", label: "Town events", colour: C.event, shape: "ring", on: true, sep: true },
@@ -580,11 +585,13 @@
       target(`world:${w.id}`, w.x, w.z, w.yaw, now);
       sample(`world:${w.id}`, w.x, w.z);
     }
+    for (const r of m.runs || []) target(`run:${r.id}`, r.x, r.z, r.yaw, now);
     // forget what the feed no longer names (after a while: a gap in the feed is not a departure)
     for (const [k, t] of things) if (now - t.seen > 5000) things.delete(k);
     for (const [k, a] of trails) if (a.length && sec - a[a.length - 1][0] > 300) trails.delete(k);
     renderClock();
     renderWorldInfo();
+    renderRuns();
     renderLive();
   }
 
@@ -614,11 +621,13 @@
       drawCats();
       if (show.trails) drawTrails();
       drawServerTrail();
+      drawWayLine();
       drawBridgesState();
       const sel = selection();
       drawHomeUnder(sel);
       drawPeople(now);
       drawWorld(now);
+      drawRuns(now);
       drawPlayers(now);
       drawTies(sel, now);
       drawMarks(now);
@@ -786,6 +795,8 @@
       if (show.owners && q.o) return { fill: playerColour(q.o), stroke: C.ink, r: 3.6, alpha: 1 };
       return { fill: C.live, stroke: C.paper, r: 3.4, alpha: 1 };
     }
+    // T2: where the host's game has him off his day plan (a shop call, an errand, an action)
+    if (q.off) return { fill: q.in ? null : C.off, stroke: q.in ? C.off : C.paper, r: 3, alpha: 0.85 };
     if (q.in) return { fill: null, stroke: C.indoor, r: 2.4, alpha: 0.55 };
     // on his way by the day plan's sum (the same place a player finds him): blue with his heading, like a live one
     if (q.mv) return { fill: C.live, stroke: C.paper, r: 3.1, alpha: 0.8 };
@@ -800,7 +811,7 @@
       counts[cat]++;
       const info = people.byId.get(q.id);
       const t = things.get(`resident:${q.id}`);
-      if (!t) continue;
+      if (!t || !passes(q, info)) continue;
       const [x, z] = posOf(t, now);
       const [sx, sy] = toScreen(x, z);
       // his dog, a step to his side
@@ -934,6 +945,144 @@
       if (w.name && view.s > 2) label2(ctx, w.name, sx, sy - 12, `italic 11px ${SERIF}`, C.ink);
       hit(sx, sy, 9, { kind: "world", id: w.id, w }, 4);
     }
+  }
+
+  // ------------------------------------------------------------------ the runs of the town's trade (T1)
+
+  /** The runs out now (the mills' carts, the quay's carts): a cart, its load as dots. */
+  function drawRuns(now) {
+    if (!snap) return;
+    for (const r of snap.runs || []) {
+      counts.runs++;
+      if (!show.runs || !runPasses(r)) continue;
+      const t = things.get(`run:${r.id}`);
+      if (!t) continue;
+      const [x, z] = posOf(t, now);
+      const [sx, sy] = toScreen(x, z);
+      if (!visible(sx, sy, 60)) continue;
+      const k = Math.max(view.s * 0.9, 2.2);
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(Math.atan2(-Math.sin(r.yaw || 0), Math.cos(r.yaw || 0)));
+      ctx.beginPath();
+      ctx.rect(-2.2 * k, -1.2 * k, 4.4 * k, 2.4 * k);
+      ctx.fillStyle = C.run;
+      ctx.fill();
+      ctx.strokeStyle = C.paper;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      // the load: a pale dot a unit (sacks, casks), up to six
+      ctx.fillStyle = "#f3e6c8";
+      const n = Math.min(6, r.load || 0);
+      for (let i = 0; i < n; i++) {
+        ctx.beginPath();
+        ctx.arc((-1.5 + (i % 3) * 1.5) * k * 0.9, (i < 3 ? -0.45 : 0.45) * k, Math.max(0.35 * k, 1.2), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+      if (view.s > 1.5) label2(ctx, r.label.replace(/^the /, ""), sx, sy - 3 * k - 6, `italic 11px ${SERIF}`, C.run);
+      hit(sx, sy, Math.max(3 * k, 8), { kind: "run", id: r.id }, 5);
+    }
+  }
+
+  /** The open card's way ahead (a townsperson on his way, a run): a dashed line to where he goes. */
+  function drawWayLine() {
+    const p = pins[active];
+    const way = p && p.detail && p.detail.way;
+    if (!way || way.length < 2) return;
+    ctx.save();
+    ctx.setLineDash([6, 4]);
+    ctx.lineWidth = 2.2;
+    ctx.strokeStyle = C.way;
+    ctx.beginPath();
+    way.forEach(([x, z], i) => {
+      const [sx, sy] = toScreen(x, z);
+      if (i) ctx.lineTo(sx, sy);
+      else ctx.moveTo(sx, sy);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+    const [ex, ey] = toScreen(way[way.length - 1][0], way[way.length - 1][1]);
+    ctx.beginPath();
+    ctx.arc(ex, ey, 4, 0, Math.PI * 2);
+    ctx.fillStyle = C.way;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // ------------------------------------------------------------------ the filters (T2)
+
+  const filt = Object.assign({ trade: "", only: "", chain: "", post: "" }, store.get("filt", {}));
+  const POSTS = { mill_mid: "the Kipdorp mill", mill_ne: "the north mill", bakery_steen: "the bakery on the Steenplein", bakery_rijn: "the bakery behind the Rijnkaai", "pile:e": "the Hessenatie's casks", "cart:sacks": "the Rijnkaai's sacks" };
+  const runById = (id) => (snap && (snap.runs || []).find((r) => r.id === id)) || null;
+  function runPasses(r) {
+    if (filt.chain && r.chain !== filt.chain) return false;
+    if (filt.post && !(r.posts || []).includes(filt.post)) return false;
+    return true;
+  }
+  /** Does a townsperson pass the filters (trade, what he does now, the chain or post of his run)? */
+  function passes(q, info) {
+    if (filt.trade && (!info || info.label !== filt.trade)) return false;
+    if (filt.only === "way" && !(q.mv || (q.live && q.s > 0.4))) return false;
+    if (filt.only === "run" && !q.run) return false;
+    if (filt.only === "off" && !q.off) return false;
+    if (filt.only === "late" && !q.lag) return false;
+    if (filt.only === "street" && q.in) return false;
+    if (filt.chain || filt.post) {
+      const r = q.run && runById(q.run);
+      if (!r || !runPasses(r)) return false;
+    }
+    return true;
+  }
+  function renderFilters() {
+    const sel = (id, opts, key) => {
+      const el = $(id);
+      if (!el) return;
+      const cur = filt[key];
+      el.replaceChildren(
+        ...opts.map(([v, t]) => {
+          const o = h("option", null, t);
+          o.value = v;
+          o.selected = v === cur;
+          return o;
+        }),
+      );
+      el.onchange = () => {
+        filt[key] = el.value;
+        store.set("filt", filt);
+        runsKey = "";
+        renderRuns();
+      };
+    };
+    const trades = [...new Set(people.residents.map((r) => r.label))].sort();
+    sel("fTrade", [["", "Every trade"], ...trades.map((t) => [t, t])], "trade");
+    sel("fOnly", [["", "Everyone"], ["street", "Out in the street"], ["way", "On their way"], ["run", "On a run"], ["off", "Off their day plan"], ["late", "Late by a hold-up"]], "only");
+    sel("fChain", [["", "Every chain"], ["flour", "Flour (mill to bakery)"], ["grain", "Grain (dock to mill)"], ["casks", "Casks (the Hessenatie)"], ["sacks", "Sacks (the Rijnkaai)"]], "chain");
+    sel("fPost", [["", "Every post"], ...Object.entries(POSTS)], "post");
+  }
+  let runsKey = "";
+  /** The list of runs out now, beside the map: a click pins one. */
+  function renderRuns() {
+    const box = $("runlist");
+    if (!box || !snap) return;
+    const list = (snap.runs || []).filter(runPasses);
+    const key = list.map((r) => `${r.id}|${r.doing}|${r.minLeft}`).join(";");
+    if (key === runsKey) return;
+    runsKey = key;
+    if (!list.length) return box.replaceChildren(h("div", "small", "No cart is out now. The mills send flour at dawn and fetch grain after dinner; the quay's carts go out at 8 and 10 and back at 14 and 16."));
+    box.replaceChildren(
+      ...list.map((r) => {
+        const b = h("button", "linkbtn", r.label.replace(/^./, (c) => c.toUpperCase()), h("span", "why", `${r.doing}; ${r.minLeft} min left`));
+        b.type = "button";
+        b.onclick = () => {
+          pin("run", r.id);
+          view.cx = r.x;
+          view.cz = r.z;
+          view.s = Math.max(view.s, 2.5);
+        };
+        return b;
+      }),
+    );
   }
 
   function drawPlayers(now) {
@@ -1361,6 +1510,9 @@
   const personNow = (q) => q && people.byId.get(q.id);
   function personRows(q) {
     const rows = [];
+    // T2: what he is doing, in plain words (the engine's, or the host's game's when it has him off his plan)
+    if (q.d) rows.push(["Doing", q.d]);
+    if (q.lag) rows.push(["Late", `${q.lag} min behind his day`]);
     if (q.live) {
       rows.push(["Now", `${q.m}${q.sit && q.m !== "sit" ? ", sitting" : ""}${q.s > 0.2 ? `, ${q.s} m/s` : ""}`]);
       if (q.veh) rows.push(["With", `a ${q.veh}`]);
@@ -1374,6 +1526,18 @@
     return rows;
   }
   function tipFor(ref) {
+    if (ref.kind === "run") {
+      const r = runById(ref.id);
+      if (!r) return null;
+      return [
+        h("div", "t", r.label.replace(/^./, (c) => c.toUpperCase())),
+        h("div", "k", `a run of the town's trade (${r.chain})`),
+        row("Doing", r.doing),
+        row("Load", r.load ? `${r.load} ${r.goods}` : "empty"),
+        row("Left", `${r.minLeft} min${r.moving ? `, ${r.left} m` : ""}`),
+        h("div", "note", "Where the engine's timetable has it"),
+      ];
+    }
     if (ref.kind === "resident") {
       const q = snap && snap.people.find((p) => p.id === ref.id);
       const info = personNow(q) || { name: ref.id, label: "", age: "" };
@@ -1382,7 +1546,7 @@
         h("div", "t", info.name),
         h("div", "k", `${info.label}${info.age ? `, ${info.age}` : ""}${info.dog ? `, with ${info.dog}` : ""}`),
         ...personRows(q).map(([k, v]) => row(k, v)),
-        q.live ? null : h("div", "note", q.in ? "By the day plan, not seen live (indoors)" : "By the day plan, not seen live"),
+        q.live ? null : h("div", "note", q.off ? "Where the host's game has him, off his day plan" : q.in ? "By the day plan, not seen live (indoors)" : "By the day plan, not seen live"),
       ].filter(Boolean);
     }
     if (ref.kind === "dog") {
@@ -1484,7 +1648,7 @@
   /** The active card's details from the server (every 2 s), its history (every 5 s while open). */
   async function refresh(force = false) {
     const p = pins[active];
-    if (!p || !["resident", "player", "world", "place", "event", "dog", "house"].includes(p.kind)) return;
+    if (!p || !["resident", "player", "world", "place", "event", "dog", "house", "run"].includes(p.kind)) return;
     const now = Date.now();
     const q = `kind=${encodeURIComponent(p.kind)}&id=${encodeURIComponent(p.id)}`;
     try {
@@ -1512,6 +1676,7 @@
     if (p.kind === "player") return ((snap && snap.players.find((q) => String(q.id) === p.id)) || {}).name || `Player ${p.id}`;
     if (p.kind === "place") return ((people.places.find((q) => q.id === p.id) || {}).label || p.id).replace(/^the /, "");
     if (p.kind === "bridge") return prettyId(p.id);
+    if (p.kind === "run") return ((runById(p.id) || {}).label || p.id).replace(/^the /, "");
     if (p.kind === "house") {
       const hm = people.homes.get(p.id);
       if (hm) return `Home: ${hm.name.replace(/^the /, "")}`;
@@ -1528,6 +1693,7 @@
     if (p.kind === "dog") return C.dog;
     if (p.kind === "house") return C.home;
     if (p.kind === "event") return C.event;
+    if (p.kind === "run") return C.run;
     return C.place;
   }
 
@@ -1590,7 +1756,7 @@
     if (p.kind === "resident" || p.kind === "dog") {
       const q = snap.people.find((r) => r.id === p.id);
       if (!q) return [["Seen", "not in the feed"]];
-      const rows = [["Seen", q.live ? "live" : q.in ? "by the day plan, not seen live (indoors)" : "by the day plan, not seen live"], ...personRows(q)];
+      const rows = [["Seen", q.live ? "live" : q.off ? "off his day plan, where the host's game has him" : q.in ? "by the day plan, not seen live (indoors)" : "by the day plan, not seen live"], ...personRows(q)];
       rows.push(["Where", `x ${q.x.toFixed(1)}, z ${q.z.toFixed(1)}`]);
       return rows;
     }
@@ -1611,6 +1777,11 @@
         .filter(([, v]) => v !== null && v !== undefined)
         .slice(0, 24)
         .map(([k, v]) => [k, typeof v === "number" ? String(Math.round(v * 100) / 100) : typeof v === "object" ? JSON.stringify(v).slice(0, 80) : String(v)]);
+    }
+    if (p.kind === "run") {
+      const r = runById(p.id);
+      if (!r) return [["Seen", "not out now (the run is over)"]];
+      return [["Doing", r.doing], ["Load", r.load ? `${r.load} ${r.goods}` : "empty"], ["From", r.from], ["To", r.to], ["Left", `${r.minLeft} min${r.moving ? `, ${r.left} m to go` : ""}`], ["Where", `x ${r.x.toFixed(1)}, z ${r.z.toFixed(1)}`]];
     }
     if (p.kind === "bridge") {
       const b = city.bridges.find((q) => q.id === p.id);
@@ -1872,6 +2043,7 @@
       const d = await getJson("/people");
       if (d) {
         people = { key: d.key, byId: new Map(d.residents.map((r) => [r.id, r])), residents: d.residents, places: d.places, cats: d.cats, ...homesFrom(d) };
+        renderFilters();
         renderPins();
       }
     } catch {

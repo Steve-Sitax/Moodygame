@@ -265,8 +265,10 @@ export class Events {
       g.add(makeGoods(kind, m));
       if (kind !== "barrels") {
         const top = makeGoods(kind, m);
-        top.position.y = kind === "crates" ? 0.7 : 0.4;
-        top.rotation.y = 0.3;
+        // (a sack on two is pressed into the dip between them: here one on one, a little along)
+        top.position.y = kind === "crates" ? 0.7 : 0.26;
+        if (kind === "sacks") top.position.x = 0.12;
+        top.rotation.y = kind === "sacks" ? 0.08 : 0.3;
         g.add(top);
       }
       return g;

@@ -537,6 +537,11 @@ export const api = {
   /** The trade plan (docs/trade-plan.md part A): the ways on foot of the town's day plans, and more by key. */
   ways: () => call<{ ways: Record<string, Pt[]> }>("GET", "/api/town/ways", undefined, 30_000),
   waysByKey: (keys: string[]) => call<{ ways: Record<string, Pt[] | null> }>("POST", "/api/town/ways", { keys }, 15_000),
+  /** The progress reports (town/lags.ts): how late the townspeople this PC walks are, and everyone's lags now. */
+  lags: () => call<{ lags: Record<string, number> }>("GET", "/api/town/lags", undefined, 10_000),
+  reportLags: (lags: Record<string, number>) => call<{ lags: Record<string, number> }>("POST", "/api/town/lags", { lags }, 10_000),
+  /** T2: the townspeople this (host's) game moves unseen off their plan, for the town map. */
+  mapOff: (off: Array<{ id: string; x: number; z: number; why: string; in?: boolean }>) => call<{ ok: boolean }>("POST", "/api/map/off", { off }, 10_000),
   pick: (id: string) => call<JobsPayload & { took_c: number; felt: boolean; text: string }>("POST", `/api/resident/${id}/pick`),
   catchThief: (id: string) => call<JobsPayload & { back_c: number; text: string }>("POST", `/api/resident/${id}/catch`),
   done: (id: number, report: Report) =>

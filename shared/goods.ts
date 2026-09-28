@@ -13,7 +13,14 @@ export type GoodsKind = (typeof GOODS_KINDS)[number];
 export const isGoodsKind = (k: unknown): k is GoodsKind => typeof k === "string" && (GOODS_KINDS as readonly string[]).includes(k);
 
 /** Height of one item when stacked (client game/props.ts GOODS reads these). */
-export const GOODS_H: Record<GoodsKind, number> = { crates: 0.7, sacks: 0.4, barrels: 0.9, hides: 0.28, rope: 0.3, parcel: 0.3, chests: 0.47 };
+export const GOODS_H: Record<GoodsKind, number> = { crates: 0.7, sacks: 0.3, barrels: 0.9, hides: 0.28, rope: 0.3, parcel: 0.3, chests: 0.47 };
+/**
+ * A filled sack lying flat (client game/sackModel.ts draws it; Steve 2026-09-28: "in reality sacks stack differently"):
+ * its length, height and width (m), and how far an upper sack sinks into the dip between the two it lies on.
+ */
+export const SACK_LIE = { l: 0.88, h: 0.3, w: 0.5, nest: 0.07 };
+/** Turn of a lying sack whose length runs along (dx, dz) (the model's length is its x). */
+export const sackRot = (dx: number, dz: number): number => Math.atan2(-dz, dx);
 /** The quay's own casks (props.glb "barrel", the piles of the Rijnkaai): a little taller than a job's barrel. */
 export const CASK_H = 0.95;
 
@@ -299,7 +306,18 @@ export const CRATE_STACKS: Array<[number, number, number]> = [
   [41, 16.5, 1],
   [-52, 12, 2],
 ];
-/** The jute sacks lying on the Rijnkaai (were rijnkaai.ts sacks): six, three in a row and three on them. */
+/** A pyramid of six lying sacks: [across (sack widths from the middle), level, the ones it rests on]. */
+export const SACK_PYRAMID: Array<[number, number, number[]]> = [
+  [-1, 0, []],
+  [0, 0, []],
+  [1, 0, []],
+  [-0.5, 1, [0, 1]],
+  [0.5, 1, [1, 2]],
+  [0, 2, [3, 4]],
+];
+/** A quay sack pile's middle, from its SACK_PILES point (where the old row of three began). */
+export const SACK_PILE_MID = 1.04;
+/** The jute sacks lying on the Rijnkaai (were rijnkaai.ts sacks): six in a pyramid (SACK_PYRAMID). */
 export const SACK_PILES: Array<[number, number]> = [
   [14, 19.5],
   [-34, 17],
@@ -312,7 +330,7 @@ export const CRATE_S = 1.1;
 export function rijnkaaiGoods(): GoodsItem[] {
   const out: GoodsItem[] = [];
   const add = (id: string, kind: GoodsKind, look: string, x: number, z: number, y: number, rot: number, on: string[], extra: Partial<GoodsItem> = {}) =>
-    out.push({ id, kind, look, owner: null, job: null, x: r3(x), z: r3(z), y: r3(y), rot: r3(rot), on, by: null, n: 0, rev: 1, home: [r3(x), r3(z), r3(rot)], ...extra });
+    out.push({ id, kind, look: look || undefined, owner: null, job: null, x: r3(x), z: r3(z), y: r3(y), rot: r3(rot), on, by: null, n: 0, rev: 1, home: [r3(x), r3(z), r3(rot)], ...extra });
   CRATE_STACKS.forEach(([x, z, n], k) => {
     const g = CRATE_S * 1.18 + 0.1;
     for (let i = 0; i < n; i++) {
@@ -322,11 +340,12 @@ export function rijnkaaiGoods(): GoodsItem[] {
     // one across the first two
     if (n >= 2) add(`crate:${k}:${n}`, "crates", "p:crate_big", x + g / 2, z, CRATE_S, 0.2, [`crate:${k}:0`, `crate:${k}:1`], { sc: CRATE_S, h: PROP_H.crate_big, cartOnly: true });
   });
+  // six sacks as dockers pile them: three side by side, two in the dips between them, one on top (2026-09-28)
   SACK_PILES.forEach(([x, z], k) => {
-    for (let i = 0; i < 6; i++) {
-      const up = Math.floor(i / 3);
-      add(`sack:${k}:${i}`, "sacks", "p:sack", x + (i % 3) * 1.04, z, up * PROP_H.sack, Math.sin(i * 4.1) * 0.12, up ? [`sack:${k}:${i - 3}`] : [], { sc: 1, h: PROP_H.sack });
-    }
+    const cx = x + SACK_PILE_MID;
+    SACK_PYRAMID.forEach(([u, level, on], i) =>
+      add(`sack:${k}:${i}`, "sacks", "", cx + u * SACK_LIE.w, z, level * (SACK_LIE.h - SACK_LIE.nest), sackRot(0, 1) + Math.sin(i * 4.1) * 0.04, on.map((j) => `sack:${k}:${j}`)),
+    );
   });
   return out;
 }
@@ -369,8 +388,18 @@ export function townGoods(doors: Record<string, Door>, cargo: readonly CargoRow[
     for (const [tag, p] of [["a", r.pile], ["b", r.drop]] as const) {
       if (!p) continue;
       for (let i = 0; i < HAUL_PILE_N; i++) {
-        const [x, z] = haulPileSpot(p, i, tag === "a" ? r.a : r.b);
+        const from = tag === "a" ? r.a : r.b;
+        const [x, z] = haulPileSpot(p, i, from);
         const id = `haul:${r.id}${tag}:${i}`;
+        if (p.kind === "sacks") {
+          // (2026-09-28) lying sacks, their length toward the docker who pulls them off: three side by side, two
+          // pressed into the dips between them (haulPileSpot); each rests on the two below
+          const level = i < 3 ? 0 : 1;
+          const on = level ? [`haul:${r.id}${tag}:${i - 3}`, `haul:${r.id}${tag}:${i - 2}`] : [];
+          const rot = sackRot(from[0] - p.x, from[1] - p.z) + (rotFor(id, 0) - 0.2) * 0.2;
+          out.push({ id, kind: "sacks", owner: null, job: null, x: r3(x), z: r3(z), y: r3(level * (SACK_LIE.h - SACK_LIE.nest)), rot: r3(rot), on, by: null, n: 0, rev: 1, home: [r3(x), r3(z), r3(rot)] });
+          continue;
+        }
         put({ id, kind: p.kind, owner: null, job: null, x: r3(x), z: r3(z), rot: rotFor(id, 0) });
       }
     }

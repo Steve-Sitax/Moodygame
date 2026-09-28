@@ -8,7 +8,11 @@ import { shownTrade } from "../town/places.ts";
 import type { Resident, Town } from "../town/population.ts";
 import { activityAt } from "../town/schedule.ts";
 import { cityHouses } from "../town/walkmap.ts";
-import { actText, keyOf, moverId, moverPos, placeLabel, plannedSpot, segsOf, type MapClock, type MapModel } from "./model.ts";
+import { MILL_PEOPLE } from "../town/mills.ts";
+import { runsNow, type RunNow } from "../town/runs.ts";
+import { pointAlong } from "../town/wayfind.ts";
+import { doingLine } from "./doing.ts";
+import { actText, keyOf, moverId, moverPos, placeLabel, plannedSpot, segsOf, type MapClock, type MapModel, type PlannedSpot } from "./model.ts";
 
 // The town map's answers (docs/mapview.md): the drawing of the town (/city), the people and places that
 // change only with a new game (/people), the feed's snapshot (/feed), one thing's details (/detail) and its
@@ -145,6 +149,8 @@ export function peopleJson(town: Town): string {
         id: r.id,
         name: r.name,
         label: shownTrade(r),
+        // (the engine's trade: the map's filter by trade, T2)
+        trade: r.trade,
         age: r.age,
         sex: r.sex,
         household: r.household,
@@ -332,6 +338,8 @@ export interface DbNow {
   at: number;
   actions: Map<string, string>;
   events: Array<{ id: number; title: string; place: string; x: number; z: number; r: number; status: string; stage: number }>;
+  /** Sacks on each mill's cart, as the engine last counted (town/mills.ts, world_state "mills"). */
+  sacks?: Record<string, number>;
 }
 
 function hasTable(db: DB, name: string): boolean {
@@ -353,6 +361,11 @@ export function readDbNow(db: DB, day: number): DbNow {
       now.events = (
         db.prepare("SELECT id, title, place, x, z, r, status, stage FROM town_event WHERE status IN ('planned', 'running') AND day = ? ORDER BY start_m").all(day) as DbNow["events"]
       ).map((e) => ({ ...e, x: r1(e.x), z: r1(e.z), r: r1(e.r) }));
+    }
+    if (hasTable(db, "world_state")) {
+      const row = db.prepare("SELECT value_json FROM world_state WHERE key = 'mills'").get() as { value_json: string } | undefined;
+      const carts = row ? (JSON.parse(row.value_json) as { carts?: Record<string, unknown> }).carts : undefined;
+      if (carts) now.sacks = Object.fromEntries(Object.entries(carts).filter((e): e is [string, number] => fin(e[1])));
     }
   } catch {
     /* a save being loaded or closed: nothing this second */
@@ -380,10 +393,15 @@ export function snapshot(model: MapModel, town: Town | null, clock: MapClock | n
   }));
   const people: Array<Record<string, unknown>> = [];
   const liveIds = new Set<string>();
+  const runs = runsAt(town, clock, dbNow);
+  const hour = clock ? clock.hour + (clock.minute + (clock.frac ?? 0)) / 60 : 0;
   for (const l of model.liveList()) {
     liveIds.add(l.id);
     const r = town ? residentOf(town, l.id) : undefined;
     const plan = r && town && clock ? plannedSpot(r, town, clock) : null;
+    const off = model.off(l.id);
+    // (seen live: what his plan has him do, without the sum's metres to go: he is where the PC walks him)
+    const doing = off ? off.why : r && town && plan ? doingLine(r, town, plan.where, hour, runOf(runs, r.id, plan)).replace(/ \(\d+ m to go\)$/, "") : undefined;
     people.push({
       id: l.id,
       x: r1(l.x),
@@ -402,28 +420,38 @@ export function snapshot(model: MapModel, town: Town | null, clock: MapClock | n
       p: plan?.label,
       n: plan?.next ? `${actText(plan.next.act)} ${plan.next.label} at ${hhmm(plan.next.from)}` : undefined,
       act: dbNow?.actions.get(l.id),
+      d: doing,
+      run: plan ? runOf(runs, l.id, plan)?.id : undefined,
     });
   }
   if (town && clock) {
     for (const r of town.residents) {
       if (liveIds.has(r.id)) continue;
       const s = plannedSpot(r, town, clock);
+      const run = runOf(runs, r.id, s);
+      // T2: someone the host's game moves off his day plan (a shop call, an errand, an action) is where the game has him
+      const off = model.off(r.id);
       people.push({
         id: r.id,
-        x: r1(s.x),
-        z: r1(s.z),
+        x: r1(off ? off.x : s.x),
+        z: r1(off ? off.z : s.z),
         live: 0,
-        in: s.indoor ? 1 : 0,
+        in: (off ? off.in : s.indoor) ? 1 : 0,
+        off: off ? 1 : undefined,
         o: model.ownerOf(r.id) || undefined,
         a: s.act,
         p: s.label,
         left: Math.round(s.left * 60),
         // the trade plan: on the way between two parts of his day (the sum every PC walks him by), metres to go
-        mv: s.moving ? 1 : undefined,
-        yaw: s.moving ? Math.round(s.yaw * 100) / 100 : undefined,
-        wl: s.moving && s.walkLeft > 0 ? s.walkLeft : undefined,
+        mv: s.moving && !off ? 1 : undefined,
+        yaw: s.moving && !off ? Math.round(s.yaw * 100) / 100 : undefined,
+        wl: s.moving && !off && s.walkLeft > 0 ? s.walkLeft : undefined,
         n: s.next ? `${actText(s.next.act)} ${s.next.label} at ${hhmm(s.next.from)}` : undefined,
         act: dbNow?.actions.get(r.id),
+        // T2: what he is doing, in plain words; his run; how late he is by the progress reports (game minutes)
+        d: off ? off.why : doingLine(r, town, s.where, hour, run),
+        run: run?.id,
+        lag: s.lag > 0 ? Math.round(s.lag * 60) : undefined,
       });
     }
   }
@@ -437,7 +465,43 @@ export function snapshot(model: MapModel, town: Town | null, clock: MapClock | n
     people,
     world: w ? { t: w.t, age: model.now() - w.at, d: w.d } : null,
     events: dbNow?.events ?? [],
+    runs: runs.map(runJson),
   };
+}
+
+// ------------------------------------------------------------------ the runs (the trade plan, town/runs.ts)
+
+/** The runs out now at the map's clock: the mills' carts and the quay's carts, where the sums have them. */
+export function runsAt(town: Town | null, clock: MapClock | null, dbNow: DbNow | null): RunNow[] {
+  if (!clock) return [];
+  const hour = clock.hour + (clock.minute + (clock.frac ?? 0)) / 60;
+  const men: Record<string, string> = {};
+  for (const [mill, [, man]] of Object.entries(MILL_PEOPLE)) if (!town || residentOf(town, man)) men[mill] = man;
+  const names: Record<string, string> = {};
+  for (const s of town?.shops ?? []) names[s.id] = s.label;
+  return runsNow(clock.day, hour, { men, sacks: dbNow?.sacks, names });
+}
+
+/** The run a resident is on now: the mill's man while his sum has him with the cart. */
+function runOf(runs: readonly RunNow[], id: string, s: PlannedSpot): RunNow | null {
+  if (!s.where.cart) return null;
+  return runs.find((q) => q.man === id && q.id === `${s.where.cart!.mill}:${s.where.cart!.kind}`) ?? null;
+}
+
+function runJson(q: RunNow): Record<string, unknown> {
+  return { ...q, x: r1(q.x), z: r1(q.z), yaw: Math.round(q.yaw * 100) / 100, way: q.way ? poly(q.way) : null };
+}
+
+/** The rest of a walk from `walked` metres on (the card draws it as a line). */
+function wayLeft(pts: ReadonlyArray<Pt>, walked: number): Pt[] {
+  const at = pointAlong(pts, walked);
+  let acc = 0;
+  let i = 1;
+  for (; i < pts.length; i++) {
+    acc += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    if (acc > walked) break;
+  }
+  return poly([[at.x, at.z], ...pts.slice(i)]);
 }
 
 const residentIndex = new WeakMap<Town, Map<string, Resident>>();
@@ -484,6 +548,8 @@ export interface Detail {
   links: Link[];
   plan?: { weekday: string; segs: Array<{ from: string; to: string; act: string; place: string; now: boolean }> };
   at?: { x: number; z: number } | null;
+  /** The rest of the way he walks or the run goes (drawn on the map while the card is open). */
+  way?: Pt[] | null;
 }
 
 export interface ViewDeps {
@@ -543,6 +609,18 @@ export function detail(v: ViewDeps, kind: string, id: string): Detail | null {
       const carry = [live.lantern ? "a lantern" : "", live.sack ? "a sack" : "", live.bought ? String(live.bought) : "", veh ? `a ${veh}` : ""].filter(Boolean);
       if (carry.length) now.push(["Has", carry.join(", ")]);
     } else now.push(["Seen", plan?.indoor ? "by the day plan, not seen live (indoors)" : "by the day plan, not seen live"]);
+    // T2 (2026-09-28): what he is doing, what he carries, how late he is, and the rest of his way (drawn on the map)
+    const runs = clock ? runsAt(town, clock, readDbNow(db, clock.day)) : [];
+    const run = plan ? runOf(runs, r.id, plan) : null;
+    const off = model.off(r.id);
+    let way: Pt[] | null = null;
+    if (plan && clock) {
+      const hour = clock.hour + (clock.minute + (clock.frac ?? 0)) / 60;
+      now.push(["Doing", off ? `${off.why} (the host's game has him off his day plan)` : doingLine(r, town, plan.where, hour, run)]);
+      if (run && run.load > 0) now.push(["Carries", `${run.load} ${run.goods} on ${run.label}`]);
+      if (plan.lag > 0) now.push(["Late", `${Math.round(plan.lag * 60)} min behind his day (held up where a player saw him)`]);
+      if (!off) way = run?.way ? poly(run.way) : plan.where.moving && plan.where.way && plan.where.leg === undefined ? wayLeft(plan.where.way, plan.where.walked) : null;
+    }
     if (plan) {
       now.push(["Day plan", `${actText(plan.act)} ${plan.label}${plan.left > 0 ? ` for ${Math.round(plan.left * 60)} min more` : ""}`]);
       // the trade plan: on his way there (the sum every PC walks him by)
@@ -617,7 +695,27 @@ export function detail(v: ViewDeps, kind: string, id: string): Detail | null {
         }),
       };
     }
-    return { kind, id, title: r.name, sub: `${trade}, ${r.age}`, sections, links, plan: planOut, at: pos ? { x: pos.x, z: pos.z } : null };
+    if (run) links.push({ kind: "run", id: run.id, name: run.label, why: run.doing, group: "On a run" });
+    return { kind, id, title: r.name, sub: `${trade}, ${r.age}`, sections, links, plan: planOut, at: pos ? { x: pos.x, z: pos.z } : null, way };
+  }
+
+  if (kind === "run") {
+    // T1 (2026-09-28): a run of the town's trade (town/runs.ts): where it goes, what it takes, who leads it
+    const runs = clock ? runsAt(town, clock, readDbNow(db, clock.day)) : [];
+    const q = runs.find((x) => x.id === id);
+    if (!q) return null;
+    const rows: Row[] = [
+      ["Doing", q.doing],
+      ["From", q.from],
+      ["To", q.to],
+      ["Load", q.load > 0 ? `${q.load} ${q.goods}` : "empty"],
+      ["Part", `${q.phase}, ${q.minLeft} min left${q.moving ? `, ${q.left} m to go` : ""}`],
+      ["Where", `x ${q.x.toFixed(1)}, z ${q.z.toFixed(1)}`],
+    ];
+    const links: Link[] = [];
+    const man = q.man && town ? residentOf(town, q.man) : undefined;
+    if (man) links.push({ kind: "resident", id: man.id, name: man.name, why: "leads it", group: "Who" });
+    return { kind, id, title: q.label.replace(/^./, (c) => c.toUpperCase()), sub: `a run of the town's trade (${q.chain})`, sections: [{ title: "Now", rows }], links, at: { x: q.x, z: q.z }, way: q.way ? poly(q.way) : null };
   }
 
   if (kind === "house") {

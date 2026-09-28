@@ -40,6 +40,18 @@ are remembered in the browser.
 
 The counts beside the categories are the numbers in the town now, shown or not.
 
+## Runs, what everyone does, and the filters (T1/T2, 2026-09-28)
+
+- **Runs of the town's trade**: the mills' carts (flour at dawn, grain after dinner) and the quay's dray and handcart,
+  where the engine's timetable has them (server/src/town/runs.ts), with their load as dots. The side bar lists the runs
+  out now with what each does; a click pins its card (from, to, load, time left, who leads it) and shows its way.
+- **Doing**: every townsperson's card and tooltip has a plain line: "Walking home (71 m to go)", "Asleep at home",
+  "Selling fish at the Vismarkt", the run's line for the mill's man. The open card draws his way ahead as a dashed line.
+- **Off the day plan** (purple): people the host's game moves off their plan (a shop call, the back streets, an action),
+  where the game has them and why. **Late**: minutes behind his day after a hold-up where a player saw him.
+- **Filters**: by trade; everyone, out in the street, on their way, on a run, off their plan, late; by chain (flour,
+  grain, casks, sacks); by post (a mill, a bakery, a pile).
+
 ## Live and planned
 
 The server walks nobody (docs/multiplayer-plan.md 5.2): a townsperson's true place is known only while a

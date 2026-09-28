@@ -246,7 +246,7 @@ export class GoodsWorld {
     if (!it) {
       it = {
         id: s.id,
-        obj: s.look ? new THREE.Group() : makeGoods(s.kind as Goods, this.world.mats),
+        obj: s.look ? new THREE.Group() : makeGoods(s.kind as Goods, this.world.mats, s.id),
         kind: s.kind as Goods,
         look: s.look,
         h: s.h,
@@ -403,7 +403,7 @@ export class GoodsWorld {
         m.scale.setScalar(it.sc ?? 1);
       } else if (it.look.startsWith("q:")) m = quayPieceMesh(it.look.slice(2));
       // (the model not in yet: the plain goods of its kind, made again when it is)
-      it.obj.add(m ?? Object.assign(makeGoods(it.kind, this.world.mats), { name: "stand-in" }));
+      it.obj.add(m ?? Object.assign(makeGoods(it.kind, this.world.mats, it.id), { name: "stand-in" }));
     } else if (it.look && it.obj.children[0]?.name === "stand-in" && (this.props || this.quay)) {
       it.obj.children[0].removeFromParent();
       return this.body(it);

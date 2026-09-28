@@ -2,6 +2,25 @@
 
 Newest on top. Each item says who raised it and when.
 
+## The docks at work (Steve, 2026-09-28, during T1/T2; next after T1/T2)
+
+- **Crane loads go somewhere real.** "Make sure if cranes are unloading grain or other stuff it also goes to stacks or in
+  trains or straight to big carts, but make sure to not block trains or omnibus." Today (client/src/world/railway.ts) a
+  crane only moves loads between a ship's hold and a wagon of the goods train while it stops; the loads are drawn by
+  the client alone, never goods of the server's store, and the wagons are filled at random again in the shed. Wanted:
+  each crane load becomes a real item (shared/goods.ts) set down on a quay stack, in a wagon, or on a dray that takes it
+  away; every stack spot kept off the rails, the omnibus route and the traffic lanes (the keep-outs of
+  world/quaygoods.ts), with a check.
+- **Dock work for the player, with the foreman's book.** "Player should also be able to haul cargo if he gets a working
+  permit from the foreman already there: 'den boek'." And: "earn money per delivered piece, but money is less than
+  quests and depends on distance and type of good." The foreman at a quay writes him into his book; then he may carry
+  from the piles like the dockers, paid by the piece (the engine's pay: distance and the good's weight, below a job's
+  band).
+- **Dockers eat and drink.** "Dockworkers are also getting hungry and thirsty so they are more likely to go to cafes
+  nearby for some food and drink. Especially if no job or already a few jobs done." A docker's day gets breaks at the
+  nearest tavern or coffee house, more of them when there is no ship to work or after a run of loads.
+- **Goods look like what they are** (done for sacks, T1 round 4): crates, casks and bales next, with stencils.
+
 ## Multiplayer on the home network (Steve, 2026-09-26)
 - **Planned, not built:** `docs/multiplayer-plan.md`. 2-6 players on the LAN, assets cached by SHA-256, own movement local and never pulled back, no pause, per-player saves, drop in and out. Phases M8a (walk together) to M8d (shared work); six open questions for Steve at the end.
 

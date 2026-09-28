@@ -80,13 +80,51 @@ problems; `findcheck()` 0 at the Rijnkaai, the Grote Markt, the Werf, the Vismar
 0; `paths()` empty. Close shots: the sack heap by the Rijnkaai (sacks, not a post), a docker bent at his pile, a
 docker with a crate on his way to the door.
 
+## Round 4: T1 and T2 finished (2026-09-28)
+
+Steve: "finish T1 and T2 and do tests". Still open from T1/T2 were the mill carts and the dray as runs, progress
+reports, the held-people deadline, the map's card and filters, and "every dot says what he is doing". During the work
+Steve added: goods that look real (sacks that sag and stack like sacks, with a stencil of what and where from), and no
+crowds of people on one job spot or pile.
+
+| Part | Where | What it does |
+|---|---|---|
+| The runs | `server/src/town/runs.ts` (pure), `shared/cartRuns.ts` (the quay carts' sum, moved out of `client/src/world/goodsDrays.ts`, numbers unchanged) | `runsNow(day, hour)`: every cart out now (the two mills' flour and grain runs, the Hessenatie's dray, the Rijnkaai's handcart): where, which way, the load (the engine's sack count), from, to, the part, metres and minutes left, the rest of its way, its man, and a plain line ("Taking 3 sacks of flour from the Kipdorp mill to the bakery on the Steenplein (180 m to go)"). |
+| The mill's man by the sum | `whereabouts.ts millRun` (now with `cart`, `way`, walked and total), `client/src/game/town.ts whereNow`, `client/src/game/mills.ts sumOnWay` | Unseen, the mill's man with his cart is where the run's sum has him, also as a puppet out of sight and after a jump of the clock (sleep, skip). Drawn on his way, he has the cart with him (before, he walked 100 m back to the store for it). He comes into the street from farther off (to the fog, 90 m at most) and before idle people. |
+| Progress reports | `whereabouts.ts reportLag, settleLag, whereLate`; `server/src/town/lags.ts`; `GET/POST /api/town/lags`; `town.ts progress` | A walker held up in view (a crowd, a cart, Jef) is late by the time the missing metres take: never ahead of the plain sum, an hour at most. From then on his day runs that late (he also leaves the next place late) until he stops at a place where the plain sum has him too. The PC that walks him sends his lag every 2 s. The server clamps it (no faster than the clock; a first report a quarter hour at most) and keeps it for the map. Played together, the other PCs fetch the lags every 3 s. |
+| The held deadline | `town.ts progress`, `heldAt` | A person held by a layer (an action, an event) and left unseen with nobody moving or claiming him for an hour is let go onto his day. Being moved (`moveHidden`), claimed or hidden away starts the hour again. |
+| Off the plan, along the streets | `town.ts hiddenStep` | Unseen people off their day plan (a shop call, the back streets, lively goals, an action's `moveHidden`) walk along the server's way on foot, not straight through houses. One way is asked for per walk, and he waits for it (20 s at most). While many wait, the ways are asked for faster. Ways the first download brought are not asked for again. |
+| Where the game has them | `town.ts offPlan`, `net/mp/together.ts offMap`, `POST /api/map/off` | Once a second the host's game tells the map who it moves off the plan, where and why ("Standing about (the pump in the court)", "Held by an action or an event"), alone or played together. The map draws them there, in purple. |
+| What each is doing | `server/src/mapview/doing.ts` | Every dot has a plain line from the engine: "Walking home (71 m to go)", "Asleep at home", "Selling fish at the Vismarkt", and for the mill's man the run's line. |
+| The map | `views.ts` (`runs` in the feed; `d`, `run`, `lag` and `off` per person; `/detail?kind=run`; a resident's card: Doing, Carries, Late and the way ahead), `public/map.js`, `index.html`, `map.css` | A "Runs of the town's trade" layer (each cart with its load as dots). A list of the runs out now (a click opens its card and shows its way). Filters: trade; everyone, in the street, on their way, on a run, off their plan or late; the chain; the post. The open card's way ahead as a dashed line. |
+| Sacks that look like sacks | `client/src/game/sackModel.ts`, `game/props.ts makeGoods`, `shared/goods.ts SACK_LIE, SACK_PYRAMID, sackRot`, `shared/hauls.ts haulPileSpot` | A filled sack lies flat (0.88 x 0.5 x 0.3 m): full at the sewn end, the mouth gathered and tied with a cord. The hessian is woven, with slubs, a side seam and grime underneath. On top is the merchant's stencil: the goods, where from, the weight and his mark ("COFFEE / SANTOS", "FLOUR / KIPDORP MILL", "RICE / RANGOON", "SALT / SETUBAL"). One lot says the same on every PC. Piles are laid as dockers lay them: three side by side, two pressed into the dips between them, one on top (the quay's two piles); the mills' stores the same. One material per stencil, with the same shader as all hessian (no new shader kind). |
+| No crowds on a pile | `whereabouts.ts onRound` | Each man starts his round at his own point of it, so the men of one route spread along it. |
+
+Checks:
+- Server: `runs.test.ts`, 15 tests. It covers the runs' hours, loads, lines and ground; the mill's man and his run
+  agreeing; lags that are late but never ahead, clamped, and let go; a doing line for everyone at five hours; and no
+  more than three men within 1.5 m on a route. Also `m8f-goods.test.ts` (the sack pyramid), `ways`, `mapview`,
+  `mills` and `hauls`. The full run: 1301 of 1304. The 3 that failed pass alone: `m8e-limits` (real servers on
+  ports), `m4` scheduler (hours), and the clump test, which ran before its fix.
+- Client: `npm run build` clean; `node --test client/test/*.test.mjs` 32 pass, 2 skipped.
+- Browser, test stack `t12` (a copy of the save, with a new week in the copy):
+  - `runs()`: the quay carts 0 m from the sum (the handcart's man is 2.3-2.6 m behind its axle, as drawn).
+  - The Kipdorp mill's man, unseen, is 0.2-0.4 m from the sum; drawn on his way, he has his dray with him (picture).
+  - `findcheck()` 0 at the Rijnkaai, the Grote Markt and the Vismarkt; `popcheck()` 0; `shaders()` problems 0;
+    `propcheck({ only: "mills" })` 0.
+  - The held deadline let Wannes Van Rompaey go after 74 min untouched. The 50 people an event moves stayed held.
+  - 57 of 57 unseen walkers off their plan went along a way.
+  - The map listed the 4 runs with their lines, gave all 1155 people a line, and drew 346 off-plan people where the
+    game has them.
+  - Close shots: the dockers' pile on the Rijnkaai, the quay's pyramid, the mill's store.
+
 ## Open
 
 - A run cycle for people.glb (seen runners now hurry with the walk cycle, 2 m/s at most).
 - Older carriers taking carts and bigger loads: the dispatcher's choice (T3, `docs/trade-plan.md`).
-- Seen people still walk at their own pace, slower than the unseen 12 m a minute; when one leaves the ring, the sum
-  has him further on (unseen, so nobody sees the jump). The plan's progress reports (the run's clock moved back by the
-  time lost) come with the server-owned runs (T3).
-- People on a trip (velocipede, omnibus, boat, a family dray), on an errand, or with a back-street, lively or mill goal
-  still go by their own layers; the map shows them by the sum of their plan.
+- The dither fade-in for a man stepping into view (trade plan part A, spawning 2): left out, because it needs a new
+  shader kind on the people (docs/rendering.md). He still waits a moment before he steps in near Jef.
+- People on a trip (velocipede, omnibus, boat, a family dray) still go by their own layer (journeys.ts). The map shows
+  them where the host's game has them (off the plan), not yet on a street way.
 - The server-owned runs with goods and the dispatcher are T3 (`docs/trade-plan.md`).
+- Crates, casks and bales with stencils like the sacks (the trade plan's "goods that look like what they are").

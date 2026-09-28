@@ -15,7 +15,7 @@ import { buy } from "../src/trade.ts";
 import { cartAt, holdCart, jefCarts, loadCart, unloadedGoods, unloadedJobGoods, unloadJob, unloadOne, WHEELWRIGHT_ID } from "../src/town/handcart.ts";
 import { resetSync, syncFromClient } from "../src/director/actions.ts";
 import { town } from "../src/town/store.ts";
-import { CART_RUNS, CRATE_STACKS, DRAY_RUN, GOODS_BODY_MAX, PILES, pileSpot, placeAt, r3, rotFor, SACK_PILES, townGoods, type GoodsItem, type GoodsPush } from "../../shared/goods.ts";
+import { CART_RUNS, CRATE_STACKS, DRAY_RUN, GOODS_BODY_MAX, PILES, pileSpot, placeAt, r3, rotFor, SACK_LIE, SACK_PILE_MID, SACK_PILES, SACK_PYRAMID, townGoods, type GoodsItem, type GoodsPush } from "../../shared/goods.ts";
 import CITY from "../../shared/city.json" with { type: "json" };
 
 // M8f shared goods (docs/milestones/M8f.md): the server owns every liftable item; the PCs ask. The ids and the turns
@@ -463,13 +463,19 @@ describe("M8f goods pass 2: the rest of the quay's cargo, and the carts' rounds"
     const top = s.ask(db, 1, { op: "lift", id: "crate:0:3" });
     expect(top.ok ? "" : top.why).toMatch(/cart's work/);
     expect(s.ask(db, 1, { op: "npc_lift", npc: "karel", ids: ["crate:4:0"] }).ok).toBe(false);
+    // (2026-09-28) lying sacks in a pyramid: three side by side, two in the dips, one on top, each on the two below
     SACK_PILES.forEach(([x, z], k) => {
-      for (let i = 0; i < 6; i++) expect(m.get(`sack:${k}:${i}`)).toMatchObject({ x: r3(x + (i % 3) * 1.04), z, y: i < 3 ? 0 : 0.25, on: i < 3 ? [] : [`sack:${k}:${i - 3}`], look: "p:sack" });
+      SACK_PYRAMID.forEach(([u, level, on], i) => {
+        const it = m.get(`sack:${k}:${i}`)!;
+        expect(it).toMatchObject({ x: r3(x + SACK_PILE_MID + u * SACK_LIE.w), z, y: r3(level * (SACK_LIE.h - SACK_LIE.nest)), on: on.map((j) => `sack:${k}:${j}`) });
+        expect(it.look).toBeUndefined();
+      });
     });
-    // a sack taken off the top and put back: it lies on the one below again
-    ok(s.ask(db, 1, { op: "lift", id: "sack:0:4" }));
-    ok(s.ask(db, 1, { op: "put", id: "sack:0:4", x: 15.04, z: 19.5 }));
-    expect(s.get("sack:0:4")).toMatchObject({ on: ["sack:0:1"], y: 0.25 });
+    // the top sack taken off and put back over its place: it lies on the pile again
+    ok(s.ask(db, 1, { op: "lift", id: "sack:0:5" }));
+    ok(s.ask(db, 1, { op: "put", id: "sack:0:5", x: 15.04, z: 19.5 }));
+    expect(s.get("sack:0:5")!.on.length).toBeGreaterThan(0);
+    expect(s.get("sack:0:5")!.y).toBeGreaterThan(SACK_LIE.h);
   });
 
   it("the handcart's round with the sacks: the whole pile on at ten, down in the same shape by the berth at eleven, back at two, home at three", () => {
@@ -509,9 +515,12 @@ describe("M8f goods pass 2: the rest of the quay's cargo, and the carts' rounds"
     expect(a.runTick("sacks", 2, R.out, db)).toBe("skip");
     // someone's crate set on the pile: not taken with it
     const b = new GoodsStore();
+    // (the pyramid is three high: its top sack off first, then the crate on the dip where it lay)
+    ok(b.ask(db, 1, { op: "lift", id: "sack:0:5" }));
+    ok(b.ask(db, 1, { op: "put", id: "sack:0:5", x: 14, z: 23 }));
     ok(b.ask(db, 1, { op: "lift", id: "own:sooi:3" }));
-    ok(b.ask(db, 1, { op: "put", id: "own:sooi:3", x: 14, z: 19.5 }));
-    expect(b.get("own:sooi:3")!.on).toEqual(["sack:0:3"]);
+    ok(b.ask(db, 1, { op: "put", id: "own:sooi:3", x: 14 + SACK_PILE_MID, z: 19.5 }));
+    expect(b.get("own:sooi:3")!.on.some((id) => id.startsWith("sack:0:"))).toBe(true);
     expect(b.runTick("sacks", 2, R.out, db)).toBe("skip");
     // the day ends with the load still on the cart (a stage missed): the next day it is set down at home first
     const c = new GoodsStore();
@@ -519,7 +528,7 @@ describe("M8f goods pass 2: the rest of the quay's cargo, and the carts' rounds"
     c.runs.get("sacks")!.state = "skip";
     c.runTick("sacks", 3, 6 * 60, db);
     expect(c.onCart(R.cart)).toEqual([]);
-    expect(c.get("sack:0:4")).toMatchObject({ by: null, y: 0.25, on: ["sack:0:1"] });
+    expect(c.get("sack:0:4")).toMatchObject({ by: null, y: r3(SACK_LIE.h - SACK_LIE.nest), on: ["sack:0:1", "sack:0:2"] });
   });
 
   it("the drawn rounds: each leg starts where the last ended (the cart never jumps), the stages in order, the casks' place by the berth", () => {

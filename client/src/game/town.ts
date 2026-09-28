@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { api, type JobsPayload, type Pt, type TownData, type TownPlace, type TownResident } from "../net/api";
 import { activityAt, type Now } from "../../../server/src/town/schedule";
-import { paceOf as townPace, whereAt } from "../../../server/src/town/whereabouts";
+import { paceOf as townPace, reportLag, settleLag, whereAt, whereLate } from "../../../server/src/town/whereabouts";
 import { wayKey } from "../../../server/src/town/wayfind";
 import { haulRouteOf } from "../../../shared/hauls";
 import type { Crowd, Puppet } from "./crowd";
@@ -58,6 +58,15 @@ const DESPAWN_R = 68;
 const MAX_PUPPETS = 50;
 /** Unseen, people cross town at this pace (m/s): the clock runs 30 times faster than life (M7: a game hour is two real minutes; kept at 6, a 600 m walk is 50 game minutes). */
 const HIDDEN_SPEED = 6;
+/**
+ * T2 (2026-09-28): a townsperson held by a layer (an action, an event, the police) and left unseen with nobody moving
+ * him for this many game minutes is let go onto his day again (the trade plan: "held people freeze").
+ */
+const HELD_DEADLINE_MIN = 60;
+/** T1: the mill's man with his cart comes into the street this far off (m), up to the fog: a run is never skipped. */
+const RUN_RING_MAX = 90;
+/** T2: a way not sent by the server after this many seconds: an unseen walker goes straight on meanwhile. */
+const WAY_WAIT_S = 20;
 const SPOTS = SPOT_TABLE as unknown as Record<string, { x: number; z: number; label: string }>;
 const LAMPS = ((CITY as unknown as { decor?: { lamps?: Pt[] } }).decor?.lamps ?? []) as Pt[];
 /** M6 handcart: the omnibus lanes and the drays' lanes (boxes along them), where nobody is posted to stand. */
@@ -140,6 +149,12 @@ export interface Sim {
    * planning their day (a handover knows where they were going) but never moves, dresses or directs them.
    */
   remote?: boolean;
+  /** T1 progress reports (whereabouts.ts reportLag): how far behind his day he is (game hours), held up in view. */
+  lag?: number;
+  /** T2: the game minute he was held, or last moved or claimed by the layer that holds him (the held deadline). */
+  heldAt?: number;
+  /** T2: unseen and off his plan, the way on foot he follows to his goal (from where he was when it was set). */
+  hw?: { tx: number; tz: number; key: string; pts: Pt[] | null; i: number; asked: number; straight?: boolean };
 }
 
 /**
@@ -339,7 +354,10 @@ export class Town {
     for (let wait = 2000; ; wait = Math.min(wait * 2, 30_000)) {
       try {
         const r = await api.ways();
-        for (const [k, w] of Object.entries(r.ways)) this.ways.set(k, w);
+        for (const [k, w] of Object.entries(r.ways)) {
+          this.ways.set(k, w);
+          this.wayAsk.delete(k); // (asked for while the town's ways were still on their way here)
+        }
         return;
       } catch (e) {
         console.warn(`the town's ways did not load; again in ${wait / 1000} s`, e);
@@ -359,7 +377,9 @@ export class Town {
   private askWays(dt: number): void {
     this.wayAskT -= dt;
     if (this.wayAskT > 0 || !this.wayAsk.size) return;
-    this.wayAskT = 3;
+    // (every 3 s; every second while many wait: T2's unseen walkers off their plan ask one each)
+    this.wayAskT = this.wayAsk.size > 60 ? 1 : 3;
+    for (const k of this.wayAsk) if (this.ways.has(k)) this.wayAsk.delete(k);
     const keys = [...this.wayAsk].slice(0, 60);
     for (const k of keys) this.wayAsk.delete(k);
     api.waysByKey(keys).then(
@@ -397,11 +417,161 @@ export class Town {
 
   private missSince = new Map<Sim, number>();
 
-  /** Where the shared sum puts a person now (whereabouts.ts), or null when his goal is not his plan's own. */
+  /**
+   * Where the shared sum puts a person now (whereabouts.ts), late by his progress reports, or null when his goal is not
+   * his plan's own. The mill's man on the way with his cart too (T1: the cart's timetable, as the town map has it).
+   */
   whereNow(s: Sim): ReturnType<typeof whereAt> | null {
-    if (!s.plain || !this.data) return null;
+    if (!this.data) return null;
     const { day, hour } = this.clock();
-    return whereAt(s.r, this.data, day, hour, this.wayOf);
+    if (!s.plain) {
+      if (s.r.trade !== "miller_man" || s.held || s.trip) return null;
+      const w = whereAt(s.r, this.data, day, hour, this.wayOf);
+      return w.cart && w.moving ? w : null;
+    }
+    return whereLate(s.r, this.data, day, hour, this.wayOf, s.lag ?? 0);
+  }
+
+  /** The game's clock as an absolute minute (the held deadline). */
+  private gameMin(): number {
+    const { day, hour } = this.clock();
+    return (day - 1) * 1440 + hour * 60;
+  }
+
+  // ------------------------------------------------------------------ T1 progress reports, T2 held deadline
+
+  private lagT = 0;
+  private lagPostT = 0;
+  private lagGetT = 0;
+  private lagBusy = false;
+  /** The lags last sent, by id (a change goes to the server). */
+  private lagSent = new Map<string, number>();
+  /** T2 check: who was let go by the held deadline (the last 40). */
+  readonly heldLog: Array<{ id: string; name: string; min: number; at: string }> = [];
+
+  /**
+   * Twice a second: the people this PC walks on their way report how far behind the sum they are (reportLag); a lag
+   * no longer needed goes (settleLag). Every 2 s the lags go to the server, for the town map and the other PCs; played
+   * together the others' lags come back every 3 s. And the held deadline.
+   */
+  private progress(dt: number, day: number, hour: number): void {
+    const d = this.data;
+    if (!d) return;
+    this.lagT -= dt;
+    if (this.lagT <= 0) {
+      this.lagT = 0.5;
+      const now = this.gameMin();
+      for (const s of this.sims) {
+        if (s.remote) continue;
+        if (s.p && s.plain && !s.held && !s.trip) s.lag = reportLag(s.r, d, day, hour, this.wayOf, s.lag ?? 0, s.p.x, s.p.z);
+        else if (s.lag) s.lag = settleLag(s.r, d, day, hour, this.wayOf, s.lag);
+        // T2: held, unseen, and nobody has moved or claimed him for an hour: back to his day
+        if (!s.held) s.heldAt = undefined;
+        else if (s.heldAt === undefined || s.heldAt > now) s.heldAt = now;
+        else if (!s.p && !s.aboard && !s.inTrip && now - s.heldAt > HELD_DEADLINE_MIN) {
+          this.heldLog.push({ id: s.r.id, name: s.r.name, min: Math.round(now - s.heldAt), at: `day ${day}, ${Math.floor(hour)}:${String(Math.floor((hour % 1) * 60)).padStart(2, "0")}` });
+          if (this.heldLog.length > 40) this.heldLog.shift();
+          this.release(s.r.id);
+          s.key = ""; // (his day's goal is set again at the next turn)
+        }
+      }
+    }
+    this.lagPostT -= dt;
+    if (this.lagPostT <= 0 && !this.lagBusy) {
+      this.lagPostT = 2;
+      const out: Record<string, number> = {};
+      let n = 0;
+      for (const s of this.sims) {
+        if (s.remote || n >= 120) continue;
+        const lag = Math.round((s.lag ?? 0) * 1000) / 1000;
+        const was = this.lagSent.get(s.r.id) ?? 0;
+        // (those this PC walks, and any whose lag changed: a lag let go is sent as 0 once)
+        if ((s.p && lag > 0) || lag !== was) {
+          out[s.r.id] = lag;
+          n++;
+        }
+      }
+      if (n) {
+        this.lagBusy = true;
+        api.reportLags(out).then(
+          () => {
+            for (const [id, v] of Object.entries(out)) if (v > 0) this.lagSent.set(id, v);
+            else this.lagSent.delete(id);
+            this.lagBusy = false;
+          },
+          () => (this.lagBusy = false),
+        );
+      }
+    }
+    // played together: another PC's walkers were late where it saw them; unseen here they go on at that lag
+    this.lagGetT -= dt;
+    if (this.net && this.lagGetT <= 0) {
+      this.lagGetT = 3;
+      api.lags().then(
+        (r) => {
+          for (const s of this.sims) if (!s.p || s.remote) s.lag = r.lags[s.r.id] ?? (s.p ? s.lag : 0);
+        },
+        () => {},
+      );
+    }
+  }
+
+  /** T2 check (dev: `__scheldemist.heldcheck()`): who is held now, for how long, and who the deadline let go. */
+  heldCheck(): { held: Array<{ id: string; name: string; min: number; drawn: boolean; away: boolean; aboard: boolean }>; released: Town["heldLog"] } {
+    const now = this.gameMin();
+    const held = this.sims
+      .filter((s) => s.held)
+      .map((s) => ({ id: s.r.id, name: s.r.name, min: Math.round(now - (s.heldAt ?? now)), drawn: !!s.p, away: !!s.away, aboard: !!s.aboard }));
+    return { held, released: [...this.heldLog] };
+  }
+
+  /** T1 check (dev): the lags now, by name (game minutes). */
+  lagCheck(): Array<{ id: string; name: string; min: number; drawn: boolean }> {
+    return this.sims.filter((s) => (s.lag ?? 0) > 0).map((s) => ({ id: s.r.id, name: s.r.name, min: Math.round((s.lag ?? 0) * 600) / 10, drawn: !!s.p }));
+  }
+
+  /**
+   * T2 (2026-09-28): the townspeople this game moves unseen off their day plan, where it has them and why, for the
+   * town map (together.ts sends it once a second from the host's PC). The mill's people are left out: the map puts
+   * them by the mills' own timetable.
+   */
+  offPlan(): Array<{ id: string; x: number; z: number; why: string; in?: boolean }> {
+    const out: Array<{ id: string; x: number; z: number; why: string; in?: boolean }> = [];
+    for (const s of this.sims) {
+      if (s.p || s.remote) continue;
+      const mill = s.r.trade === "miller" || s.r.trade === "miller_man";
+      const off = s.held || !!s.trip || !!s.errand || !!s.aboard || s.inTrip || (!s.plain && !mill);
+      if (!off || (mill && !s.held)) continue;
+      out.push({ id: s.r.id, x: Math.round(s.x * 10) / 10, z: Math.round(s.z * 10) / 10, why: this.offWhy(s), in: s.inside || undefined });
+    }
+    return out;
+  }
+
+  /** Why he is off his plan, in a few plain words. */
+  private offWhy(s: Sim): string {
+    if (s.aboard) return "Riding the omnibus or in a boat";
+    if (s.inTrip) return "Going along on someone else's trip";
+    if (s.trip) return s.trip.mode === "walk" ? "On the way on foot" : `On the way by ${s.trip.mode}`;
+    if (s.errand) return "On an errand of the household";
+    if (s.held) return s.away ? "Sent across town for something (an action)" : "Held by an action or an event";
+    if (s.key.includes("|shop@")) return s.inside ? "In a shop, buying" : "Going to a shop";
+    const g = s.goal;
+    const where = g.place ? ` (${this.place(g.place)?.label ?? g.place.replace(/^[a-z]+:/, "").replace(/_/g, " ")})` : "";
+    switch (g.mode) {
+      case "inside":
+        return s.inside ? "Inside, calling at a door" : "Going in at a door";
+      case "home":
+        return s.inside ? "At home" : "Going home";
+      case "roam":
+      case "patrol":
+        return `Walking a round${where}`;
+      case "play":
+        return `Playing${where}`;
+      case "stand":
+        return `Standing about${where}`;
+      default:
+        return `Out in the back streets${where}`;
+    }
   }
 
   // ------------------------------------------------------------------ per frame
@@ -415,6 +585,7 @@ export class Town {
       this.robbed.clear();
     }
     this.askWays(dt);
+    this.progress(dt, day, hour);
     this.thinkT -= dt;
     if (this.thinkT <= 0) {
       this.thinkT = 0.25;
@@ -436,7 +607,7 @@ export class Town {
         s.x = s.p.x;
         s.z = s.p.z;
         if (!s.held) this.behave(s, dt, hour);
-        if (s.p && dist(s.x, s.z, player.x, player.z) > DESPAWN_R) this.lose(s, true, true);
+        if (s.p && dist(s.x, s.z, player.x, player.z) > DESPAWN_R && dist(s.x, s.z, player.x, player.z) > this.ringOf(s) + (DESPAWN_R - SPAWN_R)) this.lose(s, true, true);
       } else if (!s.inside && !s.held) this.coarse(s, dt);
     }
     this.spawnT -= dt;
@@ -688,15 +859,60 @@ export class Town {
     const [tx, tz] = lead ? [lead.x + 0.6, lead.z] : this.anchor(s);
     const d = dist(s.x, s.z, tx, tz);
     if (d < 0.5) {
+      s.hw = undefined;
       if (s.goal.mode === "home" || s.goal.mode === "inside" || s.goal.mode === "church") {
         s.inside = true;
         s.door = [tx, tz];
       } else if (s.goal.route?.length && s.goal.mode !== "thief") s.step++;
       return;
     }
-    const k = Math.min(1, (HIDDEN_SPEED * dt) / d);
-    s.x += (tx - s.x) * k;
-    s.z += (tz - s.z) * k;
+    // T2 (2026-09-28): along the streets, never through a house (a partner keeping up with his lead: straight on)
+    if (lead) {
+      const k = Math.min(1, (HIDDEN_SPEED * dt) / d);
+      s.x += (tx - s.x) * k;
+      s.z += (tz - s.z) * k;
+    } else this.hiddenStep(s, tx, tz, HIDDEN_SPEED, dt);
+  }
+
+  /**
+   * T2: one step of an unseen walk to (tx, tz) along the way on foot the server found (the walk map: streets, bridges,
+   * never through a house), at `speed`; the last metres straight. While the way is asked for he waits (up to
+   * WAY_WAIT_S, then straight on); with no way at all (none on the walk map) straight on, as before.
+   */
+  private hiddenStep(s: Sim, tx: number, tz: number, speed: number, dt: number): void {
+    let hw = s.hw;
+    if (!hw || Math.abs(hw.tx - tx) > 1 || Math.abs(hw.tz - tz) > 1) hw = s.hw = { tx, tz, key: wayKey(s.x, s.z, tx, tz), pts: null, i: 1, asked: performance.now() };
+    if (!hw.pts && !hw.straight) {
+      // (one way asked for per walk, by where it began: he waits for it where he stands)
+      const w = this.ways.get(hw.key);
+      if (w) {
+        hw.pts = w;
+        // (from the point of the way nearest him on)
+        let best = 0;
+        for (let i = 0; i < w.length; i++) if (dist(w[i][0], w[i][1], s.x, s.z) < dist(w[best][0], w[best][1], s.x, s.z)) best = i;
+        hw.i = Math.min(w.length - 1, best + 1);
+      } else if (w === undefined && performance.now() - hw.asked < WAY_WAIT_S * 1000) {
+        this.wayAsk.add(hw.key);
+        return;
+      } else hw.straight = true;
+    }
+    let left = speed * dt;
+    const pts = hw.pts;
+    while (left > 0) {
+      const [qx, qz] = pts && hw.i < pts.length ? pts[hw.i] : [tx, tz];
+      const d = dist(s.x, s.z, qx, qz);
+      if (d <= left) {
+        s.x = qx;
+        s.z = qz;
+        left -= d;
+        if (!pts || hw.i >= pts.length) return;
+        hw.i++;
+      } else {
+        s.x += ((qx - s.x) / d) * left;
+        s.z += ((qz - s.z) / d) * left;
+        return;
+      }
+    }
   }
 
   // ------------------------------------------------------------------ into the street and out
@@ -718,17 +934,20 @@ export class Town {
     const px = this.player.x;
     const pz = this.player.z;
     const net = this.net;
+    // (T1: a man on a run with his cart comes first, and from farther off: the trade plan's "never skip a run")
+    const runs = new Set(this.sims.filter((s) => !s.p && this.ringOf(s) > SPAWN_R).map((s) => s.r.id));
     const want = this.sims
-      .filter((s) => !s.p && !s.remote && !s.inside && !s.aboard && !(s.held && s.away) && dist(s.x, s.z, px, pz) < SPAWN_R && (!net || net.mayWalk(s.r.id)))
-      .sort((a, b) => dist(a.x, a.z, px, pz) - dist(b.x, b.z, px, pz));
+      .filter((s) => !s.p && !s.remote && !s.inside && !s.aboard && !(s.held && s.away) && dist(s.x, s.z, px, pz) < (runs.has(s.r.id) ? this.ringOf(s) : SPAWN_R) && (!net || net.mayWalk(s.r.id)))
+      .sort((a, b) => (runs.has(b.r.id) ? 1 : 0) - (runs.has(a.r.id) ? 1 : 0) || dist(a.x, a.z, px, pz) - dist(b.x, b.z, px, pz));
     if (alive >= this.maxPuppets) {
       // Full: the nearest who is due in the street takes the place of the farthest drawn one out of sight (Steve
       // 2026-09-27: at the busy Rijnkaai 14 people within 21 m of Jef were not drawn while the 50 were spent
       // further off). A couple a turn, and only for someone clearly nearer.
       if (!want.length) return;
-      const near = dist(want[0].x, want[0].z, px, pz);
+      // (a man on a run takes the place of the farthest idle one, however far off he is himself)
+      const near = runs.has(want[0].r.id) ? 0 : dist(want[0].x, want[0].z, px, pz);
       const out = this.sims
-        .filter((s) => s.p && !s.held && !s.remote && !s.inTrip && dist(s.x, s.z, px, pz) > near + SWAP_GAP && (this.crowd.isHidden(s.x, s.z) || dist(s.x, s.z, px, pz) > DUE_FAR))
+        .filter((s) => s.p && !s.held && !s.remote && !s.inTrip && s.r.trade !== "miller_man" && dist(s.x, s.z, px, pz) > near + SWAP_GAP && (this.crowd.isHidden(s.x, s.z) || dist(s.x, s.z, px, pz) > DUE_FAR))
         .sort((a, b) => dist(b.x, b.z, px, pz) - dist(a.x, a.z, px, pz))
         .slice(0, 2);
       for (const s of out) this.lose(s, true, true);
@@ -782,6 +1001,12 @@ export class Town {
     }
   }
 
+  /** T1: how far off he comes into the street: the mill's man with his cart farther, to the fog (RUN_RING_MAX at most). */
+  private ringOf(s: Sim): number {
+    if (s.r.trade !== "miller_man" || !this.whereNow(s)?.cart) return SPAWN_R;
+    return Math.min(RUN_RING_MAX, Math.max(SPAWN_R, this.crowd.fogDistance || 0));
+  }
+
   /**
    * Back to the schedule only (out of range, or in at the door). `street`: he is still in the street, only out of
    * this PC's range (M8b: another PC near may walk him on); else he is gone from it (a door, a boat, an action).
@@ -820,7 +1045,8 @@ export class Town {
   /** The part of his day he is at or walking to now: the day as he keeps it (whereabouts.ts dayRoute). */
   private planNow(s: Sim, day: number, hour: number): Now {
     if (!this.data) return activityAt(s.r.sched, day, hour);
-    const w = whereAt(s.r, this.data, day, hour, this.wayOf);
+    // (late by his progress reports: he goes on to the next part of his day when he gets there, not at its hour)
+    const w = whereLate(s.r, this.data, day, hour, this.wayOf, s.lag ?? 0);
     return { act: w.act, place: w.place, since: w.since, left: w.left };
   }
 
@@ -1553,6 +1779,7 @@ export class Town {
     }
     if (!s.p) return null;
     s.held = true;
+    s.heldAt = this.gameMin();
     s.away = false;
     return s.p;
   }
@@ -1636,12 +1863,12 @@ export class Town {
     }
     // held: the schedule's own unseen walk (coarse) must not pull them the other way
     s.held = true;
+    s.heldAt = this.gameMin(); // (T2: moved by the layer that holds him: not forgotten)
     s.inside = false;
     const d = dist(s.x, s.z, tx, tz);
     if (d < 0.5) return;
-    const k = Math.min(1, (speed * dt) / d);
-    s.x += (tx - s.x) * k;
-    s.z += (tz - s.z) * k;
+    // T2: along the streets (the way on foot), not through the houses
+    this.hiddenStep(s, tx, tz, speed, dt);
   }
 
   /**
@@ -1656,6 +1883,7 @@ export class Town {
     s.z = s.p.z;
     this.lose(s, true);
     s.held = true;
+    s.heldAt = this.gameMin();
     s.away = true;
     s.inside = false;
     return true;
@@ -1777,6 +2005,7 @@ export class Town {
     if (!s || s.p) return;
     s.x = x;
     s.z = z;
+    if (s.held) s.heldAt = this.gameMin();
   }
 
   /** Unseen and held for an action: the pace of the way they go (a velocipede at hand goes faster). */

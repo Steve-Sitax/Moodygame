@@ -240,7 +240,7 @@ A full town with every chain would have about 20 posts and 40 runs out at the bu
 
 ## Phases
 
-Status 2026-09-27: the core of T1 and T2 is built (`docs/milestones/T1-ways.md`): ways on foot for every day plan, the shared sum, the unseen walk it, the spawn wait, the town map at the sum. Still open from T1/T2: the mill carts and the dray as server runs, progress reports, the held-people deadline, the map's card and filters.
+Status 2026-09-28: T1 and T2 are done (`docs/milestones/T1-ways.md`, round 4): ways on foot for every day plan, the shared sum, the unseen walk it, the spawn wait, the town map at the sum; the runs (the mills' carts, the quay's dray and handcart) by the clock on the map and in the game; progress reports; the held-people deadline; people off their plan along the streets and on the map where the game has them; a plain "doing" line for every dot; the map's runs list, card and filters. Left out: the dither fade-in (a new shader kind). Next: T3.
 
 | Phase | What | Done when |
 |---|---|---|

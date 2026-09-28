@@ -52,7 +52,7 @@ import { createMirror } from "./mirror";
 import { BRIG_FLOOR, CHAMBER, DOCK, HW_MAX, LW_MIN, MID_Y, gateLine, levelAt, tideAt, tideDev, tideInfo, water as tideWater } from "./tide";
 import { buildTideMud } from "./tidemud";
 import { MOORINGS, mooringRect } from "../../../shared/smallBoats";
-import { CRATE_STACKS, PILES, SACK_PILES, rijnkaaiGoods } from "../../../shared/goods"; // M8f: the casks, crates and sacks on the quay are loose goods
+import { CRATE_STACKS, PILES, SACK_LIE, SACK_PILE_MID, SACK_PILES, rijnkaaiGoods } from "../../../shared/goods"; // M8f: the casks, crates and sacks on the quay are loose goods
 import { landmarkDoorKeepOut } from "./doorKeep";
 import { tuning } from "../menu/tuning"; // menus: the view distance setting
 import { addPropObject } from "./propSpots";
@@ -2232,7 +2232,11 @@ function pileHold(colliders: Rect[], x: number, z: number, n: number): Rect {
 
 /** M8f goods pass 2: the ground of a pile of six sacks (shared/goods.ts SACK_PILES), held until the goods list is in. */
 function sackHold(colliders: Rect[], x: number, z: number): Rect {
-  const placeholder = { minX: x - 0.5, maxX: x + 2.6, minZ: z - 0.35, maxZ: z + 0.35, top: 0.7 };
+  // (2026-09-28: a pyramid of lying sacks round the old row's middle, shared/goods.ts SACK_PYRAMID)
+  const cx = x + SACK_PILE_MID;
+  const hw = 1.5 * SACK_LIE.w;
+  const hl = SACK_LIE.l / 2;
+  const placeholder = { minX: cx - hw, maxX: cx + hw, minZ: z - hl, maxZ: z + hl, top: 0.7 };
   colliders.push(placeholder);
   goodsRects.add(placeholder);
   return placeholder;

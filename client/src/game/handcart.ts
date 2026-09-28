@@ -311,7 +311,7 @@ export class Handcarts {
         obj.scale.setScalar(0.5);
         h = new THREE.Box3().setFromObject(obj).getSize(new THREE.Vector3()).y;
       } else if (GOODS[it.kind as Goods]) {
-        obj = makeGoods(it.kind as Goods, this.world.mats);
+        obj = makeGoods(it.kind as Goods, this.world.mats, it.gid ?? null);
         obj.scale.setScalar(ON_CART);
         h = GOODS[it.kind as Goods].h * ON_CART;
       } else return;

@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { planWays, warmWays, waysByKey } from "./town/ways.ts";
+import { planWays, serverWay, warmWays, waysByKey } from "./town/ways.ts";
+import { LAGS_MAX_IN, townLags } from "./town/lags.ts";
 import { dirname, join } from "node:path";
 import { serve } from "@hono/node-server";
 import { Hono, type MiddlewareHandler } from "hono";
@@ -152,6 +153,20 @@ app.post("/api/map/me", async (c) => {
   if (live.length) mapModel.puppets(1, live);
   return c.json({ ok: true });
 });
+// T2 (2026-09-28): the townspeople the host's game moves unseen off their day plan (a shop call, an errand, an action),
+// where it has them and why, so the map's dot is where the man is for everyone (alone or played together)
+app.post("/api/map/off", async (c) => {
+  const who = c.get("mpWho");
+  if (!who?.host) return c.json({ ok: false }, 403);
+  const b = (await c.req.json().catch(() => null)) as { off?: unknown } | null;
+  const list = Array.isArray(b?.off) ? (b.off.slice(0, 400) as Array<Record<string, unknown>>) : [];
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  const off = list
+    .map((q) => ({ id: typeof q?.id === "string" ? q.id.slice(0, 24) : "", x: n(q?.x), z: n(q?.z), why: typeof q?.why === "string" ? q.why.slice(0, 80) : "off the day plan", in: q?.in === true }))
+    .filter((q): q is typeof q & { x: number; z: number } => !!q.id && q.x !== null && q.z !== null && isResident(db, q.id));
+  mapModel.offPlan(off);
+  return c.json({ ok: true });
+});
 // M7 save and pause: saves, loads and the pause; first, so its gate sees every request (save/routes.ts)
 mountSaves(app, {
   db,
@@ -159,6 +174,7 @@ mountSaves(app, {
   broadcast: (m) => broadcast(m),
   afterLoad: () => {
     goods.reset(); // (M8f: the town's goods as at the start; the PCs lay their jobs' goods out again from the save)
+    townLags.clear(); // (the trade plan: everyone on time again, as the loaded save has them)
     board = { state: "ready" };
     boardAgain = false;
     if (listJobs(db, player(db).day).length === 0) void writeBoard();
@@ -541,6 +557,26 @@ app.post("/api/town/ways", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { keys?: unknown };
   const keys = Array.isArray(body.keys) ? body.keys.filter((k): k is string => typeof k === "string" && k.length < 40) : [];
   return c.json({ ways: waysByKey(keys) });
+});
+// the progress reports (the trade plan part A, town/lags.ts): how far behind his day each townsperson is whom a PC
+// walked and a crowd held up; every PC and the town map put him at the same late place (whereabouts.ts whereLate)
+let lagsSweptAt = 0;
+const lagsNow = () => {
+  const c = clock(db);
+  if (Date.now() - lagsSweptAt > 5000) {
+    lagsSweptAt = Date.now();
+    townLags.sweep(town(db).town, c.day, c.hour + c.minute / 60, serverWay);
+  }
+  return townLags.all();
+};
+app.get("/api/town/lags", (c) => c.json({ lags: lagsNow() }));
+app.post("/api/town/lags", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { lags?: unknown };
+  const k = clock(db);
+  const nowH = (k.day - 1) * 24 + k.hour + k.minute / 60;
+  const lags = body.lags && typeof body.lags === "object" ? Object.entries(body.lags as Record<string, unknown>).slice(0, LAGS_MAX_IN) : [];
+  for (const [id, v] of lags) if (typeof v === "number" && isResident(db, id)) townLags.report(id, v, nowH);
+  return c.json({ lags: lagsNow() });
 });
 
 app.post("/api/resident/:id/pick", (c) => {

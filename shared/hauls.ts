@@ -66,17 +66,18 @@ export const HAUL_PILE_N = 5;
 
 /**
  * Where item i of a route's own pile lies: a low heap, three in a row across the way to `from` (the docker's stand),
- * two on top of the first two (goods stack straight up: shared/goods.ts placeAt).
+ * then two more: crates straight on the first two (shared/goods.ts placeAt), sacks in the dips between the three.
  */
 export function haulPileSpot(p: { x: number; z: number; kind: "sacks" | "crates" }, i: number, from: Pt): Pt {
-  const gap = p.kind === "crates" ? 0.74 : 0.52;
+  // (sacks lie side by side, touching: the upper two in the dips between the lower three; crates stand in a row and on it)
+  const gap = p.kind === "crates" ? 0.74 : 0.5;
   const dx = from[0] - p.x;
   const dz = from[1] - p.z;
   const L = Math.hypot(dx, dz) || 1;
   // across: the right hand of the way to him
   const ax = -dz / L;
   const az = dx / L;
-  const k = [-1, 0, 1, -1, 0][i % 5];
+  const k = (p.kind === "crates" ? [-1, 0, 1, -1, 0] : [-1, 0, 1, -0.5, 0.5])[i % 5];
   return [p.x + ax * k * gap, p.z + az * k * gap];
 }
 

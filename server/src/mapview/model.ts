@@ -1,7 +1,8 @@
 import { activityAt, type Act, type Schedule, type Seg } from "../town/schedule.ts";
 import type { Resident, Town } from "../town/population.ts";
+import { townLags } from "../town/lags.ts";
 import { serverWay } from "../town/ways.ts";
-import { whereAt } from "../town/whereabouts.ts";
+import { whereLate, type Where } from "../town/whereabouts.ts";
 
 // The town map (docs/mapview.md): what the host's observer map knows of the town, live and planned.
 //
@@ -66,6 +67,20 @@ export interface PuppetIn {
   bought: string | null;
   /** What he rides or pushes: "velo", "cart", "dray" (or an object with a kind), or null. */
   vehicle: string | { kind: string; [k: string]: unknown } | null;
+}
+
+/**
+ * A townsperson the game moves unseen off his day plan (a shop call, an errand, a back-street or lively goal, an
+ * action, a trip): where the host's game has him and why (T2, 2026-09-28: "the map dot and the man agree for everyone").
+ */
+export interface OffPlanIn {
+  id: string;
+  x: number;
+  z: number;
+  /** What he does, in the game's words ("Calling at the baker's", "On an errand with the family boat"). */
+  why: string;
+  /** In a building (at a shop's door, gone in). */
+  in?: boolean;
 }
 
 /** Who walks whom: the owners' rows as mp/street.ts Owners.list() gives them, or {id, owner}. Owner 0: nobody. */
@@ -180,6 +195,8 @@ export class MapModel {
   private readonly tracks = new Map<string, Track>();
   /** The last planned activity per resident (for "now: work at ..." in his changes). */
   private readonly planKey = new Map<string, string>();
+  /** Townspeople the host's game moves unseen off their plan (OffPlanIn), newest report each. */
+  private readonly offMap = new Map<string, OffPlanIn & { at: number }>();
 
   constructor(opts: { now?: () => number } = {}) {
     this.now = opts.now ?? (() => Date.now());
@@ -231,6 +248,27 @@ export class MapModel {
       this.puppetMap.set(e.id, { ...e, owner: ownerId, at: now });
       this.sample(k, e.x, e.z, now);
     }
+  }
+
+  /** The townspeople the host's game moves unseen off their day plan (the whole list each time). */
+  offPlan(list: readonly OffPlanIn[]): void {
+    const now = this.now();
+    const seen = new Set<string>();
+    for (const o of list) {
+      if (!o || typeof o.id !== "string" || !fin(o.x) || !fin(o.z)) continue;
+      seen.add(o.id);
+      const old = this.offMap.get(o.id);
+      const why = typeof o.why === "string" ? o.why.slice(0, 80) : "off the day plan";
+      if (!old || old.why !== why) this.note(keyOf("resident", o.id), `off the day plan: ${why}`, now);
+      this.offMap.set(o.id, { id: o.id, x: o.x, z: o.z, why, in: o.in === true, at: now });
+    }
+    for (const id of [...this.offMap.keys()]) if (!seen.has(id)) this.offMap.delete(id);
+  }
+
+  /** Where the host's game has him off his plan, if it said so lately. */
+  off(id: string): (OffPlanIn & { at: number }) | null {
+    const o = this.offMap.get(id);
+    return o && this.now() - o.at <= LIVE_STALE_MS ? o : null;
   }
 
   /** The moving world as the world PC sent it ("world" message: t, d). Kept as it came; its movers are sampled. */
@@ -454,6 +492,10 @@ export interface PlannedSpot {
   walkLeft: number;
   /** Which way he walks (yaw = atan2(dx, dz)). */
   yaw: number;
+  /** The whole sum (its way, the mill cart's run, the stop of his day). */
+  where: Where;
+  /** How late he is by the progress reports (game hours; town/lags.ts). */
+  lag: number;
 }
 
 /** The segments of a day (1 = Monday ... 7 = Sunday) of a schedule. */
@@ -467,7 +509,9 @@ export function plannedSpot(r: Resident, town: Town, clock: MapClock): PlannedSp
   const a = activityAt(r.sched, clock.day, hour);
   // the trade plan (docs/trade-plan.md part A): the same sum every PC walks the unseen by, on the way between
   // the part before and this one (town/whereabouts.ts), so the dot is where a player finds him
-  const w = whereAt(r, town, clock.day, hour, serverWay);
+  // (late by the progress reports of the PC that walked him last: town/lags.ts)
+  const lag = townLags.get(r.id);
+  const w = whereLate(r, town, clock.day, hour, serverWay, lag);
   const { x, z, yaw } = w;
   const indoor = w.indoor;
   // the next part of today
@@ -483,5 +527,5 @@ export function plannedSpot(r: Resident, town: Town, clock: MapClock): PlannedSp
     const place = where ?? (act === "work" ? "work" : "home");
     next = { act, place, label: placeLabel(r, town, act, place), from: upcoming.from };
   }
-  return { x, z, act: a.act, place: a.place, label: placeLabel(r, town, a.act, a.place), indoor, left: a.left, next, moving: w.moving, walkLeft: Math.max(0, Math.round(w.total - w.walked)), yaw };
+  return { x, z, act: a.act, place: a.place, label: placeLabel(r, town, a.act, a.place), indoor, left: a.left, next, moving: w.moving, walkLeft: Math.max(0, Math.round(w.total - w.walked)), yaw, where: w, lag };
 }

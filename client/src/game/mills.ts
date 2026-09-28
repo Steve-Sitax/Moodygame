@@ -8,6 +8,7 @@ import { LedDray, PushCart } from "../world/traffic";
 import { loadProps, type Props } from "../world/props3d";
 import { millSails } from "../world/rampart";
 import { makeGoods } from "./props";
+import { MILL_LABELS, SACK_H, SACK_NEST, SACK_W } from "./sackModel";
 import { addPropObject, dropProps } from "../world/propSpots";
 import { RUN_MAKERS, type Action, type Run, type RunCtx } from "./runs";
 import type { Rect } from "../world/geom";
@@ -249,6 +250,28 @@ export class Mills {
   private wayOf(m: MillDef, kind: RunKind, phase: RunPhase): Pt[] {
     const r = m.routes[kind === "flour" ? "bakery" : "dock"];
     return phase === "back" ? r.slice().reverse() : r;
+  }
+
+  /**
+   * T1: where the run's sum has the man now on the cart's way (as server town/whereabouts.ts millRun and the town map):
+   * the point, the index of the point of the way he walks to, and that point. Null when the run is not on its way.
+   */
+  private sumOnWay(m: MillDef): { x: number; z: number; i: number; next: Pt } | null {
+    const run = this.runOf(m);
+    if (!run || (run.phase !== "go" && run.phase !== "back")) return null;
+    const way = this.wayOf(m, run.run.kind, run.phase);
+    let total = 0;
+    for (let i = 1; i < way.length; i++) total += dist(way[i][0], way[i][1], way[i - 1][0], way[i - 1][1]);
+    let want = (run.since / Math.max(1e-6, run.since + run.left)) * total;
+    for (let i = 1; i < way.length; i++) {
+      const L = dist(way[i][0], way[i][1], way[i - 1][0], way[i - 1][1]);
+      if (want <= L || i === way.length - 1) {
+        const f = L > 0 ? Math.min(1, want / L) : 1;
+        return { x: way[i - 1][0] + (way[i][0] - way[i - 1][0]) * f, z: way[i - 1][1] + (way[i][1] - way[i - 1][1]) * f, i, next: way[i] };
+      }
+      want -= L;
+    }
+    return null;
   }
 
   /** The point of the way reached by now at the cart's pace (the next one ahead of him). */
@@ -621,8 +644,9 @@ export class Mills {
       if (rig.out) {
         k.step = "lead";
         this.leadK(p, k);
-      } else if (rig.shown) {
-        // to the cart first, then away with it
+      } else if (rig.shown && dist(rig.at[0], rig.at[1], p.x, p.z) < 15) {
+        // to the cart first, then away with it (T1, 2026-09-28: only when it stands by him; drawn out on his way, where
+        // the run's sum has him, he has it with him, as the town map shows him)
         k.step = "to_rig";
         rig.sacks = loaded;
         this.crowd.puppetGo(p, rig.at[0], rig.at[1], CART_PACE);
@@ -772,7 +796,19 @@ export class Mills {
         // out of Jef's sight (and not close by): along the cart's way
         // at its pace, point to point, as the town moves the unseen (the rig follows his steps)
         const w = k.route && k.route[k.ri] ? k.route[k.ri] : to;
-        if (!p.shown && dist(p.x, p.z, this.player.x, this.player.z) > 25) {
+        // T1 (2026-09-28): unseen on the way out or back, he is where the run's sum has him (the town map's dot, and
+        // after a jump of the clock too: a sleep, a skip), and walks on from there when seen
+        const sum = !p.shown && dist(p.x, p.z, this.player.x, this.player.z) > 25 && k.route ? this.sumOnWay(k.m) : null;
+        if (sum) {
+          const yaw = Math.atan2(sum.next[0] - sum.x, sum.next[1] - sum.z);
+          if (p.state !== "stand" || p.human.motion !== "walk") this.crowd.puppetStand(p, "walk", yaw);
+          p.x = sum.x;
+          p.z = sum.z;
+          p.yaw = yaw;
+          p.pyaw = yaw;
+          k.ri = sum.i;
+          if (sum.i < k.route!.length - 1 || dist(p.x, p.z, to[0], to[1]) > 3) return;
+        } else if (!p.shown && dist(p.x, p.z, this.player.x, this.player.z) > 25) {
           const d = dist(p.x, p.z, w[0], w[1]);
           if (d < 0.3) {
             if (k.route && k.ri < k.route.length - 1) k.ri++;
@@ -983,11 +1019,13 @@ export class Mills {
       const [px, pz] = this.pileAt(m);
       const sp = SPOTS[m.yard];
       for (let i = 0; i < n; i++) {
-        const o = makeGoods("sacks", this.world.mats);
+        // flour, stencilled with the mill's name; three side by side, the next two pressed into the dips between them
+        const o = makeGoods("sacks", this.world.mats, MILL_LABELS[m.id]?.flour ?? null);
         const row = i < 3 ? 0 : 1;
-        const along = row === 0 ? (i - 1) * 0.55 : (i - 3.5) * 0.55;
-        o.position.set(px - sp.dir[1] * along, row * 0.4, pz + sp.dir[0] * along);
-        o.rotation.y = Math.atan2(sp.dir[0], sp.dir[1]) + (i % 2 ? 0.15 : -0.1);
+        const along = row === 0 ? (i - 1) * SACK_W : (i - 3.5) * SACK_W;
+        o.position.set(px - sp.dir[1] * along, row * (SACK_H - SACK_NEST), pz + sp.dir[0] * along);
+        // (the sack's length along x: across the row, its mouth toward the wall; a little askew each)
+        o.rotation.y = Math.atan2(-sp.dir[1], sp.dir[0]) + (i % 2 ? 0.05 : -0.04);
         o.name = "mill_sack";
         this.group.add(o);
         this.piles.push(o);
@@ -1001,7 +1039,7 @@ export class Mills {
         const side = i ? 1 : -1;
         const x = m.door[0] - (ox / L) * 0.3 + (oz / L) * side * 1.35;
         const z = m.door[1] - (oz / L) * 0.3 - (ox / L) * side * 1.35;
-        const o = makeGoods("sacks", this.world.mats);
+        const o = makeGoods("sacks", this.world.mats, MILL_LABELS[m.id]?.flour ?? null);
         o.position.set(x, this.world.baseAt(x, z), z);
         o.rotation.y = Math.atan2(ox, oz) + Math.PI / 2 + i * 0.2;
         this.group.add(o);

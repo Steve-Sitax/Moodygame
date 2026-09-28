@@ -458,6 +458,7 @@ export class Together {
   frame(dt: number): void {
     this.ownFrame(dt);
     this.meterCamera();
+    this.offMap(dt);
     if (!this.session) {
       this.soloMap(dt);
       return;
@@ -792,6 +793,26 @@ export class Together {
     void real
       .fetch("/api/map/me", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, mode: this.mode(), away: this.d.away(), people }) })
       .catch(() => {});
+  }
+
+  /**
+   * T2 (2026-09-28): once a second the host's game tells the town map who it moves unseen off their day plan (a shop
+   * call, an errand, an action) and where, alone or played together, so the map's dot is where the man is.
+   */
+  private offAcc = 0;
+  private offBusy = false;
+  private offMap(dt: number): void {
+    if (!this.mapOn || !this.d.entered() || this.offBusy) return;
+    this.offAcc += dt;
+    if (this.offAcc < 1) return;
+    this.offAcc = 0;
+    const town = this.d.town;
+    if (!town) return;
+    this.offBusy = true;
+    void real
+      .fetch("/api/map/off", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ off: town.offPlan().slice(0, 400) }) })
+      .catch(() => {})
+      .finally(() => (this.offBusy = false));
   }
 
   /** Where each townsperson was at the last solo report (for his speed on the map). */

@@ -94,6 +94,8 @@ turns), `/api/dev/advance {minutes}` (M7 night: as the game moves the clock, mid
 `/api/dev/director {template | invent | think}`, `/api/dev/ballad {corner}`, `/api/dev/new-board`,
 `/api/dev/gang`, `/api/dev/gang-chance`, `/api/dev/night-work {fallback}`.
 
+T1/T2 (2026-09-28): `__scheldemist.runs()` (every run of the town's trade out now by the engine's sums, and where the game has its cart: `d` metres apart, near 0 unseen, the handcart's man 2-3 m behind its axle), `__scheldemist.heldcheck()` (who is held and how long; whom the held deadline let go), `__scheldemist.lagcheck()` (who is late by a progress report). The kit's `t.run()` does not move the game clock: use `t.skip(min)` between runs to move a run along. A hidden preview tab keeps a 300 x 150 canvas: `resize_window` 960 x 540, then `window.dispatchEvent(new Event("resize"))`, before `shotFrom` pictures.
+
 `__scheldemist.stuck({ seconds: 12 })` (dev/stuckcheck.ts, 2026-09-27): runs the game and lists everyone near Jef who plays a walk but stays on the spot (3 s within 0.3 m) or goes to and fro, with who, what they try and what is just ahead (walk map, grid, colliders); `stuck` must be `[]` in the alleys and squares at 8, 13, 18 and 22.
 
 ## Pause and saves (M7 save and pause)

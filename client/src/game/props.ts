@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { psx } from "../retro/psx";
 import { box, cyl } from "../world/geom";
 import type { Mats } from "../world/rijnkaai";
+import { SACK_H, sackGeometry, sackLabelFor, sackMaterial, type SackLabel } from "./sackModel";
 
 // Job goods. Claude picks one of these names; the game builds the prop.
 // Placeholders until the Blender kit (docs/05).
@@ -34,7 +35,8 @@ export const GOODS: Record<Goods, GoodsInfo> = {
   },
   sacks: {
     one: "sack",
-    h: 0.4,
+    // (2026-09-28: a real sack lies flat, 0.3 m: game/sackModel.ts; shared/goods.ts GOODS_H the same)
+    h: SACK_H,
     speed: 0.6,
     thud: "soft",
     hold: [0, -0.62, -0.8],
@@ -84,11 +86,11 @@ export const GOODS: Record<Goods, GoodsInfo> = {
 };
 
 let extra: { hides: THREE.Material; parcel: THREE.Material; chest?: THREE.Material } | null = null;
-/** The sack's shapes, made once. */
-let sackGeo: THREE.BufferGeometry | null = null;
-let neckGeo: THREE.BufferGeometry | null = null;
-
-export function makeGoods(kind: Goods, m: Mats): THREE.Object3D {
+/**
+ * A job's or the town's goods as a model. `what`: for a sack, what its stencil says: the item's id (the same lot says
+ * the same on every PC: sackModel.ts sackLabelFor) or a label of its own.
+ */
+export function makeGoods(kind: Goods, m: Mats, what?: string | SackLabel | null): THREE.Object3D {
   extra ??= {
     hides: psx(new THREE.MeshLambertMaterial({ map: (m.sack as THREE.MeshLambertMaterial).map, color: 0x6a4a34 })),
     parcel: psx(new THREE.MeshLambertMaterial({ map: (m.sack as THREE.MeshLambertMaterial).map, color: 0xb8a888 })),
@@ -99,12 +101,11 @@ export function makeGoods(kind: Goods, m: Mats): THREE.Object3D {
       g.add(box(0.7, 0.7, 0.7, m.crate, 0, 0.35, 0, 0.7));
       break;
     case "sacks": {
-      // a filled sack lying down: a lumpy pillow (Steve 2026-09-27: the box read as a stone post), the tied neck at one end
-      sackGeo ??= new THREE.IcosahedronGeometry(0.5, 1).scale(0.8, 0.4, 0.5).translate(0, 0.2, 0);
-      const s = new THREE.Mesh(sackGeo, m.sack);
+      // a filled sack lying flat, its mouth tied, the merchant's stencil on top (Steve 2026-09-28: "seem like balloons")
+      const label = what && typeof what === "object" ? what : sackLabelFor(typeof what === "string" ? what : null);
+      const s = new THREE.Mesh(sackGeometry(), sackMaterial(label));
+      s.name = "sack";
       g.add(s);
-      neckGeo ??= new THREE.CylinderGeometry(0.05, 0.1, 0.16, 6).rotateZ(Math.PI / 2).translate(0.43, 0.2, 0);
-      g.add(new THREE.Mesh(neckGeo, m.sack));
       break;
     }
     case "barrels":

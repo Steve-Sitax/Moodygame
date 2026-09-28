@@ -7,7 +7,7 @@
 // house) to the place of this part, at the unseen pace. Arrived, he is there: indoors at home or at an
 // indoor trade, at his stand, or on his round.
 
-import { CART_PACE as CART_MPS, MILLS, runNow } from "../../../shared/mills.ts";
+import { CART_PACE as CART_MPS, MILLS, runNow, type RunKind, type RunPhase } from "../../../shared/mills.ts";
 import { activityAt, type Act, type Now, type Schedule } from "./schedule.ts";
 import { pointAlong, wayLength, type Pt } from "./wayfind.ts";
 
@@ -164,6 +164,12 @@ export interface Where {
   run?: boolean;
   /** His pace now (m/s). */
   mps: number;
+  /** Which stop of his day as he keeps it (dayRoute) he is at or walks to: the progress reports compare two sums by it. */
+  stop: number;
+  /** On his way (a walk of his plan, or the mill cart's way): its points, from where he set off. */
+  way?: Pt[];
+  /** The mill's man on a run with the cart (shared/mills.ts): which mill, what he takes, and the phase. */
+  cart?: { mill: string; kind: RunKind; phase: RunPhase };
 }
 
 /** The act and place of the part of the day just before the one that began at `start` (hours, may be < 0). */
@@ -246,9 +252,11 @@ function roundWay(pts: ReadonlyArray<Pt>, loop: boolean, way: WayOf): RoundWay {
 }
 
 /** A point `d` metres along a round (looped, or there and back), and the index of the point he walks to. */
-function onRound(pts: ReadonlyArray<Pt>, d: number, loop: boolean, way: WayOf): { x: number; z: number; yaw: number; leg: number } {
+function onRound(pts: ReadonlyArray<Pt>, d0: number, loop: boolean, way: WayOf, startFrac = 0): { x: number; z: number; yaw: number; leg: number } {
   const rw = roundWay(pts, loop, way);
   if (rw.total <= 0) return { x: pts[0][0], z: pts[0][1], yaw: 0, leg: 0 };
+  // (each man starts the round at his own point of it: the men of one round spread along it, never in one clump)
+  const d = d0 + startFrac * (loop ? rw.total : 2 * rw.total);
   const legAt = (s: number) => {
     let i = 0;
     while (i + 1 < rw.starts.length && rw.starts[i + 1] <= s) i++;
@@ -268,7 +276,7 @@ function onRound(pts: ReadonlyArray<Pt>, d: number, loop: boolean, way: WayOf): 
  * The mill's man on a run (M7 mills, as client game/mills.ts walks him): along the cart's way on the way out and
  * back, at the stop while loading or unloading, at the cart's stand in the store. Null when he is not on a run.
  */
-function millRun(r: WhereResident, day: number, hour: number): { x: number; z: number; yaw: number; moving: boolean } | null {
+function millRun(r: WhereResident, day: number, hour: number): { x: number; z: number; yaw: number; moving: boolean; walked: number; total: number; way?: Pt[]; cart: NonNullable<Where["cart"]> } | null {
   if (r.trade !== "miller_man") return null;
   const m = MILLS.find((q) => q.id === r.work.place);
   if (!m) return null;
@@ -279,11 +287,12 @@ function millRun(r: WhereResident, day: number, hour: number): { x: number; z: n
     const route = m.routes[kind === "flour" ? "bakery" : "dock"];
     const way = (run.phase === "back" ? route.slice().reverse() : route) as Pt[];
     const f = run.since / Math.max(1e-6, run.since + run.left);
-    const p = pointAlong(way, f * wayLength(way));
-    return { ...p, moving: true };
+    const total = wayLength(way);
+    const p = pointAlong(way, f * total);
+    return { ...p, moving: true, walked: f * total, total, way, cart: { mill: m.id, kind, phase: run.phase } };
   }
   const at = (kind === "flour" && run.phase === "load") || (kind === "grain" && run.phase === "store") ? m.park : kind === "flour" ? m.stops.bakery : m.stops.dock;
-  return { x: at[0], z: at[1], yaw: 0, moving: false };
+  return { x: at[0], z: at[1], yaw: 0, moving: false, walked: 0, total: 0, cart: { mill: m.id, kind, phase: run.phase } };
 }
 
 /** Where the sum puts a resident at this clock (day 1 = Monday; hour fractional). */
@@ -441,22 +450,92 @@ export function whereAt(r: WhereResident, town: WhereTown, day: number, hour: nu
   const here = stops[k];
   const part = (p: Stop["part"]) => ({ act: p.act, place: p.place, since: Math.max(0, hour - p.start), left: Math.max(0, p.end - hour) });
   const mill = here.part.act === "work" ? millRun(r, day, hour) : null;
-  if (mill) return { ...part(here.part), from: here.at, to: here.at, walked: 0, total: 0, ...mill, indoor: false, mps: CART_MPS };
+  if (mill) return { ...part(here.part), from: here.at, to: here.at, ...mill, indoor: false, mps: mill.moving ? CART_MPS : 0, stop: k };
   const w = here.walk;
   if (w && hour < here.arrive) {
     const prev = stops[k - 1]?.at ?? here.at;
     const walked = Math.max(0, Math.min(w.total, (hour - w.dep) * 60 * perMin(w.mps)));
     const p = pointAlong(w.pts, walked);
-    return { ...part(here.part), from: prev, to: here.at, walked, total: w.total, x: p.x, z: p.z, yaw: p.yaw, indoor: false, moving: true, run: w.run, mps: w.mps };
+    return { ...part(here.part), from: prev, to: here.at, walked, total: w.total, x: p.x, z: p.z, yaw: p.yaw, indoor: false, moving: true, run: w.run, mps: w.mps, stop: k, way: w.pts };
   }
   const total = w?.total ?? 0;
-  const base = { ...part(here.part), from: stops[k - 1]?.at ?? here.at, to: here.at, walked: total, total };
+  const base = { ...part(here.part), from: stops[k - 1]?.at ?? here.at, to: here.at, walked: total, total, stop: k };
   const A = here.at;
   if (A.route && A.route.length > 1) {
     // on his round since he got there, at his walk
     const walk = paceOf(r).mps;
-    const p = onRound(A.route, (hour - here.arrive) * 60 * perMin(walk), A.loop !== false, way);
+    // (Steve 2026-09-28: "not bunching like 100 people in one job spot/pile": his own start point on the round)
+    const p = onRound(A.route, (hour - here.arrive) * 60 * perMin(walk), A.loop !== false, way, (hashId(r.id + ":round") & 0xffff) / 0x10000);
     return { ...base, x: p.x, z: p.z, yaw: p.yaw, indoor: false, moving: true, leg: p.leg, mps: walk };
   }
   return { ...base, x: here.stand[0], z: here.stand[1], yaw: 0, indoor: A.indoor, moving: false, mps: 0 };
+}
+
+// ------------------------------------------------------------------ progress reports (the trade plan, part A)
+//
+// Near a player a townsperson is walked by the game, and a crowd, a cart or the player himself may slow him. When he
+// leaves the player's view the sum would have him further on than he got: he would jump ahead, and the map's dot with
+// him. So the PC that walks him reports how far behind the sum he is (his lag, in game hours): his clock runs that much
+// late from then on (whereAt at hour - lag), until he stops at a place of his day where the sum without the lag has him
+// too; then the lag is gone. The server keeps every lag (town/lags.ts) for the map and the other PCs.
+
+/** A lag is never more than this (game hours): a man held up longer has lost his way and goes by the plain sum. */
+export const LAG_MAX_H = 1;
+/** Behind or ahead by less than this many metres: no change (the crowd's own steering). */
+const LAG_SLACK_M = 1.5;
+/** Farther than this from the way the sum walks (a detour of the crowd's own): no report. */
+const LAG_OFF_WAY_M = 6;
+
+/** The sum with his lag: his day as he keeps it, that much late. */
+export function whereLate(r: WhereResident, town: WhereTown, day: number, hour: number, way: WayOf, lagH: number): Where {
+  return whereAt(r, town, day, hour - (lagH > 0 ? Math.min(lagH, LAG_MAX_H) : 0), way);
+}
+
+/** The metres along a way of the point on it nearest (x, z), and how far off it that point is. */
+export function projectOn(pts: ReadonlyArray<Pt>, x: number, z: number): { s: number; off: number } {
+  let best = { s: 0, off: Infinity };
+  let acc = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, az] = pts[i - 1];
+    const [bx, bz] = pts[i];
+    const dx = bx - ax;
+    const dz = bz - az;
+    const L2 = dx * dx + dz * dz;
+    const t = L2 > 0 ? Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L2)) : 0;
+    const off = Math.hypot(ax + dx * t - x, az + dz * t - z);
+    if (off < best.off) best = { s: acc + Math.sqrt(L2) * t, off };
+    acc += Math.sqrt(L2);
+  }
+  return best;
+}
+
+/**
+ * A lag kept or let go: gone when he is at a place of his day and the plain sum has him at the same stop, not
+ * walking (he got there, late or not, and the day goes on as planned); gone too past LAG_MAX_H.
+ */
+export function settleLag(r: WhereResident, town: WhereTown, day: number, hour: number, way: WayOf, lagH: number): number {
+  if (!(lagH > 0) || lagH > LAG_MAX_H) return 0;
+  const late = whereLate(r, town, day, hour, way, lagH);
+  if (late.moving) return lagH;
+  const plain = whereAt(r, town, day, hour, way);
+  return !plain.moving && plain.stop === late.stop ? 0 : lagH;
+}
+
+/**
+ * The progress report of a person the game walks (at x, z): his new lag. On his way, he is compared with the sum at
+ * his lag: behind it, the lag grows by the time the missing metres take at his pace; ahead of it, it shrinks (never
+ * below the plain sum). Not on his way, or off the way it walks: the lag as it was (settled, see settleLag).
+ */
+export function reportLag(r: WhereResident, town: WhereTown, day: number, hour: number, way: WayOf, lagH: number, x: number, z: number): number {
+  const lag = Math.max(0, Math.min(LAG_MAX_H, lagH || 0));
+  const w = whereLate(r, town, day, hour, way, lag);
+  // (the mill's man keeps the cart's timetable: the engine moves the sacks by it, so he is never late by the sum)
+  if (w.cart) return 0;
+  if (!w.moving || !w.way || w.leg !== undefined || !(w.mps > 0)) return settleLag(r, town, day, hour, way, lag);
+  const p = projectOn(w.way, x, z);
+  if (p.off > LAG_OFF_WAY_M) return lag;
+  const behind = w.walked - p.s;
+  if (Math.abs(behind) < LAG_SLACK_M) return lag;
+  const next = lag + behind / perMin(w.mps) / 60;
+  return Math.max(0, Math.min(LAG_MAX_H, next));
 }

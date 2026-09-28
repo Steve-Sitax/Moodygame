@@ -57,6 +57,7 @@ import { clockReport, setClockHands } from "./world/clockHands"; // every clock 
 import { clutterInfo, streetEndCheck } from "./world/clutter";
 import { pruneQuayGoods, quayGoodsInfo, quayGoodsMap, quayGoodsShowroom, quayGoodsWhy, quayGoodsKeepAt } from "./world/quaygoods";
 import { createTrades } from "./world/trades";
+import { runsNow } from "../../server/src/town/runs"; // T1: the town's runs by the engine's sums (the dev check)
 import { createSteenLife } from "./world/steenlife";
 import { Actions } from "./game/actions";
 import { Hearses } from "./game/hearses";
@@ -1507,6 +1508,30 @@ if (import.meta.env.DEV) {
      * who have not been drawn for over 3 s. Must list nothing (the M8b ones another PC walks are left out).
      */
     findcheck: (near = 40) => town.findCheck(near),
+    /**
+     * T1 (2026-09-28): every run of the town's trade out now by the engine's sums (server town/runs.ts, as the town map
+     * has it), and where the game has it: the mill's man (the town), the quay's carts (world/goodsDrays.ts). `d` is the
+     * metres between them: under 3 for a cart the game draws, and near 0 unseen.
+     */
+    runs: () => {
+      const { day, hour } = town.clock();
+      const carts = jobs.goods.drays?.info() ?? [];
+      return runsNow(day, hour, { men: { mill_mid: "ml02", mill_ne: "ml04" } }).map((r) => {
+        let game: { x: number; z: number; drawn: boolean } | null = null;
+        if (r.man) {
+          const p = town.position(r.man);
+          game = p ? { x: Math.round(p.x * 10) / 10, z: Math.round(p.z * 10) / 10, drawn: p.shown } : null;
+        } else {
+          const c = carts.find((q) => `cart:${q.id}` === r.id);
+          game = c ? { x: c.x, z: c.z, drawn: true } : null;
+        }
+        return { id: r.id, doing: r.doing, x: Math.round(r.x * 10) / 10, z: Math.round(r.z * 10) / 10, game, d: game ? Math.round(Math.hypot(game.x - r.x, game.z - r.z) * 10) / 10 : null };
+      });
+    },
+    /** T2: who is held now and for how long (game minutes), and whom the held deadline let go (an hour unseen, untouched). */
+    heldcheck: () => town.heldCheck(),
+    /** T1: the townspeople late by their progress reports (game minutes), and whether drawn. */
+    lagcheck: () => town.lagCheck(),
     /** The carrying check (dev/carrycheck.ts): every docker from a real pile to a door, a pile or a fish bank. Must list no problems. */
     carrycheck: async () => (await import("./dev/carrycheck")).carryCheck({ town, quayPiles: () => quayGoodsInfo()?.placed ?? [], flags: (x: number, z: number) => world.city.flags(x, z) }),
     /** The overlap check (2026-09-27): townspeople within `near` m of Jef standing in one another (middles nearer than `min` m). Must list nothing. */
