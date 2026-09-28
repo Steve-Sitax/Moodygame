@@ -165,6 +165,11 @@ export class Day {
     return this.payload?.lamps_fog ?? null;
   }
 
+  /** The lamps a player lights for a lamplighter tonight (server town/lampjob.ts), with the day it is for. */
+  get lampsHelp(): JobsPayload["lamps_help"] | null {
+    return this.payload?.lamps_help ?? null;
+  }
+
   get rentPaid(): boolean {
     return this.payload?.rent.paid ?? false;
   }

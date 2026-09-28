@@ -326,3 +326,48 @@ export function alongOf(path: RPt[], x: number, z: number): number {
   }
   return bestAlong;
 }
+
+// ---- The player's lamps (Steve 2026-09-28: "add a job as lamp lighter for the player and get paid. But you can only
+// start lighting when needed and need to be done in a manageable amount of time"). A lamplighter hands the last lamps
+// of his round to Jef for one evening (town/lampjob.ts). While the job holds, those lamps wait for Jef: they burn
+// once he has lit them, and not before (the round's man ends his round before them). At the job's deadline the
+// hold ends: the lamps Jef did not light go back to the plan (the lamplighter lights them himself, late).
+
+/** A player's stretch of a round for one evening (world state; the same for every player). */
+export interface LampHelp {
+  day: number;
+  round: string;
+  /** The stretch begins at this lamp of the round (it runs to the round's last lamp). */
+  from: number;
+  /** The lamps he has lit (ids). */
+  lit: string[];
+  /** He may light from this hour (the round's dusk) until this one. */
+  open: number;
+  until: number;
+  job: number;
+}
+
+/** Tonight the lamps of the stretch wait for the player: the plain dusk round is walked, and it is before his deadline. */
+export function helpHolds(r: LampRound, help: LampHelp | null | undefined, day: number, hour: number, fog?: FogDay | null): boolean {
+  if (!help || help.round !== r.id || help.day !== day) return false;
+  const h = ((hour % 24) + 24) % 24;
+  if (h < 12 || h >= help.until) return false;
+  // a day the fog lit the lamps already walks no plain dusk round: nothing to wait for
+  return windowsOf(r, fog).some((w) => w.kind === "dusk" && !w.fog);
+}
+
+/** Lamp k with the player's help: lit by him (that evening), held dark until he comes, else the plan. */
+export function lampLitHelped(r: LampRound, k: number, hour: number, fog: FogDay | null | undefined, help: LampHelp | null | undefined, day: number): boolean {
+  if (help && help.round === r.id && help.day === day && k >= help.from) {
+    const h = ((hour % 24) + 24) % 24;
+    if (h >= 12 && help.lit.includes(r.lamps[k]?.id)) return true;
+    if (helpHolds(r, help, day, hour, fog)) return false;
+  }
+  return lampLit(r, k, hour, fog);
+}
+
+/** A game hour as the clock shows it ("16:45"). */
+export const hhmm = (h: number) => {
+  const m = Math.round(h * 60);
+  return `${Math.floor(m / 60) % 24}:${String(m % 60).padStart(2, "0")}`;
+};

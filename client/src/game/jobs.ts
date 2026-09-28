@@ -1,3 +1,4 @@
+import { hhmm } from "../../../server/src/town/lampround";
 import { toMe } from "../player/profile"; // M7 character: lines said to the player follow the profile
 import * as THREE from "three";
 import { doorSpot } from "../world/city";
@@ -914,6 +915,7 @@ function summary(j: Job): string {
   if (t.kind === "deliver") return `deliver a ${GOODS[t.goods].one} to ${t.recipient}${urgent}`;
   if (t.kind === "letters") return t.stops.some((s) => s.what === "telegraph") ? `send a telegram${t.city ? ` to ${t.city}` : ""}` : `${t.stops.length === 1 ? "a letter" : `${t.stops.length} letters`} to doors about the town`;
   if (t.kind === "mill") return `an hour's help at ${t.post.label} on the wall, turning the cap into the wind`; // M7 mills
+  if (t.kind === "lamps") return `light the last ${t.lamps.length} lamps of ${j.employer_name}'s round at dusk, from ${hhmm(t.open)}, all by ${hhmm(t.until)}`;
   return `watch the ${t.goods} at ${SPOTS[t.post].label}`;
 }
 

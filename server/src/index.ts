@@ -54,6 +54,8 @@ import { mountLively } from "./town/livelyRoutes.ts";
 import { mountErrands } from "./town/handsRoutes.ts";
 import { mountWalkup } from "./town/walkupRoutes.ts";
 import { mountMills } from "./town/mills.ts";
+import { mountLampJob } from "./town/lampjob.ts";
+import { lampHelpNow } from "./town/lamplighters.ts";
 import { mountRoutines } from "./director/routineRoutes.ts";
 import { mountArrival } from "./arrival.ts";
 import { mountNight } from "./night/routes.ts";
@@ -234,6 +236,8 @@ mountErrands(app, { db, payload: () => jobsPayload() });
 mountWalkup(app, { db });
 // M7 mills: the stocks move on with the clock, the mills' work goes up (town/mills.ts)
 mountMills(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
+// the lamplighter's last lamps: a job for Jef at dusk (town/lampjob.ts)
+mountLampJob(app, { db, payload: () => jobsPayload(), broadcast: (m) => broadcast(m) });
 // M6 AI-composed routines: errands the model plans from Jef's words and steers in check-ins (director/routines.ts)
 mountRoutines(app, { db, payload: () => jobsPayload() });
 // M7 ferry arrival: a new week begins with Jef on the ferry's deck at the Werf pontoon (arrival.ts)
@@ -263,6 +267,8 @@ function jobsPayload() {
     ride: { on: ride(db), fare_c: RIDE_FARE_C, change: rideChange(db) },
     // M7 fog lamps: today's fog as the lamplighters see it (town/lampround.ts)
     lamps_fog: fogDay(db),
+    // the lamps a player lights for a lamplighter tonight (town/lampjob.ts): world state, the same for everyone
+    lamps_help: lampHelpNow(db),
   };
 }
 

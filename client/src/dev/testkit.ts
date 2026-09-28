@@ -92,6 +92,7 @@ export function makeTestKit(d: TestKitDeps) {
         "summon('fishwife')               bring that townsperson to 3 m in front of Jef, waiting there (not one busy in an event)",
         "spawn('thief', {walkTo:[x,z]})   a job figure 5 m ahead on land (thief, stranger, foreman, recipient)",
         "job({type:'watch', twist:'thief'}) a job of that kind on the board, taken, Jef at its start (test save only); job({type:'carry', cart:true}) a cart job",
+        "lampJob(round?)                  the lamplighter's last lamps on the board ('west' | 'market' | 'east'), taken, Jef at the spare pole (test save only)",
         "event('fish_auction' | 'invent') start an event now and go there (test save only)",
         "run(s) / until(() => cond, maxS) run the game now (the tab may be hidden), at most 30 s a call (15 game minutes)",
         "skip(min)                        the clock on by min game minutes (through midnight: the date turns), then one tick (test save only)",
@@ -297,6 +298,18 @@ export function makeTestKit(d: TestKitDeps) {
       const start = r.task?.kind === "watch" ? r.task.post : r.task?.from;
       if (start) kit.go(start, { back: 0 });
       return `${took}; ${JSON.stringify(r.task)}`;
+    },
+
+    /** The lamplighter's last lamps (server town/lampjob.ts): the job put up, taken, Jef by the spare pole. */
+    async lampJob(round?: string): Promise<string> {
+      kit.guard("lampJob()");
+      const r = await post<{ id: number; title: string; task: { pole: { x: number; z: number }; lamps: Array<{ id: string; x: number; z: number }>; open: number; until: number } }>("/api/dev/lamps/job", round ? { round } : {});
+      const took = await d.jobs.devTake(r.id);
+      const p = r.task.pole;
+      const l = r.task.lamps[0];
+      kit.go([p.x + (p.x - l.x) * 0.6, p.z + (p.z - l.z) * 0.6], { back: 0 });
+      kit.face({ x: l.x, z: l.z });
+      return `${took}; ${r.task.lamps.length} lamps (${r.task.lamps.map((x) => x.id).join(" ")}), from ${r.task.open.toFixed(2)} until ${r.task.until.toFixed(2)}`;
     },
 
     async event(template: string): Promise<string> {

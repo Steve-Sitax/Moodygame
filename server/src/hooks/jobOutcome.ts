@@ -57,6 +57,8 @@ export function workLine(job: JobRow): string {
           ? `a watch over the ${t.goods} at ${place(t.post)}`
           : t.kind === "mill"
             ? `an hour's help at ${t.post.label}, turning the cap into the wind when the miller called`
+            : t.kind === "lamps"
+              ? `the last ${t.lamps.length} street lamps of the lamplighter's round, lit at dusk with his spare pole`
             : t.stops.some((s) => s.what === "telegraph")
             ? "a telegram to send"
             : `${t.stops.length} letters to doors`;

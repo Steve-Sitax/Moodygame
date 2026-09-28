@@ -45,6 +45,8 @@ export interface GasLamps {
   update(dt: number, dark: number, fog: THREE.Color, camera?: THREE.Camera | null, air?: number): void;
   /** Where each lamp is (the post, the glass at 3.65 m). */
   lamps(): Array<{ id: string; x: number; z: number }>;
+  /** The height of a lamp's glass (world y), or null when there is no such lamp. */
+  glassY(id: string): number | null;
   info(): { lamps: number; on: number; set: number };
   /** Dev: who has the lights and the psx slots now, and how many lit lamps light the street through world/spill.ts. */
   lightInfo(): { lights: Array<{ id: string | null; w: number; i: number }>; slots: Array<{ id: string | null; w: number }>; spilling: number; lit: number };
@@ -346,6 +348,9 @@ export function createGasLamps(
     },
     lamps() {
       return [...all.values()].map((l) => ({ id: l.id, x: l.x, z: l.z }));
+    },
+    glassY(id) {
+      return all.get(id)?.gy ?? null;
     },
     info() {
       let on = 0;

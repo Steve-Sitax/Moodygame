@@ -2,7 +2,8 @@ import type { DB } from "../db.ts";
 import CITY from "../../../shared/city.json" with { type: "json" };
 import { TRADES } from "./places.ts";
 import { tidy, type Resident } from "./population.ts";
-import { DAWN_LAST, DAWN_START, DUSK_LAST, DUSK_STAGGER_H, DUSK_START, type LampRound, type RoundLamp, type RPt } from "./lampround.ts";
+import { DAWN_LAST, DAWN_START, DUSK_LAST, DUSK_STAGGER_H, DUSK_START, type LampHelp, type LampRound, type RoundLamp, type RPt } from "./lampround.ts";
+import { worldClock } from "../mp/worldClock.ts";
 import type { Seg } from "./schedule.ts";
 import { dropTownCache, town } from "./store.ts";
 import { walkMap } from "./walkmap.ts";
@@ -517,4 +518,24 @@ export function ensureLamplighters(db: DB): LampRounds | null {
   })();
   dropTownCache(db);
   return { v: LAMPS_VERSION, rounds };
+}
+
+const HELP_KEY = "lamps_help";
+
+// ------------------------------------------------------------------ the lamps a player lights tonight (town/lampjob.ts; world state)
+
+export function lampHelp(db: DB): LampHelp | null {
+  const row = db.prepare("SELECT value_json FROM world_state WHERE key = ?").get(HELP_KEY) as { value_json: string } | undefined;
+  return row ? (JSON.parse(row.value_json) as LampHelp) : null;
+}
+
+export function saveHelp(db: DB, h: LampHelp | null): void {
+  if (!h) db.prepare("DELETE FROM world_state WHERE key = ?").run(HELP_KEY);
+  else db.prepare("INSERT INTO world_state (key, value_json) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json").run(HELP_KEY, JSON.stringify(h));
+}
+
+/** Today's help as the clients see it (null when none, or another day's). */
+export function lampHelpNow(db: DB): LampHelp | null {
+  const h = lampHelp(db);
+  return h && h.day === worldClock(db).day ? h : null;
 }
