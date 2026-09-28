@@ -67,6 +67,8 @@ const DESPAWN_R = 68;
 const MAX_PUPPETS = 50;
 /** Unseen, people cross town at this pace (m/s): the clock runs 30 times faster than life (M7: a game hour is two real minutes; kept at 6, a 600 m walk is 50 game minutes). */
 const HIDDEN_SPEED = 6;
+/** The unseen take a coarse step every this many frames, in turns (2026-09-28, the slow frames: ~1 ms a frame). */
+const COARSE_EVERY = 4;
 /**
  * T2 (2026-09-28): a townsperson held by a layer (an action, an event, the police) and left unseen with nobody moving
  * him for this many game minutes is let go onto his day again (the trade plan: "held people freeze").
@@ -107,6 +109,8 @@ export interface Goal {
 }
 
 export interface Sim {
+  /** Unseen: the time since his last coarse step (he takes one every COARSE_EVERY frames; Town.update). */
+  coarseDt?: number;
   r: TownResident;
   kind: HumanKind;
   x: number;
@@ -218,6 +222,8 @@ export class Town {
   private byId = new Map<string, Sim>();
   private employers = new Map<string, Npc>();
   private thinkT = 0;
+  /** Whose turn it is for a coarse step (COARSE_EVERY). */
+  private coarseTurn = 0;
   private spawnT = 0;
   private filled = false;
   private games = new Map<string, { it: Sim | null; frozen: number; last: Sim | null }>();
@@ -609,7 +615,10 @@ export class Town {
       this.postEmployers(day, hour);
     }
     for (const g of this.games.values()) g.frozen -= dt;
+    this.coarseTurn = (this.coarseTurn + 1) % COARSE_EVERY;
+    let n = 0;
     for (const s of this.sims) {
+      n++;
       if (s.p && !this.crowd.alive(s.p)) this.lose(s);
       if (s.remote) {
         // M8b: another PC walks him: only where he is (net/mp/street.ts places and lets go of him)
@@ -624,7 +633,17 @@ export class Town {
         s.z = s.p.z;
         if (!s.held) this.behave(s, dt, hour);
         if (s.p && dist(s.x, s.z, player.x, player.z) > DESPAWN_R && dist(s.x, s.z, player.x, player.z) > this.ringOf(s) + (DESPAWN_R - SPAWN_R)) this.lose(s, true, true);
-      } else if (!s.inside && !s.held) this.coarse(s, dt);
+      } else if (!s.inside && !s.held) {
+        // (2026-09-28, the slow frames: the unseen take turns, each one every COARSE_EVERY frames with the time since;
+        // where the shared sum puts him comes from the clock, so he is where he would have been)
+        s.coarseDt = (s.coarseDt ?? 0) + dt;
+        if (n % COARSE_EVERY === this.coarseTurn) {
+          this.coarse(s, s.coarseDt);
+          s.coarseDt = 0;
+        }
+        continue;
+      }
+      s.coarseDt = 0;
     }
     this.spawnT -= dt;
     if (this.spawnT <= 0 && this.crowd.fogDistance) {
