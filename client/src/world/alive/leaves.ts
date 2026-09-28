@@ -1,14 +1,15 @@
 import * as THREE from "three";
 import { psx } from "../../retro/psx";
 import CITY from "../../../../shared/city.json";
+import TOWN_PLACES from "../../../../shared/townplaces.json";
 import { leaves as leafSound } from "../../audio/aliveSounds";
 import { mulberry, openAt, type Ctx, type Frame, type Part } from "./common";
 import { dice, hash32, seeded, sharedSeconds } from "../../game/share";
 import { tempest } from "../tempest";
 
 // M7 alive: autumn leaves and scraps of paper blown along the streets. Round Jef (within 26 m)
-// lie some ninety leaves and a few torn bills and wrappers, more near the trees of the quays, the
-// squares and the ramparts. In a gust (world/alive/wind.ts) they lift one after another as the
+// lie some ninety leaves and a few torn bills and wrappers. The leaves lie only near trees (the quays,
+// the squares, the ramparts, the park): thick under a crown, none 30 m from one; the paper anywhere. In a gust (world/alive/wind.ts) they lift one after another as the
 // front passes, tumble along the stones with the wind, and pile up against the walls; when it
 // drops they settle flat. Wet (rain), they stick to the stones and go dark. A leaf that drifts off
 // too far, or out of sight behind Jef, is laid down again ahead of him. Their scrape (made in
@@ -26,9 +27,18 @@ const N = N_LEAF + N_PAPER;
 const N_FLY = 110;
 const FLY_R = 30;
 const R = 26;
-const TREES = ((CITY as unknown as { decor: { trees?: number[][]; trees_wild?: number[][] } }).decor.trees ?? []).concat(
-  (CITY as unknown as { decor: { trees_wild?: number[][] } }).decor.trees_wild ?? [],
-);
+// (every tree that sheds: the quays' and streets', the wild ones on the ramparts, those of the Sint-Jansplein and
+// the greens; the Stadspark has its own planting, taken as one wood round its middle)
+const TP = TOWN_PLACES as unknown as { rond?: { trees?: number[][] }; greens?: Array<{ trees?: number[][] }> };
+const TREES = [
+  ...((CITY as unknown as { decor: { trees?: number[][] } }).decor.trees ?? []),
+  ...((CITY as unknown as { decor: { trees_wild?: number[][] } }).decor.trees_wild ?? []),
+  ...(TP.rond?.trees ?? []),
+  ...(TP.greens ?? []).flatMap((g) => g.trees ?? []),
+];
+const PARK = (CITY as unknown as { places: Record<string, { x: number; z: number }> }).places["Stadspark"];
+/** Loose leaves lie no further than this from a tree (Steve, 2026-09-28: no leaves blowing about where no trees are). */
+const LEAF_REACH = 30;
 
 interface Leaf {
   p: THREE.Vector3;
@@ -263,14 +273,16 @@ export function createLeaves(ctx: Ctx): Part {
   let moving = 0;
   const HIDE = new THREE.Matrix4().makeScale(0, 0, 0);
 
-  /** More leaves near the trees: the chance a spot keeps a leaf. */
+  /** Leaves only near the trees: the chance a spot keeps a leaf (1 under a crown, none past LEAF_REACH). */
   const treeNear = (x: number, z: number) => {
+    if (PARK && Math.hypot(x - PARK.x, z - PARK.z) < 60) return 1;
     let d = 1e9;
     for (const t of TREES) {
       const dd = (t[0] - x) ** 2 + (t[1] - z) ** 2;
       if (dd < d) d = dd;
     }
-    return 0.3 + 0.7 * Math.exp(-Math.sqrt(d) / 22);
+    d = Math.sqrt(d);
+    return d > LEAF_REACH ? 0 : Math.exp(-d / 10);
   };
 
   /** The leaves of a cell, where its dice lay them. */
@@ -287,7 +299,8 @@ export function createLeaves(ctx: Ctx): Part {
       const yaw = r() * Math.PI * 2;
       const s = r();
       const h = r(), sat = r(), lit = r();
-      if (keep > (paper ? T * 0.15 : T * 0.8)) continue;
+      // (a torn bill blows about anywhere: it is not a tree's)
+      if (keep > (paper ? 0.1 : T * 0.8)) continue;
       if (!openAt(ctx.flags, x, z, 0.3)) continue;
       const y = ctx.world.baseAt(x, z);
       if (!Number.isFinite(y)) continue;

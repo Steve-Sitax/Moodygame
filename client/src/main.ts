@@ -1938,7 +1938,7 @@ if (import.meta.env.DEV) {
      * Dev (2026-09-28): the same moment drawn two ways, the pictures compared (dev/frameProf.ts pixelDiff). `what`:
      * "uniforms" (the array uniform cache on, then off), "same" (twice the same: the noise floor).
      */
-    pixelDiff(what: "uniforms" | "matrices" | "water" | "merge" | "share" | "cull" | "control" | "same" = "same", frames = 3) {
+    pixelDiff(what: "uniforms" | "matrices" | "water" | "merge" | "share" | "cull" | "control" | "globals" | "same" = "same", frames = 3) {
       const draw = () => retro.render(world.scene, player.camera, elapsed);
       // ("water": a mirror whose surfaces the culler hides is left out; off, it draws as before)
       const keepHid = mirrorView.hiddenInMain;
@@ -1948,6 +1948,15 @@ if (import.meta.env.DEV) {
         },
         set on(v: boolean) {
           mirrorView.hiddenInMain = v ? keepHid : null;
+        },
+      };
+      // ("globals": the shared psx uniforms once per program and render call, against every material switch)
+      const globalsSw = {
+        get on() {
+          return uniformCache.globals;
+        },
+        set on(v: boolean) {
+          uniformCache.globals = v;
         },
       };
       // ("control": the view turned half a degree: must differ, else the test sees nothing)
@@ -1971,7 +1980,7 @@ if (import.meta.env.DEV) {
         },
       };
       const sw =
-        what === "uniforms" ? uniformCache : what === "matrices" ? matrixSkip : what === "water" ? water : what === "merge" ? staticMerge : what === "share" ? materialShare : what === "cull" ? culling : what === "control" ? control : null;
+        what === "uniforms" ? uniformCache : what === "matrices" ? matrixSkip : what === "water" ? water : what === "merge" ? staticMerge : what === "share" ? materialShare : what === "cull" ? culling : what === "control" ? control : what === "globals" ? globalsSw : null;
       // (a switch that swaps things in the scene: the culler judges the new ones at once)
       // (the culler's own test keeps its evaluation: a staged one on its way is what is tested)
       const on = () => sw && ((sw.on = true), sw !== culling && cull.invalidate());
