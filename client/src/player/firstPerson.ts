@@ -142,6 +142,9 @@ export class FirstPerson {
   private vel = new THREE.Vector2();
   private bobPhase = 0;
   private bobAmp = 0;
+  /** The great storm (main.ts, world/tempest.ts): how hard the gust shoves him now, 0..1; the view shakes with it (as the head bob, by Settings). */
+  buffet = 0;
+  private buffT = 0;
   private lastStepSide = 0;
   private lookYaw = this.yaw;
   private lookPitch = this.pitch;
@@ -322,8 +325,12 @@ export class FirstPerson {
     this.lookYaw += (this.yaw - this.lookYaw) * s;
     this.lookPitch += (this.pitch - this.lookPitch) * s;
 
-    this.camera.position.set(this.x + cos * bobX, this.y + this.eye + bobY, this.z - sin * bobX);
-    this.camera.rotation.set(this.lookPitch, this.lookYaw, Math.cos(this.bobPhase) * 0.004 * this.bobAmp * look.bob);
+    // the great storm: the gusts shove him, a small unsteady sway of the head
+    this.buffT += dt;
+    const bu = this.buffet * look.bob;
+    const buX = bu * (Math.sin(this.buffT * 7.3) * 0.6 + Math.sin(this.buffT * 12.7) * 0.4) * 0.03;
+    this.camera.position.set(this.x + cos * (bobX + buX), this.y + this.eye + bobY, this.z - sin * (bobX + buX));
+    this.camera.rotation.set(this.lookPitch, this.lookYaw, Math.cos(this.bobPhase) * 0.004 * this.bobAmp * look.bob + bu * Math.sin(this.buffT * 5.1) * 0.012);
   }
 
   // ------------------------------------------------------------ in the water

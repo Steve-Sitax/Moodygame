@@ -5,6 +5,16 @@ import { activityAt } from "../town/schedule.ts";
 import { atWork } from "../trade.ts";
 import { town } from "../town/store.ts";
 import type { Resident } from "../town/population.ts";
+import { state, tempestPhase } from "../director/state.ts";
+import { shelterFor, tavernIds } from "../../../shared/tempest.ts";
+
+/** The great storm: at most this many who ran in out of it are in one tavern's room (the tables and the standing room). */
+const STORM_ROOM = 24;
+
+/** The great storm's number (its event id): each storm sends each person his own way. */
+function stormNumber(db: DB): number {
+  return state<{ event?: number } | null>(db, "tempest", null)?.event ?? 0;
+}
 
 // Small shared helpers of the interiors (M6): the game minute, a key in world_state,
 // the call shares, and who is inside a tavern by the schedule. Engine only.
@@ -71,10 +81,18 @@ export function keeperAtWork(db: DB, place: string): boolean {
 export function patronsIn(db: DB, place: string): Resident[] {
   const c = clock(db);
   const h = hourNow(db);
-  return town(db).town.residents.filter((r) => {
+  const t = town(db).town;
+  // the great storm (shared/tempest.ts): those who ran in here out of it drink here too, the same the client walks in
+  const storm = tempestPhase(db) ? { taverns: tavernIds(t.places), n: stormNumber(db) } : null;
+  let ran = 0;
+  return t.residents.filter((r) => {
     if (r.age < 14) return false;
     const now = activityAt(r.sched, c.day, h);
-    return now.act === "tavern" && now.place === place;
+    if (now.act === "tavern" && now.place === place) return true;
+    if (!storm) return false;
+    const s = shelterFor(r, now, t.places, storm.taverns, storm.n);
+    // (a room holds so many: the rest crowd in the passage, out of sight)
+    return s.kind === "tavern" && s.place === place && ran++ < STORM_ROOM;
   });
 }
 

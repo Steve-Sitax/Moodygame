@@ -25,6 +25,7 @@ import { createHouseInWorld, type HouseInWorld } from "../world/houseInWorld";
 import type { HousePlan } from "../../../shared/housePlan";
 import * as HP from "../../../shared/hallPlan";
 import { dialogs } from "./dialogs";
+import { tempest } from "../world/tempest";
 
 // Inside (M6, M7 in the world): the taverns and the Poesje stand inside their own city houses
 // (shared/housePlan.ts, world/houseInWorld.ts): their doors stand open in opening hours and you walk in;
@@ -621,7 +622,9 @@ export class Interiors {
       // words for the hour (QA 2026-09-24: "Quiet tonight" at one in the afternoon)
       const hr = this.jobs.day.hourF;
       const quiet = hr >= 18 || hr < 4 ? "Quiet tonight." : hr < 12 ? "Quiet this morning." : "Quiet this afternoon.";
-      this.say(`${h.label}. Smoke, beer and wet wool. ${n ? `${n} at the tables.` : quiet}`);
+      // (the great storm, world/tempest.ts: the street came in out of it, dripping)
+      if (tempest.phase) this.say(`${h.label}. Packed to the door with people come in out of the storm, steaming and dripping; the shutters rattle.`);
+      else this.say(`${h.label}. Smoke, beer and wet wool. ${n ? `${n} at the tables.` : quiet}`);
       this.chatT = 6 + Math.random() * 6;
       return;
     }

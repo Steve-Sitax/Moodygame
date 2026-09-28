@@ -78,6 +78,7 @@ import { stuckCheck } from "./dev/stuckcheck";
 import { Emigrants } from "./game/emigrants";
 import { api } from "./net/api";
 import { Interiors } from "./game/interiors";
+import { tempest } from "./world/tempest";
 import { shopCaller } from "./game/shopCalls";
 import { Families } from "./game/families";
 import { Homes } from "./game/homes";
@@ -263,6 +264,13 @@ const actions = new Actions(world, player, town, crowd, events);
 const hearses = new Hearses(world, town);
 actions.hearses = hearses;
 actions.say = (t) => jobs.say(t);
+// the great storm (world/tempest.ts): a line as it comes, breaks and goes
+tempest.onPhase = (p, was) => {
+  if (p === "coming") jobs.say("The sky goes black over the Schelde. A great storm is coming in off the sea: the shops put up their shutters, and people run for cover.");
+  else if (p === "peak") jobs.say("The storm breaks. Rain in sheets, slates off the roofs. Nobody gives out work in this: get under a roof.");
+  else if (p === "easing") jobs.say("The great storm begins to blow itself out.");
+  else if (was) jobs.say("The storm has blown over. A steady rain is left; the shops take down their shutters.");
+};
 actions.onPayload = (p) => {
   events.set(p);
   for (const c of p.convos) bubbles.show(c);
@@ -657,7 +665,7 @@ if (import.meta.env.DEV || DEMO) {
             )
             .catch((e) => String(e)),
       },
-      ...["wedding", "funeral", "musicians", "emigrant_ship", "fish_auction", "quarrel", "scuffle", "street_robbery", "house_fire", "hiring", "tavern_brawl", "burglary", "smuggling", "night_watch"].map((t) => ({
+      ...["wedding", "funeral", "musicians", "emigrant_ship", "fish_auction", "quarrel", "scuffle", "street_robbery", "house_fire", "tempest", "hiring", "tavern_brawl", "burglary", "smuggling", "night_watch"].map((t) => ({
         label: `Event: ${t.replace("_", " ")}`,
         run: () =>
           api
@@ -1158,6 +1166,15 @@ function tick(dt: number): void {
     sound?.setRoomPeople(interiors.inside ? (p?.n ?? 0) : landmarks.indoors ? landmarks.peopleInside : null);
   });
   safe("sound.setRain", () => sound?.setRain(psxUniforms.uRain.value));
+  // the great storm (world/tempest.ts): its wind and rain in the soundscape
+  safe("sound.setTempest", () => {
+    const gust = alive.wind.gustAt(player.x, player.z);
+    const fury = weatherNow === "storm" ? tempest.level : 0;
+    sound?.setTempest(fury, gust);
+    // out in it, the gusts shove Jef (player/firstPerson.ts buffet)
+    const indoors = interiors.inside || landmarks.indoors || carolus.indoors || gothic.indoors || prison.indoors;
+    player.buffet = indoors ? 0 : fury * Math.min(1, gust / 2);
+  });
   safe("sound.update", () => sound?.update(player.camera));
   safe("vehicles and people wiring", () => {
   {

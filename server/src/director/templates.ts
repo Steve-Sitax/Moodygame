@@ -204,6 +204,25 @@ export const TEMPLATES: Template[] = [
     oncePerDay: true,
     gapDays: 3,
   },
+  // The great storm (Steve 2026-09-28; director/tempest.ts): the whole town, no leads, no crowd. The shops
+  // shut, no work is given out, the townspeople run home, into the taverns or under a porch (shared/tempest.ts).
+  {
+    id: "tempest",
+    title: "A great storm off the sea",
+    place: "grote_markt",
+    stages: [
+      stage({ op: "sound", minutes: 20, sound: "none", mood: "tense" }),
+      stage({ op: "sound", minutes: 90, sound: "none", mood: "tense" }),
+      stage({ op: "sound", minutes: 30, sound: "none", mood: "calm" }),
+    ],
+    acts: ["tempest_coming", "tempest_peak", "tempest_easing"],
+    notice: "",
+    rumour: "The great storm tore slates off half the roofs, put the river over the lowest quay steps and broke a lighter loose at the Werf.",
+    fits: (_d, h) => h >= 8 && h < 18,
+    weight: 0.25,
+    oncePerDay: true,
+    gapDays: 4,
+  },
   // M7 night (Steve 2026-09-25: "Nights are good for robbers and other shady events"): the night's own
   // events, small (the honest town is abed; scheduler.ts NIGHT_GATHER_MAX), from 22:00, over by 5:00
   {
@@ -316,6 +335,8 @@ export function scriptFor(plan: { template: string; title: string }): Template |
   if (byId) return byId;
   if (/\b(house fire|fire|blaze|burning|ablaze|on fire)\b/.test(id.replace(/_/g, " ")) || /\b(fire|blaze|ablaze|burning)\b/i.test(plan.title))
     return TEMPLATES.find((t) => t.id === "house_fire") ?? null;
+  if (/\b(tempest|great storm|gale|hurricane|storm)\b/.test(id.replace(/_/g, " ")) || /\b(tempest|great storm|gale|hurricane)\b/i.test(plan.title))
+    return TEMPLATES.find((t) => t.id === "tempest") ?? null;
   return null;
 }
 

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { clamp01, rand, type Weather } from "./common";
 import { dice, sharedSeconds } from "../../game/share";
+import { tempest } from "../tempest";
 
 // M7 alive: the wind over the town, with gusts. The steady wind is world/ambient.ts's own (the
 // same formula, so the leaves go the way the chimney smoke goes): a slow turn of its direction and
@@ -31,6 +32,8 @@ export class Wind {
   /** Unit direction the wind blows to. */
   readonly dir = new THREE.Vector2(1, 0);
   private weather: Weather = "fog";
+  /** The great storm's level now (world/tempest.ts), 0 on any other day. */
+  fury = 0;
   private t = 0;
   private gusts: Gust[] = [];
   /** Dev: a gust now. */
@@ -43,14 +46,16 @@ export class Wind {
     this.t = t;
     this.weather = weather;
     const wa = 0.35 + Math.sin(t * 0.013) * 0.25;
-    const ws = (BASE[weather] ?? 0.5) * (1 + 0.2 * Math.sin(t * 0.07));
+    // (the great storm, world/tempest.ts: nearly twice the gale, and harder gusts)
+    this.fury = weather === "storm" ? tempest.level : 0;
+    const ws = (BASE[weather] ?? 0.5) * (1 + 0.2 * Math.sin(t * 0.07)) * (1 + 0.9 * this.fury);
     this.base.set(Math.cos(wa) * ws, Math.sin(wa) * ws);
     this.dir.set(Math.cos(wa), Math.sin(wa));
     if (this.force) {
       // (the dev's gust: here, now, on this PC only)
       const k = GUST[weather] ?? [1, 2];
       const a0 = eye.x * this.dir.x + eye.z * this.dir.y;
-      this.gusts.push({ t0: t + 1.5, len: rand(2, 6), k: rand(k[0], k[1]), speed: 8 + BASE[weather] * 3, a0 });
+      this.gusts.push({ t0: t + 1.5, len: rand(2, 6), k: rand(k[0], k[1]) * (1 + 0.8 * this.fury), speed: 8 + BASE[weather] * 3, a0 });
       this.force = false;
     }
     this.gusts = this.gusts.filter((q) => t < q.t0 + q.len + 60);
@@ -64,7 +69,7 @@ export class Wind {
     const w0 = Math.floor((t - 60) / W);
     for (let w = w0; w <= w0 + Math.ceil(120 / W) + 1; w++) {
       const len = 2 + dice(`gust:${weather}`, w, 1) * 4;
-      this.town.push({ t0: w * W + dice(`gust:${weather}`, w, 2) * Math.max(1, W - len), len, k: k[0] + (k[1] - k[0]) * dice(`gust:${weather}`, w, 3), speed, a0: 0 });
+      this.town.push({ t0: w * W + dice(`gust:${weather}`, w, 2) * Math.max(1, W - len), len, k: (k[0] + (k[1] - k[0]) * dice(`gust:${weather}`, w, 3)) * (1 + 0.8 * this.fury), speed, a0: 0 });
     }
   }
   private town: Gust[] = [];

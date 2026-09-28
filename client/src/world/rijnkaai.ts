@@ -59,6 +59,7 @@ import { CRATE_STACKS, PILES, SACK_LIE, SACK_PILE_MID, SACK_PILES, rijnkaaiGoods
 import { landmarkDoorKeepOut } from "./doorKeep";
 import { tuning } from "../menu/tuning"; // menus: the view distance setting
 import { addPropObject } from "./propSpots";
+import { tempest } from "./tempest";
 
 // The Rijnkaai in the real 1873 city (world/city.ts). Water is at z < 0, the
 // quay edge runs along x (the world is turned 19 deg so it does). Quay top is
@@ -1782,6 +1783,8 @@ export function buildRijnkaai(): World {
   const WEATHER = { fog: [1, 1, 1, 0], mist: [2.5, 3.5, 0.6, 0.25], clear: [12, 7, 0.35, 0.6], rain: [1.8, 2.5, 0.8, 0], storm: [1.3, 1.6, 0.9, 0] } as const;
   /** The air of a clear autumn noon: lighter than the grey of a fog day, but smoky (was 0x9db0c2, a blue sky). */
   const CLEAR_SKY = new THREE.Color(0x8b9398);
+  /** The great storm's air under the black cloud (world/tempest.ts). */
+  const STORM_AIR = new THREE.Color(0x3a444e);
   /**
    * Fixes 2026-09-24 (shot 4: a clear 16:40-17:00 stayed grey): the golden hour of a clear day.
    * The low sun goes warm and the air gold toward evening, a little at sunrise too; fog, mist and
@@ -1862,7 +1865,8 @@ export function buildRijnkaai(): World {
     updateTide(dt);
     // the sea: a storm raises the waves, the boats roll (psx water, waveAt, boats.ts)
     {
-      const sea = weatherNow === "storm" ? 3.6 : weatherNow === "rain" ? 1.5 : weatherNow === "clear" ? 1.1 : 0.85;
+      // (the great storm, world/tempest.ts: the river runs higher still, white-capped)
+      const sea = weatherNow === "storm" ? 3.6 + 2.6 * tempest.level : weatherNow === "rain" ? 1.5 : weatherNow === "clear" ? 1.1 : 0.85;
       psxUniforms.uSea.value += (sea - psxUniforms.uSea.value) * Math.min(1, dt * 0.05);
     }
     pt("world.boats", () => boats?.update(t, dt, lampsLit)); // M7 boats: the boats' lanterns burn with the gas lamps
@@ -1904,6 +1908,8 @@ export function buildRijnkaai(): World {
     // the golden hour of a clear day: warm air, a low warm sun from the west (fog days stay grey)
     const gold = goldenAt(dayNow) * wNow[3];
     fog.color.lerp(GOLD_AIR, gold * 0.3); // (the grime pass: less gold through the smoke; was 0.55)
+    // the great storm (world/tempest.ts): the air goes dark and slate-blue under the black cloud
+    if (tempest.level > 0) fog.color.lerp(STORM_AIR, 0.45 * tempest.level).multiplyScalar(1 - 0.3 * tempest.level);
     (scene.background as THREE.Color).copy(fog.color);
     sun.color.copy(SUN_WHITE).lerp(SUN_GOLD, gold);
     skyLight.color.copy(SKY_COLD).lerp(SKY_WARM, gold * 0.55);
@@ -1913,11 +1919,12 @@ export function buildRijnkaai(): World {
     pt("world.works", () => works.update(t, dt, dayNow, weatherNow, fog.color));
     // the sun: nothing at night, a glow through fog, real light on a clear day (warmer and a
     // little stronger in the golden hour: the low light is what shows)
-    sun.intensity = sunDay * (1.35 - wNow[2]) * 2.6 * (1 + 0.8 * gold);
+    sun.intensity = sunDay * (1.35 - wNow[2]) * 2.6 * (1 + 0.8 * gold) * (1 - 0.7 * tempest.level);
     psxUniforms.uScatter.value = SCATTER * wNow[2];
     // the job twist "thick fog" always closes in, whatever the weather
-    fog.near = THREE.MathUtils.lerp(3 * wNow[0] * tuning.viewFar, 1.5, fogMix);
-    fog.far = THREE.MathUtils.lerp(dayFar * wNow[1] * tuning.viewFar, 11, fogMix); // menus: view distance
+    fog.near = THREE.MathUtils.lerp(3 * wNow[0] * tuning.viewFar, 1.5, fogMix) * (1 - 0.45 * tempest.level);
+    // (the great storm: rain in sheets closes the far end in to about two thirds)
+    fog.far = THREE.MathUtils.lerp(dayFar * wNow[1] * tuning.viewFar, 11, fogMix) * (1 - 0.32 * tempest.level); // menus: view distance
     sky.visible = !devView;
     if (devView) {
       // look at everything: no fog, bright day

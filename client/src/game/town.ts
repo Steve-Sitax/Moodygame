@@ -18,6 +18,8 @@ import { omnibusKeepOut } from "../world/omnibus";
 import { trafficLanes } from "../world/traffic";
 import { chest, pick, type Target } from "./facing";
 import { atPost, NIGHT_GIVER_IDS } from "../../../shared/night";
+import { shelterFor, tavernIds, type Shelter } from "../../../shared/tempest";
+import { tempest } from "../world/tempest";
 
 // The town (M3e): the residents the server made (homes, families, trades,
 // schedules) living by the game clock. Everyone is simulated cheaply by
@@ -48,6 +50,12 @@ const SPAWN_R = 55;
 const DUE_FAR = 40;
 /** A running townsperson seen in the street hurries at most this fast (m/s): the walk cycle, sped up, still reads. */
 const SEEN_RUN_MAX = 2.0;
+/** The great storm: how fast they run for shelter (m/s), the walk cycle sped up as far as it still reads as a run. */
+const STORM_RUN = 2.3;
+/** The great storm: a doorway farther than this (m) is no shelter; they run home. */
+const STORM_DOOR_M = 70;
+/** The great storm: within this of the cathedral (m), those who look for a roof go in there. */
+const STORM_CHURCH_M = 80;
 const DUE_WAIT_MS = 2500;
 /** Under this (m) he waits longer still: by then he has mostly walked out of view or behind someone. */
 const DUE_NEAR = 20;
@@ -133,6 +141,8 @@ export interface Sim {
   trip?: Trip | null;
   /** Held by someone else's trip (loading the cart, in the boat): the town leaves them be. */
   inTrip?: boolean;
+  /** The great storm (shared/tempest.ts): where he runs to in it (null: no storm). */
+  shelter?: Shelter | null;
   /** On the omnibus or in a boat: not in the street. */
   aboard?: boolean;
   /** The day's errand they are on (a family boat, a dray). */
@@ -629,18 +639,24 @@ export class Town {
 
   private reschedule(s: Sim, day: number, hour: number, first: boolean): void {
     if (s.inTrip) return; // someone else's trip has them (the cart, the boat)
+    // the great storm (world/tempest.ts): no errands, no calls at the shops, everyone out of it
+    const storm = !!tempest.phase && !!this.data;
     // M6 transport: the day's errand with a load (a family boat, a dray) comes first
-    const err = !first ? (this.journeys?.errandFor(s.r.id, day, hour) ?? null) : null;
+    const err = !first && !storm ? (this.journeys?.errandFor(s.r.id, day, hour) ?? null) : null;
     if (err || s.errand) return this.errandStep(s, err, day, hour);
     const now = this.planNow(s, day, hour);
+    s.shelter = storm ? shelterFor(s.r, now, this.data!.places, (this.taverns ??= tavernIds(this.data!.places)), tempest.event) : null;
+    const sheltered = !!s.shelter && s.shelter.kind !== "stay";
     // M7 shops: a call at a shop this hour (the engine's roll, shared/shops.ts): in at its door, out at the hour's end
-    const call = this.shopCall(s.r, day, hour);
-    const key = `${now.act}:${now.place}${call ? `|shop@${call[0]},${call[1]}` : ""}${this.lively?.key(s, now, day, hour) ?? ""}${this.mills?.key(s, now, day, hour) ?? ""}`;
+    const call = storm ? null : this.shopCall(s.r, day, hour);
+    const key = sheltered
+      ? `storm${tempest.event}:${s.shelter!.kind}${s.shelter!.kind === "tavern" ? `:${s.shelter!.place}` : ""}`
+      : `${now.act}:${now.place}${call ? `|shop@${call[0]},${call[1]}` : ""}${storm ? `|storm${tempest.event}` : `${this.lively?.key(s, now, day, hour) ?? ""}${this.mills?.key(s, now, day, hour) ?? ""}`}`;
     // East walkthrough 2026-09-25: a publican (or a drinker) whose goal was set while his tavern's house
     // was not open yet (at load, before the in-world rooms are attached) stood 1.7 m before the door and
     // blocked it. The tavern opening or shutting sets the goal again, the key unchanged.
     const tavPlace =
-      now.act === "tavern" ? now.place : now.act === "work" && s.r.work.kind === "tavern" ? s.r.work.place : now.act === "work" && s.r.work.kind === "shop" && s.r.work.shop ? `shop:${s.r.work.shop}` : "";
+      s.shelter?.kind === "tavern" ? s.shelter.place : now.act === "tavern" ? now.place : now.act === "work" && s.r.work.kind === "tavern" ? s.r.work.place : now.act === "work" && s.r.work.kind === "shop" && s.r.work.shop ? `shop:${s.r.work.shop}` : "";
     const tav = tavPlace ? (this.tavernInside(tavPlace) ? "in" : "out") : "";
     if (key === s.key && tav === (s.tav ?? "")) {
       this.lanterns(s, hour);
@@ -656,7 +672,7 @@ export class Town {
     s.step = 0;
     s.tries = 0;
     s.wait = 0;
-    if (s.r.work.kind === "stall" || s.r.work.kind === "shop") this.stalls.setOpen(s.r.id, now.act === "work");
+    if (s.r.work.kind === "stall" || s.r.work.kind === "shop") this.stalls.setOpen(s.r.id, now.act === "work" && !storm);
     const goesIn = s.goal.mode === "home" || s.goal.mode === "inside" || s.goal.mode === "church";
     const on = first ? this.whereNow(s) : null;
     if (on && on.walked < on.total) {
@@ -684,7 +700,7 @@ export class Town {
     }
     // M6 transport: how they go (a velocipede, the cart with the goods, the omnibus): journeys.ts
     // (M7 mills: the mill's people walk, and the man goes with the mill's own cart: game/mills.ts)
-    if (!first && !s.held && !s.remote && prevKey && !this.mills?.own(s)) this.journeys?.begin(s, plainKey(prevKey), prevPt);
+    if (!first && !s.held && !s.remote && prevKey && !this.mills?.own(s) && !sheltered) this.journeys?.begin(s, plainKey(prevKey), prevPt);
     if (s.p && !s.remote) this.direct(s);
     this.lanterns(s, hour);
   }
@@ -736,15 +752,101 @@ export class Town {
     return [pl.x + Math.cos(a) * d, pl.z + Math.sin(a) * d];
   }
 
+  /**
+   * The great storm (shared/tempest.ts shelterFor): home, into the nearest tavern (or the cathedral, near it), or
+   * pressed into the nearest doorway under its lintel, arms folded or leant on the wall. Null: under a roof already.
+   */
+  private stormGoal(s: Sim): Goal | null {
+    const sh = s.shelter;
+    if (!sh || sh.kind === "stay") return null;
+    const r = s.r;
+    const home: Goal = { mode: "home", x: r.home.sx, z: r.home.sz };
+    if (sh.kind === "home") return home;
+    if (sh.kind === "tavern") {
+      const t = this.place(sh.place);
+      if (!t) return home;
+      if (this.tavernInside(sh.place)) return { mode: "inside", x: t.x, z: t.z };
+      return this.underDoor(s, t.door ?? [t.x, t.z], t.out ?? [0, -1]);
+    }
+    // under: the cathedral when it is near, else the nearest door
+    const c = this.place("church");
+    if (c && dist(s.x, s.z, c.x, c.z) < STORM_CHURCH_M) return { mode: "church", x: c.x, z: c.z };
+    let best: { x: number; z: number; sx: number; sz: number } | null = null;
+    let bd = STORM_DOOR_M;
+    for (const d of this.stormDoors()) {
+      const dd = dist(s.x, s.z, d.sx, d.sz);
+      if (dd < bd) {
+        bd = dd;
+        best = d;
+      }
+    }
+    if (!best) return home;
+    const L = Math.hypot(best.sx - best.x, best.sz - best.z) || 1;
+    return this.underDoor(s, [best.x, best.z], [(best.sx - best.x) / L, (best.sz - best.z) / L]);
+  }
+
+  /** Close in under a door's lintel, a little to one side, facing out into the rain. */
+  private underDoor(s: Sim, door: Pt, out: Pt): Goal {
+    // (along the front either side of the door, and a second rank a little out when the first is full)
+    const hs = hash(s.r.id + "door");
+    const side = (hs - 0.5) * 2.4;
+    const off = 0.55 + (hash(s.r.id + "rank") < 0.3 ? 0.55 : 0);
+    const x = door[0] + out[0] * off - out[1] * side;
+    const z = door[1] + out[1] * off + out[0] * side;
+    const motions: Motion[] = ["fold", "wall", "pockets", "fold", "behind"];
+    return { mode: "stand", x, z, yaw: Math.atan2(out[0], out[1]), motion: motions[Math.floor(hash(s.r.id + "storm") * motions.length)] };
+  }
+
+  /** Every front door in town with its step (the residents' homes, one per house). */
+  private stormDoors(): Array<{ x: number; z: number; sx: number; sz: number }> {
+    if (this.doorList) return this.doorList;
+    const seen = new Set<number>();
+    const list: Array<{ x: number; z: number; sx: number; sz: number }> = [];
+    for (const q of this.sims) {
+      if (seen.has(q.r.home.house)) continue;
+      seen.add(q.r.home.house);
+      list.push({ x: q.r.home.x, z: q.r.home.z, sx: q.r.home.sx, sz: q.r.home.sz });
+    }
+    this.doorList = list;
+    return list;
+  }
+  private doorList: Array<{ x: number; z: number; sx: number; sz: number }> | null = null;
+
+  /** Dev (test kit t.tempest()): where the town is in the great storm: by shelter, indoors, and those still out near Jef. */
+  stormInfo(): { shelter: Record<string, number>; inside: number; out: number; outNear: Array<{ id: string; kind: string; mode: string; d: number; running: boolean }> } {
+    const shelter: Record<string, number> = {};
+    let inside = 0;
+    let out = 0;
+    const outNear: Array<{ id: string; kind: string; mode: string; d: number; running: boolean }> = [];
+    for (const s of this.sims) {
+      const k = s.shelter?.kind ?? "none";
+      shelter[k] = (shelter[k] ?? 0) + 1;
+      if (s.inside) inside++;
+      else out++;
+      if (s.p && !s.inside) {
+        const d = dist(s.p.x, s.p.z, this.player.x, this.player.z);
+        if (d < 40) outNear.push({ id: s.r.id, kind: k, mode: s.goal.mode, d: Math.round(d), running: this.paceOf(s) >= STORM_RUN });
+      }
+    }
+    outNear.sort((a, b) => a.d - b.d);
+    return { shelter, inside, out, outNear: outNear.slice(0, 12) };
+  }
+  private taverns: string[] | null = null;
+
   private goalFor(s: Sim, now: Now): Goal {
     // (the trade plan: only a goal of the plan's own is walked by the shared sum unseen)
     s.plain = false;
-    const mill = this.mills?.goal(s, now); // M7 mills: the millers, the cart out at dawn and after dinner
-    if (mill) return mill;
-    const back = this.back?.goal(s, now); // M7 back of town
-    if (back) return back;
-    const lively = this.lively?.goal(s, now);
-    if (lively) return lively;
+    // the great storm: out of it, running (and nobody stands about at a door, in the park or at the mill)
+    const storm = this.stormGoal(s);
+    if (storm) return storm;
+    if (!s.shelter) {
+      const mill = this.mills?.goal(s, now); // M7 mills: the millers, the cart out at dawn and after dinner
+      if (mill) return mill;
+      const back = this.back?.goal(s, now); // M7 back of town
+      if (back) return back;
+      const lively = this.lively?.goal(s, now);
+      if (lively) return lively;
+    }
     s.plain = !this.mills?.own(s);
     const r = s.r;
     const w = r.work;
@@ -1043,6 +1145,9 @@ export class Town {
    * slow him). On a leg the sum has him running he hurries, as fast as the walk can look until there is a run.
    */
   private paceOf(s: Sim): number {
+    // the great storm: they run for it
+    // (the great storm: anyone out in it runs for his door, also one whose day had him on his way home anyway)
+    if (s.shelter && (s.shelter.kind !== "stay" || s.goal.mode === "home" || s.goal.mode === "inside" || s.goal.mode === "church")) return Math.max(townPace(s.r).mps, STORM_RUN);
     const on = this.whereNow(s);
     if (on?.run && on.walked < on.total) return Math.min(on.mps, SEEN_RUN_MAX);
     return townPace(s.r).mps;
@@ -1104,9 +1209,11 @@ export class Town {
   private behave(s: Sim, dt: number, hour: number): void {
     // M6 transport: riding, pushing the cart, waiting for the omnibus, going to the boat
     if (s.trip && this.journeys?.behave(s, dt)) return;
-    if (this.mills?.behave(s, dt, hour)) return; // M7 mills
-    if (this.back?.behave(s, dt, hour)) return; // M7 back of town
-    if (this.lively?.behave(s, dt, hour)) return;
+    // (the great storm: nobody is kept at a door, the mill or the park; world/tempest.ts)
+    const storm = !!s.shelter;
+    if (!storm && this.mills?.behave(s, dt, hour)) return; // M7 mills
+    if (!storm && this.back?.behave(s, dt, hour)) return; // M7 back of town
+    if (!storm && this.lively?.behave(s, dt, hour)) return;
     const p = s.p!;
     const g = s.goal;
     if (this.pair(s, dt)) return;

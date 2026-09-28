@@ -13,6 +13,7 @@ import { stallProtos, type Stalls } from "./stalls";
 import { addStallThing, dropStallThings } from "./stallSpots";
 import type { Town } from "./town";
 import { nearestPlayer, runsHere, share as shared } from "./share";
+import { tempest } from "../world/tempest";
 
 // Market days (M3i). Steve: "vismarkt can be way fuller when markt is going on. stalls are
 // too ordered. People browsing stalls and buy goods. no stalls on tracks."
@@ -209,6 +210,8 @@ interface Item {
   front: { x: number; z: number; yaw: number };
   sellerKind: HumanKind;
   sits: boolean;
+  /** The great storm (world/tempest.ts): the seller huddles under the stall's awning (no calls, no haggling). */
+  fled?: boolean;
   /** What was put down for it, in its own frame: drawn into the market's batch, and read by the stall check (dev/stallcheck.ts). */
   puts: Put[];
   /** Where the seller stands (or sits) and where a buyer stands, in its own frame (u along, v out). */
@@ -799,7 +802,8 @@ export class Market {
       const d = dist(player.x, player.z, m.def.centre[0], m.def.centre[1]);
       m.group.visible = d < 140;
       if (this.colT <= 0) this.syncColliders(m);
-      m.on = marketOn(m.def.place, day, hour);
+      // (the great storm, world/tempest.ts: the shoppers run for it)
+      m.on = marketOn(m.def.place, day, hour) && !tempest.phase;
       if (think) {
         this.sellers(m, d);
         this.shoppers(m, d);
@@ -828,6 +832,20 @@ export class Market {
   // ---------------------------------------------------------------- sellers
 
   private sellers(m: Built, d: number): void {
+    // the great storm: the sellers stay by their goods, huddled under the stall's awning, arms folded against the cold
+    if (tempest.phase) {
+      for (const it of m.items) {
+        if (!it.p || it.fled) continue;
+        it.fled = true;
+        if (it.sits) this.crowd.puppetSit(it.p, it.seller.yaw);
+        else this.crowd.puppetStand(it.p, "fold", it.seller.yaw);
+      }
+      return;
+    }
+    for (const it of m.items) if (it.p && it.fled) {
+      it.fled = false;
+      it.talkT = 0;
+    }
     const up = (k: number) => k >= m.lo && k < m.hi;
     const near = m.items
       .filter((it, k) => up(k) && d < SELLER_R + 60 && dist(it.x, it.z, this.player.x, this.player.z) < SELLER_R)
@@ -852,6 +870,7 @@ export class Market {
       const p = this.crowd.addPuppet(it.sellerKind, it.seller.x, it.seller.z, it.seller.yaw, 1, 0.95 + (h - Math.floor(h)) * 0.1);
       if (!p) return;
       it.p = p;
+      it.fled = false;
       if (it.sits) this.crowd.puppetSit(p, it.seller.yaw);
       else this.crowd.puppetStand(p, "idle", it.seller.yaw);
     }
@@ -859,6 +878,7 @@ export class Market {
 
   /** A seller calls out now and then, and turns to a buyer who haggles. */
   private sellerStep(it: Item, dt: number): void {
+    if (it.fled) return; // (huddled under the awning in the great storm)
     if ((it.talkT -= dt) > 0) return;
     const p = it.p!;
     const calling = Math.random() < 0.3;

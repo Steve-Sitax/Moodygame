@@ -11,7 +11,7 @@ import type { Resident } from "../town/population.ts";
 import { activityAt } from "../town/schedule.ts";
 import { resident, town, TOWN_EMPLOYER_IDS } from "../town/store.ts";
 import { walkMap } from "../town/walkmap.ts";
-import { setState, state } from "./state.ts";
+import { setState, state, tempestPhase } from "./state.ts";
 import { actionOf, activeActions, endAction, endEventActions, isReserved, reserveSnap, startAction } from "./actions.ts";
 import { notify } from "./bus.ts";
 import { canCallConvo, publishConvo, runConvo } from "./convo.ts";
@@ -22,6 +22,8 @@ import { applyScene, resolveScene, sceneForClient, type Scene } from "./scenes.t
 import { fireEnd, fireForClient, fireGapWhy, pickFireHouse, runFireAct, type FireScene } from "./fire.ts";
 import { hiringEnd, hiringForClient, hiringTick, runHiringAct, type HiringScene } from "./hiring.ts";
 import { runBalladAct } from "../ballads/ballad.ts";
+import { runTempestAct, tempestEnd, tempestForClient } from "./tempest.ts";
+import { TEMPEST_TEMPLATE } from "../../../shared/tempest.ts";
 import { ROUTINE_TEMPLATES, scriptFor } from "./templates.ts";
 import { inSpan, NIGHT_EVENTS } from "../../../shared/night.ts";
 import { emigrantShip, isEmigrant } from "../town/emigrants.ts";
@@ -451,6 +453,9 @@ export function planEvent(db: DB, plan: EventPlan, opts: { dev?: boolean } = {})
     if (!led && st2.length) st2[0] = { ...st2[0], leads: [...new Set(["priest", ...(st2[0].leads ?? [])])] as Stage["leads"] };
     plan = { ...plan, stages: st2 };
   }
+  // the great storm: nothing else is planned while it blows, and one storm at a time
+  if (!opts.dev && !ROUTINE_TEMPLATES.has(plan.template) && (tempestPhase(db) || liveEvents(db).some((o) => o.template === TEMPEST_TEMPLATE))) return { ok: false, why: "a great storm is on the town" };
+  if (plan.template === TEMPEST_TEMPLATE && liveEvents(db).some((o) => o.template === TEMPEST_TEMPLATE)) return { ok: false, why: "a great storm is on the town already" };
   const place = resolvePlace(db, plan.place);
   if (!place) return { ok: false, why: `no such place: ${plan.place}` };
   let stages = cleanStages(plan.stages);
@@ -488,11 +493,12 @@ export function planEvent(db: DB, plan: EventPlan, opts: { dev?: boolean } = {})
   } else if (!opts.dev && !routine && end > Math.floor(start / 1440) * 1440 + EVENT_LAST_HOUR * 60) return { ok: false, why: `it would run past ${EVENT_LAST_HOUR}:00` };
   const live = liveEvents(db);
   const overlapping = live.filter((o) => o.start_m - EVENT_MARGIN_MIN < end && o.end_m + EVENT_MARGIN_MIN > start);
-  for (const o of overlapping) {
+  // (the great storm is on the whole town, and calls the others off when it comes)
+  for (const o of plan.template === TEMPEST_TEMPLATE ? [] : overlapping) {
     if (o.place === place.id) return { ok: false, why: `"${o.title}" is at ${place.label} then` };
     if (Math.hypot(o.x - place.x, o.z - place.z) < EVENT_NEAR_M) return { ok: false, why: `"${o.title}" is too near, at ${o.place}` };
   }
-  if (!opts.dev && !routine && overlapping.filter((o) => !ROUTINE_TEMPLATES.has(o.template)).length >= EVENTS_AT_ONCE) return { ok: false, why: `${EVENTS_AT_ONCE} events run at once already` };
+  if (!opts.dev && !routine && plan.template !== TEMPEST_TEMPLATE && overlapping.filter((o) => !ROUTINE_TEMPLATES.has(o.template)).length >= EVENTS_AT_ONCE) return { ok: false, why: `${EVENTS_AT_ONCE} events run at once already` };
   // the engine puts every stage's place on the map now
   // M7 funeral: a stage without a place is where the event stands then (after a procession, at its end: the
   // music after a wedding's walk to Den Engel plays at Den Engel); "enter" only at a hall's door (else a
@@ -568,6 +574,9 @@ export function eventsTick(db: DB): number {
 /** One event's turn in the tick: start it, or play the stages whose time has come. Each change is one transaction. */
 function eventStep(db: DB, ev: EventRow, now: number): number {
   let changed = 0;
+  // (an event before it in this tick may have called it off: the great storm does)
+  const fresh = eventRow(db, ev.id);
+  if (!fresh || fresh.status !== ev.status) return 0;
   const stages = stagesOf(ev);
   if (ev.status === "planned") {
     // the town's routine (the ballad singer, the dawn hiring) starts at the tick nearest its
@@ -779,6 +788,7 @@ function finishEvent(db: DB, ev: EventRow, status: "done" | "cancelled", why = "
   // M6 town life: a fire leaves its soot and settles Jef's place in the chain; the hiring its record
   if (ev.template === "house_fire") fireEnd(db, ev, status);
   if (ev.template === "hiring") hiringEnd(db, ev, status);
+  if (ev.template === TEMPEST_TEMPLATE) tempestEnd(db, ev, status);
   db.prepare("UPDATE town_event SET status = ? WHERE id = ?").run(status, ev.id);
   endEventActions(db, ev.id);
   // prices back, places open again
@@ -804,6 +814,11 @@ function applyStage(db: DB, ev: EventRow, s: StoredStage, i: number): void {
     if (s.act.startsWith("fire_")) runFireAct(db, ev, s, i);
     else if (s.act.startsWith("hire_")) runHiringAct(db, ev, s, i);
     else if (s.act.startsWith("ballad_")) runBalladAct(db, ev, s, i); // M6 ballads: the singer and his crowd
+    else if (s.act.startsWith("tempest_")) {
+      // the great storm: the day's other events are called off (a wedding, a market do not go on in this)
+      if (s.act === "tempest_coming") for (const o of liveEvents(db)) if (o.id !== ev.id && !ROUTINE_TEMPLATES.has(o.template)) finishEvent(db, o, "cancelled", "the great storm");
+      runTempestAct(db, ev, s, i);
+    }
     writeEvent(db, { kind: "event", verb: `stage_${s.act}`, text: `${ev.title}: ${s.act.replace(/_/g, " ")}${s.label ? ` at ${s.label}` : ""}.`, place: ev.place, x: at.x, z: at.z, ref_type: "town_event", ref_id: ev.id, weight: i === 0 ? 3 : 2 });
     return;
   }
@@ -1365,6 +1380,8 @@ export function publicEvent(db: DB, ev: EventRow) {
     acts: stages.map((s) => s.act ?? null),
     fire: ev.template === "house_fire" ? fireForClient(stages) : null,
     hiring: ev.template === "hiring" ? hiringForClient(stages) : null,
+    /** The great storm (director/tempest.ts): the part it is in now. */
+    tempest: tempestForClient(db, ev),
     /** Game minutes left in the stage now playing (the client starts a late sound for the rest of it). */
     stage_left: ev.status === "running" && ev.stage >= 0 ? Math.max(0, stageEnd(ev, stages, ev.stage) - now) : 0,
     starts_in: Math.max(0, ev.start_m - now),
@@ -1383,4 +1400,5 @@ export function clearEvents(db: DB): void {
   db.prepare("DELETE FROM town_event").run();
   setState(db, "m4_prices", {});
   setState(db, "m4_closed", {});
+  setState(db, "tempest", null);
 }
