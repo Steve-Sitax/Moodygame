@@ -28,6 +28,7 @@ export type ActionId =
   | "haggle"
   | "lantern"
   | "map"
+  | "book"
   | "pockets"
   | "pause"
   | "newWeek";
@@ -59,6 +60,7 @@ export const ACTIONS: ActionDef[] = [
   { id: "buy", code: "KeyB", label: "Buy", also: "in a talk with a seller", group: "Talks" },
   { id: "haggle", code: "KeyH", label: "Haggle or leave", also: "in a talk; shout for help", group: "Talks" },
   { id: "map", code: "KeyM", label: "Map", group: "Screens" },
+  { id: "book", code: "KeyJ", label: "Quest book", also: "your jobs: follow one, give one up", group: "Screens" },
   { id: "pockets", code: "KeyI", label: "Pockets", group: "Screens" },
   { id: "pause", code: "KeyP", label: "Pause", also: "pay, when a gang asks", group: "Screens" },
   { id: "newWeek", code: "KeyN", label: "New week", also: "on the sheet at the end of the week", group: "Screens" },

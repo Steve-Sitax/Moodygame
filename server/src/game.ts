@@ -71,10 +71,10 @@ export function takeJob(db: DB, id: number): JobRow {
   const j = job(db, id);
   if (j.status !== "offered") throw new GameError("that job is not open", 409);
   if (!j.playable) throw new GameError("that kind of work is not in the game yet", 409);
-  // (M8c: one job in hand per player; another player's job is taken off the board for him)
-  // (a taken job with no taker named is the host's: older rows)
-  const busy = db.prepare("SELECT 1 FROM job WHERE status = 'taken' AND (taken_by = ? OR (taken_by IS NULL AND ? = 1))").get(pid(), pid());
-  if (busy) throw new GameError("finish the job you have first", 409);
+  // (T4 the quest book: up to MAX_JOBS_IN_HAND jobs in hand per player; another player's job is taken off the board
+  // for him; a taken job with no taker named is the host's: older rows)
+  const inHand = (db.prepare("SELECT COUNT(*) AS n FROM job WHERE status = 'taken' AND (taken_by = ? OR (taken_by IS NULL AND ? = 1))").get(pid(), pid()) as { n: number }).n;
+  if (inHand >= MAX_JOBS_IN_HAND) throw new GameError("You have your hands full already: finish or give up one of your jobs first", 409);
   for (const check of takeChecks) check(db, j);
   db.prepare("UPDATE job SET status = 'taken', taken_by = ? WHERE id = ?").run(pid(), id);
   log(db, "took_job", String(id), `Jef took a job from ${j.employer_name}: ${j.title}.`);
@@ -104,6 +104,9 @@ export function saveProgress(db: DB, id: number, p: Progress): JobRow {
 }
 
 /** What the 3D game reports when a job ends. Engine facts, not claims about money. */
+/** T4 the quest book (docs/trade-plan.md): jobs a player may hold at once. */
+export const MAX_JOBS_IN_HAND = 3;
+
 export const ReportSchema = z.object({
   delivered: z.number().int().min(0).max(10).default(0),
   lost: z.number().int().min(0).max(10).default(0),

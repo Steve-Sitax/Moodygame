@@ -66,6 +66,9 @@ const OWNER_CALM: Record<string, string> = {
   fientje: `"That's better, love. I'd have told the whole Vismarkt."`,
 };
 
+/** T4 the quest book: the twists a player is told of when he takes the work; the others are surprises, never shown. */
+const KNOWN_TWISTS: Record<string, string> = { foreman_watches: "The foreman is watching" };
+
 export class Jobs {
   private payload: JobsPayload | null = null;
   private active: Job | null = null;
@@ -129,6 +132,7 @@ export class Jobs {
     note: div("note paper"),
     tick: div("tick"),
     board: div("board paper"),
+    book: div("board paper book"),
   };
 
   // subtle pointer: a faint warm glow at the goal, and an ink tick at the top edge
@@ -143,6 +147,7 @@ export class Jobs {
     // the task card goes under the clock, in the top-left column (game/corner.ts)
     topLeft().appendChild(this.el.task);
     this.el.board.style.display = "none";
+    this.el.book.style.display = "none";
     // the ink tick (2026-09-27, Steve: "the quest arrow a bit bigger and a distance"): the arrow, the metres under it
     this.el.tick.innerHTML = `<span class="arr">▾</span><span class="dist"></span>`;
     // carried goods hang in front of the camera, so the camera joins the scene
@@ -162,9 +167,10 @@ export class Jobs {
     this.pockets = new Pockets(player, this.el.hud);
     this.pockets.toast = (t) => this.toastMsg(t);
     this.pockets.onChange = (p) => this.apply(p);
+    // (T4: up to three jobs in hand; with three, the offer waits)
     this.talk.work = (id) =>
-      this.active ? [] : (this.payload?.jobs ?? []).filter((j) => j.employer_npc === id && j.status === "offered" && j.playable);
-    this.talk.workLater = (id) => !!this.active && (this.payload?.jobs ?? []).some((j) => j.employer_npc === id && j.status === "offered" && j.playable);
+      this.jobsInHand().length >= 3 ? [] : (this.payload?.jobs ?? []).filter((j) => j.employer_npc === id && j.status === "offered" && j.playable);
+    this.talk.workLater = (id) => this.jobsInHand().length >= 3 && (this.payload?.jobs ?? []).some((j) => j.employer_npc === id && j.status === "offered" && j.playable);
     this.talk.onTakeWork = (j) => {
       this.talk.close();
       void this.takeJob(j);
@@ -250,12 +256,12 @@ export class Jobs {
       this.town.openWork = new Set(p.jobs.filter((j) => j.status === "offered" && j.playable).map((j) => j.employer_npc));
       this.town.takenWork = new Set(p.jobs.filter((j) => j.status === "taken").map((j) => j.employer_npc));
     }
-    // pick up a job that is already taken (reload in the middle of a job; M7 night: or its proof waiting for the box)
-    const taken = p.jobs.find((j) => j.status === "taken") ?? null;
-    if (taken && !this.active) {
-      if ((taken.task as { held?: unknown } | null)?.held) this.holdFor(taken);
-      else this.start(taken);
-    }
+    // T4 the quest book: up to three jobs in hand, one followed; pick up the followed one (a reload in the middle of a
+    // job; M7 night: or its proof waiting for the box), the one asked for, else the first
+    const inHand = p.jobs.filter((j) => j.status === "taken");
+    const taken = (this.active && inHand.find((j) => j.id === this.active!.id)) || inHand.find((j) => j.id === this.followId) || inHand[0] || null;
+    if (taken && !this.active) this.follow(taken);
+    if (this.bookOpen) this.renderBook();
     // the job ended on the server without us (its deadline, a gang, the cell): drop it here too
     if (this.active && !this.finishing && taken?.id !== this.active.id) {
       // M7 quest tests: the night's work gone at five vanished from the corner without a word
@@ -263,6 +269,9 @@ export class Jobs {
       const h = p.clock?.hour ?? this.day.hour;
       if (a.source === "night" && h >= 5 && h < 21) this.toastMsg(`Five o'clock: ${a.employer_name} is gone, and "${a.title}" with him. Not done, not paid.`);
       this.dropRun();
+      // T4: the next job in the book is followed now
+      const next = inHand.find((j) => j.id !== a.id);
+      if (next) this.follow(next);
     }
     if (this.boardOpen) this.renderBoard();
   }
@@ -552,6 +561,9 @@ export class Jobs {
 
   private onKey(e: KeyboardEvent): void {
     if (e.repeat || this.talk.isOpen || this.pockets.open || this.day.sheetOpen || this.map.open) return;
+    // T4 the quest book (J)
+    if (this.bookOpen) return this.bookKey(e);
+    if (e.code === "KeyJ" && !this.boardOpen) return this.openBook();
     if (this.boardOpen) {
       if (e.code === "KeyE" || e.code === "Escape") this.closeBoard();
       const n = Number(e.key);
@@ -634,7 +646,7 @@ export class Jobs {
     const j = p.jobs.find((x) => x.id === id);
     if (!j) return `no job ${id} today`;
     await this.takeJob(j);
-    return this.active?.id === id ? `took "${j.title}"` : "not taken (see the toast)";
+    return this.jobsInHand().some((q) => q.id === id) || this.active?.id === id ? `took "${j.title}"${this.active?.id === id ? " (followed)" : " (in the book)"}` : "not taken (see the toast)";
   }
 
   /** Dev: the job now running, if any. */
@@ -647,13 +659,20 @@ export class Jobs {
   private async takeJob(j: Job): Promise<void> {
     if (this.taking) return; // the first ask is still on its way (a second key press, the board and the talk window)
     if (!j.playable) return this.toastMsg("That work is not in this build yet.");
-    if (this.active) return this.toastMsg("Finish the job you have first.");
-    if (this.goods.carried) return this.toastMsg("Your hands are full. Set that down first.");
+    // T4 the quest book: up to three jobs in hand
+    if (this.jobsInHand().length >= 3) return this.toastMsg("You have your hands full already. Finish or give up a job first (J, your book).");
+    if (!this.active && this.goods.carried) return this.toastMsg("Your hands are full. Set that down first.");
     this.taking = true;
     try {
       const { job } = await api.take(j.id);
       this.closeBoard();
-      this.start(job);
+      // the first job is followed at once; another goes into the book (J to follow it)
+      if (!this.active) this.follow(job);
+      else if (this.active.id !== job.id) this.toastMsg(`In your book: ${job.title}. J to follow it.`);
+      void api
+        .jobs()
+        .then((p) => this.apply(p))
+        .catch(() => {});
     } catch (e) {
       // the server's words, as a sentence ("Too late for that one: ...")
       const m = String((e as Error).message);
@@ -708,6 +727,12 @@ export class Jobs {
     const t = this.active?.task;
     const end = t && "to" in t ? SPOTS[t.to] : undefined;
     if (end && this.active && !(goal && Math.hypot(goal.x - end.x, goal.z - end.z) < 4)) out.push({ x: end.x, z: end.z, label: `then: ${end.label}`, kind: "goal", detail: `where ${this.active.title} ends` });
+    // T4: the other jobs in hand, numbered as in the book
+    this.jobsInHand().forEach((j, i) => {
+      if (j.id === this.active?.id) return;
+      const g = this.goalOf(j);
+      if (g) out.push({ x: g.x, z: g.z, label: `${i + 1}: ${j.title}`, kind: "goal", detail: `for ${j.employer_name}; J to follow it` });
+    });
     // M7 night: the work is done and its man is back at his post: the proof goes into his hand
     const hb = this.heldBox();
     const boss = this.held && !hb ? this.people.get(this.held.employer_npc) : null;
@@ -739,6 +764,137 @@ export class Jobs {
   }
 
   /** Stop the running job without settling it (the server already closed it). */
+  // ------------------------------------------------------------- T4 the quest book
+
+  /** The job the player follows (drives the task card, the glow and the tick), kept over a reload. */
+  private followId: number | null = (() => {
+    try {
+      const v = Number(localStorage.getItem("scheldemist.follow"));
+      return Number.isFinite(v) && v > 0 ? v : null;
+    } catch {
+      return null;
+    }
+  })();
+  private bookOpen = false;
+  /** The book's page asked to give up (the second press gives it up). */
+  private giveUpAsk: number | null = null;
+
+  /** The jobs in hand (up to three), the followed one first. */
+  private jobsInHand(): Job[] {
+    const list = (this.payload?.jobs ?? []).filter((j) => j.status === "taken");
+    return list.sort((a, b) => Number(b.id === this.active?.id) - Number(a.id === this.active?.id) || a.id - b.id);
+  }
+
+  /** Follow this job: its run starts (the other job's run is set aside, its goods where they are). */
+  private follow(job: Job): void {
+    if (this.active?.id === job.id) return;
+    if (this.active) {
+      this.run?.dispose();
+      this.run = null;
+      this.active = null;
+      this.held = null;
+    }
+    this.followId = job.id;
+    try {
+      localStorage.setItem("scheldemist.follow", String(job.id));
+    } catch {
+      /* private window: not kept */
+    }
+    if ((job.task as { held?: unknown } | null)?.held) this.holdFor(job);
+    else this.start(job);
+  }
+
+  private openBook(): void {
+    this.bookOpen = true;
+    this.giveUpAsk = null;
+    this.player.frozen = true;
+    this.el.book.style.display = "block";
+    this.el.task.style.visibility = "hidden"; // (the corner's task card would cover the book's first page)
+    this.renderBook();
+  }
+
+  private closeBook(): void {
+    this.bookOpen = false;
+    this.player.frozen = false;
+    this.el.book.style.display = "none";
+    this.el.task.style.visibility = "";
+  }
+
+  /** Where a job is to be done, in words and as a point (for the book, the task card and the map). */
+  private goalOf(j: Job): { label: string; x: number; z: number } | null {
+    const t = j.task as { kind?: string; to?: string; post?: string; from?: string } | null;
+    const spot = t?.to ?? t?.post ?? null;
+    const s = spot ? SPOTS[spot as keyof typeof SPOTS] : undefined;
+    if (s) return { label: s.label, x: s.x, z: s.z };
+    const boss = this.people.get(j.employer_npc);
+    return boss ? { label: boss.def.name, x: boss.pos.x, z: boss.pos.z } : null;
+  }
+
+  /** The book: a page a job (what, where, pay and time, the twist he knows of), follow or give up with a key. */
+  private renderBook(): void {
+    const list = this.jobsInHand();
+    const { x, z } = this.player;
+    if (!list.length) {
+      this.el.book.innerHTML = `<h2>Your book</h2><p class="note-text">No work in hand. The hiring board on the Rijnkaai, or a word with someone who has work.</p><p class="keys">J to close</p>`;
+      return;
+    }
+    const rows = list
+      .map((j, i) => {
+        const g = this.goalOf(j);
+        const d = g ? `${metres(Math.hypot(g.x - x, g.z - z))}` : "";
+        const followed = this.active?.id === j.id;
+        const ask = this.giveUpAsk === j.id;
+        const tw = (j.task as { twist?: string } | null)?.twist;
+        return `<li class="${followed ? "" : "gone"}">
+          <div class="head"><span class="n">${i + 1}</span><span class="t">${esc(j.title)}</span><span class="pay">${j.pay_c} c</span></div>
+          <div class="who">${esc(j.employer_name)} &middot; ${esc(summary(j))}${g ? ` &middot; to ${esc(g.label)}, ${d}` : ""}${followed ? " &middot; <b>followed</b>" : ""}</div>
+          ${tw && KNOWN_TWISTS[tw] ? `<div class="pitch">You know: ${esc(KNOWN_TWISTS[tw])}</div>` : ""}
+          ${ask ? `<div class="pitch"><b>Give it up? G again: no pay, and ${esc(j.employer_name)} thinks less of you.</b></div>` : ""}
+        </li>`;
+      })
+      .join("");
+    this.el.book.innerHTML = `<h2>Your book &mdash; ${list.length} of 3 jobs</h2><ol>${rows}</ol>
+      <p class="keys">A number follows that job &middot; G then G gives up the one asked &middot; M the map &middot; J to close</p>`;
+  }
+
+  private bookKey(e: KeyboardEvent): void {
+    if (e.code === "Escape" || e.code === "KeyJ") return this.closeBook();
+    const list = this.jobsInHand();
+    const n = Number(e.key);
+    if (n >= 1 && n <= list.length) {
+      this.follow(list[n - 1]);
+      this.giveUpAsk = null;
+      this.toastMsg(`Following: ${list[n - 1].title}.`);
+      return this.renderBook();
+    }
+    if (e.code === "KeyG") {
+      const j = this.active ?? list[0];
+      if (!j) return;
+      if (this.giveUpAsk === j.id) {
+        this.giveUpAsk = null;
+        void this.giveUp(j);
+      } else this.giveUpAsk = j.id;
+      return this.renderBook();
+    }
+    if (e.code === "KeyM") {
+      this.closeBook();
+      this.map.toggle();
+    }
+  }
+
+  /** Give up a job in hand: settled with nothing done (no pay; the employer's trust, as the engine rules). */
+  private async giveUp(j: Job): Promise<void> {
+    try {
+      await api.done(j.id, { delivered: 0, lost: 0, sold: 0, pocketed: false, late: false, left_post_s: 0, thief: "none", bribe_taken: false, seen_away: false });
+      if (this.active?.id === j.id) this.dropRun();
+      this.toastMsg(`You gave up "${j.title}". ${j.employer_name} will remember.`);
+      const p = await api.jobs();
+      this.apply(p);
+    } catch {
+      this.toastMsg("That did not go through. Try again.");
+    }
+  }
+
   private dropRun(): void {
     const id = this.active?.id;
     this.run?.dispose();
@@ -825,10 +981,20 @@ export class Jobs {
     const html = this.held
       ? `<b>${esc(this.held.title)}</b><br>The work is done.<br>${hb ? `Drop the proof in ${esc(hb.name)}'s box ${esc(hb.label)}` : `Take the proof to ${esc(this.held.employer_name)}`}`
       : this.nightNote(this.run?.hud() ?? "");
-    if (html === this.lastTask) return;
-    this.lastTask = html;
-    this.el.task.innerHTML = html;
-    this.el.task.style.display = html ? "block" : "none";
+    // T4: one short line a job in hand besides the followed one
+    const others = this.jobsInHand().filter((j) => j.id !== this.active?.id);
+    const { x, z } = this.player;
+    const more = others
+      .map((j) => {
+        const g = this.goalOf(j);
+        return `<span class="also">and: ${esc(j.title)}${g ? ` &ndash; ${metres(Math.hypot(g.x - x, g.z - z))}` : ""}</span>`;
+      })
+      .join("<br>");
+    const full = html && more ? `${html}<br>${more}` : html || (more ? `${more}<br><span class="also">J: your book, to follow one</span>` : "");
+    if (full === this.lastTask) return;
+    this.lastTask = full;
+    this.el.task.innerHTML = full;
+    this.el.task.style.display = full ? "block" : "none";
   }
 
   /** M7 night: the night's work says when it must be done (the man who gave it is gone at 5:00). */
