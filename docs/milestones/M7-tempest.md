@@ -59,6 +59,29 @@ the rain sounded like a roof while outside, and far too loud indoors; not much t
 | Rain sound | `audio/soundscape.ts` | The roofs' drumming by how much house is round Jef (loud in a lane or a doorway, far off on open ground); in the open a broad downpour roar; the river pounding the quays heard 35 m back; indoors the storm much duller and quieter. |
 | Fix | `game/interiors.ts` | The tipsy sway's NaN (a refused answer) made the camera's height NaN: a blank screen. Guarded (closes #18). |
 
+## Pass 3 (Steve 2026-09-29)
+
+Steve: no lightning heard ("way worse"); the thunder he did hear "sounded like fireworks" (search good recordings; standing
+OK to download sounds); rain still tame; blown back but the view does not follow; the quay splash only "bubbles", and a
+metre inland of the wall; no rain seen out of the cafe's windows; animals should shelter or cower; more debris.
+
+| What | File | How |
+|---|---|---|
+| Thunder heard | `audio/soundscape.ts placed(must)` | The storm's bangs and slams filled the placed-sound cap (28) and every sound past 25 m was dropped: the thunder (60-300 m out) went silent. Thunder and gust roars are `must`. |
+| Real thunder | `audio/samples.ts`, `aliveSounds.ts playRecorded`, `assets/ATTRIBUTION.md` | 11 BigSoundBank thunderclaps (CC0, Joseph Sardin), trimmed and levelled, loaded on the first storm. Measured (rise time, highs): near #4 #5 #3 #7, far #1 #2 #6 #8-#11. Near: a torn crack made in code (band noise roughened at ~90 Hz, 0.2-0.45 s) and a deep blast, the recorded boom on it, a shade faster; far: duller, lower, softer. The made-in-code thunder stays only as a fallback. |
+| Recorded beds | same | "Strong Wind and Trees #1" (storm Miguel) as the gale, louder in the gusts; "Summer Rain on Terrace" as the downpour; "Wind from Inside #1" (storm Ciara) on the room's bus when Jef is indoors. The made howl and downpour stay under them, quieter. |
+| Rain | `world/ambient.ts` | Strips a pixel and a half wide at 270 lines (more close by), 6000 drops; the far rain layer's shader did not compile in pass 2 (`veil` used before it was set): fixed, denser. Out of a room's windows: the room's box (measured from its objects when Jef comes in) is kept dry, the rest rains. |
+| The street boils | `alive/gale.ts createSplash` | Up to 1400 splashes a second on open ground round Jef, a hand high, gone in half a second (mist material). |
+| Surf | `alive/gale.ts createSurf` | At the wall's true face (`groundAt` drops at it; `baseAt` reads the quay's height over water), and only where open water runs 25 m out. Each burst throws a sheet of white water up the face (its own shader: ragged jets, foam, streaks, torn top, thrown over by the wind; 6 at most) with fine spray; no big puffs. |
+| Debris | `alive/gale.ts createDebris` | 48 things torn loose: slates and shingles off the roofs upwind (a slate smashes on the stones with its crash), washing and rags flapping high, newspaper sheets, hats bowling along, straw bundles. One instanced mesh. (Leaves and scraps: `leaves.ts`, now the "Leaves" session's: from the crowns and the heaps.) |
+| Jef shoved | `player/firstPerson.ts` | The view staggers with the shove: tilts with a push from the side, stoops with one from behind, a step aside. |
+| Animals | `game/animals.ts storm` | Strays and cats run to their doorstep and lie flat there, trembling; with the way shut, against the wall where they are. Owners' dogs stay with their people. |
+| Lightning | `alive/air.ts` | A wait set before the storm grew is cut short as it grows (the first strike came late). |
+| Mirrors | `world/mirror.ts neverMirrored` | The rain, the layers, the spray, the sheets, the splashes, the flyers, the debris and the bolt are never drawn in a mirror. |
+
+Cost (test stack, hidden tab, storm on and off back and forth, 50 frames each): 50.9 / 50.4 ms median, the same draw
+calls: about 0.5 ms. `shaders()` problems empty.
+
 ## Checks (2026-09-28, test stack)
 - `server/test/tempest.test.ts`: shops 0 open in it and open again after; the weather storm then rain; no job
   taken; taverns open and full; other events called off, none planned; the shelter rule stable; the director's

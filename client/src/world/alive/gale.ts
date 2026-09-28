@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { psx } from "../../retro/psx";
 import { gustRoar, rollingCask, shutterBang, signCreak, slateCrash, waveSlam } from "../../audio/aliveSounds";
 import { mistMaterial } from "./air";
 import { rand, type Ctx, type Frame, type Part } from "./common";
@@ -179,7 +180,7 @@ export function createSurf(ctx: Ctx): Part {
   g.setAttribute("aAge", new THREE.BufferAttribute(age, 1));
   g.setAttribute("aSize", new THREE.BufferAttribute(size, 1));
   const tint = { value: new THREE.Color() };
-  const pts = new THREE.Points(g, mistMaterial(tint, { value: 2.2 }));
+  const pts = new THREE.Points(g, mistMaterial(tint, { value: 1.8 }));
   pts.frustumCulled = false;
   pts.name = "alive_surf";
   neverMirrored.push(pts);
@@ -244,7 +245,11 @@ export function createSurf(ctx: Ctx): Part {
               break;
             }
           }
-          if (face >= 0) edges.push({ x: x0 + dx * face, z: z0 + dz * face, ix: -dx, iz: -dz, top });
+          // only the open river throws up surf (Steve: "water from the Schelde"): water at least 25 m out from the face,
+          // not a canal or a vliet a few metres across
+          let open = face >= 0;
+          for (let s = 2; open && s < 25; s += 2) if (ctx.flags(x0 + dx * (face + s), z0 + dz * (face + s)) !== 2) open = false;
+          if (open) edges.push({ x: x0 + dx * face, z: z0 + dz * face, ix: -dx, iz: -dz, top });
           break;
         }
       }
@@ -283,8 +288,8 @@ export function createSurf(ctx: Ctx): Part {
       q.age = 0;
       q.life = 1.3 + Math.random() * 1.2;
       q.floor = wl;
-      // fine drops over the sheet (a few soft clouds of spray at its top)
-      size[i] = Math.random() < 0.08 ? 1.2 + Math.random() * 1.2 : 0.2 + Math.random() * 0.45;
+      // fine drops over the sheet (no big puffs: they read as bubbles, Steve 2026-09-29)
+      size[i] = 0.15 + Math.random() * 0.4;
       n--;
     }
     bursts++;
@@ -446,6 +451,170 @@ export function createSplash(ctx: Ctx): Part {
     setOn: (v) => {
       on = v;
       if (!v) pts.visible = false;
+    },
+  };
+}
+
+// ------------------------------------------------------------------ what the gale tears loose
+
+const DEBRIS = 48;
+type DebrisKind = "slate" | "shingle" | "cloth" | "paper" | "hat" | "straw";
+/** Size (x, y, z m), colours, how the air takes it (drag), how heavy (gravity share), how many of each in 48. */
+const DEBRIS_KINDS: Record<DebrisKind, { size: [number, number, number]; cols: number[]; drag: number; g: number; n: number }> = {
+  slate: { size: [0.32, 0.018, 0.22], cols: [0x3c434c, 0x4a5058, 0x333a42], drag: 0.5, g: 1, n: 10 },
+  shingle: { size: [0.7, 0.03, 0.13], cols: [0x6b5238, 0x5a4530, 0x7a6448], drag: 0.8, g: 0.85, n: 6 },
+  cloth: { size: [0.9, 0.012, 0.7], cols: [0xd8d4c8, 0xb8b2a4, 0x8c2a22, 0x46506a], drag: 2.4, g: 0.25, n: 9 },
+  paper: { size: [0.45, 0.006, 0.32], cols: [0xd0c8b0, 0xc4bca4], drag: 3, g: 0.2, n: 10 },
+  hat: { size: [0.3, 0.14, 0.3], cols: [0x1c1a18, 0x3a3228], drag: 1.4, g: 0.7, n: 5 },
+  straw: { size: [0.45, 0.12, 0.12], cols: [0xc4a85a, 0xb09448], drag: 1.2, g: 0.6, n: 8 },
+};
+
+/**
+ * The great storm (Steve 2026-09-29: "we need flying stuff through the air"): what the gale tears loose round Jef.
+ * Slates and shingles ripped off the roofs upwind, whirled down the street and smashing on the stones; washing and
+ * rags off the lines, flapping high over the street; sheets of newspaper; hats bowling along; bundles of straw. One
+ * instanced mesh (one draw call, one material), made at load; more of it the harder it blows. (The leaves, the scraps
+ * and the chips are in world/alive/leaves.ts.)
+ */
+export function createDebris(ctx: Ctx): Part {
+  let on = true;
+  const mat = psx(new THREE.MeshLambertMaterial({ color: 0xffffff }), { affine: 0 });
+  mat.name = "storm_debris";
+  const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), mat, DEBRIS);
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  mesh.frustumCulled = false;
+  mesh.name = "alive_debris";
+  neverMirrored.push(mesh);
+  ctx.scene.add(mesh);
+  interface Bit { kind: DebrisKind; p: THREE.Vector3; v: THREE.Vector3; rot: THREE.Euler; spin: THREE.Vector3; live: boolean; rest: number; ph: number }
+  const bits: Bit[] = [];
+  const col = new THREE.Color();
+  for (const [kind, k] of Object.entries(DEBRIS_KINDS) as Array<[DebrisKind, (typeof DEBRIS_KINDS)[DebrisKind]]>) {
+    for (let j = 0; j < k.n; j++) {
+      const i = bits.length;
+      mesh.setColorAt(i, col.setHex(k.cols[j % k.cols.length]));
+      mesh.setMatrixAt(i, new THREE.Matrix4().makeScale(0, 0, 0));
+      bits.push({ kind, p: new THREE.Vector3(), v: new THREE.Vector3(), rot: new THREE.Euler(), spin: new THREE.Vector3(), live: false, rest: 0, ph: Math.random() * 10 });
+    }
+  }
+  const HIDE = new THREE.Matrix4().makeScale(0, 0, 0);
+  const m4 = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const eu = new THREE.Euler();
+  const sc = new THREE.Vector3();
+  const w2 = new THREE.Vector2();
+  let flying = 0;
+  let smashed = 0;
+
+  /** Upwind of Jef: off a roof (slates, shingles, washing), or out of a street (the rest). */
+  function launch(b: Bit, f: Frame, anywhere: boolean): void {
+    const dir = ctx.wind.dir;
+    for (let t = 0; t < 5; t++) {
+      const along = anywhere ? (Math.random() * 2 - 1) * 30 : -(18 + Math.random() * 16);
+      const across = (Math.random() * 2 - 1) * 22;
+      const x = f.eye.x + dir.x * along - dir.y * across;
+      const z = f.eye.z + dir.y * along + dir.x * across;
+      const fl = ctx.flags(x, z);
+      const y0 = ctx.world.baseAt(x, z);
+      if (fl === undefined || fl === 2 || fl === 4 || !Number.isFinite(y0)) continue;
+      const roof = b.kind === "slate" || b.kind === "shingle" || (b.kind === "cloth" && Math.random() < 0.5);
+      if (roof && fl !== 1) continue;
+      if (!roof && fl !== 0) continue;
+      b.p.set(x, roof ? y0 + 8 + Math.random() * 5 : b.kind === "hat" || b.kind === "straw" ? y0 + 0.2 : y0 + 0.5 + Math.random() * 4, z);
+      ctx.wind.at(x, z, w2);
+      b.v.set(w2.x * 0.6, roof ? 2 + Math.random() * 3 : 1, w2.y * 0.6);
+      b.spin.set((Math.random() - 0.5) * 16, (Math.random() - 0.5) * 16, (Math.random() - 0.5) * 16);
+      b.live = true;
+      b.rest = 0;
+      return;
+    }
+  }
+
+  function update(f: Frame): void {
+    if (!on) return;
+    const fury = f.weather === "storm" ? tempest.level : 0;
+    const want = Math.round(DEBRIS * Math.min(1, fury * 1.1));
+    const dt = Math.min(f.dt, 0.05);
+    flying = 0;
+    for (let i = 0; i < DEBRIS; i++) {
+      const b = bits[i];
+      const k = DEBRIS_KINDS[b.kind];
+      // (every kind gets its share as it grows: the list's order is mixed by the index)
+      const slot = (i * 29) % DEBRIS;
+      if (slot >= want) {
+        b.live = false;
+        mesh.setMatrixAt(i, HIDE);
+        continue;
+      }
+      if (!b.live || b.p.distanceTo(f.eye) > 48 || b.rest > 5) launch(b, f, !b.live && flying < want / 2);
+      if (!b.live) {
+        mesh.setMatrixAt(i, HIDE);
+        continue;
+      }
+      ctx.wind.at(b.p.x, b.p.z, w2);
+      const gust = ctx.wind.gustAt(b.p.x, b.p.z);
+      const ground = ctx.world.baseAt(b.p.x, b.p.z);
+      const gy = Number.isFinite(ground) ? ground : b.p.y - 1;
+      const carry = Math.min(1, 0.35 + 0.25 * gust);
+      b.v.x += (Math.min(26, w2.x * carry) - b.v.x) * Math.min(1, dt * k.drag);
+      b.v.z += (Math.min(26, w2.y * carry) - b.v.z) * Math.min(1, dt * k.drag);
+      b.ph += dt;
+      // light things ride the eddies up and down; heavy ones fall
+      const lift = (Math.sin(b.ph * 2.1 + i) * 2.5 + Math.sin(b.ph * 4.7 + i * 2) * 1.2) * (1 - k.g) * (0.6 + 0.3 * gust);
+      b.v.y += (lift - 9.8 * k.g * 0.6) * dt;
+      b.v.y = Math.max(b.v.y, -14);
+      const nx = b.p.x + b.v.x * dt;
+      const nz = b.p.z + b.v.z * dt;
+      if (ctx.flags(nx, nz) === 1 && b.p.y < gy + 9) {
+        // into a house front: it slaps the wall and drops
+        b.v.x *= -0.2;
+        b.v.z *= -0.2;
+        b.v.y = Math.min(b.v.y, 0);
+      } else {
+        b.p.x = nx;
+        b.p.z = nz;
+      }
+      b.p.y += b.v.y * dt;
+      const floor = gy + k.size[1] * 0.5;
+      if (b.p.y < floor) {
+        b.p.y = floor;
+        if (b.kind === "slate" && b.v.y < -4) {
+          // a slate smashes on the stones: gone, with its crash
+          ctx.sound()?.placed({ x: b.p.x, y: gy + 0.2, z: b.p.z }, { ref: 3, reach: 40, max: 70, wet: 0.3 }, slateCrash());
+          smashed++;
+          b.live = false;
+          mesh.setMatrixAt(i, HIDE);
+          continue;
+        }
+        // along the ground: a hat bowls on, the rest skid and lie until a gust takes them again
+        b.v.y = gust > 1 && b.kind !== "slate" ? 2 + Math.random() * 3 : 0;
+        const fr = b.kind === "hat" ? 0.4 : 2.5;
+        b.v.x *= Math.max(0, 1 - dt * fr);
+        b.v.z *= Math.max(0, 1 - dt * fr);
+        if (Math.hypot(b.v.x, b.v.z) < 0.3) b.rest += dt;
+        b.spin.multiplyScalar(Math.max(0, 1 - dt * 3));
+      }
+      b.rot.x += b.spin.x * dt;
+      b.rot.y += b.spin.y * dt;
+      b.rot.z += b.spin.z * dt;
+      // washing and paper flap as they go
+      const flap = b.kind === "cloth" || b.kind === "paper" ? Math.sin(b.ph * 14 + i) * 0.5 : 0;
+      q.setFromEuler(eu.set(b.rot.x + flap, b.rot.y, b.rot.z + flap * 0.6));
+      m4.compose(b.p, q, sc.set(k.size[0], k.size[1], k.size[2]));
+      mesh.setMatrixAt(i, m4);
+      flying++;
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.visible = flying > 0;
+  }
+
+  return {
+    name: "debris",
+    update,
+    info: () => ({ flying, smashed }),
+    setOn: (v) => {
+      on = v;
+      if (!v) mesh.visible = false;
     },
   };
 }
