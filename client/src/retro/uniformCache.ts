@@ -1,4 +1,5 @@
 import type * as THREE from "three";
+import { psxUniforms } from "./psx";
 
 // Array uniforms sent only when they change (2026-09-28, the slow frames). three.js r186 sends an array uniform
 // (vec4 u[48]: the light spill's four lists, the lamps) again every time a material is set up, with no check
@@ -18,14 +19,18 @@ interface ArrayUniform {
 }
 
 const patched = new WeakSet<object>();
-/** Dev: off, every array uniform goes the three.js way again (the pixel diff). */
-export const uniformCache = { on: true };
+/**
+ * Dev: `on` off, every array uniform goes the three.js way again; `globals` off, the shared psx uniforms are sent at
+ * every material switch again (the pixel diff).
+ */
+export const uniformCache = { on: true, globals: true };
 if (import.meta.env.DEV) Object.assign(window, { __uniformCache: uniformCache });
 
 /** Patch the array uniforms of every program not seen yet (cheap: call it once a frame). */
 export function cacheArrayUniforms(renderer: THREE.WebGLRenderer): void {
   const progs = renderer.info.programs as unknown as Array<{ getUniforms(): { seq: object[] } }> | null;
   if (!progs) return;
+  if (!installed && progs.length) installGlobals(renderer, progs[0].getUniforms().constructor as unknown as UniformsClass);
   for (const p of progs) {
     if (patched.has(p)) continue;
     patched.add(p);
@@ -90,5 +95,54 @@ function patch(u: ArrayUniform): void {
     if (same) return;
     if (comps === 4) gl.uniform4fv(u.addr, snap);
     else gl.uniform3fv(u.addr, snap);
+  };
+}
+
+// ---- the shared psx uniforms once per program and render call (2026-09-28, the slow frames)
+// three.js sends every uniform of a material again at each material switch (~630 a frame, ~40 uniforms each). About
+// half of a psx material's are the same objects for every material (psxUniforms: the lamps, the rain, the fog's
+// glow, the time ...), set before a render call and not during it. A program keeps its uniforms, so within one render
+// call each program needs them once: this counts the render calls and sends a shared uniform to a program only when
+// that program has not had that very object in this call. Textures always go (they bind a texture unit, not a
+// program's state). The picture is the same to the bit (pixelDiff("globals")).
+
+interface UniformsClass {
+  upload(gl: WebGL2RenderingContext, seq: Uploaded[], values: Record<string, { value: unknown; needsUpdate?: boolean }>, textures: unknown): void;
+}
+interface Uploaded {
+  id: string;
+  type?: number;
+  setValue(gl: WebGL2RenderingContext, v: unknown, textures: unknown): void;
+  __gv?: number;
+  __go?: object;
+}
+/** Uniform types that only set a program's value (no texture unit): floats, ints, bools, vectors, matrices. */
+const PLAIN = new Set([0x1406, 0x8b50, 0x8b51, 0x8b52, 0x8b5a, 0x8b5b, 0x8b5c, 0x1404, 0x8b56, 0x8b53, 0x8b54, 0x8b55, 0x8b57, 0x8b58, 0x8b59, 0x1405, 0x8dc6, 0x8dc7, 0x8dc8]);
+const globals = new Set<object>(Object.values(psxUniforms));
+let installed = false;
+let call = 0;
+
+function installGlobals(renderer: THREE.WebGLRenderer, U: UniformsClass): void {
+  installed = true;
+  const render = renderer.render.bind(renderer);
+  renderer.render = (scene, camera) => {
+    call++;
+    render(scene, camera);
+    call++;
+  };
+  const upload = U.upload;
+  U.upload = function (gl, seq, values, textures) {
+    if (!uniformCache.globals) return upload.call(this, gl, seq, values, textures);
+    for (let i = 0, n = seq.length; i !== n; ++i) {
+      const u = seq[i];
+      const v = values[u.id];
+      if (v.needsUpdate === false) continue;
+      if (globals.has(v) && u.type !== undefined && PLAIN.has(u.type)) {
+        if (u.__gv === call && u.__go === v) continue;
+        u.__gv = call;
+        u.__go = v;
+      }
+      u.setValue(gl, v.value, textures);
+    }
   };
 }
