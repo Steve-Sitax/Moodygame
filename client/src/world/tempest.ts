@@ -21,13 +21,15 @@ export interface TempestState {
   gust: number;
   /** Jef is under a roof (main.ts): no rain drawn round him. */
   indoors: boolean;
+  /** The room Jef stands in, its box (main.ts, from the room's own objects): no rain drawn in it, out of its windows only. */
+  roomBox: { min: { x: number; z: number }; max: { x: number; z: number } } | null;
   /** The town's wind (world/alive/wind.ts, set by main.ts): its gust fronts bring the rain's veils (world/ambient.ts). */
   wind: { fronts(out: Float32Array, a0s: Float32Array): void; readonly dir: { x: number; y: number } } | null;
   /** When the part changes (the toasts: main.ts). */
   onPhase: (p: TempestPhase | null, was: TempestPhase | null) => void;
 }
 
-export const tempest: TempestState = { phase: null, event: 0, level: 0, hold: null, gust: 0, indoors: false, wind: null, onPhase: () => {} };
+export const tempest: TempestState = { phase: null, event: 0, level: 0, hold: null, gust: 0, indoors: false, roomBox: null, wind: null, onPhase: () => {} };
 
 let target = 0;
 /** The storm's event as the server last sent it (its stage and the minutes left in it: events.ts counts them down). */

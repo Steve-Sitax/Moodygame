@@ -6,6 +6,7 @@ import { leaves as leafSound } from "../../audio/aliveSounds";
 import { mulberry, openAt, type Ctx, type Frame, type Part } from "./common";
 import { dice, hash32, seeded, sharedSeconds } from "../../game/share";
 import { tempest } from "../tempest";
+import { neverMirrored } from "../mirror";
 
 // M7 alive: autumn leaves and scraps of paper blown along the streets. Round Jef (within 26 m)
 // lie some ninety leaves and a few torn bills and wrappers. The leaves lie only near trees (the quays,
@@ -24,7 +25,7 @@ const N = N_LEAF + N_PAPER;
  * torn paper, dark scraps (straw, rag, slate chips: the leaf card tinted dark). A second instanced mesh with the same
  * material (no new shader). Up to this many; on an ordinary storm day a few.
  */
-const N_FLY = 110;
+const N_FLY = 280;
 const FLY_R = 30;
 const R = 26;
 // (every tree that sheds: the quays' and streets', the wild ones on the ramparts, those of the Sint-Jansplein and
@@ -149,18 +150,30 @@ export function createLeaves(ctx: Ctx): Part {
   flyMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   flyMesh.frustumCulled = false;
   flyMesh.name = "alive_flyers";
-  interface Flyer { p: THREE.Vector3; v: THREE.Vector3; rot: THREE.Euler; quat: THREE.Quaternion; spin: THREE.Vector3; s: number; paper: boolean; live: boolean; down: number; ph: number }
+  neverMirrored.push(flyMesh);
+  interface Flyer { p: THREE.Vector3; v: THREE.Vector3; rot: THREE.Euler; quat: THREE.Quaternion; spin: THREE.Vector3; s: number; paper: boolean; live: boolean; down: number; ph: number; leaf: boolean }
   const flyers: Flyer[] = [];
   const fr = mulberry(1873_28);
   for (let i = 0; i < N_FLY; i++) {
+    // leaves most, torn paper, rags (the paper card dyed: sacking, a grey shirt, a red kerchief), straw, slate chips
     const kindOf = fr();
-    const paper = kindOf < 0.22;
-    const dark = !paper && kindOf < 0.5;
-    flyKind.setX(i, paper ? 0.5 : 0);
-    const c = paper ? new THREE.Color(0.78, 0.76, 0.7) : dark ? new THREE.Color().setHSL(0.08, 0.15 + fr() * 0.2, 0.12 + fr() * 0.1) : new THREE.Color().setHSL(0.05 + fr() * 0.07, 0.6 + fr() * 0.3, 0.3 + fr() * 0.2);
+    const paper = kindOf < 0.12;
+    const rag = !paper && kindOf < 0.24;
+    const straw = !paper && !rag && kindOf < 0.34;
+    const dark = !paper && !rag && !straw && kindOf < 0.44;
+    flyKind.setX(i, paper || rag ? 0.5 : 0);
+    const c = paper
+      ? new THREE.Color(0.78, 0.76, 0.7)
+      : rag
+        ? [new THREE.Color(0.42, 0.34, 0.24), new THREE.Color(0.35, 0.35, 0.36), new THREE.Color(0.5, 0.14, 0.1), new THREE.Color(0.25, 0.27, 0.36)][Math.floor(fr() * 4)]
+        : straw
+          ? new THREE.Color().setHSL(0.13, 0.45, 0.55 + fr() * 0.15)
+          : dark
+            ? new THREE.Color().setHSL(0.08, 0.15 + fr() * 0.2, 0.12 + fr() * 0.1)
+            : new THREE.Color().setHSL(0.05 + fr() * 0.07, 0.6 + fr() * 0.3, 0.3 + fr() * 0.2);
     flyMesh.setColorAt(i, c);
     flyMesh.setMatrixAt(i, new THREE.Matrix4().makeScale(0, 0, 0));
-    flyers.push({ p: new THREE.Vector3(), v: new THREE.Vector3(), rot: new THREE.Euler(fr() * 6, fr() * 6, fr() * 6), quat: new THREE.Quaternion(), spin: new THREE.Vector3(), s: paper ? 0.25 + fr() * 0.2 : dark ? 0.1 + fr() * 0.14 : 0.16 + fr() * 0.12, paper, live: false, down: 0, ph: fr() * 100 });
+    flyers.push({ p: new THREE.Vector3(), v: new THREE.Vector3(), rot: new THREE.Euler(fr() * 6, fr() * 6, fr() * 6), quat: new THREE.Quaternion(), spin: new THREE.Vector3(), s: rag ? 0.35 + fr() * 0.3 : paper ? 0.25 + fr() * 0.2 : dark || straw ? 0.08 + fr() * 0.12 : 0.16 + fr() * 0.12, paper: paper || rag, live: false, down: 0, ph: fr() * 100, leaf: !paper && !rag && !straw && !dark });
   }
   flyGeo.setAttribute("aKind", flyKind);
   ctx.scene.add(flyMesh);
@@ -170,6 +183,30 @@ export function createLeaves(ctx: Ctx): Part {
   /** A flyer into the wind upwind of Jef (in the air, a little out of the way), or null: no open ground there. */
   function launch(q: Flyer, eye: THREE.Vector3, first: boolean): void {
     const dir = ctx.wind.dir;
+    // a leaf is torn off a tree crown near him more often than not (the trees of the quays, squares and ramparts)
+    if (q.leaf && Math.random() < 0.65) {
+      let best: number[] | null = null;
+      let bd = 36;
+      for (let k = 0; k < 10; k++) {
+        const t = TREES[Math.floor(Math.random() * TREES.length)];
+        if (!t) break;
+        const d = Math.hypot(t[0] - eye.x, t[1] - eye.z);
+        if (d < bd) {
+          bd = d;
+          best = t;
+        }
+      }
+      const y0 = best ? ctx.world.baseAt(best[0], best[1]) : NaN;
+      if (best && Number.isFinite(y0)) {
+        q.p.set(best[0] + (Math.random() - 0.5) * 5, y0 + 4 + Math.random() * 6, best[1] + (Math.random() - 0.5) * 5);
+        ctx.wind.at(q.p.x, q.p.z, fw);
+        q.v.set(fw.x * 0.4, 0, fw.y * 0.4);
+        q.spin.set((Math.random() - 0.5) * 18, (Math.random() - 0.5) * 18, (Math.random() - 0.5) * 18);
+        q.live = true;
+        q.down = 0;
+        return;
+      }
+    }
     for (let t = 0; t < 4; t++) {
       // upwind, spread across the wind; the first fill anywhere round him
       const along = first ? (Math.random() * 2 - 1) * FLY_R : -FLY_R * (0.6 + Math.random() * 0.4);

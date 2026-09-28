@@ -138,7 +138,10 @@ export const gutterSplash = (strong: number, len: number): Make => (ctx, out, t0
  * claps are built ahead in a worker (thunderPrime) and kept by distance; one near enough in distance is played, and
  * the worker makes another. Only if none is ready is one built here, at a low rate. The caller waits km / 343 s.
  */
-export const thunder = (km: number): Make => (ctx, out, t0) => {
+export const thunder = (km: number): Make => (ctx, out, t0, noise) => {
+  // the recordings when they are in (audio/soundscape.ts loadStorm): a real clap, by distance
+  const rec = km < 1.3 ? recordedThunder.near : recordedThunder.far;
+  if (rec.length) return playRecorded(ctx, out, t0, noise, km, rec[Math.floor(Math.random() * rec.length)]);
   let best = -1;
   let bd = 0.45;
   for (let i = 0; i < thunderPool.length; i++) {
@@ -158,6 +161,66 @@ export const thunder = (km: number): Make => (ctx, out, t0) => {
   src.start(t0);
   return got.data.length / got.sr + 0.5;
 };
+
+/** The recorded thunderclaps (audio/samples.ts THUNDER_NEAR, THUNDER_FAR), set by the soundscape once loaded. */
+export const recordedThunder: { near: AudioBuffer[]; far: AudioBuffer[] } = { near: [], far: [] };
+
+/**
+ * A recorded clap `km` off. Near (under 1.3 km): the air tears first (a dense ripping crack, bright and short: the
+ * recordings carry little of it) and the boom comes on it, a shade faster; mid-distance the recording as it is;
+ * far off, duller and lower, and softer.
+ */
+function playRecorded(ctx: BaseAudioContext, out: AudioNode, t0: number, noise: AudioBuffer, km: number, b: AudioBuffer): number {
+  const src = ctx.createBufferSource();
+  src.buffer = b;
+  const near = km < 1.3;
+  src.playbackRate.value = near ? rand(1.0, 1.08) : km > 3 ? rand(0.82, 0.93) : rand(0.93, 1.0);
+  const lp = ctx.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.value = near ? 9000 : 3200 / (1 + km / 2.5);
+  const g = ctx.createGain();
+  g.gain.value = near ? 1.25 : km > 3 ? 0.55 / (1 + (km - 3) / 6) : 0.85;
+  src.connect(lp).connect(g).connect(out);
+  let lead = 0;
+  if (near) {
+    // the tear: noise through a band, roughened fast (the channel's crackle run together), 0.2-0.45 s, then the boom
+    const len = rand(0.2, 0.45) * (1.3 - km / 1.3 * 0.5);
+    const n = ctx.createBufferSource();
+    n.buffer = noise;
+    n.loop = true;
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = rand(1800, 3200);
+    bp.Q.value = 0.6;
+    const ng = ctx.createGain();
+    const steps = Math.floor(len * 90);
+    ng.gain.setValueAtTime(0, t0);
+    for (let i = 0; i < steps; i++) {
+      const t = t0 + 0.003 + (i / steps) * len;
+      ng.gain.setValueAtTime(rand(0.25, 1) * 0.9 * Math.pow(1 - i / steps, 1.4), t);
+    }
+    ng.gain.setTargetAtTime(0, t0 + len, 0.03);
+    n.connect(bp).connect(ng).connect(out);
+    n.start(t0, Math.random());
+    n.stop(t0 + len + 0.3);
+    // and the blast of it, deep
+    const bl = ctx.createBufferSource();
+    bl.buffer = noise;
+    const blp = ctx.createBiquadFilter();
+    blp.type = "lowpass";
+    blp.frequency.value = 220;
+    const bg = ctx.createGain();
+    bg.gain.setValueAtTime(0, t0 + len * 0.6);
+    bg.gain.linearRampToValueAtTime(1.6, t0 + len * 0.6 + 0.02);
+    bg.gain.setTargetAtTime(0, t0 + len * 0.6 + 0.02, 0.35);
+    bl.connect(blp).connect(bg).connect(out);
+    bl.start(t0 + len * 0.6, Math.random());
+    bl.stop(t0 + len * 0.6 + 2);
+    lead = len * 0.5;
+  }
+  src.start(t0 + lead);
+  return lead + b.duration / src.playbackRate.value + 0.3;
+}
 
 /** Claps built ahead (thunder.worker.ts), by distance. */
 const thunderPool: Array<{ km: number; sr: number; data: Float32Array }> = [];

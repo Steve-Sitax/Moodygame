@@ -227,6 +227,8 @@ const trades = createTrades(world.scene, world.city.flags, { clock: () => ({ day
 const steenLife = createSteenLife(world.scene, crowd);
 // M7 alive (hook): leaves in the wind, birds, bats, moths, drips, mist, buoys, thunder (world/alive/)
 const alive = createAlive(world.scene, world, () => sound);
+/** The room the great storm's rain was last fitted round (world/tempest.ts roomBox). */
+let stormRoom: import("./world/rooms").Room | null = null;
 for (const r of steenLife.colliders) world.addCollider(r);
 for (const r of trades.colliders) world.addCollider(r);
 jobs.town = town;
@@ -1184,6 +1186,15 @@ function tick(dt: number): void {
     const gv = psxUniforms.uGale.value;
     gv.set(alive.wind.dir.x, alive.wind.dir.y, gv.z + (bend - gv.z) * Math.min(1, 0.05));
     tempest.indoors = indoors;
+    // the tavern's room: its box, measured once when he comes in (world/ambient.ts: rain out of its windows only)
+    const room = interiors.room;
+    if (room !== stormRoom) {
+      stormRoom = room;
+      tempest.roomBox = room ? (() => {
+        const b = new THREE.Box3().setFromObject(room.group);
+        return b.isEmpty() ? null : { min: { x: b.min.x - 0.3, z: b.min.z - 0.3 }, max: { x: b.max.x + 0.3, z: b.max.z + 0.3 } };
+      })() : null;
+    }
     // the hardest gusts push him a step along with it (he can walk against it, slowly); between them he stands
     const push = indoors ? 0 : fury * Math.min(0.6, Math.max(0, gust - 1.8) * 0.25);
     player.windPush.set(alive.wind.dir.x * push, alive.wind.dir.y * push);

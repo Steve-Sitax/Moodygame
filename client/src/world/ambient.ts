@@ -10,6 +10,7 @@ import INWORLD from "../../../shared/inworld_houses.json";
 import YARDS from "../../../shared/city_yard_windows.json";
 import { YARD_PANE_OFF, yardPanes } from "./yardWindows";
 import { tempest } from "./tempest";
+import { neverMirrored } from "./mirror";
 
 /**
  * M7 taverns and homes: the houses whose insides stand in the world light their own windows (the room itself
@@ -149,6 +150,8 @@ const U = {
   uGusts: { value: new Float32Array(16) },
   uGustA0: { value: new Float32Array(4) },
   uGustDir: { value: new THREE.Vector2(1, 0) },
+  /** The room Jef stands in (x0, z0, x1, z1; x1 < x0: none): no rain drawn in it, only out of its windows. */
+  uRoom: { value: new THREE.Vector4(1, 1, 0, 0) },
   uCam: { value: new THREE.Vector3() },
   uViewH: { value: TARGET_HEIGHT },
 };
@@ -962,31 +965,39 @@ function windowMaterials(): { win: THREE.ShaderMaterial } {
 
 // ------------------------------------------------------------------ 3. rain and puddles
 
-function buildRain(): THREE.LineSegments {
-  // (the great storm, world/tempest.ts: up to 4000 streaks; an ordinary full rain draws 1600 of them, as before)
-  const N = 4000;
-  const pos = new Float32Array(N * 2 * 3);
-  const seg = new Float32Array(N * 2);
-  const seed = new Float32Array(N * 2);
+function buildRain(): THREE.Mesh {
+  // Streaks as thin strips, a pixel or two wide at any render height (lines were one pixel: the great storm's rain
+  // looked tame, Steve 2026-09-29). Up to 6000 (the great storm); an ordinary full rain draws 1600 of them, as before.
+  const N = 6000;
+  const pos = new Float32Array(N * 4 * 3);
+  const seg = new Float32Array(N * 4);
+  const side = new Float32Array(N * 4);
+  const seed = new Float32Array(N * 4);
+  const idx = new Uint32Array(N * 6);
   const r = mulberry(99);
   for (let i = 0; i < N; i++) {
     const x = r() * 28;
     const y = r() * 14;
     const z = r() * 28;
-    const s = r();
-    for (let k = 0; k < 2; k++) {
-      pos.set([x, y, z], (i * 2 + k) * 3);
-      seg[i * 2 + k] = k;
-      seed[i * 2 + k] = s;
+    const sd = r();
+    for (let k = 0; k < 4; k++) {
+      pos.set([x, y, z], (i * 4 + k) * 3);
+      seg[i * 4 + k] = k >> 1;
+      side[i * 4 + k] = k & 1 ? 1 : -1;
+      seed[i * 4 + k] = sd;
     }
+    idx.set([i * 4, i * 4 + 1, i * 4 + 2, i * 4 + 2, i * 4 + 1, i * 4 + 3], i * 6);
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
   g.setAttribute("aSeg", new THREE.BufferAttribute(seg, 1));
+  g.setAttribute("aSide", new THREE.BufferAttribute(side, 1));
   g.setAttribute("aSeed", new THREE.BufferAttribute(seed, 1));
+  g.setIndex(new THREE.BufferAttribute(idx, 1));
   const mat = shaderMat({
     transparent: true,
     depthWrite: false,
+    side: THREE.DoubleSide,
     vertexShader: /* glsl */ `
       ${VCOMMON}
       ${LAMPS}
@@ -995,6 +1006,7 @@ function buildRain(): THREE.LineSegments {
       uniform float uRainAmt;
       uniform float uTempest;
       uniform float uExpo;
+      uniform vec4 uRoom;
       uniform vec3 fogColor;
       uniform vec4 uGusts[4];
       uniform float uGustA0[4];
@@ -1013,6 +1025,7 @@ function buildRain(): THREE.LineSegments {
         return g;
       }
       attribute float aSeg;
+      attribute float aSide;
       attribute float aSeed;
       varying vec3 vCol;
       varying float vA;
@@ -1025,16 +1038,30 @@ function buildRain(): THREE.LineSegments {
         // (the great storm: it drives down harder, and the wind lays it over)
         vec3 vel = vec3(uWind.x * (1.6 + jit * 0.5), (-8.5 - aSeed * 2.5) * (1.0 + 0.45 * uTempest), uWind.y * (1.6 - jit * 0.5));
         vec3 lo = uCam - vec3(14.0, 5.0, 14.0);
-        vec3 p = lo + mod(position + vel * uTime - lo, box);
+        vec3 head = lo + mod(position + vel * uTime - lo, box);
         // a streak is the drop's fall in one frame (uExpo), a little more or less drop by drop: this frame's streak meets
         // the last one's, and the eye follows the drop down; both ends in front of the eye, or none
         float expo = uExpo * (0.85 + 0.3 * fract(aSeed * 5.31));
-        float za = -(modelViewMatrix * vec4(p, 1.0)).z;
-        float zb = -(modelViewMatrix * vec4(p - vel * expo, 1.0)).z;
-        p -= vel * expo * aSeg;
-        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        vec3 tail = head - vel * expo;
+        vec4 mh = modelViewMatrix * vec4(head, 1.0);
+        vec4 mt = modelViewMatrix * vec4(tail, 1.0);
+        vec4 ch = projectionMatrix * mh;
+        vec4 ct = projectionMatrix * mt;
+        vec3 p = aSeg > 0.5 ? tail : head;
+        vec4 mv = aSeg > 0.5 ? mt : mh;
         vFogDepth = -mv.z;
-        gl_Position = projectionMatrix * mv;
+        gl_Position = aSeg > 0.5 ? ct : ch;
+        // widened across the streak on the screen: a pixel and a half at the game's 270 lines, more for the nearest
+        float aspect = projectionMatrix[1][1] / projectionMatrix[0][0];
+        vec2 sh = ch.xy / max(ch.w, 1e-3);
+        vec2 st = ct.xy / max(ct.w, 1e-3);
+        vec2 dir = st - sh;
+        dir.x *= aspect;
+        dir = length(dir) > 1e-6 ? normalize(dir) : vec2(0.0, 1.0);
+        vec2 perp = vec2(-dir.y, dir.x);
+        perp.x /= aspect;
+        float px = (0.75 + 0.9 * (1.0 - smoothstep(0.8, 3.5, vFogDepth))) * (1.0 + 0.4 * uTempest);
+        gl_Position.xy += perp * aSide * px * (2.0 / 270.0) * gl_Position.w;
         // rain barely shows in grey daylight (a little lighter than the air); a drop by a
         // gas lamp catches its glow and shows clearly
         vec3 col = fogColor * (1.3 + 0.5 * uTempest) + 0.01 + 0.05 * uTempest;
@@ -1046,16 +1073,22 @@ function buildRain(): THREE.LineSegments {
         // close drops only: far off, rain is thicker air (the weather's fog), not streaks
         // (the great storm: sheets of it, seen farther off: the whole box)
         float near = smoothstep(0.4, 1.2, vFogDepth) * (1.0 - smoothstep(3.0 + 5.0 * uTempest, 7.0 + 6.0 * uTempest, vFogDepth));
-        vA = step(aSeed, uRainAmt * (0.4 + 0.6 * uTempest)) * near * (0.08 + 0.2 * fract(aSeed * 7.3)) * (0.5 + 0.5 * uRainAmt) * (1.0 + 2.4 * uTempest) * step(0.7, min(za, zb));
+        float za = -mh.z;
+        float zb = -mt.z;
+        vA = step(aSeed, uRainAmt * (0.267 + 0.733 * uTempest)) * near * (0.08 + 0.2 * fract(aSeed * 7.3)) * (0.5 + 0.5 * uRainAmt) * (1.0 + 2.6 * uTempest) * step(0.7, min(za, zb));
+        // (thicker strips than the old lines: the same rain a little fainter per pixel)
+        vA *= 0.75;
         // the great storm: the rain comes in curtains that sweep along with the wind, thick and thin by turns
         if (uTempest > 0.0) {
           vec2 wd = normalize(uWind + vec2(1e-4));
-          float along = dot(p.xz, wd) - uTime * length(uWind) * 1.1;
-          float c = 0.5 + 0.5 * sin(along * 0.21 + sin(dot(p.xz, vec2(-wd.y, wd.x)) * 0.09) * 2.0) * sin(along * 0.083 + 1.3);
+          float along = dot(head.xz, wd) - uTime * length(uWind) * 1.1;
+          float c = 0.5 + 0.5 * sin(along * 0.21 + sin(dot(head.xz, vec2(-wd.y, wd.x)) * 0.09) * 2.0) * sin(along * 0.083 + 1.3);
           vA *= mix(1.0, 0.3 + 1.1 * smoothstep(0.25, 0.8, c), uTempest);
           // and each gust brings its veil: a wall of heavier rain sweeping across with the gust's front
-          vA *= 1.0 + 0.9 * min(gustVeil(p.xz), 2.5) * uTempest;
+          vA *= 1.0 + 0.9 * min(gustVeil(head.xz), 2.5) * uTempest;
         }
+        // in a room (the tavern): no rain in it, only out of the windows (uRoom: its box in x and z)
+        if (uRoom.z > uRoom.x && head.x > uRoom.x && head.x < uRoom.z && head.z > uRoom.y && head.z < uRoom.w) vA = 0.0;
         if (vA < 0.004) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
       }`,
     fragmentShader: /* glsl */ `
@@ -1070,11 +1103,13 @@ function buildRain(): THREE.LineSegments {
         #include <colorspace_fragment>
       }`,
   });
-  const lines = new THREE.LineSegments(g, mat);
-  lines.frustumCulled = false;
-  lines.renderOrder = 3;
-  lines.name = "ambient_rain";
-  return lines;
+  // (a strip faces either way: both sides, in one pass, not the back and then the front)
+  mat.forceSinglePass = true;
+  const mesh = new THREE.Mesh(g, mat);
+  mesh.frustumCulled = false;
+  mesh.renderOrder = 3;
+  mesh.name = "ambient_rain";
+  return mesh;
 }
 
 /**
@@ -1115,6 +1150,7 @@ function buildRainSheets(): THREE.Mesh {
       uniform float uTempest;
       uniform float uExpo;
       uniform float uNight;
+      uniform vec4 uRoom;
       uniform vec4 uGusts[4];
       uniform float uGustA0[4];
       uniform vec2 uGustDir;
@@ -1136,6 +1172,7 @@ function buildRainSheets(): THREE.Mesh {
       void main() {
         float amt = uRainAmt * uTempest;
         if (amt < 0.02) discard;
+        if (uRoom.z > uRoom.x && vW.x > uRoom.x && vW.x < uRoom.z && vW.z > uRoom.y && vW.z < uRoom.w) discard;
         float R = length(vL.xz);
         float ang = atan(vL.z, vL.x);
         vec2 tang = vec2(-sin(ang), cos(ang));
@@ -1143,7 +1180,7 @@ function buildRainSheets(): THREE.Mesh {
         // laid over by the wind across the line of sight
         float slant = dot(uWind * 1.6, tang) / fall;
         float u = ang * R + vL.y * slant;
-        float cw = 0.3 * R / 9.0;
+        float cw = 0.2 * R / 9.0;
         float col = floor(u / cw);
         float h1 = hash12(vec2(col, R));
         float h2 = hash12(vec2(col * 1.7 + 3.1, R * 0.37));
@@ -1153,22 +1190,22 @@ function buildRainSheets(): THREE.Mesh {
         float y = vW.y + uTime * fall * (0.9 + 0.2 * h1) + h2 * 37.0;
         float f = fract(y / sp);
         float len = clamp(fall * uExpo * 1.2 / sp, 0.05, 0.6);
+        // (the gusts' veils: a white wall of rain comes across the square with each gust)
+        float veil = min(gustVeil(vW.xz), 2.5);
         float streak = step(f, len) * (1.0 - 0.85 * f / len) * step(h1, amt * (0.9 + 0.3 * veil) + 0.1);
         // the curtains, as the near drops have them
         vec2 wd = normalize(uWind + vec2(1e-4));
         float along = dot(vW.xz, wd) - uTime * length(uWind) * 1.1;
         float c = 0.5 + 0.5 * sin(along * 0.21 + sin(dot(vW.xz, vec2(-wd.y, wd.x)) * 0.09) * 2.0) * sin(along * 0.083 + 1.3);
-        // (and the gusts' veils: a white wall of rain comes across the square with each gust)
-        float veil = min(gustVeil(vW.xz), 2.5);
         float curtain = (0.3 + 1.1 * smoothstep(0.25, 0.8, c)) * (1.0 + 1.1 * veil);
         float k = fogK();
-        float a = thin * streak * curtain * amt * (R < 12.0 ? 0.5 : 0.35) * (1.0 - 0.5 * k);
+        float a = thin * streak * curtain * amt * (R < 12.0 ? 0.8 : 0.6) * (1.0 - 0.5 * k);
         // the rain so thick it rolls by in grey clouds (Steve 2026-09-28): a soft haze in big billows blown along the
         // wind, thickest in a gust's veil; on the far layer only (the near one keeps the streaks clear)
         if (R > 12.0) {
           vec2 hp = vec2(along * 0.08, vW.y * 0.12 + dot(vW.xz, vec2(-wd.y, wd.x)) * 0.05);
           float billow = 0.5 + 0.25 * sin(hp.x * 3.1 + sin(hp.y * 2.3) * 1.7) + 0.25 * sin(hp.x * 1.3 - hp.y * 1.9 + 2.0);
-          a += smoothstep(0.4, 0.95, billow) * (0.08 + 0.16 * veil) * amt;
+          a += smoothstep(0.4, 0.95, billow) * (0.12 + 0.2 * veil) * amt;
         }
         if (a < 0.004) discard;
         vec3 col3 = mix(fogColor * 1.45 + 0.03, fogColor, k * 0.6) * (1.0 - 0.3 * uNight);
@@ -1207,6 +1244,7 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
   // (the great storm's far rain: built at load, drawn while it pours in a tempest; its shader is compiled up front)
   const rainSheets = buildRainSheets();
   root.add(rainSheets);
+  neverMirrored.push(rain, rainSheets);
 
   // --- birds: one instanced mesh for gulls and pigeons
   const MAX_BIRDS = 72;
@@ -1648,8 +1686,13 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
     psxUniforms.uRain.value = rainNow;
     psxUniforms.uWet.value = wet;
     // (no rain round him under a roof: the tavern, a hall; world/tempest.ts indoors, set by main.ts)
-    rain.visible = rainNow > 0.01 && !tempest.indoors;
-    rainSheets.visible = U.uTempest.value * rainNow > 0.02 && !tempest.indoors;
+    // (in a tavern: drawn out of its windows, not in the room: uRoom; in a hall with no box: none round him)
+    const box = tempest.roomBox;
+    if (box) U.uRoom.value.set(box.min.x, box.min.z, box.max.x, box.max.z);
+    else U.uRoom.value.set(1, 1, 0, 0);
+    const hide = tempest.indoors && !box;
+    rain.visible = rainNow > 0.01 && !hide;
+    rainSheets.visible = U.uTempest.value * rainNow > 0.02 && !hide;
     rainSheets.position.set(camPos.x, camPos.y, camPos.z);
     // a streak is one frame's fall: the frame's length, eased (a hitch does not stretch the rain)
     U.uExpo.value += (THREE.MathUtils.clamp(dt, 1 / 60, 1 / 24) - U.uExpo.value) * 0.1;

@@ -4,6 +4,7 @@ import { FCOMMON, VCOMMON, pointMat, rand, type Ctx, type Frame, type Part } fro
 import { HORSE_NOSE } from "../horseGait";
 import { AIR_GLOW_GLSL, airGlowUniforms } from "../../retro/psx";
 import { tempest } from "../tempest";
+import { neverMirrored } from "../mirror";
 
 // M7 alive: the air and what falls through it.
 // (The water off the eaves, drops and broken gutters' streams: eaves.ts.)
@@ -47,6 +48,7 @@ export function createStorm(ctx: Ctx): Part {
   boltMat.name = "lightning_bolt";
   const bolt = new THREE.LineSegments(boltGeo, boltMat);
   bolt.name = "alive_bolt";
+  neverMirrored.push(bolt);
   bolt.frustumCulled = false;
   bolt.renderOrder = 5;
   ctx.scene.add(bolt);
@@ -99,7 +101,7 @@ export function createStorm(ctx: Ctx): Part {
   /** Thunder `km` off from the side `a` (placed in the air that way, far enough that it comes from there). */
   function thunderFrom(eye: { x: number; z: number }, a: number, km: number, gain: number): void {
     const r = Math.min(300, Math.max(60, km * 250));
-    ctx.sound()?.placed({ x: eye.x + Math.cos(a) * r, y: Math.min(200, r * 0.7), z: eye.z + Math.sin(a) * r }, { ref: 400, reach: 5000, max: 1e9, occl: 0, wet: 0.7, gain }, thunder(km));
+    ctx.sound()?.placed({ x: eye.x + Math.cos(a) * r, y: Math.min(200, r * 0.7), z: eye.z + Math.sin(a) * r }, { ref: 400, reach: 5000, max: 1e9, occl: 0, wet: 0.7, gain, must: true }, thunder(km));
   }
 
   function update(f: Frame): void {
@@ -124,6 +126,8 @@ export function createStorm(ctx: Ctx): Part {
       thunderPrime();
     }
     wait -= f.dt;
+    // (a wait set before the storm grew is cut short as it grows: no minute of silence at its height)
+    if (storm) wait = Math.min(wait, 1.5 + 20 * (1 - fury));
     if (forced >= 0 || ((storm || heavy) && wait <= 0)) {
       wait = storm ? rand(15, 55) * (1 - 0.9 * fury) : rand(150, 400);
       const km = forced >= 0 ? forced : fury > 0.4 && Math.random() < 0.45 * fury ? rand(0.2, 1.1) : rand(0.8, 6) * (1 - 0.5 * fury);
@@ -140,7 +144,7 @@ export function createStorm(ctx: Ctx): Part {
       if (km < 2.2) makeBolt(f.eye, a, THREE.MathUtils.clamp(km * 220, 90, 380));
       else boltN = 0;
       const eye = { x: f.eye.x, z: f.eye.z };
-      window.setTimeout(() => thunderFrom(eye, a, km, 1.6), ((km * 1000) / 343) * 1000);
+      window.setTimeout(() => thunderFrom(eye, a, km, 2.2), ((km * 1000) / 343) * 1000);
     }
     // the lightning inside the clouds: a dim flicker of the sky every second or few, no bolt, no near sound
     flicker -= f.dt;

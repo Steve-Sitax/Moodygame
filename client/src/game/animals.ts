@@ -4,6 +4,7 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { psx } from "../retro/psx";
 import { dice, hash32, runsHere, share, type SharedAnimal } from "./share";
+import { tempest } from "../world/tempest";
 
 // Dogs and cats (M3e), from client/public/models/animals.glb
 // (tools/blender/build_animals.py): four dogs and four cats, rigged, with
@@ -241,6 +242,8 @@ interface Beast {
   id: string | null;
   /** Shown from the PC that runs it (not moved here). */
   remote: boolean;
+  /** The great storm: 1 on its way to its doorstep, 2 cowering (there, or against a wall where it got stuck). */
+  shelter?: number;
 }
 
 /** M8f sync pass 3: a stray or a cat of the town, fixed by its haunt (the same on every PC). */
@@ -409,7 +412,16 @@ export class Animals {
       else if (here || b.ownerId) {
         // (a townsperson's dog not sent yet: at his heel as before)
         if (b.owner) this.follow(b, dt, hidden);
-        else if (b.a.species === "dog") this.stray(b, dt, people);
+        // the great storm (world/tempest.ts): strays and cats run for their doorstep and cower there, flat to the stone
+        else if (tempest.phase && tempest.level > 0.3) this.storm(b, dt);
+        else if (b.shelter) {
+          b.shelter = 0;
+          b.a.group.rotation.z = 0;
+          b.goal = null;
+          b.route = [];
+          b.timer = rnd(1, 4);
+          b.a.play(b.a.species === "cat" ? "sit" : "idle");
+        } else if (b.a.species === "dog") this.stray(b, dt, people);
         else this.cat(b, dt, dogs, people);
       }
       if (here && share.on && b.id && share.net) {
@@ -632,6 +644,37 @@ export class Animals {
       ok = this.aim(b, b.x + Math.cos(a) * r, b.z + Math.sin(a) * r);
     }
     if (!ok) b.timer = rnd(1, 3);
+  }
+
+  /**
+   * The great storm (Steve 2026-09-29: "animals scared, finding shelter or against the walls cowering"): back to its
+   * doorstep at a run, then flat on the stone in the lee of the door, trembling. If the way is shut it cowers against
+   * the wall where it is.
+   */
+  private storm(b: Beast, dt: number): void {
+    const h = b.id ? this.hauntOf.get(b.id) : undefined;
+    if (b.shelter !== 2 && h) {
+      if (!b.shelter) {
+        b.shelter = 1;
+        b.goal = null;
+        b.route = [];
+        if (!this.aim(b, h.x, h.z, 80)) b.shelter = 2;
+      }
+      if (b.shelter === 1) {
+        const r = b.goal ? this.go(b, b.a.species === "dog" ? 3.1 : 3.4, dt) : "stuck";
+        if (r !== "going") {
+          b.shelter = 2;
+          b.goal = null;
+          b.route = [];
+        }
+        return;
+      }
+    }
+    b.shelter = 2;
+    if (b.a.motion !== "lie") b.a.play("lie", 0.4);
+    // trembling: a shiver of the whole body
+    b.timer += dt;
+    b.a.group.rotation.z = Math.sin(b.timer * 38) * 0.015;
   }
 
   /** A way out for a frightened cat: away from the fright, or as near that as the walls allow. */

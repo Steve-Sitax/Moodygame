@@ -7,7 +7,8 @@ import { playCue, type CueSpec } from "./eventcues";
 import type { Surface } from "../world/rijnkaai";
 import { water } from "../world/tide";
 import { blockedMetres, cartRoutes, cityEmitters, nearestQuay, overWater, type Emitter, type EmitterKind } from "./emitters";
-import { CARILLON_SHORT, DOG_SPANS, PUDDLE_SPANS, SAMPLES, TOOT_SPANS, type SampleName } from "./samples";
+import { CARILLON_SHORT, DOG_SPANS, PUDDLE_SPANS, SAMPLES, TOOT_SPANS, type SampleName, STORM_SAMPLES, THUNDER_NEAR, THUNDER_FAR, type StormSampleName } from "./samples";
+import { recordedThunder } from "./aliveSounds";
 import { installSafeParams, paramSkips } from "./safeParams";
 
 // Web Audio soundscape. Recorded CC0 sounds wherever we have them (footsteps:
@@ -302,6 +303,10 @@ export class Soundscape {
   private gullBuf: AudioBuffer | null = null;
   private fx = new Map<string, AudioBuffer[]>();
   private buf = new Map<SampleName, AudioBuffer>();
+  /** The great storm's recordings (samples.ts STORM_SAMPLES), loaded on the first storm (loadStorm). */
+  private stormBuf = new Map<StormSampleName, AudioBuffer>();
+  private stormLoading = false;
+  private stormBeds: { gale: GainNode; rain: GainNode; inside: GainNode } | null = null;
   private failed: string[] = [];
   private live: Live[] = [];
   private carts: Cart[] = [];
@@ -705,6 +710,7 @@ export class Soundscape {
    * gustAt). The wind roars and howls with the gusts, the rain drums harder; 0 leaves every bed as it was.
    */
   setTempest(level: number, gust: number, shelter = 0): void {
+    if (level > 0 && !this.stormLoading) void this.loadStorm();
     this.tempest = clamp01(level);
     this.tempestGust = Math.max(0, Math.min(3, gust));
     this.tempestShelter = clamp01(shelter);
@@ -940,7 +946,7 @@ export class Soundscape {
     const byWater = 1 - ramp(this.quayDist, 15, 120);
     this.windGain.gain.setTargetAtTime((0.3 + 0.15 * night) * (0.65 + 0.35 * byWater) * (1 + 1.6 * this.tempest), now, tau);
     // the great storm: the howl, harder in each gust
-    this.howlGain.gain.setTargetAtTime(0.16 * this.tempest * (0.45 + 0.35 * this.tempestGust), now, 0.35);
+    this.howlGain.gain.setTargetAtTime((this.stormBeds ? 0.08 : 0.16) * this.tempest * (0.45 + 0.35 * this.tempestGust), now, 0.35);
     // wind in the rigging: by the ships (the canals have no masts), gone a street or two inland
     let dShip = Infinity;
     for (const sp of this.shipPositions) dShip = Math.min(dShip, Math.hypot(sp.x - this.listenerPos.x, sp.z - this.listenerPos.z));
@@ -958,7 +964,16 @@ export class Soundscape {
     const roofNear = 0.25 + 0.75 * this.tempestShelter;
     this.rainRoofGain.gain.setTargetAtTime(0.4 * this.rain * (1 + T * ((1 + 1.4) * roofNear - 1)), now, 1.5);
     this.rainCobbleGain.gain.setTargetAtTime(1.1 * this.rain * (1 + 0.7 * T), now, 1.5);
-    this.downpourGain.gain.setTargetAtTime(0.16 * this.rain * T * (1 - 0.45 * this.tempestShelter), now, 1.5);
+    // the recorded gale and downpour when they are in (the made ones stay under them, quieter)
+    const rec = this.stormBeds;
+    this.downpourGain.gain.setTargetAtTime((rec ? 0.05 : 0.16) * this.rain * T * (1 - 0.45 * this.tempestShelter), now, 1.5);
+    if (rec) {
+      const out = !this.roomKind;
+      rec.rain.gain.setTargetAtTime(out ? 1.3 * this.rain * T * (1 - 0.35 * this.tempestShelter) : 0, now, 1.2);
+      rec.gale.gain.setTargetAtTime(out ? 1.1 * T * (0.45 + 0.3 * Math.min(this.tempestGust, 2)) : 0, now, 0.4);
+      // in a room: the storm raging outside as it is heard from indoors (shutters, the house taking the gusts)
+      rec.inside.gain.setTargetAtTime(this.roomKind ? 0.9 * T : 0, now, 0.8);
+    }
     // indoors in it: the storm through thick walls, much duller and quieter than a shower heard from a room
     if (this.roomKind && this.streetIn.gain < 0.9) {
       this.street.gain.setTargetAtTime(this.streetIn.gain * (1 - 0.55 * T), now, 0.5);
@@ -1698,11 +1713,13 @@ export class Soundscape {
    */
   placed(
     at: { x: number; y?: number; z: number },
-    o: { ref: number; reach: number; max: number; rolloff?: number; wet?: number; occl?: number; gain?: number },
+    o: { ref: number; reach: number; max: number; rolloff?: number; wet?: number; occl?: number; gain?: number; must?: boolean },
     make: (ctx: BaseAudioContext, out: AudioNode, t0: number, noise: AudioBuffer) => number,
   ): boolean {
     const d = this.distTo(at.x, at.y ?? 1, at.z);
-    if (!(d <= o.max) || (this.spots.size >= SPOT_CAP && d > 25)) return false; // (NaN: at no place, not played)
+    // (`must`: thunder, a gust's roar: never dropped for the cap, far as they are; the great storm fills the cap with
+    // bangs and slams, and the thunder went silent, Steve 2026-09-29)
+    if (!(d <= o.max) || (!o.must && this.spots.size >= SPOT_CAP && d > 25)) return false; // (NaN: at no place, not played)
     const spot = this.spot({ x: at.x, y: at.y ?? 1, z: at.z }, o.ref, o.rolloff ?? 1, o.reach, o.wet ?? 0.3, 14000, this.bus("voices"), o.max, o.occl ?? 1);
     const out = this.ctx.createGain();
     out.gain.value = o.gain ?? 1;
@@ -2281,6 +2298,38 @@ export class Soundscape {
   }
 
   /** The street sounds (audio/samples.ts). A file that fails stays silent. */
+  /** The great storm's recordings, once, when the first storm comes (the thunder of alive/air.ts takes them too). */
+  private async loadStorm(): Promise<void> {
+    if (this.stormLoading) return;
+    this.stormLoading = true;
+    await Promise.all(
+      (Object.entries(STORM_SAMPLES) as Array<[StormSampleName, string]>).map(async ([name, url]) => {
+        const b = await this.decode(url);
+        if (b) this.stormBuf.set(name, b);
+      }),
+    );
+    const near = await Promise.all(THUNDER_NEAR.map((u) => this.decode(u)));
+    const far = await Promise.all(THUNDER_FAR.map((u) => this.decode(u)));
+    recordedThunder.near = near.filter((b): b is AudioBuffer => !!b);
+    recordedThunder.far = far.filter((b): b is AudioBuffer => !!b);
+    // the beds: the gale and the downpour in the street, and the storm as it is heard from inside a room
+    const bed = (name: StormSampleName, out: AudioNode): GainNode => {
+      const g = this.ctx.createGain();
+      g.gain.value = 0;
+      g.connect(out);
+      const b = this.stormBuf.get(name);
+      if (b) {
+        const s = this.ctx.createBufferSource();
+        s.buffer = b;
+        s.loop = true;
+        s.connect(g);
+        s.start(this.ctx.currentTime, Math.random() * b.duration);
+      }
+      return g;
+    };
+    this.stormBeds = { gale: bed("galeTrees", this.bus("ambience")), rain: bed("rainHeavy", this.bus("ambience")), inside: bed("windInside", this.room) };
+  }
+
   private async loadSamples(): Promise<void> {
     await Promise.all(
       (Object.entries(SAMPLES) as Array<[SampleName, string]>).map(async ([name, url]) => {

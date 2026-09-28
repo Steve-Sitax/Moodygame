@@ -51,6 +51,20 @@ export const SAMPLES = {
 
 export type SampleName = keyof typeof SAMPLES;
 
+/**
+ * The great storm's recordings (BigSoundBank, Joseph Sardin, CC0; assets/ATTRIBUTION.md), loaded only when a storm
+ * first comes (audio/soundscape.ts loadStorm): about 65 MB once decoded. The thunderclaps are sorted by how they
+ * sound (measured 2026-09-29): `near` rise fast and carry some highs; `far` are low rolls that swell slowly.
+ */
+export const STORM_SAMPLES = {
+  galeTrees: B + "gale-trees-1450-loop.ogg",
+  rainHeavy: B + "rain-heavy-1019-loop.ogg",
+  windInside: B + "wind-inside-1714-loop.ogg",
+} as const;
+export type StormSampleName = keyof typeof STORM_SAMPLES;
+export const THUNDER_NEAR = ["3115", "3116", "3114", "3180"].map((id) => `${B}thunder-${id}.ogg`);
+export const THUNDER_FAR = ["2718", "3113", "3179", "3181", "3182", "3183", "3184"].map((id) => `${B}thunder-${id}.ogg`);
+
 /** Spans (s) of the dog recording with one to three clean barks each. */
 export const DOG_SPANS: Array<[number, number]> = [
   [0, 2.8],

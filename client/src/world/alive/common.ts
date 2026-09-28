@@ -37,7 +37,7 @@ export interface Frame {
 export interface AliveSound {
   placed(
     at: { x: number; y?: number; z: number },
-    o: { ref: number; reach: number; max: number; rolloff?: number; wet?: number; occl?: number; gain?: number },
+    o: { ref: number; reach: number; max: number; rolloff?: number; wet?: number; occl?: number; gain?: number; must?: boolean },
     make: (ctx: BaseAudioContext, out: AudioNode, t0: number, noise: AudioBuffer) => number,
   ): boolean;
 }

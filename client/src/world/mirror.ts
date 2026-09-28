@@ -191,6 +191,12 @@ export function setMirrorQuality(q: "off" | "coarse" | "full"): void {
 if (import.meta.env.DEV) Object.assign(window, { __mirrorQuality: (q: "off" | "coarse" | "full") => setMirrorQuality(q) });
 const offColour = new THREE.Color();
 
+/**
+ * Things no mirror shows (docs/performance.md, Mirrors): the great storm's rain, spray, flyers and bolt, drawn round the
+ * eye; in a puddle they would cost a pass for nothing. Their module pushes them here once.
+ */
+export const neverMirrored: THREE.Object3D[] = [];
+
 export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
   let planeY = plane0;
   const baseW = opts.width ?? 320;
@@ -341,9 +347,10 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
     pm[10] = clip.z + 1.0;
     pm[14] = clip.w;
 
-    const was = [...surfaces, ...hidden].map((o) => o.visible);
+    const was = [...surfaces, ...hidden, ...neverMirrored].map((o) => o.visible);
     for (const o of surfaces) o.visible = false;
     for (const o of hidden) o.visible = false;
+    for (const o of neverMirrored) o.visible = false;
     const before = renderer.getRenderTarget();
     try {
       renderer.setRenderTarget(rt);
@@ -353,7 +360,7 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
       dev.renders++;
     } finally {
       renderer.setRenderTarget(before);
-      [...surfaces, ...hidden].forEach((o, i) => (o.visible = was[i]));
+      [...surfaces, ...hidden, ...neverMirrored].forEach((o, i) => (o.visible = was[i]));
       busy = false;
     }
   }

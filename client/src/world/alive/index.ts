@@ -10,7 +10,7 @@ import { createSparrows } from "./sparrows";
 import { createBats, createEyes, createMoths, createOwl } from "./night";
 import { createBilge, createBuoys, createMist, createShipLights } from "./water";
 import { createBreath, createStorm } from "./air";
-import { createGale, createSurf } from "./gale";
+import { createGale, createSplash, createSurf } from "./gale";
 import { createDrips, type Stream } from "./eaves";
 
 // M7 alive (Steve 2026-09-26: "more good ideas to make it all feel more alive"; docs/milestones/M7-alive.md):
@@ -56,7 +56,7 @@ export function createAlive(scene: THREE.Scene, world: World, sound: () => Alive
   add(createLofts);
   add(createJackdaws);
   add(createSparrows);
-  for (const make of [createEyes, createBats, createMoths, createOwl, createBuoys, createShipLights, createBilge, createMist, (c: Ctx) => (drips = createDrips(c)), createStorm, createGale, createSurf, createBreath]) add(make);
+  for (const make of [createEyes, createBats, createMoths, createOwl, createBuoys, createShipLights, createBilge, createMist, (c: Ctx) => (drips = createDrips(c)), createStorm, createGale, createSurf, createSplash, createBreath]) add(make);
 
   const errors = new Map<string, number>();
   const eye = new THREE.Vector3();

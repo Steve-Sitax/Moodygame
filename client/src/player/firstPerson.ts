@@ -147,6 +147,9 @@ export class FirstPerson {
   private buffT = 0;
   /** The great storm: the gust shoves him along with it, m/s in x and z (main.ts); the walls still stop him. */
   readonly windPush = new THREE.Vector2();
+  /** The shove as he feels it, eased: the view staggers with it (sideways a tilt, from behind a stoop). */
+  private stagSide = 0;
+  private stagFwd = 0;
   private lastStepSide = 0;
   private lookYaw = this.yaw;
   private lookPitch = this.pitch;
@@ -327,12 +330,21 @@ export class FirstPerson {
     this.lookYaw += (this.yaw - this.lookYaw) * s;
     this.lookPitch += (this.pitch - this.lookPitch) * s;
 
-    // the great storm: the gusts shove him, a small unsteady sway of the head
+    // the great storm: the gusts shove him, a small unsteady sway of the head; a hard shove staggers him the way it
+    // pushes (Steve 2026-09-29: "gets blown back, but the visuals don't follow")
     this.buffT += dt;
     const bu = this.buffet * look.bob;
+    const pSide = this.windPush.x * cos - this.windPush.y * sin;
+    const pFwd = -this.windPush.x * sin - this.windPush.y * cos;
+    const ks = 1 - Math.exp(-dt * 4);
+    this.stagSide += (pSide - this.stagSide) * ks;
+    this.stagFwd += (pFwd - this.stagFwd) * ks;
+    const stRoll = -this.stagSide * 0.09 * (1 + 0.3 * Math.sin(this.buffT * 6.3)) * look.bob;
+    const stPitch = -this.stagFwd * 0.06 * look.bob;
+    const stX = this.stagSide * 0.12 * look.bob;
     const buX = bu * (Math.sin(this.buffT * 7.3) * 0.6 + Math.sin(this.buffT * 12.7) * 0.4) * 0.03;
-    this.camera.position.set(this.x + cos * (bobX + buX), this.y + this.eye + bobY, this.z - sin * (bobX + buX));
-    this.camera.rotation.set(this.lookPitch, this.lookYaw, Math.cos(this.bobPhase) * 0.004 * this.bobAmp * look.bob + bu * Math.sin(this.buffT * 5.1) * 0.012);
+    this.camera.position.set(this.x + cos * (bobX + buX + stX), this.y + this.eye + bobY - Math.abs(this.stagSide + this.stagFwd) * 0.05, this.z - sin * (bobX + buX + stX));
+    this.camera.rotation.set(this.lookPitch + stPitch, this.lookYaw, Math.cos(this.bobPhase) * 0.004 * this.bobAmp * look.bob + bu * Math.sin(this.buffT * 5.1) * 0.012 + stRoll);
   }
 
   // ------------------------------------------------------------ in the water
