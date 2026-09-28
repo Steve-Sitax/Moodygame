@@ -1925,7 +1925,7 @@ if (import.meta.env.DEV) {
      * Dev (2026-09-28): the same moment drawn two ways, the pictures compared (dev/frameProf.ts pixelDiff). `what`:
      * "uniforms" (the array uniform cache on, then off), "same" (twice the same: the noise floor).
      */
-    pixelDiff(what: "uniforms" | "matrices" | "water" | "merge" | "share" | "same" = "same", frames = 3) {
+    pixelDiff(what: "uniforms" | "matrices" | "water" | "merge" | "share" | "cull" | "control" | "same" = "same", frames = 3) {
       const draw = () => retro.render(world.scene, player.camera, elapsed);
       // ("water": a mirror whose surfaces the culler hides is left out; off, it draws as before)
       const keepHid = mirrorView.hiddenInMain;
@@ -1937,11 +1937,32 @@ if (import.meta.env.DEV) {
           mirrorView.hiddenInMain = v ? keepHid : null;
         },
       };
+      // ("control": the view turned half a degree: must differ, else the test sees nothing)
+      const fov0 = player.camera.fov;
+      const control = {
+        get on() {
+          return player.camera.fov === fov0;
+        },
+        set on(v: boolean) {
+          player.camera.fov = v ? fov0 : fov0 + 0.5;
+          player.camera.updateProjectionMatrix();
+        },
+      };
+      // ("cull": the culler against no culling at all: what it hides must not show)
+      const culling = {
+        get on() {
+          return cull.enabled;
+        },
+        set on(v: boolean) {
+          cull.enabled = v;
+        },
+      };
       const sw =
-        what === "uniforms" ? uniformCache : what === "matrices" ? matrixSkip : what === "water" ? water : what === "merge" ? staticMerge : what === "share" ? materialShare : null;
+        what === "uniforms" ? uniformCache : what === "matrices" ? matrixSkip : what === "water" ? water : what === "merge" ? staticMerge : what === "share" ? materialShare : what === "cull" ? culling : what === "control" ? control : null;
       // (a switch that swaps things in the scene: the culler judges the new ones at once)
-      const on = () => sw && ((sw.on = true), cull.invalidate());
-      const off = () => sw && ((sw.on = false), cull.invalidate());
+      // (the culler's own test keeps its evaluation: a staged one on its way is what is tested)
+      const on = () => sw && ((sw.on = true), sw !== culling && cull.invalidate());
+      const off = () => sw && ((sw.on = false), sw !== culling && cull.invalidate());
       try {
         return pixelDiff(renderer, retro.target, draw, on, sw ? off : on, frames);
       } finally {

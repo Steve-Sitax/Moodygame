@@ -1177,8 +1177,9 @@ export class LedDray {
   /** The space the load fills on the bed (its frame), for a load of sacks made of the one sack model. */
   private loadBox: THREE.Box3 | null = null;
   private sackGoods: string | undefined;
-  /** The man's steps, newest first (every 0.2 m). */
+  /** The man's steps, newest first (every 0.2 m), and where he is now. */
   private trail: Array<[number, number]> = [];
+  private head: [number, number] = [0, 0];
   private gait = 0;
   private roll: [number, number] = [0, 0];
   /** Walk colliders: the bed in two, the horse (moved in place). */
@@ -1235,35 +1236,20 @@ export class LedDray {
   /** Put the rig down behind a man standing at (x, z) facing yaw (the trail laid out straight behind him). */
   place(x: number, z: number, yaw: number): void {
     this.trail = [];
+    this.head = [x, z];
     for (let d = 0; d <= 7; d += 0.2) this.trail.push([x - Math.sin(yaw) * d, z - Math.cos(yaw) * d]);
   }
 
-  /** The point `d` metres back along the trail, and the heading there. */
+  /** The point `d` metres back along the trail (from where he is now), and the heading there. */
   private back(d: number, out: { x: number; z: number; yaw: number }): void {
-    const t = this.trail;
-    let acc = 0;
-    for (let i = 0; i + 1 < t.length; i++) {
-      const L = Math.hypot(t[i][0] - t[i + 1][0], t[i][1] - t[i + 1][1]);
-      if (acc + L >= d) {
-        const f = (d - acc) / (L || 1);
-        out.x = t[i][0] + (t[i + 1][0] - t[i][0]) * f;
-        out.z = t[i][1] + (t[i + 1][1] - t[i][1]) * f;
-        out.yaw = Math.atan2(t[i][0] - t[i + 1][0], t[i][1] - t[i + 1][1]);
-        return;
-      }
-      acc += L;
-    }
-    const n = t.length - 1;
-    const [ax, az] = t[Math.max(0, n - 1)];
-    const [bx, bz] = t[n];
-    out.yaw = Math.atan2(ax - bx, az - bz);
-    out.x = bx - Math.sin(out.yaw) * (d - acc);
-    out.z = bz - Math.cos(out.yaw) * (d - acc);
+    trailBack(this.head, this.trail, d, out);
   }
 
   /** The man is at (x, z), walking at `speed` m/s: the rig follows. */
   follow(dt: number, x: number, z: number, yaw: number, speed: number): void {
     if (!this.trail.length) this.place(x, z, yaw);
+    // (the rig is measured back from where he is now, not from his last kept step: it went in 0.2 m jumps, Steve 2026-09-28)
+    this.head = [x, z];
     const [hx, hz] = this.trail[0];
     if (Math.hypot(x - hx, z - hz) >= 0.2) {
       this.trail.unshift([x, z]);
@@ -1283,10 +1269,19 @@ export class LedDray {
     const H = { x: 0, z: 0, yaw: 0 };
     const B = { x: 0, z: 0, yaw: 0 };
     const A = { x: 0, z: 0, yaw: 0 };
-    // the horse's middle a metre behind him, to his right (he walks at its head on its left)
-    back(1.0, H);
-    back(1.0 + HORSE_AHEAD, B);
-    back(1.0 + HORSE_AHEAD + WHEELBASE, A);
+    // the horse's middle a metre behind him, to his right (he walks at its head on its left); each heading over
+    // 0.8 m of the way, so a sway of his steps or a kept step's corner does not jerk the rig round
+    const F = { x: 0, z: 0, yaw: 0 };
+    const R = { x: 0, z: 0, yaw: 0 };
+    const at = (d: number, out: { x: number; z: number; yaw: number }) => {
+      back(d, out);
+      back(d - 0.4, F);
+      back(d + 0.4, R);
+      if (Math.hypot(F.x - R.x, F.z - R.z) > 0.2) out.yaw = Math.atan2(F.x - R.x, F.z - R.z);
+    };
+    at(1.0, H);
+    at(1.0 + HORSE_AHEAD, B);
+    at(1.0 + HORSE_AHEAD + WHEELBASE, A);
     for (const p of [H, B, A]) {
       p.x -= Math.cos(p.yaw) * 0.85;
       p.z += Math.sin(p.yaw) * 0.85;
@@ -1325,6 +1320,37 @@ export class LedDray {
   dispose(): void {
     this.root.removeFromParent();
   }
+}
+
+/**
+ * The point `d` metres back along a leader's way: from where he is now (`head`), then his kept steps (newest
+ * first), and the heading there; past the last step straight on. The rig moves with every step he takes.
+ */
+export function trailBack(head: [number, number], trail: Array<[number, number]>, d: number, out: { x: number; z: number; yaw: number }): void {
+  let acc = 0;
+  let px = head[0];
+  let pz = head[1];
+  let yaw = NaN;
+  for (const [qx, qz] of trail) {
+    const L = Math.hypot(px - qx, pz - qz);
+    if (L > 1e-4) {
+      yaw = Math.atan2(px - qx, pz - qz);
+      if (acc + L >= d) {
+        const f = Math.max(0, d - acc) / L;
+        out.x = px + (qx - px) * f;
+        out.z = pz + (qz - pz) * f;
+        out.yaw = yaw;
+        return;
+      }
+      acc += L;
+    }
+    px = qx;
+    pz = qz;
+  }
+  if (Number.isNaN(yaw)) yaw = 0;
+  out.yaw = yaw;
+  out.x = px - Math.sin(yaw) * (d - acc);
+  out.z = pz - Math.cos(yaw) * (d - acc);
 }
 
 const hv = new THREE.Vector3();

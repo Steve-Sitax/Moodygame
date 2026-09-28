@@ -1,10 +1,11 @@
 import * as THREE from "three";
 
-// A thing's matrix made again only when it moved (2026-09-28, the slow frames). three.js r186 composes every
-// object's local matrix from its position, rotation and scale every frame (updateMatrix), and then its world matrix
-// and its children's, whether anything changed or not: ~8,000 things, twice a frame. This keeps the ten numbers
-// the matrix was last made from; when they are the same the matrix is too, and nothing below it needs a new world
-// matrix unless its parent's changed (three.js's own `force`). The picture is the same to the bit.
+// A thing's local matrix made again only when it moved (2026-09-28, the slow frames). three.js r186 composes every
+// object's local matrix from its position, rotation and scale every frame (updateMatrix), whether anything changed or
+// not: ~8,000 things a frame. This keeps the ten numbers the matrix was last made from; when they are the same the
+// matrix is too. The world matrix is still made every frame, as three.js did: the first try skipped that too, and a
+// thing whose parent had moved some other way (bones under a walking carter, the crane's jib, the lantern arm on the
+// camera) kept an old world place (the pixel diff, once it read the picture right).
 // (A matrix written by hand with matrixAutoUpdate on was undone every frame before and stays now; the game has none:
 // game/lifeAboard.ts writes its group's matrix with matrixAutoUpdate off.)
 
@@ -35,8 +36,10 @@ proto.updateMatrix = function (this: Keyed): void {
     c[8] === s.y &&
     c[9] === s.z &&
     !this.pivot
-  )
+  ) {
+    this.matrixWorldNeedsUpdate = true;
     return;
+  }
   compose.call(this);
   if (!c) c = this.__trs = new Float64Array(10);
   c[0] = p.x;

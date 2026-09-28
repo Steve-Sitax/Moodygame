@@ -128,12 +128,18 @@ export function pixelDiff(
   a: () => void,
   b: () => void,
   frames = 3,
-): { w: number; h: number; differ: number; maxDelta: number; firstAt: number[] | null } {
+): { w: number; h: number; mean: number; differ: number; maxDelta: number; firstAt: number[] | null; box: number[] | null } {
   const w = target.width;
   const h = target.height;
+  // (the target holds half floats: read them as floats; read as bytes three.js leaves the buffer empty, and every
+  // picture compared equal, 2026-09-28. `mean` says the picture is not empty.)
+  const gl = renderer.getContext() as WebGL2RenderingContext;
   const read = () => {
-    const px = new Uint8Array(w * h * 4);
-    renderer.readRenderTargetPixels(target, 0, 0, w, h, px);
+    const px = new Float32Array(w * h * 4);
+    const keep = renderer.getRenderTarget();
+    renderer.setRenderTarget(target);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.FLOAT, px);
+    renderer.setRenderTarget(keep);
     return px;
   };
   a();
@@ -144,14 +150,28 @@ export function pixelDiff(
   const pb = read();
   let differ = 0;
   let maxDelta = 0;
+  let sum = 0;
   let firstAt: number[] | null = null;
+  // (the box round the pixels that differ, from the top left, in the picture's pixels)
+  let bx0 = Infinity;
+  let by0 = Infinity;
+  let bx1 = -1;
+  let by1 = -1;
   for (let i = 0; i < pa.length; i += 4) {
+    sum += pa[i] + pa[i + 1] + pa[i + 2];
     const d = Math.max(Math.abs(pa[i] - pb[i]), Math.abs(pa[i + 1] - pb[i + 1]), Math.abs(pa[i + 2] - pb[i + 2]));
     if (d) {
       differ++;
       if (d > maxDelta) maxDelta = d;
       if (!firstAt) firstAt = [(i / 4) % w, Math.floor(i / 4 / w)];
+      const x = (i / 4) % w;
+      const y = h - 1 - Math.floor(i / 4 / w);
+      if (x < bx0) bx0 = x;
+      if (x > bx1) bx1 = x;
+      if (y < by0) by0 = y;
+      if (y > by1) by1 = y;
     }
   }
-  return { w, h, differ, maxDelta, firstAt };
+  if (sum === 0) throw new Error("pixelDiff: the picture read back is empty (black): nothing was compared");
+  return { w, h, mean: +(sum / (pa.length / 4) / 3).toFixed(4), differ, maxDelta: +maxDelta.toFixed(5), firstAt, box: differ ? [bx0, by0, bx1, by1] : null };
 }

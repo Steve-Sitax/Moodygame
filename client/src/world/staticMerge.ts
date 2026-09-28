@@ -12,6 +12,13 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 // The same parts in the same places (every bollard, every lantern, the sacks of every cart of a kind) share one
 // merged geometry: no new buffers for each copy. (Rooms have their own merge of their still things: rooms.ts.)
 
+/**
+ * Off until Steve says yes (2026-09-28): the pixel diff, once it read the picture right, showed merged parts do not draw
+ * to the bit (a corner snapped to the PS1 grid through a slightly different sum lands a pixel over now and then:
+ * ~370 pixels at the Rijnkaai, 1-pixel edges on the bollards). ~0.4 ms a frame. `?merge` in the URL turns it on (dev).
+ */
+const MERGE_AT_BUILD = import.meta.env.DEV && typeof location !== "undefined" && new URLSearchParams(location.search).has("merge");
+
 /** Merged geometries by their parts (geometries and places): copies share one. */
 const cache = new Map<string, THREE.BufferGeometry>();
 
@@ -146,6 +153,7 @@ function eligible(o: THREE.Object3D, tagged: boolean): o is THREE.Mesh {
  * saved. Call it when the parent is built, before its first frame.
  */
 export function mergeParts(parent: THREE.Object3D, pick: (m: THREE.Mesh) => boolean = () => true, opts: { tagged?: boolean } = {}): number {
+  if (!MERGE_AT_BUILD) return 0;
   const groups = new Map<string, THREE.Mesh[]>();
   for (const c of parent.children) {
     if (!eligible(c, !!opts.tagged) || !pick(c)) continue;
