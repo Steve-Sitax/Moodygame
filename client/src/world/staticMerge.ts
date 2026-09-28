@@ -3,7 +3,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 // Still parts drawn as one (2026-09-28, draw calls). Code-made models are often many small meshes with the same
 // material under one parent: the six iron straps of a door leaf, the frame of a lantern, the legs of a bench. Each
-// is a draw call of its own (~5 us of CPU in three.js each, in the main view and again in every mirror), and a node
+// is a draw call of its own (~2 us of CPU each in three.js, in the main view and again in every mirror), and a node
 // the culler and three.js walk every frame. mergeParts() bakes such siblings into one mesh per material, in the
 // parent's frame, so a door leaf still turns on its hinge and a bench still stands where its group stands.
 // Only for parts that never move, hide or change on their own: the caller says which (pick). The material is the

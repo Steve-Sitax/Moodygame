@@ -89,6 +89,23 @@ the spilt light), so a stone is lit on the side toward a light and shaded on the
   walls, drawn as quads that multiply what is under them (`dst * (1 + src)`), plus additive shafts. No light, no shadow
   map. A new hall with windows gives its windows, piers, arcade walls and galleries to `buildHallSun`.
 
+## Draw calls (2026-09-28)
+What a draw costs in three.js r186 here (Chrome 153, measured in one run, A against B): a draw after one with the
+same material ~2 us of CPU; a new material ~4-5 us more (all its uniforms sent again); the scene walked once per pass
+(main view, each mirror, each room). Merging same-material parts saves the cheap kind, so it pays little per draw.
+- **Still parts as one** (`world/staticMerge.ts` `mergeParts`, `mergePartsTree`): the still meshes under one parent
+  that share a material become one mesh in the parent's frame (a door leaf still turns, a boat still sails). Tagged
+  meshes (`userData`: clock hands, signs for the sign check), mirrored parts and anything the caller does not pick stay
+  as they are. Copies with the same parts in the same places share one geometry. Used for lanterns, sacks on boats and
+  carts, door straps, bollards, lamp posts, signs, the Steen's ironwork. Rooms have their own (`rooms.ts mergeStatic`).
+  A new code-made model of many small parts: call it when it is built.
+- **One material for many**: make it once (`sharedMaterial()` in dev lets `pixelDiff("share")` split it again), not
+  one per object with the same settings (the shop signs had one per sign).
+- Checks: `__scheldemist.pixelDiff("merge")` and `pixelDiff("share")` must give 0 pixels; `__staticMerge.info()`.
+- Measured and left: sorting by shader first (30% fewer shader switches, no faster), sharing all materials with equal
+  settings (100 fewer material set-ups a frame, no measurable gain), texture atlases (the materials in view differ in
+  their shader settings, not their pictures: an atlas would join about 10 of 400).
+
 ## Still open
 - The water mirror draws the town a second time when water is in view: about 12 ms more per frame on
   the quays (not a stutter, a steady cost). Cheaper options change the picture, so none is taken yet.
