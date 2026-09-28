@@ -237,6 +237,9 @@ export async function buildTrees3D(
  * Leaves falling from trees: small diamonds that drift and turn on their way down, `per` a tree, one draw call.
  * `top`: how high they start (m over the tree's foot, plus up to 2 m). Null when there are none.
  */
+/** Beyond this (m) a tree's falling leaves move every 8th frame only (a leaf is under a pixel there). */
+const FAR_LEAVES = 40;
+
 export function fallingLeaves(trees: Array<{ x: number; z: number; y0: number; top: number; spread?: number }>, per: number): THREE.InstancedMesh | null {
   const n = trees.length * per;
   if (!n) return null;
@@ -273,13 +276,28 @@ export function fallingLeaves(trees: Array<{ x: number; z: number; y0: number; t
   const q = new THREE.Quaternion();
   const m4 = new THREE.Matrix4();
   let last = -1;
-  fall.onBeforeRender = () => {
+  let frame = 0;
+  fall.onBeforeRender = (_r, _s, camera) => {
     const t = psxUniforms.uTime.value;
     if (t === last) return; // the mirrors draw the scene too: once a frame is enough
     last = t;
+    frame++;
     const wind = 0.55 + 0.45 * psxUniforms.uSea.value;
+    const cx = camera.matrixWorld.elements[12];
+    const cz = camera.matrixWorld.elements[14];
+    let tree = -1;
+    let skip = false;
     for (let i = 0; i < n; i++) {
       const d = drops[i];
+      // (2026-09-28, the slow frames: every leaf of every tree moved every frame; a tree beyond FAR_LEAVES m, where a
+      // leaf is under a pixel, moves its leaves every 8th frame, the trees in turns; where they are comes from the time)
+      if (i % per === 0) {
+        tree = i / per;
+        const dx = d.x - cx;
+        const dz = d.z - cz;
+        skip = dx * dx + dz * dz > FAR_LEAVES * FAR_LEAVES && (frame + tree) % 8 !== 0;
+      }
+      if (skip) continue;
       const life = d.top / d.speed; // seconds to fall
       const f = (t / life + d.phase) % 1;
       const y = d.top * (1 - f);
