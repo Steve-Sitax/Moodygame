@@ -94,7 +94,7 @@ export function inHand(j: JobRow): boolean {
 /** Save carry/deliver progress so a reload does not make Jef carry twice. */
 export function saveProgress(db: DB, id: number, p: Progress): JobRow {
   const j = job(db, id);
-  if (!inHand(j) || !j.task || j.task.kind === "watch" || j.task.kind === "mill") throw new GameError("no progress to save", 409);
+  if (!inHand(j) || !j.task || j.task.kind === "watch" || j.task.kind === "mill" || j.task.kind === "lamps") throw new GameError("no progress to save", 409);
   const count = j.task.kind === "carry" ? j.task.count : j.task.kind === "letters" ? j.task.stops.length : 1;
   const clean = (n: unknown) => Math.max(0, Math.min(count, Math.floor(Number(n) || 0)));
   const progress = { delivered: clean(p.delivered), lost: clean(p.lost), sold: clean(p.sold) };
@@ -185,6 +185,21 @@ export function settle(j: JobRow, r: Report, rng: () => number = Math.random): S
         : `Jef put ${done} of ${count} letters under the right doors for ${who}.`,
     );
     return { pay_c: round5(pay), extra_c: 0, trust_delta: done === count ? 1 : 0, caught: false, status: done === 0 ? "failed" : "done", facts };
+  }
+
+  // the lamplighter's last lamps (town/lampjob.ts): the ENGINE counts the lamps lit, whatever the client says
+  if (task.kind === "lamps") {
+    const count = task.lamps.length;
+    const done = task.lamps.filter((l) => l.done).length;
+    const pay = count ? (j.pay_c * done) / count : 0;
+    facts.push(
+      done === count
+        ? `Jef lit the last ${count} lamps of ${who}'s round at dusk, every one in time.`
+        : done
+          ? `Jef lit ${done} of the ${count} lamps ${who} gave him; ${who} lit the rest himself, late.`
+          : `Jef took ${who}'s lamps and lit none of them; ${who} lit them himself, late.`,
+    );
+    return { pay_c: round5(pay), extra_c: 0, trust_delta: done === count ? 1 : done === 0 ? -1 : 0, caught: false, status: done === 0 ? "failed" : "done", facts };
   }
 
   // M7 mills: an hour's help at the mill: half the pay for being there, the rest by the turns of the cap
@@ -290,8 +305,9 @@ export function finishJob(db: DB, id: number, report: Report, rng?: () => number
   if (report.box) s.facts.push(`${j.employer_name} was abed; Jef dropped the proof in the box at the door and took his pay from it.`);
   // M6 ideas: a job that went wrong (ideas/trouble.ts) adds its engine-set pay change and facts
   for (const f of settleExtras) f(db, j, s);
-  // (M7 mills: the engine's mill work is for a townsperson, the miller or the baker: trust goes to their own faction)
-  const faction = ALL_EMPLOYERS[j.employer_npc]?.faction ?? (j.source === "mill" ? ((db.prepare("SELECT faction FROM npc WHERE id = ?").get(j.employer_npc) as { faction: string | null } | undefined)?.faction ?? undefined) : undefined);
+  // (M7 mills: the engine's mill work is for a townsperson, the miller or the baker: trust goes to their own faction;
+  // the lamplighter's lamps too)
+  const faction = ALL_EMPLOYERS[j.employer_npc]?.faction ?? (j.source === "mill" || j.source === "lamps" ? ((db.prepare("SELECT faction FROM npc WHERE id = ?").get(j.employer_npc) as { faction: string | null } | undefined)?.faction ?? undefined) : undefined);
   db.transaction(() => {
     db.prepare("UPDATE job SET status = ? WHERE id = ?").run(s.status, id);
     // time passes while the job is played (M5 clock), so no extra hour here

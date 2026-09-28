@@ -1,4 +1,4 @@
-import { inGrace, lampLit, roundState, roundWindow, seenPace, SEEN_STOP_S, type FogDay, type LampRound, type LampWindow } from "../../../server/src/town/lampround";
+import { helpHolds, inGrace, lampLit, lampLitHelped, roundState, roundWindow, seenPace, SEEN_STOP_S, type FogDay, type LampHelp, type LampRound, type LampWindow } from "../../../server/src/town/lampround";
 import type { GasLamps } from "../world/gaslamps";
 import type { Crowd, Puppet } from "./crowd";
 import type { Town } from "./town";
@@ -16,6 +16,8 @@ import { makeWear, setPole, type Wear } from "./wardrobe";
 // M7 fog lamps (2026-09-25): on a day of thick fog the lamps burn by day too. With the day's fog
 // (the engine's FogDay, lampround.ts windowsOf) the dawn round is not walked, a fog that comes by day
 // is lit by a fog round, and one that lifts early enough is put out by one; each is walked like the others.
+// The player's lamps (2026-09-28, town/lampjob.ts): a lamplighter who has handed the last lamps of his round to a
+// player ends his round before them while the job holds; those lamps burn once the player has lit them.
 
 const CLAIM_M = 50;
 const DROP_M = 64;
@@ -36,6 +38,8 @@ interface Run {
   held: boolean;
   /** Seen: the pace he walks now (m/s). */
   pace: number;
+  /** Tonight his round ends before a player's lamps, and he has walked his part. */
+  partDone: boolean;
 }
 
 export class Lamplighters {
@@ -43,6 +47,8 @@ export class Lamplighters {
   private clock = 0;
   /** Today's fog as the engine keeps it (null: none known yet, the plain dusk and dawn rounds). */
   fog: FogDay | null = null;
+  /** The lamps a player lights for a lamplighter tonight (the server's, with the day it is for), or null. */
+  help: LampHelp | null = null;
 
   constructor(
     private readonly town: Town,
@@ -52,7 +58,7 @@ export class Lamplighters {
 
   setRounds(rounds: LampRound[]): void {
     for (const r of this.runs) this.drop(r, true);
-    this.runs = rounds.map((round) => ({ round, p: null, wear: null, idx: 0, done: 0, phase: "walk", t: 0, goT: 0, kind: null, win: null, held: false, pace: 0 }));
+    this.runs = rounds.map((round) => ({ round, p: null, wear: null, idx: 0, done: 0, phase: "walk", t: 0, goT: 0, kind: null, win: null, held: false, pace: 0, partDone: false }));
   }
 
   update(dt: number, player: { x: number; z: number }, hour: number): void {
@@ -73,14 +79,34 @@ export class Lamplighters {
       r.kind = w.kind;
       r.win = w.w;
       r.done = plan.done;
+      r.partDone = false;
     }
+    // a player's lamps tonight: his round ends before them while the job holds (town/lampjob.ts)
+    const help = this.help && this.help.round === round.id ? this.help : null;
+    const holds = helpHolds(round, help, help?.day ?? -1, hour, fog);
+    const cut = holds ? help!.from : round.lamps.length;
     // the lamps: the plan's, unless he is walking them in front of Jef (the ones he has not reached
-    // yet are as they were when his window began)
+    // yet are as they were when his window began); a player's lamps burn once he has lit them
     round.lamps.forEach((l, k) => {
+      if (help && k >= help.from && (holds || help.lit.includes(l.id))) {
+        this.lamps.set(l.id, lampLitHelped(round, k, hour, fog, help, help.day));
+        return;
+      }
       let on = lampLit(round, k, hour, fog);
       if (r.p && w.kind && w.w) on = k < r.done ? w.kind === "dusk" : lampLit(round, k, w.w.start - 1e-6, fog);
       this.lamps.set(l.id, on);
     });
+    // his part is walked: he goes about his day (the player has the rest)
+    // (seen, he walks to the end of his part first)
+    if (holds && w.kind === "dusk" && (r.partDone || (!r.p && plan.done >= cut))) {
+      r.partDone = true;
+      if (r.p) this.drop(r, true);
+      else if (r.held) {
+        this.town.release(round.lamplighter);
+        r.held = false;
+      }
+      return;
+    }
     if (!w.kind) {
       if (r.held) {
         this.town.release(round.lamplighter);
@@ -110,7 +136,18 @@ export class Lamplighters {
       this.drop(r, false);
       return;
     }
-    if (r.idx >= round.lamps.length) {
+    // a lamp a player lit for him tonight: he passes it by (after the player's deadline he lights the rest)
+    while (help && r.idx < cut && r.idx >= help.from && help.lit.includes(round.lamps[r.idx].id)) {
+      r.idx++;
+      if (r.done < r.idx) r.done = r.idx;
+      r.phase = "walk";
+      r.goT = 0;
+    }
+    if (r.idx >= cut) {
+      if (holds) {
+        r.partDone = true;
+        return;
+      }
       // his round is done: he stands a moment, then the plan takes him home
       if (!this.crowd.puppetBusy(p)) this.crowd.puppetStand(p, "idle", null);
       return;
@@ -165,6 +202,8 @@ export class Lamplighters {
       window: r.kind,
       fog: !!r.win?.fog,
       seen: !!r.p,
+      partDone: r.partDone,
+      helped: this.help?.round === r.round.id ? { from: this.help.from, lit: this.help.lit.length } : null,
       at: r.p ? [+r.p.x.toFixed(1), +r.p.z.toFixed(1)] : null,
       idx: r.idx,
       done: r.done,

@@ -983,6 +983,7 @@ export function makeRun(job: Job, ctx: RunCtx): Run | null {
   if (maker) return maker(job, ctx);
   if (t.kind === "letters") return null;
   if (t.kind === "mill") return null; // (M7 mills: game/mills.ts registers its own)
+  if (t.kind === "lamps") return null; // (the lamplighter's lamps: game/lampjob.ts registers its own)
   if (t.kind === "watch") return new WatchRun(job, t, ctx);
   return new HaulRun(job, t, ctx);
 }

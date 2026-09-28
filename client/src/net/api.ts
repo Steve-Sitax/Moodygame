@@ -78,7 +78,32 @@ export interface MillTask {
   twist: "none";
   limit_s: null;
 }
-export type Task = CarryTask | WatchTask | DeliverTask | LettersTask | MillTask;
+/** One lamp of a lamps job (server town/lampjob.ts): the post, and the foot he stands at; the server marks it done. */
+export interface LampStop {
+  id: string;
+  x: number;
+  z: number;
+  sx: number;
+  sz: number;
+  done?: boolean;
+}
+/** The lamplighter's last lamps for one evening (server town/lampjob.ts): the pole at the first, lit from `open` until `until`. */
+export interface LampsTask {
+  kind: "lamps";
+  goods: "lamps";
+  round: string;
+  from: number;
+  lamps: LampStop[];
+  pole: { x: number; z: number };
+  picked?: boolean;
+  open: number;
+  until: number;
+  take_by: number;
+  twist: "none";
+  limit_s: null;
+  progress?: Progress;
+}
+export type Task = CarryTask | WatchTask | DeliverTask | LettersTask | MillTask | LampsTask;
 
 /** What happened in 3D, sent when a job ends. The server turns it into money. */
 export interface Report {
@@ -238,6 +263,8 @@ export interface JobsPayload {
   ride?: { on: { line: string; from: string; minutes: number; left: number } | null; fare_c: number; change: { from_line: string } | null };
   /** M7 fog lamps: today's fog as the lamplighters see it (server day.ts fogDay). */
   lamps_fog?: { day?: number; start: boolean; turns: Array<{ h: number; fog: boolean }> };
+  /** The lamps a player lights for a lamplighter tonight (server town/lampjob.ts; lampround.ts LampHelp); null when none. */
+  lamps_help?: { day: number; round: string; from: number; lit: string[]; open: number; until: number; job: number } | null;
 }
 
 /** What an NPC says. Trust stays on the server (docs/08: hidden). */

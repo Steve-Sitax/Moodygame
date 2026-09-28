@@ -34,7 +34,8 @@ export const TASK_TYPES = ["carry", "watch", "deliver", "row", "find", "talk"] a
 // M6: "letters" (a round of doors and counters: the post office's letters, a letter's errand) is
 // never on the model's list; the engine builds those jobs itself (paper/post.ts)
 // M7 mills: "mill" (an hour's help at a mill on the wall) is the engine's own too (town/mills.ts)
-export const PLAYABLE = new Set<string>(["carry", "watch", "deliver", "letters", "mill"]);
+// "lamps" (the last lamps of a lamplighter's round, lit at dusk) is the engine's own too (town/lampjob.ts)
+export const PLAYABLE = new Set<string>(["carry", "watch", "deliver", "letters", "mill", "lamps"]);
 
 export const GOODS = ["crates", "sacks", "barrels", "hides", "rope", "parcel"] as const;
 // M6 emigrants (town/emigrants.ts): "chests" is never on the model's list; the engine builds those errands itself
@@ -255,7 +256,39 @@ export interface MillTask {
   twist: "none";
   limit_s: null;
 }
-export type Task = CarryTask | WatchTask | DeliverTask | LettersTask | MillTask;
+/** One lamp of a lamps job: the post, and the foot where he stands to reach it with the pole. */
+export interface LampStop {
+  id: string;
+  x: number;
+  z: number;
+  sx: number;
+  sz: number;
+  /** Set by the engine when he has lit it (town/lampjob.ts), never by the client. */
+  done?: boolean;
+}
+/**
+ * A lamplighter's last lamps for one evening (town/lampjob.ts, Steve 2026-09-28). Take the spare pole at the first
+ * lamp, then light each lamp from `open` (the round's dusk) until `until`. Engine-built; the engine counts the lamps lit.
+ */
+export interface LampsTask {
+  kind: "lamps";
+  goods: "lamps";
+  round: string;
+  /** The stretch's first lamp on the round. */
+  from: number;
+  lamps: LampStop[];
+  /** Where the spare pole leans (the first lamp's foot), and whether he has it. */
+  pole: { x: number; z: number };
+  picked?: boolean;
+  /** Game hours: lighting from `open`, all by `until`; the job can be taken until `take_by`. */
+  open: number;
+  until: number;
+  take_by: number;
+  twist: "none";
+  limit_s: null;
+  progress?: Progress;
+}
+export type Task = CarryTask | WatchTask | DeliverTask | LettersTask | MillTask | LampsTask;
 
 export interface JobRow {
   id: number;
@@ -431,7 +464,7 @@ const dist = (a: SpotId, b: SpotId) => Math.hypot(SPOTS[a].x - SPOTS[b].x, SPOTS
  * Engine turns a board line into a playable task. The model picked goods,
  * places and a twist; the engine fixes what does not fit and sets all numbers.
  */
-export function taskFor(j: BoardJob): Exclude<Task, MillTask> | null {
+export function taskFor(j: BoardJob): Exclude<Task, MillTask | LampsTask> | null {
   let twist: Twist = (TWISTS_FOR[j.task_type] ?? ["none"]).includes(j.twist) ? j.twist : "none";
   const employer = ALL_EMPLOYERS[j.employer];
   // M3e: a townsperson's work stays on their own ground (walking range); the engine moves strays back.

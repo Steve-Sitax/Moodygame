@@ -99,6 +99,7 @@ import { createAlive } from "./world/alive";
 import { BackLife } from "./game/backlife";
 // M7 mills (docs/milestones/M7-mills.md): the millers, the sails in the wind, the flour and grain carts, the mill work (hook)
 import { Mills } from "./game/mills";
+import { LampJob } from "./game/lampjob";
 import { setAliveViewHeight } from "./world/alive/common";
 import { bootRestore, type ClientState } from "./game/restoreData";
 import { Together } from "./net/mp/together"; // M8a multiplayer: the others in the town, no pause together
@@ -401,6 +402,7 @@ events.say = (t) => jobs.say(t);
 const townLife = new TownLife(world, town, crowd, events);
 townLife.say = (t) => jobs.say(t);
 townLife.fogDay = () => jobs.day.lampsFog;
+townLife.lampsHelp = () => jobs.day.lampsHelp;
 townLife.refresh = (p) => jobs.refresh(p);
 townLife.showLines = (c) => bubbles.show(c);
 townLife.actions = () => actions.active;
@@ -475,6 +477,9 @@ mills.clock = () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF });
 mills.weather = () => weatherNow ?? "clear";
 mills.say = (t) => jobs.say(t);
 mills.load().catch((e) => console.warn("the mills did not load", e));
+// the lamplighter's last lamps, a job for Jef at dusk (game/lampjob.ts; server town/lampjob.ts)
+const lampJob = new LampJob(world);
+lampJob.hour = () => jobs.day.hourF;
 // M7 night: the employers' quest boxes by their doors (game/questboxes.ts), and the gangs (game/nightlife.ts)
 const boxes = new QuestBoxes(world, jobs.people, town);
 boxes.clock = () => ({ day: jobs.day.dayNum, hour: jobs.day.hourF });

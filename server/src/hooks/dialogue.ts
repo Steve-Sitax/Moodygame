@@ -1,3 +1,4 @@
+import { hhmm } from "../town/lampround.ts";
 import { holdTalk, resetTalkHolds } from "../player/talking.ts";
 import { sexed, shownText } from "../player/profile.ts"; // M7 character: lines said to the player follow the profile
 import { z } from "zod";
@@ -119,6 +120,7 @@ function workFacts(j: JobRow): string {
   if (t.kind === "deliver") return `deliver one ${t.goods === "parcel" ? "parcel" : t.goods} from your door to ${t.recipient} at ${SPOTS[t.to].label}.`;
   if (t.kind === "letters") return `take ${t.stops.length === 1 ? "a letter" : `${t.stops.length} letters`} round the town.`;
   if (t.kind === "mill") return `an hour's help at ${t.post.label}: stay by the mill and turn the cap into the wind at the capstan when you call.`;
+  if (t.kind === "lamps") return `light the last ${t.lamps.length} lamps of your round with your spare pole, which leans on the first of them: not before ${hhmm(t.open)}, all burning by ${hhmm(t.until)}.`;
   return `watch the ${t.goods} at ${SPOTS[t.post].label} for ${Math.round(t.duration_s / 60)} minutes, until the bell.`;
 }
 

@@ -6,7 +6,7 @@ import { asPlayer, pid } from "../player/current.ts";
 import { nameOf } from "../player/names.ts";
 import { applyTrust, remember } from "../npcs.ts";
 import { POCKET_SLOTS, atWork } from "../trade.ts";
-import { fogDay, weather, type Weather } from "../day.ts";
+import { clock, fogDay, weather, type Weather } from "../day.ts";
 import { activityAt } from "./schedule.ts";
 import { TOWN_EMPLOYER_IDS, resident, town } from "./store.ts";
 import { cityHouses, houseDoors, walkMap, WALL } from "./walkmap.ts";
@@ -15,8 +15,8 @@ import type { Resident } from "./population.ts";
 import { rowBoatHome, rowBoatStates, rowBoats, rowOn, rowState, setRowBoat, takePrompt, type LooseBoat } from "../rowing.ts";
 import { HULLS } from "../../../shared/smallBoats.ts";
 import { wantedFactor } from "../ideas/wanted.ts";
-import { lampLit } from "./lampround.ts";
-import { allLamps, lampRounds } from "./lamplighters.ts";
+import { lampLitHelped } from "./lampround.ts";
+import { allLamps, lampHelpNow, lampRounds } from "./lamplighters.ts";
 import { CHARISMA_LOW, charisma } from "./charisma.ts";
 import SPOTS from "../../../shared/spots.json" with { type: "json" };
 import CITY from "../../../shared/city.json" with { type: "json" };
@@ -535,10 +535,13 @@ export function lampLightAt(db: DB, x: number, z: number, hour: number): number 
   const rounds = lampRounds(db)?.rounds ?? [];
   if (rounds.length) {
     const fog = fogDay(db);
+    // (the lamps a player lights for a lamplighter tonight wait for him: town/lampjob.ts)
+    const help = lampHelpNow(db);
+    const day = clock(db).day;
     for (const r of rounds)
       r.lamps.forEach((l, k) => {
         const d = Math.hypot(l.x - x, l.z - z);
-        if (d < LAMP_REACH_M && lampLight(d) > best && lampLit(r, k, hour, fog)) best = lampLight(d);
+        if (d < LAMP_REACH_M && lampLight(d) > best && lampLitHelped(r, k, hour, fog, help, day)) best = lampLight(d);
       });
   } else for (const l of allLamps()) best = Math.max(best, lampLight(Math.hypot(l.x - x, l.z - z)));
   return best;
