@@ -24,6 +24,8 @@ export function createStorm(ctx: Ctx): Part {
   let wait = 20;
   let rumble = 8;
   let primeT = 0;
+  let flicker = 3;
+  let flickers = 0;
   let flash = -1;
   let pattern: Array<[number, number]> = [];
   let sky: THREE.HemisphereLight | null = null;
@@ -123,7 +125,7 @@ export function createStorm(ctx: Ctx): Part {
     }
     wait -= f.dt;
     if (forced >= 0 || ((storm || heavy) && wait <= 0)) {
-      wait = storm ? rand(15, 55) * (1 - 0.82 * fury) : rand(150, 400);
+      wait = storm ? rand(15, 55) * (1 - 0.9 * fury) : rand(150, 400);
       const km = forced >= 0 ? forced : fury > 0.4 && Math.random() < 0.45 * fury ? rand(0.2, 1.1) : rand(0.8, 6) * (1 - 0.5 * fury);
       forced = -1;
       flash = 0;
@@ -139,6 +141,19 @@ export function createStorm(ctx: Ctx): Part {
       else boltN = 0;
       const eye = { x: f.eye.x, z: f.eye.z };
       window.setTimeout(() => thunderFrom(eye, a, km, 1.6), ((km * 1000) / 343) * 1000);
+    }
+    // the lightning inside the clouds: a dim flicker of the sky every second or few, no bolt, no near sound
+    flicker -= f.dt;
+    if (storm && fury > 0.3 && flicker <= 0) {
+      flicker = rand(1, 4) / fury;
+      flickers++;
+      if (flash < 0) {
+        flash = 0;
+        near = 9;
+        boltN = 0;
+        const k = rand(0.12, 0.3);
+        pattern = [[0, k], [rand(0.06, 0.15), k * rand(0.4, 0.9)]];
+      }
     }
     // the far storm: thunder rolling on out of sight, no flash to speak of
     rumble -= f.dt;
@@ -169,7 +184,7 @@ export function createStorm(ctx: Ctx): Part {
   return {
     name: "storm",
     update,
-    info: () => ({ strikes, rumbles, next: +wait.toFixed(1), flashing: flash >= 0, lastKm: +near.toFixed(2) }),
+    info: () => ({ strikes, rumbles, flickers, next: +wait.toFixed(1), flashing: flash >= 0, lastKm: +near.toFixed(2) }),
     setOn: (v) => {
       on = v;
     },
