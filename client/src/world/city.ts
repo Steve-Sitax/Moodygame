@@ -113,7 +113,9 @@ export function buildCity(scene: THREE.Scene, mats: { cobble: THREE.Material; qu
 
   // the street mirrored in the puddles (world/mirror.ts), drawn only while there are puddles.
   // M7 rendering: 320 x 180 like the river's (was 480 x 270, as many pixels as the whole view)
-  const groundMirror = createMirror(0, { width: 320, height: 180, name: "puddles", enabled: () => psxUniforms.uPuddle.value > 0.01 });
+  // (every frame, outside the mirrors' budget: an older picture lagged behind at Jef's feet; and only what stands
+  // within 50 m, Steve 2026-09-28)
+  const groundMirror = createMirror(0, { width: 320, height: 180, name: "puddles", enabled: () => psxUniforms.uPuddle.value > 0.01, everyFrame: true, reach: 50 });
   psxUniforms.uMirror.value = groundMirror.texture;
   psxUniforms.uMirrorMat.value = groundMirror.matrix;
 

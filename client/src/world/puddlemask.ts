@@ -63,3 +63,4 @@ export function puddleAt(x: number, z: number, scale = 1): number {
   if (pn <= th) return 0;
   return smooth(th, th + 0.018, pn) * smooth(0.46, 0.56, pudVal(x / 2.1 + 57.1, z / 2.1 + 57.1)) * smooth(0.3, 0.42, pudVal(x / 4.7 - 23.9, z / 4.7 - 23.9));
 }
+if (import.meta.env.DEV) Object.assign(window, { __puddleAt: puddleAt });

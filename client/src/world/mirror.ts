@@ -39,6 +39,18 @@ export interface MirrorOptions {
   enabled?: (camera?: THREE.Camera) => boolean;
   /** A name for the culler and the dev view (world/cull.ts: "puddles" gets its own occlusion). */
   name?: string;
+  /**
+   * Drawn every frame it is seen, outside the mirrors' budget, as big as before and with no margin (Steve,
+   * 2026-09-28: the puddles at his feet showed an older picture lagging behind; the river's far water does not).
+   */
+  everyFrame?: boolean;
+  /** Its own smallest thing, in pixels of its picture across (default mirrorBudget.minPx). */
+  minPx?: number;
+  /**
+   * Things further than this (m) from its mirrored eye are left out by the culler (world/cull.ts). Its `far` alone
+   * does not do it: the oblique near plane on the mirror's plane tilts the far plane away too.
+   */
+  reach?: number;
 }
 
 /**
@@ -54,12 +66,16 @@ export interface MirrorPass {
   readonly far: number;
   /** One pixel of its picture, as a slope (2 tan(fov / 2) / height). */
   readonly pixel: number;
+  /** Things under this many pixels of its picture across are left out (world/cull.ts). */
+  readonly minPx: number;
+  /** Things further than this from its mirrored eye are left out (world/cull.ts; Infinity: no limit). */
+  readonly reach: number;
   willRender(eye: THREE.Vector3): boolean;
 }
 export const mirrorPasses: MirrorPass[] = [];
 
 /** Dev: every mirror made, with the renderer that drew it last (read its picture in the console). */
-export const mirrorsForDev: Array<{ planeY: number; rt: THREE.WebGLRenderTarget; renderer: THREE.WebGLRenderer | null; renders: number; calls: number; error: string; why: string; baseW: number; baseH: number }> = [];
+export const mirrorsForDev: Array<{ planeY: number; rt: THREE.WebGLRenderTarget; renderer: THREE.WebGLRenderer | null; renders: number; calls: number; error: string; why: string; baseW: number; baseH: number; grow: number }> = [];
 if (import.meta.env.DEV) Object.assign(window, { __mirrors: mirrorsForDev, __psx: psxUniforms });
 
 /** The mirrors' own cameras: a mirror is not drawn again inside another mirror's picture. */
@@ -89,19 +105,61 @@ if (import.meta.env.DEV) Object.assign(window, { __mirrorTurns: mirrorTurns });
 const TURN_COS = Math.cos(THREE.MathUtils.degToRad(4));
 /** Frames drawn with the mirrors first (drawMirrorsFirst): the mirrors' turns count them. */
 let mirrorFrame = 0;
-const firstPasses: Array<(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera, view: THREE.Frustum) => void> = [];
+const firstPasses: Array<{ wish(camera: THREE.PerspectiveCamera, view: THREE.Frustum): number; draw(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera): void }> = [];
 const viewFrustum = new THREE.Frustum();
 const viewMatrix = new THREE.Matrix4();
 
-/** Draw every mirror whose surface is in this camera's view, before its main pass (retro/retroPass.ts). */
+/**
+ * The mirrors' budget (2026-09-28, the slow frames; Steve: "do both", the picture may change a little). A mirror drew
+ * the town a second time: ~10 ms a frame, and both mirrors in one frame whenever the eye turned. Now:
+ *  - at most one mirror every `every` frames: the one waiting longest (a mirror seen for the first time, or after a
+ *    jump, at once);
+ *  - a mirror is drawn again when the eye moved or turned (as before) or after `maxAge` frames (moving people and
+ *    boats in the water, at 15 pictures a second);
+ *  - its picture is `margin` wider on every side than the view, so a picture a few frames old still covers the
+ *    water after a turn (it is drawn `grow` times bigger, so its pixels stay as fine as before);
+ *  - the culler leaves out of a mirror what is under `minPx` pixels of its picture across (world/cull.ts; was 0.25).
+ * The puddles' mirror is not in the budget (MirrorOptions.everyFrame): Steve saw its older pictures lag at his feet.
+ */
+export const mirrorBudget = { maxAge: 4, every: 2, margin: THREE.MathUtils.degToRad(12), grow: 1.5, minPx: 2, everyFrame: true, everyMinPx: 2, reachOn: true };
+if (import.meta.env.DEV) Object.assign(window, { __mirrorBudget: mirrorBudget });
+/**
+ * The culler's answer for the main view this frame (world/cull.ts sets it): a surface it hides there shows no
+ * reflection, so a mirror whose every surface is hidden is not drawn (2026-09-28: the river mirror drew the whole
+ * town on squares where the houses hide all water).
+ */
+export const mirrorView: { hiddenInMain: ((o: THREE.Object3D) => boolean) | null } = { hiddenInMain: null };
+if (import.meta.env.DEV) Object.assign(window, { __mirrorView: mirrorView });
+/** A mirror's wish to be drawn this frame: 0 not needed, else how urgent (MUST: now, whatever the others do). */
+const MUST = 1000;
+/** A mirror drawn every frame, outside the budget (MirrorOptions.everyFrame). */
+const FREE = 2000;
+const wishes: number[] = [];
+
+/** Draw the mirror whose surface is in this camera's view and whose turn it is, before its main pass (retro/retroPass.ts). */
 export function drawMirrorsFirst(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera): void {
   if (!mirrorsFirst.on || !(camera instanceof THREE.PerspectiveCamera) || mirrorCams.has(camera)) return;
   camera.updateWorldMatrix(true, false);
   viewMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
   viewFrustum.setFromProjectionMatrix(viewMatrix);
   mirrorFrame++;
-  for (const pass of firstPasses) pass(renderer, scene, camera, viewFrustum);
+  let best = -1;
+  let must = false;
+  for (let i = 0; i < firstPasses.length; i++) {
+    wishes[i] = firstPasses[i].wish(camera, viewFrustum);
+    if (wishes[i] >= FREE) firstPasses[i].draw(renderer, scene, camera);
+    else if (wishes[i] >= MUST) {
+      firstPasses[i].draw(renderer, scene, camera);
+      must = true;
+    } else if (wishes[i] > 0 && (best < 0 || wishes[i] > wishes[best])) best = i;
+  }
+  if (must) lastBudgetDraw = mirrorFrame;
+  else if (best >= 0 && mirrorFrame - lastBudgetDraw >= mirrorBudget.every) {
+    firstPasses[best].draw(renderer, scene, camera);
+    lastBudgetDraw = mirrorFrame;
+  }
 }
+let lastBudgetDraw = -10;
 
 /** Is this object shown (it and every parent visible)? */
 function shown(o: THREE.Object3D): boolean {
@@ -115,7 +173,7 @@ export const isMirrorCamera = (cam: THREE.Camera): boolean => mirrorCams.has(cam
 let mirrorScale = 1;
 export function setMirrorScale(k: number): void {
   mirrorScale = Math.max(1, Math.min(4, k));
-  for (const d of mirrorsForDev) d.rt.setSize(Math.round(d.baseW * mirrorScale * mirrorQuality), Math.round(d.baseH * mirrorScale * mirrorQuality));
+  for (const d of mirrorsForDev) d.rt.setSize(Math.round(d.baseW * mirrorScale * mirrorQuality * d.grow), Math.round(d.baseH * mirrorScale * mirrorQuality * d.grow));
 }
 /**
  * Menus (2026-09-26, graphics for weaker computers): "full" as before, "coarse" half the picture's size
@@ -130,13 +188,16 @@ export function setMirrorQuality(q: "off" | "coarse" | "full"): void {
   mirrorQuality = q === "coarse" ? 0.5 : 1;
   setMirrorScale(mirrorScale);
 }
+if (import.meta.env.DEV) Object.assign(window, { __mirrorQuality: (q: "off" | "coarse" | "full") => setMirrorQuality(q) });
 const offColour = new THREE.Color();
 
 export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
   let planeY = plane0;
   const baseW = opts.width ?? 320;
   const baseH = opts.height ?? 180;
-  const rt = new THREE.WebGLRenderTarget(Math.round(baseW * mirrorScale * mirrorQuality), Math.round(baseH * mirrorScale * mirrorQuality), {
+  // (drawn with a margin round the view: that much bigger, so its pixels stay as fine; mirrorBudget)
+  const grow = opts.everyFrame ? 1 : mirrorBudget.grow;
+  const rt = new THREE.WebGLRenderTarget(Math.round(baseW * mirrorScale * mirrorQuality * grow), Math.round(baseH * mirrorScale * mirrorQuality * grow), {
     magFilter: THREE.NearestFilter,
     minFilter: THREE.NearestFilter,
     depthBuffer: true,
@@ -144,6 +205,7 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
     stencilBuffer: true,
   });
   const cam = new THREE.PerspectiveCamera(75);
+  cam.userData.pass = `mirror ${opts.name ?? mirrorPasses.length}`; // (dev: the draw audit's pass name)
   mirrorCams.add(cam);
   const index = mirrorPasses.length;
   mirrorPasses.push({
@@ -159,6 +221,12 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
     get pixel() {
       return (2 * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2))) / rt.height;
     },
+    get reach() {
+      return mirrorBudget.reachOn ? (opts.reach ?? Infinity) : Infinity;
+    },
+    get minPx() {
+      return opts.minPx ?? (opts.everyFrame ? mirrorBudget.everyMinPx : mirrorBudget.minPx);
+    },
     willRender: (eye) => !mirrorsOff && (!opts.enabled || opts.enabled()) && eye.y > planeY + 0.02,
   });
   const matrix = new THREE.Matrix4();
@@ -173,6 +241,8 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
   const surfaces: THREE.Object3D[] = [];
   let busy = false;
   let drawn = false;
+  /** The frame the first pass judged this mirror (mirrorBudget): its surfaces then keep the picture it has. */
+  let judged = -1;
   // the last picture drawn: its frame, and the eye, look, plane and lens it was drawn for (mirrorTurns)
   let lastFrame = -10;
   let lastPlane = NaN;
@@ -180,10 +250,10 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
   const lastEye = new THREE.Vector3();
   const lastLook = new THREE.Vector3();
   const lookNow = new THREE.Vector3();
-  const dev = { planeY, rt, baseW, baseH, renderer: null as THREE.WebGLRenderer | null, renders: 0, calls: 0, error: "", why: "" };
+  const dev = { planeY, rt, baseW, baseH, grow, renderer: null as THREE.WebGLRenderer | null, renders: 0, calls: 0, error: "", why: "" };
   mirrorsForDev.push(dev);
 
-  function render(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera): void {
+  function render(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, decided = false): void {
     dev.calls++;
     if (busy) return void (dev.why = "busy");
     if (!(camera instanceof THREE.PerspectiveCamera)) return void (dev.why = "camera " + camera.type);
@@ -216,6 +286,7 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
     // its turn? (mirrorTurns) the other frame keeps the picture drawn the frame before
     lookNow.set(0, 0, -1).transformDirection(camera.matrixWorld);
     if (
+      !decided &&
       mirrorTurns.on &&
       lastFrame === mirrorFrame - 1 &&
       (mirrorFrame + index) % 2 === 1 &&
@@ -240,8 +311,14 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
     cam.lookAt(look.x, 2 * planeY - look.y, look.z);
     cam.near = camera.near;
     cam.far = Math.min(camera.far, opts.far ?? 160);
-    cam.fov = camera.fov;
-    cam.aspect = camera.aspect;
+    // wider than the view by the margin on every side (mirrorBudget): an older picture still covers a turn
+    {
+      const vh = THREE.MathUtils.degToRad(camera.fov / 2);
+      const hh = Math.atan(Math.tan(vh) * camera.aspect);
+      const m = decided && !opts.everyFrame ? mirrorBudget.margin : 0;
+      cam.fov = THREE.MathUtils.radToDeg(2 * Math.min(1.45, vh + m));
+      cam.aspect = Math.tan(Math.min(1.45, hh + m)) / Math.tan(Math.min(1.45, vh + m));
+    }
     cam.updateMatrixWorld();
     cam.updateProjectionMatrix();
     // world point -> uv in the picture
@@ -281,15 +358,33 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
   }
 
   // drawn first (see mirrorsFirst): when a surface of it is in the view; its surface's own call then finds it drawn
-  firstPasses.push((renderer, scene, camera, view) => {
-    if (drawn || busy) return;
-    if (!surfaces.some((o) => shown(o) && (o.frustumCulled === false || view.intersectsObject(o)))) return;
-    try {
-      render(renderer, scene, camera);
-    } catch (e) {
-      dev.error = String((e as Error)?.stack ?? e).slice(0, 400);
-      busy = false;
-    }
+  // (mirrorBudget: each frame the mirrors say how much they want to be drawn; drawMirrorsFirst picks)
+  firstPasses.push({
+    wish(camera, view) {
+      judged = mirrorFrame;
+      if (drawn || busy) return 0;
+      const hid = mirrorView.hiddenInMain;
+      if (!surfaces.some((o) => shown(o) && !hid?.(o) && (o.frustumCulled === false || view.intersectsObject(o)))) return 0;
+      if (opts.enabled && !opts.enabled(camera)) return 0;
+      if (mirrorsOff || !mirrorTurns.on) return MUST;
+      if (opts.everyFrame && mirrorBudget.everyFrame) return FREE;
+      eye.setFromMatrixPosition(camera.matrixWorld);
+      if (eye.y <= planeY + 0.02) return 0;
+      const age = mirrorFrame - lastFrame;
+      // never drawn, not for a while, a jump or a tide step: at once
+      if (lastFrame < 0 || age > 12 || lastEye.distanceToSquared(eye) > 16 || Math.abs(lastPlane - planeY) > 0.05) return MUST;
+      lookNow.set(0, 0, -1).transformDirection(camera.matrixWorld);
+      const moved = Math.abs(lastPlane - planeY) >= 0.005 || lastFov !== camera.fov || lastEye.distanceToSquared(eye) >= 0.25 || lastLook.dot(lookNow) <= TURN_COS;
+      return moved || age >= mirrorBudget.maxAge ? age : 0;
+    },
+    draw(renderer, scene, camera) {
+      try {
+        render(renderer, scene, camera, true);
+      } catch (e) {
+        dev.error = String((e as Error)?.stack ?? e).slice(0, 400);
+        busy = false;
+      }
+    },
   });
 
   return {
@@ -300,7 +395,7 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
       const prev = mesh.onBeforeRender;
       mesh.onBeforeRender = function (renderer, scene, camera, geometry, material, group) {
         try {
-          render(renderer, scene, camera);
+          if (!(mirrorsFirst.on && judged === mirrorFrame)) render(renderer, scene, camera);
         } catch (e) {
           dev.error = String((e as Error)?.stack ?? e).slice(0, 400);
           busy = false;

@@ -1,4 +1,5 @@
 import { TOWN } from "./townBox";
+import { pt } from "../dev/frameProf";
 import * as THREE from "three";
 import { pickSack, sackMesh } from "../game/sackModel";
 import { psx, psxUniforms } from "../retro/psx";
@@ -1151,14 +1152,30 @@ export function buildRijnkaai(): World {
     }
   };
   const dynamic = new (class extends Set<Rect> {
+    /**
+     * The same rects as a plain list, in the set's order (2026-09-28, the slow frames: a loop over a Set subclass
+     * made an iterator result for every rect, ~400 KB of garbage a frame from the walkers' checks alone).
+     */
+    readonly list: Rect[] = [];
     add(r: Rect): this {
-      if (!this.has(r)) dynamicVersion++;
+      if (!this.has(r)) {
+        dynamicVersion++;
+        this.list.push(r);
+      }
       return super.add(r);
     }
     delete(r: Rect): boolean {
       const had = super.delete(r);
-      if (had) dynamicVersion++;
+      if (had) {
+        dynamicVersion++;
+        this.list.splice(this.list.indexOf(r), 1);
+      }
       return had;
+    }
+    clear(): void {
+      if (this.size) dynamicVersion++;
+      this.list.length = 0;
+      super.clear();
     }
   })();
   /** Things with a top lower than feet + STEP can be walked onto. */
@@ -1171,7 +1188,11 @@ export function buildRijnkaai(): World {
   const cells = new Map<number, Rect[]>();
   const bigSolids: Rect[] = [];
   let filed = 0;
-  const cellKey = (i: number, j: number) => (i + 32768) * 65536 + (j + 32768);
+  // (2026-09-28: a key small enough to stay a small integer, no number object made for each look-up; cells within
+  // CELL_SPAN of the middle, 16 km each way; a collider reaching further is looked at every time, as a long one)
+  const CELL_SPAN = 4000;
+  const cellKey = (i: number, j: number) => (i + 4096) * 8192 + (j + 4096);
+  const cellClamp = (i: number) => (i < -CELL_SPAN ? -CELL_SPAN : i > CELL_SPAN ? CELL_SPAN : i);
   const fileSolids = () => {
     if (colliders.length < filed) {
       cells.clear();
@@ -1185,7 +1206,7 @@ export function buildRijnkaai(): World {
       const j0 = Math.floor(c.minZ / CELL);
       const j1 = Math.floor(c.maxZ / CELL);
       // (a long one, or odd numbers: looked at every time)
-      if (!(i1 - i0 <= 16 && j1 - j0 <= 16 && Math.abs(i0) < 30000 && Math.abs(j0) < 30000)) {
+      if (!(i1 - i0 <= 16 && j1 - j0 <= 16 && i0 > -CELL_SPAN && i1 < CELL_SPAN && j0 > -CELL_SPAN && j1 < CELL_SPAN)) {
         bigSolids.push(c);
         continue;
       }
@@ -1204,10 +1225,10 @@ export function buildRijnkaai(): World {
     for (const c of bigSolids) if (inRect(c, x, z, r) && blocks(c, feet, x, z, r)) return true;
     // a hair wider than r, so rounding never leaves out a cell inRect would reach
     const e = Math.abs(r) + 1e-6;
-    const i0 = Math.floor((x - e) / CELL);
-    const i1 = Math.floor((x + e) / CELL);
-    const j0 = Math.floor((z - e) / CELL);
-    const j1 = Math.floor((z + e) / CELL);
+    const i0 = cellClamp(Math.floor((x - e) / CELL));
+    const i1 = cellClamp(Math.floor((x + e) / CELL));
+    const j0 = cellClamp(Math.floor((z - e) / CELL));
+    const j1 = cellClamp(Math.floor((z + e) / CELL));
     for (let i = i0; i <= i1; i++)
       for (let j = j0; j <= j1; j++) {
         const l = cells.get(cellKey(i, j));
@@ -1238,7 +1259,8 @@ export function buildRijnkaai(): World {
     if (wallNear(x, z, r + 0.15, feet)) return false;
     if (areaHits(x, z, r, feet)) return false;
     if (staticHit(x, z, r, feet)) return false;
-    for (const c of dynamic) if (inRect(c, x, z, r) && blocks(c, feet, x, z, r)) return false;
+    const dl = dynamic.list;
+    for (let i = 0; i < dl.length; i++) if (inRect(dl[i], x, z, r) && blocks(dl[i], feet, x, z, r)) return false;
     return true;
   };
   /** M6 handcart: carts pushed by walkers and led drays (World.addMover): solid for Jef and the vehicles. */
@@ -1388,7 +1410,8 @@ export function buildRijnkaai(): World {
     if (inside?.size) {
       for (const c of colliders) if (hit(c) && blocks(c, feet, x, z, r)) return true;
     } else if (staticHit(x, z, r, feet)) return true;
-    for (const c of dynamic) if (hit(c) && blocks(c, feet, x, z, r)) return true;
+    const dl = dynamic.list;
+    for (let i = 0; i < dl.length; i++) if (hit(dl[i]) && blocks(dl[i], feet, x, z, r)) return true;
     for (const c of railings) if (hit(c)) return true;
     for (const c of movers) if (hit(c) && blocks(c, feet, x, z, r)) return true;
     return false;
@@ -1432,9 +1455,56 @@ export function buildRijnkaai(): World {
       const top = c.surface ? c.surface.topAt(x, z, r * 0.6, feet + STEP) : c.top;
       if (top !== undefined && top <= feet + STEP) g = Math.max(g, top);
     };
-    colliders.forEach(consider);
-    dynamic.forEach(consider);
+    // (2026-09-28, the slow frames: the fixed ones from their 4 m cells, as staticHit does, not all of them)
+    fileSolids();
+    for (const c of bigSolids) consider(c);
+    const e = Math.abs(r * 0.6) + 1e-6;
+    const i0 = cellClamp(Math.floor((x - e) / CELL));
+    const i1 = cellClamp(Math.floor((x + e) / CELL));
+    const j0 = cellClamp(Math.floor((z - e) / CELL));
+    const j1 = cellClamp(Math.floor((z + e) / CELL));
+    // (a collider in two cells is looked at twice: the highest top is the same)
+    for (let i = i0; i <= i1; i++)
+      for (let j = j0; j <= j1; j++) {
+        const l = cells.get(cellKey(i, j));
+        if (l) for (const c of l) consider(c);
+      }
+    const dl = dynamic.list;
+    for (let i = 0; i < dl.length; i++) consider(dl[i]);
     return g;
+  }
+  if (import.meta.env.DEV) {
+    // dev: the cells' answer against every collider's (must be 0 differences)
+    Object.assign(window, {
+      __groundCheck(n = 20000, cx = 0, cz = 0, span = 300) {
+        let diff = 0;
+        const bad: number[][] = [];
+        for (let k = 0; k < n; k++) {
+          const x = cx + (Math.random() - 0.5) * span;
+          const z = cz + (Math.random() - 0.5) * span;
+          const r = [0, 0.3, 0.45, 1.2][k % 4];
+          const feet = [0, 0.5, 1, 3][(k >> 2) % 4];
+          const a = groundAt(x, z, r, feet);
+          const up = raisedAt(x, z, feet);
+          let g = up ? up.y : (floorAt(x, z, feet) ?? LW_MIN - 3);
+          if (!up) {
+            const all = (c: Rect) => {
+              if (!inRect(c, x, z, r * 0.6)) return;
+              const top = c.surface ? c.surface.topAt(x, z, r * 0.6, feet + STEP) : c.top;
+              if (top !== undefined && top <= feet + STEP) g = Math.max(g, top);
+            };
+            colliders.forEach(all);
+            dynamic.forEach(all);
+            if (dynamic.list.length !== dynamic.size) diff += 1e6; // (the list must mirror the set)
+          }
+          if (a !== g) {
+            diff++;
+            if (bad.length < 5) bad.push([x, z, r, feet, a, g]);
+          }
+        }
+        return { n, diff, bad };
+      },
+    });
   }
 
   function move(x: number, z: number, dx: number, dz: number, r: number, feet = 0, laden = false): [number, number] {
@@ -1794,16 +1864,16 @@ export function buildRijnkaai(): World {
       const sea = weatherNow === "storm" ? 3.6 : weatherNow === "rain" ? 1.5 : weatherNow === "clear" ? 1.1 : 0.85;
       psxUniforms.uSea.value += (sea - psxUniforms.uSea.value) * Math.min(1, dt * 0.05);
     }
-    boats?.update(t, dt, lampsLit); // M7 boats: the boats' lanterns burn with the gas lamps
+    pt("world.boats", () => boats?.update(t, dt, lampsLit)); // M7 boats: the boats' lanterns burn with the gas lamps
     if (cam) camera = cam;
-    lock?.update(t, dt, camera ?? undefined);
-    bridges?.update(t, dt, camera ?? undefined);
-    riverTraffic?.update(t, dt);
-    if (camera) traffic?.update(t, dt, camera.position);
-    if (camera) railway?.update(t, dt, { x: camera.position.x, z: camera.position.z }, camera);
-    if (camera) railGate.update(dt, { x: camera.position.x, z: camera.position.z }, camera);
+    pt("world.lock", () => lock?.update(t, dt, camera ?? undefined));
+    pt("world.bridges", () => bridges?.update(t, dt, camera ?? undefined));
+    pt("world.riverTraffic", () => riverTraffic?.update(t, dt));
+    if (camera) pt("world.traffic", () => traffic?.update(t, dt, camera!.position));
+    if (camera) pt("world.railway", () => railway?.update(t, dt, { x: camera!.position.x, z: camera!.position.z }, camera!));
+    if (camera) pt("world.railGate", () => railGate.update(dt, { x: camera!.position.x, z: camera!.position.z }, camera!));
     // (M7 omnibus routes: also in the kit's step(), with no camera, so t.run() rides the omnibuses)
-    omnibus?.update(t, dt, camera ? { x: camera.position.x, z: camera.position.z } : null, camera ?? undefined);
+    pt("world.omnibus", () => omnibus?.update(t, dt, camera ? { x: camera.position.x, z: camera.position.z } : null, camera ?? undefined));
     // the sky dome and the water sheet go where you go
     if (camera) {
       sky.position.set(camera.position.x, 0, camera.position.z);
@@ -1838,8 +1908,8 @@ export function buildRijnkaai(): World {
     skyLight.color.copy(SKY_COLD).lerp(SKY_WARM, gold * 0.55);
     sun.position.copy(sunDir.copy(SUN_HIGH).lerp(SUN_LOW, gold));
     // (package 4: the clouds, round the air's colour now; the warm band where the evening sun goes down)
-    cloudSky.update(dt, t, fog.color, dayNow, weatherNow, wNow[3], skySunXZ.set(SUN_LOW.x, SUN_LOW.z));
-    works.update(t, dt, dayNow, weatherNow, fog.color);
+    pt("world.cloudSky", () => cloudSky.update(dt, t, fog.color, dayNow, weatherNow, wNow[3], skySunXZ.set(SUN_LOW.x, SUN_LOW.z)));
+    pt("world.works", () => works.update(t, dt, dayNow, weatherNow, fog.color));
     // the sun: nothing at night, a glow through fog, real light on a clear day (warmer and a
     // little stronger in the golden hour: the low light is what shows)
     sun.intensity = sunDay * (1.35 - wNow[2]) * 2.6 * (1 + 0.8 * gold);
@@ -1860,19 +1930,19 @@ export function buildRijnkaai(): World {
     // night fog (world/sky.ts): the sky's night horizon and the lamps' glow in front of it follow the fog
     cloudSky.fog(fog.near, fog.far);
     if (camera) {
-      city.update(camera, fog.far);
-      wall.update(camera, fog.far, lampsLit);
-      guards.update(dt, camera);
-      churches.update(camera, fog.far);
-      parkNature.update(camera, fog.far);
-      prison.update(camera, fog.far, lampsLit); // M7 prison and squares
-      townPlaces.update(camera, fog.far);
+      pt("world.city", () => city.update(camera!, fog.far));
+      pt("world.wall", () => wall.update(camera!, fog.far, lampsLit));
+      pt("world.guards", () => guards.update(dt, camera!));
+      pt("world.churches", () => churches.update(camera!, fog.far));
+      pt("world.parkNature", () => parkNature.update(camera!, fog.far));
+      pt("world.prison", () => prison.update(camera!, fog.far, lampsLit)); // M7 prison and squares
+      pt("world.townPlaces", () => townPlaces.update(camera!, fog.far));
     }
-    if (camera && !devView) ambient.update(t, dt, camera, dayNow, weatherNow);
-    street?.update(t, dt, lampsLit, camera ?? undefined);
-    quayKit?.update(t, dt, lampsLit, camera ?? undefined);
-    litter?.update(t, dt, camera ?? undefined);
-    fires?.update(t);
+    if (camera && !devView) pt("world.ambient", () => ambient.update(t, dt, camera!, dayNow, weatherNow));
+    pt("world.street", () => street?.update(t, dt, lampsLit, camera ?? undefined));
+    pt("world.quayKit", () => quayKit?.update(t, dt, lampsLit, camera ?? undefined));
+    pt("world.litter", () => litter?.update(t, dt, camera ?? undefined));
+    pt("world.fires", () => fires?.update(t));
     lantern.intensity = 7 * (0.92 + Math.sin(t * 5.1) * 0.04 + Math.sin(t * 13.7) * 0.03);
     waterTex.offset.x = t * 0.004;
     waterTex.offset.y = t * 0.011;
@@ -1898,7 +1968,7 @@ export function buildRijnkaai(): World {
       // M7 lamps: its light and its psx slot are the gas lamps' now (the nearest lit lamps have them)
       gasLamps.quayFlame(i, l.level);
     }
-    gasLamps.update(dt, lampsLit, fog.color, camera, air);
+    pt("world.gasLamps", () => gasLamps.update(dt, lampsLit, fog.color, camera, air));
   }
 
   noticeBoard(scene, m, colliders, BOARD_POS.x, BOARD_POS.z);

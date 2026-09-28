@@ -93,6 +93,29 @@ the spilt light), so a stone is lit on the side toward a light and shaded on the
 - The water mirror draws the town a second time when water is in view: about 12 ms more per frame on
   the quays (not a stutter, a steady cost). Cheaper options change the picture, so none is taken yet.
 
+## Frame time (2026-09-28, the slow frames)
+The game is CPU-bound on one core: the GPU waits 1-3 ms a frame (RTX 5090, 720 lines). Drawing is ~60% of the
+frame, ~9 us of three.js work per draw call; a material switch costs ~4-5 us more than a draw after the same
+material. Measured and fixed:
+- **The mirrors** (`world/mirror.ts mirrorBudget`, Steve: the picture may change a little): the river mirror draws
+  at most every second frame, with a 12 degree margin round the view (1.5 times the pixels) so an older picture
+  still covers a turn; small things (`minPx`) are left out. The puddles' mirror draws every frame
+  (`everyFrame`: an older picture lagged at Jef's feet) but only what stands within 50 m (`reach`, done by the
+  culler: the oblique near plane tilts the far plane away, so `far` alone culls nothing). A mirror whose every
+  surface the culler hides in the main view is not drawn (`mirrorView`).
+- **Array uniforms** (`retro/uniformCache.ts`): three.js sent the spill lists (4 x 48 vec4) and the lamps again at
+  every material switch; now only when a program's copy differs. 0 pixels.
+- **Matrices** (`retro/matrixSkip.ts`): a local matrix is composed only when position, rotation or scale changed.
+  A matrix written by hand needs `matrixAutoUpdate = false` (it always did). 0 pixels.
+- **Collisions** (`world/rijnkaai.ts`): `groundAt` reads the fixed colliders from their 4 m cells, as `staticHit`
+  does; the moving ones from a plain list (`dynamic.list`). Same answers (`__groundCheck()`).
+- **Day routes** (`server/src/town/whereabouts.ts`): a route worked out while a way was unknown is kept until the
+  client learns ways (`waysLearnt`); before, ~300 routes were worked out every frame for the first minute.
+Rules that follow: a speed change proves 0 pixels (`__scheldemist.pixelDiff(what)`), or asks Steve first. A new
+thing drawn every frame: share materials, reuse geometry, one InstancedMesh for many copies. No loop over every
+person, prop or collider every frame: use the cells, a list, or a cache. Measure with `__scheldemist.frameProf()`
+(testing.md).
+
 ## The loading screen (2026-09-26)
 `client/index.html` shows it from the first paint: the picture, the name, a bar with the step, a tip. Its CSS
 and a small script are inline, so it stands before the game's code has loaded. `client/src/boot/loader.ts` then

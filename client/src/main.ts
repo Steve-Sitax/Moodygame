@@ -2,6 +2,11 @@
 import "./menu/keys";
 // M7 save and pause: first of all, so the pause clock is in place before any other part runs (game/pause.ts)
 import { onPausedKey, pause, real } from "./game/pause";
+import { drawAudit, pixelDiff, prof, profTable, pt, quantiles } from "./dev/frameProf";
+import { uniformCache } from "./retro/uniformCache";
+import { matrixSkip } from "./retro/matrixSkip";
+import { mirrorView } from "./world/mirror";
+import { routeStats } from "../../server/src/town/whereabouts";
 // boot: the loading screen's numbers (boot/probe.ts): from the first moment on
 import { bootMark, bootNote, bootProbe } from "./boot/probe";
 // boot: the loading screen (boot/loader.ts): counts the files from here on, holds keys and clicks until the menu is up
@@ -970,8 +975,10 @@ wireSettings({ retro, camera: player.camera, inWorld, lanternLights, alive, soun
 /** Run one part of the frame; an error is logged once (by its message) and the rest of the frame goes on. */
 const frameErrors = new Set<string>();
 function safe(name: string, fn: () => void): void {
+  const t0 = prof.on ? performance.now() : 0;
   try {
     fn();
+    if (prof.on) prof.add(name, performance.now() - t0);
   } catch (e) {
     const key = `${name}: ${(e as Error)?.message ?? e}`;
     if (!frameErrors.has(key)) {
@@ -1075,6 +1082,13 @@ function frame(): void {
     return;
   }
   standDirty = false;
+  tick(dt);
+  // a frame that hung: the mouse moves piled up meanwhile would turn the view in one jerk (player/firstPerson.ts)
+  player.stalled = real.now() - frameStart > 150;
+}
+
+/** One frame of the game: every part moves by dt, then the picture is drawn (frame(), and the frame profiler). */
+function tick(dt: number): void {
   elapsed += dt;
   safe("refreshFolk", refreshFolk);
   safe("together.worldFrame", () => together.worldFrame(dt)); // M8b: the moving world run here or shown from the world PC
@@ -1204,10 +1218,8 @@ function frame(): void {
   // does not stand still waiting for them; in the game it always draws)
   // (boot: not while the loading screen builds and warms everything; boot/loader.ts draws then)
   // (behind a menu: the menu first, menuLetsDraw above)
-  if ((started || (!warmer.pending && !booting())) && menuLetsDraw()) retro.render(world.scene, player.camera, elapsed);
-  // a frame that hung: the mouse moves piled up meanwhile would turn the view in one jerk (player/firstPerson.ts)
-  player.stalled = real.now() - frameStart > 150;
-  }
+  if ((started || (!warmer.pending && !booting())) && menuLetsDraw()) pt("render", () => retro.render(world.scene, player.camera, elapsed));
+}
 requestAnimationFrame(frame);
 
 // Warm-up (2026-09-26, the stutter; world/warmup.ts, docs/rendering.md): every shader is built in the
@@ -1439,6 +1451,7 @@ world.setPlayers(() => together.positions()); // M8b: the lock's beams too
 if (import.meta.env.DEV) {
   (window as unknown as Record<string, unknown>).__scheldemist = {
     player,
+    renderer, // (dev: the frame profiler and the uniform count)
     world,
     jobs,
     crowd,
@@ -1793,6 +1806,125 @@ if (import.meta.env.DEV) {
       const ms = (performance.now() - t0) / n;
       renderer.info.autoReset = true;
       return { msPerFrame: +ms.toFixed(2), calls, tris };
+    },
+    /**
+     * The frame profiler (2026-09-28, the slow frames): n whole game frames (every part and the draw, the
+     * GPU finished after each), timed part by part. `live: s` instead times the real frames for s seconds
+     * (the tab must be in view): the gaps between frames, the long tasks, and the parts.
+     */
+    async frameProf(opts: { n?: number; live?: number; top?: number; turn?: number } = {}) {
+      const gl = renderer.getContext();
+      const px = new Uint8Array(4);
+      const mem = () => ((performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? 0) / 1048576;
+      const heap0 = mem();
+      prof.reset();
+      routeStats.made = routeStats.hits = routeStats.unknown = 0;
+      const frames: number[] = [];
+      const gpu: number[] = [];
+      let calls = 0;
+      let tris = 0;
+      let long: number[] = [];
+      if (opts.live) {
+        const obs = typeof PerformanceObserver !== "undefined" ? new PerformanceObserver((l) => l.getEntries().forEach((e) => long.push(Math.round(e.duration)))) : null;
+        try {
+          obs?.observe({ type: "longtask", buffered: false });
+        } catch {
+          /* no long tasks in this browser */
+        }
+        let last = real.now();
+        let going = true;
+        const gap = () => {
+          if (!going) return;
+          const t = real.now();
+          frames.push(t - last);
+          last = t;
+          requestAnimationFrame(gap);
+        };
+        prof.on = true;
+        requestAnimationFrame(gap);
+        await new Promise((r) => real.setTimeout(r, opts.live! * 1000));
+        going = false;
+        prof.on = false;
+        obs?.disconnect();
+        calls = renderer.info.render.calls;
+        tris = renderer.info.render.triangles;
+      } else {
+        const n = opts.n ?? 120;
+        renderer.info.autoReset = false;
+        prof.on = true;
+        for (let i = 0; i < n; i++) {
+          // (the jobs a frame leaves for after its task: the mirrors' once-a-frame flags clear there)
+          await Promise.resolve();
+          renderer.info.reset();
+          // (turn: degrees a frame, a look round as with the mouse)
+          if (opts.turn) player.yaw += THREE.MathUtils.degToRad(opts.turn);
+          const t0 = performance.now();
+          tick(1 / 60);
+          const g0 = performance.now();
+          gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+          const t1 = performance.now();
+          gpu.push(t1 - g0);
+          frames.push(t1 - t0);
+          calls = renderer.info.render.calls;
+          tris = renderer.info.render.triangles;
+        }
+        prof.on = false;
+        renderer.info.autoReset = true;
+        long = [];
+      }
+      const size = new THREE.Vector2();
+      renderer.getDrawingBufferSize(size);
+      return {
+        mode: opts.live ? `live ${opts.live} s` : `${frames.length} frames`,
+        frame: quantiles(frames),
+        over33: frames.filter((f) => f > 33.4).length,
+        over50: frames.filter((f) => f > 50).length,
+        gpuWait: gpu.length ? quantiles(gpu) : null,
+        longTasks: long.length ? { n: long.length, max: Math.max(...long), sum: long.reduce((a, b) => a + b, 0) } : null,
+        calls,
+        tris,
+        canvas: `${size.x}x${size.y}`,
+        target: `${retro.target.width}x${retro.target.height}`,
+        programs: renderer.info.programs?.length ?? 0,
+        geometries: renderer.info.memory.geometries,
+        textures: renderer.info.memory.textures,
+        sceneObjects: (() => {
+          let n = 0;
+          world.scene.traverse(() => void n++);
+          return n;
+        })(),
+        routes: { ...routeStats },
+        heapMB: +mem().toFixed(0),
+        heapGrowMB: +(mem() - heap0).toFixed(1),
+        parts: profTable(frames.length, opts.top ?? 40),
+      };
+    },
+    /** Dev (2026-09-28): the draw calls of a few whole frames by where they come from (dev/frameProf.ts). */
+    drawAudit: (o?: { frames?: number; depth?: number; top?: number }) => drawAudit(renderer, () => tick(1 / 60), o),
+    /**
+     * Dev (2026-09-28): the same moment drawn two ways, the pictures compared (dev/frameProf.ts pixelDiff). `what`:
+     * "uniforms" (the array uniform cache on, then off), "same" (twice the same: the noise floor).
+     */
+    pixelDiff(what: "uniforms" | "matrices" | "water" | "same" = "same", frames = 3) {
+      const draw = () => retro.render(world.scene, player.camera, elapsed);
+      // ("water": a mirror whose surfaces the culler hides is left out; off, it draws as before)
+      const keepHid = mirrorView.hiddenInMain;
+      const water = {
+        get on() {
+          return mirrorView.hiddenInMain !== null;
+        },
+        set on(v: boolean) {
+          mirrorView.hiddenInMain = v ? keepHid : null;
+        },
+      };
+      const sw = what === "uniforms" ? uniformCache : what === "matrices" ? matrixSkip : what === "water" ? water : null;
+      const on = () => sw && (sw.on = true);
+      const off = () => sw && (sw.on = false);
+      try {
+        return pixelDiff(renderer, retro.target, draw, on, sw ? off : on, frames);
+      } finally {
+        if (sw) sw.on = true;
+      }
     },
     /** Run the game logic for some seconds at 60 Hz, without waiting for frames. */
     step(seconds: number) {

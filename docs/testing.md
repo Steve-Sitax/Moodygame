@@ -97,6 +97,14 @@ turns), `/api/dev/advance {minutes}` (M7 night: as the game moves the clock, mid
 
 T1/T2 (2026-09-28): `__scheldemist.runs()` (every run of the town's trade out now by the engine's sums, and where the game has its cart: `d` metres apart, near 0 unseen, the handcart's man 2-3 m behind its axle), `__scheldemist.heldcheck()` (who is held and how long; whom the held deadline let go), `__scheldemist.lagcheck()` (who is late by a progress report). The kit's `t.run()` does not move the game clock: use `t.skip(min)` between runs to move a run along. A hidden preview tab keeps a 300 x 150 canvas: `resize_window` 960 x 540, then `window.dispatchEvent(new Event("resize"))`, before `shotFrom` pictures.
 
+Speed (2026-09-28, rendering.md "Frame time"): `await __scheldemist.frameProf({ n: 120, turn: 1 })` runs n whole frames
+(every part and the draw, the GPU finished after each) and gives the frame's quantiles and each part's mean, p95 and
+max in ms (`render.mirrors`, `render.rooms` = the main view, `render.cull`, `town.update` ...; `... calls` and
+`... ktris` per pass); `{ live: 8 }` times the real frames instead (the tab must be in view). `await
+__scheldemist.drawAudit({ depth: 2 })`: the draw calls of a frame by scene group and pass. `__scheldemist.pixelDiff(what)`:
+the same frozen moment drawn two ways (`"uniforms"`, `"matrices"`, `"water"`, `"same"` for the noise floor); `differ`
+must be 0 for a speed change. Numbers drift between runs: compare A and B in one run, back and forth.
+
 `__scheldemist.stuck({ seconds: 12 })` (dev/stuckcheck.ts, 2026-09-27): runs the game and lists everyone near Jef who plays a walk but stays on the spot (3 s within 0.3 m) or goes to and fro, with who, what they try and what is just ahead (walk map, grid, colliders); `stuck` must be `[]` in the alleys and squares at 8, 13, 18 and 22.
 
 ## Pause and saves (M7 save and pause)

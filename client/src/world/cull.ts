@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { Horizon, type Heightfield } from "./occlusion";
-import { mirrorPasses, type MirrorPass } from "./mirror";
+import { mirrorPasses, mirrorView, type MirrorPass } from "./mirror";
 import { psxUniforms } from "../retro/psx";
 import type { ViewRect } from "./inworld";
 
@@ -47,6 +47,8 @@ export interface CullStats {
   parts: number[];
   /** This frame made a full evaluation (else it reused the last one). */
   fresh: boolean;
+  /** Things beyond the fog at the last full evaluation (the fog step runs from Culler.fogMin). */
+  far?: number;
 }
 
 interface Info {
@@ -126,6 +128,8 @@ export class Culler {
   private hf: Heightfield | null = null;
   private readonly horizon = new Horizon(700, EYE_SLACK);
   private readonly mirrorHorizon = new Horizon(700, EYE_SLACK);
+  /** Fewer things than this beyond the fog: the fog step is left out (see evaluate, part 3). */
+  static fogMin = 60;
   private readonly infos = new WeakMap<THREE.Object3D, Info>();
   private items: Item[] = [];
   private active = false;
@@ -150,6 +154,7 @@ export class Culler {
     private readonly opts: CullerOptions,
   ) {
     opts.heights.then((h) => (this.hf = h)).catch((e) => console.warn("occlusion: no height map", e));
+    mirrorView.hiddenInMain = (o) => this.hiddenInMain(o);
     const mk = (color: number) => new THREE.MeshBasicMaterial({ color, wireframe: true, depthTest: false, depthWrite: false, transparent: true, opacity: 0.55, fog: false });
     this.wire = { occ: mk(0xff3030), fog: mk(0xffb020) };
   }
@@ -287,6 +292,7 @@ export class Culler {
       st.samples += this.horizon.work;
       waterSeen = this.horizon.waterSeen;
       // the puddles' mirror: exact while the eye is lower than the lowest house (M7 doc)
+      // (the river's plane lies too low for it: the eye stands ~4 m over it, the lowest house is 3.8 m; 2026-09-28)
       const puddles = passes.find((p) => p.name === "puddles");
       if (puddles && eye.y + EYE_SLACK - puddles.planeY < hf.minHeight - 0.5) {
         this.mirrorHorizon.derive(this.horizon, 2 * puddles.planeY - eye.y + EYE_SLACK, Math.min(maxR, 170));
@@ -397,8 +403,13 @@ export class Culler {
         }
         const my = 2 * p.planeY - eye.y;
         const md = Math.hypot(e.x - eye.x, e.y - my, e.z - eye.z) - e.r;
-        // well under half a pixel of its picture (not the far plane: the oblique near plane skews it)
-        if (e.r < md * p.pixel * 0.25) {
+        // beyond the mirror's reach (the puddles': Steve 2026-09-28, "just what is within 50 m")
+        if (md > p.reach) {
+          e.hide |= bit;
+          continue;
+        }
+        // its own size under minPx pixels of its picture across (mirrorBudget; was a quarter of the size with the slack; not the far plane: the oblique near plane skews it)
+        if (e.r - EYE_SLACK - MOVE_SLACK < md * p.pixel * p.minPx * 0.5) {
           e.hide |= bit;
           continue;
         }
@@ -413,10 +424,19 @@ export class Culler {
     let minNear = Infinity;
     let slack = 0;
     for (const p of passes) slack = Math.max(slack, Math.abs(2 * (eye.y - p.planeY)));
+    let far = 0;
     for (let i = 0; i < ne; i++) {
       const e = ents[i];
-      if (!e.out && e.dist - slack > fogPad(e.info.reach)) minNear = Math.min(minNear, e.dist - slack);
+      if (!e.out && e.dist - slack > fogPad(e.info.reach)) {
+        minNear = Math.min(minNear, e.dist - slack);
+        far++;
+      }
     }
+    // (2026-09-28, the slow frames: this step costs ~3 ms a full evaluation, every ~8 frames on the move; with only a few
+    // things beyond the fog (a clear day) drawing them costs less and keeps the frames even. Drawn, they look as the
+    // culler would have them: this step only ever leaves out what cannot be seen)
+    st.far = far;
+    if (far < Culler.fogMin) minNear = Infinity;
     if (minNear === Infinity) nr = 0;
     for (let q = 0; q < nr; q++) {
       const R = revs[q];
@@ -470,6 +490,18 @@ export class Culler {
     for (let i = ne; i < ents.length; i++) ents[i].obj = scene; // no stale references
     const t5 = performance.now();
     st.parts = [t1 - t0, t2 - t1, t3 - t2, t4 - t3, t5 - t4].map((x) => +x.toFixed(3));
+  }
+
+  /** Dev: a full evaluation next frame (after a switch was flipped). */
+  invalidate(): void {
+    this.lastEval = null;
+  }
+
+  /** Is this thing hidden in the main view this frame (between prepare and finish)? The mirrors ask (mirror.ts mirrorView). */
+  hiddenInMain(o: THREE.Object3D): boolean {
+    if (!this.active) return false;
+    for (const it of this.items) if (it.obj === o) return (it.hide & 1) !== 0;
+    return false;
   }
 
   /** After the frame's render: every layer back as it was. */
@@ -894,3 +926,4 @@ export function mountCullHud(cull: Culler): void {
       : "CULLING OFF (Dev menu: Culling on/off)";
   }, 250);
 }
+if (import.meta.env.DEV) Object.assign(window, { __Culler: Culler });

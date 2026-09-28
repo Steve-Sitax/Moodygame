@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { api, type JobsPayload, type Pt, type TownData, type TownPlace, type TownResident } from "../net/api";
 import { activityAt, type Now } from "../../../server/src/town/schedule";
-import { paceOf as townPace, reportLag, settleLag, whereAt, whereLate } from "../../../server/src/town/whereabouts";
+import { paceOf as townPace, reportLag, settleLag, waySaysWhenLearnt, waysLearnt, whereAt, whereLate } from "../../../server/src/town/whereabouts";
 import { wayKey } from "../../../server/src/town/wayfind";
 import { haulRouteOf } from "../../../shared/hauls";
 import { sackLabelFor } from "./sackModel";
@@ -359,6 +359,7 @@ export class Town {
           this.ways.set(k, w);
           this.wayAsk.delete(k); // (asked for while the town's ways were still on their way here)
         }
+        waysLearnt();
         return;
       } catch (e) {
         console.warn(`the town's ways did not load; again in ${wait / 1000} s`, e);
@@ -368,12 +369,14 @@ export class Town {
   }
 
   /** The way on foot for the sum (undefined until the server sent it; null: there is none, he is simply there). */
-  private readonly wayOf = (ax: number, az: number, bx: number, bz: number): Pt[] | null | undefined => {
+  // (2026-09-28, the slow frames: it says when ways come in, so a day's route with ways still asked for is kept
+  // until then, not worked out afresh every frame: whereabouts.ts waysLearnt)
+  private readonly wayOf = waySaysWhenLearnt((ax: number, az: number, bx: number, bz: number): Pt[] | null | undefined => {
     const k = wayKey(ax, az, bx, bz);
     const w = this.ways.get(k);
     if (w === undefined) this.wayAsk.add(k);
     return w;
-  };
+  });
 
   private askWays(dt: number): void {
     this.wayAskT -= dt;
@@ -386,6 +389,7 @@ export class Town {
     api.waysByKey(keys).then(
       (r) => {
         for (const k of keys) this.ways.set(k, r.ways[k] ?? null);
+        waysLearnt();
       },
       () => {
         for (const k of keys) this.wayAsk.add(k);

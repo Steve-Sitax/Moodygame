@@ -7,6 +7,31 @@ Git history has the detail of each commit.
 
 ## Waiting for Steve
 
+- Slow frames (2026-09-28, measured in Chrome 153 on the RTX 5090, 720 lines, "high"): 20-33 ms a frame by day and
+  night, CPU-bound (the GPU waits 1-3 ms). Drawing is ~72% of the frame: ~1750 draw calls, 528 shader switches and
+  ~10,000 uniform uploads a frame (4241 visible objects, 623 materials at the Grote Markt). The river and puddle
+  mirrors draw the town again every frame: ~10 ms (off: 31 -> 21 ms). Game logic ~8 ms. Worst: the cathedral and the
+  Handschoenmarkt (32 ms), best: the station (15 ms). No slow-down over 6 minutes, but textures (+240) and geometries
+  (+100) keep growing in 5 minutes of walking: a long run must show if that leaks. Tool: `__scheldemist.frameProf()`
+  (uncommitted in main). Steve to pick: cheaper mirrors (the picture changes a little) and/or fewer draw calls (no change).
+  Steve: both. Done so far (uncommitted, waiting for Steve's check on the test stack 5341): mirror budget (one mirror
+  every 2nd frame, 12 degree margin, small things left out; world/mirror.ts), no mirror when the culler hides all its
+  water, array uniforms sent only on change (retro/uniformCache.ts), matrices only on change (retro/matrixSkip.ts),
+  groundAt from the 4 m cells, day routes with unknown ways kept (whereabouts.ts waysLearnt: ~300 routes a frame
+  for the first minute before). Every speed-only change pixel-diffed: 0 pixels. Live, walking: mean 43 -> 55 fps
+  (cathedral 31 -> 51). Open: the culler's full check (~7.5 ms every ~8 frames on the move) and the mirror frames
+  make frames uneven; a helper (worktree) researches atlases, merging and other draw-call cuts.
+  Steve's check: puddle reflections lagged. Now the puddle mirror draws every frame (outside the budget) but only
+  what stands within 50 m (MirrorOptions.reach, done by the culler: the oblique near plane breaks the far plane),
+  and puddles have wind ripples (retro/psx.ts: crests running with the wind in drifting gust patches, calm water
+  between, strength from uSea). Cost vs the budgeted version: ~+1.7 ms. Waiting for Steve's second look.
+  Steve: ripples good, storm too strong and blocky -> smooth (no 6 cm cells), a third of the storm strength, faded
+  from 10 to 30 m. The draw-call helper finished (branch worktree-agent-ac8206ceecb40535d, not merged): atlases
+  would join ~10 of ~400 materials (they differ in shader settings, not pictures): not worth it now. Its
+  world/staticMerge.ts joins still same-material parts: 10-21% fewer calls, ~0.4 ms, 0 pixels. It found ~59
+  shader look-ups a frame (~0.4 ms: materials shared by instanced and plain meshes, street and rooms). Filed:
+  Madame Zelie's table not psx (https://github.com/Steve-Sitax/Moodygame/issues/16); its prop-check finds are #13.
+
 
 - Day fog, rain and storm: the skyline is still a little lighter than the cloud deck (18-35% at 13:00). A one-line sky.ts change would use the night rule by day too, at the cost of flatter fog-day skies. Steve's call.
 - Going public: the audit says safe. Steve flips the repo to public himself. Optional: an AGPL section 7 permission for the proprietary Claude Agent SDK (draft in `docs/public-release-check.md`). The commit email steve@sitax.be becomes public with the history.

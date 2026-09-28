@@ -1,4 +1,7 @@
 import * as THREE from "three";
+import { prof, pt } from "../dev/frameProf";
+import { cacheArrayUniforms } from "./uniformCache";
+
 import type { Culler } from "../world/cull";
 import { drawPlan, type InWorld } from "../world/inworld";
 import { drawMirrorsFirst } from "../world/mirror";
@@ -130,22 +133,47 @@ export class RetroPass {
   inWorld: InWorld | null = null;
 
   render(scene: THREE.Scene, camera: THREE.Camera, time: number): void {
+    // dev (the frame profiler): the draw calls of each pass too
+    const info = this.renderer.info;
+    // array uniforms sent only when they change (retro/uniformCache.ts)
+    cacheArrayUniforms(this.renderer);
+    const keepReset = info.autoReset;
+    if (prof.on) {
+      info.autoReset = false;
+      info.reset();
+    }
+    const pass = (name: string, fn: () => void) => {
+      if (!prof.on) return fn();
+      const c = info.render.calls;
+      const t = info.render.triangles;
+      pt(name, fn);
+      prof.add(`${name} calls`, info.render.calls - c);
+      prof.add(`${name} ktris`, (info.render.triangles - t) / 1000);
+    };
+    try {
+      this.renderInner(scene, camera, time, pass);
+    } finally {
+      info.autoReset = keepReset;
+    }
+  }
+
+  private renderInner(scene: THREE.Scene, camera: THREE.Camera, time: number, pass: (name: string, fn: () => void) => void): void {
     this.mat.uniforms.uTime.value = time;
     const plan = this.inWorld && scene === this.inWorld.scene && (camera as THREE.PerspectiveCamera).isPerspectiveCamera ? this.inWorld.plan(camera as THREE.PerspectiveCamera) : null;
     // M7: inside a room in the world with no door in view the street is not drawn at all: nothing to cull
     const cull = this.cull && scene === this.cull.scene && (camera as THREE.PerspectiveCamera).isPerspectiveCamera && (!plan || plan.world.draw) ? this.cull : null;
     // M7: the culler brought every matrix up to date; the passes (the main one and the mirrors in it) skip theirs
-    const fresh = cull?.prepare(camera as THREE.PerspectiveCamera, plan?.world.rect ?? null) ?? false;
+    const fresh = pt("render.cull", () => cull?.prepare(camera as THREE.PerspectiveCamera, plan?.world.rect ?? null) ?? false);
     const auto = scene.matrixWorldAutoUpdate;
     if (fresh) scene.matrixWorldAutoUpdate = false;
     try {
       // the mirrors first, at the top level: inside the main pass they cost every material a program look-up (world/mirror.ts)
-      drawMirrorsFirst(this.renderer, scene, camera);
+      pass("render.mirrors", () => drawMirrorsFirst(this.renderer, scene, camera));
       this.renderer.setRenderTarget(this.target);
-      if (plan) drawPlan(this.renderer, this.target, plan, scene, camera as THREE.PerspectiveCamera, () => cull?.drawHidden(this.renderer, camera));
+      if (plan) pass("render.rooms", () => drawPlan(this.renderer, this.target, plan, scene, camera as THREE.PerspectiveCamera, () => cull?.drawHidden(this.renderer, camera)));
       else {
-        this.renderer.render(scene, camera);
-        cull?.drawHidden(this.renderer, camera);
+        pass("render.main", () => this.renderer.render(scene, camera));
+        pass("render.hidden", () => cull?.drawHidden(this.renderer, camera));
       }
     } finally {
       scene.matrixWorldAutoUpdate = auto;

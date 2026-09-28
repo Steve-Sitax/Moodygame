@@ -772,7 +772,7 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
         (opts.wet || opts.water ? wetFragment : "") +
         (spillOn ? spillSumGlsl : "") +
         (spillOn && opts.wet ? spillWetGlsl : "") +
-        (opts.puddles ? "uniform float uPuddle;\nuniform sampler2D uMirror;\nuniform mat4 uMirrorMat;\nuniform float uMirrorOn;\nuniform sampler2D uPudNoise;\n" : "") +
+        (opts.puddles ? "uniform float uPuddle;\nuniform sampler2D uMirror;\nuniform mat4 uMirrorMat;\nuniform float uMirrorOn;\nuniform sampler2D uPudNoise;\nuniform float uSea;\n" : "") +
         (opts.wet || opts.puddles || opts.vary || opts.foot || opts.mottle ? pudNoiseGlsl : "") +
         (opts.vary || opts.foot || opts.mottle ? "uniform sampler2D uDirt;\nuniform vec4 uDirtBox;\n" : "") +
         (opts.foot || opts.mottle ? footGlsl : "") +
@@ -1235,13 +1235,30 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
           if (water > 0.0) {
             float cosT = clamp(-rd.y, 0.0, 1.0);
             float F = max(0.02 + 0.98 * pow(1.0 - cosT, 5.0), 0.22);
-            vec2 rp = floor(vPsxWorld.xz * 8.0) / 8.0;
-            vec2 wob = vec2(sin(rp.x * 3.1 + uTime * 1.7), sin(rp.y * 2.7 - uTime * 1.3)) * 0.0025;
+            // wind ripples (Steve 2026-09-28; after Lagarde's rainy-world study): fine crests across the wind that run
+            // with it at a ripple's pace (~0.25 m/s), in gust patches a few metres across that drift downwind; between
+            // the gusts a puddle is a still, sharp mirror. The sea state (uSea: fog 0.85, clear 1.1, rain 1.5, storm
+            // 3.6) is the wind. Worked out on 6 cm cells, PS1-coarse like the rest.
+            // (Steve 2026-09-28: bigger with the wind) the stronger the wind (0 fog .. 1 storm), the longer and higher the
+            // crests, the faster they run, and the more of the puddle the gusts cover; a calm day stays as it was
+            // (Steve 2026-09-28: smooth, not in 6 cm blocks; a storm about a third of the first try) worked out at every
+            // pixel's own point; faded out from 10 to 30 m, where a ripple is under a pixel and would only flicker
+            vec2 rp = vPsxWorld.xz;
+            vec2 wd = vec2(0.93, 0.36);
+            float wk = clamp((uSea - 0.85) / 2.75, 0.0, 1.0);
+            float gust = smoothstep(mix(0.42, 0.18, wk), mix(0.78, 0.5, wk), pudVal(rp * 0.3 - wd * uTime * mix(0.5, 1.4, wk)));
+            float wind = clamp(uSea, 0.6, 2.0);
+            float ph = dot(rp, wd) * mix(30.0, 13.0, wk) - uTime * mix(7.5, 9.0, wk);
+            vec2 rip = vec2(sin(ph + pudVal(rp * 1.9) * 5.0), sin(ph * 0.87 + 1.7 + pudVal(rp * 2.6 + 9.0) * 5.0));
+            float near = 1.0 - smoothstep(10.0, 30.0, distance(vPsxWorld, cameraPosition));
+            vec2 wob = (wd * rip.x + vec2(-wd.y, wd.x) * rip.y * 0.45) * (0.0006 + gust * (0.0045 + 0.006 * wk * wk)) * wind * near;
             ${opts.wet ? "if (uRain > 0.001) wob += vec2(rainRings(vPsxWorld.xz * 1.4, uTime * 1.2, uRain)) * 0.012;" : ""}
             vec4 mr = uMirrorMat * vec4(vPsxWorld, 1.0);
             mr.xy += wob * mr.w;
             // (reflections off: no street in it, dark water with a little of the sky's grey at a slant)
             vec3 refl = uMirrorOn > 0.5 ? texture2DProj(uMirror, mr).rgb * 1.1 : fogColor * 0.3;
+            // a rippled patch scatters the picture a little: duller than the still water round it
+            refl *= 1.0 - 0.12 * gust * min(1.0, wind - 0.6);
             vec3 rr = vec3(rd.x, -rd.y, rd.z);
             float lamp = 0.0;
             for (int i = 0; i < MAX_LAMPS; i++) lamp += uLamps[i].w * wetStreak(vPsxWorld, rr, uLamps[i].xyz);

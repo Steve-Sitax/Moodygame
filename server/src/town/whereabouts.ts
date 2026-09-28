@@ -351,6 +351,25 @@ const LEAD_H = 6;
 
 /** Days' routes worked out, per resident's plan and day (only when every way was known). */
 const routeCache = new WeakMap<Schedule, Map<string, Stop[]>>();
+/** Dev: routes worked out and routes found in the cache (the client's frame profiler reads them). */
+export const routeStats = { made: 0, hits: 0, unknown: 0 };
+/**
+ * Routes worked out while a way was not known yet (2026-09-28, the slow frames: the client worked out ~300 such
+ * routes every frame for the first minute, and again each new day). Kept for the same way function until it
+ * learns new ways (waysLearnt); a caller that never says so gets them worked out afresh each time, as before.
+ */
+const partialCache = new WeakMap<Schedule, { key: string; way: WayOf; gen: number; stops: Stop[] }>();
+let wayGen = 0;
+/** The way function knows more ways now: routes worked out without them are worked out again. */
+export function waysLearnt(): void {
+  wayGen++;
+}
+const learners = new WeakSet<WayOf>();
+/** This way function says when it learns ways (waysLearnt): its routes with unknown ways may be kept meanwhile. */
+export function waySaysWhenLearnt<W extends WayOf>(way: W): W {
+  learners.add(way);
+  return way;
+}
 
 /**
  * His day as he keeps it: he sets off early enough to be at the next part at its hour, at his pace (paceOf); a
@@ -360,7 +379,16 @@ const routeCache = new WeakMap<Schedule, Map<string, Stop[]>>();
 function dayRoute(r: WhereResident, town: WhereTown, day: number, way: WayOf): Stop[] {
   const key = `${day}`;
   const hit = routeCache.get(r.sched)?.get(key);
-  if (hit) return hit;
+  if (hit) {
+    routeStats.hits++;
+    return hit;
+  }
+  const part = partialCache.get(r.sched);
+  if (part && part.key === key && part.way === way && part.gen === wayGen) {
+    routeStats.hits++;
+    return part.stops;
+  }
+  routeStats.made++;
   let known = true;
   const walkOf = (a: Anchor, b: Anchor, leg: string, run: boolean): Walk | null => {
     if (same(a, b)) return null;
@@ -413,6 +441,10 @@ function dayRoute(r: WhereResident, town: WhereTown, day: number, way: WayOf): S
     cur.leave = dep;
     const end = w ? w.pts[w.pts.length - 1] : null;
     stops.push({ part: q, at, arrive, leave: Infinity, walk: w ? { ...w, dep } : null, stand: end && !at.indoor ? [end[0], end[1]] : [at.x, at.z] });
+  }
+  if (!known) {
+    routeStats.unknown++;
+    if (learners.has(way)) partialCache.set(r.sched, { key, way, gen: wayGen, stops });
   }
   if (known) {
     let m = routeCache.get(r.sched);
