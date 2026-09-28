@@ -233,7 +233,7 @@ function paint(label: SackLabel): HTMLCanvasElement {
         const b = Math.floor((x - y + 512) / 14);
         const over = (a + b) % 2 === 0;
         const edge = (x + y) % 14 < 2 || (x - y + 512) % 14 < 2;
-        const v = (over ? 22 : -18) + (edge ? -26 : 0) + (r() - 0.5) * 10;
+        const v = ((over ? 22 : -18) + (edge ? -26 : 0) + (r() - 0.5) * 10) * 0.55;
         g.fillStyle = `rgba(${v > 0 ? 255 : 0},${v > 0 ? 240 : 0},${v > 0 ? 190 : 0},${Math.abs(v) / 110})`;
         g.fillRect(x, y, 2, 2);
       }
@@ -244,7 +244,7 @@ function paint(label: SackLabel): HTMLCanvasElement {
     for (let y = 0; y < H; y += t)
       for (let x = 0; x < W; x += t) {
         const over = (Math.floor(x / t) + Math.floor(y / t)) % 2 === 0;
-        const v = ((over ? 18 : -22) + (r() - 0.5) * 14) * amp;
+        const v = ((over ? 18 : -22) + (r() - 0.5) * 14) * amp * 0.55;
         g.fillStyle = `rgba(${v > 0 ? 255 : 0},${v > 0 ? 235 : 0},${v > 0 ? 200 : 0},${Math.abs(v) / 110})`;
         g.fillRect(x, y, over ? t : Math.max(1, t - 1), over ? Math.max(1, t - 1) : t);
       }
@@ -291,37 +291,6 @@ function paint(label: SackLabel): HTMLCanvasElement {
       g.fillRect(x + 1, y + 1, 3, 1);
     }
   }
-  // the stencil: worn ink, letters broken by the stencil's bridges, the weave showing through
-  const ink = label.ink ?? "#1e1a18";
-  g.save();
-  g.globalAlpha = 0.94;
-  g.fillStyle = ink;
-  g.strokeStyle = ink;
-  g.textAlign = "center";
-  g.textBaseline = "middle";
-  const cx = W * 0.47;
-  const cy = H * 0.5;
-  // the merchant's mark: a diamond with his letters, on the sewn-end side
-  g.lineWidth = 3;
-  g.beginPath();
-  const mx = W * 0.16;
-  g.moveTo(mx, cy - 20);
-  g.lineTo(mx + 20, cy);
-  g.lineTo(mx, cy + 20);
-  g.lineTo(mx - 20, cy);
-  g.closePath();
-  g.stroke();
-  g.font = `bold 13px Georgia, 'Times New Roman', serif`;
-  g.fillText(label.mark, mx, cy + 1);
-  // the goods, big; where from and the weight below, smaller
-  // (big and heavy, so it reads from a few steps off: Steve 2026-09-28, "text is not very readable")
-  g.font = `bold 36px 'Scheldemist Print', Georgia, 'Times New Roman', serif`;
-  fitText(g, label.what, cx + 20, cy - 14, W * 0.6);
-  g.font = `bold 19px 'Scheldemist Print', Georgia, 'Times New Roman', serif`;
-  fitText(g, label.from, cx + 20, cy + 15, W * 0.58);
-  g.font = `bold 13px Georgia, 'Times New Roman', serif`;
-  g.fillText(`${look.kg} KIL.`, cx + 20, cy + 32);
-  g.restore();
   // dust: flour white over it all, thickest at the seams and ends; salt as a white crust low down and on the seams
   if (look.dust) {
     const n = look.dust === "flour" || look.dust === "coal" ? 900 : 500;
@@ -333,12 +302,41 @@ function paint(label: SackLabel): HTMLCanvasElement {
       g.fillRect(x | 0, y | 0, 1 + ((r() * (low ? 4 : 3)) | 0), 1 + ((r() * 2) | 0));
     }
   }
-  // the stencil's bridges and the wear: thin gaps of cloth through the letters, and patches rubbed off
-  for (let i = 0; i < 12; i++) {
-    const x = cx - W * 0.3 + r() * W * 0.72;
-    const y = cy - 30 + r() * 64;
-    g.fillStyle = `rgba(${base[0] | 0},${base[1] | 0},${base[2] | 0},${0.25 + r() * 0.3})`;
-    g.fillRect(x, y, 1 + ((r() * 2) | 0), 4 + ((r() * 10) | 0));
+  // the stencil (Steve 2026-09-28: "text still not readable"): the goods in one big word across the top of the sack,
+  // most of its length and a hand high; where from under it, on the near slope; the merchant's mark and the weight at
+  // the sewn end. Solid ink, a plain heavy serif: on the screen the sack's top is only some 100 pixels wide.
+  const ink = label.ink ?? "#1e1a18";
+  g.save();
+  g.fillStyle = ink;
+  g.strokeStyle = ink;
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  const cx = W * 0.5;
+  const cy = H * 0.5;
+  g.font = `50px Impact, 'Arial Narrow', 'Arial Black', sans-serif`;
+  fitText(g, label.what, cx, cy, W * 0.4);
+  g.font = `bold 21px Georgia, 'Times New Roman', serif`;
+  fitText(g, label.from, cx, cy + 36, W * 0.44);
+  const mx = W * 0.14;
+  g.lineWidth = 3;
+  g.beginPath();
+  g.moveTo(mx, cy - 18);
+  g.lineTo(mx + 18, cy);
+  g.lineTo(mx, cy + 18);
+  g.lineTo(mx - 18, cy);
+  g.closePath();
+  g.stroke();
+  g.font = `bold 12px Georgia, 'Times New Roman', serif`;
+  g.fillText(label.mark, mx, cy + 1);
+  g.fillText(`${look.kg} KIL.`, mx, cy + 34);
+  g.restore();
+  const cy0 = H * 0.5;
+  // a little wear on the ink: specks of cloth through it (few: the words must read)
+  for (let i = 0; i < 40; i++) {
+    const x = W * 0.2 + r() * W * 0.72;
+    const y = cy0 - 26 + r() * 74;
+    g.fillStyle = `rgba(${base[0] | 0},${base[1] | 0},${base[2] | 0},${0.2 + r() * 0.25})`;
+    g.fillRect(x | 0, y | 0, 1 + ((r() * 2) | 0), 1);
   }
   return c;
 }
