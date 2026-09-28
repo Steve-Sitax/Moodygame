@@ -298,7 +298,7 @@ export class Interiors {
         /* the server has no shops yet: again at the next refresh */
       }
       this.info = await interiorApi.info();
-      this.tipsyTarget = this.info.tipsy;
+      if (Number.isFinite(this.info.tipsy)) this.tipsyTarget = this.info.tipsy;
       if (!this.decorated) this.decorate();
       this.build();
       for (const t of this.info.taverns) {
@@ -315,7 +315,10 @@ export class Interiors {
   private refreshTipsy(): void {
     interiorApi
       .tipsy()
-      .then((r) => (this.tipsyTarget = r.tipsy))
+      .then((r) => {
+        // (a refused or odd answer keeps the last: never NaN, which made the camera's height NaN: a blank screen, #18)
+        if (Number.isFinite(r?.tipsy)) this.tipsyTarget = r.tipsy;
+      })
       .catch(() => {});
   }
 
@@ -1245,6 +1248,7 @@ export class Interiors {
       if (this.tipsyTarget > 0 || this.inside) this.refreshTipsy();
     }
     this.tipsyNow += (this.tipsyTarget - this.tipsyNow) * Math.min(1, dt * 0.25);
+    if (!Number.isFinite(this.tipsyNow)) this.tipsyNow = Number.isFinite(this.tipsyTarget) ? this.tipsyTarget : 0;
     // the Poesje's lantern is lit from half past six
     const h = this.jobs.day.hourF;
     const lit = h >= 18.5 && h < 22.5 ? 1 : 0;
@@ -1320,7 +1324,7 @@ export class Interiors {
       if (here.kind === "tavern") {
         const st = await interiorApi.tavern(here.place);
         if (this.here !== here) return;
-        this.tipsyTarget = st.tipsy;
+        if (Number.isFinite(st.tipsy)) this.tipsyTarget = st.tipsy;
         const hw = this.houses.get(here.place);
         if (hw) hw.house.doorOpen = st.open;
         if (!st.open) {
@@ -1352,7 +1356,7 @@ export class Interiors {
   /** After the player's own camera work: a tipsy man's view sways, gently. */
   sway(dt: number): void {
     const k = Math.min(1, this.tipsyNow / 4);
-    if (k < 0.02) return;
+    if (!(k >= 0.02)) return;
     this.swayT += dt;
     const t = this.swayT;
     const cam = this.player.camera;

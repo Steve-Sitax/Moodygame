@@ -42,6 +42,11 @@ export const psxUniforms = {
   /** Grime and mud on the paving, 1 px per metre (world/dirt.ts), and where it lies: x0, z0, w, h. */
   uDirt: { value: null as THREE.Texture | null },
   uDirtBox: { value: new THREE.Vector4(-348, -80, 556, 388) }, // world/dirt.ts sets it from world/townBox.ts
+  /**
+   * The gale (main.ts): the way the wind blows (x, z) and how hard it bends the trees now (0 any calm day; about 0.4 a
+   * storm day; up to 3 in the great storm's gusts). The trees lean downwind with it (world/trees3d.ts, rampartNature.ts).
+   */
+  uGale: { value: new THREE.Vector3(1, 0, 0) },
   /** Sea state: 1 = the river's usual chop, about 3.5 = a storm (world/rijnkaai.ts eases it by weather). */
   uSea: { value: 1 },
   /** Puddles on the ground, 0..1 (world/ambient.ts: rain fills them, a sunny day dries them). */
@@ -275,7 +280,9 @@ export function waveAt(x: number, z: number, t: number): number {
       Math.sin(x * 0.35 + t * 0.9) * 0.07 +
       Math.sin(z * 0.55 - t * 0.7 + x * 0.2) * 0.05 +
       Math.sin((x + z) * 1.3 + t * 1.7) * 0.02) *
-    psxUniforms.uSea.value
+      psxUniforms.uSea.value +
+    // the great storm's chop: short steep seas on the swell, running with the wind (the shader's same sum)
+    (Math.sin(x * 0.92 - z * 0.38 + t * 2.6) * 0.06 + Math.sin(z * 1.07 + x * 0.55 - t * 3.1) * 0.045) * Math.max(0, psxUniforms.uSea.value - 3.6)
   );
 }
 
@@ -727,6 +734,9 @@ export function psx<T extends THREE.Material>(mat: T, opts: PsxOptions = {}): T 
                   + sin(wp.z * 0.55 - uTime * 0.7 + wp.x * 0.2) * 0.05
                   + sin((wp.x + wp.z) * 1.3 + uTime * 1.7) * 0.02;
           w *= uSea;
+          // the great storm's chop (waveAt() the same): short steep seas over the swell
+          float chop = (sin(wp.x * 0.92 - wp.z * 0.38 + uTime * 2.6) * 0.06 + sin(wp.z * 1.07 + wp.x * 0.55 - uTime * 3.1) * 0.045) * max(0.0, uSea - 3.6);
+          w += chop;
           transformed.z += w;
           vWaveH = w / 0.22;
         }`,
@@ -862,7 +872,7 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
 `
           : "") +
         (opts.water
-          ? "uniform sampler2D uShore;\nuniform vec4 uShoreBox;\nvarying float vWaveH;\nuniform sampler2D uWaterMirror;\nuniform mat4 uWaterMirrorMat;\nuniform float uWaterMirrorOn;\nuniform sampler2D uFoul;\nuniform vec4 uFoulBox;\n" + foulGlsl
+          ? (opts.puddles ? "" : "uniform float uSea;\n") + "uniform sampler2D uShore;\nuniform vec4 uShoreBox;\nvarying float vWaveH;\nuniform sampler2D uWaterMirror;\nuniform mat4 uWaterMirrorMat;\nuniform float uWaterMirrorOn;\nuniform sampler2D uFoul;\nuniform vec4 uFoulBox;\n" + foulGlsl
           : ""),
     );
     fs = fs.replace(
@@ -1029,17 +1039,28 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
           float detail = smoothstep(70.0, 10.0, length(vPsxWorld - cameraPosition));
           diffuseColor.rgb = mix(diffuse * vec3(0.045, 0.062, 0.05), diffuseColor.rgb, detail);
           // wave crests a shade lighter, troughs darker
-          diffuseColor.rgb *= 1.0 + vWaveH * 0.18;
+          diffuseColor.rgb *= 1.0 + clamp(vWaveH * 0.18, -0.45, 0.7);
           // along the walls: lighter, silty water and foam lapping at the stone, in 20 cm pixels
           float shore = texture2D(uShore, (wxz - uShoreBox.xy) / uShoreBox.zw).r * 8.0;
           vec2 cell = floor(wxz * 5.0);
           float n = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
           float lap = 0.5 + 0.5 * sin(uTime * 1.1 + wxz.x * 0.45 + wxz.y * 0.3);
           float reach = (0.2 + 0.5 * lap) * (0.45 + 0.75 * n);
+          // the great storm (uSea over a storm's 3.6): the surf reaches far out from the walls, churned white
+          float stormK = clamp((uSea - 3.6) / 2.4, 0.0, 1.0);
+          reach *= 1.0 + 3.5 * stormK;
           float foam = step(shore, reach) * (0.55 + 0.45 * step(0.5, n));
           float silt = smoothstep(2.5, 0.2, shore);
           diffuseColor.rgb *= 1.0 + silt * 0.45;
-          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.3, 0.32, 0.29), foam * 0.8);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.3, 0.32, 0.29) + 0.12 * stormK, foam * (0.8 + 0.15 * stormK));
+          // whitecaps: the crests break white, in streaks blown downwind, flickering as they break
+          if (stormK > 0.0) {
+            float crest = vWaveH * 0.22 / max(uSea, 1.0);
+            vec2 wc = floor(wxz * vec2(3.0, 5.0));
+            float wn = fract(sin(dot(wc + floor(uTime * 3.0), vec2(12.9898, 78.233))) * 43758.5453);
+            float cap = smoothstep(0.45, 0.8, crest + wn * 0.35) * stormK;
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.42, 0.45, 0.44), cap * 0.85);
+          }
           // M3j: foul water (world/litter.ts uFoul): browner and duller
           float foulD = texture2D(uFoul, (wxz - uFoulBox.xy) / uFoulBox.zw).r;
           diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.85, 0.74, 0.5), foulD);
@@ -1148,6 +1169,8 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
             mr.xy += rip * 0.35 * mr.w;
             vec3 mc = texture2DProj(uWaterMirror, mr).rgb;
             float f = max(0.22, 0.04 + 0.96 * pow(1.0 - cosV, 5.0));
+            // (the great storm: the torn-up water mirrors nothing; Steve 2026-09-28)
+            f *= 1.0 - clamp((uSea - 3.6) / 2.0, 0.0, 1.0);
             gl_FragColor.rgb = mix(gl_FragColor.rgb, mc * 0.92, clamp(f, 0.0, 0.9));
           } else {
             float fres = pow(1.0 - cosV, 4.0);
@@ -1263,6 +1286,8 @@ vec3 psxStoneTone(vec2 uv, float wear, float farS) {
             vec3 refl = uMirrorOn > 0.5 ? texture2DProj(uMirror, mr).rgb * 1.1 : fogColor * 0.3;
             // a rippled patch scatters the picture a little: duller than the still water round it
             refl *= 1.0 - 0.12 * gust * min(1.0, wind - 0.6);
+            // (the great storm: the puddles are all rain-splash and wind; no picture in them)
+            refl = mix(refl, fogColor * 0.3, 0.85 * clamp((uSea - 3.6) / 2.0, 0.0, 1.0));
             vec3 rr = vec3(rd.x, -rd.y, rd.z);
             float lamp = 0.0;
             for (int i = 0; i < MAX_LAMPS; i++) lamp += uLamps[i].w * wetStreak(vPsxWorld, rr, uLamps[i].xyz);

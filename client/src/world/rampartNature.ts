@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import CITY from "../../../shared/city.json";
-import { psx } from "../retro/psx";
+import { psx, psxUniforms } from "../retro/psx";
 import { water } from "./tide";
 import type { WallDressing } from "./rampart";
 
@@ -295,8 +295,14 @@ function swayMaterial<T extends THREE.Material>(mat: T): T {
   float s = sway * sway * wind;
   transformed.x += (sin(uTime * 1.1 + ph) + 0.4 * sin(uTime * 2.7 + ph * 1.9)) * 0.11 * s;
   transformed.z += sin(uTime * 0.83 + ph * 1.3) * 0.07 * s;
+  // a gale: the tops lean hard downwind, and whip in the gusts (uGale)
+  float lean = sway * sway * 0.9 * uGale.z * (0.8 + 0.2 * sin(uTime * 1.7 + ph) + 0.15 * sin(uTime * 4.3 + ph * 2.1));
+  transformed.x += uGale.x * lean;
+  transformed.z += uGale.y * lean;
 }`,
     );
+    shader.uniforms.uGale = psxUniforms.uGale;
+    shader.vertexShader = "uniform vec3 uGale;\n" + shader.vertexShader;
   };
   mat.customProgramCacheKey = () => key.call(mat) + "-rampartsway";
   return mat;

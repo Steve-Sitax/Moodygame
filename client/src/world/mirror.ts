@@ -227,7 +227,8 @@ export function createMirror(plane0: number, opts: MirrorOptions = {}): Mirror {
     get minPx() {
       return opts.minPx ?? (opts.everyFrame ? mirrorBudget.everyMinPx : mirrorBudget.minPx);
     },
-    willRender: (eye) => !mirrorsOff && (!opts.enabled || opts.enabled()) && eye.y > planeY + 0.02,
+    // (the great storm, uSea past 5.6: the water and the puddles mirror nothing (retro/psx.ts): no second drawing of the town)
+    willRender: (eye) => !mirrorsOff && psxUniforms.uSea.value < 5.6 && (!opts.enabled || opts.enabled()) && eye.y > planeY + 0.02,
   });
   const matrix = new THREE.Matrix4();
   const plane = new THREE.Plane();

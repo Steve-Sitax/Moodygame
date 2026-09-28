@@ -1,4 +1,6 @@
-import { gustRoar, rollingCask, shutterBang, signCreak, slateCrash } from "../../audio/aliveSounds";
+import * as THREE from "three";
+import { gustRoar, rollingCask, shutterBang, signCreak, slateCrash, waveSlam } from "../../audio/aliveSounds";
+import { mistMaterial } from "./air";
 import { rand, type Ctx, type Frame, type Part } from "./common";
 import { tempest } from "../tempest";
 
@@ -96,4 +98,144 @@ export function createGale(ctx: Ctx): Part {
       on = v;
     },
   };
+}
+
+// ------------------------------------------------------------------ the surf against the quays
+
+const SPRAY = 1400;
+
+/**
+ * The great storm's surf (Steve 2026-09-28: "water from the Schelde splashing up the walls"): the seas run at the
+ * quay walls round Jef and burst up them, a sheet of white water thrown over the edge and blown onto the stones by
+ * the wind, falling back in a hiss. Where: the nearest quay edges within 40 m (found by looking out from Jef to the
+ * first water). How often: every half second to two, more the harder it blows. The puffs are the breath's mist
+ * material (one shader), thicker and whiter; the slam is made in code (audio/aliveSounds.ts waveSlam).
+ */
+export function createSurf(ctx: Ctx): Part {
+  let on = true;
+  const pos = new Float32Array(SPRAY * 3);
+  const age = new Float32Array(SPRAY).fill(-1);
+  const size = new Float32Array(SPRAY).fill(1);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  g.setAttribute("aAge", new THREE.BufferAttribute(age, 1));
+  g.setAttribute("aSize", new THREE.BufferAttribute(size, 1));
+  const tint = { value: new THREE.Color() };
+  const pts = new THREE.Points(g, mistMaterial(tint, { value: 2.2 }));
+  pts.frustumCulled = false;
+  pts.name = "alive_surf";
+  pts.renderOrder = 4;
+  ctx.scene.add(pts);
+  interface Drop { p: THREE.Vector3; v: THREE.Vector3; age: number; life: number; floor: number }
+  const drops: Drop[] = Array.from({ length: SPRAY }, () => ({ p: new THREE.Vector3(), v: new THREE.Vector3(), age: -1, life: 1, floor: 0 }));
+  /** Quay edges near Jef: the last land before the water, and which way is inland. */
+  let edges: Array<{ x: number; z: number; ix: number; iz: number }> = [];
+  let look = 0;
+  let next = 1;
+  let bursts = 0;
+  const w2 = new THREE.Vector2();
+  const white = new THREE.Color(0.86, 0.88, 0.86);
+
+  function findEdges(f: Frame): void {
+    edges = [];
+    for (let k = 0; k < 36; k++) {
+      const a = (k / 36) * Math.PI * 2;
+      const dx = Math.cos(a), dz = Math.sin(a);
+      let land = false;
+      for (let d = 1; d < 40; d += 0.7) {
+        const fl = ctx.flags(f.eye.x + dx * d, f.eye.z + dz * d);
+        if (fl === undefined || fl === 4) break;
+        if (fl !== 2) land = true;
+        else if (land) {
+          // the wall's face: a step back onto the land, inland is back toward Jef
+          edges.push({ x: f.eye.x + dx * (d - 0.5), z: f.eye.z + dz * (d - 0.5), ix: -dx, iz: -dz });
+          break;
+        }
+      }
+    }
+  }
+
+  function burst(e: { x: number; z: number; ix: number; iz: number }, fury: number): void {
+    const wl = ctx.world.waterLevel(e.x - e.ix * 0.8, e.z - e.iz * 0.8);
+    const top = ctx.world.baseAt(e.x, e.z);
+    if (!Number.isFinite(wl) || !Number.isFinite(top)) return;
+    const big = (0.5 + 0.5 * Math.random()) * fury;
+    let n = Math.round(110 + 150 * big);
+    // up the face: fast enough to clear the quay's top by a few metres
+    const need = Math.sqrt(2 * 9.8 * Math.max(0.5, top - wl + 1.5 + 3 * big));
+    for (let i = 0; i < SPRAY && n > 0; i++) {
+      const q = drops[i];
+      if (q.age >= 0) continue;
+      const along = (Math.random() - 0.5) * (3 + 4 * big);
+      q.p.set(e.x - e.ix * 0.6 - e.iz * along, wl + 0.2, e.z - e.iz * 0.6 + e.ix * along);
+      const up = need * (0.55 + Math.random() * 0.6);
+      const inl = 0.5 + Math.random() * 2.5;
+      q.v.set(e.ix * inl + (Math.random() - 0.5) * 1.5, up, e.iz * inl + (Math.random() - 0.5) * 1.5);
+      q.age = 0;
+      q.life = 1.3 + Math.random() * 1.2;
+      q.floor = wl;
+      // many small: a sheet of spray, not balls of it (a few bigger clouds of it in the middle)
+      size[i] = Math.random() < 0.12 ? 1.6 + Math.random() * 1.6 : 0.35 + Math.random() * 0.9;
+      n--;
+    }
+    bursts++;
+    ctx.sound()?.placed({ x: e.x, y: top + 0.5, z: e.z }, { ref: 5, reach: 70, max: 120, wet: 0.35, gain: 1.2 }, waveSlam(Math.min(1, 0.4 + big)));
+  }
+
+  function update(f: Frame): void {
+    const fury = f.weather === "storm" ? tempest.level : 0;
+    if (!on) return;
+    const dt = Math.min(f.dt, 0.05);
+    const fog = ctx.scene.fog as THREE.Fog | null;
+    if (fog) tint.value.copy(fog.color).lerp(white, 0.55 * (1 - 0.6 * f.night));
+    if (fury > 0.2) {
+      look -= dt;
+      if (look <= 0) {
+        look = 1;
+        findEdges(f);
+      }
+      next -= dt;
+      if (next <= 0 && edges.length) {
+        next = rand(0.5, 2) / fury;
+        burst(edges[Math.floor(Math.random() * edges.length)], fury);
+      }
+    }
+    let live = 0;
+    for (let i = 0; i < SPRAY; i++) {
+      const q = drops[i];
+      if (q.age >= 0) {
+        q.age += dt / q.life;
+        ctx.wind.at(q.p.x, q.p.z, w2);
+        // thrown up, slowed by the air, carried onto the quay by the gale, down again
+        q.v.x += (w2.x * 0.35 - q.v.x) * Math.min(1, dt * 0.9);
+        q.v.z += (w2.y * 0.35 - q.v.z) * Math.min(1, dt * 0.9);
+        q.v.y -= 9.8 * dt;
+        q.p.addScaledVector(q.v, dt);
+        const gy = ctx.flags(q.p.x, q.p.z) === 2 ? q.floor : ctx.world.baseAt(q.p.x, q.p.z);
+        if (q.age >= 1 || (q.v.y < 0 && Number.isFinite(gy) && q.p.y < gy)) q.age = -1;
+        else live++;
+      }
+      pos[i * 3] = q.p.x;
+      pos[i * 3 + 1] = q.p.y;
+      pos[i * 3 + 2] = q.p.z;
+      age[i] = q.age;
+    }
+    pts.visible = live > 0;
+    if (live > 0 || bursts) {
+      g.attributes.position.needsUpdate = true;
+      g.attributes.aAge.needsUpdate = true;
+      g.attributes.aSize.needsUpdate = true;
+    }
+  }
+
+  return {
+    name: "surf",
+    update,
+    info: () => ({ edges: edges.length, bursts, live: drops.filter((q) => q.age >= 0).length }),
+    setOn: (v) => {
+      on = v;
+      if (!v) pts.visible = false;
+    },
+    ...{ burstNow: () => edges.length && burst(edges[0], 1) },
+  } as Part;
 }

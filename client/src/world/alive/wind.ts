@@ -55,7 +55,7 @@ export class Wind {
       // (the dev's gust: here, now, on this PC only)
       const k = GUST[weather] ?? [1, 2];
       const a0 = eye.x * this.dir.x + eye.z * this.dir.y;
-      this.gusts.push({ t0: t + 1.5, len: rand(2, 6), k: rand(k[0], k[1]) * (1 + 0.8 * this.fury), speed: 8 + BASE[weather] * 3, a0 });
+      this.gusts.push({ t0: t + 1.5, len: rand(2, 6), k: rand(k[0], k[1]) * (1 + 2 * this.fury), speed: 8 + BASE[weather] * 3, a0 });
       this.force = false;
     }
     this.gusts = this.gusts.filter((q) => t < q.t0 + q.len + 60);
@@ -69,7 +69,7 @@ export class Wind {
     const w0 = Math.floor((t - 60) / W);
     for (let w = w0; w <= w0 + Math.ceil(120 / W) + 1; w++) {
       const len = 2 + dice(`gust:${weather}`, w, 1) * 4;
-      this.town.push({ t0: w * W + dice(`gust:${weather}`, w, 2) * Math.max(1, W - len), len, k: (k[0] + (k[1] - k[0]) * dice(`gust:${weather}`, w, 3)) * (1 + 0.8 * this.fury), speed, a0: 0 });
+      this.town.push({ t0: w * W + dice(`gust:${weather}`, w, 2) * Math.max(1, W - len), len, k: (k[0] + (k[1] - k[0]) * dice(`gust:${weather}`, w, 3)) * (1 + 2 * this.fury), speed, a0: 0 });
     }
   }
   private town: Gust[] = [];
@@ -92,6 +92,24 @@ export class Wind {
   at(x: number, z: number, out: THREE.Vector2): THREE.Vector2 {
     const g = this.gustAt(x, z);
     return out.copy(this.base).multiplyScalar(1 + g);
+  }
+
+  /**
+   * The gust fronts about now, for the rain (world/ambient.ts: each gust brings its veil of heavier rain): up to four,
+   * into `out` as (when its front passed the place where along = a0, minus now; how long; how strong; how fast), and
+   * `a0` into `a0s`. Unused slots have strength 0.
+   */
+  fronts(out: Float32Array, a0s: Float32Array): void {
+    out.fill(0);
+    a0s.fill(0);
+    let n = 0;
+    for (const q of this.gusts.length ? [...this.town, ...this.gusts] : this.town) {
+      if (n >= 4) break;
+      if (this.t < q.t0 - 12 || this.t > q.t0 + q.len + 12) continue;
+      out.set([q.t0 - this.t, q.len, q.k, q.speed], n * 4);
+      a0s[n] = q.a0;
+      n++;
+    }
   }
 
   /** Base speed now. */

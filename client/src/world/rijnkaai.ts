@@ -1785,6 +1785,9 @@ export function buildRijnkaai(): World {
   const CLEAR_SKY = new THREE.Color(0x8b9398);
   /** The great storm's air under the black cloud (world/tempest.ts). */
   const STORM_AIR = new THREE.Color(0x3a444e);
+  /** A gust's veil of rain going by: the air greyer and lighter for a moment. */
+  const VEIL_AIR = new THREE.Color(0x6a7478);
+  let veilNow = 0;
   /**
    * Fixes 2026-09-24 (shot 4: a clear 16:40-17:00 stayed grey): the golden hour of a clear day.
    * The low sun goes warm and the air gold toward evening, a little at sunrise too; fog, mist and
@@ -1834,8 +1837,11 @@ export function buildRijnkaai(): World {
     if (tideDev.hold === "low") return LW_MIN;
     if (!tideClock) return tideWater.river;
     const c = tideClock();
-    return tideAt(c.day, c.hour);
+    // the great storm drives the sea up the river: up to a metre over the tide, but never over the lowest quays
+    return Math.max(tideAt(c.day, c.hour), Math.min(tideAt(c.day, c.hour) + 1.0 * tempest.level, STORM_SURGE_TOP));
   }
+  /** The great storm's surge stops here (m): about the level of a spring high water, under the low quays' tops. */
+  const STORM_SURGE_TOP = HW_MAX - 0.1;
   function updateTide(dt: number): void {
     const target = tideTarget();
     // a jump of the clock (sleep, the dev menu) or the first clock: the water goes there in a few seconds
@@ -1924,7 +1930,13 @@ export function buildRijnkaai(): World {
     // the job twist "thick fog" always closes in, whatever the weather
     fog.near = THREE.MathUtils.lerp(3 * wNow[0] * tuning.viewFar, 1.5, fogMix) * (1 - 0.45 * tempest.level);
     // (the great storm: rain in sheets closes the far end in to about two thirds)
-    fog.far = THREE.MathUtils.lerp(dayFar * wNow[1] * tuning.viewFar, 11, fogMix) * (1 - 0.32 * tempest.level); // menus: view distance
+    // (and each gust's veil of rain closes it in further as it goes by him, then it opens again)
+    veilNow += (Math.min(1, tempest.gust / 2.5) * tempest.level - veilNow) * Math.min(1, dt * 1.5);
+    fog.far = THREE.MathUtils.lerp(dayFar * wNow[1] * tuning.viewFar, 11, fogMix) * (1 - 0.32 * tempest.level) * (1 - 0.35 * veilNow); // menus: view distance
+    if (veilNow > 0.01) {
+      fog.color.lerp(VEIL_AIR, 0.25 * veilNow);
+      (scene.background as THREE.Color).copy(fog.color);
+    }
     sky.visible = !devView;
     if (devView) {
       // look at everything: no fog, bright day
