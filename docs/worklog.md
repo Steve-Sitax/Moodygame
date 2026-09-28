@@ -7,30 +7,8 @@ Git history has the detail of each commit.
 
 ## Waiting for Steve
 
-- Slow frames (2026-09-28, measured in Chrome 153 on the RTX 5090, 720 lines, "high"): 20-33 ms a frame by day and
-  night, CPU-bound (the GPU waits 1-3 ms). Drawing is ~72% of the frame: ~1750 draw calls, 528 shader switches and
-  ~10,000 uniform uploads a frame (4241 visible objects, 623 materials at the Grote Markt). The river and puddle
-  mirrors draw the town again every frame: ~10 ms (off: 31 -> 21 ms). Game logic ~8 ms. Worst: the cathedral and the
-  Handschoenmarkt (32 ms), best: the station (15 ms). No slow-down over 6 minutes, but textures (+240) and geometries
-  (+100) keep growing in 5 minutes of walking: a long run must show if that leaks. Tool: `__scheldemist.frameProf()`
-  (uncommitted in main). Steve to pick: cheaper mirrors (the picture changes a little) and/or fewer draw calls (no change).
-  Steve: both. Done so far (uncommitted, waiting for Steve's check on the test stack 5341): mirror budget (one mirror
-  every 2nd frame, 12 degree margin, small things left out; world/mirror.ts), no mirror when the culler hides all its
-  water, array uniforms sent only on change (retro/uniformCache.ts), matrices only on change (retro/matrixSkip.ts),
-  groundAt from the 4 m cells, day routes with unknown ways kept (whereabouts.ts waysLearnt: ~300 routes a frame
-  for the first minute before). Every speed-only change pixel-diffed: 0 pixels. Live, walking: mean 43 -> 55 fps
-  (cathedral 31 -> 51). Open: the culler's full check (~7.5 ms every ~8 frames on the move) and the mirror frames
-  make frames uneven; a helper (worktree) researches atlases, merging and other draw-call cuts.
-  Steve's check: puddle reflections lagged. Now the puddle mirror draws every frame (outside the budget) but only
-  what stands within 50 m (MirrorOptions.reach, done by the culler: the oblique near plane breaks the far plane),
-  and puddles have wind ripples (retro/psx.ts: crests running with the wind in drifting gust patches, calm water
-  between, strength from uSea). Cost vs the budgeted version: ~+1.7 ms. Waiting for Steve's second look.
-  Steve: ripples good, storm too strong and blocky -> smooth (no 6 cm cells), a third of the storm strength, faded
-  from 10 to 30 m. The draw-call helper finished (branch worktree-agent-ac8206ceecb40535d, not merged): atlases
-  would join ~10 of ~400 materials (they differ in shader settings, not pictures): not worth it now. Its
-  world/staticMerge.ts joins still same-material parts: 10-21% fewer calls, ~0.4 ms, 0 pixels. It found ~59
-  shader look-ups a frame (~0.4 ms: materials shared by instanced and plain meshes, street and rooms). Filed:
-  Madame Zelie's table not psx (https://github.com/Steve-Sitax/Moodygame/issues/16); its prop-check finds are #13.
+- Merging still parts (world/staticMerge.ts, off unless `?merge`): 10-21% fewer draw calls, ~0.4 ms, but ~470 edge
+  pixels flip at the Rijnkaai. On, or leave it off? (Claude: leave it off; the gain is small.)
 
 
 - Day fog, rain and storm: the skyline is still a little lighter than the cloud deck (18-35% at 13:00). A one-line sky.ts change would use the night rule by day too, at the cost of flatter fog-day skies. Steve's call.
@@ -71,6 +49,7 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 
 | Commit | What |
 |---|---|
+| b00f56b 6bb54b2 1eabbff fa88ce7 384c84e 0c9c22a | The slow frames (Steve 2026-09-28: stutter, a tester got motion sick). CPU-bound on one core; fixed: mirrors on a budget (river every 2nd frame with a margin, puddles every frame within 50 m, none when their water is hidden), puddle wind ripples, array and shared uniforms sent once, matrices only on change, the culler's full check in three slices and no redo on a lamp change, ground checks from the 4 m cells, day routes kept, the unseen townspeople and far trees' leaves in turns. Every speed-only change 0 pixels (the pixel test was blind until 6bb54b2; fixed, with a control). Live walking ~43 -> ~55 fps before the puddles went back to every frame. Rules: `docs/performance.md`, `tools/perfcheck.mjs` (and a local `frame-budget` skill in .claude/skills, out of git). Filed [#16](https://github.com/Steve-Sitax/Moodygame/issues/16), [#19](https://github.com/Steve-Sitax/Moodygame/issues/19) |
 | (this) | Sack text readable, round 2 (Steve 2026-09-28: "text still not readable on the sacks. Read it yourself"): the goods in one big narrow block word (Impact) across the flat middle of the top, where from under it, mark and weight at the sewn end; the weave at half its contrast, dust under the ink. Read in pictures at 1.3 m (all words) and 3 m (short words) |
 | 0b75cdf | Sacks one size and readable (Steve 2026-09-28: "not all sacks are the same size and text is not very readable"): the sack shape is exactly 0.88 x 0.30 x 0.50 m lying, 0.50 x 0.82 x 0.50 standing, in every place (heaps, piles, carts, boats, props); a stall's small bags keep their size. Stencil bigger and bolder, less wear, mipmapped so it does not flicker far off. Steve's "a picked-up sack stays behind" not reproduced on a save copy (sacks, crates, casks from heaps and dockers' piles all leave and show in the hands); pictures sent, waiting for where he saw it |
 | (this) | Issue #15 filed (https://github.com/Steve-Sitax/Moodygame/issues/15: `net::ERR_NO_BUFFER_SPACE` seen once in the console during the T1/T2 and sack test sessions, not investigated) |
@@ -178,6 +157,9 @@ At most 3-4 helpers at once, so tests and browser checks do not time out.
 Earlier batches: the git log before f5291a4 and the milestone notes in `docs/milestones/`.
 
 ## Rules added today (in CLAUDE.md)
+
+- Frame budget (2026-09-28): new models, textures, materials, mirrors, rooms and every-frame logic follow
+  `docs/performance.md`; speed changes prove 0 pixels; `node tools/perfcheck.mjs` before a batch ends.
 
 - Every clock shows the game's own time.
 - Interiors are real, never instanced; new buildings with an inside follow `docs/building-with-interior.md`.

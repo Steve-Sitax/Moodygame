@@ -89,49 +89,9 @@ the spilt light), so a stone is lit on the side toward a light and shaded on the
   walls, drawn as quads that multiply what is under them (`dst * (1 + src)`), plus additive shafts. No light, no shadow
   map. A new hall with windows gives its windows, piers, arcade walls and galleries to `buildHallSun`.
 
-## Draw calls (2026-09-28)
-What a draw costs in three.js r186 here (Chrome 153, measured in one run, A against B): a draw after one with the
-same material ~2 us of CPU; a new material ~4-5 us more (all its uniforms sent again); the scene walked once per pass
-(main view, each mirror, each room). Merging same-material parts saves the cheap kind, so it pays little per draw.
-- **Still parts as one** (`world/staticMerge.ts` `mergeParts`, `mergePartsTree`): the still meshes under one parent
-  that share a material become one mesh in the parent's frame (a door leaf still turns, a boat still sails). Tagged
-  meshes (`userData`: clock hands, signs for the sign check), mirrored parts and anything the caller does not pick stay
-  as they are. Copies with the same parts in the same places share one geometry. Used for lanterns, sacks on boats and
-  carts, door straps, bollards, lamp posts, signs, the Steen's ironwork. Rooms have their own (`rooms.ts mergeStatic`).
-  A new code-made model of many small parts: call it when it is built.
-- **One material for many**: make it once (`sharedMaterial()` in dev lets `pixelDiff("share")` split it again), not
-  one per object with the same settings (the shop signs had one per sign).
-- Checks: `__scheldemist.pixelDiff("merge")` and `pixelDiff("share")` must give 0 pixels; `__staticMerge.info()`.
-- Measured and left: sorting by shader first (30% fewer shader switches, no faster), sharing all materials with equal
-  settings (100 fewer material set-ups a frame, no measurable gain), texture atlases (the materials in view differ in
-  their shader settings, not their pictures: an atlas would join about 10 of 400).
-
-## Still open
-- The water mirror draws the town a second time when water is in view: about 12 ms more per frame on
-  the quays (not a stutter, a steady cost). Cheaper options change the picture, so none is taken yet.
-
-## Frame time (2026-09-28, the slow frames)
-The game is CPU-bound on one core: the GPU waits 1-3 ms a frame (RTX 5090, 720 lines). Drawing is ~60% of the
-frame, ~9 us of three.js work per draw call; a material switch costs ~4-5 us more than a draw after the same
-material. Measured and fixed:
-- **The mirrors** (`world/mirror.ts mirrorBudget`, Steve: the picture may change a little): the river mirror draws
-  at most every second frame, with a 12 degree margin round the view (1.5 times the pixels) so an older picture
-  still covers a turn; small things (`minPx`) are left out. The puddles' mirror draws every frame
-  (`everyFrame`: an older picture lagged at Jef's feet) but only what stands within 50 m (`reach`, done by the
-  culler: the oblique near plane tilts the far plane away, so `far` alone culls nothing). A mirror whose every
-  surface the culler hides in the main view is not drawn (`mirrorView`).
-- **Array uniforms** (`retro/uniformCache.ts`): three.js sent the spill lists (4 x 48 vec4) and the lamps again at
-  every material switch; now only when a program's copy differs. 0 pixels.
-- **Matrices** (`retro/matrixSkip.ts`): a local matrix is composed only when position, rotation or scale changed.
-  A matrix written by hand needs `matrixAutoUpdate = false` (it always did). 0 pixels.
-- **Collisions** (`world/rijnkaai.ts`): `groundAt` reads the fixed colliders from their 4 m cells, as `staticHit`
-  does; the moving ones from a plain list (`dynamic.list`). Same answers (`__groundCheck()`).
-- **Day routes** (`server/src/town/whereabouts.ts`): a route worked out while a way was unknown is kept until the
-  client learns ways (`waysLearnt`); before, ~300 routes were worked out every frame for the first minute.
-Rules that follow: a speed change proves 0 pixels (`__scheldemist.pixelDiff(what)`), or asks Steve first. A new
-thing drawn every frame: share materials, reuse geometry, one InstancedMesh for many copies. No loop over every
-person, prop or collider every frame: use the cells, a list, or a cache. Measure with `__scheldemist.frameProf()`
-(testing.md).
+## Frame time
+The frame budget, where the time goes, the rules for new models, textures, materials, mirrors and every-frame logic,
+and how to prove a speed change: [performance.md](performance.md).
 
 ## The loading screen (2026-09-26)
 `client/index.html` shows it from the first paint: the picture, the name, a bar with the step, a tip. Its CSS
