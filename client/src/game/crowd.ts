@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { sackLabelFor, sackMaterial, sackMesh, sackOf, standingSackGeometry, type SackLabel } from "./sackModel";
+import { labelGeo, relabel, sackLabelFor, sackMaterial, sackMesh, sackOf, standingSackGeometry, type SackLabel } from "./sackModel";
 import { psx } from "../retro/psx";
 import { addLantern, lanternDarkAt, removeLantern, type LanternSource } from "../world/lanternLights";
 import { lampFog } from "../world/lampFog";
@@ -1027,7 +1027,7 @@ export class Crowd {
     if (label) p.sackLabel = label;
     this.setLoad(p, on);
     if (on && kind === "sack") {
-      if (p.sack && label) (p.sack as THREE.Mesh).material = sackMaterial(label);
+      if (p.sack && label) relabel(p.sack as THREE.Mesh, label);
       p.human.setSackLabel(p.sackLabel ?? sackLabelFor(null));
     }
   }
@@ -1328,7 +1328,10 @@ export class Crowd {
       fish: () => [new THREE.CylinderGeometry(0.045, 0.06, 0.32, 5).rotateZ(Math.PI / 2).translate(0, -0.04, 0), paper],
       parcel: () => [new THREE.BoxGeometry(0.2, 0.12, 0.14).translate(0, -0.08, 0), paper],
       // a small sack of the one sack model, stood up, hanging from the hand (game/sackModel.ts)
-      sack: () => [standingSackGeometry("flour").clone().scale(0.34, 0.34, 0.34).translate(0, -0.3, 0), sackMaterial(sackOf("flour", "a baker's bag"))],
+      sack: () => {
+        const lot = sackOf("flour", "a baker's bag");
+        return [labelGeo(standingSackGeometry("flour").clone().scale(0.34, 0.34, 0.34).translate(0, -0.3, 0), lot), sackMaterial(lot)];
+      },
       basket: () => [new THREE.CylinderGeometry(0.17, 0.13, 0.18, 6).translate(0, -0.2, 0), psx(new THREE.MeshLambertMaterial({ color: 0x7a6038 }))],
     };
     const r = made[what]();

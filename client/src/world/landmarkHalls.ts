@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { pickSack, sackGeometry, sackMaterial, sackMesh } from "../game/sackModel";
+import { labelGeo, pickSack, sackGeometry, sackMaterial, sackMesh } from "../game/sackModel";
 import { canvasTex, flicker, frameRoom, rand, tex, type Seat } from "./rooms";
 import { signTexture } from "./textures";
 import { createFires } from "./fire";
@@ -1274,7 +1274,7 @@ export function buildOostershuis(): LandmarkRoom {
     if (kind === "sacks") {
       // (2026-09-28: the one sack model, game/sackModel.ts, in the pyramids as they were laid; one lot a stack)
       const lot = pickSack(`hall:oh:${x0},${z0}`, "entrepot");
-      const base = sackGeometry(lot.goods);
+      const base = labelGeo(sackGeometry(lot.goods), lot);
       const b = base.boundingBox!;
       const fit = new THREE.Vector3(0.95 / (b.max.x - b.min.x), 0.42 / (b.max.y - b.min.y), 0.6 / (b.max.z - b.min.z));
       const geos: THREE.BufferGeometry[] = [];

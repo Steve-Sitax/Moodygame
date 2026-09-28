@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { OPEN_SACK, openSackGeometry, pickSack, sackMaterial } from "../game/sackModel";
+import { labelGeo, OPEN_SACK, openSackGeometry, pickSack, sackMaterial } from "../game/sackModel";
 import { psx, bumpFromMap } from "../retro/psx";
 import { withPicture } from "./quayStone";
 import { Builder, canvasTex, lambert, mat, rand, tex } from "./rooms";
@@ -470,7 +470,7 @@ export class Kit {
   sack(x: number, z: number, y: number, goods = 0x5a3a20, solid = true): void {
     // (2026-09-28: the one sack model, opened: game/sackModel.ts; what is in it by the colour of the goods heaped in it)
     const lot = pickSack(`room:${x.toFixed(1)},${z.toFixed(1)}`, [[goodsOfColour(goods), 1]]);
-    const m = new THREE.Mesh(openSackGeometry(lot.goods), sackMaterial(lot));
+    const m = new THREE.Mesh(labelGeo(openSackGeometry(lot.goods), lot), sackMaterial(lot));
     m.scale.setScalar(0.62 / (OPEN_SACK.top + 0.05));
     m.position.set(x, y, z);
     m.rotation.y = (x * 7 + z * 3) % 6.28;

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { pickSack, SACK_H, SACK_NEST, sackGeometry, sackMaterial } from "../game/sackModel";
+import { labelGeo, pickSack, SACK_H, SACK_NEST, sackGeometry, sackInstMaterial, type SackLabel } from "../game/sackModel";
 import { psx } from "../retro/psx";
 import { makeHuman, type Human } from "../game/humans";
 import type { Rect } from "./geom";
@@ -477,8 +477,8 @@ function wheelsetGeometry(): THREE.BufferGeometry {
 const TRAIN_SACKS = pickSack("train:sacks", "quay");
 
 /** A unit of sacks as a crane slings it and a wagon slot holds it: two side by side along the wagon, one on them. */
-function sackUnit(goods: string): THREE.BufferGeometry {
-  const base = sackGeometry(goods);
+function sackUnit(lot: SackLabel): THREE.BufferGeometry {
+  const base = labelGeo(sackGeometry(lot.goods), lot);
   const parts: Array<[number, number, number, number]> = [
     [-0.25, 0, 0, Math.PI / 2],
     [0.25, 0, 0.02, -Math.PI / 2],
@@ -915,7 +915,7 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
       g,
       // (2026-09-28: a unit of sacks is three of the one sack model, game/sackModel.ts; one lot for the train's sacks)
       g === "sacks"
-        ? inst(sackUnit(TRAIN_SACKS.goods), sackMaterial(TRAIN_SACKS), 48, "goods_sacks")
+        ? inst(sackUnit(TRAIN_SACKS), sackInstMaterial(TRAIN_SACKS), 48, "goods_sacks")
         : inst(W && goodsMat ? W.goods[g] : unitGeometry(g), W && goodsMat ? goodsMat : g === "crates" ? crateMat : g === "casks" ? woodMat : sackMat, 48, `goods_${g}`),
     );
   // the train's two and the omnibuses' pairs: red roans, the Brabant's own colour (horseGait.ts coats)

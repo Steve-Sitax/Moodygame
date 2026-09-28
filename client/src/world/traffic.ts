@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { sackGeometry, sackLabelFor, sackLoadGeometry, sackMaterial, sackMesh, type SackLabel } from "../game/sackModel";
+import { labelGeo, sackGeometry, sackInstMaterial, sackLabelFor, sackLoadGeometry, sackMaterial, sackMesh, type SackLabel } from "../game/sackModel";
 import { mergeParts } from "./staticMerge";
 import SACK_SOCKETS from "./props_sack_sockets.json";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
@@ -380,7 +380,7 @@ export class PushCart {
       m.visible = i < n;
       if (what === this.what && (what !== "sacks" || !label)) return;
       const sack = what === "sacks" || (what === "goods" && i % 3 === 1);
-      m.geometry = sack ? sackGeometry(sackLabel.goods) : itemGeo(i, what);
+      m.geometry = sack ? labelGeo(sackGeometry(sackLabel.goods), sackLabel) : itemGeo(i, what);
       m.material = sack ? sackMaterial(sackLabel) : itemMat(i);
       if (what === "sacks") {
         // full sacks lying across the bed, the next in the dips (the one sack model)
@@ -707,7 +707,7 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
       const box = mergedPart(props, ["tr_load_sacks"]);
       box.computeBoundingBox();
       const lot = sackLabelFor("traffic:sacks");
-      mesh = new THREE.InstancedMesh(sackLoadGeometry(box.boundingBox!, Infinity, lot.goods), sackMaterial(lot), who.length);
+      mesh = new THREE.InstancedMesh(sackLoadGeometry(box.boundingBox!, Infinity, lot.goods, lot), sackInstMaterial(lot), who.length);
       mesh.name = "tr_load_sacks";
       mesh.frustumCulled = false;
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -1177,6 +1177,7 @@ export class LedDray {
   /** The space the load fills on the bed (its frame), for a load of sacks made of the one sack model. */
   private loadBox: THREE.Box3 | null = null;
   private sackGoods: string | undefined;
+  private sackLot: SackLabel | null = null;
   /** The man's steps, newest first (every 0.2 m), and where he is now. */
   private trail: Array<[number, number]> = [];
   private head: [number, number] = [0, 0];
@@ -1204,8 +1205,9 @@ export class LedDray {
       g.computeBoundingBox();
       this.loadBox = g.boundingBox!.clone();
       const lot = sackLabelFor(`dray:${LedDray.made}`);
-      this.load = new THREE.Mesh(sackLoadGeometry(this.loadBox, Infinity, lot.goods), sackMaterial(lot));
+      this.load = new THREE.Mesh(sackLoadGeometry(this.loadBox, Infinity, lot.goods, lot), sackMaterial(lot));
       this.sackGoods = lot.goods;
+      this.sackLot = lot;
       this.load.name = "tr_load_sacks";
     } else this.load = load ? mesh(`tr_load_${load}`) : null;
     for (const m of [this.bed, this.fore, this.rear, this.front, this.horse, ...this.legs.flat()]) this.root.add(m);
@@ -1219,9 +1221,10 @@ export class LedDray {
     if (!this.load || !this.loadBox) return;
     if (label) {
       this.sackGoods = label.goods;
+      this.sackLot = label;
       this.load.material = sackMaterial(label);
     }
-    this.load.geometry = sackLoadGeometry(this.loadBox, Math.max(0, n), this.sackGoods);
+    this.load.geometry = sackLoadGeometry(this.loadBox, Math.max(0, n), this.sackGoods, this.sackLot ?? undefined);
     this.load.visible = n > 0;
   }
 
