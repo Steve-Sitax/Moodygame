@@ -5,7 +5,6 @@ import { DEV } from "../config.ts";
 import { GameError, settleExtras, takeHooks } from "../game.ts";
 import { boardExtras, maxTier, TIER_PAY, type CarryTask, type JobRow, type MillTask, type Twist } from "../hooks/jobBoard.ts";
 import { cartWorkOpen, walkDist } from "../hooks/loads.ts";
-import { sellerPrice } from "../trade.ts";
 import { shownTrade, TRADES, type TradeId } from "./places.ts";
 import { rngFrom, tidy, type Home, type Resident, type Stats, type TownPlace } from "./population.ts";
 import type { Seg } from "./schedule.ts";
@@ -14,9 +13,8 @@ import { houseDoors, type HouseDoor } from "./walkmap.ts";
 import { INWORLD_HOUSES } from "./kept.ts";
 import {
   absMin,
-  breadExtra,
+  type StockEvent,
   FLOUR_LOW,
-  FLOUR_WARES,
   freshStocks,
   GRAIN_LOW,
   HELP_MIN,
@@ -232,10 +230,15 @@ export function millStocks(db: DB): Stocks {
   let s = readStocks(db);
   if (!s || now < s.at - 5 || !MILLS.every((m) => s!.mills[m.id] && s!.bakeries[m.bakery])) s = freshStocks(now);
   const w = weather(db);
-  stepStocks(s, now, () => w);
+  const ev = stepStocks(s, now, () => w);
   writeStocks(db, s);
+  // T3 trade: the bake turns flour into bread on the bakery's shelf (trade/ledger.ts)
+  if (ev.length) for (const f of millEventHooks) f(db, ev);
   return s;
 }
+
+/** T3 trade: who hears the mills' stock events (the bake, the carts). */
+export const millEventHooks: Array<(db: DB, ev: StockEvent[]) => void> = [];
 
 /** Change a stock by the engine's rules (Jef's work, the dev menu), clamped at 0. */
 function adjust(db: DB, f: (s: Stocks) => void): Stocks {
@@ -250,16 +253,8 @@ function adjust(db: DB, f: (s: Stocks) => void): Stocks {
   return s;
 }
 
-/** The bread's price: a centime or two more when the bakery's loft runs short (shared/mills.ts breadExtra). */
-sellerPrice.push((db, seller, kind, price) => {
-  if (!FLOUR_WARES.has(kind)) return price;
-  const shop = town(db).town.shops.find((s) => s.keeper === seller) ?? null;
-  const own = shop ?? town(db).town.shops.find((s) => s.id === town(db).byId.get(seller)?.work.shop);
-  if (!own || !MILLS.some((m) => m.bakery === own.id)) return price;
-  const s = readStocks(db);
-  const f = s?.bakeries[own.id]?.flour;
-  return f === undefined ? price : price + breadExtra(f);
-});
+// (T3 trade: the bread's price follows the bakery's bread shelf now, which the loft's flour fills at the bake:
+// trade/ledger.ts tradePrice. The loft rule, shared/mills.ts breadExtra, stays for the tests.)
 
 // ------------------------------------------------------------------ the work
 

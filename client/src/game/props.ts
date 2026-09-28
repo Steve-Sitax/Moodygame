@@ -3,6 +3,7 @@ import { psx } from "../retro/psx";
 import { box, cyl } from "../world/geom";
 import type { Mats } from "../world/rijnkaai";
 import { labelGeo, SACK_H, sackGeometry, sackLabelFor, sackMaterial, type SackLabel } from "./sackModel";
+import { fishBoxMesh, isFishBox } from "./fishBox";
 
 // Job goods. Claude picks one of these names; the game builds the prop.
 // Placeholders until the Blender kit (docs/05).
@@ -98,7 +99,9 @@ export function makeGoods(kind: Goods, m: Mats, what?: string | SackLabel | null
   const g = new THREE.Group();
   switch (kind) {
     case "crates":
-      g.add(box(0.7, 0.7, 0.7, m.crate, 0, 0.35, 0, 0.7));
+      // T3 trade: a box of fish from the Vliet (game/fishBox.ts), else a crate
+      if (typeof what === "string" && isFishBox(what)) g.add(fishBoxMesh(m.crate));
+      else g.add(box(0.7, 0.7, 0.7, m.crate, 0, 0.35, 0, 0.7));
       break;
     case "sacks": {
       // a filled sack lying flat, its mouth tied, the merchant's stencil on top (Steve 2026-09-28: "seem like balloons")

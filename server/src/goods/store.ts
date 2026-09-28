@@ -411,6 +411,7 @@ export class GoodsStore {
         const route = HAUL_ROUTES.find((r) => r.id === goodsHooks.haulRoute(db, npc));
         if (!route || !it.id.startsWith(`haul:${route.id}a:`)) no("That is not his route's load.");
         const made = route!.into === "pile" ? this.haulSlot(route!, "b") : null;
+        goodsHooks.hauledIn(db, route!.id);
         this.commit(made ? [made] : [], [it.id], made ? "haul" : "taken", { npc });
         return done(made ? [made] : [], [it.id]);
       }
@@ -424,6 +425,7 @@ export class GoodsStore {
         this.reach(p, route!.b[0], route!.b[1]);
         const made = route!.into === "pile" ? this.haulSlot(route!, "b") : null;
         goodsHooks.payPiece(db, p, haulPay(route!), route!.id);
+        goodsHooks.hauledIn(db, route!.id);
         this.commit(made ? [made] : [], [it.id], "delivered", { p });
         return done(made ? [made] : [], [it.id]);
       }
@@ -968,6 +970,8 @@ export const goodsHooks = {
   haulRoute: (_db: DB, _npc: string): string | null => null,
   /** Is player p in the foreman's book this week (goods/haulFlow.ts)? */
   hasBook: (_db: DB, _p: number): boolean => false,
+  /** A load of a route's pile was set in at its end, by a docker or a player (T3: fish boxes onto the Vismarkt's stalls). */
+  hauledIn: (_db: DB, _route: string): void => {},
   /** Pay player p for a piece set in (goods/haulFlow.ts). */
   payPiece: (_db: DB, _p: number, _c: number, _route: string): void => {},
   /** Is this item still on that handcart (null: not a handcart of the players, or not known)? */

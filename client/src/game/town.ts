@@ -1269,7 +1269,7 @@ export class Town {
         // (the sack says what his route's pile says: game/sackModel.ts)
         const hl = hr ? sackLabelFor(`haul:${hr.id}a:0`) : undefined;
         // (D1 docks: drawn on his way in, he carries what he took up unseen; the pile's loads are real from here on)
-        this.crowd.puppetLoad(p, s.toB && !["porter", "carter", "docker_sack"].includes(s.kind), hr?.carry ?? "sack", hl);
+        this.crowd.puppetLoad(p, s.toB && !["porter", "carter", "docker_sack"].includes(s.kind), hr?.place === "vismarkt" ? "fishbox" : (hr?.carry ?? "sack"), hl);
         if (hl) p.human.setSackLabel(hl);
         this.crowd.puppetGo(p, q[0], q[1], pace);
         break;
@@ -1350,7 +1350,8 @@ export class Town {
         }
         // (Steve 2026-09-27: the load comes off a real pile and goes in at a door or onto a pile: shared/hauls.ts)
         const route = haulRouteOf(g.a, g.b, 1);
-        const carry = route?.carry ?? "sack";
+        // (T3 trade: the Vismarkt's routes carry boxes of fish: game/fishBox.ts)
+        const carry = route?.place === "vismarkt" ? "fishbox" : (route?.carry ?? "sack");
         const bare = ["porter", "carter", "docker_sack"].includes(s.kind);
         if (!s.arrived) {
           // at an end: face the pile or the door, and take up or put down the load

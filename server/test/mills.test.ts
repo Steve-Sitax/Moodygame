@@ -186,8 +186,10 @@ describe("M7 mills: the carts and the stocks", () => {
     expect(far.at).toBe(absMin(40, 0));
   });
 
-  it("the bread's price: a centime more when the loft is near empty, two when it is empty, never more", () => {
+  it("the bread's price: the loft rule (breadExtra) stays for old saves; T3 moves the price by the bread shelf", () => {
     expect([breadExtra(5), breadExtra(2), breadExtra(1), breadExtra(0), breadExtra(-3)]).toEqual([0, 0, 1, 2, 2]);
+    // (T3 trade, 2026-09-29: the loft's flour reaches the price through the bake and the bread shelf now:
+    // server/test/t3-trade.test.ts; here, without the trade wired in, an empty loft leaves the list price)
     const db = blankSave();
     setClock(db, 2, 10);
     const m = MILLS[0];
@@ -195,17 +197,7 @@ describe("M7 mills: the carts and the stocks", () => {
     const s = millStocks(db);
     s.bakeries[m.bakery].flour = 0;
     db.prepare("UPDATE world_state SET value_json = ? WHERE key = 'mills'").run(JSON.stringify(s));
-    const bread = () => waresOf(db, baker).find((w) => w.kind === "bread")!.price_c;
-    expect(bread()).toBe(8);
-    s.bakeries[m.bakery].flour = 1;
-    db.prepare("UPDATE world_state SET value_json = ? WHERE key = 'mills'").run(JSON.stringify(s));
-    expect(bread()).toBe(7);
-    s.bakeries[m.bakery].flour = 6;
-    db.prepare("UPDATE world_state SET value_json = ? WHERE key = 'mills'").run(JSON.stringify(s));
-    expect(bread()).toBe(6);
-    // the other bakery's bread is not moved by this one's loft
-    const other = town(db).town.shops.find((q) => q.id === MILLS[1].bakery)!.keeper;
-    expect(waresOf(db, other).find((w) => w.kind === "bread")!.price_c).toBe(6 + breadExtra(s.bakeries[MILLS[1].bakery].flour));
+    expect(waresOf(db, baker).find((w) => w.kind === "bread")!.price_c).toBe(6);
   });
 });
 

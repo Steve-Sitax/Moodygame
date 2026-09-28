@@ -75,6 +75,9 @@ function talkFor(id: string): Talk {
   return t;
 }
 
+/** T3 trade: what the whole town talks about today (a shelf gone short), in plain lines (trade/routes.ts fills it). */
+export const townTalk: Array<(db: DB) => string[]> = [];
+
 export function buildPrompt(db: DB, id: string, scene: string, turns: string[]): string {
   const n = npcRow(db, id)!;
   const p = persona(db, id);
@@ -86,6 +89,7 @@ export function buildPrompt(db: DB, id: string, scene: string, turns: string[]):
   // (M8c: open work, and the work he has in hand himself; another player's job in hand is not his to talk about)
   const jobs = listJobs(db, pl.day).filter((j) => j.employer_npc === id && (j.status === "offered" || (j.status === "taken" && (j.taken_by ?? 1) === pid())));
   const t = p.traits;
+  const talk = townTalk.flatMap((f) => f(db)).slice(0, 3);
   return `PERSON
 ${n.name}, ${n.role}. ${p.look}
 Traits 0-10: warmth ${t.warmth}, greed ${t.greed}, honesty ${t.honesty}, temper ${t.temper}, loyalty ${t.loyalty}, courage ${t.courage}, piety ${t.piety}.
@@ -103,7 +107,8 @@ ON THE KAAI LATELY (newest first)
 ${log.map((l) => "- " + l.text).join("\n")}
 
 NOW
-Day ${pl.day} of the week, ${String(pl.hour).padStart(2, "0")}:00, ${pl.hour < 7 ? "before dawn" : pl.hour < 12 ? "morning" : pl.hour < 17 ? "afternoon" : pl.hour < 21 ? "evening" : "night"}. Weather on the Rijnkaai: ${WEATHER_TEXT[weather(db)]}.${WARES[id] ? `\nYou sell (fixed prices; Jef pays at your stall, never in talk): ${WARES[id].map((w) => `${ITEMS[w.kind].name} ${w.price_c} centimes`).join(", ")}.` : ""}${jobs.length ? `\nYour work on the board:\n${jobs.map((j) => `- "${j.title}", ${workFacts(j)} Pay ${j.pay_c} centimes. ${j.status === "taken" ? "Jef is doing it now." : "Still open. He can take it from you here and now; never send him to the board for it."}`).join("\n")}` : ""}
+Day ${pl.day} of the week, ${String(pl.hour).padStart(2, "0")}:00, ${pl.hour < 7 ? "before dawn" : pl.hour < 12 ? "morning" : pl.hour < 17 ? "afternoon" : pl.hour < 21 ? "evening" : "night"}. Weather on the Rijnkaai: ${WEATHER_TEXT[weather(db)]}.${talk.length ? `
+The town talks of: ${talk.join(" ")}` : ""}${WARES[id] ? `\nYou sell (fixed prices; Jef pays at your stall, never in talk): ${WARES[id].map((w) => `${ITEMS[w.kind].name} ${w.price_c} centimes`).join(", ")}.` : ""}${jobs.length ? `\nYour work on the board:\n${jobs.map((j) => `- "${j.title}", ${workFacts(j)} Pay ${j.pay_c} centimes. ${j.status === "taken" ? "Jef is doing it now." : "Still open. He can take it from you here and now; never send him to the board for it."}`).join("\n")}` : ""}
 
 THIS MEETING SO FAR
 ${turns.length ? fenceTurns(turns).join("\n") : "- (nothing said yet)"}

@@ -35,6 +35,8 @@ export interface HaulRoute {
   door?: Pt;
   /** The drop pile (into "pile"): shared goods of its own. */
   drop?: { kind: "sacks" | "crates"; x: number; z: number };
+  /** T3: filled at dawn only (the night's catch), never by the boats through the day. */
+  dawnOnly?: boolean;
 }
 
 export const HAUL_ROUTES: HaulRoute[] = [
@@ -55,8 +57,9 @@ export const HAUL_ROUTES: HaulRoute[] = [
   { id: "wf-1", place: "werf", was: [[-300, 3], [-306, 12]], a: [-301.41, 12.38], aYaw: 1.49, carry: "sack", pile: { kind: "sacks", x: -300, z: 12.5 }, into: "door", b: [-311.9, 13.1], door: [-311.9, 14] },
   { id: "wf-2", place: "werf", was: [[-262, 3], [-270, 12]], a: [-269.27, 11.91], aYaw: 1.69, carry: "sack", pile: { kind: "sacks", x: -267.83, z: 11.73 }, into: "door", b: [-261.1, 13.1], door: [-261.1, 14] },
   { id: "wf-3", place: "werf", was: [[-230, 3], [-226, 26]], a: [-226.33, 13.15], aYaw: -3.12, carry: "sack", pile: { kind: "sacks", x: -226.36, z: 11.78 }, into: "door", b: [-238.2, 13.1], door: [-238.2, 14] },
-  { id: "vm-1", place: "vismarkt", was: [[-139, 22], [-123.2, 22.4]], a: [-138.15, 21.27], aYaw: -1.65, carry: "sack", pile: { kind: "sacks", x: -139.56, z: 21.17 }, into: "stall", b: [-123.2, 22.4] },
-  { id: "vm-2", place: "vismarkt", was: [[-139, 34], [-123.6, 33.2]], a: [-138.2, 33.17], aYaw: -1.57, carry: "sack", pile: { kind: "sacks", x: -139.56, z: 33.17 }, into: "stall", b: [-123.6, 33.2] },
+  // (T3 trade: the fish boxes landed at the Vliet at dawn, carried to the back of the fish banks: the stalls' fish)
+  { id: "vm-1", place: "vismarkt", was: [[-139, 22], [-123.2, 22.4]], a: [-138.15, 21.27], aYaw: -1.65, carry: "crate", pile: { kind: "crates", x: -139.56, z: 21.17 }, into: "stall", b: [-123.2, 22.4], dawnOnly: true },
+  { id: "vm-2", place: "vismarkt", was: [[-139, 34], [-123.6, 33.2]], a: [-138.2, 33.17], aYaw: -1.57, carry: "crate", pile: { kind: "crates", x: -139.56, z: 33.17 }, into: "stall", b: [-123.6, 33.2], dawnOnly: true },
   { id: "ca-1", place: "canal", was: [[-65, 90], [-65, 108]], a: [-65, 85.85], aYaw: 3.14, carry: "sack", pile: { kind: "sacks", x: -65, z: 84.5 }, into: "door", b: [-60.9, 105.5], door: [-60, 105.5] },
   { id: "ca-2", place: "canal", was: [[-87, 120], [-87, 84]], a: [-87.68, 117.93], aYaw: -0.02, carry: "sack", pile: { kind: "sacks", x: -87.71, z: 119.29 }, into: "door", b: [-90.8, 78.7], door: [-92, 78.7] },
 ];

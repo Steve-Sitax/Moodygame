@@ -51,6 +51,7 @@ export function haulSupplyTick(day: number, minuteOfDay: number, players: Array<
   const t = day * 1440 + minuteOfDay;
   let n = 0;
   for (const r of HAUL_ROUTES) {
+    if (r.dawnOnly) continue;
     const last = supplied.get(r.id);
     if (last !== undefined && t - last < SUPPLY_EVERY_MIN && t >= last) continue;
     supplied.set(r.id, t);

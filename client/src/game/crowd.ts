@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { fishBoxMesh } from "./fishBox";
 import { labelGeo, relabel, sackLabelFor, sackMaterial, sackMesh, sackOf, standingSackGeometry, type SackLabel } from "./sackModel";
 import { psx } from "../retro/psx";
 import { addLantern, lanternDarkAt, removeLantern, type LanternSource } from "../world/lanternLights";
@@ -176,7 +177,7 @@ interface Person {
   /** What the sack he carries says (the pile or the mill it came from). */
   sackLabel?: SackLabel;
   /** What the load in his hands is (puppetLoad). */
-  loadKind?: "sack" | "crate";
+  loadKind?: "sack" | "crate" | "fishbox";
   cluster: Cluster | null;
   partner: Person | null;
   /** No new chat before this runs out. */
@@ -1019,7 +1020,7 @@ export class Crowd {
 
   /** A sack on the shoulder while walking (dockers between the quay and the door). */
   /** A load in the hands: a sack on the shoulder, or (the dockers of shared/hauls.ts at a pile of crates) a crate held before him. */
-  puppetLoad(p: Puppet, on: boolean, kind: "sack" | "crate" = "sack", label?: SackLabel): void {
+  puppetLoad(p: Puppet, on: boolean, kind: "sack" | "crate" | "fishbox" = "sack", label?: SackLabel): void {
     p.handCarry = true;
     if (on && p.sack && p.sack.userData.kind !== kind) this.setLoad(p, false);
     p.loadKind = kind;
@@ -2226,6 +2227,15 @@ export class Crowd {
     if (on && !p.sack) {
       const k = p.human.scale;
       let s: THREE.Mesh;
+      if (p.loadKind === "fishbox") {
+        // T3 trade: a box of fish from the Vliet, held low before him in both arms (game/fishBox.ts)
+        const b = fishBoxMesh(this.crateMat);
+        b.position.set(0, 0.72 * k, 0.32 * k);
+        b.userData.kind = "fishbox";
+        p.group.add(b);
+        p.sack = b as unknown as THREE.Mesh;
+        return;
+      }
       if (p.loadKind === "crate") {
         // a crate held before the chest in both arms (the crate geometry stands on its base)
         s = new THREE.Mesh(this.crateGeo, this.crateMat);

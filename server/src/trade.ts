@@ -173,8 +173,10 @@ export function waresOf(db: DB, id: string, market?: Market): Array<{ kind: stri
   });
 }
 
-/** M7 mills: per seller and ware, a price moved by the engine's own stock (town/mills.ts: the bakeries' flour). */
+/** M7 mills: per seller and ware, a price moved by the engine's own stock (T3: trade/ledger.ts, the posts' shelves). */
 export const sellerPrice: Array<(db: DB, seller: string, kind: string, price_c: number) => number> = [];
+/** T3 trade: a ware was bought (the shelf goes down); a line of the seller's when it was the last (the floor). */
+export const boughtHooks: Array<(db: DB, seller: string, kind: string) => string | null> = [];
 
 function baseWaresOf(db: DB, id: string): Array<{ kind: string; price_c: number }> {
   if (WARES[id]) return WARES[id];
@@ -290,6 +292,10 @@ export function buy(db: DB, npc: string, kind: string): { line: string; bought: 
   })();
   remember(db, npc, `Jef bought ${ITEMS[kind].name} from me for ${ware.price_c} centimes.`, drinkNow ? 3 : 2);
   if (price_c < listed.price_c) haggleHooks.bought(db, npc, kind);
+  // T3 trade: one off the post's shelf (the last ones are the players' floor: sold, dear, with a word)
+  let last: string | null = null;
+  for (const f of boughtHooks) last = f(db, npc, kind) ?? last;
+  if (last) return { line: last, bought: kind, price_c: ware.price_c };
   const r = resident(db, npc);
   const line = HAND_OVER[npc] ?? SHOP_SERVICE_LINE[kind] ?? (r ? `${r.first} takes your coins and hands it over${r.stats.warmth >= 7 ? " with a nod" : r.stats.greed >= 7 ? ", counting twice" : ""}.` : "Coins change hands.");
   return { line, bought: kind, price_c: ware.price_c };

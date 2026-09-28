@@ -7,6 +7,7 @@
 // shared/city.json, the spots of shared/spots.json) is passed in by each side.
 
 import { HAUL_PILE_N, HAUL_ROUTES, haulPileSpot } from "./hauls.ts";
+import { FISH_BOX_H } from "./trade.ts";
 
 export const GOODS_KINDS = ["crates", "sacks", "barrels", "hides", "rope", "parcel", "chests"] as const;
 export type GoodsKind = (typeof GOODS_KINDS)[number];
@@ -416,7 +417,9 @@ export function haulPileItem(r: (typeof HAUL_ROUTES)[number], tag: "a" | "b", i:
   }
   const rot = rotFor(id, 0);
   const q = placeAt(present, p.kind, r3(x), r3(z)) ?? { x: r3(x), z: r3(z), y: 0, on: [] };
-  return { id, kind: p.kind, owner: null, job: null, x: q.x, z: q.z, y: q.y, on: q.on, rot, by: null, n: 0, rev: 1, home: [q.x, q.z, rot] };
+  // (T3 trade: the Vismarkt's routes carry low boxes of fish, not crates: their own height for the stacking)
+  const h = r.place === "vismarkt" ? { h: FISH_BOX_H } : {};
+  return { id, kind: p.kind, owner: null, job: null, x: q.x, z: q.z, y: q.y, on: q.on, rot, by: null, n: 0, rev: 1, home: [q.x, q.z, rot], ...h };
 }
 
 // ------------------------------------------------------------------ the town's carts (M8f goods pass 2)
