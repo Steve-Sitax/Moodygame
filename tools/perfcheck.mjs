@@ -97,8 +97,13 @@ async function openGame() {
 const t0 = Date.now();
 const log = (...a) => console.log(`[${((Date.now() - t0) / 1000).toFixed(0)}s]`, ...a);
 let code = 0;
+// (issue #21: only the stack this run started is stopped at the end; a busy port is another session's stack)
+let started = false;
 try {
-  if (OWN) stack("start");
+  if (OWN) {
+    stack("start");
+    started = true;
+  }
   await openGame();
   const gpu = await ev(`(() => { const g = document.createElement("canvas").getContext("webgl2"); const e = g.getExtension("WEBGL_debug_renderer_info"); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : "?" })()`);
   log("graphics:", gpu);
@@ -162,7 +167,7 @@ try {
   } catch {
     /* Chrome still letting go: left in the temp folder */
   }
-  if (OWN && !has("keep")) {
+  if (OWN && started && !has("keep")) {
     try {
       stack("stop");
     } catch {
