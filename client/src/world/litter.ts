@@ -72,6 +72,11 @@ export interface Litter {
 
 let clockDay = 2;
 let clockHour = 15;
+/**
+ * The leaf drifts, patches and piles as laid (x, y, z), in cells of 16 m keyed "i,j": where the great storm's gale
+ * tears leaves off the ground (world/alive/leaves.ts). Filled once the autumn pass has run.
+ */
+export const leafHeaps = new Map<string, number[][]>();
 /** The game clock (main.ts, once a frame): the market's waste comes and goes with it, rats come out at night. */
 export function setLitterClock(day: number, hour: number): void {
   clockDay = day;
@@ -1219,6 +1224,15 @@ export async function createLitter(scene: THREE.Scene, flags: Flags, opts: Litte
         const d = 1.5 + Math.sqrt(R()) * (sq ? 12 : 9);
         leafAt(scatter(), tx + Math.cos(a) * d, tz + Math.sin(a) * d, 0.8 + R() * 0.5, R() * 6.28);
       }
+    }
+    // (the storm's gale takes its leaves from these)
+    leafHeaps.clear();
+    for (const p of puts) {
+      if (!p.name.startsWith("leaf")) continue;
+      const key = `${Math.floor(p.x / 16)},${Math.floor(p.z / 16)}`;
+      let l = leafHeaps.get(key);
+      if (!l) leafHeaps.set(key, (l = []));
+      l.push([p.x, p.y, p.z]);
     }
     await sleep(0);
 

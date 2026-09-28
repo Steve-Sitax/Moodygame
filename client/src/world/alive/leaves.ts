@@ -6,6 +6,7 @@ import { leaves as leafSound } from "../../audio/aliveSounds";
 import { mulberry, openAt, type Ctx, type Frame, type Part } from "./common";
 import { dice, hash32, seeded, sharedSeconds } from "../../game/share";
 import { tempest } from "../tempest";
+import { leafHeaps } from "../litter";
 import { neverMirrored } from "../mirror";
 
 // M7 alive: autumn leaves and scraps of paper blown along the streets. Round Jef (within 26 m)
@@ -40,6 +41,14 @@ const TREES = [
 const PARK = (CITY as unknown as { places: Record<string, { x: number; z: number }> }).places["Stadspark"];
 /** Loose leaves lie no further than this from a tree (Steve, 2026-09-28: no leaves blowing about where no trees are). */
 const LEAF_REACH = 30;
+/** The trees in cells of 16 m keyed "i,j": the gale's crowns near Jef. */
+const TREE_CELLS = new Map<string, number[][]>();
+for (const t of TREES) {
+  const key = `${Math.floor(t[0] / 16)},${Math.floor(t[1] / 16)}`;
+  let l = TREE_CELLS.get(key);
+  if (!l) TREE_CELLS.set(key, (l = []));
+  l.push(t);
+}
 
 interface Leaf {
   p: THREE.Vector3;
@@ -151,7 +160,7 @@ export function createLeaves(ctx: Ctx): Part {
   flyMesh.frustumCulled = false;
   flyMesh.name = "alive_flyers";
   neverMirrored.push(flyMesh);
-  interface Flyer { p: THREE.Vector3; v: THREE.Vector3; rot: THREE.Euler; quat: THREE.Quaternion; spin: THREE.Vector3; s: number; paper: boolean; live: boolean; down: number; ph: number; leaf: boolean }
+  interface Flyer { p: THREE.Vector3; v: THREE.Vector3; rot: THREE.Euler; quat: THREE.Quaternion; spin: THREE.Vector3; s: number; paper: boolean; live: boolean; down: number; ph: number; leaf: boolean; sink: number; wait: number; still: number; age: number }
   const flyers: Flyer[] = [];
   const fr = mulberry(1873_28);
   for (let i = 0; i < N_FLY; i++) {
@@ -173,59 +182,93 @@ export function createLeaves(ctx: Ctx): Part {
             : new THREE.Color().setHSL(0.05 + fr() * 0.07, 0.6 + fr() * 0.3, 0.3 + fr() * 0.2);
     flyMesh.setColorAt(i, c);
     flyMesh.setMatrixAt(i, new THREE.Matrix4().makeScale(0, 0, 0));
-    flyers.push({ p: new THREE.Vector3(), v: new THREE.Vector3(), rot: new THREE.Euler(fr() * 6, fr() * 6, fr() * 6), quat: new THREE.Quaternion(), spin: new THREE.Vector3(), s: rag ? 0.35 + fr() * 0.3 : paper ? 0.25 + fr() * 0.2 : dark || straw ? 0.08 + fr() * 0.12 : 0.16 + fr() * 0.12, paper: paper || rag, live: false, down: 0, ph: fr() * 100, leaf: !paper && !rag && !straw && !dark });
+    flyers.push({ p: new THREE.Vector3(), v: new THREE.Vector3(), rot: new THREE.Euler(fr() * 6, fr() * 6, fr() * 6), quat: new THREE.Quaternion(), spin: new THREE.Vector3(), s: rag ? 0.35 + fr() * 0.3 : paper ? 0.25 + fr() * 0.2 : dark || straw ? 0.08 + fr() * 0.12 : 0.16 + fr() * 0.12, paper: paper || rag, live: false, down: 0, ph: fr() * 100, leaf: !paper && !rag && !straw && !dark, sink: paper || rag ? 0.8 : straw ? 1.1 : dark ? 2.4 : 1.0, wait: fr() * 2, still: 0, age: 0 });
   }
   flyGeo.setAttribute("aKind", flyKind);
   ctx.scene.add(flyMesh);
   const fw = new THREE.Vector2();
   let flying = 0;
 
-  /** A flyer into the wind upwind of Jef (in the air, a little out of the way), or null: no open ground there. */
-  function launch(q: Flyer, eye: THREE.Vector3, first: boolean): void {
-    const dir = ctx.wind.dir;
-    // a leaf is torn off a tree crown near him more often than not (the trees of the quays, squares and ramparts)
-    if (q.leaf && Math.random() < 0.65) {
-      let best: number[] | null = null;
-      let bd = 36;
-      for (let k = 0; k < 10; k++) {
-        const t = TREES[Math.floor(Math.random() * TREES.length)];
-        if (!t) break;
-        const d = Math.hypot(t[0] - eye.x, t[1] - eye.z);
-        if (d < bd) {
-          bd = d;
-          best = t;
-        }
+  // Where the gale takes them from (Steve, 2026-09-29: "lots of leaves flying away from trees and leaf heaps", not
+  // dropping out of the air over the quay walls and bridges): a leaf is torn off a tree crown or off the leaves on the
+  // ground (the drifts and piles of world/litter.ts, the loose ones here) near Jef, the rest (paper, rags, straw,
+  // chips) off open ground anywhere; the gusts lift them and the wind carries them sideways. Near sources are
+  // gathered twice a second; a flyer with nowhere to start waits and tries again.
+  const crowns: number[][] = [];
+  const heaps: number[][] = [];
+  let sourcesAt = -1;
+  const starts = { crown: 0, heap: 0, ground: 0 };
+  let leavesUp = 0;
+  const sourceEye = new THREE.Vector3(1e9, 0, 0);
+  function gatherSources(eye: THREE.Vector3, t: number): void {
+    if (t - sourcesAt < 0.5 && sourceEye.distanceTo(eye) < 4) return;
+    sourcesAt = t;
+    sourceEye.copy(eye);
+    crowns.length = 0;
+    heaps.length = 0;
+    const i0 = Math.floor((eye.x - FLY_R) / 16), i1 = Math.floor((eye.x + FLY_R) / 16);
+    const j0 = Math.floor((eye.z - FLY_R) / 16), j1 = Math.floor((eye.z + FLY_R) / 16);
+    for (let i = i0; i <= i1; i++)
+      for (let j = j0; j <= j1; j++) {
+        for (const tr of TREE_CELLS.get(`${i},${j}`) ?? []) if (Math.hypot(tr[0] - eye.x, tr[1] - eye.z) < FLY_R) crowns.push(tr);
+        for (const h of leafHeaps.get(`${i},${j}`) ?? []) if (Math.hypot(h[0] - eye.x, h[2] - eye.z) < FLY_R) heaps.push(h);
       }
-      const y0 = best ? ctx.world.baseAt(best[0], best[1]) : NaN;
-      if (best && Number.isFinite(y0)) {
-        q.p.set(best[0] + (Math.random() - 0.5) * 5, y0 + 4 + Math.random() * 6, best[1] + (Math.random() - 0.5) * 5);
-        ctx.wind.at(q.p.x, q.p.z, fw);
-        q.v.set(fw.x * 0.4, 0, fw.y * 0.4);
-        q.spin.set((Math.random() - 0.5) * 18, (Math.random() - 0.5) * 18, (Math.random() - 0.5) * 18);
-        q.live = true;
-        q.down = 0;
+    for (const l of list) if (!l.paper && Math.hypot(l.p.x - eye.x, l.p.z - eye.z) < FLY_R) heaps.push([l.p.x, l.p.y, l.p.z]);
+  }
+
+  /** Starts a flyer where the gale takes it from, or leaves it down to try again in a moment. */
+  function launch(q: Flyer, eye: THREE.Vector3): void {
+    const rnd = Math.random;
+    const set = (x: number, y: number, z: number, carry: number, up: number) => {
+      q.p.set(x, y, z);
+      ctx.wind.at(x, z, fw);
+      q.v.set(fw.x * carry, up, fw.y * carry);
+      q.spin.set((rnd() - 0.5) * 18, (rnd() - 0.5) * 18, (rnd() - 0.5) * 18);
+      q.live = true;
+      q.down = 0;
+      q.still = 0;
+      q.age = 0;
+    };
+    if (q.leaf) {
+      // (as many in the air as the trees and heaps near him can give: a few heaps give a few, not a stream)
+      if (leavesUp >= crowns.length * 14 + heaps.length * 3) {
+        q.wait = 0.4 + rnd() * 1.2;
+        return;
+      }
+      leavesUp++;
+      // off a crown (among its leaf cards, 3.5 to 8 m up), or off the leaves on the ground (jumping up)
+      const fromTree = crowns.length > 0 && (heaps.length === 0 || rnd() < 0.55);
+      if (fromTree) {
+        const tr = crowns[Math.floor(rnd() * crowns.length)];
+        const y0 = ctx.world.baseAt(tr[0], tr[1]);
+        if (Number.isFinite(y0)) {
+          const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * 2.8;
+          set(tr[0] + Math.cos(a) * r, y0 + 3.5 + rnd() * 4.5, tr[1] + Math.sin(a) * r, 0.5, 0);
+          starts.crown++;
+          return;
+        }
+      } else if (heaps.length > 0) {
+        const h = heaps[Math.floor(rnd() * heaps.length)];
+        set(h[0] + (rnd() - 0.5) * 1.4, h[1] + 0.04, h[2] + (rnd() - 0.5) * 1.4, 0.3, 1.5 + rnd() * 3.5);
+        starts.heap++;
+        return;
+      }
+    } else {
+      // off the open ground, more of them upwind of him (they blow past)
+      const dir = ctx.wind.dir;
+      for (let t = 0; t < 4; t++) {
+        const along = -FLY_R + rnd() * FLY_R * 1.3;
+        const across = (rnd() * 2 - 1) * FLY_R * 0.8;
+        const x = eye.x + dir.x * along - dir.y * across;
+        const z = eye.z + dir.y * along + dir.x * across;
+        const y0 = ctx.world.baseAt(x, z);
+        if (ctx.flags(x, z) !== 0 || !Number.isFinite(y0)) continue;
+        set(x, y0 + 0.03, z, 0.3, 1 + rnd() * 3.5);
+        starts.ground++;
         return;
       }
     }
-    for (let t = 0; t < 4; t++) {
-      // upwind, spread across the wind; the first fill anywhere round him
-      const along = first ? (Math.random() * 2 - 1) * FLY_R : -FLY_R * (0.6 + Math.random() * 0.4);
-      const across = (Math.random() * 2 - 1) * FLY_R * 0.8;
-      const x = eye.x + dir.x * along - dir.y * across;
-      const z = eye.z + dir.y * along + dir.x * across;
-      const fl = ctx.flags(x, z);
-      const y0 = ctx.world.baseAt(x, z);
-      if (fl === undefined || !Number.isFinite(y0)) continue;
-      // (over a house: up at the roofs, where the gale comes over them)
-      const y = fl === 1 ? y0 + 10 + Math.random() * 6 : y0 + 0.3 + Math.random() * Math.random() * 9;
-      q.p.set(x, y, z);
-      ctx.wind.at(x, z, fw);
-      q.v.set(fw.x, 0, fw.y);
-      q.spin.set((Math.random() - 0.5) * 18, (Math.random() - 0.5) * 18, (Math.random() - 0.5) * 18);
-      q.live = true;
-      q.down = 0;
-      return;
-    }
+    q.wait = 0.4 + rnd() * 1.2;
   }
 
   function updateFlyers(f: Frame): void {
@@ -233,6 +276,11 @@ export function createLeaves(ctx: Ctx): Part {
     const want = Math.round(N_FLY * Math.min(1, fury));
     const dt = Math.min(f.dt, 0.05);
     flying = 0;
+    if (want > 0) gatherSources(f.eye, f.t);
+    leavesUp = 0;
+    for (let i = 0; i < want; i++) if (flyers[i].live && flyers[i].leaf) leavesUp++;
+    // (a few starts a frame: when the storm comes they are torn off one after another, not all at once)
+    let budget = 6;
     for (let i = 0; i < N_FLY; i++) {
       const q = flyers[i];
       if (i >= want) {
@@ -240,7 +288,14 @@ export function createLeaves(ctx: Ctx): Part {
         flyMesh.setMatrixAt(i, HIDE);
         continue;
       }
-      if (!q.live || q.p.distanceTo(f.eye) > FLY_R * 1.4) launch(q, f.eye, !q.live);
+      if (q.live && q.p.distanceTo(f.eye) > FLY_R * 1.4) q.live = false;
+      if (!q.live) {
+        q.wait -= dt;
+        if (q.wait <= 0 && budget > 0) {
+          budget--;
+          launch(q, f.eye);
+        }
+      }
       if (!q.live) {
         flyMesh.setMatrixAt(i, HIDE);
         continue;
@@ -255,12 +310,16 @@ export function createLeaves(ctx: Ctx): Part {
       q.v.x += (tx - q.v.x) * Math.min(1, dt * drag);
       q.v.z += (tz - q.v.z) * Math.min(1, dt * drag);
       q.ph += dt;
-      const lift = (Math.sin(q.ph * 2.3 + i) * 3 + Math.sin(q.ph * 5.1 + i * 3) * 1.5) * (0.5 + 0.3 * gust) - (q.paper ? 1.6 : 3.2) * (1.2 - Math.min(1, gust * 0.5));
+      const lift = (Math.sin(q.ph * 2.3 + i) * 3 + Math.sin(q.ph * 5.1 + i * 3) * 1.5) * (0.5 + 0.3 * gust) - q.sink * (1.2 - Math.min(1, gust * 0.5)); // (they sink slowly: carried sideways, not dropped)
       q.v.y += (lift - q.v.y) * Math.min(1, dt * 2);
       const nx = q.p.x + q.v.x * dt, nz = q.p.z + q.v.z * dt;
       const fl = ctx.flags(nx, nz);
       // against a house front below the eaves: it slaps into the wall and drops, then the gale takes it again
-      if (fl === 1 && q.p.y < gy + 9) {
+      // (a wall is thick: a tree's trunk, a bollard or a crate on the walk map only stops what flies low past it)
+      const hv = Math.hypot(q.v.x, q.v.z) || 1;
+      const ux = q.v.x / hv, uz = q.v.z / hv;
+      const wall = fl === 1 && q.p.y < gy + 9 && (q.p.y < gy + 1.5 || (ctx.flags(nx + ux * 1.2, nz + uz * 1.2) === 1 && ctx.flags(nx + ux * 2.4, nz + uz * 2.4) === 1));
+      if (wall) {
         q.v.x *= -0.25;
         q.v.z *= -0.25;
         q.v.y = -1;
@@ -273,13 +332,26 @@ export function createLeaves(ctx: Ctx): Part {
       if (q.p.y < gy + 0.03) {
         q.p.y = gy + 0.03;
         q.v.y = Math.max(0, q.v.y) + (gust > 0.8 ? 2 + Math.random() * 3 : 0);
+        // (the light ones do not lie long: an eddy has them up again)
+        if (q.sink < 1.5 && Math.random() < dt * (0.4 + 0.6 * gust)) q.v.y = 1.5 + Math.random() * 3;
       }
       if (q.down > 0) q.down -= dt;
+      // (pinned against a wall or in a corner: it joins the drift there, and the gale takes another)
+      q.still = q.p.y < gy + 0.1 && Math.hypot(q.v.x, q.v.z) < 0.6 ? q.still + dt : 0;
+      if (q.still > 3) {
+        q.live = false;
+        q.wait = 0.2 + Math.random();
+        flyMesh.setMatrixAt(i, HIDE);
+        continue;
+      }
       q.rot.x += q.spin.x * dt;
       q.rot.y += q.spin.y * dt;
       q.rot.z += q.spin.z * dt;
       q.quat.setFromEuler(q.rot);
-      m4.compose(q.p, q.quat, sc.set(q.s, q.s, q.s * (q.paper ? 0.75 : 1.2)));
+      // (it comes out of the crown or the heap and sinks into a drift: never there or gone at a blink)
+      q.age += dt;
+      const k = Math.min(1, q.age / 0.4) * (q.still > 2.5 ? (3 - q.still) * 2 : 1);
+      m4.compose(q.p, q.quat, sc.set(q.s * k, q.s * k, q.s * k * (q.paper ? 0.75 : 1.2)));
       flyMesh.setMatrixAt(i, m4);
       flying++;
     }
@@ -472,7 +544,12 @@ export function createLeaves(ctx: Ctx): Part {
         .map((l) => ({ at: [+l.p.x.toFixed(2), +l.p.y.toFixed(2), +l.p.z.toFixed(2)], d: Math.hypot(l.p.x - e.x, l.p.z - e.z), paper: l.paper }))
         .sort((a, b) => a.d - b.d)
         .slice(0, 4);
-      return { n: N, moving, placed, near, flying };
+      const up = flyers.filter((q) => q.live && q.leaf);
+      const liveLeaves = up.length;
+      const aloft = up.filter((q) => q.p.y - ctx.world.baseAt(q.p.x, q.p.z) > 0.3);
+      const mean = (f: (q: Flyer) => number) => (aloft.length ? +(aloft.reduce((a, q) => a + f(q), 0) / aloft.length).toFixed(2) : 0);
+      const air = { n: aloft.length, height: mean((q) => q.p.y - ctx.world.baseAt(q.p.x, q.p.z)), sideways: mean((q) => Math.hypot(q.v.x, q.v.z)), fall: mean((q) => q.v.y) };
+      return { n: N, moving, placed, near, flying, gale: { leaves: liveLeaves, crowns: crowns.length, heaps: heaps.length, starts: { ...starts }, air } };
     },
     setOn: (v) => {
       on = v;
