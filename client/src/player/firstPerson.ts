@@ -145,6 +145,8 @@ export class FirstPerson {
   /** The great storm (main.ts, world/tempest.ts): how hard the gust shoves him now, 0..1; the view shakes with it (as the head bob, by Settings). */
   buffet = 0;
   private buffT = 0;
+  /** The great storm: the gust shoves him along with it, m/s in x and z (main.ts); the walls still stop him. */
+  readonly windPush = new THREE.Vector2();
   private lastStepSide = 0;
   private lookYaw = this.yaw;
   private lookPitch = this.pitch;
@@ -274,7 +276,7 @@ export class FirstPerson {
     this.vel.x += (wx - this.vel.x) * a;
     this.vel.y += (wz - this.vel.y) * a;
 
-    let [nx, nz] = this.world.move(this.x, this.z, this.vel.x * dt, this.vel.y * dt, RADIUS, this.y, this.laden);
+    let [nx, nz] = this.world.move(this.x, this.z, (this.vel.x + this.windPush.x) * dt, (this.vel.y + this.windPush.y) * dt, RADIUS, this.y, this.laden);
     // M6 handcart: pushing a cart, the cart must fit where the step takes it (game/handcart.ts)
     if (this.cartStep) {
       [nx, nz] = this.cartStep(this.x, this.z, nx, nz, dt);

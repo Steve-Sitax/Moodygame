@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { psx, psxUniforms, AIR_GLOW_GLSL } from "../retro/psx";
 import { dice, share, sharedSeconds } from "../game/share";
 import { TARGET_HEIGHT } from "../retro/retroPass";
@@ -138,6 +139,16 @@ const U = {
   uWetAmt: psxUniforms.uWet,
   /** The great storm, 0..1 (world/tempest.ts). */
   uTempest: { value: 0 },
+  /**
+   * How long a frame lasts now (s, eased; 1/60 to 1/24): a rain streak is as long as its drop falls in one frame, so
+   * each frame's streak meets the last one's and the eye follows the drop down (Steve 2026-09-28: "rain seems to
+   * travel backwards": fixed-length streaks shorter than a frame's fall, many alike, were matched to the wrong drop).
+   */
+  uExpo: { value: 1 / 50 },
+  /** The gust fronts about now (world/alive/wind.ts fronts): each brings a veil of heavier rain across the town. */
+  uGusts: { value: new Float32Array(16) },
+  uGustA0: { value: new Float32Array(4) },
+  uGustDir: { value: new THREE.Vector2(1, 0) },
   uCam: { value: new THREE.Vector3() },
   uViewH: { value: TARGET_HEIGHT },
 };
@@ -983,12 +994,31 @@ function buildRain(): THREE.LineSegments {
       uniform vec2 uWind;
       uniform float uRainAmt;
       uniform float uTempest;
+      uniform float uExpo;
       uniform vec3 fogColor;
+      uniform vec4 uGusts[4];
+      uniform float uGustA0[4];
+      uniform vec2 uGustDir;
+      // the gust at a place now (as alive/wind.ts gustAt): its front sweeps along the wind; 0 between the gusts
+      float gustVeil(vec2 xz) {
+        float along = dot(xz, uGustDir);
+        float g = 0.0;
+        for (int i = 0; i < 4; i++) {
+          vec4 q = uGusts[i];
+          if (q.z <= 0.0) continue;
+          float local = -q.x - (along - uGustA0[i]) / q.w;
+          float env = clamp((local + 0.5) / 0.8, 0.0, 1.0) * clamp((q.y + 1.0 - local) / 1.5, 0.0, 1.0);
+          g = max(g, q.z * env);
+        }
+        return g;
+      }
       attribute float aSeg;
       attribute float aSeed;
       varying vec3 vCol;
       varying float vA;
+      varying float vSeg;
       void main() {
+        vSeg = aSeg;
         vec3 box = vec3(28.0, 14.0, 28.0);
         // each drop a little its own way in the wind
         float jit = fract(aSeed * 13.7) - 0.5;
@@ -996,9 +1026,9 @@ function buildRain(): THREE.LineSegments {
         vec3 vel = vec3(uWind.x * (1.6 + jit * 0.5), (-8.5 - aSeed * 2.5) * (1.0 + 0.45 * uTempest), uWind.y * (1.6 - jit * 0.5));
         vec3 lo = uCam - vec3(14.0, 5.0, 14.0);
         vec3 p = lo + mod(position + vel * uTime - lo, box);
-        // a streak as long as the drop falls in 1/20 s; both ends in front of the eye, or none
-        // a streak is the fall during a short exposure: 1/40 to 1/25 s, drop by drop
-        float expo = (0.025 + 0.015 * fract(aSeed * 5.31)) * (1.0 + 0.6 * uTempest);
+        // a streak is the drop's fall in one frame (uExpo), a little more or less drop by drop: this frame's streak meets
+        // the last one's, and the eye follows the drop down; both ends in front of the eye, or none
+        float expo = uExpo * (0.85 + 0.3 * fract(aSeed * 5.31));
         float za = -(modelViewMatrix * vec4(p, 1.0)).z;
         float zb = -(modelViewMatrix * vec4(p - vel * expo, 1.0)).z;
         p -= vel * expo * aSeg;
@@ -1016,16 +1046,27 @@ function buildRain(): THREE.LineSegments {
         // close drops only: far off, rain is thicker air (the weather's fog), not streaks
         // (the great storm: sheets of it, seen farther off: the whole box)
         float near = smoothstep(0.4, 1.2, vFogDepth) * (1.0 - smoothstep(3.0 + 5.0 * uTempest, 7.0 + 6.0 * uTempest, vFogDepth));
-        vA = step(aSeed, uRainAmt * (0.4 + 0.6 * uTempest)) * near * (0.08 + 0.2 * fract(aSeed * 7.3)) * (0.5 + 0.5 * uRainAmt) * (1.0 + 1.6 * uTempest) * step(0.7, min(za, zb));
+        vA = step(aSeed, uRainAmt * (0.4 + 0.6 * uTempest)) * near * (0.08 + 0.2 * fract(aSeed * 7.3)) * (0.5 + 0.5 * uRainAmt) * (1.0 + 2.4 * uTempest) * step(0.7, min(za, zb));
+        // the great storm: the rain comes in curtains that sweep along with the wind, thick and thin by turns
+        if (uTempest > 0.0) {
+          vec2 wd = normalize(uWind + vec2(1e-4));
+          float along = dot(p.xz, wd) - uTime * length(uWind) * 1.1;
+          float c = 0.5 + 0.5 * sin(along * 0.21 + sin(dot(p.xz, vec2(-wd.y, wd.x)) * 0.09) * 2.0) * sin(along * 0.083 + 1.3);
+          vA *= mix(1.0, 0.3 + 1.1 * smoothstep(0.25, 0.8, c), uTempest);
+          // and each gust brings its veil: a wall of heavier rain sweeping across with the gust's front
+          vA *= 1.0 + 0.9 * min(gustVeil(p.xz), 2.5) * uTempest;
+        }
         if (vA < 0.004) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
       }`,
     fragmentShader: /* glsl */ `
       ${FCOMMON}
       varying vec3 vCol;
       varying float vA;
+      varying float vSeg;
       void main() {
         float f = fogK();
-        gl_FragColor = vec4(mix(vCol, fogColor, f * 0.8), vA * (1.0 - f * 0.6));
+        // the head of the streak (where the drop is now) bright, its tail (where it was) faint: the eye reads which way it goes
+        gl_FragColor = vec4(mix(vCol, fogColor, f * 0.8), vA * (1.0 - f * 0.6) * mix(1.25, 0.12, vSeg));
         #include <colorspace_fragment>
       }`,
   });
@@ -1034,6 +1075,112 @@ function buildRain(): THREE.LineSegments {
   lines.renderOrder = 3;
   lines.name = "ambient_rain";
   return lines;
+}
+
+/**
+ * The great storm's far rain (the rain layers of ATI's ToyShop, Tatarchuk 2006): two open cylinders round the eye, 9
+ * and 17 m out, with streaks falling down their inside at the drops' speed, laid over by the wind and thick and thin
+ * in the same sweeping curtains as the near drops. Walls nearer than a layer hide it (depth test): in a lane the rain
+ * is what falls in the lane. One draw call, one shader, built at load.
+ */
+function buildRainSheets(): THREE.Mesh {
+  const parts: THREE.BufferGeometry[] = [];
+  for (const R of [9, 17]) {
+    const c = new THREE.CylinderGeometry(R, R, 26, 40, 1, true);
+    c.translate(0, 5, 0);
+    parts.push(c);
+  }
+  const geo = mergeGeometries(parts)!;
+  const mat = shaderMat({
+    transparent: true,
+    depthWrite: false,
+    side: THREE.BackSide,
+    vertexShader: /* glsl */ `
+      ${VCOMMON}
+      varying vec3 vL;
+      varying vec3 vW;
+      void main() {
+        vL = position;
+        vec4 w = modelMatrix * vec4(position, 1.0);
+        vW = w.xyz;
+        vec4 mv = viewMatrix * w;
+        vFogDepth = -mv.z;
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: /* glsl */ `
+      ${FCOMMON}
+      uniform float uTime;
+      uniform vec2 uWind;
+      uniform float uRainAmt;
+      uniform float uTempest;
+      uniform float uExpo;
+      uniform float uNight;
+      uniform vec4 uGusts[4];
+      uniform float uGustA0[4];
+      uniform vec2 uGustDir;
+      // the gust at a place now (as alive/wind.ts gustAt): its front sweeps along the wind; 0 between the gusts
+      float gustVeil(vec2 xz) {
+        float along = dot(xz, uGustDir);
+        float g = 0.0;
+        for (int i = 0; i < 4; i++) {
+          vec4 q = uGusts[i];
+          if (q.z <= 0.0) continue;
+          float local = -q.x - (along - uGustA0[i]) / q.w;
+          float env = clamp((local + 0.5) / 0.8, 0.0, 1.0) * clamp((q.y + 1.0 - local) / 1.5, 0.0, 1.0);
+          g = max(g, q.z * env);
+        }
+        return g;
+      }
+      varying vec3 vL;
+      varying vec3 vW;
+      void main() {
+        float amt = uRainAmt * uTempest;
+        if (amt < 0.02) discard;
+        float R = length(vL.xz);
+        float ang = atan(vL.z, vL.x);
+        vec2 tang = vec2(-sin(ang), cos(ang));
+        float fall = 12.0 + 4.0 * uTempest;
+        // laid over by the wind across the line of sight
+        float slant = dot(uWind * 1.6, tang) / fall;
+        float u = ang * R + vL.y * slant;
+        float cw = 0.3 * R / 9.0;
+        float col = floor(u / cw);
+        float h1 = hash12(vec2(col, R));
+        float h2 = hash12(vec2(col * 1.7 + 3.1, R * 0.37));
+        float xf = fract(u / cw);
+        float thin = 1.0 - smoothstep(0.08, 0.2, abs(xf - 0.3 - h1 * 0.4));
+        float sp = 1.6 + h2 * 2.4;
+        float y = vW.y + uTime * fall * (0.9 + 0.2 * h1) + h2 * 37.0;
+        float f = fract(y / sp);
+        float len = clamp(fall * uExpo * 1.2 / sp, 0.05, 0.6);
+        float streak = step(f, len) * (1.0 - 0.85 * f / len) * step(h1, amt * (0.9 + 0.3 * veil) + 0.1);
+        // the curtains, as the near drops have them
+        vec2 wd = normalize(uWind + vec2(1e-4));
+        float along = dot(vW.xz, wd) - uTime * length(uWind) * 1.1;
+        float c = 0.5 + 0.5 * sin(along * 0.21 + sin(dot(vW.xz, vec2(-wd.y, wd.x)) * 0.09) * 2.0) * sin(along * 0.083 + 1.3);
+        // (and the gusts' veils: a white wall of rain comes across the square with each gust)
+        float veil = min(gustVeil(vW.xz), 2.5);
+        float curtain = (0.3 + 1.1 * smoothstep(0.25, 0.8, c)) * (1.0 + 1.1 * veil);
+        float k = fogK();
+        float a = thin * streak * curtain * amt * (R < 12.0 ? 0.5 : 0.35) * (1.0 - 0.5 * k);
+        // the rain so thick it rolls by in grey clouds (Steve 2026-09-28): a soft haze in big billows blown along the
+        // wind, thickest in a gust's veil; on the far layer only (the near one keeps the streaks clear)
+        if (R > 12.0) {
+          vec2 hp = vec2(along * 0.08, vW.y * 0.12 + dot(vW.xz, vec2(-wd.y, wd.x)) * 0.05);
+          float billow = 0.5 + 0.25 * sin(hp.x * 3.1 + sin(hp.y * 2.3) * 1.7) + 0.25 * sin(hp.x * 1.3 - hp.y * 1.9 + 2.0);
+          a += smoothstep(0.4, 0.95, billow) * (0.08 + 0.16 * veil) * amt;
+        }
+        if (a < 0.004) discard;
+        vec3 col3 = mix(fogColor * 1.45 + 0.03, fogColor, k * 0.6) * (1.0 - 0.3 * uNight);
+        gl_FragColor = vec4(col3, a);
+        #include <colorspace_fragment>
+      }`,
+  });
+  const m = new THREE.Mesh(geo, mat);
+  m.frustumCulled = false;
+  m.renderOrder = 2;
+  m.name = "ambient_rainsheets";
+  return m;
 }
 
 
@@ -1057,6 +1204,9 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
   const rain = buildRain();
   rain.visible = false;
   root.add(rain);
+  // (the great storm's far rain: built at load, drawn while it pours in a tempest; its shader is compiled up front)
+  const rainSheets = buildRainSheets();
+  root.add(rainSheets);
 
   // --- birds: one instanced mesh for gulls and pigeons
   const MAX_BIRDS = 72;
@@ -1497,7 +1647,17 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
     wet += wetTarget > wet ? (wetTarget - wet) * Math.min(1, dt * 0.12) : Math.max(wetTarget - wet, -dt * 0.01);
     psxUniforms.uRain.value = rainNow;
     psxUniforms.uWet.value = wet;
-    rain.visible = rainNow > 0.01;
+    // (no rain round him under a roof: the tavern, a hall; world/tempest.ts indoors, set by main.ts)
+    rain.visible = rainNow > 0.01 && !tempest.indoors;
+    rainSheets.visible = U.uTempest.value * rainNow > 0.02 && !tempest.indoors;
+    rainSheets.position.set(camPos.x, camPos.y, camPos.z);
+    // a streak is one frame's fall: the frame's length, eased (a hitch does not stretch the rain)
+    U.uExpo.value += (THREE.MathUtils.clamp(dt, 1 / 60, 1 / 24) - U.uExpo.value) * 0.1;
+    const gusts = tempest.wind;
+    if (gusts) {
+      gusts.fronts(U.uGusts.value, U.uGustA0.value);
+      U.uGustDir.value.set(gusts.dir.x, gusts.dir.y);
+    }
     // puddles: rain fills them; fog and mist keep the big ones; a sunny day shrinks them, but an autumn sun never
     // dries the deepest hollows of the setts and ruts (picture round 2026-09-26: every made-over view had wet ground)
     const sunny = weather === "clear" && hourNow > 8 && hourNow < 18;
@@ -1511,7 +1671,8 @@ export function createAmbient(scene: THREE.Scene, city: CityWorld): Ambient {
     // (M8f sync pass 3: by the clock every PC shares, as alive/wind.ts: the smoke leans the same way on every screen)
     const ts = sharedSeconds() % 1e6;
     const wa = 0.35 + Math.sin(ts * 0.013) * 0.25;
-    const ws = (WIND[weather] ?? 0.5) * (1 + 0.2 * Math.sin(ts * 0.07)) * (1 + 0.9 * U.uTempest.value);
+    // (the great storm: harder, and it swings with each gust at Jef: the rain lays over and straightens again)
+    const ws = (WIND[weather] ?? 0.5) * (1 + 0.2 * Math.sin(ts * 0.07)) * (1 + 0.9 * U.uTempest.value) * (1 + 0.35 * tempest.gust * U.uTempest.value);
     U.uWind.value.set(Math.cos(wa) * ws, Math.sin(wa) * ws);
     const fog = scene.fog as THREE.Fog | null;
     if (fog) fogCol.copy(fog.color);

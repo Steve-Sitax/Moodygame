@@ -65,11 +65,17 @@ const swayGlsl = (leaf: boolean, merged: boolean) => /* glsl */ `#include <begin
   float g = sin(uTime * 0.83 + ph) + 0.45 * sin(uTime * 2.07 + ph * 1.7);
   transformed.x += g * bend;
   transformed.z += sin(uTime * 0.61 + ph * 1.3) * bend * 0.6;
+  // a gale: the crown leans hard downwind, and whips back a little and over again as the gusts come (uGale)
+  float lean = hh * hh * 0.0045 * uGale.z * (0.8 + 0.2 * sin(uTime * 1.7 + ph) + 0.15 * sin(uTime * 4.3 + ph * 2.1));
+  transformed.x += uGale.x * lean;
+  transformed.z += uGale.y * lean;
+  transformed.y -= lean * lean * 0.08;
   ${
     leaf
       ? `float fl = sin(uTime * 3.4 + dot(position, vec3(1.7, 2.3, 1.1)) + ph) * 0.035 * wind * min(hh, 1.0);
   transformed += objectNormal * fl;
-  transformed.y += cos(uTime * 2.9 + dot(position, vec3(2.1, 0.7, 1.9))) * 0.02 * wind * min(hh, 1.0);`
+  transformed.y += cos(uTime * 2.9 + dot(position, vec3(2.1, 0.7, 1.9))) * 0.02 * wind * min(hh, 1.0);
+  transformed += objectNormal * sin(uTime * 9.0 + dot(position, vec3(3.1, 1.3, 2.7))) * 0.05 * uGale.z * min(hh, 1.0);`
       : ""
   }
 }`;
@@ -85,6 +91,8 @@ export function treeMaterial<T extends THREE.Material>(mat: T, leaf: boolean, me
   mat.onBeforeCompile = (shader, renderer) => {
     base.call(mat, shader, renderer);
     if (merged) shader.vertexShader = "attribute vec3 aTreeAt;\n" + shader.vertexShader;
+    shader.uniforms.uGale = psxUniforms.uGale;
+    shader.vertexShader = "uniform vec3 uGale;\n" + shader.vertexShader;
     shader.vertexShader = shader.vertexShader.replace("#include <begin_vertex>", swayGlsl(leaf, merged));
     if (leaf) {
       shader.uniforms.uPlantWet = psxUniforms.uWet;

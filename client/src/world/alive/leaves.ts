@@ -1,14 +1,15 @@
 import * as THREE from "three";
 import { psx } from "../../retro/psx";
 import CITY from "../../../../shared/city.json";
+import TOWN_PLACES from "../../../../shared/townplaces.json";
 import { leaves as leafSound } from "../../audio/aliveSounds";
 import { mulberry, openAt, type Ctx, type Frame, type Part } from "./common";
 import { dice, hash32, seeded, sharedSeconds } from "../../game/share";
 import { tempest } from "../tempest";
 
 // M7 alive: autumn leaves and scraps of paper blown along the streets. Round Jef (within 26 m)
-// lie some ninety leaves and a few torn bills and wrappers, more near the trees of the quays, the
-// squares and the ramparts. In a gust (world/alive/wind.ts) they lift one after another as the
+// lie some ninety leaves and a few torn bills and wrappers. The leaves lie only near trees (the quays,
+// the squares, the ramparts, the park): thick under a crown, none 30 m from one; the paper anywhere. In a gust (world/alive/wind.ts) they lift one after another as the
 // front passes, tumble along the stones with the wind, and pile up against the walls; when it
 // drops they settle flat. Wet (rain), they stick to the stones and go dark. A leaf that drifts off
 // too far, or out of sight behind Jef, is laid down again ahead of him. Their scrape (made in
@@ -18,10 +19,26 @@ import { tempest } from "../tempest";
 const N_LEAF = 150;
 const N_PAPER = 8;
 const N = N_LEAF + N_PAPER;
+/**
+ * The great storm (world/tempest.ts): what the gale carries through the air, round Jef and over his head. Leaves,
+ * torn paper, dark scraps (straw, rag, slate chips: the leaf card tinted dark). A second instanced mesh with the same
+ * material (no new shader). Up to this many; on an ordinary storm day a few.
+ */
+const N_FLY = 110;
+const FLY_R = 30;
 const R = 26;
-const TREES = ((CITY as unknown as { decor: { trees?: number[][]; trees_wild?: number[][] } }).decor.trees ?? []).concat(
-  (CITY as unknown as { decor: { trees_wild?: number[][] } }).decor.trees_wild ?? [],
-);
+// (every tree that sheds: the quays' and streets', the wild ones on the ramparts, those of the Sint-Jansplein and
+// the greens; the Stadspark has its own planting, taken as one wood round its middle)
+const TP = TOWN_PLACES as unknown as { rond?: { trees?: number[][] }; greens?: Array<{ trees?: number[][] }> };
+const TREES = [
+  ...((CITY as unknown as { decor: { trees?: number[][] } }).decor.trees ?? []),
+  ...((CITY as unknown as { decor: { trees_wild?: number[][] } }).decor.trees_wild ?? []),
+  ...(TP.rond?.trees ?? []),
+  ...(TP.greens ?? []).flatMap((g) => g.trees ?? []),
+];
+const PARK = (CITY as unknown as { places: Record<string, { x: number; z: number }> }).places["Stadspark"];
+/** Loose leaves lie no further than this from a tree (Steve, 2026-09-28: no leaves blowing about where no trees are). */
+const LEAF_REACH = 30;
 
 interface Leaf {
   p: THREE.Vector3;
@@ -125,6 +142,114 @@ export function createLeaves(ctx: Ctx): Part {
   mat.customProgramCacheKey = () => "alive-leaves";
   ctx.scene.add(mesh);
 
+  // the gale's flyers (the great storm): the same material, their own instances
+  const flyGeo = geometry();
+  const flyKind = new THREE.InstancedBufferAttribute(new Float32Array(N_FLY), 1);
+  const flyMesh = new THREE.InstancedMesh(flyGeo, mat, N_FLY);
+  flyMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  flyMesh.frustumCulled = false;
+  flyMesh.name = "alive_flyers";
+  interface Flyer { p: THREE.Vector3; v: THREE.Vector3; rot: THREE.Euler; quat: THREE.Quaternion; spin: THREE.Vector3; s: number; paper: boolean; live: boolean; down: number; ph: number }
+  const flyers: Flyer[] = [];
+  const fr = mulberry(1873_28);
+  for (let i = 0; i < N_FLY; i++) {
+    const kindOf = fr();
+    const paper = kindOf < 0.22;
+    const dark = !paper && kindOf < 0.5;
+    flyKind.setX(i, paper ? 0.5 : 0);
+    const c = paper ? new THREE.Color(0.78, 0.76, 0.7) : dark ? new THREE.Color().setHSL(0.08, 0.15 + fr() * 0.2, 0.12 + fr() * 0.1) : new THREE.Color().setHSL(0.05 + fr() * 0.07, 0.6 + fr() * 0.3, 0.3 + fr() * 0.2);
+    flyMesh.setColorAt(i, c);
+    flyMesh.setMatrixAt(i, new THREE.Matrix4().makeScale(0, 0, 0));
+    flyers.push({ p: new THREE.Vector3(), v: new THREE.Vector3(), rot: new THREE.Euler(fr() * 6, fr() * 6, fr() * 6), quat: new THREE.Quaternion(), spin: new THREE.Vector3(), s: paper ? 0.25 + fr() * 0.2 : dark ? 0.1 + fr() * 0.14 : 0.16 + fr() * 0.12, paper, live: false, down: 0, ph: fr() * 100 });
+  }
+  flyGeo.setAttribute("aKind", flyKind);
+  ctx.scene.add(flyMesh);
+  const fw = new THREE.Vector2();
+  let flying = 0;
+
+  /** A flyer into the wind upwind of Jef (in the air, a little out of the way), or null: no open ground there. */
+  function launch(q: Flyer, eye: THREE.Vector3, first: boolean): void {
+    const dir = ctx.wind.dir;
+    for (let t = 0; t < 4; t++) {
+      // upwind, spread across the wind; the first fill anywhere round him
+      const along = first ? (Math.random() * 2 - 1) * FLY_R : -FLY_R * (0.6 + Math.random() * 0.4);
+      const across = (Math.random() * 2 - 1) * FLY_R * 0.8;
+      const x = eye.x + dir.x * along - dir.y * across;
+      const z = eye.z + dir.y * along + dir.x * across;
+      const fl = ctx.flags(x, z);
+      const y0 = ctx.world.baseAt(x, z);
+      if (fl === undefined || !Number.isFinite(y0)) continue;
+      // (over a house: up at the roofs, where the gale comes over them)
+      const y = fl === 1 ? y0 + 10 + Math.random() * 6 : y0 + 0.3 + Math.random() * Math.random() * 9;
+      q.p.set(x, y, z);
+      ctx.wind.at(x, z, fw);
+      q.v.set(fw.x, 0, fw.y);
+      q.spin.set((Math.random() - 0.5) * 18, (Math.random() - 0.5) * 18, (Math.random() - 0.5) * 18);
+      q.live = true;
+      q.down = 0;
+      return;
+    }
+  }
+
+  function updateFlyers(f: Frame): void {
+    const fury = f.weather === "storm" ? Math.max(0.12, tempest.level) : 0;
+    const want = Math.round(N_FLY * Math.min(1, fury));
+    const dt = Math.min(f.dt, 0.05);
+    flying = 0;
+    for (let i = 0; i < N_FLY; i++) {
+      const q = flyers[i];
+      if (i >= want) {
+        if (q.live) q.live = false;
+        flyMesh.setMatrixAt(i, HIDE);
+        continue;
+      }
+      if (!q.live || q.p.distanceTo(f.eye) > FLY_R * 1.4) launch(q, f.eye, !q.live);
+      if (!q.live) {
+        flyMesh.setMatrixAt(i, HIDE);
+        continue;
+      }
+      const ground = ctx.world.baseAt(q.p.x, q.p.z);
+      const gy = Number.isFinite(ground) ? ground : q.p.y - 1;
+      ctx.wind.at(q.p.x, q.p.z, fw);
+      const gust = ctx.wind.gustAt(q.p.x, q.p.z);
+      // carried with the wind (a scrap of paper more, a slate chip less), tossed up and down in the eddies
+      const drag = q.paper ? 2.2 : q.s < 0.16 ? 1.2 : 1.7;
+      const tx = Math.min(24, fw.x * 0.9), tz = Math.min(24, fw.y * 0.9);
+      q.v.x += (tx - q.v.x) * Math.min(1, dt * drag);
+      q.v.z += (tz - q.v.z) * Math.min(1, dt * drag);
+      q.ph += dt;
+      const lift = (Math.sin(q.ph * 2.3 + i) * 3 + Math.sin(q.ph * 5.1 + i * 3) * 1.5) * (0.5 + 0.3 * gust) - (q.paper ? 1.6 : 3.2) * (1.2 - Math.min(1, gust * 0.5));
+      q.v.y += (lift - q.v.y) * Math.min(1, dt * 2);
+      const nx = q.p.x + q.v.x * dt, nz = q.p.z + q.v.z * dt;
+      const fl = ctx.flags(nx, nz);
+      // against a house front below the eaves: it slaps into the wall and drops, then the gale takes it again
+      if (fl === 1 && q.p.y < gy + 9) {
+        q.v.x *= -0.25;
+        q.v.z *= -0.25;
+        q.v.y = -1;
+        q.down = 1.2;
+      } else {
+        q.p.x = nx;
+        q.p.z = nz;
+      }
+      q.p.y += q.v.y * dt;
+      if (q.p.y < gy + 0.03) {
+        q.p.y = gy + 0.03;
+        q.v.y = Math.max(0, q.v.y) + (gust > 0.8 ? 2 + Math.random() * 3 : 0);
+      }
+      if (q.down > 0) q.down -= dt;
+      q.rot.x += q.spin.x * dt;
+      q.rot.y += q.spin.y * dt;
+      q.rot.z += q.spin.z * dt;
+      q.quat.setFromEuler(q.rot);
+      m4.compose(q.p, q.quat, sc.set(q.s, q.s, q.s * (q.paper ? 0.75 : 1.2)));
+      flyMesh.setMatrixAt(i, m4);
+      flying++;
+    }
+    flyMesh.instanceMatrix.needsUpdate = true;
+    flyMesh.visible = flying > 0;
+  }
+
   // M8f sync pass 3: the leaves and scraps are the town's, not laid round Jef by this PC's dice: each cell of the
   // ground (6 m) has its own, where its dice put them (more near the trees), made when a player comes within reach
   // of it; the same wind (alive/wind.ts: the shared clock) blows them the same way on every PC. The nearest are drawn.
@@ -148,14 +273,16 @@ export function createLeaves(ctx: Ctx): Part {
   let moving = 0;
   const HIDE = new THREE.Matrix4().makeScale(0, 0, 0);
 
-  /** More leaves near the trees: the chance a spot keeps a leaf. */
+  /** Leaves only near the trees: the chance a spot keeps a leaf (1 under a crown, none past LEAF_REACH). */
   const treeNear = (x: number, z: number) => {
+    if (PARK && Math.hypot(x - PARK.x, z - PARK.z) < 60) return 1;
     let d = 1e9;
     for (const t of TREES) {
       const dd = (t[0] - x) ** 2 + (t[1] - z) ** 2;
       if (dd < d) d = dd;
     }
-    return 0.3 + 0.7 * Math.exp(-Math.sqrt(d) / 22);
+    d = Math.sqrt(d);
+    return d > LEAF_REACH ? 0 : Math.exp(-d / 10);
   };
 
   /** The leaves of a cell, where its dice lay them. */
@@ -172,7 +299,8 @@ export function createLeaves(ctx: Ctx): Part {
       const yaw = r() * Math.PI * 2;
       const s = r();
       const h = r(), sat = r(), lit = r();
-      if (keep > (paper ? T * 0.15 : T * 0.8)) continue;
+      // (a torn bill blows about anywhere: it is not a tree's)
+      if (keep > (paper ? 0.1 : T * 0.8)) continue;
       if (!openAt(ctx.flags, x, z, 0.3)) continue;
       const y = ctx.world.baseAt(x, z);
       if (!Number.isFinite(y)) continue;
@@ -288,6 +416,7 @@ export function createLeaves(ctx: Ctx): Part {
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.visible = true;
+    updateFlyers(f);
     // the scrape, where they move near Jef
     soundWait -= dt;
     if (moving >= 3 && soundWait <= 0) {
@@ -306,11 +435,12 @@ export function createLeaves(ctx: Ctx): Part {
         .map((l) => ({ at: [+l.p.x.toFixed(2), +l.p.y.toFixed(2), +l.p.z.toFixed(2)], d: Math.hypot(l.p.x - e.x, l.p.z - e.z), paper: l.paper }))
         .sort((a, b) => a.d - b.d)
         .slice(0, 4);
-      return { n: N, moving, placed, near };
+      return { n: N, moving, placed, near, flying };
     },
     setOn: (v) => {
       on = v;
       mesh.visible = v;
+      if (!v) flyMesh.visible = false;
     },
   };
 }

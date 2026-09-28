@@ -271,6 +271,12 @@ export class Soundscape {
   private howlBands: BiquadFilterNode[] = [];
   private tempest = 0;
   private tempestGust = 0;
+  /** How much house is round him (0 open ground .. 1 in a lane or a doorway): the roofs' drumming is near then. */
+  private tempestShelter = 0;
+  /** The great storm's downpour in the open: a broad roar of rain on everything (made in code). */
+  private downpourGain: GainNode;
+  /** The street's level and dullness in the room he stands in (setInterior), for the storm to muffle further. */
+  private streetIn = { gain: 0.9, lp: 20000 };
   private murmurGain: GainNode;
   private rainRoofGain: GainNode;
   private rainCobbleGain: GainNode;
@@ -406,6 +412,12 @@ export class Soundscape {
     this.windRec = this.ctx.createGain();
     this.windRec.gain.value = 0;
     this.windRec.connect(this.bus("ambience"));
+    // the great storm's downpour in the open: broad noise, a hiss with body (setTempest)
+    this.downpourGain = this.ctx.createGain();
+    this.downpourGain.gain.value = 0;
+    this.downpourGain.connect(this.bus("ambience"));
+    this.loopNoise(this.noise, "bandpass", 2600, 0.35, this.downpourGain, 0.9, 0.07);
+    this.loopNoise(this.brown, "lowpass", 700, 0.5, this.downpourGain, 0.5, 0.05);
     // the great storm: a low roar and two narrow howling bands whose pitch wanders (setTempest; silent on any other day)
     this.howlGain = this.ctx.createGain();
     this.howlGain.gain.value = 0;
@@ -510,8 +522,9 @@ export class Soundscape {
     }
     this.hallSend.gain.setTargetAtTime(hall ? hall[2] : 0, t, 0.2);
     if (kind !== "church") this.organ(false);
-    this.streetLp.frequency.setTargetAtTime(hall ? hall[3] : kind ? 420 : 20000, t, 0.12);
-    this.street.gain.setTargetAtTime(hall ? hall[4] : kind ? 0.4 : 0.9, t, 0.12);
+    this.streetIn = { lp: hall ? hall[3] : kind ? 420 : 20000, gain: hall ? hall[4] : kind ? 0.4 : 0.9 };
+    this.streetLp.frequency.setTargetAtTime(this.streetIn.lp, t, 0.12);
+    this.street.gain.setTargetAtTime(this.streetIn.gain, t, 0.12);
     const beds: Array<[SampleName, number]> =
       kind === "tavern" ? [["tavernCrowd", 0.55], ["tavernSong", 0.32]] : kind === "cellar" ? [["murmur", 0.3]] : kind === "church" ? [["murmur", 0.05]] : kind === "hall" ? [["murmur", 0.08]] : [];
     for (const [name, gain] of beds) {
@@ -691,9 +704,10 @@ export class Soundscape {
    * The great storm (world/tempest.ts): `level` 0..1 how hard it blows, `gust` the gust at the ear now (world/alive/wind.ts
    * gustAt). The wind roars and howls with the gusts, the rain drums harder; 0 leaves every bed as it was.
    */
-  setTempest(level: number, gust: number): void {
+  setTempest(level: number, gust: number, shelter = 0): void {
     this.tempest = clamp01(level);
     this.tempestGust = Math.max(0, Math.min(3, gust));
+    this.tempestShelter = clamp01(shelter);
     if (this.tempest > 0 && this.howlBands.length) {
       // the howl bends up with the gust and wanders on its own
       const now = this.ctx.currentTime;
@@ -917,8 +931,9 @@ export class Soundscape {
     const wz = this.waterPanner.positionZ.value;
     const wOcc = this.quayDist > 0 ? this.occlusion(wx, wz, 1).gain : 1;
     // Steve 2026-09-25: "110 is far. 5 metres at best": full at the edge, gone 6 m from it
-    const wFar = 1 - ramp(this.quayDist, 1, 6);
-    this.waterGain.gain.setTargetAtTime(0.5 * (1 + 0.4 * night) * wOcc * wFar, now, tau);
+    // (the great storm: the river pounding the quays is heard a street or two back, and loud)
+    const wFar = 1 - ramp(this.quayDist, 1, 6 + 30 * this.tempest);
+    this.waterGain.gain.setTargetAtTime(0.5 * (1 + 0.4 * night) * (1 + 2.2 * this.tempest) * wOcc * wFar, now, tau);
     // Steve 2026-09-24 ("water sounds are always very loud"): the loudest steady sound in town was
     // this low wind rumble (about -30 dB, above everything near him), and low noise reads as
     // rushing water. Now about 10 dB down in the streets, a little more by open water.
@@ -937,9 +952,18 @@ export class Soundscape {
     for (const b of this.roomBedGains) b.g.gain.setTargetAtTime(b.base * this.roomLevel(b.name), now, 1.2);
     // an event's murmur follows the people standing near it
     for (const c of this.crowdSpots) c.g.gain.setTargetAtTime(chatter(this.peopleNear(c.spot.x, c.spot.z, 15)), now, 1.2);
-    // (the great storm: it drums on every roof and runs in the street)
-    this.rainRoofGain.gain.setTargetAtTime(0.4 * this.rain * (1 + 1.4 * this.tempest), now, 1.5);
-    this.rainCobbleGain.gain.setTargetAtTime(1.1 * this.rain * (1 + 0.7 * this.tempest), now, 1.5);
+    // (the great storm: it drums on the roofs round him, loud in a lane or a doorway, far off on open ground (Steve
+    // 2026-09-28: "partly falling hard on a roof while outside"); in the open a broad roar of rain on everything)
+    const T = this.tempest;
+    const roofNear = 0.25 + 0.75 * this.tempestShelter;
+    this.rainRoofGain.gain.setTargetAtTime(0.4 * this.rain * (1 + T * ((1 + 1.4) * roofNear - 1)), now, 1.5);
+    this.rainCobbleGain.gain.setTargetAtTime(1.1 * this.rain * (1 + 0.7 * T), now, 1.5);
+    this.downpourGain.gain.setTargetAtTime(0.16 * this.rain * T * (1 - 0.45 * this.tempestShelter), now, 1.5);
+    // indoors in it: the storm through thick walls, much duller and quieter than a shower heard from a room
+    if (this.roomKind && this.streetIn.gain < 0.9) {
+      this.street.gain.setTargetAtTime(this.streetIn.gain * (1 - 0.55 * T), now, 0.5);
+      this.streetLp.frequency.setTargetAtTime(this.streetIn.lp * (1 - 0.45 * T), now, 0.5);
+    }
 
     if (now > this.smithyNext) {
       this.smithyOn = !this.smithyOn;

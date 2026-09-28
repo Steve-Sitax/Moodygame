@@ -1170,10 +1170,23 @@ function tick(dt: number): void {
   safe("sound.setTempest", () => {
     const gust = alive.wind.gustAt(player.x, player.z);
     const fury = weatherNow === "storm" ? tempest.level : 0;
-    sound?.setTempest(fury, gust);
+    // how much house is round him: walls within a few steps (a lane, a doorway) bring the roofs' drumming near
+    let walls = 0;
+    if (fury > 0) for (let k = 0; k < 8; k++) for (const r of [1.2, 2.6]) if (world.city.flags(player.x + Math.cos((k * Math.PI) / 4) * r, player.z + Math.sin((k * Math.PI) / 4) * r) === 1) walls++;
+    sound?.setTempest(fury, gust, Math.min(1, walls / 6));
     // out in it, the gusts shove Jef (player/firstPerson.ts buffet)
     const indoors = interiors.inside || landmarks.indoors || carolus.indoors || gothic.indoors || prison.indoors;
     player.buffet = indoors ? 0 : fury * Math.min(1, gust / 2);
+    tempest.gust = gust;
+    tempest.wind = alive.wind;
+    // the trees lean with the gale (retro/psx.ts uGale): a storm day a little, the great storm hard and harder in the gusts
+    const bend = (weatherNow === "storm" ? 0.35 : weatherNow === "rain" ? 0.1 : 0) + fury * (0.9 + 0.45 * Math.min(gust, 3));
+    const gv = psxUniforms.uGale.value;
+    gv.set(alive.wind.dir.x, alive.wind.dir.y, gv.z + (bend - gv.z) * Math.min(1, 0.05));
+    tempest.indoors = indoors;
+    // the hardest gusts push him a step along with it (he can walk against it, slowly); between them he stands
+    const push = indoors ? 0 : fury * Math.min(0.6, Math.max(0, gust - 1.8) * 0.25);
+    player.windPush.set(alive.wind.dir.x * push, alive.wind.dir.y * push);
   });
   safe("sound.update", () => sound?.update(player.camera));
   safe("vehicles and people wiring", () => {

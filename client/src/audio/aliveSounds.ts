@@ -5,6 +5,8 @@
 // into `out` from `t0` and returns its length in seconds; audio/soundscape.ts placed() puts it at
 // a place with its own reach (the caller picks the reach: see world/alive/*.ts).
 
+import { buildThunder } from "./thunderSynth";
+
 type Make = (ctx: BaseAudioContext, out: AudioNode, t0: number, noise: AudioBuffer) => number;
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
@@ -130,24 +132,60 @@ export const gutterSplash = (strong: number, len: number): Make => (ctx, out, t0
   return len + 0.15;
 };
 
-/** Thunder `km` off: a crack (near only), then the long roll, lower and softer far away. */
-export const thunder = (km: number): Make => (ctx, out, t0, noise) => {
-  const near = Math.max(0, 1 - km / 2.5);
-  const len = 4 + km * 1.6 + Math.random() * 3;
-  if (near > 0.2) noiseBurst(ctx, noise, out, t0, "lowpass", 3500, 0.4, 0.01, 0.35 * near, 0.35);
-  // right over the roofs (the great storm): the air tears first, a ripping crackle, then the blast
-  if (near > 0.5) {
-    for (let i = 0; i < 9; i++) noiseBurst(ctx, noise, out, t0 + Math.random() * 0.22, "highpass", rand(1800, 4000), 0.8, 0.001, rand(0.15, 0.35) * near, rand(0.02, 0.06));
-    noiseBurst(ctx, noise, out, t0 + 0.18, "lowpass", 900, 0.6, 0.004, 0.7 * near, 0.6);
+/**
+ * Thunder `km` off (audio/thunderSynth.ts builds it, after Ribner and Roy: a crooked channel, a shock from every few
+ * metres of it): near, one violent crack, a rip and a boom that is over fast; far, a long low rolling rumble. The
+ * claps are built ahead in a worker (thunderPrime) and kept by distance; one near enough in distance is played, and
+ * the worker makes another. Only if none is ready is one built here, at a low rate. The caller waits km / 343 s.
+ */
+export const thunder = (km: number): Make => (ctx, out, t0) => {
+  let best = -1;
+  let bd = 0.45;
+  for (let i = 0; i < thunderPool.length; i++) {
+    const d = Math.abs(Math.log(thunderPool[i].km / Math.max(0.1, km)));
+    if (d < bd) {
+      bd = d;
+      best = i;
+    }
   }
-  // the roll: a few swells of low noise
-  const swells = 3 + Math.floor(Math.random() * 4);
-  for (let i = 0; i < swells; i++) {
-    const t = t0 + (i / swells) * len * 0.7 + Math.random() * 0.4;
-    noiseBurst(ctx, noise, out, t, "lowpass", rand(90, 260) * (1 + near), 0.7, rand(0.1, 0.5), rand(0.35, 0.7) / (1 + km * 0.35), rand(0.8, 2.2));
-  }
-  return len + 2;
+  const got = best >= 0 ? thunderPool.splice(best, 1)[0] : { km, sr: 11025, data: buildThunder(km, 11025) };
+  thunderPrime();
+  const buf = ctx.createBuffer(1, got.data.length, got.sr);
+  buf.copyToChannel(got.data as Float32Array<ArrayBuffer>, 0);
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.connect(out);
+  src.start(t0);
+  return got.data.length / got.sr + 0.5;
 };
+
+/** Claps built ahead (thunder.worker.ts), by distance. */
+const thunderPool: Array<{ km: number; sr: number; data: Float32Array }> = [];
+const THUNDER_KMS = [0.3, 0.6, 1.1, 2, 3.5, 6, 9];
+let thunderWorker: Worker | null = null;
+let thunderAsked = 0;
+
+/** Keep a clap or two of each distance ready (the storm part calls it; cheap when all are there). */
+export function thunderPrime(): void {
+  if (!thunderWorker) {
+    if (typeof Worker === "undefined") return;
+    try {
+      thunderWorker = new Worker(new URL("./thunder.worker.ts", import.meta.url), { type: "module" });
+      thunderWorker.onmessage = (e: MessageEvent<{ km: number; sr: number; data: Float32Array }>) => {
+        thunderAsked = Math.max(0, thunderAsked - 1);
+        thunderPool.push(e.data);
+      };
+    } catch {
+      return;
+    }
+  }
+  for (const km of THUNDER_KMS) {
+    if (thunderAsked >= 3) return;
+    if (thunderPool.filter((q) => Math.abs(Math.log(q.km / km)) < 0.3).length >= 2) continue;
+    thunderAsked++;
+    thunderWorker.postMessage({ km: km * rand(0.85, 1.15), sr: 22050 });
+  }
+}
 
 /** A cat's hiss (a cat you came too close to in the dark). */
 export const hiss = (): Make => (ctx, out, t0, noise) => {
@@ -344,4 +382,18 @@ export const rollingCask = (secs: number): Make => (ctx, out, t0, noise) => {
     noiseBurst(ctx, noise, out, t, "bandpass", rand(600, 1100), 1.2, 0.002, rand(0.05, 0.12), 0.05);
   }
   return secs + 0.4;
+};
+
+/** A storm wave slamming into the quay wall: the deep thump of the water on the stone, the roar of it going up, and the spray falling back in a hiss of drops. `k` 0..1 how big. */
+export const waveSlam = (k: number): Make => (ctx, out, t0, noise) => {
+  noiseBurst(ctx, noise, out, t0, "lowpass", 140, 0.8, 0.01, 0.7 * k, 0.35);
+  tone(ctx, out, t0, "sine", 70, 38, 0.4, 0.005, 0.35 * k);
+  noiseBurst(ctx, noise, out, t0 + 0.04, "bandpass", 900, 0.6, 0.05, 0.35 * k, 0.6);
+  noiseBurst(ctx, noise, out, t0 + 0.1, "highpass", 2500, 0.5, 0.2, 0.18 * k, 1.1);
+  const drops = Math.round(20 + 40 * k);
+  for (let i = 0; i < drops; i++) {
+    const t = t0 + 0.6 + Math.random() * 1.4;
+    noiseBurst(ctx, noise, out, t, "bandpass", rand(1500, 5000), 1.5, 0.002, rand(0.02, 0.06) * k, rand(0.02, 0.05));
+  }
+  return 2.4;
 };

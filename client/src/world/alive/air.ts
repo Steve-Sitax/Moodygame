@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { snort, thunder } from "../../audio/aliveSounds";
+import { snort, thunder, thunderPrime } from "../../audio/aliveSounds";
 import { FCOMMON, VCOMMON, pointMat, rand, type Ctx, type Frame, type Part } from "./common";
 import { HORSE_NOSE } from "../horseGait";
 import { AIR_GLOW_GLSL, airGlowUniforms } from "../../retro/psx";
@@ -16,18 +16,75 @@ import { tempest } from "../tempest";
 
 // ------------------------------------------------------------------ thunder and lightning
 
+/** The bolt's points: a crooked channel and two branches (the line, one draw call; world space, set per strike). */
+const BOLT_SEG = 64;
+
 export function createStorm(ctx: Ctx): Part {
   let on = true;
   let wait = 20;
+  let rumble = 8;
+  let primeT = 0;
+  let flicker = 3;
+  let flickers = 0;
   let flash = -1;
   let pattern: Array<[number, number]> = [];
   let sky: THREE.HemisphereLight | null = null;
   let lastSet = -1;
   let lastBoost = 0;
   let strikes = 0;
+  let rumbles = 0;
+  let near = 0;
   const flashCol = new THREE.Color(0.75, 0.8, 1.0);
   /** Dev: a strike now, `km` off. */
   let forced = -1;
+  // the bolt itself (the great storm, near strikes): a jagged white line from the cloud to the roofs, seen for the
+  // flickers of the strike. No fog on it: it outshines the rain. Built once, at load; drawn only while it shows.
+  const boltPos = new Float32Array(BOLT_SEG * 2 * 3);
+  const boltGeo = new THREE.BufferGeometry();
+  boltGeo.setAttribute("position", new THREE.BufferAttribute(boltPos, 3));
+  boltGeo.setDrawRange(0, 0);
+  const boltMat = new THREE.LineBasicMaterial({ color: 0xeef2ff, transparent: true, opacity: 0, fog: false, depthWrite: false });
+  boltMat.name = "lightning_bolt";
+  const bolt = new THREE.LineSegments(boltGeo, boltMat);
+  bolt.name = "alive_bolt";
+  bolt.frustumCulled = false;
+  bolt.renderOrder = 5;
+  ctx.scene.add(bolt);
+  let boltN = 0;
+
+  /** A new bolt `d` metres off that way from the eye: down from the cloud in crooked steps, with two branches. */
+  function makeBolt(eye: THREE.Vector3, a: number, d: number): void {
+    const bx = eye.x + Math.cos(a) * d;
+    const bz = eye.z + Math.sin(a) * d;
+    let i = 0;
+    const seg = (x0: number, y0: number, z0: number, x1: number, y1: number, z1: number) => {
+      if (i >= BOLT_SEG) return;
+      boltPos.set([x0, y0, z0, x1, y1, z1], i * 6);
+      i++;
+    };
+    const top = d * 0.9 + 60;
+    let x = bx + rand(-20, 20), y = top, z = bz + rand(-20, 20);
+    const trunk: Array<[number, number, number]> = [];
+    while (y > 0 && i < BOLT_SEG - 16) {
+      const st = top / 30;
+      const nx = x + rand(-0.7, 0.7) * st, ny = y - rand(0.6, 1.3) * st, nz = z + rand(-0.7, 0.7) * st;
+      seg(x, y, z, nx, Math.max(0, ny), nz);
+      trunk.push([nx, ny, nz]);
+      x = nx; y = ny; z = nz;
+    }
+    for (let b = 0; b < 2 && trunk.length > 6; b++) {
+      let [cx, cy, cz] = trunk[Math.floor(rand(0.15, 0.6) * trunk.length)];
+      const dx = rand(-1, 1), dz = rand(-1, 1);
+      for (let k = 0; k < 7; k++) {
+        const st = top / 34;
+        const nx = cx + (dx + rand(-0.6, 0.6)) * st, ny = cy - rand(0.4, 1) * st, nz = cz + (dz + rand(-0.6, 0.6)) * st;
+        seg(cx, cy, cz, nx, ny, nz);
+        cx = nx; cy = ny; cz = nz;
+      }
+    }
+    boltN = i;
+    boltGeo.attributes.position.needsUpdate = true;
+  }
 
   function level(): number {
     if (flash < 0) return 0;
@@ -39,6 +96,12 @@ export function createStorm(ctx: Ctx): Part {
     return v;
   }
 
+  /** Thunder `km` off from the side `a` (placed in the air that way, far enough that it comes from there). */
+  function thunderFrom(eye: { x: number; z: number }, a: number, km: number, gain: number): void {
+    const r = Math.min(300, Math.max(60, km * 250));
+    ctx.sound()?.placed({ x: eye.x + Math.cos(a) * r, y: Math.min(200, r * 0.7), z: eye.z + Math.sin(a) * r }, { ref: 400, reach: 5000, max: 1e9, occl: 0, wet: 0.7, gain }, thunder(km));
+  }
+
   function update(f: Frame): void {
     if (!sky) ctx.scene.traverse((o) => {
       if (!sky && (o as THREE.HemisphereLight).isHemisphereLight) sky = o as THREE.HemisphereLight;
@@ -46,50 +109,82 @@ export function createStorm(ctx: Ctx): Part {
     // undo last frame's boost if the world has not set the light again since
     if (sky && lastBoost && sky.intensity === lastSet) sky.intensity -= lastBoost;
     lastBoost = 0;
-    if (!on) return;
+    if (!on) {
+      boltGeo.setDrawRange(0, 0);
+      return;
+    }
     const storm = f.weather === "storm";
     const heavy = f.weather === "rain" && f.rain > 0.8;
+    // (the great storm, world/tempest.ts: strike on strike, some right over the roofs, and the far storm rolls on between)
+    const fury = storm ? tempest.level : 0;
+    // (the claps are built ahead, off the main thread: audio/thunder.worker.ts)
+    primeT -= f.dt;
+    if ((storm || heavy) && primeT <= 0) {
+      primeT = 2;
+      thunderPrime();
+    }
     wait -= f.dt;
     if (forced >= 0 || ((storm || heavy) && wait <= 0)) {
-      // (the great storm, world/tempest.ts: strike on strike, some right over the roofs)
-      const fury = storm ? tempest.level : 0;
-      wait = storm ? rand(15, 55) * (1 - 0.8 * fury) : rand(150, 400);
-      const km = forced >= 0 ? forced : fury > 0.5 && Math.random() < 0.35 * fury ? rand(0.25, 1.2) : rand(0.8, 6) * (1 - 0.5 * fury);
+      wait = storm ? rand(15, 55) * (1 - 0.9 * fury) : rand(150, 400);
+      const km = forced >= 0 ? forced : fury > 0.4 && Math.random() < 0.45 * fury ? rand(0.2, 1.1) : rand(0.8, 6) * (1 - 0.5 * fury);
       forced = -1;
       flash = 0;
-      // two or three flickers over half a second, weaker far away
-      const k = Math.max(0.25, 1 - km / 7);
+      // flickers over half a second, weaker far away; a near one strikes again and again down the same channel
+      const k = Math.max(0.25, 1 - km / 7) * (km < 1.2 ? 1.6 : 1);
       pattern = [[0, k], [rand(0.08, 0.14), k * rand(0.3, 0.6)], [rand(0.2, 0.35), k * rand(0.5, 0.9)]];
+      if (km < 1.2) pattern.push([rand(0.4, 0.5), k * rand(0.6, 1)], [rand(0.55, 0.7), k * rand(0.3, 0.7)]);
+      near = km;
       strikes++;
-      const delay = (km * 1000) / 343;
+      const a = Math.random() * Math.PI * 2;
+      // the bolt itself when it is near enough to see through the rain
+      if (km < 2.2) makeBolt(f.eye, a, THREE.MathUtils.clamp(km * 220, 90, 380));
+      else boltN = 0;
       const eye = { x: f.eye.x, z: f.eye.z };
-      window.setTimeout(() => {
-        // the thunder comes from the strike's side, far off: placed in the air 300 m out that way
-        const a = Math.random() * Math.PI * 2;
-        ctx.sound()?.placed({ x: eye.x + Math.cos(a) * 300, y: 200, z: eye.z + Math.sin(a) * 300 }, { ref: 400, reach: 5000, max: 1e9, occl: 0, wet: 0.8, gain: 1.4 }, thunder(km));
-      }, delay * 1000);
+      window.setTimeout(() => thunderFrom(eye, a, km, 1.6), ((km * 1000) / 343) * 1000);
+    }
+    // the lightning inside the clouds: a dim flicker of the sky every second or few, no bolt, no near sound
+    flicker -= f.dt;
+    if (storm && fury > 0.3 && flicker <= 0) {
+      flicker = rand(1, 4) / fury;
+      flickers++;
+      if (flash < 0) {
+        flash = 0;
+        near = 9;
+        boltN = 0;
+        const k = rand(0.12, 0.3);
+        pattern = [[0, k], [rand(0.06, 0.15), k * rand(0.4, 0.9)]];
+      }
+    }
+    // the far storm: thunder rolling on out of sight, no flash to speak of
+    rumble -= f.dt;
+    if (storm && fury > 0.25 && rumble <= 0) {
+      rumble = rand(5, 14) / fury;
+      rumbles++;
+      thunderFrom(f.eye, Math.random() * Math.PI * 2, rand(5, 11), 1.2);
     }
     if (flash >= 0) {
       flash += f.dt;
       const v = level();
-      if (flash > 0.6) flash = -1;
+      if (flash > 0.8) flash = -1;
       // the air and the sky light up (the world sets them again each frame)
       const fog = ctx.scene.fog as THREE.Fog | null;
       if (fog && v > 0) {
-        fog.color.lerp(flashCol, v * 0.7);
+        fog.color.lerp(flashCol, Math.min(0.95, v * 0.7));
         if (ctx.scene.background instanceof THREE.Color) ctx.scene.background.copy(fog.color);
       }
       if (sky && v > 0) {
-        lastBoost = v * 3;
+        lastBoost = v * (near < 1.2 ? 6 : 3);
         sky.intensity += lastBoost;
         lastSet = sky.intensity;
       }
-    }
+      boltGeo.setDrawRange(0, boltN * 2);
+      boltMat.opacity = boltN ? Math.min(1, v * 1.4) : 0;
+    } else boltGeo.setDrawRange(0, 0);
   }
   return {
     name: "storm",
     update,
-    info: () => ({ strikes, next: +wait.toFixed(1), flashing: flash >= 0 }),
+    info: () => ({ strikes, rumbles, flickers, next: +wait.toFixed(1), flashing: flash >= 0, lastKm: +near.toFixed(2) }),
     setOn: (v) => {
       on = v;
     },
@@ -101,17 +196,13 @@ export function createStorm(ctx: Ctx): Part {
 
 const PUFFS = 90;
 
-export function createBreath(ctx: Ctx): Part {
-  const pos = new Float32Array(PUFFS * 3);
-  const age = new Float32Array(PUFFS);
-  const size = new Float32Array(PUFFS).fill(1);
-  const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  g.setAttribute("aAge", new THREE.BufferAttribute(age, 1));
-  g.setAttribute("aSize", new THREE.BufferAttribute(size, 1));
-  const tint = { value: new THREE.Color() };
-  const mat = pointMat({
-    uniforms: { uTint: tint, ...airGlowUniforms() },
+/**
+ * Soft puffs of mist lit as the fog round them (breath in the cold; the great storm's spray off the quay walls,
+ * world/alive/gale.ts). One shader for both: the same source, one program. `alpha` scales how thick a puff is.
+ */
+export function mistMaterial(tint: { value: THREE.Color }, alpha: { value: number }): THREE.ShaderMaterial {
+  return pointMat({
+    uniforms: { uTint: tint, uAlpha: alpha, ...airGlowUniforms() },
     vertexShader: /* glsl */ `
       ${VCOMMON}
       uniform float fogFar;
@@ -136,6 +227,7 @@ export function createBreath(ctx: Ctx): Part {
     fragmentShader: /* glsl */ `
       ${FCOMMON}
       uniform vec3 uTint;
+      uniform float uAlpha;
       varying float vA;
       varying float vS;
       varying vec3 vGlow;
@@ -144,11 +236,23 @@ export function createBreath(ctx: Ctx): Part {
         float d = dot(c, c) * 4.0;
         if (d > 1.0) discard;
         float mottle = 0.6 + 0.4 * hash12(floor(gl_PointCoord * 4.0) + vS);
-        float a = vA * (1.0 - d) * (1.0 - d) * mottle * 0.2;
+        float a = vA * (1.0 - d) * (1.0 - d) * mottle * 0.2 * uAlpha;
         if (a < 0.004) discard;
         gl_FragColor = vec4(mix(uTint, fogColor, fogK()) + vGlow, a);
       }`,
   });
+}
+
+export function createBreath(ctx: Ctx): Part {
+  const pos = new Float32Array(PUFFS * 3);
+  const age = new Float32Array(PUFFS);
+  const size = new Float32Array(PUFFS).fill(1);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  g.setAttribute("aAge", new THREE.BufferAttribute(age, 1));
+  g.setAttribute("aSize", new THREE.BufferAttribute(size, 1));
+  const tint = { value: new THREE.Color() };
+  const mat = mistMaterial(tint, { value: 1 });
   const pts = new THREE.Points(g, mat);
   pts.frustumCulled = false;
   pts.name = "alive_breath";
