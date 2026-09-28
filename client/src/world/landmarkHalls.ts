@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { pickSack, sackGeometry, sackMaterial, sackMesh } from "../game/sackModel";
 import { canvasTex, flicker, frameRoom, rand, tex, type Seat } from "./rooms";
 import { signTexture } from "./textures";
 import { createFires } from "./fire";
@@ -1270,9 +1272,28 @@ export function buildOostershuis(): LandmarkRoom {
     const nx = Math.max(1, Math.floor((x1 - x0) / 0.97));
     const nz = Math.max(1, Math.floor((z1 - z0) / 0.62));
     if (kind === "sacks") {
+      // (2026-09-28: the one sack model, game/sackModel.ts, in the pyramids as they were laid; one lot a stack)
+      const lot = pickSack(`hall:oh:${x0},${z0}`, "entrepot");
+      const base = sackGeometry(lot.goods);
+      const b = base.boundingBox!;
+      const fit = new THREE.Vector3(0.95 / (b.max.x - b.min.x), 0.42 / (b.max.y - b.min.y), 0.6 / (b.max.z - b.min.z));
+      const geos: THREE.BufferGeometry[] = [];
       for (let lvl = 0; lvl < 4; lvl++)
         for (let i = 0; i < nx - lvl; i++)
-          for (let j = 0; j < nz; j++) k.box(0.95, 0.42, 0.6, x0 + 0.49 + (i + lvl / 2) * 0.97, 0.21 + lvl * 0.4, z0 + 0.31 + j * 0.62, H.sack, { ry: (r() - 0.5) * 0.15, tint: 0.85 + r() * 0.25 });
+          for (let j = 0; j < nz; j++) {
+            const M = new THREE.Matrix4().compose(
+              new THREE.Vector3(x0 + 0.49 + (i + lvl / 2) * 0.97, lvl * 0.4, z0 + 0.31 + j * 0.62),
+              new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), (r() - 0.5) * 0.15 + (j % 2 ? Math.PI : 0)),
+              fit,
+            );
+            geos.push(base.clone().applyMatrix4(M));
+          }
+      const merged = mergeGeometries(geos)!;
+      for (const g of geos) g.dispose();
+      merged.computeBoundingSphere();
+      const sacks = new THREE.Mesh(merged, sackMaterial(lot));
+      sacks.name = "hall_sacks";
+      group.add(sacks);
     } else if (kind === "bales") {
       const bx = Math.max(1, Math.floor((x1 - x0) / 1.25));
       const bz = Math.max(1, Math.floor((z1 - z0) / 1.0));
@@ -1296,7 +1317,12 @@ export function buildOostershuis(): LandmarkRoom {
   k.box(1.2, 0.12, 1.2, SCALE.x, 0.06, SCALE.z, M.iron);
   k.box(0.12, 1.4, 0.12, SCALE.x, 0.8, SCALE.z - 0.6, M.iron);
   k.box(0.9, 0.08, 0.08, SCALE.x, 1.5, SCALE.z - 0.6, M.iron);
-  k.box(0.6, 0.4, 0.6, SCALE.x, 0.32, SCALE.z + 0.1, H.sack);
+  {
+    // a sack on the scale, stood up to be weighed (the one sack model)
+    const onScale = sackMesh(pickSack("hall:oh:scale", "entrepot"), { standing: true, fit: [0.55, 0.78, 0.5] });
+    onScale.position.set(SCALE.x, 0.12, SCALE.z + 0.1);
+    group.add(onScale);
+  }
   desk(k, DESK.x, 0, DESK.z, 1.6);
   k.box(0.4, 0.03, 0.3, DESK.x + 0.4, 0.84, DESK.z, H.books);
   chair(k, DESK.x, 0, DESK.z - 0.8, 0);
@@ -1307,10 +1333,13 @@ export function buildOostershuis(): LandmarkRoom {
   // the hoist: a rope down through the hatch with a hook and a sack, going up and down
   const hoist = new THREE.Group();
   const ropeM = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1, 4), matOf(H.rope));
-  const sackM = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.6), matOf(H.sack));
+  // (the sack on the hook: the one sack model, game/sackModel.ts; its middle where the box's was)
+  const sackM = new THREE.Group();
+  const hooked = sackMesh(pickSack("hall:oh:hoist", "entrepot"), { fit: [0.9, 0.45, 0.55] });
+  hooked.position.y = -0.225;
+  sackM.add(hooked);
   const col = (n: number) => new THREE.BufferAttribute(new Float32Array(n * 3).fill(1), 3);
   ropeM.geometry.setAttribute("color", col(ropeM.geometry.getAttribute("position").count));
-  sackM.geometry.setAttribute("color", col(sackM.geometry.getAttribute("position").count));
   hoist.add(ropeM, sackM);
   hoist.position.set(HATCH.x, 0, HATCH.z);
   group.add(hoist);

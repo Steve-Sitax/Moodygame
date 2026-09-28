@@ -905,8 +905,41 @@ def wheel(m, c, r, w, spokes, segs, fel=None, hub=None, spoke=None):
             m.beam(d * hr * 0.8, d * (r - fel * 0.6), sw, sw * 1.3, DARK, side=(0, 0, 1), caps=False, tile=0.8)
 
 
+# Where each model's sacks are (2026-09-28: one sack model for every sack, client game/sackModel.ts): by model name, a
+# list of {k: lying | standing, m: its matrix in the model's glTF frame (column-major), L, W, H}. The geometry is still
+# built (the colliders and footprints come from it); the game draws the one sack model in its place (world/props3d.ts
+# place) and writes it to client/src/world/props_sack_sockets.json.
+SACK_SOCKETS = {}
+CUR_MODEL = [None]
+# True while a "_bare" copy is built: the same model with no sack in it (the game adds the one sack model)
+NO_SACKS = [False]
+
+
+def bare(fn):
+    """The model without its sacks (for the models that mix sacks with other things on the picture sheet)."""
+    def run():
+        NO_SACKS[0] = True
+        try:
+            return fn()
+        finally:
+            NO_SACKS[0] = False
+    return run
+
+
+def _sack_socket(m, kind, L, W, H):
+    if CUR_MODEL[0] is None or NO_SACKS[0]:
+        return
+    C = Matrix(((1, 0, 0, 0), (0, 0, 1, 0), (0, -1, 0, 0), (0, 0, 0, 1)))  # Blender (x, y, z) -> glTF (x, z, -y)
+    g = C @ m.xf @ C.inverted()
+    col = [g[r][c] for c in range(4) for r in range(4)]
+    SACK_SOCKETS.setdefault(CUR_MODEL[0], []).append(dict(k=kind, m=[round(v, 4) for v in col], L=round(L, 3), W=round(W, 3), H=round(H, 3)))
+
+
 def sack(m, seed, L=0.9, W=0.52, H=0.27, nx=7, na=10, mat=SACK):
     """A full jute sack lying down, long along X, tied ends pinched flat."""
+    _sack_socket(m, "lying", L, W, H)
+    if NO_SACKS[0]:
+        return
     rng = random.Random(seed)
     rings = []
     for k in range(nx):
@@ -933,6 +966,9 @@ def sack(m, seed, L=0.9, W=0.52, H=0.27, nx=7, na=10, mat=SACK):
 
 def sack_standing(m, seed):
     """A full sack standing up, the neck gathered and tied, a crumpled tuft on top."""
+    _sack_socket(m, "standing", 0.56, 0.48, 0.84)
+    if NO_SACKS[0]:
+        return
     rng = random.Random(seed)
     prof = [(0.21, 0.0), (0.26, 0.05), (0.28, 0.2), (0.275, 0.42), (0.25, 0.55), (0.18, 0.64), (0.085, 0.69), (0.05, 0.715),
             (0.05, 0.745), (0.1, 0.775), (0.135, 0.815), (0.075, 0.84)]
@@ -2702,6 +2738,11 @@ BUILDERS = [
     ("tr_handcart", lambda: handcart(False, "body", atlas=True)),
     ("tr_handcart_wheels", lambda: handcart(False, "wheels", atlas=True)),
     ("tr_handcart_load", lambda: handcart(True, "load", atlas=True)),
+    # (2026-09-28) the mixed models without their sacks: the game draws these and the one sack model in the sacks' place
+    ("handcart_loaded_bare", bare(lambda: handcart(True))),
+    ("weigh_scale_bare", bare(weigh_scale)),
+    ("sack_truck_sacks_bare", bare(sack_truck_sacks)),
+    ("tr_handcart_load_bare", bare(lambda: handcart(True, "load", atlas=True))),
 ]
 
 GOODS_NAMES = ["casks_row", "casks_pyramid", "casks_standing", "petrol_row", "petrol_pyramid", "bales_block", "bales_row",
@@ -3116,7 +3157,11 @@ def main():
     make_materials()
     objs = {}
     for name, fn in BUILDERS:
+        CUR_MODEL[0] = name
         objs[name] = fn().to_object(name)
+    CUR_MODEL[0] = None
+    with open(os.path.join(ROOT, "client", "src", "world", "props_sack_sockets.json"), "w", encoding="utf-8") as f:
+        json.dump(SACK_SOCKETS, f, separators=(",", ":"))
     counts = {n: tris(o) for n, o in objs.items()}
     doors = bpy.data.objects.new("house_doors", None)
     doors["doors"] = json.dumps(house_doors(), separators=(",", ":"))

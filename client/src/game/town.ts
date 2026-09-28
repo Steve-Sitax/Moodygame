@@ -4,6 +4,7 @@ import { activityAt, type Now } from "../../../server/src/town/schedule";
 import { paceOf as townPace, reportLag, settleLag, whereAt, whereLate } from "../../../server/src/town/whereabouts";
 import { wayKey } from "../../../server/src/town/wayfind";
 import { haulRouteOf } from "../../../shared/hauls";
+import { sackLabelFor } from "./sackModel";
 import type { Crowd, Puppet } from "./crowd";
 import type { Animals } from "./animals";
 import type { Stalls } from "./stalls";
@@ -1065,7 +1066,11 @@ export class Town {
       case "haul": {
         // (the trade plan: drawn where the sum has him, he walks on the way he was going; at first, to the quay end)
         const q = s.toB ? g.b! : g.a!;
-        this.crowd.puppetLoad(p, s.toB && !["porter", "carter", "docker_sack"].includes(s.kind), haulRouteOf(g.a, g.b, 1)?.carry ?? "sack");
+        const hr = haulRouteOf(g.a, g.b, 1);
+        // (the sack says what his route's pile says: game/sackModel.ts)
+        const hl = hr ? sackLabelFor(`haul:${hr.id}a:0`) : undefined;
+        this.crowd.puppetLoad(p, s.toB && !["porter", "carter", "docker_sack"].includes(s.kind), hr?.carry ?? "sack", hl);
+        if (hl) p.human.setSackLabel(hl);
         this.crowd.puppetGo(p, q[0], q[1], pace);
         break;
       }
@@ -1178,7 +1183,10 @@ export class Town {
         // loaded from the pile to the door, back empty
         s.toB = atA;
         s.tries = 0;
-        this.crowd.puppetLoad(p, s.toB && !bare, carry);
+        // (the sack says what his route's pile says; a docker with his own sack on the shoulder too: game/sackModel.ts)
+        const label = route ? sackLabelFor(`haul:${route.id}a:0`) : undefined;
+        this.crowd.puppetLoad(p, s.toB && !bare, carry, label);
+        if (label) p.human.setSackLabel(label);
         const q = s.toB ? g.b! : g.a!;
         this.crowd.puppetGo(p, q[0], q[1]);
         return;

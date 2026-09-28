@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { pickSack, SACK_H, SACK_NEST, sackGeometry, sackMaterial } from "../game/sackModel";
 import { psx } from "../retro/psx";
 import { makeHuman, type Human } from "../game/humans";
 import type { Rect } from "./geom";
@@ -471,6 +473,23 @@ function wheelsetGeometry(): THREE.BufferGeometry {
   return k.build();
 }
 
+/** The sacks the goods train carries and the cranes swing (one lot, picked from the goods list). */
+const TRAIN_SACKS = pickSack("train:sacks", "quay");
+
+/** A unit of sacks as a crane slings it and a wagon slot holds it: two side by side along the wagon, one on them. */
+function sackUnit(goods: string): THREE.BufferGeometry {
+  const base = sackGeometry(goods);
+  const parts: Array<[number, number, number, number]> = [
+    [-0.25, 0, 0, Math.PI / 2],
+    [0.25, 0, 0.02, -Math.PI / 2],
+    [0.02, SACK_H - SACK_NEST, 0, Math.PI / 2 + 0.06],
+  ];
+  const geos = parts.map(([x, y, z, yaw]) => base.clone().applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(1, 1, 1))));
+  const g = mergeGeometries(geos)!;
+  g.computeBoundingSphere();
+  return g;
+}
+
 function unitGeometry(kind: GoodsKind): THREE.BufferGeometry {
   const k = new Kit();
   if (kind === "sacks") {
@@ -894,7 +913,10 @@ export function createRailway(scene: THREE.Scene, opts: RailwayOptions): Railway
   for (const g of GOODS)
     goodsMesh.set(
       g,
-      inst(W && goodsMat ? W.goods[g] : unitGeometry(g), W && goodsMat ? goodsMat : g === "crates" ? crateMat : g === "casks" ? woodMat : sackMat, 48, `goods_${g}`),
+      // (2026-09-28: a unit of sacks is three of the one sack model, game/sackModel.ts; one lot for the train's sacks)
+      g === "sacks"
+        ? inst(sackUnit(TRAIN_SACKS.goods), sackMaterial(TRAIN_SACKS), 48, "goods_sacks")
+        : inst(W && goodsMat ? W.goods[g] : unitGeometry(g), W && goodsMat ? goodsMat : g === "crates" ? crateMat : g === "casks" ? woodMat : sackMat, 48, `goods_${g}`),
     );
   // the train's two and the omnibuses' pairs: red roans, the Brabant's own colour (horseGait.ts coats)
   const horses = new HorsePool(scene, opts.props, 2 + (opts.spareHorses ?? 2), "roan");

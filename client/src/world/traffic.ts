@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { sackGeometry, sackLabelFor, sackLoadGeometry, sackMaterial, sackMesh, type SackLabel } from "../game/sackModel";
+import SACK_SOCKETS from "./props_sack_sockets.json";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { makeHuman, type Human, type HumanKind } from "../game/humans";
 import { psx } from "../retro/psx";
@@ -269,6 +271,9 @@ export interface PushCartOptions {
  * ground covered. Let go of it and it settles on its prop legs.
  */
 export class PushCart {
+  /** Carts made so far (a default stencil for each cart's sacks). */
+  static made = 0;
+  private readonly nr = PushCart.made++;
   readonly root = new THREE.Group();
   /** The bed tips about the axle; things put on the cart hang here (M6 handcart: Jef's load). */
   readonly pivot = new THREE.Group();
@@ -291,13 +296,25 @@ export class PushCart {
   private items: THREE.Mesh[] = [];
 
   constructor(parent: THREE.Object3D, props: Props, opts: PushCartOptions = {}) {
-    const body = mergedPart(props, opts.load === false ? ["tr_handcart"] : ["tr_handcart", "tr_handcart_load"]);
+    // (the load without its sacks, and the one sack model in their places: game/sackModel.ts, 2026-09-28)
+    const body = mergedPart(props, opts.load === false ? ["tr_handcart"] : ["tr_handcart", "tr_handcart_load_bare"]);
     const wheels = mergedPart(props, ["tr_handcart_wheels"]);
     const mat = props.materials.goods;
     this.pivot.position.y = CART_R;
     const bm = new THREE.Mesh(body, mat);
     bm.position.y = -CART_R;
     this.pivot.add(bm);
+    if (opts.load !== false) {
+      const label = sackLabelFor(`cart:${this.nr}`);
+      for (const r of (SACK_SOCKETS as Record<string, Array<{ k: string; m: number[]; L: number; W: number; H: number }>>).tr_handcart_load ?? []) {
+        const sk = sackMesh(label, { standing: r.k === "standing", fit: [r.L, r.H, r.W] });
+        const M = new THREE.Matrix4().fromArray(r.m);
+        const sc = new THREE.Vector3();
+        M.decompose(sk.position, sk.quaternion, sc);
+        sk.scale.multiply(sc);
+        bm.add(sk);
+      }
+    }
     this.wheels = new THREE.Mesh(wheels, mat);
     this.wheels.position.y = CART_R;
     this.root.add(this.pivot, this.wheels);
@@ -345,22 +362,36 @@ export class PushCart {
    * M6 transport: show n things on the bed (baskets, crates, sacks, a chair), loaded one at a
    * time by the family (game/journeys.ts). Up to six; made once, shown or hidden.
    */
-  setItems(n: number, what: "goods" | "fish" | "furniture" | "chests" | "sacks" = "goods"): void {
+  setItems(n: number, what: "goods" | "fish" | "furniture" | "chests" | "sacks" = "goods", label?: SackLabel): void {
     if (!this.items.length) {
       for (let i = 0; i < 6; i++) {
         const m = new THREE.Mesh(itemGeo(i), itemMat(i));
-        // two rows across the bed, from the axle toward the grips; the upper row on top
-        const [x, z, y] = ITEM_AT[i];
-        m.position.set(x, y, z);
-        m.rotation.y = (i * 0.37) % 0.5 - 0.25;
         m.visible = false;
         this.pivot.add(m);
         this.items.push(m);
       }
+      this.what = "";
     }
+    const sackLabel = label ?? sackLabelFor(`cart:${this.nr}`);
     this.items.forEach((m, i) => {
       m.visible = i < n;
-      if (what !== this.what) m.geometry = itemGeo(i, what);
+      if (what === this.what && (what !== "sacks" || !label)) return;
+      const sack = what === "sacks" || (what === "goods" && i % 3 === 1);
+      m.geometry = sack ? sackGeometry(sackLabel.goods) : itemGeo(i, what);
+      m.material = sack ? sackMaterial(sackLabel) : itemMat(i);
+      if (what === "sacks") {
+        // full sacks lying across the bed, the next in the dips (the one sack model)
+        const [x, z, y] = SACKS_AT[i];
+        m.position.set(x, y, z);
+        m.rotation.y = (i % 2 ? Math.PI : 0) + ((i * 0.37) % 0.1) - 0.05;
+        m.scale.setScalar(1);
+      } else {
+        // two rows across the bed, from the axle toward the grips; the upper row on top
+        const [x, z, y] = ITEM_AT[i];
+        m.position.set(x, y, z);
+        m.rotation.y = (i * 0.37) % 0.5 - 0.25;
+        m.scale.setScalar(sack ? 0.5 : 1);
+      }
     });
     this.what = what;
   }
@@ -418,6 +449,10 @@ export class PushCart {
 const ITEM_AT: Array<[number, number, number]> = [
   [-0.22, -0.2, 0.2], [0.22, -0.2, 0.2], [-0.22, 0.3, 0.2], [0.22, 0.3, 0.2], [0, 0.05, 0.52], [0, 0.55, 0.45],
 ];
+/** Full sacks on a handcart's bed (pivot frame): three lying across it side by side, two in the dips, one on top. */
+const SACKS_AT: Array<[number, number, number]> = [
+  [0, -0.1, -0.2], [0, 0.4, -0.2], [0, 0.9, -0.2], [0, 0.15, 0.03], [0, 0.65, 0.03], [0, 0.4, 0.26],
+];
 const itemGeos = new Map<string, THREE.BufferGeometry>();
 function itemGeo(i: number, what = "goods"): THREE.BufferGeometry {
   const kind = what === "fish" ? (i % 2 ? "basket" : "tub") : what === "furniture" ? (i % 3 === 0 ? "chair" : "crate") : what === "sacks" ? "sack" : i % 3 === 1 ? "sack" : i % 3 === 2 ? "basket" : "crate";
@@ -427,7 +462,7 @@ function itemGeo(i: number, what = "goods"): THREE.BufferGeometry {
       kind === "crate"
         ? new THREE.BoxGeometry(0.4, 0.3, 0.42).translate(0, 0.15, 0)
         : kind === "sack"
-          ? new THREE.IcosahedronGeometry(0.24, 0).scale(1.1, 0.7, 0.9).translate(0, 0.16, 0)
+          ? sackGeometry() // (the one sack model: a full sack on a load of sacks, half size among a family's things)
           : kind === "basket"
             ? new THREE.CylinderGeometry(0.2, 0.16, 0.24, 7).translate(0, 0.12, 0)
             : kind === "tub"
@@ -663,7 +698,18 @@ export function createTraffic(scene: THREE.Scene, flags: Flags, props: Props, op
   const loads = new Map<DrayLoad, { mesh: THREE.InstancedMesh; who: Vehicle[] }>();
   for (const l of LOADS) {
     const who = drays.filter((d) => d.load === l);
-    const mesh = inst(`tr_load_${l}`, who.length);
+    let mesh: THREE.InstancedMesh | null;
+    if (l === "sacks" && who.length) {
+      // (2026-09-28: the one sack model, laid across the bed where the old load stood: game/sackModel.ts)
+      const box = mergedPart(props, ["tr_load_sacks"]);
+      box.computeBoundingBox();
+      const lot = sackLabelFor("traffic:sacks");
+      mesh = new THREE.InstancedMesh(sackLoadGeometry(box.boundingBox!, Infinity, lot.goods), sackMaterial(lot), who.length);
+      mesh.name = "tr_load_sacks";
+      mesh.frustumCulled = false;
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      group.add(mesh);
+    } else mesh = inst(`tr_load_${l}`, who.length);
     if (mesh) loads.set(l, { mesh, who });
   }
 
@@ -1124,7 +1170,10 @@ export class LedDray {
   /** Per leg (left fore, right fore, left hind, right hind): the upper and the lower part. */
   private readonly legs: Array<[THREE.Mesh, THREE.Mesh]>;
   private readonly gaitPose = newHorsePose();
-  private readonly load: THREE.Mesh | null;
+  private load: THREE.Mesh | null;
+  /** The space the load fills on the bed (its frame), for a load of sacks made of the one sack model. */
+  private loadBox: THREE.Box3 | null = null;
+  private sackGoods: string | undefined;
   /** The man's steps, newest first (every 0.2 m). */
   private trail: Array<[number, number]> = [];
   private gait = 0;
@@ -1145,11 +1194,31 @@ export class LedDray {
     this.front = mesh("tr_wheels_front");
     this.horse = horse("tr_horse_body");
     this.legs = [0, 1, 2, 3].map((k) => [horse(LEG_PARTS[legPart(k, false)]), horse(LEG_PARTS[legPart(k, true)])]);
-    this.load = load ? mesh(`tr_load_${load}`) : null;
+    if (load === "sacks") {
+      // (2026-09-28: the one sack model, laid across the bed where the old load stood; world/../game/sackModel.ts)
+      const g = mergedPart(props, ["tr_load_sacks"]);
+      g.computeBoundingBox();
+      this.loadBox = g.boundingBox!.clone();
+      const lot = sackLabelFor(`dray:${LedDray.made}`);
+      this.load = new THREE.Mesh(sackLoadGeometry(this.loadBox, Infinity, lot.goods), sackMaterial(lot));
+      this.sackGoods = lot.goods;
+      this.load.name = "tr_load_sacks";
+    } else this.load = load ? mesh(`tr_load_${load}`) : null;
     for (const m of [this.bed, this.fore, this.rear, this.front, this.horse, ...this.legs.flat()]) this.root.add(m);
     if (this.load) this.root.add(this.load);
     this.root.name = "led_dray";
     parent.add(this.root);
+  }
+
+  /** A load of sacks: how many lie on the bed and what their stencil says (the mill's flour, the dock's grain). */
+  setSacks(n: number, label?: SackLabel): void {
+    if (!this.load || !this.loadBox) return;
+    if (label) {
+      this.sackGoods = label.goods;
+      this.load.material = sackMaterial(label);
+    }
+    this.load.geometry = sackLoadGeometry(this.loadBox, Math.max(0, n), this.sackGoods);
+    this.load.visible = n > 0;
   }
 
   /** Show or hide the load (unloaded at the door). */

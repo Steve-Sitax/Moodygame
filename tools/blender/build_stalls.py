@@ -736,8 +736,29 @@ def leek(m, L=0.5, r=0.021):
            uvfn=lambda p: cuv("leek", 0.5 + p.y / (5 * r), p.x / L))
 
 
+# The open sacks of the stalls (2026-09-28: one sack model, client game/sackModel.ts openSackGeometry): by model name,
+# {k: "open", m (glTF frame, column-major), r, h, goods}; the lying and standing ones come from build_props'
+# recorder (bp.SACK_SOCKETS). All written to client/src/game/stalls_sack_sockets.json; each model with sacks gets a
+# "_bare" copy without them (its goods heaped in the open sacks stay).
+OPEN_SOCKETS = {}
+CUR = [None]
+
+
+def _open_socket(m, r, h, goods):
+    if CUR[0] is None or bp.NO_SACKS[0]:
+        return
+    C = Matrix(((1, 0, 0, 0), (0, 0, 1, 0), (0, -1, 0, 0), (0, 0, 0, 1)))
+    g = C @ m.xf @ C.inverted()
+    OPEN_SOCKETS.setdefault(CUR[0], []).append(dict(k="open", m=[round(g[rr][c], 4) for c in range(4) for rr in range(4)],
+                                                  r=r, h=h, goods=goods))
+
+
 def potato_sack(m):
     """An open sack standing on the table, its top rolled down, heaped with potatoes."""
+    _open_socket(m, 0.2, 0.4, "potatoes")
+    if bp.NO_SACKS[0]:
+        m.lathe([(0.188, 0.385), (0.1, 0.43), (0.03, 0.44)], 7, GOODS, cap1=True, uvfn=uv_plan("potato", 0, 0, 0.19, 0.19))
+        return
     prof = [(0.16, 0.0), (0.2, 0.07), (0.2, 0.29), (0.172, 0.36), (0.195, 0.395)]
     with shading(m, bottom_dark(0.4, 0.72)):
         m.lathe(prof, 7, SACK, urep=1, vscale=1 / 0.42)
@@ -1488,6 +1509,10 @@ def stool2(m):
 
 def open_sack(m, cell, seed=0):
     """A sack standing open, its top rolled down, heaped with `cell` (potatoes, onions, chestnuts)."""
+    _open_socket(m, 0.21, 0.475, {"chestnut": "chestnuts", "onion": "onions"}.get(cell, "potatoes"))
+    if bp.NO_SACKS[0]:
+        heap(m, 0, 0, 0.19, 0.19, 0.07, cell, n=4, seed=seed, z0=0.44)
+        return
     prof = [(0.17, 0.0), (0.21, 0.08), (0.21, 0.36), (0.18, 0.44), (0.205, 0.475)]
     with shading(m, bottom_dark(0.48, 0.7)):
         m.lathe(prof, 8, DETAIL, smooth=True, uvfn=lambda p: duv("sacking", abs(math.atan2(p.y, p.x)) / math.pi, p.z / 0.48))
@@ -2112,13 +2137,31 @@ def main():
     make_materials()
     objs = {}
     for name, fn in BUILDERS:
+        CUR[0] = name
+        bp.CUR_MODEL[0] = name
         ob = to_object(fn(), name)
+        CUR[0] = None
+        bp.CUR_MODEL[0] = None
+        if name in OPEN_SOCKETS or name in bp.SACK_SOCKETS:
+            # (the same model without its sacks: the game draws the one sack model in their places)
+            bp.NO_SACKS[0] = True
+            try:
+                bare = to_object(fn(), name + "_bare")
+            finally:
+                bp.NO_SACKS[0] = False
+            bare["footprint"] = json.dumps(footprint(bare), separators=(",", ":")) if len(bare.data.vertices) else "null"
+            objs[name + "_bare"] = bare
         ob["footprint"] = json.dumps(footprint(ob), separators=(",", ":"))
         if name == "stall_frame":
             ob["top"] = STALL_TOP
         if name == "shop_table":
             ob["top"] = SHOP_TOP
         objs[name] = ob
+    socks = {k: list(v) for k, v in bp.SACK_SOCKETS.items()}
+    for k, v in OPEN_SOCKETS.items():
+        socks.setdefault(k, []).extend(v)
+    with open(os.path.join(ROOT, "client", "src", "game", "stalls_sack_sockets.json"), "w", encoding="utf-8") as f:
+        json.dump(socks, f, separators=(",", ":"))
     counts = {n: bp.tris(o) for n, o in objs.items()}
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_yup=True, export_texcoords=True, export_normals=True,

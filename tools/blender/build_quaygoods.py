@@ -43,6 +43,7 @@ import sys
 import bpy
 import numpy as np
 from mathutils import Matrix, Vector
+import json
 
 sys.path.insert(0, os.path.dirname(__file__))
 import build_streetlife as sl  # noqa: E402
@@ -1384,8 +1385,42 @@ def casks_group():
 SACK_CELLS = ["sack_coffee", "sack_grain", "sack_plain", "sack_red"]
 
 
+# Where the static sacks of a model are (2026-09-28: one sack model for every sack, client game/sackModel.ts): by
+# model name, {k, m (the sack's matrix in the model's glTF frame, column-major), L, W, H}; written to
+# client/src/world/quaygoods_sack_sockets.json. Only the models that hold sacks that are not goods of the server
+# (the loaded handcart, the sack truck, the scale); their "_bare" copies are built without them.
+QG_SOCKETS = {}
+QG_CUR = [None]
+QG_NO_SACKS = [False]
+
+
+def tagged(name, fn):
+    """Build the model with its sacks recorded under its name."""
+    QG_CUR[0] = name
+    try:
+        return fn()
+    finally:
+        QG_CUR[0] = None
+
+
+def bared(fn):
+    """Build the model without its sacks (the game draws the one sack model in their place)."""
+    QG_NO_SACKS[0] = True
+    try:
+        return fn()
+    finally:
+        QG_NO_SACKS[0] = False
+
+
 def sack_geo(m, x, y, z, yaw, cell, seed, L=0.92, Wd=0.52, Hh=0.3, pitch=0.0, flat=True, slump=0.18):
     M = move(x, y, z) @ rot("Z", yaw) @ rot("Y", pitch)
+    if QG_CUR[0] is not None and not QG_NO_SACKS[0]:
+        C = Matrix(((1, 0, 0, 0), (0, 0, 1, 0), (0, -1, 0, 0), (0, 0, 0, 1)))  # Blender (x, y, z) -> glTF (x, z, -y)
+        g = C @ (m.xf @ M) @ C.inverted()
+        QG_SOCKETS.setdefault(QG_CUR[0], []).append(dict(k="lying", m=[round(g[r][c], 4) for c in range(4) for r in range(4)],
+                                                         L=round(L, 3), W=round(Wd, 3), H=round(Hh, 3)))
+    if QG_NO_SACKS[0]:
+        return
     blob(m, L, Wd, Hh, cell, seed, z0=0.0, e1=0.32, e2=0.92, nu=10, nv=6, slump=slump, noise=0.012, flat=flat, M=M)
     # the tied ears at both ends
     for sx in (-1, 1):
@@ -2124,8 +2159,9 @@ def build_models():
         ("rope_coil", rope_coil()), ("rope_coil_tar", rope_coil("coil_tar")), ("rope_loose", rope_loose()), ("cable_drum", cable_drum()),
         ("ropewalk", ropewalk()),
         ("baskets", baskets()), ("basket", basket_one()), ("hamper", hamper()),
-        ("handcart", handcart()), ("handcart_loaded", handcart_loaded()), ("sack_truck", sack_truck()),
-        ("planks_stack", planks_stack()), ("baulks", baulks()), ("weigh_scale", weigh_scale()), ("pallet", pallet_empty()),
+        ("handcart", handcart()), ("handcart_loaded", tagged("handcart_loaded", handcart_loaded)), ("sack_truck", tagged("sack_truck", sack_truck)),
+        ("planks_stack", planks_stack()), ("baulks", baulks()), ("weigh_scale", tagged("weigh_scale", weigh_scale)), ("pallet", pallet_empty()),
+        ("handcart_loaded_bare", bared(handcart_loaded)), ("sack_truck_bare", bared(sack_truck)), ("weigh_scale_bare", bared(weigh_scale)),
         ("d_straw_a", ground_decal("straw_a", 1.8, 1.3)), ("d_straw_b", ground_decal("straw_b", 1.2, 0.8)),
         ("d_grain", ground_decal("grain", 0.9, 0.9)), ("d_coffee", ground_decal("coffee", 0.7, 0.7)),
         ("d_oil", ground_decal("oil", 1.3, 1.3)), ("d_dirt", ground_decal("dirt", 2.2, 1.4)),
@@ -2182,7 +2218,10 @@ def main():
     objs = {}
     counts = {}
     pieces = 0
-    for name, mesh in build_models():
+    models = build_models()
+    with open(os.path.join(ROOT, "client", "src", "world", "quaygoods_sack_sockets.json"), "w", encoding="utf-8") as f:
+        json.dump(QG_SOCKETS, f, separators=(",", ":"))
+    for name, mesh in models:
         if isinstance(mesh, PMesh) and mesh.pieces:
             # M8f goods pass 2: each cask, crate and sack its own node in its own frame, and the rest
             for oname, ob in split_pieces(name, mesh):

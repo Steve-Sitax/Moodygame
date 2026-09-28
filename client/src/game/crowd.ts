@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { sackLabelFor, sackMaterial, sackMesh, sackOf, standingSackGeometry, type SackLabel } from "./sackModel";
 import { psx } from "../retro/psx";
 import { addLantern, lanternDarkAt, removeLantern, type LanternSource } from "../world/lanternLights";
 import { lampFog } from "../world/lampFog";
@@ -172,6 +173,8 @@ interface Person {
   /** Dockers who pick up and put down a sack at each end (the others always carry). */
   handCarry: boolean;
   sack: THREE.Object3D | null;
+  /** What the sack he carries says (the pile or the mill it came from). */
+  sackLabel?: SackLabel;
   /** What the load in his hands is (puppetLoad). */
   loadKind?: "sack" | "crate";
   cluster: Cluster | null;
@@ -218,8 +221,9 @@ interface Person {
 /** M6 transport: what a townsperson rides, pushes or leads (game/journeys.ts says which). */
 export type PuppetVehicle =
   | { kind: "velo" }
-  | { kind: "cart"; items: number; what?: "goods" | "fish" | "furniture" | "chests" | "sacks" }
-  | { kind: "dray"; loaded: boolean };
+  | { kind: "cart"; items: number; what?: "goods" | "fish" | "furniture" | "chests" | "sacks"; label?: SackLabel }
+  // (sacks: how many lie on the bed and what they say, else the full load; the one sack model, game/sackModel.ts)
+  | { kind: "dray"; loaded: boolean; sacks?: number; label?: SackLabel };
 
 interface Vehicle {
   spec: PuppetVehicle;
@@ -631,9 +635,7 @@ export class Crowd {
   private readonly m4 = new THREE.Matrix4();
   private readonly sphere = new THREE.Sphere();
   private readonly tmp = new THREE.Vector3();
-  private readonly sackMat: THREE.Material;
   private crateMat: THREE.Material;
-  private readonly sackGeo: THREE.BufferGeometry;
   private crateGeo: THREE.BufferGeometry;
   /** The props (for the carters' handcarts and the crates they sit on), once loaded. */
   private cartProps: Props | null = null;
@@ -656,9 +658,7 @@ export class Crowd {
     this.quayRail = opts.quayRail ?? false;
     this.places = places;
     this.grid = new NavGrid(this.radius + 12);
-    this.sackMat = opts.mats?.sack ?? psx(new THREE.MeshLambertMaterial({ color: 0x8a7650 }));
     this.crateMat = opts.mats?.crate ?? psx(new THREE.MeshLambertMaterial({ color: 0x4a3a28 }));
-    this.sackGeo = new THREE.IcosahedronGeometry(0.5, 0).scale(0.46, 0.34, 0.3);
     this.crateGeo = new THREE.BoxGeometry(0.5, 0.45, 0.4).translate(0, 0.225, 0);
     this.lanternGeo = new THREE.CylinderGeometry(0.06, 0.05, 0.16, 4).translate(0, -0.08, 0);
     this.lanternCapGeo = new THREE.ConeGeometry(0.075, 0.07, 4).translate(0, 0.035, 0);
@@ -956,11 +956,17 @@ export class Crowd {
 
   /** A sack on the shoulder while walking (dockers between the quay and the door). */
   /** A load in the hands: a sack on the shoulder, or (the dockers of shared/hauls.ts at a pile of crates) a crate held before him. */
-  puppetLoad(p: Puppet, on: boolean, kind: "sack" | "crate" = "sack"): void {
+  puppetLoad(p: Puppet, on: boolean, kind: "sack" | "crate" = "sack", label?: SackLabel): void {
     p.handCarry = true;
     if (on && p.sack && p.sack.userData.kind !== kind) this.setLoad(p, false);
     p.loadKind = kind;
+    // (what the sack says: the pile he takes it from, the mill's flour; the one sack model, game/sackModel.ts)
+    if (label) p.sackLabel = label;
     this.setLoad(p, on);
+    if (on && kind === "sack") {
+      if (p.sack && label) (p.sack as THREE.Mesh).material = sackMaterial(label);
+      p.human.setSackLabel(p.sackLabel ?? sackLabelFor(null));
+    }
   }
 
   /** A lantern in hand (police at night, people with work for Jef after dark). */
@@ -1039,8 +1045,11 @@ export class Crowd {
     const had = p.veh;
     if (had && spec && had.spec.kind === spec.kind) {
       had.spec = spec;
-      if (spec.kind === "cart") had.cart?.setItems(spec.items, spec.what);
-      if (spec.kind === "dray" && had.dray) had.dray.loaded = spec.loaded;
+      if (spec.kind === "cart") had.cart?.setItems(spec.items, spec.what, spec.label);
+      if (spec.kind === "dray" && had.dray) {
+        had.dray.loaded = spec.loaded;
+        if (spec.sacks !== undefined) had.dray.setSacks(spec.sacks, spec.label);
+      }
       return;
     }
     if (had) this.dropVehicle(p);
@@ -1069,7 +1078,7 @@ export class Crowd {
       p.reach = CART.carter![1];
       if (this.cartProps) {
         v.cart = new PushCart(this.scene, this.cartProps, { load: false });
-        v.cart.setItems(spec.items, spec.what);
+        v.cart.setItems(spec.items, spec.what, spec.label);
         v.cart.place(p.x + Math.sin(p.yaw) * 0.5, p.z + Math.cos(p.yaw) * 0.5, p.yaw);
         for (const r of v.cart.rects) this.ground.addMover?.(r);
       }
@@ -1077,6 +1086,7 @@ export class Crowd {
       if (this.cartProps) {
         v.dray = new LedDray(this.scene, this.cartProps, "sacks");
         v.dray.loaded = spec.loaded;
+        if (spec.sacks !== undefined) v.dray.setSacks(spec.sacks, spec.label);
         v.dray.place(p.x, p.z, p.yaw);
         for (const r of v.dray.rects) this.ground.addMover?.(r);
       }
@@ -1254,7 +1264,8 @@ export class Crowd {
       // fish wrapped in paper: a long thin roll, the tail out of one end
       fish: () => [new THREE.CylinderGeometry(0.045, 0.06, 0.32, 5).rotateZ(Math.PI / 2).translate(0, -0.04, 0), paper],
       parcel: () => [new THREE.BoxGeometry(0.2, 0.12, 0.14).translate(0, -0.08, 0), paper],
-      sack: () => [new THREE.IcosahedronGeometry(0.14, 0).scale(1, 1.3, 0.9).translate(0, -0.16, 0), this.sackMat],
+      // a small sack of the one sack model, stood up, hanging from the hand (game/sackModel.ts)
+      sack: () => [standingSackGeometry("flour").clone().scale(0.34, 0.34, 0.34).translate(0, -0.3, 0), sackMaterial(sackOf("flour", "a baker's bag"))],
       basket: () => [new THREE.CylinderGeometry(0.17, 0.13, 0.18, 6).translate(0, -0.2, 0), psx(new THREE.MeshLambertMaterial({ color: 0x7a6038 }))],
     };
     const r = made[what]();
@@ -2106,9 +2117,10 @@ export class Crowd {
         s.position.set(0, 0.78 * k, 0.34 * k);
         s.userData.kind = "crate";
       } else {
-        s = new THREE.Mesh(this.sackGeo, this.sackMat);
-        s.position.set(0, 1.1 * k, 0.3 * k);
-        s.rotation.set(0.15, 0.2, 0.1);
+        // the one sack model (game/sackModel.ts), held across the arms before the chest
+        s = sackMesh(p.sackLabel ?? sackLabelFor(null), { fit: [0.72, 0.26, 0.42] });
+        s.position.set(0, 0.98 * k, 0.3 * k);
+        s.rotation.set(0.12, 0.08, 0.04);
         s.userData.kind = "sack";
       }
       p.group.add(s);

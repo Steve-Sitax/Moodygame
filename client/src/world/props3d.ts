@@ -3,6 +3,8 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { pickSack, sackGeometry, sackMaterial, sackMesh, standingSackGeometry, type SackLabel } from "../game/sackModel";
+import SACK_SOCKETS from "./props_sack_sockets.json";
 import CITY from "../../../shared/city.json";
 import SPOT_TABLE from "../../../shared/spots.json";
 import { psx } from "../retro/psx";
@@ -135,6 +137,42 @@ const SETS: Record<string, Array<[string, number, number, number, number]>> = {
 };
 
 export type PropName = (typeof PROP_NAMES)[number] | keyof typeof SETS;
+
+/** A sack of a props.glb model (tools/blender/build_props.py SACK_SOCKETS): lying or standing, its matrix in the model, its size. */
+interface SackSocketRow {
+  k: "lying" | "standing";
+  m: number[];
+  L: number;
+  W: number;
+  H: number;
+}
+
+/**
+ * Which goods the sacks of each model hold (shared/goodsCatalog.ts ids and how often); picked per placement by where it
+ * stands, so every stack its own lot (Steve 2026-09-28: "all must be variable/dynamic"). Unlisted: any goods of a quay.
+ */
+const PROP_SACK_GOODS: Record<string, Array<[string, number]>> = {
+  coffee_stack: [["coffee", 1]],
+  grain_pile: [["rye", 3], ["wheat", 3], ["oats", 1], ["barley", 1]],
+  weigh_scale: [["coffee", 2], ["beans", 1], ["rice", 1]],
+  handcart_loaded: [["rye", 2], ["wheat", 1], ["flour", 1], ["oats", 1]],
+};
+
+/** The one sack model in a model's sack's place. */
+function sackFromSocket(r: SackSocketRow, label: SackLabel): THREE.Mesh {
+  const standing = r.k === "standing";
+  const mesh = sackMesh(label, { standing, fit: [r.L, r.H, r.W] });
+  mesh.userData.sack = r.k;
+  const M = new THREE.Matrix4().fromArray(r.m);
+  const p = new THREE.Vector3();
+  const q = new THREE.Quaternion();
+  const sc = new THREE.Vector3();
+  M.decompose(p, q, sc);
+  mesh.position.copy(p);
+  mesh.quaternion.copy(q);
+  mesh.scale.multiply(sc);
+  return mesh;
+}
 
 /** Footprint in the prop's own frame (x across, z along its front), and height. */
 export interface Footprint {
@@ -302,10 +340,61 @@ async function load(): Promise<Props> {
     return f;
   }
 
-  function place(name: string, x: number, z: number, yaw: number, parent?: THREE.Object3D): THREE.Object3D {
+  // 2026-09-28 (CLAUDE.md: one model per thing): every sack in props.glb is drawn as the one sack model of
+  // game/sackModel.ts, where the model had its own (props_sack_sockets.json, written by tools/blender/build_props.py).
+  // A model of sacks only is drawn as those sacks; a model with sacks among other things as its "_bare" copy (the same
+  // model without the sacks) and the sacks. Footprints and colliders stay the original model's.
+  const shown = new Map<string, THREE.Object3D>();
+  function shownOf(name: string): THREE.Object3D | undefined {
+    const hit = shown.get(name);
+    if (hit) return hit;
     const src = protos.get(name);
+    if (!src) return undefined;
+    let out: THREE.Object3D = src;
+    const set = (SETS as Record<string, Array<[string, number, number, number, number]>>)[name];
+    const sock = (SACK_SOCKETS as Record<string, SackSocketRow[]>)[name];
+    if (set) {
+      const g = new THREE.Group();
+      g.name = name;
+      for (const [part, x, y, z, yaw] of set) {
+        const q = shownOf(part);
+        if (!q) continue;
+        const c = q.clone();
+        c.position.set(x, y, z);
+        c.rotation.y = yaw;
+        g.add(c);
+      }
+      out = g;
+    } else if (sock) {
+      const g = new THREE.Group();
+      g.name = name;
+      const bare = protos.get(`${name}_bare`);
+      if (bare) g.add(bare.clone());
+      // (its goods are picked per placement, in place())
+      const label = pickSack(`prop:${name}`, PROP_SACK_GOODS[name] ?? "quay");
+      for (const r of sock) g.add(sackFromSocket(r, label));
+      out = g;
+    }
+    out.updateMatrixWorld(true);
+    shown.set(name, out);
+    return out;
+  }
+
+  function place(name: string, x: number, z: number, yaw: number, parent?: THREE.Object3D): THREE.Object3D {
+    const src = shownOf(name);
     if (!src) throw new Error(`no prop ${name}`);
     const o = src.clone();
+    // the sacks of this copy: one lot, its goods picked by where it stands (every stack its own, the same on every PC)
+    if ((SACK_SOCKETS as Record<string, unknown>)[name] || (SETS as Record<string, unknown>)[name]) {
+      const lot = pickSack(`prop:${name}:${Math.round(x * 2)},${Math.round(z * 2)}`, PROP_SACK_GOODS[name] ?? "quay");
+      o.traverse((c) => {
+        if (!c.userData.sack) return;
+        const m = c as THREE.Mesh;
+        const standing = c.userData.sack === "standing";
+        m.geometry = standing ? standingSackGeometry(lot.goods) : sackGeometry(lot.goods);
+        m.material = sackMaterial(lot);
+      });
+    }
     o.name = name;
     o.position.set(x, 0, z);
     o.rotation.y = yaw;
