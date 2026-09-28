@@ -211,3 +211,49 @@ describe("no crowd on one pile (Steve 2026-09-28: \"not bunching like 100 people
     expect(bad).toEqual([]);
   });
 });
+
+describe("the carts pass the drawbridges' posts (Steve 2026-09-28: the Kipdorp dray went through one)", () => {
+  // the gallows posts of the city's drawbridges (client world/bridges.ts DEFS and createDrawBridge: at the hinge, 1.2 m
+  // back, the deck's half and 0.45 m out on either side; a 0.5 m collider each)
+  const leaves: Array<[number, number, number, number]> = [
+    [-82, 6, 0, 4], [-70, 6, Math.PI, 4], [-142, 5.5, Math.PI, 3.5], [-82, 69.5, 0, 3.5], [-70, 69.5, Math.PI, 3.5],
+    [-82, 153.5, 0, 3.5], [-70, 153.5, Math.PI, 3.5], [-142, 43.5, Math.PI, 3.5],
+  ];
+  const posts: Array<[number, number]> = [];
+  for (const [hx, hz, yaw, half] of leaves)
+    for (const side of [-1, 1]) {
+      const lz = side * (half + 0.45);
+      posts.push([hx - 1.2 * Math.cos(yaw) + lz * Math.sin(yaw), hz + 1.2 * Math.sin(yaw) + lz * Math.cos(yaw)]);
+    }
+  it("every mill cart's way, the man and the rig on his trail, keeps a metre from every post", () => {
+    const bad: string[] = [];
+    for (const m of MILLS)
+      for (const k of ["bakery", "dock"] as const)
+        for (const pts of [m.routes[k], m.routes[k].slice().reverse()] as Array<Array<[number, number]>>) {
+          const samples: Array<[number, number, number]> = [];
+          let s = 0;
+          for (let i = 1; i < pts.length; i++) {
+            const [ax, az] = pts[i - 1];
+            const [bx, bz] = pts[i];
+            const L = Math.hypot(bx - ax, bz - az);
+            for (let d = 0; d < L; d += 0.25) samples.push([ax + ((bx - ax) * d) / L, az + ((bz - az) * d) / L, s + d]);
+            s += L;
+          }
+          const at = (ss: number) => samples.reduce((b, q) => (q[2] <= ss ? q : b), samples[0]);
+          for (const c of samples) {
+            // (a dray: the horse and the bed behind the carter, 0.85 m to his right, 0.8 m either side of it; a handcart ahead of its man)
+            for (const back of m.cart === "dray" ? [0, 1, 2.4, 3.05, 4.3, 5.45, 6.17] : [0, -2.6]) {
+              const q = at(Math.max(0, c[2] - back));
+              const q2 = at(Math.max(0, c[2] - back - 0.5));
+              const yaw = Math.atan2(q[0] - q2[0], q[1] - q2[1]);
+              const side = m.cart === "dray" && back ? 0.85 : 0;
+              const half = m.cart === "dray" ? (back ? 0.8 : 0.3) : 0.5;
+              const px = q[0] - Math.cos(yaw) * side;
+              const pz = q[1] + Math.sin(yaw) * side;
+              for (const [ox, oz] of posts) if (Math.hypot(px - ox, pz - oz) - 0.25 - half < 1) bad.push(`${m.id} ${k}: ${px.toFixed(1)},${pz.toFixed(1)} by the post ${ox.toFixed(1)},${oz.toFixed(1)}`);
+            }
+          }
+        }
+    expect([...new Set(bad)].slice(0, 5)).toEqual([]);
+  });
+});

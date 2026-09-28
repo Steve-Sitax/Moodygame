@@ -42,7 +42,9 @@ export interface MillDef {
   stops: { bakery: [number, number]; dock: [number, number] };
   /**
    * The cart's ways from its stand to those stops through streets wide enough for it (made on the walk map with
-   * room to spare, points 3 to 18 m apart: no corner of no length); the way back is the same reversed.
+   * room to spare, points 3 to 18 m apart: no corner of no length); the way back is the same reversed. Over a
+   * drawbridge along the middle of its deck: the gallows posts stand at its corners (Steve 2026-09-28 saw the Kipdorp
+   * dray go through one; server test/runs.test.ts checks every route against them).
    */
   routes: { bakery: Array<[number, number]>; dock: Array<[number, number]> };
   /** The way on foot (metres, the walk map): yard to the bakery's door, yard to the grain spot, mill door to the yard. */
@@ -67,7 +69,7 @@ export const MILLS: MillDef[] = [
     stops: { bakery: [-207, 36.3], dock: [-63, 98.5] },
     routes: {
       bakery: [[-144.2, 334.5], [-144.5, 317.5], [-144.5, 299.5], [-144.5, 281.5], [-144.5, 263.5], [-144.5, 245.5], [-144.5, 227.5], [-144.5, 209.5], [-155.5, 196.5], [-164.5, 181.5], [-172.5, 165.5], [-176.5, 148.5], [-181.5, 132.5], [-187.5, 129.5], [-201.5, 125.5], [-202.5, 108.5], [-202.5, 90.5], [-202.5, 72.5], [-202.5, 54.5], [-205.1, 41.8], [-207, 36.3]],
-      dock: [[-144.2, 334.5], [-144.5, 317.5], [-144.5, 299.5], [-144.5, 281.5], [-144.5, 263.5], [-144.5, 245.5], [-144.5, 227.5], [-141.5, 211.5], [-134.5, 209.5], [-117.5, 208.5], [-99.5, 208.5], [-91.5, 203.5], [-91.5, 185.5], [-89.5, 168.5], [-81.5, 154.5], [-67.5, 150.5], [-67.5, 132.5], [-67.5, 114.5], [-63, 98.5]],
+      dock: [[-144.2, 334.5], [-144.5, 317.5], [-144.5, 299.5], [-144.5, 281.5], [-144.5, 263.5], [-144.5, 245.5], [-144.5, 227.5], [-141.5, 211.5], [-134.5, 209.5], [-117.5, 208.5], [-99.5, 208.5], [-91.5, 203.5], [-91.5, 185.5], [-89.5, 168.5], [-86.5, 153.5], [-80, 153.5], [-72, 153.5], [-65.2, 153.5], [-65.5, 146.5], [-67.5, 132.5], [-67.5, 114.5], [-63, 98.5]],
     },
     way: { bakery: 337, grain: 311, stair: 95 },
   },
